@@ -34,7 +34,7 @@ private:
   FakeList();
   ~FakeList();
 
-  // silence a silly egcs-1.1.2 warning (this function isn't defined)
+  // silence a silly egcs-1.1.2 warning (this class isn't defined)
   friend class Some_undefined_class;
 
   // this class has *no* data--an object of this type is

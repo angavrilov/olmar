@@ -7,6 +7,7 @@ verbatim {
 
 // I want a visitor, with the interface called ExampleVisitor
 option visitor ExampleVisitor;
+option mvisitor ExampleMVisitor;
 
 // emit the xmlPrint stuff too
 option xmlPrint;
@@ -25,6 +26,7 @@ class Node (
   public FakeList<Node> *listptr = NULL;
 
   custom traverse { next->traverse(vis); }
+  custom mtraverse { mtraverse(obj->next); }
 }
 
 class NodeList (
@@ -49,6 +51,7 @@ class Super (int x) {
   -> Sub1(int y);
   -> Sub2(int z);
   -> SubWithDefault(int q = 5);
+  -> Sub3(Super s1, Sub2 s2);
 }
 
 enum AnEnum { AE_ONE, AE_TWO };

@@ -22,6 +22,10 @@
 string visitorName;
 inline bool wantVisitor() { return visitorName.length() != 0; }
 
+// similar for the modification visitor ("mvisitor")
+string mvisitorName;
+inline bool wantMVisitor() { return mvisitorName.length() != 0; }
+
 // list of all TF_classes in the input, useful for certain
 // applications which don't care about other forms
 SObjList<TF_class> allClasses;
@@ -35,6 +39,9 @@ bool wantGDB = false;
 
 // ------------------ shared gen functions ----------------------
 class Gen {
+protected:        // types
+  enum TreeNodeKind { TKN_NONE, TKN_SUPERCLASS, TKN_SUBCLASS };
+
 protected:        // data
   string srcFname;                  // name of source file
   ObjList<string> const &modules;   // extension modules
@@ -42,15 +49,30 @@ protected:        // data
   ofstream out;                     // output stream
   ASTSpecFile const &file;          // AST specification
 
-public:
+public:           // funcs
   Gen(char const *srcFname, ObjList<string> const &modules,
       char const *destFname, ASTSpecFile const &file);
   ~Gen();
 
   // type queries
-  bool isTreeNode(char const *type);
-  bool isTreeNodePtr(char const *type);
+  TreeNodeKind getTreeNodeKind(char const *type);
+  TreeNodeKind Gen::getTreeNodePtrKind(char const *type);
+
+  bool isTreeNode(char const *type)
+    { return getTreeNodeKind(type) != TKN_NONE; }
+  bool isTreeNodePtr(char const *type)
+    { return getTreeNodePtrKind(type) != TKN_NONE; }
+  bool isSuperclassTreeNode(char const *type)
+    { return getTreeNodeKind(type) == TKN_SUPERCLASS; }
+  bool isSuperclassTreeNodePtr(char const *type)
+    { return getTreeNodePtrKind(type) == TKN_SUPERCLASS; }
+  bool isSubclassTreeNode(char const *type)
+    { return getTreeNodeKind(type) == TKN_SUBCLASS; }
+  bool isSubclassTreeNodePtr(char const *type)
+    { return getTreeNodePtrKind(type) == TKN_SUBCLASS; }
+
   string extractNodeType(char const *type);
+  string getSuperTypeOf(char const *sub);
 
   bool isListType(char const *type);
   bool isFakeListType(char const *type);
@@ -82,21 +104,21 @@ Gen::~Gen()
 {}
 
 
-bool Gen::isTreeNodePtr(char const *type)
+Gen::TreeNodeKind Gen::getTreeNodePtrKind(char const *type)
 {
   if (type[strlen(type)-1] == '*') {
     // is pointer type; get base type
     string base = trimWhitespace(string(type, strlen(type)-1));
 
-    return isTreeNode(base);
+    return getTreeNodeKind(base);
   }
 
   // not a pointer type
-  return false;
+  return TKN_NONE;
 }
 
 
-bool Gen::isTreeNode(char const *base)
+Gen::TreeNodeKind Gen::getTreeNodeKind(char const *base)
 {
   // search among defined classes for this name
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
@@ -104,19 +126,38 @@ bool Gen::isTreeNode(char const *base)
 
     if (c->super->name.equals(base)) {
       // found it in a superclass
-      return true;
+      return TKN_SUPERCLASS;
     }
 
     // check the subclasses
     FOREACH_ASTLIST(ASTClass, c->ctors, ctor) {
       if (ctor.data()->name.equals(base)) {
         // found it in a subclass
-        return true;
+        return TKN_SUBCLASS;
       }
     }
   }
 
-  return false;
+  return TKN_NONE;
+}
+
+
+string Gen::getSuperTypeOf(char const *sub)
+{
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *c = iter.data();
+
+    // look among the subclasses
+    FOREACH_ASTLIST(ASTClass, c->ctors, ctor) {
+      if (ctor.data()->name.equals(sub)) {
+        // found it
+        return c->super->name;
+      }
+    }
+  }
+
+  xfailure("getSuperTypeOf: invalid subclass name");
+  return "";    // silence warning
 }
 
 
@@ -262,6 +303,7 @@ private:        // funcs
   void emitUserDecls(ASTList<Annotation> const &decls);
   void emitCtor(ASTClass const &ctor, ASTClass const &parent);
   void emitVisitorInterface();
+  void emitMVisitorInterface();
 
 public:         // funcs
   HGen(char const *srcFname, ObjList<string> const &modules,
@@ -302,6 +344,9 @@ void HGen::emitFile()
   if (wantVisitor()) {
     out << "// visitor interface class\n"
         << "class " << visitorName << ";\n\n";
+  }
+  if (wantMVisitor()) {
+    out << "class " << mvisitorName << ";\n\n";
   }
 
   // do all the enums first; this became necessary when I had an
@@ -351,6 +396,9 @@ void HGen::emitFile()
 
   if (wantVisitor()) {
     emitVisitorInterface();
+  }
+  if (wantMVisitor()) {
+    emitMVisitorInterface();
   }
 
   out << "#endif // " << includeLatch << "\n";
@@ -686,17 +734,17 @@ void HGen::emitCtor(ASTClass const &ctor, ASTClass const &parent)
       << "\n";
 
   emitUserDecls(ctor.decls);
-  
+
   // emit implementation declarations for parent's pure virtuals
   FOREACH_ASTLIST(Annotation, parent.decls, iter) {
     UserDecl const *decl = iter.data()->ifUserDeclC();
     if (!decl) continue;
-    
+
     if (decl->access() == AC_PUREVIRT) {
       out << "  public: virtual " << decl->code << ";\n";
     }
     else if (decl->amod->hasMod("virtual")) {
-      out << "  " << toString(decl->access()) 
+      out << "  " << toString(decl->access())
           << ": virtual " << decl->code << ";\n";
     }
   }
@@ -738,6 +786,10 @@ public:
   void emitVisitorImplementation();
   void emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
                     bool hasChildren);
+
+  void emitMVisitorImplementation();
+  void emitMTraverse(ASTClass const *c, char const *obj, char const *ident);
+  void emitMTraverseCall(char const *i, char const *eltType, char const *argVar);
 };
 
 
@@ -786,6 +838,9 @@ void CGen::emitFile()
   if (wantVisitor()) {
     emitVisitorImplementation();
   }
+  if (wantMVisitor()) {
+    emitMVisitorImplementation();
+  }
 }
 
 
@@ -815,6 +870,10 @@ void CGen::emitTFClass(TF_class const &cls)
   if (!cls.hasChildren()) {
     // childless superclasses get the preempt in the superclass;
     // otherwise it goes into the child classes
+    //
+    // 12/17/04: I think there is a bug here, because I don't see
+    // anywhere that preemptDebugPrint is actually used for child
+    // classes, and one experiment I did confirmed it wasn't used ...
     emitCustomCode(cls.super->decls, "preemptDebugPrint");
 
     // childless superclasses print headers; otherwise the subclass
@@ -1189,6 +1248,7 @@ void HGen::emitVisitorInterface()
 
 void CGen::emitVisitorImplementation()
 {
+  out << "// ---------------------- " << visitorName << " ---------------------\n";
   out << "// default no-op visitor\n";
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
@@ -1214,6 +1274,7 @@ void CGen::emitVisitorImplementation()
       emitTraverse(sub, c->super, false /*hasChildren*/);
     }
   }
+  out << "\n";
 }
 
 
@@ -1252,7 +1313,6 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
 
     if (isTreeNode(arg->type) || isTreeNodePtr(arg->type)) {
       // traverse it directly
-      string type = extractNodeType(arg->type);
       out << "  if (" << arg->name << ") { " << arg->name << "->traverse(vis); }\n";
     }
 
@@ -1289,6 +1349,171 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
   }
 
   out << "}\n\n";
+}
+
+
+// ------------------- modification visitor --------------------
+void HGen::emitMVisitorInterface()
+{
+  out << "// the modification visitor interface class\n"
+      << "class " << mvisitorName << " {\n"
+      << "public:\n";
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *c = iter.data();
+
+    out << "  virtual bool visit" << c->super->name << "("
+        <<   c->super->name << " *&obj);\n"
+        << "  void mtraverse(" << c->super->name << " *&obj);\n"
+        ;
+  }
+  out << "};\n\n";
+}
+
+
+// The generated code does:
+//   - any actions specified for the superclass in the .ast file
+//   - invoke the visitor method, returning if it returns false
+//   - recursively traverse superclass fields
+//   - switch on subclass type, if there are any
+//   - do actions specified for the subclass in the .ast file
+//   - recursively visit the subclass fields
+// There is a slightly nonideal aspect to the above, in that the
+// subclass 'mtraverse' action is done *after* the superclass fields
+// are traversed, so the former can't skip the latter, but I'll leave
+// it for now (would require emitting two switch blocks to fix).
+void CGen::emitMVisitorImplementation()
+{
+  out << "// ---------------------- " << mvisitorName << " ---------------------\n";
+
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *c = iter.data();
+
+    out << "bool " << mvisitorName << "::visit" << c->super->name << "("
+        <<   c->super->name << " *&obj) { return true; }\n"
+        << "\n"
+        ;
+
+    out << "void " << mvisitorName << "::mtraverse(" << c->super->name << " *&obj)\n"
+        << "{\n"
+        ;
+
+    // invoke visitor function
+    out << "  if (!visit" << c->super->name << "(obj)) { return; }\n"
+        << "\n"
+        ;
+
+    // superclass action specified in .ast file
+    emitCustomCode(c->super->decls, "mtraverse");
+
+    // superclass field traversal
+    emitMTraverse(c->super, "obj", "  ");
+
+    if (c->hasChildren()) {
+      out << "  switch (obj->kind()) {\n";
+
+      // subclass traversal
+      FOREACH_ASTLIST(ASTClass, c->ctors, iter) {
+        ASTClass const *sub = iter.data();
+
+        out << "    case " << c->super->name << "::" << sub->classKindName() << ": {\n"
+            << "      " << sub->name << " *sub = (" << sub->name << "*)obj;\n"
+            << "      (void)sub;\n"      // silence warning if unused
+            ;
+
+        // subclass action specified in .ast file
+        emitCustomCode(sub->decls, "mtraverse");
+
+        // subclass field traversal
+        emitMTraverse(sub, "sub", "      ");
+
+        out << "      break;\n"
+            << "    }\n"
+            ;
+      }
+
+      out << "    default:;\n"       // silence warning
+          << "  }\n";
+    }
+
+    out << "}\n"
+        << "\n"
+        << "\n"
+        ;
+  }
+  out << "\n";
+}
+
+
+// emit mtraverse calls for the fields
+void CGen::emitMTraverse(ASTClass const *c, char const *obj, char const *i)
+{
+  // traverse into the ctor arguments
+  FOREACH_ASTLIST(CtorArg, c->args, iter) {
+    CtorArg const *arg = iter.data();
+    string argVar = stringc << obj << "->" << arg->name;
+
+    if (isTreeNode(arg->type) || isTreeNodePtr(arg->type)) {
+      string eltType = extractNodeType(arg->type);
+
+      out << i << "if (" << argVar << ") {\n";
+      emitMTraverseCall(stringc << i << "  ", eltType, argVar);
+      out << i << "}\n";
+    }
+
+    else if (isListType(arg->type) &&
+             isTreeNode(extractListType(arg->type))) {
+      string eltType = extractListType(arg->type);
+
+      // list of tree nodes: iterate and traverse
+      out << i << "FOREACH_ASTLIST_NC(" << eltType << ", " << argVar << ", iter) {\n";
+      emitMTraverseCall(stringc << i << "  ", eltType, "iter.dataRef()");
+      out << i << "}\n";
+    }
+
+    else if (isFakeListType(arg->type) &&
+             isTreeNode(extractListType(arg->type))) {
+      string eltType = extractListType(arg->type);
+
+      // fakelist mtraversal is a little complicated because I
+      // need to break apart the 'FakeList' abstraction so I can
+      // modify elements, iterate into the substituted part, etc.
+      out << i << "// fakelist mtraversal: " << argVar << "\n"
+          << i << "{\n"
+          << i << "  " << eltType << " **iter = "
+               <<   "(" << eltType << "**)&(" << argVar << ");\n"
+          << i << "  while (*iter) {\n"
+          ;
+
+      emitMTraverseCall(stringc << i << "    ", eltType, "*iter");
+
+      out << i << "    iter = &( (*iter)->next );\n"
+          << i << "  }\n"
+          << i << "}\n"
+          ;
+    }
+  }
+}
+
+
+void CGen::emitMTraverseCall(char const *i, char const *eltType, char const *argVar)
+{
+  if (isSuperclassTreeNode(eltType)) {
+    // easy case
+    out << i << "mtraverse(" << argVar << ");\n";
+    return;
+  }
+
+  // because the field is declared to be a specific subclass type, we
+  // invoke mtraverse but then check that the result has that type
+
+  xassert(isSubclassTreeNode(eltType));
+  string superType = getSuperTypeOf(eltType);
+  out << i << superType << "* tmp = " << argVar << ";\n"
+      << i << "mtraverse(tmp);\n"
+      << i << "if (tmp != " << argVar << ") {\n"
+      << i << "  " << argVar << " = tmp->as" << eltType << "();\n"
+      << i << "}\n"
+      ;
 }
 
 
@@ -1481,6 +1706,29 @@ void checkUnusedCustoms(ASTClass const *c)
   }
 }
 
+        
+void grabVisitorName(char const *visop, string &visname, TF_option const *op)
+{
+  if (op->args.count() != 1) {
+    cout << "'" << visop << "' option requires one argument\n";
+    exit(2);
+  }
+
+  if (visname.length() > 0) {
+    // It would be conceivable to allow multiple visitors, but
+    // I don't see any advantage to doing so.  If the extension
+    // simply changes the name, then the resulting error messages
+    // (compilation errors from parts of the system using the
+    // old name) are not obvious to diagnose.
+    cout << "error: there is already " << a_or_an(visop) << " class, called "
+         << visname << "\n";
+    cout << "you should use (subclass) that one\n";
+    exit(2);
+  }
+
+  // name of the visitor interface class
+  visname = *( op->args.firstC() );
+}
 
 void entry(int argc, char **argv)
 {
@@ -1557,25 +1805,10 @@ void entry(int argc, char **argv)
         TF_option const *op = iter.data()->asTF_optionC();
 
         if (op->name.equals("visitor")) {
-          if (op->args.count() != 1) {
-            cout << "'visitor' option requires one argument\n";
-            exit(2);
-          }
-
-          if (visitorName.length() > 0) {
-            // It would be conceivable to allow multiple visitors, but
-            // I don't see any advantage to doing so.  If the extension
-            // simply changes the name, then the resulting error messages
-            // (compilation errors from parts of the system using the
-            // old name) are not obvious to diagnose.
-            cout << "error: there is already a visitor class, called "
-                 << visitorName << "\n";
-            cout << "you should can use (subclass) that one\n";
-            exit(2);
-          }
-
-          // name of the visitor interface class
-          visitorName = *( op->args.firstC() );
+          grabVisitorName("visitor", visitorName, op);
+        }
+        else if (op->name.equals("mvisitor")) {
+          grabVisitorName("mvisitor", mvisitorName, op);
         }
         else if (op->name.equals("xmlPrint")) {
           wantXMLPrint = true;

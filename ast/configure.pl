@@ -1,11 +1,43 @@
-#! /bin/sh -- # -*- perl -*-
-eval 'exec perl -wS $0 ${1+"$@"}'
-  if 0;
-
+#!/usr/bin/perl -w
 # configure script for ast
 
-
 use strict 'subs';
+
+# default location of smbase relative to this package
+$SMBASE = "../smbase";
+$req_smcv = 1.01;            # required sm_config version number
+
+# -------------- BEGIN common block ---------------
+# do an initial argument scan to find if smbase is somewhere else
+for (my $i=0; $i < @ARGV; $i++) {
+  my ($d) = ($ARGV[$i] =~ m/-*smbase=(.*)/);
+  if (defined($d)) {
+    $SMBASE = $d;
+  }
+}
+
+# try to load the sm_config module
+eval {
+  push @INC, ($SMBASE);
+  require sm_config;
+};
+if ($@) {
+  die("$@" .     # ends with newline, usually
+      "\n" .
+      "I looked for smbase in \"$SMBASE\".\n" .
+      "\n" .
+      "You can explicitly specify the location of smbase with the -smbase=<dir>\n" .
+      "command-line argument.\n");
+}
+
+# check version number
+$smcv = get_sm_config_version();
+if ($smcv < $req_smcv) {
+  die("This package requires version $req_smcv of sm_config, but found\n" .
+      "only version $smcv.\n");
+}
+# -------------- END common block ---------------
+
 
 # defaults
 $BASE_FLAGS = "-Wall -Wno-deprecated -D__UNIX__";
@@ -13,9 +45,6 @@ $CCFLAGS = ();
 $debug = 0;
 $use_dash_g = 1;
 $allow_dash_O2 = 1;
-
-$SMBASE = "../smbase";
-
 
 sub usage {
   print(<<"EOF");
