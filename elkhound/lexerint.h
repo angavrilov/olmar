@@ -68,6 +68,11 @@ public:     // funcs
   // a description which takes the new type into account
   virtual string tokenDesc() const=0;
 
+  // describe a token kind; this is different from tokenDesc(), since
+  // it need not correspond to the token kind that was just yielded,
+  // and hence any related lexeme data cannot be assumed to be
+  // available; this is used during error diagnosis
+  virtual string tokenKindDesc(int kind) const=0;
 };
 
 #endif // LEXERINT_H

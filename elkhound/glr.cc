@@ -1331,6 +1331,27 @@ bool GLR::nondeterministicParseToken()
 // pulled out of glrParse() to reduce register pressure
 void GLR::printParseErrorMessage(StateId lastToDie)
 {
+  // print which tokens could have allowed progress; this isn't
+  // perfect because I'm only printing this for one state, but in the
+  // nondeterministic algorithm there might have been more than one
+  // state that could have made progress..
+  if (lastToDie != STATE_INVALID) {
+    cout << "In state " << lastToDie << ", I expected one of these tokens:\n";
+    for (int i=0; i < tables->numTerms; i++) {
+      ActionEntry act = tables->actionEntry(lastToDie, i);
+      if (!tables->isErrorAction(act)) {
+        cout << "  [" << i << "] " << lexerPtr->tokenKindDesc(i) << "\n";
+      }
+    }
+  }
+  else {                                                                          
+    // this happens because I lose the dead-parser info while processing
+    // the reduction worklist; to implement this I'd need to remember each
+    // state that died while processing the worklist; for now I'll just let
+    // it be, and only have the right info sometimes
+    cout << "(expected-token info not available due to nondeterministic mode)\n";
+  }
+
   cout << toString(lexerPtr->loc)
        << ": Parse error (state " << lastToDie << ") at "
        << lexerPtr->tokenDesc()

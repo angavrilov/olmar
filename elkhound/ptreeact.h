@@ -28,6 +28,7 @@ public:
     { return &ParseTreeLexer::nextToken; }
 
   virtual string tokenDesc() const;
+  virtual string tokenKindDesc(int kind) const;
 };
 
 

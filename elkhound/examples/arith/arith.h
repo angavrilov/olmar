@@ -33,6 +33,7 @@ enum ArithTokenCodes {
   TOK_RPAREN =7,
 };
 
+char const *toString(ArithTokenCodes code);
 
 
 // lexer interface object
@@ -43,6 +44,7 @@ public:
   // LexerInterface functions
   virtual NextTokenFunc getTokenFunc() const;
   virtual string tokenDesc() const;
+  virtual string tokenKindDesc(int kind) const;
 };
 
 // there will be only one

@@ -46,6 +46,11 @@ string ParseTreeLexer::tokenDesc() const
   return underlying->tokenDesc();
 }
 
+string ParseTreeLexer::tokenKindDesc(int kind) const
+{
+  return underlying->tokenKindDesc(kind);
+}
+
 
 // ---------------------- ParseTreeActions -------------------
 STATICDEF SemanticValue ParseTreeActions::reduce(

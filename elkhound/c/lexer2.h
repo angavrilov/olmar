@@ -280,6 +280,7 @@ public:
   // LexerInterface functions
   virtual NextTokenFunc getTokenFunc() const;
   virtual string tokenDesc() const;
+  virtual string tokenKindDesc(int kind) const;
 };
 
 

@@ -19,8 +19,8 @@ LexerInterface::NextTokenFunc ArithLexer::getTokenFunc() const
   return (NextTokenFunc)&ArithLexer::nextToken;
 }
 
-
-string ArithLexer::tokenDesc() const
+  
+char const *toString(ArithTokenCodes code)
 {
   char const * const names[] = {
     "EOF",
@@ -33,14 +33,24 @@ string ArithLexer::tokenDesc() const
     ")",
   };
 
+  unsigned tableSize = sizeof(names) / sizeof(names[0]);
+  assert((unsigned)code < tableSize);
+  return names[code];
+}
+
+string ArithLexer::tokenDesc() const
+{
   if (type == TOK_NUMBER) {
     return stringc << "number(" << (int)sval << ")";
   }
   else {
-    unsigned tableSize = sizeof(names) / sizeof(names[0]);
-    assert((unsigned)type < tableSize);
-    return string(names[type]);
+    return toString((ArithTokenCodes)type);
   }
+}
+
+string ArithLexer::tokenKindDesc(int kind) const
+{
+  return toString((ArithTokenCodes)kind);
 }
 
 

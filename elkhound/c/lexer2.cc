@@ -676,6 +676,12 @@ string Lexer2::tokenDesc() const
 }
 
 
+string Lexer2::tokenKindDesc(int kind) const
+{                                            
+  return l2Tok2String((Lexer2TokenType)kind);
+}
+
+
 // ------------- experimental interface for (e.g.) bison ------------
 // this is defined by the bison-parser
 extern Lexer2Token const *yylval;
