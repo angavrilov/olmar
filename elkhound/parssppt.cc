@@ -81,10 +81,17 @@ bool toplevelParse(ParseTreeAndTokens &ptree, char const *grammarFname,
 // hack: need classifier to act like the one for Bison
 class SimpleActions : public TrivialUserActions {
 public:
-  virtual int reclassifyToken(int oldTokenType, SemanticValue sval);
+  virtual ReclassifyFunc getReclassifier();
+  static int reclassifyToken(UserActions *ths,
+    int oldTokenType, SemanticValue sval);
 };
 
-int SimpleActions::reclassifyToken(int type, SemanticValue)
+UserActions::ReclassifyFunc SimpleActions::getReclassifier()
+{
+  return &SimpleActions::reclassifyToken;
+}
+
+STATICDEF int SimpleActions::reclassifyToken(UserActions *, int type, SemanticValue)
 {
   if (type == L2_NAME) {
     return L2_VARIABLE_NAME;

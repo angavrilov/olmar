@@ -870,8 +870,12 @@ STATICDEF bool GLR
   // lexer token function
   LexerInterface::NextTokenFunc nextToken = lexer.getTokenFunc();
 
+  // reclassifier
+  UserActions::ReclassifyFunc reclassifyToken =
+    userAct->getReclassifier();
+
   // reduction action function
-  UserActions::ReductionActionFunc reductionAction = 
+  UserActions::ReductionActionFunc reductionAction =
     userAct->getReductionAction();
 
   // the stack node pool is a local variable of this function for
@@ -930,7 +934,7 @@ STATICDEF bool GLR
 
     // get token type, possibly using token reclassification
     #if USE_RECLASSIFY
-      lexer.type = userAct->reclassifyToken(lexer.type, lexer.sval);
+      lexer.type = reclassifyToken(userAct, lexer.type, lexer.sval);
     #else     // this is what bccgr does
       if (lexer.type == 1 /*L2_NAME*/) {
         lexer.type = 3 /*L2_VARIABLE_NAME*/;

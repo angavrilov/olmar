@@ -4025,12 +4025,17 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
   dcl << "USER_ACTION_FUNCTIONS      // see useract.h\n";
   dcl << "\n";
   dcl << "// declare the actual action function\n";
-  dcl << "static SemanticValue " << g.actionClassName << "::doReductionAction(\n"
+  dcl << "static SemanticValue doReductionAction(\n"
       << "  " << g.actionClassName << " *ths,\n"
       << "  int productionId, SemanticValue const *semanticValues"
       SOURCELOC( << ",\n  SourceLocation const &loc" )
-      << ");\n"; 
+      << ");\n";
   dcl << "\n";
+  dcl << "// declare the classifier function\n";
+  dcl << "static int reclassifyToken(\n"
+      << "  " << g.actionClassName << " *ths,\n"
+      << "  int oldTokenType, SemanticValue sval);\n"
+      << "\n";
 
   EmitCode out(ccFname);
   if (!out) {
@@ -4342,12 +4347,18 @@ void emitDupDelMerge(GrammarAnalysis const &g, EmitCode &out, EmitCode &dcl)
 
   // emit classify-term
   emitSwitchCode(g, out,
-    "int $acn::reclassifyToken(int oldTokenType, SemanticValue sval)",
+    "/*static*/ int $acn::reclassifyToken($acn *ths, int oldTokenType, SemanticValue sval)",
     "oldTokenType",
     (ObjList<Symbol> const&)g.terminals,
     4 /*classifyCode*/,
-    "      return classify_$symName(($symType)sval);\n",
+    "      return ths->classify_$symName(($symType)sval);\n",
     NULL);
+    
+  // and the virtual method which returns the classifier
+  out << "UserActions::ReclassifyFunc " << g.actionClassName << "::getReclassifier()\n"
+      << "{\n"
+      << "  return (ReclassifyFunc)&" << g.actionClassName << "::reclassifyToken;\n"
+      << "}\n";
 }
 
 

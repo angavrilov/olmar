@@ -45,5 +45,12 @@ SemanticValue TrivialUserActions::mergeAlternativeParses(
 bool TrivialUserActions::keepNontermValue(int , SemanticValue )
   { return true; }     // do not cancel
 
-int TrivialUserActions::reclassifyToken(int oldTokenType, SemanticValue )
+
+UserActions::ReclassifyFunc TrivialUserActions::getReclassifier()
+{
+  return &TrivialUserActions::reclassifyToken;
+}
+
+STATICDEF int TrivialUserActions::reclassifyToken(UserActions *,
+  int oldTokenType, SemanticValue )
   { return oldTokenType; }

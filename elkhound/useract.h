@@ -105,7 +105,10 @@ public:
   // used to give the user a chance to reinterpret the token, before it
   // is used for reduction lookahead comparisons; it returns the
   // reclassified token type, or 'oldTokenType' to leave it unchanged
-  virtual int reclassifyToken(int oldTokenType, SemanticValue sval)=0;
+  typedef int (*ReclassifyFunc)(UserActions *ths, int oldTokenType, SemanticValue sval);
+
+  // get the reclassifier
+  virtual ReclassifyFunc getReclassifier()=0;
 };
 
 
@@ -129,17 +132,21 @@ public:
                                                                        \
   virtual bool keepNontermValue(int nontermId, SemanticValue sval);    \
                                                                        \
-  virtual int reclassifyToken(int oldTokenType, SemanticValue sval);
+  virtual ReclassifyFunc getReclassifier();
 
-  
+
 // a useraction class which has only trivial actions
 class TrivialUserActions : public UserActions {
 public:
   USER_ACTION_FUNCTIONS
+
   static SemanticValue doReductionAction(
     UserActions *ths,
     int productionId, SemanticValue const *svals
     SOURCELOCARG( SourceLocation const &loc ) );
+
+  static int reclassifyToken(UserActions *ths, 
+    int oldTokenType, SemanticValue sval);
 };
 
 
