@@ -243,6 +243,10 @@ clean:
 	rm -f *.o *~ *.d gmon.out
 	rm -f $(TESTS)
 	rm -f *.a
+	rm -rf test.dir
+
+distclean: clean
+	rm -f Makefile config.status config.summary
 
 # remove crap that vc makes
 vc-clean:
