@@ -35,3 +35,6 @@ gprof.out
 moz.parse.out
 parse.log
 gendoc
+deattribute
+deattribute.cc
+*.diff

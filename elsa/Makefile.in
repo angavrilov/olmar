@@ -121,6 +121,11 @@ quicktest: ccparse
 	@echo BUILD FINISHED
 
 
+# ---------------------- deattribute ---------------------
+all: deattribute
+clean: clean-deattribute
+include deattribute.mk
+
 # ---------------------- misc ---------------------
 # rule to decompress one of the big examples
 in/big/%.i: in/big/gz/%.i.gz
