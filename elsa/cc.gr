@@ -1229,6 +1229,7 @@ nonterm(Enumerator*) EnumeratorDefinition {
 }
 
 
+// ---- BEGIN: gnu-extended 'asm' ----
 nonterm(UberModifiers) VolatileOpt {
   -> empty
        { return UM_NONE; }
@@ -1273,12 +1274,20 @@ nonterm OpConstraints {
   -> ocs:OpConstraints "::" ocl:OpConstraintList { return 0; }
 }
 
-  
+
 // dsw: FIX: add returning rest of semantic value
 nonterm(E_stringLit*) AsmDefinition {
   // NOTE: volatile modifier is simply discarded here
-  -> "asm" vo:VolatileOpt "(" s:StringLiteral ocs:OpConstraints ")" ";"    { return s; }
+  -> "asm" vo:VolatileOpt "(" s:StringLiteral ocs:OpConstraints ")" ";"
+       { return s; }
 }
+// ---- END: gnu-extended 'asm' ----
+
+
+// 'asm' in the C++ standard
+//  nonterm(E_stringLit*) AsmDefinition {
+//    -> "asm" "(" s:StringLiteral ")" ";"    { return s; }
+//  }
 
 
 nonterm(TopForm*) LinkageSpecification {
@@ -1288,6 +1297,7 @@ nonterm(TopForm*) LinkageSpecification {
   -> "extern" n:TOK_STRING_LITERAL tf:Declaration
        { return new TF_one_linkage(loc, n, tf); }
 }
+
 
 // ------ A.7 Declarators ------
 // -- declarator --
