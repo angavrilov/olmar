@@ -296,7 +296,7 @@ class Declarator {
   // alternatives was selected
   public /*no_ignore*/ Declarator *tcheck(Env &env, Tcheck &dt);
   public void mid_tcheck(Env &env, Tcheck &dt);
-  public void elaborateCDtors(Env &env, bool isMember, bool isTemporary);
+  public void elaborateCDtors(Env &env, bool isMember, bool isTemporary, bool isStatic);
 }
 
 

@@ -1169,7 +1169,11 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
     } else if (iter.data()->isMR_decl()) {
       Declaration *d0 = iter.data()->asMR_decl()->d;
       FAKELIST_FOREACH_NC(Declarator, d0->decllist, decliter) {
-        decliter->elaborateCDtors(env, true /*isMember*/, false /*isTemporary*/);
+        decliter->elaborateCDtors(env,
+                                  true /*isMember*/,
+                                  false /*isTemporary*/,
+                                  ((d0->dflags & DF_STATIC)!=0) /*isStatic*/
+                                  );
       }
     }
   }
@@ -1964,7 +1968,10 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 }
 
 
-void Declarator::elaborateCDtors(Env &env, bool isMember, bool isTemporary)
+void Declarator::elaborateCDtors(Env &env,
+                                 bool isMember,
+                                 bool isTemporary,
+                                 bool isStatic)
 {
   // dsw: Should this lookup be cached during mid_tcheck() above?
 
@@ -2001,8 +2008,12 @@ void Declarator::elaborateCDtors(Env &env, bool isMember, bool isTemporary)
 
   xassert(!ctorStatement);
   if (init) {
-    if (isMember) {
-      env.error(env.loc(), "initializer not allowed for a member declaration");
+    if (isMember && !isStatic) {
+      env.error(env.loc(), "initializer not allowed for a non-static member declaration");
+      goto ifInitEnd;
+    }
+    if (isMember && isStatic && !type->isConst()) {
+      env.error(env.loc(), "initializer not allowed for a non-const static member declaration");
       goto ifInitEnd;
     }
 
@@ -2052,7 +2063,8 @@ void Declarator::elaborateCDtors(Env &env, bool isMember, bool isTemporary)
     if (type->isCompoundType() &&
         !var->hasFlag(DF_TYPEDEF) &&
         !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
-        !isTemporary) {
+        !isTemporary &&
+        !isMember) {
     // call the no-arg ctor; for temporaries do nothing since this is
     // a temporary, it will be initialized later
 
@@ -2068,11 +2080,15 @@ void Declarator::elaborateCDtors(Env &env, bool isMember, bool isTemporary)
 
   // if isTemporary we don't want to make a ctor since by definition
   // the temporary will be initialized later
-  if (isTemporary) xassert(!ctorStatement);
-  else if (type->isCompoundType() &&
-           !var->hasFlag(DF_TYPEDEF) &&
-           !(decl->isD_name() && !decl->asD_name()->name) // that is, not an abstract decl
-           ) {
+  if (isTemporary ||
+      (isMember && !(isStatic && type->isConst()))) {
+    xassert(!ctorStatement);
+  } else if (type->isCompoundType() &&
+             !var->hasFlag(DF_TYPEDEF) &&
+             !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
+             (!isMember ||
+              (isStatic && type->isConst() && init))
+             ) {
     xassert(ctorStatement);
   }
 
@@ -4309,7 +4325,11 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
                        true     // isTemporary
                        );
   FAKELIST_FOREACH_NC(Declarator, declaration0->decllist, decliter) {
-    decliter->elaborateCDtors(env, true /*isMember*/, true /*isTemporary*/);
+    decliter->elaborateCDtors(env,
+                              true /*isMember*/,
+                              true /*isTemporary*/,
+                              ((declaration0->dflags & DF_STATIC)!=0) /*isStatic*/
+                              );
   }
 
   return declaration0;

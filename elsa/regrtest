@@ -252,14 +252,7 @@ T="$T t0058.cc"
 T="$T t0059.cc"
 T="$T t0060.cc"
 T="$T t0061.cc"
-
-# Hmm, this should be working.
-# We only add the implicit cdtors after the first pass over the
-# members.  Don't know how to fix that one.
-#  in/t0062.cc:39:14: error: no viable candidate for function call
-#  in/t0062.cc:39:14: error: no viable candidate for function call
-# T="$T t0062.cc"
-
+T="$T t0062.cc"
 T="$T t0063.cc"
 T="$T t0064.cc"
 T="$T t0065.cc"
