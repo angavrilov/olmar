@@ -42,7 +42,7 @@
   }
 
 
-// ------------------- typecase --------------------
+// ------------------- const typecase --------------------
 #define ASTSWITCHC(supertype, nodeptr)           \
 {                                                \
   supertype const *switch_nodeptr = (nodeptr);   \
@@ -59,6 +59,29 @@
     type const *var = switch_nodeptr->as##type##C();
 
 #define ASTENDCASEC                                   \
+    break;                                            \
+  } /* end final case */                              \
+  default: ;    /* silence warning */                 \
+} /* end scope started before switch */
+
+
+// ------------------- non-const typecase --------------------
+#define ASTSWITCH(supertype, nodeptr)            \
+{                                                \
+  supertype *switch_nodeptr = (nodeptr);         \
+  switch (switch_nodeptr->kind())
+
+#define ASTCASE(type, var)                            \
+  case type::TYPE_TAG: {                              \
+    type *var = switch_nodeptr->as##type();
+
+#define ASTNEXT(type, var)                            \
+    break;                                            \
+  } /* end previous case */                           \
+  case type::TYPE_TAG: {                              \
+    type *var = switch_nodeptr->as##type();
+
+#define ASTENDCASE                                    \
     break;                                            \
   } /* end final case */                              \
   default: ;    /* silence warning */                 \
