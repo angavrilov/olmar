@@ -6,6 +6,7 @@
 #include "aenv.h"               // AEnv
 #include "cc_type.h"            // FunctionType, etc.
 #include "sobjlist.h"           // SObjList
+#include "trace.h"              // tracingSys
 
 
 // ------------------- TranslationUnit ---------------------
@@ -43,8 +44,10 @@ void TF_func::vcgen(AEnv &env) VCGEN_CONST
   body->vcgen(env);
 
   // print the results
-  cout << "interpretation after " << name() << ":\n";
-  env.print();
+  if (tracingSys("absInterp")) {
+    cout << "interpretation after " << name() << ":\n";
+    env.print();
+  }
 }
 
 
@@ -194,12 +197,14 @@ IntValue *E_funCall::vcgen(AEnv &env) VCGEN_CONST
   }
   argExps.reverse();      // when it's easy to stay linear..
 
-  // if the function has a precondition, check it
   FunctionType const &ft = func->type->asFunctionTypeC();
 
-  // the precondition gets (abstractly) evaluated in an empty environment
-  // for now; eventually it should be empty except for globals, but right
-  // now I don't have globals in the abstract environment..
+  // -------------- build an environment for pre/post ----------------
+  // the pre- and postconditions get evaluated to an abstract value in
+  // an environment containing only parameters (and in the case of the
+  // postcondition, 'result); eventually it should also contain
+  // globals, but right now I don't have globals in the abstract
+  // environment..
   AEnv newEnv(env.stringTable);
 
   // bind the parameters in the new environment
@@ -219,9 +224,7 @@ IntValue *E_funCall::vcgen(AEnv &env) VCGEN_CONST
     argExpIter.adv();
   }
 
-  // I wait until here to check whether ft.precondition is NULL, to
-  // maximize the common code, so it's less likely there will be
-  // anomalous differences between calls with and w/o preconditions
+  // ----------------- prove precondition ---------------
   if (ft.precondition) {
     // finally, interpret the precondition in the parameter-only
     // environment, to arrive at a predicate to prove
@@ -236,14 +239,32 @@ IntValue *E_funCall::vcgen(AEnv &env) VCGEN_CONST
     newEnv.discard(predicate);
   }
 
+  // ----------------- assume postcondition ---------------
   // make a new variable to stand for the value returned
+  IntValue *result = NULL;
   if (type->isIntegerType()) {
-    return env.freshIntVariable(stringc
-             << "function call result: " << toString());
+    result = env.freshIntVariable(stringc
+               << "function call result: " << toString());
   }
-  else {
-    return NULL;
+
+  // add this to the mini environment so if the programmer talks
+  // about the result, it will state something about the result variable
+  newEnv.set(env.stringTable.add("result"), result);
+
+  // NOTE: by keeping the environment from before, we are interpreting
+  // all references to parameters as their values in the *pre* state
+
+  if (ft.postcondition) {
+    // evaluate it
+    IntValue *predicate = ft.postcondition->vcgen(newEnv);
+    xassert(predicate);
+    
+    // assume it
+    env.addFact(predicate);
   }
+
+  // result of calling this function is the result variable
+  return result;
 }
 
 

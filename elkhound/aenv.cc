@@ -6,6 +6,7 @@
 #include "absval.ast.gen.h"     // IntValue & children
 #include "prover.h"             // runProver
 #include "predicate.ast.gen.h"  // Predicate, P_and
+#include "trace.h"              // tracingSys
 
 AEnv::AEnv(StringTable &table)
   : ints(),
@@ -143,12 +144,20 @@ void AEnv::prove(IntValue const *expr)
   facts = implication.premise->asP_and();
   implication.premise = NULL;
 
+  bool printPredicate = tracingSys("predicates");
+
   // run the prover on that predicate
   if (runProver(implSexp)) {
-    cout << "predicate proved\n";
+    if (printPredicate) {
+      cout << "predicate proved\n";
+    }
   }
   else {
     cout << "predicate NOT proved:\n";
+    printPredicate = true;      // always print for unprovens
+  }
+  
+  if (printPredicate) {
     FOREACH_ASTLIST(Predicate, facts->conjuncts, iter) {
       cout << "  fact: " << iter.data()->toSexpString() << "\n";
     }

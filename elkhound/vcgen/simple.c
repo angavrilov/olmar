@@ -31,5 +31,14 @@ void bar(int y)
   thmprv_assume y > 6;
   thmprv_assert y + z > 7;
 
+  thmprv_assume y < 8;
+  thmprv_assert y == 7;
+
   z = foo(z+3);
+
+  thmprv_assert z == 1;
+
+  int w;
+  thmprv_assume w > 3;
+  foo(w);
 }

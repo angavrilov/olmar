@@ -51,12 +51,15 @@ void doit(int argc, char **argv)
           "    stopAfterTCheck    stop after typechecking\n"
           "    printTypedAST      print AST with type info\n"
           "    stopAfterVCGen     stop after vcgen\n"
+          "    printPredicates    print all predicates proved\n"
+          "    absInterp          print results of abstract interpretation\n"
+          "    tcheck             print typechecking info\n"
           "")) {
       // parse error
       exit(2);
     }
 
-    traceProgress() << "final parse result: " << treeTop << endl;
+    traceProgress(2) << "final parse result: " << treeTop << endl;
     unit = (TranslationUnit*)treeTop;
 
     //unit->debugPrint(cout, 0);
@@ -82,7 +85,7 @@ void doit(int argc, char **argv)
     traceProgress() << "type checking...\n";
     Env env(strTable);
     unit->tcheck(env);
-    traceProgress() << "done type checking\n";
+    traceProgress(2) << "done type checking\n";
 
     // print abstract syntax tree annotated with types
     if (tracingSys("printTypedAST")) {
@@ -102,12 +105,12 @@ void doit(int argc, char **argv)
 
   // --------------- abstract interp ------------
   {
-    traceProgress() << "abstract interpretation...\n";
+    traceProgress() << "verification condition generation...\n";
     AEnv env(strTable);
 
     unit->vcgen(env);
 
-    traceProgress() << "done with abs interp\n";
+    traceProgress(2) << "done with vcgen\n";
 
     if (tracingSys("stopAfterVCGen")) {
       return;

@@ -1,10 +1,11 @@
 // tcheck.cc
 // implementation of typechecker over C ast
-                      
+
 #include "c.ast.gen.h"      // C ast
 #include "cc_type.h"        // Type, AtomicType, etc.
 #include "cc_env.h"         // Env
 #include "strutil.h"        // quoted
+#include "trace.h"          // trace
 
 
 void checkBoolean(Env &env, Type const *c, Expression const *e)
@@ -270,8 +271,9 @@ Type const *IDeclarator::tcheck(Env &env, Type const *base, DeclFlags dflags)
 
 Type const *D_name::itcheck(Env &env, Type const *base, DeclFlags dflags)
 {
-  cout << "tcheck: found declarator name: " << (name? name : "(null)")
-       << ", type is " << base->toCString() << endl;
+  trace("tcheck") 
+    << "found declarator name: " << (name? name : "(null)")
+    << ", type is " << base->toCString() << endl;
 
   // one way this happens is in prototypes with unnamed arguments
   if (!name) {
