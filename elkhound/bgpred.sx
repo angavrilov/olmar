@@ -460,41 +460,74 @@
     ))
 
   ; setOffset of updOffset at different place
-  (FORALL (mem ptr1 ptr2 val2)
+  ; unfortunately, Simplify loops with this axiom..
+;   (FORALL (mem ptr1 ptr2 val2)    (PATS (selOffset (updOffset mem ptr2 val2) ptr1))
+;     (IMPLIES
+;       (unrelated ptr1 ptr2)
+;       (EQ
+;         (selOffset mem ptr1)
+;         (selOffset (updOffset mem ptr2 val2) ptr1)
+;       )
+;     ))
+
+  ; skip past a write that uses a different starting object
+  ; (will have to add additional cases in an ad-hoc way, since
+  ; the general axiom above can't be used..)
+  (FORALL (mem index1 rest1 index2 rest2 val2)
     (IMPLIES
-      (unrelated ptr1 ptr2)
+      (NEQ index1 index2)
       (EQ
-        (selOffset mem ptr1)
-        (selOffset (updOffset mem ptr2 val2) ptr1)
+        (selOffset mem (sub index1 rest1))
+        (selOffset (updOffset mem (sub index2 rest2) val2)
+                   (sub index1 rest1))
+      )
+    ))
+
+  ; skip past a write at a different offset from the same pointer
+  (FORALL (mem basePtr index1 index2 val2)
+    (IMPLIES
+      (NEQ index1 index2)
+      (EQ
+        (selOffset mem (addOffset basePtr index1))
+        (selOffset (updOffset mem (addOffset basePtr index2) val2)
+                   (addOffset basePtr index1))
       )
     ))
 
   ; ----------------------- unrelated -------------------
   ; [unr1] unrelated: first indices differ
-  (FORALL (a rest1 b rest2)    ;(PATS (unrelated (sub a rest1) (sub b rest2)))
-    (IMPLIES
-      (NEQ a b)
-      (unrelated (sub a rest1) (sub b rest2))
-    ))
+;   (FORALL (a rest1 b rest2)    ;(PATS (unrelated (sub a rest1) (sub b rest2)))
+;     (IMPLIES
+;       (NEQ a b)
+;       (unrelated (sub a rest1) (sub b rest2))
+;     ))
 
-  ; [unr2] unrelated: unrelated rests
-  (FORALL (a rest1 b rest2)    ;(PATS (unrelated (sub a rest1) (sub b rest2)))
-    (IMPLIES
-      (unrelated rest1 rest2)
-      (unrelated (sub a rest1) (sub b rest2))
-    ))
+;   ; [unr2] unrelated: unrelated rests
+;   (FORALL (a rest1 b rest2)    ;(PATS (unrelated (sub a rest1) (sub b rest2)))
+;     (IMPLIES
+;       (unrelated rest1 rest2)
+;       (unrelated (sub a rest1) (sub b rest2))
+;     ))
 
-  ; [unr3] unrelated: different offsets of same pointer
-  (FORALL (ptr i j)
-    (IMPLIES
-      (NEQ i j)
-      (unrelated (addOffset ptr i) (addOffset ptr j))
-    ))
+;   ; [unr3] unrelated: different offsets of same pointer
+;   (FORALL (ptr i j)
+;     (IMPLIES
+;       (NEQ i j)
+;       (unrelated (addOffset ptr i) (addOffset ptr j))
+;     ))
 
   ; -------------------- okSelOffset ----------------
   ; if the offset is 'whole', it's always ok
   (FORALL (obj)
     (okSelOffset obj whole))
+
+  ; can skip going through okSel for these
+  ; no you can't!
+  ;   (FORALL (mem ptr)
+  ;     (IMPLIES
+  ;       (uncheckedAccess mem)
+  ;       (okSelOffset mem )
+  ;     ))
 
   ; for non-whole offsets, check the first index, then recursively
   ; check the rest of the offset (will Simplify get lost??  I'll
@@ -514,14 +547,14 @@
   ; it survives all memory updates; this is true because I don't model
   ; *pointer* dereferences with 'sel', I only model accesses within
   ; objects, which doesn't change
-  (FORALL (mem obj1 obj2 val)
+  (FORALL (mem obj1 obj2 val)   ;(PATS (okSelOffset (upd mem obj2 val) obj1))
     (IMPLIES
       (okSelOffset mem obj1)
       (okSelOffset (upd mem obj2 val) obj1)
     ))
 
   ; survives the other kind of update too..
-  (FORALL (mem obj1 ofs val)
+  (FORALL (mem obj1 ofs val)    ;(PATS (okSelOffset (updOffset mem ofs val) obj1))
     (IMPLIES
       (okSelOffset mem obj1)
       (okSelOffset (updOffset mem ofs val) obj1)

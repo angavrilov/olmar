@@ -86,49 +86,52 @@ bg_pop
 
 
 ; ------------------------- unrelated ------------------------
-bg_push (                       
-  (DISTINCT a b c)
-  (EQ ptr1 (sub a (sub 0 whole)))
-  (EQ ptr2 (sub b (sub 0 whole)))
-  (EQ ptr3 (sub b (sub 1 whole)))
-)
+; I had to remove all 'unrelated' axioms because the axiom which
+; used it causes Simplify to loop in some cases
 
-valid "unr1,2" (
-  (AND
-    (unrelated ptr1 ptr2)
-    (unrelated ptr2 ptr3)
-    (unrelated ptr3 ptr1)
-    (unrelated ptr1 ptr3)
-  )
-)
+; bg_push (
+;   (DISTINCT a b c)
+;   (EQ ptr1 (sub a (sub 0 whole)))
+;   (EQ ptr2 (sub b (sub 0 whole)))
+;   (EQ ptr3 (sub b (sub 1 whole)))
+; )
+
+; valid "unr1,2" (
+;   (AND
+;     (unrelated ptr1 ptr2)
+;     (unrelated ptr2 ptr3)
+;     (unrelated ptr3 ptr1)
+;     (unrelated ptr1 ptr3)
+;   )
+; )
 
 
-bg_push (
-  (EQ ptr13 (addOffset ptr1 3))
-  (EQ ptr14 (addOffset ptr1 4))
-)
+; bg_push (
+;   (EQ ptr13 (addOffset ptr1 3))
+;   (EQ ptr14 (addOffset ptr1 4))
+; )
 
-valid "provable without unr3" (
-  (unrelated ptr13 ptr14)
-)
+; valid "provable without unr3" (
+;   (unrelated ptr13 ptr14)
+; )
 
-valid "needs unr3" (           
-  (IMPLIES
-    (EQ foo bar)
-    (unrelated (addOffset foo 3) (addOffset bar 4))
-  )
-)
+; valid "needs unr3" (
+;   (IMPLIES
+;     (EQ foo bar)
+;     (unrelated (addOffset foo 3) (addOffset bar 4))
+;   )
+; )
 
-; because foo could be a prefix of bar, or vice-versa
-notvalid "would be unsound" (
-  (IMPLIES
-    (NEQ foo bar)
-    (unrelated (addOffset foo 3) (addOffset bar 4))
-  )
-)
+; ; because foo could be a prefix of bar, or vice-versa
+; notvalid "would be unsound" (
+;   (IMPLIES
+;     (NEQ foo bar)
+;     (unrelated (addOffset foo 3) (addOffset bar 4))
+;   )
+; )
 
-bg_pop
-bg_pop
+; bg_pop
+; bg_pop
 
 
 ; -------------------- okSelOffset ----------------
@@ -198,8 +201,6 @@ notvalid "okSelOffsetRange2b" (
 )
 
 bg_pop
-stop
-
 
 
 ; ------------------ appendIndex ---------------------
@@ -526,3 +527,18 @@ bg_pop
 ; )
 
 ; bg_pop
+
+
+; ------------------ array.c postcondition ----------------
+bg_push (
+  (EQ a_10 (sub a_index_11 a_rest_11))
+  (EQ mem_22 (updOffset mem_21 (addOffset a_10 0) 0))
+  (EQ mem_23 (updOffset mem_22 (addOffset a_10 1) 1))
+  (EQ mem_24 (updOffset mem_23 (addOffset a_10 2) 2))
+  (EQ mem_25 (updOffset mem_24 (addOffset a_10 3) 3))
+  (EQ mem_26 (updOffset mem_25 (addOffset a_10 4) 4))
+)
+valid "array.c postcondition" (
+  (EQ (selOffset mem_26 (addOffset a_10 2)) 2)
+)
+bg_pop

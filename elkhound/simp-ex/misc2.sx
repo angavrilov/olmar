@@ -1,30 +1,39 @@
 ; misc2.sx    -*- Lisp -*-
 ; more miscellanous experiments...
 
+;prove (IMPLIES (AND (EQ x_19 (sel mem_40 addr_x_15)) (EQ y_8 (sel mem_40 addr_y_7)) (EQ p_4 (sub p_index_8 p_rest_8)) (EQ q_3 (sub q_index_6 q_rest_6)) (DISTINCT addr_x_16 addr_y_8 0) (uncheckedAccess mem_41) (EQ x_21 (sel mem_41 addr_x_16)) (EQ mem_42 (upd mem_41 addr_x_16 x_20)) (EQ y_10 (sel mem_42 addr_y_8)) (EQ mem_43 (upd mem_42 addr_y_8 y_9)) (EQ (sub addr_x_16 whole) (sub p_index_9 p_rest_9)) (EQ (sub addr_y_8 whole) (sub q_index_7 q_rest_7)) (EQ mem_44 (updOffset mem_43 (sub addr_x_16 whole) 5))) FALSE)
+;prove (IMPLIES (AND (EQ x_19 (sel mem_40 addr_x_15)) (EQ y_8 (sel mem_40 addr_y_7)) (EQ p_4 (sub p_index_8 p_rest_8)) (EQ q_3 (sub q_index_6 q_rest_6)) (DISTINCT addr_x_16 addr_y_8 0) (uncheckedAccess mem_41) (EQ x_21 (sel mem_41 addr_x_16)) (EQ mem_42 (upd mem_41 addr_x_16 x_20)) (EQ y_10 (sel mem_42 addr_y_8)) (EQ mem_43 (upd mem_42 addr_y_8 y_9)) (EQ (sub addr_x_16 whole) (sub p_index_9 p_rest_9)) (EQ (sub addr_y_8 whole) (sub q_index_7 q_rest_7)) (EQ mem_44 (updOffset mem_43 (sub addr_x_16 whole) 5))) (okSelOffset mem_44 (sub addr_y_8 whole)))
+
 notvalid "first" (
-  (IMPLIES 
-    (AND 
-      (EXISTS (address_1 )
-        (EQ (selOffset result_1 (sub 0 whole)) (sub address_1 0))
-      )
+  (IMPLIES
+    (AND
+      (EQ (selOffset result_1 (sub 0 whole)) (sub address_1 0))
       (EQ mem_24 (updOffset mem_23 (sel result_1 0) 6))
     )
     FALSE
   )
 )
 
+bg_push (
+  (uncheckedAccess mem_23)
+  (EQ (selOffset result_1 (sub 0 whole)) (sub address_1 0))
+  (EQ mem_24 (updOffset mem_23 (sel result_1 0) 6))
+)
+
+valid "implications" (
+  (AND
+    (EQ (sel result_1 0) (sub address_1 whole))
+    (EQ mem_24 (updOffset mem_23 (sub address_1 whole) 6))
+    (EQ mem_24 (upd mem_23 address_1 6))
+    (okSel mem_24 address_1)
+    (okSelOffset (sel mem_24 address_1) whole)
+  )
+)
+
 ; this query causes Simpify to loop, but *only* if the query
 ; above is issued first
 valid "second" (
-  (IMPLIES
-    (AND
-      (uncheckedAccess mem_23)
-      (EXISTS (address_1 )
-        (EQ (selOffset result_1 (sub 0 whole)) (sub address_1 0))
-      )
-      (EQ mem_24 (updOffset mem_23 (sel result_1 0) 6))
-    )
-    (okSelOffset mem_24 (sel result_1 0))
-  )
+  (okSelOffset mem_24 (sub address_1 whole))
+  ;(okSelOffset mem_24 (sel result_1 0))
 )
 
