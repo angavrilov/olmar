@@ -882,6 +882,7 @@ failparse k0017.cc "using namespace std' before 'namespace std"
 failparse k0018.cc "member function taking an array argument with default value __null"
 failparse k0019.cc "template parameters named for ctor/dtor"
 failparse k0020.cc "deleting pointers of template-type"
+failparse k0021.cc "calling a templated function pointer"
 
 # ---- END: lots of tests ----
 
