@@ -7,10 +7,15 @@ verbatim {
 }
 
 // the entire grammar spec
-class GrammarAST (LocString className,
+class GrammarAST (ASTList<Option> options,
+                  LocString className,
                   LocString verbatimCode,
                   Terminals terms,
                   ASTList<NontermDecl> nonterms);
+
+
+// option; for now just a name
+class Option (LocString name);
 
 
 // definition of tokens

@@ -113,6 +113,19 @@ void astParseErrorCont(LocString const &failToken, char const *msg)
 // map the grammar definition AST into a Grammar data structure
 void astParseGrammar(Grammar &g, GrammarAST const *treeTop)
 {
+  // process options
+  {
+    FOREACH_ASTLIST(Option, treeTop->options, iter) {
+      LocString const &name = iter.data()->name;
+      if (name.equals("useGCDefaults")) {
+        g.useGCDefaults = true;
+      }
+      else {
+        astParseError(name, "unknown option name");
+      }
+    }
+  }
+
   // default, empty environment
   Environment env(g);
 

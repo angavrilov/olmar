@@ -779,7 +779,8 @@ string Production::toStringMore(bool printCode) const
 Grammar::Grammar()
   : startSymbol(NULL),
     emptyString(LocString(SourceLocation(), "empty"),    // no location
-                true /*isEmptyString*/)
+                true /*isEmptyString*/),
+    useGCDefaults(false)
 {}
 
 
@@ -799,6 +800,8 @@ void Grammar::xfer(Flatten &flat)
 
   actionClassName.xfer(flat);
   verbatim.xfer(flat);
+
+  flat.xferBool(useGCDefaults);
 
   // serfs
   flat.checkpoint(0x8580AAD2);

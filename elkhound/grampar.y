@@ -82,6 +82,7 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 %token TOK_NONTERM "nonterm"
 %token TOK_VERBATIM "verbatim"
 %token TOK_PRECEDENCE "precedence"
+%token TOK_OPTION "option"
 // left, right, nonassoc: they're not keywords, since "left" and "right"
 // are common names for RHS elements; instead, we parse them as names
 // and interpret them after lexing
@@ -93,6 +94,8 @@ AssocKind whichKind(LocString * /*owner*/ kind);
   int num;
   LocString *str;
 
+  Option *option;
+  ASTList<Option> *options;
   Terminals *terminals;
   ASTList<TermDecl> *termDecls;
   TermDecl *termDecl;
@@ -115,6 +118,8 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 %type <num> StartSymbol
 %type <str> Type Action
 
+%type <options> Options
+%type <option> Option
 %type <terminals> Terminals
 %type <termDecls> TermDecls
 %type <termDecl> TerminalDecl
@@ -145,14 +150,25 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 
 /* start symbol */
 /* yields: int (dummy value) */
-StartSymbol: "verbatim" TOK_NAME TOK_LIT_CODE Terminals Nonterminals
+StartSymbol: Options "verbatim" TOK_NAME TOK_LIT_CODE Terminals Nonterminals
                {
                  // return the AST tree top to the caller
-                 ((ParseParams*)parseParam)->treeTop = 
-                   new GrammarAST($2, $3, $4, $5);
+                 ((ParseParams*)parseParam)->treeTop =
+                   new GrammarAST($1, $3, $4, $5, $6);
                  $$ = 0;
                }
            ;
+
+           
+/* ------ options ------ */
+/* yields: ASTList<Option> */
+Options: /* empty */            { $$ = new ASTList<Option>; }
+       | Options Option         { ($$=$1)->append($2); }
+       ;
+
+/* yields: Option */       
+Option: "option" TOK_NAME ";"   { $$ = new Option($2); }           
+      ;
 
 
 /* ------ terminals ------ */

@@ -13,6 +13,10 @@
 // want to see different conceptual structure.  Anyway, the point is
 // to be aware which kind of name a given thing is.
 
+// this makes it so that, by default, dup() is the identity function,
+// and del() is a no-op
+option useGCDefaults;
+
 verbatim CCGr [
 
 #include "strtable.h"     // StringRef (r)
@@ -178,14 +182,9 @@ nonterm[StringRef] VariableName {
 // names for situations where it does not matter what its previous
 // meaning may have been
 nonterm[StringRef] AnyName {
-  //-> n:L2_TYPE_NAME     [ return n; ]
-  //-> n:L2_VARIABLE_NAME [ return n; ]
-  //-> n:L2_NAME          [ return n; ]    // for when not using lexer hack
-
-  merge(L,R)            [ return L; ]    // for when not using lexer hack
-
-  -> n:VariableName     [ return n; ]
-  -> n:TypeName         [ return n; ]
+  -> n:L2_TYPE_NAME     [ return n; ]
+  -> n:L2_VARIABLE_NAME [ return n; ]
+  -> n:L2_NAME          [ return n; ]    // for when not using lexer hack
 }
 
 

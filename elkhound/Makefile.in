@@ -62,7 +62,7 @@ ccflags += -Wno-deprecated
 #ccflags += $(YYDEBUG)
 
 # generate debug table every time
-#TRGRAMANL := foo,lrtable
+TRGRAMANL := ,lrtable
 
 
 # flags on command line

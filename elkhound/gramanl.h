@@ -278,7 +278,7 @@ public:     // funcs
 
   // sometimes it's convenient to have all items mixed together
   // (CONSTNESS: allows modification of items...)
-  void getAllItems(SObjList<LRItem> &dest) const;
+  void getAllItems(SObjList<LRItem> &dest, bool nonkernel=true) const;
 
   // used for sorting by id
   static int diffById(ItemSet const *left, ItemSet const *right, void*);
@@ -353,7 +353,7 @@ public:     // funcs
 
   // ---- debugging ----
   void writeGraph(ostream &os, GrammarAnalysis const &g) const;
-  void print(ostream &os, GrammarAnalysis const &g) const;
+  void print(ostream &os, GrammarAnalysis const &g, bool nonkernel=true) const;
 };
 
 
@@ -557,8 +557,8 @@ public:	    // funcs
   // sets to the given file (or don't, if NULL)
   void runAnalyses(char const *setsFname);
 
-  // print the item sets to a stream
-  void printItemSets(ostream &os) const;
+  // print the item sets to a stream (optionally include nonkernel items)
+  void printItemSets(ostream &os, bool nonkernel) const;
 
   // given a grammar, replace all of its actions with actions that
   // will build a straightforward parse tree using the facilities

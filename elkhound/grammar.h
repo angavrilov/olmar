@@ -460,6 +460,11 @@ public:	    // data
   // extra verbatim code to be inserted at top of impl file
   LocString verbatim;
 
+  // when true, the default dup/del is what's expected for a
+  // garbage-collected system: dup() is the identity function,
+  // and del() is a no-op
+  bool useGCDefaults;
+
 public:     // funcs
   Grammar();                            // set everything manually
   ~Grammar();

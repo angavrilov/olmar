@@ -36,5 +36,8 @@ tracing strings for gramanl and GLR parser:
   type-ids:      print the type ids when types are printed
   initializer:   print details of declaration initializer processing  
   closure:       details of item-set closure algorithm
+  lrtable:       print the LR item sets
+  nonkernel:     print nonkernel items when printing LR item sets
+
 
 

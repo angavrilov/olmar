@@ -1171,11 +1171,6 @@ STATICDEF bool GLR
           // on the free list, I need to make the node pool's head point at them
           stackNodePool.private_setHead(prev);
 
-          TRSPARSE("state " << startStateId <<
-                   ", (unambig) reducing by production " << prodIndex <<
-                   " (rhsLen=" << rhsLen <<
-                   "), back to state " << parser->state);
-
           // call the user's action function (TREEBUILD)
           SemanticValue sval =
           #if USE_ACTIONS
@@ -1195,9 +1190,11 @@ STATICDEF bool GLR
             tables->gotoEntry(parser->state, prodInfo.lhsIndex));
 
           // debugging
-          TRSPARSE("state " << parser->state <<
-                   ", (unambig) shift nonterm " << (int)prodInfo.lhsIndex <<
-                   ", to state " << newState);
+          TRSPARSE("state " << startStateId <<
+                   ", (unambig) reduced by prod " << prodIndex <<
+                   " (len=" << rhsLen <<
+                   "), back to state " << parser->state <<
+                   " then out to state " << newState);
 
           // 'parser' has refct 1, reflecting the local variable only
           xassertdb(parser->referenceCount==1);
@@ -1227,6 +1224,8 @@ STATICDEF bool GLR
           TRSACTION("  " << 
                     symbolDescription(newNode->getSymbolC(), userAct, sval) <<
                     " ->" << rhsDescription);
+
+          // BUG: (?) I'm not calling the user's keep() function here..
 
           // after all this, we haven't shifted any tokens, so the token
           // context remains; let's go back and try to keep acting
@@ -1305,6 +1304,16 @@ STATICDEF bool GLR
 }
 
 
+// diagnostic/debugging function: yield sequence of
+// states represented by 'parser'; in the case of
+// ambiguity, just show one...
+string stackTraceString(StackNode *parser)
+{
+  // hmm.. what to do about cyclic stacks?
+  return string("need to think about this some more..");
+}
+
+
 // return false if caller should return false; pulled out of
 // glrParse to reduce register pressure (but didn't help as
 // far as I can tell!)
@@ -1352,7 +1361,8 @@ bool GLR::nondeterministicParseToken(ArrayStack<PendingShift> &pendingShifts)
     //int actions = (parserWorklist.length() + pendingShifts.length()) -
     //                parsersBefore;
 
-    if (actions == 0) {
+    if (actions == 0) {                                        
+      // I contemplated printing a trace, see stackTraceString() above..
       TRSPARSE("parser in state " << parser->state << " died");
       lastToDie = parser->state;          // for reporting the error later if necessary
 
@@ -1360,7 +1370,7 @@ bool GLR::nondeterministicParseToken(ArrayStack<PendingShift> &pendingShifts)
       // then gets merged with something else, prompting a request
       // for the user's merge function; to avoid this, kill it early.
       // first verify my assumptions: it should be on 'activeParsers'
-      // and pointed-to by 'parser
+      // and pointed-to by 'parser'
       xassertdb(parser->referenceCount == 2);
 
       // the only reason nodes are retained on 'activeParsers' is so if
@@ -1790,7 +1800,7 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     // emit tracing diagnostics for this reduction
     ACTION( string lhsDesc = 
               userAct->nonterminalDescription(prodInfo.lhsIndex, sval); )
-    TRSACTION("  " << lhsDesc << " -> " << rhsDescription);
+    TRSACTION("  " << lhsDesc << " ->" << rhsDescription);
 
     // see if the user wants to keep this reduction
     if (!userAct->keepNontermValue(prodInfo.lhsIndex, sval)) {

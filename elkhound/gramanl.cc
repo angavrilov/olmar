@@ -645,15 +645,17 @@ void ItemSet::removeReduce(Production const *prod, Terminal const *sym)
 }
 
 
-void ItemSet::getAllItems(SObjList<LRItem> &dest) const
+void ItemSet::getAllItems(SObjList<LRItem> &dest, bool nonkernel) const
 {
   SObjListMutator<LRItem> mut(dest);
 
   FOREACH_OBJLIST(LRItem, kernelItems, k) {
     mut.append(const_cast<LRItem*>(k.data()));
   }
-  FOREACH_OBJLIST(LRItem, nonkernelItems, n) {
-    mut.append(const_cast<LRItem*>(n.data()));
+  if (nonkernel) {
+    FOREACH_OBJLIST(LRItem, nonkernelItems, n) {
+      mut.append(const_cast<LRItem*>(n.data()));
+    }
   }
 }
 
@@ -856,13 +858,14 @@ void ItemSet::computeKernelCRC(GrowArray<DottedProduction const*> &array)
 }
 
 
-void ItemSet::print(ostream &os, GrammarAnalysis const &g) const
+void ItemSet::print(ostream &os, GrammarAnalysis const &g, 
+                    bool nonkernel) const
 {
   os << "ItemSet " << id << ":\n";
 
   // collect all items
   SObjList<LRItem> items;     // (constness) don't use 'item' to modify elements
-  getAllItems(items);
+  getAllItems(items, nonkernel);
 
   // for each item  
   SFOREACH_OBJLIST(LRItem, items, itemIter) {
@@ -2556,14 +2559,14 @@ void GrammarAnalysis::constructLRItemSets()
 
 
 // print each item set
-void GrammarAnalysis::printItemSets(ostream &os) const
+void GrammarAnalysis::printItemSets(ostream &os, bool nonkernel) const
 {
   FOREACH_OBJLIST(ItemSet, itemSets, itemSet) {
     os << "State " << itemSet.data()->id
        << ", sample input: " << sampleInput(itemSet.data()) << "\n"
        << "  and left context: " << leftContextString(itemSet.data()) << "\n"
        ;
-    itemSet.data()->print(os, *this);
+    itemSet.data()->print(os, *this, nonkernel);
     os << "\n\n";
   }
 }
@@ -3803,7 +3806,9 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
     traceProgress() << "printing item sets to " << setsFname << " ..." << endl;
     *setsOutput << "NOTE: Item set numbers can change depending on what flags\n"
                 << "are passed to 'gramanl'!\n";
-    printItemSets(*setsOutput);
+    // only print the nonkernel items if they're explicitly requested,
+    // since they are more noise than signal, usually
+    printItemSets(*setsOutput, tracingSys("nonkernel"));
   }
 
   // print information about all tokens
@@ -4371,40 +4376,54 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
   }
 
   out << "    default:\n";
-  if (whichFunc == 0) {
-    // unspecified dup: return NULL
-    out << "      return (SemanticValue)0;\n";
-  }
-  else if (whichFunc == 3) {
-    // unspecified keep functions default to keep
-    out << "      return true;\n";
-  }
-  else if (whichFunc == 4) {
-    // default classifier keeps existing classification
-    out << "      return oldTokenType;\n";
-  }
-  else {
-    if (syms.firstC()->isNonterminal()) {
-      // use the nonterminal map
-      out << "      cout << \"WARNING: there is no action to " << actUpon << " \"\n"
-             "           << nontermNames[" << switchVar << "] << endl;\n";
-    }
-    else {
-      // there currently is no terminal map, and since the user was
-      // at least partially involved in deciding the codes it might
-      // not be so bad to just use the code, at least for now..
-      out << "      cout << \"WARNING: there is no action to " << actUpon << " \"\n"
-             "           << " << switchVar << " << endl;\n";
-    }
+  switch (whichFunc) {
+    default:
+      xfailure("bad func code");
 
-    if (whichFunc == 2) {
-      // merge; arbitrarily choose to keep first one
-      //out << "      abort();\n";
-      out << "      return left;\n";
-    }
-    else {
-      // for 'del', just drop it on the floor (with a warning)
-    }
+    case 0:    // unspecified dup
+      if (!g.useGCDefaults) {
+        // not using GC, return NULL so silent sharing doesn't happen
+        out << "      return (SemanticValue)0;\n";
+      }
+      else {
+        // using GC, sharing is fine
+        out << "      return sval;\n";
+      }
+      break;
+
+    case 1:    // unspecified del
+      if (!g.useGCDefaults) {
+        // warn about unspec'd del, since it's probably a memory leak
+        if (syms.firstC()->isNonterminal()) {
+          // use the nonterminal map
+          out << "      cout << \"WARNING: there is no action to deallocate nonterm \"\n"
+                 "           << nontermNames[" << switchVar << "] << endl;\n";
+        }
+        else {
+          // use the terminal map
+          out << "      cout << \"WARNING: there is no action to deallocate terminal \"\n"
+                 "           << termNames[" << switchVar << "] << endl;\n";
+        }
+      }
+      else {
+        // in gc mode, just ignore del
+        out << "      break;\n";
+      }
+      break;
+
+    case 2:    // unspecified merge: warn, but then use left (arbitrarily)
+      out << "      cout << \"WARNING: there is no action to merge nonterm \"\n"
+          << "           << nontermNames[" << switchVar << "] << endl;\n"
+          << "      return left;\n";
+      break;
+
+    case 3:    // unspecified keep: keep it
+      out << "      return true;\n";
+      break;
+
+    case 4:    // unspecified classifier: identity map
+      out << "      return oldTokenType;\n";
+      break;
   }
 
   out << "  }\n"
