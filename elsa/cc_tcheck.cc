@@ -3231,10 +3231,21 @@ void E_funCall::inner1_itcheck(Env &env)
 
 Type *E_funCall::inner2_itcheck(Env &env)
 {
+  // controls whether overload resolution is performed
+  // TODO: enable permanently
+  static bool doOverload = tracingSys("doOverload");
+  if (func->isE_variable() &&
+      func->asE_variable()->name->getName() == env.special_testOverload) {
+    // if I'm trying to test it, I want it performed; do this up here
+    // so I turn it on before resolving the arguments
+    doOverload = true;
+  }
+
+  // check the argument list
   args = tcheckFakeExprList(args, env);
 
   Type *t = func->type->asRval();
-  
+
   // automatically coerce function pointers into functions
   if (t->isPointerType()) {
     t = t->asPointerTypeC()->atType;
@@ -3299,18 +3310,9 @@ Type *E_funCall::inner2_itcheck(Env &env)
         env.error("invalid call to __getImplicitConversion");
       }
     }
-    
-    // controls whether overload resolution is performed
-    // TODO: enable permanently
-    static bool doOverload = tracingSys("doOverload");
 
     // test overload resolution
     if (funcName == env.special_testOverload) {
-      // if I'm trying to test it, I want it performed (note this is
-      // too late for the first __testOverload, since its args have
-      // already been tchecked, so the first needs to be a dummy)
-      doOverload = true;
-
       int expectLine;
       if (args->count() == 2 &&
           args->first()->isE_funCall() &&
