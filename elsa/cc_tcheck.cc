@@ -5178,7 +5178,7 @@ void E_funCall::inner1_itcheck(Env &env)
     E_variable *evar = func->asE_variable();
     xassert(!evar->ambiguity);
 
-    if (evar->name->isPQ_name()) {
+    if (!evar->name->hasQualifiers()) {
       // Unqualified name being looked up in the context of a function
       // call; cppstd 3.4.2 applies, which is implemented in
       // inner2_itcheck.  So, here, we don't report an error because
@@ -5331,7 +5331,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
     if (fevar) {
       // do we need to do another lookup, a-la cppstd 3.4.2?
       Variable *chosen;
-      if (fevar->name->isPQ_name() &&             // unqualified name, and
+      if (!fevar->name->hasQualifiers() &&        // unqualified name, and
           shouldUseArgDepLookup(fevar)) {         // (other tests pass)
         // must do lookup according to 3.4.2
         chosen = argumentDependentLookup(env, fevar, args);
@@ -5544,7 +5544,7 @@ static Variable *argumentDependentLookup(Env &env, E_variable *fvar,
                                          FakeList<ArgExpression> *args)
 {
   // we only get here for unqualified names
-  StringRef name = fvar->name->asPQ_name()->name;
+  StringRef name = fvar->name->getName();
   
   // get candidates from associated scopes
   SObjList<Variable> candidates;
