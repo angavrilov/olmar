@@ -9,6 +9,14 @@ all: ccsstr astgen libast.a example.o ext1.o
 SMBASE := @SMBASE@
 LIBSMBASE := $(SMBASE)/libsmbase.a
 
+# external tools
+PERL := @PERL@
+MYFLEX := $(PERL) $(SMBASE)/run-flex.pl
+
+# TODO: agramlex.yy.cc apparently has backing up, which should
+# ideally be removed; add -nobackup to the run-flex.pl command
+# line to see this
+
 
 # C++ compiler, etc.
 CXX := g++
@@ -60,12 +68,7 @@ agrampar.tab.o: ast.hand.h ast.ast.h agrampar.h
 # have to use sed to change the forward declaration of 'istream'
 # into an #include, so the std:: namespace doesn't cause a problem
 agramlex.yy.cc: gramlex.h agramlex.lex agrampar.codes.h
-	flex -o$@ agramlex.lex
-	mv $@ agramlex.tmp
-	sed -e 's/class istream;/#include <iostream.h>/' \
-            -e 's/#include <FlexLexer.h>/#include "sm_flexlexer.h"/' \
-	  <agramlex.tmp >$@
-	rm agramlex.tmp
+	$(MYFLEX) -o$@ agramlex.lex
 
 
 # ------------------------- ccsstr ---------------------

@@ -160,6 +160,10 @@ get_smbase_BASE_FLAGS();
 # etags: see elsa/configure.pl
 
 
+# ---------------- misc -----------------
+$PERL = get_PERL_variable();
+
+
 # ------------------ config.summary -----------------
 # create a program to summarize the configuration
 open(OUT, ">config.summary") or die("can't make config.summary");
@@ -215,6 +219,7 @@ EOF
 # substitute variables
 sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
     -e "s|\@SMBASE\@|$SMBASE|g" \\
+    -e "s|\@PERL\@|$PERL|g" \\
   <Makefile.in >>Makefile || exit
 
 # discourage editing ..
