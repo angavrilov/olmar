@@ -16,6 +16,7 @@ void TranslationUnit::tcheck(Env &env)
 }
 
 
+// --------------------- TopForm ---------------------
 void TF_decl::tcheck(Env &env)
 {
   decl->tcheck(env);
@@ -28,13 +29,19 @@ void TF_func::tcheck(Env &env)
   Type const *f = nameParams->tcheck(env, r, dflags);
   xassert(f->isFunctionType());
 
+  // store the computed function type
+  ftype = &( f->asFunctionTypeC() );
+  
+  // and name
+  name = nameParams->getName();
+
   // write down the expected return type
   env.setCurrentRetType(r);
 
   // put parameters into the environment
   env.enterScope();
 
-  FOREACH_OBJLIST(FunctionType::Param, f->asFunctionTypeC().params, iter) {
+  FOREACH_OBJLIST(FunctionType::Param, ftype->params, iter) {
     FunctionType::Param const *p = iter.data();
     env.addVariable(p->name, DF_NONE, p->type);
   }
@@ -648,7 +655,7 @@ Type const *E_comma::itcheck(Env &env)
 
 Type const *E_sizeofType::itcheck(Env &env)
 {
-  atype->tcheck(env);
+  size = atype->tcheck(env)->reprSize();
   return fixed(ST_INT);
 }
 
@@ -696,17 +703,17 @@ int Expression::xnonconst() const
 }
 
 
-int E_intLit::constEval(Env & env) const
+int E_intLit::constEval(Env &env) const
 {
   return i;
 }
 
-int E_charLit::constEval(Env & env) const
+int E_charLit::constEval(Env &env) const
 {
   return c;
 }
 
-int E_unary::constEval(Env & env) const
+int E_unary::constEval(Env &env) const
 {
   if (op == UNY_SIZEOF) {
     return expr->type->reprSize();
@@ -723,7 +730,7 @@ int E_unary::constEval(Env & env) const
 }
 
 
-int E_binary::constEval(Env & env) const
+int E_binary::constEval(Env &env) const
 {
   int v1 = e1->constEval(env);
   int v2 = e2->constEval(env);
@@ -753,32 +760,32 @@ int E_binary::constEval(Env & env) const
 }
 
 
-int E_cast::constEval(Env & env) const
+int E_cast::constEval(Env &env) const
 {
   return expr->constEval(env);
 }
 
 
-int E_sizeofType::constEval(Env & env) const
+int E_sizeofType::constEval(Env &env) const
 {
-  return atype->tcheck(env)->reprSize();
+  return size;
 }
 
 
-int E_floatLit::constEval(Env & env) const { return xnonconst(); }
-int E_stringLit::constEval(Env & env) const { return xnonconst(); }
-int E_structLit::constEval(Env & env) const { return xnonconst(); }
-int E_variable::constEval(Env & env) const { return xnonconst(); }
-int E_arrayAcc::constEval(Env & env) const { return xnonconst(); }
-int E_funCall::constEval(Env & env) const { return xnonconst(); }
-int E_fieldAcc::constEval(Env & env) const { return xnonconst(); }
-int E_addrOf::constEval(Env & env) const { return xnonconst(); }
-int E_deref::constEval(Env & env) const { return xnonconst(); }
-int E_cond::constEval(Env & env) const { return xnonconst(); }
-int E_gnuCond::constEval(Env & env) const { return xnonconst(); }
-int E_comma::constEval(Env & env) const { return xnonconst(); }
-int E_assign::constEval(Env & env) const { return xnonconst(); }
-int E_arithAssign::constEval(Env & env) const { return xnonconst(); }
+int E_floatLit::constEval(Env &env) const { return xnonconst(); }
+int E_stringLit::constEval(Env &env) const { return xnonconst(); }
+int E_structLit::constEval(Env &env) const { return xnonconst(); }
+int E_variable::constEval(Env &env) const { return xnonconst(); }
+int E_arrayAcc::constEval(Env &env) const { return xnonconst(); }
+int E_funCall::constEval(Env &env) const { return xnonconst(); }
+int E_fieldAcc::constEval(Env &env) const { return xnonconst(); }
+int E_addrOf::constEval(Env &env) const { return xnonconst(); }
+int E_deref::constEval(Env &env) const { return xnonconst(); }
+int E_cond::constEval(Env &env) const { return xnonconst(); }
+int E_gnuCond::constEval(Env &env) const { return xnonconst(); }
+int E_comma::constEval(Env &env) const { return xnonconst(); }
+int E_assign::constEval(Env &env) const { return xnonconst(); }
+int E_arithAssign::constEval(Env &env) const { return xnonconst(); }
 
 
 // -------------------- Expression::toString --------------------

@@ -26,7 +26,7 @@ void doit(int argc, char **argv)
   StringTable strTable;
   
 
-  // parse
+  // --------------- parse --------------
   TranslationUnit *unit;
   {
     SemanticValue treeTop;
@@ -53,14 +53,26 @@ void doit(int argc, char **argv)
   unit->debugPrint(cout, 0);
 
 
-  // typecheck 
+  // ---------------- typecheck -----------------
   cout << "type checking...\n";
   Env env;
   unit->tcheck(env);
   cout << "done type checking\n";
 
-  // print abstract syntax tree
+  // print abstract syntax tree annotated with types
   unit->debugPrint(cout, 0);
+
+
+
+  // --------------- abstract interp ------------
+  cout << "abstract interpretation...\n";
+  AEnv env(strTable);
+
+  unit->vcgen(env);
+  
+  cout << "done with abs interp\n";
+
+
 
   //malloc_stats();
 
@@ -83,3 +95,46 @@ int main(int argc, char **argv)
 
   return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// (had to move this down out of the code, because it's such an emotional
+// sparkplug, I can't concentrate on coding with it up in the code ...)
+
+
+          //                            ==============================
+          //    *   *   *   *   *   *   ==============================
+          //      *   *   *   *   *
+          //    *   *   *   *   *   *   ==============================
+          //      *   *   *   *   *     ==============================
+          //    *   *   *   *   *   *
+          //      *   *   *   *   *     ==============================
+          //    *   *   *   *   *   *   ==============================
+          //      *   *   *   *   *
+          //    *   *   *   *   *   *   ==============================
+          //                            ==============================
+          //
+          //   =======================================================
+          //   =======================================================
+          //
+          //   =======================================================
+          //   =======================================================
+          //
+          //   =======================================================
+          //   =======================================================
+
+          //   This symbol is *unique*: it stands, among other things,
+          //   for the right to protest (burn) this symbol.
+

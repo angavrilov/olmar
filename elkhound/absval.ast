@@ -1,0 +1,24 @@
+// absval.ast
+// abstract domain values
+
+verbatim {                     
+  #include "strtable.h"     // StringRef
+  #include "cc_flags.h"     // UnaryOp, BinaryOp
+}
+
+class IntValue {            
+  // logic variable: unknown but definite integer value
+  -> IVvar(StringRef name);
+
+  // literal integer
+  -> IVint(int i);
+
+  // arithmetic expressions built-in to the C language
+  -> IVunary(UnaryOp op, IntValue val);
+  -> IVbinary(IntValue v1, BinaryOp op, IntValue v2);
+  -> IVcond(IntValue cond, IntValue el, IntValue th);
+  
+  // function symbols, variously interpreted
+  -> IVfunc(StringRef func, ASTList<IntValue> args);
+}
+

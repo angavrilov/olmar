@@ -240,9 +240,9 @@ nonterm[Expression*] PostfixExpression {
        [ return new E_fieldAcc(new E_deref(p), n); ]
 
   -> p:PostfixExpression "++" 
-       [ return new E_unary(p, UNY_POSTINC); ]
-  -> p:PostfixExpression "--" 
-       [ return new E_unary(p, UNY_POSTDEC); ]
+       [ return new E_unary(UNY_POSTINC, p); ]
+  -> p:PostfixExpression "--"
+       [ return new E_unary(UNY_POSTDEC, p); ]
 
   // pulled these two because other rules supercede them
   //-> PostfixExpression "." PseudoDestructorName           ; // explicit dtor call
@@ -278,11 +278,11 @@ nonterm[ASTList<Expression>*] ExpressionListOpt {
 nonterm[Expression*] UnaryExpression {
   -> e:PostfixExpression         [ return e; ]
 
-  -> "++" e:CastExpression       [ return new E_unary(e, UNY_PREINC); ]
-  -> "--" e:CastExpression       [ return new E_unary(e, UNY_PREDEC); ]
+  -> "++" e:CastExpression       [ return new E_unary(UNY_PREINC, e); ]
+  -> "--" e:CastExpression       [ return new E_unary(UNY_PREDEC, e); ]
 
   // size of expression
-  -> "sizeof" e:UnaryExpression  [ return new E_unary(e, UNY_SIZEOF); ]
+  -> "sizeof" e:UnaryExpression  [ return new E_unary(UNY_SIZEOF, e); ]
 
   //-> e:DeleteExpression ;
 
@@ -291,10 +291,10 @@ nonterm[Expression*] UnaryExpression {
   -> "&" e:CastExpression        [ return new E_addrOf(e); ]
 
   // other unary operators
-  -> "+" e:CastExpression        [ return new E_unary(e, UNY_PLUS); ]
-  -> "-" e:CastExpression        [ return new E_unary(e, UNY_MINUS); ]
-  -> "!" e:CastExpression        [ return new E_unary(e, UNY_NOT); ]
-  -> "~" e:CastExpression        [ return new E_unary(e, UNY_BITNOT); ]
+  -> "+" e:CastExpression        [ return new E_unary(UNY_PLUS, e); ]
+  -> "-" e:CastExpression        [ return new E_unary(UNY_MINUS, e); ]
+  -> "!" e:CastExpression        [ return new E_unary(UNY_NOT, e); ]
+  -> "~" e:CastExpression        [ return new E_unary(UNY_BITNOT, e); ]
                                                
   // size of type
   -> "sizeof" "(" t:TypeId ")"   [ return new E_sizeofType(t); ]

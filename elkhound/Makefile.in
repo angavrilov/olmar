@@ -200,7 +200,7 @@ cexp3: ${cexp3-dep} ${libraries}
 
 # intermediate files for an ast spec
 %.ast.gen.cc %.ast.gen.h: %.ast ../ast/astgen
-	../ast/astgen $*.ast
+	../ast/astgen -b$*.ast.gen $*.ast
 
 # without this these get deleted when errors occur, and I can't
 # look at the offending source lines!
