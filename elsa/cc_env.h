@@ -600,6 +600,25 @@ public:
 };
 
 
+// set/reset 'disambiguationNestingLevel'
+class DisambiguateNestingTemp {
+private:
+  Env &env;       // relevant environment
+  int prev;       // previous value of 'disambiguationNestingLevel'
+
+public:
+  DisambiguateNestingTemp(Env &e, int newValue)
+    : env(e),
+      prev(e.disambiguationNestingLevel) {
+    env.disambiguationNestingLevel = newValue;
+  }
+
+  ~DisambiguateNestingTemp() {
+    env.disambiguationNestingLevel = prev;
+  }
+};
+
+
 // little hack to suppress errors in a given segment
 class SuppressErrors {
 private:

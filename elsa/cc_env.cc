@@ -1675,7 +1675,11 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags,
 
         // sm: I think this assertion should be removed.  It asserts
         // a fact that is only tangentially related to the code at hand.
-        xassert(var->type->asCompoundType()->getTypedefVar() == var);
+        //xassert(var->type->asCompoundType()->getTypedefVar() == var);
+        //
+        // in fact, as I suspected, it is wrong; using-directives can
+        // create aliases (e.g. t0194.cc)
+
         return instantiateTemplate_astArgs(scope, var, NULL /*inst*/,
                                            final->asPQ_templateC()->args);
       }
@@ -2455,28 +2459,40 @@ Variable *Env::instantiateTemplate
   }
 
   if (copyCpd || copyFun) {
-    if (instV->type->isCompoundType()) {
-      xassert(copyCpd);
-      // invoke the TS_classSpec typechecker, giving to it the
-      // CompoundType we've built to contain its declarations; for now
-      // I don't support nested template instantiation
-      copyCpd->ctype = instV->type->asCompoundType();
-      copyCpd->tcheckIntoCompound(*this, DF_NONE, copyCpd->ctype, false /*inTemplate*/,
-                                  NULL /*containingClass*/);
-      // this is turned off because it doesn't work: somewhere the
-      // mutants are actually needed; Instead we just avoid them
-      // above.
-      //      deMutantify(baseV);
-    } else if (instV->type->isFunctionType()) {
-      xassert(copyFun);
-      copyFun->funcType = instV->type->asFunctionType();
-      xassert(scope()->isGlobalTemplateScope());
-      copyFun->tcheck(*this,
-                      true      // checkBody
-                      );
-      // since instV != copyFun->nameAndParams->var, we have to do
-      // this manually here as well
-      instV->funcDefn = copyFun;
+    // we are about to tcheck the cloned AST.. it might be that we were
+    // in the context of an ambiguous expression when the need for
+    // instantiated arose, but we want the tchecking below to proceed
+    // as if it were not ambiguous (it isn't, it just might be referenced
+    // from a context that is)      
+    //
+    // so, the following object will temporarily set the level to 0, 
+    // and restore its original value when the block ends
+    {
+      DisambiguateNestingTemp nestTemp(*this, 0);
+
+      if (instV->type->isCompoundType()) {
+        xassert(copyCpd);
+        // invoke the TS_classSpec typechecker, giving to it the
+        // CompoundType we've built to contain its declarations; for now
+        // I don't support nested template instantiation
+        copyCpd->ctype = instV->type->asCompoundType();
+        copyCpd->tcheckIntoCompound(*this, DF_NONE, copyCpd->ctype, false /*inTemplate*/,
+                                    NULL /*containingClass*/);
+        // this is turned off because it doesn't work: somewhere the
+        // mutants are actually needed; Instead we just avoid them
+        // above.
+        //      deMutantify(baseV);
+      } else if (instV->type->isFunctionType()) {
+        xassert(copyFun);
+        copyFun->funcType = instV->type->asFunctionType();
+        xassert(scope()->isGlobalTemplateScope());
+        copyFun->tcheck(*this,
+                        true      // checkBody
+                        );
+        // since instV != copyFun->nameAndParams->var, we have to do
+        // this manually here as well
+        instV->funcDefn = copyFun;
+      }
     }
 
     if (tracingSys("cloneTypedAST")) {
@@ -2563,7 +2579,8 @@ void Env::instantiateForwardClasses(Scope *scope, Variable *baseV)
 // -------- diagnostics --------
 Type *Env::error(SourceLoc L, char const *msg, bool disambiguates)
 {
-  trace("error") << (disambiguates? "[d] " : "") << "error: " << msg << endl;
+  trace("error") << (disambiguates? "[d] " : "") 
+                 << toString(L) << ": " << msg << endl;
   if (!disambiguateOnly || disambiguates) {
     errors.addError(new ErrorMsg(L, msg, 
       disambiguates ? EF_DISAMBIGUATES : EF_NONE));

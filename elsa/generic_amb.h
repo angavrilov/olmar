@@ -180,6 +180,10 @@ NODE *resolveAmbiguity(
     env.errors.addError(new ErrorMsg(
       loc, "---- BEGIN: messages from an ambiguity ----", EF_NONE));
     for (int i=0; i<numAlts; i++) {
+      if (i > 0) {
+        env.errors.addError(new ErrorMsg(
+          loc, "---- SEPARATOR: messages from an ambiguity ----", EF_NONE));
+      }
       env.errors.takeMessages(altErrors[i]);
     }
     env.errors.addError(new ErrorMsg(
