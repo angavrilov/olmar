@@ -31,6 +31,8 @@ enum CVFlags {
   CV_VOLATILE = 0x200,
   CV_OWNER    = 0x400,     // experimental extension
   CV_ALL      = 0x700,
+  
+  CV_SHIFT_AMOUNT = 8,     // shift right this many bits before counting for cvFlagNames
   NUM_CVFLAGS = 3          // # bits set to 1 in CV_ALL
 };
 

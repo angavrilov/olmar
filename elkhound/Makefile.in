@@ -168,6 +168,7 @@ cc-set := \
   cc/cc_flags.o \
   cc/cc_type.o \
   cc/cc_tcheck.o \
+  cc/cc_ast_aux.o \
   cc/treeout.o \
   cc/variable.o
 -include $(filter-out $(AST)/%, $(cc-set:.o=.d))

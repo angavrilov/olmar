@@ -1191,10 +1191,10 @@ STATICDEF bool GLR
 
           // debugging
           TRSPARSE("state " << startStateId <<
-                   ", (unambig) reduced by prod " << prodIndex <<
+                   ", (unambig) reduce by " << prodIndex <<
                    " (len=" << rhsLen <<
-                   "), back to state " << parser->state <<
-                   " then out to state " << newState);
+                   "), back to " << parser->state <<
+                   " then out to " << newState);
 
           // 'parser' has refct 1, reflecting the local variable only
           xassertdb(parser->referenceCount==1);
