@@ -1115,6 +1115,7 @@ testCparse c/k0003a.c #"old-style function decl with parentheses around func nam
 failCparse c/k0004.c "merge nonterm MemberDeclaration"
 failCparse c/k0005.c "multiply defined enum 'option'"
 failCparse c/k0006.c "static inline function implicitly returning int"
+failCparse c/k0006a.c "static inline function implicitly returning int, old-style param decl"
 testCparse c/k0011.c #"ambiguous s->z < 1 || 2 > (3)"
 
 ### </quarl-testcases-c>
