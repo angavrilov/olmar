@@ -237,6 +237,12 @@ void throw_XUnimp(char const *msg)
 }
 
 
+void throw_XUnimp(char const *msg, char const *file, int line)
+{
+  throw_XUnimp(stringc << file << ":" << line << ": " << msg);
+}
+
+
 // -------------------- XFatal -------------------
 // That this error is "fatal" need not be stated in the error message
 // itself.  Doing so would unnecessarily alarm novice users, and the

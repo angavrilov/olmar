@@ -202,6 +202,7 @@ void BPBox::render(BPRender &mgr)
 
     // the segment will be put here without a preceding break
     else if (pendingBreak) {
+      startCol += pendingBreak->indent;
       pendingBreak->render(mgr);
       pendingBreak = NULL;
     }
