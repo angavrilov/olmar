@@ -702,7 +702,10 @@ testparse d0118.cc
 testparse d0119.cc
 testparse d0120.cc
 testparse d0121.cc
-failparse d0123.cc "from the kernel; works in C mode but in C++ mode can't convert void* to function pointer"
+
+# sm: this is invalid C++ and is rejected by g++; why is it here?
+#failparse d0123.cc "from the kernel; works in C mode but in C++ mode can't convert void* to function pointer"
+
 testparse d0124.cc
 # ---- END: lots of tests ----
 
