@@ -606,6 +606,10 @@ testparse t0370.cc
 testparse t0371.cc
 testparse t0372.cc
 testparse t0373.cc
+testparse t0374.cc
+testparse t0375.cc
+testparse t0376.cc
+testparse t0377.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -740,6 +744,7 @@ runTest perl ./multitest.pl ./five-errors in/t0151.cc
 #   7.3.3k.cc: I don't detect a purported ambiguity
 #   7.3.4e.cc: major design flaw: cannot return sets from lookup functions
 #   (plus more from before I started maintaining this list ...)
+rm -f in/std/*.error*.cc
 for fn in in/std/*.cc; do
   runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS "$fn"
 done

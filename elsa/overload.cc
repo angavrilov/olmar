@@ -483,7 +483,7 @@ void OverloadResolver::addUserOperatorCandidates
   }
 
   // non-member candidates
-  SObjList<Variable> candidates;
+  LookupSet candidates;
   {
     // 13.3.1.2 para 3 bullet 2: "... all member functions are ignored."
     LookupFlags flags = LF_SKIP_CLASSES;
@@ -497,9 +497,9 @@ void OverloadResolver::addUserOperatorCandidates
     env.associatedScopeLookup(candidates, opName, argTypes, flags);
 
     // ordinary lookup
-    Variable *ordinary = env.lookupVariable(opName, flags);
-    if (ordinary) {
-      env.addCandidates(candidates, ordinary);
+    { 
+      Scope *dummy;
+      env.lookupVariable_set(candidates, opName, flags | LF_LOOKUP_SET, dummy);
     }
     
     // filter candidates if no class-typed args

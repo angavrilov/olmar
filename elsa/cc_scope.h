@@ -12,6 +12,7 @@
 #include "array.h"        // ArrayStack
 #include "serialno.h"     // INHERIT_SERIAL_BASE
 #include "strmap.h"       // StringRefMap
+#include "lookupset.h"    // LookupSet
 
 // NOTE: We cannot #include cc_type.h b/c cc_type.h #includes cc_scope.h.
 
@@ -47,8 +48,9 @@ enum LookupFlags {
   LF_SUPPRESS_NONEXIST = 0x00004000,   // suppress "does not exist" errors
   LF_IGNORE_USING      = 0x00008000,   // 3.4.2p3: ignore using-directives
   LF_NO_IMPL_THIS      = 0x00010000,   // do not insert implicit 'this->'
+  LF_LOOKUP_SET        = 0x00020000,   // lookup can return a set of names
 
-  LF_ALL_FLAGS         = 0x0001FFFF,   // bitwise OR of all flags
+  LF_ALL_FLAGS         = 0x0003FFFF,   // bitwise OR of all flags
 };
 
 ENUM_BITWISE_OPS(LookupFlags, LF_ALL_FLAGS)     // smbase/macros.h
@@ -173,16 +175,20 @@ private:     // funcs
      BaseClassSubobj const *&v1Subobj,
      BaseClassSubobj const *v2Subobj) const;
   Variable const *lookupPQVariableC_inner
-    (PQName const *name, Env &env, LookupFlags flags) const;
+    (LookupSet &candidates, PQName const *name,
+     Env &env, LookupFlags flags) const;
 
   // more using-directive stuff
   void addActiveUsingEdge(Scope *target);
   void removeActiveUsingEdge(Scope *target);
   void scheduleActiveUsingEdge(Env &env, Scope *target);
+  bool foundViaUsingEdge(LookupSet &candidates, Env &env, LookupFlags flags,
+                         Variable const *v, Variable const *&vfound) const;
   Variable const *searchActiveUsingEdges
-    (StringRef name, Env &env, LookupFlags flags, Variable const *vfound) const;
+    (LookupSet &candidates, StringRef name,
+     Env &env, LookupFlags flags, Variable const *vfound) const;
   Variable const *searchUsingEdges
-    (StringRef name, Env &env, LookupFlags flags) const;
+    (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags) const;
   void getUsingClosure(ArrayStack<Scope*> &dest);
 
 protected:   // funcs
@@ -286,6 +292,23 @@ public:      // funcs
   // classes, etc.; returns NULL if not found
   Variable *rawLookupVariable(char const *name)
     { return variables.get(name); }
+
+  // extended interface for returning sets
+  Variable const *lookupVariableC_set
+    (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags) const;
+  Variable const *lookupPQVariableC_set
+    (LookupSet &candidates, PQName const *name,
+     Env &env, LookupFlags flags) const;
+
+  // oy ..
+  Variable *lookupVariable_set
+    (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags)
+    { return const_cast<Variable*>(lookupVariableC_set(candidates, name, env, flags)); }
+  Variable *lookupPQVariable_set
+    (LookupSet &candidates, PQName const *name,
+     Env &env, LookupFlags flags) const
+    { return const_cast<Variable*>(lookupPQVariableC_set(candidates, name, env, flags)); }
+
 
   // if this scope has a name, return the typedef variable that
   // names it; otherwise, return NULL

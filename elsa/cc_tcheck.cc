@@ -4203,13 +4203,14 @@ void Expression::tcheck(Env &env, Expression *&replacement)
 
     // common case: function call
     TRACE("disamb", toString(loc) << ": considering E_funCall");
-    call->inner1_itcheck(env);
+    LookupSet candidates;
+    call->inner1_itcheck(env, candidates);
     if (noDisambErrors(env.errors)) {
       // ok, finish up; it's safe to assume that the E_constructor
       // interpretation would fail if we tried it
       TRACE("disamb", toString(loc) << ": selected E_funCall");
       env.errors.prependMessages(existing);
-      call->type = env.tfac.cloneType(call->inner2_itcheck(env));
+      call->type = env.tfac.cloneType(call->inner2_itcheck(env, candidates));
       call->ambiguity = NULL;
       replacement = call;
       return;
@@ -4657,17 +4658,27 @@ Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_variable::itcheck_var(Env &env, Expression *&replacement, LookupFlags flags)
 {
+  SObjList<Variable> dummy;
+  return itcheck_var_set(env, replacement, flags, dummy);
+}
+
+Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement, 
+                                  LookupFlags flags, LookupSet &candidates)
+{
   name->tcheck(env);
 
   // re-use dependent?
   Variable *v = maybeReuseNondependent(env, name->loc, flags, nondependentVar);
   if (v) {
     var = v;
+    if (flags & LF_LOOKUP_SET) {
+      prependUniqueEntities(candidates, v);
+    }
   }
   else {
     // do lookup normally
-    v = env.lookupPQVariable(name, flags);
-    
+    v = env.lookupPQVariable_set(candidates, name, flags);
+
     if (v && v->hasFlag(DF_TYPEDEF)) {
       return env.error(name->loc, stringc
         << "`" << *name << "' used as a variable, but it's actually a type",
@@ -5118,7 +5129,8 @@ static bool hasNoopDtor(Type *t)
 
 Type *E_funCall::itcheck_x(Env &env, Expression *&replacement)
 {
-  inner1_itcheck(env);
+  LookupSet candidates;
+  inner1_itcheck(env, candidates);
 
   // special case: if someone explicitly called the destructor
   // of a non-class type, e.g.:
@@ -5134,7 +5146,7 @@ Type *E_funCall::itcheck_x(Env &env, Expression *&replacement)
         hasNoopDtor(fa->obj->type->asRval())) {
       if (args->isNotEmpty()) {
         env.error("call to dtor must have no arguments");
-      }                        
+      }
       ASTTypeId *voidId =
         new ASTTypeId(new TS_simple(SL_UNKNOWN, ST_VOID),
                       new Declarator(new D_name(SL_UNKNOWN, NULL /*name*/),
@@ -5145,7 +5157,7 @@ Type *E_funCall::itcheck_x(Env &env, Expression *&replacement)
     }
   }
 
-  return inner2_itcheck(env);
+  return inner2_itcheck(env, candidates);
 }
 
 #if 0      // don't need this now, but I might want it again later
@@ -5160,7 +5172,7 @@ Expression *&skipGroupsRef(Expression *&e)
 }
 #endif // 0
 
-void E_funCall::inner1_itcheck(Env &env)
+void E_funCall::inner1_itcheck(Env &env, LookupSet &candidates)
 {
   // dsw: I need to know the arguments before I'm asked to instantiate
   // the function template
@@ -5204,8 +5216,11 @@ void E_funCall::inner1_itcheck(Env &env)
       specialFlags |= LF_SUPPRESS_NONEXIST;
     }
 
+    // fill in 'candidates'
+    specialFlags |= LF_LOOKUP_SET;
+
     func->type = env.tfac.cloneType(
-      evar->itcheck_var(env, func, specialFlags));
+      evar->itcheck_var_set(env, func, specialFlags, candidates));
   }
   else if (func->isE_fieldAcc()) {
     // similar handling for member function templates
@@ -5262,7 +5277,7 @@ void possiblyWrapWithImplicitThis(Env &env, Expression *&func,
   }
 }
 
-Type *E_funCall::inner2_itcheck(Env &env)
+Type *E_funCall::inner2_itcheck(Env &env, SObjList<Variable> &candidates)
 {
   // check the argument list
   args = tcheckArgExprList(args, env);
@@ -5307,12 +5322,17 @@ Type *E_funCall::inner2_itcheck(Env &env)
                  // so this code can safely ignore it (e.g. in/t0091.cc)
                  feacc->field))) {
     PQName *pqname = fevar? fevar->name : feacc->fieldName;
-    Variable *inner1LookupResult = fevar? fevar->var : feacc->field;
 
     // what is the set of names obtained by inner1?
-    SObjList<Variable> candidates;
-    if (inner1LookupResult) {
-      inner1LookupResult->getOverloadList(candidates);
+    //LookupSet candidates;   // use passed-in list
+    if (fevar) {
+      // passed-in 'candidates' is already correct
+    }
+    else {
+      xassert(candidates.isEmpty());
+      if (feacc->field) {
+        feacc->field->getOverloadList(candidates);
+      }
     }
 
     // augment with arg-dep lookup?
@@ -5326,18 +5346,15 @@ Type *E_funCall::inner2_itcheck(Env &env)
       }
       env.associatedScopeLookup(candidates, pqname->getName(),
                                 argTypes, LF_NONE);
-
-      if (candidates.isEmpty()) {
-        // this error was originally found during ordinary lookup, but
-        // we suppressed it; now is the time to report it
-        return fevar->type =
-          env.error(pqname->loc,
-                    stringc << "there is no function called `"
-                            << pqname->getName() << "'",
-                    EF_NONE);
-      }
     }
-    xassert(!candidates.isEmpty());
+
+    if (candidates.isEmpty()) {
+      return fevar->type =
+        env.error(pqname->loc,
+                  stringc << "there is no function called `"
+                          << pqname->getName() << "'",
+                  EF_NONE);
+    }
 
     // template args supplied?
     PQ_template *targs = NULL;

@@ -8,6 +8,12 @@
 #include "cc_env.h"       // doh.  Env::error
 #include "mangle.h"       // mangle
 
+
+// 2005-02-19:  I am hacking through some 'const' issues at the
+// moment; I plan to fix these.
+#define HACK_CAST(v) const_cast<Variable*>(v)
+
+
 Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
   : variables(),
     compounds(),
@@ -351,18 +357,27 @@ Variable *vfilter(Variable *v, LookupFlags flags)
 Variable const *Scope
   ::lookupPQVariableC(PQName const *name, Env &env, LookupFlags flags) const
 {
+  LookupSet candidates;
+  return lookupPQVariableC_set(candidates, name, env, flags);
+}
+
+Variable const *Scope::lookupPQVariableC_set
+  (LookupSet &candidates, PQName const *name, 
+   Env &env, LookupFlags flags) const
+{
   if (isDelegated()) {
     // this is a scope for which lookup has been delegated to the
     // parameterized entity, so do not respond to requests here
     return NULL;
   }
 
-  return lookupPQVariableC_inner(name, env, flags);
+  return lookupPQVariableC_inner(candidates, name, env, flags);
 }
 
 // same as above, but skip delegation check
-Variable const *Scope
-  ::lookupPQVariableC_inner(PQName const *name, Env &env, LookupFlags flags) const
+Variable const *Scope::lookupPQVariableC_inner
+  (LookupSet &candidates, PQName const *name,
+   Env &env, LookupFlags flags) const
 {
   Variable const *v1 = NULL;
 
@@ -377,20 +392,23 @@ Variable const *Scope
 //      }
 //      cout << "name->getName() " << name->getName() << endl;
     v1 = vfilterC(variables.get(name->getName()), flags);
+    if (v1 && (flags & LF_LOOKUP_SET)) {
+      prependUniqueEntities(candidates, HACK_CAST(v1));
+    }
 
     if (!(flags & LF_IGNORE_USING)) {
       if (!(flags & LF_QUALIFIED)) {
         // 7.3.4 para 1: "active using" edges are a source of additional
         // declarations that can satisfy an unqualified lookup
         if (activeUsingEdges.isNotEmpty()) {
-          v1 = searchActiveUsingEdges(name->getName(), env, flags, v1);
+          v1 = searchActiveUsingEdges(candidates, name->getName(), env, flags, v1);
         }
       }
       else {
         // 3.4.3.2 para 2: do a DFS on the "using" edge graph, but only
         // if we haven't already found the name
         if (!v1 && usingEdges.isNotEmpty()) {
-          v1 = searchUsingEdges(name->getName(), env, flags);
+          v1 = searchUsingEdges(candidates, name->getName(), env, flags);
         }
       }
     }
@@ -424,8 +442,11 @@ Variable const *Scope
     if (hasDelegationPointer()) {
       // delegate, skipping its delegation check
       return curCompound->parameterizingScope->
-        lookupPQVariableC_inner(name, env, flags);
+        lookupPQVariableC_inner(candidates, name, env, flags);
     }
+  }
+  else if (flags & LF_LOOKUP_SET) {
+    prependUniqueEntities(candidates, HACK_CAST(v1));
   }
 
   return v1;
@@ -513,15 +534,26 @@ void Scope::lookupPQVariableC_considerBase
 }
 
 
-Variable const *Scope
-  ::lookupVariableC(StringRef name, Env &env, LookupFlags flags) const
+Variable const *Scope::lookupVariableC(StringRef name, Env &env, 
+                                       LookupFlags flags) const
+{
+  LookupSet candidates;
+  return lookupVariableC_set(candidates, name, env, flags);
+}
+
+Variable const *Scope::lookupVariableC_set
+  (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags) const
 {
   if (flags & LF_INNER_ONLY) {
-    return vfilterC(variables.get(name), flags);
+    Variable const *ret = vfilterC(variables.get(name), flags);
+    if (ret && (flags & LF_LOOKUP_SET)) {
+      prependUniqueEntity(candidates, HACK_CAST(ret));
+    }
+    return ret;
   }
 
   PQ_name wrapperName(SL_UNKNOWN, name);
-  Variable const *ret = lookupPQVariableC(&wrapperName, env, flags);
+  Variable const *ret = lookupPQVariableC_set(candidates, &wrapperName, env, flags);
   if (ret) return ret;
 
   // previously, I had code here which traversed the 'parentScope'
@@ -939,8 +971,46 @@ void Scope::getUsingClosure(ArrayStack<Scope*> &dest)
 }
 
 
+// return true if caller should return 'v'
+bool Scope::foundViaUsingEdge(LookupSet &candidates, Env &env, LookupFlags flags,
+                              Variable const *v, Variable const *&vfound) const
+{
+  if (vfound) {
+    if (!sameEntity(vfound, v)) {
+      if ((flags & LF_LOOKUP_SET) &&
+          v->type->isFunctionType() &&
+          vfound->type->isFunctionType()) {
+        // ok; essentially they form an overload set
+      }
+      else {
+        env.error(stringc
+          << "ambiguous lookup: `" << vfound->fullyQualifiedName()
+          << "' vs. `" << v->fullyQualifiedName() << "'");
+
+        // originally I kept going in hopes of reporting more
+        // interesting things, but now that the same scope can
+        // appear multiple times on the active-using list, I
+        // get multiple reports of the same thing, so bail after
+        // the first
+        return true;
+      }
+    }
+  }
+  else {
+    vfound = v;
+  }
+
+  if (flags & LF_LOOKUP_SET) {
+    prependUniqueEntities(candidates, HACK_CAST(v));
+  }
+
+  return false;
+}
+
+
 Variable const *Scope::searchActiveUsingEdges
-  (StringRef name, Env &env, LookupFlags flags, Variable const *vfound) const
+  (LookupSet &candidates, StringRef name,
+   Env &env, LookupFlags flags, Variable const *vfound) const
 {
   // just consider the set of "active using" edges
   for (int i=0; i<activeUsingEdges.length(); i++) {
@@ -949,26 +1019,8 @@ Variable const *Scope::searchActiveUsingEdges
     // look for 'name' in 's'
     Variable const *v = vfilterC(s->variables.get(name), flags);
     if (v) {
-      if (vfound) {
-        if (!sameEntity(vfound, v)) {
-          // BUG: If 'vfound' and 'v' are functions, then we're supposed
-          // to build a set of declarations!  That would require modifying
-          // all of my lookup interfaces to be able to return arbitrary
-          // sets.  I'll have to think about this...
-          env.error(stringc
-            << "ambiguous lookup: `" << vfound->fullyQualifiedName()
-            << "' vs. `" << v->fullyQualifiedName() << "'");
-
-          // originally I kept going in hopes of reporting more
-          // interesting things, but now that the same scope can
-          // appear multiple times on the active-using list, I
-          // get multiple reports of the same thing, so bail after
-          // the first
-          return v;
-        }
-      }
-      else {
-        vfound = v;
+      if (foundViaUsingEdge(candidates, env, flags, v, vfound)) {
+        return v;
       }
     }
   }
@@ -979,7 +1031,7 @@ Variable const *Scope::searchActiveUsingEdges
 
 // another DFS; 3.4.3.2 para 2
 Variable const *Scope::searchUsingEdges
-  (StringRef name, Env &env, LookupFlags flags) const
+  (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags) const
 {
   // set of scopes already searched
   ArrayStack<Scope*> black;
@@ -999,17 +1051,8 @@ Variable const *Scope::searchUsingEdges
     // does 's' have the name?
     Variable const *v = vfilterC(s->variables.get(name), flags);
     if (v) {
-      if (vfound) {
-        if (!sameEntity(vfound, v)) {
-          // this is WRONG: I need to collect a set if it's a function type
-          env.error(stringc
-            << "ambiguous lookup: `" << vfound->fullyQualifiedName()
-            << "' vs. `" << v->fullyQualifiedName() << "'");
-          return v;
-        }
-      }
-      else {
-        vfound = v;
+      if (foundViaUsingEdge(candidates, env, flags, v, vfound)) {
+        return v;
       }
     }
 

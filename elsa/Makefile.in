@@ -181,6 +181,7 @@ CCPARSE_OBJS := \
   cc_print.o \
   cc_ast_aux.o \
   variable.o \
+  lookupset.o \
   ccparse.o
 -include $(CCPARSE_OBJS:.o=.d) main.d
 

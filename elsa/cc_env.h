@@ -264,11 +264,9 @@ private:     // funcs
                           bool isAssignment = false);
   void addBuiltinBinaryOp(OverloadableOp op, CandidateSet * /*owner*/ cset);
 
-  // this is an internal function that should only be called by
-  // Env::lookupPQVariable(PQName const *name, LookupFlags f, Scope
-  // *&scope) and no one else
-  Variable *lookupPQVariable_internal(PQName const *name, LookupFlags flags,
-                                      Scope *&scope);
+  Variable *lookupPQVariable_internal
+    (LookupSet &candidates, PQName const *name, LookupFlags flags,
+     Scope *&scope);
 
   PseudoInstantiation *createPseudoInstantiation
     (CompoundType *ct, SObjList<STemplateArgument> const &args);
@@ -434,6 +432,13 @@ public:      // funcs
     bool &dependent,
     bool &anyTemplates,
     LookupFlags lflags);
+  
+  // extended interface capable of returning a set
+  Variable *lookupPQVariable_set
+    (LookupSet &candidates, PQName const *name, LookupFlags flags);
+  Variable *lookupVariable_set(LookupSet &candidates,
+                               StringRef name, LookupFlags flags,
+                               Scope *&foundScope);
 
   // run through the sequence of qualifiers on 'name',
   // adding each named scope in turn to 'scopes';
@@ -690,9 +695,9 @@ public:      // funcs
 
   // support for 3.4.2
   void getAssociatedScopes(SObjList<Scope> &associated, Type *type);
-  void associatedScopeLookup(SObjList<Variable> &candidates, StringRef name,
+  void associatedScopeLookup(LookupSet &candidates, StringRef name,
                              ArrayStack<Type*> const &argTypes, LookupFlags flags);
-  void addCandidates(SObjList<Variable> &candidates, Variable *var);
+  void addCandidates(LookupSet &candidates, Variable *var);
 
   // ------------ template instantiation stuff ------------
   // the following methods are implemented in template.cc

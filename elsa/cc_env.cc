@@ -1959,11 +1959,18 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
   return lookupPQVariable(name, flags, dummy);
 }
 
+Variable *Env::lookupPQVariable_set
+  (LookupSet &candidates, PQName const *name, LookupFlags flags)
+{
+  Scope *dummy;
+  return lookupPQVariable_internal(candidates, name, flags, dummy);
+}
+
 // NOTE: It is *not* the job of this function to do overload
 // resolution!  If the client wants that done, it must do it itself,
 // *after* doing the lookup.
-Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
-                                         Scope *&scope)
+Variable *Env::lookupPQVariable_internal
+  (LookupSet &candidates, PQName const *name, LookupFlags flags, Scope *&scope)
 {
   // get the final component of the name, so we can inspect
   // whether it has template arguments
@@ -2001,7 +2008,8 @@ Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
       }
     }
 
-    var = scope->lookupVariable(name->getName(), *this, flags | LF_QUALIFIED);
+    var = scope->lookupVariable_set(candidates, name->getName(), 
+                                    *this, flags | LF_QUALIFIED);
     if (!var) {
       if (anyTemplates) {
         // maybe failed due to incompleteness of specialization implementation;
@@ -2038,7 +2046,7 @@ Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
       flags |= LF_SELFNAME;
     }
 
-    var = lookupVariable(name->getName(), flags, scope);
+    var = lookupVariable_set(candidates, name->getName(), flags, scope);
   }
 
   // apply template arguments in 'name'
@@ -2159,8 +2167,9 @@ Variable *Env::applyPQNameTemplateArguments
 
 Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags,
                                 Scope *&scope)
-{
-  Variable *var = lookupPQVariable_internal(name, flags, scope);
+{                                          
+  LookupSet dummy;
+  Variable *var = lookupPQVariable_internal(dummy, name, flags, scope);
 
   // in normal typechecking, nothing should look up to a variable from
   // template-definition never-never land
@@ -2188,12 +2197,20 @@ Variable *Env::lookupVariable(StringRef name, LookupFlags flags)
 Variable *Env::lookupVariable(StringRef name, LookupFlags flags,
                               Scope *&foundScope)
 {
+  LookupSet candidates;
+  return lookupVariable_set(candidates, name, flags, foundScope);
+}
+
+Variable *Env::lookupVariable_set(LookupSet &candidates,
+                                  StringRef name, LookupFlags flags,
+                                  Scope *&foundScope)
+{
   if (flags & LF_INNER_ONLY) {
     // here as in every other place 'innerOnly' is true, I have
     // to skip non-accepting scopes since that's not where the
     // client is planning to put the name
     foundScope = acceptingScope();
-    return foundScope->lookupVariable(name, *this, flags);
+    return foundScope->lookupVariable_set(candidates, name, *this, flags);
   }
 
   // look in all the scopes
@@ -2203,7 +2220,7 @@ Variable *Env::lookupVariable(StringRef name, LookupFlags flags,
       continue;
     }
 
-    Variable *v = s->lookupVariable(name, *this, flags);
+    Variable *v = s->lookupVariable_set(candidates, name, *this, flags);
     if (v) {
       foundScope = s;
       return v;
@@ -3866,7 +3883,7 @@ void Env::getAssociatedScopes(SObjList<Scope> &associated, Type *type)
 
 // cppstd 3.4.2; returns entries for 'name' in scopes
 // that are associated with the types in 'args'
-void Env::associatedScopeLookup(SObjList<Variable> &candidates, StringRef name, 
+void Env::associatedScopeLookup(LookupSet &candidates, StringRef name, 
                                 ArrayStack<Type*> const &argTypes, LookupFlags flags)
 {
   // let me disable this entire mechanism, to measure its performance
@@ -3913,13 +3930,9 @@ void Env::associatedScopeLookup(SObjList<Variable> &candidates, StringRef name,
 
 
 // some lookup yielded 'var'; add its candidates to 'candidates'
-void Env::addCandidates(SObjList<Variable> &candidates, Variable *var)
+void Env::addCandidates(LookupSet &candidates, Variable *var)
 {
-  SObjList<Variable> tmp;
-  var->getOverloadList(tmp);
-  SFOREACH_OBJLIST_NC(Variable, tmp, iter) {
-    candidates.prependUnique(iter.data());
-  }
+  prependUniqueEntities(candidates, var);
 }
 
 
