@@ -1798,14 +1798,6 @@ void TS_classSpec::tcheckIntoCompound(
     }
   }
 
-  // default ctor, copy ctor, operator=; only do this for C++.
-  if (env.lang.isCplusplus) {
-    addCompilerSuppliedDecls(env, loc, ct);
-  }
-
-  // let the CompoundType build additional indexes if it wants
-  ct->finishedClassDefinition(env.conversionOperatorName);
-
   // 2005-02-17: check default arguments first so they are available
   // to all function bodies (hmmm... what if a default argument
   // expression invokes a function that itself has default args,
@@ -1813,11 +1805,21 @@ void TS_classSpec::tcheckIntoCompound(
   // cleanly?)
   //
   // 2005-02-18: Do this here instead of in 'tcheckFunctionBodies'
-  // for greater uniformity with template instantiation.
+  // for greater uniformity with template instantiation.  Also, must
+  // do it above 'addCompilerSuppliedDecls', since the presence of
+  // default args affects whether (e.g.) a copy ctor exists.
   {
     DefaultArgumentChecker checker(env);
     traverse(checker);
   }
+
+  // default ctor, copy ctor, operator=; only do this for C++.
+  if (env.lang.isCplusplus) {
+    addCompilerSuppliedDecls(env, loc, ct);
+  }
+
+  // let the CompoundType build additional indexes if it wants
+  ct->finishedClassDefinition(env.conversionOperatorName);
 
   // second pass: check function bodies
   // (only if we're not in a context where this is supressed)
