@@ -260,6 +260,7 @@ CompoundType::CompoundType(Keyword k, StringRef n)
   : NamedAtomicType(n),
     fields(),
     fieldIndex(),
+    fieldCounter(0),
     forward(true),
     keyword(k)
 {}
@@ -429,7 +430,7 @@ CompoundType::Field *CompoundType::
 {
   xassert(!fieldIndex.isMapped(name));
 
-  Field *f = new Field(name, type, decl);
+  Field *f = new Field(name, fieldCounter++, type, decl);
   fields.append(f);
   fieldIndex.add(name, f);
 
@@ -613,12 +614,13 @@ bool Type::isIntegerType() const
          simpleTypeInfo(asSimpleTypeC().type).isInteger;
 }
 
-bool Type::isUnionType() const
+
+bool Type::isCompoundTypeOf(CompoundType::Keyword keyword) const
 {
   if (isCVAtomicType()) {
     AtomicType const *at = asCVAtomicTypeC().atomic;
     if (at->isCompoundType()) {
-      return at->asCompoundTypeC().keyword == CompoundType::K_UNION;
+      return at->asCompoundTypeC().keyword == keyword;
     }
   }
   return false;

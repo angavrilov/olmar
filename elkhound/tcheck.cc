@@ -1056,24 +1056,25 @@ Type const *E_fieldAcc::itcheck(Env &env)
     return fixed(ST_ERROR);
   }
 
-  CompoundType::Field const *f = ctype->getNamedField(field);
-  if (!f) {
-    env.err(stringc << "no field named " << field);
+  // get corresponding Field; this sets the 'field' member of E_fieldAcc
+  field = ctype->getNamedField(fieldName);
+  if (!field) {
+    env.err(stringc << "no field named " << fieldName);
     return fixed(ST_ERROR);
   }
 
   // field reference is an lval if the LHS was an lval
   if (lval) {
-    return makeReference(env, f->type);
+    return makeReference(env, field->type);
   }
   else {
-    if (f->type->isArrayType()) {
+    if (field->type->isArrayType()) {
       env.err("I don't know how to handle array accesses inside non-lval structs");
       return fixed(ST_ERROR);
     }
     else {
       // the field's type, as a non-lvalue
-      return f->type;                            
+      return field->type;
     }
   }
 }
@@ -1390,7 +1391,7 @@ string E_funCall::toString() const
 }
 
 string E_fieldAcc::toString() const
-  { return stringc << obj->toString() << "." << field; }
+  { return stringc << obj->toString() << "." << fieldName; }
 string E_sizeof::toString() const
   { return stringc << "sizeof(" << expr->toString() << ")"; }
 string E_unary::toString() const

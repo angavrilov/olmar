@@ -159,12 +159,18 @@ public:      // funcs
   AbsValue *avFirstZero(AbsValue *mem, AbsValue *obj)
     { return avFunc2("firstZero", mem, obj); }
 
+  AbsValue *avSetElt(AbsValue *fieldIndex, AbsValue *obj, AbsValue *newValue)
+    { return avFunc3("setElt", fieldIndex, obj, newValue); }
+  AbsValue *avGetElt(AbsValue *fieldIndex, AbsValue *obj)
+    { return avFunc2("getElt", fieldIndex, obj); }
+
   AbsValue *avFunc1(char const *func, AbsValue *v1);
   AbsValue *avFunc2(char const *func, AbsValue *v1, AbsValue *v2);
   AbsValue *avFunc3(char const *func, AbsValue *v1, AbsValue *v2, AbsValue *v3);
   AbsValue *avFunc4(char const *func, AbsValue *v1, AbsValue *v2, AbsValue *v3, AbsValue *v4);
   AbsValue *avFunc5(char const *func, AbsValue *v1, AbsValue *v2, AbsValue *v3, AbsValue *v4, AbsValue *v5);
 
+  AbsValue *avInt(int i);
 
   // debugging
   void print();

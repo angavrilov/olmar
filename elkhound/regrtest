@@ -177,6 +177,7 @@ vcgen if.c
 vcgen ptr.c
 vcgen invar.c
 vcgen global.c
+vcgen global2.c
 vcgen blast1.c
 vcgentb clash1.c
 vcgentb swap1.c
@@ -184,6 +185,7 @@ vcgentb array.c
 vcgen ptrptr.c
 vcgen simple.c
 vcgentb str.c
+vcgentb struct.c
 
 
 # final arithmetic to report result

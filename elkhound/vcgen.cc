@@ -757,7 +757,16 @@ AbsValue *E_funCall::vcgen(AEnv &env, int path) const
 
 AbsValue *E_fieldAcc::vcgen(AEnv &env, int path) const
 {
-  // good results here would require abstract values for structures
+  if (obj->isE_variable()) {
+    Variable *var = obj->asE_variable()->var;
+    if (!var->hasAddrTaken()) {
+      // modeled as an unaliased tuple
+      // retrieve named piece of the (whole) structure value
+      return env.avGetElt(env.avInt(field->index), env.get(var));
+    }
+  }
+
+  cout << "TODO: unhandled structure field access: " << toString();
   return env.freshVariable("field",
            stringc << "structure field access: " << toString());
 }
@@ -958,15 +967,37 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
                             env.avOffset(addr), v));
   }
 
-  // TODO: finish structure field accesses
-  #if 0
+  // structure field access
   else if (target->isE_fieldAcc()) {
     E_fieldAcc *fldAcc = target->asE_fieldAcc();
-    AbsValue *obj = fldAcc->obj->vcgen(env);
-  #endif // 0
 
+    if (fldAcc->obj->isE_variable()) {
+      Variable *var = fldAcc->obj->asE_variable()->var;
 
+      if (var->type->isStructType() &&
+          !var->hasAddrTaken()) {
+        // modeled as an unaliased tuple
 
+        // get current (whole) structure value
+        AbsValue *current = env.get(var);
+
+        // compute updated structure value
+        AbsValue *updated = 
+          env.avSetElt(
+            env.avInt(fldAcc->field->index),      // field index
+            current,                              // value being updated
+            v);                                   // new field value
+            
+        // replace old with new in abstract environment
+        env.set(var, updated);
+
+        return env.dup(v);
+      }
+    }
+
+    // other forms aren't handled yet
+    cout << "TODO: unhandled structure field assignment: " << toString() << endl;
+  }
 
   else {
     cout << "TODO: unhandled assignment: " << toString() << endl;

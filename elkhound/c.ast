@@ -6,17 +6,16 @@ verbatim {
   #include "cc_flags.h"      // CVFlags, DeclFlags, etc.
   #include "sobjlist.h"      // SObjList
   #include "variable.h"      // Variable
+  #include "cc_type.h"       // Type, FunctonType, CompoundType
 
   class Env;                 // cc_env.h
-  class Type;                // cc_type.h
-  class FunctionType;        // cc_type.h
   class AEnv;                // aenv.h
   class AbsValue;            // absval.ast
 } // end verbatim
 
 // included in generated source file
 impl_verbatim {
-  #include "cc_type.h"       // Type
+  //#include "cc_type.h"       // Type
 }
 
 
@@ -365,7 +364,12 @@ class Expression {
        ctor var=NULL;
      }
   -> E_funCall(Expression func, ASTList<Expression> args);
-  -> E_fieldAcc(Expression obj, StringRef field);
+
+  -> E_fieldAcc(Expression obj, StringRef fieldName) {
+       public CompoundType::Field const *field;
+       ctor field = NULL;
+     }
+
   -> E_sizeof(Expression expr) {
        public int size;     // size of the type of expr
        ctor size=-1;

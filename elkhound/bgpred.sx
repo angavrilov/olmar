@@ -124,4 +124,29 @@
   ;      (< (offset p) (length (object p)))
   ;    )
   ;  ))
+  
+  ; read the last-updated value out of a tuple
+  ;   n: field index
+  ;   s: structure (tuple) value
+  ;   v: last-updated value
+  (FORALL (n s v)
+    (EQ
+      (getElt n (setElt n s v))
+      v
+    ))
+
+  ; skip past the last-updated value when reading a different entry
+  ;   n: field index being read
+  ;   m: field index last updated
+  ;   s: original tuple value
+  ;   v: last-updated value
+  (FORALL (n m s v)
+    (IMPLIES
+      (NEQ n m)
+      (EQ
+        (getElt n (setElt m s v))
+        (getElt n s)
+      )
+    ))
+
 ))

@@ -522,6 +522,11 @@ AbsValue *AEnv::avFunc1(char const *func, AbsValue *v1)
   return ::avFunc1(str(func), v1);
 }
 
+AbsValue *AEnv::avInt(int i)
+{
+  return grab(new AVint(i));
+}
+
 
 void AEnv::print()
 {

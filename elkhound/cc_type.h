@@ -14,7 +14,8 @@
 // below, the type language refers to the AST language in exactly
 // one place: function pre/post conditions; the type language treats
 // these opaquely; it is important to prevent the type language from
-// depending on the AST language
+// depending on the AST language (NOTE: c.ast #includes this file,
+// so I can't #include c.ast.gen.h here)
 class FA_precondition;    // c.ast
 class FA_postcondition;   // c.ast
 
@@ -132,9 +133,10 @@ public:      // types
   // one of these for each field in the struct
   class Field {
   public:
-    StringRef name;
-    Type const *type;         
-    
+    StringRef name;                  // programmer-given name
+    int const index;                 // first field is 0, next is 1, etc.
+    Type const *type;                // declared field type
+
     // I include a pointer to the introduction; since I want
     // to keep the type language independent of the AST language, I
     // will continue to store redundant info, regarding 'decl' as
@@ -142,13 +144,14 @@ public:      // types
     Variable *decl;                  // (nullable serf)
 
   public:
-    Field(StringRef n, Type const *t, Variable *d)
-      : name(n), type(t), decl(d) {}
+    Field(StringRef n, int i, Type const *t, Variable *d)
+      : name(n), index(i), type(t), decl(d) {}
   };
 
 private:     // data
   ObjList<Field> fields;               // fields in this type
   StringSObjDict<Field> fieldIndex;    // dictionary for name lookup
+  int fieldCounter;                    // # of fields
 
 public:      // data
   bool forward;               // true when it's only fwd-declared
@@ -160,6 +163,7 @@ public:      // funcs
   ~CompoundType();
 
   bool isComplete() const { return !forward; }
+  bool nunFields() const { return fieldCounter; }
 
   static char const *keywordName(Keyword k);
 
@@ -270,7 +274,9 @@ public:     // funcs
   SimpleType const &asSimpleTypeC() const;
   bool isSimple(SimpleTypeId id) const;
   bool isIntegerType() const;            // any of the simple integer types
-  bool isUnionType() const;
+  bool isUnionType() const { return isCompoundTypeOf(CompoundType::K_UNION); }
+  bool isStructType() const { return isCompoundTypeOf(CompoundType::K_STRUCT); }
+  bool isCompoundTypeOf(CompoundType::Keyword keyword) const;
   bool isVoid() const { return isSimple(ST_VOID); }
   bool isError() const { return isSimple(ST_ERROR); }
 
