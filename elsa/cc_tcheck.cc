@@ -1021,26 +1021,15 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
   if (keyword == TI_ENUM) {
     EnumType *et = env.lookupPQEnum(name);
     if (!et) {
-      if (env.lang.isCplusplus) {
-        return env.error(stringc
-                         << "there is no enum called `" << *name << "'",
+      if (!env.lang.allowForwardEnums ||
+          name->hasQualifiers()) {
+        return env.error(stringc << "there is no enum called `" << *name << "'",
                          EF_DISAMBIGUATES);
-      } else {
-        // dsw: gcc allows you in C mode to make a typedef to an enum
-        // that doesn't exist yet; this code copied from
-        // TS_enumSpec::itcheck(), but I'm not sure if it warrants
-        // factoring out as I had to modify it a bit.
-        StringRef name0 = name->asPQ_name()->name;
-        et = new EnumType(name0);
-        Type *ret = env.makeType(loc, et);
-        env.addEnum(et);
-        // make the implicit typedef
-        Variable *tv = env.makeVariable(loc, name0, ret, DF_TYPEDEF | DF_IMPLICIT);
-        et->typedefVar = tv;
-        // FIX: in TS_enumSpec::itcheck() Scott has an 'if' wrapped
-        // around this that has no consequences
-        env.addVariable(tv);
-        return ret;
+      }
+      else {
+        // make a forward-declared enum (gnu/d0083.c)
+        et = new EnumType(name->getName());
+        return env.declareEnum(loc, et);
       }
     }
 
@@ -1561,33 +1550,26 @@ Type *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
 
-  #warning this lossage should only be allowed in C mode
-
   EnumType *et = NULL;
   Type *ret = NULL;
-  if (name) {
-    et = env.lookupPQEnum(new PQ_name(env.loc(), name));
-  }
-  if (et) {
-    ret = env.makeType(loc, et);
-  } else {
-    et = new EnumType(name);
-    ret = env.makeType(loc, et);
-    if (name) {
-      env.addEnum(et);
 
-      // make the implicit typedef
-      Variable *tv = env.makeVariable(loc, name, ret, DF_TYPEDEF | DF_IMPLICIT);
-      et->typedefVar = tv;
-      if (!env.addVariable(tv)) {
-        // this isn't really an error, because in C it would have
-        // been allowed, so C++ does too [ref?]
-        //return env.error(stringc
-        //  << "implicit typedef associated with enum " << et->name
-        //  << " conflicts with an existing typedef or variable",
-        //  true /*disambiguating*/);
+  if (env.lang.allowForwardEnums && name) {
+    // is this referring to an existing forward-declared enum?
+    et = env.lookupEnum(name);
+    if (et) {
+      ret = env.makeType(loc, et);
+      if (!et->valueIndex.isEmpty()) {
+        // if it has values, it's definitely been defined already
+        env.error(stringc << "mulitply defined enum `" << name << "'");
+        return ret;      // ignore this defn
       }
     }
+  }
+
+  if (!et) {
+    // declare the new enum
+    et = new EnumType(name);
+    ret = env.declareEnum(loc, et);
   }
 
   FAKELIST_FOREACH_NC(Enumerator, elts, iter) {

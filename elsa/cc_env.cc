@@ -1472,6 +1472,31 @@ bool Env::addEnum(EnumType *et)
 }
 
 
+Type *Env::declareEnum(SourceLoc loc /*...*/, EnumType *et)
+{
+  Type *ret = makeType(loc, et);
+  if (et->name) {
+    if (!addEnum(et)) {
+      error(stringc << "multiply defined enum `" << et->name << "'");
+    }
+
+    // make the implicit typedef
+    Variable *tv = makeVariable(loc, et->name, ret, DF_TYPEDEF | DF_IMPLICIT);
+    et->typedefVar = tv;
+    if (!addVariable(tv)) {
+      // this isn't really an error, because in C it would have
+      // been allowed, so C++ does too [ref?]
+      //return env.error(stringc
+      //  << "implicit typedef associated with enum " << et->name
+      //  << " conflicts with an existing typedef or variable",
+      //  true /*disambiguating*/);
+    }
+  }
+
+  return ret;
+}
+
+
 // -------- lookup --------
 Scope *Env::lookupQualifiedScope(PQName const *name)
 {

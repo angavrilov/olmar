@@ -100,6 +100,10 @@ public:
   // sizes that are not constant
   bool allowDynamicallySizedArrays;
 
+  // when true, you can say things like 'enum Foo;' and it declares
+  // that an enum called Foo will be defined later
+  bool allowForwardEnums;
+
   // catch-call for behaviors that are unique to C++ but aren't
   // enumerated above; these behaviors are candidates for being split
   // out as separate flags, but there currently is no need

@@ -3,8 +3,14 @@
 
 #include "cc_lang.h"     // this module
 
+#include <string.h>      // memset
+
+
 void CCLang::ANSI_C()
 {
+  // just in case I forget to initialize something....
+  memset(this, 0, sizeof(*this));
+
   tagsAreTypes = false;
   recognizeCppKeywords = false;
   implicitFuncVariable = false;
@@ -20,6 +26,7 @@ void CCLang::ANSI_C()
   allow_KR_ParamOmit = false;
   allowImplicitIntRetType = true;
   allowDynamicallySizedArrays = false;
+  allowForwardEnums = false;
 
   isCplusplus = false;
   isC99 = false;
@@ -51,6 +58,9 @@ void CCLang::GNU_C()
   allowImplicitIntRetType = true;
   gccFuncBehavior = GFB_string;
   allowDynamicallySizedArrays = true;
+  
+  // I'm just guessing this is GNU only....
+  allowForwardEnums = true;
 }
 
 void CCLang::GNU_KandR_C()
@@ -87,6 +97,8 @@ void CCLang::ANSI_Cplusplus()
   allowCallToUndeclFunc = false;
   allow_KR_ParamOmit = false;
   allowImplicitIntRetType = false;
+  allowDynamicallySizedArrays = false;
+  allowForwardEnums = false;
 
   isCplusplus = true;
   isC99 = false;
@@ -97,7 +109,7 @@ void CCLang::GNU_Cplusplus()
   ANSI_Cplusplus();
 
   gccFuncBehavior = GFB_variable;
-  
+
   // is this really right?  Oink tests it like it is ...
   allowDynamicallySizedArrays = true;
 }

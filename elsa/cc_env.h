@@ -353,6 +353,9 @@ public:      // funcs
   // it is *not* the case that all overloaded variables are added
   // using this interface
   void addVariableWithOload(Variable *prevLookup, Variable *v);
+                                                         
+  // 'addEnum', plus typedef variable creation and checking for duplicates
+  Type *declareEnum(SourceLoc loc /*...*/, EnumType *et);
 
 
   // lookup in the environment (all scopes); if the name is not found,
