@@ -1461,7 +1461,14 @@ void TS_classSpec::tcheckIntoCompound(
 }
 
 
-// this is pass 2 of tchecking a class
+// This is pass 2 of tchecking a class.  It implements 3.3.6 para 1
+// bullet 1, which specifies that the scope of a class member includes
+// all function bodies.  That means that we have to wait until all
+// the members have been added to the class scope before checking any
+// of the function bodies.  Pass 1 does the former, pass 2 the latter.
+//
+// TODO: I'm pretty sure I erroneously process default arguments during
+// pass 1 ...
 void TS_classSpec::tcheckFunctionBodies(Env &env)
 {
   CompoundType *ct = env.scope()->curCompound;
@@ -1487,15 +1494,11 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
       // in 'f->tcheck'?)
       f->dflags = (DeclFlags)(f->dflags & ~DF_INLINE_DEFN);
     }
-    else if (iter.data()->isMR_decl()) {
-      Declaration *d0 = iter.data()->asMR_decl()->d;
-      FAKELIST_FOREACH_NC(Declarator, d0->decllist, decliter) {
-        // initializers should have been tchecked by now
-        if (decliter->init) {
-          xassert(decliter->type);
-        }
-      }
-    }
+
+    // 8/06/04: Previously, we had been waiting until pass 2 to check
+    // initializers of constant members, and hence processed MR_decls
+    // here, but that is wrong (3.3.6 para 1 bullet 1), so we no
+    // longer do so here.
   }
 
   // a gcc-2.95.3 compiler bug is making this code segfault..
@@ -2584,10 +2587,13 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // tcheck the initializer, unless we're inside a class, in which
   // case wait for pass two
   //
-  // UPDATE: dsw: why wait until pass 2?  I need to change it to pass
+  // 8/06/04: dsw: why wait until pass 2?  I need to change it to pass
   // 1 to get in/d0088.cc to work and all the other elsa and oink
   // tests also work
-  #warning investigate this
+  //
+  // sm: You're right; I had thought 3.3.6 said that member scopes
+  // included *all* initializers, but it does not, so such scopes only
+  // include *subsequent* initializers, hence pass 1 is the right time.
   if (init) {
     // TODO: check the initializer for compatibility with
     // the declared type
