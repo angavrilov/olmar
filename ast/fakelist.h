@@ -32,6 +32,9 @@ private:
   FakeList();
   ~FakeList();
 
+  // silence a silly egcs-1.1.2 warning (this function isn't defined)
+  friend void i_have_LOTS_of_friends();
+
   // this class has *no* data--an object of this type is
   // never actually created!  instead we play with pointers
   // to this "type", and cast to T* as necessary

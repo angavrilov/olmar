@@ -103,6 +103,13 @@ if (! -f "$SMBASE/nonport.h") {
 # configuring all software from one master configure script, so
 # I've removed that.
 
+# use smbase's $BASE_FLAGS if I can find them
+$smbase_flags = `$SMBASE/config.summary 2>/dev/null | grep BASE_FLAGS`;
+if (defined($smbase_flags)) {
+  ($BASE_FLAGS = $smbase_flags) =~ s|^.*: *||;
+  chomp($BASE_FLAGS);
+}
+
 
 # ------------------ config.summary -----------------
 # create a program to summarize the configuration
