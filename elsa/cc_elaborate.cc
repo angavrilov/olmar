@@ -130,7 +130,6 @@ Variable *ElabVisitor::makeVariable(SourceLoc loc, StringRef name,
 D_name *ElabVisitor::makeD_name(SourceLoc loc, Variable *var)
 {
   D_name *ret = new D_name(loc, new PQ_variable(loc, var));
-  ret->type = env.tfac.cloneType(var->type);
   return ret;
 }
 
@@ -190,7 +189,6 @@ Declarator *ElabVisitor::makeFuncDeclarator(SourceLoc loc, Variable *var)
                                       params,
                                       CV_NONE,
                                       NULL /*exnSpec*/);
-  funcIDecl->type = env.tfac.cloneType(var->type);
 
   Declarator *funcDecl = new Declarator(funcIDecl, NULL /*init*/);
   funcDecl->var = var;

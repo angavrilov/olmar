@@ -360,13 +360,10 @@ class Declarator {
 
 
 class IDeclarator {
-  // write down the type denoted by this type constructor, in
-  // conjunction with the constructors that surround it, and the
-  // type specifier
-  //
-  // TODO: I think I can safely drop this; no one would be able
-  // to make much use of this.
-  public Type *type = NULL;
+  // 8/11/04: There used to be a 'type' field here, but I decided that
+  // analyses probably have no need to know about the types denoted by
+  // IDeclarators, only that denoted by the full Declarator, which is
+  // stored in Declarator::type.
 
   // external interface; add the type constructor represented by this
   // IDeclarator to 'dt.type' and then make a Variable to represent

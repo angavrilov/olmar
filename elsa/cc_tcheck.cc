@@ -2730,8 +2730,6 @@ void D_name::tcheck(Env &env, Declarator::Tcheck &dt)
 
   // do *not* call 'possiblyConsumeFunctionType', since declareNewVariable
   // will do so if necessary, and in a different way
-
-  this->type = dt.type;     // annotation
 }
 
 
@@ -2755,9 +2753,6 @@ void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt)
     if (!dt.type->isError()) {
       dt.type = env.tfac.syntaxPointerType(loc, isPtr, cv, dt.type, this);
     }
-
-    // annotation
-    this->type = dt.type;
   }
   
   // recurse
@@ -3012,7 +3007,6 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
   // now that we've constructed this function type, pass it as
   // the 'base' on to the next-lower declarator
   dt.type = ft;
-  this->type = dt.type;       // annotation
 
   #if 0     // sm: not sure what this is supposed to do ...
   // if this variable is a specialization, then mark it as such so
@@ -3084,7 +3078,6 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
         // now just call into the D_name to finish off the type; dt.type
         // is left unchanged, because this D_array contributed nothing
         // to the *type* of the objects we're allocating
-        this->type = dt.type;       // annotation
         base->tcheck(env, dt);
         return;
       }
@@ -3157,7 +3150,6 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
   // having added this D_array's contribution to the type, pass
   // that on to the next declarator
   dt.type = at;
-  this->type = dt.type;       // annotation
   base->tcheck(env, dt);
 }
 
@@ -3188,8 +3180,6 @@ void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt)
   // the way to do it is to make another kind of Type which
   // stacks a bitfield size on top of another Type, and
   // construct such an animal here.
-
-  this->type = dt.type;       // annotation
 }
 
 
@@ -3234,7 +3224,7 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
     // e.g. t0186.cc; propagate the dependentness
     TRACE("dependent", "ptr-to-member: propagating dependentness of " <<
                        nestedName->toString());
-    this->type = dt.type = env.getSimpleType(SL_UNKNOWN, ST_DEPENDENT);
+    dt.type = env.getSimpleType(SL_UNKNOWN, ST_DEPENDENT);
     base->tcheck(env, dt);
     return;
   }
@@ -3258,9 +3248,6 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
   // build the ptr-to-member type constructor
   dt.type = env.tfac.syntaxPointerToMemberType(loc, nat, cv, dt.type, this);
 
-  // annotation
-  this->type = dt.type;
-
   // recurse
   base->tcheck(env, dt);
 }
@@ -3272,8 +3259,6 @@ void D_grouping::tcheck(Env &env, Declarator::Tcheck &dt)
 
   // don't call 'possiblyConsumeFunctionType', since the
   // D_grouping is supposed to be transparent
-
-  this->type = dt.type;       // annotation
 
   base->tcheck(env, dt);
 }
