@@ -3696,7 +3696,10 @@ void Env::setOverloadedFunctionVar(Expression *e, Variable *selVar)
 
   if (e->isE_addrOf()) {
     // TODO: In some cases, we may need to form a pointer-to-member;
-    // see ArgExpression::mid_tcheck.
+    // see ArgExpression::mid_tcheck.  At the moment there is no
+    // mechanism in Elsa that can reveal this bug.  When I implement
+    // initialization compatibility checking then it will be
+    // revealed...
 
     E_addrOf *a = e->asE_addrOf();
     setOverloadedFunctionVar(a->expr, selVar);
@@ -3719,7 +3722,7 @@ Variable *Env::pickMatchingOverloadedFunctionVar(LookupSet &set, Type *type)
 {
   // normalize 'type' to just be a FunctionType
   type = type->asRval();
-  if (type->isPointerType()) {
+  if (type->isPointerType() || type->isPointerToMemberType()) {
     type = type->getAtType();
   }
   if (!type->isFunctionType()) {

@@ -7250,12 +7250,47 @@ Type *E_sizeofType::itcheck_x(Env &env, Expression *&replacement)
   return t->isError()? t : env.getSimpleType(SL_UNKNOWN, ST_UNSIGNED_INT);
 }
 
+  
+// Type check 'expr', given that it is being used to set the value of
+// something with type 'target', and so we can use that as the basis
+// for resolving the address of an overloaded function name.
+void tcheckExpression_possibleAddrOfOverload
+  (Env &env, Expression *&expr, Type *target)
+{
+  LookupSet set;
+  tcheckExpression_set(env, expr, LF_TEMPL_PRIMARY, set);
+  if (set.count() >= 2) {
+    Variable *selVar =
+      env.pickMatchingOverloadedFunctionVar(set, target->asRval());
+    if (selVar) {
+      env.setOverloadedFunctionVar(expr, selVar);
+    }
+    else {
+      env.error(getExprNameLoc(expr), stringc
+        << "failed to resolve address-of of overloaded function `"
+        << *(getExprName(expr)) << "' assigned to type `"
+        << target->toString() << "'; candidates:\n" 
+        << chomp(set.asString()));
+    }
+  }
+}
+
 
 Type *E_assign::itcheck_x(Env &env, Expression *&replacement)
 {
   target->tcheck(env, target);
-  src->tcheck(env, src);
-  
+
+  // 13.4p1b2: might be address-of overloaded function
+  tcheckExpression_possibleAddrOfOverload(env, src, target->type);
+
+  // TODO: To be completely correct, we should consider the
+  // possibility that we have to do overload resolution on *both*
+  // the operator and the function name.  This interaction is
+  // already implemented for E_funCall (etc.), so presumably that
+  // should be used as a model here.  In fact, most places that
+  // 'tcheckExpression_possibleAddrOfOverload' is used have this
+  // same defect.
+
   // check for operator overloading
   {
     Type *ovlRet = resolveOverloadedBinaryOperator(
@@ -7752,9 +7787,9 @@ void FullExpression::tcheck(Env &env)
 // TODO: all the initializers need to be checked for compatibility
 // with the types they initialize
 
-void IN_expr::tcheck(Env &env, Type *)
+void IN_expr::tcheck(Env &env, Type *target)
 {
-  e->tcheck(env, e);
+  tcheckExpression_possibleAddrOfOverload(env, e, target);
 }
 
 
