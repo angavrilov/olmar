@@ -184,6 +184,9 @@ public:      // data
   // are to be treated as calls to overloaded operator functions
   bool doOperatorOverload;
 
+  // when true, function template bodies are instantiated
+  bool doFunctionTemplateBodyInstantiation;
+
   // when non-NULL, the variable lookup results are collected and
   // compared to the text stored in this pointer; it is supplied via
   // an an 'asm' directive (see TF_asm::itcheck)

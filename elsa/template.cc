@@ -1931,7 +1931,14 @@ void Env::ensureFuncBodyTChecked(Variable *instV)
 }
 
 void Env::instantiateFunctionBody(Variable *instV)
-{
+{ 
+  if (!doFunctionTemplateBodyInstantiation) {
+    TRACE("template", "NOT instantiating func body: " << 
+                      instV->toQualifiedString() <<
+                      " because body instantiation is disabled");
+    return;
+  }
+
   TRACE("template", "instantiating func body: " << instV->toQualifiedString());
   
   // reconstruct a few variables from above

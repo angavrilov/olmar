@@ -361,6 +361,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     doOverload(!tracingSys("doNotOverload") && lang.allowOverloading),
 
     doOperatorOverload(tracingSys("doOperatorOverload") && lang.allowOverloading),
+    
+    doFunctionTemplateBodyInstantiation(!tracingSys("disableFBodyInst")),
                                                               
     collectLookupResults(NULL),
     
