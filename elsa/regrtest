@@ -184,7 +184,7 @@ TR_FLAGS=doOverload,mustBeUnambiguous$TR_EXTRA
 # the gaps below are for the tests that don't work
 #   0094: weird g++ iomanip.h "<>" syntax
 #   0126: work in progress
-#   0151,0152,0153: known bugs
+#   0151,0152: known bugs
 for fn in                                                                 \
   t0001.cc   t0002.cc  t0003.cc  t0004.cc   t0005.cc   t0006.cc  t0007.cc \
   t0008.cc   t0009.cc  t0010.cc  t0011.cc   t0012.cc   t0013.cc  t0014.cc \
@@ -208,7 +208,7 @@ for fn in                                                                 \
   t0131.cc   t0132.cc  t0133.cc  t0134.cc   t0135.cc   t0136.cc  t0137.cc \
   t0138.cc   t0139.cc  t0140.cc  t0141.cc   t0142.cc   t0143.cc  t0144.cc \
   t0145.cc   t0146.cc  t0147.cc  t0148.cc   t0149.cc   t0150.cc           \
-                                                                          \
+             t0153.cc                                                     \
     ; do
   # $TR_EXTRA is here so I can put additional tracing flags into this
   # command from the command line, to test them across all my test inputs;
@@ -228,12 +228,6 @@ runTest perl ./multitest.pl ./five-errors -tr doOperatorOverload in/t0151.cc
 
 failTest "need overload resolution with templates" \
   perl ./multitest.pl ./ccparse -tr doOperatorOverload,$TR_FLAGS in/t0152.cc
-
-# dsw: the default operator = has now been provided; if you agree that
-# this fix is correct, remember to also remove from the comment
-# refering to 0153 above as a known bug.
-runTest \
-  perl ./multitest.pl ./ccparse -tr doOperatorOverload,$TR_FLAGS in/t0153.cc
 
 
 # another set of tests, generally isolated by Daniel

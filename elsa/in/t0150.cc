@@ -75,7 +75,7 @@ void f1()
   apr = ap;
   apvr = ap;
   apr = ap;
-  //ERR <dsw: turn this test off> OR(1): ap = ap;       // lhs isn't reference
+  //ERROR(1): ap.operator A*() = ap;       // lhs isn't reference
   //ERROR(2): bpr = cp;      // would not be sound
   bpr = bp;
   apr = bp;

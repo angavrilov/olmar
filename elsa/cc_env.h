@@ -206,14 +206,18 @@ public:      // funcs
   // name collides with one that is already there (but if
   // 'forceReplace' true, silently replace instead)
   bool addVariable(Variable *v, bool forceReplace=false);
-  // dsw: FIX: Scott said he would make a better way of doing this
-  void addVariableWithOload(Variable *prevLookup, Variable *v);
   bool addCompound(CompoundType *ct);
   bool addEnum(EnumType *et);
 
   // like 'addVariable' in that the 'scope' field gets set, but
   // nothing is added to the maps
   void registerVariable(Variable *v);
+
+  // like 'addVariable', but if 'prevLookup' is not NULL then 'v' gets
+  // added to prevLookup's overload set instead of the current scope;
+  // it is *not* the case that all overloaded variables are added
+  // using this interface
+  void addVariableWithOload(Variable *prevLookup, Variable *v);
 
   // lookup in the environment (all scopes); return NULL if can't find
   Variable *lookupPQVariable(PQName const *name, LookupFlags f=LF_NONE);

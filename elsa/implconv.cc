@@ -190,7 +190,7 @@ StandardConversion tryCallCtor
   }
 
   if (numParams > 1) {
-    if (ft->params.nthC(1 /* dsw: changed from 2 to 1 */)->value) {
+    if (ft->params.nthC(1)->value) {
       // the 2nd param has a default, which implies all params
       // after have defaults, so this is ok
     }

@@ -102,7 +102,8 @@ public:     // funcs
   virtual string toCString() const = 0;
   string toString() const { return toCString(); }
 
-  // size this type's representation occupies in memory
+  // size this type's representation occupies in memory; this
+  // might throw XReprSize, see below
   virtual int reprSize() const = 0;
 
   ALLOC_STATS_DECLARE
@@ -750,11 +751,6 @@ public:
   // function type is now completely described
   virtual void doneParams();
   
-  // does this match the signature of a copy constructor?
-  bool isCopyConstructorFor(CompoundType *ct) const;
-  // does this match the signature of a copy assign operator?
-  bool isCopyAssignOpFor(CompoundType *ct) const;
-
   bool isTemplate() const { return templateParams!=NULL; }
   
   CVFlags getThisCV() const;         // dig down; or CV_NONE if !isMember
@@ -1128,7 +1124,8 @@ public:    // funcs
 
 
 // -------------------- XReprSize ---------------------
-// thrown when we fail to open a file
+// thrown when the reprSize() function cannot determine an
+// array size
 class XReprSize : public xBase {
 public:
   XReprSize();

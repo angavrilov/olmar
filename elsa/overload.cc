@@ -256,6 +256,10 @@ Variable *OverloadResolver::resolve(bool &wasAmbig)
   wasAmbig = false;
 
   if (candidates.isEmpty()) {
+    if (emptyCandidatesIsOk) {
+      return NULL;      // caller is prepared to deal with this
+    }
+
     if (errors) {
       // TODO: expand this message greatly: explain which functions
       // are candidates, and why each is not viable

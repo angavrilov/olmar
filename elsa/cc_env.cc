@@ -848,11 +848,23 @@ bool Env::addVariable(Variable *v, bool forceReplace)
 }
 
 
-void Env::addVariableWithOload(Variable *prevLookup, Variable *v) {
+void Env::addVariableWithOload(Variable *prevLookup, Variable *v) 
+{
   if (prevLookup) {
-    prevLookup->getOverloadSet()->addMember(v);
-  } else {
-    addVariable(v);
+    prevLookup->getOverloadSet()->addMember(v);   // might make an overload set
+    registerVariable(v);
+
+    TRACE("ovl",    "overloaded `" << prevLookup->name
+                 << "': `" << prevLookup->type->toString()
+                 << "' and `" << v->type->toString() << "'");
+  }
+  else {
+    if (!addVariable(v)) {
+      // since the caller is responsible for passing in the result of
+      // looking up v->name, if it passes NULL, then this addVariable
+      // call must succeed
+      xfailure("collision in addVariableWithOload");
+    }
   }
 }
 

@@ -975,6 +975,9 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   return ret;
 }
 
+                                                          
+// fwd
+void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
 
 // type check once we know what 'ct' is; this is also called
 // to check newly-cloned AST fragments for template instantiation
@@ -1049,7 +1052,7 @@ void TS_classSpec::tcheckIntoCompound(
       string h1 = ct->renderSubobjHierarchy();
       cout << "// ----------------- " << ct->name << " -------------------\n";
       cout << h1;
-             
+
       // for debugging; this checks that the 'visited' flags are being
       // cleared properly, among other things
       string h2 = ct->renderSubobjHierarchy();
@@ -1068,182 +1071,9 @@ void TS_classSpec::tcheckIntoCompound(
   FOREACH_ASTLIST_NC(Member, members->list, iter) {
     iter.data()->tcheck(env);
   }
-
-  StringRef stringName = name? name->getName() : NULL;
-  if (stringName) {
-    // **** implicit default ctor: cppstd 12.1 para 5: "If there is no
-    // user-declared constructor for class X, a default constructor is
-    // implicitly declared."
-    if (!ct->getNamedFieldC(env.constructorSpecialName, env, LF_INNER_ONLY)) {
-      // add a no-arg ctor declaration: "Class();".  For now we just
-      // add the variable to the scope and don't construct the AST, in
-      // order to be symmetric with what is going on with the dtor
-      // below.
-      FunctionType *ft = env.makeCDtorFunctionType(loc);
-      Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_MEMBER);
-      // NOTE: we don't use env.addVariableWithOload() because this is
-      // a special case: we only insert if there are no ctors AT ALL.
-      env.addVariable(v);
-      env.madeUpVariables.push(v);
-
-//        // make a no-arg ctor; make AST as if it had been parsed; this
-//        // has been reconstructed from cc.gr
-//        char *id = stringName; // in cc.gr, a string ref of the name
-//        D_name *d0 = new D_name(loc, new PQ_name(loc, id));
-//        Function *f0 =
-//          new Function(DF_NONE,   // decl flags: explicit, virtual, or none
-//                       new TS_simple(loc, ST_CDTOR), // type specifier: ctor or dtor
-//                       new Declarator(d0, NULL), // declarator with fn name, params
-//                       FakeList<MemberInit>::emptyList(), // ctor member inits
-//                       new S_compound(loc, NULL), // function body statement
-//                       NULL       // exception handlers
-//                       );
-    }
-
-    // **** implicit copy ctor: cppstd 12.8 para 4: "If the class
-    // definition does not explicitly declare a copy constructor, one
-    // is declared implicitly."
-    Variable *ctor0 = ct->getNamedField(env.constructorSpecialName, env, LF_INNER_ONLY);
-    xassert(ctor0);             // we just added one if there wasn't one
-    // is there a copy constructor?  I'm rolling my own here.
-    bool hasCopyCtor = false;
-    // special case for if there is only one:
-    if (!ctor0->overload) {
-      if (ctor0->type->asFunctionType()->isCopyConstructorFor(ct)) {
-        hasCopyCtor = true;
-      }
-    } else {
-      // general case for more
-      SFOREACH_OBJLIST_NC(Variable, ctor0->overload->set, iter) {
-        FunctionType *iterft = iter.data()->type->asFunctionType();
-        if (iterft->isCopyConstructorFor(ct)) {
-          hasCopyCtor = true;
-          break;
-        }
-      }
-    }
-
-    // cppstd 12.8 para 5: "The implicitly-declared copy constructor
-    // for a class X will have the form X::X(const X&) if [lots of
-    // complicated conditions about the superclasses have const copy
-    // ctors, etc.] ... Otherwise, the implicitly-declared copy
-    // constructor will have the form X::X(X&).  An
-    // implicitly-declared copy constructor is an inline public member
-    // of its class."  dsw: I'm going to just always make it X::X(X const &)
-    // for now.  TODO: do it right.
-    if (!hasCopyCtor) {
-      // add a copy ctor declaration: Class(Class&);
-      FunctionType *ft = env.makeFunctionType(loc, env.getSimpleType(loc, ST_CDTOR));
-      Variable *refToSelfParam =
-        env.makeVariable(loc,
-                         NULL,     // no parameter name
-                         env.makePointerType(loc, PO_REFERENCE, CV_NONE,
-                                             env.makeCVAtomicType(loc, ct, CV_CONST)),
-                         DF_NONE);
-      // sm: Q: why not pass in DF_PARAMETER to begin with?
-      refToSelfParam->setFlag(DF_PARAMETER);
-      ft->addParam(refToSelfParam);
-      ft->doneParams();
-
-      Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_MEMBER);
-      env.addVariableWithOload(ctor0, v);
-      env.madeUpVariables.push(v);
-    }
-
-    // **** implicit copy assignment operator: 12.8 para 10: "If the
-    // class definition does not explicitly declare a copy assignment
-    // operator, one is declared implicitly."
-    Variable *assign_op0 = ct->getNamedField(env.operatorName[OP_ASSIGN],
-                                             env, LF_INNER_ONLY);
-    // is there a copy assign op?  I'm rolling my own here.
-    bool hasCopyAssignOp = false;
-    if (assign_op0) {
-      // special case for if there is only one:
-      if (!assign_op0->overload) {
-        if (assign_op0->type->asFunctionType()->isCopyAssignOpFor(ct)) {
-          hasCopyAssignOp = true;
-        }
-      } else {
-        // general case for more
-        SFOREACH_OBJLIST_NC(Variable, assign_op0->overload->set, iter) {
-          FunctionType *iterft = iter.data()->type->asFunctionType();
-          if (iterft->isCopyAssignOpFor(ct)) {
-            hasCopyAssignOp = true;
-            break;
-          }
-        }
-      }
-    } 
-
-    // 12.8 para 10: "The implicitly-declared copy assignment operator
-    // for a class X will have the form X& X::operator=(const X&) if
-    // [lots of complicated conditions about the superclasses have
-    // const-parmeter copy assignment, etc.] ... Otherwise, the
-    // implicitly-declared copy assignment operator [mistake in spec:
-    // it says "copy constructor"] will have the form X&
-    // X::operator=(X&) The implicitly-declared copy assignment
-    // operator for class X has the return type X&; it returns the
-    // object for which the assignment operator is invoked, that is,
-    // the object assigned to.  An implicitly-declared copy assignment
-    // operator is an inline public member of its class.  Because a
-    // copy assignment operator is always hidden by the copy
-    // assignment operator of a derived class (13.5.3).  A
-    // using-declaration (7.3.3) that brings in from a base class an
-    // assignment operator with a parameter type that could be that of
-    // a copy-assignment operator; the operator introduced by the
-    // using-declaration is hidden by the implicitly-declared
-    // copy-assignment operator in the derived class."  dsw: I'm going
-    // to just always make the parameter const for now.  TODO: do it
-    // right.
-    if (!hasCopyAssignOp) {
-      // add a copy assignment op declaration: Class(Class&);
-      Type *refToSelfType = 
-        env.makePointerType(loc, PO_REFERENCE, CV_NONE,
-                            env.makeCVAtomicType(loc, ct, CV_CONST));
-      FunctionType *ft = env.makeFunctionType(loc, refToSelfType);
-      Variable *refToSelfParam =
-        env.makeVariable(loc,
-                         NULL,  // no parameter name
-                         env.tfac.cloneType(refToSelfType),
-                         DF_NONE);
-      // sm: Q: why not pass in DF_PARAMETER to begin with?
-      refToSelfParam->setFlag(DF_PARAMETER);
-      ft->addParam(refToSelfParam);
-      // dsw: cloneVariable() is a no-op?!  Clone it manually.
-      Variable *thisVar = env.makeVariable(refToSelfParam->loc,
-                                           refToSelfParam->name,
-                                           env.tfac.cloneType(refToSelfParam->type),
-                                           refToSelfParam->flags);
-      ft->addThisParam(thisVar);
-      ft->doneParams();
-
-      Variable *v = env.makeVariable(loc, env.operatorName[OP_ASSIGN], ft, DF_MEMBER);
-      env.addVariableWithOload(assign_op0, v);
-      env.madeUpVariables.push(v);
-    }
-
-    // **** implicit dtor: declare a destructor if one wasn't declared
-    // already; this allows the user to call the dtor explicitly, like
-    // "a->~A();", since I treat that like a field lookup
-    StringRef dtorName = env.str(stringc << "~" << stringName);
-    if (!ct->lookupVariable(dtorName, env, LF_INNER_ONLY)) {
-      // add a dtor declaration: ~Class();
-      FunctionType *ft = env.makeDestructorFunctionType(loc);
-      Variable *v = env.makeVariable(loc, dtorName, ft, DF_MEMBER);
-      // NOTE: we don't use env.addVariableWithOload() because this is
-      // a special case: we only insert if there are no dtors AT ALL.
-      env.addVariable(v);
-
-      // FIX: Scott says the dtor should have a this parameter added
-      // with addThisParam(); I'm leaving it out so that we don't add
-      // this feature until we have a test that makes it fail
-
-      // put it on the list of made-up variables since there are no
-      // (e.g.) $tainted qualifiers (since the user didn't even type the
-      // dtor's name)
-      env.madeUpVariables.push(v);
-    }
-  }
+                                    
+  // default ctor, copy ctor, operator=
+  addCompilerSuppliedDecls(env, loc, ct);
 
   // let the CompoundType build additional indexes if it wants
   ct->finishedClassDefinition(env.conversionOperatorName);
@@ -1362,6 +1192,274 @@ Type *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
 
   this->etype = et;           // annotation
   return ret;
+}
+
+
+// true if 't' is reference to 'ct', ignoring any c/v
+static bool isRefToCt(Type const *t, CompoundType *ct)
+{
+  if (!t->isReference()) return false;
+
+  PointerType const *pt = t->asPointerTypeC();
+  if (!pt->atType->isCVAtomicType()) return false;
+
+  CVAtomicType const *at = pt->atType->asCVAtomicTypeC();
+  if (at->atomic != ct) return false; // NOTE: atomics are equal iff pointer equal
+  
+  return true;
+}
+
+
+// cppstd 12.8 para 2: "A non-template constructor for a class X is a
+// _copy_ constructor if its first parameter is of type X&, const X&,
+// volatile X&, or const volatile X&, and either there are no other
+// parameters or else all other parameters have default arguments
+// (8.3.6)."
+bool isCopyConstructor(FunctionType const *ft, CompoundType *ct)
+{
+  if (!ft->isConstructor()) return false; // is a ctor?
+  if (ft->isTemplate()) return false; // non-template?
+  if (ft->params.isEmpty()) return false; // has at least one arg?
+
+  // is the first parameter a ref to the class type?
+  if (!isRefToCt(ft->params.firstC()->type, ct)) return false;
+
+  // do all the parameters past the first one have default arguments?
+  bool first_time = true;
+  SFOREACH_OBJLIST(Variable, ft->params, paramiter) {
+    // skip the first variable
+    if (first_time) {
+      first_time = false;
+      continue;
+    }
+    if (!paramiter.data()->value) return false;
+  }
+
+  return true;                  // all test pass
+}
+
+
+// cppstd 12.8 para 9: "A user-declared _copy_ assignment operator
+// X::operator= is a non-static non-template member function of class
+// X with exactly one parameter of type X, X&, const X&, volatile X&
+// or const volatile X&."
+bool isCopyAssignOp(FunctionType const *ft, CompoundType *ct)
+{
+  if (!ft->isMethod()) return false; // is a non-static member?
+  if (ft->isTemplate()) return false; // non-template?
+  if (ft->params.count() != 1) return false; // has exactly one arg?
+
+  // the parameter
+  Type *t0 = ft->params.firstC()->type;
+
+  // is the parameter of the class type?  NOTE: atomics are equal iff
+  // pointer equal
+  if (t0->isCVAtomicType() && t0->asCVAtomicType()->atomic != ct) return true;
+
+  // or, is the parameter a ref to the class type?
+  if (!isRefToCt(t0, ct)) return false;
+
+  return true;                  // all test pass
+}
+
+
+typedef bool (*MemberFnTest)(FunctionType const *ft, CompoundType *ct);
+
+// test for any match among a variable's overload set
+bool testAmongOverloadSet(MemberFnTest test, Variable *v, CompoundType *ct)
+{
+  if (!v) {
+    // allow this, and say there's no match, because there are
+    // no variables at all
+    return false;
+  }
+
+  if (!v->overload) {
+    // singleton set
+    if (test(v->type->asFunctionType(), ct)) {
+      return true;
+    }
+  }
+  else {
+    // more than one element; note that the original 'v' is always
+    // among the elements of this list
+    SFOREACH_OBJLIST_NC(Variable, v->overload->set, iter) {
+      if (test(iter.data()->type->asFunctionType(), ct)) {
+        return true;
+      }
+    }
+  }
+
+  return false;        // no match
+}
+
+
+// this adds:
+//   - a default (no-arg) ctor, if no ctor (of any kind) is already present
+//   - a copy ctor if no copy ctor is present
+//   - an operator= if none is present
+//   - a dtor if none is present
+// 'loc' remains a hack ...
+void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
+{
+  // the caller should already have arranged so that 'ct' is the
+  // innermost scope
+  xassert(env.acceptingScope() == ct);
+
+  // don't bother for anonymous classes (this was originally because
+  // the destructor would then not have a name, but it's been retained
+  // even as more compiler-supplied functions have been added)
+  if (!ct->name) {
+    return;
+  }
+
+  // **** implicit default ctor: cppstd 12.1 para 5: "If there is no
+  // user-declared constructor for class X, a default constructor is
+  // implicitly declared."
+  if (!ct->getNamedFieldC(env.constructorSpecialName, env, LF_INNER_ONLY)) {
+    // add a no-arg ctor declaration: "Class();".  For now we just
+    // add the variable to the scope and don't construct the AST, in
+    // order to be symmetric with what is going on with the dtor
+    // below.
+    FunctionType *ft = env.makeCDtorFunctionType(loc);
+    Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_MEMBER);
+    // NOTE: we don't use env.addVariableWithOload() because this is
+    // a special case: we only insert if there are no ctors AT ALL.
+    env.addVariable(v);
+    env.madeUpVariables.push(v);
+
+//        // make a no-arg ctor; make AST as if it had been parsed; this
+//        // has been reconstructed from cc.gr
+//        char *id = ct->name; // in cc.gr, a string ref of the name
+//        D_name *d0 = new D_name(loc, new PQ_name(loc, id));
+//        Function *f0 =
+//          new Function(DF_NONE,   // decl flags: explicit, virtual, or none
+//                       new TS_simple(loc, ST_CDTOR), // type specifier: ctor or dtor
+//                       new Declarator(d0, NULL), // declarator with fn name, params
+//                       FakeList<MemberInit>::emptyList(), // ctor member inits
+//                       new S_compound(loc, NULL), // function body statement
+//                       NULL       // exception handlers
+//                       );
+  }
+
+  // **** implicit copy ctor: cppstd 12.8 para 4: "If the class
+  // definition does not explicitly declare a copy constructor, one
+  // is declared implicitly."
+  Variable *ctor0 = ct->getNamedField(env.constructorSpecialName, env, LF_INNER_ONLY);
+  xassert(ctor0);             // we just added one if there wasn't one
+
+  // is there a copy constructor?  I'm rolling my own here.
+  if (!testAmongOverloadSet(isCopyConstructor, ctor0, ct)) {
+    // cppstd 12.8 para 5: "The implicitly-declared copy constructor
+    // for a class X will have the form 
+    //
+    //   X::X(const X&)
+    //
+    // if [lots of complicated conditions about the superclasses have
+    // const copy ctors, etc.] ... Otherwise, the implicitly-declared
+    // copy constructor will have the form
+    //
+    //   X::X(X&)
+    //
+    // An implicitly-declared copy constructor is an inline public
+    // member of its class."
+    
+    // dsw: I'm going to just always make it X::X(X const &) for now.
+    // TODO: do it right.
+
+    // add a copy ctor declaration: Class(Class const &);
+    FunctionType *ft = env.makeFunctionType(loc, env.getSimpleType(loc, ST_CDTOR));
+    Variable *refToSelfParam =
+      env.makeVariable(loc,
+                       NULL,     // no parameter name
+                       env.makePointerType(loc, PO_REFERENCE, CV_NONE,
+                                           env.makeCVAtomicType(loc, ct, CV_CONST)),
+                       DF_PARAMETER);
+    ft->addParam(refToSelfParam);
+    ft->doneParams();
+
+    Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_MEMBER);
+    env.addVariableWithOload(ctor0, v);     // always overloaded; ctor0!=NULL
+    env.madeUpVariables.push(v);
+  }
+
+  // **** implicit copy assignment operator: 12.8 para 10: "If the
+  // class definition does not explicitly declare a copy assignment
+  // operator, one is declared implicitly."
+  Variable *assign_op0 = ct->getNamedField(env.operatorName[OP_ASSIGN],
+                                           env, LF_INNER_ONLY);
+  // is there a copy assign op?  I'm rolling my own here.
+  if (!testAmongOverloadSet(isCopyAssignOp, assign_op0, ct)) {
+    // 12.8 para 10: "The implicitly-declared copy assignment operator
+    // for a class X will have the form
+    //
+    //   X& X::operator=(const X&) 
+    //
+    // if [lots of complicated conditions about the superclasses have
+    // const-parmeter copy assignment, etc.] ... Otherwise, the
+    // implicitly-declared copy assignment operator [mistake in spec:
+    // it says "copy constructor"] will have the form
+    //
+    //   X& X::operator=(X&)
+    //
+    // The implicitly-declared copy assignment
+    // operator for class X has the return type X&; it returns the
+    // object for which the assignment operator is invoked, that is,
+    // the object assigned to.  An implicitly-declared copy assignment
+    // operator is an inline public member of its class. ..."
+    
+    // dsw: I'm going to just always make the parameter const for now.
+    // TODO: do it right.
+
+    // add a copy assignment op declaration: Class& operator=(Class const &);
+    Type *refToSelfType =
+      env.makePointerType(loc, PO_REFERENCE, CV_NONE,
+                          env.makeCVAtomicType(loc, ct, CV_NONE));
+    Type *refToConstSelfType =
+      env.makePointerType(loc, PO_REFERENCE, CV_NONE,
+                          env.makeCVAtomicType(loc, ct, CV_CONST));
+
+    FunctionType *ft = env.makeFunctionType(loc, refToSelfType);
+
+    // receiver object
+    ft->addThisParam(
+      env.makeVariable(loc, NULL,
+                       env.tfac.cloneType(refToSelfType),
+                       DF_PARAMETER));
+
+    // source object parameter
+    ft->addParam(
+      env.makeVariable(loc,
+                       NULL,  // no parameter name
+                       env.tfac.cloneType(refToConstSelfType),
+                       DF_PARAMETER));
+
+    ft->doneParams();
+
+    Variable *v = env.makeVariable(loc, env.operatorName[OP_ASSIGN], ft, DF_MEMBER);
+    env.addVariableWithOload(assign_op0, v);
+    env.madeUpVariables.push(v);
+  }
+
+  // **** implicit dtor: declare a destructor if one wasn't declared
+  // already; this allows the user to call the dtor explicitly, like
+  // "a->~A();", since I treat that like a field lookup
+  StringRef dtorName = env.str(stringc << "~" << ct->name);
+  if (!ct->lookupVariable(dtorName, env, LF_INNER_ONLY)) {
+    // add a dtor declaration: ~Class();
+    FunctionType *ft = env.makeDestructorFunctionType(loc);
+    Variable *v = env.makeVariable(loc, dtorName, ft, DF_MEMBER);
+    env.addVariable(v);      // cannot be overloaded
+
+    // BUG/TODO: Scott says the dtor should have a this parameter
+    // added with addThisParam(); I'm leaving it out so that we don't
+    // add this feature until we have a test that makes it fail
+
+    // put it on the list of made-up variables since there are no
+    // (e.g.) $tainted qualifiers (since the user didn't even type the
+    // dtor's name)
+    env.madeUpVariables.push(v);
+  }
 }
 
 
@@ -4135,7 +4233,8 @@ Type *E_sizeof::itcheck(Env &env, Expression *&replacement)
   // size of a variable of template-type-parameter type..
   try {
     size = expr->type->asRval()->reprSize();
-  } catch (XReprSize &e) {
+  } 
+  catch (XReprSize &e) {
     return env.error(e.why());  // jump out with an error
   }
   TRACE("sizeof", "sizeof(" << expr->exprToString() <<
@@ -4725,7 +4824,8 @@ Type *E_sizeofType::itcheck(Env &env, Expression *&replacement)
   Type *t = atype->getType();
   try {
     size = t->reprSize();
-  } catch (XReprSize &e) {
+  }
+  catch (XReprSize &e) {
     t = env.error(e.why());
   }
 

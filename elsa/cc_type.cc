@@ -1197,65 +1197,9 @@ FunctionType::~FunctionType()
 }
 
 
-// cppstd 12.8 para 2: "A non-template constructor for a class X is a
-// _copy_ constructor if its first parameter is of type X&, const X&,
-// volatile X&, or const volatile X&, and either there are no other
-// parameters or else all other parameters have default arguments
-// (8.3.6)."
-bool FunctionType::isCopyConstructorFor(CompoundType *ct) const
-{
-  if (!(flags & FF_CTOR)) return false; // is a ctor?
-  if (isTemplate()) return false; // non-template?
-  if (params.isEmpty()) return false; // has at least one arg?
-
-  // is the first parameter a ref to the class type?
-  Type *t0 = params.firstC()->type;
-  if (!t0->isReference()) return false;
-  PointerType *pt0 = t0->asPointerType();
-  if (!pt0->atType->isCVAtomicType()) return false;
-  CVAtomicType *at0 = pt0->atType->asCVAtomicType();
-  if (at0->atomic != ct) return false; // NOTE: atomics are equal iff pointer equal
-
-  // do all the parameters past the first one have default arguments?
-  bool first_time = true;
-  SFOREACH_OBJLIST(Variable, params, paramiter) {
-    // skip the first variable
-    if (first_time) {
-      first_time = false;
-      continue;
-    }
-    if (!paramiter.data()->value) return false;
-  }
-
-  return true;                  // all test pass
-}
-
-
-// cppstd 12.8 para 9: "A user-declared _copy_ assignment operator
-// X::operator= is a non-static non-template member function of class
-// X with exactly one parameter of type X, X&, const X&, volatile X&
-// or const volatile X&."
-bool FunctionType::isCopyAssignOpFor(CompoundType *ct) const
-{
-  if (!(flags & FF_METHOD)) return false; // is a non-static member?
-  if (isTemplate()) return false; // non-template?
-  if (params.count() != 1) return false; // has exactly one arg?
-
-  // the parameter
-  Type *t0 = params.firstC()->type;
-
-  // is the parameter of the class type?  NOTE: atomics are equal iff
-  // pointer equal
-  if (t0->isCVAtomicType() && t0->asCVAtomicType()->atomic != ct) return true;
-
-  // or, is the parameter a ref to the class type?
-  if (!t0->isReference()) return false;
-  PointerType *pt0 = t0->asPointerType();
-  if (!pt0->atType->isCVAtomicType()) return false;
-  CVAtomicType *at0 = pt0->atType->asCVAtomicType();
-  if (at0->atomic != ct) return false; // NOTE: atomics are equal iff pointer equal
-  return true;                  // all test pass
-}
+// sm: I moved 'isCopyConstructorFor' and 'isCopyAssignOpFor' out into
+// cc_tcheck.cc since the rules are fairly specific to the analysis
+// being performed there
 
 
 // NOTE:  This function (and the parameter comparison function that
@@ -1800,13 +1744,11 @@ string ArrayType::rightString(bool /*innerParen*/) const
 
 int ArrayType::reprSize() const
 {
-  if (hasSize()) {
-    return eltType->reprSize() * size;
-  }
-  else {
+  if (!hasSize()) {
     throw_XReprSize();
-    return ArrayType::NO_SIZE;  // won't get here
   }
+
+  return eltType->reprSize() * size;
 }
 
 
@@ -2184,7 +2126,7 @@ void cc_type_checker()
 
 // -------------------- XReprSize -------------------
 XReprSize::XReprSize()
-  : xBase(stringc << "reprSize of a sizeless array")
+  : xBase("reprSize of a sizeless array")
 {}
 
 XReprSize::XReprSize(XReprSize const &obj)
