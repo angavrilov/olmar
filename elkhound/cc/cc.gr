@@ -102,11 +102,15 @@ UserActions *makeUserActions(StringTable &table, CCLang &lang)
 
 // when this is the last element in a parameter list, the function
 // is a vararg function
-ASTTypeId *ellipsisTypeId(SourceLocation const &loc)
+ASTTypeId *ellipsisTypeId(SourceLocation const &loc, QualifierLiterals *ql)
 {
-  return new ASTTypeId(new TS_simple(new PQ_name("__ellipsis"), loc, ST_ELLIPSIS),
-                       new Declarator(new D_name(NULL /*name*/, SourceLocation()),
-                                      NULL /*init*/));
+  ASTTypeId *tid = 
+    new ASTTypeId(new TS_simple(new PQ_name("__ellipsis"), loc, ST_ELLIPSIS),
+                  new Declarator(new D_name(NULL /*name*/, SourceLocation()),
+                                 NULL /*init*/));
+  // FIX: creates garbage
+  tid->spec->q = new Qualifiers("__anonymous_ellipsis", loc, NULL, ql);
+  return tid;
 }
 
 ]
@@ -1353,14 +1357,14 @@ nonterm[FakeList<ASTTypeId>*] ParameterDeclarationClause {
 // little bending over backwards here to accomodate FakeList
 nonterm[FakeList<ASTTypeId>*] ParameterDeclarationList {
   // last (and perhaps only) arg is "..."
-  -> "..."
-       [ return FakeList<ASTTypeId>::makeList(ellipsisTypeId(loc)); ]
+  -> "..." ql:QualifierLiteralsOpt
+       [return FakeList<ASTTypeId>::makeList(ellipsisTypeId(loc, ql)); ]
 
   // last arg is "...", and 2nd-to-last is not separated by
   // a comma from the "..."
-  -> d:ParameterDeclaration "..."
+  -> d:ParameterDeclaration "..." ql:QualifierLiteralsOpt
        [ FakeList<ASTTypeId> *list =
-           FakeList<ASTTypeId>::makeList(ellipsisTypeId(loc));
+           FakeList<ASTTypeId>::makeList(ellipsisTypeId(loc, ql));
          d->setNext(list->first());
          return FakeList<ASTTypeId>::makeList(d); ]
 
