@@ -60,13 +60,12 @@ class Function {
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
 
-  // if 'checkBody' is false, we treat this like it was just
-  // a prototype for the function; if 'instV' is not NULL, then
-  // force the declarator 'nameAndParams' to refer to it instead
-  // of using the usual lookup/creation mechanism
-  public void tcheck(Env &env, bool checkBody, Variable *instV = NULL);
+  // if 'instV' is not NULL, then force the declarator 'nameAndParams'
+  // to refer to it instead of using the usual lookup/creation
+  // mechanism
+  public void tcheck(Env &env, Variable *instV = NULL);
   
-  // this is where we end up if 'checkBody' is true
+  // this is where we end up if 'env.checkFunctionBodies' is true
   public void tcheckBody(Env &env);
 
   private CompoundType *verifyIsCtor(Env &env, char const *context);
@@ -180,8 +179,7 @@ class TypeSpecifier {
   -> TS_classSpec {
        public CompoundType *ctype = NULL;
        public void tcheckIntoCompound(
-         Env &env, DeclFlags dflags, CompoundType *ct,
-         bool checkMethodBodies);
+         Env &env, DeclFlags dflags, CompoundType *ct);
        private void tcheckFunctionBodies(Env &env);
      }
 

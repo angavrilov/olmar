@@ -110,7 +110,7 @@ void TF_decl::itcheck(Env &env)
 void TF_func::itcheck(Env &env)
 {
   env.setLoc(loc);
-  f->tcheck(env, true /*checkBody*/);
+  f->tcheck(env);
 }
 
 void TF_template::itcheck(Env &env)
@@ -275,8 +275,10 @@ void TF_namespaceDecl::itcheck(Env &env)
 
 
 // --------------------- Function -----------------
-void Function::tcheck(Env &env, bool checkBody, Variable *instV)
-{
+void Function::tcheck(Env &env, Variable *instV)
+{                               
+  bool checkBody = env.checkFunctionBodies;
+
   // are we in a template function?
   bool inTemplate = env.scope()->hasTemplateParams();
 
@@ -1398,7 +1400,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   this->ctype = ct;           // annotation
 
   // check the body of the definition
-  tcheckIntoCompound(env, dflags, ct, true /*checkMethodBodies*/);
+  tcheckIntoCompound(env, dflags, ct);
 
   // 8/14/04: er... ahh.. what?  if we needed it before this we
   // would have already emitted an error!  nothing is accomplished
@@ -1413,8 +1415,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 // to check newly-cloned AST fragments for template instantiation
 void TS_classSpec::tcheckIntoCompound(
   Env &env, DeclFlags dflags,    // as in tcheck
-  CompoundType *ct,              // compound into which we're putting declarations
-  bool checkMethodBodies)        // check the method bodies too
+  CompoundType *ct)              // compound into which we're putting declarations
 {
   // should have set the annotation by now
   xassert(ctype);
@@ -1514,25 +1515,30 @@ void TS_classSpec::tcheckIntoCompound(
   env.extendScope(ct);
 
   // look at members: first pass is to enter them into the environment
-  FOREACH_ASTLIST_NC(Member, members->list, iter) {
-    Member *member = iter.data();
-    member->tcheck(env);
-    // dsw: The invariant that I have chosen for function members of
-    // templatized classes is that we typecheck the declaration but
-    // not the definition; the definition is typechecked when the
-    // function is called or at some other later time.  This works
-    // fine for out-of-line function definitions, as when the
-    // definition is found, without typechecking the body, we point
-    // the variable created by typechecking the declaration at the
-    // definition, which will be typechecked later.  This means that
-    // for in-line functions we need to do this as well.
-    if (member->isMR_func()) {
-      // an inline member function definition
-      MR_func *mrfunc = member->asMR_func();
-      Variable *mrvar = mrfunc->f->nameAndParams->var;
-      xassert(mrvar);
-      xassert(!mrvar->funcDefn);
-      mrvar->funcDefn = mrfunc->f;
+  {
+    // don't check function bodies
+    Restorer<bool> r(env.checkFunctionBodies, false);
+
+    FOREACH_ASTLIST_NC(Member, members->list, iter) {
+      Member *member = iter.data();
+      member->tcheck(env);
+      // dsw: The invariant that I have chosen for function members of
+      // templatized classes is that we typecheck the declaration but
+      // not the definition; the definition is typechecked when the
+      // function is called or at some other later time.  This works
+      // fine for out-of-line function definitions, as when the
+      // definition is found, without typechecking the body, we point
+      // the variable created by typechecking the declaration at the
+      // definition, which will be typechecked later.  This means that
+      // for in-line functions we need to do this as well.
+      if (member->isMR_func()) {
+        // an inline member function definition
+        MR_func *mrfunc = member->asMR_func();
+        Variable *mrvar = mrfunc->f->nameAndParams->var;
+        xassert(mrvar);
+        xassert(!mrvar->funcDefn);
+        mrvar->funcDefn = mrfunc->f;
+      }
     }
   }
 
@@ -1545,8 +1551,8 @@ void TS_classSpec::tcheckIntoCompound(
   ct->finishedClassDefinition(env.conversionOperatorName);
 
   // second pass: check function bodies
-  bool innerClass = !!containingClass;
-  if (!innerClass && checkMethodBodies) {
+  // (only if we're not in a context where this is supressed)
+  if (env.checkFunctionBodies) {
     tcheckFunctionBodies(env);
   }
 
@@ -1554,7 +1560,7 @@ void TS_classSpec::tcheckIntoCompound(
   // *not* destroy it!
   env.retractScope(ct);
 
-  if (innerClass) {
+  if (containingClass) {
     // set the constructed scope's 'parentScope' pointer now that
     // we've removed 'ct' from the Environment scope stack; future
     // (unqualified) lookups in 'ct' will thus be able to see
@@ -1575,7 +1581,9 @@ void TS_classSpec::tcheckIntoCompound(
 // TODO: I'm pretty sure I erroneously process default arguments during
 // pass 1 ...
 void TS_classSpec::tcheckFunctionBodies(Env &env)
-{
+{ 
+  xassert(env.checkFunctionBodies);
+
   CompoundType *ct = env.scope()->curCompound;
   xassert(ct);
 
@@ -1589,15 +1597,27 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
       // of the same class member, so to tell declareNewVariable not
       // to complain, this flag says we're in the second pass
       // tcheck of an inline member function
-      f->dflags = (DeclFlags)(f->dflags | DF_INLINE_DEFN);
+      f->dflags |= DF_INLINE_DEFN;
 
       // check it
-      f->tcheck(env, true /*checkBody*/);
+      f->tcheck(env);
 
       // remove DF_INLINE_DEFN so if I clone this later I can play the
       // same trick again (TODO: what if we decide to clone while down
       // in 'f->tcheck'?)
-      f->dflags = (DeclFlags)(f->dflags & ~DF_INLINE_DEFN);
+      f->dflags &= ~DF_INLINE_DEFN;
+    }
+
+    else if (iter.data()->isMR_template()) {
+      // check member template bodies
+      TemplateDeclaration *td = iter.data()->asMR_template()->d;
+      if (td->isTD_func()) {
+        // same trick as above...
+        Function *f = td->asTD_func()->f;
+        f->dflags |= DF_INLINE_DEFN;
+        td->tcheck(env);
+        f->dflags &= ~DF_INLINE_DEFN;
+      }
     }
 
     // 8/06/04: Previously, we had been waiting until pass 2 to check
@@ -1724,7 +1744,10 @@ void MR_func::tcheck(Env &env)
   // members have been added to the class, so that the potential
   // scope of all class members includes all function bodies
   // [cppstd sec. 3.3.6]
-  f->tcheck(env, false /*checkBody*/);
+  //
+  // the check-body suppression is now handled via a flag in 'env', so
+  // this call site doesn't directly reflect that that is happening
+  f->tcheck(env);
 
   checkMemberFlags(env, f->dflags);
 }
@@ -6174,7 +6197,7 @@ void TD_func::itcheck(Env &env)
 {
   // check the function definition; internally this will get
   // the template parameters attached to the function type
-  f->tcheck(env, true /*checkBody*/);
+  f->tcheck(env);
                                                                             
   // instantiate any instantiations that were requested but delayed
   // due to not having the definition

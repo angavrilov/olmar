@@ -1959,7 +1959,7 @@ void Env::instantiateFunctionBody(Variable *instV)
   }
 
   // check the body, forcing it to use 'instV'
-  instV->funcDefn->tcheck(*this, true /*checkBody*/, instV);
+  instV->funcDefn->tcheck(*this, instV);
 
   if (instV->funcDefn->dflags & DF_INLINE_DEFN) {
     popDeclarationScopes(instV, defnScope);
@@ -2168,8 +2168,12 @@ void Env::instantiateClassBody(Variable *inst)
   // check the class body, forcing it to use 'instCT'
   instCT->syntax->name->tcheck(*this);
   instCT->syntax->ctype = instCT;
-  instCT->syntax->tcheckIntoCompound(*this, DF_NONE, instCT,
-                                     false /*checkMethodBodies*/);
+  
+  // don't check method bodies
+  {
+    Restorer<bool> r(checkFunctionBodies, false);
+    instCT->syntax->tcheckIntoCompound(*this, DF_NONE, instCT);
+  }
 
   // Now, we've just tchecked the clone in an environment that
   // makes all the type variables map to concrete types, so we
@@ -2454,11 +2458,24 @@ void Env::transferTemplateMemberInfo_membert
 
   srcTI->addPartialInstantiation(destVar);
 
-  if (!destVar->funcDefn) {      // do this only for out-of-line definitions
-    // finally, make them share a function definition (if any); it
-    // will be cloned before a real instantiation is made
+  // should not have already checked this member's body even if
+  // it has an inline definition
+  xassert(!destVar->funcDefn);
+
+  // does the source have a definition?
+  if (srcVar->funcDefn) {
+    // give the definition to the dest too
     destVar->funcDefn = srcVar->funcDefn;
-    destTI->defnScope = srcTI->defnScope;
+
+    // is it inline?
+    if (srcVar->scope == srcTI->defnScope) {
+      // then the dest's defnScope should be similarly arranged
+      destTI->defnScope = destVar->scope;
+    }
+    else {
+      // for out of line, the defn scopes of src and dest are the same
+      destTI->defnScope = srcTI->defnScope;
+    }
   }
 
   // do this last so I have full info to print for 'destVar'

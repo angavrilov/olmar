@@ -64,6 +64,12 @@ public:      // data
   // this is used for certain kinds of error reporting and suppression
   int disambiguationNestingLevel;
 
+  // when true, function bodies are tchecked; when false, they are
+  // treated like prototypes; this lets class definitions delay
+  // body tchecking until all the members have been entered into
+  // the class scope
+  bool checkFunctionBodies;
+
   // list of error messages; during disambiguation, the existing
   // list is set aside, so 'errors' only has errors from the
   // disambiguation we're doing now (if any)

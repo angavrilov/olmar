@@ -215,7 +215,7 @@ Type *TS_typeof::itcheck(Env &env, DeclFlags dflags)
 void S_function::itcheck(Env &env)
 {
   env.setLoc(loc);
-  f->tcheck(env, true /*checkBody*/);
+  f->tcheck(env);
 }
 
 

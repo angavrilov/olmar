@@ -1253,7 +1253,8 @@ void TD_func::iprint(PrintEnv &env)
 
   // print instantiations
   Variable *var = f->nameAndParams->var;
-  if (var->isTemplate()) {      // for complete specializations, don't print
+  if (var->isTemplate() &&      // for complete specializations, don't print
+      !var->templateInfo()->isPartialInstantiation()) {     // nor partial inst
     env << "#if 0    // instantiations of " << var->toString() << "\n";
     printFuncInstantiations(env, var);
 

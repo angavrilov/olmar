@@ -295,6 +295,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     ctorFinished(false),
 
     disambiguationNestingLevel(0),
+    checkFunctionBodies(true),
     errors(),
     hiddenErrors(NULL),
     instantiationLocStack(),
