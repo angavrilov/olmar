@@ -2007,13 +2007,10 @@ void GrammarAnalysis::
     DottedProduction const *newDP = getDProd(&prod, 0 /*dot at left*/);
 
     // get beta (what follows B in 'item')
-    //RHSEltListIter beta(item->getProd()->right, item->getDot() + 1);
     DottedProduction const *beta = nextDProd(item->dprod);
 
     // get First(beta) -> new item's lookahead
     newItemLA = beta->firstSet;
-    //newItemLA.clear();
-    //firstOfIterSeq(newItemLA, beta);
 
     // if beta ->* epsilon, add LA
     if (beta->canDeriveEmpty) {
