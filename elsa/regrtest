@@ -397,6 +397,10 @@ testparse d0024.cc
 testparse d0025.cc
 testparse d0026.cc
 
+# FIX:
+failparse d0027.cc
+failparse d0028.cc
+
 # examples from C++ standard
 for fn in in/std/*.cc; do
   runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS "$fn"
