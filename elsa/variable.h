@@ -32,6 +32,11 @@ class OverloadSet;        // below
 class Scope;              // scope
 
 class Variable {
+#if CC_QUAL
+public:
+  static SObjList<Variable> instances;
+#endif
+
 public:    // data
   // for now, there's only one location, and it's the definition
   // location if that exists, else the declaration location; there

@@ -33,4 +33,6 @@ string toString (QualifierLiterals *const &);
 Qualifiers *deepClone(Qualifiers *q);
 Type const *applyQualifierLiteralsToType(Qualifiers *q, Type const *baseType);
 
+void nameSubtypeQualifiers(Variable *v);
+
 #endif // CC_QUALIFIERS_DUMMY_H

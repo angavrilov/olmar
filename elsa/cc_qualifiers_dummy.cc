@@ -7,3 +7,5 @@ string toString(Qualifiers *q) {return string("");}
 string toString (QualifierLiterals *const &) {return string("");}
 Qualifiers *deepClone(Qualifiers *q) {return q;}
 Type const *applyQualifierLiteralsToType(Qualifiers *q, Type const *baseType) {return baseType;}
+
+void nameSubtypeQualifiers(Variable *v) {} 
