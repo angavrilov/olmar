@@ -71,8 +71,9 @@ public:
   bool complainUponBadDeref;
 
   // when true, require all array sizes to be positive; when false,
-  // 0-length arrays are allowed as class/struct fields; dsw: UPDATE:
-  // I also allow them anywhere else, since this occurs in the kernel
+  // 0-length arrays are allowed as class/struct fields
+  //
+  // dsw: UPDATE: allow them anywhere; needed for linux kernel
   bool strictArraySizeRequirements;
 
   // when true, assume arrays with no size are of size 1 and issue a

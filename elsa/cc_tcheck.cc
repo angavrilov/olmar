@@ -3536,7 +3536,7 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
         }
         else {
           if (sz < 0) {
-            env.error(loc, "member array size must be nonnegative");
+            env.error(loc, "array size must be nonnegative");
           }
         }
       }
