@@ -93,6 +93,12 @@ enum DeclFlags {
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..
 string toString(DeclFlags df);
 
+inline DeclFlags operator| (DeclFlags f1, DeclFlags f2)
+  { return (DeclFlags)((int)f1 | (int)f2); }
+inline DeclFlags operator& (DeclFlags f1, DeclFlags f2)
+  { return (DeclFlags)((int)f1 & (int)f2); }
+inline DeclFlags operator~ (DeclFlags f)
+  { return (DeclFlags)((~(int)f) & ALL_DECLFLAGS); }
 
 // ------------------------- SimpleTypeId ----------------------------
 // C's built-in scalar types; the representation deliberately does
