@@ -3281,6 +3281,9 @@ Type *E_funCall::inner2_itcheck(Env &env)
       << "you can't use an expression of type `" << func->type->toString()
       << "' as a function");
   }
+  
+  // skip grouping parens (cppstd 13.3.1.1 para 1)
+  Expression *func = this->func->skipGroups();
 
   if (func->isE_variable()) {
     E_variable *funcEVar = func->asE_variable();
@@ -3353,6 +3356,13 @@ Type *E_funCall::inner2_itcheck(Env &env)
         << ": overloaded(" << funcEVar->var->overload->set.count() 
         << ") call to " << funcName);
 
+      // TODO: if the function name refers to a member function,
+      // and we're currently inside a nonstatic member function of
+      // the same or derived class as the callee, then we need to
+      // make a receiver object argument and match that up with
+      // the receiver object parameter (cppstd 13.3.1.1.1 para 3,
+      // and 13.3.1 para 2 and 3)
+
       // fill an array with information about the arguments
       GrowArray<ArgumentInfo> argInfo(args->count());
       {
@@ -3381,6 +3391,10 @@ Type *E_funCall::inner2_itcheck(Env &env)
       }
     }
   }
+
+  // TODO: overload resolution also needs to be done when
+  // 'func' names an E_fieldAcc, and the member function has
+  // been overloaded
 
   // TODO: I currently translate array deref into ptr arith plus
   // ptr deref; that makes it impossible to overload [] !
