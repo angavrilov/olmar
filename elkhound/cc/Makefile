@@ -78,9 +78,10 @@ TOCHECK += cc.in24
 #  class B b;
 # TOCHECK += cc.in25
 
+TOCHECK += cc.in26
+
 # DSW: Templates not being printed correctly when the template
 # arguments are used within the template.
-#TOCHECK += cc.in26
 #TOCHECK += cc.in27
 #TOCHECK += cc.in28
 

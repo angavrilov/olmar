@@ -559,7 +559,12 @@ string TypeVariable::toCString() const
   // this from an ordinary class, and because it's syntax which
   // more properly suggests the ability to take on *any* type,
   // not just those of classes
-  return stringc << "typename " << name;
+  //
+  // but, the 'typename' syntax can only be used in some specialized
+  // circumstances.. so I'll suppress it in the general case and add
+  // it explicitly when printing the few constructs that allow it
+  //return stringc << "/*typename*/ " << name;
+  return string(name);
 }
 
 string TypeVariable::toCilString(int /*depth*/) const
@@ -1206,18 +1211,18 @@ Parameter::~Parameter()
 
 string Parameter::toString() const
 {
+  stringBuilder sb;
   if (type->isTypeVariable()) {
-    // avoid printing the name twice
-    return type->toCString();
+    sb << "class " << name;
   }
   else {
-    stringBuilder sb;
     sb << type->toCString(name);
-    if (defaultArgument) {
-      sb << " = " << defaultArgument->exprText;
-    }
-    return sb;
   }
+
+  if (defaultArgument) {
+    sb << " = " << defaultArgument->exprText;
+  }
+  return sb;
 }
 
 
