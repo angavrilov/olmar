@@ -136,6 +136,7 @@
 #include "bflatten.h"    // BFlatten
 #include "nonport.h"     // getMilliseconds
 #include "test.h"        // PVAL
+#include "rdtsc.h"       // rdtsc_ll
 
 #include <stdio.h>       // FILE
 #include <fstream.h>     // ofstream
@@ -705,6 +706,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   // get ready..
   traceProgress() << "parsing...\n";
   long startParseTime = getMilliseconds();
+  unsigned long long startParseCycles = rdtsc_ll();
   clearAllStackNodes();
 
   // build the parser index (I do this regardless of whether I'm going
@@ -1077,7 +1079,8 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 
   traceProgress() << "done parsing ("
                   << (getMilliseconds() - startParseTime)
-                  << " ms)\n";
+                  << " ms) (" << (rdtsc_ll() - startParseCycles)
+                  << " cycles)\n";
   trsParse << "Parse succeeded!\n";
 
 

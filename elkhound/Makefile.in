@@ -347,11 +347,14 @@ libccgr.a: $(ccgr-dep) libglr.a
 	ar -r libccgr.a $(ccgr-dep)
 	ranlib libccgr.a
 
+rdtsc.o: rdtsc.c
+	gcc -Wall -c -g rdtsc.c
+
 # stand-alone executable; sync is to prevent annoying interactive
 # delay caused by sync few seconds later
 ifeq ($(ocaml), no)
-ccgr: libccgr.a ccgrmain.o $(SMBASE)/libsmbase.a
-	$(link) -o ccgr ccgrmain.o libccgr.a $(linkend)
+ccgr: libccgr.a ccgrmain.o rdtsc.o $(SMBASE)/libsmbase.a
+	$(link) -o ccgr ccgrmain.o rdtsc.o libccgr.a $(linkend)
 	./ccgr cc.bin c.in1
 else
 ccgr:
@@ -390,7 +393,7 @@ bccgr: bccgr.cc bccgr.tab.o lexer1.o lexer1yy.o lexer2.o $(AST)/fileloc.o \
 	chmod a-w $@
 
 # make a parser for testing some grammar, using trivial lexer
-trivparse-deps = trivmain.cc trivlex.o lexer2.o libglr.a
+trivparse-deps = trivmain.cc trivlex.o lexer2.o rdtsc.o libglr.a
 %.gr.exe: %.gr.gen.o $(trivparse-deps)
 	g++ -o $@ $(ccflags) $(includes) -DGRAMMAR_NAME=\"$*.bin\" \
 	  $^ $(linkend)
