@@ -5356,12 +5356,17 @@ Type *E_fieldAcc::itcheck_x(Env &env, Expression *&replacement)
 Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
 {
   obj->tcheck(env, obj);
-  fieldName->tcheck(env);   // shouldn't have template arguments, but won't hurt
+
+  // Note: must delay tchecking 'fieldName' until we decide
+  // what scope to do its qualifier lookups in
 
   // get the type of 'obj', and make sure it's a compound
   Type *rt = obj->type->asRval();
   CompoundType *ct = rt->ifCompoundType();
   if (!ct) {
+    // strange case, just lookup qualifiers globally
+    fieldName->tcheck(env);
+
     // maybe it's a type variable because we're accessing a field
     // of a template parameter?
     if (rt->isTypeVariable()) {
@@ -5380,6 +5385,9 @@ Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
       return env.makeDestructorFunctionType(SL_UNKNOWN, NULL /*ct*/);
     }
 
+    // TODO: 3.4.5 para 2 suggests 'rt' might be a pointer to scalar
+    // type... but how could that possibly be legal?
+
     return env.error(rt, stringc
       << "non-compound `" << rt->toString()
       << "' doesn't have fields to access");
@@ -5390,8 +5398,72 @@ Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
     return env.errorType();
   }
 
-  // look for the named field
-  Variable *f = ct->lookupPQVariable(fieldName, env, flags);
+  // look for the named field [cppstd 3.4.5]
+  Variable *f;
+  if (!fieldName->hasQualifiers()) {
+    // lookup in class only [cppstd 3.4.5 para 2]
+    fieldName->tcheck(env, ct);
+    f = ct->lookupPQVariable(fieldName, env, flags);
+  }
+  else {
+    PQ_qualifier *firstQ = fieldName->asPQ_qualifier();
+    if (!firstQ->qualifier) {      // empty first qualifier
+      // lookup in complete scope only [cppstd 3.4.5 para 5]
+      fieldName->tcheck(env);
+      f = env.lookupPQVariable(fieldName, flags);
+    }
+    else {
+      // lookup in both scopes [cppstd 3.4.5 para 4]
+
+      // class scope
+      fieldName->tcheck(env, ct, LF_SUPPRESS_ERROR);
+      f = ct->lookupPQVariable(fieldName, env, flags);
+
+      // global scope
+      fieldName->tcheck(env, NULL, LF_SUPPRESS_ERROR);
+      Variable *globalF = env.lookupPQVariable(fieldName, flags);
+
+      if (f && globalF) {
+        // must both refer to same entity
+        if (f != globalF) {
+          // unfortunately, a lookup bug elsewhere prevents this message
+          // from being reached even when it should be, e.g. in/t0330.cc
+          return env.error(stringc
+            << "in qualified member lookup of `" << *fieldName
+            << "', lookup in class scope found entity at " << f->loc
+            << " but lookup in global scope found entity at " << globalF->loc
+            << "; they must lookup to the same entity");
+        }
+        
+        // Note: cppstd requires that 'f' and 'globalF' name the same
+        // entity, but allows the intermediate qualifiers to be
+        // different.  That means that the scope annotations on
+        // 'fieldName' are in essence undefined.  I choose to leave
+        // them as they are now, corresponding to the (successful)
+        // lookup in the global scope.
+      }
+      else if (!f) {
+        f = globalF;        // keep whichever is not NULL, if either
+      }
+      else if (!globalF) {
+        // 'f' was good but 'globalF' not; re-tcheck 'fieldName' in
+        // the scope that worked, so its scope annotations are right
+        fieldName->tcheck(env, ct);
+      }
+    }
+
+    // if not NULL, 'f' should refer to a member of class 'ct'
+    if (f) {
+      if (!( f->scope &&
+             f->scope->curCompound &&
+             ct->hasBaseClass(f->scope->curCompound) )) {
+        return env.error(f->type, stringc
+          << "in qualified member lookup of `" << *fieldName
+          << "', the found entity is not a member of " << ct->name);
+      }
+    }
+  }
+
   if (!f) {
     return env.error(rt, stringc
       << "there is no member called `" << *fieldName

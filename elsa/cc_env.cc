@@ -1686,17 +1686,22 @@ Variable *Env::lookupOneQualifier_bareName(
     lookupVariable(qual, lflags) :
     startingScope->lookupVariable(qual, *this, lflags);
   if (!qualVar) {
-    // I'd like to include some information about which scope
-    // we were looking in, but I don't want to be computing
-    // intermediate scope names for successful lookups; also,
-    // I am still considering adding some kind of scope->name()
-    // functionality, which would make this trivial.
-    //
-    // alternatively, I could just re-traverse the original name;
-    // I'm lazy for now
-    error(stringc
-      << "cannot find scope name `" << qual << "'",
-      EF_DISAMBIGUATES);
+    // 10/02/04: I need to suppress this error for t0329.cc.  It's not
+    // yet clear whether LF_SUPPRESS_ERROR should suppress other errors
+    // as well ...
+    if (!( lflags & LF_SUPPRESS_ERROR )) {
+      // I'd like to include some information about which scope
+      // we were looking in, but I don't want to be computing
+      // intermediate scope names for successful lookups; also,
+      // I am still considering adding some kind of scope->name()
+      // functionality, which would make this trivial.
+      //
+      // alternatively, I could just re-traverse the original name;
+      // I'm lazy for now
+      error(stringc
+        << "cannot find scope name `" << qual << "'",
+        EF_DISAMBIGUATES);
+    }
     return NULL;
   }
 

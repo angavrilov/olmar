@@ -561,6 +561,8 @@ testparse t0325.cc
 testparse t0326.cc
 testparse t0327.cc
 testparse t0328.cc
+testparse t0329.cc
+failparse t0330.cc "member lookup bug causes failure to diagnose bad input"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -936,7 +938,7 @@ echo "use_kandr: $use_kandr"
 echo "Successful tests               :    $success"
 echo "Failed as expected (known bugs):    $failure"
 if [ $skipdiagnose -ne 0 ]; then
-  echo "Failure to diagnose errors     :    $skipdiagnose"
+  echo "Fail to diag. cppstdex errors  :    $skipdiagnose"
 fi
 if [ $contin = 1 ]; then
   echo "Unexpected success:    $unexSuccess"
