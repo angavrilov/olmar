@@ -100,6 +100,12 @@ public:
   void appendAll(VoidList const &tail);	 // tail is untouched.. but its contents are now exposed to non-constness... ug... oh well
   VoidList& operator= (VoidList const &src);
 
+  // steal (become the container for) the tail of a source list at any
+  // point; if 'index' is 0, the entire 'source' is stolen (i.e.
+  // index=0 is equivalent to 'concat', above); stolen items appended
+  // to 'this'
+  void stealTailAt(int index, VoidList &source);
+
   // equal items in equal positions
   bool equalAsLists(VoidList const &otherList, VoidDiff diff, void *extra=NULL) const;
 

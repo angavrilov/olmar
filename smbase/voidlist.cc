@@ -484,6 +484,40 @@ void VoidList::concat(VoidList &tail)
 }
 
 
+// attach some of source's nodes to this, removing them from 'source'
+void VoidList::stealTailAt(int index, VoidList &source)
+{
+  if (index == 0) {
+    concat(source);
+    return;
+  }
+  
+  // find the node in 'source' just before the first one that
+  // will be transferred
+  VoidNode *beforeTransfer = source.top;
+  index--;
+  while (index--) {
+    beforeTransfer = beforeTransfer->next;
+  }
+  
+  // break off the tail
+  VoidNode *tailStart = beforeTransfer->next;
+  beforeTransfer->next = NULL;
+
+  // transfer 'tailStart' and beyond to 'this'
+  if (!top) {
+    top = tailStart;
+  }
+  else {
+    // find the end of 'this' list
+    VoidNode *n = top;
+    for(; n->next; n = n->next)
+      {}
+    n->next = tailStart;
+  }
+}
+
+
 void VoidList::appendAll(VoidList const &tail)
 { 
   // make a dest iter and move it to the end
@@ -807,6 +841,17 @@ void entry()
             list.indexOf(c) == 1 &&
             list.indexOf(b) == 2);
     PRINT(list);
+
+    // test stealTailAt
+    VoidList thief;
+    thief.stealTailAt(1, list);
+      // list is now (d)
+      // thief is now (c b)
+    xassert(list.count() == 1 &&
+            list.indexOf(d) == 0 &&
+            thief.count() == 2 &&
+            thief.indexOf(c) == 0 &&
+            thief.indexOf(b) == 1);
   }
 
   // this hits most of the remaining code

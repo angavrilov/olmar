@@ -88,6 +88,9 @@ public:
   void concat(ObjList &tail)                       { list.concat(tail.list); }
   // (we do *not* have operator= here, nor appendAll, since these are supposed to be owner lists)
 
+  // steal
+  void stealTailAt(int index, ObjList &tail)       { list.stealTailAt(index, tail.list); }
+
   // equal items in equal positions
   bool equalAsLists(ObjList const &otherList, Diff diff, void *extra=NULL) const
     { return list.equalAsLists(otherList.list, (VoidDiff)diff, extra); }

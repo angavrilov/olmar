@@ -87,6 +87,9 @@ public:
   void appendAll(SObjList const &tail)              { list.appendAll(tail.list); }
   SObjList& operator= (SObjList const &src)         { list = src.list; return *this; }
 
+  // steal
+  void stealTailAt(int index, SObjList &tail)       { list.stealTailAt(index, tail.list); }
+
   // equal items in equal positions
   bool equalAsLists(SObjList const &otherList, Diff diff, void *extra=NULL) const
     { return list.equalAsLists(otherList.list, (VoidDiff)diff, extra); }

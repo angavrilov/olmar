@@ -124,6 +124,9 @@ outputCond([[[m4_dnl    // sobjlist
   // (we do *not* have operator= here, nor appendAll, since these are supposed to be owner lists)
 ]]])m4_dnl
 
+  // steal
+  void stealTailAt(int index, className &tail)       { list.stealTailAt(index, tail.list); }
+
   // equal items in equal positions
   bool equalAsLists(className const &otherList, Diff diff, void *extra=NULL) const
     { return list.equalAsLists(otherList.list, (VoidDiff)diff, extra); }
