@@ -3,6 +3,16 @@
 
 #include "cc_lang.h"     // this module
 
+void CCLang::KandR_C()
+{
+  tagsAreTypes = false;
+  recognizeCppKeywords = false;
+  implicitFuncVariable = true;
+  noInnerClasses = true;
+  uninitializedGlobalDataIsCommon = true;
+  emptyParamsMeansPureVarargFunc = true;
+}
+
 void CCLang::ANSI_C()
 {
   tagsAreTypes = false;
@@ -10,6 +20,7 @@ void CCLang::ANSI_C()
   implicitFuncVariable = true;
   noInnerClasses = true;
   uninitializedGlobalDataIsCommon = true;
+  emptyParamsMeansPureVarargFunc = false;
 }
 
 void CCLang::ANSI_Cplusplus()
@@ -19,5 +30,6 @@ void CCLang::ANSI_Cplusplus()
   implicitFuncVariable = false;
   noInnerClasses = false;
   uninitializedGlobalDataIsCommon = false;
+  emptyParamsMeansPureVarargFunc = false;
 }
 

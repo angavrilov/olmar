@@ -2462,6 +2462,13 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
     ft->addParam(v);
   }
 
+  // dsw: in K&R C, an empty parameter list means that the number of
+  // arguments is not specified
+  if (env.lang.emptyParamsMeansPureVarargFunc && params->isEmpty()) {
+    xassert(ct==0);
+    ft->flags |= FF_VARARGS;
+  }
+
   env.exitScope(paramScope);
 
   if (exnSpec) {

@@ -35,9 +35,14 @@ public:
   // gcc seems to operate as if this is true, whereas g++ not.
   bool uninitializedGlobalDataIsCommon;
 
+  // when true, if a function has an empty parameter list then it is
+  // treated as a "pure vararg" function
+  bool emptyParamsMeansPureVarargFunc;
+
 public:
   CCLang() { ANSI_C(); }
 
+  void KandR_C();           // settings for K&R C
   void ANSI_C();            // settings for ANSI C
   void ANSI_Cplusplus();    // settings for ANSI C++
 };
