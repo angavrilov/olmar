@@ -156,7 +156,7 @@ int main(int argc, char **argv)
   if (argc >= 2) {
     // segfault at a given addr
     printSegfaultAddrs();
-    
+
     if (0==strcmp(argv[1], "inf")) {
       // die by stack overflow.. interesting, I can't catch it..
       printf("going into infinite recursion...\n");
@@ -200,4 +200,13 @@ void setHandler(int, SignalHandler) {}
 void printHandler(int) {}
 jmp_buf sane_state;
 void jmpHandler(int) {}
+
+#ifdef TEST_MYSIG
+int main()
+{
+  printf("mysig on cygwin: nop\n");
+  return 0;
+}
+#endif // TEST_MYSIG
+
 #endif

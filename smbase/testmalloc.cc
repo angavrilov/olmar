@@ -59,6 +59,10 @@ void test1()
   TRACERET(p3 = malloc(1000));
   TRACERET(p4 = malloc(10000));
   TRACERET(p5 = malloc(100000));
+  
+  // this last size is potentially interesting because it's
+  // beyond the 128k default threshold for when dlmalloc
+  // uses mmap() instead of sbrk() to get memory from the OS
   TRACERET(p6 = malloc(1000000));
 
   toDealloc = p3;

@@ -224,6 +224,12 @@
 
 /* #define WIN32 */
 
+// sm: the cygwin-supplied gcc defines __CYGWIN__, so I'll
+// use that to imply WIN32
+#ifdef __CYGWIN__
+  #define WIN32
+#endif
+
 #ifdef WIN32
 
 #define WIN32_LEAN_AND_MEAN
