@@ -7,6 +7,10 @@
 
 #include <iostream.h>      // cout
 
+
+SObjList<Variable_Q> Variable_Q::instances;
+
+
 Variable_Q::Variable_Q(Variable *v, Type_Q *t)
   : var(v), qtype(t)
 {
