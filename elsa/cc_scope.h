@@ -114,7 +114,7 @@ public:      // funcs
   // some syntactic sugar on the scope kind
   bool isGlobalScope() const        { return scopeKind == SK_GLOBAL; }
   bool isParameterScope() const     { return scopeKind == SK_PARAMETER; }
-  bool isFunctionScope() const      { return scopeKind == SK_TEMPLATE; }
+  bool isFunctionScope() const      { return scopeKind == SK_FUNCTION; }
   bool isClassScope() const         { return scopeKind == SK_CLASS; }
   bool isTemplateScope() const      { return scopeKind == SK_TEMPLATE; }
 
@@ -167,8 +167,8 @@ public:      // funcs
   // dsw: needed this and this was a natural place to put it
   bool immediateGlobalScopeChild();
   bool linkerVisible();
+  // FIX: move this to CompoundType
   string fullyQualifiedName();
-  PQ_qualifier *PQ_fullyQualifiedName(SourceLoc loc, PQName *name0);
 };
 
 

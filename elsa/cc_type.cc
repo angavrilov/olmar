@@ -623,17 +623,51 @@ void CompoundType::addLocalConversionOp(Variable *op)
   conversionOperators.append(op);
 }
 
+
+PQ_qualifier *CompoundType::PQ_fullyQualifiedName(SourceLoc loc, PQName *name0)
+{
+  xassert(curCompound);
+  if (name0) {
+    name0 =
+      new PQ_qualifier(loc, curCompound->name,
+                       (templateInfo ? templateInfo->argumentSyntax
+                        : FakeList<TemplateArgument>::emptyList()),
+                       name0);
+  } else {
+    // dang it Scott, why the templatization asymmetry between
+    // PQ_name/template on one hand and PQ_qualifier on the other?
+    if (templateInfo) {
+      name0 = new PQ_template(loc, curCompound->name, templateInfo->argumentSyntax);
+    } else {
+      name0 = new PQ_name(loc, curCompound->name);
+    }
+  }
+  if (parentScope) {
+    return parentScope->curCompound->PQ_fullyQualifiedName(loc, name0);
+  } else {
+    return new PQ_qualifier(loc, NULL,
+                            FakeList<TemplateArgument>::emptyList(),
+                            name0);
+  }
+}
+
 // dsw: FIX: The result of this should probably be cached and reused.
 PQ_qualifier *CompoundType::PQ_fullyQualifiedName(SourceLoc loc)
 {
-  return Scope::PQ_fullyQualifiedName(loc, NULL);
+  return PQ_fullyQualifiedName(loc, NULL);
 }
 
+// Please note the asymmetry with the above function
+// PQ_fullyQualifiedName(): the above function simply returns the name
+// of the class, whereas this function below finishes with the name of
+// a member of that class, namely the dtor.
+// FIX: the dtor can probably be templatized, but that is so rare I'm
+// going to ignore it for now.
 // dsw: FIX: The result of this should probably be cached and reused.
 PQ_qualifier *CompoundType::PQ_fullyQualifiedDtorName(SourceLoc loc)
 {
   // FIX: replace strdup with env.str() ?
-  return Scope::PQ_fullyQualifiedName(loc, new PQ_name(loc, strdup(stringc << "~" << name)));
+  return PQ_fullyQualifiedName(loc, new PQ_name(loc, strdup(stringc << "~" << name)));
 }
 
 // ---------------- EnumType ------------------

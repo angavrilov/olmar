@@ -325,7 +325,6 @@ void Function::tcheck_memberInits(Env &env)
   // inits themselves
   FAKELIST_FOREACH_NC(MemberInit, inits, iter) {
     FullExpressionAnnot_StackBracket fea0(env, iter->annot);
-//      Scope *scope = iter->annot.tcheck_preorder(env);
 
     PQName *name = iter->name;
 
@@ -452,8 +451,6 @@ void Function::tcheck_memberInits(Env &env)
 
     // TODO: check that the passed arguments are consistent
     // with at least one constructor in the base class
-
-//      iter->annot.tcheck_postorder(env, scope);
   }
 }
 
@@ -3436,7 +3433,13 @@ void Handler::tcheck(Env &env)
 Scope *FullExpressionAnnot::tcheck_preorder(Env &env)
 {
   env.fullExpressionAnnotStack.push(this);
-  Scope *scope = env.enterScope(SK_FUNCTION, "full expression");
+  Scope *scope = NULL;
+  // FIX: I don't know if this is right, but it is certainly wrong to
+  // make a function scope for a temporary for a global expression
+  // (such a the ctor in a delaration of a global).
+  if (!env.scope()->isGlobalScope()) {
+    scope = env.enterScope(SK_FUNCTION, "full expression");
+  }
   // come to think of it, there shouldn't be any declarations yet;
   // they get constructed during the typechecking later
   xassert(declarations.isEmpty());
@@ -3451,7 +3454,9 @@ Scope *FullExpressionAnnot::tcheck_preorder(Env &env)
 
 void FullExpressionAnnot::tcheck_postorder(Env &env, Scope *scope)
 {
-  env.exitScope(scope);
+  if (!env.scope()->isGlobalScope()) {
+    env.exitScope(scope);
+  }
   env.fullExpressionAnnotStack.pop();
 }
 
@@ -3460,9 +3465,7 @@ void FullExpression::tcheck(Env &env,
                             )
 {
   FullExpressionAnnot_StackBracket fea0(env, annot);
-//    Scope *scope = annot.tcheck_preorder(env);
   expr->tcheck(env, expr);
-//    annot.tcheck_postorder(env, scope);
 }
 
 Type *FullExpression::getType()
@@ -4172,7 +4175,7 @@ static Declaration *insertTempDeclaration(Env &env, Type *retType)
 static E_variable *wrapVarWithE_variable(Env &env, Variable *var)
 {
   // FIX: fullyQualifiedName doesn't actually return a StringRef
-  StringRef name = NULL;
+  PQName *name0 = NULL;
   switch(var->scopeKind) {
   default:
   case SK_UNKNOWN:
@@ -4185,16 +4188,24 @@ static E_variable *wrapVarWithE_variable(Env &env, Variable *var)
     xfailure("shouldn't be getting a parameter scope here");
     break;
   case SK_GLOBAL:
+    xassert(!var->scope);
+    name0 = new PQ_qualifier(env.loc(), NULL,
+                             FakeList<TemplateArgument>::emptyList(),
+                             new PQ_name(env.loc(), strdup(var->name)));
+    break;
   case SK_CLASS:
-    name = var->fullyQualifiedName();
+    xassert(var->scope->curCompound);
+    name0 = var->scope->curCompound->PQ_fullyQualifiedName
+      (env.loc(), new PQ_name(env.loc(), strdup(var->name)));
     break;
   case SK_FUNCTION:
-    name = var->name;
+    name0 = new PQ_name(env.loc(), strdup(var->name));
+    break;
   }
-  xassert(name);
+  xassert(name0);
 
   // wrap an E_variable around the var so it is an expression
-  E_variable *evar0 = new E_variable(new PQ_name(env.loc(), name));
+  E_variable *evar0 = new E_variable(name0);
   {
     Expression *evar1 = evar0;
     evar0->tcheck(env, evar1);
@@ -5552,9 +5563,7 @@ SpecialExpr Expression::getSpecial() const
 void IN_expr::tcheck(Env &env, Type *)
 {
   FullExpressionAnnot_StackBracket fea0(env, annot);
-//    Scope *scope = annot.tcheck_preorder(env);
   e->tcheck(env, e);
-//    annot.tcheck_postorder(env, scope);
 }
 
 
@@ -5574,13 +5583,11 @@ void IN_compound::tcheck(Env &env, Type* type)
 void IN_ctor::tcheck(Env &env, Type *type)
 {
   FullExpressionAnnot_StackBracket fea0(env, annot);
-//    Scope *scope = annot.tcheck_preorder(env);
   tcheckFakeExprList(args, env);
   Variable *ctor = outerResolveOverload_ctor(env, loc, type, args, reallyDoOverload(env, args));
   if (ctor) {
     ctorVar = ctor;
   }
-//    annot.tcheck_postorder(env, scope);
 }
 
 

@@ -334,6 +334,7 @@ public:      // funcs
   // the class scope
   virtual void finishedClassDefinition(StringRef specialName);
 
+  PQ_qualifier *PQ_fullyQualifiedName(SourceLoc loc, PQName *name0);
   // dsw: Maybe this should go into NamedAtomicType, except that
   // NamedAtomicType does not have a scope field and I need one.
   PQ_qualifier *PQ_fullyQualifiedName(SourceLoc loc);
