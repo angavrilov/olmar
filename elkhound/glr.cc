@@ -1721,7 +1721,7 @@ void GLR::rwlProcessWorklist()
       // left edge?  or, have all previous tokens failed to yield
       // information?
       SOURCELOC(
-        if (leftEdge != SL_UNKNOWN) {
+        if (sib->loc != SL_UNKNOWN) {
           leftEdge = sib->loc;
         }
       )
