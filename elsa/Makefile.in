@@ -93,6 +93,7 @@ LEXER_OBJS := \
   lexer.yy.o \
   cc_tokens.o
 -include $(LEXER_OBJS:.o=.d)
+-include tlexer.d
 
 # program to test the lexer alone
 TOCLEAN += tlexer

@@ -3350,9 +3350,8 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 
   // dsw: in K&R C, an empty parameter list means that the number of
   // arguments is not specified
-  if (env.lang.emptyParamsMeansPureVarargFunc && params->isEmpty()) {
-    xassert(ct==0);
-    ft->flags |= FF_VARARGS;
+  if (env.lang.emptyParamsMeansNoInfo && params->isEmpty()) {
+    ft->flags |= FF_NO_PARAM_INFO;
   }
 
   if (specialFunc == FF_CONVERSION) {
@@ -4347,9 +4346,9 @@ Type *E_variable::itcheck_var(Env &env, LookupFlags flags)
       // notice this fact and if we are in K and R C we insert a
       // variable with signature "int ()(...)" which is what I recall as
       // the correct signature for such an implicit variable.
-      if (env.lang.allowCallToUndeclFunc && (flags & LF_IMPL_DECL_FUNC)) {
+      if (env.lang.allowImplicitFunctionDecls && (flags & LF_IMPL_DECL_FUNC)) {
         // this should happen in C mode only so name must be a PQ_name
-        v = env.makeUndeclFuncVar(name->asPQ_name()->name);
+        v = env.makeImplicitDeclFuncVar(name->asPQ_name()->name);
       }
       else {
         // 10/23/02: I've now changed this to non-disambiguating,
@@ -4636,7 +4635,8 @@ void ArgExpression::mid_tcheck(Env &env, int &)
 
 void compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *args)
 {
-  if (!env.doCompareArgsToParams) {
+  if (!env.doCompareArgsToParams ||
+      (ft->flags & FF_NO_PARAM_INFO)) {
     return;
   }
 

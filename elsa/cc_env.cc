@@ -463,7 +463,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   declareFunction1arg(t_voidptr, "__builtin_next_arg",
                       getSimpleType(SL_INIT, ST_ANY_TYPE), "p");
 
-  if (lang.isC99) {
+  if (lang.predefined_Bool) {
     // sm: I found this; it's a C99 feature: 6.2.5, para 2.  It's
     // actually a keyword, so should be lexed specially, but I'll
     // leave it alone for now.
@@ -980,8 +980,8 @@ Variable *Env::declareFunctionNargs(
 }
 
 
-// this declares a function that accepts any # of arguments,
-// and returns 'int'
+// this declares a function that accepts any # of arguments, and
+// returns 'int'; this is for Elsa's internal testing hook functions
 Variable *Env::declareSpecialFunction(char const *name)
 {
   return declareFunction0arg(getSimpleType(SL_INIT, ST_INT), name, FF_VARARGS);
@@ -1039,23 +1039,23 @@ Variable *Env::declareFunction4arg(Type *retType, char const *funcName,
 }
 
 
-FunctionType *Env::makeUndeclFuncType()
+FunctionType *Env::makeImplicitDeclFuncType()
 {
   // don't need a clone type here as getSimpleType() calls
   // makeCVAtomicType() which in oink calls new.
   Type *ftRet = tfac.getSimpleType(loc(), ST_INT, CV_NONE);
   FunctionType *ft = makeFunctionType(loc(), ftRet);
-  ft->flags |= FF_VARARGS;
+  ft->flags |= FF_NO_PARAM_INFO;
   ft->doneParams();
   return ft;
 }
 
 
-Variable *Env::makeUndeclFuncVar(StringRef name)
+Variable *Env::makeImplicitDeclFuncVar(StringRef name)
 {
   return createDeclaration
     (loc(), name,
-     makeUndeclFuncType(), DF_FORWARD,
+     makeImplicitDeclFuncType(), DF_FORWARD,
      globalScope(), NULL /*enclosingClass*/,
      NULL /*prior*/, NULL /*overloadSet*/);
 }
@@ -2709,10 +2709,6 @@ bool Env::almostEqualTypes(Type /*const*/ *t1, Type /*const*/ *t2)
   // no exception: strict equality (well, toplevel param cv can differ)
   Type::EqFlags eqFlags = Type::EF_IGNORE_PARAM_CV;
 
-  if (lang.allow_KR_ParamOmit) {
-    eqFlags |= Type::EF_ALLOW_KR_PARAM_OMIT;
-  }
-
   return equalOrIsomorphic(t1, t2, eqFlags);
 }
 
@@ -3010,9 +3006,9 @@ static bool isImplicitKandRFuncType(FunctionType *ft)
   if (!retType->asCVAtomicType()->isSimpleType()) return false;
   if (retType->asCVAtomicType()->asSimpleTypeC()->type != ST_INT) return false;
 
-  // does it accept varargs?
+  // does it accept lack parameter information?
   if (ft->params.count() != 0) return false;
-  if (!ft->acceptsVarargs()) return false;
+  if (!(ft->flags & FF_NO_PARAM_INFO)) return false;
 
   return true;
 }
@@ -3178,7 +3174,7 @@ Variable *Env::createDeclaration(
         // try to back-patch and do anything clever or sound, we just
         // turn the error into a warning so that the file can go
         // through; this is an unsoundness
-        if (lang.allowCallToUndeclFunc &&
+        if (lang.allowImplicitFunctionDecls &&
             prior->hasFlag(DF_FORWARD) &&
             prior->type->isFunctionType() &&
             isImplicitKandRFuncType(prior->type->asFunctionType())) {

@@ -6,7 +6,7 @@
 #include <string.h>      // memset
 
 
-void CCLang::ANSI_C()
+void CCLang::ANSI_C89()
 {
   // just in case I forget to initialize something....
   memset(this, 0, sizeof(*this));
@@ -17,13 +17,12 @@ void CCLang::ANSI_C()
   gccFuncBehavior = GFB_none;
   noInnerClasses = true;
   uninitializedGlobalDataIsCommon = true;
-  emptyParamsMeansPureVarargFunc = false;
+  emptyParamsMeansNoInfo = true;
   complainUponBadDeref = true;
   strictArraySizeRequirements = false;
   allowOverloading = false;
   compoundSelfName = false;
-  allowCallToUndeclFunc = false;
-  allow_KR_ParamOmit = false;
+  allowImplicitFunctionDecls = true;        // C89 does not require prototypes
   allowImplicitInt = true;
   allowDynamicallySizedArrays = false;
   allowIncompleteEnums = false;
@@ -32,16 +31,13 @@ void CCLang::ANSI_C()
   declareGNUBuiltins = false;
 
   isCplusplus = false;
-  isC99 = false;
+  predefined_Bool = false;
 }
 
 void CCLang::KandR_C()
 {
-  ANSI_C();
+  ANSI_C89();
 
-  emptyParamsMeansPureVarargFunc = true;
-  allowCallToUndeclFunc = true;
-  allow_KR_ParamOmit = true;
   allowImplicitInt = true;
 
   // our K&R is really GNU K&R ...
@@ -50,18 +46,25 @@ void CCLang::KandR_C()
 
 void CCLang::ANSI_C99()
 {
-  ANSI_C();
+  ANSI_C89();
 
+  // new features
   implicitFuncVariable = true;
+  predefined_Bool = true;
+
+  // removed C89 features
   allowImplicitInt = false;
-  isC99 = true;
+  allowImplicitFunctionDecls = false;
 }
 
 void CCLang::GNU_C()
 {
-  ANSI_C99();
+  ANSI_C89();
 
-  allowImplicitInt = true;
+  // C99 features
+  implicitFuncVariable = true;
+  predefined_Bool = true;
+
   gccFuncBehavior = GFB_string;
   allowDynamicallySizedArrays = true;
   declareGNUBuiltins = true;
@@ -71,9 +74,6 @@ void CCLang::GNU_C()
   allowIncompleteEnums = true;
 }
 
-// dsw: FIX: Multiple inheritance problem: should this be an extension
-// of GNU_C() or of KandR_C().  This shows up because in GNU_C() you
-// set allowIncompleteEnums = true but here you don't.
 void CCLang::GNU_KandR_C()
 {
   KandR_C();
@@ -84,26 +84,30 @@ void CCLang::GNU_KandR_C()
   allowIncompleteEnums = true;  // gnu according to Scott, above
 
   // this seems wrong, but Oink's tests want it this way...
-  isC99 = true;
+  predefined_Bool = true;
 }
 
 void CCLang::GNU2_KandR_C()
 {
   GNU_KandR_C();
-  // seems to not be true for gcc 2.96 at least
-  isC99 = false;
+
+  // dsw: seems to not be true for gcc 2.96 at least
+  predefined_Bool = false;
 }
 
 
 void CCLang::ANSI_Cplusplus()
 {
+  // just in case...
+  memset(this, 0, sizeof(*this));
+
   tagsAreTypes = true;
   recognizeCppKeywords = true;
   implicitFuncVariable = false;
   gccFuncBehavior = GFB_none;
   noInnerClasses = false;
   uninitializedGlobalDataIsCommon = false;
-  emptyParamsMeansPureVarargFunc = false;
+  emptyParamsMeansNoInfo = false;
 
   // these aren't exactly ANSI C++; they might be "pragmatic C++"
   // for the current state of the parser
@@ -113,20 +117,19 @@ void CCLang::ANSI_Cplusplus()
   allowOverloading = true;
   compoundSelfName = true;
 
-  allowCallToUndeclFunc = false;
-  allow_KR_ParamOmit = false;
+  allowImplicitFunctionDecls = false;
   allowImplicitInt = false;
   allowDynamicallySizedArrays = false;
   allowIncompleteEnums = false;
   allowMemberWithClassName = false;
-  
+
   // indeed this is nonstandard but everyone seems to do it this way ...
   nonstandardAssignmentOperator = true;
 
+  predefined_Bool = false;
   declareGNUBuiltins = false;
 
   isCplusplus = true;
-  isC99 = false;
 }
 
 void CCLang::GNU_Cplusplus()

@@ -642,13 +642,13 @@ public:      // funcs
   // make an AST node for an integer literal expression
   E_intLit *buildIntegerLiteralExp(int i);
 
-  // make a function type for an undeclared K and R function at its
-  // call site: "int ()(...)"
-  FunctionType *makeUndeclFuncType();
+  // make a function type for an implicitly declared function at its
+  // call site: "int ()()"
+  FunctionType *makeImplicitDeclFuncType();
 
-  // make function variable for an undeclared K and R function at its
-  // call site with type makeUndeclFuncType() above
-  Variable *makeUndeclFuncVar(StringRef name);
+  // make function variable for an implicitly declared function at its
+  // call site with type makeImplicitDeclFuncType() above
+  Variable *makeImplicitDeclFuncVar(StringRef name);
 
   // see implementation; this is here b/c gnu.cc wants to call it
   Type *computeArraySizeFromCompoundInit(SourceLoc tgt_loc, Type *tgt_type,

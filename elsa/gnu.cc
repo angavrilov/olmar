@@ -161,7 +161,7 @@ void Env::addGNUBuiltins()
   };
   
   for (int i=0; i < TABLESIZE(arr); i++) {
-    makeUndeclFuncVar(str(stringc << "__builtin_" << arr[i]));
+    makeImplicitDeclFuncVar(str(stringc << "__builtin_" << arr[i]));
   }
 }
 

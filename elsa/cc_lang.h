@@ -31,7 +31,7 @@ public:
 
   // behavior of gcc __FUNCTION__ and __PRETTY_FUNCTION__
   // see also
-  //   http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Function-Names.html#Function%20Names
+  //   http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Function-Names.html
   //   http://gcc.gnu.org/onlinedocs/gcc-2.95.3/gcc_4.html#SEC101
   enum GCCFuncBehavior {
     GFB_none,              // ordinary symbols
@@ -61,8 +61,8 @@ public:
   bool uninitializedGlobalDataIsCommon;
 
   // when true, if a function has an empty parameter list then it is
-  // treated as a "pure vararg" function
-  bool emptyParamsMeansPureVarargFunc;
+  // treated as supplying no parameter information (C99 6.7.5.3 para 14)
+  bool emptyParamsMeansNoInfo;
 
   // when false, we do not complain if someone tries to dereference a
   // non-pointer.. this is done to overcome the lack of full support
@@ -82,15 +82,9 @@ public:
   bool compoundSelfName;
 
   // when true, allow a function call to a function that has never
-  // been declared.  This seems to be the case in K and R C and is how
-  // gcc works (though not g++).
-  bool allowCallToUndeclFunc;
-
-  // when true, allow two functions with the same return type to
-  // equals()-s each other if at least one has an empty argument list,
-  // which typechecks as '(...)'.  See comment at the definition of
-  // EF_ALLOW_KR_PARAM_OMIT.
-  bool allow_KR_ParamOmit;
+  // been declared, implicitly declaring the function in the global
+  // scope; this is for C89 (and earlier) support
+  bool allowImplicitFunctionDecls;
 
   // when true, allow function definitions that omit any return type
   // to implicitly return 'int'.
@@ -113,6 +107,9 @@ public:
   // incorrectly; this flag causes Elsa to do the same
   bool nonstandardAssignmentOperator;
 
+  // when true, "_Bool" is a built-in type keyword (C99)
+  bool predefined_Bool;
+
   // declare the various GNU __builtin functions; see
   // Env::addGNUBuiltins in gnu.cc
   bool declareGNUBuiltins;
@@ -121,26 +118,24 @@ public:
   // enumerated above; these behaviors are candidates for being split
   // out as separate flags, but there currently is no need
   bool isCplusplus;
-  
-  // similar for C99
-  bool isC99;
 
 public:
-  CCLang() { ANSI_C(); }
+  CCLang() { ANSI_C89(); }
 
   // The predefined settings below are something of a best-effort at
-  // reasonable starting configurations.  Users are encouraged to
-  // explicitly set fields after activating a predefined setting to
-  // get a specific setting.
+  // reasonable starting configurations.  Every function below sets
+  // *all* of the flags; they are not incremental.  Users are
+  // encouraged to explicitly set fields after activating a predefined
+  // setting to get a specific setting.
 
   void KandR_C();           // settings for K&R C
-  void ANSI_C();            // settings for ANSI C89
+  void ANSI_C89();          // settings for ANSI C89
   void ANSI_C99();          // settings for ANSI C99
   void GNU_C();             // settings for GNU C
   void GNU_KandR_C();       // GNU 3.xx C + K&R compatibility
   void GNU2_KandR_C();      // GNU 2.xx C + K&R compatibility
 
-  void ANSI_Cplusplus();    // settings for ANSI C++ 89
+  void ANSI_Cplusplus();    // settings for ANSI C++ 98
   void GNU_Cplusplus();     // settings for GNU C++
 };
 

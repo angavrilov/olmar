@@ -535,17 +535,6 @@ public:     // funcs
     // symmetric in their arguments
     EF_POLYMORPHIC     = 0x0080,
 
-    // dsw: In K&R mode to allow for the fact that, in some circumstances,
-    // a function can be declared more than once but only some times
-    // provide a parameter list and other times provide an empty
-    // argument list, which in K&R mode this typechecks with a
-    // parameter list of '(...)'.  Thus in K&R mode, we allow two such
-    // function types to be considered equal.
-    //
-    // sm: I am not convinced that this is the proper way to handle K&R
-    // declarations.
-    EF_ALLOW_KR_PARAM_OMIT = 0x0100,
-
     // for use by the matchtype module: this flag means we are trying
     // to deduce function template arguments, so the variations
     // allowed in 14.8.2.1 are in effect (for the moment I don't know
@@ -574,10 +563,10 @@ public:     // funcs
     // this is the set of flags that automatically propagate down
     // the type tree equality checker; others are suppressed once
     // the first type constructor looks at them
-    EF_PROP            = (EF_IGNORE_PARAM_CV | EF_POLYMORPHIC | EF_ALLOW_KR_PARAM_OMIT),
-    
+    EF_PROP            = (EF_IGNORE_PARAM_CV | EF_POLYMORPHIC),
+
     // these flags are propagated below ptr and ptr-to-member
-    EF_PTR_PROP        = (EF_PROP | EF_SIMILAR | EF_ALLOW_KR_PARAM_OMIT)
+    EF_PTR_PROP        = (EF_PROP | EF_SIMILAR)
   };
 
   // like above, this is (structural) equality, not coercibility;
@@ -836,14 +825,15 @@ public:
 
 // some flags that can be associated with function types
 enum FunctionFlags {
-  FF_NONE        = 0x00,       // nothing special
-  FF_METHOD      = 0x01,       // function is a nonstatic method
-  FF_VARARGS     = 0x02,       // accepts variable # of arguments
-  FF_CONVERSION  = 0x04,       // conversion operator function
-  FF_CTOR        = 0x08,       // constructor
-  FF_DTOR        = 0x10,       // destructor
-  FF_BUILTINOP   = 0x20,       // built-in operator function (cppstd 13.6)
-  FF_ALL         = 0x3F,       // all flags set to 1
+  FF_NONE          = 0x0000,  // nothing special
+  FF_METHOD        = 0x0001,  // function is a nonstatic method
+  FF_VARARGS       = 0x0002,  // accepts variable # of arguments
+  FF_CONVERSION    = 0x0004,  // conversion operator function
+  FF_CTOR          = 0x0008,  // constructor
+  FF_DTOR          = 0x0010,  // destructor
+  FF_BUILTINOP     = 0x0020,  // built-in operator function (cppstd 13.6)
+  FF_NO_PARAM_INFO = 0x0040,  // C parameter list "()" (C99 6.7.5.3 para 14)
+  FF_ALL           = 0x007F,  // all flags set to 1
 };
 ENUM_BITWISE_OPS(FunctionFlags, FF_ALL);
 

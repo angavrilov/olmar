@@ -1499,11 +1499,10 @@ bool FunctionType::innerEquals(FunctionType const *obj, EqFlags flags) const
     }
   }
 
-  // see comment at definition of EF_ALLOW_KR_PARAM_OMIT
-  if (flags & EF_ALLOW_KR_PARAM_OMIT) {
-    if (acceptsVarargs() || obj->acceptsVarargs()) {
-      return true;
-    }
+  if ((this->flags | obj->flags) & FF_NO_PARAM_INFO) {
+    // at least one of the types does not have parameter info,
+    // so no further comparison is possible
+    return true;
   }
 
   if (!(flags & EF_STAT_EQ_NONSTAT)) {
