@@ -31,7 +31,8 @@ Env::Env(StringTable &s, CCLang &L)
     // filled in below; initialized for definiteness
     type_info_const_ref(NULL),
     conversionOperatorName(NULL),
-    dependentTypeVar(NULL)
+    dependentTypeVar(NULL),
+    errorVar(NULL)
 {
   // create first scope
   SourceLocation emptyLoc;
@@ -52,13 +53,18 @@ Env::Env(StringTable &s, CCLang &L)
   conversionOperatorName = str("conversion-operator");
   constructorSpecialName = str("constructor-special");
 
-  dependentTypeVar = new Variable(emptyLoc, str("<dependentTypeVar>"),
+  dependentTypeVar = new Variable(HERE_SOURCELOC, str("<dependentTypeVar>"),
                                   getSimpleType(ST_DEPENDENT), DF_TYPEDEF);
+                                  
+  // this is *not* a typedef, because I use it in places that I
+  // want something to be treated as a variable, not a type
+  errorVar = new Variable(HERE_SOURCELOC, str("<errorVar>"),
+                          getSimpleType(ST_ERROR), DF_NONE);
 
   // create declarations for some built-in operators
 
   // void operator delete (void *p);
-  {                                                                  
+  {
     FunctionType *ft = new FunctionType(getSimpleType(ST_VOID), CV_NONE);
     SourceLocation loc;
     Variable *p = new Variable(loc, str("p"), makePtrType(getSimpleType(ST_VOID)), DF_NONE);
@@ -79,7 +85,7 @@ Env::Env(StringTable &s, CCLang &L)
 }
 
 Env::~Env()
-{ 
+{
   // delete the scopes one by one, so we can skip any
   // which are in fact not owned
   while (scopes.isNotEmpty()) {
@@ -249,11 +255,12 @@ bool Env::addEnum(EnumType *et)
 // -------- lookup --------
 Scope *Env::lookupQualifiedScope(PQName const *name)
 {
-  bool dummy;
-  return lookupQualifiedScope(name, dummy);
+  bool dummy1, dummy2;
+  return lookupQualifiedScope(name, dummy1, dummy2);
 }
 
-Scope *Env::lookupQualifiedScope(PQName const *name, bool &dependent)
+Scope *Env::lookupQualifiedScope(PQName const *name, 
+                                 bool &dependent, bool &anyTemplates)
 {
   // this scope keeps track of which scope we've identified
   // so far, given how many qualifiers we've processed;
@@ -312,21 +319,29 @@ Scope *Env::lookupQualifiedScope(PQName const *name, bool &dependent)
         return NULL;
       }
 
+      if (ct->isTemplate()) {
+        anyTemplates = true;
+      }
+
       // check template argument compatibility
-      if (!!qualifier->targs != ct->isTemplate()) {
-        if (qualifier->targs) {
+      if (qualifier->targs) {
+        if (!ct->isTemplate()) {
           error(stringc
             << "class `" << qual << "' isn't a template");
-        }
+          // recovery: use the scope anyway
+        }   
+
         else {
-          error(stringc
-            << "class `" << qual
-            << "' is a template, you have to supply template arguments");
-        } 
-        
-        // actually, let the typechecker use the scope even without
-        // template arguments (for now?)
-        //return NULL;
+          // TODO: maybe put this back in
+          //ct = checkTemplateArguments(ct, qualifier->targs);
+        }
+      }
+
+      else if (ct->isTemplate()) {
+        error(stringc
+          << "class `" << qual
+          << "' is a template, you have to supply template arguments");
+        // recovery: use the scope anyway
       }
 
       // TODO: actually check that there are the right number
@@ -339,9 +354,102 @@ Scope *Env::lookupQualifiedScope(PQName const *name, bool &dependent)
     // advance to the next name in the sequence
     name = qualifier->rest;
   } while (name->hasQualifiers());
-  
+
   return scope;
 }
+
+
+#if 0     // aborted implementation for now
+// verify correspondence between template arguments and
+// template parameters; return selected specialization of 'ct'
+CompoundType *Env::
+  checkTemplateArguments(CompoundType *ct, FakeList<TempalteArgument> const *args)
+{
+  ClassTemplateInfo *tinfo = ct->templateInfo;
+  xassert(tinfo);
+
+  // check argument list against parameter list
+  TemplateArgument const *argIter = args->firstC();
+  FOREACH_OBJLIST(Parameter, tinfo->params, paramIter) {
+    if (!argIter) {
+      error("not enough arguments to template");
+      return NULL;
+    }
+
+    // for now, since I only have type-valued parameters
+    // and type-valued arguments, correspondence is automatic
+
+    argIter = argIter->next;
+  }
+  if (argIter) {
+    error("too many arguments to template");
+    return NULL;
+  }
+
+  // check for specializations
+  CompoundType *special = selectSpecialization(tinfo, args);
+  if (!special) {
+    return ct;         // no specialization
+  }
+  else {
+    return special;    // specialization found
+  }
+}
+
+// check the list of specializations in 'tinfo' for one that
+// matches the given arguments in 'args'; return the matching
+// specialization, or NULL if none matches
+CompoundType *Env::
+  selectSpecialization(ClassTemplateInfo *tinfo, FakeList<TempalteArgument> const *args)
+{
+  SFOREACH_OBJLIST_NC(CompoundType, tinfo->specializations, iter) {
+    CompoundType *special = iter.data();
+
+    // create an empty unification environment
+    TypeUnificationEnv tuEnv;
+    bool matchFailure = false;
+
+    // check supplied argument list against specialized argument list
+    TemplateArgument const *userArg = args->firstC();
+    FAKELIST_FOREACH(TemplateArgument,
+                     special->templateInfo->specialArguments,
+                     specialArg) {
+      // the specialization cannot have more arguments than
+      // the client code supplies; TODO: make sure that the
+      // code which accepts specializations enforces this
+      xassert(argIter);
+
+      // get the types for each
+      Type const *userType = userArg->asTA_typeC()->getType();
+      Type const *specialType = specialArg->asTA_typeC()->getType();
+
+      // unify them
+      if (!tuEnv.unify(userType, specialType)) {
+        matchFailure = true;
+        break;
+      }
+
+      userArg = userArg->next;
+    }
+
+    if (userArg) {
+      // we didn't use all of the user's arguments.. I guess this
+      // is a partial specialization of some sort, and it matches
+    }
+
+    if (!matchFailure) {
+      // success
+      return special;
+
+      // TODO: try all the specializations, and complain if more
+      // than once succeeds
+    }
+  }
+
+  // no matching specialization
+  return NULL;
+}
+#endif // 0, aborted implementation
 
 
 Variable *Env::lookupPQVariable(PQName const *name)
@@ -350,12 +458,16 @@ Variable *Env::lookupPQVariable(PQName const *name)
 
   if (name->hasQualifiers()) {
     // look up the scope named by the qualifiers
-    bool dependent = false;
-    Scope *scope = lookupQualifiedScope(name, dependent);
+    bool dependent = false, anyTemplates = false;
+    Scope *scope = lookupQualifiedScope(name, dependent, anyTemplates);
     if (!scope) {
       if (dependent) {
         // tried to look into a template parameter
         return dependentTypeVar;
+      }
+      else if (anyTemplates) {
+        // maybe failed due to incompleteness of specialization implementation
+        return errorVar;
       }
       else {
         // error has already been reported
@@ -366,10 +478,17 @@ Variable *Env::lookupPQVariable(PQName const *name)
     // look inside the final scope for the final name
     var = scope->lookupVariable(name->getName(), false /*innerOnly*/, *this);
     if (!var) {
+      if (anyTemplates) {
+        // maybe failed due to incompleteness of specialization implementation;
+        // since I'm returning an error variable, it means I'm guessing that
+        // this thing names a variable and not a type
+        return errorVar;
+      }
+
       error(stringc
         << name->qualifierString() << " has no member called `"
         << name->getName() << "'",
-        true /*disambiguating*/);
+        false /*disambiguating*/);
       return NULL;
     }
   }

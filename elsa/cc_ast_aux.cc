@@ -141,6 +141,18 @@ string PQName::qualifierString() const
     PQ_qualifier const *q = p->asPQ_qualifierC();
     if (q->qualifier) {
       sb << q->qualifier;
+      
+      if (q->targs) {
+        sb << "<";
+        int ct=0;
+        FAKELIST_FOREACH(TemplateArgument, q->targs, iter) {
+          if (ct++ > 0) {
+            sb << ", ";
+          }
+          sb << iter->argString();
+        }
+        sb << ">";
+      }
     }         
     else {
       // for a NULL qualifier, don't print anything; it means
