@@ -67,6 +67,9 @@ ranlib      := ranlib
 
 # when uncommented, we get profiling info
 #ccflags += -pg
+ifdef ALLOW_DEBUG
+  ccflags += -pg
+endif
 
 # dsw: When set, don't use the dummy cc_qual stuff, but use the real
 # thing.
