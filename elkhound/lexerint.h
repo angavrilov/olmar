@@ -46,7 +46,7 @@ public:     // funcs
   // expensive than simple indirect function calls, and this happens
   // in the inner parsing loop.  If C++ had a way to explicitly cache
   // the result of a method lookup this wouldn't be necessary.
-  virtual NextTokenFunc getTokenFunc()=0;
+  virtual NextTokenFunc getTokenFunc() const=0;
 
   // suppress g++'s (wrong) warning
   virtual ~LexerInterface() {}
@@ -59,13 +59,11 @@ public:     // funcs
 
   // describe the token; for tokens with multiple spellings (e.g.
   // identifiers), this should include the actual token spelling
-  // if possible
-  virtual string tokenDesc()=0;
-
-  // describe the token, but using the given type instead of the
-  // one which is already stored; this is for when the user's
-  // action has reclassified the token
-  virtual string tokenDescType(int newType)=0;
+  // if possible; note that if the token has been reclassified,
+  // then the 'type' field above might have been changed by the
+  // parser, in which case this function should ideally print
+  // a description which takes the new type into account
+  virtual string tokenDesc() const=0;
 
 };
 

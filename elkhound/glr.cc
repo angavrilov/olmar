@@ -1415,7 +1415,7 @@ void GLR::printParseErrorMessage(StateId lastToDie)
   cout << "Line " << lexerPtr->loc.line
        << ", col " << lexerPtr->loc.col
        << ": Parse error at "
-       << lexerPtr->tokenDescType(lexerPtr->type)
+       << lexerPtr->tokenDesc()
        << endl;
 
   // removing this for now since keeping it would mean putting

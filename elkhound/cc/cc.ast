@@ -1,9 +1,27 @@
 // cc.ast
 // C++ abstract syntax
 
-// note: wherever ASTList is used, its elements are listed in the
-// order they appear lexically in the input file, i.e. right to left
-// and then top to bottom
+// note: wherever ASTList or FakeList is used, its elements are listed
+// in the order they appear lexically in the input file, i.e. right to
+// left and then top to bottom
+
+// How do I decide between ASTList and FakeList?  Creating ASTLists
+// can be done with left recursion, which saves stack space, whereas
+// FakeLists require right recursion.  But, ASTLists cannot safely
+// be yielded as semantic values if there's any chance they'll be
+// yielded more than once.
+//
+// So, I use FakeList everywhere I can accept the stack growth.  The
+// only places I cannot accept this growth are places where it is
+// relatively common for the list to have >100 elements.  Those
+// places are:
+//   - toplevel forms (and namespace toplevels, when I add them)
+//   - statement lists in compound statements
+//   - class/struct members
+//   - compound initializers
+//
+// In these places where I use ASTList, I encapsulate it in another
+// class if necessary to avoid yielding it as a semantic value.
 
 // included in generated header
 verbatim {
@@ -25,7 +43,9 @@ impl_verbatim {
 
 
 // ---------------- file -------------
-// an entire file (with included stuff) of toplevel forms
+// an entire file (with included stuff) of toplevel forms; I use
+// an ASTList here because I want to use left recursion, and
+// there's never a multiple-yield problem with toplevel forms
 class TranslationUnit (ASTList<TopForm> topForms) {
   // type checker
   //public void tcheck(Env &env);
@@ -45,19 +65,19 @@ class TopForm (SourceLocation loc) {
 // ----------------------- function -------------------------
 // a function definition (toplevel or class member)
 class Function (
-  DeclFlags dflags,           // static, extern, etc.
+  DeclFlags dflags,             // static, extern, etc.
 
-  TypeSpecifier retspec,      // type specifier for return value
+  TypeSpecifier retspec,        // type specifier for return value
 
-  Declarator nameParams,      // 1. remainder of return value type
-                              // 2. name of function
-                              // 3. names/types of parameters
+  Declarator nameParams,        // 1. remainder of return value type
+                                // 2. name of function
+                                // 3. names/types of parameters
 
-  ASTList<MemberInit> /*nullable*/ inits,  // (ctors only) member initialization list
+  FakeList<MemberInit> *inits,  // (for ctors only) member initialization list
 
-  S_compound body,            // body of function
+  S_compound body,              // body of function
 
-  ASTList<Handler> /*nullable*/ handlers   // handlers for ctor "try" block
+  FakeList<Handler> *handlers   // handlers for ctor "try" block
 ) {
   //public void tcheck(Env &env);
   public StringRef name() const;
@@ -70,8 +90,12 @@ impl_verbatim {
 
 class MemberInit (
   PQName name,                   // name of member or base class
-  ASTList<Expression> args       // arguments to its constructor
-);
+  FakeList<Expression> *args     // arguments to its constructor
+) {
+  // standard way to make it possible to include something
+  // in a FakeList; this line is repeated below in several places
+  public MemberInit *next;  ctor next=NULL;     // FakeList link
+}
 
 
 // --------------- types and declarators ---------------
@@ -79,7 +103,7 @@ class MemberInit (
 class Declaration (
   enum DeclFlags dflags,               // typedef, virtual, extern, etc.
   TypeSpecifier spec,                  // e.g. "int"
-  ASTList<Declarator> decllist         // e.g. "x=3, y"
+  FakeList<Declarator> *decllist       // e.g. "x=3, y"
 ) {
   //public void tcheck(Env &env);        // adds declared variables to env
 }
@@ -89,6 +113,8 @@ class ASTTypeId (
   TypeSpecifier spec,        // "int"
   Declarator decl            // this will be abstract sometimes (e.g. casts)
 ) {
+  public ASTTypeId *next;  ctor next=NULL;     // FakeList link
+
   //public Type const *tcheck(Env &env);
 
   public Type const *type;   // result of first tcheck
@@ -141,13 +167,13 @@ class TypeSpecifier {
   -> TS_classSpec(                         // "class { ... }"
        TypeIntr keyword,                     // "class", "struct", "union"
        StringRef /*nullable*/ name,          // user-provided name, if any
-       ASTList<BaseClass> bases,             // base classes
-       ASTList<Member> members               // field and methods of the class
+       FakeList<BaseClass> *bases,           // base classes
+       MemberList members                    // field and methods of the class
      );
 
   -> TS_enumSpec(                          // "enum { ... }"
        StringRef /*nullable*/ name,          // name of enum, if any
-       ASTList<Enumerator> elts              // elements of the enumeration
+       FakeList<Enumerator> *elts            // elements of the enumeration
      );
 }
 
@@ -156,7 +182,14 @@ class BaseClass(
   bool isVirtual,                       // true for virtual base classes
   AccessKeyword access,                 // public/protected/private
   PQName name                           // name of base class
-);
+) {
+  public BaseClass *next;  ctor next=NULL;     // FakeList link
+}
+
+
+// list of class members; this is encapsulated so I can use
+// ASTList without yielding ASTLists in cc.gr
+class MemberList (ASTList<Member> list);
 
 // member of a class
 class Member(
@@ -173,6 +206,8 @@ class Enumerator (
   StringRef name,                       // name of this constant
   Expression /*nullable*/ expr          // constant expr, or NULL for "next"
 ) {
+  public Enumerator *next;  ctor next=NULL;     // FakeList link
+
   public Variable *var;                 // (owner) introduction record
   ctor var=NULL;
   dtor delete var;
@@ -191,6 +226,8 @@ class Declarator (
   ctor var=NULL;
   dtor delete var;
 
+  public Declarator *next;  ctor next=NULL;     // FakeList link
+
   // returns the type denoted by the combination of 'base' and the
   // type constructors in this declarator
   //public Type const *tcheck(Env &env, Type const *base, DeclFlags dflags);
@@ -203,7 +240,8 @@ class Declarator (
 // type constructors are encoded as a (possibly empty) list of pointer
 // constructors, then maybe a function or array type, recursively
 class IDeclarator {
-  public ASTList<PtrOperator> stars;   // pointer constructors, left to right
+  public FakeList<PtrOperator> *stars;   // pointer constructors, left to right
+  ctor stars=NULL;
                                               
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
@@ -235,7 +273,7 @@ class IDeclarator {
   // "f(int)"
   -> D_func(SourceLocation loc,
             IDeclarator base,                       // D_name of function, typically
-            ASTList<ASTTypeId> params,              // params with optional default values
+            FakeList<ASTTypeId> *params,            // params with optional default values
             CVFlags cv,                             // optional "const" for member functions
             ExceptionSpec /*nullable*/ exnSpec) {   // throwable exceptions
        // variable synthesized to give a name to the return value
@@ -257,16 +295,16 @@ class PtrOperator (
   CVFlags cv,          // optional qualifiers applied to ptr/ref type
   bool isPtr           // true for "*", false for "&"
 ) {
+  public PtrOperator *next;  ctor next=NULL;     // FakeList link
   public string toString() const;
 }
 
 // specification of what a function can throw; if an ExceptionSpec
 // pointer is NULL, it means there is no specification, i.e. anything
 // can be thrown
-class ExceptionSpec {
-  -> ES_None();        // syntactically "throw()", no exceptions may be thrown
-  -> ES_Some(ASTList<ASTTypeId> types);     // list of allowable types
-}
+class ExceptionSpec (
+  FakeList<ASTTypeId> *types       // list of allowable types; might be empty (NULL)
+);
 
 // declarators for operator and conversion functions
 class OperatorDeclarator {
@@ -303,10 +341,11 @@ class OperatorDeclarator {
 
 
 // ------------------- statements -----------------
-class Statement (SourceLocation loc) {
+class Statement (SourceLocation loc) {          
   // represent ambiguous statements by forming a linked list of alternatives
-  public Statement *ambiguity;
-  ctor ambiguity=NULL;
+  public Statement * const ambiguity;
+  ctor const_cast<Statement*&>(ambiguity) = NULL;
+  public void addAmbiguity(Statement *alt);
 
   // print ambiguities
   public void printAmbiguities(ostream &os, int indent) const;   // cc_tcheck.cc
@@ -330,7 +369,7 @@ class Statement (SourceLocation loc) {
   -> S_caseRange(Expression low, Expression high, Statement s);
   -> S_default(Statement s);
   -> S_expr(Expression expr);       // expression evaluated for side effect
-  -> S_compound(ASTList<Statement> stmts);
+  -> S_compound(ASTList<Statement> stmts);        // using ASTList for performance, I never yield it in cc.gr
   -> S_if(Condition cond, Statement thenBranch, Statement elseBranch);
   -> S_switch(Condition expr, Statement branches);
   -> S_while(Condition cond, Statement body);
@@ -344,7 +383,7 @@ class Statement (SourceLocation loc) {
   -> S_return(Expression /*nullable*/ expr);
   -> S_goto(StringRef target);
   -> S_decl(Declaration decl);
-  -> S_try(Statement body, ASTList<Handler> handlers);
+  -> S_try(Statement body, FakeList<Handler> *handlers);
 }
 
 // condition expression in a control-flow statement; it's allowed
@@ -359,6 +398,8 @@ class Condition {
 class Handler (
   Statement body                    // code to run when handler selected
 ) {
+  public Handler *next;  ctor next=NULL;      // FakeList link
+
   -> HR_type(ASTTypeId typeId);     // handles given type of exception
   -> HR_default();                  // handles any type; synactically "..."
 }
@@ -367,9 +408,16 @@ class Handler (
 // ----------------- expressions -----------------
 // C expressions
 class Expression {
+  // FakeList link; since you have to use 'setNext', I'm making
+  // 'next' const, and I'll cast it away in 'setNext'
+  public Expression * const next;  
+  ctor const_cast<Expression*&>(next) = NULL;
+  public void setNext(Expression *newNext);
+
   // same as we do for statements
-  public Expression *ambiguity;
-  ctor ambiguity=NULL;
+  public Expression * const ambiguity;
+  ctor const_cast<Expression*&>(ambiguity) = NULL;
+  public void addAmbiguity(Expression *alternative);
 
   // print ambiguities
   public void printAmbiguities(ostream &os, int indent) const;   // cc_tcheck.cc
@@ -403,10 +451,10 @@ class Expression {
        ctor var=NULL;
      }
 
-  -> E_funCall(Expression func, ASTList<Expression> args);
+  -> E_funCall(Expression func, FakeList<Expression> *args);
 
   // call to constructor as an expression
-  -> E_constructor(TypeSpecifier type, ASTList<Expression> args);
+  -> E_constructor(TypeSpecifier type, FakeList<Expression> *args);
 
   // field within an object; as a special case, fieldName might begin
   // with "~", meaning we're naming the destructor
@@ -441,9 +489,9 @@ class Expression {
   -> E_assign(Expression target, BinaryOp op, Expression src);
 
   -> E_new(bool colonColon,                      // true if "::" preceeds "new"
-           ASTList<Expression> /*nullable*/ placementArgs,    // arguments to placement-new (NULL if no placement syntax)
+           FakeList<Expression> *placementArgs,  // arguments to placement-new (empty/NULL if no placement syntax)
            ASTTypeId atype,                      // type to allocate
-           ASTList<Expression> /*nullable*/ ctorArgs);        // arguments to type's constructor (NULL if no ctor call syntax)
+           ExpressionListOpt ctorArgs);          // arguments to type's constructor (NULL if no ctor call syntax)
 
   -> E_delete(bool colonColon,                   // true if "::" preceeds "delete"
               bool array,                        // true if "[]" follows "delete"
@@ -459,14 +507,27 @@ class Expression {
   -> E_typeidType(ASTTypeId type);
 }
 
+// this is used for cases where there is a difference between a list
+// with no elements, and no list at all (the latter is represented by
+// a NULL pointer to an ExpressionListOpt, while the former is a valid
+// ExpressionListOpt with a NULL 'list' field)
+class ExpressionListOpt (
+  FakeList<Expression> *list
+);
+
 
 // animals which appear after declarations to assign initial values
 class Initializer {
+  public Initializer *next;  ctor next=NULL;       // FakeList link
+
   // check that the initializer is well-typed, given the type of
   // the thing it initializes
   //pure_virtual void tcheck(Env &env, Type const *type);
 
   -> IN_expr(Expression e);
+  
+  // using ASTList for performance; some files have initializers
+  // with thousands of elements
   -> IN_compound(ASTList<Initializer> inits);
 }
 

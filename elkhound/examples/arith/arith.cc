@@ -3,28 +3,23 @@
          
 #include "arith.h"     // this module
 #include "glr.h"       // GLR parser
+#include <assert.h>    // assert
 
 
 // ------------------ ArithLexer ------------------
-STATICDEF void ArithLexer::nextToken(ArithLexer *ths)
+/*static*/ void ArithLexer::nextToken(ArithLexer *ths)
 {
   // call underlying lexer; it will set 'sval' if necessary
   ths->type = yylex();
 }
 
-LexerInterface::NextTokenFunc ArithLexer::getTokenFunc()
+LexerInterface::NextTokenFunc ArithLexer::getTokenFunc() const
 {
   return (NextTokenFunc)&ArithLexer::nextToken;
 }
 
 
-string ArithLexer::tokenDesc()
-{
-  return tokenDescType(type);
-}
-
-
-string ArithLexer::tokenDescType(int t)
+string ArithLexer::tokenDesc() const
 {
   char const * const names[] = {
     "EOF",
@@ -37,12 +32,13 @@ string ArithLexer::tokenDescType(int t)
     ")",
   };
 
-  if (t == TOK_NUMBER) {
+  if (type == TOK_NUMBER) {
     return stringc << "number(" << (int)sval << ")";
   }
   else {
-    xassert((unsigned)t < (unsigned)TABLESIZE(names));
-    return string(names[t]);
+    unsigned tableSize = sizeof(names) / sizeof(names[0]);
+    assert((unsigned)type < tableSize);
+    return string(names[type]);
   }
 }
 

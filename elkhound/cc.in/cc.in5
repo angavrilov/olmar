@@ -1,0 +1,10 @@
+// cc.in5
+// tricky example of an ambiguous expression in an exprlist;
+// goal is to make sure that both interpretations are seen
+// has having two expressions in the list
+
+int main()
+{
+  f( (a)&(b), c );
+}
+

@@ -17,13 +17,15 @@
 class SourceLocation;      // fileloc.h
 
 // user-supplied semantic values:
-//  - semantic values are represented as void* since their type is
-//    determined by the user; I use the name here instead of 'void*'
-//    is they're a little easier to recognize by visual inspection;
-// -  each occurrance of this type is marked as to whether it is
-//    owner or serf; note that "owner" can mean reference-counted
-//typedef void *SemanticValue;
-typedef unsigned long SemanticValue;     // experiment..
+//  - Semantic values are an arbitrary word, that the user can then
+//    use as a pointer or an integer or whatever.  The parser
+//    generator inserts the appropriate casts, so the actual type
+//    I use here shouldn't ever be visible to the user.
+//  - Usually, SemanticValues that are used as pointers are considered
+//    to be owner pointers, but only in the sense that del() will be
+//    called.  It's up to the user to decide if del() actually does
+//    anything.
+typedef unsigned long SemanticValue;
 
 // name of a null sval; can't use "NULL" because of __null weirdness in gcc-3...
 #define NULL_SVAL 0
