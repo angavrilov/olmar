@@ -28,6 +28,7 @@ class OutStream {
   #define MAKE_INSERTER(type) \
     virtual OutStream &operator << (type message) = 0;
   MAKE_INSERTER(char const *)
+  MAKE_INSERTER(char)
   MAKE_INSERTER(bool)
   MAKE_INSERTER(int)
   MAKE_INSERTER(unsigned int)
@@ -61,6 +62,7 @@ class StringBuilderOutStream : public OutStream {
       return *this;                  \
     }
   MAKE_INSERTER(char const *)
+  MAKE_INSERTER(char)
   MAKE_INSERTER(bool)
   MAKE_INSERTER(int)
   MAKE_INSERTER(unsigned int)
@@ -94,6 +96,7 @@ class OStreamOutStream : public OutStream {
       return *this;                  \
     }
   MAKE_INSERTER(char const *)
+  MAKE_INSERTER(char)
   MAKE_INSERTER(bool)
   MAKE_INSERTER(int)
   MAKE_INSERTER(unsigned int)
@@ -120,8 +123,8 @@ class CodeOutStream : public OutStream {
   virtual void down() {depth++;}
 
   // indentation and formatting support
-  static string makeIndentation(int n);
-  static string indentMessage(int n, rostring s);
+  void printIndentation(int n);
+  void printWhileInsertingIndentation(int n, rostring s);
   void finish();
 
   // OutStream methods
@@ -138,6 +141,7 @@ class CodeOutStream : public OutStream {
       out << message;                             \
       return *this;                               \
     }
+  MAKE_INSERTER(char)
   MAKE_INSERTER(bool)
   MAKE_INSERTER(int)
   MAKE_INSERTER(unsigned int)
@@ -198,6 +202,7 @@ class TreeWalkOutStream : public OutStream {
       return *this;                               \
     }
   MAKE_INSERTER(char const *)
+  MAKE_INSERTER(char)
   MAKE_INSERTER(bool)
   MAKE_INSERTER(int)
   MAKE_INSERTER(unsigned int)

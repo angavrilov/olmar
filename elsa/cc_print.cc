@@ -38,21 +38,19 @@ CodeOutStream::~CodeOutStream()
   }
 }
 
-string CodeOutStream::makeIndentation(int n) {
-  stringBuilder s;
-  for (int i=0; i<n; ++i) s << "  ";
-  return s;
+void CodeOutStream::printIndentation(int n) {
+  for (int i=0; i<n; ++i) {
+    out << "  ";
+  }
 }
 
-string CodeOutStream::indentMessage(int n, rostring message) {
-  stringBuilder s;
-  char const *m = message.c_str();
-  int len = strlen(m);
+void CodeOutStream::printWhileInsertingIndentation(int n, rostring message) {
+  int len = message.length();
   for(int i=0; i<len; ++i) {
-    s << m[i];
-    if (m[i] == '\n') s << makeIndentation(n);
+    char c = message[i];
+    out << c;
+    if (c == '\n') printIndentation(n);
   }
-  return s;
 }
 
 void CodeOutStream::finish()
@@ -61,7 +59,7 @@ void CodeOutStream::finish()
   //      printf("BUFFERED NEWLINES: %d\n", buffered_newlines);
   stringBuilder s;
   for(;buffered_newlines>1;buffered_newlines--) s << "\n";
-  out << indentMessage(depth,s);
+  printWhileInsertingIndentation(depth,s);
   xassert(buffered_newlines == 1 || buffered_newlines == 0);
   if (buffered_newlines) {
     buffered_newlines--;
@@ -77,7 +75,7 @@ CodeOutStream & CodeOutStream::operator << (ostream& (*manipfunc)(ostream& outs)
   // omanips, since we certainly can't execute it...
   if (buffered_newlines) {
     out << endl;
-    out << makeIndentation(depth);
+    printIndentation(depth);
   } else buffered_newlines++;
   out.flush();
   return *this;
@@ -103,7 +101,7 @@ CodeOutStream & CodeOutStream::operator << (char const *message)
   message2 << message1;
   buffered_newlines += pending_buffered_newlines;
 
-  out << indentMessage(depth, message2);
+  printWhileInsertingIndentation(depth, message2);
   return *this;
 }
 
