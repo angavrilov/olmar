@@ -2874,10 +2874,12 @@ void Handler::tcheck(Env &env)
 {
   Scope *scope = env.enterScope(SK_FUNCTION, "exception handler");
 
-  if (!isEllipsis()) {
-    ASTTypeId::Tcheck tc;
-    typeId = typeId->tcheck(env, tc);
-  }
+  // dsw: in order to get this to work, I have to comment out this if;
+  // why was it there?
+//    if (!isEllipsis()) {
+  ASTTypeId::Tcheck tc;
+  typeId = typeId->tcheck(env, tc);
+//    }
   body->tcheck(env);
 
   env.exitScope(scope);
