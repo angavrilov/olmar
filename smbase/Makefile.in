@@ -137,7 +137,7 @@ $(THIS): $(OBJS)
 TESTS := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen \
          strdict svdict str strutil trdelete bflatten mysig \
          testmalloc mypopen tobjpool strhash cycles tsobjlist crc \
-         srcloc hashline gprintf smregexp vptrmap
+         srcloc hashline gprintf smregexp vptrmap vdtllist
 tests: $(TESTS)
 
 # command to compile and link
@@ -153,6 +153,9 @@ nonport: nonport.cpp nonport.h gprintf.o
 
 voidlist: voidlist.cc voidlist.h $(THIS)
 	$(TESTCXX) -o voidlist -DTEST_VOIDLIST voidlist.cc $(TESTFLAGS)
+
+vdtllist: vdtllist.cc vdtllist.h $(THIS)
+	$(TESTCXX) -o vdtllist -DTEST_VDTLLIST vdtllist.cc $(TESTFLAGS)
 
 tobjlist: tobjlist.cc objlist.h voidlist.o $(THIS)
 	$(TESTCXX) -o tobjlist tobjlist.cc voidlist.o $(TESTFLAGS)
@@ -227,6 +230,7 @@ vptrmap: vptrmap.cc $(THIS)
 check: $(TESTS)
 	./nonport
 	./voidlist
+	./vdtllist
 	./tobjlist
 	./bit2d
 	./growbuf
