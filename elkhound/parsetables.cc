@@ -41,6 +41,12 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
   stateSymbol = new SymbolId[numStates];
   memset(stateSymbol, 0, sizeof(stateSymbol[0]) * numStates);
 
+  // table of ambiguous actions is NULL until someone fills in the
+  // whole thing; since we don't know how many there might be, we
+  // can't even allocate the storage now
+  ambigTableSize = 0;
+  ambigTable = NULL;
+
   startState = start;
   finalProductionIndex = final;
 
@@ -68,8 +74,8 @@ ParseTables::~ParseTables()
     delete[] prodInfo;
     delete[] stateSymbol;
 
-    for (int i=0; i<numAmbig(); i++) {
-      delete[] ambigAction[i];
+    if (ambigTable) {
+      delete[] ambigTable;
     }
 
     delete[] nontermOrder;
@@ -134,6 +140,8 @@ void xferSimpleArray(Flatten &flat, T *array, int numElements)
 
 void ParseTables::xfer(Flatten &flat)
 {
+  xfailure("this code hasn't been maintained in a while, and probably doesn't work");
+
   // arbitrary number which serves to make sure we're at the
   // right point in the file
   flat.checkpoint(0x1B2D2F16);
@@ -157,6 +165,7 @@ void ParseTables::xfer(Flatten &flat)
   xferSimpleArray(flat, stateSymbol, numStates);
   xferSimpleArray(flat, nontermOrder, nontermOrderSize());
 
+  #if 0    // hasn't been updated since switch to 'ambigTable'
   // ambigAction
   if (flat.writing()) {
     flat.writeInt(numAmbig());
@@ -186,6 +195,7 @@ void ParseTables::xfer(Flatten &flat)
 
   // make sure reading and writing agree
   flat.checkpoint(numAmbig());
+  #endif // 0
 }
 
 
@@ -653,6 +663,11 @@ template <class EltType>
 void emitTable(EmitCode &out, EltType const *table, int size, int rowLength,
                char const *typeName, char const *tableName)
 {
+  if (!table || !size) {
+    out << "  " << typeName << " *" << tableName << " = NULL;\n";
+    return;
+  }
+
   bool printHex = 0==strcmp(typeName, "ErrorBitsEntry");
   
   if (size * sizeof(*table) > 50) {    // suppress small ones
@@ -739,6 +754,7 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
   SET_VAR(numProds);
   SET_VAR(actionCols);
   SET_VAR(actionRows);
+  SET_VAR(ambigTableSize);
   out << "  ret->startState = (StateId)" << (int)startState << ";\n";
   SET_VAR(finalProductionIndex);
   SET_VAR(errorBitsRowSize);
@@ -764,14 +780,9 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
   emitTable(out, stateSymbol, numStates, 16, "SymbolId", "stateSymbol");
   out << "  ret->stateSymbol = stateSymbol;\n\n";
 
-  // each of the ambiguous-action tables
-  out << "  ret->ambigAction.setSize(" << numAmbig() << ");\n\n";
-  for (int i=0; i<numAmbig(); i++) {
-    string name = stringc << "ambigAction" << i;
-    emitTable(out, ambigAction[i], ambigAction[i][0]+1, 16, "ActionEntry", name);
-    out << "  ret->ambigAction[" << i << "] = " << name << ";\n\n";
-  }
-  out << "\n";
+  // ambigTable
+  emitTable(out, ambigTable, ambigTableSize, 16, "ActionEntry", "ambigTable");
+  out << "  ret->ambigTable = ambigTable;\n\n";
 
   // nonterminal order
   emitTable(out, nontermOrder, nontermOrderSize(), 16,

@@ -71,5 +71,12 @@
   #define ENABLE_GCS_COMPRESSION @gcs@
 #endif
 
+// when true, entries in the action and goto tables are a
+// 1-byte index into an appropriate map
+#ifndef ENABLE_CRS_COMPRESSION
+  #define ENABLE_CRS_COMPRESSION @crs@
+#endif
+
+
 
 #endif // GLRCONFIG_H

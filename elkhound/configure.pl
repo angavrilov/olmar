@@ -12,7 +12,8 @@ $debug = 0;
 $loc = 1;
 %flags = (
   "eef" => 0,
-  "gcs" => 0
+  "gcs" => 0,
+  "crs" => 0
 );
 $subconfigure = 1;
 $SMBASE = "../smbase";
@@ -34,6 +35,7 @@ options:
   -action:           enable use of "-tr action" to see parser actions
   -eef=y/n           enable/disable EEF compression [disabled]
   -gcs=y/n           enable/disable GCS compression [disabled]
+  -crs=y/n           enable/disable CRS compression [disabled]
   -fastest:          turn off all Elkhound features that are not present
                      in Bison, for the purpose of performance comparison
                      (note that Elsa will not work in this mode)
@@ -175,6 +177,7 @@ else {
 # individual flags, for substituting later
 $eef = $flags{eef};
 $gcs = $flags{gcs};
+$crs = $flags{crs};
 if ($gcs && !$eef) {
   die "GCS requires EEF\n";
 }
@@ -317,6 +320,7 @@ EOF
 sed -e "s|\@GLR_SOURCELOC\@|$loc|g" \\
     -e "s|\@eef\@|$eef|g" \\
     -e "s|\@gcs\@|$gcs|g" \\
+    -e "s|\@crs\@|$crs|g" \\
   <glrconfig.h.in >>glrconfig.h.tmp
 
 # see if the new glrconfig.h differs from the old; if not, then

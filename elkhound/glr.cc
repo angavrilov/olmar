@@ -2062,8 +2062,7 @@ int GLR::rwlEnqueueReductions(StackNode *parser, ActionEntry action,
   }
   else {
     // ambiguous; check for reductions
-    int ambigId = tables->decodeAmbigAction(action);
-    ActionEntry *entry = tables->ambigAction[ambigId];
+    ActionEntry *entry = tables->decodeAmbigAction(action);
     for (int i=0; i<entry[0]; i++) {
       rwlEnqueueReductions(parser, entry[i+1], mustUseLink);
     }
@@ -2172,8 +2171,7 @@ void GLR::rwlShiftTerminals()
     }
     else {
       // nondeterministic; get actions
-      int ambigId = tables->decodeAmbigAction(action);
-      ActionEntry *entry = tables->ambigAction[ambigId];
+      ActionEntry *entry = tables->decodeAmbigAction(action);
 
       // do each one
       for (int i=0; i<entry[0]; i++) {

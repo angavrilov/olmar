@@ -24,7 +24,32 @@ inline ostream& operator<< (ostream &os, StateId id)
 
 
 // encodes an action in 'action' table; see 'actionTable'
-typedef signed short ActionEntry;
+#if ENABLE_CRS_COMPRESSION
+  // high bits: 00 = shift, 10 = reduce, 01 = ambiguous, 11 = error
+  // (if EEF is off)
+  //
+  // remaining 6 bits:
+  //
+  //   shift: desination state, encoded as an offset from the
+  //   first state that that terminal can reach
+  //
+  //   reduce: production, encoded as an index into a per-state
+  //   array of distinct production indices
+  //
+  //   ambiguous: for each state, have an array of ActionEntries.
+  //   ambiguous entries index into this array.  first indexed
+  //   entry is the count of how many actions follow
+  typedef unsigned char ActionEntry;
+#else
+  // each entry is one of:
+  //   +N+1, 0 <= N < numStates:         shift, and go to state N
+  //   -N-1, 0 <= N < numProds:          reduce using production N
+  //   numStates+N+1, 0 <= N < numAmbig: ambiguous, use ambigAction N
+  //   0:                                error
+  // (there is no 'accept', acceptance is handled outside this table)
+  typedef signed short ActionEntry;
+#endif
+
 
 // encodes a destination state in 'gotoTable'
 typedef unsigned short GotoEntry;
@@ -35,21 +60,11 @@ typedef unsigned char TermIndex;
 // name a nonterminal using an index
 typedef unsigned char NtIndex;
 
+// name a production using an index
+typedef unsigned short ProdIndex;
+
 // an addressed cell in the 'errorBits' table
 typedef unsigned char ErrorBitsEntry;
-
-
-// some word size statistics to help with bitmap encoding/decoding
-#if 0   // delete me
-enum {
-  BITS_PER_WORD = sizeof(ErrorBitsEntry) * 8,    // 32
-  BITS_PER_WORD_MASK = BITS_PER_WORD - 1,        // 31 = 0x1F
-  BITS_PER_WORD_SHIFT =
-    BITS_PER_WORD==32? 5 :
-    BITS_PER_WORD==64? 6 :
-                       0    // error; detected in ParseTables::ParseTables
-};
-#endif // 0
 
 
 // encodes either terminal index N (as N+1) or
@@ -78,7 +93,7 @@ public:     // types
   };
 
 private:    // data
-  // when this is false, all of the below "(owner)" annotations are
+  // when this is false, all of the below "(owner*)" annotations are
   // actually "(serf)", i.e. this object does *not* own any of the
   // tables (see emitConstructionCode())
   bool owning;
@@ -94,34 +109,32 @@ public:     // data
   // # of productions in the grammar
   int numProds;
 
-  // action table, indexed by (state*actionCols + lookahead),
-  // each entry is one of:
-  //   +N+1, 0 <= N < numStates:         shift, and go to state N
-  //   -N-1, 0 <= N < numProds:          reduce using production N
-  //   numStates+N+1, 0 <= N < numAmbig: ambiguous, use ambigAction N
-  //   0:                                error
-  // (there is no 'accept', acceptance is handled outside this table)
+  // action table, indexed by (state*actionCols + lookahead)
   int actionCols;
-  ActionEntry *actionTable;              // (owner)
+  ActionEntry *actionTable;              // (owner*)
 
   // goto table, indexed by (state*numNonterms + nontermId),
   // each entry is N, the state to go to after having reduced by
   // 'nontermId'
-  GotoEntry *gotoTable;                  // (owner)
+  GotoEntry *gotoTable;                  // (owner*)
 
   // map production id to information about that production
-  ProdInfo *prodInfo;                    // (owner ptr to array)
+  ProdInfo *prodInfo;                    // (owner*)
 
   // map a state id to the symbol (terminal or nonterminal) which is
   // shifted to arrive at that state
-  SymbolId *stateSymbol;                 // (owner)
+  SymbolId *stateSymbol;                 // (owner*)
 
-  // ambiguous action table, indexed by ambigActionId; each entry is
-  // a pointer to an array of signed short; the first number is the
-  // # of actions, and is followed by that many actions, each
-  // interpreted the same way ordinary 'actionTable' entries are
-  ArrayStack<ActionEntry*> ambigAction;  // (array of owner ptrs)
-  int numAmbig() const { return ambigAction.length(); }
+  // ambiguous actions: one big list, for allocation purposes; then
+  // the actions encode indices into this table; the first indexed
+  // entry gives the # of actions, and is followed by that many
+  // actions, each interpreted the same way ordinary 'actionTable'
+  // entries are
+  int ambigTableSize;
+  ActionEntry *ambigTable;               // (nullable owner*)
+
+  //ArrayStack<ActionEntry*> ambigAction;  // (array of owner ptrs)
+  //int numAmbig() const { return ambigAction.length(); }
 
   // start state id
   StateId startState;
@@ -143,19 +156,39 @@ public:     // data
   // reductions spanning the same set of ground terminals), and
   // therefore will merge all alternatives for B before reducing
   // any of them to A.
-  NtIndex *nontermOrder;                 // (owner)
+  NtIndex *nontermOrder;                 // (owner*)
 
   // --------------------- table compression ----------------------
 
   // table compression techniques taken from:
-  //    Peter Dencker, Karl Dürre, and Johannes Heuft.
+  //    [DDH] Peter Dencker, Karl Dürre, and Johannes Heuft.
   //    Optimization of Parser Tables for Portable Compilers.
   //    In ACM TOPLAS, 6, 4 (1984) 546-572.
   //    http://citeseer.nj.nec.com/context/27540/0 (not in database)
   //    ~/doc/papers/p546-dencker.pdf (from ACM DL)
 
+  #if 0    // still working
   // Code Reduction Scheme (CRS):
-  // See gramanl.cc, GrammarAnalysis::renumberStates().
+  //
+  // Part (a):  The states are numbered such that all states that
+  // are reached by transitions on a given symbol are contiguous.
+  // See gramanl.cc, GrammarAnalysis::renumberStates().  Then, we
+  // simply need a map from the symbol index to the first state
+  // that is reached along that symbol.
+  StateId *firstWithTerminal;            // (nullable owner*) termIndex -> state
+  StateId *firstWithNonterminal;         // (nullable owner*) ntIndex -> state
+  //
+  // Part (b):  The production indices that appear on a given row
+  // are collected together.  (This is called (c) by [DDH]; I don't
+  // have a counterpart to their (b).)
+  ProdIndex *bigProductionList;          // (nullable owner*) array into which 'productionsForState' points
+  ProdIndex **productionsForState;       // (nullable owner to serf) state -> prod
+  //
+  // Part (c):  The ambiguous actions are collected together in
+  // par-state lists as well.  But that's done regardless of whether
+  // other CRS activities are done.  The encoding is explained above.
+  // (THIS IS WRONG)
+  #endif // 0
 
   // Error Entry Factoring (EEF):
   //
@@ -168,7 +201,7 @@ public:     // data
   //   if ((byte >> (lookahead & 7)) & 1) then ERROR
   int errorBitsRowSize;                  // bytes per row
   int uniqueErrorRows;                   // distinct rows
-  ErrorBitsEntry *errorBits;             // (nullable owner)
+  ErrorBitsEntry *errorBits;             // (nullable owner*)
   ErrorBitsEntry **errorBitsPointers;    // (nullable owner ptr to serfs)
 
   // Graph Coloring Scheme (GCS):
@@ -180,7 +213,7 @@ public:     // data
   // this is a map to be applied to terminal indiced before being
   // used to access the compressed action table; it maps the terminal
   // id (as reported by the lexer) to the proper action table column
-  TermIndex *actionIndexMap;             // (nullable owner)
+  TermIndex *actionIndexMap;             // (nullable owner*)
   //
   // this is a map from states to the beginning of the action table
   // row that pertains to that state; it effectively factors the
@@ -272,9 +305,12 @@ public:     // funcs
     { return -(code+1); }
   static bool isErrorAction(ActionEntry code)
     { return code == 0; }
-  // ambigAction is only other choice
-  int decodeAmbigAction(ActionEntry code) const
-    { return code-1-numStates; }
+
+  // ambigAction is only other choice; this yields a pointer to
+  // an array of actions, the first of which says how many actions
+  // there are
+  ActionEntry *decodeAmbigAction(ActionEntry code) const
+    { return ambigTable + (code-1-numStates); }
 
   // encode gotos
   GotoEntry encodeGoto(StateId stateId) const

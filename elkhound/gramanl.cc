@@ -3059,6 +3059,10 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
                            startState->id,
                            0 /* slight hack: assume it's the first production */);
 
+  // temporary place to build the ambigTable before installing
+  // it into 'table'
+  ArrayStack<ActionEntry> ambigTable;
+
   // count total number of conflicts of each kind
   int sr=0, rr=0;
 
@@ -3092,23 +3096,19 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
       // still conflicts?
       int actions = (shiftDest? 1 : 0) + reductions.count();
       if (actions >= 2) {
-        // make a new ambiguous-action entry
-        ActionEntry *entry = new ActionEntry[actions+1];
-        entry[0] = actions;
+        // make a new ambiguous-action entry-set
+        cellAction = tables->encodeAmbig(ambigTable.length());
+
+        // first element is the # of actions
+        ambigTable.push(actions);
 
         // fill in the actions
-        int index = 1;
         if (shiftDest) {
-          entry[index++] = tables->encodeShift(shiftDest->id);
+          ambigTable.push(tables->encodeShift(shiftDest->id));
         }
         SFOREACH_PRODUCTION(reductions, prodIter) {
-          entry[index++] = tables->encodeReduce(prodIter.data()->prodIndex);
+          ambigTable.push(tables->encodeReduce(prodIter.data()->prodIndex));
         }
-        xassert(index == actions+1);
-
-        // (prepare to) add this entry to the action table
-        cellAction = tables->encodeAmbig(tables->numAmbig());
-        tables->ambigAction.push(entry);
       }
 
       else {
@@ -3177,6 +3177,15 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
     xassert((unsigned)(state->id) < (unsigned)(tables->numStates));
     tables->stateSymbol[state->id] =
       encodeSymbolId(state->getStateSymbolC());
+  }
+  
+  // copy the ambiguous actions               
+  {
+    int len = ambigTable.length();
+    tables->ambigTableSize = len;
+    tables->ambigTable = new ActionEntry[len];
+    memcpy(tables->ambigTable, ambigTable.getArray(), 
+           sizeof(ActionEntry) * len);
   }
 
   // report on conflict counts
@@ -3607,8 +3616,7 @@ void GrammarAnalysis::lrParse(char const *input)
         << "; possible actions:\n";
 
       // get actions
-      int ambigId = tables->decodeAmbigAction(action);
-      ActionEntry *entry = tables->ambigAction[ambigId];
+      ActionEntry *entry = tables->decodeAmbigAction(action);
 
       // explain each one
       for (int i=0; i<entry[0]; i++) {
@@ -3623,7 +3631,7 @@ void GrammarAnalysis::lrParse(char const *input)
         }
         else {
           // no other alternative makes sense
-          xfailure("bad code in ambigAction table");
+          xfailure("bad code in ambiguous action table");
         }
       }
 
