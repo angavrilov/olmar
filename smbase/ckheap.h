@@ -33,7 +33,7 @@ unsigned numFreeCalls();
 // actions the heap walk iterator might request
 enum HeapWalkOpts {
   HW_GO   = 0,         // keep going
-  HW_STOP = 1,         // stop iteraing
+  HW_STOP = 1,         // stop iterating
   HW_FREE = 2,         // free the block I just examined
 };
 
