@@ -406,9 +406,16 @@ void Function::tcheckBody(Env &env)
       // example of violation: in/std/7.3.1.2b.cc, error 2
       bool encloses = env.currentScopeAboveTemplEncloses(s);
       if (!encloses) {
-        env.error(stringc
-          << "function definition of `" << *(nameAndParams->getDeclaratorId())
-          << "' must appear in a namespace that encloses the original declaration");
+        if (dflags & DF_FRIEND) {
+          // (t0291.cc) a friend definition is a little funky, and (IMO)
+          // 11.4 isn't terribly clear on this point, so I'll just try
+          // suppressing the error in this case
+        }
+        else {
+          env.error(stringc
+            << "function definition of `" << *(nameAndParams->getDeclaratorId())
+            << "' must appear in a namespace that encloses the original declaration");
+        }
       }
 
       // these two lines are the key to this whole block..  I'm

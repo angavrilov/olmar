@@ -519,6 +519,7 @@ testparse t0287.cc
 failparse t0288.cc "ambiguous function template instantiation (not minimized)"
 failparse t0289.cc "repeated using things"
 failparse t0290.cc "problem matching definition and decl with <dependent>"
+testparse t0291.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -621,7 +622,7 @@ testparse d0090.cc
 testparse d0091.cc
 testparse d0097.cc
 testparse d0098.cc
-failparse d0099.cc "defining friend operator from within class that is one of its arguments"
+testparse d0099.cc
 # ---- END: lots of tests ----
 
 
