@@ -5,12 +5,7 @@
 # in each of the subdirs; users can then go customize
 # as desired
 
-# (tweak to test cvs commit)
-
-# bail on error
-set -e
-
-(cd smbase && ./configure "$@")
-(cd ast && ./configure "$@")
-(cd elkhound && ./configure "$@")
-(cd elsa && ./configure "$@")
+(cd smbase && ./configure "$@") || exit
+(cd ast && ./configure "$@") || exit
+(cd elkhound && ./configure "$@") || exit
+(cd elsa && ./configure "$@") || exit
