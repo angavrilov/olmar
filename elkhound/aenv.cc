@@ -8,6 +8,7 @@
 #include "predicate.ast.gen.h"  // Predicate, P_and
 #include "trace.h"              // tracingSys
 #include "exc.h"                // xBase
+#include "owner.h"              // Owner
 
 
 // ----------------- VariablePrinter ----------------
@@ -194,16 +195,15 @@ void AEnv::addFact(AbsValue *expr)
   facts->conjuncts.append(exprToPred(expr));
 }
 
-  
+
 void AEnv::prove(AbsValue const *expr, char const *context)
 {
-  bool printPredicate = tracingSys("predicates");
+  char const *proved =
+    tracingSys("predicates")? "predicate proved" : NULL;
+  char const *notProved = "*** predicate NOT proved ***";
 
   // map the goal into a predicate
-  Predicate *goal = exprToPred(expr);
-
-  // used below to accumulate referenced variables
-  VariablePrinter vp;
+  Owner<Predicate> goal(exprToPred(expr));
 
   // add the fact that all known local variable addresses are distinct
   P_distinct *addrs = new P_distinct(NULL);
@@ -213,67 +213,90 @@ void AEnv::prove(AbsValue const *expr, char const *context)
   }
   facts->conjuncts.prepend(addrs);
 
-  // build an implication with all our known facts on the left
-  // (temporarily let this object think it owns 'facts');
+
   // first, we'll try to prove false, to check the consistency
   // of the assumptions
-  P_lit *f = new P_lit(false);
-  P_impl implication(facts, f);
-  facts = NULL;
-
-  // try to prove false
-  if (runProver(implication.toSexpString())) {
-    cout << "inconsistent assumptions: " << context << "\n";
-
+  P_lit falsePred(false);
+  if (innerProve(&falsePred,
+                 NULL,                          // printFalse
+                 "inconsistent assumptions",    // printTrue
+                 context)) {
     // this counts as a proved predicate (we can prove anything if
-    // we can prove false), but for now it's something I want to
-    // know about explicitly
-    printPredicate = true;
+    // we can prove false)
   }
-  else {
-    // replace 'false' with the goal, in the implication
-    delete f;
-    implication.conclusion = goal;
 
-    // run the prover on that predicate
-    if (runProver(implication.toSexpString())) {
-      if (printPredicate) {
-        cout << "predicate proved: " << context << "\n";
+  else {
+    if (goal->isP_and()) {
+      // if the goal is a conjunction, prove each part separately,
+      // so if part fails we can report that
+      FOREACH_ASTLIST_NC(Predicate, goal->asP_and()->conjuncts, iter) {
+        if (!innerProve(iter.data(),
+                        notProved,   // printFalse
+                        proved,      // printTrue
+                        context)) {
+          failedProofs++;
+        }
       }
     }
+
     else {
-      cout << "predicate NOT proved: " << context << "\n";
-      printPredicate = true;      // always print for unprovens
-      failedProofs++;
+      // prove the whole thing at once
+      if (!innerProve(goal,
+                      notProved,   // printFalse
+                      proved,      // printTrue
+                      context)) {
+        failedProofs++;
+      }
     }
-  }
-
-  // restore proper ownership of 'facts'
-  facts = implication.premise->asP_and();
-  implication.premise = NULL;
-
-  if (printPredicate) {
-    FOREACH_ASTLIST(Predicate, facts->conjuncts, iter) {
-      cout << "  fact: " << iter.data()->toSexpString() << "\n";
-      walkValuePredicate(vp, iter.data());
-    }
-    cout << "  goal: " << goal->toSexpString() << "\n";
-    walkValuePredicate(vp, goal);
-
-    // print out variable map
-    vp.dump();
-  }
-
-  // delete the goal if it never got inserted into 'implication'
-  if (implication.conclusion != goal) {
-    delete goal;
   }
 
   // pull the distinction fact back out
   facts->conjuncts.deleteFirst();
+}
 
-  // if I did it right, 'implication' contains properly
-  // recursively owned substructures..
+
+// try to prove 'pred', and return true or false
+bool AEnv::innerProve(Predicate * /*serf*/ goal,
+                      char const *printFalse,
+                      char const *printTrue,
+                      char const *context)
+{
+  // build an implication
+  P_impl implication(facts, goal);
+  try {
+    bool ret = false;
+    char const *print = printFalse;
+    if (runProver(implication.toSexpString())) {
+      ret = true;
+      print = printTrue;
+    }
+
+    if (print) {
+      VariablePrinter vp;
+      cout << print << ": " << context << endl;
+
+      FOREACH_ASTLIST(Predicate, facts->conjuncts, iter) {
+        cout << "  fact: " << iter.data()->toSexpString() << "\n";
+        walkValuePredicate(vp, iter.data());
+      }
+      cout << "  goal: " << goal->toSexpString() << "\n";
+      walkValuePredicate(vp, goal);
+      
+      // print out variable map
+      vp.dump();
+    }
+
+    // don't let the implication delete its arguments
+    implication.premise = NULL;
+    implication.conclusion = NULL;
+
+    return ret;
+  }
+  catch (...) {
+    implication.premise = NULL;
+    implication.conclusion = NULL;
+    throw;
+  }
 }
 
 

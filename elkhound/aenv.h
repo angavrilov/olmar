@@ -9,6 +9,7 @@
 
 class AbsValue;            // absval.ast
 class P_and;               // predicate.ast
+class Predicate;           // predicate.ast
 
 class AEnv {
 private:     // data
@@ -34,6 +35,12 @@ public:      // data
 
   // # of failed proofs
   int failedProofs;
+
+private:     // funcs
+  bool innerProve(Predicate * /*serf*/ pred,
+                  char const *printFalse,
+                  char const *printTrue,
+                  char const *context);
 
 public:      // funcs
   AEnv(StringTable &table);
