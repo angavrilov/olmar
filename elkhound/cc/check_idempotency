@@ -24,7 +24,7 @@ for(@ARGV) {
 
 sub run_command ($) {
     my ($command) = @_;
-#      print "$command\n";
+    print "$command\n";
     my $res = system $command;
     if ($res!=0) {
         my $exit_value  = $res >> 8;

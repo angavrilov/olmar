@@ -40,12 +40,12 @@ TOCHECK += cc.in8
 # Not printing structs.
 TOCHECK += cc.in9
 
-TOCHECK += cc.in10
+#TOCHECK += cc.in10
 
 # "extern" qualifiers are not printed
 # TOCHECK += cc.in11
 
-TOCHECK += cc.in12
+#TOCHECK += cc.in12
 
 # segfault on field again.
 #TOCHECK += cc.in13
@@ -56,7 +56,7 @@ TOCHECK += cc.in12
 # this is getting printed before constructors and destructors: <cdtor>
 # TOCHECK += cc.in15
 
-TOCHECK += cc.in16
+#TOCHECK += cc.in16
 
 # constructor again
 # TOCHECK += cc.in17

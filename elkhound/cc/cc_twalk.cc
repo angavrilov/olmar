@@ -261,9 +261,16 @@ void TS_classSpec::twalk(Env &env)
   global_code_out << toString(cv);
   global_code_out << toString(keyword) << " ";
   global_code_out << toString(name);
+  bool first_time = true;
   FAKELIST_FOREACH_NC(BaseClassSpec, bases, iter) {
+    if (first_time) {
+      global_code_out << ":";
+      first_time = false;
+    }
+    else global_code_out << ",";
     iter->twalk(env);
   }
+  codeout co("", "{\n", "};\n");
   FOREACH_ASTLIST_NC(Member, members->list, iter2) {
     iter2.data()->twalk(env);
   }
