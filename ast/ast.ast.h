@@ -180,11 +180,12 @@ class ASTClass {
 public:      // data
   string name;
   ASTList <CtorArg > args;
+  ASTList <CtorArg > lastArgs;
   ASTList <BaseClass > bases;
   ASTList <Annotation > decls;
 
 public:      // funcs
-  ASTClass(string _name, ASTList <CtorArg > *_args, ASTList <BaseClass > *_bases, ASTList <Annotation > *_decls) : name(_name), args(_args), bases(_bases), decls(_decls) {
+  ASTClass(string _name, ASTList <CtorArg > *_args, ASTList <CtorArg > *_lastArgs, ASTList <BaseClass > *_bases, ASTList <Annotation > *_decls) : name(_name), args(_args), lastArgs(_lastArgs), bases(_bases), decls(_decls) {
   }
   ~ASTClass();
 

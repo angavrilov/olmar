@@ -81,4 +81,10 @@ class InheritsSomething : public Base1 {
      }
 }
 
+class HasLastArgs(int x)(int w) {
+  -> Hla1(int y);
+  -> Hla2(int y, int z);
+}
 
+
+// EOF

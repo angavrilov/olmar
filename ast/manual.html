@@ -265,6 +265,33 @@ The generated header file obtains these functions through the
 <tt>DECL_AST_DOWNCASTS</tt> macro, defined in 
 <a href="asthelp.h">asthelp.h</a>.
 
+<h4>1.3.5 "Last" Ctor Parameters</h4>
+
+<p>
+Occasionally, it is convenient for a ctor parameter to be supplied with
+the superclass (so that all subclasses have it) but desirable to pass
+and print the value <em>after</em> the subclass parameters.  For
+example, a superclass Foo might want to have a "Foo *next" to form a
+linked list, but we would want "next" to be at the end of all subclass
+argument lists, printed last (so the list is printed in the "logical"
+order), etc.
+
+<p>
+The syntax for this is a second parameter list in the superclass:
+<pre>
+  class Foo (/*first*/ int x, int y) (/*last*/ Foo next) {
+    -> F_one(int z);
+    ...
+  }
+</pre>
+In this example, "x" and "y" are ordinary ("first") ctor parameters,
+and "next" is a "last" parameter.  For example, to construct an instance
+of "F_one", write
+<pre>
+  new F_one(x, y, z, next)
+</pre>
+
+
 <h3>1.4 Miscellaneous</h3>
 
 <p>

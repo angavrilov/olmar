@@ -296,9 +296,14 @@ private:        // funcs
   void emitTFClass(TF_class const &cls);
   void emitBaseClassDecls(ASTClass const &cls, int ct);
   static char const *virtualIfChildren(TF_class const &cls);
-  void emitCtorFields(ASTList<CtorArg> const &args);
+  void emitCtorFields(ASTList<CtorArg> const &args,
+                      ASTList<CtorArg> const &lastArgs);
+  void innerEmitCtorFields(ASTList<CtorArg> const &args);
   void emitCtorFormal(int &ct, CtorArg const *arg);
+  void emitCtorFormals(int &ct, ASTList<CtorArg> const &args);
   void emitCtorDefn(ASTClass const &cls, ASTClass const *parent);
+  void passParentCtorArgs(int &ct, ASTList<CtorArg> const &args);
+  void initializeMyCtorArgs(int &ct, ASTList<CtorArg> const &args);
   void emitCommonFuncs(rostring virt);
   void emitUserDecls(ASTList<Annotation> const &decls);
   void emitCtor(ASTClass const &ctor, ASTClass const &parent);
@@ -434,7 +439,7 @@ void HGen::emitTFClass(TF_class const &cls)
   emitBaseClassDecls(*(cls.super), 0 /*ct*/);
   out << " {\n";
 
-  emitCtorFields(cls.super->args);
+  emitCtorFields(cls.super->args, cls.super->lastArgs);
   emitCtorDefn(*(cls.super), NULL /*parent*/);
 
   // destructor
@@ -518,10 +523,17 @@ void HGen::emitBaseClassDecls(ASTClass const &cls, int ct)
 
 
 // emit data fields implied by the constructor
-void HGen::emitCtorFields(ASTList<CtorArg> const &args)
+void HGen::emitCtorFields(ASTList<CtorArg> const &args,
+                          ASTList<CtorArg> const &lastArgs)
 {
   out << "public:      // data\n";
+  innerEmitCtorFields(args);
+  innerEmitCtorFields(lastArgs);
+  out << "\n";
+}
 
+void HGen::innerEmitCtorFields(ASTList<CtorArg> const &args)
+{
   // go over the arguments in the ctor and declare fields for them
   {
     FOREACH_ASTLIST(CtorArg, args, arg) {
@@ -534,7 +546,6 @@ void HGen::emitCtorFields(ASTList<CtorArg> const &args)
       out << "  " << arg.data()->type << " " << star << arg.data()->name << ";\n";
     }
   }
-  out << "\n";
 }
 
 
@@ -561,9 +572,16 @@ void HGen::emitCtorFormal(int &ct, CtorArg const *arg)
 
   out << "_" << arg->name;      // prepend underscore to param's name
 
-  // emit default value, if any  
+  // emit default value, if any
   if (arg->defaultValue.length() > 0) {
     out << " = " << arg->defaultValue;
+  }
+}
+
+void HGen::emitCtorFormals(int &ct, ASTList<CtorArg> const &args)
+{
+  FOREACH_ASTLIST(CtorArg, args, arg) {
+    emitCtorFormal(ct, arg.data());
   }
 }
 
@@ -587,12 +605,12 @@ void HGen::emitCtorDefn(ASTClass const &cls, ASTClass const *parent)
     {
       int ct = 0;
       if (parent) {
-        FOREACH_ASTLIST(CtorArg, parent->args, parg) {
-          emitCtorFormal(ct, parg.data());
-        }
+        emitCtorFormals(ct, parent->args);
       }
-      FOREACH_ASTLIST(CtorArg, cls.args, arg) {
-        emitCtorFormal(ct, arg.data());
+      emitCtorFormals(ct, cls.args);
+      emitCtorFormals(ct, cls.lastArgs);
+      if (parent) {
+        emitCtorFormals(ct, parent->lastArgs);
       }
     }
     out << ")";
@@ -603,28 +621,14 @@ void HGen::emitCtorDefn(ASTClass const &cls, ASTClass const *parent)
 
       if (parent) {
         out << " : " << parent->name << "(";
-        FOREACH_ASTLIST(CtorArg, parent->args, parg) {
-          if (ct++ > 0) {
-            out << ", ";
-          }
-          // pass the formal arg to the parent ctor
-          out << "_" << parg.data()->name;
-        }
+        passParentCtorArgs(ct, parent->args);
+        passParentCtorArgs(ct, parent->lastArgs);
         ct++;     // make sure we print a comma, below
         out << ")";
       }
 
-      FOREACH_ASTLIST(CtorArg, cls.args, arg) {
-        if (ct++ > 0) {
-          out << ", ";
-        }
-        else {
-          out << " : ";    // only used when 'parent' is NULL
-        }
-
-        // initialize the field with the formal argument
-        out << arg.data()->name << "(_" << arg.data()->name << ")";
-      }
+      initializeMyCtorArgs(ct, cls.args);
+      initializeMyCtorArgs(ct, cls.lastArgs);
 
       // initialize fields that have initializers
       FOREACH_ASTLIST(Annotation, cls.decls, ann) {
@@ -651,6 +655,32 @@ void HGen::emitCtorDefn(ASTClass const &cls, ASTClass const *parent)
   }
 }
 
+void HGen::passParentCtorArgs(int &ct, ASTList<CtorArg> const &args)
+{
+  FOREACH_ASTLIST(CtorArg, args, parg) {
+    if (ct++ > 0) {
+      out << ", ";
+    }
+    // pass the formal arg to the parent ctor
+    out << "_" << parg.data()->name;
+  }
+}
+
+void HGen::initializeMyCtorArgs(int &ct, ASTList<CtorArg> const &args)
+{
+  FOREACH_ASTLIST(CtorArg, args, arg) {
+    if (ct++ > 0) {
+      out << ", ";
+    }
+    else {
+      out << " : ";    // only used when 'parent' is NULL
+    }
+
+    // initialize the field with the formal argument
+    out << arg.data()->name << "(_" << arg.data()->name << ")";
+  }
+}
+
 // emit functions that are declared in every tree node
 void HGen::emitCommonFuncs(rostring virt)
 {
@@ -659,7 +689,7 @@ void HGen::emitCommonFuncs(rostring virt)
   if (wantXMLPrint) {
     out << "  " << virt << "void xmlPrint(ostream &os, int indent) const;\n";
   }
-  
+
   if (wantVisitor()) {
     // visitor traversal entry point
     out << "  " << virt << "void traverse(" << visitorName << " &vis);\n";
@@ -714,7 +744,7 @@ void HGen::emitCtor(ASTClass const &ctor, ASTClass const &parent)
   emitBaseClassDecls(ctor, 1 /*ct*/);
   out << " {\n";
 
-  emitCtorFields(ctor.args);
+  emitCtorFields(ctor.args, ctor.lastArgs);
   emitCtorDefn(ctor, &parent);
 
   // destructor
@@ -781,6 +811,7 @@ public:
   void emitCustomCode(ASTList<Annotation> const &list, rostring tag);
 
   void emitCloneCtorArg(CtorArg const *arg, int &ct);
+  void emitCloneCtorArgs(int &ct, ASTList<CtorArg> const &args);
   void emitCloneCode(ASTClass const *super, ASTClass const *sub);
 
   void emitVisitorImplementation();
@@ -886,6 +917,9 @@ void CGen::emitTFClass(TF_class const &cls)
   // often much shorter (and more important) than the subtrees
   emitCustomCode(cls.super->decls, "debugPrint");
   emitPrintCtorArgs(cls.super->args);
+  if (cls.super->lastArgs.isNotEmpty()) {
+    out << "  // (lastArgs are printed by subclasses)\n";
+  }
   emitPrintFields(cls.super->decls);
 
   out << "}\n";
@@ -966,6 +1000,9 @@ void CGen::emitTFClass(TF_class const &cls)
     emitCustomCode(ctor.decls, "debugPrint");
     emitPrintCtorArgs(ctor.args);
     emitPrintFields(ctor.decls);
+    
+    // superclass 'last' args come after all subclass things
+    emitPrintCtorArgs(cls.super->lastArgs);
 
     out << "}\n";
     out << "\n";
@@ -990,6 +1027,7 @@ void CGen::emitTFClass(TF_class const &cls)
       // leave it out for now.
 //        emitCustomCode(ctor.decls, "xmlPrint");
       emitXmlPrintCtorArgs(ctor.args);
+      emitXmlPrintCtorArgs(cls.super->lastArgs);
 
       // dsw: probably don't need the name; take it out later if not
       out << "  XMLPRINT_FOOTER(" << ctor.name << ");\n";
@@ -1192,6 +1230,13 @@ void CGen::emitCloneCtorArg(CtorArg const *arg, int &ct)
   }
 }
 
+void CGen::emitCloneCtorArgs(int &ct, ASTList<CtorArg> const &args)
+{
+  FOREACH_ASTLIST(CtorArg, args, iter) {
+    emitCloneCtorArg(iter.data(), ct);
+  }
+}
+
 
 void CGen::emitCloneCode(ASTClass const *super, ASTClass const *sub)
 {
@@ -1202,16 +1247,15 @@ void CGen::emitCloneCode(ASTClass const *super, ASTClass const *sub)
 
   // clone each of the superclass ctor arguments
   int ct=0;
-  FOREACH_ASTLIST(CtorArg, super->args, iter) {
-    emitCloneCtorArg(iter.data(), ct);
-  }
+  emitCloneCtorArgs(ct, super->args);
 
   // and likewise for the subclass ctor arguments
   if (sub) {
-    FOREACH_ASTLIST(CtorArg, sub->args, iter) {
-      emitCloneCtorArg(iter.data(), ct);
-    }
+    emitCloneCtorArgs(ct, sub->args);
+    emitCloneCtorArgs(ct, sub->lastArgs);
   }
+
+  emitCloneCtorArgs(ct, super->lastArgs);
 
   out << "\n"
       << "  );\n";

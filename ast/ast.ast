@@ -38,6 +38,7 @@ class ToplevelForm {
 // a definition of a grammar terminal or nonterminal
 class ASTClass (string name,
                 ASTList<CtorArg> args,
+                ASTList<CtorArg> lastArgs,    // only for nonterminal
                 ASTList<BaseClass> bases,
                 ASTList<Annotation> decls) {
   // the name of the enum constant denoting this ctor, as distinguished

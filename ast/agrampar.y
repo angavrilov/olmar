@@ -88,7 +88,7 @@
 %type <file> StartSymbol
 %type <formList> Input
 %type <tfClass> Class ClassBody ClassMembersOpt
-%type <ctorArgList> CtorArgsOpt CtorArgs
+%type <ctorArgList> CtorArgsOpt CtorArgs CtorArgList
 %type <userDeclList> CtorMembersOpt
 %type <str> Arg ArgWord Embedded ArgList
 %type <accessCtl> Public
@@ -130,6 +130,11 @@ Class: NewOpt "class" TOK_NAME CtorArgsOpt BaseClassesOpt ClassBody
          { ($$=$6)->super->name = unbox($3); 
            $$->super->args.steal($4); 
            $$->super->bases.steal($5); }
+     | NewOpt "class" TOK_NAME CtorArgs CtorArgs BaseClassesOpt ClassBody
+         { ($$=$7)->super->name = unbox($3);
+           $$->super->args.steal($4);
+           $$->super->lastArgs.steal($5);
+           $$->super->bases.steal($6); }
      ;
 
 /* for now, just allow "new" but don't interpret it */
@@ -149,18 +154,18 @@ NewOpt: /* empty */          {}
 ClassBody: "{" ClassMembersOpt "}" /* no ";", see above */
              { $$=$2; }
          | ";"
-             { $$ = new TF_class(new ASTClass("(placeholder)", NULL, NULL, NULL), NULL); }
+             { $$ = new TF_class(new ASTClass("(placeholder)", NULL, NULL, NULL, NULL), NULL); }
          ;
 
 /* yields TF_class */
 /* does this by making an empty one initially, and then adding to it */
 ClassMembersOpt
   : /* empty */
-      { $$ = new TF_class(new ASTClass("(placeholder)", NULL, NULL, NULL), NULL); }
+      { $$ = new TF_class(new ASTClass("(placeholder)", NULL, NULL, NULL, NULL), NULL); }
   | ClassMembersOpt "->" TOK_NAME CtorArgsOpt BaseClassesOpt ";"
-      { ($$=$1)->ctors.append(new ASTClass(unbox($3), $4, $5, NULL)); }
+      { ($$=$1)->ctors.append(new ASTClass(unbox($3), $4, NULL, $5, NULL)); }
   | ClassMembersOpt "->" TOK_NAME CtorArgsOpt BaseClassesOpt "{" CtorMembersOpt "}"
-      { ($$=$1)->ctors.append(new ASTClass(unbox($3), $4, $5, $7)); }
+      { ($$=$1)->ctors.append(new ASTClass(unbox($3), $4, NULL, $5, $7)); }
   | ClassMembersOpt Annotation
       { ($$=$1)->super->decls.append($2); }
   ;
@@ -170,23 +175,29 @@ ClassMembersOpt
 CtorArgsOpt
   : /* empty */
       { $$ = new ASTList<CtorArg>; }
-  | "(" ")"
+  | CtorArgs
+      { $$ = $1; }
+  ;
+
+/* yields ASTList<CtorArg> */
+CtorArgs
+  : "(" ")"
       { $$ = new ASTList<CtorArg>; }
-  | "(" CtorArgs ")"
+  | "(" CtorArgList ")"
       { $$ = $2; }
   ;
 
 /* yields ASTList<CtorArg> */
-CtorArgs: Arg
-            { $$ = new ASTList<CtorArg>;
-              {
-                string tmp = unbox($1);
-                $$->append(parseCtorArg(tmp));
-              }
-            }
-        | CtorArgs "," Arg
-            { ($$=$1)->append(parseCtorArg(unbox($3))); }
-        ;
+CtorArgList: Arg
+               { $$ = new ASTList<CtorArg>;
+                 {
+                   string tmp = unbox($1);
+                   $$->append(parseCtorArg(tmp));
+                 }
+               }
+           | CtorArgList "," Arg
+               { ($$=$1)->append(parseCtorArg(unbox($3))); }
+           ;
 
 /* yields string */
 Arg: ArgWord
