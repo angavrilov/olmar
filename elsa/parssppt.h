@@ -6,11 +6,18 @@
 // but has been pressed into service for a few other uses too;
 // new grammars and parsers should probably not use this
 
-// TODO: this is a stupid module.  it either needs to be rewritten,
-// or its functionality spread to other modules
 
-#ifndef __PARSSPPT_H
-#define __PARSSPPT_H
+
+//                  alt.parssppt.die.die.die!
+
+// TODO:  This is a stupid module: ill-conceived, and awkward to use.
+// It either needs to be rewritten, or its functionality spread to
+// other modules.
+
+
+
+#ifndef PARSSPPT_H
+#define PARSSPPT_H
 
 #include "lexer.h"        // Lexer
 #include "useract.h"      // SemanticValue, UserAction
@@ -58,4 +65,4 @@ bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv,
               char const *additionalInfo = NULL);
 
 
-#endif // __PARSSPPT_H
+#endif // PARSSPPT_H
