@@ -677,7 +677,7 @@ AbsValue *E_fieldAcc::vcgen(AEnv &env, int path) const
     }
   }
 
-  cout << "TODO: unhandled structure field access: " << toString();
+  cout << "TODO: unhandled structure field access: " << toString() << endl;
   return env.freshVariable("field",
            stringc << "structure field access: " << toString());
 }

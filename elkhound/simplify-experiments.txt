@@ -1,0 +1,61 @@
+; this file is a random collection of forms that I copy+paste
+; into a Simplify session to test its behavior
+
+; declare predicate P
+(DEFPRED (P x))
+
+; ----------------------- unique existence ------------------
+; claim unique existence of an object which satisfies P
+(BG_PUSH
+  (EXISTS (x) (AND (P x)
+                   (FORALL (y) (IMPLIES (P y) (EQ y x)))))
+)
+
+; call this object z
+(BG_PUSH (P z))
+
+; does Simplify agree that anything satisfying P must be z? yes!
+(FORALL (y) (IMPLIES (P y) (EQ y z)))
+
+; does Simplify think that anything satisfying P must be 3? no!
+(FORALL (y) (IMPLIES (P y) (EQ y 3)))
+
+; does Simplify think that there could be something besides z
+; which satisfies P? no!
+(EXISTS (q) (AND (P q) (NEQ q z)))
+
+; moreover, it stops believing that anything satsifying P must
+; be z once I BG_POP either of the assumptions
+(BG_POP)
+(BG_POP)
+
+
+; -------------- existence of exactly two ------------------
+; claim that exactly two things satisfy P
+(BG_PUSH
+  (EXISTS (x y) (AND (P x) (P y) (NEQ z y)
+                     (FORALL (z) (IMPLIES (P z)
+                                          (OR (EQ z x) (EQ z y))))))
+)
+
+; give names to these objects
+(BG_PUSH (AND
+  (P z1)
+  (P z2)
+  (NEQ z1 z2)
+))
+
+; does Simplify agree that anything satisfying P must be z1 or z2? yes!
+(FORALL (y) (IMPLIES (P y)
+                     (OR (EQ y z1) (EQ y z2))))
+
+; does Simplify think that anything satisfying P must be z1? no!
+(FORALL (y) (IMPLIES (P y)
+                     (EQ y z1)))
+
+; does Simplify think that there could be something besides z1 or z2
+; which satisfies P? no!
+(EXISTS (q) (AND (P q) (NEQ q z1) (NEQ q z2)))
+
+(BG_POP)
+(BG_POP)

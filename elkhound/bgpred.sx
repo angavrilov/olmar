@@ -116,6 +116,7 @@
 
   ; validPointer: abstraction of a valid pointer
   ; causes Simplify to mess up?
+  ; update: maybe because I didn't do defpred validPointer?
   ;(FORALL (p)
   ;  (IMPLIES
   ;    (validPointer p)
