@@ -108,18 +108,17 @@ class TreeWalkDebug {
 
 
 // global context for a pretty-print
-class PrintEnv : public CodeOutputStream {
-public:
-  SourceLoc current_loc;
+class PrintEnv {
+  public:
+  CodeOutputStream &out;
+  SourceLoc loc;
   
-public:
-  PrintEnv(ostream &out)
-    : CodeOutputStream(out)
+  public:
+  PrintEnv(CodeOutputStream &out0)
+    : out(out0)
+    , loc(SL_UNKNOWN)
   {}
-
-  PrintEnv(stringBuilder &sb)
-    : CodeOutputStream(sb)
-  {}
+  virtual ~PrintEnv() {}
 };
 
 // for printing types

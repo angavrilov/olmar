@@ -420,7 +420,8 @@ void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &ar
 
     case STemplateArgument::STA_DEPEXPR: { // value-dependent expression
       sb << "DEPEXPR-";
-      PrintEnv penv(sb);
+      CodeOutputStream codeOut(sb);
+      PrintEnv penv(codeOut);
       iter.data()->value.e->print(penv);
       break;
     }

@@ -2032,7 +2032,7 @@ void PQ_variable::print(PrintEnv &env)
 {
   // this is unlikely to tcheck correctly, but that's true of
   // lots of cc_print functions..
-  env << var->name;
+  env.out << var->name;
 }
 
 

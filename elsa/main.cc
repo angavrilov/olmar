@@ -485,11 +485,12 @@ void doit(int argc, char **argv)
   // dsw: pretty printing
   if (tracingSys("prettyPrint")) {
     traceProgress() << "dsw pretty print...\n";
-    PrintEnv env(cout);
+    CodeOutputStream codeOut(cout);
+    PrintEnv env(codeOut);
     cout << "---- START ----" << endl;
     cout << "// -*-c++-*-" << endl;
     unit->print(env);
-    env.finish();
+    env.out.finish();
     cout << "---- STOP ----" << endl;
     traceProgress() << "dsw pretty print... done\n";
   }
@@ -514,10 +515,11 @@ void doit(int argc, char **argv)
       }
 
       if (tracingSys("clonePrint")) {
-        PrintEnv penv(cout);
+        CodeOutputStream codeOut(cout);
+        PrintEnv penv(codeOut);
         cout << "---- cloned pretty print ----" << endl;
         u2->print(penv);
-        penv.finish();
+        penv.out.finish();
       }
     }
   }
