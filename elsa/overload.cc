@@ -1263,6 +1263,18 @@ bool isProperSubpath(CompoundType const *LS, CompoundType const *LD,
 
 
 // --------------------- ConversionResolver -----------------------
+bool isCompoundType_orConstRefTo(Type const *t)
+{
+  if (t->isCompoundType()) { return true; }
+  
+  if (t->isReferenceType()) {
+    t = t->asReferenceTypeC()->atType;
+    return t->isConst() && t->isCompoundType();
+  }
+  
+  return false;
+}
+
 ImplicitConversion getConversionOperator(
   Env &env,
   SourceLoc loc,
@@ -1281,8 +1293,10 @@ ImplicitConversion getConversionOperator(
                    " to " << destType->toString());
 
   // set up the resolver; since the only argument is the receiver
-  // object, user-defined conversions should never enter the picture,
-  // but I'll supply OF_NO_USER just to be sure
+  // object, user-defined conversions (for the receiver; of course
+  // user-defined conversions to the dest type are what are being
+  // considered by this function overall) should never enter the
+  // picture, but I'll supply OF_NO_USER just to be sure
   OverloadResolver resolver(env, loc, errors, OF_NO_USER,
                             // I assume conversion operators can't
                             // have explicit template arguments
@@ -1293,8 +1307,11 @@ ImplicitConversion getConversionOperator(
   SObjList<Variable> &ops = srcClass->conversionOperators;
 
   // 13.3.1.4?
-  if (destType->isCompoundType()) {
-    CompoundType *destCT = destType->asCompoundType();
+  //
+  // 10/03/04: Allow conversion to 'T const &' for 'T' a class type
+  // as well (in/t0334.cc).
+  if (isCompoundType_orConstRefTo(destType)) {
+    CompoundType *destCT = destType->asRval()->asCompoundType();
 
     // Where T is the destination class, "... [conversion operators
     // that] yield a type whose cv-unqualified type is the same as T

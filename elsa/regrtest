@@ -566,7 +566,7 @@ failparse t0330.cc "member lookup bug causes failure to diagnose bad input"
 testparse t0331.cc
 testparse t0332.cc
 testparse t0333.cc
-failparse t0334.cc "initialization by conversion"
+testparse t0334.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

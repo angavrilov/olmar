@@ -4473,7 +4473,7 @@ static Variable *outerResolveOverload(Env &env,
 
   OVERLOADINDTRACE(::toString(loc)
         << ": overloaded(" << var->overload->set.count()
-        << ") call to " << var->name);
+        << ") call to " << var->name);      // if I make this fully qualified, d0053.cc fails...
 
   // are any members of the set (nonstatic) methods?
   bool anyMethods = !allNonMethods(var->overload->set);
