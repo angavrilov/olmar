@@ -142,42 +142,51 @@
 
 
 // ------------- front ends to user code ---------------
-SemanticValue duplicateSemanticValue(Symbol const *sym, SemanticValue sval)
+SemanticValue GLR::duplicateSemanticValue(Symbol const *sym, SemanticValue sval)
 {
   if (!sval) return sval;
 
   if (sym->isTerminal()) {
-    return duplicateTerminalValue(sym->asTerminalC().termIndex, sval);
+    return duplicateTerminalValue(sym->asTerminalC().termIndex, 
+                                  parseParam, sval);
   }
   else {
-    return duplicateNontermValue(sym->asNonterminalC().ntIndex, sval);
+    return duplicateNontermValue(sym->asNonterminalC().ntIndex, 
+                                 parseParam, sval);
   }
 }
 
-void deallocateSemanticValue(Symbol const *sym, SemanticValue sval)
+void deallocateSemanticValue(Symbol const *sym, void *parseParam, SemanticValue sval)
 {
   if (!sval) return;
 
   if (sym->isTerminal()) {
-    return deallocateTerminalValue(sym->asTerminalC().termIndex, sval);
+    return deallocateTerminalValue(sym->asTerminalC().termIndex,
+                                   parseParam, sval);
   }
   else {
-    return deallocateNontermValue(sym->asNonterminalC().ntIndex, sval);
+    return deallocateNontermValue(sym->asNonterminalC().ntIndex,
+                                  parseParam, sval);
   }
 }
 
+void GLR::deallocateSemanticValue(Symbol const *sym, SemanticValue sval)
+{
+  ::deallocateSemanticValue(sym, parseParam, sval);
+}
 
 // ----------------------- StackNode -----------------------
 int StackNode::numStackNodesAllocd=0;
 int StackNode::maxStackNodesAllocd=0;
 
 
-StackNode::StackNode(int id, int col, ItemSet const *st)
+StackNode::StackNode(int id, int col, ItemSet const *st, void *pparam)
   : stackNodeId(id),
     tokenColumn(col),
     state(st),
     leftSiblings(),
-    referenceCount(0)
+    referenceCount(0),
+    parseParam(pparam)
 {
   INC_HIGH_WATER(numStackNodesAllocd, maxStackNodesAllocd);
 }
@@ -196,7 +205,7 @@ StackNode::~StackNode()
   while (leftSiblings.isNotEmpty()) {
     Owner<SiblingLink> sib(leftSiblings.removeAt(0));
     D(trace("sval") << "deleting sval " << sib->sval << endl);
-    deallocateSemanticValue(getSymbolC(), sib->sval);
+    deallocateSemanticValue(getSymbolC(), parseParam, sib->sval);
   }
 }
 
@@ -272,7 +281,8 @@ PathCollectionState::ReductionPath::~ReductionPath()
     // (and nullified) soon after the ReductionPath is created;
     // it can happen if an exception is thrown from certain places
     cout << "interesting: using ~ReductionPath's deallocator on " << sval << endl;
-    deallocateSemanticValue(finalState->getSymbolC(), sval);
+    deallocateSemanticValue(finalState->getSymbolC(), 
+                            finalState->parseParam, sval);
   }
 }
 
@@ -354,8 +364,8 @@ bool GLR::glrParseNamedFile(Lexer2 &lexer2, SemanticValue &treeTop,
 
 // used to extract the svals from the nodes just under the
 // start symbol reduction
-SemanticValue grabTopSval(StackNode *node)
-{                      
+SemanticValue GLR::grabTopSval(StackNode *node)
+{
   SiblingLink *sib = node->leftSiblings.first();
   SemanticValue ret = sib->sval;
   sib->sval = duplicateSemanticValue(node->getSymbolC(), sib->sval);
@@ -484,7 +494,8 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   // reduce
   trace("sval") << "handing toplevel svals " << arr[0]
                 << " and " << arr[1] << " top start's reducer\n";
-  treeTop = doReductionAction(last->state->getFirstReduction()->prodIndex, arr);
+  treeTop = doReductionAction(last->state->getFirstReduction()->prodIndex, 
+                              parseParam, arr);
 
 
   #if 0
@@ -697,14 +708,14 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     // user's code to synthesize a semantic value by combining them
     // (TREEBUILD)
     SemanticValue sval = doReductionAction(pcs.production->prodIndex,
-                                           toPass);
+                                           parseParam, toPass);
     D(trace("sval") << "reduced " << pcs.production->toString()
                     << ", yielding " << sval << endl);
     delete[] toPass;
 
-    // see if the user wants to cancel this reduction
-    if (cancelNontermValue(pcs.production->left->ntIndex, sval)) {
-      D(trace("sval") << "but the user cancelled it" << endl);
+    // see if the user wants to keep this reduction
+    if (!keepNontermValue(pcs.production->left->ntIndex, parseParam, sval)) {
+      D(trace("sval") << "but the user decided not to keep it" << endl);
       return;
     }
 
@@ -791,7 +802,8 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, Production const *prod,
         // now with the merged version
         D(SemanticValue old = sibLink->sval);
         sibLink->sval = mergeAlternativeParses(prod->left->ntIndex,
-                                               sibLink->sval, sval);
+                                               parseParam, sibLink->sval, 
+                                               sval);
         D(trace("sval") << "merged " << old << " and " << sval
                         << ", yielding " << sibLink->sval << endl);
 
@@ -913,7 +925,7 @@ StackNode *GLR::findActiveParser(ItemSet const *state)
 StackNode *GLR::makeStackNode(ItemSet const *state)
 {
   StackNode *sn = new StackNode(nextStackNodeId++, currentTokenColumn,
-                                state);
+                                state, parseParam);
   return sn;
 }
 

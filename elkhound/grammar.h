@@ -61,8 +61,8 @@ public:
   StringRef mergeParam2;    // and 2nd alt
   LocString mergeCode;      // code to resolve then
   
-  StringRef cancelParam;    // name of parameter to 'cancel'
-  LocString cancelCode;     // code to decide whether to cancel a reduction
+  StringRef keepParam;      // name of parameter to 'keep'
+  LocString keepCode;       // code to decide whether to keep a reduction
 
 public:
   ConflictHandlers();
@@ -431,6 +431,11 @@ public:	    // data
 
   // extra verbatim code to be inserted at top of impl file
   LocString verbatim;
+  
+  // extra parsing parameter
+  bool parseParamPresent;               // true if present
+  LocString parseParamType;             // type
+  LocString parseParamName;             // name for use in action functions
 
 private:    // funcs
   #if 0

@@ -9,7 +9,8 @@
 // ---------------------- ParseTree --------------------
 ParseTreeAndTokens::ParseTreeAndTokens(SemanticValue &top)
   : treeTop(top),
-    lexer2()
+    lexer2(),
+    parseParam(NULL)
 {}
 
 ParseTreeAndTokens::~ParseTreeAndTokens()
@@ -22,6 +23,7 @@ bool toplevelParse(ParseTreeAndTokens &ptree, char const *grammarFname,
 {
   // parse
   GLR glr;
+  glr.parseParam = ptree.parseParam;
   return glr.glrParseFrontEnd(ptree.lexer2, ptree.treeTop,
                               grammarFname, inputFname, 
                               symOfInterestName);

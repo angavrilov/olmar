@@ -1,59 +1,117 @@
 // cdecl.gr
-// experimenting with resolving C ident/type ambiguity
+// demonstration of resolving C ident/type ambiguity
 
 verbatim [
-  #include <iostream.h>      // cout
-  #include "trace.h"         // trace
-  #include "locstr.h"        // LocString
-  #include "strhash.h"       // StringHash
-  #include "objlist.h"       // ObjList
 
-  #define D(msg) \
-    trace("cdecl") << msg << endl
-  #define R0 return 0
+#include <iostream.h>      // cout
+#include "trace.h"         // trace
+#include "locstr.h"        // LocString
+#include "strhash.h"       // StringHash
+#include "objlist.h"       // ObjList
+#include "parssppt.h"      // ParseTreeAndTokens
 
-  // temporary: simple way to get unique id for 'int'
-  char const *intStr = "int";
+#define D(msg) \
+  trace("cdecl") << msg << endl
+#define R0 return 0
 
-  // stack of hashes which identify names of types
-  ObjList<StringHash> types;
+// temporary: simple way to get unique id for 'int'
+char const *intStr = "int";
 
-  static char const *identity(void *data)
-  {
-    return (char const*)data;
+// parsing action state
+class ParseEnv {
+public:
+  StringRef intType;              // "int"
+  ObjList<StringHash> types;      // stack of hashes which identify names of types
+
+public:
+  ParseEnv(ParseTreeAndTokens &ptree);
+  ~ParseEnv();
+
+  void enterScope();
+  void leaveScope();
+  void addType(StringRef type);
+  bool isType(StringRef name);
+};
+
+ParseEnv::ParseEnv(ParseTreeAndTokens &ptree)
+{
+  intType = ptree.lexer2.idTable.add("int");
+  ptree.parseParam = this;
+}
+
+ParseEnv::~ParseEnv()
+{}
+
+
+static char const *identity(void *data)
+{
+  return (char const*)data;
+}
+
+void ParseEnv::enterScope()
+{
+  types.prepend(new StringHash(identity));
+}
+
+void ParseEnv::leaveScope()
+{
+  delete types.removeAt(0);
+}
+
+void ParseEnv::addType(StringRef type)
+{
+  StringHash *h = types.first();
+  if (h->get(type)) {
+    cout << "duplicate entry for " << type << " -- will ignore\n";
+  }
+  else {
+    h->add(type, (void*)type);
+  }
+}
+
+bool ParseEnv::isType(StringRef name)
+{
+  if (name == intType) {
+    return true;
   }
 
-  void enterScope()
-  {
-    types.prepend(new StringHash(identity));
-  }
-
-  void leaveScope()
-  {
-    delete types.removeAt(0);
-  }
-
-  void addType(StringRef type)
-  {
-    StringHash *h = types.first();
-    if (h->get(type)) {
-      cout << "duplicate entry for " << type << " -- will ignore\n";
+  FOREACH_OBJLIST(StringHash, types, iter) {
+    if (iter.data()->get(name)) {
+      return true;
     }
-    else {
-      h->add(type, (void*)type);
-    }
   }
+  return false;
+}
 
-  bool isType(StringRef name)
-  {
-    FOREACH_OBJLIST(StringHash, types, iter) {
-      if (iter.data()->get(name)) {
-        return true;
-      }
-    }
-    return false;
-  }
-]
+
+void doit(int argc, char **argv)
+{
+  traceAddSys("progress");
+  //traceAddSys("parse-tree");
+
+  SemanticValue treeTop;
+  ParseTreeAndTokens tree(treeTop);
+  ParseEnv env(tree);
+  treeMain(tree, argc, argv);
+
+  cout << "final parse result: " << treeTop << endl;
+}
+
+int main(int argc, char **argv)
+{
+  doit(argc, argv);
+
+  //malloc_stats();
+
+  return 0;
+}
+
+] // end verbatim
+
+
+// declare type and name of an extra parameter passed in at the top
+// of parsing and propagated to all user functions
+parse_param [ParseEnv *] env;
 
 
 terminals {
@@ -67,14 +125,14 @@ terminals {
 }
 
 
-nonterm[int] Start -> Stmts L2_EOF  [ 
+nonterm[int] Start -> Stmts L2_EOF  [
   D("exiting scope and program");
-  leaveScope();
+  env->leaveScope();
   R0;
 ]
 
 nonterm[int] Stmts {
-  -> empty         [ D("entering scope"); enterScope(); R0; ]
+  -> empty         [ D("entering scope"); env->enterScope(); R0; ]
   -> Stmts Stmt    [ R0; ]
 }
 
@@ -89,29 +147,29 @@ nonterm[int] Stmt {
 
   -> "typedef" t:TypeName n:L2_NAME ";" [    // typedef: introduce type name
        D("typedef of " << n << " as type " << t);
-       addType(n);
+       env->addType(n);
        R0;
      ]
 
   -> "{" Stmts "}"                      [    // scope
-       D("exiting scope"); leaveScope(); R0;
+       D("exiting scope"); env->leaveScope(); R0;
      ]
 }
 
 nonterm[StringRef] VarName {
-  cancel(n)        [ return !( n!=intStr && !isType(n) ); ]
+  keep(n)          [ return !env->isType(n); ]
 
   -> n:L2_NAME     [ return n; ]
 }
 
 nonterm[StringRef] TypeName {
-  cancel(n)        [ return !( n==intStr || isType(n) ); ]
+  keep(n)          [ return env->isType(n); ]
 
   -> n:L2_NAME     [ return n; ]
 
   // this is a little bit of a hack, but in some sense it's valid
   // to regard the global strings as another stringtable.. of course,
   // equality won't work, but I don't need it for the moment
-  -> L2_INT        [ return intStr; ]
+  -> L2_INT        [ return env->intType; ]
 }
 

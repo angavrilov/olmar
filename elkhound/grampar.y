@@ -81,6 +81,7 @@ LocString * /*owner*/ quotedLocString(LocString * /*owner*/ src,
 %token TOK_NONTERM "nonterm"
 %token TOK_VERBATIM "verbatim"
 %token TOK_PRECEDENCE "precedence"
+%token TOK_PARSE_PARAM "parse_param"
 // left, right, nonassoc: they're not keywords, since "left" and "right"
 // are common names for RHS elements; instead, we parse them as names
 // and interpret them after lexing
@@ -91,6 +92,7 @@ LocString * /*owner*/ quotedLocString(LocString * /*owner*/ src,
 %union {
   int num;
   LocString *str;
+  ParseParam *parseParam;
 
   Terminals *terminals;
   ASTList<TermDecl> *termDecls;
@@ -113,6 +115,7 @@ LocString * /*owner*/ quotedLocString(LocString * /*owner*/ src,
 
 %type <num> StartSymbol
 %type <str> Type Verbatim
+%type <parseParam> ParseParam
 
 %type <terminals> Terminals
 %type <termDecls> TermDecls
@@ -145,10 +148,10 @@ LocString * /*owner*/ quotedLocString(LocString * /*owner*/ src,
 
 /* start symbol */
 /* yields: int (dummy value) */
-StartSymbol: Verbatim Terminals Nonterminals
+StartSymbol: Verbatim ParseParam Terminals Nonterminals
                {
                  // return the AST tree top to the caller
-                 ((ParseParams*)parseParam)->treeTop = new GrammarAST($1, $2, $3);
+                 ((ParseParams*)parseParam)->treeTop = new GrammarAST($1, $2, $3, $4);
                  $$ = 0;
                }
            ;
@@ -157,6 +160,14 @@ StartSymbol: Verbatim Terminals Nonterminals
 Verbatim: /* empty */                    { $$ = noloc(""); }
         | "verbatim" TOK_LIT_CODE        { $$ = $2; }
         ;
+
+/* yields: ParseParam */
+ParseParam: /* empty */                  
+            { $$ = new ParseParam(false /*present*/, noloc(""), noloc("")); }
+          | "parse_param" TOK_LIT_CODE TOK_NAME ";"
+            { $$ = new ParseParam(true /*present*/, $2, $3); }
+          ;
+
 
 /* ------ terminals ------ */
 /*

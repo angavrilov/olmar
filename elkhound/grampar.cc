@@ -111,6 +111,11 @@ void astParseGrammar(Grammar &g, GrammarAST const *treeTop)
   // stash verbatim code in the grammar
   g.verbatim = treeTop->verbatimCode;
 
+  // parse parameter
+  g.parseParamPresent = treeTop->param->present;
+  g.parseParamType = treeTop->param->type;
+  g.parseParamName = treeTop->param->name;
+
   // process token declarations
   astParseTerminals(env, *(treeTop->terms));
 
@@ -262,16 +267,16 @@ void astParseDDM(Environment &env, ConflictHandlers &ddm,
       }
     }
 
-    else if (func.name.equals("cancel")) {
+    else if (func.name.equals("keep")) {
       if (mergeOk) {
         if (numFormals != 1) {
-          astParseError(func.name, "'cancel' function must have one formal parameter");
+          astParseError(func.name, "'keep' function must have one formal parameter");
         }
-        ddm.cancelParam = func.nthFormal(0);
-        ddm.cancelCode = func.code;
+        ddm.keepParam = func.nthFormal(0);
+        ddm.keepCode = func.code;
       }
       else {
-        astParseError(func.name, "'cancel' can only be applied to nonterminals");
+        astParseError(func.name, "'keep' can only be applied to nonterminals");
       }
     }
 

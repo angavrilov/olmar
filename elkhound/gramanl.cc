@@ -2897,8 +2897,10 @@ void emitActionCode(Grammar &g, char const *fname, char const *srcFname);
 void emitActions(Grammar &g, EmitCode &out);
 void emitUserCode(EmitCode &out, LocString const &code);
 void emitDupDelMerge(Grammar &g, EmitCode &out);
-void emitDDMInlines(EmitCode &out, Symbol const &sym, bool mergeOk);
-void emitSwitchCode(EmitCode &out, char const *signature, char const *switchVar,
+void emitDDMInlines(EmitCode &out, Symbol const &sym, bool mergeOk,
+                    char const *pparam);
+void emitSwitchCode(EmitCode &out, char const *parg, 
+                    char const *signature, char const *switchVar,
                     ObjList<Symbol> const &syms, int whichFunc,
                     char const *templateCode, char const *actUpon);
 
@@ -2959,6 +2961,27 @@ void emitUserCode(EmitCode &out, LocString const &code)
 }
 
 
+string parseParam(Grammar &g)
+{
+  if (g.parseParamPresent) {
+    return stringc << g.parseParamType << " " << g.parseParamName;
+  }
+  else {
+    return string("void *parseParam");
+  }
+}
+
+string parseArg(Grammar &g)
+{
+  if (g.parseParamPresent) {
+    return stringc << "(" << g.parseParamType << ")parseParam";
+  }
+  else {
+    return string("parseParam");
+  }
+}
+
+
 void emitActions(Grammar &g, EmitCode &out)
 {
   // iterate over productions, emitting inline action functions
@@ -2973,10 +2996,10 @@ void emitActions(Grammar &g, EmitCode &out)
     out << "// " << prod.toString() << "\n";
 
     out << "static inline " << prod.left->type << " "
-        << actionFuncName(prod) << "(";
+        << actionFuncName(prod) << "(" << parseParam(g);
 
     // iterate over RHS elements, emitting formals for each with a tag
-    int ct=0;
+    int ct=1;
     FOREACH_OBJLIST(Production::RHSElt, prod.right, rhsIter) {
       Production::RHSElt const &elt = *(rhsIter.data());
       if (elt.tag.length() == 0) continue;
@@ -2999,7 +3022,7 @@ void emitActions(Grammar &g, EmitCode &out)
     }
 
     out << ")\n";
-    
+
     // now insert the user's code, to execute in this environment of
     // properly-typed semantic values
     emitUserCode(out, prod.action);
@@ -3008,7 +3031,9 @@ void emitActions(Grammar &g, EmitCode &out)
   out << "\n";
 
   // main action function; calls the inline functions emitted above
-  out << "SemanticValue doReductionAction(int productionId, SemanticValue *semanticValues)\n";
+  out << "SemanticValue doReductionAction(int productionId,\n"
+         "                                void *parseParam,\n"
+         "                                SemanticValue *semanticValues)\n";
   out << "{\n";
   out << "  switch (productionId) {\n";
 
@@ -3018,10 +3043,11 @@ void emitActions(Grammar &g, EmitCode &out)
 
     out << "    case " << prod.prodIndex << ":\n";
     out << "      return (SemanticValue)" << actionFuncName(prod) << "(";
+    out << parseArg(g);
 
     // iterate over RHS elements, emitting arguments for each with a tag
     int index = -1;    // index into 'semanticValues'
-    int ct=0;
+    int ct=1;
     FOREACH_OBJLIST(Production::RHSElt, prod.right, rhsIter) {
       Production::RHSElt const &elt = *(rhsIter.data());
 
@@ -3052,108 +3078,114 @@ void emitActions(Grammar &g, EmitCode &out)
 
 void emitDupDelMerge(Grammar &g, EmitCode &out)
 {
-  out << "// ---------------- dup/del/merge/cancel nonterminals ---------------\n";
+  string pparam = parseParam(g);
+  string parg = parseArg(g);
+
+  out << "// ---------------- dup/del/merge/keep nonterminals ---------------\n";
   // emit inlines for dup/del/merge of nonterminals
   FOREACH_OBJLIST(Nonterminal, g.nonterminals, ntIter) {
-    emitDDMInlines(out, *(ntIter.data()), true /*mergeOk*/);
+    emitDDMInlines(out, *(ntIter.data()), true /*mergeOk*/, pparam);
   }
 
   // emit dup-nonterm
-  emitSwitchCode(out,
-    "SemanticValue duplicateNontermValue(int nontermId, SemanticValue sval)",
+  emitSwitchCode(out, parg,
+    "SemanticValue duplicateNontermValue(int nontermId, void *parseParam, SemanticValue sval)",
     "nontermId",
     (ObjList<Symbol> const&)g.nonterminals,
     0 /*dupCode*/,
-    "      return (SemanticValue)dup_$symName(($symType)sval);\n",
+    "      return (SemanticValue)dup_$symName($parseArg, ($symType)sval);\n",
     "duplicate nonterm");
 
   // emit del-nonterm
-  emitSwitchCode(out,
-    "void deallocateNontermValue(int nontermId, SemanticValue sval)",
+  emitSwitchCode(out, parg,
+    "void deallocateNontermValue(int nontermId, void *parseParam, SemanticValue sval)",
     "nontermId",
     (ObjList<Symbol> const&)g.nonterminals,
     1 /*delCode*/,
-    "      del_$symName(($symType)sval);\n"
+    "      del_$symName($parseArg, ($symType)sval);\n"
     "      return;\n",
     "deallocate nonterm");
 
   // emit merge-nonterm
-  emitSwitchCode(out,
-    "SemanticValue mergeAlternativeParses(int nontermId, SemanticValue left,\n"
+  emitSwitchCode(out, parg,
+    "SemanticValue mergeAlternativeParses(int nontermId, void *parseParam, SemanticValue left,\n"
     "                                     SemanticValue right)",
     "nontermId",
     (ObjList<Symbol> const&)g.nonterminals,
     2 /*mergeCode*/,
-    "      return (SemanticValue)merge_$symName(($symType)left, ($symType)right);\n",
+    "      return (SemanticValue)merge_$symName($parseArg, ($symType)left, ($symType)right);\n",
     "merge nonterm");
   out << "\n";
 
-  // emit cancel-nonterm
-  emitSwitchCode(out,
-    "bool cancelNontermValue(int nontermId, SemanticValue sval)",
+  // emit keep-nonterm
+  emitSwitchCode(out, parg,
+    "bool keepNontermValue(int nontermId, void *parseParam, SemanticValue sval)",
     "nontermId",
     (ObjList<Symbol> const&)g.nonterminals,
-    3 /*cancelCode*/,
-    "      return cancel_$symName(($symType)sval);\n",
-    "cancel nonterm");    // last param not used; cancel-specific code used instead
+    3 /*keepCode*/,
+    "      return keep_$symName($parseArg, ($symType)sval);\n",
+    "keep nonterm");    // last param not used; keep-specific code used instead
 
 
   out << "// ---------------- dup/del terminals ---------------\n";
   // emit inlines for dup/del of terminals
   FOREACH_OBJLIST(Terminal, g.terminals, termIter) {
-    emitDDMInlines(out, *(termIter.data()), false /*mergeOk*/);
+    emitDDMInlines(out, *(termIter.data()), false /*mergeOk*/, pparam);
   }
 
   // emit dup-term
-  emitSwitchCode(out,
-    "SemanticValue duplicateTerminalValue(int termId, SemanticValue sval)",
+  emitSwitchCode(out, parg,
+    "SemanticValue duplicateTerminalValue(int termId, void *parseParam, SemanticValue sval)",
     "termId",
     (ObjList<Symbol> const&)g.terminals,
     0 /*dupCode*/,
-    "      return (SemanticValue)dup_$symName(($symType)sval);\n",
+    "      return (SemanticValue)dup_$symName($parseArg, ($symType)sval);\n",
     "duplicate terminal");
 
   // emit del-term
-  emitSwitchCode(out,
-    "void deallocateTerminalValue(int termId, SemanticValue sval)",
+  emitSwitchCode(out, parg,
+    "void deallocateTerminalValue(int termId, void *parseParam, SemanticValue sval)",
     "termId",
     (ObjList<Symbol> const&)g.terminals,
     1 /*delCode*/,
-    "      del_$symName(($symType)sval);\n"
+    "      del_$symName($parseArg, ($symType)sval);\n"
     "      return;\n",
     "deallocate terminal");
 }
 
 
-void emitDDMInlines(EmitCode &out, Symbol const &sym, bool mergeOk)
+void emitDDMInlines(EmitCode &out, Symbol const &sym, bool mergeOk,
+                    char const *pparam)
 {
   if (sym.ddm.dupCode) {
     out << "static inline " << sym.type << "  dup_" << sym.name
-        << "(" << sym.type << " " << sym.ddm.dupParam << ") ";
+        << "(" << pparam << ", " << sym.type << " " << sym.ddm.dupParam << ") ";
     emitUserCode(out, sym.ddm.dupCode);
   }
 
   if (sym.ddm.delCode) {
     out << "static inline void del_" << sym.name
-        << "(" << sym.type << " " << (sym.ddm.delParam? sym.ddm.delParam : "") << ") ";
+        << "(" << pparam << ", " << sym.type << " "
+        << (sym.ddm.delParam? sym.ddm.delParam : "") << ") ";
     emitUserCode(out, sym.ddm.delCode);
   }
 
   if (mergeOk && sym.ddm.mergeCode) {
     out << "static inline " << sym.type << "  merge_" << sym.name
-        << "(" << sym.type << " " << sym.ddm.mergeParam1
+        << "(" << pparam << ", " << sym.type << " " << sym.ddm.mergeParam1
         << ", " << sym.type << " " << sym.ddm.mergeParam2 << ") ";
     emitUserCode(out, sym.ddm.mergeCode);
   }
 
-  if (mergeOk && sym.ddm.cancelCode) {
-    out << "static inline bool cancel_" << sym.name
-        << "(" << sym.type << " " << sym.ddm.cancelParam << ") ";
-    emitUserCode(out, sym.ddm.cancelCode);
+  if (mergeOk && sym.ddm.keepCode) {
+    out << "static inline bool keep_" << sym.name
+        << "(" << pparam << ", " << sym.type << " " << sym.ddm.keepParam << ") ";
+    emitUserCode(out, sym.ddm.keepCode);
   }
 }
 
-void emitSwitchCode(EmitCode &out, char const *signature, char const *switchVar,
+void emitSwitchCode(EmitCode &out, char const *parg,
+                    char const *signature, char const *switchVar,
                     ObjList<Symbol> const &syms, int whichFunc,
                     char const *templateCode, char const *actUpon)
 {
@@ -3167,10 +3199,12 @@ void emitSwitchCode(EmitCode &out, char const *signature, char const *switchVar,
     if (whichFunc==0 && sym.ddm.dupCode ||
         whichFunc==1 && sym.ddm.delCode ||
         whichFunc==2 && sym.ddm.mergeCode ||
-        whichFunc==3 && sym.ddm.cancelCode) {
+        whichFunc==3 && sym.ddm.keepCode) {
       out << "    case " << sym.getTermOrNontermIndex() << ":\n";
-      out << replace(replace(templateCode, "$symName", sym.name),
-                     "$symType", sym.type);
+      out << replace(replace(replace(templateCode,
+               "$symName", sym.name),
+               "$symType", sym.type),
+               "$parseArg", parg);
     }
   }
 
@@ -3180,8 +3214,8 @@ void emitSwitchCode(EmitCode &out, char const *signature, char const *switchVar,
     out << "      return (SemanticValue)0;\n";
   }
   if (whichFunc == 3) {
-    // unspecified cancel functions default to not cancelling
-    out << "      return false;\n";
+    // unspecified keep functions default to keep
+    out << "      return true;\n";
   }
   else {
     out << "      cout << \"there is no action to " << actUpon << " id \"\n"

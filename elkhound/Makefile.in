@@ -191,7 +191,7 @@ cdecl.cc: cdecl.gr gramanl
 
 # parser and semantic analyzer for cdecl.gr
 cdecl-dep = cdecl.o ${grammar-set} ${common} ${grampar-set} \
-            ${glr-set} glrmain.o 
+            ${glr-set}
 cdecl: ${cdecl-dep} ${libraries}
 	${link} -o cdecl ${cdecl-dep} ${linkend}
 
@@ -228,6 +228,7 @@ clean:
 	rm -f lexer2 grampar.tab.* grampar a.out
 	rm -f cexp2.sem ccsstr cexp2.{h,cc} cexp2 cc.{h,cc} ccgr libccgr.a
 	rm -f towner cc.gr.ps
+	rm -f cdecl.{cc,bin} cdecl cexp3.{cc,bin} cexp3
 
 # regression tests
 check-cexp2: cexp2

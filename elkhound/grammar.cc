@@ -26,7 +26,7 @@ ConflictHandlers::ConflictHandlers()
     delParam(NULL),
     mergeParam1(NULL),
     mergeParam2(NULL),
-    cancelParam(NULL)
+    keepParam(NULL)
 {}
 
 ConflictHandlers::~ConflictHandlers()
@@ -37,7 +37,7 @@ ConflictHandlers::ConflictHandlers(Flatten&)
     delParam(NULL),
     mergeParam1(NULL),
     mergeParam2(NULL),
-    cancelParam(NULL)
+    keepParam(NULL)
 {}
 
 void ConflictHandlers::xfer(Flatten &flat)
@@ -52,8 +52,8 @@ void ConflictHandlers::xfer(Flatten &flat)
   flattenStrTable->xfer(flat, mergeParam2);
   mergeCode.xfer(flat);
 
-  flattenStrTable->xfer(flat, cancelParam);
-  cancelCode.xfer(flat);
+  flattenStrTable->xfer(flat, keepParam);
+  keepCode.xfer(flat);
 }
 
 
@@ -62,7 +62,7 @@ bool ConflictHandlers::anyNonNull() const
   return dupCode.isNonNull() ||
          delCode.isNonNull() ||
          mergeCode.isNonNull() ||
-         cancelCode.isNonNull();
+         keepCode.isNonNull();
 }
 
 
@@ -81,8 +81,8 @@ void ConflictHandlers::print(ostream &os) const
        << ") [" << mergeCode << "]\n";
   }
 
-  if (cancelCode.isNonNull()) {
-    os << "    cancel(" << dupParam << ") [" << dupCode << "]\n";
+  if (keepCode.isNonNull()) {
+    os << "    keep(" << keepParam << ") [" << keepCode << "]\n";
   }
 }
 
@@ -563,7 +563,8 @@ string Production::toStringMore(bool printCode) const
 // ------------------ Grammar -----------------
 Grammar::Grammar()
   : startSymbol(NULL),
-    emptyString("empty", true /*isEmptyString*/)
+    emptyString("empty", true /*isEmptyString*/),
+    parseParamPresent(false)
 {}
 
 
@@ -580,6 +581,12 @@ void Grammar::xfer(Flatten &flat)
   xferObjList(flat, productions);
 
   // emptyString is const
+
+  verbatim.xfer(flat);      
+
+  flat.xferBool(parseParamPresent);
+  parseParamType.xfer(flat);
+  parseParamName.xfer(flat);
 
   // serfs
   flat.checkpoint(0x8580AAD2);

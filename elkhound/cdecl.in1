@@ -7,3 +7,5 @@ foo(y);
   typedef int integer;
   integer(y);
 }
+
+integer(z);

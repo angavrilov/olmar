@@ -9,6 +9,7 @@
 
 // fwd decls
 class GrammarAST;
+class ParseParam;
 class Terminals;
 class TermDecl;
 class TermType;
@@ -31,13 +32,33 @@ class RH_prec;
 class GrammarAST {
 public:      // data
   LocString verbatimCode;
+  ParseParam *param;
   Terminals *terms;
   ASTList <NontermDecl > nonterms;
 
 public:      // funcs
-  GrammarAST(LocString *_verbatimCode, Terminals *_terms, ASTList <NontermDecl > *_nonterms) : verbatimCode(_verbatimCode), terms(_terms), nonterms(_nonterms) {
+  GrammarAST(LocString *_verbatimCode, ParseParam *_param, Terminals *_terms, ASTList <NontermDecl > *_nonterms) : verbatimCode(_verbatimCode), param(_param), terms(_terms), nonterms(_nonterms) {
   }
   ~GrammarAST();
+
+
+  void debugPrint(ostream &os, int indent) const;
+
+};
+
+
+
+// *** DO NOT EDIT ***
+class ParseParam {
+public:      // data
+  bool present;
+  LocString type;
+  LocString name;
+
+public:      // funcs
+  ParseParam(bool _present, LocString *_type, LocString *_name) : present(_present), type(_type), name(_name) {
+  }
+  ~ParseParam();
 
 
   void debugPrint(ostream &os, int indent) const;

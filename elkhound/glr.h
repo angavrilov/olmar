@@ -30,7 +30,7 @@
  *   [GLR]  J. Rekers.  Parser Generation for Interactive
  *          Environments.  PhD thesis, University of
  *          Amsterdam, 1992.  Available by ftp from
- *          ftp.cwi.nl:/pub/gipe/reports as Rek92.ps.Z.
+ *          ftp://ftp.cwi.nl/pub/gipe/reports/Rek92.ps.Z .
  *          [Contains a good description of the Generalized
  *          LR (GLR) algorithm.]
  */
@@ -82,16 +82,20 @@ public:
   // LR stacks have been joined at this point.  this is the
   // parse-time representation of ambiguity
   ObjList<SiblingLink> leftSiblings;           // this is a set
-  
+
   // so we can deallocate stack nodes earlier
   int referenceCount;
+
+  // somewhat nonideal: I need to store the parseParam in every stack
+  // node, just so I can deallocate the semantic value if necessary..
+  void *parseParam;
 
   // count and high-water for stack nodes
   static int numStackNodesAllocd;
   static int maxStackNodesAllocd;
 
 public:     // funcs
-  StackNode(int id, int tokenColumn, ItemSet const *state);
+  StackNode(int id, int tokenColumn, ItemSet const *state, void *parseParam);
   ~StackNode();
 
   // add a new link with the given tree node; return the link
@@ -202,7 +206,10 @@ public:	   // funcs
 // differs from GrammarAnalysis in that the latter should have
 // stuff useful across a wide range of possible analyses
 class GLR : public GrammarAnalysis {
-public:
+public:            
+  // user-specified parameter value
+  void *parseParam;
+
   // ---- parser state between tokens ----
   // Every node in this set is (the top of) a parser that might
   // ultimately succeed to parse the input, or might reach a
@@ -233,6 +240,10 @@ public:
 
 private:    // funcs
   // comments in glr.cc
+  SemanticValue duplicateSemanticValue(Symbol const *sym, SemanticValue sval);
+  void deallocateSemanticValue(Symbol const *sym, SemanticValue sval);
+  SemanticValue grabTopSval(StackNode *node);
+
   int glrParseAction(StackNode *parser,
                      ObjList<PendingShift> &pendingShifts);
   int postponeShift(StackNode *parser,

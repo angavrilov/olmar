@@ -28,7 +28,7 @@ typedef void *SemanticValue;
 //    is a serf)
 //  - this fn returns the semantic value for the reduction; this return
 //    value is an owner pointer
-SemanticValue doReductionAction(int productionId, SemanticValue *svals);
+SemanticValue doReductionAction(int productionId, void *parseParam, SemanticValue *svals);
 
 // duplication of semantic values:
 //  - the given 'sval' is about to be passed to a reduction action
@@ -45,8 +45,8 @@ SemanticValue doReductionAction(int productionId, SemanticValue *svals);
 //    - increment a reference count and return 'sval'
 //    - do nothing, and rely on some higher-level allocation scheme
 //      such as full GC, or regions
-SemanticValue duplicateTerminalValue(int termId, SemanticValue sval);
-SemanticValue duplicateNontermValue(int nontermId, SemanticValue sval);
+SemanticValue duplicateTerminalValue(int termId, void *parseParam, SemanticValue sval);
+SemanticValue duplicateNontermValue(int nontermId, void *parseParam, SemanticValue sval);
 
 // a semantic value didn't get passed to an action function, either
 // because it was never used at all (e.g. a semantic value for a
@@ -54,8 +54,8 @@ SemanticValue duplicateNontermValue(int nontermId, SemanticValue sval);
 // duplicated it in anticipation of a possible local ambiguity, but
 // then that parse turned out not to happen, so we're cancelling
 // the dup now; 'sval' is an owner pointer
-void deallocateTerminalValue(int termId, SemanticValue sval);
-void deallocateNontermValue(int nontermId, SemanticValue sval);
+void deallocateTerminalValue(int termId, void *parseParam, SemanticValue sval);
+void deallocateNontermValue(int nontermId, void *parseParam, SemanticValue sval);
 
 // this is called when there are two interpretations for the same
 // sequence of ground terminals, culminating in two different reductions
@@ -63,14 +63,14 @@ void deallocateNontermValue(int nontermId, SemanticValue sval);
 // it should return a value to be used in the place where they conflict'
 // both 'left' and 'right' are owner pointers, and the return value
 // is also an owner pointer
-SemanticValue mergeAlternativeParses(int ntIndex, SemanticValue left,
-                                     SemanticValue right);
+SemanticValue mergeAlternativeParses(int ntIndex, void *parseParam,
+                                     SemanticValue left, SemanticValue right);
 
 // after every reduction, the semantic value is passed to this function,
-// which returns 'true' if the reduction should be cancelled; if it
-// does return true, then 'sval' is an owner pointer (the parser engine
+// which returns 'false' if the reduction should be cancelled; if it
+// does return false, then 'sval' is an owner pointer (the parser engine
 // will drop the value on the floor)
-bool cancelNontermValue(int nontermId, SemanticValue sval);
+bool keepNontermValue(int nontermId, void *parseParam, SemanticValue sval);
 
 
 #endif // USERACT_H

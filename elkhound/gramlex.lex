@@ -136,6 +136,7 @@ SLWHITE   [ \t]
 "nonterm"          TOK_UPD_COL;  return TOK_NONTERM;
 "verbatim"         TOK_UPD_COL;  return TOK_VERBATIM;
 "precedence"       TOK_UPD_COL;  return TOK_PRECEDENCE;
+"parse_param"      TOK_UPD_COL;  return TOK_PARSE_PARAM;
 
   /* --------- embedded literal code --------- */
 "[" {

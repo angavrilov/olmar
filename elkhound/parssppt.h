@@ -18,6 +18,9 @@ public:
 
   // we need a place to put the ground tokens
   Lexer2 lexer2;
+  
+  // parse parameter
+  void *parseParam;
 
 public:
   ParseTreeAndTokens(SemanticValue &top);

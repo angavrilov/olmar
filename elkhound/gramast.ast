@@ -8,8 +8,14 @@ verbatim {
 
 // the entire grammar spec
 class GrammarAST (LocString verbatimCode,
+                  ParseParam param,
                   Terminals terms,
                   ASTList<NontermDecl> nonterms);
+
+          
+// user's desired propagated parameter; if 'present' is false,
+// the user didn't specify one
+class ParseParam (bool present, LocString type, LocString name);
 
 
 // definition of tokens
