@@ -2862,15 +2862,18 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
     // specified; there are some contexts which require a type (like
     // definitions), but we'll report those errors elsewhere
     if (size) {
-      string msg;
       int sz;
-      if (!size->constEval(msg, sz)) {
-        // This will return false for the case of the gnu extension
-        // where stack allocated arrays are allowed to have their size
-        // determined at runtime.  I suppose it could fail for other
-        // reasons, but our spec does not include reporting errors for
-        // illegal code so the easy thing is just to back off and make
-        // an array with an compile-time unknown size.
+      string msg;
+      if (! ( (dt.context == DC_S_DECL)
+              // The first one will still return false for the case of
+              // the gnu extension where stack allocated arrays are
+              // allowed to have their size determined at runtime but
+              // won't print an error.  FIX: perhaps this should only
+              // be allowed when a GNU flag is set.
+              ? size->constEval(msg, sz)
+              : size->constEval(env, sz)
+            )
+          ) {
         at = env.makeArrayType(loc, dt.type, ArrayType::NO_SIZE);
       }
       else {
