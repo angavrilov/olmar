@@ -16,6 +16,8 @@
 #include "ptreenode.h" // PTreeNode
 #include "cc_lang.h"   // CCLang
 
+#include <string.h>    // strcmp
+
 // no bison-parser present, so need to define this
 Lexer2Token const *yylval = NULL;
 

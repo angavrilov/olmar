@@ -4081,6 +4081,7 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
   out << "\n";
   out << "#include <assert.h>      // assert\n";
   out << "#include <iostream.h>    // cout\n";
+  out << "#include <stdlib.h>      // abort\n";
   out << "\n";
 
   NOSOURCELOC(
