@@ -8107,11 +8107,13 @@ void TA_templateUsed::itcheck(Env &env)
 // -------------------------- NamespaceDecl -------------------------
 void ND_alias::tcheck(Env &env)
 {
-  // lookup the qualifiers in the name
-  original->tcheck(env);
+  // 2005-02-26: at this point the only thing being done is type
+  // checking template arguments, which should not even be present,
+  // but I do it anyway for uniformity
+  original->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   // find the namespace we're talking about
-  Variable *origVar = env.lookupPQVariable(original, LF_ONLY_NAMESPACES);
+  Variable *origVar = env.lookupPQ_one(original, LF_ONLY_NAMESPACES);
   if (!origVar) {
     env.error(stringc
       << "could not find namespace `" << *original << "'");
