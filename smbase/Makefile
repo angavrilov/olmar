@@ -60,7 +60,8 @@ library-objs = \
   breaker.o crc.o datablok.o exc.o missing.o nonport.o str.o \
   syserr.o voidlist.o warn.o bit2d.o point.o growbuf.o strtokp.o \
   strutil.o strdict.o svdict.o strhash.o hashtbl.o malloc.o \
-  trdelete.o flatten.o bflatten.o mysig.o trace.o vdtllist.o
+  trdelete.o flatten.o bflatten.o mysig.o trace.o vdtllist.o \
+  stringset.o
 ${THISLIBRARY}: ${library-objs}
 	${makelib} libsmbase.a ${library-objs}
 	${ranlib} libsmbase.a
