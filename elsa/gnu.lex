@@ -93,6 +93,14 @@
 ">?"                   return tok(TOK_MAX_OP);
 
   /* C99 stuff */
-"restrict"             return tok(TOK_RESTRICT);
+"restrict" {
+  // (k0049.cc) for now, C++ does not have 'restrict'
+  if (lang.isCplusplus) {
+    return svalTok(TOK_NAME);
+  }
+  else {
+    return tok(TOK_RESTRICT);
+  }
+}
 
   /* EOF */
