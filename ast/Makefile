@@ -56,4 +56,11 @@ ccsstr: ccsstr.cc ccsstr.h reporterr.o embedded.o
                 reporterr.o embedded.o $(linkend)
 
 clean:
-	rm -f *.o agrampar astgen agrampar.tab.* tmp *.d ccsstr
+	rm -f *.o agrampar astgen agrampar.tab.* tmp *.d ccsstr towner
+
+# test for owner
+towner: owner.h towner.cc
+	$(COMPILE) towner.cc
+	$(LINK) -o towner towner.o
+
+

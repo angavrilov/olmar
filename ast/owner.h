@@ -6,7 +6,7 @@
 
 #include "typ.h"      // NULL
 
-#if 0
+#ifdef DEBUG_OWNER
   #include <stdio.h>    // printf, temporary
   #define DBG(fn) printf("%s(%p)\n", fn, ptr)
 #else
@@ -39,9 +39,14 @@ public:     // funcs
   // a native C++ pointer.. note that some compilers to really
   // bad handling the "ambiguity", so the non-const versions
   // can be disabled at compile time
-  operator T const * () const { DBG("opcT*"); return ptr; }
+  operator T const* () const { DBG("opcT*"); return ptr; }
   T const & operator* () const { DBG("opc*"); return *ptr; }
   T const * operator-> () const { DBG("opc->"); return ptr; }
+
+  // according to http://www.google.com/search?q=cache:zCRFFDMZvVUC:people.we.mediaone.net/stanlipp/converops.htm+conversion+sequence+for+the+argument+is+better&hl=en&ie=ISO-8859-1,
+  // a solution to the gcc "conversion sequence is better" complaint
+  // is to define this version
+  operator T const* () { DBG("opcT*_nc"); return ptr; }
 
   #ifndef NO_OWNER_NONCONST
   operator T* () { DBG("opT*"); return ptr; }
