@@ -3425,6 +3425,8 @@ static bool allMethods(SObjList<Variable> &set)
   return true;
 }
 
+
+// the return value is just for any error types if there is an error
 static Type *overloading(Env &env, E_funCall *e_funCall, Type *&t)
 {
   Expression *func = e_funCall->func;
@@ -3478,65 +3480,70 @@ static Type *overloading(Env &env, E_funCall *e_funCall, Type *&t)
 //    }
 
   // **************** overload resolution
-  bool allMethod;
-  bool allNonMethod;
-  if (funcEVar_var &&
-      (*funcEVar_var)->overload &&
-      // temporarily avoid dealing with overload sets containing
-      // templatized functions
-      allNonTemplateFunctions((*funcEVar_var)->overload->set) &&
-      // temporarily avoid dealing with considerations of mixed static
-      // and non-static members in overload set
-      ( (allMethod=allMethods((*funcEVar_var)->overload->set))
-        || (allNonMethod=allNonMethods((*funcEVar_var)->overload->set))
-        )
-      ) {
-    // sm: fails on t0020.cc: xassert( (((int)allMethod) + ((int)allNonMethod)) == 1 );
-    xassert(funcEVar_type);
-    xassert(funcPQName);
-    TRACE("overload", ::toString(funcPQName->loc)
-          << ": overloaded(" << (*funcEVar_var)->overload->set.count() 
-          << ") call to " << funcPQName->getName());
- 
-    // fill an array with information about the arguments
-    GrowArray<ArgumentInfo> argInfo(e_funCall->args->count() + (allMethod?1:0) );
-    {
-      int index = 0;
 
-      if (allMethod) {
-        if (!this_arg_type) {
-          // dsw: error message parallels that of g++; feel free to change it
-          return env.error("Cannot call member function without object");
-        }
-        xassert(this_arg_type->isReference()); // recall, here 'this' is a refernce
-        argInfo[index] = ArgumentInfo(SE_NONE, this_arg_type);
-        index++;
-      }
+  // are we even in a situation where we can do overloading?
+  if (!funcEVar_var) return NULL;
+  if (! ((*funcEVar_var)->overload) ) return NULL;
 
-      FAKELIST_FOREACH_NC(ICExpression, e_funCall->args, iter) {
-        argInfo[index] = ArgumentInfo(iter->expr->getSpecial(), iter->expr->type);
-        index++;
-      }
-    }
-  
-    // resolve overloading
-    Variable *chosen =
-      resolveOverload(env, funcPQName->loc, &env.errors,
-                      OF_NONE, (*funcEVar_var)->overload->set, argInfo);
-    if (!chosen) {
-      // error has already been reported
-    }
-    else {
-      TRACE("overload", ::toString(funcPQName->loc)
-            << ": selected instance at " << ::toString(chosen->loc));
+  // temporarily avoid dealing with overload sets containing
+  // templatized functions
+  bool allNonTemplFunc0 = allNonTemplateFunctions((*funcEVar_var)->overload->set);
+  if (!allNonTemplFunc0) return NULL;
+
+  // temporarily avoid dealing with considerations of mixed static and
+  // non-static members in overload set
+  bool allMethod0 = allMethods((*funcEVar_var)->overload->set);
+  bool allNonMethod0 = allNonMethods((*funcEVar_var)->overload->set);
+  if (! (allMethod0 || allNonMethod0) ) return NULL;
+
+  // sm: fails on t0020.cc:
+  // dsw: should no longer fail
+  xassert( (((int)allMethod0) + ((int)allNonMethod0)) == 1 );
+  xassert(funcEVar_type);
+  xassert(funcPQName);
+  TRACE("overload", ::toString(funcPQName->loc)
+        << ": overloaded(" << (*funcEVar_var)->overload->set.count() 
+        << ") call to " << funcPQName->getName());
  
-      // modify the function node's 'var' field to point at the
-      // correct overloaded instance
-      *funcEVar_var = chosen;
-      *funcEVar_type = chosen->type;
-      t = chosen->type;
+  // fill an array with information about the arguments
+  GrowArray<ArgumentInfo> argInfo(e_funCall->args->count() + (allMethod0?1:0) );
+  {
+    int index = 0;
+
+    if (allMethod0) {
+      if (!this_arg_type) {
+        // dsw: error message parallels that of g++; feel free to change it
+        return env.error("Cannot call member function without object");
+      }
+      xassert(this_arg_type->isReference()); // recall, here 'this' is a refernce
+      argInfo[index] = ArgumentInfo(SE_NONE, this_arg_type);
+      index++;
+    }
+
+    FAKELIST_FOREACH_NC(ICExpression, e_funCall->args, iter) {
+      argInfo[index] = ArgumentInfo(iter->expr->getSpecial(), iter->expr->type);
+      index++;
     }
   }
+  
+  // resolve overloading
+  Variable *chosen =
+    resolveOverload(env, funcPQName->loc, &env.errors,
+                    OF_NONE, (*funcEVar_var)->overload->set, argInfo);
+  if (!chosen) {
+    // error has already been reported
+  }
+  else {
+    TRACE("overload", ::toString(funcPQName->loc)
+          << ": selected instance at " << ::toString(chosen->loc));
+ 
+    // modify the function node's 'var' field to point at the
+    // correct overloaded instance
+    *funcEVar_var = chosen;
+    *funcEVar_type = chosen->type;
+    t = chosen->type;
+  }
+
   return NULL;
 }
 
