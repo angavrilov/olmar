@@ -91,10 +91,6 @@ public:    // data
   // implementation of Variable::skipAliasC
   Variable *usingAlias;   // (nullable serf)
 
-  // access control applied to this variable in the context
-  // in which it appears (defaults to AK_PUBLIC)
-  AccessKeyword access;
-
   // named scope in which the variable appears; this is only non-NULL
   // if the scope has a name, i.e. it continues to be available for
   // use even after it's lexically closed
@@ -103,11 +99,11 @@ public:    // data
   // namespace it names, rather than the containing scope
   Scope *scope;           // (nullable serf)
 
-  // kind of scope in which the name is declared; initially this
-  // is SK_UNKNOWN
-  ScopeKind scopeKind;
-
 private:      // data
+  // bits 0-7: result of 'getAccess()'
+  // bits 8-15: result of 'getScopeKind()'
+  int intData;
+
   // for templates, this is the list of template parameters and other
   // template stuff; for a primary it includes a list of
   // already-instantiated versions
@@ -149,6 +145,20 @@ public:
 
   // true if this name refers to a class or struct
   bool isClass() const;
+
+  // access control applied to this variable in the context
+  // in which it appears (defaults to AK_PUBLIC)
+  AccessKeyword getAccess() const;
+  void setAccess(AccessKeyword k);
+
+  // kind of scope in which the name is declared; initially this
+  // is SK_UNKNOWN
+  //
+  // 2005-03-02: It appears that this quantity is never actually used;
+  // furthermore, I think it is computable (mainly from 'scope').  So,
+  // it is a candidate for removal at some point.
+  ScopeKind getScopeKind() const;
+  void setScopeKind(ScopeKind k);
 
   // true if this name refers to a template function, or is
   // the typedef-name of a template class (or partial specialization)

@@ -177,7 +177,7 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
     else {
       // class member
       //v->access = curAccess;      // moved into registerVariable()
-      TRACE("env",    prefix << "added " << toString(v->access)
+      TRACE("env",    prefix << "added " << toString(v->getAccess())
                    << " member " << classification
                    << " `" << v->name
                    << "' of type `" << v->type->toString()
@@ -234,7 +234,7 @@ bool Scope::addEnum(EnumType *et)
 
 bool Scope::addTypeTag(Variable *tag)
 {
-  tag->access = curAccess;
+  tag->setAccess(curAccess);
   return insertUnique(typeTags, tag->name, tag, changeCount, false /*forceReplace*/);
 }
 
@@ -245,8 +245,8 @@ bool Scope::addTypeTag(Variable *tag)
 // this function should behave as if it always is added.
 void Scope::registerVariable(Variable *v)
 {
-  if (v->scopeKind == SK_UNKNOWN) {
-    v->scopeKind = scopeKind;
+  if (v->getScopeKind() == SK_UNKNOWN) {
+    v->setScopeKind(scopeKind);
   }
   else {
     // this happens to parameters at function definitions: the
@@ -263,7 +263,7 @@ void Scope::registerVariable(Variable *v)
 
   if (curCompound) {
     // take access control from scope's current setting
-    v->access = curAccess;
+    v->setAccess(curAccess);
   }
 
   if (isGlobalScope()

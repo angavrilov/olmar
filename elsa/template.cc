@@ -3232,7 +3232,7 @@ bool Env::mergeParameterLists(Variable *prior,
       v->value = dest->value;
       v->defaultParamType = dest->defaultParamType;
       v->scope = dest->scope;
-      v->scopeKind = dest->scopeKind;
+      v->setScopeKind(dest->getScopeKind());
 
       // replace the old with the new
       destIter.dataRef() = v;
@@ -3526,9 +3526,9 @@ Variable *Env::findInstantiation(TemplateInfo *tinfo,
 Variable *Env::makeInstantiationVariable(Variable *templ, Type *instType)
 {
   Variable *inst = makeVariable(templ->loc, templ->name, instType, templ->flags);
-  inst->access = templ->access;
+  inst->setAccess(templ->getAccess());
   inst->scope = templ->scope;
-  inst->scopeKind = templ->scopeKind;
+  inst->setScopeKind(templ->getScopeKind());
   return inst;
 }
 
@@ -3773,9 +3773,9 @@ Variable *Env::makeSpecializationVariable
 {
   // make the Variable
   Variable *spec = makeVariable(loc, templ->name, type, dflags);
-  spec->access = templ->access;
+  spec->setAccess(templ->getAccess());
   spec->scope = templ->scope;
-  spec->scopeKind = templ->scopeKind;
+  spec->setScopeKind(templ->getScopeKind());
 
   // make & attach the TemplateInfo
   TemplateInfo *ti = new TemplateInfo(loc, spec);

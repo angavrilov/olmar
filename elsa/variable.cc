@@ -63,11 +63,13 @@ Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
     funcDefn(NULL),
     overload(NULL),
     usingAlias(NULL),
-    access(AK_PUBLIC),
     scope(NULL),
-    scopeKind(SK_UNKNOWN),
+    intData(0),
     templInfo(NULL)
-{                 
+{
+  setAccess(AK_PUBLIC);
+  setScopeKind(SK_UNKNOWN);
+
   if (!isNamespace()) {
     xassert(type);
   }
@@ -93,6 +95,28 @@ bool Variable::isClass() const
            ct->keyword == CompoundType::K_STRUCT;
   }
   return false;
+}
+
+
+AccessKeyword Variable::getAccess() const
+{
+  return (AccessKeyword)(intData & 0xFF);
+}
+
+void Variable::setAccess(AccessKeyword k)
+{
+  intData = (intData & ~0xFF) | (k & 0xFF);
+}
+
+
+ScopeKind Variable::getScopeKind() const
+{
+  return (ScopeKind)((intData & 0xFF00) >> 8);
+}
+
+void Variable::setScopeKind(ScopeKind k)
+{
+  intData = (intData & ~0xFF00) | ((k >> 8) & 0xFF);
 }
 
 
