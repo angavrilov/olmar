@@ -307,16 +307,22 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 
   /* preprocessor */
   /* technically, if this isn't at the start of a line (possibly after
-   * some whitespace, it should be an error.. I'm not sure right now how
+   * some whitespace), it should be an error.. I'm not sure right now how
    * I want to deal with that (I originally was using '^', but that
    * interacts badly with the whitespace rule) */
+
+  /* #line directive: the word "line" is optional, then a space, and
+   * then we accept the rest of the line; 'parseHashLine' will finish
+   * parsing the directive */
+"#"("line"?){SPTAB}.*{NL} {
+  whitespace();
+  parseHashLine(yytext, yyleng);
+}
+
+  /* other preprocessing: ignore it */
 "#"{PPCHAR}*({BACKSL}{NL}{PPCHAR}*)*   {
   // treat it like whitespace, ignoring it otherwise
   whitespace();
-
-  // at some point I'd like to handle #line, but that won't work
-  // naively because the preprocessed source differs too greatly
-  // from the original file, which my SourceLoc module would read
 }
 
   /* whitespace */
@@ -363,6 +369,11 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
   /* illegal */
 .  {
   err(stringc << "illegal character: `" << yytext[0] << "'");
+}
+
+<<EOF>> {
+  srcFile->doneAdding();
+  yyterminate();
 }
 
 

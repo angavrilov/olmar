@@ -25,8 +25,13 @@ TokenFlag tokenFlags(TokenType type);
 class Lexer : public yyFlexLexer, public LexerInterface {
 private:    // data
   istream *inputStream;            // (owner) file from which we're reading
+  SourceLocManager::File *srcFile; // (serf) contains the hash map we update
+
   SourceLoc nextLoc;               // location of *next* token
+  int curLine;                     // current line number; needed for #line directives
+
   bool prevIsNonsep;               // true if last-yielded token was nonseparating
+  StringRef prevHashLineFile;      // previously-seen #line directive filename
 
 public:     // data
   StringTable &strtable;           // string table
@@ -41,7 +46,7 @@ private:    // funcs
     loc = nextLoc;                 // location of *this* token
     nextLoc = advText(nextLoc, yytext, yyleng);
   }
-
+  
   // adds a string with only the specified # of chars; writes (but
   // then restores) a null terminator if necessary, so 'str' isn't const
   StringRef addString(char *str, int len);
@@ -59,11 +64,8 @@ private:    // funcs
     }
   }
 
-  // various forms of whitespace can separate nonseparating tokens
-  void whitespace() {
-    updLoc();
-    prevIsNonsep = false;
-  }
+  // consume whitespace
+  void whitespace();
 
   // do everything for a single-spelling token
   int tok(TokenType t);
@@ -71,8 +73,14 @@ private:    // funcs
   // do everything for a multi-spelling token
   int svalTok(TokenType t);
 
+  // handle a #line directive
+  void parseHashLine(char *directive, int len);
+
   // report an error
   void err(char const *msg);
+
+  // report an error in a preprocessing task
+  void pp_err(char const *msg);
 
   // part of the constructor
   istream *openFile(char const *fname);

@@ -7,6 +7,8 @@
 #include "exc.h"         // throw_XOpen
 
 #include <fstream.h>     // ifstream
+#include <ctype.h>       // isdigit
+#include <stdlib.h>      // atoi
 
 
 /* 
@@ -82,13 +84,20 @@ Lexer::Lexer(StringTable &s, CCLang &L, char const *fname)
   : yyFlexLexer(openFile(fname)),
 
     // 'inputStream' is initialized by 'openFile'
+    srcFile(NULL),           // changed below
+
     nextLoc(SL_UNKNOWN),     // changed below
+    curLine(1),
+
     prevIsNonsep(false),
+    prevHashLineFile(s.add(fname)),
 
     strtable(s),
     lang(L),
     errors(0)
 {
+  srcFile = sourceLocManager->getInternalFile(fname);
+
   loc = sourceLocManager->encodeBegin(fname);
   nextLoc = loc;
 
@@ -121,6 +130,23 @@ StringRef Lexer::addString(char *str, int len)
 }
 
 
+void Lexer::whitespace()
+{
+  updLoc();
+  
+  // various forms of whitespace can separate nonseparating tokens
+  prevIsNonsep = false;
+
+  // scan for newlines
+  char *p = yytext, *endp = yytext+yyleng;
+  for (; p < endp; p++) {
+    if (*p == '\n') {
+      curLine++;
+    }
+  }
+}
+
+
 // this, and 'svalTok', are out of line because I don't want the
 // yylex() function to be enormous; I want that to just have a bunch
 // of calls into these routines, which themselves can then have
@@ -142,7 +168,87 @@ int Lexer::svalTok(TokenType t)
   return t;
 }
 
-  
+
+// examples of recognized forms
+//   #line 4 "foo.cc"       // canonical form
+//   # 4 "foo.cc"           // "line" can be omitted
+//   # 4 "foo.cc" 1         // extra stuff is ignored
+//   # 4                    // omitted filename means "same as previous"
+void Lexer::parseHashLine(char *directive, int len)
+{
+  char *endp = directive+len;
+
+  directive++;        // skip "#"
+  if (*directive == 'l') {
+    directive += 4;   // skip "line"
+  }
+
+  // skip whitespace
+  while (*directive==' ' || *directive=='\t') {
+    directive++;
+  }
+
+  // parse the line number
+  if (!isdigit(*directive)) {
+    pp_err("malformed #line directive line number");
+    return;
+  }
+  int lineNum = atoi(directive);
+
+  // skip digits and whitespace
+  while (isdigit(*directive)) {
+    directive++;
+  }
+  while (*directive==' ' || *directive=='\t') {
+    directive++;
+  }
+
+  if (*directive == '\n') {
+    // no filename: use previous
+    srcFile->addHashLine(curLine, lineNum, prevHashLineFile);
+  }
+
+  if (*directive != '\"') {
+    pp_err("#line directive missing leading quote on filename");
+    return;
+  }
+  directive++;
+
+  // look for trailing quote
+  char *q = directive;
+  while (q<endp && *q != '\"') {
+    q++;
+  }
+  if (*q != '\"') {
+    pp_err("#line directive missing trailing quote on filename");
+    return;
+  }
+
+  // temporarily write a NUL so we can make a StringRef
+  *q = 0;
+  StringRef fname = strtable.add(directive);
+  *q = '\"';
+
+  // remember this directive
+  srcFile->addHashLine(curLine, lineNum, fname);
+
+  // remember the filename for future #line directives that
+  // don't explicitly include one
+  prevHashLineFile = fname;
+}
+
+
+// preprocessing error: report the location information in the
+// preprocessed source, ignoring #line information
+void Lexer::pp_err(char const *msg)
+{
+  // print only line information, and subtract one because I account
+  // for whitespace (including the final newline) before processing it
+  errors++;
+  cerr << srcFile->name << ":" << (curLine-1) << ": error: " << msg << endl;
+}
+
+
 void Lexer::err(char const *msg)
 {
   errors++;
