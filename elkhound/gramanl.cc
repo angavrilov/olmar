@@ -313,8 +313,7 @@ STATICDEF int LRItem::diff(LRItem const *a, LRItem const *b, void*)
 void LRItem::print(ostream &os, GrammarAnalysis const &g) const
 {
   dprod->print(os);
-  os << ", ";
-  lookahead.print(os, g);
+  lookahead.print(os, g);      // prints the separating comma, if necessary
 }
 
 
