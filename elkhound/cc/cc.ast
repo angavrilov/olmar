@@ -75,13 +75,11 @@ class Function (
 
   FakeList<Handler> *handlers   // handlers for ctor "try" block
 ) {
+  // if 'checkBody' is false, we treat this like it was just
+  // a prototype for the function
   public void tcheck(Env &env, bool checkBody);
-  //public StringRef name() const;
-}
 
-impl_verbatim {
-  // not inline because Declarator isn't defined yet
-  //StringRef Function::name() const { return nameParams->var->name; }
+  private void tcheck_memberInits(Env &env);
 }
 
 class MemberInit (

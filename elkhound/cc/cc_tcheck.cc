@@ -70,9 +70,11 @@ void Function::tcheck(Env &env, bool checkBody)
     env.addVariable(iter.data()->decl);
   }
 
+  // have to check the member inits after adding the parameters
+  // to the environment, because the initializing expressions
+  // can refer to the parameters
   if (inits) {
-    //tcheck_memberInits(env);
-    env.unimp("ctor member inits");
+    tcheck_memberInits(env);
   }
 
   // check the body in the new scope as well
@@ -85,18 +87,70 @@ void Function::tcheck(Env &env, bool checkBody)
 
   // close the new scope
   env.exitScope();
-  
+
   // stop extending the named scope, if there was one
-  if (nameParams->var->scope) {              
+  if (nameParams->var->scope) {
     xassert(prevChangeCount == env.getChangeCount());
     env.retractScope(nameParams->var->scope);
   }
 }
 
 
-//void Function::tcheck_memberInits(Env &env)
-//{
+// this is a prototype for a function down near E_funCall::itcheck
+FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env);
 
+void Function::tcheck_memberInits(Env &env)
+{
+  // make sure this function is a class member
+  CompoundType *enclosing = NULL;
+  if (nameParams->var->scope) {
+    enclosing = nameParams->var->scope->curCompound;
+  }
+  if (!enclosing) {
+    env.error("ctor member inits are only valid for class "
+              "member functions (constructors in particular)");
+    return;
+  }
+
+  // make sure this function is a constructor
+  if (nameParams->var->name != enclosing->name) {
+    env.error(stringc
+      << "ctor member inits are only valid for constructors; "
+      << "the name of the enclosing class is `" << enclosing->name
+      << "' but the function name is `" << nameParams->var->name
+      << "', and these are not the same");
+    return;
+  }
+
+  // ok, so far so good; now go through and check the member
+  // inits themselves
+  FAKELIST_FOREACH_NC(MemberInit, inits, iter) {
+    if (iter->name->hasQualifiers()) {
+      env.unimp("ctor member init with qualifiers");
+      continue;
+    }
+
+    // look for the given name in the class
+    Variable *v = enclosing->getNamedField(iter->name->getName());
+    if (v) {
+      // typecheck the arguments
+      iter->args = tcheckFakeExprList(iter->args, env);
+
+      // TODO: check that the passed arguments are consistent
+      // with at least one constructor of the variable's type
+
+      continue;
+    }
+
+    // not a member name.. what about the name of base class?
+    // TODO: once I have a representation of base classes, I can
+    // look among them for this guy
+
+    env.error(stringc
+      << "ctor member init name `" << *(iter->name)
+      << "' not found among class members or base classes");
+  }
+}
 
 
 // MemberInit
@@ -445,7 +499,43 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
       // object, so we can continue making progress diagnosing errors
       // in the program; this won't be entered in the environment, even
       // though the 'name' is not NULL
-      return new Variable(loc, name->getName(), spec, dflags);
+      Variable *ret = new Variable(loc, name->getName(), spec, dflags);
+      
+      // a bit of error recovery: if we clashed with a prior declaration,
+      // and that one was in a named scope, then make our fake variable
+      // also appear to be in that scope (this helps for parsing
+      // constructor definitions, even when the declarator has a type
+      // clash)
+      if (prior && prior->scope) {
+        ret->scope = prior->scope;
+      }
+
+      return ret;
+    }
+
+    // ok, so we found a prior declaration; but if it's a member of
+    // an overload set, then we need to pick the right one now for
+    // several reasons:
+    //   - the DF_DEFINITION flag is per-member, not per-set
+    //   - below we'll be checking for type equality again
+    if (prior->overload) {
+      OverloadSet *set = prior->overload;
+      prior = NULL;     // for now we haven't found a valid prior decl
+      SMUTATE_EACH_OBJLIST(Variable, set->set, iter) {
+        if (iter.data()->type->equals(spec)) {
+          // ok, this is the right one
+          prior = iter.data();
+          break;
+        }
+      }
+      
+      if (!prior) {
+        env.error(stringc
+          << "the name `" << *name << "' is overloaded, but the type `"
+          << spec->toString() << "' doesn't match any of the "
+          << set->set.count() << " declared overloaded instances");
+        goto makeDummyVar;
+      }
     }
 
     // this intends to be the definition of a class member; make sure
@@ -465,7 +555,8 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
 
   // check for overloading
   OverloadSet *overloadSet = NULL;    // null until valid overload seen
-  if (prior &&
+  if (!name->hasQualifiers() &&
+      prior &&
       prior->type->isFunctionType() &&
       spec->isFunctionType() &&
       !prior->type->equals(spec)) {
@@ -546,6 +637,11 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
     // is already in the environment), instead add it to the overload set
     overloadSet->addMember(var);
     var->overload = overloadSet;
+    
+    // but tell the environment about it, because the environment
+    // takes care of making sure that variables' 'scope' field is
+    // set correctly..
+    env.registerVariable(var);
   }
   else if (!var->type->isError()) {
     env.addVariable(var);

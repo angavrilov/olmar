@@ -90,6 +90,19 @@ void Env::retractScope(Scope *s)
 }
 
 
+#if 0   // does this even work?
+CompoundType *Env::getEnclosingCompound()
+{
+  MUTATE_EACH_OBJLIST(Scope, scopes, iter) {
+    if (iter.data()->curCompound) {
+      return iter.data()->curCompound;
+    }
+  }
+  return NULL;
+}
+#endif // 0
+
+
 void Env::setLoc(SourceLocation const &loc)
 {
   trace("loc") << "setLoc: " << loc.toString() << endl;
@@ -142,14 +155,21 @@ bool Env::addVariable(Variable *v)
                  << "' at " << v->loc.toString()
                  << " to " << s->curCompound->keywordAndName() << endl;
 
-    if (s->curCompound->name) {
-      // since the scope has a name, let the variable point at it
-      v->scope = s;
-    }
   }
 
+  registerVariable(v);
   return insertUnique(s->variables, v->name, v, s->changeCount);
 }
+
+void Env::registerVariable(Variable *v)
+{
+  Scope *s = scope();
+  if (s->curCompound && s->curCompound->name) {
+    // since the scope has a name, let the variable point at it
+    v->scope = s;
+  }
+}
+
 
 bool Env::addCompound(CompoundType *ct)
 {

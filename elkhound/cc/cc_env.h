@@ -83,8 +83,13 @@ public:      // function
   void exitScope();
   void extendScope(Scope *s);     // push onto stack, but don't own
   void retractScope(Scope *s);    // paired with extendScope()
+
   Scope *scope() { return scopes.first(); }
   Scope const *scopeC() const { return scopes.firstC(); }
+  
+  // get the innermost CompoundType (aka class) scope, or NULL
+  // if we're not in the scope of any class
+  //CompoundType *getEnclosingCompound();
 
   // source location tracking
   void setLoc(SourceLocation const &loc);    // sets scope()->curLoc
@@ -96,6 +101,10 @@ public:      // function
   bool addVariable(Variable *v);
   bool addCompound(CompoundType *ct);
   bool addEnum(EnumType *et);
+  
+  // like 'addVariable' in that the 'scope' field gets set, but
+  // nothing is added to the maps
+  void registerVariable(Variable *v);
 
   // lookup in the environment (all scopes)
   Variable *lookupPQVariable(PQName const *name) const;
