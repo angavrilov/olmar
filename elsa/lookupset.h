@@ -34,17 +34,12 @@ enum LookupFlags {
   LF_LOOKUP_SET        = 0x00020000,   // lookup can return a set of names
   LF_QUERY_TAGS        = 0x00040000,   // look in Scope::typeTags instead of Scope::variables
   LF_NO_DENOTED_SCOPE  = 0x00080000,   // temporary: disable denoted-scope computation in PQ_qualifier::tcheck
-  
-  // flags specifically for Env::lookupPQ_modifiedPQ
-  LF_ALL_BUT_LAST      = 0x00100000,   // ignore last component
-  LF_ALL_BUT_SECONDLAST= 0x00200000,   // skip 2nd-to-last component
-  LF_MODIFIEDPQ_MASK   = LF_ALL_BUT_LAST | LF_ALL_BUT_SECONDLAST,
 
   // flag combination for looking up names that precede "::" (3.4.3p1);
   // this is used for the new lookup mechanism (Env::lookupPQ, etc.)
   LF_QUALIFIER_LOOKUP  = LF_TYPES_NAMESPACES | LF_SELFNAME,
 
-  LF_ALL_FLAGS         = 0x003FFFFF,   // bitwise OR of all flags
+  LF_ALL_FLAGS         = 0x000FFFFF,   // bitwise OR of all flags
 };
 
 ENUM_BITWISE_OPS(LookupFlags, LF_ALL_FLAGS)     // smbase/macros.h

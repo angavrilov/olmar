@@ -725,11 +725,6 @@ public:      // funcs
   Variable *unqualifiedFinalNameLookup_one(Scope *scope, PQName *name,
                                            LookupFlags flags);
 
-  // break apart name, do a lookup, then repair; see implementation
-  // (TODO: remove this)
-  Variable *lookupPQ_modifiedPQ_one(PQName *name, LookupFlags flags,
-                                    Scope * /*nullable*/ startScope);
-
   // lookup "~ct->name" in 'ct'
   void lookupClassDestructor(LookupSet &set, CompoundType *ct,
                              LookupFlags flags);

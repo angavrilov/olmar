@@ -6072,13 +6072,55 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
     Type *rhsType = NULL;
 
     if (fieldName->hasQualifiers()) {
-      // for 'fieldName' of form Q :: type-name1 :: ~ type-name2, do
-      // lookups of Q::type-name1 and Q::type-name2
-      Variable *secondVar = env.lookupPQ_modifiedPQ_one(
-        fieldName, flags | LF_ALL_BUT_LAST, NULL /*scope*/);
-      Variable *lastVar = env.lookupPQ_modifiedPQ_one(
-        fieldName, flags | LF_ALL_BUT_SECONDLAST, NULL /*scope*/);
-  
+      // get pointers to the last three elements in the name
+      PQ_qualifier *thirdLast=NULL, *secondLast=NULL;
+      PQName *last = fieldName;
+      while (last->isPQ_qualifier()) {
+        // shift
+        thirdLast = secondLast;
+        secondLast = last->asPQ_qualifier();
+        last = secondLast->rest;
+      }
+      xassert(secondLast);
+
+      if (secondLast->targs.isNotEmpty()) {
+        return env.error(fieldName->loc, "cannot have templatized qualifier as "
+          "second-to-last element of RHS of . or -> when LHS is not a class");
+      }
+
+      // these will be set to the lookup results of secondLast and last, resp.
+      Variable *secondVar = NULL;
+      Variable *lastVar = NULL;
+
+      if (!thirdLast) {
+        // 'fieldName' must be of form type-name :: ~ type-name, so
+        // we do unqualified lookups
+        xassert(secondLast->qualifier);   // grammar should ensure this
+        secondVar = env.unqualifiedLookup_one(secondLast->qualifier,
+          /* the name precedes "::" so ... */ LF_QUALIFIER_LOOKUP);
+        lastVar = env.unqualifiedLookup_one(rhsFinalTypeName, flags);
+      }
+
+      else {
+        // 'fieldName' of form Q :: type-name1 :: ~ type-name2, and so
+        // *both* lookups are to be done as if qualified by
+        // 'thirdLast'; to accomplish this, temporarily modify
+        // 'thirdLast' to construct the needed names
+
+        // fieldName := Q :: type-name1
+        PQ_name fakeLast(secondLast->loc, secondLast->qualifier);
+        thirdLast->rest = &fakeLast;
+        secondVar = env.lookupPQ_one(fieldName, flags | LF_QUALIFIER_LOOKUP);
+
+        // fieldName := Q :: type-name2
+        fakeLast.loc = last->loc;
+        fakeLast.name = rhsFinalTypeName;
+        lastVar = env.lookupPQ_one(fieldName, flags);
+
+        // fieldName := original fieldName
+        thirdLast->rest = secondLast;
+      }
+
       if (!secondVar || !secondVar->isType()) {
         PQName *n = getSecondToLast(fieldName->asPQ_qualifier());
         return env.error(n->loc, stringc
