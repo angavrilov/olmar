@@ -515,7 +515,7 @@ doc: gendoc gendoc/elkhound_dep.png gendoc/glr.png gendoc/configure.txt
 	@echo "built documentation"
 
 TAGS:
-	$(ETAGS) --members --typedefs *.cc *.h
+	$(ETAGS) *.cc *.h
 
 # some other random phony targets (I hate this clutter..)
 .PHONY: clean distclean check
