@@ -11,3 +11,4 @@ str
 strhash
 gmon.out
 fsyncd.log
+.fsync-save

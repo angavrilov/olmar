@@ -10,7 +10,7 @@
 #   - ccflags: any other needed flags
 
 # pull in platform-specifics
-PLAT = /home/scott/wrk/lib/plat
+PLAT = ${HOME}/wrk/lib/plat
 include ${PLAT}/Makefile.${PLATFORM}
 
 # catch undefined PLATFORM (this appears to fail on older 'make'.. try gmake)
