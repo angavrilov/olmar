@@ -51,8 +51,8 @@ extras := \
   $(PARSGEN)/cc/lexer1.o \
   $(PARSGEN)/cc/lexer1yy.o \
   $(PARSGEN)/cc/cc_lang.o \
-  $(AST)/asthelp.o \
-  $(AST)/strtable.o
+  $(PARSGEN)/asthelp.o \
+  $(PARSGEN)/strtable.o
 
 # cexp3b: disambiguation using 'merge'
 cexp3b.gr: cexp3.gr

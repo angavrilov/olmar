@@ -112,30 +112,44 @@ linkend := $(libraries)
           sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
 	@rm -f $*.d.tmp
 
-# TODO: don't put compilation outputs in $(AST)!
+# compile things in $(AST) but putting their .o files here; applies to:
+#   locstr.cc
+#   asthelp.cc
+#   ccsstr.cc
+#   embedded.cc
+#   gramlex.cc
+#   strtable.cc
+%.o: $(AST)/%.cc
+	$(compile) $< -o $@
+	@echo "dependencies for $< > $*.d"
+	@$(depend) $< > $*.d.tmp
+	@sed -e 's|.*:|$@:|' < $*.d.tmp > $*.d
+	@sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
+          sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
+	@rm -f $*.d.tmp
 
 # sets of related object files
 # files needed to represent a grammar in memory
 grammar-set := \
-  $(AST)/locstr.o \
+  locstr.o \
   asockind.o \
   grammar.o
--include $(filter-out $(AST)/%, $(grammar-set:.o=.d))
+-include $(grammar-set:.o=.d)
 
 # in addition to grammar-set, files needed to parse a grammar description
 grampar-set := \
-  $(AST)/asthelp.o \
-  $(AST)/ccsstr.o \
-  $(AST)/embedded.o \
-  $(AST)/gramlex.o \
-  $(AST)/strtable.o \
+  asthelp.o \
+  ccsstr.o \
+  embedded.o \
+  gramlex.o \
+  strtable.o \
   emitcode.o \
   emittables.o \
   gramast.ast.gen.o \
   gramlex.yy.o \
   grampar.o \
   grampar.tab.o
--include $(filter-out $(AST)/%, $(grampar-set:.o=.d))
+-include $(grampar-set:.o=.d)
 
 # minimal runtime files needed to do GLR parsing; these get
 # combined to form libelkhound.a, the Elkhound runtime library
@@ -144,19 +158,19 @@ glr-set := \
   glr.o \
   parsetables.o \
   useract.o
--include $(filter-out $(AST)/%, $(glr-set:.o=.d))
+-include $(glr-set:.o=.d)
 
 # some (mostly) language-independent parsing support files which
 # are shared by several of the test parsers (e.g. cexp3)
 support-set := \
-  $(AST)/asthelp.o \
-  $(AST)/strtable.o \
+  asthelp.o \
+  strtable.o \
   cc/cc_lang.o \
   cc/lexer1.o \
   cc/lexer1yy.o \
   cc/lexer2.o \
   cc/parssppt.o
--include $(filter-out $(AST)/%, $(support-set:.o=.d))
+-include $(support-set:.o=.d)
 
 # files for parsing C code with the c.gr or cc2.gr grammars;
 # since this set is used with both grammars, I don't include either
@@ -176,7 +190,7 @@ c-set := \
   cc/tcheck.o \
   cc/treeout.o \
   cc/c_variable.o
--include $(filter-out $(AST)/%, $(c-set:.o=.d))
+-include $(c-set:.o=.d)
 
 # files for parsing C++ code with the cc.gr or cc2.gr grammars
 cc-set := \
@@ -192,17 +206,7 @@ cc-set := \
   cc/treeout.o \
   cc/variable.o \
   cc/ccparse.o
-
--include $(filter-out $(AST)/%, $(cc-set:.o=.d))
-
-# dsw: to be included above when turned on
-#  cc/cc_flatten.o
-
-# how to compile a .o in an adjacent directory (looser dependency
-# tracking across directories...)
-.PRECIOUS: $(AST)/%.o
-$(AST)/%.o: $(AST)/%.cc
-	make -C $(AST) $*.o
+-include $(cc-set:.o=.d)
 
 # a few random .o files which don't appear anyplace above, but I need
 # to make sure their dependency info (if it exists) gets included
@@ -237,7 +241,7 @@ cc/lexer1: $(lexer1-dep)
 
 # second pass lexer
 lexer2-dep := cc/lexer2.cc cc/lexer1.o cc/lexer1yy.o \
-              $(AST)/strtable.o cc/cc_lang.o $(libraries)
+              strtable.o cc/cc_lang.o $(libraries)
 cc/lexer2: $(lexer2-dep) cc/lexer2.h
 	$(link) -o $@ -DTEST_LEXER2 $(lexer2-dep)
 
@@ -250,8 +254,8 @@ gramlex.yy.cc: gramlex.lex
 	rm gramlex.tmp
 
 # grammar lexer test program
-gramlex-dep := gramlex.yy.cc gramlex.cc $(AST)/ccsstr.o \
-               $(AST)/embedded.o $(libraries)
+gramlex-dep := gramlex.yy.cc $(AST)/gramlex.cc ccsstr.o \
+               embedded.o $(libraries)
 gramlex: ../ast/gramlex.h $(gramlex-dep)
 	$(link) -o gramlex -DTEST_GRAMLEX $(gramlex-dep)
 
@@ -267,8 +271,8 @@ grampar.tab.cc grampar.tab.h grampar.codes.h: grampar.y gramast.ast.gen.h
 
 # (unmaintained) grammar parser test program
 # grampar: grampar.cc $(grammar-set) gramlex.yy.o grampar.tab.o \
-#          $(AST)/gramlex.o ast.o gramast.ast.gen.o $(AST)/ccsstr.o \
-#          $(AST)/embedded.o $(AST)/strtable.o $(AST)/asthelp.o \
+#          gramlex.o ast.o gramast.ast.gen.o ccsstr.o \
+#          embedded.o strtable.o asthelp.o \
 #          $(libraries)
 # 	$(link) -o grampar -DTEST_GRAMPAR $^
 
@@ -383,7 +387,7 @@ cc/bccgr.y: cc/c.gr.gen.y
 cc/bccgr.tab.o: cc/bccgr.h
 
 cc/bccgr: cc/bccgr.cc cc/bccgr.tab.o cc/lexer1.o cc/lexer1yy.o cc/lexer2.o \
-       $(AST)/strtable.o cc/cc_lang.o cyctimer.o \
+       strtable.o cc/cc_lang.o cyctimer.o \
        $(SMBASE)/libsmbase.a
 	g++ -o $@ $(ccflags) $(includes) $(YYDEBUG) $^
 	cc/bccgr c.in/c.in1
@@ -688,8 +692,6 @@ check: all
 	@echo ""
 	@echo "Regression tests passed."
 
-# sm: removed 'idem/%' and 'checkall' since I prefer that
-# functionality to be in ./regrtest
 
 # --------------- random other stuff --------------------
 # test for rcptr

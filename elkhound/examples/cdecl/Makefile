@@ -37,8 +37,8 @@ extras := \
   $(PARSGEN)/cc/lexer1.o \
   $(PARSGEN)/cc/lexer1yy.o \
   $(PARSGEN)/cc/cc_lang.o \
-  $(AST)/asthelp.o \
-  $(AST)/strtable.o
+  $(PARSGEN)/asthelp.o \
+  $(PARSGEN)/strtable.o
 
 # invoke the parser generator
 cdecl.gr.gen.cc cdecl.gr.gen.h: cdecl.gr
