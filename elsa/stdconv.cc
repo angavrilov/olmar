@@ -582,6 +582,19 @@ StandardConversion getStandardConversion
       return conv.ret;
     }
     else {
+      // 9/25/04: (in/t0316.cc) I'm not sure where the best place to do
+      // this is, in part b/c I don't know what the real rule is.  This
+      // allows e.g. 'unsigned int &' to be passed where 'int const &'
+      // is expected.
+      if (conv.dest->isReference() &&
+          conv.dest->getAtType()->isConst()) {
+        // just strip the reference part of the dest; this is like binding
+        // the (const) reference, which is not an explicit part of the
+        // "conversion"
+        return getStandardConversion(errorMsg, srcSpecial, conv.src, 
+                                     conv.dest->asRvalC(), destIsReceiver);
+      }
+
       return conv.error("incompatible atomic types");
     }
   }
