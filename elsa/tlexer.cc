@@ -24,6 +24,7 @@ void entry(int argc, char **argv)
 
   StringTable table;
   CCLang lang;
+  lang.ANSI_Cplusplus();     // want 'true' and 'false' keywords
   SourceLocManager mgr;
 
   traceProgress() << "making Lexer\n";

@@ -250,12 +250,16 @@ public:      // funcs
 
   // others are more obscure, so I'll just call into 'tfac' directly
   // in the places I call them
-  
+
   // points of extension: These functions do nothing in the base
   // Elsa parser, but can be overridden in client analyses to
   // hook into the type checking process.  See their call sites in
   // cc_tcheck.cc for more info on when they're called.
   virtual void checkFuncAnnotations(FunctionType *ft, D_func *syntax);
+  
+  // this is called after all the fields of 'ct' have been set, and
+  // we've popped its scope off the stack
+  virtual void addedNewCompound(CompoundType *ct);
 };
 
 

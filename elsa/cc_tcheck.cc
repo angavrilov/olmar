@@ -719,7 +719,7 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
   Type *specType = spec->tcheck(env, DF_NONE);
                          
   // pass contextual info to declarator
-  Declarator::Tcheck dt(specType, DF_NONE);
+  Declarator::Tcheck dt(specType, tc.dflags);
   dt.context = tc.newSizeExpr? Declarator::Tcheck::CTX_E_NEW :
                tc.isParameter? Declarator::Tcheck::CTX_PARAM :
                                Declarator::Tcheck::CTX_ORDINARY;
@@ -1300,6 +1300,8 @@ void TS_classSpec::tcheckIntoCompound(
     // into the containin class [cppstd 3.4.1 para 8]
     ct->parentScope = containingClass;
   }
+  
+  env.addedNewCompound(ct);
 }
 
 
@@ -1689,7 +1691,7 @@ bool almostEqualTypes(Type const *t1, Type const *t2)
     }
   }
 
-  // no exception: strict equality (well, signature equality)a
+  // no exception: strict equality (well, signature equality)
   return t1->equals(t2, Type::EF_SIGNATURE);
 }
 
@@ -1730,8 +1732,14 @@ static void D_name_tcheck(
   // these conclusions up here (like mini-subroutines), and 'goto'
   // them when appropriate.  I put them at the top instead of the
   // bottom since g++ doesn't like me to jump forward over variable
-  // declarations.
+  // declarations.  They aren't put into real subroutines because they
+  // want to access many of this function's parameters and locals, and
+  // it'd be a hassle to pass them all each time.  In any case, they
+  // would all be tail calls, since once I 'goto' somewhere I don't
+  // come back.
 
+  // an error has been reported, but for error recovery purposes,
+  // put something reasonable into the 'dt.var' field
   makeDummyVar:
   {
     if (!consumedFunction) {
@@ -2075,7 +2083,8 @@ realStart:
     // ok, use the prior declaration, but update the 'loc'
     // if this is the definition
     if (dt.dflags & DF_DEFINITION) {
-      TRACE("odr",    "def'n at " << toString(loc)
+      TRACE("odr",    "def'n of " << unqualifiedName 
+                   << " at " << toString(loc)
                    << " overrides decl at " << toString(prior->loc));
       prior->loc = loc;
       prior->setFlag(DF_DEFINITION);
@@ -2186,7 +2195,7 @@ void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt)
 // this code adapted from tcheckFakeExprList; always passes NULL
 // for the 'sizeExpr' argument to ASTTypeId::tcheck
 FakeList<ASTTypeId> *tcheckFakeASTTypeIdList(
-  FakeList<ASTTypeId> *list, Env &env, bool isParameter)
+  FakeList<ASTTypeId> *list, Env &env, bool isParameter, DeclFlags dflags = DF_NONE)
 {
   if (!list) {
     return list;
@@ -2195,6 +2204,7 @@ FakeList<ASTTypeId> *tcheckFakeASTTypeIdList(
   // context for checking (ok to share these across multiple ASTTypeIds)
   ASTTypeId::Tcheck tc;
   tc.isParameter = isParameter;
+  tc.dflags = dflags;
 
   // check first ASTTypeId
   FakeList<ASTTypeId> *ret
@@ -3673,12 +3683,16 @@ Type *E_deref::itcheck(Env &env)
     }
   }
 
-  // unfortunately, I get easily fooled by overloaded functions and
-  // end up concluding the wrong types.. so I'm simply going to turn
-  // off the error message for now..
-  //return env.error(rt, stringc
-  //  << "cannot derefence non-pointer `" << rt->toString() << "'");
-  return env.getSimpleType(SL_UNKNOWN, ST_ERROR);
+  if (env.lang.complainUponBadDeref) {
+    return env.error(rt, stringc
+      << "cannot derefence non-pointer `" << rt->toString() << "'");
+  }
+  else {
+    // unfortunately, I get easily fooled by overloaded functions and
+    // end up concluding the wrong types.. so I'm simply going to turn
+    // off the error message for now..
+    return env.getSimpleType(SL_UNKNOWN, ST_ERROR);
+  }
 }
 
 

@@ -745,7 +745,12 @@ void E_variable::iprint(PrintEnv &env)
 {
   olayer ol("E_variable::iprint");
   env << name->qualifierString();
-  env << var->name;
+  if (var) {
+    env << var->name;          // use results of type checking
+  }
+  else {
+    env << name->getName();    // type checking hasn't been done
+  }
 }
 
 void printFakeExprList(FakeList<Expression> *list, PrintEnv &env)

@@ -1486,6 +1486,13 @@ CVFlags PointerToMemberType::getCVFlags() const
 
 
 // ---------------------- TypeFactory ---------------------
+CompoundType *TypeFactory::makeCompoundType
+  (CompoundType::Keyword keyword, StringRef name)
+{
+  return new CompoundType(keyword, name);
+}
+
+
 Type *TypeFactory::cloneType(Type *src)
 {
   switch (src->getTag()) {
