@@ -3151,57 +3151,73 @@ Variable *Env::createDeclaration(
       // same types, same typedef disposition, so they refer
       // to the same thing
     }
-    else {
+    else if (prior->isImplicitTypedef()) {
       // if the previous guy was an implicit typedef, then as a
       // special case allow it, and arrange for the environment
       // to replace the implicit typedef with the variable being
       // declared here
-      if (prior->isImplicitTypedef()) {
-        TRACE("env",    "replacing implicit typedef of " << prior->name
-                     << " at " << prior->loc << " with new decl at "
-                     << loc);
-        forceReplace = true;
 
-        // for support of the elaboration module, we don't want to lose
-        // the previous name altogether; make a shadow
-        makeShadowTypedef(scope, prior);
+      TRACE("env",    "replacing implicit typedef of " << prior->name
+                   << " at " << prior->loc << " with new decl at "
+                   << loc);
+      forceReplace = true;
 
-        goto noPriorDeclaration;
-      }
-      else {
-        // this message reports two declarations which declare the same
-        // name, but their types are different; we only jump here *after*
-        // ruling out the possibility of function overloading
+      // for support of the elaboration module, we don't want to lose
+      // the previous name altogether; make a shadow
+      makeShadowTypedef(scope, prior);
 
-        // dsw: in K&R C sometimes what happens is that a function is
-        // called and then later declared; at the function call site a
-        // declaration is invented with type 'int (...)' but the real
-        // declaration is likely to collide with that here.  We don't
-        // try to back-patch and do anything clever or sound, we just
-        // turn the error into a warning so that the file can go
-        // through; this is an unsoundness
-        if (lang.allowImplicitFunctionDecls &&
-            prior->hasFlag(DF_FORWARD) &&
-            prior->type->isFunctionType() &&
-            isImplicitKandRFuncType(prior->type->asFunctionType())) {
-          // we allow the prior declaration to remain
-          warning(stringc
-                  << "prior declaration of function `" << name
-                  << "' at " << prior->loc
-                  << " had type `" << prior->type->toString()
-                  << "', but this one uses `" << type->toString() << "'"
-                  << " This is most likely due to the prior declaration being implied "
-                  << "by a call to a function before it was declared.  "
-                  << "Keeping the implied, weaker declaration; THIS IS UNSOUND.");
-        } else {
-          error(type, stringc
-                << "prior declaration of `" << name
-                << "' at " << prior->loc
-                << " had type `" << prior->type->toString()
-                << "', but this one uses `" << type->toString() << "'");
-          goto makeDummyVar;
-        }
-      }
+      goto noPriorDeclaration;
+    }
+    else if (lang.allowExternCThrowMismatch &&
+             prior->hasFlag(DF_EXTERN_C) &&
+             (prior->flags & DF_TYPEDEF) == (dflags & DF_TYPEDEF) &&
+             prior->type->isFunctionType() &&
+             equalOrIsomorphic(prior->type, type,
+                               Type::EF_IGNORE_PARAM_CV |    // same as in almostEqualTypes
+                               Type::EF_IGNORE_EXN_SPEC)) {  // special to this call site
+      // 10/01/04: allow the nonstandard variation in exception specs
+      // for extern-C decls (since they usually don't throw exceptions
+      // at all)
+      //
+      // Note that by regarding these decls as compatible, the second
+      // exn spec will be ignored in favor of the first, which will be
+      // unsound if the second allows more exceptions and the function
+      // really can throw an exception.
+      warning(stringc << "allowing nonstandard variation in exception specs "
+                      << "(conflicting decl at " << prior->loc
+                      << ") due to extern-C");
+    }
+    else if (lang.allowImplicitFunctionDecls &&
+             prior->hasFlag(DF_FORWARD) &&
+             prior->type->isFunctionType() &&
+             isImplicitKandRFuncType(prior->type->asFunctionType())) {
+      // dsw: in K&R C sometimes what happens is that a function is
+      // called and then later declared; at the function call site a
+      // declaration is invented with type 'int (...)' but the real
+      // declaration is likely to collide with that here.  We don't
+      // try to back-patch and do anything clever or sound, we just
+      // turn the error into a warning so that the file can go
+      // through; this is an unsoundness
+      warning(stringc
+              << "prior declaration of function `" << name
+              << "' at " << prior->loc
+              << " had type `" << prior->type->toString()
+              << "', but this one uses `" << type->toString() << "'"
+              << " This is most likely due to the prior declaration being implied "
+              << "by a call to a function before it was declared.  "
+              << "Keeping the implied, weaker declaration; THIS IS UNSOUND.");
+    }
+    else {
+      // this message reports two declarations which declare the same
+      // name, but their types are different; we only jump here *after*
+      // ruling out the possibility of function overloading
+
+      error(type, stringc
+            << "prior declaration of `" << name
+            << "' at " << prior->loc
+            << " had type `" << prior->type->toString()
+            << "', but this one uses `" << type->toString() << "'");
+      goto makeDummyVar;
     }
 
     // if the prior declaration refers to a different entity than the

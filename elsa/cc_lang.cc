@@ -29,6 +29,7 @@ void CCLang::ANSI_C89()
   allowIncompleteEnums = false;
   allowMemberWithClassName = true;
   nonstandardAssignmentOperator = false;
+  allowExternCThrowMismatch = true;
   declareGNUBuiltins = false;
 
   isCplusplus = false;
@@ -127,6 +128,7 @@ void CCLang::ANSI_Cplusplus()
 
   // indeed this is nonstandard but everyone seems to do it this way ...
   nonstandardAssignmentOperator = true;
+  allowExternCThrowMismatch = false;
 
   predefined_Bool = false;
   declareGNUBuiltins = false;
@@ -144,6 +146,7 @@ void CCLang::GNU_Cplusplus()
   allowDynamicallySizedArrays = true;
 
   allowMemberWithClassName = true;
+  allowExternCThrowMismatch = true;
   declareGNUBuiltins = true;
 }
 

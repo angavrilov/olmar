@@ -103,13 +103,17 @@ public:
   bool allowIncompleteEnums;
 
   // C language, and GNU extension for C++: allow a class to have a
-  // member (other than the constructor) that has the same name as the
-  // class
+  // member that has the same name as the class
   bool allowMemberWithClassName;
 
   // every C++ compiler I have does overload resolution of operator=
-  // incorrectly; this flag causes Elsa to do the same
+  // differently from what is specified in the standard; this flag
+  // causes Elsa to do the same
   bool nonstandardAssignmentOperator;
+
+  // permit prototypes to have mismatching exception specs if the
+  // function is extern "C" (TODO: provide more documentation)
+  bool allowExternCThrowMismatch;
 
   // when true, "_Bool" is a built-in type keyword (C99)
   bool predefined_Bool;
