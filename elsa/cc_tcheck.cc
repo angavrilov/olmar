@@ -7911,11 +7911,6 @@ void TD_func::itcheck(Env &env)
 
 void TD_decl::itcheck(Env &env)
 {
-  if (d->dflags & DF_FRIEND) {
-    // for now I just want to ignore friend declarations altogether...
-    return;
-  }
-
   if (env.secondPassTcheck) {
     // TS_classSpec is only thing of interest
     if (d->spec->isTS_classSpec()) {
