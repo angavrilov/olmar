@@ -526,6 +526,14 @@ bool MatchTypes::match_ref(ReferenceType *a, Type *b, int matchDepth)
       }
     }
   }
+  else {
+    // sm: 9/26/04: do this here too (for in/t0320.cc) ... I think
+    // this entire module needs to be rewritten according to 14.8.2.1
+    if (eflags & Type::EF_DEDUCTION) {
+      matchDepth0 = 0;
+    }
+  }
+
   return match0(a->getAtType(), b,
                 // starting at line 22890 in
                 // in/big/nsCLiveconnectFactory.i there is an example
