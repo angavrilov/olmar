@@ -507,7 +507,17 @@ bool TemplateInfo::hasParameters() const
   if (params.isNotEmpty()) {
     return true;
   }
-  
+
+  return false;
+}
+
+bool TemplateInfo::hasMainOrInheritedParameters() const
+{
+  // main
+  if (hasParameters()) {
+    return true;
+  }
+
   // check for inherited parameters
   FOREACH_OBJLIST(InheritedTemplateParams, inheritedParams, iter) {
     if (iter.data()->params.isNotEmpty()) {

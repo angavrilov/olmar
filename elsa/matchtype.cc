@@ -355,6 +355,20 @@ bool MatchTypes::match_variables(Type *a, TypeVariable *b, int matchDepth)
 }
 
 
+bool isCompleteSpecOrInst(AtomicType *a)
+{
+  // sm: 8/10/04: changed 'isTemplate()' calls to 'isInstantiation()';
+  // we should never be matching against raw templates, only
+  // instantiations (on the left) and PseudoInstantiations (on the
+  // right) (t0220.cc)
+  //
+  // oops, I mean instantiations or complete specializations (t0241.cc)
+  return
+    a->isCompoundType() &&
+    a->asCompoundType()->typedefVar->templateInfo() &&
+    a->asCompoundType()->typedefVar->templateInfo()->isCompleteSpecOrInstantiation();
+}
+
 bool MatchTypes::match_cva(CVAtomicType *a, Type *b, int matchDepth)
 {
   //   A non-ref, B ref to const: B's ref goes away
@@ -400,14 +414,8 @@ bool MatchTypes::match_cva(CVAtomicType *a, Type *b, int matchDepth)
     //   used to be not top but I don't remember why
     matchDepth = 0;
 
-    // sm: 8/10/04: changed 'isTemplate()' calls to
-    // 'isInstantiation()'; we should never be matching against raw
-    // templates, only instantiations and PseudoInstantiations
-    // (t0220.cc was failing)
-    bool aIsCpdTemplate = a->isCompoundType()
-      && a->asCompoundType()->typedefVar->isInstantiation();
-    bool bIsCpdTemplate = b->isCompoundType()
-      && b->asCompoundType()->typedefVar->isInstantiation();
+    bool aIsCpdTemplate = isCompleteSpecOrInst(aAT);
+    bool bIsCpdTemplate = isCompleteSpecOrInst(bAT);
 
     if (aIsCpdTemplate && bIsCpdTemplate) {
       TemplateInfo *aTI = a->asCompoundType()->typedefVar->templateInfo();

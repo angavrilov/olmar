@@ -4442,7 +4442,8 @@ Type *E_funCall::inner2_itcheck(Env &env)
     // this block is basically a copy of the one above, but for
     // E_fieldAcc instead of E_variable
     E_fieldAcc *eacc = func->skipGroups()->asE_fieldAcc();
-    if (eacc->field) {
+    if (eacc->field &&
+        !eacc->field->type->isSimple(ST_DEPENDENT)) {   // t0240.cc
       // here's a cute hack: I need to pass the receiver object as one
       // of the arguments to participate in overload resolution, so
       // just make a temporary ArgExpression grafted onto the front of

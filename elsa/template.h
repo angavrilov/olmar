@@ -292,9 +292,11 @@ public:      // funcs
   // comments in implementation
   bool argumentsContainVariables() const;
 
-  // true if there are parameters at any level (either right here,
-  // or inherited from above)
+  // true if there are parameters (at this level; not inherited)
   bool hasParameters() const;
+                                            
+  // inherited or main
+  bool hasMainOrInheritedParameters() const;
 
   // true if the given Variable is among the parameters (at any level)
   //

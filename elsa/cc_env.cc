@@ -403,11 +403,11 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   Type *t_size_t = getSimpleType(SL_INIT, ST_INT);
 
   // but I do need a class called 'bad_alloc'..
-  //   class bad_alloc;
+  //   class bad_alloc {};
   CompoundType *dummyCt;
   Type *t_bad_alloc =
     makeNewCompound(dummyCt, scope(), str("bad_alloc"), SL_INIT,
-                    TI_CLASS, true /*forward*/);
+                    TI_CLASS, false /*forward*/);
 
   // void* operator new(std::size_t sz) throw(std::bad_alloc);
   declareFunction1arg(t_voidptr, "operator new",
@@ -1879,9 +1879,13 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
 // NOTE: It is *not* the job of this function to do overload
 // resolution!  If the client wants that done, it must do it itself,
 // *after* doing the lookup.
-Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags, 
+Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
                                          Scope *&scope)
 {
+  // get the final component of the name, so we can inspect
+  // whether it has template arguments
+  PQName const *final = name->getUnqualifiedNameC();
+
   Variable *var;
 
   if (name->hasQualifiers()) {
@@ -1932,30 +1936,33 @@ Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
   }
 
   else {
+    // 14.6.1 para 1: if the name is not qualified, and has no
+    // template arguments, then the selfname is visible
+    //
+    // ... I'm not sure about the "not qualified" part ... is there
+    // something like 14.6.1 for non-template classes?  If so I can't
+    // find it.. anyway, my t0052.cc (which gcc doesn't like..) wants
+    // LF_SELFNAME even for qualified lookup, and that's how it's been
+    // for a while, so...
+    //
+    // err... t0052.cc still doesn't work with this above, so now
+    // I'm back to requiring no qualifiers and I nerfed that testcase.
+    if (!final->isPQ_template()) {
+      flags |= LF_SELFNAME;
+    }
+
     var = lookupVariable(name->getName(), flags, scope);
   }
 
   if (var) {
-    // get the final component of the name, so we can inspect
-    // whether it has template arguments
-    PQName const *final = name->getUnqualifiedNameC();
-
     // reference to a class in whose scope I am?
     if (var->hasFlag(DF_SELFNAME)) {
-      if (!final->isPQ_template()) {
-        // cppstd 14.6.1 para 1: if the name refers to a template
-        // in whose scope we are, then it need not have arguments
-        TRACE("template",    "found bare reference to enclosing template: "
-                          << var->name);
-        return var;
-      }
-      else {
-        // TODO: if the template arguments match the current
-        // (DF_SELFNAME) declaration, then we're talking about 'var',
-        // otherwise we go through instantiateTemplate(); for now I'm
-        // just going to assume we're talking about 'var'
-        return var;
-      }
+      xassert(!final->isPQ_template());    // otherwise how'd LF_SELFNAME get set?
+
+      // cppstd 14.6.1 para 1: if the name refers to a template
+      // in whose scope we are, then it need not have arguments
+      TRACE("template", "found bare reference to enclosing template: " << var->name);
+      return var;
     }
 
     // compare the name's template status to whether template
@@ -2376,8 +2383,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
   // also add the typedef to the class' scope
   if (name && lang.compoundSelfName) {
     Type *selfType;
-    if (tv->templateInfo() &&
-        (tv->templateInfo()->isPrimary() || tv->templateInfo()->isPartialSpec())) {
+    if (tv->templateInfo() && tv->templateInfo()->hasParameters()) {
       // the self type should be a PseudoInstantiation, not the raw template
       selfType = pseudoSelfInstantiation(ct, CV_NONE);
     }

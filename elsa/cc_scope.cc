@@ -272,6 +272,12 @@ Variable const *vfilterC(Variable const *v, LookupFlags flags)
     return NULL;
   }
 
+  if (!(flags & LF_SELFNAME) &&
+      v->hasFlag(DF_SELFNAME)) {
+    // the selfname is not visible b/c LF_SELFNAME not specified
+    return NULL;
+  }
+
   return v;
 }
 

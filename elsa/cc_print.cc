@@ -309,6 +309,11 @@ void ASTTypeId::print(PrintEnv &env)
     env << " ";
     decl->getDeclaratorId()->print(env);
   }
+  
+  if (decl->init) {
+    env << " = ";
+    decl->init->print(env);
+  }
 }
 
 // ---------------------- PQName -------------------
