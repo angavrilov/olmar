@@ -667,12 +667,6 @@ void MR_access::print(PrintEnv &env)
   env.out << toString(k) << ":\n";
 }
 
-void MR_publish::print(PrintEnv &env)
-{
-  TreeWalkDebug treeDebug("MR_publish");
-  env.out << name->toString() << ";\n";
-}
-
 void MR_usingDecl::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("MR_usingDecl");

@@ -1938,10 +1938,12 @@ nonterm(Member*) MemberDeclaration {
   // publishing a superclass member; ambiguous with inner class
   // declaration (above) and ctor declaration (below), hence the
   // need for cancellation in both of those two
+  //
+  // equivalent to "using n ;" so parse it as such
   -> n:PQualifiedId ";"
-       { return new MR_publish(loc, n); }
+       { return new MR_usingDecl(loc, new ND_usingDecl(n)); }
 
-  // generalization of MR_publish
+  // the general form
   -> "using" /*typename?*/ n:IdExpression ";"
        { return new MR_usingDecl(loc, new ND_usingDecl(n)); }
 

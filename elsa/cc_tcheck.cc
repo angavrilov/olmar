@@ -2132,24 +2132,6 @@ void MR_access::tcheck(Env &env)
   env.scope()->curAccess = k;
 }
 
-void MR_publish::tcheck(Env &env)
-{
-  if (env.secondPassTcheck) { return; }
-
-  env.setLoc(loc);
-
-  tcheckPQName(name, env);
-
-  if (!name->hasQualifiers()) {
-    env.error(stringc
-      << "in superclass publication, you have to specify the superclass");
-  }
-  else {
-    // TODO: actually verify the superclass has such a member, and make
-    // it visible in this class
-  }
-}
-
 void MR_usingDecl::tcheck(Env &env)
 {
   if (env.secondPassTcheck) { return; }
@@ -8185,6 +8167,11 @@ void ND_usingDecl::tcheck(Env &env)
     return;
   }
 
+  Variable *origVar = set.first();
+  if (origVar == env.dependentVar) {
+    return;       // do nothing if the lookup was dependent (k0048.cc)
+  }
+
   // make aliases for everything in 'set'
   SFOREACH_OBJLIST_NC(Variable, set, iter) {
     env.makeUsingAliasFor(name->loc, iter.data());
@@ -8196,7 +8183,6 @@ void ND_usingDecl::tcheck(Env &env)
   // for a long time this code has been written to only look at the
   // first element of 'set', and so far I have been unable to write
   // a test that shows any problem with that
-  Variable *origVar = set.first();
   Scope *origScope = origVar->scope? origVar->scope : env.globalScope();
 
   // see if there is a name in the tag space of the same scope

@@ -452,7 +452,7 @@ void CompoundType::afterAddVariable(Variable *v)
 {
   // if is a data member, not a method, static data, or a typedef
   if (!v->type->isFunctionType() &&
-      !(v->flags & (DF_STATIC | DF_TYPEDEF | DF_ENUMERATOR))) {
+      !(v->flags & (DF_STATIC | DF_TYPEDEF | DF_ENUMERATOR | DF_USING_ALIAS))) {
     dataMembers.append(v);
   }
 }

@@ -114,12 +114,13 @@ enum DeclFlags {
   DF_SELFNAME    = 0x10000000,    // section 9 para 2: name of class inside its own scope
   DF_BOUND_TPARAM= 0x00004000,    // template parameter bound to a concrete argument
   DF_TEMPL_PARAM = 0x20000000,    // template parameter (bound only to itself)
+  DF_USING_ALIAS = 0x40000000,    // this is a 'using' alias
 
   // syntactic declaration extensions
   DF_PREDICATE   = 0x02000000,    // Simplify-declared predicate (i.e. DEFPRED)
 
-  ALL_DECLFLAGS  = 0x3FFFFFFF,
-  NUM_DECLFLAGS  = 30             // # bits set to 1 in ALL_DECLFLAGS
+  ALL_DECLFLAGS  = 0x7FFFFFFF,
+  NUM_DECLFLAGS  = 31             // # bits set to 1 in ALL_DECLFLAGS
 };
 
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..

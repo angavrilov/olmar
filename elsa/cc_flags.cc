@@ -93,6 +93,7 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "<extern \"C\">",
   "<selfname>",
   "<templ param>",  // 29
+  "<using alias>",
 };
 
 
