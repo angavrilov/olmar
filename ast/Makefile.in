@@ -3,6 +3,7 @@
 
 # main targets
 all: astgen libast.a example.o ext1.o
+all: TAGS
 
 
 # directories of other software
@@ -137,6 +138,8 @@ gendoc/demo.h gendoc/demo.cc: demo.ast astgen
 doc: gendoc gendoc/configure.txt gendoc/demo.h
 	@echo "built documentation"
 
+TAGS:; etags --members --typedefs *.cc *.h
+
 
 # ------------------------ misc ---------------------
 check:
@@ -147,6 +150,7 @@ clean:
 	rm -f agrampar astgen ccsstr towner exampletest libast.a
 	rm -f agrampar.{codes.h,output} agramlex.yy.cc
 	rm -f example.{h.cc} ext1.{h,cc}
+	rm -f TAGS
 
 distclean: clean
 	rm -f Makefile config.status config.summary

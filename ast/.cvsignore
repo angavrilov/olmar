@@ -19,3 +19,4 @@ config.status
 config.summary
 Makefile
 gendoc
+TAGS
