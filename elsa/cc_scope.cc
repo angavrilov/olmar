@@ -16,6 +16,7 @@ Scope::Scope(int cc, SourceLoc initLoc)
     innerClasses(),
     parentScope(),
     isParameterListScope(false),
+    isGlobalScope(false),
     curCompound(NULL),
     curFunction(NULL),
     curTemplateParams(NULL),
@@ -98,6 +99,10 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
 
   if (containsErrors) {
     return true;     // pretend it worked; don't further rock the boat
+  }
+
+  if (isGlobalScope) {
+    v->setFlag(DF_GLOBAL);
   }
 
   return insertUnique(variables, v->name, v, changeCount, forceReplace);

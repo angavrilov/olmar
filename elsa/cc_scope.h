@@ -84,6 +84,9 @@ public:      // data
   // has places where they are treated differently, e.g. 3.3.1 para 5
   bool isParameterListScope;
 
+  // if this is true, then inserted Variables get the DF_GLOBAL flag
+  bool isGlobalScope;
+
   // ------------- "current" entities -------------------
   // these are set to allow the typechecking code to know about
   // the context we're in

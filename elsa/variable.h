@@ -41,10 +41,16 @@ public:    // data
   // are significant advantages to storing *two* locations (first
   // declaration, and definition), but I haven't done that yet
   SourceLoc loc;          // location of the name in the source text
+                          
+  // name introduced (possibly NULL for abstract declarators)
+  StringRef name;        
 
-  StringRef name;         // name introduced (possibly NULL for abstract declarators)
-  Type *type;             // type of the variable
-  DeclFlags flags;        // various flags
+  // type of the variable
+  Type *type;             
+  
+  // various flags; 'const' to force modifications to go through
+  // the 'setFlagsTo' method
+  const DeclFlags flags;
 
   // associated value for constant literals, e.g. "const int five = 5;"
   Expression *value;      // (nullable serf)
@@ -71,16 +77,21 @@ protected:    // funcs
   Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f);
 
 public:
-  ~Variable();
+  virtual ~Variable();
 
   bool hasFlag(DeclFlags f) const { return (flags & f) != 0; }
-  void setFlag(DeclFlags f) { flags = (DeclFlags)(flags | f); }
+  void setFlag(DeclFlags f) { setFlagsTo(flags | f); }
   void addFlags(DeclFlags f) { setFlag(f); }
-  void clearFlag(DeclFlags f) { flags = (DeclFlags)(flags & ~f); }
+  void clearFlag(DeclFlags f) { setFlagsTo(flags & ~f); }
+
+  // change the value of 'flags'; this is virtual so that annotation
+  // systems can monitor flag modifications
+  virtual void setFlagsTo(DeclFlags f);
 
   // some convenient interpretations of 'flags'
   bool hasAddrTaken() const { return flags & DF_ADDRTAKEN; }
   bool isGlobal() const { return flags & DF_GLOBAL; }
+  bool isStatic() const { return flags & DF_STATIC; }
 
   // create an overload set if it doesn't exist, and return it
   OverloadSet *getOverloadSet();

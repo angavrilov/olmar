@@ -23,6 +23,13 @@ Variable::~Variable()
 {}
 
 
+void Variable::setFlagsTo(DeclFlags f)
+{
+  // this method is the one that gets to modify 'flags'
+  const_cast<DeclFlags&>(flags) = f;
+}
+
+
 string Variable::toString() const
 {
   // The purpose of this method is to print the name and type

@@ -45,7 +45,13 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
 
   // create first scope
   SourceLoc emptyLoc = SL_UNKNOWN;
-  scopes.prepend(new Scope(0 /*changeCount*/, emptyLoc));
+  {
+    Scope *s = new Scope(0 /*changeCount*/, emptyLoc);
+    scopes.prepend(s);
+    
+    // cause Variables inserted into this scope to acquire DF_GLOBAL
+    s->isGlobalScope = true;
+  }
 
   // create the typeid type
   CompoundType *ct = new CompoundType(CompoundType::K_CLASS, str("type_info"));
