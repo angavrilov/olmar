@@ -64,19 +64,13 @@ bool DeclTypeChecker::visitDeclarator(Declarator *obj)
 // this scans the AST for E_variables, and writes down the locations
 // to which they resolved; it's helpful for writing tests of name and
 // overload resolution
-// Intended to be used with LoweredASTVisitor
-class NameChecker : private ASTVisitor {
-public:            
-  LoweredASTVisitor loweredVisitor; // use this as the argument for traverse()
-
+class NameChecker : public ASTVisitor {
+public:
   // accumulates the results
   stringBuilder sb;
-  
+
 public:
-  NameChecker()
-    : loweredVisitor(this)
-  {}
-  virtual ~NameChecker() {}    // gcc idiocy
+  NameChecker() {}
 
   virtual bool visitExpression(Expression *obj)
   {
@@ -310,10 +304,6 @@ void doit(int argc, char **argv)
     try {
       unit->tcheck(env);
       xassert(env.scope()->isGlobalScope());
-      // check that the AST is a tree *and* that the lowered AST is a
-      // tree
-      LoweredIsTreeVisitor treeCheckVisitor;
-      unit->traverse(treeCheckVisitor.loweredVisitor);
     }
     catch (XUnimp &x) {
       // relay to handler in main()
@@ -326,7 +316,7 @@ void doit(int argc, char **argv)
       env.errors.print(cout);
       cout << x << endl;
       cout << "Failure probably related to code near " << env.locStr() << endl;
-      
+
       // print all the locations on the scope stack; this is sometimes
       // useful when the env.locStr refers to some template code that
       // was instantiated from somewhere else
@@ -395,11 +385,23 @@ void doit(int argc, char **argv)
     }
 
     // verify the tree now has no ambiguities
-    if (unit && numAmbiguousNodes(unit) != 0) {
+    if (numAmbiguousNodes(unit) != 0) {
       cout << "UNEXPECTED: ambiguities remain after type checking!\n";
       if (tracingSys("mustBeUnambiguous")) {
         exit(2);
       }
+    }
+
+    // check that the AST is a tree *and* that the lowered AST is a
+    // tree; only do this *after* confirming that tcheck finished
+    // without errors
+    if (tracingSys("treeCheck")) {
+      long start = getMilliseconds();
+      LoweredIsTreeVisitor treeCheckVisitor;
+      unit->traverse(treeCheckVisitor.loweredVisitor);
+      traceProgress() << "done with tree check 1 ("
+                      << (getMilliseconds() - start)
+                      << " ms)\n";
     }
 
     // check an expected property of the annotated AST
@@ -414,7 +416,7 @@ void doit(int argc, char **argv)
       // scan AST
       NameChecker nc;
       nc.sb << "collectLookupResults";
-      unit->traverse(nc.loweredVisitor);
+      unit->traverse(nc);
 
       // compare to given text
       if (0==strcmp(env.collectLookupResults, nc.sb)) {
@@ -437,7 +439,7 @@ void doit(int argc, char **argv)
 //        traceProgress() << "dsw flatten... done\n";
 //        cout << endl;
 //      }
-                                  
+
     if (tracingSys("stopAfterTCheck")) {
       return;
     }
@@ -449,11 +451,6 @@ void doit(int argc, char **argv)
 
     // do elaboration
     ElabVisitor vis(strTable, tfac, unit);
-    
-    // check that the AST is a tree *and* that the lowered AST is a
-    // tree
-    LoweredIsTreeVisitor treeCheckVisitor;
-    unit->traverse(treeCheckVisitor.loweredVisitor);
 
     // if we are going to pretty print, then we need to retain defunct children
     if (tracingSys("prettyPrint")) {
@@ -461,10 +458,20 @@ void doit(int argc, char **argv)
     }
 
     unit->traverse(vis.loweredVisitor);
-
     traceProgress() << "done elaborating ("
                     << (getMilliseconds() - start)
                     << " ms)\n";
+
+    // check that the AST is a tree *and* that the lowered AST is a
+    // tree (do this *after* elaboration!)
+    if (tracingSys("treeCheck")) {
+      long start = getMilliseconds();
+      LoweredIsTreeVisitor treeCheckVisitor;
+      unit->traverse(treeCheckVisitor.loweredVisitor);
+      traceProgress() << "done with tree check 2 ("
+                      << (getMilliseconds() - start)
+                      << " ms)\n";
+    }
 
     // print abstract syntax tree annotated with types
     if (tracingSys("printElabAST")) {

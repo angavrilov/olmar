@@ -14,15 +14,6 @@
 #include "cc_ast_aux.h"    // LoweredASTVisitor
 
 
-// I'm doing this fairly frequently, and it is pretty safe (really should
-// be returning a const ref...), so I'll consolidate a bit
-template <class T>
-inline SObjList<T>& objToSObjList(ObjList<T> &list)
-{
-  return reinterpret_cast<SObjList<T>&>(list);
-}
-
-
 void copyTemplateArgs(ObjList<STemplateArgument> &dest,
                       ObjList<STemplateArgument> const &src)
 {
@@ -1431,13 +1422,13 @@ Variable *Env::lookupPQVariable_applyArgsTemplInst
 // insert bindings into SK_TEMPLATE_ARG scopes, from template
 // parameters to concrete template arguments
 void Env::insertTemplateArgBindings
-  (Variable *baseV, SObjList<STemplateArgument> &sargs)
+  (Variable *baseV, SObjList<STemplateArgument> const &sargs)
 {
   xassert(baseV);
   TemplateInfo *baseVTI = baseV->templateInfo();
 
   // begin iterating over arguments
-  SObjListIterNC<STemplateArgument> argIter(sargs);
+  SObjListIter<STemplateArgument> argIter(sargs);
 
   // if 'baseV' is a partial instantiation, then it provides
   // a block of arguments at the beginning, and then we use 'sargs'
@@ -1497,7 +1488,7 @@ void Env::insertTemplateArgBindings
 
 // returns false if an error is detected
 bool Env::insertTemplateArgBindings_oneParamList
-  (Scope *scope, Variable *baseV, SObjListIterNC<STemplateArgument> &argIter,
+  (Scope *scope, Variable *baseV, SObjListIter<STemplateArgument> &argIter,
    SObjList<Variable> const &params)
 {
   SObjListIter<Variable> paramIter(params);
@@ -1511,7 +1502,7 @@ bool Env::insertTemplateArgBindings_oneParamList
     // 8/10/04: Default arguments are now handled elsewhere
     // TODO: fully collapse this code to reflect that
     xassert(!argIter.isDone());       // should not get here with too few args
-    STemplateArgument *sarg = /*argIter.isDone()? NULL :*/ argIter.data();
+    STemplateArgument const *sarg = argIter.data();
 
     if (sarg && sarg->isTemplate()) {
       xfailure("Template template parameters are not implemented");
@@ -1605,9 +1596,9 @@ bool Env::insertTemplateArgBindings_oneParamList
 }
 
 void Env::insertTemplateArgBindings
-  (Variable *baseV, ObjList<STemplateArgument> &sargs)
+  (Variable *baseV, ObjList<STemplateArgument> const &sargs)
 {
-  insertTemplateArgBindings(baseV, objToSObjList(sargs));
+  insertTemplateArgBindings(baseV, objToSObjListC(sargs));
 }
 
                                                    
@@ -3082,92 +3073,6 @@ CompoundType *Env::findEnclosingTemplateCalled(StringRef name)
     }
   }
   return NULL;     // not found
-}
-
-
-// --------------------- from cc_tcheck.cc ----------------------
-// go over all of the function bodies and make sure they have been
-// typechecked
-// Intended to be used with LoweredASTVisitor
-class EnsureFuncBodiesTcheckedVisitor : private ASTVisitor {
-public:
-  LoweredASTVisitor loweredVisitor; // use this as the argument for traverse()
-
-private:
-  Env &env;
-
-public:
-  EnsureFuncBodiesTcheckedVisitor(Env &env0)
-    : loweredVisitor(this)
-    , env(env0)
-  {}
-  virtual ~EnsureFuncBodiesTcheckedVisitor() {}
-
-  bool visitFunction(Function *f);
-  bool visitDeclarator(Declarator *d);
-};
-
-bool EnsureFuncBodiesTcheckedVisitor::visitFunction(Function *f) {
-  xassert(f->nameAndParams->var);
-  env.ensureFuncBodyTChecked(f->nameAndParams->var);
-  return true;
-}
-
-bool EnsureFuncBodiesTcheckedVisitor::visitDeclarator(Declarator *d) {
-//    printf("EnsureFuncBodiesTcheckedVisitor::visitDeclarator d:%p\n", d);
-  // a declarator can lack a var if it is just the declarator for the
-  // ASTTypeId of a type, such as in "operator int()".
-  if (!d->var) {
-    // I just want to check something that will make sure that this
-    // didn't happen because the enclosing function body never got
-    // typechecked
-    xassert(d->context == DC_UNKNOWN);
-//      xassert(d->decl);
-//      xassert(d->decl->isD_name());
-//      xassert(!d->decl->asD_name()->name);
-  } else {
-    env.ensureFuncBodyTChecked(d->var);
-  }
-  return true;
-}
-
-
-void instantiateRemainingMethods(Env &env, TranslationUnit *tunit)
-{
-  // Given the current architecture, it is impossible to ensure that
-  // all called functions have had their body tchecked.  This is
-  // because if implicit calls to existing functions.  That is, one
-  // user-written (not implicitly defined) function f() that is
-  // tchecked implicitly calls another function g() that is
-  // user-written, but the call is elaborated into existence.  This
-  // means that we don't see the call to g() until the elaboration
-  // stage, but by then typechecking is over.  However, since the
-  // definition of g() is user-written, not implicitly defined, it
-  // does indeed need to be tchecked.  Therefore, at the end of a
-  // translation unit, I simply typecheck all of the function bodies
-  // that have not yet been typechecked.  If this doesn't work then we
-  // really need to change something non-trivial.
-  //
-  // It seems that we are ok for now because it is only function
-  // members of templatized classes that we are delaying the
-  // typechecking of.  Also, I expect that the definitions will all
-  // have been seen.  Therefore, I can just typecheck all of the
-  // function bodies at the end of typechecking the translation unit.
-  //
-  // sm: Only do this if tchecking doesn't have any errors yet,
-  // b/c the assertions in the traversal will be potentially invalid
-  // if errors were found
-  //
-  // 8/03/04: Um, why are we doing this at all?!  It defeats the
-  // delayed instantiation mechanism altogether!  I'm disabling it.
-  #if 0    // no!
-  if (env.numErrors() == 0) {
-    EnsureFuncBodiesTcheckedVisitor visitor(env);
-    // use LoweredASTVisitor here? It skips function bodies that
-    // haven't been tchecked, so I think it defeats the purpose
-    tunit->traverse(visitor.loweredVisitor);
-  }
-  #endif // 0
 }
 
 

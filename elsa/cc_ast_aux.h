@@ -20,6 +20,7 @@ class LoweredASTVisitor;
 // this class helps LoweredASTVisitor turn off visitation during
 // uninstantiated templated bodies
 class LoweredASTVisitorHelper : public ASTVisitor {
+private:     // data
   LoweredASTVisitor &loweredVisitor;
 
   // also visit template definitions of primaries and partials
@@ -29,18 +30,13 @@ class LoweredASTVisitorHelper : public ASTVisitor {
   // which we have visited; prevents us from visiting them twice
   SObjSet<TemplateInfo *> primaryTemplateInfos;
 
-  public:
-  explicit LoweredASTVisitorHelper
-    (LoweredASTVisitor &loweredVisitor0
-     , bool primariesAndPartials0)
+public:      // funcs
+  LoweredASTVisitorHelper(LoweredASTVisitor &loweredVisitor0,
+                          bool primariesAndPartials0)
     : loweredVisitor(loweredVisitor0)
     , primariesAndPartials(primariesAndPartials0)
   {}
-  virtual ~LoweredASTVisitorHelper() {}
-  private:
-  explicit LoweredASTVisitorHelper(LoweredASTVisitorHelper const &other); // prohibit
 
-  public:
   virtual bool visitDeclarator(Declarator *decltor);
   virtual bool visitTypeSpecifier(TypeSpecifier *spec);
   virtual bool visitFunction(Function *func);
@@ -53,6 +49,7 @@ class LoweredASTVisitorHelper : public ASTVisitor {
   void visitDeclarator0(Declarator *decltor);
   void visitTypeSpecifier0(TypeSpecifier *spec);
 };
+
 
 // there were too many boolean arguments to the LoweredASTVisitor
 // ctor; FIX: make all visitors use these uniformly; FIX: Scott has
@@ -68,10 +65,12 @@ enum VisitorFlags {
 };
 ENUM_BITWISE_OPS(VisitorFlags, VF_ALL)
 
+
 // extend the visitor to traverse the lowered AST, which includes
 // additional AST that has bee elaborated into the AST, such as
 // instantiated templates, implicit ctors and dtors, etc.
 class LoweredASTVisitor : public DelegatorASTVisitor {
+private:     // data
   LoweredASTVisitorHelper helper;
 
   // visit elaborated AST fields such as ctorStatement, etc., but
@@ -88,7 +87,7 @@ class LoweredASTVisitor : public DelegatorASTVisitor {
   // assertion failure.
   SObjSet<void*> visitedTemplatizedASTNodes;
 
-  public:
+public:      // funcs
   LoweredASTVisitor(ASTVisitor *client0,
                     VisitorFlags flags0 = VF_CHECK_IS_TREE | VF_VISIT_ELAB)
     : DelegatorASTVisitor(client0, flags0 & VF_CHECK_IS_TREE)
@@ -114,18 +113,19 @@ class LoweredASTVisitor : public DelegatorASTVisitor {
   bool visitedAST(void *ast);
 };
 
+
 // visitor for checking that the "raw" AST is a tree; note that the
 // ctor arguments given to the parent are the sometime defaults of
 // DelegatorASTVisitor, but we will not rely on that and also make the
-// client code more self documenting by making this seperate class
+// client code more self documenting by making this separate class
 // here.
 class IsTreeVisitor : public DelegatorASTVisitor {
-  public:
+public:
   IsTreeVisitor()
     : DelegatorASTVisitor(NULL /*client*/, true /*ensureOneVisit*/)
   {}
-  virtual ~IsTreeVisitor() {}
 };
+
 
 // visitor for checking that the "raw" AST is a tree *and* the
 // "lowered" AST is a tree; the ensureOneVisit flag of our *parent* is
@@ -134,13 +134,13 @@ class IsTreeVisitor : public DelegatorASTVisitor {
 // VF_CHECK_IS_TREE flag below tells to check that the *non*-lowered
 // tree is a tree
 class LoweredIsTreeVisitor : private IsTreeVisitor {
-  public:
+public:
+  // used at creation site
   LoweredASTVisitor loweredVisitor;
 
   LoweredIsTreeVisitor()
     : loweredVisitor(this /*client*/, VF_VISIT_ELAB | VF_CHECK_IS_TREE)
   {}
-  virtual ~LoweredIsTreeVisitor() {}
 };
 
 #endif // CC_AST_AUX_H

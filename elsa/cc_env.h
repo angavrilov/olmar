@@ -145,8 +145,7 @@ public:      // data
   StringRef string__func__;
   StringRef string__FUNCTION__;
   StringRef string__PRETTY_FUNCTION__;
-
-  // ---- END: special names ----
+  StringRef string_main;
 
   StringRef special_checkType;
   StringRef special_getStandardConversion;
@@ -154,6 +153,7 @@ public:      // data
   StringRef special_testOverload;
   StringRef special_computeLUB;
   StringRef special_checkCalleeDefnLine;
+  // ---- END: special names ----
 
   // special variables associated with particular types
   Scope *dependentScope;                // (owner)
@@ -590,7 +590,10 @@ public:      // funcs
 
   // create a "using declaration" alias
   void makeUsingAliasFor(SourceLoc loc, Variable *origVar);
-                                    
+
+  // see comments at implementation site
+  void handleTypeOfMain(SourceLoc loc, Variable *prior, Type *&type);
+
   // pass Variable* through this before storing in the AST, so
   // that the AST only has de-aliased pointers (if desired);
   // a NULL argument is passed through unchanged
@@ -741,11 +744,11 @@ private:     // template funcs
      ObjList<STemplateArgument> const &sargs);
 
   void insertTemplateArgBindings
-    (Variable *baseV, SObjList<STemplateArgument> &sargs);
+    (Variable *baseV, SObjList<STemplateArgument> const &sargs);
   void insertTemplateArgBindings
-    (Variable *baseV, ObjList<STemplateArgument> &sargs);
+    (Variable *baseV, ObjList<STemplateArgument> const &sargs);
   bool insertTemplateArgBindings_oneParamList
-    (Scope *scope, Variable *baseV, SObjListIterNC<STemplateArgument> &argIter,
+    (Scope *scope, Variable *baseV, SObjListIter<STemplateArgument> &argIter,
      SObjList<Variable> const &params);
   void deleteTemplateArgBindings(Scope *limit = NULL);
 
@@ -1030,9 +1033,6 @@ public:      // funcs
 bool isCopyConstructor(Variable const *funcVar, CompoundType *ct);
 bool isCopyAssignOp(Variable const *funcVar, CompoundType *ct);
 void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
-
-// implemented in template.cc
-void instantiateRemainingMethods(Env &env, TranslationUnit *tunit);
 
 // made this global since it only needs 'tfac', not an entire 'env',
 // and I want to call this in places where I only have the former

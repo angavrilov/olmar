@@ -481,11 +481,7 @@ testparse t0243.cc
 testparse t0244.cc
 testparse t0245.cc
 testparse t0246.cc
-
-# FIX: with the new checking, this gets an assertion failure in the
-# internal state of the TemplateInfo
-#testparse t0247.cc
-
+testparse t0247.cc
 testparse t0248.cc
 testparse t0249.cc
 testparse t0250.cc
@@ -619,13 +615,8 @@ testparse t0368.cc
 testparse t0369.cc
 testparse t0370.cc
 testparse t0371.cc
-
-# FIX: AST is not a tree
-#testparse t0372.cc
-
-# FIX: AST is not a tree
-#testparse t0373.cc
-
+testparse t0372.cc
+testparse t0373.cc
 testparse t0374.cc
 testparse t0375.cc
 testparse t0376.cc
@@ -711,6 +702,7 @@ testparse t0453.cc
 testparse t0454.cc
 testparse t0455.cc
 testparse t0456.cc
+testparse t0457.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -1001,6 +993,8 @@ testCparse c/t0019.c
 # for gcov
 runTest perl ./multitest.pl ./ccparse -tr ansi_c99 in/c/t0020.c
 runTest perl ./multitest.pl ./ccparse -tr ansi_c,warnings in/c/t0021.c
+
+testCparse c/t0022.c
 
 testCparse gnu/d0096.c
 testCparse c/dC0010.c #"f(u8 register) doesn't parse"

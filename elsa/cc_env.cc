@@ -326,6 +326,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     string__func__(str("__func__")),
     string__FUNCTION__(str("__FUNCTION__")),
     string__PRETTY_FUNCTION__(str("__PRETTY_FUNCTION__")),
+    string_main(str("main")),
 
     // these are done below because they have to be declared as functions too
     special_checkType(NULL),
@@ -3049,6 +3050,7 @@ OverloadSet *Env::getOverloadForDeclaration(Variable *&prior, Type *type)
   OverloadSet *overloadSet = NULL;    // null until valid overload seen
   if (lang.allowOverloading &&
       prior &&
+      !(prior->name == string_main && prior->isGlobal()) &&   // cannot overload main()
       prior->type->isFunctionType() &&
       type->isFunctionType()) {
     // potential overloading situation
@@ -3287,6 +3289,11 @@ Variable *Env::createDeclaration(
               << "by a call to a function before it was declared.  "
               << "Keeping the implied, weaker declaration; THIS IS UNSOUND.");
     }
+    else if (name == string_main &&
+             scope->isGlobalScope()) {
+      // let the discrepancy go for now; we will get another chance to
+      // deal with this later, when 'handleTypeOfMain' is called
+    }
     else {
       // this message reports two declarations which declare the same
       // name, but their types are different; we only jump here *after*
@@ -3436,6 +3443,12 @@ noPriorDeclaration:
 // reference: cppstd, 8.3.6
 void Env::mergeDefaultArguments(SourceLoc loc, Variable *prior, FunctionType *type)
 {
+  if (prior->name == string_main && prior->isGlobal()) {
+    // main() should not have default args anyway, and the scheme
+    // for allowing varying declarations messes up the logic here
+    return;
+  }
+
   SObjListIterNC<Variable> priorParam(prior->type->asFunctionType()->params);
   SObjListIterNC<Variable> newParam(type->params);
 
@@ -3475,6 +3488,91 @@ void Env::mergeDefaultArguments(SourceLoc loc, Variable *prior, FunctionType *ty
   // both parameter lists should end simultaneously, otherwise why
   // did I conclude they are declaring the same entity?
   xassert(priorParam.isDone() && newParam.isDone());
+}
+
+
+// a global symbol 'main' was just declared, and it was determined
+// that the name refers to an entity (possibly previously
+// declared) of type 'prior', while the current declaration
+// denoted 'type'
+void Env::handleTypeOfMain(SourceLoc loc, Variable *prior, Type *&type)
+{
+  // relevent sections: C++ 3.6.1, C99 5.1.2.2.1
+
+  // We will allow declarations of main() to differ so that it is
+  // possible for a prototype in a header file to attach type
+  // qualifiers to (all) the parameters, while still allowing the
+  // implementation of main() to omit some of the parameters.
+  //
+  // To try to avoid analyses having to special-case this, I will
+  // make it so the second declaration looks like it had the same
+  // number of parameters as the first, if possible.
+
+  if (!type->isFunctionType()) {
+    env.error(loc, stringc
+      << "global name `main' must be a function, not `"
+      << type->toString() << "'");
+    return;
+  }
+
+  if (!prior->type->isFunctionType()) {
+    return;    // presumably already reported
+  }
+
+  // check that the types of the declared parameters agree
+  FunctionType *priorFt = prior->type->asFunctionType();
+  FunctionType *typeFt = type->asFunctionType();
+  SObjListIterNC<Variable> priorIter(priorFt->params);
+  SObjListIterNC<Variable> typeIter(typeFt->params);
+  while (!priorIter.isDone() && !typeIter.isDone()) {
+    Type::EqFlags eqFlags = Type::EF_IGNORE_TOP_CV;
+    if (!priorIter.data()->type->equals(typeIter.data()->type, eqFlags)) {
+      env.error(loc, stringc
+        << "prior declaration of main() at " << prior->loc
+        << " had type `" << prior->type->toString()
+        << "', but this one uses `" << type->toString() << "'");
+      return;
+    }
+    priorIter.adv();
+    typeIter.adv();
+  }
+
+  // I am not checking correspondence of return types.. I seem
+  // to remember that in C mode we're lax about that anyway?
+
+  if (typeIter.isDone() && priorIter.isDone()) {
+    return;     // no variance, nothing needs to be done
+  }
+
+  // must be 'type' that ends early
+  if (!typeIter.isDone()) {
+    error(type, loc, stringc
+      << "prior declaration of main() at " << prior->loc
+      << " had " << pluraln(priorFt->params.count(), "parameter")
+      << ", but this one has " << pluraln(typeFt->params.count(), "parameter")
+      << "; we do allow the parameter lists of main() to vary, "
+      << "but only when the earliest declaration has the largest "
+      << "number of parameters");
+    return;
+  }
+
+  // build a new FunctionType that is like 'dt.type' but has the
+  // trailing parameters from 'var->type' (we cannot simply modify
+  // 'typeFt' itself because it has already had doneParams()
+  // called)
+  FunctionType *newFt =
+    tfac.makeSimilarFunctionType(loc, typeFt->retType, typeFt);
+  SFOREACH_OBJLIST_NC(Variable, typeFt->params, iter) {
+    newFt->addParam(iter.data());    // should be ok to re-use the Variables
+  }
+  while (!priorIter.isDone()) {
+    newFt->addParam(priorIter.data());
+    priorIter.adv();
+  }
+  tfac.doneParams(newFt);
+
+  // from here on, use 'newFt' in place of 'type'
+  type = newFt;
 }
 
 

@@ -104,8 +104,6 @@ void TranslationUnit::tcheck(Env &env)
                      " --------");
     iter.setDataLink( iter.data()->tcheck(env) );
   }
-
-  instantiateRemainingMethods(env, this);
 }
 
 
@@ -3058,6 +3056,12 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // make a Variable, add it to the environment
     var = env.storeVar(
       declareNewVariable(env, dt, decl->hasInnerGrouping(), decl->loc, name));
+
+    if (var &&
+        var->name == env.string_main &&
+        var->isGlobal()) {
+      env.handleTypeOfMain(decl->loc, var, dt.type);
+    }
   }
   else {
     // caller already gave me a Variable to use
