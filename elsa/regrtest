@@ -384,6 +384,8 @@ failTest "need overload resolution with templates" \
 
 
 # another set of tests, generally isolated by Daniel
+# FIX: d0018.cc fails; it was minimized from in/big/nsAtomTable.i;
+# turn on when works
 for fn in                                      \
   d0001.cc d0002.cc d0003.cc d0004.cc d0005.cc \
   d0006.cc d0007.cc d0008.cc d0009.cc d0010.cc \
@@ -475,6 +477,25 @@ done
 #  for fn in in/big/*.i; do
 #    runTest ./ccparse -tr $TR_FLAGS "$fn"
 #  done
+
+# FIX: Only this one passes
+$MAKE in/big
+for fn in \
+in/big/nonport.i \
+; do
+  runTest ./ccparse -tr $TR_FLAGS "$fn"
+done
+
+# These are failing:
+
+# This one has been minimized to in/d0018.cc
+#  in/big/nsAtomTable.i
+
+#  in/big/nsCLiveconnectFactory.i
+#  in/big/nsHTMLEditRules.i
+#  in/big/nsMsgServiceProvider.i
+#  in/big/nsSOAPPropertyBag.i
+#  in/big/nsUnicodeToTeXCMRt1.i
 
 
 # final arithmetic to report result
