@@ -101,3 +101,107 @@ notvalid "dude! sweet!" (
   (IMPLIES (NEQ result_3 (sub 0 whole)) (AND (freshObj (firstIndexOf result_3) mem_27) (okSelOffsetRange mem_27 (appendIndex result_3 0) 12)))
 )
 bg_pop
+
+
+; ---------------- treeNode ------------------
+bg_push (
+  (EQ newp_5 (sub newp_index_5 newp_rest_5))
+  (EQ right_3 (sub right_index_3 right_rest_3))
+  (EQ left_3 (sub left_index_3 left_rest_3))
+  (DISTINCT 0)
+  (uncheckedAccess mem_21)
+  (>= level_14 0)
+  (NOT (EQ level_14 0))
+  (EQ newp_6 (sub newp_index_6 newp_rest_6))
+  (EQ right_4 (sub right_index_4 right_rest_4))
+  (EQ left_4 (sub left_index_4 left_rest_4))
+  (EQ mem_21 (sub pre_mem_index_1 pre_mem_rest_1))
+  (uncheckedAccess mem_22)
+  (EXISTS (address_1 ) (AND (NEQ address_1 0) (EQ result_3 (sub address_1 0)) (freshObj address_1 mem_22) (okSelOffsetRange mem_22 (appendIndex result_3 0) 12) (EQ mem_21 mem_22)))
+  (uncheckedAccess mem_23)
+  (EQ result_4 (sub (firstIndexOf result_4) 0))
+  (treeNode mem_23 (firstIndexOf result_4))
+  (IMPLIES (NEQ result_4 (sub 0 whole)) (AND (freshObj (firstIndexOf result_4) mem_23) (okSelOffsetRange mem_23 (appendIndex result_4 0) 12)))
+  (EQ mem_22 mem_23)
+  (uncheckedAccess mem_24)
+  (EQ result_5 (sub (firstIndexOf result_5) 0))
+  (treeNode mem_24 (firstIndexOf result_5))
+  (IMPLIES (NEQ result_5 (sub 0 whole)) (AND (freshObj (firstIndexOf result_5) mem_24) (okSelOffsetRange mem_24 (appendIndex result_5 0) 12)))
+  (EQ mem_23 mem_24)
+  (EQ mem_25 (updOffset mem_24 (appendIndex result_3 0) 1))
+  (EQ mem_26 (updOffset mem_25 (appendIndex result_3 1) result_4))
+  (EQ mem_27 (updOffset mem_26 (appendIndex result_3 2) result_5))
+)
+valid "implications" (
+  (IMPLIES
+    (EQ (firstIndexOf result_3) addr)
+    (AND
+      (NEQ addr 0)
+      (okSel mem_27 addr)
+      (treeNode mem_27 (firstIndexOf (sel (sel mem_27 addr) 1)))
+      (EQ whole (restOf (sel (sel mem_27 addr) 1)))
+      (treeNode mem_27 (firstIndexOf (sel (sel mem_27 addr) 2)))
+      (EQ whole (restOf (sel (sel mem_27 addr) 2)))
+    )
+  )
+)
+valid "treeNode" (
+  (IMPLIES
+;    (AND
+;      (EQ (firstIndexOf result_3) addr)
+;      (NEQ addr 0)
+      (okSel mem_27 (firstIndexOf result_3))   ; needed
+;      (uncheckedAccess mem_27)
+;      (treeNode mem_27 (firstIndexOf (sel (sel mem_27 addr) 1)))
+;      (EQ whole (restOf (sel (sel mem_27 addr) 1)))
+;      (treeNode mem_27 (firstIndexOf (sel (sel mem_27 addr) 2)))
+;      (EQ whole (restOf (sel (sel mem_27 addr) 2)))
+;    )
+    (treeNode mem_27 (firstIndexOf result_3))
+  )
+)
+bg_pop
+
+
+; ----------------- treeAdd -----------------
+bg_push (
+  (uncheckedAccess mem_19)
+  (EQ t_16 (sub t_index_16 t_rest_16))
+  (treeNode mem_19 (firstIndexOf t_16))
+  (EQ t_16 (sub (firstIndexOf t_16) 0))
+  (NOT (EQ t_16 (sub 0 whole)))
+  (EQ tleft_4 (sub tleft_index_4 tleft_rest_4))
+  (EQ tright_4 (sub tright_index_4 tright_rest_4))
+)
+valid "implications" (
+  (IMPLIES
+    (EQ leftPtr (sel (sel mem_19 t_index_16) 1))
+    (AND
+      (EQ t_rest_16 0)
+      (NEQ t_index_16 0)
+      (EQ (appendIndex t_16 1) (sub t_index_16 (sub 1 whole)))
+      (EQ (selOffset mem_19 (appendIndex t_16 1))
+          leftPtr)
+
+      ; t->left is a treeNode
+      (treeNode mem_19 (firstIndexOf leftPtr))
+
+      (EQ whole (restOf leftPtr))
+
+    )
+  )
+)
+valid "treeAdd" (
+  (EQ (selOffset mem_19 (appendIndex t_16 1))
+      (sub (firstIndexOf (selOffset mem_19 (appendIndex t_16 1))) whole))
+;   (IMPLIES
+;     (AND
+;       (EQ leftPtr (sel (sel mem_19 t_index_16) 1))
+; ;      (EQ whole (restOf leftPtr))
+;     )
+
+;     (EQ leftPtr
+;         (sub (firstIndexOf leftPtr) whole))
+;   )
+)
+bg_pop

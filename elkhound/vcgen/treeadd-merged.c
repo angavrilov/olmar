@@ -14,6 +14,9 @@ thmprv_predicate int freshObj(int *obj, int *mem);
 int *sub(int index, int *rest);
 int firstIndexOf(int *ptr);
 int *appendIndex(int *ptr, int index);
+thmprv_predicate int okSel(int mem, int index);
+
+thmprv_predicate int treeNode(int mem, int addr);
 
 
 // -------- stuff from headers ------------
@@ -133,6 +136,8 @@ tree_t *TreeAlloc (int level)
   thmprv_post(
     // the returned pointer is a toplevel address only
     result == sub(firstIndexOf(result), 0 /*whole*/) &&
+    // and that address can be called a tree node
+    treeNode(mem, firstIndexOf(result)) &&
     // if we don't return NULL..
     (result != (tree_t*)0 ==> (
       // pointer points to new object
@@ -152,6 +157,8 @@ tree_t *TreeAlloc (int level)
   thmprv_post(
     // the returned pointer is a toplevel address only
     result == sub(firstIndexOf(result), 0 /*whole*/) &&
+    // and that address can be called a tree node
+    treeNode(mem, firstIndexOf(result)) &&
     // if we don't return NULL..
     (result != (tree_t*)0 ==> (
       // pointer points to new object
@@ -168,27 +175,69 @@ tree_t *TreeAlloc (int level)
     {
       return (tree_t*)0;
     }
-  else 
+  else
     {
       struct tree *newp, *right, *left;
 
-      newp = (struct tree *) malloc(0 /*sizeof(tree_t)*/);
+      newp = (struct tree *) malloc(sizeof(tree_t));
       left = TreeAlloc(level-1);
       right = TreeAlloc(level-1);
       newp->val = 1;
       newp->left = left;
       newp->right = right;
+
+      // this one lemma is needed to prove the postcondition..      
+      thmprv_assert(okSel(mem, firstIndexOf(newp)));
+      thmprv_assume(okSel(mem, firstIndexOf(newp)));
+
       return newp;
     }
 }
 
 
 // ======================== node.c =======================
-typedef struct {
-    long 	level;
-} startmsg_t;
+int TreeAdd (tree_t *t)
+  thmprv_pre(
+    int pre_mem = mem; 
+    treeNode(mem, firstIndexOf(t)) &&
+    t == sub(firstIndexOf(t), 0 /*whole*/)
+  )
+  thmprv_post(
+    mem == pre_mem
+  )
+;
 
-int TreeAdd (tree_t *t);
+int TreeAdd (tree_t *t)
+  thmprv_pre(
+    int pre_mem = mem;
+    treeNode(mem, firstIndexOf(t)) &&
+    t == sub(firstIndexOf(t), 0 /*whole*/)
+  )
+  thmprv_post(
+    mem == pre_mem
+  )
+{
+  if (t == (tree_t*)0)
+    {
+      return 0;
+    }
+  else
+    {
+      int leftval;
+      int rightval;
+      tree_t *tleft, *tright;
+      int value;
+
+      tleft = t->left;
+      leftval = TreeAdd(tleft);
+      tright = t->right;
+      rightval = TreeAdd(tright);
+
+      value = t->val;
+      return leftval + rightval + value;
+    }
+}
+
 
 int main (int argc, char **argv)
   thmprv_pre(
@@ -220,29 +269,5 @@ int main (int argc, char **argv)
     return 0;
 }
 
-/* TreeAdd:
- */
-int TreeAdd (tree_t *t)
-{
-  if (t == (tree_t*)0)
-    {
-      return 0;
-    }
-  else
-    {
-      int leftval;
-      int rightval;
-      tree_t *tleft, *tright;
-      int value;
-
-      tleft = t->left;
-      leftval = TreeAdd(tleft);
-      tright = t->right;
-      rightval = TreeAdd(tright);
-
-      value = t->val;
-      return leftval + rightval + value;
-    }
-} /* end of TreeAdd */
 
 

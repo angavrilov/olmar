@@ -28,6 +28,10 @@
 ; x == whole
 (DEFPRED (isWhole x))
 
+; an address is a tree node object, for treeadd
+(DEFPRED (treeNode mem addr))
+
+
 (BG_PUSH (AND
 
   ; ---------------- misc -----------------
@@ -646,6 +650,14 @@
   ; whatever..
   (EQ whole 0)
 
+  ; special case: if I know that 'restOf' is whole, then I know the
+  ; pointer is equal to sub(firstIndex)
+  (FORALL (ptr)
+    (IMPLIES
+      (EQ whole (restOf ptr))
+      (EQ ptr (sub (firstIndexOf ptr) whole))
+    ))
+
   ; ------------------------ fresh -------------------------
   ; two memories are (or at least can be) equal if the only
   ; modification involves objects fresh in the older one
@@ -659,4 +671,63 @@
         mem                 ; can be considered the same memory
       )))
 
+
+  ; ------------------- treeNode ------------------
+  (FORALL (mem addr)
+    (IFF
+      (treeNode mem addr)
+      (OR
+        (EQ addr 0)
+        (AND
+          (NEQ addr 0)
+          (okSel mem addr)
+          (treeNode mem (firstIndexOf (sel (sel mem addr) 1)))  ; left
+          (EQ whole (restOf (sel (sel mem addr) 1)))
+          (treeNode mem (firstIndexOf (sel (sel mem addr) 2)))  ; right
+          (EQ whole (restOf (sel (sel mem addr) 2)))
+        )
+      )
+    )
+  )
+
+;   ; treeNode => ...
+;   (FORALL (mem addr)
+;     (IMPLIES
+;       (treeNode mem addr)
+;       (OR
+;         (EQ addr 0)
+;         (AND
+;           (NEQ addr 0)
+;           (okSel mem addr)
+;           (treeNode mem (firstIndexOf (sel (sel mem addr) 1)))  ; left
+;           (EQ whole (restOf (sel (sel mem addr) 1)))
+;           (treeNode mem (firstIndexOf (sel (sel mem addr) 2)))  ; right
+;           (EQ whole (restOf (sel (sel mem addr) 2)))
+;         )
+;       )
+;     )
+;   )
+
+;   ; ...(1) => treeNode
+;   (FORALL (mem addr)
+;     (IMPLIES
+;       (EQ addr 0)
+;       (treeNode mem addr)
+;     )
+;   )
+
+;   ; ...(2) => treeNode
+;   (FORALL (mem addr)
+;     (IMPLIES
+;       (AND
+;         (NEQ addr 0)
+;         (okSel mem addr)
+;         (treeNode mem (firstIndexOf (sel (sel mem addr) 1)))  ; left
+;         (EQ whole (restOf (sel (sel mem addr) 1)))
+;         (treeNode mem (firstIndexOf (sel (sel mem addr) 2)))  ; right
+;         (EQ whole (restOf (sel (sel mem addr) 2)))
+;       )
+;       (treeNode mem addr)
+;     )
+;   )
 ))
