@@ -2705,20 +2705,23 @@ void Env::setSTemplArgFromExpr
   if (expr->type->isIntegerType() ||
       expr->type->isBool() ||
       expr->type->isEnumType()) {
-    int i;
     ConstEval cenv(env.dependentVar);
-    if (expr->constEval(cenv, i)) {
-      if (cenv.dependent) {
-        sarg.setDepExpr(expr);
-      }
-      else {
-        sarg.setInt(i);
-      }
+    CValue val = expr->constEval(cenv);
+    if (val.isDependent()) {
+      sarg.setDepExpr(expr);
     }
-    else {
+    else if (val.isIntegral()) {
+      sarg.setInt(val.getIntegralValue());
+    }
+    else if (val.isError()) {
       env.error(stringc
         << "cannot evaluate `" << expr->exprToString()
-        << "' as a template integer argument: " << cenv.msg);
+        << "' as a template integer argument: " << *val.getWhy());
+      delete val.getWhy();
+    }
+    else {
+      xassert(val.isFloat());
+      env.error("cannot use float type as template argument");
     }
   }
 

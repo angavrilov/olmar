@@ -422,15 +422,18 @@ void IN_designated::tcheck(Env &env, Type *type)
 
 
 // ------------------ const-eval, etc. -------------------
-bool E_gnuCond::extConstEval(ConstEval &env, int &result) const
+CValue E_gnuCond::extConstEval(ConstEval &env) const
 {
-  if (!cond->constEval(env, result)) return false;
+  CValue v = cond->constEval(env);
+  if (v.isSticky()) {
+    return v;
+  }
 
-  if (result) {
-    return true;
+  if (!v.isZero()) {
+    return v;
   }
   else {
-    return el->constEval(env, result);
+    return el->constEval(env);
   }
 }
 
@@ -441,19 +444,38 @@ bool E_gnuCond::extHasUnparenthesizedGT() const
 }
 
 
-bool E_gnuMinMax::extConstEval(ConstEval &env, int &result) const
+CValue E_gnuMinMax::extConstEval(ConstEval &env) const
 {
-  int r1, r2;
-  if (!e1->constEval(env, r1)) return false;
-  if (!e2->constEval(env, r2)) return false;
+  CValue v1 = e1->constEval(env);
+  CValue v2 = e2->constEval(env);
+  if (v1.isSticky()) {
+    return v1;
+  }
+  if (v2.isSticky()) {
+    return v2;
+  }
+  
+  // this is a guess
+  v1.applyUsualArithmeticConversions(v2);
 
   if (isMin) {
-    result = r1<r2? r1 : r2;
+    switch (v1.kind()) {
+      default: // silence warning
+      case CValue::K_SIGNED:     v1.si = ((v1.si < v2.si) ? v1.si : v2.si);   break;
+      case CValue::K_UNSIGNED:   v1.ui = ((v1.ui < v2.ui) ? v1.ui : v2.ui);   break;
+      case CValue::K_FLOAT:      v1.f = ((v1.f < v2.f) ? v1.f : v2.f);        break;
+    }
   }
   else {
-    result = r1>r2? r1 : r2;
+    switch (v1.kind()) {
+      default: // silence warning
+      case CValue::K_SIGNED:     v1.si = ((v1.si > v2.si) ? v1.si : v2.si);   break;
+      case CValue::K_UNSIGNED:   v1.ui = ((v1.ui > v2.ui) ? v1.ui : v2.ui);   break;
+      case CValue::K_FLOAT:      v1.f = ((v1.f > v2.f) ? v1.f : v2.f);        break;
+    }
   }
-  return true;
+  
+  return v1;
 }
 
 bool E_gnuMinMax::extHasUnparenthesizedGT() const

@@ -3735,9 +3735,10 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
     // definitions), but we'll report those errors elsewhere
     if (size) {
       // try to evaluate the size to a constant
-      int sz;
+      int sz = 1;
       ConstEval cenv(env.dependentVar);
-      if (!size->constEval(cenv, sz)) {
+      CValue val = size->constEval(cenv);
+      if (val.isError()) {
         // size didn't evaluate to a constant
         sz = ArrayType::NO_SIZE;
         if ((dt.context == DC_S_DECL ||
@@ -3748,12 +3749,18 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
           // allow it anyway
           sz = ArrayType::DYN_SIZE;
         }
-        else if (cenv.msg.length() > 0) {
+        else {
           // report the error
-          env.error(cenv.msg);
+          env.error(*(val.getWhy()));
         }
+        delete val.getWhy();
       }
-      else {
+      else if (val.isDependent()) {
+        // let it go
+      }
+      else if (val.isIntegral()) {
+        sz = val.getIntegralValue();
+
         // check restrictions on array size (c.f. cppstd 8.3.4 para 1)
         if (env.lang.strictArraySizeRequirements) {
           if (sz <= 0) {
@@ -3765,6 +3772,9 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
             env.error(loc, stringc << "array size must be nonnegative (it is " << sz << ")");
           }
         }
+      }
+      else {
+        env.error(loc, "array size must have integral type");
       }
 
       at = env.makeArrayType(loc, dt.type, sz);
@@ -7655,15 +7665,25 @@ bool Expression::constEval(Env &env, int &result, bool &dependent) const
   dependent = false;
 
   ConstEval cenv(env.dependentVar);
-  if (constEval(cenv, result)) {
-    dependent = cenv.dependent;
+
+  CValue val = constEval(cenv);
+  if (val.isError()) {
+    env.error(*(val.getWhy()));
+    delete val.getWhy();
+    return false;
+  }              
+  else if (val.isDependent()) {
+    dependent = true;
     return true;
   }
-
-  if (cenv.msg.length() > 0) {
-    env.error(cenv.msg);
+  else if (val.isIntegral()) {
+    result = val.getIntegralValue();
+    return true;
   }
-  return false;
+  else {
+    env.error("expected integral-typed constant expression");
+    return false;
+  }
 }
 
 

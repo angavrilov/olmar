@@ -22,6 +22,11 @@
 #
 #   failparse foo.cc "give reason here"
 #
+# The "reason" string, ideally, should include (1) what response
+# ccparse gives (segfault, assertion failure, error message) and (2)
+# what kind of syntax characterizes the input (e.g., "template with
+# reference parameter").
+#
 # If the test includes deliberately invalid syntax that elsa is
 # supposed to detect and reject, then include lines in the test case
 # of the form
@@ -862,12 +867,12 @@ failparse k0003.cc "template argument from static const member of template class
 failparse k0004.cc "non-typename template argument"
 failparse k0005.cc "declaring a constructor with class name"
 failparse k0006.cc "error: E_alignofType is not constEval'able"
-failparse k0007.cc "error: E_floatLit is not constEval'able"
+testparse k0007.cc
 failparse k0008.cc "addresses of labels and computed goto"
 failparse k0009.cc "clash between function and instantiated template parameter member"
-failparse k0010.cc "type sizes used in compile-time assertions"
-testparse k0011.cc "ambiguous s->z < 1 || 2 > (3)"
-testparse k0012.cc "merge nonterm ConditionalExpression"
+testparse k0010.cc
+testparse k0011.cc
+testparse k0012.cc
 failparse k0013.cc "cannot convert argument type `float (*)[4]' to parameter 1 type `float const (*)[4]'"
 
 # ---- END: lots of tests ----

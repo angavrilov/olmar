@@ -895,6 +895,10 @@ void getIntegerStats(SimpleTypeId id, int &length, int &uns)
   }
 }
 
+
+// implemented below
+static SimpleTypeId uacHelper(SimpleTypeId leftId, SimpleTypeId rightId);
+
 // cppstd section 5 para 9
 // and C99 secton 6.3.1.8 para 1
 Type *usualArithmeticConversions(TypeFactory &tfac, Type *left, Type *right)
@@ -915,6 +919,41 @@ Type *usualArithmeticConversions(TypeFactory &tfac, Type *left, Type *right)
   SimpleTypeId leftId = applyIntegralPromotions(left);
   SimpleTypeId rightId = applyIntegralPromotions(right);
 
+  // conversions on SimpleTypeIds
+  SimpleTypeId lubId = uacHelper(leftId, rightId);
+
+  // package it
+  return makeSimpleType(tfac, lubId);
+}
+
+SimpleTypeId usualArithmeticConversions(SimpleTypeId leftId, SimpleTypeId rightId)
+{
+  // same initial tests as above, but directly on the ids
+
+  // if either operand is of type long double, [return] long double
+  if (leftId == ST_LONG_DOUBLE) { return leftId; }
+  if (rightId == ST_LONG_DOUBLE) { return rightId; }
+
+  // similar for double
+  if (leftId == ST_DOUBLE) { return leftId; }
+  if (rightId == ST_DOUBLE) { return rightId; }
+
+  // and float
+  if (leftId == ST_FLOAT) { return leftId; }
+  if (rightId == ST_FLOAT) { return rightId; }
+
+  // now apply integral promotions (4.5)
+  leftId = applyIntegralPromotions(leftId);
+  rightId = applyIntegralPromotions(rightId);
+
+  // conversions on SimpleTypeIds
+  SimpleTypeId lubId = uacHelper(leftId, rightId);
+
+  return lubId;
+}
+
+static SimpleTypeId uacHelper(SimpleTypeId leftId, SimpleTypeId rightId)
+{
   // At this point, both cppstd and C99 go into gory detail
   // case-analyzing the types (which are both integral types at least
   // 'int' or bigger/wider).  However, the effect of both analyses is
@@ -955,34 +994,7 @@ Type *usualArithmeticConversions(TypeFactory &tfac, Type *left, Type *right)
   };
   SimpleTypeId lubId = map[lubLength][lubUns];
   
-  return makeSimpleType(tfac, lubId);
-
-  #if 0    // old case analysis
-  // if either operand is unsigned long, [return] unsigned long
-  if (leftId == ST_UNSIGNED_LONG || rightId == ST_UNSIGNED_LONG)
-    { return makeSimpleType(tfac, ST_UNSIGNED_LONG); }
-
-  // if one is long int and the other is unsigned int, pick
-  // either long int or unsigned long int, whichever is smaller
-  // and can hold all values
-  //
-  // I choose unsigned long int, making nominal 32-bit assumptions.
-  if ((leftId == ST_LONG_INT && rightId == ST_UNSIGNED_INT) ||
-      (rightId == ST_LONG_INT && leftId == ST_UNSIGNED_INT))
-    { return makeSimpleType(tfac, ST_UNSIGNED_LONG_INT); }
-
-  // if either is long, return long
-  if (leftId == ST_LONG_INT || rightId == ST_LONG_INT)
-    { return makeSimpleType(tfac, ST_LONG_INT); }
-
-  // if either is unsigned, return unsigned
-  if (leftId == ST_UNSIGNED_INT || rightId == ST_UNSIGNED_INT)
-    { return makeSimpleType(tfac, ST_UNSIGNED_INT); }
-
-  // only remaining case: both are ST_INT
-  xassert(leftId == ST_INT && rightId == ST_INT);
-  return makeSimpleType(tfac, ST_INT);
-  #endif // 0
+  return lubId;
 }
 
 
@@ -995,7 +1007,12 @@ SimpleTypeId applyIntegralPromotions(Type *t)
     return ST_INT;
   }
   SimpleTypeId id = t->asSimpleTypeC()->type;
+  
+  return applyIntegralPromotions(id);
+}
 
+SimpleTypeId applyIntegralPromotions(SimpleTypeId id)
+{
   switch (id) {
     case ST_CHAR:
     case ST_SIGNED_CHAR:

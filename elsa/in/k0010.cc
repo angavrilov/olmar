@@ -14,7 +14,7 @@ typedef unsigned long lzo_ptr_t;
 typedef long lzo_sptr_t;
 
 
-foo() {
+int foo() {
     { typedef int F[1 - 2 * !(8 == 8)]; };
     { typedef int F[1 - 2 * !(sizeof(char) == 1)]; };
     { typedef int F[1 - 2 * !(sizeof(short) >= 2)]; };

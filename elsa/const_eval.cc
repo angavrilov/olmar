@@ -4,200 +4,680 @@
 #include "const_eval.h"     // this module
 #include "cc_ast.h"         // C++ AST
 #include "cc_env.h"         // Env
+#include "stdconv.h"        // applyIntegralPromotions, etc.
 
 
+// ----------------------- CValue ------------------------
+STATICDEF CValue::Kind CValue::classify(SimpleTypeId t)
+{
+  switch (t) {
+    case ST_CHAR:
+    case ST_SIGNED_CHAR:
+    case ST_SHORT_INT:
+    case ST_WCHAR_T:
+    case ST_INT:
+    case ST_LONG_INT:
+    case ST_LONG_LONG:
+      return K_SIGNED;
+
+    case ST_BOOL:
+    case ST_UNSIGNED_CHAR:
+    case ST_UNSIGNED_SHORT_INT:
+    case ST_UNSIGNED_INT:
+    case ST_UNSIGNED_LONG_INT:
+    case ST_UNSIGNED_LONG_LONG:
+      return K_UNSIGNED;
+
+    case ST_FLOAT:
+    case ST_DOUBLE:
+    case ST_LONG_DOUBLE:
+      return K_FLOAT;
+
+    case ST_DEPENDENT:
+      return K_DEPENDENT;
+
+    default:
+      return K_ERROR;
+  }
+}
+
+
+void CValue::dup(CValue const &obj)
+{
+  type = obj.type;
+  switch (classify(type)) {
+    case K_SIGNED:    si = obj.si;     break;
+    case K_UNSIGNED:  ui = obj.ui;     break;
+    case K_FLOAT:     f = obj.f;       break;
+    case K_ERROR:     why = obj.why;   break;
+    case K_DEPENDENT:                  break;
+  }
+}
+
+
+bool CValue::isZero() const
+{
+  switch (kind()) {
+    default: // silence warning
+    case K_SIGNED:    return si == 0;
+    case K_UNSIGNED:  return ui == 0;
+    case K_FLOAT:     return f == 0.0;
+  }
+}
+
+
+bool CValue::isIntegral() const
+{
+  Kind k = kind();
+  return k==K_SIGNED || k==K_UNSIGNED;
+}
+
+int CValue::getIntegralValue() const
+{
+  xassert(isIntegral());
+  if (kind() == K_SIGNED) {
+    return si;
+  }
+  else {
+    return (int)ui;
+  }
+}
+
+
+void CValue::setSigned(SimpleTypeId t, long v)
+{
+  type = t;
+  xassert(isSigned());
+  si = v;
+}
+
+
+void CValue::setUnsigned(SimpleTypeId t, unsigned long v)
+{
+  type = t;
+  xassert(isUnsigned());
+  ui = v;
+}
+
+
+void CValue::setFloat(SimpleTypeId t, float v)
+{
+  type = t;
+  xassert(isFloat());
+  f = v;
+}
+
+
+void CValue::setError(rostring w)
+{
+  type = ST_ERROR;
+  why = new string(w);
+}
+
+
+void CValue::setDependent()
+{
+  type = ST_DEPENDENT;
+  si = 0;
+}
+
+
+void CValue::performIntegralPromotions()
+{
+  convertToType(applyIntegralPromotions(type));
+}
+
+void CValue::convertToType(SimpleTypeId newType)
+{
+  Kind oldKind = classify(type);
+  Kind newKind = classify(newType);
+  if (newKind != oldKind) {
+    // neither source nor dest should be sticky
+    xassert(oldKind != K_ERROR && oldKind != K_DEPENDENT &&
+            newKind != K_ERROR && newKind != K_DEPENDENT);
+
+    xassert((unsigned)oldKind < 8u);    // for my representation trick
+
+    // sort of like ML-style case analysis on a pair of values
+    switch (newKind*8 + oldKind) {
+      default:
+        xfailure("unexpected type conversion scenario in const-eval");
+        break;                   // silence warning
+
+      case K_SIGNED*8 + K_UNSIGNED:
+        si = (long)ui;           // convert unsigned to signed
+        break;
+
+      case K_SIGNED*8 + K_FLOAT:
+        si = (long)f;
+        break;
+
+      case K_UNSIGNED*8 + K_SIGNED:
+        ui = (unsigned long)si;
+        break;
+
+      case K_UNSIGNED*8 + K_FLOAT:
+        ui = (unsigned long)f;
+        break;
+
+      case K_FLOAT*8 + K_SIGNED:
+        f = (float)si;
+        break;
+
+      case K_FLOAT*8 + K_UNSIGNED:
+        f = (float)ui;
+        break;
+    }
+  }
+
+  type = newType;
+
+  // truncate the value based on the final type
+  int reprSize = simpleTypeReprSize(type);
+  if (reprSize >= 4) {
+    // do no truncation
+  }
+  else {
+    int maxValue = (1 << 8*reprSize) - 1;
+    switch (kind()) {
+      case K_SIGNED:     if (si > maxValue) { si=maxValue; }  break;
+      case K_UNSIGNED:   if (ui > (unsigned)maxValue) { ui=(unsigned)maxValue; }  break;
+      default: break;   // ignore
+    }
+  }
+}
+
+
+void CValue::applyUnary(UnaryOp op)
+{
+  if (isSticky()) { return; }
+
+  switch (op) {
+    default: xfailure("bad code");
+
+    case UNY_PLUS:
+      // 5.3.1p6
+      performIntegralPromotions();
+      break;
+
+    case UNY_MINUS:
+      // 5.3.1p7
+      performIntegralPromotions();
+      switch (kind()) {
+        default: // silence warning
+        case K_SIGNED:    si = -si;   break;
+        case K_UNSIGNED:  ui = -ui;   break;
+        case K_FLOAT:     f = -f;     break;
+      }
+      break;
+
+    case UNY_NOT:
+      // 5.3.1p8
+      ui = isZero()? 1u : 0u;
+      type = ST_BOOL;
+      break;
+
+    case UNY_BITNOT:
+      // 5.3.1p9
+      performIntegralPromotions();
+      switch (kind()) {
+        default: // silence warning
+        case K_SIGNED:    si = ~si;   break;
+        case K_UNSIGNED:  ui = ~ui;   break;
+        case K_FLOAT:     setError("cannot apply ~ to float types"); break;
+      }
+  }
+}
+
+
+void CValue::applyUsualArithmeticConversions(CValue &other)
+{
+  SimpleTypeId finalType = usualArithmeticConversions(type, other.type);
+  this->convertToType(finalType);
+  other.convertToType(finalType);
+}
+
+void CValue::applyBinary(BinaryOp op, CValue other)
+{
+  if (isSticky()) { return; }
+  
+  if (other.isSticky()) {
+    *this = other;
+    return;
+  }
+
+  switch (op) {
+    default:
+      setError(stringc << "cannot const-eval binary operator `" 
+                       << toString(op) << "'");
+      return;
+
+    // ---- 5.6 ----
+    case BIN_MULT:
+      applyUsualArithmeticConversions(other);
+      switch (kind()) {
+        default: // silence warning
+        case K_SIGNED:     si = si * other.si;    break;
+        case K_UNSIGNED:   ui = ui * other.ui;    break;
+        case K_FLOAT:      f = f * other.f;       break;
+      }
+      break;
+
+    case BIN_DIV:
+      applyUsualArithmeticConversions(other);
+      if (other.isZero()) {
+        setError("division by zero");
+        return;
+      }
+      switch (kind()) {
+        default: // silence warning
+        case K_SIGNED:     si = si / other.si;    break;
+        case K_UNSIGNED:   ui = ui / other.ui;    break;
+        case K_FLOAT:      f = f / other.f;       break;
+      }
+      break;
+
+    case BIN_MOD:
+      applyUsualArithmeticConversions(other);
+      if (other.isZero()) {
+        setError("mod by zero");
+        return;
+      }
+      switch (kind()) {
+        default: // silence warning
+        case K_SIGNED:     si = si % other.si;    break;
+        case K_UNSIGNED:   ui = ui % other.ui;    break;
+        case K_FLOAT:      setError("mod applied to floating-point args"); return;
+      }
+      break;
+
+    // ---- 5.7 ----
+    case BIN_PLUS:
+      applyUsualArithmeticConversions(other);
+      switch (kind()) {
+        default: // silence warning
+        case K_SIGNED:     si = si + other.si;    break;
+        case K_UNSIGNED:   ui = ui + other.ui;    break;
+        case K_FLOAT:      f = f + other.f;       break;
+      }
+      break;
+
+    case BIN_MINUS:
+      applyUsualArithmeticConversions(other);
+      switch (kind()) {
+        default: // silence warning
+        case K_SIGNED:     si = si - other.si;    break;
+        case K_UNSIGNED:   ui = ui - other.ui;    break;
+        case K_FLOAT:      f = f - other.f;       break;
+      }
+      break;
+
+    // ---- 5.8 ----
+    case BIN_LSHIFT:
+    case BIN_RSHIFT: {
+      this->performIntegralPromotions();
+      other.performIntegralPromotions();
+
+      if (kind() == K_FLOAT || other.kind() == K_FLOAT) {
+        setError("cannot shift with float types");
+        return;
+      }
+
+      // get shift amount
+      int shamt = 0;
+      switch (other.kind()) {
+        default: // silence warning
+        case K_SIGNED:     shamt = other.si;    break;
+        case K_UNSIGNED:   shamt = other.ui;    break;
+      }
+
+      // apply it
+      if (op == BIN_LSHIFT) {
+        switch (kind()) {
+          default: // silence warning
+          case K_SIGNED:     si <<= shamt;    break;
+          case K_UNSIGNED:   ui <<= shamt;    break;
+        }
+      }
+      else {
+        switch (kind()) {
+          default: // silence warning
+          case K_SIGNED:     si >>= shamt;    break;
+          case K_UNSIGNED:   ui >>= shamt;    break;
+        }
+      }
+      break;
+    }
+
+    // ---- 5.9 ----
+    case BIN_LESS:
+      applyUsualArithmeticConversions(other);
+      switch (kind()) {
+        default: // silence warning
+        case K_SIGNED:     ui = si < other.si;    break;
+        case K_UNSIGNED:   ui = ui < other.ui;    break;
+        case K_FLOAT:      ui = f < other.f;       break;
+      }
+      type = ST_BOOL;
+      break;
+
+    case BIN_GREATER:
+      applyUsualArithmeticConversions(other);
+      switch (kind()) {
+        default: // silence warning
+        case K_SIGNED:     ui = si > other.si;    break;
+        case K_UNSIGNED:   ui = ui > other.ui;    break;
+        case K_FLOAT:      ui = f > other.f;       break;
+      }
+      type = ST_BOOL;
+      break;
+
+    case BIN_LESSEQ:
+      applyUsualArithmeticConversions(other);
+      switch (kind()) {
+        default: // silence warning
+        case K_SIGNED:     ui = si <= other.si;    break;
+        case K_UNSIGNED:   ui = ui <= other.ui;    break;
+        case K_FLOAT:      ui = f <= other.f;       break;
+      }
+      type = ST_BOOL;
+      break;
+
+    case BIN_GREATEREQ:
+      applyUsualArithmeticConversions(other);
+      switch (kind()) {
+        default: // silence warning
+        case K_SIGNED:     ui = si >= other.si;    break;
+        case K_UNSIGNED:   ui = ui >= other.ui;    break;
+        case K_FLOAT:      ui = f >= other.f;       break;
+      }
+      type = ST_BOOL;
+      break;
+
+    // ---- 5.10 ----
+    case BIN_EQUAL:
+      applyUsualArithmeticConversions(other);
+      switch (kind()) {
+        default: // silence warning
+        case K_SIGNED:     ui = si == other.si;    break;
+        case K_UNSIGNED:   ui = ui == other.ui;    break;
+        case K_FLOAT:      ui = f == other.f;       break;
+      }
+      type = ST_BOOL;
+      break;
+
+    case BIN_NOTEQUAL:
+      applyUsualArithmeticConversions(other);
+      switch (kind()) {
+        default: // silence warning
+        case K_SIGNED:     ui = si != other.si;    break;
+        case K_UNSIGNED:   ui = ui != other.ui;    break;
+        case K_FLOAT:      ui = f != other.f;       break;
+      }
+      type = ST_BOOL;
+      break;
+
+    // ---- 5.11 ----
+    case BIN_BITAND:
+      applyUsualArithmeticConversions(other);
+      switch (kind()) {
+        default: // silence warning
+        case K_SIGNED:     si = si & other.si;    break;
+        case K_UNSIGNED:   ui = ui & other.ui;    break;
+        case K_FLOAT:      setError("cannot apply bitand to float types"); break;
+      }
+      break;
+
+    // ---- 5.12 ----
+    case BIN_BITXOR:
+      applyUsualArithmeticConversions(other);
+      switch (kind()) {
+        default: // silence warning
+        case K_SIGNED:     si = si ^ other.si;    break;
+        case K_UNSIGNED:   ui = ui ^ other.ui;    break;
+        case K_FLOAT:      setError("cannot apply bitxor to float types"); break;
+      }
+      break;
+
+    // ---- 5.13 ----
+    case BIN_BITOR:
+      applyUsualArithmeticConversions(other);
+      switch (kind()) {
+        default: // silence warning
+        case K_SIGNED:     si = si | other.si;    break;
+        case K_UNSIGNED:   ui = ui | other.ui;    break;
+        case K_FLOAT:      setError("cannot apply bitor to float types"); break;
+      }
+      break;
+
+    // ---- 5.14 ----
+    case BIN_AND:
+      // Note: short-circuit behavior is handled by the caller of
+      // this function; by the time we get here, both args have
+      // already been evaluated
+      this->convertToType(ST_BOOL);
+      other.convertToType(ST_BOOL);
+      ui = ui && other.ui;
+      break;
+
+    // ---- 5.15 ----
+    case BIN_OR:
+      this->convertToType(ST_BOOL);
+      other.convertToType(ST_BOOL);
+      ui = ui || other.ui;
+      break;
+  }
+}
+
+
+string CValue::asString() const
+{
+  switch (kind()) {
+    case K_SIGNED:      return stringc << toString(type) << ": " << si;
+    case K_UNSIGNED:    return stringc << toString(type) << ": " << ui;
+    case K_FLOAT:       return stringc << toString(type) << ": " << f;
+    case K_ERROR:       return stringc << "error: " << *why;
+    default:    // silence warning
+    case K_DEPENDENT:   return "dependent";
+  }
+}
+
+
+// ----------------------- ConstEval ------------------------
 ConstEval::ConstEval(Variable *d)
-  : dependentVar(d),
-    msg(),
-    dependent(false)
+  : dependentVar(d)
 {}
 
 ConstEval::~ConstEval()
 {}
 
-bool ConstEval::setDependent(int &result)
-{
-  dependent = true;
-  return true;
-}
-
 
 // external interface
-bool Expression::constEval(ConstEval &env, int &result) const
-{                    
-  if (iconstEval(env, result)) {
-    if (env.dependent) {
-      result = 1;        // nominal value safe for most contexts
-    }
-    return true;
-  }
-  return false;
+CValue Expression::constEval(ConstEval &env) const
+{
+  #if 1       // production
+    return iconstEval(env);
+  #else       // debugging
+    CValue ret = iconstEval(env);
+    cout << "const-eval of `" << exprToString() << "' is " << ret.asString() << endl;
+    return ret;
+  #endif
 }
 
 
-bool Expression::iconstEval(ConstEval &env, int &result) const
+CValue Expression::iconstEval(ConstEval &env) const
 {
   xassert(!ambiguity);
 
   if (type->isError()) {
     // don't try to const-eval an expression that failed
     // to typecheck
-    return false;
+    return CValue("failed to tcheck");
   }
 
   ASTSWITCHC(Expression, this) {
     // Handle this idiom for finding a member offset:
     // &((struct scsi_cmnd *)0)->b.q
     ASTCASEC(E_addrOf, eaddr)
-      return eaddr->expr->constEvalAddr(env, result);
+      return eaddr->expr->constEvalAddr(env);
 
     ASTNEXTC(E_boolLit, b)
-      result = b->b? 1 : 0;
-      return true;
+      CValue ret;
+      ret.setBool(b->b);
+      return ret;
 
     ASTNEXTC(E_intLit, i)
-      result = i->i;
-      return true;
+      CValue ret;
+      SimpleTypeId id = type->asSimpleTypeC()->type;
+      switch (CValue::classify(id)) {
+        default: xfailure("unexpected intlit type");
+        case CValue::K_SIGNED:     ret.setSigned(id, (long)i->i);              break;
+        case CValue::K_UNSIGNED:   ret.setUnsigned(id, (unsigned long)i->i);   break;
+      }
+      return ret;
+
+    ASTNEXTC(E_floatLit, f)
+      CValue ret;
+      SimpleTypeId id = type->asSimpleTypeC()->type;
+      ret.setFloat(id, (float)f->d);
+      return ret;
 
     ASTNEXTC(E_charLit, c)
-      result = c->c;
-      return true;
+      CValue ret;
+      SimpleTypeId id = type->asSimpleTypeC()->type;
+      switch (CValue::classify(id)) {
+        default: xfailure("unexpected charlit type");
+        case CValue::K_SIGNED:     ret.setSigned(id, (long)c->c);              break;
+        case CValue::K_UNSIGNED:   ret.setUnsigned(id, (unsigned long)c->c);   break;
+      }
+      return ret;
 
     ASTNEXTC(E_variable, v)
       if (v->var->isEnumerator()) {
-        result = v->var->getEnumeratorValue();
-        return true;
+        CValue ret;
+        ret.setSigned(ST_INT, v->var->getEnumeratorValue());
+        return ret;
       }
 
       if (v->var->type->isCVAtomicType() &&
           (v->var->type->asCVAtomicTypeC()->cv & CV_CONST) &&
           v->var->value) {
         // const variable
-        return v->var->value->iconstEval(env, result);
+        return v->var->value->constEval(env);
       }
 
       if (v->var->type->isGeneralizedDependent() &&
           v->var->value) {
-        return env.setDependent(result);
+        return CValue(ST_DEPENDENT);
       }
 
       if (v->var->isTemplateParam()) {
-        return env.setDependent(result);
+        return CValue(ST_DEPENDENT);
       }
-      
+
       if (v->var == env.dependentVar) {
         // value-dependent expression (Q: is it always guaranteed to
         // be exactly 'dependentVar'?)
-        return env.setDependent(result);
+        return CValue(ST_DEPENDENT);
       }
 
-      env.msg = stringc
-        << "can't const-eval non-const variable `" << v->var->name << "'";
-      return false;
+      return CValue(stringc
+        << "can't const-eval non-const variable `" << v->var->name << "'");
 
     ASTNEXTC(E_constructor, c)
       if (type->isIntegerType()) {
         // allow it; should only be 1 arg, and that will be value
-        return c->args->first()->iconstEval(env, result);
+        return c->args->first()->constEval(env);
       }
       else {
-        env.msg = "can only const-eval E_constructors for integer types";
-        return false;
+        return CValue("can only const-eval E_constructors for integer types");
       }
 
     ASTNEXTC(E_sizeof, s)
-      result = s->size;
-      return true;
+      // 5.3.3p6: result is of type 'size_t'; most systems (including my
+      // elsa/include/stddef.h header) make that the same as 'unsigned';
+      // in any case, it must be an unsigned integer type (c99, 7.17p2)
+      CValue ret;
+      ret.setUnsigned(ST_UNSIGNED_INT, s->size);
+      return ret;
 
     ASTNEXTC(E_unary, u)
-      if (!u->expr->iconstEval(env, result)) return false;
-      switch (u->op) {
-        default: xfailure("bad code");
-        case UNY_PLUS:   result = +result;  return true;
-        case UNY_MINUS:  result = -result;  return true;
-        case UNY_NOT:    result = !result;  return true;
-        case UNY_BITNOT: result = ~result;  return true;
-      }
+      CValue ret = u->expr->constEval(env);
+      ret.applyUnary(u->op);
+      return ret;
 
     ASTNEXTC(E_binary, b)
       if (b->op == BIN_COMMA) {
         // avoid trying to eval the LHS
-        return b->e2->iconstEval(env, result);
+        return b->e2->constEval(env);
       }
 
-      int v1, v2;
-      if (!b->e1->iconstEval(env, v1) ||
-          !b->e2->iconstEval(env, v2)) return false;
-
-      if (v2==0 && (b->op == BIN_DIV || b->op == BIN_MOD)) {
-        env.msg = "division by zero in constant expression";
-        return false;
+      CValue v1 = b->e1->constEval(env);
+      if (b->op == BIN_AND && v1.isZero()) {
+        CValue ret;
+        ret.setBool(false);   // short-circuit: propagate false
+        return ret;
+      }
+      if (b->op == BIN_OR && !v1.isZero()) {
+        CValue ret;
+        ret.setBool(true);    // short-circuit: propagate false
+        return ret;
       }
 
-      switch (b->op) {
-        case BIN_EQUAL:     result = (v1 == v2);  return true;
-        case BIN_NOTEQUAL:  result = (v1 != v2);  return true;
-        case BIN_LESS:      result = (v1 < v2);  return true;
-        case BIN_GREATER:   result = (v1 > v2);  return true;
-        case BIN_LESSEQ:    result = (v1 <= v2);  return true;
-        case BIN_GREATEREQ: result = (v1 >= v2);  return true;
+      CValue v2 = b->e2->constEval(env);
 
-        case BIN_MULT:      result = (v1 * v2);  return true;
-        case BIN_DIV:       result = (v1 / v2);  return true;
-        case BIN_MOD:       result = (v1 % v2);  return true;
-        case BIN_PLUS:      result = (v1 + v2);  return true;
-        case BIN_MINUS:     result = (v1 - v2);  return true;
-        case BIN_LSHIFT:    result = (v1 << v2);  return true;
-        case BIN_RSHIFT:    result = (v1 >> v2);  return true;
-        case BIN_BITAND:    result = (v1 & v2);  return true;
-        case BIN_BITXOR:    result = (v1 ^ v2);  return true;
-        case BIN_BITOR:     result = (v1 | v2);  return true;
-        case BIN_AND:       result = (v1 && v2);  return true;
-        case BIN_OR:        result = (v1 || v2);  return true;
-        // BIN_COMMA handled above
-
-        default:         // BIN_BRACKETS, etc.
-          return false;
-      }
+      v1.applyBinary(b->op, v2);
+      return v1;
 
     ASTNEXTC(E_cast, c)
-      if (!c->expr->iconstEval(env, result)) return false;
+      CValue ret = c->expr->constEval(env);
+      if (ret.isSticky()) {
+        return ret;
+      }
 
       Type *t = c->ctype->getType();
-      if (t->isIntegerType() ||
-          t->isPointer()) {             // for Linux kernel
-        return true;       // ok
+      if (t->isSimpleType()) {
+        ret.convertToType(t->asSimpleTypeC()->type);
+      }
+      else if (t->isEnumType() ||
+               t->isPointer()) {        // for Linux kernel
+        ret.convertToType(ST_INT);
       }
       else {
         // TODO: this is probably not the right rule..
-        env.msg = stringc
-          << "in constant expression, can only cast to integer or pointer types, not `"
-          << t->toString() << "'";
-        return false;
+        return CValue(stringc
+          << "in constant expression, can only cast to arithmetic or pointer types, not `"
+          << t->toString() << "'");
       }
+
+      return ret;
 
     ASTNEXTC(E_cond, c)
-      if (!c->cond->iconstEval(env, result)) return false;
+      CValue v = c->cond->constEval(env);
+      if (v.isSticky()) {
+        return v;
+      }
 
-      if (result) {
-        return c->th->iconstEval(env, result);
+      if (!v.isZero()) {
+        return c->th->constEval(env);
       }
       else {
-        return c->el->iconstEval(env, result);
+        return c->el->constEval(env);
       }
 
     ASTNEXTC(E_sizeofType, s)
       if (s->atype->getType()->isGeneralizedDependent()) {
-        return env.setDependent(result);
+        return CValue(ST_DEPENDENT);
       }
-      result = s->size;
-      return true;
+      CValue ret;
+      ret.setUnsigned(ST_UNSIGNED_INT, s->size);
+      return ret;
 
     ASTNEXTC(E_grouping, e)
-      return e->expr->iconstEval(env, result);
+      return e->expr->constEval(env);
 
     ASTDEFAULTC
-      return extConstEval(env, result);
+      return extConstEval(env);
 
     ASTENDCASEC
   }
@@ -207,57 +687,53 @@ bool Expression::iconstEval(ConstEval &env, int &result) const
 // can handle the 'constEval' message for their own AST syntactic
 // forms, by overriding this function.  The non-extension nodes use
 // the switch statement above, which is more compact.
-bool Expression::extConstEval(ConstEval &env, int &result) const
+CValue Expression::extConstEval(ConstEval &env) const
 {
-  env.msg = stringc << kindName() << " is not constEval'able";
-  return false;
+  return CValue(stringc << kindName() << " is not constEval'able");
 }
 
-bool Expression::constEvalAddr(ConstEval &env, int &result) const
+
+// TODO: This function is basically a stub; it does not compute
+// the right result in almost any circumstance.
+CValue Expression::constEvalAddr(ConstEval &env) const
 {
-  result = 0;                   // FIX: this is wrong
-  int result0;                  // dummy for use below
   // FIX: I'm sure there are cases missing from this
   ASTSWITCHC(Expression, this) {
     // These two are dereferences, so they recurse back to constEval().
     ASTCASEC(E_deref, e)
-      return e->ptr->iconstEval(env, result0);
-      break;
+      return e->ptr->constEval(env);
 
     ASTNEXTC(E_arrow, e)
-      return e->obj->iconstEval(env, result0);
-      break;
+      return e->obj->constEval(env);
 
     // These just recurse on constEvalAddr().
     ASTNEXTC(E_fieldAcc, e)
-      return e->obj->constEvalAddr(env, result0);
-      break;
+      return e->obj->constEvalAddr(env);
 
     ASTNEXTC(E_cast, e)
-      return e->expr->constEvalAddr(env, result0);
-      break;
+      return e->expr->constEvalAddr(env);
 
     ASTNEXTC(E_keywordCast, e)
       // FIX: haven't really thought about these carefully
       switch (e->key) {
-      default:
-        xfailure("bad CastKeyword");
-      case CK_DYNAMIC:
-        return false;
-        break;
-      case CK_STATIC: case CK_REINTERPRET: case CK_CONST:
-        return e->expr->constEvalAddr(env, result0);
-        break;
+        default:
+          xfailure("bad CastKeyword");
+
+        case CK_DYNAMIC:
+          return CValue("can't const-eval dynamic_cast");
+
+        case CK_STATIC:
+        case CK_REINTERPRET:
+        case CK_CONST:
+          return e->expr->constEvalAddr(env);
       }
       break;
 
     ASTNEXTC(E_grouping, e)
-      return e->expr->constEvalAddr(env, result);
-      break;
+      return e->expr->constEvalAddr(env);
 
     ASTDEFAULTC
-      return false;
-      break;
+      return CValue("unhandled case in constEvalAddr");
 
     ASTENDCASEC
   }

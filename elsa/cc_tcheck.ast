@@ -475,22 +475,21 @@ class Expression {
 
   // const-eval; will add an error message to the environment if this
   // expression is not a constant (and also return false); can only
-  // call this after tchecking
+  // call this after tchecking; result must be an integer
   public bool constEval(Env &env, int &result) const;
-  
+
   // if the function returns true and 'dependent' returns as true, the
   // expression *is* constant but the precise value is dependent on
   // template parameters
   public bool constEval(Env &env, int &result, bool &dependent) const;
 
-  // version that puts the message, if any, in 'env'; note that it
-  // might not actually put anything in 'env' even for a false return
-  public bool constEval(ConstEval &env, int &result) const;
-  public bool iconstEval(ConstEval &env, int &result) const;
-  public virtual bool extConstEval(ConstEval &env, int &result) const;
+  // more control: all info returned in the return value
+  public CValue constEval(ConstEval &env) const;
+  public CValue iconstEval(ConstEval &env) const;
+  public virtual CValue extConstEval(ConstEval &env) const;
 
   // this attempts to evaluate the expression's address
-  public bool constEvalAddr(ConstEval &env, int &result) const;
+  public CValue constEvalAddr(ConstEval &env) const;
 
   // return true if this expression has any greater-than operators
   // that are not buried under an E_grouping
@@ -606,10 +605,10 @@ class FullExpression {
     { return expr->type; };
   public bool constEval(Env &env, int &result) const
     { return expr->constEval(env, result); };
-  public bool constEval(ConstEval &env, int &result) const
-    { return expr->constEval(env, result); };
-  public bool iconstEval(ConstEval &env, int &result) const
-    { return expr->iconstEval(env, result); };
+  public CValue constEval(ConstEval &env) const
+    { return expr->constEval(env); };
+  public CValue iconstEval(ConstEval &env) const
+    { return expr->iconstEval(env); };
 }
 
 
@@ -620,10 +619,10 @@ class ArgExpression {
     { return expr->type; };
   public bool constEval(Env &env, int &result) const
     { return expr->constEval(env, result); };
-  public bool constEval(ConstEval &env, int &result) const
-    { return expr->constEval(env, result); };
-  public bool iconstEval(ConstEval &env, int &result) const
-    { return expr->iconstEval(env, result); };
+  public CValue constEval(ConstEval &env) const
+    { return expr->constEval(env); };
+  public CValue iconstEval(ConstEval &env) const
+    { return expr->iconstEval(env); };
   public bool hasUnparenthesizedGT() const
     { return expr->hasUnparenthesizedGT(); };
   public SpecialExpr getSpecial(CCLang &lang) const

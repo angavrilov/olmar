@@ -116,9 +116,11 @@ Type *getConcreteDestType(TypeFactory &tfac, Type *srcType,
 
 // cppstd section 5, para 9
 Type *usualArithmeticConversions(TypeFactory &tfac, Type *left, Type *right);
+SimpleTypeId usualArithmeticConversions(SimpleTypeId leftId, SimpleTypeId rightId);
 
 // cppstd 4.5
 SimpleTypeId applyIntegralPromotions(Type *t);
+SimpleTypeId applyIntegralPromotions(SimpleTypeId id);
 
 
 // testing interface, for use by the type checker
