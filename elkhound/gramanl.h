@@ -125,7 +125,7 @@ private:    // data
   // them on the spot as needed (and may change this decision)
   DProductionList nonkernelItems;
 
-  // transition function (where we go on shifts)
+  // transition function (where we go on shifts); NULL means no transition
   //   Map : (Terminal id or Nonterminal id)  -> ItemSet*
   ItemSet **termTransition;		     // (owner ptr to array of serf ptrs)
   ItemSet **nontermTransition;		     // (owner ptr to array of serf ptrs)
@@ -229,12 +229,19 @@ public:     // funcs
   // do this after adding things to the items lists
   void changedItems();
 
+  // remove the reduce using 'prod' on lookahead 'sym; 
+  // calls 'changedItems' internally
+  void removeReduce(Production const *prod, Terminal const *sym);
+
   // experiment: do I need them during parsing?
   void throwAwayItems();
 
   // ---- transition mutations ----
   // set transition on 'sym' to be 'dest'
   void setTransition(Symbol const *sym, ItemSet *dest);
+
+  // remove the the shift on 'sym'
+  void removeShift(Terminal const *sym);
 
   // ---- debugging ----
   void writeGraph(ostream &os, GrammarAnalysis const &g) const;
@@ -283,8 +290,10 @@ public:	    // data
   // is to print whenever something is added to this sym's
   // follow)
   Symbol const *symOfInterest;
-
-
+  
+  // incremented each time we encounter an error that we can recover from
+  int errors;
+  
 private:    // funcs
   // ---- analyis init ----
   // call this after grammar is completely built
@@ -328,9 +337,11 @@ private:    // funcs
   void constructLRItemSets();
   void lrParse(char const *input);
 
-  void findSLRConflicts() const;
-  bool checkSLRConflicts(ItemSet const *state, Terminal const *sym,
-                         bool conflictAlready) const;
+  void findSLRConflicts();
+  bool checkSLRConflicts(ItemSet *state, Terminal const *sym,
+                         bool conflictAlready);
+  void handleShiftReduceConflict(bool &keepShift, bool &keepReduce,
+    ItemSet *state, Production const *prod, Terminal const *sym);
 
   void computeBFSTree();
 

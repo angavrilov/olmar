@@ -125,6 +125,8 @@ public:
 
   // print 'token[type] name { dup.. del.. merge.. }' (with newlines)
   void printDDM(ostream &os) const;
+
+  virtual string toString() const { return name; }
 };
 
 // I have several needs for serf lists of symbols, so let's use this for now
@@ -186,9 +188,9 @@ public:     // funcs
 
   virtual void print(ostream &os) const;
   OSTREAM_OPERATOR(Terminal)
-                          
+
   // return alias if defined, name otherwise
-  string toString() const;
+  virtual string toString() const;
 };
 
 typedef SObjList<Terminal> TerminalList;

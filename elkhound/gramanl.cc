@@ -275,7 +275,7 @@ void DottedProduction::print(ostream &os, GrammarAnalysis const &g) const
     if (position == dot) {
       os << " .";
     }
-    os << " " << iter.data()->sym->name;
+    os << " " << iter.data()->sym->toString();
   }
   if (position == dot) {
     os << " .";
@@ -542,7 +542,13 @@ void ItemSet::setTransition(Symbol const *sym, ItemSet *dest)
   refTransition(sym) = dest;
 }
 
-                                           
+
+void ItemSet::removeShift(Terminal const *sym)
+{
+  refTransition(sym) = NULL;
+}
+
+
 void ItemSet::addKernelItem(DottedProduction *item)
 {
   // add it
@@ -581,6 +587,39 @@ void ItemSet::addNonkernelItem(DottedProduction *item)
   nonkernelItems.appendUnique(item);
   
   // note: the caller is supposed to call changedItems
+}
+
+
+void ItemSet::removeReduce(Production const *prod, Terminal const *sym)
+{
+  MUTATE_EACH_DOTTEDPRODUCTION(kernelItems, k) {
+    if (k.data()->isDotAtEnd() &&
+        k.data()->getProd() == prod) {
+      k.data()->laRemove(sym->termIndex);
+    }
+  }
+
+  MUTATE_EACH_DOTTEDPRODUCTION(nonkernelItems, n) {
+    if (n.data()->isDotAtEnd() &&
+        n.data()->getProd() == prod) {
+      n.data()->laRemove(sym->termIndex);
+    }
+  }
+
+  #if 0
+  ObjListMutator<DottedProduction> k(kernelItems);
+  while (!k.isDone()) {
+    if (k.data()->isDotAtEnd() &&
+        k.data()->getProd() == prod) {
+      k.deleteIt();
+    }
+    else {
+      k.adv();
+    }
+  }
+
+  changedItems();
+  #endif // 0
 }
 
 
@@ -638,9 +677,11 @@ void ItemSet::getPossibleReductions(ProductionList &reductions,
       // the follow of its LHS must include 'lookahead'
       if (!item->getProd()->left->follow.contains(lookahead)) {    // (constness)
         if (parsing && tracingSys("parse")) {
-          trace("parse") << "not reducing by " << *(item->getProd())
-                         << " because `" << lookahead->name
-                         << "' is not in follow of "
+          trace("parse") << "state " << id
+                         << ", not reducing by " 
+                         << item->getProd()->toString(false /*printType*/)
+                         << " because " << lookahead->toString()
+                         << " is not in follow of "
                          << item->getProd()->left->name << endl;
         }
         continue;
@@ -650,10 +691,11 @@ void ItemSet::getPossibleReductions(ProductionList &reductions,
       // the item's lookahead must include 'lookahead'
       if (!item->laContains(lookahead->termIndex)) {
         if (parsing && tracingSys("parse")) {
-          trace("parse") << "not reducing by " << *(item->getProd())
-                         << " because `" << lookahead->name
-                         << "' is not in lookahead in state "
-                         << id << endl;
+          trace("parse") << "state " << id
+                         << ", not reducing by "
+                         << item->getProd()->toString(false /*printType*/)
+                         << " because " << lookahead->toString()
+                         << " is not in lookahead" << endl;
         }
         continue;
       }
@@ -784,7 +826,9 @@ void ItemSet::print(ostream &os, GrammarAnalysis const &g) const
     if (!dprod->isDotAtEnd()) {
       ItemSet const *is = transitionC(dprod->symbolAfterDotC());
       if (is == NULL) {
-        os << "(no transition)";     // happens during closure debugging printfs
+        // this happens if I print the item set before running closure,
+        // and also after prec/assoc disambiguation
+        os << "(no transition)";
       }
       else {
         os << "--> " << is->id;
@@ -869,7 +913,8 @@ GrammarAnalysis::GrammarAnalysis()
     nextItemSetId(0),    // [ASU] starts at 0 too
     startState(NULL),
     cyclic(false),
-    symOfInterest(NULL)
+    symOfInterest(NULL),
+    errors(0)
 {}
 
 
@@ -1948,11 +1993,11 @@ Symbol const *GrammarAnalysis::
 // an SLR(1) parser; this is a superset of the conflicts reported
 // by bison, which is LALR(1); found conflicts are printed with
 // trace("conflict")
-void GrammarAnalysis::findSLRConflicts() const
+void GrammarAnalysis::findSLRConflicts()
 {
   // for every item set..
-  FOREACH_OBJLIST(ItemSet, itemSets, itemSet) {
-  
+  MUTATE_EACH_OBJLIST(ItemSet, itemSets, itemSet) {
+
     // we want to print something special for the first conflict
     // in a state, so track which is first
     bool conflictAlready = false;
@@ -1969,62 +2014,159 @@ void GrammarAnalysis::findSLRConflicts() const
 
 // given a parser state and an input symbol determine if we will fork
 // the parse stack; return true if there is a conflict
-bool GrammarAnalysis::checkSLRConflicts(ItemSet const *state, Terminal const *sym,
-                                        bool conflictAlready) const
+bool GrammarAnalysis::checkSLRConflicts(ItemSet *state, Terminal const *sym,
+                                        bool conflictAlready)
 {
   // see where a shift would go
-  ItemSet const *shiftDest = state->transitionC(sym);
+  ItemSet *shiftDest = state->transition(sym);
 
   // get all possible reductions where 'sym' is in Follow(LHS)
   ProductionList reductions;
   state->getPossibleReductions(reductions, sym, false /*parsing*/);
 
-  // case analysis
-  if (shiftDest != NULL &&
-      reductions.isEmpty()) {
-    // unambiguous shift; ok
+  // how many actions are there?
+  int actions = (shiftDest? 1 : 0) + reductions.count();
+  if (actions <= 1) {
+    return false;      // no conflict
   }
 
-  else if (shiftDest == NULL &&
-           reductions.count() == 1) {
-    // unambiguous reduction; ok
-  }
+  if (shiftDest != NULL) {
+    // we have (at least) a shift/reduce conflict, which is the
+    // situation in which prec/assoc specifications are used; consider
+    // all the possible reductions, so we can resolve S/R conflicts
+    // even when there are R/R conflicts present too
+    SObjListMutator<Production> mut(reductions);
+    while (!mut.isDone() && shiftDest != NULL) {
+      Production const *prod = mut.data();
 
-  else if (shiftDest == NULL &&
-           reductions.isEmpty()) {
-    // no transition: syntax error
-    // presumably it's really an input error, not a grammar issue,
-    // so I'd rather not see these
-  }
+      bool keepShift=true, keepReduce=true;
+      handleShiftReduceConflict(keepShift, keepReduce, state, prod, sym);
 
-  else {
-    // local ambiguity
-    if (!conflictAlready) {
-      trace("conflict")
-        << "--------- state " << state->id << " ----------\n"
-        << "left context: " << leftContextString(state)
-        << endl
-        << "sample input: " << sampleInput(state)
-        << endl
-        ;
+      if (!keepShift) {
+        state->removeShift(sym);
+        actions--;
+        shiftDest = NULL;
+      }
+
+      if (!keepReduce) {
+        state->removeReduce(prod, sym);
+        actions--;
+        mut.remove();
+      }
+      else {
+        mut.adv();
+      }
     }
+    
+    // there is still a potential for misbehavior.. e.g., if there are two
+    // possible reductions (R1 and R2), and one shift (S), then the user
+    // could have specified prec/assoc to disambiguate, e.g.
+    //   R1 < S
+    //   S < R2
+    // so that R2 is the right choice; but if I consider (S,R2) first,
+    // I'll simply drop S, leaving no way to disambiguate R1 and R2 ..
+    // for now I'll just note the possibility...
+  }
 
+  // after the disambiguation, maybe now there's no conflicts?
+  if (actions <= 1) {
+    return false;
+  }
+
+  if (!conflictAlready) {
     trace("conflict")
-      << "conflict for symbol " << sym->name
-      << endl;
-
-    if (shiftDest) {
-      trace("conflict") << "  shift, and move to state " << shiftDest->id << endl;
-    }
-
-    SFOREACH_PRODUCTION(reductions, prod) {
-      trace("conflict") << "  reduce by rule " << *(prod.data()) << endl;
-    }
-
-    return true;    // found conflict
+      << "--------- state " << state->id << " ----------\n"
+      << "left context: " << leftContextString(state)
+      << endl
+      << "sample input: " << sampleInput(state)
+      << endl
+      ;
   }
-  
-  return false;     // no conflict
+
+  trace("conflict")
+    << "conflict for symbol " << sym->name
+    << endl;
+
+  if (shiftDest) {
+    trace("conflict") << "  shift, and move to state " << shiftDest->id << endl;
+  }
+
+  SFOREACH_PRODUCTION(reductions, prod) {
+    trace("conflict") << "  reduce by rule " << *(prod.data()) << endl;
+  }
+
+  return true;    // found conflict
+}
+
+
+// decide what to do, and record the result into the two
+// boolean reference parameters
+void GrammarAnalysis::handleShiftReduceConflict(
+  bool &keepShift, bool &keepReduce,
+  ItemSet *state, Production const *prod, Terminal const *sym)
+{
+  // say that we're considering this conflict
+  trace("prec")
+    << "in state " << state->id << ", S/R conflict on token "
+    << sym->name << " with production " << *prod << endl;
+
+  if (!( prod->precedence && sym->precedence )) {
+    // one of the two doesn't have a precedence specification,
+    // so we can do nothing
+    trace("prec") << "will SPLIT because no disambiguation spec available" << endl;
+    return;
+  }
+
+  if (prod->precedence > sym->precedence) {
+    // production's precedence is higher, so we choose to reduce
+    // instead of shift
+    trace("prec") << "resolved in favor of REDUCE due to precedence\n";
+    keepShift = false;
+    return;
+  }
+
+  if (prod->precedence < sym->precedence) {
+    // symbol's precedence is higher, so we shift
+    trace("prec") << "resolved in favor of SHIFT due to precedence\n";
+    keepReduce = false;
+    return;
+  }
+
+  // precedences are equal, so we look at associativity (of token)
+  switch (sym->associativity) {
+    case AK_LEFT:
+      trace("prec") << "resolved in favor of REDUCE due to associativity\n";
+      keepShift = false;
+      return;
+
+    case AK_RIGHT:
+      trace("prec") << "resolved in favor of SHIFT due to associativity\n";
+      keepReduce = false;
+      return;
+
+    case AK_NONASSOC:
+      trace("pred") << "removed BOTH alternatives due to nonassociativity\n";
+      keepShift = false;
+      keepReduce = false;
+      return;
+
+    case AK_NEVERASSOC:
+      // the user claimed this token would never be involved in a conflict
+      trace("pred") << "neverassoc specification ERROR\n";
+      errors++;
+      cout << "token " << sym->name << " was declared 'prec', "
+           << "but it is involved in an associativity conflict with \""
+           << *prod << "\" in state " << state->id << endl;
+      return;
+
+    case AK_SPLIT:
+      // the user does not want disambiguation of this
+      trace("pred") << "will SPLIT because user asked to\n";
+      return;
+
+    default:
+      xfailure("bad assoc code");
+  }
 }
 
 
@@ -2586,7 +2728,11 @@ void GrammarAnalysis::exampleGrammar()
 
 
 void GrammarAnalysis::runAnalyses()
-{
+{            
+  // reset error count so it might be possible to reuse the object
+  // for another grammar
+  errors = 0;
+
   checkWellFormed();
 
   // precomputations
@@ -2656,13 +2802,11 @@ void GrammarAnalysis::runAnalyses()
     printProductionsAndItems(cout, true /*code*/);
   }
 
-  // experiment: do I need the itemSet items during parsing?
-  #if 1
-  //cout << "throwing away items\n";
+  // I don't need (most of) the item sets during parsing, so
+  // throw them away once I'm done analyzing the grammar
   MUTATE_EACH_OBJLIST(ItemSet, itemSets, iter) {
     iter.data()->throwAwayItems();
   }
-  #endif // 0
 
 
   // another analysis
@@ -2727,6 +2871,20 @@ void emitActionCode(Grammar &g, char const *fname, char const *srcFname)
 }
 
 
+void emitUserCode(EmitCode &out, LocString const &code)
+{
+  out << "{\n";
+  out << lineDirective(code);                                   
+
+  // the final brace is on the same line so errors reported at the
+  // last brace go to user code
+  out << code << " }\n";
+
+  out << restoreLine;
+  out << "\n";
+}
+
+
 void emitActions(Grammar &g, EmitCode &out)
 {
   // iterate over productions, emitting inline action functions
@@ -2767,16 +2925,10 @@ void emitActions(Grammar &g, EmitCode &out)
     }
 
     out << ")\n";
-    out << "{\n";
-
+    
     // now insert the user's code, to execute in this environment of
-    // properly-typed semantic values; the final brace is on the same
-    // line so errors reported at the last brace go to user code
-    out << lineDirective(prod.action);
-    out << prod.action << " }\n";
-
-    out << restoreLine;
-    out << "\n";
+    // properly-typed semantic values
+    emitUserCode(out, prod.action);
   }}
 
   out << "\n";
@@ -2821,17 +2973,6 @@ void emitActions(Grammar &g, EmitCode &out)
   out << "      return (SemanticValue)0;   // silence warning\n";
   out << "  }\n";
   out << "}\n";
-}
-
-
-void emitUserCode(EmitCode &out, LocString const &code)
-{
-  out << "{\n";
-  out << lineDirective(code);
-  out << code << " }\n";
-
-  out << restoreLine;
-  out << "\n";
 }
 
 
@@ -2981,12 +3122,13 @@ int main(int argc, char **argv)
             "  processes prefix.gr to make prefix.{h,cc,bin}\n"
             "  useful tracing flags:\n"
             "    conflict    : print SLR(1) conflicts\n"
-            "    closure     : details of item-set closure algorithm\n";
+            "    closure     : details of item-set closure algorithm\n"
+            "    prec        : show how prec/assoc are used to resolve conflicts\n";
     return 0;
   }
   string prefix = argv[1];
 
-  
+
   bool printCode = true;
 
   string grammarFname = stringc << prefix << ".gr";
@@ -2995,6 +3137,9 @@ int main(int argc, char **argv)
   g.printProductions(trace("grammar") << endl);
 
   g.runAnalyses();
+  if (g.errors) {
+    return 2;
+  }
 
   // print some stuff to a test file
   char const g1Fname[] = "gramanl.g1.tmp";
@@ -3007,13 +3152,8 @@ int main(int argc, char **argv)
   }
 
   // emit some C++ code
-  //string headerFname = stringc << prefix << ".h";
   string implFname = stringc << prefix << ".cc";
-  traceProgress() << "emitting C++ code to "
-                  //<< headerFname << " and "
-                  << implFname << " ...\n";
-  //emitSemFunImplFile(implFname, headerFname, &g);
-  //emitSemFunDeclFile(headerFname, &g);
+  traceProgress() << "emitting C++ code to " << implFname << " ...\n";
 
   emitActionCode(g, implFname, grammarFname);
 
@@ -3053,9 +3193,9 @@ int main(int argc, char **argv)
       remove(g2Fname);
     }
 
-    cout << "ticksComputeNonkernel: " << ticksComputeNonkernel << endl;    
+    cout << "ticksComputeNonkernel: " << ticksComputeNonkernel << endl;
     cout << "testRW SUCCESS!\n";
-  }    
+  }
 
   else {
     // I want to know how long writing takes
@@ -3066,30 +3206,3 @@ int main(int argc, char **argv)
 }
 
 #endif // GRAMANL_MAIN
-
-
-// ---------------------- trash ------------------
-  #if 0
-  out << "void mergeAlternativeParses(int nontermId, SemanticValue left,\n"
-         "                            SemanticValue right)\n"
-         "{\n"
-         "  switch (nontermId) {\n";
-
-  FOREACH_OBJLIST(Nonterminal, g.nonterminals, ntIter) {
-    Nonterminal const &nt = *(ntIter.data());
-
-    if (nt.ddm.mergeCode) {
-      out << "    case " << nt.ntIndex << ":\n"
-          << "      return (SemanticValue)merge_" << nt.name
-          <<                "((" << nt.type << ")left, (" << nt.type << ")right);\n";
-    }
-  }
-
-  out << "    default:\n"
-         "      cout << \"there is no action to merge nonterm id \"\n"
-         "           << nontermId << endl;\n"
-         "      abort();\n"
-         "  }\n"
-         "}\n"
-         "\n";
-  #endif // 0

@@ -303,16 +303,17 @@ AssocKind whichKind(LocString * /*owner*/ kind)
 { 
   // delete 'kind' however we exit
   Owner<LocString> killer(kind);
-
-  if (kind->equals("left")) {
-    return AK_LEFT;
-  }
-  if (kind->equals("right")) {
-    return AK_RIGHT;
-  }
-  if (kind->equals("nonassoc")) {
-    return AK_NONASSOC;
-  }
+  
+  #define CHECK(syntax, value)   \
+    if (kind->equals(syntax)) {  \
+      return value;              \
+    }
+  CHECK("left", AK_LEFT);
+  CHECK("right", AK_RIGHT);
+  CHECK("nonassoc", AK_NONASSOC);
+  CHECK("prec", AK_NEVERASSOC);
+  CHECK("assoc_split", AK_SPLIT);
+  #undef CHECK
 
   xfailure(stringc << kind->locString()
                    << ": invalid associativity kind: " << *kind);

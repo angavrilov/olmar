@@ -5,8 +5,19 @@
 #define ASOCKIND_H
 
 #include "str.h"      // string
+  
+// specifies what to do when there is a shift/reduce conflict, and
+// the production and token have the same precedence; this is attached
+// to the token
+enum AssocKind {
+  AK_LEFT,            // disambiguate by reducing
+  AK_RIGHT,           // disambiguate by shifting
+  AK_NONASSOC,        // make it a parse-time syntax error
+  AK_NEVERASSOC,      // make it a parsgen-time specification error
+  AK_SPLIT,           // (GLR-specific) fork the parser
 
-enum AssocKind { AK_LEFT, AK_RIGHT, AK_NONASSOC, NUM_ASSOC_KINDS };
+  NUM_ASSOC_KINDS
+};
 
 string toString(AssocKind k);
 
