@@ -50,6 +50,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
     operatorPlusVar(NULL),
     operatorPlusVar2(NULL),
+    operatorPlusVar3(NULL),
 
     tunit(tunit0),
 
@@ -165,6 +166,12 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)), "x",
     t_ptrdiff_t, "y");
   operatorPlusVar2->setFlag(DF_BUILTIN);
+
+  operatorPlusVar3 = declareFunction2arg(
+    t_void, "operator +",
+    t_ptrdiff_t, "x",
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)), "y");
+  operatorPlusVar3->setFlag(DF_BUILTIN);
 
   exitScope(dummyScope);
 

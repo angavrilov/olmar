@@ -3640,6 +3640,7 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
     // built-in candidates
     resolver.processCandidate(env.operatorPlusVar);
     resolver.processCandidate(env.operatorPlusVar2);
+    resolver.processCandidate(env.operatorPlusVar3);
 
     // pick one
     Variable *winner = resolver.resolve();

@@ -26,12 +26,19 @@ public:
   operator int* ();                 // 26
 };
 
+class E {
+public:
+  operator int ();                  // 31
+  operator int* ();                 // 32
+};
+
 void f()
 {
   A a1,a2;
   B b1,b2;
   C c;
   D d;
+  E e;
 
 
   // turn on overload resolution
@@ -47,4 +54,7 @@ void f()
   __testOverload(c+(char)1, BUILTIN);
 
   __testOverload(d+1, BUILTIN);
+  __testOverload(1+d, BUILTIN);
+
+  //ERROR(1): __testOverload(e+1, BUILTIN);    // ambiguous
 }

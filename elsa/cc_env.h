@@ -99,6 +99,7 @@ public:      // data
   // polymorphic built-in operator functions (all serfs)
   Variable *operatorPlusVar;
   Variable *operatorPlusVar2;
+  Variable *operatorPlusVar3;
 
   TranslationUnit *tunit;
   
