@@ -39,14 +39,13 @@
 
 // return a locstring for 'str' with no location information
 #define noloc(str)                                                    \
-  new LocString(SourceLocation(NULL),      /* unknown location */     \
+  new LocString(SL_UNKNOWN,      /* unknown location */               \
                 PARAM->lexer.strtable.add(str))
 
 // return a locstring with same location info as something else
 // (passed as a pointer to a SourceLocation)
 #define sameloc(otherLoc, str)                                        \
-  new LocString(SourceLocation(*(otherLoc)),                          \
-                PARAM->lexer.strtable.add(str))
+  new LocString(otherLoc->loc, PARAM->lexer.strtable.add(str))
 
 // interpret the word into an associativity kind specification
 AssocKind whichKind(LocString * /*owner*/ kind);

@@ -30,7 +30,7 @@ public:
   ASTTypeId *ellipsisTypeId()
   {
     return new ASTTypeId(new TS_simple(ST_ELLIPSIS),
-                         new Declarator(new D_name(SourceLocation(), NULL, NULL), NULL));
+                         new Declarator(new D_name(SL_UNKNOWN, NULL, NULL), NULL));
   }
 };
 

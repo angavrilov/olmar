@@ -3,7 +3,7 @@
 
 #include "emitcode.h"      // this module
 #include "syserr.h"        // xsyserror
-#include "fileloc.h"       // SourceLocation
+#include "srcloc.h"        // SourceLoc
 #include "trace.h"         // tracingSys
 
 EmitCode::EmitCode(char const *f)
@@ -59,10 +59,13 @@ char const *hashLine()
 
 
 // note that #line must be preceeded by a newline
-string lineDirective(SourceLocation const &loc)
+string lineDirective(SourceLoc loc)
 {
-  return stringc << hashLine() << loc.line
-                 << " \"" << loc.file->filename << "\"\n";
+  char const *fname;
+  int line, col;
+  sourceLocManager->decodeLineCol(loc, fname, line, col);
+
+  return stringc << hashLine() << line << " \"" << fname << "\"\n";
 }
 
 stringBuilder &restoreLine(stringBuilder &sb)

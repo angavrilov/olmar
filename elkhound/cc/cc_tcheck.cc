@@ -116,8 +116,7 @@ NODE *resolveAmbiguity(
   existingErrors.concat(env.errors);
 
   // grab location before checking the alternatives
-  SourceLocation loc = env.loc();
-  string locStr = env.locStr();
+  SourceLoc loc = env.loc();
 
   // how many alternatives?
   int numAlts = 1;
@@ -180,8 +179,8 @@ NODE *resolveAmbiguity(
 
   if (numOk == 0) {
     // none of the alternatives checked out
-    trace("disamb") << locStr << ": ambiguous " << nodeTypeName
-                    << ": all bad\n";
+    TRACE("disamb", 
+      toString(loc) << ": ambiguous " << nodeTypeName << ": all bad");
 
     // put all the errors in and also a note about the ambiguity
     for (int i=0; i<numAlts; i++) {
@@ -197,8 +196,9 @@ NODE *resolveAmbiguity(
 
   else if (numOk == 1) {
     // one alternative succeeds, which is what we want
-    trace("disamb") << locStr << ": ambiguous " << nodeTypeName
-                    << ": selected " << ambiguousNodeName(lastOk) << endl;
+    TRACE("disamb",
+      toString(loc) << ": ambiguous " << nodeTypeName
+                    << ": selected " << ambiguousNodeName(lastOk));
 
     // put back its errors (non-disambiguating, and warnings);
     // errors associated with other alternatives will be deleted
@@ -217,8 +217,8 @@ NODE *resolveAmbiguity(
 
   else {
     // more than one alternative succeeds, not good
-    trace("disamb") << locStr << ": ambiguous " << nodeTypeName
-                    << ": multiple good!\n";
+    TRACE("disamb",
+      toString(loc) << ": ambiguous " << nodeTypeName << ": multiple good!");
 
     // first put back the old errors
     env.errors.concat(existingErrors);
@@ -1215,8 +1215,8 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
   StringSObjDict<CompoundType>::IterC innerIter(ct->getCompoundIter());
 
   // if these print different answers, gcc has a bug
-  trace("sm") << "compound top: " << ct->private_compoundTop() << "\n"
-              << "iter current: " << innerIter.private_getCurrent() << endl;
+  TRACE("sm", "compound top: " << ct->private_compoundTop() << "\n" <<
+              "iter current: " << innerIter.private_getCurrent());
 
   for (; !innerIter.isDone(); innerIter.next()) {
     CompoundType *inner = innerIter.value();
@@ -1225,7 +1225,7 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
       continue;
     }
 
-    trace("inner") << "checking bodies of " << inner->name << endl;
+    TRACE("inner", "checking bodies of " << inner->name);
 
     // open the inner scope
     env.extendScope(inner);
@@ -1611,7 +1611,7 @@ static void D_name_tcheck(
   Declarator::Tcheck &dt,
 
   // source location where 'name' appeared
-  SourceLocation const &loc,
+  SourceLoc loc,
 
   // name being declared
   PQName const *name)
@@ -1707,7 +1707,7 @@ realStart:
     // how I implement cppstd 8.2 para 7
     Variable *v = env.lookupPQVariable(name);
     if (v && v->hasFlag(DF_TYPEDEF)) {
-      trace("disamb") << "discarding grouped param declarator of type name\n";
+      TRACE("disamb", "discarding grouped param declarator of type name");
       env.error(stringc
         << "`" << *name << "' is the name of a type, but was used as "
         << "a grouped parameter declarator; ambiguity resolution should "
@@ -1885,9 +1885,9 @@ realStart:
 
     else {
       // ok, allow the overload
-      trace("ovl") << "overloaded `" << prior->name
+      TRACE("ovl",    "overloaded `" << prior->name
                    << "': `" << prior->type->toString()
-                   << "' and `" << dt.type->toString() << "'\n";
+                   << "' and `" << dt.type->toString() << "'");
       overloadSet = prior->getOverloadSet();
       prior = NULL;    // so we don't consider this to be the same
     }
@@ -1921,7 +1921,7 @@ realStart:
         env.error(prior->type, stringc
           << "duplicate definition for `" << *name
           << "' of type `" << prior->type->toString()
-          << "'; previous at " << prior->loc.toString());
+          << "'; previous at " << toString(prior->loc));
           goto makeDummyVar;
       }
 
@@ -1941,7 +1941,7 @@ realStart:
         env.error(stringc
           << "duplicate member declaration of `" << *name
           << "' in " << enclosingClass->keywordAndName()
-          << "; previous at " << prior->loc.toString());
+          << "; previous at " << toString(prior->loc));
         goto makeDummyVar;
       }
     }
@@ -1955,9 +1955,9 @@ realStart:
       // to replace the implicit typedef with the variable being
       // declared here
       if (prior->hasFlag(DF_IMPLICIT)) {
-        trace("env") << "replacing implicit typedef of " << prior->name
+        TRACE("env",    "replacing implicit typedef of " << prior->name
                      << " at " << prior->loc << " with new decl at "
-                     << loc << endl;
+                     << loc);
         forceReplace = true;
         goto noPriorDeclaration;
       }
@@ -1969,9 +1969,8 @@ realStart:
     // ok, use the prior declaration, but update the 'loc'
     // if this is the definition
     if (dt.dflags & DF_DEFINITION) {
-      trace("odr") << "def'n at " << loc.toString()
-                   << " overrides decl at " << prior->loc.toString()
-                   << endl;
+      TRACE("odr",    "def'n at " << toString(loc)
+                   << " overrides decl at " << toString(prior->loc));
       prior->loc = loc;
       prior->setFlag(DF_DEFINITION);
       prior->clearFlag(DF_EXTERN);
@@ -2956,8 +2955,8 @@ Type *E_sizeof::itcheck(Env &env)
   // TODO: this will fail an assertion if someone asks for the
   // size of a variable of template-type-parameter type..
   size = expr->type->asRval()->reprSize();
-  D( trace("sizeof") << "sizeof(" << expr->exprToString() 
-                     << ") is " << size << endl; )
+  TRACE("sizeof", "sizeof(" << expr->exprToString() <<
+                  ") is " << size);
 
   // TODO: is this right?
   // dsw: I think under some gnu extensions perhaps sizeof's aren't

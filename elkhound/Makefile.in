@@ -112,6 +112,8 @@ linkend := $(libraries)
           sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
 	@rm -f $*.d.tmp
 
+# TODO: don't put compilation outputs in $(AST)!
+
 # sets of related object files
 # files needed to represent a grammar in memory
 grammar-set := \
@@ -125,7 +127,6 @@ grampar-set := \
   $(AST)/asthelp.o \
   $(AST)/ccsstr.o \
   $(AST)/embedded.o \
-  $(AST)/fileloc.o \
   $(AST)/gramlex.o \
   $(AST)/strtable.o \
   emitcode.o \
@@ -139,7 +140,6 @@ grampar-set := \
 # minimal runtime files needed to do GLR parsing; these get
 # combined to form libelkhound.a, the Elkhound runtime library
 glr-set := \
-  $(AST)/fileloc.o \
   cyctimer.o \
   glr.o \
   parsetables.o \
@@ -231,12 +231,12 @@ cc/lexer1yy.cc: cc/lexer1.lex cc/lexer1.h
 	cd cc; flex lexer1.lex
 
 # first pass lexer
-lexer1-dep := cc/lexer1.cc cc/lexer1yy.o cc/fileloc.o $(libraries)
+lexer1-dep := cc/lexer1.cc cc/lexer1yy.o $(libraries)
 cc/lexer1: $(lexer1-dep)
 	$(link) -o $@ -DTEST_LEXER1 $(lexer1-dep)
 
 # second pass lexer
-lexer2-dep := cc/lexer2.cc cc/lexer1.o cc/lexer1yy.o $(AST)/fileloc.o \
+lexer2-dep := cc/lexer2.cc cc/lexer1.o cc/lexer1yy.o \
               $(AST)/strtable.o cc/cc_lang.o $(libraries)
 cc/lexer2: $(lexer2-dep) cc/lexer2.h
 	$(link) -o $@ -DTEST_LEXER2 $(lexer2-dep)
@@ -250,7 +250,7 @@ gramlex.yy.cc: gramlex.lex
 	rm gramlex.tmp
 
 # grammar lexer test program
-gramlex-dep := gramlex.yy.cc gramlex.cc $(AST)/fileloc.o $(AST)/ccsstr.o \
+gramlex-dep := gramlex.yy.cc gramlex.cc $(AST)/ccsstr.o \
                $(AST)/embedded.o $(libraries)
 gramlex: ../ast/gramlex.h $(gramlex-dep)
 	$(link) -o gramlex -DTEST_GRAMLEX $(gramlex-dep)
@@ -267,7 +267,7 @@ grampar.tab.cc grampar.tab.h grampar.codes.h: grampar.y gramast.ast.gen.h
 
 # (unmaintained) grammar parser test program
 # grampar: grampar.cc $(grammar-set) gramlex.yy.o grampar.tab.o \
-#          $(AST)/gramlex.o ast.o $(AST)/fileloc.o gramast.ast.gen.o $(AST)/ccsstr.o \
+#          $(AST)/gramlex.o ast.o gramast.ast.gen.o $(AST)/ccsstr.o \
 #          $(AST)/embedded.o $(AST)/strtable.o $(AST)/asthelp.o \
 #          $(libraries)
 # 	$(link) -o grampar -DTEST_GRAMPAR $^
@@ -278,7 +278,7 @@ cyctimer: cyctimer.cc cyctimer.h
 
 # token list for my grammar
 cc/cc.tok: cc/lexer2
-	cc/lexer2 myparser >$@
+	cc/lexer2 -myparser >$@
 
 # copy it to the parsgen/ directory for now so I can change
 # the "include" line in cc.gr to not say "cc/"
@@ -383,7 +383,7 @@ cc/bccgr.y: cc/c.gr.gen.y
 cc/bccgr.tab.o: cc/bccgr.h
 
 cc/bccgr: cc/bccgr.cc cc/bccgr.tab.o cc/lexer1.o cc/lexer1yy.o cc/lexer2.o \
-       $(AST)/fileloc.o $(AST)/strtable.o cc/cc_lang.o cyctimer.o \
+       $(AST)/strtable.o cc/cc_lang.o cyctimer.o \
        $(SMBASE)/libsmbase.a
 	g++ -o $@ $(ccflags) $(includes) $(YYDEBUG) $^
 	cc/bccgr c.in/c.in1
@@ -610,7 +610,7 @@ doc/glr.dot:
 
 # dependencies for 'ccgr', the prototype C parser and typechecker
 doc/cc.dot:
-	$(SMBASE)/scan-depends.pl -r -I$(AST) -Icc -Sglr.h -Xfileloc.h ccgrmain.h >$@
+	$(SMBASE)/scan-depends.pl -r -I$(AST) -Icc -Sglr.h -Xsrcloc.h ccgrmain.h >$@
 
 # dependencies for 'trivmain.cc', the trivial grammar driver
 doc/triv.dot:

@@ -6,6 +6,7 @@
   
 #include <fstream.h>      // ofstream
 #include "str.h"          // stringBuffer
+#include "srcloc.h"       // SourceLoc
 
 class EmitCode : public stringBuilder {
 private:     // data
@@ -25,10 +26,10 @@ public:      // funcs
   // flush data in stringBuffer to 'os'
   void flush();
 };
-  
+
 
 // return a #line directive for the given location
-string lineDirective(class SourceLocation const &loc);  
+string lineDirective(SourceLoc loc);  
 
 // emit a #line directive to restore reporting to the
 // EmitCode file itself (the 'sb' argument must be an EmitFile object)

@@ -6,7 +6,7 @@
 #define LEXERINT_H
 
 #include "useract.h"      // SemanticValue
-#include "fileloc.h"      // SourceLocation
+#include "srcloc.h"       // SourceLoc
 #include "str.h"          // string
 
 // This 'interface' is a collection of variables describing
@@ -29,7 +29,7 @@ public:     // data
 
   // source location of the token; this will only be used if the
   // parser has been compiled to automatically propagate it
-  SourceLocation loc;            // line/col/file
+  SourceLoc loc;
 
 public:     // funcs
   // retrieve the next token; the lexer should respond by filling in

@@ -16,8 +16,9 @@
 #include <string.h>     // strchr, strrchr
 
 // for maintaining column count
-#define TOKEN_START  tokenStartLoc = fileState /* user ; */
-#define UPD_COL      fileState.col += yyleng  /* user ; */
+#define TOKEN_START  tokenStartLoc = fileState.loc /* user ; */
+#define UPD_COL      \
+  fileState.loc = sourceLocManager->advCol(fileState.loc, yyleng)  /* user ; */
 #define TOK_UPD_COL  TOKEN_START; UPD_COL  /* user ; */
 
 %}
@@ -93,7 +94,6 @@ SLWHITE   [ \t]
   /* C-style comments */
   TOKEN_START;
   UPD_COL;
-  //commentStartLine = fileState.line;
   BEGIN(C_COMMENT);
 }
 
@@ -124,7 +124,8 @@ SLWHITE   [ \t]
 "//".*"\n" {
   /* C++-style comment -- eat it */
   TOKEN_START;
-  newLine();
+  advCol(yyleng-1);   // don't count newline
+  newLine();          // count it here
 }
 
 

@@ -39,7 +39,7 @@ option visitor ASTVisitor;
 class TranslationUnit (ASTList<TopForm> topForms);
 
 // a toplevel form
-class TopForm (SourceLocation loc) {
+class TopForm (SourceLoc loc) {
   // includes function prototypes
   -> TF_decl(Declaration decl);
 
@@ -162,7 +162,7 @@ class PQName {
 // built with type constructors (typedef'd types may have been built
 // with type constructors when the name was defined, but a
 // TypeSpecifier refers only to the name)
-class TypeSpecifier(SourceLocation loc) {
+class TypeSpecifier(SourceLoc loc) {
   public enum CVFlags cv;  ctor cv=CV_NONE;
 
   public void printExtras(ostream &os, int indent) const;
@@ -218,7 +218,7 @@ class BaseClassSpec (
 class MemberList (ASTList<Member> list);
 
 // member of a class
-class Member (SourceLocation loc) {
+class Member (SourceLoc loc) {
   -> MR_decl(Declaration d);            // data members or functions w/o bodies
   -> MR_func(Function f);               // function with body
   -> MR_access(AccessKeyword k);        // section header
@@ -227,7 +227,7 @@ class Member (SourceLocation loc) {
 
 // a binding of a name to a constant value
 class Enumerator (
-  SourceLocation loc,                   // location
+  SourceLoc loc,                        // location
   StringRef name,                       // name of this constant
   Expression /*nullable*/ expr          // constant expr, or NULL for "next"
 ) {
@@ -271,7 +271,7 @@ class Declarator (
 // once typechecking determines what type is denoted;
 // type constructors are encoded as a (possibly empty) list of pointer
 // constructors, then maybe a function or array type, recursively
-class IDeclarator(SourceLocation loc) {
+class IDeclarator(SourceLoc loc) {
   // dig down and find the name being declared; may return NULL
   pure_virtual PQName const *getDeclaratorId() const;
 
@@ -355,7 +355,7 @@ class OperatorName {
 
 
 // ------------------- statements -----------------
-class Statement (SourceLocation loc) {
+class Statement (SourceLoc loc) {
   // represent ambiguous statements by forming a linked list of alternatives
   public Statement * const ambiguity;
   ctor const_cast<Statement*&>(ambiguity) = NULL;
@@ -547,7 +547,7 @@ class TemplateDeclaration (
 }
 
 // one of the parameters to a template declaration
-class TemplateParameter (SourceLocation loc) {
+class TemplateParameter (SourceLoc loc) {
   public TemplateParameter *next;  ctor next=NULL;   // FakeList link
 
   // type parameter; when present, 'name' is what the template code

@@ -37,7 +37,7 @@ bool glrParseNamedFile(GLR &glr, Lexer2 &lexer2, SemanticValue &treeTop,
   // do first phase lexer
   traceProgress() << "lexical analysis...\n";
   traceProgress(2) << "lexical analysis stage 1...\n";
-  Lexer1 lexer1;
+  Lexer1 lexer1(inputFname);
   {
     FILE *input = fopen(inputFname, "r");
     if (!input) {

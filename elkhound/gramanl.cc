@@ -3708,7 +3708,7 @@ void GrammarAnalysis::addTreebuildingActions()
     code << ");";
 
     // insert the code into the production    
-    p->action = LocString(SourceLocation(/*no loc*/), 
+    p->action = LocString(SL_UNKNOWN, 
                           grammarStringTable.add(code));
   }
 
@@ -4045,7 +4045,7 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
       << "  static SemanticValue doReductionAction(\n"
       << "    " << g.actionClassName << " *ths,\n"
       << "    int productionId, SemanticValue const *semanticValues"
-         SOURCELOC( << ",\n  SourceLocation const &loc" )
+         SOURCELOC( << ",\n  SourceLoc loc" )
       << ");\n"
       << "\n"
       << "  // declare the classifier function\n"
@@ -4079,14 +4079,13 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
   out << "#include <iostream.h>    // cout\n";
   out << "#include \"" << hFname << "\"     // " << g.actionClassName << "\n";
   out << "#include \"parsetables.h\" // ParseTables\n";
-  out << "#include \"fileloc.h\"     // SourceLocation\n";
+  out << "#include \"srcloc.h\"      // SourceLoc\n";
   out << "\n";
 
   NOSOURCELOC(
     out << "// parser-originated location information is disabled by\n"
         << "// NO_GLR_SOURCELOC; any rule which refers to 'loc' will get this one\n"
-        << "#include \"fileloc.h\"     // SourceLocation\n"
-        << "SourceLocation loc;      // defaults to no-location\n"
+        << "static SourceLoc loc = SV_UNKNOWN;\n"
         << "\n\n";
   )
 
@@ -4127,7 +4126,7 @@ void emitUserCode(EmitCode &out, LocString const &code, bool braces)
     out << "{";
   }
   if (code.validLoc()) {
-    out << "\n" << lineDirective(code);
+    out << "\n" << lineDirective(code.loc);
   }
 
   out << code;
@@ -4250,11 +4249,11 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
     out << "inline " << prod.left->type << " "
         << g.actionClassName << "::" << actionFuncName(prod)
         << "("
-        SOURCELOC( << "SourceLocation const &loc" )
+        SOURCELOC( << "SourceLoc loc" )
         ;
 
     dcl << "  " << prod.left->type << " " << actionFuncName(prod) << "("
-        SOURCELOC( << "SourceLocation const &loc" )
+        SOURCELOC( << "SourceLoc loc" )
         ;
 
     int ct=0;
@@ -4292,7 +4291,7 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
   out << "/*static*/ SemanticValue " << g.actionClassName << "::doReductionAction(\n"
       << "  " << g.actionClassName << " *ths,\n"
       << "  int productionId, SemanticValue const *semanticValues"
-      SOURCELOC( << ",\n  SourceLocation const &loc" )
+      SOURCELOC( << ",\n  SourceLoc loc" )
       << ")\n";
   out << "{\n";
   out << "  switch (productionId) {\n";
@@ -4388,7 +4387,7 @@ void emitDupDelMerge(GrammarAnalysis const &g, EmitCode &out, EmitCode &dcl)
   emitSwitchCode(g, out,
     "SemanticValue $acn::mergeAlternativeParses(int nontermId, SemanticValue left,\n"
     "                                           SemanticValue right"
-    SOURCELOC(",  SourceLocation const &loc")
+    SOURCELOC(",  SourceLoc loc")
     ")",
     "nontermId",
     (ObjList<Symbol> const&)g.nonterminals,
@@ -4566,7 +4565,7 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
       break;
 
     case 2:    // unspecified merge: warn, but then use left (arbitrarily)
-      out << "      cout << loc.toString() \n"
+      out << "      cout << toString(loc) \n"
           << "           << \": WARNING: there is no action to merge nonterm \"\n"
           << "           << nontermNames[" << switchVar << "] << endl;\n";
       if (g.defaultMergeAborts) {
@@ -4669,7 +4668,9 @@ int entry(int argc, char **argv)
   }
 
   bool printCode = true;
-    
+
+  SourceLocManager mgr;
+
   // parse the grammar
   string grammarFname = argv[0];
   SHIFT;

@@ -45,7 +45,7 @@
 #include "useract.h"       // UserActions, SemanticValue
 #include "objpool.h"       // ObjectPool, GrowArray
 #include "objlist.h"       // ObjList
-#include "fileloc.h"       // SourceLocation
+#include "srcloc.h"        // SourceLoc
 
 #include <stdio.h>         // FILE
 #include <iostream.h>      // ostream
@@ -81,7 +81,7 @@ public:
   // the source location of the left edge of the subtree rooted
   // at this stack node; this is in essence part of the semantic
   // value, but automatically propagated by the parser
-  SOURCELOC( SourceLocation loc; )
+  SOURCELOC( SourceLoc loc; )
 
   // number of times this 'sval' has been yielded; this is used
   // to track cases where we yield a value and then merge it
@@ -93,8 +93,14 @@ public:
 
 public:
   SiblingLink(StackNode *s, SemanticValue sv
-              SOURCELOCARG( SourceLocation const &L) );
+              SOURCELOCARG( SourceLoc L) );
   ~SiblingLink();
+  
+  #if GLR_SOURCELOC
+    bool validLoc() const { return loc != SL_UNKNOWN; }
+  #else
+    bool validLoc() const { return false; }
+  #endif
 };
 
 
@@ -163,7 +169,7 @@ public:
 private:    // funcs
   SiblingLink *
     addAdditionalSiblingLink(StackNode *leftSib, SemanticValue sval
-                             SOURCELOCARG( SourceLocation const &loc ) );
+                             SOURCELOCARG( SourceLoc loc ) );
 
 public:     // funcs
   StackNode();
@@ -179,12 +185,12 @@ public:     // funcs
 
   // add a new link with the given tree node; return the link
   SiblingLink *addSiblingLink(StackNode *leftSib, SemanticValue sval
-                              SOURCELOCARG( SourceLocation const &loc ) );
+                              SOURCELOCARG( SourceLoc loc ) );
                                 
   // specialized version for performance-critical sections
   inline void
     addFirstSiblingLink_noRefCt(StackNode *leftSib, SemanticValue sval
-                                SOURCELOCARG( SourceLocation const &loc ) );
+                                SOURCELOCARG( SourceLoc loc ) );
 
   // return the symbol represented by this stack node;  it's
   // the symbol shifted or reduced-to to get to this state
@@ -344,7 +350,7 @@ public:
   // I used to have fields:
   //   int currentTokenType;
   //   SemanticValue currentTokenValue;
-  //   SourceLocation currentTokenLoc;
+  //   SourceLoc currentTokenLoc;
   // but these have been now replaced by, respectively,
   //   lexerPtr->type
   //   lexerPtr->sval
@@ -406,12 +412,12 @@ private:    // funcs
   static bool innerGlrParse(GLR &glr, LexerInterface &lexer, SemanticValue &treeTop);
   SemanticValue doReductionAction(
     int productionId, SemanticValue const *svals
-    SOURCELOCARG( SourceLocation const &loc ) );
+    SOURCELOCARG( SourceLoc loc ) );
 
   void rwlProcessWorklist();
   SiblingLink *rwlShiftNonterminal(StackNode *leftSibling, int lhsIndex,
                                    SemanticValue /*owner*/ sval
-                                   SOURCELOCARG( SourceLocation const &loc ) );
+                                   SOURCELOCARG( SourceLoc loc ) );
   int rwlEnqueueReductions(StackNode *parser, ActionEntry action,
                            SiblingLink *sibLink);
   void rwlCollectPathLink(

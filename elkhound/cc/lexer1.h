@@ -6,7 +6,7 @@
 #define __LEXER1_H
 
 #include "objlist.h"   // ObjList
-#include "fileloc.h"   // FileLocation
+#include "srcloc.h"    // SourceLoc
 
 #include <stdio.h>     // FILE
 
@@ -33,11 +33,11 @@ public:
   Lexer1TokenType type;         // kind of token
   string text;                  // token's text, null-terminated
   int length;                   // length of text (somewhat redundant, but whatever)
-  FileLocation loc;             // location in input stream
+  SourceLoc loc;                // location in input stream
 
 public:
   Lexer1Token(Lexer1TokenType aType, char const *aText, int aLength,
-              FileLocation const &aLoc);
+              SourceLoc aLoc);
   ~Lexer1Token();
 
   // debugging
@@ -52,7 +52,7 @@ public:
   bool allowMultilineStrings;             // true if newlines don't need to be escaped
 
   // lexing input state
-  FileLocation loc;                       // current location
+  SourceLoc loc;                          // current location
   int errors;	                          // # of errors encountered so far
 
   // lexing results
@@ -60,7 +60,7 @@ public:
   ObjListMutator<Lexer1Token> tokensMut;  // for appending to the 'tokens' list
 
 public:
-  Lexer1();
+  Lexer1(char const *fname);
   ~Lexer1();
 
   // called by parser

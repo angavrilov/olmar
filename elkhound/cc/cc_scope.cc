@@ -7,7 +7,7 @@
 #include "cc_type.h"      // CompoundType
 #include "cc_env.h"       // doh.  Env::error
 
-Scope::Scope(int cc, SourceLocation const &initLoc)
+Scope::Scope(int cc, SourceLoc initLoc)
   : variables(),
     compounds(),
     enums(),
@@ -81,7 +81,7 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
     trace("env") << prefix << "added " << classification
                  << " `" << v->name
                  << "' of type `" << v->type->toString()
-                 << "' at " << v->loc.toString()
+                 << "' at " << toString(v->loc)
                  << endl;
   }
   else {
@@ -91,7 +91,7 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
                  << " member " << classification
                  << " `" << v->name
                  << "' of type `" << v->type->toString()
-                 << "' at " << v->loc.toString()
+                 << "' at " << toString(v->loc)
                  << " to " << curCompound->keywordAndName()
                  << endl;
   }

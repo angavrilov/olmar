@@ -5,7 +5,7 @@
 #define __LEXER2_H
 
 #include "lexer1.h"       // Lexer1
-#include "fileloc.h"      // SourceLocation (r)
+#include "srcloc.h"       // SourceLoc (r)
 #include "strtable.h"     // StringRef, StringTable
 #include "useract.h"      // SemanticValue
 #include "lexerint.h"     // LexerInterface
@@ -216,13 +216,13 @@ public:
   // TODO: handle strings with embedded nulls
 
   // where token appears, or where macro reference which produced it appears
-  SourceLocation loc;            // line/col/file
+  SourceLoc loc;
 
   // macro definition that produced this token, or NULL
   Lexer1Token *sourceMacro;      // (serf)
 
 public:
-  Lexer2Token(Lexer2TokenType type, SourceLocation const &loc);
+  Lexer2Token(Lexer2TokenType type, SourceLoc loc);
   ~Lexer2Token();
 
   // debugging
@@ -264,12 +264,12 @@ public:
   Lexer2(CCLang &lang, StringTable &externalTable);    // table given externally
   ~Lexer2();
 
-  SourceLocation startLoc() const;
+  SourceLoc startLoc() const;
 
   void addToken(Lexer2Token *tok)
     { tokensMut.append(tok); }
   void addEOFToken()
-    { addToken(new Lexer2Token(L2_EOF, SourceLocation() /*dummy*/)); }
+    { addToken(new Lexer2Token(L2_EOF, SL_UNKNOWN)); }
                
   // reset the 'currentToken' so the parser can begin reading tokens
   void beginReading();

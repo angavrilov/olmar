@@ -224,7 +224,7 @@ class olayer {
 // global context for a pretty-print
 class PrintEnv : public code_output_stream {
 public:
-  SourceLocation current_loc;
+  SourceLoc current_loc;
   
 public:
   PrintEnv(ostream &out) : code_output_stream(out) {}

@@ -104,6 +104,8 @@ int entry(int argc, char *argv[])
     argc--;
   }
 
+  SourceLocManager mgr;
+
   char const *inputFname = argv[1];
 
   // see how long the input is

@@ -1,7 +1,6 @@
 // cc.gr            see license.txt for copyright and terms of use
 // grammar for C++
 
-
 // A word of warning: there are three sources of names running
 // around here:
 //   (1) the c++ standard's grammar's names
@@ -91,17 +90,17 @@ public:
 
   // when this is the last element in a parameter list, the function
   // is a vararg function
-  ASTTypeId *ellipsisTypeId(SourceLocation const &loc)
+  ASTTypeId *ellipsisTypeId(SourceLoc loc)
   {
-    ASTTypeId *tid = 
+    ASTTypeId *tid =
       new ASTTypeId(new TS_simple(loc, ST_ELLIPSIS),
-                    new Declarator(new D_name(SourceLocation(), NULL /*name*/),
+                    new Declarator(new D_name(loc, NULL /*name*/),
                                    NULL /*init*/));
     return tid;
   }
 
   // make a TS_name, and supply CV flags
-  TS_name *new_TS_name(SourceLocation const &loc, CVFlags cv, PQName *n,
+  TS_name *new_TS_name(SourceLoc loc, CVFlags cv, PQName *n,
                        bool typenameUsed)
   {
     TS_name *ret = new TS_name(loc, n, typenameUsed);
@@ -110,7 +109,7 @@ public:
   }
 
   // make a TS_simple, and supply CV flags
-  TS_simple *new_TS_simple(SourceLocation const &loc, CVFlags cv, SimpleTypeId id)
+  TS_simple *new_TS_simple(SourceLoc loc, CVFlags cv, SimpleTypeId id)
   {
     TS_simple *ret = new TS_simple(loc, id);
     ret->cv = cv;

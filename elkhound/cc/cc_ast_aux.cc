@@ -128,7 +128,7 @@ void Function::printExtras(ostream &os, int indent) const
 void MemberInit::printExtras(ostream &os, int indent) const
 {
   if (member) {
-    ind(os, indent) << "member: refers to " << member->loc.toString() << "\n";
+    ind(os, indent) << "member: refers to " << toString(member->loc) << "\n";
   }       
 
   if (base) {
@@ -424,7 +424,7 @@ void Expression::printExtras(ostream &os, int indent) const
   ASTSWITCHC(Expression, this) {
     ASTCASEC(E_variable, v)
       if (v->var) {
-        ind(os, indent) << "var: refers to " << v->var->loc.toString() << "\n";
+        ind(os, indent) << "var: refers to " << toString(v->var->loc) << "\n";
       }
 
     ASTNEXTC(E_new, n)
@@ -432,7 +432,7 @@ void Expression::printExtras(ostream &os, int indent) const
 
     ASTNEXTC(E_fieldAcc, f)
       if (f->field) {
-        ind(os, indent) << "field: refers to " << f->field->loc.toString() << "\n";
+        ind(os, indent) << "field: refers to " << toString(f->field->loc) << "\n";
       }
 
     ASTDEFAULTC

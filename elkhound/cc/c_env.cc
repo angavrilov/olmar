@@ -662,8 +662,7 @@ Type const *Env::promoteTypes(BinaryOp op, Type const *t1, Type const *t2)
 // --------------------- error/warning reporting ------------------
 Type const *Env::err(char const *str)
 {
-  cout << currentLoc().likeGccToString()
-       << ": error: " << str << endl;
+  cout << ::toString(currentLoc()) << ": error: " << str << endl;
   errors++;
   return fixed(ST_ERROR);
 }
@@ -671,22 +670,21 @@ Type const *Env::err(char const *str)
 
 void Env::warn(char const *str)
 {
-  cout << currentLoc().likeGccToString()
-       << ": warning: " << str << endl;
+  cout << ::toString(currentLoc()) << ": warning: " << str << endl;
   warnings++;
 }
 
 
-void Env::errLoc(SourceLocation const &loc, char const *str)
+void Env::errLoc(SourceLoc loc, char const *str)
 {
-  pushLocation(&loc);
+  pushLocation(loc);
   err(str);
   popLocation();
 }
 
-void Env::warnLoc(SourceLocation const &loc, char const *str)
+void Env::warnLoc(SourceLoc loc, char const *str)
 {
-  pushLocation(&loc);
+  pushLocation(loc);
   warn(str);
   popLocation();
 }
@@ -715,19 +713,19 @@ Type const *Env::getCurrentRetType()
 }
 
 
-void Env::pushLocation(SourceLocation const *loc)
-{ 
-  locationStack.push(const_cast<SourceLocation*>(loc));
+void Env::pushLocation(SourceLoc loc)
+{
+  locationStack.push(loc);
 }
 
 
-SourceLocation Env::currentLoc() const
+SourceLoc Env::currentLoc() const
 {
   if (locationStack.isEmpty()) {
-    return SourceLocation();      // no loc info
+    return SL_UNKNOWN;      // no loc info
   }
   else {
-    return *(locationStack.topC());
+    return locationStack.top();
   }
 }
 

@@ -25,7 +25,7 @@ UserActions::ReductionActionFunc TrivialUserActions::getReductionAction()
 
 STATICDEF SemanticValue TrivialUserActions::doReductionAction(
   UserActions *, int , SemanticValue const *
-  SOURCELOCARG( SourceLocation const & ) )
+  SOURCELOCARG( SourceLoc ) )
   { return NULL_SVAL; }
 
 SemanticValue TrivialUserActions::duplicateTerminalValue(
@@ -47,7 +47,7 @@ void TrivialUserActions::deallocateNontermValue(
 
 SemanticValue TrivialUserActions::mergeAlternativeParses(
   int , SemanticValue left, SemanticValue
-  SOURCELOCARG( SourceLocation const & ) )
+  SOURCELOCARG( SourceLoc ) )
   { return left; }
 
 bool TrivialUserActions::keepNontermValue(int , SemanticValue )

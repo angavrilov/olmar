@@ -42,7 +42,7 @@ STATICDEF string XASTParse::
   constructMsg(LocString const &tok, char const *msg)
 {
   if (tok.validLoc()) {
-    return stringc << tok.toString() << ": near " << tok
+    return stringc << tok.locString() << ": near " << tok
                    << ", " << msg;
   }
   else {
@@ -155,7 +155,7 @@ LocString extractActionClassName(LocString const &body)
   while (isalnum(*p) || *p=='_') p++;
   
   // yield that, with the same source location
-  return LocString(body, grammarStringTable.add(string(body.str, p-body.str)));
+  return LocString(body.loc, grammarStringTable.add(string(body.str, p-body.str)));
 }
 
 

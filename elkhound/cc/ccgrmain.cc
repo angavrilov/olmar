@@ -7,7 +7,7 @@
 #include "ccgrmain.h"     // this module, sorta..
 #include "trace.h"        // traceAddSys
 #include "parssppt.h"     // ParseTreeAndTokens, treeMain
-#include "fileloc.h"      // sourceFileList (r)
+#include "srcloc.h"       // SourceLocManager
 #include "ckheap.h"       // malloc_stats
 #include "c_env.h"        // Env
 #include "c.ast.gen.h"    // C AST (r)
@@ -41,6 +41,8 @@ void doit(int argc, char **argv)
   treeOut(1) << "beginning of output      -*- outline -*-\n";
 
   if_malloc_stats();
+
+  SourceLocManager mgr;
 
   // string table for storing parse tree identifiers
   StringTable strTable;
@@ -98,8 +100,7 @@ void doit(int argc, char **argv)
 
                  
   // --------- declarations provided automatically -------
-  SourceLocation dummyLoc;
-  Variable mem(dummyLoc, strTable.add("mem"),
+  Variable mem(HERE_SOURCELOC, strTable.add("mem"),
                new PointerType(PO_POINTER, CV_NONE,
                  &CVAtomicType::fixed[ST_INT]), DF_NONE);
 
@@ -138,7 +139,6 @@ void doit(int argc, char **argv)
   //checkHeap();
   //malloc_stats();
 
-  sourceFileList.clear();
   traceRemoveAll();
 }
 

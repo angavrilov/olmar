@@ -356,7 +356,7 @@ void printMyTokenDecls()
 
 
 // ----------------------- Lexer2Token -------------------------------
-Lexer2Token::Lexer2Token(Lexer2TokenType aType, SourceLocation const &aLoc)
+Lexer2Token::Lexer2Token(Lexer2TokenType aType, SourceLoc aLoc)
   : type(aType),
     intValue(0),     // legal? apparently..
     loc(aLoc),
@@ -430,7 +430,7 @@ string Lexer2Token::unparseString() const
 void Lexer2Token::print() const
 {
   printf("[L2] Token at %s: %s\n",
-         loc.toString().pcharc(), toString().pcharc());
+         toString(loc).pcharc(), toString().pcharc());
 }
 
 
@@ -452,9 +452,6 @@ void quotedUnescape(string &dest, int &destLen, char const *src,
 //  - preprocessor actions are performed: inclusion and macro expansion
 void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
 {
-  // get the SourceFile
-  SourceFile *sourceFile = sourceFileList.open(fname);
-
   // keep track of previous L2 token emitted so we can do token
   // collapsing for string juxtaposition
   Lexer2Token *prevToken = NULL;
@@ -495,8 +492,7 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
     // create the object for the yielded token; don't know the type
     // yet at this point, so I use L2_NAME as a placeholder
     Lexer2Token *L2 =
-      new Lexer2Token(L2_NAME,
-                      SourceLocation(L1->loc, sourceFile));
+      new Lexer2Token(L2_NAME, L1->loc);
 
     try {
       switch (L1->type) {
@@ -582,7 +578,7 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
       }
     }
     catch (xFormat &x) {
-      cout << L1->loc.toString() << ": " << x.cond() << endl;
+      cout << toString(L1->loc) << ": " << x.cond() << endl;
       continue;
     }
 
@@ -635,13 +631,13 @@ Lexer2::~Lexer2()
 }
 
 
-SourceLocation Lexer2::startLoc() const
+SourceLoc Lexer2::startLoc() const
 {
   if (tokens.isNotEmpty()) {
     return tokens.firstC()->loc;
   }
   else {
-    return SourceLocation();    // empty
+    return SL_UNKNOWN;
   }
 }
 
@@ -684,6 +680,8 @@ string Lexer2::tokenDesc() const
 // this is defined by the bison-parser
 extern Lexer2Token const *yylval;
 
+char const *bison_hack_source_fname = NULL;
+
 // returns token types until EOF, at which point L2_EOF is returned
 Lexer2TokenType lexer2_gettoken()
 {
@@ -693,8 +691,12 @@ Lexer2TokenType lexer2_gettoken()
 
   if (!lexer1) {
     // do first phase
-    lexer1 = new Lexer1;
-    lexer1_lex(*lexer1, stdin);
+    lexer1 = new Lexer1(bison_hack_source_fname);
+    FILE *fp = fopen(bison_hack_source_fname, "r");
+    if (!fp) {
+      throw_XOpen(bison_hack_source_fname);
+    }
+    lexer1_lex(*lexer1, fp);
 
     if (lexer1->errors > 0) {
       printf("%d error(s)\n", lexer1->errors);
@@ -736,20 +738,23 @@ Lexer2Token const *yylval = NULL;
 
 int main(int argc, char **argv)
 {
-  if (argc > 1 && 0==strcmp(argv[1], "bison")) {
+  SourceLocManager mgr;
+
+  if (argc > 1 && 0==strcmp(argv[1], "-bison")) {
     printBisonTokenDecls(true /*spellings*/);
     return 0;
   }
-  
-  if (argc > 1 && 0==strcmp(argv[1], "myparser")) {
+
+  if (argc > 1 && 0==strcmp(argv[1], "-myparser")) {
     printMyTokenDecls();
     return 0;
   }
 
-  if (argc > 1) {
-    printf("unknown argument: %s\n", argv[1]);
-    return 1;
+  if (argc < 2) {
+    printf("usage: %s <file>\n", argv[0]);
+    return 0;
   }
+  bison_hack_source_fname = argv[1];
 
   while (lexer2_gettoken() != L2_EOF) {
     yylval->print();

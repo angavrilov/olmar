@@ -2,14 +2,13 @@
 // code for ccparse.h
 
 #include "ccparse.h"      // this module
-#include "fileloc.h"      // SourceLocation
 #include "cc.ast.gen.h"   // ASTVisitor
 
 #include <iostream.h>     // cout
 
 
 // ----------------------- ParseEnv -----------------------
-SimpleTypeId ParseEnv::uberSimpleType(SourceLocation const &loc, UberModifiers m)
+SimpleTypeId ParseEnv::uberSimpleType(SourceLoc loc, UberModifiers m)
 {
   m = (UberModifiers)(m & UM_TYPEKEYS);
 
@@ -51,7 +50,7 @@ SimpleTypeId ParseEnv::uberSimpleType(SourceLocation const &loc, UberModifiers m
     case UM_LONG_LONG:                         return ST_LONG_LONG;
 
     default:
-      cout << loc.toString() << ": error: malformed type: "
+      cout << toString(loc) << ": error: malformed type: "
            << toString(m) << endl;
       errors++;
       return ST_ERROR;
@@ -60,13 +59,13 @@ SimpleTypeId ParseEnv::uberSimpleType(SourceLocation const &loc, UberModifiers m
 
 
 UberModifiers ParseEnv
-  ::uberCombine(SourceLocation const &loc, UberModifiers m1, UberModifiers m2)
+  ::uberCombine(SourceLoc loc, UberModifiers m1, UberModifiers m2)
 {
   // check for long long (GNU extension)
   if (m1 & m2 & UM_LONG) {
     // were there already two 'long's?
     if ((m1 | m2) & UM_LONG_LONG) {
-      cout << loc.toString() << ": error: too many `long's" << endl;
+      cout << toString(loc) << ": error: too many `long's" << endl;
     }
 
     // make it look like only m1 had 'long long' and neither had 'long'
@@ -77,7 +76,7 @@ UberModifiers ParseEnv
   // any duplicate flags?
   UberModifiers dups = (UberModifiers)(m1 & m2);
   if (dups) {
-    cout << loc.toString() << ": error: duplicate modifier: "
+    cout << toString(loc) << ": error: duplicate modifier: "
          << toString(dups) << endl;
     errors++;
   }

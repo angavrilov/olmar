@@ -21,6 +21,8 @@ void doit(int argc, char **argv)
   traceAddSys("progress");
   //traceAddSys("parse-tree");
 
+  SourceLocManager mgr;
+
   // parsing language options
   CCLang lang;
   lang.ANSI_Cplusplus();

@@ -12,18 +12,18 @@ void trivialLexer(char const *fname, Lexer2 &dest)
   if (!fp) {
     xsyserror("open", fname);
   }                    
-  SourceFile *sfile = sourceFileList.open(fname);
+  SourceLoc loc = sourceLocManager->encodeBegin(fname);
 
-  int ch;                
-  int col=1;
+  int ch;
   while ((ch = fgetc(fp)) != EOF) {
     // abuse Lexer2 to hold chars
-    FileLocation floc(1, col++);
-    SourceLocation sloc(floc, sfile);
-    Lexer2Token *tok = new Lexer2Token((Lexer2TokenType)ch, sloc);
-    
+    Lexer2Token *tok = new Lexer2Token((Lexer2TokenType)ch, loc);
+
     // add it to list
     dest.addToken(tok);
+                                         
+    char aChar = ch;
+    loc = sourceLocManager->advText(loc, &aChar, 1);
   }
   dest.addEOFToken();
 }

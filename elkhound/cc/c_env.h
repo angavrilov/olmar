@@ -14,6 +14,7 @@
 #include "sobjstack.h"    // SObjStack
 #include "c.ast.gen.h"    // C ast components
 #include "c_variable.h"   // Variable (r)
+#include "array.h"        // ArrayStack
 
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
@@ -152,7 +153,7 @@ private:    // data
   TF_func *currentFunction;
 
   // stack of source locations considered 'current'
-  SObjStack<SourceLocation /*const*/> locationStack;
+  ArrayStack<SourceLoc> locationStack;
 
 public:     // data
   // true in predicate expressions
@@ -241,8 +242,8 @@ public:     // funcs
   void warn(char const *str);
 
   // versions which explicitly specify a location
-  void errLoc(SourceLocation const &loc, char const *str);
-  void warnLoc(SourceLocation const &loc, char const *str);
+  void errLoc(SourceLoc loc, char const *str);
+  void warnLoc(SourceLoc loc, char const *str);
 
   // report an error, and throw an exception
   void errThrow(char const *str);
@@ -264,9 +265,9 @@ public:     // funcs
 
   bool isGlobalEnv() const              { return scopes.count() <= 1; }
 
-  void pushLocation(SourceLocation const *loc);
+  void pushLocation(SourceLoc loc);
   void popLocation()                    { locationStack.pop(); }
-  SourceLocation currentLoc() const;
+  SourceLoc currentLoc() const;
 
 
   // --------------- type construction -----------------

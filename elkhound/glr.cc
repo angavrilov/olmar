@@ -265,7 +265,7 @@ void GLR::deallocateSemanticValue(SymbolId sym, SemanticValue sval)
 
 // ------------------ SiblingLink ------------------
 inline SiblingLink::SiblingLink(StackNode *s, SemanticValue sv
-                                SOURCELOCARG( SourceLocation const &L ) )
+                                SOURCELOCARG( SourceLoc L ) )
   : sib(s), sval(sv)
     SOURCELOCARG( loc(L) )
 {
@@ -284,7 +284,7 @@ int StackNode::maxStackNodesAllocd=0;
 StackNode::StackNode()
   : state(STATE_INVALID),
     leftSiblings(),
-    firstSib(NULL, NULL_SVAL  SOURCELOCARG( SourceLocation() ) ),
+    firstSib(NULL, NULL_SVAL  SOURCELOCARG( SL_UNKNOWN ) ),
     referenceCount(0),
     determinDepth(0),
     glr(NULL)
@@ -363,7 +363,7 @@ void StackNode::deallocSemanticValues()
 // add the very first sibling
 inline void StackNode
   ::addFirstSiblingLink_noRefCt(StackNode *leftSib, SemanticValue sval
-                                SOURCELOCARG( SourceLocation const &loc ) )
+                                SOURCELOCARG( SourceLoc loc ) )
 {
   xassertdb(hasZeroSiblings());
 
@@ -387,7 +387,7 @@ inline void StackNode
 // add a new sibling by creating a new link
 inline SiblingLink *StackNode::
   addSiblingLink(StackNode *leftSib, SemanticValue sval
-                 SOURCELOCARG( SourceLocation const &loc ) )
+                 SOURCELOCARG( SourceLoc loc ) )
 {
   if (hasZeroSiblings()) {
     addFirstSiblingLink_noRefCt(leftSib, sval  SOURCELOCARG( loc ) );
@@ -414,7 +414,7 @@ inline SiblingLink *StackNode::
 // the code in this function is much less common
 SiblingLink *StackNode::
   addAdditionalSiblingLink(StackNode *leftSib, SemanticValue sval
-                           SOURCELOCARG( SourceLocation const &loc ) )
+                           SOURCELOCARG( SourceLoc loc ) )
 {
   // there's currently at least one sibling, and now we're adding another;
   // right now, no other stack node should point at this one (if it does,
@@ -943,7 +943,7 @@ STATICDEF bool GLR
 
           // record location of left edge; defaults to no location
           // (used for epsilon rules)
-          SOURCELOC( SourceLocation leftEdge; )
+          SOURCELOC( SourceLoc leftEdge = SL_UNKNOWN; )
 
           //toPass.ensureIndexDoubler(rhsLen-1);
           xassertdb(rhsLen <= MAX_RHSLEN);
@@ -1025,7 +1025,7 @@ STATICDEF bool GLR
 
             // if it has a valid source location, grab it
             SOURCELOC(
-              if (sib.loc.validLoc()) {
+              if (sib.validLoc()) {
                 leftEdge = sib.loc;
               }
             )
@@ -1307,8 +1307,7 @@ bool GLR::nondeterministicParseToken()
 // pulled out of glrParse() to reduce register pressure
 void GLR::printParseErrorMessage(StateId lastToDie)
 {
-  cout << "Line " << lexerPtr->loc.line
-       << ", col " << lexerPtr->loc.col
+  cout << toString(lexerPtr->loc)
        << ": Parse error at "
        << lexerPtr->tokenDesc()
        << endl;
@@ -1335,7 +1334,7 @@ void GLR::printParseErrorMessage(StateId lastToDie)
 
 SemanticValue GLR::doReductionAction(
   int productionId, SemanticValue const *svals
-  SOURCELOCARG( SourceLocation const &loc ) )
+  SOURCELOCARG( SourceLoc loc ) )
 {
   // get the function pointer and invoke it; possible optimization
   // is to cache the function pointer in the GLR object
@@ -1673,7 +1672,7 @@ void GLR::rwlProcessWorklist()
 
     // record location of left edge; defaults to no location (used for
     // epsilon rules)
-    SOURCELOC( SourceLocation leftEdge; )
+    SOURCELOC( SourceLoc leftEdge = SL_UNKNOWN; )
 
     // build description of rhs for tracing
     ACTION(
@@ -1702,7 +1701,7 @@ void GLR::rwlProcessWorklist()
       // left edge?  or, have all previous tokens failed to yield
       // information?
       SOURCELOC(
-        if (!leftEdge.validLoc()) {
+        if (leftEdge != SL_UNKNOWN) {
           leftEdge = sib->loc;
         }
       )
@@ -1769,7 +1768,7 @@ void GLR::rwlProcessWorklist()
 //   - we merge two semantic values onto an existing link
 SiblingLink *GLR::rwlShiftNonterminal(StackNode *leftSibling, int lhsIndex,
                                       SemanticValue /*owner*/ sval
-                                      SOURCELOCARG( SourceLocation const &loc ) )
+                                      SOURCELOCARG( SourceLoc loc ) )
 {
   // this is like a shift -- we need to know where to go; the
   // 'goto' table has this information
@@ -1830,7 +1829,7 @@ SiblingLink *GLR::rwlShiftNonterminal(StackNode *leftSibling, int lhsIndex,
         if (sibLink->yieldCount > 0) {
           // yield-then-merge (YTM) happened
           yieldThenMergeCt++;
-          trace("ytm") << "at " << loc.toString() << endl;
+          trace("ytm") << "at " << toString(loc) << endl;
 
           // if merging yielded a new semantic value, then we most likely
           // have a problem; if it yielded the *same* value, then most

@@ -778,7 +778,7 @@ string Production::toStringMore(bool printCode) const
 // ------------------ Grammar -----------------
 Grammar::Grammar()
   : startSymbol(NULL),
-    emptyString(LocString(SourceLocation(), "empty"),    // no location
+    emptyString(LocString(HERE_SOURCELOC, "empty"),
                 true /*isEmptyString*/),
     useGCDefaults(false),
     defaultMergeAborts(false),

@@ -5,7 +5,7 @@
 #include "cc_type.h"       // Type
 
 // ---------------------- Variable --------------------
-Variable::Variable(SourceLocation const &L, StringRef n, Type *t, DeclFlags f)
+Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
   : loc(L),
     name(n),
     type(t),
