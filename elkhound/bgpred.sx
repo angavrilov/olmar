@@ -92,4 +92,14 @@
         (firstZero mem obj2)
       )
     ))
+    
+  ; validPointer: abstraction of a valid pointer
+  ;(FORALL (p)
+  ;  (IMPLIES
+  ;    (validPointer p)
+  ;    (AND
+  ;      (>= (offset p) 0)
+  ;      (< (offset p) (length (object p)))
+  ;    )
+  ;  ))
 ))

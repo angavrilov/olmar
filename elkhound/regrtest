@@ -156,11 +156,17 @@ tcheck exprpath.c
 vcgen() {
   runTest ./ccgr cc.bin vcgen/$1
 }
+vcgentb() {
+  runTest ./test-bad vcgen/$1 cc.bin
+}
 
 vcgen if.c
 vcgen ptr.c
 vcgen invar.c
 vcgen global.c
+vcgen blast1.c
+vcgentb clash1.c
+vcgentb swap1.c
 
 
 # final arithmetic to report result
