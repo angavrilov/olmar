@@ -8,6 +8,8 @@ strdict
 svdict
 str
 strhash
+strhash_1
+strhash_2
 gmon.out
 fsyncd.log
 .fsync-save
@@ -51,3 +53,4 @@ TAGS
 tarrayqueue
 testarray
 diff
+examples

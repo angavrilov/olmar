@@ -6,6 +6,30 @@
 
 #include <string.h>      // strcmp
 
+// notes on string hash functions ****************
+
+// We need to test the various hash functions versus each other for
+// randomness.  Scott suggests simply hashing the same data and
+// modding it down as a hashtable would and seeing which gives more
+// collisions.
+
+// Note that both hash functions could be improved if they were aware
+// of how many of their low order bits were really going to be
+// preserved and then taking the high order bits that would otherwise
+// be discarded and xoring or adding them to the low order bits.
+
+// Hash function 2:
+
+// 1) Does not work on architectures other than 32 bit.
+
+// 2) Will not work well or at all if the strings do not start on
+// 32-bit aligned boundaries.
+
+// 3) Could be made to work faster if the strings start AND end on
+// 32-bit aligned boundaries and are padded out with NUL-s.
+
+// ****************
+
 
 StringHash::StringHash(GetKeyFn gk)
   : HashTable((HashTable::GetKeyFn)gk,
@@ -59,13 +83,13 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
 
   // pick a default STRHASH_ALG
   #ifndef STRHASH_ALG
-    #define STRHASH_ALG 2
+    #define STRHASH_ALG 1
   #endif // STRHASH_ALG
 
 
   #if STRHASH_ALG == 1
   #ifdef SAY_STRHASH_ALG
-    #warning Nelson hash function
+    #warning hash function 1: Nelson 
   #endif // SAY_STRHASH_ALG
   // this one is supposed to be better
   /* An excellent string hashing function.
@@ -97,10 +121,16 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
 
   #elif STRHASH_ALG == 2
   #ifdef SAY_STRHASH_ALG
-    #warning Wilkerson/Goldsmith hash function
+    #warning hash function 2: word-rotate/final-mix
   #endif // SAY_STRHASH_ALG
-  // dsw: A slighly faster and likely more random implementation
-  // invented in collaboration with Simon Goldsmith.
+
+  // FIX:
+  #warning word-rotate/final-mix hash function only works on 32-bit architectures
+  #warning word-rotate/final-mix hash function still needs to be tested for randomness vs nelson
+
+  // Word-Rotate / Final-Mix hash function by Daniel Wilkerson; A
+  // slighly faster and likely more random hash function; Invented in
+  // collaboration with Simon Goldsmith.
   //
   // Supposedly gcc will sometimes recognize this and generate a
   // single rotate instruction 'ROR'.  Thanks to Matt Harren for this.
@@ -114,8 +144,8 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
   static unsigned const primeA = 1500450271U;
   static unsigned const primeB = 2860486313U;
   // source of primes: http://www.utm.edu/research/primes/lists/2small/0bit.html
-  static unsigned const primeC = (1U<<31) -  99U;
-  static unsigned const primeD = (1U<<30) -  35U;
+  static unsigned const primeC = (1U<<31) - 99U;
+  static unsigned const primeD = (1U<<30) - 35U;
 
   static int count = 0;
   ++count;
@@ -125,6 +155,11 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
   // Stride a word at a time.  Note that this works best (or works at
   // all) if the string is 32-bit aligned.  This initial 'if' block is
   // to prevent an extra unneeded rotate.
+  //
+  // FIX: this would be even faster if all strings were NUL-padded in
+  // length to a multiple of 4; we could then omit all but the last
+  // 'if' and the ragged end after the loop (it doesn't matter if you
+  // tile a few extra NULs into your value).
   if (!key[0]) goto end0;
   if (!key[1]) goto end1;
   if (!key[2]) goto end2;
@@ -139,11 +174,15 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
     if (!key[2]) {h = ROTATE(h, 5); goto end2;}
     if (!key[3]) {h = ROTATE(h, 5); goto end3;}
     h = ROTATE(h, 5);
+    // FIX: if the start of the string is not 4-byte aligned then this
+    // will be slower on x86 and I think even illegal on MIPS and
+    // perhaps others.  To be portable we should ensure this.
     h += *( (unsigned *) key ); // on my machine plus is faster than xor
     key += 4;
   }
   xfailure("shouldn't get here");
 
+  // deal with the ragged end
   // invariant: when we get here we are ready to add
 end3:
   h += *key; h = ROTATE(h, 5); key += 1;
@@ -220,8 +259,36 @@ STATICDEF bool StringHash::keyCompare(char const *key1, char const *key2)
 
 #include <iostream.h>    // cout
 #include <stdlib.h>      // rand
+#include <iostream>      // istream
+#include <fstream>       // filebuf
 #include "trace.h"       // traceProgress
 #include "crc.h"         // crc32
+#include "nonport.h"     // getMilliseconds
+#include "array.h"       // GrowArray
+#include "str.h"         // string
+
+// pair a GrowArray with its size
+struct StringArray {
+  int tableSize;
+  GrowArray<char*> table;
+  bool appendable;
+
+  StringArray(int tableSize0)
+    : tableSize(tableSize0)
+    , table(tableSize)
+    , appendable(tableSize == 0)
+  {}
+  void append(char *str) {
+    xassert(appendable);
+    table.ensureIndexDoubler(tableSize);
+    table[tableSize] = str;
+    ++tableSize;
+  }
+};
+
+// data to hash
+StringArray *dataArray = NULL;
+
 
 char const *id(void *p)
 {
@@ -238,82 +305,267 @@ char *randomString()
   return ret;
 }
 
-int main()
+// fill a table with random strings
+void makeRandomData(int numRandStrs) {
+  dataArray = new StringArray(numRandStrs);
+  {loopi(dataArray->tableSize) {
+    dataArray->table[i] = randomString();
+  }}
+}
+
+
+// file the data array with whitespace-delimited strings from a file
+void readDataFromFile(char *inFileName) {
+  dataArray = new StringArray(0);
+  char *delim = " \t\n\r\v\f";
+  std::filebuf fb;
+  fb.open (inFileName, ios::in);
+  istream in(&fb);
+  while(true) {
+    stringBuilder s;
+    s.readdelim(in, delim);
+//      cout << ":" << s->pcharc() << ":" << endl;
+    if (in.eof()) break;
+//      // don't insert 0 length strings
+//      if (s->length() == 0) continue;
+    dataArray->append(strdup(s.pcharc()));
+  }
+}
+
+void writeData(ostream &out) {
+  cout << "write data" << endl;
+  for(int i=0; i<dataArray->tableSize; ++i) {
+    out << dataArray->table[i] << endl;
+  }
+}
+
+// dsw: what is the point of this?
+// dealloc the test strings
+//  void deleteData() {
+//    {loopi(dataArray->tableSize) {
+//      delete[] dataArray->table[i];
+//    }}
+//  //    delete[] dataArray->table;
+//  }
+
+void correctnessTest() {
+  traceProgress() << "start of strhash correctness testing\n";
+
+  // insert them all into a hash table
+  StringHash hash(id);
+  {loopi(dataArray->tableSize) {
+    hash.add(dataArray->table[i], dataArray->table[i]);
+    hash.selfCheck();
+  }}
+  hash.selfCheck();
+  xassert(hash.getNumEntries() == dataArray->tableSize);
+
+  // verify that they are all mapped properly
+  {loopi(dataArray->tableSize) {
+    xassert(hash.get(dataArray->table[i]) == dataArray->table[i]);
+  }}
+  hash.selfCheck();
+
+  // remove every other one
+  {loopi(dataArray->tableSize) {
+    if (i%2 == 0) {
+      hash.remove(dataArray->table[i]);
+      hash.selfCheck();
+    }
+  }}
+  hash.selfCheck();
+  xassert(hash.getNumEntries() == dataArray->tableSize / 2);
+
+  // verify it
+  {loopi(dataArray->tableSize) {
+    if (i%2 == 0) {
+      xassert(hash.get(dataArray->table[i]) == NULL);
+    }
+    else {
+      xassert(hash.get(dataArray->table[i]) == dataArray->table[i]);
+    }
+  }}
+  hash.selfCheck();
+
+  // remove the rest
+  {loopi(dataArray->tableSize) {
+    if (i%2 == 1) {
+      hash.remove(dataArray->table[i]);
+      hash.selfCheck();
+    }
+  }}
+  hash.selfCheck();
+  xassert(hash.getNumEntries() == 0);
+
+  traceProgress() << "end of strhash correctness testing\n";
+}
+
+void performanceTest(int numPerfRuns) {
+  // test performance of the hash function
+  traceProgress() << "start of strhash performance testing\n";
+
+  long startTime = getMilliseconds();
+  loopj(numPerfRuns) {
+    loopi(dataArray->tableSize) {
+      StringHash::coreHash(dataArray->table[i]);
+      //crc32((unsigned char*)dataArray->table[i], strlen(dataArray->table[i]));
+      //crc32((unsigned char*)dataArray->table[i], 10);
+    }
+  }
+  long stopTime = getMilliseconds();
+  long duration = stopTime - startTime;
+  cout << "milliseconds to hash: " << duration << endl;
+  
+  traceProgress() << "end of strhash performance testing\n";
+}
+
+// command-line state
+int numRandStrs = 0;
+char *inFileName = NULL;
+bool dump = false;
+bool testCor = true;
+bool testPerf = true;
+int numPerfRuns = 10000;
+
+void usage() {
+  cout << "Test the string hashing module strhash.cc\n"
+       << "  --help / -h     : print this message\n"
+       << "  --[no-]testCor  : run the correctness tests\n"
+       << "                    will fail if data has duplicate strings (?!)\n"
+       << "  --[no-]testPerf : run the performance tests\n"
+       << "  --numPerfRuns N : loop over data N times during performance run\n"
+       << "  --file FILE     : use the whitespace-delimited string contents of FILE\n"
+       << "  --random N      : use N internally generated random strings of length 10;\n"
+       << "                    N should be even\n"
+       << "  --dump          : dump out the data after generating/reading it\n"
+       << "The default is '--random 300 --testCor --testPerf --numPerfRuns 10000'."
+       << endl;
+}
+
+void initFromFlags(int &argc, char**&argv) {
+  --argc; ++argv;
+  for(;
+      *argv;
+      --argc, ++argv) {
+    if (strcmp(*argv, "--help")==0 || strcmp(*argv, "-h")==0) {
+      usage();
+      exit(0);
+    } else if (strcmp(*argv, "--testCor")==0) {
+      testCor = true;
+    } else if (strcmp(*argv, "--no-testCor")==0) {
+      testCor = false;
+    } else if (strcmp(*argv, "--testPerf")==0) {
+      testPerf = true;
+    } else if (strcmp(*argv, "--no-testPerf")==0) {
+      testPerf = false;
+    } else if (strcmp(*argv, "--random")==0) {
+      if (inFileName) {
+        cout << "do not use --random and --file together" << endl;
+        usage();
+        exit(1);
+      }
+      --argc; ++argv;
+      if (!*argv) {
+        cout << "supply an argument to --random" << endl;
+        usage();
+        exit(1);
+      }
+      numRandStrs = atoi(*argv);
+      if (!(numRandStrs > 0)) {
+        cout << "argument to --random must be > 0" << endl;
+        usage();
+        exit(1);
+      }
+    } else if (strcmp(*argv, "--file")==0) {
+      if (numRandStrs) {
+        cout << "do not use --random and --file together" << endl;
+        usage();
+        exit(1);
+      }
+      --argc; ++argv;
+      if (!*argv) {
+        cout << "supply an argument to --file" << endl;
+        usage();
+        exit(1);
+      }
+      inFileName = strdup(*argv);
+      xassert(inFileName);
+    } else if (strcmp(*argv, "--numPerfRuns")==0) {
+      --argc; ++argv;
+      if (!*argv) {
+        cout << "supply an argument to --numPerfRuns" << endl;
+        usage();
+        exit(1);
+      }
+      numPerfRuns = atoi(*argv);
+      if (!(numPerfRuns > 0)) {
+        cout << "argument to --numPerfRuns must be > 0" << endl;
+        usage();
+        exit(1);
+      }
+    } else if (strcmp(*argv, "--dump")==0) {
+      dump = true;
+    } else {
+      cout << "unrecognized flag " << *argv << endl;
+      usage();
+      exit(1);
+    }
+  }
+}
+
+int main(int argc, char **argv)
 {
   traceAddSys("progress");
 
-  {
-    // fill a table with random strings
-    char **table = new char*[300];
-    {loopi(300) {
-      table[i] = randomString();
-    }}
+  #if STRHASH_ALG == 1
+    cout << "hash function 1: Nelson" << endl;
+  #elif STRHASH_ALG == 2
+    cout << "hash function 2: word-rotate/final-mix" << endl;
+  #else
+    #error You must pick a hash function
+  #endif // STRHASH_ALG multi-switch
 
-    // insert them all into a hash table
-    StringHash hash(id);
-    {loopi(300) {
-      hash.add(table[i], table[i]);
-      hash.selfCheck();
-    }}
-    hash.selfCheck();
-    xassert(hash.getNumEntries() == 300);
+  // read command line flags
+  initFromFlags(argc, argv);
 
-    // verify that they are all mapped properly
-    {loopi(300) {
-      xassert(hash.get(table[i]) == table[i]);
-    }}
-    hash.selfCheck();
-
-    // remove every other one
-    {loopi(300) {
-      if (i%2 == 0) {
-        hash.remove(table[i]);
-        hash.selfCheck();
-      }
-    }}
-    hash.selfCheck();
-    xassert(hash.getNumEntries() == 150);
-
-    // verify it
-    {loopi(300) {
-      if (i%2 == 0) {
-        xassert(hash.get(table[i]) == NULL);
-      }
-      else {
-        xassert(hash.get(table[i]) == table[i]);
-      }
-    }}
-    hash.selfCheck();
-
-    // remove the rest
-    {loopi(300) {
-      if (i%2 == 1) {
-        hash.remove(table[i]);
-        hash.selfCheck();
-      }
-    }}
-    hash.selfCheck();
-    xassert(hash.getNumEntries() == 0);
-
-    // test performance of the hash function
-    traceProgress() << "start of hashes\n";
-    loopj(1000) {
-      loopi(300) {
-        StringHash::coreHash(table[i]);
-        //crc32((unsigned char*)table[i], strlen(table[i]));
-        //crc32((unsigned char*)table[i], 10);
-      }
+  // read data
+  if ((!inFileName) && (!numRandStrs)) {
+    numRandStrs = 300;          // default
+  }
+  if (numRandStrs % 2 != 0) {
+    cout << "use an even-number argument for --random" << endl;
+    usage();
+    exit(1);
+  }
+  if (numRandStrs) {
+    makeRandomData(numRandStrs);
+  } else if (inFileName) {
+    if (testCor) {
+      cout << "Warning: The correctness test fails if strings are duplicated "
+        "and you are reading data from a file." << endl;
     }
-    traceProgress() << "end of hashes\n";
-
-    // dealloc the test strings
-    {loopi(300) {
-      delete[] table[i];
-    }}
-    delete[] table;
+    readDataFromFile(inFileName);
+  } else {
+    xfailure("goink?");
   }
 
-  cout << "strhash tests passed\n";
+  // dump data
+  if (dump) {
+    writeData(cout);
+  }
+
+  // test
+  if (testCor) {
+    correctnessTest();
+  }
+  if (testPerf) {
+    performanceTest(numPerfRuns);
+  }
+
+  // delete data
+//    deleteData();
+
+  cout << "strhash tests finished\n";
   return 0;
 }
 
