@@ -632,7 +632,7 @@ void Declaration::tcheck(Env &env)
     while (prev->next) {
 #if DISTINCT_CVATOMIC_TYPES
       // dsw: I would clone the type if I knew how.
-      Type const *specType = spec->tcheck(env);
+      Type const *specType = spec->tcheck(env, dflags);
 #endif
       Declarator::Tcheck dt2(specType, dflags);
       prev->next = prev->next->tcheck(env, dt2);
