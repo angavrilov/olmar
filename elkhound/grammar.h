@@ -51,11 +51,11 @@ public:
   string const name;        // symbol's name in grammar
   bool const isTerm;        // true: terminal (only on right-hand sides of productions)
                             // false: nonterminal (can appear on left-hand sides)
-  bool isEmptyString;       // true only for the emptyString nonterminal
+  bool const isEmptyString; // true only for the emptyString nonterminal
 
 public:
-  Symbol(char const *n, bool t)
-    : name(n), isTerm(t), isEmptyString(false) {}
+  Symbol(char const *n, bool t, bool e = false)
+    : name(n), isTerm(t), isEmptyString(e) {}
   virtual ~Symbol();
 
   // uniform selectors
@@ -107,7 +107,7 @@ public:     // data
   // this field is an alias; for example, if the canonical name is
   // L2_EQUALEQUAL, the alias might be "==" (i.e. the alias
   // should include quotes if the grammar should have them too);
-  // if the alias's is NULL or "", there is no alias
+  // if the alias is "", there is no alias
   string alias;
 
 public:     // funcs
@@ -175,7 +175,7 @@ public:     // data
   Owner<LiteralCode> destructor;
 
 public:     // funcs
-  Nonterminal(char const *name);
+  Nonterminal(char const *name, bool isEmptyString=false);
   virtual ~Nonterminal();
 
   // return true if 'attr' is among 'attributes'

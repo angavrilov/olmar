@@ -64,8 +64,8 @@ string Terminal::toString() const
 
 
 // ----------------- Nonterminal ------------------------
-Nonterminal::Nonterminal(char const *name)
-  : Symbol(name, false /*terminal*/),
+Nonterminal::Nonterminal(char const *name, bool isEmpty)
+  : Symbol(name, false /*terminal*/, isEmpty),
     attributes(),
     superclasses(),
     funDecls(),
@@ -766,13 +766,11 @@ void ItemSet::writeGraph(ostream &os) const
 // ------------------ Grammar -----------------
 Grammar::Grammar()
   : startSymbol(NULL),
-    emptyString("empty"),
+    emptyString("empty", true /*isEmptyString*/),
     semanticsPrologue(NULL),
     semanticsEpilogue(NULL),
     treeNodeBaseClass("NonterminalNode")
-{
-  emptyString.isEmptyString = true;
-}
+{}
 
 
 Grammar::~Grammar()
