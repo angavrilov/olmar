@@ -116,6 +116,9 @@ libast.a: $(LIB_OBJS)
 
 
 # ------------------------ misc ---------------------
+check:
+	@echo "ast doesn't have a useful 'make check' at this time"
+
 clean:
 	rm -f *.o agrampar.tab.* tmp *.d
 	rm -f agrampar astgen ccsstr towner exampletest libast.a

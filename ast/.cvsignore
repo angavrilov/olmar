@@ -17,3 +17,4 @@ ext1.h
 ext1.cc
 config.status
 config.summary
+Makefile
