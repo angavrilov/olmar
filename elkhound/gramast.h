@@ -34,6 +34,7 @@ enum ASTTypeCode {
   AST_RHSALTS,           // list of ALT_RHSs
   AST_RHS,               // list of RHS elements
   AST_TAGGEDNAME,        // tagged name: tag, name
+  AST_TAGGEDSTRING,      // tagged string: tag, string
 
   AST_FORMBODY,          // list of form body elements
   AST_FORMGROUPBODY,     // list of formGroup body elements

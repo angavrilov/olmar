@@ -136,17 +136,28 @@ and exp =
   | Lval       of lval                  (* l-values *)
   | SizeOf     of typ * location
   | UnOp       of unop * exp * typ * location
-  | BinOp      of binop * exp * exp * typ * location (* also have the type of 
+  | BinOp      of binop * exp * exp * typ * location (* also have the type of
                                                       * the result *)
   | CastE      of typ * exp * location
   | AddrOf     of lval * location
+
+  (* these next two are needed to handle initializers for globals (locals
+   * could be handled by emitting code to do the initialization) and for
+   * GNU extension expressions, which include literal aggregate values
+   * (the "L" here stands for "literal") *)
+  | LStruct of 
+      typ *                               (* must be a TStruct *)
+      ((fieldinfo * exp) list)            (* pairs of field,init; must be complete *)
+  | LArray of 
+      typ *                               (* must be a TArray *) 
+      exp list                            (* list length == array length *)
 
 (* L-Values *)
 and lval =
   | Var        of varinfo * offset * location(* variable + offset *)
   | Mem        of exp * offset * location(* memory location + offset *)
 
-and offset = 
+and offset =
   | NoOffset
   | Field      of fieldinfo * offset    (* l.f + offset *)
   | Index      of exp * offset          (* l[e] + offset *)
@@ -155,33 +166,33 @@ and offset =
 and instr =
     Set        of lval * exp * location  (* An assignment. *)
   | Call       of varinfo option * exp * exp list * location
-			 (* result temporary variable, 
+			 (* result temporary variable,
                             function, argument list, location *)
 
   | Asm        of string list *         (* templates (CR-separated) *)
                   bool *                (* if it is volatile *)
-                  (string * varinfo) list * (* outputs must be variables with 
+                  (string * varinfo) list * (* outputs must be variables with
                                              * constraints  *)
                   (string * exp) *      (* inputs with constraints *)
                   string list           (* clobbers *)
 
 (**** STATEMENTS. Mostly structural information ****)
-and stmt = 
+and stmt =
   | Skip                                (* empty statement *)
-  | Sequence of stmt list 
+  | Sequence of stmt list
   | While of exp * stmt                 (* while loop *)
   | IfThenElse of exp * stmt * stmt     (* if *)
-  | Label of string 
+  | Label of string
   | Goto of string
   | Return of exp option
   | Switch of exp * stmt                (* no work done by scott, sigh*)
-  | Case of int 
-  | Default 
+  | Case of int
+  | Default
   | Break
   | Continue
   | Instruction of instr
-        
-type fundec = 
+
+type fundec =
     { sname: string;                    (* function name *)
       slocals: varinfo list;            (* locals *)
       smaxid: int;                      (* max local id. Starts at 0 *)
@@ -189,7 +200,7 @@ type fundec =
       stype: typ;                       (* the function type *)
       sstorage: storage;
       sattr: attributes list;
-    } 
+    }
 
 type global = 
     GFun of fundec

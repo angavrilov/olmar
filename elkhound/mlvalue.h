@@ -36,6 +36,9 @@ MLValue mlNil();
 MLValue mlCons(MLValue hd, MLValue tl);
 bool mlIsNil(MLValue v);
 
+// untagged tuples
+MLValue mlPair(MLValue v1, MLValue v2);
+
 // tagged tuples
 MLValue mlTuple0(MLTag tag);
 MLValue mlTuple1(MLTag tag, MLValue v);

@@ -56,6 +56,11 @@ bool mlIsNil(MLValue v)
 
 
 // ------------------ tuples --------------------
+MLValue mlPair(MLValue v1, MLValue v2)
+{
+  return stringc << "(" << v1 << " * " << v2 << ")";
+}
+
 MLValue mlTuple0(MLTag tag)
 {
   return tag;

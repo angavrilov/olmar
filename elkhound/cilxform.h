@@ -21,7 +21,7 @@ public:   // funcs
   CilXform(Env *e) : env(e) {}
   virtual ~CilXform();
 
-  // the callTransformXXX methods all the (overridden)
+  // the callTransformXXX methods call the (overridden)
   // transformXXX methods, and implement the transformation
   // semantics the latter methods expect of their caller
   // (e.g., replacing references and deleting old versions)
@@ -44,9 +44,11 @@ public:   // funcs
   DECL_TRANSFORM(Inst, CilInst*)
   DECL_TRANSFORM(Stmt, CilStmt*)
   DECL_TRANSFORM(OwnerVar, Variable *)
+  DECL_TRANSFORM(FieldInit, FieldInit *)
 
   // for serf pointers, we replace but do not deallocate
   DECL_TRANSFORM(Type, Type const *)
+  DECL_TRANSFORM(CompoundType, CompoundType const *)
   DECL_TRANSFORM(Var, Variable *)
 
   // here, I redefine this macro for client use; the idea

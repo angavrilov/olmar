@@ -1244,7 +1244,8 @@ int main(int argc, char **argv)
   traceAddSys("progress");
   //traceAddSys("parse-tree");
 
-  delete treeMain(argc, argv);
+  ParseTreeAndTokens tree;
+  treeMain(tree, argc, argv);
 
   return 0;
 }

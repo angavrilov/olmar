@@ -13,6 +13,7 @@
 class Env;              // cc_env.h
 class TypeEnv;          // cc_env.h
 class VariableEnv;      // cc_env.h
+class Variable;         // cc_env.h
 
 // fwd in this file
 class SimpleType;
@@ -183,9 +184,11 @@ class CompoundType : public NamedAtomicType {
 public:     // types
   enum Keyword { K_STRUCT, K_CLASS, K_UNION, NUM_KEYWORDS };
 
+private:    // data
+  Env *env;                   // (owner) members; NULL while only forward-declared
+
 public:     // data
-  Keyword keyword;      // keyword used to introduce the type
-  Env *env;             // (owner) members; NULL while only forward-declared
+  Keyword const keyword;      // keyword used to introduce the type
 
 public:     // funcs
   // create an incomplete (forward-declared) compound
@@ -206,6 +209,15 @@ public:     // funcs
   virtual int reprSize() const;
 
   string toStringWithFields() const;
+  string keywordAndName() const { return toCString(); }
+
+  // the environment should only be directly accessed during
+  // typeChecking, to avoid spreading dependency on this
+  // implementation detail
+  Env *getEnv() const { return env; }
+
+  int numFields() const;
+  Variable *getNthField(int index) const;
 };
 
 
@@ -328,7 +340,7 @@ public:
   virtual Tag getTag() const { return T_ATOMIC; }
   virtual string leftString() const;
   virtual string toCilString(int depth) const;
-  virtual MLValue toMLValue(int depth) const;
+  virtual MLValue toMLValue(int depth=1) const;
   virtual int reprSize() const;
 };
 
@@ -357,7 +369,7 @@ public:
   virtual string leftString() const;
   virtual string rightString() const;
   virtual string toCilString(int depth) const;
-  virtual MLValue toMLValue(int depth) const;
+  virtual MLValue toMLValue(int depth=1) const;
   virtual int reprSize() const;
 };
 
@@ -400,7 +412,7 @@ public:
   virtual string leftString() const;
   virtual string rightString() const;
   virtual string toCilString(int depth) const;
-  virtual MLValue toMLValue(int depth) const;
+  virtual MLValue toMLValue(int depth=1) const;
   virtual int reprSize() const;
 };
 
@@ -424,7 +436,7 @@ public:
   virtual string leftString() const;
   virtual string rightString() const;
   virtual string toCilString(int depth) const;
-  virtual MLValue toMLValue(int depth) const;
+  virtual MLValue toMLValue(int depth=1) const;
   virtual int reprSize() const;
 };
 

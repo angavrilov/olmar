@@ -52,7 +52,11 @@ public:     // funcs
   // escape hatch for when operators flake out on us
   T *get() { DBG("get"); return ptr; }
   T const *getC() const { DBG("getC"); return ptr; }
-  
+
+  // even more dangerous escape; only use where the caller
+  // agrees to restore the owner invariant!
+  T *&getRef() { DBG("getRed"); return ptr; }
+
   // swaps are interesting because they don't require checking
   void swapWith(Owner<T> &obj) {
     T *tmp = ptr;

@@ -199,6 +199,14 @@ CilExpr::~CilExpr()
       delete addrof.lval;
       break;
 
+    case T_LSTRUCT:
+      delete lstruct.fields;
+      break;
+
+    case T_LARRAY:
+      delete larray.elements;
+      break;  
+
     INCL_SWITCH
   }
 
@@ -244,6 +252,17 @@ STATICDEF void CilExpr::printAllocStats(bool anyway)
 }
 
 
+template <class T>
+void copyCloneableList(ObjList<T> &dest, ObjList<T> const &src)
+{
+  ObjListMutator<T> ins(dest);
+  
+  FOREACH_OBJLIST(T, src, iter) {
+    ins.append(iter.data()->clone());
+  }
+}
+
+
 CilExpr *CilExpr::clone() const
 {
   switch (etag) {
@@ -269,6 +288,20 @@ CilExpr *CilExpr::clone() const
 
     case T_ADDROF:
       return newAddrOfExpr(extra(), addrof.lval->clone());
+      
+    case T_LSTRUCT: {
+      CilExpr *ret = newLitStruct(extra(), lstruct.type);
+      copyCloneableList(*(ret->lstruct.fields),    // dest
+                        *(lstruct.fields));        // src
+      return ret;
+    }
+    
+    case T_LARRAY: {
+      CilExpr *ret = newLitArray(extra(), larray.type);
+      copyCloneableList(*(ret->larray.elements),   // dest
+                        *(larray.elements));       // src
+      return ret;
+    }
   }
 }
 
@@ -278,6 +311,7 @@ CilExpr *CilExpr::clone() const
 // it heavily uses parentheses -- no prec/assoc issues)
 string CilExpr::toString() const
 {
+  stringBuilder sb;
   switch (etag) {
     default: xfailure("bad tag");
     case T_LITERAL:   return stringc << (unsigned)lit.value;
@@ -294,6 +328,27 @@ string CilExpr::toString() const
                      << "] " << caste.exp->toString() << ")";
     case T_ADDROF:
       return stringc << "(& " << addrof.lval->toString() << ")";
+
+    case T_LSTRUCT: {
+      sb << "(" << lstruct.type->keywordAndName() << " { ";
+      FOREACH_OBJLIST(FieldInit, *(lstruct.fields), iter) {
+        FieldInit const *f = iter.data();
+        sb << f->field->name << " = " << f->exp->toString() << " ; ";
+      }
+      sb << "})";
+      return sb;
+    }
+    
+    case T_LARRAY: {
+      sb << "(array " << larray.type->toString() << " : { ";
+      int index=0;
+      FOREACH_OBJLIST(CilExpr, *(larray.elements), iter) {
+        sb << index << " = " << iter.data()->toString() << " ; ";
+        index++;
+      }                         
+      sb << "})";
+      return sb;
+    }
   }
 }
 
@@ -306,6 +361,8 @@ MKTAG(3, UnOp)
 MKTAG(4, BinOp)
 MKTAG(5, CastE)
 MKTAG(6, AddrOf)
+MKTAG(7, LStruct)
+MKTAG(8, LArray)
 #undef MKTAG
 
 
@@ -316,7 +373,7 @@ MLValue CilExpr::toMLValue() const
 {
   switch (etag) {
     default: xfailure("bad tag");
-    case T_LITERAL:   
+    case T_LITERAL:
       return stringc << "(" << exp_Const << " "
                      <<   "(Int " << mlInt(lit.value) << ") "
                      <<   locMLValue()
@@ -354,6 +411,16 @@ MLValue CilExpr::toMLValue() const
                      <<   addrof.lval->toMLValue() << " "
                      <<   locMLValue()
                      << ")";
+                     
+    case T_LSTRUCT:
+      return mlTuple2(exp_LStruct,
+                      lstruct.type->toMLValue(0 /*depth*/, CV_NONE),
+                      mlObjList(*(lstruct.fields)));
+
+    case T_LARRAY:
+      return mlTuple2(exp_LArray,
+                      larray.type->toMLValue(),
+                      mlObjList(*(larray.elements)));
   }
 }
 
@@ -390,6 +457,30 @@ void CilExpr::xform(CilXform &x)
     case T_ADDROF:
       x.callTransformLval(addrof.lval);
       break;
+      
+    case T_LSTRUCT: {
+      // I'm not sure it's the best idea to make a special case
+      // out of this, since callTransformType will sometimes be
+      // called with compound types too ...
+      x.callTransformCompoundType(lstruct.type);
+
+      MUTATE_EACH_OBJLIST(FieldInit, *(lstruct.fields), iter) {
+        x.callTransformFieldInit(iter.dataRef());
+      }
+      break;
+    }
+
+    case T_LARRAY: {
+      // pass it as if it could be any type, then when it comes
+      // back just check that it still is an array type
+      x.callTransformType((Type*&)(larray.type));
+      xassert(larray.type->isArrayType());
+
+      MUTATE_EACH_OBJLIST(CilExpr, *(larray.elements), iter) {
+        x.callTransformExpr(iter.dataRef());
+      }
+      break;
+    }
   }
 }
 
@@ -447,6 +538,103 @@ CilExpr *newLvalExpr(CilExtraInfo tn, CilLval *lval)
   CilExpr *ret = new CilExpr(tn, CilExpr::T_LVAL);
   ret->lval = lval;
   return ret;
+}
+
+CilExpr *newLitStruct(CilExtraInfo tn, CompoundType const *type)
+{
+  CilExpr *ret = new CilExpr(tn, CilExpr::T_LSTRUCT);
+  ret->lstruct.type = type;
+  ret->lstruct.fields = new ObjList<FieldInit>;
+  return ret;
+}
+
+CilExpr *newLitArray(CilExtraInfo tn, ArrayType const *type)
+{
+  CilExpr *ret = new CilExpr(tn, CilExpr::T_LARRAY);
+  ret->larray.type = type;
+  ret->larray.elements = new ObjList<CilExpr>;
+  return ret;
+}
+
+
+CilExpr *zeroValuedInit(CilExtraInfo tn, Type const *type)
+{
+  if (type->isCVAtomicType()) {
+    AtomicType const *atomic = type->asCVAtomicTypeC().atomic;
+    if (atomic->isSimpleType() ||
+        atomic->isEnumType()) {
+      // since, at the moment, coercions are implicit, we
+      // can just use 0 for all scalars
+      return newIntLit(tn, 0);
+    }
+  
+    else { xassert(atomic->isCompoundType());
+      CompoundType const *ctype = &( atomic->asCompoundTypeC() );
+
+      // I wouldn't know how to handle this
+      xassert(ctype->keyword != CompoundType::K_UNION);
+
+      // begin building the structure literal
+      CilExpr *ret = newLitStruct(tn, ctype);
+      
+      // add elements for all of the fields
+      for (int i=0; i < ctype->numFields(); i++) {
+        Variable *v = ctype->getNthField(i);
+        ret->lstruct.fields->append(
+          new FieldInit(v, zeroValuedInit(tn, v->type)));
+      }
+
+      return ret;
+    }
+  }
+
+  if (type->isPointerType()) {
+    // again, with coercions implicit, we just say 0
+    return newIntLit(tn, 0);
+  }
+
+  if (type->isFunctionType()) {
+    xfailure("you can't ask for a zero-valued function");
+  }
+
+  else { xassert(type->isArrayType());
+    ArrayType const *atype = &( type->asArrayTypeC() );
+
+    // otherwise I don't know how many values to return
+    xassert(atype->hasSize);
+
+    // make an array literal
+    Owner<CilExpr> ret; ret = newLitArray(tn, atype);
+
+    // values for all array positions (this could get
+    // very expensive if someone wants to initialize
+    // a big array .. oh well)
+    for (int i=0; i < atype->size; i++) {
+      ret->larray.elements->append(
+        zeroValuedInit(tn, atype->eltType));
+    }
+    
+    return ret;
+  }
+}
+
+
+// --------------- FieldInit ----------------
+FieldInit::~FieldInit()
+{}
+
+
+MLValue FieldInit::toMLValue() const
+{
+  return mlPair(field->toMLValue(),
+                exp->toMLValue());
+}                
+
+
+void FieldInit::xform(CilXform &x)
+{
+  x.callTransformVar(field);
+  x.callTransformExpr(exp.getRef());
 }
 
 
@@ -1632,6 +1820,12 @@ CilStmt *newAssign(CilExtraInfo tn, CilLval *lval, CilExpr *expr)
   return newInst(tn, newAssignInst(tn, lval, expr));
 }
 
+CilStmt *newAssignVar(CilExtraInfo tn, Variable *var, CilExpr *expr)
+{
+  return newAssign(tn, newVarRef(tn, var), expr);
+}
+
+
 
 // ------------------- CilStatements ---------------------
 CilStatements::CilStatements()
@@ -2048,7 +2242,8 @@ void CilProgram::printTree(int ind, ostream &os, bool ml) const
       if (!( v->declFlags & DF_BUILTIN )) {
         indent(ind,os) << mlTuple2(global_GVar,
                                    v->toMLValue(),
-                                   mlNone())
+                                   v->initVal? mlSome(v->initVal->toMLValue()) :
+                                               mlNone())
                        << " ;\n";
       }
       else {

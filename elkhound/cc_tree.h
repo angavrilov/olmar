@@ -105,6 +105,8 @@ public:      // funcs
   MKCILCTOR2(CilLval,  newCastLval,  Type const*,type, CilLval*,lval)
   MKCILCTOR2(CilLval,  newArrayAccess,  CilExpr*,array, CilExpr*,index)
   MKCILCTOR1(CilExpr,  newLvalExpr, CilLval*,lval);
+  MKCILCTOR1(CilExpr,  newLitStruct, CompoundType const *,ctype);
+  MKCILCTOR1(CilExpr,  newLitArray, ArrayType const *,atype);
 
   MKCILCTOR1(CilExpr,  newVarRefExpr,  Variable*,var)
 
@@ -122,6 +124,7 @@ public:      // funcs
   MKCILCTOR1(CilStmt,  newInst,  CilInst*,inst)
 
   MKCILCTOR2(CilStmt,  newAssign,  CilLval*,lval, CilExpr*,expr)
+  MKCILCTOR2(CilStmt,  newAssignVar,  Variable*,v, CilExpr*,expr)
 
   MKCILCTOR0(CilCompound, newCompound);
 

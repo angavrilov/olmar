@@ -268,8 +268,8 @@ MLValue NamedAtomicType::toMLValue(int depth, CVFlags cv) const
 // ------------------ CompoundType -----------------
 CompoundType::CompoundType(Keyword k, char const *n)
   : NamedAtomicType(n),
-    keyword(k),
-    env(NULL)
+    env(NULL),
+    keyword(k)
 {}
 
 CompoundType::~CompoundType()
@@ -398,6 +398,17 @@ int CompoundType::reprSize() const
     }
   }
   return total;
+}
+
+
+int CompoundType::numFields() const
+{
+  return env->getNumVariables();
+}
+
+Variable *CompoundType::getNthField(int index) const
+{
+  return env->getNthVariable(index);
 }
 
 

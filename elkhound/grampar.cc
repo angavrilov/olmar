@@ -1,5 +1,7 @@
 // grampar.cc
-// additional C++ code for the grammar parser
+// additional C++ code for the grammar parser; in essence,
+// build the grammar internal representation out of what
+// the user supplies in a .gr file
 
 #include "grampar.h"     // this module
 #include "gramlex.h"     // GrammarLexer
@@ -598,6 +600,12 @@ void astParseForm(Environment &env, Nonterminal *nt,
 
           case AST_STRING:
             symName = quoted(nodeString(n));
+            break;
+
+          case AST_TAGGEDSTRING:
+            symName = quoted(childString(n, 1));
+            symTag = childName(n, 0);
+            tagValid = true;
             break;
 
           END_TYPE_SWITCH(n);

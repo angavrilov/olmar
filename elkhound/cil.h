@@ -31,7 +31,8 @@ class SourceLocation;  // fileloc.h
 class CilXform;        // cilxform.h
 
 // fwd for this file
-class CilExpr;
+class CilExpr;  
+class FieldInit;
 class CilLval;
 class CilFnCall;
 class CilCompound;
@@ -128,7 +129,7 @@ MLValue unOpMLText(UnaryOp op);
 class CilExpr : public CilThing {
 public:      // types
   enum ETag { T_LITERAL, T_LVAL, T_UNOP, T_BINOP,
-              T_CASTE, T_ADDROF, NUM_ETAGS };
+              T_CASTE, T_ADDROF, T_LSTRUCT, T_LARRAY, NUM_ETAGS };
 
 public:      // data
   ETag const etag;            // which kind of expression
@@ -164,6 +165,18 @@ public:      // data
     struct {
       CilLval *lval;          // (owner) thing whose address is being taken
     } addrof;
+
+    // T_LSTRUCT: literal structure-contents value
+    struct {
+      CompoundType const *type;     // (serf) type of structure
+      ObjList<FieldInit> *fields;   // (owner) list of fields contents; must be complete
+    } lstruct;
+
+    // T_LARRAY: literall array-contents value
+    struct {
+      ArrayType const *type;        // (serf) type of the array
+      ObjList<CilExpr> *elements;   // (owner) list of element values; length == array length
+    } larray;
   };
 
   // count and high-water allocated nodes
@@ -213,6 +226,32 @@ CilExpr *newBinExpr(CilExtraInfo tn, BinOp op, CilExpr *e1, CilExpr *e2);
 CilExpr *newCastExpr(CilExtraInfo tn, Type const *type, CilExpr *expr);
 CilExpr *newAddrOfExpr(CilExtraInfo tn, CilLval *lval);
 CilExpr *newLvalExpr(CilExtraInfo tn, CilLval *lval);
+CilExpr *newLitStruct(CilExtraInfo tn, CompoundType const *type);
+CilExpr *newLitArray(CilExtraInfo tn, ArrayType const *type);
+
+// C semantics sometimes needs zero-valued initializers,
+// so this makes zero-valued literals
+CilExpr *zeroValuedInit(CilExtraInfo tn, Type const *type);
+
+
+// ---------- FieldInit ---------
+// simple fieldinfo*exp pair
+class FieldInit {
+public:
+  Variable *field;        // (serf) field we're initializing
+  Owner<CilExpr> exp;     // (owner) value to initialize it to
+
+public:
+  FieldInit(Variable *f, CilExpr *e)
+    : field(f), exp(e) {}
+  ~FieldInit();
+
+  FieldInit *clone() const
+    { return new FieldInit(field, exp->clone()); }
+
+  MLValue toMLValue() const;
+  void xform(CilXform &x);
+};
 
 
 // ------------------- CilLval -------------------
@@ -234,7 +273,7 @@ public:      // types
   };
 
 public:      // data
-  LTag const ltag;         // tag ("L" for lval, so can still access CilExpr::tag)
+  LTag const ltag;         // tag ("L" for lval)
 
   union {
     // T_VARREF
@@ -307,7 +346,6 @@ CilLval *newArrayAccess(CilExtraInfo tn, CilExpr *array, CilExpr *index);
 
 CilLval *newVarOfs(CilExtraInfo tn, Variable *var, OffsetList *offsets);
 CilLval *newDerefOfs(CilExtraInfo tn, CilExpr *addr, OffsetList *offsets);
-
 
 // like 'newVarRef', except it's allowed to replace
 // references to constants with the associated literal
@@ -536,6 +574,9 @@ CilStmt *newInst(CilExtraInfo tn, CilInst *inst);
 // up its arguments into a CilStmt
 CilStmt *newAssign(CilExtraInfo tn, CilLval *lval, CilExpr *expr);
 
+// even more sugar: assign to a variable
+CilStmt *newAssignVar(CilExtraInfo tn, Variable *v, CilExpr *expr);
+
 
 // sequential list of statements
 class CilStatements {
@@ -658,7 +699,6 @@ public:
 
   void printTree(int indent, ostream &os) const;
 };
-
 
 
 // ====================== Program Language =====================

@@ -2287,6 +2287,7 @@ int main(int argc, char **argv)
 
   GrammarAnalysis g;
   readGrammarFile(g, stringc << prefix << ".gr");
+  g.printProductions(trace("grammar") << endl);
 
   g.runAnalyses();
 

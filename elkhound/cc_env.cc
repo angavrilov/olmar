@@ -9,15 +9,20 @@
 
 
 // ----------------------- Variable ---------------------------
-Variable::Variable(char const *n, DeclFlags d, Type const *t)
+Variable::Variable(char const *n, DeclFlags d, Type const *t, int fn)
   : id(NULL_VARIABLEID),
     name(n),
-    declFlags(d), 
-    type(t), 
-    enumValue(0) 
+    declFlags(d),
+    type(t),
+    enumValue(0),
+    fieldNum(fn)
 {
-  xassert(type);    // ?
+  xassert(type);        // (just a stab in the dark debugging effort)
 }
+
+Variable::~Variable()
+{}
+
 
 string Variable::toString() const
 {
@@ -59,7 +64,6 @@ MLValue Variable::toMLValue() const
   //      vid: int;		(* unique integer indentifier, one per decl *)
   //      vname: string;
   //      vglob: bool;	(* is this a global variable? *)
-  //                          (* FIXME: currently always false *)
   //      vtype: typ;
   //      mutable vdecl: location;	(* where was this variable declared? *)
   //      mutable vattr: attribute list;
@@ -85,6 +89,7 @@ Env::Env(DataflowEnv *d, TypeEnv *te, VariableEnv *ve)
     compounds(),
     enums(),
     typedefs(),
+    numVariables(0),
     variables(),
     errors(),
     trialBalloon(false),
@@ -123,6 +128,7 @@ Env::Env(Env *p, TypeEnv *te, VariableEnv *ve)
     compounds(),
     enums(),
     typedefs(),
+    numVariables(0),
     variables(),
     errors(),
     trialBalloon(false),
@@ -617,7 +623,8 @@ Variable *Env::declareVariable(CCTreeNode const *node, char const *name,
 
 Variable *Env::addVariable(char const *name, DeclFlags flags, Type const *type)
 {
-  Variable *var = new Variable(name, flags, type);
+  Variable *var = new Variable(name, flags, type, numVariables /*fieldNum*/);
+  numVariables++;
   varEnv->grab(var);
   variables.add(name, var);
 
@@ -739,6 +746,20 @@ bool Env::isTrialBalloon() const
 }
 
 
+Variable *Env::getNthVariable(int n) const
+{
+  // clumsy: iterate over them looking for the nth one
+  StringSObjDict<Variable>::Iter iter(variables);
+  for (; !iter.isDone(); iter.next()) {
+    if (iter.value()->fieldNum == n) {
+      return iter.value();
+    }
+  }
+  
+  xfailure("there is no nth variable for that n");
+}
+
+
 Variable *Env::newTmpVar(Type const *type)
 {                 
   string name = makeFreshName("tmpvar");
@@ -758,6 +779,13 @@ string Env::toString() const
   }
   
   return sb;
+}
+
+
+void Env::selfCheck() const
+{
+  // for now, not much checking ..
+  xassert(numVariables == variables.size());
 }
 
 

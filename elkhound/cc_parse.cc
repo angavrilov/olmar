@@ -149,68 +149,69 @@ void TranslationUnit_Node::analyzeToplevelDecl(Reduction *red, ParseTree &tree)
   TranslationState &state = *((TranslationState*)(tree.extra));
   env = state.globalEnv;
 
-  // clear the existing dataflow environment (effect is we
-  // don't analyze globals ....)
-  env->getDenv().reset();
+  if (!tracingSys("parse-only")) {
+    // clear the existing dataflow environment (effect is we
+    // don't analyze globals ....)
+    env->getDenv().reset();
 
-  // debugging..
-  trace("typeCheck") << locString() << endl;
-  lastLineChecked = loc()->line;
+    // debugging..
+    trace("typeCheck") << locString() << endl;
+    lastLineChecked = loc()->line;
 
-  // run the analysis on this piece of the tree
-  delete typeCheck(env, CilContext(state.prog));
+    // run the analysis on this piece of the tree
+    delete typeCheck(env, CilContext(state.prog));
 
-  #ifdef WES_OCAML_LINKAGE
-    if (state.wes->want_cil) {
-        state.wes->result_list = (struct wes_list *) cil_program_to_ocaml(&state.prog);
-        register_global_root((value *)&(state.wes->result_list));
-    } else {
-        struct wes_list * new_cell = new struct wes_list;
-        new_cell->hd = camlAST();
-        new_cell->tl = state.wes->result_list;
-        state.wes->result_list = new_cell;
+    #ifdef WES_OCAML_LINKAGE
+      if (state.wes->want_cil) {
+          state.wes->result_list = (struct wes_list *) cil_program_to_ocaml(&state.prog);
+          register_global_root((value *)&(state.wes->result_list));
+      } else {
+          struct wes_list * new_cell = new struct wes_list;
+          new_cell->hd = camlAST();
+          new_cell->tl = state.wes->result_list;
+          state.wes->result_list = new_cell;
+      }
+    #endif /* WES_OCAML_LINKAGE */
+
+    // this is, more or less, the product of the analysis
+    if (tracingSys("old-cil-tree")) {
+      // tree prior to new-lval translation
+      printTree();                         
     }
-  #endif /* WES_OCAML_LINKAGE */
 
-  // this is, more or less, the product of the analysis
-  if (tracingSys("old-cil-tree")) {
-    // tree prior to new-lval translation
-    printTree();                         
+    // print Cil if we want that
+    //state.printTree();
+
+    // yeeha! translation!
+    MUTATE_EACH_OBJLIST(CilFnDefn, state.prog.funcs, iter) {
+      // old lvals to new lvals
+      try {
+        NewLvalXform xform(env);
+        iter.data()->xform(xform);
+      }
+      catch (xBase &x) {
+        cout << "during lval translation at " << iter.data()->locString() << endl
+             << "  exception: " << x << endl;
+      }
+
+      // statements to basic blocks (internally, this actually
+      // skips the translation if it's not going to be printed)
+      doTranslationStuff(*( iter.data() ));
+    }
+
+    // print tree after translation
+    printTree();
+
+    // can delete the per-fn info, or keep it; when this
+    // is commented-out, we keep it all until the end
+    //state.prog.empty();
+
+    #if 0      // for tracking down leaks
+    CilExpr::printAllocStats(false /*anyway*/);
+    CilInst::printAllocStats(false /*anyway*/);
+    CilStmt::printAllocStats(false /*anyway*/);
+    #endif // 0
   }
-
-  // print Cil if we want that
-  //state.printTree();
-
-  // yeeha! translation!
-  MUTATE_EACH_OBJLIST(CilFnDefn, state.prog.funcs, iter) {
-    // old lvals to new lvals
-    try {
-      NewLvalXform xform(env);
-      iter.data()->xform(xform);
-    }
-    catch (xBase &x) {
-      cout << "during lval translation at " << iter.data()->locString() << endl
-           << "  exception: " << x << endl;
-    }
-
-    // statements to basic blocks (internally, this actually
-    // skips the translation if it's not going to be printed)
-    doTranslationStuff(*( iter.data() ));
-  }
-
-  // print tree after translation
-  printTree();
-
-  // can delete the per-fn info, or keep it; when this
-  // is commented-out, we keep it all until the end
-  //state.prog.empty();
-
-  #if 0      // for tracking down leaks
-  CilExpr::printAllocStats(false /*anyway*/);
-  CilInst::printAllocStats(false /*anyway*/);
-  CilStmt::printAllocStats(false /*anyway*/);
-  #endif // 0
-
 
   // ---- throw away most of the tree now ----
   // grab a pointer to the left child reduction, which should be

@@ -10,10 +10,12 @@
 #include "strsobjdict.h"  // StrSObjDict
 #include "arraymap.h"     // ArrayMap
 #include "mlvalue.h"      // MLValue
+#include "owner.h"        // Owner
 
 // fwds to other files
 class DataflowEnv;        // dataflow.h
 class CCTreeNode;         // cc_tree.h
+class CilExpr;            // cil.h
 
 // fwds for file
 class TypeEnv;
@@ -21,7 +23,7 @@ class VariableEnv;
 
 
 // set of declaration modifiers present
-enum DeclFlags {   
+enum DeclFlags {
   DF_NONE        = 0x0000,
 
   // syntactic declaration modifiers
@@ -61,9 +63,12 @@ public:     // data
   DeclFlags declFlags;       // inline, etc.
   Type const *type;          // type of this variable
   int enumValue;             // if isEnumValue(), its numerical value
+  Owner<CilExpr> initVal;    // for global variables, the initial value
+  int fieldNum;              // orders fields in structs
 
 public:     // funcs
-  Variable(char const *n, DeclFlags d, Type const *t);
+  Variable(char const *n, DeclFlags d, Type const *t, int fieldNum);
+  ~Variable();
 
   // some ad-hoc thing
   string toString() const;
@@ -101,7 +106,7 @@ private:    // data
   // counter for synthesizing names; only the counter in the toplevel
   // environment is used
   int nameCounter;
-
+  
   // user-defined compounds
   StringSObjDict<CompoundType> compounds;
 
@@ -112,6 +117,7 @@ private:    // data
   StringSObjDict<Type /*const*/> typedefs;
 
   // variables
+  int numVariables;      // current size of 'variables'
   StringSObjDict<Variable> variables;
 
   // list of errors found so far
@@ -267,6 +273,11 @@ public:     // funcs
   StringSObjDict<Variable> &getVariables() { return variables; }
   DataflowEnv &getDenv() { return *denv; }
 
+  // access to variables that's somewhat nicer syntactically,
+  // if also somewhat less efficient
+  int getNumVariables() const { return numVariables; }
+  Variable *getNthVariable(int n) const;
+
   // support for translation
   // make up a fresh variable name and install it into
   // the environment with the given type
@@ -280,6 +291,7 @@ public:     // funcs
 
   // debugging
   string toString() const;
+  void selfCheck() const;
 };
 
 

@@ -262,7 +262,10 @@ RHSEltSeqOpt: /* empty */                          { $$ = AST0(AST_RHS); }
                 /* tag : name */
             | RHSEltSeqOpt TOK_STRING              { $$ = iappend($1, $2); }
                 /* mnemonic terminal */
+            | RHSEltSeqOpt TOK_NAME ":" TOK_STRING { $$ = iappend($1, AST2(AST_TAGGEDSTRING, $2, $4)); }
+                /* tagged terminal */
             ;
+
 
 /* ------ actions and conditions ------ */
 /*
