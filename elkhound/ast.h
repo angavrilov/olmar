@@ -2,6 +2,8 @@
 // representations for Abstract Syntax Trees
 // (though they're not all that abstract)
 
+#error This module is obsolete.  See the ../ast/ directory.
+
 #ifndef __AST_H
 #define __AST_H
 

@@ -4,20 +4,33 @@ Overview documentation for Elkhound parser generator
 
 
 Overview
---------
+--------                                           
 Elkhound takes as input a language grammar written in essentially BNF
-(Backus-Naur Form), and outputs a C++ parser for that language.  The
-executable that does this is called 'gramanl' (grammar analyzer).
+(Backus-Naur Form) annotated with reduction actions, and outputs a C++
+parser for that language.  The executable that does this is called
+'gramanl' (grammar analyzer).
 
 Additionally, the 'cc.gr' grammar is a grammar for C and C++.  By running
 the parser generator on cc.gr, you get a parser for C/C++.  The Makefile
 will generate the 'ccgr' executable which is this grammar's parser.
 
 
+Subsystems
+----------
+The "../smbase" directory contains a general-purpose utility library.
+
+The "../ast" directory contains a system for describing syntax trees
+and getting implementations of many common tree-manipulation functions
+automatically.  Partially inspired by ML's tree types.
+
+This directory ("../parsgen") contains the parser generator code.
+
+
 Limitations
 -----------
 The present design is geared towards parsing C++.  Thus, for example,
 the generated parser always assumes it is using the C++ lexical analyzer.
+
 
 
 How to compile
@@ -48,7 +61,8 @@ Module sets
 -----------
 Unless otherwise noted, all modules are a .cc file and an .h file.
 Read the .h file first, it's shorter and has more "what this does"
-type comments.
+type comments.  Some modules are in the ../ast/ subdirectory because
+they are used there too; these are marked "(ast)".
 
 The first set of modules, called 'grammar-set' in the Makefile, are
 for representing grammars in memory.  They are:
@@ -56,14 +70,9 @@ for representing grammars in memory.  They are:
   grammar:   Terminal, Nonterminal, Production, Grammar, etc.  This
              is the core of the grammar representation.
 
-  action:    Action, for computing attributes during tree building.
+  locstr:    (ast) Pair: source location and string table reference.
 
-  cond:      Condition, for disambiguation during tree building.
-
-  attr:      Attributes; represents node attribute values.
-
-  litcode:   LiteralCode; stores literal embedded C++ semantic
-             function code.
+  asockind:  Defines the AssocKind union.  Obscure.
 
 
 The next set, 'grampar-set', is responsible for parsing grammar input
@@ -74,21 +83,28 @@ files and creating the Grammar and associated objects.  The modules are:
   grampar.y:    Bison grammar for the grammar input file.  The actions
                 in this file create an AST for the grammar.
 
-  gramlex:      Wrapper C++ class for the lexer.  Provides a cleaner
+  gramlex:      (ast) Wrapper C++ class for the lexer.  Provides a cleaner
                 interface than raw flex variable access.
 
   grampar:      Parses the AST produced by grampar.y and fills in a
                 Grammar structure as it parses.
-                
-  fileloc:      Represents a location in a source file.  Useful for
+
+  fileloc:      (ast) Represents a location in a source file.  Useful for
                 error reporting.
 
-  ast:          A generic AST module for use with Bison grammars.
+  ccsstr:       (ast) Contains the knowledge needed to parse the embedded
+                C++ code, e.g., finding the closing "}".
 
-  gramast:      Specialization of 'ast' for the grammar AST.
+  embedded:     (ast) Interface to an embedded-language module.
+                Generalization of 'ccsstr' for any language.
 
-  ccsstr:       Contains the knowledge needed to parse the embedded C++
-                code, e.g., finding the closing "}".
+  gramast:      AST for grammar files.
+  
+  asthelp:      (ast) Support file for 'gramast'.
+
+  strtable:     (ast) Collection of immutable strings.
+  
+  emitcode:     Module for emitting code with #line directives.
 
 
 Next, 'glr-set' are the modules for the GLR parsing algorithm itself:
@@ -97,10 +113,8 @@ Next, 'glr-set' are the modules for the GLR parsing algorithm itself:
                 like first/follow sets, LR item sets, etc.  This module
                 also has the driver to emit the C++ semantic functions.
                 
-  glrtree:      Represents the parse tree produced by the GLR parser.
-  
   glr:          The GLR algorithm itself.
-  
+
   lexer1.lex:   Flex scanner for C/C++.
 
   lexer1:       First-stage lexical analysis of C/C++ (see Phases
@@ -109,16 +123,18 @@ Next, 'glr-set' are the modules for the GLR parsing algorithm itself:
   lexer2:       Second-stage lexical analysis of C/C++.
 
   parssppt:     Some generic support routines for parsers.  Contains
-                declarations for some of the emitted C++ code.
+                declarations for some of the emitted C++ code.      
+                
+  useract:      User-actions interface.  Contains an implementation
+                of just NOPs.
+                
+  cyctimer:     Processor cycle timer.  Uses RDTSC on x86.  Currently
+                x86 is only supported processor.
 
 
 Next, the 'cc-set' of modules is the implementation of C/C++
 semantics.  The routines here are called by the semantic functions in
 'cc.gr' to do the bulk of the language-specific stuff.
-
-  cc_tree:      CCTreeNode, a base class for all of the parse tree
-                nodes generated by the parser.  Contains code that is
-                useful to all such nodes.
 
   cc_type:      Represents C/C++ types, such as "int" and "pointer to
                 a function that returns a pointer to struct Foo".
@@ -126,16 +142,9 @@ semantics.  The routines here are called by the semantic functions in
   cc_env:       Environment; declarations result in mappings that get
                 put into the environment.  Knows about scoping.
 
-  cc_err:       Objects to represent parse errors.  These get accumulated
-                in the environment and reported to the user eventually.
+  cparse:       Simpler environment, capable only of making type/name
+                distinction.
 
-
-Finally, the 'common' set has just one member:
-
-  trace:        A debugging module.  You write code like:
-                  trace("foo") << some-debug-string << endl;
-                and this will be printed if the "foo" trace flag is set,
-                which is usually done from the command line.
 
 
 Other documentation

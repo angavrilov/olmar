@@ -93,8 +93,9 @@ grammar-set := grammar.o $(AST)/locstr.o asockind.o
 
 # in addition to grammar-set, files needed to parse a grammar description
 grampar-set := grampar.tab.o gramlex.yy.o grampar.o $(AST)/gramlex.o \
-               ast.o $(AST)/fileloc.o $(AST)/ccsstr.o $(AST)/embedded.o \
-               gramast.ast.gen.o $(AST)/strtable.o $(AST)/asthelp.o emitcode.o
+               $(AST)/fileloc.o $(AST)/ccsstr.o $(AST)/embedded.o \
+               gramast.ast.gen.o $(AST)/strtable.o $(AST)/asthelp.o \
+               emitcode.o
 #-include $(filter-out $(AST)/% %.gen.d %.tab.d, $(grampar-set:.o=.d))
 -include $(filter-out $(AST)/%, $(grampar-set:.o=.d))
 
@@ -137,7 +138,7 @@ gramanl-dep := gramanl.cc gramexpl.o $(grammar-set) $(common) $(grampar-set) \
 gramanl: $(gramanl-dep) grammar.h gramanl.h
 	$(link) -o gramanl -DGRAMANL_MAIN $(gramanl-dep)
 
-# GLR parser built on top of SLR(1) parser
+# (obsolete) GLR parser built on top of SLR(1) parser
 glr-dep := glr.cc $(grammar-set) $(common) $(grampar-set) gramanl.o \
            glrtree.o lexer1.o lexer1yy.o lexer2.o parssppt.o \
            parsstub.o $(AST)/strtable.o $(libraries)
