@@ -88,6 +88,11 @@ bool MatchBindings::isEmpty() {
   return entryCount == 0;
 }
 
+void MatchBindings::gdb()
+{
+  bindingsGdb(map);
+}
+
 void bindingsGdb(PtrMap<Variable, STemplateArgument> &bindings)
 {
   cout << "Bindings" << endl;
@@ -97,6 +102,9 @@ void bindingsGdb(PtrMap<Variable, STemplateArgument> &bindings)
     Variable *key = bindIter.key();
     STemplateArgument *value = bindIter.value();
     cout << "'" << key->name << "' ";
+    printf("Variable* key: %p ", key);
+//      printf("serialNumber %d ", key->serialNumber);
+    cout << endl;
     value->debugPrint();
   }
   cout << "Bindings end" << endl;
@@ -212,8 +220,8 @@ bool MatchTypes::match_rightTypeVar(Type *a, Type *b, int matchDepth)
     // match unless the cv qualifiers prevent us from not matching by
     // b having something a doesn't have
     CVFlags finalFlags;
-    return subtractFlags(a->asCVAtomicType()->cv,
-                         b->asCVAtomicType()->cv,
+    return subtractFlags(a->getCVFlags(),
+                         b->getCVFlags(),
                          finalFlags);
     break;
   } // end case MM_WILD
@@ -228,8 +236,8 @@ bool MatchTypes::match_rightTypeVar(Type *a, Type *b, int matchDepth)
       // identical
       return
         // must have the same qualifiers; FIX: I think even at the top level
-        ((a->asCVAtomicType()->cv & normalCvFlagMask) ==
-         (targb->value.t->asCVAtomicType()->cv & normalCvFlagMask))
+        ((a->getCVFlags() & normalCvFlagMask) ==
+         (targb->value.t->getCVFlags() & normalCvFlagMask))
         &&
         // must be the same typevar; NOTE: don't compare the types, as
         // they can change when cv qualifiers are added etc. but the
@@ -282,7 +290,7 @@ bool MatchTypes::match_cva(CVAtomicType *a, Type *b, int matchDepth)
     // they had better match exactly
     if (matchDepth > 0) {
       CVFlags const mask = normalCvFlagMask; // ignore other kinds of funky Scott-flags
-      if ( (a->asCVAtomicType()->cv & mask) != (b->asCVAtomicType()->cv & mask) ) return false;
+      if ( (a->getCVFlags() & mask) != (b->getCVFlags() & mask) ) return false;
     }
 
     // if they pass, then deal with the types themselves
@@ -339,20 +347,38 @@ bool MatchTypes::match_ref(ReferenceType *a, Type *b, int matchDepth)
 //    if (b->isTypeVariable()) return match_rightTypeVar(a, b, matchDepth);
 
   // The policy on references and unification is as follows.
+  //
   //   A non-ref, B ref to const: B's ref goes away
   //   A non-ref, B ref to non-const: failure to unify
   //     do those in each function
+  //
   //   A ref, B non-ref: A's ref-ness silently goes away.
+  //   A ref to non-const, B ref to const: both ref's and the const go away
+  //     and unification continues below.
   //   A ref, B ref: the ref's match and unification continues below.
   //     do those here
-  if (b->isReference()) b = b->getAtType();
+
+  int matchDepth0 = 1;
+  if (b->isReference()) {
+    b = b->getAtType();
+    if (b->isConst() && !a->isConst()) {
+      // I think this is a special circumstance under which we remove
+      // the const on b.  FIX: this seems quite ad-hoc to me.  It
+      // seems to be what is required to get in/big/nsAtomTable.i to
+      // go through; But how to get rid of the const in Scott's type
+      // system!  This is the only way I can think of: start again at
+      // the top.
+      matchDepth0 = 0;
+    }
+  }
   return match0(a->getAtType(), b,
                 // starting at line 22890 in
-                // in/nsCLiveconnectFactory.i there is an example of
-                // two function template declarations that differ only
-                // in the fact that below the ref level one is a const
-                // and one is not; experiments with g++ confirm this
-                1 /*matchDepth*/
+                // in/big/nsCLiveconnectFactory.i there is an example
+                // of two function template declarations that differ
+                // only in the fact that below the ref level one is a
+                // const and one is not; experiments with g++ confirm
+                // this; so most of the time we use matchDepth==1
+                matchDepth0
                 );
 }
 

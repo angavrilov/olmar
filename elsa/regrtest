@@ -359,7 +359,7 @@ testparse t0148.cc
 testparse t0149.cc
 testparse t0150.cc
 failparse t0151.cc "known bug"
-failparse t0152.cc "known bug"
+testparse t0152.cc
 testparse t0153.cc
 testparse t0154.cc
 testparse t0155.cc
@@ -417,6 +417,15 @@ testparse t0206.cc
 testparse t0207.cc
 testparse t0208.cc
 failparse t0209.cc "bug: type equivalence under default args"
+testparse t0210.cc
+testparse t0211.cc
+testparse t0212.cc
+testparse t0213.cc
+# g++ compiles this but ccparse does not
+failparse t0214.cc
+# even g++ won't compile this; I'll bet not legal C++
+failparse t0215.cc
+testparse t0216.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -493,6 +502,13 @@ testparse d0067.cc
 # instantiating the class template A twice since it is a mutant,
 # thought perhaps it shouldn't
 testparse d0068.cc
+testparse d0069.cc
+testparse d0070.cc
+testparse d0071.cc
+testparse d0072.cc
+testparse d0073.cc
+failparse d0074.cc
+testparse d0075.cc
 # ---- END: lots of tests ----
 
 
@@ -622,11 +638,11 @@ failnsparse() {
 testnsparse in/big/nonport.i
 
 testnsparse in/big/nsUnicodeToTeXCMRt1.i
-# testnsparse in/big/nsAtomTable.i
-# testnsparse in/big/nsSOAPPropertyBag.i
+testnsparse in/big/nsAtomTable.i
+testnsparse in/big/nsSOAPPropertyBag.i
 testnsparse in/big/nsCLiveconnectFactory.i
-# testnsparse in/big/nsHTMLEditRules.i
-# testnsparse in/big/nsMsgServiceProvider.i
+testnsparse in/big/nsHTMLEditRules.i
+testnsparse in/big/nsMsgServiceProvider.i
 
 
 

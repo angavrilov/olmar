@@ -860,7 +860,10 @@ string TypeVariable::toCString() const
   // circumstances.. so I'll suppress it in the general case and add
   // it explicitly when printing the few constructs that allow it
   //return stringc << "/*typename*/ " << name;
-  return string(name);
+  return stringc << "/*typevar "
+//                   << "typedefVar->serialNumber:"
+//                   << (typedefVar ? typedefVar->serialNumber : -1)
+                 << "*/:" << name;
 }
 
 int TypeVariable::reprSize() const
@@ -1228,9 +1231,10 @@ bool typeIsError(Type const *t)
 
 bool BaseType::containsErrors() const
 {
+  StatelessTypePred pred(typeIsError);
   // hmm.. bit of hack..
   return static_cast<Type const *>(this)->
-    anyCtorSatisfies(typeIsError);
+    anyCtorSatisfies(pred);
 }
 
 
@@ -1243,8 +1247,9 @@ bool typeHasTypeVariable(Type const *t)
 
 bool BaseType::containsTypeVariables() const
 {
+  StatelessTypePred pred(typeHasTypeVariable);
   return static_cast<Type const *>(this)->
-    anyCtorSatisfies(typeHasTypeVariable);
+    anyCtorSatisfies(pred);
 }
 
 
@@ -1260,8 +1265,9 @@ bool hasVariable(Type const *t)
 
 bool BaseType::containsVariables() const
 {
+  StatelessTypePred pred(hasVariable);
   return static_cast<Type const *>(this)->
-    anyCtorSatisfies(hasVariable);
+    anyCtorSatisfies(pred);
 }
 
 
@@ -1321,7 +1327,7 @@ int CVAtomicType::reprSize() const
 }
 
 
-bool CVAtomicType::anyCtorSatisfies(TypePred pred) const
+bool CVAtomicType::anyCtorSatisfies(TypePred &pred) const
 {
   return pred(this);
 }
@@ -1417,7 +1423,7 @@ int PointerType::reprSize() const
 }
 
 
-bool PointerType::anyCtorSatisfies(TypePred pred) const
+bool PointerType::anyCtorSatisfies(TypePred &pred) const
 {
   return pred(this) ||
          atType->anyCtorSatisfies(pred);
@@ -1483,7 +1489,7 @@ int ReferenceType::reprSize() const
 }
 
 
-bool ReferenceType::anyCtorSatisfies(TypePred pred) const
+bool ReferenceType::anyCtorSatisfies(TypePred &pred) const
 {
   return pred(this) ||
          atType->anyCtorSatisfies(pred);
@@ -1510,7 +1516,7 @@ FunctionType::ExnSpec::~ExnSpec()
 }
 
 
-bool FunctionType::ExnSpec::anyCtorSatisfies(Type::TypePred pred) const
+bool FunctionType::ExnSpec::anyCtorSatisfies(TypePred &pred) const
 {
   SFOREACH_OBJLIST(Type, types, iter) {
     if (iter.data()->anyCtorSatisfies(pred)) {
@@ -1892,7 +1898,7 @@ int FunctionType::reprSize() const
 }
 
 
-bool parameterListCtorSatisfies(Type::TypePred pred,
+bool parameterListCtorSatisfies(TypePred &pred,
                                 SObjList<Variable> const &params)
 {
   SFOREACH_OBJLIST(Variable, params, iter) {
@@ -1903,13 +1909,17 @@ bool parameterListCtorSatisfies(Type::TypePred pred,
   return false;
 }
 
-bool FunctionType::anyCtorSatisfies(TypePred pred) const
+bool FunctionType::anyCtorSatisfies(TypePred &pred) const
 {
   return pred(this) ||
          retType->anyCtorSatisfies(pred) ||
          parameterListCtorSatisfies(pred, params) ||
          (exnSpec && exnSpec->anyCtorSatisfies(pred));
   // FIX: FUNC TEMPLATE LOSS
+  //
+  // UPDATE: this is actually symmetric with the way that compound
+  // type templates are dealt with, which is to say we do not recurse
+  // on the parameters
 //      || (templateInfo && templateInfo->anyParamCtorSatisfies(pred));
 }
 
@@ -1947,7 +1957,7 @@ string TemplateParams::paramsToCString() const
 }
 
 
-bool TemplateParams::anyParamCtorSatisfies(Type::TypePred pred) const
+bool TemplateParams::anyParamCtorSatisfies(TypePred &pred) const
 {
   return parameterListCtorSatisfies(pred, params);
 }
@@ -2014,7 +2024,7 @@ TemplateInfo *TemplateInfo::getMyPrimaryIdem() const
 }
 
 
-Variable *TemplateInfo::addInstantiation(Variable *inst0, bool suppressDupMutant)
+Variable *TemplateInfo::addInstantiation(Variable *inst0, bool suppressDup)
 {
   xassert(inst0);
   xassert(inst0->templateInfo());
@@ -2033,16 +2043,19 @@ Variable *TemplateInfo::addInstantiation(Variable *inst0, bool suppressDupMutant
       (inst1->templateInfo()->arguments,
        inst0->templateInfo()->arguments,
        2 /*matchDepth*/);
-    if (unifies && inst0IsMutant && inst1->templateInfo()->isMutant()) {
-      // I find it difficult to prevent the creation of duplicat
-      // mutants, so I just filter them out here, but only if the
-      // client is expecting this behavior by setting
-      // suppressDupMutant
-      xassert(suppressDupMutant);
-      return inst1;
+    if (unifies) {
+      if (inst0IsMutant) {
+        xassert(inst1->templateInfo()->isMutant());
+        // Note: Never remove duplicate mutants; isomorphic mutants
+        // are not interchangable.
+      } else {
+        xassert(!inst1->templateInfo()->isMutant());
+        // other, non-mutant instantiations should never be duplicated
+        //        xassert(!unifies);
+        xassert(suppressDup);
+        return inst1;
+      }
     }
-    // other, non-mutant instantiations should never be duplicated
-    xassert(!unifies);
   }
 
   instantiations.append(inst0);
@@ -2116,19 +2129,7 @@ bool TemplateInfo::argumentsContainTypeVariables() const
 bool TemplateInfo::argumentsContainVariables() const
 {
   FOREACH_OBJLIST(STemplateArgument, arguments, iter) {
-    STemplateArgument const *sta = iter.data();
-    if (sta->kind == STemplateArgument::STA_TYPE) {
-      if (sta->value.t->containsVariables()) {
-        return true;
-      }
-    } else if (sta->kind == STemplateArgument::STA_REFERENCE) {
-      // FIX: I am not at all sure that my interpretation of what
-      // STemplateArgument::kind == STA_REFERENCE means; I think it
-      // means it is a non-type non-template (object) variable in an
-      // argument list
-      return true;
-    }
-    // FIX: do other kinds
+    if (iter.data()->containsVariables()) return true;
   }
   return false;
 }
@@ -2209,8 +2210,13 @@ void TemplateInfo::debugPrint(int depth)
   cout << endl;
   for (int i=0; i<depth; ++i) cout << "  ";
   cout << "params:" << endl;
-  SFOREACH_OBJLIST(Variable, params, iter) {
-    cout << iter.data()->toString() << endl;
+  SFOREACH_OBJLIST_NC(Variable, params, iter) {
+    Variable *var = iter.data();
+    cout << "\t'" << var->name << "' ";
+    printf("%p ", var);
+//      cout << "var->serialNumber " << var->serialNumber << endl;
+//      cout << iter.data()->toString();
+    cout << endl;
   }
   for (int i=0; i<depth; ++i) cout << "  ";
   cout << "instantiations:" << endl;
@@ -2241,6 +2247,37 @@ STemplateArgument::STemplateArgument(STemplateArgument const &obj)
   // destination
   value.i = obj.value.i;
   value.v = obj.value.v;    // just in case ptrs and ints are diff't size
+}
+
+
+STemplateArgument *STemplateArgument::shallowClone() const
+{
+  STemplateArgument *ret = new STemplateArgument();
+  switch (kind) {
+  default:
+  case STA_NONE:
+    xfailure("STemplateArgument with illegal or undefined kind");
+    break;
+  case STA_TYPE:
+    ret->setType(getType());
+    break;
+  case STA_INT:
+    ret->setInt(getInt());
+    break;
+  case STA_REFERENCE:
+    ret->setReference(getReference());
+    break;
+  case STA_POINTER:
+    ret->setPointer(getPointer());
+    break;
+  case STA_MEMBER:
+    ret->setMember(getMember());
+    break;
+  case STA_TEMPLATE:
+    xfailure("STemplateArgument STA_MEMBER unimplemented");
+    break;
+  }
+  return ret;
 }
 
 
@@ -2283,6 +2320,24 @@ bool STemplateArgument::equals(STemplateArgument const *obj) const
 }
 
 
+bool STemplateArgument::containsVariables() const
+{
+  if (kind == STemplateArgument::STA_TYPE) {
+    if (value.t->containsVariables()) {
+      return true;
+    }
+  } else if (kind == STemplateArgument::STA_REFERENCE) {
+    // FIX: I am not at all sure that my interpretation of what
+    // STemplateArgument::kind == STA_REFERENCE means; I think it
+    // means it is a non-type non-template (object) variable in an
+    // argument list
+    return true;
+  }
+  // FIX: do other kinds
+  return false;
+}
+
+
 string STemplateArgument::toString() const
 {
   switch (kind) {
@@ -2310,6 +2365,16 @@ void STemplateArgument::debugPrint(int depth)
 {
   for (int i=0; i<depth; ++i) cout << "  ";
   cout << "STemplateArgument: " << toString() << endl;
+}
+
+
+SObjList<STemplateArgument> *cloneSArgs(SObjList<STemplateArgument> const &sargs)
+{
+  SObjList<STemplateArgument> *ret = new SObjList<STemplateArgument>();
+  SFOREACH_OBJLIST(STemplateArgument, sargs, iter) {
+    ret->append(iter.data()->shallowClone());
+  }
+  return ret;
 }
 
 
@@ -2396,7 +2461,7 @@ int ArrayType::reprSize() const
 }
 
 
-bool ArrayType::anyCtorSatisfies(TypePred pred) const
+bool ArrayType::anyCtorSatisfies(TypePred &pred) const
 {
   return pred(this) ||
          eltType->anyCtorSatisfies(pred);
@@ -2478,7 +2543,7 @@ int PointerToMemberType::reprSize() const
 }
 
 
-bool PointerToMemberType::anyCtorSatisfies(TypePred pred) const
+bool PointerToMemberType::anyCtorSatisfies(TypePred &pred) const
 {
   return pred(this) ||
          atType->anyCtorSatisfies(pred);
@@ -2951,7 +3016,8 @@ Variable *BasicTypeFactory::makeVariable(
 {
   // the TranslationUnit parameter is ignored by default; it is passed
   // only for the possible benefit of an extension analysis
-  return new Variable(L, n, t, f);
+  Variable *var = new Variable(L, n, t, f);
+  return var;
 }
 
 Variable *BasicTypeFactory::cloneVariable(Variable *src)

@@ -40,6 +40,9 @@ class TopForm {
 
 
 class Function {
+  // has this function been typechecked with checkBody=true?
+  public bool hasBodyBeenTChecked = false;
+
   // since 'nameAndParams->var' might refer to a previous declaration,
   // and therefore might have differently-named parameters, I'll add
   // another field specifically for a version of the FunctionType
@@ -169,8 +172,16 @@ class TypeSpecifier {
        public CompoundType *ctype = NULL;
        public void tcheckIntoCompound(
          Env &env, DeclFlags dflags, CompoundType *ct,
-         bool inTemplate, CompoundType *containingClass);
-       private void tcheckFunctionBodies(Env &env);
+         bool inTemplate,
+         bool reallyTcheckFunctionBodies,
+         InstContext *instCtxt,
+         Scope *foundScope,
+         CompoundType *containingClass);
+       private void tcheckFunctionBodies
+         (Env &env,
+          bool reallyTcheckFunctionBodies,
+          Scope *foundScope,
+          InstContext *instCtxt);
      }
 
   -> TS_enumSpec {

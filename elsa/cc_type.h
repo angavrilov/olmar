@@ -37,6 +37,7 @@
 #include "serialno.h"     // INHERIT_SERIAL_BASE
 
 class Variable;           // variable.h
+class MatchBindings;      // matchtype.h
 class Env;                // cc_env.h
 class TS_classSpec;       // cc.ast
 class Expression;         // cc.ast
@@ -65,6 +66,7 @@ class TemplateInfo;
 class STemplateArgument;
 class TypeFactory;
 class BasicTypeFactory;
+class TypePred;
 
 
 // FIX: eventually perhaps we can remove this
@@ -674,9 +676,6 @@ ENUM_BITWISE_OPS(BaseType::EqFlags, BaseType::EF_ALL)
   // please see cc_type.html, section 6, "BaseType and Type", for more
   // information about this class
   class Type : public BaseType {
-  public:      // types
-    typedef bool (*TypePred)(Type const *t);
-
   protected:   // funcs
     Type() {}
 
@@ -686,7 +685,7 @@ ENUM_BITWISE_OPS(BaseType::EqFlags, BaseType::EF_ALL)
     // satisfies 'pred' (note that recursive types always go through
     // CompoundType, and this does not dig into the fields of
     // CompoundTypes)
-    virtual bool anyCtorSatisfies(TypePred pred) const=0;
+    virtual bool anyCtorSatisfies(TypePred &pred) const=0;
 
     // do not leak the name "BaseType"
     Type const *asRvalC() const
@@ -695,6 +694,30 @@ ENUM_BITWISE_OPS(BaseType::EqFlags, BaseType::EF_ALL)
       { return static_cast<Type*>(BaseType::asRval()); }
   };
 #endif // TYPE_CLASS_FILE
+
+// ------------------ Type predicates --------------
+
+// It caused too much difficulty in the Oink build process to have
+// these as members of class Type.
+
+typedef bool (*TypePredFunc)(Type const *t);
+
+// abstract superclass
+class TypePred {
+  public:
+  virtual bool operator() (Type const *t) = 0;
+  virtual ~TypePred() {}
+};
+
+// when you just want a stateless predicate
+class StatelessTypePred : public TypePred {
+  TypePredFunc const f;
+  public:
+  StatelessTypePred(TypePredFunc f0) : f(f0) {}
+  virtual bool operator() (Type const *t) { return f(t); }
+  virtual ~StatelessTypePred() {}
+};
+
 
 // supports the use of 'Type*' in AST constructor argument lists
 string toString(Type *t);
@@ -727,7 +750,7 @@ public:
   virtual string toMLString() const;
   virtual string leftString(bool innerParen=true) const;
   virtual int reprSize() const;
-  virtual bool anyCtorSatisfies(TypePred pred) const;
+  virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
 };
 
@@ -761,7 +784,7 @@ public:
   virtual string leftString(bool innerParen=true) const;
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
-  virtual bool anyCtorSatisfies(TypePred pred) const;
+  virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
 };
 
@@ -787,7 +810,7 @@ public:
   virtual string leftString(bool innerParen=true) const;
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
-  virtual bool anyCtorSatisfies(TypePred pred) const;
+  virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
 };
 
@@ -819,7 +842,7 @@ public:     // types
     ExnSpec(ExnSpec const &obj);
     ~ExnSpec();
 
-    bool anyCtorSatisfies(Type::TypePred pred) const;
+    bool anyCtorSatisfies(TypePred &pred) const;
   };
 
 public:     // data
@@ -905,7 +928,7 @@ public:
   virtual string leftString(bool innerParen=true) const;
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
-  virtual bool anyCtorSatisfies(TypePred pred) const;
+  virtual bool anyCtorSatisfies(TypePred &pred) const;
 };
 
 
@@ -938,7 +961,7 @@ public:
   virtual string leftString(bool innerParen=true) const;
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
-  virtual bool anyCtorSatisfies(TypePred pred) const;
+  virtual bool anyCtorSatisfies(TypePred &pred) const;
 };
 
 
@@ -974,7 +997,7 @@ public:
   virtual string leftString(bool innerParen=true) const;
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
-  virtual bool anyCtorSatisfies(TypePred pred) const;
+  virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
 };
 
@@ -1010,7 +1033,7 @@ public:    // funcs
   // queries on parameters
   string paramsToCString() const;
   string paramsToMLString() const;
-  bool anyParamCtorSatisfies(Type::TypePred pred) const;
+  bool anyParamCtorSatisfies(TypePred &pred) const;
 };
 
 
@@ -1161,10 +1184,9 @@ public:    // funcs
   // 'this' (since myPrimary for a primary is NULL)
   TemplateInfo *getMyPrimaryIdem() const;
 
-  // add to the instantiation list; supress duplicate mutants by
-  // assigning to the reference 'inst0' only if suppressDupMutant is
-  // true
-  Variable *addInstantiation(Variable *inst0, bool suppressDupMutant=false);
+  // add to the instantiation list; supress duplicates by assigning to
+  // the reference 'inst0' only if suppressDup is true
+  Variable *addInstantiation(Variable *inst0, bool suppressDup=false);
   // only use this for iteration, not appending!  Don't know a good
   // way to enforce that
   SObjList<Variable> &getInstantiations();
@@ -1237,6 +1259,11 @@ public:
   STemplateArgument() : kind(STA_NONE) { value.i = 0; }
   STemplateArgument(STemplateArgument const &obj);
 
+  // FIX: dsw: this is probably completely duplicate functionality
+  // with the copy ctor, but I don't like the fast and loose bit copy
+  // going on there with respect to the union
+  STemplateArgument *shallowClone() const;
+
   // get 'value', ensuring correspondence between it and 'kind'
   Type *    getType()      const { xassert(kind==STA_TYPE);      return value.t; }
   int       getInt()       const { xassert(kind==STA_INT);       return value.i; }
@@ -1261,6 +1288,9 @@ public:
   // simpler semantic form is to make equality checking easy
   bool equals(STemplateArgument const *obj) const;
 
+  // does it contain variables?
+  bool containsVariables() const;
+
   // debug print
   string toString() const;
 
@@ -1269,6 +1299,7 @@ public:
   void debugPrint(int depth = 0);
 };
 
+SObjList<STemplateArgument> *cloneSArgs(SObjList<STemplateArgument> const &sargs);
 string sargsToString(SObjList<STemplateArgument> const &list);
 inline string sargsToString(ObjList<STemplateArgument> const &list)
   { return sargsToString((SObjList<STemplateArgument> const &)list); }

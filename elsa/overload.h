@@ -6,6 +6,7 @@
 #define OVERLOAD_H
 
 #include "sobjlist.h"      // SObjList
+#include "fakelist.h"      // FakeList
 #include "array.h"         // ArrayStack
 #include "implconv.h"      // ImplicitConversion, StandardConversion
 
@@ -15,6 +16,7 @@ class Variable;
 class Type;
 class ErrorList;
 class TemplCandidates;
+class ArgExpression;
 
 
 // debugging output support
@@ -69,11 +71,67 @@ public:
 };
 
 
+// unifies the process of iterating over a list of types
+class TypeListIter {
+  public:
+  // can't share the common dtor in the superclass because it calls a
+  // virtual abstract method
+  virtual ~TypeListIter() {}
+
+  // iterator actions
+  virtual bool isDone() const = 0;
+  virtual void adv() = 0;
+  virtual Type *data() const = 0;
+};
+
+class TypeListIter_FakeList : public TypeListIter {
+  FakeList<ArgExpression> *curFuncArgs;
+
+  public:
+  TypeListIter_FakeList(FakeList<ArgExpression> *funcArgs0)
+    : curFuncArgs(funcArgs0)
+  {}
+  virtual ~TypeListIter_FakeList() {
+    // this is not always the case if argument list processing aborts
+    // part way through due to an error
+//      xassert(isDone());
+  }
+
+  virtual bool isDone() const;
+  virtual void adv();
+  virtual Type *data() const;
+};
+
+class TypeListIter_GrowArray : public TypeListIter {
+  GrowArray<ArgumentInfo> &args;
+  int i;
+
+  public:
+  TypeListIter_GrowArray(GrowArray<ArgumentInfo> &args0)
+    : args(args0), i(0)
+  {}
+  virtual ~TypeListIter_GrowArray() {
+    // this is not always the case if argument list processing aborts
+    // part way through due to an error
+//      xassert(isDone());
+  }
+
+  virtual bool isDone() const;
+  virtual void adv();
+  virtual Type *data() const;
+};
+
+
 // information about a single overload possibility
 class Candidate {
 public:
   // the candidate itself, with its type
   Variable *var;
+
+  // if the candidate is actually an instantiation front for a
+  // template primary or partial specialization that is the real
+  // candidate, then that goes here
+  Variable *instFrom;
 
   // list of conversions, one for each argument
   GrowArray<ImplicitConversion> conversions;
@@ -82,7 +140,7 @@ public:
   // here, 'numArgs' is the number of actual arguments, *not* the
   // number of parameters in var's function; it's passed so I know
   // how big to make 'conversions'
-  Candidate(Variable *v, int numArgs);
+  Candidate(Variable *v, Variable *instFrom, int numArgs);
   ~Candidate();
 
   // true if one of the conversions is IC_AMBIGUOUS
@@ -113,6 +171,7 @@ public:      // data
   SourceLoc loc;
   ErrorList * /*nullable*/ errors;
   OverloadFlags flags;
+  PQName * /*nullable*/ finalName;
   GrowArray<ArgumentInfo> &args;
   
   // when non-NULL, this indicates the type of the expression
@@ -128,17 +187,20 @@ public:      // data
   ObjArrayStack<Candidate> candidates;
 
 private:     // funcs
-  Candidate * /*owner*/ makeCandidate(Variable *var);
+  Candidate * /*owner*/ makeCandidate(Variable *var, Variable *instFrom);
   void printArgInfo();
 
 public:      // funcs
   OverloadResolver(Env &en, SourceLoc L, ErrorList *er,
-                   OverloadFlags f, GrowArray<ArgumentInfo> &a,
+                   OverloadFlags f,
+                   PQName *finalName0,
+                   GrowArray<ArgumentInfo> &a,
                    int numCand = 10 /*estimate of # of candidates*/)
     : env(en),
       loc(L),
       errors(er),
       flags(f),
+      finalName(finalName0),
       args(a),
       finalDestType(NULL),
       emptyCandidatesIsOk(false),
@@ -159,6 +221,8 @@ public:      // funcs
 
   // process a batch of candidate functions, adding the viable
   // ones to the 'candidates' list
+  void addCandidate(Variable *var0, Variable *instFrom = NULL);
+  void addTemplCandidate(Variable *baseV, Variable *var0, SObjList<STemplateArgument> &sargs);
   void processCandidates(SObjList<Variable> &varList);
   void processCandidate(Variable *v);
 
@@ -200,6 +264,7 @@ Variable *resolveOverload(
   ErrorList * /*nullable*/ errors, // where to insert errors; if NULL, don't
   OverloadFlags flags,             // various options
   SObjList<Variable> &list,        // list of overloaded possibilities
+  PQName * /*nullable*/ finalName, // for any explicit template arguments; NULL for ctors
   GrowArray<ArgumentInfo> &args,   // list of argument types at the call site
   bool &wasAmbig                   // returns as true if error due to ambiguity
 );

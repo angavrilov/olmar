@@ -72,6 +72,9 @@ class MatchBindings {
   // are the number of bound (not just bindable) entries greater than
   // zero?
   bool isEmpty();
+
+  // dump out the map
+  void gdb();
 };
 
 
@@ -92,7 +95,7 @@ public:                         // types
 //      MT_ALL_FLAGS = 0x00000001
 //    };
 
-  // NOTE: now we use a match depth; It works like this.
+  // NOTE: now we use a matchDepth; It works like this.
   // depth            | pointers match arrays | const and volatile matter
   // -----------------+-----------------------+--------------------------
   // 0, top level     | yes                   | no

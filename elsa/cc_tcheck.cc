@@ -39,8 +39,6 @@ static Variable *outerResolveOverload_ctor
   (Env &env, SourceLoc loc, Type *type, FakeList<ArgExpression> *args, bool really);
 static bool reallyDoOverload(Env &env, FakeList<ArgExpression> *args);
 FakeList<ArgExpression> *tcheckArgExprList(FakeList<ArgExpression> *list, Env &env);
-void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
-                              SourceLoc loc, CompoundType *ct);
 
 
 // return true if the list contains no disambiguating errors
@@ -72,15 +70,141 @@ string ambiguousNodeName(ASTTypeId const *n)
 }
 
 
+// go over all of the function bodies and make sure they have been
+// typechecked
+class EnsureFuncBodiesTcheckedVisitor : public ASTVisitor {
+  Env &env;
+  public:
+  EnsureFuncBodiesTcheckedVisitor(Env &env0) : env(env0) {}
+  bool visitFunction(Function *f);
+  bool visitDeclarator(Declarator *d);
+  // for templates, be sure to visit all of the instantiations,
+  // including the specializations; FIX: this is copied directly from
+  // oink/qual_visitor.cc; this is a common thing to want to do in a
+  // visitor so we should factor it out
+  bool visitTemplateDeclaration(TemplateDeclaration *obj);
+};
+
+bool EnsureFuncBodiesTcheckedVisitor::visitFunction(Function *f) {
+  xassert(f->nameAndParams->var);
+  env.ensureFuncMemBodyTChecked(f->nameAndParams->var);
+  return true;
+}
+
+bool EnsureFuncBodiesTcheckedVisitor::visitDeclarator(Declarator *d) {
+//    printf("EnsureFuncBodiesTcheckedVisitor::visitDeclarator d:%p\n", d);
+  // a declarator can lack a var if it is just the declarator for the
+  // ASTTypeId of a type, such as in "operator int()".
+  if (!d->var) {
+    // I just want to check something that will make sure that this
+    // didn't happen because the enclosing function body never got
+    // typechecked
+    xassert(d->context == DC_UNKNOWN);
+//      xassert(d->decl);
+//      xassert(d->decl->isD_name());
+//      xassert(!d->decl->asD_name()->name);
+  } else {
+    if (d->var->type->isFunctionType()) {
+      env.ensureFuncMemBodyTChecked(d->var);
+    }
+  }
+  return true;
+}
+
+bool EnsureFuncBodiesTcheckedVisitor::visitTemplateDeclaration(TemplateDeclaration *obj) {
+  TemplateInfo *tinfo = NULL;
+  // FIX: should I do anything here for TD_tmember?
+  if (obj->isTD_func()) {
+    tinfo = obj->asTD_func()->f->nameAndParams->var->templateInfo();
+    // this fails for function members of template classes
+    //      xassert(tinfo);
+  } else if (obj->isTD_proto()) {
+    FakeList<Declarator> *decllist = obj->asTD_proto()->d->decllist;
+    xassert(decllist->count() == 1);
+    tinfo = decllist->first()->var->templateInfo();
+    // this fails for out-of-line definitions of static members of
+    // templatized classes, such as in/t0175.cc
+//      xassert(tinfo);
+  } else if (obj->isTD_class() && obj->asTD_class()->spec->isTS_classSpec()) {
+    TS_classSpec *ts = obj->asTD_class()->spec->asTS_classSpec();
+    // ts->ctype can be NULL if there was an error: in/0027.cc:ERROR(1)
+    if (ts->ctype) {
+      tinfo = ts->ctype->templateInfo();
+      // I think this will fail for class members of template
+      // classes, but I'll leave it until it does.
+      xassert(tinfo);
+    }
+  }
+  if (tinfo) {
+    SFOREACH_OBJLIST_NC(Variable, tinfo->getInstantiations(), iter) {
+      Variable *var0 = iter.data();
+      // FIX: should I really be doing this?
+      if (var0->templateInfo()->isMutant()) continue;
+      if (!var0->templateInfo()->isCompleteSpecOrInstantiation()) continue;
+
+      // run a sub-traversal of the AST instantiation
+      if (var0->funcDefn) {
+        var0->funcDefn->traverse(*this);
+      }
+      if (var0->type->isCompoundType() && var0->type->asCompoundType()->syntax) {
+        var0->type->asCompoundType()->syntax->traverse(*this);
+      }
+
+      if (var0->type->isFunctionType()) {
+        if (var0->funcDefn) {
+          // if a function template was declared before being defined,
+          // unify the types of the two resulting variables so that
+          // external calls get matched with internal references to
+          // parameters
+          //
+          // UPDATE: I now make sure that the definition re-uses the
+          // variable of the declaration so this is not necessary
+          xassert(var0 == var0->funcDefn->nameAndParams->var);
+        } else {
+          // FIX: make this a user error?
+          //              USER_WARNING
+          //                (var0->loc, " Declaration of a template [specialization?] without a definition");
+        }
+      } else {
+        xassert(!var0->funcDefn);
+      }
+    }
+  }
+  return true;
+}
+
+
 // ------------------- TranslationUnit --------------------
 void TranslationUnit::tcheck(Env &env)
 {
-  static int tform = 0;
+  static int topForm = 0;
   FOREACH_ASTLIST_NC(TopForm, topForms, iter) {
-    ++tform;
-    TRACE("topform", tform);
+    ++topForm;
+    TRACE("topform", topForm);
     iter.data()->tcheck(env);
   }
+
+  // Given the current architecture, it is impossible to ensure that
+  // all called functions have had their body tchecked.  This is
+  // because if implicit calls to existing functions.  That is, one
+  // user-written (not implicitly defined) function f() that is
+  // tchecked implicitly calls another function g() that is
+  // user-written, but the call is elaborated into existence.  This
+  // means that we don't see the call to g() until the elaboration
+  // stage, but by then typechecking is over.  However, since the
+  // definition of g() is user-written, not implicitly defined, it
+  // does indeed need to be tchecked.  Therefore, at the end of a
+  // translation unit, I simply typecheck all of the function bodies
+  // that have not yet been typechecked.  If this doesn't work then we
+  // really need to change something non-trivial.
+  //  
+  // It seems that we are ok for now because it is only function
+  // members of templatized classes that we are delaying the
+  // typechecking of.  Also, I expect that the definitions will all
+  // have been seen.  Therefore, I can just typecheck all of the
+  // function bodies at the end of typechecking the translation unit.
+  EnsureFuncBodiesTcheckedVisitor visitor(env);
+  this->traverse(visitor);
 }
 
 
@@ -220,13 +344,6 @@ void Function::tcheck(Env &env, bool checkBody,
   // are we in a template function?
   bool inTemplate = env.scope()->curTemplateParams != NULL;
 
-  // if this is a complete specialization, temporarily supress
-  // TTM_3TEMPL_DEF and return to TTM_1NORMAL, since it is normal code
-  bool inCompleteSpec = inTemplate &&
-    env.scope()->curTemplateParams->params.isEmpty();
-  StackMaintainer<TemplateDeclaration> sm0
-    (env.templateDeclarationStack, (inCompleteSpec ? &Env::mode1Dummy : NULL));
-
   // only disambiguate, if template
   DisambiguateOnlyTemp disOnly(env, inTemplate /*disOnly*/);
 
@@ -267,6 +384,10 @@ void Function::tcheck(Env &env, bool checkBody,
   if (!checkBody) {
     return;
   }
+
+  // FIX: not sure if this should be set first or last, but I don't
+  // want it done twice, so we do it first for now
+  hasBodyBeenTChecked = true;
 
   // if this function was originally declared in another scope
   // (main example: it's a class member function), then start
@@ -403,7 +524,14 @@ void Function::tcheck(Env &env, bool checkBody,
   // not have a funcDefn until after its whole body has been
   // typechecked.  See comment after 'if (!baseSyntax)' in
   // Env::instantiateTemplate()
-  nameAndParams->var->funcDefn = this;
+  //
+  // UPDATE: I've changed this invariant, as I need to point the
+  // funcDefn at the definition even if the body has not bee tchecked.
+  if (nameAndParams->var->funcDefn) {
+    xassert(nameAndParams->var->funcDefn == this);
+  } else {
+    nameAndParams->var->funcDefn = this;
+  }
 }
 
 
@@ -495,6 +623,10 @@ void MemberInit::tcheck(Env &env, Variable *ctorReceiver, CompoundType *enclosin
       ctorVar = env.storeVar(
         outerResolveOverload_ctor(env, env.loc(), v->type, args,
                                   reallyDoOverload(env, args)));
+
+      if (ctorVar && ctorVar->type->isFunctionType()) {
+        env.ensureFuncMemBodyTChecked(ctorVar);
+      }
 
       // TODO: check that the passed arguments are consistent
       // with at least one constructor of the variable's type.
@@ -590,6 +722,9 @@ void MemberInit::tcheck(Env &env, Variable *ctorReceiver, CompoundType *enclosin
                               baseVar->type,
                               args,
                               reallyDoOverload(env, args)));
+  if (ctorVar->type->isFunctionType()) {
+    env.ensureFuncMemBodyTChecked(ctorVar);
+  }
 }
 
 
@@ -1280,7 +1415,11 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     this->ctype = ct;              // annotation
   }
 
-  tcheckIntoCompound(env, dflags, ct, inTemplate, containingClass);
+  tcheckIntoCompound(env, dflags, ct, inTemplate,
+                     true /*reallyTcheckFunctionBodies*/,
+                     NULL /*instCtxt*/,
+                     NULL /*foundScope*/,
+                     containingClass);
 //    env.deMutantify(ct);             // we now just avoid them during specialization resolution
   
   if (prevWasForward && ct->isTemplate()) {
@@ -1300,6 +1439,9 @@ void TS_classSpec::tcheckIntoCompound(
   Env &env, DeclFlags dflags,    // as in tcheck
   CompoundType *ct,              // compound into which we're putting declarations
   bool inTemplate,               // true if this is a template class (uninstantiated)
+  bool reallyTcheckFunctionBodies, // in second pass really tcheck or just save the context
+  InstContext *instCtxt,         // the context in which this template was instantiated
+  Scope *foundScope,             // the foundScope from instantiateTemplate(), if any
   CompoundType *containingClass) // if non-NULL, ct is an inner class
 {
   // should have set the annotation by now
@@ -1402,12 +1544,30 @@ void TS_classSpec::tcheckIntoCompound(
 
   // look at members: first pass is to enter them into the environment
   FOREACH_ASTLIST_NC(Member, members->list, iter) {
-    iter.data()->tcheck(env);
+    Member *member = iter.data();
+    member->tcheck(env);
+    // dsw: The invariant that I have chosen for function members of
+    // templatized classes is that we typecheck the declaration but
+    // not the definition; the definition is typechecked when the
+    // function is called or at some other later time.  This works
+    // fine for out-of-line function definitions, as when the
+    // definition is found, without typechecking the body, we point
+    // the variable created by typechecking the declaration at the
+    // definition, which will be typechecked later.  This means that
+    // for in-line functions we need to do this as well.
+    if (member->isMR_func()) {
+      // an inline member function definition
+      MR_func *mrfunc = member->asMR_func();
+      Variable *mrvar = mrfunc->f->nameAndParams->var;
+      xassert(mrvar);
+      xassert(!mrvar->funcDefn);
+      mrvar->funcDefn = mrfunc->f;
+    }
   }
 
   // default ctor, copy ctor, operator=; only do this for C++.
   if (env.lang.isCplusplus) {
-    addCompilerSuppliedDecls(env, this, loc, ct);
+    addCompilerSuppliedDecls(env, loc, ct);
   }
 
   // let the CompoundType build additional indexes if it wants
@@ -1416,7 +1576,7 @@ void TS_classSpec::tcheckIntoCompound(
   // second pass: check function bodies
   bool innerClass = !!containingClass;
   if (!innerClass) {
-    tcheckFunctionBodies(env);
+    tcheckFunctionBodies(env, reallyTcheckFunctionBodies, foundScope, instCtxt);
   }
 
   // now retract the class scope from the stack of scopes; do
@@ -1436,7 +1596,8 @@ void TS_classSpec::tcheckIntoCompound(
 
 
 // this is pass 2 of tchecking a class
-void TS_classSpec::tcheckFunctionBodies(Env &env)
+void TS_classSpec::tcheckFunctionBodies
+  (Env &env, bool reallyTcheckFunctionBodies, Scope *foundScope, InstContext *instCtxt)
 {
   CompoundType *ct = env.scope()->curCompound;
   xassert(ct);
@@ -1453,8 +1614,33 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
       // tcheck of an inline member function
       f->dflags = (DeclFlags)(f->dflags | DF_INLINE_DEFN);
 
-      f->tcheck(env, true /*checkBody*/,
-                true /*reallyAddVariable*/, NULL /*prior*/);
+      FuncTCheckContext *tcheckCtxt = NULL;
+      if (instCtxt) {
+        xassert(foundScope);
+        tcheckCtxt = new FuncTCheckContext
+          (f, foundScope, env.shallowClonePartialScopeStack(foundScope));
+      }
+
+      if (reallyTcheckFunctionBodies) {
+        f->tcheck(env,
+                  true /*checkBody*/,
+                  true /*reallyAddVariable*/,
+                  NULL /*prior*/);
+      } else {
+        Variable *fvar = f->nameAndParams->var;
+        xassert(fvar);
+        if (fvar->funcDefn) {
+          xassert(fvar->funcDefn == f);
+        } else {
+          // this would have been done in Function::tcheck() had it
+          // been called.  I need it so that later I can find the
+          // function body from the variable and instantiate it
+          fvar->funcDefn = f;
+        }
+      }
+
+      // preserve the instantiation context
+      f->nameAndParams->var->setInstCtxts(instCtxt, tcheckCtxt);
 
       // remove DF_INLINE_DEFN so if I clone this later I can play the
       // same trick again (TODO: what if we decide to clone while down
@@ -1502,7 +1688,7 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
 
     // check its function bodies (it's somewhat of a hack to
     // resort to inner's 'syntax' poiner)
-    inner->syntax->tcheckFunctionBodies(env);
+    inner->syntax->tcheckFunctionBodies(env, reallyTcheckFunctionBodies, foundScope, instCtxt);
 
     // retract the inner scope
     env.retractScope(inner);
@@ -1539,265 +1725,6 @@ Type *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
 
   this->etype = et;           // annotation
   return ret;
-}
-
-
-// true if 't' is reference to 'ct', ignoring any c/v
-static bool isRefToCt(Type const *t, CompoundType *ct)
-{
-  if (!t->isReference()) return false;
-
-  ReferenceType const *rt = t->asReferenceTypeC();
-  if (!rt->atType->isCVAtomicType()) return false;
-
-  CVAtomicType const *at = rt->atType->asCVAtomicTypeC();
-  if (at->atomic != ct) return false; // NOTE: atomics are equal iff pointer equal
-  
-  return true;
-}
-
-
-// cppstd 12.8 para 2: "A non-template constructor for a class X is a
-// _copy_ constructor if its first parameter is of type X&, const X&,
-// volatile X&, or const volatile X&, and either there are no other
-// parameters or else all other parameters have default arguments
-// (8.3.6)."
-bool isCopyConstructor(Variable const *funcVar, CompoundType *ct)
-{
-  FunctionType *ft = funcVar->type->asFunctionType();
-  if (!ft->isConstructor()) return false; // is a ctor?
-  if (funcVar->isTemplate()) return false; // non-template?
-  if (ft->params.isEmpty()) return false; // has at least one arg?
-
-  // is the first parameter a ref to the class type?
-  if (!isRefToCt(ft->params.firstC()->type, ct)) return false;
-
-  // do all the parameters past the first one have default arguments?
-  bool first_time = true;
-  SFOREACH_OBJLIST(Variable, ft->params, paramiter) {
-    // skip the first variable
-    if (first_time) {
-      first_time = false;
-      continue;
-    }
-    if (!paramiter.data()->value) return false;
-  }
-
-  return true;                  // all test pass
-}
-
-
-// cppstd 12.8 para 9: "A user-declared _copy_ assignment operator
-// X::operator= is a non-static non-template member function of class
-// X with exactly one parameter of type X, X&, const X&, volatile X&
-// or const volatile X&."
-bool isCopyAssignOp(Variable const *funcVar, CompoundType *ct)
-{
-  FunctionType *ft = funcVar->type->asFunctionType();
-  if (!ft->isMethod()) return false; // is a non-static member?
-  if (funcVar->isTemplate()) return false; // non-template?
-  if (ft->params.count() != 2) return false; // has two args, 1) this and 2) other?
-
-  // the second parameter; the first is "this"
-  Type *t0 = ft->params.nthC(1 /*that is, the second element*/)->type;
-
-  // is the parameter of the class type?  NOTE: atomics are equal iff
-  // pointer equal
-  if (t0->isCVAtomicType() && t0->asCVAtomicType()->atomic == ct) return true;
-
-  // or, is the parameter a ref to the class type?
-  return isRefToCt(t0, ct);
-}
-
-
-typedef bool (*MemberFnTest)(Variable const *funcVar, CompoundType *ct);
-
-// test for any match among a variable's overload set
-bool testAmongOverloadSet(MemberFnTest test, Variable *v, CompoundType *ct)
-{
-  if (!v) {
-    // allow this, and say there's no match, because there are
-    // no variables at all
-    return false;
-  }
-
-  if (!v->overload) {
-    // singleton set
-    if (test(v, ct)) {
-      return true;
-    }
-  }
-  else {
-    // more than one element; note that the original 'v' is always
-    // among the elements of this list
-    SFOREACH_OBJLIST_NC(Variable, v->overload->set, iter) {
-      if (test(iter.data(), ct)) {
-        return true;
-      }
-    }
-  }
-
-  return false;        // no match
-}
-
-
-// this adds:
-//   - a default (no-arg) ctor, if no ctor (of any kind) is already present
-//   - a copy ctor if no copy ctor is present
-//   - an operator= if none is present
-//   - a dtor if none is present
-// 'loc' remains a hack ...
-//
-// FIX: this should be a method on TS_classSpec
-// sm: I don't agree.
-void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
-                              SourceLoc loc, CompoundType *ct)
-{
-  // we shouldn't even be here if the language isn't C++.
-  xassert(env.lang.isCplusplus);
-
-  // the caller should already have arranged so that 'ct' is the
-  // innermost scope
-  xassert(env.acceptingScope() == ct);
-
-  // don't bother for anonymous classes (this was originally because
-  // the destructor would then not have a name, but it's been retained
-  // even as more compiler-supplied functions have been added)
-  if (!ct->name) {
-    return;
-  }
-
-  // **** implicit no-arg (aka "default") ctor: cppstd 12.1 para 5:
-  // "If there is no user-declared constructor for class X, a default
-  // constructor is implicitly declared."
-  if (!ct->getNamedFieldC(env.constructorSpecialName, env, LF_INNER_ONLY)) {
-    // add a no-arg ctor declaration: "Class();".  For now we just
-    // add the variable to the scope and don't construct the AST, in
-    // order to be symmetric with what is going on with the dtor
-    // below.
-    FunctionType *ft = env.beginConstructorFunctionType(loc, ct);
-    ft->doneParams();
-    Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, 
-                  DF_MEMBER | DF_IMPLICIT);
-    // NOTE: we don't use env.addVariableWithOload() because this is
-    // a special case: we only insert if there are no ctors AT ALL.
-    env.addVariable(v);
-    env.madeUpVariables.push(v);
-  }
-
-  // **** implicit copy ctor: cppstd 12.8 para 4: "If the class
-  // definition does not explicitly declare a copy constructor, one
-  // is declared implicitly."
-  Variable *ctor0 = ct->getNamedField(env.constructorSpecialName, env, LF_INNER_ONLY);
-  xassert(ctor0);             // we just added one if there wasn't one
-
-  // is there a copy constructor?  I'm rolling my own here.
-  if (!testAmongOverloadSet(isCopyConstructor, ctor0, ct)) {
-    // cppstd 12.8 para 5: "The implicitly-declared copy constructor
-    // for a class X will have the form
-    //
-    //   X::X(const X&)
-    //
-    // if [lots of complicated conditions about the superclasses have
-    // const copy ctors, etc.] ... Otherwise, the implicitly-declared
-    // copy constructor will have the form
-    //
-    //   X::X(X&)
-    //
-    // An implicitly-declared copy constructor is an inline public
-    // member of its class."
-
-    // dsw: I'm going to just always make it X::X(X const &) for now.
-    // TODO: do it right.
-
-    // create the effects of a declaration without making any AST or
-    // a body; add a copy ctor declaration: Class(Class const &__other);
-    FunctionType *ft = env.beginConstructorFunctionType(loc, ct);
-    Variable *refToSelfParam =
-      env.makeVariable(loc,
-                       env.otherName,
-                       env.makeReferenceType(loc,
-                         env.makeCVAtomicType(loc, ct, CV_CONST)),
-                       DF_PARAMETER);
-    ft->addParam(refToSelfParam);
-    ft->doneParams();
-    Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft,
-                                   DF_MEMBER | DF_IMPLICIT);
-    env.addVariableWithOload(ctor0, v);     // always overloaded; ctor0!=NULL
-    env.madeUpVariables.push(v);
-  }
-
-  // **** implicit copy assignment operator: 12.8 para 10: "If the
-  // class definition does not explicitly declare a copy assignment
-  // operator, one is declared implicitly."
-  Variable *assign_op0 = ct->getNamedField(env.operatorName[OP_ASSIGN],
-                                           env, LF_INNER_ONLY);
-  // is there a copy assign op?  I'm rolling my own here.
-  if (!testAmongOverloadSet(isCopyAssignOp, assign_op0, ct)) {
-    // 12.8 para 10: "The implicitly-declared copy assignment operator
-    // for a class X will have the form
-    //
-    //   X& X::operator=(const X&)
-    //
-    // if [lots of complicated conditions about the superclasses have
-    // const-parmeter copy assignment, etc.] ... Otherwise, the
-    // implicitly-declared copy assignment operator [mistake in spec:
-    // it says "copy constructor"] will have the form
-    //
-    //   X& X::operator=(X&)
-    //
-    // The implicitly-declared copy assignment
-    // operator for class X has the return type X&; it returns the
-    // object for which the assignment operator is invoked, that is,
-    // the object assigned to.  An implicitly-declared copy assignment
-    // operator is an inline public member of its class. ..."
-
-    // dsw: I'm going to just always make the parameter const for now.
-    // TODO: do it right.
-
-    // add a copy assignment op declaration: Class& operator=(Class const &);
-    Type *refToSelfType =
-      env.makeReferenceType(loc, env.makeCVAtomicType(loc, ct, CV_NONE));
-    Type *refToConstSelfType =
-      env.makeReferenceType(loc, env.makeCVAtomicType(loc, ct, CV_CONST));
-
-    FunctionType *ft = env.makeFunctionType(loc, refToSelfType);
-
-    // receiver object
-    ft->addReceiver(env.makeVariable(loc, env.receiverName,
-                                     env.tfac.cloneType(refToSelfType),
-                                     DF_PARAMETER));
-
-    // source object parameter
-    ft->addParam(env.makeVariable(loc,
-                                  env.otherName,
-                                  env.tfac.cloneType(refToConstSelfType),
-                                  DF_PARAMETER));
-
-    ft->doneParams();
-
-    Variable *v = env.makeVariable(loc, env.operatorName[OP_ASSIGN], ft,
-                                   DF_MEMBER | DF_IMPLICIT);
-    env.addVariableWithOload(assign_op0, v);
-    env.madeUpVariables.push(v);
-  }
-
-  // **** implicit dtor: declare a destructor if one wasn't declared
-  // already; this allows the user to call the dtor explicitly, like
-  // "a->~A();", since I treat that like a field lookup
-  StringRef dtorName = env.str(stringc << "~" << ct->name);
-  if (!ct->lookupVariable(dtorName, env, LF_INNER_ONLY)) {
-    // add a dtor declaration: ~Class();
-    FunctionType *ft = env.makeDestructorFunctionType(loc, ct);
-    Variable *v = env.makeVariable(loc, dtorName, ft,
-                                   DF_MEMBER | DF_IMPLICIT);
-    env.addVariable(v);       // cannot be overloaded
-
-    // put it on the list of made-up variables since there are no
-    // (e.g.) $tainted qualifiers (since the user didn't even type
-    // the dtor's name)
-    env.madeUpVariables.push(v);
-  }
 }
 
 
@@ -2989,10 +2916,17 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 
   // make a new scope for the parameter list
   Scope *paramScope = env.enterScope(SK_PARAMETER, "D_func parameter list scope");
+//    cout << "D_func::tcheck env.locStr() " << env.locStr() << endl;
+//    if (templateInfo) templateInfo->debugPrint();
+//    env.debugPrintScopes();
 
   // typecheck the parameters; this disambiguates any ambiguous type-ids,
   // and adds them to the environment
   params = tcheckFakeASTTypeIdList(params, env, DF_PARAMETER, DC_D_FUNC);
+//    if (params->first()) {
+//      cout << "immediately after typechecking: params->first()->gdb()" << endl;
+//      params->first()->gdb();
+//    }
 
   // build the function type; I do this after type checking the parameters
   // because it's convenient if 'syntaxFunctionType' can use the results
@@ -3104,6 +3038,14 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   } else {
     // don't stomp on an existing template info
     if (!dt.var->templateInfo()) {
+//        cout << "before: dt.var->setTemplateInfo(templateInfo)" << endl;
+//        cout << "templateInfo->debugPrint()" << endl;
+//        if (templateInfo) templateInfo->debugPrint();
+//        if (params->first()) {
+//          cout << "params->first()->gdb()" << endl;
+//          params->first()->gdb();
+//        }
+
       dt.var->setTemplateInfo(templateInfo);
       if (dt.ASTTemplArgs) {
         // some disambiguation situations don't end up attaching a
@@ -4049,74 +3991,6 @@ Type *E_variable::itcheck_var(Env &env, LookupFlags flags)
 
 
 // ------------- BEGIN: outerResolveOverload ------------------
-// this answers the "are you ..." question for a specific node in
-// a type tree; this predicate is then applied to all the nodes in
-// that tree by the 'anyCtorSatisfies' mechanism
-static bool areYou_helper(Type const *t)
-{   
-  switch (t->getTag()) {
-    case Type::T_ATOMIC: {
-      CVAtomicType *c = const_cast<CVAtomicType*>(t->asCVAtomicTypeC());
-      return c->isDependent() ||
-             c->isTypeVariable() ||
-             // NOTE NOTE NOTE! This is not the same as asking
-             // ct->isTemplate(), which seems to return false if it was a
-             // template but was then instantiated.  Hopefully this one will
-             // catch even instantiated templates.
-             (c->isCompoundType() && c->asCompoundType()->templateInfo());
-    }
-
-    // FIX: FUNC TEMPLATE LOSS
-//      case Type::T_FUNCTION:
-//        return t->asFunctionTypeC()->isTemplate();
-      
-    default:
-      // the original code asked 'isDependent' for all the nodes,
-      // but only CVAtomicTypes can possibly answer yes
-      return false;
-  }
-}
-
-// true if 't' is a template, an instantiated template, or contains
-// any type that is either (not including digging into the fields of
-// compound types)
-bool areYouOrHaveYouEverBeenATemplate(Type const *t)
-{
-  return t->anyCtorSatisfies(areYou_helper);
-}
-
-
-// return true iff all the args variables are non-templates; this is
-// temporary
-static bool allNonTemplateFunctions(SObjList<Variable> &set)
-{
-  SFOREACH_OBJLIST(Variable, set, iter) {
-    Variable const *funcVar = iter.data();
-    FunctionType *ft = funcVar->type->asFunctionType();
-    xassert(ft);
-    if (funcVar->isTemplate()) return false;
-    SFOREACH_OBJLIST(Variable, ft->params, param_iter) {
-      if (areYouOrHaveYouEverBeenATemplate(param_iter.data()->type)) return false;
-    }
-  }
-  return true;
-}
-
-
-// return true iff all the args variables are non-templates; this is
-// temporary
-static bool allNonTemplates(FakeList<ArgExpression> *args)
-{
-//    cout << "arguments:" << endl;
-  FAKELIST_FOREACH_NC(ArgExpression, args, iter) {
-//      cout << "\titer->expr->exprToString " << iter->exprToString() <<
-//        "iter->expr->type " << iter->type->toCString() << endl;
-    if (areYouOrHaveYouEverBeenATemplate(iter->getType())) return false;
-  }
-  return true;
-}
-
-
 // return true iff all the variables are non-methods; this is
 // temporary, otherwise I'd make it a method on class OverloadSet
 static bool allNonMethods(SObjList<Variable> &set)
@@ -4156,16 +4030,13 @@ static bool allMethods(SObjList<Variable> &set)
 // to reflect the chosen function.  Rationale: the caller is in a
 // better position to know what things need to be rewritten, since it
 // is fully aware of the syntactic context.
-static Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
+static Variable *outerResolveOverload(Env &env,
+                                      PQName * /*nullable*/ finalName,
+                                      SourceLoc loc, Variable *var,
                                       Type *receiverType, FakeList<ArgExpression> *args)
 {
   // are we even in a situation where we can do overloading?
   if (!var->overload) return NULL;
-
-  // temporarily avoid dealing with overload sets containing
-  // templatized functions
-  bool allNonTemplFunc0 = allNonTemplateFunctions(var->overload->set);
-  if (!allNonTemplFunc0) return NULL;
 
   // temporarily avoid dealing with considerations of mixed static and
   // non-static members in overload set
@@ -4206,7 +4077,7 @@ static Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
   // resolve overloading
   bool wasAmbig;     // ignored, since error will be reported
   return resolveOverload(env, loc, &env.errors,
-                         OF_NONE, var->overload->set, argInfo, wasAmbig);
+                         OF_NONE, var->overload->set, finalName, argInfo, wasAmbig);
 }
 
 
@@ -4227,22 +4098,20 @@ static Variable *outerResolveOverload_ctor
     Variable *ctor = ct->getNamedField(env.constructorSpecialName, env, LF_INNER_ONLY);
     xassert(ctor);
     if (really) {
-      Variable *chosen = outerResolveOverload(env, loc, ctor,
+      Variable *chosen = outerResolveOverload(env,
+                                              NULL, // finalName; none for a ctor
+                                              loc,
+                                              ctor,
                                               NULL, // not a method call, so no 'this' object
                                               args);
       if (chosen) {
         ret = chosen;
       } else {
-        // dsw: FIX: NOTE: this case only applies when
-        // outerResolveOverload() can't deal with the complexity of the
-        // situation due to templates etc.  When we are really done,
-        // this case should go away, I think.
         ret = ctor;
       }
     } else {                    // if we aren't really doing overloading
       ret = ctor;
     }
-    xassert(ret);               // var should never be null when we are done
   }
   // dsw: Note var can be NULL here for ctors for built-in types like
   // int; see t0080.cc
@@ -4254,9 +4123,17 @@ static Variable *outerResolveOverload_ctor
 // "true" except for any references to env.doOverload (and possibly
 // env.lang.allowOverloading, though that's handled elsewhere for now)
 static bool reallyDoOverload(Env &env, FakeList<ArgExpression> *args) {
+  Env::TemplTcheckMode mode = env.getTemplTcheckMode();
+  // note: there is a situation in which mode can actually be
+  // TTM_2TEMPL_FUNC_DECL: if you are in the parameter list of the
+  // definition of a templatized function and it refers to the
+  // instantiation of a templatized class and in the constructor for
+  // that class there is a member initializer that calls a constructor
+  // function; this comes up in in/big/nsCLiveconnectFactory.i:22245
+  // UPDATE: other changes should be fixing this
+  xassert(mode == Env::TTM_1NORMAL || mode == Env::TTM_3TEMPL_DEF);
   return env.doOverload         // user wants overloading
-    && !env.inTemplate()        // don't do any of this in a template context
-    && allNonTemplates(args);   // avoid dealing with template args
+    && mode == Env::TTM_1NORMAL; // we are in real code
 }
 // ------------- END: outerResolveOverload ------------------
 
@@ -4502,7 +4379,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
       E_variable *evar = func->asE_variable();
       
       Variable *chosen = 
-        outerResolveOverload(env, evar->name->loc, evar->var, 
+        outerResolveOverload(env, evar->name, evar->name->loc, evar->var, 
                              env.implicitReceiverType(), args);
       if (chosen) {
         // rewrite AST to reflect choice
@@ -4532,7 +4409,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
       E_fieldAcc *efld = func->asE_fieldAcc();
 
       Variable *chosen =
-        outerResolveOverload(env, efld->fieldName->loc, efld->field,
+        outerResolveOverload(env, efld->fieldName, efld->fieldName->loc, efld->field,
                              efld->obj->type, args);
       if (chosen) {
         // rewrite AST
@@ -4546,7 +4423,18 @@ Type *E_funCall::inner2_itcheck(Env &env)
       }
     }
   }
-  
+
+  // make sure this function has been typechecked; FIX: when we
+  // explicitly elaborate in the implicit "this->" then this code
+  // should become redundant
+  if (func->isE_variable()) {
+    // if it is a pointer to a function that function should get
+    // instantiated when its address is taken
+    if (func->asE_variable()->var->type->isFunctionType()) {
+      env.ensureFuncMemBodyTChecked(func->asE_variable()->var);
+    }
+  }
+
   // TODO: make sure the argument types are compatible
   // with the function parameters
 
@@ -4749,6 +4637,7 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
   Variable *ctor = outerResolveOverload_ctor(env, env.loc(), type, args,
                                              reallyDoOverload(env, args));
   if (ctor) {
+    env.ensureFuncMemBodyTChecked(ctor);
     ctorVar = env.storeVar(ctor);
   }
 
@@ -4812,6 +4701,9 @@ Type *E_fieldAcc::itcheck_x(Env &env, Expression *&replacement)
        
   // TODO: access control check
   
+  if (f->getType()->isFunctionType()) {
+    env.ensureFuncMemBodyTChecked(f);
+  }
   field = env.storeVarIfNotOvl(f);
 
   // type of expression is type of field; possibly as an lval
@@ -4884,7 +4776,9 @@ Type *resolveOverloadedUnaryOperator(
 
     // prepare resolver
     OverloadResolver resolver(env, env.loc(), &env.errors,
-                              OF_NONE, args);
+                              OF_NONE,
+                              NULL, // I assume operators can't have explicit template arguments
+                              args);
 
     // user-defined candidates
     resolver.addUserOperatorCandidates(expr->type, opName);
@@ -4963,7 +4857,9 @@ Type *resolveOverloadedBinaryOperator(
 
     // prepare the overload resolver
     OverloadResolver resolver(env, env.loc(), &env.errors,
-                              OF_NONE, args, 10 /*numCand*/);
+                              OF_NONE,
+                              NULL, // I assume operators can't have explicit template arguments
+                              args, 10 /*numCand*/);
     if (op == OP_COMMA) {
       // 13.3.1.2 para 9: no viable -> use built-in
       resolver.emptyCandidatesIsOk = true;
@@ -5281,6 +5177,11 @@ Type *E_addrOf::itcheck_x(Env &env, Expression *&replacement)
   if (expr->isE_variable()) {
     E_variable *e_var = expr->asE_variable();
     xassert(e_var->var);
+    // make sure we instantiate any functions that have their address
+    // taken
+    if (e_var->var->type->isFunctionType()) {
+      env.ensureFuncMemBodyTChecked(e_var->var);
+    }
     if (e_var->var->hasFlag(DF_MEMBER) &&
         (!e_var->var->hasFlag(DF_STATIC)) &&
         // cppstd 5.3.1 para 3: Nor is &unqualified-id a pointer to
@@ -5506,9 +5407,16 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
 
   if (ctorArgs) {
     ctorArgs->list = tcheckArgExprList(ctorArgs->list, env);
-    ctorVar = env.storeVar(
+    Variable *ctor0 = 
       outerResolveOverload_ctor(env, env.loc(), t, ctorArgs->list,
-                                reallyDoOverload(env, ctorArgs->list)));
+                                reallyDoOverload(env, ctorArgs->list));
+    // ctor0 can be null when the type is a simple type, such as an
+    // int; I assume that ctor0 being NULL is the correct behavior in
+    // that case
+    if (ctor0) {
+      env.ensureFuncMemBodyTChecked(ctor0);
+    }
+    ctorVar = env.storeVar(ctor0);
   }
 
   return env.makePtrType(SL_UNKNOWN, t);
@@ -5866,8 +5774,12 @@ void TemplateDeclaration::tcheck(Env &env)
 {
   // Note: This code has been partially copied to TD_tmember::itcheck (below).
 
+  // if this is a complete specialization put nothing on the stack as
+  // we are still in normal code
+  bool inCompleteSpec = params->isEmpty();
   // Second star to the right, and straight on till morning
-  StackMaintainer<TemplateDeclaration> sm(env.templateDeclarationStack, this);
+  StackMaintainer<TemplateDeclaration> sm
+    (env.templateDeclarationStack, inCompleteSpec ? NULL : this);
 
   // make a new scope to hold the template parameters
   Scope *paramScope = env.enterScope(SK_TEMPLATE, "template declaration parameters");
@@ -6160,6 +6072,15 @@ void TA_type::itcheck(Env &env)
   type = type->tcheck(env, tc);
 
   Type *t = type->getType();
+//    if (t->isCVAtomicType() && t->asCVAtomicType()->isTypeVariable()) {
+//      TypeVariable *tv = t->asCVAtomicType()->asTypeVariable();
+//      Variable *v0 = tv->typedefVar;
+//      xassert(v0);
+//      cout << "env.locStr() " << env.locStr()
+//           << " v0->name '" << v0->name
+//           << "' v0->serialNumber " << v0->serialNumber
+//           << endl;
+//    }
   
   // dsw: it would be a gratuitious non-orthgonality to guard the
   // following with a test such as
@@ -6167,10 +6088,9 @@ void TA_type::itcheck(Env &env)
   sarg.setType(t);
 }
 
-void TA_nontype::itcheck(Env &env)
+static void setSTemplArgFromExpr
+  (Env &env, STemplateArgument &sarg, Expression *expr, int recursionCount)
 {
-  expr->tcheck(env, expr);
-
   // see cppstd 14.3.2 para 1
 
   if (expr->type->isIntegerType() ||
@@ -6189,7 +6109,33 @@ void TA_nontype::itcheck(Env &env)
 
   else if (expr->type->isReference()) {
     if (expr->isE_variable()) {
-      sarg.setReference(expr->asE_variable()->var);
+      // lookup the variable in the scope and see if it has a value
+      // and replace it with that
+      Env::TemplTcheckMode mode = env.getTemplTcheckMode();
+      if (mode == Env::TTM_2TEMPL_FUNC_DECL
+          || mode == Env::TTM_3TEMPL_DEF
+          || recursionCount > 0) {
+        sarg.setReference(expr->asE_variable()->var);
+      } else if (mode == Env::TTM_1NORMAL) {
+        Variable *var0 = env.lookupPQVariable(expr->asE_variable()->name);
+        if (!var0) {
+          env.error(stringc
+                    << "`" << expr->exprToString() << "' must lookup to a variable "
+                    << "for it to be a variable template reference argument");
+          return;
+        }
+        if (!var0->value) {
+          env.error(stringc
+                    << "`" << expr->exprToString() << "' must lookup to a variable with a value "
+                    << "for it to be a variable template reference argument");
+          return;
+        }
+        // FIX: I suppose we should check here that the type of
+        // var0->value is what we expect from the expr
+        setSTemplArgFromExpr(env, sarg, var0->value, 1 /*recursionCount*/);
+      } else {
+        xfailure("bad");
+      }
     }
     else {
       env.error(stringc
@@ -6233,6 +6179,13 @@ void TA_nontype::itcheck(Env &env)
       << expr->type->toString() << "' but that's not an allowable "
       << "type for a template argument");
   }
+}
+
+
+void TA_nontype::itcheck(Env &env)
+{
+  expr->tcheck(env, expr);
+  setSTemplArgFromExpr(env, sarg, expr, 0 /*recursionCount*/);
 }
 
 

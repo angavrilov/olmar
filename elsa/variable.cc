@@ -6,6 +6,56 @@
 #include "trace.h"         // tracingSys
 
 
+// ---------------------- SomeTypeVarNotInTemplParams_Pred --------------------
+
+// existential search for a type variable that is not in the template
+// parameters
+class SomeTypeVarNotInTemplParams_Pred : public TypePred {
+  TemplateInfo *ti;
+  public:
+  SomeTypeVarNotInTemplParams_Pred(TemplateInfo *ti0) : ti(ti0) {}
+  virtual bool operator() (Type const *t);
+  virtual ~SomeTypeVarNotInTemplParams_Pred() {}
+};
+
+bool SomeTypeVarNotInTemplParams_Pred::operator() (Type const *t0)
+{
+  // other tests on 't' seem to want a non-const version
+  Type *t = const_cast<Type*>(t0);
+
+  if (!t->isCVAtomicType()) return false;
+  CVAtomicType *cv = t->asCVAtomicType();
+
+  if (cv->isCompoundType()) {
+    CompoundType *cpd = cv->asCompoundType();
+    // recurse on all of the arugments of the template instantiation
+    // if any
+    if (cpd->templateInfo()) {
+      FOREACH_OBJLIST_NC(STemplateArgument, cpd->templateInfo()->arguments, iter) {
+        STemplateArgument *sta = iter.data();
+        if (sta->isType()) {
+          if (sta->getType()->anyCtorSatisfies(*this)) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  if (cv->isTypeVariable()) {
+    // check that this tvar occurs in the parameters list of the
+    // template info
+    Variable *tvar = cv->asTypeVariable()->typedefVar;
+    SFOREACH_OBJLIST(Variable, ti->params, iter) {
+      Variable const *param = iter.data();
+      if (tvar == param) return false;
+    }
+    return true;
+  }
+
+  return false;                 // some other type of compound type
+};
+
+
 // ---------------------- Variable --------------------
 Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
   : loc(L),
@@ -15,6 +65,8 @@ Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
     value(NULL),
     defaultParamType(NULL),
     funcDefn(NULL),
+    instCtxt(NULL),
+    tcheckCtxt(NULL),
     overload(NULL),
     usingAlias(NULL),
     access(AK_PUBLIC),
@@ -72,6 +124,17 @@ TemplateInfo *Variable::templateInfo() const
 void Variable::setTemplateInfo(TemplateInfo *templInfo0)
 {
   templInfo = templInfo0;
+  xassert(!(templInfo && !templInfo->isMutant() && notQuantifiedOut()));
+}
+
+
+bool Variable::notQuantifiedOut()
+{
+  TemplateInfo *ti = templateInfo();
+  if (!ti) return false;
+  SomeTypeVarNotInTemplParams_Pred pred(ti);
+  return static_cast<Type const *>(type)->
+    anyCtorSatisfies(pred);
 }
 
 
@@ -161,6 +224,18 @@ string Variable::fullyQualifiedName() const
 string Variable::namePrintSuffix() const
 {
   return "";
+}
+
+
+void Variable::setInstCtxts(InstContext *instCtxt0, FuncTCheckContext *tcheckCtxt0)
+{
+  xassert(getType()->isFunctionType());
+
+  xassert(!instCtxt);
+  instCtxt = instCtxt0;
+
+  xassert(!tcheckCtxt);
+  tcheckCtxt = tcheckCtxt0;
 }
 
 

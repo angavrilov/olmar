@@ -219,6 +219,9 @@ Function *ElabVisitor::makeFunction(SourceLoc loc, Variable *var,
     NULL /*handlers*/
   );
   f->funcType = env.tfac.cloneType(var->type)->asFunctionType();
+  // FIX: it hasn't strictly been tchecked, but we are going to
+  // manually annotate it with types, which is manually tchecking it
+  f->hasBodyBeenTChecked = true;
 
   if (ft->isMethod()) {
     // f's receiver should match that of its funcType
@@ -627,6 +630,10 @@ Expression *ElabVisitor::elaborateCallByValue
   (SourceLoc loc, Type *paramType, Expression *argExpr)
 {
   CompoundType *paramCt = paramType->asCompoundType();
+  // we should never be using a mutant type here and this seems a
+  // reasonable place to check
+  xassert(!paramCt->templateInfo()
+          || !paramCt->templateInfo()->isMutant());
 
   // E_variable that points to the temporary
   Variable *tempVar = insertTempDeclaration(loc, tfac.cloneType(paramType));
@@ -968,6 +975,7 @@ MemberInit *ElabVisitor::makeCopyCtorMemberInit(
 
   //       MemberInit:
   MemberInit *mi = new MemberInit(new PQ_variable(loc, target), args);
+  push(mi->annot);
   if (isMember) {
     mi->member = target;
   }
@@ -975,6 +983,15 @@ MemberInit *ElabVisitor::makeCopyCtorMemberInit(
     mi->base = targetCt;
   }
   mi->ctorVar = targetCt? targetCt->getCopyCtor() : NULL;
+  if (mi->ctorVar) {
+    mi->ctorStatement = makeCtorStatement
+      (loc,
+       env.makeE_variable(loc, target),
+       target->type,
+       mi->ctorVar,
+       mi->args);
+  }
+  pop(mi->annot);
   return mi;
 }
 
@@ -1504,6 +1521,9 @@ bool S_return::elaborate(ElabVisitor &env)
 // ----------------------- TopForm ---------------------------
 bool ElabVisitor::visitTopForm(TopForm *tf)
 {
+  static int elabTopForm = 0;
+  ++elabTopForm;
+  TRACE("topform", elabTopForm);
   if (doing(EA_VARIABLE_DECL_CDTOR) &&
       tf->isTF_decl()) {
     // global variables
@@ -1518,6 +1538,11 @@ bool ElabVisitor::visitTopForm(TopForm *tf)
 // ----------------------- Function ---------------------------
 bool ElabVisitor::visitFunction(Function *f)
 {
+  // don't elaborate function bodies that were never typechecked
+  if (!f->hasBodyBeenTChecked) {
+    return false;               // prune
+  }
+
   functionStack.push(f);
   FunctionType *ft = f->funcType;
 
@@ -1760,6 +1785,8 @@ bool ElabVisitor::visitExpression(Expression *e)
   // the 'type' field, it will segfault here, so this test also
   // serves as something of an AST validator
   if (e->type->isDependent()) {
+    // FIX: dsw: shouldn't this be an assertion failure now that we
+    // never elaborate template definitions?
     return false;   // ignore children
   }
 
@@ -1845,6 +1872,77 @@ void ElabVisitor::postvisitInitializer(Initializer *in)
   if (in->isIN_expr() || in->isIN_ctor()) {
     pop(in->annot);
   }
+}
+
+
+// ----------------------- TemplateDeclaration ----------------------
+bool ElabVisitor::visitTemplateDeclaration(TemplateDeclaration *obj)
+{
+  // visit all the template instantiations
+  TemplateInfo *tinfo = NULL;
+  // FIX: should I do anything here for TD_tmember?
+  if (obj->isTD_func()) {
+    tinfo = obj->asTD_func()->f->nameAndParams->var->templateInfo();
+    // this fails for function members of template classes
+//      xassert(tinfo);
+  } else if (obj->isTD_proto()) {
+    FakeList<Declarator> *decllist = obj->asTD_proto()->d->decllist;
+    xassert(decllist->count() == 1);
+    tinfo = decllist->first()->var->templateInfo();
+    // this fails for var members of template classes
+//      xassert(tinfo);
+  } else if (obj->isTD_class() && obj->asTD_class()->spec->isTS_classSpec()) {
+    tinfo = obj->asTD_class()->spec->asTS_classSpec()->ctype->templateInfo();
+    // I think this will fail for class members of template classes,
+    // but I'll leave it until it does.
+    xassert(tinfo);
+  }
+
+  if (tinfo) {
+    tinfo = tinfo->getMyPrimaryIdem();
+    xassert(tinfo->isPrimary());
+
+    // don't visit the instantiations of the same primary twice
+    if (primaryTemplateInfos.contains(tinfo)) {
+      return false;             // prune; note: all returns from this method return false
+    }
+    primaryTemplateInfos.add(tinfo);
+
+    SFOREACH_OBJLIST_NC(Variable, tinfo->getInstantiations(), iter) {
+      Variable *var0 = iter.data();
+      if (var0->templateInfo()->isMutant()) continue;
+      if (!var0->templateInfo()->isCompleteSpecOrInstantiation()) continue;
+
+      // run a sub-traversal of the AST instantiation
+      if (var0->funcDefn) {
+        var0->funcDefn->traverse(*this);
+      }
+      if (var0->type->isCompoundType() && var0->type->asCompoundType()->syntax) {
+        var0->type->asCompoundType()->syntax->traverse(*this);
+      }
+
+      if (var0->type->isFunctionType()) {
+        if (var0->funcDefn) {
+          // if a function template was declared before being defined,
+          // unify the types of the two resulting variables so that
+          // external calls get matched with internal references to
+          // parameters
+          //
+          // UPDATE: I now make sure that the definition re-uses the
+          // variable of the declaration so this is not necessary
+          xassert(var0 == var0->funcDefn->nameAndParams->var);
+        } else {
+          // FIX: make this a user warning?
+//            USER_WARNING
+//              (var0->loc, " Declaration of a template [specialization?] without a definition");
+        }
+      } else {
+        xassert(!var0->funcDefn);
+      }
+    }
+  }
+  
+  return false;                 // prune the walk here; don't decend into template definitions
 }
 
 

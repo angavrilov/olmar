@@ -280,7 +280,9 @@ Variable const *Scope
   if (!name->hasQualifiers()) {
 //      cout << "lookupPQVariableC variables" << endl;
 //      for (StringSObjDict<Variable>::IterC iter(variables); !iter.isDone(); iter.next()) {
-//        cout << "\t" << iter.key() << "=" << iter.value() << endl;
+//        cout << "\t" << iter.key() << "=";
+//        iter.value()->gdb();
+//        cout << endl;
 //      }
 //      cout << "name->getName() " << name->getName() << endl;
     v1 = vfilterC(variables.queryif(name->getName()), flags);

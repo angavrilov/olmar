@@ -23,6 +23,7 @@
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
 class MatchTypes;         // matchtype.h
+class TypeListIter;       // overload.h
 
 
 // sm: TODO: I think this class should be defined in overload.h
@@ -59,8 +60,8 @@ class TemplCandidates {
     STAC_EQUAL,
     STAC_INCOMPARABLE,
   };
-  STemplateArgsCmp compareSTemplateArgs
-    (STemplateArgument *larg, STemplateArgument *rarg);
+  static STemplateArgsCmp compareSTemplateArgs
+    (TypeFactory &tfac, STemplateArgument const *larg, STemplateArgument const *rarg);
 
   public:
   // compare two different templates (primary / specialization /
@@ -71,6 +72,8 @@ class TemplCandidates {
   //   -1 if left is better
   //    0 if they are indistinguishable
   //   +1 if right is better
+  static int compareCandidatesStatic
+    (TypeFactory &tfac, TemplateInfo const *lti, TemplateInfo const *rti);
   int compareCandidates(Variable const *left, Variable const *right);
 };
 
@@ -143,6 +146,46 @@ class FuncDeclThing {
     xassert(isInitializer());
     return init;
   }
+};
+
+
+// FIX: these should probably be methods on Env.
+bool isCopyConstructor(Variable const *funcVar, CompoundType *ct);
+bool isCopyAssignOp(Variable const *funcVar, CompoundType *ct);
+void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
+
+
+// preserve a template instantiation context
+struct InstContext {
+  Variable *baseV;
+  Variable *instV;
+  Scope *foundScope;
+  SObjList<STemplateArgument> *sargs;
+
+  InstContext
+    (Variable *baseV,
+     Variable *instV,
+     Scope *foundScope,
+     SObjList<STemplateArgument> &sargs);
+  // FIX: creates garbage when deleted; I don't want any dangling
+  // pointer bugs for now
+};
+
+
+struct PartialScopeStack {
+  SObjList<Scope> scopes;
+  void stackIntoEnv(Env &env);
+  void unStackOutOfEnv(Env &env);
+};
+
+
+// preserve the function typechecking context
+struct FuncTCheckContext {
+  Function *func;
+  Scope *foundScope;
+  PartialScopeStack *pss;
+
+  FuncTCheckContext(Function *func, Scope *foundScope, PartialScopeStack *pss);
 };
 
 
@@ -355,6 +398,14 @@ public:      // funcs
   void extendScope(Scope *s);     // push onto stack, but don't own
   void retractScope(Scope *s);    // paired with extendScope()
 
+  // print out the variables in every scope with serialNumber-s
+  void debugPrintScopes();
+
+  // clone the part of the scope stack from the current up to the foundScope
+  PartialScopeStack *shallowClonePartialScopeStack(Scope *foundScope);
+  // so I can put methods on PartialScopeStack which seems more natural to me
+  friend struct PartialScopeStack;
+
   // the current, innermost scope
   Scope *scope() { return scopes.first(); }
   Scope const *scopeC() const { return scopes.firstC(); }
@@ -460,8 +511,19 @@ public:      // funcs
   bool loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
                                      MatchTypes &match);
   // infer template arguments from the function arguments; return true if successful
-  bool inferTemplArgsFromFuncArgs(Variable *var, FakeList<ArgExpression> *funcArgs,
-                                  MatchTypes &match);
+  bool inferTemplArgsFromFuncArgs(Variable *var,
+                                  TypeListIter &argsListIter,
+//                                    FakeList<ArgExpression> *funcArgs,
+                                  MatchTypes &match,
+                                  bool reportErrors);
+  // get both the explicit and implicit function template arguments
+  bool getFuncTemplArgs
+    (MatchTypes &match,
+     SObjList<STemplateArgument> &sargs,
+     PQName const *final,
+     Variable *var,
+     TypeListIter &argListIter,
+     bool reportErrors);
   Variable *lookupPQVariable_function_with_args
     (PQName const *name, LookupFlags flags, FakeList<ArgExpression> *funcArgs);
 
@@ -470,6 +532,13 @@ public:      // funcs
   Variable *lookupPQVariable(PQName const *name, LookupFlags f=LF_NONE);
   Variable *lookupVariable  (StringRef name,     LookupFlags f=LF_NONE);
 
+  // this is an internal function that should only be called by
+  // Env::lookupPQVariable(PQName const *name, LookupFlags f, Scope
+  // *&scope) and no one else
+  private:
+  Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags, 
+                                           Scope *&scope);
+  public:
   // this variant returns the Scope in which the name was found
   Variable *lookupPQVariable(PQName const *name, LookupFlags f, Scope *&scope);
   Variable *lookupVariable(StringRef name, LookupFlags f, Scope *&scope);
@@ -599,11 +668,16 @@ public:      // funcs
      Variable *baseV, Variable *instV,
      ASTList<TemplateArgument> const &astArgs);
 
+  // pick the MatchMode appropriate for the the TemplTcheckMode
+  MatchTypes::MatchMode mapTcheckModeToTypeMatchMode(TemplTcheckMode tcheckMode);
+
   // given a previously forwarded function template declaration and a
   // defintion that we have just found for it, attach that definition
   // to it and clean up a few things
   void provideDefForFuncTemplDecl
     (Variable *forward, TemplateInfo *primaryTI, Function *f);
+
+  void ensureFuncMemBodyTChecked(Variable *funcDefnInstV);
 
   // given a template function that was just made non-forward,
   // instantiate all of its forward-declared instances; NOTE: neither

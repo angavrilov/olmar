@@ -28,9 +28,9 @@ void gdbScopeSeq(ScopeSeq &ss)
 inline ostream& operator<< (ostream &os, SourceLoc sl)
   { return os << toString(sl); }
 
-
+/* static */
 TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
-  (STemplateArgument *larg, STemplateArgument *rarg)
+  (TypeFactory &tfac, STemplateArgument const *larg, STemplateArgument const *rarg)
 {
   xassert(larg->kind == rarg->kind);
 
@@ -107,17 +107,17 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
 }
 
 
-int TemplCandidates::compareCandidates(Variable const *left, Variable const *right)
+/* static */
+int TemplCandidates::compareCandidatesStatic
+  (TypeFactory &tfac, TemplateInfo const *lti, TemplateInfo const *rti)
 {
-  TemplateInfo *lti = const_cast<Variable*>(left)->templateInfo();
-  xassert(lti);
-  TemplateInfo *rti = const_cast<Variable*>(right)->templateInfo();
-  xassert(rti);
-
   // I do not even put the primary into the set so it should never
   // show up.
   xassert(lti->isNotPrimary());
   xassert(rti->isNotPrimary());
+
+  // they should have the same primary
+  xassert(lti->getMyPrimaryIdem() == rti->getMyPrimaryIdem());
 
   // they should always have the same number of arguments; the number
   // of parameters is irrelevant
@@ -125,14 +125,14 @@ int TemplCandidates::compareCandidates(Variable const *left, Variable const *rig
 
   STemplateArgsCmp leaning = STAC_EQUAL;// which direction are we leaning?
   // for each argument pairwise
-  ObjListIterNC<STemplateArgument> lIter(lti->arguments);
-  ObjListIterNC<STemplateArgument> rIter(rti->arguments);
+  ObjListIter<STemplateArgument> lIter(lti->arguments);
+  ObjListIter<STemplateArgument> rIter(rti->arguments);
   for(;
       !lIter.isDone();
       lIter.adv(), rIter.adv()) {
-    STemplateArgument *larg = lIter.data();
-    STemplateArgument *rarg = rIter.data();
-    STemplateArgsCmp cmp = compareSTemplateArgs(larg, rarg);
+    STemplateArgument const *larg = lIter.data();
+    STemplateArgument const *rarg = rIter.data();
+    STemplateArgsCmp cmp = compareSTemplateArgs(tfac, larg, rarg);
     switch(cmp) {
     default: xfailure("illegal STemplateArgsCmp"); break;
     case STAC_LEFT_MORE_SPEC:
@@ -171,6 +171,323 @@ int TemplCandidates::compareCandidates(Variable const *left, Variable const *rig
   case STAC_INCOMPARABLE: return 0; break;
   }
 }
+
+
+int TemplCandidates::compareCandidates(Variable const *left, Variable const *right)
+{
+  TemplateInfo *lti = const_cast<Variable*>(left)->templateInfo();
+  xassert(lti);
+  TemplateInfo *rti = const_cast<Variable*>(right)->templateInfo();
+  xassert(rti);
+
+  return compareCandidatesStatic(tfac, lti, rti);
+}
+
+
+// --------------------
+
+// true if 't' is reference to 'ct', ignoring any c/v
+static bool isRefToCt(Type const *t, CompoundType *ct)
+{
+  if (!t->isReference()) return false;
+
+  ReferenceType const *rt = t->asReferenceTypeC();
+  if (!rt->atType->isCVAtomicType()) return false;
+
+  CVAtomicType const *at = rt->atType->asCVAtomicTypeC();
+  if (at->atomic != ct) return false; // NOTE: atomics are equal iff pointer equal
+  
+  return true;
+}
+
+
+// cppstd 12.8 para 2: "A non-template constructor for a class X is a
+// _copy_ constructor if its first parameter is of type X&, const X&,
+// volatile X&, or const volatile X&, and either there are no other
+// parameters or else all other parameters have default arguments
+// (8.3.6)."
+bool isCopyConstructor(Variable const *funcVar, CompoundType *ct)
+{
+  FunctionType *ft = funcVar->type->asFunctionType();
+  if (!ft->isConstructor()) return false; // is a ctor?
+  if (funcVar->isTemplate()) return false; // non-template?
+  if (ft->params.isEmpty()) return false; // has at least one arg?
+
+  // is the first parameter a ref to the class type?
+  if (!isRefToCt(ft->params.firstC()->type, ct)) return false;
+
+  // do all the parameters past the first one have default arguments?
+  bool first_time = true;
+  SFOREACH_OBJLIST(Variable, ft->params, paramiter) {
+    // skip the first variable
+    if (first_time) {
+      first_time = false;
+      continue;
+    }
+    if (!paramiter.data()->value) return false;
+  }
+
+  return true;                  // all test pass
+}
+
+
+// cppstd 12.8 para 9: "A user-declared _copy_ assignment operator
+// X::operator= is a non-static non-template member function of class
+// X with exactly one parameter of type X, X&, const X&, volatile X&
+// or const volatile X&."
+bool isCopyAssignOp(Variable const *funcVar, CompoundType *ct)
+{
+  FunctionType *ft = funcVar->type->asFunctionType();
+  if (!ft->isMethod()) return false; // is a non-static member?
+  if (funcVar->isTemplate()) return false; // non-template?
+  if (ft->params.count() != 2) return false; // has two args, 1) this and 2) other?
+
+  // the second parameter; the first is "this"
+  Type *t0 = ft->params.nthC(1 /*that is, the second element*/)->type;
+
+  // is the parameter of the class type?  NOTE: atomics are equal iff
+  // pointer equal
+  if (t0->isCVAtomicType() && t0->asCVAtomicType()->atomic == ct) return true;
+
+  // or, is the parameter a ref to the class type?
+  return isRefToCt(t0, ct);
+}
+
+
+typedef bool (*MemberFnTest)(Variable const *funcVar, CompoundType *ct);
+
+// test for any match among a variable's overload set
+bool testAmongOverloadSet(MemberFnTest test, Variable *v, CompoundType *ct)
+{
+  if (!v) {
+    // allow this, and say there's no match, because there are
+    // no variables at all
+    return false;
+  }
+
+  if (!v->overload) {
+    // singleton set
+    if (test(v, ct)) {
+      return true;
+    }
+  }
+  else {
+    // more than one element; note that the original 'v' is always
+    // among the elements of this list
+    SFOREACH_OBJLIST_NC(Variable, v->overload->set, iter) {
+      if (test(iter.data(), ct)) {
+        return true;
+      }
+    }
+  }
+
+  return false;        // no match
+}
+
+// this adds:
+//   - a default (no-arg) ctor, if no ctor (of any kind) is already present
+//   - a copy ctor if no copy ctor is present
+//   - an operator= if none is present
+//   - a dtor if none is present
+// 'loc' remains a hack ...
+//
+// FIX: this should be a method on TS_classSpec
+// sm: I don't agree.
+void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
+{
+  // we shouldn't even be here if the language isn't C++.
+  xassert(env.lang.isCplusplus);
+
+  // the caller should already have arranged so that 'ct' is the
+  // innermost scope
+  xassert(env.acceptingScope() == ct);
+
+  // don't bother for anonymous classes (this was originally because
+  // the destructor would then not have a name, but it's been retained
+  // even as more compiler-supplied functions have been added)
+  if (!ct->name) {
+    return;
+  }
+
+  // **** implicit no-arg (aka "default") ctor: cppstd 12.1 para 5:
+  // "If there is no user-declared constructor for class X, a default
+  // constructor is implicitly declared."
+  if (!ct->getNamedFieldC(env.constructorSpecialName, env, LF_INNER_ONLY)) {
+    // add a no-arg ctor declaration: "Class();".  For now we just
+    // add the variable to the scope and don't construct the AST, in
+    // order to be symmetric with what is going on with the dtor
+    // below.
+    FunctionType *ft = env.beginConstructorFunctionType(loc, ct);
+    ft->doneParams();
+    Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, 
+                  DF_MEMBER | DF_IMPLICIT);
+    // NOTE: we don't use env.addVariableWithOload() because this is
+    // a special case: we only insert if there are no ctors AT ALL.
+    env.addVariable(v);
+    env.madeUpVariables.push(v);
+  }
+
+  // **** implicit copy ctor: cppstd 12.8 para 4: "If the class
+  // definition does not explicitly declare a copy constructor, one
+  // is declared implicitly."
+  Variable *ctor0 = ct->getNamedField(env.constructorSpecialName, env, LF_INNER_ONLY);
+  xassert(ctor0);             // we just added one if there wasn't one
+
+  // is there a copy constructor?  I'm rolling my own here.
+  if (!testAmongOverloadSet(isCopyConstructor, ctor0, ct)) {
+    // cppstd 12.8 para 5: "The implicitly-declared copy constructor
+    // for a class X will have the form
+    //
+    //   X::X(const X&)
+    //
+    // if [lots of complicated conditions about the superclasses have
+    // const copy ctors, etc.] ... Otherwise, the implicitly-declared
+    // copy constructor will have the form
+    //
+    //   X::X(X&)
+    //
+    // An implicitly-declared copy constructor is an inline public
+    // member of its class."
+
+    // dsw: I'm going to just always make it X::X(X const &) for now.
+    // TODO: do it right.
+
+    // create the effects of a declaration without making any AST or
+    // a body; add a copy ctor declaration: Class(Class const &__other);
+    FunctionType *ft = env.beginConstructorFunctionType(loc, ct);
+    Variable *refToSelfParam =
+      env.makeVariable(loc,
+                       env.otherName,
+                       env.makeReferenceType(loc,
+                         env.makeCVAtomicType(loc, ct, CV_CONST)),
+                       DF_PARAMETER);
+    ft->addParam(refToSelfParam);
+    ft->doneParams();
+    Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft,
+                                   DF_MEMBER | DF_IMPLICIT);
+    env.addVariableWithOload(ctor0, v);     // always overloaded; ctor0!=NULL
+    env.madeUpVariables.push(v);
+  }
+
+  // **** implicit copy assignment operator: 12.8 para 10: "If the
+  // class definition does not explicitly declare a copy assignment
+  // operator, one is declared implicitly."
+  Variable *assign_op0 = ct->getNamedField(env.operatorName[OP_ASSIGN],
+                                           env, LF_INNER_ONLY);
+  // is there a copy assign op?  I'm rolling my own here.
+  if (!testAmongOverloadSet(isCopyAssignOp, assign_op0, ct)) {
+    // 12.8 para 10: "The implicitly-declared copy assignment operator
+    // for a class X will have the form
+    //
+    //   X& X::operator=(const X&)
+    //
+    // if [lots of complicated conditions about the superclasses have
+    // const-parmeter copy assignment, etc.] ... Otherwise, the
+    // implicitly-declared copy assignment operator [mistake in spec:
+    // it says "copy constructor"] will have the form
+    //
+    //   X& X::operator=(X&)
+    //
+    // The implicitly-declared copy assignment
+    // operator for class X has the return type X&; it returns the
+    // object for which the assignment operator is invoked, that is,
+    // the object assigned to.  An implicitly-declared copy assignment
+    // operator is an inline public member of its class. ..."
+
+    // dsw: I'm going to just always make the parameter const for now.
+    // TODO: do it right.
+
+    // add a copy assignment op declaration: Class& operator=(Class const &);
+    Type *refToSelfType =
+      env.makeReferenceType(loc, env.makeCVAtomicType(loc, ct, CV_NONE));
+    Type *refToConstSelfType =
+      env.makeReferenceType(loc, env.makeCVAtomicType(loc, ct, CV_CONST));
+
+    FunctionType *ft = env.makeFunctionType(loc, refToSelfType);
+
+    // receiver object
+    ft->addReceiver(env.makeVariable(loc, env.receiverName,
+                                     env.tfac.cloneType(refToSelfType),
+                                     DF_PARAMETER));
+
+    // source object parameter
+    ft->addParam(env.makeVariable(loc,
+                                  env.otherName,
+                                  env.tfac.cloneType(refToConstSelfType),
+                                  DF_PARAMETER));
+
+    ft->doneParams();
+
+    Variable *v = env.makeVariable(loc, env.operatorName[OP_ASSIGN], ft,
+                                   DF_MEMBER | DF_IMPLICIT);
+    env.addVariableWithOload(assign_op0, v);
+    env.madeUpVariables.push(v);
+  }
+
+  // **** implicit dtor: declare a destructor if one wasn't declared
+  // already; this allows the user to call the dtor explicitly, like
+  // "a->~A();", since I treat that like a field lookup
+  StringRef dtorName = env.str(stringc << "~" << ct->name);
+  if (!ct->lookupVariable(dtorName, env, LF_INNER_ONLY)) {
+    // add a dtor declaration: ~Class();
+    FunctionType *ft = env.makeDestructorFunctionType(loc, ct);
+    Variable *v = env.makeVariable(loc, dtorName, ft,
+                                   DF_MEMBER | DF_IMPLICIT);
+    env.addVariable(v);       // cannot be overloaded
+
+    // put it on the list of made-up variables since there are no
+    // (e.g.) $tainted qualifiers (since the user didn't even type
+    // the dtor's name)
+    env.madeUpVariables.push(v);
+  }
+}
+
+
+// --------------------- InstContext -----------------
+
+InstContext::InstContext
+  (Variable *baseV0,
+   Variable *instV0,
+   Scope *foundScope0,
+   SObjList<STemplateArgument> &sargs0)
+    : baseV(baseV0)
+    , instV(instV0)
+    , foundScope(foundScope0)
+    , sargs(cloneSArgs(sargs0))
+{}
+
+
+// --------------------- PartialScopeStack -----------------
+
+void PartialScopeStack::stackIntoEnv(Env &env)
+{
+  for (int i=scopes.count()-1; i>=0; --i) {
+    Scope *s = this->scopes.nth(i);
+    env.scopes.prepend(s);
+  }
+}
+
+
+void PartialScopeStack::unStackOutOfEnv(Env &env)
+{
+  for (int i=0; i<scopes.count(); ++i) {
+    Scope *s = this->scopes.nth(i);
+    Scope *removed = env.scopes.removeFirst();
+    xassert(s == removed);
+  }
+}
+
+
+// --------------------- FuncTCheckContext -----------------
+
+FuncTCheckContext::FuncTCheckContext
+  (Function *func0,
+   Scope *foundScope0,
+   PartialScopeStack *pss0)
+    : func(func0)
+    , foundScope(foundScope0)
+    , pss(pss0)
+{}
 
 
 // --------------------- Env -----------------
@@ -945,6 +1262,49 @@ void Env::retractScope(Scope *s)
   // we don't own 's', so don't delete it
 }
 
+
+void Env::debugPrintScopes()
+{
+  cout << "Scopes and variables" << endl;
+  for (int i=0; i<scopes.count(); ++i) {
+    Scope *s = scopes.nth(i);
+    cout << "scope " << i << ", scopeKind " << toString(s->scopeKind) << endl;
+    for (StringSObjDict<Variable>::IterC iter = s->getVariableIter();
+         !iter.isDone();
+         iter.next()) {
+      Variable *value = iter.value();
+      cout << "\tkey '" << iter.key()
+           << "' value value->name '" << value->name
+           << "' ";
+      printf("%p ", value);
+//        cout << "value->serialNumber " << value->serialNumber;
+      cout << endl;
+    }
+  }
+}
+
+
+PartialScopeStack *Env::shallowClonePartialScopeStack(Scope *foundScope)
+{
+  xassert(foundScope);
+  PartialScopeStack *pss = new PartialScopeStack();
+  int scopesCount = scopes.count();
+  xassert(scopesCount>=2);
+  for (int i=0; i<scopesCount; ++i) {
+    Scope *s0 = scopes.nth(i);
+    Scope *s1 = scopes.nth(i+1);
+    // NOTE: omit foundScope itself AND the template scope below it
+    if (s1 == foundScope) {
+      xassert(s0->scopeKind == SK_TEMPLATE);
+      return pss;
+    }
+    xassert(s0->scopeKind != SK_TEMPLATE);
+    pss->scopes.append(s0);
+  }
+  xfailure("failed to find foundScope in the scope stack");
+  return NULL;
+}
+
       
 // this should be a rare event
 void Env::refreshScopeOpeningEffects()
@@ -1363,20 +1723,39 @@ Scope *Env::lookupOneQualifier(
         // has not been done, so I typecheck the PQName now in
         // Declarator::mid_tcheck() before this is called
 
-        SObjList<STemplateArgument> qsargs;
-        templArgsASTtoSTA(qualifier->targs, qsargs);
-        // this reinterpret_cast trick seems to be what Scott wants
-        // for this lack of owner/serf polymorphism problem
-        xassert(ct->templateInfo()->isPrimary());
-        Variable *inst = getInstThatMatchesArgs
-          (ct->templateInfo(), reinterpret_cast<ObjList<STemplateArgument>&>(qsargs));
-        if (inst) {
-          ct = inst->type->asCompoundType();
-        }
-        // otherwise, we just stay with the primary.
-        // FIX: in that case, we should assert that the args all match
-        // what they would if they were for a primary; such as a
-        // typevar arg for a type template parameter
+        Variable *inst = instantiateTemplate_astArgs
+          (loc(),               // FIX: ???
+           (ct->typedefVar->scope ? ct->typedefVar->scope : globalScope()), // FIX: ???
+           ct->typedefVar,
+           NULL /*instV*/,
+           qualifier->targs);
+        xassert(inst);
+        ct = inst->type->asCompoundType();
+
+        // NOTE: don't delete this yet.  If you replace the above code
+        // with this code, then in/t0216.cc should fail, but it
+        // doesn't.  There is an assertion in Variable
+        // *Env::lookupPQVariable(PQName const *name, LookupFlags
+        // flags, Scope *&scope) right after the (only) call to
+        // lookupPQVariable_internal() that should fail for
+        // in/t0216.cc but 1) it doesn't anyway, something I don't
+        // understand, since the lookup to foo() at the bottom of
+        // t0216.cc doesn't find the instantiated one, and 2) other
+        // tests fail that assertion also.
+//          SObjList<STemplateArgument> qsargs;
+//          templArgsASTtoSTA(qualifier->targs, qsargs);
+//          // this reinterpret_cast trick seems to be what Scott wants
+//          // for this lack of owner/serf polymorphism problem
+//          xassert(ct->templateInfo()->isPrimary());
+//          Variable *inst = getInstThatMatchesArgs
+//            (ct->templateInfo(), reinterpret_cast<ObjList<STemplateArgument>&>(qsargs));
+//          if (inst) {
+//            ct = inst->type->asCompoundType();
+//          }
+//          // otherwise, we just stay with the primary.
+//          // FIX: in that case, we should assert that the args all match
+//          // what they would if they were for a primary; such as a
+//          // typevar arg for a type template parameter
       }
     }
 
@@ -1596,7 +1975,15 @@ Variable *Env::getInstThatMatchesArgs
     bool unifies = match.match_Lists2
       (instantiation->templateInfo()->arguments, arguments, 2 /*matchDepth*/);
     if (unifies) {
-      xassert(!prevInst);       // I don't think you can get an instance in more than once
+      if (instantiation->templateInfo()->isMutant() &&
+          prevInst->templateInfo()->isMutant()) {
+        // if one mutant matches, more may, so just use the first one
+        continue;
+      }
+      // any other combination of double matching is an error; that
+      // is, I don't think you can get a non-mutant instance in more
+      // than once
+      xassert(!prevInst);
       prevInst = instantiation;
     }
   }
@@ -1607,6 +1994,9 @@ Variable *Env::getInstThatMatchesArgs
 bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
                                         MatchTypes &match)
 {
+  xassert(var->templateInfo());
+  xassert(var->templateInfo()->isPrimary());
+
   SObjListIterNC<Variable> paramIter(var->templateInfo()->params);
   ASTListIter<TemplateArgument> argIter(args);
   while (!paramIter.isDone() && !argIter.isDone()) {
@@ -1672,11 +2062,17 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument>
       char const *paramKind = param->hasFlag(DF_TYPEDEF)? "type" : "non-type";
       char const *argKind = arg->isTA_type()? "type" : "non-type";
       // FIX: make a provision for template template parameters here
+
+      // NOTE: condition this upon a boolean flag reportErrors if it
+      // starts to fail while filtering functions for overload
+      // resolution; see Env::inferTemplArgsFromFuncArgs() for an
+      // example
       error(stringc
             << "`" << param->name << "' is a " << paramKind
             << " parameter, but `" << arg->argString() << "' is a "
             << argKind << " argument",
             EF_STRONG);
+      return false;
     }
     paramIter.adv();
     argIter.adv();
@@ -1685,55 +2081,109 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument>
 }
 
 
-bool Env::inferTemplArgsFromFuncArgs(Variable *var, FakeList<ArgExpression> *funcArgs,
-                                     MatchTypes &match)
+bool Env::inferTemplArgsFromFuncArgs
+  (Variable *var,
+   TypeListIter &argListIter,
+   MatchTypes &match,
+   bool reportErrors)
 {
+  xassert(var->templateInfo());
+  xassert(var->templateInfo()->isPrimary());
+
   if (tracingSys("template")) {
     cout << "Deducing template arguments from function arguments" << endl;
   }
   // FIX: make this work for vararg functions
   int i = 1;            // for error messages
-  ArgExpression *argIterCur = funcArgs->first();
   SFOREACH_OBJLIST_NC(Variable, var->type->asFunctionType()->params, paramIter) {
     Variable *param = paramIter.data();
     xassert(param);
     // we could run out of args and it would be ok as long as we
     // have default arguments for the rest of the parameters
-    if (argIterCur) {
-      Expression *arg = argIterCur->expr;
-      if (!arg) {
-        error(stringc << "during function template instantiation: too few arguments to " <<
-              var->name, EF_STRONG);
-        return false;
-      }
-      bool argUnifies = match.match_Type(arg->getType(), param->type);
+    if (!argListIter.isDone()) {
+      Type *curArgType = argListIter.data();
+      bool argUnifies = match.match_Type(curArgType, param->type);
       if (!argUnifies) {
-        error(stringc << "during function template instantiation: "
-              << " argument " << i << " `" << arg->getType()->toString() << "'"
-              << " is incompatable with parameter, `"
-              << param->type->toString() << "'",
-              EF_STRONG);
+        if (reportErrors) {
+          error(stringc << "during function template instantiation: "
+                << " argument " << i << " `" << curArgType->toString() << "'"
+                << " is incompatable with parameter, `"
+                << param->type->toString() << "'");
+        }
         return false;             // FIX: return a variable of type error?
       }
     } else {
       // we don't use the default arugments for template arugment
       // inference, but there should be one anyway.
       if (!param->value) {
-        error(stringc << "during function template instantiation: too few arguments to " <<
-              var->name, EF_STRONG);
+        if (reportErrors) {
+          error(stringc << "during function template instantiation: too few arguments to " <<
+                var->name);
+        }
         return false;
       }
     }
     ++i;
     // advance the argIterCur if there is one
-    if (argIterCur) argIterCur = argIterCur->next;
+    if (!argListIter.isDone()) argListIter.adv();
   }
-  if (argIterCur) {
-    error(stringc << "during function template instantiation: too many arguments to " <<
-          var->name, EF_STRONG);
+  if (!argListIter.isDone()) {
+    if (reportErrors) {
+      error(stringc << "during function template instantiation: too many arguments to " <<
+            var->name);
+    }
     return false;
   }
   return true;
+}
+
+
+bool Env::getFuncTemplArgs
+  (MatchTypes &match,
+   SObjList<STemplateArgument> &sargs,
+   PQName const *final,
+   Variable *var,
+   TypeListIter &argListIter,
+   bool reportErrors)
+{
+  xassert(var->templateInfo()->isPrimary());
+
+  // 'final' might be NULL in the case of doing overload resolution
+  // for templatized ctors (that is, the ctor is templatized, but not
+  // necessarily the class)
+  if (final && final->isPQ_template()) {
+    if (!loadBindingsWithExplTemplArgs(var, final->asPQ_templateC()->args, match)) {
+      return false;
+    }
+  }
+
+  if (!inferTemplArgsFromFuncArgs(var, argListIter, match, reportErrors)) {
+    return false;
+  }
+
+  // put the bindings in a list in the right order; FIX: I am rather
+  // suspicious that the set of STemplateArgument-s should be
+  // everywhere represented as a map instead of as a list
+  //
+  // try to report more than just one at a time if we can
+  bool haveAllArgs = true;
+  SFOREACH_OBJLIST_NC(Variable, var->templateInfo()->params, templPIter) {
+    Variable *param = templPIter.data();
+    STemplateArgument *sta = NULL;
+    if (param->type->isTypeVariable()) {
+      sta = match.bindings.getTypeVar(param->type->asTypeVariable());
+    } else {
+      sta = match.bindings.getObjVar(param);
+    }
+    if (!sta) {
+      if (reportErrors) {
+        error(stringc << "No argument for parameter `" << templPIter.data()->name << "'");
+      }
+      haveAllArgs = false;
+    }
+    sargs.append(sta);
+  }
+  return haveAllArgs;
 }
 
 
@@ -1761,8 +2211,12 @@ Variable *Env::lookupPQVariable_function_with_args(
 
   // if we are inside a function definition, just return the primary
   TemplTcheckMode ttm = getTemplTcheckMode();
+  // FIX: this can happen when in the parameter list of a function
+  // template definition a class template is instantiated (as a
+  // Mutant)
+  // UPDATE: other changes should prevent this
   xassert(ttm != TTM_2TEMPL_FUNC_DECL);
-  if (ttm == TTM_3TEMPL_DEF) {
+  if (ttm == TTM_2TEMPL_FUNC_DECL || ttm == TTM_3TEMPL_DEF) {
     xassert(var->templateInfo()->isPrimary());
     return var;
   }
@@ -1786,39 +2240,14 @@ Variable *Env::lookupPQVariable_function_with_args(
   }
   xassert(var->templateInfo()->isPrimary());
 
-  // 'match.bindings' are the bindings we will use to instantiate
-  MatchTypes match(tfac, MatchTypes::MM_BIND);
-
-  if (final->isPQ_template()) {
-    if (!loadBindingsWithExplTemplArgs(var, final->asPQ_templateC()->args, match)) return NULL;
-  }
-
-  if (!inferTemplArgsFromFuncArgs(var, funcArgs, match)) return NULL;
-
-  // put the bindings in a list in the right order; FIX: I am
-  // rather suspicious that the set of STemplateArgument-s
-  // should be everywhere represented as a map instead of as a
-  // list
+  // get the semantic template arguments
   SObjList<STemplateArgument> sargs;
-  // try to report more than just one at a time if we can
-  bool haveAllArgs = true;
-  SFOREACH_OBJLIST_NC(Variable, var->templateInfo()->params, templPIter) {
-    Variable *param = templPIter.data();
-    STemplateArgument *sta = NULL;
-    if (param->type->isTypeVariable()) {
-      sta = match.bindings.getTypeVar(param->type->asTypeVariable());
-    } else {
-      sta = match.bindings.getObjVar(param);
+  {
+    TypeListIter_FakeList argListIter(funcArgs);
+    MatchTypes match(tfac, MatchTypes::MM_BIND);
+    if (!getFuncTemplArgs(match, sargs, final, var, argListIter, true /*reportErrors*/)) {
+      return NULL;
     }
-    if (!sta) {
-      error(stringc << "No argument for parameter `" << templPIter.data()->name << "'",
-            EF_STRONG);
-      haveAllArgs = false;
-    }
-    sargs.append(sta);
-  }
-  if (!haveAllArgs) {
-    return NULL;
   }
 
   // apply the template arguments to yield a new type based on
@@ -1831,15 +2260,15 @@ Variable *Env::lookupPQVariable_function_with_args(
 
 Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
 {
-  Scope *dummy;
+  Scope *dummy = NULL;
   return lookupPQVariable(name, flags, dummy);
 }
 
 // NOTE: It is *not* the job of this function to do overload
 // resolution!  If the client wants that done, it must do it itself,
 // *after* doing the lookup.
-Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags, 
-                                Scope *&scope)
+Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags, 
+                                         Scope *&scope)
 {
   Variable *var;
 
@@ -1867,7 +2296,6 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags,
       }
     }
 
-    // look inside the final scope for the final name
     var = scope->lookupVariable(name->getName(), *this, flags | LF_QUALIFIED);
     if (!var) {
       if (anyTemplates) {
@@ -1978,6 +2406,29 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags,
     }
   }
 
+  return var;
+}
+
+// NOTE: It is *not* the job of this function to do overload
+// resolution!  If the client wants that done, it must do it itself,
+// *after* doing the lookup.
+Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags, 
+                                Scope *&scope)
+{
+  Variable *var = lookupPQVariable_internal(name, flags, scope);
+  // in normal typechecking, nothing should look up to a variable from
+  // template-definition never-never land
+  if ( !(flags & LF_TEMPL_PRIMARY) &&
+       getTemplTcheckMode() == TTM_1NORMAL &&
+       var &&
+       !var->hasFlag(DF_NAMESPACE)
+       ) {
+    xassert(var->type);
+    // FIX: I think this assertion should never fail, but it fails in
+    // in/t0079.cc for reasons that seem to have something to do with
+    // DF_SELFNAME
+    //      xassert(!var->type->containsVariables());
+  }
   return var;
 }
 
@@ -2464,8 +2915,6 @@ void Env::templArgsASTtoSTA
     // to, but I need to put non-const pointers into the 'sargs' list
     // since that's what the interface to 'equalArguments' expects..
     // this is a problem with const-polymorphism again
-    //
-    // dsw: I did not write the non-standard English usage above
     TemplateArgument *ta = const_cast<TemplateArgument*>(iter.data());
     if (!ta->sarg.hasValue()) {
       error(stringc << "TemplateArgument has no value " << ta->argString(), EF_STRONG);
@@ -2487,6 +2936,26 @@ Variable *Env::instantiateTemplate_astArgs
 }
 
 
+MatchTypes::MatchMode Env::mapTcheckModeToTypeMatchMode(TemplTcheckMode tcheckMode)
+{
+  // map the typechecking mode to the type matching mode
+  MatchTypes::MatchMode matchMode = MatchTypes::MM_NONE;
+  switch(tcheckMode) {
+  default: xfailure("bad mode"); break;
+  case TTM_1NORMAL:
+    matchMode = MatchTypes::MM_BIND;
+    break;
+  case TTM_2TEMPL_FUNC_DECL:
+    matchMode = MatchTypes::MM_ISO;
+    break;
+  case TTM_3TEMPL_DEF:
+    xfailure("mapTcheckModeToTypeMatchMode: shouldn't be here TTM_3TEMPL_DEF mode");
+    break;
+  }
+  return matchMode;
+}
+
+
 Variable *Env::findMostSpecific(Variable *baseV, SObjList<STemplateArgument> &sargs)
 {
   // baseV should be a template primary
@@ -2499,20 +2968,7 @@ Variable *Env::findMostSpecific(Variable *baseV, SObjList<STemplateArgument> &sa
     baseV->templateInfo()->debugPrint();
   }
 
-  // map the typechecking mode to the type matching mode
-  MatchTypes::MatchMode matchMode = MatchTypes::MM_NONE;
-  switch(getTemplTcheckMode()) {
-  default: xfailure("bad mode"); break;
-  case TTM_1NORMAL:
-    matchMode = MatchTypes::MM_BIND;
-    break;
-  case TTM_2TEMPL_FUNC_DECL:
-    matchMode = MatchTypes::MM_ISO;
-    break;
-  case TTM_3TEMPL_DEF:
-    xfailure("findMostSpecific: shouldn't be here TTM_3TEMPL_DEF mode");
-    break;
-  }
+  MatchTypes::MatchMode matchMode = mapTcheckModeToTypeMatchMode(getTemplTcheckMode());
 
   // iterate through all of the instantiations and build up an
   // ObjArrayStack<Candidate> of candidates
@@ -2662,6 +3118,15 @@ void Env::unPrepArgScopeForTemlCloneTcheck
 }
 
 
+static bool doSTemplArgsContainVars(SObjList<STemplateArgument> &sargs)
+{
+  SFOREACH_OBJLIST_NC(STemplateArgument, sargs, iter) {
+    if (iter.data()->containsVariables()) return true;
+  }
+  return false;
+}
+
+
 // see comments in cc_env.h
 //
 // sm: TODO: I think this function should be split into two, one for
@@ -2732,7 +3197,8 @@ Variable *Env::instantiateTemplate
   xassert(baseV->templateInfo()->isPrimary());
   // if we are in a template definition typechecking mode just return
   // the primary
-  if (getTemplTcheckMode() == TTM_3TEMPL_DEF) {
+  TemplTcheckMode tcheckMode = getTemplTcheckMode();
+  if (tcheckMode == TTM_3TEMPL_DEF) {
     return baseV;
   }
 
@@ -2752,16 +3218,18 @@ Variable *Env::instantiateTemplate
   if (!instV) {
     // Search through the instantiations of this primary and do an
     // argument/specialization pattern match.
-    if (bestV) {
-      xassert(funcFwdInstV);
-    } else {
-      xassert(!funcFwdInstV);
+    if (!bestV) {
+      // FIX: why did I do this?  It doesn't work.
+//        if (tcheckMode == TTM_2TEMPL_FUNC_DECL) {
+//          // in mode 2, just instantiate the primary
+//          bestV = baseV;
+//        }
       bestV = findMostSpecific(baseV, sargs);
-      if (!bestV) {
-        return NULL;            // lookup was ambiguous, error has been reported
-      } else if (bestV->templateInfo()->isCompleteSpecOrInstantiation()) {
-        return bestV;
-      }
+      // if no bestV then the lookup was ambiguous, error has been reported
+      if (!bestV) return NULL;
+    }
+    if (bestV->templateInfo()->isCompleteSpecOrInstantiation()) {
+      return bestV;
     }
     baseV = bestV;              // baseV is saved in oldBaseV above
   }
@@ -2780,12 +3248,32 @@ Variable *Env::instantiateTemplate
   // dsw: UPDATE: now it's used during type construction for
   // elaboration, so has to be just the base name
   StringRef instName;
-  bool baseForward;
+  bool baseForward = false;
+  bool sTemplArgsContainVars = doSTemplArgsContainVars(sargs);
   if (baseV->type->isCompoundType()) {
-    baseForward = baseV->type->asCompoundType()->forward;
+    if (tcheckMode == TTM_2TEMPL_FUNC_DECL) {
+      // This ad-hoc condition is to prevent a class template
+      // instantiation in mode 2 that happens to not have any
+      // quantified template variables from being treated as
+      // forwareded.  Otherwise, what will happen is that if the
+      // same template arguments are seen in mode 3, the class will
+      // not be re-instantiated and a normal mode 3 class will have
+      // no body.  To see this happen turn of the next line and run
+      // in/d0060.cc and watch it fail.  Now comment out the 'void
+      // g(E<A> &a)' in d0060.cc and run again and watch it pass.
+      if (sTemplArgsContainVars) {
+        // don't instantiate the template in a function template
+        // definition parameter list
+        baseForward = true;
+      }
+    } else {
+      baseForward = baseV->type->asCompoundType()->forward;
+    }
     instName = baseV->type->asCompoundType()->name;
   } else {
     xassert(baseV->type->isFunctionType());
+    // we should never get here in TTM_2TEMPL_FUNC_DECL mode
+    xassert(tcheckMode != TTM_2TEMPL_FUNC_DECL);
     Declaration *declton = baseV->templateInfo()->declSyntax;
     if (declton && !baseV->funcDefn) {
       Declarator *decltor = declton->decllist->first();
@@ -2841,26 +3329,7 @@ Variable *Env::instantiateTemplate
     if (baseForward) {
       copyFun = NULL;
     } else {
-      if (!baseSyntax) {
-        // this means that we are in an instantiation request for a
-        // function that has not been forwarded and is not done having
-        // its body typechecked; I'm pretty sure this can only be
-        // typechecking the body of the definition of a template that
-        // is calling itself; I've decided when typechecking the body
-        // of a template that calls itself, to just halt the recursion
-        // by returning the baseV.  Note that this should not effect
-        // situations where we are fullfilling an instantiation
-        // request.
-        //
-        // FIX: this is duplication of step 6 below; it would be
-        // better if this were done with cdtors on a class to get the
-        // try/finally effect
-        if (argScope) {
-          unPrepArgScopeForTemlCloneTcheck(argScope, poppedScopes, pushedScopes);
-          argScope = NULL;
-        }
-        return baseV;
-      }
+      xassert(baseSyntax);
       copyFun = baseSyntax->clone();
     }
   }
@@ -3008,10 +3477,10 @@ Variable *Env::instantiateTemplate
       // prevent creating duplicate mutants in the first place; this
       // is quite wasteful if we have cloned an entire class of AST
       // only to throw it away again
-      Variable *newInstV = oldBaseV->templateInfo()->addInstantiation
-        (instV, true /*suppressDupMutant*/);
+      Variable *newInstV = oldBaseV->templateInfo()->
+        addInstantiation(instV, true /*suppressDup*/);
       if (newInstV != instV) {
-        // don't do stage 5 below; just use the new instV and be done
+        // don't do stage 5 below; just use the newInstV and be done
         // with it
         copyCpd = NULL;
         copyFun = NULL;
@@ -3051,8 +3520,23 @@ Variable *Env::instantiateTemplate
         // CompoundType we've built to contain its declarations; for
         // now I don't support nested template instantiation
         copyCpd->ctype = instV->type->asCompoundType();
-        copyCpd->tcheckIntoCompound(*this, DF_NONE, copyCpd->ctype, false /*inTemplate*/,
-                                    NULL /*containingClass*/);
+        // preserve the baseV and sargs so that when the member
+        // function bodies are typechecked later we have them
+        InstContext *instCtxt = new InstContext(baseV, instV, foundScope, sargs);
+        copyCpd->tcheckIntoCompound
+          (*this,
+           DF_NONE,
+           copyCpd->ctype,
+           false /*inTemplate*/,
+           // that's right, really check the member function bodies
+           // exactly when we are instantiating something that is not
+           // a complete specialization; if it *is* a complete
+           // specialization, then the tcheck will be done later, say,
+           // when the function is used
+           sTemplArgsContainVars /*reallyTcheckFunctionBodies*/,
+           instCtxt,
+           foundScope,
+           NULL /*containingClass*/);
         // this is turned off because it doesn't work: somewhere the
         // mutants are actually needed; Instead we just avoid them
         // above.
@@ -3076,10 +3560,11 @@ Variable *Env::instantiateTemplate
           // definitions will be patched in then
           if (!funcDefn) continue;
           // I need to instantiate this funcDefn.  This means: 1)
-          // clone it; 2) all the arguments are already in the scope,
-          // but if the definition named them differently, it won't
-          // work, so throw out the current template scope and make
-          // another; then 3) just typecheck it.
+          // clone it; [NOTE: this is not being done: 2) all the
+          // arguments are already in the scope, but if the definition
+          // named them differently, it won't work, so throw out the
+          // current template scope and make another]; then 3) just
+          // typecheck it.
           Function *copyFuncDefn = funcDefn->clone();
           // find the instantiation of the cloned declaration that
           // goes with it; FIX: this seems brittle to me; I'd rather
@@ -3101,18 +3586,47 @@ Variable *Env::instantiateTemplate
           }
           xassert(!funcDefnInstV->funcDefn);
 
+          // FIX: I wonder very much if the right thing is happening
+          // to the scopes at this point.  I think all the current
+          // scopes up to the global scope need to be removed, and
+          // then the template scope re-created, and then typecheck
+          // this.  The extra scopes are probably harmless, but
+          // shouldn't be there.
+
+          // save all the scopes from the foundScope down to the
+          // current scope; Scott: I think you are right that I didn't
+          // need to save them all, but I can't see how to avoid
+          // saving these.  How else would I re-create them?  Note
+          // that this is idependent of the note above about fixing
+          // the scope stack: we save whatever is there before
+          // entering Function::tcheck()
+          xassert(instCtxt);
+          xassert(foundScope);
+          FuncTCheckContext *tcheckCtxt = new FuncTCheckContext
+            (copyFuncDefn, foundScope, shallowClonePartialScopeStack(foundScope));
+
+          // urk, there's nothing to do here.  The declaration has
+          // already been tchecked, and we don't want to tcheck the
+          // definition yet, so we can just point the var at the
+          // cloned definition; I'll run the tcheck with
+          // checkBody=false anyway just for uniformity.
           copyFuncDefn->tcheck(*this,
-                               true /*checkBody*/,
+                               false /*checkBody*/,
                                false /*reallyAddVariable*/,
                                funcDefnInstV /*prior*/);
-          // the ultimate test
-          xassert(funcDefnInstV->funcDefn == copyFuncDefn);
+          // pase in the definition for later use
+          xassert(!funcDefnInstV->funcDefn);
+          funcDefnInstV->funcDefn = copyFuncDefn;
+
+          // preserve the instantiation context
+          xassert(funcDefnInstV = copyFuncDefn->nameAndParams->var);
+          copyFuncDefn->nameAndParams->var->setInstCtxts(instCtxt, tcheckCtxt);
         }
       } else {
         xassert(instV->type->isFunctionType());
         // if we are in a template definition, don't typecheck the
         // cloned function body
-        if (getTemplTcheckMode() == TTM_1NORMAL) {
+        if (tcheckMode == TTM_1NORMAL) {
           xassert(copyFun);
           copyFun->funcType = instV->type->asFunctionType();
           xassert(scope()->isGlobalTemplateScope());
@@ -3204,6 +3718,94 @@ void Env::provideDefForFuncTemplDecl
 }
 
 
+void Env::ensureFuncMemBodyTChecked(Variable *v)
+{
+  if (getTemplTcheckMode() != TTM_1NORMAL) return;
+  xassert(v);
+  xassert(v->getType()->isFunctionType());
+
+  // FIX: perhaps these should be assertion failures instead
+  TemplateInfo *vTI = v->templateInfo();
+  if (vTI) {
+    // NOTE: this is pretty weak, because it only applies to function
+    // templates not to function members of class templates, and the
+    // instantiation of function templates is never delayed.
+    // Therefore, we might as well say "return" here.
+    if (vTI->isMutant()) return;
+    if (!vTI->isCompleteSpecOrInstantiation()) return;
+  }
+
+  Function *funcDefn0 = v->funcDefn;
+
+  InstContext *instCtxt = v->instCtxt;
+  // anything that wasn't part of a template instantiation
+  if (!instCtxt) {
+    // if this function is defined, it should have been typechecked by now;
+    // UPDATE: unless it is defined later in the same class
+//      if (funcDefn0) {
+//        xassert(funcDefn0->hasBodyBeenTChecked);
+//      }
+    return;
+  }
+
+  FuncTCheckContext *tcheckCtxt = v->tcheckCtxt;
+  xassert(tcheckCtxt);
+
+  // if we are a member of a templatized class and we have not seen
+  // the funcDefn, then it must come later, but this is not
+  // implemented
+  if (!funcDefn0) {
+    unimp("class template function memeber invocation "
+          "before function definition is unimplemented");
+    return;
+  }
+
+  // if has been tchecked, we are done
+  if (funcDefn0->hasBodyBeenTChecked) {
+    return;
+  }
+
+  // OK, seems it can be a partial specialization as well
+//    xassert(instCtxt->baseV->templateInfo()->isPrimary());
+  xassert(instCtxt->baseV->templateInfo()->isPrimary() ||
+          instCtxt->baseV->templateInfo()->isPartialSpec());
+  // this should only happen for complete specializations
+  xassert(instCtxt->instV->templateInfo()->isCompleteSpecOrInstantiation());
+
+  // set up the scopes the way instantiateTemplate() would
+  ObjList<Scope> poppedScopes;
+  SObjList<Scope> pushedScopes;
+  Scope *argScope = prepArgScopeForTemlCloneTcheck
+    (poppedScopes, pushedScopes, instCtxt->foundScope);
+  insertBindings(instCtxt->baseV, *(instCtxt->sargs));
+
+  // mess with the scopes the way typechecking would between when it
+  // leaves instantiateTemplate() and when it arrives at the function
+  // tcheck
+  xassert(scopes.count() >= 2);
+  xassert(scopes.nth(1) == tcheckCtxt->foundScope);
+  xassert(scopes.nth(0)->scopeKind == SK_TEMPLATE);
+  tcheckCtxt->pss->stackIntoEnv(*this);
+
+  xassert(funcDefn0 == tcheckCtxt->func);
+  funcDefn0->tcheck(*this,
+                    true /*checkBody*/,
+                    false /*reallyAddVariable*/,
+                    v /*prior*/);
+  // should still be true
+  xassert(v->funcDefn == funcDefn0);
+
+  tcheckCtxt->pss->unStackOutOfEnv(*this);
+
+  if (argScope) {
+    unPrepArgScopeForTemlCloneTcheck(argScope, poppedScopes, pushedScopes);
+    argScope = NULL;
+  }
+  // make sure we haven't forgotten these
+  xassert(poppedScopes.isEmpty() && pushedScopes.isEmpty());
+}
+
+
 void Env::instantiateForwardFunctions(Variable *forward, Variable *primary)
 {
   TemplateInfo *primaryTI = primary->templateInfo();
@@ -3244,6 +3846,10 @@ void Env::instantiateForwardFunctions(Variable *forward, Variable *primary)
        // template in the same scope as the declaration, I conclude
        // that I can use the same scope as we are in now
 //         primary->scope,    // FIX: ??
+       // UPDATE: if the primary is in the global scope, then I
+       // suppose its scope might be NULL; I don't remember the rule
+       // for that.  So, maybe it's this:
+//         primary->scope ? primary->scope : env.globalScope()
        scope(),
        primary,
        NULL /*instV; only used by instantiateForwardClasses; this
@@ -4350,7 +4956,9 @@ TS_name *Env::buildTypedefSpecifier(Type *type)
 E_intLit *Env::buildIntegerLiteralExp(int i)
 {
   StringRef text = str(stringc << i);
-  return new E_intLit(text);
+  E_intLit *ret = new E_intLit(text);
+  ret->i = i;
+  return ret;
 }
 
 

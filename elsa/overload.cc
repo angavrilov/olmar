@@ -13,10 +13,51 @@
 #include "trace.h"         // TRACE
 
 
+// -------- TypeListIter_FakeList --------
+
+bool TypeListIter_FakeList::isDone() const
+{
+  return curFuncArgs == 0;
+}
+
+void TypeListIter_FakeList::adv()
+{
+  xassert(!isDone());
+  curFuncArgs = curFuncArgs->butFirst();
+}
+
+Type *TypeListIter_FakeList::data() const
+{
+  xassert(!isDone());
+  return curFuncArgs->first()->getType();
+}
+
+
+// -------- TypeListIter_GrowArray --------
+
+bool TypeListIter_GrowArray::isDone() const
+{
+  return i == args.size();
+}
+
+void TypeListIter_GrowArray::adv()
+{
+  xassert(!isDone());
+  ++i;
+}
+
+Type *TypeListIter_GrowArray::data() const
+{
+  xassert(!isDone());
+  return args[i].type;
+}
+
+
 // ------------------- Candidate -------------------------
-Candidate::Candidate(Variable *v, int numArgs)
-  : var(v),
-    conversions(numArgs)
+Candidate::Candidate(Variable *v, Variable *instFrom0, int numArgs)
+  : var(v)
+  , instFrom(instFrom0)
+  , conversions(numArgs)
 {}
 
 Candidate::~Candidate()
@@ -68,10 +109,11 @@ Variable *resolveOverload(
   ErrorList * /*nullable*/ errors,
   OverloadFlags flags,
   SObjList<Variable> &varList,
+  PQName *finalName,
   GrowArray<ArgumentInfo> &args,
   bool &wasAmbig)
 {
-  OverloadResolver r(env, loc, errors, flags, args, varList.count());
+  OverloadResolver r(env, loc, errors, flags, finalName, args, varList.count());
   r.processCandidates(varList);
   return r.resolve(wasAmbig);
 }
@@ -101,8 +143,40 @@ OverloadResolver::~OverloadResolver()
 void OverloadResolver::processCandidates(SObjList<Variable> &varList)
 {
   SFOREACH_OBJLIST_NC(Variable, varList, iter) {
+    xassert(!(iter.data()->notQuantifiedOut()));
     processCandidate(iter.data());
   }
+}
+
+
+void OverloadResolver::addCandidate(Variable *var0, Variable *instFrom)
+{
+  xassert(var0);
+  Candidate *c = makeCandidate(var0, instFrom);
+  if (c) {
+    IFDEBUG( c->conversionDescriptions(); )
+      candidates.push(c);
+  } else {
+    OVERLOADTRACE("(not viable)");
+  }
+}
+
+void OverloadResolver::addTemplCandidate
+  (Variable *baseV, Variable *var0, SObjList<STemplateArgument> &sargs)
+{
+  Variable *var0inst =
+    env.instantiateTemplate
+    (env.loc(),
+     // FIX: is this right?
+     var0->scope ? var0->scope : env.globalScope(),
+     baseV,
+     NULL /*instV*/,
+     var0 /*bestV*/,
+     sargs);
+  xassert(var0inst->templateInfo()->isCompleteSpecOrInstantiation());
+
+  // try adding the candidate
+  addCandidate(var0inst, var0);
 }
 
 void OverloadResolver::processCandidate(Variable *v)
@@ -113,17 +187,56 @@ void OverloadResolver::processCandidate(Variable *v)
   if ((flags & OF_NO_EXPLICIT) && v->hasFlag(DF_EXPLICIT)) {
     // not a candidate, we're ignoring explicit constructors
     OVERLOADTRACE("(not viable due to 'explicit')");
+    return;
   }
-  else {
-    Candidate *c = makeCandidate(v);
-    if (c) {
-      IFDEBUG( c->conversionDescriptions(); )
-      candidates.push(c);
-    }
-    else {
-      OVERLOADTRACE("(not viable)");
+
+  TemplateInfo *vTI = v->templateInfo();
+
+  if (!vTI) {
+    // non-template function; process and return
+    addCandidate(v, NULL /*instFrom*/);
+    return;
+  }
+
+  // template function; we have to filter out all of the possible
+  // specializations and put them, together with the primary, into the
+  // candidates list
+  xassert(vTI->isPrimary());
+
+  // get the semantic template arguments
+  SObjList<STemplateArgument> sargs;
+  {
+    // FIX: This is a bug!  If the args contain template parameters,
+    // they will be the wrong template parameters.
+    TypeListIter_GrowArray argListIter(this->args);
+    MatchTypes match(env.tfac, MatchTypes::MM_BIND);
+    if (!env.getFuncTemplArgs(match, sargs, finalName, v, argListIter, false /*reportErrors*/)) {
+      // something doesn't work about processing the template arguments
+      return;
     }
   }
+
+  // FIX: the following is copied from Env::findMostSpecific(); it
+  // could be factored out and merged but adding to the list in the
+  // inner loop would be messy; you would have to make it an iterator
+  SFOREACH_OBJLIST_NC(Variable, vTI->getInstantiations(), iter) {
+    Variable *var0 = iter.data();
+    TemplateInfo *templInfo0 = var0->templateInfo();
+    xassert(templInfo0);      // should have templateness
+    // Sledgehammer time.
+    if (templInfo0->isMutant()) continue;
+    // see if this candidate matches
+    MatchTypes match(env.tfac, MatchTypes::MM_BIND);
+    if (!match.match_Lists(sargs, templInfo0->arguments, 2 /*matchDepth*/)) {
+      // if not, skip it
+      continue;
+    }
+
+    addTemplCandidate(v, var0, sargs);
+  }
+
+  // add the primary also
+  addTemplCandidate(v, v, sargs);
 }
 
 
@@ -140,7 +253,7 @@ void OverloadResolver::processPossiblyOverloadedVar(Variable *v)
 
 void OverloadResolver::addAmbiguousBinaryCandidate(Variable *v)
 {
-  Candidate *c = new Candidate(v, 2);
+  Candidate *c = new Candidate(v, NULL /*instFrom*/, 2);
   c->conversions[0].addAmbig();
   c->conversions[1].addAmbig();
 
@@ -329,7 +442,23 @@ Variable *OverloadResolver::resolve(bool &wasAmbig)
     return NULL;
   }
 
-  return winner->var;
+  // dsw: I've decided to agressively instantiate the template since
+  // everything downstream from here seems to assume that it has not
+  // gotten a template but a real variable with a real type etc.
+  // NOTE: if you do the optimization of instantiating only the
+  // function signatures and not the whole body then here is the place
+  // you would actually do the whole body instantiation; for now there
+  // is nothing to do here as it has already been done
+  Variable *retV = winner->var;
+  if (winner->instFrom) {
+    // instantiation is now done during candidate processing
+    xassert(retV->templateInfo());
+    xassert(retV->templateInfo()->isCompleteSpecOrInstantiation());
+  } else {
+    xassert(!retV->templateInfo());
+  }
+
+  return retV;
 }
 
 
@@ -343,9 +472,10 @@ Variable *OverloadResolver::resolve()
 // for each parameter, determine an ICS, and return the resulting
 // Candidate; return NULL if the function isn't viable; this
 // implements cppstd 13.3.2
-Candidate * /*owner*/ OverloadResolver::makeCandidate(Variable *var)
+Candidate * /*owner*/ OverloadResolver::makeCandidate
+  (Variable *var, Variable *instFrom)
 {
-  Owner<Candidate> c(new Candidate(var, args.size()));
+  Owner<Candidate> c(new Candidate(var, instFrom, args.size()));
 
 //    cout << "args.size() " << args.size() << endl;
 
@@ -502,17 +632,60 @@ int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *
   // the specialization syntax or just an instance of a template..
   // I'm going to use the latter interpretation since I think it
   // makes more sense
-  //
-  // FIX: FUNC TEMPLATE LOSS
-//    if (!leftFunc->isTemplate() && rightFunc->isTemplate()) {
-//      return -1;     // left is non-template
-//    }
-//    else if (leftFunc->isTemplate() && !rightFunc->isTemplate()) {
-//      return +1;     // right is non-template
-//    }
+  if (!left->var->templateInfo() && right->var->templateInfo()) {
+    xassert(!left->instFrom);
+    xassert(right->instFrom);
+    return -1;     // left is non-template
+  } else if (left->var->templateInfo() && !right->var->templateInfo()) {
+    xassert(left->instFrom);
+    xassert(!right->instFrom);
+    return +1;     // right is non-template
+  }
   
-  // TODO: next rule talks about comparing templates to find out
-  // which is more specialized
+  // next rule talks about comparing templates to find out which is
+  // more specialized
+  if (left->var->templateInfo() && right->var->templateInfo()) {
+    // NOTE: we use the instFrom field here instead of the var
+    xassert(left->instFrom);
+    xassert(right->instFrom);
+    TemplateInfo *lti = left->instFrom->templateInfo();
+    TemplateInfo *rti = right->instFrom->templateInfo();
+    // if they don't have the same primary, they are not comparable
+    if (lti->getMyPrimaryIdem() != rti->getMyPrimaryIdem()) {
+      return 0;
+    }
+    if (lti->isPrimary()) {
+      if (rti->isPrimary()) {
+        // if both have the same primary and both are a primary, they must be equal
+        xassert(lti == rti);
+        // you can't have the same primary twice in an overload set
+        xfailure("duplicate primaries");
+        // no return
+      } else {
+        // left is a primary, right is not, they both have the same
+        // primary, then right is more specific
+        xassert(rti->getMyPrimaryIdem() == lti);
+        return +1;
+      }
+    } else {
+      if (rti->isPrimary()) {
+        // right is a primary, left is not, they both have the same
+        // primary, then left is more specific
+        xassert(lti->getMyPrimaryIdem() == rti);
+        return -1;
+      } else {
+        // neither is a primary, but both have the same primary;
+        // return the one that is the most specific
+        int comp = TemplCandidates::compareCandidatesStatic(env.tfac, lti, rti);
+        if (comp!=0) {
+          return comp;
+        } else {
+          // otherwise, we fall through to the below; FIX: does the
+          // below code even make sense in the presence of templates?
+        }
+      }
+    }
+  }
 
   // if we're doing "initialization by user-defined conversion", then
   // look at the conversion sequences to the final destination type
@@ -961,7 +1134,11 @@ ImplicitConversion getConversionOperator(
   // set up the resolver; since the only argument is the receiver
   // object, user-defined conversions should never enter the picture,
   // but I'll supply OF_NO_USER just to be sure
-  OverloadResolver resolver(env, loc, errors, OF_NO_USER, args);
+  OverloadResolver resolver(env, loc, errors, OF_NO_USER,
+                            // I assume conversion operators can't
+                            // have explicit template arguments
+                            NULL,
+                            args);
 
   // get the conversion operators for the source class
   SObjList<Variable> &ops = srcClass->conversionOperators;
