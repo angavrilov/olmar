@@ -759,19 +759,17 @@ int compareStandardConversions
       switch (L->getTag()) {
         default: xfailure("bad tag");
 
-        case Type::T_POINTER: {
-          PointerType const *lpt = L->asPointerTypeC();
-          PointerType const *rpt = R->asPointerTypeC();
-
+        case Type::T_POINTER:
+        case Type::T_REFERENCE: {
           // assured by non-stackability of references
-          xassert(lpt->op == rpt->op);
+          xassert(L->isPointerType() == R->isPointerType());
 
-          if (foldNextCVs(ret, lpt->cv, rpt->cv)) {
+          if (foldNextCVs(ret, L->getCVFlags(), R->getCVFlags())) {
             return 0;        // not subset, therefore no decision
           }
 
-          L = lpt->atType;
-          R = rpt->atType;
+          L = L->getAtType();
+          R = R->getAtType();
           break;
         }
 
@@ -1115,7 +1113,14 @@ Type *similarLUB(Env &env, Type *t1, Type *t2, bool &cvdiffers, bool toplevel=fa
       PointerType *pt2 = t2->asPointerType();
       Type *under = similarLUB(env, pt1->atType, pt2->atType, cvdiffers);
       CVFlags cvu = unionCV(pt1->cv, pt2->cv, cvdiffers, toplevel);
-      return env.tfac.makePointerType(SL_UNKNOWN, pt1->op, cvu, under);
+      return env.tfac.makePointerType(SL_UNKNOWN, cvu, under);
+    }
+
+    case Type::T_REFERENCE: {
+      ReferenceType *rt1 = t1->asReferenceType();
+      ReferenceType *rt2 = t2->asReferenceType();
+      Type *under = similarLUB(env, rt1->atType, rt2->atType, cvdiffers);
+      return env.tfac.makeReferenceType(SL_UNKNOWN, under);
     }
 
     case Type::T_FUNCTION:
@@ -1188,7 +1193,7 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
         lubCtType = env.tfac.makeCVAtomicType(SL_UNKNOWN, lubCt, cvu);
       }
 
-      return env.tfac.makePointerType(SL_UNKNOWN, PO_POINTER, CV_NONE, lubCtType);
+      return env.tfac.makePointerType(SL_UNKNOWN, CV_NONE, lubCtType);
     }
   }
 

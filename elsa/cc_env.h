@@ -442,8 +442,10 @@ public:      // funcs
   // TypeFactory funcs; all of these simply delegate to 'tfac'
   CVAtomicType *makeCVAtomicType(SourceLoc loc, AtomicType *atomic, CVFlags cv)
     { return tfac.makeCVAtomicType(loc, atomic, cv); }
-  PointerType *makePointerType(SourceLoc loc, PtrOper op, CVFlags cv, Type *atType)
-    { return tfac.makePointerType(loc, op, cv, atType); }
+  PointerType *makePointerType(SourceLoc loc, CVFlags cv, Type *atType)
+    { return tfac.makePointerType(loc, cv, atType); }
+  ReferenceType *makeReferenceType(SourceLoc loc, Type *atType)
+    { return tfac.makeReferenceType(loc, atType); }
   FunctionType *makeFunctionType(SourceLoc loc, Type *retType)
     { return tfac.makeFunctionType(loc, retType); }
   ArrayType *makeArrayType(SourceLoc loc, Type *eltType, int size = -1)

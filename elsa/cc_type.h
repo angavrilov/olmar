@@ -56,6 +56,7 @@ class EnumType;
 class TypeVariable;
 class CVAtomicType;
 class PointerType;
+class ReferenceType;
 class FunctionType;
 class ArrayType;
 class PointerToMemberType;
@@ -406,7 +407,14 @@ public:     // funcs
 // note: clients should refer to Type, not BaseType
 class BaseType INHERIT_SERIAL_BASE {
 public:     // types
-  enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY, T_POINTERTOMEMBER };
+  enum Tag { 
+    T_ATOMIC, 
+    T_POINTER,
+    T_REFERENCE,
+    T_FUNCTION,
+    T_ARRAY,
+    T_POINTERTOMEMBER
+  };
 
 public:     // data
   // This is a list of typedef'd aliases for this type.  It may be
@@ -447,12 +455,14 @@ public:     // funcs
   virtual Tag getTag() const = 0;
   bool isCVAtomicType() const { return getTag() == T_ATOMIC; }
   bool isPointerType() const { return getTag() == T_POINTER; }
+  bool isReferenceType() const { return getTag() == T_REFERENCE; }
   bool isFunctionType() const { return getTag() == T_FUNCTION; }
   bool isArrayType() const { return getTag() == T_ARRAY; }
   bool isPointerToMemberType() const { return getTag() == T_POINTERTOMEMBER; }
 
   DOWNCAST_FN(CVAtomicType)
   DOWNCAST_FN(PointerType)
+  DOWNCAST_FN(ReferenceType)
   DOWNCAST_FN(FunctionType)
   DOWNCAST_FN(ArrayType)
   DOWNCAST_FN(PointerToMemberType)
@@ -593,15 +603,19 @@ public:     // funcs
   bool isError() const { return isSimple(ST_ERROR); }
   bool isDependent() const;
   bool isOwnerPtr() const;
-  bool isMethod() const;                 // function and method
+  bool isMethod() const;                       // function and method
 
   // pointer/reference stuff
-  bool isPointer() const;                // as opposed to reference or non-pointer
-  bool isReference() const;
-  bool isLval() const { return isReference(); }    // C terminology
+  bool isPointer() const { return isPointerType(); }
+  bool isReference() const { return isReferenceType(); }
+  bool isLval() const { return isReference(); }// C terminology
+
+  // allow some degree of unified handling of PointerType and ReferenceType
+  bool isPtrOrRef() const { return isPointer() || isReference(); }
+  Type *getAtType() const;                     // isPtrOrRef() must be true
 
   // note that Type overrides these to return Type instead of BaseType
-  BaseType const *asRvalC() const;           // if I am a reference, return referrent type
+  BaseType const *asRvalC() const;             // if I am a reference, return referrent type
   BaseType *asRval() { return const_cast<BaseType*>(asRvalC()); }
 
   bool isCVAtomicType(AtomicType::Tag tag) const;
@@ -708,22 +722,23 @@ public:
   virtual CVFlags getCVFlags() const;
 };
 
-
+             
+#if 0    // obsolete?
 // "*" vs "&"
 enum PtrOper {
   PO_POINTER, PO_REFERENCE
 };
+#endif // 0
 
-// type of a pointer or reference
+// type of a pointer
 class PointerType : public Type {
 public:     // data
-  PtrOper op;                  // "*" or "&"; see note at end of file
-  CVFlags cv;                  // const/volatile, if "*"; refers to pointer *itself*
+  CVFlags cv;                  // const/volatile; refers to pointer *itself*
   Type *atType;                // (serf) type of thing pointed-at
 
 protected:  // funcs
   friend class BasicTypeFactory;
-  PointerType(PtrOper o, CVFlags c, Type *a);
+  PointerType(CVFlags c, Type *a);
 
 public:
   bool innerEquals(PointerType const *obj, EqFlags flags) const;
@@ -732,6 +747,32 @@ public:
 
   // Type interface
   virtual Tag getTag() const { return T_POINTER; }
+  unsigned innerHashValue() const;
+  virtual string toMLString() const;
+  virtual string leftString(bool innerParen=true) const;
+  virtual string rightString(bool innerParen=true) const;
+  virtual int reprSize() const;
+  virtual bool anyCtorSatisfies(TypePred pred) const;
+  virtual CVFlags getCVFlags() const;
+};
+
+
+// type of a reference
+class ReferenceType : public Type {
+public:     // data
+  Type *atType;                // (serf) type of thing pointed-at
+
+protected:  // funcs
+  friend class BasicTypeFactory;
+  ReferenceType(Type *a);
+
+public:
+  bool innerEquals(ReferenceType const *obj, EqFlags flags) const;
+  bool isConst() const { return false; }
+  bool isVolatile() const { return false; }
+
+  // Type interface
+  virtual Tag getTag() const { return T_REFERENCE; }
   unsigned innerHashValue() const;
   virtual string toMLString() const;
   virtual string leftString(bool innerParen=true) const;
@@ -892,11 +933,7 @@ public:
 };
 
 
-// pointer to member; at least for now, this is not unified with
-// PointerType because that would make it too easy to have silent bugs
-// in code that fails to explicitly deal with ptr-to-member
-// UPDATE dsw: This class should never be unified with pointer because
-// it is a completely different kind of thing.
+// pointer to member
 class PointerToMemberType : public Type {
 public:
   // Usually, this is a compound type, as ptr-to-members are
@@ -1238,7 +1275,10 @@ public:
     AtomicType *atomic, CVFlags cv)=0;
 
   virtual PointerType *makePointerType(SourceLoc loc,
-    PtrOper op, CVFlags cv, Type *atType)=0;
+    CVFlags cv, Type *atType)=0;
+
+  virtual ReferenceType *makeReferenceType(SourceLoc loc,
+    Type *atType)=0;
 
   virtual FunctionType *makeFunctionType(SourceLoc loc,
     Type *retType)=0;
@@ -1263,6 +1303,7 @@ public:
   // when types are cloned, their location is expected to be copied too
   virtual CVAtomicType *cloneCVAtomicType(CVAtomicType *src)=0;
   virtual PointerType *clonePointerType(PointerType *src)=0;
+  virtual ReferenceType *cloneReferenceType(ReferenceType *src)=0;
   virtual FunctionType *cloneFunctionType(FunctionType *src)=0;
   virtual ArrayType *cloneArrayType(ArrayType *src)=0;
   virtual PointerToMemberType *clonePointerToMemberType(PointerToMemberType *src)=0;
@@ -1291,17 +1332,19 @@ public:
   // this is called in a few specific circumstances when we want to
   // know the reference type corresponding to some variable; the
   // analysis may need to do something other than a straightforward
-  // "makePointerType(PO_REFERENCE, CV_CONST, underlying)" (which is
-  // the default behavior); this also has the semantics that if
-  // 'underlying' is ST_ERROR then this must return ST_ERROR
+  // "makeReferenceType(underlying)" (which is the default behavior);
+  // this also has the semantics that if 'underlying' is ST_ERROR then
+  // this must return ST_ERROR
   virtual Type *makeRefType(SourceLoc loc, Type *underlying);
 
   // build a pointer type from a syntactic description; here I allow
   // the factory to know the name of an AST node, but the default
   // implementation will not use it, so it need not be linked in for
   // this to make sense
-  virtual PointerType *syntaxPointerType(SourceLoc loc,
-    PtrOper op, CVFlags cv, Type *underlying, 
+  //
+  // returns either PointerType or ReferenceType
+  virtual Type *syntaxPointerType(SourceLoc loc,
+    bool isPtr, CVFlags cv, Type *underlying,
     D_pointer * /*nullable*/ syntax);
 
   // similar for a function type; the parameters will be added by
@@ -1320,7 +1363,7 @@ public:
   // 4/18/04: the 'classType' has been generalized because we
   //          represent ptr-to-member-func using a FunctionType
   //          with receiver parameter of type 'classType'
-  virtual PointerType *makeTypeOf_receiver(SourceLoc loc,
+  virtual ReferenceType *makeTypeOf_receiver(SourceLoc loc,
     NamedAtomicType *classType, CVFlags cv, D_func * /*nullable*/ syntax);
 
   // this will cause a compile error if anyone uses the old name; it
@@ -1357,7 +1400,7 @@ public:
   // make a ptr-to-'type' type; returns generic Type instead of
   // PointerType because sometimes I return ST_ERROR
   inline Type *makePtrType(SourceLoc loc, Type *type)
-    { return type->isError()? type : makePointerType(loc, PO_POINTER, CV_NONE, type); }
+    { return type->isError()? type : makePointerType(loc, CV_NONE, type); }
 
   // map a simple type into its CVAtomicType representative
   CVAtomicType *getSimpleType(SourceLoc loc, SimpleTypeId st, CVFlags cv = CV_NONE);
@@ -1386,8 +1429,10 @@ public:    // funcs
   // TypeFactory funcs
   virtual CVAtomicType *makeCVAtomicType(SourceLoc loc, 
     AtomicType *atomic, CVFlags cv);
-  virtual PointerType *makePointerType(SourceLoc loc, 
-    PtrOper op, CVFlags cv, Type *atType);
+  virtual PointerType *makePointerType(SourceLoc loc,
+    CVFlags cv, Type *atType);
+  virtual ReferenceType *makeReferenceType(SourceLoc loc,
+    Type *atType);
   virtual FunctionType *makeFunctionType(SourceLoc loc,
     Type *retType);
   virtual ArrayType *makeArrayType(SourceLoc loc,
@@ -1397,6 +1442,7 @@ public:    // funcs
 
   virtual CVAtomicType *cloneCVAtomicType(CVAtomicType *src);
   virtual PointerType *clonePointerType(PointerType *src);
+  virtual ReferenceType *cloneReferenceType(ReferenceType *src);
   virtual FunctionType *cloneFunctionType(FunctionType *src);
   virtual ArrayType *cloneArrayType(ArrayType *src);
   virtual PointerToMemberType *clonePointerToMemberType(PointerToMemberType *src);
@@ -1440,6 +1486,8 @@ char *type_toString(Type const *t);
 // similarities of *compile* time semantics.  So far, I haven't found
 // the arguments sufficiently convincing to change the hierarchy, but
 // I still consider it a possible point of future debate.
+//
+// UPDATE: I have now split PointerType and ReferenceType apart.
 //
 // One a somewhat related note, I should explain my intended
 // relationship between references and lvalues.  The C++ standard uses

@@ -440,7 +440,7 @@ Type *para19_20filter(Type *t, bool)
     return NULL;
   }
 
-  if (t->isPointerType() ||
+  if (t->isPtrOrRef() ||
       t->isEnumType() ||
       t->isPointerToMemberType()) {
     return t;

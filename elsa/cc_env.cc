@@ -429,8 +429,8 @@ void Env::setupOperatorOverloading()
   {
     Type *T = getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE);
 
-    Type *Tp = tfac.makePointerType(SL_INIT, PO_POINTER, CV_NONE, T);
-    Type *Tpv = tfac.makePointerType(SL_INIT, PO_POINTER, CV_VOLATILE, T);
+    Type *Tp = tfac.makePointerType(SL_INIT, CV_NONE, T);
+    Type *Tpv = tfac.makePointerType(SL_INIT, CV_VOLATILE, T);
 
     Type *Tpr = tfac.makeRefType(SL_INIT, Tp);
     Type *Tpvr = tfac.makeRefType(SL_INIT, Tpv);
@@ -632,8 +632,8 @@ void Env::setupOperatorOverloading()
   {
     Type *T = getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE);
 
-    Type *Tp = tfac.makePointerType(SL_INIT, PO_POINTER, CV_NONE, T);
-    Type *Tpv = tfac.makePointerType(SL_INIT, PO_POINTER, CV_VOLATILE, T);
+    Type *Tp = tfac.makePointerType(SL_INIT, CV_NONE, T);
+    Type *Tpv = tfac.makePointerType(SL_INIT, CV_VOLATILE, T);
 
     Type *Tpr = tfac.makeRefType(SL_INIT, Tp);
     Type *Tpvr = tfac.makeRefType(SL_INIT, Tpv);
@@ -3470,12 +3470,13 @@ ASTTypeId *Env::inner_buildASTTypeId(Type *type, IDeclarator *surrounding)
   // denote it; somewhere down here we've got to find a name that has
   // meaning in this scope, or else reach a simple type
   switch (type->getTag()) {
-    default: xfailure("bag tag");
+    default: xfailure("bad tag");
 
-    case Type::T_POINTER: {
-      PointerType *pt = type->asPointerType();
-      return inner_buildASTTypeId(pt->atType,
-        new D_pointer(loc(), pt->op==PO_POINTER, pt->cv, surrounding));
+    case Type::T_POINTER:
+    case Type::T_REFERENCE: {
+      return inner_buildASTTypeId(type->getAtType(),
+        new D_pointer(loc(), type->isPointerType() /*isPtr*/,
+                      type->getCVFlags(), surrounding));
     }
 
     case Type::T_FUNCTION: {

@@ -80,6 +80,14 @@ and template unification can delve into their structure
 (again, in contrast to the AtomicTypes).
 Each type constructor is explained in Section 3.
 
+<p>
+If you're really bothered by the apparent contradiction that
+CompoundType is an AtomicType, think of the "struct { ... }"
+syntax as wrapping the members in an opaque container, thus
+forming an indivisble unit (i.e. an "atom").  This is of 
+course exactly what happens from the compiler's point of
+view, and the basis for the terminology.
+
 <h2>2. Atomic Types</h2>
       
 <p>
@@ -152,8 +160,18 @@ It just wraps an AtomicType, but possibly with <tt>const</tt>
 or <tt>volatile</tt> qualifiers.
 
 <p>
-<b>PointerType</b> represents a pointer or reference type,
+<b>PointerType</b> represents a pointer type,
 possibly qualified with <tt>const</tt> or <tt>volatile</tt>.
+
+<p>
+<b>ReferenceType</b> represents a reference type.  It has
+no qualifiers.  Note that in the original design, PointerType
+was used for <em>both</em> pointers and references, so you
+might find the occasional comment incorrectly referring to
+that state of affairs.  However, you can still treat pointers
+and references uniformly if you want, by using 
+<tt>isPtrOrRef()</tt>, <tt>getCVFlags()</tt>, and
+<tt>getAtType()</tt>.
 
 <p>
 <b>FunctionType</b> represents a function type.  The parameters
@@ -173,7 +191,13 @@ think about it, it's kind of strange to imagine a function
 <em>type</em> being templatized, so maybe I should have put that list
 someplace else (Variable?).  On the other hand, maybe it will work to
 treat templates as having polymorphic types.  Until the template
-implementation matues, it's not clear what the best strategy is.
+implementation matures, it's not clear what the best strategy is.
+
+<p>
+4/19/04: The above description is out of date; the template
+parameters have indeed been moved into Variable.  However the
+template design remains in a state of flux so I'm waiting for
+it to settle before thoroughly documenting it.
 
 <p>
 <b>ArrayType</b> represents an array type.  Types with no

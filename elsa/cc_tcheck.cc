@@ -1343,10 +1343,10 @@ static bool isRefToCt(Type const *t, CompoundType *ct)
 {
   if (!t->isReference()) return false;
 
-  PointerType const *pt = t->asPointerTypeC();
-  if (!pt->atType->isCVAtomicType()) return false;
+  ReferenceType const *rt = t->asReferenceTypeC();
+  if (!rt->atType->isCVAtomicType()) return false;
 
-  CVAtomicType const *at = pt->atType->asCVAtomicTypeC();
+  CVAtomicType const *at = rt->atType->asCVAtomicTypeC();
   if (at->atomic != ct) return false; // NOTE: atomics are equal iff pointer equal
   
   return true;
@@ -1512,8 +1512,8 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
     Variable *refToSelfParam =
       env.makeVariable(loc,
                        env.otherName,
-                       env.makePointerType(loc, PO_REFERENCE, CV_NONE,
-                                           env.makeCVAtomicType(loc, ct, CV_CONST)),
+                       env.makeReferenceType(loc,
+                         env.makeCVAtomicType(loc, ct, CV_CONST)),
                        DF_PARAMETER);
     ft->addParam(refToSelfParam);
     ft->doneParams();
@@ -1553,11 +1553,9 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
 
     // add a copy assignment op declaration: Class& operator=(Class const &);
     Type *refToSelfType =
-      env.makePointerType(loc, PO_REFERENCE, CV_NONE,
-                          env.makeCVAtomicType(loc, ct, CV_NONE));
+      env.makeReferenceType(loc, env.makeCVAtomicType(loc, ct, CV_NONE));
     Type *refToConstSelfType =
-      env.makePointerType(loc, PO_REFERENCE, CV_NONE,
-                          env.makeCVAtomicType(loc, ct, CV_CONST));
+      env.makeReferenceType(loc, env.makeCVAtomicType(loc, ct, CV_CONST));
 
     FunctionType *ft = env.makeFunctionType(loc, refToSelfType);
 
@@ -2568,8 +2566,7 @@ void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   else {
     // apply the pointer type constructor
     if (!dt.type->isError()) {
-      PtrOper po = isPtr? PO_POINTER : PO_REFERENCE;
-      dt.type = env.tfac.syntaxPointerType(loc, po, cv, dt.type, this);
+      dt.type = env.tfac.syntaxPointerType(loc, isPtr, cv, dt.type, this);
     }
 
     // annotation
@@ -3704,7 +3701,7 @@ Type *E_this::itcheck_x(Env &env, Expression *&replacement)
   //
   // (sm: it seems to me that type cloning should be unnecessary since
   // this is intended to be the *same* object as __receiver)
-  return env.makePointerType(env.loc(), PO_POINTER, CV_NONE,
+  return env.makePointerType(env.loc(), CV_NONE,
                              receiver->type->asRval());
 }
 
@@ -4995,11 +4992,10 @@ Type *E_addrOf::itcheck_x(Env &env, Expression *&replacement)
       << "cannot take address of non-lvalue `" 
       << expr->type->toString() << "'");
   }
-  PointerType *pt = expr->type->asPointerType();
-  xassert(pt->op == PO_REFERENCE);     // that's what isLval checks
+  ReferenceType *rt = expr->type->asReferenceType();
 
   // change the "&" into a "*"
-  return env.makePtrType(SL_UNKNOWN, pt->atType);
+  return env.makePtrType(SL_UNKNOWN, rt->atType);
 }
 
 
@@ -5026,7 +5022,6 @@ Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
 
   if (rt->isPointerType()) {
     PointerType *pt = rt->asPointerType();
-    xassert(pt->op == PO_POINTER);     // otherwise not rval!
 
     // dereferencing yields an lvalue
     return makeLvalType(env, pt->atType);

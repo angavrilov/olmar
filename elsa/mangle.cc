@@ -117,19 +117,21 @@ string leftMangle(Type const *t, bool innerParen)
       return s;
     }
 
-    case Type::T_POINTER: {
-      PointerType const *pt = t->asPointerTypeC();
+    case Type::T_POINTER:
+    case Type::T_REFERENCE: {
+      Type *atType = t->getAtType();
+      CVFlags cv = t->getCVFlags();
 
       stringBuilder s;
-      s << leftMangle(pt->atType, false /*innerParen*/);
-      if (pt->atType->isFunctionType() ||
-          pt->atType->isArrayType()) {
+      s << leftMangle(atType, false /*innerParen*/);
+      if (atType->isFunctionType() ||
+          atType->isArrayType()) {
         s << "(";
       }
-      s << (pt->op==PO_POINTER? "*" : "&");
-      if (pt->cv) {
+      s << (t->isPointerType()? "*" : "&");
+      if (cv) {
         // 1/03/03: added this space so "Foo * const arf" prints right (t0012.cc)
-        s << cvToString(pt->cv) << " ";
+        s << cvToString(cv) << " ";
       }
       return s;
     }
@@ -200,15 +202,16 @@ string rightMangle(Type const *t, bool innerParen)
       return "";
     }
 
-    case Type::T_POINTER: {
-      PointerType const *pt = t->asPointerTypeC();
+    case Type::T_POINTER:
+    case Type::T_REFERENCE: {
+      Type *atType = t->getAtType();
 
       stringBuilder s;
-      if (pt->atType->isFunctionType() ||
-          pt->atType->isArrayType()) {
+      if (atType->isFunctionType() ||
+          atType->isArrayType()) {
         s << ")";
       }
-      s << rightMangle(pt->atType, false /*innerParen*/);
+      s << rightMangle(atType, false /*innerParen*/);
       return s;
     }
 

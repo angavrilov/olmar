@@ -307,7 +307,7 @@ StandardConversion getStandardConversion
       !dest->isReference()) {
     conv.ret |= SC_LVAL_TO_RVAL;
 
-    src = src->asPointerTypeC()->atType;
+    src = src->asReferenceTypeC()->atType;
 
     // the src type must be complete for this conversion
     if (src->isCompoundType() &&
@@ -324,7 +324,7 @@ StandardConversion getStandardConversion
       // are we trying to bind to a non-const reference?  if so,
       // then we can't do it (cppstd 13.3.3.1.4 para 3); I haven't
       // implemented the exception for the 'this' argument yet
-      PointerType const *destPT = dest->asPointerTypeC();
+      ReferenceType const *destPT = dest->asReferenceTypeC();
       if (!destPT->atType->isConst()) {
         // can't form the conversion
         return conv.error("attempt to bind an rvalue to a non-const reference");
@@ -332,7 +332,7 @@ StandardConversion getStandardConversion
     }
 
     // strip off the destination reference
-    dest = dest->asPointerTypeC()->atType;
+    dest = dest->asReferenceTypeC()->atType;
     
     // now, one final exception: ordinarily, there's no standard
     // conversion from C to P (where C inherits from P); but it *is*
@@ -397,31 +397,25 @@ StandardConversion getStandardConversion
   while (!src->isCVAtomicType() &&
          !dest->isCVAtomicType()) {
     if (src->getTag() != dest->getTag()) {
-      return conv.error("different type constructors");
+      // when PointerType and ReferenceType were unified, I had
+      // a slightly more informative message for one case
+      if (src->isPointerType() && dest->isReferenceType()) {
+        return conv.error("cannot convert rvalue to lvalue");
+      }
+      else {
+        return conv.error("different type constructors");
+      }
     }
 
     switch (src->getTag()) {
       default: xfailure("bad type tag");
 
-      case Type::T_POINTER: {
-        PointerType const *s = src->asPointerTypeC();
-        PointerType const *d = dest->asPointerTypeC();
+      case Type::T_POINTER:
+      case Type::T_REFERENCE: {
+        bool isReference = (src->isReference());
 
-        if (s->op != d->op) {                                  
-          // the source could not be a reference, because we
-          // already took care of that above, and references
-          // cannot be stacked
-          xassert(s->op != PO_REFERENCE);
-          xassert(d->op == PO_REFERENCE);
-
-          // thus, we're trying to convert to an lvalue
-          return conv.error("cannot convert rvalue to lvalue");
-        }
-
-        src = s->atType;
-        dest = d->atType;
-
-        bool isReference = (s->op == PO_REFERENCE);
+        src = src->getAtType();
+        dest = dest->getAtType();
 
         // we look at the cv flags one level down because all of the
         // rules in cppstd talk about things like "pointer to cv T",

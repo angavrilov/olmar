@@ -283,7 +283,7 @@ Expression *ElabVisitor::makeThisRef(SourceLoc loc)
   // "this"
   E_this *ths = new E_this;
   ths->receiver = receiver;
-  ths->type = tfac.makePointerType(loc, PO_POINTER, CV_CONST,
+  ths->type = tfac.makePointerType(loc, CV_CONST,
                                    env.tfac.cloneType(receiver->type->asRval()));
 
   // "*this"
@@ -744,8 +744,7 @@ void ElabVisitor::elaborateFunctionStart(Function *f)
 
     SourceLoc loc = f->nameAndParams->decl->loc;
     Type *retValType =
-      env.tfac.makePointerType(loc, PO_REFERENCE, CV_NONE,
-                               env.tfac.cloneType(ft->retType));
+      env.tfac.makeReferenceType(loc, env.tfac.cloneType(ft->retType));
     StringRef retValName = env.str("<retVal>");
     f->retVal = env.makeVariable(loc, retValName, retValType, DF_NONE);
     ft->registerRetVal(f->retVal);
@@ -1428,15 +1427,13 @@ bool E_delete::elaborate(ElabVisitor &env)
   // E_delete::itcheck_x() should have noticed that its not a pointer
   // and aborted before calling us if it wasn't.
   PointerType *to = t->asPointerType();
-  xassert(to->op == PO_POINTER);
   if (to->atType->isCompoundType()) {
     // use orig in elaboration, clone stays behind
     Expression *origExpr = expr;
     expr = env.cloneExpr(expr);
 
     E_deref *deref = new E_deref(origExpr);
-    deref->type = env.tfac.makePointerType(loc, PO_REFERENCE, CV_NONE,
-                                           to->atType);
+    deref->type = env.tfac.makeReferenceType(loc, to->atType);
 
     dtorStatement = env.makeDtorStatement
       (loc,
@@ -1536,7 +1533,7 @@ bool ElabVisitor::visitFunction(Function *f)
   if (doing(EA_IMPLICIT_MEMBER_CTORS) &&
       ft->isConstructor()) {
     // pull out the compound that this ctor creates
-    CompoundType *ct = f->ctorReceiver->type->asPointerType()->
+    CompoundType *ct = f->ctorReceiver->type->asReferenceType()->
                           atType->asCompoundType();
     completeNoArgMemberInits(f, ct);
   } 

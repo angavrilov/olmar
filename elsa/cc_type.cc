@@ -864,6 +864,7 @@ BaseType::~BaseType()
 
 DOWNCAST_IMPL(BaseType, CVAtomicType)
 DOWNCAST_IMPL(BaseType, PointerType)
+DOWNCAST_IMPL(BaseType, ReferenceType)
 DOWNCAST_IMPL(BaseType, FunctionType)
 DOWNCAST_IMPL(BaseType, ArrayType)
 DOWNCAST_IMPL(BaseType, PointerToMemberType)
@@ -938,6 +939,7 @@ not_polymorphic:
       case tag: return ((type const*)this)->innerEquals((type const*)obj, flags);
     C(T_ATOMIC, CVAtomicType)
     C(T_POINTER, PointerType)
+    C(T_REFERENCE, ReferenceType)
     C(T_FUNCTION, FunctionType)
     C(T_ARRAY, ArrayType)
     C(T_POINTERTOMEMBER, PointerToMemberType)
@@ -1122,6 +1124,7 @@ bool BaseType::isMethod() const
          asFunctionTypeC()->isMethod();
 }
 
+#if 0     // obsolete, delete me
 bool BaseType::isPointer() const
 {
   return isPointerType() && asPointerTypeC()->op == PO_POINTER;
@@ -1131,13 +1134,30 @@ bool BaseType::isReference() const
 {
   return isPointerType() && asPointerTypeC()->op == PO_REFERENCE;
 }
+#endif // 0
+
+Type *BaseType::getAtType() const
+{
+  if (isPointerType()) {
+    return asPointerTypeC()->atType;
+  }
+  else if (isReferenceType()) {
+    return asReferenceTypeC()->atType;
+  }
+  // ArrayType::eltType?
+  // PointerToMemberType::atType?
+  else {
+    xfailure("getAtType only works for pointers or references");
+    return NULL;       // silence warning
+  }
+}
 
 BaseType const *BaseType::asRvalC() const
 {
   if (isReference()) {
     // note that due to the restriction about stacking reference
     // types, unrolling more than once is never necessary
-    return asPointerTypeC()->atType;
+    return asReferenceTypeC()->atType;
   }
   else {
     return this;       // this possibility is one reason to not make 'asRval' return 'Type*' in the first place
@@ -1276,14 +1296,10 @@ CVFlags CVAtomicType::getCVFlags() const
 
 
 // ------------------- PointerType ---------------
-PointerType::PointerType(PtrOper o, CVFlags c, Type *a)
-  : op(o), cv(c), atType(a)
+PointerType::PointerType(CVFlags c, Type *a)
+  : cv(c), atType(a)
 {
-  // since references are always immutable, it makes no sense to
-  // apply const or volatile to them
-  xassert(op==PO_REFERENCE? cv==CV_NONE : true);
-
-  // it also makes no sense to stack reference operators underneath
+  // it makes no sense to stack reference operators underneath
   // other indirections (i.e. no ptr-to-ref, nor ref-to-ref)
   xassert(!a->isReference());
 }
@@ -1295,13 +1311,12 @@ bool PointerType::innerEquals(PointerType const *obj, EqFlags flags) const
   // but it's immediately suppressed once we go one level down; this
   // behavior repeated in all 'innerEquals' methods
 
-  return op == obj->op &&
-         ((flags & EF_OK_DIFFERENT_CV) || (cv == obj->cv)) &&
+  return ((flags & EF_OK_DIFFERENT_CV) || (cv == obj->cv)) &&
          atType->equals(obj->atType, flags & EF_PTR_PROP);
 }
 
 
-enum {     
+enum {
   // enough to leave room for a composed type to describe itself
   // (essentially 5 bits)
   HASH_KICK = 33,
@@ -1324,8 +1339,7 @@ unsigned PointerType::innerHashValue() const
   // avenue for improvement.
 
   return atType->innerHashValue() * HASH_KICK +
-         (unsigned)op +
-         cvHash(cv) * 2 +
+         cvHash(cv) +
          T_POINTER * TAG_KICK;
 }
 
@@ -1338,7 +1352,7 @@ string PointerType::leftString(bool /*innerParen*/) const
       atType->isArrayType()) {
     s << "(";
   }
-  s << (op==PO_POINTER? "*" : "&");
+  s << "*";
   if (cv) {
     // 1/03/03: added this space so "Foo * const arf" prints right (t0012.cc)
     s << cvToString(cv) << " ";
@@ -1375,6 +1389,72 @@ bool PointerType::anyCtorSatisfies(TypePred pred) const
 CVFlags PointerType::getCVFlags() const
 {
   return cv;
+}
+
+
+// ------------------- ReferenceType ---------------
+ReferenceType::ReferenceType(Type *a)
+  : atType(a)
+{
+  // it makes no sense to stack reference operators underneath
+  // other indirections (i.e. no ptr-to-ref, nor ref-to-ref)
+  xassert(!a->isReference());
+}
+
+
+bool ReferenceType::innerEquals(ReferenceType const *obj, EqFlags flags) const
+{
+  return atType->equals(obj->atType, flags & EF_PTR_PROP);
+}
+
+
+unsigned ReferenceType::innerHashValue() const
+{
+  return atType->innerHashValue() * HASH_KICK +
+         T_REFERENCE * TAG_KICK;
+}
+
+
+string ReferenceType::leftString(bool /*innerParen*/) const
+{
+  stringBuilder s;
+  s << atType->leftString(false /*innerParen*/);
+  if (atType->isFunctionType() ||
+      atType->isArrayType()) {
+    s << "(";
+  }
+  s << "&";
+  return s;
+}
+
+string ReferenceType::rightString(bool /*innerParen*/) const
+{
+  stringBuilder s;
+  if (atType->isFunctionType() ||
+      atType->isArrayType()) {
+    s << ")";
+  }
+  s << atType->rightString(false /*innerParen*/);
+  return s;
+}
+
+
+int ReferenceType::reprSize() const
+{
+  return 4;
+}
+
+
+bool ReferenceType::anyCtorSatisfies(TypePred pred) const
+{
+  return pred(this) ||
+         atType->anyCtorSatisfies(pred);
+}
+
+
+CVFlags ReferenceType::getCVFlags() const
+{
+  return CV_NONE;
 }
 
 
@@ -1642,7 +1722,7 @@ CVFlags FunctionType::getReceiverCV() const
   if (isMethod()) {
     // expect 'this' to be of type 'SomeClass cv &', and
     // dig down to get that 'cv'
-    return getReceiverC()->type->asPointerType()->atType->asCVAtomicType()->cv;
+    return getReceiverC()->type->asReferenceType()->atType->asCVAtomicType()->cv;
   }
   else {
     return CV_NONE;
@@ -1651,7 +1731,7 @@ CVFlags FunctionType::getReceiverCV() const
 
 CompoundType *FunctionType::getClassOfMember()
 {
-  return getReceiver()->type->asPointerType()->atType->asCompoundType();
+  return getReceiver()->type->asReferenceType()->atType->asCompoundType();
 }
 
 
@@ -2379,8 +2459,15 @@ string PointerType::toMLString() const
     sb << cvToString(cv) << " ";
   }
   putSerialNo(sb);
-  sb << (op==PO_POINTER? "ptr" : "ref");
-  sb << "(" << atType->toMLString() << ")";
+  sb << "ptr(" << atType->toMLString() << ")";
+  return sb;
+}
+
+string ReferenceType::toMLString() const
+{
+  stringBuilder sb;
+  putSerialNo(sb);
+  sb << "ref(" << atType->toMLString() << ")";
   return sb;
 }
 
@@ -2501,6 +2588,7 @@ Type *TypeFactory::cloneType(Type *src)
     default: xfailure("bad type tag");
     case Type::T_ATOMIC:    return cloneCVAtomicType(src->asCVAtomicType());
     case Type::T_POINTER:   return clonePointerType(src->asPointerType());
+    case Type::T_REFERENCE: return cloneReferenceType(src->asReferenceType());
     case Type::T_FUNCTION:  return cloneFunctionType(src->asFunctionType());
     case Type::T_ARRAY:     return cloneArrayType(src->asArrayType());
     case Type::T_POINTERTOMEMBER: return clonePointerToMemberType(src->asPointerToMemberType());
@@ -2539,10 +2627,7 @@ Type *TypeFactory::setCVQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
 
     case Type::T_POINTER: {
       PointerType *ptr = baseType->asPointerType();
-      if (ptr->op == PO_REFERENCE && cv!=CV_NONE) {
-        return NULL;     // can't apply CV to references
-      }
-      return makePointerType(loc, ptr->op, cv, ptr->atType);
+      return makePointerType(loc, cv, ptr->atType);
     }
 
     case Type::T_POINTERTOMEMBER: {
@@ -2551,6 +2636,7 @@ Type *TypeFactory::setCVQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
     }
 
     default:    // silence warning
+    case Type::T_REFERENCE:
     case Type::T_FUNCTION:
     case Type::T_ARRAY:
       // can't apply CV to either of these, and since baseType's
@@ -2583,15 +2669,20 @@ Type *TypeFactory::makeRefType(SourceLoc loc, Type *underlying)
     return underlying;
   }
   else {
-    return makePointerType(loc, PO_REFERENCE, CV_NONE, underlying);
+    return makeReferenceType(loc, underlying);
   }
 }
 
 
-PointerType *TypeFactory::syntaxPointerType(SourceLoc loc,
-  PtrOper op, CVFlags cv, Type *type, D_pointer *)
+Type *TypeFactory::syntaxPointerType(SourceLoc loc,
+  bool isPtr, CVFlags cv, Type *type, D_pointer *)
 {
-  return makePointerType(loc, op, cv, type);
+  if (isPtr) {
+    return makePointerType(loc, cv, type);
+  }
+  else {
+    return makeReferenceType(loc, type);
+  }
 }
 
 
@@ -2609,11 +2700,11 @@ PointerToMemberType *TypeFactory::syntaxPointerToMemberType(SourceLoc loc,
 }
 
 
-PointerType *TypeFactory::makeTypeOf_receiver(SourceLoc loc,
+ReferenceType *TypeFactory::makeTypeOf_receiver(SourceLoc loc,
   NamedAtomicType *classType, CVFlags cv, D_func *syntax)
 {
   CVAtomicType *at = makeCVAtomicType(loc, classType, cv);
-  return makePointerType(loc, PO_REFERENCE, CV_NONE, at);
+  return makeReferenceType(loc, at);
 }
 
 
@@ -2700,9 +2791,16 @@ CVAtomicType *BasicTypeFactory::makeCVAtomicType(SourceLoc,
 
 
 PointerType *BasicTypeFactory::makePointerType(SourceLoc,
-  PtrOper op, CVFlags cv, Type *atType)
+  CVFlags cv, Type *atType)
 {
-  return new PointerType(op, cv, atType);
+  return new PointerType(cv, atType);
+}
+
+
+ReferenceType *BasicTypeFactory::makeReferenceType(SourceLoc,
+  Type *atType)
+{
+  return new ReferenceType(atType);
 }
 
 
@@ -2731,6 +2829,8 @@ PointerToMemberType *BasicTypeFactory::makePointerToMemberType(SourceLoc,
 CVAtomicType *BasicTypeFactory::cloneCVAtomicType(CVAtomicType *src)
   { return src; }
 PointerType *BasicTypeFactory::clonePointerType(PointerType *src)
+  { return src; }
+ReferenceType *BasicTypeFactory::cloneReferenceType(ReferenceType *src)
   { return src; }
 FunctionType *BasicTypeFactory::cloneFunctionType(FunctionType *src)
   { return src; }

@@ -288,8 +288,8 @@ bool MatchTypes::unifyToTypeVar(Type *t0,
 bool MatchTypes::match_cva(CVAtomicType *concrete, Type *t,
                           Flags asaFlags)
 {
-  if (t->isReference() && t->asPointerType()->atType->isConst()) {
-    t = t->asPointerType()->atType;
+  if (t->isReference() && t->asReferenceType()->atType->isConst()) {
+    t = t->asReferenceType()->atType;
   }
   // I'm tempted to do this, but when I test it, it ends up testing
   // false in the end anyway.  It is hard to construct a test for it,
@@ -316,8 +316,8 @@ bool MatchTypes::match_cva(CVAtomicType *concrete, Type *t,
   return false;
 }
 
-bool MatchTypes::match_ptr(PointerType *concrete, Type *t,
-                          Flags asaFlags)
+bool MatchTypes::match_ptr_ref(Type *concrete, Type *t,
+                               Flags asaFlags)
 {
   // The policy on references and unification is as follows.
   //   A non-ref, B ref to const: B's ref goes away
@@ -331,8 +331,8 @@ bool MatchTypes::match_ptr(PointerType *concrete, Type *t,
     thisType = concrete->asRval();
   }
   else if (!concrete->isReference() &&
-           t->isReference() && t->asPointerType()->atType->isConst()) {
-    t = t->asPointerType()->atType;
+           t->isReference() && t->asReferenceType()->atType->isConst()) {
+    t = t->asReferenceType()->atType;
   }
 
   xassert(thisType->isReference() == t->isReference());
@@ -340,11 +340,11 @@ bool MatchTypes::match_ptr(PointerType *concrete, Type *t,
   if (t->isTypeVariable()) {
     return unifyToTypeVar(thisType, t, asaFlags);
   }
-  if (t->isPointerType() && thisType->isPointerType()
-      && thisType->asPointerType()->op==t->asPointerType()->op) {
+  if (t->getTag() == thisType->getTag() &&
+      t->isPtrOrRef()) {
     return atLeastAsSpecificAs
-      (thisType->asPointerType()->atType, 
-       t->asPointerType()->atType, (asaFlags & ~ASA_TOP) );
+      (thisType->getAtType(),
+       t->getAtType(), (asaFlags & ~ASA_TOP) );
   }
   if (concrete == thisType) {
     return false;               // there is no progress to make
@@ -361,13 +361,11 @@ bool MatchTypes::match_ptr(PointerType *concrete, Type *t,
 bool MatchTypes::match_func(FunctionType *concrete, Type *t,
                            Flags asaFlags)
 {
-  if (t->isReference() && t->asPointerType()->atType->isConst()) {
-    t = t->asPointerType()->atType;
+  if (t->isReference() && t->asReferenceType()->atType->isConst()) {
+    t = t->asReferenceType()->atType;
   }
 
-  if (t->isPointer()
-      // see my rant below about isPointer() and isPointerType()
-      && t->asPointerType()->op == PO_POINTER) {
+  if (t->isPointer()) {
     // cppstd 14.8.2.1 para 2: "If P is not a reference type: --
     // ... If A is a function type, the pointer type produced by the
     // function-to-pointer standard conversion (4.3) is used in place
@@ -424,19 +422,13 @@ bool MatchTypes::match_array
   (ArrayType *concrete, Type *t,
    Flags asaFlags)
 {
-  if (t->isReference() && t->asPointerType()->atType->isConst()) {
-    t = t->asPointerType()->atType;
+  if (t->isReference() && t->asReferenceType()->atType->isConst()) {
+    t = t->asReferenceType()->atType;
   }
   if (t->isTypeVariable()) {
     return unifyToTypeVar(concrete, t, asaFlags);
   }
   if (t->isPointer()
-      // this second test is probably redundant but I really find it
-      // confusing that you can test if something is a pointer or
-      // reference with isPointerType() and if it is a pointer and in
-      // particular not a reference with isPointer(); therefore the
-      // solution is to be way extra verbose and redundant
-      && t->asPointerType()->op == PO_POINTER
       && (asaFlags & ASA_TOP)
       ) {
     // cppstd 14.8.2.1 para 2: "If P is not a reference type: -- if A
@@ -462,8 +454,8 @@ bool MatchTypes::match_array
 bool MatchTypes::match_ptm(PointerToMemberType *concrete, Type *t,
                           Flags asaFlags)
 {
-  if (t->isReference() && t->asPointerType()->atType->isConst()) {
-    t = t->asPointerType()->atType;
+  if (t->isReference() && t->asReferenceType()->atType->isConst()) {
+    t = t->asReferenceType()->atType;
   }
   if (t->isTypeVariable()) {
     return unifyToTypeVar(concrete, t, asaFlags);
@@ -507,7 +499,12 @@ bool MatchTypes::atLeastAsSpecificAs(Type *concrete, Type *pattern,
         pattern, asaFlags);
 
     case Type::T_POINTER:
-      return match_ptr(concrete->asPointerType(),
+    case Type::T_REFERENCE:
+      // it is probably not optimal to be treating ptr and ref
+      // uniformly here, but it's a consequence of recently having had
+      // them be represented by the same subclass; so, if you are
+      // inclined to separate them, go ahead
+      return match_ptr_ref(concrete,
         pattern, asaFlags);
 
     case Type::T_FUNCTION:

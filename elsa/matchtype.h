@@ -1,6 +1,8 @@
 // matchtype.h
-// match a type pattern (from a template) with a concrete type,
-// generating either "failure" or a set of bindings
+// Match a type pattern (from a template) with a concrete type,
+// generating either "failure" or a set of bindings.  This
+// implements the one-sided unification for matching template
+// arguments with parameters.
 
 #ifndef MATCHTYPE_H
 #define MATCHTYPE_H
@@ -57,16 +59,16 @@ private:      // funcs
                       Flags asaFlags);
 
   bool match_cva(CVAtomicType *concrete, Type *t,
-                            Flags asaFlags);
-  bool match_ptr(PointerType *concrete, Type *t,
-                            Flags asaFlags);
+                 Flags asaFlags);
+  bool match_ptr_ref(Type *concrete, Type *t,
+                     Flags asaFlags);
   bool match_func(FunctionType *concrete, Type *t,
-                             Flags asaFlags);
+                  Flags asaFlags);
   bool match_array
     (ArrayType *concrete, Type *t,
      Flags asaFlags);
   bool match_ptm(PointerToMemberType *concrete, Type *t,
-                            Flags asaFlags);
+                 Flags asaFlags);
 
 
 public:       // funcs
