@@ -16,25 +16,29 @@ public:
 };
 
 
-// print messages to stdout with "error: " or "warning: " prepended
-class SimpleReportError : public ReportError {
-public:
-  virtual void reportError(rostring str);
-  virtual void reportWarning(rostring str);
-};
-
-extern SimpleReportError simpleReportError;
-
-
-// throw away messages
+// throw away messages, but count them
 class SilentReportError : public ReportError {
 public:
+  int errors;
+  int warnings;
+
+public:
+  SilentReportError();
   virtual void reportError(rostring str);
   virtual void reportWarning(rostring str);
 };
 
 extern SilentReportError silentReportError;
 
+
+// print messages to stdout with "error: " or "warning: " prepended
+class SimpleReportError : public SilentReportError {
+public:
+  virtual void reportError(rostring str);
+  virtual void reportWarning(rostring str);
+};
+
+extern SimpleReportError simpleReportError;
 
 
 #endif // REPORTERR_H

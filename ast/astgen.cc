@@ -336,7 +336,7 @@ void HGen::emitFile()
   out << "#define " << includeLatch << "\n";
   out << "\n";
   out << "#include \"asthelp.h\"        // helpers for generated code\n";
-  if (wantDVisitor) {
+  if (wantDVisitor()) {
     out << "#include \"sobjset.h\"        // SObjSet\n";
   }
   out << "\n";
@@ -1223,35 +1223,46 @@ void CGen::emitCloneCtorArg(CtorArg const *arg, int &ct)
   }
   out << "\n    ";
 
+  string argName = arg->name;
+  if (argName == "ret") {     
+    // avoid clash with local variable name
+    argName = "this->ret";                 
+    
+    // NOTE: I do not simply want to make the local variable name
+    // something ugly like __astgen_ret because in the user-defined
+    // clone() augmentation functions, the user is supposed to be
+    // able to use 'ret' to refer to the tree constructed so far.
+  }
+
   if (isTreeListType(arg->type)) {
     // clone an ASTList of tree nodes
-    out << "cloneASTList(" << arg->name << ")";
+    out << "cloneASTList(" << argName << ")";
   }
   else if (isListType(arg->type)) {
     if (0==strcmp(extractListType(arg->type), "LocString")) {
       // these are owned, so clone deeply
-      out << "cloneASTList(" << arg->name << ")";
+      out << "cloneASTList(" << argName << ")";
     }
     else {
       // clone an ASTList of non-tree nodes
-      out << "shallowCloneASTList(" << arg->name << ")";
+      out << "shallowCloneASTList(" << argName << ")";
     }
   }
   else if (isFakeListType(arg->type)) {
     // clone a FakeList (of tree nodes, we assume..)
-    out << "cloneFakeList(" << arg->name << ")";
+    out << "cloneFakeList(" << argName << ")";
   }
   else if (isTreeNode(arg->type)) {
     // clone a tree node
-    out << arg->name << "? " << arg->name << "->clone() : NULL";
+    out << argName << "? " << argName << "->clone() : NULL";
   }
   else if (0==strcmp(arg->type, "LocString")) {
     // clone a LocString; we store objects, but pass pointers
-    out << arg->name << ".clone()";
+    out << argName << ".clone()";
   }
   else {
     // pass the non-tree node's value directly
-    out << arg->name;
+    out << argName;
   }
 }
 

@@ -38,4 +38,4 @@ new class ANewClass(int foo);
 
 
 // extension of an enum
-enum AnEnum { AE_THREE };
+enum AnEnum { AE_FOUR };

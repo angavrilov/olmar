@@ -6,28 +6,39 @@
 #include <iostream.h>       // cout
 
 
+// --------------------- SilentReportError -------------------------
+SilentReportError::SilentReportError()
+  : errors(0),
+    warnings(0)
+{}
+
+void SilentReportError::reportError(rostring str)
+{
+  errors++;
+}
+
+void SilentReportError::reportWarning(rostring str)
+{
+  warnings++;
+}
+
+SilentReportError silentReportError;
+
+
 // --------------------- SimpleReportError -------------------------
 void SimpleReportError::reportError(rostring str)
 {
+  SilentReportError::reportError(str);
   cout << "error: " << str << endl;
 }
 
 void SimpleReportError::reportWarning(rostring str)
 {
+  SilentReportError::reportWarning(str);
   cout << "warning: " << str << endl;
 }
 
 SimpleReportError simpleReportError;
-
-
-// --------------------- SilentReportError -------------------------
-void SilentReportError::reportError(rostring str)
-{}
-
-void SilentReportError::reportWarning(rostring str)
-{}
-
-SilentReportError silentReportError;
 
 
 // EOF

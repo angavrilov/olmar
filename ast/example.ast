@@ -8,6 +8,7 @@ verbatim {
 // I want a visitor, with the interface called ExampleVisitor
 option visitor ExampleVisitor;
 option mvisitor ExampleMVisitor;
+option dvisitor ExampleDVisitor;
 
 // emit the xmlPrint stuff too
 option xmlPrint;
@@ -54,7 +55,11 @@ class Super (int x) {
   -> Sub3(Super s1, Sub2 s2);
 }
 
-enum AnEnum { AE_ONE, AE_TWO };
+// 2005-03-25: Changed this from two enumerators to three, because
+// gcc-3.4.0 emits an unusual warning in the toString method if
+// the enumerator only has two elements.  This warning is not
+// emitted by gcc-3.4.3...
+enum AnEnum { AE_ONE, AE_TWO, AE_THREE };
 
 // eliminated explicit enumerator values...
 enum AnotherEnum {
@@ -79,6 +84,8 @@ class InheritsSomething : public Base1 {
   -> IS_b(int q) : public Base3 {
        public float f;
      }
+  -> IS_c(int ret);       // testing ctor arg with name 'ret'
+  -> IS_d(UsesEnum ret);  // another
 }
 
 class HasLastArgs(int x)(int w) {
