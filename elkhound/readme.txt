@@ -160,5 +160,5 @@ Directories
                 correctly.
 
 
-Files
------
+Individual files have a blurb at the top which describes their purpose,
+so consult the files themselves to see what they are or do.

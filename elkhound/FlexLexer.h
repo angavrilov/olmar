@@ -1,5 +1,6 @@
-// $Header$
-// $FreeBSD: src/usr.bin/lex/FlexLexer.h,v 1.3 1999/10/27 07:56:43 obrien Exp $
+// This is a copy of FlexLexer.h from the flex-2.54 distribution.  It's
+// included with the Elkhound distribution just so you don't have to have
+// flex installed.
 
 // FlexLexer.h -- define interfaces for lexical analyzer classes generated
 //		  by flex

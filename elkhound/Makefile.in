@@ -295,7 +295,7 @@ cdecl: $(cdecl-dep)
 	$(link) -o cdecl $(cdecl-dep)
 	./cdecl cdecl.bin in/cdecl.in1
 	./cdecl -tr cdecl cdecl.bin in/cdecl.in1 | grep -v progress > tmp
-	diff cdecl.out1 tmp
+	diff out/cdecl.out1 tmp
 
 # intermediate files for cdecl2
 # (superceded by pattern rule)
@@ -310,7 +310,7 @@ cdecl2: $(cdecl2-dep)
 	$(link) -o cdecl2 $(cdecl2-dep)
 	./cdecl2 cdecl2.bin in/cdecl.in1
 	./cdecl2 -tr cdecl cdecl2.bin in/cdecl.in1 | grep -v progress > tmp
-	diff cdecl.out1 tmp
+	diff out/cdecl.out1 tmp
 
 #.PRECIOUS: cdecl2
 
