@@ -279,19 +279,7 @@ string PQName::qualifierString() const
   PQName const *p = this;
   while (p->isPQ_qualifier()) {
     PQ_qualifier const *q = p->asPQ_qualifierC();
-    if (q->qualifier) {
-      sb << q->qualifier;
-
-      if (q->targs.isNotEmpty()) {
-        sb << targsToString(q->targs);
-      }
-    }
-    else {
-      // for a NULL qualifier, don't print anything; it means
-      // there was a leading "::" with no explicit qualifier,
-      // and I'll use similar syntax on output
-    }
-    sb << "::";
+    sb << q->toComponentString() << "::";
 
     p = q->rest;
   }
@@ -299,27 +287,15 @@ string PQName::qualifierString() const
 }
 
 stringBuilder& operator<< (stringBuilder &sb, PQName const &obj)
-{ 
-  // leading qualifiers, with template arguments as necessary
-  sb << obj.qualifierString();
-
-  // final simple name
-  PQName const *final = obj.getUnqualifiedNameC();
-  sb << final->getName();
-
-  // template arguments applied to final name
-  if (final->isPQ_template()) {
-    sb << targsToString(final->asPQ_templateC()->args);
-  }
-
+{
+  sb << obj.toString();
   return sb;
 }
 
 string PQName::toString() const
 {
-  stringBuilder sb;
-  sb << *this;
-  return sb;
+  return stringc << qualifierString() 
+                 << getUnqualifiedNameC()->toComponentString();
 }
 
 string PQName::toString_noTemplArgs() const
@@ -346,6 +322,38 @@ StringRef PQ_operator::getName() const
 StringRef PQ_template::getName() const
 {
   return name;
+}
+
+
+string PQ_qualifier::toComponentString() const
+{
+  if (targs.isNotEmpty()) {
+    return stringc << qualifier << targsToString(targs);
+  }
+  else if (qualifier) {
+    return qualifier;
+  }
+  else {
+    // for a NULL qualifier, don't print anything; it means
+    // there was a leading "::" with no explicit qualifier,
+    // and I'll use similar syntax on output
+    return "";
+  }
+}
+
+string PQ_name::toComponentString() const
+{
+  return name;
+}
+
+string PQ_operator::toComponentString() const
+{
+  return fakeName;
+}
+
+string PQ_template::toComponentString() const
+{
+  return stringc << name << targsToString(args);
 }
 
 

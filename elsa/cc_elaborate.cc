@@ -2016,6 +2016,11 @@ StringRef PQ_variable::getName() const
   return var->name;
 }
 
+string PQ_variable::toComponentString() const
+{
+  return var->name;
+}
+
 void PQ_variable::tcheck(Env &env, Scope*, LookupFlags)
 {
   // nothing to check

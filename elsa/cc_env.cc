@@ -4149,6 +4149,9 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
 {
   // ---- END: second entry point ---
 
+  // keep track of the scope we found just before 'scope'
+  Scope *prevScope = NULL;
+
   // this is so legacy calls will honor 'set' (I plan to eventually
   // get rid of LF_LOOKUP_SET entirely)
   flags |= LF_LOOKUP_SET;
@@ -4156,6 +4159,7 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
   // lookup along the chain of qualifiers
   while (name->isPQ_qualifier()) {
     PQ_qualifier *qual = name->asPQ_qualifier();
+    prevScope = scope;
 
     if (!qual->qualifier) {
       scope = globalScope();
@@ -4248,6 +4252,53 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
 
     flags |= LF_QUALIFIED;            // subsequent lookups are qualified
     name = qual->rest;
+  }
+                                             
+  // 3.4.3p5: qualified dtor name?
+  if (scope && name->getName()[0]=='~') {
+    // get a pointer to the StringRef in 'name'
+    StringRef *nameStringRef;
+    if (name->isPQ_name()) {
+      nameStringRef = &(name->asPQ_name()->name);
+    }
+    else /*PQ_template*/ {
+      nameStringRef = &(name->asPQ_template()->name);
+    }
+
+    // we want to lookup the type; temporarily remove the '~'
+    StringRef origStringRef = *nameStringRef;
+    *nameStringRef = str(origStringRef+1);
+
+    // original name is of form
+    //   prevScope :: scope :: ~ class-name
+    Scope *lookupScope;
+    if (scope->isNamespace()) {
+      lookupScope = scope;              // lookup class-name in 'scope'
+    }
+    else {
+      xassert(scope->isClassScope());
+      lookupScope = prevScope;          // lookup class-name in 'prevScope'
+    }
+    Variable *className =
+      unqualifiedFinalNameLookup_one(lookupScope, name, flags);
+
+    // repair 'name'
+    *nameStringRef = origStringRef;
+
+    // get the destructor
+    if (!className || !className->isClass()) {
+      string scopeName;
+      if (lookupScope) {
+        scopeName = stringc << "in scope `" << lookupScope->fullyQualifiedCName() << "'";
+      }
+      env.error(name->loc, stringc
+        << "no such class `" << *name << "'" << scopeName);
+    }
+    else {
+      lookupClassDestructor(set, className->type->asCompoundType(), flags);
+    }
+
+    return;
   }
 
   // unqualified lookup in 'scope'
@@ -4357,6 +4408,17 @@ void Env::unqualifiedLookup(LookupSet &set, Scope * /*nullable*/ scope,
 }
 
 
+void Env::lookupClassDestructor(LookupSet &set, CompoundType *ct,
+                                LookupFlags flags)
+{
+  // make the destructor name (perhaps this should be saved somewhere?)
+  StringRef dtorName = env.str(stringc << "~" << ct->name);
+
+  // look it up
+  ct->lookup(set, dtorName, env, flags);
+}
+
+
 // caller promises that it will reject function names anyway
 Variable *Env::lookupPQ_one(PQName *name, LookupFlags flags)
 {
@@ -4365,11 +4427,18 @@ Variable *Env::lookupPQ_one(PQName *name, LookupFlags flags)
   return set.isEmpty()? NULL : set.first();
 }
 
-
 Variable *Env::unqualifiedLookup_one(StringRef name, LookupFlags flags)
 {
   LookupSet set;
   unqualifiedLookup(set, NULL /*scope*/, name, flags);
+  return set.isEmpty()? NULL : set.first();
+}
+
+Variable *Env::unqualifiedFinalNameLookup_one(Scope *scope, PQName *name,
+                                              LookupFlags flags)
+{
+  LookupSet set;
+  unqualifiedFinalNameLookup(set, scope, name, flags);
   return set.isEmpty()? NULL : set.first();
 }
 
@@ -4565,16 +4634,7 @@ Variable *Env::lookupPQ_modifiedPQ_one(PQName *name, LookupFlags flags,
   }
 
   // like the other _one functions
-  Variable *ret = set.isEmpty()? NULL : set.first();
-
-  // for the moment, this is present at both call sites; when I add
-  // two more call sites I may have to modify this
-  if (!ret || !ret->hasFlag(DF_TYPEDEF)) {
-    env.error(lookupLoc, stringc << "no such type: `" << lookupName << "'");
-    return NULL;
-  }
-
-  return ret;
+  return set.isEmpty()? NULL : set.first();
 }
 
 

@@ -176,6 +176,9 @@ class PQName(SourceLoc loc) {
   // retrieve a StringRef for the underlying name, be it a PQ_name or
   // a PQ_operator
   pure_virtual StringRef getName() const;
+  
+  // just this component; as if last in chain
+  pure_virtual string toComponentString() const;
 
   // get the PQName at the bottom of any qualifiers
   public PQName const *getUnqualifiedNameC() const;

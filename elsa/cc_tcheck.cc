@@ -6004,6 +6004,15 @@ string kindAndType(Variable *v)
 }
 
 
+PQ_qualifier *getSecondToLast(PQ_qualifier *name)
+{
+  while (name->rest->isPQ_qualifier()) {
+    name = name->rest->asPQ_qualifier();
+  }
+  return name;
+}
+
+
 // cppstd sections: 5.2.4, 5.2.5 and 3.4.5
 Type *E_fieldAcc::itcheck_x(Env &env, Expression *&replacement)
 {
@@ -6069,9 +6078,16 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
         fieldName, flags | LF_ALL_BUT_LAST, NULL /*scope*/);
       Variable *lastVar = env.lookupPQ_modifiedPQ_one(
         fieldName, flags | LF_ALL_BUT_SECONDLAST, NULL /*scope*/);
-
-      if (!secondVar || !lastVar) {
-        return env.errorType();      // error already reporeted
+  
+      if (!secondVar || !secondVar->isType()) {
+        PQName *n = getSecondToLast(fieldName->asPQ_qualifier());
+        return env.error(n->loc, stringc
+          << "no such type: `" << n->toComponentString() << "'");
+      }
+      if (!lastVar || !lastVar->isType()) {
+        PQName *n = fieldName->getUnqualifiedName();
+        return env.error(n->loc, stringc
+          << "no such type: `" << n->toComponentString() << "'");
       }
       if (!lastVar->type->equals(secondVar->type)) {
         return env.error(fieldName->loc, stringc
@@ -6128,9 +6144,6 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
   else if (fieldName->isPQ_qualifier()) {
     // qualified (but not global scope): 3.4.5p4
     PQ_qualifier *firstQ = fieldName->asPQ_qualifier();
-
-    // TODO: if 'isDestructor', then we may to break apart the
-    // name according to 3.4.3p5
 
     // unqualified lookup of firstQ
     Variable *firstQVar1 =
@@ -6233,16 +6246,7 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
       }
 
       // get the destructor of the named class
-      CompoundType *rhsClass = var1->type->asCompoundType();
-      if (rhsFinalTypeName == rhsClass->name) {
-        // normal case, use the ~C we already have
-        rhsClass->lookup(candidates, fieldName->getName(), env, flags);
-      }
-      else {
-        // make another one to lookup the destructor (in/t0378.cc)
-        rhsClass->lookup(candidates, env.str(stringc << "~" << rhsClass->name),
-                         env, flags);
-      }
+      env.lookupClassDestructor(candidates, var1->type->asCompoundType(), flags);
     }
 
     else {

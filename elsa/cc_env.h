@@ -722,11 +722,18 @@ public:      // funcs
   // not matter if there is more than one)
   Variable *lookupPQ_one(PQName *name, LookupFlags flags);
   Variable *unqualifiedLookup_one(StringRef name, LookupFlags flags);
+  Variable *unqualifiedFinalNameLookup_one(Scope *scope, PQName *name,
+                                           LookupFlags flags);
 
   // break apart name, do a lookup, then repair; see implementation
+  // (TODO: remove this)
   Variable *lookupPQ_modifiedPQ_one(PQName *name, LookupFlags flags,
                                     Scope * /*nullable*/ startScope);
 
+  // lookup "~ct->name" in 'ct'
+  void lookupClassDestructor(LookupSet &set, CompoundType *ct,
+                             LookupFlags flags);
+                                
   // ------------ template instantiation stuff ------------
   // the following methods are implemented in template.cc
 private:     // template funcs
