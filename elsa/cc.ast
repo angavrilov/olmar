@@ -593,7 +593,9 @@ class Expression {
 
   // this exist onlys between parsing and type-checking; it is always
   // translated away by the type checker (Q: should we do the same for
-  // E_grouping?)
+  // E_grouping? A: dsw: be careful if you do that because E_grouping
+  // is *not* just for precedence in one situation involving pointers
+  // to members that I don't recall clearly right now)
   -> E_arrow(Expression obj, PQName fieldName);         // e.g. p->f
 }
 
