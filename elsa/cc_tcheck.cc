@@ -1118,13 +1118,6 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // [cppstd 14.5.4 and 14.7]; but don't add it to any scopes
     ret = env.makeNewCompound(ct, NULL /*scope*/, stringName, loc, keyword,
                               false /*forward*/);
-    #if 0   // previous; delete me
-    ct = new CompoundType((CompoundType::Keyword)keyword, stringName);
-    ClassTemplateInfo *specialTI = ct->templateInfo =
-      env.takeTemplateClassInfo(stringName);
-    xassert(specialTI);
-    ret = env.makeType(loc, ct);
-    #endif // 0
     this->ctype = ct;           // annotation
 
     // add this type to the primary's list of specializations; we are not
@@ -1664,76 +1657,6 @@ void possiblyConsumeFunctionType(Env &env, Declarator::Tcheck &dt)
 }
 
 
-#if 0     // obsolete
-// given an unqualified name which might refer to a conversion
-// operator, rewrite the type if it is
-Type *makeConversionOperType(Env &env, SourceLoc loc,
-                             OperatorName *o, Type *spec)
-{
-  if (!o->isON_conversion()) {
-    // no change for non-conversion operators
-    return spec;
-  }
-  else {
-    ON_conversion *c = o->asON_conversion();
-
-    ASTTypeId::Tcheck tc;
-    c->type = c->type->tcheck(env, tc);
-    Type *destType = c->type->getType();
-
-    // need a function which returns 'destType', but has the
-    // other characteristics gathered into 'spec'; make sure
-    // 'spec' is a function type
-    if (!spec->isFunctionType() ) {
-      env.error("conversion operator must be a function");
-      return spec;
-    }
-    FunctionType *specFunc = spec->asFunctionType();
-
-    #if 0    // I do things in a different order now, so the check is wrong
-    // I'm not sure if this can actually happen..
-    if (!specFunc->isMember) {
-      env.error("conversion operator must be a member function");
-      return spec;
-    }
-    #endif // 0
-
-    if (specFunc->params.count()!=0  ||
-        specFunc->acceptsVarargs()) {
-      env.error("conversion operator cannot accept arguments");
-      return spec;
-    }
-
-    // now build another function type using specFunc's cv flags
-    // (since we've verified none of the other info is interesting);
-    // in particular, fill in the conversion destination type as
-    // the function's return type
-    FunctionType *ft = env.tfac.makeSimilarFunctionType(loc, destType, specFunc);
-    //ft->addParam(specFunc->getThis());   // now happens in D_name_tcheck
-    ft->templateParams = env.takeTemplateParams();
-
-    return ft;
-  }
-}
-
-
-// make sure a given ctor name matches the class it's in
-bool ctorNameMatches(char const *ctorName, char const *className)
-{
-  // is 'className' an instiated template name?
-  char const *angle = strchr(className, '<');
-  if (angle) {
-    // yes, compare only up to that character
-    return string(className, angle-className).equals(ctorName);
-  }
-  else {
-    // regular string comparison
-    return 0==strcmp(className, ctorName);
-  }
-}
-#endif // 0
-
-
 // wrapper around similarly-named TypeFactory function
 Type *getNormalizedSignature(Env &env, Type *orig)
 {
@@ -1963,60 +1886,6 @@ realStart:
     unqualifiedName = env.constructorSpecialName;
   }
 
-  #if 0    // obsoleted by functionality in D_func::itcheck
-  if (name->getUnqualifiedNameC()->isPQ_operator()) {
-    // conversion operators require that I play some games
-    // with the type
-    //
-    // this may not be perfect, because it makes looking up
-    // the set of candidate conversion functions difficult
-    // (you have to explicitly iterate through the base classes)
-    dt.type = makeConversionOperType(
-      env, loc, name->getUnqualifiedNameC()->asPQ_operatorC()->o, dt.type);
-  }
-
-  else if (dt.type->isCDtorFunction()) {
-    // the return type claims it's a constructor or destructor;
-    // validate that
-    CompoundType *ct = scope->curCompound;
-    if (!ct) {
-      env.error("cannot have ctors or dtors outside of a class",
-                true /*disambiguates*/);
-      goto makeDummyVar;
-    }
-
-    // get the claimed class name so we can compare to the name
-    // of the class whose scope we're in
-    char const *className = unqualifiedName;
-    char const *fnKind = "constructor";
-    if (className[0] == '~') {          // dtor
-      className++;
-      fnKind = "destructor";
-    }
-
-    // can't rely on string table for comparison because 'className'
-    // might be pointing into the middle of one the table's strings
-    if (!ctorNameMatches(className, ct->name)) {
-      env.error(stringc
-        << fnKind << " `" << *name << "' does not match the name `"
-        << ct->name << "', the class in whose scope it appears",
-        true /*disambiguates*/);
-      goto makeDummyVar;
-    }
-
-    if (unqualifiedName[0] != '~') {    // ctor
-      isConstructor = true;
-
-      // if I just use the class name as the name of the constructor,
-      // then that will hide the class's name as a type, which messes
-      // everything up.  so, I'll kludge together another name for
-      // constructors (one which the C++ programmer can't type) and
-      // just make sure I always look up constructors under that name
-      unqualifiedName = env.constructorSpecialName;
-    }
-  }
-  #endif // 0
-
   // are we in a class member list?  we can't be in a member
   // list if the name is qualified (and if it's qualified then
   // a class scope has been pushed, so we'd be fooled)
@@ -2094,25 +1963,6 @@ realStart:
           << "cannot define nonstatic data member `" << *name << "'");
         goto makeDummyVar;
       }
-
-      #if 0      // shouldn't be needed anymore
-      // if the prior declaration is for a static method of a class,
-      // then the computed type we have so far is wrong because
-      // DF_STATIC won't have been syntactically present at the
-      // definition; note that this must be done *after* figuring out
-      // which overloaded instance this is, because it's legal to have
-      // both static and nonstatic overloaded functions (t0098.cc is a
-      // testcase)
-      if (prior->type->isFunctionType() &&
-          dt.type->isFunctionType() &&
-          prior->hasFlag(DF_STATIC)) {
-        xassert(!prior->type->asFunctionType()->isMember());
-        xassert(dt.type->asFunctionType()->isMember());
-
-        // make the correct type
-        dt.type = env.tfac.makeIntoStaticMember(dt.type->asFunctionType());
-      }
-      #endif // 0
     }
   }
   else {

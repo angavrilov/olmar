@@ -421,8 +421,6 @@ public:     // funcs
   bool isTemplateFunction() const;
   bool isTemplateClass() const;
 
-  //obsolete: bool isCDtorFunction() const;
-
   // this is true if any of the type *constructors* on this type
   // refer to ST_ERROR; we don't dig down inside e.g. members of
   // referred-to classes
@@ -845,13 +843,6 @@ public:
   virtual FunctionType *syntaxFunctionType(SourceLoc loc,
     Type *retType, D_func * /*nullable*/ syntax);
 
-  #if 0  // obsolete
-  // this version is for nonstatic member functions; you have to
-  // pass the 'this' variable
-  virtual FunctionType *syntaxMemberFunctionType(SourceLoc loc,
-    Type *retType, Variable *thisVar, D_func * /*nullable*/ syntax);
-  #endif // 0
-
   // and another for pointer-to-member
   virtual PointerToMemberType *syntaxPointerToMemberType(SourceLoc loc,
     CompoundType *inClass, CVFlags cv, Type *atType, 
@@ -867,14 +858,6 @@ public:
   // except 'params'
   virtual FunctionType *makeSimilarFunctionType(SourceLoc loc,
     Type *retType, FunctionType *similar);
-
-  #if 0   // obsolete
-  // given a function type just created under the assumption that it
-  // is a nonstatic member, make it into a static member by
-  // removing the 'this' parameter; it should be safe to mutate 'orig'
-  // because it was just created and hasn't been stored elsewhere
-  virtual FunctionType *makeIntoStaticMember(FunctionType *orig);
-  #endif // 0
 
   // function signature normalization; see comments above the
   // default implementation in cc_type.cc

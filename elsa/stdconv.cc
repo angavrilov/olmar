@@ -518,7 +518,7 @@ StandardConversion getStandardConversion
     //    subsumed by the initialization and does not
     //    constitute a conversion."
 
-    #if 0    // need anything?
+    #if 0    // am I supposed to do any checking?
     // I'm not perfectly clear on the checking I should do for
     // the cv flags here.  lval-to-rval says that 'int const &'
     // becomes 'int' whereas 'Foo const &' becomes 'Foo const'

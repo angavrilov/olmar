@@ -750,14 +750,6 @@ bool Type::isTemplateClass() const
          asCompoundTypeC()->isTemplate();
 }
 
-#if 0
-bool Type::isCDtorFunction() const
-{
-  return isFunctionType() &&
-         asFunctionTypeC()->retType->isSimple(ST_CDTOR);
-}    
-#endif // 0
-
 
 bool typeIsError(Type const *t)
 {
@@ -1596,16 +1588,6 @@ FunctionType *TypeFactory::makeSimilarFunctionType(SourceLoc loc,
   }
   return ret;
 }
-
-
-#if 0   // obsolete
-FunctionType *TypeFactory::makeIntoStaticMember(FunctionType *orig)
-{
-  orig->isMember = false;
-  orig->params.removeFirst();
-  return orig;
-}                  
-#endif // 0
 
 
 CVAtomicType *TypeFactory::getSimpleType(SourceLoc loc, 
