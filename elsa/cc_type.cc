@@ -202,7 +202,7 @@ bool CompoundType::isTemplate() const
 
 bool CompoundType::hasVirtualFns() const
 {
-  // TODO: this fails to consider members inherited from base classes
+  // TODO: this fails to consider members inherited from base classes ...
 
   for (StringSObjDict<Variable>::IterC iter(getVariableIter());
        !iter.isDone(); iter.next()) {
