@@ -25,22 +25,23 @@ string toString(StandardConversion c)
       sb << #label;                    \
       break;
 
-  // I'd like to just have a case for SC_IDENTITY in each block,
-  // but some gcc retardedness doesn't allow it
-  if (c & SC_GROUP_1_MASK) switch (c & SC_GROUP_1_MASK) {
+  switch (c & SC_GROUP_1_MASK) {
     default: return stringc << "bad code: " << (int)c;
+    case SC_IDENTITY: break;
     CASE(SC_LVAL_TO_RVAL)
     CASE(SC_ARRAY_TO_PTR)
     CASE(SC_FUNC_TO_PTR)
   }
 
-  if (c & SC_GROUP_3_MASK) switch (c & SC_GROUP_3_MASK) {
+  switch (c & SC_GROUP_3_MASK) {
     default: return stringc << "bad code: " << (int)c;
+    case SC_IDENTITY: break;
     CASE(SC_QUAL_CONV)
   }
 
-  if (c & SC_GROUP_2_MASK) switch (c & SC_GROUP_2_MASK) {
+  switch (c & SC_GROUP_2_MASK) {
     default: return stringc << "bad code: " << (int)c;
+    case SC_IDENTITY: break;
     CASE(SC_INT_PROM)
     CASE(SC_FLOAT_PROM)
     CASE(SC_INT_CONV)
