@@ -32,6 +32,7 @@ public:      // funcs
   CCTreeNode(Reduction *red)
     : NonterminalNode(red), env(NULL),
       isJustInt(false), theInt(-1) {}
+  virtual ~CCTreeNode();
 
   // do the declaration, and report an error if it happens
   void declareVariable(Env *env, char const *name,

@@ -195,9 +195,7 @@ NonterminalNode::~NonterminalNode()
     checkHeap();
   }
   
-  #ifndef NDEBUG
-  selfCheck(true /*selfOnly*/);
-  #endif
+  //selfCheck(true /*selfOnly*/);        // DEBUG
 
   if (paranoid) {
     checkHeap();

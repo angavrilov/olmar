@@ -152,12 +152,13 @@ void emitSemFuns(EmitCode &os, Grammar const *g,
      ;
 
   // emit destructor
+  os << typeName << "::~" << typeName << "()\n"
+     << "{\n";
   if (nonterm->destructor) {
-    os << typeName << "::~" << typeName << "()\n"
-       << "{\n";
     insertLiteralCode(os, nonterm->destructor);
-    os << "}\n\n";
   }
+  //os << "  checkHeap();\n";    // DEBUG
+  os << "}\n\n";
 
   os << "\n";
 
@@ -296,9 +297,7 @@ void emitClassDecl(EmitCode &os, Grammar const *g, Nonterminal const *nonterm)
   os << "  " << nodeTypeName(nonterm) << nodeCtorArgs << ";\n";
 
   // destructor
-  if (nonterm->destructor) {
-    os << "  ~" << nodeTypeName(nonterm) << "();\n";
-  }
+  os << "  virtual ~" << nodeTypeName(nonterm) << "();\n";
 
   // loop over all declared functions
   for (LitCodeDict::Iter declaration(nonterm->funDecls);
@@ -377,6 +376,7 @@ void emitSemFunImplFile(char const *fname, char const *headerFname,
      << "// NOTE: automatically generated file -- editing inadvisable\n"
      << "\n"
      << "#include \"" << headerFname << "\"   // user's declarations\n"
+     << "#include \"ckheap.h\"          // checkHeap\n"
      << "\n"
      << "\n"
      ;

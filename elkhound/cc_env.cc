@@ -4,6 +4,7 @@
 #include "cc_env.h"      // this module
 #include "trace.h"       // tracingSys
 #include "dataflow.h"    // DataflowEnv
+#include "ckheap.h"      // heapCheck
 
 
 // ----------------------- Variable ---------------------------
@@ -71,7 +72,10 @@ Env::Env(Env *p)
 
 Env::~Env()
 {
-  if (parent) {
+  // this was a huge bug: again accessing parent, when I
+  // don't maintain the invariant of parent being alive ..
+
+  if (false /*parent*/) {
     // if we're carrying any errors, deliver them to the
     // containing environment
     parent->errors.concat(errors);
@@ -93,6 +97,18 @@ Env::~Env()
     trace("refct") << "warning: destroying Env at " << this << " with refct="
                    << referenceCt << endl;
   }
+  
+  // debugging ...
+  #if 0
+  checkHeap();
+  compounds.empty();
+  enums.empty();
+  typedefs.empty();
+  variables.empty();
+  intermediates.deleteAll();
+  errors.deleteAll();
+  checkHeap();
+  #endif // 0
 }
 
 

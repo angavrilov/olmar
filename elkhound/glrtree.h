@@ -20,6 +20,7 @@
 #include "lexer2.h"      // Lexer2, Lexer2Token
 #include "owner.h"       // Owner
 #include "exc.h"         // xBase
+#include "trdelete.h"    // TRASHINGDELETE
 
 
 // forward decls for things declared below
@@ -45,6 +46,7 @@ public:     // data
 public:     // funcs
   TreeNode();
   virtual ~TreeNode();
+  TRASHINGDELETE
 
   // returns the representative symbol (terminal or nonterminal)
   virtual Symbol const *getSymbolC() const = 0;
@@ -194,6 +196,7 @@ public:      // data
 public:      // funcs
   Reduction(Production const *prod);
   ~Reduction();
+  TRASHINGDELETE
 
   AttrValue getAttrValue(AttrName name) const;
   void setAttrValue(AttrName name, AttrValue value);

@@ -145,7 +145,7 @@ nonterm TranslationUnit : Checkable {
     // run the analysis on this piece of the tree
     typeCheck(env);
 
-    bool goSlow = (getLeftmostTerminalC()->token->loc.line == -1 /*5217*/);
+    bool goSlow = (getLeftmostTerminalC()->token->loc.line == -2 /*666*/);
     if (goSlow) {
       breaker();     // line where I'm having problems ..
       checkHeap();
@@ -192,6 +192,15 @@ nonterm TranslationUnit : Checkable {
     this->reductions.prepend(leftReduction);
     leftNT->reductions.prepend(red);
 
+    // more debugging .... let's see if the selfCheck holds
+    // on all the nodes before I go delete any of them
+    #if 0
+    FOREACH_OBJLIST(TreeNode, tree.treeNodes, iter) {
+      iter.data()->selfCheck(true);        // DEBUG
+    }    
+    #endif // 0
+
+    #if 0
     // blow away all the other tree nodes; this deletes everything
     // except 'this' and its newly-acquired 'leftReduction'
     if (goSlow) {
@@ -213,7 +222,8 @@ nonterm TranslationUnit : Checkable {
     }
     else {
       tree.treeNodes.deleteAll();
-    }
+    }    
+    #endif // 0
   }
 }
 

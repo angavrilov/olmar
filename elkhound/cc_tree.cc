@@ -4,9 +4,16 @@
 #include "cc_tree.h"     // this module
 #include "dataflow.h"    // DataflowEnv, etc.
 #include "cc.h"          // for simplify()
+#include "ckheap.h"      // checkHeap
 
 
 // --------------------- CCTreeNode ----------------------
+CCTreeNode::~CCTreeNode()
+{
+  //checkHeap();     // DEBUG
+}
+
+
 void CCTreeNode::declareVariable(Env *env, char const *name,
                                  DeclFlags flags, Type const *type) const
 {

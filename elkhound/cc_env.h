@@ -85,7 +85,7 @@ private:    // data
   bool trialBalloon;
 
   // pointer to current dataflow environment
-  DataflowEnv *denv;
+  DataflowEnv *denv;                       // (serf)
 
   // (debugging) reference count of # of nested environments pointing at me
   int referenceCt;
