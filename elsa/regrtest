@@ -223,22 +223,7 @@ T="$T t0034.cc"
 T="$T t0035.cc"
 T="$T t0036.cc"
 T="$T t0037.cc"
-
-# FIXED!
-
-# This one is very strange.  First, the function f and method foo()
-# are irrelevant; remove them.  Note that there is no way to seperate
-# StringDict and Iter such that one is before the other.  Now, note
-# that if you do any of the following, the test passes: Change
-# getIter() to return void or an Iter reference.  Change the Iter ctor
-# to have no arguments and make "StringDict &dict" a member of class
-# Iter.  Change the Iter ctor to just be a normal method.
-
-# Also, it fails in a different way if StringDict is passed as a
-# parameter by value instead of by reference.
-
 T="$T t0038.cc"
-
 T="$T t0039.cc"
 T="$T t0040.cc"
 T="$T t0041.cc"
@@ -259,14 +244,7 @@ T="$T t0050.cc"
 T="$T t0051.cc"
 T="$T t0052.cc"
 T="$T t0053.cc"
-
-# FIXED!
-# I must have messed up putting in the template arguments to a PQName somewhere.
-#  in/t0054.cc:17:5: error: too few template arguments to `A' (and partial specialization is not implemented)
-#  in/t0054.cc:19:11: error: class `A' is a template, you have to supply template arguments
-
 T="$T t0054.cc"
-
 T="$T t0055.cc"
 T="$T t0056.cc"
 T="$T t0057.cc"
