@@ -65,6 +65,7 @@ public:     // funcs
 
   T const *queryfC(char const *key) const              { return (T const *)dict.queryf(key); }
   T * /*serf*/ queryf(char const *key)                 { return (T*)queryfC(key); }
+  T * /*serf*/ queryif(char const *key)                { return (T*)queryif(key); }
 
   bool isMapped(char const *key) const                 { return dict.isMapped(key); }
 

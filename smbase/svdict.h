@@ -131,6 +131,9 @@ public:
     // return the value corresponding to 'key', or throw an exception of it's
     // not mapped
 
+  void *queryif(char const *key) const;
+    // return the value corresponding to 'key', or return NULL
+
   bool isMapped(char const *key) const;
     // return true if 'key' is mapped to a value
 

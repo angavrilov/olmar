@@ -66,6 +66,7 @@ public:     // funcs
 
   bool query(char const *key, T *&value) const         { return dict.query(key, (void*&)value); }
   T *queryf(char const *key) const                     { return (T*)dict.queryf(key); }
+  T *queryif(char const *key) const                    { return (T*)dict.queryif(key); }
 
   bool isMapped(char const *key) const                 { return dict.isMapped(key); }
 

@@ -131,6 +131,18 @@ void *StringVoidDict::queryf(char const *key) const
 }
 
 
+void *StringVoidDict::queryif(char const *key) const
+{
+  void *ret;
+  if (query(key, ret)) {
+    return ret;
+  }
+  else {
+    return NULL;
+  }
+}
+
+
 bool StringVoidDict::isMapped(char const *key) const
 {
   void *dummy;
