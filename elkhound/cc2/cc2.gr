@@ -503,8 +503,11 @@ nonterm InitDeclaratorListOpt {
 }
 
 // Q: why is the InitDeclaratorList optional?  "int ;" is not valid
+// A: because we can say "class C { ... };"
+//
 // Q: for that matter, why is the DeclSpecifierSeq optional?  ";" is
 // not a valid declaration (it's a statement)
+// A: the declspecifierseq is missing for constructors
 nonterm SimpleDeclaration {
   fun merge(l,r) [ return l; ]
 
