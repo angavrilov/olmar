@@ -105,7 +105,10 @@ string declaration_toString(
       if (pqname) {
         scope_thing = pqname->qualifierString();
       }
-      s << type->toCString(stringc << scope_thing << finalName);
+      stringBuilder sb;
+      sb << scope_thing;
+      sb << finalName;
+      s << type->toCString(sb);
     } else {
       s << type->toCString(finalName);
     }

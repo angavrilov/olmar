@@ -9,21 +9,45 @@ use strict;
 my $parser = "./ccparse";
 die "No executable file: $parser\n" unless -x $parser;
 my @names = ();
-
 my @outfiles = ();
 my %outfile2command = ();
 
-for(@ARGV) {
-    s/\s*\#.*$//;               # delete comments
-    s/^\s*//;                   # delete leading whitespace
-    s/\s*$//;                   # delete trailing whitespace
-    next if /^\s*$/;            # skip blank lines
-    if (/^(\S+)$/) {
-        push @names, $1;
-    } else {
-        die "Malformed line: $_";
-    }
+my $outdir;
+
+my $usage=<<END
+Usage: check_idempotency -d <outputdir> <inputlist>...
+END
+    ;
+
+if (+@ARGV==0) {
+    print $usage;
+    exit 0;
 }
+
+#  for(@ARGV) {
+#      s/\s*\#.*$//;               # delete comments
+#      s/^\s*//;                   # delete leading whitespace
+#      s/\s*$//;                   # delete trailing whitespace
+#      next if /^\s*$/;            # skip blank lines
+#      if (/^(\S+)$/) {
+#          push @names, $1;
+#      } else {
+#          die "Malformed line: $_";
+#      }
+#  }
+{
+    my $arg = shift @ARGV;
+    last unless defined $arg;
+    if ($arg=~/^-d/) {
+        $outdir = shift @ARGV;
+        die "No argument to -d\n" unless defined $outdir;
+        die "No such dir: $outdir\n" unless -d $outdir;
+    } else {
+        push @names, $arg;
+    }
+    redo;
+}
+die "You must specify an out directory with -d\n$usage" unless defined $outdir;
 
 sub run_only ($$) {
     my ($command, $outfile) = @_;
@@ -58,7 +82,6 @@ sub dump_outfiles {
     }
 }
 
-#  my %idempotent = ();
 my $numinputs = 0;
 my $numpass = 0;
 my @failingFiles = ();
@@ -67,6 +90,11 @@ for my $name(@names) {
     die "No such file $name\n" unless -f "$name";
     ++$numinputs;
 
+    my $outname = $name;
+    if ($outname=~m|/|) {$outname=~s|^.*/([^/]+)|$1|;}
+    die "Bad outname:$outname:\n" if $outname=~/^\s*$/;
+    $outname = "$outdir/$outname";
+
     @outfiles = ();
     push @outfiles, $name;
     $outfile2command{$name} = "ORIGINAL: $name";
@@ -74,37 +102,32 @@ for my $name(@names) {
         # sm: added "-tr prettyPrint" to print the tree, since
         # I made that printing conditional upon the tracing flag
         my $flags = "-tr prettyPrint";
-#          my $cppflags = "-lang-c++";      # FIX: put include lines here.
-        my $cppflags = "";      # FIX: put include lines here.
-        run_command "cpp $cppflags $name", "$name.out_cpp";
-        run_command "$parser $flags $name.out_cpp", "$name.out_raw";
-        run_only "./chop_out < $name.out_raw", "$name.out";
-        run_command "$parser $flags $name.out", "$name.out2_raw";
-        run_only "./chop_out < $name.out2_raw", "$name.out2";
+#          my $cppflags = "-lang-c++";      # This doesn't work!
+        run_command "cpp -D__cplusplus -D__LINUX__ -D__UNIX__ -DNDEBUG $name",
+        "$outname.0cppout.cc";
+        run_command "$parser $flags $outname.0cppout.cc", "$outname.1rawout.cc";
+        run_only "./chop_out < $outname.1rawout.cc", "$outname.2out.cc";
+        run_command "$parser $flags $outname.2out.cc", "$outname.3rawout.cc";
+        run_only "./chop_out < $outname.3rawout.cc", "$outname.4out.cc";
     };
     if ($@) {
         dump_outfiles();
-        @failingFiles = (@failingFiles, $name);
+        push @failingFiles, $name;
         print "ERROR: $@\n";
         next;
     }
 
-    my $diff_command = "diff -u $name.out $name.out2 > $name.diff";
-    $outfile2command{"$name.diff"} = $diff_command;
-    push @outfiles, "$name.diff";
-#    print "$diff_command\n";
+    my $diff_command = "diff -u $outname.2out.cc $outname.4out.cc > $outname.5diff";
+    $outfile2command{"$outname.5diff"} = $diff_command;
+    push @outfiles, "$outname.5diff";
     my $diff_res = system $diff_command;
     if ($diff_res == 0) {
-#          $idempotent{$outputfile}++;
         ++$numpass;
     } else {
         dump_outfiles();
-        @failingFiles = (@failingFiles, $name);
+        push @failingFiles, $name;
     }
 }
-
-#  for my $name(keys $idempotent) {
-#  }
 
 print "";
 print "Num inputs $numinputs\n";

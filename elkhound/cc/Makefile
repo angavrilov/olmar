@@ -90,7 +90,6 @@ TOCHECK += cc.in29
 # scope not printing.
 #TOCHECK += cc.in30
 
-# Smaller examples of just anonymous classes and enums.
 TOCHECK += cc.in30a
 TOCHECK += cc.in30b
 
@@ -121,125 +120,126 @@ TOCHECK += cc.in43
 
 .PHONY: idem/check
 idem/check: idem/clean
-	./check_idempotency $(addprefix ../cc.in/,$(TOCHECK))
+	./check_idempotency -d outdir $(addprefix ../cc.in/,$(TOCHECK))
 
-TEST_SUFFIXES_TO_CLEAN := out_cpp out_raw out out2_raw out2 diff
+TEST_SUFFIXES_TO_CLEAN := 0cppout.cc 1rawout.cc 2out.cc 3rawout.cc 4out.cc 5diff
 TEST_PATTERNS_TO_CLEAN := $(patsubst %,-o -name '*.%',$(TEST_SUFFIXES_TO_CLEAN))
 .PHONY: idem/clean
 idem/clean:
-	find ../cc.in -type f \( -false $(TEST_PATTERNS_TO_CLEAN) \) | xargs rm -f
+	find outdir -type f \( -false $(TEST_PATTERNS_TO_CLEAN) \) | xargs rm -f
 
 # Check idempotency of ccparse -tr prettyPrint on C and C++ files in
 # cure_cpp/cc_examples.
 
-# NOTE: Most of these fail because standard header files don't parse.
-
 TOCHECK2 :=
 
 TOCHECK2 += Box.cc
-
-# Check this:
-# __UNIX__ __LINUX__
-# Why this should be a parse error on the first pass, I don't know.
-# Line 1322, col 18: Parse error at wchar_t
-# typedef long int wchar_t;
-#TOCHECK2 += JustHello.c
-
-#TOCHECK2 += JustWorld.c
+TOCHECK2 += JustHello.c
+TOCHECK2 += JustWorld.c
 TOCHECK2 += Test_005true.c
-#TOCHECK2 += Test_010hello.c
+TOCHECK2 += Test_010hello.c
 TOCHECK2 += Test_105true.cc
+TOCHECK2 += Test_110hello.cc
 
-# ABOVE: anonymous structs not printing with {}.
-#TOCHECK2 += Test_110hello.cc
-
-#TOCHECK2 += Test_210box.cc
+TOCHECK2 += Test_210box.cc
 #TOCHECK2 += Test_220tbox.cc
-#TOCHECK2 += Test_310hello.c
-#TOCHECK2 += Test_315hello.c
+TOCHECK2 += Test_310hello.c
+TOCHECK2 += Test_315hello.c
 #TOCHECK2 += Test_320hello_tbox.cc
 #TOCHECK2 += Test_325hello_tbox.cc
 
-#TOCHECK2 += calc/Test_100.cc
-#TOCHECK2 += calc/Test_110.cc
-#TOCHECK2 += calc/Test_200Lexer.cc
-#TOCHECK2 += calc/Test_300Parser.cc
-#TOCHECK2 += calc/Test_400Eval.cc
-#TOCHECK2 += calc/calc.cc
-#TOCHECK2 += calc/lexer.cc
-#TOCHECK2 += calc/parser.cc
-#TOCHECK2 += calc/util.cc
+# TOCHECK2 += calc/Test_100.cc
+# TOCHECK2 += calc/Test_110.cc
+# TOCHECK2 += calc/Test_200Lexer.cc
+# TOCHECK2 += calc/Test_300Parser.cc
+# TOCHECK2 += calc/Test_400Eval.cc
+# TOCHECK2 += calc/calc.cc
+# TOCHECK2 += calc/lexer.cc
+# TOCHECK2 += calc/parser.cc
+# TOCHECK2 += calc/util.cc
 
+#Exception thrown: Assertion failed: !a->isReference(), file cc/cc_type.cc line 884
 #TOCHECK2 += ch5/ex1.cc
+
 #TOCHECK2 += ch5/ex3.cc
-#TOCHECK2 += ch5/ex4.cc
+
+TOCHECK2 += ch5/ex4.cc
 
 #TOCHECK2 += ch7/overload.cc
 #TOCHECK2 += ch7/va_args_ex.c
 
 #TOCHECK2 += ch8/dc_except.cc
+
+#Line 3154, col 1: Parse error at namespace
 #TOCHECK2 += ch8/namespaces.cc
 
-#TOCHECK2 += ch10/Arena.cc
-#TOCHECK2 += ch10/NonLocal.cc
-#TOCHECK2 += ch10/NonLocalB.cc
+TOCHECK2 += ch10/Arena.cc
+TOCHECK2 += ch10/NonLocal.cc
+TOCHECK2 += ch10/NonLocalB.cc
+#Line 3193, col 1: Parse error at namespace
 #TOCHECK2 += ch10/NonLocalC.cc
-#TOCHECK2 += ch10/Person.cc
+
+TOCHECK2 += ch10/Person.cc
 #TOCHECK2 += ch10/PlacementNew.cc
 #TOCHECK2 += ch10/RefBox.cc
 #TOCHECK2 += ch10/Test1.cc
 TOCHECK2 += ch10/Test2.cc
+
+#outdir/Union.cc.0cppout.cc:3166:12 error: unions cannot have member functions
 #TOCHECK2 += ch10/Union.cc
-#TOCHECK2 += ch10/test_ambig1.cc
+
+TOCHECK2 += ch10/test_ambig1.cc
 
 #TOCHECK2 += ch11/apply.cc
 #TOCHECK2 += ch11/arrow.cc
-#TOCHECK2 += ch11/complex.cc
+TOCHECK2 += ch11/complex.cc
 #TOCHECK2 += ch11/complex3.cc
+
 #TOCHECK2 += ch11/day.cc
-#TOCHECK2 += ch11/map.cc
-#TOCHECK2 += ch11/my_ostream.cc
-#TOCHECK2 += ch11/test1.cc
-#TOCHECK2 += ch11/test2.cc
-#TOCHECK2 += ch11/test3.cc
-#TOCHECK2 += ch11/test4.cc
-#TOCHECK2 += ch11/test5.cc
+TOCHECK2 += ch11/map.cc
+TOCHECK2 += ch11/my_ostream.cc
+
+# TOCHECK2 += ch11/test1.cc
+# TOCHECK2 += ch11/test2.cc
+# TOCHECK2 += ch11/test3.cc
+# TOCHECK2 += ch11/test4.cc
+# TOCHECK2 += ch11/test5.cc
 
 #TOCHECK2 += ch12/impl0_IO.cc
 #TOCHECK2 += ch12/impl1_IO.cc
 #TOCHECK2 += ch12/test1.cc
-#TOCHECK2 += ch12/test2.cc
-#TOCHECK2 += ch12/test3.cc
-#TOCHECK2 += ch12/test4.cc
+# TOCHECK2 += ch12/test2.cc
+# TOCHECK2 += ch12/test3.cc
+# TOCHECK2 += ch12/test4.cc
 
-#TOCHECK2 += ch13/test1.cc
-#TOCHECK2 += ch13/test10.cc
-#TOCHECK2 += ch13/test11.cc
-#TOCHECK2 += ch13/test12.cc
-#TOCHECK2 += ch13/test13.cc
-#TOCHECK2 += ch13/test2.cc
-#TOCHECK2 += ch13/test3.cc
-#TOCHECK2 += ch13/test4.cc
-#TOCHECK2 += ch13/test5.cc
-#TOCHECK2 += ch13/test6.cc
-#TOCHECK2 += ch13/test7.cc
-#TOCHECK2 += ch13/test8.cc
-#TOCHECK2 += ch13/test9.cc
+# TOCHECK2 += ch13/test1.cc
+# TOCHECK2 += ch13/test10.cc
+# TOCHECK2 += ch13/test11.cc
+# TOCHECK2 += ch13/test12.cc
+# TOCHECK2 += ch13/test13.cc
+# TOCHECK2 += ch13/test2.cc
+# TOCHECK2 += ch13/test3.cc
+# TOCHECK2 += ch13/test4.cc
+# TOCHECK2 += ch13/test5.cc
+TOCHECK2 += ch13/test6.cc
+# TOCHECK2 += ch13/test7.cc
+# TOCHECK2 += ch13/test8.cc
+# TOCHECK2 += ch13/test9.cc
 
-#TOCHECK2 += ch14/test1.cc
-#TOCHECK2 += ch14/test2.cc
-#TOCHECK2 += ch14/test3.cc
-#TOCHECK2 += ch14/test4.cc
-#TOCHECK2 += ch14/test5.cc
-#TOCHECK2 += ch14/test6.cc
-#TOCHECK2 += ch14/test7.cc
-#TOCHECK2 += ch14/test8.cc
+# TOCHECK2 += ch14/test1.cc
+# TOCHECK2 += ch14/test2.cc
+TOCHECK2 += ch14/test3.cc
+TOCHECK2 += ch14/test4.cc
+# TOCHECK2 += ch14/test5.cc
+# TOCHECK2 += ch14/test6.cc
+# TOCHECK2 += ch14/test7.cc
+# TOCHECK2 += ch14/test8.cc
 
-#TOCHECK2 += ch15/test1.cc
-#TOCHECK2 += ch15/test10.cc
-#TOCHECK2 += ch15/test11.cc
-#TOCHECK2 += ch15/test12.cc
-#TOCHECK2 += ch15/test13.cc
+# TOCHECK2 += ch15/test1.cc
+# TOCHECK2 += ch15/test10.cc
+# TOCHECK2 += ch15/test11.cc
+# TOCHECK2 += ch15/test12.cc
+# TOCHECK2 += ch15/test13.cc
 #TOCHECK2 += ch15/test14.cc
 #TOCHECK2 += ch15/test15.cc
 #TOCHECK2 += ch15/test16.cc
@@ -253,7 +253,7 @@ TOCHECK2 += ch10/Test2.cc
 #TOCHECK2 += ch15/test8.cc
 #TOCHECK2 += ch15/test9.cc
 
-#TOCHECK2 += eon/eon.cc
+# TOCHECK2 += eon/eon.cc
 #TOCHECK2 += eon/eonImageCalculator.cc
 #TOCHECK2 += eon/ggBRDF.cc
 #TOCHECK2 += eon/ggBST.cc
@@ -405,9 +405,13 @@ TOCHECK2 += ch10/Test2.cc
 #TOCHECK2 += eon/mrZEllipticalCylinder.cc
 #TOCHECK2 += eon/myrand.cc
 
-#TOCHECK2 += estl/00-1.cc
-#TOCHECK2 += estl/02-1.cc
-#TOCHECK2 += estl/02-2.cc
+# TOCHECK2 += estl/00-1.cc
+# TOCHECK2 += estl/02-1.cc
+
+#[L1] Error at line 17098, col 2: illegal token: `
+'
+# TOCHECK2 += estl/02-2.cc
+
 #TOCHECK2 += estl/02-3.cc
 #TOCHECK2 += estl/02-4.cc
 #TOCHECK2 += estl/02-5.cc
@@ -416,13 +420,13 @@ TOCHECK2 += ch10/Test2.cc
 #TOCHECK2 += exceptions/except2.cc
 #TOCHECK2 += exceptions/except3.cc
 
-#TOCHECK2 += infer_graph/test1.c
-#TOCHECK2 += infer_graph/test2.c
-#TOCHECK2 += infer_graph/test3.c
-#TOCHECK2 += infer_graph/test4.c
+TOCHECK2 += infer_graph/test1.c
+TOCHECK2 += infer_graph/test2.c
+TOCHECK2 += infer_graph/test3.c
+TOCHECK2 += infer_graph/test4.c
 
-#TOCHECK2 += laundering/test1.cc
-#TOCHECK2 += laundering/test2.cc
+TOCHECK2 += laundering/test1.cc
+TOCHECK2 += laundering/test2.cc
 
 #TOCHECK2 += stl/cout1.cc
 #TOCHECK2 += stl/encrypt.cc
@@ -440,8 +444,8 @@ TOCHECK2 += ch10/Test2.cc
 
 TESTDIR2 := ../../cure_cpp/cc_examples/
 idem/check2: idem/clean2
-	./check_idempotency $(addprefix $(TESTDIR2),$(TOCHECK2))
+	./check_idempotency -d outdir $(addprefix $(TESTDIR2),$(TOCHECK2))
 
+# Both do the same now.
 .PHONY: idem/clean2
-idem/clean2:
-	find $(TESTDIR2) -type f \( -false $(TEST_PATTERNS_TO_CLEAN) \) | xargs rm -f
+idem/clean2: idem/clean

@@ -894,9 +894,11 @@ bool PointerType::innerEquals(PointerType const *obj) const
 
 string PointerType::leftString(bool /*innerParen*/) const
 {
-  return stringc << atType->leftString()
-                 << (op==PO_POINTER? " *" : " &")
-                 << cvToString(cv);
+  stringBuilder s;
+  s << atType->leftString();
+  s << (op==PO_POINTER? " *" : " &");
+  s << cvToString(cv);
+  return s;
 }
 
 string PointerType::rightString(bool /*innerParen*/) const
