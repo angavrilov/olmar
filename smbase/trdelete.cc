@@ -51,8 +51,10 @@ void trashingDelete(void *blk, size_t size)
 {
   trash(blk, size);
 
-  ::delete(blk);
-    // use the global delete operator to free the memory
+  // use the global delete operator to free the memory;
+  // gratuitous cast to char* to silence gcc warning 
+  // "not a pointer-to-object type"
+  ::delete((char*)blk);
 }
 
 
@@ -60,8 +62,9 @@ void trashingDeleteArr(void *blk, size_t size)
 {
   trash(blk, size);
 
-  ::delete[](blk);
-    // use the global delete operator to free the memory
+  // use the global delete operator to free the memory;
+  // (see comment about gratuitious cast, above)
+  ::delete[]((char*)blk);
 }
 
 
