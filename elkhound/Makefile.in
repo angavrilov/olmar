@@ -224,8 +224,8 @@ cyctimer: cyctimer.cc cyctimer.h
 # glr parsing engine
 libelkhound.a: $(glr-set) $(util-set)
 	rm -f $@
-	ar -r $@ $(glr-set) $(util-set)
-	ranlib $@
+	$(AR) -r $@ $(glr-set) $(util-set)
+	$(RANLIB) $@
 
 
 # --------------------- executables ---------------------
@@ -266,9 +266,9 @@ c.in/c.in4d: c.in/c.in4c
 # stuff in examples directory
 .PHONY: examples
 examples: all glrmain.o
-	cd examples/arith; make
-	cd examples/cexp; make
-	cd examples/cdecl; make
+	$(MAKE) -C examples/arith
+	$(MAKE) -C examples/cexp
+	$(MAKE) -C examples/cdecl
 
 
 # ----------------------------- EFa -----------------------
@@ -516,7 +516,7 @@ distclean: clean
 	rm -f c.in/c.in4{c,d}
 
 check: all
-	./regrtest
+	MAKE=$(MAKE) ./regrtest
 	@echo ""
 	@echo "Regression tests passed."
 

@@ -62,6 +62,9 @@ while [ "$1" != "" ]; do
   shift
 done
 
+# allow 'gmake' or whatever to be used instead of 'make'
+MAKE=${MAKE:-make}
+
 # clear the logfile
 log=regrtest.log
 rm -f $log
@@ -96,21 +99,21 @@ runTestInternal() {
     ("$@")
     result=$?
     if [ $result -ne 0 ]; then
-      unexFailure=$[ $unexFailure + 1 ]
+      unexFailure=`expr $unexFailure + 1`
       echo ""
       log  "[$curtest] A regression test command failed:"
       log  "  $*"
     else
-      success=$[ $success + 1 ]
+      success=`expr $success + 1`
     fi
 
     if $runOneTest; then
       # exit with code 0 if the test succeeded
-      exit $[ 1 - $success ]
+      exit `expr 1 - $success`
     fi
   fi
 
-  curtest=$[ $curtest + 1 ]
+  curtest=`expr $curtest + 1`
   return $result
 }
 
@@ -130,7 +133,7 @@ failTest() {
   else
     echo "------------ [$curtest] (fail) $* ------------"
     if "$@"; then
-      unexSuccess=$[ $unexSuccess + 1 ]
+      unexSuccess=`expr $unexSuccess + 1`
       echo ""
       log  "[$curtest] A regression test that used to fail ($reason) now succeeds:"
       log  "  $*"
@@ -138,17 +141,17 @@ failTest() {
         exit 2
       fi
     else
-      failure=$[ $failure + 1 ]
+      failure=`expr $failure + 1`
       echo "Failed as expected: $reason"
     fi
 
     if $runOneTest; then
       # exit with code 0 if the test failed
-      exit $[ 1 - $failure ]
+      exit `expr 1 - $failure`
     fi
   fi
 
-  curtest=$[ $curtest + 1 ]
+  curtest=`expr $curtest + 1`
 }
 
 # run a failing big test
@@ -169,7 +172,7 @@ grepBoth() {
 testTrivGrammar() {
   name="$1"
   shift
-  runTest make "triv/${name}.gr.exe" TRGRAMANL=,lrtable
+  runTest $MAKE "triv/${name}.gr.exe" TRGRAMANL=,lrtable
 
   while [ "$1" != "" ]; do
     suffix="$1"
@@ -187,10 +190,10 @@ testTrivGrammar ESb 1
 testTrivGrammar CAdB 1
 testTrivGrammar EEb 1 2 3
 
-#runTest make aSEb.gr.exe
+#runTest $MAKE aSEb.gr.exe
 #runTest ./aSEb.gr.exe aSEb.in1
 
-#  runTest make ite.gr.exe
+#  runTest $MAKE ite.gr.exe
 #  for n in 1 2 3 4; do
 #    runTest ./ite.gr.exe ite.in$n
 #  done
@@ -221,7 +224,7 @@ for n in 1 2 3   5 6 7 8 9 10 11 12; do
 done
 
 
-runTest make examples
+runTest $MAKE examples
 
 
 # print config info
@@ -229,7 +232,7 @@ runTest c/cparse -tr trivialActions,stopAfterParse,glrConfig,yieldVariableName \
   c.in/c.in4b
 
 # bison performance test
-runTest make c.in/c.in4d
+runTest $MAKE c.in/c.in4d
 runTest c/bcparse c.in/c.in4d
 
 # this one is my main performance tester for comparison to bison
