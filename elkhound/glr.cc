@@ -821,7 +821,7 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
            << ", nondetReduce=" << nondetReduce
            << endl;
       //PVAL(parserMerges);
-      //PVAL(computeDepthIters);
+      PVAL(computeDepthIters);
       
       PVAL(yieldThenMergeCt);
       PVAL(totalExtracts);
