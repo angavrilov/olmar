@@ -28,7 +28,6 @@
 #include "objlist.h"      // ObjList
 #include "sobjlist.h"     // SObjList
 #include "astlist.h"      // ASTList
-#include "sastlist.h"     // SASTList
 #include "cc_flags.h"     // CVFlags, DeclFlags, SimpleTypeId
 #include "strtable.h"     // StringRef
 #include "strobjdict.h"   // StringObjDict
