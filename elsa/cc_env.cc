@@ -152,6 +152,33 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   ctorFinished = true;
 }
 
+
+// slightly clever: iterate over an array, but look like
+// the contents of the array, not the index
+class OverloadableOpIter {
+  int i;                          // current operator
+  OverloadableOp const *ops;      // array
+  int size;                       // array size
+
+public:
+  OverloadableOpIter(OverloadableOp const *o, int s)
+    : i(0),
+      ops(o),
+      size(s)
+  {}
+
+  // look like the contents
+  operator OverloadableOp ()   { return ops[i]; }
+
+  // iterator interface
+  bool isDone() const          { return i>=size; }
+  void adv()                   { i++; }
+};
+
+#define FOREACH_OPERATOR(iterName, table) \
+  for (OverloadableOpIter op(table, TABLESIZE(table)); !op.isDone(); op.adv())
+
+
 void Env::setupOperatorOverloading()
 {
   // fill in operatorName[]
@@ -174,190 +201,159 @@ void Env::setupOperatorOverloading()
   // this has to match the typedef in include/stddef.h
   Type *t_ptrdiff_t = getSimpleType(SL_INIT, ST_INT);
 
+  // some other useful types
+  Type *t_int = getSimpleType(SL_INIT, ST_INT);
+  Type *t_bool = getSimpleType(SL_INIT, ST_BOOL);
+
   // Below, whenever the standard calls for 'VQ' (volatile or
   // nothing), I use two copies of the rule, one with volatile and one
   // without.  It would be nice to have a way of encoding this choice
-  // unobtrusively, but all of the ways I've considered so far would
-  // do more damage to the type system than I'm prepared to do for
-  // that feature.
+  // directly, but all of the ways I've considered so far would do
+  // more damage to the type system than I'm prepared to do for that
+  // feature.
 
   // ---- 13.6 para 3 ----
-  // VQ T& operator++ (VQ T&);
-  addBuiltinUnaryOp(OP_PLUSPLUS,
-    tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC)));
-  addBuiltinUnaryOp(OP_PLUSPLUS,
-    tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC, CV_VOLATILE)));
+  {
+    Type *T = getSimpleType(SL_INIT, ST_ARITHMETIC);
+    Type *Tv = getSimpleType(SL_INIT, ST_ARITHMETIC, CV_VOLATILE);
 
-  // T operator++ (VQ T&, int);
-  addBuiltinBinaryOp(OP_PLUSPLUS,
-    tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC)),
-    getSimpleType(SL_INIT, ST_INT));
-  addBuiltinBinaryOp(OP_PLUSPLUS,
-    tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC, CV_VOLATILE)),
-    getSimpleType(SL_INIT, ST_INT));
+    Type *Tr = tfac.makeRefType(SL_INIT, T);
+    Type *Tvr = tfac.makeRefType(SL_INIT, Tv);
+
+    // VQ T& operator++ (VQ T&);
+    addBuiltinUnaryOp(OP_PLUSPLUS, Tr);
+    addBuiltinUnaryOp(OP_PLUSPLUS, Tvr);
+
+    // T operator++ (VQ T&, int);
+    addBuiltinBinaryOp(OP_PLUSPLUS, Tr, t_int);
+    addBuiltinBinaryOp(OP_PLUSPLUS, Tvr, t_int);
+  }
 
   // ---- 13.6 para 4 ----
-  // VQ T& operator-- (VQ T&);
-  addBuiltinUnaryOp(OP_MINUSMINUS,
-    tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC_NON_BOOL)));
-  addBuiltinUnaryOp(OP_MINUSMINUS,
-    tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC_NON_BOOL, CV_VOLATILE)));
+  {
+    Type *T = getSimpleType(SL_INIT, ST_ARITHMETIC_NON_BOOL);
+    Type *Tv = getSimpleType(SL_INIT, ST_ARITHMETIC_NON_BOOL, CV_VOLATILE);
 
-  // T operator-- (VQ T&, int);
-  addBuiltinBinaryOp(OP_MINUSMINUS,
-    tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC_NON_BOOL)),
-    getSimpleType(SL_INIT, ST_INT));
-  addBuiltinBinaryOp(OP_MINUSMINUS,
-    tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC_NON_BOOL, CV_VOLATILE)),
-    getSimpleType(SL_INIT, ST_INT));
+    Type *Tr = tfac.makeRefType(SL_INIT, T);
+    Type *Tvr = tfac.makeRefType(SL_INIT, Tv);
+
+    // VQ T& operator-- (VQ T&);
+    addBuiltinUnaryOp(OP_MINUSMINUS, Tr);
+    addBuiltinUnaryOp(OP_MINUSMINUS, Tvr);
+
+    // T operator-- (VQ T&, int);
+    addBuiltinBinaryOp(OP_MINUSMINUS, Tr, t_int);
+    addBuiltinBinaryOp(OP_MINUSMINUS, Tvr, t_int);
+  }
 
   // ---- 13.6 para 5 ----
-  // T* VQ & operator++ (T* VQ &);
-  addBuiltinUnaryOp(OP_PLUSPLUS,
-    tfac.makeRefType(SL_INIT,
-      tfac.makePointerType(SL_INIT, PO_POINTER, CV_NONE,
-        getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE))));
-  addBuiltinUnaryOp(OP_PLUSPLUS,
-    tfac.makeRefType(SL_INIT,
-      tfac.makePointerType(SL_INIT, PO_POINTER, CV_VOLATILE,
-        getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE))));
+  {
+    Type *T = getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE);
 
-  // T* VQ & operator-- (T* VQ &);
-  addBuiltinUnaryOp(OP_MINUSMINUS,
-    tfac.makeRefType(SL_INIT,
-      tfac.makePointerType(SL_INIT, PO_POINTER, CV_NONE,
-        getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE))));
-  addBuiltinUnaryOp(OP_MINUSMINUS,
-    tfac.makeRefType(SL_INIT,
-      tfac.makePointerType(SL_INIT, PO_POINTER, CV_VOLATILE,
-        getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE))));
+    Type *Tp = tfac.makePointerType(SL_INIT, PO_POINTER, CV_NONE, T);
+    Type *Tpv = tfac.makePointerType(SL_INIT, PO_POINTER, CV_VOLATILE, T);
 
-  // T* operator++ (T* VQ &, int);
-  addBuiltinBinaryOp(OP_PLUSPLUS,
-    tfac.makeRefType(SL_INIT,
-      tfac.makePointerType(SL_INIT, PO_POINTER, CV_NONE,
-        getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE))),
-    getSimpleType(SL_INIT, ST_INT));
-  addBuiltinBinaryOp(OP_PLUSPLUS,
-    tfac.makeRefType(SL_INIT,
-      tfac.makePointerType(SL_INIT, PO_POINTER, CV_VOLATILE,
-        getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE))),
-    getSimpleType(SL_INIT, ST_INT));
+    Type *Tpr = tfac.makeRefType(SL_INIT, Tp);
+    Type *Tpvr = tfac.makeRefType(SL_INIT, Tpv);
 
-  // T* operator-- (T* VQ &, int);
-  addBuiltinBinaryOp(OP_MINUSMINUS,
-    tfac.makeRefType(SL_INIT,
-      tfac.makePointerType(SL_INIT, PO_POINTER, CV_NONE,
-        getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE))),
-    getSimpleType(SL_INIT, ST_INT));
-  addBuiltinBinaryOp(OP_MINUSMINUS,
-    tfac.makeRefType(SL_INIT,
-      tfac.makePointerType(SL_INIT, PO_POINTER, CV_VOLATILE,
-        getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE))),
-    getSimpleType(SL_INIT, ST_INT));
+    // T* VQ & operator++ (T* VQ &);
+    addBuiltinUnaryOp(OP_PLUSPLUS, Tpr);
+    addBuiltinUnaryOp(OP_PLUSPLUS, Tpvr);
+
+    // T* VQ & operator-- (T* VQ &);
+    addBuiltinUnaryOp(OP_MINUSMINUS, Tpr);
+    addBuiltinUnaryOp(OP_MINUSMINUS, Tpvr);
+
+    // T* operator++ (T* VQ &, int);
+    addBuiltinBinaryOp(OP_PLUSPLUS, Tpr, t_int);
+    addBuiltinBinaryOp(OP_PLUSPLUS, Tpvr, t_int);
+
+    // T* operator-- (T* VQ &, int);
+    addBuiltinBinaryOp(OP_MINUSMINUS, Tpr, t_int);
+    addBuiltinBinaryOp(OP_MINUSMINUS, Tpvr, t_int);
+  }
 
   // ---- 13.6 para 6,7 ----
-  // T& operator* (T*);
-  addBuiltinUnaryOp(OP_STAR,
-    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_NON_VOID)));
+  {
+    Type *T = getSimpleType(SL_INIT, ST_ANY_NON_VOID);
+    Type *Tp = makePtrType(SL_INIT, T);
+
+    // T& operator* (T*);
+    addBuiltinUnaryOp(OP_STAR, Tp);
+  }
 
   // ---- 13.6 para 8 ----
-  // T* operator+ (T*);
-  addBuiltinUnaryOp(OP_PLUS,
-    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_TYPE)));
+  {
+    Type *T = getSimpleType(SL_INIT, ST_ANY_TYPE);
+    Type *Tp = makePtrType(SL_INIT, T);
+
+    // T* operator+ (T*);
+    addBuiltinUnaryOp(OP_PLUS, Tp);
+  }
 
   // ---- 13.6 para 9 ----
-  // T operator+ (T);
-  addBuiltinUnaryOp(OP_PLUS,
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+  {
+    Type *T = getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC);
 
-  // T operator- (T);
-  addBuiltinUnaryOp(OP_MINUS,
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+    // T operator+ (T);
+    addBuiltinUnaryOp(OP_PLUS, T);
+
+    // T operator- (T);
+    addBuiltinUnaryOp(OP_MINUS, T);
+  }
 
   // ---- 13.6 para 10 ----
-  // T operator~ (T);
-  addBuiltinUnaryOp(OP_BITNOT,
-    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
+  {
+    Type *T = getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL);
+    
+    // T operator~ (T);
+    addBuiltinUnaryOp(OP_BITNOT, T);
+  }
 
   // para 11: ->* (skipping for now)
 
   // ---- 13.6 para 12 ----
-  // LR operator* (L, R);
-  addBuiltinBinaryOp(OP_STAR,
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+  {
+    Type *L = getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC);
+    Type *R = getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC);
 
-  // LR operator/ (L, R);
-  addBuiltinBinaryOp(OP_DIV,
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
-
-  // LR operator+ (L, R);
-  addBuiltinBinaryOp(OP_PLUS,
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
-
-  // LR operator- (L, R);
-  addBuiltinBinaryOp(OP_MINUS,
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
-
-  // bool operator< (L, R);
-  addBuiltinBinaryOp(OP_LESS,
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
-
-  // bool operator> (L, R);
-  addBuiltinBinaryOp(OP_GREATER,
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
-
-  // bool operator<= (L, R);
-  addBuiltinBinaryOp(OP_LESSEQ,
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
-
-  // bool operator>= (L, R);
-  addBuiltinBinaryOp(OP_GREATEREQ,
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
-
-  // bool operator== (L, R);
-  addBuiltinBinaryOp(OP_EQUAL,
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
-
-  // bool operator!= (L, R);
-  addBuiltinBinaryOp(OP_NOTEQUAL,
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+    static OverloadableOp const ops[] = {
+      OP_STAR,         // LR operator* (L, R);
+      OP_DIV,          // LR operator/ (L, R);
+      OP_PLUS,         // LR operator+ (L, R);
+      OP_MINUS,        // LR operator- (L, R);
+      OP_LESS,         // bool operator< (L, R);
+      OP_GREATER,      // bool operator> (L, R);
+      OP_LESSEQ,       // bool operator<= (L, R);
+      OP_GREATEREQ,    // bool operator>= (L, R);
+      OP_EQUAL,        // bool operator== (L, R);
+      OP_NOTEQUAL      // bool operator!= (L, R);
+    };
+    FOREACH_OPERATOR(op, ops) {
+      addBuiltinBinaryOp(op, L, R);
+    }
+  }
 
   // ---- 13.6 para 13 ----
-  // T* operator+ (T*, ptrdiff_t);
-  addBuiltinBinaryOp(OP_PLUS,
-    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
-    t_ptrdiff_t);
+  {
+    Type *T = getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE);
+    Type *Tp = makePtrType(SL_INIT, T);
 
-  // T& operator[] (T*, ptrdiff_t);
-  addBuiltinBinaryOp(OP_BRACKETS,
-    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
-    t_ptrdiff_t);
+    // T* operator+ (T*, ptrdiff_t);
+    addBuiltinBinaryOp(OP_PLUS, Tp, t_ptrdiff_t);
 
-  // T* operator- (T*, ptrdiff_t);
-  addBuiltinBinaryOp(OP_MINUS,
-    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
-    t_ptrdiff_t);
+    // T& operator[] (T*, ptrdiff_t);
+    addBuiltinBinaryOp(OP_BRACKETS, Tp, t_ptrdiff_t);
 
-  // T* operator+ (ptrdiff_t, T*);
-  addBuiltinBinaryOp(OP_PLUS,
-    t_ptrdiff_t,
-    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)));
+    // T* operator- (T*, ptrdiff_t);
+    addBuiltinBinaryOp(OP_MINUS, Tp, t_ptrdiff_t);
 
-  // T& operator[] (ptrdiff_t, T*);
-  addBuiltinBinaryOp(OP_BRACKETS,
-    t_ptrdiff_t,
-    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)));
+    // T* operator+ (ptrdiff_t, T*);
+    addBuiltinBinaryOp(OP_PLUS, t_ptrdiff_t, Tp);
+
+    // T& operator[] (ptrdiff_t, T*);
+    addBuiltinBinaryOp(OP_BRACKETS, t_ptrdiff_t, Tp);
+  }
 
   // ---- 13.6 para 14 ----
   // ptrdiff_t operator-(T,T);
@@ -384,50 +380,46 @@ void Env::setupOperatorOverloading()
   addBuiltinBinaryOp(OP_NOTEQUAL, rvalFilter, pointerOrEnumOrPTM);
 
   // ---- 13.6 para 17 ----
-  // LR operator% (L,R);
-  addBuiltinBinaryOp(OP_MOD,
-    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL),
-    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
+  {
+    Type *L = getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL);
+    Type *R = getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL);
 
-  // LR operator& (L,R);
-  addBuiltinBinaryOp(OP_BITAND,
-    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL),
-    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
-
-  // LR operator^ (L,R);
-  addBuiltinBinaryOp(OP_BITXOR,
-    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL),
-    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
-
-  // LR operator| (L,R);
-  addBuiltinBinaryOp(OP_BITOR,
-    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL),
-    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
-
-  // L operator<< (L,R);
-  addBuiltinBinaryOp(OP_LSHIFT,
-    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL),
-    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
-
-  // L operator>> (L,R);
-  addBuiltinBinaryOp(OP_RSHIFT,
-    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL),
-    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
+    static OverloadableOp const ops[] = {
+      OP_MOD,          // LR operator% (L,R);
+      OP_BITAND,       // LR operator& (L,R);
+      OP_BITXOR,       // LR operator^ (L,R);
+      OP_BITOR,        // LR operator| (L,R);
+      OP_LSHIFT,       // L operator<< (L,R);
+      OP_RSHIFT        // L operator>> (L,R);
+    };
+    FOREACH_OPERATOR(op, ops) {
+      addBuiltinBinaryOp(op, L, R);
+    }
+  }
 
   // ---- 13.6 para 18 ----
-  // 18: assignment/arith to arithmetic types
+  // assignment/arith to arithmetic types
+  {
+    Type *L = getSimpleType(SL_INIT, ST_ARITHMETIC);
+    Type *Lv = getSimpleType(SL_INIT, ST_ARITHMETIC, CV_VOLATILE);
 
-  // VQ L& operator= (VQ L&, R);
-  addBuiltinBinaryOp(OP_ASSIGN,
-    tfac.makeRefType(SL_INIT,
-      getSimpleType(SL_INIT, ST_ARITHMETIC)),
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
-  // TODO: plus the volatile version
+    Type *Lr = tfac.makeRefType(SL_INIT, L);
+    Type *Lvr = tfac.makeRefType(SL_INIT, Lv);
 
-  // TODO: VQ L& operator*= (VQ L&, R);
-  // TODO: VQ L& operator/= (VQ L&, R);
-  // TODO: VQ L& operator+= (VQ L&, R);
-  // TODO: VQ L& operator-= (VQ L&, R);
+    Type *R = getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC);
+
+    static OverloadableOp const ops[] = {
+      OP_ASSIGN,       // VQ L& operator= (VQ L&, R);
+      OP_MULTEQ,       // VQ L& operator*= (VQ L&, R);
+      OP_DIVEQ,        // VQ L& operator/= (VQ L&, R);
+      OP_PLUSEQ,       // VQ L& operator+= (VQ L&, R);
+      OP_MINUSEQ       // VQ L& operator-= (VQ L&, R);
+    };
+    FOREACH_OPERATOR(op, ops) {
+      addBuiltinBinaryOp(op, Lr, R);
+      addBuiltinBinaryOp(op, Lvr, R);
+    }
+  }
 
   // 19: assignment to pointer type
 
@@ -439,18 +431,13 @@ void Env::setupOperatorOverloading()
 
   // ---- 13.6 para 23 ----
   // bool operator! (bool);
-  addBuiltinUnaryOp(OP_NOT,
-    getSimpleType(SL_INIT, ST_BOOL));
+  addBuiltinUnaryOp(OP_NOT, t_bool);
 
   // bool operator&& (bool, bool);
-  addBuiltinBinaryOp(OP_AND,
-    getSimpleType(SL_INIT, ST_BOOL),
-    getSimpleType(SL_INIT, ST_BOOL));
+  addBuiltinBinaryOp(OP_AND, t_bool, t_bool);
 
   // bool operator|| (bool, bool);
-  addBuiltinBinaryOp(OP_OR,
-    getSimpleType(SL_INIT, ST_BOOL),
-    getSimpleType(SL_INIT, ST_BOOL));
+  addBuiltinBinaryOp(OP_OR, t_bool, t_bool);
 
   // 24: ?: on arithmetic types
   

@@ -25,15 +25,31 @@ struct D {
   operator int ();
 };
 
+struct E {
+  operator int volatile & ();
+};
+
+enum { ENUMVAL };
+
 void f1()
 {
   A a;
   B b;
   C c;
   D d;
+  E e;
 
   a = b;
   __testOverload(c = b, 18);
   //ERROR(1): b = b;           // 'b' can't convert to an L&
   d = b;
+  e = 3;
+  
+  // similar to netscape test; hit all the operators
+  int mFlags;
+  mFlags = ENUMVAL;
+  mFlags *= ENUMVAL;
+  mFlags /= ENUMVAL;
+  mFlags += ENUMVAL;
+  mFlags -= ENUMVAL;
 }
