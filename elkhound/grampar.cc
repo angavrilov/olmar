@@ -8,7 +8,7 @@
 #include "trace.h"           // tracing debug functions
 #include "gramast.ast.gen.h" // grammar AST nodes
 #include "grammar.h"         // Grammar, Production, etc.
-#include "owner.h"           // Owner
+#include "owner.h"           // Owner (redundant dependency; dot's layout is better with it though)
 #include "syserr.h"          // xsyserror
 #include "strutil.h"         // quoted
 #include "grampar.tab.h"     // token constant codes, union YYSTYPE

@@ -1,0 +1,98 @@
+// dependency graph automatically produced by ./scan-depends.pl
+
+digraph "Dependencies" {
+  "glr.h" [
+    color = white
+  ]
+  "glr.cc" [
+  ]
+  "glr.h" -> "glr.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "glrconfig.h" [
+    color = white
+  ]
+  "glr.h" -> "glrconfig.h" [
+  ]
+  "parsetables.h" [
+    color = white
+  ]
+  "glr.h" -> "parsetables.h" [
+  ]
+  "owner.h" [
+    color = white
+  ]
+  "glr.h" -> "owner.h" [
+  ]
+  "rcptr.h" [
+    color = white
+  ]
+  "glr.h" -> "rcptr.h" [
+  ]
+  "useract.h" [
+    color = white
+  ]
+  "glr.h" -> "useract.h" [
+  ]
+  "fileloc.h" [
+    color = white
+  ]
+  "glr.h" -> "fileloc.h" [
+  ]
+  "glr.cc" -> "glr.h" [
+    weight = 10
+  ]
+  "lexerint.h" [
+    color = white
+  ]
+  "glr.cc" -> "lexerint.h" [
+  ]
+  "cyctimer.h" [
+    color = white
+  ]
+  "glr.cc" -> "cyctimer.h" [
+  ]
+  "parsetables.cc" [
+  ]
+  "parsetables.h" -> "parsetables.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "useract.cc" [
+  ]
+  "useract.h" -> "useract.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "useract.h" -> "glrconfig.h" [
+  ]
+  "fileloc.cc" [
+  ]
+  "fileloc.h" -> "fileloc.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "lexerint.h" -> "useract.h" [
+  ]
+  "lexerint.h" -> "fileloc.h" [
+  ]
+  "cyctimer.cc" [
+  ]
+  "cyctimer.h" -> "cyctimer.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "parsetables.cc" -> "parsetables.h" [
+    weight = 10
+  ]
+  "useract.cc" -> "useract.h" [
+    weight = 10
+  ]
+  "fileloc.cc" -> "fileloc.h" [
+    weight = 10
+  ]
+  "cyctimer.cc" -> "cyctimer.h" [
+    weight = 10
+  ]
+}

@@ -4480,7 +4480,6 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
 // ------------------------- main --------------------------
 #ifdef GRAMANL_MAIN
 
-#include "grampar.h"      // readGrammarFile
 #include "bflatten.h"     // BFlatten
 #include <stdio.h>        // remove
 #include <stdlib.h>       // system
