@@ -2,3 +2,4 @@ arith
 *.bin
 *.gen.*
 arithyy.cc
+gmon.out

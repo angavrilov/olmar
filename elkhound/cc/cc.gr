@@ -74,12 +74,7 @@ verbatim CCGr [
 #include "trace.h"        // trace
 #include "cc.ast.gen.h"   // C++ abstract syntax
 #include "cc_lang.h"      // CCLang
-#include "dswutil.h"
-#ifdef CC_QUAL
-  #include "cc_qual/cc_qualifiers.h"
-#else
-  #include "cc_qualifiers_dummy.h"
-#endif
+
 #include <stdlib.h>
 
 
@@ -108,14 +103,12 @@ UserActions *makeUserActions(StringTable &table, CCLang &lang)
 
 // when this is the last element in a parameter list, the function
 // is a vararg function
-ASTTypeId *ellipsisTypeId(SourceLocation const &loc, QualifierLiterals *ql)
+ASTTypeId *ellipsisTypeId(SourceLocation const &loc)
 {
   ASTTypeId *tid = 
     new ASTTypeId(new TS_simple(loc, ST_ELLIPSIS),
                   new Declarator(new D_name(SourceLocation(), NULL /*name*/),
                                  NULL /*init*/));
-  // FIX: creates garbage
-  tid->spec->q = new Qualifiers("anonymous_ellipsis", loc, 0 /*local*/, NULL, ql);
   return tid;
 }
 
@@ -513,8 +506,8 @@ nonterm[IDeclarator*] NewDeclaratorOpt {
        [ return new D_name(loc, NULL); ]
 
   // pointers
-  -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:NewDeclaratorOpt
-       [ return new D_pointer(loc, true /*isPtr*/, cv, d, ql); ]
+  -> "*" cv:CVQualifierSeqOpt d:NewDeclaratorOpt
+       [ return new D_pointer(loc, true /*isPtr*/, cv, d); ]
 
   // commit to at least one "[" ... "]"
   -> d:DirectNewDeclarator               [ return d; ]
@@ -895,12 +888,6 @@ nonterm[Declaration*] DeclSpecifier {
        [ UberModifiers m = uberCombine(loc, m1, m2);
          e->cv |= uberCVFlags(m);      // destructive action
          return new Declaration(uberDeclFlags(m), e, NULL); ]
-         
-  // this is based on similar lines in TypeSpecifier
-  -> q:L2_UDEF_QUAL s:DeclSpecifier  precedence(L2_PREFER_REDUCE)
-       [ s->spec->q->prependLiteralString(q); return s; ]
-  -> s:DeclSpecifier q:L2_UDEF_QUAL  precedence(L2_PREFER_REDUCE)
-       [ s->spec->q->appendLiteralString(q); return s; ]
 }
 
 // choose among TS_elaborated, TS_classSpec and TS_enumSpec
@@ -1040,14 +1027,6 @@ nonterm [TypeSpecifier*] TypeSpecifier {
        [ UberModifiers m = uberCombine(loc, m1, m2);
          e->cv |= uberCVFlags(m);      // destructive action
          return e; ]
-         
-  // user-defined qualifiers can preceed or follow the *whole*
-  // type specifier, but must not be intermingled within it
-  // Q: why is this precedence specification necessary?
-  -> q:L2_UDEF_QUAL s:TypeSpecifier  precedence(L2_PREFER_REDUCE) // "$tainted int"
-       [ s->q->prependLiteralString(q); return s; ]
-  -> s:TypeSpecifier q:L2_UDEF_QUAL  precedence(L2_PREFER_REDUCE) // "int $tainted"
-       [ s->q->appendLiteralString(q); return s; ]
 }
 
 
@@ -1213,10 +1192,10 @@ nonterm[IN_compound*] InitializerList {
 //
 // regex for this nonterm: (PtrOperator)* DirectDeclarator
 nonterm[IDeclarator*] Declarator {
-  -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:Declarator
-       [ return new D_pointer(loc, true /*isPtr*/, cv, d, ql); ]
+  -> "*" cv:CVQualifierSeqOpt d:Declarator
+       [ return new D_pointer(loc, true /*isPtr*/, cv, d); ]
   -> "&" d:Declarator
-       [ return new D_pointer(loc, false /*isPtr*/, CV_NONE, d, NULL /*ql*/); ]
+       [ return new D_pointer(loc, false /*isPtr*/, CV_NONE, d); ]
   -> d:DirectDeclarator
        [ return d; ]
 }
@@ -1237,10 +1216,9 @@ nonterm[IDeclarator*] DirectDeclarator {
   // specifier that preceeds this
   -> d:DirectDeclarator                        // name of function
      "(" params:ParameterDeclarationClause ")" // parameters
-     ql:QualifierLiteralsOpt
      cv:CVQualifierSeqOpt                      // optional "const"
      e:ExceptionSpecificationOpt               // optional "throw" clause
-       [ return new D_func(loc, d, params, cv, e, ql); ]
+       [ return new D_func(loc, d, params, cv, e); ]
 
   // array with optional size
   -> d:DirectDeclarator "[" sz:ConstantExpressionOpt "]"
@@ -1311,17 +1289,6 @@ nonterm[enum CVFlags] CVQualifier {
 }
 
 
-// dsw: We use a simple right-recursive linked-list design pattern.
-nonterm[QualifierLiterals*] QualifierLiteralsOpt {
-  -> empty [ return NULL; ]
-  -> ql:QualifierLiterals [ return ql; ]
-}
-nonterm[QualifierLiterals*] QualifierLiterals {
-  -> q:L2_UDEF_QUAL [ return new QualifierLiterals(q); ]
-  -> q:L2_UDEF_QUAL ql:QualifierLiterals [ return new QualifierLiterals(q, ql); ]
-}
-
-
 // -- type-id --
 // a type-id is like a declaration of one thing, but without the variable name;
 // it is, for example, what appears inside the parens of a typecast
@@ -1340,10 +1307,10 @@ nonterm[IDeclarator*] AbstractDeclaratorOpt {
 
 // an abstract declarator (not opt) must have *some* ground syntax in it
 nonterm[IDeclarator*] AbstractDeclarator {
-  -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
-       [ return new D_pointer(loc, true /*isPtr*/, cv, d, ql); ]
+  -> "*" cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
+       [ return new D_pointer(loc, true /*isPtr*/, cv, d); ]
   -> "&" d:AbstractDeclaratorOpt
-       [ return new D_pointer(loc, false /*isPtr*/, CV_NONE, d, NULL /*ql*/); ]
+       [ return new D_pointer(loc, false /*isPtr*/, CV_NONE, d); ]
   -> d:DirectAbstractDeclarator
        [ return d; ]
 }
@@ -1368,10 +1335,9 @@ nonterm[IDeclarator*] DirectAbstractDeclarator {
   // function
   -> d:DirectAbstractDeclaratorOpt
      "(" args:ParameterDeclarationClause ")"
-     ql:QualifierLiteralsOpt
      cv:CVQualifierSeqOpt
      e:ExceptionSpecificationOpt
-       [ return new D_func(loc, d, args, cv, e, ql); ]
+       [ return new D_func(loc, d, args, cv, e); ]
 
   // array with optional size
   -> d:DirectAbstractDeclaratorOpt "[" sz:ConstantExpressionOpt "]"
@@ -1394,14 +1360,14 @@ nonterm[FakeList<ASTTypeId>*] ParameterDeclarationClause {
 // little bending over backwards here to accomodate FakeList
 nonterm[FakeList<ASTTypeId>*] ParameterDeclarationList {
   // last (and perhaps only) arg is "..."
-  -> "..." ql:QualifierLiteralsOpt
-       [ return FakeList<ASTTypeId>::makeList(ellipsisTypeId(loc, ql)); ]
+  -> "..."
+       [ return FakeList<ASTTypeId>::makeList(ellipsisTypeId(loc)); ]
 
   // last arg is "...", and 2nd-to-last is not separated by
   // a comma from the "..."
-  -> d:ParameterDeclaration "..." ql:QualifierLiteralsOpt
+  -> d:ParameterDeclaration "..."
        [ FakeList<ASTTypeId> *list =
-           FakeList<ASTTypeId>::makeList(ellipsisTypeId(loc, ql));
+           FakeList<ASTTypeId>::makeList(ellipsisTypeId(loc));
          d->setNext(list->first());
          return FakeList<ASTTypeId>::makeList(d); ]
 
@@ -1823,10 +1789,10 @@ nonterm[IDeclarator*] ConversionDeclaratorOpt {
   -> empty                                    
        [ return new D_name(loc, NULL /*name*/); ]
        
-  -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:ConversionDeclaratorOpt
-       [ return new D_pointer(loc, true /*isPtr*/, cv, d, ql); ]
+  -> "*" cv:CVQualifierSeqOpt d:ConversionDeclaratorOpt
+       [ return new D_pointer(loc, true /*isPtr*/, cv, d); ]
   -> "&" d:ConversionDeclaratorOpt
-       [ return new D_pointer(loc, false /*isPtr*/, CV_NONE, d, NULL /*ql*/); ]
+       [ return new D_pointer(loc, false /*isPtr*/, CV_NONE, d); ]
 }
 
 

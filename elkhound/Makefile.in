@@ -25,9 +25,6 @@ all: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/c.ast.gen.h \
 # would not change *what* this Makefile creates, only the *order*
 # in which things are made
 .PHONY: workingFiles
-ifdef CC_QUAL
-  workingFiles: cc/cc_qual/cc_qual_walk.o
-endif
 workingFiles: cc/cc_tcheck.o cc/cc_print.o
 #workingFiles: cc/cc_flatten.o
 
@@ -52,9 +49,6 @@ AST    := ../ast
 libraries   := $(SMBASE)/libsmbase.a
 includes    := -I$(SMBASE) -I$(AST) -Icc
 ifdef CC_QUAL
-# dsw: don't know why this doesn't work, but I have never actually
-# tried this feature of make before.
-#  cc/cc_qual/cc_qual_walk.o: includes += -I cc_qual/cqual/src -I cc_qual/cqual/src/libcompat
   includes += -I cc/cc_qual/cqual/src -I cc/cc_qual/cqual/src/libcompat
 endif
 
@@ -75,8 +69,6 @@ ranlib      := ranlib
 # you're measuring entirely the wrong configuration...
 #ccflags += -pg
 
-# dsw: When set, don't use the dummy cc_qual stuff, but use the real
-# thing.
 ifdef CC_QUAL
   ccflags += -DCC_QUAL
   ccflags += -DDISTINCT_CVATOMIC_TYPES
@@ -213,20 +205,19 @@ cc-set := \
   cc/cc_ast_aux.o \
   cc/treeout.o \
   cc/variable.o \
-  cc/ccparse.o \
-  cc/dswutil.o \
-  cc/qual_type.o \
-  cc/qual_var.o \
-  cc/qual_aux.o
+  cc/ccparse.o
 
 ifdef CC_QUAL
+  cc-set += cc/qual_type.o
+  cc-set += cc/qual_var.o
+  cc-set += cc/qual_aux.o
   cc-set += cc/cc_qual/cc_qualifiers.o
   cc-set += cc/cc_qual/cc_qual_walk.o
   cc-set += cc/cc_qual/GlobalUnifierVisitor.o
   cc-set += cc/cc_qual/cqual_iface.o
 else
   cc-set += cc/cc_qualifiers_dummy.o
-  cc-set += cc/cc_qual_walk_dummy.o
+#  cc-set += cc/cc_qual_walk_dummy.o
 endif
 
 -include $(filter-out $(AST)/%, $(cc-set:.o=.d))
@@ -342,7 +333,11 @@ libelkhound.a: $(glr-set)
 	chmod a-w $*.ast.gen.h $*.ast.gen.cc
 
 # specific instructions for cc.ast, so I can add extension modules
-CC_AST_MODS := cc/cc_tcheck.ast cc/cc_print.ast cc/cc_qual.ast
+CC_AST_MODS := cc/cc_tcheck.ast cc/cc_print.ast
+ifdef CC_QUAL
+#   CC_AST_MODS += cc/cc_qual/cc_qual.ast
+  CC_AST_MODS += cc/cc_qual.ast
+endif
 cc/cc.ast.gen.cc cc/cc.ast.gen.h: cc/cc.ast $(CC_AST_MODS) $(AST)/astgen
 	rm -f cc/cc.ast.gen.cc cc/cc.ast.gen.h
 	$(AST)/astgen -occ/cc.ast.gen cc/cc.ast $(CC_AST_MODS)
