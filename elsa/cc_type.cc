@@ -2301,10 +2301,10 @@ Type *TypeFactory::setCVQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
     }
 
     default:    // silence warning
+    case Type::T_ARRAY:
     case Type::T_REFERENCE:
     case Type::T_FUNCTION:
-    case Type::T_ARRAY:
-      // can't apply CV to either of these, and since baseType's
+      // can't apply CV arbitrarily to these, and since baseType's
       // original cv flags must have been CV_NONE, then 'cv' must
       // not be CV_NONE
       return NULL;
@@ -2319,6 +2319,11 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
   if (now | cv == now) {
     // no change, 'cv' already contained in the existing flags
     return baseType;
+  }
+  else if (baseType->isArrayType()) {
+    // 8.3.4 para 1: apply cv to the element type
+    ArrayType *at = baseType->asArrayType();
+    return makeArrayType(loc, applyCVToType(loc, cv, at->eltType, NULL /*syntax*/));
   }
   else {
     // change to the union; setCVQualifiers will take care of catching
