@@ -1,6 +1,8 @@
 # Makefile for libsmbase
 # see license.txt for copyright and terms of use
 
+tmp: srcloc
+
 # main target
 THISLIBRARY = libsmbase.a
 all: gensrc $(THISLIBRARY)
@@ -85,7 +87,7 @@ library-objs := \
   syserr.o voidlist.o warn.o bit2d.o point.o growbuf.o strtokp.o \
   strutil.o strdict.o svdict.o strhash.o hashtbl.o malloc.o \
   trdelete.o flatten.o bflatten.o mysig.o trace.o vdtllist.o \
-  stringset.o mypopen.o unixutil.o cycles.o bitarray.o
+  stringset.o mypopen.o unixutil.o cycles.o bitarray.o srcloc.o
 -include $(library-objs:.o=.d)
 
 $(THISLIBRARY): $(library-objs)
@@ -96,7 +98,8 @@ $(THISLIBRARY): $(library-objs)
 # test program targets
 tests-files := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen \
                strdict svdict str strutil trdelete bflatten mysig \
-               testmalloc mypopen tobjpool strhash cycles tsobjlist crc
+               testmalloc mypopen tobjpool strhash cycles tsobjlist crc \
+               srcloc
 tests: $(tests-files)
 
 nonport: nonport.cpp nonport.h
@@ -160,6 +163,9 @@ cycles: cycles.h cycles.c
 crc: crc.cpp
 	g++ -Wall -g -o crc -DTEST_CRC crc.cpp
 
+srcloc: srcloc.cc $(THISLIBRARY)
+	g++ -Wall -g -o srcloc -DTEST_SRCLOC srcloc.cc $(THISLIBRARY)
+
 check: $(tests-files)
 	./nonport
 	./voidlist
@@ -179,6 +185,7 @@ check: $(tests-files)
 	./tobjpool
 	./cycles
 	./tsobjlist
+	./srcloc
 	@echo
 	@echo "make check: all the tests PASSED"
 
