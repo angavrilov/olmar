@@ -40,8 +40,14 @@ void CCTreeNode::internalError(char const *msg) const
 }
 
 
-void CCTreeNode::disambiguate(Env *env, DisambFn func) const
+void CCTreeNode::disambiguate(Env *passedEnv, DisambFn func)
 {
+  // not perfectly ideal to be doing this here, it seems, but
+  // I'm basically sprinkling these all over at this point and
+  // don't have a clear criteria for deciding where to and where
+  // not to ..
+  env = passedEnv;
+
   // if it's not ambiguous, or we've already disambiguated,
   // go straight to the real deal
   if (reductions.count() == 1) {
@@ -49,14 +55,9 @@ void CCTreeNode::disambiguate(Env *env, DisambFn func) const
     return;
   }
 
-  // DARN!  need to break the type system here ... I'd like to
-  // not have to remove all 'const' just for this ...
-  ObjList<Reduction> &realReds =
-    const_cast< ObjList<Reduction>& >(reductions);
-
   // pull all the competing reductions out into a private list
   ObjList<Reduction> myReds;
-  myReds.concat(realReds);
+  myReds.concat(reductions);
 
   // need place to put the ones that are finished
   ObjList<Reduction> okReds;
@@ -66,11 +67,11 @@ void CCTreeNode::disambiguate(Env *env, DisambFn func) const
   while (myReds.isNotEmpty()) {
     // put it back
     Reduction *red = myReds.removeAt(0);
-    realReds.append(red);
+    reductions.append(red);
 
     // attempt type-check in a new environment so it can't
     // corrupt the main one we're working on
-    Env newEnv(env);
+    Env newEnv(passedEnv);
     try {
       (this->*func)(&newEnv);
     }
@@ -79,7 +80,7 @@ void CCTreeNode::disambiguate(Env *env, DisambFn func) const
     }
 
     // remove the reduction from the main node
-    realReds.removeAt(0);
+    reductions.removeAt(0);
 
     // did that work?
     if (newEnv.numLocalErrors() == 0) {
@@ -97,22 +98,22 @@ void CCTreeNode::disambiguate(Env *env, DisambFn func) const
   }
 
   // put all the good ones back
-  realReds.concat(okReds);
+  reductions.concat(okReds);
 
   // see what the verdict is
-  if (realReds.count() == 1) {
+  if (reductions.count() == 1) {
     // successfully disambiguated
     trace("disamb") << "disambiguated " << getLHS()->name
                     << " at " << locString() << endl;
   }
-  else if (realReds.count() > 1) {
+  else if (reductions.count() > 1) {
     // more than one worked..
     THROW(XAmbiguity(this, "multiple trees passed semantic checks"));
   }
   else {
     // none of them worked.. let's arbitrarily pick the first and
     // throw away the rest, and report the errors from that one
-    realReds.append(badReds.removeAt(0));
+    reductions.append(badReds.removeAt(0));
   }
 
   // throw away the bad ones
@@ -120,6 +121,6 @@ void CCTreeNode::disambiguate(Env *env, DisambFn func) const
 
   // now, we have exactly one reduction -- typecheck it
   // in the current environment
-  xassert(realReds.count() == 1);
-  (this->*func)(env);
+  xassert(reductions.count() == 1);
+  (this->*func)(passedEnv);
 }

@@ -53,18 +53,10 @@ nonterm Checkable {
   //     inconsistencies are found
   //   - add new symbols to the environment, with their types
   fundecl void typeCheck(Env *passedEnv);
-  
+
   // first thing in every typeCheck function
   literalCode "prefix" typeCheck {
     env = passedEnv;
-  }
-
-  // store a pointer to the environment in which this node's
-  // names are to be interpreted
-  datadecl Env *env;           // (serf)
-
-  literalCode "constructor" {
-    env = NULL;
   }
 
 /*
@@ -174,15 +166,21 @@ nonterm TranslationUnit : Checkable {
 nonterm HasVarsDecld {
   // check that all the used variables are declared, and report
   // those that are unused
-  fundecl void varsDecld(Env *env);
+  fundecl void varsDecld(Env *passedEnv);
   fun varsDecld {}
+  literalCode "prefix" varsDecld {
+    env = passedEnv;
+  }
 }
 
 // base class for expressions
 nonterm ExprBase : HasVarsDecld {
   // return the integer this expression evaluates to at compile time
-  fundecl int intEval(Env *env);
+  fundecl int intEval(Env *passedEnv);
   fun intEval { throwError("not a constant integer expression"); }
+  literalCode "prefix" intEval {
+    env = passedEnv;
+  }
 }
 
 
@@ -350,7 +348,7 @@ nonterm ExpressionListOpt : HasVarsDecld {
 
 nonterm UnaryExpression : ExprBase {
   literalCode "disamb" varsDecld {
-    disambiguate(env, (DisambFn)&unamb_varsDecld);
+    disambiguate(passedEnv, (DisambFn)&unamb_varsDecld);
   }
 
   formGroup {
@@ -431,7 +429,7 @@ nonterm BinaryExpression : ExprBase {
   attr prec;                  // precedence of binding (topmost) operator in expression
 
   literalCode "disamb" varsDecld {
-    disambiguate(env, (DisambFn)&unamb_varsDecld);
+    disambiguate(passedEnv, (DisambFn)&unamb_varsDecld);
   }
 
   -> e:CastExpression {
@@ -534,7 +532,7 @@ nonterm BinaryOperator {
 
 nonterm ConditionalExpression : ExprBase {
   literalCode "disamb" varsDecld {
-    disambiguate(env, (DisambFn)&unamb_varsDecld);
+    disambiguate(passedEnv, (DisambFn)&unamb_varsDecld);
   }
 
   -> e:BinaryExpression {
@@ -624,7 +622,7 @@ nonterm HasCFG {
 // labeled-statement
 nonterm Statement : Checkable, HasVarsDecld, HasCFG {
   literalCode "disamb" typeCheck {
-    disambiguate(env, (DisambFn)&unamb_typeCheck);
+    disambiguate(passedEnv, (DisambFn)&unamb_typeCheck);
   }
 
   fun typeCheck { s.typeCheck(env); }
@@ -1032,7 +1030,10 @@ nonterm HasDeclFlags {
 
 nonterm HasType {
   // return the Type represented by this syntax
-  fundecl Type const *getType(Env *env);
+  fundecl Type const *getType(Env *passedEnv);
+  literalCode "prefix" getType {
+    env = passedEnv;
+  }
 }
 
 nonterm DeclSpecifier : HasTypeName, HasType, HasDeclFlags {
@@ -1327,7 +1328,10 @@ nonterm HasDeclare {
   // in the subtree, combine 'type' with the additional type modifiers
   // associated with the declarator (if any), and add the completed
   // declaration, with 'flags', to 'env'
-  fundecl void declare(Env *env, DeclFlags flags, Type const *type);
+  fundecl void declare(Env *passedEnv, DeclFlags flags, Type const *type);
+  literalCode "prefix" declare {
+    env = passedEnv;
+  }
 }
 
 nonterm InitDeclaratorList : HasDeclare {
@@ -1390,7 +1394,10 @@ nonterm HasDeclType {
   // retrieve the type associated with this declaration, where
   // 'type' is the type as built so far (inherited from the
   // specifier, or constructed by parsing type constructors)
-  fundecl Type const *getDeclType(Env *env, Type const *type);
+  fundecl Type const *getDeclType(Env *passedEnv, Type const *type);
+  literalCode "prefix" getDeclType {
+    env = passedEnv;
+  }
 }
 
 nonterm DeclaratorBase : HasTypeName, HasDeclType, HasDeclName {
@@ -1663,7 +1670,10 @@ nonterm HasPrintSig {
 // -- parameters in declarations --
 nonterm HasArgTypes {
   // accumulate the types of the arguments and store them in 'fnType'
-  fundecl void getArgTypes(Env *env, FunctionType *fnType);
+  fundecl void getArgTypes(Env *passedEnv, FunctionType *fnType);
+  literalCode "prefix" getArgTypes {
+    env = passedEnv;
+  }
 }
 
 nonterm ParameterDeclarationClause : HasPrintSig, HasArgTypes {
@@ -1885,10 +1895,14 @@ nonterm ClassKeyword {
 
 nonterm MemberDeclBase {
   // add info in this subtree to the compound we're building
-  fundecl void addMemberInfo(Env *env, CompoundType *compound, AccessMode access);
+  fundecl void addMemberInfo(Env *passedEnv, CompoundType *compound, AccessMode access);
 
   // for now, just eat it
   fun addMemberInfo {}
+
+  literalCode "prefix" addMemberInfo {
+    env = passedEnv;
+  }
 }
 
 nonterm MemberDeclarationSeqOpt : MemberDeclBase {
