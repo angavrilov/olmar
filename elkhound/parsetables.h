@@ -48,7 +48,7 @@ inline ostream& operator<< (ostream &os, StateId id)
   //   entry is the count of how many actions follow
   typedef unsigned char ActionEntry;
   ActionEntry makeAE(ActionEntryKind k, int index);
-  #define errorActionEntry AE_ERROR
+  #define errorActionEntry ((ActionEntry)AE_ERROR)
 #else
   // each entry is one of:
   //   +N+1, 0 <= N < numStates:         shift, and go to state N
@@ -57,7 +57,7 @@ inline ostream& operator<< (ostream &os, StateId id)
   //   0:                                error
   // (there is no 'accept', acceptance is handled outside this table)
   typedef signed short ActionEntry;
-  #define errorActionEntry 0
+  #define errorActionEntry ((ActionEntry)0)
 #endif
 
 

@@ -9,11 +9,17 @@
 #include "bit2d.h"          // Bit2d
 
 #include <string.h>         // memset
-#include <stdlib.h>         // qsort
+#include <stdlib.h>         // qsort, system
 
 
 // array index code
 enum { UNASSIGNED = -1 };
+
+               
+// fwd
+template <class EltType>
+void printTable(EltType const *table, int size, int rowLength,
+                char const *typeName, char const *tableName);
 
 
 ParseTables::ParseTables(int t, int nt, int s, int p, StateId start, int final)
@@ -411,11 +417,10 @@ void ParseTables::computeErrorBits()
 
   // allocate and clear it
   int rowSize = ((numTerms+31) >> 5) * 4;
-  errorBits = new ErrorBitsEntry [numStates * rowSize];
-  memset(errorBits, 0, sizeof(errorBits[0]) * numStates * rowSize);
+  allocZeroArray(errorBits, numStates * rowSize);
 
   // build the pointer table
-  errorBitsPointers = new ErrorBitsEntry* [numStates];
+  allocZeroArray(errorBitsPointers, numStates);
 
   // find and set the error bits
   fillInErrorBits(true /*setPointers*/);
@@ -450,8 +455,7 @@ void ParseTables::computeErrorBits()
 
   // make a smaller 'errorBits' array
   delete[] errorBits;
-  errorBits = new ErrorBitsEntry [uniqueErrorRows * rowSize];
-  memset(errorBits, 0, sizeof(errorBits[0]) * uniqueErrorRows * rowSize);
+  allocZeroArray(errorBits, uniqueErrorRows * rowSize);
 
   // rebuild 'errorBitsPointers' according to 'compressed'
   for (s=0; s < numStates; s++) {
@@ -491,6 +495,12 @@ void ParseTables::mergeActionColumns()
   // for now I assume we don't have a map yet
   xassert(!actionIndexMap);
 
+  if (tracingSys("mergeActionColumnsPre")) {
+    // print the action table before compression
+    printTable(actionTable, actionTableSize(), actionCols,
+               "ActionEntry", "actionTable");
+  }
+
   // compute graph of conflicting 'action' columns
   // (will be symmetric)
   Bit2d graph(point(numTerms, numTerms));
@@ -523,11 +533,12 @@ void ParseTables::mergeActionColumns()
   Array<int> color(numTerms);      // terminal -> color
   int numColors = colorTheGraph(color, graph);
   
-  // build a new, compressed action table
-  ActionEntry *newTable = new ActionEntry[numStates * numColors];
-  memset(newTable, 0, sizeof(newTable[0]) * numStates * numColors);
-  
-  // merge columns in 'actionTable' into those in 'newTable' 
+  // build a new, compressed action table; the entries are initialized
+  // to 'error', meaning every cell starts as don't-care
+  ActionEntry *newTable;
+  allocInitArray(newTable, numStates * numColors, errorActionEntry);
+
+  // merge columns in 'actionTable' into those in 'newTable'
   // according to the 'color' map
   actionIndexMap = new TermIndex[numTerms];
   for (int t=0; t<numTerms; t++) {
@@ -607,14 +618,14 @@ void ParseTables::mergeActionRows()
       }
     }
   }
-  
+
   // color the graph
   Array<int> color(numStates);      // state -> color (equivalence class)
   int numColors = colorTheGraph(color, graph);
-  
+
   // build a new, compressed action table
-  ActionEntry *newTable = new ActionEntry[numColors * actionCols];
-  memset(newTable, 0, sizeof(newTable[0]) * numColors * actionCols);
+  ActionEntry *newTable;
+  allocInitArray(newTable, numColors * actionCols, errorActionEntry);
 
   // merge rows in 'actionTable' into those in 'newTable'
   // according to the 'color' map
@@ -670,8 +681,9 @@ void ParseTables::mergeActionRows()
   delete[] actionTable;
   actionTable = newTable;
   actionRows = numColors;
-  
-  // how many single-value rows?
+
+  // how many single-value rows?  I'm investigating some other options
+  // for further compression...
   {
     int ct=0;
     for (int s=0; s<actionRows; s++) {
@@ -849,10 +861,13 @@ void emitTable(EmitCode &out, EltType const *table, int size, int rowLength,
     }
   }
 
+  int rowNumWidth = stringf("%d", size / rowLength /*round down*/).length();
+
   out << "  static " << typeName << " " << tableName << "[" << size << "] = {";
+  int row = 0;
   for (int i=0; i<size; i++) {
     if (i % rowLength == 0) {    // one row per state
-      out << "\n    ";
+      out << stringf("\n    /""*%*d*""/ ", rowNumWidth, row++);
     }
 
     if (needCast) {
@@ -947,6 +962,24 @@ void emitOffsetTable(EmitCode &out, EltType **table, EltType *base, int size,
     out << "  // offset table is empty\n"
         << "  " << tableName << " = NULL;\n\n";
   }
+}
+
+                
+// for debugging
+template <class EltType>
+void printTable(EltType const *table, int size, int rowLength,
+                char const *typeName, char const *tableName)
+{            
+  // disabled for now since I don't need it anymore, and it adds
+  // a link dependency on emitcode.cc ...
+  #if 0
+  {
+    EmitCode out("printTable.tmp");
+    emitTable(out, table, size, rowLength, typeName, tableName);
+  }
+
+  system("cat printTable.tmp; rm printTable.tmp");
+  #endif // 0
 }
 
 
