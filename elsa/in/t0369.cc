@@ -7,6 +7,11 @@ struct A {
 
   void foo(int x, int y = f());
 
+  int i_am_retarded()
+  {
+    return bar(2,3 /*implicit*/);
+  }
+
   int bar(int x, int y, int z = f())
   {
     return x+y+z;

@@ -305,15 +305,6 @@ void Function::tcheck(Env &env, Variable *instV)
     xassert(nameAndParams->var);
     instV = nameAndParams->var;
 
-    // except, we need to tcheck any default arguments
-    //
-    // Q: Will this cause us to tcheck default arguments to template
-    // functions once per instantiation?  Is that even wrong?  Right
-    // now we don't do much with default arguments so it is not
-    // clear what the right strategy is.
-    DefaultArgumentChecker checker(env);
-    nameAndParams->traverse(checker);
-
     if (checkBody) {
       instV->setFlag(DF_DEFINITION);
     }
@@ -1859,6 +1850,16 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
   // inform the members that they are being checked on the second
   // pass through a class definition
   Restorer<bool> r(env.secondPassTcheck, true);
+  
+  // 2005-02-17: check default arguments first so they are available
+  // to all function bodies (hmmm... what if a default argument
+  // expression invokes a function that itself has default args,
+  // but appears later in the file?  how could that ever be handled
+  // cleanly?)
+  {
+    DefaultArgumentChecker checker(env);
+    traverse(checker);
+  }
 
   // check function bodies and elaborate ctors and dtors of member
   // declarations
@@ -1926,11 +1927,6 @@ void MR_decl::tcheck(Env &env)
     // TS_classSpec is only thing of interest
     if (d->spec->isTS_classSpec()) {
       d->spec->asTS_classSpec()->tcheck(env, d->dflags);
-    }
-    else {
-      // actually, need to tcheck default arguments too
-      DefaultArgumentChecker checker(env);
-      d->traverse(checker);
     }
 
     return;
