@@ -21,9 +21,6 @@ class TemplateParams;     // cc_type.h
 class PQName;             // cc.ast
 class TranslationUnit;    // cc.ast.gen.h
 
-class PQName;             // cc.ast
-class PQ_qualifier;       // cc.ast
-
 // variable lookup sometimes has complicated exceptions or
 // special cases, so I'm folding lookup options into one value
 enum LookupFlags {
@@ -167,7 +164,6 @@ public:      // funcs
   // dsw: needed this and this was a natural place to put it
   bool immediateGlobalScopeChild();
   bool linkerVisible();
-  // FIX: move this to CompoundType
   string fullyQualifiedName();
 };
 

@@ -232,9 +232,6 @@ void Declarator::printExtras(ostream &os, int indent) const
 
 
 // --------------------- IDeclarator ---------------------------
-
-// getDeclaratorId ****
-
 PQName const *D_name::getDeclaratorId() const
 {
   return name;

@@ -15,6 +15,13 @@ verbatim {
 }
 
 
+class Function {
+  // NOTE!: If this function is a ctor, then the semantics is as if we
+  // have this line in the code before the MemberInit-s:
+  //   this = &retval;
+}
+
+
 class MemberInit {
   // A single MemberInit seems very much like a single expression to
   // me, since it is a ctor call and an IN_ctor is also
@@ -73,6 +80,22 @@ class Expression {
 
 
 class Initializer {
+  // TODO: sm: Currently, we associate a FullExpressionAnnot with
+  // Initializer, which means we get one for every element of a
+  // compound initializer.  This wastes a lot of space, and doesn't
+  // make sense for IN_compound.  I think we should say that (only)
+  // the entire initializer is a single Full Expression, but that
+  // requires adding another layer, like:
+  //
+  //   Initializer                   // has FullExpressionAnnot
+  //     -> IN_cinit(CInitializer)
+  //     -> IN_ctor(..)
+  //   CInitializer                  // "C" for compound
+  //     -> CI_expr
+  //     -> CI_compound(..)
+  //
+  // But I'll leave it for now.
+
   public FullExpressionAnnot annot;
 }
 

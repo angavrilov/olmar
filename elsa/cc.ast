@@ -557,8 +557,6 @@ class ArgExpressionListOpt (
 class Initializer (SourceLoc loc) {
   public Initializer *next;  ctor next=NULL;       // FakeList link
 
-  // TODO: put FullExpression in IN_expr and IN_ctor only
-
   // simple initializer, like "int x = 3"
   -> IN_expr(Expression e);
 

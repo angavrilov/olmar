@@ -95,9 +95,10 @@ public:
   virtual void setFlagsTo(DeclFlags f);
 
   // some convenient interpretations of 'flags'
-  bool hasAddrTaken() const { return flags & DF_ADDRTAKEN; }
-  bool isGlobal() const { return flags & DF_GLOBAL; }
-  bool isStatic() const { return flags & DF_STATIC; }
+  bool hasAddrTaken() const { return hasFlag(DF_ADDRTAKEN); }
+  bool isGlobal() const { return hasFlag(DF_GLOBAL); }
+  bool isStatic() const { return hasFlag(DF_STATIC); }
+  bool isMember() const { return hasFlag(DF_MEMBER); }
 
   // true if this name refers to a template function, or is
   // the typedef-name of a template class

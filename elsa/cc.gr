@@ -1742,10 +1742,10 @@ nonterm(Declarator*) MemberDeclarator {
   // whether 'd' is a function type or not, and it can't tell the
   // difference between PureSpecifier and ConstantInitializer just by
   // looking at their syntax, we'd be disambiguating this later anyway
-  -> d:Declarator "=" e:ConstantExpression     // pure, and member inits
+  -> d:Declarator "=" e:ConstantExpression       // pure, and member inits
        { return new Declarator(d, new IN_expr(loc, e)); }
 
-  -> n:IdentifierOpt ":" e:ConstantExpression // bitfield
+  -> n:IdentifierOpt ":" e:ConstantExpression    // bitfield
        { return new Declarator(new D_bitfield(loc, n? new PQ_name(loc, n) : NULL, e),
                                NULL /*init*/); }
 }
@@ -2077,7 +2077,7 @@ nonterm(TemplateArgument*) TemplateArgument {
 
   fun keep(n) { return n!=NULL; }
 
-  -> t:TypeId                 { return new TA_type(t); }
+  -> t:TypeId               { return new TA_type(t); }
 
   -> e:AssignmentExpression {
        if (e->hasUnparenthesizedGT()) {

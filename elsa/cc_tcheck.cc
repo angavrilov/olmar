@@ -102,13 +102,13 @@ void TranslationUnit::tcheck(Env &env)
 void TF_decl::tcheck(Env &env)
 {
   env.setLoc(loc);
-  decl->tcheck(env);
+  decl->tcheck(env, false /*isTemporary*/);
 }
 
 void TF_func::tcheck(Env &env)
 {
   env.setLoc(loc);
-  f->tcheck(env, false /*isMember*/, true /*checkBody*/);
+  f->tcheck(env, true /*checkBody*/);
 }
 
 void TF_template::tcheck(Env &env)
@@ -151,7 +151,7 @@ void TF_asm::tcheck(Env &)
 
 
 // --------------------- Function -----------------
-void Function::tcheck(Env &env, bool isMember, bool checkBody)
+void Function::tcheck(Env &env, bool checkBody)
 {
   // are we in a template function?
   bool inTemplate = env.scope()->curTemplateParams != NULL;
@@ -169,7 +169,6 @@ void Function::tcheck(Env &env, bool isMember, bool checkBody)
   // parameter names for this definition
   Declarator::Tcheck dt(retTypeSpec,
                         (DeclFlags)(dflags | (checkBody? DF_DEFINITION : 0)),
-                        isMember, // isMember
                         false,  // isTemporary
                         // The *function* is not a parameter
                         false,  // isParameter
@@ -498,7 +497,7 @@ void Function::tcheck_handlers(Env &env)
 
 // -------------------- Declaration -------------------
 void Declaration::tcheck(Env &env,
-                         bool isMember,
+//                         bool memberDecl,
                          bool isTemporary // FIX: I don't think this is necessary any more
                          )
 {
@@ -535,7 +534,6 @@ void Declaration::tcheck(Env &env,
   if (decllist) {
     // check first declarator
     Declarator::Tcheck dt1(specType, dflags,
-                           isMember,
                            isTemporary,
                            // Parameter Declarators are not within
                            // Declarations, but in ASTTypeIds
@@ -553,7 +551,6 @@ void Declaration::tcheck(Env &env,
 
       xassert(!isTemporary);
       Declarator::Tcheck dt2(dupType, dflags,
-                             isMember,
                              isTemporary,
                              // Parameter Declarators are not within
                              // Declarations, but in ASTTypeIds
@@ -598,7 +595,6 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
                          
   // pass contextual info to declarator
   Declarator::Tcheck dt(specType, tc.dflags,
-                        false,  // isMember
                         false,  // isTemporary
                         tc.isParameter, // isParameter
                         tc.newSizeExpr // isE_new: are we in an E_new?
@@ -1279,7 +1275,7 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
       // tcheck of an inline member function
       f->dflags = (DeclFlags)(f->dflags | DF_INLINE_DEFN);
 
-      f->tcheck(env, true /*isMember*/, true /*checkBody*/);
+      f->tcheck(env, true /*checkBody*/);
 
       // remove DF_INLINE_DEFN so if I clone this later I can play the
       // same trick again (TODO: what if we decide to clone while down
@@ -1289,7 +1285,6 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
       Declaration *d0 = iter.data()->asMR_decl()->d;
       FAKELIST_FOREACH_NC(Declarator, d0->decllist, decliter) {
         decliter->elaborateCDtors(env,
-                                  true, // isMember
                                   false, // isTemporary
                                   false, // FIX: can a TS_classSpec be a parameter?
                                   d0->dflags);
@@ -1656,7 +1651,7 @@ void MR_decl::tcheck(Env &env)
 
   // the declaration knows to add its variables to
   // the curCompound
-  d->tcheck(env, true /*isMember*/);
+  d->tcheck(env, false /*isTemporary*/);
 
   checkMemberFlags(env, d->dflags);
 }
@@ -1681,7 +1676,7 @@ void MR_func::tcheck(Env &env)
   // members have been added to the class, so that the potential
   // scope of all class members includes all function bodies
   // [cppstd sec. 3.3.6]
-  f->tcheck(env, true /*isMember*/, false /*checkBody*/);
+  f->tcheck(env, false /*checkBody*/);
 
   checkMemberFlags(env, f->dflags);
 }
@@ -1924,21 +1919,6 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // environment then instead of here.
 
   if (init) {
-
-    // dsw: I'm leaving these checks in here as well
-
-    if (dt.isMember) {
-      // special case: virtual methods can have an initializer that is
-      // the int constant "0", which means they are abstract.  I could
-      // check for the value "0", but I don't bother.
-      if (! (var->type->isFunctionType()
-             && var->type->asFunctionType()->isMethod()
-             && var->hasFlag(DF_VIRTUAL))) {
-        env.error(env.loc(), "initializer not allowed for a member declaration");
-        goto ifInitEnd;
-      }
-    }
-
     // TODO: check the initializer for compatibility with
     // the declared type
 
@@ -2036,11 +2016,10 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // they can have a type of the class that we are still in the
   // definition of, and therefore any references to implicit members
   // of that class don't exist yet.
-  if (!dt.isMember &&
+  if (!var->isMember() &&
 //        !dt.isParameter &&
       !dt.isE_new) {
     elaborateCDtors(env,
-                    dt.isMember,
                     dt.isTemporary,
                     dt.isParameter,
                     dt.dflags);
@@ -2053,7 +2032,6 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 //    FAKELIST_FOREACH_NC(ASTTypeId, params, iter) {
 //      iter->decl->elaborateCDtors
 //        (env,
-//         false,                   // isMember
 //         false,                   // isTemporary
 //         true,                    // isParameter
 //         // Only Function and Declaration have any DeclFlags; the only
@@ -2095,14 +2073,14 @@ FakeList<ArgExpression> *makeExprList2(Expression *e1, Expression *e2)
 }
 
 void Declarator::elaborateCDtors(Env &env,
-                                 bool isMember,
                                  bool isTemporary,
                                  bool isParameter,
                                  DeclFlags dflags)
 {
-  // FIX: compute this rather than asserting it
-  // FIX: fails for in/t0009.cc !
-//    xassert( ((dflags & DF_MEMBER) != 0) == isMember );
+  // get this context from the 'var', don't make a mess passing
+  // it down from above
+  bool isMember = var->hasFlag(DF_MEMBER);
+
   // FIX: maybe this could never have worked
 //    bool isParameter  = (dflags & DF_PARAMETER)!=0;
   bool isStatic = (dflags & DF_STATIC)!=0;
@@ -3770,7 +3748,7 @@ void S_goto::itcheck(Env &env)
 
 void S_decl::itcheck(Env &env)
 {
-  decl->tcheck(env);
+  decl->tcheck(env, false /*isTemporary*/);
 }
 
 
@@ -3848,7 +3826,6 @@ Scope *FullExpressionAnnot::tcheck_preorder(Env &env)
   xassert(declarations.isEmpty());
 //    FOREACH_ASTLIST_NC(Declaration, declarations, iter) {
 //      iter.data()->tcheck(env,
-//                          false,  // isMember, FIX: is this right?!
 //                          true    // isTemporary
 //                          );
 //    }
@@ -4542,7 +4519,6 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
   // don't do this for now:
 //    int numErrors = env.numErrors();
   declaration0->tcheck(env,
-                       false,   // isMember
                        true     // isTemporary
                        );
 
@@ -4551,7 +4527,6 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
   // leave it for now
   FAKELIST_FOREACH_NC(Declarator, declaration0->decllist, decliter) {
     decliter->elaborateCDtors(env,
-                              true, // isMember
                               true, // isTemporary
                               false, // isParameter; temporaries are never parameters 
                               declaration0->dflags);
@@ -5817,28 +5792,41 @@ Type *E_throw::itcheck_x(Env &env, Expression *&replacement)
   if (expr) {
     expr->tcheck(env, expr);
 
-    // If it is a throw by value, it gets copy ctored somewhere, which
-    // in an implementation is some anonymous global.  I can't think of
-    // where the heck to make these globals or how to organize them, so
-    // I just make it in the throw itself.  Some analysis can come
-    // through and figure out how to hook these up to their catch
-    // clauses.
-    Type *exprType = expr->getType()->asRval();
-    if (exprType->isCompoundType()) {
-      if (!globalVar) {
-        globalVar = env.makeVariable(env.loc(), env.makeThrowClauseVarName(), exprType,
-                                     DF_STATIC // I think it is a static global
-                                     | DF_GLOBAL);
-        // These variables persist beyond the stack frame, so I
-        // hesitate to do anything but add them to the global scope.
-        // FIX: Then again, this argument applies to the E_new
-        // variables as well.
-        bool addWorks = env.addVariable(globalVar, false, env.globalScope());
-        xassert(addWorks);
+    if (env.doElaboration) {
+      // sm: I think what follows is wrong:
+      //   - 'globalVar' is created, but a declaration is not, so
+      //     an analysis might be confused by its sudden appearance
+      //   - the same object is used for all types, but makeCtorStatement
+      //     is invoked with different types.. it's weird
+      //   - the whole thing with throwClauseSerialNumber is bad.. it
+      //     *should* be a member of Env, and set from the outside after
+      //     construction if a wrapper analysis wants the numbers to not
+      //     be re-used
 
-        xassert(!ctorStatement);
-        ctorStatement = makeCtorStatement(env, globalVar, exprType,
-                                          makeExprList1(expr));
+      // If it is a throw by value, it gets copy ctored somewhere, which
+      // in an implementation is some anonymous global.  I can't think of
+      // where the heck to make these globals or how to organize them, so
+      // I just make it in the throw itself.  Some analysis can come
+      // through and figure out how to hook these up to their catch
+      // clauses.
+      Type *exprType = expr->getType()->asRval();
+      if (exprType->isCompoundType()) {
+        if (!globalVar) {
+          globalVar = env.makeVariable(env.loc(), env.makeThrowClauseVarName(), exprType,
+                                       DF_STATIC // I think it is a static global
+                                       | DF_GLOBAL);
+          // These variables persist beyond the stack frame, so I
+          // hesitate to do anything but add them to the global scope.
+          // FIX: Then again, this argument applies to the E_new
+          // variables as well.
+          Scope *gscope = env.globalScope();
+          gscope->registerVariable(globalVar);
+          gscope->addVariable(globalVar);
+
+          xassert(!ctorStatement);
+          ctorStatement = makeCtorStatement(env, globalVar, exprType,
+                                            makeExprList1(expr));
+        }
       }
     }
   }
@@ -6210,7 +6198,7 @@ void TD_func::itcheck(Env &env)
 {
   // check the function definition; internally this will get
   // the template parameters attached to the function type
-  f->tcheck(env, false /*isMember*/, true /*checkBody*/);
+  f->tcheck(env, true /*checkBody*/);
 }
 
 
@@ -6220,7 +6208,7 @@ void TD_proto::itcheck(Env &env)
   // place we grab template parameters, and that's shared by both
   // definitions and prototypes
   DisambiguateOnlyTemp disOnly(env, true /*disOnly*/);
-  d->tcheck(env);
+  d->tcheck(env, false /*isTemporary*/);
 }
 
 

@@ -25,6 +25,7 @@ class CCLang;             // cc_lang.h
 // counter for generating unique throw clause names; NOTE: FIX: they
 // must not be duplicated across translation units since they are
 // global!  Thus, this must survive even multiple Env objects.
+// (this is for elaboration)
 extern int throwClauseSerialNumber;
 
 // the entire semantic analysis state
@@ -121,6 +122,10 @@ public:      // data
   // when true, operator expressions are checked to see if they
   // are to be treated as calls to overloaded operator functions
   bool doOperatorOverload;
+
+  // ------------------- for elaboration ------------------
+  // when true, do elaboration
+  bool doElaboration;
 
   // so that we can find the closest nesting S_compound for when we
   // need to insert temporary variables; its scope should always be
@@ -234,7 +239,7 @@ public:      // funcs
   // return the nearest enclosing scope of kind 'k', or NULL if there
   // is none with that kind
   Scope *enclosingKindScope(ScopeKind k);
-  Scope *globalScope() {return enclosingKindScope(SK_GLOBAL);}
+  Scope *globalScope() { return enclosingKindScope(SK_GLOBAL); }
 
   // essentially: enclosingKindScope(SK_CLASS)->curCompound;
   CompoundType *enclosingClassScope();
@@ -249,8 +254,9 @@ public:      // funcs
 
   // insertion into the current scope; return false if the
   // name collides with one that is already there (but if
-  // 'forceReplace' true, silently replace instead)
-  bool addVariable(Variable *v, bool forceReplace=false, Scope *toScope=NULL);
+  // 'forceReplace' true, silently replace instead); if you
+  // want to insert into a specific scope, use Scope::addVariable
+  bool addVariable(Variable *v, bool forceReplace=false);
   bool addCompound(CompoundType *ct);
   bool addEnum(EnumType *et);
 
@@ -294,9 +300,6 @@ public:      // funcs
   
   // like the above, but wrap it in a ClassTemplateInfo
   ClassTemplateInfo * /*owner*/ takeTemplateClassInfo(StringRef baseName);
-
-  // make a shadow typedef var for the given var in the given scope
-  void makeShadowTypedef(Variable *tv, Scope *scope);
 
   // return a new name for an anonymous type; 'keyword' says
   // which kind of type we're naming
@@ -401,16 +404,19 @@ public:      // funcs
   // this is called after all the fields of 'ct' have been set, and
   // we've popped its scope off the stack
   virtual void addedNewCompound(CompoundType *ct);
-                                                        
+
   // return # of array elements initialized
   virtual int countInitializers(SourceLoc loc, Type *type, IN_compound const *cpd);
-  
+
   // called when a variable is successfully added; note that there
   // is a similar mechanism in Scope itself, which can be used when
   // less context is necessary
   virtual void addedNewVariable(Scope *s, Variable *v);
 
   // -------------- stuff for elaboration support ---------------
+  // make a shadow typedef var for the given var in the given scope
+  void makeShadowTypedef(Variable *tv, Scope *scope);
+
   // make a unique name for a new temporary variable
   virtual PQ_name *makeTempName();
   // make a unique name for a new E_new variable

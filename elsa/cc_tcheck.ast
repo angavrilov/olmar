@@ -49,10 +49,6 @@ class Function {
   // since the body of the function (if a class member) may refer
   // to the 'this' Variable, I need to write it down so client
   // analyses can find it
-
-  // NOTE!: If this function is a ctor, then the semantics is as if we
-  // have this line in the code before the MemberInit-s:
-  //   this = &retval;
   public Variable *thisVar = NULL;
 
   public void printExtras(ostream &os, int indent) const;
@@ -60,7 +56,7 @@ class Function {
 
   // if 'checkBody' is false, we treat this like it was just
   // a prototype for the function
-  public void tcheck(Env &env, bool isMember, bool checkBody);
+  public void tcheck(Env &env, bool checkBody);
 
   private CompoundType *verifyIsCtor(Env &env, char const *context);
   private void tcheck_memberInits(Env &env);
@@ -91,11 +87,11 @@ class MemberInit {
 
 
 class Declaration {                                   
-  // adds declared variables to env; 'isMember' means that this
+  // adds declared variables to env; 'memberDecl' means that this
   // declaration appears just inside a class body; 'isTemporary' means
   // that this declaration is an artificial one created for an implied
   // temporary, not one actually written by the user
-  public void tcheck(Env &env, bool isMember = false, bool isTemporary = false);
+  public void tcheck(Env &env, /*bool memberDecl,*/ bool isTemporary);
 }
 
 
@@ -240,9 +236,6 @@ class Declarator {
     // the cv flags of the implicit 'this' parameter of member functions
     D_func *funcSyntax;
 
-    // is this a declarator for a member?
-    bool isMember;
-
     // is this a declarator for a temporary?
     bool isTemporary;
 
@@ -266,14 +259,13 @@ class Declarator {
 
   public:
     Tcheck(Type *t, DeclFlags d,
-           bool isMember0, bool isTemporary0, bool isParameter0, bool isE_new0
+           bool isTemporary0, bool isParameter0, bool isE_new0
            )
       : var         (NULL)
       , type        (t)
       , dflags      (d)
       , size_E_new  (NULL)
       , funcSyntax  (NULL)
-      , isMember    (isMember0)
       , isTemporary (isTemporary0)
       , isParameter (isParameter0)
       , isE_new     (isE_new0)
@@ -285,7 +277,6 @@ class Declarator {
       , dflags      (obj.dflags)
       , size_E_new  (obj.size_E_new)
       , funcSyntax  (obj.funcSyntax)
-      , isMember    (obj.isMember)
       , isTemporary (obj.isTemporary)
       , isParameter (obj.isParameter)
       , isE_new     (obj.isE_new)
@@ -299,7 +290,6 @@ class Declarator {
       size_E_new  = obj.size_E_new;
       context     = obj.context;
       funcSyntax  = obj.funcSyntax;
-      isMember    = obj.isMember;
       isTemporary = obj.isTemporary;
       isParameter = obj.isParameter;
       isE_new     = obj.isE_new;
@@ -324,7 +314,6 @@ class Declarator {
   public void mid_tcheck(Env &env, Tcheck &dt);
   public void tcheck_init(Env &env);
   public void elaborateCDtors(Env &env,
-                              bool isMember,
                               bool isTemporary,
                               bool isParameter,
                               DeclFlags dflags);

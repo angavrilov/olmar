@@ -9,7 +9,7 @@
 
 
 // --------------------- Env -----------------
-
+                                 
 int throwClauseSerialNumber = 0; // don't make this a member of Env
 
 Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
@@ -61,6 +61,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
     doOverload(tracingSys("doOverload")),
     doOperatorOverload(tracingSys("doOperatorOverload")),
+    doElaboration(true),
 
     tempSerialNumber(0),
     tempNamePrefix("temp-name-"),
@@ -858,7 +859,7 @@ CompoundType *Env::enclosingClassScope()
 }
 
 
-bool Env::addVariable(Variable *v, bool forceReplace, Scope *toScope)
+bool Env::addVariable(Variable *v, bool forceReplace)
 {
   if (disambErrorsSuppressChanges()) {
     // the environment is not supposed to be modified by an ambiguous
@@ -868,8 +869,7 @@ bool Env::addVariable(Variable *v, bool forceReplace, Scope *toScope)
     return true;    // don't cause further errors; pretend it worked
   }
 
-  Scope *s = toScope;
-  if (!s) s = acceptingScope(v->flags);
+  Scope *s = acceptingScope(v->flags);
   s->registerVariable(v);
   if (s->addVariable(v, forceReplace)) {
     addedNewVariable(s, v);
