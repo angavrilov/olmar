@@ -11,6 +11,14 @@
 #include "cc_print.h"       // PrintEnv
 
 
+// dsw: getSimpleType() has two arguments when I use it
+#ifdef DISTINCT_CVATOMIC_TYPES
+  #define GET_SIMPLE_TYPE(TYPE, QUAL) getSimpleType(TYPE, QUAL)
+#else
+  #define GET_SIMPLE_TYPE(TYPE, QUAL) getSimpleType(TYPE)
+#endif
+
+
 // ------------- generic ambiguity resolution -------------
 // return true if the list contains no disambiguating errors
 bool noDisambErrors(ObjList<ErrorMsg> const &list)
@@ -684,6 +692,7 @@ Type const *TS_name::itcheck(Env &env)
 
 Type const *TS_simple::itcheck(Env &env)
 {
+  // dsw: const?
   return getSimpleType(id);
 }
 
@@ -2481,31 +2490,31 @@ void Expression::mid_tcheck(Env &env, int &)
 
 Type const *E_boolLit::itcheck(Env &env)
 {
-  return getSimpleType(ST_BOOL);
+  return GET_SIMPLE_TYPE(ST_BOOL, CV_CONST);
 }
 
 Type const *E_intLit::itcheck(Env &env)
 {
   // TODO: what about unsigned and/or long literals?
-  return getSimpleType(ST_INT);
+  return GET_SIMPLE_TYPE(ST_INT, CV_CONST);
 }
 
 Type const *E_floatLit::itcheck(Env &env)
 {                                
   // TODO: doubles
-  return getSimpleType(ST_FLOAT);
+  return GET_SIMPLE_TYPE(ST_FLOAT, CV_CONST);
 }
 
 Type const *E_stringLit::itcheck(Env &env)
 {                                                                     
   // TODO: should be char const *, not char *
-  return new PointerType(PO_POINTER, CV_NONE, getSimpleType(ST_CHAR));
+  return new PointerType(PO_POINTER, CV_NONE, GET_SIMPLE_TYPE(ST_CHAR, CV_CONST));
 }
 
 Type const *E_charLit::itcheck(Env &env)
 {                               
   // TODO: unsigned
-  return getSimpleType(ST_CHAR);
+  return GET_SIMPLE_TYPE(ST_CHAR, CV_CONST);
 }
 
 
@@ -2691,6 +2700,10 @@ Type const *E_sizeof::itcheck(Env &env)
   size = expr->type->reprSize();
 
   // TODO: is this right?
+
+  // dsw: I think under some gnu extensions perhaps sizeof's aren't
+  // const (like with local arrays that use a variable to determine
+  // their size at runtime).  Therefore, not making const.
   return getSimpleType(ST_UNSIGNED_INT);
 }
 
@@ -2780,6 +2793,8 @@ Type const *E_deref::itcheck(Env &env)
       // would likely get it wrong for operator[] since I don't have
       // the right info to do an overload calculation.. well, if I
       // make it ST_ERROR then that will suppress further complaints
+
+      // dsw: const?
       return getSimpleType(ST_ERROR);    // TODO: fix this!
     }
   }
@@ -2827,6 +2842,9 @@ Type const *E_sizeofType::itcheck(Env &env)
   atype = atype->tcheck(env, NULL /*sizeExpr*/);
   size = atype->getType()->reprSize();
 
+  // dsw: I think under some gnu extensions perhaps sizeof's aren't
+  // const (like with local arrays that use a variable to determine
+  // their size at runtime).  Therefore, not making const.
   return getSimpleType(ST_UNSIGNED_INT);
 }
 
@@ -2876,7 +2894,8 @@ Type const *E_delete::itcheck(Env &env)
     env.error(t, stringc
       << "can only delete pointers, not `" << t->toString() << "'");
   }
-  
+
+  // dsw: const?
   return getSimpleType(ST_VOID);
 }
 
@@ -2889,6 +2908,7 @@ Type const *E_throw::itcheck(Env &env)
   else {
     // TODO: make sure that we're inside a 'catch' clause
   }
+  // dsw: const?
   return getSimpleType(ST_VOID);
 }
 
