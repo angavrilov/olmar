@@ -66,6 +66,8 @@ public:    // funcs
            Type const *t, DeclFlags f);
   ~Variable();
 
+  Variable *deepClone() const;
+
   bool hasFlag(DeclFlags f) const { return (flags & f) != 0; }
   void setFlag(DeclFlags f) { flags = (DeclFlags)(flags | f); }
   void addFlags(DeclFlags f) { setFlag(f); }
