@@ -34,17 +34,6 @@ void BPRender::breakLine(int ind)
 }
 
 
-string BPRender::takeAndRender(BPBuilder &bld)
-{
-  BPBox* /*owner*/ tree = bld.takeTree();
-  tree->render(*this);
-  string ret(sb);
-  sb.clear();
-  delete tree;
-  return ret;
-}
-
-
 // ----------------------- BPElement ---------------------
 bool BPElement::isBreak() const
 {
@@ -212,10 +201,12 @@ BPKind const BPBuilder::seq  = BP_sequence;
 BPKind const BPBuilder::hv   = BP_correlated;
 BPKind const BPBuilder::end  = NUM_BPKINDS;
 
+BPBuilder::Cmd const BPBuilder::sp = BPBuilder::C_SPACE;
+BPBuilder::Cmd const BPBuilder::br = BPBuilder::C_BREAK;
+
 
 BPBuilder::BPBuilder()
-  : boxStack(),
-    levelIndent(2)
+  : boxStack()
 {         
   // initial vert box
   boxStack.push(new BPBox(BP_vertical));
@@ -259,12 +250,7 @@ BPBuilder& BPBuilder::operator<< (BPKind k)
 
 BPBuilder& BPBuilder::operator<< (Cmd c)
 {
-  if (c == br || c == sp) {
-    append(new BPBreak(c==br /*enabled*/, 0 /*indent*/));
-  }
-  else {
-    append(new BPBreak(true /*enabled*/, c==ind? levelIndent : -levelIndent));
-  }
+  append(new BPBreak(c==C_BREAK /*enabled*/, 0 /*indent*/));
   return *this;
 }
 
@@ -308,7 +294,7 @@ void doit(int argc, char *argv[])
   BPBuilder bp;
 
   bp << "int foo()" << bp.br
-     << "{" << bp.ind;
+     << "{" << bp.ibr(+2);
 
   bp << "printf(" << bp.seq
         << "\"hello there %d!\\n\"," << bp.br
@@ -349,16 +335,16 @@ void doit(int argc, char *argv[])
   bp << bp.hv
         << "forall(" << bp.seq
            << "x," << bp.br << "y," << bp.br << "z"
-        << bp.end << "). if {" << bp.ind
+        << bp.end << "). if {" << bp.ibr(+2)
         << bp.seq << "x" << bp.op("==") << "yooey_more" << bp.end << ";" << bp.br
         << bp.seq << "yowza" << bp.op("!=") << "fooey" << bp.end << ";"
-        << bp.und << "} /*==>*/ {" << bp.ind
+        << bp.ibr(-2) << "} {" << bp.ibr(+2)
         << bp.seq << "z(x,y,z)" << bp.op("==") << "3" << bp.end << ";" << bp.br
         << "ay_caramba" << ";"
-        << bp.und << "};"
+        << bp.ibr(-2) << "};"
      << bp.end;
 
-  bp << bp.und << "}" << bp.br;
+  bp << bp.ibr(-2) << "}" << bp.br;
 
   BPBox *tree = bp.takeTree();
 
