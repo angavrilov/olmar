@@ -1,4 +1,4 @@
-// gnu.tok  -*- c++ -*-
+// gnu_ext.tok  -*- c++ -*-
 // extension to cc_tokens.tok, for GNU language extensions
 
 // flags:

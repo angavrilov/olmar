@@ -55,7 +55,7 @@ CC_AST_MODS += cfg.ast
 USE_GNU     := @USE_GNU@
 ifeq ($(USE_GNU),yes)
   LEXER_MODS  += gnu.lex
-  TOK_MODS    += gnu.tok
+  TOK_MODS    += gnu_ext.tok
   CC_AST_MODS += gnu.ast
   CC_GR_MODS  += gnu.gr
   EXT_OBJS    += gnu.o
