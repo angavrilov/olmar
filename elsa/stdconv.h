@@ -18,11 +18,12 @@
 
 #include "macros.h"    // ENUM_BITWISE_AND,OR
 #include "str.h"       // string
-#include "cc_type.h"   // SpecialExpr
+#include "cc_flags.h"  // SpecialExpr
 
 // fwd
 class Type;            // cc_type.h
 class Env;             // cc_env.h
+class TypeFactory;     // cc_type.h
 
 // The kinds of Standard Conversions.  Any given pair of convertible
 // types will be related by the conversions permitted as one or more

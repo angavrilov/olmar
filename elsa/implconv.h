@@ -11,6 +11,9 @@
 
 #include "stdconv.h"     // StandardConversion
 
+class Variable;          // variable.h
+
+
 class ImplicitConversion {
 public:    // data
   enum Kind {

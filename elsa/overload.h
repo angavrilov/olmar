@@ -8,6 +8,8 @@
 #include "sobjlist.h"      // SObjList
 #include "array.h"         // ArrayStack
 #include "implconv.h"      // ImplicitConversion, StandardConversion
+#include "srcloc.h"        // SourceLoc
+#include "cc_ast.h"        // PQName, ArgExpression, etc.
 
 // fwds
 class Env;
@@ -15,7 +17,6 @@ class Variable;
 class Type;
 class ErrorList;
 class TemplCandidates;
-class ArgExpression;
 
 
 // debugging output support
