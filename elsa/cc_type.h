@@ -280,7 +280,7 @@ public:      // funcs
   void addField(Variable *v);
 
   // sm: for compatibility with existing code
-  SObjList<Variable> &get_data_variables_in_order() 
+  SObjList<Variable> &getDataVariablesInOrder() 
     { return dataMembers; }
 
   // return the ordinal position of the named nonstatic data field
