@@ -110,7 +110,15 @@ GrammarLexer::~GrammarLexer()
   }
 
   // now delete the original istream source
-  if (fileState.source != cin) {
+  // 
+  // 10/09/04: This used to say "fileState.source != cin", but that
+  // invokes cin.operator void*(), which always returns 0 or -1 in
+  // gcc-2.95.3's library.  I believe I intended to compare addresses,
+  // though at this point I'm not sure since I don't know where the
+  // call sites to the constructor are.  (I found this problem because
+  // at one point Elsa (erroneously) choked on this construction.)
+  if (fileState.source &&
+      fileState.source != &cin) {
     //checkHeap();
     //checkHeapNode(fileState.source);   // this is wrong b/c of virtual inheritance..
     delete fileState.source;
