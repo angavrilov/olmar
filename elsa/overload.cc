@@ -58,7 +58,7 @@ Type *OverloadResolver::getReturnType(Candidate const *winner) const
   }
 
   // At this point, we do not have a concrete return type, but
-  // rather than algorithm for computing a return type given
+  // rather an algorithm for computing a return type given
   // the types of the parameters.
   //
   // However, we also do not have easy access to the parameter types

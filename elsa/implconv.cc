@@ -65,6 +65,41 @@ void ImplicitConversion::addEllipsisConv()
 Type *ImplicitConversion::getConcreteDestType
   (TypeFactory &tfac, Type *srcType, Type *destType) const
 {
+  // skip past the user-defined conversion, if any
+  StandardConversion sconv = scs;
+  if (kind == IC_USER_DEFINED) {
+    srcType = user->type->asFunctionType()->retType;
+    sconv = scs2;
+  }
+
+  if (destType->isPointer()) {
+    // hmm.. operator+ has '<any obj> *'
+
+    Type *destAtType = destType->getAtType();
+    if (!destAtType->isSimpleType()) {
+      return destType;      // easy
+    }
+
+    SimpleTypeId id = destAtType->asSimpleTypeC()->type;
+    if (isConcreteSimpleType(id)) {
+      return destType;      // also easy
+    }
+    
+    // if 'destType' is a reference to a polymorphic type,
+    // then this wouldn't be right ....
+    srcType = srcType->asRval();
+
+    // apply the conversion
+    if (sconv == SC_ARRAY_TO_PTR) {
+      srcType = tfac.makePointerType(SL_UNKNOWN, CV_NONE,
+        srcType->asArrayType()->eltType);
+    }
+
+    // anything more to do?  not sure...
+
+    return srcType;
+  }
+
   // these first two conditions are the same as at the top
   // of OverloadResolver::getReturnType ...
 
@@ -75,13 +110,6 @@ Type *ImplicitConversion::getConcreteDestType
   SimpleTypeId id = destType->asSimpleTypeC()->type;
   if (isConcreteSimpleType(id)) {
     return destType;      // also easy
-  }
-
-  // skip past the user-defined conversion, if any
-  StandardConversion sconv = scs;
-  if (kind == IC_USER_DEFINED) {
-    srcType = user->type->asFunctionType()->retType;
-    sconv = scs2;
   }
 
   // ask the standard conversion module what type results when using
