@@ -901,10 +901,6 @@ void CGen::emitTFClass(TF_class const &cls)
   if (!cls.hasChildren()) {
     // childless superclasses get the preempt in the superclass;
     // otherwise it goes into the child classes
-    //
-    // 12/17/04: I think there is a bug here, because I don't see
-    // anywhere that preemptDebugPrint is actually used for child
-    // classes, and one experiment I did confirmed it wasn't used ...
     emitCustomCode(cls.super->decls, "preemptDebugPrint");
 
     // childless superclasses print headers; otherwise the subclass
@@ -989,6 +985,9 @@ void CGen::emitTFClass(TF_class const &cls)
     // the debug print preempter is declared in the outer "class",
     // but inserted into the print methods of the inner "constructors"
     emitCustomCode(cls.super->decls, "preemptDebugPrint");
+
+    // do same if it's declared only in the subclass
+    emitCustomCode(ctor.decls, "preemptDebugPrint");
 
     out << "  PRINT_HEADER(subtreeName, " << ctor.name << ");\n";
     out << "\n";
