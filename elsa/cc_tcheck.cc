@@ -2539,6 +2539,18 @@ Type const *E_funCall::itcheck(Env &env)
     t = t->asPointerTypeC().atType;
   }
 
+  // check for operator()
+  CompoundType const *ct = t->ifCompoundType();
+  if (ct) {
+    Variable const *funcVar = ct->getNamedFieldC(env.functionOperatorName, env);
+    if (funcVar) {
+      t = funcVar->type;
+    }
+    else {
+      // fall through, error case below handles it
+    }
+  }
+
   if (!t->isFunctionType()) {
     return env.error(func->type->asRval(), stringc
       << "you can't use an expression of type `" << func->type->toString()

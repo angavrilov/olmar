@@ -58,11 +58,10 @@ public:      // data
   // type for typeid expression
   Type const *type_info_const_ref;      // (serf)
 
-  // special name for conversion operators
+  // special names
   StringRef conversionOperatorName;
-  
-  // special name for constructors
   StringRef constructorSpecialName;
+  StringRef functionOperatorName;
 
   // special variables associated with particular types
   Variable *dependentTypeVar;           // (serf)      
