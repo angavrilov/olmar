@@ -948,6 +948,9 @@ Variable *Env::declareFunctionNargs(
     }
   }
 
+  // dsw: hook for Oink; there is probably a better way
+  ft = tfac.finishDeclareFunctionNargs(ft);
+
   ft->doneParams();
 
   Variable *var = makeVariable(SL_INIT, str(funcName), ft, DF_NONE);

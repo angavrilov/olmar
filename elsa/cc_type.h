@@ -1172,6 +1172,8 @@ public:
   virtual FunctionType *makeSimilarFunctionType(SourceLoc loc,
     Type *retType, FunctionType *similar);
 
+  virtual FunctionType *finishDeclareFunctionNargs(FunctionType *ft);
+
   // ---- similar functions for Variable ----
   // Why not make a separate factory?
   //   - It's inconvenient to have two.

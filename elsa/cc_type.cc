@@ -2405,6 +2405,11 @@ FunctionType *TypeFactory::makeSimilarFunctionType(SourceLoc loc,
 }
 
 
+FunctionType *TypeFactory::finishDeclareFunctionNargs(FunctionType *ft) {
+  return ft;
+}
+
+
 CVAtomicType *TypeFactory::getSimpleType(SourceLoc loc, 
   SimpleTypeId st, CVFlags cv)
 {
