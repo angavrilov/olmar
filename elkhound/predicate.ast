@@ -31,7 +31,11 @@ verbatim {
   Predicate *P_combinator(BinaryOp op, Predicate *p1, Predicate *p2);
 
   Predicate *P_equal(AbsValue const *e1, AbsValue const *e2);
+  Predicate *P_notEqual(AbsValue const *e1, AbsValue const *e2);
   Predicate *P_negate(Predicate *p);    // will strip outer P_not if exists
+
+  Predicate *P_forall(ASTList<AVvar> *variables, Predicate *body);
+  Predicate *P_exists(ASTList<AVvar> *variables, Predicate *body);
 
   // visitor interface
   class PredicateVisitor {
@@ -159,6 +163,11 @@ impl_verbatim {
     return new P_relation(e1, RE_EQUAL, e2);
   }
 
+  Predicate *P_notEqual(AbsValue const *e1, AbsValue const *e2)
+  {
+    return new P_relation(e1, RE_NOTEQUAL, e2);
+  }
+
   Predicate *P_negate(Predicate *pred)
   {
     if (pred->isP_not()) {
@@ -173,6 +182,17 @@ impl_verbatim {
       return new P_not(pred);
     }
   }
+
+  Predicate *P_forall(ASTList<AVvar> *variables, Predicate *body)
+  {
+    return new P_quantifier(variables, body, true /*forall*/);
+  }
+
+  Predicate *P_exists(ASTList<AVvar> *variables, Predicate *body)
+  {
+    return new P_quantifier(variables, body, false /*forall*/);
+  }
+
 
   string Predicate::toSexpString() const
   {

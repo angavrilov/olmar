@@ -14,6 +14,16 @@
 #include <assert.h>             // assert
 
 
+#define FOREACH_BINDING(binding)                             \
+  {                                                          \
+    for (OwnerHashTableIter<AbsVariable> iter(bindings);     \
+         !iter.isDone(); iter.adv()) {                       \
+      AbsVariable *binding = iter.data();
+
+#define END_FOREACH_BINDING                                  \
+  }}
+
+
 // ----------------- VariablePrinter ----------------
 // used to print what variables stand for
 class VariablePrinter : public ValuePredicateVisitor {
@@ -209,7 +219,7 @@ AbsValue *AEnv::get(Variable const *var)
 }
 
 
-AbsValue *AEnv::freshVariable(char const *prefix, char const *why)
+AVvar *AEnv::freshVariable(char const *prefix, char const *why)
 {
   int suffix = 0;
                              
@@ -279,6 +289,35 @@ void AEnv::addDistinct(AbsValue *obj)
 }
 
 
+void AEnv::assumeNoFieldPointsTo(AbsValue *v)
+{
+  // need a quantification variable
+  AVvar *objVar = freshVariable("obj",
+    "introduced for quantifying over objects in assumeNoFieldPointsTo()");
+  AVvar *ofsVar = freshVariable("ofs",
+    "introduced for quantifying over offsets in assumeNoFieldPointsTo()");
+
+  // build them into a list
+  ASTList<AVvar> *quantVars = new ASTList<AVvar>;
+  quantVars->append(objVar);
+  quantVars->append(ofsVar);
+
+  // (FORALL (obj ofs)
+  //   (NEQ
+  //     <variable referred-to by 'v'>
+  //     (select <current memory> obj ofs)
+  //   ))
+
+  // assert it's never the answer to a select query
+  pathFacts->conjuncts.append(
+    P_forall(quantVars,
+      P_notEqual(
+        v,
+        avSelect(getMem(), objVar, ofsVar)
+      )));
+}
+
+
 void AEnv::forgetAcrossCall(E_funCall const *call)
 {
   string thisCallSyntax = call->toString();
@@ -288,15 +327,13 @@ void AEnv::forgetAcrossCall(E_funCall const *call)
            stringc << "contents of memory after call: " << thisCallSyntax));
 
   // any current values for global variables are forgotten
-  for (OwnerHashTableIter<AbsVariable> iter(bindings);
-       !iter.isDone(); iter.adv()) {
-    AbsVariable *av = iter.data();
+  FOREACH_BINDING(av) {
     if (av->decl->isGlobal() || av->decl->hasAddrTaken()) {
       updateVar(av->decl, freshVariable(av->decl->name,
         stringc << "value of " << av->decl->name
                 << " after modified by call: " << thisCallSyntax));
     }
-  }
+  } END_FOREACH_BINDING
 }
 
 

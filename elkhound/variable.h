@@ -26,7 +26,7 @@ class Type;               // cc_type.h
 
 class Variable {
 public:    // data
-  SourceLocation loc;     // location of the name in the source text
+  SourceLocation loc;     // location of the name (declaration) in the source text
   StringRef name;         // name introduced
   Type const *type;       // associated type
   DeclFlags flags;        // various flags

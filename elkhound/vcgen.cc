@@ -875,9 +875,10 @@ AbsValue *E_new::vcgen(AEnv &env, int path) const
     
   // distinct from others
   env.addDistinct(v);
-  
-  // TODO: finish this (need to verify gcc works)
-  
+
+  // nothing points to this new thing
+  env.assumeNoFieldPointsTo(v);
+
   return v;
 }
 

@@ -11,6 +11,7 @@
 #include "ohashtbl.h"      // OwnerHashTable
 
 class AbsValue;            // absval.ast
+class AVvar;               // absval.ast
 class P_and;               // predicate.ast
 class Predicate;           // predicate.ast
 class VariablePrinter;     // aenv.cc
@@ -48,12 +49,13 @@ public:
 // abstract store (environment)
 class AEnv {
 private:     // data
-  // environment maps program variable declarators to abstract domain values
+  // environment maps program variable declarators (Variable const*)
+  // to abstract domain values (AbsVariable*)
   OwnerHashTable<AbsVariable> bindings;
 
   // (owner of list of owners) set of known facts, as a big
   // conjunction; these are the facts known from the *path*, so they
-  // are never rescineded (until the entire deck is cleared for a new
+  // are never rescinded (until the entire deck is cleared for a new
   // path)
   P_and *pathFacts;
 
@@ -123,7 +125,8 @@ public:      // funcs
   // make and return a fresh variable reference; the string
   // is attached to indicate what this variable stands for,
   // or why it was created; the prefix becomes part of the variable name
-  AbsValue *freshVariable(char const *prefix, char const *why);
+  // (AVvar is a subclass of AbsValue)
+  AVvar *freshVariable(char const *prefix, char const *why);
 
   // make up a name for the address of the named variable, and add
   // it to the list of known address-taken variables; retuns the
@@ -141,6 +144,11 @@ public:      // funcs
 
   // add an address to those considered mutually distinct
   void addDistinct(AbsValue *obj);
+                                          
+  // add an assumption to pathFacts which says that no memory location
+  // currently points to 'v'; useful after an allocation, when 'v'
+  // stands for the address of the newly allocated object
+  void assumeNoFieldPointsTo(AbsValue *v);
 
   // refresh bindings that aren't known to be constant across a call
   void forgetAcrossCall(E_funCall const *call);

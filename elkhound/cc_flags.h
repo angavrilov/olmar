@@ -31,7 +31,7 @@ enum CVFlags {
   CV_VOLATILE = 0x200,
   CV_OWNER    = 0x400,     // experimental extension
   CV_ALL      = 0x700,
-  NUM_CVFLAGS = 3
+  NUM_CVFLAGS = 3          // # bits set to 1 in CV_ALL
 };
 
 extern char const * const cvFlagNames[NUM_CVFLAGS];      // 0="const", 1="volatile", 2="owner"
@@ -41,6 +41,7 @@ string toString(CVFlags cv);
 // ----------------------- DeclFlags ----------------------
 // set of declaration modifiers present;
 // these modifiers apply to variable names
+// they're now also being used for Variable (variable.h) flags
 enum DeclFlags {
   DF_NONE        = 0x00000000,
 
@@ -56,7 +57,7 @@ enum DeclFlags {
   DF_EXTERN      = 0x00000100,
   DF_SOURCEFLAGS = 0x000001FF,    // all flags that come from source declarations
 
-  // other stuff that's convenient for me
+  // flags on Variables
   DF_ENUMVAL     = 0x00000200,    // not really a decl flag, but a Variable flag..
   DF_GLOBAL      = 0x00000400,    // set for globals, unset for locals
   DF_INITIALIZED = 0x00000800,    // true if has been declared with an initializer (or, for functions, with code)
@@ -66,9 +67,10 @@ enum DeclFlags {
   DF_PARAMETER   = 0x00008000,    // true if this is a function parameter
   DF_UNIVERSAL   = 0x00010000,    // (requires DF_LOGIC) universally-quantified variable
   DF_EXISTENTIAL = 0x00020000,    // (requires DF_LOGIC) existentially-quantified
+  DF_FIELD       = 0x00040000,    // true for fields of structures
 
-  ALL_DECLFLAGS  = 0x0003FFFF,
-  NUM_DECLFLAGS  = 18             // # bits set to 1 in ALL_DECLFLAGS
+  ALL_DECLFLAGS  = 0x0007FFFF,
+  NUM_DECLFLAGS  = 19             // # bits set to 1 in ALL_DECLFLAGS
 };
 
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..

@@ -4,10 +4,12 @@
 (PROMPT_OFF)
 (BG_PUSH (AND
 
+  ; ---------------- misc -----------------
   ; how to simplify a few expression kinds
   (FORALL (x)     ; not needed: (PATS (uMinus x))
     (EQ (uMinus x) (- 0 x)))
 
+  ; ------------- tuple: "pointer" ---------------
   ; how to take apart a pointer
   (FORALL (b f)
     (EQ
@@ -45,13 +47,6 @@
       (- (offset ptr) ofs)
     ))
 
-  ; reading from the same location as was last written
-  (FORALL (mem obj ofs value)
-    (EQ
-      (select (update mem obj ofs value) obj ofs)
-      value
-    ))
-
   ; fact that construction and deconstruction is identity
   ; pattern means this applies whenever both (object p) and
   ; (offset p) are around, for the same p
@@ -59,6 +54,14 @@
     (EQ
       p
       (pointer (object p) (offset p))
+    ))
+
+  ; --------------- theory: select/update ------------------
+  ; reading from the same location as was last written
+  (FORALL (mem obj ofs value)
+    (EQ
+      (select (update mem obj ofs value) obj ofs)
+      value
     ))
 
   ; pointer disequality can be shown by showing either component
@@ -96,6 +99,7 @@
       )
     ))
 
+  ; ------------- extension for strings: firstZero -----------------
   ; reading first zero from a memory where last changed obj is diff't
   (FORALL (mem obj1 obj2 ofs1 value)
     (IMPLIES
@@ -125,7 +129,8 @@
   ;      (< (offset p) (length (object p)))
   ;    )
   ;  ))
-  
+
+  ; ------------------- theory: arbitrary tuples -----------------
   ; read the last-updated value out of a tuple
   ;   n: field index
   ;   s: structure (tuple) value
@@ -150,30 +155,30 @@
       )
     ))
 
-  ; ------------ new stuff for modeling structure fields ----------
-  ; structure fields (in the new approach) are modeled like big
-  ; arrays, indexed by their containing object.  this makes it
-  ; impossible to model some kinds of scenarios involving pointers
-  ; into structure interiors, but I don't care about them now
+;   ; ------------ new stuff for structure field modeling ----------
+;   ; structure fields (in the new approach) are modeled like big
+;   ; arrays, indexed by their containing object.  this makes it
+;   ; impossible to model some kinds of scenarios involving pointers
+;   ; into structure interiors, but I don't care about them now
 
-  ; read the most recent update to a field "array": if the last
-  ; change was to say that p->field = q, then reading p->field
-  ; yields q
-  (FORALL (fieldMap obj value)
-    (EQ
-      (selectField (updateField fieldMap obj value) obj)
-      value
-    )
-  )
+;   ; read the most recent update to a field "array": if the last
+;   ; change was to say that p->field = q, then reading p->field
+;   ; yields q
+;   (FORALL (fieldMap obj value)
+;     (EQ
+;       (selectField (updateField fieldMap obj value) obj)
+;       value
+;     )
+;   )
 
-  ; read past an update to a different object
-  (FORALL (fieldMap skipObj skipVal readObj)            
-    (IMPLIES
-      (NEQ skipObj readObj)
-      (EQ
-        (selectField (updateField fieldMap skipObj skipVal) readObj)
-        (selectField fieldMap readObj)
-      )
-    ))
+;   ; read past an update to a different object
+;   (FORALL (fieldMap skipObj skipVal readObj)
+;     (IMPLIES
+;       (NEQ skipObj readObj)
+;       (EQ
+;         (selectField (updateField fieldMap skipObj skipVal) readObj)
+;         (selectField fieldMap readObj)
+;       )
+;     ))
 
 ))
