@@ -238,10 +238,20 @@ bool MatchTypes::match_rightTypeVar(Type *a, Type *b, int matchDepth)
     }
     STemplateArgument const *targb = bindings.getTypeVar(b->asTypeVariable());
     if (targb) {
-      return targb->kind==STemplateArgument::STA_TYPE
-        && match0(a, targb->value.t,
-                  matchDepth    // FIX: this used to be not top, but I don't remember why
-                  );
+      if (targb->kind!=STemplateArgument::STA_TYPE) {
+        return false;      // wrong kind, mismatch
+      }
+      
+      Type *t = targb->value.t;
+      
+      // sm: 10/09/04: (in/t0350.cc) If 'b' has qualifiers, then those qualifiers
+      // need to be added to 't'.  e.g., if 'b' is 'T const' and 't' is
+      // 'Variable', then we need to obtain 'Variable const' to compare with 'a'.
+      t = tfac.applyCVToType(SL_UNKNOWN, b->getCVFlags(), t, NULL);
+
+      return match0(a, t,
+                    matchDepth    // FIX: this used to be not top, but I don't remember why
+                    );
     } else {
       return bindValToVar(a, b, matchDepth);
     }
