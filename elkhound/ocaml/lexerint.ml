@@ -25,6 +25,7 @@ object (self)
   (* ---- funcs ---- *)
   (* data members aren't public... *)
   method getTokType() : int =           tokType
+  method atEOF() : bool =               tokType=0
   method getSval() : tSemanticValue =   sval
 
   (* convenience during testing *)

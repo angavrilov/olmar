@@ -7,6 +7,7 @@
 
 (* secret to type casting in OCaml: the Obj module *)
 type tSemanticValue = Obj.t
+let cNULL_SVAL = (Obj.repr 0)
 
 
 (* ---------------- reduction actions -------------- *)
@@ -66,10 +67,30 @@ let actionArray : (tSemanticValue array -> tSemanticValue) array = [|
   )
 |]
 
-let reductionAction (productionId:int) (svals:tSemanticValue array)
+let reductionAction (productionId: int) (svals: tSemanticValue array)
   : tSemanticValue =
 begin
   (actionArray.(productionId) svals)
+end
+
+
+(* correct, but just because I'm using a specific grammar *)
+let keepNontermValue (ntIndex: int) (sval: tSemanticValue) : bool =
+begin
+  true
+end
+
+
+let mergeAlternativeParsers (ntIndex: int) (s1: tSemanticValue) 
+                            (s2: tSemanticValue) : tSemanticValue =
+begin
+  s1
+end
+
+let duplicateTerminalValue (termIndex: int) (sval: tSemanticValue)
+  : tSemanticValue =
+begin
+  sval
 end
 
 

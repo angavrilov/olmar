@@ -74,11 +74,11 @@ begin
     (flush stdout);
 
     (* read from action table *)
-    let act:int = actionTable.(state*actionCols + tt) in
+    let act:tActionEntry = (getActionEntry state tt) in
 
     (* shift? *)
-    if (0 < act && act <= numStates) then (
-      let dest:tStateId = act-1 in            (* destination state *)
+    if (isShiftAction act) then (
+      let dest:tStateId = (decodeShift act tt) in   (* destination state *)
       (pushStateSval dest (lex#getSval()));
 
       (* next token *)
@@ -89,8 +89,8 @@ begin
     )
 
     (* reduce? *)
-    else if (act < 0) then (
-      let rule:int = -(act+1) in              (* reduction rule *)
+    else if (isReduceAction act) then (
+      let rule:int = (decodeReduce act state) in    (* reduction rule *)
       let ruleLen:int = prodInfo_rhsLen.(rule) in
       let lhs:int = prodInfo_lhsIndex.(rule) in
 
@@ -114,7 +114,7 @@ begin
       let newTopState:int = (topState()) in
 
       (* get new state *)
-      let dest:tStateId = gotoTable.(newTopState*gotoCols + lhs) in
+      let dest:tStateId = (decodeGoto (getGotoEntry newTopState lhs) lhs) in
       (pushStateSval dest sval);
 
       (Printf.printf "reduce by rule %d (len=%d, lhs=%d), goto state %d\n"
@@ -123,7 +123,7 @@ begin
     )
 
     (* error? *)
-    else if (act = 0) then (
+    else if (isErrorAction act) then (
       (Printf.printf "parse error in state %d\n" state);
       (flush stdout);
       (failwith "parse error");

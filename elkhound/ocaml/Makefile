@@ -30,7 +30,8 @@ main: $(MAIN_MODULES)
 # dependencies
 ALL_MODULES = \
   $(TOBJPOOL_MODULES) \
-  $(MAIN_MODULES)
+  $(MAIN_MODULES) \
+  glr.cmo
 -include $(ALL_MODULES:.cmo=.d)
 
 clean:

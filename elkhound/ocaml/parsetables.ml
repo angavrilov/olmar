@@ -2,8 +2,19 @@
 (* representation of parsing tables *)
 (* based on elkhound/parsetables.h *)
 
-(* for now, some actual parsing tables *)
 
+(* for action entries; some places may still be called int *)
+type tActionEntry = int
+
+(* identifier for a state in the finite automaton *)
+type tStateId = int
+let cSTATE_INVALID = -1
+
+(* entry in the goto table *)
+type tGotoEntry = int
+
+
+(* for now, some actual parsing tables *)
 
 (* ------------------- parse tables (from arith.gr.gen.cc) -------------------- *)
 let numTerms = 8
@@ -14,6 +25,12 @@ let actionCols = 8
 let actionRows = 16
 let gotoCols = 4
 let gotoRows = 16
+(*ambigTableSize*)
+(*startState*)
+let finalProductionIndex = 0
+(*bigProductionListSize*)
+(*errorBitsRowSize*)
+(*uniqueErrorRows*)
 
 let actionTable = [|    (* 128 elements *)
   (* 0*) 0; 3; 0; 0; 0; 0; 8; 0;
@@ -67,6 +84,66 @@ let stateSymbol = [|           (* 16 elements *)
 let nontermOrder = [|          (* 4 elements *)
   (*0*) 3; 2; 1; 0
 |]
+
+
+(* ---------- nascent form of ParseTables interface ------------ *)
+let getActionEntry (*tables*) (state: int) (tok: int) : tActionEntry =
+begin
+  actionTable.(state*actionCols + tok)
+end
+
+let isShiftAction (*tables*) (code: tActionEntry) : bool =
+begin
+  code > 0 && code <= numStates
+end
+
+let decodeShift (code: tActionEntry) (shiftedTerminal: int) : tStateId =
+begin
+  code-1
+end
+
+let isReduceAction (code: tActionEntry) : bool =
+begin
+  code < 0
+end
+
+let decodeReduce (code: tActionEntry) (inState: tStateId) : int =
+begin
+  -(code+1)
+end
+
+let isErrorAction (*tables*) (code: tActionEntry) : bool =
+begin
+  code = 0
+end
+
+
+let getGotoEntry (stateId: tStateId) (nontermId: int) : tGotoEntry =
+begin
+  gotoTable.(stateId*gotoCols + nontermId)
+end
+
+let decodeGoto (code: tGotoEntry) (shiftNonterminal: int) : tStateId =
+begin
+  code
+end
+
+
+let getProdInfo_rhsLen (rule: int) : int =
+begin
+  prodInfo_rhsLen.(rule)
+end
+
+let getProdInfo_lhsIndex (rule: int) : int =
+begin
+  prodInfo_lhsIndex.(rule)
+end
+
+
+let getNontermOrdinal (idx: int) : int =
+begin
+  nontermOrder.(idx)
+end
 
 
 (* EOF *)

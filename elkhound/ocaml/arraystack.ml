@@ -21,6 +21,16 @@ begin
 end
 
 
+(* ensure the array has at least the given index, growing its size
+ * if necessary (by doubling) *)
+let ensureIndexDoubler (arr: 'a array ref) (idx: int) (null: 'a) : unit =
+begin
+  while ((Array.length !arr) < (idx+1)) do
+    arr := (growArray !arr ((Array.length !arr) * 2) null);
+  done;
+end
+
+
 (* the stack must be given a dummy value for unused array slots *)
 class ['a] tArrayStack (null: 'a) =
 object (self)
@@ -69,7 +79,13 @@ object (self)
   begin
     arr.(i)
   end
-  
+
+  (* set arbitrary element *)
+  method setElt (i: int) (v: 'a) : unit =
+  begin
+    arr.(i) <- v
+  end
+
   (* iterate *)
   method iter (f: 'a -> unit) : unit =
   begin
@@ -78,25 +94,34 @@ object (self)
     done;
   end
 
-  (* search *)
-  method contains (f: 'a -> bool) : bool =
-  begin            
+  (* search and return the element, or None *)
+  method findOption (f: 'a -> bool) : 'a option =
+  begin
     (* ug.. must use tail recursion just so I can break early... *)
-    let rec loop (i: int) : bool =
+    let rec loop (i: int) : 'a option =
     begin
       if (i >= len-1) then (
-        false         (* not found *)
+        None               (* not found *)
       )
       else if (f (arr.(i))) then (
-        true          (* found *)
+        (Some arr.(i))     (* found *)
       )
       else (
-        (loop (i+1))  (* keep looking *)
+        (loop (i+1))       (* keep looking *)
       )
     end in
-    
+
     (loop 0)
   end
+
+  (* search *)
+  method contains (f: 'a -> bool) : bool =
+  begin
+    match (self#findOption f) with
+    | Some(_) -> true
+    | None -> false
+  end
+
 
   (* just for 'swapWith' *)
   (* I tried making them 'private' but that only allows method calls
