@@ -5656,9 +5656,30 @@ void TD_func::itcheck(Env &env)
     xassert(fVar->templateInfo()->getMyPrimaryIdem() == primaryTI);
   } else if (fVar->templateInfo()->isPrimary()) {
     // we should be the definition for a declared primary
-    Variable *primary = env.lookupPQVariable_primary_resolve
-      (name, LF_TEMPL_PRIMARY, funcType, MatchTypes::MM_ISO);
+    
+    #if 0      // old
+      Variable *primary = env.lookupPQVariable_primary_resolve
+        (name, LF_TEMPL_PRIMARY, funcType, MatchTypes::MM_ISO);
+    #else
+      // sm: The goal appears to be to obtain the primary's Variable,
+      // but that is already in 'fVar'.  I added an assertion that
+      // the primary obtained by lookup is the same as 'fVar', and that
+      // assertion passes in our current (7/23/04) suite.  However,
+      // the lookup fails for t0218.cc because it should be using
+      // 'constructor-special'.  Since 'fVar' already has been through
+      // the processing that introduces 'constructor-special', I am
+      // fixing t0218.cc by simply using 'fVar' instead of doing
+      // another lookup.  
+      //
+      // Note that in general lookup is a complicated beast, and 
+      // should be avoided when possible.  That is, if an identifier
+      // appears in the source code, it should be looked up; but for
+      // internally finding an object related to some other object
+      // in hand, lookup should not be used.
+      Variable *primary = fVar;
+    #endif
     xassert(primary);
+
     TemplateInfo *primaryTI = primary->templateInfo();
     xassert(primaryTI);
     xassert(primaryTI->isPrimary());

@@ -438,6 +438,7 @@ failparse t0214.cc "(fill in a reason here)"
 failparse t0215.cc "(fill in a reason here)"
 testparse t0216.cc
 testparse t0217.cc
+testparse t0218.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

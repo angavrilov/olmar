@@ -13,5 +13,3 @@ int C<S>::foo(T *t)
 {
   return 5 + sizeof(t);
 }
-
-
