@@ -3187,10 +3187,6 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
       if (name->isPQ_operator()) {
         ON_conversion *conv = name->asPQ_operator()->o->asON_conversion();
 
-        if (params->isNotEmpty()) {
-          env.error("conversion operator cannot accept arguments");
-        }
-
         // compute the named type; this becomes the return type
         ASTTypeId::Tcheck tc(DF_NONE, DC_ON_CONVERSION);
         conv->type = conv->type->tcheck(env, tc);
@@ -3335,6 +3331,12 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
   if (env.lang.emptyParamsMeansPureVarargFunc && params->isEmpty()) {
     xassert(ct==0);
     ft->flags |= FF_VARARGS;
+  }
+
+  if (specialFunc == FF_CONVERSION) {
+    if (ft->params.isNotEmpty() || ft->acceptsVarargs()) {
+      env.error("conversion operator cannot accept arguments");
+    }
   }
 
   // the verifier will type-check the pre/post at this point
