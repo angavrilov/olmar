@@ -200,7 +200,7 @@ SourceLocation nodeSrcLoc(ASTNode const *n)
   return ret;
 }
 
-LiteralCode *nodeLitCode(ASTNode const *n)
+LiteralCode * /*owner*/ nodeLitCode(ASTNode const *n)
 {
   return new LiteralCode(nodeSrcLoc(n), nodeString(n));
 }
@@ -216,7 +216,7 @@ ObjList<ASTNode> const &childList(ASTNode const *n, int c, int type)
   { return nodeList(nthChild(n, c), type); }
 SourceLocation childSrcLoc(ASTNode const *n, int c)
   { return nodeSrcLoc(nthChild(n, c)); }
-LiteralCode *childLitCode(ASTNode const *n, int c)
+LiteralCode * /*owner*/ childLitCode(ASTNode const *n, int c)
   { return nodeLitCode(nthChild(n, c)); }
 
 
@@ -285,19 +285,31 @@ void astParseGrammar(Grammar &g, ASTNode const *treeTop)
           g.treeNodeBaseClass = childString(node, 0);
           break;
 
-        case AST_PROLOGUE:
-          if (g.semanticsPrologue != NULL) {
-            astParseError(node, "prologue already defined");
-          }
-          g.semanticsPrologue = childLitCode(node, 0);
-          break;
+        case AST_LITERALCODE: {
+          // extract AST fields
+          string tag = childString(node, 0);
+          LiteralCode *code = childLitCode(node, 1);    // (owner)
 
-        case AST_EPILOGUE:
-          if (g.semanticsEpilogue != NULL) {
-            astParseError(node, "epilogue already defined");
+          if (tag.equals("prologue")) {
+            if (g.semanticsPrologue != NULL) {
+              astParseError(node, "prologue already defined");
+            }
+            g.semanticsPrologue = code;
           }
-          g.semanticsEpilogue = childLitCode(node, 0);
+
+          else if (tag.equals("epilogue")) {
+            if (g.semanticsEpilogue != NULL) {
+              astParseError(node, "epilogue already defined");
+            }
+            g.semanticsEpilogue = code;
+          }
+
+          else {
+            astParseError(node, stringc << "unknown litcode tag: " << tag);
+          }
+
           break;
+        }
 
         case AST_NONTERM: {
           {
@@ -446,45 +458,49 @@ void astParseGroupBody(Environment &env, Nonterminal *nt,
           }
           break;
 
-        case AST_DISAMB:
-          if (attrDeclAllowed) {
-            // confirm it's declared
-            string name = childName(node, 0);
+        case AST_LITERALCODE:
+        case AST_NAMEDLITERALCODE: {
+          if (!attrDeclAllowed) {
+            astParseError(node, "can't define literal code here");
+          }
+
+          // extract AST fields
+          string tag = childString(node, 0);
+          LiteralCode *code = childLitCode(node, 1);      // (owner)
+          string name;
+          if (node->type == AST_NAMEDLITERALCODE) {
+            name = childName(node, 2);
+          }
+                               
+          // look at the tag to figure out what the code means
+          if (tag.equals("disamb")) {
             if (!nt->funDecls.isMapped(name)) {
               astParseError(node, "undeclared function");
             }
-            nt->disambFuns.add(name, childLitCode(node, 1));
-          }
-          else {
-            // cannot happen with current grammar
-            astParseError(node, "can only define disambiguation functions in nonterminals");
-          }
-          break;
+            nt->disambFuns.add(name, code);
+          }        
 
-        case AST_CONSTRUCTOR:
-          if (attrDeclAllowed) {
+          else if (tag.equals("constructor")) {
             if (nt->constructor) {
               //astParseError(node, "constructor already defined");
               // hack: allow overriding ...
             }
-            nt->constructor = childLitCode(node, 0);
+            nt->constructor = code;
           }
-          else {
-            astParseError(node, "can't define constructors here");
-          }
-          break;
 
-        case AST_DESTRUCTOR:
-          if (attrDeclAllowed) {
+          else if (tag.equals("destructor")) {
             if (nt->destructor) {
               astParseError(node, "destructor already defined");
             }
-            nt->destructor = childLitCode(node, 0);
+            nt->destructor = code;
           }
+
           else {
-            astParseError(node, "can't define destructors here");
-          }
+            astParseError(node, stringc << "unknown litcode tag: " << tag);
+          }     
+
           break;
+        }
 
         case AST_ACTION:
         case AST_CONDITION:

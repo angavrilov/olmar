@@ -51,20 +51,15 @@
 %token TOK_TERMINALS "terminals"
 %token TOK_NONTERM "nonterm"
 %token TOK_FORMGROUP "formGroup"
-%token TOK_FORM "form"
 %token TOK_ATTR "attr"
 %token TOK_ACTION "action"
 %token TOK_CONDITION "condition"
 %token TOK_FUNDECL "fundecl"
 %token TOK_FUN "fun"
-%token TOK_PROLOGUE "prologue"
-%token TOK_EPILOGUE "epilogue"
 %token TOK_TREENODEBASE "treeNodeBase"
-%token TOK_DISAMB "disamb"
 %token TOK_TREECOMPARE "treeCompare"
-%token TOK_CONSTRUCTOR "constructor"
-%token TOK_DESTRUCTOR "destructor"
-%token TOK_DECLARE "declare"
+%token TOK_DECLARE "datadecl"
+%token TOK_LITERALCODE "literalCode"
 
 /* operators */
 %token TOK_OROR "||"
@@ -114,8 +109,7 @@ Input: /* empty */           { $$ = AST0(AST_TOPLEVEL); }
      | Input Terminals       { $$ = iappend($1, $2); }
      | Input TreeNodeBase    { $$ = iappend($1, $2); }
      | Input Nonterminal     { $$ = iappend($1, $2); }
-     | Input Prologue        { $$ = iappend($1, $2); }
-     | Input Epilogue        { $$ = iappend($1, $2); }
+     | Input LiteralCode     { $$ = iappend($1, $2); }
      ;
 
 /* ------ terminals ------ */
@@ -171,9 +165,8 @@ BaseClassList: TOK_NAME                       { $$ = AST1(AST_BASECLASSES, $1); 
 NonterminalBody: /* empty */                       { $$ = AST0(AST_NTBODY); }
                | NonterminalBody AttributeDecl     { $$ = iappend($1, $2); }
                | NonterminalBody GroupElement      { $$ = iappend($1, $2); }
-               | NonterminalBody DisambFunction    { $$ = iappend($1, $2); }
-               | NonterminalBody Constructor       { $$ = iappend($1, $2); }
                | NonterminalBody Declaration       { $$ = iappend($1, $2); }
+               | NonterminalBody LiteralCode       { $$ = iappend($1, $2); }
                ;
 
 /* things that can appear in any grouping construct; specifically,
@@ -380,33 +373,18 @@ Function: "fun" TOK_NAME "{" TOK_FUN_BODY "}"    { $$ = AST2(AST_FUNCTION, $2, $
         | "fun" TOK_NAME "=" TOK_FUN_BODY ";"    { $$ = AST2(AST_FUNEXPR, $2, $4); }
         ;
 
-/* disambiguation functions get to trim the tree based on
- * semantic knowledge */
-DisambFunction: "disamb" TOK_NAME "{" TOK_FUN_BODY "}"   { $$ = AST2(AST_DISAMB, $2, $4); }
-              ;
-
-/* constructors are called whenever a tree node is created */
-/* destructors correspondingly get run at destruction time */
-Constructor: "constructor" "{" TOK_FUN_BODY "}"          { $$ = AST1(AST_CONSTRUCTOR, $3); }
-           | "destructor" "{" TOK_FUN_BODY "}"           { $$ = AST1(AST_DESTRUCTOR, $3); }
-           ;
-
 /* declarations; can declare data fields, or functions whose
  * implementation is provided externally */
-Declaration: "declare" TOK_DECL_BODY ";"                 { $$ = AST1(AST_DECLARATION, $2); }
+Declaration: "datadecl" TOK_DECL_BODY ";"                 { $$ = AST1(AST_DECLARATION, $2); }
            ;
 
 
-/* ------ prologue, epilogue -------- */
-/* this additional C++ code goes at the top of the generated header */
-Prologue: "prologue" "{" TOK_FUN_BODY "}"          { $$ = AST1(AST_PROLOGUE, $3); }
-        ;
-
-/* this additional C++ code goes at the bottom of the generated
- * implementation (.cc) file */
-Epilogue: "epilogue" "{" TOK_FUN_BODY "}"          { $$ = AST1(AST_EPILOGUE, $3); }
-        ;
-
-
+/* generic literalCode mechanism so I can add new syntax without
+ * modifying this file */
+LiteralCode: "literalCode" TOK_STRING "{" TOK_FUN_BODY "}"
+               { $$ = AST2(AST_LITERALCODE, $2, $4); }
+           | "literalCode" TOK_STRING TOK_NAME "{" TOK_FUN_BODY "}"
+               { $$ = AST3(AST_NAMEDLITERALCODE, $2, $5, $3); }
+           ;
 
 %%

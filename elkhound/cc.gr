@@ -12,7 +12,7 @@ terminals {
 
 
 // declarations for semantic functions
-prologue {
+literalCode "prologue" {
   #include "cc_env.h"    // Env
   #include "cc_tree.h"   // CCTreeNode
   #include "cc_cfg.h"    // CFG, etc.
@@ -65,7 +65,7 @@ nonterm Checkable {
   // names are to be interpreted
   datadecl Env *env;           // (serf)
 
-  constructor {
+  literalCode "constructor" {
     env = NULL;
   }
 
@@ -126,7 +126,7 @@ nonterm TranslationUnit : Checkable {
     }
   }
 
-  constructor {
+  literalCode "constructor" {
     // inherited ctor ... (hack!)
     env = NULL;
 
@@ -351,7 +351,7 @@ nonterm ExpressionListOpt : HasVarsDecld {
 //PseudoDestructorName -> Qualifier PseudoDestructorName
 
 nonterm UnaryExpression : ExprBase {
-  disamb varsDecld {
+  literalCode "disamb" varsDecld {
     disambiguate(env, (DisambFn)&unamb_varsDecld);
   }
 
@@ -432,7 +432,7 @@ nonterm CastExpression : ExprBase {
 nonterm BinaryExpression : ExprBase {
   attr prec;                  // precedence of binding (topmost) operator in expression
 
-  disamb varsDecld {
+  literalCode "disamb" varsDecld {
     disambiguate(env, (DisambFn)&unamb_varsDecld);
   }
 
@@ -535,7 +535,7 @@ nonterm BinaryOperator {
 
 
 nonterm ConditionalExpression : ExprBase {
-  disamb varsDecld {
+  literalCode "disamb" varsDecld {
     disambiguate(env, (DisambFn)&unamb_varsDecld);
   }
 
@@ -625,7 +625,7 @@ nonterm HasCFG {
 
 // labeled-statement
 nonterm Statement : Checkable, HasVarsDecld, HasCFG {
-  disamb callTypeCheck {
+  literalCode "disamb" callTypeCheck {
     // try the general mechanism...
     disambiguate(env, (DisambFn)&unamb_callTypeCheck);
   }
@@ -2070,7 +2070,7 @@ nonterm GNUAsmStatement -> "asm" "(" GNUExprSeq ")" ";"
 
 
 // -------------------------------------------------------
-epilogue {
+literalCode "epilogue" {
 
 #include "trace.h"    // traceAddSys
 #include "glr.h"      // StackNode::printAllocStats

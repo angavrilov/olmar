@@ -152,7 +152,6 @@ SLWHITE   [ \t]
 "terminals"        TOK_UPD_COL;  return TOK_TERMINALS;
 "nonterm"          TOK_UPD_COL;  return TOK_NONTERM;
 "formGroup"        TOK_UPD_COL;  return TOK_FORMGROUP;
-"form"             TOK_UPD_COL;  return TOK_FORM;
 "attr"             TOK_UPD_COL;  return TOK_ATTR;
 "action"           TOK_UPD_COL;  return TOK_ACTION;
 "condition"        TOK_UPD_COL;  return TOK_CONDITION;
@@ -178,7 +177,7 @@ SLWHITE   [ \t]
   return TOK_DECLARE;
 }
 
-("fun"|"disamb"|"prologue"|"epilogue"|"constructor"|"destructor") {
+("fun"|"literalCode") {
   TOK_UPD_COL;
 
   // one or two tokens must be processed before we start the embedded
@@ -189,14 +188,7 @@ SLWHITE   [ \t]
 
   embedded->reset();
   embedMode = TOK_FUN_BODY;
-  switch (yytext[0]) {
-    default: xfailure("huh?");
-    case 'f': return TOK_FUN;
-    case 'd': return yytext[1]=='i'? TOK_DISAMB : TOK_DESTRUCTOR;
-    case 'p': return TOK_PROLOGUE;
-    case 'e': return TOK_EPILOGUE;
-    case 'c': return TOK_CONSTRUCTOR;
-  }
+  return yytext[0]=='f'? TOK_FUN : TOK_LITERALCODE;
 }
 
   /* punctuation that can start embedded code */

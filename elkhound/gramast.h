@@ -43,15 +43,13 @@ enum ASTTypeCode {
   AST_FUNDECL,           // fundecl: name, body
   AST_FUNCTION,          // fun: name, body
   AST_FUNEXPR,           // fun: name, expr-body
-  AST_PROLOGUE,          // prologue: body
-  AST_EPILOGUE,          // epilogue: body
 
   AST_TREENODEBASE,      // base class: string
-  AST_DISAMB,            // disambiguating function: name, body
   AST_TREECOMPARE,       // name1, name2, expr
-  AST_CONSTRUCTOR,       // ctor: body
-  AST_DESTRUCTOR,        // dtor: body
   AST_DECLARATION,       // decl: decl body
+  
+  AST_LITERALCODE,       // code-tag, body
+  AST_NAMEDLITERALCODE,  // code-tag, body, name
 
   // attribute-expression components
   EXP_ATTRREF,           // reference to an attribute
