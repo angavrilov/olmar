@@ -5,14 +5,20 @@
 #include "str.h"          // string
 #include "exc.h"          // xbase
 
+#include <stddef.h>       // size_t
+
 // for now, I implement everything using the libc POSIX regex
 // facilities
-#include <stddef.h>       // size_t
+//
+// linux (etc.) has proper declarations in regex.h, but FreeBSD (and
+// other BSDs?) has regex.h contents that do not compile under C++,
+// and apparently gnuregex.h is the substitute that does
 #ifndef __FreeBSD__
-#include <regex.h>
+  #include <regex.h>
 #else
-#include <gnuregex.h>        // POSIX regex functions
+  #include <gnuregex.h>
 #endif
+
 
 // get an error string
 static string regexpErrorString(regex_t const *pat, int code)

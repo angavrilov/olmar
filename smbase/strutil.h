@@ -90,4 +90,9 @@ bool prefixEquals(char const *str, char const *prefix);
 bool suffixEquals(char const *str, char const *suffix);
 
 
+// read/write strings <-> files
+void writeStringToFile(char const *str, char const *fname);
+string readStringFromFile(char const *fname);
+
+
 #endif // STRUTIL_H

@@ -3,6 +3,7 @@
 
 #include "strutil.h"     // this module
 #include "exc.h"         // xformat
+#include "autofile.h"    // AutoFILE
 
 #include <ctype.h>       // isspace
 #include <string.h>      // strstr, memcmp
@@ -406,6 +407,39 @@ bool suffixEquals(char const *str, char const *suffix)
   int ulen = strlen(suffix);    // sUffix
   return slen >= ulen &&
          0==memcmp(str+slen-ulen, suffix, ulen);
+}
+
+
+void writeStringToFile(char const *str, char const *fname)
+{
+  AutoFILE fp(fname, "w");
+
+  if (fputs(str, fp) < 0) {
+    xbase("fputs: EOF");
+  }
+}
+
+
+string readStringFromFile(char const *fname)
+{
+  AutoFILE fp(fname, "r");
+
+  stringBuilder sb;
+
+  char buf[4096];
+  for (;;) {
+    int len = fread(buf, 1, 4096, fp);
+    if (len < 0) {
+      xbase("fread failed");
+    }
+    if (len == 0) {
+      break;
+    }
+
+    sb.append(buf, len);
+  }
+
+  return sb;
 }
 
 
