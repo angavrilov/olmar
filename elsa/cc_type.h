@@ -201,10 +201,6 @@ public:      // data
   // use 'addBaseClass', but public to make traversal easy
   const ObjList<BaseClass> bases;
 
-  // dsw: classes that inherit from this class; NOT owner list; also
-  // maintained by 'addBaseClass'
-  SObjList<CompoundType> subclasses;
-
   // collected virtual base class subobjects
   ObjList<BaseClassSubobj> virtualBases;
 
@@ -287,7 +283,7 @@ public:      // funcs
   int getDataMemberPosition(StringRef name) const;
 
   // add to 'bases'; incrementally maintains 'virtualBases'
-  void addBaseClass(BaseClass * /*owner*/ newBase);
+  virtual void addBaseClass(BaseClass * /*owner*/ newBase);
 
   // true if this class inherits from 'ct', either directly or
   // indirectly, and the inheritance is virtual

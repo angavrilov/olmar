@@ -295,9 +295,6 @@ void CompoundType::addBaseClass(BaseClass * /*owner*/ newBase)
   // add the new base; override 'const' so we can modify the list
   const_cast<ObjList<BaseClass>&>(bases).append(newBase);
 
-  // dsw: maintian the reverse map; don't append because is slow
-  newBase->ct->subclasses.prepend(this);
-
   // replicate 'newBase's inheritance hierarchy in the subobject
   // hierarchy, representing virtual inheritance with explicit sharing
   makeSubobjHierarchy(&subobj, newBase);
