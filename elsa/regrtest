@@ -412,7 +412,7 @@ testparse t0187.cc
 testparse t0188.cc
 testparse t0189.cc
 testparse t0190.cc
-failparse t0191.cc "important: problem with classes nested in template classes"
+testparse t0191.cc #"important: problem with classes nested in template classes"
 testparse t0192.cc # used to fail due to "forward template function"
 testparse t0193.cc
 testparse t0194.cc

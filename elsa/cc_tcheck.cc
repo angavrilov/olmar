@@ -1599,8 +1599,9 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 
   // lookup scopes in the name, if any
   ScopeSeq qualifierScopes;
-  if (name) {
-    name->tcheck(env);
+  if (name) {                                      
+    // 2005-02-18: passing LF_DECLARATOR fixes in/t0191.cc
+    name->tcheck(env, NULL /*scope*/, LF_DECLARATOR);
   }
   env.getQualifierScopes(qualifierScopes, name);
   env.extendScopeSeq(qualifierScopes);
