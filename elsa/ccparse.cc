@@ -94,6 +94,24 @@ void ParseEnv::error(SourceLoc loc, char const *msg)
 }
 
 
+void ParseEnv::warning(SourceLoc loc, char const *msg)
+{
+  cout << toString(loc) << ": warning: " << msg << endl;
+  warnings++;
+}
+
+
+void ParseEnv::diagnose3(Bool3 b, SourceLoc loc, char const *msg)
+{
+  if (!b) {
+    error(loc, msg);
+  }
+  else if (b == B3_WARN) {
+    warning(loc, msg);
+  }
+}
+
+
 // ---------------------- AmbiguityChecker -----------------
 // check for ambiguities
 // (I don't want this inheriting from LoweredASTVisitor; I just want

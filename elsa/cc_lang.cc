@@ -17,6 +17,7 @@ void CCLang::enableAllWarnings()
 {
   enableWarning(allowImplicitFunctionDecls);
   enableWarning(allowQualifiedMemberDeclarations);
+  enableWarning(allowModifiersWithTypedefNames);
 }
 
 
@@ -59,6 +60,7 @@ void CCLang::ANSI_C89()
   
   allowImplicitIntForOperators = false;
   allowQualifiedMemberDeclarations = B3_FALSE;
+  allowModifiersWithTypedefNames = B3_FALSE;
 }
 
 void CCLang::KandR_C()
@@ -102,6 +104,8 @@ void CCLang::GNU_C_extensions()
 
   // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Incomplete-Enums.html
   allowIncompleteEnums = true;
+
+  allowModifiersWithTypedefNames = B3_TRUE;
 }
 
 void CCLang::GNU_C()
@@ -173,6 +177,7 @@ void CCLang::ANSI_Cplusplus()
   lvalueFlowsThroughCast = false;
   allowImplicitIntForOperators = false;
   allowQualifiedMemberDeclarations = B3_FALSE;
+  allowModifiersWithTypedefNames = B3_FALSE;
 }
 
 void CCLang::GNU_Cplusplus()

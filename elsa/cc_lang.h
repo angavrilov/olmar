@@ -166,6 +166,13 @@ public:
   // gcc bug compatibility: allow qualified member declarations
   Bool3 allowQualifiedMemberDeclarations;
 
+  // gcc bug compatibility: allow typedef names to combine with
+  // certain type keywords, e.g., "u32 long", in/gnu/dC0014.c;
+  // eventually, once the client codes have been fixed, it would be
+  // good to delete this, since it involves some extra grammar
+  // productions
+  Bool3 allowModifiersWithTypedefNames;
+
 public:
   CCLang() { ANSI_C89(); }
 

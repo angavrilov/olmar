@@ -11,8 +11,7 @@
 #include "cc_flags.h"      // UberModifiers, SimpleTypeId
 #include "cc_ast.h"        // C++ AST classes, needed for the action function signatures
 #include "srcloc.h"        // SourceLoc
-
-class CCLang;              // cc_lang.h
+#include "cc_lang.h"       // CCLang, Bool3
 
 // parsing action state
 class ParseEnv {
@@ -22,6 +21,7 @@ private:
 public:
   StringTable &str;                       // string table
   int errors;                             // parse errors
+  int warnings;                           // and warnings
   StringRef strRefAttr;                   // "attr"
   CCLang &lang;                           // language options
 
@@ -30,6 +30,7 @@ public:
     : classNameStack(),
       str(table),
       errors(0),
+      warnings(0),
       strRefAttr(table.add("attr")),
       lang(aLang)
    {}
@@ -46,12 +47,16 @@ public:
   // manipulate UberModifiers
   SimpleTypeId uberSimpleType(SourceLoc loc, UberModifiers m);
   UberModifiers uberCombine(SourceLoc loc, UberModifiers m1, UberModifiers m2);
-  
+
   // generate a LocString suitable for use during parsing
   LocString * /*owner*/ ls(SourceLoc loc, char const *name);
-  
-  // report an error
+
+  // report an error or warning
   void error(SourceLoc loc, char const *msg);
+  void warning(SourceLoc loc, char const *msg);
+  
+  // depending on 'b', accept, accept with warning, or reject
+  void diagnose3(Bool3 b, SourceLoc loc, char const *msg);
 };
 
 

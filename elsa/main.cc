@@ -218,7 +218,7 @@ void doit(int argc, char **argv)
 
   // --------------- parse --------------
   TranslationUnit *unit;
-  int lexerWarnings = 0;
+  int parseWarnings = 0;
   {
     SemanticValue treeTop;
     ParseTreeAndTokens tree(lang, treeTop, strTable, inputFname);
@@ -257,7 +257,7 @@ void doit(int argc, char **argv)
     if (parseContext->errors || lexer->errors) {
       exit(2);
     }
-    lexerWarnings = lexer->warnings;
+    parseWarnings = lexer->warnings + parseContext->warnings;
 
     traceProgress(2) << "final parse result: " << treeTop << endl;
 
@@ -338,7 +338,7 @@ void doit(int argc, char **argv)
                     << " ms)\n";
 
     int numErrors = env.errors.numErrors();
-    int numWarnings = env.errors.numWarnings() + lexerWarnings;
+    int numWarnings = env.errors.numWarnings() + parseWarnings;
 
     // do this now so that 'printTypedAST' will include CFG info
     #ifdef CFG_EXTENSION

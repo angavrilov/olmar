@@ -28,6 +28,7 @@
 //   - C99 restrict keyword
 //   - C99 qualifiers in array brackets: "[const ...]"
 //   - gcc __attribute__
+//   - gcc bug: typedef names + type modifiers: "u32 long"
 //   - gcc computed gotos
 
 
@@ -423,15 +424,28 @@ nonterm(IDeclarator*) DirectAbstractDeclarator {
 
 // ----------- gcc2 bug: "u32 long" ----------
 // gcc-2.x allows one to combine typedefs and type keywords in a
-// single type specifier (e.g. in/gnu/gC0014.c); this is a bug, and is
+// single type specifier (e.g. in/gnu/dC0014.c); this is a bug, and is
 // fixed in gcc-3.x, but the linux kernel uses it so Elsa parses it (to
 // a limited degree)
 nonterm(Declaration*) DeclSpecifier {
   -> n:PQTypeName BuggyGccTypeModifier/*ignored*/ m2:UberModifierSeqOpt
-       { cout << toString(loc) << ": warning: typedef and type keyword in "
-                                  "a single type specifier is a gcc2 bug\n";
-         return new Declaration(uberDeclFlags(m2),
-           new_TS_name(loc, uberCVFlags(m2), n, false /*typename*/), NULL); }
+     {
+       diagnose3(lang.allowModifiersWithTypedefNames, loc,
+                 "typedef and type keyword in a single type "
+                 "specifier is a gcc2 bug");
+       return new Declaration(uberDeclFlags(m2),
+         new_TS_name(loc, uberCVFlags(m2), n, false /*typename*/), NULL);
+     }
+
+  -> m1:UberModifierSeq n:PQTypeName BuggyGccTypeModifier/*ignored*/ m2:UberModifierSeqOpt
+     {
+       diagnose3(lang.allowModifiersWithTypedefNames, loc,
+                 "typedef and type keyword in a single type "
+                 "specifier is a gcc2 bug");
+       UberModifiers m = uberCombine(loc, m1, m2);
+       return new Declaration(uberDeclFlags(m),
+         new_TS_name(loc, uberCVFlags(m), n, false /*typename*/), NULL);
+     }
 }
 
 // these are the only ones that could be meaningfully combined with

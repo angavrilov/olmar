@@ -249,8 +249,10 @@ testparse_strict() {
   # I will leave "testparse_strict", but not use it anymore.
   runTest perl ./multitest.pl ./ccparse -tr strict,$TR_FLAGS in/$1
 }
-testparse_ansi() {
-  runTest perl ./multitest.pl ./ccparse -tr ansi,$TR_FLAGS in/$1
+
+# run the parser with some specific tracing flag(s) added
+testparse_special() {
+  runTest perl ./multitest.pl ./ccparse -tr $1,$TR_FLAGS in/$2
 }
 
 failparse() {
@@ -646,7 +648,7 @@ testparse t0360.cc
 
 # this tests that Elsa diagnoses erroneous input, but gcc accepts it,
 # so Elsa only rejects in ANSI mode
-testparse_ansi t0361.cc
+testparse_special ansi t0361.cc
 
 testparse t0362.cc
 testparse t0363.cc
@@ -1110,7 +1112,7 @@ testCparse c/dC0017.c
 testCparse gnu/d0122.c
 testCparse c/d0124b.c
 
-failCparse c/k0001.c "typedef int fooint; typedef fooint long;"
+testparse_special ansi_c c/k0001.c #"typedef int fooint; typedef fooint long;"
 testCparse c/k0002.c #"attempt to create an object of incomplete class `S'"
 testCparse c/k0003.c #"old-style function decl with parentheses around func name"
 testCparse c/k0003a.c #"old-style function decl with parentheses around func name, returning a struct-typedef"
