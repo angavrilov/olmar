@@ -643,6 +643,7 @@ failparse d0109.cc "'using' same namespace twice causes error"
 failparse d0110.cc "class specialization without 'template' prefix?"
 failparse d0111.cc "templatized member type not accessible?"
 failparse d0112.cc "some template dependent name problem"
+failparse d0113.cc "very strange function call situation that gcc 2.96 likes bug elsa not"
 # ---- END: lots of tests ----
 
 
