@@ -515,7 +515,7 @@ failparse t0280.cc "overloading + template arg application"
 testparse t0281.cc
 
 testparse t0282.cc
-failparse t0283.cc "no viable candidate (not minimized)"
+testparse t0283.cc
 testparse t0284.cc
 testparse t0285.cc
 testparse t0286.cc
@@ -599,7 +599,7 @@ testparse t0363.cc
 testparse t0364.cc
 testparse t0365.cc
 testparse t0366.cc
-failparse t0367.cc "recursion depth"
+testparse t0367.cc
 testparse t0368.cc
 testparse t0369.cc
 

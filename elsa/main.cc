@@ -266,9 +266,9 @@ void doit(int argc, char **argv)
     unit->debugPrint(cout, 0);
   }
 
-  if (unit) {     // when "-tr trivialActions" it's NULL...
-    cout << "ambiguous nodes: " << numAmbiguousNodes(unit) << endl;
-  }
+  //if (unit) {     // when "-tr trivialActions" it's NULL...
+  //  cout << "ambiguous nodes: " << numAmbiguousNodes(unit) << endl;
+  //}
 
   if (tracingSys("stopAfterParse")) {
     return;

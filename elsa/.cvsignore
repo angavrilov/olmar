@@ -61,3 +61,4 @@ history.txt
 tmp2*
 make.out
 tmp.txt
+*.error*.cc

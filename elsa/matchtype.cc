@@ -249,6 +249,20 @@ bool MatchTypes::match_rightTypeVar(Type *a, Type *b, int matchDepth)
       // 'Variable', then we need to obtain 'Variable const' to compare with 'a'.
       t = tfac.applyCVToType(SL_UNKNOWN, b->getCVFlags(), t, NULL);
 
+      // sm: 2005-02-17: Both 'a' and 't' are concrete.  Therefore we
+      // should *not* call match0 recursively (which leads to an infinite
+      // loop in, say, in/t0367.cc), but instead do concrete comparison.
+      //
+      // Perhaps only in MM_BIND_UNIQUE mode?  Yes.. I still think the
+      // call to 'match0' may be wrong (part of a general problem with
+      // handling of bindings in this module), but when I do it in
+      // MM_BIND mode it breaks in/d0071.cc and in/d0072.cc and
+      // in/big/nsAtomTable.i (and possibly more).
+      if (mode == MM_BIND_UNIQUE) {
+        return a->equals(t);
+      }
+
+      // apparently this is needed in MM_BIND mode
       return match0(a, t,
                     matchDepth    // FIX: this used to be not top, but I don't remember why
                     );
