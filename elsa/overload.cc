@@ -85,6 +85,11 @@ void OverloadResolver::processCandidate(Variable *v)
   // for debug printing
   IFDEBUG( char const *indent = (flags & OF_NO_USER)? "    " : "  "; )
 
+  if ((flags & OF_NO_EXPLICIT) && v->hasFlag(DF_EXPLICIT)) {
+    // not a candidate, we're ignoring explicit constructors
+    return;
+  }
+
   Candidate *c = makeCandidate(v);
   if (c) {
     TRACE("overload", indent << "candidate: " << c->var->toString() <<

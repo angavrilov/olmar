@@ -56,11 +56,12 @@ public:
 };
 
 
-// flags to control overload resolution (there used to be more than one...)
+// flags to control overload resolution
 enum OverloadFlags {
   OF_NONE        = 0x00,           // nothing special
   OF_NO_USER     = 0x01,           // don't consider user-defined conversions
-  OF_ALL         = 0x01,           // all flags
+  OF_NO_EXPLICIT = 0x02,           // disregard DF_EXPLICIT Variables
+  OF_ALL         = 0x03,           // all flags
 };
 
 ENUM_BITWISE_OPS(OverloadFlags, OF_ALL);

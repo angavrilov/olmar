@@ -1,8 +1,10 @@
 // implconv.h                       see license.txt for copyright and terms of use
 // implicit conversion sequences: cppstd 13.3.3.1, 13.3.3.2
 
-// implicit conversions are those conversions possible in the
-// absence of explicit conversion or cast syntax
+// implicit conversions occur most prominently when binding
+// an argument to a parameter at a call site; they're "implicit"
+// in that these conversions take place despite the absence of
+// syntax such as constructor calls or cast notation
 
 #ifndef IMPLCONV_H
 #define IMPLCONV_H
