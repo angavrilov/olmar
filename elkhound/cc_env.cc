@@ -491,6 +491,7 @@ Type const *Env::promoteTypes(Type const *t1, Type const *t2)
 void Env::err(char const *str)
 {
   cout << "error: " << str << endl;
+  errors++;
 }
 
 

@@ -204,6 +204,13 @@ Type const *Declarator::tcheck(Env &env, Type const *base, DeclFlags dflags)
 {
   type = decl->tcheck(env, base, dflags);
   name = decl->getName();
+  
+  if (init) {
+    // verify the initializer is well-typed, given the type
+    // of the variable it initializes
+    init->tcheck(env, type);
+  }
+
   return type;
 }
 
@@ -231,7 +238,7 @@ Type const *D_name::itcheck(Env &env, Type const *base, DeclFlags dflags)
 
   // one way this happens is in prototypes with unnamed arguments
   if (!name) {
-    // skip the following;
+    // skip the following
   }
   else {
     // ignoring initial values... what I want is to create an element
@@ -874,3 +881,71 @@ string E_arithAssign::toString() const
   E_assign
   E_arithAssign
 */
+
+
+// ------------------------- Initializer ---------------------------
+void IN_expr::tcheck(Env &env, Type const *type)
+{
+  Type const *t = e->tcheck(env);
+  env.checkCoercible(t, type);
+}
+
+void IN_compound::tcheck(Env &env, Type const *type)
+{
+  // for now, ignore labels
+  
+  if (type->isArrayType()) {
+    ArrayType const &at = type->asArrayTypeC();
+
+    // every element should correspond to the element type
+    FOREACH_ASTLIST_NC(Initializer, inits, iter) {
+      iter.data()->tcheck(env, at.eltType);
+    }
+
+    // check size restriction
+    if (at.hasSize && inits.count() > at.size) {
+      env.err(stringc << "initializer has " << inits.count()
+                      << " elements but array only has " << at.size
+                      << " elements");
+    }
+  }
+
+  else if (type->isCVAtomicType() &&
+           type->asCVAtomicTypeC().atomic->isCompoundType()) {
+    CompoundType const &ct = type->asCVAtomicTypeC().atomic->asCompoundTypeC();
+    
+    if (ct.keyword == CompoundType::K_UNION) {
+      env.err("I don't know how to initialize unions");
+      return;
+    }        
+
+    // iterate simultanously over fields and initializers, establishing
+    // correspondence
+    int field = 0;
+    FOREACH_ASTLIST_NC(Initializer, inits, iter) {
+      if (field >= ct.numFields()) {
+        env.err(stringc
+          << "too many initializers; " << ct.keywordAndName()
+          << " only has " << ct.numFields() << " fields, but "
+          << inits.count() << " initializers are present");
+        return;
+      }
+
+      CompoundType::Field const *f = ct.getNthField(field);
+
+      // check this initializer against the field it initializes
+      iter.data()->tcheck(env, f->type);
+      
+      field++;
+    }
+
+    // in C, it's ok to leave out initializers, since all data can
+    // be initialized to 0; so we don't complain if field is still
+    // less than ct.numFields()
+  }
+
+  else {
+    env.err(stringc << "you can't use a compound initializer to initialize "
+                    << type->toString());
+  }
+}

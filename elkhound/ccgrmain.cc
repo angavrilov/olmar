@@ -89,6 +89,11 @@ void doit(int argc, char **argv)
       unit->debugPrint(cout, 0);
     }
 
+    if (env.getErrors() != 0) {
+      cout << "there were " << env.getErrors() << " typechecking errors\n";
+      exit(2);
+    }
+
     if (tracingSys("stopAfterTCheck")) {
       return;
     }

@@ -260,13 +260,17 @@ class Expression {
 
 // animals which appear after declarations to assign initial values
 class Initializer {
-  -> IN_expr(Expression e);
-  -> IN_compound(ASTList<Initializer> inits);
-
-  // this syntax introduces a field present in all alternatives,
-  // but not explicitly passed to their constructors (handy!)
+  // when a label is present it modifies which element of the
+  // surrounding structure is being initialized
   public InitLabel *label;      // (nullable) gnu: range or field label
   ctor { label = NULL; };
+
+  // check that the initializer is well-typed, given the type of
+  // the thing it initializes
+  pure_virtual void tcheck(Env &env, Type const *type);
+
+  -> IN_expr(Expression e);
+  -> IN_compound(ASTList<Initializer> inits);
 }
 
 // gnu extension to attach particular elements of an initializer list

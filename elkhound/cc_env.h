@@ -152,7 +152,7 @@ public:     // funcs
   // report an error
   void err(char const *str);
 
-  // report and error, and throw an exception
+  // report an error, and throw an exception
   void errThrow(char const *str);
 
   // if 'condition' is true, report error 'str' and also throw an exception
@@ -211,6 +211,8 @@ public:     // funcs
   // volatile) representative
   CVAtomicType const *getSimpleType(SimpleTypeId st);
 
+
+  // --------------- type checking ----------------
   // type manipulation arising from expression semantics
   void checkCoercible(Type const *src, Type const *dest);
   Type const *promoteTypes(Type const *t1, Type const *t2);

@@ -846,7 +846,8 @@ nonterm[Declarator*] InitDeclarator {
 }
 
 nonterm[Initializer*] Initializer {
-  -> "=" i:InitializerClause ;
+  -> "=" i:InitializerClause 
+       [ return i; ]
 
   // this causes an ambiguity with
   //   int fileno(FILE *f);
