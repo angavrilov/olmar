@@ -57,7 +57,7 @@ public:
   // global translation state for ocaml stuff
   struct wes_state {
     bool want_cil;                      // true:Cil; false:C-parse-tree
-    struct wes_ast_node *result_list;   // toplevel C-parse-tree result
+    struct wes_list *result_list;       // toplevel C-parse-tree result
   };
 
   extern "C" { value cil_program_to_ocaml(CilProgram *prog); }
@@ -120,11 +120,11 @@ void TranslationUnit_Node::analyzeToplevelDecl(Reduction *red, ParseTree &tree)
   #ifdef WES_OCAML_LINKAGE
     if (state.wes->want_cil) {
         state.wes->result_list = (struct wes_list *) cil_program_to_ocaml(&prog);
-        register_global_root((value *)&wes_result_list);
+        register_global_root((value *)&(state.wes->result_list));
     } else {
         struct wes_list * new_cell = new struct wes_list;
         new_cell->hd = camlAST();
-        new_cell->tl = wes_result_list;
+        new_cell->tl = state.wes->result_list;
         state.wes->result_list = new_cell;
     }
   #endif /* WES_OCAML_LINKAGE */
