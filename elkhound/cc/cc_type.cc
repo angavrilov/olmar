@@ -483,6 +483,25 @@ string toString(CompoundType::Keyword k)
 }
 
 
+bool CompoundType::hasVirtualBase(CompoundType const *ct) const
+{
+  FOREACH_OBJLIST(BaseClass, bases, iter) {
+    BaseClass const *b = iter.data();
+    
+    // is this a virtual base?
+    if (b->ct == ct && b->isVirtual) {
+      return true;
+    }                         
+    
+    // does it have a virtual base?
+    if (b->ct->hasVirtualBase(ct)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
 // ---------------- EnumType ------------------
 EnumType::~EnumType()
 {}
@@ -739,6 +758,13 @@ CompoundType const *Type::ifCompoundType() const
     }
   }
   return NULL;
+}
+
+CompoundType const *Type::asCompoundType() const
+{
+  CompoundType const *ret = ifCompoundType();
+  xassert(ret);
+  return ret;
 }
 
 bool Type::isOwnerPtr() const

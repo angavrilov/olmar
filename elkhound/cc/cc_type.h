@@ -193,6 +193,10 @@ public:      // funcs
     { return lookupVariable(name, env, f); }
 
   void addField(Variable *v);
+  
+  // true if this class inherits from 'ct', either directly or
+  // indirectly, and the inheritance is virtual
+  bool hasVirtualBase(CompoundType const *ct) const;
 };
 
 string toString(CompoundType::Keyword k);
@@ -315,6 +319,7 @@ public:     // funcs
   bool isError() const { return isSimple(ST_ERROR); }
   //bool shouldSuppressClashes() const { return isError() || isTypeVariable(); }
   CompoundType const *ifCompoundType() const;     // NULL or corresp. compound
+  CompoundType const *asCompoundType() const;     // fail assertion if not
   bool isOwnerPtr() const;
 
   // pointer/reference stuff
