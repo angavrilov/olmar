@@ -5,7 +5,7 @@
 #include "exc.h"         // xformat
 
 #include <ctype.h>       // isspace
-#include <string.h>      // strstr
+#include <string.h>      // strstr, memcmp
 #include <stdio.h>       // sprintf
 #include <stdlib.h>      // strtoul
 #include <time.h>        // time, asctime, localtime
@@ -389,6 +389,15 @@ char *copyToStaticBuffer(char const *s)
   buf[len] = 0;
 
   return buf;
+}
+
+
+bool prefixEquals(char const *str, char const *prefix)
+{
+  int slen = strlen(str);
+  int plen = strlen(prefix);
+  return slen >= plen &&
+         0==memcmp(str, prefix, plen);
 }
 
 

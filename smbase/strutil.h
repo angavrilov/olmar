@@ -83,4 +83,8 @@ string pluraln(int n, char const *prefix);
 char *copyToStaticBuffer(char const *src);
 
 
+// true if the first part of 'str' matches 'prefix'
+bool prefixEquals(char const *str, char const *prefix);
+
+
 #endif // STRUTIL_H
