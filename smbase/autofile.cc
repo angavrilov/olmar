@@ -24,3 +24,6 @@ AutoFILE::~AutoFILE()
 {
   // ~AutoFclose closes the file
 }
+
+
+// EOF

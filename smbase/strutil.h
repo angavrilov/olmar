@@ -6,6 +6,7 @@
 #define STRUTIL_H
 
 #include "str.h"      // string
+#include <stdio.h>    // FILE
 
 // direct string replacement, replacing instances of oldstr with newstr
 // (newstr may be "")
@@ -93,6 +94,16 @@ bool suffixEquals(char const *str, char const *suffix);
 // read/write strings <-> files
 void writeStringToFile(char const *str, char const *fname);
 string readStringFromFile(char const *fname);
+
+
+// read the next line from a FILE* (e.g. an AutoFILE); the
+// newline is returned if it is present (you can use 'chomp'
+// to remove it); returns false (and "") on EOF
+bool readLine(string &dest, FILE *fp);
+
+
+// like perl 'chomp': remove a final newline if there is one
+string chomp(char const *src);
 
 
 #endif // STRUTIL_H

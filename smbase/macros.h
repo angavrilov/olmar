@@ -205,6 +205,12 @@ public:
   {
     variable = newValue;
   }
+   
+  // this one does not set it to a new value, just remembers the current
+  Restorer(T &var)
+    : variable(var),
+      prevValue(var)
+  {}
 
   ~Restorer()
   {

@@ -443,6 +443,47 @@ string readStringFromFile(char const *fname)
 }
 
 
+bool readLine(string &dest, FILE *fp)
+{
+  char buf[80];
+
+  if (!fgets(buf, 80, fp)) {
+    return false;
+  }
+
+  if (buf[strlen(buf)-1] == '\n') {
+    // read a newline, we got the whole line
+    dest = buf;
+    return true;
+  }
+
+  // only got part of the string; need to iteratively construct
+  stringBuilder sb;
+  while (buf[strlen(buf)-1] != '\n') {
+    sb << buf;
+    if (!fgets(buf, 80, fp)) {
+      // found eof after partial; return partial *without* eof
+      // indication, since we did in fact read something
+      break;
+    }
+  }
+
+  dest = sb;
+  return true;
+}
+
+
+string chomp(char const *src)
+{
+  if (src && src[strlen(src)-1] == '\n') {
+    return string(src, strlen(src)-1);
+  }
+  else {
+    return string(src);
+  }
+}
+
+
 // ----------------------- test code -----------------------------
 #ifdef TEST_STRUTIL
 

@@ -8,7 +8,8 @@
 
 
 // -------------------- Array ----------------------
-// same as C's built-in array, but automatically deallocates
+// This is the same as C++'s built-in array, but automatically deallocates.
+// If you want bounds checking too, use GrowArray, below.
 template <class T>
 class Array {
 private:     // data
@@ -42,9 +43,9 @@ public:
 
 
 // ------------------ GrowArray --------------------
-// this class implements an array of T's; it automatically expands
+// This class implements an array of T's; it automatically expands
 // when 'ensureAtLeast' or 'ensureIndexDoubler' is used; it does not
-// automatically contract
+// automatically contract.  All accesses are bounds-checked.
 //
 // class T must have:
 //   T::T();           // default ctor for making arrays
@@ -191,6 +192,10 @@ void GrowArray<T>::eidLoop(int index)
 
 
 // ---------------------- ArrayStack ---------------------
+// This is an array where some of the array is unused.  Specifically,
+// it maintains a 'length', and elements 0 up to length-1 are
+// considered used, whereas length up to size-1 are unused.  The
+// expected use is as a stack, which adds a new (used) element.
 template <class T>
 class ArrayStack : public GrowArray<T> {
 private:
@@ -340,10 +345,18 @@ void ObjArrayStack<T>::deleteTopSeveral(int ct)
 
 
 // ------------------ ArrayStackEmbed --------------------
-// this is like ArrayStack, but the first 'n' elements
-// are stored embedded in this object, instead of allocated
-// on the heap; in some circumstances, this lets us avoid
-// allocating memory in common cases
+// This is like ArrayStack, but the first 'n' elements are stored
+// embedded in this object, instead of allocated on the heap; in some
+// circumstances, this lets us avoid allocating memory in common cases.
+//
+// For example, suppose you have an algorithm that is usually given a
+// small number of elements, say 1 or 2, but occasionally needs to
+// work with more.  If you put the array of elements in the heap, then
+// even in the common case a heap allocation is required, which is
+// bad.  But by using ArrayStackEmbed<T,2>, you can be sure that if
+// the number of elements is <= 2 there will be no heap allocation,
+// even though you still get a uniform (array-like) interface to all
+// the elements.
 template <class T, int n>
 class ArrayStackEmbed {
 private:      // data
