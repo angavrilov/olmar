@@ -114,10 +114,12 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
 
   if (!v->isNamespace()) {
     // classify the variable for debugging purposes
-    char const *classification =
-      v->hasFlag(DF_TYPEDEF)?    "typedef" :
-      v->type->isFunctionType()? "function" :
-                                 "variable" ;
+    #if DO_TRACE
+      char const *classification =
+        v->hasFlag(DF_TYPEDEF)?    "typedef" :
+        v->type->isFunctionType()? "function" :
+                                   "variable" ;
+    #endif // DO_TRACE
 
     // does the type contain any error-recovery types?  if so,
     // then we don't want to add the variable because we could

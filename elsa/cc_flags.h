@@ -45,7 +45,7 @@ enum CVFlags {
   CV_NONE     = 0x0000,
   CV_CONST    = 0x0400,
   CV_VOLATILE = 0x0800,
-  CV_RESTRICT = 0x1000,     // dsw: C99 I think
+  CV_RESTRICT = 0x1000,     // C99
   CV_OWNER    = 0x2000,     // experimental extension
   CV_ALL      = 0x2C00,
 
@@ -256,7 +256,8 @@ inline bool isPrefix(EffectOp op) { return !isPostfix(op); }
 // ------------------------ BinaryOp --------------------------
 enum BinaryOp {
   // the relationals come first, and in this order, to correspond
-  // to RelationOp in predicate.ast
+  // to RelationOp in predicate.ast (which is now in another
+  // repository entirely...)
   BIN_EQUAL,     // ==
   BIN_NOTEQUAL,  // !=
   BIN_LESS,      // <
@@ -349,7 +350,7 @@ enum OverloadableOp {
   OP_NOT,          // !
   OP_BITNOT,       // ~
 
-  // unary, but postfix version looks like 2-arg function
+  // unary, both prefix and postfix; latter is declared as 2-arg function
   OP_PLUSPLUS,     // ++
   OP_MINUSMINUS,   // --
 
@@ -445,11 +446,11 @@ enum UberModifiers {
   // cv-qualifier
   UM_CONST        = 0x00000400,
   UM_VOLATILE     = 0x00000800,
+  UM_RESTRICT     = 0x00001000,    // C99
 
-  UM_CVFLAGS      = 0x00000C00,
+  UM_CVFLAGS      = 0x00001C00,
 
   // type keywords
-  UM_CHAR         = 0x00001000,
   UM_WCHAR_T      = 0x00002000,
   UM_BOOL         = 0x00004000,
   UM_SHORT        = 0x00008000,
@@ -461,11 +462,12 @@ enum UberModifiers {
   UM_DOUBLE       = 0x00200000,
   UM_VOID         = 0x00400000,
   UM_LONG_LONG    = 0x00800000,    // GNU extension
+  UM_CHAR         = 0x01000000,    // large value b/c got bumped by UM_RESTRICT
 
-  UM_TYPEKEYS     = 0x00FFF000,
+  UM_TYPEKEYS     = 0x01FFE000,
 
-  UM_ALL_FLAGS    = 0x00FFFFFF,
-  UM_NUM_FLAGS    = 24             // # bits set in UM_ALL_FLAGS
+  UM_ALL_FLAGS    = 0x01FFFFFF,
+  UM_NUM_FLAGS    = 25             // # bits set in UM_ALL_FLAGS
 };
 
 // string repr.

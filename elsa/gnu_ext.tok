@@ -9,10 +9,9 @@
 // enumeration name      description                  : MS NS CP
 // ----------------      ---------------------------  : -- -- --
 
+// GNU extensions
 TOK_BUILTIN_CONSTANT_P,  "__builtin_constant_p",      :    n
 TOK___ALIGNOF__,         "__alignof__",               :    n
-
-// GNU extensions
 TOK___ATTRIBUTE__,       "__attribute__",             :    n
 TOK___FUNCTION__,        "__FUNCTION__",              :    n
 TOK___LABEL__,           "__label__",                 :    n
@@ -22,5 +21,5 @@ TOK___EXTENSION__,       "__extension__",             :    n
 TOK___BUILTIN_EXPECT,    "__builtin_expect",          :    n
 TOK___BUILTIN_VA_ARG,    "__builtin_va_arg",          :    n
 
-// sm: this is presumably c99 but I'm putting it here anyway..
-TOK___RESTRICT__,        "__restrict__",              :    n
+// sm: this is C99 but I'm putting it here anyway..
+TOK_RESTRICT,            "restrict",                  :    n

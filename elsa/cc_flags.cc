@@ -76,7 +76,7 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "<global>",
   "<initialized>",
   "<builtin>",
-  "<logic>",        // 14
+  "<delayed inst>", // 14
   "<addrtaken>",
   "<parameter>",
   "<universal>",
@@ -504,32 +504,33 @@ OverloadableOp toOverloadableOp(BinaryOp op, bool isAssignment)
 
 // ------------------------ UberModifiers ---------------------
 char const * const uberModifierNames[UM_NUM_FLAGS] = {
-  "auto",
+  "auto",            // 0x00000001
   "register",
   "static",
   "extern",
-  "mutable",
+  "mutable",         // 0x00000010
   "inline",
   "virtual",
   "explicit",
-  "friend",
+  "friend",          // 0x00000100
   "typedef",
 
   "const",
   "volatile",
-  
-  "char",
+  "restrict",        // 0x00001000
+
   "wchar_t",
   "bool",
   "short",
-  "int",
+  "int",             // 0x00010000
   "long",
   "signed",
   "unsigned",
-  "float",
+  "float",           // 0x00100000
   "double",
   "void",
-  "long long"
+  "long long",
+  "char",            // 0x01000000
 };
 
 string toString(UberModifiers m)

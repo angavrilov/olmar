@@ -1,9 +1,17 @@
 // gnu.gr            see license.txt for copyright and terms of use
 // extension to cc.gr for GNU C/C++ language extensions
 
+// NOTE: Though the name of this module is "gnu.gr", in fact we also
+// put our C99 support here, with "C99" comments.  For the moment, it
+// isn't worth it to split out C99 from GNU, because our usage model
+// is that either you want to parse ANSI C++, or you want to parse
+// whatever gcc/g++ accepts.  The "gnu" extensions (try to) provide
+// the latter.  (Also, there are a few extensions like "long long"
+// that are provided by both, so the split wouldn't be 100% clean.)
+
 // expected statistics
-option shift_reduce_conflicts 135;
-option reduce_reduce_conflicts 66;
+option shift_reduce_conflicts 143;
+option reduce_reduce_conflicts 83;
 
 
 verbatim {
@@ -23,7 +31,7 @@ impl_verbatim {
 
 terminals {
   precedence {
-    prec  190 "__attribute__";
+    prec  190 "__attribute__" "restrict";
   }
 }
 
@@ -175,6 +183,15 @@ nonterm(Declaration*) DeclSpecifier {
 }
 
 
+nonterm(UberModifiers) UberModifier {
+  -> "restrict"     { return UM_RESTRICT; }        // C99
+}
+
+nonterm(UberModifiers) UberCVQualifier {
+  -> "restrict"     { return UM_RESTRICT; }        // C99
+}
+
+
 nonterm(TypeSpecifier*) TypeSpecifier {
   // TS_typeof
   -> te:TypeofTypeSpecifier cv2:UberCVQualifierSeqOpt
@@ -265,14 +282,25 @@ nonterm NonemptyOpConstraints {
 
 // dsw: FIX: add returning rest of semantic value
 nonterm(E_stringLit*) AsmDefinition {
+  // 7/31/04: For some time we have allowed "volatile" after "asm", as
+  // is documented here:
+  //   http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Extended-Asm.html
+  // Recently we found some code that used "const" after "asm".  What
+  // is that?  Where is it documented?
+
   // NOTE: CVQualifierSeqOpt is simply discarded here
-  -> "asm" q:CVQualifierSeqOpt "(" s:StringLiteral ")" ";"
+  -> "asm" q:CVQualifierSeq "(" s:StringLiteral ")" ";"
        { return s; }
-  -> "asm" q:CVQualifierSeqOpt "(" s:StringLiteral ocs:NonemptyOpConstraints ")" ";"
+       
+  // I write two rules, exposing the optionality of CVQualifierSeq at
+  // this level instead of pushing it down into CVQualifierSeqOpt, to
+  // avoid an S/R conflict.
+  -> "asm" q:CVQualifierSeq "(" s:StringLiteral ocs:NonemptyOpConstraints ")" ";"
+       { return s; }
+  -> "asm" "(" s:StringLiteral ocs:NonemptyOpConstraints ")" ";"
        { return s; }
 }
 // ---- END: asm ----
-
 
 
 
@@ -292,10 +320,23 @@ nonterm(IDeclarator*) DirectDeclarator {
   -> d:DirectDeclarator                        // name of function
      "(" params:ParameterDeclarationClause ")" // parameters
      cv:CVQualifierSeqOpt                      // optional "const"
-     // NOTE: CVQualifierSeqOpt is simply discarded here
-     "asm" q:CVQualifierSeqOpt "(" s:StringLiteral ")" // <---- this
+     // sm: I doubt cv-flags can go after this "asm" ...
+     "asm" "(" s:StringLiteral ")"             // <---- this
      e:ExceptionSpecificationOpt               // optional "throw" clause
        { return new D_func(loc, d, params, cv, e); }
+
+  // array with qualifier in the brackets; see the version for
+  // DirectAbstractDeclarator for comments
+  -> d:DirectDeclarator "[" q:CVQualifierSeq "]"          // C99
+    {
+      // FIX: CVQualifierSeq goes on the array
+      return new D_array(loc, d, NULL /*size*/);
+    }
+}
+
+
+nonterm(enum CVFlags) CVQualifier {
+  -> "restrict"          { return CV_RESTRICT; }          // C99
 }
 
 
@@ -309,6 +350,14 @@ nonterm(IDeclarator*) AbstractDeclarator {
 nonterm(IDeclarator*) DirectAbstractDeclarator {
   -> "(" attrspec:AttributeSpecifierList d:AbstractDeclarator ")"
        { return new D_grouping(loc, d); }
+
+  // array with qualifier in the brackets
+  -> d:DirectAbstractDeclaratorOpt "[" q:CVQualifierSeq "]"        // C99
+    {
+      // FIX: Ben says the CVQualifierSeq goes on the array itself,
+      // just as if the array were a pointer and it was on the pointer
+      return new D_array(loc, d, NULL /*size*/);
+    }
 }
 
 
@@ -370,7 +419,7 @@ nonterm(ASTTypeId*) ImplicitIntTypeId {
 }
 
 // ------ attributes ------
-// http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Attribute-Syntax.html#Attribute%20Syntax
+// http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Attribute-Syntax.html
 
 // "A word (which may be an identifier such as unused, or a reserved
 // word such as const)."
@@ -479,10 +528,6 @@ nonterm AttributeList {
 
 nonterm AttributeSpecifier {
   -> "__attribute__" "(" "(" ap:AttributeList ")" ")" ;
-  // dsw: restrict is not a gnu extension as far as I understand it;
-  // it is a C99-ism at least.  I put this in with const and volatile
-  // in CVQualifier
-//    -> "__restrict__" ;       // probably not the right way to handle this ..
 }
 
 nonterm AttributeSpecifierList {
@@ -490,11 +535,4 @@ nonterm AttributeSpecifierList {
   -> asl:AttributeSpecifierList as:AttributeSpecifier ;
 }
 
-// sm: removed this because its use leads to extra conflicts, and
-// the eventual path will be to put all of the attribute stuff into
-// a gcc extension module, where it will be a bunch of extra rules,
-// rather than optional modifications of exiting rules
-//  nonterm AttributeSpecifierListOpt {
-//    -> empty ;
-//    -> asl:AttributeSpecifierList ;
-//  }
+// EOF

@@ -2211,10 +2211,9 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
 // -------- diagnostics --------
 Type *Env::error(SourceLoc L, char const *msg, ErrorFlags eflags)
 {
-  bool disambiguates = !!(eflags & EF_DISAMBIGUATES);
   string instLoc = instLocStackString();
-  TRACE("error",    (disambiguates? "[d] " : "")
-                 << toString(L) << ": " << msg << instLoc);
+  TRACE("error", ((eflags & EF_DISAMBIGUATES)? "[d] " : "")
+              << toString(L) << ": " << msg << instLoc);
 
   bool report = (eflags & EF_DISAMBIGUATES) || (eflags & EF_STRONG) || (!disambiguateOnly);
   if (report) {

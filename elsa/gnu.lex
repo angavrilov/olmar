@@ -8,8 +8,6 @@
 "__attribute"          return tok(TOK___ATTRIBUTE__);
 "__attribute__"        return tok(TOK___ATTRIBUTE__);
 "__label__"            return tok(TOK___LABEL__);
-"__restrict"           return tok(TOK___RESTRICT__);
-"__restrict__"         return tok(TOK___RESTRICT__);
 "typeof"               return tok(TOK___TYPEOF__);
 "__typeof"             return tok(TOK___TYPEOF__);
 "__typeof__"           return tok(TOK___TYPEOF__);
@@ -34,3 +32,26 @@
    * but don't yield it to the parser */
   (void)tok(TOK___EXTENSION__);
 }
+
+  /* GNU alternate spellings; the versions with both leading and trailling
+     underscores are explained here:
+       http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Alternate-Keywords.html
+     But, I see no explanation for the ones with only leading underscores,
+     though they occur in code in the wild so we support them...
+   */
+"__asm"                return tok(TOK_ASM);
+"__asm__"              return tok(TOK_ASM);
+"__const"              return tok(TOK_CONST);
+"__const__"            return tok(TOK_CONST);
+"__restrict"           return tok(TOK_RESTRICT);
+"__restrict__"         return tok(TOK_RESTRICT);
+"__inline"             return tok(TOK_INLINE);
+"__inline__"           return tok(TOK_INLINE);
+"__signed__"           return tok(TOK_SIGNED);
+"__volatile"           return tok(TOK_VOLATILE);
+"__volatile__"         return tok(TOK_VOLATILE);
+
+  /* C99 stuff */
+"restrict"             return tok(TOK_RESTRICT);
+
+  /* EOF */
