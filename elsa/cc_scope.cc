@@ -422,7 +422,7 @@ void Scope::lookupPQVariable_considerBase
         // 'v1' is hidden by 'v2' but (because of virtual inheritance)
         // 'v1' was nevertheless traversed before 'v2'.  So, check whether
         // 'v2' hides 'v1'.  See in/d0104.cc.
-        if (hasAncestor(v2Subobj, v1Subobj)) {                
+        if (hasAncestor(v2Subobj, v1Subobj)) {
           // ok, just go ahead and let 'v2' replace 'v1'
           TRACE("lookup", "DAG ancestor conflict suppressed (v2 is lower)");
         }
@@ -708,6 +708,119 @@ void Scope::lookupPQEnumC_considerBase
 }
 
 
+Variable *Scope::lookupSingleVariable(StringRef name, LookupFlags flags)
+{
+  Variable *v;
+  if (flags & LF_QUERY_TAGS) {
+    v = typeTags.get(name);
+  }
+  else {
+    v = variables.get(name);
+  }
+  return vfilter(v, flags);
+}
+
+void Scope::lookup(LookupSet &set, StringRef name, Env &env, LookupFlags flags)
+{
+  // check in our local map
+  Variable *v = lookupSingleVariable(name, flags);
+
+  // if found, expand overload sets
+  if (v) {
+    set.adds(v);
+  }
+
+  if (flags & LF_INNER_ONLY) {
+    return;        // don't follow 'using' or base class chains
+  }
+
+  // consider 'using' directive edges
+  if (!(flags & LF_IGNORE_USING)) {
+    if (!(flags & LF_QUALIFIED)) {
+      // 7.3.4 para 1: "active using" edges are a source of additional
+      // declarations that can satisfy an unqualified lookup
+      if (activeUsingEdges.isNotEmpty()) {
+        v = searchActiveUsingEdges(set, name, env, flags, v);
+      }
+    }
+    else {
+      // 3.4.3.2 para 2: do a DFS on the "using" edge graph, but only
+      // if we haven't already found the name
+      if (!v && usingEdges.isNotEmpty()) {
+        v = searchUsingEdges(set, name, env, flags);
+      }
+    }
+  }
+  
+  // if we have found something, stop here, rather than considering
+  // base classes
+  xassert((!!v) == set.isNotEmpty());
+  if (set.isNotEmpty()) {
+    return;
+  }
+
+  // base classes?
+  if (!curCompound) {
+    return;
+  }
+  
+  // get all the subobjects
+  SObjList<BaseClassSubobj const> subobjs;
+  curCompound->getSubobjects(subobjs);
+  
+  // look in each one for 'name', keeping track of which subobject
+  // we find it in, if any     
+  xassert(!v);
+  BaseClassSubobj const *vObj = NULL;
+  SFOREACH_OBJLIST(BaseClassSubobj const, subobjs, iter) {
+    BaseClassSubobj const *v2Obj = iter.data();
+    Variable *v2 = v2Obj->ct->lookupSingleVariable(name, flags);
+    if (v2) {
+      TRACE("lookup", "found " << v2Obj->ct->name << "::" << name);
+
+      if (v) {
+        // allow same entity, and static or type or enumerator
+        // (cppstd 10.2 para 5)
+        if (v==v2 && v->hasAnyFlags(DF_STATIC | DF_TYPEDEF | DF_ENUMERATOR)) {
+          continue;
+        }
+
+        // allow hidden entities (cppstd 10.2 para 6)
+        if (hasAncestor(v2Obj, vObj)) {
+          // ok, just go ahead and let 'v2' replace 'v'
+          TRACE("lookup", "DAG ancestor conflict suppressed (v2 is lower)");
+        }
+        else if (hasAncestor(vObj, v2Obj)) {
+          // it could also be the other way around
+          TRACE("lookup", "DAG ancestor conflict suppressed (v is lower)");
+
+          // in this case, 'v1' is already the right one
+          continue;
+        }
+        else {
+          // ambiguity
+          env.error(stringc
+            << "reference to `" << name << "' is ambiguous, because "
+            << "it could either refer to "
+            << vObj->ct->name << "::" << name << " or "
+            << v2Obj->ct->name << "::" << name);
+          break;
+        }
+      }
+
+      // found one; copy it into 'v', my "best so far"
+      v = v2;
+      vObj = v2Obj;
+    }
+  }
+  
+  // if the above search yielded something, expand it and return
+  if (v) {
+    set.adds(v);
+  }
+}
+
+
 Variable const *Scope::getTypedefNameC() const
 {
   if (scopeKind == SK_CLASS) {
@@ -980,7 +1093,7 @@ Variable *Scope::searchActiveUsingEdges
     // look for 'name' in 's'
     Variable *v = vfilter(s->variables.get(name), flags);
     if (v) {
-      if (foundViaUsingEdge(candidates, env, flags, v, vfound)) {
+      if (foundViaUsingEdge(candidates, env, flags, v, vfound /*IN/OUT*/)) {
         return v;
       }
     }
@@ -1012,7 +1125,7 @@ Variable *Scope::searchUsingEdges
     // does 's' have the name?
     Variable *v = vfilter(s->variables.get(name), flags);
     if (v) {
-      if (foundViaUsingEdge(candidates, env, flags, v, vfound)) {
+      if (foundViaUsingEdge(candidates, env, flags, v, vfound /*IN/OUT*/)) {
         return v;
       }
     }

@@ -10,6 +10,7 @@
 #include "implconv.h"      // ImplicitConversion, StandardConversion
 #include "srcloc.h"        // SourceLoc
 #include "cc_ast.h"        // PQName, ArgExpression, etc.
+#include "lookupset.h"     // LookupSet
 
 // fwds
 class Env;
@@ -63,23 +64,23 @@ public:
   // receiver object but the function being invoked might be static
   // and there is no receiver at the call site.
 
-  // if this is non-NULL, then it means the argument is the name
+  // if this is non-empty, then it means the argument is the name
   // (or address of name) of an overloaded function, hence we must
   // consider all the possible types; in this case, 'special' will
   // be SE_NONE and 'type' will be NULL
-  Variable *ovlVar;
+  LookupSet overloadSet;
 
 public:
   ArgumentInfo()
-    : special(SE_NONE), type(NULL), ovlVar(NULL) {}
+    : special(SE_NONE), type(NULL), overloadSet() {}
   ArgumentInfo(SpecialExpr s, Type *t)
-    : special(s), type(t), ovlVar(NULL) {}
-  ArgumentInfo(Variable *v)
-    : special(SE_NONE), type(NULL), ovlVar(v) {}
+    : special(s), type(t), overloadSet() {}
+  ArgumentInfo(LookupSet &set)
+    : special(SE_NONE), type(NULL), overloadSet(set) {}
   ArgumentInfo(ArgumentInfo const &obj)
-    : DMEMB(special), DMEMB(type), DMEMB(ovlVar) {}
+    : DMEMB(special), DMEMB(type), DMEMB(overloadSet) {}
   ArgumentInfo& operator= (ArgumentInfo const &obj)
-    { CMEMB(special); CMEMB(type); CMEMB(ovlVar); return *this; }
+    { CMEMB(special); CMEMB(type); CMEMB(overloadSet); return *this; }
 };
 
 
@@ -152,10 +153,16 @@ public:      // data
 
   // these are the "viable candidate functions" of the standard
   ObjArrayStack<Candidate> candidates;
+  
+  // all candidates processed; used for error diagnosis
+  ArrayStack<Variable*> origCandidates;
 
 private:     // funcs
   Candidate * /*owner*/ makeCandidate(Variable *var, Variable *instFrom);
+
+  // debugging, error diagnosis
   void printArgInfo();
+  string argInfoString();
 
 public:      // funcs
   OverloadResolver(Env &en, SourceLoc L, ErrorList *er,

@@ -54,6 +54,26 @@ LookupSet::~LookupSet()
 {}
 
 
+LookupSet::LookupSet(LookupSet const &obj)
+{
+  copy(obj);
+}
+
+LookupSet& LookupSet::operator= (LookupSet const &obj)
+{
+  if (this != &obj) {
+    copy(obj);
+  }
+  return *this;
+}
+
+void LookupSet::copy(LookupSet const &obj)
+{
+  removeAll();
+  SObjList<Variable>::operator=(obj);
+}
+
+
 Variable *LookupSet::filter(Variable *v, LookupFlags flags)
 {
   v = vfilter(v, flags);
@@ -102,6 +122,55 @@ void LookupSet::addsIf(Variable *v, LookupFlags flags)
   if (flags & LF_LOOKUP_SET) {
     adds(v);
   }
+}
+
+
+void LookupSet::removeAllButOne()
+{
+  while (count() > 1) {
+    removeFirst();
+  }
+}
+
+
+string LookupSet::asString() const
+{
+  if (isEmpty()) {
+    return "";
+  }
+
+  // are all the names in the same scope?
+  Scope *scope = firstC()->scope;
+  SFOREACH_OBJLIST(Variable, *this, iter1) {
+    Variable const *v = iter1.data();
+
+    if (v->scope != scope) {
+      scope = NULL;
+    }
+  }
+
+  stringBuilder sb;
+
+  SFOREACH_OBJLIST(Variable, *this, iter2) {
+    Variable const *v = iter2.data();
+
+    sb << "  " << v->loc << ": ";
+    if (scope) {
+      sb << v->toString();      // all same scope, no need to prin it
+    }
+    else {
+      sb << v->toQualifiedString();
+    }
+    sb << "\n";
+  }
+
+  return sb;
+}
+
+
+void LookupSet::gdb() const
+{
+  cout << asString();
 }
 
 

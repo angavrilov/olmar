@@ -1381,8 +1381,6 @@ Variable *Env::lookupPQVariable_applyArgsTemplInst
 
 // insert bindings into SK_TEMPLATE_ARG scopes, from template
 // parameters to concrete template arguments
-//
-// returns the deepest scope created
 void Env::insertTemplateArgBindings
   (Variable *baseV, SObjList<STemplateArgument> &sargs)
 {
@@ -1566,10 +1564,11 @@ void Env::insertTemplateArgBindings
 
                                                    
 // reverse the effects of 'insertTemplateArgBindings'
-void Env::deleteTemplateArgBindings()
+void Env::deleteTemplateArgBindings(Scope *limit)
 {
   // just blow away template argument scopes on top
-  while (scope()->scopeKind == SK_TEMPLATE_ARGS) {
+  while (scope()->scopeKind == SK_TEMPLATE_ARGS &&
+         scope() != limit) {
     exitScope(scope());
   }
 }
@@ -2534,21 +2533,30 @@ void Env::instantiateClassBody(Variable *inst)
   xassert(instCT->syntax);
   xassert(defnScope);
 
+  // bind the template arguments in scopes so that when we tcheck the
+  // body, lookup will find them
+  {
+    Scope *limit = scope();    // remember which scope we had (hacking...)
+    insertTemplateArgBindings(spec, instTI->arguments);
+
+    // check the type tag *before* adjusting the scope stack (?)
+    instCT->syntax->name->tcheck(*this);
+    instCT->syntax->ctype = instCT;
+
+    deleteTemplateArgBindings(limit);
+  }
+
   // set up the scopes in a way similar to how it was when the
   // template definition was first seen
   ObjList<SavedScopePair> poppedScopes;
   SObjList<Scope> pushedScopes;
   prepArgScopeForTemlCloneTcheck(poppedScopes, pushedScopes, defnScope);
-
-  // bind the template arguments in scopes so that when we tcheck the
-  // body, lookup will find them
+  
+  // bind the template arguments *again* because I am hacking this to death...
   insertTemplateArgBindings(spec, instTI->arguments);
 
-  // check the class body, forcing it to use 'instCT'
-  instCT->syntax->name->tcheck(*this);
-  instCT->syntax->ctype = instCT;
-
-  // don't check method bodies
+  // check the class body, forcing it to use 'instCT'; don't check
+  // method bodies
   {
     Restorer<bool> r(checkFunctionBodies, false);
     instCT->syntax->tcheckIntoCompound(*this, DF_NONE, instCT);

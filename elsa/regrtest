@@ -631,7 +631,8 @@ testparse t0395.cc
 testparse t0396.cc
 testparse t0397.cc
 testparse t0398.cc
-failparse t0399.cc "messed up qualified lookup"
+testparse t0399.cc
+testparse t0400.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

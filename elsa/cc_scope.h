@@ -161,6 +161,9 @@ private:     // funcs
     (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags);
   void getUsingClosure(ArrayStack<Scope*> &dest);
 
+  // variant of 'lookup' that does not expand overload sets
+  Variable *lookupSingleVariable(StringRef name, LookupFlags flags);
+
 protected:   // funcs
   // this function is called at the end of addVariable, after the
   // Variable has been added to the 'variables' map; it's intended
@@ -231,6 +234,9 @@ public:      // funcs
   // somewhat common sequence: register, add, assert that the add worked
   void addUniqueVariable(Variable *v);
 
+  // 2005-02-24: new and improved lookup
+  void lookup(LookupSet &set, StringRef name, Env &env, LookupFlags flags);
+  
   // lookup; these return NULL if the name isn't found; 'env' is
   // passed for the purpose of reporting ambiguity errors
   Variable *lookupVariable(StringRef name, Env &env, LookupFlags f=LF_NONE);

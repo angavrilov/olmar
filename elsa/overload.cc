@@ -12,6 +12,7 @@
 #include "cc_type.h"       // Type, etc.
 #include "trace.h"         // TRACE
 #include "typelistiter.h"  // TypeListIter
+#include "strtokp.h"       // StrtokParse
 
 
 // ------------------- Candidate -------------------------
@@ -181,7 +182,8 @@ OverloadResolver::OverloadResolver
     // then more space will be allocated than necessary; if it's
     // low, then the 'candidates' array will have to be resized
     // at some point; it's entirely a performance issue
-    candidates(numCand)
+    candidates(numCand),
+    origCandidates(numCand)
 {
   //overloadNesting++;
 
@@ -251,31 +253,54 @@ void OverloadResolver::printArgInfo()
 {
   IFDEBUG(
     if (tracingSys("overload")) {
-      overloadTrace() << "arguments:\n";
-      for (int i=0; i < args.size(); i++) {
-        string typeString = "(missing)";
-        if (args[i].ovlVar) {
-          stringBuilder sb;
-          sb << "(13.4 set) ";
-          int ct=0;
-          SFOREACH_OBJLIST_NC(Variable, args[i].ovlVar->overload->set, iter) {
-            if (ct++ > 0) {
-              sb << " or ";
-            }
-            sb << iter.data()->type->toString();
-          }
-          typeString = sb;
-        }
-        else if (args[i].type) {
-          typeString = args[i].type->toString();
-        }
-
-        overloadTrace() << "  " << i << ": "
-             << toString(args[i].special) << ", "
-             << typeString << "\n";
+      string info = argInfoString();
+      
+      // it's a little inefficient to construct the string only to
+      // parse it at line boundaries, but I want the indentation to
+      // be a certain way, and this is only done in debug mode (and
+      // even then, only with the tracing flag enabled)
+      StrtokParse tok(info, "\n");
+      for (int i=0; i<tok; i++) {
+        overloadTrace() << tok[i] << "\n";
       }
     }
   )
+}
+
+string OverloadResolver::argInfoString()
+{
+  stringBuilder sb;
+  sb << "arguments:\n";
+  for (int i=0; i < args.size(); i++) {
+    if (args[i].overloadSet.isEmpty() &&
+        !args[i].type) {
+      continue;      // don't print anything
+    }
+
+    sb << "  " << i << ": ";
+
+    if (args[i].overloadSet.isNotEmpty()) {
+      sb << "(13.4 set) ";
+      int ct=0;
+      SFOREACH_OBJLIST_NC(Variable, args[i].overloadSet, iter) {
+        if (ct++ > 0) {
+          sb << " or ";
+        }
+        sb << iter.data()->type->toString();
+      }
+    }
+    else {
+      sb << args[i].type->toString();
+    }
+
+    if (args[i].special) {
+      sb << " (" << toString(args[i].special) << ")";
+    }
+
+    sb << "\n";
+  }
+
+  return sb;
 }
 
 
@@ -649,10 +674,21 @@ Candidate const *OverloadResolver::resolveCandidate(bool &wasAmbig)
     }
 
     if (errors) {
-      // TODO: expand this message greatly: explain which functions
-      // are candidates, and why each is not viable
-      errors->addError(new ErrorMsg(
-        loc, "no viable candidate for function call", EF_NONE));
+      // try to construct a meaningful error message; it does not
+      // end with a newline since the usual error reporting mechanism
+      // adds one
+      stringBuilder sb;
+      sb << "no viable candidate for function call; " << argInfoString();
+      sb << " original candidates:";
+      for (int i=0; i<origCandidates.length(); i++) {
+        Variable *v = origCandidates[i];
+
+        // it might be nice to go further and explain why this
+        // candidate was not viable ...
+        sb << "\n  " << v->loc << ": " << v->toQualifiedString();
+      }
+
+      errors->addError(new ErrorMsg(loc, sb, EF_NONE));
     }
     OVERLOADTRACE("no viable candidates");
     return NULL;
@@ -746,6 +782,7 @@ Variable *OverloadResolver::resolve()
 Candidate * /*owner*/ OverloadResolver::makeCandidate
   (Variable *var, Variable *instFrom)
 {
+  origCandidates.push(var);
   Owner<Candidate> c(new Candidate(var, instFrom, args.size()));
 
   FunctionType *ft = var->type->asFunctionType();
@@ -753,11 +790,25 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate
   // simultaneously iterate over parameters and arguments
   SObjListIter<Variable> paramIter(ft->params);
   int argIndex = 0;
-  while (!paramIter.isDone() && argIndex < args.size()) {
+
+  // handle mismatches between presence of receiver and method-ness
+  if (flags & OF_METHODS) {      // receiver is present
+    if (!args[argIndex].type && ft->isMethod()) {
+      // no receiver object but function is a method: not viable
+      return NULL;
+    }
+    if (!ft->isMethod()) {
+      // no receiver parameter; leave the conversion as IC_NONE
+      argIndex++;       // do *not* advance 'paramIter'
+    }
+  }
+
+  for (; !paramIter.isDone() && argIndex < args.size();
+       paramIter.adv(), argIndex++) {
     // address of overloaded function?
-    if (args[argIndex].ovlVar) {
+    if (args[argIndex].overloadSet.isNotEmpty()) {
       Variable *selVar =
-        env.pickMatchingOverloadedFunctionVar(args[argIndex].ovlVar,
+        env.pickMatchingOverloadedFunctionVar(args[argIndex].overloadSet,
                                               paramIter.data()->type);
       if (selVar) {
         // just say it matches; we don't need to record *which* one was
@@ -768,25 +819,11 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate
         c->conversions[argIndex] = ics;
 
         // go to next arg/param pair
-        paramIter.adv();
-        argIndex++;
         continue;
       }
       else {
         // whole thing not viable
         return NULL;
-      }
-    }
-
-    if (argIndex==0 && (flags & OF_METHODS)) {
-      if (!args[argIndex].type && ft->isMethod()) {
-        // no receiver object but function is a method: not viable
-        return NULL;
-      }
-      if (!ft->isMethod()) {
-        // no receiver parameter; leave the conversion as IC_NONE
-        argIndex++;       // do *not* advance 'paramIter'
-        continue;
       }
     }
 
@@ -819,9 +856,6 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate
         return NULL;           // no conversion sequence possible
       }
     }
-
-    paramIter.adv();
-    argIndex++;
   }
 
   // extra arguments?

@@ -100,7 +100,7 @@ overload resolution as necessary.  It does these steps:
 
 
 -------------------------------------------------------
-How does lookup within a Scope work?
+Scope::lookup: How does lookup within a Scope work?
 
 Lookup within a scope has input:
   - StringRef name     : name of symbol to look up
@@ -108,16 +108,36 @@ Lookup within a scope has input:
   - LookupFlags flags  : lookup modifiers
 And has output:
   - LookupSet &set     : set of entities referred to by 'name'
-  
+
 First, Scope::variables or Scope::typeTags is queried, depending
 on LF_QUERY_TAGS.  If this yields a hit, the resulting variable's
-overload set (if any) is expanded, and the results returned.
+overload set (if any) is expanded and placed in a temporary 'set'.
 
-Next, if this Scope is a namespace, the 'using' directive edges
-are considered, as per 7.3.4 and 3.4.3.2.
+If LF_INNER_ONLY, return what we have.
+
+Next, if this Scope is a namespace, and LF_IGNORE_USING is not
+specified, the 'using' directive edges are considered, as per 7.3.4
+and 3.4.3.2, adding to 'set':
+
+  (TODO: explain this process)
+
+If 'set' is not empty, return.
 
 Finally, if this Scope is a class, its base classes are searched
-according to 10.2.
+according to 10.2:
+
+  - For each of the base class subobject, we search for 'name' in the
+    scope corresponding to the subobject's class (Scope::lookup with
+    LF_INNER_ONLY).
+
+  - If we find entities v1 and v2 with the given name:
+    - If v1 hides v2 (v2's subobject is an ancestor of v1's
+      subobject), or vice versa, ignore the hidden entity (10.2p6).
+    - If v1 and v2 are the same entity (just in different subobjects),
+      we can regard them as the same if the entity is static, a type,
+      or an enumerator (10.2p5).
+
+
 
 
 

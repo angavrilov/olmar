@@ -2,7 +2,7 @@
 // extension module for cc.ast that defines the entry points
 // for the type checker, and the annotations it produces
 
-// the implementation for the functions declared here is in
+// the implementations for the functions declared here are in
 // cc_tcheck.cc and cc_ast_aux.cc
 
 
@@ -15,6 +15,7 @@ verbatim {
   #include "template.h"      // STemplateArgument
 
   class Env;                 // cc_env.h
+  class ArgumentInfo;        // overload.h
 }
 
 
@@ -500,7 +501,7 @@ class Expression {
 
        // extended tcheck interface for lookups that yield sets
        public Type *itcheck_var_set(Env &env, Expression *&replacement,
-                                    LookupFlags flags, LookupSet &candidates);
+                                    LookupFlags flags, LookupSet &set);
 
        // similar to TS_name::nondependentVar
        public Variable *nondependentVar = NULL;
@@ -552,6 +553,17 @@ class Expression {
        custom debugPrint { ind(os,indent) << "ctorVar: " << refersTo(ctorVar) << "\n"; }
        custom clone { ret->ctorVar = ctorVar; }
      }
+     
+  // extended tcheck interface for lookups that yield sets; see
+  // tcheckExpression_set() in cc_tcheck.cc
+  -> E_addrOf {
+       public Type *itcheck_addrOf_set(Env &env, Expression *&replacement,
+                                       LookupFlags flags, LookupSet &set);
+     }
+  -> E_grouping {
+       public Type *itcheck_grouping_set(Env &env, Expression *&replacement,
+                                         LookupFlags flags, LookupSet &set);
+     }
 }
 
 
@@ -583,8 +595,8 @@ class ArgExpression {
   public SpecialExpr getSpecial(CCLang &lang) const
     { return expr->getSpecial(lang); };
 
-  public ArgExpression *tcheck(Env &env);
-  public void mid_tcheck(Env &env, int &);
+  public ArgExpression *tcheck(Env &env, ArgumentInfo &);
+  public void mid_tcheck(Env &env, ArgumentInfo &);
 }
 
 

@@ -335,6 +335,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     special_computeLUB(NULL),
     special_checkCalleeDefnLine(NULL),
 
+    dependentScope(new Scope(SK_GLOBAL, 0, SL_INIT)),
     dependentTypeVar(NULL),
     dependentVar(NULL),
     errorTypeVar(NULL),
@@ -898,6 +899,8 @@ Env::~Env()
       delete s;
     }
   }
+  
+  delete dependentScope;
 }
 
 
@@ -1635,7 +1638,8 @@ Scope *Env::lookupOneQualifier(
   }
 
   // refine using the arguments, and yield a Scope
-  return lookupOneQualifier_useArgs(qualVar, qualifier, dependent, anyTemplates, lflags);
+  return lookupOneQualifier_useArgs(qualVar, qualifier->targs, dependent, 
+                                    anyTemplates, lflags);
 }
 
 
@@ -1665,7 +1669,7 @@ Variable *Env::lookupOneQualifier_bareName(
   // however, this still is not quite right, see cppstd 3.4.3 para 1
   //
   // update: LF_TYPES_NAMESPACES now gets it right, I think
-  lflags |= LF_TYPES_NAMESPACES;
+  lflags |= LF_TYPES_NAMESPACES | LF_SELFNAME;
   Variable *qualVar = startingScope==NULL?
     lookupVariable(qual, lflags) :
     startingScope->lookupVariable(qual, *this, lflags);
@@ -1697,23 +1701,19 @@ Variable *Env::lookupOneQualifier_bareName(
 
 
 // Second half of 'lookupOneQualifier': use the template args.
-//
-// TODO: The caller has already put the template arguments into an
-// SObjList<STemplateArgument>; accept a reference to those instead of
-// making another list myself.
 Scope *Env::lookupOneQualifier_useArgs(
-  Variable *qualVar,             // bare name scope Variable
-  PQ_qualifier const *qualifier, // will look up the qualifier on this name
-  bool &dependent,               // set to true if we have to look inside a TypeVariable
-  bool &anyTemplates,            // set to true if we look in uninstantiated templates
+  Variable *qualVar,                // bare name scope Variable
+  ASTList<TemplateArgument> const &targs, // template args to apply
+  bool &dependent,                  // set to true if we have to look inside a TypeVariable
+  bool &anyTemplates,               // set to true if we look in uninstantiated templates
   LookupFlags lflags)
 {
-  StringRef qual = qualifier->qualifier;
-
   if (!qualVar) {
     // just propagating earlier error
     return NULL;
   }
+
+  StringRef qual = qualVar->name;
 
   // case 1: qualifier refers to a type
   if (qualVar->hasFlag(DF_TYPEDEF)) {
@@ -1744,10 +1744,13 @@ Scope *Env::lookupOneQualifier_useArgs(
     if (qualVar->hasFlag(DF_SELFNAME)) {
       // don't check anything, assume it's a reference to the
       // class I'm in (testcase: t0168.cc)
+      
+      // TODO: I think this is wrong; what if someone supplies
+      // (different) template args?
     }
 
     // check template argument compatibility
-    else if (qualifier->targs.isNotEmpty()) {
+    else if (targs.isNotEmpty()) {
       if (!ct->isTemplate()) {
         error(stringc
           << "class `" << qual << "' isn't a template");
@@ -1763,12 +1766,12 @@ Scope *Env::lookupOneQualifier_useArgs(
 
         // obtain a list of semantic arguments
         SObjList<STemplateArgument> sargs;
-        if (!templArgsASTtoSTA(qualifier->targs, sargs)) {
+        if (!templArgsASTtoSTA(targs, sargs)) {
           return ct;      // error already reported; recovery: use primary
         }
 
         if ((lflags & LF_DECLARATOR) &&
-            containsTypeVariables(qualifier->targs)) {    // fix t0185.cc?  seems to...
+            containsTypeVariables(targs)) {    // fix t0185.cc?  seems to...
           // Since we're in a declarator, the template arguments are
           // being supplied for the purpose of denoting an existing
           // template primary or specialization, *not* to cause
@@ -1801,7 +1804,7 @@ Scope *Env::lookupOneQualifier_useArgs(
             // 8/07/04: I think the test above, 'containsTypeVariables',
             // has resolved this issue.
             error(stringc << "cannot find template primary or specialization `"
-                          << qualifier->toString() << "'",
+                          << qual << targsToString(targs) << "'",
                   EF_DISAMBIGUATES);
             return ct;     // recovery: use the primary
           }
@@ -1811,7 +1814,7 @@ Scope *Env::lookupOneQualifier_useArgs(
 
         // if the template arguments are not concrete, then this is
         // a dependent name, e.g. "C<T>::foo"
-        if (containsTypeVariables(qualifier->targs)) {
+        if (containsTypeVariables(targs)) {
           dependent = true;
           return NULL;
         }
@@ -1869,7 +1872,7 @@ Scope *Env::lookupOneQualifier_useArgs(
 
   // case 2: qualifier refers to a namespace
   else /*DF_NAMESPACE*/ {
-    if (qualifier->targs.isNotEmpty()) {
+    if (targs.isNotEmpty()) {
       error(stringc << "namespace `" << qual << "' can't accept template args");
     }
 
@@ -3684,9 +3687,21 @@ Variable *Env::getOverloadedFunctionVar(Expression *e)
 // already went through that one and returned non-NULL
 void Env::setOverloadedFunctionVar(Expression *e, Variable *selVar)
 {
+  if (e->isE_grouping()) {
+    E_grouping *g = e->asE_grouping();
+    setOverloadedFunctionVar(g->expr, selVar);
+    g->type = tfac.cloneType(g->expr->type);
+    return;
+  }
+
   if (e->isE_addrOf()) {
-    e->type = makePointerType(loc(), CV_NONE, selVar->type);
-    e = e->asE_addrOf()->expr;
+    // TODO: In some cases, we may need to form a pointer-to-member;
+    // see ArgExpression::mid_tcheck.
+
+    E_addrOf *a = e->asE_addrOf();
+    setOverloadedFunctionVar(a->expr, selVar);
+    a->type = makePointerType(loc(), CV_NONE, a->expr->type);
+    return;
   }
 
   xassert(e->isE_variable());
@@ -3697,10 +3712,10 @@ void Env::setOverloadedFunctionVar(Expression *e, Variable *selVar)
 }
 
 
-// given the Variable denoting an overload set, and the type to which
-// the overloaded name is being converted, select the element that
-// matches that type, if any [cppstd 13.4 para 1]
-Variable *Env::pickMatchingOverloadedFunctionVar(Variable *ovlVar, Type *type)
+// given an overload set, and the type to which the overloaded name is
+// being converted, select the element that matches that type, if any
+// [cppstd 13.4 para 1]
+Variable *Env::pickMatchingOverloadedFunctionVar(LookupSet &set, Type *type)
 {
   // normalize 'type' to just be a FunctionType
   type = type->asRval();
@@ -3714,7 +3729,7 @@ Variable *Env::pickMatchingOverloadedFunctionVar(Variable *ovlVar, Type *type)
   // as there are no standard conversions for function types or
   // pointer to function types [cppstd 13.4 para 7], simply find an
   // element with an equal type
-  SFOREACH_OBJLIST_NC(Variable, ovlVar->overload->set, iter) {
+  SFOREACH_OBJLIST_NC(Variable, set, iter) {
     Variable *v = iter.data();
 
     if (v->isTemplate()) {
@@ -3908,6 +3923,145 @@ void Env::associatedScopeLookup(LookupSet &candidates, StringRef name,
 void Env::addCandidates(LookupSet &candidates, Variable *var)
 {
   candidates.adds(var);
+}
+
+
+// ---------------- new lookup mechanism --------------------
+void Env::lookupPQ(LookupSet &set, PQName *name, LookupFlags flags)
+{ 
+  // this keeps track of where the next lookup will occur; NULL means
+  // "in the current scope stack", and non-NULL means "in the named
+  // scope"
+  Scope *scope = NULL;
+                         
+  // so legacy calls will honor 'set'
+  flags |= LF_LOOKUP_SET;
+
+  // lookup along the chain of qualifiers
+  while (name->isPQ_qualifier()) {
+    PQ_qualifier *qual = name->asPQ_qualifier();
+
+    // lookup this qualifier in 'scope'
+    scope = lookupScope(scope, qual->qualifier, qual->targs, flags);
+    if (!scope) {
+      return;      // error already reported
+    }
+    if (scope == dependentScope) {
+      if (flags & (LF_TYPENAME | LF_ONLY_TYPES)) {
+        set.add(dependentTypeVar);    // user claims it's a type
+      }
+      else {
+        set.add(dependentVar);        // user makes no claim, so it's a variable
+      }
+      return;
+    }
+
+    flags |= LF_QUALIFIED;            // subsequent lookups are qualified
+    name = qual->rest;
+  }
+
+  // unqualified lookup in 'scope'
+  unqualifiedLookup(set, scope, name->getName(), flags);
+  if (set.isEmpty()) {
+    return;
+  }
+
+  // consider template arguments?
+  if (flags & LF_TEMPL_PRIMARY) {
+    return;    // no
+  }
+
+  // if we are even considering applying template arguments, the
+  // name must be unambiguous
+  if (set.count() > 1) {
+    env.error(name->loc, stringc << "ambiguous lookup of `" << *name
+                                 << "' in non-overloadable context");
+    set.removeAllButOne();    // error recovery
+    return;
+  }
+
+  // apply template arguments, if any (legacy call)
+  Variable *var = set.removeFirst();
+  var = applyPQNameTemplateArguments(var, name, flags);
+  if (var) {
+    set.add(var);
+  }
+}
+
+
+Scope *Env::lookupScope(Scope * /*nullable*/ scope, StringRef name,
+                        ASTList<TemplateArgument> &targs, LookupFlags flags)
+{
+  if (!name) {
+    return globalScope();       // "::" qualifier
+  }
+
+  // lookup 'name' in 'scope'
+  flags |= LF_TYPES_NAMESPACES | LF_SELFNAME;
+  LookupSet set;
+  unqualifiedLookup(set, scope, name, flags);
+  if (set.isEmpty()) {
+    return NULL;                // error already reported
+  }
+  xassert(set.count() == 1);    // 'flags' should ensure this
+  Variable *var = set.first();
+
+  // interpret 'var', apply template args, etc. (legacy call)
+  bool dependent=false, anyTemplates=false;
+  Scope *ret = lookupOneQualifier_useArgs(var, targs, dependent,
+                                          anyTemplates, flags);
+                                          
+  if (dependent) {
+    return dependentScope;
+  }
+  
+  return ret;
+}
+
+
+void Env::unqualifiedLookup(LookupSet &set, Scope * /*nullable*/ scope,
+                            StringRef name, LookupFlags flags)
+{
+  if (scope) {
+    // lookup in a specific scope
+    scope->lookup(set, name, env, flags);
+    return;
+  }
+
+  if (flags & LF_INNER_ONLY) {
+    // look in innermost accepting scope
+    scope = acceptingScope();
+    scope->lookup(set, name, env, flags);
+    return;
+  }
+
+  // look in current scope stack
+  FOREACH_OBJLIST_NC(Scope, scopes, iter) {
+    scope = iter.data();
+    if ((flags & LF_SKIP_CLASSES) && scope->isClassScope()) {
+      continue;
+    }
+
+    if (scope->isDelegated()) {
+      // though 'scope' appears physically here, it is searched in a different order
+      continue;
+    }
+
+    // look in 'scope'
+    scope->lookup(set, name, env, flags);
+    if (set.isNotEmpty()) {
+      return;
+    }
+
+    // is 'scope' connected to a delegated scope?
+    Scope *delegated = scope->getDelegationPointer();
+    if (delegated) {
+      delegated->lookup(set, name, env, flags);
+      if (set.isNotEmpty()) {
+        return;
+      }
+    }
+  }
 }
 
 

@@ -5,6 +5,7 @@
 #define LOOKUPSET_H
 
 #include "sobjlist.h"        // SObjList
+#include "str.h"             // string
 
 class Variable;              // variable.h
 
@@ -31,8 +32,9 @@ enum LookupFlags {
   LF_IGNORE_USING      = 0x00008000,   // 3.4.2p3: ignore using-directives
   LF_NO_IMPL_THIS      = 0x00010000,   // do not insert implicit 'this->'
   LF_LOOKUP_SET        = 0x00020000,   // lookup can return a set of names
+  LF_QUERY_TAGS        = 0x00040000,   // look in Scope::typeTags instead of Scope::variables
 
-  LF_ALL_FLAGS         = 0x0003FFFF,   // bitwise OR of all flags
+  LF_ALL_FLAGS         = 0x0007FFFF,   // bitwise OR of all flags
 };
 
 ENUM_BITWISE_OPS(LookupFlags, LF_ALL_FLAGS)     // smbase/macros.h
@@ -47,13 +49,16 @@ Variable *vfilter(Variable *v, LookupFlags flags);
 // by 'sameEntity' (declared in variable.h)
 class LookupSet : public SObjList<Variable> {
 private:     // disallowed
-  LookupSet(LookupSet&);
-  void operator= (LookupSet&);
   void operator== (LookupSet&);
 
 public:
   LookupSet();
   ~LookupSet();
+  
+  // copy list contents
+  LookupSet(LookupSet const &obj);
+  LookupSet& operator= (LookupSet const &obj);
+  void copy(LookupSet const &obj);
 
   // like vfilter, but also accumulate the Variable in the set
   // if LF_LOOKUP_SET is in 'flags'
@@ -72,6 +77,14 @@ public:
   // and if LF_LOOKUP_SET is in 'flags'
   void addIf(Variable *v, LookupFlags flags);
   void addsIf(Variable *v, LookupFlags flags);
+                         
+  // throw away all the entries except for one; this is used for
+  // error recovery
+  void removeAllButOne();
+  
+  // construct a candidate list, one per line, indented
+  string asString() const;
+  void gdb() const;
 };
 
 

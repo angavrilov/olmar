@@ -156,6 +156,7 @@ public:      // data
   StringRef special_checkCalleeDefnLine;
 
   // special variables associated with particular types
+  Scope *dependentScope;                // (owner)
   Variable *dependentTypeVar;           // (serf)
   Variable *dependentVar;               // (serf)
   Variable *errorTypeVar;               // (serf)
@@ -428,7 +429,7 @@ public:      // funcs
     LookupFlags lflags);
   Scope *lookupOneQualifier_useArgs(
     Variable *qualVar,
-    PQ_qualifier const *qualifier,
+    ASTList<TemplateArgument> const &targs,
     bool &dependent,
     bool &anyTemplates,
     LookupFlags lflags);
@@ -685,13 +686,25 @@ public:      // funcs
   // support for cppstd 13.4; see implementations for more details
   Variable *getOverloadedFunctionVar(Expression *e);
   void setOverloadedFunctionVar(Expression *e, Variable *selVar);
-  Variable *pickMatchingOverloadedFunctionVar(Variable *ovlVar, Type *type);
+  Variable *pickMatchingOverloadedFunctionVar(LookupSet &set, Type *type);
 
   // support for 3.4.2
   void getAssociatedScopes(SObjList<Scope> &associated, Type *type);
   void associatedScopeLookup(LookupSet &candidates, StringRef name,
                              ArrayStack<Type*> const &argTypes, LookupFlags flags);
   void addCandidates(LookupSet &candidates, Variable *var);
+
+
+  // ------------ new lookup mechanism ---------------
+private:     // funcs
+  Scope *lookupScope(Scope * /*nullable*/ scope, StringRef name,
+                     ASTList<TemplateArgument> &targs, LookupFlags flags);
+  void unqualifiedLookup(LookupSet &set, Scope * /*nullable*/ scope,
+                         StringRef name, LookupFlags flags);
+
+public:      // funcs
+  void lookupPQ(LookupSet &set, PQName *name, LookupFlags flags);
+
 
   // ------------ template instantiation stuff ------------
   // the following methods are implemented in template.cc
@@ -718,7 +731,7 @@ private:     // template funcs
   bool insertTemplateArgBindings_oneParamList
     (Scope *scope, Variable *baseV, SObjListIterNC<STemplateArgument> &argIter,
      SObjList<Variable> const &params);
-  void deleteTemplateArgBindings();
+  void deleteTemplateArgBindings(Scope *limit = NULL);
 
   void mapPrimaryArgsToSpecArgs(
     Variable *baseV,
