@@ -442,8 +442,7 @@ list=`echo " \
                                                                  t0123.cc \
   " | fmt -1 | sed 's|^[ 	]*|in/|'`
 
-# FIX: pretty printing is probably all messed up now.
-# runTest perl ./idemcheck -d outdir $list
+runTest perl ./idemcheck -d outdir $list
 
 if $use_gnu; then
   #   125: inline assembly not printed
@@ -459,8 +458,7 @@ if $use_gnu; then
     gnu/t0132.cc
     c99/t0133.c \
     " | fmt -1 | sed 's|^[ 	]*|in/|'`
-# FIX: pretty printing is probably all messed up now.
-#  runTest perl ./idemcheck -d outdir $list
+  runTest perl ./idemcheck -d outdir $list
 fi
 
 
