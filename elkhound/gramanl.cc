@@ -4722,6 +4722,14 @@ void emitDDMInlines(Grammar const &g, EmitCode &out, EmitCode &dcl,
   }
 }
 
+bool noDeclaredType(char const *type)
+{
+  // right now, terminals with no declared type have a NULL type
+  // field while nonterminals get "void".. I should make it
+  // uniform (probably NULL), but right now I am lazy
+  return !type || (0==strcmp(type, "void"));
+}
+
 void emitSwitchCode(Grammar const &g, EmitCode &out,
                     char const *signature, char const *switchVar,
                     ObjList<Symbol> const &syms, int whichFunc,
@@ -4743,6 +4751,16 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
       out << replace(replace(templateCode,
                "$symName", string(sym.name)),
                "$symType", notVoid(sym.type));
+    }
+    else if (whichFunc==0 && noDeclaredType(sym.type)) {
+      // dup for symbol with no declared type: don't complain
+      out << "    case " << sym.getTermOrNontermIndex() << ":\n";
+      out << "      return sval;\n";
+    }
+    else if (whichFunc==1 && noDeclaredType(sym.type)) {
+      // del for no declared type
+      out << "    case " << sym.getTermOrNontermIndex() << ":\n";
+      out << "      break;\n";
     }
   }
 

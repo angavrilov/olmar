@@ -574,6 +574,10 @@ adding at the top of <tt>gcom.gr</tt>:
   option useGCDefaults;
 </pre>
 
+<p>2005-03-03: I just made it so that terminals with no declared type
+are silently dropped on the floor, so you won't see the above
+warnings about deallocating terminals.
+
 <p>Finally, the warning about merging the nonterminal AExp means that
 the parser discovered an ambiguity, but the grammar did not specify
 how to handle it, so (at least) one of the ambiguous alternatives was
