@@ -17,6 +17,7 @@ class ASTClass;
 class UserDecl;
 class CtorArg;
 
+// *** DO NOT EDIT ***
 
   #include "str.h"         // string
 
@@ -129,13 +130,22 @@ public:      // funcs
 
 
 
+// *** DO NOT EDIT ***
 
   // specifies what kind of userdecl this is; pub/priv/prot are uninterpreted
   // class members with the associated access control; ctor and dtor are
   // code to be inserted into the ctor or dtor, respectively
-  enum AccessCtl { AC_PUBLIC, AC_PRIVATE, AC_PROTECTED, AC_CTOR, AC_DTOR, AC_PUREVIRT, NUM_ACCESSCTLS };
+  enum AccessCtl {
+    AC_PUBLIC,      // access
+    AC_PRIVATE,     //   control
+    AC_PROTECTED,   //     keywords
+    AC_CTOR,        // insert into ctor
+    AC_DTOR,        // insert into dtor
+    AC_PUREVIRT,    // declare pure virtual in superclass, and impl in subclass
+    NUM_ACCESSCTLS
+  };
 
-  // map the enum value to a string like "AC_PUBLIC"
+  // map the enum value to a string like "public"
   string toString(AccessCtl acc);      // defined in ast.cc
 
 // *** DO NOT EDIT ***
