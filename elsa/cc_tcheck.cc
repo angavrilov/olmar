@@ -1469,6 +1469,10 @@ CompoundType *checkClasskeyAndName(
               "only in a templatized definition");
     return NULL;
   }
+  if (templateParams && templateParams->isEmpty() && !templateArgs) {
+    env.error("complete specialization (\"<>\") requires template args");
+    return NULL;
+  }
   if (keyword==TI_UNION && (templateParams || templateArgs)) {
     env.error("template unions are not allowed");
     return NULL;
