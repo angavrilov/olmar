@@ -87,6 +87,10 @@ public:
   // EF_ALLOW_KR_PARAM_OMIT.
   bool allow_KR_ParamOmit;
 
+  // when true, allow function definitions that omit any return type
+  // to implicitly return 'int'.
+  bool allowImplicitIntRetType;
+
   // catch-call for behaviors that are unique to C++ but aren't
   // enumerated above; these behaviors are candidates for being split
   // out as separate flags, but there currently is no need

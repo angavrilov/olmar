@@ -10,6 +10,7 @@ void CCLang::KandR_C()
   emptyParamsMeansPureVarargFunc = true;
   allowCallToUndeclFunc = true;
   allow_KR_ParamOmit = true;
+  allowImplicitIntRetType = true;
 }
 
 void CCLang::ANSI_C()
@@ -27,6 +28,16 @@ void CCLang::ANSI_C()
   compoundSelfName = false;
   allowCallToUndeclFunc = false;
   allow_KR_ParamOmit = false;
+
+  // FIX: 1) If this is right, the 'allowImplicitIntRetType = true' in
+  // K&R above is redundant; 2) I don't know if this is right, but
+  // looking at the ANSI C grammar I can find just now, it looks as
+  // though it is: http://www.lysator.liu.se/c/ANSI-C-grammar-y.html;
+  // 3) if you change this to false then you will get an assertion
+  // failure in the parser when it thinks its C++ and goes to make a
+  // constructor and then realizes it isn't C++.
+  allowImplicitIntRetType = true;
+
   isCplusplus = false;
   isC99 = true;
 }
@@ -51,6 +62,7 @@ void CCLang::ANSI_Cplusplus()
 
   allowCallToUndeclFunc = false;
   allow_KR_ParamOmit = false;
+  allowImplicitIntRetType = false;
 
   isCplusplus = true;
   isC99 = false;
