@@ -149,8 +149,6 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
   /* final, error */
 <ST_STRING>{EOL}   |
 <ST_STRING><<EOF>> {
-  lexer.error("unterminated string literal");
-
   if (yytext[0] == '\n') {
     collector.append(yytext, yyleng);
   }
@@ -159,9 +157,13 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
     // a bug in flex; its man page doesn't specify what it does), so we
     // get an extra NUL in the collected token, which I don't want
   }
-  lexer.emit(L1_STRING_LITERAL, COLLECTOR);
+  
+  if (!lexer.allowMultilineStrings) {
+    lexer.error("unterminated string literal");
+    lexer.emit(L1_STRING_LITERAL, COLLECTOR);
+    BEGIN(INITIAL);
+  }
 
-  BEGIN(INITIAL);
   if (yytext[0] != '\n') {
     yyterminate();     	  // flex man page says to do this for <<EOF>>
   }

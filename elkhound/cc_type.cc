@@ -19,6 +19,8 @@ char const *simpleTypeName(SimpleTypeId id)
     "unsigned int",
     "long int",
     "unsigned long int",
+    "long long",
+    "unsigned long long",
     "short int",
     "unsigned short int",
     "wchar_t",
@@ -194,6 +196,14 @@ string FunctionType::rightString() const
     }
     sb << iter.data()->toString();
   }
+  
+  if (acceptsVarargs) {
+    if (ct++ > 0) {
+      sb << ", ";
+    }
+    sb << "...";
+  }
+
   sb << ")";
 
   // qualifiers

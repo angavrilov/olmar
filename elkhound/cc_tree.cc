@@ -94,6 +94,8 @@ void CCTreeNode::disambiguate(Env &env, DisambFn func) const
   // see what the verdict is
   if (realReds.count() == 1) {
     // successfully disambiguated
+    trace("disamb") << "disambiguated " << getLHS()->name
+                    << " at " << locString() << endl;
   }
   else if (realReds.count() > 1) {
     // more than one worked..

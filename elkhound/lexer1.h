@@ -47,6 +47,9 @@ public:
 // L1 lexing state
 class Lexer1 {
 public:
+  // lexer options
+  bool allowMultilineStrings;             // true if newlines don't need to be escaped
+
   // lexing input state
   FileLocation loc;                       // current location
   int errors;	                          // # of errors encountered so far

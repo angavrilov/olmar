@@ -77,6 +77,11 @@ CVAtomicType *Env::makeType(AtomicType const *atomic)
 
 Type const *Env::applyCVToType(CVFlags cv, Type const *baseType)
 {
+  if (cv == CV_NONE) {
+    // keep what we've got
+    return baseType;
+  }
+
   // the idea is we're trying to apply 'cv' to 'baseType'; for
   // example, we could have gotten baseType like
   //   typedef unsigned char byte;     // baseType == unsigned char

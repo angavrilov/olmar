@@ -15,7 +15,7 @@
 Lexer1Token::Lexer1Token(Lexer1TokenType aType, char const *aText,
                	         int aLength, FileLocation const &aLoc)
   : type(aType),
-    text(aText, aLength),      // makes a copy 
+    text(aText, aLength),           // makes a copy
     length(aLength),
     loc(aLoc)
 {}
@@ -58,7 +58,8 @@ void Lexer1Token::print() const
 
 // -------------------- Lexer1 -----------------------------
 Lexer1::Lexer1()
-  : loc(),
+  : allowMultilineStrings(true),    // GNU extension
+    loc(),
     errors(0),
     tokens(),
     tokensMut(tokens)

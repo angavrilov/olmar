@@ -36,6 +36,15 @@ FILE *fopen(...);
 int fprintf(...);
 void fflush(FILE *f);
 int snprintf(...);
+typedef void AnyFn(...);
+AnyFn popen, pclose, strchr, tcgetattr;
+int TIOCGETP, SIGINT, ECHO, ECHOE,
+    ECHOK, ECHONL;
+int c_lflag, sg_flags;
+int SSH_TRACE, errno;
+AnyFn strerror, fclose, ssh_xstrdup,
+      memset, strlen;
+
 
 
 

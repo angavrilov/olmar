@@ -292,10 +292,11 @@ void Lexer2Token::print() const
 
 
 void quotedUnescape(string &dest, int &destLen, char const *src,
-                    char delim)
+                    char delim, bool allowNewlines)
 {
   // strip quotes or ticks
-  decodeEscapes(dest, destLen, string(src+1, strlen(src)-2), delim);
+  decodeEscapes(dest, destLen, string(src+1, strlen(src)-2), 
+                delim, allowNewlines);
 }
 
 
@@ -360,14 +361,16 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src)
 
         case L1_STRING_LITERAL:
           L2->type = L2_STRING_LITERAL;
-          quotedUnescape(L2->strValue, L2->strLength, L1->text, '"');
+          quotedUnescape(L2->strValue, L2->strLength, L1->text, '"', 
+                         src.allowMultilineStrings);
           break;
 
         case L1_CHAR_LITERAL: {
           L2->type = L2_CHAR_LITERAL;
           int tempLen;
           string temp;
-          quotedUnescape(temp, tempLen, L1->text, '\'');
+          quotedUnescape(temp, tempLen, L1->text, '\'', 
+                         false /*allowNewlines*/);
 
           if (tempLen != 1) {
             xformat("character literal must have 1 char");

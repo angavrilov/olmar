@@ -271,6 +271,10 @@ nonterm ExpressionListOpt : HasVarsDecld {
 //PseudoDestructorName -> Qualifier PseudoDestructorName
 
 nonterm UnaryExpression : ExprBase {
+  disamb varsDecld {
+    disambiguate(env, (DisambFn)&unamb_varsDecld);
+  }
+
   formGroup {
     fun varsDecld { e.varsDecld(env); }
 
@@ -282,7 +286,12 @@ nonterm UnaryExpression : ExprBase {
     -> e:DeleteExpression              ;
   }
 
-  -> "sizeof" "(" TypeId ")"         ;       // size of type
+  -> "sizeof" "(" t:TypeId ")" {               // size of type
+    fun varsDecld {
+      t.getType(env);     // just make sure it's a valid type, for disambiguation
+    }
+  }
+
   -> NewExpression                   ;
 }
 
@@ -866,6 +875,8 @@ nonterm SimpleTypeSpecifier : SimpleTypeBase, HasTypeName {
   -> "signed" "long"            { fun getst = ST_LONG_INT; }
   -> "long" "int"               { fun getst = ST_LONG_INT; }
   -> "long"                     { fun getst = ST_LONG_INT; }
+  -> "long" "long"              { fun getst = ST_LONG_LONG; }
+  -> "unsigned" "long" "long"   { fun getst = ST_UNSIGNED_LONG_LONG; }
   -> "signed" "short" "int"     { fun getst = ST_SHORT_INT; }
   -> "signed" "short"           { fun getst = ST_SHORT_INT; }
   -> "short" "int"              { fun getst = ST_SHORT_INT; }
@@ -920,6 +931,7 @@ nonterm SimpleCVTypeSpecifier : SimpleTypeBase, HasTypeName, HasCVFlags {
   -> "signed" "long" q:CVQualifierSeq "int"     { fun getst = ST_LONG_INT; }
   -> "signed" q:CVQualifierSeq "long"           { fun getst = ST_LONG_INT; }
   -> "long" q:CVQualifierSeq "int"              { fun getst = ST_LONG_INT; }
+  -> "unsigned" q:CVQualifierSeq "long" "long"  { fun getst = ST_UNSIGNED_LONG_LONG; }
   -> "signed" q:CVQualifierSeq "short" "int"    { fun getst = ST_SHORT_INT; }
   -> "signed" "short" q:CVQualifierSeq "int"    { fun getst = ST_SHORT_INT; }
   -> "signed" q:CVQualifierSeq "short"          { fun getst = ST_SHORT_INT; }
