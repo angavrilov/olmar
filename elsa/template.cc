@@ -95,7 +95,7 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
 /* static */
 int TemplCandidates::compareCandidatesStatic
   (TypeFactory &tfac, TemplateInfo const *lti, TemplateInfo const *rti)
-{
+{          
   // I do not even put the primary into the set so it should never
   // show up.
   xassert(lti->isNotPrimary());
@@ -415,9 +415,8 @@ bool Env::inferTemplArgsFromFuncArgs
   xassert(var->templateInfo());
   xassert(var->templateInfo()->isPrimary());
 
-  if (tracingSys("template")) {
-    cout << "Deducing template arguments from function arguments" << endl;
-  }
+  TRACE("template", "Deducing template arguments from function arguments");
+
   // FIX: make this work for vararg functions
   int i = 1;            // for error messages
   SFOREACH_OBJLIST_NC(Variable, var->type->asFunctionType()->params, paramIter) {
@@ -465,7 +464,7 @@ bool Env::inferTemplArgsFromFuncArgs
 
 bool Env::getFuncTemplArgs
   (MatchTypes &match,
-   SObjList<STemplateArgument> &sargs,
+   ObjList<STemplateArgument> &sargs,
    PQName const *final,
    Variable *var,
    TypeListIter &argListIter,
@@ -494,19 +493,26 @@ bool Env::getFuncTemplArgs
   bool haveAllArgs = true;
   SFOREACH_OBJLIST_NC(Variable, var->templateInfo()->params, templPIter) {
     Variable *param = templPIter.data();
-    STemplateArgument *sta = NULL;
+
+    STemplateArgument const *sta = NULL;
     if (param->type->isTypeVariable()) {
       sta = match.bindings.getTypeVar(param->type->asTypeVariable());
-    } else {
+    } 
+    else {
       sta = match.bindings.getObjVar(param);
     }
+
     if (!sta) {
       if (reportErrors) {
         error(stringc << "No argument for parameter `" << templPIter.data()->name << "'");
       }
       haveAllArgs = false;
     }
-    sargs.append(sta);
+    else {
+      // the 'sta' we have is owned by 'match' and will go away when
+      // it does; make a copy that 'sargs' can own
+      sargs.append(new STemplateArgument(*sta));
+    }
   }
   return haveAllArgs;
 }
@@ -567,7 +573,7 @@ Variable *Env::lookupPQVariable_function_with_args(
   xassert(var->templateInfo()->isPrimary());
 
   // get the semantic template arguments
-  SObjList<STemplateArgument> sargs;
+  ObjList<STemplateArgument> sargs;
   {
     TypeListIter_FakeList argListIter(funcArgs);
     MatchTypes match(tfac, MatchTypes::MM_BIND);
@@ -714,7 +720,7 @@ void Env::insertBindingsForPartialSpec
       !paramIter.isDone();
       paramIter.adv()) {
     Variable *param = paramIter.data();
-    STemplateArgument *arg = NULL;
+    STemplateArgument const *arg = NULL;
     if (param->type->isTypeVariable()) {
       arg = bindings.getTypeVar(param->type->asTypeVariable());
     } else {
@@ -1611,6 +1617,23 @@ Variable *Env::instantiateTemplate
 }
 
 
+// variant that accepts an ObjList of arguments
+Variable *Env::instantiateTemplate
+  (SourceLoc loc,
+   Scope *foundScope,
+   Variable *baseV,
+   Variable *instV,
+   Variable *bestV,
+   ObjList<STemplateArgument> &sargs,
+   Variable *funcFwdInstV)
+{
+  // hack it with a cast
+  return instantiateTemplate(loc, foundScope, baseV, instV, bestV,
+                             reinterpret_cast<SObjList<STemplateArgument>&>(sargs),
+                             funcFwdInstV);
+}
+
+
 // given a name that was found without qualifiers or template arguments,
 // see if we're currently inside the scope of a template definition
 // with that name
@@ -1841,8 +1864,7 @@ void Env::instantiateForwardFunctions(Variable *forward, Variable *primary)
        NULL /*instV; only used by instantiateForwardClasses; this
               seems to be a fundamental difference*/,
        forward /*bestV*/,
-       reinterpret_cast< SObjList<STemplateArgument>& >  // hack..
-         (instV->templateInfo()->arguments),
+       instV->templateInfo()->arguments,
        // don't actually add the instantiation to the primary's
        // instantiation list; we will do that below
        instV
@@ -1890,8 +1912,7 @@ void Env::instantiateForwardClasses(Scope *scope, Variable *baseV)
                           baseV,
                           instV /*use this one*/,
                           NULL /*bestV*/,
-                          reinterpret_cast< SObjList<STemplateArgument>& >  // hack..
-                            (inst->templateInfo()->arguments)
+                          inst->templateInfo()->arguments
                           );
     }
     else {

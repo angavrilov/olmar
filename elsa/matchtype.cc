@@ -73,6 +73,19 @@ XMatchDepth::~XMatchDepth()
 
 
 // ---------------------- MatchBindings ---------------------
+MatchBindings::MatchBindings() 
+  : entryCount(0) 
+{}
+
+MatchBindings::~MatchBindings()
+{
+  // delete all the STemplateArguments from the map
+  PtrMap<Variable, STemplateArgument>::Iter iter(map);
+  for (; !iter.isDone(); iter.adv()) {
+    delete iter.value();
+  }
+}
+
 
 void MatchBindings::put0(Variable *key, STemplateArgument *val) {
   xassert(key);
@@ -98,13 +111,13 @@ STemplateArgument *MatchBindings::get0(Variable *key) {
   return map.get(key);
 }
 
-STemplateArgument *MatchBindings::getObjVar(Variable *key) {
+STemplateArgument const *MatchBindings::getObjVar(Variable *key) {
   xassert(key);
   xassert(!key->type->isTypeVariable());
   return get0(key);
 }
 
-STemplateArgument *MatchBindings::getTypeVar(TypeVariable *key) {
+STemplateArgument const *MatchBindings::getTypeVar(TypeVariable *key) {
   xassert(key);
   return get0(key->typedefVar);
 }
@@ -227,9 +240,12 @@ bool MatchTypes::match_rightTypeVar(Type *a, Type *b, int matchDepth)
   switch(mode) {
   default: xfailure("illegal MatchTypes mode"); break;
 
+  case MM_BIND_UNIQUE:
   case MM_BIND: {
-    if (a->isTypeVariable()) xfailure("MatchTypes: got a type variable on the left");
-    STemplateArgument *targb = bindings.getTypeVar(b->asTypeVariable());
+    if (mode == MM_BIND && a->isTypeVariable()) {
+      xfailure("MatchTypes: got a type variable on the left");
+    }
+    STemplateArgument const *targb = bindings.getTypeVar(b->asTypeVariable());
     if (targb) {
       return targb->kind==STemplateArgument::STA_TYPE
         && match0(a, targb->value.t,
@@ -252,7 +268,7 @@ bool MatchTypes::match_rightTypeVar(Type *a, Type *b, int matchDepth)
   } // end case MM_WILD
 
   case MM_ISO: {
-    STemplateArgument *targb = bindings.getTypeVar(b->asTypeVariable());
+    STemplateArgument const *targb = bindings.getTypeVar(b->asTypeVariable());
     if (targb) {
       if (targb->kind!=STemplateArgument::STA_TYPE) return false;
       if (!a->isTypeVariable()) return false;
@@ -299,9 +315,10 @@ bool MatchTypes::match_variables(Type *a, TypeVariable *b, int matchDepth)
     case MM_WILD:
       return true;
 
+    case MM_BIND_UNIQUE:
     case MM_ISO: {
       // copied+modified from match_rightTypeVar
-      STemplateArgument *targb = bindings.getTypeVar(b);
+      STemplateArgument const *targb = bindings.getTypeVar(b);
       if (targb) {
         if (targb->kind!=STemplateArgument::STA_TYPE) return false;
         xassert(targb->value.t->isTypeVariable());
@@ -348,6 +365,7 @@ bool MatchTypes::match_cva(CVAtomicType *a, Type *b, int matchDepth)
       return false;
       break;
 
+    case MM_BIND_UNIQUE:
     case MM_ISO:
       return false;
       break;
@@ -697,7 +715,7 @@ bool MatchTypes::match_PI(PseudoInstantiation *a, PseudoInstantiation *b,
 // helper function for when we find an int
 bool MatchTypes::unifyIntToVar(int i0, Variable *v1)
 {
-  STemplateArgument *v1old = bindings.getObjVar(v1);
+  STemplateArgument const *v1old = bindings.getObjVar(v1);
   // is this variable already bound?
   if (v1old) {
     // check that the current value matches the bound value
@@ -869,6 +887,7 @@ char const *toString(MatchTypes::MatchMode m)
   static char const * const map[] = {
     "MM_NONE",
     "MM_BIND",
+    "MM_BIND_UNIQUE",
     "MM_WILD",
     "MM_ISO"
   };

@@ -45,29 +45,33 @@
 #include "strsobjdict.h"        // StringSObjDict
 
 class MatchBindings {
-  private:
-  // primary map from vars to their bindings
+private:     // data
+  // primary map from vars to their bindings; the STemplateArguments
+  // are owned by this map
   PtrMap<Variable, STemplateArgument> map;
 
   // count the entries; they can't be deleted or overwritten
   int entryCount;
 
-  public:
-  MatchBindings() : entryCount(0) {}
-
-  private:
+private:     // funcs
   void put0(Variable *key, STemplateArgument *val);
   STemplateArgument *get0(Variable *key);
 
-  public:
+public:      // funcs
+  MatchBindings();
+  ~MatchBindings();
+
   // if key is bindable, map it to val; otherwise fail
   void putObjVar(Variable *key, STemplateArgument *val);
   void putTypeVar(TypeVariable *key, STemplateArgument *val);
 
   // get the value of a key; FIX: hmm, a non-bound key looks the same
   // as a non-bindable key
-  STemplateArgument *getObjVar(Variable *key);
-  STemplateArgument *getTypeVar(TypeVariable *key);
+  //
+  // these return serf pointers which will become invalid once
+  // this MatchBindings object goes away
+  STemplateArgument const *getObjVar(Variable *key);
+  STemplateArgument const *getTypeVar(TypeVariable *key);
 
   // are the number of bound (not just bindable) entries greater than
   // zero?
@@ -116,6 +120,11 @@ public:                         // types
     // left, and if bound are replaced with their binding and matching
     // continues.  Vars on the left: result in an assertion failure.
     MM_BIND,
+
+    // same as MM_BIND except vars on left are regarded as naming a
+    // unique type (with no relation to same-named vars on the right);
+    // this is for 14.5.5.2
+    MM_BIND_UNIQUE,
 
     // Wildcard Typevars; Vars on the right: are just wildcards,
     // matching anything, but making no record of that match.  Vars on

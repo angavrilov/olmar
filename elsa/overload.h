@@ -170,7 +170,7 @@ public:      // funcs
   // process a batch of candidate functions, adding the viable
   // ones to the 'candidates' list
   void addCandidate(Variable *var0, Variable *instFrom = NULL);
-  void addTemplCandidate(Variable *baseV, Variable *var0, SObjList<STemplateArgument> &sargs);
+  void addTemplCandidate(Variable *baseV, Variable *var0, ObjList<STemplateArgument> &sargs);
   void processCandidates(SObjList<Variable> &varList);
   void processCandidate(Variable *v);
 

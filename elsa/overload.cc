@@ -123,7 +123,7 @@ void OverloadResolver::addCandidate(Variable *var0, Variable *instFrom)
 }
 
 void OverloadResolver::addTemplCandidate
-  (Variable *baseV, Variable *var0, SObjList<STemplateArgument> &sargs)
+  (Variable *baseV, Variable *var0, ObjList<STemplateArgument> &sargs)
 {
   Variable *var0inst =
     env.instantiateTemplate
@@ -165,7 +165,7 @@ void OverloadResolver::processCandidate(Variable *v)
   xassert(vTI->isPrimary());
 
   // get the semantic template arguments
-  SObjList<STemplateArgument> sargs;
+  ObjList<STemplateArgument> sargs;
   {
     // FIX: This is a bug!  If the args contain template parameters,
     // they will be the wrong template parameters.
@@ -515,6 +515,20 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate
   return c.xfr();
 }
 
+  
+// 14.5.5.2 paras 3 and 4
+bool atLeastAsSpecializedAs(TypeFactory &tfac, Type *concrete, Type *pattern)
+{
+  // TODO: this isn't quite right:
+  //   - I use the return type regardless of whether this is
+  //     a template conversion function
+  //   - I don't do "argument deduction", I just match.  Maybe
+  //     that is equivalent?
+
+  MatchTypes match(tfac, MatchTypes::MM_BIND_UNIQUE);
+  return match.match_Type(concrete, pattern);
+}
+
 
 // compare overload candidates, returning:
 //   -1 if left is better
@@ -609,42 +623,29 @@ int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *
     // NOTE: we use the instFrom field here instead of the var
     xassert(left->instFrom);
     xassert(right->instFrom);
-    TemplateInfo *lti = left->instFrom->templateInfo();
-    TemplateInfo *rti = right->instFrom->templateInfo();
-    // if they don't have the same primary, they are not comparable
-    if (lti->getMyPrimaryIdem() != rti->getMyPrimaryIdem()) {
-      return 0;
+
+    // sm: I think we just compare the candidates directly; there is
+    // no notion of partial specialization for function templates, so
+    // all the old stuff about primaries doesn't make sense
+
+    // this section implements cppstd 14.5.5.2
+
+    Type *leftType = left->instFrom->type;
+    Type *rightType = right->instFrom->type;
+
+    // who is "at least as specialized" as who?
+    bool left_ALA = atLeastAsSpecializedAs(env.tfac, leftType, rightType);
+    bool right_ALA = atLeastAsSpecializedAs(env.tfac, rightType, leftType);
+    if (left_ALA && !right_ALA) {
+      // left is "more specialized"
+      return -1;
     }
-    if (lti->isPrimary()) {
-      if (rti->isPrimary()) {
-        // if both have the same primary and both are a primary, they must be equal
-        xassert(lti == rti);
-        // you can't have the same primary twice in an overload set
-        xfailure("duplicate primaries");
-        // no return
-      } else {
-        // left is a primary, right is not, they both have the same
-        // primary, then right is more specific
-        xassert(rti->getMyPrimaryIdem() == lti);
-        return +1;
-      }
-    } else {
-      if (rti->isPrimary()) {
-        // right is a primary, left is not, they both have the same
-        // primary, then left is more specific
-        xassert(lti->getMyPrimaryIdem() == rti);
-        return -1;
-      } else {
-        // neither is a primary, but both have the same primary;
-        // return the one that is the most specific
-        int comp = TemplCandidates::compareCandidatesStatic(env.tfac, lti, rti);
-        if (comp!=0) {
-          return comp;
-        } else {
-          // otherwise, we fall through to the below; FIX: does the
-          // below code even make sense in the presence of templates?
-        }
-      }
+    else if (!left_ALA && right_ALA) {
+      // right is "more specialized"
+      return +1;
+    }
+    else {
+      // fall through to remaining tests
     }
   }
 

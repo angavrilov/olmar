@@ -450,6 +450,7 @@ testparse t0226.cc
 testparse t0227.cc
 testparse t0228.cc
 testparse t0229.cc
+testparse t0230.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -584,6 +585,8 @@ if $use_gnu; then
   testparse gnu/g0008.cc
   # g0009.c is a C test
   testparse gnu/g0010.cc
+  failparse gnu/g0011.cc "parse error"
+  failparse gnu/g0012.cc "parse error"
 
   testparse gnu/t0124.cc
   testparse gnu/t0125.cc

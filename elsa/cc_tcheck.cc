@@ -2381,7 +2381,19 @@ realStart:
   // otherwise for function templates is that they will appear to be
   // in the overload set of their primary, which is what the lookup
   // for 'prior' found above.
-  if (overloadSet && dt.type->isFunctionType()) {
+  //
+  // sm: 7/30/04: For in/t0230.cc, the call to
+  // 'findTemplPrimaryForSignature' yields a bogus error about
+  // ambiguity.  Since the comment above suggests this is only
+  // important for specializations, and functions cannot be partially
+  // specialized, I'm adding a check that we only enter the following
+  // block of the type is concrete (no variables).  I don't think this
+  // is the right fix, in fact I suspect this entire block should
+  // simply be deleted and some fix made elsewhere, but it will do for
+  // now.
+  if (overloadSet &&
+      dt.type->isFunctionType() &&
+      !dt.type->containsVariables()) {
     // FIX: other places I used MM_WILD, but I think MM_BIND is
     // probably right; UPDATE: MM_BIND doesn't work because the
     // signature might contain type variables, which is not allowed
@@ -5075,6 +5087,8 @@ Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
   }
 
   if (env.lang.complainUponBadDeref) {
+    // TODO: "dereference" is misspelled; not fixing right now since
+    // we're in the middle of binning errors
     return env.error(rt, stringc
       << "cannot derefence non-pointer `" << rt->toString() << "'");
   }

@@ -343,8 +343,12 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     tunit(tunit0),
 
     currentLinkage(quote_C_plus_plus_quote),
+    
+    // 7/30/04: I'm now making this default to true, with a tracing
+    // flag to turn it back off, since I think our overload
+    // implementation is now mature enough.
+    doOverload(!tracingSys("doNotOverload") && lang.allowOverloading),
 
-    doOverload(tracingSys("doOverload") && lang.allowOverloading),
     doOperatorOverload(tracingSys("doOperatorOverload") && lang.allowOverloading),
     collectLookupResults(NULL),
     

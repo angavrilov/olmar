@@ -613,7 +613,7 @@ public:      // template funcs
   // get both the explicit and implicit function template arguments
   bool getFuncTemplArgs
     (MatchTypes &match,
-     SObjList<STemplateArgument> &sargs,
+     ObjList<STemplateArgument> &sargs,
      PQName const *final,
      Variable *var,
      TypeListIter &argListIter,
@@ -699,6 +699,16 @@ public:      // template funcs
      Variable *baseV, Variable *instV,
      ASTList<TemplateArgument> const &astArgs);
 
+  // variant that accepts an ObjList of arguments
+  Variable *instantiateTemplate
+    (SourceLoc loc,
+     Scope *foundScope,
+     Variable *baseV,
+     Variable *instV,
+     Variable *bestV,
+     ObjList<STemplateArgument> &sargs,
+     Variable *funcFwdInstV=NULL);
+   
   // pick the MatchMode appropriate for the the TemplTcheckMode
   MatchTypes::MatchMode mapTcheckModeToTypeMatchMode(TemplTcheckMode tcheckMode);
 
