@@ -142,6 +142,7 @@ OBJS := \
 -include $(OBJS:.o=.d)
 
 $(THIS): $(OBJS)
+	rm -f $(THIS)
 	$(AR) -r $(THIS) $(OBJS)
 	$(RANLIB) $(THIS)
 
