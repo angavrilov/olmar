@@ -228,7 +228,8 @@ Scope *Env::lookupQualifiedScope(PQName const *name)
         // alternatively, I could just re-traverse the original name;
         // I'm lazy for now
         error(stringc
-          << "cannot find class `" << qual << "' for `" << *name << "'");
+          << "cannot find class `" << qual << "' for `" << *name << "'",
+          true /*disambiguating*/);
         return NULL;
       }
 
@@ -261,7 +262,8 @@ Variable *Env::lookupPQVariable(PQName const *name)
     if (!var) {
       error(stringc
         << name->qualifierString() << " has no member called `"
-        << name->getName() << "'");
+        << name->getName() << "'",
+        true /*disambiguating*/);
       return NULL;
     }
   }
@@ -328,7 +330,8 @@ CompoundType *Env::lookupPQCompound(PQName const *name)
     if (!ret) {
       error(stringc
         << name->qualifierString() << " has no class/struct/union called `"
-        << name->getName() << "'");
+        << name->getName() << "'",
+        true /*disambiguating*/);
       return NULL;
     }
 
@@ -365,7 +368,8 @@ EnumType *Env::lookupPQEnum(PQName const *name)
     if (!ret) {
       error(stringc
         << name->qualifierString() << " has no enum called `"
-        << name->getName() << "'");
+        << name->getName() << "'",
+        true /*disambiguating*/);
       return NULL;
     }
 
@@ -430,6 +434,19 @@ Type const *Env::unimp(char const *msg)
 
   errors.prepend(new ErrorMsg(stringc << "unimplemented: " << msg, loc()));
   return getSimpleType(ST_ERROR);
+}
+
+
+Type const *Env::error(Type const *t, char const *msg)
+{
+  if (t->shouldSuppressClashes()) {
+    // no report
+    return getSimpleType(ST_ERROR);
+  }
+  else {
+    // report; clashes never disambiguate
+    return error(msg, false /*disambiguates*/);
+  }
 }
 
 

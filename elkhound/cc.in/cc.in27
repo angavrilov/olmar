@@ -10,15 +10,27 @@ template <class T>
 class Foo {
 public:
   T x;
+  
+  T get();
 };
 
 //ERROR1: template <class TT> class Foo {};   // already defined
+
+template <class T>
+T Foo::get()
+{
+  return 3;
+}
 
 int main()
 {
   Foo<int> h;
   h.x;
   //ERROR3: h.y;   // no field
+  
+  Foo<int*> g;
+  *( g.x );        // will complain that 'typename T' isn't a pointer..
+  
 }
 
 
