@@ -512,7 +512,7 @@ failparse t0280.cc "overloading + template arg application"
 failparse t0281.cc "STA_REFERENCE hack problem"
 testparse t0282.cc
 failparse t0283.cc "no viable candidate (not minimized)"
-failparse t0284.cc "out of line class defn"
+testparse t0284.cc
 failparse t0285.cc "assertion failure (not minimized)"
 testparse t0286.cc
 

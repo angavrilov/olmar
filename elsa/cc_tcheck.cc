@@ -1519,15 +1519,19 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   }
 
   // lookup scopes in the name, if any
+  ScopeSeq qualifierScopes;
   if (name) {
     name->tcheck(env);
   }
+  env.getQualifierScopes(qualifierScopes, name);
+  env.extendScopeSeq(qualifierScopes);
 
   // figure out which class the (keyword, name) pair refers to
   CompoundType *ct =
     checkClasskeyAndName(env, loc, dflags, keyword, name);
-  if (!ct) {                  
+  if (!ct) {
     // error already reported
+    env.retractScopeSeq(qualifierScopes);
     this->ctype = env.errorCompoundType;
     return this->ctype->typedefVar->type;
   }
@@ -1541,6 +1545,8 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   // would have already emitted an error!  nothing is accomplished
   // by this...
   //env.instantiateForwardClasses(ct->typedefVar);
+
+  env.retractScopeSeq(qualifierScopes);
 
   return ct->typedefVar->type;
 }
