@@ -3782,8 +3782,8 @@ Type *E_variable::itcheck_var(Env &env, LookupFlags flags)
       // dsw: I need a way of handling builtins; there are too many to
       // add manually
       // FIX: these should be somewhere else
-      char const * const builtin = "__builtin";
-      int const builtin_len = strlen(builtin);
+      static char const * const builtin = "__builtin";
+      static int const builtin_len = strlen(builtin);
       if (name->isPQ_name() &&
           strncmp(name->asPQ_name()->name, builtin, builtin_len)==0) {
         v = env.makeUndeclFuncVar(name->asPQ_name()->name);
