@@ -2192,3 +2192,124 @@ nonterm(FakeList<ASTTypeId>*) TypeIdList {
        { t->setNext(list->first());
          return FakeList<ASTTypeId>::makeList(t); }
 }
+
+
+// ------ attributes ------
+// http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Attribute-Syntax.html#Attribute%20Syntax
+
+// "A word (which may be an identifier such as unused, or a reserved
+// word such as const)."
+nonterm AttributeWord {
+  // non-keyword name
+  -> n:TOK_NAME { return 0; }
+
+  // classified name (for e.g. cdecl2)
+  -> tn:TOK_TYPE_NAME { return 0; }
+  -> vn:TOK_VARIABLE_NAME { return 0; }
+
+  // keywords
+  -> "asm" { return 0; }
+  -> "auto" { return 0; }
+  -> "break" { return 0; }
+  -> "bool" { return 0; }
+  -> "case" { return 0; }
+  -> "catch" { return 0; }
+  -> "cdecl" { return 0; }
+  -> "char" { return 0; }
+  -> "class" { return 0; }
+  -> "const" { return 0; }
+  -> "const_cast" { return 0; }
+  -> "continue" { return 0; }
+  -> "default" { return 0; }
+  -> "delete" { return 0; }
+  -> "do" { return 0; }
+  -> "double" { return 0; }
+  -> "dynamic_cast" { return 0; }
+  -> "else" { return 0; }
+  -> "enum" { return 0; }
+  -> "explicit" { return 0; }
+  -> "export" { return 0; }
+  -> "extern" { return 0; }
+  -> "false" { return 0; }
+  -> "float" { return 0; }
+  -> "for" { return 0; }
+  -> "friend" { return 0; }
+  -> "goto" { return 0; }
+  -> "if" { return 0; }
+  -> "inline" { return 0; }
+  -> "int" { return 0; }
+  -> "long" { return 0; }
+  -> "mutable" { return 0; }
+  -> "namespace" { return 0; }
+  -> "new" { return 0; }
+  -> "operator" { return 0; }
+  -> "pascal" { return 0; }
+  -> "private" { return 0; }
+  -> "protected" { return 0; }
+  -> "public" { return 0; }
+  -> "register" { return 0; }
+  -> "reinterpret_cast" { return 0; }
+  -> "return" { return 0; }
+  -> "short" { return 0; }
+  -> "signed" { return 0; }
+  -> "sizeof" { return 0; }
+  -> "static" { return 0; }
+  -> "static_cast" { return 0; }
+  -> "struct" { return 0; }
+  -> "switch" { return 0; }
+  -> "template" { return 0; }
+  -> "this" { return 0; }
+  -> "throw" { return 0; }
+  -> "true" { return 0; }
+  -> "try" { return 0; }
+  -> "typedef" { return 0; }
+  -> "typeid" { return 0; }
+  -> "typename" { return 0; }
+  -> "union" { return 0; }
+  -> "unsigned" { return 0; }
+  -> "using" { return 0; }
+  -> "virtual" { return 0; }
+  -> "void" { return 0; }
+  -> "volatile" { return 0; }
+  -> "wchar_t" { return 0; }
+  -> "while" { return 0; }
+
+  // don't know if I need to allow these; gcc 2.95.3 doesn't like them
+  //  // GNU extensions
+  //  TOK___ATTRIBUTE__,       "__attribute__",             :    n
+  //  TOK___FUNCTION__,        "__FUNCTION__",              :    n
+  //  TOK___LABEL__,           "__label__",                 :    n
+  //  TOK___PRETTY_FUNCTION__, "__PRETTY_FUNCTION__",       :    n
+  //  TOK___TYPEOF__,          "__typeof__",                :    n
+}
+
+
+nonterm CommaSepExpressionList {
+  -> empty { return 0; }
+  -> e:Expression { return 0; }
+  -> el:CommaSepExpressionList "," e:Expression { return 0; }
+}
+
+
+nonterm AttributeParameters {
+  -> id:Identifier exprs:CommaSepExpressionList { return 0; }
+  -> exprs:CommaSepExpressionList { return 0; }
+}
+
+
+nonterm Attribute {
+  -> empty { return 0; }
+  -> w:AttributeWord { return 0; }
+  -> w:AttributeWord "(" appo:AttributeParameters ")" { return 0; }
+}
+
+
+nonterm AttributeList {
+  -> at:Attribute { return 0; }
+  -> ap:AttributeParameters "," at:Attribute { return 0; }
+}
+
+
+nonterm AttributeSpecifier {
+  -> "__attribute__" "(" "(" ap:AttributeList ")" ")" { return 0; }
+}
