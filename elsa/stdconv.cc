@@ -558,10 +558,8 @@ StandardConversion getStandardConversion
   }
 
   if (isNumeric(src, srcSimple) &&
-      isNumeric(dest, destSimple)) {
-    // should only happen when at least one of the types is floating,
-    // since 'bool' was accounted for already
-    xassert(srcFloat || destFloat);
+      isNumeric(dest, destSimple) &&
+      (srcFloat || destFloat)) {     // last test required if both are enums
     return conv.ret | SC_FLOAT_INT_CONV;
   }
 

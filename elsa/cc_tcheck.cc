@@ -2370,6 +2370,13 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
       continue;
     }
 
+    if (v->type->isSimple(ST_ELLIPSIS)) {
+      // no need for as careful checking as for ST_VOID, since the
+      // grammar ensures it's last, etc.
+      ft->acceptsVarargs = true;
+      break;
+    }
+
     v->type = normalizeParameterType(env, loc, v->type);
 
     // get the default argument, if any

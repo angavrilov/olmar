@@ -32,11 +32,12 @@ enum StandardConversion {
 class Foo {};
 class Incomplete;
 enum Enum {};
+enum Enum2 {};
 
 class Base {};
 class Ambiguous {};
 class Virtual {};
-class Derived : public Base, public Ambiguous, public Ambiguous, 
+class Derived : public Base, public Ambiguous, public Ambiguous,
                 virtual public Virtual {};
 
 void f()
@@ -49,7 +50,7 @@ void f()
   __getStandardConversion((int const &)0, (int)0, SC_LVAL_TO_RVAL);
   __getStandardConversion((Foo &)0, (Foo)0, SC_LVAL_TO_RVAL);
   __getStandardConversion((Foo const &)0, (Foo const)0, SC_LVAL_TO_RVAL);
-  
+
   // I can't tell if this is really supposed to be an error.. and
   // for now my implementation doesn't classify it as such
   //__getStandardConversion((Foo const &)0, (Foo)0, SC_ERROR);
@@ -104,6 +105,10 @@ void f()
   __getStandardConversion((wchar_t)0, (int)0, SC_INT_PROM);
   __getStandardConversion((Enum)0, (int)0, SC_INT_PROM);
   __getStandardConversion((bool)0, (int)0, SC_INT_PROM);
+
+  __getStandardConversion((int)0, (Enum)0, SC_ERROR);
+  __getStandardConversion((Enum2)0, (Enum)0, SC_ERROR);
+  __getStandardConversion((Enum)0, (Enum)0, SC_IDENTITY);
 
   // TODO: test bitfields once they're implemented as distinct types
 
