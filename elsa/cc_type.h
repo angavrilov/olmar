@@ -581,8 +581,8 @@ public:
   // given a type, qualify it with 'cv'; return NULL if the base type
   // cannot be so qualified; I pass the syntax from which the 'cv'
   // flags were derived, for the benefit of extension analyses
-  virtual Type *applyQualifiersToType(CVFlags cv, Type *baseType,
-                                      TypeSpecifier *syntax);
+  virtual Type *applyCVToType(CVFlags cv, Type *baseType,
+                              TypeSpecifier *syntax);
 
   // this is called in a few specific circumstances when we want to
   // know the reference type corresponding to some variable; the

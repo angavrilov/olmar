@@ -1037,8 +1037,8 @@ Type *TypeFactory::cloneType(Type *src)
 }
 
 
-Type *TypeFactory::applyQualifiersToType(CVFlags cv, Type *baseType,
-                                         TypeSpecifier *)
+Type *TypeFactory::applyCVToType(CVFlags cv, Type *baseType,
+                                 TypeSpecifier *)
 {
   if (baseType->isError()) {
     return baseType;
