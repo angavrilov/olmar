@@ -1,5 +1,5 @@
 /* A Bison parser, made from grampar.y
-   by GNU bison 1.35.  */
+   by GNU bison 1.35.  */  /* tweak */
 
 #define YYBISON 1  /* Identify Bison output.  */
 

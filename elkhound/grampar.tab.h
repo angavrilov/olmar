@@ -1,4 +1,4 @@
-#ifndef BISON_GRAMPAR_TAB_H
+#ifndef BISON_GRAMPAR_TAB_H    /* tweak */
 # define BISON_GRAMPAR_TAB_H
 
 #ifndef YYSTYPE

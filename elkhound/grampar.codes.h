@@ -1,4 +1,4 @@
-# define BISON_GRAMPAR_TAB_H
+# define BISON_GRAMPAR_TAB_H     /* tweak */
 # define YYSTYPE yystype
 # define YYSTYPE_IS_TRIVIAL 1
 # define	TOK_INTEGER	257
