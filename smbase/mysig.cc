@@ -201,6 +201,7 @@ void setHandler(int, SignalHandler) {}
 void printHandler(int) {}
 jmp_buf sane_state;
 void jmpHandler(int) {}
+void printSegfaultAddrs() {}
 
 #ifdef TEST_MYSIG
 int main()
@@ -210,4 +211,4 @@ int main()
 }
 #endif // TEST_MYSIG
 
-#endif
+#endif     // cygwin
