@@ -684,7 +684,7 @@ nonterm PostfixExpression : ExprBase {
       // struct we just found
       Variable *field; field = n.typeCheck(ctype.env);
 
-      return newFieldRef(recordLval.xfr(), field);
+      return newFieldRef(recordLval.xfr(), field, &ctype);
     }
   }
 

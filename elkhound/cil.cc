@@ -357,7 +357,8 @@ CilLval *CilLval::clone() const
     case T_FIELDREF:
       return newFieldRef(treeNode, 
                          fieldref.record->clone(), 
-                         fieldref.field);
+                         fieldref.field,
+                         fieldref.recType);
 
     case T_CASTL:
       return newCastLval(treeNode,
@@ -381,6 +382,7 @@ string CilLval::toString() const
       return stringc << "(* " << deref.addr->toString() << ")";
     case T_FIELDREF:
       return stringc << "(" << fieldref.record->toString()
+                     << " /""*" << fieldref.recType->name << "*/"    // odd syntax to avoid irritating emacs' highlighting
                      << " . " << fieldref.field->name << ")";
     case T_CASTL:
       return stringc << "(@[" << castl.type->toString()
@@ -422,11 +424,13 @@ CilLval *newDeref(CCTreeNode *tn, CilExpr *ptr)
   return ret;
 }
 
-CilLval *newFieldRef(CCTreeNode *tn, CilLval *record, Variable *field)
+CilLval *newFieldRef(CCTreeNode *tn, CilLval *record, Variable *field,
+                     CompoundType const *recType)
 {
   CilLval *ret = new CilLval(tn, CilLval::T_FIELDREF);
   ret->fieldref.record = record;
   ret->fieldref.field = field;
+  ret->fieldref.recType = recType;
   return ret;
 }
 
@@ -1309,11 +1313,13 @@ void CilContext::addVarDecl(Variable *var) const
 {
   if (!isTrial) {
     if (fn) {
+      xassert(!var->isGlobal());
       fn->locals.append(var);
     }
     else {
       // it's a global if we're not in the context
       // of any function definition
+      xassert(var->isGlobal());
       prog->globals.append(var);
     }
   }

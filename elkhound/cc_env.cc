@@ -515,6 +515,10 @@ Variable *Env::declareVariable(CCTreeNode const *node, char const *name,
     }
 
     else /*not already mapped*/ {
+      if (isGlobalEnv()) {
+        flags = (DeclFlags)(flags | DF_GLOBAL);
+      }
+
       ret = addVariable(name, flags, type);
     }
 

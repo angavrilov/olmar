@@ -97,7 +97,7 @@ public:      // funcs
 
   MKCILCTOR1(CilLval,  newVarRef,  Variable*,var)
   MKCILCTOR1(CilLval,  newDeref,  CilExpr*,ptr)
-  MKCILCTOR2(CilLval,  newFieldRef,  CilLval*,record, Variable*,field)
+  MKCILCTOR3(CilLval,  newFieldRef,  CilLval*,record, Variable*,field, CompoundType const*,recType)
   MKCILCTOR2(CilLval,  newCastLval,  Type const*,type, CilLval*,lval)
   MKCILCTOR2(CilLval,  newArrayAccess,  CilExpr*,array, CilExpr*,index)
 

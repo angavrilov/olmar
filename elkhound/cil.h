@@ -12,6 +12,7 @@
 // other files
 class Type;            // cc_type.h
 class FunctionType;    // cc_type.h
+class CompoundType;    // cc_type.h
 class Env;             // cc_env.h
 class Variable;        // cc_env.h
 class BBContext;       // stmt2bb.cc
@@ -187,6 +188,7 @@ public:      // data
     struct {
       CilLval *record;     // (owner) names the record itself (*not* its address)
       Variable *field;     // (serf) field entry in compound type's 'env'
+      CompoundType const *recType;  // (serf) type of 'record' (possibly temporary hack)
     } fieldref;
 
     // T_CASTL
@@ -216,7 +218,8 @@ public:      // funcs
 
 CilLval *newVarRef(CCTreeNode *tn, Variable *var);
 CilLval *newDeref(CCTreeNode *tn, CilExpr *ptr);
-CilLval *newFieldRef(CCTreeNode *tn, CilLval *record, Variable *field);
+CilLval *newFieldRef(CCTreeNode *tn, CilLval *record, Variable *field, 
+                     CompoundType const *recType);
 CilLval *newCastLval(CCTreeNode *tn, Type const *type, CilLval *lval);
 CilLval *newArrayAccess(CCTreeNode *tn, CilExpr *array, CilExpr *index);
 
@@ -544,7 +547,7 @@ public:
   CilFnDefn(CCTreeNode *tn, Variable *v)
     : CilThing(tn), var(v), bodyStmt(tn) {}
   ~CilFnDefn();
-                                              
+
   // stmts==true: print statements
   // stmts==false: print basic blocks
   void printTree(int indent, ostream &os, bool stmts=true) const;

@@ -14,8 +14,10 @@ class CCTreeNode;         // cc_tree.h
 
 
 // set of declaration modifiers present
-enum DeclFlags {
+enum DeclFlags {   
   DF_NONE        = 0x0000,
+
+  // syntactic declaration modifiers
   DF_INLINE      = 0x0001,
   DF_VIRTUAL     = 0x0002,
   DF_FRIEND      = 0x0004,
@@ -25,7 +27,11 @@ enum DeclFlags {
   DF_REGISTER    = 0x0040,
   DF_STATIC      = 0x0080,
   DF_EXTERN      = 0x0100,
+  
+  // other stuff that's convenient for me
   DF_ENUMVAL     = 0x0200,    // not really a decl flag, but a Variable flag..
+  DF_GLOBAL      = 0x0400,    // set for globals, unset for locals
+
   ALL_DECLFLAGS  = 0x03FF,
 };
 
@@ -51,6 +57,8 @@ public:     // funcs
   //   - 'type' points to the enum itself
   //   - 'enumValue' gives the constant value
   bool isEnumValue() const { return declFlags & DF_ENUMVAL; }
+  
+  bool isGlobal() const { return declFlags & DF_GLOBAL; }
 };
 
 
@@ -232,6 +240,9 @@ public:     // funcs
   // make up a fresh variable name and install it into
   // the environment with the given type
   Variable *newTmpVar(Type const *type);
+
+  // true if this is the toplevel, global environment
+  bool isGlobalEnv() const { return parent==NULL; }
 
   // debugging
   string toString() const;
