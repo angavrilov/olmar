@@ -33,6 +33,14 @@ struct G {
   operator bool& ();        
 };
 
+struct H {
+  operator int*& ();
+};
+
+struct I {
+  operator int* volatile & ();
+};
+
 void f1()
 {
   A a;
@@ -42,6 +50,8 @@ void f1()
   E e;
   F f;
   G g;
+  H h;
+  I i;
 
   --a;                          // A::operator int& ()
   __testOverload(--b, 13);      // B::operator -- ()
@@ -49,10 +59,14 @@ void f1()
   //ERROR(1): --d;              // not an lvalue
   //ERROR(2): --e;              // can't unify with VQ T&
   //ERROR(5): --g;              // not legal for --
+  --h;
+  --i;
 
   __testOverload(f--, 29);      // F::operator -- (int)
   a--;
   c--;
   //ERROR(3): d--;              // not an lvalue
   //ERROR(4): e--;              // can't unify with VQ T&
+  h--;
+  i--;
 }

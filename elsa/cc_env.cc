@@ -204,6 +204,51 @@ void Env::setupOperatorOverloading()
     tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC_NON_BOOL, CV_VOLATILE)),
     getSimpleType(SL_INIT, ST_INT));
 
+  // ---- 13.6 para 5 ----
+  // T* VQ & operator++ (T* VQ &);
+  addBuiltinUnaryOp(OP_PLUSPLUS,
+    tfac.makeRefType(SL_INIT,
+      tfac.makePointerType(SL_INIT, PO_POINTER, CV_NONE,
+        getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE))));
+  addBuiltinUnaryOp(OP_PLUSPLUS,
+    tfac.makeRefType(SL_INIT,
+      tfac.makePointerType(SL_INIT, PO_POINTER, CV_VOLATILE,
+        getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE))));
+
+  // T* VQ & operator-- (T* VQ &);
+  addBuiltinUnaryOp(OP_MINUSMINUS,
+    tfac.makeRefType(SL_INIT,
+      tfac.makePointerType(SL_INIT, PO_POINTER, CV_NONE,
+        getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE))));
+  addBuiltinUnaryOp(OP_MINUSMINUS,
+    tfac.makeRefType(SL_INIT,
+      tfac.makePointerType(SL_INIT, PO_POINTER, CV_VOLATILE,
+        getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE))));
+
+  // T* operator++ (T* VQ &, int);
+  addBuiltinBinaryOp(OP_PLUSPLUS,
+    tfac.makeRefType(SL_INIT,
+      tfac.makePointerType(SL_INIT, PO_POINTER, CV_NONE,
+        getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE))),
+    getSimpleType(SL_INIT, ST_INT));
+  addBuiltinBinaryOp(OP_PLUSPLUS,
+    tfac.makeRefType(SL_INIT,
+      tfac.makePointerType(SL_INIT, PO_POINTER, CV_VOLATILE,
+        getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE))),
+    getSimpleType(SL_INIT, ST_INT));
+
+  // T* operator-- (T* VQ &, int);
+  addBuiltinBinaryOp(OP_MINUSMINUS,
+    tfac.makeRefType(SL_INIT,
+      tfac.makePointerType(SL_INIT, PO_POINTER, CV_NONE,
+        getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE))),
+    getSimpleType(SL_INIT, ST_INT));
+  addBuiltinBinaryOp(OP_MINUSMINUS,
+    tfac.makeRefType(SL_INIT,
+      tfac.makePointerType(SL_INIT, PO_POINTER, CV_VOLATILE,
+        getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE))),
+    getSimpleType(SL_INIT, ST_INT));
+
   // ---- 13.6 para 6,7 ----
   // T& operator* (T*);
   addBuiltinUnaryOp(OP_STAR,
