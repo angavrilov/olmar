@@ -460,7 +460,7 @@ void elaborateFunctionStart(Env &env, FunctionType *ft)
 
 // add no-arg MemberInits to existing ctor body ****************
 
-// does this Variable want a MemberInitializer?
+// Does this Variable want a no-arg MemberInitializer?
 static bool wantsMemberInit(Variable *var) {
   // function members should be skipped
   if (var->type->isFunctionType()) return false;
@@ -578,11 +578,23 @@ void completeNoArgMemberInits(Env &env, Function *ctor, CompoundType *ct)
     Variable *var = iter.data();
     if (!wantsMemberInit(var)) continue;
     MemberInit *mi = findMemberInitDataMember(oldInits, var);
-    if (!mi) {
+    // It seems that ints etc. shouldn't have explicit no-arg ctors.
+    // Actually, it seems that even some classes are not default
+    // initialized!  However, if they are of POD type and I default
+    // initialize them anyway, all I'm doing is calling their
+    // implicitly-defined no-arg ctor, which (eventually) will simply do
+    // nothing for the scalar data members, which is equivalent.
+    // 12.6.2 para 4: If a given nonstatic data member or base class is
+    // not named by a mem-initializer-id, then
+    // -- If the entity is a nonstatic data member of ... class type (or
+    // array thereof) or a base class, and the entity class is a non-POD
+    // class, the entity is default-initialized (8.5). ....
+    // -- Otherwise, the entity is not initialized. ....
+    if (!mi && var->type->isCompoundType()) {
       mi = new MemberInit(new PQ_name(loc, var->name), FakeList<ArgExpression>::emptyList());
       mi->tcheck(env, ct);
     }
-    newInits.prepend(mi);
+    if (mi) newInits.prepend(mi);
   }
 
   // *Now* we can destroy the linked list structure and rebuild it
@@ -591,7 +603,7 @@ void completeNoArgMemberInits(Env &env, Function *ctor, CompoundType *ct)
   for (VoidListIter iter(newInits); !iter.isDone(); iter.adv()) {
     MemberInit *mi = static_cast<MemberInit*>(iter.data());
     mi->next = NULL;
-    ctor->inits->prepend(mi);
+    ctor->inits = ctor->inits->prepend(mi);
   }
 }
 
@@ -614,40 +626,11 @@ MR_func *makeNoArgCtorBody(Env &env, CompoundType *ct)
   //     S_compound:
   S_compound *body = new S_compound(loc, stmts);
   //     inits:
+
+  // NOTE: The MemberInitializers will be added by
+  // completeNoArgMemberInits() during typechecking, so we don't add
+  // them now.
   FakeList<MemberInit> *inits = FakeList<MemberInit>::emptyList();
-  
-  FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
-    BaseClass *base = const_cast<BaseClass*>(iter.data());
-    // omit initialization of virtual base classes, whether direct
-    // virtual or indirect virtual.  See cppstd 12.6.2 and the
-    // implementation of Function::tcheck_memberInits()
-    //
-    // FIX: We really should be initializing the direct virtual bases,
-    // but the logic is so complex I'm just going to omit it for now
-    // and err on the side of not calling enough initializers;
-    // UPDATE: the spec says we can do it multiple times for copy
-    // assign operator, so I wonder if that holds for ctors also.
-    if (!ct->hasVirtualBase(base->ct)) {
-      FakeList<TemplateArgument> *targs = env.getTemplateArgs(base->ct);
-      PQName *name = env.makePossiblyTemplatizedName(loc, base->ct->name, targs);
-      MemberInit *mi =
-        new MemberInit(name, FakeList<ArgExpression>::emptyList());
-      inits = inits->prepend(mi);
-    } else {
-//        cerr << "Omitting a direct base that is also a virtual base" << endl;
-    }
-  }
-  // FIX: virtual bases omitted for now
-
-  SFOREACH_OBJLIST_NC(Variable, ct->dataMembers, iter) {
-    Variable *var = iter.data();
-    if (!wantsMemberInit(var)) continue;
-    MemberInit *mi =
-      new MemberInit(new PQ_name(loc, var->name), FakeList<ArgExpression>::emptyList());
-    inits = inits->prepend(mi);
-  }
-
-  inits = inits->reverse();
 
   //       init is null
   Initializer *init = NULL;

@@ -311,7 +311,9 @@ void Function::tcheck(Env &env, bool checkBody)
   // have to check the member inits after adding the parameters
   // to the environment, because the initializing expressions
   // can refer to the parameters
-  if (inits) {
+  // dsw: we now need to tcheck ctors's inits even if they are NULL,
+  // so test if it is a ctor by a different method
+  if (nameAndParams->var->name == env.constructorSpecialName) {
     tcheck_memberInits(env);
   }
   
@@ -1514,20 +1516,6 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
       env.addVariable(v);
       env.madeUpVariables.push(v);
     }
-
-    // This is old:
-//        // make a no-arg ctor; make AST as if it had been parsed; this
-//        // has been reconstructed from cc.gr
-//        char *id = ct->name; // in cc.gr, a string ref of the name
-//        D_name *d0 = new D_name(loc, new PQ_name(loc, id));
-//        Function *f0 =
-//          new Function(DF_NONE,   // decl flags: explicit, virtual, or none
-//                       new TS_simple(loc, ST_CDTOR), // type specifier: ctor or dtor
-//                       new Declarator(d0, NULL), // declarator with fn name, params
-//                       FakeList<MemberInit>::emptyList(), // ctor member inits
-//                       new S_compound(loc, NULL), // function body statement
-//                       NULL       // exception handlers
-//                       );
   }
 
   // **** implicit copy ctor: cppstd 12.8 para 4: "If the class
