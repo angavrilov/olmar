@@ -311,6 +311,14 @@ Scope *Env::enclosingScope()
 
 bool Env::addVariable(Variable *v, bool forceReplace)
 {
+  if (hasDisambErrors()) {
+    // the environment is not supposed to be modified by an ambiguous
+    // alternative that fails
+    trace("env") << "not adding variable `" << v->name
+                 << "' because there are disambiguating errors\n";
+    return true;    // don't cause further errors; pretend it worked
+  }
+
   Scope *s = acceptingScope();
   registerVariable(v);
   if (!s->addVariable(v, forceReplace)) {
@@ -329,12 +337,26 @@ void Env::registerVariable(Variable *v)
 
 bool Env::addCompound(CompoundType *ct)
 {
+  // like above
+  if (hasDisambErrors()) {
+    trace("env") << "not adding compound `" << ct->name
+                 << "' because there are disambiguating errors\n";
+    return true;
+  }
+
   return acceptingScope()->addCompound(ct);
 }
 
 
 bool Env::addEnum(EnumType *et)
 {
+  // like above
+  if (hasDisambErrors()) {
+    trace("env") << "not adding enum `" << et->name
+                 << "' because there are disambiguating errors\n";
+    return true;
+  }
+
   return acceptingScope()->addEnum(et);
 }
 
@@ -987,48 +1009,12 @@ bool Env::setDisambiguateOnly(bool newVal)
 }
 
 
-// TODO: remove this
-#if 0
-CVAtomicType *Env::makeCVAtomicType(AtomicType *atomic, CVFlags cv)
-  { return tfactory.makeCVAtomicType(atomic, cv); }
-
-PointerType *Env::makePointerType(PtrOper op, CVFlags cv, Type *atType)
-  { return tfactory.makePointerType(op, cv, atType); }
-
-FunctionType *Env::makeFunctionType(Type *retType, CVFlags cv)
-  { return tfactory.makeFunctionType(retType, cv); }
-
-ArrayType *Env::makeArrayType(Type *eltType, int size)
-  { return tfactory.makeArrayType(eltType, size); }
-
-Type *Env::applyCVToType(CVFlags cv, Type *baseType)
-  { return tfactory.applyCVToType(cv, baseType); }
-
-ArrayType *Env::setArraySize(ArrayType *type, int size)
-  { return tfactory.setArraySize(type, size); }
-
-Type *Env::makeRefType(Type *underlying)
-  { return tfactory.makeRefType(underlying); }
-
-PointerType *Env::syntaxPointerType(
-  PtrOper op, CVFlags cv, Type *underlying, D_pointer *syntax)
-  { return tfactory.syntaxPointerType(op, cv, underlying, syntax); }
-
-FunctionType *Env::syntaxFunctionType(
-  Type *retType, CVFlags cv, D_function *syntax)
-  { return tfactory.syntaxFunctionType(
-
-PointerType *Env::makeTypeOf_this(
-  CompoundType *classType, FunctionType *methodType);
-
-
-Type *Env::cloneType(Type *src)
-  { return tfactory.cloneType(src); }
-
-Variable *Env::makeVariable(SourceLoc L, StringRef n,
-                            Type *t, DeclFlags f)
-  { return tfactory.makeVariable(L, n, t, f); }
-
-Variable *Env::cloneVariable(Variable *src)
-  { return tfactory.cloneVariable(src); }
-#endif // 0
+STATICDEF bool Env::listHasDisambErrors(ObjList<ErrorMsg> const &list)
+{
+  FOREACH_OBJLIST(ErrorMsg, list, iter) {
+    if (iter.data()->disambiguates) {
+      return true;     // has at least one disambiguating error
+    }
+  }
+  return false;        // no disambiguating errors
+}

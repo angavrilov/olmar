@@ -1007,6 +1007,11 @@ void TD_func::iprint(PrintEnv &env)
   f->print(env);
 }
 
+void TD_proto::iprint(PrintEnv &env)
+{
+  d->print(env);
+}
+
 void TD_class::iprint(PrintEnv &env)
 {
   // here, the type specifier doesn't know about the template-ness

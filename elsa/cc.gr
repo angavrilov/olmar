@@ -747,7 +747,7 @@ nonterm(TopForm*) Declaration {
   -> f:FunctionDefinition      { return new TF_func(loc, f); }
   -> t:TemplateDeclaration     { return new TF_template(loc, t); }
   //-> ExplicitInstantiation;
-  -> s:ExplicitSpecialization  { return new TF_template(loc, s); }
+  //-> ExplicitSpecialization  // folded into TemplateDeclaration
   -> s:LinkageSpecification    { return s; }
   //-> NamespaceDefinition;
 }
@@ -1865,8 +1865,11 @@ nonterm ExportOpt {
 }
 
 nonterm(TemplateDeclaration*) TemplateDeclaration {
-  // this is the std's rule
-  //-> ExportOpt "template" "<" TemplateParameterList ">" Declaration;
+  // these are the std's rules for template declarations and specializations:
+  //   -> ExportOpt "template" "<" TemplateParameterList ">" Declaration;
+  //   -> "template" "<" ">" Declaration;
+  // I've unified them by making the parameter list and 'export' optional
+  // in both cases.
 
   // I have expanded 'Declaration' as appropriate, which cuts down on
   // the filtering work and also makes the semantic values available
@@ -1875,17 +1878,34 @@ nonterm(TemplateDeclaration*) TemplateDeclaration {
   // dramatically cuts down on the vestigial stuff the std's grammar
   // would have potentially included.
 
-  // template function
-  -> ExportOpt "template" "<" plist:TemplateParameterList ">" def:FunctionDefinition
+  // template function definition
+  -> plist:TemplatePreamble def:FunctionDefinition
        { return new TD_func(plist, def); }
 
+  // template function prototype
+  -> plist:TemplatePreamble spec:DeclSpecifier nameParams:Declarator ";"
+       { spec->decllist = FakeList<Declarator>::makeList(
+           new Declarator(nameParams, NULL /*init*/));
+         return new TD_proto(plist, spec); }
+
   // definition of a template classe
-  -> ExportOpt "template" "<" plist:TemplateParameterList ">" spec:ClassSpecifier ";"
+  -> plist:TemplatePreamble spec:ClassSpecifier ";"
        { return new TD_class(plist, spec); }
 
-  // forward declarations of a template classe
-  -> ExportOpt "template" "<" plist:TemplateParameterList ">" spec:ElaboratedTypeSpecifier ";"
+  // forward declarations of a template class
+  -> plist:TemplatePreamble spec:ElaboratedTypeSpecifier ";"
        { return new TD_class(plist, spec); }
+}
+
+// the "template <...>" stuff
+nonterm(FakeList<TemplateParameter>*) TemplatePreamble {
+  // template declaration
+  -> ExportOpt "template" "<" plist:TemplateParameterList ">"
+       { return plist; }
+
+  // explicit specialization
+  -> ExportOpt "template" "<" ">"
+       { return FakeList<TemplateParameter>::emptyList(); }
 }
 
 nonterm(FakeList<TemplateParameter>*) TemplateParameterList {
@@ -1945,22 +1965,6 @@ nonterm(TemplateArgument*) TemplateArgument {
 //nonterm ExplicitInstantiation {
 //  -> "template" Declaration;
 //}
-
-nonterm(TemplateDeclaration*) ExplicitSpecialization {
-  // rule from std:
-  //   -> "template" "<" ">" Declaration;
-  // as in TemplateDeclaration, I've expanded the Declaration nonterminal
-
-  -> "template" "<" ">" def:FunctionDefinition
-       { return new TD_func(FakeList<TemplateParameter>::emptyList(), def); }
-
-  -> "template" "<" ">" spec:ClassSpecifier ";"
-       { return new TD_class(FakeList<TemplateParameter>::emptyList(), spec); }
-
-  -> "template" "<" ">" spec:ElaboratedTypeSpecifier ";"
-       { return new TD_class(FakeList<TemplateParameter>::emptyList(), spec); }
-}
-
 
 // ------ A.13 Exception handling ------
 nonterm(S_try*) TryBlock {

@@ -176,7 +176,12 @@ public:      // funcs
   // set 'disambiguateOnly' to 'val', returning prior value
   bool setDisambiguateOnly(bool val);
   bool onlyDisambiguating() const { return disambiguateOnly; }
-  
+
+  // return true if the given list of errors contain any which
+  // are disambiguating errors
+  static bool listHasDisambErrors(ObjList<ErrorMsg> const &list);
+  bool hasDisambErrors() const { return listHasDisambErrors(errors); }
+
   // TypeFactory funcs; all of these simply delegate to 'tfac'
   CVAtomicType *makeCVAtomicType(SourceLoc loc, AtomicType *atomic, CVFlags cv)
     { return tfac.makeCVAtomicType(loc, atomic, cv); }

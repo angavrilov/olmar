@@ -548,6 +548,9 @@ class TemplateDeclaration (
   // declare a template function
   -> TD_func(Function f);
 
+  // declare a template function prototype
+  -> TD_proto(Declaration d);
+
   // declare a template class; 'spec' could either be a
   // TS_elaborated (forward decl) or a TS_classSpec (definition)
   -> TD_class(TypeSpecifier spec);
