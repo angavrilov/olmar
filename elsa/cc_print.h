@@ -123,7 +123,6 @@ class CodeOutStream : public OutStream {
   static string makeIndentation(int n);
   static string indentMessage(int n, rostring s);
   void finish();
-  void rawPrintAndIndent(string s);
 
   // OutStream methods
   CodeOutStream & operator << (ostream& (*manipfunc)(ostream& outs));

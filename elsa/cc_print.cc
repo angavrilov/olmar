@@ -61,18 +61,13 @@ void CodeOutStream::finish()
   //      printf("BUFFERED NEWLINES: %d\n", buffered_newlines);
   stringBuilder s;
   for(;buffered_newlines>1;buffered_newlines--) s << "\n";
-  rawPrintAndIndent(indentMessage(depth,s));
+  out << indentMessage(depth,s);
   xassert(buffered_newlines == 1 || buffered_newlines == 0);
   if (buffered_newlines) {
     buffered_newlines--;
-    rawPrintAndIndent(string("\n")); // don't indent after last one
+    out << "\n";                // don't indent after last one
   }
   flush();
-}
-
-void CodeOutStream::rawPrintAndIndent(string s)
-{
-  out << s;
 }
 
 CodeOutStream & CodeOutStream::operator << (ostream& (*manipfunc)(ostream& outs))
@@ -108,7 +103,7 @@ CodeOutStream & CodeOutStream::operator << (char const *message)
   message2 << message1;
   buffered_newlines += pending_buffered_newlines;
 
-  rawPrintAndIndent(indentMessage(depth, message2));
+  out << indentMessage(depth, message2);
   return *this;
 }
 
@@ -906,6 +901,11 @@ void FullExpression::print(PrintEnv &env, CodeOutStream &out)
 
 
 // ------------------- Expression print -----------------------
+
+// dsw: Couldn't we have fewer functions for printing out an
+// expression?  Or at least name them in a way that reveals some sort
+// of system.
+
 void Expression::print(PrintEnv &env, CodeOutStream &out)
 {
   TreeWalkDebug treeDebug("Expression");
