@@ -186,6 +186,14 @@ int VoidList::indexOf(void *item) const
 }
 
 
+int VoidList::indexOfF(void *item) const
+{
+  int ret = indexOf(item);
+  xassert(ret >= 0);
+  return ret;
+}
+
+
 bool VoidList::prependUnique(void *newitem)
 {
   if (!contains(newitem)) {

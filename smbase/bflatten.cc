@@ -51,7 +51,7 @@ void entry()
   {
     BFlatten flat("bflat.tmp", false /*reading*/);
     flat.xferInt(x);
-    flat.xferString(s);
+    s.xfer(flat);
   }
 
   // place to put the data we read
@@ -62,7 +62,7 @@ void entry()
   {
     BFlatten flat("bflat.tmp", true /*reading*/);
     flat.xferInt(x2);
-    flat.xferString(s2);
+    s2.xfer(flat);
   }
 
   // compare

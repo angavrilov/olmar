@@ -66,6 +66,7 @@ public:
 
   // list-as-set: selectors
   int indexOf(T const *item) const      { return list.indexOf((void*)item); }
+  int indexOfF(void *item) const        { return list.indexOfF((void*)item); }
   bool contains(T const *item) const    { return list.contains((void*)item); }
 
   // list-as-set: mutators

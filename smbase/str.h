@@ -10,6 +10,8 @@
 #include "typ.h"         // bool
 #include <iostream.h>	 // istream, ostream
 
+class Flatten;           // flatten.h
+
 // certain unfortunate implementation decisions by some compilers
 // necessitate avoiding the name 'string'
 #define string mystring
@@ -32,6 +34,9 @@ public:	       // funcs
   string() { s=empty; }
 
   ~string() { kill(); }
+
+  string(Flatten&);
+  void xfer(Flatten &flat);
 
   // simple queries
   int length() const;  	       	// returns number of non-null chars in the string; length of "" is 0

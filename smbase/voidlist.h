@@ -75,6 +75,7 @@ public:
 
   // list-as-set: selectors
   int indexOf(void *item) const;     // returns index of *first* occurrance, or -1 if not present
+  int indexOfF(void *item) const;    // same as indexOf, but throws exception if not present
   bool contains(void *item) const    // true if the item appears in the list
     { return indexOf(item) >= 0; }
 

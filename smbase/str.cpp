@@ -13,6 +13,7 @@
 
 #include "xassert.h"        // xassert
 #include "ckheap.h"         // checkHeapNode
+#include "flatten.h"        // Flatten
 
 
 // ----------------------- string ---------------------
@@ -48,6 +49,16 @@ void string::kill()
   if (s != empty) {
     delete s;
   }
+}
+
+
+string::string(Flatten&)
+  : s(empty)
+{}
+
+void string::xfer(Flatten &flat)
+{
+  flat.xferCharString(s);
 }
 
 
