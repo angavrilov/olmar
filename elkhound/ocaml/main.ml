@@ -15,26 +15,34 @@ object (self)
    * the value 0 means end of file *)
   val mutable tokType:int = 0;
 
-  (* semantic value of the token; since I can't do arbitrary casts,
-   * for now it must be an integer *)
-  val mutable sval:int = 0;
+  (* semantic value of the token *)
+  val mutable sval:Obj.t = (Obj.repr 0);
 
   (* lexerint.h has a 'loc' field here... *)
 
   (* ---- funcs ---- *)
   (* data members aren't public... *)
   method getTokType() : int = tokType
-  method getSval() : int = sval
+  method getSval() : Obj.t = sval
+
+  method setIntSval (i:int) : unit =
+  begin
+    sval <- (Obj.repr i)
+  end
+  method getIntSval() : int =
+  begin
+    (Obj.obj sval : int)
+  end
 
   method getToken() : unit =
   begin
     try
-      sval <- 0;    (* clear previous *)
+      (self#setIntSval 0);        (* clear previous *)
 
       let c:char = (input_char stdin) in
       if ('0' <= c && c <= '9') then (
         tokType <- 1;
-        sval <- (int_of_char c) - (int_of_char '0');
+        (self#setIntSval ((int_of_char c) - (int_of_char '0')));
       )
       else if (c = '+') then tokType <- 2
       else if (c = '-') then tokType <- 3
@@ -55,7 +63,7 @@ object (self)
   begin
     let kindDesc:string = (self#tokenKindDesc tokType) in
     if (tokType = 1) then (
-      kindDesc ^ "(" ^ (string_of_int sval) ^ ")"
+      kindDesc ^ "(" ^ (string_of_int (self#getIntSval())) ^ ")"
     )
     else
       kindDesc
@@ -83,7 +91,7 @@ begin
   while (not ((lex#getTokType()) = 0)) do
     (Printf.printf "tokType=%d sval=%d desc=\"%s\"\n"
                    (lex#getTokType())
-                   (lex#getSval())
+                   (lex#getIntSval())
                    (lex#tokenDesc())
                  );
     (flush stdout);
@@ -158,46 +166,62 @@ let nontermOrder = [|          (* 4 elements *)
 
 (* ---------------- reduction actions -------------- *)
 (* this is how ocamlyacc does it, so I assume it's fastest way *)
-let actionArray : (int array -> int) array = [|
+let actionArray : (Obj.t array -> Obj.t) array = [|
   (fun svals ->
-    let top = svals.(0) in
-    top
+    let top = (Obj.obj svals.(0) : int) in 
+    (Obj.repr (
+      top
+    ))
   );
   (fun svals ->
-    let e1 = svals.(0) in
-    let e2 = svals.(2) in
-    e1 + e2
+    let e1 = (Obj.obj svals.(0) : int) in
+    let e2 = (Obj.obj svals.(2) : int) in
+    (Obj.repr (
+      e1 + e2
+    ))
   );
   (fun svals ->
-    let e1 = svals.(0) in
-    let e2 = svals.(2) in
-    e1 - e2
+    let e1 = (Obj.obj svals.(0) : int) in
+    let e2 = (Obj.obj svals.(2) : int) in
+    (Obj.repr (
+      e1 - e2
+    ))
   );
   (fun svals ->
-    let e1 = svals.(0) in
-    let e2 = svals.(2) in
-    e1 * e2
+    let e1 = (Obj.obj svals.(0) : int) in
+    let e2 = (Obj.obj svals.(2) : int) in
+    (Obj.repr (
+      e1 * e2
+    ))
   );
   (fun svals ->
-    let e1 = svals.(0) in
-    let e2 = svals.(2) in
-    e1 / e2
+    let e1 = (Obj.obj svals.(0) : int) in
+    let e2 = (Obj.obj svals.(2) : int) in
+    (Obj.repr (
+      e1 / e2
+    ))
   );
   (fun svals ->
-    let n = svals.(0) in
-    n
+    let n = (Obj.obj svals.(0) : int) in
+    (Obj.repr (
+      n
+    ))
   );
   (fun svals ->
-    let p = svals.(0) in
-    p
+    let p = (Obj.obj svals.(0) : int) in
+    (Obj.repr (
+      p
+    ))
   );
-  (fun svals ->     
-    let e = svals.(1) in
-    e
+  (fun svals ->
+    let e = (Obj.obj svals.(1) : int) in
+    (Obj.repr (
+      e
+    ))
   )
 |]
 
-let reductionAction (productionId:int) (svals:int array) : int =
+let reductionAction (productionId:int) (svals:Obj.t array) : Obj.t =
 begin
   (actionArray.(productionId) svals)
 end
@@ -205,17 +229,17 @@ end
 
 (* -------------------- parser ------------------- *)
 let stateStack : int array ref = ref (Array.make 10 0)
-let svalStack : int array ref = ref (Array.make 10 0)
+let svalStack : Obj.t array ref = ref (Array.make 10 (Obj.repr 0))
 let stackLen : int ref = ref 0
 
 (* TODO: make sval stack of Obj.t instead of int *)
 
-let pushStateSval (state : int) (sval : int) : unit =
+let pushStateSval (state : int) (sval : Obj.t) : unit =
 begin
   if ((Array.length !stateStack) = !stackLen) then (
     (* must make it bigger *)
     let newStateStack : int array = (Array.make (!stackLen * 2) 0) in
-    let newSvalStack : int array = (Array.make (!stackLen * 2) 0) in
+    let newSvalStack : Obj.t array = (Array.make (!stackLen * 2) (Obj.repr 0)) in
 
     (* copy *)
     (Array.blit
@@ -255,7 +279,7 @@ begin
   (lex#getToken());
 
   (* initial state *)
-  (pushStateSval 0 0);
+  (pushStateSval 0 (Obj.repr 0));
 
   (* loop over all tokens until EOF and stack has just start symbol *)
   while (not ((lex#getTokType()) = 0)) ||
@@ -266,7 +290,7 @@ begin
     (Printf.printf "state=%d tokType=%d sval=%d desc=\"%s\"\n"
                    state
                    tt
-                   (lex#getSval())
+                   (lex#getIntSval())
                    (lex#tokenDesc())
                  );
     (flush stdout);
@@ -295,7 +319,7 @@ begin
       (* make an array of semantic values for the action rule; this does
        * an extra copy if we're already using a linear stack, but will
        * be needed for GLR so I'll do it this way *)
-      let svalArray : int array = (Array.make ruleLen 0) in
+      let svalArray : Obj.t array = (Array.make ruleLen (Obj.repr 0)) in
       (Array.blit
         !svalStack            (* source array *)
         (!stackLen - ruleLen) (* source start position *)
@@ -305,7 +329,7 @@ begin
       );
 
       (* invoke user's reduction action *)
-      let sval = (reductionAction rule svalArray) in
+      let sval:Obj.t = (reductionAction rule svalArray) in
 
       (* pop 'ruleLen' elements *)
       stackLen := (!stackLen - ruleLen);
@@ -315,8 +339,8 @@ begin
       let dest:int = gotoTable.(newTopState*gotoCols + lhs) in
       (pushStateSval dest sval);
 
-      (Printf.printf "reduce by rule %d (len=%d, lhs=%d, sval=%d), goto state %d\n"
-                     rule ruleLen lhs sval dest);
+      (Printf.printf "reduce by rule %d (len=%d, lhs=%d), goto state %d\n"
+                     rule ruleLen lhs dest);
       (flush stdout);
     )
 
@@ -334,16 +358,19 @@ begin
   done;
 
   (* print final parse stack *)
-  (Printf.printf "final parse stack (up is top, state then sval):\n");
+  (Printf.printf "final parse stack (up is top):\n");
   let i:int ref = ref (pred !stackLen) in
   while (!i >= 0) do
-    (Printf.printf "  %d %d\n" (!stateStack).(!i) (!svalStack).(!i));
+    (Printf.printf "  %d\n" (!stateStack).(!i));
     (decr i);
   done;
   (flush stdout);
-  
+
   (* return value: sval of top element *)
-  (!svalStack).(!stackLen - 1)
+  let topSval:Obj.t = (!svalStack).(!stackLen - 1) in
+  
+  (* assume is int for now *)
+  (Obj.obj topSval : int)
 end
 
 
