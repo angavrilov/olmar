@@ -13,7 +13,6 @@
 // syntax for denoting them.  (toString() uses C's syntax, but that's
 // just for debugging.)
 
-#include <assert.h>     // assert
 #include <stdlib.h>     // getenv
 
 
