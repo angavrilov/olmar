@@ -1,0 +1,44 @@
+; misc3.sx    -*- lisp -*-
+
+
+bg_push (
+  (EQ g1_7 (sub g1_index_7 g1_rest_7))
+  (EQ g2_1 (sub g2_index_1 g2_rest_1))
+  (DISTINCT 0)
+  (uncheckedAccess mem_14)
+  (FORALL (addr_6 ) 
+    (IMPLIES 
+      (EQ (typeOf addr_6) 1) 
+      (> (sel (sel mem_14 addr_6) 0) 
+      (sel (sel mem_14 addr_6) 1))))
+  (EQ g1_8 (sub g1_index_8 g1_rest_8))
+  (EQ g2_2 (sub g2_index_2 g2_rest_2))
+  (EQ mem_14 (sub pre_mem_index_1 pre_mem_rest_1))
+  (uncheckedAccess mem_15)
+;  (EXISTS (address_1 initVal_1 )
+;    (AND
+      (NEQ address_1 0)
+      (EQ result_1 (sub address_1 0))
+      (NOT (okSel mem_14 address_1))
+      (okSel mem_15 address_1)
+      (okSelOffsetRange mem_15 (appendIndex result_1 0) 8)
+      (EQ mem_15 (upd mem_14 address_1 initVal_1))
+;    ))
+  (EQ (typeOf (firstIndexOf result_1)) 1)
+  (EQ mem_16 (updOffset mem_15 (appendIndex result_1 0) 5))
+  (EQ mem_17 (updOffset mem_16 (appendIndex result_1 1) 4))
+
+  ; from goal..
+  (EQ (typeOf addr_8) 1)
+
+  (NEQ addr_8 address_1)
+)
+valid "implications" (
+  (EQ mem_16 (upd mem_15 address_1 (upd (sel mem_15 address_1) 0 5)))
+  (EQ mem_17 (upd mem_16 address_1 (upd (sel mem_16 address_1) 1 4)))
+)
+valid "goal" (
+  (> (sel (sel mem_17 addr_8) 0)
+     (sel (sel mem_17 addr_8) 1))
+)
+bg_pop

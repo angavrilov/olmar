@@ -415,21 +415,21 @@
       (okSel (upd obj index1 val) index2)    ; and it's still valid
     ))
 
-  ; ---------------------- uncheckedAccess ------------------
-  ; ok to access any field in an unchecked-access object (like memory itself)
-  (FORALL (mem index)
-    (IMPLIES
-      (uncheckedAccess mem)
-      (okSel mem index)
-    ))
+;   ; ---------------------- uncheckedAccess ------------------
+;   ; ok to access any field in an unchecked-access object (like memory itself)
+;   (FORALL (mem index)
+;     (IMPLIES
+;       (uncheckedAccess mem)
+;       (okSel mem index)
+;     ))
 
-  ; unchecked-access survives updates (another idea: I could make okSel
-  ; always skip updates..)
-  (FORALL (mem index val)
-    (IMPLIES
-      (uncheckedAccess mem)
-      (uncheckedAccess (upd mem index val))
-    ))
+;   ; unchecked-access survives updates (another idea: I could make okSel
+;   ; always skip updates..)
+;   (FORALL (mem index val)
+;     (IMPLIES
+;       (uncheckedAccess mem)
+;       (uncheckedAccess (upd mem index val))
+;     ))
 
   ; =================== sel/upd with offsets ===================
   ; An "index" is an atomic array index or field number; it can
