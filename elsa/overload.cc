@@ -100,10 +100,15 @@ Type *OverloadResolver::getReturnType(Candidate const *winner) const
     case ST_PRET_PTM:
       xfailure("ST_PRET_PTM is handled elsewhere");
 
+    // e.g. T& operator* (T*)
+    case ST_PRET_FIRST_PTR2REF: {
+      Type *T = concreteParamTypes[0]->getAtType();
+      return env.tfac.makeReferenceType(SL_UNKNOWN, T);
+    }
+
     // see E_binary::itcheck_x and resolveOverloadedBinaryOperator
-    case ST_PRET_FIRST_PTR2REF:
     case ST_PRET_SECOND_PTR2REF:
-      xfailure("ST_PRET_*_PTR2REF is handled elsewhere");
+      xfailure("ST_PRET_SECOND_PTR2REF is handled elsewhere");
 
     // e.g.: LR operator* (L, R)
     case ST_PRET_ARITH_CONV:

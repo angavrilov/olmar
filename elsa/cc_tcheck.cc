@@ -5480,33 +5480,52 @@ Type *resolveOverloadedUnaryOperator(
     resolver.addBuiltinUnaryCandidates(op);
 
     // pick the best candidate
-    Variable *winner = resolver.resolve();
-    if (winner && !winner->hasFlag(DF_BUILTIN)) {
-      OperatorName *oname = new ON_operator(op);
-      PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, oname, opName);
+    bool dummy;
+    Candidate const *winnerCand = resolver.resolveCandidate(dummy);
+    if (winnerCand) {
+      Variable *winner = winnerCand->var;
 
-      if (winner->hasFlag(DF_MEMBER)) {
-        // replace '~a' with 'a.operator~()'
-        replacement = new E_funCall(
-          new E_fieldAcc(expr, pqo),               // function
-          FakeList<ArgExpression>::emptyList()     // arguments
-        );
+      if (!winner->hasFlag(DF_BUILTIN)) {
+        OperatorName *oname = new ON_operator(op);
+        PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, oname, opName);
+
+        if (winner->hasFlag(DF_MEMBER)) {
+          // replace '~a' with 'a.operator~()'
+          replacement = new E_funCall(
+            new E_fieldAcc(expr, pqo),               // function
+            FakeList<ArgExpression>::emptyList()     // arguments
+          );
+        }
+        else {
+          // replace '~a' with '::operator~(a)'
+          // TODO: that is wrong if namespaces exist
+          replacement = new E_funCall(
+            // function to invoke
+            new E_variable(new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/,
+                                            NULL /*targs*/, pqo)),
+            // arguments
+            makeExprList1(expr)
+          );
+        }
+
+        // for now, just re-check the whole thing
+        replacement->tcheck(env, replacement);
+        return replacement->type;
       }
+
       else {
-        // replace '~a' with '::operator~(a)'
-        // TODO: that is wrong if namespaces exist
-        replacement = new E_funCall(
-          // function to invoke
-          new E_variable(new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/,
-                                          NULL /*targs*/, pqo)),
-          // arguments
-          makeExprList1(expr)
-        );
-      }
+        // chose a built-in operator
 
-      // for now, just re-check the whole thing
-      replacement->tcheck(env, replacement);
-      return replacement->type;
+        // TODO: need to replace the arguments according to their
+        // conversions (if any)
+
+        // get the correct return value, at least
+        Type *ret = resolver.getReturnType(winnerCand);
+        OVERLOADINDTRACE("computed built-in operator return type `" <<
+                         ret->toString() << "'");
+
+        return ret;
+      }
     }
   }
 
@@ -5613,7 +5632,7 @@ Type *resolveOverloadedBinaryOperator(
         if (op == OP_BRACKETS) {
           // just let the calling code replace it with * and +; that
           // should get the right type automatically
-          return NULL;                              
+          return NULL;
         }
         else {
           // get the correct return value, at least

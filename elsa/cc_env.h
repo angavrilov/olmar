@@ -257,7 +257,7 @@ private:     // funcs
 
   void setupOperatorOverloading();
 
-  void addBuiltinUnaryOp(OverloadableOp op, Type *x);
+  void addBuiltinUnaryOp(SimpleTypeId retId, OverloadableOp op, Type *x);
 
   void addBuiltinBinaryOp(SimpleTypeId retId, OverloadableOp op, Type *x, Type *y);
   void addBuiltinBinaryOp(SimpleTypeId retId, OverloadableOp op,
@@ -554,7 +554,7 @@ public:      // funcs
   // in the places I call them
                                                               
   // create a built-in candidate for operator overload resolution
-  Variable *createBuiltinUnaryOp(OverloadableOp op, Type *x);
+  Variable *createBuiltinUnaryOp(Type *retType, OverloadableOp op, Type *x);
   Variable *createBuiltinBinaryOp(Type *retType, OverloadableOp op, Type *x, Type *y);
 
   // several steps of the declaration creation process, broken apart

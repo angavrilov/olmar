@@ -563,8 +563,8 @@ void Env::setupOperatorOverloading()
     Type *Tvr = tfac.makeReferenceType(SL_INIT, Tv);
 
     // VQ T& operator++ (VQ T&);
-    addBuiltinUnaryOp(OP_PLUSPLUS, Tr);
-    addBuiltinUnaryOp(OP_PLUSPLUS, Tvr);
+    addBuiltinUnaryOp(ST_PRET_FIRST, OP_PLUSPLUS, Tr);
+    addBuiltinUnaryOp(ST_PRET_FIRST, OP_PLUSPLUS, Tvr);
 
     // T operator++ (VQ T&, int);
     addBuiltinBinaryOp(ST_PRET_STRIP_REF, OP_PLUSPLUS, Tr, t_int);
@@ -580,8 +580,8 @@ void Env::setupOperatorOverloading()
     Type *Tvr = tfac.makeReferenceType(SL_INIT, Tv);
 
     // VQ T& operator-- (VQ T&);
-    addBuiltinUnaryOp(OP_MINUSMINUS, Tr);
-    addBuiltinUnaryOp(OP_MINUSMINUS, Tvr);
+    addBuiltinUnaryOp(ST_PRET_FIRST, OP_MINUSMINUS, Tr);
+    addBuiltinUnaryOp(ST_PRET_FIRST, OP_MINUSMINUS, Tvr);
 
     // T operator-- (VQ T&, int);
     addBuiltinBinaryOp(ST_PRET_STRIP_REF, OP_MINUSMINUS, Tr, t_int);
@@ -599,12 +599,12 @@ void Env::setupOperatorOverloading()
     Type *Tpvr = tfac.makeReferenceType(SL_INIT, Tpv);
 
     // T* VQ & operator++ (T* VQ &);
-    addBuiltinUnaryOp(OP_PLUSPLUS, Tpr);
-    addBuiltinUnaryOp(OP_PLUSPLUS, Tpvr);
+    addBuiltinUnaryOp(ST_PRET_FIRST, OP_PLUSPLUS, Tpr);
+    addBuiltinUnaryOp(ST_PRET_FIRST, OP_PLUSPLUS, Tpvr);
 
     // T* VQ & operator-- (T* VQ &);
-    addBuiltinUnaryOp(OP_MINUSMINUS, Tpr);
-    addBuiltinUnaryOp(OP_MINUSMINUS, Tpvr);
+    addBuiltinUnaryOp(ST_PRET_FIRST, OP_MINUSMINUS, Tpr);
+    addBuiltinUnaryOp(ST_PRET_FIRST, OP_MINUSMINUS, Tpvr);
 
     // T* operator++ (T* VQ &, int);
     addBuiltinBinaryOp(ST_PRET_STRIP_REF, OP_PLUSPLUS, Tpr, t_int);
@@ -621,7 +621,7 @@ void Env::setupOperatorOverloading()
     Type *Tp = makePtrType(SL_INIT, T);
 
     // T& operator* (T*);
-    addBuiltinUnaryOp(OP_STAR, Tp);
+    addBuiltinUnaryOp(ST_PRET_FIRST_PTR2REF, OP_STAR, Tp);
   }
 
   // ------------ 13.6 para 8 ------------
@@ -630,7 +630,7 @@ void Env::setupOperatorOverloading()
     Type *Tp = makePtrType(SL_INIT, T);
 
     // T* operator+ (T*);
-    addBuiltinUnaryOp(OP_PLUS, Tp);
+    addBuiltinUnaryOp(ST_PRET_FIRST, OP_PLUS, Tp);
   }
 
   // ------------ 13.6 para 9 ------------
@@ -638,10 +638,10 @@ void Env::setupOperatorOverloading()
     Type *T = getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC);
 
     // T operator+ (T);
-    addBuiltinUnaryOp(OP_PLUS, T);
+    addBuiltinUnaryOp(ST_PRET_FIRST, OP_PLUS, T);
 
     // T operator- (T);
-    addBuiltinUnaryOp(OP_MINUS, T);
+    addBuiltinUnaryOp(ST_PRET_FIRST, OP_MINUS, T);
   }
 
   // ------------ 13.6 para 10 ------------
@@ -649,7 +649,7 @@ void Env::setupOperatorOverloading()
     Type *T = getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL);
 
     // T operator~ (T);
-    addBuiltinUnaryOp(OP_BITNOT, T);
+    addBuiltinUnaryOp(ST_PRET_FIRST, OP_BITNOT, T);
   }
 
   // ------------ 13.6 para 11 ------------
@@ -848,7 +848,7 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 23 ------------
   // bool operator! (bool);
-  addBuiltinUnaryOp(OP_NOT, t_bool);
+  addBuiltinUnaryOp(ST_BOOL, OP_NOT, t_bool);
 
   // bool operator&& (bool, bool);
   addBuiltinBinaryOp(ST_BOOL, OP_AND, t_bool, t_bool);
@@ -2569,17 +2569,16 @@ Variable *Env::receiverParameter(SourceLoc loc, NamedAtomicType *nat, CVFlags cv
 }
 
 
-void Env::addBuiltinUnaryOp(OverloadableOp op, Type *x)
+void Env::addBuiltinUnaryOp(SimpleTypeId retId, OverloadableOp op, Type *x)
 {
-  builtinUnaryOperator[op].push(createBuiltinUnaryOp(op, x));
+  Type *retType = getSimpleType(SL_INIT, retId);
+  builtinUnaryOperator[op].push(createBuiltinUnaryOp(retType, op, x));
 }
 
-Variable *Env::createBuiltinUnaryOp(OverloadableOp op, Type *x)
+Variable *Env::createBuiltinUnaryOp(Type *retType, OverloadableOp op, Type *x)
 {
-  Type *t_void = getSimpleType(SL_INIT, ST_VOID);
-
   Variable *v = declareFunction1arg(
-    t_void /*irrelevant*/, operatorName[op],
+    retType, operatorName[op],
     x, "x",
     FF_BUILTINOP);
   v->setFlag(DF_BUILTIN);
@@ -2588,7 +2587,7 @@ Variable *Env::createBuiltinUnaryOp(OverloadableOp op, Type *x)
 }
 
 
-void Env::addBuiltinBinaryOp(SimpleTypeId retId, OverloadableOp op, 
+void Env::addBuiltinBinaryOp(SimpleTypeId retId, OverloadableOp op,
                              Type *x, Type *y)
 {
   Type *retType = getSimpleType(SL_INIT, retId);

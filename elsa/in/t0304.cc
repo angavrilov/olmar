@@ -9,4 +9,5 @@ void foo()
 {
   A a;
   *a;
+  (a && *a);   // needs polymorphic built-in unary operators to have accurate returns
 }
