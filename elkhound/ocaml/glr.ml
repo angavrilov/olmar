@@ -201,7 +201,7 @@ end
 let xassertdb (b: bool) : unit =
 begin
   if (not b) then (
-    (failwith "assertion failure")
+    (failwith "(db) assertion failure")
   );
 end
 
@@ -296,6 +296,7 @@ begin
 
   ths.referenceCount <- ths.referenceCount - 1;
   if (ths.referenceCount = 0) then (
+    (deinitStackNode ths);
     (ths.glr.stackNodePool#dealloc ths)
   )
 end

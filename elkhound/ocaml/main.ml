@@ -11,12 +11,35 @@ class tLexer =
 object (self)
   inherit tLexerInterface
 
+  (* hardcoded input *)
+  val mutable input: string = "2+3";
+
   method getToken() : unit =
   begin
     try
       (self#setIntSval 0);        (* clear previous *)
 
-      let c:char = (input_char stdin) in
+      let c:char =
+        if (false) then (
+          (* read from stdin *)
+          (input_char stdin)
+        )
+        else (
+          (* take from hardcoded input *)
+          let len:int = (String.length input) in
+          if (len > 0) then (
+            (* take first char *)
+            let res:char = (String.get input 0) in
+            input <- (String.sub input 1 (len-1));
+            res
+          )
+          else (
+            (* eof *)
+            (raise End_of_file)
+          )
+        )
+      in
+
       if ('0' <= c && c <= '9') then (
         tokType <- 1;
         (self#setIntSval ((int_of_char c) - (int_of_char '0')));
@@ -86,6 +109,9 @@ begin
 
   let lex:tLexerInterface = ((new tLexer) :> tLexerInterface) in
   (*(printTokens lex);*)
+
+  (* prime the lexer: get first token *)
+  (lex#getToken());
 
   if ((Array.length Sys.argv) = 1) then (
     (* no arguments, use LR *)

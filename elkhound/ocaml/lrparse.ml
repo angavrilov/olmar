@@ -53,9 +53,6 @@ end
 
 let parse (lex:tLexerInterface) : int =
 begin
-  (* get first token *)
-  (lex#getToken());
-
   (* initial state *)
   (pushStateSval 0 (Obj.repr 0));
 
