@@ -33,6 +33,7 @@ public:
   virtual ~ASTTemplVisitor() {}
 
   bool visitTemplateDeclaration(TemplateDeclaration *td);
+  bool visitMember(Member *m);
 
 private:
   void visitTemplateDeclaration_oneTempl(Variable *var0);

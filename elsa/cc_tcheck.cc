@@ -751,6 +751,14 @@ void Function::tcheck_handlers(Env &env)
 }
 
 
+bool Function::uninstTemplatePlaceholder() const
+{
+  return !hasBodyBeenTChecked &&
+         nameAndParams->var &&
+         nameAndParams->var->templateInfo();
+}
+
+
 // MemberInit
 
 // -------------------- Declaration -------------------

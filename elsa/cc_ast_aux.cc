@@ -119,6 +119,20 @@ bool ASTTemplVisitor::visitTemplateDeclaration(TemplateDeclaration *obj)
 }
 
 
+bool ASTTemplVisitor::visitMember(Member *m)
+{
+  if (m->isMR_func()) {
+    Function *f = m->asMR_func()->f;
+    if (f->uninstTemplatePlaceholder()) {
+      // this is an uninstantiated member function; do not traverse it
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+
 // ---------------------- refersTo ----------------------
 // Nominally "refers to <loc>", but with additional information
 // about "using declaration" aliasing.  This is an example of how

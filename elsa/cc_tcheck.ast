@@ -71,6 +71,10 @@ class Function {
   private CompoundType *verifyIsCtor(Env &env, char const *context);
   private void tcheck_memberInits(Env &env);
   private void tcheck_handlers(Env &env);
+  
+  // this returns true if this is just a placeholder for an
+  // uninstantiated template function
+  public bool uninstTemplatePlaceholder() const;
 }
 
 
