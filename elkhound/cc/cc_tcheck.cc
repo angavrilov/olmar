@@ -154,16 +154,39 @@ void Function::tcheck_memberInits(Env &env)
       // TODO: check that the passed arguments are consistent
       // with at least one constructor of the variable's type
 
+      // TODO: make sure that we only initialize each member once
+
+      // TODO: provide a warning if the order in which the
+      // members are initialized is different from their
+      // declaration order, since the latter determines the
+      // order of side effects
+
       continue;
     }
 
     // not a member name.. what about the name of base class?
-    // TODO: once I have a representation of base classes, I can
-    // look among them for this guy
+    // TODO: this doesn't handle virtual base classes correctly
+    bool found = false;
+    FOREACH_OBJLIST(BaseClass, enclosing->bases, baseIter) {
+      if (baseIter.data()->ct->name == iter->name->getName()) {
+        // found the right base class to initialize
+        found = true;
+        
+        // typecheck the arguments
+        iter->args = tcheckFakeExprList(iter->args, env);
 
-    env.error(stringc
-      << "ctor member init name `" << *(iter->name)
-      << "' not found among class members or base classes");
+        // TODO: check that the passed arguments are consistent
+        // with at least one constructor in the base class
+        
+        break;
+      }
+    }
+
+    if (!found) {
+      env.error(stringc
+        << "ctor member init name `" << *(iter->name)
+        << "' not found among class members or base classes");
+    }
   }
 }
 

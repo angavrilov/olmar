@@ -10,6 +10,8 @@ class C {
 public:
   int z;
   //ERROR1: int x;     // ambiguous
+  
+  C() : z(9) {}
 };
 
 class D : public B, public C {
@@ -19,6 +21,8 @@ public:
   int f1() { return y; }    // D's member
   int f2() { return x; }    // B's member
   int f3() { return z; }    // C's member
+  
+  D() : C() { 18; }
 };
 
 
