@@ -125,6 +125,7 @@ public:      // function
 
   // lookup in the environment (all scopes)
   Variable *lookupPQVariable(PQName const *name) const;
+  Variable *lookupVariable(StringRef name, bool innerOnly) const;
   CompoundType *lookupPQCompound(PQName const *name) const;
   CompoundType *lookupCompound(StringRef name, bool innerOnly) const;
   EnumType *lookupPQEnum(PQName const *name) const;

@@ -132,9 +132,18 @@ Variable *Env::lookupPQVariable(PQName const *name) const
     cout << "warning: ignoring qualifiers\n";
   }
 
+  return lookupVariable(name->name, false /*innerOnly*/);
+}
+
+Variable *Env::lookupVariable(StringRef name, bool innerOnly) const
+{
+  if (innerOnly) {
+    return scopes.firstC()->variables.queryif(name);
+  }
+
   // look in all the scopes
   FOREACH_OBJLIST(Scope, scopes, iter) {
-    Variable *v = iter.data()->variables.queryif(name->name);
+    Variable *v = iter.data()->variables.queryif(name);
     if (v) {
       return v;
     }
@@ -202,8 +211,11 @@ Type const *Env::warning(char const *msg)
 
 
 Type const *Env::unimp(char const *msg)
-{
-  trace("error") << "unimplemented: " << msg << endl;
+{ 
+  // always print this immediately, because in some cases I will
+  // segfault (deref'ing NULL) right after printing this
+  cout << "unimplemented: " << msg << endl;
+
   errors.prepend(new ErrorMsg(stringc << "unimplemented: " << msg, loc()));
   return getSimpleType(ST_ERROR);
 }
