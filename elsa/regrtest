@@ -189,17 +189,24 @@ for fn in                                                                 \
   t0103.cc   t0104.cc  t0105.cc  t0106.cc   t0107.cc   t0108.cc  t0109.cc \
   t0110.cc   t0111.cc  t0112.cc  t0113.cc   t0114.cc   t0115.cc  t0116.cc \
   t0117.cc   t0118.cc  t0119.cc  t0120.cc   t0121.cc   t0122.cc  t0123.cc \
-  t0124.cc   t0125.cc            t0127.cc                                 \
+  t0124.cc   t0125.cc            t0127.cc   t0128.cc                      \
     ; do
   # $TR_EXTRA is here so I can put additional tracing flags into this
   # command from the command line, to test them across all my test inputs;
   # by default it expands to "", and hence has no effect
-  runTest perl ./multitest.pl ./ccparse -tr mustBeUnambiguous$TR_EXTRA in/$fn
+  runTest perl ./multitest.pl ./ccparse -tr doOverload,mustBeUnambiguous$TR_EXTRA in/$fn
+done
+
+# another set of tests, generally isolated by Daniel
+for fn in                                                                 \
+  d0001.cc                                                                \
+    ; do
+  runTest perl ./multitest.pl ./ccparse -tr doOverload,mustBeUnambiguous$TR_EXTRA in/$fn
 done
 
 # examples from C++ standard
 for fn in in/std/*.cc; do
-  runTest perl ./multitest.pl ./ccparse "$fn"
+  runTest perl ./multitest.pl ./ccparse -tr doOverload "$fn"
 done
 
 # is the gnu extension built?
@@ -214,7 +221,7 @@ fi
 if $use_gnu; then
   # test gnu extensions
   for fn in in/gnu/*.c?; do
-    runTest ./ccparse "$fn"
+    runTest ./ccparse -tr doOverload "$fn"
   done
 
   # test c99 extensions
@@ -274,7 +281,7 @@ done
 # my performance measurement files
 $MAKE in/big
 for fn in in/big/*.i; do
-  runTest ./ccparse "$fn"
+  runTest ./ccparse -tr doOverload "$fn"
 done
 
 

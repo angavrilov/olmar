@@ -217,6 +217,9 @@ Variable *OverloadResolver::resolve()
     return NULL;
   }
 
+  TRACE("overload", toString(loc)
+        << ": selected instance at " << toString(winner->var->loc));
+
   return winner->var;
 }
 
@@ -228,7 +231,10 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate(Variable *var)
 {
   Owner<Candidate> c(new Candidate(var, args.size()));
 
+//    cout << "args.size() " << args.size() << endl;
+
   FunctionType *ft = var->type->asFunctionType();
+//    cout << "ft->params.count() " << ft->params.count() << endl;
 
   // simultaneously iterate over parameters and arguments
   SObjListIter<Variable> paramIter(ft->params);

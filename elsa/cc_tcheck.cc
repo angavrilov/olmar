@@ -3125,6 +3125,10 @@ Type *makeLvalType(Env &env, Type *underlying)
   else if (underlying->isFunctionType()) {
     // don't make references to functions
     return underlying;
+
+    // at one point I added a similar prohibition against
+    // references to arrays, but that was wrong, e.g.:
+    //   int (&a)[];
   }
   else {
     // I expect Daniel's factory to take the location from
@@ -3168,7 +3172,164 @@ Type *E_variable::itcheck(Env &env, Expression *&replacement)
   return makeLvalType(env, var->type);
 }
 
-          
+
+// ------------- BEGIN: outerResolveOverload ------------------
+// this answers the "are you ..." question for a specific node in
+// a type tree; this predicate is then applied to all the nodes in
+// that tree by the 'anyCtorSatisfies' mechanism
+static bool areYou_helper(Type const *t)
+{   
+  switch (t->getTag()) {
+    case Type::T_ATOMIC: {
+      CVAtomicType const *c = t->asCVAtomicTypeC();
+      return c->isDependent() ||
+             c->isTypeVariable() ||
+             // NOTE NOTE NOTE! This is not the same as asking
+             // ct->isTemplate(), which seems to return false if it was a
+             // template but was then instantiated.  Hopefully this one will
+             // catch even instantiated templates.
+             (c->isCompoundType() && c->asCompoundTypeC()->templateInfo);
+    }
+
+    case Type::T_FUNCTION:
+      return t->asFunctionTypeC()->isTemplate();
+      
+    default:
+      // the original code asked 'isDependent' for all the nodes,
+      // but only CVAtomicTypes can possibly answer yes
+      return false;
+  }
+}
+
+// true if 't' is a template, an instantiated template, or contains
+// any type that is either (not including digging into the fields of
+// compound types)
+static bool areYouOrHaveYouEverBeenATemplate(Type const *t)
+{
+  return t->anyCtorSatisfies(areYou_helper);
+}
+
+
+// return true iff all the args variables are non-templates; this is
+// temporary
+static bool allNonTemplateFunctions(SObjList<Variable> &set)
+{
+  SFOREACH_OBJLIST(Variable, set, iter) {
+    FunctionType *ft = iter.data()->type->asFunctionType();
+    xassert(ft);
+    if (ft->isTemplate()) return false;
+    SFOREACH_OBJLIST(Variable, ft->params, param_iter) {
+      if (areYouOrHaveYouEverBeenATemplate(param_iter.data()->type)) return false;
+    }
+  }
+  return true;
+}
+
+// return true iff all the args variables are non-templates; this is
+// temporary
+static bool allNonTemplates(FakeList<ICExpression> *args)
+{
+//    cout << "argument types:" << endl;
+  FAKELIST_FOREACH_NC(ICExpression, args, iter) {
+//      cout << "\titer->expr->type " << iter->expr->type->toCString() << endl;
+    if (areYouOrHaveYouEverBeenATemplate(iter->expr->type)) return false;
+  }
+  return true;
+}
+
+// return true iff all the variables are non-methods; this is
+// temporary, otherwise I'd make it a method on class OverloadSet
+static bool allNonMethods(SObjList<Variable> &set)
+{
+  SFOREACH_OBJLIST(Variable, set, iter) {
+    if (iter.data()->type->asFunctionType()->isMember()) return false;
+  }
+  return true;
+}
+
+// return true iff all the variables are methods; this is temporary,
+// otherwise I'd make it a method on class OverloadSet
+static bool allMethods(SObjList<Variable> &set)
+{
+  SFOREACH_OBJLIST(Variable, set, iter) {
+//      cout << "iter.data()->type->asFunctionType() " << iter.data()->type->asFunctionType()->toCString() << endl;
+    if (!iter.data()->type->asFunctionType()->isMember()) return false;
+  }
+  return true;
+}
+
+
+// Given a Variable that might denote an overloaded set of functions,
+// and the syntax of the arguments that are to be passed to the
+// function ultimately chosen, pick one of the functions using
+// overload resolution; return NULL if overload resolution fails for
+// any reason. 'loc' is the location of the call site, for error
+// reporting purposes.
+//
+// This function mediates between the type checker, which knows about
+// syntax and context, and the overload module's 'resolveOverload',
+// which knows about neither.  In essence, it's everything that is
+// common to overload resolution needed in various AST locations
+// that isn't already covered by 'resolveOverload' itself.
+//
+// Note that it is up to the caller to do AST rewriting as necessary
+// to reflect the chosen function.  Rationale: the caller is in a
+// better position to know what things need to be rewritten, since it
+// is fully aware of the syntactic context.
+Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
+                               Type *receiverType, FakeList<ICExpression> *args)
+{
+  // are we even in a situation where we can do overloading?
+  if (!var->overload) return NULL;
+
+  // temporarily avoid dealing with overload sets containing
+  // templatized functions
+  bool allNonTemplFunc0 = allNonTemplateFunctions(var->overload->set);
+  if (!allNonTemplFunc0) return NULL;
+
+  // temporarily avoid dealing with considerations of mixed static and
+  // non-static members in overload set
+  bool allMethod0 = allMethods(var->overload->set);
+  bool allNonMethod0 = allNonMethods(var->overload->set);
+  if (! (allMethod0 || allNonMethod0) ) return NULL;
+
+  xassert( (((int)allMethod0) + ((int)allNonMethod0)) == 1 );
+  TRACE("overload", ::toString(loc)
+        << ": overloaded(" << var->overload->set.count()
+        << ") call to " << var->name);
+
+  // fill an array with information about the arguments
+  GrowArray<ArgumentInfo> argInfo(args->count() + (allMethod0?1:0) );
+  {
+    int index = 0;
+
+    if (allMethod0) {
+      if (!receiverType) {
+        // dsw: error message parallels that of g++; feel free to change it
+        // sm: I suspect we'll actually want to remove it, since the tcheck
+        // that follows overload resolution will catch this error also.
+        env.error("Cannot call member function without object");
+        return NULL;
+      }
+      // TODO: take into account whether the receiver is an rvalue
+      // or an lvalue
+      argInfo[index] = ArgumentInfo(SE_NONE, makeLvalType(env, receiverType));
+      index++;
+    }
+
+    FAKELIST_FOREACH_NC(ICExpression, args, iter) {
+      argInfo[index] = ArgumentInfo(iter->expr->getSpecial(), iter->expr->type);
+      index++;
+    }
+  }
+
+  // resolve overloading
+  return resolveOverload(env, loc, &env.errors,
+                         OF_NONE, var->overload->set, argInfo);
+}
+// ------------- END: outerResolveOverload ------------------
+
+
 // this is the old code, and served as the prototypical way to tcheck
 // a FakeList of potentially ambiguous elements; but now FakeList<Expression>
 // is not used, so this function has become much simpler
@@ -3220,6 +3381,10 @@ static Variable *getNamedFunction(Expression *e)
   xfailure("no named function");
   return NULL;   // silence warning
 }
+  
+// fwd
+static Type *internalTestingHooks
+  (Env &env, StringRef funcName, FakeList<ICExpression> *args);
 
 
 // true if the type has no destructor because it's not a compound type
@@ -3279,16 +3444,20 @@ Type *E_funCall::inner2_itcheck(Env &env)
     // if I'm trying to test it, I want it performed; do this up here
     // so I turn it on before resolving the arguments
     env.doOverload = true;
+    env.doOperatorOverload = true;     // this too, when test wants overloading
   }
 
   // check the argument list
   tcheckFakeExprList(args, env);
 
+  // the type of the function that is being invoked
   Type *t = func->type->asRval();
 
   // automatically coerce function pointers into functions
   if (t->isPointerType()) {
     t = t->asPointerTypeC()->atType;
+    // if it is an E_variable then its overload set will be NULL so we
+    // won't be doing overload resolution in this case
   }
 
   // check for operator()
@@ -3312,134 +3481,162 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // skip grouping parens (cppstd 13.3.1.1 para 1)
   Expression *func = this->func->skipGroups();
 
+  // this block is just testing
   if (func->isE_variable()) {
-    E_variable *funcEVar = func->asE_variable();
-    StringRef funcName = funcEVar->name->getName();
+    Type *ret = internalTestingHooks(env, 
+      func->asE_variable()->name->getName(), args);
+    if (ret) {
+      return ret;
+    }
+  }
 
-    // test vector for 'getStandardConversion'
-    if (funcName == env.special_getStandardConversion) {
-      int expect;
-      if (args->count() == 3 &&
-          args->nth(2)->expr->constEval(env, expect)) {
-        test_getStandardConversion(env,
-          args->nth(0)->expr->getSpecial(),     // is it special?
-          args->nth(0)->expr->type,             // source type
-          args->nth(1)->expr->type,             // dest type
-          expect);                        // expected result
-      }
-      else {
-        env.error("invalid call to __getStandardConversion");
+  // check for function calls that need overload resolution
+  if (env.doOverload &&
+      // dsw: don't do any of this in a template context
+      !env.inTemplate() &&
+      // dsw: temporarily avoid dealing with template args
+      allNonTemplates(args)) {
+      
+    // simple E_funCall to a named function
+    if (func->isE_variable()) {
+      E_variable *evar = func->asE_variable();
+      
+      Variable *chosen = 
+        outerResolveOverload(env, evar->name->loc, evar->var, 
+                             env.implicitReceiverType(), args);
+      if (chosen) {
+        // rewrite AST to reflect choice
+        evar->var = chosen;
+        evar->type = chosen->type;
+        t = chosen->type;    // for eventual return value
       }
     }
 
-    // test vector for 'getImplicitConversion'
-    if (funcName == env.special_getImplicitConversion) {
-      int expectKind;
-      int expectSCS;
-      int expectUserLine;
-      int expectSCS2;
-      if (args->count() == 6 &&
-          args->nth(2)->expr->constEval(env, expectKind) &&
-          args->nth(3)->expr->constEval(env, expectSCS) &&
-          args->nth(4)->expr->constEval(env, expectUserLine) &&
-          args->nth(5)->expr->constEval(env, expectSCS2)) {
-        test_getImplicitConversion(env,
-          args->nth(0)->expr->getSpecial(),     // is it special?
-          args->nth(0)->expr->type,             // source type
-          args->nth(1)->expr->type,             // dest type
-          expectKind, expectSCS, expectUserLine, expectSCS2);   // expected result
-      }
-      else {
-        env.error("invalid call to __getImplicitConversion");
-      }
-    }
+    // method call to a named function
+    if (func->isE_fieldAcc() &&
+        // in the case of a call to a compiler-synthesized
+        // destructor, the 'field' is currently NULL (that might
+        // change); but in that case overloading is not possible,
+        // so this code can safely ignore it (e.g. in/t0091.cc)
+        func->asE_fieldAcc()->field) {
+      E_fieldAcc *efld = func->asE_fieldAcc();
 
-    // test overload resolution
-    if (funcName == env.special_testOverload) {
-      int expectLine;
-      if (args->count() == 2 &&
-          args->nth(1)->expr->constEval(env, expectLine)) {
-
-        if (args->first()->expr->isE_funCall() &&
-            hasNamedFunction(args->first()->expr->asE_funCall()->func)) {
-          // resolution yielded a function call
-          Variable *chosen = getNamedFunction(args->first()->expr->asE_funCall()->func);
-          int actualLine = sourceLocManager->getLine(chosen->loc);
-          if (expectLine != actualLine) {
-            env.error(stringc
-              << "expected overload to choose function on line "
-              << expectLine << ", but it chose line " << actualLine);
-          }
-        }
-        else if (expectLine != 0) {
-          // resolution yielded something else
-          env.error("expected overload to choose a function, but it "
-                    "chose a non-function");
-        }
-
-        // propagate return type
-        return args->first()->expr->type;
-      }
-      else {
-        env.error("invalid call to __testOverload");
-      }
-    }
-
-    // overload resolution
-    if (env.doOverload && funcEVar->var->overload) {
-      TRACE("overload", ::toString(funcEVar->name->loc)
-        << ": overloaded(" << funcEVar->var->overload->set.count() 
-        << ") call to " << funcName);
-
-      // TODO: if the function name refers to a member function,
-      // and we're currently inside a nonstatic member function of
-      // the same or derived class as the callee, then we need to
-      // make a receiver object argument and match that up with
-      // the receiver object parameter (cppstd 13.3.1.1.1 para 3,
-      // and 13.3.1 para 2 and 3)
-
-      // fill an array with information about the arguments
-      GrowArray<ArgumentInfo> argInfo(args->count());
-      {
-        int index = 0;
-        FAKELIST_FOREACH_NC(ICExpression, args, iter) {
-          argInfo[index] = ArgumentInfo(iter->expr->getSpecial(), iter->expr->type);
-          index++;
-        }
-      }
-
-      // resolve overloading
-      Variable *chosen = resolveOverload(
-        env, funcEVar->name->loc, &env.errors,
-        OF_NONE, funcEVar->var->overload->set, argInfo);
-      if (!chosen) {
-        // error has already been reported
-      }
-      else {
-        TRACE("overload", ::toString(funcEVar->name->loc)
-          << ": selected instance at " << ::toString(chosen->loc));
-
-        // modify the function node's 'var' field to point at the
-        // correct overloaded instance
-        funcEVar->var = chosen;
-        funcEVar->type = chosen->type;
+      Variable *chosen =
+        outerResolveOverload(env, efld->fieldName->loc, efld->field, 
+                             efld->obj->type, args);
+      if (chosen) {
+        // rewrite AST
+        efld->field = chosen;
+        efld->type = chosen->type;
         t = chosen->type;
       }
     }
   }
 
-  // TODO: overload resolution also needs to be done when
-  // 'func' names an E_fieldAcc, and the member function has
-  // been overloaded
-
   // TODO: I currently translate array deref into ptr arith plus
   // ptr deref; that makes it impossible to overload [] !
+
+  // dsw: Also, you get rid of -> using * and . which makes it
+  // impossible to overload -> as well.
 
   // TODO: make sure the argument types are compatible
   // with the function parameters
 
+  // dsw: doesn't overloading succeeding guarantee this?
+
+  // sm: Actually, it doesn't.  First, if there's no overload set,
+  // then we won't have done any such resolution.  Moreover, there are
+  // instances where overload resolution will choose a candidate that
+  // later yields an error (e.g. access control, binding a non-const
+  // reference to a temporary, etc.).  So, the strategy is to do
+  // overload resolution when necessary to pick the best type 't', but
+  // then tcheck the arguments against 't' as if we had no reason to
+  // suspect 't' was a good function to call.
+
   // type of the expr is type of the return value
   return env.tfac.cloneType(t->asFunctionTypeC()->retType);
+}
+
+
+// special hooks for testing internal algorithms; returns a type
+// for the entire E_funCall expression if it recognizes the form
+// and typechecks it in its entirety
+static Type *internalTestingHooks
+  (Env &env, StringRef funcName, FakeList<ICExpression> *args)
+{
+  // test vector for 'getStandardConversion'
+  if (funcName == env.special_getStandardConversion) {
+    int expect;
+    if (args->count() == 3 &&
+        args->nth(2)->expr->constEval(env, expect)) {
+      test_getStandardConversion
+        (env,
+         args->nth(0)->expr->getSpecial(),     // is it special?
+         args->nth(0)->expr->type,             // source type
+         args->nth(1)->expr->type,             // dest type
+         expect);                        // expected result
+    }
+    else {
+      env.error("invalid call to __getStandardConversion");
+    }
+  }
+
+  // test vector for 'getImplicitConversion'
+  if (funcName == env.special_getImplicitConversion) {
+    int expectKind;
+    int expectSCS;
+    int expectUserLine;
+    int expectSCS2;
+    if (args->count() == 6 &&
+        args->nth(2)->expr->constEval(env, expectKind) &&
+        args->nth(3)->expr->constEval(env, expectSCS) &&
+        args->nth(4)->expr->constEval(env, expectUserLine) &&
+        args->nth(5)->expr->constEval(env, expectSCS2)) {
+      test_getImplicitConversion
+        (env,
+         args->nth(0)->expr->getSpecial(),     // is it special?
+         args->nth(0)->expr->type,             // source type
+         args->nth(1)->expr->type,             // dest type
+         expectKind, expectSCS, expectUserLine, expectSCS2);   // expected result
+    }
+    else {
+      env.error("invalid call to __getImplicitConversion");
+    }
+  }
+
+  // test overload resolution
+  if (funcName == env.special_testOverload) {
+    int expectLine;
+    if (args->count() == 2 &&
+        args->nth(1)->expr->constEval(env, expectLine)) {
+
+      if (args->first()->expr->isE_funCall() &&
+          hasNamedFunction(args->first()->expr->asE_funCall()->func)) {
+        // resolution yielded a function call
+        Variable *chosen = getNamedFunction(args->first()->expr->asE_funCall()->func);
+        int actualLine = sourceLocManager->getLine(chosen->loc);
+        if (expectLine != actualLine) {
+          env.error(stringc
+            << "expected overload to choose function on line "
+            << expectLine << ", but it chose line " << actualLine);
+        }
+      }
+      else if (expectLine != 0) {
+        // resolution yielded something else
+        env.error("expected overload to choose a function, but it "
+                  "chose a non-function");
+      }
+
+      // propagate return type
+      return args->first()->expr->type;
+    }
+    else {
+      env.error("invalid call to __testOverload");
+    }
+  }
+
+  // E_funCall::itcheck should continue, and tcheck this normally
+  return NULL;
 }
 
 
@@ -3582,7 +3779,7 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
 
   // check for operator overloading; only limited cases for now
   // (TODO: lhs or rhs enum triggers overload resolution)
-  if (env.doOverload &&
+  if (env.doOperatorOverload &&
       isOverloadable(op) &&
       (lhsType->isCompoundType() || rhsType->isCompoundType())) {
     TRACE("overload", "found overloadable " << toString(op));

@@ -357,7 +357,7 @@ public:     // funcs
 // description of types, this class becomes is inherited by "Type",
 // the class that all of the rest of the parser regards as being a
 // "type"
-class BaseType {
+class BaseType {    // note: clients should refer to Type, not BaseType
 public:     // types
   enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY, T_POINTERTOMEMBER };
   
@@ -429,8 +429,7 @@ public:     // funcs
   // size of representation
   virtual int reprSize() const = 0;
 
-  // filter on all type constructors (i.e. non-atomic types); return
-  // true if any constructor satisfies 'pred'
+  // see description below, in class Type
   //virtual bool anyCtorSatisfies(TypePred pred) const=0;
 
   // return the cv flags that apply to this type, if any;
@@ -442,8 +441,8 @@ public:     // funcs
   bool isSimpleType() const;
   SimpleType const *asSimpleTypeC() const;
   bool isSimple(SimpleTypeId id) const;
-  bool isSimpleCharType() const {return isSimple(ST_CHAR);}
-  bool isSimpleWChar_TType() const {return isSimple(ST_WCHAR_T);}
+  bool isSimpleCharType() const { return isSimple(ST_CHAR); }
+  bool isSimpleWChar_TType() const { return isSimple(ST_WCHAR_T); }
   bool isIntegerType() const;            // any of the simple integer types
   bool isEnumType() const;
   bool isUnionType() const { return isCompoundTypeOf(CompoundType::K_UNION); }
@@ -505,8 +504,11 @@ ENUM_BITWISE_OPS(BaseType::EqFlags, BaseType::EF_ALL)
     Type() {}
 
   public:      // funcs
-    // filter on all type constructors (i.e. non-atomic types); return
-    // true if any constructor satisfies 'pred'
+    // filter on all constructed types that appear in the type,
+    // *including* parameter types; return true if any constructor
+    // satisfies 'pred' (note that recursive types always go through
+    // CompoundType, and this does not dig into the fields of
+    // CompoundTypes)
     virtual bool anyCtorSatisfies(TypePred pred) const=0;
 
     // do not leak the name "BaseType"
@@ -556,7 +558,7 @@ enum PtrOper {
 // type of a pointer or reference
 class PointerType : public Type {
 public:     // data
-  PtrOper op;                  // "*" or "&"
+  PtrOper op;                  // "*" or "&"; see note at end
   CVFlags cv;                  // const/volatile, if "*"; refers to pointer *itself*
   Type *atType;                // (serf) type of thing pointed-at
 
@@ -1032,6 +1034,40 @@ public:    // funcs
 // update: it turns out the latest gdbs are capable of using the
 // toString method directly!  but I'll leave this here anyway.
 char *type_toString(Type const *t);
+
+
+// PointerType and references:
+//
+// PointerType is used for both pointers and references.  This choice
+// is motivated by the similarity of their run-time semantics and
+// likely implementation.  The case has been made that they should be
+// split into two classes, and also that ArrayType might be
+// conceivably merged with PointerType, both arguments made based on
+// similarities of *compile* time semantics.  So far, I haven't found
+// the arguments sufficiently convincing to change the hierarchy, but
+// I still consider it a possible point of future debate.
+//
+// One a somewhat related note, I should explain my intended
+// relationship between references and lvalues.  The C++ standard uses
+// the term 'reference' to refer to types (a compile-time concept),
+// and 'lvalue' to refer to values (a run-time concept).  Of course, a
+// reference type gives rise to an lvalue, and a (non-const) reference
+// must be bound to an lvalue, so there's a close relationship between
+// the two.  In constrast, the same document uses the term 'pointer'
+// when referring to both types and values.
+//
+// In the interest of reducing the number of distinct concepts, I use
+// "reference types" and "lvalues" interchangeably; non-references
+// refer to rvalues.  Generally, this works well.  However, one must
+// keep in mind that there is consequently a slight terminological
+// difference between my stuff and the C++ standard.  For example, in
+// the code
+//
+//   int a;
+//   f(a);
+//
+// the argument 'a' has type 'int' and is an lvalue according to the
+// standard, whereas cc_tcheck.cc just says it's an 'int &'.
 
 
 #endif // CC_TYPE_H
