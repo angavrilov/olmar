@@ -449,7 +449,7 @@ public:      // funcs
     { return tfac.makeReferenceType(loc, atType); }
   FunctionType *makeFunctionType(SourceLoc loc, Type *retType)
     { return tfac.makeFunctionType(loc, retType); }
-  ArrayType *makeArrayType(SourceLoc loc, Type *eltType, int size = Array::NO_SIZE)
+  ArrayType *makeArrayType(SourceLoc loc, Type *eltType, int size = ArrayType::NO_SIZE)
     { return tfac.makeArrayType(loc, eltType, size); }
 
   // (this does the work of the old 'makeMadeUpVariable')
