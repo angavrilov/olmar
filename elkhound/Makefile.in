@@ -5,9 +5,8 @@
 #tmp: parsetables.o elkhound libelkhound.a
 
 # main targets: elkhound, a C parser and a C++ parser
-all: elkhound libelkhound.a arith c cc2/cc2.exe
+all: elkhound libelkhound.a TAGS arith c cc2/cc2.exe
 	@echo BUILD FINISHED
-all: TAGS
 
 
 # directories of other software
@@ -506,7 +505,8 @@ gendoc/configure.txt: configure
 doc: gendoc gendoc/elkhound_dep.png gendoc/glr.png gendoc/configure.txt
 	@echo "built documentation"
 
-TAGS:; etags --members --typedefs *.cc *.h
+TAGS:
+	etags --members --typedefs *.cc *.h
 
 # some other random phony targets (I hate this clutter..)
 .PHONY: clean distclean check
