@@ -114,6 +114,12 @@ string declaration_toString (
       stringBuilder sb;
       sb << scope_thing;
       sb << finalName;
+      if (type->isFunctionType() &&
+          var->templateInfo() &&
+          var->templateInfo()->isCompleteSpecOrInstantiation()) {
+        // print the spec/inst args after the function name
+        sb << sargsToString(var->templateInfo()->arguments);
+      }
       sb << var->namePrintSuffix();    // hook for verifier
       s << type->toCString(sb);
 //        if (type->isTemplateClass()) {

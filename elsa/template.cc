@@ -1769,6 +1769,9 @@ Variable *Env::instantiateFunctionTemplate
   // compute the type of the instantiation by applying 'map' to
   // the templatized type
   Type *instType = applyArgumentMapToType(map, primary->type);
+  
+  // pacify Oink...
+  instType = tfac.cloneType(instType);
 
   // create the representative Variable
   inst = makeInstantiationVariable(primary, instType);
@@ -3036,7 +3039,10 @@ Variable *Env::makeExplicitFunctionSpecialization
   Variable *ret = NULL;
   SFOREACH_OBJLIST_NC(Variable, set, iter) {
     Variable *primary = iter.data();
-    if (!primary->isTemplate()) continue;
+    if (!primary->isTemplate()) {
+      continue_outer_loop:     // poor man's labeled continue ...
+      continue;
+    }
 
     // can this element specialize to 'ft'?
     MatchTypes match(tfac, MatchTypes::MM_BIND);
@@ -3044,8 +3050,8 @@ Variable *Env::makeExplicitFunctionSpecialization
       // yes; construct the argument list that specializes 'primary'
       TemplateInfo *primaryTI = primary->templateInfo();
       SObjList<STemplateArgument> specArgs;
-      
-      if (primaryTI->inheritedParams.isNotEmpty()) {              
+
+      if (primaryTI->inheritedParams.isNotEmpty()) {
         // two difficulties:
         //   - both the primary and specialization types might refer
         //     to inherited type varibles, but MM_BIND doesn't want
@@ -3055,21 +3061,52 @@ Variable *Env::makeExplicitFunctionSpecialization
         //     full argument list for making the TemplateInfo
         xfailure("unimplemented: specializing a member template");
       }
-                            
+
+      // simultanously iterate over the user's provided arguments,
+      // if any, checking for correspondence with inferred arguments
+      SObjListIter<STemplateArgument> nameArgsIter(nameArgs);
+
       // just use the main (not inherited) parameters...
       SFOREACH_OBJLIST_NC(Variable, primaryTI->params, paramIter) {
         Variable *param = paramIter.data();
 
         // get the binding
         STemplateArgument const *binding = match.bindings.getVar(param->name);
-        
-        // remember it (I promise not to modify it...)
+        if (!binding) {
+          // inference didn't pin this down; did the user give me
+          // arguments to use instead?
+          if (!nameArgsIter.isDone()) {
+            // yes, use the user's argument instead
+            binding = nameArgsIter.data();
+          }
+          else {
+            // no, so this candidate can't match
+            goto continue_outer_loop;
+          }
+        }
+        else {
+          // does the inferred argument match what the user has?
+          if (pqtemplate &&                               // user gave me arguments
+              (nameArgsIter.isDone() ||                           // but not enough
+               !binding->isomorphic(tfac, nameArgsIter.data()))) {   // or no match
+            // no match, this candidate can't match
+            goto continue_outer_loop;
+          }
+        }
+
+        // remember the argument (I promise not to modify it...)
         specArgs.append(const_cast<STemplateArgument*>(binding));
+
+        if (!nameArgsIter.isDone()) {
+          nameArgsIter.adv();
+        }
       }
-      
-      // does the inferred argument list match 'nameArgs'?
-      if (pqtemplate && 
-          !equalArgumentLists(tfac, nameArgs, specArgs)) {
+
+      // does the inferred argument list match 'nameArgs'?  we already
+      // checked individual elements above, now just confirm the count
+      // is correct (in fact, only need to check there aren't too many)
+      if (pqtemplate &&                  // user gave me arguments
+          !nameArgsIter.isDone()) {        // but too many
         // no match, go on to the next primary
         continue;
       }
