@@ -62,6 +62,9 @@ while [ "$1" != "" ]; do
   shift
 done
 
+# allow 'gmake' or whatever to be used instead of 'make'
+MAKE=${MAKE:-make}
+
 # clear the logfile
 log=regrtest.log
 rm -f $log
@@ -96,21 +99,21 @@ runTestInternal() {
     ("$@")
     result=$?
     if [ $result -ne 0 ]; then
-      unexFailure=$[ $unexFailure + 1 ]
+      unexFailure=`expr $unexFailure + 1`
       echo ""
       log  "[$curtest] A regression test command failed:"
       log  "  $*"
     else
-      success=$[ $success + 1 ]
+      success=`expr $success + 1`
     fi
 
     if $runOneTest; then
       # exit with code 0 if the test succeeded
-      exit $[ 1 - $success ]
+      exit `expr 1 - $success`
     fi
   fi
 
-  curtest=$[ $curtest + 1 ]
+  curtest=`expr $curtest + 1`
   return $result
 }
 
@@ -130,7 +133,7 @@ failTest() {
   else
     echo "------------ [$curtest] (fail) $* ------------"
     if "$@"; then
-      unexSuccess=$[ $unexSuccess + 1 ]
+      unexSuccess=`expr $unexSuccess + 1`
       echo ""
       log  "[$curtest] A regression test that used to fail ($reason) now succeeds:"
       log  "  $*"
@@ -138,17 +141,17 @@ failTest() {
         exit 2
       fi
     else
-      failure=$[ $failure + 1 ]
+      failure=`expr $failure + 1`
       echo "Failed as expected: $reason"
     fi
 
     if $runOneTest; then
       # exit with code 0 if the test failed
-      exit $[ 1 - $failure ]
+      exit `expr 1 - $failure`
     fi
   fi
 
-  curtest=$[ $curtest + 1 ]
+  curtest=`expr $curtest + 1`
 }
 
 # run a failing big test
@@ -224,7 +227,7 @@ done
 
 # final parser checks against the big files, since they've now become
 # my performance measurement files
-make in/big
+$MAKE in/big
 for fn in in/big/*.i; do
   runTest ./ccparse "$fn"
 done

@@ -182,6 +182,6 @@ distclean: clean
 	rm -rf gendoc
 
 check: all
-	./regrtest
+	MAKE=$(MAKE) ./regrtest
 	@echo ""
 	@echo "Regression tests passed."

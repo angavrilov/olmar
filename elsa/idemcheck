@@ -106,9 +106,9 @@ for my $name(@names) {
         run_command "cpp -D__cplusplus -D__LINUX__ -D__UNIX__ -DNDEBUG $name",
         "$outname.0cppout.cc";
         run_command "$parser $flags $outname.0cppout.cc", "$outname.1rawout.cc";
-        run_only "./chop_out < $outname.1rawout.cc", "$outname.2out.cc";
+        run_only "perl ./chop_out < $outname.1rawout.cc", "$outname.2out.cc";
         run_command "$parser $flags $outname.2out.cc", "$outname.3rawout.cc";
-        run_only "./chop_out < $outname.3rawout.cc", "$outname.4out.cc";
+        run_only "perl ./chop_out < $outname.3rawout.cc", "$outname.4out.cc";
     };
     if ($@) {
         dump_outfiles();
@@ -117,7 +117,8 @@ for my $name(@names) {
         next;
     }
 
-    my $diff_command = "diff -u $outname.2out.cc $outname.4out.cc > $outname.5diff";
+    # sm: replaced -u with -c for portability
+    my $diff_command = "diff -c $outname.2out.cc $outname.4out.cc > $outname.5diff";
     $outfile2command{"$outname.5diff"} = $diff_command;
     push @outfiles, "$outname.5diff";
     my $diff_res = system $diff_command;
