@@ -1,66 +1,61 @@
 /* grammar.lex
- * lexical analyzer for C code
- *
- * strips C and C++ comments
- *
- * TOK_STRING and TOK_CHARACTER:
- *   recognizes string and character literals, and translates
- *     backslash codes within
- *
- * TOK_IDENTIFIER, TOK_OPERATOR:
- *   identifiers and operators
- *
- * TOK_INTEGER:
- *   integer literal
- *
- * TOK_FLOAT:
- *   floating-point literal
+ * lexical analyzer for my grammar input format
  */
 
 /* ----------------- C definitions -------------------- */
 %{
 
-struct BackslashCode {
-  char code;          // the char that follows a backslash
-  char meaning;       // its meaning
-};
-static BackslashCode const backslashCodes[] = {
-  { 'a', '\a' },      // bell
-  { 'b', '\b' },      // backspace
-  { 'f', '\f' },      // formfeed
-  { 'n', '\n' },      // newline
-  { 'r', '\r' },      // carriage return
-  { 't', '\t' },      // tab
-  { 'v', '\v' },      // vertical tab
-};
+// pull in the bison-generated token codes */
+#include "grammar.tab.h"
 
 // my lexer state
 int commentStartLine;        // for reporting unterminated C comments
-string stringLiteral;        // to collect string and character literals
-int numberLiteral;           // to store number literal value
+int integerLiteral;          // to store number literal value
+int lineNumber = 1;          // for reporting errors
 
 // lexer state automatically supplied by flex
-//   yytext      - contents of matched string, for identifiers and operators
+//   yytext      - contents of matched string, for names
 //   yyleng      - # of characters in yytext
-//   yylineno    - current line number in file
 
 %}
+
+
+/* -------------------- flex options ------------------ */
+/* no wrapping is needed; setting this means we don't have to link with libfl.a */
+%option noyywrap
+
 
 /* ------------------- definitions -------------------- */
 /* any character, including newline */
 ANY       (.|"\n")
 
+/* starting character in a name */
+LETTER    [a-zA-Z_"]
+
+/* starting character in a numeric literal */
+DIGIT     [0-9]
+
 
 /* --------------- start conditions ------------------- */
+%x C_COMMENT
 
 
 /* ---------------------- rules ----------------------- */
 %%
 
+  /* -------- whitespace ------ */
+"\n" {
+  lineNumber++;
+}
+
+[ \t\f\v]+ {
+  /* no-op */
+}
+
   /* -------- comments -------- */
 "/*" {
   /* C-style comments */
-  commentStartLine = yylineno;
+  commentStartLine = lineNumber;
   BEGIN(C_COMMENT);
 }
 
@@ -70,13 +65,13 @@ ANY       (.|"\n")
     BEGIN(INITIAL);
   }
 
-  ANY {
-    /* anything else -- eat it */
+  {ANY} {
+    /* anything but slash-star -- eat it */
   }
 
   <<EOF>> {
-    printf("unterminated comment, beginning on line %d\n", commentStartLine);
-    BEGIN(INITIAL);
+    fprintf(stderr, "unterminated comment, beginning on line %d\n", commentStartLine);
+    return 0;     // eof
   }
 }
 
@@ -86,110 +81,76 @@ ANY       (.|"\n")
 }
 
 
-  /* -------- string and character literals -------- */
-"\"" {
-  /* string literal */
-  stringLiteral = "";
-  BEGIN(STRING);
+  /* -------- punctuators, operators, keywords --------- */
+"{"                return TOK_LBRACE;
+"}"                return TOK_RBRACE;
+":"                return TOK_COLON;
+";"                return TOK_SEMICOLON;
+"->"               return TOK_ARROW;
+"|"                return TOK_VERTBAR;
+":="               return TOK_COLONEQUALS;
+"("                return TOK_LPAREN;
+")"                return TOK_RPAREN;
+
+"||"               return TOK_OROR;
+"&&"               return TOK_ANDAND;
+"!="               return TOK_NOTEQUAL;
+"=="               return TOK_EQUALEQUAL;
+">="               return TOK_GREATEREQ;
+"<="               return TOK_LESSEQ;
+">"                return TOK_GREATER;
+"<"                return TOK_LESS;
+"-"                return TOK_MINUS;
+"+"                return TOK_PLUS;
+"%"                return TOK_PERCENT;
+"/"                return TOK_SLASH;
+"*"                return TOK_ASTERISK;
+
+"nonterm"          return TOK_NONTERM;
+"formGroup"        return TOK_FORMGROUP;
+"form"             return TOK_FORM;
+"action"           return TOK_ACTION;
+"condition"        return TOK_CONDITION;
+
+
+  /* -------- name literal -------- */
+{LETTER}({LETTER}|{DIGIT})* {
+  /* get text from yytext and yyleng */
+  return TOK_NAME;
 }
 
-<STRING>{
-  "\"" {
-    /* end of string */
-    /* caller can retrieve string text as stringLiteral */
-    BEGIN(INITIAL);
-    return TOK_STRING;
-  }
-
-  "\n" {
-    /* unescaped newline */
-    printf("unterminated string literal on line %d\n", yylineno);
-    BEGIN(INITIAL);
-    return TOK_STRING;
-  }
+  /* -------- numeric literal ----- */
+{DIGIT}+ {
+  integerLiteral = strtoul(yytext, NULL, 10 /*radix*/);
+  return TOK_INTEGER;
 }
 
-"\'" {
-  /* character literal */
-  stringLiteral = "";       /* I use 'stringLiteral' for both */
-  BEGIN(CHARACTER);
+. {
+  fprintf(stderr, "illegal character: `%c', line %d\n",
+                  yytext[0], lineNumber);
 }
 
-<CHARACTER>{
-  "\'" {
-    /* end of character literal */
-    BEGIN(INITIAL);
-    return TOK_CHARACTER;
-  }
 
-  "\n" {
-    /* unescaped newline */
-    printf("unterminated character literal on line %d\n", yylineno);
-    BEGIN(INITIAL);
-    return TOK_CHARACTER;
-  }
-}
 
-<STRING,CHARACTER>{
-  "\\\n"(WHITESP)* {
-    /* escaped newline: eat it, and all the leading whitespace on the
-     * next line */
-  }
+%%
+/* -------------------- additional C code -------------------- */
 
-  "\\"(OCTAL)(OCTAL)(OCTAL) {
-    stringLiteral << (char)strtol(string(yytext+1,3), NULL, 8 /*radix*/);
-  }
+#ifdef TEST_GRAMMAR_LEX
 
-  "\\"(HEX)(HEX) {
-    stringLiteral << (char)strtol(string(yytext+1,2), NULL, 16 /*radix*/);
-  }
-
-  "\\". {
-    /* one-char backslash code */
-    int i;
-    for (i=0; i<TABLESIZE(backslashCodes); i++) {
-      if (backslashCodes[i].code == yytext[1]) {
-        stringLiteral << backslashCodes[i].meaning;
-        break;
-      }
+int main()
+{
+  while (1) {
+    int code = yylex();
+    if (code == 0) {  // eof
+      break;
     }
-    if (i == TABLESIZE(backslashCodes)) {
-      /* code not found -- the character itself is what we want (e.g. "\"") */
-      stringLiteral << yytext[i];
-    }
+    
+    printf("token: code=%d, text: %.*s\n", code, yyleng, yytext);
   }
 
-  . {
-    /* ordinary text character */
-    stringLiteral << yytext[0];
-  }
-}
-
-  /* -------- identifiers and keywords -------- */
-(LETTER)(LETTER|DIGIT)* {
-  /* identifier (or keyword) */
-  return TOK_IDENTIFIER;
-}
-
-  /* ---------- numbers ----------------------- */
-(NONZERODIGIT)(DIGIT)+[uUlU]* {
-  /* decimal literal */
-  integerLiteral = stroul(yytext);
-  integerLiteralUnsigned =   
-
-
-(DIGIT)+ {
-  /* number literal */
-  return TOK_NUMBER;
-}
-
-"+"|"-"|"*"|"/"|"%"|"!"|"~"|"^"|"&"|"("|")"|"{"|"}"|"["|"]"   |
-"<"|">"|"<="|">="|";"|":"|","|"."|"?"|"="|"|"|"<<"|">>"|"!="  |
-"+="|"-="|"*="|"/="|"%="|"|="|"&="                            {
-  /* operator (or punctuator) */
-  /* (I don't envision uses for all of them, but it's the basic
-   * set of operators from which I will draw) */
-  return TOK_OPERATOR;
+  return 0;
 }
 
 
+
+#endif // TEST_GRAMMAR_LEX

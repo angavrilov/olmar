@@ -1,7 +1,7 @@
 /* grammar.y
  * parser for grammar files */
 
- 
+
 /* ===================== tokens ============================ */
 /* tokens that have many lexical spellings */
 %token TOK_INTEGER
@@ -202,7 +202,7 @@ BinaryExpr: UnaryExpr
           | UnaryExpr "||" UnaryExpr
           ;
 
-/* the expression "a ? b : c" means "if (a) then b, else c"
+/* the expression "a ? b : c" means "if (a) then b, else c" */
 CondExpr: BinaryExpr
         | BinaryExpr "?" AttrExpr ":" AttrExpr
         ;

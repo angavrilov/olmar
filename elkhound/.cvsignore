@@ -19,3 +19,7 @@ l2tokens.txt
 c.out4
 gmon.out
 glr.profile
+grammar.tab.c
+grammar.tab.h
+lex.yy.c
+a.out
