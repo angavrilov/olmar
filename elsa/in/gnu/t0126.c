@@ -95,6 +95,7 @@ extern void  __switch_to(struct task_struct *prev, struct task_struct *next)  __
   __attribute__((regparm(0)))  int  __down_trylock(struct semaphore * sem);
   __attribute__((regparm(0)))  void __up(struct semaphore * sem);
 extern struct rw_semaphore *  __down_read_failed(struct rw_semaphore *sem)  __attribute__((regparm(3))) ;
+struct semaphore {};
 struct ncp_inode_info {
 	__u32	dirEntNum __attribute__((packed));
 	__u32	DosDirNum __attribute__((packed));
