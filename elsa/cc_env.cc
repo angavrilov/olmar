@@ -1890,7 +1890,7 @@ Type *Env::unimp(char const *msg)
 {
   // always print this immediately, because in some cases I will
   // segfault (deref'ing NULL) right after printing this
-  cout << "unimplemented: " << msg << endl;
+  cout << toString(loc()) << ": unimplemented: " << msg << endl;
 
   errors.addError(new ErrorMsg(
     loc(), stringc << "unimplemented: " << msg, EF_NONE));

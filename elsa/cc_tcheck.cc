@@ -948,10 +948,6 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   // check restrictions on the form of the name
   ASTList<TemplateArgument> *templateArgs = NULL;
   if (name) {
-    if (name->hasQualifiers()) {
-      return env.unimp("qualified class specifier name");
-    }
-
     PQName *unqual = name->getUnqualifiedName();
     if (unqual->isPQ_template()) {
       if (!inTemplate) {
@@ -973,7 +969,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 
   // see if the environment already has this name
   CompoundType *ct =
-    stringName? env.lookupCompound(stringName, LF_INNER_ONLY) : NULL;
+    stringName? env.lookupPQCompound(name, LF_INNER_ONLY) : NULL;
   Type *ret;
   if (ct && !templateArgs) {
     // check that the keywords match
