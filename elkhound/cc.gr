@@ -2696,7 +2696,12 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
 
       // then grab it
       Variable *funcVar = env->getVariable(name);
-      xassert(funcVar->type == fnType);
+      
+      // reset 'fnType'; it's not equal to funcVar->type if
+      // this is a definition of a function that's already
+      // had a prototype declared (they should be semantically
+      // equivalent, but I want things maximally consistent)
+      fnType = &( funcVar->type->asFunctionTypeC() );
 
       // add the formals to the new environment we'll create for
       // the function body

@@ -46,6 +46,7 @@ public:      // funcs
 
   // construct a general error, and throw it
   void throwError(char const *msg) const NORETURN;
+  void throwError(SemanticError const &x) const NORETURN;
 
   // make a general error but simply report it
   void reportError(Env *env, char const *msg) const;

@@ -10,6 +10,7 @@
 #include "strsobjdict.h"  // StrSObjDict
 
 class DataflowEnv;        // dataflow.h
+class CCTreeNode;         // cc_tree.h
 
 
 // set of declaration modifiers present
@@ -154,9 +155,10 @@ public:     // funcs
   Type const *lookupLocalType(char const *name);
   Type const *lookupType(char const *name);
 
-  // install a new name->type binding in the environment; return
-  // false if there is already a binding for this name
-  bool declareVariable(char const *name, DeclFlags flags, Type const *type);
+  // install a new name->type binding in the environment;
+  // throw an XSemanticError exception if there is a problem
+  void declareVariable(CCTreeNode const *node, char const *name, 
+                       DeclFlags flags, Type const *type);
 
   // return true if the named variable is declared as something
   bool isLocalDeclaredVar(char const *name);

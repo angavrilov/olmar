@@ -70,6 +70,14 @@ CAST_MEMBER_IMPL(AtomicType, CompoundType)
 CAST_MEMBER_IMPL(AtomicType, EnumType)
 
 
+bool AtomicType::equals(AtomicType const *obj) const
+{
+  // all of the AtomicTypes are unique-representation,
+  // so pointer equality suffices
+  return this == obj;
+}
+
+
 // ------------------ SimpleType -----------------
 string SimpleType::toString() const
 {
@@ -186,6 +194,24 @@ CAST_MEMBER_IMPL(Type, FunctionType)
 CAST_MEMBER_IMPL(Type, ArrayType)
 
 
+bool Type::equals(Type const *obj) const
+{
+  if (getTag() != obj->getTag()) {
+    return false;
+  }
+  
+  switch (getTag()) {
+    default: xfailure("bad tag");
+    #define C(tag,type) \
+      case tag: return ((type const*)this)->innerEquals((type const*)obj);
+    C(T_ATOMIC, CVAtomicType)
+    C(T_POINTER, PointerType)
+    C(T_FUNCTION, FunctionType)
+    C(T_ARRAY, ArrayType)
+  }
+}
+
+
 string Type::toString() const
 {
   return stringc << leftString() << rightString();
@@ -203,6 +229,13 @@ string Type::rightString() const
 
 
 // ----------------- CVAtomicType ----------------
+bool CVAtomicType::innerEquals(CVAtomicType const *obj) const
+{
+  return atomic->equals(obj->atomic) &&
+         cv == obj->cv;
+}         
+
+
 string cvToString(CVFlags cv)
 {
   stringBuilder sb;
@@ -231,6 +264,14 @@ int CVAtomicType::reprSize() const
 
 
 // ------------------- PointerType ---------------
+bool PointerType::innerEquals(PointerType const *obj) const
+{
+  return op == obj->op &&
+         cv == obj->cv &&
+         atType->equals(obj->atType);
+}         
+
+
 string PointerType::leftString() const
 {
   return stringc << atType->leftString()
@@ -273,6 +314,34 @@ FunctionType::FunctionType(Type const *r, CVFlags c)
 
 FunctionType::~FunctionType()
 {}
+
+
+bool FunctionType::innerEquals(FunctionType const *obj) const
+{
+  if (retType->equals(obj->retType) &&
+      cv == obj->cv &&
+      acceptsVarargs == obj->acceptsVarargs) {
+    // so far so good, try the parameters
+    ObjListIter<Parameter> iter1(params);
+    ObjListIter<Parameter> iter2(obj->params);
+    for (; !iter1.isDone() && !iter2.isDone();
+         iter1.adv(), iter2.adv()) { 
+      // parameter names do not have to match, but
+      // the types do
+      if (iter1.data()->type->equals(iter2.data()->type)) {
+        // ok
+      }
+      else {
+        return false;
+      }
+    }
+    
+    return iter1.isDone() == iter2.isDone();
+  }
+  else {
+    return false;
+  }
+}
 
 
 void FunctionType::addParam(Parameter *param)
@@ -331,6 +400,22 @@ int FunctionType::reprSize() const
 
 
 // -------------------- ArrayType ------------------
+bool ArrayType::innerEquals(ArrayType const *obj) const
+{
+  if (!( eltType->equals(obj->eltType) &&
+         hasSize == obj->hasSize )) {
+    return false;
+  }
+  
+  if (hasSize) {
+    return size == obj->size;
+  }
+  else {
+    return true;
+  }
+}
+
+
 string ArrayType::leftString() const
 {
   return eltType->leftString();

@@ -1,8 +1,8 @@
 # .gdbinit
 
-#file ccgr
-file cexp2
-set args cexp2.bin cexp2.in2
+file ccgr
+set args cc.bin tmp
+
 
 break main
 break breaker

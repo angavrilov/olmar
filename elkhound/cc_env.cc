@@ -5,6 +5,7 @@
 #include "trace.h"       // tracingSys
 #include "dataflow.h"    // DataflowEnv
 #include "ckheap.h"      // heapCheck
+#include "cc_tree.h"     // CCTreeNode
 
 
 // ----------------------- Variable ---------------------------
@@ -415,22 +416,47 @@ ostream &Env::indent(ostream &os) const
 }
 
 
-bool Env::declareVariable(char const *name, DeclFlags flags, Type const *type)
+void Env::declareVariable(CCTreeNode const *node, char const *name, 
+                          DeclFlags flags, Type const *type)
 {
   if (!( flags & DF_TYPEDEF )) {
     // declare a variable
     if (variables.isMapped(name)) {
       // duplicate name
-      return false;
+      Variable const *prev = getVariable(name);
+
+      // no way we allow it if the types don't match
+      if (!type->equals(prev->type)) {
+        node->throwError(stringc
+          << "conflicting declaration for `" << name
+          << "'; previous type was `" << prev->type->toString()
+          << "', this type is `" << type->toString() << "'");
+      }
+
+      // but it's ok if both were functions
+      // and/or both were extern (TODO: what are the
+      // real rules??)
+      if (type->isFunctionType() ||
+          ((flags & DF_EXTERN) && (prev->declFlags & DF_EXTERN))) {
+        // ok
+      }
+      else {
+        SemanticError err(node, SE_DUPLICATE_VAR_DECL);
+        err.varName = name;
+        node->throwError(err);
+      }
     }
 
-    addVariable(name, flags, type);
+    else /*not already mapped*/ {
+      addVariable(name, flags, type);
+    }
   }
 
   else {
     // declare a typedef
     if (typedefs.isMapped(name)) {
-      return false;
+      node->throwError(stringc
+        << "duplicate typedef for `" << name << "'");
     }
     typedefs.add(name, const_cast<Type*>(type));
   }
@@ -442,8 +468,6 @@ bool Env::declareVariable(char const *name, DeclFlags flags, Type const *type)
     cout << ((flags&DF_TYPEDEF) ? "typedef: " : "variable: ");
     cout << type->toString(name) << endl;
   }
-
-  return true;
 }
 
 

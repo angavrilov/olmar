@@ -14,15 +14,7 @@ CCTreeNode::~CCTreeNode()
 void CCTreeNode::declareVariable(Env *env, char const *name,
                                  DeclFlags flags, Type const *type) const
 {
-  if (!env->declareVariable(name, flags, type)) {
-    SemanticError err(this, SE_DUPLICATE_VAR_DECL);
-    err.varName = name;
-    
-    //env->report(err);
-    
-    // as an experiment, let's try throwing this
-    THROW(XSemanticError(err));
-  }
+  env->declareVariable(this, name, flags, type);
 }
 
 
@@ -30,6 +22,11 @@ void CCTreeNode::throwError(char const *msg) const
 {
   SemanticError err(this, SE_GENERAL);
   err.msg = msg;
+  THROW(XSemanticError(err));
+}
+
+void CCTreeNode::throwError(SemanticError const &err) const
+{
   THROW(XSemanticError(err));
 }
 

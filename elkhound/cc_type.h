@@ -54,7 +54,7 @@ int simpleTypeReprSize(SimpleTypeId id);           // size of representation
 class AtomicType {
 public:     // types
   enum Tag { T_SIMPLE, T_COMPOUND, T_ENUM, NUM_TAGS };
-
+  
 public:     // funcs
   virtual ~AtomicType();
 
@@ -66,6 +66,11 @@ public:     // funcs
   CAST_MEMBER_FN(SimpleType)
   CAST_MEMBER_FN(CompoundType)
   CAST_MEMBER_FN(EnumType)
+
+  // this is type equality, *not* coercibility -- e.g. if
+  // we say "extern type1 x" and then "extern type2 x" we
+  // will allow it only if type1==type2
+  bool equals(AtomicType const *obj) const;
 
   virtual string toString() const = 0;
 
@@ -163,6 +168,9 @@ public:     // funcs
   CAST_MEMBER_FN(PointerType)
   CAST_MEMBER_FN(FunctionType)
   CAST_MEMBER_FN(ArrayType)
+                                    
+  // like above, this is equality, not coercibility
+  bool equals(Type const *obj) const;
 
   // print the type, with an optional name like it was a declaration
   // for a variable of that type
@@ -204,6 +212,8 @@ public:
   // just so I can make one static array of them...
   CVAtomicType() : atomic(NULL), cv(CV_NONE) {}
 
+  bool innerEquals(CVAtomicType const *obj) const;
+
   virtual Tag getTag() const { return T_ATOMIC; }
   virtual string leftString() const;
   virtual int reprSize() const;
@@ -227,6 +237,8 @@ public:
     : op(o), cv(c), atType(a) {}
   PointerType(PointerType const &obj)
     : DMEMB(op), DMEMB(cv), DMEMB(atType) {}
+
+  bool innerEquals(PointerType const *obj) const;
 
   virtual Tag getTag() const { return T_POINTER; }
   virtual string leftString() const;
@@ -263,6 +275,8 @@ public:
   FunctionType(Type const *retType, CVFlags cv);
   virtual ~FunctionType();
 
+  bool innerEquals(FunctionType const *obj) const;
+
   // append a parameter to the parameters list
   void addParam(Parameter *param);
 
@@ -285,6 +299,8 @@ public:
     : eltType(e), hasSize(true), size(s) {}
   ArrayType(Type const *e)
     : eltType(e), hasSize(false), size(-1) {}
+
+  bool innerEquals(ArrayType const *obj) const;
 
   virtual Tag getTag() const { return T_ARRAY; }
   virtual string leftString() const;
