@@ -1,4 +1,4 @@
-# define BISON_GRAMPAR_TAB_H     /* tweak */
+# define BISON_GRAMPAR_TAB_H
 # define YYSTYPE yystype
 # define YYSTYPE_IS_TRIVIAL 1
 # define	TOK_INTEGER	257
@@ -24,3 +24,5 @@
 # define	TOK_EXPECT	277
 # define	TOK_CONTEXT_CLASS	278
 # define	TOK_SUBSETS	279
+# define	TOK_DELETE	280
+# define	TOK_REPLACE	281

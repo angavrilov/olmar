@@ -10,9 +10,11 @@ terminals {
   5 : id "id";
 }
 
-nonterm S  ->  E "$" ;
+context_class Context : public UserActions {};
+
+nonterm S  ->  E /*"$"*/ ;
 nonterm E  ->  T Ep ;
-nonterm Ep ->  "+" T Ep    | empty ;
+nonterm Ep{->  "+" T Ep;  -> empty; }
 nonterm T  ->  F Tp ;
-nonterm Tp ->  "*" F Tp    | empty ;
-nonterm F  ->  "(" E ")"   | "id" ;
+nonterm Tp{->  "*" F Tp;  -> empty; }
+nonterm F {->  "(" E ")"; -> "id"; }

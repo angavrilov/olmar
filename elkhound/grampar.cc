@@ -47,8 +47,13 @@ STATICDEF string XASTParse::
   constructMsg(LocString const &tok, char const *msg)
 {
   if (tok.validLoc()) {
-    return stringc << tok.locString() << ": near " << tok
-                   << ", " << msg;
+    if (tok.isNonNull()) {
+      return stringc << tok.locString() << ": near " << tok
+                     << ", " << msg;
+    }
+    else {
+      return stringc << tok.locString() << ": " << msg;
+    }
   }
   else {
     return string(msg);
@@ -89,14 +94,20 @@ void astParseError(LocString const &failToken, char const *msg)
   THROW(XASTParse(failToken, msg));
 }
 
+void astParseError(SourceLoc loc, char const *msg)
+{
+  LocString locstr(loc, NULL);
+  THROW(XASTParse(locstr, msg));
+}
+
 void astParseError(char const *msg)
 {
   LocString ls;   // no location info
   THROW(XASTParse(ls, msg));
 }
-                      
+
 // print the same message, but keep going anyway
-void astParseErrorCont(Environment &env, LocString const &failToken, 
+void astParseErrorCont(Environment &env, LocString const &failToken,
                        char const *msg)
 {
   XASTParse x(failToken, msg);
@@ -620,7 +631,7 @@ void synthesizeStartRule(Grammar &g, GrammarAST *ast)
   char const *action = g.targetLang.equals("OCaml")? " top " :
                        firstNT->type.equals("void")? " return; " :
                                                      " return top; ";
-  ProdDecl *startProd = new ProdDecl(rhs, LIT_STR(action).clone());
+  ProdDecl *startProd = new ProdDecl(SL_INIT, PDK_NEW, rhs, LIT_STR(action).clone());
 
   // build an even earlier start symbol
   TF_nonterm *earlyStartNT
@@ -820,6 +831,10 @@ int grampar_yylex(YYSTYPE *lvalp, void *parseParam)
         lvalp->str = new LocString(lexer.curLoc(), lexer.curFuncBody());
         break;
 
+      case TOK_ARROW:
+        lvalp->loc = lexer.curLoc();
+        break;
+
       default:
         lvalp->str = NULL;        // any attempt to use will segfault
     }
@@ -990,17 +1005,42 @@ bool equalRHS(ProdDecl const *prod1, ProdDecl const *prod2)
 
 void mergeProduction(TF_nonterm *base, ProdDecl *ext)
 {
+  bool found = false;
+
   // look for a production with an identical RHS
   FOREACH_ASTLIST_NC(ProdDecl, base->productions, iter) {
     ProdDecl *prod = iter.data();
 
     // check RHSs for equality
     if (equalRHS(prod, ext)) {
-      // replace old with new
+      found = true;
+
+      if (ext->kind == PDK_NEW) {
+        astParseError(ext->loc,
+                      "production has the same RHS as an existing production; "
+                      "if intent is to replace, use the 'replace' keyword");
+        // not reached
+      }
+
+      // delete old
       base->productions.removeItem(prod);
       delete prod;
+
+      if (ext->kind == PDK_DELETE) {
+        delete ext;       // drop new on the floor, too
+        return;
+      }
+
+      // will replace old with new
+      xassert(ext->kind == PDK_REPLACE);
       break;
     }
+  }
+
+  if (ext->kind != PDK_NEW && !found) {
+    astParseError(ext->loc,
+                  "production marked with 'delete' or 'replace' does not match "
+                  "any in the base specification");
   }
 
   // add the production

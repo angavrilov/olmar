@@ -74,7 +74,7 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 %token TOK_RBRACE "}"
 %token TOK_COLON ":"
 %token TOK_SEMICOLON ";"
-%token TOK_ARROW "->"
+%token <loc> TOK_ARROW "->"
 %token TOK_LPAREN "("
 %token TOK_RPAREN ")"
 %token TOK_COMMA ","
@@ -91,6 +91,8 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 %token TOK_EXPECT "expect"
 %token TOK_CONTEXT_CLASS "context_class"
 %token TOK_SUBSETS "subsets"
+%token TOK_DELETE "delete"
+%token TOK_REPLACE "replace"
 
 // left, right, nonassoc: they're not keywords, since "left" and "right"
 // are common names for RHS elements; instead, we parse them as names
@@ -102,6 +104,7 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 %union {
   int num;
   LocString *str;
+  SourceLoc loc;
 
   ASTList<TopForm> *topFormList;
   TopForm *topForm;
@@ -298,7 +301,9 @@ Productions: /* empty */                   { $$ = new ASTList<ProdDecl>; }
            ;
 
 /* yields: ProdDecl */
-Production: "->" RHS Action                { $$ = new ProdDecl($2, $3); }
+Production: "->" RHS Action                { $$ = new ProdDecl($1, PDK_NEW, $2, $3); }
+          | "replace" "->" RHS Action      { $$ = new ProdDecl($2, PDK_REPLACE,$3, $4); }
+          | "delete" "->" RHS ";"          { $$ = new ProdDecl($2, PDK_DELETE, $3, nolocNULL()); }
           ;
 
 /* yields: LocString */

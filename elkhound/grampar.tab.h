@@ -1,10 +1,11 @@
-#ifndef BISON_GRAMPAR_TAB_H    /* tweak */
+#ifndef BISON_GRAMPAR_TAB_H
 # define BISON_GRAMPAR_TAB_H
 
 #ifndef YYSTYPE
 typedef union YYSTYPE {
   int num;
   LocString *str;
+  SourceLoc loc;
 
   ASTList<TopForm> *topFormList;
   TopForm *topForm;
@@ -50,6 +51,8 @@ typedef union YYSTYPE {
 # define	TOK_EXPECT	277
 # define	TOK_CONTEXT_CLASS	278
 # define	TOK_SUBSETS	279
+# define	TOK_DELETE	280
+# define	TOK_REPLACE	281
 
 
 #endif /* not BISON_GRAMPAR_TAB_H */

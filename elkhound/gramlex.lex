@@ -166,6 +166,8 @@ SLWHITE   [ \t]
 "option"           TOK_UPD_COL;  return TOK_OPTION;
 "expect"           TOK_UPD_COL;  return TOK_EXPECT;
 "subsets"          TOK_UPD_COL;  return TOK_SUBSETS;
+"replace"          TOK_UPD_COL;  return TOK_REPLACE;
+"delete"           TOK_UPD_COL;  return TOK_DELETE;
 
 
   /* ----------- sequences that begin literal code ------------ */

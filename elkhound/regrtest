@@ -200,6 +200,13 @@ testTrivGrammar angle 1 2 3 4 5
 #  done
 
 
+# this is a test of the delete/replace feature; it uses a script that
+# (for now) is only in Elsa, so don't try it unless that script is 
+# in a usual place
+if [ -x ../elsa/multitest.pl ]; then
+  runTest ../elsa/multitest.pl ./elkhound ffollow.gr ffollow_ext.gr
+fi
+
 
 # ------------ test the C grammar and parser -------------
 for n in 1 2 3 4 5 6 7 8 9 10 11 12; do

@@ -69,8 +69,14 @@ class SpecFunc (LocString name, ASTList<LocString> formals, LocString code)
 }
 
 
+enum ProdDeclKind {
+  PDK_NEW,        // new production (most productions are new)
+  PDK_DELETE,     // means to delete the production from the base spec
+  PDK_REPLACE,    // replace original production with this one
+};
+
 // production: rhs description, and code to execute upon recognition
-class ProdDecl (ASTList<RHSElt> rhs, LocString actionCode);
+class ProdDecl (SourceLoc loc, ProdDeclKind kind, ASTList<RHSElt> rhs, LocString actionCode);
 
 // one of the things that appears after the '->', i.e. the
 // right-hand-side elements
