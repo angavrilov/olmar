@@ -290,6 +290,7 @@ public:     // funcs
   bool isCompoundTypeOf(CompoundType::Keyword keyword) const;
   bool isVoid() const { return isSimple(ST_VOID); }
   bool isError() const { return isSimple(ST_ERROR); }
+  bool shouldSuppressClashes() const { return isError() || isTypeVariable(); }
   CompoundType const *ifCompoundType() const;     // NULL or corresp. compound
   bool isOwnerPtr() const;
   

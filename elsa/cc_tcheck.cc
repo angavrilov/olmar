@@ -50,7 +50,7 @@ void Function::tcheck(Env &env, bool checkBody)
   nameParams->tcheck(env, retTypeSpec, dflags);
 
   if (! nameParams->var->type->isFunctionType() ) {
-    env.error("function declarator must be of function type");
+    env.error("function declarator must be of function type", true /*disambiguating*/);
     return;
   }
 
@@ -128,7 +128,8 @@ CompoundType *Function::verifyIsCtor(Env &env, char const *context)
   if (!enclosing) {
     env.error(stringc
       << context << " are only valid for class member "
-      << "functions (constructors in particular)");
+      << "functions (constructors in particular)",
+      true /*disambiguating*/);
     return NULL;
   }
 
@@ -138,7 +139,8 @@ CompoundType *Function::verifyIsCtor(Env &env, char const *context)
       << context << " are only valid for constructors; "
       << "the name of the enclosing class is `" << enclosing->name
       << "' but the function name is `" << nameParams->var->name
-      << "', and these are not the same");
+      << "', and these are not the same",
+      true /*disambiguating*/);
     return NULL;
   }
 
@@ -204,7 +206,8 @@ void Function::tcheck_memberInits(Env &env)
     if (!found) {
       env.error(stringc
         << "ctor member init name `" << *(iter->name)
-        << "' not found among class members or base classes");
+        << "' not found among class members or base classes",
+        true /*disambiguating*/);
     }
   }
 }
@@ -269,7 +272,7 @@ Type const *TS_name::tcheck(Env &env)
 
   Type const *ret = applyCVToType(cv, var->type);
   if (!ret) {
-    return env.error(stringc
+    return env.error(ret, stringc
       << "cannot apply const/volatile to type `" << ret->toString() << "'");
   }
   else {
@@ -298,13 +301,13 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
   }
 
   if (!scope->templateParams && prior->templateParams) {
-    // TODO: declaration conflicts are disambiguating
     env.error(stringc
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
       << " was templatized with parameters "
       << prior->templateParams->toString()
-      << " but the this one is not templatized");
+      << " but the this one is not templatized",
+      true /*disambiguating*/);
     return;
   }
 
@@ -313,7 +316,8 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
       << " was not templatized, but this one is, with parameters "
-      << scope->templateParams->toString());
+      << scope->templateParams->toString(),
+      true /*disambiguating*/);
     return;
   }
 
@@ -333,7 +337,8 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
       << prior->templateParams->toString()
       << " but this one has parameters "
       << scope->templateParams->toString()
-      << ", and these are not equivalent");
+      << ", and these are not equivalent",
+      true /*disambiguating*/);
   }
 }
 
@@ -356,7 +361,8 @@ Type const *makeNewCompound(CompoundType *&ct, Env &env, StringRef name,
   if (!ok) {
     return env.error(stringc
       << "implicit typedef associated with " << ct->keywordAndName()
-      << " conflicts with an existing typedef or variable");
+      << " conflicts with an existing typedef or variable",
+      true /*disambiguating*/);
   }
 
   return ret;
@@ -369,7 +375,8 @@ Type const *TS_elaborated::tcheck(Env &env)
     EnumType const *et = env.lookupPQEnum(name);
     if (!et) {
       return env.error(stringc
-        << "there is no enum called `" << name << "'");
+        << "there is no enum called `" << name << "'",
+        true /*disambiguating*/);
     }
 
     return makeType(et);
@@ -748,7 +755,7 @@ Variable *D_name_itcheck(Env &env, SourceLocation const &loc,
     // this message reports two declarations which declare the same
     // name, but their types are different; we only jump here *after*
     // ruling out the possibility of function overloading
-    env.error(stringc
+    env.error(spec, stringc
       << "prior declaration of `" << *name << "' had type `"
       << prior->type->toString() << "', but this one uses `"
       << spec->toString() << "'");
@@ -819,7 +826,7 @@ realStart:
       }
 
       if (!prior) {
-        env.error(stringc
+        env.error(spec, stringc
           << "the name `" << *name << "' is overloaded, but the type `"
           << spec->toString() << "' doesn't match any of the "
           << set->set.count() << " declared overloaded instances");
@@ -1007,7 +1014,8 @@ Variable *D_array::itcheck(Env &env, Type const *eltSpec, DeclFlags dflags)
     }
     else {
       // TODO: do a true const-eval of the expression
-      env.error("array size isn't (obviously) a constant");
+      env.error("array size isn't (obviously) a constant",
+                false /*disambiguates*/);
     }
   }
 
@@ -1016,13 +1024,14 @@ Variable *D_array::itcheck(Env &env, Type const *eltSpec, DeclFlags dflags)
 
 
 Variable *D_bitfield::itcheck(Env &env, Type const *spec, DeclFlags dflags)
-{             
+{
   env.setLoc(loc);
 
   // check that the expression is a compile-time constant
   int n;
   if (!bits->constEval(env, n)) {
-    env.error("bitfield size must be a constant");
+    env.error("bitfield size must be a constant",
+              false /*disambiguates*/);
   }
 
   // TODO: record the size of the bit field somewhere; but
@@ -1261,7 +1270,8 @@ NODE *resolveAmbiguity(NODE *ths, Env &env, char const *nodeTypeName,
     env.errors.concat(existingErrors);
 
     // now complain
-    env.error("more than one ambiguous alternative succeeds");
+    env.error("more than one ambiguous alternative succeeds",
+              false /*disambiguates*/);
     return ths;
   }            
   
@@ -1304,7 +1314,7 @@ Statement *Statement::tcheck(Env &env)
   }
   
   // unknown ambiguity situation
-  env.error("unknown statement ambiguity");
+  env.error("unknown statement ambiguity", false /*disambiguates*/);
   return this;
 }
 
@@ -1646,7 +1656,7 @@ Type const *E_funCall::itcheck(Env &env)
   args = tcheckFakeExprList(args, env);
 
   if (!func->type->isFunctionType()) {
-    return env.error(stringc
+    return env.error(func->type, stringc
       << "you can't use an expression of type `" << func->type->toString()
       << "' as a function");
   }
@@ -1687,7 +1697,7 @@ Type const *E_fieldAcc::itcheck(Env &env)
   Type const *rt = obj->type->asRval();
   CompoundType const *ct = rt->ifCompoundType();
   if (!ct) {
-    return env.error(stringc
+    return env.error(rt, stringc
       << "non-compound `" << rt->toString()
       << "' doesn't have fields to access");
   }
@@ -1699,7 +1709,7 @@ Type const *E_fieldAcc::itcheck(Env &env)
 
   // make sure the type has been completed
   if (!ct->isComplete()) {
-    return env.error(stringc
+    return env.error(rt, stringc
       << "attempt to access a field of incomplete type "
       << ct->keywordAndName());
   }
@@ -1707,7 +1717,7 @@ Type const *E_fieldAcc::itcheck(Env &env)
   // look for the named field
   field = ct->getNamedFieldC(fieldName->getName(), env);
   if (!field) {
-    return env.error(stringc
+    return env.error(rt, stringc
       << "there is no field called `" << fieldName->getName()
       << "' in " << obj->type->toString());
   }
@@ -1776,7 +1786,7 @@ Type const *E_addrOf::itcheck(Env &env)
   expr = expr->tcheck(env);
   
   if (!expr->type->isLval()) {
-    return env.error(stringc
+    return env.error(expr->type, stringc
       << "cannot take address of non-lvalue `" 
       << expr->type->toString() << "'");
   }
@@ -1794,7 +1804,7 @@ Type const *E_deref::itcheck(Env &env)
 
   Type const *rt = ptr->type->asRval();
   if (!rt->isPointerType()) {
-    return env.error(stringc
+    return env.error(rt, stringc
       << "cannot derefence non-pointer `" << rt->toString() << "'");
   }
   PointerType const &pt = rt->asPointerTypeC();
@@ -1884,7 +1894,7 @@ Type const *E_delete::itcheck(Env &env)
 
   Type const *t = expr->type->asRval();
   if (!t->isPointer()) {
-    env.error(stringc
+    env.error(t, stringc
       << "can only delete pointers, not `" << t->toString() << "'");
   }
   
@@ -1940,8 +1950,9 @@ bool Expression::constEval(Env &env, int &result) const
     return true;
   }
   else {
-    env.error(stringc << 
-      "for now, " << kindName() << " is never constEval'able");
+    env.error(stringc <<
+      "for now, " << kindName() << " is never constEval'able",
+      false /*disambiguates*/);
     return false;
   }
 }
@@ -2055,7 +2066,8 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
   type->typedefVar = var;
   if (!env.addVariable(var)) {
     env.error(stringc
-      << "duplicate template parameter `" << name << "'");
+      << "duplicate template parameter `" << name << "'",
+      false /*disambiguates*/);
   }
 
   // add this parameter to the list of them

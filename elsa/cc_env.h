@@ -114,10 +114,14 @@ public:      // function
   TemplateParams * /*owner*/ takeTemplateParams();
 
   // diagnostic reports; all return ST_ERROR type
-  Type const *error(char const *msg, bool disambiguates=false);
+  Type const *error(char const *msg, bool disambiguates=true);
   Type const *warning(char const *msg);
   Type const *unimp(char const *msg);
-  
+
+  // diagnostics involving type clashes; will be suppressed
+  // if the type is ST_ERROR
+  Type const *error(Type const *t, char const *msg);
+
   // set 'disambiguateOnly' to 'val', returning prior value
   bool setDisambiguateOnly(bool val);
   bool onlyDisambiguating() const { return disambiguateOnly; }
