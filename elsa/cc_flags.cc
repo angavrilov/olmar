@@ -104,6 +104,7 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "<definition>",
   "<inline_defn>",
   "<implicit>",
+  "<forward>",      // 24
 };
 
 

@@ -4,6 +4,7 @@
 #include "cc_type.h"    // this module
 #include "trace.h"      // tracingSys
 #include "variable.h"   // Variable
+#include "strutil.h"    // copyToStaticBuffer
 
 #include <assert.h>     // assert
 
@@ -1243,11 +1244,7 @@ bool FunctionType::anyCtorSatisfies(TypePred pred) const
 
 // -------------------- Parameter -----------------
 Parameter::~Parameter()
-{
-  if (defaultArgument) {
-    delete defaultArgument;
-  }
-}
+{}
 
 string Parameter::toString() const
 {
@@ -1259,17 +1256,10 @@ string Parameter::toString() const
     sb << type->toCString(name);
   }
 
-  if (defaultArgument) {
-    sb << " = " << defaultArgument->exprText;
+  if (decl && decl->value) {
+    sb << renderExpressionAsString(" = ", decl->value);
   }
   return sb;
-}
-
-
-// ---------------- DefaultArgument ------------
-DefaultArgument::~DefaultArgument()
-{
-  // deletes 'exprText'
 }
 
 
@@ -1561,26 +1551,14 @@ void cc_type_checker()
 
 
 // --------------- debugging ---------------
-static char *staticBuffer(char const *s)
-{
-  static char buf[200];
-
-  int len = strlen(s);
-  if (len > 79) len=79;
-  memcpy(buf, s, len);
-  buf[len] = 0;
-  
-  return buf;
-}
-
-
 char *type_toString(Type const *t)
 {
-  return staticBuffer(t->toString());
+  // defined in smbase/strutil.cc
+  return copyToStaticBuffer(t->toString());
 }
 
 
 char *type_toCilString(Type const *t)
 {
-  return staticBuffer(t->toCilString(20 /*depth*/));
+  return copyToStaticBuffer(t->toCilString(20 /*depth*/));
 }

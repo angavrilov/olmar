@@ -217,7 +217,15 @@ void TypeSpecifier::printExtras(ostream &os, int indent) const
 }
 
 
-// BaseClass
+// ------------------- BaseClassSpec ---------------------
+void BaseClassSpec::printExtras(ostream &os, int indent) const
+{
+  if (type) {
+    ind(os, indent) << "type: " << type->toCString() << "\n";
+  }
+}
+
+
 // MemberList
 // Member
 

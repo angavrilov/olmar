@@ -30,6 +30,7 @@
 class Type;               // cc_type.h
 class OverloadSet;        // below
 class Scope;              // scope
+class Expression;         // cc.ast
 
 class Variable {
 public:    // data
@@ -42,10 +43,13 @@ public:    // data
   StringRef name;         // name introduced (possibly NULL for abstract declarators)
   Type const *type;       // type of the variable
   DeclFlags flags;        // various flags
-  
+
+  // associated value for constant literals, e.g. "const int five = 5;"
+  Expression *value;      // (nullable serf)
+
   // if this name has been overloaded, then this will be a pointer
   // to the set of overloaded names; otherwise it's NULL
-  OverloadSet *overload;  // (serf)
+  OverloadSet *overload;  // (nullable serf)
 
   // access control applied to this variable in the context
   // in which it appears (defaults to AK_PUBLIC)
@@ -54,7 +58,7 @@ public:    // data
   // named scope in which the variable appears; this is only non-NULL
   // if the scope has a name, i.e. it continues to be available for
   // use even after it's lexically closed
-  Scope *scope;
+  Scope *scope;           // (nullable serf)
 
 public:    // funcs
   Variable(SourceLocation const &L, StringRef n,
@@ -92,6 +96,14 @@ public:
   void addMember(Variable *v);
   int count() const { return set.count(); }
 };
+
+
+// This function renders an Expression as a string, if it knows how
+// to.  This function is here to cut the dependency between Types and
+// the AST.  If the AST-aware modules are compiled into this program,
+// then this function just calls into them, prepending the prefix; but
+// if not, then this always returns "".
+string renderExpressionAsString(char const *prefix, Expression const *e);
 
 
 #endif // VARIABLE_H

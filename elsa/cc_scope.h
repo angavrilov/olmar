@@ -20,6 +20,25 @@ class TemplateParams;     // cc_type.h
 class PQName;             // cc.ast
 
 
+// variable lookup sometimes has complicated exceptions or
+// special cases, so I'm folding lookup options into one value
+enum LookupFlags {
+  LF_NONE            = 0,
+  LF_INNER_ONLY      = 0x01,    // only look in the innermost scope
+  LF_ONLY_TYPES      = 0x02,    // ignore (skip over) non-type names
+
+  LF_ALL_FLAGS       = 0x03,    // bitwise OR of all flags
+};
+
+// experiment: will this work?
+inline LookupFlags operator| (LookupFlags f1, LookupFlags f2)
+  { return (LookupFlags)((int)f1 | (int)f2); }
+inline LookupFlags operator& (LookupFlags f1, LookupFlags f2)
+  { return (LookupFlags)((int)f1 & (int)f2); }
+inline LookupFlags operator~ (LookupFlags f)
+  { return (LookupFlags)(~(int)f); }
+
+
 // information about a single scope: the names defined in it,
 // any "current" things being built (class, function, etc.)
 class Scope {
@@ -60,6 +79,10 @@ public:      // data
   // class for the first time
   Scope *parentScope;
 
+  // true for function parameter list scopes; the C++ standard
+  // has places where they are treated differently, e.g. 3.3.1 para 5
+  bool isParameterListScope;
+
   // ------------- "current" entities -------------------
   // these are set to allow the typechecking code to know about
   // the context we're in
@@ -71,7 +94,7 @@ public:      // data
                                     
 private:     // funcs
   Variable const *lookupPQVariableC(PQName const *name, bool &crossVirtual,
-                                    Env &env) const;
+                                    Env &env, LookupFlags f) const;
 
 public:      // funcs
   Scope(int changeCount, SourceLocation const &initLoc);
@@ -89,21 +112,21 @@ public:      // funcs
 
   // lookup; these return NULL if the name isn't found; 'env' is
   // passed for the purpose of reporting ambiguity errors
-  Variable const *lookupVariableC(StringRef name, bool innerOnly, Env &env) const;
-  CompoundType const *lookupCompoundC(StringRef name, bool innerOnly) const;
-  EnumType const *lookupEnumC(StringRef name, bool innerOnly) const;
+  Variable const *lookupVariableC(StringRef name, Env &env, LookupFlags f=LF_NONE) const;
+  CompoundType const *lookupCompoundC(StringRef name, LookupFlags f=LF_NONE) const;
+  EnumType const *lookupEnumC(StringRef name, LookupFlags f=LF_NONE) const;
 
   // lookup of a possibly-qualified name; used for member access
   // like "a.B::f()"
-  Variable const *lookupPQVariableC(PQName const *name, Env &env) const;
+  Variable const *lookupPQVariableC(PQName const *name, Env &env, LookupFlags f=LF_NONE) const;
 
   // non-const versions..
-  Variable *lookupVariable(StringRef name, bool innerOnly, Env &env)
-    { return const_cast<Variable*>(lookupVariableC(name, innerOnly, env)); }
-  CompoundType *lookupCompound(StringRef name, bool innerOnly)
-    { return const_cast<CompoundType*>(lookupCompoundC(name, innerOnly)); }
-  EnumType *lookupEnum(StringRef name, bool innerOnly)
-    { return const_cast<EnumType*>(lookupEnumC(name, innerOnly)); }
+  Variable *lookupVariable(StringRef name, Env &env, LookupFlags f=LF_NONE)
+    { return const_cast<Variable*>(lookupVariableC(name, env, f)); }
+  CompoundType *lookupCompound(StringRef name, LookupFlags f=LF_NONE)
+    { return const_cast<CompoundType*>(lookupCompoundC(name, f)); }
+  EnumType *lookupEnum(StringRef name, LookupFlags f=LF_NONE)
+    { return const_cast<EnumType*>(lookupEnumC(name, f)); }
     
   // for iterating over the variables
   StringSObjDict<Variable> getVariableIter() const

@@ -19,8 +19,7 @@
 // *Please* do not add any additional AST pointers unless it is
 // really necessary.  Also please make sure all the types can
 // intelligbly print themselves *without* inspecting the AST pointers
-// (e.g. store a textual representation when the pointer is first
-// set, as is done for DefaultArgument::expr).
+// (by storing a textual representation if necessary).
 
 #ifndef CC_TYPE_H
 #define CC_TYPE_H
@@ -51,7 +50,6 @@ class CVAtomicType;
 class PointerType;
 class FunctionType;
 class Parameter;
-class DefaultArgument;
 class ArrayType;
 class Type;
 class TemplateParams;
@@ -189,10 +187,10 @@ public:      // funcs
   int numFields() const;
 
   // returns NULL if doesn't exist
-  Variable const *getNamedFieldC(StringRef name, Env &env) const
-    { return lookupVariableC(name, false /*innerOnly*/, env); }
-  Variable *getNamedField(StringRef name, Env &env)
-    { return lookupVariable(name, false /*innerOnly*/, env); }
+  Variable const *getNamedFieldC(StringRef name, Env &env, LookupFlags f=LF_NONE) const
+    { return lookupVariableC(name, env, f); }
+  Variable *getNamedField(StringRef name, Env &env, LookupFlags f=LF_NONE)
+    { return lookupVariable(name, env, f); }
 
   void addField(Variable *v);
 };
@@ -462,39 +460,14 @@ public:
   // syntactic introduction
   Variable *decl;              // (serf)
   
-  // default argument.. I don't add this to the constructor because I
-  // want to easily be able to grep for places where this field is
-  // being set or used, since I'm very suspicious that adding this is
-  // a mistake..
-  DefaultArgument *defaultArgument;     // (owner)
+  // 'defaultArgument' has been moved into decl->value
 
 public:
   Parameter(StringRef n, Type const *t, Variable *d)
-    : name(n), type(t), decl(d), defaultArgument(NULL) {}
+    : name(n), type(t), decl(d) {}
   ~Parameter();
 
   string toString() const;
-};
-
-
-// default argument to something
-class DefaultArgument {
-public:
-  // expression.. ouch!  I didn't want the type language to be
-  // dependent on the Expression language.. this means some care must
-  // be taken to ensure the referred-to AST subtree doesn't get
-  // deallocated before we're done using this type.  (AST pointer)
-  Expression const *expr;      // NULL if no default
-
-  // to reduce dependency on AST somewhat, I'll require that you
-  // give me a textual representation up-front, so I don't have
-  // to call Expression::exprToString later on
-  string exprText;
-
-public:
-  DefaultArgument(Expression const *e, char const *t)
-    : expr(e), exprText(t) {}
-  ~DefaultArgument();
 };
 
 

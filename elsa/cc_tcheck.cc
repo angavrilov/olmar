@@ -247,7 +247,7 @@ void Function::tcheck(Env &env, bool checkBody)
   bool inTemplate = env.scope()->curTemplateParams != NULL;
   
   // get return type
-  Type const *retTypeSpec = retspec->tcheck(env);
+  Type const *retTypeSpec = retspec->tcheck(env, dflags);
 
   // construct the full type of the function; this will set
   // nameAndParams->var, which includes a type, but that type might
@@ -490,27 +490,63 @@ void Declaration::tcheck(Env &env)
     }
   }
 
-  Type const *specType = spec->tcheck(env);
+  // type described by the specifier; two paths below set it
+  Type const *specType = NULL;
+
+  #if 0     // should be obsoleted by new handling of DF_FORWARD
+  // handle friend declarations of class names
+  if ((dflags & DF_FRIEND) &&
+      spec->isTS_elaborated()) {
+    // cppstd 11.4 talks about friendship.  I don't fully understand
+    // (how to implement) the rules for local classes, so I'm ignoring
+    // them.  What I will do is follow paragraph 7:
+    //   "A name nominated by a friend declaration shall be accessible
+    //    in the scope of the class containing the friend declaration."
+    // To make this work, I'll temporarily pull off the topmost scope,
+    // process the specifier, then put it back on.
+    Scope *scope = env.scope();
+    if (!scope->curCompound) {
+      // need to avoid pulling off the scope if there's only one
+      env.error("you can only attach `friend' to class members");
+      return;
+    }
+    else {
+      env.retractScope(scope);
+    }
+
+    specType = spec->tcheck(env);
+
+    env.extendScope(scope);
+
+    // TODO: Of course, I'm ignoring the access control implications
+    // of friendship.
+  }
+  #else
+  if (0) {}
+  #endif
+
+  else {
+    // usual path, check the specifier in the prevailing environment
+    specType = spec->tcheck(env, dflags);
+  }
 
   // ---- the following code is adopted from tcheckFakeExprList ----
   // (I couldn't just use the same code, templatized as necessary,
   // because I need my DeclaratorTcheck objects computed anew for
   // each declarator..)
-  if (!decllist) {
-    return;
-  }
+  if (decllist) {
+    // check first declarator
+    DeclaratorTcheck dt1(specType, dflags);
+    decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
 
-  // check first declarator
-  DeclaratorTcheck dt1(specType, dflags);
-  decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
+    // check subsequent declarators
+    Declarator *prev = decllist->first();
+    while (prev->next) {
+      DeclaratorTcheck dt2(specType, dflags);
+      prev->next = prev->next->tcheck(env, dt2);
 
-  // check subsequent declarators
-  Declarator *prev = decllist->first();
-  while (prev->next) {
-    DeclaratorTcheck dt2(specType, dflags);
-    prev->next = prev->next->tcheck(env, dt2);
-
-    prev = prev->next;
+      prev = prev->next;
+    }
   }
   // ---- end of code from tcheckFakeExprList ----
 }
@@ -579,7 +615,7 @@ ASTTypeId *ASTTypeId::tcheck(Env &env, Expression **sizeExpr)
 
 void ASTTypeId::mid_tcheck(Env &env, Expression **&sizeExpr)
 {
-  Type const *specType = spec->tcheck(env);
+  Type const *specType = spec->tcheck(env, DF_NONE);
   DeclaratorTcheck dt(specType, DF_NONE);
   dt.in_E_new = (sizeExpr? true : false);
   decl = decl->tcheck(env, dt);
@@ -619,13 +655,13 @@ void PQ_template::tcheck(Env &env)
 
 
 // --------------------- TypeSpecifier --------------
-Type const *TypeSpecifier::tcheck(Env &env)
+Type const *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
 {
-  return applyCVToType(cv, itcheck(env));
+  return applyCVToType(cv, itcheck(env, dflags));
 }
 
 
-Type const *TS_name::itcheck(Env &env)
+Type const *TS_name::itcheck(Env &env, DeclFlags dflags)    
 {
   name->tcheck(env);
 
@@ -668,7 +704,7 @@ Type const *TS_name::itcheck(Env &env)
 }
 
 
-Type const *TS_simple::itcheck(Env &env)
+Type const *TS_simple::itcheck(Env &env, DeclFlags dflags)
 {
   return getSimpleType(id);
 }
@@ -748,9 +784,9 @@ ClassTemplateInfo *takeTemplateClassInfo(Env &env)
   return ret;
 }
 
-Type const *makeNewCompound(CompoundType *&ct, Env &env, StringRef name,
-                            SourceLocation const &loc, TypeIntr keyword,
-                            bool forward)
+Type const *makeNewCompound(CompoundType *&ct, Env &env, Scope *scope,
+                            StringRef name, SourceLocation const &loc,
+                            TypeIntr keyword, bool forward)
 {
   ct = new CompoundType((CompoundType::Keyword)keyword, name);
 
@@ -759,7 +795,7 @@ Type const *makeNewCompound(CompoundType *&ct, Env &env, StringRef name,
 
   ct->forward = forward;
   if (name) {
-    bool ok = env.addCompound(ct);
+    bool ok = scope->addCompound(ct);
     xassert(ok);     // already checked that it was ok
   }
 
@@ -768,7 +804,7 @@ Type const *makeNewCompound(CompoundType *&ct, Env &env, StringRef name,
   Variable *tv = new Variable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
   ct->typedefVar = tv;
   if (name) {
-    if (!env.addVariable(tv)) {
+    if (!scope->addVariable(tv)) {
       // this isn't really an error, because in C it would have
       // been allowed, so C++ does too [ref?]
       //return env.error(stringc
@@ -782,7 +818,7 @@ Type const *makeNewCompound(CompoundType *&ct, Env &env, StringRef name,
 }
 
 
-Type const *TS_elaborated::itcheck(Env &env)
+Type const *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
 
@@ -799,57 +835,94 @@ Type const *TS_elaborated::itcheck(Env &env)
     return makeType(et);
   }
 
-  else {
-    CompoundType *ct = env.lookupPQCompound(name);
+  CompoundType *ct = NULL;
+  if (!name->hasQualifiers() &&
+      (dflags & DF_FORWARD) &&
+      !(dflags | DF_FRIEND)) {
+    // cppstd 3.3.1 para 5:
+    //   "for an elaborated-type-specifier of the form
+    //      class-key identifier ;
+    //    the elaborated-type-specifier declares the identifier to be a
+    //    class-name in the scope that contains the declaration"
+    ct = env.lookupCompound(name->getName(), LF_INNER_ONLY);
     if (!ct) {
-      if (name->hasQualifiers()) {
-        return env.error(stringc
-          << "there is no " << toString(keyword) << " called `" << *name << "'");
-      }
-      else {
-        // forward declaration (actually, cppstd sec. 3.3.1 has some
-        // rather elaborate rules for deciding in which contexts this is
-        // right, but for now I'll just remark that my implementation
-        // has a BUG since it doesn't quite conform)
-        return makeNewCompound(ct, env, name->getName(), loc, keyword,
-                               true /*forward*/);
-      }
-    }
-
-    // check that the keywords match; these are different enums,
-    // but they agree for the three relevant values
-    if ((int)keyword != (int)ct->keyword) {
-      return env.error(stringc
-        << "you asked for a " << toString(keyword) << " called `"
-        << *name << "', but that's actually a " << toString(ct->keyword));
-    }
-
-    if (name->getUnqualifiedName()->isPQ_template()) {
-      // this is like
-      //   friend class Foo<T>;
-      // inside some other templatized class.. I'm not sure
-      // how to properly enforce the correspondence between
-      // the declarations..
-      // TODO: fix his
-      
-      // at least discard the template params as
-      // 'verifyCompatibleTemplates' would have done..
-      Scope *s = env.scope();
-      if (s->curTemplateParams) {
-        delete s->curTemplateParams;
-        s->curTemplateParams = NULL;
-      }
+      // make a forward declaration
+      return makeNewCompound(ct, env, env.acceptingScope(), name->getName(), 
+                             loc, keyword, true /*forward*/);
     }
     else {
-      verifyCompatibleTemplates(env, ct);
+      // redundant, nothing to do (what the hey, I'll check keywords)
+      if ((keyword==TI_UNION) != (ct->keyword==CompoundType::K_UNION)) {
+    keywordComplaint:
+        return env.error(stringc
+          << "you asked for a " << toString(keyword) << " called `"
+          << *name << "', but that's actually a " << toString(ct->keyword));
+      }
+      return makeType(ct);
+    }
+  }
+
+  ct = env.lookupPQCompound(name);
+  if (!ct) {
+    if (name->hasQualifiers()) {
+      return env.error(stringc
+        << "there is no " << toString(keyword) << " called `" << *name << "'");
     }
 
-    return makeType(ct);
+    // cppstd 3.3.1 para 5, continuing from above:
+    //   "for an elaborated-type-specifier of the form
+    //      class-key identifier
+    //    if the elaborated-type-specifier is used in the decl-specifier-seq
+    //    or parameter-declaration-clause of a function defined in namespace
+    //    scope, the identifier is declared as a class-name in the namespace
+    //    that contains the declaration; otherwise, except as a friend
+    //    declaration, the identifier is declared in the smallest non-class,
+    //    non-function-prototype scope that contains the declaration."
+    //
+    // my interpretation: create a forward declaration, but in the innermost
+    // scope which is not:
+    //   - a function parameter list scope, nor
+    //   - a class scope, nor
+    //   - a template parameter list scope (perhaps a concept unique to my impl.)
+    //
+    // Note that due to the exclusion of DF_FRIEND above I'm actually
+    // handling 'friend' here, despite what the standard says..
+    Scope *scope = env.outerScope();
+    return makeNewCompound(ct, env, scope, name->getName(), loc, keyword,
+                           true /*forward*/);
   }
+
+  // check that the keywords match; these 'keyword's are different
+  // types, but they agree for the three relevant values
+  if ((int)keyword != (int)ct->keyword) {
+    goto keywordComplaint;
+  }
+
+  if (name->getUnqualifiedName()->isPQ_template()) {
+    // this is like
+    //   friend class Foo<T>;
+    // inside some other templatized class.. I'm not sure
+    // how to properly enforce the correspondence between
+    // the declarations..
+    // TODO: fix his
+
+    // at least discard the template params as
+    // 'verifyCompatibleTemplates' would have done..
+    Scope *s = env.scope();
+    if (s->curTemplateParams) {
+      delete s->curTemplateParams;
+      s->curTemplateParams = NULL;
+    }
+  }
+  else {
+    verifyCompatibleTemplates(env, ct);
+  }
+
+  return makeType(ct);
 }
 
 
-Type const *TS_classSpec::itcheck(Env &env)
+Type const *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
 
@@ -889,7 +962,7 @@ Type const *TS_classSpec::itcheck(Env &env)
 
   // see if the environment already has this name
   CompoundType *ct = 
-    stringName? env.lookupCompound(stringName, true /*innerOnly*/) : NULL;
+    stringName? env.lookupCompound(stringName, LF_INNER_ONLY) : NULL;
   Type const *ret;
   if (ct && !templateArgs) {
     // check that the keywords match
@@ -970,7 +1043,8 @@ Type const *TS_classSpec::itcheck(Env &env)
     }
 
     // no existing compound; make a new one
-    ret = makeNewCompound(ct, env, stringName, loc, keyword, false /*forward*/);
+    ret = makeNewCompound(ct, env, env.acceptingScope(), stringName, 
+                          loc, keyword, false /*forward*/);
   }
 
   // let me map from compounds to their AST definition nodes
@@ -978,34 +1052,52 @@ Type const *TS_classSpec::itcheck(Env &env)
 
   // look at the base class specifications
   if (bases) {
-    FAKELIST_FOREACH(BaseClassSpec, bases, iter) {
+    FAKELIST_FOREACH_NC(BaseClassSpec, bases, iter) {
+      // resolve any template arguments in the base class name
       iter->name->tcheck(env);
-      CompoundType *base = env.lookupPQCompound(iter->name);
+                                                                         
+      // cppstd 10, para 1: ignore non-types when looking up
+      // base class names
+      Variable *baseVar = env.lookupPQVariable(iter->name, LF_ONLY_TYPES);
+      if (!baseVar) {
+        env.error(stringc
+          << "no class called `" << *(iter->name) << "' was found",
+          false /*disambiguating*/);
+        continue;
+      }
+      xassert(baseVar->hasFlag(DF_TYPEDEF));    // that's what LF_ONLY_TYPES means
+      
+      // special case for template parameters
+      if (baseVar->type->isTypeVariable()) {
+        // let it go.. we're doing the pseudo-check of a template;
+        // but there's nothing we can add to the base class list,
+        // and it wouldn't help even if we could, so do nothing
+        continue;
+      }
+
+      // cppstd 10, para 1: must be a class type (another
+      // unfortunate const cast..)
+      CompoundType *base 
+        = const_cast<CompoundType*>(baseVar->type->ifCompoundType());
       if (!base) {
-        // second chance: look for a template parameter type..
-        Variable *second = env.lookupPQVariable(iter->name);
-        if (second &&
-            second->hasFlag(DF_TYPEDEF) &&
-            second->type->isTypeVariable()) {
-          // let it go.. we're doing the pseudo-check of a template;
-          // but there's nothing we can add to the base class list,
-          // and it wouldn't help even if we could, so do nothing
-        }
-        else {
-          env.error(stringc
-            << "no class called `" << *(iter->name) << "' was found",
-            false /*disambiguating*/);
-        }
+        env.error(stringc
+          << "`" << *(iter->name) << "' is not a class or "
+          << "struct or union, so it cannot be used as a base class");
+        continue;
       }
-      else {                                 
-        AccessKeyword acc = iter->access;
-        if (acc == AK_UNSPECIFIED) {
-          // if the user didn't specify, then apply the default
-          // access mode for the inheriting class
-          acc = (ct->keyword==CompoundType::K_CLASS? AK_PRIVATE : AK_PUBLIC);
-        }
-        ct->bases.append(new BaseClass(base, acc, iter->isVirtual));
-      }
+
+      // fill in the default access mode if the user didn't provide one
+      // [cppstd 11.2 para 2]
+      AccessKeyword acc = iter->access;
+      if (acc == AK_UNSPECIFIED) {
+        acc = (ct->keyword==CompoundType::K_CLASS? AK_PRIVATE : AK_PUBLIC);
+      }                                  
+      
+      // add this to the class's list of base classes
+      ct->bases.append(new BaseClass(base, acc, iter->isVirtual));
+      
+      // annotate the AST with the type we found
+      iter->type = base;
     }
   }
 
@@ -1024,6 +1116,19 @@ Type const *TS_classSpec::itcheck(Env &env)
   // look at members: first pass is to enter them into the environment
   FOREACH_ASTLIST_NC(Member, members->list, iter) {
     iter.data()->tcheck(env);
+  }
+
+  // declare a destructor if one wasn't declared already; this allows
+  // the user to call the dtor explicitly, like "a->~A();", since
+  // I treat that like a field lookup
+  if (stringName) {
+    StringRef dtorName = env.str(stringc << "~" << stringName);
+    if (!ct->lookupVariable(dtorName, env, LF_INNER_ONLY)) {
+      // add a dtor declaration: ~Class();
+      FunctionType *ft = new FunctionType(getSimpleType(ST_CDTOR), CV_NONE);
+      Variable *v = new Variable(loc, dtorName, ft, DF_NONE);
+      env.addVariable(v);
+    }
   }
 
   // second pass: check function bodies
@@ -1118,7 +1223,7 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
 }
 
 
-Type const *TS_enumSpec::itcheck(Env &env)
+Type const *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
 
@@ -1350,6 +1455,11 @@ void Declarator::mid_tcheck(Env &env, DeclaratorTcheck &dt)
     // the initializer until the entire class body has been scanned
 
     init->tcheck(env);
+
+    // remember the initializing value, for const values
+    if (init->isIN_expr()) {
+      var->value = init->asIN_exprC()->e;
+    }
   }
 
   if (qualifiedScope) {
@@ -1514,7 +1624,7 @@ realStart:
     else {
       // the main effect of 'friend' in my implementation is to
       // declare the variable in the innermost non-class, non-
-      // template scope
+      // template scope (this isn't perfect; see cppstd 11.4)
       scope = env.outerScope();
 
       // turn off the decl flag because it shouldn't end up
@@ -1529,7 +1639,7 @@ realStart:
       scope->curCompound->name == NULL) {
     // we're declaring a field of an anonymous union, which actually
     // goes in the enclosing scope
-    scope = env.outerScope();
+    scope = env.enclosingScope();
   }
 
   if (name->getUnqualifiedName()->isPQ_operator()) {
@@ -1606,7 +1716,7 @@ realStart:
     // somewhere; now, Declarator::tcheck will have already pushed the
     // qualified scope, so we just look up the name in the now-current
     // environment, which will include that scope
-    prior = scope->lookupVariable(unqualifiedName, true /*innerOnly*/, env);
+    prior = scope->lookupVariable(unqualifiedName, env, LF_INNER_ONLY);
     if (!prior) {
       env.error(stringc
         << "undeclared identifier `" << *name << "'");
@@ -1650,7 +1760,7 @@ realStart:
   }
   else {
     // has this name already been declared in the innermost scope?
-    prior = scope->lookupVariable(unqualifiedName, true /*innerOnly*/, env);
+    prior = scope->lookupVariable(unqualifiedName, env, LF_INNER_ONLY);
   }
 
   // check for overloading
@@ -1881,13 +1991,32 @@ void D_func::tcheck(Env &env, DeclaratorTcheck &dt)
 
   // make a new scope for the parameter list
   Scope *paramScope = env.enterScope();
+  paramScope->isParameterListScope = true;
 
   // typecheck the parameters; this disambiguates any ambiguous type-ids
   params = tcheckFakeASTTypeIdList(params, env);
 
   // add them, now that the list has been disambiguated
+  int ct=0;
   FAKELIST_FOREACH_NC(ASTTypeId, params, iter) {
+    ct++;
     Variable *v = iter->decl->var;
+
+    if (v->type->isSimple(ST_VOID)) {
+      if (ct == 1 &&
+          !iter->next &&
+          !v->name &&
+          !iter->decl->init) {
+        // special case: only parameter is "void" and it doesn't have a name:
+        // same as empty param list
+        break;
+      }
+      env.error("cannot have parameter of type `void', unless is is "
+                "the only parameter, has no parameter name, and has "
+                "no default value");
+      continue;
+    }
+
     Parameter *p = new Parameter(v->name, v->type, v);
     
     // get the default argument, if any
@@ -1898,9 +2027,10 @@ void D_func::tcheck(Env &env, DeclaratorTcheck &dt)
                   "not a compound (e.g. \"= { ... }\") or constructor "
                   "(e.g. \"int x(3)\") initalizer");
       }
-      else {                
-        Expression *e = i->asIN_expr()->e;
-        p->defaultArgument = new DefaultArgument(e, e->exprToString());
+      else {
+        // this is obsolete, now that Variable has a 'value' field
+        //Expression *e = i->asIN_expr()->e;
+        //p->defaultArgument = new DefaultArgument(e, e->exprToString());
       }
     }
 
@@ -2572,7 +2702,7 @@ Type const *E_funCall::itcheck(Env &env)
 
 Type const *E_constructor::itcheck(Env &env)
 {
-  type = spec->tcheck(env);
+  type = spec->tcheck(env, DF_NONE);
   args = tcheckFakeExprList(args, env);
 
   // TODO: make sure the argument types are compatible
@@ -2715,8 +2845,8 @@ Type const *E_deref::itcheck(Env &env)
   // currently map [] into * and +)
   if (rt->ifCompoundType()) {
     CompoundType const *ct = rt->ifCompoundType();
-    if (ct->lookupVariableC(env.str("operator*"), false /*innerOnly*/, env) ||
-        ct->lookupVariableC(env.str("operator[]"), false /*innerOnly*/, env)) {
+    if (ct->lookupVariableC(env.str("operator*"), env) ||
+        ct->lookupVariableC(env.str("operator[]"), env)) {
       // ok.. gee what type?  would have to do the full deal, and
       // would likely get it wrong for operator[] since I don't have
       // the right info to do an overload calculation.. well, if I
@@ -2725,8 +2855,12 @@ Type const *E_deref::itcheck(Env &env)
     }
   }
 
-  return env.error(rt, stringc
-    << "cannot derefence non-pointer `" << rt->toString() << "'");
+  // unfortunately, I get easily fooled by overloaded functions and
+  // end up concluding the wrong types.. so I'm simply going to turn
+  // off the error message for now..
+  //return env.error(rt, stringc
+  //  << "cannot derefence non-pointer `" << rt->toString() << "'");
+  return getSimpleType(ST_ERROR);
 }
 
 
@@ -2889,9 +3023,12 @@ bool Expression::constEval(Env &env, int &result) const
         return true;
       }
 
-      // TODO: add capability to look up 'int const' variables
-      // (the problem for the moment is I don't have a way to
-      // navigate from a Variable to an initializing expression)
+      if (v->var->type->isCVAtomicType() &&
+          (v->var->type->asCVAtomicTypeC().cv & CV_CONST) &&
+          v->var->value) {
+        // const variable 
+        return v->var->value->constEval(env, result);
+      }
 
       env.error(stringc
         << "can't const-eval non-const variable `" << v->var->name << "'",
@@ -3069,7 +3206,7 @@ void TD_class::itcheck(Env &env)
 { 
   // check the class definition; it knows what to do about
   // the template parameters (just like for functions)
-  type = spec->tcheck(env);
+  type = spec->tcheck(env, DF_NONE);
 }
 
 

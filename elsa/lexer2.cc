@@ -516,7 +516,11 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
           L2->type = L2_STRING_LITERAL;
           string tmp;
           int tmpLen;
-          quotedUnescape(tmp, tmpLen, L1->text, '"',
+          
+          char const *srcText = L1->text.pcharc();
+          if (*srcText == 'L') srcText++;
+
+          quotedUnescape(tmp, tmpLen, srcText, '"',
                          src.allowMultilineStrings);
           if (tmpLen != tmp.length()) {
             cout << "warning: literal string with embedded nulls not handled properly\n";
@@ -530,7 +534,11 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
           L2->type = L2_CHAR_LITERAL;
           int tempLen;
           string temp;
-          quotedUnescape(temp, tempLen, L1->text, '\'',
+
+          char const *srcText = L1->text.pcharc();
+          if (*srcText == 'L') srcText++;
+
+          quotedUnescape(temp, tempLen, srcText, '\'',
                          false /*allowNewlines*/);
 
           if (tempLen != 1) {

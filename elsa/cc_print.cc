@@ -629,22 +629,15 @@ string Expression::exprToString() const
   return sb;
 }
 
-// todo: move this someplace better
-static char *staticBuffer(char const *s)
+string renderExpressionAsString(char const *prefix, Expression const *e)
 {
-  static char buf[200];
-
-  int len = strlen(s);
-  if (len > 79) len=79;
-  memcpy(buf, s, len);
-  buf[len] = 0;
-
-  return buf;
+  return stringc << prefix << e->exprToString();
 }
 
-char *expr_toString(Expression *e)
-{
-  return staticBuffer(e->exprToString());
+char *expr_toString(Expression const *e)
+{               
+  // this function is defined in smbase/strutil.cc
+  return copyToStaticBuffer(e->exprToString());
 }
 
 

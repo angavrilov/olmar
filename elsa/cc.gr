@@ -197,6 +197,9 @@ nonterm[TranslationUnit*] TranslationUnit {
 
   // destructive action on 't'
   -> t:TranslationUnit d:Declaration      [ t->topForms.append(d); return t; ]
+  
+  // arg!  Mozilla is littered with toplevel semicolons..
+  -> t:TranslationUnit ";"                [ return t; ]
 }
 
 // ------ A.4 Expressions ------
@@ -338,7 +341,7 @@ nonterm[Expression*] PostfixExpression {
   -> p:PostfixExpression "." n:PQDtorName
        [ return new E_fieldAcc(p, n); ]
   -> p:PostfixExpression "->" n:PQDtorName
-       [ return new E_fieldAcc(p, n); ]
+       [ return new E_fieldAcc(new E_deref(p), n); ]
 
   -> k:CastKeyword "<" t:TypeId ">" "(" e:Expression ")"
        [ return new E_keywordCast(k, t, e); ]
@@ -764,9 +767,21 @@ nonterm[Declaration*] BlockDeclaration {
 //   for declaring classes and enums
 nonterm[Declaration*] SimpleDeclaration {
   // destructive action on 'spec'
-  //e.g.: int                x                     ;
-  -> spec:DeclSpecifier list:InitDeclaratorListOpt ";"
+  //e.g.: int                x                  ;
+  -> spec:DeclSpecifier list:InitDeclaratorList ";"
        [ spec->decllist = list; return spec; ]
+
+  // a bare specifier is a type definition or forward declaration
+  -> spec:DeclSpecifier ";"
+       [ if (spec->spec->isTS_elaborated()) {
+           // cppstd 3.3.1 para 5: the special form
+           //   class-key identifier ;
+           // is treated specially; mark it with a special flag
+           spec->dflags = (DeclFlags)(spec->dflags | DF_FORWARD);
+         }
+         return spec; 
+       ]
+
 
   // this is now redundant because DeclSpecifier allows "typedef"
   //-> "typedef" spec:DeclSpecifier list:TypedefDeclaratorList ";"
@@ -1046,12 +1061,13 @@ nonterm[FakeList<Declarator>*] InitDeclaratorList {
          return FakeList<Declarator>::makeList(d); ]
 }
 
-nonterm[FakeList<Declarator>*] InitDeclaratorListOpt {
-  -> empty
-       [ return FakeList<Declarator>::emptyList(); ]
-  -> list:InitDeclaratorList
-       [ return list; ]
-}
+// obsolete now that I've substituted it into SimpleDeclaration
+//  nonterm[FakeList<Declarator>*] InitDeclaratorListOpt {
+//    -> empty
+//         [ return FakeList<Declarator>::emptyList(); ]
+//    -> list:InitDeclaratorList
+//         [ return list; ]
+//  }
 
 
 nonterm[Declarator*] InitDeclarator {
@@ -1533,6 +1549,7 @@ nonterm[Member*] MemberDeclaration {
   // member fn decl, or data member
   -> spec:DeclSpecifier list:MemberDeclaratorList ";"
        [ if (list->firstC()->decl->isD_name() &&
+             !(spec->dflags & (DF_TYPEDEF | DF_STATIC)) &&
              spec->spec->isTS_name()) {
            PQName const *n = spec->spec->asTS_nameC()->name;
            if (n->isPQ_name() &&
@@ -1559,6 +1576,10 @@ nonterm[Member*] MemberDeclaration {
              spec->spec->isTS_classSpec() ||
              spec->spec->isTS_enumSpec()) {
            // ok
+           if (spec->spec->isTS_elaborated()) {                    
+             // see similar rule in SimpleDeclaration for why I do this
+             spec->dflags = (DeclFlags)(spec->dflags | DF_FORWARD);
+           }
            return new MR_decl(loc, spec);
          }
          else {
@@ -1647,6 +1668,10 @@ nonterm[StringRef] IdentifierOpt {
 // modifier flags allowed in front of constructors ("explicit"),
 // destructors ("virtual") and conversion functions (none); plus,
 // "inline" is allowed with any of them..
+//
+// NOTE: to avoid a syntactic ambiguity with the ctor syntax "Foo(x)",
+// the set of flags here must not include "static" or "typedef"; see
+// the action function associated with MemberDeclaration's first production
 nonterm[DeclFlags] CDtorModifier {
   -> empty                         [ return DF_NONE; ]
   -> m:CDtorModifier "explicit"    [ return (DeclFlags)(m | DF_EXPLICIT); ]
