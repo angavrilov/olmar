@@ -51,13 +51,26 @@ void TF_func::vcgen(AEnv &env)
 void Declaration::vcgen(AEnv &env)
 {
   FOREACH_ASTLIST_NC(Declarator, decllist, iter) {
-    Declarator *dr = iter.data();
+    iter.data()->vcgen(env);
+  }
+}
 
-    StringRef name = dr->name;
-    if (name && dr->type->isIntegerType()) {
-      env.set(name, new IVvar(name,
-        stringc << "initial value of local " << name));
+void Declarator::vcgen(AEnv &env)
+{
+  if (name && type->isIntegerType()) {
+    IntValue *value;
+    if (init) {
+      // evaluate 'init' to an abstract value; the initializer
+      // will need to know which type it's constructing
+      value = init->vcgen(env, type);
     }
+    else {
+      // make up a new name for the uninitialized value
+      // (if it's global we get to assume it's 0... not implemented..)
+      value = new IVvar(name, stringc << "UNINITialized value of var " << name);
+    }
+
+    env.set(name, value);
   }
 }
 
@@ -288,6 +301,20 @@ IntValue *E_arithAssign::vcgen(AEnv &env)
   else {
     return v;
   }
+}
+
+
+// --------------------- Initializer --------------------
+IntValue *IN_expr::vcgen(AEnv &env, Type const *)
+{
+  return e->vcgen(env);
+}
+
+
+IntValue *IN_compound::vcgen(AEnv &/*env*/, Type const */*type*/)
+{
+  // I have no representation for array and structure values
+  return NULL;
 }
 
 

@@ -132,6 +132,8 @@ class Declarator (
   // returns the type denoted by the combination of 'base' and the
   // type constructors in this declarator
   public Type const *tcheck(Env &env, Type const *base, DeclFlags dflags);
+
+  public void vcgen(AEnv &env);
 }
 
 
@@ -268,6 +270,9 @@ class Initializer {
   // check that the initializer is well-typed, given the type of
   // the thing it initializes
   pure_virtual void tcheck(Env &env, Type const *type);
+
+  // compute an abstract value for this initializer
+  pure_virtual IntValue *vcgen(AEnv &env, Type const *type);
 
   -> IN_expr(Expression e);
   -> IN_compound(ASTList<Initializer> inits);
