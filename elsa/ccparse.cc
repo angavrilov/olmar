@@ -16,6 +16,11 @@
 #include "treeout.h"      // treeOut
 #include "parsetables.h"  // ParseTables
 #include "cc_print.h"     // PrintEnv
+#ifdef CC_QUAL
+  #include "cc_qual/cc_qual.h"
+#else
+  #include "cc_qual_dummy.h"
+#endif
 //  #include "cc_flatten.h"   // FlattenEnv
 
 
@@ -156,18 +161,26 @@ void doit(int argc, char **argv)
     }
   }
 
-  // dsw: Tree walk ****************
+  // dsw: pretty printing
   if (tracingSys("prettyPrint")) {
       cout << endl;
-      traceProgress() << "dsw tree walk...\n";
+      traceProgress() << "dsw pretty print...\n";
       PrintEnv env(cout);
       cout << "---- START ----" << endl;
       cout << "// -*-c++-*-" << endl;
       unit->print(env);
       env.finish();
       cout << "---- STOP ----" << endl;
-      traceProgress() << "dsw tree walk... done\n";
+      traceProgress() << "dsw pretty print... done\n";
       cout << endl;
+  }
+
+  // dsw: cc_qual
+  if (tracingSys("cc_qual")) {
+      traceProgress() << "dsw cc_qual...\n";
+      QualEnv env(cout);
+      unit->qual(env);
+      traceProgress() << "dsw cc_qual... done\n";
   }
 
   // test AST cloning

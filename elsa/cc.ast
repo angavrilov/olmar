@@ -25,15 +25,16 @@
 
 // included in generated header
 verbatim {
-  #include "sobjlist.h"      // SObjList
-  #include "variable.h"      // Variable
-  #include "cc_flags.h"      // CVFlags, DeclFlags, etc. (r)
-  #include "cc_type.h"       // Type, FunctonType, CompoundType
+  #include "sobjlist.h"         // SObjList
+  #include "variable.h"         // Variable
+  #include "cc_flags.h"         // CVFlags, DeclFlags, etc. (r)
+  #include "cc_type.h"          // Type, FunctonType, CompoundType
 
-  #include <stdio.h>         // printf, for ad-hoc debugging
+  #include <stdio.h>            // printf, for ad-hoc debugging
 
-  class Env;                 // cc_env.h
-  class PrintEnv;            // cc_print.h
+  class Env;                    // cc_env.h
+  class PrintEnv;               // cc_print.h
+  class QualEnv;                // cc_qual.h
 //    class FlattenEnv;          // cc_flatten.h
 } // end verbatim
 
@@ -56,6 +57,9 @@ class TranslationUnit (ASTList<TopForm> topForms) {
   // pretty printer
   public void print(PrintEnv &env);
 
+  // ccqual
+  public void qual(QualEnv &env);
+
 //    public void flatten(FlattenEnv &env);
 }
 
@@ -63,6 +67,7 @@ class TranslationUnit (ASTList<TopForm> topForms) {
 class TopForm (SourceLocation loc) {
   pure_virtual void tcheck(Env &env);
   pure_virtual void print(PrintEnv &env);
+  pure_virtual void qual(QualEnv &env);
 //    pure_virtual void flatten(FlattenEnv &env);
                                        
   // includes function prototypes
@@ -115,6 +120,7 @@ class Function (
   private void tcheck_handlers(Env &env);
 
   public void print(PrintEnv &env);
+  public void qual(QualEnv &env);
 //    public void flatten(FlattenEnv &env);
 }
 
@@ -137,6 +143,7 @@ class Declaration (
 ) {
   public void tcheck(Env &env);        // adds declared variables to env
   public void print(PrintEnv &env);
+  public void qual(QualEnv &env);
 //    public void flatten(FlattenEnv &env);
 }
 
@@ -174,6 +181,7 @@ class ASTTypeId (
   public void mid_tcheck(Env &env, Expression **&sizeExpr);
 
   public void print(PrintEnv &env);
+  public void qual(QualEnv &env);
 //    public void flatten(FlattenEnv &env);
   
   public Type const *getType() const;      // can use after calling 'tcheck'
@@ -200,6 +208,7 @@ class PQName {
   pure_virtual void tcheck(Env &env);
 
   pure_virtual void print(PrintEnv &env);
+  pure_virtual void qual(QualEnv &env);
 //    pure_virtual void flatten(FlattenEnv &env);
 
 
@@ -247,6 +256,8 @@ class TypeSpecifier {
   pure_virtual Type const *itcheck(Env &env);
 
   pure_virtual void print(PrintEnv &env);
+  pure_virtual void qual(QualEnv &env);
+  //  pure_virtual void flatten(FlattenEnv &env);
                                                               
   // a typedef'd name (typedef might be implicit, as for classes);
   // if 'typenamedUsed' is true, then the user said "typename", so
@@ -297,6 +308,7 @@ class BaseClassSpec (
   public BaseClassSpec *next;  ctor next=NULL;     // FakeList link
 
   public void print(PrintEnv &env);
+  public void qual(QualEnv &env);
 //    public void flatten(FlattenEnv &env);
 }
 
@@ -315,6 +327,7 @@ class Member (SourceLocation loc) {
   pure_virtual void tcheck(Env &env);
 
   pure_virtual void print(PrintEnv &env);
+  pure_virtual void qual(QualEnv &env);
 //    pure_virtual void flatten(FlattenEnv &env);
 }
 
@@ -343,6 +356,7 @@ class Enumerator (
   public void tcheck(Env &env, EnumType *parentEnum, Type *parentType);
 
   public void print(PrintEnv &env);
+  public void qual(QualEnv &env);
 //    public void flatten(FlattenEnv &env);
 }
 
@@ -446,6 +460,7 @@ class Declarator (
   public void mid_tcheck(Env &env, DeclaratorTcheck &dt);
 
   public void print(PrintEnv &env);
+  public void qual(QualEnv &env);
 //    public void flatten(FlattenEnv &env);
 }
 
@@ -465,6 +480,7 @@ class IDeclarator {
   pure_virtual PQName const *getDeclaratorId() const;
 
   public void print(PrintEnv &env);
+  public void qual(QualEnv &env);
 //    public void flatten(FlattenEnv &env);
 
   // "x" (NULL means abstract declarator or anonymous parameter);
@@ -506,6 +522,7 @@ class ExceptionSpec (
   public FunctionType::ExnSpec *tcheck(Env &env);
 
   public void print(PrintEnv &env);
+  public void qual(QualEnv &env);
 //    public void flatten(FlattenEnv &env);
 }
 
@@ -573,6 +590,9 @@ class Statement (SourceLocation loc) {
   public void print(PrintEnv &env);
   pure_virtual void iprint(PrintEnv &env);
 
+  public void qual(QualEnv &env);
+  pure_virtual void iqual(QualEnv &env);
+
 //    public void flatten(FlattenEnv &env);
 //    pure_virtual void iflatten(FlattenEnv &env);
 
@@ -611,6 +631,7 @@ class Condition {
   pure_virtual void tcheck(Env &env);
 
   pure_virtual void print(PrintEnv &env);
+  pure_virtual void qual(QualEnv &env);
 //    pure_virtual void flatten(FlattenEnv &env);
 }
 
@@ -626,6 +647,7 @@ class Handler (
   pure_virtual void tcheck(Env &env);
 
   pure_virtual void print(PrintEnv &env);
+  pure_virtual void qual(QualEnv &env);
 //    pure_virtual void flatten(FlattenEnv &env);
 }
 
@@ -671,10 +693,14 @@ class Expression {
 
   public void print(PrintEnv &env);
   pure_virtual void iprint(PrintEnv &env);
-  public string exprToString() const;
+
+  public void qual(QualEnv &env);
+  pure_virtual void iqual(QualEnv &env);
 
 //    public void flatten(FlattenEnv &env);
 //    pure_virtual void iflatten(FlattenEnv &env);
+
+  public string exprToString() const;
 
   // type computed for this expression; might be a SimpleType for
   // ST_ERROR, in which case a subsequent attempt to typecheck the
@@ -796,6 +822,7 @@ class Initializer {
   pure_virtual void tcheck(Env &env);
 
   pure_virtual void print(PrintEnv &env);
+  pure_virtual void qual(QualEnv &env);
 //    pure_virtual void flatten(FlattenEnv &env);
 
   // simple initializer, like "int x = 3"
@@ -831,6 +858,9 @@ class TemplateDeclaration (
   public void print(PrintEnv &env);
   pure_virtual void iprint(PrintEnv &env);
 
+  public void qual(QualEnv &env);
+  pure_virtual void iqual(QualEnv &env);
+
 //    public void flatten(FlattenEnv &env);
 //    pure_virtual void iflatten(FlattenEnv &env);
 
@@ -854,6 +884,7 @@ class TemplateParameter (SourceLocation loc) {
   pure_virtual void tcheck(Env &env, TemplateParams *tparams);
 
   pure_virtual void print(PrintEnv &env);
+  pure_virtual void qual(QualEnv &env);
 //    pure_virtual void flatten(FlattenEnv &env);
 
   // type parameter; when present, 'name' is what the template code
@@ -873,6 +904,7 @@ class TemplateArgument {
   pure_virtual void tcheck(Env &env);
 
   pure_virtual void print(PrintEnv &env);
+  pure_virtual void qual(QualEnv &env);
 //    pure_virtual void flatten(FlattenEnv &env);
 
   // return a canonical string for this template argument,
