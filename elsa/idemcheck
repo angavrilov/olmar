@@ -118,7 +118,11 @@ for my $name(@names) {
     }
 
     # sm: replaced -u with -c for portability
-    my $diff_command = "diff -c $outname.2out.cc $outname.4out.cc > $outname.5diff";
+    #
+    # sm: 2005-02-12: added -b (ignore blankspace differences)
+    # because on cygwin with DOS line endings in/c99/t0133.c has
+    # a CR vs CRLF difference that I don't want to track down...
+    my $diff_command = "diff -c -b $outname.2out.cc $outname.4out.cc > $outname.5diff";
     $outfile2command{"$outname.5diff"} = $diff_command;
     push @outfiles, "$outname.5diff";
     my $diff_res = system $diff_command;
