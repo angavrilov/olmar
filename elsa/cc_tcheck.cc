@@ -20,6 +20,7 @@
 #include "implconv.h"       // test_getImplicitConversion
 #include "overload.h"       // resolveOverload
 #include "generic_amb.h"    // resolveAmbiguity, etc.
+#include "ast_build.h"      // makeExprList1, etc.
 
 #include <stdlib.h>         // strtoul, strtod
 
@@ -37,26 +38,6 @@ static Variable *outerResolveOverload_ctor
 static bool reallyDoOverload(Env &env, FakeList<ArgExpression> *args);
 void tcheckArgExprList(FakeList<ArgExpression> *list, Env &env);
 void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
-
-
-// Why is there not a "finally" in C++!?!  I cannot figure out how to
-// get this into cc.ast or cc_tcheck.ast so I'm putting it here.
-// Would be nice if I knew how to make this a member class of
-// FullExpressionAnnot.
-class FullExpressionAnnot_StackBracket {
-  Env &env;
-  FullExpressionAnnot &fea;
-  Scope *s;
-  public:
-  explicit FullExpressionAnnot_StackBracket(Env &env0, FullExpressionAnnot &fea0)
-    : env(env0)
-    , fea(fea0)
-    , s(fea.tcheck_preorder(env))
-  {}
-  ~FullExpressionAnnot_StackBracket() {
-    fea.tcheck_postorder(env, s);
-  }
-};
 
 
 // return true if the list contains no disambiguating errors
@@ -325,7 +306,7 @@ void Function::tcheck_memberInits(Env &env)
   // ok, so far so good; now go through and check the member
   // inits themselves
   FAKELIST_FOREACH_NC(MemberInit, inits, iter) {
-    FullExpressionAnnot_StackBracket fea0(env, iter->annot);
+    FullExpressionAnnot::StackBracket fea0(env, iter->annot);
 
     PQName *name = iter->name;
 
@@ -358,18 +339,18 @@ void Function::tcheck_memberInits(Env &env)
         // decide which of v's possible constructors is being used
         Variable *ctor = outerResolveOverload_ctor(env, env.loc(), v->type, iter->args,
                                                    reallyDoOverload(env, iter->args));
-        if (v->type->isCompoundType() || v->type->asRval()->isCompoundType()) {
-          // I think with the implicit ctors added now, this should
-          // always succeed
-          xassert(ctor);
+        if (ctor) {
           iter->ctorVar = ctor;
+
           // FIX: do this; we need a variable for when it is a base class
           // the var is the MemberInit::member
 //            xassert(!ctorStatement);
 //            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
-        } else {
-          xassert(!ctor);
         }
+
+        // I think with the implicit ctors added now, this should
+        // always succeed
+        xassert(!!ctor == v->type->asRval()->isCompoundType());
 
         // TODO: check that the passed arguments are consistent
         // with at least one constructor of the variable's type
@@ -455,19 +436,19 @@ void Function::tcheck_memberInits(Env &env)
                                                baseVar->type,
                                                iter->args,
                                                reallyDoOverload(env, iter->args));
-    if (baseVar->type->isCompoundType() || baseVar->type->asRval()->isCompoundType()) {
-      // I think with the implicit ctors added now, this should always
-      // succeed
-      xassert(ctor);
+    if (ctor) {
       iter->ctorVar = ctor;
+
       // FIX: do this; we need a variable for when it is a base class
       // the var is Function::retVar; NOTE: the types won't match so
       // watch out.
 //            xassert(!ctorStatement);
 //            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
-    } else {
-      xassert(!ctor);
     }
+
+    // I think with the implicit ctors added now, this should always
+    // succeed
+    xassert(!!ctor == baseVar->type->asRval()->isCompoundType());
 
     // TODO: check that the passed arguments are consistent
     // with at least one constructor in the base class
@@ -676,7 +657,6 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
   }
 
   if (!var->hasFlag(DF_TYPEDEF)) {
-//      cout << "A: variable name `" << *name << "' used as if it were a type" << endl;
     return env.error(stringc
       << "variable name `" << *name << "' used as if it were a type",
       disambiguates);
@@ -687,8 +667,8 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
   // doesn't matter.
   //
   // sm: update: I thought this might happen.  Using typedefs means
-  // dealing with scoping, so we need to keep all the typedefs so that
-  // at least one will be in scope.
+  // dealing with scoping, so we need to keep all the typedefs (and
+  // make typedef shadow names) so that at least one will be in scope.
   var->type->typedefAliases.append(var);
 
   // there used to be a call to applyCV here, but that's redundant
@@ -981,8 +961,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // dsw: need to register it at least, even if it isn't added to
     // the scope, otherwise I can't print out the name of the type
     // because at the top scope I don't know the scopeKind
-    xassert(stringName);
-    env.acceptingScope(DF_TYPEDEF)->registerVariable(ct->typedefVar);
+    env.typeAcceptingScope()->registerVariable(ct->typedefVar);
 
     this->ctype = ct;           // annotation
 
@@ -1004,6 +983,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
             "attempt to use unresolved arguments to specialize a class");
         }
       }
+
       // dsw: I need to have the argumentSyntax around so that if I
       // call PQ_fullyQualifiedName() on this type I get a
       // PQ_qualifier that has template arguments; If I don't do it
@@ -1011,15 +991,16 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
       // ClassTemplateInfo::arguments, and then I'm back to
       // manufacturing ASTTypeId-s from Type-s which I want to avoid
       // if I can.
-
+      //
       // FIX: I'm worried that there is some corner condition where
       // the same syntax doesn't work because the location has changed
       // and we are down in some namespace where the names in the
       // argumentSyntax now resolve to different variables.
-      
-      // sm: update: that corner case (d0026.cc) is now handled by
-      // rebuilding the arguments in Env::make_PQ_fullyQualifiedName
-
+      //
+      // sm: update: That corner case (d0026.cc) is now handled by
+      // rebuilding the arguments in Env::make_PQ_fullyQualifiedName.
+      // So in fact this assignment is now not necessary, but it
+      // won't hurt either.
       ct->templateInfo->argumentSyntax = templateArgs;
     }
   }
@@ -1171,6 +1152,7 @@ void TS_classSpec::tcheckIntoCompound(
 }
 
 
+// this is pass 2 of tchecking a class
 void TS_classSpec::tcheckFunctionBodies(Env &env)
 {
   CompoundType *ct = env.scope()->curCompound;
@@ -1194,9 +1176,15 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
       // same trick again (TODO: what if we decide to clone while down
       // in 'f->tcheck'?)
       f->dflags = (DeclFlags)(f->dflags & ~DF_INLINE_DEFN);
-    } else if (iter.data()->isMR_decl()) {
+    }
+    else if (env.doElaboration && iter.data()->isMR_decl()) {
       Declaration *d0 = iter.data()->asMR_decl()->d;
       FAKELIST_FOREACH_NC(Declarator, d0->decllist, decliter) {
+        // tcheck initializers
+        if (decliter->init) {
+          decliter->tcheck_init(env);
+        }
+
         decliter->elaborateCDtors(env);
       }
     }
@@ -1742,45 +1730,11 @@ Type *computeArraySizeFromLiteral(Env &env, Type *tgt_type, Initializer *init)
   return tgt_type;
 }
 
-static E_constructor *makeCtorExpr
-  (Env &env, Variable *var, Type *type, FakeList<ArgExpression> *args)
-{
-  xassert(var);                 // this is never for a temporary
-  xassert(!var->hasFlag(DF_TYPEDEF));
-  PQName *name0 = env.make_PQ_fullyQualifiedName(type->asCompoundType());
-  E_constructor *ector0 =
-    new E_constructor(new TS_name(env.loc(), name0, false),
-                      args);
-  ector0->artificial = true;
-  // this way the E_constructor::itcheck() can tell that it is not for
-  // a temporary
-  ector0->var = var;
-  return ector0;
-}
-
-static Statement *makeCtorStatement
-  (Env &env, Variable *var, Type *type, FakeList<ArgExpression> *args)
-{
-  E_constructor *ector0 = makeCtorExpr(env, var, type, args);
-  Statement *ctorStmt0 = new S_expr(env.loc(), new FullExpression(ector0));
-  ctorStmt0->tcheck(env);
-  return ctorStmt0;
-}
-
-static Statement *makeDtorStatement(Env &env, Type *type)
-{
-  // hmm, can't say this because I don't have a var to say it about.
-//    xassert(!var->hasFlag(DF_TYPEDEF));
-  E_funCall *efc0 =
-    new E_funCall(new E_variable(env.make_PQ_fullyQualifiedDtorName(type->asCompoundType())),
-                  FakeList<ArgExpression>::emptyList());
-  Statement *dtorStmt0 = new S_expr(env.loc(), new FullExpression(efc0));
-  dtorStmt0->tcheck(env);
-  return dtorStmt0;
-}
-
 void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 {
+  // true if we're immediately in a class body
+  bool inClassBody = !!env.scope()->curCompound;
+
   // cppstd sec. 3.4.3 para 3:
   //    "In a declaration in which the declarator-id is a
   //    qualified-id, names used before the qualified-id
@@ -1791,24 +1745,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   //
   // to implement this, I'll find the declarator's qualified
   // scope ahead of time and add it to the scope stack
-  PQName const *declaratorId = decl->getDeclaratorId();
-  Scope *qualifiedScope = NULL;
-  if (declaratorId &&     // i.e. not abstract
-      declaratorId->hasQualifiers()) {
-    // look up the scope named by the qualifiers
-    qualifiedScope = env.lookupQualifiedScope(declaratorId);
-    if (!qualifiedScope) {
-      // the environment will have already reported the
-      // problem; go ahead and check the declarator in the
-      // unqualified (normal) scope; it's about the best I
-      // could imagine doing as far as error recovery goes
-    }
-    else {
-      // ok, put the scope we found into the scope stack
-      // so the declarator's names will get its benefit
-      env.extendScope(qualifiedScope);
-    }
-  }
+  Scope *qualifierScope = openQualifierScope(env);
 
   if (init) dt.dflags |= DF_INITIALIZED;
 
@@ -1828,80 +1765,58 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // is always D_name, it's equivalent to add the name to the
   // environment then instead of here.
 
-  if (init) {
+  // tcheck the initializer, unless we're inside a class, in which
+  // case wait for pass two
+  if (init && !inClassBody) {
     // TODO: check the initializer for compatibility with
     // the declared type
 
     // TODO: check compatibility with dflags; e.g. we can't allow
     // an initializer for a global variable declared with 'extern'
 
-    // dsw: or a typedef
-    if (var->hasFlag(DF_TYPEDEF)) {
-      // dsw: FIX: should the return value get stored somewhere?
-      // FIX: the loc is probably wrong
-      env.error(env.loc(), "initializer not allowed for a typedef");
-      goto ifInitEnd;
-    }
-
-    // TODO: in the case of class data members, delay checking the
-    // initializer until the entire class body has been scanned; dsw:
-    // I think this is fixed now; the init typechecking, etc. code
-    // that was here is now in elaborateCDtors.
-
-    // Now always delayed until elaborateCDtors().
-//      // dsw: the init typechecking is only done here for parameters so
-//      // that function declarations work when they have default
-//      // arugments.  Otherwise, it is delayed until elaborateCDtors().
-//      if (dt.isParameter) {
-//        tcheck_init(env);
-//      }
-
-    // jump here if we find an error in the init code above and report
-    // it but want to keep going
-  ifInitEnd: ;                  // must have a statement here
+    tcheck_init(env);
   }
 
-  if (qualifiedScope) {
+  if (qualifierScope) {
     // pull the scope back out of the stack; if this is a
     // declarator attached to a function definition, then
     // Function::tcheck will re-extend it for analyzing
     // the function body
-    env.retractScope(qualifiedScope);
+    env.retractScope(qualifierScope);
   }
 
   // If it is a function, is it virtual?
-  if (var->type->isFunctionType()
+  if (inClassBody
+      && var->type->isFunctionType()
       && var->type->asFunctionType()->isMethod()
       && !var->hasFlag(DF_VIRTUAL)) {
 //      printf("var->name: %s\n", var->name);
 //      printf("env.scope->curCompound->name: %s\n", env.scope()->curCompound->name);
     // find the next variable up the hierarchy
-    if (env.scope()->curCompound) {
-      FOREACH_OBJLIST(BaseClass, env.scope()->curCompound->bases, base_iter) {
-        // FIX: Should I skip it for private inheritance?  Hmm,
-        // experiments on g++ indicate that private inheritance does not
-        // prevent the virtuality from coming through.  Ben agrees.
+    FOREACH_OBJLIST(BaseClass, env.scope()->curCompound->bases, base_iter) {
+      // FIX: Should I skip it for private inheritance?  Hmm,
+      // experiments on g++ indicate that private inheritance does not
+      // prevent the virtuality from coming through.  Ben agrees.
 
-        // FIX: deal with ambiguity if we find more than one
-        // FIX: is there something to do for virtual inheritance?
-        //        printf("iterating over base base_iter.data()->ct->name: %s\n",
-        //               base_iter.data()->ct->name);
-        Variable *var2 = base_iter.data()->ct->lookupVariable(var->name, env);
-        xassert(var2 != var);
-        if (var2 && var2->type->isFunctionType() && var2->type->asFunctionType()->isMethod()) {
-          if (Variable *var_overload =
-              var2->getOverloadSet()->findByType
-              (var->type->asFunctionType(),
-               var->type->asFunctionType()->getThisCV())) {
-            xassert(var_overload != var);
-            xassert(var_overload->type->isFunctionType());
-            xassert(var_overload->type->asFunctionType()->isMethod());
-            if (var_overload->hasFlag(DF_VIRTUAL)) {
-              // then we inherit the virtuality
-              var->setFlag(DF_VIRTUAL);
-              // FIX: We could actually break out of the loop at this
-              // point
-            }
+      // FIX: deal with ambiguity if we find more than one
+      // FIX: is there something to do for virtual inheritance?
+      //        printf("iterating over base base_iter.data()->ct->name: %s\n",
+      //               base_iter.data()->ct->name);
+      Variable *var2 = base_iter.data()->ct->lookupVariable(var->name, env);
+      xassert(var2 != var);
+      if (var2 && var2->type->isFunctionType() && var2->type->asFunctionType()->isMethod()) {
+        if (Variable *var_overload =
+            var2->getOverloadSet()->findByType
+            (var->type->asFunctionType(),
+             var->type->asFunctionType()->getThisCV())) {
+          xassert(var_overload != var);
+          xassert(var_overload->type->isFunctionType());
+          xassert(var_overload->type->asFunctionType()->isMethod());
+          if (var_overload->hasFlag(DF_VIRTUAL)) {
+            // then we inherit the virtuality
+            var->setFlag(DF_VIRTUAL);
+            // FIX: We could actually break out of the loop at this
+            // point
           }
         }
       }
@@ -1927,76 +1842,15 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // definition of, and therefore any references to implicit members
   // of that class don't exist yet.
   bool isE_new = (dt.context == Tcheck::CTX_E_NEW);
-  if (!var->isMember() &&
+  if (!inClassBody &&
 //        !isParameter &&
       !isE_new) {
     elaborateCDtors(env);
   }
 }
 
-
-//  void D_func::elaborateParameterCDtors(Env &env)
-//  {
-//    FAKELIST_FOREACH_NC(ASTTypeId, params, iter) {
-//      iter->decl->elaborateCDtors
-//        (env,
-//         // Only Function and Declaration have any DeclFlags; the only
-//         // one that seems appropriate is this one
-//         DF_PARAMETER
-//         );
-//    }
-//  }
-
-// This was originally in Declarator::mid_tcheck()
-void Declarator::tcheck_init(Env &env)
+Scope *Declarator::openQualifierScope(Env &env)
 {
-  xassert(init);
-
-  init->tcheck(env, type);
-
-  // remember the initializing value, for const values
-  if (init->isIN_expr()) {
-    var->value = init->asIN_exprC()->e;
-  }
-
-  // use the initializer size to refine array types
-  // array initializer case
-  var->type = computeArraySizeFromCompoundInit(env, var->loc, var->type, type, init);
-  // array compound literal initializer case
-  var->type = computeArraySizeFromLiteral(env, var->type, init);
-}
-
-// wrap an expression in a list
-FakeList<ArgExpression> *makeExprList1(Expression *e)
-{
-  return FakeList<ArgExpression>::makeList(new ArgExpression(e));
-}
-
-// wrap a pair of expressions in a list
-FakeList<ArgExpression> *makeExprList2(Expression *e1, Expression *e2)
-{
-  return makeExprList1(e2)->prepend(new ArgExpression(e1));
-}
-
-void Declarator::elaborateCDtors(Env &env)
-{
-  // get this context from the 'var', don't make a mess passing
-  // it down from above
-  bool isMember = var->hasFlag(DF_MEMBER);
-  bool isTemporary = var->hasFlag(DF_TEMPORARY);
-  bool isParameter = var->hasFlag(DF_PARAMETER);
-
-  // the code originally got this from syntactic context, but that's
-  // not always correct, and this is much easier
-  DeclFlags dflags = var->flags;
-
-  bool isStatic = (dflags & DF_STATIC)!=0;
-
-  // dsw: Should this lookup be cached during mid_tcheck() above?
-
-  // NOTE: there seems to be some inevitable duplication of effort
-  // with mid_tcheck() above here.
-
   PQName const *declaratorId = decl->getDeclaratorId();
   Scope *qualifiedScope = NULL;
   if (declaratorId &&     // i.e. not abstract
@@ -2013,152 +1867,30 @@ void Declarator::elaborateCDtors(Env &env)
       // ok, put the scope we found into the scope stack
       // so the declarator's names will get its benefit
       env.extendScope(qualifiedScope);
+      return qualifiedScope;
     }
   }
+  
+  return NULL;   // didn't extend
+}
 
-  // This was moved here from Declarator::mid_tcheck()
-  if (init
-//        // for parameters was already done in Declarator::mid_tcheck()
-//        && !isParameter
-      ) {
-    tcheck_init(env);
+// pulled out so it could be done in pass 1 or pass 2
+void Declarator::tcheck_init(Env &env)
+{
+  xassert(init);
+
+  init->tcheck(env, type);
+
+  // remember the initializing value, for const values
+  if (init->isIN_expr()) {
+    var->value = init->asIN_exprC()->e;
   }
 
-  xassert(!ctorStatement);
-  if (!isParameter) {
-    if (init) {
-      if (isMember && !isStatic) {
-        // special case: virtual methods can have an initializer that is
-        // the int constant "0", which means they are abstract.  I could
-        // check for the value "0", but I don't bother.
-        if (! (var->type->isFunctionType()
-               && var->type->asFunctionType()->isMethod()
-               && var->hasFlag(DF_VIRTUAL))) {
-          env.error(env.loc(), "initializer not allowed for a non-static member declaration");
-        }
-        // but we still shouldn't make a ctor for this function from the
-        // "0".
-        goto ifInitEnd;
-      }
-      if (isMember && isStatic && !type->isConst()) {
-        env.error(env.loc(), "initializer not allowed for a non-const static member declaration");
-        goto ifInitEnd;
-      }
-
-      // TODO: check the initializer for compatibility with
-      // the declared type
-
-      // TODO: check compatibility with dflags; e.g. we can't allow
-      // an initializer for a global variable declared with 'extern'
-
-      // dsw: or a typedef
-      if (var->hasFlag(DF_TYPEDEF)) {
-        // dsw: FIX: should the return value get stored somewhere?
-        // FIX: the loc is probably wrong
-        env.error(env.loc(), "initializer not allowed for a typedef");
-        goto ifInitEnd;
-      }
-
-      // dsw: Arg, do I have to deal with this?
-      // TODO: in the case of class data members, delay checking the
-      // initializer until the entire class body has been scanned
-
-      xassert(!isTemporary);
-      // make the call to the ctor; FIX: Are there other things to check
-      // in the if clause, like whether this is a typedef?
-      if (init->isIN_ctor()) {
-        xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
-        // FIX: What should we do for non-CompoundTypes?
-        if (type->isCompoundType()) {
-          xassert(!ctorStatement);
-          ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
-        }
-      } else if (type->isCompoundType()) {
-        if (init->isIN_expr()) {
-          xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
-          // just call the one-arg ctor; FIX: this is questionable; we
-          // haven't decided what should really happen for an IN_expr
-          xassert(!ctorStatement);
-          ctorStatement =
-            makeCtorStatement(env, var, type,
-                              makeExprList1(init->asIN_expr()->e));
-        } else if (init->isIN_compound()) {
-          xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
-          // just call the no-arg ctor; FIX: this is questionable; it
-          // is undefined what should happen for an IN_compound since
-          // it is a C99-ism.
-          xassert(!ctorStatement);
-          ctorStatement = makeCtorStatement(env, var, type, FakeList<ArgExpression>::emptyList());
-        }
-      }
-
-      // jump here if we find an error in the init code above and report
-      // it but want to keep going
-    ifInitEnd: ;                  // must have a statement here
-    }
-    else /* init is NULL */ {
-      if (type->isCompoundType() &&
-          !var->hasFlag(DF_TYPEDEF) &&
-          !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
-          !isTemporary &&
-          !isMember &&
-          !( (dflags & DF_EXTERN)!=0 ) // not extern
-          ) {
-        // call the no-arg ctor; for temporaries do nothing since this is
-        // a temporary, it will be initialized later
-        xassert(!ctorStatement);
-        ctorStatement = makeCtorStatement(env, var, type, FakeList<ArgExpression>::emptyList());
-      }
-    }
-
-    // if isTemporary we don't want to make a ctor since by definition
-    // the temporary will be initialized later
-    if (isTemporary ||
-        (isMember && !(isStatic && type->isConst())) ||
-        ( (dflags & DF_EXTERN)!=0 ) // extern
-        ) {
-      xassert(!ctorStatement);
-    } else if (type->isCompoundType() &&
-               !var->hasFlag(DF_TYPEDEF) &&
-               !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
-               (!isMember ||
-                (isStatic && type->isConst() && init)) &&
-               !( (dflags & DF_EXTERN)!=0 ) // not extern
-               ) {
-      xassert(ctorStatement);
-    }
-//    } else {
-//      // isParameter
-//      // make the copy ctor
-//      xassert(!ctorStatement);
-//      ctorStatement = makeCtorStatement(env, var, type, FakeList<ArgExpression>::emptyList());
-
-    // make the dtorStatement
-    if (type->isCompoundType() &&
-        !var->hasFlag(DF_TYPEDEF) &&
-        !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
-        !( (dflags & DF_EXTERN)!=0 ) // not extern
-        ) {
-      dtorStatement = makeDtorStatement(env, type);
-    } else {
-      xassert(!dtorStatement);
-    }
-  }
-
-  // I think this is wrong.  We only want it for function DEFINITIONS.
-//    // recuse on the parameters if we are a D_func
-//    if (decl->isD_func()) {
-  // NOTE: this is also implemented wrong: use getD_func()
-//      decl->asD_func()->elaborateParameterCDtors(env);
-//    }
-
-  if (qualifiedScope) {
-    // pull the scope back out of the stack; if this is a
-    // declarator attached to a function definition, then
-    // Function::tcheck will re-extend it for analyzing
-    // the function body
-    env.retractScope(qualifiedScope);
-  }
+  // use the initializer size to refine array types
+  // array initializer case
+  var->type = computeArraySizeFromCompoundInit(env, var->loc, var->type, type, init);
+  // array compound literal initializer case
+  var->type = computeArraySizeFromLiteral(env, var->type, init);
 }
 
 
@@ -4189,7 +3921,6 @@ static bool reallyDoOverload(Env &env, FakeList<ArgExpression> *args) {
 // ------------- END: outerResolveOverload ------------------
 
 
-
 // this is the old code, and served as the prototypical way to tcheck
 // a FakeList of potentially ambiguous elements; but now FakeList<Expression>
 // is not used, so this function has become much simpler
@@ -4302,185 +4033,6 @@ void E_funCall::inner1_itcheck(Env &env)
   func->tcheck(env, func);
 }
 
-// If the return type is a CompoundType, then make a temporary and
-// point the retObj at it.  The intended semantics of this is to
-// override the usual way of analyzing the return value just from the
-// return type of the function.  Some analyses may want us to do this
-// for all return values, not just those of CompoundType.
-
-// Make a Declaration for a temporary.
-static Declaration *makeTempDeclaration(Env &env, Type *retType)
-{
-  // while a user may attempt this, we should catch it earlier and not
-  // end up down here.
-  xassert(retType->isCompoundType());
-  TypeSpecifier *typeSpecifier =
-    new TS_name(env.loc(),
-                env.make_PQ_fullyQualifiedName(retType->asCompoundType()),
-                false);
-  xassert(typeSpecifier);
-  Declarator *declarator0 =
-    new Declarator(new D_name(env.loc(),
-                              env.makeTempName() // give it a new unique name
-                              ),
-                   NULL         // important: no Initializer
-                   );
-  Declaration *declaration0 =
-    new Declaration(DF_TEMPORARY,
-                    // should get DF_AUTO since they are auto, but I
-                    // seem to recall that Scott just wants to use
-                    // that for variables that are explicitly marked
-                    // auto; will get DF_DEFINITION as soon as
-                    // typechecked, I hope
-                    typeSpecifier,
-                    FakeList<Declarator>::makeList(declarator0)
-                    );
-
-  // typecheck it
-
-  // don't do this for now:
-//    int numErrors = env.numErrors();
-  declaration0->tcheck(env);
-
-  // FIX: what the heck am I doing here?  There should only be one.
-  xassert(declaration0->decllist->count() == 1);
-  // leave it for now
-  FAKELIST_FOREACH_NC(Declarator, declaration0->decllist, decliter) {
-    decliter->elaborateCDtors(env);
-  }
-  // don't do this for now:
-//    xassert(numErrors == env.numErrors()); // shouldn't have added to the errors
-
-  return declaration0;
-}
-
-static Declaration *insertTempDeclaration(Env &env, Type *retType)
-{
-  // make a temporary in the innermost FullExpressionAnnot
-  FullExpressionAnnot *fea0 = env.fullExpressionAnnotStack.top();
-
-  // dsw: FIX: I would like to assert here that env.scope() (the
-  // current scope) == (fictional) fea0->scope, except that
-  // FullExpressionAnnot doesn't have a scope field.
-
-  Declaration *declaration0 = makeTempDeclaration(env, retType);
-  // maybe the loc should be: fea0->expr->loc
-
-  // check that it got entered into the current scope
-  if (!env.disambErrorsSuppressChanges()) {
-    Declarator *declarator0 = declaration0->decllist->first();
-    xassert(env.scope()->rawLookupVariable
-            (declarator0->decl->asD_name()->name->getName()) ==
-            declarator0->var);
-  }
-
-  // put it into fea0
-  fea0->declarations.append(declaration0);
-
-  return declaration0;
-}
-
-static E_variable *wrapVarWithE_variable(Env &env, Variable *var)
-{
-  PQName *name0 = NULL;
-  switch(var->scopeKind) {
-    default:
-    case SK_UNKNOWN:
-      xfailure("wrapVarWithE_variable: var->scopeKind == SK_UNKNOWN; shouldn't get here");
-      break;
-    case SK_TEMPLATE:
-      xfailure("don't handle template scopes yet");
-      break;
-    case SK_PARAMETER:
-      xfailure("shouldn't be getting a parameter scope here");
-      break;
-    case SK_GLOBAL:
-      xassert(!var->scope);
-      name0 = new PQ_qualifier(env.loc(), NULL,
-                               FakeList<TemplateArgument>::emptyList(),
-                               new PQ_name(env.loc(), var->name));
-      break;
-    case SK_CLASS:
-      xassert(var->scope->curCompound);
-      name0 = env.make_PQ_fullyQualifiedName
-        (var->scope->curCompound, new PQ_name(env.loc(), var->name));
-      break;
-    case SK_FUNCTION:
-      name0 = new PQ_name(env.loc(), var->name);
-      break;
-  }
-  xassert(name0);
-
-  // wrap an E_variable around the var so it is an expression
-  E_variable *evar0 = new E_variable(name0);
-  {
-    Expression *evar1 = evar0;
-    evar0->tcheck(env, evar1);
-    xassert(evar0 == evar1->asE_variable());
-  }
-  // it had better find the same variable
-  if (!env.disambErrorsSuppressChanges()) {
-    xassert(evar0->var == var);
-  }
-
-  // dsw: I would like to assert here that retType equals
-  // evar0->var->type but I'm not sure how to do that because I don't
-  // know how to check equality of types.
-
-  return evar0;
-}
-
-
-// For each parameter, if it is a CompoundType (pass by value) then 1)
-// make a temporary variable here for it that has a dtor but not a
-// ctor 2) for the corresponding argument, replace it with a comma
-// expression where a) the first part is an E_constructor for the
-// temporary that has one argument that is what was the arugment in
-// this slot and the ctor is the copy ctor, and b) E_variable for the
-// temporary
-void E_funCall_argReplaceHelper
-  (Env &env,
-   FakeList<ArgExpression> *args,
-   SObjListIterNC<Variable> &paramsIter)
-{
-  if (paramsIter.isDone()) {
-    // FIX: I suppose we could still have arguments here if there is a
-    // ellipsis at the end of the parameter list.  Can those be passed
-    // by value?
-//      xassert(args->empty());     // too many arguments
-    return;
-  }
-  if (args->isEmpty()) {
-    // FIX: if (!paramsIter.isDone()) then have to deal with default
-    // arguments that are pass by value if such a thing is even
-    // possible.
-    return;
-  }
-
-  FAKELIST_FOREACH_NC(ArgExpression, args, arg) {
-    Variable *param = paramsIter.data();
-    Type *paramType = param->getType();
-    if (paramType->isCompoundType()) {
-      // E_variable that points to the temporary
-      Declaration *declaration0 = insertTempDeclaration(env, paramType);
-      xassert(declaration0->decllist->count() == 1);
-      Variable *tempVar = declaration0->decllist->first()->var;
-      E_variable *byValueArg = wrapVarWithE_variable(env, tempVar);
-
-      // E_constructor for the temporary that calls the copy ctor for
-      // the temporary taking the real argument as the copy ctor
-      // argument.
-      E_constructor *ector = makeCtorExpr(env, tempVar, paramType,
-                                          makeExprList1(arg->expr));
-
-      // combine into a comma expression so we do both but return the
-      // value of the second
-      arg->expr = new E_binary(ector, BIN_COMMA, byValueArg);
-      arg->tcheck(env);
-    }
-  }
-}
-
 Type *E_funCall::inner2_itcheck(Env &env)
 {
   if (func->isE_variable() &&
@@ -4586,38 +4138,13 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // then tcheck the arguments against 't' as if we had no reason to
   // suspect 't' was a good function to call.
 
+  FunctionType *ft = t->asFunctionType();
+  if (env.doElaboration) {
+    retObj = elaborateCallSite(env, ft, args);
+  }
+
   // type of the expr is type of the return value
-  Type *retType = env.tfac.cloneType(t->asFunctionTypeC()->retType);
-
-  // If the return type is a CompoundType, then make a temporary and
-  // point the retObj at it.  NOTE: This can never accidentally create
-  // a temporary for a dtor for a non-temporary object because the
-  // retType for a dtor is void.  However, we do need to guard against
-  // this possibility for ctors.
-  if (retType->isCompoundType()) {
-    Declaration *declaration0 = insertTempDeclaration(env, retType);
-    xassert(declaration0->decllist->count() == 1);
-    Variable *var0 = declaration0->decllist->first()->var;
-    retObj = wrapVarWithE_variable(env, var0);
-  }
-
-  // Elaborate cdtors for CompoundType arguments being passed by
-  // value.
-  {
-    // ARG! Must iterate over the FakeList of arguments with
-    // replacement.  I'm just doing the Lisp trick of building a whole
-    // new list recursively.
-    //
-    // sm: update: now that I've re-introduced the ArgExpression
-    // separation layer, the lisp-like gymnastics are thankfully
-    // unnecessary
-    SObjListIterNC<Variable> paramsIter(t->asFunctionType()->params);
-    int numArgs = args->count();
-    E_funCall_argReplaceHelper(env, args, paramsIter);
-    xassert(numArgs == args->count()); // sanity check
-  }
-
-  return retType;
+  return env.tfac.cloneType(ft->retType);
 }
 
 
@@ -4741,6 +4268,7 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
     return type;
   }
 
+  // simplify some gratuitous uses of E_constructor
   if (!type->isCompoundType() && !type->isDependent()) {
     // you can make a temporary for an int like this (from
     // in/t0014.cc)
@@ -4779,34 +4307,12 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
                                              reallyDoOverload(env, args));
   if (ctor) {
     ctorVar = ctor;
-  }
 
-  // FIX: skip this whole thing if we are dealing with a templatized
-  // class
-  if (!areYouOrHaveYouEverBeenATemplate(type)) {
-    // If the type is a temporary CompoundType, then make a temporary
-    // and point the retObj at it.  NOTE: We have to be careful here
-    // to not accidentally make a temporary for ctor for a
-    // non-temporary object.
-
-//      if (!var) {                   // we are making a temporary
-    if (!artificial) {          // we are making a temporary
-      // dsw: don't know what I was thinking here; you can make a
-      // temporary for an int like this
-      //   x = int(6);
-      // from in/t0014.cc
-      // update: we now factor non-CompoundTypes out at the top
-      xassert(type->isCompoundType());
-      Declaration *declaration0 = insertTempDeclaration(env, type);
-      xassert(declaration0->decllist->count() == 1);
-      var = declaration0->decllist->first()->var;
-    } else {
-      xassert(var);             // better have a target var
+    if (env.doElaboration) {
+      retObj = elaborateCallSite(env, ctor->type->asFunctionType(), args);
     }
-    retObj = wrapVarWithE_variable(env, var);
   }
 
-  xassert(type);    // sm: if this weren't true we'd have segfaulted a dozen times already...
   return type;
 }
 
@@ -5968,7 +5474,7 @@ void FullExpressionAnnot::tcheck_postorder(Env &env, Scope *scope)
 
 void FullExpression::tcheck(Env &env)
 {
-  FullExpressionAnnot_StackBracket fea0(env, annot);
+  FullExpressionAnnot::StackBracket fea0(env, annot);
   expr->tcheck(env, expr);
 }
 
@@ -5981,7 +5487,7 @@ void FullExpression::tcheck(Env &env)
 
 void IN_expr::tcheck(Env &env, Type *)
 {
-  FullExpressionAnnot_StackBracket fea0(env, annot);
+  FullExpressionAnnot::StackBracket fea0(env, annot);
   e->tcheck(env, e);
 }
 
@@ -6001,7 +5507,7 @@ void IN_compound::tcheck(Env &env, Type* type)
 
 void IN_ctor::tcheck(Env &env, Type *type)
 {
-  FullExpressionAnnot_StackBracket fea0(env, annot);
+  FullExpressionAnnot::StackBracket fea0(env, annot);
   tcheckArgExprList(args, env);
   Variable *ctor = outerResolveOverload_ctor(env, loc, type, args, reallyDoOverload(env, args));
   if (ctor) {

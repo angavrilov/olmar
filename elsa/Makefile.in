@@ -141,6 +141,9 @@ cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
 # that finds serious compilation problems earliest (it's ok to
 # rearrange as different parts of the code are in flux)
 CCPARSE_OBJS := \
+  cc_tcheck.o \
+  cc_elaborate.o \
+  ast_build.o \
   $(LEXER_OBJS) \
   $(EXT_OBJS) \
   builtinops.o \
@@ -150,7 +153,6 @@ CCPARSE_OBJS := \
   cc_env.o \
   cc_err.o \
   cc_type.o \
-  cc_tcheck.o \
   stdconv.o \
   implconv.o \
   overload.o \
@@ -163,7 +165,6 @@ CCPARSE_OBJS := \
   cc_ast_aux.o \
   variable.o \
   ccparse.o \
-  cc_elaborate.o \
   main.o
 -include $(CCPARSE_OBJS:.o=.d)
 

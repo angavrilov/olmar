@@ -281,6 +281,9 @@ class Declarator {
   public /*no_ignore*/ Declarator *tcheck(Env &env, Tcheck &dt);
   public void mid_tcheck(Env &env, Tcheck &dt);
   public void tcheck_init(Env &env);
+
+  // extend the environment with the scope indicated by my qualifiers
+  private Scope *openQualifierScope(Env &env);
 }
 
 
