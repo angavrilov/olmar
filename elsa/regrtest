@@ -197,10 +197,6 @@ for fn in                                                                 \
   runTest perl ./multitest.pl ./ccparse -tr doOverload,mustBeUnambiguous$TR_EXTRA in/$fn
 done
 
-# operator overloading test turned off; NOTE: add the backslash back
-# at the end of the line
-#  t0124.cc   t0125.cc            t0127.cc   t0128.cc                      
-
 # another set of tests, generally isolated by Daniel
 for fn in                                                                 \
   d0001.cc                                                                \

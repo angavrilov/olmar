@@ -28,7 +28,7 @@ string Candidate::conversionDescriptions(char const *indent) const
   stringBuilder sb;
 
   for (int i=0; i < conversions.size(); i++) {
-    sb << "%%% overload:   " << indent << i << ": " 
+    sb << "%%% overload:   " << indent << i << ": "
        << toString(conversions[i]) << "\n";
   }
   
@@ -119,7 +119,7 @@ void OverloadResolver::processCandidate(Variable *v)
       return;
     }
   }
-  
+
   TRACE("overload", indent << "  (not viable)");
 }
 
