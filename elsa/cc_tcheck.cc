@@ -1438,7 +1438,7 @@ CompoundType *checkClasskeyAndName(
       Variable *tag = env.lookupPQ_one(name, lflags);
       if (tag) {
         if (tag->type->isCompoundType()) {
-          if (!tag->hasFlag(DF_IMPLICIT)) {
+          if (env.lang.isCplusplus && !tag->hasFlag(DF_IMPLICIT)) {
             // found a user-introduced (not implicit) typedef, which
             // is illegal (3.4.4p2,3)
             env.error(stringc << "`" << *name << "' is a typedef-name, "
