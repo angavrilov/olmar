@@ -11,6 +11,7 @@
 // These references are all marked with the string "cppstd".
 
 #include "cc_ast.h"         // C++ AST
+#include "cc_ast_aux.h"     // class ASTTemplVisitor
 #include "cc_env.h"         // Env
 #include "trace.h"          // trace
 #include "cc_print.h"       // PrintEnv
@@ -72,17 +73,12 @@ string ambiguousNodeName(ASTTypeId const *n)
 
 // go over all of the function bodies and make sure they have been
 // typechecked
-class EnsureFuncBodiesTcheckedVisitor : public ASTVisitor {
+class EnsureFuncBodiesTcheckedVisitor : public ASTTemplVisitor {
   Env &env;
   public:
   EnsureFuncBodiesTcheckedVisitor(Env &env0) : env(env0) {}
   bool visitFunction(Function *f);
   bool visitDeclarator(Declarator *d);
-  // for templates, be sure to visit all of the instantiations,
-  // including the specializations; FIX: this is copied directly from
-  // oink/qual_visitor.cc; this is a common thing to want to do in a
-  // visitor so we should factor it out
-  bool visitTemplateDeclaration(TemplateDeclaration *obj);
 };
 
 bool EnsureFuncBodiesTcheckedVisitor::visitFunction(Function *f) {
@@ -106,68 +102,6 @@ bool EnsureFuncBodiesTcheckedVisitor::visitDeclarator(Declarator *d) {
   } else {
     if (d->var->type->isFunctionType()) {
       env.ensureFuncMemBodyTChecked(d->var);
-    }
-  }
-  return true;
-}
-
-bool EnsureFuncBodiesTcheckedVisitor::visitTemplateDeclaration(TemplateDeclaration *obj) {
-  TemplateInfo *tinfo = NULL;
-  // FIX: should I do anything here for TD_tmember?
-  if (obj->isTD_func()) {
-    tinfo = obj->asTD_func()->f->nameAndParams->var->templateInfo();
-    // this fails for function members of template classes
-    //      xassert(tinfo);
-  } else if (obj->isTD_proto()) {
-    FakeList<Declarator> *decllist = obj->asTD_proto()->d->decllist;
-    xassert(decllist->count() == 1);
-    tinfo = decllist->first()->var->templateInfo();
-    // this fails for out-of-line definitions of static members of
-    // templatized classes, such as in/t0175.cc
-//      xassert(tinfo);
-  } else if (obj->isTD_class() && obj->asTD_class()->spec->isTS_classSpec()) {
-    TS_classSpec *ts = obj->asTD_class()->spec->asTS_classSpec();
-    // ts->ctype can be NULL if there was an error: in/0027.cc:ERROR(1)
-    if (ts->ctype) {
-      tinfo = ts->ctype->templateInfo();
-      // I think this will fail for class members of template
-      // classes, but I'll leave it until it does.
-      xassert(tinfo);
-    }
-  }
-  if (tinfo) {
-    SFOREACH_OBJLIST_NC(Variable, tinfo->getInstantiations(), iter) {
-      Variable *var0 = iter.data();
-      // FIX: should I really be doing this?
-      if (var0->templateInfo()->isMutant()) continue;
-      if (!var0->templateInfo()->isCompleteSpecOrInstantiation()) continue;
-
-      // run a sub-traversal of the AST instantiation
-      if (var0->funcDefn) {
-        var0->funcDefn->traverse(*this);
-      }
-      if (var0->type->isCompoundType() && var0->type->asCompoundType()->syntax) {
-        var0->type->asCompoundType()->syntax->traverse(*this);
-      }
-
-      if (var0->type->isFunctionType()) {
-        if (var0->funcDefn) {
-          // if a function template was declared before being defined,
-          // unify the types of the two resulting variables so that
-          // external calls get matched with internal references to
-          // parameters
-          //
-          // UPDATE: I now make sure that the definition re-uses the
-          // variable of the declaration so this is not necessary
-          xassert(var0 == var0->funcDefn->nameAndParams->var);
-        } else {
-          // FIX: make this a user error?
-          //              USER_WARNING
-          //                (var0->loc, " Declaration of a template [specialization?] without a definition");
-        }
-      } else {
-        xassert(!var0->funcDefn);
-      }
     }
   }
   return true;

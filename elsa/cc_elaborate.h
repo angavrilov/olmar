@@ -15,7 +15,7 @@
 
 #include "cc_ast.h"       // AST components, etc.
 #include "macros.h"       // ENUM_BITWISE_OPS
-#include "sobjset.h"      // SObjSet
+#include "cc_ast_aux.h"   // class ASTTemplVisitor
 
 // moved FullExpressionAnnot into fullexp.h to reduce dependencies
 // in the #include graph
@@ -103,7 +103,7 @@ ENUM_BITWISE_OPS(ElabActivities, EA_ALL)
 
 // this visitor is responsible for conducting all the
 // elaboration activities
-class ElabVisitor : public ASTVisitor {
+class ElabVisitor : public ASTTemplVisitor {
 public:      // data
   // similar fields to Env
   StringTable &str;
@@ -116,10 +116,6 @@ public:      // data
 
   // stack of functions, topmost being the one we're in now
   ArrayStack<Function*> functionStack;
-
-  // set of the (primary) TemplateInfo objects the instantiations of
-  // which we have visited; prevents us from visiting them twice
-  SObjSet<TemplateInfo *> primaryTemplateInfos;
 
   // so that we can find the closest nesting S_compound for when we
   // need to insert temporary variables; its scope should always be
@@ -286,7 +282,6 @@ public:
   void postvisitFullExpression(FullExpression *fe);
   bool visitInitializer(Initializer *in);
   void postvisitInitializer(Initializer *in);
-  bool visitTemplateDeclaration(TemplateDeclaration *td);
 };
 
 #endif // CC_ELABORATE_H

@@ -10,6 +10,8 @@
 #include "ckheap.h"       // malloc_stats
 #include "cc_env.h"       // Env
 #include "cc_ast.h"       // C++ AST (r)
+#include "cc_ast_aux.h"   // class ASTTemplVisitor
+#include "cc_ast_aux.h"   // class ASTTemplVisitor
 #include "cc_lang.h"      // CCLang
 #include "parsetables.h"  // ParseTables
 #include "cc_print.h"     // PrintEnv
@@ -30,7 +32,7 @@
 // .. finally, it's true of parameters whose types get
 //    normalized as per cppstd 8.3.5 para 3; I didn't include
 //    that case below because there's no easy way to test for it ..
-class DeclTypeChecker : public ASTVisitor {
+class DeclTypeChecker : public ASTTemplVisitor {
 public:
   int instances;
 
@@ -55,7 +57,7 @@ bool DeclTypeChecker::visitDeclarator(Declarator *obj)
 // this scans the AST for E_variables, and writes down the locations
 // to which they resolved; it's helpful for writing tests of name and
 // overload resolution
-class NameChecker : public ASTVisitor {
+class NameChecker : public ASTTemplVisitor {
 public:            
   // accumulates the results
   stringBuilder sb;
@@ -227,7 +229,7 @@ void doit(int argc, char **argv)
   }
 
   if (unit) {     // when "-tr trivialActions" it's NULL...
-    cout << "ambiguous nodes: " << numAmbiguousNodes(unit) << endl;
+    cout << "ambiguous nodes: " << numAmbiguousNodes(unit, false /*hasBeenTchecked*/) << endl;
   }
 
   if (tracingSys("stopAfterParse")) {
@@ -319,7 +321,7 @@ void doit(int argc, char **argv)
     }
 
     // verify the tree now has no ambiguities
-    if (unit && numAmbiguousNodes(unit) != 0) {
+    if (unit && numAmbiguousNodes(unit, true /*hasBeenTchecked*/) != 0) {
       cout << "UNEXPECTED: ambiguities remain after type checking!\n";
       if (tracingSys("mustBeUnambiguous")) {
         exit(2);

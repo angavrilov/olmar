@@ -3,6 +3,7 @@
 
 #include "cfg.h"           // this module
 #include "cc_ast.h"        // C++ AST, including cfg.ast's contributions
+#include "cc_ast_aux.h"    // class ASTTemplVisitor
 #include "sobjset.h"       // SObjSet
 
 #include <iostream.h>      // cout
@@ -547,7 +548,7 @@ void reversePostorder(NextPtrList &order, Function *func)
 
 
 // --------------------- computeCFG -------------------
-class CFGVisitor : public ASTVisitor {
+class CFGVisitor : public ASTTemplVisitor {
 private:
   CFGEnv &env;
 

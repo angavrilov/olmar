@@ -3,7 +3,109 @@
 
 #include "strutil.h"        // plural
 #include "generic_aux.h"    // C++ AST, and genericPrintAmbiguities, etc.
+#include "cc_ast_aux.h"     // class ASTTemplVisitor
 
+// ---------------------- ASTTemplVisitor ----------------------
+
+void ASTTemplVisitor::visitTemplateDeclaration_oneTempl(Variable *var0) {
+  xassert(var0);
+  xassert(var0->templateInfo());
+  xassert(!var0->templateInfo()->isMutant());
+
+  // run a sub-traversal of the AST instantiation
+  if (var0->funcDefn) {
+    var0->funcDefn->traverse(*this);
+  }
+  if (var0->type->isCompoundType() && var0->type->asCompoundType()->syntax) {
+    var0->type->asCompoundType()->syntax->traverse(*this);
+  }
+
+  // this block can be removed if it ever really causes problems
+  if (var0->type->isFunctionType()) {
+    if (var0->funcDefn) {
+      // if a function template was declared before being defined,
+      // unify the types of the two resulting variables so that
+      // external calls get matched with internal references to
+      // parameters
+      //
+      // UPDATE: I now make sure that the definition re-uses the
+      // variable of the declaration so this is not necessary
+      xassert(var0 == var0->funcDefn->nameAndParams->var);
+    } else {
+      // FIX: make this a user warning?
+//        USER_WARNING
+//          (var0->loc, " Declaration of a template [specialization?] without a definition");
+    }
+  } else {
+    xassert(!var0->funcDefn);
+  }
+}
+
+bool ASTTemplVisitor::visitTemplateDeclaration(TemplateDeclaration *obj)
+{
+  // visit all the template instantiations
+  Variable *tinfoVar = NULL;
+  // FIX: should I do anything here for TD_tmember?
+  if (obj->isTD_func()) {
+    Declarator *decltor = obj->asTD_func()->f->nameAndParams;
+    if (hasBeenTchecked) xassert(decltor->var);
+    tinfoVar = decltor->var;
+    // this fails for function members of template classes
+    //   xassert(tinfoVar);
+  } else if (obj->isTD_proto()) {
+    FakeList<Declarator> *decllist = obj->asTD_proto()->d->decllist;
+    xassert(decllist->count() == 1);
+    Declarator *decltor = decllist->first();
+    if (hasBeenTchecked) xassert(decltor->var);
+    tinfoVar = decltor->var;
+    // this fails for var members of template classes
+    //      xassert(tinfoVar);
+  } else if (obj->isTD_class() && obj->asTD_class()->spec->isTS_classSpec()) {
+    TS_classSpec *ts = obj->asTD_class()->spec->asTS_classSpec();
+    // ts->ctype can be NULL if there was an error: in/0027.cc:ERROR(1)
+    if (ts->ctype) {
+      tinfoVar = ts->ctype->asCompoundType()->getTypedefVar();
+      // I think this will fail for class members of template
+      // classes, but I'll leave it until it does.
+      xassert(tinfoVar);
+    }
+  }
+
+  if (tinfoVar) {
+    TemplateInfo *tinfo = tinfoVar->templateInfo();
+    // unless we are at the primary, do nothing
+    if (!tinfo || !tinfo->isPrimary()) return false;
+
+    // don't visit the instantiations of the same primary twice
+    if (primaryTemplateInfos.contains(tinfo)) {
+      return false;             // prune; note: all returns from this method return false
+    }
+    primaryTemplateInfos.add(tinfo);
+
+    // visit the primary
+    if (primariesAndPartials) {
+      visitTemplateDeclaration_oneTempl(tinfoVar);
+    }
+
+    // visit each instantiation
+    SFOREACH_OBJLIST_NC(Variable, tinfo->getInstantiations(), iter) {
+      Variable *var0 = iter.data();
+      // skip mutants
+      if (var0->templateInfo()->isMutant()) continue;
+      // skip primaries and partials unless told otherwise during
+      // construction
+      bool isPrimaryOrPartial = !var0->templateInfo()->isCompleteSpecOrInstantiation();
+      if (isPrimaryOrPartial && !primariesAndPartials) continue;
+
+      // run a sub-traversal of the AST instantiation
+      visitTemplateDeclaration_oneTempl(var0);
+    }
+  }
+  
+  return false;                 // prune the walk here; don't decend into template definitions
+}
+
+// ---------------------- refersTo ----------------------
 
 // Nominally "refers to <loc>", but with additional information
 // about "using declaration" aliasing.  This is an example of how
