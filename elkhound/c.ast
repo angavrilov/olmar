@@ -349,6 +349,10 @@ class Statement (SourceLocation loc) {
        // this is the set of facts inferred automatically for this
        // invariant point; it's a set of serf pointers into the AST
        public SObjList<Expression> inferFacts;
+       
+       // retrieve a predicate expressing the conjunction of expr and
+       // inferFacts
+       public Predicate *vcgenPredicate(AEnv &env) const;
      }
   -> S_thmprv(Statement s);
 }

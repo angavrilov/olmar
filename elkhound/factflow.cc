@@ -107,6 +107,8 @@ bool intersectFacts(SObjList<Expression /*const*/> &lhs,
 // annotate all invariants with facts flowed from above
 void factFlow(TF_func &func)
 {
+  trace("factflow") << "processing function " << func.name() << endl;
+
   // initialize the worklist with a reverse postorder enumeration
   NextPtrList worklist;
   reversePostorder(worklist, func);
@@ -127,7 +129,9 @@ void factFlow(TF_func &func)
   {
     NextPtr startPtr = makeNextPtr(func.body, false /*isContinue*/);
     NodeFacts *startFacts = new NodeFacts(startPtr);
-    addFacts(startFacts->facts, func.ftype()->precondition->expr);
+    if (func.ftype()->precondition) {
+      addFacts(startFacts->facts, func.ftype()->precondition->expr);
+    }
     factMap.add(startPtr, startFacts);
   }
 
@@ -137,7 +141,7 @@ void factFlow(TF_func &func)
     Statement const *stmt = nextPtrStmt(stmtPtr);
     bool stmtCont = nextPtrContinue(stmtPtr);
 
-    trace("factflow") << "working on " << nextPtrString(stmtPtr) << endl;
+    trace("factflow") << "  working on " << nextPtrString(stmtPtr) << endl;
 
     // retrieve associated dataflow info
     NodeFacts *nodeFacts = factMap.get(stmtPtr);
@@ -168,6 +172,7 @@ void factFlow(TF_func &func)
         // no: create something to hold knowledge about it
         succFacts = new NodeFacts(succPtr);
         succFacts->facts = afterFacts;
+        factMap.add(succPtr, succFacts);
         changed = true;
 
         // the successor node has changed, but since it's the first
@@ -182,7 +187,7 @@ void factFlow(TF_func &func)
           worklist.appendUnique(succPtr);
           changed = true;
 
-          trace("factflow") << "reintroduced " << nextPtrString(succPtr)
+          trace("factflow") << "  reintroduced " << nextPtrString(succPtr)
                             << " to worklist" << endl;
         }
       }
@@ -214,13 +219,14 @@ void factFlow(TF_func &func)
 
   // through the magic of destructors, the factMap (and all the
   // NodeFacts) and the allNodes list will all be deallocated
+  trace("factflow") << "done with " << func.name() << endl;
 }
 
 
 // ------------- per-statement flow propagation ------------
 void invalidate(SObjList<Expression /*const*/> &facts, Expression const *expr);
-void invalidateLvalue(SObjList<Expression /*const*/> &facts, Expression const *lval);
-void invalidateVar(SObjList<Expression /*const*/> &facts, Variable const *var);
+bool invalidateLvalue(Expression const *facts, Expression const *lval);
+bool invalidateVar(Expression const *fact, Variable const *var);
 void invalidateInit(SObjList<Expression /*const*/> &facts, Initializer const *init);
 
 
@@ -360,10 +366,12 @@ void S_thmprv::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, 
 // any of the visited expressions
 class InvalidateVisitor : public ExpressionVisitor {
 public:
-  SObjList<Expression /*const*/> &facts;
+  Expression const *fact;       // fact whose validity is under consideration
+  bool inval;                   // true once we conclude it is invalid
 
 public:
-  InvalidateVisitor(SObjList<Expression /*const*/> &f) : facts(f) {}
+  InvalidateVisitor(Expression const *f) 
+    : fact(f), inval(false) {}
   virtual void visitExpr(Expression const *expr);
 };
 
@@ -372,14 +380,14 @@ void InvalidateVisitor::visitExpr(Expression const *expr)
   ASTSWITCHC(Expression, expr) {
     ASTCASEC(E_funCall, e)
       // very crude: forget everything
-      facts.removeAll();
+      inval = true;
       PRETEND_USED(e);
 
     ASTNEXTC(E_effect, e)
-      invalidateLvalue(facts, e->expr);
+      inval = invalidateLvalue(fact, e->expr);
 
     ASTNEXTC(E_assign, e)
-      invalidateLvalue(facts, e->target);
+      inval = invalidateLvalue(fact, e->target);
 
     ASTENDCASECD
   }
@@ -389,29 +397,42 @@ void InvalidateVisitor::visitExpr(Expression const *expr)
 // must be removed from 'facts'
 void invalidate(SObjList<Expression /*const*/> &facts, Expression const *expr)
 {
-  InvalidateVisitor vis(facts);
-  walkExpression(vis, expr);
+  // consider each fact in turn
+  SObjListMutator<Expression /*const*/> mut(facts);
+  while (!mut.isDone()) {
+    // dig around in 'expr' to find things which might invalidate
+    // the current fact (mut.data())
+    InvalidateVisitor vis(mut.data());
+    walkExpression(vis, expr);
+    if (vis.inval) {
+      // remove this fact because 'expr' invalidated it
+      mut.remove();
+    }
+    else {
+      mut.adv();
+    }
+  }
 }
 
-// given that 'lval' is modified, decide which 'facts' to remove
-void invalidateLvalue(SObjList<Expression /*const*/> &facts, Expression const *lval)
+// given that 'lval' is modified, decide whether to remove 'fact'
+bool invalidateLvalue(Expression const *facts, Expression const *lval)
 {
   ASTSWITCHC(Expression, lval) {
     ASTCASEC(E_variable, v)
       if (v->var->hasAddrTaken()) {
-        invalidateVar(facts, NULL /*mem*/);
+        return invalidateVar(facts, NULL /*mem*/);
       }
       else {
-        invalidateVar(facts, v->var);
+        return invalidateVar(facts, v->var);
       }
 
     ASTNEXTC(E_deref, d)
-      invalidateVar(facts, NULL /*mem*/);
       PRETEND_USED(d);
+      return invalidateVar(facts, NULL /*mem*/);
 
     ASTDEFAULTC
       // any other kind: crudely forget
-      facts.removeAll();
+      return true;
 
     ASTENDCASEC
   }
@@ -444,21 +465,12 @@ void VariableSearcher::visitExpr(Expression const *expr)
   }
 }
 
-// remove any 'facts' that refer to 'var'
-void invalidateVar(SObjList<Expression /*const*/> &facts, Variable const *var)
+// if 'fact' refers to 'var', return true
+bool invalidateVar(Expression const *fact, Variable const *var)
 {
-  SObjListMutator<Expression /*const*/> mut(facts);
-  while (!mut.isDone()) {
-    VariableSearcher vis(var);
-    walkExpression(vis, mut.data());
-    if (vis.found) {
-      // remove this fact because it referred to 'var'
-      mut.remove();
-    }
-    else {
-      mut.adv();
-    }
-  }
+  VariableSearcher vis(var);
+  walkExpression(vis, fact);
+  return vis.found;
 }
 
 

@@ -95,8 +95,8 @@ void TF_func::vcgen(AEnv &env) const
         // the start predicate
         S_invariant const *inv = root->asS_invariantC();
 
-        IN_PREDICATE(env);
-        env.addFact(inv->expr->vcgenPred(env, 0 /*path*/), "invariant");
+        //env.addFact(inv->expr->vcgenPred(env, 0 /*path*/), "invariant");
+        env.addFact(inv->vcgenPredicate(env), "invariant");
       }
 
       // -------------- interpret the code ------------
@@ -219,7 +219,9 @@ void Statement::vcgenPath(AEnv &env, SObjList<Statement /*const*/> &path,
         // is 's' an invariant?
         if (s->isS_invariant()) {
           // terminate the path & prove the invariant
-          env.prove(vcgenPredicate(env, s->asS_invariantC()->expr, exprPath),   // bugfix: had "index" where meant "exprPath" (it's like vcgen call above)
+          xassert(exprPath == 0);              // bugfix: had "index" where meant "exprPath" (it's like vcgen call above)
+          //env.prove(vcgenPredicate(env, s->asS_invariantC()->expr, exprPath),   // bugfix: had "index" where meant "exprPath" (it's like vcgen call above)
+          env.prove(s->asS_invariantC()->vcgenPredicate(env),
                     stringc << "invariant at " << s->loc.toString());
         }
         else {
@@ -440,6 +442,25 @@ void S_invariant::vcgen(STMT_VCGEN_PARAMS) const
   // update: I'll let the path driver take care of both adding premises,
   // and proving obligations; so s_invariant itself just holds onto the
   // expression
+}
+
+Predicate *S_invariant::vcgenPredicate(AEnv &env) const
+{
+  IN_PREDICATE(env);
+
+  Predicate *exprPred = expr->vcgenPred(env, 0 /*path*/);
+  if (inferFacts.isEmpty()) {
+    return exprPred;
+  }
+  else {
+    // construct a conjunction for expr and inferFacts
+    P_and *conj = new P_and(NULL);
+    conj->conjuncts.append(exprPred);
+    SFOREACH_OBJLIST(Expression, inferFacts, iter) {
+      conj->conjuncts.append(iter.data()->vcgenPred(env, 0 /*path*/));
+    }
+    return conj;
+  }
 }
 
 void S_thmprv::vcgen(STMT_VCGEN_PARAMS) const

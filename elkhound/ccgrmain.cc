@@ -13,6 +13,7 @@
 #include "cc_env.h"       // Env
 #include "aenv.h"         // AEnv
 #include "strutil.h"      // plural
+#include "factflow.h"     // factFlow
 
 
 void if_malloc_stats()
@@ -51,6 +52,8 @@ void doit(int argc, char **argv)
           "    printAST           print AST after parsing\n"
           "    stopAfterTCheck    stop after typechecking\n"
           "    printTypedAST      print AST with type info\n"
+          "    disableFactFlow    don't do invariant strengthening\n"
+          "    factflow           print details of factflow computation\n"
           "    stopAfterVCGen     stop after vcgen\n"
           "    predicates         print all predicates (proved or not)\n"
           "    absInterp          print results of abstract interpretation\n"
@@ -109,6 +112,17 @@ void doit(int argc, char **argv)
 
     if (tracingSys("stopAfterTCheck")) {
       return;
+    }
+  }
+
+  
+  // ------------- automatic invariant strengthening ---------
+  traceProgress() << "automatic invariant strengthening...\n";
+  if (!tracingSys("disableFactFlow")) {
+    FOREACH_ASTLIST_NC(TopForm, unit->topForms, tf) {
+      if (tf.data()->isTF_func()) {
+        factFlow(*( tf.data()->asTF_func() ));
+      }
     }
   }
 

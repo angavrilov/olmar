@@ -13,7 +13,7 @@ file ccgr
 
 #set args cc.bin test-bad-tmp.c
 
-set args cc.bin tmp.c
+set args -tr printAST,factflow cc.bin c.in1
 
 #  break main
 #  break breaker
