@@ -33,3 +33,11 @@ Foo::~Foo()
 {
   8;
 }
+
+
+void f()
+{
+  Foo f;
+  
+  //ERROR(1): Foo g(3);  // error
+}
