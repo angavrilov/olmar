@@ -17,13 +17,13 @@ LIBELKHOUND := $(PARSGEN)/libelkhound.a
 
 # -------- compiler and linker configuration --------
 # preprocessing flags
-CPPFLAGS := -I$(PARSGEN) -I$(AST) -I$(SMBASE)
+CPPFLAGS := -I$(PARSGEN) -I$(PARSGEN)/cc -I$(AST) -I$(SMBASE)
 
 # C++ compilation flags
 CCFLAGS := -g -Wall
 
 # linking flags
-LDFLAGS := $(LIBELKHOUND) $(SMBASE)/libsmbase.a
+LDFLAGS := $(LIBELKHOUND) $(AST)/libast.a $(SMBASE)/libsmbase.a
 
 
 # -------- generic rules --------
@@ -50,9 +50,7 @@ extras := \
   $(PARSGEN)/cc/lexer2.o \
   $(PARSGEN)/cc/lexer1.o \
   $(PARSGEN)/cc/lexer1yy.o \
-  $(PARSGEN)/cc/cc_lang.o \
-  $(PARSGEN)/asthelp.o \
-  $(PARSGEN)/strtable.o
+  $(PARSGEN)/cc/cc_lang.o
 
 # cexp3b: disambiguation using 'merge'
 cexp3b.gr: cexp3.gr

@@ -23,7 +23,7 @@ CPPFLAGS := -I$(PARSGEN) -I$(PARSGEN)/cc -I$(AST) -I$(SMBASE)
 CCFLAGS := -g -Wall
 
 # linking flags
-LDFLAGS := $(LIBELKHOUND) $(SMBASE)/libsmbase.a
+LDFLAGS := $(LIBELKHOUND) $(AST)/libast.a $(SMBASE)/libsmbase.a
 
 
 # -------- targets --------
@@ -36,9 +36,7 @@ extras := \
   $(PARSGEN)/cc/lexer2.o \
   $(PARSGEN)/cc/lexer1.o \
   $(PARSGEN)/cc/lexer1yy.o \
-  $(PARSGEN)/cc/cc_lang.o \
-  $(PARSGEN)/asthelp.o \
-  $(PARSGEN)/strtable.o
+  $(PARSGEN)/cc/cc_lang.o
 
 # invoke the parser generator
 cdecl.gr.gen.cc cdecl.gr.gen.h: cdecl.gr

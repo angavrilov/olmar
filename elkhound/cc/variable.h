@@ -68,8 +68,6 @@ public:    // data
 
 protected:    // funcs
   friend class BasicTypeFactory;
-  // dsw: Didn't we change it to this?
-//    Variable(SourceLoc const &L, StringRef n, Type *t, DeclFlags f);
   Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f);
 
 public:

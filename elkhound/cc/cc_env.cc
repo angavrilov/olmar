@@ -139,8 +139,9 @@ Env::~Env()
 
 void Env::declareFunction1arg(Type *retType, char const *funcName,
                               Type *arg1Type, char const *arg1Name,
-                              Type *exnType)
+                              Type * /*nullable*/ exnType)
 {
+  // clone the types so client analyses can treat them independently
   retType  = tfac.cloneType(retType);
   arg1Type = tfac.cloneType(arg1Type);
   if (exnType) {

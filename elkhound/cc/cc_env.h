@@ -82,7 +82,7 @@ private:     // funcs
 
   void declareFunction1arg(Type *retType, char const *funcName,
                            Type *arg1Type, char const *arg1Name,
-                           Type *exnType);
+                           Type * /*nullable*/ exnType);
 
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac);

@@ -1,116 +1,184 @@
-#!/bin/sh
-# setup a parsgen dist to build on linux
+#!/usr/bin/perl -w
+# configure script for elkhound
 
-# this script is a poor stand-in until I get my act together
-# and make a real configure script
+use strict 'subs';
+
+# defaults
+$BASE_FLAGS = "-g -Wall -Wno-deprecated -D__UNIX__";
+$CCFLAGS = ();
+$debug = 0;
+$loc = 1;
+$SMBASE = "../smbase";
+$AST = "../ast";
 
 
-usage() {
-cat <<EOF
+sub usage {
+  print(<<"EOF");
 usage: $0 [options]
 options:
   -h:                print this message
   -debug,-nodebug:   enable/disable debugging options [disabled]
+  -prof              enable profiling
+  -devel             add options useful while developing
   -loc,-noloc:       enable/disable source location tracking [enabled]
   -fastest:          turn off all Elkhound features that are not present
                      in Bison, for the purpose of performance comparison
                      (note that the C++ parser will not work in this mode)
   <op>:              add a given option to the gcc command line,
                        including forms: -W*, -pg, -D*, -O*
+  -smbase=<dir>:     specify where the smbase library is [$SMBASE]
+  -ast=<dir>:        specify where the ast library is [$AST]
 EOF
 }
 
 
-# defaults
-BASE_FLAGS="-g -Wall -Wno-deprecated -D__LINUX__ -D__UNIX__"
-CCFLAGS=""
-debug=false
-loc=true
-
 # process command-line arguments
-while [ "$1" != "" ]; do
-  case $1 in
-    -h|-help|--help)
-      usage
-      exit 0
-      ;;
+$originalArgs = join(' ', @ARGV);
+while (@ARGV) {
+  my $tmp;
+  my $arg = $ARGV[0];
+  shift @ARGV;
 
-    # things that look like options to gcc should just
-    # be added to CCFLAGS
-    -W*|-pg|-D*|-O*)
-      CCFLAGS="$CCFLAGS $1"
-      ;;
+  # treat leading "--" uniformly with leading "-"
+  $arg =~ s/^--/-/;
 
-    -d|-debug)
-      debug=true
-      ;;
+  if ($arg eq "-h" ||
+      $arg eq "-help") {
+    usage();
+    exit(0);
+  }
 
-    -nodebug)
-      debug=false
-      ;;
+  # things that look like options to gcc should just
+  # be added to CCFLAGS
+  elsif ($arg =~ m/^(-W|-pg$|-D|-O)/) {
+    push @CCFLAGS, $arg;
+  }
 
-    -loc)
-      loc=true
-      ;;
+  elsif ($arg eq "-d" ||
+         $arg eq "-debug") {
+    $debug = 1;
+  }
+  elsif ($arg eq "-nodebug") {
+    $debug = 0;
+  }
 
-    -noloc)
-      loc=false
-      ;;
+  elsif ($arg eq "-prof") {
+    push @CCFLAGS, "-pg";
+  }
 
-    -fastest)
-      # the idea is I can say
-      #   $ ./configure -fastest
-      #   $ make clean; make
-      #   $ ./perf -tests c -iters 5
-      # to verify that I'm still within 3% of Bison (at least
-      # when compiled with gcc-2.95.3)
-      loc=false
-      debug=false
-      CCFLAGS="$CCFLAGS -DUSE_RECLASSIFY=0 -DUSE_KEEP=0 -DNDEBUG_NO_ASSERTIONS"
-      CCFLAGS="$CCFLAGS -DDO_ACCOUNTING=0 -DENABLE_YIELD_COUNT=0"
-      ;;
-  esac
+  elsif ($arg eq "-devel") {
+    push @CCFLAGS, "-Werror";
+  }
 
-  shift
-done
+  elsif ($arg eq "-loc") {
+    $loc = 1;
+  }
+  elsif ($arg eq "-noloc") {
+    loc = 0;
+  }
 
-if $loc; then
-  true
-else
-  CCFLAGS="$CCFLAGS -DGLR_SOURCELOC=0"
-fi
+  elsif ($arg eq "-fastest") {
+    # the idea is I can say
+    #   $ ./configure -fastest
+    #   $ make clean; make
+    #   $ ./perf -tests c -iters 5
+    # to verify that I'm still within 3% of Bison (at least
+    # when compiled with gcc-2.95.3)
+    $loc = 0;
+    $debug = 0;
+    push @CCFLAGS,
+      ("-DUSE_RECLASSIFY=0",        # no token reclassification
+       "-DUSE_KEEP=0",              # don't call keep() functions
+       "-DNDEBUG_NO_ASSERTIONS",    # disable all xassert() calls
+       "-DDO_ACCOUNTING=0",         # don't count stack nodes, etc.
+       "-DENABLE_YIELD_COUNT=0");   # don't check for yield-then-merge at runtime
+  }  
 
-if $debug; then
-  CCFLAGS="$CCFLAGS -DACTION_TRACE=1"
-else
-  CCFLAGS="$CCFLAGS -O2 -DNDEBUG"
-fi
+  elsif (($tmp) = ($arg =~ m/^-smbase=(.*)$/)) {
+    $SMBASE = $tmp;
+  }
+  elsif (($tmp) = ($arg =~ m/^-ast=(.*)$/)) {
+    $AST = $tmp;
+  }
+
+  else {
+    die "unknown option: $arg\n";
+  }
+}
+
+if ($debug) {
+  push @CCFLAGS, "-DACTION_TRACE=1";
+}
+else {
+  push @CCFLAGS, "-O2";
+  push @CCFLAGS, "-DNDEBUG";
+}
+
+if (!$loc) {
+  push @CCFLAGS, "-DGLR_SOURCELOC=0";
+}
+
+$os = `uname -s`;
+chomp($os);
+if ($os eq "Linux") {
+  push @CCFLAGS, "-D__LINUX__";
+}
+
+# smash the list together to make a string
+$CCFLAGS = join(' ', @CCFLAGS);
 
 
+# ------------------ check for needed components ----------------
+# smbase
+if (! -f "$SMBASE/nonport.h") {
+  die "I cannot find nonport.h in `$SMBASE'.\n" .
+      "The smbase library is required for elkhound.\n" .
+      "If it's in a different location, use the -smbase=<dir> option.\n";
+}
+
+# ast
+if (! -f "$AST/asthelp.h") {
+  die "I cannot find asthelp.h in `$AST'.\n" .
+      "The ast library is required for elkhound.\n" .
+      "If it's in a different location, use the -ast=<dir> option.\n";
+}
+
+
+# ------------------ config.summary -----------------
 # create a program to summarize the configuration
-cat >config.summary <<EOF
+open(OUT, ">config.summary") or die("can't make config.summary");
+print OUT (<<"OUTER_EOF");
 #!/bin/sh
 # config.summary
 
-echo "Elkhound configuration summary:"
-echo "  debug:       $debug"
-echo "  loc:         $loc"
-echo ""
-echo "Compile flags:"
-echo "  BASE_FLAGS:  $BASE_FLAGS"
-echo "  CCFLAGS:    $CCFLAGS"
-echo ""
+cat <<EOF
+./configure command:
+  $0 $originalArgs
+
+Elkhound configuration summary:
+  debug:       $debug
+  loc:         $loc
+
+Compile flags:
+  BASE_FLAGS:  $BASE_FLAGS
+  CCFLAGS:     $CCFLAGS
+  SMBASE:      $SMBASE
+  AST:         $AST
 EOF
 
-chmod a+x config.summary
+OUTER_EOF
+
+close(OUT) or die;
+chmod 0755, "config.summary";
 
 
+# ------------------- config.status ------------------
 # from here on, combine BASE_FLAGS and CCFLAGS
-CCFLAGS="$BASE_FLAGS$CCFLAGS"
-
+$CCFLAGS = "$BASE_FLAGS $CCFLAGS";
 
 # create a program which will create the Makefile
-cat >config.status <<__OUTER_EOF__
+open(OUT, ">config.status") or die("can't make config.status");
+print OUT (<<"OUTER_EOF");
 #!/bin/sh
 # config.status
 
@@ -119,29 +187,51 @@ cat >config.status <<__OUTER_EOF__
 # report on configuration
 ./config.summary
 
-echo "creating Makefile"
+echo "creating Makefile ..."
 
 # overcome my chmod below
 rm -f Makefile
 
 cat >Makefile <<EOF
-# Makefile for parsgen
-# NOTE: generated by ./configure, do not edit
+# Makefile for elkhound
+# NOTE: do not edit; generated by:
+#   $0 $originalArgs
 
 EOF
 
 
-
-# add in the Linux cflags for now..
-cat Makefile.in | sed "s/@CCFLAGS@/$CCFLAGS/g" >> Makefile
+# substitute variables
+sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
+    -e "s|\@SMBASE\@|$SMBASE|g" \\
+    -e "s|\@AST\@|$AST|g" \\
+  <Makefile.in >>Makefile || exit
 
 # discourage editing ..
 chmod a-w Makefile
 
 
-__OUTER_EOF__
+OUTER_EOF
+
+close(OUT) or die;
+chmod 0755, "config.status";
 
 
+# ----------------- final actions -----------------
 # run the output file generator
-chmod a+x config.status
-./config.status
+my $code = system("./config.status");
+if ($code != 0) {
+  # hopefully ./config.status has already printed a message,
+  # I'll just relay the status code
+  if ($code >> 8) {                
+    exit($code >> 8);
+  }
+  else {
+    exit($code & 127);
+  }
+}
+
+
+# I don't think there are GNU-specific things in my Makefile
+print("\nYou can now run make, usually called 'make' or 'gmake'.\n");
+
+exit(0);

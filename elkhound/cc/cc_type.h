@@ -364,14 +364,13 @@ protected:
 
 public:
   bool innerEquals(CVAtomicType const *obj) const;
+  bool isConst() const { return !!(cv & CV_CONST); }
 
   // Type interface
   virtual Tag getTag() const { return T_ATOMIC; }
   virtual string leftString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
-
-  bool isConst() const;
 };
 
 
@@ -393,6 +392,7 @@ protected:  // funcs
 
 public:
   bool innerEquals(PointerType const *obj) const;
+  bool isConst() const { return !!(cv & CV_CONST); }
 
   // Type interface
   virtual Tag getTag() const { return T_POINTER; }
@@ -400,8 +400,6 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
-
-  bool isConst() const;
 };
 
 
@@ -566,7 +564,10 @@ public:    // funcs
 //     The factory allows one to derive subclasses of Type to add
 //     such annotations, without modifying creation sites.
 
-// first, we have the abstract interface of a TypeFactory
+// This is the interface of a TypeFactory.  It also contains some
+// implementations, when a reasonable implementation is obvious in
+// terms of the core type construction functionality, but some
+// client factory might want to intervene.
 class TypeFactory {
 public:
   virtual ~TypeFactory() {}      // silence stupid compiler warnings
@@ -597,7 +598,7 @@ public:
   // cannot be so qualified; I pass the syntax from which the 'cv'
   // flags were derived, for the benefit of extension analyses
   virtual Type *applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
-                              TypeSpecifier *syntax)=0;
+                              TypeSpecifier *syntax);
 
   // this is called in a few specific circumstances when we want to
   // know the reference type corresponding to some variable; the
@@ -605,29 +606,29 @@ public:
   // "makePointerType(PO_REFERENCE, CV_CONST, underlying)" (which is
   // the default behavior); this also has the semantics that if
   // 'underlying' is ST_ERROR then this must return ST_ERROR
-  virtual Type *makeRefType(SourceLoc loc, Type *underlying)=0;
+  virtual Type *makeRefType(SourceLoc loc, Type *underlying);
 
   // build a pointer type from a syntactic description; here I allow
   // the factory to know the name of an AST node, but the default
   // implementation will not use it, so it need not be linked in for
   // this to make sense
   virtual PointerType *syntaxPointerType(SourceLoc loc,
-    PtrOper op, CVFlags cv, Type *underlying, D_pointer *syntax)=0;
+    PtrOper op, CVFlags cv, Type *underlying, D_pointer *syntax);
 
   // similar for a function type; the parameters will be added by
   // the caller after this function returns
   virtual FunctionType *syntaxFunctionType(SourceLoc loc,
-    Type *retType, CVFlags cv, D_func *syntax)=0;
+    Type *retType, CVFlags cv, D_func *syntax);
 
   // given a class and a method, build the type of the 'this' pointer
   virtual PointerType *makeTypeOf_this(SourceLoc loc,
-    CompoundType *classType, FunctionType *methodType)=0;
+    CompoundType *classType, FunctionType *methodType);
 
   // given a function type and a return type, make a new function
   // type which has the same qualifiers as the given one, but otherwise
   // is unrelated
   virtual FunctionType *makeSimilarFunctionType(SourceLoc loc,
-    Type *retType, FunctionType *similar)=0;
+    Type *retType, FunctionType *similar);
 
   // ---- similar functions for Variable ----
   // Why not make a separate factory?
@@ -676,21 +677,6 @@ private:   // data
 
 public:    // funcs
   // TypeFactory funcs
-
-  // dsw: Taking out of TypeFactory all methods that are overriden by
-  // TypeFactory_Q.
-  virtual Type *applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
-                              TypeSpecifier *syntax);
-  virtual Type *makeRefType(SourceLoc loc, Type *underlying);
-  virtual PointerType *syntaxPointerType(SourceLoc loc,
-    PtrOper op, CVFlags cv, Type *underlying, D_pointer *syntax);
-  virtual FunctionType *syntaxFunctionType(SourceLoc loc,
-    Type *retType, CVFlags cv, D_func *syntax);
-  virtual PointerType *makeTypeOf_this(SourceLoc loc,
-    CompoundType *classType, FunctionType *methodType);
-  virtual FunctionType *makeSimilarFunctionType(SourceLoc loc,
-    Type *retType, FunctionType *similar);
-
   virtual CVAtomicType *makeCVAtomicType(SourceLoc loc, 
     AtomicType *atomic, CVFlags cv);
   virtual PointerType *makePointerType(SourceLoc loc, 
