@@ -20,6 +20,63 @@
 #define PVAL(var) os << " " << #var "=" << var;
 
 
+// ----------------- ConflictHandlers -----------------
+ConflictHandlers::ConflictHandlers()
+  : dupParam(NULL),
+    delParam(NULL),
+    mergeParam1(NULL),
+    mergeParam2(NULL)
+{}
+
+ConflictHandlers::~ConflictHandlers()
+{}
+
+ConflictHandlers::ConflictHandlers(Flatten&)
+  : dupParam(NULL),
+    delParam(NULL),
+    mergeParam1(NULL),
+    mergeParam2(NULL)
+{}
+
+void ConflictHandlers::xfer(Flatten &flat)
+{
+  flattenStrTable->xfer(flat, dupParam);
+  dupCode.xfer(flat);
+
+  flattenStrTable->xfer(flat, delParam);
+  delCode.xfer(flat);
+
+  flattenStrTable->xfer(flat, mergeParam1);
+  flattenStrTable->xfer(flat, mergeParam2);
+  mergeCode.xfer(flat);
+}
+
+
+bool ConflictHandlers::anyNonNull() const
+{
+  return dupCode.isNonNull() ||
+         delCode.isNonNull() ||
+         mergeCode.isNonNull();
+}
+
+
+void ConflictHandlers::print(ostream &os) const
+{
+  if (dupCode.isNonNull()) {
+    os << "  dup(" << dupParam << ") [" << dupCode << "]\n";
+  }
+
+  if (delCode.isNonNull()) {
+    os << "  del(" << (delParam? delParam : "") << ") [" << delCode << "]\n";
+  }
+
+  if (mergeCode.isNonNull()) {
+    os << "  merge(" << mergeParam1 << ", " << mergeParam2
+       << ") [" << mergeCode << "]\n";
+  }
+}
+
+
 // ---------------------- Symbol --------------------
 Symbol::~Symbol()
 {}
@@ -29,7 +86,8 @@ Symbol::Symbol(Flatten &flat)
   : name(flat),
     isTerm(false),
     isEmptyString(false),
-    type(NULL)
+    type(NULL),
+    ddm()
 {}
 
 void Symbol::xfer(Flatten &flat)
@@ -38,7 +96,9 @@ void Symbol::xfer(Flatten &flat)
   const_cast<string&>(name).xfer(flat);
   flat.xferBool(const_cast<bool&>(isTerm));
   flat.xferBool(const_cast<bool&>(isEmptyString));
+
   flattenStrTable->xfer(flat, type);
+  ddm.xfer(flat);
 }
 
 
@@ -50,6 +110,24 @@ void Symbol::print(ostream &os) const
   }
   os << ":";
   PVAL(isTerm);
+}
+
+
+void Symbol::printDDM(ostream &os) const
+{
+  // don't print anything if no handlers
+  if (!ddm.anyNonNull()) return;
+
+  // print with roughly the same syntax as input
+  os << (isTerminal()? "token" : "nonterm");
+  if (type) {
+    os << "[" << type << "]";
+  }
+  os << " " << name << " {\n";
+
+  ddm.print(os);
+
+  os << "}\n";
 }
 
 
@@ -576,12 +654,26 @@ int Grammar::numNonterminals() const
 }
 
 
+void Grammar::printSymbolTypes(ostream &os) const
+{
+  os << "Grammar terminals with types:\n";
+  FOREACH_OBJLIST(Terminal, terminals, term) {
+    term.data()->printDDM(os);
+  }
+
+  os << "Grammar nonterminals with types:\n";
+  FOREACH_OBJLIST(Nonterminal, nonterminals, nt) {
+    nt.data()->printDDM(os);
+  }
+}
+
+
 void Grammar::printProductions(ostream &os, bool code) const
 {
   os << "Grammar productions:\n";
   for (ObjListIter<Production> iter(productions);
        !iter.isDone(); iter.adv()) {
-    os << " " << iter.data()->toStringMore(code);
+    os << "  " << iter.data()->toStringMore(code);
   }
 }
 

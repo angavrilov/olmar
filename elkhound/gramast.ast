@@ -24,7 +24,11 @@ class TermType (LocString name, LocString type, ASTList<SpecFunc> funcs);
 
 
 // specification function: formals + code
-class SpecFunc (LocString name, ASTList<LocString> formals, LocString code);
+class SpecFunc (LocString name, ASTList<LocString> formals, LocString code)
+{
+  public LocString nthFormal(int i) const
+    { return *( formals.nthC(i) ); };
+}
 
 
 // a nonterminal, with its name and semantic value type, and list

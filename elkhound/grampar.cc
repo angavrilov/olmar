@@ -67,6 +67,8 @@ XASTParse::~XASTParse()
 // fwd-decl of parsing fns
 void astParseGrammar(Grammar &g, GrammarAST const *treeTop);
 void astParseTerminals(Environment &env, Terminals const &terms);
+void astParseDDM(Environment &env, ConflictHandlers &ddm,
+                 ASTList<SpecFunc> const &funcs);
 void astParseNonterm(Environment &env, NontermDecl const *nt);
 void astParseProduction(Environment &env, Nonterminal *nonterm,
                         ProdDecl const *prod);
@@ -175,6 +177,56 @@ void astParseTerminals(Environment &env, Terminals const &terms)
 
       // annotate with declared type
       t->type = type.type;
+      
+      // parse the dup/del/merge spec
+      astParseDDM(env, t->ddm, type.funcs);
+    }
+  }
+}
+
+
+void astParseDDM(Environment &env, ConflictHandlers &ddm,
+                 ASTList<SpecFunc> const &funcs)
+{
+  FOREACH_ASTLIST(SpecFunc, funcs, iter) {
+    SpecFunc const &func = *(iter.data());
+    int numFormals = func.formals.count();
+
+    if (func.name.equals("dup")) {
+      if (numFormals != 1) {
+        astParseError(func.name, "'dup' function must have one formal parameter");
+      }
+      ddm.dupParam = func.nthFormal(0);
+      ddm.dupCode = func.code;
+    }
+
+    else if (func.name.equals("del")) {
+      if (numFormals == 0) {
+        // not specified is ok, since it means the 'del' function
+        // doesn't use its parameter
+        ddm.delParam = NULL;
+      }
+      else if (numFormals == 1) {
+        ddm.delParam = func.nthFormal(0);
+      }
+      else {
+        astParseError(func.name, "'del' function must have either zero or one formal parameters");
+      }
+      ddm.delCode = func.code;
+    }
+
+    else if (func.name.equals("merge")) {
+      if (numFormals != 2) {
+        astParseError(func.name, "'merge' function must have two formal parameters");
+      }
+      ddm.mergeParam1 = func.nthFormal(0);
+      ddm.mergeParam2 = func.nthFormal(1);
+      ddm.mergeCode = func.code;
+    }
+    
+    else {
+      astParseError(func.name, 
+        stringc << "unrecognized spec function `" << func.name << "'");
     }
   }
 }
@@ -188,15 +240,18 @@ void astParseNonterm(Environment &env, NontermDecl const *nt)
   if (env.nontermDecls.isMapped(name)) {
     astParseError(name, "nonterminal already declared");
   }
-               
+
   // make the Grammar object to represent the new nonterminal
-  Nonterminal *nonterm = env.g.getOrMakeNonterminal(name);   
+  Nonterminal *nonterm = env.g.getOrMakeNonterminal(name);
   nonterm->type = nt->type;
 
   // iterate over the productions
   FOREACH_ASTLIST(ProdDecl, nt->productions, iter) {
     astParseProduction(env, nonterm, iter.data());
   }
+
+  // parse dup/del/merge
+  astParseDDM(env, nonterm->ddm, nt->funcs);
 }
 
 
@@ -423,6 +478,14 @@ void readGrammarFile(Grammar &g, char const *fname)
 
 int main(int argc, char **argv)
 {
+  if (argc < 2) {
+    cout << "usage: " << argv[0] << " [-tr flags] filename.gr\n";
+    cout << "  interesting trace flags:\n";
+    cout << "    keep-tmp      do not delete the temporary files\n";
+    cout << "    cat-grammar   print the ascii rep to the screen\n";
+    return 0;
+  }
+
   traceAddSys("progress");
   TRACE_ARGS();
 
@@ -430,14 +493,19 @@ int main(int argc, char **argv)
 
   // read the file
   Grammar g1;
-  readGrammarFile(g1, argc>=2? argv[1] : NULL /*stdin*/);
+  readGrammarFile(g1, argv[1]);
 
   // and print the grammar
   char const g1Fname[] = "grammar.g1.tmp";
   traceProgress() << "printing initial grammar to " << g1Fname << "\n";
   {
     ofstream out(g1Fname);
+    g1.printSymbolTypes(out);
     g1.printProductions(out, printCode);
+  }
+
+  if (tracingSys("cat-grammar")) {
+    system("cat grammar.g1.tmp");
   }
 
   // before using 'xfer' we have to tell it about the string table
@@ -464,6 +532,7 @@ int main(int argc, char **argv)
   traceProgress() << "printing just-read grammar to " << g2Fname << "\n";
   {
     ofstream out(g2Fname);
+    g2.printSymbolTypes(out);
     g2.printProductions(out, printCode);
   }
 

@@ -109,6 +109,8 @@ public:      // funcs
 
   void debugPrint(ostream &os, int indent) const;
 
+  public:  LocString nthFormal(int i) const
+    { return *( formals.nthC(i) ); };
 };
 
 

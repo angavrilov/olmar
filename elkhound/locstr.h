@@ -41,6 +41,7 @@ public:    // funcs
   // experimenting with allowing 'str' to be null, which is convenient
   // when the string table isn't available
   bool isNull() const { return str == NULL; }
+  bool isNonNull() const { return !isNull(); }
 };
 
 // yields simply the string, no location info

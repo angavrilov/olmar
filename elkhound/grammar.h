@@ -46,6 +46,39 @@ typedef StringObjDict<LocString> LitCodeDict;
 typedef LocString LiteralCode;
 
 
+// --------------- ConflictHandlers --------------
+// this packages user's code that handles runtime ambiguity
+class ConflictHandlers {
+public:
+  StringRef dupParam;       // name of parameter to 'dup'
+  LocString dupCode;        // code to duplicate a semantic value
+  
+  StringRef delParam;       // param name; may be NULL to indicate not used
+  LocString delCode;        // code
+
+  StringRef mergeParam1;    // param name for first alternative
+  StringRef mergeParam2;    // and 2nd alt
+  LocString mergeCode;      // code to resolve then
+  
+public:
+  ConflictHandlers();
+  ~ConflictHandlers();
+
+  ConflictHandlers(Flatten&);
+  void xfer(Flatten &flat);
+  
+  // true if any of the code is not null
+  bool anyNonNull() const;
+                                
+  // print as
+  //   dup(..) [...]
+  //   del...
+  //   merge...
+  // (with newlines)
+  void print(ostream &os) const;
+};
+
+
 // ---------------- Symbol --------------------
 // either a nonterminal or terminal symbol
 class Symbol {
@@ -57,10 +90,11 @@ public:
   bool const isEmptyString; // true only for the emptyString nonterminal
 
   StringRef type;           // C type of semantic value
+  ConflictHandlers ddm;     // dup/del/merge handlers
 
 public:
   Symbol(char const *n, bool t, bool e = false)
-    : name(n), isTerm(t), isEmptyString(e), type(NULL) {}
+    : name(n), isTerm(t), isEmptyString(e), type(NULL), ddm() {}
   virtual ~Symbol();
 
   Symbol(Flatten&);
@@ -80,9 +114,12 @@ public:
     { return const_cast<Nonterminal&>(asNonterminalC()); }
 
   // debugging
+  // print as '$name: isTerminal=$isTerminal' (no newline)
   virtual void print(ostream &os) const;
   OSTREAM_OPERATOR(Symbol)
-    // print as '$name: isTerminal=$isTerminal' (no newline)
+
+  // print 'token[type] name { dup.. del.. merge.. }' (with newlines)
+  void printDDM(ostream &os) const;
 };
 
 // I have several needs for serf lists of symbols, so let's use this for now
@@ -462,6 +499,9 @@ public:     // funcs
   void addProduction(Production *prod);
 
   // ---------- outputting a grammar --------------
+  // print the list of symbols with type annotations
+  void printSymbolTypes(ostream &os) const;
+
   // print the current list of productions
   void printProductions(ostream &os, bool printCode=true) const;
 
