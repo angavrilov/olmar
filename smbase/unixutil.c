@@ -13,6 +13,19 @@
 // 12/13/04: according to rfistman at hotmail, this is required to get
 // FD_ZERO to work on OS X; or should I just #include sys/select.h?
 // how portable is that?
+//
+// A little googling reveals this page documenting sys/select.h:
+//
+//   http://www.opengroup.org/onlinepubs/009695399/basedefs/sys/select.h.html
+//
+// It says it was introduced to POSIX in 2000, which I interpret to mean
+// older systems are likely to not have it.  Indeed, I see messages from
+// people reporting that this file is missing, e.g.,
+//
+//   http://curl.haxx.se/mail/archive-2003-05/0161.html
+//   http://archives.postgresql.org/pgsql-hackers/1997-01/msg00878.php
+//
+// So I will just stick with string.h until I see a problem with it.
 #include <string.h>     // bzero via FD_ZERO on OS X
 
 
