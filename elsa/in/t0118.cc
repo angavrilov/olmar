@@ -40,15 +40,44 @@ enum Kind {
 } kind;
 
 
+struct A {
+};
+
+struct B {
+  B(A&);               // line 47
+};
+
+struct C : A {
+};
+
+// __getImplicitConversion(
+//   <expression with source type>,
+//   <expression with destination type>,
+//   <implicit conversion kind>,
+//   <standard conversion 1>,
+//   <line number of user-defined conversion, or 0 if none>,
+//   <standard conversion 2, or 0 if none>
+// )
+
 
 void f()
 {
   // elementary conversions
-  __getImplicitConversion((int)0, (int)0, 
+  __getImplicitConversion((int)0, (int)0,
                           IC_STANDARD, SC_IDENTITY, 0, 0);
-  __getImplicitConversion((int)0, (int &)0, 
+  __getImplicitConversion((int)0, (int &)0,
                           IC_STANDARD, SC_IDENTITY,0,0);
-                          
-  // until I test overload resolution, there's not much interesting
-  // to do here..
+
+  // constructor conversions
+  A a;
+  B b;
+  C c;
+  __getImplicitConversion((A)a, (B)b,
+                          IC_USER_DEFINED, SC_IDENTITY, 47, SC_IDENTITY);
+  __getImplicitConversion((A&)a, (B)b,
+                          IC_USER_DEFINED, SC_IDENTITY, 47, SC_IDENTITY);
+  __getImplicitConversion((C&)c, (B)b,
+                          IC_USER_DEFINED, SC_PTR_CONV, 47, SC_IDENTITY);
+
+
 }

@@ -495,7 +495,8 @@ StandardConversion getStandardConversion
         return conv.ret | SC_PTR_CONV;      // converting T* to void*
       }
 
-      if (src->isCompoundType() &&
+      if (src != dest &&                    // not the same compound...
+          src->isCompoundType() &&
           dest->isCompoundType() &&
           src->asCompoundTypeC()->hasBaseClass(dest->asCompoundTypeC())) {
         if (!src->asCompoundTypeC()->
