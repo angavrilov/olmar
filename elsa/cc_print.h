@@ -150,7 +150,7 @@ class codeout {
           const char *message, char *open = "", char *close = "")
     : close(close), out(out)
   {
-    out << const_cast<char *>(message);
+    out << message;
     out << " ";
     out << open;
     if (strchr(open, '{')) out.down();
