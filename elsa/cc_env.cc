@@ -1983,7 +1983,7 @@ Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
         TRACE("dependent", name->toString());
 
         // tried to look into a template parameter
-        if (flags & LF_TYPENAME) {
+        if (flags & (LF_TYPENAME | LF_ONLY_TYPES)) {
           return dependentTypeVar;    // user claims it's a type
         }
         else {

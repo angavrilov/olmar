@@ -664,7 +664,7 @@ testparse d0073.cc
 testparse d0074.cc
 testparse d0075.cc
 testparse d0079.cc
-failparse d0080.cc "important: inheriting from dependent type"
+testparse d0080.cc # "inheriting from dependent qualified type"
 testparse d0084.cc
 testparse_strict d0087.cc
 testparse d0088.cc
