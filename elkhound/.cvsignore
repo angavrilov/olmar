@@ -48,3 +48,5 @@ fsyncd.log
 .fsync-save
 qpmouse.i
 qpmouse.cpp
+Makefile
+
