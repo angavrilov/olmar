@@ -90,11 +90,17 @@ void trstr(char const *sysName, char const *traceString)
 }
 
 
-ostream &traceProgress()
+ostream &traceProgress(int level)
 {
-  static long progStart = getMilliseconds();
-  
-  return trace("progress") << (getMilliseconds() - progStart) << "ms: ";
+  // for now, just suppress anything more than 1
+  if (level == 1) {
+    static long progStart = getMilliseconds();
+
+    return trace("progress") << (getMilliseconds() - progStart) << "ms: ";
+  }
+  else {
+    return *devNull;
+  }
 }
 
 

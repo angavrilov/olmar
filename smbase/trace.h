@@ -28,8 +28,10 @@ ostream &trace(char const *sysName);
 void trstr(char const *sysName, char const *traceString);
 
 
-// special for "progress" tracing; prints time too
-ostream &traceProgress();
+// special for "progress" tracing; prints time too;
+// 'level' is level of detail -- 1 is highest level, 2 is
+// more refined (and therefore usually not printed), etc.
+ostream &traceProgress(int level=1);
 
 
 // add one or more subsystems, separated by commas
