@@ -405,6 +405,21 @@ void Statement::addAmbiguity(Statement *alt)
 }
 
 
+string Statement::lineColString() const
+{
+  char const *fname;
+  int line, col;
+  sourceLocManager->decodeLineCol(loc, fname, line, col);
+
+  return stringc << line << ":" << col;
+}
+
+string Statement::kindLocString() const
+{
+  return stringc << kindName() << "@" << lineColString();
+}
+
+
 // Condition
 // Handler
 

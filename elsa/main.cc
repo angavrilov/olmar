@@ -187,6 +187,28 @@ void doit(int argc, char **argv)
                     << (getMilliseconds() - tcheckStart) 
                     << " ms)\n";
 
+    int numErrors=0, numWarnings=0;
+    FOREACH_OBJLIST(ErrorMsg, env.errors, iter) {
+      if (iter.data()->isWarning) {
+        numWarnings++;
+      }
+      else {
+        numErrors++;
+      }
+    }
+
+    // do this now so that 'printTypedAST' will include CFG info
+    #ifdef CFG_EXTENSION
+    // A possible TODO is to do this right after each function is type
+    // checked.  However, in the current design, that means physically
+    // inserting code into Function::tcheck (ifdef'd of course).  A way
+    // to do it better would be to have a general post-function-tcheck
+    // interface that analyses could hook in to.  That could be augmented
+    // by a parsing mode that parsed each function, analyzed it, and then
+    // immediately discarded its AST.
+    numErrors += computeUnitCFG(unit);
+    #endif // CFG_EXTENSION
+
     // print abstract syntax tree annotated with types
     if (tracingSys("printTypedAST")) {
       unit->debugPrint(cout, 0);
@@ -199,16 +221,6 @@ void doit(int argc, char **argv)
       Env env2(strTable, lang, tfac);
       unit->tcheck(env2);
       traceProgress() << "end of second tcheck\n";
-    }
-
-    int numErrors=0, numWarnings=0;
-    FOREACH_OBJLIST(ErrorMsg, env.errors, iter) {
-      if (iter.data()->isWarning) {
-        numWarnings++;
-      }
-      else {
-        numErrors++;
-      }
     }
 
     // print errors and warnings in reverse order
@@ -251,20 +263,6 @@ void doit(int argc, char **argv)
     if (tracingSys("stopAfterTCheck")) {
       return;
     }
-
-    #if 0
-    // Cqual++-aware type checker
-    traceProgress() << "Cqual++-aware type checker...\n";
-
-    // little bit of a hack: I need to make a Variable_Q to
-    // correspond to env.dependentTypeVar
-    try {
-      unit->qualTcheck(env.madeUpVariables);
-    }
-    catch (XNotSupported &x) {
-      cout << x.why() << endl;
-    }    
-    #endif // 0
   }
 
   // dsw: pretty printing

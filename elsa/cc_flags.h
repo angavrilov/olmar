@@ -204,7 +204,8 @@ enum BinaryOp {
   BIN_ARROW_STAR,  // ->*
 
   // theorem prover extension
-  BIN_IMPLIES,   // ==>
+  BIN_IMPLIES,     // ==>
+  BIN_EQUIVALENT,  // <==>
 
   NUM_BINARYOPS
 };

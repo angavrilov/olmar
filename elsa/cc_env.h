@@ -220,6 +220,10 @@ public:      // funcs
   bool disambErrorsSuppressChanges() const
     { return disambiguationNestingLevel>0 && hasDisambErrors(); }
 
+  // number of errors; intended to be called after type checking,
+  // to see how many errors (if any) resulted
+  int numErrors() const { return errors.count(); }
+
   FunctionType *makeDestructorFunctionType(SourceLoc loc);
 
   // TypeFactory funcs; all of these simply delegate to 'tfac'
