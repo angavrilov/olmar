@@ -58,14 +58,6 @@ private:     // data
   // type tags to typedef variables.
   StringRefMap<Variable> typeTags;
 
-  #if 0     // old
-  // compounds: map name -> CompoundType
-  StringRefMap<CompoundType> compounds;
-
-  // enums: map name -> EnumType
-  StringRefMap<EnumType> enums;
-  #endif // 0
-
   // per-scope change count
   int changeCount;
 

@@ -636,12 +636,6 @@ public:      // funcs
   // less context is necessary
   virtual void addedNewVariable(Scope *s, Variable *v);
 
-  // change 'tv' into a shadow typedef var
-  void makeShadowTypedef(Scope *scope, Variable *tv);
-
-  // true if 'tv' is a shadow typedef made by the above function
-  bool isShadowTypedef(Variable *tv);
-
   // search in an overload set for an element, given its type
   Variable *findInOverloadSet(OverloadSet *oset,
                               FunctionType *ft, CVFlags receiverCV);

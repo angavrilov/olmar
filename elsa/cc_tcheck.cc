@@ -8094,21 +8094,12 @@ void ND_usingDecl::tcheck(Env &env)
     if (origCt) {
       // alias the structure tag
       env.addCompound(origCt);
-
-      // if it has been shadowed, we need that too
-      if (env.isShadowTypedef(origCt->typedefVar)) {
-        env.makeUsingAliasFor(name->loc, origCt->typedefVar);
-      }
     }
 
     EnumType *origEnum = origScope->lookupEnum(origVar->name, env, LF_SUPPRESS_ERROR);
     if (origEnum) {
       // alias the enum tag
       env.addEnum(origEnum);
-
-      if (env.isShadowTypedef(origEnum->typedefVar)) {
-        env.makeUsingAliasFor(name->loc, origEnum->typedefVar);
-      }
     }
   }
 }

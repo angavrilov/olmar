@@ -2428,47 +2428,6 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo()
 }
 
 
-// This function was originally created to support the elaboration
-// phase, as it happened interleaved with type checking.  Now that
-// elaboration is its own pass, we could get rid of the notion of
-// shadow typedefs entirely.
-void Env::makeShadowTypedef(Scope *scope, Variable *tv)   // "tv" = typedef var
-{
-  xassert(tv->hasFlag(DF_TYPEDEF));
-
-  if (disambErrorsSuppressChanges()) {
-    // we're in a situation where environment changes are bad.. so let
-    // the type be silently masked
-    TRACE("env", "not actually making shadow typedef variable for `"
-          << tv->name << "' because there are disambiguating errors");
-    return;
-  }
-
-  // make a name that can't collide with a user identifier
-  StringRef shadowName = str(stringc << tv->name << "-shadow");
-  TRACE("env", "making shadow typedef variable `" << shadowName <<
-        "' for `" << tv->name <<
-        "' because a non-typedef var is masking it");
-
-  // shadow shouldn't exist
-  xassert(!scope->lookupVariable(shadowName, *this, LF_INNER_ONLY));
-  
-  // modify the variable to get the new name, and add it to the scope
-  tv->name = shadowName;
-  scope->addVariable(tv);
-  
-  // at least for now, don't call registerVariable or addedNewVariable,
-  // since it's a weird situation
-}
-
-
-bool Env::isShadowTypedef(Variable *tv)
-{
-  // this isn't a common query, so it's ok if it's a little slow
-  return suffixEquals(tv->name, "-shadow");
-}
-
-
 Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                            StringRef name, SourceLoc loc,
                            TypeIntr keyword, bool forward)
@@ -2533,7 +2492,6 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
         //  << "implicit typedef associated with " << ct->keywordAndName()
         //  << " conflicts with an existing typedef or variable",
         //  true /*disambiguating*/);
-        makeShadowTypedef(scope, tv);
       }
       else {
         addedNewVariable(scope, tv);
@@ -3220,10 +3178,6 @@ Variable *Env::createDeclaration(
                    << " at " << prior->loc << " with new decl at "
                    << loc);
       forceReplace = true;
-
-      // for support of the elaboration module, we don't want to lose
-      // the previous name altogether; make a shadow
-      makeShadowTypedef(scope, prior);
 
       goto noPriorDeclaration;
     }
