@@ -258,7 +258,7 @@ public:
   void setLength(int L) { len = L; }
 
   // consolidate allocated space to match length
-  void consolidate() { setSize(length()); }
+  void consolidate() { this->setSize(length()); }
 
   // swap
   void swapWith(ArrayStack<T> &obj) {
