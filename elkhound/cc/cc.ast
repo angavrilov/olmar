@@ -162,7 +162,7 @@ class PQName {
 // built with type constructors (typedef'd types may have been built
 // with type constructors when the name was defined, but a
 // TypeSpecifier refers only to the name)
-class TypeSpecifier(PQName /*nullable*/ name, SourceLocation loc) {
+class TypeSpecifier(SourceLocation loc) {
   public enum CVFlags cv;  ctor cv=CV_NONE;
 
   public void printExtras(ostream &os, int indent) const;
@@ -171,14 +171,13 @@ class TypeSpecifier(PQName /*nullable*/ name, SourceLocation loc) {
   // a typedef'd name (typedef might be implicit, as for classes);
   // if 'typenamedUsed' is true, then the user said "typename", so
   // we don't regard an error as disambiguating
-  -> TS_name(// moved to superclass: PQName name,
-             bool typenameUsed);
+  -> TS_name(PQName name, bool typenameUsed);
 
   -> TS_simple(SimpleTypeId id);           // int or char or float or ..
 
   -> TS_elaborated(                        // "class Foo"
-       TypeIntr keyword
-       // moved to superclass: PQName name
+       TypeIntr keyword,
+       PQName name
      );
 
   // class definition
@@ -192,15 +191,14 @@ class TypeSpecifier(PQName /*nullable*/ name, SourceLocation loc) {
        //   - it could be a definition or specialization of a class
        //     declared in another namespace
        // See cppstd 14.5.4 para 6 for an example of both at once.
-       // moved to superclass: PQName /*nullable*/ name,
+       PQName /*nullable*/ name,
 
        FakeList<BaseClassSpec> *bases,       // base classes
        MemberList members                    // field and methods of the class
      );
 
   -> TS_enumSpec(                          // "enum { ... }"
-       // moved to superclass and changed to a PQname:
-       // StringRef /*nullable*/ name,          // name of enum, if any
+       StringRef /*nullable*/ name,          // name of enum, if any
        FakeList<Enumerator> *elts            // elements of the enumeration
      );
 }
