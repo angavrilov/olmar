@@ -512,6 +512,10 @@ void Declaration::tcheck(Env &env)
   // check subsequent declarators
   Declarator *prev = decllist->first();
   while (prev->next) {
+#if DISTINCT_CVATOMIC_TYPES
+    // dsw: I would clone the type if I knew how.
+    Type const *specType = spec->tcheck(env);
+#endif
     DeclaratorTcheck dt2(specType, dflags);
     prev->next = prev->next->tcheck(env, dt2);
 
