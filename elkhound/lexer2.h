@@ -4,7 +4,8 @@
 #ifndef __LEXER2_H
 #define __LEXER2_H
 
-#include "lexer1.h"  // FileLocation, string, etc.
+#include "lexer1.h"       // Lexer1
+#include "fileloc.h"      // SourceLocation
 
 // this enumeration defines the terminal symbols that the parser
 // deals with
@@ -141,14 +142,6 @@ enum Lexer2TokenType {
 };
 
 
-// names a source file
-// (will get bigger; mostly a placeholder for now)
-class SourceFile {
-public:
-  string filename;
-};
-
-
 // represent a unit of input to the parser
 class Lexer2Token {
 public:
@@ -161,17 +154,17 @@ public:
     int intValue;      	       	 // for L2_INT_LITERALs
     float floatValue;		 // for L2_FLOAT_LITERALs
     char charValue;		 // for L2_CHAR_LITERALs
+    int strLength;               // for L2_STRING_LITERALs with embedded NULs
   };
 
   // where token appears, or where macro reference which produced it appears
-  FileLocation loc;              // line/col
-  SourceFile *file;              // (serf) filename, etc.
+  SourceLocation loc;            // line/col/file
 
   // macro definition that produced this token, or NULL
   Lexer1Token *sourceMacro;	 // (serf)
 
 public:
-  Lexer2Token(Lexer2TokenType type, FileLocation const &loc, SourceFile *file);
+  Lexer2Token(Lexer2TokenType type, SourceLocation const &loc);
   ~Lexer2Token();
 
   // debugging

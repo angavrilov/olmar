@@ -6,6 +6,7 @@
 #include "strtokp.h"   // StrtokParse
 #include "trace.h"     // trace
 #include "crc.h"       // crc32
+#include "exc.h"          // xBase
 
 #include <stdarg.h>    // variable-args stuff
 #include <stdio.h>     // FILE, etc.
@@ -290,10 +291,36 @@ string Production::symbolTag(int index) const
 }
 
 
+Symbol const *Production::symbolByIndexC(int index) const
+{
+  // check LHS
+  if (index == 0) {
+    return left;
+  }
+
+  // find index in RHS list
+  index--;
+  return right.nthC(index);
+}
+
+
 DottedProduction const *Production::getDProdC(int dotPlace) const
 {
   xassert(0 <= dotPlace && dotPlace < numDotPlaces);
   return &dprods[dotPlace];
+}
+
+
+void Production::checkRefs() const
+{
+  try {
+    actions.check(this);
+    conditions.check(this);
+  }
+  catch (xBase &x) {
+    THROW(xBase(stringc << "in " << toString()
+                        << ", " << x.why() ));
+  }
 }
 
 
@@ -306,7 +333,8 @@ void Production::print(ostream &os) const
 string Production::toString() const
 {
   // LHS "->" RHS
-  return stringc << taggedName(left->name, leftTag) << " -> " << rhsString();
+  // 9/27/00: don't print tag for LHS
+  return stringc << left->name << " -> " << rhsString();
 }
 
 
@@ -1137,7 +1165,7 @@ bool Grammar::parseProduction(ProductionList &prods, StrtokParse const &tok)
 }
 
 
-// well-formedness check; prints complaints
+// well-formedness check
 void Grammar::checkWellFormed() const
 {
   // verify every nonterminal has at least one rule
@@ -1152,10 +1180,14 @@ void Grammar::checkWellFormed() const
     }
 
     if (!hasRule) {
-      cout << "warning: nonterminal "
-           << nt.data()->name
-           << " has no rules\n";
+      xfailure(stringc << "nonterminal " << nt.data()->name
+                       << " has no rules");
     }
+  }
+  
+  // verify referential integrity in actions/conditions
+  FOREACH_PRODUCTION(productions, prod) {
+    prod.data()->checkRefs();
   }
 }
 

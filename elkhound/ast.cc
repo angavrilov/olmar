@@ -40,6 +40,12 @@ ASTLeaf const &ASTNode::asLeafC() const
 }
 
 
+bool ASTNode::leftmostLoc(SourceLocation &loc) const
+{
+  return false;
+}
+
+
 static void doIndent(ostream &os, int indent)
 {
   loopi(indent) {
@@ -198,7 +204,28 @@ ASTInternal *iappend(ASTNode *presumedInternal, ASTNode *newChild)
 }
 
 
+bool ASTInternal::leftmostLoc(SourceLocation &L) const
+{
+  // check with each child in order until one has a location
+  FOREACH_OBJLIST(ASTNode, children, iter) {
+    if (iter.data()->leftmostLoc(L)) {
+      return true;
+    }
+  }
+
+  // and if none do then bail
+  return false;
+}
+
+
 // ------------------- ASTLeaf --------------------
+bool ASTLeaf::leftmostLoc(SourceLocation &L) const
+{
+  L = loc;
+  return true;
+}
+
+
 string ASTLeaf::toString() const
 {
   return stringc << "Leaf(" << typeDesc() << ")";

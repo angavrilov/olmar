@@ -887,7 +887,7 @@ void GrammarAnalysis::constructLRItemSets()
 
   // do the BFS now, since we want to print the sample inputs
   // in the loop that follows
-  trace("progress") << "BFS tree on transition graph...\n";
+  traceProgress() << "BFS tree on transition graph...\n";
   computeBFSTree();
 
 
@@ -1561,16 +1561,16 @@ void GrammarAnalysis::runAnalyses()
   checkWellFormed();
 
   // precomputations
-  trace("progress") << "init...\n";
+  traceProgress() << "init...\n";
   initializeAuxData();
 
-  trace("progress") << "derivability relation...\n";
+  traceProgress() << "derivability relation...\n";
   computeWhatCanDeriveWhat();
 
-  trace("progress") << "first...\n";
+  traceProgress() << "first...\n";
   computeFirst();
 
-  trace("progress") << "follow...\n";
+  traceProgress() << "follow...\n";
   computeFollow();
 
   // print results
@@ -1615,10 +1615,10 @@ void GrammarAnalysis::runAnalyses()
 
 
   // LR stuff
-  trace("progress") << "LR item sets...\n";
+  traceProgress() << "LR item sets...\n";
   constructLRItemSets();
 
-  trace("progress") << "SLR conflicts...\n";
+  traceProgress() << "SLR conflicts...\n";
   findSLRConflicts();
 
   // another analysis

@@ -5,6 +5,7 @@
 #include "objlist.h"   // List
 #include "str.h"       // string
 #include "strtokp.h"   // StrtokParse
+#include "nonport.h"   // getMilliseconds()
 
 #include <fstream.h>   // ofstream
 
@@ -89,6 +90,14 @@ void trstr(char const *sysName, char const *traceString)
 }
 
 
+ostream &traceProgress()
+{
+  static long progStart = getMilliseconds();
+  
+  return trace("progress") << (getMilliseconds() - progStart) << "ms: ";
+}
+
+
 void traceAddMultiSys(char const *systemNames)
 {
   StrtokParse tok(systemNames, ",");
@@ -102,8 +111,8 @@ bool traceProcessArg(int &argc, char **&argv)
 {
   if (argc >= 3  &&  0==strcmp(argv[1], "-tr")) {
     traceAddMultiSys(argv[2]);
-    argc--;
-    argv++;
+    argc -= 2;
+    argv += 2;
     return true;
   }
   else {

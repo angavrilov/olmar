@@ -39,6 +39,10 @@ public:	     // funcs
   // return the attribute as it would have been supplied on input,
   // e.g. Expr.left
   string toString(Production const *prod) const;
+  
+  // check that the lvalue is a valid reference in the
+  // context of the given production; throw exception if not
+  void check(Production const *ctx) const;
 
   // given an instantiated production, yield the referred value
   int getFrom(AttrContext const &actx) const;
@@ -58,6 +62,10 @@ public:
   // evaluate the expression and return its value, within the
   // context of an instantiated production
   virtual int eval(AttrContext const &actx) const = 0;
+
+  // check the expression for illegal references; throw an exception
+  // if any are found (default impl. just returns)
+  virtual void check(Production const *ctx) const;
 
   // print this node in syntax that might be parseable, e.g. "(+ a b)"
   virtual string toString(Production const *prod) const = 0;
@@ -90,6 +98,7 @@ public:
 
   // AExprNode stuff
   virtual int eval(AttrContext const &actx) const;
+  virtual void check(Production const *ctx) const;
   virtual string toString(Production const *prod) const;
 };
 
@@ -119,6 +128,7 @@ public:
 
   // AExprNode stuff
   virtual int eval(AttrContext const &actx) const;
+  virtual void check(Production const *ctx) const;
   virtual string toString(Production const *prod) const;
 };
 

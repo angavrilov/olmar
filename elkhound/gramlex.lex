@@ -16,7 +16,7 @@
 #include <string.h>     // strchr, strrchr
 
 // for maintaining column count
-#define UPD_COL   fileState.column += yyleng;
+#define UPD_COL   fileState.col += yyleng;
 
 %}
 

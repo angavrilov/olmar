@@ -16,6 +16,9 @@ public:
   // parse tree node; the Reduction is that node
   virtual void fire(AttrContext &actx) const = 0;
 
+  // check for reference legality; throw exception if not
+  virtual void check(Production const *ctx) const = 0;
+
   // print something to represent this action; ideally, it is
   // syntax that could be parsed to produce this action again,
   // e.g. "a = (+ b c)"
@@ -42,6 +45,7 @@ public:	  // funcs
 
   // Action stuff
   virtual void fire(AttrContext &actx) const;
+  virtual void check(Production const *ctx) const;
   virtual string toString(Production const *prod) const;
 };
 
@@ -57,6 +61,9 @@ public:	  // funcs
 
   // fire all actions on an instantiated production
   void fire(AttrContext &actx) const;
+  
+  // check all actions for integrity
+  void check(Production const *ctx) const;
 
   // print all the actions in syntax suitable for parsing, e.g.
   //   %action { a = b }

@@ -6,6 +6,8 @@
 #include "trace.h"       // tracing debug functions
 #include "gramast.h"     // grammar AST nodes
 #include "grammar.h"     // Grammar, Production, etc.
+#include "owner.h"       // Owner
+#include "syserr.h"      // xsyserror
 
 #include <fstream.h>     // ifstream
 
@@ -33,10 +35,13 @@ Environment::~Environment()
 
 // fwd-decl of parsing fns
 void astParseGrammar(Grammar &g, ASTNode const *treeTop);
-void astParseNonterm(Environment &env, Nonterminal *nt,
-                     ObjList<ASTNode> const &bodyList);
+void astParseNonterminalBody(Environment &env, Nonterminal *nt,
+                             ObjList<ASTNode> const &bodyList);
 void astParseFormgroup(Environment &env, Nonterminal *nt,
                        ObjList<ASTNode> const &groupList);
+void astParseGroupBody(Environment &env, Nonterminal *nt,
+                       ObjList<ASTNode> const &bodyList,
+                       bool attrDeclAllowed);
 void astParseForm(Environment &env, Nonterminal *nt,
                   ASTNode const *formNode);
 Action *astParseAction(Environment &env, Production *prod,
@@ -109,7 +114,15 @@ ObjList<ASTNode> const &childList(ASTNode const *n, int c, int type)
 // really a static semantic error, more than a parse error..
 void astParseError(ASTNode const *node, char const *msg)
 {
-  xfailure(stringc << node->toString() << ": " << msg);
+  SourceLocation loc;
+  if (node->leftmostLoc(loc)) {
+    xfailure(stringc << "near " << loc.toString() << ", at "
+                     << node->toString() << ": " << msg);
+  }
+  else {
+    xfailure(stringc << "(?loc) "
+                     << node->toString() << ": " << msg);
+  }
 }
 
 
@@ -118,6 +131,7 @@ void astParseError(ASTNode const *node, char const *msg)
 #define END_TYPE_SWITCH(node) default: astParseError(node, "bad type") /* user ; */
 
 
+// ---------------------- AST "parser" --------------------------
 void astParseGrammar(Grammar &g, ASTNode const *treeTop)
 {
   xassert(treeTop->type == AST_TOPLEVEL);
@@ -157,13 +171,21 @@ void astParseGrammar(Grammar &g, ASTNode const *treeTop)
 
       case AST_NONTERM: {
         string name = childName(node, 0);
+        
+        // TODO: need to check that this wasn't already declared; the code
+        // below doesn't work because another rule could simply have
+        // *referred* to this nonterminal
+        //if (g.findNonterminal(name)) {
+        //  astParseError(nthChild(node, 0), "nonterminal already declared");
+        //}
+
         Nonterminal *nt = g.getOrMakeNonterminal(name);
         if (nthChild(node, 1)->type == AST_FORM) {
           // simple "nonterm A -> B C D" form
           astParseForm(env, nt, nthChild(node, 1));
         }
         else {
-          astParseNonterm(env, nt, childList(node, 1, AST_NTBODY));
+          astParseNonterminalBody(env, nt, childList(node, 1, AST_NTBODY));
         }
         break;
       }
@@ -174,16 +196,40 @@ void astParseGrammar(Grammar &g, ASTNode const *treeTop)
 }
 
 
-void astParseNonterm(Environment &env, Nonterminal *nt,
-                     ObjList<ASTNode> const &bodyList)
+// this is for parsing NonterminalBody (attrDeclAllowed=true) or
+// FormGroupBody (attrDeclAllowed=false) lists
+void astParseGroupBody(Environment &prevEnv, Nonterminal *nt,
+                       ObjList<ASTNode> const &bodyList,
+                       bool attrDeclAllowed)
 {
-  // process each nonterminal body element
+  // make a new environment for this stuff
+  Environment env(prevEnv);
+
+  // process each body element
   FOREACH_OBJLIST(ASTNode, bodyList, iter) {
     ASTNode const *node = iter.data();
 
     switch (node->type) {
       case AST_ATTR:
-        nt->attributes.append(new string(childName(node, 0)));
+        if (attrDeclAllowed) {
+          nt->attributes.append(new string(childName(node, 0)));
+        }
+        else {
+          // should never happen with current grammar, but if I collapse
+          // the grammar then it might..
+          astParseError(node, "can't declare attributes in a formbody");
+        }
+        break;
+
+      case AST_ACTION:
+        // just grab a pointer; will parse for real when a production
+        // uses this inherited action
+        env.actions.append(const_cast<ASTNode*>(node));
+        break;
+
+      case AST_CONDITION:
+        // same as with actions
+        env.conditions.append(const_cast<ASTNode*>(node));
         break;
 
       case AST_FORM:
@@ -201,38 +247,16 @@ void astParseNonterm(Environment &env, Nonterminal *nt,
 }
 
 
-void astParseFormgroup(Environment &prevEnv, Nonterminal *nt,
+void astParseNonterminalBody(Environment &env, Nonterminal *nt,
+                             ObjList<ASTNode> const &bodyList)
+{
+  astParseGroupBody(env, nt, bodyList, true /*attrDeclAllowed*/);
+}
+
+void astParseFormgroup(Environment &env, Nonterminal *nt,
                        ObjList<ASTNode> const &groupList)
 {
-  // make a new environment for this stuff
-  Environment env(prevEnv);
-
-  // process each formgroup body element
-  FOREACH_OBJLIST(ASTNode, groupList, iter) {
-    ASTNode const *node = iter.data();
-
-    switch (node->type) {
-      case AST_ACTION:
-        // just grab a pointer
-        env.actions.append(const_cast<ASTNode*>(node));
-        break;
-
-      case AST_CONDITION:
-        // same
-        env.conditions.append(const_cast<ASTNode*>(node));
-        break;
-
-      case AST_FORM:
-        astParseForm(env, nt, node);
-        break;
-
-      case AST_FORMGROUPBODY:
-        astParseFormgroup(env, nt, nodeList(node, AST_FORMGROUPBODY));
-        break;
-
-      END_TYPE_SWITCH(node);
-    }
-  }
+  astParseGroupBody(env, nt, groupList, false /*attrDeclAllowed*/);
 }
 
 
@@ -300,12 +324,20 @@ void astParseForm(Environment &env, Nonterminal *nt,
         s = env.g.getOrMakeNonterminal(symName);
       }
 
-      // add it to the production
-      prod->append(s, tagValid? (char const*)symTag : (char const*)NULL);
+      if (s->isEmptyString) {
+        // "empty" is a syntactic convenience; it doesn't get
+        // added to the production
+      }
+      else {
+        // add it to the production
+        prod->append(s, tagValid? (char const*)symTag : (char const*)NULL);
+      }
     }
 
     // after constructing the production we need to do this
-    prod->finished();
+    // no we don't -- GrammarAnalysis takes care of it (and
+    // complains if we do)
+    //prod->finished();
 
     // deal with formBody (we evaluate it once for each alternative form)
     if (formNode->asInternalC().numChildren() == 2) {
@@ -425,6 +457,10 @@ AExprNode *astParseExpr(Environment &env, Production *prod,
       return new AExprAttrRef(AttrLvalue(tagNum, attrName));
     }
 
+    case AST_NAME:
+      // no tag = implicit 'this' (=LHS) tag
+      return new AExprAttrRef(AttrLvalue(0 /*LHS*/, nodeName(node)));
+
     case EXP_FNCALL: {
       // handle any eval-at-grammar-parse functions
       AExprNode *special = checkSpecial(env, prod, node);
@@ -525,15 +561,15 @@ int yylex(ASTNode **lvalp, void *parseParam)
   // yield semantic values for some things
   switch (code) {
     case TOK_INTEGER:
-      *lvalp = new ASTIntLeaf(lexer.integerLiteral);
+      *lvalp = new ASTIntLeaf(lexer.integerLiteral, lexer.curLoc());
       break;
 
     case TOK_STRING:
-      *lvalp = new ASTStringLeaf(lexer.stringLiteral);
+      *lvalp = new ASTStringLeaf(lexer.stringLiteral, lexer.curLoc());
       break;
 
     case TOK_NAME:
-      *lvalp = new ASTNameLeaf(lexer.curToken());
+      *lvalp = new ASTNameLeaf(lexer.curToken(), lexer.curLoc());
       break;
 
     default:
@@ -547,7 +583,69 @@ int yylex(ASTNode **lvalp, void *parseParam)
 void my_yyerror(char const *message, void *parseParam)
 {
   ParseParams *par = (ParseParams*)parseParam;
-  cout << message << " at " << par->lexer.curLoc() << endl;
+  cout << message << " at " << par->lexer.curLocStr() << endl;
+}
+
+
+// ---------------- external interface -------------------
+void readGrammarFile(Grammar &g, char const *fname)
+{
+  ASTNode::typeToString = astTypeToString;
+
+  if (tracingSys("yydebug")) {
+    yydebug = true;
+  }
+
+  Owner<GrammarLexer> lexer;
+  Owner<ifstream> in;
+  if (fname == NULL) {
+    // stdin
+    lexer = new GrammarLexer;
+  }
+  else {
+    // file
+    in = new ifstream(fname);
+    if (!*in) {
+      xsyserror("open", stringc << "error opening input file " << fname);
+    }
+    lexer = new GrammarLexer(fname, in.xfr());
+  }
+
+  ParseParams params(*lexer);
+
+  traceProgress() << "parsing grammar source..\n";
+  int retval = yyparse(&params);
+  if (retval == 0) {
+    // make sure the tree gets deleted
+    Owner<ASTNode> treeTop(params.treeTop);
+
+    if (tracingSys("ast")) {
+      // print AST
+      cout << "AST:\n";
+      treeTop->debugPrint(cout, 2);
+    }
+
+    // parse the AST into a Grammar
+    traceProgress() << "parsing grammar AST..\n";
+    astParseGrammar(g, treeTop);
+
+    // and print that
+    if (tracingSys("grammar")) {
+      g.printProductions(cout);
+    }
+
+    // then check grammar properties; throws exception
+    // on failure
+    g.checkWellFormed();
+
+    treeTop.del();
+    if (ASTNode::nodeCount > 0) {
+      cout << "leaked " << ASTNode::nodeCount << " AST nodes\n";
+    }
+  }
+  else {
+    xbase("parsing finished with an error");
+  }
 }
 
 
@@ -557,58 +655,13 @@ int main(int argc, char **argv)
 {
   TRACE_ARGS();
 
-  ASTNode::typeToString = astTypeToString;
+  traceAddSys("progress");
+  traceAddSys("grammar");
 
-  GrammarLexer *lexer;
-  ifstream *in = NULL;
-  if (argc == 1) {
-    // stdin
-    lexer = new GrammarLexer;
-  }
-  else {
-    // file           
-    in = new ifstream(argv[1]);
-    if (!*in) {
-      cout << "error opening input file " << argv[1] << endl;
-      return 2;
-    }
-    lexer = new GrammarLexer(argv[1], in);
-  }
+  Grammar g;
+  readGrammarFile(g, argc>=2? argv[1] : NULL /*stdin*/);
 
-  ParseParams params(*lexer);
-
-  cout << "go!\n";
-  int retval = yyparse(&params);
-  if (retval == 0) {
-    cout << "parsing finished successfully.\n";
-
-    if (tracingSys("ast")) {
-      // print AST
-      cout << "AST:\n";
-      params.treeTop->debugPrint(cout, 2);
-    }
-
-    // parse the AST into a Grammar
-    Grammar g;
-    astParseGrammar(g, params.treeTop);
-
-    // and print that
-    cout << "parsed productions:\n";
-    g.printProductions(cout);
-
-    delete params.treeTop;
-    cout << "leaked " << ASTNode::nodeCount << " AST nodes\n";
-  }
-  else {
-    cout << "parsing finished with an error.\n";
-  }
-
-  delete lexer;
-  if (in) {
-    delete in;
-  }
-
-  return retval;
+  return 0;
 }
 
 #endif // TEST_GRAMPAR

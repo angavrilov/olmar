@@ -44,6 +44,7 @@
 
 // fwds from other files
 class Lexer2Token;       // lexer2.h
+class Lexer2;            // lexer2.h
 
 // forward decls for things declared below
 class StackNode;         // unit of parse state
@@ -230,7 +231,8 @@ public:
 
 private:    // funcs
   // comments in glr.cc
-  void glrParse(char const *input);
+  void glrParse(Lexer2 const &lexer2);
+  void glrParseFrontEnd(char const *input);
   int glrParseAction(StackNode *parser,
                      ObjList<PendingShift> &pendingShifts);
   int postponeShift(StackNode *parser,
@@ -248,8 +250,11 @@ private:    // funcs
   void clearAllStackNodes();
   TerminalNode *makeTerminalNode(Lexer2Token const *tk, Terminal const *tc);
   NonterminalNode *makeNonterminalNode(AttrContext &actx);
+  Reduction *makeReductionNode(Production const *prod,
+                               SObjList<TreeNode> const &children);
 
   // tokSeqAmb mechanism
+  void applyTokSeqAmbTest(NonterminalNode &node);
   bool tokSeqAmbRuleMatch(Production const *tokSeqAmb,
                           SObjList<TerminalNode> const &groundTerms);
   bool tokSeqAmbConsequenceMatch(Production const *tokSeqAmb,
@@ -262,6 +267,9 @@ public:     // funcs
   // 'main' for testing this class
   void glrTest(char const *grammarFname, char const *inputFname,
                char const *symOfInterestName);
+               
+  // after parsing, retrieve the parse tree
+  TreeNode const *getParseTree() const;
 };
 
 #endif // __GLR_H

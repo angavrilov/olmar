@@ -14,6 +14,9 @@ public:
   // condition is satisfied
   virtual bool test(AttrContext const &actx) const = 0;
 
+  // check for reference integrity
+  virtual void check(Production const *ctx) const = 0;
+
   // print the condition in a parseable format, e.g. "(< a b)"
   virtual string toString(Production const *prod) const = 0;
 
@@ -32,6 +35,7 @@ public:
 
   // Condition stuff
   virtual bool test(AttrContext const &actx) const;
+  virtual void check(Production const *ctx) const;
   virtual string toString(Production const *prod) const;
 };
 
@@ -48,6 +52,9 @@ public:
 
   // test all conditions
   bool test(AttrContext const &actx) const;
+
+  // check all conditions for referential integrity
+  void check(Production const *ctx) const;
 
   // print all conditions in parseable format, e.g.:
   //   %condition { (< a b) }

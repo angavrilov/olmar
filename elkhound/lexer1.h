@@ -6,7 +6,8 @@
 #define __LEXER1_H
 
 #include "objlist.h"   // ObjList
-#include "str.h"       // string
+#include "fileloc.h"   // FileLocation
+
 #include <stdio.h>     // FILE
 
 // type of each L1 token
@@ -22,22 +23,6 @@ enum Lexer1TokenType {
   L1_COMMENT,
   L1_ILLEGAL,
   NUM_L1_TOKENS
-};
-
-
-// identifies a location in a source file
-class FileLocation {
-public:
-  int line;    // line #, 1-based
-  int col;     // column #, 1-based
-  
-public:
-  FileLocation()                          : line(1), col(1) {}
-  FileLocation(FileLocation const &obj)	  : line(obj.line), col(obj.col) {}
-  ~FileLocation()                         {}
-
-  // move forward to reflect location after 'text'
-  void advance(char const *text, int length);
 };
 
 

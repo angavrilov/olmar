@@ -8,11 +8,9 @@
 
                                   
 // ----------------- GrammarLexer::FileState --------------------
-GrammarLexer::FileState::FileState(char const *fn, istream *src)
-  : fname(fn),
+GrammarLexer::FileState::FileState(SourceFile *file, istream *src)
+  : SourceLocation(file),
     source(src),
-    line(firstLine),
-    column(firstColumn),
     bufstate(NULL)
 {}
 
@@ -35,10 +33,8 @@ GrammarLexer::FileState &GrammarLexer::FileState::
   operator= (FileState const &obj)
 {
   if (this != &obj) {
-    fname = obj.fname;
+    SourceLocation::operator=(obj);
     source = obj.source;
-    line = obj.line;
-    column = obj.column;
     bufstate = obj.bufstate;
   }
   return *this;
@@ -48,7 +44,7 @@ GrammarLexer::FileState &GrammarLexer::FileState::
 // ---------------------- GrammarLexer --------------------------
 GrammarLexer::GrammarLexer(char const *fname, istream *source)
   : yyFlexLexer(source),
-    fileState(fname, source),
+    fileState(sourceFileList.open(fname), source),
     commentStartLine(0),
     integerLiteral(0),
     stringLiteral(""),
@@ -73,13 +69,6 @@ GrammarLexer::~GrammarLexer()
   if (fileState.source != cin) {
     delete fileState.source;
   }
-}
-
-
-void GrammarLexer::newLine()
-{
-  fileState.line++;
-  fileState.column = firstColumn;
 }
 
 
@@ -112,7 +101,7 @@ int GrammarLexer::yylexInc()
 
   trace("lex") << "yielding token (" << code << ") "
                << curToken() << " at "
-               << curLoc() << endl;
+               << curLocStr() << endl;
 
   // nothing special
   return code;
@@ -132,20 +121,19 @@ int GrammarLexer::curCol() const
 {
   // we want to report the *start* column, not the column
   // after the last character
-  return fileState.column - curLen();
+  return fileState.col - curLen();
 }
 
 
-string GrammarLexer::curLoc() const
+string GrammarLexer::curLocStr() const
 {
-  return stringc << curFname() << ", line " << curLine()
-                 << ", col " << curCol();
+  return fileState.toString();
 }
 
 
 void GrammarLexer::err(char const *msg)
 {
-  cerr << "lexer error at " << curLoc() << ": " << msg << endl;
+  cerr << "lexer error at " << curLocStr() << ": " << msg << endl;
 }
 
 
@@ -178,7 +166,7 @@ void GrammarLexer::recursivelyProcess(char const *fname, istream *source)
   fileStack.prepend(new FileState(fileState));
 
   // reset current state
-  fileState = FileState(fname, source);
+  fileState = FileState(sourceFileList.open(fname), source);
 
   // storing this in 'bufstate' is redundant because of the
   // assignment above, but no big deal
@@ -191,7 +179,7 @@ void GrammarLexer::recursivelyProcess(char const *fname, istream *source)
 
 void GrammarLexer::popRecursiveFile()
 {
-  trace("lex") << "done processing " << fileState.fname << endl;
+  trace("lex") << "done processing " << fileState.fname() << endl;
 
   // among other things, this prevents us from accidentally deleting
   // flex's first buffer (which it presumably takes care of) or
@@ -235,14 +223,14 @@ int main(int argc)
     }
 
     if (code != TOK_INCLUDE) {
-      cout << "token at " << lexer.curLoc()
+      cout << "token at " << lexer.curLocStr()
            << ": code=" << code
            << ", text: " << lexer.curToken().pcharc()
            << endl;
     }
     else {
       // if I use yylexInc above, this is never reached
-      cout << "include at " << lexer.curLoc()
+      cout << "include at " << lexer.curLocStr()
            << ": filename is `" << lexer.includeFileName.pcharc()
            << "'\n";
     }

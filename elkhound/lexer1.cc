@@ -11,23 +11,6 @@
 #include <ctype.h>        // isprint
 
 
-// -------------------- FileLocation -----------------------------
-void FileLocation::advance(char const *text, int length)
-{
-  char const *p = text;
-  char const *endp = text + length;
-  for (; p < endp; p++) {
-    if (*p == '\n') {      // new line
-      line++;
-      col = 1;
-    }
-    else {	      	   // ordinary character
-      col++;
-    }
-  }
-}
-
-
 // -------------------- Lexer1Token -----------------------------
 Lexer1Token::Lexer1Token(Lexer1TokenType aType, char const *aText,
                	         int aLength, FileLocation const &aLoc)

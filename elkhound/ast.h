@@ -9,6 +9,7 @@
 #include <iostream.h>       // ostream
 #include "str.h"            // string
 #include "objlist.h"        // ObjList
+#include "fileloc.h"        // SourceLocation
 
 
 // fwd decls
@@ -58,6 +59,10 @@ public:     // funcs
   ASTLeaf const &asLeafC() const;
   ASTLeaf &asLeaf()
     { return const_cast<ASTLeaf&>(asLeafC()); }
+
+  // find location of leftmost leaf; return false if there is
+  // no location information in this subtree
+  virtual bool leftmostLoc(SourceLocation &loc) const;
 
   // debugging: print as indented tree
   virtual void debugPrint(ostream &os, int indent) const;
@@ -113,6 +118,7 @@ public:         // funcs
 
   // ASTNode funcs
   virtual bool isInternal() const { return true; }
+  virtual bool leftmostLoc(SourceLocation &loc) const;
   virtual void debugPrint(ostream &os, int indent) const;
   virtual string toString() const;
 };
@@ -135,10 +141,14 @@ ASTInternal *iappend(ASTNode *presumedInternal, ASTNode *newChild);
 // and so this class should be subclassed as necessary
 class ASTLeaf : public ASTNode {
 public:
-  ASTLeaf(int type) : ASTNode(type) {}
+  SourceLocation loc;                  // where in input stream this leaf came from
+
+public:
+  ASTLeaf(int type, SourceLocation const &L) : ASTNode(type), loc(L) {}
 
   // ASTNode funcs
   virtual bool isInternal() const { return false; }
+  virtual bool leftmostLoc(SourceLocation &loc) const;
   virtual string toString() const;
 };
 
@@ -150,8 +160,8 @@ class ASTSimpleLeaf : public ASTLeaf {
 public:
   Data data;
 
-  ASTSimpleLeaf(Data d)
-    : ASTLeaf(typeCode), data(d) {}
+  ASTSimpleLeaf(Data d, SourceLocation const &loc)
+    : ASTLeaf(typeCode, loc), data(d) {}
   virtual ~ASTSimpleLeaf() {}
 
   virtual string toString() const
@@ -165,8 +175,8 @@ class ASTOwnerLeaf : public ASTLeaf {
 public:
   Data *data;
 
-  ASTOwnerLeaf(Data *d)
-    : ASTLeaf(typeCode), data(d) {}
+  ASTOwnerLeaf(Data *d, SourceLocation const &loc)
+    : ASTLeaf(typeCode, loc), data(d) {}
 
   virtual ~ASTOwnerLeaf()
   {

@@ -21,6 +21,8 @@ tracing strings:
   ambiguities:   print ambiguities in present parse
   lexer1:        results of L1 analysis
   lexer2:        results of L2 analysis
+  ast:           print AST of grammar file
+  lex:           print each token of grammar file
   
 
 

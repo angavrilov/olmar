@@ -4,6 +4,7 @@
 #include "action.h"       // this module
 #include "util.h"         // transferOwnership
 #include "strutil.h"      // trimWhitespace
+#include "exc.h"          // xBase
 
 #include <string.h>       // strchr
 
@@ -28,6 +29,13 @@ void AttrAction::fire(AttrContext &actx) const
 }
 
 
+void AttrAction::check(Production const *ctx) const
+{
+  lvalue.check(ctx);
+  expr->check(ctx);
+}
+
+
 string AttrAction::toString(Production const *prod) const
 {
   return stringc << lvalue.toString(prod) << " := "
@@ -47,6 +55,20 @@ void Actions::fire(AttrContext &actx) const
 {
   FOREACH_OBJLIST(Action, actions, iter) {
     iter.data()->fire(actx);
+  }
+}
+
+
+void Actions::check(Production const *ctx) const
+{
+  FOREACH_OBJLIST(Action, actions, iter) {
+    try {
+      iter.data()->check(ctx);
+    }
+    catch (xBase &x) {
+      THROW(xBase(stringc << "in " << iter.data()->toString(ctx) 
+                          << ", " << x.why() ));
+    }
   }
 }
 

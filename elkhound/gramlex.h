@@ -25,6 +25,7 @@
 // other includes
 #include "str.h"              // string
 #include "objlist.h"          // ObjList
+#include "fileloc.h"          // SourceLocation
 
 
 // this class just holds the lexer state so it is properly encapsulated
@@ -32,21 +33,17 @@
 class GrammarLexer : public yyFlexLexer {
 public:      // types
   enum Constants {
-    firstColumn = 1,               // how to number the columns
-    firstLine = 1,                 // and lines
     lexBufferSize = 4096,          // size of new lex buffers
   };
 
 private:     // data
   // state of a file we were or are lexing
-  struct FileState {
-    string fname;                  // file name
+  struct FileState : public SourceLocation {
     istream *source;               // (owner?) source stream
-    int line, column;              // textual position in file
     yy_buffer_state *bufstate;     // (owner?) flex's internal buffer state
 
   public:
-    FileState(char const *fname, istream *source);
+    FileState(SourceFile *file, istream *source);
     ~FileState();
 
     FileState(FileState const &obj);
@@ -66,8 +63,9 @@ public:      // data
   //   const char *YYText();           // start of matched text
   //   int YYLeng();                   // number of matched characters
 
-private:     // funcs
-  void newLine();                  // called when a newline is encountered
+private:     // funcs                      
+  // called when a newline is encountered
+  void newLine() { fileState.newLine(); }
 
 public:      // funcs
   // create a new lexer that will read from to named stream,
@@ -91,10 +89,11 @@ public:      // funcs
   int yylexInc();
 
   // info about location of current token
-  string const &curFname() const { return fileState.fname; }
+  char const *curFname() const { return fileState.fname(); }
   int curLine() const { return fileState.line; }
   int curCol() const;
-  string curLoc() const;              // string containing line/col of current token
+  SourceLocation const &curLoc() const { return fileState; }
+  string curLocStr() const;    // string with file/line/col
 
   // error reporting; called by the lexer code
   void err(char const *msg);          // msg should not include a newline

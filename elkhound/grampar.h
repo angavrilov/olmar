@@ -33,6 +33,10 @@ public:
 // 1 for error; the extra parameter is available to actions to use
 int yyparse(void *YYPARSE_PARAM);
 
+// when this is set to true, bison parser emits info about
+// actions as it's taking them
+extern int yydebug;
+
 
 // ---------- Bison's view of the rest of the program --------
 // type of Bison semantic values
@@ -81,9 +85,13 @@ public:
   Environment(Grammar &G);             // new env
   Environment(Environment &prevEnv);   // nested env
   ~Environment();
-
-
 };
+
+
+// --------------- grampar's external interface -----------
+// parse file 'fname' into grammar 'g', throwing exceptions
+// if there are problems
+void readGrammarFile(Grammar &g, char const *fname);
 
 
 #endif // __GRAMPAR_H

@@ -224,6 +224,8 @@ public:	    // funcs
   void append(Symbol *sym, char const *tag);
 
   // call this when production is built, so it can compute dprods
+  // (this is called by GrammarAnalysis::initializeAuxData, from
+  // inside runAnalyses)
   void finished();
 
   // find a symbol by tag; returns 0 to identify LHS symbol, 1 for
@@ -235,10 +237,18 @@ public:	    // funcs
   // back into a tag
   string symbolTag(int symbolIndex) const;
 
+  // or translate a symbol index into a symbol
+  Symbol const *symbolByIndexC(int symbolIndex) const;
+  Symbol *symbolByIndex(int symbolIndex)
+    { return const_cast<Symbol*>(symbolByIndexC(symbolIndex)); }
+
   // retrieve an item
   DottedProduction const *getDProdC(int dotPlace) const;
   DottedProduction *getDProd(int dotPlace)
     { return const_cast<DottedProduction*>(getDProdC(dotPlace)); }
+
+  // check for referential integrity in actions and conditions
+  void checkRefs() const;  
 
   // print 'A -> B c D' (no newline)
   string toString() const;
@@ -487,7 +497,9 @@ public:     // funcs
 
   // ---- whole-grammar stuff ----
   // after adding all rules, check that all nonterminals have
-  // at least one rule
+  // at least one rule; also checks referential integrity
+  // in actions and conditiosn; throw exception if there is a
+  // problem
   void checkWellFormed() const;
 
   // output grammar in Bison's syntax

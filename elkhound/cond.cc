@@ -31,6 +31,11 @@ bool ExprCondition::test(AttrContext const &actx) const
 }
 
 
+void ExprCondition::check(Production const *ctx) const
+{
+  expr->check(ctx);
+}
+
 string ExprCondition::toString(Production const *prod) const
 {
   return expr->toString(prod);
@@ -63,6 +68,20 @@ bool Conditions::test(AttrContext const &actx) const
     }
   }
   return true;
+}
+
+
+void Conditions::check(Production const *ctx) const
+{
+  FOREACH_OBJLIST(Condition, conditions, iter) {
+    try {
+      iter.data()->check(ctx);
+    }
+    catch (xBase &x) {
+      THROW(xBase(stringc << "in " << iter.data()->toString(ctx) 
+                          << ", " << x.why() ));
+    }
+  }
 }
 
 

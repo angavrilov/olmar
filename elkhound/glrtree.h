@@ -90,18 +90,15 @@ public:     // funcs
 
   // TreeNode stuff
   virtual Symbol const *getSymbolC() const;
-
   virtual TerminalNode const *getLeftmostTerminalC() const;
   virtual void ambiguityReport(ostream &os) const;
-
   virtual void getGroundTerms(SObjList<TerminalNode> &dest) const;
-
   virtual void printParseTree(ostream &os, int indent) const;
 };
 
 
 // an internal node in the parse graph; it has a list of all possible
-// reductions at this point in the parse.
+// reductions (i.e. ambiguities) at this point in the parse
 // ([GLR] calls these "symbol nodes")
 class NonterminalNode : public TreeNode {
 public:     // data
@@ -126,12 +123,9 @@ public:
 
   // TreeNode stuff
   virtual Symbol const *getSymbolC() const;
-
   virtual TerminalNode const *getLeftmostTerminalC() const;
   virtual void ambiguityReport(ostream &os) const;
-
   virtual void getGroundTerms(SObjList<TerminalNode> &dest) const;
-
   virtual void printParseTree(ostream &os, int indent) const;
 };
 

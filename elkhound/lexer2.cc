@@ -4,6 +4,7 @@
 #include "lexer2.h"      // this module
 #include "trace.h"       // tracingSys
 #include "strutil.h"     // encodeWithEscapes
+#include "exc.h"         // xformat
 
 #include <stdlib.h>      // strtoul
 
@@ -228,13 +229,11 @@ void printMyTokenDecls()
 
 
 // ----------------------- Lexer2Token -------------------------------
-Lexer2Token::Lexer2Token(Lexer2TokenType aType, FileLocation const &aLoc,
-                         SourceFile *aFile)
+Lexer2Token::Lexer2Token(Lexer2TokenType aType, SourceLocation const &aLoc)
   : type(aType),
     strValue(),      // null initially
     intValue(0),     // legal? apparently..
     loc(aLoc),
-    file(aFile),
     sourceMacro(NULL)
 {}
 
@@ -273,7 +272,7 @@ string Lexer2Token::unparseString() const
       
     case L2_STRING_LITERAL:
       return stringc << "\"" 
-                     << encodeWithEscapes(strValue, strValue.length())
+                     << encodeWithEscapes(strValue, strLength)
                      << "\"";
                     
     case L2_INT_LITERAL:
@@ -292,12 +291,20 @@ void Lexer2Token::print() const
 }
 
 
+void quotedUnescape(string &dest, int &destLen, char const *src,
+                    char delim)
+{
+  // strip quotes or ticks
+  decodeEscapes(dest, destLen, string(src+1, strlen(src)-2), delim);
+}
+
+
 // ------------------------- lexer 2 itself ----------------------------
 // jobs performed:
 //  - distinctions are drawn, e.g. keywords and operators
 //  - whitespace and comments are stripped
-// not performed yet:
 //  - meaning is extracted, e.g. for integer literals
+// not performed yet:
 //  - preprocessor actions are performed: inclusion and macro expansion
 void lexer2_lex(Lexer2 &dest, Lexer1 const &src)
 {
@@ -328,41 +335,62 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src)
 
     // create the object for the yielded token; don't know the type
     // yet at this point, so I use L2_NAME as a placeholder
-    Lexer2Token *L2 = new Lexer2Token(L2_NAME, L1->loc, NULL /*file (for now)*/);
+    Lexer2Token *L2 = 
+      new Lexer2Token(L2_NAME, 
+                      SourceLocation(L1->loc, NULL /*file (for now)*/));
 
-    switch (L1->type) {
-      case L1_IDENTIFIER:
-        L2->type = lookupKeyword(L1->text);      // keyword's type or L2_NAME
-        if (L2->type == L2_NAME) {
-          L2->strValue = L1->text;               // save name's text
+    try {
+      switch (L1->type) {
+        case L1_IDENTIFIER:
+          L2->type = lookupKeyword(L1->text);      // keyword's type or L2_NAME
+          if (L2->type == L2_NAME) {
+            L2->strValue = L1->text;               // save name's text
+          }
+          break;
+
+        case L1_INT_LITERAL:
+          L2->type = L2_INT_LITERAL;
+          L2->intValue = strtoul(L1->text, NULL /*endptr*/, 0 /*radix*/);
+          break;
+
+        case L1_FLOAT_LITERAL:
+          L2->type = L2_FLOAT_LITERAL;
+          L2->floatValue = atof(L1->text);
+          break;
+
+        case L1_STRING_LITERAL:
+          L2->type = L2_STRING_LITERAL;
+          quotedUnescape(L2->strValue, L2->strLength, L1->text, '"');
+          break;
+
+        case L1_CHAR_LITERAL: {
+          L2->type = L2_CHAR_LITERAL;
+          int tempLen;
+          string temp;
+          quotedUnescape(temp, tempLen, L1->text, '\'');
+
+          if (tempLen != 1) {
+            xformat("character literal must have 1 char");
+          }
+
+          L2->charValue = temp[0];
+          break;
         }
-        break;
 
-      case L1_INT_LITERAL:
-        L2->type = L2_INT_LITERAL;
-        L2->intValue = strtoul(L1->text, NULL /*endptr*/, 0 /*radix*/);
-        break;
+        case L1_OPERATOR:
+          L2->type = lookupKeyword(L1->text);      // operator's type
+          xassert(L2->type != L2_NAME);            // otherwise invalid operator text..
+          break;
 
-      case L1_FLOAT_LITERAL:
-        L2->type = L2_FLOAT_LITERAL;
-        break;
-
-      case L1_STRING_LITERAL:
-        L2->type = L2_STRING_LITERAL;
-        L2->strValue = L1->text;
-        break;
-
-      case L1_CHAR_LITERAL:
-        L2->type = L2_CHAR_LITERAL;
-        break;
-
-      case L1_OPERATOR:
-        L2->type = lookupKeyword(L1->text);      // operator's type
-        break;
-
-      default:
-        xfailure("unknown L1 type");
+        default:
+          xfailure("unknown L1 type");
+      }
     }
+    catch (xFormat &x) {
+      cout << L1->loc.toString() << ": " << x.cond() << endl;
+      continue;
+    }
+
 
     // append this token to the running list
     dest.tokensMut.append(L2);
@@ -376,7 +404,7 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src)
 
   // final token
   dest.tokensMut.append(
-    new Lexer2Token(L2_EOF, FileLocation() /*dummy*/, NULL /*file (for now)*/));
+    new Lexer2Token(L2_EOF, SourceLocation() /*dummy*/));
 }
 
 

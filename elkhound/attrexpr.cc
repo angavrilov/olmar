@@ -7,6 +7,7 @@
 #include "grammar.h"      // Production
 #include "attr.h"         // Attributes
 #include "gramast.h"      // ast type constants
+#include "exc.h"          // xBase
 
 #include <ctype.h>        // isspace
 #include <stdlib.h>       // atoi
@@ -47,6 +48,26 @@ string AttrLvalue::toString(Production const *prod) const
 }
 
 
+void AttrLvalue::check(Production const *ctx) const
+{
+  // these exception messages are most meaningful if they can
+  // be attached to the context of the action or condition in
+  // which they occur; so it is assumed that context will be
+  // supplied by an exception handler higher up on the call chain
+
+  Symbol const *sym = ctx->symbolByIndexC(symbolIndex);
+  if (!sym->isNonterminal()) {
+    THROW(xBase(stringc << "symbol index " << symbolIndex
+                        << " refers to a terminal!"));
+  }
+
+  if (!sym->asNonterminalC().hasAttribute(attrName)) {
+    THROW(xBase(stringc << "`" << attrName << "' is not an attribute "
+                           "of symbol " << sym->name));
+  }
+}
+
+
 Attributes const &AttrLvalue::getNamedAttrC(AttrContext const &actx) const
 {
   if (symbolIndex == 0) {
@@ -73,6 +94,10 @@ void AttrLvalue::storeInto(AttrContext &actx, int newValue) const
 
 
 // ---------------------- AExprNode --------------------------
+void AExprNode::check(Production const *) const
+{}
+
+
 AExprNode::~AExprNode()
 {}
 
@@ -98,6 +123,11 @@ AExprAttrRef::~AExprAttrRef()
 int AExprAttrRef::eval(AttrContext const &actx) const
 {
   return ref.getFrom(actx);
+}
+
+void AExprAttrRef::check(Production const *ctx) const
+{
+  ref.check(ctx);
 }
 
 string AExprAttrRef::toString(Production const *prod) const
@@ -193,6 +223,14 @@ int AExprFunc::eval(AttrContext const &actx) const
     default:
       xfailure("too many arguments; can only handle 3 right now");
       return 0;     // silence warning
+  }
+}
+
+
+void AExprFunc::check(Production const *ctx) const
+{
+  FOREACH_OBJLIST(AExprNode, args, iter) {
+    iter.data()->check(ctx);
   }
 }
 

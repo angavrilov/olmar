@@ -11,6 +11,11 @@
 #include <stdlib.h>         // malloc, free
 #include <iostream.h>       // cout
 
+// enable debugging the parser
+#ifndef NDEBUG
+  #define YYDEBUG 1
+#endif
+
 %}
 
 
@@ -134,6 +139,8 @@ Nonterminal: "nonterm" TOK_NAME "{" NonterminalBody "}"
 
 NonterminalBody: /* empty */                       { $$ = AST0(AST_NTBODY); }
                | NonterminalBody AttributeDecl     { $$ = iappend($1, $2); }
+               | NonterminalBody Action            { $$ = iappend($1, $2); }
+               | NonterminalBody Condition         { $$ = iappend($1, $2); }
                | NonterminalBody Form              { $$ = iappend($1, $2); }
                | NonterminalBody FormGroup         { $$ = iappend($1, $2); }
                ;
@@ -188,6 +195,8 @@ FormBody: /* empty */                              { $$ = AST0(AST_FORMBODY); }
 FormGroup: "formGroup" "{" FormGroupBody "}"       { $$ = $3; }
          ;
 
+/* observe a FormGroupBody has everything a NonterminalBody has, except
+ * for attribute declarations */
 FormGroupBody: /* empty */                         { $$ = AST0(AST_FORMGROUPBODY); }
              | FormGroupBody Action                { $$ = iappend($1, $2); }
              | FormGroupBody Condition             { $$ = iappend($1, $2); }
@@ -240,6 +249,8 @@ Condition: "condition" AttrExpr ";"                { $$ = AST1(AST_CONDITION, $2
 /* ------ attribute expressions, basically C expressions ------ */
 PrimaryExpr: TOK_NAME "." TOK_NAME           { $$ = AST2(EXP_ATTRREF, $1, $3); }
                /* tag . attr */
+           | TOK_NAME                        { $$ = $1; }  
+               /* attr (implicit 'this' tag) */
            | TOK_INTEGER                     { $$ = $1; }
                /* literal */
            | "(" AttrExpr ")"                { $$ = $2; }

@@ -28,3 +28,6 @@ gramlex.yy.cc
 grampar.tab.*
 grampar
 cc.tok
+towner
+cc.gr.ps
+grampar.output

@@ -28,6 +28,10 @@ ostream &trace(char const *sysName);
 void trstr(char const *sysName, char const *traceString);
 
 
+// special for "progress" tracing; prints time too
+ostream &traceProgress();
+
+
 // add one or more subsystems, separated by commas
 void traceAddMultiSys(char const *systemNames);
 
