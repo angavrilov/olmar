@@ -3577,10 +3577,13 @@ void Env::insertScopeJustBelowInstOf(Scope *toInsert, Variable *justAbove)
 // ------------------- InstantiationContextIsolator -----------------------
 InstantiationContextIsolator::InstantiationContextIsolator(Env &e, SourceLoc loc)
   : env(e),
-    origNestingLevel(e.disambiguationNestingLevel)
+    origNestingLevel(e.disambiguationNestingLevel),
+    origSecondPass(e.secondPassTcheck),
+    origErrors()
 {
   env.instantiationLocStack.push(loc);
   env.disambiguationNestingLevel = 0;
+  env.secondPassTcheck = false;
   origErrors.takeMessages(env.errors);
 }
 
@@ -3588,6 +3591,7 @@ InstantiationContextIsolator::~InstantiationContextIsolator()
 {
   env.instantiationLocStack.pop();
   env.disambiguationNestingLevel = origNestingLevel;
+  env.secondPassTcheck = origSecondPass;
 
   // where do the newly-added errors, i.e. those from instantiation,
   // which are sitting in 'env.errors', go?

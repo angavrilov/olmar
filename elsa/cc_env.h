@@ -904,6 +904,7 @@ class InstantiationContextIsolator {
 public:      // data
   Env &env;                    // tcheck env
   int origNestingLevel;        // original value of env.disambiguationNestingLevel
+  bool origSecondPass;         // original value of env.secondPassTcheck
   ErrorList origErrors;        // errors extant before instantiation
 
 private:     // disallowed
