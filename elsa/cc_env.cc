@@ -2514,10 +2514,14 @@ bool multipleDefinitionsOK(Env &env, Variable *prior, DeclFlags dflags)
 // little hack: Variables don't store pointers to the global scope,
 // they store NULL instead, so canonize the pointers by changing
 // global scope pointers to NULL before comparison
+//
+// dsw: I think that is wrong now: 1) variables seem to store pointers
+// to global scope now and 2) NULL seems to mean non-permanent scope;
+// see in/d0097.cc
 bool sameScopes(Scope *s1, Scope *s2)
 {
-  if (s1 && s1->scopeKind == SK_GLOBAL) { s1 = NULL; }
-  if (s2 && s2->scopeKind == SK_GLOBAL) { s2 = NULL; }
+  if (s1 && !s1->isPermanentScope()) { s1 = NULL; }
+  if (s2 && !s2->isPermanentScope()) { s2 = NULL; }
 
   return s1 == s2;
 }
