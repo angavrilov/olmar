@@ -28,7 +28,7 @@ dummy_type *ql;
 // FIX: remove
 #include <stdio.h>
 string toString(class dummy_type*) {
-  printf("**************** Dummy toString()\n");
+//    printf("**************** Dummy toString()\n");
   return "";
 }
   
