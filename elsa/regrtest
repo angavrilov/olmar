@@ -456,6 +456,7 @@ testparse t0240.cc
 testparse t0241.cc
 testparse t0242.cc
 testparse t0243.cc
+testparse t0244.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

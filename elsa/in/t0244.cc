@@ -1,20 +1,18 @@
-// t0244.cc   
+// t0244.cc
+// use 'this' in an inline method of a template class
+// from nsAtomTable.i, nsSharedBufferHandle<CharT>::AcquireReference
 
-
-template <class CharT>
-class nsSharedBufferHandle
-{
-    void AcquireReference() const
-    {
-      this;
-    }
+template <class T>
+class A {
+  void func()
+  {
+    this;
+  }
 };
-
-
 
 void f()
 {
-  nsSharedBufferHandle<unsigned short> *mHandle;
-  mHandle->AcquireReference();
+  A<int> *a;
+  a->func();
 }
 

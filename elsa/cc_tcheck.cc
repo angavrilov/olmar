@@ -1819,14 +1819,17 @@ bool isVariableDC(DeclaratorContext dc)
          dc==DC_S_DECL ||     // local
          dc==DC_CN_DECL;      // local in a Condition
 }
-  
-// TODO: rename, move
+
+// TODO: rename, move, etc. this block of functions
 static void D_name_tcheck(
   Env &env,
   Declarator::Tcheck &dt,
   bool inGrouping,
   SourceLoc loc,
   PQName const *name);
+void makeMemberFunctionType(Env &env, Declarator::Tcheck &dt,
+                            NamedAtomicType *inClassNAT, SourceLoc loc);
+void possiblyConsumeFunctionType(Env &env, Declarator::Tcheck &dt);
 
 void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 {
@@ -1941,6 +1944,22 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   else {
     // caller already gave me a Variable to use
     callerPassedInstV = true;
+    
+    // D_name_tcheck is normally responsible for adding the receiver
+    // param to 'dt.type', but since I skipped it, I have to do it
+    // here too
+    if (dt.var->type->isFunctionType() &&
+        dt.var->type->asFunctionType()->isMethod()) {
+      TRACE("memberFunc", "nonstatic member function: " << dt.var->name);
+
+      // add the implicit 'this' parameter
+      makeMemberFunctionType(env, dt,
+        dt.var->type->asFunctionType()->getClassOfMember(), decl->loc);
+    }
+    else {
+      TRACE("memberFunc", "static or non-member function: " << dt.var->name);
+      possiblyConsumeFunctionType(env, dt);
+    }
   }
 
   if (!dt.var) {
@@ -2369,6 +2388,11 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
 // This function is called whenever a constructed type is passed to a
 // lower-down IDeclarator which *cannot* accept member function types.
 // (sm 7/10/03: I'm now not sure exactly what that means...)
+//
+// sm 8/10/04: the issue is that someone has to call 'doneParams', but
+// that can't be done in one central location, so this does it unless
+// it has already been done, and is called in several places;
+// 'dt.funcSyntax' is used as a flag to tell when it's happened
 void possiblyConsumeFunctionType(Env &env, Declarator::Tcheck &dt)
 {
   if (dt.funcSyntax) {
@@ -2678,7 +2702,7 @@ realStart:
       makeMemberFunctionType(env, dt, scope->curCompound, loc);
     }
     else {
-      TRACE("memberFunc", "static member function: " << *name);
+      TRACE("memberFunc", "static or non-member function: " << *name);
       possiblyConsumeFunctionType(env, dt);
     }
   }
