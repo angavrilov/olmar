@@ -31,7 +31,7 @@ void inc(int *x)
   thmprv_pre 
     int *pre_mem = mem;
     int pre_y = y;
-    //object(x) != object(&y) &&
+    //object(x) != object(&y) &&      // alternate way, not necessary anymore
     x != &y &&
     offset(x) >= 0 && offset(x) < length(object(x));
   thmprv_post 

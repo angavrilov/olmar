@@ -12,6 +12,7 @@ success=0
 failure=0
 unexSuccess=0
 unexFailure=0
+vcgenOnly=false
 
 usage() {
 cat <<EOF
@@ -20,30 +21,41 @@ usage: $0 [options]
   -big         run the big, timeconsuming tests
   -contin      keep going even after a test fails (or succeeds) unexpectedly
   -help        print this message
+  -vcgen       only run the vcgen tests
 EOF
 }
 
 # process args
 while [ "$1" != "" ]; do
-  if [ "$1" = "-skip" ]; then
-    shift
-    skip="$1"
+  case "$1" in
+    -skip)
+      shift
+      skip="$1"
+      ;;
 
-  elif [ "$1" = "-big" ]; then
-    big=1
+    -big)
+      big=1
+      ;;
 
-  elif [ "$1" = "-contin" ]; then
-    contin=1
+    -contin)
+      contin=1
+      ;;
 
-  elif [ "$1" = "-help" ]; then
-    usage
-    exit 0
+    -help)
+      usage
+      exit 0
+      ;;
 
-  else
-    echo "unknown arg: $1"
-    usage
-    exit 2
-  fi
+    -vcgen)
+      vcgenOnly=true
+      ;;
+
+    *)
+      echo "unknown arg: $1"
+      usage
+      exit 2
+      ;;
+  esac
 
   shift
 done
@@ -137,21 +149,22 @@ grepBoth() {
   grep -w $2 $1 | grep -w $3
 }
 
-               
-for n in 1 2 3 4 5 6 7 8 9 10 11 12; do
-  runTest ./ccgr -tr stopAfterTCheck cc.bin c.in$n
-done
+
+if ! $vcgenOnly; then
+  for n in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    runTest ./ccgr -tr stopAfterTCheck cc.bin c.in$n
+  done
 
 
-tcheck() {
-  runTest ./test-bad tcheck/$1 -tr stopAfterTCheck cc.bin
-}
+  tcheck() {
+    runTest ./test-bad tcheck/$1 -tr stopAfterTCheck cc.bin
+  }
 
-tcheck init.c
-tcheck addrglob.c
-tcheck loops.c
-tcheck exprpath.c
-
+  tcheck init.c
+  tcheck addrglob.c
+  tcheck loops.c
+  tcheck exprpath.c
+fi
 
 vcgen() {
   runTest ./ccgr cc.bin vcgen/$1

@@ -5,7 +5,7 @@
 (BG_PUSH (AND
 
   ; how to simplify a few expression kinds
-  (FORALL (x)     ; not needed: (PATS (MPAT (uMinus x)))
+  (FORALL (x)     ; not needed: (PATS (uMinus x))
     (EQ (uMinus x) (- 0 x)))
 
   ; how to take apart a pointer
@@ -22,24 +22,24 @@
     ))
 
   ; arithmetic does not change the object
-  (FORALL (ptr ofs)           (PATS (MPAT (object (+ ptr ofs))))
+  (FORALL (ptr ofs)           (PATS (object (+ ptr ofs)))
     (EQ
       (object (+ ptr ofs))
       (object ptr)
     ))
-  (FORALL (ptr ofs)           (PATS (MPAT (object (- ptr ofs))))
+  (FORALL (ptr ofs)           (PATS (object (- ptr ofs)))
     (EQ
       (object (- ptr ofs))
       (object ptr)
     ))
 
   ; arithmetic changes the offset in the obvious way
-  (FORALL (ptr ofs)           (PATS (MPAT (offset (+ ptr ofs))))
+  (FORALL (ptr ofs)           (PATS (offset (+ ptr ofs)))
     (EQ
       (offset (+ ptr ofs))
       (+ (offset ptr) ofs)
     ))
-  (FORALL (ptr ofs)           (PATS (MPAT (offset (- ptr ofs))))
+  (FORALL (ptr ofs)           (PATS (offset (- ptr ofs)))
     (EQ
       (offset (- ptr ofs))
       (- (offset ptr) ofs)
@@ -50,6 +50,15 @@
     (EQ
       (select (update mem obj ofs value) obj ofs)
       value
+    ))
+
+  ; fact that construction and deconstruction is identity
+  ; pattern means this applies whenever both (object p) and
+  ; (offset p) are around, for the same p
+  (FORALL (p)                 (PATS (MPAT (object p) (offset p)))
+    (EQ
+      p
+      (pointer (object p) (offset p))
     ))
 
   ; pointer disequality can be shown by showing either component
