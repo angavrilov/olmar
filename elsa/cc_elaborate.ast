@@ -3,6 +3,10 @@
 // see also cc_elaborate.h
 
 
+// IMPORTANT: If you add elaboration fields here, then you must also
+// add traverse() calls visiting them in LoweredASTVisitor.
+
+
 verbatim {
   #include "fullexp.h"           // FullExpressionAnnot
 

@@ -3,7 +3,7 @@
 
 #include "cfg.h"           // this module
 #include "cc_ast.h"        // C++ AST, including cfg.ast's contributions
-#include "cc_ast_aux.h"    // class ASTTemplVisitor
+#include "cc_ast_aux.h"    // class LoweredASTVisitor
 #include "sobjset.h"       // SObjSet
 
 #include <iostream.h>      // cout
@@ -550,12 +550,21 @@ void reversePostorder(NextPtrList &order, Function *func)
 
 
 // --------------------- computeCFG -------------------
-class CFGVisitor : public ASTTemplVisitor {
+// Intended to be used with LoweredASTVisitor
+class CFGVisitor : private ASTVisitor {
+public:
+  LoweredASTVisitor loweredVisitor; // use this as the argument for traverse()
+
 private:
   CFGEnv &env;
 
 public:
-  CFGVisitor(CFGEnv &e) : env(e) {}
+  CFGVisitor(CFGEnv &e)
+    : loweredVisitor(this)
+    , env(e)
+  {}
+  virtual ~CFGVisitor() {}
+
   virtual bool visitFunction(Function *obj);
 };
 
@@ -580,7 +589,7 @@ int computeUnitCFG(TranslationUnit *unit)
 {
   CFGEnv env;
   CFGVisitor vis(env);
-  unit->traverse(vis);
+  unit->traverse(vis.loweredVisitor);
 
   // plan for supporting GNU statement-expression: use the visitor to
   // find the statement-expressions, and treat them as relatively

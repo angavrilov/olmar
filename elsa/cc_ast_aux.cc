@@ -3,140 +3,362 @@
 
 #include "strutil.h"        // plural
 #include "generic_aux.h"    // C++ AST, and genericPrintAmbiguities, etc.
-#include "cc_ast_aux.h"     // class ASTTemplVisitor
+#include "cc_ast_aux.h"     // class LoweredASTVisitor
 
 
-// ---------------------- ASTTemplVisitor ----------------------
-void ASTTemplVisitor::visitTemplateDeclaration_oneTempl(Variable *var0) {
+// ---------------------- LoweredASTVisitorHelper ----------------------
+void LoweredASTVisitorHelper::oneTempl(Variable *var0) {
   xassert(var0);
   xassert(var0->templateInfo());
 
   // run a sub-traversal of the AST instantiation
   if (var0->funcDefn) {
-    var0->funcDefn->traverse(*this);
+    var0->funcDefn->traverse(loweredVisitor);
   }
   if (var0->type->isCompoundType() && var0->type->asCompoundType()->syntax) {
-    var0->type->asCompoundType()->syntax->traverse(*this);
-  }
-
-  // this block can be removed if it ever really causes problems
-  if (var0->type->isFunctionType()) {
-    if (var0->funcDefn) {
-      // if a function template was declared before being defined,
-      // unify the types of the two resulting variables so that
-      // external calls get matched with internal references to
-      // parameters
-      //
-      // UPDATE: I now make sure that the definition re-uses the
-      // variable of the declaration so this is not necessary
-      xassert(var0 == var0->funcDefn->nameAndParams->var);
-    } else {
-      // FIX: make this a user warning?
-//        USER_WARNING
-//          (var0->loc, " Declaration of a template [specialization?] without a definition");
-    }
-  } else {
-    xassert(!var0->funcDefn);
+    var0->type->asCompoundType()->syntax->traverse(loweredVisitor);
   }
 }
 
 // sm: added this layer to handle new design with specializations
 // as a middle layer between primaries and instantiations
-void ASTTemplVisitor::visitTemplateDeclaration_oneContainer
-  (Variable *container)
+void LoweredASTVisitorHelper::oneContainer(Variable *container)
 {
   TemplateInfo *ti = container->templateInfo();
   xassert(ti);
 
   if (ti->isCompleteSpec()) {
     // visit as template and bail
-    visitTemplateDeclaration_oneTempl(container);
+    oneTempl(container);
     return;
   }
 
   // visit the container itself, if desired
   if (primariesAndPartials) {
-    visitTemplateDeclaration_oneTempl(container);
+    // dsw: FIX: Given the avoidance of visiting TemplateDeclaration-s
+    // below in the main visitor, I'm not entirely sure that this
+    // makes sense.  Then again, if you set this flag you get what you
+    // deserve.
+    oneTempl(container);
   }
 
   // visit each instantiation
   SFOREACH_OBJLIST_NC(Variable, ti->instantiations, iter) {
-    visitTemplateDeclaration_oneTempl(iter.data());
+    oneTempl(iter.data());
   }
 }
 
-bool ASTTemplVisitor::visitTemplateDeclaration(TemplateDeclaration *obj)
+
+void LoweredASTVisitorHelper::oneVariable(Variable *tinfoVar)
+{
+  // FIX: turn this back on and run in/t0194.error1.cc to see it fail
+//    xassert(tinfoVar);
+  if (!tinfoVar) {
+    return;
+  }
+
+  TemplateInfo *tinfo = tinfoVar->templateInfo();
+
+  // skip any non-primary TemplateInfo-s
+  if (!tinfo || !tinfo->isPrimary()) {
+    return;
+  }
+
+  // visit a primary only once
+  if (primaryTemplateInfos.contains(tinfo)) {
+    return;
+  }
+  primaryTemplateInfos.add(tinfo);
+
+  // look in the primary (as a container)
+  oneContainer(tinfoVar);
+    
+  // look in the specializations (as containers)
+  SFOREACH_OBJLIST_NC(Variable, tinfo->specializations, iter) {
+    oneContainer(iter.data());
+  }
+}
+
+
+void LoweredASTVisitorHelper::visitDeclarator0(Declarator *decltor)
 {
   // visit all the template instantiations
-  Variable *tinfoVar = NULL;
-  // FIX: should I do anything here for TD_tmember?
-  if (obj->isTD_func()) {
-    Declarator *decltor = obj->asTD_func()->f->nameAndParams;
-    if (hasBeenTchecked) xassert(decltor->var);
-    tinfoVar = decltor->var;
-    // this fails for function members of template classes
-    //   xassert(tinfoVar);
-  } else if (obj->isTD_decl()) {
-    FakeList<Declarator> *decllist = obj->asTD_decl()->d->decllist;
-    if (decllist->count() == 0) {
-      // old TD_class behavior
-      if (obj->asTD_decl()->d->spec->isTS_classSpec()) {
-        TS_classSpec *ts = obj->asTD_decl()->d->spec->asTS_classSpec();
-        // ts->ctype can be NULL if there was an error: in/0027.cc:ERROR(1)
-        if (ts->ctype) {
-          tinfoVar = ts->ctype->asCompoundType()->getTypedefVar();
-          // I think this will fail for class members of template
-          // classes, but I'll leave it until it does.
-          xassert(tinfoVar);
-        }
-      }   
-    }
-    else {
-      // old TD_proto behavior
-      xassert(decllist->count() == 1);
-      Declarator *decltor = decllist->first();
-      if (hasBeenTchecked) xassert(decltor->var);
-      tinfoVar = decltor->var;
-      // this fails for var members of template classes
-      //      xassert(tinfoVar);
-    }
-  }
-
-  if (tinfoVar) {
-    TemplateInfo *tinfo = tinfoVar->templateInfo();
-    // unless we are at the primary, do nothing
-    if (!tinfo || !tinfo->isPrimary()) return false;
-
-    // don't visit the instantiations of the same primary twice
-    if (primaryTemplateInfos.contains(tinfo)) {
-      return false;             // prune; note: all returns from this method return false
-    }
-    primaryTemplateInfos.add(tinfo);
-
-    // look in the primary (as a container)
-    visitTemplateDeclaration_oneContainer(tinfoVar);
-    
-    // look in the specializations (as containers)
-    SFOREACH_OBJLIST_NC(Variable, tinfo->specializations, iter) {
-      visitTemplateDeclaration_oneContainer(iter.data());
-    }
-  }
-
-  return false;                 // prune the walk here; don't decend into template definitions
+  oneVariable(decltor->var);
 }
 
 
-bool ASTTemplVisitor::visitMember(Member *m)
+bool LoweredASTVisitorHelper::visitDeclarator(Declarator *decltor)
 {
-  if (m->isMR_func()) {
-    Function *f = m->asMR_func()->f;
-    if (f->uninstTemplatePlaceholder()) {
-      // this is an uninstantiated member function; do not traverse it
-      return false;
+  // this kind of check is now done in DelegatorASTVisitor
+//    xassert(!loweredVisitor.visitedAST(decltor));
+
+  // this is silly, but OO-correct
+  if (!ASTVisitor::visitDeclarator(decltor)) return false;
+
+  visitDeclarator0(decltor);
+
+  return true;
+}
+
+
+void LoweredASTVisitorHelper::visitTypeSpecifier0(TypeSpecifier *spec)
+{
+  TS_classSpec *ts = spec->asTS_classSpec();
+  if (ts->ctype) {
+    // visit all the template instantiations
+    oneVariable(ts->ctype->asCompoundType()->getTypedefVar());
+  }
+}
+
+
+bool LoweredASTVisitorHelper::visitTypeSpecifier(TypeSpecifier *spec)
+{
+  if (spec->isTS_classSpec()) {
+    return subvisitTS_classSpec(spec->asTS_classSpec());
+  }
+  return ASTVisitor::visitTypeSpecifier(spec);
+}
+
+
+bool LoweredASTVisitorHelper::subvisitTS_classSpec(TS_classSpec *spec)
+{
+  // ensure idempotency of templatized AST
+  if (loweredVisitor.visitedAST(spec)) {
+    return false;
+  }
+
+  // this is silly, but OO-correct
+  if (!ASTVisitor::visitTypeSpecifier(spec)) return false;
+
+  visitTypeSpecifier0(spec);
+
+  return true;
+}
+
+
+bool LoweredASTVisitorHelper::visitFunction(Function *func)
+{
+  // ensure idempotency of templatized AST
+  if (loweredVisitor.visitedAST(func)) {
+    return false;
+  }
+  return ASTVisitor::visitFunction(func);
+}
+
+// ---------------------- LoweredASTVisitor ----------------------
+
+// NOTE: I am trying to use visitDeclarator as a way to visit all
+// variables, but it doesn't quite get them all; see
+// visitTypeSpecifier below
+bool LoweredASTVisitor::visitDeclarator(Declarator *decltor)
+{
+  // this kind of check is now done in DelegatorASTVisitor
+//    xassert(!visitedAST(decltor));
+  if (!DelegatorASTVisitor::visitDeclarator(decltor)) return false;
+
+  if (visitElaboratedAST) {
+    if (decltor->ctorStatement) {
+      decltor->ctorStatement->traverse(*this);
+    }
+    if (decltor->dtorStatement) {
+      decltor->dtorStatement->traverse(*this);
     }
   }
-  
+
+  helper.visitDeclarator0(decltor);
+
   return true;
+}
+
+
+// looks like we have to look here as well for typedef variables of
+// class templates
+bool LoweredASTVisitor::visitTypeSpecifier(TypeSpecifier *spec)
+{
+  if (spec->isTS_classSpec()) {
+    return subvisitTS_classSpec(spec->asTS_classSpec());
+  }
+
+  return DelegatorASTVisitor::visitTypeSpecifier(spec);
+}
+
+
+bool LoweredASTVisitor::subvisitTS_classSpec(TS_classSpec *spec)
+{
+  // ensure idempotency of templatized AST
+  if (visitedAST(spec)) {
+    return false;
+  }
+  if (!DelegatorASTVisitor::visitTypeSpecifier(spec)) return false;
+  helper.visitTypeSpecifier0(spec);
+  return true;
+}
+
+
+bool LoweredASTVisitor::visitTemplateDeclaration(TemplateDeclaration *templDecl)
+{
+  templDecl->traverse(helper);
+  // PRUNE the walk since we start another one with the helper
+  //
+  // dsw: FIX: I don't know what the semantics should be if the client
+  // has a visitTemplateDeclaration().  It seems to be a contradiction
+  // if they do, as they want the lowered AST and that would not
+  // contain uninstantiated templates.  I could call it anyway, but
+  // what if it returns true?  What if they for some bizare reason
+  // want to not prune at a TemplateDeclaration and are telling me
+  // that by returning true?  Well, this is what we get if they simply
+  // don't have any visitTemplateDeclaration() at all and we get the
+  // default from the superclass.  There is no way to tell those two
+  // situations apart and I want to prune it by default.
+  return false;
+}
+
+
+bool LoweredASTVisitor::visitFunction(Function *func)
+{
+  // ensure idempotency of templatized AST
+  if (visitedAST(func)) {
+    return false;
+  }
+
+  // SPECIAL CASE: due to the way that member functions of template
+  // classes are handled, sometimes Functions exist that have not been
+  // tchecked; avoid them
+  if (!func->hasBodyBeenTChecked) {
+    return false;
+  }
+
+  if (!DelegatorASTVisitor::visitFunction(func)) return false;
+
+  if (visitElaboratedAST) {
+    if (func->dtorStatement) {
+      func->dtorStatement->traverse(*this);
+    }
+  }
+
+  return true;
+}
+
+
+bool LoweredASTVisitor::visitMemberInit(MemberInit *mInit)
+{
+  if (!DelegatorASTVisitor::visitMemberInit(mInit)) return false;
+
+  if (visitElaboratedAST) {
+    FOREACH_ASTLIST(Declaration, mInit->annot.declarations, iter) {
+      const_cast<Declaration*>(iter.data())->traverse(*this);
+    }
+    if (mInit->ctorStatement) {
+      mInit->ctorStatement->traverse(*this);
+    }
+  }
+
+  return true;
+}
+
+
+bool LoweredASTVisitor::visitStatement(Statement *stmt)
+{
+  if (!DelegatorASTVisitor::visitStatement(stmt)) return false;
+
+  if (visitElaboratedAST) {
+    if (stmt->isS_return()) {
+      if (stmt->asS_return()->ctorStatement) {
+        stmt->asS_return()->ctorStatement->traverse(*this);
+      }
+    }
+  }
+
+  return true;
+}
+
+
+bool LoweredASTVisitor::visitExpression(Expression *expr)
+{
+  if (!DelegatorASTVisitor::visitExpression(expr)) return false;
+
+  if (visitElaboratedAST) {
+    if (expr->isE_new()) {
+      if (expr->asE_new()->ctorStatement) {
+        expr->asE_new()->ctorStatement->traverse(*this);
+      }
+    } else if (expr->isE_delete()) {
+      if (expr->asE_delete()->dtorStatement) {
+        expr->asE_delete()->dtorStatement->traverse(*this);
+      }
+    } else if (expr->isE_throw()) {
+      if (expr->asE_throw()->globalCtorStatement) {
+        expr->asE_throw()->globalCtorStatement->traverse(*this);
+      }
+    } else if (expr->isE_funCall()) {
+      if (expr->asE_funCall()->retObj) {
+        expr->asE_funCall()->retObj->traverse(*this);
+      }
+    } else if (expr->isE_constructor()) {
+      if (expr->asE_constructor()->retObj) {
+        expr->asE_constructor()->retObj->traverse(*this);
+      }
+    }
+  }
+
+  return true;
+}
+
+
+bool LoweredASTVisitor::visitHandler(Handler *handler)
+{
+  if (!DelegatorASTVisitor::visitHandler(handler)) return false;
+
+  if (visitElaboratedAST) {
+    FOREACH_ASTLIST(Declaration, handler->annot.declarations, iter) {
+      const_cast<Declaration*>(iter.data())->traverse(*this);
+    }
+    if (handler->localArg) {
+      handler->localArg->traverse(*this);
+    }
+    if (handler->globalDtorStatement) {
+      handler->globalDtorStatement->traverse(*this);
+    }
+  }
+
+  return true;
+}
+
+
+bool LoweredASTVisitor::visitFullExpression(FullExpression *fexpr)
+{
+  if (!DelegatorASTVisitor::visitFullExpression(fexpr)) return false;
+
+  FOREACH_ASTLIST(Declaration, fexpr->annot.declarations, iter) {
+    const_cast<Declaration*>(iter.data())->traverse(*this);
+  }
+
+  return true;
+}
+
+
+bool LoweredASTVisitor::visitInitializer(Initializer *initializer)
+{
+  if (!DelegatorASTVisitor::visitInitializer(initializer)) return false;
+
+  FOREACH_ASTLIST(Declaration, initializer->annot.declarations, iter) {
+    const_cast<Declaration*>(iter.data())->traverse(*this);
+  }
+
+  return true;
+}
+
+
+// not a visitor method; returns true iff the node has been visited
+// before
+bool LoweredASTVisitor::visitedAST(void *ast)
+{
+  if (visitedTemplatizedASTNodes.contains(ast)) {
+    return true;
+  } else {
+    visitedTemplatizedASTNodes.add(ast);
+    return false;
+  }
 }
 
 

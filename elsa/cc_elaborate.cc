@@ -71,7 +71,8 @@ FullExpressionAnnot::StackBracket::~StackBracket()
 // --------------------- ElabVisitor misc. ----------------------
 ElabVisitor::ElabVisitor(StringTable &s, TypeFactory &tf,
                          TranslationUnit *tu)
-  : str(s),
+  : loweredVisitor(this, VF_NONE),
+    str(s),
     tfac(tf),
     tunit(tu),
     env(*this),
@@ -331,7 +332,7 @@ E_constructor *ElabVisitor::makeCtorExpr(
   ector0->retObj = target;
 
   // want to return a node that is both tcheck'd *and* elaborated
-  ector0->traverse(*this);
+  ector0->traverse(this->loweredVisitor);
 
   return ector0;
 }
@@ -388,7 +389,7 @@ FakeList<ArgExpression> *ElabVisitor::cloneExprList(FakeList<ArgExpression> *arg
       ArgExpression *argExpr0 = iter->clone();
       // clone the types of any expressions
       CloneExprTypesVisitor ctv(tfac);
-      argExpr0->traverse(ctv);
+      argExpr0->traverse(ctv.loweredVisitor);
       // use the clone
       ret = ret->prepend(argExpr0);
     }
@@ -408,7 +409,7 @@ Expression *ElabVisitor::cloneExpr(Expression *e)
     Expression *expr0 = e->clone();
     // clone the types of any expressions
     CloneExprTypesVisitor ctv(tfac);
-    expr0->traverse(ctv);
+    expr0->traverse(ctv.loweredVisitor);
     // use the clone
     return expr0;
   }
@@ -428,7 +429,7 @@ void ElabVisitor::elaborateCDtorsDeclaration(Declaration *decl)
   // the caller isn't going to automatically traverse into the
   // type specifier, so we must do it manually
   // (e.g. cc_qual's test/memberInit_cdtor1.cc.filter-good.cc fails otherwise)
-  decl->spec->traverse(*this);
+  decl->spec->traverse(this->loweredVisitor);
 }
 
 
@@ -456,7 +457,7 @@ void Declarator::elaborateCDtors(ElabVisitor &env, DeclFlags dflags)
     // (since that would violate the SES in the case that the type
     // *is* compound)
     if (init) {
-      init->traverse(env);
+      init->traverse(env.loweredVisitor);
     }
 
     return;
@@ -701,7 +702,7 @@ Expression *ElabVisitor::elaborateCallSite(
     if (ft->retType->isCompoundType() &&
         (!ft->isConstructor() || !artificalCtor)   // sm: the isConstructor() test is redundant
         ) {
-      Variable *var0 = insertTempDeclaration(loc, ft->retType);
+      Variable *var0 = insertTempDeclaration(loc, env.tfac.cloneType(ft->retType));
       retObj = makeE_variable(loc, var0);
     }
   }
@@ -1584,7 +1585,7 @@ bool E_delete::elaborate(ElabVisitor &env)
     expr = env.cloneExpr(expr);
 
     E_deref *deref = new E_deref(origExpr);
-    deref->type = env.tfac.makeReferenceType(loc, to->atType);
+    deref->type = env.tfac.makeReferenceType(loc, env.tfac.cloneType(to->atType));
 
     dtorStatement = env.makeDtorStatement
       (loc,
@@ -1747,7 +1748,7 @@ bool ElabVisitor::visitMemberInit(MemberInit *mi)
     }
 
     // elaborate the ctorStatement only (not the 'args')
-    //mi->ctorStatement->traverse(*this);    // 'makeCtorStatement' does this internally
+    //mi->ctorStatement->traverse(this->loweredVisitor); // 'makeCtorStatement' does this internally
 
     pop(mi->annot);     // b/c when I return false, postvisit isn't called
     return false;       // don't automatically traverse children, esp. 'args' (SES)

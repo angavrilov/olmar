@@ -10,7 +10,8 @@
 
 // walk the AST, printing info about syntactic and
 // static semantic structure
-// (sm: This should not inherit from ASTTemplVisitor.)
+// (sm: This should not inherit from LoweredASTVisitor.)
+// NOT Intended to be used with LoweredASTVisitor
 class StructurePrinter : public ASTVisitor {
 private:     // data
   // current syntactic nesting level; 0 means toplevel

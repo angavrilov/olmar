@@ -96,8 +96,9 @@ void ParseEnv::error(SourceLoc loc, char const *msg)
 
 // ---------------------- AmbiguityChecker -----------------
 // check for ambiguities
-// (I don't want this inheriting from ASTTemplVisitor; I just
-// want to count ambiguities in the base AST.)
+// (I don't want this inheriting from LoweredASTVisitor; I just want
+// to count ambiguities in the base AST.)
+// NOT Intended to be used with LoweredASTVisitor
 class AmbiguityChecker : public ASTVisitor {
 public:
   int ambiguousNodes;    // count of nodes with non-NULL ambiguity links

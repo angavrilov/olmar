@@ -15,7 +15,7 @@
 
 #include "cc_ast.h"       // AST components, etc.
 #include "macros.h"       // ENUM_BITWISE_OPS
-#include "cc_ast_aux.h"   // class ASTTemplVisitor
+#include "cc_ast_aux.h"   // class LoweredASTVisitor
 
 // moved FullExpressionAnnot into fullexp.h to reduce dependencies
 // in the #include graph
@@ -103,8 +103,11 @@ ENUM_BITWISE_OPS(ElabActivities, EA_ALL)
 
 // this visitor is responsible for conducting all the
 // elaboration activities
-class ElabVisitor : public ASTTemplVisitor {
+// Intended to be used with LoweredASTVisitor
+class ElabVisitor : private ASTVisitor {
 public:      // data
+  LoweredASTVisitor loweredVisitor; // use this as the argument for traverse()
+
   // similar fields to Env
   StringTable &str;
   TypeFactory &tfac;
@@ -295,12 +298,17 @@ public:
 // that contains Expressions that need to have their types
 // subsequently cloned.  By doing this, we avoid mentioning the type
 // factory in the Expression custom clone method.
-class CloneExprTypesVisitor : public ASTTemplVisitor {
+// Intended to be used with LoweredASTVisitor
+class CloneExprTypesVisitor : private ASTVisitor {
   public:
+  LoweredASTVisitor loweredVisitor; // use this as the argument for traverse()
+
   TypeFactory &tfac;
   explicit CloneExprTypesVisitor(TypeFactory &tfac0)
-    : tfac(tfac0)
+    : loweredVisitor(this)
+    , tfac(tfac0)
   {}
+  virtual ~CloneExprTypesVisitor() {}
   private:                      // prohibit
   explicit CloneExprTypesVisitor(CloneExprTypesVisitor &other);
 

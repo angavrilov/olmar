@@ -10,7 +10,7 @@
 #include "ckheap.h"       // malloc_stats
 #include "cc_env.h"       // Env
 #include "cc_ast.h"       // C++ AST (r)
-#include "cc_ast_aux.h"   // class ASTTemplVisitor
+#include "cc_ast_aux.h"   // class LoweredASTVisitor
 #include "cc_lang.h"      // CCLang
 #include "parsetables.h"  // ParseTables
 #include "cc_print.h"     // PrintEnv
@@ -31,12 +31,20 @@
 // .. finally, it's true of parameters whose types get
 //    normalized as per cppstd 8.3.5 para 3; I didn't include
 //    that case below because there's no easy way to test for it ..
-class DeclTypeChecker : public ASTTemplVisitor {
+// Intended to be used with LoweredASTVisitor
+class DeclTypeChecker : private ASTVisitor {
 public:
+  LoweredASTVisitor loweredVisitor; // use this as the argument for traverse()
+
   int instances;
 
 public:
-  DeclTypeChecker() : instances(0) {}
+  DeclTypeChecker()
+    : loweredVisitor(this)
+    , instances(0)
+  {}
+  virtual ~DeclTypeChecker() {}
+
   virtual bool visitDeclarator(Declarator *obj);
 };
 
@@ -56,13 +64,18 @@ bool DeclTypeChecker::visitDeclarator(Declarator *obj)
 // this scans the AST for E_variables, and writes down the locations
 // to which they resolved; it's helpful for writing tests of name and
 // overload resolution
-class NameChecker : public ASTTemplVisitor {
+// Intended to be used with LoweredASTVisitor
+class NameChecker : private ASTVisitor {
 public:            
+  LoweredASTVisitor loweredVisitor; // use this as the argument for traverse()
+
   // accumulates the results
   stringBuilder sb;
   
 public:
-  NameChecker() {}
+  NameChecker()
+    : loweredVisitor(this)
+  {}
   virtual ~NameChecker() {}    // gcc idiocy
 
   virtual bool visitExpression(Expression *obj)
@@ -297,6 +310,10 @@ void doit(int argc, char **argv)
     try {
       unit->tcheck(env);
       xassert(env.scope()->isGlobalScope());
+      // check that the AST is a tree *and* that the lowered AST is a
+      // tree
+      LoweredIsTreeVisitor treeCheckVisitor;
+      unit->traverse(treeCheckVisitor.loweredVisitor);
     }
     catch (XUnimp &x) {
       // relay to handler in main()
@@ -388,7 +405,7 @@ void doit(int argc, char **argv)
     // check an expected property of the annotated AST
     if (tracingSys("declTypeCheck") || getenv("declTypeCheck")) {
       DeclTypeChecker vis;
-      unit->traverse(vis);
+      unit->traverse(vis.loweredVisitor);
       cout << "instances of type != var->type: " << vis.instances << endl;
     }
 
@@ -397,7 +414,7 @@ void doit(int argc, char **argv)
       // scan AST
       NameChecker nc;
       nc.sb << "collectLookupResults";
-      unit->traverse(nc);
+      unit->traverse(nc.loweredVisitor);
 
       // compare to given text
       if (0==strcmp(env.collectLookupResults, nc.sb)) {
@@ -430,14 +447,20 @@ void doit(int argc, char **argv)
   if (lang.isCplusplus) {
     long start = getMilliseconds();
 
+    // do elaboration
     ElabVisitor vis(strTable, tfac, unit);
     
+    // check that the AST is a tree *and* that the lowered AST is a
+    // tree
+    LoweredIsTreeVisitor treeCheckVisitor;
+    unit->traverse(treeCheckVisitor.loweredVisitor);
+
     // if we are going to pretty print, then we need to retain defunct children
     if (tracingSys("prettyPrint")) {
       vis.cloneDefunctChildren = true;
     }
 
-    unit->traverse(vis);
+    unit->traverse(vis.loweredVisitor);
 
     traceProgress() << "done elaborating ("
                     << (getMilliseconds() - start)

@@ -11,7 +11,7 @@
 #include "overload.h"      // selectBestCandidate_templCompoundType
 #include "matchtype.h"     // MatchType, STemplateArgumentCMap
 #include "typelistiter.h"  // TypeListIter
-#include "cc_ast_aux.h"    // ASTTemplVisitor
+#include "cc_ast_aux.h"    // LoweredASTVisitor
 
 
 // I'm doing this fairly frequently, and it is pretty safe (really should
@@ -3088,10 +3088,21 @@ CompoundType *Env::findEnclosingTemplateCalled(StringRef name)
 // --------------------- from cc_tcheck.cc ----------------------
 // go over all of the function bodies and make sure they have been
 // typechecked
-class EnsureFuncBodiesTcheckedVisitor : public ASTTemplVisitor {
-  Env &env;
+// Intended to be used with LoweredASTVisitor
+class EnsureFuncBodiesTcheckedVisitor : private ASTVisitor {
 public:
-  EnsureFuncBodiesTcheckedVisitor(Env &env0) : env(env0) {}
+  LoweredASTVisitor loweredVisitor; // use this as the argument for traverse()
+
+private:
+  Env &env;
+
+public:
+  EnsureFuncBodiesTcheckedVisitor(Env &env0)
+    : loweredVisitor(this)
+    , env(env0)
+  {}
+  virtual ~EnsureFuncBodiesTcheckedVisitor() {}
+
   bool visitFunction(Function *f);
   bool visitDeclarator(Declarator *d);
 };
@@ -3152,7 +3163,9 @@ void instantiateRemainingMethods(Env &env, TranslationUnit *tunit)
   #if 0    // no!
   if (env.numErrors() == 0) {
     EnsureFuncBodiesTcheckedVisitor visitor(env);
-    tunit->traverse(visitor);
+    // use LoweredASTVisitor here? It skips function bodies that
+    // haven't been tchecked, so I think it defeats the purpose
+    tunit->traverse(visitor.loweredVisitor);
   }
   #endif // 0
 }
