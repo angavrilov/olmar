@@ -27,7 +27,7 @@ void ASTTypeof::mid_tcheck(Env &env, DeclFlags &dflags)
 Type *TS_typeof_expr::itcheck(Env &env, DeclFlags dflags)
 {
   // FIX: dflags discarded?
-  expr->tcheck(expr, env);
+  expr->tcheck(env, expr);
   // FIX: check the asRval(); A use in kernel suggests it should be
   // there as otherwise you get "error: cannot create a pointer to a
   // reference" when used to specify the type in a declarator that
@@ -53,7 +53,7 @@ Type *TS_typeof::itcheck(Env &env, DeclFlags dflags)
 }
 
 
-Type *E_compoundLit::itcheck(Env &env)
+Type *E_compoundLit::itcheck(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   stype = stype->tcheck(env, tc);
@@ -64,9 +64,9 @@ Type *E_compoundLit::itcheck(Env &env)
 }
 
 
-Type *E___builtin_constant_p::itcheck(Env &env)
+Type *E___builtin_constant_p::itcheck(Env &env, Expression *&replacement)
 {
-  expr->tcheck(expr, env);
+  expr->tcheck(env, expr);
 
 //    // TODO: this will fail an assertion if someone asks for the
 //    // size of a variable of template-type-parameter type..
@@ -82,7 +82,7 @@ Type *E___builtin_constant_p::itcheck(Env &env)
 }
 
 
-Type *E_alignofType::itcheck(Env &env)
+Type *E_alignofType::itcheck(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   atype = atype->tcheck(env, tc);
@@ -93,7 +93,7 @@ Type *E_alignofType::itcheck(Env &env)
 }
 
 
-Type *E_statement::itcheck(Env &env)
+Type *E_statement::itcheck(Env &env, Expression *&replacement)
 {
   s = s->tcheck(env)->asS_compound();
   if (s->stmts.count() < 1) {
@@ -111,7 +111,7 @@ Type *E_statement::itcheck(Env &env)
 
 
 static void compile_time_compute_int_expr(Env &env, Expression *e, int &x, char *error_msg) {
-  e->tcheck(e, env);
+  e->tcheck(env, e);
   if (!e->constEval(env, x)) env.error(error_msg);
 }
 
