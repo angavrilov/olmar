@@ -10,6 +10,11 @@
 #include <unistd.h>     // select
 #include <stdio.h>      // perror
 
+// 12/13/04: according to rfistman at hotmail, this is required to get
+// FD_ZERO to work on OS X; or should I just #include sys/select.h?
+// how portable is that?
+#include <string.h>     // bzero via FD_ZERO on OS X
+
 
 int writeAll(int fd, void const *buf, int len)
 {
