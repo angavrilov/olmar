@@ -15,6 +15,10 @@ int writeAll(int fd, void const *buf, int len);
 // those bytes, and strip any trailing newline; return 0 on failure
 int readString(int fd, char *str, int len);
 
+// test if there are bytes available to be read from a file descriptor,
+// returning nonzero if so
+int canRead(int fd);
+
 
 #ifdef __cplusplus
 }

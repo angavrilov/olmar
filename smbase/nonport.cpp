@@ -541,6 +541,38 @@ int getProcessId()
 }
 
 
+// do we have access to C99 vsnprintf?
+#if defined(__GLIBC__) && defined(__GLIBC_MINOR__)
+  #if __GLIBC__ >= 3 || (__GLIBC__ >= 2 && __GLIBC_MINOR__ >= 1)
+    // glibc-2.1 or later: yes
+    #define HAS_C99_VSNPRINTF
+  #endif
+#endif
+
+
+int vnprintf(char const *format, va_list args)
+{
+  #ifdef HAS_C99_VSNPRINTF
+    // can use this directly; it returns the count minus the final NUL
+    return vsnprintf(NULL, 0, format, args)+1;
+
+  #else
+    // conservatively interpret the format string
+    #error TODO
+  #endif
+}
+
+
+int nprintf(char const *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  int ret = vnprintf(format, args);
+  va_end(args);
+  return ret;
+}
+
+
 // ----------------- test code --------------------
 #ifdef TEST_NONPORT
 

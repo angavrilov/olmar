@@ -18,7 +18,7 @@ typedef int (*Gprintf_output_function)(void *extra, int ch);
  * 'output' for each rendered character.  Returns the # of characters
  * output (not including final NUL), or <0 for failure (same code
  * that 'output' returns if it fails). */
-int general_printf(Gprintf_output_function output,
-                   void *extra, const char *format, va_list args);
+int general_vprintf(Gprintf_output_function output,
+                    void *extra, const char *format, va_list args);
 
 #endif /* GPRINTF_H */

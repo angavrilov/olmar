@@ -7,6 +7,7 @@
 #define __NONPORT_H
 
 #include "typ.h"     // bool
+#include <stdarg.h>  // va_list
 
 
 // I'm attempting to improve error handling in this module; this fn will be
@@ -125,6 +126,15 @@ bool hasSystemCryptoRandom();
 // become available
 unsigned getSystemCryptoRandom();
 
+
+// determine how many characters, including the final NUL, would
+// be written by vsprintf; this is allowed to overestimate
+int vnprintf(char const *format, va_list args);
+
+// this is implemented in terms of vnprintf, so not technically
+// a function with "nonportable implementation", but it belongs
+// here anyway
+int nprintf(char const *format, ...);
 
 
 #endif // __NONPORT_H

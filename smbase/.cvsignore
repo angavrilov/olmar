@@ -41,3 +41,4 @@ hashline
 srcloc.tmp
 gendoc
 testcout
+gprintf

@@ -1,6 +1,8 @@
 /* gprintf.c */
 /* originally from: http://www.efgh.com/software/gprintf.htm */
-/* modified by Scott McPeak, April 2003 */
+
+/* modified by Scott McPeak, April 2003, to use va_list instead
+ * of 'const int*' for the pointer-to-argument type (for portability) */
 
 /* Code for general_printf() */
 /* Change extension to .c before compiling */
@@ -58,8 +60,10 @@ static void output_field(struct parameters *p, char *s)
 }
 
 
-int general_printf(int (*output_function)(void *, int), void *output_pointer,
-  const char *control_string, const int *argument_pointer)
+int general_vprintf(Gprintf_output_function output_function, 
+                    void *output_pointer,
+                    const char *control_string, 
+                    va_list argument_pointer)
 {
   struct parameters p;
   char control_char;
@@ -90,7 +94,7 @@ int general_printf(int (*output_function)(void *, int), void *output_pointer,
       }
       if (control_char == '*')
       {
-        p.minimum_field_width = *argument_pointer++;
+        p.minimum_field_width = va_arg(argument_pointer, int);
         control_char = *control_string++;
       }
       else
@@ -107,7 +111,7 @@ int general_printf(int (*output_function)(void *, int), void *output_pointer,
         control_char = *control_string++;
         if (control_char == '*')
         {
-          precision = *argument_pointer++;
+          precision = va_arg(argument_pointer, int);
           control_char = *control_string++;
         }
         else
@@ -162,7 +166,7 @@ int general_printf(int (*output_function)(void *, int), void *output_pointer,
       {
         if (base == -1)  /* conversion type c */
         {
-          char c = *argument_pointer++;
+          char c = va_arg(argument_pointer, char);
           p.edited_string_length = 1;
           output_field(&p, &c);
         }
@@ -170,8 +174,7 @@ int general_printf(int (*output_function)(void *, int), void *output_pointer,
         {
           char *string;
           p.edited_string_length = 0;
-          string = * (char **) argument_pointer;
-          argument_pointer += sizeof(char *) / sizeof(int);
+          string = va_arg(argument_pointer, char*);
           while (string[p.edited_string_length] != 0)
             p.edited_string_length++;
           if (precision >= 0 && p.edited_string_length > precision)
@@ -185,13 +188,12 @@ int general_printf(int (*output_function)(void *, int), void *output_pointer,
           p.edited_string_length = 0;
           if (long_argument) 
           {
-            x = * (unsigned long *) argument_pointer;
-            argument_pointer += sizeof(unsigned long) / sizeof(int);
+            x = va_arg(argument_pointer, unsigned long);
           }
           else if (control_char == 'd')
-            x = (long) *argument_pointer++;
+            x = va_arg(argument_pointer, long);
           else
-            x = (unsigned) *argument_pointer++;
+            x = va_arg(argument_pointer, unsigned);
           if (control_char == 'd' && (long) x < 0)
           {
             p.options |= MINUS_SIGN;
@@ -227,3 +229,105 @@ int general_printf(int (*output_function)(void *, int), void *output_pointer,
   return p.number_of_output_chars;
 }
 
+
+/* ------------------ test code --------------------- */
+#ifdef TEST_GPRINTF
+
+#include <stdio.h>     /* fputc, printf, vsprintf */
+#include <string.h>    /* strcmp, strlen */
+#include <stdlib.h>    /* exit */
+
+
+int string_output(void *extra, int ch)
+{                          
+  /* the 'extra' argument is a pointer to a pointer to the
+   * next character to write */
+  char **s = (char**)extra;
+
+  **s = ch;     /* write */
+  (*s)++;       /* advance */
+
+  return 0;
+}
+
+int general_vsprintf(char *dest, char const *format, va_list args)
+{
+  char *s = dest;
+  int ret;
+
+  ret = general_vprintf(string_output, &s, format, args);
+  *s = 0;
+
+  return ret;
+}
+
+
+char output1[1024];    // for libc
+char output2[1024];    // for this module
+
+
+void expect_vector_len(int expect_len, char const *expect_output,
+                       char const *format, va_list args)
+{
+  int len;
+  static int vectors = 0;
+
+  /* keep track of how many vectors we've tried, to make it
+   * a little easier to correlate failures with the inputs
+   * in this file */
+  vectors++;
+
+  /* run the generalized vsprintf */
+  len = general_vsprintf(output2, format, args);
+
+  /* compare */
+  if (len!=expect_len ||
+      0!=strcmp(expect_output, output2)) {
+    printf("outputs differ for vector %d!\n", vectors);
+    printf("  format: %s\n", format);
+    printf("  expect: %s (%d)\n", expect_output, expect_len);
+    printf("      me: %s (%d)\n", output2, len);
+    exit(2);
+  }
+}
+
+
+void expect_vector(char const *expect_output,
+                   char const *format, va_list args)
+{
+  expect_vector_len(strlen(expect_output), expect_output, format, args);
+}
+
+
+void vector(char const *format, ...)
+{
+  va_list args;
+  int len;
+
+  /* run the real vsprintf */
+  va_start(args, format);
+  len = vsprintf(output1, format, args);
+  va_end(args);
+
+  /* test against the generalized vsprintf */
+  va_start(args, format);
+  expect_vector_len(len, output1, format, args);
+  va_end(args);
+}
+
+
+int main()
+{
+  printf("testing gprintf...\n");
+
+  vector("simple");
+  vector("a %s more", "little");
+  vector("some %4d more %s complicated %c stuff",
+         33, "yikes", 'f');
+  //vector("number %f floats", 3.4);
+
+  printf("gprintf works\n");
+  return 0;
+}
+
+#endif /* TEST_GPRINTF */
