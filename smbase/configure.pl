@@ -101,10 +101,13 @@ if (system("./testcout")) {
   print(<<"EOF");
 
 I was able to compile testcout.cc, but it did not run.  I tried:
-  ./testcout
+  $cmd
 
-A frequent cause for this error is a misconfiguration of the
-language runtime libraries.
+and then
+  ./testcout      (this one failed)
+
+A frequent cause for this error is a misconfiguration of the language
+runtime libraries.
 
 For example, by default g++ installs libstdc++ into /usr/local/lib,
 but on many systems this directory is not searched by the loader.
@@ -118,7 +121,7 @@ EOF
   exit(2);
 }
 
-print("C++ compiler seems to work\n");
+print("C++ compiler seems to work\n\n");
 
 
 # ------------------ config.summary -----------------
