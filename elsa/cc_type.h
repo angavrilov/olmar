@@ -512,6 +512,7 @@ public:
 class ArrayType : public Type {
 public:
   Type const *eltType;         // (serf) type of the elements
+  Qualifiers *q;
   bool hasSize;                // true if a size is specified
   int size;                    // specified size, if 'hasSize'
 
@@ -520,9 +521,9 @@ private:
 
 public:
   ArrayType(Type const *e, int s)
-    : eltType(e), hasSize(true), size(s) { checkWellFormedness(); }
+    : eltType(e), q(NULL), hasSize(true), size(s) { checkWellFormedness(); }
   ArrayType(Type const *e)
-    : eltType(e), hasSize(false), size(-1) { checkWellFormedness(); }
+    : eltType(e), q(NULL), hasSize(false), size(-1) { checkWellFormedness(); }
 
   bool innerEquals(ArrayType const *obj) const;
 
