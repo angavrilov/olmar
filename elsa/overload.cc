@@ -767,7 +767,11 @@ Variable *OverloadResolver::resolve(bool &wasAmbig)
     xassert(retV->templateInfo());
     xassert(retV->templateInfo()->isCompleteSpecOrInstantiation());
   } else {
-    xassert(!retV->isTemplate());
+    // sm: in/t0411.cc causes this to fail, because we (correctly) 
+    // do overload resolution while analyzing an uninstantiated
+    // template body, and the winner is a member of that template,
+    // so it *is* a template but is *not* instantiated from anything
+    //xassert(!retV->isTemplate());
   }
 
   return retV;

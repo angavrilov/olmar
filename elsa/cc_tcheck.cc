@@ -5764,7 +5764,8 @@ static Type *internalTestingHooks
         if (expectLine != actualLine) {
           env.error(stringc
             << "expected overload to choose function on line "
-            << expectLine << ", but it chose line " << actualLine);
+            << expectLine << ", but it chose line " << actualLine,
+            EF_STRONG);
         }
       }
       else if (expectLine != 0) {

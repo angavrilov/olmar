@@ -221,7 +221,8 @@ CompoundType::CompoundType(Keyword k, StringRef n)
     conversionOperators(),
     instName(n),
     syntax(NULL),
-    parameterizingScope(NULL)
+    parameterizingScope(NULL),
+    selfType(NULL)
 {
   curCompound = this;
   curAccess = (k==K_CLASS? AK_PRIVATE : AK_PUBLIC);

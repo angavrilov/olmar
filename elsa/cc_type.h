@@ -251,6 +251,12 @@ public:      // data
   // is NULL whenever it is not on the scope stack
   Scope *parameterizingScope;         // (nullable serf)
 
+  // this is the type of the compound as bound to the
+  // injected-class-name; it is different than typedefVar->type
+  // for template classes, as the former is the template class
+  // itself while the latter is a PseudoInstantiation thereof
+  Type *selfType;                     // (nullable serf)
+
 private:     // funcs
   void makeSubobjHierarchy(BaseClassSubobj *subobj, BaseClass const *newBase);
 

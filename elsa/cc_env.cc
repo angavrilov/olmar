@@ -2538,16 +2538,16 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
 
   // also add the typedef to the class' scope
   if (name && lang.compoundSelfName) {
-    Type *selfType;
     if (tv->templateInfo() && tv->templateInfo()->hasParameters()) {
       // the self type should be a PseudoInstantiation, not the raw template
-      selfType = pseudoSelfInstantiation(ct, CV_NONE);
+      ct->selfType = pseudoSelfInstantiation(ct, CV_NONE);
     }
     else {
       // just the class' type
-      selfType = tfac.cloneType(ret);
+      ct->selfType = tfac.cloneType(ret);
     }
-    Variable *selfVar = makeVariable(loc, name, selfType, DF_TYPEDEF | DF_SELFNAME);
+    Variable *selfVar = makeVariable(loc, name, ct->selfType,
+                                     DF_TYPEDEF | DF_SELFNAME);
     ct->addUniqueVariable(selfVar);
     addedNewVariable(ct, selfVar);
   }
@@ -2586,8 +2586,17 @@ Variable *Env::receiverParameter(SourceLoc loc, NamedAtomicType *nat, CVFlags cv
   Type *recType;
   if (nat->isCompoundType() &&
       nat->typedefVar->isTemplate()) {
-    // TODO: save this somewhere instead of making it over and over
-    Type *selfType = pseudoSelfInstantiation(nat->asCompoundType(), cv);
+    // get the basic selfType; we re-use the one from the CompoundType
+    // instead of calling Env::pseudoSelfInstantiation because we want
+    // all the receiver parameters of methods in the uninstantiated
+    // class to be the same (in/t0410.cc)
+    Type *selfType = nat->asCompoundType()->selfType;
+    xassert(selfType);
+    
+    // apply 'cv'
+    selfType = tfac.applyCVToType(SL_UNKNOWN, cv, selfType, NULL /*syntax*/);
+
+    // build a reference
     recType = makeReferenceType(loc, selfType);
   }
   else {
