@@ -32,6 +32,10 @@ class Flatten;           // flatten.h
 // will do the same for gcc.
 //
 // 2005-02-28: Let's try getting rid of this.
+//
+// 2005-03-15: There were some problems on Redhat due to flex-2.5.4a-29.
+//             I have solved them differently, but it is worth noting 
+//             that re-enabling this #define also fixed the problem.
 #if 0   //!defined(__INTEL_COMPILER)
   #define string mystring
 #endif

@@ -20,6 +20,21 @@
 #   2b. Make copies of two yyFlexLexer methods and rename them to
 #   be methods of the derived lexer class, as these methods are
 #   different in each generated lexer.  (This is optional.)
+# 
+# 3. Redhat's flex-2.5.4a-29 (actually somewhere between -20 and -23)
+# includes a "fix" so its generated output file includes the line:
+#
+#   using namespace std;
+#
+# This causes a clash for the name 'string'.  Long term, I'd like
+# to have a good, general way to reconcile this clash.  But for the
+# short term, this script replaces that line with these two:
+#
+#   using std::istream;
+#   using std::ostream;
+#
+# and that solves the problem nicely, as Flex does not use any
+# library classes other than those two.
 
 # Given that I make so many changes, and they are so dependent on
 # the details of the generated file, it might seem easier to just
@@ -134,6 +149,13 @@ for ($i=0; $i < @lines; $i++) {
   # flex output (they have a different fix)
   if ($line =~ m/class istream;/) {
     print OUT ("#include <iostream.h>      // class istream\n");
+    next;
+  }
+
+  # also stateless for similar reasons
+  if ($line =~ m/using namespace std;/) {
+    print OUT ("using std::istream;\n");
+    print OUT ("using std::ostream;\n");
     next;
   }
 
