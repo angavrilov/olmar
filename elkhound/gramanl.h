@@ -78,7 +78,8 @@ public:	    // funcs
 
   // comparison, equality (ignores lookahead set for purposes of comparison)
   static int diff(DottedProduction const *a, DottedProduction const *b, void*);
-  bool operator== (DottedProduction const &obj) const;
+  bool equalNoLA(DottedProduction const &obj) const;
+  //bool operator== (DottedProduction const &obj) const;
 
   // call this to change prod and dot
   void setProdAndDot(Production *p, int d);
@@ -196,6 +197,9 @@ public:     // funcs
   // (CONSTNESS: allows modification of items...)
   void getAllItems(SDProductionList &dest) const;
 
+  // used for sorting by id
+  static int diffById(ItemSet const *left, ItemSet const *right, void*);
+
   // ---- transition queries ----
   // query transition fn for an arbitrary symbol; returns
   // NULL if no transition is defined
@@ -233,8 +237,14 @@ public:     // funcs
   // calls 'changedItems' internally
   void removeReduce(Production const *prod, Terminal const *sym);
 
-  // experiment: do I need them during parsing?
+  // throw away information not needed during parsing
   void throwAwayItems();
+                                          
+  // 'dest' has already been established to have the same kernel
+  // items as 'this' -- so merge all the kernel lookahead items
+  // of 'this' into 'dest'; return 'true' if any changes were made
+  // to 'dest'
+  bool mergeLookaheadsInto(ItemSet &dest) const;
 
   // ---- transition mutations ----
   // set transition on 'sym' to be 'dest'

@@ -236,7 +236,7 @@ STATICDEF int DottedProduction::
 }
 
 
-bool DottedProduction::operator== (DottedProduction const &obj) const
+bool DottedProduction::equalNoLA(DottedProduction const &obj) const
 {
   return diff(this, &obj, NULL) == 0;
 }
@@ -636,6 +636,12 @@ void ItemSet::getAllItems(SDProductionList &dest) const
 }
 
 
+STATICDEF int ItemSet::diffById(ItemSet const *left, ItemSet const *right, void*)
+{
+  return left->id - right->id;
+}
+
+
 void ItemSet::throwAwayItems()
 {
   // can't delete the whole lists because I need the
@@ -707,6 +713,38 @@ void ItemSet::getPossibleReductions(ProductionList &reductions,
     // ok, this one's ready
     reductions.append(item->getProd());                          // (constness)
   }
+}
+
+
+bool ItemSet::mergeLookaheadsInto(ItemSet &dest) const
+{        
+  // will return true if any changes made
+  bool changes = false;
+
+  // iterate over both kernel lists simultaneously
+  ObjListIter<DottedProduction> srcIter(kernelItems);
+  ObjListMutator<DottedProduction> destIter(dest.kernelItems);
+  while (!srcIter.isDone() && !destIter.isDone()) {
+    DottedProduction const &srcItem = *(srcIter.data());
+    DottedProduction &destItem = *(destIter.data());
+
+    // the caller should already have established equality of the
+    // non-lookahead components of the kernel items
+    xassert(srcItem.equalNoLA(destItem));
+
+    // merge lookaheads
+    if (destItem.laMerge(srcItem)) {
+      changes = true;
+    }
+    
+    srcIter.adv();
+    destIter.adv();
+  }
+
+  // kernel list lengths are supposed to be the same
+  xassert(srcIter.isDone() && destIter.isDone());
+
+  return changes;
 }
 
 
@@ -1702,7 +1740,7 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 
         // is it already there?
         SMUTATE_EACH_DOTTEDPRODUCTION(items, dprod) {
-          if (*dp == *(dprod.data())) {
+          if (dp->equalNoLA(*(dprod.data()))) {
             // yes, it's already there
             if (tr) {
               trs << "      looks similar to ";
@@ -1861,7 +1899,7 @@ void GrammarAnalysis::constructLRItemSets()
     startState = is;
     DottedProduction *firstDP
       = new DottedProduction(*this, productions.first(), 0 /*dot at left*/);
-    //firstDP->laAdd(0 /*eof token id*/);  
+    //firstDP->laAdd(0 /*eof token id*/);
     is->addKernelItem(firstDP);
     itemSetClosure(*is);                      // calls changedItems internally
 
@@ -1889,10 +1927,15 @@ void GrammarAnalysis::constructLRItemSets()
       // get the symbol 'sym' after the dot (next to be shifted)
       Symbol const *sym = dprod->symbolAfterDotC();
 
-      // if we already have a transition for this symbol,
-      // there's nothing more to be done
-      if (itemSet->transitionC(sym) != NULL) {
-        continue;
+      // in LALR(1), two items might have different lookaheads; more
+      // likely, re-expansions needs to propagate lookahead that
+      // wasn't present from an earlier expansion
+      if (!LALR1) {
+        // if we already have a transition for this symbol,
+        // there's nothing more to be done
+        if (itemSet->transitionC(sym) != NULL) {
+          continue;
+        }
       }
 
       // compute the itemSet produced by moving the dot
@@ -1908,6 +1951,33 @@ void GrammarAnalysis::constructLRItemSets()
 
       // have it?
       if (already != NULL) {
+        // we already have a state with at least equal kernel items, not
+        // considering their lookahead sets; so we have to merge the
+        // computed lookaheads with those in 'already'
+        if (withDotMoved->mergeLookaheadsInto(*already)) {
+          // this changed 'already'; recompute its closure
+          itemSetClosure(*already);
+          
+          // and reconsider all of the states reachable from it
+          if (itemSetsPending.contains(already)) {
+            // it will be processed later
+          }
+          else {
+            // we thought we were done with this
+            xassert(itemSetsDone.contains(already));
+
+            // need to confirm this is happening for my current test grammar
+            trace("lrsets")
+              << "from state " << itemSet->id << ", found that the transition "
+              << "on " << sym->name << " yielded a state similar to "
+              << already->id << ", but with different lookahead" << endl;
+
+            // but we're not: move it back to the 'pending' list
+            itemSetsDone.removeItem(already);
+            itemSetsPending.append(already);
+          }
+        }
+
         // we already have it, so throw away one we made
         disposeItemSet(withDotMoved);     // deletes 'withDotMoved'
 
@@ -1927,6 +1997,10 @@ void GrammarAnalysis::constructLRItemSets()
 
     } // for each item
   } // for each item set
+
+  // now that we sometimes consider a state more than once, the
+  // states end up out of order; put them back in order
+  itemSetsDone.mergeSort(ItemSet::diffById);
 
 
   // do the BFS now, since we want to print the sample inputs

@@ -1,3 +1,9 @@
 
 int(x);
 foo(y);
+
+{
+  int(x);
+  typedef int integer;
+  integer(y);
+}

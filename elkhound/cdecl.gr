@@ -23,7 +23,7 @@ terminals {
 }
 
 
-nonterm[int] Start -> Stmts L2_EOF  [ R0; ]
+nonterm[int] Start -> Stmts L2_EOF  [ D("exiting scope and program"); R0; ]
 
 nonterm[int] Stmts {
   -> empty         [ D("entering scope"); R0; ]
