@@ -11,6 +11,8 @@
 #include "exc.h"          // xBase
 #include "sobjlist.h"     // SObjList
 
+class StringTable;        // strtable.h
+
 
 // thrown by some error functions
 class XError : public xBase {
@@ -84,6 +86,10 @@ private:    // data
   // current function's return type
   Type const *currentRetType;
 
+public:     // data
+  // string table for making up new names
+  StringTable &strTable;
+
 private:    // funcs
   void grab(Type const *t) {}
   void grabAtomic(AtomicType const *t) {}
@@ -92,7 +98,7 @@ private:    // funcs
 
 public:     // funcs
   // empty toplevel environment
-  Env();
+  Env(StringTable &table);
   ~Env();
 
   // scope manipulation

@@ -944,9 +944,10 @@ nonterm[IDeclarator*] DirectDeclarator {
 
   // function declarator; the return type comes from the type
   // specifier that preceeds this
-  -> d:DirectDeclarator "(" args:ParameterDeclarationClause ")" //q:CVQualifierSeqOpt
+  -> d:DirectDeclarator "(" args:ParameterDeclarationClause ")" /*q:CVQualifierSeqOpt*/
   // ^^^ name of fn ^^^     ^^^^^^^^^^ arguments ^^^^^^^^^^     ^^^^^ const? ^^^^^^
-       [ return new D_func(d, args); ]
+                                               ann:FuncAnnotationsOpt
+       [ return new D_func(d, args, ann); ]
 
   // array of specified size
   -> d:DirectDeclarator "[" sz:ConstantExpression "]"
@@ -1012,7 +1013,8 @@ nonterm[IDeclarator*] DirectTypedefDeclarator {
      ]
 
   -> d:DirectTypedefDeclarator "(" args:ParameterDeclarationClause ")" //CVQualifierSeqOpt
-       [ return new D_func(d, args); ]
+                                               ann:FuncAnnotationsOpt
+       [ return new D_func(d, args, ann); ]
   -> d:DirectTypedefDeclarator "[" sz:ConstantExpression "]" 
        [ return new D_array(d, sz); ]
   -> d:DirectTypedefDeclarator "[" "]" 
@@ -1062,7 +1064,8 @@ nonterm[IDeclarator*] DirectAbstractDeclarator {
 
   // function
   -> d:DirectAbstractDeclarator "(" args:ParameterDeclarationClause ")" //q:CVQualifierSeqOpt
-       [ return new D_func(d, args); ]
+                                               ann:FuncAnnotationsOpt
+       [ return new D_func(d, args, ann); ]
 
   // grammar hack: support missing function name part at this level, rather
   // than using DirectAbstractDeclaratorOpt, to effect one extra token
@@ -1517,4 +1520,18 @@ nonterm GNUExpr {
 nonterm GNUAsmStatement {
   -> "asm" "(" GNUExprSeq ")" ";" ;
   -> "asm" "volatile" "(" GNUExprSeq ")" ";" ;
+}
+
+
+// ----------------- thmprv extensions ----------------
+nonterm[ASTList<FuncAnnotation>*] FuncAnnotationsOpt {
+  -> empty                              
+       [ return new ASTList<FuncAnnotation>(); ]
+  -> list:FuncAnnotationsOpt ann:FuncAnnotation  
+       [ list->append(ann); return list; ]
+}
+
+nonterm[FuncAnnotation*] FuncAnnotation {
+  -> "thmprv_pre" e:Expression ";"   [ return new FA_precondition(e); ]
+  -> "thmprv_post" e:Expression ";"  [ return new FA_postcondition(e); ]
 }

@@ -157,7 +157,8 @@ class IDeclarator {
   pure_virtual StringRef getName() const;
 
   -> D_name(StringRef /*nullable*/ name);                       // "x" (NULL means abstract declarator or anonymous parameter)
-  -> D_func(IDeclarator base, ASTList<ASTTypeId> params);       // "f(int)"
+  -> D_func(IDeclarator base, ASTList<ASTTypeId> params,        // "f(int)"
+            ASTList<FuncAnnotation> ann);
   -> D_array(IDeclarator base, Expression /*nullable*/ size);   // "a[5]" or "b[]"
   -> D_bitfield(StringRef /*nullable*/ name, Expression bits);  // "c : 2"
 }
@@ -288,4 +289,11 @@ class InitLabel {
   -> IL_range(Expression low, Expression high);   // inclusive 
   -> IL_field(StringRef name);
   -> IL_elementField(Expression index, StringRef name);
+}
+
+
+// -------------- annotations ---------------
+class FuncAnnotation {
+  -> FA_precondition(Expression expr);
+  -> FA_postcondition(Expression expr);
 }

@@ -4,6 +4,7 @@
 #include "cc_env.h"      // this module
 #include "trace.h"       // tracingSys
 #include "ckheap.h"      // heapCheck
+#include "strtable.h"    // StringTable
 
 
 // ----------------------- Variable ---------------------------
@@ -66,7 +67,7 @@ ScopedEnv::~ScopedEnv()
 
 
 // --------------------------- Env ----------------------------
-Env::Env()
+Env::Env(StringTable &table)
   : scopes(),
     typedefs(),
     compounds(),
@@ -74,7 +75,8 @@ Env::Env()
     enumerators(),
     errors(0),
     compoundStack(),
-    currentRetType(NULL)
+    currentRetType(NULL),
+    strTable(table)
 {
   enterScope();
 

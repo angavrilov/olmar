@@ -174,6 +174,8 @@ Lexer2TokenTypeDesc const l2TokTypes[] = {
   // theorem-prover extensions
   { N(L2_THMPRV_ASSERT),        "thmprv_assert", true },
   { N(L2_IMPLIES),              "==>", true },
+  { N(L2_THMPRV_PRE),           "thmprv_pre", true },
+  { N(L2_THMPRV_POST),          "thmprv_post", true },
 };
 
 #undef N

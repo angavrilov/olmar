@@ -80,7 +80,7 @@ void doit(int argc, char **argv)
   // ---------------- typecheck -----------------
   {
     traceProgress() << "type checking...\n";
-    Env env;
+    Env env(strTable);
     unit->tcheck(env);
     traceProgress() << "done type checking\n";
 

@@ -7,6 +7,21 @@
 #include "strutil.h"        // quoted
 
 
+void checkBoolean(Env &env, Type const *c, Expression const *e)
+{
+  if (c->isIntegerType() ||
+      c->isPointerType() ||
+      c->isArrayType()) {      // what the hey..
+    // ok
+  }
+  else {
+    env.err(stringc << "expression `" << e->toString() 
+                    << "', type `" << c->toString()
+                    << "' should be a number or pointer");
+  }
+}
+
+
 // ------------------ TranslationUnit -----------------
 void TranslationUnit::tcheck(Env &env)
 {
@@ -34,14 +49,34 @@ void TF_func::tcheck(Env &env)
 
   // put parameters into the environment
   env.enterScope();
-
   FOREACH_OBJLIST(FunctionType::Param, ftype()->params, iter) {
     FunctionType::Param const *p = iter.data();
     env.addVariable(p->name, DF_NONE, p->type);
   }
 
+  // check the precondition
+  Expression *pre = ftype()->precondition;
+  if (pre) {
+    checkBoolean(env, pre->tcheck(env), pre);
+  }
+
+  // and the postcondition
+  Expression *post = ftype()->postcondition;
+  if (post) {
+    // the postcondition has 'result' available, as the type
+    // of the return value                              
+    env.enterScope();
+    env.addVariable(env.strTable.add("result"), DF_NONE, r);
+
+    checkBoolean(env, post->tcheck(env), post);
+
+    env.leaveScope();
+  }
+
+  // check the body in the new environment
   body->tcheck(env);
 
+  // clean up
   env.leaveScope();
 }
 
@@ -289,6 +324,31 @@ Type const *D_func::itcheck(Env &env, Type const *rettype, DeclFlags dflags)
   // correct the argument order; this preserves linear performance
   ft->params.reverse();
 
+  // pass the annotations along via the type language
+  FOREACH_ASTLIST_NC(FuncAnnotation, ann, iter) {
+    ASTSWITCHC(FuncAnnotation, iter.data()) {
+      ASTCASEC(FA_precondition, pre) {
+        if (ft->precondition) {
+          env.err("function already has a precondition");
+        }
+        else {
+          ft->precondition = pre->expr;
+        }
+      }
+      
+      ASTNEXTC(FA_postcondition, post) {
+        if (ft->postcondition) {
+          env.err("function already has a postcondition");
+        }
+        else {
+          ft->postcondition = post->expr;
+        }
+      }
+
+      ASTENDCASEC
+    }
+  }
+
   env.leaveScope();
 
   // pass the constructed function type to base's tcheck so it can
@@ -370,20 +430,6 @@ void S_compound::tcheck(Env &env)
     iter.data()->tcheck(env);
   }                
   env.leaveScope();
-}
-
-void checkBoolean(Env &env, Type const *c, Expression const *e)
-{
-  if (c->isIntegerType() ||
-      c->isPointerType() ||
-      c->isArrayType()) {      // what the hey..
-    // ok
-  }
-  else {
-    env.err(stringc << "expression `" << e->toString() 
-                    << "', type `" << c->toString()
-                    << "' should be a number or pointer");
-  }
 }
 
 void S_if::tcheck(Env &env)

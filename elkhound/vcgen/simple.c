@@ -3,7 +3,8 @@
 
 // here's a function which demands its argument be greater than 3
 int foo(int x)
-//  pre x > 3;
+  thmprv_pre x > 3;
+  thmprv_post result == x-3;
 {
   return x-3;
 }
@@ -21,6 +22,10 @@ void bar(int y)
   thmprv_assert y>0    ==> y+1>1;
   thmprv_assert !(y>0) ==> y+1<=1;
   thmprv_assert y>0? y+1>1 : y+1<=1;
+  
+  thmprv_assert y<0?  y+1<1  :
+                y==0? y+6==6 :
+                      y+1>1  ;
 
   z = foo(z+3);
 }

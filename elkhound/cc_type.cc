@@ -763,7 +763,9 @@ FunctionType::FunctionType(Type const *r/*, CVFlags c*/)
   : retType(r),
     //cv(c),
     params(),
-    acceptsVarargs(false)
+    acceptsVarargs(false),
+    precondition(NULL),
+    postcondition(NULL)
 {}
 
 

@@ -11,14 +11,12 @@
 #include "cc_flags.h"     // CVFlags, DeclFlags, SimpleTypeId
 #include "strtable.h"     // StringRef
 #include "strsobjdict.h"  // StrSObjDict
-
-#if 0
-// other files
-class Env;              // cc_env.h
-class TypeEnv;          // cc_env.h
-class VariableEnv;      // cc_env.h
-class Variable;         // cc_env.h
-#endif // 0
+                          
+// below, the type language refers to the expression language in exactly
+// one place: function pre/post conditions; the type language treats
+// these opaquely; it is important to prevent the type language from
+// depending on the expression language
+class Expression;
 
 // fwd in this file
 class SimpleType;
@@ -396,6 +394,10 @@ public:     // data
   //CVFlags cv;                  // const/volatile for class member fns
   ObjList<Param> params;       // list of function parameters
   bool acceptsVarargs;         // true if add'l args are allowed
+  
+  // thmprv extensions
+  Expression *precondition;    // (serf) precondition predicate
+  Expression *postcondition;   // (serf) postcondition predicate
 
 public:     // funcs
   FunctionType(Type const *retType/*, CVFlags cv*/);
