@@ -12,3 +12,6 @@ lexer.ml
 oc_arith.ml
 tobjpool.opt
 main.opt
+changes
+gmon.out
+gprof.out*
