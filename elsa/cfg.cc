@@ -165,9 +165,7 @@ void CFGEnv::popLoop()
 // -------- end --------
 void CFGEnv::verifyFunctionEnd()
 {
-  // dsw: this assertion has to be weakend in the presence of nested
-  // functions
-  xassert(pendingNexts.count() >= 1);
+  xassert(pendingNexts.count() == 1);
   xassert(pendingNexts.top()->count() == 0);
 
   xassert(breaks.count() == 1);

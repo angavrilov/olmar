@@ -266,7 +266,11 @@ public:      // funcs
   // This is just a unique and possibly human readable string; it is
   // used in the Oink linker imitator.
   string fullyQualifiedName();
-  
+
+  // support a hack...
+  void addSoleVariableToEatScope(Variable *v);
+  void removeSoleVariableFromEatScope();
+
   // for debugging, a quick description of this scope
   string desc() const;
   void gdb() const;

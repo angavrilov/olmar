@@ -73,7 +73,7 @@ class TypePred;
 
 // --------------------- atomic types --------------------------
 // interface to types that are atomic in the sense that no
-// modifiers can be stripped away; see types.txt
+// modifiers can be stripped away; see cc_type.html
 class AtomicType {
 public:     // types
   enum Tag { T_SIMPLE, T_COMPOUND, T_ENUM, T_TYPEVAR, T_PSEUDOINSTANTIATION, NUM_TAGS };

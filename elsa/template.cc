@@ -1050,6 +1050,41 @@ static bool doSTemplArgsContainVars(SObjList<STemplateArgument> &sargs)
   return false;
 }
 
+ 
+// sm: tcheck the declarator portion of 'func', ensuring that it uses
+// 'var' as its declarator Variable.  This used to be done by passing
+// 'priorTemplInst' into Function::tcheck and Declarator::tcheck, but
+// I'm trying to avoid contaminating that code with so much knowledge
+// about templates.  So, I'd rather do this hacky little dance from
+// the outside than muck up the non-template core.
+static void tcheckFunctionInstanceDecl_setVar
+  (Env &env, Function *func, Variable *var)
+{
+  if (!var) {
+    // not trying to set anything; just let it tcheck normally
+    func->tcheck(env, false /*checkBody*/);
+    return;
+  }
+
+  // this only works because 'checkBody' is false; if it were true,
+  // then we'd be contaminating the lookups that happen while checking
+  // the body ...
+
+  Scope *s = env.acceptingScope();
+  xassert(s->scopeKind == SK_EAT_TEMPL_INST);
+
+  s->addSoleVariableToEatScope(var);
+
+  // temporarily adjust the var's scope to circumvent a check
+  // down in Env::createDeclaration ...
+  Restorer<Scope*> restore(var->scope, s);
+
+  func->tcheck(env, false /*checkBody*/);
+  xassert(func->nameAndParams->var == var);
+  
+  s->removeSoleVariableFromEatScope();
+}
+
 
 // see comments in cc_env.h
 //
@@ -1063,7 +1098,7 @@ static bool doSTemplArgsContainVars(SObjList<STemplateArgument> &sargs)
 // code.
 //
 // 1 - class or function template
-// 
+//
 // 2 - baseForward: true exactly when we are typechecking a forward
 // declaration and not a definition.
 //
@@ -1355,7 +1390,7 @@ Variable *Env::instantiateTemplate
         // and 2) it is very important that we do not add the variable
         // to the namespace, otherwise the primary is masked if the
         // template body refers to itself
-        copyFun->tcheck(*this, false /*checkBody*/, funcFwdInstV /*prior*/);
+        tcheckFunctionInstanceDecl_setVar(*this, copyFun, funcFwdInstV);
         instV = copyFun->nameAndParams->var;
         //   3. add said Variable to the list of instantiations, so if the
         //      function recursively calls itself we'll be ready
@@ -1375,7 +1410,7 @@ Variable *Env::instantiateTemplate
         Declaration *copyDecl = fwdDecl->clone();
         xassert(argScope);
         xassert(!funcFwdInstV);
-        copyDecl->tcheck(*this, ctxt, NULL /*prior*/);
+        copyDecl->tcheck(*this, ctxt);
         xassert(copyDecl->decllist->count() == 1);
         Declarator *copyDecltor = copyDecl->decllist->first();
         instV = copyDecltor->var;
@@ -1524,9 +1559,7 @@ Variable *Env::instantiateTemplate
           // definition yet, so we can just point the var at the
           // cloned definition; I'll run the tcheck with
           // checkBody=false anyway just for uniformity.
-          copyFuncDefn->tcheck(*this,
-                               false /*checkBody*/,
-                               funcDefnInstV /*prior*/);
+          tcheckFunctionInstanceDecl_setVar(*this, copyFuncDefn, funcFwdInstV);
           // paste in the definition for later use
           xassert(!funcDefnInstV->funcDefn);
           funcDefnInstV->funcDefn = copyFuncDefn;
@@ -1543,7 +1576,11 @@ Variable *Env::instantiateTemplate
           copyFun->funcType = instV->type->asFunctionType();
           xassert(scope()->isGlobalTemplateScope());
           // NOTE: again we do not add the variable to the namespace
-          copyFun->tcheck(*this, true /*checkBody*/, instV /*prior*/);
+          //
+          // sm: all that is necessary is to check the body, not the
+          // declarator again
+          xassert(instV == copyFun->nameAndParams->var);
+          copyFun->tcheckBody(*this);
           xassert(instV->funcDefn == copyFun);
         }
       }
@@ -1737,9 +1774,8 @@ void Env::ensureFuncMemBodyTChecked(Variable *v)
   }
 
   //xassert(funcDefn0 == tcheckCtxt->func);
-  funcDefn0->tcheck(*this,
-                    true /*checkBody*/,
-                    v /*prior*/);
+  // sm: just check the body
+  funcDefn0->tcheckBody(*this);
   // should still be true
   xassert(v->funcDefn == funcDefn0);
 

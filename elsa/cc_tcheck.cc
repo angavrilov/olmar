@@ -95,7 +95,7 @@ void TF_decl::tcheck(Env &env)
 void TF_func::tcheck(Env &env)
 {
   env.setLoc(loc);
-  f->tcheck(env, true /*checkBody*/, NULL /*prior*/);
+  f->tcheck(env, true /*checkBody*/);
 }
 
 void TF_template::tcheck(Env &env)
@@ -211,8 +211,7 @@ void TF_namespaceDecl::tcheck(Env &env)
 
 
 // --------------------- Function -----------------
-void Function::tcheck(Env &env, bool checkBody,
-                      Variable *priorTemplInst)
+void Function::tcheck(Env &env, bool checkBody)
 {
   // are we in a template function?
   bool inTemplate = env.scope()->curTemplateParams != NULL;
@@ -231,7 +230,6 @@ void Function::tcheck(Env &env, bool checkBody,
   Declarator::Tcheck dt(retTypeSpec,
                         dflags | (checkBody? DF_DEFINITION : DF_NONE),
                         DC_FUNCTION);
-  dt.priorTemplInst = priorTemplInst;
   nameAndParams = nameAndParams->tcheck(env, dt);
   if (!nameAndParams->var) {
     return;                     // error should have already been reported
@@ -242,9 +240,6 @@ void Function::tcheck(Env &env, bool checkBody,
 //    if (!nameAndParams->var->funcDefn) {
 //      nameAndParams->var->funcDefn = this;
 //    }
-
-  // location for random purposes..
-  SourceLoc loc = nameAndParams->var->loc;
 
   if (! dt.type->isFunctionType() ) {
     env.error(stringc
@@ -257,13 +252,19 @@ void Function::tcheck(Env &env, bool checkBody,
   // grab the definition type for later use
   funcType = dt.type->asFunctionType();
 
-  if (!checkBody) {
-    return;
+  if (checkBody) {
+    tcheckBody(env);
   }
+}
 
+void Function::tcheckBody(Env &env)
+{
   // FIX: not sure if this should be set first or last, but I don't
   // want it done twice, so we do it first for now
   hasBodyBeenTChecked = true;
+
+  // location for random purposes..
+  SourceLoc loc = nameAndParams->var->loc;
 
   // if this function was originally declared in another scope
   // (main example: it's a class member function), then start
@@ -348,6 +349,8 @@ void Function::tcheck(Env &env, bool checkBody,
 
     xassert(ctorReceiver->type->isReference());   // paranoia
     env.addVariable(ctorReceiver);
+    
+    #warning ctorReceiver should be merged with receiver
   }
 
   // have to check the member inits after adding the parameters
@@ -633,8 +636,7 @@ void Function::tcheck_handlers(Env &env)
 // MemberInit
 
 // -------------------- Declaration -------------------
-void Declaration::tcheck(Env &env, DeclaratorContext context,
-                         Variable *priorTemplInst)
+void Declaration::tcheck(Env &env, DeclaratorContext context)
 {
   // if we're declaring an anonymous type, and there are
   // some declarators, then give the type a name; we don't
@@ -665,7 +667,6 @@ void Declaration::tcheck(Env &env, DeclaratorContext context,
   if (decllist) {
     // check first declarator
     Declarator::Tcheck dt1(specType, dflags, context);
-    dt1.priorTemplInst = priorTemplInst;
     decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
 
     if (dt1.var && dt1.var->templInfo) {
@@ -729,10 +730,6 @@ void Declaration::tcheck(Env &env, DeclaratorContext context,
       Type *dupType = env.tfac.cloneType(specType);
 
       Declarator::Tcheck dt2(dupType, dflags, context);
-      // so far these are only being used for template situations
-      // which only have one declarator
-      xassert(!priorTemplInst);
-
       prev->next = prev->next->tcheck(env, dt2);
 
       prev = prev->next;
@@ -1342,9 +1339,7 @@ void TS_classSpec::tcheckFunctionBodies
 
       if (reallyTcheckFunctionBodies) {
         // check it now
-        f->tcheck(env,
-                  true /*checkBody*/,
-                  NULL /*prior*/);
+        f->tcheck(env, true /*checkBody*/);
 
         // remove DF_INLINE_DEFN so if I clone this later I can play the
         // same trick again (TODO: what if we decide to clone while down
@@ -1492,7 +1487,7 @@ void MR_func::tcheck(Env &env)
   // members have been added to the class, so that the potential
   // scope of all class members includes all function bodies
   // [cppstd sec. 3.3.6]
-  f->tcheck(env, false /*checkBody*/, NULL /*prior*/);
+  f->tcheck(env, false /*checkBody*/);
 
   checkMemberFlags(env, f->dflags);
 }
@@ -2270,9 +2265,7 @@ realStart:
   // has this variable already been declared?
   //Variable *prior = NULL;    // moved to the top
 
-  if (dt.priorTemplInst) {
-    prior = dt.priorTemplInst;
-  } else if (name->hasQualifiers()) {
+  if (name->hasQualifiers()) {
     // TODO: I think this is wrong, but I'm not sure how.  For one
     // thing, it's very similar to what happens below for unqualified
     // names; could those be unified?  Second, the thing above about
@@ -2363,17 +2356,6 @@ realStart:
     checkOperatorOverload(env, dt, loc, name, scope);
   }
 
-  // dsw: If this function "has the responsibility of adding a
-  // variable called 'name' to the environment" then if dt.prior
-  // exists, I can skip the rest of this.  I am getting really weird
-  // errors by trying to push through and on top of that I just don't
-  // understand why try.  We have what we want already and we don't
-  // want it added to the environment.
-  if (dt.priorTemplInst) {
-    dt.var = dt.priorTemplInst;
-    return;
-  }
-
   // check for overloading
   OverloadSet *overloadSet =
     name->hasQualifiers() ? NULL /* I don't think this is right! */ :
@@ -2427,11 +2409,6 @@ realStart:
   // make a new variable; see implementation for details
   dt.var = env.createDeclaration(loc, unqualifiedName, dt.type, dt.dflags,
                                  scope, enclosingClass, prior, overloadSet);
-  // FIX: was this valid? turn this back on?
-//    if (dt.priorTemplInst) {
-//      xassert(dt.var == dt.priorTemplInst);
-//  //      return;
-//    }
 }
 
 void D_name::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
@@ -2615,22 +2592,15 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   }
 
   // grab the template parameters before entering the parameter scope
-  TemplateInfo *templateInfo;
-  // take template info from the environment exactly when we are
-  // making a new variable; otherwise we may stomp on an existing and
-  // perfectly good templateInfo in that existing variable when we set
-  // the template info below; also, in situations where dt.prior is
-  // defined, I think the template info has already been taken so we
-  // would take nothing this time anyway.
-  if (dt.priorTemplInst) {
-    templateInfo = dt.priorTemplInst->templateInfo();
-  } else {
-    // FIX: I think this is seriously broken in the case of
-    // typechecking a function template instantiation and just by
-    // accident doesn't show up in any of our tests; maybe it is not
-    // possible for it to go wrong, but it sure is weird.
-    templateInfo = env.takeFTemplateInfo();
-  }
+  //
+  // dsw: FIX: I think this is seriously broken in the case of
+  // typechecking a function template instantiation and just by
+  // accident doesn't show up in any of our tests; maybe it is not
+  // possible for it to go wrong, but it sure is weird.
+  //
+  // sm: I agree this isn't right in all cases, though I don't quite
+  // get the point you're making.
+  TemplateInfo *templateInfo = env.takeFTemplateInfo();
 
   // make a new scope for the parameter list
   Scope *paramScope = env.enterScope(SK_PARAMETER, "D_func parameter list scope");
@@ -2749,12 +2719,8 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 
   base->tcheck(env, dt, inGrouping);
 
-  // see above at 'env.takeFTemplateInfo()'
-  if (dt.priorTemplInst) {
-    //xassert(!dt.reallyAddVariable);
-  } else {
-    // don't stomp on an existing template info
-    if (!dt.var->templateInfo()) {
+  // don't stomp on an existing template info
+  if (!dt.var->templateInfo()) {
 //        cout << "before: dt.var->setTemplateInfo(templateInfo)" << endl;
 //        cout << "templateInfo->debugPrint()" << endl;
 //        if (templateInfo) templateInfo->debugPrint();
@@ -2763,23 +2729,22 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 //          params->first()->gdb();
 //        }
 
-      dt.var->setTemplateInfo(templateInfo);
-      if (dt.ASTTemplArgs) {
-        // some disambiguation situations don't end up attaching a
-        // template info: elsa/in/d0005.cc
-        if (!dt.var->templateInfo()) {
-          // FIX: this can happen if we have gone down the wrong
-          // branch of a disambiguation.  It can also happen if we are
-          // in a function template instantiation where we are
-          // typechecking the cloned AST.  Since it isn't easy to
-          // check for this second case, I just avoid it.  All I
-          // really need the arguments for is when we are creating a
-          // declaration so that when we find the definition later we
-          // can match them up.
+    dt.var->setTemplateInfo(templateInfo);
+    if (dt.ASTTemplArgs) {
+      // some disambiguation situations don't end up attaching a
+      // template info: elsa/in/d0005.cc
+      if (!dt.var->templateInfo()) {
+        // FIX: this can happen if we have gone down the wrong
+        // branch of a disambiguation.  It can also happen if we are
+        // in a function template instantiation where we are
+        // typechecking the cloned AST.  Since it isn't easy to
+        // check for this second case, I just avoid it.  All I
+        // really need the arguments for is when we are creating a
+        // declaration so that when we find the definition later we
+        // can match them up.
 //            xassert(env.hasDisambErrors());
-        } else {
-          env.initArgumentsFromASTTemplArgs(dt.var->templateInfo(), *dt.ASTTemplArgs);
-        }
+      } else {
+        env.initArgumentsFromASTTemplArgs(dt.var->templateInfo(), *dt.ASTTemplArgs);
       }
     }
   }
@@ -5621,7 +5586,7 @@ void TD_func::itcheck(Env &env)
 {
   // check the function definition; internally this will get
   // the template parameters attached to the function type
-  f->tcheck(env, true /*checkBody*/, NULL /*prior*/);
+  f->tcheck(env, true /*checkBody*/);
 
   // dsw: Template function specializations (both complete and
   // partial) have to get registered into the namespace somewhere.

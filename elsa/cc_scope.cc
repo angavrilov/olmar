@@ -859,3 +859,23 @@ string Scope::fullyQualifiedName()
   sb << ">";
   return sb;
 }
+
+
+void Scope::addSoleVariableToEatScope(Variable *v)
+{
+  xassert(scopeKind == SK_EAT_TEMPL_INST);
+  xassert(variables.isEmpty());
+
+  scopeKind = SK_UNKNOWN;        // hack: allow the insertion
+  addVariable(v);
+  scopeKind = SK_EAT_TEMPL_INST; 
+}
+
+void Scope::removeSoleVariableFromEatScope()
+{
+  xassert(variables.size() == 1);
+  variables.empty();
+}
+
+
+// EOF
