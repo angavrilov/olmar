@@ -1270,7 +1270,15 @@ void entry(int argc, char **argv)
   while (argv[0][0] == '-') {
     if (argv[0][1] == 'b' ||        // 'b' is for compatibility
         argv[0][1] == 'o') {
-      basename = argv[0]+2;
+      if (argv[0][2]) {
+        // name specified directly after the -o
+        basename = argv[0]+2;
+      }
+      else if (argv[1]) {
+        // name follows the -o option
+        basename = argv[1];
+        argv++;
+      }
     }
     else if (argv[0][1] == 'v') {
       traceAddSys("merge");
