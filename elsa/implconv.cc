@@ -74,26 +74,27 @@ string ImplicitConversion::debugString() const
       sb << ", " << user->name << " @ " << toString(user->loc)
          << ", " << toString(scs2);
     }
-    
+
     sb << ")";
   }
-  
+
   return sb;
 }
 
 
 // --------------------- getImplicitConversion ---------------
 ImplicitConversion getImplicitConversion
-  (Env &env, SpecialExpr special, Type const *src, Type const *dest)
+  (Env &env, SpecialExpr special, Type *src, Type *dest)
 {
   ImplicitConversion ret;
 
   // check for a standard sequence
   {
-    StandardConversion scs = 
+    StandardConversion scs =
       getStandardConversion(NULL /*errorMsg*/, special, src, dest);
     if (scs != SC_ERROR) {
       ret.addStdConv(scs);
+      return ret;
     }
   }
 
@@ -132,7 +133,7 @@ ImplicitConversion getImplicitConversion
           TRACE("overload", "  no constructor matches");
         }
       }
-      
+
       if (ctor) {
         // only one ctor now.. can we call it?
         StandardConversion first = tryCallCtor(ctor, special, src);
@@ -144,7 +145,24 @@ ImplicitConversion getImplicitConversion
     }
   }
 
-  // TODO: take conversion functions into account
+  // check for a conversion function
+  if (src->asRval()->isCompoundType()) {
+    CompoundType *srcCt = src->asRval()->asCompoundType();
+
+    ImplicitConversion conv = getConversionOperator(
+      env, SL_UNKNOWN, NULL /*errors*/,
+      srcCt, dest);
+    if (conv) {
+      if (ret) {
+        // there's already a constructor-based conversion, so this
+        // sequence is ambiguous
+        ret.kind = ImplicitConversion::IC_AMBIGUOUS;
+      }
+      else {
+        ret = conv;
+      }
+    }
+  }
 
   return ret;
 }
@@ -211,7 +229,7 @@ bool matchesExpectation(ImplicitConversion const &actual,
 
 
 void test_getImplicitConversion(
-  Env &env, SpecialExpr special, Type const *src, Type const *dest,
+  Env &env, SpecialExpr special, Type *src, Type *dest,
   int expectedKind, int expectedSCS, int expectedUserLine, int expectedSCS2)
 {
   // grab existing error messages

@@ -80,10 +80,14 @@ SimpleType SimpleType::fixed[NUM_SIMPLE_TYPES] = {
   SimpleType(ST_DOUBLE),
   SimpleType(ST_LONG_DOUBLE),
   SimpleType(ST_VOID),
+
   SimpleType(ST_ELLIPSIS),
   SimpleType(ST_CDTOR),
   SimpleType(ST_ERROR),
   SimpleType(ST_DEPENDENT),
+  
+  SimpleType(ST_PROMOTED_ARITHMETIC),
+  SimpleType(ST_ANY_OBJ_TYPE),
 };
 
 string SimpleType::toCString() const
@@ -810,10 +814,16 @@ bool CVAtomicType::innerEquals(CVAtomicType const *obj, EqFlags flags) const
 }
 
 
-bool CVAtomicType::isTemplateRec() const {
+bool CVAtomicType::areYouOrHaveYouEverBeenATemplate() const {
+  if (isDependent()) return true;
   if (atomic->isTypeVariable()) return true;
   if (atomic->isCompoundType()) {
-    return atomic->asCompoundTypeC()->isTemplate();
+    CompoundType const *ct = atomic->asCompoundTypeC();
+    // NOTE NOTE NOTE! This is not the same as asking
+    // ct->isTemplate(), which seems to return false if it was a
+    // template but was then instantiated.  Hopefully this one will
+    // catch even instantiated templates.
+    return ct->templateInfo != NULL;
   }
   return false;
 }
@@ -1096,7 +1106,7 @@ Variable const *FunctionType::getThisC() const
 CVFlags FunctionType::getThisCV() const
 {
   if (isMember()) {
-    // expect 'this' to be of type 'SomeClass cv * const', and
+    // expect 'this' to be of type 'SomeClass cv &', and
     // dig down to get that 'cv'
     return getThisC()->type->asPointerType()->atType->asCVAtomicType()->cv;
   }
@@ -1116,8 +1126,11 @@ string FunctionType::leftString(bool innerParen) const
   }
 
   // return type and start of enclosing type's description
-  if (flags & (FF_CONVERSION | FF_CTOR | FF_DTOR)) {
-    // don't print the return type, it's implicit
+  if (flags & (/*FF_CONVERSION |*/ FF_CTOR | FF_DTOR)) {
+    // don't print the return type, it's implicit       
+
+    // 7/18/03: changed so we print ret type for FF_CONVERSION,
+    // since otherwise I can't tell what it converts to!
   }
   else {
     sb << retType->leftString();
@@ -1710,10 +1723,14 @@ CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
   CVAT(ST_DOUBLE)
   CVAT(ST_LONG_DOUBLE)
   CVAT(ST_VOID)
+
   CVAT(ST_ELLIPSIS)
   CVAT(ST_CDTOR)
   CVAT(ST_ERROR)
   CVAT(ST_DEPENDENT)
+
+  CVAT(ST_PROMOTED_ARITHMETIC)
+  CVAT(ST_ANY_OBJ_TYPE)
   #undef CVAT
 };
 

@@ -13,6 +13,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   : scopes(),
     disambiguateOnly(false),
     anonTypeCounter(1),
+    ctorFinished(false),
+
     disambiguationNestingLevel(0),
     errors(),
     str(s),
@@ -33,7 +35,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     constructorSpecialName(str("constructor-special")),
     functionOperatorName(str("operator()")),
     thisName(str("this")),
-    operatorPlusName(str("operator+")),
 
     special_getStandardConversion(NULL),
     special_getImplicitConversion(NULL),
@@ -45,12 +46,17 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     errorVar(NULL),
 
     var__builtin_constant_p(NULL),
+
+    // binaryOperatorName[] initialized below
+    // builtinBinaryOperator[] is initialized below
+
     tunit(tunit0),
 
     doOverload(tracingSys("doOverload"))
 {
   // slightly less verbose
-  #define HERE HERE_SOURCELOC
+  //#define HERE HERE_SOURCELOC     // old
+  #define HERE SL_INIT              // decided I prefer this
 
   // create first scope
   SourceLoc emptyLoc = SL_UNKNOWN;
@@ -65,26 +71,22 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   CompoundType *ct = tfac.makeCompoundType(CompoundType::K_CLASS, str("type_info"));
   // TODO: put this into the 'std' namespace
   // TODO: fill in the proper fields and methods
-  type_info_const_ref = tfac.makeRefType(HERE,
-    makeCVAtomicType(HERE, ct, CV_CONST));
+  type_info_const_ref = 
+    tfac.makeRefType(HERE, makeCVAtomicType(HERE, ct, CV_CONST));
 
-  dependentTypeVar = makeMadeUpVariable(HERE, str("<dependentTypeVar>"),
+  dependentTypeVar = makeVariable(HERE, str("<dependentTypeVar>"),
                                   getSimpleType(HERE, ST_DEPENDENT), DF_TYPEDEF);
-  madeUpVariables.append(dependentTypeVar);
 
-  dependentVar = makeMadeUpVariable(HERE, str("<dependentVar>"),
+  dependentVar = makeVariable(HERE, str("<dependentVar>"),
                               getSimpleType(HERE, ST_DEPENDENT), DF_NONE);
-  madeUpVariables.append(dependentVar);
 
-  errorTypeVar = makeMadeUpVariable(HERE, str("<errorTypeVar>"),
+  errorTypeVar = makeVariable(HERE, str("<errorTypeVar>"),
                               getSimpleType(HERE, ST_ERROR), DF_TYPEDEF);
-  madeUpVariables.append(errorTypeVar);
 
   // this is *not* a typedef, because I use it in places that I
   // want something to be treated as a variable, not a type
-  errorVar = makeMadeUpVariable(HERE, str("<errorVar>"),
+  errorVar = makeVariable(HERE, str("<errorVar>"),
                           getSimpleType(HERE, ST_ERROR), DF_NONE);
-  madeUpVariables.append(errorVar);
 
   // create declarations for some built-in operators
   // [cppstd 3.7.3 para 2]
@@ -100,49 +102,150 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   CompoundType *dummyCt;
   Type *t_bad_alloc =
     makeNewCompound(dummyCt, scope(), str("bad_alloc"), HERE,
-                    TI_CLASS, true /*forward*/, true /*madeUpVar*/);
+                    TI_CLASS, true /*forward*/);
 
   // void* operator new(std::size_t sz) throw(std::bad_alloc);
   declareFunction1arg(t_voidptr, "operator new",
                       t_size_t, "sz",
-                      t_bad_alloc);
+                      FF_NONE, t_bad_alloc);
 
   // void* operator new[](std::size_t sz) throw(std::bad_alloc);
   declareFunction1arg(t_voidptr, "operator new[]",
                       t_size_t, "sz",
-                      t_bad_alloc);
+                      FF_NONE, t_bad_alloc);
 
   // void operator delete (void *p) throw();
   declareFunction1arg(t_void, "operator delete",
                       t_voidptr, "p",
-                      t_void);
+                      FF_NONE, t_void);
 
   // void operator delete[] (void *p) throw();
   declareFunction1arg(t_void, "operator delete[]",
                       t_voidptr, "p",
-                      t_void);
+                      FF_NONE, t_void);
 
   // for GNU compatibility
   // void *__builtin_next_arg(void *p);
   declareFunction1arg(t_voidptr, "__builtin_next_arg",
-                      t_voidptr, "p",
-                      NULL /*exnType*/);
+                      t_voidptr, "p");
 
   // dsw: This is a form, not a function, since it takes an expression
   // AST node as an argument; however, I need a function that takes no
   // args as a placeholder for it sometimes.
-  var__builtin_constant_p =
-    declareFunction0arg(getSimpleType(HERE, ST_INT), "__builtin_constant_p",
-                        NULL /*exnType*/,
-                        FF_VARARGS);
+  var__builtin_constant_p = declareSpecialFunction("__builtin_constant_p");
 
   // for testing various modules
-  special_getStandardConversion = declareSpecialFunction("__getStandardConversion");
-  special_getImplicitConversion = declareSpecialFunction("__getImplicitConversion");
-  special_testOverload = declareSpecialFunction("__testOverload");
+  special_getStandardConversion = declareSpecialFunction("__getStandardConversion")->name;
+  special_getImplicitConversion = declareSpecialFunction("__getImplicitConversion")->name;
+  special_testOverload = declareSpecialFunction("__testOverload")->name;
+
+  setupOperatorOverloading();
 
   #undef HERE
+
+  ctorFinished = true;
 }
+
+void Env::setupOperatorOverloading()
+{
+  // fill in binaryOperatorName[]
+  int i;
+  for (i=0; i < NUM_BINARYOPS; i++) {
+    binaryOperatorName[i] = str(binaryOperatorFunctionNames[i]);
+  }
+
+  // I want to declare some functions, but I don't want them entered
+  // into the environment for name lookup; so I'll make a throwaway
+  // Scope for them to go into; NOTE that this assumes that Scopes do
+  // not delete the Variables they contain (if at some point they
+  // acquire that behavior, I can have a method in Scope to clear
+  // the Variables without deleting them)
+  Scope *dummyScope = enterScope(SK_GLOBAL /*close enough*/,
+    "dummy scope for built-in operator functions");
+
+  // this has to match the typedef in include/stddef.h
+  Type *t_ptrdiff_t = getSimpleType(SL_INIT, ST_INT);
+
+  // 13.6 para 12
+  addBuiltinBinaryOp(BIN_MULT,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  addBuiltinBinaryOp(BIN_DIV,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  addBuiltinBinaryOp(BIN_PLUS,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  addBuiltinBinaryOp(BIN_MINUS,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  addBuiltinBinaryOp(BIN_LESS,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  addBuiltinBinaryOp(BIN_GREATER,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  addBuiltinBinaryOp(BIN_LESSEQ,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  addBuiltinBinaryOp(BIN_GREATEREQ,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  addBuiltinBinaryOp(BIN_EQUAL,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  addBuiltinBinaryOp(BIN_NOTEQUAL,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  // 13.6 para 13
+  addBuiltinBinaryOp(BIN_PLUS,
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
+    t_ptrdiff_t);
+
+  addBuiltinBinaryOp(BIN_PLUS,
+    t_ptrdiff_t,
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)));
+
+  addBuiltinBinaryOp(BIN_MINUS,
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
+    t_ptrdiff_t);
+
+  addBuiltinBinaryOp(BIN_MINUS,
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)));
+
+  exitScope(dummyScope);
+  
+  // the default constructor for ArrayStack will have allocated 10
+  // items in each array; go back and resize them to their current
+  // length (since that won't change after this point)
+  for (i=0; i < NUM_BINARYOPS; i++) {
+    builtinBinaryOperator[i].setSize(builtinBinaryOperator[i].length());
+  }
+}
+
+void Env::addBuiltinBinaryOp(BinaryOp op, Type *x, Type *y)
+{
+  Type *t_void = getSimpleType(SL_INIT, ST_VOID);
+
+  Variable *v = declareFunction2arg(
+    t_void /*irrelevant*/, binaryOperatorName[op],
+    x, "x", y, "y");
+  v->setFlag(DF_BUILTIN);
+
+  builtinBinaryOperator[op].push(v);
+}
+
 
 Env::~Env()
 {
@@ -161,89 +264,106 @@ Env::~Env()
 }
 
 
-// dsw: needed this
-Variable *Env::declareFunction0arg(Type *retType, char const *funcName,
-                                   Type * /*nullable*/ exnType,
-                                   FunctionFlags flags)
+Variable *Env::makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
 {
-  // clone the types so client analyses can treat them independently
-  retType  = tfac.cloneType(retType);
-  if (exnType) {
-    exnType = tfac.cloneType(exnType);
+  if (!ctorFinished) {
+    // the 'tunit' is NULL for the Variables introduced before analyzing
+    // the user's input
+    Variable *v = tfac.makeVariable(L, n, t, f, NULL);
+    
+    // such variables are entered into a special list, as long as
+    // they're not function parameters (since parameters are reachable
+    // from other made-up variables)
+    if (!(f & DF_PARAMETER)) {
+      madeUpVariables.push(v);
+    }
+    
+    return v;
+  }          
+  
+  else {
+    // usual case
+    return tfac.makeVariable(L, n, t, f, tunit);
   }
+}
 
-  FunctionType *ft = makeFunctionType(HERE_SOURCELOC, retType);
+
+Variable *Env::declareFunctionNargs(
+  Type *retType, char const *funcName,
+  Type **argTypes, char const **argNames, int numArgs,
+  FunctionFlags flags, 
+  Type * /*nullable*/ exnType)
+{
+  FunctionType *ft = makeFunctionType(SL_INIT, tfac.cloneType(retType));
   ft->flags |= flags;
+
+  for (int i=0; i < numArgs; i++) {
+    Variable *p = makeVariable(SL_INIT, str(argNames[i]),
+                               tfac.cloneType(argTypes[i]), DF_PARAMETER);
+    ft->addParam(p);
+  }
 
   if (exnType) {
     ft->exnSpec = new FunctionType::ExnSpec;
 
     // slightly clever hack: say "throw()" by saying "throw(void)"
     if (!exnType->isSimple(ST_VOID)) {
-      ft->exnSpec->types.append(exnType);
+      ft->exnSpec->types.append(tfac.cloneType(exnType));
     }
   }
+
   ft->doneParams();
 
-  Variable *var = makeMadeUpVariable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
+  Variable *var = makeVariable(SL_INIT, str(funcName), ft, DF_NONE);
   addVariable(var);
-  madeUpVariables.append(var);
 
   return var;
 }
 
 
-void Env::declareFunction1arg(Type *retType, char const *funcName,
-                              Type *arg1Type, char const *arg1Name,
-                              Type * /*nullable*/ exnType)
-{
-  // clone the types so client analyses can treat them independently
-  retType  = tfac.cloneType(retType);
-  arg1Type = tfac.cloneType(arg1Type);
-  if (exnType) {
-    exnType = tfac.cloneType(exnType);
-  }
-
-  FunctionType *ft = makeFunctionType(HERE_SOURCELOC, retType);
-  Variable *p = makeMadeUpVariable(HERE_SOURCELOC, str(arg1Name), arg1Type, DF_PARAMETER);
-  // 'p' doesn't get added to 'madeUpVariables' because it's not toplevel,
-  // and it's reachable through 'var' (below)
-
-  ft->addParam(p);
-  if (exnType) {
-    ft->exnSpec = new FunctionType::ExnSpec;
-
-    // slightly clever hack: say "throw()" by saying "throw(void)"
-    if (!exnType->isSimple(ST_VOID)) {
-      ft->exnSpec->types.append(exnType);
-    }
-  }
-  ft->doneParams();
-
-  Variable *var = makeMadeUpVariable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
-  addVariable(var);
-  madeUpVariables.append(var);
-}
-
-
 // this declares a function that accepts any # of arguments,
-// and returns 'void'
-StringRef Env::declareSpecialFunction(char const *name)
-{                                                     
-  Type *t_void = getSimpleType(HERE_SOURCELOC, ST_VOID);
-  FunctionType *ft = makeFunctionType(HERE_SOURCELOC, t_void);
-  ft->flags |= FF_VARARGS;
-  ft->doneParams();
-
-  StringRef ret = str(name);
-  Variable *var = makeMadeUpVariable(HERE_SOURCELOC, ret, ft, DF_NONE);
-  addVariable(var);
-  madeUpVariables.append(var);                                   
-  
-  return ret;
+// and returns 'int'
+Variable *Env::declareSpecialFunction(char const *name)
+{
+  return declareFunction0arg(getSimpleType(SL_INIT, ST_INT), name, FF_VARARGS);
 }
 
-  
+
+Variable *Env::declareFunction0arg(Type *retType, char const *funcName,
+                                   FunctionFlags flags,
+                                   Type * /*nullable*/ exnType)
+{
+  return declareFunctionNargs(retType, funcName,
+                              NULL /*argTypes*/, NULL /*argNames*/, 0 /*numArgs*/,
+                              flags, exnType);
+}
+
+
+Variable *Env::declareFunction1arg(Type *retType, char const *funcName,
+                                   Type *arg1Type, char const *arg1Name,
+                                   FunctionFlags flags,
+                                   Type * /*nullable*/ exnType)
+{
+  return declareFunctionNargs(retType, funcName,
+                              &arg1Type, &arg1Name, 1 /*numArgs*/,
+                              flags, exnType);
+}
+
+
+Variable *Env::declareFunction2arg(Type *retType, char const *funcName,
+                                   Type *arg1Type, char const *arg1Name,
+                                   Type *arg2Type, char const *arg2Name,
+                                   FunctionFlags flags,
+                                   Type * /*nullable*/ exnType)
+{
+  Type *types[2] = { arg1Type, arg2Type };
+  char const *names[2] = { arg1Name, arg2Name };
+  return declareFunctionNargs(retType, funcName,
+                              types, names, 2 /*numArgs*/,
+                              flags, exnType);
+}
+
+
 FunctionType *Env::makeDestructorFunctionType(SourceLoc loc)
 {
   FunctionType *ft = makeFunctionType(loc, getSimpleType(loc, ST_CDTOR));
@@ -946,7 +1066,7 @@ ClassTemplateInfo *Env::takeTemplateClassInfo(StringRef baseName)
 
 Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                            StringRef name, SourceLoc loc,
-                           TypeIntr keyword, bool forward, bool madeUpVar)
+                           TypeIntr keyword, bool forward)
 {
   ct = tfac.makeCompoundType((CompoundType::Keyword)keyword, name);
 
@@ -961,12 +1081,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
 
   // make the implicit typedef
   Type *ret = makeType(loc, ct);
-  Variable *tv;
-  if (madeUpVar) {
-    tv = makeMadeUpVariable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
-  } else {
-    tv = makeVariable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
-  }
+  Variable *tv = makeVariable(loc, name, ret, DF_TYPEDEF | DF_IMPLICIT);
   ct->typedefVar = tv;
   if (name && scope) {
     scope->registerVariable(tv);

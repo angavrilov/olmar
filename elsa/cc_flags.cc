@@ -155,8 +155,8 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "unsigned int",           4,    true,   false, },
   { "long int",               4,    true,   false, },
   { "unsigned long int",      4,    true,   false, },
-  { "long long int",          8,    true,   false, }, // dsw: added "int" suffix
-  { "unsigned long long int", 8,    true,   false, }, // dsw: added "int" suffix
+  { "long long int",          8,    true,   false, },
+  { "unsigned long long int", 8,    true,   false, },
   { "short int",              2,    true,   false, },
   { "unsigned short int",     2,    true,   false, },
   { "wchar_t",                2,    true,   false, },
@@ -164,10 +164,18 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "double",                 8,    false,  true,  },
   { "long double",           10,    false,  true,  },
   { "void",                   1,    false,  false, },    // gnu: sizeof(void) is 1
+
+
   { "...",                    0,    false,  false, },
   { "/*cdtor*/",              0,    false,  false, },    // dsw: don't want to print <cdtor>
   { "<error>",                0,    false,  false, },
   { "<dependent>",            0,    false,  false, },
+
+
+
+  { "<prom_arith>",           0,    false,  false, },
+
+  { "<any_obj>",              0,    false,  false, },
 };
 
 SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id)
@@ -251,6 +259,46 @@ bool isInequality(BinaryOp op)
 {
   return BIN_LESS <= op && op <= BIN_GREATEREQ;
 }
+
+bool isOverloadable(BinaryOp op)
+{
+  return BIN_EQUAL <= op && op <= BIN_OR ||
+         op == BIN_ARROW_STAR;
+}
+
+
+// some of these names can't be used in C++ because of restrictions
+// on what operators can be overloaded, but I'll define the names
+// anyway for uniformity
+char const * const binaryOperatorFunctionNames[NUM_BINARYOPS] = {
+  "operator==",
+  "operator!=",
+  "operator<",
+  "operator>",
+  "operator<=",
+  "operator>=",
+
+  "operator*",
+  "operator/",
+  "operator%",
+  "operator+",
+  "operator-",
+  "operator<<",
+  "operator>>",
+  "operator&",
+  "operator^",
+  "operator|",
+  "operator&&",
+  "operator||",
+
+  "operator=",
+
+  "operator.*",
+  "operator->*",
+
+  "operator==>",
+  "operator<==>"
+};
 
 
 // ------------------- AccessKeyword -------------------

@@ -476,8 +476,8 @@ public:     // funcs
   bool isTemplateFunction() const;
   bool isTemplateClass() const;
   // dsw: need a way of telling if there is a template anywhere down
-  // inside the type
-  virtual bool isTemplateRec() const = 0;
+  // inside the type, whether or not it has been instantiated
+  virtual bool areYouOrHaveYouEverBeenATemplate() const = 0;
 
   // this is true if any of the type *constructors* on this type
   // refer to ST_ERROR; we don't dig down inside e.g. members of
@@ -542,7 +542,7 @@ public:
   bool isConst() const { return !!(cv & CV_CONST); }
   bool isVolatile() const { return !!(cv & CV_VOLATILE); }
 
-  bool isTemplateRec() const;
+  bool areYouOrHaveYouEverBeenATemplate() const;
 
   // Type interface
   virtual Tag getTag() const { return T_ATOMIC; }
@@ -574,7 +574,10 @@ public:
   bool isConst() const { return !!(cv & CV_CONST); }
   bool isVolatile() const { return !!(cv & CV_VOLATILE); }
 
-  bool isTemplateRec() const {return atType->isTemplateRec();}
+  bool areYouOrHaveYouEverBeenATemplate() const {
+    if (isDependent()) return true;
+    return atType->areYouOrHaveYouEverBeenATemplate();
+  }
 
   // Type interface
   virtual Tag getTag() const { return T_POINTER; }
@@ -647,7 +650,10 @@ public:
   bool isConstructor() const          { return !!(flags & FF_CTOR); }
   bool isDestructor() const           { return !!(flags & FF_DTOR); }
 
-  bool isTemplateRec() const {return isTemplate();}
+  bool areYouOrHaveYouEverBeenATemplate() const {
+    if (isDependent()) return true;
+    return isTemplate();
+  }
 
   bool innerEquals(FunctionType const *obj, EqFlags flags = EF_EXACT) const;
   bool equalParameterLists(FunctionType const *obj, EqFlags flags = EF_EXACT) const;
@@ -714,7 +720,10 @@ public:
 
   bool hasSize() const { return size != NO_SIZE; }
 
-  bool isTemplateRec() const {return eltType->isTemplateRec();}
+  bool areYouOrHaveYouEverBeenATemplate() const {
+    if (isDependent()) return true;
+    return eltType->areYouOrHaveYouEverBeenATemplate();
+  }
 
   // Type interface
   virtual Tag getTag() const { return T_ARRAY; }
@@ -743,7 +752,10 @@ public:
   bool innerEquals(PointerToMemberType const *obj, EqFlags flags) const;
   bool isConst() const { return !!(cv & CV_CONST); }
 
-  bool isTemplateRec() const {return atType->isTemplateRec();}
+  bool areYouOrHaveYouEverBeenATemplate() const {
+    if (isDependent()) return true;
+    return atType->areYouOrHaveYouEverBeenATemplate();
+  }
 
   // Type interface
   virtual Tag getTag() const { return T_POINTERTOMEMBER; }

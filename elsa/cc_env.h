@@ -42,6 +42,11 @@ protected:   // data
   // counter for constructing names for anonymous types
   int anonTypeCounter;
 
+  // initially false, this becomes true once Env::Env has finished;
+  // this is used to distinguish entities introduced automatically
+  // at the start from those that appeared in the input file
+  bool ctorFinished;
+
 public:      // data
   // nesting level of disambiguation passes; 0 means not disambiguating;
   // this is used for certain kinds of error reporting and suppression
@@ -64,8 +69,9 @@ public:      // data
   // client analyses may need to get ahold of all the Variables that I
   // made up, so this is a list of them; these don't include Variables
   // built for parameters of function types, but the functions
-  // themselves appear here so the parameters are reachable
-  SObjList<Variable> madeUpVariables;
+  // themselves appear here so the parameters are reachable (NOTE:
+  // at the moment, I don't think anyone is using this information)
+  ArrayStack<Variable*> madeUpVariables;
 
   // type for typeid expression
   Type *type_info_const_ref;      // (serf)
@@ -75,7 +81,6 @@ public:      // data
   StringRef constructorSpecialName;
   StringRef functionOperatorName;
   StringRef thisName;
-  StringRef operatorPlusName;
 
   StringRef special_getStandardConversion;
   StringRef special_getImplicitConversion;
@@ -90,6 +95,13 @@ public:      // data
   // dsw: Can't think of a better way to do this, sorry.
   Variable *var__builtin_constant_p;
 
+  // operator function names, indexed by the operators they overload
+  StringRef binaryOperatorName[NUM_BINARYOPS];
+
+  // polymorphic built-in operator functions (all serfs), indexed
+  // by operator
+  ArrayStack<Variable*> builtinBinaryOperator[NUM_BINARYOPS];
+
   TranslationUnit *tunit;
   
   // when true, the type checker does overload resolution; this isn't
@@ -103,16 +115,35 @@ private:     // funcs
   //CompoundType *instantiateClass(
   //  CompoundType *tclass, FakeList<TemplateArgument> *args);
 
-  Variable * declareFunction0arg(Type *retType, char const *funcName,
-                                 Type * /*nullable*/ exnType,
-                                 FunctionFlags flags);
-  void declareFunction1arg(Type *retType, char const *funcName,
-                           Type *arg1Type, char const *arg1Name,
-                           Type * /*nullable*/ exnType);
+  // these are intended to help build the initialization-time stuff,
+  // not build functions that result from the user's input syntax
+  Variable *declareFunctionNargs(
+    Type *retType, char const *funcName,
+    Type **argTypes, char const **argNames, int numArgs,
+    FunctionFlags flags, 
+    Type * /*nullable*/ exnType);
 
-  StringRef declareSpecialFunction(char const *name);
+  Variable *declareFunction0arg(Type *retType, char const *funcName,
+                                FunctionFlags flags = FF_NONE,
+                                Type * /*nullable*/ exnType = NULL);
+
+  Variable *declareFunction1arg(Type *retType, char const *funcName,
+                                Type *arg1Type, char const *arg1Name,
+                                FunctionFlags flags = FF_NONE,
+                                Type * /*nullable*/ exnType = NULL);
+
+  Variable *declareFunction2arg(Type *retType, char const *funcName,
+                                Type *arg1Type, char const *arg1Name,
+                                Type *arg2Type, char const *arg2Name,
+                                FunctionFlags flags = FF_NONE,
+                                Type * /*nullable*/ exnType = NULL);
+
+  Variable *declareSpecialFunction(char const *name);
 
   CompoundType *findEnclosingTemplateCalled(StringRef name);
+
+  void setupOperatorOverloading();
+  void addBuiltinBinaryOp(BinaryOp op, Type *x, Type *y);
 
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac, TranslationUnit *tunit0);
@@ -204,7 +235,7 @@ public:      // funcs
   // (if that is not NULL)
   Type *makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                         StringRef name, SourceLoc loc,
-                        TypeIntr keyword, bool forward, bool madeUpVar);
+                        TypeIntr keyword, bool forward);
 
   // instantate 'base' with 'arguments', and return the implicit
   // typedef Variable associated with the resulting type; 'scope'
@@ -261,11 +292,8 @@ public:      // funcs
   ArrayType *makeArrayType(SourceLoc loc, Type *eltType, int size = -1)
     { return tfac.makeArrayType(loc, eltType, size); }
 
-  Variable *makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
-    { return tfac.makeVariable(L, n, t, f, tunit); }
-  // dsw: made up Variable-s don't get a TranslationUnit so I can tell them apart
-  Variable *makeMadeUpVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
-    { return tfac.makeVariable(L, n, t, f, NULL); }
+  // (this does the work of the old 'makeMadeUpVariable')
+  Variable *makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f);
 
   CVAtomicType *getSimpleType(SourceLoc loc, SimpleTypeId st, CVFlags cv = CV_NONE)
     { return tfac.getSimpleType(loc, st, cv); }

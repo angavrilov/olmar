@@ -723,7 +723,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
       // make a forward declaration
       Type *ret =
          env.makeNewCompound(ct, env.acceptingScope(), name->getName(),
-                             loc, keyword, true /*forward*/, false /*madeUpVar*/);
+                             loc, keyword, true /*forward*/);
       this->atype = ct;        // annotation
       return ret;
     }
@@ -767,8 +767,8 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     // handling 'friend' here, despite what the standard says..
     Scope *scope = env.outerScope();
     Type *ret =
-       env.makeNewCompound(ct, scope, name->getName(), loc, keyword,
-                           true /*forward*/, false /*madeUpVar*/);
+       env.makeNewCompound(ct, scope, name->getName(), loc, keyword, 
+                           true /*forward*/);
     this->atype = ct;           // annotation
     return ret;
   }
@@ -904,7 +904,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // make a new type, since a specialization is a distinct template
     // [cppstd 14.5.4 and 14.7]; but don't add it to any scopes
     ret = env.makeNewCompound(ct, NULL /*scope*/, stringName, loc, keyword,
-                              false /*forward*/, false /*madeUpVar*/);
+                              false /*forward*/);
     this->ctype = ct;           // annotation
 
     // add this type to the primary's list of specializations; we are not
@@ -937,7 +937,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // no existing compound; make a new one
     Scope *destScope = env.typeAcceptingScope();
     ret = env.makeNewCompound(ct, destScope, stringName,
-                              loc, keyword, false /*forward*/, false /*madeUpVar*/);
+                              loc, keyword, false /*forward*/);
     this->ctype = ct;              // annotation
   }
 
@@ -1062,7 +1062,7 @@ void TS_classSpec::tcheckIntoCompound(
       // put it on the list of made-up variables since there are no
       // (e.g.) $tainted qualifiers (since the user didn't even type the
       // dtor's name)
-      env.madeUpVariables.append(v);
+      env.madeUpVariables.push(v);
     }
   }
 
@@ -2572,31 +2572,8 @@ char const *ON_newDel::getOperatorName() const
 
 char const *ON_binary::getOperatorName() const
 {
-  switch (op) {
-    default:              xfailure("bad code");
-    case BIN_EQUAL:       return "operator==";
-    case BIN_NOTEQUAL:    return "operator!=";
-    case BIN_LESS:        return "operator<";
-    case BIN_GREATER:     return "operator>";
-    case BIN_LESSEQ:      return "operator<=";
-    case BIN_GREATEREQ:   return "operator>=";
-    case BIN_MULT:        return "operator*";
-    case BIN_DIV:         return "operator/";
-    case BIN_MOD:         return "operator%";
-    case BIN_PLUS:        return "operator+";
-    case BIN_MINUS:       return "operator-";
-    case BIN_LSHIFT:      return "operator<<";
-    case BIN_RSHIFT:      return "operator>>";
-    case BIN_BITAND:      return "operator&";
-    case BIN_BITXOR:      return "operator^";
-    case BIN_BITOR:       return "operator|";
-    case BIN_AND:         return "operator&&";
-    case BIN_OR:          return "operator||";
-    case BIN_ASSIGN:      return "operator=";
-    case BIN_DOT_STAR:    return "operator.*";
-    case BIN_ARROW_STAR:  return "operator->*";
-    case BIN_IMPLIES:     return "operator==>";
-  };
+  xassert(validCode(op));
+  return binaryOperatorFunctionNames[op];
 }
 
 char const *ON_unary::getOperatorName() const
@@ -3384,7 +3361,7 @@ static bool allNonTemplateFunctions(SObjList<Variable> &set)
     xassert(ft);
     if (ft->isTemplate()) return false;
     SFOREACH_OBJLIST(Variable, ft->params, param_iter) {
-      if (param_iter.data()->type->isTemplateRec()) return false;
+      if (param_iter.data()->type->areYouOrHaveYouEverBeenATemplate()) return false;
     }
   }
   return true;
@@ -3397,7 +3374,7 @@ static bool allNonTemplates(FakeList<ICExpression> *args)
 //    cout << "argument types:" << endl;
   FAKELIST_FOREACH_NC(ICExpression, args, iter) {
 //      cout << "\titer->expr->type " << iter->expr->type->toCString() << endl;
-    if (iter->expr->type->isTemplateRec()) return false;
+    if (iter->expr->type->areYouOrHaveYouEverBeenATemplate()) return false;
   }
   return true;
 }
@@ -3547,13 +3524,6 @@ static Type *overloading(Env &env, E_funCall *e_funCall, Type *&t)
 
 Type *E_funCall::inner2_itcheck(Env &env)
 {
-  if (func->isE_variable() || func->isE_fieldAcc()) {
-    // dsw: I think this comment is obsolete
-    // if I'm trying to test it, I want it performed; do this up here
-    // so I turn it on before resolving the arguments
-    env.doOverload = true;
-  }
-
   // check the argument list
   tcheckFakeExprList(args, env);
 
@@ -3765,10 +3735,13 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
   Type *rhsType = e2->type->asRval();
 
   // check for operator overloading; only limited cases for now
-  if (env.doOverload &&
-      op == BIN_PLUS &&
+  if (false &&                  // dsw: turn this off for now
+      env.doOverload &&
+      // (TODO: lhs or rhs enum triggers overload resolution)
+      isOverloadable(op) &&
       (lhsType->isCompoundType() || rhsType->isCompoundType())) {
-    TRACE("opovl", "found overloadable BIN_PLUS instance");
+    TRACE("overload", "found overloadable " << toString(op));
+    StringRef opName = env.binaryOperatorName[op];
 
     // collect argument information
     GrowArray<ArgumentInfo> args(2);
@@ -3780,61 +3753,68 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
                               OF_NONE, args, 10 /*numCand*/);
 
     // collect candidates: cppstd 13.3.1.2 para 3
+    {
+      // member candidates
+      if (lhsType->isCompoundType()) {
+        Variable *member = lhsType->asCompoundType()->lookupVariable(opName, env);
+        if (member) {
+          resolver.processPossiblyOverloadedVar(member);
+        }
+      }
 
-    // member candidates
-    if (lhsType->isCompoundType()) {
-      Variable *member = lhsType->asCompoundType()->
-        lookupVariable(env.operatorPlusName, env);
-      if (member) {
-        TRACE("opovl", member->overloadSetSize() << " member candidates");
-        resolver.processPossiblyOverloadedVar(member);
+      // non-member candidates; this lookup ignores member functions
+      Variable *nonmember = env.lookupVariable(opName, LF_SKIP_CLASSES);
+      if (nonmember) {
+        resolver.processPossiblyOverloadedVar(nonmember);
+      }
+
+      // built-in candidates
+      ArrayStack<Variable*> &builtins = env.builtinBinaryOperator[op];
+      for (int i=0; i < builtins.length(); i++) {
+        resolver.processCandidate(builtins[i]);
       }
     }
-
-    // non-member candidates; this lookup ignores member functions
-    Variable *nonmember = env.lookupVariable(env.operatorPlusName, LF_SKIP_CLASSES);
-    if (nonmember) {
-      TRACE("opovl", nonmember->overloadSetSize() << " non-member candidates");
-      resolver.processPossiblyOverloadedVar(nonmember);
-    }
-
-    // built-in candidates
-    // TODO: add support for polymorphic candidates and user-defined
-    // conversion functions
 
     // pick one
     Variable *winner = resolver.resolve();
     if (winner) {
-      TRACE("opovl", "chose candidate at " << toString(winner->loc));
+      TRACE("overload", "chose candidate at " << toString(winner->loc));
 
-      PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_binary(BIN_PLUS), 
-                                         env.operatorPlusName);
-      if (winner->hasFlag(DF_MEMBER)) {
-        // replace 'a+b' with 'a.operator+(b)'
-        replacement = new E_funCall(
-          // function to invoke
-          new E_fieldAcc(e1, pqo),
-          // arguments
-          FakeList<ICExpression>::makeList(new ICExpression(e2))
-        );
+      if (!winner->hasFlag(DF_BUILTIN)) {
+        PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_binary(op), opName);
+        if (winner->hasFlag(DF_MEMBER)) {
+          // replace 'a+b' with 'a.operator+(b)'
+          replacement = new E_funCall(
+            // function to invoke
+            new E_fieldAcc(e1, pqo),
+            // arguments
+            FakeList<ICExpression>::makeList(new ICExpression(e2))
+          );
+        }
+        else {
+          // replace 'a+b' with '::operator+(a,b)'
+          // (TODO: that's wrong in the presence of namespaces)
+          replacement = new E_funCall(
+            // function to invoke
+            new E_variable(new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/,
+                                            NULL /*targs*/, pqo)),
+            // arguments
+            FakeList<ICExpression>::makeList(new ICExpression(e2))
+            ->prepend(new ICExpression(e1))
+          );
+        }
+
+        // for now, just re-check the whole thing
+        replacement->tcheck(env, replacement);
+        return replacement->type;
       }
+
       else {
-        // (assume it's not a built-in, since that's not implemented)
-        // replace 'a+b' with '::operator+(a,b)'
-        // (TODO: that's wrong in the presence of namespaces)
-        replacement = new E_funCall(
-          // function to invoke
-          new E_variable(new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/, 
-                                          NULL /*targs*/, pqo)),
-          // arguments
-          FakeList<ICExpression>::makeList(new ICExpression(e2))
-          ->prepend(new ICExpression(e1))
-        );
+        // chose a built-in operator
+
+        // TODO: need to replace the arguments according to their
+        // conversions (if any)
       }
-      
-      // for now, just re-check the whole thing
-      replacement->tcheck(env, replacement);
-      return replacement->type;
     }
   }
 

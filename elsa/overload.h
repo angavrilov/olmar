@@ -18,15 +18,15 @@ class ErrorList;
 
 // information about an argument expression, for use with
 // overload resolution
-class ArgumentInfo {  
+class ArgumentInfo {
 public:
   SpecialExpr special;          // whether it's a special expression
-  Type const *type;             // type of argument
+  Type *type;                   // type of argument
 
 public:
   ArgumentInfo()
     : special(SE_NONE), type(NULL) {}
-  ArgumentInfo(SpecialExpr s, Type const *t)
+  ArgumentInfo(SpecialExpr s, Type *t)
     : special(s), type(t) {}
   ArgumentInfo(ArgumentInfo const &obj)
     : DMEMB(special), DMEMB(type) {}
@@ -75,7 +75,7 @@ public:      // data
   Env &env;
   SourceLoc loc;
   ErrorList * /*nullable*/ errors;
-  OverloadFlags flags;          
+  OverloadFlags flags;
   // no list of candidates here
   GrowArray<ArgumentInfo> &args;
 
@@ -84,8 +84,7 @@ public:      // data
 
 private:     // funcs
   Candidate * /*owner*/ makeCandidate(Variable *var);
-  Candidate *pickWinner(int low, int high);
-  int compareCandidates(Candidate const *left, Candidate const *right);
+  void printArgInfo();
 
 public:      // funcs
   OverloadResolver(Env &en, SourceLoc L, ErrorList *er,
@@ -96,14 +95,19 @@ public:      // funcs
       errors(er),
       flags(f),
       args(a),
-      
+
       // this estimate does not have to be perfect; if it's high,
       // then more space will be allocated than necessary; if it's
       // low, then the 'candidates' array will have to be resized
       // at some point; it's entirely a performance issue
       candidates(numCand)
-  {}
+  {
+    printArgInfo();
+  }
   ~OverloadResolver();
+
+  // public for 'tournament'
+  int compareCandidates(Candidate const *left, Candidate const *right);
 
   // process a batch of candidate functions, adding the viable
   // ones to the 'candidates' list
@@ -131,6 +135,52 @@ Variable *resolveOverload(
   SObjList<Variable> &list,        // list of overloaded possibilities
   GrowArray<ArgumentInfo> &args);  // list of argument types at the call site
 
+
+                           
+// given an object of type 'srcClass', find a conversion operator
+// that will yield 'destType' (perhaps with an additional standard
+// conversion)
+ImplicitConversion getConversionOperator(
+  Env &env,
+  SourceLoc loc,
+  ErrorList * /*nullable*/ errors,
+  CompoundType *srcClass,          // ignore cv-qualification of receiver
+  Type *destType
+);
+
+
+// helper/implementation class for 'getConversionOperator'
+class ConversionResolver {
+public:      // data
+  // same meaning as corresponding arguments to 'resolveOverload'
+  Env &env;
+  SourceLoc loc;
+  ErrorList * /*nullable*/ errors;
+  Type *destType;
+
+  // set of candidate conversion operator functions
+  ArrayStack<Variable*> candidates;
+
+private:     // funcs
+  StandardConversion getSC(Variable *v);
+
+public:      // funcs
+  ConversionResolver(Env &en, SourceLoc L, ErrorList *er, Type *d)
+    : env(en), loc(L), errors(er), destType(d) {}
+  ~ConversionResolver();
+
+  // public for 'tournament'
+  int compareCandidates(Variable *left, Variable *right);
+
+  void potentialCandidate(Variable *v);
+  ImplicitConversion resolve();
+};
+
+
+// given the Variable of a conversion operator function, yield
+// the ImplicitConversion that represents its use to make
+// a value of type 'dest'
+//ImplicitConversion makeConversionOperatorIC(Variable *v, Type *dest);
 
 
 #endif // OVERLOAD_H

@@ -1,7 +1,7 @@
 # Makefile.in
 # this is the Makefile for Elsa, the Elkhound-based C++ Parser
 
-#tmp: cc.gr.gen.o
+#tmp: overload.o
 
 # main target: a C++ parser
 all: cc.ast.gen.h tlexer ccparse quicktest
