@@ -232,7 +232,7 @@ void Function::tcheck(Env &env, bool checkBody, Variable *instV)
   Declarator::Tcheck dt(retTypeSpec,
                         dflags | (checkBody? DF_DEFINITION : DF_NONE),
                         DC_FUNCTION);
-  dt.var = instV;
+  dt.existingVar = instV;
   nameAndParams = nameAndParams->tcheck(env, dt);
   if (!nameAndParams->var) {
     return;                     // error should have already been reported
@@ -264,11 +264,11 @@ void Function::tcheck(Env &env, bool checkBody, Variable *instV)
 
     // NASTY (expletive) (expletive) HACK: Our STA_REFERENCE thing is
     // causing a problem for d0053.cc, because 'dt.type' is A2<17>
-    // whereas 'dt.var->type' is A2<I>, 'I' being a reference (to the
-    // param itself...).  So, do the same force-complete to the
-    // dt.var->type.....
+    // whereas 'nameAndParams->var->type' is A2<I>, 'I' being a
+    // reference (to the param itself...).  So, do the same
+    // force-complete to the nameAndParams->var->type.....
     {
-      FunctionType *declFuncType = dt.var->type->asFunctionType();
+      FunctionType *declFuncType = nameAndParams->var->type->asFunctionType();
       env.ensureCompleteType("use (in declFuncType) as return type", declFuncType->retType);
       SFOREACH_OBJLIST(Variable, declFuncType->params, iter) {
         env.ensureCompleteType("use (in declFuncType) as parameter type", iter.data()->type);
@@ -704,13 +704,14 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
     Declarator::Tcheck dt1(specType, dflags, context);
     decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
 
-    if (dt1.var && dt1.var->templInfo) {
+    Variable *dt1var = decllist->first()->var;
+    if (dt1var && dt1var->templInfo) {
       // this could have been a forward declaration of a templatized
       // function, for which we will need to remember the syntax of
       // the declaration so it can be re-tchecked with parameters
       // bound to arguments
-      dt1.var->templInfo->declSyntax = this;
-      
+      dt1var->templInfo->declSyntax = this;
+
       // cppstd 14 para 3: there can be at most one declarator
       // in a template declaration; this justifies not repeating
       // this 'declSyntax' action in the loop below
@@ -1946,13 +1947,13 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
 // longer done at the bottom of the IDeclarator chain, but instead is
 // done right after processing the IDeclarator,
 // Declarator::mid_tcheck.
-static void declareNewVariable(
+static Variable *declareNewVariable(
   // environment in which to do general lookups
   Env &env,
 
-  // contains various information about 'name', notably it's type
+  // contains various information about 'name', notably its type
   Declarator::Tcheck &dt,
-  
+
   // true if we're a D_grouping is innermost to a D_pointer
   bool inGrouping,
 
@@ -1991,7 +1992,7 @@ static void declareNewVariable(
   // come back.
 
   // an error has been reported, but for error recovery purposes,
-  // put something reasonable into the 'dt.var' field
+  // return something reasonable
   makeDummyVar:
   {
     if (!consumedFunction) {
@@ -2002,22 +2003,21 @@ static void declareNewVariable(
     // object, so we can continue making progress diagnosing errors
     // in the program; this won't be entered in the environment, even
     // though the 'name' is not NULL
-    dt.var = env.makeVariable(loc, unqualifiedName, dt.type, dt.dflags);
+    Variable *ret = env.makeVariable(loc, unqualifiedName, dt.type, dt.dflags);
 
     // set up the variable's 'scope' field as if it were properly
     // entered into the scope; this is for error recovery, in particular
     // for going on to check the bodies of methods
-    scope->registerVariable(dt.var);
+    scope->registerVariable(ret);
 
-    return;
+    return ret;
   }
 
 realStart:
   if (!name) {
     // no name, nothing to enter into environment
     possiblyConsumeFunctionType(env, dt);
-    dt.var = env.makeVariable(loc, NULL, dt.type, dt.dflags);
-    return;
+    return env.makeVariable(loc, NULL, dt.type, dt.dflags);
   }
 
   // C linkage?
@@ -2037,8 +2037,7 @@ realStart:
       // adding a declaration, so just make the required Variable
       // and be done with it
       possiblyConsumeFunctionType(env, dt);     // TODO: can't befriend cv members..
-      dt.var = env.makeVariable(loc, unqualifiedName, dt.type, dt.dflags);
-      return;
+      return env.makeVariable(loc, unqualifiedName, dt.type, dt.dflags);
     }
     else {
       // the main effect of 'friend' in my implementation is to
@@ -2230,8 +2229,8 @@ realStart:
   // Declarator::mid_tcheck.
 
   // make a new variable; see implementation for details
-  dt.var = env.createDeclaration(loc, unqualifiedName, dt.type, dt.dflags,
-                                 scope, enclosingClass, prior, overloadSet);
+  return env.createDeclaration(loc, unqualifiedName, dt.type, dt.dflags,
+                               scope, enclosingClass, prior, overloadSet);
 }
 
 
@@ -2426,11 +2425,11 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
   if (isExplicitSpec) {
     if (dt.type->isFunctionType()) {
-      dt.var = env.makeExplicitFunctionSpecialization
-                 (decl->loc, dt.dflags, name, dt.type->asFunctionType());
-      if (dt.var) {
+      dt.existingVar = env.makeExplicitFunctionSpecialization
+                         (decl->loc, dt.dflags, name, dt.type->asFunctionType());
+      if (dt.existingVar) {
         enclosingScope->setParameterizedPrimary
-          (dt.var->templateInfo()->getPrimary()->var);
+          (dt.existingVar->templateInfo()->getPrimary()->var);
       }
     }
     else {
@@ -2448,35 +2447,36 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   //
   // make a Variable, add it to the environment
   bool callerPassedInstV = false;
-  if (!dt.var) {
-    declareNewVariable(env, dt, decl->hasInnerGrouping(), decl->loc, name);
+  if (!dt.existingVar) {
+    var = env.storeVar(
+      declareNewVariable(env, dt, decl->hasInnerGrouping(), decl->loc, name));
   }
   else {
     // caller already gave me a Variable to use
+    var = dt.existingVar;
     callerPassedInstV = true;
 
     // declareNewVariable is normally responsible for adding the receiver
     // param to 'dt.type', but since I skipped it, I have to do it
     // here too
-    if (dt.var->type->isFunctionType() &&
-        dt.var->type->asFunctionType()->isMethod()) {
-      TRACE("memberFunc", "nonstatic member function: " << dt.var->name);
+    if (var->type->isFunctionType() &&
+        var->type->asFunctionType()->isMethod()) {
+      TRACE("memberFunc", "nonstatic member function: " << var->name);
 
       // add the implicit 'this' parameter
       makeMemberFunctionType(env, dt,
-        dt.var->type->asFunctionType()->getClassOfMember(), decl->loc);
+        var->type->asFunctionType()->getClassOfMember(), decl->loc);
     }
     else {
-      TRACE("memberFunc", "static or non-member function: " << dt.var->name);
+      TRACE("memberFunc", "static or non-member function: " << var->name);
       possiblyConsumeFunctionType(env, dt);
     }
   }
 
-  if (!dt.var) {
+  if (!var) {
     env.retractScopeSeq(qualifierScopes);
     return;      // an error was found and reported; bail rather than die later
   }
-  var = env.storeVar(dt.var);
   type = env.tfac.cloneType(dt.type);
   context = dt.context;
 
@@ -2504,11 +2504,11 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   if (templateInfo) {
     TRACE("template", "template func " << 
                       ((dt.dflags & DF_DEFINITION) ? "defn" : "decl")
-                      << ": " << dt.type->toCString(dt.var->fullyQualifiedName()));
+                      << ": " << dt.type->toCString(var->fullyQualifiedName()));
 
-    if (!dt.var->templateInfo()) {
+    if (!var->templateInfo()) {
       // this is a new template decl; attach it to the Variable
-      dt.var->setTemplateInfo(templateInfo);
+      var->setTemplateInfo(templateInfo);
 
       // 
 
@@ -2521,7 +2521,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
         //
         // TODO: this really should just be TemplateParams, not
         // a full TemplateInfo ...
-        dt.var->templateInfo()->definitionTemplateInfo = templateInfo;
+        var->templateInfo()->definitionTemplateInfo = templateInfo;
       }
       else {
         // discard this templateInfo
@@ -2533,15 +2533,15 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // is automatically the primary
     if (enclosingScope->isTemplateParamScope() &&
         !enclosingScope->parameterizedPrimary) {
-      enclosingScope->setParameterizedPrimary(dt.var);
+      enclosingScope->setParameterizedPrimary(var);
     }
 
     // sm: I'm not sure what this is doing.  It used to only be done when
-    // dt.var had no templateInfo to begin with.  Now I'm doing it always,
+    // 'var' had no templateInfo to begin with.  Now I'm doing it always,
     // which might not be right.
     if (getDeclaratorId() &&
         getDeclaratorId()->isPQ_template()) {
-      env.initArgumentsFromASTTemplArgs(dt.var->templateInfo(),
+      env.initArgumentsFromASTTemplArgs(var->templateInfo(),
                                         getDeclaratorId()->asPQ_templateC()->args);
     }
   }

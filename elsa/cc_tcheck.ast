@@ -278,25 +278,17 @@ class Declarator {
   // this class contains the data passed into and out of the
   // declarator checking functions
   public struct Tcheck {
-    // the bottom-most IDeclarator (D_name or D_bitfield) creates
-    // or looks up a Variable, and sets this to point at it
-    //
-    // 8/06/04: now set by Declarator::mid_tcheck directly
-    //
-    // hack: on the way in, if already set, use it instead of
-    // looking up or making another one
-    Variable *var;
+    // Normally, a declarator creates a Variable and inserts it
+    // into the environment.  If this field is non-NULL, then the
+    // declarator simply uses the supplied Variable instead.
+    // Either way, the Variable* is then stored in Declarator::var.
+    Variable *existingVar;
 
     // on the way in, this is the type computed so far; initially
     // it's just the type specifier but additional declarators will
     // layer additional type constructors on top of it and replace
     // the pointer here with a pointer to the constructed type; at
     // the end it is the fully-constructed type
-    //
-    // however, it need not be the same type as var->type at the
-    // end, because var->type might be a function type from a
-    // prototype (with the prototype's parameter names) while this
-    // field will be the constructed type with its own names
     Type *type;
 
     // these are the declflags attached to the outer declaration
@@ -316,7 +308,7 @@ class Declarator {
 
   public:
     Tcheck(Type *t, DeclFlags d, DeclaratorContext dc)
-      : var         (NULL)
+      : existingVar (NULL)
       , type        (t)
       , dflags      (d)
       , size_E_new  (NULL)
@@ -324,7 +316,7 @@ class Declarator {
       , context     (dc)
     {}
     Tcheck(Tcheck const &obj)
-      : var         (obj.var)
+      : existingVar (obj.existingVar)
       , type        (obj.type)
       , dflags      (obj.dflags)
       , size_E_new  (obj.size_E_new)
@@ -332,7 +324,7 @@ class Declarator {
       , context     (obj.context)
     {}
     Tcheck& operator= (Tcheck const &obj) {
-      var         = obj.var;
+      existingVar = obj.existingVar;
       type        = obj.type;
       dflags      = obj.dflags;
       size_E_new  = obj.size_E_new;
@@ -346,10 +338,10 @@ class Declarator {
 
   // determine the type denoted by the combination of 'dt.type' and
   // the type constructors in this declarator, then make a Variable
-  // which has that type and store it in 'dt.var'; if this declarator
-  // refers to something that is *already* declared (like a function
-  // with a prior prototype), the 'var' field will be shared among the
-  // various declarations; if not, put it into the environment
+  // that has that type; if this declarator refers to something that
+  // is *already* declared (like a function with a prior prototype),
+  // the 'var' field will be shared among the various declarations; if
+  // not, put it into the environment
   //
   // the return value specifies which of possibly ambiguous
   // alternatives was selected
