@@ -964,15 +964,22 @@ nonterm(Declaration*) SimpleDeclaration {
 // instead of
 //   -> UberModifierSeqOpt PQTypeName UberModifierSeqOpt
 // because the latter would cause shift/reduce conflicts.
+//
+// UPDATE: dsw: FIX: to get the kernel to parse, I changed the TS_name
+// rules from UberModifierSeq to UberTypeAndModifierSeq after the
+// PQTypeName; any additional types or modifiers that this allows are
+// dropped on the floor by uberCVFlags; See in/c/dC0014.c; FIX: also,
+// I wonder if UberTypeAndModifierSeq should be used for the TS_simple
+// and/or TS_elaborated et. al. rules also
 nonterm(Declaration*) DeclSpecifier {
   fun dup(d) { return NULL; }    // prevent multi-yield
 
   // TS_name: triggered by PQTypeName
-  -> n:PQTypeName m2:UberModifierSeqOpt
+  -> n:PQTypeName m2:UberTypeAndModifierSeqOpt
        { return new Declaration(uberDeclFlags(m2),
            new_TS_name(loc, uberCVFlags(m2), n, false /*typename*/), NULL); }
 
-  -> m1:UberModifierSeq n:PQTypeName m2:UberModifierSeqOpt
+  -> m1:UberModifierSeq n:PQTypeName m2:UberTypeAndModifierSeqOpt
        { UberModifiers m = uberCombine(loc, m1, m2);
          return new Declaration(uberDeclFlags(m),
            new_TS_name(loc, uberCVFlags(m), n, false /*typename*/), NULL); }
@@ -1025,12 +1032,18 @@ nonterm(UberModifiers) UberModifierSeqOpt {
 }
 
 
-// possibly empty sequence of modifiers (e.g. "static") or type
-// keywords (e.g. "int")
+// sequence of modifiers (e.g. "static") or type keywords (e.g. "int")
+nonterm(UberModifiers) UberTypeAndModifierSeq {
+  -> u:UberModifier                              { return u; }
+  -> u:UberTypeKeyword                           { return u; }
+  -> s:UberTypeAndModifierSeq u:UberModifier     { return uberCombine(loc, s,u); }
+  -> s:UberTypeAndModifierSeq u:UberTypeKeyword  { return uberCombine(loc, s,u); }
+}
+
+// possibly empty sequence
 nonterm(UberModifiers) UberTypeAndModifierSeqOpt {
-  -> empty                                          { return UM_NONE; }
-  -> s:UberTypeAndModifierSeqOpt u:UberModifier     { return uberCombine(loc, s,u); }
-  -> s:UberTypeAndModifierSeqOpt u:UberTypeKeyword  { return uberCombine(loc, s,u); }
+  -> empty                                       { return UM_NONE; }
+  -> s:UberTypeAndModifierSeq                    { return s; }
 }
 
 
@@ -1111,14 +1124,21 @@ nonterm(TypeSpecifier*) ElaboratedTypeSpecifier {
 // plays role of "TypeSpecifierSeq" in cppstd; this is a
 // version of DeclSpecifier restricted to only allow "const" and
 // "volatile" UberModifiers
+//
+// UPDATE: dsw: FIX: to get the kernel to parse, I changed the TS_name
+// rules from UberCVQualifierSeq to UberModifierSeq; any additional
+// types or modifiers that this allows are dropped on the floor by
+// uberCVFlags; See in/c/dC0010.c; FIX: also, I wonder if
+// UberModifierSeq should be used for the TS_simple and/or
+// TS_elaborated et. al. rules also
 nonterm(TypeSpecifier*) TypeSpecifier {
   // TS_name
-  -> n:PQTypeName cv2:UberCVQualifierSeqOpt
-       { return new_TS_name(loc, uberCVFlags(cv2), n, false /*typename*/); }
+  -> n:PQTypeName m2:UberModifierSeqOpt
+       { return new_TS_name(loc, uberCVFlags(m2), n, false /*typename*/); }
 
-  -> cv1:UberCVQualifierSeq n:PQTypeName cv2:UberCVQualifierSeqOpt
-       { UberModifiers cv = uberCombine(loc, cv1, cv2);
-         return new_TS_name(loc, uberCVFlags(cv), n, false /*typename*/); }
+  -> m1:UberModifierSeq n:PQTypeName m2:UberModifierSeqOpt
+       { UberModifiers m = uberCombine(loc, m1, m2);
+         return new_TS_name(loc, uberCVFlags(m), n, false /*typename*/); }
 
   // TS_simple
   -> k1:UberTypeKeyword m2:UberTypeAndCVQualifierSeqOpt
