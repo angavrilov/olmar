@@ -62,7 +62,7 @@ option defaultMergeAborts;
 option shift_reduce_conflicts 58;
 option reduce_reduce_conflicts 58;
 option unreachable_nonterminals 0;
-option unreachable_terminals 27;
+option unreachable_terminals 22;
 
 verbatim {
 
@@ -680,7 +680,7 @@ nonterm(Statement*) Statement {
   // or a BlockDeclaration (declare variable y, of type x)
   fun merge(L,R) { L->addAmbiguity(R); return L; }
 
-  -> n:Identifier ":" s:Statement 
+  -> n:Identifier ":" attrspec:AttributeSpecifierOpt s:Statement 
        { return new S_label(loc, n, s); }
 
   -> "case" e:ConstantExpression ":" s:Statement
@@ -2202,11 +2202,6 @@ nonterm(FakeList<ASTTypeId>*) TypeIdList {
 nonterm AttributeWord {
   // non-keyword name
   -> n:TOK_NAME { return 0; }
-
-  // classified name (for e.g. cdecl2)
-  -> tn:TOK_TYPE_NAME { return 0; }
-  -> vn:TOK_VARIABLE_NAME { return 0; }
-
   // keywords
   -> "asm" { return 0; }
   -> "auto" { return 0; }
@@ -2273,7 +2268,6 @@ nonterm AttributeWord {
   -> "volatile" { return 0; }
   -> "wchar_t" { return 0; }
   -> "while" { return 0; }
-
   // don't know if I need to allow these; gcc 2.95.3 doesn't like them
   //  // GNU extensions
   //  TOK___ATTRIBUTE__,       "__attribute__",             :    n
@@ -2284,32 +2278,41 @@ nonterm AttributeWord {
 }
 
 
-nonterm CommaSepExpressionList {
+nonterm CommaSepExpressionListOpt {
   -> empty { return 0; }
-  -> e:Expression { return 0; }
-  -> el:CommaSepExpressionList "," e:Expression { return 0; }
+  -> el:ExpressionList { return 0; }
 }
 
 
 nonterm AttributeParameters {
-  -> id:Identifier exprs:CommaSepExpressionList { return 0; }
-  -> exprs:CommaSepExpressionList { return 0; }
+//    -> id:Identifier "," exprs:CommaSepExpressionListOpt { return 0; }
+  // NOTE: the below includes the above, except that the first
+  // expression, if an identifier, should not be typechecked as an
+  // E_varaible, since it need not match a declared name; first it
+  // should be checked against know attribute parameters (maybe?).
+  -> exprs:CommaSepExpressionListOpt { return 0; }
 }
 
 
 nonterm Attribute {
   -> empty { return 0; }
   -> w:AttributeWord { return 0; }
-  -> w:AttributeWord "(" appo:AttributeParameters ")" { return 0; }
+  -> w:AttributeWord "(" ap:AttributeParameters ")" { return 0; }
 }
 
 
 nonterm AttributeList {
   -> at:Attribute { return 0; }
-  -> ap:AttributeParameters "," at:Attribute { return 0; }
+  -> ap:AttributeList "," at:Attribute { return 0; }
 }
 
 
 nonterm AttributeSpecifier {
   -> "__attribute__" "(" "(" ap:AttributeList ")" ")" { return 0; }
+}
+
+
+nonterm AttributeSpecifierOpt {
+  -> empty { return 0; }
+  -> as:AttributeSpecifier { return 0; }
 }
