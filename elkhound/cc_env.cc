@@ -471,6 +471,21 @@ Variable *Env::declareVariable(CCTreeNode const *node, char const *name,
       // duplicate name
       Variable *prev = getVariable(name);
 
+      // if the old decl and new are the same array type,
+      // except the old was missing a size, replace the
+      // old with the new
+      if (type->isArrayType() &&
+          prev->type->isArrayType()) {
+        ArrayType const *arr = &( type->asArrayTypeC() );
+        ArrayType const *parr = &( prev->type->asArrayTypeC() );
+        if (arr->eltType->equals(parr->eltType) &&
+            arr->hasSize &&
+            !parr->hasSize) {
+          // replace old with new
+          prev->type = type;
+        }
+      }
+
       // no way we allow it if the types don't match
       if (!type->equals(prev->type)) {
         node->throwError(stringc
