@@ -1,10 +1,10 @@
 // pprint.cc
 // code for pprint.h
 
-#include <string.h>
 #include "pprint.h"      // this module
 #include "breaker.h"     // breaker
 #include <stdio.h>       // sprintf
+#include <string.h>      // memcpy
 
 
 // ---------------------- PPrintOut ----------------------

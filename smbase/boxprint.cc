@@ -1,8 +1,10 @@
 // boxprint.cc
 // code for boxprint.h
 
-#include <string.h>
 #include "boxprint.h"       // this module
+#include "strutil.h"        // quoted
+
+#include <string.h>         // strlen
 
 
 // ----------------------- BPRender ----------------------
@@ -76,6 +78,12 @@ void BPText::render(BPRender &mgr)
 }
 
 
+void BPText::debugPrint(ostream &os, int ind) const
+{
+  os << "text(" << quoted(text) << ")";
+}
+
+
 // ------------------------ BPBreak ---------------------
 BPBreak::BPBreak(bool e, int i)
   : enabled(e),
@@ -99,6 +107,11 @@ void BPBreak::render(BPRender &mgr)
 bool BPBreak::isBreak() const
 {
   return enabled;
+}
+
+void BPBreak::debugPrint(ostream &os, int ind) const
+{
+  os << "break(en=" << (int)enabled << ", ind=" << indent << ")";
 }
 
 
@@ -207,6 +220,34 @@ void BPBox::render(BPRender &mgr)
 }
 
 
+void BPBox::debugPrint(ostream &os, int ind) const
+{           
+  static char const * const map[] = {
+    "vert",
+    "seq",
+    "corr"
+  };
+
+  os << "box(kind=" << map[kind] << ") {\n";
+  ind += 2;
+  
+  FOREACH_ASTLIST(BPElement, elts, iter) {
+    for (int i=0; i<ind; i++) {
+      os << " ";
+    }
+
+    iter.data()->debugPrint(os, ind);
+    os << "\n";
+  }
+
+  ind -= 2;
+  for (int i=0; i<ind; i++) {
+    os << " ";
+  }
+  os << "}";
+}
+
+
 // ------------------------ BoxPrint ----------------------
 BPKind const BoxPrint::vert = BP_vertical;
 BPKind const BoxPrint::seq  = BP_sequence;
@@ -295,6 +336,21 @@ BPBox* /*owner*/ BoxPrint::takeTree()
   boxStack.push(new BPBox(BP_vertical));
 
   return ret;
+}
+
+
+void BoxPrint::debugPrint(ostream &os) const
+{                             
+  for (int i=0; i < boxStack.length(); i++) {
+    os << "----- frame -----\n";
+    boxStack[i]->debugPrint(os, 0 /*ind*/);
+    os << "\n";
+  }
+}
+
+void BoxPrint::debugPrintCout() const
+{
+  debugPrint(cout);
 }
 
 
