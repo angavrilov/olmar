@@ -62,8 +62,8 @@ CHK_CCIN += cc.in24
 
 CHK_CCIN += cc.in26
 
-# DSW: Templates not being printed correctly when the template
-# arguments are used within the template.
+# Templates not being printed correctly when the template arguments
+# are used within the template.
 #CHK_CCIN += cc.in27
 #CHK_CCIN += cc.in28
 
@@ -97,9 +97,17 @@ CHK_CCIN += cc.in40
 CHK_CCIN += cc.in41
 CHK_CCIN += cc.in42
 CHK_CCIN += cc.in43
+
 CHK_CCIN += cc.in100
 CHK_CCIN += cc.in101
 CHK_CCIN += cc.in102
+
+# reported to Scott
+#CHK_CCIN += cc.in103
+#CHK_CCIN += cc.in104
+
+CHK_CCIN += cc.in105
+CHK_CCIN += cc.in106
 
 CHK_CCEX :=
 CHK_CCEX += Box.cc
@@ -147,8 +155,14 @@ CHK_CHAP += ch5/ex4.cc
 #Sent to Scott Oct 21
 #CHK_CHAP += ch7/overload.cc
 
+# outdir/va_args_ex.c.0cppout.cc:3255:5 following messages from an ambiguity
+# outdir/va_args_ex.c.0cppout.cc:3255:5 error: there is no typedef called `__builtin_next_arg'
+# outdir/va_args_ex.c.0cppout.cc:3255:5 error: there is no variable called `__builtin_next_arg'
+# outdir/va_args_ex.c.0cppout.cc:3255:5 error: previous messages from an ambiguity with bad alternatives
+# outdir/va_args_ex.c.0cppout.cc:3258:16 error: more than one ambiguous alternative succeeds
 #CHK_CHAP += ch7/va_args_ex.c
 
+# Seems to use stl.  Skipping for now.
 #CHK_CHAP += ch8/dc_except.cc
 
 #Line 3154, col 1: Parse error at namespace
@@ -161,8 +175,12 @@ CHK_CHAP += ch10/NonLocalB.cc
 #CHK_CHAP += ch10/NonLocalC.cc
 
 CHK_CHAP += ch10/Person.cc
+
+# outdir/PlacementNew.cc.0cppout.cc:5431:5 error: non-compound `class X( *)' doesn't have fields to access
+# outdir/PlacementNew.cc.0cppout.cc:5482:5 error: non-compound `class X( *)' doesn't have fields to access
 #CHK_CHAP += ch10/PlacementNew.cc
-#CHK_CHAP += ch10/RefBox.cc
+
+CHK_CHAP += ch10/RefBox.cc
 #CHK_CHAP += ch10/Test1.cc
 CHK_CHAP += ch10/Test2.cc
 

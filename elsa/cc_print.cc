@@ -368,8 +368,15 @@ void Declarator::print(PrintEnv &env)
   }
 //    var_toString(var, decl->getDeclaratorId()->toString());
   if (init) {
-    env << "=";
-    init->print(env);
+    IN_ctor *ctor = dynamic_cast<IN_ctor*>(init);
+    if (ctor) {
+      // dsw:Constructor arguments.
+      codeout co(env, "", "(", ")");
+      ctor->print(env);         // NOTE: You can NOT factor this line out of the if!
+    } else {
+      env << "=";
+      init->print(env);         // Don't pull this out!
+    }
   }
 }
 
