@@ -295,6 +295,7 @@ cexp3: $(cexp3-dep)
 	$(link) -o cexp3 $(cexp3-dep)
 	./cexp3 cexp3.bin in/cexp3.in1 | tee tmp.out
 	egrep 'result: (0x)?7' tmp.out
+	rm tmp.out
 
 # intermediate files for a grammar
 # TRGRAMANL: extra trace flags specified by user; starts with "," if defined
@@ -327,6 +328,7 @@ cexp3b: $(cexp3b-dep)
 	$(link) -o cexp3b $(cexp3b-dep)
 	./cexp3b cexp3b.bin in/cexp3.in1 | tee tmp.out
 	egrep 'result: (0x)?7' tmp.out
+	rm tmp.out
 
 # intermediate files for cdecl
 # (superceded by pattern rule)
@@ -661,7 +663,7 @@ clean:
 	rm -f lexer2 grampar.tab.* grampar a.out
 	rm -f cexp2.sem cexp2 cc.bin ccgr libccgr.a libglr.a
 	rm -f cc.gr.ps
-	rm -f core cdecl cexp3 bccgr cdecl2 cexp3b
+	rm -f core cdecl cexp3 bccgr cdecl2 cexp3b cexp3b.gr
 	rm -f bccgr.y cc.tok grampar.codes.h
 	rm -f gdb.log gprof.out gmon.out test-bad-tmp.c
 	cd triv; rm -f *.exe *.gen.* *.bin *.tab.* *.output *.y *.gr
