@@ -247,7 +247,7 @@ doc: gendoc gendoc/configure.txt gendoc/dependencies.png gendoc/3.4.5.png
 
 TOCLEAN += TAGS
 TAGS:
-	etags --members --typedefs *.cc *.h
+	@ETAGS@ *.cc *.h
 
 
 # -------------------- clean, etc. -------------------

@@ -140,6 +140,25 @@ if (defined($smbase_flags)) {
 }
 
 
+# ---------------------- etags? ---------------------
+print("checking for etags... ");
+if (system("type etags >/dev/null 2>&1")) {
+  # doesn't have etags; cygwin is an example of such a system
+  print("not found\n");
+  $ETAGS = "true";       # 'true' is a no-op
+}
+elsif (system("etags --help | grep -- --members >/dev/null")) {
+  # has it, but it does not know about the --members option
+  print("etags\n");
+  $ETAGS = "etags";
+}
+else {
+  # assume if it knows about --members it knows about --typedefs too
+  print("etags --members --typedefs\n");
+  $ETAGS = "etags --members --typedefs";
+}
+
+
 # ------------------ config.summary -----------------
 # create a program to summarize the configuration
 open(OUT, ">config.summary") or die("can't make config.summary");
@@ -206,6 +225,7 @@ sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
     -e "s|\@AST\@|$AST|g" \\
     -e "s|\@ELKHOUND\@|$ELKHOUND|g" \\
     -e "s|\@USE_GNU\@|$USE_GNU|g" \\
+    -e "s|\@ETAGS\@|$ETAGS|g" \\
   <Makefile.in >>Makefile || exit
 
 # discourage editing
