@@ -639,6 +639,9 @@ private:     // template funcs
   void transferTemplateMemberInfo
     (SourceLoc instLoc, TS_classSpec *source,
      TS_classSpec *dest, ObjList<STemplateArgument> const &sargs);
+  void transferTemplateMemberInfo_typeSpec
+    (SourceLoc instLoc, TypeSpecifier *srcTS, TypeSpecifier *destTS,
+     ObjList<STemplateArgument> const &sargs);
   void transferTemplateMemberInfo_one
     (SourceLoc instLoc, Variable *srcVar, Variable *destVar,
      ObjList<STemplateArgument> const &sargs);

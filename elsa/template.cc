@@ -2322,13 +2322,24 @@ void Env::transferTemplateMemberInfo
   ASTListIterNC<Member> srcIter(source->members->list);
   ASTListIterNC<Member> destIter(dest->members->list);
 
-  for (; !srcIter.isDone() && !destIter.isDone(); 
+  for (; !srcIter.isDone() && !destIter.isDone();
          srcIter.adv(), destIter.adv()) {
     if (srcIter.data()->isMR_decl()) {
-      FakeList<Declarator> *srcDeclarators = srcIter.data()->asMR_decl()->d->decllist;
-      FakeList<Declarator> *destDeclarators = destIter.data()->asMR_decl()->d->decllist;
+      Declaration *srcDecl = srcIter.data()->asMR_decl()->d;
+      Declaration *destDecl = destIter.data()->asMR_decl()->d;
+
+      if (srcDecl->dflags & DF_FRIEND) {
+        continue;     // skip whole declaration for friends (t0262.cc)
+      }
+
+      // associate the type specifiers
+      transferTemplateMemberInfo_typeSpec(instLoc, srcDecl->spec,
+                                          destDecl->spec, sargs);
 
       // simultanously iterate over the declarators
+      FakeList<Declarator> *srcDeclarators = srcDecl->decllist;
+      FakeList<Declarator> *destDeclarators = destDecl->decllist;
+
       for (; srcDeclarators->isNotEmpty() && destDeclarators->isNotEmpty();
              srcDeclarators = srcDeclarators->butFirst(),
              destDeclarators = destDeclarators->butFirst()) {
@@ -2403,29 +2414,9 @@ void Env::transferTemplateMemberInfo
       }
 
       else if (srcTDecl->isTD_class()) {
-        TypeSpecifier *srcTS = srcTDecl->asTD_class()->spec;
-        TypeSpecifier *destTS = destTDecl->asTD_class()->spec;
-
-        if (srcTS->isTS_elaborated()) {
-          Variable *srcVar = srcTS->asTS_elaborated()->atype->typedefVar;
-          Variable *destVar = destTS->asTS_elaborated()->atype->typedefVar;
-
-          // just a forward decl, do the one element
-          transferTemplateMemberInfo_membert(instLoc, srcVar, destVar, sargs);
-        }
-
-        else {     // TS_classSpec
-          TS_classSpec *srcCS = srcTS->asTS_classSpec();
-          TS_classSpec *destCS = destTS->asTS_classSpec();
-
-          // connect the classes themselves
-          transferTemplateMemberInfo_membert(instLoc, 
-            srcCS->ctype->typedefVar, 
-            destCS->ctype->typedefVar, sargs);
-
-          // connect their members
-          transferTemplateMemberInfo(instLoc, srcCS, destCS, sargs);
-        }
+        transferTemplateMemberInfo_typeSpec(instLoc,
+          srcTDecl->asTD_class()->spec,
+          destTDecl->asTD_class()->spec, sargs);
       }
 
       else if (srcTDecl->isTD_tmember()) {
@@ -2449,12 +2440,47 @@ void Env::transferTemplateMemberInfo
 }
 
 
+// transfer specifier info, particularly for nested class or
+// member template classes
+void Env::transferTemplateMemberInfo_typeSpec
+  (SourceLoc instLoc, TypeSpecifier *srcTS, TypeSpecifier *destTS,
+   ObjList<STemplateArgument> const &sargs)
+{
+  if (srcTS->isTS_elaborated()) {
+    Variable *srcVar = srcTS->asTS_elaborated()->atype->typedefVar;
+    Variable *destVar = destTS->asTS_elaborated()->atype->typedefVar;
+
+    // just a forward decl, do the one element
+    transferTemplateMemberInfo_one(instLoc, srcVar, destVar, sargs);
+  }
+
+  else if (srcTS->isTS_classSpec()) {
+    TS_classSpec *srcCS = srcTS->asTS_classSpec();
+    TS_classSpec *destCS = destTS->asTS_classSpec();
+
+    // connect the classes themselves
+    transferTemplateMemberInfo_one(instLoc,
+      srcCS->ctype->typedefVar,
+      destCS->ctype->typedefVar, sargs);
+
+    // connect their members
+    transferTemplateMemberInfo(instLoc, srcCS, destCS, sargs);
+  }
+
+  else {
+    // other kinds of type specifiers: don't need to do anything
+  }
+}
+      
+
 // transfer template information from primary 'srcVar' to
 // instantiation 'destVar'
 void Env::transferTemplateMemberInfo_one
   (SourceLoc instLoc, Variable *srcVar, Variable *destVar,
    ObjList<STemplateArgument> const &sargs)
 {
+  xassert(srcVar != destVar);
+
   // bit of a hack: if 'destVar' already has templateInfo, then it's
   // because it is a member template (or a member of a member
   // template), and we got here by recursively calling

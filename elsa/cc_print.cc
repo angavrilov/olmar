@@ -299,6 +299,11 @@ void Declaration::print(PrintEnv &env)
     spec->asTS_enumSpec()->print(env);
     env << ";\n";
   }
+  
+  // TODO: this does not print "friend class Foo;" declarations
+  // because the type specifier is TS_elaborated and there are no
+  // declarators
+
   FAKELIST_FOREACH_NC(Declarator, decllist, iter) {
     // if there are decl flags that didn't get put into the
     // Variable (e.g. DF_EXTERN which gets turned off as soon
