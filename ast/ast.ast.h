@@ -13,6 +13,7 @@ class ToplevelForm;
 class TF_verbatim;
 class TF_impl_verbatim;
 class TF_class;
+class TF_option;
 class ASTClass;
 class Annotation;
 class UserDecl;
@@ -22,7 +23,9 @@ class CtorArg;
 // *** DO NOT EDIT ***
 
   #include "str.h"         // string
-  
+
+  // this signals to ast.hand.cc that ast.ast.cc is nonempty,
+  // so none of the bootstrap code in ast.hand.cc should be used
   #define GENERATED_AST_PRESENT
 
 // *** DO NOT EDIT ***
@@ -55,7 +58,7 @@ public:      // funcs
   }
   virtual ~ToplevelForm();
 
-  enum Kind { TF_VERBATIM, TF_IMPL_VERBATIM, TF_CLASS, NUM_KINDS };
+  enum Kind { TF_VERBATIM, TF_IMPL_VERBATIM, TF_CLASS, TF_OPTION, NUM_KINDS };
   virtual Kind kind() const = 0;
 
   static char const * const kindNames[NUM_KINDS];
@@ -64,6 +67,7 @@ public:      // funcs
   DECL_AST_DOWNCASTS(TF_verbatim, TF_VERBATIM)
   DECL_AST_DOWNCASTS(TF_impl_verbatim, TF_IMPL_VERBATIM)
   DECL_AST_DOWNCASTS(TF_class, TF_CLASS)
+  DECL_AST_DOWNCASTS(TF_option, TF_OPTION)
 
   virtual ToplevelForm *clone() const=0;
 
@@ -129,6 +133,26 @@ public:      // funcs
   virtual TF_class *clone() const;
 
   public:  bool hasChildren() const { return ctors.isNotEmpty(); };
+};
+
+class TF_option : public ToplevelForm {
+public:      // data
+  string name;
+  ASTList <string > args;
+
+public:      // funcs
+  TF_option(string _name, ASTList <string > *_args) : ToplevelForm(), name(_name), args(_args) {
+  }
+  virtual ~TF_option();
+
+  virtual Kind kind() const { return TF_OPTION; }
+  enum { TYPE_TAG = TF_OPTION };
+
+  virtual void debugPrint(ostream &os, int indent) const;
+  virtual void xmlPrint(ostream &os, int indent) const;
+
+  virtual TF_option *clone() const;
+
 };
 
 
@@ -227,6 +251,7 @@ public:      // data
 
 public:      // funcs
   CustomCode(string _qualifier, string _code) : Annotation(), qualifier(_qualifier), code(_code) {
+     used=false;
   }
   virtual ~CustomCode();
 
@@ -238,6 +263,7 @@ public:      // funcs
 
   virtual CustomCode *clone() const;
 
+  public:  bool used;
 };
 
 

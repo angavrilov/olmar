@@ -55,6 +55,7 @@
 %token TOK_DTOR "dtor"
 %token TOK_PURE_VIRTUAL "pure_virtual"
 %token TOK_CUSTOM "custom"
+%token TOK_OPTION "option"
 
 
 /* ======================== types ========================== */
@@ -69,6 +70,8 @@
   enum AccessCtl accessCtl;
   ToplevelForm *verbatim;
   Annotation *annotation;
+  TF_option *tfOption;
+  ASTList<string> *stringList;
 }
 
 %type <file> StartSymbol
@@ -80,6 +83,8 @@
 %type <accessCtl> Public
 %type <verbatim> Verbatim
 %type <annotation> Annotation
+%type <tfOption> Option
+%type <stringList> OptionArgs
 
 
 /* ===================== productions ======================= */
@@ -96,6 +101,7 @@ StartSymbol: Input
 Input: /* empty */           { $$ = new ASTList<ToplevelForm>; }
      | Input Class           { ($$=$1)->append($2); }
      | Input Verbatim        { ($$=$1)->append($2); }
+     | Input Option          { ($$=$1)->append($2); }
      ;
 
 /* a class is a nonterminal in the abstract grammar */
@@ -218,6 +224,18 @@ Verbatim: "verbatim" Embedded
         | "impl_verbatim" Embedded
             { $$ = new TF_impl_verbatim(unbox($2)); }
         ;
+
+/* yields TF_option */
+Option: "option" TOK_NAME OptionArgs ";"
+	  { $$ = new TF_option(unbox($2), $3); }
+      ;
+      
+/* yields ASTList<string> */
+OptionArgs: /*empty*/
+              { $$ = new ASTList<string>; }
+          | OptionArgs TOK_NAME
+              { ($$=$1)->append($2); }
+          ;
 
 %%
 

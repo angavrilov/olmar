@@ -46,6 +46,7 @@ char const * const ToplevelForm::kindNames[ToplevelForm::NUM_KINDS] = {
   "TF_verbatim",
   "TF_impl_verbatim",
   "TF_class",
+  "TF_option",
 };
 
 void ToplevelForm::debugPrint(ostream &os, int indent) const
@@ -159,6 +160,46 @@ TF_class *TF_class::clone() const
   TF_class *ret = new TF_class(
     super? super->clone() : NULL,
     cloneASTList(ctors)
+  );
+  return ret;
+}
+
+DEFN_AST_DOWNCASTS(ToplevelForm, TF_option, TF_OPTION)
+
+TF_option::~TF_option()
+{
+  while (args.isNotEmpty()) {
+    args.removeFirst();
+  }
+}
+
+void TF_option::debugPrint(ostream &os, int indent) const
+{
+  PRINT_HEADER(TF_option);
+
+  ToplevelForm::debugPrint(os, indent);
+
+  PRINT_STRING(name);
+  PRINT_LIST(string, args);
+}
+
+void TF_option::xmlPrint(ostream &os, int indent) const
+{
+  XMLPRINT_HEADER(TF_option);
+
+  ToplevelForm::xmlPrint(os, indent);
+
+  XMLPRINT_STRING(name);
+  XMLPRINT_LIST(string, args);
+  XMLPRINT_FOOTER(TF_option);
+
+}
+
+TF_option *TF_option::clone() const
+{
+  TF_option *ret = new TF_option(
+    name,
+    shallowCloneASTList(args)
   );
   return ret;
 }

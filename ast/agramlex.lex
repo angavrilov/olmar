@@ -133,6 +133,7 @@ SLWHITE   [ \t]
 "&"                TOK_UPD_COL;  return TOK_AMPERSAND;
 
 "class"            TOK_UPD_COL;  return TOK_CLASS;
+"option"           TOK_UPD_COL;  return TOK_OPTION;
 
   /* --------- embedded text --------- */
 ("public"|"protected"|"private"|"ctor"|"dtor"|"pure_virtual") {

@@ -7,10 +7,22 @@
 #include "owner.h"         // Owner
 #include "ckheap.h"        // checkHeap
 #include "strutil.h"       // replace, translate, localTimeString
+#include "sobjlist.h"      // SObjList
 
 #include <string.h>        // strncmp
 #include <fstream.h>       // ofstream
 #include <stdlib.h>        // exit
+#include <ctype.h>         // isalnum
+
+
+// this is the name of the visitor interface class, or ""
+// if the user does not want a visitor
+string visitorName;
+inline bool wantVisitor() { return visitorName.length() != 0; }
+
+// list of all TF_classes in the input, useful for certain
+// applications which don't care about other forms
+SObjList<TF_class> allClasses;
 
 
 // ------------------ shared gen functions ----------------------
@@ -28,6 +40,7 @@ public:
   // type queries
   bool isTreeNode(char const *type);
   bool isTreeNodePtr(char const *type);
+  string extractNodeType(char const *type);
 
   bool isListType(char const *type);
   bool isFakeListType(char const *type);
@@ -73,9 +86,8 @@ bool Gen::isTreeNodePtr(char const *type)
 bool Gen::isTreeNode(char const *base)
 {
   // search among defined classes for this name
-  FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
-    TF_class const *c = form.data()->ifTF_classC();
-    if (!c) continue;
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *c = iter.data();
 
     if (c->super->name.equals(base)) {
       // found it in a superclass
@@ -92,6 +104,17 @@ bool Gen::isTreeNode(char const *base)
   }
 
   return false;
+}
+
+
+// get just the first alphanumeric word
+string Gen::extractNodeType(char const *type)
+{
+  char const *end = type;
+  while (isalnum(*end) || *end=='_') {
+    end++;
+  }
+  return string(type, end-type);
 }
 
 
@@ -168,6 +191,7 @@ private:        // funcs
   void emitCommonFuncs(char const *virt);
   void emitUserDecls(ASTList<Annotation> const &decls);
   void emitCtor(ASTClass const &ctor, ASTClass const &parent);
+  void emitVisitorInterface();
 
 public:         // funcs
   HGen(char const *srcFname, char const *destFname, ASTSpecFile const &file)
@@ -208,7 +232,12 @@ void HGen::emitFile()
       }
     }
   }
-  out << "\n";
+  out << "\n\n";
+
+  if (wantVisitor()) {
+    out << "// visitor interface class\n"
+        << "class " << visitorName << ";\n\n";
+  }
 
   // process each directive
   FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
@@ -226,10 +255,15 @@ void HGen::emitFile()
         break;
 
       default:
-        xfailure("bad AST kind code");
+        // ignore other toplevel forms (just TF_option, for now)
+        break;
     }
 
     out << "\n";
+  }
+
+  if (wantVisitor()) {
+    emitVisitorInterface();
   }
 
   out << "#endif // " << includeLatch << "\n";
@@ -439,10 +473,15 @@ void HGen::emitCtorDefn(ASTClass const &cls, ASTClass const *parent)
 // emit functions that are declared in every tree node
 void HGen::emitCommonFuncs(char const *virt)
 {
-  // declare the one function they all have
+  // declare the functions they all have
   out << "  " << virt << "void debugPrint(ostream &os, int indent) const;\n";
-  // dsw:
   out << "  " << virt << "void xmlPrint(ostream &os, int indent) const;\n";
+  
+  if (wantVisitor()) {
+    // visitor traversal entry point
+    out << "  " << virt << "void traverse(" << visitorName << " &vis);\n";
+  }
+
   out << "\n";
 }
 
@@ -528,6 +567,8 @@ public:
   void emitCloneCtorArg(CtorArg const *arg, int &ct);
   void emitCloneCode(ASTClass const *super, ASTClass const *sub);
 
+  void emitVisitorImplementation();
+  void emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super);
 };
 
 
@@ -556,6 +597,11 @@ void CGen::emitFile()
       }
       ASTENDCASECD
     }
+  }
+  out << "\n\n";
+
+  if (wantVisitor()) {
+    emitVisitorImplementation();
   }
 }
 
@@ -715,6 +761,9 @@ void CGen::emitCustomCode(ASTList<Annotation> const &list, char const *tag)
     CustomCode const *cc = iter.data()->ifCustomCodeC();
     if (cc && cc->qualifier.equals(tag)) {
       out << "  " << cc->code << ";\n";
+
+      // conceptually mutable..
+      const_cast<bool&>(cc->used) = true;
     }
   }
 }
@@ -900,7 +949,120 @@ void CGen::emitCloneCode(ASTClass const *super, ASTClass const *sub)
 }
 
 
+// -------------------------- visitor ---------------------------
+void HGen::emitVisitorInterface()
+{
+  out << "// the visitor interface class\n"
+      << "class " << visitorName << " {\n"
+      << "public:\n";
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *c = iter.data();
+
+    out << "  void visit" << c->super->name << "("
+        <<   c->super->name << " *obj);\n";
+  }
+  out << "};\n\n";
+
+  #if 0      // obsolete
+  out << "// prototypes for the traversal entry points\n";
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *c = iter.data();
+
+    out << "void traverse" << c->super->name << "("
+        <<   visitorName << " &vis, "
+        <<   c->super->name << " *obj);\n";
+  }
+  #endif // 0
+}
+
+
+void CGen::emitVisitorImplementation()
+{
+  out << "// default no-op visitor\n";
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *c = iter.data();
+
+    out << "void " << visitorName << "::visit" << c->super->name << "("
+        <<   c->super->name << " *obj) {}\n";
+  }
+  out << "\n\n";
+
+  // implementations of traversal functions
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *c = iter.data();
+
+    // superclass traversal
+    emitTraverse(c->super, NULL /*super*/);
+
+    // subclass traversal
+    FOREACH_ASTLIST(ASTClass, c->ctors, iter) {
+      ASTClass const *sub = iter.data();
+
+      emitTraverse(sub, c->super);
+    }
+  }
+}
+
+
+void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super)
+{
+  out << "void " << c->name << "::traverse("
+      <<   visitorName << " &vis)\n"
+      << "{\n";
+
+  if (super) {
+    // visit superclass, if this class has one
+    out << "  " << super->name << "::traverse(vis);\n"
+        << "\n";
+  }
+  else {
+    // visit this node *only* in the superclass (since the subclasses
+    // call the super's traversal)
+    out << "  vis.visit" << c->name << "(this);\n";
+  }
+
+  // traverse into the ctor arguments
+  FOREACH_ASTLIST(CtorArg, c->args, iter) {
+    CtorArg const *arg = iter.data();
+
+    if (isTreeNode(arg->type) || isTreeNodePtr(arg->type)) {
+      // traverse it directly
+      string type = extractNodeType(arg->type);
+      out << "  " << arg->name << "->traverse(vis);\n";
+    }
+
+    else if ((isListType(arg->type) || isFakeListType(arg->type)) &&
+             isTreeNode(extractListType(arg->type))) {
+      // list of tree nodes: iterate and traverse
+      string eltType = extractListType(arg->type);
+      
+      // compute list accessor names
+      char const *iterMacroName = "FOREACH_ASTLIST_NC";
+      char const *iterElt = ".data()";
+      if (isFakeListType(arg->type)) {
+        iterMacroName = "FAKELIST_FOREACH_NC";
+        iterElt = "";
+      }
+
+      out << "  " << iterMacroName << "("
+          <<   eltType << ", " << arg->name << ", iter) {\n"
+          << "    iter" << iterElt << "->traverse(vis);\n"
+          << "  }\n";
+    }
+  }
+
+  // do any additional traversal action specified by the user
+  emitCustomCode(c->decls, "traverse");
+  
+  out << "}\n\n";
+}
+
+
 // -------------------- extension merging ------------------
+// the 'allClasses' list is filled in after merging, so I
+// can't use it in this section
+#define allClasses NO!
+
 void mergeClass(ASTClass *base, ASTClass *ext)
 {
   xassert(base->name.equals(ext->name));
@@ -957,6 +1119,8 @@ void mergeSuperclass(TF_class *base, TF_class *ext)
 
 TF_class *findSuperclass(ASTSpecFile *base, char const *name)
 {
+  // I can *not* simply iterate over 'allClasses', because that
+  // list is created *after* merging!
   FOREACH_ASTLIST_NC(ToplevelForm, base->forms, iter) {
     ToplevelForm *tf = iter.data();
     if (tf->isTF_class() &&
@@ -975,7 +1139,7 @@ void mergeExtension(ASTSpecFile *base, ASTSpecFile *ext)
     ToplevelForm * /*owner*/ tf = ext->forms.removeFirst();
 
     if (!tf->isTF_class()) {
-      // verbatim: just add it directly
+      // verbatim or option: just add it directly
 
       if (ct == 0) {
         // *first* verbatim: goes into a special place in the
@@ -1024,8 +1188,26 @@ void mergeExtension(ASTSpecFile *base, ASTSpecFile *ext)
   }
 }
 
+// re-enable allClasses
+#undef allClasses
+
 
 // --------------------- toplevel control ----------------------
+void checkUnusedCustoms(ASTClass const *c)
+{
+  FOREACH_ASTLIST(Annotation, c->decls, iter) {
+    Annotation const *a = iter.data();
+    
+    if (a->isCustomCode()) {
+      CustomCode const *cc = a->asCustomCodeC();
+      if (cc->used == false) {
+        cout << "warning: unused custom code `" << cc->qualifier << "'\n";
+      }
+    }
+  }
+}
+
+
 void entry(int argc, char **argv)
 {
   TRACE_ARGS();
@@ -1082,6 +1264,37 @@ void entry(int argc, char **argv)
     mergeExtension(ast, extension);
   }
 
+  // scan options, and fill 'allClasses'
+  {
+    FOREACH_ASTLIST_NC(ToplevelForm, ast->forms, iter) {
+      if (iter.data()->isTF_option()) {
+        TF_option const *op = iter.data()->asTF_optionC();
+
+        if (op->name.equals("visitor")) {
+          if (op->args.count() != 1) {
+            cout << "'visitor' option requires one argument\n";
+            exit(2);
+          }
+
+          // name of the visitor interface class
+          visitorName = *( op->args.firstC() );
+        }
+        else {
+          cout << "unknown option: " << op->name << endl;
+          exit(2);
+        }
+      }
+
+      else if (iter.data()->isTF_class()) {
+        allClasses.prepend(iter.data()->asTF_class());
+      }
+    }
+  }
+
+  // I built it in reverse for O(n) performance
+  allClasses.reverse();
+
+
   // generate the header
   string base = replace(srcFname, ".ast", "");
   if (basename) {
@@ -1098,6 +1311,21 @@ void entry(int argc, char **argv)
   cout << "writing " << codeFname << "...\n";
   CGen cg(srcFname, codeFname, *ast, hdrFname);
   cg.emitFile();
+  
+  
+  // check for any unused 'custom' sections; a given section is only
+  // used if one of the generation routines asks for it by name, so
+  // a mistyped custom section name would not yet have been noticed
+  {
+    SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+      TF_class const *c = iter.data();
+      checkUnusedCustoms(c->super);
+      
+      FOREACH_ASTLIST(ASTClass, c->ctors, subIter) {
+        checkUnusedCustoms(subIter.data());
+      }
+    }
+  }
 }
 
 ARGS_MAIN

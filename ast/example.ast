@@ -5,12 +5,17 @@ verbatim {
   // first verbatim in example.ast
 }
 
+// I want a visitor, with the interface called ExampleVisitor
+option visitor ExampleVisitor;
+
 class Node (
   int x,
   int y
 ) {
   public Node *next;
   ctor next=NULL;
+  
+  custom traverse { next->traverse(vis); }
 }
 
 class NodeList (

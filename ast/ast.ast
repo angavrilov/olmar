@@ -24,6 +24,10 @@ class ToplevelForm {
               ASTList<ASTClass> ctors) {
        public bool hasChildren() const { return ctors.isNotEmpty(); };
      }
+   
+  // a generic option: first word specifies the kind of option, and
+  // additional words (if any) are arguments
+  -> TF_option(string name, ASTList<string> args);
 }
 
 // a definition of a grammar terminal or nonterminal
@@ -61,7 +65,10 @@ class Annotation {
 
   // verbatim code to be inserted somewhere; exactly where depends
   // on the qualifier string
-  -> CustomCode (string qualifier, string code);
+  -> CustomCode (string qualifier, string code) {
+       // keep track of whether it gets used
+       public bool used;  ctor used=false;         
+     }
 }
 
 // something that has to be passed to create a constructor
