@@ -103,9 +103,19 @@
 // ------------------- debug print helpers -----------------
 ostream &ind(ostream &os, int indent);
 
-#define PRINT_HEADER(clsname)         \
-  ind(os, indent) << #clsname ":\n";  \
-  indent += 2   /* user ; */
+// I occasionally want to see addresses, so I just throw this
+// switch and recompile..
+#if 1
+  // headers w/o addresses
+  #define PRINT_HEADER(clsname)         \
+    ind(os, indent) << #clsname ":\n";  \
+    indent += 2   /* user ; */
+#else
+  // headers w/ addresses
+  #define PRINT_HEADER(clsname)                                   \
+    ind(os, indent) << #clsname " (" << ((void*)this) << "):\n";  \
+    indent += 2   /* user ; */
+#endif
 
 
 #define PRINT_STRING(var) \
