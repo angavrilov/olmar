@@ -167,11 +167,43 @@ void Env::setupOperatorOverloading()
   Type *t_ptrdiff_t = getSimpleType(SL_INIT, ST_INT);
 
   // 13.6 para 12
+  addBuiltinBinaryOp(BIN_MULT,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  addBuiltinBinaryOp(BIN_DIV,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
   addBuiltinBinaryOp(BIN_PLUS,
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
 
   addBuiltinBinaryOp(BIN_MINUS,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  addBuiltinBinaryOp(BIN_LESS,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  addBuiltinBinaryOp(BIN_GREATER,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  addBuiltinBinaryOp(BIN_LESSEQ,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  addBuiltinBinaryOp(BIN_GREATEREQ,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  addBuiltinBinaryOp(BIN_EQUAL,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  addBuiltinBinaryOp(BIN_NOTEQUAL,
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
 

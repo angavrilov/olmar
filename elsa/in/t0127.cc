@@ -33,6 +33,20 @@ public:
   void operator-(A &a);             // 33
 };
 
+class F {
+public:
+  void operator* (F const &);       // 38
+  void operator/ (F const &);       // 39
+  void operator+ (F const &);       // 40
+  void operator- (F const &);       // 41
+  void operator< (F const &);       // 42
+  void operator> (F const &);       // 43
+  void operator<=(F const &);       // 44
+  void operator>=(F const &);       // 45
+  void operator==(F const &);       // 46
+  void operator!=(F const &);       // 47
+};
+
 void f()
 {
   A a1,a2;
@@ -40,6 +54,7 @@ void f()
   C c;
   D d;
   E e;
+  F f1,f2;
 
 
   // turn on overload resolution
@@ -58,11 +73,35 @@ void f()
   __testOverload(1+d, BUILTIN);
 
   //ERROR(1): __testOverload(e+1, BUILTIN);    // ambiguous
-                   
+
   // BIN_MINUS
   __testOverload(e-a1, 33);
   __testOverload(c-1, BUILTIN);
   __testOverload(d-1, BUILTIN);
   __testOverload(d-d, BUILTIN);
   //ERROR(2): __testOverload(1-d, BUILTIN);    // no viable
+
+  // these resolve to member functions
+  __testOverload(f1* f2, 38);
+  __testOverload(f1/ f2, 39);
+  __testOverload(f1+ f2, 40);
+  __testOverload(f1- f2, 41);
+  __testOverload(f1< f2, 42);
+  __testOverload(f1> f2, 43);
+  __testOverload(f1<=f2, 44);
+  __testOverload(f1>=f2, 45);
+  __testOverload(f1==f2, 46);
+  __testOverload(f1!=f2, 47);
+
+  // these resolve to the built-ins of 13.6 para 12
+  __testOverload(c* c, BUILTIN);
+  __testOverload(c/ c, BUILTIN);
+  __testOverload(c+ c, BUILTIN);
+  __testOverload(c- c, BUILTIN);
+  __testOverload(c< c, BUILTIN);
+  __testOverload(c> c, BUILTIN);
+  __testOverload(c<=c, BUILTIN);
+  __testOverload(c>=c, BUILTIN);
+  __testOverload(c==c, BUILTIN);
+  __testOverload(c!=c, BUILTIN);
 }
