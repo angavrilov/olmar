@@ -16,11 +16,7 @@ option reduce_reduce_conflicts 108;
 
 verbatim {
   // make a TS_typeof, and supply CV flags
-  TS_typeof *new_TS_typeof(SourceLoc loc, CVFlags cv, ASTTypeof *atype);
-}
-
-impl_verbatim {
-  TS_typeof *new_TS_typeof(SourceLoc loc, CVFlags cv, ASTTypeof *atype)
+  inline static TS_typeof *new_TS_typeof(SourceLoc loc, CVFlags cv, ASTTypeof *atype)
   {
     TS_typeof *ret = new TS_typeof(loc, atype);
     ret->cv = cv;
