@@ -10,10 +10,10 @@
 #include "sobjlist.h"      // SObjList
 #include "srcloc.h"        // SourceLocManager
 #include "strtokp.h"       // StrtokParse
+#include "exc.h"           // xfatal
 
 #include <string.h>        // strncmp
 #include <fstream.h>       // ofstream
-#include <stdlib.h>        // exit
 #include <ctype.h>         // isalnum
 
 
@@ -312,6 +312,8 @@ private:        // funcs
   void emitCommonFuncs(rostring virt);
   void emitUserDecls(ASTList<Annotation> const &decls);
   void emitCtor(ASTClass const &ctor, ASTClass const &parent);
+
+  void emitVisitorInterfacePrelude(rostring visitorName);
   void emitVisitorInterface();
   void emitDVisitorInterface();
   void emitMVisitorInterface();
@@ -363,8 +365,7 @@ void HGen::emitFile()
     // dsw: this seems necessary and here seems as good a place as any
     // to do it
     if (!wantVisitor()) {
-      cout << "If you specify the 'dvisitor' option, you must also specify the 'visitor' option\n";
-      exit(2);
+      xfatal("If you specify the 'dvisitor' option, you must also specify the 'visitor' option");
     }
     out << "// delegator-visitor interface class\n"
         << "class " << dvisitorName << ";\n\n";
@@ -1309,18 +1310,33 @@ void CGen::emitCloneCode(ASTClass const *super, ASTClass const *sub)
 
 
 // -------------------------- visitor ---------------------------
+void HGen::emitVisitorInterfacePrelude(rostring visitorName)
+{
+  out << "private:     // disallowed, not implemented\n"
+      << "  " << visitorName << "(" << visitorName << "&);\n"
+      << "  void operator= (" << visitorName << "&);\n"
+      << "\n"
+      << "public:      // funcs\n"
+      << "  " << visitorName << "() {}\n"
+      << "  virtual ~" << visitorName << "();   // silence gcc warning...\n"
+      << "\n"
+      ;
+}
+
 void HGen::emitVisitorInterface()
 {
   out << "// the visitor interface class\n"
-      << "class " << visitorName << " {\n"
-      << "public:\n";
+      << "class " << visitorName << " {\n";
+  emitVisitorInterfacePrelude(visitorName);
+
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
 
     out << "  virtual bool visit" << c->super->name << "("
         <<   c->super->name << " *obj);\n"
         << "  virtual void postvisit" << c->super->name << "("
-        <<   c->super->name << " *obj);\n";
+        <<   c->super->name << " *obj);\n"
+        ;
   }
   out << "};\n\n";
 }
@@ -1330,6 +1346,7 @@ void CGen::emitVisitorImplementation()
 {
   out << "// ---------------------- " << visitorName << " ---------------------\n";
   out << "// default no-op visitor\n";
+  out << visitorName << "::~" << visitorName << "() {}\n";
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
 
@@ -1438,18 +1455,18 @@ void HGen::emitDVisitorInterface()
   out << "// the delegator-visitor interface class\n"
       << "class " << dvisitorName << " : public " << visitorName << " {\n";
 
-  // client visitor to delegate to
-  out << "protected:\n";
-  out << "  " << visitorName << " *client;\n";
+  out << "protected:   // data\n";
+  out << "  " << visitorName << " *client;      // visitor to delegate to\n";
+  out << "  bool ensureOneVisit;                // check for visiting at most once?\n";
+  out << "  SObjSet<void*> wasVisitedASTNodes;  // set of visited nodes\n";
+  out << "\n";
 
-  // flag as to whether to check that an AST node has been visited at
-  // most once
-  out << "  bool ensureOneVisit;\n";
-  // set of visited nodes
-  out << "  SObjSet<void*> wasVisitedASTNodes;\n";
+  out << "protected:   // funcs\n";
+  out << "  bool wasVisitedAST(void *ast);\n";
+  out << "\n";
 
   // ctor
-  out << "public:\n";
+  out << "public:      // funcs\n";
   out << "  explicit " << dvisitorName << "("
       << visitorName << " *client0 = NULL, "
       << "bool ensureOneVisit0 = true"
@@ -1457,20 +1474,9 @@ void HGen::emitDVisitorInterface()
   out << "    : client(client0)\n";
   out << "    , ensureOneVisit(ensureOneVisit0)\n";
   out << "  {}\n";
-  out << "  virtual ~" << dvisitorName << "() {}\n";
-
-  // non-copy-ctor
-  out << "private:\n";
-  out << "  // prevent accidental copy construction with a private, explicit,\n";
-  out << "  // non-implemented copy ctor\n";
-  out << "  explicit " << dvisitorName << "(" << dvisitorName << " const &other);\n";
-
-  // internal methods
-  out << "protected:\n";
-  out << "bool wasVisitedAST(void *ast);\n\n";
+  out << "\n";
 
   // visitor methods
-  out << "public:\n";
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
     out << "  virtual bool visit" << c->super->name << "("
@@ -1486,8 +1492,6 @@ void HGen::emitDVisitorInterface()
 
 void CGen::emitDVisitorImplementation()
 {
-  // NOTE: the one-arg ctor implementation was in the declaration and
-  // we deliberately omit an implementation of the copy ctor
   out << "// ---------------------- " << dvisitorName << " ---------------------\n";
 
   out << "bool " << dvisitorName << "::wasVisitedAST(void *ast)\n";
@@ -1529,8 +1533,9 @@ void CGen::emitDVisitorImplementation()
 void HGen::emitMVisitorInterface()
 {
   out << "// the modification visitor interface class\n"
-      << "class " << mvisitorName << " {\n"
-      << "public:\n";
+      << "class " << mvisitorName << " {\n";
+  emitVisitorInterfacePrelude(mvisitorName);
+
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
 
@@ -1557,6 +1562,8 @@ void HGen::emitMVisitorInterface()
 void CGen::emitMVisitorImplementation()
 {
   out << "// ---------------------- " << mvisitorName << " ---------------------\n";
+
+  out << mvisitorName << "::~" << mvisitorName << "() {}\n\n";
 
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
@@ -1883,8 +1890,7 @@ void checkUnusedCustoms(ASTClass const *c)
 void grabVisitorName(rostring visop, string &visname, TF_option const *op)
 {
   if (op->args.count() != 1) {
-    cout << "'" << visop << "' option requires one argument\n";
-    exit(2);
+    xfatal("'" << visop << "' option requires one argument");
   }
 
   if (visname.length() > 0) {
@@ -1893,10 +1899,9 @@ void grabVisitorName(rostring visop, string &visname, TF_option const *op)
     // simply changes the name, then the resulting error messages
     // (compilation errors from parts of the system using the
     // old name) are not obvious to diagnose.
-    cout << "error: there is already " << a_or_an(visop) << " class, called "
-         << visname << "\n";
-    cout << "you should use (subclass) that one\n";
-    exit(2);
+    xfatal("there is already " << a_or_an(visop) <<
+           " class, called " << visname << ";\n" <<
+           "you should use (subclass) that one");
   }
 
   // name of the visitor interface class
@@ -1940,14 +1945,12 @@ void entry(int argc, char **argv)
       traceAddSys("merge");
     }
     else {
-      cout << "unknown option: " << argv[0] << "\n";
-      exit(2);
+      xfatal("unknown option: " << argv[0]);
     }
     argv++;
   }
   if (!argv[0]) {
-    cout << "missing ast spec file name\n";
-    exit(2);
+    xfatal("missing ast spec file name");
   }
 
   char const *srcFname = argv[0];
@@ -1993,8 +1996,7 @@ void entry(int argc, char **argv)
           wantGDB = true;
         }
         else {
-          cout << "unknown option: " << op->name << endl;
-          exit(2);
+          xfatal("unknown option: " << op->name);
         }
       }
 
