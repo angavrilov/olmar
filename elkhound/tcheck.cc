@@ -69,7 +69,9 @@ void TF_func::tcheck(Env &env)
     // the postcondition has 'result' available, as the type
     // of the return value                              
     env.enterScope();
-    env.addVariable(env.strTable.add("result"), DF_NONE, r);
+    if (! ftype()->retType->isVoid()) {
+      env.addVariable(env.strTable.add("result"), DF_NONE, r);
+    }
 
     checkBoolean(env, post->tcheck(env), post);
 

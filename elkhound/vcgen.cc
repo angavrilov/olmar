@@ -10,7 +10,7 @@
 
 
 // ------------------- TranslationUnit ---------------------
-void TranslationUnit::vcgen(AEnv &env) VCGEN_CONST
+void TranslationUnit::vcgen(AEnv &env) const
 {
   FOREACH_ASTLIST(TopForm, topForms, iter) {
     iter.data()->vcgen(env);
@@ -19,17 +19,19 @@ void TranslationUnit::vcgen(AEnv &env) VCGEN_CONST
 
 
 // --------------------- TopForm ----------------------
-void TF_decl::vcgen(AEnv &env) VCGEN_CONST
+void TF_decl::vcgen(AEnv &env) const
 {}
 
 
-void TF_func::vcgen(AEnv &env) VCGEN_CONST
+void TF_func::vcgen(AEnv &env) const
 {
+  FunctionType const &ft = *(ftype());
+
   // clear anything left over in env
   env.clear();
 
   // add the function parameters to the environment
-  FOREACH_OBJLIST(FunctionType::Param, ftype()->params, iter) {
+  FOREACH_OBJLIST(FunctionType::Param, ft.params, iter) {
     FunctionType::Param const *p = iter.data();
 
     if (p->name && p->type->isIntegerType()) {
@@ -40,6 +42,17 @@ void TF_func::vcgen(AEnv &env) VCGEN_CONST
     }
   }
 
+  // add the precondition as an assumption
+  if (ft.precondition) {
+    env.addFact(ft.precondition->vcgen(env));
+  }
+
+  // add 'result' to the environment so we can record what value
+  // is actually returned
+  if (!ft.retType->isVoid()) {
+    env.set(env.str("result"), env.freshIntVariable("return value"));
+  }
+
   // now interpret the function body
   body->vcgen(env);
 
@@ -48,18 +61,24 @@ void TF_func::vcgen(AEnv &env) VCGEN_CONST
     cout << "interpretation after " << name() << ":\n";
     env.print();
   }
+
+  // prove the postcondition now holds
+  // ASSUMPTION: none of the parameters have been changed
+  if (ft.postcondition) {
+    env.prove(ft.postcondition->vcgen(env));
+  }
 }
 
 
 // --------------------- Declaration --------------------
-void Declaration::vcgen(AEnv &env) VCGEN_CONST
+void Declaration::vcgen(AEnv &env) const
 {
   FOREACH_ASTLIST(Declarator, decllist, iter) {
     iter.data()->vcgen(env);
   }
 }
 
-void Declarator::vcgen(AEnv &env) VCGEN_CONST
+void Declarator::vcgen(AEnv &env) const
 {
   if (name && type->isIntegerType()) {
     IntValue *value;
@@ -82,43 +101,52 @@ void Declarator::vcgen(AEnv &env) VCGEN_CONST
 // ----------------------- Statement ---------------
 // for now, ignore all control flow
 
-void S_skip::vcgen(AEnv &env) VCGEN_CONST {}
-void S_label::vcgen(AEnv &env) VCGEN_CONST {}
-void S_case::vcgen(AEnv &env) VCGEN_CONST {}
-void S_caseRange::vcgen(AEnv &env) VCGEN_CONST {}
-void S_default::vcgen(AEnv &env) VCGEN_CONST {}
+void S_skip::vcgen(AEnv &env) const {}
+void S_label::vcgen(AEnv &env) const {}
+void S_case::vcgen(AEnv &env) const {}
+void S_caseRange::vcgen(AEnv &env) const {}
+void S_default::vcgen(AEnv &env) const {}
 
-void S_expr::vcgen(AEnv &env) VCGEN_CONST
+void S_expr::vcgen(AEnv &env) const
 {        
   // evaluate and discard
   env.discard(expr->vcgen(env));
 }
 
-void S_compound::vcgen(AEnv &env) VCGEN_CONST
+void S_compound::vcgen(AEnv &env) const
 {
   FOREACH_ASTLIST(Statement, stmts, iter) {
     iter.data()->vcgen(env);
   }
 }
 
-void S_if::vcgen(AEnv &env) VCGEN_CONST {}
-void S_switch::vcgen(AEnv &env) VCGEN_CONST {}
-void S_while::vcgen(AEnv &env) VCGEN_CONST {}
-void S_doWhile::vcgen(AEnv &env) VCGEN_CONST {}
-void S_for::vcgen(AEnv &env) VCGEN_CONST {}
-void S_break::vcgen(AEnv &env) VCGEN_CONST {}
-void S_continue::vcgen(AEnv &env) VCGEN_CONST {}
-void S_return::vcgen(AEnv &env) VCGEN_CONST {}
-void S_goto::vcgen(AEnv &env) VCGEN_CONST {}
+void S_if::vcgen(AEnv &env) const {}
+void S_switch::vcgen(AEnv &env) const {}
+void S_while::vcgen(AEnv &env) const {}
+void S_doWhile::vcgen(AEnv &env) const {}
+void S_for::vcgen(AEnv &env) const {}
+void S_break::vcgen(AEnv &env) const {}
+void S_continue::vcgen(AEnv &env) const {}
+
+void S_return::vcgen(AEnv &env) const
+{
+  if (expr) {
+    // model as an assignment to 'result' (and leave the
+    // control flow implications for later)
+    env.set(env.str("result"), expr->vcgen(env));
+  }
+}
+
+void S_goto::vcgen(AEnv &env) const {}
 
 
-void S_decl::vcgen(AEnv &env) VCGEN_CONST 
+void S_decl::vcgen(AEnv &env) const 
 {
   decl->vcgen(env);
 }
 
 
-void S_assert::vcgen(AEnv &env) VCGEN_CONST
+void S_assert::vcgen(AEnv &env) const
 {                                
   // map the expression to my abstract domain
   IntValue *v = expr->vcgen(env);            
@@ -128,7 +156,7 @@ void S_assert::vcgen(AEnv &env) VCGEN_CONST
   env.prove(v);
 }
 
-void S_assume::vcgen(AEnv &env) VCGEN_CONST
+void S_assume::vcgen(AEnv &env) const
 {
   // evaluate
   IntValue *v = expr->vcgen(env);            
@@ -138,29 +166,29 @@ void S_assume::vcgen(AEnv &env) VCGEN_CONST
   env.addFact(v);
 }
 
-void S_invariant::vcgen(AEnv &env) VCGEN_CONST
+void S_invariant::vcgen(AEnv &env) const
 {
   // ignore for now
 }
 
 
 // ---------------------- Expression -----------------
-IntValue *E_intLit::vcgen(AEnv &env) VCGEN_CONST
+IntValue *E_intLit::vcgen(AEnv &env) const
 {
   return env.grab(new IVint(i));
 }
 
-IntValue *E_floatLit::vcgen(AEnv &env) VCGEN_CONST { return NULL; }
-IntValue *E_stringLit::vcgen(AEnv &env) VCGEN_CONST { return NULL; }
+IntValue *E_floatLit::vcgen(AEnv &env) const { return NULL; }
+IntValue *E_stringLit::vcgen(AEnv &env) const { return NULL; }
 
-IntValue *E_charLit::vcgen(AEnv &env) VCGEN_CONST
+IntValue *E_charLit::vcgen(AEnv &env) const
 {
   return env.grab(new IVint(c));
 }
 
-IntValue *E_structLit::vcgen(AEnv &env) VCGEN_CONST { return NULL; }
+IntValue *E_structLit::vcgen(AEnv &env) const { return NULL; }
 
-IntValue *E_variable::vcgen(AEnv &env) VCGEN_CONST
+IntValue *E_variable::vcgen(AEnv &env) const
 {
   if (type->isIntegerType()) {
     // look up the current abstract value for this variable, and
@@ -173,7 +201,7 @@ IntValue *E_variable::vcgen(AEnv &env) VCGEN_CONST
 }
 
 
-IntValue *E_arrayAcc::vcgen(AEnv &env) VCGEN_CONST
+IntValue *E_arrayAcc::vcgen(AEnv &env) const
 {
   // having a good answer here would require having an abstract value
   // to tell me about the structure of the array
@@ -187,7 +215,7 @@ IntValue *E_arrayAcc::vcgen(AEnv &env) VCGEN_CONST
 }
 
 
-IntValue *E_funCall::vcgen(AEnv &env) VCGEN_CONST
+IntValue *E_funCall::vcgen(AEnv &env) const
 {
   // evaluate the argument expressions
   SObjList<IntValue> argExps;
@@ -245,11 +273,11 @@ IntValue *E_funCall::vcgen(AEnv &env) VCGEN_CONST
   if (type->isIntegerType()) {
     result = env.freshIntVariable(stringc
                << "function call result: " << toString());
-  }
 
-  // add this to the mini environment so if the programmer talks
-  // about the result, it will state something about the result variable
-  newEnv.set(env.stringTable.add("result"), result);
+    // add this to the mini environment so if the programmer talks
+    // about the result, it will state something about the result variable
+    newEnv.set(env.stringTable.add("result"), result);
+  }
 
   // NOTE: by keeping the environment from before, we are interpreting
   // all references to parameters as their values in the *pre* state
@@ -268,7 +296,7 @@ IntValue *E_funCall::vcgen(AEnv &env) VCGEN_CONST
 }
 
 
-IntValue *E_fieldAcc::vcgen(AEnv &env) VCGEN_CONST
+IntValue *E_fieldAcc::vcgen(AEnv &env) const
 {
   // good results here would require abstract values for structures
   if (type->isIntegerType()) {
@@ -281,7 +309,7 @@ IntValue *E_fieldAcc::vcgen(AEnv &env) VCGEN_CONST
 }
 
 
-IntValue *E_unary::vcgen(AEnv &env) VCGEN_CONST
+IntValue *E_unary::vcgen(AEnv &env) const
 {
   // TODO: deal with ++, --
   
@@ -293,21 +321,21 @@ IntValue *E_unary::vcgen(AEnv &env) VCGEN_CONST
   }
 }
 
-IntValue *E_binary::vcgen(AEnv &env) VCGEN_CONST
+IntValue *E_binary::vcgen(AEnv &env) const
 {
   // TODO: deal with &&, ||
   return env.grab(new IVbinary(e1->vcgen(env), op, e2->vcgen(env)));
 }
 
 
-IntValue *E_addrOf::vcgen(AEnv &env) VCGEN_CONST
+IntValue *E_addrOf::vcgen(AEnv &env) const
 {
   // result is always of pointer type
   return NULL;
 }
 
 
-IntValue *E_deref::vcgen(AEnv &env) VCGEN_CONST
+IntValue *E_deref::vcgen(AEnv &env) const
 {
   // abstract knowledge about memory contents, possibly aided by
   // detailed knowledge of what this pointer points at, could yield
@@ -322,7 +350,7 @@ IntValue *E_deref::vcgen(AEnv &env) VCGEN_CONST
 }
 
 
-IntValue *E_cast::vcgen(AEnv &env) VCGEN_CONST
+IntValue *E_cast::vcgen(AEnv &env) const
 {
   // I can sustain integer->integer casts..
   if (type->isIntegerType() && expr->type->isIntegerType()) {
@@ -334,7 +362,7 @@ IntValue *E_cast::vcgen(AEnv &env) VCGEN_CONST
 }
 
 
-IntValue *E_cond::vcgen(AEnv &env) VCGEN_CONST
+IntValue *E_cond::vcgen(AEnv &env) const
 {
   // for now I'll assume there are no side effects in the branches;
   // same assumption applies to '&&' and '||' above
@@ -342,7 +370,7 @@ IntValue *E_cond::vcgen(AEnv &env) VCGEN_CONST
 }
 
 
-IntValue *E_gnuCond::vcgen(AEnv &env) VCGEN_CONST
+IntValue *E_gnuCond::vcgen(AEnv &env) const
 {
   // again on the assumption there are no side effects in the 'else' branch
   // TODO: make a deep-copier for astgen
@@ -350,7 +378,7 @@ IntValue *E_gnuCond::vcgen(AEnv &env) VCGEN_CONST
 }
 
 
-IntValue *E_comma::vcgen(AEnv &env) VCGEN_CONST
+IntValue *E_comma::vcgen(AEnv &env) const
 {
   // evaluate and discard
   env.discard(e1->vcgen(env));
@@ -360,13 +388,13 @@ IntValue *E_comma::vcgen(AEnv &env) VCGEN_CONST
 }
 
 
-IntValue *E_sizeofType::vcgen(AEnv &env) VCGEN_CONST
+IntValue *E_sizeofType::vcgen(AEnv &env) const
 {
   return env.grab(new IVint(size));
 }
 
 
-IntValue *E_assign::vcgen(AEnv &env) VCGEN_CONST
+IntValue *E_assign::vcgen(AEnv &env) const
 {
   IntValue *v = src->vcgen(env);
 
@@ -381,7 +409,7 @@ IntValue *E_assign::vcgen(AEnv &env) VCGEN_CONST
 }
 
 
-IntValue *E_arithAssign::vcgen(AEnv &env) VCGEN_CONST
+IntValue *E_arithAssign::vcgen(AEnv &env) const
 {
   IntValue *v = src->vcgen(env);
 
@@ -407,13 +435,13 @@ IntValue *E_arithAssign::vcgen(AEnv &env) VCGEN_CONST
 
 
 // --------------------- Initializer --------------------
-IntValue *IN_expr::vcgen(AEnv &env, Type const *) VCGEN_CONST
+IntValue *IN_expr::vcgen(AEnv &env, Type const *) const
 {
   return e->vcgen(env);
 }
 
 
-IntValue *IN_compound::vcgen(AEnv &/*env*/, Type const */*type*/) VCGEN_CONST
+IntValue *IN_compound::vcgen(AEnv &/*env*/, Type const */*type*/) const
 {
   // I have no representation for array and structure values
   return NULL;

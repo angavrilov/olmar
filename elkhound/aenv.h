@@ -51,7 +51,10 @@ public:      // funcs
   IntValue *grab(IntValue *v);
   void discard(IntValue *v);
   IntValue *dup(IntValue *v);
-  
+
+  // misc
+  StringRef str(char const *s) const { return stringTable.add(s); }
+
   // debugging
   void print();
 };
