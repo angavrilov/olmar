@@ -320,10 +320,11 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
   return svalTok(TOK_STRING_LITERAL);     // error recovery
 }
 
-  /* unterminated string literal; maximal munch causes
-   * us to prefer either of the above two rules when possible;
-   * the trailing optional backslash is needed so the scanner
-   * won't back up in that case */
+  /* unterminated string literal; maximal munch causes us to prefer
+   * either of the above two rules when possible; the trailing
+   * optional backslash is needed so the scanner won't back up in that
+   * case; NOTE: this can only happen if the file ends in the string
+   * and there is no newline before the EOF */
 "L"?{QUOTE}({STRCHAR}|{ESCAPE})*{BACKSL}? {
   err("unterminated string literal");
   yyterminate();
