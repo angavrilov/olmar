@@ -327,6 +327,11 @@ public:
 
     STA_POINTER,     // pointer to global object
     STA_MEMBER,      // pointer to class member
+
+    // 2005-02-23: a first step.. this means the argument is a
+    // value-dependent expression (the expr itself is unspecified)
+    STA_DEPEXPR,     // value-dependent expression
+
     STA_TEMPLATE,    // template argument (not implemented)
     NUM_STA_KINDS
   } kind;
@@ -356,6 +361,7 @@ public:
   void setType(Type *t)          { kind=STA_TYPE;      value.t=t; }
   void setInt(int i)             { kind=STA_INT;       value.i=i; }
   void setReference(Variable *v) { kind=STA_REFERENCE; value.v=v; }
+  void setDepExpr()              { kind=STA_DEPEXPR;   value.i=0; }
   void setPointer(Variable *v)   { kind=STA_POINTER;   value.v=v; }
   void setMember(Variable *v)    { kind=STA_MEMBER;    value.v=v; }
 

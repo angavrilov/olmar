@@ -609,6 +609,7 @@ bool STemplateArgument::isObject() const
   case STA_REFERENCE:           // reference to global object
   case STA_POINTER:             // pointer to global object
   case STA_MEMBER:              // pointer to class member
+  case STA_DEPEXPR:             // value-dependent expr
     return true; break;
 
   case STA_TEMPLATE:            // template argument (not implemented)
@@ -630,8 +631,11 @@ bool STemplateArgument::isDependent() const
     // at the moment.
     return getType()->isSimple(ST_DEPENDENT);
   }
+  else if (kind == STA_DEPEXPR) {
+    return true;
+  }
   else {
-    return false;      // what about non-type args?  template args?
+    return false;
   }
 }
 
@@ -661,14 +665,20 @@ bool STemplateArgument::containsVariables() const
     if (value.t->containsVariables()) {
       return true;
     }
-  } else if (kind == STemplateArgument::STA_REFERENCE) {
+  } 
+  else if (kind == STemplateArgument::STA_REFERENCE) {
     // FIX: I am not at all sure that my interpretation of what
     // STemplateArgument::kind == STA_REFERENCE means; I think it
     // means it is a non-type non-template (object) variable in an
     // argument list
     return true;
   }
-  // FIX: do other kinds
+  else if (kind == STA_DEPEXPR) {
+    // well, this one is *supposed* to be for object variables; 
+    // the STA_REFERENCE stuff is a bug
+    return true;
+  }
+
   return false;
 }
 

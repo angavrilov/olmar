@@ -7878,8 +7878,14 @@ static void setSTemplArgFromExpr
       expr->type->isBool() ||
       expr->type->isEnumType()) {
     int i;
-    if (expr->constEval(env, i)) {
+    string msg;   // discarded
+    if (expr->constEval(msg, i)) {
       sarg.setInt(i);
+    }
+    else if (env.inUninstTemplate()) {
+      // assume that the cause is evaluating an expression that refers
+      // to a (non-type) template argument (TODO: confirm)
+      sarg.setDepExpr();
     }
     else {
       env.error(stringc

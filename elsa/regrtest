@@ -621,6 +621,7 @@ testparse t0385.cc
 testparse t0386.cc
 testparse t0387.cc
 testparse t0388.cc
+testparse t0389.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -687,7 +688,7 @@ testparse d0061.cc
 #failparse d0062.cc "during type matching, recursion depth exceeded the limit"
 #failparse d0063.cc "during type matching, recursion depth exceeded the limit"
 testparse d0064.cc
-failparse d0065.cc "STA_REFERENCE problem, I think"
+testparse d0065.cc
 testparse d0066.cc
 testparse d0067.cc
 testparse d0068.cc
