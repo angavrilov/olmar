@@ -26,6 +26,10 @@ struct B {
 template<class C, class tr>
   template<class I> B<C, tr> &B<C, tr>::f(I j1)
 {
+  // as Elsa now does non-dependent lookup, this needs to be
+  // declared (in strict mode)
+  int pos;
+
   Rep *p;
   tr::a((*p)[pos], *j1);
   // if I replace this with the below elsa seems to also like it but

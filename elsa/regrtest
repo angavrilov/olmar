@@ -201,6 +201,12 @@ testparse_strict() {
   # this is for tests that include things that should be diagnosed
   # as errors, but (for the moment) require the "strict" flag for
   # that to occur
+  #
+  # 2005-03-05: I am trying to move towards a state where 'strict'
+  # processing is *always* performed, so I am gradually adding
+  # _strict to certain tests that are or have been problematic;
+  # eventually I will remove _strict altogether and make that behavior
+  # be the default.
   runTest perl ./multitest.pl ./ccparse -tr strict,$TR_FLAGS in/$1
 }
 
@@ -776,7 +782,7 @@ failparse d0110.cc "class specialization without 'template' prefix?"
 testparse d0111.cc # "failure to use 'typename' when defining static member"
 # sm: this is invalid input; gcc-3.4.3 rejects it too
 #failparse d0112.cc "template dependent name problem"
-testparse d0113.cc
+testparse_strict d0113.cc
 testparse d0114.cc
 # sm: this is invalid input
 #failparse d0115.cc "gcc-2 bug: cannot find standard namespace"
