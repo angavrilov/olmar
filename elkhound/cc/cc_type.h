@@ -292,10 +292,6 @@ protected:  // funcs
 public:     // funcs
   virtual ~Type();
 
-  // I'm replacing these with factory calls
-  //virtual Type *deepClone() const = 0;
-  //Type *getRefTypeTo();
-
   int getId() const { return (int)this; }
 
   virtual Tag getTag() const = 0;
@@ -350,7 +346,6 @@ public:     // funcs
   bool isVoid() const { return isSimple(ST_VOID); }
   bool isError() const { return isSimple(ST_ERROR); }
   bool isDependent() const { return isSimple(ST_DEPENDENT); }
-  //bool shouldSuppressClashes() const { return isError() || isTypeVariable(); }
   CompoundType *ifCompoundType();        // NULL or corresp. compound
   CompoundType const *asCompoundTypeC() const; // fail assertion if not
   CompoundType *asCompoundType() { return const_cast<CompoundType*>(asCompoundTypeC()); }
@@ -400,8 +395,6 @@ protected:
     : atomic(a), q(NULL), cv(c) {}
 
 public:
-  //CVAtomicType *deepClone() const;
-
   bool innerEquals(CVAtomicType const *obj) const;
 
   // Type interface
@@ -433,8 +426,6 @@ protected:  // funcs
   PointerType(PtrOper o, CVFlags c, Type *a);
 
 public:
-  //PointerType *deepClone() const;
-
   bool innerEquals(PointerType const *obj) const;
 
   // Type interface
@@ -482,8 +473,6 @@ protected:  // funcs
 public:
   virtual ~FunctionType();
 
-  //FunctionType *deepClone() const;
-
   bool innerEquals(FunctionType const *obj) const;
   bool equalParameterLists(FunctionType const *obj) const;
   bool equalExceptionSpecs(FunctionType const *obj) const;
@@ -525,7 +514,6 @@ public:
   Parameter(StringRef n, Type *t, Variable *d)
     : name(n), type(t), decl(d) {}
   ~Parameter();
-  //Parameter *deepClone() const;
 
   string toString() const;
 };
@@ -550,8 +538,6 @@ protected:
     : eltType(e), q(NULL), hasSize(false), size(-1) { checkWellFormedness(); }
 
 public:
-  //ArrayType *deepClone() const;
-
   bool innerEquals(ArrayType const *obj) const;
 
   // Type interface
@@ -690,23 +676,11 @@ public:
   CVAtomicType *makeType(AtomicType *atomic)
     { return makeCVAtomicType(atomic, CV_NONE); }
 
-  // given an AtomicType, wrap it in a CVAtomicType
-  // with specified const or volatile qualifiers
-  //virtual CVAtomicType *makeCVType(AtomicType const *atomic, CVFlags cv)=0;
-
   // make a ptr-to-'type' type; returns generic Type instead of
   // PointerType because sometimes I return fixed(ST_ERROR)
   Type *makePtrOperType(PtrOper op, CVFlags cv, Type *type);
   inline Type *makePtrType(Type *type)
     { return makePtrOperType(PO_POINTER, CV_NONE, type); }
-    
-  #if 0
-  inline Type *makeRefType(Type *type)
-    {
-  //    return type->getRefTypeTo();
-      return makePtrOperType(PO_REFERENCE, CV_NONE, type);
-    }
-  #endif // 0
 
   // map a simple type into its CVAtomicType (with no const or
   // volatile) representative
