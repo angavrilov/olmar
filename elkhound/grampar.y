@@ -29,6 +29,8 @@
 %token TOK_INTEGER
 %token TOK_NAME
 %token TOK_STRING
+%token TOK_FUNDECL_BODY
+%token TOK_FUN_BODY
 
 /* punctuators */
 %token TOK_LBRACE "{"
@@ -42,6 +44,7 @@
 %token TOK_RPAREN ")"
 %token TOK_DOT "."
 %token TOK_COMMA ","
+%token TOK_EQUAL "="
 
 /* keywords */
 %token TOK_TERMINALS "terminals"
@@ -51,6 +54,8 @@
 %token TOK_ATTR "attr"
 %token TOK_ACTION "action"
 %token TOK_CONDITION "condition"
+%token TOK_FUNDECL "fundecl"
+%token TOK_FUN "fun"
 
 /* operators */
 %token TOK_OROR "||"
@@ -139,11 +144,15 @@ Nonterminal: "nonterm" TOK_NAME "{" NonterminalBody "}"
 
 NonterminalBody: /* empty */                       { $$ = AST0(AST_NTBODY); }
                | NonterminalBody AttributeDecl     { $$ = iappend($1, $2); }
-               | NonterminalBody Action            { $$ = iappend($1, $2); }
-               | NonterminalBody Condition         { $$ = iappend($1, $2); }
-               | NonterminalBody Form              { $$ = iappend($1, $2); }
-               | NonterminalBody FormGroup         { $$ = iappend($1, $2); }
+               | NonterminalBody GroupElement      { $$ = iappend($1, $2); }
                ;
+
+/* things that can appear in any grouping construct; specifically,
+ * a NonterminalBody or a FormGroupBody */
+GroupElement: FormBodyElement   { $$ = $1; }
+            | Form              { $$ = $1; }
+            | FormGroup         { $$ = $1; }
+            ;
 
 /*
  * this declares a synthesized attribute of a nonterminal; every form
@@ -170,9 +179,15 @@ Form: "->" FormRHS ";"                             { $$ = AST1(AST_FORM, $2); }
  * nonterminal's attribute values
  */
 FormBody: /* empty */                              { $$ = AST0(AST_FORMBODY); }
-        | FormBody Action                          { $$ = iappend($1, $2); }
-        | FormBody Condition                       { $$ = iappend($1, $2); }
+        | FormBody FormBodyElement                 { $$ = iappend($1, $2); }
         ;
+
+/* things that can be directly associated with a form */
+FormBodyElement: Action            { $$ = $1; }
+               | Condition         { $$ = $1; }
+               | FunDecl           { $$ = $1; }
+               | Function          { $$ = $1; }
+               ;
 
 /*
  * forms can be grouped together with actions and conditions that apply
@@ -198,10 +213,7 @@ FormGroup: "formGroup" "{" FormGroupBody "}"       { $$ = $3; }
 /* observe a FormGroupBody has everything a NonterminalBody has, except
  * for attribute declarations */
 FormGroupBody: /* empty */                         { $$ = AST0(AST_FORMGROUPBODY); }
-             | FormGroupBody Action                { $$ = iappend($1, $2); }
-             | FormGroupBody Condition             { $$ = iappend($1, $2); }
-             | FormGroupBody Form                  { $$ = iappend($1, $2); }
-             | FormGroupBody FormGroup             { $$ = iappend($1, $2); }
+             | FormGroupBody GroupElement          { $$ = iappend($1, $2); }
              ;
 
 /* ------ form right-hand side ------ */
@@ -249,7 +261,7 @@ Condition: "condition" AttrExpr ";"                { $$ = AST1(AST_CONDITION, $2
 /* ------ attribute expressions, basically C expressions ------ */
 PrimaryExpr: TOK_NAME "." TOK_NAME           { $$ = AST2(EXP_ATTRREF, $1, $3); }
                /* tag . attr */
-           | TOK_NAME                        { $$ = $1; }  
+           | TOK_NAME                        { $$ = $1; }
                /* attr (implicit 'this' tag) */
            | TOK_INTEGER                     { $$ = $1; }
                /* literal */
@@ -297,11 +309,35 @@ CondExpr: BinaryExpr                             { $$ = $1; }
         | BinaryExpr "?" AttrExpr ":" AttrExpr   { $$ = AST3(EXP_COND, $1, $3, $5); }
         ;
 
-AttrExpr: CondExpr                           { $$ = $1; }
+AttrExpr: CondExpr                               { $$ = $1; }
         ;
 
 
+/* ------------- semantic functions -------------- */
+/* the principle is: "nonterminal = class".  that is, every node
+ * representing a reduction to a nonterminal will implement a
+ * set of semantic functions.  these functions can call semantic
+ * functions of the reduction children, can have parameters passed
+ * in, and return values.
+ *
+ * this is the only part of the grammar language that is specific
+ * to the language that will be used to access and process the
+ * parser's results; this is the "substrate language" in my
+ * terminology. */
+
+/* fundecls declare a function that the nonterminal class supports;
+ * every production must implement the function; when C++ is the
+ * substrate language, the TOK_FUNDECL is a function prototype;
+ * the substrate interface must be able to pull out the name to
+ * match it with the corresponding 'fun' */
+FunDecl: "fundecl" TOK_FUNDECL_BODY ";"          { $$ = $2; }
+       ;     /* note: $2 here is an AST_FUNDECL node already */
+
+/* fun is a semantic function; the TOK_FUNCTION is substrate language
+ * code that will be emitted into a file for later compilation;
+ * it can refer to production children by their tagged names */
+Function: "fun" TOK_NAME "{" TOK_FUN_BODY "}"    { $$ = AST2(AST_FUNCTION, $2, $4); }
+        | "fun" TOK_NAME "=" TOK_FUN_BODY ";"    { $$ = AST2(AST_FUNEXPR, $2, $4); }
+        ;
+
 %%
-
-
-

@@ -3,8 +3,19 @@
 
 #include "gramlex.h"     // this module
 #include "trace.h"       // debugging trace()
+#include "ccsstr.h"      // CCSubstrate
 
 #include <fstream.h>     // cout, ifstream
+
+
+// ------------------- EmbeddedLang -------------------
+EmbeddedLang::EmbeddedLang()
+  : text(),
+    exprOnly(false)
+{}
+
+EmbeddedLang::~EmbeddedLang()
+{}
 
                                   
 // ----------------- GrammarLexer::FileState --------------------
@@ -45,13 +56,19 @@ GrammarLexer::FileState &GrammarLexer::FileState::
 GrammarLexer::GrammarLexer(char const *fname, istream *source)
   : yyFlexLexer(source),
     fileState(sourceFileList.open(fname), source),
+    fileStack(),
+    expectingEmbedded(false),
+    embedFinish(0),
+    embedMode(0),
+    embedded(new CCSubstrate),
     commentStartLine(0),
     integerLiteral(0),
     stringLiteral(""),
     includeFileName("")
 {
   // grab initial buffer object so we can restore it after
-  // processing an include file
+  // processing an include file (turns out this doesn't work
+  // because it's NULL now; see recursivelyProcess())
   fileState.bufstate = yy_current_buffer;
 }
 
@@ -69,6 +86,8 @@ GrammarLexer::~GrammarLexer()
   if (fileState.source != cin) {
     delete fileState.source;
   }
+  
+  delete embedded;
 }
 
 
@@ -99,9 +118,17 @@ int GrammarLexer::yylexInc()
     return yylexInc();
   }
 
-  trace("lex") << "yielding token (" << code << ") "
-               << curToken() << " at "
-               << curLocStr() << endl;
+
+  if (code == TOK_FUNDECL_BODY || code == TOK_FUN_BODY) {
+    trace("lex") << "yielding embedded (" << code << ") at "
+                 << curLocStr() << ": "
+                 << curFuncBody() << endl;
+  }
+  else {
+    trace("lex") << "yielding token (" << code << ") "
+                 << curToken() << " at "
+                 << curLocStr() << endl;
+  }
 
   // nothing special
   return code;
@@ -114,6 +141,18 @@ string GrammarLexer::curToken() const
   GrammarLexer *ths = const_cast<GrammarLexer*>(this);
 
   return string(ths->YYText(), ths->YYLeng());
+}
+
+
+string GrammarLexer::curFuncBody() const
+{
+  return embedded->getFuncBody();
+}
+
+
+string GrammarLexer::curDeclName() const
+{
+  return embedded->getDeclName();
 }
 
 

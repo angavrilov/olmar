@@ -29,6 +29,7 @@
 #include "util.h"      // OSTREAM_OPERATOR, INTLOOP
 #include "action.h"    // Actions
 #include "cond.h"      // Conditions
+#include "strdict.h"   // StringDict
 
 class StrtokParse;     // strtokp.h
 
@@ -148,6 +149,11 @@ public:     // data
   // for all attributes
   ObjList<string> attributes;
 
+  // declarations of functions, as a dictionary: name -> declBody; the
+  // text of the declaration is stored because it is needed when
+  // emitting substrate code
+  StringDict funDecls;
+
 public:     // funcs
   Nonterminal(char const *name);
   virtual ~Nonterminal();
@@ -155,6 +161,10 @@ public:     // funcs
   // return true if 'attr' is among 'attributes'
   // (by 0==strcmp comparison)
   bool hasAttribute(char const *attr) const;
+  
+  // true if the named function has a declaration here
+  bool hasFunDecl(char const *name) const
+    { return funDecls.isMapped(name); }
 
   virtual void print(ostream &os) const;
   OSTREAM_OPERATOR(Nonterminal)
@@ -203,6 +213,7 @@ public:	    // data
   // extras
   Conditions conditions;       	// every condition must be satisfied for a rule to be used
   Actions actions;              // when used, a rule has these effects
+  StringDict functions;         // semantic functions: name -> body
 
 public:	    // funcs
   Production(Nonterminal *left, char const *leftTag);
@@ -219,6 +230,10 @@ public:	    // funcs
   // NULL if none do
   Action const *getAttrActionFor(char const *attr) const
     { return actions.getAttrActionFor(attr); }
+
+  // true if the named function has an implementation here
+  bool hasFunction(char const *name) const
+    { return functions.isMapped(name); }
 
   // append a RHS symbol
   void append(Symbol *sym, char const *tag);

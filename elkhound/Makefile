@@ -1,7 +1,7 @@
 # Makefile for parser generator project
 
 # main targets
-all: cexp2.sem
+all: grampar
 
 everything: grammar glr lexer1 lexer2 grampar
 
@@ -61,7 +61,7 @@ grampar.tab.cc grampar.tab.h: grampar.y
 
 # grammar parser test program
 grampar: grampar.cc ${grammar-set} ${common} gramlex.yy.o grampar.tab.o \
-         gramlex.o ast.o fileloc.o gramast.o
+         gramlex.o ast.o fileloc.o gramast.o ccsstr.o
 	${link} -o grampar -DTEST_GRAMPAR $^ ${linkend}
 
 # token list for my grammar
@@ -74,6 +74,10 @@ cexp2-sem-dep = cexp2.sem.cc ${grammar-set} ${common} gramanl.o glrtree.o \
 		grampar.o gramlex.o ast.o fileloc.o gramast.o
 cexp2.sem: ${cexp2-sem-dep}
 	${link} -o cexp2.sem -DTEST_CEXP2_SEM ${cexp2-sem-dep} ${linkend}
+
+# test code for ccsstr
+ccsstr: ccsstr.cc ccsstr.h
+	${link} -o ccsstr -DTEST_CCSSTR ccsstr.cc ${linkend}
 
 clean:
 	rm -f grammar glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex *.o *~

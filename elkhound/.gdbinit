@@ -1,7 +1,7 @@
 # .gdbinit
 
-file cexp2.sem
-set args cexp.in1
+file grampar
+set args cexp2.gr
 
 break main
 break breaker

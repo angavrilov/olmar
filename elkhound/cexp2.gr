@@ -14,20 +14,91 @@ nonterm StartSymbol -> Input L2_EOF ;
 
 
 // first some bindings, then an expression
-nonterm Input -> VarDefList ";" Expr ;
+nonterm Input -> defs:VarDefList ";" e:Expr {
+  // return value of total expression
+  fundecl int eval() const;
+
+  fun eval {
+    // gather the bindings from the definitions
+    ObjList<Binding> bindings;
+    defs.gatherBindings(bindings);
+
+    // use them to evaluate
+    return e.eval(bindings);
+  }
+  
+  // another idea:
+  /*
+  -> seq:(def:VarDef+) ";" e:Expr {
+    fun eval {
+      ObjList<Binding> bindings;
+      FOREACH(seq) {
+        // this would require.. hmmm.. maybe list of list of children?
+        // or emit another kind of nonterminal?  ...
+        def.gatherBindings(bindings);
+      }
+
+      return e.eval(bindings);
+    }
+  }
+  */
+}
+
 
 // list of variable bindings
-nonterm VarDefList -> VarDef | VarDef "," VarDefList ;
-nonterm VarDef -> L2_NAME "=" Expr ;    // Expr contains constants only
+nonterm VarDefList {
+  // collect new bindings and put them in 'bindings'
+  fundecl void gatherBindings(ObjList<Binding> &bindings) const;
+
+  -> def:VarDef {
+    fun gatherBindings {
+      def.gatherBindings(bindings);
+    }
+  }
+
+  -> def:VarDef "," defs:VarDefList {
+    fun gatherBindings {
+      def.gatherBindings(bindings);
+      defs.gatherBindings(bindings);
+    }
+  }
+}
+
+nonterm VarDef -> n:L2_NAME "=" e:Expr {
+  fundecl void gatherBindings(ObjList<Binding> &bindings) const;
+
+  fun gatherBindings {
+    string name = n.strValue;
+
+    // Expr contains constants only
+    ObjList<Binding> empty;
+    int val = e.eval(empty);
+    
+    // add result to global bindings list
+    bindings.add(name, value);
+  }
+}
 
 
 // primary expressions
 nonterm Expr {
   attr prec;              // precedence of binding (topmost) operator in expression
-                            
-  -> L2_NAME | L2_INT_LITERAL {
-    // variables and literals have higher precedence than anything else
-    action  prec := 100;
+
+  // return the value of this expression, in the given
+  // binding environment
+  fundecl int eval(ObjList<Binding> const &bindings) const;
+
+  // variables and literals have higher precedence than anything else
+  action  prec := 100;
+
+  -> name:L2_NAME {
+    fun eval {
+      return lookup(bindings, name.strValue);
+    }
+  }
+
+  -> num:L2_INT_LITERAL {
+    fun eval = num.intValue;
   }
 
   -> left:Expr op:Binop right:Expr {
@@ -38,6 +109,9 @@ nonterm Expr {
     condition  op.leftAssoc == 1 ?
                  this.prec < right.prec :          // left associative
                  this.prec < left.prec;            // right associative
+                 
+    fun eval = 
+      op.eval(left.eval(bindings), right.eval(bindings));
   }
 }
 
@@ -47,6 +121,12 @@ nonterm Binop {
   attr prec;             // precedence of operator; higher value binds more tightly
   attr leftAssoc;        // 1 means left-associative, 0 means right-associative
 
+  // evaluate, given left and right operands
+  fundecl int eval(int left, int right) const;
+
+  // default if unspecified (for convenience while playing)
+  fun eval = left + right;
+
   // I wanted to say it in one place, but my implementation wasn't
   // right, and I don't want to fix it just now
   //action  prec := sequence(60 /*start value*/, -4 /*increment*/);
@@ -54,9 +134,14 @@ nonterm Binop {
   // all have left precedence by default; can override individually
   action  leftAssoc := 1;
 
-
   // highest precedence
-  formGroup { action prec:=60;   -> "*" | "/" | "%"           ;   }
+  formGroup {
+    action prec:=60;
+    -> "*" { fun eval = left * right; }
+    -> "/" { fun eval = left / right; }
+    -> "%" { fun eval = left % right; }
+  }
+
   formGroup { action prec:=56;   -> "+" | "-"                 ;   }
   formGroup { action prec:=52;   -> "<<"| ">>"                ;   }
   formGroup { action prec:=48;   -> "<" | ">" | "<="| ">="    ;   }

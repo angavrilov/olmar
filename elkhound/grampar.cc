@@ -16,17 +16,18 @@
 Environment::Environment(Grammar &G)
   : g(G),
     prevEnv(NULL),
+    inherited(),
     sequenceVal(0)
 {}
 
 Environment::Environment(Environment &prev)
   : g(prev.g),
     prevEnv(&prev),
+    inherited(),
     sequenceVal(prev.sequenceVal)
 {
   // copy the actions and conditions to simplify searching them later
-  actions.appendAll(prev.actions);
-  conditions.appendAll(prev.conditions);
+  inherited.appendAll(prev.inherited);
 }
 
 Environment::~Environment()
@@ -44,10 +45,14 @@ void astParseGroupBody(Environment &env, Nonterminal *nt,
                        bool attrDeclAllowed);
 void astParseForm(Environment &env, Nonterminal *nt,
                   ASTNode const *formNode);
-Action *astParseAction(Environment &env, Production *prod,
-                       ASTNode const *act);
+void astParseFormBodyElt(Environment &env, Production *prod,
+                         ASTNode const *n, bool dupsOk);
+void astParseAction(Environment &env, Production *prod,
+                    ASTNode const *act, bool dupsOk);
 Condition *astParseCondition(Environment &env, Production *prod,
                              ASTNode const *cond);
+void astParseFunction(Environment &env, Production *prod,
+                      ASTNode const *func, bool dupsOk);
 AExprNode *astParseExpr(Environment &env, Production *prod,
                         ASTNode const *node);
 AExprNode *checkSpecial(Environment &env, Production *prod,
@@ -87,12 +92,18 @@ ASTNode const *nthChildt(ASTNode const *n, int c, int type)
 }
 
 
+string quoted(char const *str)
+{
+  return stringc << "\"" << str << "\"";
+}
+
+
 int nodeInt(ASTNode const *n)
   { return asIntLeafC(n)->data; }
 string nodeName(ASTNode const *n)
   { return asNameLeafC(n)->data; }
 string nodeString(ASTNode const *n)
-  { return stringc << "\"" << asStringLeafC(n)->data << "\""; }
+  { return asStringLeafC(n)->data; }
 
 ObjList<ASTNode> const &nodeList(ASTNode const *n, int type)
 {
@@ -156,7 +167,7 @@ void astParseGrammar(Grammar &g, ASTNode const *treeTop)
           string name = childName(term, 1);
           bool ok;
           if (term->numChildren() == 3) {
-            ok = env.g.declareToken(name, code, childString(term, 2));
+            ok = env.g.declareToken(name, code, quoted(childString(term, 2)));
           }
           else {
             ok = env.g.declareToken(name, code, NULL /*alias*/);
@@ -217,19 +228,29 @@ void astParseGroupBody(Environment &prevEnv, Nonterminal *nt,
         else {
           // should never happen with current grammar, but if I collapse
           // the grammar then it might..
-          astParseError(node, "can't declare attributes in a formbody");
+          astParseError(node, "can only declare attributes in nonterminals");
+        }
+        break;
+
+      case AST_FUNDECL:
+        if (attrDeclAllowed) {
+          nt->funDecls.add(
+            childName(node, 0),      // declared name
+            childString(node, 1));   // declaration body
+        }
+        else {
+          // cannot happen with current grammar
+          astParseError(node, "can only declare functions in nonterminals");
         }
         break;
 
       case AST_ACTION:
+      case AST_CONDITION:
+      case AST_FUNCTION:
+      case AST_FUNEXPR:
         // just grab a pointer; will parse for real when a production
         // uses this inherited action
-        env.actions.append(const_cast<ASTNode*>(node));
-        break;
-
-      case AST_CONDITION:
-        // same as with actions
-        env.conditions.append(const_cast<ASTNode*>(node));
+        env.inherited.append(const_cast<ASTNode*>(node));
         break;
 
       case AST_FORM:
@@ -290,7 +311,7 @@ void astParseForm(Environment &env, Nonterminal *nt,
           break;
           
         case AST_STRING:
-          symName = nodeString(n);
+          symName = quoted(nodeString(n));
           break;
           
         END_TYPE_SWITCH(n);
@@ -302,13 +323,15 @@ void astParseForm(Environment &env, Nonterminal *nt,
       xassert(!( term && nonterm ));     // better not be both!
 
       // some syntax rules
-      if (n->type == AST_TAGGEDNAME  &&  term) {
-        astParseError(n, "can't tag a terminal");
-      }
-
       if (n->type == AST_STRING  &&  !term) {
         astParseError(n, "terminals must be declared");
       }
+        
+      // I eliminated this rule because I need the tags to
+      // be able to refer to tokens in semantic functions
+      //if (n->type == AST_TAGGEDNAME  &&  term) {
+      //  astParseError(n, "can't tag a terminal");
+      //}
 
       // decide which symbol to put in the production
       Symbol *s;
@@ -343,60 +366,37 @@ void astParseForm(Environment &env, Nonterminal *nt,
     if (formNode->asInternalC().numChildren() == 2) {
       // iterate over form body elements
       FOREACH_OBJLIST(ASTNode, childList(formNode, 1, AST_FORMBODY), iter) {
-        ASTNode const *n = iter.data();
-        switch (n->type) {
-          case AST_ACTION:
-            prod->actions.actions.append(
-              astParseAction(env, prod, n));
-            break;
-
-          case AST_CONDITION:
-            prod->conditions.conditions.append(
-              astParseCondition(env, prod, n));
-            break;
-
-          END_TYPE_SWITCH(n);
-        }
+        astParseFormBodyElt(env, prod, iter.data(), false /*dupsOk*/);
       }
     }
     else {
       // no form body
     }
 
-    // grab actions from the environment
+    // grab stuff inherited from the environment
+    SFOREACH_OBJLIST(ASTNode, env.inherited, iter) {
+      astParseFormBodyElt(env, prod, iter.data(), true /*dupsOk*/);
+    }
+
+    // make sure all attributes have actions
     FOREACH_OBJLIST(string, nt->attributes, attrIter) {
       char const *attr = attrIter.data()->pcharc();
       if (!prod->actions.getAttrActionFor(attr)) {
-        // the production doesn't currently have a rule to set
-        // attribute 'attr'; look in the environment for one
-        bool foundOne = false;
-        SFOREACH_OBJLIST(ASTNode, env.actions, actIter) {
-          ASTNode const *actNode = actIter.data();
-          if (childName(actNode, 0) == string(attr)) {
-            // found a suitable action from the environment;
-            // parse it now
-            Action *action = astParseAction(env, prod, actNode);
-            prod->actions.actions.append(action);
-
-            // break out of the loop
-            foundOne = true;
-            break;
-          }
-        }
-
-        if (!foundOne) {
-          // for now, just a warning
-          // TODO: elevate to error
-          cout << "WARNING: rule " << *prod
-               << " has no action for `" << attr << "'\n";
-        }
+        astParseError(formNode,
+          stringc << "rule " << prod->toString()
+                  << " has no action for `" << attr << "'");
       }
     }
 
-    // grab conditions from the environment
-    SFOREACH_OBJLIST(ASTNode, env.conditions, envIter) {
-      prod->conditions.conditions.append(
-        astParseCondition(env, prod, envIter.data()));
+    // make sure all fundecls have implementations
+    for (StringDict::IterC iter(nt->funDecls); 
+         !iter.isDone(); iter.next()) {
+      char const *name = iter.key();
+      if (!prod->hasFunction(name)) {
+        astParseError(formNode,
+          stringc << "rule " << prod->toString()
+                  << " has no implementation for `" << name << "'");
+      }
     }
 
     // add production to grammar
@@ -406,20 +406,61 @@ void astParseForm(Environment &env, Nonterminal *nt,
 }
 
 
-Action *astParseAction(Environment &env, Production *prod,
-                       ASTNode const *act)
+void astParseFormBodyElt(Environment &env, Production *prod,
+                         ASTNode const *n, bool dupsOk)
+{
+  switch (n->type) {
+    case AST_ACTION:
+      astParseAction(env, prod, n, dupsOk);
+      break;
+
+    case AST_CONDITION:
+      prod->conditions.conditions.append(
+        astParseCondition(env, prod, n));
+      break;
+
+    case AST_FUNDECL:    
+      // allow function declarations in form bodies because it's
+      // convenient for nonterminals that only have one form..
+      prod->left->funDecls.add(
+        childName(n, 0),      // declared name
+        childString(n, 1));   // declaration body
+      break;
+
+    case AST_FUNCTION:
+    case AST_FUNEXPR:
+      astParseFunction(env, prod, n, dupsOk);
+      break;
+
+    END_TYPE_SWITCH(n);
+  }
+}
+
+
+void astParseAction(Environment &env, Production *prod,
+                    ASTNode const *act, bool dupsOk)
 {
   xassert(act->type == AST_ACTION);
 
   string attrName = childName(act, 0);
   if (!prod->left->hasAttribute(attrName)) {
-    astParseError(act, "undeclared attribute");
+    astParseError(act, stringc << "undeclared attribute: " << attrName);
+  }
+  if (prod->actions.getAttrActionFor(attrName)) {
+    // there is already an action for this attribute
+    if (dupsOk) {
+      return;     // fine; just ignore it
+    }
+    else {
+      astParseError(act, stringc << "duplicate action for " << attrName);
+    }
   }
 
   AExprNode *expr = astParseExpr(env, prod, nthChild(act, 1));
 
-  return new AttrAction(AttrLvalue(0 /*LHS*/, attrName),
-                        expr);
+  prod->actions.actions.append(
+    new AttrAction(AttrLvalue(0 /*LHS*/, attrName),
+                   expr));
 }
 
 
@@ -431,6 +472,32 @@ Condition *astParseCondition(Environment &env, Production *prod,
   AExprNode *expr = astParseExpr(env, prod, nthChild(cond, 0));
 
   return new ExprCondition(expr);
+}
+
+
+void astParseFunction(Environment &env, Production *prod,
+                      ASTNode const *func, bool dupsOk)
+{
+  xassert(func->type == AST_FUNCTION || 
+          func->type == AST_FUNEXPR);
+
+  string name = childName(func, 0);
+  if (!prod->left->hasFunDecl(name)) {
+    astParseError(func,
+      stringc << "undeclared function: " << name);
+  }
+  if (prod->hasFunction(name)) {
+    if (!dupsOk) {
+      astParseError(func,
+        stringc << "duplicate function implementation: " << name);
+    }
+    else {
+      return;    // ignore duplicates
+    }
+  }
+
+  string body = childString(func, 1);
+  prod->functions.add(name, body);
 }
 
 
@@ -570,6 +637,24 @@ int yylex(ASTNode **lvalp, void *parseParam)
 
     case TOK_NAME:
       *lvalp = new ASTNameLeaf(lexer.curToken(), lexer.curLoc());
+      break;
+
+    case TOK_FUNDECL_BODY: {
+      // grab the declaration body and put it into a leaf
+      ASTNode *declBody =
+        new ASTStringLeaf(lexer.curDeclBody(), lexer.curLoc());
+
+      // grab the declared function name and put it into another leaf
+      ASTNode *declName =
+        new ASTNameLeaf(lexer.curDeclName(), lexer.curLoc());
+
+      // wrap them into another ast node
+      *lvalp = AST2(AST_FUNDECL, declName, declBody);
+      break;
+    }
+
+    case TOK_FUN_BODY:
+      *lvalp = new ASTStringLeaf(lexer.curFuncBody(), lexer.curLoc());
       break;
 
     default:

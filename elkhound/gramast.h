@@ -37,6 +37,9 @@ enum ASTTypeCode {
 
   AST_ACTION,            // action: attr, expr
   AST_CONDITION,         // condition: expr
+  AST_FUNDECL,           // fundecl: name, body
+  AST_FUNCTION,          // fun: name, body
+  AST_FUNEXPR,           // fun: name, expr-body
 
   // attribute-expression components
   EXP_ATTRREF,           // reference to an attribute
@@ -61,6 +64,8 @@ enum ASTTypeCode {
   EXP_OR,
 
   EXP_COND,              // ternary operator
+  
+  NUM_AST_CODES          // plus one, actually
 };
 
                                  
@@ -68,6 +73,7 @@ enum ASTTypeCode {
 string astTypeToString(int type);
 
 
+// why did I differentiate between string and name??
 typedef ASTSimpleLeaf<int, AST_INTEGER> ASTIntLeaf;
 typedef ASTSimpleLeaf<string, AST_STRING> ASTStringLeaf;
 typedef ASTSimpleLeaf<string, AST_NAME> ASTNameLeaf;

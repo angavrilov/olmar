@@ -57,7 +57,7 @@ class GLR;               // main class for GLR parsing
 // nodes, which play a role analogous to the stack nodes of a
 // normal LR parser; GLR nodes form a graph instead of a linear
 // stack because choice points (real or potential ambiguities)
-// are represented
+// are represented as multiple left-siblings
 class StackNode {
 public:
   // it's convenient when printing diagnostic info to have

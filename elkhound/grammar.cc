@@ -65,8 +65,12 @@ string Terminal::toString() const
 // ----------------- Nonterminal ------------------------
 Nonterminal::Nonterminal(char const *name)
   : Symbol(name, false /*terminal*/),
+    attributes(),
+    funDecls(),
     ntIndex(-1),
-    cyclic(false)
+    cyclic(false),
+    first(),
+    follow()
 {}
 
 Nonterminal::~Nonterminal()
@@ -150,6 +154,7 @@ Production::Production(Nonterminal *L, char const *Ltag)
     rightTags(),
     conditions(),
     actions(),
+    functions(),
     numDotPlaces(-1),    // so the check in getDProd will fail
     dprods(NULL)
 {}
@@ -353,14 +358,17 @@ string Production::rhsString() const
         sb << " ";
       }
 
+      string symName;
       if (symIter.data()->isNonterminal()) {
-        // print the nonterminal as a name and optional tag
-        sb << taggedName(symIter.data()->name, *(tagIter.data()));
+        symName = symIter.data()->name;
       }
       else {
         // print terminals as aliases if possible
-        sb << symIter.data()->asTerminalC().toString();
+        symName = symIter.data()->asTerminalC().toString();
       }
+
+      // print tag if present
+      sb << taggedName(symName, *(tagIter.data()));
     }
 
     // verify both lists were same length
@@ -380,9 +388,12 @@ string Production::toStringWithActions() const
 {
   stringBuilder sb;
   sb << toString() << "\n"
-     << actions.toString(this) 
+     << actions.toString(this)
      << conditions.toString(this)
      ;
+  if (functions.isNotEmpty()) {
+    sb << "  " << functions.toString() << "\n";
+  }
   return sb;
 }
 

@@ -64,6 +64,8 @@ SLWHITE   [ \t]
 %x C_COMMENT
 %x INCLUDE
 %x EAT_TO_NEWLINE
+%x FUNDECL
+%x FUN
 
 
 /* ---------------------- rules ----------------------- */
@@ -117,7 +119,19 @@ SLWHITE   [ \t]
 
 
   /* -------- punctuators, operators, keywords --------- */
-"{"                UPD_COL  return TOK_LBRACE;
+  /* first, punctuation that can start embedded code */
+("{"|"=") {
+  UPD_COL
+  if (expectingEmbedded) {
+    expectingEmbedded = false;
+    embedFinish = (yytext[0] == '{' ? '}' : ';');
+    BEGIN(FUN);
+  }
+  return yytext[0] == '{' ? TOK_LBRACE : TOK_EQUAL;
+}
+
+
+  /* now just normal stuff */
 "}"                UPD_COL  return TOK_RBRACE;
 ":"                UPD_COL  return TOK_COLON;
 ";"                UPD_COL  return TOK_SEMICOLON;
@@ -151,6 +165,68 @@ SLWHITE   [ \t]
 "attr"             UPD_COL  return TOK_ATTR;
 "action"           UPD_COL  return TOK_ACTION;
 "condition"        UPD_COL  return TOK_CONDITION;
+
+  /* --------- embedded semantic functions --------- */
+"fundecl" {
+  UPD_COL
+  BEGIN(FUNDECL);
+  embedded->reset();
+  embedFinish = ';';
+  embedMode = TOK_FUNDECL_BODY;
+  return TOK_FUNDECL;
+}
+
+"fun" {
+  UPD_COL
+  
+  // two tokens must be processed before we start the embedded stuff;
+  // the parser will ensure they are there, and then this flag will
+  // get us into embedded processing; rules for "{" and "=" deal with
+  // 'expectedEmbedded' and transitioning into FUN state
+  expectingEmbedded = true;
+
+  embedded->reset();
+  embedMode = TOK_FUN_BODY;
+  return TOK_FUN;
+}
+
+<FUNDECL,FUN>{
+  [^;}\n]+ {
+    UPD_COL
+    embedded->handle(yytext, yyleng);
+  }     
+  
+  "\n" {
+    newLine();
+    embedded->handle(yytext, yyleng);
+  }
+
+  ("}"|";") {
+    UPD_COL
+    if (yytext[0] == embedFinish &&
+        embedded->zeroNesting()) {
+      // done
+      BEGIN(INITIAL);
+
+      // put back delimeter
+      yyless(yyleng-1);
+      
+      // tell the 'embedded' object whether the text just
+      // added is to be considered an expression or a
+      // complete function body
+      embedded->exprOnly = 
+        (embedMode == TOK_FUN_BODY &&
+         embedFinish == ';');
+
+      // caller can get text from embedded->text
+      return embedMode;
+    }
+    else {
+      // embedded delimeter, mostly ignore it
+      embedded->handle(yytext, yyleng);
+    }
+  }
+}
 
 
   /* ---------- includes ----------- */

@@ -75,8 +75,7 @@ public:      // data
   // the context where they are to be applied; I currently
   // store complete copies of all of 'prev's actions and
   // conditions, so I don't really need 'prevEnv' ...
-  SObjList<ASTNode /*const*/> actions;
-  SObjList<ASTNode /*const*/> conditions;
+  SObjList<ASTNode /*const*/> inherited;
 
   // current value of any sequence function
   int sequenceVal;

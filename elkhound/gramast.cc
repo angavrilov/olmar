@@ -2,6 +2,7 @@
 // code for gramast.h
 
 #include "gramast.h"      // this module
+#include "macros.h"       // STATIC_ASSERT
 
 string astTypeToString(int type)
 {
@@ -29,6 +30,9 @@ string astTypeToString(int type)
     N(AST_FORMGROUPBODY)
     N(AST_ACTION)
     N(AST_CONDITION)
+    N(AST_FUNDECL)
+    N(AST_FUNCTION)
+    N(AST_FUNEXPR)
 
     N(EXP_ATTRREF)
     N(EXP_FNCALL)
@@ -51,7 +55,9 @@ string astTypeToString(int type)
     N(EXP_COND)
     #undef N
   };
-  
+
+  STATIC_ASSERT(TABLESIZE(arr) == NUM_AST_CODES-1);
+
   loopi(TABLESIZE(arr)) {
     if (arr[i].code == type) {
       return arr[i].name;

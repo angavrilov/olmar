@@ -28,6 +28,48 @@
 #include "fileloc.h"          // SourceLocation
 
 
+// interface to an embedded language processor
+class EmbeddedLang {
+public:
+  // all text processed so far; it collects the
+  // embedded code; clients will call 'handle' a
+  // bunch of times and then expect to retrieve
+  // the text from here
+  stringBuilder text;
+
+  // when true (set by the lexer), the 'text' is to
+  // be interpreted as an expression, rather than a
+  // complete function body; this affects what 
+  // getFuncBody() returns
+  bool exprOnly;
+
+public:
+  EmbeddedLang();
+  virtual ~EmbeddedLang();    // silence warning
+
+  // start from scratch
+  virtual void reset() = 0;
+
+  // process the given string of characters, as source text in
+  // the embedded language
+  virtual void handle(char const *str, int len) = 0;
+
+  // return true if we're at a nesting level of zero
+  // and not in a string, etc. -- characters at this
+  // level have "usual" meaning
+  virtual bool zeroNesting() const = 0;
+
+  // return the body of the embedded function; should
+  // always return a complete function body, even when
+  // exprOnly is true (by adding to 'text' if necessary)
+  virtual string getFuncBody() const = 0;
+
+  // return the name of the declared function, assuming
+  // that is the context in which 'text' was collected
+  virtual string getDeclName() const = 0;
+};
+
+
 // this class just holds the lexer state so it is properly encapsulated
 // (and therefore, among other things, re-entrant)
 class GrammarLexer : public yyFlexLexer {
@@ -52,6 +94,13 @@ private:     // data
 
   FileState fileState;             // state for file we're lexing now
   ObjList<FileState> fileStack;    // stack of files we will return to
+
+  // support for embedded code
+  bool expectingEmbedded;          // true when certain punctuation triggers
+                                   // embedded processing
+  char embedFinish;                // which character ends the embedded section
+  int embedMode;                   // TOK_FUNDECL_BODY or TOK_FUN_BODY
+  EmbeddedLang *embedded;          // (owner) the processor
 
 public:      // data
   int commentStartLine;            // for reporting unterminated C comments
@@ -79,6 +128,11 @@ public:      // funcs
   // get current token as a string
   string curToken() const;
   int curLen() const { return const_cast<GrammarLexer*>(this)->YYLeng(); }
+  
+  // current token's embedded text
+  string curFuncBody() const;
+  string curDeclBody() const { return curFuncBody(); }    // implementation artifact
+  string curDeclName() const;
 
   // read the next token and return its code; returns TOK_EOF for end of file;
   // this function is defined in flex's output source code; this one
