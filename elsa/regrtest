@@ -134,7 +134,7 @@ bigTest() {
 failTest() {
   reason="$1"
   shift
-  
+
   if [ "$reason" = "" ]; then
     echo "failTest $*: must supply a failure reason"
     exit 4
@@ -824,6 +824,9 @@ testparse d0121.cc
 # sm: this is invalid C++
 #failparse d0123.cc "from the kernel; works in C mode but in C++ mode can't convert void* to function pointer"
 testparse d0124.cc
+
+testparse k0001.cc
+
 # ---- END: lots of tests ----
 
 
@@ -859,7 +862,7 @@ if egrep "USE_GNU: +yes" config.summary >/dev/null; then
 else
   echo "gnu extensions are not enabled"
 fi
-                
+
 if $use_gnu; then
   # test gnu extensions
   testparse gnu/g0001.cc
@@ -933,7 +936,7 @@ list=`echo " \
   t0001.cc   t0002.cc  t0003.cc  t0004.cc   t0005.cc   t0006.cc  t0007.cc
   t0008.cc   t0009.cc  t0010.cc  t0011.cc   t0012.cc   t0013.cc  t0014.cc
   t0014a.cc  t0015.cc  t0016.cc  t0017.cc   t0018.cc   t0019.cc  t0020.cc
-  t0021.cc   t0022.cc  t0023.cc  t0024.cc              
+  t0021.cc   t0022.cc  t0023.cc  t0024.cc
              t0029.cc            t0030a.cc  t0030b.cc  t0031.cc  t0032.cc
                                             t0037.cc   t0038.cc  t0039.cc
   t0040.cc   t0041.cc  t0042.cc  t0043.cc
