@@ -23,8 +23,7 @@ options:
   -prof              enable profiling
   -devel             add options useful while developing
   -gnu=yes/no        enable or disable GNU extensions [enabled]
-  <op>:              add a given option to the gcc command line,
-                       including forms: -W*, -D*, -O*
+  -ccflag <arg>:     add <arg> to gcc command line
   -smbase=<dir>:     specify where the smbase library is [$SMBASE]
   -ast=<dir>:        specify where the ast system is [$AST]
   -elkhound=<dir>:   specify where the elkhound system is [$ELKHOUND]
@@ -53,6 +52,10 @@ while (@ARGV) {
   # be added to CCFLAGS
   elsif ($arg =~ m/^(-W|-D|-O)/) {
     push @CCFLAGS, $arg;
+  }
+  elsif ($arg eq "-ccflag") {
+    push @CCFLAGS, $ARGV[0];
+    shift @ARGV;
   }
 
   elsif ($arg eq "-d" ||

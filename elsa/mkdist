@@ -40,8 +40,9 @@ make >>make.out 2>&1
 make check >>make.out 2>&1
 
 # check for having run flex or bison
-if egrep '^(flex|bison)' make.out; then
-  echo "We ran flex or bison during the build; that's bad!"
+# UPDATE: have to run flex b/c it's how lexical extensions are added..
+if egrep '^bison' make.out; then
+  echo "We ran bison during the build; that's bad!"
   exit 2
 fi
 

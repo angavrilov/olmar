@@ -102,14 +102,14 @@ tlexer: tlexer.o $(LEXER_OBJS) $(libraries)
 
 # ------------------------- ccparse ---------------------
 # combine base lexer description and extensions
-TOTOOLCLEAN += lexer.lex
+TOCLEAN += lexer.lex
 lexer.lex: $(LEXER_MODS) merge-lexer-exts.pl
 	rm -f $@
 	perl merge-lexer-exts.pl $(LEXER_MODS) >$@
 	chmod a-w $@
 
 # run flex on the lexer description
-TOTOOLCLEAN += lexer.yy.cc
+TOCLEAN += lexer.yy.cc
 lexer.yy.cc: lexer.lex lexer.h
 	flex -o$@ lexer.lex
 	mv $@ lexer.tmp
