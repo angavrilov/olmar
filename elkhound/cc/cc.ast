@@ -75,7 +75,7 @@ class Function (
 
   FakeList<Handler> *handlers   // handlers for ctor "try" block
 ) {
-  public void tcheck(Env &env);
+  public void tcheck(Env &env, bool checkBody);
   //public StringRef name() const;
 }
 

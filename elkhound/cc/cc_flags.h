@@ -72,12 +72,13 @@ enum DeclFlags {
   DF_EXISTENTIAL = 0x00020000,    // (requires DF_LOGIC) existentially-quantified
   DF_MEMBER      = 0x00040000,    // true for members of classes (data, static data, functions)
   DF_DEFINITION  = 0x00200000,    // set once we've seen this Variable's definition
+  DF_INLINE_DEFN = 0x00400000,    // set for inline function definitions on second pass of tcheck
 
   // syntactic declaration extensions
   DF_PREDICATE   = 0x00080000,    // Simplify-declared predicate (i.e. DEFPRED)
 
-  ALL_DECLFLAGS  = 0x003FFFFF,
-  NUM_DECLFLAGS  = 22             // # bits set to 1 in ALL_DECLFLAGS
+  ALL_DECLFLAGS  = 0x007FFFFF,
+  NUM_DECLFLAGS  = 23             // # bits set to 1 in ALL_DECLFLAGS
 };
 
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..

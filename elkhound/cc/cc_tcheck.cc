@@ -25,38 +25,43 @@ void TF_decl::tcheck(Env &env)
 void TF_func::tcheck(Env &env)
 {
   env.setLoc(loc);
-  f->tcheck(env);
+  f->tcheck(env, true /*checkBody*/);
 }
 
 
 // --------------------- Function -----------------
-void Function::tcheck(Env &env)
+void Function::tcheck(Env &env, bool checkBody)
 {
+  if (checkBody) {
+    dflags = (DeclFlags)(dflags | DF_DEFINITION);
+  }
+
   // construct the type of the function
   Type const *retTypeSpec = retspec->tcheck(env);
-  nameParams->tcheck(env, retTypeSpec, 
-                     (DeclFlags)(dflags | DF_DEFINITION));
+  nameParams->tcheck(env, retTypeSpec, dflags);
 
   if (! nameParams->var->type->isFunctionType() ) {
     env.error("function declarator must be of function type");
     return;
   }        
-  
-  // the parameters will have been entered into the parameter
-  // scope, but that's gone now; make a new scope for the
-  // function body and enter the parameters into that
-  env.enterScope();
-  FunctionType const &ft = nameParams->var->type->asFunctionTypeC();
-  FOREACH_OBJLIST(FunctionType::Param, ft.params, iter) {
-    env.addVariable(iter.data()->decl);
-  }
 
-  // check the body in the new scope as well
-  Statement *sel = body->tcheck(env);
-  xassert(sel == body);     // compounds are never ambiguous
-  
-  // close the new scope
-  env.exitScope();
+  if (checkBody) {
+    // the parameters will have been entered into the parameter
+    // scope, but that's gone now; make a new scope for the
+    // function body and enter the parameters into that
+    env.enterScope();
+    FunctionType const &ft = nameParams->var->type->asFunctionTypeC();
+    FOREACH_OBJLIST(FunctionType::Param, ft.params, iter) {
+      env.addVariable(iter.data()->decl);
+    }
+
+    // check the body in the new scope as well
+    Statement *sel = body->tcheck(env);
+    xassert(sel == body);     // compounds are never ambiguous
+
+    // close the new scope
+    env.exitScope();
+  }
 }
 
 
@@ -225,9 +230,24 @@ Type const *TS_classSpec::tcheck(Env &env)
   env.scope()->curCompound = ct;
   env.scope()->curAccess = (keyword==TI_CLASS? AK_PRIVATE : AK_PUBLIC);
 
-  // look at members
+  // look at members: first pass is to enter them into the environment
   FOREACH_ASTLIST_NC(Member, members->list, iter) {
     iter.data()->tcheck(env);
+  }
+
+  // second pass: check function bodies
+  FOREACH_ASTLIST_NC(Member, members->list, iter2) {
+    if (iter2.data()->isMR_func()) {
+      Function *f = iter2.data()->asMR_func()->f;
+
+      // ordinarily we'd complain about seeing two declarations
+      // of the same class member, so to tell D_name::itcheck not
+      // to complain, this flag says we're in the second pass
+      // tcheck of an inline member function
+      f->dflags = (DeclFlags)(f->dflags | DF_INLINE_DEFN);
+
+      f->tcheck(env, true /*checkBody*/);
+    }
   }
 
   env.exitScope();
@@ -264,7 +284,15 @@ void MR_decl::tcheck(Env &env)
 
 void MR_func::tcheck(Env &env)
 {
-  env.unimp("member function");
+  // mark the function as inline, whether or not the
+  // user explicitly did so
+  f->dflags = (DeclFlags)(f->dflags | DF_INLINE);
+
+  // we check the bodies in a second pass, after all the class
+  // members have been added to the class, so that the potential
+  // scope of all class members includes all function bodies
+  // [cppstd sec. 3.3.6]
+  f->tcheck(env, false /*checkBody*/);
 }
 
 void MR_access::tcheck(Env &env)
@@ -353,11 +381,14 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
     // no name, nothing to enter in environment
     return new Variable(loc, NULL, spec, dflags);
   }
+  
+  // are we in a class member list?
+  CompoundType *enclosingClass = env.scope()->curCompound;
 
   // if we're not in a class member list, and the type is not a
   // function type, and 'extern' is not specified, then this is
   // a definition
-  if (!env.scope()->curCompound &&
+  if (!enclosingClass &&
       !spec->isFunctionType() &&
       !(dflags & DF_EXTERN)) {
     dflags = (DeclFlags)(dflags | DF_DEFINITION);
@@ -381,7 +412,7 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
       // though the 'name' is not NULL
       return new Variable(loc, name->name, spec, dflags);
     }
-    
+
     // this intends to be the definition of a class member; make sure
     // the code doesn't try to define a nonstatic data member
     if (prior->hasFlag(DF_MEMBER) &&
@@ -404,6 +435,23 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
         (dflags & DF_DEFINITION)) {
       env.error(stringc
         << "duplicate definition for `" << *name << "'");
+      goto makeDummyVar;
+    }
+
+    // check for violation of rule disallowing multiple
+    // declarations of the same class member; cppstd sec. 9.2:
+    //   "A member shall not be declared twice in the
+    //   member-specification, except that a nested class or member
+    //   class template can be declared and then later defined."
+    //
+    // I have a specific exception for this when I do the second
+    // pass of typechecking for inline members (the code doesn't
+    // violate the rule, it only appears to because of the second
+    // pass); this exception is indicated by DF_INLINE_DEFN.
+    if (enclosingClass && !(dflags & DF_INLINE_DEFN)) {
+      env.error(stringc
+        << "duplicate member declaration of `" << *name
+        << "' in " << enclosingClass->keywordAndName());
       goto makeDummyVar;
     }
 
@@ -439,9 +487,8 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
 
   // are we inside a class member list?  if so, then
   // add this to the class
-  CompoundType *ct = env.scope()->curCompound;
-  if (ct) {
-    if (ct->getNamedField(var->name)) {
+  if (enclosingClass) {
+    if (enclosingClass->getNamedField(var->name)) {
       env.error(stringc
         << "duplicate declaration of class member `" << *name << "'");
     }
@@ -450,8 +497,8 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
       trace("env") << "added " << toString(access)
                    << " field `" << var->name
                    << "' of type `" << var->type->toString()
-                   << "' to " << ct->keywordAndName() << endl;
-      ct->addField(var->name, env.scope()->curAccess, var->type, var);
+                   << "' to " << enclosingClass->keywordAndName() << endl;
+      enclosingClass->addField(var->name, env.scope()->curAccess, var->type, var);
       var->setFlag(DF_MEMBER);
     }
   }
