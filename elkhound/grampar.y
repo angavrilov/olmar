@@ -291,6 +291,7 @@ Production: "->" RHS Action                { $$ = new ProdDecl($2, $3); }
 /* yields: LocString */
 Action: TOK_LIT_CODE                       { $$ = $1; }
       | ";"                                { $$ = noloc("return 0;"); }
+      ;
 
 /* yields: ASTList<RHSElt> */
 RHS: /* empty */                           { $$ = new ASTList<RHSElt>; }

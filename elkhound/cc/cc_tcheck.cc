@@ -214,7 +214,7 @@ void Function::tcheck(Env &env, bool checkBody)
   Type const *retTypeSpec = retspec->tcheck(env);
   DeclaratorTcheck dt(retTypeSpec,
                       (DeclFlags)(dflags | (checkBody? DF_DEFINITION : 0)));
-  nameParams = nameParams->tcheck(env, dt);
+  nameAndParams = nameAndParams->tcheck(env, dt);
 
   if (! dt.type->isFunctionType() ) {
     env.error(stringc
@@ -240,8 +240,8 @@ void Function::tcheck(Env &env, bool checkBody)
   // the class's members; that scope won't actually be modified,
   // and in fact we can check that by watching the change counter
   int prevChangeCount = 0;   // silence warning
-  if (nameParams->var->scope) {
-    env.extendScope(nameParams->var->scope);
+  if (nameAndParams->var->scope) {
+    env.extendScope(nameAndParams->var->scope);
     prevChangeCount = env.getChangeCount();
   }
 
@@ -259,10 +259,10 @@ void Function::tcheck(Env &env, bool checkBody)
   }
 
   // is this a nonstatic member function?
-  if (nameParams->var->scope &&
-      nameParams->var->scope->curCompound &&
-      !nameParams->var->hasFlag(DF_STATIC)) {
-    CompoundType const *ct = nameParams->var->scope->curCompound;
+  if (nameAndParams->var->scope &&
+      nameAndParams->var->scope->curCompound &&
+      !nameAndParams->var->hasFlag(DF_STATIC)) {
+    CompoundType const *ct = nameAndParams->var->scope->curCompound;
 
     // make a type which is a pointer to the class that this
     // function is a member of; if the function has been declared
@@ -272,7 +272,7 @@ void Function::tcheck(Env &env, bool checkBody)
       makePtrOperType(PO_POINTER, CV_CONST, makeCVType(ct, ft.cv));
 
     // add the implicit 'this' parameter
-    Variable *ths = new Variable(nameParams->var->loc, env.str("this"),
+    Variable *ths = new Variable(nameAndParams->var->loc, env.str("this"),
                                  thisType, DF_NONE);
     env.addVariable(ths);
   }
@@ -299,9 +299,9 @@ void Function::tcheck(Env &env, bool checkBody)
   env.exitScope(bodyScope);
 
   // stop extending the named scope, if there was one
-  if (nameParams->var->scope) {
+  if (nameAndParams->var->scope) {
     xassert(prevChangeCount == env.getChangeCount());
-    env.retractScope(nameParams->var->scope);
+    env.retractScope(nameAndParams->var->scope);
   }
   
   if (inTemplate) {
@@ -314,8 +314,8 @@ CompoundType *Function::verifyIsCtor(Env &env, char const *context)
 {
   // make sure this function is a class member
   CompoundType *enclosing = NULL;
-  if (nameParams->var->scope) {
-    enclosing = nameParams->var->scope->curCompound;
+  if (nameAndParams->var->scope) {
+    enclosing = nameAndParams->var->scope->curCompound;
   }
   if (!enclosing) {
     env.error(stringc
@@ -327,7 +327,7 @@ CompoundType *Function::verifyIsCtor(Env &env, char const *context)
 
   // make sure this function is a constructor; should already have
   // been mapped to the special name
-  if (nameParams->var->name != env.constructorSpecialName) {
+  if (nameAndParams->var->name != env.constructorSpecialName) {
     env.error(stringc
       << context << " are only valid for constructors",
       true /*disambiguating*/);
@@ -450,12 +450,13 @@ void Declaration::tcheck(Env &env)
 
 
 //  -------------------- ASTTypeId -------------------
-void ASTTypeId::tcheck(Env &env, bool allowVarArraySize)
+Expression *ASTTypeId::tcheck(Env &env, bool in_E_new)
 {
   Type const *specType = spec->tcheck(env);
   DeclaratorTcheck dt(specType, DF_NONE);
-  dt.allowVarArraySize = allowVarArraySize;
+  dt.in_E_new = in_E_new;
   decl = decl->tcheck(env, dt);
+  return dt.size_E_new;
 }
 
 
@@ -1500,26 +1501,71 @@ void D_func::tcheck(Env &env, DeclaratorTcheck &dt)
 
 
 void D_array::tcheck(Env &env, DeclaratorTcheck &dt)
-{
+{                     
   ArrayType *at;
-  if (!size) {
-    at = new ArrayType(dt.type);
-  }
-  else {
-    size->tcheck(env);
 
-    int sz;
-    if (!dt.allowVarArraySize && 
-        size->constEval(env, sz)) {
-      at = new ArrayType(dt.type, sz);
+  if (size) {
+    // typecheck the 'size' expression
+    size->tcheck(env);
+  }
+
+  if (dt.in_E_new) {
+    // we're in a new[] (E_new) type-id
+    if (!size) {
+      env.error("new[] must have an array size specified");
+      at = new ArrayType(dt.type);    // error recovery
     }
     else {
-      // error has already been reported, this is a recovery action,
-      // *or* we're in E_new and don't look for a constant size
-      at = new ArrayType(dt.type  /*as if no size specified*/);
+      if (base->isD_name()) {
+        // this is the final size expression, it need not be a
+        // compile-time constant; this 'size' is not part of the type
+        // of the objects being allocated, rather it is a dynamic
+        // count of the number of objects to allocate
+        dt.size_E_new = size;
+        
+        // now just call into the D_name to finish off the type; dt.type
+        // is left unchanged, because this D_array contributed nothing
+        // to the *type* of the objects we're allocating
+        base->tcheck(env, dt);
+        return;
+      }
+      else {
+        // this is an intermediate size, so it must be a compile-time
+        // constant since it is part of a description of a C++ type
+        int sz;
+        if (!size->constEval(env, sz)) {
+          // error has already been reported; this is for error recovery
+          at = new ArrayType(dt.type);
+        }
+        else {
+          // constuct the type
+          at = new ArrayType(dt.type, sz);
+        }
+      }
     }
   }
 
+  else {
+    // we're not in an E_new, so add the size to the type if it's
+    // specified; there are some contexts which require a type (like
+    // definitions), but we'll report those errors elsewhere
+    if (size) {
+      int sz;
+      if (!size->constEval(env, sz)) {
+        at = new ArrayType(dt.type);     // error recovery
+      }
+      else {
+        at = new ArrayType(dt.type, sz);
+      }
+    }
+    else {
+      // no size
+      at = new ArrayType(dt.type);
+    }
+  }
+
+  // having added this D_array's contribution to the type, pass
+  // that on to the next declarator
   dt.type = at;
   base->tcheck(env, dt);
 }
@@ -2286,17 +2332,21 @@ Type const *E_new::itcheck(Env &env)
 {
   placementArgs = tcheckFakeExprList(placementArgs, env);
 
-  // TODO: find an operator 'new' which accepts the set
-  // of placement args
-  
-  atype->tcheck(env, true /*allowVarArraySize*/);
+  // TODO: check the environment for declaration of an operator 'new'
+  // which accepts the given placement args
+
+  // typecheck the typeid in E_new context; it returns the
+  // array size for new[] (if any)
+  arraySize = atype->tcheck(env, true /*in_E_new*/);
+
+  // grab the type of the objects to allocate
   Type const *t = atype->getType();
 
   if (ctorArgs) {
     ctorArgs->list = tcheckFakeExprList(ctorArgs->list, env);
   }
 
-  // TODO: find a constructor in t which accepts these args
+  // TODO: check for a constructor in 't' which accepts these args
   
   return makePtrType(t);
 }

@@ -316,13 +316,21 @@ void Expression::printExtras(ostream &os, int indent) const
   if (type) {
     ind(os, indent) << "type: " << type->toString() << "\n";
   }
-}
 
+  // print type-specific extras
+  ASTSWITCHC(Expression, this) {
+    ASTCASEC(E_variable, v)
+      if (v->var) {
+        ind(os, indent) << "var: refers to " << v->var->loc.toString() << "\n";
+      }
 
-void E_variable::printExtras(ostream &os, int indent) const
-{           
-  if (var) {
-    ind(os, indent) << "var: refers to " << var->loc.toString() << "\n";
+    ASTNEXTC(E_new, n)
+      PRINT_SUBTREE(n->arraySize);
+
+    ASTDEFAULTC
+      /* do nothing */
+
+    ASTENDCASEC
   }
 }
 

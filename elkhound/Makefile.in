@@ -336,6 +336,9 @@ cc/bccgr.y: cc/c.gr.gen.y
 # relying on another pattern rule) because I want to control exactly
 # how the compilation happens (to ensure the Bison-parser is compiled
 # with flags to make it a fair performance test with my own stuff)
+#
+# TODO: apparently bison-1.75 chooses its output files differently
+# than prior versions.. may have to detect that with ./configure
 %.tab.c %.tab.o %.tab.h: %.y
 	bison -d -v $*.y
 	mv $*.tab.c $*.tab.c.orig
@@ -606,7 +609,8 @@ clean:
 	rm -f $(CLEAN_PATTERNS)
 	rm -f elkhound glr cc/lexer1 cc/lexer1yy.cc gramlex.yy.cc gramlex cyctimer
 	rm -f cc/lexer2 grampar.tab.* grampar
-	rm -f cc/cc.bin cc/ccgr cc/ccparse cc/libccgr.a libelkhound.a
+	rm -f cc/cc.bin cc/ccgr cc/cparse cc/ccparse cc/ccparset
+	rm -f cc/libccgr.a libelkhound.a
 	rm -f cc/ccparse_twalk.cc cc/ccparse_twalk
 	rm -f cc/bccgr
 	rm -f cc/bccgr.y cc/cc.tok grampar.codes.h

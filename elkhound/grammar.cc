@@ -929,6 +929,13 @@ void Grammar::checkWellFormed() const
 }
 
 
+// syntax for identifying tokens in Bison output
+string bisonTokenName(Terminal const *t)
+{
+  //return t->name;
+  return stringc << "\"" << t->name << "\"";
+}
+
 // print the grammar in a form that Bison likes
 void Grammar::printAsBison(ostream &os) const
 {
@@ -937,7 +944,8 @@ void Grammar::printAsBison(ostream &os) const
   os << "/* -------- tokens -------- */\n";
   FOREACH_TERMINAL(terminals, term) {
     // I'll surround all my tokens with quotes and see how Bison likes it
-    os << "%token \"" << term.data()->name << "\" "
+    // TODO: the latest bison does *not* like it!
+    os << "%token " << bisonTokenName(term.data()) << " "
        << term.data()->termIndex << "\n";
   }
   os << "\n\n";
@@ -974,7 +982,7 @@ void Grammar::printAsBison(ostream &os) const
           }
 
           // print the token itself
-          os << " \"" << t->name << "\"";
+          os << " " << bisonTokenName(t);
         }
       }
 
@@ -1010,7 +1018,7 @@ void Grammar::printAsBison(ostream &os) const
           Symbol const *sym = symIter.data()->sym;
           if (sym != &emptyString) {
             if (sym->isTerminal()) {
-              os << " \"" << sym->name << "\"";
+              os << " " << bisonTokenName(&( sym->asTerminalC() ));
             }
             else {
               os << " " << sym->name;
@@ -1030,7 +1038,7 @@ void Grammar::printAsBison(ostream &os) const
           FOREACH_TERMINAL(terminals, iter) {
             if (iter.data()->precedence == prod.data()->precedence) {
               // found suitable token
-              os << " %prec \"" << iter.data()->name << "\"";
+              os << " %prec " << bisonTokenName(iter.data());
               found = true;
               break;
             }
@@ -1053,6 +1061,13 @@ void Grammar::printAsBison(ostream &os) const
     if (first) {
       // no rules..
       os << "/* no rules for " << nt.data()->name << " */";
+    }
+    else {
+      // finish the rules with a semicolon
+      INTLOOP(i, 0, nt.data()->name.length()) {
+        os << " ";
+      }
+      os << ";\n";
     }
 
     os << "\n\n";
