@@ -3264,15 +3264,23 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
         name = dname->name->getUnqualifiedName();
       }
 
-      // conversion operator (grammar ensures must be ON_conversion)
+      // conversion operator
       if (name->isPQ_operator()) {
-        ON_conversion *conv = name->asPQ_operator()->o->asON_conversion();
+        if (name->asPQ_operator()->o->isON_conversion()) {
+          ON_conversion *conv = name->asPQ_operator()->o->asON_conversion();
 
-        // compute the named type; this becomes the return type
-        ASTTypeId::Tcheck tc(DF_NONE, DC_ON_CONVERSION);
-        conv->type = conv->type->tcheck(env, tc);
-        dt.type = conv->type->getType();
-        specialFunc = FF_CONVERSION;
+          // compute the named type; this becomes the return type
+          ASTTypeId::Tcheck tc(DF_NONE, DC_ON_CONVERSION);
+          conv->type = conv->type->tcheck(env, tc);
+          dt.type = conv->type->getType();
+          specialFunc = FF_CONVERSION;
+        }
+        else {
+          if (!env.lang.allowImplicitIntForOperators) {
+            env.error(stringc << "cannot declare `" << name->toString() << "' with no return type");
+          }
+          dt.type = env.getSimpleType(SL_UNKNOWN, ST_INT);     // recovery
+        }
       }
 
       // constructor or destructor

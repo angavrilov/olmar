@@ -147,6 +147,9 @@ public:
   // if the argument to a cast is an lvalue, make the cast expression
   // have lvalue type
   bool lvalueFlowsThroughCast;
+  
+  // MSVC bug compatibility: allow implicit int for operator functions
+  bool allowImplicitIntForOperators;
 
 public:
   CCLang() { ANSI_C89(); }
@@ -158,6 +161,9 @@ public:
 
   // enable C99 features
   void ANSI_C99_extensions();
+
+  // enable MSVC bug compatibility
+  void MSVC_bug_compatibility();
 
   // The predefined settings below are something of a best-effort at
   // reasonable starting configurations.  Every function below sets

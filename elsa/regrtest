@@ -587,6 +587,7 @@ testparse t0351.cc
 failparse t0352.cc "cannot parse; nasty example; gcc-3 cannot handle either"
 failparse t0353.cc "cannot parse; even nastier example"
 testparse t0354.cc
+testparse t0355.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -962,6 +963,10 @@ if $use_gnu; then
   failcil typeof1.i "__alignof__ applied to object instead of type"
   testcil warnings-noreturn.i
 fi
+
+
+# msvc
+runTest ./ccparse -tr msvcBugs in/msvc/m0001.cc
 
 
 # final parser checks against the big files, since they've now become

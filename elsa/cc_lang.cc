@@ -43,6 +43,8 @@ void CCLang::ANSI_C89()
 
   // C99 spec: Section 6.5.4, footnote 85: "A cast does not yield an lvalue".
   lvalueFlowsThroughCast = false;
+  
+  allowImplicitIntForOperators = false;
 }
 
 void CCLang::KandR_C()
@@ -158,6 +160,7 @@ void CCLang::ANSI_Cplusplus()
   allowNewlinesInStringLits = false;
   stringLitCharsAreConst = true; // Cppstd says they are const.
   lvalueFlowsThroughCast = false;
+  allowImplicitIntForOperators = false;
 }
 
 void CCLang::GNU_Cplusplus()
@@ -174,6 +177,13 @@ void CCLang::GNU_Cplusplus()
   allowImplicitIntForMain = true;
 
   declareGNUBuiltins = true;
+}
+
+
+// -------------------------- MSVC ---------------------
+void CCLang::MSVC_bug_compatibility()
+{
+  allowImplicitIntForOperators = true;
 }
 
 

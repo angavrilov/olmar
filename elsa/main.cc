@@ -180,6 +180,10 @@ void doit(int argc, char **argv)
     #endif
   }
 
+  if (tracingSys("msvcBugs")) {
+    lang.MSVC_bug_compatibility();
+  }
+
   if (tracingSys("templateDebug")) {
     // predefined set of tracing flags I've been using while debugging
     // the new templates implementation
