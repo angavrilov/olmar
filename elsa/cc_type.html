@@ -88,7 +88,7 @@ the inheritance hierarchy.
 <p>
 To get the name lookup semantics right, we must be able to tell when
 names are ambiguous and also know the inheritance path used to arrive
-at any base.  This is made complicated by the presence of virtual
+at any base.  This is complicated by the presence of virtual
 inheritance.  Each class contains its own, independent representation
 of its particular inheritance DAG; this representation is a graph of
 <b>BaseClassSubobj</b> objects.  A base class subobject corresponds
@@ -131,17 +131,19 @@ are represented as a list of Variable
 (<a href="variable.h">variable.h</a>) objects.  Nonstatic
 member functions have the <tt>isMember</tt> flag set, in which
 case their first parameter is called "this" and has type
-"C cv * const", where "C" is the name of the class of which the
-function is a member, and "cv" is optional const/volatile flags.
+"C <i>cv</i> &", where "C" is the name of the class of which the
+function is a member, and <i>cv</i> is optional const/volatile flags.
 FunctionType also has a flag to indicate if it accepts a
 variable number of arguments, and a way (ExnSpec) to represent
 exception specifications.
 
 <p>
-Finally, function templates have a list of template parameters.
-As I think about it, it's kind of strange to imagine a function
-<em>type</em> being templatized, so maybe I should have put
-that list someplace else (Variable?).
+Finally, function templates have a list of template parameters.  As I
+think about it, it's kind of strange to imagine a function
+<em>type</em> being templatized, so maybe I should have put that list
+someplace else (Variable?).  On the other hand, maybe it will work to
+treat templates as having polymorphic types.  Until the template
+implementation matues, it's not clear what the best strategy is.
 
 <p>
 <b>ArrayType</b> represents an array type.  Types with no
@@ -155,10 +157,12 @@ qualifiers.  This is used for both pointers to both member
 functions and member data.
 
 <p>
-Since member functions already can be distinguished by the
-<tt>isMember</tt> flag, it would have been possible to only
-use PointerToMember for data members, and I might even switch
-to doing so at some point.
+Note that creating a Pointer to a Function that happens to have
+<tt>isMember</tt> be true is not the same thing as a PointerToMember
+to a Function (without <tt>isMember</tt>).  The former is a concept
+that I think would be useful, but does not exist in C++.  The latter
+is C++'s pointer-to-member (to a function), and has the "heterogeneous
+array" semantics.
 
 <h2>4. Templates</h2>
 
@@ -203,6 +207,16 @@ that may need to customize the way types are built, I'll add new entry
 points to TypeFactory and modify cc_tcheck.cc to use them.
 
 <p>
+I consider the presence of the SourceLoc parameter in most of the
+TypeFactory functions to be a wart on the design.  I don't even know
+what that location should be, if the type is constructed outside
+the context of interpreting a type denotation in the AST.  The base
+Elsa front end itself always ignores that value, and passes
+<tt>SL_UNKNOWN</tt> whenever there isn't a location handy.  I'd
+like to eventually revisit the decisions that led to the presence
+of those parameters.
+
+<p>
 <b>BasicTypeFactory</b> is an implementation of TypeFactory that
 just builds the types defined in cc_type.h in the obvious way.
 
@@ -218,7 +232,7 @@ middle of the inheritance hierarchy.
 <p>
 So, Type is actually split into two classes, <b>BaseType</b> and <b>Type</b>.
 Type inherits from BaseType, and by default, adds almost nothing
-to BaseType.  However, clients of Elsa are allowed/expected to
+to BaseType.  However, clients of Elsa are allowed to
 replace Type's definition with one that includes additional
 annotations.
 

@@ -28,6 +28,40 @@ Generally I've just put location info wherever I've happened to need it;
 there's no clear strategy.  Now that SourceLoc is just one word (it
 used to be three), I might put it everywhere.
 
+<h3>ASTVisitor</h3>
+
+<p>
+One way to walk over the AST is to write a set of mutually-recursive
+functions that manually traverse the AST edges.  This works well for
+analyses that are sensitive to context, and/or use results from
+subtrees in nontrivial ways.  The type checker
+(<a href="cc_tcheck.ast">cc_tcheck.ast</a>,
+<a href="cc_tcheck.cc">cc_tcheck.cc</a>) is such an analysis.
+
+<p>
+An alternative, which is less work if the analysis is mostly
+insensitive to context and/or does not need to inspect all of the
+nodes in the AST, is to use ASTVisitor.  One simply implements the
+ASTVisitor interface (defined in cc.ast.gen.h once that file has been
+generated), and invokes the <tt>traverse</tt> method on the root of
+the AST subtree of interest.  For example, this code would print all
+of the function names (without qualifiers) in the AST:
+
+<pre>
+  class FuncPrinter : public ASTVisitor {
+  public:
+    virtual bool visitFunction(Function *f) {
+      cout &lt;&lt; f-&gt;nameAndParams-&gt;getDeclaratorId()-&gt;getName() &lt;&lt; "\n";
+    }
+  };
+
+  void printFuncNames(TranslationUnit *unit)
+  {
+    FuncPrinter fp;
+    unit-&gt;traverse(fp);
+  }
+</pre>
+
 <h3>TranslationUnit, TopForm</h3>
 
 <p>
@@ -126,7 +160,8 @@ the last example above, <tt>func</tt> is being declared to be a
 pointer to a function which returns a pointer to pointer to an
 integer--you read it from right to left.  The type checker
 (<a href="cc_tcheck.cc">cc_tcheck.cc</a>) sorts the types out into
-a more reasonable representation, but they start like this.
+a more usable representation
+(<a href="cc_type.html">cc_type</a>), but they start like this.
 
 <p>
 (By the way: declarators are inside-out not because Kernighan
@@ -163,7 +198,7 @@ kind of literal, but concatenation semantics would require that it
 do so (e.g. "\xA" "B" is equivalent to "\x0AB", two characters,
 not "\xAB", one character).
 
-<h3>Initializer, InitLabel</h3>
+<h3>Initializer</h3>
 
 <p>
 Initializers are what come after IDeclarators in Declarations;
@@ -171,9 +206,10 @@ they're the "3" in "int x = 3;".  They can be nested, as
 IN_compound.
 
 <p>
-InitLabel is part of an intent to support the extended
-"labeled" initializer syntax of C99, partially supported
-by gcc.  However, Elsa currently supports none of it.
+GNU/C99 designated initializers are implemented in the GNU
+extension, <a href="gnu.ast">gnu.ast</a>.  The build process
+that comes with Elsa will include the GNU extension if you
+pass "<tt>-gnu</tt>" to <tt>./configure</tt>.
 
 <h3>TemplateDeclaration, TemplateParameter, TemplateArgument</h3>
 

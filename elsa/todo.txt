@@ -70,6 +70,10 @@ string literal to char* (as opposed to char const*) are marked
 "deprecated" by the standard (Annex D).  It would be nice to have
 a flag to diagnose use of deprecated features.
 
+** Exception specs
+
+No checking is done w.r.t. of exception specs.
+
 * Types of literals
 
 A few literals get the wrong type.  For example, 1U should be
