@@ -157,6 +157,7 @@ class TypeSpecifier {
      }
 
   -> TS_classSpec {
+       public bool tcheckAsIfNamed = false;
        public CompoundType *ctype = NULL;
        public void tcheckIntoCompound(
          Env &env, DeclFlags dflags, CompoundType *ct,

@@ -9,4 +9,11 @@ int main() {
   (
    (union {int d;}) {d:0}
   ) .d ;
+
+  // for now this typechecks the E_compoundLit twice due to the way []
+  // is implemented as lowering and re-typechecking
+  (
+   (union {int i[2];}) {i:{0}}
+  )
+  .i[1];
 }

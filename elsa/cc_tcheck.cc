@@ -768,9 +768,9 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
       && spec->isTS_classSpec()
       // dsw: I really only need this for unions, but I think I'll do
       // the more general thing just for simplicity
-//        && spec->asTS_classSpec()->keyword == TI_UNION
+      && spec->asTS_classSpec()->keyword == TI_UNION
       && !spec->asTS_classSpec()->name) {
-    spec->asTS_classSpec()->name = new PQ_name(env.loc(), env.getAnonName(TI_UNION));
+    spec->asTS_classSpec()->tcheckAsIfNamed = true;
   }
 
   // check type specifier
@@ -2235,10 +2235,12 @@ realStart:
     }
   }
 
-  // member of an anonymous union?
+  // member of an anonymous union that is not in an E_compoundLit ?
   if (scope->curCompound &&
       scope->curCompound->keyword == CompoundType::K_UNION &&
-      scope->curCompound->name == NULL) {
+      scope->curCompound->name == NULL &&
+      !scope->curCompound->syntax->tcheckAsIfNamed
+     ) {
     // we're declaring a field of an anonymous union, which actually
     // goes in the enclosing scope
     scope = env.enclosingScope();
