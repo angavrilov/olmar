@@ -74,8 +74,8 @@ class BasicTypeFactory;
   // number.  Normally this should be off since it uses memory and
   // makes the printouts ugly.
   //
-  // NOTE: Currently, the environment variable "PRINT_TYPE_SERIAL_NUMBERS"
-  // must be set for the printouts to include the serial numbers.
+  // NOTE: Currently, the tracing flag "typeSerialNumbers" must be set
+  // for the printouts to include the serial numbers.
   //
   // default to off; can turn on via "./configure -useTypeSerialNumbers"
   #define USE_TYPE_SERIAL_NUMBERS 0

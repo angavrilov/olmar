@@ -942,13 +942,10 @@ string cvToString(CVFlags cv)
 
 string printSerialNo(int serialNumber)
 {            
-  // it's kind of a hack to use an environment variable, but this
-  // whole thing is for debugging anyway...
-  if (!getenv("PRINT_TYPE_SERIAL_NUMBERS")) {
-    return "";     // don't print them.. messes up idempotency among other things
-  }
-  else {
+  if (tracingSys("typeSerialNumbers")) {
     return stringc << "t" << serialNumber;
+  } else {
+    return "";     // don't print them.. messes up idempotency among other things
   }
 }
 
