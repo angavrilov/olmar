@@ -65,7 +65,29 @@ void f3()
 
 
 
+// finish up some unary operators
+void operator+(C&);    // line 69
+void operator-(C&);    // line 70
+void operator!(C&);    // line 71
 
+void f4()
+{
+  C c;
+  E1 e1;
+
+  __testOverload(+c, 69);
+  __testOverload(-c, 70);
+  __testOverload(!c, 71);
+
+  __testOverload(+e1, 0);
+  __testOverload(-e1, 0);
+  __testOverload(!e1, 0);
+}
+
+
+
+// wrong # of arguments
+//ERROR(1): void operator!(C&,C&);
 
 
 

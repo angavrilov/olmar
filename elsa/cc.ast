@@ -352,7 +352,9 @@ class OperatorName {
   -> ON_binary(BinaryOp op);
 
   // unary operator; "!" and "~" are classified this way
-  -> ON_unary(UnaryOp op);
+  -> ON_unary(UnaryOp op) {
+       ctor { xassert(op==UNY_NOT || op==UNY_BITNOT); };
+     }
 
   // ++ or --; since declarator parser doesn't know about
   // the arguments, this is always EFF_PREINC or EFF_PREDEC

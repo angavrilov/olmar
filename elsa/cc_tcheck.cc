@@ -1531,26 +1531,128 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
   FunctionType *ft = dt.type->asFunctionType();
 
   // caller guarantees this will work
-  OperatorName const *on = name->getUnqualifiedNameC()->asPQ_operatorC()->o;
+  OperatorName const *oname = name->getUnqualifiedNameC()->asPQ_operatorC()->o;
+  char const *strname = oname->getOperatorName();
 
-  // For now, I'm only checking a few ad-hoc things as I run across
-  // them in the spec.  This function is a place-holder for when I
-  // more thoroughly do these checks.
+  if (scope->curCompound && (dt.dflags & DF_STATIC)) {
+    // cppstd doesn't say this explicitly, but every place that
+    // mentions what an operator can be allows only non-static
+    // members, if it allows members at all
+    env.error(loc, "operator member functions cannot be static");
+  }
 
-  if (on->isON_binary()) {
-    BinaryOp op = on->asON_binaryC()->op;
+  // describe the operator
+  bool okNonmember = false;
+  bool okOneParam = false;
+  bool okTwoParams = false;
+  bool okAnyParams = false;
 
-    if (op == BIN_BRACKETS) {
-      // 13.5.5: "operator[] shall be a non-static member function with
-      // exactly one parameter"
-      if (!scope->curCompound) {
-        env.error("operator[] must be a member function");
+  // (anything can be a member function)
+
+  ASTSWITCHC(OperatorName, oname) {
+    ASTCASEC(ON_newDel, n)
+      PRETEND_USED(n);
+      // don't check anything.. I haven't done anything with these yet
+      return;
+
+    ASTNEXTC(ON_binary, b)
+      switch (b->op) {
+        default: break;
+
+        case BIN_PLUS:
+        case BIN_MINUS:
+        case BIN_MULT:     // for deref
+          okOneParam = true;
+          okTwoParams = true;
+          okNonmember = true;
+          break;
+
+        case BIN_EQUAL:
+        case BIN_NOTEQUAL:
+        case BIN_LESS:
+        case BIN_GREATER:
+        case BIN_LESSEQ:
+        case BIN_GREATEREQ:
+        case BIN_DIV:
+        case BIN_MOD:
+        case BIN_LSHIFT:
+        case BIN_RSHIFT:
+        case BIN_BITAND:
+        case BIN_BITXOR:
+        case BIN_BITOR:
+        case BIN_AND:
+        case BIN_OR:
+        case BIN_COMMA:
+        case BIN_ARROW_STAR:
+          okTwoParams = true;
+          okNonmember = true;
+          break;
+
+        case BIN_BRACKETS:
+          okTwoParams = true;
+          break;
       }
-      else if (dt.dflags & DF_STATIC) {
-        env.error("operator[] must not be static");
+
+    ASTNEXTC(ON_unary, u)
+      PRETEND_USED(u);
+      okOneParam = true;
+      okNonmember = true;
+
+    ASTNEXTC(ON_effect, e)
+      PRETEND_USED(e);
+      okOneParam = true;
+      okTwoParams = true;     // for postfix versions
+      okNonmember = true;
+
+    ASTNEXTC(ON_assign, a)
+      PRETEND_USED(a);
+      okTwoParams = true;      
+
+    ASTNEXTC(ON_overload, o)
+      if (o->op == OVL_ARROW) {
+        okOneParam = true;
       }
-      else if (ft->params.count() != 2) {     // 'this', plus one more
-        env.error("operator[] must accept exactly one parameter");
+      else {
+        xassert(o->op == OVL_PARENS);
+        okAnyParams = true;
+      }
+
+    ASTNEXTC(ON_conversion, c)
+      PRETEND_USED(c);
+      okOneParam = true;
+
+    ASTENDCASECD
+  }
+
+  if (!okAnyParams && !okOneParam && !okTwoParams) {
+    env.error(loc, stringc << strname << " cannot be overloaded");
+    return;
+  }
+
+  if (!scope->curCompound && !okNonmember) {
+    env.error(loc, stringc << strname << " must be a member function");
+  }
+
+  if (!okAnyParams) {
+    // count and check parameters
+    int params = ft->params.count();     // includes implicit receiver
+
+    if ((okOneParam && params==1) ||
+        (okTwoParams && params==2)) {
+      // ok
+    }
+    else {
+      char const *howmany =
+        okOneParam && okTwoParams? "one or two parameters" :
+                      okTwoParams? "two parameters" :
+                                   "one parameter" ;
+      env.error(loc, stringc << strname << " must have " << howmany);
+    }
+
+    // cannot have any default arguments
+    SFOREACH_OBJLIST(Variable, ft->params, iter) {
+      if (iter.data()->value != NULL) {
+        env.error(loc, stringc << strname << " cannot have default arguments");
       }
     }
   }
@@ -3841,7 +3943,6 @@ Type *E_unary::itcheck(Env &env, Expression *&replacement)
 
   // consider the possibility of operator overloading
   if (env.doOperatorOverload &&
-      op == UNY_BITNOT &&
       (expr->type->asRval()->isCompoundType() ||
        expr->type->asRval()->isEnumType())) {
     OVERLOADINDTRACE("found overloadable unary " << toString(op) <<
@@ -3868,7 +3969,13 @@ Type *E_unary::itcheck(Env &env, Expression *&replacement)
     // pick the best candidate
     Variable *winner = resolver.resolve();
     if (winner && !winner->hasFlag(DF_BUILTIN)) {
-      PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_unary(op), opName);
+      // unfortunate hack
+      OperatorName *oname =
+        op==UNY_PLUS?  new ON_binary(BIN_PLUS) :
+        op==UNY_MINUS? new ON_binary(BIN_MINUS) :
+                       new ON_unary(op);
+
+      PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, oname, opName);
       if (winner->hasFlag(DF_MEMBER)) {
         // replace '~a' with 'a.operator~()'
         replacement = new E_funCall(

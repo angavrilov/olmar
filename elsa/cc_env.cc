@@ -175,6 +175,18 @@ void Env::setupOperatorOverloading()
   // this has to match the typedef in include/stddef.h
   Type *t_ptrdiff_t = getSimpleType(SL_INIT, ST_INT);
 
+  // ---- 13.6 para 8 ----
+  // TODO: T* operator+ (T*);
+
+  // ---- 13.6 para 9 ----
+  // T operator+ (T);
+  addBuiltinUnaryOp(UNY_PLUS,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
+  // T operator- (T);
+  addBuiltinUnaryOp(UNY_MINUS,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+
   // ---- 13.6 para 10 ----
   // T operator~ (T);
   addBuiltinUnaryOp(UNY_BITNOT,
@@ -313,7 +325,9 @@ void Env::setupOperatorOverloading()
     getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
 
   // ---- 13.6 para 23 ----
-  // TODO: bool operator! (bool);
+  // bool operator! (bool);
+  addBuiltinUnaryOp(UNY_NOT,
+    getSimpleType(SL_INIT, ST_BOOL));
 
   // bool operator&& (bool, bool);
   addBuiltinBinaryOp(BIN_AND,
