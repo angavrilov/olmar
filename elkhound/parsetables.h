@@ -6,7 +6,7 @@
 #define PARSETABLES_H
 
 #include "array.h"        // ArrayStack
-#include "bit2d.h"        // Bit2d
+#include "glrconfig.h"    // compression options
 #include <iostream.h>     // ostream
 
 class Flatten;            // flatten.h
@@ -30,6 +30,20 @@ typedef unsigned short GotoEntry;
 
 // names a nonterminal using an index
 typedef unsigned char NtIndex;
+
+// an addressed cell in the 'errorBits' table
+typedef unsigned int ErrorBitsEntry;
+
+
+// some word size statistics to help with bitmap encoding/decoding
+enum {
+  BITS_PER_WORD = sizeof(ErrorBitsEntry) * 8,    // 32
+  BITS_PER_WORD_MASK = BITS_PER_WORD - 1,        // 31 = 0x1F
+  BITS_PER_WORD_SHIFT =
+    BITS_PER_WORD==32? 5 :
+    BITS_PER_WORD==64? 6 :
+                       0    // error; detected in ParseTables::ParseTables
+};
 
 
 // encodes either terminal index N (as N+1) or
@@ -124,6 +138,29 @@ public:     // data
   // any of them to A.
   NtIndex *nontermOrder;                 // (owner)
 
+  // --------------------- table compression ----------------------
+
+  // table compression techniques taken from:
+  //    Peter Dencker, Karl Dürre, and Johannes Heuft.
+  //    Optimization of Parser Tables for Portable Compilers.
+  //    In ACM TOPLAS, 6, 4 (1984) 546-572.
+  //    http://citeseer.nj.nec.com/context/27540/0 (not in database)
+  //    ~/doc/papers/p546-dencker.pdf (from ACM DL)
+
+  // Error Entry Factoring (EEF):
+  //
+  // Factor out all the error entries into their own bitmap.  Then
+  // regard error entries in the original tables as "insignificant".
+  //
+  // 'errorBits' is a map of where the error actions are in the action
+  // table.  It is indexed by
+  //   state*numTermWords + (lookahead >> BITS_PER_WORD_SHIFT)
+  // to get the relevant word, and then
+  //   (word >> (lookahead & BITS_PER_WORD_MASK)) & 1
+  // to get a bit that is 1 for error actions and 0 for non-errors.
+  int numTermWords;                      // numTerms / BITS_PER_WORD, rounded up
+  ErrorBitsEntry *errorBits;             // (nullable owner)
+
 private:    // funcs
   void alloc(int numTerms, int numNonterms, int numStates, int numProds,
              StateId start, int finalProd);
@@ -137,7 +174,8 @@ public:     // funcs
   ParseTables(Flatten&);
   void xfer(Flatten &flat);
   
-  // see emittables.cc
+  // write the tables out as C++ source that can be compiled into
+  // the program that will ultimately do the parsing
   void emitConstructionCode(EmitCode &out, char const *funcName);
 
   // index tables
@@ -149,6 +187,22 @@ public:     // funcs
     { return gotoTable[stateId*numNonterms + nontermId]; }
   int gotoTableSize() const
     { return numStates * numNonterms; }
+
+  // query the action table in a way compatible with various
+  // compression schemes
+  ActionEntry getActionEntry(int stateId, int termId) {
+    #if ENABLE_EEF_COMPRESSION
+      // check with the error table first
+      if ( ( errorBits[stateId * numTermWords + (termId >> BITS_PER_WORD_SHIFT)]
+             >> (termId & BITS_PER_WORD_MASK) ) & 1 ) {
+        // error
+        return 0;
+      }
+    #endif
+
+    // consult table as usual
+    return actionEntry(stateId, termId);
+  }
 
   // encode actions
   ActionEntry encodeShift(StateId stateId) const
@@ -192,6 +246,12 @@ public:     // funcs
     { return numNonterms; }
   NtIndex getNontermOrdinal(NtIndex idx) const
     { return nontermOrder[idx]; }
+    
+    
+  // ----------- table compressors -------------
+  // scrape all the error entries from the action table into the
+  // 'errorBits' bitmap
+  void computeErrorBits();
 };
 
 

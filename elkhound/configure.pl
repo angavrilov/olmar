@@ -10,6 +10,9 @@ $BASE_FLAGS = "-g -Wall -D__UNIX__";
 $CCFLAGS = ();
 $debug = 0;
 $loc = 1;
+%flags = (
+  "eef" => 0,
+);
 $subconfigure = 1;
 $SMBASE = "../smbase";
 $AST = "../ast";
@@ -28,6 +31,7 @@ options:
   -devel             add options useful while developing
   -loc,-noloc:       enable/disable source location tracking [enabled]
   -action:           enable use of "-tr action" to see parser actions
+  -eef=y/n           enable/disable EEF compression [disabled]
   -fastest:          turn off all Elkhound features that are not present
                      in Bison, for the purpose of performance comparison
                      (note that Elsa will not work in this mode)
@@ -103,12 +107,14 @@ while (@ARGV) {
     # when compiled with gcc-2.95.3)
     $loc = 0;
     $debug = 0;
+    $flags{eef} = 0;
     push @CCFLAGS,
       ("-DUSE_RECLASSIFY=0",        # no token reclassification
        "-DUSE_KEEP=0",              # don't call keep() functions
        "-DNDEBUG_NO_ASSERTIONS",    # disable all xassert() calls
        "-DDO_ACCOUNTING=0",         # don't count stack nodes, etc.
        "-DENABLE_YIELD_COUNT=0");   # don't check for yield-then-merge at runtime
+    push @c_args, "-DUSE_RECLASSIFY=0";
   }
 
   elsif ($arg eq "-nosub") {
@@ -128,6 +134,13 @@ while (@ARGV) {
     }
   }
 
+  elsif (($opt, $val) = ($arg =~ m/^-(.*)=(y|n|yes|no)$/)) {
+    if (!defined($flags{$opt})) {
+      die "unknown flag: $opt\n";
+    }              
+    $flags{$opt} = ($val eq "y" || $val eq "yes")? 1 : 0;
+  }
+
   else {
     die "unknown option: $arg\n";
   }
@@ -142,6 +155,23 @@ chomp($os);
 if ($os eq "Linux") {
   push @CCFLAGS, "-D__LINUX__";
 }
+
+# summarize compression flags
+@compflags = ();
+for $k (keys %flags) {
+  if ($flags{$k}) {
+    push @compflags, $k;
+  }
+}
+if (@compflags) {
+  $compflags = join(',', @compflags);
+}
+else {
+  $compflags = "<none>";
+}
+
+# individual flags, for substituting later
+$eef = $flags{eef};
 
 
 # ------------------ compiler tests ---------------
@@ -218,6 +248,7 @@ cat <<EOF
 Elkhound configuration summary:
   debug:       $debug
   loc:         $loc
+  compression: $compflags
 
 Compile flags:
   BASE_FLAGS:  $BASE_FLAGS
@@ -278,6 +309,7 @@ cat >glrconfig.h.tmp <<EOF
 EOF
 
 sed -e "s|\@GLR_SOURCELOC\@|$loc|g" \\
+    -e "s|\@eef\@|$eef|g" \\
   <glrconfig.h.in >>glrconfig.h.tmp
 
 # see if the new glrconfig.h differs from the old; if not, then

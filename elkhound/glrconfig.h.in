@@ -58,4 +58,12 @@
 #endif
 
 
+// when true, error entries in the action table are extracted into
+// their own bitmap; this then enables compression on the action
+// table, since it makes it sparse
+#ifndef ENABLE_EEF_COMPRESSION
+  #define ENABLE_EEF_COMPRESSION @eef@
+#endif
+
+
 #endif // GLRCONFIG_H

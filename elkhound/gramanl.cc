@@ -3119,6 +3119,10 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
     topologicalSort(tables->nontermOrder, nextOrdinal, nt, seen);
   }
   xassert(nextOrdinal == -1);    // should have used them all
+  
+  if (ENABLE_EEF_COMPRESSION) {
+    tables->computeErrorBits();
+  }
 }
 
 

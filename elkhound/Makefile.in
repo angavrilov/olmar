@@ -67,7 +67,6 @@ grammar-set := \
 # in addition to grammar-set, files needed to parse a grammar description
 grampar-set := \
   emitcode.o \
-  emittables.o \
   gramast.ast.gen.o \
   gramlex.yy.o \
   grampar.o \

@@ -456,7 +456,10 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
   // collapsing for string juxtaposition
   Lexer2Token *prevToken = NULL;
 
-  bool const yieldVarName = tracingSys("yieldVariableName");
+  #ifndef USE_RECLASSIFY
+    #define USE_RECLASSIFY 1    // if nobody tells me, it's probably enabled
+  #endif
+  bool const yieldVarName = !USE_RECLASSIFY || tracingSys("yieldVariableName");
   bool const debugLexer2 = tracingSys("lexer2");
 
   // iterate over all the L1 tokens
@@ -612,7 +615,9 @@ Lexer2::Lexer2(CCLang &L)
     tokens(),
     tokensMut(tokens),
     currentToken(tokens)
-{}
+{
+  init();
+}
 
 Lexer2::Lexer2(CCLang &L, StringTable &extTable)
   : myIdTable(NULL),
@@ -621,7 +626,18 @@ Lexer2::Lexer2(CCLang &L, StringTable &extTable)
     tokens(),
     tokensMut(tokens),
     currentToken(tokens)
-{}
+{
+  init();
+}
+
+void Lexer2::init()
+{
+  // init for predictable behavior; esp. for 'loc', which won't
+  // be further updated if source loc info is off
+  type = 0;
+  sval = 0;
+  loc = SL_UNKNOWN;
+}
 
 Lexer2::~Lexer2()
 {

@@ -259,6 +259,9 @@ private:
   // copy from currentToken to LexerInterface fields
   void copyFields();
 
+  // shared piece of ctor
+  void init();
+
 public:
   Lexer2(CCLang &lang);                                // table is created locally
   Lexer2(CCLang &lang, StringTable &externalTable);    // table given externally
