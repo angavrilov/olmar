@@ -935,7 +935,7 @@ nonterm[UberModifiers] UberModifier {
   // function-specifier
   -> "inline"    [ return UM_INLINE; ]
   -> "virtual"   [ return UM_VIRTUAL; ]
-  -> "explicit"  [ return UM_EXPLICIT; ]
+  //-> "explicit"  [ return UM_EXPLICIT; ]    // can only appear in CDtorModifier
 
   // decl-specifier terminals
   -> "friend"    [ return UM_FRIEND; ]
@@ -1598,9 +1598,13 @@ nonterm[Function*] FunctionDefinition {
          return ret;
        ]
 
+  // I've now substituted the RHSs of CDtorModifierOpt, to eliminiate
+  // a few s/r conflicts at the toplevel of parsing (where they are
+  // the most harmful to performance)
+
   // constructor, destructor or conversion operator
-  // "explicit"?      name/params   member inits          body
-  -> m:CDtorModifier  d:Declarator  c:CtorInitializerOpt  b:FunctionBody
+  // "explicit"?         name/params   member inits          body
+  -> m:CDtorModifierSeq  d:Declarator  c:CtorInitializerOpt  b:FunctionBody
        [
          return new Function(
            m,                        // decl flags: explicit, virtual, or none
@@ -1611,13 +1615,35 @@ nonterm[Function*] FunctionDefinition {
            NULL                      // exception handlers
          );
        ]
-
-  // ctor with a try block
-  // "explicit"?   name/params        member inits         body           handlers
-  -> e:ExplicitOpt d:Declarator "try" c:CtorInitializerOpt b:FunctionBody h:HandlerSeq
+  -> /*no modifier*/     d:Declarator  c:CtorInitializerOpt  b:FunctionBody
        [
          return new Function(
-           e,                        // decl flags: explicit is only possibility
+           DF_NONE,                  // decl flags: explicit, virtual, or none
+           new TS_simple(ST_CDTOR),  // type specifier: ctor or dtor
+           new Declarator(d, NULL),  // declarator with fn name, params
+           c,                        // ctor member inits
+           b,                        // function body statement
+           NULL                      // exception handlers
+         );
+       ]
+
+  // ctor with a try block
+  // "explicit"?         name/params        member inits         body           handlers
+  -> e:CDtorModifierSeq  d:Declarator "try" c:CtorInitializerOpt b:FunctionBody h:HandlerSeq
+       [
+         return new Function(
+           e,                        // decl flags
+           new TS_simple(ST_CDTOR),  // type specifier: ctor or dtor
+           new Declarator(d, NULL),  // declarator with fn name, params
+           c,                        // ctor member inits
+           b,                        // function body statement
+           h                         // exception handlers
+         );
+       ]
+  -> /*no modifier*/     d:Declarator "try" c:CtorInitializerOpt b:FunctionBody h:HandlerSeq
+       [
+         return new Function(
+           DF_NONE,                  // decl flags
            new TS_simple(ST_CDTOR),  // type specifier: ctor or dtor
            new Declarator(d, NULL),  // declarator with fn name, params
            c,                        // ctor member inits
@@ -1629,14 +1655,6 @@ nonterm[Function*] FunctionDefinition {
 
 nonterm[S_compound*] FunctionBody -> s:CompoundStatement
   [ return s; ]
-
-// it turns out "inline" also can appear here, at least according
-// to my streambuf.h
-nonterm[DeclFlags] ExplicitOpt {
-  -> "explicit" e:ExplicitOpt   [ return (DeclFlags)(e | DF_EXPLICIT); ]
-  -> "inline" e:ExplicitOpt     [ return (DeclFlags)(e | DF_INLINE); ]
-  -> empty                      [ return DF_NONE; ]
-}
 
 nonterm[FakeList<MemberInit>*] CtorInitializerOpt {
   -> empty                        [ return FakeList<MemberInit>::emptyList(); ]
@@ -1767,7 +1785,7 @@ nonterm[Member*] MemberDeclaration {
   // operator function
   // Q: what about pure virtual?
   // A: it's part of the MemberDeclarator
-  -> flags:CDtorModifier d:MemberDeclarator ";"
+  -> flags:CDtorModifierSeqOpt d:MemberDeclarator ";"
        [ // 'd' is a Declarator
 
          //cout << "------ MemberDeclarator ----\n";
@@ -1829,6 +1847,7 @@ nonterm[StringRef] IdentifierOpt {
   -> n:Identifier  [ return n; ]
 }
 
+
 // modifier flags allowed in front of constructors ("explicit"),
 // destructors ("virtual") and conversion functions (none); plus,
 // "inline" is allowed with any of them..
@@ -1837,10 +1856,19 @@ nonterm[StringRef] IdentifierOpt {
 // the set of flags here must not include "static" or "typedef"; see
 // the action function associated with MemberDeclaration's first production
 nonterm[DeclFlags] CDtorModifier {
+  -> "explicit"    [ return DF_EXPLICIT; ]
+  -> "virtual"     [ return DF_VIRTUAL; ]
+  -> "inline"      [ return DF_INLINE; ]
+}
+
+nonterm[DeclFlags] CDtorModifierSeq {
+  -> m:CDtorModifier                       [ return m; ]
+  -> s:CDtorModifierSeq m:CDtorModifier    [ return s|m; ]
+}
+
+nonterm[DeclFlags] CDtorModifierSeqOpt {
   -> empty                         [ return DF_NONE; ]
-  -> m:CDtorModifier "explicit"    [ return (DeclFlags)(m | DF_EXPLICIT); ]
-  -> m:CDtorModifier "virtual"     [ return (DeclFlags)(m | DF_VIRTUAL); ]
-  -> m:CDtorModifier "inline"      [ return (DeclFlags)(m | DF_INLINE); ]
+  -> m:CDtorModifierSeq            [ return m; ]
 }
 
 
