@@ -1003,7 +1003,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     // allows it
     if ( (keyword==TI_STRUCT && ct->keyword==CompoundType::K_CLASS)
          || (keyword==TI_CLASS && ct->keyword==CompoundType::K_STRUCT) ) {
-      return env.warning(stringc
+      env.warning(stringc
         << "you asked for a " << toString(keyword) << " called `"
         << *name << "', but that's actually a " << toString(ct->keyword));
     } else {

@@ -3,11 +3,18 @@
 // gcc allows a struct to be referred to as a class and vice versa
 
 struct A {
+  public:
   int x;
 };
 class A a;
 
 class B {
+  public:
   int y;
 };
 struct B b;
+
+int main() {
+  a.x;
+  b.y;
+}
