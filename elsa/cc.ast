@@ -53,6 +53,9 @@ class TopForm (SourceLoc loc) {
   // template functions or template classes
   -> TF_template(TemplateDeclaration td);
 
+  // explicit instantiation request
+  -> TF_explicitInst(TopForm d);
+
   // linkage specification enclosing a bunch of forms, e.g.
   // extern "C" { /*...*/ }
   -> TF_linkage(StringRef linkageType, TranslationUnit forms);

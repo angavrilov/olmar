@@ -174,8 +174,17 @@ void TF_template::print(PrintEnv &env)
   td->print(env);
 }
 
+void TF_explicitInst::print(PrintEnv &env)
+{
+  olayer ol("TF_explicitInst");
+  env.current_loc = loc;
+  env << "template ";
+  d->print(env);
+}
+
 void TF_linkage::print(PrintEnv &env)
 {         
+  olayer ol("TF_linkage");
   env.current_loc = loc;
   env << "extern " << linkageType;
   codeout co(env, "", " {\n", "}\n");
@@ -184,7 +193,7 @@ void TF_linkage::print(PrintEnv &env)
 
 void TF_one_linkage::print(PrintEnv &env)
 {
-  olayer ol("TF_linkage");
+  olayer ol("TF_one_linkage");
   env.current_loc = loc;
   env << "extern " << linkageType << " ";
   form->print(env);

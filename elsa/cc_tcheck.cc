@@ -104,6 +104,12 @@ void TF_template::tcheck(Env &env)
   td->tcheck(env);
 }
 
+void TF_explicitInst::tcheck(Env &env)
+{
+  env.setLoc(loc);
+  d->tcheck(env);
+}
+
 void TF_linkage::tcheck(Env &env)
 {  
   env.setLoc(loc);

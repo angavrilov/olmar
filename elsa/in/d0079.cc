@@ -3,5 +3,4 @@
 
 struct A {};
 template <class T> class C {};
-template                        // the presence of this 'template' keyword causes the failure
-  class C<A>;
+template class C<A>;            // explicit template instantiation
