@@ -2408,11 +2408,11 @@ void STemplateArgument::debugPrint(int depth)
 }
 
 
-SObjList<STemplateArgument> *cloneSArgs(SObjList<STemplateArgument> const &sargs)
+SObjList<STemplateArgument> *cloneSArgs(SObjList<STemplateArgument> &sargs)
 {
   SObjList<STemplateArgument> *ret = new SObjList<STemplateArgument>();
-  SFOREACH_OBJLIST(STemplateArgument, sargs, iter) {
-    ret->append(iter.data()->shallowClone());
+  SFOREACH_OBJLIST_NC(STemplateArgument, sargs, iter) {
+    ret->append(iter.data());
   }
   return ret;
 }

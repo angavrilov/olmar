@@ -1310,7 +1310,7 @@ public:
   void debugPrint(int depth = 0);
 };
 
-SObjList<STemplateArgument> *cloneSArgs(SObjList<STemplateArgument> const &sargs);
+SObjList<STemplateArgument> *cloneSArgs(SObjList<STemplateArgument> &sargs);
 string sargsToString(SObjList<STemplateArgument> const &list);
 inline string sargsToString(ObjList<STemplateArgument> const &list)
   { return sargsToString((SObjList<STemplateArgument> const &)list); }
