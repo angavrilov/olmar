@@ -12,18 +12,7 @@ verbatim {
   #include "sobjlist.h"         // SObjList
 
   class QualEnv;                // cc_qual.h
-  class Type_Q;                 // qual_type.h
-  class Variable;               // variable.h
 //    class FlattenEnv;          // cc_flatten.h
-
-  // thrown to tell the caller that templates are present
-  // and this analysis doesn't work with them
-  class XNotSupported : public xBase {
-  public:
-    XNotSupported(char const *what)
-      : xBase(stringc << "Not supported: " << what) {}
-    XNotSupported(XNotSupported const &obj) : xBase(obj) {}
-  };
 }
 
 
@@ -32,11 +21,6 @@ class TranslationUnit {
   public void qual(QualEnv &env);
 
 //    public void flatten(FlattenEnv &env);
-
-  // invoke the C++Qual-aware type checker, which will annotate
-  // the tree with the Type_Qs etc. declared below; may
-  // throw XHasTemplates
-  public void qualTcheck(SObjList<Variable> &madeUpVariables);
 }
 
 class TopForm {
@@ -55,8 +39,6 @@ class Declaration {
 }
 
 class ASTTypeId {
-  public Type_Q *getType_Q();
-
   public void qual(QualEnv &env);
 //    public void flatten(FlattenEnv &env);
 }
@@ -67,9 +49,6 @@ class PQName {
 }
 
 class TypeSpecifier {
-  // Type_Q denoted by this specifier
-  public Type_Q *qtype;  ctor qtype=NULL;
-
   public Qualifiers *q;
 
   // this function is called from all of the derived-class ctors; we
@@ -87,7 +66,7 @@ class TypeSpecifier {
 
   pure_virtual void qual(QualEnv &env);
   //  pure_virtual void flatten(FlattenEnv &env);
-  
+
   -> TS_name             { ctor makeQualifiers(); }
   -> TS_simple           { ctor makeQualifiers(); }
   -> TS_elaborated       { ctor makeQualifiers(); }
@@ -111,14 +90,8 @@ class Enumerator {
 }
 
 class Declarator {
-  public Type_Q *qtype;  ctor qtype=NULL;
-
   public void qual(QualEnv &env);
 //    public void flatten(FlattenEnv &env);
-
-  // given the specifier's type, push that over the declarator
-  // syntax to arrive at a final type; store that in 'qtype'
-  public void qualTcheck(Type_Q *typeSoFar);
 }
 
 class IDeclarator {
@@ -170,8 +143,6 @@ class Handler {
 }
 
 class Expression {
-  public Type_Q *qtype;  ctor qtype=NULL;
-
   public void qual(QualEnv &env);
   pure_virtual void iqual(QualEnv &env);
 
