@@ -86,6 +86,9 @@ public:     // funcs
   // the same string contents will always yield the same value
   StringRef add(char const *src);
 
+  // some syntactic sugar
+  StringRef operator() (char const *src) { return add(src); }
+
   // if 'src' is in the table, return its representative; if not,
   // return NULL
   StringRef get(char const *src) const;
