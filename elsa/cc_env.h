@@ -464,8 +464,8 @@ public:      // funcs
     { return tfac.makeArrayType(loc, eltType, size); }
 
   // slight oddball since no 'loc' passed..
-  Type *makeRefType(Type *underlying)
-    { return tfac.makeRefType(loc(), underlying); }
+  Type *makeReferenceTypeIdem(Type *underlying)
+    { return tfac.makeReferenceTypeIdem(loc(), underlying); }
 
   // (this does the work of the old 'makeMadeUpVariable')
   Variable *makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f);

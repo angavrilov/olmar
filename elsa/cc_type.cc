@@ -1144,10 +1144,18 @@ Type *BaseType::getAtType() const
   else if (isReferenceType()) {
     return asReferenceTypeC()->atType;
   }
-  // ArrayType::eltType?
-  // PointerToMemberType::atType?
+  else if (isArrayType()) {
+    return asArrayTypeC()->eltType;
+  }
+  else if (isPointerToMemberType()) {
+    return asPointerToMemberTypeC()->atType;
+  }
+  else if (isFunctionType()) {
+    // Scott, I see no way around this const cast
+    return const_cast<BaseType*>(this)->asFunctionType();
+  }
   else {
-    xfailure("getAtType only works for pointers or references");
+    xfailure("illegal call to getAtType");
     return NULL;       // silence warning
   }
 }
@@ -2650,7 +2658,7 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
 }
 
 
-Type *TypeFactory::makeRefType(SourceLoc loc, Type *underlying)
+Type *TypeFactory::makeReferenceTypeIdem(SourceLoc loc, Type *underlying)
 {
   if (underlying->isError()) {
     return underlying;

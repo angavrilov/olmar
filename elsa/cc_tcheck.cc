@@ -590,6 +590,15 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
     // check first declarator
     Declarator::Tcheck dt1(specType, dflags, context);
     decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
+    if (!dt1.var) {
+      // This happens at least in oink/test/ptr-to-memberI.cc when try
+      // to make a pointer-to-member to a ref type; error is already
+      // registered with the Environment
+      //
+      // FIX: maybe should do this after the tcheck-s below while
+      // iterating over the rest of the decllist
+      return;
+    }
     
     if (dt1.var->templInfo) {
       // this could have been a forward declaration of a templatized
@@ -3785,7 +3794,7 @@ Type *makeLvalType(TypeFactory &tfac, Type *underlying)
   else {
     // I expect Daniel's factory to take the location from
     // 'underlying', instead of the passed location
-    return tfac.makeRefType(SL_UNKNOWN, underlying);
+    return tfac.makeReferenceTypeIdem(SL_UNKNOWN, underlying);
   }
 }
 
@@ -4240,7 +4249,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
     evar->var = env.lookupPQVariable_function_with_args(
       evar->name, LF_NONE, args /*funcArgs*/);
     if (evar->var) {
-      evar->type = evar->var->type;
+      evar->type = env.tfac.cloneType(evar->var->type);
     }
     else {
       // error already reported, but don't proceed below since

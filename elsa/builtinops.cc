@@ -249,7 +249,7 @@ Variable *AssignmentCandidateSet::makeNewCandidate(Env &env,
   // instantiate volatile versions of types that don't already
   // have volatile versions present
 
-  Type *Tref = env.tfac.makeRefType(SL_INIT, T);
+  Type *Tref = env.tfac.makeReferenceTypeIdem(SL_INIT, T);
   return env.createBuiltinBinaryOp(op, Tref, T);
 }
 

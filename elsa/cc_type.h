@@ -606,6 +606,7 @@ public:     // funcs
   bool isMethod() const;                       // function and method
 
   // pointer/reference stuff
+  // FIX: this is now redundant so we can get rid of it
   bool isPointer() const { return isPointerType(); }
   bool isReference() const { return isReferenceType(); }
   bool isLval() const { return isReference(); }// C terminology
@@ -1335,12 +1336,13 @@ public:
                               TypeSpecifier * /*nullable*/ syntax);
 
   // this is called in a few specific circumstances when we want to
-  // know the reference type corresponding to some variable; the
+  // know the reference type corresponding to some variable; The name
+  // means make a reference type to this in an idempotent way; the
   // analysis may need to do something other than a straightforward
   // "makeReferenceType(underlying)" (which is the default behavior);
   // this also has the semantics that if 'underlying' is ST_ERROR then
   // this must return ST_ERROR
-  virtual Type *makeRefType(SourceLoc loc, Type *underlying);
+  virtual Type *makeReferenceTypeIdem(SourceLoc loc, Type *underlying);
 
   // build a pointer type from a syntactic description; here I allow
   // the factory to know the name of an AST node, but the default
