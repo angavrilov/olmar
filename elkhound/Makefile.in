@@ -208,6 +208,7 @@ cc-set := \
   cc/cc_ast_aux.o \
   cc/treeout.o \
   cc/variable.o \
+  cc/ccparse.o \
   cc/dswutil.o
 
 ifdef CC_QUAL
@@ -238,8 +239,8 @@ random-obj := \
   cc/ccgrmain.o \
   cc/c.gr.gen.o \
   cc/cc.gr.gen.o \
-  cc/ccparse.o \
-  cc/ccparset.o
+  cc/ccparset.o \
+  cc/main.o
 ifdef CC_QUAL
   random-obj += cc/cc_qual/cc_qual.o
 endif
@@ -356,7 +357,7 @@ ifdef CC_QUAL
 cc/cc_qual/cc_qual: cc/cc_qual/cc_qual.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a $(CQUAL_DEPS)
 	$(link) -o $@ $^
 endif
-cc/ccparse: cc/ccparse.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a $(CQUAL_DEPS)
+cc/ccparse: cc/main.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a $(CQUAL_DEPS)
 	$(link) -o $@ $^
 ifndef CC_QUAL
 	./$@ c.in/c.in1
