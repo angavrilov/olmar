@@ -112,6 +112,7 @@ in/big: $(patsubst in/big/gz/%.i.gz,in/big/%.i,$(wildcard in/big/gz/*.gz))
 clean:
 	rm -f *.o *.d *.gen.* *.tab.* *.output a.out core
 	rm -f lexer1yy.cc cc.tok
+	rm -f outdir/*
 	rm -f lexer2 ccparse
 
 distclean: clean
