@@ -221,7 +221,7 @@ nonterm(Expression*) PrimaryExpression {
        { return e; }
 
   -> "this"
-       { return new E_variable(loc, new PQ_name(str("this"))); }
+       { return new E_variable(loc, new PQ_name(loc, str("this"))); }
 
   -> "(" e:Expression ")"
        { return new E_grouping(e); }
@@ -274,7 +274,7 @@ nonterm(PQName*) IdExpression {
 
 // names that are not qualified
 nonterm(PQName*) UnqualifiedId {
-  -> id:Identifier                { return new PQ_name(id); }
+  -> id:Identifier                { return new PQ_name(loc, id); }
   -> id:OperatorFunctionId        { return new PQ_operator(id, str(id->getOperatorName())); }
   -> id:ConversionFunctionId      { return new PQ_operator(id, str(id->getOperatorName())); }
 
@@ -1075,7 +1075,7 @@ nonterm(PQName*) PQTypeName {
 // no-colon-colon
 nonterm(PQName*) PQTypeName_ncc {
   -> n:Identifier                    
-       { return new PQ_name(n); }
+       { return new PQ_name(loc, n); }
   -> id:TemplateId
        { return id; }
 
@@ -1275,7 +1275,7 @@ nonterm(IDeclarator*) DirectDeclarator {
 // my terminology.)
 nonterm(PQName*) PQDtorName {
   -> "~" n:Identifier              
-       { return new PQ_name(str(stringc << "~" << n)); }
+       { return new PQ_name(loc, str(stringc << "~" << n)); }
 
   // as above for PQName_no_colon_colon, I'm temporarily removing an
   // ambiguity that relates to namespaces (e.g. "::F::~F()")
@@ -1586,7 +1586,7 @@ nonterm(PQName*) ClassHeadNameOpt {
 
 // a possibly-qualified Identifier or TemplateId
 nonterm(PQName*) ClassHeadName {
-  -> n:Identifier        { return new PQ_name(n); }
+  -> n:Identifier        { return new PQ_name(loc, n); }
   -> t:TemplateId        { return t; }
 
   -> n:Identifier "::" rest:ClassHeadName
@@ -1754,7 +1754,7 @@ nonterm(Declarator*) MemberDeclarator {
        { return new Declarator(d, new IN_expr(e)); }
 
   -> n:IdentifierOpt ":" e:ConstantExpression     // bitfield
-       { return new Declarator(new D_bitfield(loc, n? new PQ_name(n) : NULL, e),
+       { return new Declarator(new D_bitfield(loc, n? new PQ_name(loc, n) : NULL, e),
                                NULL /*init*/); }
 }
 
@@ -1876,7 +1876,7 @@ nonterm(MemberInit*) MemInitializer {
 nonterm(PQName*) MemInitializerId {
   // data member or base class
   -> id:Identifier
-       { return new PQ_name(id); }
+       { return new PQ_name(loc, id); }
        
   // base class which is a template
   -> n:Identifier "<" targs:TemplateArgumentList ">"

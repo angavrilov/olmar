@@ -153,7 +153,7 @@ class PQName {
   // final name, when it's an ordinary identifier
   // NOTE: 'name' here is *never* NULL--instead, I use NULL
   // PQName pointers in abstract declarators
-  -> PQ_name(StringRef name);
+  -> PQ_name(SourceLoc loc, StringRef name);
 
   // "operator" names; 'o' has the full info, while 'fakeName' is
   // for getName(), which is sometimes used for string maps

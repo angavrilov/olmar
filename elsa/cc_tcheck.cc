@@ -649,7 +649,7 @@ void Declaration::tcheck(Env &env, bool isMember)
     if (spec->isTS_classSpec()) {
       TS_classSpec *cs = spec->asTS_classSpec();
       if (cs->name == NULL) {
-        cs->name = new PQ_name(env.getAnonName(cs->keyword));
+        cs->name = new PQ_name(SL_UNKNOWN, env.getAnonName(cs->keyword));
       }
     }
     if (spec->isTS_enumSpec()) {

@@ -274,7 +274,7 @@ Variable const *Scope
     return vfilterC(variables.queryif(name), flags);
   }
 
-  PQ_name wrapperName(name);
+  PQ_name wrapperName(SL_UNKNOWN, name);
   Variable const *ret = lookupPQVariableC(&wrapperName, env, flags);
   if (ret) return ret;
 
