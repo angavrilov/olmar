@@ -67,6 +67,53 @@ void *VoidTailList::removeFirst()
   return retval;
 }
 
+void *VoidTailList::removeLast()
+{
+  xassert(top);
+  if (top == tail) {
+    return removeFirst();
+  }
+  
+  VoidNode *before = top;
+  while (before->next != tail) {
+    before = before->next;
+  }
+  void *retval = tail->data;
+  delete tail;
+  tail = before;
+  tail->next = NULL;
+  return retval;
+}
+
+void *VoidTailList::removeAt(int index)
+{
+  xassert(top);
+  if (index == 0) {
+    return removeFirst();
+  }
+
+  VoidNode *before = top;    // will point to node before one to be removed
+  index--;                    
+  while (index > 0) {
+    before = before->next;
+    index--;
+  }             
+  xassert(index == 0);
+  
+  // fix 'tail' if necessary
+  if (tail == before->next) {
+    tail = before;
+  }                         
+
+  // patch around before->next
+  VoidNode *toDelete = before->next;
+  void *retval = toDelete->data;
+  before->next = toDelete->next;
+  delete toDelete;
+
+  return retval;
+}
+
 void VoidTailList::removeAll()
 {
   VoidList::removeAll();

@@ -56,6 +56,8 @@ public:
 
   // removal
   T *removeFirst()                      { return (T*)list.removeFirst(); }
+  T *removeLast()                       { return (T*)list.removeLast(); }
+  T *removeAt(int index)                { return (T*)list.removeAt(index); }
   void deleteFirst()                    { delete (T*)list.removeFirst(); }
   void deleteAll();
 

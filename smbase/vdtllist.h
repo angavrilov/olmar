@@ -55,8 +55,9 @@ public:
   void concat(VoidTailList &tail)    { concat(tail); }
 
   // removal
-  //void *removeAt(int index);
   void *removeFirst();               // remove first, return data; must exist
+  void *removeLast();
+  void *removeAt(int index);
   void removeAll();
 
   // list-as-set: selectors
