@@ -44,7 +44,7 @@ echo "DDD 3.3.1"
 ./test-parse-buildlog $HOME/bld/ddd-3.3.1/make.out >ddd.parse.out
 if [ $? = 130 ]; then exit 130; fi
 
-# 310 modules
+# 710 modules
 echo "Qt 2.3.2"
 ./test-parse-buildlog /opt/qt-2.3.2/make.out >qt.parse.out
 if [ $? = 130 ]; then exit 130; fi
