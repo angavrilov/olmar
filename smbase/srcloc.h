@@ -13,9 +13,11 @@
 //
 // No attempt is made to fold creation of SourceLocs into other
 // file-processing activities, such as traditional lexical analysis.
-// The complexity of doing that would be substantial, with little
-// gain in efficiency, due to the large buffer caches in modern
-// OSes.
+// The complexity of doing that would be substantial, with little gain
+// in efficiency, due to the large buffer caches in modern OSes.  The
+// main drawback is the inability to work with non-seekable inputs
+// (like pipes) because we consume the whole input when its line
+// counts are computed.
 
 #ifndef SRCLOC_H
 #define SRCLOC_H
@@ -30,6 +32,11 @@
 // can overload functions to accept SourceLoc without confusion.
 // I assume the compiler will use a machine word for this (and check
 // that assumption in the .cc file).
+//
+// I would love to be able to annotate this so that the C++ compiler
+// would not allow variables of this type to be created
+// uninitialized.. that's the one drawback of calling this an 'enum'
+// instead of a 'class', I don't get to write a constructor.
 enum SourceLoc { SL_UNKNOWN=0 };
 
 
@@ -126,7 +133,7 @@ private:     // types
     // true if this file contains the specified location
     bool hasLoc(SourceLoc sl) const
       { return toInt(startLoc) <= sl &&
-               toInt(startLoc) + numChars > sl; }
+                                  sl <= toInt(startLoc) + numChars; }
   };
 
 public:      // types
@@ -171,7 +178,15 @@ private:     // funcs
   // let File know about these functions
   friend class SourceLocManager::File;
 
-  static SourceLoc toLoc(int L);
+  static SourceLoc toLoc(int L) {
+    SourceLoc ret = (SourceLoc)L;
+
+    // in debug mode, we verify that SourceLoc is wide enough
+    // to encode this integer
+    xassertdb(toInt(ret) == L);
+
+    return ret;
+  }
   static int toInt(SourceLoc loc) { return (int)loc; }
   static bool isStatic(SourceLoc loc) { return toInt(loc) <= 0; }
 
@@ -192,6 +207,8 @@ public:      // funcs
 
   // encode from scratch
   SourceLoc encodeOffset(char const *filename, int charOffset);
+  SourceLoc encodeBegin(char const *filename)
+    { return encodeOffset(filename, 0 /*offset*/); }
   SourceLoc encodeLineCol(char const *filename, int line, int col);
   SourceLoc encodeStatic(StaticLoc const &obj);
   SourceLoc encodeStatic(char const *fname, int offset, int line, int col)
@@ -229,6 +246,9 @@ extern SourceLocManager *sourceLocManager;
 // take advantage of singleton
 inline string toString(SourceLoc sl)
   { return sourceLocManager->getString(sl); }
+
+inline stringBuilder& operator<< (stringBuilder &sb, SourceLoc sl)
+  { return sb << toString(sl); }
 
   
 // macro for obtaining a source location that points at the 

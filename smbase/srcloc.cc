@@ -132,7 +132,13 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
   // move computed information into 'this'
   this->numChars = charOffset;
   this->numLines = lineNum-1;
-  this->avgCharsPerLine = numChars / numLines;
+  if (numLines == 0) {
+    // a file with no newlines
+    this->avgCharsPerLine = numChars;
+  }
+  else {
+    this->avgCharsPerLine = numChars / numLines;
+  }
 
   this->lineLengthsSize = lineLengths.length();
   this->lineLengths = new unsigned char[lineLengthsSize];
@@ -184,6 +190,11 @@ inline void SourceLocManager::File::advanceMarker()
 
 int SourceLocManager::File::lineToChar(int lineNum)
 {
+  if (lineNum == numLines+1) {
+    // end of file location
+    return numChars;
+  }
+
   xassert(1 <= lineNum && lineNum <= numLines);
 
   // check to see if the marker is already close
@@ -232,6 +243,13 @@ int SourceLocManager::File::lineToChar(int lineNum)
 
 void SourceLocManager::File::charToLineCol(int offset, int &line, int &col)
 {
+  if (offset == numChars) {
+    // end of file location
+    line = numLines+1;
+    col = 1;
+    return;
+  }
+
   xassert(0 <= offset && offset < numChars);
 
   // check if the marker is close enough
@@ -285,18 +303,6 @@ SourceLocManager::StaticLoc::~StaticLoc()
 SourceLocManager *sourceLocManager = NULL;
 
 
-inline STATICDEF SourceLoc SourceLocManager::toLoc(int L)
-{
-  SourceLoc ret = (SourceLoc)L;
-
-  // in debug mode, we verify that SourceLoc is wide enough
-  // to encode this integer
-  xassertdb(toInt(ret) == L);
-
-  return ret;
-}
-
-
 SourceLocManager::SourceLocManager()
   : files(),
     recent(NULL),
@@ -325,6 +331,14 @@ SourceLocManager::~SourceLocManager()
 // find it, or return NULL
 SourceLocManager::File *SourceLocManager::findFile(char const *name)
 {
+  if (!this) {
+    // it's quite common to forget to do this, and this function is 
+    // almost always the one which segfaults in that case, so I'll
+    // make the error message a bit nicer to save a trip through
+    // the debugger
+    xfailure("you have to create a SourceLocManager in your main() function");
+  }
+
   if (recent && recent->name.equals(name)) {
     return recent;
   }
@@ -347,8 +361,9 @@ SourceLocManager::File *SourceLocManager::getFile(char const *name)
     f = new File(name, nextLoc);
     files.append(f);
 
-    // bump 'nextLoc' according to how long that file was
-    nextLoc = toLoc(f->startLoc + f->numChars);
+    // bump 'nextLoc' according to how long that file was,
+    // plus 1 so it can own the position equal to its length
+    nextLoc = toLoc(f->startLoc + f->numChars + 1);
   }
 
   return recent = f;
@@ -587,9 +602,11 @@ void testFile(char const *fname)
   char const *dummy;
 
   // test all positions, forward sequential; also build the
-  // map for the random test
+  // map for the random test; note that 'len' is considered
+  // a valid source location even though it corresponds to
+  // the char just beyond the end
   int i;
-  for (i=0; i<len; i++) {
+  for (i=0; i<=len; i++) {
     SourceLoc loc = mgr.encodeOffset(fname, i);
     testRoundTrip(loc);
 
@@ -598,14 +615,14 @@ void testFile(char const *fname)
   }
 
   // backward sequential
-  for (i=len-1; i>0; i--) {
+  for (i=len; i>0; i--) {
     SourceLoc loc = mgr.encodeOffset(fname, i);
     testRoundTrip(loc);
   }
 
   // random access, both mapping directions
-  for (i=0; i<len; i++) {
-    int j = rand()%len;
+  for (i=0; i<=len; i++) {
+    int j = rand()%(len+1);
     int dir = rand()%2;
 
     if (dir==0) {

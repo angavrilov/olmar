@@ -30,6 +30,14 @@ ostream &trace(char const *sysName);
 // (the tracer will do that)
 void trstr(char const *sysName, char const *traceString);
 
+// trace macro which disables itself when NDEBUG is true,
+// and automatically supplies 'endl' when it's not true
+#ifdef NDEBUG
+  #define TRACE(tag, exp) ((void)0)
+#else
+  #define TRACE(tag, exp) trace(tag) << exp << endl /* user ; */
+#endif
+
 
 // special for "progress" tracing; prints time too;
 // 'level' is level of detail -- 1 is highest level, 2 is
