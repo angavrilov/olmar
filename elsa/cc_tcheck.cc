@@ -322,7 +322,7 @@ void Function::tcheck(Env &env, bool checkBody)
   }
 
   // grab the definition type for later use
-  funcType = &( dt.type->asFunctionType() );
+  funcType = dt.type->asFunctionType();
 
   if (!checkBody) {
     return;
@@ -1485,13 +1485,13 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // use the initializer size to refine array types
     if (var->type->isArrayType() &&
         init->isIN_compound()) {
-      ArrayType &at = var->type->asArrayType();
+      ArrayType *at = var->type->asArrayType();
       IN_compound const *cpd = init->asIN_compoundC();
-      if (!at.hasSize()) {
+      if (!at->hasSize()) {
         // replace the computed type with another that has
         // the size specified; the location isn't perfect, but
         // getting the right one is a bit of work
-        var->type = env.makeArrayType(var->loc, at.eltType, cpd->inits.count());
+        var->type = env.tfac.setArraySize(var->loc, at, cpd->inits.count());
       }
       else {
         // TODO: cppstd wants me to check that there aren't more
@@ -1537,7 +1537,7 @@ Type *makeConversionOperType(Env &env, SourceLoc loc,
       env.error("conversion operator must be a function");
       return spec;
     }
-    FunctionType *specFunc = &( spec->asFunctionType() );
+    FunctionType *specFunc = spec->asFunctionType();
 
     if (specFunc->params.isNotEmpty() || specFunc->acceptsVarargs) {
       env.error("conversion operator cannot accept arguments");
@@ -1585,13 +1585,13 @@ bool almostEqualTypes(Type const *t1, Type const *t2)
 {
   if (t1->isArrayType() &&
       t2->isArrayType()) {
-    ArrayType const &at1 = t1->asArrayTypeC();
-    ArrayType const &at2 = t2->asArrayTypeC();
+    ArrayType const *at1 = t1->asArrayTypeC();
+    ArrayType const *at2 = t2->asArrayTypeC();
 
-    if ((at1.hasSize() && !at2.hasSize()) ||
-        (at2.hasSize() && !at1.hasSize())) {
+    if ((at1->hasSize() && !at2->hasSize()) ||
+        (at2->hasSize() && !at1->hasSize())) {
       // the exception kicks in
-      return at1.eltType->equals(at2.eltType);
+      return at1->eltType->equals(at2->eltType);
     }
   }
 
@@ -1858,8 +1858,8 @@ realStart:
       dt.type->isFunctionType() &&
       !prior->type->equals(dt.type)) {
     // potential overloading situation; get the two function types
-    FunctionType *priorFt = &( prior->type->asFunctionType() );
-    FunctionType *specFt = &( dt.type->asFunctionType() );
+    FunctionType *priorFt = prior->type->asFunctionType();
+    FunctionType *specFt = dt.type->asFunctionType();
 
     // (BUG: this isn't the exact criteria for allowing overloading,
     // but it's close)
@@ -2098,7 +2098,7 @@ FakeList<ASTTypeId> *tcheckFakeASTTypeIdList(
 static Type *normalizeParameterType(Env &env, SourceLoc loc, Type *t)
 {
   if (t->isArrayType()) {
-    return env.makePtrType(loc, t->asArrayType().eltType);
+    return env.makePtrType(loc, t->asArrayType()->eltType);
   }
   if (t->isFunctionType()) {
     return env.makePtrType(loc, t);
@@ -2848,7 +2848,7 @@ Type *E_funCall::itcheck(Env &env)
   
   // automatically coerce function pointers into functions
   if (t->isPointerType()) {
-    t = t->asPointerTypeC().atType;
+    t = t->asPointerTypeC()->atType;
   }
 
   // check for operator()
@@ -2882,7 +2882,7 @@ Type *E_funCall::itcheck(Env &env)
   // with the function parameters
 
   // type of the expr is type of the return value
-  return env.tfac.cloneType(t->asFunctionTypeC().retType);
+  return env.tfac.cloneType(t->asFunctionTypeC()->retType);
 }
 
 
@@ -3001,7 +3001,7 @@ Type *E_binary::itcheck(Env &env)
   // if the LHS is an array, coerce it to a pointer
   Type *lhsType = e1->type->asRval();
   if (lhsType->isArrayType()) {
-    lhsType = env.makePtrType(SL_UNKNOWN, lhsType->asArrayType().eltType);
+    lhsType = env.makePtrType(SL_UNKNOWN, lhsType->asArrayType()->eltType);
   }
 
   e2->tcheck(e2, env);
@@ -3027,11 +3027,11 @@ Type *E_addrOf::itcheck(Env &env)
       << "cannot take address of non-lvalue `" 
       << expr->type->toString() << "'");
   }
-  PointerType &pt = expr->type->asPointerType();
-  xassert(pt.op == PO_REFERENCE);      // that's what isLval checks
+  PointerType *pt = expr->type->asPointerType();
+  xassert(pt->op == PO_REFERENCE);      // that's what isLval checks
 
   // change the "&" into a "*"
-  return env.makePtrType(SL_UNKNOWN, pt.atType);
+  return env.makePtrType(SL_UNKNOWN, pt->atType);
 }
 
 
@@ -3041,16 +3041,16 @@ Type *E_deref::itcheck(Env &env)
 
   Type *rt = ptr->type->asRval();
   if (rt->isPointerType()) {
-    PointerType &pt = rt->asPointerType();
-    xassert(pt.op == PO_POINTER);   // otherwise not rval!
+    PointerType *pt = rt->asPointerType();
+    xassert(pt->op == PO_POINTER);   // otherwise not rval!
 
     // dereferencing yields an lvalue
-    return makeLvalType(env, pt.atType);
+    return makeLvalType(env, pt->atType);
   }
 
   // implicit coercion of array to pointer for dereferencing
   if (rt->isArrayType()) {
-    return makeLvalType(env, rt->asArrayType().eltType);
+    return makeLvalType(env, rt->asArrayType()->eltType);
   }
 
   // check for "operator*" (and "operator[]" since I unfortunately
@@ -3240,15 +3240,15 @@ bool Expression::constEval(Env &env, int &result) const
       if (v->var->hasFlag(DF_ENUMERATOR)) {
         // this is an enumerator; find the corresponding
         // enum type, and look up the name to find the value
-        EnumType &et = v->var->type->asCVAtomicType().atomic->asEnumType();
-        EnumType::Value const *val = et.getValue(v->var->name);
+        EnumType *et = v->var->type->asCVAtomicType()->atomic->asEnumType();
+        EnumType::Value const *val = et->getValue(v->var->name);
         xassert(val);    // otherwise the type information is wrong..
         result = val->value;
         return true;
       }
 
       if (v->var->type->isCVAtomicType() &&
-          (v->var->type->asCVAtomicTypeC().cv & CV_CONST) &&
+          (v->var->type->asCVAtomicTypeC()->cv & CV_CONST) &&
           v->var->value) {
         // const variable 
         return v->var->value->constEval(env, result);

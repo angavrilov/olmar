@@ -36,10 +36,10 @@ AtomicType::~AtomicType()
 }
 
 
-CAST_MEMBER_IMPL(AtomicType, SimpleType)
-CAST_MEMBER_IMPL(AtomicType, CompoundType)
-CAST_MEMBER_IMPL(AtomicType, EnumType)
-CAST_MEMBER_IMPL(AtomicType, TypeVariable)
+DOWNCAST_IMPL(AtomicType, SimpleType)
+DOWNCAST_IMPL(AtomicType, CompoundType)
+DOWNCAST_IMPL(AtomicType, EnumType)
+DOWNCAST_IMPL(AtomicType, TypeVariable)
 
 
 bool AtomicType::equals(AtomicType const *obj) const
@@ -336,10 +336,10 @@ Type::~Type()
 }
 
 
-CAST_MEMBER_IMPL(Type, CVAtomicType)
-CAST_MEMBER_IMPL(Type, PointerType)
-CAST_MEMBER_IMPL(Type, FunctionType)
-CAST_MEMBER_IMPL(Type, ArrayType)
+DOWNCAST_IMPL(Type, CVAtomicType)
+DOWNCAST_IMPL(Type, PointerType)
+DOWNCAST_IMPL(Type, FunctionType)
+DOWNCAST_IMPL(Type, ArrayType)
 
 
 bool Type::equals(Type const *obj) const
@@ -377,10 +377,10 @@ string Type::toCString() const
   if (isCVAtomicType()) {
     // special case a single atomic type, so as to avoid
     // printing an extra space
-    CVAtomicType const &atomic = asCVAtomicTypeC();
+    CVAtomicType const *atomic = asCVAtomicTypeC();
     return stringc
-      << atomic.atomic->toCString()
-      << cvToString(atomic.cv);
+      << atomic->atomic->toCString()
+      << cvToString(atomic->cv);
   }
   else {
     return stringc << leftString() << rightString();
@@ -417,7 +417,7 @@ string Type::rightString(bool /*innerParen*/) const
 bool Type::isSimpleType() const
 {
   if (isCVAtomicType()) {
-    AtomicType const *at = asCVAtomicTypeC().atomic;
+    AtomicType const *at = asCVAtomicTypeC()->atomic;
     return at->isSimpleType();
   }
   else {
@@ -425,30 +425,30 @@ bool Type::isSimpleType() const
   }
 }
 
-SimpleType const &Type::asSimpleTypeC() const
+SimpleType const *Type::asSimpleTypeC() const
 {
-  return asCVAtomicTypeC().atomic->asSimpleTypeC();
+  return asCVAtomicTypeC()->atomic->asSimpleTypeC();
 }
 
 bool Type::isSimple(SimpleTypeId id) const
 {
   return isSimpleType() &&
-         asSimpleTypeC().type == id;
+         asSimpleTypeC()->type == id;
 }
 
 bool Type::isIntegerType() const
 {
   return isSimpleType() &&
-         simpleTypeInfo(asSimpleTypeC().type).isInteger;
+         simpleTypeInfo(asSimpleTypeC()->type).isInteger;
 }
 
 
 bool Type::isCompoundTypeOf(CompoundType::Keyword keyword) const
 {
   if (isCVAtomicType()) {
-    CVAtomicType const &a = asCVAtomicTypeC();
-    return a.atomic->isCompoundType() &&
-           a.atomic->asCompoundTypeC().keyword == keyword;
+    CVAtomicType const *a = asCVAtomicTypeC();
+    return a->atomic->isCompoundType() &&
+           a->atomic->asCompoundTypeC()->keyword == keyword;
   }
   else {
     return false;
@@ -462,22 +462,22 @@ CompoundType *Type::ifCompoundType()
 
 CompoundType const *Type::asCompoundTypeC() const
 {
-  return &( asCVAtomicTypeC().atomic->asCompoundTypeC() );
+  return asCVAtomicTypeC()->atomic->asCompoundTypeC();
 }
 
 bool Type::isOwnerPtr() const
 {
-  return isPointer() && ((asPointerTypeC().cv & CV_OWNER) != 0);
+  return isPointer() && ((asPointerTypeC()->cv & CV_OWNER) != 0);
 }
 
 bool Type::isPointer() const
 {
-  return isPointerType() && asPointerTypeC().op == PO_POINTER;
+  return isPointerType() && asPointerTypeC()->op == PO_POINTER;
 }
 
 bool Type::isReference() const
 {
-  return isPointerType() && asPointerTypeC().op == PO_REFERENCE;
+  return isPointerType() && asPointerTypeC()->op == PO_REFERENCE;
 }
 
 Type *Type::asRval()
@@ -485,7 +485,7 @@ Type *Type::asRval()
   if (isReference()) {
     // note that due to the restriction about stacking reference
     // types, unrolling more than once is never necessary
-    return asPointerType().atType;
+    return asPointerType()->atType;
   }
   else {
     return this;
@@ -496,13 +496,13 @@ Type *Type::asRval()
 bool Type::isCVAtomicType(AtomicType::Tag tag) const
 {
   return isCVAtomicType() &&
-         asCVAtomicTypeC().atomic->getTag() == tag;
+         asCVAtomicTypeC()->atomic->getTag() == tag;
 }
 
 bool Type::isTemplateFunction() const
 {
   return isFunctionType() &&
-         asFunctionTypeC().isTemplate();
+         asFunctionTypeC()->isTemplate();
 }
 
 bool Type::isTemplateClass() const
@@ -514,7 +514,7 @@ bool Type::isTemplateClass() const
 bool Type::isCDtorFunction() const
 {
   return isFunctionType() &&
-         asFunctionTypeC().retType->isSimple(ST_CDTOR);
+         asFunctionTypeC()->retType->isSimple(ST_CDTOR);
 }
 
 
@@ -1006,10 +1006,10 @@ Type *TypeFactory::cloneType(Type *src)
 {
   switch (src->getTag()) {
     default: xfailure("bad type tag");
-    case Type::T_ATOMIC:    return cloneCVAtomicType(&( src->asCVAtomicType() ));
-    case Type::T_POINTER:   return clonePointerType(&( src->asPointerType() ));
-    case Type::T_FUNCTION:  return cloneFunctionType(&( src->asFunctionType() ));
-    case Type::T_ARRAY:     return cloneArrayType(&( src->asArrayType() ));
+    case Type::T_ATOMIC:    return cloneCVAtomicType(src->asCVAtomicType());
+    case Type::T_POINTER:   return clonePointerType(src->asPointerType());
+    case Type::T_FUNCTION:  return cloneFunctionType(src->asFunctionType());
+    case Type::T_ARRAY:     return cloneArrayType(src->asArrayType());
   }
 }
 
@@ -1037,8 +1037,8 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
   // first, check for special cases
   switch (baseType->getTag()) {
     case Type::T_ATOMIC: {
-      CVAtomicType &atomic = baseType->asCVAtomicType();
-      if ((atomic.cv | cv) == atomic.cv) {
+      CVAtomicType *atomic = baseType->asCVAtomicType();
+      if ((atomic->cv | cv) == atomic->cv) {
         // the given type already contains 'cv' as a subset,
         // so no modification is necessary
         return baseType;
@@ -1047,22 +1047,22 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
         // we have to add another CV, so that means creating
         // a new CVAtomicType with the same AtomicType as 'baseType',
         // but with the new flags added
-        return makeCVAtomicType(loc, atomic.atomic, atomic.cv | cv);
+        return makeCVAtomicType(loc, atomic->atomic, atomic->cv | cv);
       }
       break;
     }
 
     case Type::T_POINTER: {
       // logic here is nearly identical to the T_ATOMIC case
-      PointerType &ptr = baseType->asPointerType();
-      if (ptr.op == PO_REFERENCE) {
+      PointerType *ptr = baseType->asPointerType();
+      if (ptr->op == PO_REFERENCE) {
         return NULL;     // can't apply CV to references
       }
-      if ((ptr.cv | cv) == ptr.cv) {
+      if ((ptr->cv | cv) == ptr->cv) {
         return baseType;
       }
       else {
-        return makePointerType(loc, ptr.op, ptr.cv | cv, ptr.atType);
+        return makePointerType(loc, ptr->op, ptr->cv | cv, ptr->atType);
       }
       break;
     }
@@ -1167,9 +1167,9 @@ CVAtomicType *BasicTypeFactory::makeCVAtomicType(SourceLoc,
   if (cv==CV_NONE && atomic->isSimpleType()) {
     // since these are very common, and ordinary Types are immutable,
     // share them
-    SimpleType &st = atomic->asSimpleType();
-    xassert((unsigned)(st.type) < (unsigned)NUM_SIMPLE_TYPES);
-    return &(unqualifiedSimple[st.type]);
+    SimpleType *st = atomic->asSimpleType();
+    xassert((unsigned)(st->type) < (unsigned)NUM_SIMPLE_TYPES);
+    return &(unqualifiedSimple[st->type]);
   }
 
   return new CVAtomicType(atomic, cv);

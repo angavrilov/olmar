@@ -93,7 +93,7 @@ string declaration_toString (
     s << "operator ";
 
     // then the return type and the function designator
-    s << type->asFunctionTypeC().retType->toString() << " ()";
+    s << type->asFunctionTypeC()->retType->toString() << " ()";
   }
 
   else if (finalName && 0==strcmp(finalName, "constructor-special")) {

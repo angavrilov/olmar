@@ -84,10 +84,10 @@ public:     // funcs
   bool isEnumType() const     { return getTag() == T_ENUM; }
   bool isTypeVariable() const { return getTag() == T_TYPEVAR; }
 
-  CAST_MEMBER_FN(SimpleType)
-  CAST_MEMBER_FN(CompoundType)
-  CAST_MEMBER_FN(EnumType)
-  CAST_MEMBER_FN(TypeVariable)
+  DOWNCAST_FN(SimpleType)
+  DOWNCAST_FN(CompoundType)
+  DOWNCAST_FN(EnumType)
+  DOWNCAST_FN(TypeVariable)
 
   // this is type equality, *not* coercibility -- e.g. if
   // we say "extern type1 x" and then "extern type2 x" we
@@ -273,10 +273,10 @@ public:     // funcs
   bool isFunctionType() const { return getTag() == T_FUNCTION; }
   bool isArrayType() const { return getTag() == T_ARRAY; }
 
-  CAST_MEMBER_FN(CVAtomicType)
-  CAST_MEMBER_FN(PointerType)
-  CAST_MEMBER_FN(FunctionType)
-  CAST_MEMBER_FN(ArrayType)
+  DOWNCAST_FN(CVAtomicType)
+  DOWNCAST_FN(PointerType)
+  DOWNCAST_FN(FunctionType)
+  DOWNCAST_FN(ArrayType)
 
   // like above, this is (structural) equality, not coercibility;
   // internally, this calls the innerEquals() method on the two
@@ -305,7 +305,7 @@ public:     // funcs
 
   // some common queries
   bool isSimpleType() const;
-  SimpleType const &asSimpleTypeC() const;
+  SimpleType const *asSimpleTypeC() const;
   bool isSimple(SimpleTypeId id) const;
   bool isIntegerType() const;            // any of the simple integer types
   bool isUnionType() const { return isCompoundTypeOf(CompoundType::K_UNION); }
@@ -314,6 +314,7 @@ public:     // funcs
   bool isVoid() const { return isSimple(ST_VOID); }
   bool isError() const { return isSimple(ST_ERROR); }
   bool isDependent() const { return isSimple(ST_DEPENDENT); }
+  bool isEllipsis() const { return isSimple(ST_ELLIPSIS); }
   CompoundType *ifCompoundType();        // NULL or corresp. compound
   CompoundType const *asCompoundTypeC() const; // fail assertion if not
   CompoundType *asCompoundType() { return const_cast<CompoundType*>(asCompoundTypeC()); }

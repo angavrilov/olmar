@@ -1,6 +1,8 @@
 # Makefile.in
 # this is the Makefile for Elsa, the Elkhound-based C++ Parser
 
+#tmp: cc_type.o
+
 # main target: a C++ parser
 all: ccparse
 
@@ -97,6 +99,7 @@ CCPARSE_OBJS := \
   variable.o \
   ccparse.o \
   main.o
+-include $(CCPARSE_OBJS:.o=.d)
 
 # parser binary
 ccparse: $(CCPARSE_OBJS)
