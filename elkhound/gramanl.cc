@@ -2071,7 +2071,7 @@ void GrammarAnalysis::moveDotNoClosure(ItemSet const *source, Symbol const *symb
   ObjListIter<LRItem> srcIter(source->kernelItems);
   int passCt=0;    // 0=kernelItems, 1=nonkernelItems
   while (passCt < 2) {
-    if (passCt == 1) {
+    if (passCt++ == 1) {
       srcIter.reset(source->nonkernelItems);
     }
 
@@ -2100,8 +2100,6 @@ void GrammarAnalysis::moveDotNoClosure(ItemSet const *source, Symbol const *symb
       appendCt++;
       destIter.adv();
     }
-
-    passCt++;
   }
 
   // pull out any unused items into 'unusedItems'; it's important that
@@ -2255,117 +2253,128 @@ void GrammarAnalysis::constructLRItemSets()
 
     // for each production in the item set where the
     // dot is not at the right end
-    SFOREACH_OBJLIST(LRItem, items, itemIter) {
-      LRItem const *item = itemIter.data();
-      if (item->isDotAtEnd()) continue;
-
-      if (tr) {
-        ostream &trs = trace("lrsets");
-        trs << "considering item ";
-        item->print(trs, *this);
-        trs << endl;
+    //
+    // explicitly iterate over both lists because 'getAllItems'
+    // does allocation
+    ObjListIter<LRItem> itemIter(itemSet->kernelItems);
+    int passCt=0;    // 0=kernelItems, 1=nonkernelItems
+    while (passCt < 2) {
+      if (passCt++ == 1) {
+        itemIter.reset(itemSet->nonkernelItems);
       }
 
-      // get the symbol 'sym' after the dot (next to be shifted)
-      Symbol const *sym = item->symbolAfterDotC();
+      for (; !itemIter.isDone(); itemIter.adv()) {
+        LRItem const *item = itemIter.data();
+        if (item->isDotAtEnd()) continue;
 
-      // in LALR(1), two items might have different lookaheads; more
-      // likely, re-expansions needs to propagate lookahead that
-      // wasn't present from an earlier expansion
-      if (!LALR1) {
-        // if we already have a transition for this symbol,
-        // there's nothing more to be done
-        if (itemSet->transitionC(sym) != NULL) {
-          continue;
+        if (tr) {
+          ostream &trs = trace("lrsets");
+          trs << "considering item ";
+          item->print(trs, *this);
+          trs << endl;
         }
-      }
 
-      // compute the itemSet (into 'scratchState') produced by moving
-      // the dot across 'sym'; don't take closure yet since we
-      // first want to check whether it is already present
-      //
-      // this call also yields the unused remainder of the kernel items,
-      // so we can add them back in at the end
-      ObjList<LRItem> unusedTail;
-      moveDotNoClosure(itemSet, sym, scratchState,
-                       unusedTail, kernelCRCArray);
-      ItemSet *withDotMoved = scratchState;    // clarify role from here down
+        // get the symbol 'sym' after the dot (next to be shifted)
+        Symbol const *sym = item->symbolAfterDotC();
 
-      // see if we already have it, in either set
-      ItemSet *already = itemSetsPending.get(withDotMoved);
-      bool inDoneList = false;
-      if (already == NULL) {
-        already = itemSetsDone.get(withDotMoved);
-        inDoneList = true;    // used if 'already' != NULL
-      }
-
-      // have it?
-      if (already != NULL) {
-        // we already have a state with at least equal kernel items, not
-        // considering their lookahead sets; so we have to merge the
-        // computed lookaheads with those in 'already'
-        if (withDotMoved->mergeLookaheadsInto(*already)) {
-          if (tr) {
-            trace("lrsets")
-              << "from state " << itemSet->id << ", found that the transition "
-              << "on " << sym->name << " yielded a state similar to "
-              << already->id << ", but with different lookahead" << endl;
-          }
-
-          // this changed 'already'; recompute its closure
-          itemSetClosure(*already);
-
-          // and reconsider all of the states reachable from it
-          if (!inDoneList) {
-            // itemSetsPending contains 'already', it will be processed later
-          }
-          else {
-            // we thought we were done with this
-            #ifdef EXTRA_CHECKS
-              xassert(itemSetsDone.get(already));
-            #endif
-
-            // but we're not: move it back to the 'pending' list
-            itemSetsDone.remove(already);
-            itemSetsPending.add(already, already);
-            pendingList.prepend(already);
+        // in LALR(1), two items might have different lookaheads; more
+        // likely, re-expansions needs to propagate lookahead that
+        // wasn't present from an earlier expansion
+        if (!LALR1) {
+          // if we already have a transition for this symbol,
+          // there's nothing more to be done
+          if (itemSet->transitionC(sym) != NULL) {
+            continue;
           }
         }
 
-        // we already have it, so throw away one we made
-        // UPDATE: we didn't allocate, so don't deallocate
-        //disposeItemSet(withDotMoved);     // deletes 'withDotMoved'
+        // compute the itemSet (into 'scratchState') produced by moving
+        // the dot across 'sym'; don't take closure yet since we
+        // first want to check whether it is already present
+        //
+        // this call also yields the unused remainder of the kernel items,
+        // so we can add them back in at the end
+        ObjList<LRItem> unusedTail;
+        moveDotNoClosure(itemSet, sym, scratchState,
+                         unusedTail, kernelCRCArray);
+        ItemSet *withDotMoved = scratchState;    // clarify role from here down
 
-        // and use existing one for setting the transition function
-        withDotMoved = already;
-      }
-      else {
-        // we don't already have it; need to actually allocate & copy
-        withDotMoved = makeItemSet();
-        FOREACH_OBJLIST(LRItem, scratchState->kernelItems, iter) {
-          withDotMoved->addKernelItem(new LRItem( *(iter.data()) ));
+        // see if we already have it, in either set
+        ItemSet *already = itemSetsPending.get(withDotMoved);
+        bool inDoneList = false;
+        if (already == NULL) {
+          already = itemSetsDone.get(withDotMoved);
+          inDoneList = true;    // used if 'already' != NULL
         }
 
-        // finish it by computing its closure
-        itemSetClosure(*withDotMoved);
+        // have it?
+        if (already != NULL) {
+          // we already have a state with at least equal kernel items, not
+          // considering their lookahead sets; so we have to merge the
+          // computed lookaheads with those in 'already'
+          if (withDotMoved->mergeLookaheadsInto(*already)) {
+            if (tr) {
+              trace("lrsets")
+                << "from state " << itemSet->id << ", found that the transition "
+                << "on " << sym->name << " yielded a state similar to "
+                << already->id << ", but with different lookahead" << endl;
+            }
 
-        // then add it to 'pending'
-        itemSetsPending.add(withDotMoved, withDotMoved);
-        pendingList.prepend(withDotMoved);
-      }
+            // this changed 'already'; recompute its closure
+            itemSetClosure(*already);
 
-      // setup the transition function
-      itemSet->setTransition(sym, withDotMoved);
+            // and reconsider all of the states reachable from it
+            if (!inDoneList) {
+              // itemSetsPending contains 'already', it will be processed later
+            }
+            else {
+              // we thought we were done with this
+              #ifdef EXTRA_CHECKS
+                xassert(itemSetsDone.get(already));
+              #endif
 
-      // finally, restore 'scratchState's kernel item list
-      scratchState->kernelItems.concat(unusedTail);
+              // but we're not: move it back to the 'pending' list
+              itemSetsDone.remove(already);
+              itemSetsPending.add(already, already);
+              pendingList.prepend(already);
+            }
+          }
 
-      #ifdef EXTRA_CHECKS
-        // make sure the link restoration process works as expected
-        xassert(scratchState->kernelItems.count() >= INIT_LIST_LEN);
-      #endif
+          // we already have it, so throw away one we made
+          // UPDATE: we didn't allocate, so don't deallocate
+          //disposeItemSet(withDotMoved);     // deletes 'withDotMoved'
 
-    } // for each item
+          // and use existing one for setting the transition function
+          withDotMoved = already;
+        }
+        else {
+          // we don't already have it; need to actually allocate & copy
+          withDotMoved = makeItemSet();
+          FOREACH_OBJLIST(LRItem, scratchState->kernelItems, iter) {
+            withDotMoved->addKernelItem(new LRItem( *(iter.data()) ));
+          }
+
+          // finish it by computing its closure
+          itemSetClosure(*withDotMoved);
+
+          // then add it to 'pending'
+          itemSetsPending.add(withDotMoved, withDotMoved);
+          pendingList.prepend(withDotMoved);
+        }
+
+        // setup the transition function
+        itemSet->setTransition(sym, withDotMoved);
+
+        // finally, restore 'scratchState's kernel item list
+        scratchState->kernelItems.concat(unusedTail);
+
+        #ifdef EXTRA_CHECKS
+          // make sure the link restoration process works as expected
+          xassert(scratchState->kernelItems.count() >= INIT_LIST_LEN);
+        #endif
+
+      } // for each item
+    } // 0=kernel, 1=nonkernel
   } // for each item set
 
   // we're done constructing item sets, so move all of them out
