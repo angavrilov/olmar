@@ -170,11 +170,21 @@ void TF_template::print(PrintEnv &env)
 }
 
 void TF_linkage::print(PrintEnv &env)
+{         
+  env.current_loc = loc;
+  env << "extern \"" << linkageType << "\"";
+  codeout co(env, "", " {\n", "}\n");
+  forms->print(env);
+}
+
+void TF_one_linkage::print(PrintEnv &env)
 {
   olayer ol("TF_linkage");
   env.current_loc = loc;
-  forms->print(env);
+  env << "extern \"" << linkageType << "\" ";
+  form->print(env);
 }
+
 
 // --------------------- Function -----------------
 void Function::print(PrintEnv &env)
@@ -656,22 +666,15 @@ string Expression::exprToString() const
   return sb;
 }
 
-// todo: move this someplace better
-static char *staticBuffer(char const *s)
+string renderExpressionAsString(char const *prefix, Expression const *e)
 {
-  static char buf[200];
-
-  int len = strlen(s);
-  if (len > 79) len=79;
-  memcpy(buf, s, len);
-  buf[len] = 0;
-
-  return buf;
+  return stringc << prefix << e->exprToString();
 }
 
-char *expr_toString(Expression *e)
-{
-  return staticBuffer(e->exprToString());
+char *expr_toString(Expression const *e)
+{               
+  // this function is defined in smbase/strutil.cc
+  return copyToStaticBuffer(e->exprToString());
 }
 
 

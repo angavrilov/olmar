@@ -8,8 +8,14 @@
 #include "strtable.h"      // StringTable
 #include "objlist.h"       // ObjList
 #include "array.h"         // ArrayStack
+#include "cc_flags.h"      // UberModifiers, SimpleTypeId
 
 class PQName;              // cc.ast.gen.h
+class SourceLocation;      // fileloc.h
+
+// ugly-ass hack
+class ParseEnv;
+extern ParseEnv *globalParseEnv;
 
 // parsing action state
 class ParseEnv {
@@ -18,11 +24,17 @@ private:
 
 public:
   StringTable &str;                       // string table
+  int errors;                             // parse errors
 
 public:
   ParseEnv(StringTable &table)
-    : classNameStack(), str(table) {}
-  ~ParseEnv() {}
+    : classNameStack(), str(table), errors(0) 
+  {
+    globalParseEnv = this;     // HACK HACK HACK
+  }
+  ~ParseEnv() {
+    globalParseEnv = NULL;     // HACK
+  }
 
   // manipulate the name of the class whose declaration we're inside;
   // this is *not* the general class context, merely the innermost
@@ -31,6 +43,10 @@ public:
   void pushClassName(StringRef n)  { classNameStack.push(n); }
   void popClassName()              { classNameStack.pop(); }
   StringRef curClassName() const   { return classNameStack.top(); }
+
+  // manipulate UberModifiers
+  SimpleTypeId uberSimpleType(SourceLocation const &loc, UberModifiers m);
+  UberModifiers uberCombine(SourceLocation const &loc, UberModifiers m1, UberModifiers m2);
 };
 
 #endif // CPARSE_H

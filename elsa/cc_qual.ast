@@ -1,0 +1,149 @@
+// cc_qual.ast            see license.txt for copyright and terms of use
+// extension module to cc.ast for C++ Cqual
+
+verbatim {
+#ifdef CC_QUAL
+  #include "cc_qual/cc_qualifiers.h"
+#else
+  #include "cc_qualifiers_dummy.h"
+#endif
+
+  class QualEnv;                // cc_qual.h
+//    class FlattenEnv;          // cc_flatten.h
+}
+
+
+class TranslationUnit {
+  // ccqual
+  public void qual(QualEnv &env);
+
+//    public void flatten(FlattenEnv &env);
+}
+
+class TopForm {
+  pure_virtual void qual(QualEnv &env);
+//    pure_virtual void flatten(FlattenEnv &env);
+}
+
+class Function {
+  public void qual(QualEnv &env);
+//    public void flatten(FlattenEnv &env);
+}
+
+class Declaration {
+  public void qual(QualEnv &env);
+//    public void flatten(FlattenEnv &env);
+}
+
+class ASTTypeId {
+  public void qual(QualEnv &env);
+//    public void flatten(FlattenEnv &env);
+}
+
+class PQName {
+  pure_virtual void qual(QualEnv &env);
+//    pure_virtual void flatten(FlattenEnv &env);
+}
+
+class TypeSpecifier {
+  public Qualifiers *q;
+//    ctor { q = new Qualifiers((name?name->getName():"__null_TypeSpecifier"), loc); };
+  ctor { q = new Qualifiers((name ? strdup(name->getName()) : "anonymous_TypeSpecifier"),
+                            loc, 1 /*default to global*/, NULL); };
+
+  pure_virtual void qual(QualEnv &env);
+  //  pure_virtual void flatten(FlattenEnv &env);
+}
+
+class BaseClassSpec {
+  public void qual(QualEnv &env);
+//    public void flatten(FlattenEnv &env);
+}
+
+class Member {
+  pure_virtual void qual(QualEnv &env);
+//    pure_virtual void flatten(FlattenEnv &env);
+}
+
+class Enumerator {
+  public void qual(QualEnv &env);
+//    public void flatten(FlattenEnv &env);
+}
+
+class Declarator {
+  public void qual(QualEnv &env);
+//    public void flatten(FlattenEnv &env);
+}
+
+class IDeclarator {
+  public void qual(QualEnv &env);
+//    public void flatten(FlattenEnv &env);
+
+  -> D_pointer(QualifierLiterals *ql)
+  {
+     public Qualifiers *q;
+     ctor { q = new Qualifiers((name?strdup(name->getName()):"__null_pointer"), loc, 1 /*default to global*/, NULL, ql); };
+//       ctor { q = new Qualifiers("anonymous_pointer", loc, 1 /*default to global*/, NULL, ql); };
+  }
+
+  -> D_func(QualifierLiterals *ql)
+  {
+     public Qualifiers *q;
+     ctor {q = new Qualifiers((name?strdup(name->getName()):"__null_function"), loc, 1 /*default to global*/, NULL, ql);};
+//       ctor {q = new Qualifiers("anonymous_function", loc, 1 /*default to global*/, NULL, ql);};
+  }
+}
+
+class ExceptionSpec {
+  public void qual(QualEnv &env);
+//    public void flatten(FlattenEnv &env);
+}
+
+class Statement {
+  public void qual(QualEnv &env);
+  pure_virtual void iqual(QualEnv &env);
+
+//    public void flatten(FlattenEnv &env);
+//    pure_virtual void iflatten(FlattenEnv &env);
+}
+
+class Condition {
+  pure_virtual void qual(QualEnv &env);
+//    pure_virtual void flatten(FlattenEnv &env);
+}
+
+class Handler {
+  pure_virtual void qual(QualEnv &env);
+//    pure_virtual void flatten(FlattenEnv &env);
+}
+
+class Expression {
+  public void qual(QualEnv &env);
+  pure_virtual void iqual(QualEnv &env);
+
+//    public void flatten(FlattenEnv &env);
+//    pure_virtual void iflatten(FlattenEnv &env);
+}
+
+class Initializer {
+  pure_virtual void qual(QualEnv &env);
+//    pure_virtual void flatten(FlattenEnv &env);
+}
+
+class TemplateDeclaration {
+  public void qual(QualEnv &env);
+  pure_virtual void iqual(QualEnv &env);
+
+//    public void flatten(FlattenEnv &env);
+//    pure_virtual void iflatten(FlattenEnv &env);
+}
+
+class TemplateParameter {
+  pure_virtual void qual(QualEnv &env);
+//    pure_virtual void flatten(FlattenEnv &env);
+}
+
+class TemplateArgument {
+  pure_virtual void qual(QualEnv &env);
+//    pure_virtual void flatten(FlattenEnv &env);
+}

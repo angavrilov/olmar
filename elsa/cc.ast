@@ -2,8 +2,8 @@
 // C++ abstract syntax
 
 // note: wherever ASTList or FakeList is used, its elements are listed
-// in the order they appear lexically in the input file, i.e. right to
-// left and then top to bottom
+// in the order they appear lexically in the input file, i.e. left to
+// right and then top to bottom
 
 // How do I decide between ASTList and FakeList?  Creating ASTLists
 // can be done with left recursion, which saves stack space, whereas
@@ -25,29 +25,7 @@
 
 // included in generated header
 verbatim {
-  #include "sobjlist.h"         // SObjList
-  #include "variable.h"         // Variable
   #include "cc_flags.h"         // CVFlags, DeclFlags, etc. (r)
-  #include "cc_type.h"          // Type, FunctonType, CompoundType
-#ifdef CC_QUAL
-  #include "cc_qual/cc_qualifiers.h"
-#else
-  #include "cc_qualifiers_dummy.h"
-#endif
-
-  #include <stdio.h>            // printf, for ad-hoc debugging
-
-  class Env;                    // cc_env.h
-  class PrintEnv;               // cc_print.h
-  class QualEnv;                // cc_qual.h
-//    class FlattenEnv;          // cc_flatten.h
-} // end verbatim
-
-// included in generated source file
-// (note that the generated source file always #includes the
-// generated header file)
-impl_verbatim {
-  //#include "cc_type.h"       // Type
 }
 
 
@@ -55,37 +33,25 @@ impl_verbatim {
 // an entire file (with included stuff) of toplevel forms; I use
 // an ASTList here because I want to use left recursion, and
 // there's never a multiple-yield problem with toplevel forms
-class TranslationUnit (ASTList<TopForm> topForms) {
-  // type checker
-  public void tcheck(Env &env);
-  
-  // pretty printer
-  public void print(PrintEnv &env);
-
-  // ccqual
-  public void qual(QualEnv &env);
-
-//    public void flatten(FlattenEnv &env);
-}
+class TranslationUnit (ASTList<TopForm> topForms);
 
 // a toplevel form
 class TopForm (SourceLocation loc) {
-  pure_virtual void tcheck(Env &env);
-  pure_virtual void print(PrintEnv &env);
-  pure_virtual void qual(QualEnv &env);
-//    pure_virtual void flatten(FlattenEnv &env);
-                                       
   // includes function prototypes
   -> TF_decl(Declaration decl);
-                                       
+
   // functions with bodies
   -> TF_func(Function f);
 
   // template functions or template classes
   -> TF_template(TemplateDeclaration td);
-  
+
   // linkage specification enclosing a bunch of forms
   -> TF_linkage(StringRef linkageType, TranslationUnit forms);
+
+  // linkage spec with one form; turns out this has different
+  // semantics [cppstd 7.5 para 7]
+  -> TF_one_linkage(StringRef linkageType, TopForm form);
 }
 
 
@@ -105,29 +71,7 @@ class Function (
   S_compound body,              // body of function
 
   FakeList<Handler> *handlers   // handlers for ctor "try" block
-) {
-  // since 'nameAndParams->var' might refer to a previous declaration,
-  // and therefore might have differently-named parameters, I'll add
-  // another field specifically for a version of the FunctionType
-  // which has the parameters for *this* definition
-  public FunctionType const *funcType;
-  ctor funcType = NULL;
-
-  public void printExtras(ostream &os, int indent) const;
-  custom debugPrint { printExtras(os, indent); }
-
-  // if 'checkBody' is false, we treat this like it was just
-  // a prototype for the function
-  public void tcheck(Env &env, bool checkBody);
-
-  private CompoundType *verifyIsCtor(Env &env, char const *context);
-  private void tcheck_memberInits(Env &env);
-  private void tcheck_handlers(Env &env);
-
-  public void print(PrintEnv &env);
-  public void qual(QualEnv &env);
-//    public void flatten(FlattenEnv &env);
-}
+);
 
 class MemberInit (
   PQName name,                   // name of member or base class
@@ -145,18 +89,14 @@ class Declaration (
   enum DeclFlags dflags,               // typedef, virtual, extern, etc.
   TypeSpecifier spec,                  // e.g. "int"
   FakeList<Declarator> *decllist       // e.g. "x=3, y"
-) {
-  public void tcheck(Env &env);        // adds declared variables to env
-  public void print(PrintEnv &env);
-  public void qual(QualEnv &env);
-//    public void flatten(FlattenEnv &env);
-}
+);
+
 
 // just one complete type; appears in parameter decls and in casts
 class ASTTypeId (
   TypeSpecifier spec,        // "int"
   Declarator decl            // this will be abstract sometimes (e.g. casts)
-) {                                            
+) {
   // FakeList link; use setNext
   public ASTTypeId *next;  ctor next=NULL;
   public void setNext(ASTTypeId *newNext);
@@ -173,23 +113,6 @@ class ASTTypeId (
       return;     // skip the normal, unambiguous-node print code
     }
   }
-
-
-  // typecheck the typeid; if we're in the context of an E_new, then
-  // pass a non-NULL sizeExpr, in which case this function may store a
-  // non-null Expression* corresponding to the 'size' argument in
-  // '*sizeExpr'
-  //
-  // the return value is the ASTTypeId* to store in place of the
-  // one used to invoke the function, to resolve ambiguities
-  public ASTTypeId *tcheck(Env &env, Expression **sizeExpr);
-  public void mid_tcheck(Env &env, Expression **&sizeExpr);
-
-  public void print(PrintEnv &env);
-  public void qual(QualEnv &env);
-//    public void flatten(FlattenEnv &env);
-  
-  public Type const *getType() const;      // can use after calling 'tcheck'
 }
 
 // a name with optional class qualifiers (PQ: "possibly qualified");
@@ -198,7 +121,7 @@ class ASTTypeId (
 class PQName {
   public bool hasQualifiers() const { return isPQ_qualifier(); };
 
-  public string qualifierString() const;  
+  public string qualifierString() const;
   public string toString() const;
   public friend stringBuilder& operator<< (stringBuilder &sb, PQName const &obj);
 
@@ -208,13 +131,6 @@ class PQName {
 
   // get the PQName at the bottom of any qualifiers
   public PQName const *getUnqualifiedName() const;
-
-  // typecheck the template arguments buried in this PQName
-  pure_virtual void tcheck(Env &env);
-
-  pure_virtual void print(PrintEnv &env);
-  pure_virtual void qual(QualEnv &env);
-//    pure_virtual void flatten(FlattenEnv &env);
 
 
   // outer qualifier applied to some inner PQName, plus an optional
@@ -230,16 +146,10 @@ class PQName {
   // "operator" names; 'o' has the full info, while 'fakeName' is
   // for getName(), which is sometimes used for string maps
   -> PQ_operator(OperatorName o, StringRef fakeName);
-  
-  // template instances: a template function or class name, plus
-  // some template arguments 
-  -> PQ_template(StringRef name, FakeList<TemplateArgument> *args);
-}
 
-verbatim {
-  // so clients outside cc_print.cc can print these lists; this
-  // does *not* print the surrounding angle brackets
-  void printTemplateArgumentFakeList(PrintEnv &env, FakeList<TemplateArgument> *args);
+  // template instances: a template function or class name, plus
+  // some template arguments
+  -> PQ_template(StringRef name, FakeList<TemplateArgument> *args);
 }
 
 
@@ -248,25 +158,12 @@ verbatim {
 // built with type constructors (typedef'd types may have been built
 // with type constructors when the name was defined, but a
 // TypeSpecifier refers only to the name)
-class TypeSpecifier(PQName name, SourceLocation loc) {
-  public Qualifiers *q;
-//    ctor { q = new Qualifiers((name?name->getName():"__null_TypeSpecifier"), loc); };
-  ctor { q = new Qualifiers((name ? strdup(name->getName()) : "anonymous_TypeSpecifier"),
-                            loc, 1 /*default to global*/, NULL); };
-  public enum CVFlags cv; ctor { cv=CV_NONE; };
+class TypeSpecifier(PQName /*nullable*/ name, SourceLocation loc) {
+  public enum CVFlags cv;  ctor cv=CV_NONE;
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
 
-  // yield the type named by the specifier; this type may of course
-  // get refined when the declarator is considered
-  public Type const *tcheck(Env &env);
-  pure_virtual Type const *itcheck(Env &env);
-
-  pure_virtual void print(PrintEnv &env);
-  pure_virtual void qual(QualEnv &env);
-  //  pure_virtual void flatten(FlattenEnv &env);
-                                                              
   // a typedef'd name (typedef might be implicit, as for classes);
   // if 'typenamedUsed' is true, then the user said "typename", so
   // we don't regard an error as disambiguating
@@ -295,9 +192,7 @@ class TypeSpecifier(PQName name, SourceLocation loc) {
 
        FakeList<BaseClassSpec> *bases,       // base classes
        MemberList members                    // field and methods of the class
-     ) {
-       private void tcheckFunctionBodies(Env &env);
-     }
+     );
 
   -> TS_enumSpec(                          // "enum { ... }"
        // moved to superclass and changed to a PQname:
@@ -313,10 +208,6 @@ class BaseClassSpec (
   PQName name                           // name of base class
 ) {
   public BaseClassSpec *next;  ctor next=NULL;     // FakeList link
-
-  public void print(PrintEnv &env);
-  public void qual(QualEnv &env);
-//    public void flatten(FlattenEnv &env);
 }
 
 
@@ -330,12 +221,6 @@ class Member (SourceLocation loc) {
   -> MR_func(Function f);               // function with body
   -> MR_access(AccessKeyword k);        // section header
   -> MR_publish(PQName name);           // publish a superclass member
-  
-  pure_virtual void tcheck(Env &env);
-
-  pure_virtual void print(PrintEnv &env);
-  pure_virtual void qual(QualEnv &env);
-//    pure_virtual void flatten(FlattenEnv &env);
 }
 
 // a binding of a name to a constant value
@@ -345,95 +230,21 @@ class Enumerator (
   Expression /*nullable*/ expr          // constant expr, or NULL for "next"
 ) {
   public Enumerator *next;  ctor next=NULL;     // FakeList link
-
-  public Variable *var;                 // (serf) introduction record
-  ctor var=NULL;
-
-  // when the enumerator values are computed, I store them here
-  // so I can see them in the AST printout; I only print this
-  // value if 'var' is non-NULL
-  public int enumValue;
-
-  public void printExtras(ostream &os, int indent) const;
-  custom debugPrint { printExtras(os, indent); }
-
-  // we pass both the base 'enum' and the Type wrapped around it,
-  // since both are needed and it's slightly expensive to compute
-  // one from the other for each enumerator
-  public void tcheck(Env &env, EnumType *parentEnum, Type *parentType);
-
-  public void print(PrintEnv &env);
-  public void qual(QualEnv &env);
-//    public void flatten(FlattenEnv &env);
 }
 
 
-verbatim {              
-  // this class contains the data passed into and out of the
-  // declarator checking functions
-  struct DeclaratorTcheck {
-    // the bottom-most IDeclarator (D_name or D_bitfield) creates
-    // or looks up a Variable, and sets this to point at it
-    Variable *var;
-
-    // on the way in, this is the type computed so far; initially
-    // it's just the type specifier but additional declarators will
-    // layer additional type constructors on top of it and replace
-    // the pointer here with a pointer to the constructed type; at
-    // the end it is the fully-constructed type
-    //
-    // however, it need not be the same type as var->type at the
-    // end, because var->type might be a function type from a
-    // prototype (with the prototype's parameter names) while this
-    // field will be the constructed type with its names
-    Type const *type;
-
-    // these are the declflags attached to the outer declaration
-    DeclFlags dflags;
-    
-    // when this is set to true, we're inside an E_new, so be on
-    // the lookout for the final [size] expression
-    bool in_E_new;
-
-    // in a new[] declarator, when we hit the final [size], stash
-    // the size's AST node pointer here; then E_new can collect it
-    Expression *size_E_new;
-
-  public:
-    DeclaratorTcheck(Type const *t, DeclFlags d)
-      : var(NULL), type(t), dflags(d),
-        in_E_new(false), size_E_new(NULL) {}
-    DeclaratorTcheck(DeclaratorTcheck const &obj)
-      : var(obj.var), type(obj.type), dflags(obj.dflags),
-        in_E_new(obj.in_E_new), size_E_new(obj.size_E_new) {}
-
-    DeclaratorTcheck& operator= (DeclaratorTcheck const &obj) {
-      var = obj.var;
-      type = obj.type;
-      dflags = obj.dflags;
-      in_E_new = obj.in_E_new;
-      size_E_new = obj.size_E_new;
-      return *this;
-    }
-  };
-}
-
-
-// Syntactically, a Declarator is a thing which introduces a name of a
-// declared thing, and also optionally adds type constructors to the
-// base type of the specifier.  It may have an initializing
-// expression, depending on the context.
+// Syntactically, a Declarator introduces a name of a declared thing,
+// and also optionally adds type constructors to the base type of the
+// specifier.  It may have an initializing expression, depending on
+// the context.
 class Declarator (
   IDeclarator decl,                    // syntax of type designation
   Initializer init                     // (nullable) optional data initializer
 ) {
-  public Variable *var;                // (serf) computed information: name, type, etc.
-  ctor var=NULL;
-                                                       
   // FakeList link; use 'setNext' to set 'next'
   public Declarator *next;  ctor next=NULL;
-  public void setNext(Declarator *newNext);    
-  
+  public void setNext(Declarator *newNext);
+
   // ambiguity representation
   public Declarator *ambiguity;  ctor ambiguity=NULL;
   public void addAmbiguity(Declarator *alternative);
@@ -449,26 +260,6 @@ class Declarator (
 
   // dig down and find the name being declared; may return NULL
   public PQName const *getDeclaratorId() const;
-
-
-  public void printExtras(ostream &os, int indent) const;
-  custom debugPrint { printExtras(os, indent); }
-
-  // determine the type denoted by the combination of 'dt.type' and
-  // the type constructors in this declarator, then make a Variable
-  // which has that type and store it in 'dt.var'; if this declarator
-  // refers to something that is *already* declared (like a function
-  // with a prior prototype), the 'var' field will be shared among the
-  // various declarations; if not, put it into the environment
-  //
-  // the return value specifies which of possibly ambiguous
-  // alternatives was selected
-  public /*no_ignore*/ Declarator *tcheck(Env &env, DeclaratorTcheck &dt);
-  public void mid_tcheck(Env &env, DeclaratorTcheck &dt);
-
-  public void print(PrintEnv &env);
-  public void qual(QualEnv &env);
-//    public void flatten(FlattenEnv &env);
 }
 
 
@@ -478,17 +269,11 @@ class Declarator (
 // type constructors are encoded as a (possibly empty) list of pointer
 // constructors, then maybe a function or array type, recursively
 class IDeclarator(PQName /*nullable*/ name, SourceLocation loc) {
-  // external interface; add the type constructor represented by this
-  // IDeclarator to 'dt.type' and then make a Variable to represent
-  // it; put the variable into the environment if appropriate
-  pure_virtual void tcheck(Env &env, DeclaratorTcheck &dt);
-
   // dig down and find the name being declared; may return NULL
   pure_virtual PQName const *getDeclaratorId() const;
 
-  public void print(PrintEnv &env);
-  public void qual(QualEnv &env);
-//    public void flatten(FlattenEnv &env);
+  // skip any toplevel grouping operators
+  public IDeclarator *skipGroups();
 
   // "x" (NULL means abstract declarator or anonymous parameter);
   // this is used for ctors and dtors as well as ordinary names
@@ -497,27 +282,15 @@ class IDeclarator(PQName /*nullable*/ name, SourceLocation loc) {
            );
 
   // "*x" (as in "int *x")
-  -> D_pointer(QualifierLiterals *ql,
-               bool isPtr,  // true for "*", false for "&"
+  -> D_pointer(bool isPtr,  // true for "*", false for "&"
                CVFlags cv,  // optional qualifiers applied to ptr/ref type
-               IDeclarator base)
-  {
-     public Qualifiers *q;
-     ctor { q = new Qualifiers((name?strdup(name->getName()):"__null_pointer"), loc, 1 /*default to global*/, NULL, ql); };
-//       ctor { q = new Qualifiers("anonymous_pointer", loc, 1 /*default to global*/, NULL, ql); };
-  }
+               IDeclarator base);
 
   // "f(int)"
-  -> D_func(QualifierLiterals *ql,
-            IDeclarator base,                       // D_name of function, typically
+  -> D_func(IDeclarator base,                       // D_name of function, typically
             FakeList<ASTTypeId> *params,            // params with optional default values
             CVFlags cv,                             // optional "const" for member functions
-            ExceptionSpec /*nullable*/ exnSpec)     // throwable exceptions
-  {
-     public Qualifiers *q;
-     ctor {q = new Qualifiers((name?strdup(name->getName()):"__null_function"), loc, 1 /*default to global*/, NULL, ql);};
-//       ctor {q = new Qualifiers("anonymous_function", loc, 1 /*default to global*/, NULL, ql);};
-  }
+            ExceptionSpec /*nullable*/ exnSpec);    // throwable exceptions
 
   // "a[5]" or "b[]"
   -> D_array(IDeclarator base, Expression /*nullable*/ size);
@@ -529,6 +302,11 @@ class IDeclarator(PQName /*nullable*/ name, SourceLocation loc) {
   // qualifiers on a bitfield name
   -> D_bitfield(// moved to superclass: PQName /*nullable*/ name,
                 Expression bits);
+
+  // declarator grouping operator: it's semantically irrelevant
+  // (i.e. equivalent to just 'base' alone), but plays a role in
+  // disambiguation
+  -> D_grouping(IDeclarator base);
 }
 
 // specification of what a function can throw; if an ExceptionSpec
@@ -536,13 +314,7 @@ class IDeclarator(PQName /*nullable*/ name, SourceLocation loc) {
 // can be thrown
 class ExceptionSpec (
   FakeList<ASTTypeId> *types       // list of allowable types; might be empty (NULL)
-) {
-  public FunctionType::ExnSpec *tcheck(Env &env);
-
-  public void print(PrintEnv &env);
-  public void qual(QualEnv &env);
-//    public void flatten(FlattenEnv &env);
-}
+);
 
 // names for operator and conversion functions
 class OperatorName {
@@ -597,23 +369,6 @@ class Statement (SourceLocation loc) {
     }
   }
 
-
-  // typecheck, and return which Statement is selected from among
-  // syntactically ambiguous choices
-  public /*no_ignore*/ Statement *tcheck(Env &env);
-
-  public void mid_tcheck(Env &env, int &) { itcheck(env); };
-  pure_virtual void itcheck(Env &env);
-
-  public void print(PrintEnv &env);
-  pure_virtual void iprint(PrintEnv &env);
-
-  public void qual(QualEnv &env);
-  pure_virtual void iqual(QualEnv &env);
-
-//    public void flatten(FlattenEnv &env);
-//    pure_virtual void iflatten(FlattenEnv &env);
-
   // e.g. "S_if@4:5" -- kind, line, col
   //public string kindLocString() const;
 
@@ -628,9 +383,7 @@ class Statement (SourceLocation loc) {
   -> S_while(Condition cond, Statement body);
   -> S_doWhile(Statement body, Expression expr);  // note: 'expr' is not a Condition
   -> S_for(Statement init, Condition cond,
-           Expression after, Statement body) {
-       //public virtual void tcheck(Env &env);      // special handling of 'init'
-     }
+           Expression after, Statement body);
   -> S_break();
   -> S_continue();
   -> S_return(Expression /*nullable*/ expr);
@@ -645,12 +398,6 @@ class Statement (SourceLocation loc) {
 class Condition {
   -> CN_expr(Expression expr);      // simple expression
   -> CN_decl(ASTTypeId typeId);     // type, name, & initializer (must all be present)
-  
-  pure_virtual void tcheck(Env &env);
-
-  pure_virtual void print(PrintEnv &env);
-  pure_virtual void qual(QualEnv &env);
-//    pure_virtual void flatten(FlattenEnv &env);
 }
 
 // exception handler
@@ -661,12 +408,6 @@ class Handler (
 
   -> HR_type(ASTTypeId typeId);     // handles given type of exception
   -> HR_default();                  // handles any type; synactically "..."
-
-  pure_virtual void tcheck(Env &env);
-
-  pure_virtual void print(PrintEnv &env);
-  pure_virtual void qual(QualEnv &env);
-//    pure_virtual void flatten(FlattenEnv &env);
 }
 
 
@@ -698,48 +439,6 @@ class Expression {
   }
 
 
-  // type check and yield the type of the expression; this type
-  // gets automatically stored in the 'type' field; the return
-  // value specifies which of possibly ambiguous alternatives
-  // was selected for retention
-  //public /*no_ignore*/ Expression *tcheck(Env &env);
-  public void tcheck(Expression *&ptr, Env &env);
-  public void mid_tcheck(Env &env, int &);
-
-  // per-type checker; return type this expression eval's to
-  pure_virtual Type const *itcheck(Env &env);
-
-  public void print(PrintEnv &env);
-  pure_virtual void iprint(PrintEnv &env);
-
-  public void qual(QualEnv &env);
-  pure_virtual void iqual(QualEnv &env);
-
-//    public void flatten(FlattenEnv &env);
-//    pure_virtual void iflatten(FlattenEnv &env);
-
-  public string exprToString() const;
-
-  // type computed for this expression; might be a SimpleType for
-  // ST_ERROR, in which case a subsequent attempt to typecheck the
-  // same expression should stop and look for an ambiguous alt.
-  public Type const *type;
-  ctor type=NULL;
-
-
-  // const-eval; for now very simple; will add an error message to
-  // the environment if this expression is not a constant (and also
-  // return false); can only call this after tchecking
-  public bool constEval(Env &env, int &result) const;
-
-
-  public void printExtras(ostream &os, int indent) const;
-  custom debugPrint { printExtras(os, indent); }
-
-  // unparse the expression
-  //pure_virtual string toString() const;
-
-
   -> E_boolLit(bool b);
   -> E_intLit(int i);
   -> E_floatLit(float f);
@@ -748,10 +447,7 @@ class Expression {
   //-> E_structLit(ASTTypeId stype, ASTList<Initializer> init);
 
   // variable reference; 'name' might be "this"
-  -> E_variable(PQName name) {
-       public Variable *var;      // (serf) binding introduction of this name
-       ctor var=NULL;
-     }
+  -> E_variable(PQName name);
 
   -> E_funCall(Expression func, FakeList<Expression> *args);
 
@@ -761,15 +457,9 @@ class Expression {
 
   // field within an object; as a special case, fieldName might begin
   // with "~", meaning we're naming the destructor
-  -> E_fieldAcc(Expression obj, PQName fieldName) {
-       public Variable const *field;
-       ctor field=NULL;
-     }
+  -> E_fieldAcc(Expression obj, PQName fieldName);
 
-  -> E_sizeof(Expression expr) {
-       public int size;     // size of the type of expr
-       ctor size=-1;
-     }
+  -> E_sizeof(Expression expr);
 
   -> E_unary(UnaryOp op, Expression expr);
   -> E_effect(EffectOp op, Expression expr);
@@ -782,10 +472,7 @@ class Expression {
   -> E_cond(Expression cond, Expression th, Expression el);
   //-> E_gnuCond(Expression cond, Expression el);
   -> E_comma(Expression e1, Expression e2);
-  -> E_sizeofType(ASTTypeId atype) {
-       public int size;     // size of the type
-       ctor size=-1;
-     }
+  -> E_sizeofType(ASTTypeId atype);
 
   // this is a simple assignment if op==BIN_ASSIGN, otherwise it's an
   // incremental assignment, like a += 3 (e.g. for op=BIN_PLUS)
@@ -794,11 +481,7 @@ class Expression {
   -> E_new(bool colonColon,                      // true if "::" preceeds "new"
            FakeList<Expression> *placementArgs,  // arguments to placement-new (empty/NULL if no placement syntax)
            ASTTypeId atype,                      // type to allocate
-           ExpressionListOpt ctorArgs) {         // arguments to type's constructor (NULL if no ctor call syntax)
-       // if this is non-NULL, it's the number of elements to allocate via new[]
-       public Expression /*nullable serf*/ *arraySize;
-       ctor arraySize=NULL;
-     }
+           ExpressionListOpt ctorArgs);          // arguments to type's constructor (NULL if no ctor call syntax)
 
   -> E_delete(bool colonColon,                   // true if "::" preceeds "delete"
               bool array,                        // true if "[]" follows "delete"
@@ -814,10 +497,6 @@ class Expression {
   -> E_typeidType(ASTTypeId ttype);
 }
 
-verbatim {
-  char *expr_toString(Expression *e);    // for debugging
-}
-
 
 // this is used for cases where there is a difference between a list
 // with no elements, and no list at all (the latter is represented by
@@ -831,17 +510,6 @@ class ExpressionListOpt (
 // animals which appear after declarations to assign initial values
 class Initializer {
   public Initializer *next;  ctor next=NULL;       // FakeList link
-
-  // check that the initializer is well-typed, given the type of
-  // the thing it initializes
-  //pure_virtual void tcheck(Env &env, Type const *type);
-
-  // simpler tcheck for now..
-  pure_virtual void tcheck(Env &env);
-
-  pure_virtual void print(PrintEnv &env);
-  pure_virtual void qual(QualEnv &env);
-//    pure_virtual void flatten(FlattenEnv &env);
 
   // simple initializer, like "int x = 3"
   -> IN_expr(Expression e);
@@ -870,40 +538,17 @@ class InitLabel {
 class TemplateDeclaration (
   FakeList<TemplateParameter> *params
 ) {
-  public void tcheck(Env &env);
-  pure_virtual void itcheck(Env &env);
-
-  public void print(PrintEnv &env);
-  pure_virtual void iprint(PrintEnv &env);
-
-  public void qual(QualEnv &env);
-  pure_virtual void iqual(QualEnv &env);
-
-//    public void flatten(FlattenEnv &env);
-//    pure_virtual void iflatten(FlattenEnv &env);
-
   // declare a template function
   -> TD_func(Function f);
-  
+
   // declare a template class; 'spec' could either be a
   // TS_elaborated (forward decl) or a TS_classSpec (definition)
-  -> TD_class(TypeSpecifier spec) {
-       public Type const *type;  ctor type=NULL;     // defined type
-
-       public void printExtras(ostream &os, int indent) const;
-       custom debugPrint { printExtras(os, indent); }
-     }
+  -> TD_class(TypeSpecifier spec);
 }
 
 // one of the parameters to a template declaration
 class TemplateParameter (SourceLocation loc) {
   public TemplateParameter *next;  ctor next=NULL;   // FakeList link
-
-  pure_virtual void tcheck(Env &env, TemplateParams *tparams);
-
-  pure_virtual void print(PrintEnv &env);
-  pure_virtual void qual(QualEnv &env);
-//    pure_virtual void flatten(FlattenEnv &env);
 
   // type parameter; when present, 'name' is what the template code
   // will use to refer to the actual argument type; when present,
@@ -918,12 +563,6 @@ class TemplateParameter (SourceLocation loc) {
 // one of the arguments to a template instantiation
 class TemplateArgument {
   public TemplateArgument *next;  ctor next=NULL;   // FakeList link
-
-  pure_virtual void tcheck(Env &env);
-
-  pure_virtual void print(PrintEnv &env);
-  pure_virtual void qual(QualEnv &env);
-//    pure_virtual void flatten(FlattenEnv &env);
 
   // return a canonical string for this template argument,
   // such that different arguments get different strings
