@@ -77,7 +77,8 @@ AEnv::AEnv(StringTable &table, Variable const *m)
   : bindings(&AbsVariable::getAbsVariableKey,
              &HashTable::lcprngHashFn,
              &HashTable::pointerEqualKeyFn),
-    pathFacts(new P_and(NULL)),
+    pathFacts(new ObjList<Predicate>),
+    pathFactsStack(),
     exprFacts(),
     distinct(),
     //typeFacts(new P_and(NULL)),
@@ -91,7 +92,7 @@ AEnv::AEnv(StringTable &table, Variable const *m)
     failedProofs(0),
     inconsistent(0)
 {
-  clear();
+  newFunction(NULL);
 }
 
 AEnv::~AEnv()
@@ -101,11 +102,20 @@ AEnv::~AEnv()
   //delete typeFacts;
 }
 
+                 
+void AEnv::newFunction(TF_func const *newFunc)
+{
+  currentFunc = newFunc;
+  funcFacts.deleteAll();
+  newPath();
+}
 
-void AEnv::clear()
+
+void AEnv::newPath()
 {
   bindings.empty();
-  pathFacts->conjuncts.deleteAll();
+  pathFacts->deleteAll();
+  pathFactsStack.deleteAll();
   exprFacts.removeAll();
   distinct.removeAll();
 
@@ -114,8 +124,6 @@ void AEnv::clear()
 
   // null is an address distinct from any other we'll encounter
   addDistinct(avInt(0));
-
-  // part of the deal with type facts is I don't clear them..
 
   inconsistent = 0;
   
@@ -320,7 +328,7 @@ void AEnv::assumeNoFieldPointsTo(AbsValue *v)
   //   ))
 
   // assert it's never the answer to a select query
-  pathFacts->conjuncts.append(
+  pathFacts->append(
     P_forall(quantVars,
       P_notEqual(
         v,
@@ -359,7 +367,7 @@ void AEnv::setMem(AbsValue *newMem)
   AVvar *newMemVar = freshVariable("mem", "updated memory");
   
   // say that it's equal to the 'newMem' value
-  pathFacts->conjuncts.append(
+  pathFacts->append(
     P_equal(newMemVar, newMem));
     
   // update our notion of memory to refer to the new variable
@@ -446,7 +454,7 @@ Predicate *exprToPred(AbsValue const *expr)
 
 void AEnv::addFact(Predicate *pred, char const *why)
 {
-  pathFacts->conjuncts.append(pred);
+  pathFacts->append(pred);
 
   if (tracingSys("addFact")) {
     trace("addFact") << why << ": " << pred->toSexpString() << endl;
@@ -464,16 +472,17 @@ void AEnv::addBoolFact(Predicate *pred, bool istrue, char const *why)
 }
 
 
+#if 0     // old stuff
 int AEnv::factStackDepth() const
 {
-  return pathFacts->conjuncts.count();
+  return pathFacts->count();
 }
 
 // O(n^2) implementation
 void AEnv::popRecentFacts(int prevDepth, P_and *dest)
 {
   while (factStackDepth() > prevDepth) {
-    dest->conjuncts.prepend(pathFacts->conjuncts.removeLast());
+    dest->conjuncts.prepend(pathFacts->removeLast());
   }
   xassert(factStackDepth() == prevDepth);
 }
@@ -483,9 +492,9 @@ void AEnv::popRecentFacts(int prevDepth, P_and *dest)
 void AEnv::transferDependentFacts(ASTList<AVvar> const &variables,
                                   int prevDepth, P_and *newFacts)
 {
-  int ct = pathFacts->conjuncts.count();
+  int ct = pathFacts->count();
   for (int i=ct-1; i>=prevDepth; i--) {
-    Predicate *fact = pathFacts->conjuncts.nth(i);
+    Predicate *fact = pathFacts->nth(i);
 
     // does this fact refer to any of the variables in 'variables'?
     FOREACH_ASTLIST(AVvar, variables, iter) {
@@ -494,7 +503,7 @@ void AEnv::transferDependentFacts(ASTList<AVvar> const &variables,
       // does the fact refer to 'var'?
       if (predicateRefersToAV(fact, var)) {
         // yes; pull it from 'pathFacts' and put it into 'newFacts'
-        Predicate *captured = pathFacts->conjuncts.removeAt(i);
+        Predicate *captured = pathFacts->removeAt(i);
         newFacts->conjuncts.append(captured);
         trace("capturedFacts") << captured->toSexpString() << endl;
         break;
@@ -506,9 +515,29 @@ void AEnv::transferDependentFacts(ASTList<AVvar> const &variables,
     // in pathFacts
   }
 }
+#endif // 0
 
 
-void AEnv::pushFact(Predicate *pred)
+void AEnv::pushPathFactsFrame()
+{
+  // kick the current frame onto the stack and make a new current
+  pathFactsStack.prepend(pathFacts);
+  pathFacts = new ObjList<Predicate>;
+}
+
+
+ObjList<Predicate> *AEnv::popPathFactsFrame()
+{
+  // give the current one to the caller, and pull up the top
+  // of the stack to become the current once again
+  ObjList<Predicate> *ret = pathFacts;
+  pathFacts = pathFactsStack.removeFirst();
+  return ret;
+}
+
+
+
+void AEnv::pushExprFact(Predicate *pred)
 {
   exprFacts.prepend(pred);
   if (inconsistent) {
@@ -517,7 +546,7 @@ void AEnv::pushFact(Predicate *pred)
   }
 }
 
-void AEnv::popFact()
+void AEnv::popExprFact()
 {
   exprFacts.removeFirst();
   if (inconsistent) {
@@ -540,11 +569,11 @@ AEnv::ProofResult AEnv::prove(Predicate *_goal, char const *context, bool silent
   }
 
   char const *proved =
-    tracingSys("predicates")? "predicate proved" : NULL;
-  char const *notProved = "*** predicate NOT proved ***";
+    tracingSys("predicates")? "------------ predicate proved ------------" : NULL;
+  char const *notProved = "--- !!! ------- predicate NOT proved ------- !!! ---";
   char const *inconsisMsg =
     tracingSys("predicates") || tracingSys("inconsistent")?
-      "inconsistent assumptions" : NULL;
+      "---------- inconsistent assumptions ----------" : NULL;
 
   if (silent) {
     proved = notProved = inconsisMsg = NULL;
@@ -555,17 +584,15 @@ AEnv::ProofResult AEnv::prove(Predicate *_goal, char const *context, bool silent
 
   // add the fact that all known local variable addresses are distinct
   P_distinct *addrs = new P_distinct(NULL);
-  for (OwnerHashTableIter<AbsVariable> iter(bindings);
-       !iter.isDone(); iter.adv()) {
-    AbsVariable const *avar = iter.data();
+  FOREACH_BINDING(avar) {
     if (avar->memvar) {
       addrs->terms.append(avar->value);
     }
-  }
+  } END_FOREACH_BINDING
   SMUTATE_EACH_OBJLIST(AbsValue, distinct, iter2) {
     addrs->terms.append(iter2.data());
   }
-  pathFacts->conjuncts.prepend(addrs);
+  pathFacts->prepend(addrs);     // temporarily add this to pathFacts
 
   ProofResult ret = PR_SUCCESS;
 
@@ -585,7 +612,7 @@ AEnv::ProofResult AEnv::prove(Predicate *_goal, char const *context, bool silent
   else {
     if (goal->isP_and()) {
       // if the goal is a conjunction, prove each part separately,
-      // so if part fails we can report that
+      // so if a part fails we can report that
       FOREACH_ASTLIST_NC(Predicate, goal->asP_and()->conjuncts, iter) {
         if (!innerProve(iter.data(),
                         notProved,   // printFalse
@@ -609,10 +636,23 @@ AEnv::ProofResult AEnv::prove(Predicate *_goal, char const *context, bool silent
     }
   }
 
-  // pull the distinction fact back out
-  pathFacts->conjuncts.deleteFirst();
-  
+  // pull the temporarily-added distinction fact back out
+  delete pathFacts->removeFirst();
+
   return ret;
+}
+
+
+// I could write this as a template class but that would require
+// adding that funky 'typename' stuff to my list classes so I could
+// refer to the type of the iterator classes..
+void addFactsToConjunction(ObjList<Predicate> const &source, P_and &dest)
+{
+  FOREACH_OBJLIST(Predicate, source, iter) {
+    // the P_and isn't actually going to own, or modify, the
+    // value I'm passing it (constness)
+    dest.conjuncts.append( const_cast<Predicate*>(iter.data()) );
+  }
 }
 
 
@@ -622,18 +662,30 @@ bool AEnv::innerProve(Predicate * /*serf*/ goal,
                       char const *printTrue,
                       char const *context)
 {
+  bool ret = false;
+
   // build a big, nonowning P_and for our facts
   P_and allFacts(NULL);
-  allFacts.conjuncts.prepend(pathFacts);
-  SMUTATE_EACH_OBJLIST(Predicate, exprFacts, iter) {   // (constness..)
-    allFacts.conjuncts.prepend(iter.data());   // doesn't really own this, see below
-  }
 
   // build an implication
   P_impl implication(&allFacts, goal);         // again, fake ownership
 
-  bool ret = false;
   try {
+    // build allFacts by throwing everything interesting into it
+    {
+      // funcFacts:
+      addFactsToConjunction(funcFacts, allFacts);
+
+      // pathFacts:
+      addFactsToConjunction(*pathFacts, allFacts);
+      FOREACH_OBJLIST(ObjList<Predicate>, pathFactsStack, iter) {
+        addFactsToConjunction(*(iter.data()), allFacts);
+      }
+
+      // exprFacts:
+      addFactsToConjunction((ObjList<Predicate>&)exprFacts, allFacts);
+    }
+
     // map this to a Simplify input string
     string implSexp = implication.toSexpString();
 
@@ -657,19 +709,22 @@ bool AEnv::innerProve(Predicate * /*serf*/ goal,
       // print out variable map
       vp.dump();
     }
-  }
-  catch (...) {
-    // the destructors will mess up the heap if this propagates
-    // (I want my "finally"!  Borland C++ has it..)
-    assert(!"not prepared to handle this");
+
+    // take apart the implication so dtor won't do anything
+    allFacts.conjuncts.removeAll_dontDelete();
+    implication.premise = NULL;
+    implication.conclusion = NULL;
   }
 
-  // take apart the implication so dtor won't do anything
-  while (allFacts.conjuncts.isNotEmpty()) {
-    allFacts.conjuncts.removeFirst();
+  catch (...) {
+    breaker();      // automatic breakpoint when in debugger
+
+    // take apart implication in this case too
+    allFacts.conjuncts.removeAll_dontDelete();
+    implication.premise = NULL;
+    implication.conclusion = NULL;
+    throw;
   }
-  implication.premise = NULL;
-  implication.conclusion = NULL;
 
   return ret;
 }

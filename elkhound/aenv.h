@@ -52,11 +52,21 @@ private:     // data
   // to abstract domain values (AbsVariable*)
   OwnerHashTable<AbsVariable> bindings;
 
-  // (owner of list of owners) set of known facts, as a big
-  // conjunction; these are the facts known from the *path*, so they
-  // are never rescinded (until the entire deck is cleared for a new
-  // path)
-  P_and *pathFacts;
+  // set of facts that are applicable to all paths in the current
+  // function; these are typically facts derived from the types of
+  // the variables mentioned in the function
+  ObjList<Predicate> funcFacts;
+  
+  // set of facts known along the current path; it's a pointer so I
+  // can push them onto the pathFactsStack; when new facts are
+  // introduced, they go into 'pathFacts'
+  ObjList<Predicate> *pathFacts;       // (owner)
+
+  // stack of path facts (push=prepend, pop=removeFirst); everything
+  // in the stack is considered a known fact for proving purposes;
+  // this stack is often empty (therefore only 'pathFacts' has useful
+  // information)
+  ObjList< ObjList<Predicate> > pathFactsStack;
 
   // (owner of list of serfs) stack of facts derived from where we are
   // in an expression, e.g. if I see "a ==> b" then I'll put "a" here
@@ -99,8 +109,9 @@ public:      // data
   int failedProofs;
 
   // nominally, this is 0; when we discover that our assumptions are
-  // inconsistent, this is set to 1; a slightly clever scheme allows
-  // tracking of inconsistency across push/popFact
+  // inconsistent, this is set to 1 (actually, incremented); a
+  // slightly clever scheme allows tracking of inconsistency across
+  // push/popFact (i.e. this is sometimes > 1)
   int inconsistent;
 
 private:     // funcs
@@ -114,8 +125,12 @@ public:      // funcs
   AEnv(StringTable &table, Variable const *mem);
   ~AEnv();
 
-  // forget everything
-  void clear();
+  // prepare for a new path; forget everything that was particular
+  // to the last path analyzed
+  void newPath();
+
+  // similarly for an entirely new function
+  void newFunction(TF_func const *newFunc);
 
   // set/get variable values
   void set(Variable const *var, AbsValue *value);
@@ -165,17 +180,24 @@ public:      // funcs
   // fact stack manipulation; this is a bit of a hack for now; better would
   // be to keep a true stack internal to AEnv instead of exporting things
   // like list lengths..
-  int factStackDepth() const;
-  void popRecentFacts(int prevDepth, P_and *dest);
+  //int factStackDepth() const;
+  //void popRecentFacts(int prevDepth, P_and *dest);
+
+  // push a new frame of path facts
+  void pushPathFactsFrame();
   
+  // pop the most recent frame; yields an owner pointer
+  ObjList<Predicate> *popPathFactsFrame();
+
   // transfer to 'newFacts' any facts in 'pathFacts' that refer to anything
   // in 'variables'; only look at facts whose index in 'pathFacts' is
   // 'prevDepth' or greater
-  void transferDependentFacts(ASTList<AVvar> const &variables,
-                              int prevDepth, P_and *newFacts);
+  //void transferDependentFacts(ASTList<AVvar> const &variables,
+  //                            int prevDepth, P_and *newFacts);
 
-  void pushFact(Predicate * /*serf*/ pred);
-  void popFact();      // must pop before corresponding 'pred' is deleted
+  // manipulate the stack of expression-specific facts
+  void pushExprFact(Predicate * /*serf*/ pred);
+  void popExprFact();      // must pop before corresponding 'pred' is deleted
 
   // proof obligation; nonzero return means predicate proved, and in particular
   // PR_INCONSISTENT means *any* predicate can be proved because assumptions
@@ -224,5 +246,8 @@ public:      // funcs
   // debugging
   void print();
 };
+
+// utility
+//void addFactsToConjunction(ObjList<Predicate> const &source, P_and &dest);
 
 #endif // AENV_H

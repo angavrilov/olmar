@@ -59,7 +59,7 @@ void TF_func::vcgen(AEnv &env) const
     return;
   }
 
-  env.currentFunc = this;
+  env.newFunction(this);
   FunctionType const &ft = *(ftype());
 
   int numRoots = roots.count();
@@ -71,7 +71,7 @@ void TF_func::vcgen(AEnv &env) const
   // synthesized logic variable for return value
   env.result = nameParams->decl->asD_func()->result;
 
-  // for each path...
+  // for each root...
   int rootIndex=0;
   SFOREACH_OBJLIST(Statement, roots, rootIter) {
     Statement const *root = rootIter.data();
@@ -92,7 +92,7 @@ void TF_func::vcgen(AEnv &env) const
 
       // ----------- build the abstract environment ----------
       // clear anything left over in env
-      env.clear();
+      env.newPath();
 
       // ------------- establish set of known facts ---------------
       // add the path's start predicate as an assumption
@@ -1119,17 +1119,17 @@ Predicate *E_binary::vcgenPred(AEnv &env, int path) const
 
       Predicate *rhs;
       if (op != BIN_OR) {
-        env.pushFact(lhs);
+        env.pushExprFact(lhs);
         rhs = e2->vcgenPred(env, 0);
-        env.popFact();
+        env.popExprFact();
       }
       else {
         // for "or", assume the negation
         P_not notLHS(lhs);
         try {
-          env.pushFact(&notLHS);
+          env.pushExprFact(&notLHS);
           rhs = e2->vcgenPred(env, 0);
-          env.popFact();
+          env.popExprFact();
         }
         catch (...) {
           notLHS.p = NULL;
@@ -1278,25 +1278,60 @@ Predicate *E_quantifier::vcgenPred(AEnv &env, int path) const
       ret->variables.append(env.get(var)->asAVvar());
     }
   }
-
-  // remember how long facts list was before; this is all such
-  // a massive hack...
-  int prevDepth = env.factStackDepth();
+  
+  // make a new list of facts, into which path-facts will be
+  // accumulated when they are generated inside the body
+  env.pushPathFactsFrame();
 
   // analyze the body
-    // OLD:
-    // this will cause all the quantified
-    // variables to be instantiated in AEnv::get
   Predicate *body = pred->vcgenPred(env, path);
 
-  #if 1
-  // search the fact list for anything which refers to the
-  // quantified variables, and add them to a separate fact
-  // list which will be associated with the quantified body
-  P_and *newFacts = new P_and(new ASTList<Predicate>);
-  env.transferDependentFacts(ret->variables, prevDepth, newFacts);
+  // pop off that new frame so we can look at what was adde
+  ObjList<Predicate> *localFacts = env.popPathFactsFrame();    // (owner)
 
-  if (newFacts->conjuncts.isNotEmpty()) {
+  // search the local fact list for anything which refers to the
+  // quantified variables; if we find a fact which does *not*
+  // refer to them, put that into the outer path-facts
+  ObjListMutator<Predicate> factIter(*localFacts);
+  while (!factIter.isDone()) {
+    Predicate *fact = factIter.data();
+
+    // does this fact refer to any of the variables in 'ret->variables'?
+    bool refers = false;
+    FOREACH_ASTLIST(AVvar, ret->variables, varIter) {
+      AVvar const *var = varIter.data();
+
+      // does it refer to 'var'?
+      if (predicateRefersToAV(fact, var)) {
+        // yes; fine, will leave it here
+        refers = true;
+        break;
+      }                    
+    }
+    
+    if (!refers) {
+      // the fact doesn't refer to any quantified variables; currently
+      // this happens when type-related facts happen to get introduced
+      // while inside a quantifier; that will be fixed soon, but I'll
+      // leave the logic operational; move this fact to the outer
+      // path-facts
+      env.addFact(factIter.remove(),   // advances factIter
+                  "reason lost; was inside a quantifier");
+    }
+    else {
+      // simple advance
+      factIter.adv();
+    }
+  }
+
+  // now, associate any facts remaining in 'localFacts' with the
+  // quantified body
+  if (localFacts->isNotEmpty()) {
+    P_and *newFacts = new P_and(new ASTList<Predicate>);
+    while (localFacts->isNotEmpty()) {
+      newFacts->conjuncts.append(localFacts->removeFirst());
+    }
+    
     if (forall) {
       // if the quantifier is a forall, then we construct an implication
       // so the body can assume the facts we've pushed
@@ -1310,13 +1345,9 @@ Predicate *E_quantifier::vcgenPred(AEnv &env, int path) const
       body = newFacts;
     }
   }
-  else {
-    // no dependent facts
-    delete newFacts;
-  }    
-  #endif // 0
+  delete localFacts;
 
-  // attach the body to the quantifier
+  // attach the body to the quantifier node itself
   ret->body = body;
 
   return ret;
