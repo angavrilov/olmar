@@ -290,4 +290,24 @@ public:
   void postvisitInitializer(Initializer *in);
 };
 
+
+// This visitor is used when we clone an AST node (and its children)
+// that contains Expressions that need to have their types
+// subsequently cloned.  By doing this, we avoid mentioning the type
+// factory in the Expression custom clone method.
+class CloneExprTypesVisitor : public ASTTemplVisitor {
+  public:
+  TypeFactory &tfac;
+  explicit CloneExprTypesVisitor(TypeFactory &tfac0)
+    : tfac(tfac0)
+  {}
+  private:                      // prohibit
+  explicit CloneExprTypesVisitor(CloneExprTypesVisitor &other);
+
+  public:
+  // ASTVisitor funcs
+  bool visitExpression(Expression *e);
+};
+
+
 #endif // CC_ELABORATE_H

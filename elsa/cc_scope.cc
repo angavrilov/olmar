@@ -1247,6 +1247,10 @@ void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &ar
       sb << "OBJECT-" << mangle(iter.data()->value.v->type);
       break;
 
+    case STemplateArgument::STA_DEPEXPR: // value-dependent expression
+      sb << "DEPEXPR-" << mangle(iter.data()->value.e->type);
+      break;
+
     case STemplateArgument::STA_TEMPLATE: // template argument (not implemented)
       xfailure("STA_TEMPLATE is not implemented");
       break;

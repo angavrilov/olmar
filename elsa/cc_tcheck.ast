@@ -453,7 +453,11 @@ class Expression {
   // ST_ERROR, in which case a subsequent attempt to typecheck the
   // same expression should stop and look for an ambiguous alt.
   public Type *type = NULL;
-  custom clone { ret->type = type; }
+  custom clone {
+    // this is a violation of the cloning invarant, but it gets fixed
+    // with CloneExprTypesVisitor after the AST has been fully cloned
+    ret->type = type;
+  }
 
   // make the API for getting the type identical to that of FullExpression
   public Type *getType() { return type; };

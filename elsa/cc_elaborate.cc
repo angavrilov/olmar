@@ -325,7 +325,7 @@ E_constructor *ElabVisitor::makeCtorExpr(
   xassert(target->type->isReference());
 
   E_constructor *ector0 = new E_constructor(new TS_type(loc, type), args);
-  ector0->type = type;
+  ector0->type = tfac.cloneType(type);
   ector0->ctorVar = ctor;
   ector0->artificial = true;
   ector0->retObj = target;
@@ -384,7 +384,13 @@ FakeList<ArgExpression> *ElabVisitor::cloneExprList(FakeList<ArgExpression> *arg
 
   if (cloneDefunctChildren) {
     FAKELIST_FOREACH(ArgExpression, args0, iter) {
-      ret = ret->prepend(iter->clone());
+      // clone the AST node
+      ArgExpression *argExpr0 = iter->clone();
+      // clone the types of any expressions
+      CloneExprTypesVisitor ctv(tfac);
+      argExpr0->traverse(ctv);
+      // use the clone
+      ret = ret->prepend(argExpr0);
     }
     return ret->reverse();
   }
@@ -398,7 +404,13 @@ FakeList<ArgExpression> *ElabVisitor::cloneExprList(FakeList<ArgExpression> *arg
 Expression *ElabVisitor::cloneExpr(Expression *e)
 {
   if (cloneDefunctChildren) {
-    return e->clone();
+    // clone the AST node
+    Expression *expr0 = e->clone();
+    // clone the types of any expressions
+    CloneExprTypesVisitor ctv(tfac);
+    expr0->traverse(ctv);
+    // use the clone
+    return expr0;
   }
   else {
     return NULL;
@@ -1994,6 +2006,14 @@ void ElabVisitor::postvisitInitializer(Initializer *in)
   if (in->isIN_expr() || in->isIN_ctor()) {
     pop(in->annot);
   }
+}
+
+
+// ------------------------ CloneExprTypesVisitor --------------
+
+bool CloneExprTypesVisitor::visitExpression(Expression *e) {
+  e->type = tfac.cloneType(e->type);
+  return true;
 }
 
 
