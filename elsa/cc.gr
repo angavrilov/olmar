@@ -2153,8 +2153,21 @@ nonterm(TemplateArgument*) TemplateArgument {
   fun keep(n) { return n!=NULL; }
 
   -> t:TypeId               { return new TA_type(t); }
-
-  -> e:AssignmentExpression {
+  
+  // this is the correct syntax, but t0180.cc doesn't work at the
+  // moment if I allow it
+  //-> e:AssignmentExpression
+    
+  // as an experiment, let's use the g++ approach of only allowing
+  // expressions with toplevel operators above '<', '>' in precedence
+  //
+  // well, the experiment is a success: all ambiguities related to
+  // template arguments are removed!
+  //
+  // it's not correct of course, but fixing it means messing with the
+  // representation of template arguments and I want to wait on that
+  // until Daniel's recent changes are committed
+  -> e:BinExp_high {
        if (e->hasUnparenthesizedGT()) {
          // this is the wrong interpretation because template argument
          // expressions aren't allowed to have unparenthesized
