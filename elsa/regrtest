@@ -863,7 +863,7 @@ testparse d0124.cc
 
 testparse k0001.cc #"left side of .* must be a class or reference to a class"
 testparse k0002.cc #"template function declared in another class (as a friend)"
-failparse k0003.cc "template argument from static const member of template class"
+testparse k0003.cc #"template argument from static const member of template class"
 failparse k0004.cc "non-typename template argument"
 failparse k0005.cc "declaring a constructor with class name"
 failparse k0005a.cc "declaring variables and member functions with class name"

@@ -2702,6 +2702,12 @@ void Env::setSTemplArgFromExpr
 {
   // see cppstd 14.3.2 para 1
 
+  if (expr->type->containsGeneralizedDependent()) {
+    // then certainly the value is dependent too, right?  in/k0003.cc
+    sarg.setDepExpr(expr);
+    return;
+  }
+
   if (expr->type->isIntegerType() ||
       expr->type->isBool() ||
       expr->type->isEnumType()) {
