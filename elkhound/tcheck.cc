@@ -242,9 +242,9 @@ Type const *TS_enumSpec::tcheck(Env &env)
 // -------------------- Declarator -------------------
 Type const *Declarator::tcheck(Env &env, Type const *base, DeclFlags dflags)
 {
-  type = decl->tcheck(env, base, dflags);
+  type = decl->tcheck(env, base, dflags, this);
   name = decl->getName();
-  
+
   if (init) {
     // verify the initializer is well-typed, given the type
     // of the variable it initializes
@@ -255,7 +255,7 @@ Type const *Declarator::tcheck(Env &env, Type const *base, DeclFlags dflags)
 }
 
 
-Type const *IDeclarator::tcheck(Env &env, Type const *base, DeclFlags dflags)
+Type const *IDeclarator::tcheck(Env &env, Type const *base, DeclFlags dflags, Declarator *declarator)
 {
   FOREACH_ASTLIST(PtrOperator, stars, iter) {
     // the list is left-to-right, so the first one we encounter is
@@ -267,13 +267,13 @@ Type const *IDeclarator::tcheck(Env &env, Type const *base, DeclFlags dflags)
   }
 
   // call inner function
-  return itcheck(env, base, dflags);
+  return itcheck(env, base, dflags, declarator);
 }
 
 
-Type const *D_name::itcheck(Env &env, Type const *base, DeclFlags dflags)
+Type const *D_name::itcheck(Env &env, Type const *base, DeclFlags dflags, Declarator *declarator)
 {
-  trace("tcheck") 
+  trace("tcheck")
     << "found declarator name: " << (name? name : "(null)")
     << ", type is " << base->toCString() << endl;
 
@@ -288,7 +288,8 @@ Type const *D_name::itcheck(Env &env, Type const *base, DeclFlags dflags)
       env.addTypedef(name, base);
     }
     else {
-      env.addVariable(name, dflags, base);
+      Variable *v = env.addVariable(name, dflags, base);
+      v->declarator = declarator;
     }
   }
 
@@ -296,7 +297,7 @@ Type const *D_name::itcheck(Env &env, Type const *base, DeclFlags dflags)
 }
 
 
-Type const *D_func::itcheck(Env &env, Type const *rettype, DeclFlags dflags)
+Type const *D_func::itcheck(Env &env, Type const *rettype, DeclFlags dflags, Declarator *declarator)
 {
   FunctionType *ft = env.makeFunctionType(rettype);
 
@@ -359,11 +360,11 @@ Type const *D_func::itcheck(Env &env, Type const *rettype, DeclFlags dflags)
 
   // pass the constructed function type to base's tcheck so it can
   // further build upon the type
-  return base->tcheck(env, ft, dflags);
+  return base->tcheck(env, ft, dflags, declarator);
 }
 
 
-Type const *D_array::itcheck(Env &env, Type const *elttype, DeclFlags dflags)
+Type const *D_array::itcheck(Env &env, Type const *elttype, DeclFlags dflags, Declarator *declarator)
 {
   ArrayType *at;
   if (size) {
@@ -373,14 +374,15 @@ Type const *D_array::itcheck(Env &env, Type const *elttype, DeclFlags dflags)
     at = env.makeArrayType(elttype);
   }
 
-  return base->tcheck(env, at, dflags);
+  return base->tcheck(env, at, dflags, declarator);
 }
 
 
-Type const *D_bitfield::itcheck(Env &env, Type const *base, DeclFlags dflags)
+Type const *D_bitfield::itcheck(Env &env, Type const *base, DeclFlags dflags, Declarator *declarator)
 {
-  cout << "tcheck: found bitfield declarator name: "
-       << (name? name : "(null)") << endl;
+  trace("tcheck")
+    << "found bitfield declarator name: "
+    << (name? name : "(null)") << endl;
   xfailure("bitfields not supported yet");
   return NULL;    // silence warning
 }
@@ -676,7 +678,13 @@ Type const *E_addrOf::itcheck(Env &env)
   Type const *t = expr->tcheck(env);
   
   // TODO: check that 'expr' is an lvalue
-  
+
+  if (expr->isE_variable()) {
+    // mark the variable as having its address taken
+    Variable *v = env.getVariable(expr->asE_variable()->name);
+    v->declarator->addrTaken = true;
+  }
+
   return env.makePtrOperType(PO_POINTER, CV_NONE, t);
 }
 

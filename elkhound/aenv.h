@@ -7,16 +7,19 @@
 #include "strsobjdict.h"   // StringSObjDict
 #include "strtable.h"      // StringRef
 
-class IntValue;            // absval.ast
+class AbsValue;            // absval.ast
 class P_and;               // predicate.ast
 
 class AEnv {
 private:     // data
   // environment maps program variable names to abstract domain values
-  StringSObjDict<IntValue> ints;
+  StringSObjDict<AbsValue> ints;
 
   // (owner) set of known facts, as a big conjunction
   P_and *facts;
+
+  // map of address-taken variables to their addresses
+  StringSObjDict<AbsValue> memVars;
 
   // monotonic integer for making new names
   int counter;
@@ -33,27 +36,45 @@ public:      // funcs
   void clear();
 
   // set/get integer values
-  void set(StringRef name, IntValue *value);
-  IntValue *get(StringRef name);
+  void set(StringRef name, AbsValue *value);
+  AbsValue *get(StringRef name);
 
   // make and return a fresh variable reference; the string
   // is attached to indicate what this variable stands for,
   // or why it was created
-  IntValue *freshIntVariable(char const *why);
+  AbsValue *freshVariable(char const *why);
+
+  // make up a name for the address of the named variable, and add
+  // it to the list of known address-taken variables; retuns the
+  // AVvar used to represent the address
+  AbsValue *addMemVar(StringRef name);
+
+  // query whether something is a memory variable, and if so
+  // retrieve the associated address
+  bool isMemVar(StringRef name) const;
+  AbsValue *getMemVarAddr(StringRef name);
+
+  // set/get the current abstract value of memory
+  AbsValue *getMem() { return get(str("mem")); }
+  void setMem(AbsValue *newMem) { set(str("mem"), newMem); }
 
   // proof assumption
-  void addFact(IntValue *expr);
+  void addFact(AbsValue *expr);
 
   // proof obligation
-  void prove(IntValue const *expr);
+  void prove(AbsValue const *expr);
 
   // pseudo-memory-management; semantics not very precise at the moment
-  IntValue *grab(IntValue *v);
-  void discard(IntValue *v);
-  IntValue *dup(IntValue *v);
+  AbsValue *grab(AbsValue *v);
+  void discard(AbsValue *v);
+  AbsValue *dup(AbsValue *v);
 
   // misc
   StringRef str(char const *s) const { return stringTable.add(s); }
+  
+  // syntactic sugar for absvals
+  AbsValue *avSelect(AbsValue *mem, AbsValue *addr);
+  AbsValue *avUpdate(AbsValue *mem, AbsValue *addr, AbsValue *newValue);
 
   // debugging
   void print();

@@ -10,7 +10,7 @@ verbatim {
   class FunctionType;
 
   class AEnv;                // aenv.h
-  class IntValue;            // absval.ast
+  class AbsValue;            // absval.ast
 } // end verbatim
 
 // included in generated source file
@@ -127,7 +127,8 @@ class Declarator (
 ) {
   public Type const *type;             // computed type for this declarator
   public StringRef name;               // name of thing being introduced
-  ctor { type=NULL; name=NULL; };
+  public bool addrTaken;               // true if '&' is applied to this variable
+  ctor { type=NULL; name=NULL; addrTaken=false; };
 
   // returns the type denoted by the combination of 'base' and the
   // type constructors in this declarator
@@ -145,13 +146,15 @@ class Declarator (
 class IDeclarator {
   public ASTList<PtrOperator> stars;   // pointer constructors, left to right
 
-  // external interface; adds 'stars' before calling 'itcheck'
-  public Type const *tcheck(Env &env, Type const *base, DeclFlags dflags);
+  // external interface; adds 'stars' before calling 'itcheck'; the
+  // toplevel 'declarator' is passed along for annotation purposes
+  public Type const *tcheck(Env &env, Type const *base, DeclFlags dflags,
+                            Declarator *declarator);
 
   // returns the type denoted by the combination of 'base' and the
   // type constructors in this declarator (recursively)
   pure_virtual Type const *
-    itcheck(Env &env, Type const *base, DeclFlags dflags);
+    itcheck(Env &env, Type const *base, DeclFlags dflags, Declarator *declarator);
 
   // dig down and find the name being declared; may return NULL
   pure_virtual StringRef getName() const;
@@ -232,7 +235,7 @@ class Expression {
   // representing this expression's result, and also update the environment
   // to reflect any side effects; for now, will return NULL if the value
   // is not an integer type
-  pure_virtual IntValue *vcgen(AEnv &env) const;
+  pure_virtual AbsValue *vcgen(AEnv &env) const;
 
   -> E_intLit(int i);
   -> E_floatLit(float f);
@@ -278,7 +281,7 @@ class Initializer {
   pure_virtual void tcheck(Env &env, Type const *type);
 
   // compute an abstract value for this initializer
-  pure_virtual IntValue *vcgen(AEnv &env, Type const *type) const;
+  pure_virtual AbsValue *vcgen(AEnv &env, Type const *type) const;
 
   -> IN_expr(Expression e);
   -> IN_compound(ASTList<Initializer> inits);

@@ -1,0 +1,14 @@
+; bgpred.sx
+; background predicate for running Simplify
+
+(PROMPT_OFF)
+(BG_PUSH (AND
+
+  ; reading from the same location as was last written
+  (FORALL (mem addr value)
+    (EQ
+      (select (update mem addr value) addr)
+      value
+    ))
+
+))

@@ -11,7 +11,8 @@
 Variable::Variable(StringRef n, DeclFlags d, Type const *t)
   : name(n),
     declFlags(d),
-    type(t)
+    type(t),
+    declarator(NULL)
 {
   xassert(type);        // (just a stab in the dark debugging effort)
 }

@@ -12,6 +12,7 @@
 #include "sobjlist.h"     // SObjList
 
 class StringTable;        // strtable.h
+class Declarator;         // c.ast
 
 
 // thrown by some error functions
@@ -28,6 +29,7 @@ public:     // data
   StringRef name;            // declared name
   DeclFlags declFlags;       // inline, etc.
   Type const *type;          // type of this variable
+  Declarator *declarator;    // (serf) AST declarator node that introduced this name
 
 public:     // funcs
   Variable(StringRef n, DeclFlags d, Type const *t);

@@ -9,6 +9,13 @@
 #include "trace.h"              // tracingSys
 
 
+// use for places that aren't implemented yet
+AbsValue *avTodo()
+{
+  return new AVint(12345678);   // hopefully recognizable
+}
+
+
 // ------------------- TranslationUnit ---------------------
 void TranslationUnit::vcgen(AEnv &env) const
 {
@@ -37,7 +44,7 @@ void TF_func::vcgen(AEnv &env) const
     if (p->name && p->type->isIntegerType()) {
       // the function parameter's initial value is represented
       // by a logic variable of the same name
-      env.set(p->name, new IVvar(p->name,
+      env.set(p->name, new AVvar(p->name,
         stringc << "initial value of parameter " << p->name));
     }
   }
@@ -50,7 +57,7 @@ void TF_func::vcgen(AEnv &env) const
   // add 'result' to the environment so we can record what value
   // is actually returned
   if (!ft.retType->isVoid()) {
-    env.set(env.str("result"), env.freshIntVariable("return value"));
+    env.set(env.str("result"), env.freshVariable("return value"));
   }
 
   // now interpret the function body
@@ -80,8 +87,9 @@ void Declaration::vcgen(AEnv &env) const
 
 void Declarator::vcgen(AEnv &env) const
 {
-  if (name && type->isIntegerType()) {
-    IntValue *value;
+  if (name) {
+    // make up a name for the initial value
+    AbsValue *value;
     if (init) {
       // evaluate 'init' to an abstract value; the initializer
       // will need to know which type it's constructing
@@ -90,10 +98,23 @@ void Declarator::vcgen(AEnv &env) const
     else {
       // make up a new name for the uninitialized value
       // (if it's global we get to assume it's 0... not implemented..)
-      value = new IVvar(name, stringc << "UNINITialized value of var " << name);
+      value = new AVvar(name, stringc << "UNINITialized value of var " << name);
+    }
+    
+    if (addrTaken) {
+      // model this variable as a location in memory; make up a name
+      // for its address
+      AbsValue *addr = env.addMemVar(name);
+
+      // state that, right now, that memory location contains 'value'
+      env.addFact(new AVbinary(value, BIN_EQUAL,
+        env.avSelect(env.getMem(), addr)));
     }
 
-    env.set(name, value);
+    else {
+      // model the variable as a simple, named, unaliasable variable
+      env.set(name, value);
+    }
   }
 }
 
@@ -149,7 +170,7 @@ void S_decl::vcgen(AEnv &env) const
 void S_assert::vcgen(AEnv &env) const
 {                                
   // map the expression to my abstract domain
-  IntValue *v = expr->vcgen(env);            
+  AbsValue *v = expr->vcgen(env);            
   xassert(v);     // already checked it was boolean
 
   // try to prove it (is not equal to 0)
@@ -159,7 +180,7 @@ void S_assert::vcgen(AEnv &env) const
 void S_assume::vcgen(AEnv &env) const
 {
   // evaluate
-  IntValue *v = expr->vcgen(env);            
+  AbsValue *v = expr->vcgen(env);            
   xassert(v); 
   
   // remember it as a known fact
@@ -173,52 +194,53 @@ void S_invariant::vcgen(AEnv &env) const
 
 
 // ---------------------- Expression -----------------
-IntValue *E_intLit::vcgen(AEnv &env) const
+AbsValue *E_intLit::vcgen(AEnv &env) const
 {
-  return env.grab(new IVint(i));
+  return env.grab(new AVint(i));
 }
 
-IntValue *E_floatLit::vcgen(AEnv &env) const { return NULL; }
-IntValue *E_stringLit::vcgen(AEnv &env) const { return NULL; }
+AbsValue *E_floatLit::vcgen(AEnv &env) const { return avTodo(); }
+AbsValue *E_stringLit::vcgen(AEnv &env) const { return avTodo(); }
 
-IntValue *E_charLit::vcgen(AEnv &env) const
+AbsValue *E_charLit::vcgen(AEnv &env) const
 {
-  return env.grab(new IVint(c));
+  return env.grab(new AVint(c));
 }
 
-IntValue *E_structLit::vcgen(AEnv &env) const { return NULL; }
+AbsValue *E_structLit::vcgen(AEnv &env) const { return avTodo(); }
 
-IntValue *E_variable::vcgen(AEnv &env) const
+AbsValue *E_variable::vcgen(AEnv &env) const
 {
-  if (type->isIntegerType()) {
-    // look up the current abstract value for this variable, and
-    // simply return that
+  if (!env.isMemVar(name)) {
+    // ordinary variable: look up the current abstract value for this
+    // variable, and simply return that
     return env.get(name);
   }
   else {
-    return NULL;
+    // memory variable: return an expression which will read it out of memory
+    return env.avSelect(env.getMem(), env.getMemVarAddr(name));
   }
 }
 
 
-IntValue *E_arrayAcc::vcgen(AEnv &env) const
+AbsValue *E_arrayAcc::vcgen(AEnv &env) const
 {
   // having a good answer here would require having an abstract value
   // to tell me about the structure of the array
   if (type->isIntegerType()) {
-    return env.freshIntVariable(stringc
+    return env.freshVariable(stringc
              << "array access: " << toString());
   }
   else {
-    return NULL;
+    return avTodo();
   }
 }
 
 
-IntValue *E_funCall::vcgen(AEnv &env) const
+AbsValue *E_funCall::vcgen(AEnv &env) const
 {
   // evaluate the argument expressions
-  SObjList<IntValue> argExps;
+  SObjList<AbsValue> argExps;
   FOREACH_ASTLIST(Expression, args, iter) {
     // vcgen might return NULL, that's ok for an SObjList
     argExps.prepend(iter.data()->vcgen(env));
@@ -236,7 +258,7 @@ IntValue *E_funCall::vcgen(AEnv &env) const
   AEnv newEnv(env.stringTable);
 
   // bind the parameters in the new environment
-  SObjListMutator<IntValue> argExpIter(argExps);
+  SObjListMutator<AbsValue> argExpIter(argExps);
   FOREACH_OBJLIST(FunctionType::Param, ft.params, paramIter) {
     // bind the names to the expressions that are passed; only
     // bind if the expression is not NULL
@@ -256,7 +278,7 @@ IntValue *E_funCall::vcgen(AEnv &env) const
   if (ft.precondition) {
     // finally, interpret the precondition in the parameter-only
     // environment, to arrive at a predicate to prove
-    IntValue *predicate = ft.precondition->vcgen(newEnv);
+    AbsValue *predicate = ft.precondition->vcgen(newEnv);
     xassert(predicate);      // tcheck should have verified we can represent it
 
     // prove this predicate; the assumptions from the *old* environment
@@ -269,9 +291,9 @@ IntValue *E_funCall::vcgen(AEnv &env) const
 
   // ----------------- assume postcondition ---------------
   // make a new variable to stand for the value returned
-  IntValue *result = NULL;
+  AbsValue *result = avTodo();
   if (type->isIntegerType()) {
-    result = env.freshIntVariable(stringc
+    result = env.freshVariable(stringc
                << "function call result: " << toString());
 
     // add this to the mini environment so if the programmer talks
@@ -284,7 +306,7 @@ IntValue *E_funCall::vcgen(AEnv &env) const
 
   if (ft.postcondition) {
     // evaluate it
-    IntValue *predicate = ft.postcondition->vcgen(newEnv);
+    AbsValue *predicate = ft.postcondition->vcgen(newEnv);
     xassert(predicate);
     
     // assume it
@@ -296,89 +318,94 @@ IntValue *E_funCall::vcgen(AEnv &env) const
 }
 
 
-IntValue *E_fieldAcc::vcgen(AEnv &env) const
+AbsValue *E_fieldAcc::vcgen(AEnv &env) const
 {
   // good results here would require abstract values for structures
   if (type->isIntegerType()) {
-    return env.freshIntVariable(stringc
+    return env.freshVariable(stringc
              << "structure field access: " << toString());
   }
   else {
-    return NULL;
+    return avTodo();
   }
 }
 
 
-IntValue *E_unary::vcgen(AEnv &env) const
+AbsValue *E_unary::vcgen(AEnv &env) const
 {
   // TODO: deal with ++, --
   
   if (op == UNY_SIZEOF) {
-    return env.grab(new IVint(expr->type->reprSize()));
+    return env.grab(new AVint(expr->type->reprSize()));
   }
   else {
-    return env.grab(new IVunary(op, expr->vcgen(env)));
+    return env.grab(new AVunary(op, expr->vcgen(env)));
   }
 }
 
-IntValue *E_binary::vcgen(AEnv &env) const
+AbsValue *E_binary::vcgen(AEnv &env) const
 {
   // TODO: deal with &&, ||
-  return env.grab(new IVbinary(e1->vcgen(env), op, e2->vcgen(env)));
+  return env.grab(new AVbinary(e1->vcgen(env), op, e2->vcgen(env)));
 }
 
 
-IntValue *E_addrOf::vcgen(AEnv &env) const
+AbsValue *E_addrOf::vcgen(AEnv &env) const
 {
-  // result is always of pointer type
-  return NULL;
+  if (expr->isE_variable()) {                            
+    return env.getMemVarAddr(expr->asE_variable()->name);
+  }
+  else {
+    cout << "warning: unhandled addrof: " << toString() << endl;
+    return avTodo();
+  }
 }
 
 
-IntValue *E_deref::vcgen(AEnv &env) const
+AbsValue *E_deref::vcgen(AEnv &env) const
 {
   // abstract knowledge about memory contents, possibly aided by
   // detailed knowledge of what this pointer points at, could yield
   // something more specific here
   if (type->isIntegerType()) {
-    return env.freshIntVariable(stringc
+    return env.freshVariable(stringc
              << "pointer read: " << toString());
   }
   else {
-    return NULL;
+    return avTodo();
   }
 }
 
 
-IntValue *E_cast::vcgen(AEnv &env) const
+AbsValue *E_cast::vcgen(AEnv &env) const
 {
   // I can sustain integer->integer casts..
   if (type->isIntegerType() && expr->type->isIntegerType()) {
     return expr->vcgen(env);
   }
   else {
-    return NULL;
+    return avTodo();
   }
 }
 
 
-IntValue *E_cond::vcgen(AEnv &env) const
+AbsValue *E_cond::vcgen(AEnv &env) const
 {
   // for now I'll assume there are no side effects in the branches;
   // same assumption applies to '&&' and '||' above
-  return env.grab(new IVcond(cond->vcgen(env), th->vcgen(env), el->vcgen(env)));
+  return env.grab(new AVcond(cond->vcgen(env), th->vcgen(env), el->vcgen(env)));
 }
 
 
-IntValue *E_gnuCond::vcgen(AEnv &env) const
+AbsValue *E_gnuCond::vcgen(AEnv &env) const
 {
   // again on the assumption there are no side effects in the 'else' branch
   // TODO: make a deep-copier for astgen
-  return NULL;
+  return avTodo();
 }
 
 
-IntValue *E_comma::vcgen(AEnv &env) const
+AbsValue *E_comma::vcgen(AEnv &env) const
 {
   // evaluate and discard
   env.discard(e1->vcgen(env));
@@ -388,40 +415,58 @@ IntValue *E_comma::vcgen(AEnv &env) const
 }
 
 
-IntValue *E_sizeofType::vcgen(AEnv &env) const
+AbsValue *E_sizeofType::vcgen(AEnv &env) const
 {
-  return env.grab(new IVint(size));
+  return env.grab(new AVint(size));
 }
 
 
-IntValue *E_assign::vcgen(AEnv &env) const
+AbsValue *E_assign::vcgen(AEnv &env) const
 {
-  IntValue *v = src->vcgen(env);
+  AbsValue *v = src->vcgen(env);
 
   // since I have no reasonable hold on pointers yet, I'm only
   // going to keep track of assignments to (integer) variables
-  if (target->isE_variable() && type->isIntegerType()) {
-    // this removes the old mapping
-    env.set(target->asE_variable()->name, v);
+  if (target->isE_variable()) {
+    StringRef name = target->asE_variable()->name;
+                                                  
+    if (!env.isMemVar(name)) {
+      // ordinary variable: replace the mapping
+      env.set(name, v);
+    }
+    else {
+      // memory variable: memory changes
+      env.setMem(env.avUpdate(env.getMem(), env.getMemVarAddr(name), v));
+    }
+  }
+  else if (target->isE_deref()) {
+    // get an abstract value for the address being modified
+    AbsValue *targetAddr = target->asE_deref()->ptr->vcgen(env);
+
+    // memory changes
+    env.setMem(env.avUpdate(env.getMem(), targetAddr, v));
+  }
+  else {
+    cout << "warning: unhandled assignment: " << toString() << endl;
   }
 
   return env.dup(v);
 }
 
 
-IntValue *E_arithAssign::vcgen(AEnv &env) const
+AbsValue *E_arithAssign::vcgen(AEnv &env) const
 {
-  IntValue *v = src->vcgen(env);
+  AbsValue *v = src->vcgen(env);
 
   // again, only support variables
   if (target->isE_variable()) {
     StringRef name = target->asE_variable()->name;
 
     // extract old value
-    IntValue *old = env.get(name);
+    AbsValue *old = env.get(name);
     
     // combine it
-    v = env.grab(new IVbinary(old, op, v));
+    v = env.grab(new AVbinary(old, op, v));
     
     // replace in environment
     env.set(name, v);
@@ -435,16 +480,16 @@ IntValue *E_arithAssign::vcgen(AEnv &env) const
 
 
 // --------------------- Initializer --------------------
-IntValue *IN_expr::vcgen(AEnv &env, Type const *) const
+AbsValue *IN_expr::vcgen(AEnv &env, Type const *) const
 {
   return e->vcgen(env);
 }
 
 
-IntValue *IN_compound::vcgen(AEnv &/*env*/, Type const */*type*/) const
+AbsValue *IN_compound::vcgen(AEnv &/*env*/, Type const */*type*/) const
 {
   // I have no representation for array and structure values
-  return NULL;
+  return avTodo();
 }
 
 

@@ -5,7 +5,7 @@ verbatim {
   #include "cc_flags.h"     // BinaryOp
 
   class stringBuilder;      // str.h
-  class IntValue;           // absval.ast
+  class AbsValue;           // absval.ast
 
   enum RelationOp {
     RE_EQUAL,       // ==
@@ -28,10 +28,10 @@ verbatim {
 }
 
 impl_verbatim {
-  // for debugPrint; IntValue doesn't have a convenient toString,
+  // for debugPrint; AbsValue doesn't have a convenient toString,
   // and the printing interface isn't really set up to call its
   // debugPrint method
-  string toString(IntValue const *v)
+  string toString(AbsValue const *v)
     { return stringc << (void*)v; }
 }
 
@@ -50,7 +50,7 @@ class Predicate {
 
   // arithmetic relation; perhaps I want to allow generalized
   // predicate symbols (but would Simplify accept them?)
-  -> P_relation(IntValue const *e1, RelationOp op, IntValue const *e2);
+  -> P_relation(AbsValue const *e1, RelationOp op, AbsValue const *e2);
 
   // distinction: leaving out for now
 
@@ -72,7 +72,7 @@ class Predicate {
 
 impl_verbatim {
   #include "str.h"                // stringBuilder
-  #include "absval.ast.gen.h"     // IntValue
+  #include "absval.ast.gen.h"     // AbsValue
 
   char const * const relationOpNames[NUM_RELATIONOPS] = {
     "==",

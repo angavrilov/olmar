@@ -30,10 +30,10 @@ bool runProver(char const *str)
     perror("close");
     exit(2);
   }
-  
-  
+
+
   // run Simplify on that file
-  int code = system(stringc << "Simplify < " << fname << " | grep Valid >/dev/null");
+  int code = system(stringc << "cat bgpred.sx " << fname << " | Simplify | grep Valid >/dev/null");
   
   
   // clean up the temp file

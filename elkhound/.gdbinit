@@ -3,7 +3,7 @@
 #set width 200
 
 file ccgr
-set args cc.bin vcgen/simple.c
+set args cc.bin vcgen/ptr.c
 
 #  break main
 #  break breaker

@@ -8,40 +8,50 @@ verbatim {
   class stringBuilder;      // str.h
 }
 
-class IntValue {
+class AbsValue {
   pure_virtual void toSexp(stringBuilder &sb) const;
 
   // logic variable: unknown but definite integer value;
   // 'why' states what this variable stands for, or why it was created
-  -> IVvar(StringRef name, string why);
+  -> AVvar(StringRef name, string why);
 
   // literal integer
-  -> IVint(int i);
+  -> AVint(int i);
 
   // arithmetic expressions built-in to the C language
-  -> IVunary(UnaryOp op, IntValue val);
-  -> IVbinary(IntValue v1, BinaryOp op, IntValue v2);
-  -> IVcond(IntValue cond, IntValue th, IntValue el);
+  -> AVunary(UnaryOp op, AbsValue val);
+  -> AVbinary(AbsValue v1, BinaryOp op, AbsValue v2);
+  -> AVcond(AbsValue cond, AbsValue th, AbsValue el);
 
   // function symbols, variously interpreted
-  -> IVfunc(StringRef func, ASTList<IntValue> args);
+  -> AVfunc(StringRef func, ASTList<AbsValue> args);
+}
+
+verbatim {              
+  // some syntactic sugar
+  AVfunc *avFunc1(StringRef func, AbsValue *a1);
+  AVfunc *avFunc2(StringRef func, AbsValue *a1, AbsValue *a2);
+  AVfunc *avFunc3(StringRef func, AbsValue *a1, AbsValue *a2, AbsValue *a3);
+  AVfunc *avFunc4(StringRef func, AbsValue *a1, AbsValue *a2, AbsValue *a3, AbsValue *a4);
+  AVfunc *avFunc5(StringRef func, AbsValue *a1, AbsValue *a2, AbsValue *a3, AbsValue *a4, AbsValue *a5);
 }
 
 
+// ------------------- implementation ----------------
 impl_verbatim {
   #include "str.h"          // stringBuilder
 
-  void IVvar::toSexp(stringBuilder &sb) const
+  void AVvar::toSexp(stringBuilder &sb) const
   {
     sb << (char const*)name;
   }
 
-  void IVint::toSexp(stringBuilder &sb) const
+  void AVint::toSexp(stringBuilder &sb) const
   {
     sb << i;
   }
 
-  void IVunary::toSexp(stringBuilder &sb) const
+  void AVunary::toSexp(stringBuilder &sb) const
   {
     static char const * const names[] = {
       "++", "--", "++", "--", "sizeof",    // should not be used
@@ -61,7 +71,7 @@ impl_verbatim {
     sb << ")";
   }
 
-  void IVbinary::toSexp(stringBuilder &sb) const
+  void AVbinary::toSexp(stringBuilder &sb) const
   {
     static char const * const names[] = {
       "bEqual",
@@ -95,7 +105,7 @@ impl_verbatim {
     sb << ")";
   }
 
-  void IVcond::toSexp(stringBuilder &sb) const
+  void AVcond::toSexp(stringBuilder &sb) const
   {
     sb << "(ifThenElse ";
     cond->toSexp(sb);
@@ -106,13 +116,64 @@ impl_verbatim {
     sb << ")";
   }
 
-  void IVfunc::toSexp(stringBuilder &sb) const
+  void AVfunc::toSexp(stringBuilder &sb) const
   {
     sb << "(" << func;
-    FOREACH_ASTLIST(IntValue, args, iter) {
+    FOREACH_ASTLIST(AbsValue, args, iter) {
       sb << " ";
       iter.data()->toSexp(sb);
     }
     sb << ")";
   }
+  
+  
+  // ------------ syntactic sugar ----------------
+  AVfunc *avFunc1(StringRef func, AbsValue *a1)
+  {
+    AVfunc *f = new AVfunc(func, NULL);
+    f->args.prepend(a1);
+    return f;
+  }
+
+  AVfunc *avFunc2(StringRef func, AbsValue *a1, AbsValue *a2)
+  {
+    xassert(a1 && a2);
+    AVfunc *f = new AVfunc(func, NULL);
+    f->args.prepend(a2);
+    f->args.prepend(a1);
+    return f;
+  }
+
+  AVfunc *avFunc3(StringRef func, AbsValue *a1, AbsValue *a2, AbsValue *a3)
+  {
+    xassert(a1 && a2 && a3);
+    AVfunc *f = new AVfunc(func, NULL);
+    f->args.prepend(a3);
+    f->args.prepend(a2);
+    f->args.prepend(a1);
+    return f;
+  }
+
+  AVfunc *avFunc4(StringRef func, AbsValue *a1, AbsValue *a2, AbsValue *a3, AbsValue *a4)
+  {
+    AVfunc *f = new AVfunc(func, NULL);
+    f->args.prepend(a4);
+    f->args.prepend(a3);
+    f->args.prepend(a2);
+    f->args.prepend(a1);
+    return f;
+  }
+
+  AVfunc *avFunc5(StringRef func, AbsValue *a1, AbsValue *a2, AbsValue *a3, AbsValue *a4, AbsValue *a5)
+  {
+    xassert(a1 && a2 && a3);
+    AVfunc *f = new AVfunc(func, NULL);
+    f->args.prepend(a5);
+    f->args.prepend(a4);
+    f->args.prepend(a3);
+    f->args.prepend(a2);
+    f->args.prepend(a1);
+    return f;
+  }
+
 }
