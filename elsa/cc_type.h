@@ -288,14 +288,16 @@ public:     // funcs
   CompoundType const *ifCompoundType() const;     // NULL or corresp. compound
   bool isOwnerPtr() const;
   
-  bool isCVAtomicType(AtomicType::Tag tag) const;
-  bool isTypeVariable() const { return isCVAtomicType(AtomicType::T_TYPEVAR); }
-
   // pointer/reference stuff
   bool isPointer() const;                // as opposed to reference or non-pointer
   bool isReference() const;
   bool isLval() const { return isReference(); }    // C terminology
   Type const *asRval() const;            // if I am a reference, return referrent type
+
+  bool isCVAtomicType(AtomicType::Tag tag) const;
+  bool isTypeVariable() const { return isCVAtomicType(AtomicType::T_TYPEVAR); }
+  
+  bool isTemplateFunction() const;
 
   ALLOC_STATS_DECLARE
 };

@@ -678,12 +678,6 @@ bool Type::isOwnerPtr() const
   return isPointer() && ((asPointerTypeC().cv & CV_OWNER) != 0);
 }
 
-bool Type::isCVAtomicType(AtomicType::Tag tag) const
-{
-  return isCVAtomicType() &&
-         asCVAtomicTypeC().atomic->getTag() == tag;
-}
-
 bool Type::isPointer() const
 {
   return isPointerType() && asPointerTypeC().op == PO_POINTER;
@@ -704,6 +698,19 @@ Type const *Type::asRval() const
   else {
     return this;
   }
+}
+
+
+bool Type::isCVAtomicType(AtomicType::Tag tag) const
+{
+  return isCVAtomicType() &&
+         asCVAtomicTypeC().atomic->getTag() == tag;
+}
+
+bool Type::isTemplateFunction() const
+{
+  return isFunctionType() &&
+         asFunctionTypeC().isTemplate();
 }
 
 

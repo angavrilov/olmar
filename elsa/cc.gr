@@ -248,7 +248,7 @@ nonterm[PQName*] UnqualifiedId {
   // the places that a destructor name can occur, since it avoids
   // an ambiguity with the "~" unary operator
 
-  //-> TemplateId ;
+  -> id:TemplateId                [ return id; ]
 }
 
 // optional qualifier sequence (with no bare "::"), then an
@@ -889,7 +889,7 @@ nonterm[PQName*] PQTypeName_ncc {
   -> n:TypeName                    [ return new PQ_name(n); ]
   -> q:TypeName "::" n:PQTypeName  [ return new PQ_qualifier(q, n); ]
 
-  //-> TemplateId ;
+  -> id:TemplateId                 [ return id; ]
 }
 
 
@@ -1640,6 +1640,7 @@ nonterm[TemplateParameter*] TemplateParameter {
   //-> ParameterDeclaration;
 }
 
+// called "TypeParameter" in std
 nonterm[TP_type*] TemplateTypeParameter {
   // for now, only allow some of these forms
   -> "class" i:IdentifierOpt                  [ return new TP_type(loc, i, NULL /*default*/); ]
@@ -1651,8 +1652,40 @@ nonterm[TP_type*] TemplateTypeParameter {
   //-> "template" "<" TemplateParameterList ">" "class" IdentifierOpt "=" IdExpression;
 }
 
+nonterm[FakeList<TemplateArgument>*] TemplateArgumentListOpt {
+  -> empty                       [ return FakeList<TemplateArgument>::emptyList(); ]
+  -> list:TemplateArgumentList   [ return list; ]
+}
 
-// TODO: template ids, arguments, etc.
+nonterm[PQName*] TemplateId {
+  -> n:Identifier "<" list:TemplateArgumentListOpt ">"
+       [ return new PQ_template(n, list); ]
+}
+
+nonterm[FakeList<TemplateArgument>*] TemplateArgumentList {
+  -> a:TemplateArgument
+       [ return FakeList<TemplateArgument>::makeList(a); ]
+  -> a:TemplateArgument "," list:TemplateArgumentList
+       [ return list->prepend(a); ]
+}
+
+nonterm[TemplateArgument*] TemplateArgument {
+  //-> AssignmentExpression;
+  
+  // this is the only one I want for now
+  -> t:TypeId    [ return new TA_type(t); ]
+
+  // is this for template args that are templates, or what?
+  //-> IdExpression;
+}
+
+//nonterm ExplicitInstantiation {
+//  -> "template" Declaration;
+//}
+
+//nonterm ExplicitSpecialization {
+//  -> "template" "<" ">" Declaration;
+//}
 
 
 // ------ A.13 Exception handling ------
