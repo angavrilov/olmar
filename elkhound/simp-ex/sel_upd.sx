@@ -185,3 +185,23 @@ valid "now it should work" (
       (selOffset mem_35 (sub addr_y_8 whole)))
 )
 
+bg_pop
+bg_pop
+
+
+; ------------------- firstIndexOf example ---------------
+bg_push (
+  (DISTINCT addr_y_8 0)
+  (uncheckedAccess mem_35)
+  (EQ y_9 (sel mem_35 addr_y_8))
+  (NEQ (firstIndexOf x_23) (firstIndexOf (sub addr_y_8 whole)))
+  (okSelOffset mem_35 x_23)
+  (EQ mem_36 (updOffset mem_35 x_23 (+ (selOffset mem_35 x_23) 1)))
+  (EQ x_23 (sub foo bar))
+)
+
+valid "unchanged" (
+  (EQ (selOffset mem_36 (sub addr_y_8 whole)) 
+      (selOffset mem_35 (sub addr_y_8 whole)))
+)
+

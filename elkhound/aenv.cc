@@ -243,7 +243,7 @@ AbsValue *AEnv::get(Variable const *var)
     if (!type->isArrayType()) {
       // state that, right now, that memory location contains 'value'
       addFact(P_equal(value, initialObject),
-              "initial value of memory variable");
+              "initial value of in-memory variable");
     }
     else {
       // will model array contents as elements in memory, rather
@@ -269,29 +269,47 @@ AbsValue *AEnv::get(Variable const *var)
     // caller knows that we're yielding the address, not the value,
     // since this is a memvar
     set(var, addr);       // need to associate this with the name too
+    addDeclarationFacts(var, initialObject);
     return addr;
   }
 
   else {
     // model the variable as a simple, named, unaliasable variable
     set(var, value);
-    
+
+    // introduce additional facts based on the variable's type
+    addDeclarationFacts(var, value);
+
     return value;
   }
 }
 
 
+// facts which arise from a variable's type
 void AEnv::addDeclarationFacts(Variable const *var, AbsValue *value)
 {
   StringRef name = var->name;
   Type const *type = var->type;
 
+  #if 0   // this is wrong.. we only want this for uninitialized..
   if (type->isOwnerPtr()) {
     // OWNER: initialize 'state' to DEAD (1)
     trace("owner") << "initializing state of " << name << " to dead\n";
     addFact(P_equal(avSel(value, avOwnerField_state()),
                     avOwnerState_dead()),
             stringc << "initial state of owner pointer " << name);
+  }
+  #endif // 0
+
+  if (type->isPointerType()) {
+    // Simplify would like to know that every pointer variable's value
+    // is of the form (sub index rest)
+    addFact(P_equal(rval(value),
+                    avSub(freshVariable(stringc << name << "_index",
+                                        stringc << "supposed first index of " << name),
+                          freshVariable(stringc << name << "_rest",
+                                        stringc << "supposed rest of " << name))),
+            "feasibility of pointer decomposition");
   }
 
   if (type->isArrayType()) {
@@ -968,10 +986,10 @@ bool AEnv::isNullPointer(AbsValue const *val) const
   // make a difference..
   if (val->isAVfunc()) {
     AVfunc const *f = val->asAVfuncC();
-    if (f->func == str("pointer") &&
+    if (f->func == str("sub") &&
         f->args.count() == 2) {
       if (isZero(f->args.nthC(0)) &&
-          isZero(f->args.nthC(1))) {
+          f->args.nthC(1)->isAVwhole()) {
         return true;
       }
     }
