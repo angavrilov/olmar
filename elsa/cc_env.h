@@ -198,6 +198,7 @@ public:      // funcs
   void instantiateForwardClasses(Scope *scope, CompoundType *base);
 
   // diagnostic reports; all return ST_ERROR type
+  Type *error(SourceLoc L, char const *msg, bool disambiguates=false);
   Type *error(char const *msg, bool disambiguates=false);
   Type *warning(char const *msg);
   Type *unimp(char const *msg);

@@ -189,7 +189,7 @@ class TypeSpecifier(SourceLoc loc) {
        PQName name
      );
 
-  // class definition
+  // class/struct/union definition
   -> TS_classSpec(                         // "class { ... }"
        TypeIntr keyword,                     // "class", "struct", "union"
 

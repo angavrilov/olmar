@@ -1151,14 +1151,19 @@ void Env::instantiateForwardClasses(Scope *scope, CompoundType *base)
 
 
 // -------- diagnostics --------
-Type *Env::error(char const *msg, bool disambiguates)
+Type *Env::error(SourceLoc L, char const *msg, bool disambiguates)
 {
   trace("error") << (disambiguates? "[d] " : "") << "error: " << msg << endl;
   if (!disambiguateOnly || disambiguates) {
     errors.prepend(new ErrorMsg(
-      stringc << msg, false /*isWarning*/, loc(), disambiguates));
+      stringc << msg, false /*isWarning*/, L, disambiguates));
   }
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
+}
+
+Type *Env::error(char const *msg, bool disambiguates)
+{
+  return error(loc(), msg, disambiguates);
 }
 
 
