@@ -34,7 +34,7 @@
 
 // ordnary LR core
 #ifndef USE_MINI_LR
-  #define USE_MINI_LR 0
+  #define USE_MINI_LR 1
 #endif
 
 
