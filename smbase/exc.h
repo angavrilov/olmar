@@ -198,6 +198,7 @@ public:
 };
 
 void throw_XFatal(rostring msg) NORETURN;
+#define xfatal(msg) throw_XFatal(stringc << msg)
 
 
 #endif // EXC_H
