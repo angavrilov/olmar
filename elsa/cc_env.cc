@@ -305,17 +305,21 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
                       t_voidptr, "p",
                       FF_NONE, t_void);
 
+  // 5/04/04: sm: I moved this out of the GNU_EXTENSION section because
+  // the mozilla tests use it, and I won't want to make them only
+  // active in gnu mode ..
+  //
+  // for GNU compatibility
+  // void *__builtin_next_arg(void *p);
+  declareFunction1arg(t_voidptr, "__builtin_next_arg",
+                      t_voidptr, "p");
+
   #ifdef GNU_EXTENSION
     Type *t_int = getSimpleType(HERE, ST_INT);
     Type *t_char = getSimpleType(HERE, ST_CHAR);
     Type *t_charconst = getSimpleType(HERE, ST_CHAR, CV_CONST);
     Type *t_charptr = makePtrType(HERE, t_char);
     Type *t_charconstptr = makePtrType(HERE, t_charconst);
-
-    // for GNU compatibility
-    // void *__builtin_next_arg(void *p);
-    declareFunction1arg(t_voidptr, "__builtin_next_arg",
-                        t_voidptr, "p");
 
     // dsw: This is a form, not a function, since it takes an expression
     // AST node as an argument; however, I need a function that takes no
