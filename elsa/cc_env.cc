@@ -284,27 +284,16 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
     }
 
     else {
-      // check for a special case: a qualifier that refers to
-      // a template parameter
-      {
-        Variable *qualVar =
-          scope==NULL? lookupVariable(qual, false /*innerOnly*/) :
-                       scope->lookupVariable(qual, false /*innerOnly*/, *this);
-        if (qualVar &&
-            qualVar->hasFlag(DF_TYPEDEF) &&
-            qualVar->type->isTypeVariable()) {
-          // we're looking inside an uninstantiated template parameter
-          // type; the lookup fails, but no error is generated here
-          dependent = true;     // tell the caller what happened
-          return NULL;
-        }
-      }
-
-      // look for a class called 'qual' in scope-so-far; since the
-      CompoundType *ct =
-        scope==NULL? lookupCompound(qual, false /*innerOnly*/) :
-                     scope->lookupCompound(qual, false /*innerOnly*/);
-      if (!ct) {
+      // look for a class called 'qual' in scope-so-far; look in the
+      // *variables*, not the *compounds*, because it is legal to make
+      // a typedef which names a scope, and use that typedef'd name as
+      // a qualifier
+      //
+      // however, this still is not quite right, see cppstd 3.4.3 para 1
+      Variable *qualVar =
+        scope==NULL? lookupVariable(qual, false /*innerOnly*/) :
+                     scope->lookupVariable(qual, false /*innerOnly*/, *this);
+      if (!qualVar) {
         // I'd like to include some information about which scope
         // we were looking in, but I don't want to be computing
         // intermediate scope names for successful lookups; also,
@@ -314,8 +303,34 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
         // alternatively, I could just re-traverse the original name;
         // I'm lazy for now
         error(stringc
-          << "cannot find class `" << qual << "' for `" << *name << "'",
+          << "cannot find scope name `" << qual << "' for `" << *name << "'",
           true /*disambiguating*/);
+        return NULL;
+      }
+
+      if (!qualVar->hasFlag(DF_TYPEDEF)) {
+        error(stringc
+          << "variable `" << qual << "' used as if it were a scope name");
+        return NULL;
+      }
+
+      // check for a special case: a qualifier that refers to
+      // a template parameter
+      if (qualVar->type->isTypeVariable()) {
+        // we're looking inside an uninstantiated template parameter
+        // type; the lookup fails, but no error is generated here
+        dependent = true;     // tell the caller what happened
+        return NULL;
+      }
+        
+      // the const_cast here is unfortunate, but I don't see an
+      // easy way around it
+      CompoundType *ct =
+        const_cast<CompoundType*>(qualVar->type->ifCompoundType());
+      if (!ct) {
+        error(stringc
+          << "typedef'd name `" << qual << "' doesn't refer to a class, "
+          << "so it can't be used as a scope qualifier");
         return NULL;
       }
 
