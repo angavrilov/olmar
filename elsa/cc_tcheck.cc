@@ -172,6 +172,17 @@ void Declarator::tcheck(Env &env, Type const *spec)
   // get the variable from the IDeclarator
   var = decl->tcheck(env, spec);
 
+  // cppstd, sec. 3.3.1: The point of declaration for a name is
+  // immediately after its complete declarator (clause 8) and before
+  // its initializer (if any), except as noted below.
+  // (where "below" talks about enumerators, class members, and
+  // class names)
+  env.addVariable(var);
+  
+  // NOTE: if we're declaring a typedef, it will be added here
+  // *without* DF_TYPEDEF, and then that flag will be added
+  // by the caller (Declaration::tcheck)
+
   // TODO: check the initializer for compatibility with
   // the declared type
 }
