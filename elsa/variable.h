@@ -22,7 +22,7 @@
 #ifndef VARIABLE_H
 #define VARIABLE_H
 
-#include "fileloc.h"           // SourceLocation
+#include "srcloc.h"            // SourceLoc
 #include "strtable.h"          // StringRef
 #include "cc_flags.h"          // DeclFlags
 #include "sobjlist.h"          // SObjList
@@ -40,7 +40,7 @@ public:    // data
   // location if that exists, else the declaration location; there
   // are significant advantages to storing *two* locations (first
   // declaration, and definition), but I haven't done that yet
-  SourceLocation loc;     // location of the name in the source text
+  SourceLoc loc;          // location of the name in the source text
 
   StringRef name;         // name introduced (possibly NULL for abstract declarators)
   Type *type;             // type of the variable
@@ -68,7 +68,7 @@ public:    // data
 
 protected:    // funcs
   friend class BasicTypeFactory;
-  Variable(SourceLocation const &L, StringRef n,
+  Variable(SourceLoc L, StringRef n,
            Type *t, DeclFlags f);
 
 public:

@@ -87,7 +87,7 @@ int yylex()
 void yyerror(char const *s)
 {
   if (lastTokenYielded) {
-    printf("%s: ", lastTokenYielded->loc.toString().pcharc());
+    printf("%s: ", toString(lastTokenYielded->loc).pcharc());
   }
   else {
     printf("<eof>: ");
@@ -123,8 +123,10 @@ int main(int argc, char *argv[])
 
   traceAddSys("progress");
 
+  SourceLocManager mgr;
+
   traceProgress() << "lexical analysis stage 1...\n";
-  Lexer1 lexer1;
+  Lexer1 lexer1(inputFname);
   {
     FILE *input = fopen(inputFname, "r");
     if (!input) {

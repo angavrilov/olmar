@@ -7,7 +7,7 @@
 #include "ccgrmain.h"     // some random prototypes..
 #include "trace.h"        // traceAddSys
 #include "parssppt.h"     // ParseTreeAndTokens, treeMain
-#include "fileloc.h"      // sourceFileList (r)
+#include "srcloc.h"       // SourceLocManager
 #include "ckheap.h"       // malloc_stats
 #include "cc_env.h"       // Env
 #include "ptreenode.h"    // PTreeNode
@@ -39,6 +39,8 @@ void doit(int argc, char **argv)
   //traceAddSys("parse-tree");
 
   if_malloc_stats();
+
+  SourceLocManager mgr;
 
   // string table for storing parse tree identifiers
   StringTable strTable;
@@ -93,7 +95,6 @@ void doit(int argc, char **argv)
   //checkHeap();
   //malloc_stats();
 
-  sourceFileList.clear();
   traceRemoveAll();
 }
 

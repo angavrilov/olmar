@@ -58,7 +58,7 @@ void TranslationUnit::tcheck(Env &env)
 // --------------------- TopForm ---------------------
 void TopForm::tcheck(Env &env)
 {
-  env.pushLocation(&loc);
+  env.pushLocation(loc);
   itcheck(env);
   env.popLocation();
 }
@@ -81,7 +81,7 @@ void TF_func::itcheck(Env &env)
 
   // as a hack for my path-counting logic, make sure the
   // function doesn't end with a looping construct
-  body->stmts.append(new S_skip(SourceLocation()));
+  body->stmts.append(new S_skip(SL_UNKNOWN));
 
   // put parameters into the environment
   env.enterScope();
@@ -127,7 +127,7 @@ void TF_func::itcheck(Env &env)
       env.enterScope();
 
       // example of egcs' failure to disambiguate C++ ctor/prototype:
-      //Variable result(SourceLocation(), env.strTable.add("result"),
+      //Variable result(SL_UNKNOWN, env.strTable.add("result"),
       //                r, DF_LOGIC);
 
       // the postcondition has 'result' available, as the type
@@ -186,8 +186,16 @@ void printSObjList(ostream &os, int indent, char const *label,
 
 StringRef varName(Variable const *v)
   { return v->name; }
+
 string stmtLoc(Statement const *s)
-  { return stringc << s->loc.line << ":" << s->loc.col; }
+{
+  char const *fname;
+  int line, col;
+  sourceLocManager->decodeLineCol(s->loc, fname, line, col);
+
+  return stringc << line << ":" << col;
+}
+
 
 void TF_func::printExtras(ostream &os, int indent) const
 {
@@ -606,7 +614,7 @@ StringRef D_bitfield::getName() const
 // ----------------------- Statement ---------------------
 void Statement::tcheck(Env &env)
 {
-  env.pushLocation(&loc);
+  env.pushLocation(loc);
 
   // the default actions here are suitable for most kinds of
   // statements, but there are exceptions which require special
@@ -751,7 +759,7 @@ void S_doWhile::itcheck(Env &env)
 // actions
 void S_for::tcheck(Env &env)
 {
-  env.pushLocation(&loc);
+  env.pushLocation(loc);
 
   // go immediately into 'init' so any pending 'next' pointers
   // point directly at the initializer; effectively, this makes the
@@ -946,9 +954,9 @@ string Statement::successorsToString() const
     // this node is reached via continue; a trailing "(c)" means that
     // successor is itself a continue edge; the algorithm assumes
     // that 'succYesCont' is a superset of 'succNoCont'
-    SourceLocation const &loc = nextPtrStmt(np)->loc;
+    Statement const *next = nextPtrStmt(np);
     sb << (succNoCont.contains(np)? " " : " (c)")
-       << loc.line << ":" << loc.col
+       << stmtLoc(next)
        << (nextPtrContinue(np)? "(c)" : "");
   }
 
@@ -959,8 +967,7 @@ string Statement::successorsToString() const
 
 string Statement::kindLocString() const
 {
-  return stringc << kindName() << "@"
-                 << loc.line << ":" << loc.col;
+  return stringc << kindName() << "@" << stmtLoc(this);
 }
 
 

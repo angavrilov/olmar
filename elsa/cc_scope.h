@@ -7,7 +7,7 @@
 
 #include "strsobjdict.h"  // StrSObjDict
 #include "cc_flags.h"     // AccessKeyword
-#include "fileloc.h"      // SourceLocation
+#include "srcloc.h"       // SourceLoc
 #include "strtable.h"     // StringRef
 #include "sobjlist.h"     // SObjList
 
@@ -90,14 +90,14 @@ public:      // data
   AccessKeyword curAccess;            // access disposition in effect
   Function *curFunction;              // (serf) Function we're analyzing
   TemplateParams *curTemplateParams;  // (owner) params to attach to next function or class
-  SourceLocation curLoc;              // latest AST location marker seen
+  SourceLoc curLoc;                   // latest AST location marker seen
                                     
 private:     // funcs
   Variable const *lookupPQVariableC(PQName const *name, bool &crossVirtual,
                                     Env &env, LookupFlags f) const;
 
 public:      // funcs
-  Scope(int changeCount, SourceLocation const &initLoc);
+  Scope(int changeCount, SourceLoc initLoc);
   ~Scope();
 
   int getChangeCount() const { return changeCount; }

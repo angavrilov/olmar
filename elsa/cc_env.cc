@@ -15,7 +15,7 @@ ErrorMsg::~ErrorMsg()
 
 string ErrorMsg::toString() const
 {
-  return stringc << loc.toString() << " " << msg;
+  return stringc << ::toString(loc) << " " << msg;
 }
 
 
@@ -41,7 +41,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
     errorVar(NULL)
 {
   // create first scope
-  SourceLocation emptyLoc;
+  SourceLoc emptyLoc = SL_UNKNOWN;
   scopes.prepend(new Scope(0 /*changeCount*/, emptyLoc));
 
   // create the typeid type
@@ -224,19 +224,19 @@ CompoundType *Env::getEnclosingCompound()
 #endif // 0
 
 
-void Env::setLoc(SourceLocation const &loc)
+void Env::setLoc(SourceLoc loc)
 {
-  trace("loc") << "setLoc: " << loc.toString() << endl;
+  TRACE("loc", "setLoc: " << toString(loc));
   
   // only set it if it's a valid location; I get invalid locs
   // from abstract declarators..
-  if (loc.validLoc()) {
+  if (loc != SL_UNKNOWN) {
     Scope *s = scope();
     s->curLoc = loc;
   }
 }
 
-SourceLocation const &Env::loc() const
+SourceLoc Env::loc() const
 {
   return scopeC()->curLoc;
 }
@@ -879,7 +879,7 @@ ClassTemplateInfo *Env::takeTemplateClassInfo()
 
 
 Type *Env::makeNewCompound(CompoundType *&ct, Scope *scope,
-                           StringRef name, SourceLocation const &loc,
+                           StringRef name, SourceLoc loc,
                            TypeIntr keyword, bool forward)
 {
   ct = new CompoundType((CompoundType::Keyword)keyword, name);
@@ -974,6 +974,7 @@ bool Env::setDisambiguateOnly(bool newVal)
 }
 
 
+// TODO: remove this
 #if 0
 CVAtomicType *Env::makeCVAtomicType(AtomicType *atomic, CVFlags cv)
   { return tfactory.makeCVAtomicType(atomic, cv); }
@@ -1011,7 +1012,7 @@ PointerType *Env::makeTypeOf_this(
 Type *Env::cloneType(Type *src)
   { return tfactory.cloneType(src); }
 
-Variable *Env::makeVariable(SourceLocation const &L, StringRef n,
+Variable *Env::makeVariable(SourceLoc L, StringRef n,
                             Type *t, DeclFlags f)
   { return tfactory.makeVariable(L, n, t, f); }
 

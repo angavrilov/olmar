@@ -5,7 +5,7 @@
 #define CC_ERR_H
 
 #include "str.h"       // string
-#include "fileloc.h"   // SourceLocation
+#include "srcloc.h"    // SourceLoc
 
 
 // an error message from the typechecker; I plan to expand
@@ -16,7 +16,7 @@ class ErrorMsg {
 public:
   string msg;
   bool isWarning;
-  SourceLocation loc;
+  SourceLoc loc;
 
   // when this is true, the error message should be considered
   // when disambiguation; when it's false, it's not a sufficiently
@@ -26,7 +26,7 @@ public:
   bool disambiguates;
 
 public:
-  ErrorMsg(char const *m, bool w, SourceLocation const &L, bool d)
+  ErrorMsg(char const *m, bool w, SourceLoc L, bool d)
     : msg(m), isWarning(w), loc(L), disambiguates(d) {}
   ~ErrorMsg();
 

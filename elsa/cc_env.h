@@ -111,9 +111,9 @@ public:      // funcs
   Scope *enclosingScope();
 
   // source location tracking
-  void setLoc(SourceLocation const &loc);    // sets scope()->curLoc
-  SourceLocation const &loc() const;         // gets scope()->curLoc
-  string locStr() const { return loc().toString(); }
+  void setLoc(SourceLoc loc);                // sets scope()->curLoc
+  SourceLoc loc() const;                     // gets scope()->curLoc
+  string locStr() const { return toString(loc()); }
 
   // insertion into the current scope; return false if the
   // name collides with one that is already there (but if
@@ -161,7 +161,7 @@ public:      // funcs
   // introduce a new compound type name; return the constructed
   // CompoundType's pointer in 'ct', after inserting it into 'scope'
   Type *makeNewCompound(CompoundType *&ct, Scope *scope,
-                        StringRef name, SourceLocation const &loc,
+                        StringRef name, SourceLoc loc,
                         TypeIntr keyword, bool forward);
 
   // diagnostic reports; all return ST_ERROR type
@@ -187,7 +187,7 @@ public:      // funcs
   ArrayType *makeArrayType(Type *eltType, int size = -1)
     { return tfac.makeArrayType(eltType, size); }
 
-  Variable *makeVariable(SourceLocation const &L, StringRef n,
+  Variable *makeVariable(SourceLoc L, StringRef n,
                          Type *t, DeclFlags f)
     { return tfac.makeVariable(L, n, t, f); }
 

@@ -33,6 +33,7 @@
 #include "strobjdict.h"   // StringObjDict
 #include "cc_scope.h"     // Scope
 #include "fakelist.h"     // FakeList
+#include "srcloc.h"       // SourceLoc
 
 class Variable;           // variable.h
 class Env;                // cc_env.h
@@ -623,7 +624,7 @@ public:
   //     or neither.
   //   - Variable is used by Type and vice-versa.. they could have
   //     both been defined in cc_type.h
-  virtual Variable *makeVariable(SourceLocation const &L, StringRef n,
+  virtual Variable *makeVariable(SourceLoc L, StringRef n,
                                  Type *t, DeclFlags f)=0;
   virtual Variable *cloneVariable(Variable *src)=0;
 
@@ -674,7 +675,7 @@ public:    // funcs
   virtual ArrayType *cloneArrayType(ArrayType *src);
 
   virtual Type *makeRefType(Type *underlying);
-  virtual Variable *makeVariable(SourceLocation const &L, StringRef n,
+  virtual Variable *makeVariable(SourceLoc L, StringRef n,
                                  Type *t, DeclFlags f);
   virtual Variable *cloneVariable(Variable *src);
 };

@@ -13,7 +13,7 @@
 
 // -------------------- Lexer1Token -----------------------------
 Lexer1Token::Lexer1Token(Lexer1TokenType aType, char const *aText,
-               	         int aLength, FileLocation const &aLoc)
+               	         int aLength, SourceLoc aLoc)
   : type(aType),
     text(aText, aLength),           // makes a copy
     length(aLength),
@@ -51,22 +51,24 @@ char const *l1Tok2String(Lexer1TokenType tok)
 
 void Lexer1Token::print() const
 {
+  char const *fname;
+  int line, col;
+  sourceLocManager->decodeLineCol(loc, fname, line, col);
+
   printf("[L1] Token at line %d, col %d: %s \"%s\"\n",
-         loc.line, loc.col, l1Tok2String(type),
+         line, col, l1Tok2String(type),
          encodeWithEscapes(text, length).pcharc());
 }
 
 
 // -------------------- Lexer1 -----------------------------
-Lexer1::Lexer1()
+Lexer1::Lexer1(char const *fname)
   : allowMultilineStrings(true),    // GNU extension
-    loc(),
+    loc(sourceLocManager->encodeBegin(fname)),
     errors(0),
     tokens(),
     tokensMut(tokens)
-{
-  loc.reset();
-}
+{}
 
 Lexer1::~Lexer1()
 {
@@ -77,7 +79,11 @@ Lexer1::~Lexer1()
 // eventually I want this to store the errors in a list of objects...
 void Lexer1::error(char const *msg)
 {
-  printf("[L1] Error at line %d, col %d: %s\n", loc.line, loc.col, msg);
+  char const *fname;
+  int line, col;
+  sourceLocManager->decodeLineCol(loc, fname, line, col);
+
+  printf("[L1] Error at line %d, col %d: %s\n", line, col, msg);
   errors++;
 }
 
@@ -101,7 +107,7 @@ void Lexer1::emit(Lexer1TokenType toktype, char const *tokenText, int length)
   tokensMut.append(tok);
 
   // update line and column counters
-  loc.advance(tokenText, length);
+  loc = sourceLocManager->advText(loc, tokenText, length);
 }
 
 
@@ -112,8 +118,13 @@ int main(int argc, char **argv)
 {
   while (traceProcessArg(argc, argv)) {}
 
-  Lexer1 lexer;
-  lexer1_lex(lexer, stdin);
+  if (argc < 2) {
+    printf("usage: lexer1 <file>\n");
+    return 0;
+  }
+
+  Lexer1 lexer(argv[1]); 
+  lexer1_lex(lexer, fopen(argv[1], "r"));
 
   printf("%d token(s), %d error(s)\n",
          lexer.tokens.count(), lexer.errors);

@@ -10,8 +10,8 @@
 #include "array.h"         // ArrayStack
 #include "cc_flags.h"      // UberModifiers, SimpleTypeId
 #include "cc.ast.gen.h"    // C++ AST classes, needed for the action function signatures
+#include "srcloc.h"        // SourceLoc
 
-class SourceLocation;      // fileloc.h
 class CCLang;              // cc_lang.h
 
 // parsing action state
@@ -44,8 +44,8 @@ public:
   StringRef curClassName() const   { return classNameStack.top(); }
 
   // manipulate UberModifiers
-  SimpleTypeId uberSimpleType(SourceLocation const &loc, UberModifiers m);
-  UberModifiers uberCombine(SourceLocation const &loc, UberModifiers m1, UberModifiers m2);
+  SimpleTypeId uberSimpleType(SourceLoc loc, UberModifiers m);
+  UberModifiers uberCombine(SourceLoc loc, UberModifiers m1, UberModifiers m2);
 };
 
 

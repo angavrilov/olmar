@@ -6,7 +6,7 @@
 
 
 // ---------------------- Variable --------------------
-Variable::Variable(SourceLocation const &L, StringRef n, Type const *t, DeclFlags f)
+Variable::Variable(SourceLoc L, StringRef n, Type const *t, DeclFlags f)
   : loc(L),
     name(n),
     type(t),

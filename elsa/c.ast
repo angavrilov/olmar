@@ -31,7 +31,7 @@ class TranslationUnit (ASTList<TopForm> topForms) {
 }
 
 // a toplevel form
-class TopForm (SourceLocation loc) {
+class TopForm (SourceLoc loc) {
   public void tcheck(Env &env);
   pure_virtual void itcheck(Env &env);
   pure_virtual void vcgen(AEnv &env) const;
@@ -139,7 +139,7 @@ class TypeSpecifier {
 
 // a binding of a name to a constant value
 class Enumerator (
-  SourceLocation loc,                   // location
+  SourceLoc loc,                        // location
   StringRef name,                       // name of this constant
   Expression /*nullable*/ expr          // constant expr, or NULL for "next"
 ) {
@@ -194,11 +194,11 @@ class IDeclarator {
   pure_virtual StringRef getName() const;
                                                                 
   // "x" (NULL means abstract declarator or anonymous parameter)
-  -> D_name(SourceLocation loc, StringRef /*nullable*/ name,
+  -> D_name(SourceLoc loc, StringRef /*nullable*/ name,
             ThmprvAttr attr);
 
   // "f(int)"
-  -> D_func(SourceLocation loc, IDeclarator base,
+  -> D_func(SourceLoc loc, IDeclarator base,
             ASTList<ASTTypeId> params, ASTList<FuncAnnotation> ann) {
        // variable synthesized to give a name to the return value
        public Variable *result;        // (owner)
@@ -279,7 +279,7 @@ verbatim {
   //   next: which statement will be next; may imply a predicate
   #define STMT_VCGEN_PARAMS AEnv &env, bool isContinue, int path, Statement const *next
 }
-class Statement (SourceLocation loc) {
+class Statement (SourceLoc loc) {
   public virtual void tcheck(Env &env);
   pure_virtual void itcheck(Env &env);
 

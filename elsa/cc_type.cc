@@ -131,7 +131,7 @@ NamedAtomicType::~NamedAtomicType()
 // ------------------ CompoundType -----------------
 CompoundType::CompoundType(Keyword k, StringRef n)
   : NamedAtomicType(n),
-    Scope(0 /*changeCount*/, SourceLocation() /*dummy loc*/),
+    Scope(0 /*changeCount*/, SL_UNKNOWN /*dummy loc*/),
     forward(true),
     keyword(k),
     bases(),
@@ -1237,7 +1237,7 @@ ArrayType *BasicTypeFactory::cloneArrayType(ArrayType *src)
 
 
 Variable *BasicTypeFactory::makeVariable(
-  SourceLocation const &L, StringRef n, Type *t, DeclFlags f)
+  SourceLoc L, StringRef n, Type *t, DeclFlags f)
 {
   return new Variable(L, n, t, f);
 }

@@ -131,7 +131,7 @@ int countPathsFrom(Env &env, SObjList<Statement> &path,
     if (tracingSys("circular")) {
       // print the circular path
       SFOREACH_OBJLIST(Statement, path, iter) {
-        cout << "  " << iter.data()->loc.toString() << endl;
+        cout << "  " << toString(iter.data()->loc) << endl;
       }
     }
     return 1;
@@ -194,7 +194,7 @@ void printPaths(TF_func const *func)
   // enumerate all paths from each root
   SFOREACH_OBJLIST(Statement, func->roots, iter) {
     Statement const *s = iter.data();
-    cout << "root at " << iter.data()->loc.toString() << ":\n";
+    cout << "root at " << toString(iter.data()->loc) << ":\n";
 
     // the whole point of counting the paths was so I could
     // so easily get a handle on all of them, to be able to
@@ -235,7 +235,7 @@ void printPathFrom(SObjList<Statement /*const*/> &path, int index,
     // that numPaths *already* includes the contribution from exprPaths
 
   // print this node
-  PATHOUT << node->loc.toString() << ": "
+  PATHOUT << toString(node->loc) << ": "
           << node->kindName() << endl;
 
   // debugging check
@@ -271,7 +271,7 @@ void printPathFrom(SObjList<Statement /*const*/> &path, int index,
         // yes; is 's' an invariant?
         if (s->isS_invariant()) {
           // terminate the path; print final node
-          PATHOUT << s->loc.toString() << ": "
+          PATHOUT << toString(s->loc) << ": "
                   << s->kindName() << endl;
           PATHOUT << "path ends at an invariant\n";
         }
