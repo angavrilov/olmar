@@ -934,15 +934,7 @@ Variable *D_bitfield::itcheck(Env &env, Type const *spec, DeclFlags dflags)
   // stacks a bitfield size on top of another Type, and
   // construct such an animal here.
 
-  if (name) {
-    PQ_name tempName(name);
-    return D_name_itcheck(env, loc, spec, &tempName, dflags);
-  }
-  else {
-    // unnamed, so take advantage of D_name_itcheck's
-    // ability to create anonymous Variables
-    return D_name_itcheck(env, loc, spec, NULL /*name*/, dflags);
-  }
+  return D_name_itcheck(env, loc, spec, name, dflags);
 }
 
 

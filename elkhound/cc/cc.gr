@@ -1466,7 +1466,8 @@ nonterm[Declarator*] MemberDeclarator {
        [ return new Declarator(d, new IN_expr(e)); ]
 
   -> n:IdentifierOpt ":" e:ConstantExpression     // bitfield
-       [ return new Declarator(new D_bitfield(loc, n, e), NULL /*init*/); ]
+       [ return new Declarator(new D_bitfield(loc, n? new PQ_name(n) : NULL, e), 
+                               NULL /*init*/); ]
 }
 
 nonterm[StringRef] IdentifierOpt {

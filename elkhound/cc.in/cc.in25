@@ -5,10 +5,12 @@ class A {
 public:
   class B {
   public:
+    /*
     static int x;
     int y;
     int f();
     double g();
+    */
   };
   
   int func(B &b);
@@ -19,6 +21,7 @@ int A::func(B &b)
   return 6;
 }
 
+/*
 int main()
 {
   int d;
@@ -41,3 +44,4 @@ double A::B::g()
 {
 //  return ::x;
 }
+*/
