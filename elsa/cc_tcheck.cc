@@ -1609,6 +1609,11 @@ Declarator *Declarator::tcheck(Env &env, Tcheck &dt)
 
 // array initializer case
 //   static int y[] = {1, 2, 3};
+// or in this case (a gnu extention):
+// http://gcc.gnu.org/onlinedocs/gcc-3.3/gcc/Compound-Literals.html#Compound%20Literals
+//   static int y[] = (int []) {1, 2, 3};
+// which is equivalent to:
+//   static int y[] = {1, 2, 3};
 Type *computeArraySizeFromCompoundInit(Env &env, SourceLoc tgt_loc, Type *tgt_type,
                                        Type *src_type, Initializer *init)
 {
@@ -1641,13 +1646,6 @@ Type *computeArraySizeFromCompoundInit(Env &env, SourceLoc tgt_loc, Type *tgt_ty
 // provide a well-defined size for the array from the size of the
 // initializer, such as in this case:
 //   char sName[] = "SOAPPropertyBag";
-// or in this case (a gnu extention):
-// http://gcc.gnu.org/onlinedocs/gcc-3.3/gcc/Compound-Literals.html#Compound%20Literals
-//   static int y[] = (int []) {1, 2, 3};
-// which is equivalent to:
-//   static int y[] = {1, 2, 3};
-// note that the this code subsumes completely the functionality of
-// the previous computeArraySizeFromCompoundLiteral()
 Type *computeArraySizeFromLiteral(Env &env, Type *tgt_type, Initializer *init)
 {
   if (tgt_type->isArrayType() &&
@@ -1656,7 +1654,8 @@ Type *computeArraySizeFromLiteral(Env &env, Type *tgt_type, Initializer *init)
       init->asIN_expr()->e->type->isArrayType() &&
       init->asIN_expr()->e->type->asArrayType()->hasSize()
       ) {
-    tgt_type = env.tfac.cloneType(init->asIN_expr()->e->type);
+    tgt_type = env.tfac.cloneType(tgt_type);
+    tgt_type->asArrayType()->size = init->asIN_expr()->e->type->asArrayType()->size;
     xassert(tgt_type->asArrayType()->hasSize());
   }
   return tgt_type;
