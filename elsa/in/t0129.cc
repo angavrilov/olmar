@@ -30,7 +30,7 @@ enum { x =
 0 };
 
 
-// the constant-evaluator knows how to deal with ?:, and the
-// array type checker knows that sizes must be positive, so
-// if we miss one then the size will be 0 and we'll get an error
-int arr[x==55? 1 : 0];
+// the constant-evaluator knows how to deal with ?:, and the array
+// type checker knows that sizes must be non-negative, so if we miss
+// one then the size will be -1 and we'll get an error
+int arr[x==55? 1 : -1];

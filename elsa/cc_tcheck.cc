@@ -3506,15 +3506,8 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
           }
         }
         else {
-          if (env.scope()->scopeKind == SK_CLASS) {
-            if (sz < 0) {
-              env.error(loc, "member array size must be nonnegative");
-            }
-          }
-          else {
-            if (sz <= 0) {
-              env.error(loc, "array size must be positive");
-            }
+          if (sz < 0) {
+            env.error(loc, "member array size must be nonnegative");
           }
         }
       }
