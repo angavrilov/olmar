@@ -2736,6 +2736,12 @@ bool multipleDefinitionsOK(Env &env, Variable *prior, DeclFlags dflags)
       prior->setFlag(DF_INITIALIZED); // update for future reference
     }
   }
+  
+  // don't allow this for functions!
+  if (prior->type->isFunctionType()) {
+    return false;
+  }
+
   return true;
 }
 
