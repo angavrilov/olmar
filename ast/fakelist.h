@@ -35,7 +35,7 @@ private:
   ~FakeList();
 
   // silence a silly egcs-1.1.2 warning (this function isn't defined)
-  friend Some_undefined_class;
+  friend class Some_undefined_class;
 
   // this class has *no* data--an object of this type is
   // never actually created!  instead we play with pointers
