@@ -275,12 +275,11 @@ public:      // funcs
   // how many times does 'ct' appear as a subobject?
   // returns 1 if ct==this
   int countBaseClassSubobjects(CompoundType const *ct) const;
-
-  // instantiate this template (must be a template), yielding
-  // a new compound type (or an existing one if these arguments
-  // have been presented previously)
-  //CompoundType *instantiate(SObjList<STemplateArgument> const &args);
-  // aborted for now
+                                                            
+  // does this class inherit from 'ct' in a way that allows an
+  // unambiguous conversion, etc.?
+  bool hasUnambiguousBaseClass(CompoundType const *ct) const
+    { return countBaseClassSubobjects(ct)==1; }
 };
 
 string toString(CompoundType::Keyword k);
