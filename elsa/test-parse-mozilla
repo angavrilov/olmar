@@ -2,5 +2,5 @@
 # test-parse mozilla's .i files, without stopping at failures
 
 for fn in `cat /home/scott/bld/mozilla-1.0/allifiles`; do
-  cc/test-parse $fn
+  ./test-parse $fn
 done

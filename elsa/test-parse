@@ -14,8 +14,8 @@ while [ "$1" != "" ]; do
   echo "--------- $fname --------"
 
   # see if the parser thinks it worked
-  echo "cc/ccparse $fname"
-  if cc/ccparse -tr mustBeUnambiguous "$fname"; then
+  echo "./ccparse $fname"
+  if ./ccparse -tr mustBeUnambiguous "$fname"; then
     # ok
     true
   else

@@ -29,3 +29,4 @@ lexer.yy.cc
 tmp
 tmp.in
 quicktest
+tlexer

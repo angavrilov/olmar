@@ -4,7 +4,7 @@
 #tmp: lexer.o lexer.yy.o
 
 # main target: a C++ parser
-all: ccparse quicktest
+all: tlexer ccparse quicktest
 
 # directories of other software
 SMBASE   := @SMBASE@
@@ -46,6 +46,19 @@ LDFLAGS := -g -Wall $(libraries)
 	@$(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) >$*.d
 
 
+# ------------------------ tlexer -------------------
+LEXER_OBJS := \
+  cc_lang.o \
+  lexer.o \
+  lexer.yy.o \
+  cc_tokens.o
+-include $(LEXER_OBJS:.o=.d)
+
+# program to test the lexer alone
+tlexer: tlexer.o $(LEXER_OBJS)
+	$(CXX) -o $@ tlexer.o $(LEXER_OBJS) $(LDFLAGS)
+
+
 # ------------------------- ccparse ---------------------
 # run flex on the lexer description
 lexer.yy.cc: lexer.lex lexer.h
@@ -72,12 +85,9 @@ cc.gr.gen.h cc.gr.gen.cc: cc.gr cc_tokens.ids $(ELKHOUND)/elkhound
 
 # list of modules needed for the parser
 CCPARSE_OBJS := \
+  $(LEXER_OBJS) \
   cc.ast.gen.o \
   cc.gr.gen.o \
-  cc_lang.o \
-  lexer.o \
-  lexer.yy.o \
-  cc_tokens.o \
   parssppt.o \
   cc_env.o \
   cc_scope.o \
