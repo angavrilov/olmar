@@ -5,13 +5,12 @@ verbatim Skeleton [
   #include "useract.h"       // UserActions
 
   class Skeleton : public UserActions {
-    #include "cexp3.gen.h"
+    #include "skeleton.gen.h"
   };
 ]
 
 terminals {
   // ... declare all terminals ...
 }
-
 
 // ... declare all nonterminals ...

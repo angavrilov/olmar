@@ -1,0 +1,283 @@
+// c.ast
+// C abstract syntax
+           
+verbatim {
+
+#include "cc_type.h"     // DeclFlags
+             
+// type introducer keyword
+// NOTE: keep consistent with CompoundType::Keyword (cc_type.h)
+enum TypeIntr {
+  TI_STRUCT,
+  TI_CLASS,
+  TI_UNION,
+  TI_ENUM,
+  NUM_TYPEINTRS
+};
+
+extern char const * const typeIntrNames[NUM_TYPEINTRS];    // "struct", ...
+string toString(TypeIntr tr);
+
+} // end verbatim
+
+
+// ---------------- file -------------
+// an entire file (with included stuff) of toplevel forms
+class TranslationUnit (ASTList<TopForm> topForms);
+
+// a toplevel form
+class TopForm {
+  -> TF_decl(Declaration decl);        // includes function prototypes
+
+  // functions with bodies
+  -> TF_func(DeclFlags dflags,         // static, extern, etc.
+             TypeSpecifier retspec,    // type specifier for return value
+             Declarator nameParams,    // 1. remainder of return value type
+                                       // 2. name of function
+                                       // 3. names/types of parameters
+             S_compound body);         // body of function
+}
+
+
+// --------------- types and declarators ---------------
+// variable declaration or definition, or function declaration
+class Declaration (
+  enum DeclFlags dflags,               // typedef, virtual, extern, etc.
+  TypeSpecifier spec,                  // e.g. "int"
+  ASTList<Declarator> decllist         // e.g. "x=3, y"
+);
+
+// just one complete type; appears in parameter decls and in casts
+class ASTTypeId (
+  TypeSpecifier spec,      // "int"
+  Declarator decl          // this will be abstract sometimes
+);
+
+// a name of an "atomic" type -- one to which type constructors
+// (e.g. '*') can be applied, but which itself is not built with type
+// constructors
+class TypeSpecifier (enum CVFlags cv) {    // cv is const and/or volatile
+  -> TS_name(StringRef name);                           // a typedef'd name
+  -> TS_simple(SimpleTypeId id);                        // int or char or float or ..
+  -> TS_elaborated(TypeIntr keyword, StringRef name);   // "class Foo"
+  -> TS_classSpec(ClassSpecifier spec);                 // "class { ... }"
+  -> TS_enumSpec(EnumSpecifier spec);                   // "enum { ... }"
+}
+
+// a thing which introduces a name of a declared thing, and also
+// optionally adds type constructors to the base type of the specifier;
+// type constructors are encoded as a (possibly empty) list of pointer
+// constructors, then maybe a function or array type, recursively
+class Declarator {
+  public ASTList<PtrOperator> stars;   // pointer constructors, right to left
+  public Initializer *init;            // (nullable) optional data initializer
+  ctor { init=NULL; };
+
+  -> D_name(StringRef /*nullable*/ name);                      // "x" (NULL means abstract declarator or anonymous parameter)
+  -> D_func(Declarator base, ASTList<ASTTypeId> params);       // "f(int)"
+  -> D_array(Declarator base, Expression /*nullable*/ size);   // "a[5]" or "b[]"
+  -> D_bitfield(StringRef /*nullable*/ name, Expression bits); // "c : 2"
+}
+
+// each star is associated with one of these; it's here so I can expand
+// it to include C++'s '&'
+class PtrOperator (CVFlags cv);
+
+// a class declaration body
+class ClassSpecifier (
+  TypeIntr keyword,                     // "class", "struct", "union"
+  StringRef /*nullable*/ name,          // user-provided name, if any
+  ASTList<Declaration> members          // the fields of the struct
+);
+
+// an enum declaration
+class EnumSpecifier (
+  StringRef /*nullable*/ name,          // name of enum, if any
+  ASTList<Enumerator> elts              // elements of the enumeration
+);
+                
+// a binding of a name to a constant value
+class Enumerator (
+  StringRef name,                       // name of this constant
+  Expression /*nullable*/ expr          // constant expr, or NULL for "next"
+);
+
+
+// ------------------- statements -----------------
+class Statement {
+  -> S_skip();      // nop; used whenever optional Statement is not present
+  -> S_label(StringRef name, Statement s);
+  -> S_case(Expression expr, Statement s);
+  -> S_caseRange(Expression low, Expression high, Statement s);
+  -> S_default(Statement s);
+  -> S_expr(Expression expr);      // expression evaluated for side effect
+  -> S_compound(ASTList<Statement> stmts);
+  -> S_if(Expression cond, Statement thenBranch, Statement elseBranch);
+  -> S_switch(Expression expr, Statement branches);
+  -> S_while(Expression cond, Statement body);
+  -> S_doWhile(Statement body, Expression cond);
+  -> S_for(Statement init, Expression /*nullable*/ cond,
+           Expression /*nullable*/ after, Statement body);
+  -> S_break();
+  -> S_continue();
+  -> S_return(Expression /*nullable*/ expr);
+  -> S_goto(StringRef target);
+  -> S_decl(Declaration decl);
+}
+
+
+// ----------------- expressions -----------------
+verbatim {
+  enum UnaryOp {
+    UNY_POSTINC,   // ++ (postfix)
+    UNY_POSTDEC,   // -- (postfix)
+    UNY_PREINC,    // ++
+    UNY_PREDEC,    // --
+    UNY_SIZEOF,    // sizeof
+    UNY_PLUS,      // +
+    UNY_MINUS,     // -
+    UNY_NOT,       // !
+    UNY_BITNOT,    // ~
+    NUM_UNARYOPS
+  };
+
+  extern char const * const unaryOpNames[NUM_UNARYOPS];     // "++", ...
+  string toString(UnaryOp op);
+
+  enum BinaryOp {
+    BIN_MULT,      // *
+    BIN_DIV,       // /
+    BIN_MOD,       // %
+    BIN_PLUS,      // +
+    BIN_MINUS,     // -
+    BIN_LSHIFT,    // <<
+    BIN_RSHIFT,    // >>
+    BIN_LESS,      // <
+    BIN_GREATER,   // >
+    BIN_LESSEQ,    // <=
+    BIN_GREATEREQ, // >=
+    BIN_EQUAL,     // ==
+    BIN_NOTEQUAL,  // !=
+    BIN_BITAND,    // &
+    BIN_BITXOR,    // ^
+    BIN_BITOR,     // |
+    BIN_AND,       // &&
+    BIN_OR,        // ||
+    NUM_BINARYOPS
+  };
+
+  extern char const * const binaryOpNames[NUM_BINARYOPS];   // "*", ..
+  string toString(BinaryOp op);
+} // end verbatim
+
+// general C expressions
+class Expression {
+  -> E_intLit(int i);
+  -> E_floatLit(float f);
+  -> E_stringLit(StringRef s);    // not quite right b/c can't handle embedded nuls
+  -> E_charLit(char c);
+  -> E_structLit(ASTTypeId type, IN_compound init);
+
+  -> E_variable(StringRef name);
+  -> E_arrayAcc(Expression arr, Expression index);
+  -> E_funCall(Expression func, ASTList<Expression> args);
+  -> E_fieldAcc(Expression obj, StringRef field);
+
+  -> E_unary(Expression expr, UnaryOp op);
+  -> E_binary(Expression e1, BinaryOp op, Expression e2);
+
+  // these are not ordinary unary operators because of their importance
+  -> E_addrOf(Expression expr);
+  -> E_deref(Expression ptr);
+
+  -> E_cast(ASTTypeId type, Expression expr);
+  -> E_cond(Expression cond, Expression th, Expression el);
+  -> E_gnuCond(Expression cond, Expression el);
+  -> E_comma(Expression e1, Expression e2);
+  -> E_sizeofType(ASTTypeId type);
+
+  // these are not ordinary binary because they too are special
+  -> E_assign(Expression target, Expression src);
+  -> E_arithAssign(Expression target, BinaryOp op, Expression src);   // e.g. "+="
+}
+
+// animals which appear after declarations to assign initial values
+class Initializer {
+  -> IN_expr(Expression e);
+  -> IN_compound(ASTList<Initializer> inits);
+
+  // this syntax introduces a field present in all alternatives,
+  // but not explicitly passed to their constructors (handy!)
+  public InitLabel *label;      // (nullable) gnu: range or field label
+  ctor { label = NULL; };
+}
+
+// gnu extension to attach particular elements of an initializer list
+// to particular fields of the structure or array being initialized
+class InitLabel {
+  -> IL_element(Expression index);
+  -> IL_range(Expression low, Expression high);   // inclusive 
+  -> IL_field(StringRef name);
+  -> IL_elementField(Expression index, StringRef name);
+}
+
+
+// ----------------- local implementation --------------------
+impl_verbatim {
+
+char const * const typeIntrNames[NUM_TYPEINTRS] = {
+  "struct",
+  "class",
+  "union",
+  "enum"
+};
+
+#define MAKE_TOSTRING(T, limit, array) \
+  string toString(T index)             \
+  {                                    \
+    xassert((unsigned)index < limit);  \
+    return new string(array[index]);   \
+  }
+
+MAKE_TOSTRING(TypeIntr, NUM_TYPEINTRS, typeIntrNames)
+
+
+char const * const unaryOpNames[NUM_UNARYOPS] = {
+  "++/*postfix*/",
+  "--/*postfix*/",
+  "++/*prefix*/",
+  "--/*prefix*/",
+  "sizeof",
+  "+",
+  "-",
+  "!",
+  "~"
+};
+
+MAKE_TOSTRING(UnaryOp, NUM_UNARYOPS, unaryOpNames)
+
+
+char const * const binaryOpNames[NUM_BINARYOPS] = {
+  "*",
+  "/",
+  "%",
+  "+",
+  "-",
+  "<<",
+  ">>",
+  "<",
+  ">",
+  "<=",
+  ">=",
+  "==",
+  "!=",
+  "&",
+  "^",
+  "|",
+  "&&",
+  "||"
+};
+
+MAKE_TOSTRING(BinaryOp, NUM_BINARYOPS, binaryOpNames)
+
+} // end impl_verbatim

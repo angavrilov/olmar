@@ -4,7 +4,7 @@
 OCAMLINCL mode = --ocaml
 NOCAMLINCL mode = --nocaml
 
-temporary: check-makefiles grampar gramanl cexp3 cdecl cdecl2 ccgr
+temporary: check-makefiles c.ast.gen.o
 
 # main targets
 all: check-makefiles ccgr
@@ -203,8 +203,12 @@ cexp3: ${cexp3-dep} ${libraries}
 	chmod a-w $*.gen.{h,cc}
 
 # intermediate files for an ast spec
-%.gen.cc %.gen.h: %.ast ../ast/astgen
+%.ast.gen.cc %.ast.gen.h: %.ast ../ast/astgen
 	../ast/astgen $*.ast
+
+# without this these get deleted when errors occur, and I can't
+# look at the offending source lines!
+.PRECIOUS: c.ast.gen.cc c.ast.gen.h
 
 # cexp3b: disambiguation using 'merge'
 cexp3b.gr: cexp3.gr

@@ -22,33 +22,6 @@ class TypeEnv;
 class VariableEnv;
 
 
-// set of declaration modifiers present
-enum DeclFlags {
-  DF_NONE        = 0x0000,
-
-  // syntactic declaration modifiers
-  DF_INLINE      = 0x0001,
-  DF_VIRTUAL     = 0x0002,
-  DF_FRIEND      = 0x0004,
-  DF_MUTABLE     = 0x0008,
-  DF_TYPEDEF     = 0x0010,
-  DF_AUTO        = 0x0020,
-  DF_REGISTER    = 0x0040,
-  DF_STATIC      = 0x0080,
-  DF_EXTERN      = 0x0100,
-  
-  // other stuff that's convenient for me
-  DF_ENUMVAL     = 0x0200,    // not really a decl flag, but a Variable flag..
-  DF_GLOBAL      = 0x0400,    // set for globals, unset for locals
-  DF_INITIALIZED = 0x0800,    // true if has been declared with an initializer (or, for functions, with code)
-  DF_BUILTIN     = 0x1000,    // true for e.g. __builtin_constant_p -- don't emit later
-
-  ALL_DECLFLAGS  = 0x1FFF,
-};
-
-MLValue mlStorage(DeclFlags df);
-
-
 // type of variable identifiers
 typedef int VariableId;
 enum { NULL_VARIABLEID = -1, FIRST_VARIABLEID = 0 };

@@ -131,6 +131,78 @@ MLValue cvToMLAttrs(CVFlags cv)
 }
 
 
+char const * const cvFlagNames[NUM_CVFLAGS] = {
+  "const",
+  "volatile",
+  "owner"
+};
+
+
+string bitmapString(int bitmap, char const * const *names, int numflags)
+{
+  stringBuilder sb;
+  int count=0;
+  for (int i=0; i<numflags; i++) {
+    if (bitmap & (1 << i)) {
+      if (ct++) {
+        sb << " ";
+      }
+      sb << names[i];
+    }
+  }
+
+  return sb;
+}
+
+string toString(CVFlags cv)
+{
+  return bitmapString(cv, cvFlagNames, NUM_CVFLAGS)
+}
+
+
+// ------------------- DeclFlags --------------
+MLValue mlStorage(DeclFlags df)
+{
+  // storage = NoStorage | Static | Register | Extern
+
+  // not quite a perfect map .. but until it matters
+  // somewhere I'm leaving it as-is
+
+  if (df & DF_STATIC) {
+    return mlTuple0(storage_Static);
+  }
+  if (df & DF_REGISTER) {
+    return mlTuple0(storage_Register);
+  }
+  if (df & DF_EXTERN) {
+    return mlTuple0(storage_Extern);
+  }
+  return mlTuple0(storage_NoStorage);
+}
+
+
+char const * const declFlagNames[NUM_DECLFLAGS] = {
+  "inline",       // 0
+  "virtual",
+  "friend",
+  "mutable",
+  "typedef",      // 4
+  "auto",
+  "register",
+  "static",
+  "extern",
+  "enumval",      // 9
+  "global",
+  "initialized",
+  "builtin"       // 12
+};
+
+
+string toString(DeclFlags df)
+{
+  return bitmapString(df, declFlagNames, NUM_DECLFLAGS)
+}
+
 
 // ------------------ SimpleType -----------------
 string SimpleType::toCString() const

@@ -26,13 +26,49 @@ class ArrayType;
 
 
 // set: which of "const" and/or "volatile" is specified
+// I leave the lower 8 bits to represent SimpleTypeId, so I can
+// freely OR them together during parsing
 enum CVFlags {
-  CV_NONE     = 0,
-  CV_CONST    = 1,
-  CV_VOLATILE = 2,
-  CV_OWNER    = 4,
-  CV_ALL      = 7
+  CV_NONE     = 0x000,
+  CV_CONST    = 0x100,
+  CV_VOLATILE = 0x200,
+  CV_OWNER    = 0x400,     // experimental extension
+  CV_ALL      = 0x700,
+  NUM_CVFLAGS = 3
 };
+
+extern char const * const cvFlagNames[NUM_CVFLAGS];      // 0="const", 1="volatile", 2="owner"
+string toString(CVFlags cv);
+
+
+// set of declaration modifiers present
+enum DeclFlags {
+  DF_NONE        = 0x0000,
+
+  // syntactic declaration modifiers
+  DF_INLINE      = 0x0001,
+  DF_VIRTUAL     = 0x0002,
+  DF_FRIEND      = 0x0004,
+  DF_MUTABLE     = 0x0008,
+  DF_TYPEDEF     = 0x0010,
+  DF_AUTO        = 0x0020,
+  DF_REGISTER    = 0x0040,
+  DF_STATIC      = 0x0080,
+  DF_EXTERN      = 0x0100,
+
+  // other stuff that's convenient for me
+  DF_ENUMVAL     = 0x0200,    // not really a decl flag, but a Variable flag..
+  DF_GLOBAL      = 0x0400,    // set for globals, unset for locals
+  DF_INITIALIZED = 0x0800,    // true if has been declared with an initializer (or, for functions, with code)
+  DF_BUILTIN     = 0x1000,    // true for e.g. __builtin_constant_p -- don't emit later
+
+  ALL_DECLFLAGS  = 0x1FFF,
+  NUM_DECLFLAGS  = 13
+};
+
+MLValue mlStorage(DeclFlags df);
+extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..
+string toString(DeclFlags df);
 
 
 // --------------------- atomic types --------------------------
@@ -60,7 +96,9 @@ enum SimpleTypeId {
   ST_DOUBLE,
   ST_LONG_DOUBLE,
   ST_VOID,
-  NUM_SIMPLE_TYPES
+  ST_ELLIPSIS,                       // used to encode vararg functions
+  NUM_SIMPLE_TYPES,
+  ST_BITMASK = 0xFF                  // for extraction for OR with CVFlags
 };
 
 // info about each simple type
@@ -77,6 +115,8 @@ inline char const *simpleTypeName(SimpleTypeId id)
   { return simpleTypeInfo(id).name; }
 inline int simpleTypeReprSize(SimpleTypeId id)
   { return simpleTypeInfo(id).reprSize; }
+inline string toString(SimpleTypeId id)
+  { return string(simpleTypeName(id)); }
 
 
 // interface to types that are atomic in the sense that no
@@ -182,6 +222,7 @@ enum AccessMode {
 // represent a user-defined compound type
 class CompoundType : public NamedAtomicType {
 public:     // types
+  // NOTE: keep these consistent with TypeIntr (in file c.ast)
   enum Keyword { K_STRUCT, K_CLASS, K_UNION, NUM_KEYWORDS };
 
 private:    // data

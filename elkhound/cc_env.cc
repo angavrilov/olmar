@@ -36,26 +36,6 @@ MAKE_ML_TAG(storage, 1, Static)
 MAKE_ML_TAG(storage, 2, Register)
 MAKE_ML_TAG(storage, 3, Extern)
 
-MLValue mlStorage(DeclFlags df)
-{
-  // storage = NoStorage | Static | Register | Extern
-
-  // not quite a perfect map .. but until it matters
-  // somewhere I'm leaving it as-is
-
-  if (df & DF_STATIC) {
-    return mlTuple0(storage_Static);
-  }
-  if (df & DF_REGISTER) {
-    return mlTuple0(storage_Register);
-  }
-  if (df & DF_EXTERN) {
-    return mlTuple0(storage_Extern);
-  }
-  return mlTuple0(storage_NoStorage);
-}
-
-
 extern MLValue unknownMLLoc();     // cil.cc
 
 MLValue Variable::toMLValue() const
