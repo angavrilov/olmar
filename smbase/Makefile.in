@@ -95,7 +95,7 @@ $(MALLOC_MODULE).o: $(MALLOC_MODULE).c
 
 # mysig needs some flags to *not* be set ....
 mysig.o: mysig.cc mysig.h
-	$(CC) -c -g mysig.cc
+	$(CXX) -c -g mysig.cc
 
 # library itself
 OBJS := \
