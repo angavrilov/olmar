@@ -1,33 +1,51 @@
 #!/usr/bin/perl -w
-# run ccparse on an input file, then (if the input has some
-# stylized comments) re-run, expecting various kinds of errors
+# run a program on an input file, then (if the input has some
+# stylized comments) re-run, expecting an error
 
 use strict 'subs';
 use Config;
 
 $selectedError = "";
-if ($ARGV[0] eq "-errnum") {
-  $selectedError = $ARGV[1];
+$keepTemps = 0;
+$me = "multitest";
+
+while (@ARGV && $ARGV[0] =~ m/^-/) {
+  my $opt = $ARGV[0];
   shift @ARGV;
-  shift @ARGV;
+
+  if ($opt eq "-errnum") {
+    $selectedError = $ARGV[0];
+    shift @ARGV;
+    next;
+  }      
+  
+  if ($opt eq "-keep") {
+    $keepTemps = 1;
+    next;
+  }
+  
+  die("$me: unknown argument: $opt\n");
 }
 
-if (@ARGV == 0) {
+if (@ARGV < 2) {
   print(<<"EOF");
-usage: $0 [-errnum n] ./ccparse [-tr flags] input.cc
+usage: $0 [options] program [args...] input.cc
 
-This will first invoke the command line as given, expecting
-that to succeed.
-
-Then, it will scan input.cc for any lines of the form:
+This will first invoke the command line as given, expecting that to
+succeed.  Then, it will scan input.cc (which must be the last argument
+on the command line) for any lines of the forms:
 
   //ERROR(n): <some C++ code>
+  <some C++ code>     //ERRORIFMISSING(n):
 
-If it finds them, then for each such 'n' the lines ERROR(n)
-will be uncommented (and "ERROR(n)" removed), and the original
-command executed again.  These additional runs should fail.
+If it finds them, then for each such 'n' the lines ERROR(n) will be
+uncommented (and "ERROR(n)" removed), and lines ERRORIFMISSING(n)
+commented-out, and the original command executed again.  These
+additional runs should fail.
 
-If you say "-errnum 3", then only ERROR(3) will be tested.
+options:
+  -errnum n     Only test ERROR(n) (does not test original).
+  -keep         Keep temporaries even when they succeed.
 EOF
 
   exit(0);
@@ -51,10 +69,19 @@ $sigquit = $signo{QUIT};
 $fname = $ARGV[@ARGV - 1];
 #print("fname: $fname\n");
 
+($fnameBase, $fnameExt) = ($fname =~ m|^(.*)(\.[^./]*)$|);
+                                   #    bse ext
+if (!defined($fnameExt)) {
+  $fnameBase = $fname;
+  $fnameExt = "";     # no '.' present anywhere (after last '/')
+}
+
 # try once with no modifications
-$code = mysystem(@ARGV);
-if ($code != 0) {
-  exit($code);
+if (!$selectedError) {
+  $code = mysystem(@ARGV);
+  if ($code != 0) {
+    exit($code);
+  }
 }
 
 # read the input file
@@ -62,12 +89,13 @@ open(IN, "<$fname") or die("can't open $fname: $!\n");
 @lines = <IN>;
 close(IN) or die;
 
-# see what ERROR lines are present
+# see what ERROR/ERRORIFMISSING lines are present
 %codes = ();
 foreach $line (@lines) {
-  my ($code) = ($line =~ m|^\s*//ERROR\((\d+)\):|);
+  my ($miss, $code) = ($line =~ m|//ERROR(IFMISSING)?\((\d+)\):|);
   if (defined($code)) {
     $codes{$code} = 1;
+    $miss .= " ";     # pretend used
   }
 }
 
@@ -90,13 +118,24 @@ foreach $selcode (@allkeys) {
 
   print("-- selecting ERROR($selcode) --\n");
 
+  my $tempfname = "${fnameBase}.error${selcode}${fnameExt}";
+
   # run through the lines in the file, generating a new file
   # that has the selected lines uncommented
-  open(OUT, ">multitest.tmp") or die("can't create multitest.tmp: $!\n");
+  open(OUT, ">$tempfname") or die("can't create $tempfname: $!\n");
   foreach $line (@lines) {
-    my ($code, $rest) = ($line =~ m|^\s*//ERROR\((\d+)\):(.*)$|);
+    my ($miss, $code, $rest) =
+      ($line =~ m|//ERROR(IFMISSING)?\((\d+)\):(.*)$|);
+      #                  miss          code    rest
     if (defined($code) && $selcode == $code) {
-      print OUT ($rest, "\n");   # uncomment
+      if ($miss) {
+        # ERRORIFMISSING: we want to comment the whole line
+        print OUT ("// $line");
+      }
+      else{
+        # ERROR: we want to uncomment what follows the "ERROR" marker
+        print OUT ($rest, "\n");
+      }
     }
     elsif ($line =~ m|collectLookupResults|) {
       # comment-out this line in the error cases because if I do not
@@ -112,7 +151,7 @@ foreach $selcode (@allkeys) {
 
   # run the command on the new input file
   @args = @ARGV;
-  $args[@ARGV - 1] = "multitest.tmp";
+  $args[@ARGV - 1] = $tempfname;
 
   #print("command: ", join(' ', @args), "\n");
   $code = mysystem(@args);
@@ -123,12 +162,22 @@ foreach $selcode (@allkeys) {
   }
   else {
     print("$selcode: failed as expected\n");
+    if (!$keepTemps) {
+      unlink($tempfname);
+    }
   }
 }
 
-unlink("multitest.tmp");
-
-print("\nmultitest: success: all $testedVariations variations failed as expected\n");
+print("\n$me: ");
+if (!$selectedError) {
+  print("success: all $testedVariations variations failed as expected\n");
+}
+elsif ($testedVariations) {
+  print("success: error $selectedError failed as expected\n");
+}
+else {
+  print("nop: there is no error $selectedError in $fname\n");
+}
 
 exit(0);
 
@@ -151,7 +200,7 @@ sub mysystem {
     }
 
     # some other signal
-    die "child died with signal $signame[$sig]\n";
+    die("child died with signal $signame[$sig]\n");
   }
 
   return $code >> 8;

@@ -7,7 +7,7 @@ namespace N {
   A& operator<<(A&, B&);
   A& f(A&, B&);
 
-  struct C {
+  struct C {        //ERRORIFMISSING(3): just testing multitest.pl
     void operator+(B&);
   };
 }
