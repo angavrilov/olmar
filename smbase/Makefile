@@ -16,7 +16,7 @@ ranlib      := ranlib
 #ccflags += -Werror
 
 # when uncommented, we get profiling info
-#ccflags += -pg
+ccflags += -pg -O2
 
 # optimizer...
 #ccflags += -O2
@@ -68,8 +68,9 @@ objlist.h: xobjlist.h
 # testing a new malloc
 # add the -DDEBUG flag to turn on additional checks
 # add the -DTRACE_MALLOC_CALLS flag to print on every alloc/dealloc
+# normally -O3 is specified
 malloc.o: malloc.c
-	gcc -c -g -O3 -DDEBUG -DNO_TRACE_MALLOC_CALLS malloc.c
+	gcc -c -g -O3 -DDEBUG -DNO_TRACE_MALLOC_CALLS -DNO_DEBUG_HEAP malloc.c
 
 # mysig needs some flags to *not* be set ....
 mysig.o: mysig.cc mysig.h
@@ -137,6 +138,10 @@ testmalloc: testmalloc.cc $(THISLIBRARY)
 
 mypopen: mypopen.c mypopen.h
 	g++ -Wall -g -o mypopen -DTEST_MYPOPEN mypopen.c
+
+# this test is only useful when malloc is compiled with DEBUG_HEAP
+tmalloc: tmalloc.c
+	gcc -Wall -g -o tmalloc tmalloc.c $(THISLIBRARY)
 
 check: $(tests-files)
 	./nonport

@@ -482,6 +482,13 @@ extern "C" {
 #endif
 
 
+// sm: my flag: even more debugging checks
+#ifdef DEBUG_HEAP
+  #define USE_PUBLIC_MALLOC_WRAPPERS
+  #define ZONE_SIZE 128     // bytes
+#endif // DEBUG_HEAP
+
+
 /* 
    Two-phase name translation.
    All of the actual routines are given mangled names.
@@ -1544,22 +1551,63 @@ static pthread_mutex_t mALLOC_MUTEx = PTHREAD_MUTEX_INITIALIZER;
 
 #endif
 
-Void_t* public_mALLOc(size_t bytes) {
+Void_t* public_mALLOc(size_t bytes) 
+{
   Void_t* m;
   if (MALLOC_PREACTION != 0) {
     return 0;
   }
+
+  // allocate zones on either side, plus a length word up front
+  bytes += 2*ZONE_SIZE + sizeof(size_t);
+
   m = mALLOc(bytes);
+
+  // write length
+  *((size_t*)m) = bytes;
+
+  // fill rest of area with 0xAA
+  {
+    unsigned char *p = (char*)m;
+    int i;
+    for (i=sizeof(size_t); i<bytes; i++) {
+      p[i] = 0xAA;
+    }
+  }
+
   if (MALLOC_POSTACTION != 0) {
   }
-  return m;
+
+  // the user's area is after the size and the first zone
+  return ((char*)m) + sizeof(size_t) + ZONE_SIZE;
 }
 
-void public_fREe(Void_t* m) {
+void public_fREe(Void_t* m)
+{ 
+  // get back to the real start
+  unsigned char *p = ((char*)m) - ZONE_SIZE - sizeof(size_t);
+
+  // pull off the size
+  size_t bytes = *((size_t*)p);
+
+  // check the zones
+  int i;
+  for (i=0; i<ZONE_SIZE; i++) {
+    if (p[sizeof(size_t) + i] != 0xAA ||
+        p[bytes - 1 - i] != 0xAA) {
+      assert(!"zone trashed");
+    }
+  }
+
+  // blank the entire area with 0xBB
+  for (i=0; i<bytes; i++) {
+    p[i] = 0xBB;
+  }
+
   if (MALLOC_PREACTION != 0) {
     return;
   }
-  fREe(m);
+  fREe(p);
   if (MALLOC_POSTACTION != 0) {
   }
 }

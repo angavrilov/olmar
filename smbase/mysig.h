@@ -7,6 +7,10 @@
 #include <signal.h>     // signal stuff
 #include <setjmp.h>     // jmp_buf
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 // type of a signal handler function; generally, there are
 // three options for a signal handler:
 //   - return, in which case the default action for the
@@ -32,5 +36,9 @@ extern jmp_buf sane_state;
 
 // handler to do a longjmp to sane_state
 void jmpHandler(int signum);
+
+#ifdef __cplusplus
+}
+#endif // __cplusplus
 
 #endif // MYSIG_H
