@@ -361,7 +361,7 @@ nonterm ExpressionListOpt : HasVarsDecld {
 
 nonterm UnaryExpression : ExprBase {
   literalCode "disamb" varsDecld {
-    disambiguate(passedEnv, (DisambFn)&unamb_varsDecld);
+    disambiguate(passedEnv, (DisambFn)&UnaryExpression_Node::unamb_varsDecld);
   }
 
   formGroup {
@@ -452,7 +452,7 @@ nonterm BinaryExpression : ExprBase {
   attr prec;                  // precedence of binding (topmost) operator in expression
 
   literalCode "disamb" varsDecld {
-    disambiguate(passedEnv, (DisambFn)&unamb_varsDecld);
+    disambiguate(passedEnv, (DisambFn)&BinaryExpression_Node::unamb_varsDecld);
   }
 
   -> e:CastExpression {
@@ -555,7 +555,7 @@ nonterm BinaryOperator {
 
 nonterm ConditionalExpression : ExprBase {
   literalCode "disamb" varsDecld {
-    disambiguate(passedEnv, (DisambFn)&unamb_varsDecld);
+    disambiguate(passedEnv, (DisambFn)&ConditionalExpression_Node::unamb_varsDecld);
   }
 
   -> e:BinaryExpression {
@@ -657,7 +657,7 @@ nonterm HasCFG {
 // labeled-statement
 nonterm Statement : Checkable, HasVarsDecld, HasCFG {
   literalCode "disamb" typeCheck {
-    disambiguate(passedEnv, (DisambFn)&unamb_typeCheck);
+    disambiguate(passedEnv, (DisambFn)&Statement_Node::unamb_typeCheck);
   }
 
   fun typeCheck { s.typeCheck(env); }

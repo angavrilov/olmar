@@ -114,7 +114,7 @@ public:     // funcs
   Terminal(char const *name)        // canonical name for terminal class
     : Symbol(name, true /*terminal*/),
       termIndex(-1),
-      alias(NULL) {}
+      alias() {}
 
   virtual void print(ostream &os) const;
   OSTREAM_OPERATOR(Terminal)

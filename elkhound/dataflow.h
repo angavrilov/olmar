@@ -63,13 +63,68 @@ AbsOwnerValue aov_meet(AbsOwnerValue v1, AbsOwnerValue v2);
 AbsOwnerValue aov_join(AbsOwnerValue v1, AbsOwnerValue v2);
 
 
+// store the abstract value of a variable during abstract
+// interpretation
+class AbsValue {
+public:        // data
+  // true if the variable is an owner pointer, or is an array
+  // of owner pointers with a single value
+  bool single;
+
+  // value when 'single' is true
+  AbsOwnerValue singleValue;
+
+  // value when 'single' is false
+  string indexVar;
+  AbsOwnerValue leftValue;      // value for elements < 'index'
+  AbsOwnerValue midValue;       // .................. = .......
+  AbsOwnerValue rightValue;     // .................. > .......
+
+private:       // funcs
+  void dup(AbsValue const &obj);
+  
+  // single -> not single
+  AbsValue promote(char const *indexVarName) const;
+
+public:        // funcs
+  AbsValue();
+  AbsValue(AbsValue const &obj);
+  ~AbsValue();
+
+  // make a single value
+  AbsValue(AbsOwnerValue v);
+
+  // make an array value
+  AbsValue(char const *indexVarName, AbsOwnerValue left,
+           AbsOwnerValue mid, AbsOwnerValue right);
+
+  AbsValue& operator= (AbsValue const &obj);
+
+  bool operator== (AbsValue const &obj) {
+    return this->geq(obj) &&
+           obj.geq(*this);
+  }
+  
+  bool operator!= (AbsValue const &obj) {
+    return !operator==(obj);
+  }
+
+  string toString() const;
+
+  // lattice ops
+  bool geq(AbsValue const &obj) const;
+  AbsValue meet(AbsValue const &obj) const;
+  AbsValue join(AbsValue const &obj) const;
+};
+
+
 // dataflow info about a variable, at some program point
 class DataflowVar {
 private:   // data
   Variable const *var;      // associated declaration
 
 public:    // data
-  AbsOwnerValue value;
+  AbsValue value;
 
 public:    // funcs
   DataflowVar(Variable const *v)
