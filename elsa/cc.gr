@@ -550,12 +550,18 @@ nonterm(Expression*) BinExp_high {
 }
 
 // binary exprs with same precedence as ">"
+//
+// The binary expressions are split like this because I removed the
+// precedence from ">", etc.  But now (8/21/03) I'm not sure *why* I
+// had to remove them; couldn't I have just forced the other rules
+// that mention ">" to have no precedence (perhaps by adding syntax to
+// Elkhound to say that)?  Hmm... oh well.
 nonterm(Expression*) BinExp_mid {
   // ambiguous:
-  //   x<y>z(3)
-  // could either be two relationals and a fn call, or else
-  // it could be the construction of a templatized object,
-  // depending on whether 'x' names a type or not
+  //   x<y>(z)
+  // could either be two relationals (E_binary), with redundant parens
+  // around 'z', or else it could be the construction of a templatized
+  // object (E_constructor), depending on whether 'x' names a type
   fun merge(L,R) { L->addAmbiguity(R); return L; }
 
   -> e:BinExp_high                             { return e; }
