@@ -1960,7 +1960,8 @@ realStart:
   // are we in a class member list?  we can't be in a member
   // list if the name is qualified (and if it's qualified then
   // a class scope has been pushed, so we'd be fooled)
-  // TODO: this is wrong because qualified names can appear in
+  //
+  // TODO: this is wrong because qualified names *can* appear in
   // class member lists..
   CompoundType *enclosingClass =
     name->hasQualifiers()? NULL : scope->curCompound;
@@ -2085,7 +2086,6 @@ realStart:
       prior &&
       prior->type->isFunctionType() &&
       dt.type->isFunctionType()) {
-//      !prior->type->equals(dt.type)) {
     // potential overloading situation; get the two function types
     FunctionType *priorFt = prior->type->asFunctionType();
     FunctionType *specFt = dt.type->asFunctionType();
@@ -2123,8 +2123,7 @@ realStart:
       // check for violation of the One Definition Rule
       if (prior->hasFlag(DF_DEFINITION) &&
           (dt.dflags & DF_DEFINITION) &&
-          !multipleDefinitionsOK(env, prior, dt)) 
-        {
+          !multipleDefinitionsOK(env, prior, dt)) {
         // HACK: if the type refers to type variables, then let it slide
         // because it might be Foo<int> vs. Foo<float> but my simple-
         // minded template implementation doesn't know they're different
