@@ -18,6 +18,8 @@ options:
 EOF
 }
 
+# autoflush so progress reports work
+$| = 1;
 
 # defaults
 $BASE_FLAGS = "-g -Wall -Wno-deprecated -D__UNIX__";
@@ -146,6 +148,19 @@ EOF
 print("C++ compiler seems to work\n\n");
 
 
+# ---------------------- etags? ---------------------
+print("checking for etags... ");
+if (system("type etags >/dev/null 2>&1")) {
+  # doesn't have etags; cygwin is an example of such a system
+  print("not found\n");
+  $ETAGS = "true";
+}
+else {
+  print("etags\n");
+  $ETAGS = "etags";
+}
+
+
 # ------------------ config.summary -----------------
 # create a program to summarize the configuration
 open(OUT, ">config.summary") or die("can't make config.summary");
@@ -199,6 +214,7 @@ EOF
 sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
     -e "s|\@DEBUG_HEAP\@|$DEBUG_HEAP|g" \\
     -e "s|\@TRACE_HEAP\@|$TRACE_HEAP|g" \\
+    -e "s|\@ETAGS\@|$ETAGS|g" \\
   <Makefile.in >>Makefile
 
 # discourage editing ..

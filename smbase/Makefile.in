@@ -22,6 +22,7 @@ LDFLAGS := -g -Wall libsmbase.a
 # some other tools
 AR     := ar
 RANLIB := ranlib
+ETAGS  := @ETAGS@
 
 
 # compile .cc to .o
@@ -315,7 +316,7 @@ doc: gendoc gendoc/dependencies.png gendoc/configure.txt
 	@echo "built documentation"
 
 TAGS:
-	etags --members --typedefs *.cc *.h
+	$(ETAGS) --members --typedefs *.cc *.h
 
 
 # --------------------- clean --------------------
