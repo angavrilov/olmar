@@ -11,6 +11,8 @@
     struct wes_ast_node ** children;
   };
 
+  // .. I am a gratuitous change to observe propagation ..
+
   #include "cc_tree.h"    // TODO: why did we need this?
   #include <string.h>     // strdup
 #endif
