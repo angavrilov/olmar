@@ -1018,7 +1018,7 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
     out << "  if (!vis." << visitName << "(this)) { return; }\n\n";
   }
   else {
-    out << " // no 'visit' because it's handled by subclasses\n\n";
+    out << "  // no 'visit' because it's handled by subclasses\n\n";
   }
 
   if (super) {
@@ -1060,9 +1060,14 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
   // do any additional traversal action specified by the user
   emitCustomCode(c->decls, "traverse");
 
-  // if we did the preorder visit on the way in, do the
-  // postorder visit now
-  out << "  vis.post" << visitName << "(this);\n";
+  if (!hasChildren) {
+    // if we did the preorder visit on the way in, do the
+    // postorder visit now
+    out << "  vis.post" << visitName << "(this);\n";
+  }
+  else {
+    out << "  // no 'postvisit' either\n";
+  }
 
   out << "}\n\n";
 }
