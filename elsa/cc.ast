@@ -538,7 +538,7 @@ class ExpressionListOpt (
 
 
 // animals which appear after declarations to assign initial values
-class Initializer {
+class Initializer (SourceLoc loc) {
   public Initializer *next;  ctor next=NULL;       // FakeList link
 
   // simple initializer, like "int x = 3"

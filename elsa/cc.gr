@@ -759,7 +759,7 @@ nonterm(Condition*) Condition {
   // variable declaration in the condition clause
   -> spec:TypeSpecifier decl:Declarator "=" e:AssignmentExpression
        { return new CN_decl(new ASTTypeId(spec, 
-                                          new Declarator(decl, new IN_expr(e)))); }
+                                          new Declarator(decl, new IN_expr(loc, e)))); }
 }
 
 nonterm(Condition*) ConditionOpt {
@@ -1161,7 +1161,7 @@ nonterm(Initializer*) Initializer {
        { return i; }
 
   -> "(" args:ExpressionList ")"
-       { return new IN_ctor(args); }
+       { return new IN_ctor(loc, args); }
        
   // NOTE: there is no alternative for "(" ")"!  
   // see [cppstd. sec. 8.5 para 8]
@@ -1169,7 +1169,7 @@ nonterm(Initializer*) Initializer {
 
 nonterm(Initializer*) SimpleInitializerClause {
   -> e:AssignmentExpression              // scalar
-       { return new IN_expr(e); }
+       { return new IN_expr(loc, e); }
   -> c:CompoundInitializer               // array/structure initializer
        { return c; }
 }
@@ -1186,7 +1186,7 @@ nonterm(IN_compound*) CompoundInitializer {
   -> "{" list:InitializerList CommaOpt "}"  { return list; }
 
   // zero whatever it is
-  -> "{" "}"  { return new IN_compound(NULL); }
+  -> "{" "}"  { return new IN_compound(loc, NULL); }
 }
 
 // useful syntactic quirk
@@ -1199,7 +1199,7 @@ nonterm(IN_compound*) InitializerList {
   fun dup(i) { return NULL; }     // prevent multi-yield
 
   -> init:InitializerClause
-       { IN_compound *list = new IN_compound(NULL);
+       { IN_compound *list = new IN_compound(loc, NULL);
          list->inits.append(init);
          return list; }
 
@@ -1440,12 +1440,12 @@ nonterm(ASTTypeId*) ParameterDeclaration {
   -> RegisterOpt s:TypeSpecifier d:Declarator
        { return new ASTTypeId(s, new Declarator(d, NULL /*init*/)); }
   -> RegisterOpt s:TypeSpecifier d:Declarator "=" e:AssignmentExpression
-       { return new ASTTypeId(s, new Declarator(d, new IN_expr(e))); }
+       { return new ASTTypeId(s, new Declarator(d, new IN_expr(loc, e))); }
 
   -> RegisterOpt s:TypeSpecifier d:AbstractDeclaratorOpt
        { return new ASTTypeId(s, new Declarator(d, NULL /*init*/)); }
   -> RegisterOpt s:TypeSpecifier d:AbstractDeclaratorOpt "=" e:AssignmentExpression
-       { return new ASTTypeId(s, new Declarator(d, new IN_expr(e))); }
+       { return new ASTTypeId(s, new Declarator(d, new IN_expr(loc, e))); }
 }
 
 // old code uses the keyword "register" in the parameter declarations, but I
@@ -1739,7 +1739,7 @@ nonterm(Declarator*) MemberDeclarator {
   // difference between PureSpecifier and ConstantInitializer just by
   // looking at their syntax, we'd be disambiguating this later anyway
   -> d:Declarator "=" e:ConstantExpression     // pure, and member inits
-       { return new Declarator(d, new IN_expr(e)); }
+       { return new Declarator(d, new IN_expr(loc, e)); }
 
   -> n:IdentifierOpt ":" e:ConstantExpression     // bitfield
        { return new Declarator(new D_bitfield(loc, n? new PQ_name(loc, n) : NULL, e),

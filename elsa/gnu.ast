@@ -68,7 +68,7 @@ class Initializer {
                    Initializer init);
 }
 
-class Designator {
+class Designator (SourceLoc loc) {
   // FakeList link; use setNext
   public Designator *next;  ctor next=NULL;
   public void setNext(Designator *newNext);

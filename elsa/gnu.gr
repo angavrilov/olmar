@@ -274,11 +274,11 @@ nonterm(Initializer*) InitializerClause {
   // obsolescent form
   // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Designated-Inits.html#Designated%20Inits
   -> d:Identifier ":" init:SimpleInitializerClause
-    { return new IN_designated(FakeList<Designator>::makeList(new FieldDesignator(d)),
+    { return new IN_designated(loc, FakeList<Designator>::makeList(new FieldDesignator(loc, d)),
                                init); }
   // C99 official form; C99 standard section 6.7.8
   -> dl:DesignatorList "=" init:SimpleInitializerClause
-    { return new IN_designated(dl, init); }
+    { return new IN_designated(loc, dl, init); }
 }
 
 nonterm(FakeList<Designator>*) DesignatorList {
@@ -291,13 +291,13 @@ nonterm(FakeList<Designator>*) DesignatorList {
 
 nonterm(Designator*) Designator {
   -> "." id:Identifier
-    { return new FieldDesignator(id); }
+    { return new FieldDesignator(loc, id); }
   -> "[" idx_expr:ConstantExpression "]"
-    { return new SubscriptDesignator(idx_expr, NULL); }
+    { return new SubscriptDesignator(loc, idx_expr, NULL); }
   // range designator "[ 1 ... 3 ] =".  This is a gcc-ism:
   // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Designated-Inits.html#Designated%20Inits
   -> "[" idx_expr:ConstantExpression "..." idx_expr2:ConstantExpression "]"
-    { return new SubscriptDesignator(idx_expr, idx_expr2); }
+    { return new SubscriptDesignator(loc, idx_expr, idx_expr2); }
 }
 
 
