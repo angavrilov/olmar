@@ -113,6 +113,7 @@ TOCHECK += cc.in39
 TOCHECK += cc.in40
 TOCHECK += cc.in41
 TOCHECK += cc.in42
+TOCHECK += cc.in43
 
 # That's all for parsgen/cc.in.
 
@@ -124,7 +125,7 @@ idem/check: idem/clean
 idem/clean:
 	find ../cc.in -type f \
 	\( -name '*.out_cpp'  \
-	   -name '*.out_raw'  -o -name '*.out' \
+	-o -name '*.out_raw'  -o -name '*.out' \
 	-o -name '*.out2_raw' -o -name '*.out2' \
 	-o -name '*.diff' \
 	-o -name '*.out_raw'  -o -name '*.out' \
