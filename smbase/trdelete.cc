@@ -104,9 +104,7 @@ int main()
   Bar *b = new Bar;
   b->x = 7;
   delete b;
-  if (b->x != 7) {
-    // in principle we can't assume contents are preserved, but
-    // if they're not, then the above test is worthless
+  if ((unsigned)b->x == 0xAAAAAAAAu) {    // did it trash it anyway?
     printf("non-trashing-delete failed\n");
     return 2;
   }

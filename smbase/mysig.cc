@@ -75,11 +75,100 @@ void jmpHandler(int signum)
 }
 
 
+void printAddrHandler(int signum, siginfo_t *info, void *)
+{
+  fprintf(stderr, "faulting address: 0x%08X\n", (int)(info->si_addr));
+  
+  // reset handler and re-raise
+  setHandler(signum, SIG_DFL);
+  raise(signum);
+}
+   
+
+// unfortunately, linux 2.4.18 seems to have some bugs w.r.t.
+// sigalstack... anytime MYSZ is as small as 4096, the test program
+// hangs repeatedly segfaulting once I get the first.. (but note that
+// MINSIGSTKSZ is 2048, so I should be well beyond the acknowledged
+// minimum); and with 8192 it works only some of the time, depending on
+// how things get laid out.  so I'm going to disable the alt stack
+// altogether, and rely on noticing that no "faulting address" is
+// printed if I get a stack overflow...
+
+//#define MYSZ 4096
+//char mysigstack[MYSZ];
+
+void printSegfaultAddrs()
+{
+  // allocate the alternate signal stack; I do this because I want
+  // the handler to work even for SEGVs caused by stack-overflow
+  //if (!mysigstack) {
+  //  mysigstack = (char*)malloc(MINSIGSTKSZ);    // "minimum signal stack size"
+  //}
+
+  #if 0
+  // tell the library about it
+  struct sigaltstack sas;
+  sas.ss_sp = mysigstack;
+  sas.ss_size = MYSZ;
+  sas.ss_flags = SS_ONSTACK;
+
+  if (0 > sigaltstack(&sas, NULL)) {
+    perror("sigaltstack");
+    exit(2);
+  }    
+  #endif // 0
+
+
+  // NOTE: I have no idea how portable this stuff is, especially the
+  // 'sigaltstack' call.  It's only here as a debugging aid.  Feel
+  // free to #ifdef-out the entire section if necessary, but tell me
+  // (smcpeak@acm.org) about it so I can add detection logic.
+
+
+  // construct the handler information struct
+  struct sigaction sa;
+  memset(&sa, 0, sizeof(sa));
+  sa.sa_sigaction = printAddrHandler;
+  sigemptyset(&sa.sa_mask);         // don't block other signals
+  sa.sa_flags = SA_SIGINFO; // | SA_STACK;
+
+  // install the handler
+  if (0 > sigaction(SIGSEGV, &sa, NULL)) {
+    perror("sigaction");
+    exit(2);
+  }
+}
+
+
 // ------------------ test code ------------------
 #ifdef TEST_MYSIG
 
-int main()
+static void infiniteRecursion()
 {
+  char buf[1024];
+  buf[0] = 4;
+  buf[1023] = 6;
+  infiniteRecursion();
+}
+
+int main(int argc, char **argv)
+{
+  if (argc >= 2) {
+    // segfault at a given addr
+    printSegfaultAddrs();
+    
+    if (0==strcmp(argv[1], "inf")) {
+      // die by stack overflow.. interesting, I can't catch it..
+      printf("going into infinite recursion...\n");
+      infiniteRecursion();
+    }
+
+    int addr = strtoul(argv[1], NULL /*endp*/, 0 /*radix*/);
+    printf("about to access 0x%08X ...\n", addr);
+    *((int*)addr) = 0;
+    return 0;     // won't be reached for most values of 'addr'
+  }
+
   if (setjmp(sane_state) == 0) {   // normal flow
     setHandler(SIGINT, printHandler);
     setHandler(SIGTERM, printHandler);
@@ -89,14 +178,16 @@ int main()
 
     //printf("I'm pid %d waiting to be killed...\n", getpid());
     //sleep(10);
-    printf("about to cause a segfault\n");
+    printf("about to deliberately cause a segfault ...\n");
     *((int*)0) = 0;    // segfault!
-    printf("finished waiting\n");
-    return 0;
+
+    printf("didn't segfault??\n");
+    return 2;
   }
 
   else {         // from longjmp
-    printf("came back from a longjmp\n");
+    printf("came back from a longjmp!\n");
+    printf("\nmysig works\n");
     return 0;
   }
 }

@@ -5527,6 +5527,11 @@ void checkHeapNode(void *node)
 
   assert(node != 0);
 
+  #ifdef DEBUG_HEAP
+    // get pointer to true block start
+    node = (void*)( (unsigned char*)node - sizeof(size_t) - ZONE_SIZE );
+  #endif
+
   p = mem2chunk(node);
   check_inuse_chunk(p);
 }

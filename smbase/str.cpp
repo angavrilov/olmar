@@ -235,6 +235,19 @@ void stringBuilder::append(char const *tail, int len)
 }
 
 
+stringBuilder& stringBuilder::indent(int amt)
+{
+  xassert(amt >= 0);
+  ensure(length() + amt);
+
+  memset(end, ' ', amt);
+  end += amt;
+  *end = 0;
+  
+  return *this;
+}
+
+
 void stringBuilder::grow(int newMinLength)
 {
   // I want at least EXTRA_SPACE extra

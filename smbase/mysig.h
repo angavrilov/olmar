@@ -37,6 +37,12 @@ extern jmp_buf sane_state;
 // handler to do a longjmp to sane_state
 void jmpHandler(int signum);
 
+
+// install a segfault handler that will print the address that
+// caused the fault; this is very useful for debugging
+void printSegfaultAddrs();
+
+
 #ifdef __cplusplus
 }
 #endif // __cplusplus

@@ -166,6 +166,10 @@ public:
   // useful for appending substrings or strings with NUL in them
   void append(char const *tail, int length);
 
+  // append a given number of spaces; meant for contexts where we're
+  // building a multi-line string; returns '*this'
+  stringBuilder& indent(int amt);
+
   // sort of a mixture of Java compositing and C++ i/o strstream
   // (need the coercion version (like int) because otherwise gcc
   // spews mountains of f-ing useless warnings)
