@@ -38,7 +38,10 @@ enum ErrorFlags {
   // considered to disambiguate
   EF_DISAMBIGUATES = 0x04,
 
-  EF_ALL           = 0x07
+  // this is a warning that will not be suppressed in template code
+  EF_STRONG_WARNING= 0x08,
+
+  EF_ALL           = 0x0F
 };
 ENUM_BITWISE_OR(ErrorFlags)
 
@@ -64,8 +67,10 @@ public:
     : loc(L), msg(m), flags(f), instLoc(i) {}
   ~ErrorMsg();
 
-  bool isWarning() const { return !!(flags & EF_WARNING); }
-  bool disambiguates() const { return !!(flags & EF_DISAMBIGUATES); }
+  bool isWarning() const 
+    { return !!(flags & (EF_WARNING | EF_STRONG_WARNING)); }
+  bool disambiguates() const
+    { return !!(flags & EF_DISAMBIGUATES); }
 
   string toString() const;
 };

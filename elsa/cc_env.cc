@@ -360,10 +360,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
     doOperatorOverload(tracingSys("doOperatorOverload") && lang.allowOverloading),
                                                               
-    // I will try making the default be EF_NONE and I can request
-    // stricter checking with "strict".
-    maybeEF_STRONG(tracingSys("strict")? EF_STRONG : EF_NONE),
-
     collectLookupResults(NULL),
     
     tcheckMode(TTM_1NORMAL)
@@ -2971,7 +2967,7 @@ Variable *Env::createDeclaration(
           << "duplicate definition for `" << name
           << "' of type `" << prior->type->toString()
           << "'; previous at " << toString(prior->loc),
-          EF_STRONG);
+          maybeEF_STRONG());
 
       makeDummyVar:
         // the purpose of this is to allow the caller to have a workable
@@ -3008,7 +3004,7 @@ Variable *Env::createDeclaration(
             << "duplicate member declaration of `" << name
             << "' in " << enclosingClass->keywordAndName()
             << "; previous at " << toString(prior->loc),
-            maybeEF_STRONG);    // weakened for t0266.cc
+            maybeEF_STRONG());    // weakened for t0266.cc
           goto makeDummyVar;
         }
         else {
@@ -3476,15 +3472,31 @@ Type *Env::error(Type *t, char const *msg)
 }
 
 
+ErrorFlags Env::maybeEF_STRONG() const
+{
+  if (disambiguateOnly && !tracingSys("strict")) {
+    return EF_STRONG_WARNING;
+  }
+  else {
+    return EF_STRONG;
+  }
+}
+
+
 // I want this function to always be last in this file, so I can easily
 // find it to put a breakpoint in it.
 Type *Env::error(SourceLoc L, char const *msg, ErrorFlags eflags)
 {
   string instLoc = instLocStackString();
-  TRACE("error", ((eflags & EF_DISAMBIGUATES)? "[d] " : "")
+  TRACE("error", ((eflags & EF_DISAMBIGUATES)? "[d] " :
+                  (eflags & (EF_WARNING | EF_STRONG_WARNING))? "[w] " : "")
               << toString(L) << ": " << msg << instLoc);
 
-  bool report = (eflags & EF_DISAMBIGUATES) || (eflags & EF_STRONG) || (!disambiguateOnly);
+  bool report = 
+    (eflags & EF_DISAMBIGUATES) || 
+    (eflags & EF_STRONG) ||
+    (eflags & EF_STRONG_WARNING) ||
+    (!disambiguateOnly);
   if (report) {
     errors.addError(new ErrorMsg(L, msg, eflags, instLoc));
   }

@@ -12,7 +12,9 @@ ErrorMsg::~ErrorMsg()
 string ErrorMsg::toString() const
 {
   return stringc << ::toString(loc)
-                 << (isWarning()? ": warning: " : ": error: ")
+                 << ((flags & EF_WARNING)? ": warning: " :
+                     (flags & EF_STRONG_WARNING)? ": warning(error): " :
+                     ": error: ")
                  << msg << instLoc;
 }
 

@@ -184,12 +184,6 @@ public:      // data
   // are to be treated as calls to overloaded operator functions
   bool doOperatorOverload;
 
-  // This is the error mode used for errors that I want to be
-  // EF_STRONG (reported even in templates) while implementing new
-  // features, but EF_NONE (not reported in templates) when trying to
-  // get big testcases through.
-  ErrorFlags maybeEF_STRONG;
-
   // when non-NULL, the variable lookup results are collected and
   // compared to the text stored in this pointer; it is supplied via
   // an an 'asm' directive (see TF_asm::itcheck)
@@ -484,7 +478,7 @@ public:      // funcs
   // return true if the given list of errors contain any which
   // are disambiguating errors
   bool hasDisambErrors() const { return errors.hasDisambErrors(); }
-  
+
   // return true if environment modifications should be suppressed
   // because of disambiguating errors
   bool disambErrorsSuppressChanges() const
@@ -493,6 +487,12 @@ public:      // funcs
   // number of errors; intended to be called after type checking,
   // to see how many errors (if any) resulted
   int numErrors() const { return errors.count(); }
+
+  // This is the error mode used for errors that I want to be
+  // EF_STRONG (reported even in templates) while implementing new
+  // features, but EF_NONE (not reported in templates) when trying to
+  // get big testcases through.
+  ErrorFlags maybeEF_STRONG() const;
 
   // makes a function type that returns ST_CDTOR and accepts no params
   // (other than the receiver object of type 'ct')

@@ -481,14 +481,14 @@ testparse t0254.cc
 testparse t0255.cc
 testparse t0256.cc
 testparse t0257.cc
-testparse t0258.cc
+testparse_strict t0258.cc
 testparse t0259.cc
 testparse_strict t0260.cc
 testparse t0261.cc
 testparse t0262.cc
 testparse t0263.cc
 testparse t0264.cc
-failparse t0265.cc "<dependent> needs to carry more information"
+testparse t0265.cc
 testparse t0266.cc
 # it's not clear whether t0267.cc is valid C++ or not, no point in testing it here
 testparse t0268.cc
