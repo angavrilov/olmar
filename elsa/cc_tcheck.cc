@@ -1452,6 +1452,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // get the variable from the IDeclarator
   decl->tcheck(env, dt);
   var = dt.var;
+  type = dt.type;
 
   // cppstd, sec. 3.3.1:
   //   "The point of declaration for a name is immediately after
