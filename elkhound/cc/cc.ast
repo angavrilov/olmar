@@ -79,7 +79,9 @@ class Function (
   // a prototype for the function
   public void tcheck(Env &env, bool checkBody);
 
+  private CompoundType *verifyIsCtor(Env &env, char const *context);
   private void tcheck_memberInits(Env &env);
+  private void tcheck_handlers(Env &env);
 }
 
 class MemberInit (
