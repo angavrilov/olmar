@@ -190,9 +190,10 @@ NODE *resolveAmbiguity(
     // first put back the old errors
     env.errors.concat(existingErrors);
 
-    // now complain
+    // now complain; mark it 'disambiguating' so that we'll see
+    // this show up even in template code
     env.error("more than one ambiguous alternative succeeds",
-              false /*disambiguates*/);
+              true /*disambiguates*/);
     return ths;
   }            
   
@@ -2390,6 +2391,7 @@ void Expression::tcheck(Expression *&ptr, Env &env)
   if (!ambiguity) {
     mid_tcheck(env, dummy);
     ptr = this;
+    return;
   }
 
   ptr = resolveAmbiguity(this, env, "Expression", false /*priority*/, dummy);
@@ -2398,8 +2400,13 @@ void Expression::tcheck(Expression *&ptr, Env &env)
 
 void Expression::mid_tcheck(Env &env, int &)
 {                              
-  if (type) {
+  if (type && !type->isError()) {
     // this expression has already been checked
+    //
+    // we also require that 'type' not be ST_ERROR, because if the
+    // error was disambiguating then we need to check it again to
+    // insert the disambiguating message into the environment again;
+    // see cc.in/cc.in59
     return;
   }
 
