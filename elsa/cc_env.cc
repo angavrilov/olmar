@@ -355,15 +355,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
     currentLinkage(quote_C_plus_plus_quote),
     
-    // 7/30/04: I'm now making this default to true, with a tracing
-    // flag to turn it back off, since I think our overload
-    // implementation is now mature enough.
-    doOverload(!tracingSys("doNotOverload") && lang.allowOverloading),
-
-    // 9/23/04: Default to true, since there is little value anymore
-    // to parsing without full tcheck.
-    doOperatorOverload(!tracingSys("doNotOperatorOverload") && lang.allowOverloading),
-    
     doFunctionTemplateBodyInstantiation(!tracingSys("disableFBodyInst")),
                           
     // this can be turned off with its own flag, or in C mode (since I
@@ -3636,6 +3627,31 @@ ErrorFlags Env::maybeEF_STRONG() const
   else {
     return EF_STRONG;
   }
+}
+
+
+bool Env::doOverload() const
+{
+  static bool disabled = tracingSys("doNotOverload");
+  if (disabled) { return false; }
+
+  if (!lang.allowOverloading) { return false; }
+
+  if (disambiguateOnly) { return false; }
+
+  return true;
+}
+
+bool Env::doOperatorOverload() const
+{
+  static bool disabled = tracingSys("doNotOperatorOverload");
+  if (disabled) { return false; }
+
+  if (!lang.allowOverloading) { return false; }
+
+  if (disambiguateOnly) { return false; }
+
+  return true;
 }
 
 

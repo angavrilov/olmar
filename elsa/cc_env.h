@@ -174,16 +174,6 @@ public:      // data
   // current linkage type, as a string literal like "C" or "C++"
   StringRef currentLinkage;
 
-  // when true, the type checker does overload resolution; this isn't
-  // enabled by default because it's not fully implemented, and
-  // consequently, turning it on leads to spurious errors on some test
-  // cases (TODO: eventually, enable this permanently)
-  bool doOverload;
-  
-  // when true, operator expressions are checked to see if they
-  // are to be treated as calls to overloaded operator functions
-  bool doOperatorOverload;
-
   // when true, function template bodies are instantiated
   bool doFunctionTemplateBodyInstantiation;
 
@@ -511,6 +501,13 @@ public:      // funcs
   // features, but EF_NONE (not reported in templates) when trying to
   // get big testcases through.
   ErrorFlags maybeEF_STRONG() const;
+
+  // when true, the type checker does overload resolution
+  bool doOverload() const;
+
+  // when true, operator expressions are checked to see if they
+  // are to be treated as calls to overloaded operator functions
+  bool doOperatorOverload() const;
 
   // makes a function type that returns ST_CDTOR and accepts no params
   // (other than the receiver object of type 'ct')

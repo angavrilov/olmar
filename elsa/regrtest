@@ -563,6 +563,7 @@ testparse t0327.cc
 testparse t0328.cc
 testparse t0329.cc
 failparse t0330.cc "member lookup bug causes failure to diagnose bad input"
+testparse t0331.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -679,7 +680,7 @@ failparse d0109.cc "'using' same namespace twice causes error"
 failparse d0110.cc "class specialization without 'template' prefix?"
 failparse d0111.cc "templatized member type not accessible?"
 failparse d0112.cc "some template dependent name problem"
-failparse d0113.cc "very strange function call situation that gcc 2.96 likes bug elsa not"
+testparse d0113.cc
 failparse d0114.cc "overloading bug"
 failparse d0115.cc "cannot find standard namespace"
 testparse d0116.cc

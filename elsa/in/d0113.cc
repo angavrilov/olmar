@@ -5,6 +5,14 @@
 // don't understand how 'pos' can be used when it has never been
 // declared
 
+// sm: 10/02/04: The reason gcc accepts this is that it does not
+// instantiate the templates.  The reason Elsa used to fail is that it
+// would attempt operator overloading in uninstantiated template
+// bodies, which fails for a variety of reasons.  I just fixed Elsa to
+// not do that, so it accepts the (invalid; no specialization is
+// possible; no diagnostic required) code for the same reason gcc
+// does, namely that no instantiation occurs.
+
 template<class C> struct S {};
 
 template<bool t, int i> struct D {} ;

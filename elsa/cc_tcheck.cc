@@ -39,7 +39,6 @@
 // forwards in this file
 static Variable *outerResolveOverload_ctor
   (Env &env, SourceLoc loc, Type *type, FakeList<ArgExpression> *args, bool really);
-static bool reallyDoOverload(Env &env, FakeList<ArgExpression> *args);
 FakeList<ArgExpression> *tcheckArgExprList(FakeList<ArgExpression> *list, Env &env);
 Type *resolveOverloadedUnaryOperator(
   Env &env,
@@ -638,7 +637,7 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
       // decide which of v's possible constructors is being used
       ctorVar = env.storeVar(
         outerResolveOverload_ctor(env, env.loc(), v->type, args,
-                                  reallyDoOverload(env, args)));
+                                  env.doOverload()));
       env.ensureFuncBodyTChecked(ctorVar);
 
       // TODO: check that the passed arguments are consistent
@@ -734,7 +733,7 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
     outerResolveOverload_ctor(env, env.loc(),
                               baseVar->type,
                               args,
-                              reallyDoOverload(env, args)));
+                              env.doOverload()));
   env.ensureFuncBodyTChecked(ctorVar);
 }
 
@@ -4547,24 +4546,6 @@ static Variable *outerResolveOverload_ctor
   // int; see t0080.cc
   return ret;
 }
-
-
-// dsw: this function should eventually be the constant function
-// "true" except for any references to env.doOverload (and possibly
-// env.lang.allowOverloading, though that's handled elsewhere for now)
-static bool reallyDoOverload(Env &env, FakeList<ArgExpression> *args) {
-  Env::TemplTcheckMode mode = env.getTemplTcheckMode();
-  // note: there is a situation in which mode can actually be
-  // TTM_2TEMPL_FUNC_DECL: if you are in the parameter list of the
-  // definition of a templatized function and it refers to the
-  // instantiation of a templatized class and in the constructor for
-  // that class there is a member initializer that calls a constructor
-  // function; this comes up in in/big/nsCLiveconnectFactory.i:22245
-  // UPDATE: other changes should be fixing this
-  xassert(mode == Env::TTM_1NORMAL || mode == Env::TTM_3TEMPL_DEF);
-  return env.doOverload         // user wants overloading
-    && mode == Env::TTM_1NORMAL; // we are in real code
-}
 // ------------- END: outerResolveOverload ------------------
 
 
@@ -4802,14 +4783,6 @@ static bool argumentDependentReLookup(Env &env, Variable *&var, PQName *pqname,
 
 Type *E_funCall::inner2_itcheck(Env &env)
 {
-  if (func->isE_variable() &&
-      func->asE_variable()->name->getName() == env.special_testOverload) {
-    // if I'm trying to test it, I want it performed; do this up here
-    // so I turn it on before resolving the arguments
-    env.doOverload = true;
-    env.doOperatorOverload = true;     // this too, when test wants overloading
-  }
-
   // check the argument list
   args = tcheckArgExprList(args, env);
 
@@ -4892,7 +4865,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
   }
 
   // check for function calls that need overload resolution
-  if (reallyDoOverload(env, args)) {
+  if (env.doOverload()) {
     // simple E_funCall to a named function
     if (func->isE_variable()) {
       E_variable *evar = func->asE_variable();
@@ -5333,7 +5306,7 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
   }
 
   Variable *ctor = outerResolveOverload_ctor(env, env.loc(), type, args,
-                                             reallyDoOverload(env, args));
+                                             env.doOverload());
   ctorVar = env.storeVar(ctor);
   env.ensureFuncBodyTChecked(ctor);
 
@@ -5560,7 +5533,7 @@ Type *resolveOverloadedUnaryOperator(
   OverloadableOp op          // which operator this node is
 ) {
   // consider the possibility of operator overloading
-  if (env.doOperatorOverload &&
+  if (env.doOperatorOverload() &&
       !expr->type->containsGeneralizedDependent() &&
       (expr->type->asRval()->isCompoundType() ||
        expr->type->asRval()->isEnumType())) {
@@ -5648,7 +5621,7 @@ Type *resolveOverloadedBinaryOperator(
   Expression *e2,            // right subexpression, or NULL for postfix inc/dec
   OverloadableOp op          // which operator this node is
 ) {
-  if (!env.doOperatorOverload) {
+  if (!env.doOperatorOverload()) {
     return NULL;
   }
 
@@ -6573,7 +6546,7 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
     ctorArgs->list = tcheckArgExprList(ctorArgs->list, env);
     Variable *ctor0 = 
       outerResolveOverload_ctor(env, env.loc(), t, ctorArgs->list,
-                                reallyDoOverload(env, ctorArgs->list));
+                                env.doOverload());
     // ctor0 can be null when the type is a simple type, such as an
     // int; I assume that ctor0 being NULL is the correct behavior in
     // that case
@@ -6974,7 +6947,7 @@ void IN_ctor::tcheck(Env &env, Type *type)
 {
   args = tcheckArgExprList(args, env);
   ctorVar = env.storeVar(
-    outerResolveOverload_ctor(env, loc, type, args, reallyDoOverload(env, args)));
+    outerResolveOverload_ctor(env, loc, type, args, env.doOverload()));
   env.ensureFuncBodyTChecked(ctorVar);
 }
 

@@ -128,8 +128,6 @@ void doit(int argc, char **argv)
      "  general behavior flags:\n"
      "    c_lang             use C language rules (default is C++)\n"
      "    nohashline         ignore #line when reporting locations\n"
-     "    doOverload         do named function overload resolution\n"
-     "    doOperatorOverload do operator overload resolution\n"
      "\n"
      "  options to stop after a certain stage:\n"
      "    stopAfterParse     stop after parsing\n"
