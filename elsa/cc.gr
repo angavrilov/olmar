@@ -115,6 +115,22 @@ public:
     ret->cv = cv;
     return ret;
   }
+
+  // make a TS_typeof_expr, and supply CV flags
+  TS_typeof_expr *new_TS_typeof_expr(SourceLoc loc, CVFlags cv, Expression *expr)
+  {
+    TS_typeof_expr *ret = new TS_typeof_expr(loc, expr);
+    ret->cv = cv;
+    return ret;
+  }
+
+  // make a TS_typeof_type, and supply CV flags
+  TS_typeof_type *new_TS_typeof_type(SourceLoc loc, CVFlags cv, ASTTypeId *t)
+  {
+    TS_typeof_type *ret = new TS_typeof_type(loc, t);
+    ret->cv = cv;
+    return ret;
+  }
 };
 
 
@@ -923,6 +939,26 @@ nonterm(Declaration*) DeclSpecifier {
        { UberModifiers m = uberCombine(loc, m1, m2);
          e->cv |= uberCVFlags(m);      // destructive action
          return new Declaration(uberDeclFlags(m), e, NULL); }
+
+  // TS_typeof_expr: triggered by TypeofExpr
+  -> te:TypeofExpr m2:UberModifierSeqOpt
+       { return new Declaration(uberDeclFlags(m2),
+           new_TS_typeof_expr(loc, uberCVFlags(m2), te), NULL); }
+
+  -> m1:UberModifierSeq te:TypeofExpr m2:UberModifierSeqOpt
+       { UberModifiers m = uberCombine(loc, m1, m2);
+         return new Declaration(uberDeclFlags(m),
+           new_TS_typeof_expr(loc, uberCVFlags(m), te), NULL); }
+
+  // TS_typeof_type: triggered by TypeofType
+  -> tt:TypeofType m2:UberModifierSeqOpt
+       { return new Declaration(uberDeclFlags(m2),
+           new_TS_typeof_type(loc, uberCVFlags(m2), tt), NULL); }
+
+  -> m1:UberModifierSeq tt:TypeofType m2:UberModifierSeqOpt
+       { UberModifiers m = uberCombine(loc, m1, m2);
+         return new Declaration(uberDeclFlags(m),
+           new_TS_typeof_type(loc, uberCVFlags(m), tt), NULL); }
 }
 
 // choose among TS_elaborated, TS_classSpec and TS_enumSpec
@@ -1036,6 +1072,13 @@ nonterm(TypeSpecifier*) ElaboratedTypeSpecifier {
 // version of DeclSpecifier restricted to only allow "const" and
 // "volatile" UberModifiers
 nonterm(TypeSpecifier*) TypeSpecifier {
+  // ambiguous:
+  //   typeof(x)
+  // could either be type of an expression 'x', or
+  // type (of a type) called 'x'
+  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Typeof.html#Typeof
+  fun merge(L,R) { L->addAmbiguity(R); return L; }
+
   // TS_name
   -> n:PQTypeName cv2:UberCVQualifierSeqOpt
        { return new_TS_name(loc, uberCVFlags(cv2), n, false /*typename*/); }
@@ -1063,6 +1106,22 @@ nonterm(TypeSpecifier*) TypeSpecifier {
        { UberModifiers m = uberCombine(loc, m1, m2);
          e->cv |= uberCVFlags(m);      // destructive action
          return e; }
+
+  // TS_typeof_expr
+  -> te:TypeofExpr cv2:UberCVQualifierSeqOpt
+       { return new_TS_typeof_expr(loc, uberCVFlags(cv2), te); }
+
+  -> cv1:UberCVQualifierSeq te:TypeofExpr cv2:UberCVQualifierSeqOpt
+       { UberModifiers cv = uberCombine(loc, cv1, cv2);
+         return new_TS_typeof_expr(loc, uberCVFlags(cv), te); }
+
+  // TS_typeof_type
+  -> tt:TypeofType cv2:UberCVQualifierSeqOpt
+       { return new_TS_typeof_type(loc, uberCVFlags(cv2), tt); }
+
+  -> cv1:UberCVQualifierSeq tt:TypeofType cv2:UberCVQualifierSeqOpt
+       { UberModifiers cv = uberCombine(loc, cv1, cv2);
+         return new_TS_typeof_type(loc, uberCVFlags(cv), tt); }
 }
 
 
@@ -1074,6 +1133,18 @@ nonterm(PQName*) PQTypeName {
        { return n; }
   -> "::" n:PQTypeName_ncc
        { return new PQ_qualifier(NULL /*qualifier*/, NULL /*targs*/, n); }
+}
+
+// gnu extension
+nonterm(Expression*) TypeofExpr {
+  -> "__typeof__" "(" e:Expression ")"
+       { return e; }
+}
+
+// gnu extension
+nonterm(ASTTypeId*) TypeofType {
+  -> "__typeof__" "(" t:TypeId ")"
+       { return t; }
 }
 
 // no-colon-colon
@@ -1402,10 +1473,6 @@ nonterm(enum CVFlags) CVQualifier {
 nonterm(ASTTypeId*) TypeId {
   -> spec:TypeSpecifier decl:AbstractDeclaratorOpt
        { return new ASTTypeId(spec, new Declarator(decl, NULL)); }
-
-  // gnu extension
-//    -> "__typeof__" "(" e:Expression ")"
-//         { return new TypeofTypeID(e); }
 }
 
 nonterm(IDeclarator*) AbstractDeclaratorOpt {

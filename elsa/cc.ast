@@ -171,6 +171,28 @@ class PQName {
 // with type constructors when the name was defined, but a
 // TypeSpecifier refers only to the name)
 class TypeSpecifier(SourceLoc loc) {
+  // FakeList link; use 'setNext' to set 'next'
+  public TypeSpecifier *next;  ctor next=NULL;
+  public void setNext(TypeSpecifier *newNext);
+
+  // same as we do for statements
+  public TypeSpecifier *ambiguity;  ctor ambiguity=NULL;
+  public void addAmbiguity(TypeSpecifier *alternative);
+  custom traverse { if (ambiguity) ambiguity->traverse(vis); }
+
+  // print ambiguities
+  public void printAmbiguities(ostream &os, int indent) const;
+  custom preemptDebugPrint {
+    if (ambiguity) {
+      printAmbiguities(os, indent);
+      return;     // skip the normal, unambiguous-node print code
+    }
+  }
+
+  // dsw: I had to move this here to deal with the mid_tcheck design
+  // pattern that is used to resolve ambiguities.
+  public Type *type;
+
   public enum CVFlags cv;  ctor cv=CV_NONE;
   custom clone { ret->cv = cv; }
 
@@ -210,6 +232,10 @@ class TypeSpecifier(SourceLoc loc) {
        StringRef /*nullable*/ name,          // name of enum, if any
        FakeList<Enumerator> *elts            // elements of the enumeration
      );
+
+  -> TS_typeof_expr(Expression expr);
+
+  -> TS_typeof_type(ASTTypeId atype);
 }
 
 // base class specification

@@ -344,7 +344,7 @@ void Function::tcheck(Env &env, bool checkBody)
   DisambiguateOnlyTemp disOnly(env, inTemplate /*disOnly*/);
 
   // get return type
-  Type *retTypeSpec = retspec->tcheck(env, dflags);
+  Type *retTypeSpec = retspec->tcheck(env, dflags)->type;
 
   // construct the full type of the function; this will set
   // nameAndParams->var, which includes a type, but that type might
@@ -661,7 +661,7 @@ void Declaration::tcheck(Env &env, bool isMember)
   }
 
   // check the specifier in the prevailing environment
-  Type *specType = spec->tcheck(env, dflags);
+  Type *specType = spec->tcheck(env, dflags)->type;
 
   // ---- the following code is adopted from tcheckFakeExprList ----
   // (I couldn't just use the same code, templatized as necessary,
@@ -716,7 +716,7 @@ ASTTypeId *ASTTypeId::tcheck(Env &env, Tcheck &tc)
 void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
 {
   // check type specifier
-  Type *specType = spec->tcheck(env, DF_NONE);
+  Type *specType = spec->tcheck(env, DF_NONE)->type;
                          
   // pass contextual info to declarator
   Declarator::Tcheck dt(specType, DF_NONE);
@@ -787,15 +787,25 @@ void PQ_template::tcheck(Env &env)
 
 
 // --------------------- TypeSpecifier --------------
-Type *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
+TypeSpecifier *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
+{
+  if (!ambiguity) {
+    mid_tcheck(env, dflags);
+    return this;
+  }
+
+  return resolveAmbiguity(this, env, "TypeSpecifier", false /*priority*/, dflags);
+}
+
+
+void TypeSpecifier::mid_tcheck(Env &env, DeclFlags &dflags)
 {
   Type *t = itcheck(env, dflags);
-  Type *ret = env.tfac.applyCVToType(loc, cv, t, this);
-  if (!ret) {
-    return env.error(t, stringc
-      << "cannot apply const/volatile to type `" << t->toString() << "'");
+  type = env.tfac.applyCVToType(loc, cv, t, this);
+  if (!type) {
+    type = env.error(t, stringc
+                     << "cannot apply const/volatile to type `" << t->toString() << "'");
   }
-  return ret;
 }
 
 
@@ -835,6 +845,24 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
   // there used to be a call to applyCV here, but that's redundant
   // since the caller (tcheck) calls it too
   return var->type;
+}
+
+
+Type *TS_typeof_expr::itcheck(Env &env, DeclFlags dflags)
+{
+  // FIX: dflags discarded?
+  expr->tcheck(expr, env);
+  return expr->type; // ->asRval();  // FIX: check the asRval()
+}
+
+
+Type *TS_typeof_type::itcheck(Env &env, DeclFlags dflags)
+{
+  // FIX: dflags discarded?
+  ASTTypeId::Tcheck tc;
+  atype = atype->tcheck(env, tc);
+  Type *t = atype->getType();
+  return t;
 }
 
 
@@ -3458,7 +3486,7 @@ Type *E_constructor::itcheck(Env &env)
 
 void E_constructor::inner1_itcheck(Env &env)
 {
-  type = spec->tcheck(env, DF_NONE);
+  type = spec->tcheck(env, DF_NONE)->type;
 }
 
 Type *E_constructor::inner2_itcheck(Env &env)
@@ -4278,7 +4306,7 @@ void TD_class::itcheck(Env &env)
 { 
   // check the class definition; it knows what to do about
   // the template parameters (just like for functions)
-  type = spec->tcheck(env, DF_NONE);
+  type = spec->tcheck(env, DF_NONE)->type;
 }
 
 

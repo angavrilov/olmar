@@ -258,6 +258,19 @@ PQName const *PQName::getUnqualifiedNameC() const
 
 
 //  ------------------- TypeSpecifier ---------------------
+void TypeSpecifier::printAmbiguities(ostream &os, int indent) const
+{
+  genericPrintAmbiguities(this, "TypeSpecifier", os, indent);
+
+  genericCheckNexts(this);
+}
+
+
+void TypeSpecifier::addAmbiguity(TypeSpecifier *alt)
+{
+  genericAddAmbiguity(this, alt);
+}
+
 void TypeSpecifier::printExtras(ostream &os, int indent) const
 {
   PRINT_GENERIC(cv);

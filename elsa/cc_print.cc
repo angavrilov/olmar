@@ -372,6 +372,18 @@ void TS_enumSpec::print(PrintEnv &env)
   }
 }
 
+void TS_typeof_expr::print(PrintEnv &env)
+{
+  xassert(0);                   // I'll bet this is never called.
+//    olayer ol("TS_typeof_expr");
+}
+
+void TS_typeof_type::print(PrintEnv &env)
+{
+  xassert(0);                   // I'll bet this is never called.
+//    olayer ol("TS_typeof_type");
+}
+
 // BaseClass
 void BaseClassSpec::print(PrintEnv &env) {
   olayer ol("BaseClassSpec");

@@ -27,6 +27,7 @@ cc_tokens.ids
 diffs
 lexer.yy.cc
 tmp
+tmp_*
 tmp.in
 quicktest
 tlexer
