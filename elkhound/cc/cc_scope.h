@@ -51,6 +51,15 @@ public:      // data
   // without triggering a compiler codegen bug..
   SObjList<CompoundType> innerClasses;
 
+  // (serf) parent named scope; presently, this is only used so that
+  // inner classes can refer to their containing classes (eventually
+  // nested namespaces will be supported this way too); this field is
+  // only set to non-NULL after the inner class has been fully
+  // constructed, since we can rely on the Environment's scope stack
+  // to look up things in containing classes while building the inner
+  // class for the first time
+  Scope *parentScope;
+
   // ------------- "current" entities -------------------
   // these are set to allow the typechecking code to know about
   // the context we're in

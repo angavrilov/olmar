@@ -831,7 +831,8 @@ Type const *TS_classSpec::itcheck(Env &env)
   bool inTemplate = env.scope()->curTemplateParams != NULL;
 
   // are we an inner class?
-  bool innerClass = env.acceptingScope()->curCompound != NULL;
+  CompoundType *containingClass = env.acceptingScope()->curCompound;
+  bool innerClass = !!containingClass;
 
   // see if the environment already has this name
   CompoundType *ct = name? env.lookupCompound(name, true /*innerOnly*/) : NULL;
@@ -944,6 +945,14 @@ Type const *TS_classSpec::itcheck(Env &env)
 
   if (inTemplate) {
     env.setDisambiguateOnly(prevDO);
+  }
+
+  if (innerClass) {
+    // set the constructed scope's 'parentScope' pointer now that
+    // we've removed 'ct' from the Environment scope stack; future
+    // (unqualified) lookups in 'ct' will thus be able to see
+    // into the containin class [cppstd 3.4.1 para 8]
+    ct->parentScope = containingClass;
   }
 
   return ret;
