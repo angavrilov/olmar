@@ -11,7 +11,9 @@ class Type;               // cc_type.h
 
 // lattice of values
 //
-//          top: not seen any value = {}                     .
+//          top: can't have any value because 
+//               this path isn't possible
+//                  i.e. {}                     .
 //              /   /     \                                  .
 //             /   /       \                                 .
 //            /   /         \                    ^           .
@@ -26,17 +28,39 @@ class Type;               // cc_type.h
 //          uninit U init U null                             .
 
 enum FlowValue {
-  FV_TOP   =0,
-  FV_NULL  =1,
-  FV_INIT  =2,
-  FV_UNINIT=5,          // uninit; can be NULL
-  FV_INITQ =3,          // FV_NULL | FV_INIT
-  FV_BOTTOM=7,          // FV_INIT | FV_UNINIT
+  FV_TOP             = 0,
+  
+  // basis elements
+  FV_NULL            = 1,
+  FV_INIT            = 2,
+  FV_UNINIT_NOT_NULL = 4,
+
+  FV_INITQ           = 3,    // FV_NULL | FV_INIT
+  FV_UNINIT          = 5,    // uninit; can be NULL
+  FV_NOT_NULL        = 6,    // init or uninit-null
+  FV_BOTTOM          = 7,    // FV_INIT | FV_UNINIT
 };                                     
 
+// e.g., fv_name(FV_TOP) = "FV_TOP"
 char const *fv_name(FlowValue v);
+
+// is v1 >= v2?
+// i.e., is there a path from v1 down to v2 in the lattice?
+// e.g.:
+//   top >= init
+//   null >= init?
+//   init >= init
+// but NOT:
+//   init >= uninit
 bool fv_geq(FlowValue v1, FlowValue v2);
+
+// combine info from two merging control branches
 FlowValue fv_meet(FlowValue v1, FlowValue v2);
+
+// intersect info, e.g. intersect the values some variable
+// has now with the set of possible values for entering a
+// branch of an 'if' statement
+FlowValue fv_join(FlowValue v1, FlowValue v2);
 
 
 // dataflow info about a variable, at some program point
@@ -79,7 +103,10 @@ public:
   // up new info based on what's in 'env' (where the name must
   // be declared)
   DataflowVar *getVariable(Env *env, char const *name);
-  
+
+  // true if we have any information about the named variable
+  bool haveInfoFor(char const *name) const;
+
   // throw away all info
   void reset();
 };

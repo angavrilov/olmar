@@ -149,19 +149,34 @@ bool isOwnerPointer(Type const *t)
 }
 
 
+DataflowVar *CCTreeNode::getOwnerPtr(char const *name)
+{
+  if (env->isDeclaredVar(name)) {
+    Variable *var = env->getVariable(name);
+    if (isOwnerPointer(var->type)) {               
+      // it's declared, and it's an owner -- wrap a
+      // DataflowVar around it, and return that
+      return env->getDenv().getVariable(env, name);
+    }
+  }
+  
+  // not declared, or not an owner
+  return NULL;
+}
+
+
 void CCTreeNode::ana_free(string name)
 {
   cout << locString() << ": free(" << name << ")\n";
 
   // get variable
-  DataflowVar *var = env->getDenv().getVariable(env, name);
-  printVar(var);
-
-  // check restrictions
-  if (!isOwnerPointer(var->getType())) {
+  DataflowVar *var = getOwnerPtr(name);
+  if (!var) {
     cout << "  ERROR: can only free owner pointers\n";
     return;
   }
+
+  printVar(var);
 
   // check dataflow
   if (!fv_geq(var->value, FV_INIT)) {
@@ -179,14 +194,13 @@ void CCTreeNode::ana_malloc(string name)
   cout << locString() << ": " << name << " = malloc()\n";
 
   // get variable
-  DataflowVar *var = env->getDenv().getVariable(env, name);
-  printVar(var);
-
-  // check restrictions
-  if (!isOwnerPointer(var->getType())) {
+  DataflowVar *var = getOwnerPtr(name);
+  if (!var) {
     cout << "  ERROR: can only assign malloc to owner pointers\n";
     return;
   }
+
+  printVar(var);
 
   // check dataflow
   if (!fv_geq(var->value, FV_UNINIT) ) {
@@ -205,6 +219,7 @@ void CCTreeNode::ana_endScope(Env *localEnv)
   for(; !iter.isDone(); iter.next()) {
     cout << locString() << ", end of scope,";
 
+    // look in *localEnv*, not env
     DataflowVar *var = localEnv->getDenv().getVariable(localEnv, iter.key());
     printVar(var);
 
@@ -212,6 +227,61 @@ void CCTreeNode::ana_endScope(Env *localEnv)
       if (!fv_geq(var->value, FV_UNINIT)) {
         cout << "  ERROR: `" << var->getName()
              << "': owners must die uninited\n";
+      }
+    }
+  }
+}
+
+
+void CCTreeNode::ana_applyConstraint(bool negated)
+{
+  // for now, I only consider "if(p)"
+  if (numGroundTerms() == 1) {
+    string varName = unparseString();
+
+    DataflowVar *var = getOwnerPtr(varName);
+    if (var) {
+      cout << locString() << ", applying constraint: "
+           << unparseString() << endl;
+      printVar(var);
+    
+      // apply p==0 or p!=0 (depending on 'negated') to
+      // var->value
+
+      // figure out the abstraction of the set of values
+      // that could allow control flow to pass into the
+      // guarded branch
+      FlowValue branchReqt;
+      if (!negated) {
+        // e.g. 'then' branch of "if(p)"
+        branchReqt = FV_NOT_NULL;
+      }
+      else {
+        // e.g. 'else' branch of "if(p)"
+        branchReqt = FV_NULL;
+      }
+
+      // now intersect this with the set of values we do
+      // in fact have
+      var->value = fv_join(var->value, branchReqt);
+    }
+  }
+}
+
+
+void CCTreeNode::ana_checkDeref()
+{
+  if (numGroundTerms() == 1) {
+    string varName = unparseString();
+
+    // only look at owner pointers
+    DataflowVar *var = getOwnerPtr(varName);
+    if (var) {
+      cout << locString() << ", checking deref:\n";
+      printVar(var);
+
+      if (var->value != FV_INIT) {
+        cout << "  ERROR: can only deref inited owners\n";
       }
     }
   }

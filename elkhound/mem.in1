@@ -3,12 +3,13 @@
 
 int * owner malloc();
 void free(int * owner p);
+void do_stuff(int *p, int *q);
 
 void ok()
 {
   int * owner p;
   p = malloc();
-  if (p != NULL) {
+  if (p) {
     *p = 5;
     free(p);
   }
@@ -21,6 +22,30 @@ void leaks()
   int * owner p;
   p = malloc();
 }
+
+void bad_derefs()
+{
+  int * owner p;
+  *p = 6;
+  p = 0;
+  *p = 7;
+}
+
+void more_complicated()
+{
+  int * owner p, * owner q;
+  p = malloc();
+  if (p) {
+    q = malloc();
+    if (q) {
+      do_stuff(p, q);
+      free(q);
+    }
+    free(p);
+  }
+  else {}
+}
+
 
 /*
 void bad()

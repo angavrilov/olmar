@@ -21,25 +21,22 @@ char const *fv_name(FlowValue v)
 }
 
 
-// is v1 >= v2?
-// i.e., is there a path from v1 down to v2 in the lattice?
-// e.g.:
-//   top >= init
-//   null >= init?
-//   init >= init
-// but NOT:
-//   init >= uninit
 bool fv_geq(FlowValue v1, FlowValue v2)
 {
   return (v1 & v2) == v1;
 }
 
 
-// combine info from two merging control branches
 FlowValue fv_meet(FlowValue v1, FlowValue v2)
 {
   return (FlowValue)(v1 | v2);
 }
+
+FlowValue fv_join(FlowValue v1, FlowValue v2)
+{
+  return (FlowValue)(v1 & v2);
+}
+
 
 
 // --------------------------- DataflowEnv --------------------
@@ -111,6 +108,12 @@ DataflowVar *DataflowEnv::getVariable(Env *env, char const *name)
     vars.add(name, ret);
     return ret;
   }
+}
+
+
+bool DataflowEnv::haveInfoFor(char const *name) const
+{
+  return vars.isMapped(name);
 }
 
 

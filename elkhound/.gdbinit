@@ -1,7 +1,7 @@
 # .gdbinit
 
 file ccgr
-set args cc.gr c.in3
+set args cc.gr mem.in1
 
 break main
 break breaker

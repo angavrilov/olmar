@@ -8,15 +8,21 @@
 #include "exc.h"        // xBase
 #include "cc_env.h"     // Env
 
+class Condition_Node;
+class DataflowVar;
 
 class CCTreeNode : public NonterminalNode {
-public:    // vars
+public:      // data
   // keep a pointer to the environment for interpreting
   // names that appear in this node or subtrees
   Env *env;
 
-public:
-  CCTreeNode(Reduction *red) 
+private:     // funcs
+  // analysis helpers
+  DataflowVar *getOwnerPtr(char const *name);
+
+public:      // funcs
+  CCTreeNode(Reduction *red)
     : NonterminalNode(red), env(NULL) {}
 
   // do the declaration, and report an error if it happens
@@ -40,6 +46,8 @@ public:
   void ana_free(string varName);
   void ana_malloc(string varName);
   void ana_endScope(Env *localEnv);
+  void ana_applyConstraint(bool negated);
+  void ana_checkDeref();
 };
 
 

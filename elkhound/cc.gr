@@ -370,9 +370,19 @@ nonterm UnaryExpression : ExprBase {
     -> e:PostfixExpression                 { fun intEval = e.intEval(env); }
     -> "++" e:CastExpression           ;
     -> "--" e:CastExpression           ;
-    -> op:UnaryOperator e:CastExpression   { fun intEval = op.intEval(e.intEval(env)); }
     -> "sizeof" e:UnaryExpression      ;       // size of expression
     -> e:DeleteExpression              ;
+  }
+
+  -> op:UnaryOperator e:CastExpression   { 
+    fun intEval = op.intEval(e.intEval(env));
+    
+    fun varsDecld {
+      e.varsDecld(env);
+      if (op.unparseString().equals("*")) {    // hack ...
+        e.ana_checkDeref();
+      }
+    }
   }
 
   -> "sizeof" "(" t:TypeId ")" {               // size of type
@@ -709,6 +719,34 @@ nonterm Statement : Checkable, HasVarsDecld, HasCFG {
 
         return join->getOutgoingEdge();
       }
+      
+      fun typeCheck {
+        // make a copy of the current dataflow environment
+        DataflowEnv initialDenv(env->getDenv());
+
+        // check the expression first; this sets its 'env' pointer
+        e.varsDecld(env);
+
+        // apply the constraints implied by the condition to
+        // the current dataflow environment
+        e.ana_applyConstraint(false /*negated*/);
+
+        // flow through 'then' branch
+        s.typeCheck(env);
+
+        // grab resulting dataflow env
+        DataflowEnv afterThen(env->getDenv());
+
+        // restore original env
+        env->getDenv() = initialDenv;
+
+        // apply the negation of the condition to the
+        // now-current dataflow environment
+        e.ana_applyConstraint(true /*negated*/);
+
+        // merge the branches
+        env->getDenv().mergeWith(afterThen);
+      }
     }
 
     // if-then-else preferred over if-then when ambiguous
@@ -718,6 +756,13 @@ nonterm Statement : Checkable, HasVarsDecld, HasCFG {
         // make a copy of the current dataflow environment
         DataflowEnv initialDenv(env->getDenv());
 
+        // check the expression first; this sets its 'env' pointer
+        e.varsDecld(env);
+
+        // apply the constraints implied by the condition to
+        // the current dataflow environment
+        e.ana_applyConstraint(false /*negated*/);
+
         // flow through 'then' branch
         s1.typeCheck(env);
 
@@ -726,6 +771,10 @@ nonterm Statement : Checkable, HasVarsDecld, HasCFG {
 
         // restore original env
         env->getDenv() = initialDenv;
+
+        // apply the negation of the condition to the
+        // now-current dataflow environment
+        e.ana_applyConstraint(true /*negated*/);
 
         // flow through 'else' branch
         s2.typeCheck(env);
