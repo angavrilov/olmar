@@ -3888,14 +3888,20 @@ static Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
 }
 
 
+// version of 'outerResolveOverload' for constructors; 'type' is the
+// type of the object being constructed
 static Variable *outerResolveOverload_ctor
   (Env &env, SourceLoc loc, Type *type, FakeList<ArgExpression> *args, bool really)
 {
   Variable *ret = NULL;
   // dsw: FIX: should I be generating error messages if I get a weird
   // type here, or if I get a weird var below?
+  //
+  // sm: at one point this code said 'asRval' but I think that is wrong
+  // since we should not be treating the construction of a reference
+  // the same as the construction of an object
   if (type->isCompoundType()) {
-    CompoundType *ct = type->asRval()->asCompoundType();
+    CompoundType *ct = type->asCompoundType();
     Variable *ctor = ct->getNamedField(env.constructorSpecialName, env, LF_INNER_ONLY);
     xassert(ctor);
     if (really) {
