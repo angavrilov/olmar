@@ -1061,6 +1061,7 @@ testCparse c/d0124b.c
 testCparse c/k0001.c
 testCparse c/k0002.c
 testCparse c/k0003.c
+testCparse c/k0004.c
 testCparse c/k0011.c
 
 # is K&R built?
