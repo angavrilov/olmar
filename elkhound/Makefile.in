@@ -1,9 +1,9 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-all: c.ast.gen.h glr.o ccgr cc2.exe cc2t.exe bccgr cexp3
+all: cc/c.ast.gen.h glr.o cc/ccgr cc2.exe cc2t.exe bccgr cexp3
 
-temporary: ccgr bccgr triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
+temporary: all triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
            triv/EEb.tree.gr.exe triv/eeb.in triv/SSSx.tree.gr.exe triv/sssx.in \
            triv/EFa.tree.gr.exe triv/efa.in \
 	   triv/EFa.bison.exe triv/EFa.tree.bison.exe
@@ -21,7 +21,7 @@ endif
 Makefile: Makefile.in
 	./configure $(mode)
 
-everything: gramanl glr lexer1 lexer2 grampar cexp2 ccgr
+everything: gramanl glr cc/lexer1 cc/lexer2 grampar cexp2 cc/ccgr
 
 # directories
 SMBASE := ../smbase
@@ -32,7 +32,7 @@ AST    := ../ast
 
 # translation process variables
 libraries   := $(SMBASE)/libsmbase.a
-includes    := -I$(SMBASE) -I$(AST)
+includes    := -I$(SMBASE) -I$(AST) -Icc
 
 # needed for gcc-2 when compiling things in cc2/
 includes    += -I.
@@ -139,11 +139,11 @@ glr-set := \
 support-set := \
   $(AST)/asthelp.o \
   $(AST)/strtable.o \
-  cc_lang.o \
-  lexer1.o \
-  lexer1yy.o \
-  lexer2.o \
-  parssppt.o
+  cc/cc_lang.o \
+  cc/lexer1.o \
+  cc/lexer1yy.o \
+  cc/lexer2.o \
+  cc/parssppt.o
 -include $(filter-out $(AST)/%, $(support-set:.o=.d))
 
 # files for parsing C/C++ code with the cc.gr or cc2.gr grammars;
@@ -151,19 +151,19 @@ support-set := \
 # grammar in the set itself
 cc-set := \
   $(support-set) \
-  c.ast.gen.o \
-  cc_env.o \
-  cc_flags.o \
-  cc_type.o \
-  cparse.o \
-  exprequal.o \
-  exprvisit.o \
-  paths.o \
-  postorder.o \
-  stubs.o \
-  tcheck.o \
-  treeout.o \
-  variable.o
+  cc/c.ast.gen.o \
+  cc/cc_env.o \
+  cc/cc_flags.o \
+  cc/cc_type.o \
+  cc/cparse.o \
+  cc/exprequal.o \
+  cc/exprvisit.o \
+  cc/paths.o \
+  cc/postorder.o \
+  cc/stubs.o \
+  cc/tcheck.o \
+  cc/treeout.o \
+  cc/variable.o
 -include $(filter-out $(AST)/%, $(cc-set:.o=.d))
 
 # how to compile a .o in an adjacent directory (looser dependency
@@ -174,9 +174,15 @@ $(AST)/%.o: $(AST)/%.cc
 
 # a few random .o files which don't appear anyplace above, but I need
 # to make sure their dependency info (if it exists) gets included
-random-obj := parsstub.o cexp2.o cexp3.gen.o \
-              glrmain.o cexp3mrg.o cexp3ast.gen.o cdecl.gen.o \
-              ccgrmain.o
+random-obj := \
+  parsstub.o \
+  cexp2.o \
+  cexp3.gen.o \
+  glrmain.o \
+  cexp3mrg.o \
+  cexp3ast.gen.o \
+  cdecl.gen.o \
+  cc/ccgrmain.o
 -include $(random-obj:.o=.d)
 
 # extra dependencies
@@ -189,19 +195,19 @@ gramanl-dep := gramanl.cc gramexpl.o $(grammar-set) $(grampar-set) \
 gramanl: $(gramanl-dep) grammar.h gramanl.h
 	$(link) -o gramanl -DGRAMANL_MAIN $(gramanl-dep)
 
-lexer1yy.cc: lexer1.lex lexer1.h
-	flex lexer1.lex
+cc/lexer1yy.cc: cc/lexer1.lex cc/lexer1.h
+	cd cc; flex lexer1.lex
 
 # first pass lexer
-lexer1-dep := lexer1.cc lexer1yy.o fileloc.o $(libraries)
-lexer1: $(lexer1-dep)
-	$(link) -o lexer1 -DTEST_LEXER1 $(lexer1-dep)
+lexer1-dep := cc/lexer1.cc cc/lexer1yy.o cc/fileloc.o $(libraries)
+cc/lexer1: $(lexer1-dep)
+	$(link) -o $@ -DTEST_LEXER1 $(lexer1-dep)
 
 # second pass lexer
-lexer2-dep := lexer2.cc lexer1.o lexer1yy.o $(AST)/fileloc.o \
-              $(AST)/strtable.o cc_lang.o $(libraries)
-lexer2: $(lexer2-dep) lexer2.h
-	$(link) -o lexer2 -DTEST_LEXER2 $(lexer2-dep)
+lexer2-dep := cc/lexer2.cc cc/lexer1.o cc/lexer1yy.o $(AST)/fileloc.o \
+              $(AST)/strtable.o cc/cc_lang.o $(libraries)
+cc/lexer2: $(lexer2-dep) cc/lexer2.h
+	$(link) -o $@ -DTEST_LEXER2 $(lexer2-dep)
 
 # grammar lexer
 # like in ast/, need to replace forward decl with proper #include
@@ -239,8 +245,8 @@ cyctimer: cyctimer.cc cyctimer.h
 	g++ -o $@ $(ccflags) $(includes) -DTEST_CYCTIMER cyctimer.cc $(linkend)
 
 # token list for my grammar
-cc.tok: lexer2
-	./lexer2 myparser > cc.tok
+cc/cc.tok: cc/lexer2
+	cc/lexer2 myparser >$@
 
 # C expression (sort of) evaluator
 cexp2-sem-dep := cexp2.sem.cc $(grammar-set) $(glr-set) \
@@ -269,7 +275,7 @@ libglr.a: $(glr-set)
 
 # intermediate files for cexp3 (disambiguates using prec/assoc)
 # ('chmod a-w' is so I don't accidentally edit it)
-#cexp3.gr.gen.cc cexp3.gr.gen.h: cexp3.gr cc.tok gramanl
+#cexp3.gr.gen.cc cexp3.gr.gen.h: cexp3.gr cc/cc.tok gramanl
 #	rm -f cexp3.gr.gen.*
 #	./gramanl cexp3
 #	chmod a-w cexp3.gr.gen.{h,cc}
@@ -301,7 +307,7 @@ cexp3: $(cexp3-dep)
 # TRGRAMANL: extra trace flags specified by user; starts with "," if defined
 # ('chmod a-w' is so I don't accidentally edit it)
 .PRECIOUS: %.gr.gen.cc %.gr.gen.h
-%.gr.gen.cc %.gr.gen.h %.gr.gen.y: %.gr cc.tok gramanl
+%.gr.gen.cc %.gr.gen.h %.gr.gen.y: %.gr cc/cc.tok gramanl
 	rm -f $*.gr.gen.*
 	./gramanl -tr conflict$(TRGRAMANL) $*
 	chmod a-w $*.gr.gen.h $*.gr.gen.cc
@@ -332,7 +338,7 @@ cexp3b: $(cexp3b-dep)
 
 # intermediate files for cdecl
 # (superceded by pattern rule)
-#cdecl.gen.cc cdecl.gen.h: cdecl.gr cc.tok gramanl
+#cdecl.gen.cc cdecl.gen.h: cdecl.gr cc/cc.tok gramanl
 #	rm -f cdecl.gen.*
 #	./gramanl cdecl
 #	chmod a-w cdecl.gen.{h,cc}
@@ -347,7 +353,7 @@ cdecl: $(cdecl-dep)
 
 # intermediate files for cdecl2
 # (superceded by pattern rule)
-#cdecl2.gen.cc cdecl2.gen.h: cdecl2.gr cc.tok gramanl
+#cdecl2.gen.cc cdecl2.gen.h: cdecl2.gr cc/cc.tok gramanl
 #	rm -f cdecl2.gen.*
 #	./gramanl cdecl2
 #	chmod a-w cdecl2.gen.{h,cc}
@@ -367,39 +373,39 @@ cdecl2: $(cdecl2-dep)
 # easier importing into ocaml
 # turns out if you don't remove the library, there's a possibility
 # of old object files staying in it .. !
-libccgr.a: cc.gr.gen.o $(cc-set) libglr.a
-	cp -f libglr.a libccgr.a
-	ar -r libccgr.a cc.gr.gen.o $(cc-set)
-	ranlib libccgr.a
+cc/libccgr.a: cc/cc.gr.gen.o $(cc-set) libglr.a
+	cp -f libglr.a $@
+	ar -r $@ cc/cc.gr.gen.o $(cc-set)
+	ranlib $@
 
 # stand-alone executable
 ifeq ($(ocaml), no)
-ccgr: ccgrmain.o libccgr.a $(SMBASE)/libsmbase.a
-	$(link) -o ccgr $^
-	./ccgr cc.bin c.in/c.in1
+cc/ccgr: cc/ccgrmain.o cc/libccgr.a $(SMBASE)/libsmbase.a
+	$(link) -o $@ $^
+	cc/ccgr cc/cc.bin c.in/c.in1
 else
 ccgr:
-	@echo "we don't build ccgr in ocaml mode"
+	@echo "we don't build $@ in ocaml mode"
 endif
 
-.PRECIOUS: ccgr
+.PRECIOUS: cc/ccgr
 
 # bison parser from the same grammar; the 'sed' is because Bison
 # already interpretes 0 as EOF, and if my rule names it explicitly
 # then it gets mad
-bccgr.y: cc.gr.gen.y
-	echo '%{' > bccgr.y
-	echo '#include "bccgr.h"' >> bccgr.y
-	echo '%}' >> bccgr.y
-	sed 's/File "L2_EOF"/File/' <cc.gr.gen.y >>bccgr.y
+bccgr.y: cc/cc.gr.gen.y
+	echo '%{' >$@
+	echo '#include "bccgr.h"' >>$@
+	echo '%}' >>$@
+	sed 's/File "L2_EOF"/File/' <cc/cc.gr.gen.y >>$@
 
 # bison parser from the a given grammar; the 'sed' is because Bison
 # already interpretes 0 as EOF, and if my rule names it explicitly
 # then it gets mad
 %.y: %.gr.gen.y
-	echo '%{' > $@
-	echo '#include "trivbison.h"' >> $@
-	echo '%}' >> $@
+	echo '%{' >$@
+	echo '#include "trivbison.h"' >>$@
+	echo '%}' >>$@
 	sed 's/"EOF" {/{/' <$*.gr.gen.y >>$@
 
 # run Bison; the 'sed' command is to silence a spurious warning about
@@ -416,8 +422,9 @@ bccgr.y: cc.gr.gen.y
 
 bccgr.tab.o: bccgr.h
 
-bccgr: bccgr.cc bccgr.tab.o lexer1.o lexer1yy.o lexer2.o $(AST)/fileloc.o \
-       $(AST)/strtable.o cc_lang.o cyctimer.o $(SMBASE)/libsmbase.a
+bccgr: bccgr.cc bccgr.tab.o cc/lexer1.o cc/lexer1yy.o cc/lexer2.o \
+       $(AST)/fileloc.o $(AST)/strtable.o cc/cc_lang.o cyctimer.o \
+       $(SMBASE)/libsmbase.a
 	g++ -o bccgr $(ccflags) $(includes) $(YYDEBUG) $^
 	./bccgr c.in/c.in1
 
@@ -451,7 +458,7 @@ cc2.exe: cc2main.o $(cc-set) cc2/cc2.gr.gen.o ptreenode.o libglr.a $(SMBASE)/lib
 	g++ -o $@ $(ccflags) $^
 
 # new C++ grammar with treebuilding actions
-cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr cc.tok gramanl
+cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr cc/cc.tok gramanl
 	rm -f cc2/cc2t*
 	sed 's/cc2\.gr\.gen\.h/cc2t.gr.gen.h/' <cc2/cc2.gr >cc2/cc2t.gr
 	./gramanl -tr treebuild$(TRGRAMANL) cc2/cc2t
@@ -630,7 +637,7 @@ doc/glr.dot:
 
 # dependencies for 'ccgr', the prototype C parser and typechecker
 doc/cc.dot:
-	$(SMBASE)/scan-depends.pl -r -I$(AST) -Sglr.h -Xfileloc.h ccgrmain.h >$@
+	$(SMBASE)/scan-depends.pl -r -I$(AST) -Icc -Sglr.h -Xfileloc.h ccgrmain.h >$@
 
 # dependencies for 'trivmain.cc', the trivial grammar driver
 doc/triv.dot:
@@ -657,16 +664,29 @@ doc-clean:
 
 
 # -------------------- clean, check, etc. ------------------
+# things to remove from all directories
+CLEAN_PATTERNS := \
+  *.o  \
+  *~ \
+  *.d \
+  *.exe \
+  *.gen.* \
+  *.bin \
+  *.tab.* \
+  *.output \
+  a.out \
+  core
+
 clean:
-	rm -f *.o *~ *.d *.exe *.gen.* *.bin *.tab.* *.output
-	rm -f gramanl glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex cyctimer
-	rm -f lexer2 grampar.tab.* grampar a.out
-	rm -f cexp2.sem cexp2 cc.bin ccgr libccgr.a libglr.a
-	rm -f cc.gr.ps
-	rm -f core cdecl cexp3 bccgr cdecl2 cexp3b cexp3b.gr
-	rm -f bccgr.y cc.tok grampar.codes.h
+	rm -f $(CLEAN_PATTERNS)
+	rm -f gramanl glr cc/lexer1 cc/lexer1yy.cc gramlex.yy.cc gramlex cyctimer
+	rm -f cc/lexer2 grampar.tab.* grampar
+	rm -f cexp2.sem cexp2 cc/cc.bin cc/ccgr cc/libccgr.a libglr.a
+	rm -f cdecl cexp3 bccgr cdecl2 cexp3b cexp3b.gr
+	rm -f bccgr.y cc/cc.tok grampar.codes.h
 	rm -f gdb.log gprof.out gmon.out test-bad-tmp.c
-	cd triv; rm -f *.exe *.gen.* *.bin *.tab.* *.output *.y *.gr
+	cd cc; rm -f $(CLEAN_PATTERNS)
+	cd triv; rm -f $(CLEAN_PATTERNS) *.y *.gr
 
 distclean:
 	rm -f Makefile
@@ -677,13 +697,8 @@ check: all
 	@echo ""
 	@echo "Regression tests passed."
 
-# --------------- random other stuff --------------------
-# printable version of the C++ grammar; removes the '// C++' tags
-# because they just wrap onto next line and mess things up
-cc.gr.ps:
-	sed 's#[ 	]*// C[+][+].*##' < cc.gr \
-	  | enscript -2r --output=cc.gr.ps ; true
 
+# --------------- random other stuff --------------------
 # test for rcptr
 trcptr: rcptr.h trcptr.cc
-	$(link) -o trcptr trcptr.cc
+	$(link) -o $@ trcptr.cc

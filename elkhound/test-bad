@@ -2,10 +2,12 @@
 # run a regression test containing one or more intentional failures
 
 if [ "$1" = "" ]; then
-  echo "usage: $0 source-file.c [args-to-ccgr]"
+  echo "usage: $0 ./ccgr source-file.c [args-to-ccgr]"
   exit 0
 fi
-srcfile="$1"
+executable="$1"
+srcfile="$2"
+shift
 shift
 
 # read how many failure cases are in the file; expect line of form
@@ -28,8 +30,8 @@ while [ $i -le $numcases ]; do
   cat "$srcfile" | sed "s/ERROR($i)/(selected: $i)/" | grep -v ERROR > test-bad-tmp.c
 
   # run this through ccgr
-  echo ./ccgr "$@" test-bad-tmp.c
-  if ./ccgr "$@" test-bad-tmp.c; then
+  echo "$executable" "$@" test-bad-tmp.c
+  if "$executable" "$@" test-bad-tmp.c; then
     if [ $i = 0 ]; then
       # expected success on 0th iteration
       echo "(succeeded as expected)"

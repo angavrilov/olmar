@@ -199,19 +199,19 @@ testTrivGrammar CAdB 1
 
 # ------------ test the C grammar and parser -------------
 for n in 1 2 3 4 5 6 7 8 9 10 11 12; do
-  runTest ./ccgr -tr stopAfterTCheck cc.bin c.in/c.in$n
+  runTest cc/ccgr -tr stopAfterTCheck cc.bin c.in/c.in$n
 done
 
 
 tcheck() {
-  runTest ./test-bad tcheck/$1 -tr stopAfterTCheck cc.bin
+  runTest ./test-bad cc/ccgr tcheck/$1 -tr stopAfterTCheck cc.bin
 }
 
 tcheck init.c
 tcheck addrglob.c
 tcheck loops.c
 tcheck exprpath.c
-runTest ./ccgr -tr printAnalysisPath cc.bin tcheck/morepaths.c
+runTest cc/ccgr -tr printAnalysisPath cc.bin tcheck/morepaths.c
 
 
 # --------------- test C++ parser -----------------
@@ -228,7 +228,7 @@ runTest make examples
 runTest ./bccgr c.in/c.in4d
 
 # this one is my main performance tester for comparison to bison
-runTest ./ccgr -tr trivialActions,stopAfterParse cc.bin c.in/c.in4d
+runTest cc/ccgr -tr trivialActions,stopAfterParse cc.bin c.in/c.in4d
 
 
 # final arithmetic to report result
