@@ -2755,6 +2755,25 @@ OverloadSet *Env::getOverloadForDeclaration(Variable *&prior, Type *type)
 }
 
 
+// is this function of the type that would be created as an implicit
+// type in K and R C at the call site to a function that has not been
+// declared; this seems to weird to make a method on FunctionType, but
+// feel free to move it
+static bool isImplicitKandRFuncType(FunctionType *ft)
+{
+  // is the return type an int?
+  Type *retType = ft->retType;
+  if (!retType->isCVAtomicType()) return false;
+  if (!retType->asCVAtomicType()->isSimpleType()) return false;
+  if (retType->asCVAtomicType()->asSimpleTypeC()->type != ST_INT) return false;
+  // is the parameter list an ellipsis?
+  SObjList<Variable> &params = ft->params;
+  if (params.count() != 1) return false;
+  if (!params.first()->type->isEllipsis()) return false;
+  return true;
+}
+
+
 // possible outcomes:
 //   - error, make up a dummy variable
 //   - create new declaration
@@ -2888,12 +2907,35 @@ Variable *Env::createDeclaration(
         // this message reports two declarations which declare the same
         // name, but their types are different; we only jump here *after*
         // ruling out the possibility of function overloading
-        error(type, stringc
-          << "prior declaration of `" << name
-          << "' at " << prior->loc
-          << " had type `" << prior->type->toString()
-          << "', but this one uses `" << type->toString() << "'");
-        goto makeDummyVar;
+
+        // dsw: in K&R C sometimes what happens is that a function is
+        // called and then later declared; at the function call site a
+        // declaration is invented with type 'int (...)' but the real
+        // declaration is likely to collie with that here.  We don't
+        // try to back-patch and do anything clever or sound, we just
+        // turn the error into a warning so that the file can go
+        // through; this is an unsoundness
+        if (lang.allowCallToUndeclFunc &&
+            prior->hasFlag(DF_FORWARD) &&
+            prior->type->isFunctionType() &&
+            isImplicitKandRFuncType(prior->type->asFunctionType())) {
+          // we allow the prior declaration to remain
+          warning(stringc
+                  << "prior declaration of function `" << name
+                  << "' at " << prior->loc
+                  << " had type `" << prior->type->toString()
+                  << "', but this one uses `" << type->toString() << "'"
+                  << " This is most likely due to the prior declaration being implied "
+                  << "by a call to a function before it was declared.  "
+                  << "Keeping the implied, weaker declaration; THIS IS UNSOUND.");
+        } else {
+          error(type, stringc
+                << "prior declaration of `" << name
+                << "' at " << prior->loc
+                << " had type `" << prior->type->toString()
+                << "', but this one uses `" << type->toString() << "'");
+          goto makeDummyVar;
+        }
       }
     }
 

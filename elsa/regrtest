@@ -197,6 +197,9 @@ TR_FLAGS=doOverload,mustBeUnambiguous$TR_EXTRA
 testparse() {
   runTest perl ./multitest.pl ./ccparse -tr doOperatorOverload,$TR_FLAGS in/$1
 }
+testparse_KandR() {
+  runTest perl ./multitest.pl ./ccparse -tr kandr_c_lang,doOperatorOverload,$TR_FLAGS in/$1
+}
 failparse() {
   if [ "$2" = "" ]; then
     echo "failparse $1: failparse takes two arguments"
@@ -619,6 +622,9 @@ if $use_gnu; then
   testparse gnu/d0093.cc
   testparse gnu/d0094.cc
   testparse gnu/d0095.c
+  # FIX: I think this is K&R specific, not gnu specific, so should be
+  # in a different K&R section
+  testparse_KandR gnu/d0096.c
 
   # test c99 extensions
   for fn in in/c99/*.c; do
