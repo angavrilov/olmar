@@ -459,6 +459,7 @@ void elaborateFunctionStart(Env &env, FunctionType *ft)
     Variable *v = env.makeVariable(env.loc(), env.str("<retVal>"),
                                    env.tfac.cloneType(ft->retType), DF_PARAMETER);
     env.addVariable(v);
+    ft->registerRetVal(v);
   }
 }
 

@@ -782,6 +782,8 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
+
+  virtual void registerRetVal(Variable *retVal0) {}
 };
 
 
