@@ -75,6 +75,13 @@ void xbase(char const *msg)
 }
 
 
+void xBase::addContext(char const *context)
+{
+  // for now, fairly simple
+  msg = stringc << "while " << context << ",\n" << msg;
+}
+
+
 // ------------------- x_assert -----------------
 x_assert::x_assert(char const *cond, char const *fname, int line)
   : xBase(stringb(

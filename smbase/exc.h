@@ -75,6 +75,11 @@ public:
   friend ostream& operator << (ostream &os, xBase const &obj)
     { obj.insert(os); return os; }
     // print why
+    
+  // add a string describing what was going on at the time the
+  // exception was thrown; this should be called with the innermost
+  // context string first, i.e., in the normal unwind order
+  void addContext(char const *context);
 };
 
 // equivalent to THROW(xBase(msg))
