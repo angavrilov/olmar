@@ -1,4 +1,4 @@
-// stubs.cc
+// stubs.cc            see license.txt for copyright and terms of use
 // stub implementations of things that are part of my prototype verifier,
 // but I don't want to include in the parser generator release
 

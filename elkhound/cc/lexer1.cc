@@ -1,4 +1,4 @@
-// lexer1.cc
+// lexer1.cc            see license.txt for copyright and terms of use
 // non-parser code for Lexer 1, declared in lexer1.h
 
 #include "lexer1.h"       // this module

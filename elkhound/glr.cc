@@ -1,4 +1,4 @@
-// glr.cc
+// glr.cc            see license.txt for copyright and terms of use
 // code for glr.h
 
 /* Implementation Notes

@@ -1,4 +1,4 @@
-// ccgrmain.cc
+// ccgrmain.cc            see license.txt for copyright and terms of use
 // toplevel driver for ccgr
 
 #include <iostream.h>     // cout

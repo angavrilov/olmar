@@ -1,4 +1,4 @@
-// glr.h
+// glr.h            see license.txt for copyright and terms of use
 // GLR parsing algorithm
 
 /*

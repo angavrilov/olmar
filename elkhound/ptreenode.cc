@@ -1,4 +1,4 @@
-// ptreenode.cc
+// ptreenode.cc            see license.txt for copyright and terms of use
 // code for ptreenode.h
 
 #include "ptreenode.h"      // this module

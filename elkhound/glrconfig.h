@@ -1,4 +1,4 @@
-// glrconfig.h
+// glrconfig.h            see license.txt for copyright and terms of use
 // compile-time configuration options which affect the generated
 // GLR parser, and the interface to the user actions
 //

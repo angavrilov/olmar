@@ -1,4 +1,4 @@
-// flatutil.h
+// flatutil.h            see license.txt for copyright and terms of use
 // flatten helpers
 
 #ifndef FLATUTIL_H

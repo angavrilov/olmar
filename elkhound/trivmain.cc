@@ -1,4 +1,4 @@
-// trivmain.cc
+// trivmain.cc            see license.txt for copyright and terms of use
 // main() for use with trivlex, and grammars which just test
 // parsing properties
 

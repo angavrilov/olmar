@@ -1,4 +1,4 @@
-// gramast.h
+// gramast.h            see license.txt for copyright and terms of use
 // declarations for the grammar AST
 
 #ifndef __GRAMAST_H

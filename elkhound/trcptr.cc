@@ -1,4 +1,4 @@
-// trcptr.cc
+// trcptr.cc            see license.txt for copyright and terms of use
 // test rcptr module
 
 #include "rcptr.h"        // module to test

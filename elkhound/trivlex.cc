@@ -1,4 +1,4 @@
-// trivlex.cc
+// trivlex.cc            see license.txt for copyright and terms of use
 // trivial lexer (returns each character as a token)
   
 #include "lexer2.h"     // Lexer2

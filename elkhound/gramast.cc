@@ -1,4 +1,4 @@
-// gramast.cc
+// gramast.cc            see license.txt for copyright and terms of use
 // code for gramast.h
 
 #error This module is obsolete; use gramast.gen.{cc,h} instead.

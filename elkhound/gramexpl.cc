@@ -1,4 +1,4 @@
-// gramexpl.cc
+// gramexpl.cc            see license.txt for copyright and terms of use
 // interactively query and modify a grammar; primary purpose
 // is to assist diagnosing SLR conflict reports
 

@@ -1,4 +1,4 @@
-// grampar.h
+// grampar.h            see license.txt for copyright and terms of use
 // declarations for bison-generated grammar parser
 
 #ifndef __GRAMPAR_H

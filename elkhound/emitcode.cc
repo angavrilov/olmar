@@ -1,4 +1,4 @@
-// emitcode.cc
+// emitcode.cc            see license.txt for copyright and terms of use
 // code for emitcode.h
 
 #include "emitcode.h"      // this module

@@ -1,4 +1,4 @@
-// ptreenode.h
+// ptreenode.h            see license.txt for copyright and terms of use
 // parse tree node for experimental grammars (this isn't somthing
 // Elkhound as a whole knows about--it doesn't make trees unless
 // the user actions do)

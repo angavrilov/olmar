@@ -1,4 +1,4 @@
-// parsetables.cc
+// parsetables.cc            see license.txt for copyright and terms of use
 // code for parsetables.h
 
 #include "parsetables.h"    // this module

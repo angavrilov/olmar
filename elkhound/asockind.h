@@ -1,4 +1,4 @@
-// asockind.h
+// asockind.h            see license.txt for copyright and terms of use
 // AssocKind; pulled out on its own so I don't have dependency problems
 
 #ifndef ASOCKIND_H

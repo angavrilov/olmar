@@ -1,4 +1,4 @@
-// gramanl.cc
+// gramanl.cc            see license.txt for copyright and terms of use
 // code for gramanl.h
 
 #include "gramanl.h"     // this module

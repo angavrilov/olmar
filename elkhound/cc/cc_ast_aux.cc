@@ -1,4 +1,4 @@
-// cc_ast_aux.cc
+// cc_ast_aux.cc            see license.txt for copyright and terms of use
 // auxilliary code (debug printing, etc.) for cc.ast
 
 #include "cc.ast.gen.h"     // C++ AST

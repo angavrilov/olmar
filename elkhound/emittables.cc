@@ -1,4 +1,4 @@
-// emittables.cc
+// emittables.cc            see license.txt for copyright and terms of use
 // implementation of ParseTables::emitConstructionCode()
 
 #include "parsetables.h"    // this module

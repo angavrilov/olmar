@@ -1,4 +1,4 @@
-// ffollow.gr
+// ffollow.gr            see license.txt for copyright and terms of use
 // grammar 4.11 of [ASU] (p.189), designed to show First and Follow
 
 terminals {

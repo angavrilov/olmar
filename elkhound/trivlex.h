@@ -1,4 +1,4 @@
-// trivlex.h
+// trivlex.h            see license.txt for copyright and terms of use
 // decl for trivlex.cc
 
 #ifndef TRIVLEX_H

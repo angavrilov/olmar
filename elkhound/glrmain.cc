@@ -1,4 +1,4 @@
-// glrmain.cc
+// glrmain.cc            see license.txt for copyright and terms of use
 // simple 'main' to parse a file; used by some of the example
 // grammars (this file is *not* required for general use of
 // the Elkhound parser)

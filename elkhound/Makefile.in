@@ -1,4 +1,4 @@
-# Makefile.in
+# Makefile.in            see license.txt for copyright and terms of use
 # source for Makefile for parser generator project
 
 all: cc/c.ast.gen.h glr.o cc/cparse cc2/cc2.exe cc2/cc2t.exe cc/bccgr \

@@ -1,4 +1,4 @@
-// cyctimer.cc
+// cyctimer.cc            see license.txt for copyright and terms of use
 // code for cyctimer.h
 
 #include "cyctimer.h"    // this module

@@ -1,4 +1,4 @@
-// paths.h
+// paths.h            see license.txt for copyright and terms of use
 // AST routines for enumerating paths
 
 // unfortunately it turns out that there is a /usr/include/paths.h

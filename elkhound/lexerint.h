@@ -1,4 +1,4 @@
-// lexerint.h
+// lexerint.h            see license.txt for copyright and terms of use
 // LexerInterface, the interface the GLR parser uses
 // to access the lexer's token stream
 

@@ -1,4 +1,4 @@
-// cc_lang.cc
+// cc_lang.cc            see license.txt for copyright and terms of use
 // code for cc_lang.h, and default language settings
 
 // at the moment there are laughably few settings -- that

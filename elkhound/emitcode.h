@@ -1,4 +1,4 @@
-// emitcode.h
+// emitcode.h            see license.txt for copyright and terms of use
 // track state of emitted code so I can emit #line too
 
 #ifndef EMITCODE_H

@@ -1,4 +1,4 @@
-// asockind.cc
+// asockind.cc            see license.txt for copyright and terms of use
 // code for asockind.h
 
 #include "asockind.h"    // this module

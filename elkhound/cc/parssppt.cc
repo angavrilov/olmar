@@ -1,4 +1,4 @@
-// parssppt.cc
+// parssppt.cc            see license.txt for copyright and terms of use
 // code for parssppt.h
 
 #include "parssppt.h"     // this module

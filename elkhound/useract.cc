@@ -1,4 +1,4 @@
-// useract.cc
+// useract.cc            see license.txt for copyright and terms of use
 // code for useract.h
 
 #include "useract.h"     // this module

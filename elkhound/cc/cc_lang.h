@@ -1,4 +1,4 @@
-// cc_lang.h
+// cc_lang.h            see license.txt for copyright and terms of use
 // language options that the parser (etc.) is sensitive to
 
 #ifndef CCLANG_H

@@ -1,4 +1,4 @@
-// cyctimer.h
+// cyctimer.h            see license.txt for copyright and terms of use
 // simple cycles/milliseconds timer
 
 #ifndef CYCTIMER_H

@@ -1,4 +1,4 @@
-// cc_err.cc
+// cc_err.cc            see license.txt for copyright and terms of use
 // code for cc_err.h
 
 #include "cc_err.h"      // this module

@@ -1,4 +1,4 @@
-// bccgr.h
+// bccgr.h            see license.txt for copyright and terms of use
 // decls shared between bccgr.cc and cc.gr.gen.y
 
 #ifndef BCCGR_H

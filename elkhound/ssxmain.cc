@@ -1,4 +1,4 @@
-// ssxmain.cc
+// ssxmain.cc            see license.txt for copyright and terms of use
 // main() for use with SSx.tree.gr
 
 #include "trivlex.h"   // trivialLexer

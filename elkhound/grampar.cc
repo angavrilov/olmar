@@ -1,4 +1,4 @@
-// grampar.cc
+// grampar.cc            see license.txt for copyright and terms of use
 // additional C++ code for the grammar parser; in essence,
 // build the grammar internal representation out of what
 // the user supplies in a .gr file

@@ -1,4 +1,4 @@
-// grammar.h
+// grammar.h            see license.txt for copyright and terms of use
 // representation and algorithms for context-free grammars
 
 // Author: Scott McPeak, April 2000

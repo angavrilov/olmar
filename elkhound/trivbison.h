@@ -1,4 +1,4 @@
-// trivbison.h
+// trivbison.h            see license.txt for copyright and terms of use
 // decls shared between trivbison.cc and EFa.*tree.y
 // originally created by copying bccgr.h
 

@@ -1,4 +1,4 @@
-// parsetables.h
+// parsetables.h            see license.txt for copyright and terms of use
 // ParseTables, a class to contain the tables need by the
 // LR/GLR parsing algorithm
 

@@ -1,4 +1,4 @@
-// exprequal.cc
+// exprequal.cc            see license.txt for copyright and terms of use
 // compare expressions for structural equality
 
 #include "exprequal.h"         // this module

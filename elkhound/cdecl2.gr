@@ -1,4 +1,4 @@
-// cdecl2.gr
+// cdecl2.gr            see license.txt for copyright and terms of use
 // demonstration of resolving C ident/type ambiguity
 // cdecl2 solves the problem using token reclassification (cf. cdecl)
 

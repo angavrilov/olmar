@@ -1,4 +1,4 @@
-/* grammar.y
+/* grammar.y            see license.txt for copyright and terms of use
  * parser for grammar files with new ast format */
 
 

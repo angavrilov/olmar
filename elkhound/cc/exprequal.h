@@ -1,4 +1,4 @@
-// exprequal.h
+// exprequal.h            see license.txt for copyright and terms of use
 // entry for exprequal.cc
 
 #ifndef EXPREQUAL_H

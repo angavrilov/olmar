@@ -1,4 +1,4 @@
-// ssxnode.h
+// ssxnode.h            see license.txt for copyright and terms of use
 // parse tree node for SSx.tree.gr
 
 #ifndef SSXNODE_H

@@ -1,4 +1,4 @@
-// cc_env.cc
+// cc_env.cc            see license.txt for copyright and terms of use
 // code for cc_env.h
 
 #include "cc_env.h"      // this module

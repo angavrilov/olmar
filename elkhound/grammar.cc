@@ -1,4 +1,4 @@
-// grammar.cc
+// grammar.cc            see license.txt for copyright and terms of use
 // code for grammar.h
 
 #include "grammar.h"   // this module

@@ -1,4 +1,4 @@
-// cc.ast
+// cc.ast            see license.txt for copyright and terms of use
 // C++ abstract syntax
 
 // note: wherever ASTList or FakeList is used, its elements are listed

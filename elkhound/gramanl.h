@@ -1,4 +1,4 @@
-// gramanl.h
+// gramanl.h            see license.txt for copyright and terms of use
 // grammar analysis module; separated from grammar.h to
 //   reduce mixing of representation and algorithm; this
 //   module should be entirely algorithm

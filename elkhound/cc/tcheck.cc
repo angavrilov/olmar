@@ -1,4 +1,4 @@
-// tcheck.cc
+// tcheck.cc            see license.txt for copyright and terms of use
 // implementation of typechecker over C ast
 
 #include "c.ast.gen.h"      // C ast

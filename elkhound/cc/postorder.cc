@@ -1,4 +1,4 @@
-// postorder.cc
+// postorder.cc            see license.txt for copyright and terms of use
 // given the AST for a function, compute a reverse postorder
 // enumeration of all the statements
 

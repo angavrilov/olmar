@@ -1,4 +1,4 @@
-// lexer2.h
+// lexer2.h            see license.txt for copyright and terms of use
 // 2nd phase lexical analyzer; see lexer2.txt
 
 #ifndef __LEXER2_H

@@ -1,4 +1,4 @@
-// cc_env.h
+// cc_env.h            see license.txt for copyright and terms of use
 // Env class, which is the compile-time C++ environment
 
 #ifndef CC_ENV_H

@@ -1,4 +1,4 @@
-// rcptr.h
+// rcptr.h            see license.txt for copyright and terms of use
 // a stab at a reference-counting pointer
 
 // the object pointed-at must support this interface:

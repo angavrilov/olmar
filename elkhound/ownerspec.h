@@ -1,4 +1,4 @@
-// ownerspec.h
+// ownerspec.h            see license.txt for copyright and terms of use
 // specification of "owner pointer", as a C++ template class
 
 template <class T>

@@ -1,4 +1,4 @@
-// util.h
+// util.h            see license.txt for copyright and terms of use
 // collection of utility macros and functions that are
 // candidates for adding to the smbase library
 

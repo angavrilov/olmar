@@ -1,4 +1,4 @@
-// trivbison.cc
+// trivbison.cc            see license.txt for copyright and terms of use
 // driver file for a Bison-parser with the trivial lexer
 
 #include "trivbison.h"  // this module
