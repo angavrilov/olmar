@@ -145,7 +145,11 @@ public:
 
   // fully qualified but not mangled name
   string fullyQualifiedName() const;
-  
+
+  // hook for verifier: text to be printed after the variable's name
+  // in declarator syntax
+  virtual string namePrintSuffix() const;    // default: ""
+
   // follow the 'usingAlias' field if non-NULL; otherwise return this
   Variable const *skipAliasC() const;
   Variable *skipAlias() { return const_cast<Variable*>(skipAliasC()); }

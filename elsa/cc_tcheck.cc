@@ -310,13 +310,8 @@ void Function::tcheck(Env &env, bool checkBody)
 
   // have to check the member inits after adding the parameters
   // to the environment, because the initializing expressions
-  // can refer to the parameters
-  // dsw: we now need to tcheck ctors's inits even if they are NULL,
-  // so test if it is a ctor by a different method
-  if (nameAndParams->var->name == env.constructorSpecialName) {
-    tcheck_memberInits(env);
-  }
-  
+  tcheck_memberInits(env);
+
   // declare the __func__ variable
   if (env.lang.implicitFuncVariable) {
     // static char const __func__[] = "function-name";
@@ -336,8 +331,7 @@ void Function::tcheck(Env &env, bool checkBody)
 
   // if it is a dtor, add the calls to the superclass and member dtors
   // at the end of the body
-  if (nameAndParams->var->name &&
-      nameAndParams->var->name[0]=='~' &&
+  if (funcType->isDestructor() &&
       !dtorElaborated) {
     // FIX: turn this back on
     completeDtorCalls(env, this, inClass);
@@ -399,6 +393,33 @@ CompoundType *Function::verifyIsCtor(Env &env, char const *context)
   return enclosing;
 }
 
+
+// cppstd 12.6.2 covers member initializers
+void Function::tcheck_memberInits(Env &env)
+{
+  if (inits ||
+      nameAndParams->var->name == env.constructorSpecialName) {
+    // this should be a constructor
+    CompoundType *enclosing = verifyIsCtor(env, "ctor member inits");
+    if (!enclosing) {
+      return;
+    }
+
+    // ok, so far so good; now go through and check the member inits
+    // themselves
+    FAKELIST_FOREACH_NC(MemberInit, inits, iter) {
+      iter->tcheck(env, enclosing);
+    }
+
+    // Add and tcheck any MemberInits needed to call no-arg (default)
+    // ctor for any of the (appropriate) superclasses or members that
+    // were left out of the MemberInit list by the user.
+    completeNoArgMemberInits(env, this, enclosing);
+  }
+  else {
+    // no inits and doesn't have a ctor name, skip
+  }
+}
 
 void MemberInit::tcheck(Env &env, CompoundType *enclosing)
 {
@@ -546,26 +567,6 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
 
   // TODO: check that the passed arguments are consistent
   // with at least one constructor in the base class
-}
-
-// cppstd 12.6.2 covers member initializers
-void Function::tcheck_memberInits(Env &env)
-{
-  CompoundType *enclosing = verifyIsCtor(env, "ctor member inits");
-  if (!enclosing) {
-    return;
-  }
-
-  // ok, so far so good; now go through and check the member inits
-  // themselves
-  FAKELIST_FOREACH_NC(MemberInit, inits, iter) {
-    iter->tcheck(env, enclosing);
-  }
-
-  // Add and tcheck any MemberInits needed to call no-arg (default)
-  // ctor for any of the (appropriate) superclasses or members that
-  // were left out of the MemberInit list by the user.
-  completeNoArgMemberInits(env, this, enclosing);
 }
 
 

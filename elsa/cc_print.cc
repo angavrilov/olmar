@@ -114,6 +114,7 @@ string declaration_toString (
       stringBuilder sb;
       sb << scope_thing;
       sb << finalName;
+      sb << var->namePrintSuffix();    // hook for verifier
       s << type->toCString(sb);
 //        if (type->isTemplateClass()) {
 //          cout << "TEMPLATE CLASS" << endl;

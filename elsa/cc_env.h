@@ -455,6 +455,7 @@ public:      // funcs
   // make a unique name for a new throw clause variable
   virtual StringRef makeThrowClauseVarName();
 
+  // --- begin: syntax -> PQName ---
   // return a PQName that will typecheck in the current environment to
   // find (the typedef for) the 'name0' member of the 's' scope, or
   // 's' itself if 'name0 is NULL; the return value is maximally
@@ -464,15 +465,16 @@ public:      // funcs
   // do as above, but don't make fully qualified; just prepend to
   // 'name0' information about 's'
   PQName *make_PQ_qualifiedName(Scope *s, PQName *name0 = NULL);
-        
-  PQName *makePossiblyTemplatizedName(SourceLoc loc, StringRef name,
-                                      FakeList<TemplateArgument> *targs);
+
+  PQName *make_PQ_possiblyTemplatizedName
+    (SourceLoc loc, StringRef name, FakeList<TemplateArgument> *targs);
 
   // construct the list of template arguments
-  FakeList<TemplateArgument> *Env::getTemplateArgs(Scope *s);
+  FakeList<TemplateArgument> *make_PQ_templateArgs(Scope *s);
 
   // go from "A" to "A::~A"
   PQName *make_PQ_fullyQualifiedDtorName(CompoundType *ct);
+  // --- end: syntax -> PQName ---
 
   // given a type, return an ASTTypeId AST node that denotes that
   // type in the current environment

@@ -85,7 +85,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
   // elaboration is on by default if we are in a language that
   // hasImplicitStuff
-  if (lang.hasImplicitStuff) {
+  if (lang.hasImplicitStuff &&
+      !tracingSys("disableElaboration")) {
     doElaboration = true;
   }
 
@@ -2561,7 +2562,7 @@ PQName *Env::make_PQ_qualifiedName(Scope *s, PQName *name0)
   // construct the list of template arguments; we must rebuild them
   // instead of using templateInfo->argumentSyntax directly, because the
   // TS_names that are used in the latter might not be in scope here
-  FakeList<TemplateArgument> *targs = getTemplateArgs(s);
+  FakeList<TemplateArgument> *targs = make_PQ_templateArgs(s);
 
   // now build a PQName
   if (name0) {
@@ -2569,15 +2570,15 @@ PQName *Env::make_PQ_qualifiedName(Scope *s, PQName *name0)
     name0 = new PQ_qualifier(loc(), typedefVar->name, targs, name0);
   }
   else {
-    name0 = makePossiblyTemplatizedName(loc(), typedefVar->name, targs);
+    name0 = make_PQ_possiblyTemplatizedName(loc(), typedefVar->name, targs);
   }
 
   return name0;
 }
 
 
-PQName *Env::makePossiblyTemplatizedName(SourceLoc loc, StringRef name,
-                                         FakeList<TemplateArgument> *targs)
+PQName *Env::make_PQ_possiblyTemplatizedName
+  (SourceLoc loc, StringRef name, FakeList<TemplateArgument> *targs)
 {
   // dsw: dang it Scott, why the templatization asymmetry between
   // PQ_name/template on one hand and PQ_qualifier on the other?
@@ -2592,7 +2593,7 @@ PQName *Env::makePossiblyTemplatizedName(SourceLoc loc, StringRef name,
 }
 
 // construct the list of template arguments
-FakeList<TemplateArgument> *Env::getTemplateArgs(Scope *s)
+FakeList<TemplateArgument> *Env::make_PQ_templateArgs(Scope *s)
 {
   FakeList<TemplateArgument> *targs = FakeList<TemplateArgument>::emptyList();
   if (s->curCompound && s->curCompound->templateInfo) {
@@ -2649,7 +2650,9 @@ ASTTypeId *Env::buildASTTypeId(Type *type)
 //      |        /     /   \                                                 .
 //  TS_simple   /     |   D_name   <-- first value of 'surrounding'
 //     |       |      |     |
+//
 //    int      *      *   (null)
+//
 //     .       .      .
 //     .       .      .
 //     .       .    PointerType    <-- original argument to buildASTTypeId

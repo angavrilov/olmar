@@ -27,9 +27,15 @@ public:
   // when true, and we see a class declaration inside something,
   // pretend it was at toplevel scope anyway; this also applies to
   // enums, enumerators and typedefs
+  //
   // dsw: I find that having boolean variables that are in the
   // negative sense is usually a mistake.  I would reverse the sense
   // of this one.
+  //
+  // sm: The 'no' is a little misleading.  In the 'false' case,
+  // syntax reflects semantics naturally; only in the 'true' case
+  // is something unusual going on.  A positive-sense name might be
+  // the unwieldy 'turnApparentlyInnerClassesIntoOuterClasses'.
   bool noInnerClasses;
 
   // when true, an uninitialized global data object is typechecked as
@@ -59,7 +65,8 @@ public:
 
   // when true, implicit syntax such as "default" (no-arg) ctors for
   // structs/classes are created; when false (standard C) there is no
-  // implicit syntax
+  // implicit syntax (this definition is admittedly vague; it may be
+  // refined at some point, once elaboration stabilizes)
   bool hasImplicitStuff;
 
 public:

@@ -1,6 +1,15 @@
 // cc_elaborate.cc            see license.txt for copyright and terms of use
 // code for cc_elaborate.h
 
+// Convention w.r.t. 'env.doElaborate':
+//   - The caller (in cc_tcheck.cc) checks this flag, and only calls 
+//     into cc_elaborate.cc when it is true.
+//   - The functions in cc_elaborate.cc xassert that it is true, but do
+//     not otherwise check it.
+// This ensures that the caller respects the flag, and also minimizes
+// what will have to change later when (if) elaboration becomes a separate
+// pass, rather than integrated into tcheck.
+
 #include "cc_elaborate.h"      // this module
 #include "cc_ast.h"            // Declaration
 #include "cc_env.h"            // Scope, Env
@@ -156,10 +165,10 @@ void Declarator::elaborateCDtors(Env &env)
       if (init->isIN_ctor()) {
         xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
         // FIX: What should we do for non-CompoundTypes?
-        if (env.doElaboration && type->isCompoundType()) {
+        if (type->isCompoundType()) {
           ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
         }
-      } else if (env.doElaboration && type->isCompoundType()) {
+      } else if (type->isCompoundType()) {
         if (init->isIN_expr()) {
           xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
           // just call the one-arg ctor; FIX: this is questionable; we
@@ -181,8 +190,7 @@ void Declarator::elaborateCDtors(Env &env)
     ifInitEnd: ;                  // must have a statement here
     }
     else /* init is NULL */ {
-      if (env.doElaboration &&
-          type->isCompoundType() &&
+      if (type->isCompoundType() &&
           !var->hasFlag(DF_TYPEDEF) &&
           !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
           !isTemporary &&
@@ -202,8 +210,7 @@ void Declarator::elaborateCDtors(Env &env)
         ( (dflags & DF_EXTERN)!=0 ) // extern
         ) {
       xassert(!ctorStatement);
-    } else if (env.doElaboration &&
-               type->isCompoundType() &&
+    } else if (type->isCompoundType() &&
                !var->hasFlag(DF_TYPEDEF) &&
                !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
                (!isMember ||
@@ -218,8 +225,7 @@ void Declarator::elaborateCDtors(Env &env)
 //      ctorStatement = makeCtorStatement(env, var, type, FakeList<ArgExpression>::emptyList());
 
     // make the dtorStatement
-    if (env.doElaboration &&
-        type->isCompoundType() &&
+    if (type->isCompoundType() &&
         !var->hasFlag(DF_TYPEDEF) &&
         !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
         !( (dflags & DF_EXTERN)!=0 ) // not extern
@@ -560,8 +566,8 @@ void completeNoArgMemberInits(Env &env, Function *ctor, CompoundType *ct)
     // UPDATE: the spec says we can do it multiple times for copy
     // assign operator, so I wonder if that holds for ctors also.
     if (!ct->hasVirtualBase(base->ct)) {
-      FakeList<TemplateArgument> *targs = env.getTemplateArgs(base->ct);
-      PQName *name = env.makePossiblyTemplatizedName(loc, base->ct->name, targs);
+      FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(base->ct);
+      PQName *name = env.make_PQ_possiblyTemplatizedName(loc, base->ct->name, targs);
       MemberInit *mi = findMemberInitSuperclass(oldInits, base->ct);
       if (!mi) {
         mi = new MemberInit(name, FakeList<ArgExpression>::emptyList());
@@ -759,11 +765,11 @@ MR_func *makeCopyCtorBody(Env &env, CompoundType *ct)
     // and err on the side of not calling enough initializers
     if (!ct->hasVirtualBase(base->ct)) {
 //        env.make_PQ_qualifiedName(base->ct),
-      FakeList<TemplateArgument> *targs = env.getTemplateArgs(base->ct);
+      FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(base->ct);
 //        Variable *typedefVar = base->ct->getTypedefName();
 //        xassert(typedefVar);
-//        PQName *name = env.makePossiblyTemplatizedName(loc, typedefVar->name, targs);
-      PQName *name = env.makePossiblyTemplatizedName(loc, base->ct->name, targs);
+//        PQName *name = env.make_PQ_possiblyTemplatizedName(loc, typedefVar->name, targs);
+      PQName *name = env.make_PQ_possiblyTemplatizedName(loc, base->ct->name, targs);
       MemberInit *mi = makeCopyCtorMemberInit(name, srcNameS, NULL, loc);
       inits = inits->prepend(mi);
     } else {
@@ -839,10 +845,10 @@ MR_func *makeCopyCtorBody(Env &env, CompoundType *ct)
   //               PQ_name:
   PQName *name = NULL;
   {
-    FakeList<TemplateArgument> *targs = env.getTemplateArgs(ct);
+    FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(ct);
     Variable *typedefVar = ct->getTypedefName();
     xassert(typedefVar);
-    name = env.makePossiblyTemplatizedName(loc, typedefVar->name, targs);
+    name = env.make_PQ_possiblyTemplatizedName(loc, typedefVar->name, targs);
   }
 
   //               loc = ../oink/ctor1.cc:11:5
@@ -991,7 +997,7 @@ static S_expr *make_S_expr_superclassCopyAssign(Env &env, BaseClass *base)
   //                   PQ_operator:
   PQ_operator *assignop = new PQ_operator(loc, opname, fakename);
   //                   targs:
-  FakeList<TemplateArgument> *targs = env.getTemplateArgs(base->ct);
+  FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(base->ct);
   //                   qualifier = W
   //                   loc = copy_assign2.cc:8:11
   //                 PQ_qualifier:
@@ -1053,10 +1059,10 @@ Declarator *makeCopyAssignDeclarator(Env &env, CompoundType *ct)
   //                 PQ_name:
   PQName *name1 = NULL;
   {
-    FakeList<TemplateArgument> *targs = env.getTemplateArgs(ct);
+    FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(ct);
     Variable *typedefVar = ct->getTypedefName();
     xassert(typedefVar);
-    name1 = env.makePossiblyTemplatizedName(loc, typedefVar->name, targs);
+    name1 = env.make_PQ_possiblyTemplatizedName(loc, typedefVar->name, targs);
   }
   //                 loc = copy_assign1.cc:7:16
   //                 cv = const
@@ -1203,10 +1209,10 @@ MR_func *makeCopyAssignBody(Env &env, CompoundType *ct)
   //       PQ_name:
   PQName *pqnameRetSpec = NULL;
   {
-    FakeList<TemplateArgument> *targs = env.getTemplateArgs(ct);
+    FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(ct);
     Variable *typedefVar = ct->getTypedefName();
     xassert(typedefVar);
-    pqnameRetSpec = env.makePossiblyTemplatizedName(loc, typedefVar->name, targs);
+    pqnameRetSpec = env.make_PQ_possiblyTemplatizedName(loc, typedefVar->name, targs);
   }
   //       loc = copy_assign1.cc:7:3
   //       cv = 
@@ -1248,11 +1254,11 @@ static S_expr *make_S_expr_memberDtor(Env &env, StringRef memberName, CompoundTy
 //    PQName *dtorName = name0;
   PQName *dtorName = NULL;
   {
-    FakeList<TemplateArgument> *targs = env.getTemplateArgs(memberType);
+    FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(memberType);
 //      Variable *typedefVar = memberType->getTypedefName();
 //      xassert(typedefVar);
 //      dtorName = new PQ_qualifier(loc, typedefVar->name, targs, name0);
-    dtorName = env.makePossiblyTemplatizedName
+    dtorName = env.make_PQ_possiblyTemplatizedName
       (loc, env.str(stringc << "~" << memberType->name), targs);
   }
 
@@ -1294,7 +1300,7 @@ static S_expr *make_S_expr_superclassDtor(Env &env, BaseClass *base)
 
   PQ_name *name0 = new PQ_name(loc, env.str(stringc << "~" << base->ct->name));
   //           targs:
-  FakeList<TemplateArgument> *targs = env.getTemplateArgs(base->ct);
+  FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(base->ct);
   //           qualifier = B
   //           loc = ex/dtor2.cc:6:11
   //         PQ_qualifier:
@@ -1331,6 +1337,12 @@ static S_expr *make_S_expr_superclassDtor(Env &env, BaseClass *base)
   return new S_expr(loc, fullexpr);
 }
 
+// sm: This should be fixed.  It appends the statements to the body,
+// where they would be skipped by an exception throw or even a simple
+// 'return' statement.  Instead, add a 'dtorStatement' to Function,
+// and put these there, when the semantics that (like 
+// Declarator::dtorStatement) it is executed when the function exits
+// (however that happens).
 void completeDtorCalls(Env &env, Function *func, CompoundType *ct)
 {
   xassert(!func->dtorElaborated); // ensure idempotency
@@ -1440,9 +1452,11 @@ MR_func *makeDtorBody(Env &env, CompoundType *ct)
 
 void E_new::elaborate(Env &env, Type *t)
 {
+  xassert(env.doElaboration);
+
   // TODO: this doesn't work for new[]
 
-  if (env.doElaboration && t->isCompoundType()) {
+  if (t->isCompoundType()) {
     if (env.disambErrorsSuppressChanges()) {
       TRACE("env", "not adding variable or ctorStatement to E_new `" << /*what?*/
             "' because there are disambiguating errors");
@@ -1465,9 +1479,11 @@ void E_new::elaborate(Env &env, Type *t)
 
 void E_delete::elaborate(Env &env, Type *t)
 {
+  xassert(env.doElaboration);
+
   // TODO: this doesn't work for delete[]
 
-  if (env.doElaboration && t->isCompoundType()) {
+  if (t->isCompoundType()) {
     dtorStatement = makeDtorStatement(env, t);
   }
 }
@@ -1475,6 +1491,8 @@ void E_delete::elaborate(Env &env, Type *t)
 
 void E_throw::elaborate(Env &env)
 {
+  xassert(env.doElaboration);
+
   // sm: I think what follows is wrong:
   //   - 'globalVar' is created, but a declaration is not, so
   //     an analysis might be confused by its sudden appearance
@@ -1492,7 +1510,7 @@ void E_throw::elaborate(Env &env)
   // through and figure out how to hook these up to their catch
   // clauses.
   Type *exprType = expr->getType()->asRval();
-  if (env.doElaboration && exprType->isCompoundType()) {
+  if (exprType->isCompoundType()) {
     if (!globalVar) {
       globalVar = env.makeVariable(env.loc(), env.makeThrowClauseVarName(), exprType,
                                    DF_STATIC // I think it is a static global
@@ -1514,6 +1532,8 @@ void E_throw::elaborate(Env &env)
 
 void S_return::elaborate(Env &env)
 {
+  xassert(env.doElaboration);
+
   if (expr) {
     FunctionType *ft = env.scope()->curFunction->funcType;
     xassert(ft);
@@ -1522,7 +1542,7 @@ void S_return::elaborate(Env &env)
     // sm: FunctionType::retType is never NULL ...
     xassert(ft->retType);
 
-    if (env.doElaboration && ft->retType->isCompoundType()) {
+    if (ft->retType->isCompoundType()) {
       // This is an instance of return by value of a compound type.
       // We accomplish this by calling the copy ctor.
 

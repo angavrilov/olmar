@@ -116,6 +116,9 @@ string toString(DeclFlags df);
 
 ENUM_BITWISE_OPS(DeclFlags, ALL_DECLFLAGS)
 
+// helper of possibly general purpose
+string bitmapString(int bitmap, char const * const *names, int numflags);
+
 
 // -------------------------- ScopeKind ------------------------------
 // What kind of (innermost) scope does a variable declaration appear in?

@@ -65,7 +65,7 @@ string Variable::toString() const
   // If more specialized printing is desired, do that specialized
   // printing from outside (by directly accessing 'name', 'type',
   // 'flags', etc.).
-  return type->toCString(name? name : "");
+  return type->toCString(stringc << (name? name : "") << namePrintSuffix());
 }
 
 
@@ -95,6 +95,12 @@ string Variable::fullyQualifiedName() const
   if (scope) tmp << scope->fullyQualifiedName();
   tmp << "::" << name;        // NOTE: not mangled
   return tmp;
+}
+
+
+string Variable::namePrintSuffix() const
+{
+  return "";
 }
 
 
