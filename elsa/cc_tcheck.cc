@@ -1048,8 +1048,292 @@ Type *TS_simple::itcheck(Env &env, DeclFlags dflags)
 }
 
 
-// implemented in template.cc
-bool verifyCompatibleTemplates(Env &env, CompoundType *prior);
+// This function maps syntax like
+//
+//   "class A"                            // ordinary class
+//   "class A<int>"                       // existing instantiation or specialization
+//   "template <class T> class A"         // template class decl
+//   "template <class T> class A<T*>"     // partial specialization decl
+//   "template <> class A<int>"           // complete specialization decl
+//
+// to a particular CompoundType.  If there are extant template
+// parameters, then 'templateParams' will be set below to non-NULL
+// (but possibly empty).  If the name has template arguments applied
+// to it, then 'templateArgs' will be non-NULL.
+//
+// There are three syntactic contexts for this, identified by the
+// 'dflags' present.  Within each of these I categorize w.r.t. the
+// presence of template parameters and arguments:
+//
+//   "class A ;"          // DF_FORWARD=1  DF_DEFINITION=0
+//
+//     no-params no-args    ordinary forward declaration
+//     params    no-args    fwd decl of template primary
+//     no-params args       old-style explicit instantiation request [ref?]
+//     params    args       fwd decl of explicit specialization
+//
+//   "class A *x ;"       // DF_FORWARD=0  DF_DEFINITION=0
+//
+//     no-params no-args    fwd decl, but might push into outer scope (3.3.1 para 5)
+//     params    no-args    illegal [ref?]
+//     no-params args       use of a template instantiation or specialization
+//     params    args       illegal
+//
+//   "class A { ... } ;"  // DF_FORWARD=0  DF_DEFINITION=1
+//
+//     no-params no-args    ordinary class definition
+//     params    no-args    template primary definition
+//     no-params args       illegal
+//     params    args       template specialization definition
+//
+// Note that the first and third cases are fairly parallel, one being
+// a declaration and the other a definition.  The second case is the
+// odd one out, and is in fact quite rare, as such uses are almost
+// always written without the "class" keyword.
+CompoundType *checkClasskeyAndName(
+  Env &env,
+  SourceLoc loc,             // location of type specifier
+  DeclFlags dflags,          // syntactic and semantic declaration modifiers
+  TypeIntr keyword,          // keyword used
+  PQName *name,              // name, with qualifiers and template args (if any)
+  bool &previouslyDeclared)  // OUT: true if name was previously declared
+{
+  // initialize the OUT parameter
+  previouslyDeclared = false;
+
+  // context flags
+  bool forward = (dflags & DF_FORWARD);
+  bool definition = (dflags & DF_DEFINITION);
+  xassert(!( forward && definition ));
+
+  // handle 'friend' the same way I do other case 2 decls, even though
+  // that isn't quite right
+  if (dflags & DF_FRIEND) {
+    if (definition) {
+      env.error("no friend definitions, please");
+      return NULL;
+    }
+    forward = false;
+  }
+
+  // template params?
+  SObjList<Variable> *templateParams =
+    env.scope()->hasTemplateParams()? &(env.scope()->templateParams) : NULL;
+
+  // template args?
+  ASTList<TemplateArgument> *templateArgs = NULL;
+  if (name) {
+    PQName *unqual = name->getUnqualifiedName();
+    if (unqual->isPQ_template()) {
+      // get the arguments
+      templateArgs = &(unqual->asPQ_template()->args);
+    }
+  }
+
+  // reject illegal combinations
+  if (!forward && !definition && templateParams) {
+    // Actually, this requirement holds regardless of whether there is
+    // a definition, but 'forward' only signals the presence of
+    // declarators in non-definition cases.  So this error should be
+    // caught elsewhere.  The code below will not run into trouble in
+    // this case, so just let it go.
+    //return env.error("templatized class declarations cannot have declarators");
+  }
+  if (definition && !templateParams && templateArgs) {
+    env.error("class specifier name can have template arguments "
+              "only in a templatized definition");
+    return NULL;
+  }
+  if (keyword==TI_UNION && (templateParams || templateArgs)) {
+    env.error("template unions are not allowed");
+    return NULL;
+  }
+
+  // see if the environment already has this name
+  CompoundType *ct = NULL;
+  if (name) {
+    // decide how the lookup should be performed
+    LookupFlags lflags = LF_NONE;
+    if (!name->hasQualifiers() && (forward || definition)) {
+      lflags |= LF_INNER_ONLY;
+    }
+    if (templateParams) {
+      lflags |= LF_TEMPL_PRIMARY;
+    }
+
+    // do it
+    ct = env.lookupPQCompound(name, lflags);
+
+    // failed lookup is cause for immediate abort in a couple of cases
+    if (!ct &&
+        (name->hasQualifiers() || templateArgs)) {
+      env.error(stringc << "no such " << toString(keyword)
+                        << ": `" << *name << "'");
+      return NULL;
+    }
+  }
+  CompoundType *primary = ct;       // used for specializations
+
+  // if we have template args and params, refine 'ct' down to the
+  // specialization of interest (if already declared)
+  if (templateParams && templateArgs) {
+    // this is supposed to be a specialization
+    TemplateInfo *primaryTI = primary->templateInfo();
+    if (!primaryTI) {
+      env.error("attempt to specialize a non-template");
+      return NULL;
+    }
+
+    // get the template arguments
+    SObjList<STemplateArgument> sargs;
+    if (!env.templArgsASTtoSTA(*templateArgs, sargs)) {
+      return NULL;         // already reported the error
+    }
+
+    // does this specialization already exist?
+    Variable *spec = primaryTI->getSpecialization(env.tfac, sargs);
+    if (spec) {
+      ct = spec->type->asCompoundType();
+    }
+    else {
+      ct = NULL;
+    }
+  }
+
+  // if already declared, compare to that decl
+  if (ct) {
+    previouslyDeclared = true;
+
+    // check that the keywords match
+    if ((int)ct->keyword != (int)keyword) {
+      // it's ok for classes and structs to be confused (7.1.5.3 para 3)
+      if ((keyword==TI_UNION) != (ct->keyword==CompoundType::K_UNION)) {
+        env.error(stringc
+          << "there is already a " << ct->keywordAndName()
+          << ", but here you're defining a " << toString(keyword)
+          << " " << *name);
+        return NULL;
+      }
+
+      // let the definition keyword (of a template primary only)
+      // override any mismatching prior decl
+      if (definition && !templateArgs) {
+        TRACE("env", "changing " << ct->keywordAndName() <<
+                     " to a " << toString(keyword) << endl);
+        ct->keyword = (CompoundType::Keyword)keyword;
+      }
+    }
+
+    // definition of something previously declared?
+    if (definition) {
+      if (ct->templateInfo()) {
+        TRACE("template", "template class " <<
+                          (templateArgs? "specialization " : "") <<
+                          "definition: " << ct->templateInfo()->templateName());
+      }
+
+      if (ct->forward) {
+        // now it is no longer a forward declaration
+        ct->forward = false;
+      }
+      else {
+        env.error(stringc << ct->keywordAndName() << " has already been defined");
+      }
+    }
+
+    if (!templateParams && templateArgs) {
+      // this is more like an instantiation than a declaration
+    }
+    else {
+      // check correspondence between extant params and params on 'ct'
+      env.verifyCompatibleTemplateParameters(ct);
+    }
+  }
+
+  // if not already declared, make a new CompoundType
+  else {
+    // get the raw name for use in creating the CompoundType
+    StringRef stringName = name? name->getName() : NULL;
+
+    // making an ordinary compound, or a template primary?
+    if (!templateArgs) {
+      Scope *destScope = (forward || definition) ?
+        // if forward=true, 3.3.1 para 5 says:
+        //   the elaborated-type-specifier declares the identifier to be a
+        //   class-name in the scope that contains the declaration
+        // if definition=true, I think it works the same [ref?]
+        env.typeAcceptingScope() :
+        // 3.3.1 para 5 says:
+        //   the identifier is declared in the smallest non-class,
+        //   non-function-prototype scope that contains the declaration
+        env.outerScope() ;
+
+      // this sets the parameterized primary of the scope
+      env.makeNewCompound(ct, destScope, stringName, loc, keyword,
+                          !definition /*forward*/);
+
+      if (templateParams) {
+        TRACE("template", "template class " << (definition? "defn" : "decl") <<
+                          ": " << ct->templateInfo()->templateName());
+      }
+    }
+
+    // making a template specialization
+    else {
+      // get the template arguments (again)
+      SObjList<STemplateArgument> sargs;
+      if (!env.templArgsASTtoSTA(*templateArgs, sargs)) {
+        xfailure("what what what?");     // already got them above!
+      }
+
+      // make a new type, since a specialization is a distinct template
+      // [cppstd 14.5.4 and 14.7]; but don't add it to any scopes
+      env.makeNewCompound(ct, NULL /*scope*/, stringName, loc, keyword,
+                          !definition /*forward*/);
+
+      // dsw: need to register it at least, even if it isn't added to
+      // the scope, otherwise I can't print out the name of the type
+      // because at the top scope I don't know the scopeKind
+      env.typeAcceptingScope()->registerVariable(ct->typedefVar);
+
+      // similarly, the parentScope should be set properly
+      env.setParentScope(ct);
+
+      // 'makeNewCompound' will already have put the template *parameters*
+      // into 'specialTI', but not the template arguments
+      TemplateInfo *ctTI = ct->templateInfo();
+      ctTI->copyArguments(sargs);
+
+      // synthesize an instName to aid in debugging
+      ct->instName = env.str(stringc << ct->name << sargsToString(ctTI->arguments));
+
+      // add this type to the primary's list of specializations; we are not
+      // going to add 'ct' to the environment, so the only way to find the
+      // specialization is to go through the primary template
+      TemplateInfo *primaryTI = primary->templateInfo();
+      primaryTI->addSpecialization(ct->getTypedefVar());
+
+      // the template parameters parameterize the primary
+      //
+      // 8/09/04: moved this below 'makeNewCompound' so the params
+      // aren't regarded as inherited
+      env.scope()->setParameterizedPrimary(primary->typedefVar);
+
+      TRACE("template", (definition? "defn" : "decl") <<
+                        " of specialization of template class" <<
+                        primary->typedefVar->fullyQualifiedName() <<
+                        ", " << ct->instName);
+    }
+  }
+
+  // record the definition scope, for instantiation to use
+  if (templateParams && definition) {
+    ct->templateInfo()->defnScope = env.nonTemplateScope();
+  }
+
+  return ct;
+}
+
 
 Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
 {
@@ -1075,282 +1359,58 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     this->atype = et;          // annotation
     return env.makeType(loc, et);
   }
-
-  CompoundType *ct = NULL /*value not used*/;
-  if (!name->hasQualifiers() &&
-      (dflags & DF_FORWARD) &&
-      !(dflags & DF_FRIEND)) {
-    // we might be forward declaring a template that has already
-    // been declared (t0027.cc); don't complain about the lack of
-    // template arguments
-    LookupFlags lflags = LF_INNER_ONLY;
-    if (!name->getUnqualifiedName()->isPQ_template()) {
-      lflags |= LF_TEMPL_PRIMARY;
-    }
-  
-    // cppstd 3.3.1 para 5:
-    //   "for an elaborated-type-specifier of the form
-    //      class-key identifier ;
-    //    the elaborated-type-specifier declares the identifier to be a
-    //    class-name in the scope that contains the declaration"
-    ct = env.lookupPQCompound(name, lflags);
-    if (!ct) {
-      // make a forward declaration
-      Type *ret =
-         env.makeNewCompound(ct, env.acceptingScope(), name->getName(),
-                             loc, keyword, true /*forward*/);
-      if (ct->templateInfo()) {
-        TRACE("template", "template class decl: " << ct->templateInfo()->templateName());
-      }
-      this->atype = ct;        // annotation
-      return ret;
-    }
-    else {
-      // redundant, nothing to do except check keywords (7.1.5.3 para 3)
-      if ((keyword==TI_UNION) != (ct->keyword==CompoundType::K_UNION)) {
-    keywordComplaint:
-        return env.error(stringc
-          << "you asked for a " << toString(keyword) << " called `"
-          << *name << "', but that's actually a " << toString(ct->keyword));
-      }
-      
-      verifyCompatibleTemplates(env, ct);
-
-      this->atype = ct;        // annotation
-      return env.makeType(loc, ct);
-    }
-  }
-
-  ct = env.lookupPQCompound(name);
+                                     
+  bool dummy;
+  CompoundType *ct = 
+    checkClasskeyAndName(env, loc, dflags, keyword, name, dummy);
   if (!ct) {
-    if (name->hasQualifiers()) {
-      return env.error(stringc
-        << "there is no " << toString(keyword) << " called `" << *name << "'");
-    }
-
-    // cppstd 3.3.1 para 5, continuing from above:
-    //   "for an elaborated-type-specifier of the form
-    //      class-key identifier
-    //    if the elaborated-type-specifier is used in the decl-specifier-seq
-    //    or parameter-declaration-clause of a function defined in namespace
-    //    scope, the identifier is declared as a class-name in the namespace
-    //    that contains the declaration; otherwise, except as a friend
-    //    declaration, the identifier is declared in the smallest non-class,
-    //    non-function-prototype scope that contains the declaration."
-    //
-    // my interpretation: create a forward declaration, but in the innermost
-    // scope which is not:
-    //   - a function parameter list scope, nor
-    //   - a class scope, nor
-    //   - a template parameter list scope (perhaps a concept unique to my impl.)
-    //
-    // Note that due to the exclusion of DF_FRIEND above I'm actually
-    // handling 'friend' here, despite what the standard says..
-    Scope *scope = env.outerScope();
-    Type *ret =
-       env.makeNewCompound(ct, scope, name->getName(), loc, keyword, 
-                           true /*forward*/);
-    this->atype = ct;           // annotation
-    return ret;
-  }
-
-  // check that the keywords match (7.1.5.3 para 3)
-  if ((keyword==TI_UNION) != (ct->keyword==CompoundType::K_UNION)) {
-    goto keywordComplaint;
-  }
-
-  if (name->getUnqualifiedName()->isPQ_template()) {
-    // this is like
-    //   friend class Foo<T>;
-    // inside some other templatized class.. I'm not sure
-    // how to properly enforce the correspondence between
-    // the declarations..
-    // TODO: fix his
-
-    // at least discard the template params as
-    // 'verifyCompatibleTemplates' would have done..
-    //
-    // 7/31/04: params are no longer discarded by anyone
-  }
-  else {
-    verifyCompatibleTemplates(env, ct);
+    return env.errorType();
   }
 
   this->atype = ct;              // annotation
-  return env.makeType(loc, ct);
+
+  return ct->typedefVar->type;
 }
 
 
 Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
-
-  // was the previous declaration a forward declaration?
-  bool prevWasForward = false;
-
-  // are we in a template declaration?
-  bool inTemplate = env.scope()->hasTemplateParams();
+  dflags |= DF_DEFINITION;
 
   // lookup scopes in the name, if any
   if (name) {
     name->tcheck(env);
   }
 
-  // check restrictions on the form of the name
-  ASTList<TemplateArgument> *templateArgs = NULL;
-  if (name) {
-    PQName *unqual = name->getUnqualifiedName();
-    if (unqual->isPQ_template()) {
-      if (!inTemplate) {
-        return env.error("class specifier name can have template arguments "
-                         "only in a templatized declaration");
-      }
-      else {
-        PQ_template *t = unqual->asPQ_template();
-
-        // get the arguments
-        templateArgs = &(t->args);
-      }
-    }
+  // figure out which class the (keyword, name) pair refers to
+  bool defnOfPrevDecl;
+  CompoundType *ct = 
+    checkClasskeyAndName(env, loc, dflags, keyword, name, defnOfPrevDecl);
+  if (!ct) {
+    return env.errorType();   // error already reported
   }
 
-  // get the raw name
-  StringRef stringName = name? name->getName() : NULL;
+  this->ctype = ct;           // annotation
 
-  // see if the environment already has this name
-  CompoundType *ct =
-    stringName? env.lookupPQCompound(name, LF_INNER_ONLY | LF_TEMPL_PRIMARY) : NULL;
-  Type *ret;
-  if (ct && !templateArgs) {
-    // check that the keywords match
-    if ((int)ct->keyword != (int)keyword) {
-      // apparently this isn't an error, because my streambuf.h
-      // violates it..
-      //return env.error(stringc
-      //  << "there is already a " << ct->keywordAndName()
-      //  << ", but here you're defining a " << toString(keyword)
-      //  << " " << name);
-
-      // but certainly we wouldn't allow changing a union to a
-      // non-union, or vice-versa
-      if ((ct->keyword == (CompoundType::K_UNION)) !=
-          (keyword == TI_UNION)) {
-        return env.error(stringc
-          << "there is already a " << ct->keywordAndName()
-          << ", but here you're defining a " << toString(keyword)
-          << " " << *name);
-      }
-
-      trace("env") << "changing " << ct->keywordAndName()
-                   << " to a " << toString(keyword) << endl;
-      ct->keyword = (CompoundType::Keyword)keyword;
-    }
-
-    // check that the previous was a forward declaration
-    if (!ct->forward) {
-      env.error(stringc << ct->keywordAndName() << " has already been defined");
-    }
-
-    // now it is no longer a forward declaration
-    ct->forward = false;
-    prevWasForward = true;
-
-    verifyCompatibleTemplates(env, ct);
-
-    this->ctype = ct;           // annotation
-    ret = env.makeType(loc, ct);
-  }
-
-  else if (ct && templateArgs) {
-    CompoundType *primary = ct;
-    TemplateInfo *primaryTI = primary->templateInfo();
-
-    // this is supposed to be a specialization
-    if (!primaryTI) {
-      return env.error("attempt to specialize a non-template");
-    }
-
-    // make a new type, since a specialization is a distinct template
-    // [cppstd 14.5.4 and 14.7]; but don't add it to any scopes
-    ret = env.makeNewCompound(ct, NULL /*scope*/, stringName, loc, keyword,
-                              false /*forward*/);
-
-    // the template parameters parameterize the primary
-    //
-    // 8/09/04: moved this below 'makeNewCompound' so the params
-    // aren't regarded as inherited
-    if (env.scope()->isTemplateParamScope()) {
-      env.scope()->setParameterizedPrimary(primary->typedefVar);
-    }
-
-    // dsw: need to register it at least, even if it isn't added to
-    // the scope, otherwise I can't print out the name of the type
-    // because at the top scope I don't know the scopeKind
-    env.typeAcceptingScope()->registerVariable(ct->typedefVar);
-
-    // similarly, the parentScope should be set properly
-    env.setParentScope(ct);
-
-    this->ctype = ct;           // annotation
-
-    // 'makeNewCompound' will already have put the template *parameters*
-    // into 'specialTI', but not the template arguments
-    // TODO: this is copied from Env::instantiateTemplate(); collapse it
-    {
-      FOREACH_ASTLIST_NC(TemplateArgument, *templateArgs, _iter) {
-        TemplateArgument *iter = _iter.data();
-        xassert(iter->sarg.hasValue());
-        ct->templateInfo()->arguments.append(new STemplateArgument(iter->sarg));
-      }
-
-      // synthesize an instName to aid in debugging
-      ct->instName = env.str(stringc <<
-        ct->name << sargsToString(ct->templateInfo()->arguments));
-    }
-
-    // add this type to the primary's list of specializations; we are not
-    // going to add 'ct' to the environment, so the only way to find the
-    // specialization is to go through the primary template
-    primaryTI->addSpecialization(ct->getTypedefVar());
-
-    // record the definition scope, for instantiation to use
-    ct->templateInfo()->defnScope = env.nonTemplateScope();
-
-    TRACE("template", "created specialization of template class " <<
-                      primary->typedefVar->fullyQualifiedName() <<
-                      ", " << ct->instName);
-  }
-
-  else {      // !ct
-    xassert(!ct);
-    if (templateArgs) {
-      env.error("cannot specialize a template that hasn't been declared");
-    }
-
-    // no existing compound; make a new one
-    Scope *destScope = env.typeAcceptingScope();
-    ret = env.makeNewCompound(ct, destScope, stringName,
-                              loc, keyword, false /*forward*/);
-    this->ctype = ct;              // annotation
-
-    if (ct->isTemplate()) {
-      TRACE("template", "template class defn: " << ct->templateInfo()->templateName());
-    }
-  }
-
+  // check the body of the definition
   tcheckIntoCompound(env, dflags, ct, true /*checkMethodBodies*/);
-  
-  if (prevWasForward && ct->isTemplate()) {
+
+  if (defnOfPrevDecl && ct->isTemplate()) {
     // we might have had forward declarations of template
     // instances that now can be made non-forward by tchecking
     // this syntax
-    env.instantiateForwardClasses(ct->getTypedefVar());
+    //
+    // 8/14/04: er... ahh.. what?  if we needed it before this we
+    // would have already emitted an error!  nothing is accomplished
+    // by this...
+    //env.instantiateForwardClasses(ct->typedefVar);
   }
 
-  return ret;
+  return ct->typedefVar->type;
 }
 
-                                                          
+
 // type check once we know what 'ct' is; this is also called
 // to check newly-cloned AST fragments for template instantiation
 void TS_classSpec::tcheckIntoCompound(

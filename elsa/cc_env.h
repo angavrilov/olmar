@@ -806,6 +806,8 @@ public:      // template funcs
   Variable *makeSpecializationVariable
     (SourceLoc loc, DeclFlags dflags, Variable *templ, Type *type,
      SObjList<STemplateArgument> const &args);
+
+  bool verifyCompatibleTemplateParameters(CompoundType *prior);
 };
 
 

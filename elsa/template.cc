@@ -2536,9 +2536,9 @@ void instantiateRemainingMethods(Env &env, TranslationUnit *tunit)
 //
 // return false if there is some problem, true if it's all ok
 // (however, this value is ignored at the moment)
-bool verifyCompatibleTemplates(Env &env, CompoundType *prior)
+bool Env::verifyCompatibleTemplateParameters(CompoundType *prior)
 {
-  Scope *scope = env.scope();
+  Scope *scope = this->scope();
   if (!scope->hasTemplateParams() && !prior->isTemplate()) {
     // neither talks about templates, forget the whole thing
     return true;
@@ -2547,11 +2547,11 @@ bool verifyCompatibleTemplates(Env &env, CompoundType *prior)
   // before going further, associate the scope's parameters
   // so that happens regardless of the decision here
   if (scope->hasTemplateParams()) {
-    scope->setParameterizedPrimary(prior->typedefVar);
+    scope->setParameterizedPrimary(prior->templateInfo()->getPrimary()->var);
   }
 
   if (!scope->hasTemplateParams() && prior->isTemplate()) {
-    env.error(stringc
+    error(stringc
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
       << " was templatized with parameters "
@@ -2561,8 +2561,10 @@ bool verifyCompatibleTemplates(Env &env, CompoundType *prior)
     return false;
   }
 
-  if (scope->hasTemplateParams() && !prior->isTemplate()) {
-    env.error(stringc
+  if (scope->hasTemplateParams() &&
+      scope->templateParams.isNotEmpty() &&      // t0252.cc
+      !prior->isTemplate()) {
+    error(stringc
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
       << " was not templatized, but this one is, with parameters "
@@ -2578,7 +2580,7 @@ bool verifyCompatibleTemplates(Env &env, CompoundType *prior)
   // with those of 'scope->curTemplateParams'
   //
   // even more, merge their default arguments
-  bool ret = env.mergeParameterLists(
+  bool ret = mergeParameterLists(
     prior->typedefVar,
     prior->templateInfo()->params,     // dest
     scope->templateParams);            // src

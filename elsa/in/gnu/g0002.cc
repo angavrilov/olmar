@@ -3,4 +3,8 @@
 
 //template int x;
 
+// I assume you need a template decl ...
+template <class T>
+class allocator {};
+
 extern template class allocator<char>;

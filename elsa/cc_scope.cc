@@ -43,8 +43,7 @@ Scope::~Scope()
     // my intent is that all SK_TEMPLATE_PARAMSs get assigned to some
     // primary eventually; this warning should be commented-out once
     // the implementation stabilizes
-    cout << "warning (bug?): " << desc() << " has no parameterizedPrimary\n";
-    xfailure("does our test suite contain this?");
+    xfailure(stringc << desc() << " has no parameterizedPrimary");
   }
   #endif // 0
 }
