@@ -16,7 +16,7 @@ all: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/c.ast.gen.h \
 .PHONY: workingFiles
 workingFiles: cc/cc_tcheck.o cc/cc_print.o
 #workingFiles: cc/cc_flatten.o
-ifdef CCQUAL
+ifdef CC_QUAL
 workingFiles: cc/cc_qual.o
 endif
 
@@ -56,7 +56,11 @@ ranlib      := ranlib
 # when uncommented, we get profiling info
 #ccflags += -pg
 
-#ALLOW_DEBUG := 1
+# dsw: When set, don't use the dummy cc_qual stuff, but use the real
+# thing.
+ifdef CC_QUAL
+  ccflags += -DCC_QUAL
+endif
 
 OPTIMIZATION_FLAGS :=
 ifdef ALLOW_DEBUG
@@ -192,8 +196,10 @@ cc-set := \
   cc/cc_ast_aux.o \
   cc/treeout.o \
   cc/variable.o
-ifdef CCQUAL
+ifdef CC_QUAL
 cc-set += cc/cc_qual/cc_qual.o
+else
+cc-set += cc/cc_qual_dummy.o
 endif
 -include $(filter-out $(AST)/%, $(cc-set:.o=.d))
 
