@@ -2930,6 +2930,13 @@ Variable *Env::createDeclaration(
       prior->clearFlag(DF_FORWARD); // dsw: I added this
     }
 
+    // dsw: if one has a size and the other doesn't, use the size of
+    // the one that is defined
+    if (prior->type->isArrayType()
+        && prior->type->asArrayType()->size == ArrayType::NO_SIZE) {
+      prior->type->asArrayType()->size = type->asArrayType()->size;
+    }
+
     // prior is a ptr to the previous decl/def var; type is the
     // type of the alias the user wanted to introduce, but which
     // was found to be equivalent to the previous declaration

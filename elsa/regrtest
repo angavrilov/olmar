@@ -548,6 +548,7 @@ failparse d0084.cc "operator overloading ambiguity"
 testparse d0087.cc
 testparse d0088.cc
 testparse d0089.cc
+testparse d0090.cc
 # ---- END: lots of tests ----
 
 

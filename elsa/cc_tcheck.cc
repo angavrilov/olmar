@@ -1813,6 +1813,9 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
   // not sure what's the best place to test this, nor what the
   // exact rule is; let's try this...
+  //
+  // UPDATE: dsw: the problem is that gcc allows it; FIX: turn this
+  // off in the presence of a gnu flag
   if (isVariableDC(dt.context) &&
       !dt.hasFlag(DF_EXTERN) &&
       type->isArrayType() &&
