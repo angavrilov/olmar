@@ -268,9 +268,9 @@ private:    // funcs
   SemanticValue grabTopSval(StackNode *node);
 
   int glrParseAction(StackNode *parser, ActionEntry action,
-                     ObjList<PendingShift> &pendingShifts);
+                     ObjArrayStack<PendingShift> &pendingShifts);
   void postponeShift(StackNode *parser,
-                     ObjList<PendingShift> &pendingShifts,
+                     ObjArrayStack<PendingShift> &pendingShifts,
                      StateId shiftDest);
   void doAllPossibleReductions(StackNode *parser, ActionEntry action,
                                SiblingLink *sibLink);
@@ -281,7 +281,7 @@ private:    // funcs
                              StackNode *currentNode, SiblingLink *mustUseLink);
   void glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
                            SemanticValue sval, SourceLocation const &loc);
-  void glrShiftTerminals(ObjList<PendingShift> &pendingShifts);
+  void glrShiftTerminals(ObjArrayStack<PendingShift> &pendingShifts);
   StackNode *findActiveParser(StateId state);
   StackNode *makeStackNode(StateId state);
   void writeParseGraph(char const *input) const;

@@ -396,6 +396,10 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   activeParsers.append(first);
   first->incRefCt();
 
+  // we will queue up shifts and process them all at the end (pulled
+  // out of loop so I don't deallocate the array between tokens)
+  ObjArrayStack<PendingShift> pendingShifts;                  // starts empty
+
   // for each input symbol
   int tokenNumber = 0;
   for (ObjListIter<Lexer2Token> tokIter(lexer2.tokens);
@@ -426,9 +430,8 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     // ([GLR] called the code from here to the end of
     // the loop 'parseword')
 
-    // we will queue up shifts and process them all
-    // at the end
-    ObjList<PendingShift> pendingShifts;                  // starts empty
+    // paranoia
+    xassert(pendingShifts.length() == 0);
 
     // put active parser tops into a worklist
     decParserList(parserWorklist);
@@ -443,7 +446,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 
       // to count actions, first record how many parsers we have
       // before processing this one
-      int parsersBefore = parserWorklist.count() + pendingShifts.count();
+      int parsersBefore = parserWorklist.count() + pendingShifts.length();
 
       // process this parser
       ActionEntry action =      // consult the 'action' table
@@ -451,7 +454,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
       glrParseAction(parser, action, pendingShifts);
 
       // now observe change -- normal case is we now have one more
-      int actions = (parserWorklist.count() + pendingShifts.count()) -
+      int actions = (parserWorklist.count() + pendingShifts.length()) -
                       parsersBefore;
 
       if (actions == 0) {
@@ -560,7 +563,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 // to 'pendingShifts'; returns number of actions performed
 // ([GLR] called this 'actor')
 int GLR::glrParseAction(StackNode *parser, ActionEntry action,
-                        ObjList<PendingShift> &pendingShifts)
+                        ObjArrayStack<PendingShift> &pendingShifts)
 {
   if (tables->isShiftAction(action)) {
     // shift
@@ -647,15 +650,16 @@ void GLR::doAllPossibleReductions(StackNode *parser, ActionEntry action,
 }
 
 
+// TODO: inline this into caller
 void GLR::postponeShift(StackNode *parser,
-                        ObjList<PendingShift> &pendingShifts,
+                        ObjArrayStack<PendingShift> &pendingShifts,
                         StateId shiftDest)
 {
   // postpone until later; save necessary state (the
   // parser and the state to transition to)
 
   // add (parser, shiftDest) to pending-shifts
-  pendingShifts.append(new PendingShift(parser, shiftDest));
+  pendingShifts.push(new PendingShift(parser, shiftDest));
 }
 
 
@@ -970,17 +974,17 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
 }
 
 
-void GLR::glrShiftTerminals(ObjList<PendingShift> &pendingShifts)
+void GLR::glrShiftTerminals(ObjArrayStack<PendingShift> &pendingShifts)
 {
   // clear the active-parsers list; we rebuild it in this fn
   decParserList(activeParsers);
   activeParsers.removeAll();
 
   // foreach (leftSibling, newState) in pendingShifts
-  MUTATE_EACH_OBJLIST(PendingShift, pendingShifts, pshift) {
-    StackNode *leftSibling = pshift.data()->parser;
-    //ItemSet const *newState = pshift.data()->shiftDest;
-    StateId newState = pshift.data()->shiftDest;
+  while (pendingShifts.isNotEmpty()) {
+    Owner<PendingShift> pshift(pendingShifts.pop());
+    StackNode *leftSibling = pshift->parser;
+    StateId newState = pshift->shiftDest;
 
     // debugging
     if (trParse) {
