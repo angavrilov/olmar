@@ -1425,6 +1425,8 @@ void GrammarAnalysis::computeWhatCanDeriveWhat()
 // (First(x) = {x}).
 void GrammarAnalysis::computeFirst()
 {
+  bool tr = tracingSys("first");
+
   // iterate, looking for new First members, until no changes
   int changes = 1;   // so the loop begins
   while (changes > 0) {
@@ -1444,10 +1446,29 @@ void GrammarAnalysis::computeFirst()
 
       // add everything in First(RHS-sequence) to First(LHS)
       SMUTATE_EACH_TERMINAL(firstOfRHS, iter) {
-        changes += true==addFirst(LHS, iter.data());
+        if (addFirst(LHS, iter.data())) {
+          changes++;
+          if (tr) {
+            trace("first") << "added " << iter.data()->toString()
+                           << " to " << LHS->name << " because of "
+                           << prod->toString() << endl;
+          }
+        }
       }
     } // for (productions)
   } // while (changes)
+
+  if (tracingSys("first")) {
+    FOREACH_NONTERMINAL(nonterminals, iter) {
+      Nonterminal const &nt = *(iter.data());
+
+      ostream &trs = trace("first") << " " << nt.name << ":";
+      SFOREACH_TERMINAL(nt.first, t) {
+        trs << " " << t.data()->toString();
+      }
+      trs << endl;
+    }
+  }
 }
 
 

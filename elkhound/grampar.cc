@@ -157,6 +157,7 @@ void astParseGrammar(Grammar &g, GrammarAST const *treeTop)
 }
 
 
+// validate 'name'
 Terminal *astParseToken(Environment &env, LocString const &name)
 {
   Terminal *t = env.g.findTerminal(name);
@@ -222,7 +223,7 @@ void astParseTerminals(Environment &env, Terminals const &terms)
         // look up the token
         Terminal *t = astParseToken(env, tokName);
         if (t->precedence) {
-          astParseError(tokName, 
+          astParseError(tokName,
             stringc << tokName << " already has a specified precedence");
         }
 
@@ -244,6 +245,8 @@ void astParseDDM(Environment &env, Symbol *sym,
   FOREACH_ASTLIST(SpecFunc, funcs, iter) {
     SpecFunc const &func = *(iter.data());
     int numFormals = func.formals.count();
+
+    // decide what to do based on the name
 
     if (func.name.equals("dup")) {
       if (numFormals != 1) {
@@ -353,7 +356,7 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
     bool isString = false;
     bool isPrec = false;
 
-    // pull varius info out of the AST node
+    // pull various info out of the AST node
     ASTSWITCHC(RHSElt, n) {
       ASTCASEC(RH_name, tname) {
         symName = tname->name;
@@ -396,7 +399,7 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
     if (isString  &&  !term) {
       astParseError(symName, "terminals must be declared");
     }
-    
+
     if (!term && !nonterm) {
       astParseErrorCont(symName, "undeclared symbol");
       

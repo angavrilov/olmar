@@ -162,6 +162,8 @@ Lexer2TokenTypeDesc const l2TokTypes[] = {
   { N(L2___PRETTY_FUNCTION__),  "__PRETTY_FUNCTION__", true },
   { N(L2___TYPEOF__),           "__typeof__", true },
   { N(L2_OWNER),                "owner", true },
+  { N(L2_PREFER_REDUCE),        "PREFER_REDUCE", true },
+  { N(L2_PREFER_SHIFT),         "PREFER_SHIFT", true },
 };
 
 #undef N

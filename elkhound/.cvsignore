@@ -74,3 +74,6 @@ cdecl
 cdecl2.gen.*
 cdecl2.bin
 cdecl2
+adecl.gen.*
+adecl.bin
+adecl

@@ -154,6 +154,10 @@ enum Lexer2TokenType {
   // my extensions
   L2_OWNER,
 
+  // dummy terminals used for precedence games
+  L2_PREFER_REDUCE,
+  L2_PREFER_SHIFT,
+
   L2_NUM_TYPES
 };
 

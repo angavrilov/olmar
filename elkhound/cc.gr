@@ -9,6 +9,7 @@ verbatim CCGr [
 
 #include "strtable.h"     // StringRef
 #include "cc_type.h"      // type identifiers like ST_CHAR
+#include "lexer2.h"       // lexer2's token ids for classify()
 
 class CCGr : public UserActions {
   USER_ACTION_FUNCTIONS
@@ -27,29 +28,50 @@ UserActions *makeUserActions(StringTable &)
 terminals {
   include("cc.tok")
 
-  token[int] L2_INT_LITERAL {
-    dup(i) [ return i; ]
-    del() []
-  }
-  
-  token[float*] L2_FLOAT_LITERAL {
-    dup(f) [ return new float(*f); ]
-    del(f) [ delete f; ]
-  }
-  
-  token[char] L2_CHAR_LITERAL {
-    dup(c) [ return c; ]
-    del() []
-  }
+  token[int] L2_INT_LITERAL ;
+
+  token[float*] L2_FLOAT_LITERAL ;
+
+  token[char] L2_CHAR_LITERAL ;
 
   token[StringRef] L2_NAME {
-    dup(s) [ return s; ]
-    del()  []
+    // every time I pull an L2_NAME from the lexer, this code is
+    // run to possibly reclassify the token kind; the semantic
+    // value is passed (and ParseEnv is available as context), but
+    // the same semantic value will be used
+    classify(s) [
+      //if (isType(s)) {
+      //  return L2_TYPE_NAME;
+      //}
+      //else {
+        return L2_VARIABLE_NAME;
+      //}
+    ]
   }
 
-  token[StringRef] L2_STRING_LITERAL {
-    dup(s) [ return s; ]
-    del()  []
+  token[StringRef] L2_TYPE_NAME;
+  token[StringRef] L2_VARIABLE_NAME;
+
+  token[StringRef] L2_STRING_LITERAL ;
+
+  precedence {
+    // low precedence
+    prec L2_PREFER_SHIFT;
+
+    left "*" "/" "%";
+    left "+" "-";
+    left "<<" ">>";
+    left "<" ">" "<=" ">=";
+    left "==" "!=";
+    left "&";
+    left "^";
+    left "|";
+    left "&&";
+    left "||";
+
+    prec "const" "volatile" "__attribute__" "else";
+    prec L2_PREFER_REDUCE;
+    // high precedence
   }
 }
 
@@ -63,10 +85,17 @@ nonterm StartSymbol -> TranslationUnit L2_EOF;
 // source of problems parsing C and C++
 
 // name of a type; introduced by class, struct, union, enum, typedef
-nonterm TypeName -> n:L2_NAME   ;
+nonterm TypeName -> n:L2_TYPE_NAME ;
 
 // name of a variable or function; introduced by a declaration
-nonterm VariableName -> n:L2_NAME  ;
+nonterm VariableName -> n:L2_VARIABLE_NAME ;
+
+// names for situations where it does not matter what its previous
+// meaning may have been
+nonterm AnyName {
+  -> TypeName ;
+  -> VariableName ;
+}
 
 
 // ---------------- higher-level syntax -----------------
@@ -97,7 +126,7 @@ nonterm PrimaryExpression {
   -> e:PQVarName ;
 
   // GNU extension
-  -> "(" s:CompoundStatement ")" ;
+  //-> "(" s:CompoundStatement ")" ;
 
   // gnu extension: "constructor expression"
   // (notation for literal struct values)
@@ -133,10 +162,10 @@ nonterm StringLiteral {
 nonterm PQVarName {
   -> n:VariableName ;
 
-  -> OperatorFunctionId ;
-  -> ConversionFunctionId ;
-  -> "~" TypeName ;
-  -> q:Qualifier rhs:PQVarName ;
+  //-> OperatorFunctionId ;
+  //-> ConversionFunctionId ;
+  //-> "~" TypeName ;
+  //-> q:Qualifier rhs:PQVarName ;
 }
 
 nonterm Qualifier {
@@ -163,10 +192,10 @@ nonterm PostfixExpression {
   //-> PostfixExpression "." PseudoDestructorName           ; // explicit dtor call
   //-> PostfixExpression "->" PseudoDestructorName          ;
 
-  -> "dynamic_cast"     "<" TypeId ">" "(" e:Expression ")" ;   // casts
-  -> "static_cast"      "<" TypeId ">" "(" e:Expression ")" ;
-  -> "reinterpret_cast" "<" TypeId ">" "(" e:Expression ")" ;
-  -> "const_cast"       "<" TypeId ">" "(" e:Expression ")" ;
+  //-> "dynamic_cast"     "<" TypeId ">" "(" e:Expression ")" ;   // casts
+  //-> "static_cast"      "<" TypeId ">" "(" e:Expression ")" ;
+  //-> "reinterpret_cast" "<" TypeId ">" "(" e:Expression ")" ;
+  //-> "const_cast"       "<" TypeId ">" "(" e:Expression ")" ;
 
   // removed for now since I don't know much about them
   //-> "typeid" "(" Expression ")"                          ;   // RTTI
@@ -197,7 +226,7 @@ nonterm UnaryExpression {
   // size of expression
   -> "sizeof" e:UnaryExpression ;
 
-  -> e:DeleteExpression ;
+  //-> e:DeleteExpression ;
 
   // dereference
   -> "*" e:CastExpression ;
@@ -211,7 +240,7 @@ nonterm UnaryExpression {
 
   -> "sizeof" "(" t:TypeId ")" ;               // size of type
 
-  -> NewExpression ;
+  //-> NewExpression ;
 }
 
 
@@ -340,7 +369,7 @@ nonterm ConstantExpression -> e:ConditionalExpression ;
 // ------ A.5 Statements ------
 // labeled-statement
 nonterm Statement {
-  -> n:L2_NAME ":" s:Statement ;
+  -> n:L2_VARIABLE_NAME ":" s:Statement ;
 
   // had to remove the statement because I found linux kernel
   // code that has "case:" immediately followed by "}"
@@ -360,10 +389,10 @@ nonterm Statement {
   -> s:CompoundStatement ;
 
   // selection-statement
-  -> "if" "(" e:Condition ")" s:Statement ;
+  // (prefer to shift "else" over reducing by this rule)
+  -> "if" "(" e:Condition ")" s:Statement precedence(L2_PREFER_SHIFT);
 
   // if-then-else preferred over if-then when ambiguous
-  // (so far unimplemented! (TODO))
   -> "if" "(" e:Condition ")" s1:Statement "else" s2:Statement ;
 
   -> "switch" "(" e:Condition ")" s:Statement ;
@@ -392,13 +421,13 @@ nonterm Statement {
 
   -> "return" ";" ;
 
-  -> "goto" n:L2_NAME ";" ;
+  -> "goto" n:L2_VARIABLE_NAME ";" ;
 
   // declaration-statement
   -> s:BlockDeclaration ;
 
   // try-block
-  -> s:TryBlock ;
+  //-> s:TryBlock ;
 
   // GNU extensions
   -> GNUAsmStatement ;
@@ -467,7 +496,7 @@ nonterm SimpleDeclaration {
   -> spec:DeclSpecifier list:InitDeclaratorListOpt ";" ;
 
   // gnu; specifically for linux printk declaration
-  -> GNUAttribute decl:SimpleDeclaration ;
+  //-> GNUAttribute decl:SimpleDeclaration ;
 }
 
 
@@ -505,26 +534,35 @@ nonterm DeclModifier {
 
 nonterm TypeSpecifier {
   -> s:SimpleTypeSpecifier ;          // int
-
-  -> s:SimpleCVTypeSpecifier ;        // unsigned const char  (not good style, IMO)
+    
+  // pulled this because it causes shift/reduce conflicts; on input
+  //   unsigned . const ...
+  // I don't know whether to reduce the 'unsigned' as a type by itself,
+  // or shift the 'const' in expectation of finding 'char' after it
+  //-> s:SimpleCVTypeSpecifier ;        // unsigned const char  (not good style, IMO)
 
   -> s:ElaboratedTypeSpecifier ;      // class foo  or  enum bar
 
   -> s:ClassSpecifier ;               // class { ... }
   -> s:EnumSpecifier ;                // enum { ... }
 
-  -> q:CVQualifier s:TypeSpecifier ;  // const int
-  -> s:TypeSpecifier q:CVQualifier ;  // int const
+  // the following 3 rules create an ambiguity because they don't
+  // say how to parse things like "const int const"; so assign
+  // all of them precedence higher than const/volatile/attribute,
+  // so we'll just prefer reducing always
+
+  -> q:CVQualifier s:TypeSpecifier  precedence(L2_PREFER_REDUCE);  // const int
+  -> s:TypeSpecifier q:CVQualifier  precedence(L2_PREFER_REDUCE);  // int const
 
   // yet another attempt to find a good place for this
-  -> s:TypeSpecifier GNUAttribute ;
+  -> s:TypeSpecifier GNUAttribute   precedence(L2_PREFER_REDUCE);
 }
 
 
 nonterm ElaboratedTypeSpecifier {
-  -> k:ClassKeyword n:L2_NAME ;
+  -> k:ClassKeyword n:AnyName ;
 
-  -> "enum" n:L2_NAME ;
+  -> "enum" n:AnyName ;
 }
 
 
@@ -572,8 +610,8 @@ nonterm SimpleTypeSpecifier {
 // that it can
 nonterm PQTypeName {
   -> n:TypeName ;
-  -> TemplateId ;
-  -> Qualifier n:PQTypeName ;
+  //-> TemplateId ;
+  //-> Qualifier n:PQTypeName ;
 }
 
 // the C++ standard allows "const" and "volatile" to be arbitrarily
@@ -615,7 +653,7 @@ nonterm SimpleCVTypeSpecifier {
 
 nonterm EnumSpecifier {
   -> "enum" "{" list:EnumeratorListOpt "}" ;
-  -> "enum" n:L2_NAME "{" list:EnumeratorListOpt "}" ;
+  -> "enum" n:AnyName "{" list:EnumeratorListOpt "}" ;
 }
 
 
@@ -633,8 +671,8 @@ nonterm EnumeratorListOpt {
 
 
 nonterm EnumeratorDefinition {
-  -> name:L2_NAME ;
-  -> name:L2_NAME "=" expr:ConstantExpression ;
+  -> name:AnyName ;
+  -> name:AnyName "=" expr:ConstantExpression ;
 }
 
 
@@ -778,29 +816,48 @@ nonterm CVQualifier {
 // a type-id is like a declaration of one thing, but without the variable name;
 // it is, for example, what appears inside the parens of a typecast
 nonterm TypeId {
-  -> spec:TypeSpecifier decl:AbstractDeclarator ;
+  -> spec:TypeSpecifier decl:AbstractDeclaratorOpt ;
 
   // gnu extension
   -> "__typeof__" "(" e:Expression ")" ;
 }
 
+nonterm AbstractDeclaratorOpt {
+  -> empty ;
+  -> AbstractDeclarator ;
+}
+
+// an abstract declarator (not opt) must have *some* ground syntax in it
 nonterm AbstractDeclarator {
-  -> p:PtrOperator d:AbstractDeclarator ;
+  -> p:PtrOperator d:AbstractDeclaratorOpt ;
 
   -> d:DirectAbstractDeclarator ;
 }
 
+nonterm DirectAbstractDeclaratorOpt {
+  -> empty;
+  -> DirectAbstractDeclarator ;
+}
+
+// this also must have some ground syntax
 nonterm DirectAbstractDeclarator {
   // this is where abstract declarators differ from regular declarators;
   // for a declarator, this rule is "-> PQVarName"
-  -> empty ;
+  // update: this approach, while conceptually elegant, leads to an ambiguity
+  // for the input "int()" between int and fn returning int
+  //-> empty ;
 
   // function
   -> d:DirectAbstractDeclarator "(" args:ParameterDeclarationClause ")" q:CVQualifierSeqOpt ;
 
-  -> d:DirectAbstractDeclarator "[" sz:ConstantExpression "]" ;     // array of specified size
+  // grammar hack: support missing function name part at this level, rather
+  // than using DirectAbstractDeclaratorOpt, to effect one extra token
+  // of lookahead
+  -> "(" args:ParameterDeclarationClause ")" q:CVQualifierSeqOpt ;
 
-  -> d:DirectAbstractDeclarator "[" "]" ;                        // array of unspecified size
+  -> d:DirectAbstractDeclaratorOpt "[" sz:ConstantExpression "]" ;     // array of specified size
+
+  -> d:DirectAbstractDeclaratorOpt "[" "]" ;                        // array of unspecified size
 
   -> "(" d:AbstractDeclarator ")" ;                              // precedence grouping
 }
@@ -820,11 +877,11 @@ nonterm ParameterDeclarationList {
 }
 
 nonterm ParameterDeclaration {
-    -> s:DeclSpecifier d:Declarator ;
-    -> s:DeclSpecifier d:Declarator "=" AssignmentExpression ;
+  -> s:DeclSpecifier d:Declarator ;
+  //-> s:DeclSpecifier d:Declarator "=" AssignmentExpression ;
 
-    -> s:DeclSpecifier d:AbstractDeclarator ;
-    -> s:DeclSpecifier d:AbstractDeclarator "=" AssignmentExpression ;
+  //-> s:DeclSpecifier d:AbstractDeclarator ;
+  //-> s:DeclSpecifier d:AbstractDeclarator "=" AssignmentExpression ;
 }
 
 // -- function definition --
@@ -839,10 +896,10 @@ nonterm FunctionDefinition {
   -> r:DeclSpecifier  d:Declarator  b:FunctionBody ;
 
   // return type      name/params   body
-  -> ExplicitOpt      d:Declarator  FunctionBody ;         // {c,d}tor
+  //-> ExplicitOpt      d:Declarator  FunctionBody ;         // {c,d}tor
 
   // return type      name/params   body
-  -> ExplicitOpt      d:Declarator  ":" MemInitializerList FunctionBody ;  // ctor
+  //-> ExplicitOpt      d:Declarator  ":" MemInitializerList FunctionBody ;  // ctor
 }
 
 nonterm FunctionBody -> s:CompoundStatement ;
@@ -857,11 +914,12 @@ nonterm ExplicitOpt {
 // I'm going to use the "class" terminology throughout, even though
 // C only has "struct" and "union"
 nonterm ClassSpecifier ->
-  k:ClassKeyword n:ClassNameOpt base:BaseClauseOpt "{" memb:MemberDeclarationSeqOpt "}" ;
+  k:ClassKeyword n:ClassNameOpt /*base:BaseClauseOpt*/
+    "{" memb:MemberDeclarationSeqOpt "}" ;
 
 nonterm ClassNameOpt {
   -> empty         ;
-  -> n:L2_NAME     ;
+  -> n:AnyName     ;
 }
 
 nonterm ClassKeyword {
@@ -888,9 +946,9 @@ nonterm AccessSpecifier {
 nonterm MemberDeclaration {
   -> spec:DeclSpecifier list:MemberDeclaratorList ";" ;    // member fn or data
 
-  -> FunctionDefinition ";" ;                    // inline fn
-  -> FunctionDefinition ;                        // syntactic tweak
-  -> ExplicitOpt VirtualOpt d:Declarator ";" ;   // ctor, dtor, conv op
+  //-> FunctionDefinition ";" ;                    // inline fn
+  //-> FunctionDefinition ;                        // syntactic tweak
+  //-> ExplicitOpt VirtualOpt d:Declarator ";" ;   // ctor, dtor, conv op
 
   // note above that "explicit" and "virtual" can't be mixed because the former
   // is for ctors only and the latter can't be used with ctors (so a later stage
@@ -907,12 +965,12 @@ nonterm MemberDeclaratorList {
 nonterm MemberDeclarator {
   -> d:Declarator ;
 
-  -> Declarator "=" ConstantExpression ;   // pure; and member inits??
+  //-> Declarator "=" ConstantExpression ;   // pure; and member inits??
   -> ":" ConstantExpression ;              // unnamed bitfield
   -> ":" ConstantExpression GNUAttribute ;
 
-  -> n:L2_NAME ":" e:ConstantExpression GNUAttribute ;
-  -> n:L2_NAME ":" e:ConstantExpression ;      // named bitfield
+  -> n:AnyName ":" e:ConstantExpression GNUAttribute ;
+  -> n:AnyName ":" e:ConstantExpression ;      // named bitfield
 }
 
 
@@ -959,7 +1017,7 @@ nonterm MemInitializerList {
 // std has a separate rule for base class ctor call, but that's not
 // a useful parsing distinction, so it just creates gratuitous
 // ambiguities, and I've eliminated it
-nonterm MemInitializer -> L2_NAME "(" ExpressionListOpt ")" ;     // member init
+nonterm MemInitializer -> AnyName "(" ExpressionListOpt ")" ;     // member init
 
 
 // ------ A.11 Overloading ------
@@ -1042,7 +1100,7 @@ nonterm Handler
 nonterm ExceptionDeclaration {
   -> s:TypeSpecifier d:Declarator ;          // named exception object
 
-  -> TypeSpecifier AbstractDeclarator     ;  // unnamed exception object
+  -> TypeSpecifier AbstractDeclaratorOpt     ;  // unnamed exception object
   -> "..."                                ;  // anything
 }
 
@@ -1180,7 +1238,7 @@ nonterm GNUExprSeq {
 
 nonterm GNUExpr {
   -> "(" GNUExprSeq ")" ;
-  -> L2_NAME ;
+  -> AnyName ;
   -> GNUExprOp ;
   -> GNUExprKeyword ;
   -> L2_INT_LITERAL ;

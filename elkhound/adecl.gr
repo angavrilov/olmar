@@ -1,0 +1,53 @@
+// adecl.gr
+// experimenting with abstract declarator syntax
+
+verbatim ADecl []
+
+terminals {
+  include("cc.tok")
+}
+
+nonterm Start -> TypeId L2_EOF;
+
+nonterm TypeId -> "int" AbstractDeclaratorOpt ;
+
+nonterm AbstractDeclaratorOpt {
+  -> empty ;
+  -> AbstractDeclarator ;
+}
+
+// an abstract declarator (not opt) must have *some* ground syntax in it
+nonterm AbstractDeclarator {
+  -> "*" AbstractDeclaratorOpt ;
+
+  -> DirectAbstractDeclarator ;
+}
+
+//  nonterm DirectAbstractDeclaratorOpt {
+//    -> empty;
+//    -> DirectAbstractDeclarator ;
+//  }
+
+// this also must have some ground syntax
+nonterm DirectAbstractDeclarator {
+  // this is where abstract declarators differ from regular declarators;
+  // for a declarator, this rule is "-> PQVarName"
+  // update: this approach, while conceptually elegant, leads to an ambiguity
+  // for the input "int()" between int and fn returning int
+  //-> empty ;
+
+  // function
+  // cppstd says the first element can be missing, but this then requires
+  // two symbols of lookahead to resolve syntax like "int (*)" -- I need to
+  // know what's in the parens before deciding if their purpose is grouping
+  // or function designation; since I think that is very strange syntax, I'm
+  // going to change it so *some* syntax is required before the parens of
+  // a function designator (and possibly revisit if necessary)
+  -> DirectAbstractDeclarator "(" ")" ;
+
+  // solution to above: directly accept "()" at this level, so I can
+  // postpone the decision
+  -> "(" ")" ;
+
+  -> "(" AbstractDeclarator ")" ;                              // precedence grouping
+}
