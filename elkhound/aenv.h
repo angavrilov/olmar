@@ -64,7 +64,7 @@ public:      // funcs
   // forget everything
   void clear();
 
-  // set/get integer values
+  // set/get variable values (not for memvars)
   void set(StringRef name, AbsValue *value);
   AbsValue *get(StringRef name);
 
@@ -82,6 +82,10 @@ public:      // funcs
   // retrieve the associated address
   bool isMemVar(StringRef name) const;
   AbsValue *getMemVarAddr(StringRef name);
+  
+  // change a variable's value; sensitive to whether it is
+  // a memvar or not (returns 'newValue')
+  AbsValue *updateVar(StringRef name, AbsValue *newValue);
 
   // add an address to those considered mutually distinct
   void addDistinct(AbsValue *obj);
@@ -92,6 +96,8 @@ public:      // funcs
 
   // proof assumption
   void addFact(AbsValue *expr);
+  void addBoolFact(AbsValue *expr, bool istrue);
+  void addFalseFact(AbsValue *falseExpr) { addBoolFact(falseExpr, false); }
 
   // proof obligation
   void prove(AbsValue const *expr, char const *context);

@@ -110,7 +110,7 @@ char const *SourceLocation::fname() const
   }
 }
 
-string SourceLocation::toString() const
+string SourceLocation::oldToString() const
 {
   if (fname()) {
     return stringc << "file " << fname() << ", "

@@ -8,6 +8,7 @@
 #include "sobjlist.h"           // SObjList
 #include "trace.h"              // tracingSys
 #include "strutil.h"            // quoted
+#include "paths.h"              // countExprPaths
 
 #define IN_PREDICATE(env) Restorer<bool> restorer(env.inPredicate, true)
 
@@ -15,7 +16,7 @@
 // use for places that aren't implemented yet
 AbsValue *avTodo()
 {
-  return new AVint(12345678);   // hopefully recognizable
+  return new AVint(12345678);   // hopefully stands out in debug output
 }
 
 
@@ -38,68 +39,81 @@ void TF_decl::vcgen(AEnv &env) const
 void TF_func::vcgen(AEnv &env) const
 {
   FunctionType const &ft = *(ftype());
-
-  traceProgress() << "analyzing " << name() << " ...\n";
-
-  // clear anything left over in env
-  env.clear();
-
-  // add the function parameters to the environment
-  FOREACH_OBJLIST(FunctionType::Param, ft.params, iter) {
-    FunctionType::Param const *p = iter.data();
-
-    if (p->name) {
-      // the function parameter's initial value is represented
-      // by a logic variable of the same name
-      env.set(p->name, new AVvar(p->name,
-        stringc << "initial value of parameter " << p->name));
-    }
+              
+  {
+    char const *paths = (numPaths==1? " path" : " paths");
+    traceProgress() << "analyzing " << name()
+                    << " (" << numPaths << paths << ") ...\n";
   }
 
-  // let pre_mem be the name of memory now
-  //env.set(env.str("pre_mem"), env.getMem());
+  // for now, only run paths from the function start
+  for (int path=0; path < body->numPaths; path++) {
+    traceProgress() << "path " << path << ":\n";
 
-  // add the precondition as an assumption
-  if (ft.precondition) {
-    IN_PREDICATE(env);
+    // clear anything left over in env
+    env.clear();
 
-    // add any precondition bindings    
-    FOREACH_ASTLIST(Declaration, ft.precondition->decls, iter) {
-      iter.data()->vcgen(env);
+    // add the function parameters to the environment
+    FOREACH_OBJLIST(FunctionType::Param, ft.params, iter) {
+      FunctionType::Param const *p = iter.data();
+
+      if (p->name) {
+        // the function parameter's initial value is represented
+        // by a logic variable of the same name
+        env.set(p->name, new AVvar(p->name,
+          stringc << "initial value of parameter " << p->name));
+      }
     }
 
-    env.addFact(ft.precondition->expr->vcgen(env));
-  }
+    // let pre_mem be the name of memory now
+    //env.set(env.str("pre_mem"), env.getMem());
 
-  // add 'result' to the environment so we can record what value
-  // is actually returned
-  if (!ft.retType->isVoid()) {
-    env.set(env.str("result"), env.freshVariable("ret", "return value"));
-  }
+    // add the precondition as an assumption
+    if (ft.precondition) {
+      IN_PREDICATE(env);
 
-  // now interpret the function body
-  body->vcgen(env);
+      // add any precondition bindings
+      FOREACH_ASTLIST(Declaration, ft.precondition->decls, iter) {
+        iter.data()->vcgen(env);
+      }
 
-  // print the results
-  if (tracingSys("absInterp")) {
-    cout << "interpretation after " << name() << ":\n";
-    env.print();
-  }
+      env.addFact(ft.precondition->expr->vcgen(env, 0));
+    }
 
-  // prove the postcondition now holds
-  // ASSUMPTION: none of the parameters have been changed
-  if (ft.postcondition) {
-    IN_PREDICATE(env);
-    env.prove(ft.postcondition->expr->vcgen(env), "postcondition");
+    // add 'result' to the environment so we can record what value
+    // is actually returned
+    if (!ft.retType->isVoid()) {
+      env.set(env.str("result"), env.freshVariable("ret", "return value"));
+    }
+
+    // now interpret the function body
+    SObjList<Statement /*const*/> stmtList;
+    body->vcgenPath(env, stmtList, path, false /*cont*/);
+
+    // print the results
+    if (tracingSys("absInterp")) {
+      cout << "interpretation after " << name() << ":\n";
+      env.print();
+    }
+
+    // prove the postcondition now holds
+    // ASSUMPTION: none of the parameters have been changed
+    if (ft.postcondition) {
+      IN_PREDICATE(env);
+      env.prove(ft.postcondition->expr->vcgen(env,0), "postcondition");
+    }
   }
 }
 
 
 // --------------------- Declaration --------------------
+// this is only used for globals; local declarations are
+// taken apart by S_decl
 void Declaration::vcgen(AEnv &env) const
 {
   FOREACH_ASTLIST(Declarator, decllist, iter) {
-    iter.data()->vcgen(env);
+    Declarator const *d = iter.data();
+    d->vcgen(env, d->init->vcgen(env, d->type, 0));
   }
 }
 
@@ -108,8 +122,8 @@ AVvar *fieldRep(CompoundType::Field const *field)
   return new AVvar(field->name, "field value representative");
 }
 
-void Declarator::vcgen(AEnv &env) const
-{       
+void Declarator::vcgen(AEnv &env, AbsValue *value) const
+{
   // TODO: finish structure-valued objects
   #if 0
   if (type->isCVAtomicType() &&
@@ -147,19 +161,8 @@ void Declarator::vcgen(AEnv &env) const
 
 
   if (name) {
-    // make up a name for the initial value
-    AbsValue *value;
-    if (init) {
-      // evaluate 'init' to an abstract value; the initializer
-      // will need to know which type it's constructing
-      value = init->vcgen(env, type);
-    }
-    else {
-      // make up a new name for the uninitialized value
-      // (if it's global we get to assume it's 0... not implemented..)
-      value = new AVvar(name, stringc << "UNINITialized value of var " << name);
-    }
-    
+    xassert(value != NULL);
+
     if (addrTaken || type->isArrayType()) {
       // model this variable as a location in memory; make up a name
       // for its address
@@ -198,104 +201,297 @@ void Declarator::vcgen(AEnv &env) const
 }
 
 
-// ----------------------- Statement ---------------
-// for now, ignore all control flow
-
-void S_skip::vcgen(AEnv &env) const {}
-void S_label::vcgen(AEnv &env) const {}
-void S_case::vcgen(AEnv &env) const {}
-void S_caseRange::vcgen(AEnv &env) const {}
-void S_default::vcgen(AEnv &env) const {}
-
-void S_expr::vcgen(AEnv &env) const
-{        
-  // evaluate and discard
-  env.discard(expr->vcgen(env));
-}
-
-void S_compound::vcgen(AEnv &env) const
-{
-  FOREACH_ASTLIST(Statement, stmts, iter) {
-    iter.data()->vcgen(env);
-  }
-}
-
-void S_if::vcgen(AEnv &env) const {}
-void S_switch::vcgen(AEnv &env) const {}
-void S_while::vcgen(AEnv &env) const {}
-void S_doWhile::vcgen(AEnv &env) const {}
-void S_for::vcgen(AEnv &env) const {}
-void S_break::vcgen(AEnv &env) const {}
-void S_continue::vcgen(AEnv &env) const {}
-
-void S_return::vcgen(AEnv &env) const
-{
-  if (expr) {
-    // model as an assignment to 'result' (and leave the
-    // control flow implications for later)
-    env.set(env.str("result"), expr->vcgen(env));
-  }
-}
-
-void S_goto::vcgen(AEnv &env) const {}
-
-
-void S_decl::vcgen(AEnv &env) const
-{
-  decl->vcgen(env);
-}
-
-
+// ----------------------- Statement ----------------------
 // eval 'expr' in a predicate context
-AbsValue *vcgenPredicate(AEnv &env, Expression *expr)
+AbsValue *vcgenPredicate(AEnv &env, Expression *expr, int path)
 {
+  xassert(path == 0);
   IN_PREDICATE(env);
-  return expr->vcgen(env);
+  return expr->vcgen(env, path);
 }
 
 
-void S_assert::vcgen(AEnv &env) const
+// uber-vcgen: generic, as it uses the embedded CFG; but it
+// calls the specific 'vcgen' for the particular statement kind
+void Statement::vcgenPath(AEnv &env, SObjList<Statement /*const*/> &path,
+                          int index, bool isContinue) const
+{
+  // validate 'index'
+  int exprPaths = countExprPaths(this, isContinue);
+  xassert(exprPaths >= 1);
+  xassert(0 <= index && index < (numPaths * exprPaths));
+
+  // debugging check
+  if (path.contains(this)) {
+    cout << "  CIRCULAR path\n";
+    return;
+  }
+  path.prepend(const_cast<Statement*>(this));
+
+  // pick which expression path we will follow
+  int exprPath = index % exprPaths;
+  index = index / exprPaths;
+
+  // retrieve all successors of this node
+  VoidList successors;
+  getSuccessors(successors, isContinue);
+
+  if (successors.isEmpty()) {
+    // this is a return statement (or otherwise end of function)
+    xassert(index == 0);
+
+    // vcgen this statement, telling it no continuation path
+    vcgen(env, isContinue, exprPath, NULL);
+  }
+  else {
+    // consider each choice
+    for (VoidListIter iter(successors); !iter.isDone(); iter.adv()) {
+      void *np = iter.data();
+      Statement const *s = nextPtrStmt(np);
+
+      // are we going to follow 's'?
+      if (index < s->numPaths) {
+        // yes; vcgen 'node', telling it 's' as the continuation
+        vcgen(env, isContinue, exprPath, s);
+
+        // is 's' an invariant?
+        if (s->isS_invariant()) {
+          // terminate the path & prove the invariant
+          env.prove(vcgenPredicate(env, s->asS_invariantC()->expr, index),
+                    stringc << "invariant at " << s->loc.toString());
+        }
+        else {
+          // continue the path
+          s->vcgenPath(env, path, index, nextPtrContinue(np));
+        }
+        index = 0;       // remember that we found a path to follow
+        break;
+      }
+
+      else {
+        // no; factor out s's contribution to the path index
+        index -= s->numPaths;
+      }
+    }
+
+    // make sure we followed *some* path
+    xassert(index == 0);
+  }
+
+  path.removeFirst();
+}
+
+
+void S_skip::vcgen(STMT_VCGEN_PARAMS) const { xassert(path == 0); }
+
+// control-flow targets add nothing; implied predicates are
+// added by the preceeding statement
+void S_label::vcgen(STMT_VCGEN_PARAMS) const { xassert(path == 0); }
+void S_case::vcgen(STMT_VCGEN_PARAMS) const { xassert(path == 0); } 
+void S_caseRange::vcgen(STMT_VCGEN_PARAMS) const { xassert(path == 0); }
+void S_default::vcgen(STMT_VCGEN_PARAMS) const { xassert(path == 0); }
+
+
+void S_expr::vcgen(STMT_VCGEN_PARAMS) const
+{
+  // evaluate and discard
+  env.discard(expr->vcgen(env, path));
+}
+
+
+void S_compound::vcgen(STMT_VCGEN_PARAMS) const
+{
+  // this statement does nothing, because successor info
+  // is already part of the CFG
+  xassert(path == 0);
+}
+
+
+// canonical statement vcgen: hit the expression language in
+// the guard, and then add a predicate based on outgoing edge
+void S_if::vcgen(STMT_VCGEN_PARAMS) const
+{
+  // evaluate the guard
+  AbsValue *val = cond->vcgen(env, path);
+
+  if (next == thenBranch) {
+    // remember that the guard was true
+    env.addFact(val);
+  }
+  else { 
+    // guard is false
+    xassert(next == elseBranch);
+    env.addFact(avNot(val));
+  }
+}
+
+
+void S_switch::vcgen(STMT_VCGEN_PARAMS) const
+{
+  // evaluate switch-expression
+  expr->vcgen(env, path);
+
+  // for now, learn nothing from the outgoing edge
+  cout << "ignoring implication of followed switch edge\n";
+}
+
+
+void S_while::vcgen(STMT_VCGEN_PARAMS) const
+{
+  AbsValue *val = cond->vcgen(env, path);
+  if (next == body) {
+    env.addFact(val);
+  }
+  else {
+    // 'next' is whatever follows the loop
+    env.addFact(avNot(val));
+  }
+}
+
+
+void S_doWhile::vcgen(STMT_VCGEN_PARAMS) const
+{
+  if (!isContinue) {
+    // drop straight into body, learn nothing
+    xassert(path == 0);
+  }
+  else {
+    AbsValue *val = cond->vcgen(env, path);
+    if (next == body) {
+      env.addFact(val);
+    }
+    else {
+      env.addFact(avNot(val));
+    }
+  }
+}
+
+
+void S_for::vcgen(STMT_VCGEN_PARAMS) const 
+{
+  int modulus = cond->numPaths1();
+
+  if (!isContinue) {
+    // init
+    init->vcgen(env, false, path / modulus, NULL);
+  }
+  else {
+    // inc
+    after->vcgen(env, path / modulus);
+  }
+
+  // guard
+  AbsValue *val = cond->vcgen(env, path % modulus);
+  
+  // body?
+  if (next == body) {
+    env.addFact(val);
+  }       
+  else {
+    env.addFact(avNot(val));
+  }
+}
+
+
+void S_break::vcgen(STMT_VCGEN_PARAMS) const { xassert(path==0); }
+void S_continue::vcgen(STMT_VCGEN_PARAMS) const { xassert(path==0); }
+
+void S_return::vcgen(STMT_VCGEN_PARAMS) const
+{
+  xassert(next == NULL);
+  if (expr) {
+    // model as an assignment to 'result'
+    env.set(env.str("result"), expr->vcgen(env, path));
+  }
+  else {
+    xassert(path == 0);
+  }
+}
+
+
+void S_goto::vcgen(STMT_VCGEN_PARAMS) const { xassert(path==0); }
+
+
+void S_decl::vcgen(STMT_VCGEN_PARAMS) const
+{
+  int subexpPaths = 1;
+  FOREACH_ASTLIST(Declarator, decl->decllist, dcltr) {
+    Declarator const *d = dcltr.data();
+
+    AbsValue *initVal;
+    if (d->init) {
+      subexpPaths = countExprPaths(d->init);
+
+      // evaluate 'init' to an abstract value; the initializer
+      // will need to know which type it's constructing
+      initVal = d->init->vcgen(env, d->type, path % subexpPaths);
+
+      path = path / subexpPaths;
+    }
+    else {
+      // make up a new name for the uninitialized value
+      // (if it's global we get to assume it's 0... not implemented..)
+      initVal = new AVvar(d->name, stringc << "UNINITialized value of var "
+                                           << d->name);
+    }
+
+    // add a binding for the variable
+    dcltr.data()->vcgen(env, initVal);
+  }
+
+  // if we entered the loop at all, this ensures the last iteration
+  // consumed all of 'path'; if we never entered the loop, this
+  // checks that path was 0
+  xassert(path < subexpPaths);
+}
+
+
+void S_assert::vcgen(STMT_VCGEN_PARAMS) const
 {
   // map the expression to my abstract domain
-  AbsValue *v = vcgenPredicate(env, expr);
+  AbsValue *v = vcgenPredicate(env, expr, path);
   xassert(v);     // already checked it was boolean
 
   // try to prove it (is not equal to 0)
-  env.prove(v, "user assertion");
+  env.prove(v, stringc << "assertion at " << loc.toString());
 }
 
-void S_assume::vcgen(AEnv &env) const
+void S_assume::vcgen(STMT_VCGEN_PARAMS) const
 {
   // evaluate
-  AbsValue *v = vcgenPredicate(env, expr);
+  AbsValue *v = vcgenPredicate(env, expr, path);
   xassert(v);
-  
+
   // remember it as a known fact
   env.addFact(v);
 }
 
-void S_invariant::vcgen(AEnv &env) const
+void S_invariant::vcgen(STMT_VCGEN_PARAMS) const
 {
-  // ignore for now
-  cout << "ignoring invariant\n";
+  // we only call the 'vcgen' of an invariant at the *start* of a path
+  env.addFact(vcgenPredicate(env, expr, path));
 }
 
-void S_thmprv::vcgen(AEnv &env) const
+void S_thmprv::vcgen(STMT_VCGEN_PARAMS) const
 {
+  xassert(path==0);
   IN_PREDICATE(env);
-  s->vcgen(env);
+  s->vcgen(env, false, path, NULL);
 }
 
 
 // ---------------------- Expression -----------------
-AbsValue *E_intLit::vcgen(AEnv &env) const
+AbsValue *E_intLit::vcgen(AEnv &env, int path) const
 {
+  xassert(path==0);
   return env.grab(new AVint(i));
 }
 
-AbsValue *E_floatLit::vcgen(AEnv &env) const { return avTodo(); }
-AbsValue *E_stringLit::vcgen(AEnv &env) const 
-{ 
+AbsValue *E_floatLit::vcgen(AEnv &env, int path) const { return avTodo(); }
+AbsValue *E_stringLit::vcgen(AEnv &env, int path) const
+{
+  xassert(path==0);
+
   // make a new variable to stand for this string's object (address)
   AbsValue *object = env.freshVariable("str", stringc << "address of " << quoted(s));
   env.addDistinct(object);
@@ -303,25 +499,28 @@ AbsValue *E_stringLit::vcgen(AEnv &env) const
   // assert the length of this object is the length of the string (w/ null)
   env.addFact(new AVbinary(env.avLength(object), BIN_EQUAL,
               new AVint(strlen(s)+1)));
-              
+
   // assert that the first zero is (currently?) at the end
   env.addFact(new AVbinary(env.avFirstZero(env.getMem(), object), BIN_EQUAL,
               new AVint(strlen(s)+1)));
-         
+
   // the result of this expression is a pointer to the string's start
   return env.avPointer(object, new AVint(0));
 }
 
 
-AbsValue *E_charLit::vcgen(AEnv &env) const
+AbsValue *E_charLit::vcgen(AEnv &env, int path) const
 {
+  xassert(path==0);
   return env.grab(new AVint(c));
 }
 
-AbsValue *E_structLit::vcgen(AEnv &env) const { return avTodo(); }
+AbsValue *E_structLit::vcgen(AEnv &env, int path) const { return avTodo(); }
 
-AbsValue *E_variable::vcgen(AEnv &env) const
+AbsValue *E_variable::vcgen(AEnv &env, int path) const
 {
+  xassert(path==0);
+
   if (!env.isMemVar(name)) {
     // ordinary variable: look up the current abstract value for this
     // variable, and simply return that
@@ -339,40 +538,27 @@ AbsValue *E_variable::vcgen(AEnv &env) const
 }
 
 
-#if 0
-AbsValue *E_arrayAcc::vcgen(AEnv &env) const
+AbsValue *E_funCall::vcgen(AEnv &env, int path) const
 {
-  AbsValue *i = index->vcgen(env);
-
-  if (arr->isE_variable()) {
-    AbsValue *object = env.getMemVarAddr(arr->asE_variable()->name);
-
-    // emit a proof obligation for safe access
-    env.prove(new AVbinary(i, BIN_GREATEREQ, new AVint(0)), "array lower bound");
-    env.prove(new AVbinary(i, BIN_LESS, env.avLength(object)), "array upper bound");
-
-    // yield whatever is in that location
-    return env.avSelect(env.getMem(), object, i);
-  }
-  else {
-    cout << "unhandled array access\n";
-
-    return env.freshVariable("arrayAcc", 
-             stringc << "array access: " << toString());
-  }
-}
-#endif // 0
-
-
-AbsValue *E_funCall::vcgen(AEnv &env) const
-{
-  // evaluate the argument expressions
+  // evaluate the argument expressions, taking into consideration
+  // which path to follow
   SObjList<AbsValue> argExps;
-  FOREACH_ASTLIST(Expression, args, iter) {
-    // vcgen might return NULL, that's ok for an SObjList
-    argExps.prepend(iter.data()->vcgen(env));
+  {
+    // 'func'
+    int subexpPaths = func->numPaths1();
+    func->vcgen(env, path % subexpPaths);   // ignore value; my analysis only uses type info
+    path = path / subexpPaths;
+
+    // args
+    FOREACH_ASTLIST(Expression, args, iter) {
+      subexpPaths = iter.data()->numPaths1();
+      argExps.prepend(iter.data()->vcgen(env, path % subexpPaths));
+      path = path / subexpPaths;
+    }
+    xassert(path < subexpPaths);
+
+    argExps.reverse();      // when it's easy to stay linear..
   }
-  argExps.reverse();      // when it's easy to stay linear..
 
   FunctionType const &ft = func->type->asFunctionTypeC();
 
@@ -427,7 +613,7 @@ AbsValue *E_funCall::vcgen(AEnv &env) const
 
     // finally, interpret the precondition in the parameter-only
     // environment, to arrive at a predicate to prove
-    AbsValue *predicate = ft.precondition->expr->vcgen(newEnv);
+    AbsValue *predicate = ft.precondition->expr->vcgen(newEnv, 0);
     xassert(predicate);      // tcheck should have verified we can represent it
 
     // prove this predicate; the assumptions from the *old* environment
@@ -460,7 +646,7 @@ AbsValue *E_funCall::vcgen(AEnv &env) const
 
   if (ft.postcondition) {
     // evaluate it
-    AbsValue *predicate = ft.postcondition->expr->vcgen(newEnv);
+    AbsValue *predicate = ft.postcondition->expr->vcgen(newEnv, 0);
     xassert(predicate);
     
     // assume it
@@ -472,78 +658,137 @@ AbsValue *E_funCall::vcgen(AEnv &env) const
 }
 
 
-AbsValue *E_fieldAcc::vcgen(AEnv &env) const
+AbsValue *E_fieldAcc::vcgen(AEnv &env, int path) const
 {
   // good results here would require abstract values for structures
-  return env.freshVariable("field", 
+  return env.freshVariable("field",
            stringc << "structure field access: " << toString());
 }
 
 
-AbsValue *E_unary::vcgen(AEnv &env) const
-{
-  // TODO: deal with ++, --
-  
+AbsValue *E_unary::vcgen(AEnv &env, int path) const
+{ 
+  // this comes first because for sizeof we don't want to
+  // get any side effects that may be in the expr
   if (op == UNY_SIZEOF) {
     return env.grab(new AVint(expr->type->reprSize()));
   }
   else {
-    return env.grab(new AVunary(op, expr->vcgen(env)));
+    if (hasSideEffect(op)) {
+      cout << "TODO: unhandled side effect: " << toString() << endl;
+    }
+    return env.grab(new AVunary(op, expr->vcgen(env, path)));
   }
 }
 
-AbsValue *E_binary::vcgen(AEnv &env) const
+AbsValue *E_binary::vcgen(AEnv &env, int path) const
 {
-  // TODO: deal with &&, ||
-  return env.grab(new AVbinary(e1->vcgen(env), op, e2->vcgen(env)));
+  if (e2->numPaths == 0) {
+    // simple side-effect-free binary op
+    return env.grab(new AVbinary(e1->vcgen(env, path), op, e2->vcgen(env, 0)));
+  }
+
+  // evaluate LHS
+  int modulus = e1->numPaths1();
+  AbsValue *lhs = e1->vcgen(env, path % modulus);
+  path = path / modulus;
+
+  // consider operator
+  if (op==BIN_AND || op==BIN_OR) {
+    // eval RHS *if* it's followed
+    if (path > 0) {
+      // we follow rhs; this implies something about the value of lhs:
+      // if it's &&, lhs had to be true; false for ||
+      env.addBoolFact(lhs, op==BIN_AND);
+
+      // the true/false value is now entirely determined by rhs
+      return e2->vcgen(env, path-1);
+    }
+    else {
+      // we do *not* follow rhs; this also implies something about lhs
+      env.addBoolFact(lhs, op==BIN_OR);
+      
+      // it's a C boolean, yielding 1 or 0 (and we know which)
+      return env.grab(new AVint(op==BIN_OR? 1 : 0));
+    }
+  }
+
+  else {
+    // non-short-circuit: always evaluate RHS
+    return env.grab(new AVbinary(lhs, op, e2->vcgen(env, path)));
+  }
 }
 
 
-AbsValue *E_addrOf::vcgen(AEnv &env) const
+AbsValue *E_addrOf::vcgen(AEnv &env, int path) const
 {
-  if (expr->isE_variable()) {                            
+  xassert(path==0);
+
+  if (expr->isE_variable()) {
     return env.avPointer(env.getMemVarAddr(expr->asE_variable()->name), // obj
                          new AVint(0));                                 // offset
   }
   else {
-    cout << "warning: unhandled addrof: " << toString() << endl;
+    cout << "TODO: unhandled addrof: " << toString() << endl;
     return avTodo();
   }
 }
 
 
-AbsValue *E_deref::vcgen(AEnv &env) const
+AbsValue *E_deref::vcgen(AEnv &env, int path) const
 {
-  AbsValue *addr = ptr->vcgen(env);
+  AbsValue *addr = ptr->vcgen(env, path);
 
   // emit a proof obligation for safe access
-  env.prove(new AVbinary(env.avOffset(addr), BIN_GREATEREQ, 
-                         new AVint(0)), 
+  env.prove(new AVbinary(env.avOffset(addr), BIN_GREATEREQ,
+                         new AVint(0)),
                          stringc << "pointer lower bound: " << toString());
   env.prove(new AVbinary(env.avOffset(addr), BIN_LESS,
-                         env.avLength(env.avObject(addr))), 
+                         env.avLength(env.avObject(addr))),
                          stringc << "pointer upper bound: " << toString());
 
   return env.avSelect(env.getMem(), env.avObject(addr), env.avOffset(addr));
 }
 
 
-AbsValue *E_cast::vcgen(AEnv &env) const
+AbsValue *E_cast::vcgen(AEnv &env, int path) const
 {
   // I don't know what account I should take of casts..
-  return expr->vcgen(env);
+  return expr->vcgen(env, path);
 }
 
 
-AbsValue *E_cond::vcgen(AEnv &env) const
+AbsValue *E_cond::vcgen(AEnv &env, int path) const
 {
-  // for now I'll assume there are no side effects in the branches;
-  // same assumption applies to '&&' and '||' above
-  return env.grab(new AVcond(cond->vcgen(env), th->vcgen(env), el->vcgen(env)));
+  // condition
+  int modulus = cond->numPaths1();
+  AbsValue *guard = cond->vcgen(env, path %modulus);
+  path = path / modulus;
+
+  if (th->numPaths == 0 && el->numPaths == 0) {
+    // no side effects in either branch; use ?: operator
+    return env.grab(new AVcond(guard, th->vcgen(env,0), el->vcgen(env,0)));
+  }
+
+  else {
+    int thenPaths = th->numPaths1();
+    int elsePaths = el->numPaths1();
+
+    if (path < thenPaths) {
+      // taking 'then' branch, so we can assume guard is true
+      env.addFact(guard);
+      return th->vcgen(env, path);
+    }
+    else {
+      // taking 'else' branch, so guard is false
+      env.addFalseFact(guard);
+      return el->vcgen(env, path - elsePaths);
+    }
+  }
 }
 
 
-AbsValue *E_gnuCond::vcgen(AEnv &env) const
+AbsValue *E_gnuCond::vcgen(AEnv &env, int path) const
 {
   // again on the assumption there are no side effects in the 'else' branch
   // TODO: make a deep-copier for astgen
@@ -551,42 +796,41 @@ AbsValue *E_gnuCond::vcgen(AEnv &env) const
 }
 
 
-AbsValue *E_comma::vcgen(AEnv &env) const
+AbsValue *E_comma::vcgen(AEnv &env, int path) const
 {
+  int modulus = e1->numPaths1();
+
   // evaluate and discard
-  env.discard(e1->vcgen(env));
+  env.discard(e1->vcgen(env, path % modulus));
 
   // evaluate and keep
-  return e2->vcgen(env);
+  return e2->vcgen(env, path / modulus);
 }
 
 
-AbsValue *E_sizeofType::vcgen(AEnv &env) const
+AbsValue *E_sizeofType::vcgen(AEnv &env, int path) const
 {
+  xassert(path==0);
   return env.grab(new AVint(size));
 }
 
 
-AbsValue *E_assign::vcgen(AEnv &env) const
+AbsValue *E_assign::vcgen(AEnv &env, int path) const
 {
-  AbsValue *v = src->vcgen(env);
+  int modulus = src->numPaths1();
+  AbsValue *v = src->vcgen(env, path % modulus);
+  path = path / modulus;
 
   if (target->isE_variable()) {
+    xassert(path==0);
     StringRef name = target->asE_variable()->name;
-                                                  
-    if (!env.isMemVar(name)) {
-      // ordinary variable: replace the mapping
-      env.set(name, v);
-    }
-    else {
-      // memory variable: memory changes    
-      env.setMem(env.avUpdate(env.getMem(), env.getMemVarAddr(name), 
-                              new AVint(0) /*offset*/, v));
-    }
+
+    // properly handles memvars vs regular vars
+    env.updateVar(name, v);
   }
   else if (target->isE_deref()) {
     // get an abstract value for the address being modified
-    AbsValue *addr = target->asE_deref()->ptr->vcgen(env);
+    AbsValue *addr = target->asE_deref()->ptr->vcgen(env, path);
 
     // emit a proof obligation for safe access
     env.prove(new AVbinary(env.avOffset(addr), BIN_GREATEREQ,
@@ -598,58 +842,62 @@ AbsValue *E_assign::vcgen(AEnv &env) const
     env.setMem(env.avUpdate(env.getMem(), env.avObject(addr),
                             env.avOffset(addr), v));
   }
-       
+
   // TODO: finish structure field accesses
   #if 0
   else if (target->isE_fieldAcc()) {
     E_fieldAcc *fldAcc = target->asE_fieldAcc();
     AbsValue *obj = fldAcc->obj->vcgen(env);
-  #endif // 0  
+  #endif // 0
 
 
 
 
   else {
-    cout << "warning: unhandled assignment: " << toString() << endl;
+    cout << "TODO: unhandled assignment: " << toString() << endl;
   }
 
   return env.dup(v);
 }
 
 
-AbsValue *E_arithAssign::vcgen(AEnv &env) const
+AbsValue *E_arithAssign::vcgen(AEnv &env, int path) const
 {
-  AbsValue *v = src->vcgen(env);
+  int modulus = src->numPaths1();
+  AbsValue *v = src->vcgen(env, path % modulus);
+  path = path / modulus;
 
   // again, only support variables
   if (target->isE_variable()) {
+    xassert(path==0);
     StringRef name = target->asE_variable()->name;
 
     // extract old value
     AbsValue *old = env.get(name);
-    
+
     // combine it
     v = env.grab(new AVbinary(old, op, v));
-    
+
     // replace in environment
     env.set(name, v);
 
     return env.dup(v);
   }
   else {
+    cout << "TODO: unhandled assignment: " << toString() << endl;
     return v;
   }
 }
 
 
 // --------------------- Initializer --------------------
-AbsValue *IN_expr::vcgen(AEnv &env, Type const *) const
+AbsValue *IN_expr::vcgen(AEnv &env, Type const *, int path) const
 {
-  return e->vcgen(env);
+  return e->vcgen(env, path);
 }
 
 
-AbsValue *IN_compound::vcgen(AEnv &/*env*/, Type const */*type*/) const
+AbsValue *IN_compound::vcgen(AEnv &/*env*/, Type const */*type*/, int /*path*/) const
 {
   // I have no representation for array and structure values
   return avTodo();

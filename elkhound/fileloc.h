@@ -84,10 +84,12 @@ public:
   char const *fname() const;
 
   // "file %s, line %d, col %d"
-  string toString() const;
-                                 
+  string oldToString() const;
+
   // "<file>:<line>:<col>: ", or "" if no loc info
   string likeGccToString() const;
+  
+  string toString() const { return likeGccToString(); }
 };
 
 inline string toString(SourceLocation const &loc)

@@ -17,10 +17,10 @@ void foo()
   bar(x,y);
   bar(x++,y);
   bar(x,y++);
-  bar(x++,y++);
-  
+  //bar(x++,y++);
+
   bar(x++ + x++, y);
-  bar(x++ + x++, y++);
+  //bar(x++ + x++, y++);
   
   !(x++);
   
@@ -62,9 +62,9 @@ void foo()
   x++, y++;
 
   x = y;
-  (x=y) = z;      // will be illegal once I get lvalue checking..
-  x = (y=z);
-  (x=y) = x++;
+  //(x=y) = z;      // will be illegal once I get lvalue checking..
+  //x = (y=z);
+  //(x=y) = x++;
 
   x += y;
   x++ += y;

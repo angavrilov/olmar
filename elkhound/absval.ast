@@ -34,6 +34,7 @@ verbatim {
   AVfunc *avFunc3(StringRef func, AbsValue *a1, AbsValue *a2, AbsValue *a3);
   AVfunc *avFunc4(StringRef func, AbsValue *a1, AbsValue *a2, AbsValue *a3, AbsValue *a4);
   AVfunc *avFunc5(StringRef func, AbsValue *a1, AbsValue *a2, AbsValue *a3, AbsValue *a4, AbsValue *a5);
+  AVunary *avNot(AbsValue *v);
 
   // visitor interface
   class AbsValueVisitor {
@@ -185,6 +186,11 @@ impl_verbatim {
     return f;
   }
 
+  AVunary *avNot(AbsValue *v)
+  {
+    return new AVunary(UNY_NOT, v);
+  }
+
   // ------------- visitor ---------------
   bool AbsValueVisitor::visitAbsValue(AbsValue const *value)
   {
@@ -219,7 +225,7 @@ impl_verbatim {
         }
       }
 
-      ASTENDCASEC
+      ASTENDCASECD
     }
   }
 }

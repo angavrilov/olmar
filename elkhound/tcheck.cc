@@ -112,6 +112,9 @@ void TF_func::itcheck(Env &env)
   
   // let the environment verify everything got cleaned up properly
   env.verifyFunctionEnd();
+
+  // instrument AST with path information  
+  countPaths(env, this);
   
   if (tracingSys("printPaths")) {
     printPaths(this);
@@ -410,7 +413,7 @@ Type const *D_func::itcheck(Env &env, Type const *rettype, DeclFlags dflags, Dec
         }
       }
 
-      ASTENDCASE
+      ASTENDCASED
     }
   }
 
@@ -781,7 +784,9 @@ string Statement::successorsToString() const
 // ------------------ Expression::tcheck --------------------
 Type const *Expression::tcheck(Env &env)
 {
-  return type = itcheck(env);
+  type = itcheck(env);
+  countPaths(env, this);
+  return type;
 }
 
 
@@ -899,26 +904,10 @@ Type const *E_funCall::itcheck(Env &env)
       // a varargs boundary
       checkBoolean(env, atype, iter.data());
     }
-    
-    // compute # of paths
-    int argPaths = iter.data()->numPaths;
-    if (argPaths > 0) {
-      if (numPaths > 0) {
-        env.warn("more than one argument expression has side effects");
-        numPaths = numPaths * argPaths;
-      }
-      else {
-        numPaths = argPaths;
-      }
-    }
   }
   if (!param.isDone()) {
     env.err("too few arguments");
   }
-
-  // the call itself counts as a side-effecting expression (unless I
-  // add an annotation to declare something as "functional" ...)
-  recordSideEffect();
 
   return ftype->retType;
 }
@@ -933,7 +922,6 @@ Type const *E_fieldAcc::itcheck(Env &env)
   CompoundType::Field const *f = ctype->getNamedField(field);
   env.errIf(!f, stringc << "no field named " << field);
 
-  numPaths = obj->numPaths;
   return f->type;
 }
 
@@ -950,12 +938,8 @@ Type const *E_unary::itcheck(Env &env)
 
   // TODO: verify argument to ++/-- is an lvalue..
 
-  numPaths = expr->numPaths;
-  if (hasSideEffect(op)) {
-    if (env.inPredicate) {
-      env.err("cannot have side effects in predicates");
-    }
-    recordSideEffect();
+  if (hasSideEffect(op) && env.inPredicate) {
+    env.err("cannot have side effects in predicates");
   }
 
   // assume these unary operators to not widen their argument
@@ -971,34 +955,6 @@ Type const *E_binary::itcheck(Env &env)
   checkBoolean(env, t1, e1);     // pointer is acceptable here..
   checkBoolean(env, t2, e2);
   
-  // there are at least as many paths as paths through left-hand side
-  numPaths = e1->numPaths;
-
-  if (e2->numPaths == 0) {
-    // if the RHS has no side effects, it contributes nothing to the
-    // paths computation, regardless of whether 'op' is short-circuit,
-    // so we just propagate the LHS's numPaths
-  }
-
-  else {
-    // if the RHS has a side effect, this expression as a whole might
-    // have a side effect
-    recordSideEffect();
-
-    if (op==BIN_AND || op==BIN_OR) {
-      // path computation with short-circuit evaluation: for each LHS
-      // path, we could take any one of the RHS paths, *or* skip
-      // evaluating the RHS altogether
-      numPaths = numPaths * (1 + e2->numPaths);
-    }
-
-    else {
-      // path computation without short-circuit evaluation: we can
-      // take any combination of LHS and RHS paths
-      numPaths = numPaths * e2->numPaths;
-    }
-  }
-
   // e.g. (short,long) -> long
   return env.promoteTypes(op, t1, t2);
 }
@@ -1016,7 +972,6 @@ Type const *E_addrOf::itcheck(Env &env)
     v->declarator->addrTaken = true;
   }
 
-  numPaths = expr->numPaths;
   return env.makePtrOperType(PO_POINTER, CV_NONE, t);
 }
 
@@ -1026,8 +981,6 @@ Type const *E_deref::itcheck(Env &env)
   Type const *t = ptr->tcheck(env);
   env.errIf(!t->isPointerType() && !t->isArrayType(),
             stringc << "can only dereference pointers, not " << t->toCString());
-
-  numPaths = ptr->numPaths;
 
   if (t->isPointerType()) {
     return t->asPointerTypeC().atType;
@@ -1042,7 +995,6 @@ Type const *E_cast::itcheck(Env &env)
 {
   // let's just allow any cast at all..
   expr->tcheck(env);
-  numPaths = expr->numPaths;
   return ctype->tcheck(env);
 }
 
@@ -1058,25 +1010,6 @@ Type const *E_cond::itcheck(Env &env)
   checkBoolean(env, t, th);
   checkBoolean(env, e, el);
 
-  // paths computation: start with # of paths through conditional
-  numPaths = cond->numPaths;
-
-  if (th->numPaths == 0 && el->numPaths == 0) {
-    // no side effects in either branch; we're good to go
-  }
-
-  else {
-    // since at least one branch as a side effect, let's say
-    // all three components have at least 1 path
-    recordSideEffect();
-    int thenPaths = max(th->numPaths, 1);
-    int elsePaths = max(el->numPaths, 1);
-
-    // for every path through the conditional, we could either
-    // go through a 'then' path or an 'else' path
-    numPaths = numPaths * (thenPaths + elsePaths);
-  }
-
   return env.promoteTypes(BIN_PLUS, t, e);
 }
 
@@ -1089,13 +1022,6 @@ Type const *E_gnuCond::itcheck(Env &env)
   checkBoolean(env, c, cond);
   checkBoolean(env, e, el);
 
-  // degenerate form of E_cond
-  numPaths = cond->numPaths;
-  if (el->numPaths > 0) {
-    recordSideEffect();
-    numPaths = numPaths * (1 + el->numPaths);
-  }
-
   return env.promoteTypes(BIN_PLUS, c, e);
 }
 
@@ -1104,12 +1030,7 @@ Type const *E_comma::itcheck(Env &env)
 {
   e1->tcheck(env);
   e2->tcheck(env);
-  
-  numPaths = e1->numPaths;
-  if (e2->numPaths > 0) {
-    numPaths = max(numPaths,1) * e2->numPaths;
-  }
-  
+
   return e2->type;
 }
 
@@ -1131,11 +1052,6 @@ Type const *E_assign::itcheck(Env &env)
   if (env.inPredicate) {
     env.err(stringc << "cannot have side effects in predicates: " << toString());
   }
-
-  // path computation (same as E_arithAssign)
-  numPaths = src->numPaths;              // start with paths through src
-  recordSideEffect();                    // clearly this expr has a side effect
-  numPaths *= max(target->numPaths,1);   // add paths through target
 
   env.checkCoercible(stype, ttype);
   return ttype;
@@ -1162,11 +1078,6 @@ Type const *E_arithAssign::itcheck(Env &env)
     env.err(stringc << "arguments to " << ::toString(op)
                     << "= must both be integral");
   }
-
-  // path computation (same as E_assign)
-  numPaths = src->numPaths;              // start with paths through src
-  recordSideEffect();                    // clearly this expr has a side effect
-  numPaths *= max(target->numPaths,1);   // add paths through target
 
   return ttype;
 }

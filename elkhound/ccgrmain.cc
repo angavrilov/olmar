@@ -51,7 +51,7 @@ void doit(int argc, char **argv)
           "    stopAfterTCheck    stop after typechecking\n"
           "    printTypedAST      print AST with type info\n"
           "    stopAfterVCGen     stop after vcgen\n"
-          "    printPredicates    print all predicates proved\n"
+          "    predicates         print all predicates (proved or not)\n"
           "    absInterp          print results of abstract interpretation\n"
           "    tcheck             print typechecking info\n"
           "")) {
@@ -159,8 +159,6 @@ int main(int argc, char **argv)
 
 
 
-// (had to move this down out of the code, because it's such an emotional
-// sparkplug, I can't concentrate on coding with it up in the code ...)
 
 
           //                            ==============================

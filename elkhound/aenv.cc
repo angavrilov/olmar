@@ -132,6 +132,21 @@ bool AEnv::isMemVar(StringRef name) const
   return memVars.isMapped(name);
 }
 
+AbsValue *AEnv::updateVar(StringRef name, AbsValue *newValue)
+{
+  if (!isMemVar(name)) {
+    // ordinary variable: replace the mapping
+    set(name, newValue);
+  }
+  else {
+    // memory variable: memory changes
+    setMem(avUpdate(getMem(), getMemVarAddr(name),
+                    new AVint(0) /*offset*/, newValue));
+  }
+  
+  return newValue;
+}
+
 
 void AEnv::addDistinct(AbsValue *obj)
 {
@@ -206,7 +221,7 @@ Predicate *exprToPred(AbsValue const *expr)
                                exprToPred(c->el)));
     }
 
-    ASTENDCASEC
+    ASTENDCASECD
   }
 
   // if we get here, then the expression's toplevel construct isn't
@@ -219,6 +234,16 @@ Predicate *exprToPred(AbsValue const *expr)
 void AEnv::addFact(AbsValue *expr)
 {
   facts->conjuncts.append(exprToPred(expr));
+}
+
+void AEnv::addBoolFact(AbsValue *expr, bool istrue)
+{
+  if (istrue) {
+    addFact(expr);
+  }
+  else {
+    addFact(grab(avNot(expr)));
+  }
 }
 
 

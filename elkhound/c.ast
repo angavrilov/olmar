@@ -47,6 +47,13 @@ class TopForm (SourceLocation loc) {
              S_compound body) {        // body of function
        public FunctionType const *ftype() const;
        public StringRef name() const;
+       
+       // list of all the path starting points
+       public SObjList<Statement> roots;
+
+       // total # of paths from all roots
+       public int numPaths;
+       ctor numPaths=0;
      }
 }
 
@@ -138,7 +145,8 @@ class Declarator (
   // type constructors in this declarator
   public Type const *tcheck(Env &env, Type const *base, DeclFlags dflags);
 
-  public void vcgen(AEnv &env) const;
+  // 'init' must be evaluated before calling this
+  public void vcgen(AEnv &env, AbsValue *initVal) const;
 }
 
 
@@ -202,10 +210,22 @@ verbatim {
 }
 
 
+verbatim {
+  // list of the parameters to Statement::vcgen; abstracted into a
+  // macro to make it easier to add/remove/change parameters
+  //   env: abstract environment
+  //   isContinue: true if we reached this statement on a 'continue' edge
+  //   path: which expression path to follow inside the statement
+  //   next: which statement will be next; may imply a predicate
+  #define STMT_VCGEN_PARAMS AEnv &env, bool isContinue, int path, Statement const *next
+}
 class Statement (SourceLocation loc) {
   public void tcheck(Env &env);
   pure_virtual void itcheck(Env &env);
-  pure_virtual void vcgen(AEnv &env) const;
+
+  pure_virtual void vcgen(STMT_VCGEN_PARAMS) const;
+  public void vcgenPath(AEnv &env, SObjList<Statement /*const*/> &path,
+                        int index, bool isContinue) const;
 
   // embedded control flow successor edge (for some constructs, like
   // 'if', some/all of the successors are already explicit)
@@ -215,10 +235,15 @@ class Statement (SourceLocation loc) {
   // retrieve list of all successors of this node, given how we
   // got to this node ('isContinue'); 'dest' should be empty beforehand
   public virtual void getSuccessors(VoidList &dest, bool isContinue) const;
-
   public string successorsToString() const;
+
+  // number of paths from this statement; counts all the various
+  // paths through expressions
+  public int numPaths;
+  ctor numPaths=0;
+
   custom debugPrint {
-    ind(os, indent) << "this=" << (void*)this
+    ind(os, indent) << "numPaths=" << numPaths
                     << ", succ=" << successorsToString()
                     << endl;
   }
@@ -268,6 +293,7 @@ class Expression {
   // type check and yield the type of the expression; this type
   // gets automatically stored in the 'type' field
   public Type const *tcheck(Env &env);
+  pure_virtual Type const *itcheck(Env &env);
   public Type const *type;
   ctor type=NULL;
 
@@ -276,19 +302,16 @@ class Expression {
   // count in some situations)
   public int numPaths;
   ctor numPaths=0;
-  protected void recordSideEffect() {
-    numPaths = max(numPaths, 1);
-  };
+  public void recordSideEffect()
+    { numPaths = max(numPaths, 1); };
+  public int numPaths1() const
+    { return max(numPaths, 1); };
 
   // print numPaths and type
   public string extrasToString() const;
   custom debugPrint {
     ind(os, indent) << extrasToString() << "\n";
   }
-
-  // inner typechecker which does not have to store its result
-  // in 'type'
-  pure_virtual Type const *itcheck(Env &env);
 
   // try to evaluate the expression as a constant integer;
   // this can *only* be done after the expression has been tcheck'd
@@ -297,12 +320,12 @@ class Expression {
 
   // unparse the expression
   pure_virtual string toString() const;
-  
+
   // given the current abstract environment, return the abstract value
   // representing this expression's result, and also update the environment
   // to reflect any side effects; for now, will return NULL if the value
   // is not an integer type
-  pure_virtual AbsValue *vcgen(AEnv &env) const;
+  pure_virtual AbsValue *vcgen(AEnv &env, int path) const;
 
   -> E_intLit(int i);
   -> E_floatLit(float f);
@@ -348,7 +371,7 @@ class Initializer {
   pure_virtual void tcheck(Env &env, Type const *type);
 
   // compute an abstract value for this initializer
-  pure_virtual AbsValue *vcgen(AEnv &env, Type const *type) const;
+  pure_virtual AbsValue *vcgen(AEnv &env, Type const *type, int path) const;
 
   -> IN_expr(Expression e);
   -> IN_compound(ASTList<Initializer> inits);

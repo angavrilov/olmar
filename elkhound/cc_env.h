@@ -224,6 +224,10 @@ public:     // funcs
   virtual void err(char const *str);
   void warn(char const *str);
 
+  // versions which explicitly specify a location
+  void errLoc(SourceLocation const &loc, char const *str);
+  void warnLoc(SourceLocation const &loc, char const *str);
+
   // report an error, and throw an exception
   void errThrow(char const *str);
 

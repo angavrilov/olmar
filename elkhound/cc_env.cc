@@ -657,6 +657,21 @@ void Env::warn(char const *str)
 }
 
 
+void Env::errLoc(SourceLocation const &loc, char const *str)
+{
+  pushLocation(&loc);
+  err(str);
+  popLocation();
+}
+
+void Env::warnLoc(SourceLocation const &loc, char const *str)
+{
+  pushLocation(&loc);
+  warn(str);
+  popLocation();
+}
+
+
 void Env::errThrow(char const *str)
 {
   err(str);
