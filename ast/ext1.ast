@@ -24,6 +24,12 @@ class NodeList {
   -> ASubclass(int x);
 }
 
+// you can extend a given nonterminal several times
+// in an extension file
+class NodeList {
+  -> AnotherSubclass(int x);
+}
+
 verbatim {
   // verbatim before ANewClass
 }
