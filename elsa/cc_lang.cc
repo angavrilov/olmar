@@ -14,6 +14,7 @@ void CCLang::KandR_C()
   complainUponBadDeref = true;
   strictArraySizeRequirements = false;
   allowOverloading = false;
+  hasImplicitStuff = false;
 }
 
 void CCLang::ANSI_C()
@@ -27,6 +28,7 @@ void CCLang::ANSI_C()
   complainUponBadDeref = true;
   strictArraySizeRequirements = false;
   allowOverloading = false;
+  hasImplicitStuff = false;
 }
 
 void CCLang::ANSI_Cplusplus()
@@ -44,5 +46,5 @@ void CCLang::ANSI_Cplusplus()
   strictArraySizeRequirements = false;
 
   allowOverloading = true;
+  hasImplicitStuff = true;
 }
-

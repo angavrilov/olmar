@@ -460,7 +460,17 @@ public:      // funcs
   // 's' itself if 'name0 is NULL; the return value is maximally
   // qualified
   PQName *make_PQ_fullyQualifiedName(Scope *s, PQName *name0 = NULL);
+
+  // do as above, but don't make fully qualified; just prepend to
+  // 'name0' information about 's'
+  PQName *make_PQ_qualifiedName(Scope *s, PQName *name0 = NULL);
         
+  PQName *makePossiblyTemplatizedName(SourceLoc loc, StringRef name,
+                                      FakeList<TemplateArgument> *targs);
+
+  // construct the list of template arguments
+  FakeList<TemplateArgument> *Env::getTemplateArgs(Scope *s);
+
   // go from "A" to "A::~A"
   PQName *make_PQ_fullyQualifiedDtorName(CompoundType *ct);
 

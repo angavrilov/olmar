@@ -13,6 +13,7 @@ class Scope;              // cc_scope.h
 class Env;                // cc_env.h
 class Type;               // cc_type.h
 class FunctionType;       // cc_type.h
+class CompoundType;       // cc_type.h
 class Variable;           // variable.h
 
 // cc.ast classes
@@ -21,6 +22,7 @@ class E_constructor;
 class Statement;
 class ArgExpression;
 class Expression;
+class MR_func;
 
 
 // Objects with a FullExpressionAnnot have their own scope containing
@@ -63,7 +65,9 @@ Statement *makeDtorStatement(Env &env, Type *type);
 Expression *elaborateCallSite(Env &env, FunctionType *ft,
                               FakeList<ArgExpression> *args);
 
-void elaborateFunctionStart(Env &env, FunctionType *ft);
+MR_func *makeCopyCtorBody(Env &env, CompoundType *ct);
+MR_func *makeCopyAssignBody(Env &env, CompoundType *ct);
 
+void elaborateFunctionStart(Env &env, FunctionType *ft);
 
 #endif // CC_ELABORATE_H

@@ -27,6 +27,9 @@ public:
   // when true, and we see a class declaration inside something,
   // pretend it was at toplevel scope anyway; this also applies to
   // enums, enumerators and typedefs
+  // dsw: I find that having boolean variables that are in the
+  // negative sense is usually a mistake.  I would reverse the sense
+  // of this one.
   bool noInnerClasses;
 
   // when true, an uninitialized global data object is typechecked as
@@ -53,6 +56,11 @@ public:
   // when true, we allow overloaded function declarations (same name,
   // different signature)
   bool allowOverloading;
+
+  // when true, implicit syntax such as "default" (no-arg) ctors for
+  // structs/classes are created; when false (standard C) there is no
+  // implicit syntax
+  bool hasImplicitStuff;
 
 public:
   CCLang() { ANSI_C(); }

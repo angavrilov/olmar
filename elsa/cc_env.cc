@@ -71,7 +71,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     doOverload(tracingSys("doOverload")),
     doOperatorOverload(tracingSys("doOperatorOverload")),
     collectLookupResults(NULL),
-    doElaboration(true),
+    doElaboration(false),       // is turned on later if lang.hasImplicitStuff
 
     tempSerialNumber(0),
     e_newSerialNumber(0)
@@ -82,6 +82,12 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   // slightly less verbose
   //#define HERE HERE_SOURCELOC     // old
   #define HERE SL_INIT              // decided I prefer this
+
+  // elaboration is on by default if we are in a language that
+  // hasImplicitStuff
+  if (lang.hasImplicitStuff) {
+    doElaboration = true;
+  }
 
   // create first scope
   SourceLoc emptyLoc = SL_UNKNOWN;
@@ -2523,55 +2529,7 @@ StringRef Env::makeThrowClauseVarName()
 
 PQName *Env::make_PQ_fullyQualifiedName(Scope *s, PQName *name0)
 {
-  // should only be called for named scopes
-  Variable *typedefVar = s->getTypedefName();
-  xassert(typedefVar);
-
-  // prepend to 'name0' information about 's'
-  {
-    // construct the list of template arguments; we must rebuild them
-    // instead of using templateInfo->argumentSyntax directly, because the
-    // TS_names that are used in the latter might not be in scope here
-    FakeList<TemplateArgument> *targs = FakeList<TemplateArgument>::emptyList();
-    if (s->curCompound && s->curCompound->templateInfo) {
-      FAKELIST_FOREACH_NC(TemplateArgument, 
-                          s->curCompound->templateInfo->argumentSyntax, iter) {
-        ASTSWITCH(TemplateArgument, iter) {
-          ASTCASE(TA_type, t) {
-            // pull out the Type, then build a new ASTTypeId for it
-            targs = targs->prepend(new TA_type(buildASTTypeId(t->type->getType())));
-          }
-          ASTNEXT(TA_nontype, n) {
-            // just use it directly.. someone could be evil and include
-            // sizeof(TS_name(...)) in here to fool us, but oh well
-            targs = targs->prepend(n);
-          }
-          ASTENDCASED
-        }
-      }
-
-      // built them in reverse order for O(1) insertion, now fix that
-      targs->reverse();
-    }
-
-    // now build a PQName
-    if (name0) {
-      // cons a qualifier on to the front
-      name0 = new PQ_qualifier(loc(), typedefVar->name, targs, name0);
-    }
-    else {
-      // dsw: dang it Scott, why the templatization asymmetry between
-      // PQ_name/template on one hand and PQ_qualifier on the other?
-      //
-      // sm: to save space in the common PQ_name case
-      if (targs) {
-        name0 = new PQ_template(loc(), typedefVar->name, targs);
-      }
-      else {
-        name0 = new PQ_name(loc(), typedefVar->name);
-      }
-    }
-  }
+  name0 = make_PQ_qualifiedName(s, name0);
 
   // now find additional qualifiers needed to name 's' itself
   if (s->parentScope) {
@@ -2588,6 +2546,74 @@ PQName *Env::make_PQ_fullyQualifiedName(Scope *s, PQName *name0)
     // and hope it isn't necessary either
     return name0;
   }
+}
+
+
+// prepend to 'name0' information about 's'
+PQName *Env::make_PQ_qualifiedName(Scope *s, PQName *name0)
+{
+  // should only be called for named scopes
+  Variable *typedefVar = s->getTypedefName();
+  xassert(typedefVar);
+
+  // construct the list of template arguments; we must rebuild them
+  // instead of using templateInfo->argumentSyntax directly, because the
+  // TS_names that are used in the latter might not be in scope here
+  FakeList<TemplateArgument> *targs = getTemplateArgs(s);
+
+  // now build a PQName
+  if (name0) {
+    // cons a qualifier on to the front
+    name0 = new PQ_qualifier(loc(), typedefVar->name, targs, name0);
+  }
+  else {
+    name0 = makePossiblyTemplatizedName(loc(), typedefVar->name, targs);
+  }
+
+  return name0;
+}
+
+
+PQName *Env::makePossiblyTemplatizedName(SourceLoc loc, StringRef name,
+                                         FakeList<TemplateArgument> *targs)
+{
+  // dsw: dang it Scott, why the templatization asymmetry between
+  // PQ_name/template on one hand and PQ_qualifier on the other?
+  //
+  // sm: to save space in the common PQ_name case
+  if (targs) {
+    return new PQ_template(loc, name, targs);
+  }
+  else {
+    return new PQ_name(loc, name);
+  }
+}
+
+// construct the list of template arguments
+FakeList<TemplateArgument> *Env::getTemplateArgs(Scope *s)
+{
+  FakeList<TemplateArgument> *targs = FakeList<TemplateArgument>::emptyList();
+  if (s->curCompound && s->curCompound->templateInfo) {
+    FAKELIST_FOREACH_NC(TemplateArgument, 
+                        s->curCompound->templateInfo->argumentSyntax, iter) {
+      ASTSWITCH(TemplateArgument, iter) {
+        ASTCASE(TA_type, t) {
+          // pull out the Type, then build a new ASTTypeId for it
+          targs = targs->prepend(new TA_type(buildASTTypeId(t->type->getType())));
+        }
+        ASTNEXT(TA_nontype, n) {
+          // just use it directly.. someone could be evil and include
+          // sizeof(TS_name(...)) in here to fool us, but oh well
+          targs = targs->prepend(n);
+        }
+        ASTENDCASED
+      }
+    }
+
+    // built them in reverse order for O(1) insertion, now fix that
+    targs->reverse();
+  }
+  return targs;
 }
 
 

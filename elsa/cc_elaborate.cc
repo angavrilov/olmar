@@ -35,6 +35,7 @@ FullExpressionAnnot::StackBracket::~StackBracket()
 E_constructor *makeCtorExpr
   (Env &env, Variable *var, Type *type, FakeList<ArgExpression> *args)
 {
+  xassert(env.doElaboration);
   xassert(var);                 // this is never for a temporary
   xassert(!var->hasFlag(DF_TYPEDEF));
   PQName *name0 = env.make_PQ_fullyQualifiedName(type->asCompoundType());
@@ -55,6 +56,7 @@ E_constructor *makeCtorExpr
 Statement *makeCtorStatement
   (Env &env, Variable *var, Type *type, FakeList<ArgExpression> *args)
 {
+  xassert(env.doElaboration);
   E_constructor *ector0 = makeCtorExpr(env, var, type, args);
   Statement *ctorStmt0 = new S_expr(env.loc(), new FullExpression(ector0));
   ctorStmt0->tcheck(env);
@@ -65,6 +67,7 @@ Statement *makeDtorStatement(Env &env, Type *type)
 {
   // hmm, can't say this because I don't have a var to say it about.
 //    xassert(!var->hasFlag(DF_TYPEDEF));
+  xassert(env.doElaboration);
   E_funCall *efc0 =
     new E_funCall(new E_variable(env.make_PQ_fullyQualifiedDtorName(type->asCompoundType())),
                   FakeList<ArgExpression>::emptyList());
@@ -89,6 +92,8 @@ Statement *makeDtorStatement(Env &env, Type *type)
 
 void Declarator::elaborateCDtors(Env &env)
 {
+  xassert(env.doElaboration);
+
   // get this context from the 'var', don't make a mess passing
   // it down from above
   bool isMember = var->hasFlag(DF_MEMBER);
@@ -151,10 +156,10 @@ void Declarator::elaborateCDtors(Env &env)
       if (init->isIN_ctor()) {
         xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
         // FIX: What should we do for non-CompoundTypes?
-        if (type->isCompoundType()) {
+        if (env.doElaboration && type->isCompoundType()) {
           ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
         }
-      } else if (type->isCompoundType()) {
+      } else if (env.doElaboration && type->isCompoundType()) {
         if (init->isIN_expr()) {
           xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
           // just call the one-arg ctor; FIX: this is questionable; we
@@ -176,7 +181,8 @@ void Declarator::elaborateCDtors(Env &env)
     ifInitEnd: ;                  // must have a statement here
     }
     else /* init is NULL */ {
-      if (type->isCompoundType() &&
+      if (env.doElaboration &&
+          type->isCompoundType() &&
           !var->hasFlag(DF_TYPEDEF) &&
           !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
           !isTemporary &&
@@ -196,7 +202,8 @@ void Declarator::elaborateCDtors(Env &env)
         ( (dflags & DF_EXTERN)!=0 ) // extern
         ) {
       xassert(!ctorStatement);
-    } else if (type->isCompoundType() &&
+    } else if (env.doElaboration &&
+               type->isCompoundType() &&
                !var->hasFlag(DF_TYPEDEF) &&
                !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
                (!isMember ||
@@ -211,7 +218,8 @@ void Declarator::elaborateCDtors(Env &env)
 //      ctorStatement = makeCtorStatement(env, var, type, FakeList<ArgExpression>::emptyList());
 
     // make the dtorStatement
-    if (type->isCompoundType() &&
+    if (env.doElaboration &&
+        type->isCompoundType() &&
         !var->hasFlag(DF_TYPEDEF) &&
         !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
         !( (dflags & DF_EXTERN)!=0 ) // not extern
@@ -436,6 +444,549 @@ Expression *elaborateCallSite(Env &env, FunctionType *ft,
 }
 
 
+static MemberInit *makeCopyCtorMemberInit(PQName *tgtName,
+                                          StringRef srcNameS,
+                                          StringRef srcMemberNameS,
+                                          SourceLoc loc)
+{
+  //                 name = b
+  //                 loc = ../oink/ctor1.cc:12:9
+  //               PQ_name:
+  PQ_name *srcName = new PQ_name(loc, srcNameS);
+  //             E_variable:
+  Expression *expr = new E_variable(srcName);
+  if (srcMemberNameS) {
+    //               name = y
+    //               loc = ../oink/ctor1.cc:15:11
+    //             PQ_name:
+    PQ_name *srcMemberName = new PQ_name(loc, srcMemberNameS);
+    //                 name = b
+    //                 loc = ../oink/ctor1.cc:15:9
+    //               PQ_name:
+    //             E_variable:
+    //           E_fieldAcc:
+    expr = new E_fieldAcc(expr, srcMemberName);
+  }
+  //           ArgExpression:
+  ArgExpression *argExpr = new ArgExpression(expr);
+  //         args:
+  FakeList<ArgExpression> *args = FakeList<ArgExpression>::makeList(argExpr);
+  //           name = A
+  //           loc = ../oink/ctor1.cc:12:7
+  //         PQ_name:
+
+  // this doesn't work in the case of templates for example
+//    PQ_name *tgtName = new PQ_name(loc, tgtNameS);
+  xassert(tgtName);
+
+  //       MemberInit:
+  MemberInit *mi = new MemberInit(tgtName, args);
+  return mi;
+}
+
+
+MR_func *makeCopyCtorBody(Env &env, CompoundType *ct)
+{
+  // reversed print AST output; remember to read going up even for the
+  // tree leaves
+
+  SourceLoc loc = env.loc();
+
+  //     handlers:
+  FakeList<Handler> *handlers = FakeList<Handler>::emptyList();
+
+  //       stmts:
+  ASTList<Statement> *stmts = new ASTList<Statement>();
+
+  //       loc = ../oink/ctor1.cc:16:3
+  //       succ={ }
+  //     S_compound:
+  S_compound *body = new S_compound(loc, stmts);
+
+  // for each member, make a call to its copy ctor; Note that this
+  // works for simple types also; NOTE: We build this in reverse and
+  // then reverse it.
+  FakeList<MemberInit> *inits = FakeList<MemberInit>::emptyList();
+
+  StringRef srcNameS = env.str.add("__other");
+
+  // FIX: this is wrong for arrays
+  SFOREACH_OBJLIST(Variable, ct->dataMembers, iter) {
+    Variable *var = const_cast<Variable *>(iter.data());
+    MemberInit *mi = makeCopyCtorMemberInit
+      (new PQ_name(loc, var->name), srcNameS, var->name, loc);
+    inits = inits->prepend(mi);
+  }
+
+  FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
+    BaseClass *base = const_cast<BaseClass *>(iter.data());
+    // omit initialization of virtual base classes, whether direct
+    // virtual or indirect virtual.  See cppstd 12.6.2 and the
+    // implementation of Function::tcheck_memberInits()
+    //
+    // FIX: We really should be initializing the direct virtual bases,
+    // but the logic is so complex I'm just going to omit it for now
+    // and err on the side of not calling enough initializers
+    if (!ct->hasVirtualBase(base->ct)) {
+//        env.make_PQ_qualifiedName(base->ct),
+      FakeList<TemplateArgument> *targs = env.getTemplateArgs(base->ct);
+//        Variable *typedefVar = base->ct->getTypedefName();
+//        xassert(typedefVar);
+//        PQName *name = env.makePossiblyTemplatizedName(loc, typedefVar->name, targs);
+      PQName *name = env.makePossiblyTemplatizedName(loc, base->ct->name, targs);
+      MemberInit *mi = makeCopyCtorMemberInit(name, srcNameS, NULL, loc);
+      inits = inits->prepend(mi);
+    } else {
+//        cerr << "Omitting a direct base that is also a virtual base" << endl;
+    }
+  }
+
+  // FIX: What the heck do I do for virtual bases?  This surely isn't
+  // right.
+  //
+  // Also, it seems that the order of interleaving of the virtual and
+  // non-virtual bases has been lost.  Have to be careful of this when
+  // we pretty print.
+  //
+  // FIX: This code is broken anyway.
+//    FOREACH_OBJLIST(BaseClassSubobj, ct->virtualBases, iter) {
+//      BaseClass *base = const_cast<BaseClass *>(iter->data());
+// // This must not mean what I think.
+// //     xassert(base->isVirtual);
+//      MemberInit *mi = makeCopyCtorMemberInit(base->ct->name, srcNameS, NULL, loc);
+//      inits = inits->prepend(mi);
+//    }
+
+  //     inits:
+  inits = inits->reverse();
+
+  //       init is null
+  Initializer *init = NULL;
+
+  //         exnSpec is null
+  ExceptionSpec *exnSpec = NULL;
+
+  //         cv = 
+  CVFlags cv = CV_NONE;
+
+  //               init is null
+  Initializer *init0 = NULL;
+
+  //                     name = b
+  //                     loc = ../oink/ctor1.cc:11:14
+  //                   PQ_name:
+  PQ_name *name0 = new PQ_name(loc, srcNameS);
+
+  //                   loc = ../oink/ctor1.cc:11:14
+  //                 D_name:
+  IDeclarator *base0 = new D_name(loc, name0);
+
+  //                 cv = 
+  //                 isPtr = false
+  //                 loc = ../oink/ctor1.cc:11:13
+  //               D_pointer:
+  IDeclarator *idecl0 = new D_pointer(loc,
+                                      false, // a ref, not a real pointer
+                                      CV_NONE,
+                                      base0);
+
+  //             Declarator:
+  Declarator *decl0 = new Declarator(idecl0, init0);
+
+  //               typenameUsed = false
+  bool typenameUsed = false;
+
+  //                 name = B
+  //                 loc = ../oink/ctor1.cc:11:5
+  //               PQ_name:
+  PQName *name = NULL;
+  {
+    FakeList<TemplateArgument> *targs = env.getTemplateArgs(ct);
+    Variable *typedefVar = ct->getTypedefName();
+    xassert(typedefVar);
+    name = env.makePossiblyTemplatizedName(loc, typedefVar->name, targs);
+  }
+
+  //               loc = ../oink/ctor1.cc:11:5
+  //               cv = const
+  //             TS_name:
+  TypeSpecifier *spec = new TS_name(loc, name, typenameUsed);
+  spec->cv = CV_CONST;
+
+  //           ASTTypeId:
+  ASTTypeId *param0 = new ASTTypeId(spec, decl0); 
+  
+  //         params:
+  FakeList<ASTTypeId> *params = FakeList<ASTTypeId>::makeList(param0);
+
+  //             name = B
+  //             loc = ../oink/ctor1.cc:11:3
+  //           PQ_name:
+  // FIX: is this a sufficiently general way of getting a name for
+  // this class?
+  // update: Yes, it is.  We do *not* want to use a fully qualified
+  // name for the class here for the name of the ctor.  Just the way
+  // naming works in C++ I guess.
+  PQName *ctorName = new PQ_name(loc, ct->name);
+
+  //           loc = ../oink/ctor1.cc:11:3
+  //         D_name:
+  IDeclarator *base = new D_name(loc, ctorName);
+
+  //         loc = ../oink/ctor1.cc:11:3
+  //       D_func:
+  IDeclarator *decl = new D_func(loc,
+                                 base,
+                                 params,
+                                 cv,
+                                 exnSpec);
+
+  //     Declarator:
+  Declarator *nameAndParams = new Declarator(decl, init);
+
+  //       id = /*cdtor*/
+  //       loc = ../oink/ctor1.cc:11:3
+  //       cv = 
+  //     TS_simple:
+  TypeSpecifier *retspec = new TS_simple(loc, ST_CDTOR);
+
+  //     dflags =
+  // FIX: are ctors members?
+  // update: old email from Scott says yes.
+  DeclFlags dflags = DF_MEMBER | DF_INLINE;
+
+  //   Function:
+  Function *f =
+    new Function(dflags,
+                 retspec,
+                 nameAndParams,
+                 inits,
+                 body,
+                 handlers);
+
+  //   loc = ../oink/ctor1.cc:11:3
+  // MR_func:
+  return new MR_func(loc, f);
+}
+
+
+// "return *this;"
+static S_return *make_S_return(Env &env)
+{
+  SourceLoc loc = env.loc();
+
+  //                   name = this
+  //                   loc = copy_assign1.cc:12:13
+  //                 PQ_name:
+  PQ_name *name0 = new PQ_name(loc, env.str.add("this"));
+  //               E_variable:
+  E_variable *evar0 = new E_variable(name0);
+  //             E_deref:
+  E_deref *ederef0 = new E_deref(evar0);
+  //           FullExpression:
+  FullExpression *fullexp0 = new FullExpression(ederef0);
+  //           loc = copy_assign1.cc:12:5
+  //           succ={ }
+  //         S_return:
+  return new S_return(loc, fullexp0);
+}
+
+// "y = __other.y;"
+static S_expr *make_S_expr_memberCopyAssign(Env &env, StringRef memberName)
+{
+  SourceLoc loc = env.loc();
+
+  //                   name = y
+  //                   loc = copy_assign1.cc:11:17
+  //                 PQ_name:
+  PQ_name *name1 = new PQ_name(loc, memberName);
+  //                     name = __other
+  //                     loc = copy_assign1.cc:11:9
+  //                   PQ_name:
+  PQ_name *name2 = new PQ_name(loc, env.str.add("__other"));
+  //                 E_variable:
+  E_variable *evar2 = new E_variable(name2);
+  //               E_fieldAcc:
+  E_fieldAcc *efieldacc2 = new E_fieldAcc(evar2, name1);
+  //               op = =
+  // NOTE: below
+  //                   name = y
+  //                   loc = copy_assign1.cc:11:5
+  //                 PQ_name:
+  PQ_name *name3 = new PQ_name(loc, memberName);
+  //               E_variable:
+  E_variable *evar3 = new E_variable(name3);
+  //             E_assign:
+  E_assign *eassign0 = new E_assign(evar3, BIN_ASSIGN, efieldacc2);
+  //           FullExpression:
+  FullExpression *fullexp1 = new FullExpression(eassign0);
+  //           loc = copy_assign1.cc:11:5
+  //           succ={ }
+  //         S_expr:
+  return new S_expr(loc, fullexp1);
+}
+
+// "this->W::operator=(__other);"
+static S_expr *make_S_expr_superclassCopyAssign(Env &env, BaseClass *base)
+{
+  SourceLoc loc = env.loc();
+
+  //                       name = __other
+  StringRef other = env.str.add("__other");
+  //                       loc = copy_assign2.cc:8:24
+  //                     PQ_name:
+  PQ_name *name0 = new PQ_name(loc, other);
+  //                   E_variable:
+  E_variable *evar0 = new E_variable(name0);
+  //                 ArgExpression:
+  ArgExpression *argexpr0 = new ArgExpression(evar0);
+  //               args:
+  FakeList<ArgExpression> *args = FakeList<ArgExpression>::makeList(argexpr0);
+  //                     fakeName = operator=
+  StringRef fakename = env.str.add("operator=");
+  //                       op = =
+  //                     ON_operator:
+  ON_operator *opname = new ON_operator(OP_ASSIGN);
+  //                     loc = copy_assign2.cc:8:14
+  //                   PQ_operator:
+  PQ_operator *assignop = new PQ_operator(loc, opname, fakename);
+  //                   targs:
+  FakeList<TemplateArgument> *targs = env.getTemplateArgs(base->ct);
+  //                   qualifier = W
+  //                   loc = copy_assign2.cc:8:11
+  //                 PQ_qualifier:
+  //    PQName *superclassName = env.makePossiblyTemplatizedName(loc, base->ct->name, targs);
+  PQName *superclassName = NULL;
+  {
+    Variable *typedefVar = base->ct->getTypedefName();
+    xassert(typedefVar);
+    superclassName = new PQ_qualifier(loc, typedefVar->name, targs, assignop);
+  }
+  //                     name = this
+  //                     loc = copy_assign2.cc:8:5
+  //                   PQ_name:
+  PQ_name *thisName = new PQ_name(loc, env.str.add("this"));
+  //                 E_variable:
+  E_variable *thisVar = new E_variable(thisName);
+  //               E_arrow:
+  E_arrow *earrow = new E_arrow(thisVar, superclassName);
+  //             E_funCall:
+  E_funCall *efuncall = new E_funCall(earrow, args);
+  //           FullExpression:
+  FullExpression *fullexpr = new FullExpression(efuncall);
+  //           loc = copy_assign2.cc:8:5
+  //           succ={ }
+  //         S_expr:
+  return new S_expr(loc, fullexpr);
+}
+
+Declarator *makeCopyAssignDeclarator(Env &env, CompoundType *ct)
+{
+  SourceLoc loc = env.loc();
+
+  //       init is null
+  // NOTE: below inline
+  //           exnSpec is null
+  // NOTE: below inline
+  //           cv = 
+  // NOTE: below inline
+  //                 init is null
+  Initializer *init = NULL;
+  //                       name = __other
+  StringRef otherName = env.str.add("__other");
+  //                       loc = copy_assign1.cc:7:25
+  //                     PQ_name:
+  PQ_name *otherPQ_name = new PQ_name(loc, otherName);
+  //                     loc = copy_assign1.cc:7:25
+  //                   D_name:
+  D_name *declname = new D_name(loc, otherPQ_name);
+  //                   cv = 
+  //                   isPtr = false
+  //                   loc = copy_assign1.cc:7:24
+  //                 D_pointer:
+  D_pointer *dptr = new D_pointer(loc, false /*ref, not ptr*/, CV_NONE, declname);
+  //               Declarator:
+  Declarator *declarator0 = new Declarator(dptr, init);
+  //                 typenameUsed = false
+  bool typenameUsed = false;
+  //                   name = X
+  //                   loc = copy_assign1.cc:7:16
+  //                 PQ_name:
+  PQName *name1 = NULL;
+  {
+    FakeList<TemplateArgument> *targs = env.getTemplateArgs(ct);
+    Variable *typedefVar = ct->getTypedefName();
+    xassert(typedefVar);
+    name1 = env.makePossiblyTemplatizedName(loc, typedefVar->name, targs);
+  }
+  //                 loc = copy_assign1.cc:7:16
+  //                 cv = const
+  //               TS_name:
+  TS_name *tsname1 = new TS_name(loc, name1, typenameUsed);
+  tsname1->cv = CV_CONST;
+  //             ASTTypeId:
+  ASTTypeId *asttypeid = new ASTTypeId(tsname1, declarator0);
+  //           params:
+  FakeList<ASTTypeId> *params = FakeList<ASTTypeId>::makeList(asttypeid);
+  //               fakeName = operator=
+  StringRef fakeName = env.str.add("operator=");
+  //                 op = =
+  //               ON_operator:
+  ON_operator *opname = new ON_operator(OP_ASSIGN);
+  //               loc = copy_assign1.cc:7:6
+  //             PQ_operator:
+  PQ_operator *pqop = new PQ_operator(loc, opname, fakeName);
+  //             loc = copy_assign1.cc:7:6
+  //           D_name:
+  D_name *dname = new D_name(loc, pqop);
+  //           loc = copy_assign1.cc:7:6
+  //         D_func:
+  // FIX: this exception spec is wrong: the spec says that the implied
+  // copy operator= has an exception spec.
+  D_func *dfunc = new D_func(loc, dname, params, CV_NONE, NULL/*exnSpec*/);
+  //         cv = 
+  //         isPtr = false
+  //         loc = copy_assign1.cc:7:4
+  //       D_pointer:
+  D_pointer *dptr1 = new D_pointer(loc, false /*ref, not ptr*/, CV_NONE, dfunc);
+  //     Declarator:
+  return new Declarator(dptr1, NULL /*init*/);
+}
+
+
+//  12.8 paragraph 10
+//
+//  If the lass definition does not explicitly declare a copy assignment
+//  operator, one is declared implicitly.  The implicitly-declared copy
+//  assignment operator for a class X will have the form
+//
+//          X& X::operator=(X const &)
+//
+//  if [lots of complicated conditions here on whether or not the
+//  parameter should be a reference to const or not; I'm just going to
+//  make it const for now] ...
+//
+//  The implicitly-declared copy assignment operator for class X has the
+//  return type X&; it returns the object for which the assignment
+//  operator is invoked, that is, the object assigned to.  An
+//  implicitly-declared copy assignment operator is an inline public
+//  member of its class. ...
+//
+//  paragraph 12
+//
+//  An implicitly-declared copy assignment operator is implicitly defined
+//  when an object of its class type is assigned a value of its class type
+//  or a value of a class type derived from its class type. ...
+//
+//  paragraph 13
+//
+//  The implicitly-defined copy assignment operator for class X performs
+//  memberwise assignment of its subobjects.  The direct base classes of X
+//  are assigned first, in the order of their declaration in the
+//  base-specifier-list, and then the immediate nonstatic data members of
+//  X are assigned, in the order in which they were declared in the class
+//  definition.  Each subobject is assigned in the manner appropriate to
+//  its type:
+//
+//  -- if the subobject is of class type, the copy assignment operator for
+//  the class is used (as if by explicit qualification; that is, ignoring
+//  any possible virtual overriding functions in more derived classes);
+//
+//  -- if the subobject is an array, each element is assigned, in the
+//  manner appropriate to the element type.
+//
+//  -- if the subobject is of scalar type, the built-in assignment
+//  operator is used.
+//
+//  It is unspecified whether subobjects representing virtual base classes
+//  are assigned more than once by the implicitly-defined copy assignment
+//  operator.
+MR_func *makeCopyAssignBody(Env &env, CompoundType *ct)
+{
+  // reversed print AST output; remember to read going up even for the
+  // tree leaves
+
+  // this is a pretty pathetic way to get a loc, since everything in
+  // the constructed AST ends up at one point loc
+  SourceLoc loc = env.loc();
+
+  //     handlers:
+  FakeList<Handler> *handlers = FakeList<Handler>::emptyList();
+
+  //       stmts:
+  // NOTE: these are made and appended *in* *order*, not in reverse
+  // and then reversed as with the copy ctor
+  ASTList<Statement> *stmts = new ASTList<Statement>();
+
+  // For each superclass, make the call to operator =.
+  FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
+    BaseClass *base = const_cast<BaseClass *>(iter.data());
+    // omit initialization of virtual base classes, whether direct
+    // virtual or indirect virtual.  See cppstd 12.6.2 and the
+    // implementation of Function::tcheck_memberInits()
+    //
+    // FIX: We really should be initializing the direct virtual bases,
+    // but the logic is so complex I'm just going to omit it for now
+    // and err on the side of not calling enough initializers
+    if (!ct->hasVirtualBase(base->ct)) {
+      stmts->append(make_S_expr_superclassCopyAssign(env, base));
+    }
+  }
+
+  // FIX: this is wrong for arrays
+  SFOREACH_OBJLIST(Variable, ct->dataMembers, iter) {
+    Variable *var = const_cast<Variable *>(iter.data());
+    stmts->append(make_S_expr_memberCopyAssign(env, var->name));
+  }
+
+  stmts->append(make_S_return(env));
+
+  //       loc = copy_assign1.cc:7:34
+  //       succ={ }
+  //     S_compound:
+  S_compound *body = new S_compound(loc, stmts);
+
+  //     inits:
+  FakeList<MemberInit> *inits = FakeList<MemberInit>::emptyList();
+
+  //     Declarator:
+  Declarator *nameAndParams = makeCopyAssignDeclarator(env, ct);
+
+  //       typenameUsed = false
+  bool typenameUsed = false;
+  //         name = X
+  //         loc = copy_assign1.cc:7:3
+  //       PQ_name:
+  PQName *pqnameRetSpec = NULL;
+  {
+    FakeList<TemplateArgument> *targs = env.getTemplateArgs(ct);
+    Variable *typedefVar = ct->getTypedefName();
+    xassert(typedefVar);
+    pqnameRetSpec = env.makePossiblyTemplatizedName(loc, typedefVar->name, targs);
+  }
+  //       loc = copy_assign1.cc:7:3
+  //       cv = 
+  //     TS_name:
+  TypeSpecifier *retspec = new TS_name(loc, pqnameRetSpec, typenameUsed);
+
+  //     dflags = 
+  DeclFlags dflags = DF_MEMBER | DF_INLINE;
+
+  //   Function:
+  Function *f =
+    new Function(dflags,
+                 retspec,
+                 nameAndParams,
+                 inits,
+                 body,
+                 handlers);
+
+  //   loc = copy_assign1.cc:7:3
+  // MR_func:
+  return new MR_func(loc, f);
+}
+
+
 void elaborateFunctionStart(Env &env, FunctionType *ft)
 {
   if (ft->retType->isCompoundType()) {
@@ -454,7 +1005,7 @@ void E_new::elaborate(Env &env, Type *t)
 {
   // TODO: this doesn't work for new[]
 
-  if (t->isCompoundType()) {
+  if (env.doElaboration && t->isCompoundType()) {
     if (env.disambErrorsSuppressChanges()) {
       TRACE("env", "not adding variable or ctorStatement to E_new `" << /*what?*/
             "' because there are disambiguating errors");
@@ -479,7 +1030,7 @@ void E_delete::elaborate(Env &env, Type *t)
 {
   // TODO: this doesn't work for delete[]
 
-  if (t->isCompoundType()) {
+  if (env.doElaboration && t->isCompoundType()) {
     dtorStatement = makeDtorStatement(env, t);
   }
 }
@@ -504,7 +1055,7 @@ void E_throw::elaborate(Env &env)
   // through and figure out how to hook these up to their catch
   // clauses.
   Type *exprType = expr->getType()->asRval();
-  if (exprType->isCompoundType()) {
+  if (env.doElaboration && exprType->isCompoundType()) {
     if (!globalVar) {
       globalVar = env.makeVariable(env.loc(), env.makeThrowClauseVarName(), exprType,
                                    DF_STATIC // I think it is a static global
@@ -534,7 +1085,7 @@ void S_return::elaborate(Env &env)
     // sm: FunctionType::retType is never NULL ...
     xassert(ft->retType);
 
-    if (ft->retType->isCompoundType()) {
+    if (env.doElaboration && ft->retType->isCompoundType()) {
       // This is an instance of return by value of a compound type.
       // We accomplish this by calling the copy ctor.
 

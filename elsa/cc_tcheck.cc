@@ -39,7 +39,8 @@ static Variable *outerResolveOverload_ctor
   (Env &env, SourceLoc loc, Type *type, FakeList<ArgExpression> *args, bool really);
 static bool reallyDoOverload(Env &env, FakeList<ArgExpression> *args);
 void tcheckArgExprList(FakeList<ArgExpression> *list, Env &env);
-void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
+void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
+                              SourceLoc loc, CompoundType *ct);
 
 
 // return true if the list contains no disambiguating errors
@@ -434,7 +435,7 @@ void Function::tcheck_memberInits(Env &env)
 
           // FIX: do this; we need a variable for when it is a base class
           // the var is the MemberInit::member
-//            xassert(!ctorStatement);
+          // only do this if env.doElaboration
 //            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
         }
 
@@ -532,7 +533,7 @@ void Function::tcheck_memberInits(Env &env)
       // FIX: do this; we need a variable for when it is a base class
       // the var is Function::retVar; NOTE: the types won't match so
       // watch out.
-//            xassert(!ctorStatement);
+      // only do this if env.doElaboration
 //            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
     }
 
@@ -1218,8 +1219,10 @@ void TS_classSpec::tcheckIntoCompound(
     iter.data()->tcheck(env);
   }
 
-  // default ctor, copy ctor, operator=
-  addCompilerSuppliedDecls(env, loc, ct);
+  // default ctor, copy ctor, operator=; only do this for C++.
+  if (env.lang.hasImplicitStuff) {
+    addCompilerSuppliedDecls(env, this, loc, ct);
+  }
 
   // let the CompoundType build additional indexes if it wants
   ct->finishedClassDefinition(env.conversionOperatorName);
@@ -1408,7 +1411,7 @@ bool isCopyAssignOp(FunctionType const *ft, CompoundType *ct)
 {
   if (!ft->isMethod()) return false; // is a non-static member?
   if (ft->isTemplate()) return false; // non-template?
-  if (ft->params.count() != 1) return false; // has exactly one arg?
+  if (ft->params.count() != 2) return false; // has two args, 1) this and 2) other?
 
   // the parameter
   Type *t0 = ft->params.firstC()->type;
@@ -1461,8 +1464,13 @@ bool testAmongOverloadSet(MemberFnTest test, Variable *v, CompoundType *ct)
 //   - an operator= if none is present
 //   - a dtor if none is present
 // 'loc' remains a hack ...
-void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
+// FIX: this should be a method on TS_classSpec
+void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
+                              SourceLoc loc, CompoundType *ct)
 {
+  // we shouldn't even be here if the language isn't C++.
+  xassert(env.lang.hasImplicitStuff);
+
   // the caller should already have arranged so that 'ct' is the
   // innermost scope
   xassert(env.acceptingScope() == ct);
@@ -1529,20 +1537,31 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
     // dsw: I'm going to just always make it X::X(X const &) for now.
     // TODO: do it right.
 
-    // add a copy ctor declaration: Class(Class const &);
-    FunctionType *ft = env.beginConstructorFunctionType(loc);
-    Variable *refToSelfParam =
-      env.makeVariable(loc,
-                       NULL,     // no parameter name
-                       env.makePointerType(loc, PO_REFERENCE, CV_NONE,
-                                           env.makeCVAtomicType(loc, ct, CV_CONST)),
-                       DF_PARAMETER);
-    ft->addParam(refToSelfParam);
-    ft->doneParams();
-
-    Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_MEMBER);
-    env.addVariableWithOload(ctor0, v);     // always overloaded; ctor0!=NULL
-    env.madeUpVariables.push(v);
+    if (env.doElaboration) {
+      // create the AST for a definition and do the first typechecking
+      // pass; the second part of the pass will be done with the rest
+      // of the members later.
+      MR_func *ctorBody = makeCopyCtorBody(env, ct);
+      //      cout << "**** ct->name: " << ct->name << endl;
+      //      ctorBody->debugPrint(cout, 0);
+      ctorBody->tcheck(env);
+      tsClassSpec->members->list.append(ctorBody);
+    } else {
+      // create the effects of a declaration without making any AST or
+      // a body; add a copy ctor declaration: Class(Class const &);
+      FunctionType *ft = env.beginConstructorFunctionType(loc);
+      Variable *refToSelfParam =
+        env.makeVariable(loc,
+                         NULL,     // no parameter name
+                         env.makePointerType(loc, PO_REFERENCE, CV_NONE,
+                                             env.makeCVAtomicType(loc, ct, CV_CONST)),
+                         DF_PARAMETER);
+      ft->addParam(refToSelfParam);
+      ft->doneParams();
+      Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_MEMBER);
+      env.addVariableWithOload(ctor0, v);     // always overloaded; ctor0!=NULL
+      env.madeUpVariables.push(v);
+    }
   }
 
   // **** implicit copy assignment operator: 12.8 para 10: "If the
@@ -1573,34 +1592,44 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
     // dsw: I'm going to just always make the parameter const for now.
     // TODO: do it right.
 
-    // add a copy assignment op declaration: Class& operator=(Class const &);
-    Type *refToSelfType =
-      env.makePointerType(loc, PO_REFERENCE, CV_NONE,
-                          env.makeCVAtomicType(loc, ct, CV_NONE));
-    Type *refToConstSelfType =
-      env.makePointerType(loc, PO_REFERENCE, CV_NONE,
-                          env.makeCVAtomicType(loc, ct, CV_CONST));
+//      if (env.doElaboration)
+    {
+//        // create the AST for a definition and do the first typechecking
+//        // pass; the second part of the pass will be done with the rest
+//        // of the members later.
+//        MR_func *ctorBody = makeCopyAssignBody(env, ct);
+//        //      cout << "**** ct->name: " << ct->name << endl;
+//        //      ctorBody->debugPrint(cout, 0);
+//        ctorBody->tcheck(env);
+//        tsClassSpec->members->list.append(ctorBody);
+//      } else {
+      // add a copy assignment op declaration: Class& operator=(Class const &);
+      Type *refToSelfType =
+        env.makePointerType(loc, PO_REFERENCE, CV_NONE,
+                            env.makeCVAtomicType(loc, ct, CV_NONE));
+      Type *refToConstSelfType =
+        env.makePointerType(loc, PO_REFERENCE, CV_NONE,
+                            env.makeCVAtomicType(loc, ct, CV_CONST));
 
-    FunctionType *ft = env.makeFunctionType(loc, refToSelfType);
+      FunctionType *ft = env.makeFunctionType(loc, refToSelfType);
 
-    // receiver object
-    ft->addThisParam(
-      env.makeVariable(loc, NULL,
-                       env.tfac.cloneType(refToSelfType),
-                       DF_PARAMETER));
+      // receiver object
+      ft->addThisParam(env.makeVariable(loc, NULL,
+                                        env.tfac.cloneType(refToSelfType),
+                                        DF_PARAMETER));
 
-    // source object parameter
-    ft->addParam(
-      env.makeVariable(loc,
-                       NULL,  // no parameter name
-                       env.tfac.cloneType(refToConstSelfType),
-                       DF_PARAMETER));
+      // source object parameter
+      ft->addParam(env.makeVariable(loc,
+                                    NULL,  // no parameter name
+                                    env.tfac.cloneType(refToConstSelfType),
+                                    DF_PARAMETER));
 
-    ft->doneParams();
+      ft->doneParams();
 
-    Variable *v = env.makeVariable(loc, env.operatorName[OP_ASSIGN], ft, DF_MEMBER);
-    env.addVariableWithOload(assign_op0, v);
-    env.madeUpVariables.push(v);
+      Variable *v = env.makeVariable(loc, env.operatorName[OP_ASSIGN], ft, DF_MEMBER);
+      env.addVariableWithOload(assign_op0, v);
+      env.madeUpVariables.push(v);
+    }
   }
 
   // **** implicit dtor: declare a destructor if one wasn't declared
@@ -3790,6 +3819,11 @@ static Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
   }
 
   // resolve overloading
+//    cout << "resolve overloading" << endl;
+//    SFOREACH_OBJLIST(Variable, var->overload->set, iter) {
+//      Variable *var0 = const_cast<Variable *>(iter.data());
+//      cout << "\t" << var0->toString() << endl;
+//    }
   bool wasAmbig;     // ignored, since error will be reported
   return resolveOverload(env, loc, &env.errors,
                          OF_NONE, var->overload->set, argInfo, wasAmbig);
