@@ -868,9 +868,6 @@ nonterm[enum SimpleTypeId] PrimitiveTypeSpecifier {
   -> "signed" "long"            [ return ST_LONG_INT; ]
   -> "long" "int"               [ return ST_LONG_INT; ]
   -> "long"                     [ return ST_LONG_INT; ]
-  -> "signed" "long" "long"     [ return ST_LONG_LONG; ]
-  -> "long" "long"              [ return ST_LONG_LONG; ]
-  -> "unsigned" "long" "long"   [ return ST_UNSIGNED_LONG_LONG; ]
   -> "signed" "short" "int"     [ return ST_SHORT_INT; ]
   -> "signed" "short"           [ return ST_SHORT_INT; ]
   -> "short" "int"              [ return ST_SHORT_INT; ]
@@ -880,6 +877,15 @@ nonterm[enum SimpleTypeId] PrimitiveTypeSpecifier {
   -> "double"                   [ return ST_DOUBLE; ]
   -> "long" "double"            [ return ST_LONG_DOUBLE; ]
   -> "void"                     [ return ST_VOID; ]
+  
+  // GNU extensions
+  -> "signed" "long" "long"     [ return ST_LONG_LONG; ]
+  -> "long" "long"              [ return ST_LONG_LONG; ]
+  -> "unsigned" "long" "long"   [ return ST_UNSIGNED_LONG_LONG; ]
+
+  -> "signed" "long" "long" "int"    [ return ST_LONG_LONG; ]
+  -> "long" "long" "int"             [ return ST_LONG_LONG; ]
+  -> "unsigned" "long" "long" "int"  [ return ST_UNSIGNED_LONG_LONG; ]
 }
 
 

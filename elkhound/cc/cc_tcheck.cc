@@ -660,6 +660,9 @@ void Declarator::tcheck(Env &env, DeclaratorTcheck &dt)
     // TODO: check compatibility with dflags; e.g. we can't allow
     // an initializer for a global variable declared with 'extern'
 
+    // TODO: in the case of class member functions, delay checking
+    // the initializer until the entire class body has been scanned
+
     init->tcheck(env);
   }
 }
@@ -1000,6 +1003,8 @@ void D_func::itcheck(Env &env, DeclaratorTcheck &dt)
     iter->tcheck(env);
     Variable *v = iter->decl->var;
 
+    // TODO: record the default argument somewhere
+
     ft->addParam(new Parameter(v->name, v->type, v));
   }
 
@@ -1136,6 +1141,7 @@ char const *ON_assign::getOperatorName() const
 {
   switch (op) {
     default:            xfailure("bad code");
+    case BIN_ASSIGN:    return "operator=";
     case BIN_MULT:      return "operator*=";
     case BIN_DIV:       return "operator/=";
     case BIN_MOD:       return "operator%=";

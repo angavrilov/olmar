@@ -1,0 +1,13 @@
+// cc.in30
+// default arguments
+
+int f(int x = 3);
+
+class Foo {
+public:
+  // this doesn't work right now..
+  //int g(int x = y);    // refers to static member Foo::y
+  //static int y;
+  
+  int h(int j=9);
+};
