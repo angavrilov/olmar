@@ -219,12 +219,16 @@ private:     // funcs
     return ret;
   }
   static int toInt(SourceLoc loc) { return (int)loc; }
+  public:                       // dsw: I need this so I have an object to annotate with a VoidVoidDict
   static bool isStatic(SourceLoc loc) { return toInt(loc) <= 0; }
+  private:
 
   File *findFile(char const *name);
   File *getFile(char const *name);
 
+  public:                       // dsw: I need this so I have an object to annotate with a VoidVoidDict
   File *findFileWithLoc(SourceLoc loc);
+  private:
   StaticLoc const *getStatic(SourceLoc loc);
 
 public:      // funcs
