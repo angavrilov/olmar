@@ -1078,12 +1078,12 @@ nonterm[Enumerator*] EnumeratorDefinition {
 // not used for now
 //nonterm AsmDefinition -> "asm" "(" L2_STRING_LITERAL ")" ";" ;
 
-nonterm[TF_linkage*] LinkageSpecification {
+nonterm[TopForm*] LinkageSpecification {
   -> "extern" n:L2_STRING_LITERAL "{" tu:TranslationUnit "}"
        [ return new TF_linkage(loc, n, tu); ]
 
   -> "extern" n:L2_STRING_LITERAL tf:Declaration
-       [ return new TF_linkage(loc, n, new TranslationUnit(new ASTList<TopForm>(tf))); ]
+       [ return new TF_one_linkage(loc, n, tf); ]
 }
 
 // ------ A.7 Declarators ------

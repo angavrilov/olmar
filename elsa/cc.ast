@@ -72,6 +72,10 @@ class TopForm (SourceLocation loc) {
   
   // linkage specification enclosing a bunch of forms
   -> TF_linkage(StringRef linkageType, TranslationUnit forms);
+  
+  // linkage spec with one form; turns out this has different
+  // semantics [cppstd 7.5 para 7]
+  -> TF_one_linkage(StringRef linkageType, TopForm form);
 }
 
 

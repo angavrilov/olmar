@@ -95,6 +95,8 @@ string toString(DeclFlags df);
 
 inline DeclFlags operator| (DeclFlags f1, DeclFlags f2)
   { return (DeclFlags)((int)f1 | (int)f2); }
+inline DeclFlags& operator|= (DeclFlags &f1, DeclFlags f2)
+  { return f1 = f1 | f2; }
 inline DeclFlags operator& (DeclFlags f1, DeclFlags f2)
   { return (DeclFlags)((int)f1 & (int)f2); }
 inline DeclFlags operator~ (DeclFlags f)

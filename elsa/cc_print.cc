@@ -161,10 +161,20 @@ void TF_template::print(PrintEnv &env)
 }
 
 void TF_linkage::print(PrintEnv &env)
-{
+{         
   env.current_loc = loc;
+  env << "extern \"" << linkageType << "\"";
+  codeout co(env, "", " {\n", "}\n");
   forms->print(env);
 }
+
+void TF_one_linkage::print(PrintEnv &env)
+{
+  env.current_loc = loc;
+  env << "extern \"" << linkageType << "\" ";
+  form->print(env);
+}
+
 
 // --------------------- Function -----------------
 void Function::print(PrintEnv &env)
