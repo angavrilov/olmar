@@ -13,6 +13,8 @@ class GrammarAST (ASTList<TopForm> forms) {
   public TF_terminals *terms;
   public TF_nonterm *firstNT;    // textually first nonterminal
   
+  public bool allowContinuedNonterminals = false;
+  
   ctor { terms=NULL; firstNT=NULL; };
 }
 

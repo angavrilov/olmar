@@ -79,7 +79,7 @@ public:      // data
 
   // maps from a nonterminal name to its declaration, if that
   // nonterminal has in fact been declared already
-  StringSObjDict<TF_nonterm /*const*/> nontermDecls;
+  StringSObjDict<TF_nonterm> nontermDecls;
 
   // count of recoverable errors; only the one in the
   // topmost environment is used

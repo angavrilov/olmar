@@ -281,6 +281,9 @@ void astParseOptions(Grammar &g, GrammarAST *ast)
                               "the `-ocaml' command-line switch.  Please use "
                               "that instead.  (Sorry for the inconvenience.)");
         }
+        else if (name.equals("allow_continued_nonterminals")) {
+          ast->allowContinuedNonterminals = boolVal;
+        }
         else {
           astParseError(name, "unknown option name");
         }
@@ -304,20 +307,36 @@ void astParseGrammar(Grammar &g, GrammarAST *ast)
   // process all nonterminal declarations first, so while we're
   // looking at their bodies we can tell if one isn't declared
   {
-    FOREACH_ASTLIST(TopForm, ast->forms, iter) {
+    FOREACH_ASTLIST_NC(TopForm, ast->forms, iter) {
       if (!iter.data()->isTF_nonterm()) continue;
-      TF_nonterm const *nt = iter.data()->asTF_nontermC();
+      TF_nonterm *nt = iter.data()->asTF_nonterm();
 
       // check for already declared
       if (env.nontermDecls.isMapped(nt->name)) {
-        astParseError(nt->name, "nonterminal already declared");
+        if (!ast->allowContinuedNonterminals) {
+          astParseError(nt->name, "nonterminal already declared");
+        }
+        else {
+          // check for consistent type
+          if (!nt->type.equals(env.nontermDecls.queryf(nt->name)->type)) {
+            astParseError(nt->name, "continued nonterminal with different type");
+          }
+          
+          // just allow it; it seems the parser just iterates over
+          // all the TF_nonterms, and will do the right thing
+          continue;
+        }
       }
 
       // make the Grammar object to represent the new nonterminal
       env.g.getOrMakeNonterminal(nt->name);
 
       // add this decl to our running list (in the original environment)
-      env.nontermDecls.add(nt->name, const_cast<TF_nonterm*>(nt));
+      //
+      // 12/09/04: As far as I can tell, 'nontermDecls' is in fact not
+      // used except for right here, to check whether a nonterminal
+      // declaration is duplicated.
+      env.nontermDecls.add(nt->name, nt);
     }
   }
 
