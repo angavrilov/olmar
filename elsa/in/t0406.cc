@@ -63,6 +63,7 @@ void foo()
   // totally nonexistent type names
   //ERROR(9): x.nonexist::~INT();
   //ERROR(10): x.INT::~nonexist();
+  //ERROR(15): x.nonexist::~nonexist2();
 
   // const qualification
   xc.~INTC();

@@ -4443,6 +4443,141 @@ void Env::checkTemplateKeyword(PQName *name)
 }
 
 
+// For certain lookup cases (e.g., 3.4.3p5, 5.2.4), we must break
+// apart a PQName and reassemble it to form the actual name to lookup.
+// This function takes breaks up 'name', reassables it according to
+// 'flags', does the lookup, and then puts 'name' back the way it was.
+// 
+// 'name' is always qualified, and ends in a destructor ('~') name.
+Variable *Env::lookupPQ_modifiedPQ_one(PQName *name, LookupFlags flags,
+                                       Scope * /*nullable*/ startScope)
+{
+  // break up the qualified name
+  PQ_qualifier *thirdLast=NULL, *secondLast=NULL;
+  PQName *last = name;
+  while (last->isPQ_qualifier()) {
+    // shift
+    thirdLast = secondLast;
+    secondLast = last->asPQ_qualifier();
+    last = secondLast->rest;
+  }
+
+  // this function must be called with a qualified name
+  xassert(secondLast);
+
+  // will put result of lookup here temporarily
+  LookupSet set;
+  
+  // save lookup info in case of error
+  SourceLoc lookupLoc;
+  StringRef lookupName;
+
+  // which kind of modification are we doing?
+  LookupFlags modFlags = flags & LF_MODIFIEDPQ_MASK;
+  LookupFlags otherFlags = flags & ~LF_MODIFIEDPQ_MASK;
+
+  if (modFlags == LF_ALL_BUT_SECONDLAST) {
+    // get a pointer to the name in 'last'
+    StringRef *lastName;
+    if (last->isPQ_name()) {
+      lastName = &(last->asPQ_name()->name);
+    }
+    else /*PQ_template*/ {
+      lastName = &(last->asPQ_template()->name);
+    }
+
+    // the context always has 'last' as the name of a destructor,
+    // but we want to lookup the type; temporarily replace it
+    StringRef origLastName = *lastName;
+    xassert(origLastName[0] == '~');
+    *lastName = str(origLastName+1);
+
+    if (thirdLast) {
+      // patch around 'secondLast'
+      thirdLast->rest = last;
+
+      // do the lookup
+      lookupPQ_withScope(set, name, otherFlags, startScope);
+
+      // repair the original name
+      thirdLast->rest = secondLast;
+    }
+    else {
+      // go directly to 'last'
+      lookupPQ_withScope(set, last, otherFlags, startScope);
+    }
+
+    lookupLoc = last->loc;
+    lookupName = *lastName;
+
+    // undo the removal of '~'
+    *lastName = origLastName;
+  }
+
+  else {
+    xassert(modFlags == LF_ALL_BUT_LAST);
+    lookupLoc = secondLast->loc;
+    lookupName = secondLast->qualifier;
+
+    // 'secondLast' preceded the "::" operator
+    otherFlags |= LF_QUALIFIER_LOOKUP;
+
+    // create a new version of 'secondLast' that is as if it
+    // were the final name in the chain
+    PQName *fakeSecondLast;
+    PQ_template *fakeSecondLastPQT;
+    if (secondLast->targs.isEmpty()) {
+      fakeSecondLastPQT = NULL;
+      fakeSecondLast = new PQ_name(secondLast->loc, secondLast->qualifier);
+    }
+    else {
+      // we can't just pass 'secondLast->args' because that would actually
+      // deallocate them; so start with an empty list and built it manually
+      fakeSecondLastPQT = new PQ_template(secondLast->loc, secondLast->qualifier,
+                                          NULL /*args*/);
+      FOREACH_ASTLIST_NC(TemplateArgument, secondLast->targs, iter) {
+        // temporarily allow 'fakeSecondLast' to share the argument
+        // objects with 'secondLast'
+        fakeSecondLastPQT->args.append(iter.data());
+      }                                             
+      fakeSecondLast = fakeSecondLastPQT;
+    }
+
+    // connect 'fakeSecondLast' in place of 'secondLast', do
+    // the lookup, then repair the original name
+    if (thirdLast) {
+      thirdLast->rest = fakeSecondLast;
+      lookupPQ_withScope(set, name, otherFlags, startScope);
+      thirdLast->rest = secondLast;
+    }
+    else {
+      lookupPQ_withScope(set, fakeSecondLast, otherFlags, startScope);
+    }
+
+    // clean up 'fakeSecondLast'
+    if (fakeSecondLastPQT) {
+      while (fakeSecondLastPQT->args.isNotEmpty())  {
+        // do not delete the arguments; they are still owned by 'secondList'
+        fakeSecondLastPQT->args.removeFirst();
+      }
+    }
+    delete fakeSecondLast;
+  }
+
+  // like the other _one functions
+  Variable *ret = set.isEmpty()? NULL : set.first();
+
+  // for the moment, this is present at both call sites; when I add
+  // two more call sites I may have to modify this
+  if (!ret || !ret->hasFlag(DF_TYPEDEF)) {
+    env.error(lookupLoc, stringc << "no such type: `" << lookupName << "'");
+    return NULL;
+  }
+
+  return ret;
+}
+
+
 // ----------------------- makeQualifiedName -----------------------
 // prepend to 'name' all possible qualifiers, starting with 's'
 PQName *Env::makeFullyQualifiedName(Scope *s, PQName *name)

@@ -344,6 +344,7 @@ The notation "X" means "don't care".
 For each case, this table says which paragraphs of section 3.4.5 of
 the standard are applicable:
 
+  col:  1   2     3     4      5
   LHS:  X   class class scalar scalar
   ICC:  yes no    no    no     no
   QUAL: X   yes   no    yes    no
@@ -354,6 +355,7 @@ the standard are applicable:
         5   4     2,7   E      E      operator (type-id)               (4)
         5   4     1,2   E      E      identifier < targs >             (5)
         5   4     2*    E      E      'template' identifier < targs >  (6)
+        5   4     2     E      E      ~ identifier < targs >           (7)
 
 The code 'E' means it is a syntax error.
 
@@ -372,8 +374,11 @@ generalize paragraph 1 in the obvious way, respecting which paragraph
 specifies how to lookup the qualified name.
 
 Note: Paragraph 6 (type checking template arguments in the scope where
-the E_fieldAcc occurs) potentially applies to all columns with a
-qualifier, and the last two rows.
+the E_fieldAcc occurs) potentially applies to columns 1, 2 and 4, and
+rows 5, 6 and 7.
+
+Section 3.4.3 (qualified lookup) is also relevant.  3.4.3p4 applies
+to column 1, and 3.4.3p5 applies to columns 1 and 2.
 
 So, given all of the above, the procedure for resolving the RHS of
 an E_fieldAcc is:
@@ -399,7 +404,8 @@ an E_fieldAcc is:
      
   The remaining procedure is for class-typed LHSs.  Call the class C.
 
-  3. If ICC is present (3.4.5p5), perform qualified lookup of the RHS.
+  3. If ICC is present (3.4.5p5), let N be the global scope.  Go to
+     step 5.
 
   4. If ICC is not present but QUAL is present (3.4.5p4), call the
      first qualifier in the sequence Q.  (Does this apply if Q is
@@ -411,28 +417,37 @@ an E_fieldAcc is:
      4b. Lookup Q in C.  If found, this must be a class.
      4c. If lookups 4a and 4b both succeed, they must name the same
          class N.  If only one succeeds, call its result N.  If neither
-         succeeds, report error.
-     4d. Do qualified lookup of the remainder of the RHS, with Q already
-         resolved to mean N.
+         succeeds, report error.       
 
-  5. If neither ICC nor QUAL are present (3.4.5p1,2,3):
+  5. Given the computed initial scope N above, divide the RHS:
 
-     5a. If FIELD is case 1, 3, 5 or 6 (3.4.5p2), lookup FIELD in C.
+       N :: leading-qualifiers :: final-qualifier :: FIELD
 
-     5b. If FIELD is case 2 (3.4.5p3):
+     (3.4.3p4)  Do qualified lookup of leading-qualifiers, starting in
+     scope N.  Call the result LQ.  Lookup final-qualifier in LQ; call
+     the result FQ.
+
+     5a. If FQ is a namespace, lookup FIELD in FQ.
+     5b. If FQ is a class, lookup FIELD in LQ.
+
+  6. If neither ICC nor QUAL are present (3.4.5p1,2,3):
+
+     6a. If FIELD is case 1, 3, 5 or 6 (3.4.5p2), lookup FIELD in C.
+
+     6b. If FIELD is case 2 (3.4.5p3):
            - Perform unqualified lookup of the identifier.
            - Lookup the identifier in C.
          The lookups must yield a class, the same class if they both
          succeed.
-         
-     5c. If FIELD is case 4 (3.4.5p7):
+
+     6c. If FIELD is case 4 (3.4.5p7):
            - Perform unqualified lookup of the type.
            - Lookup the type in C.
          *Both* must succeed, and name the same type.
-         
+
          Actually, this applies even to qualified names (3.4.3.1p1).
 
-  6. Having looked up the FIELD, it must name a nonempty set of members
+  7. Having looked up the FIELD, it must name a nonempty set of members
      of C, or a nonempty set of members of one of C's base classes.  If
      the set contains more than one element, overload resolution will
      happen later, depending on the local syntactic context of this
