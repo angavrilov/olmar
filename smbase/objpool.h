@@ -51,11 +51,17 @@ public:      // funcs
   // calls obj->deinit()
   inline void dealloc(T *obj);
 
-  // same as 'dealloc', but with the call to 'deinit'
+  // same as 'dealloc', but without the call to 'deinit'
   inline void deallocNoDeinit(T *obj);
 
   // available for diagnostic purposes
   int freeObjectsInPool() const;
+  
+  // low-level access for heavily-optimized client code; clients that
+  // use these functions accept the burden of possibly needing to
+  // change if internals of ObjectPool change
+  T *private_getHead() { return head; }
+  void private_setHead(T *h) { head = h; }
 };
 
 
