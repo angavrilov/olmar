@@ -1002,6 +1002,13 @@ bool BaseType::isSimple(SimpleTypeId id) const
          asSimpleTypeC()->type == id;
 }
 
+bool BaseType::isStringType() const
+{
+  return isArrayType() &&
+    (asArrayTypeC()->eltType->isSimpleCharType() ||
+     asArrayTypeC()->eltType->isSimpleWChar_tType());
+}
+
 bool BaseType::isIntegerType() const
 {
   return isSimpleType() &&
