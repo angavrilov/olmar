@@ -26,7 +26,13 @@
 // 32-bit aligned boundaries.
 
 // 3) Could be made to work faster if the strings start AND end on
-// 32-bit aligned boundaries and are padded out with NUL-s.
+// 32-bit aligned boundaries and are padded out with NUL-s.  Actually,
+// if we do this trick, then the code becomes portable with no
+// #ifdef-s !  All you do is cast the array to an array of ints and
+// then test for termination by masking off all but the last 8 bits.
+// Everything else is just operations on ints.  You might want to pick
+// 64-bit primes, but they will work in 32-bit mode as long as the
+// compiler just truncates their high bits off.
 
 // ****************
 
