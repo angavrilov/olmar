@@ -193,6 +193,7 @@ void TF_func::printExtras(ostream &os, int indent) const
 {
   printSObjList(os, indent, "params", params, varName);
   printSObjList(os, indent, "locals", locals, varName);
+  printSObjList(os, indent, "globalRefs", globalRefs, varName);
   printSObjList(os, indent, "roots", roots, stmtLoc);
 }
 
@@ -1038,9 +1039,18 @@ Type const *E_variable::itcheck(Env &env)
   // connect this name reference to its binding introduction
   var = v;
 
-  if ((v->flags & DF_LOGIC) &&
+  if (v->hasFlag(DF_LOGIC) &&
       !env.inPredicate) {
     env.err(stringc << name << " cannot be referenced outside a predicate");
+  }
+
+  // if this is a global, annotate the current function to say
+  // it is referenced
+  if (v->hasFlag(DF_GLOBAL)) {
+    TF_func *f = env.getCurrentFunction();
+    if (f) {                          // might not be in a function 
+      f->globalRefs.appendUnique(v);    // append if not already present
+    }
   }
 
   // see makeReference's definition above
