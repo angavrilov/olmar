@@ -184,12 +184,29 @@ void TF_explicitInst::itcheck(Env &env)
   }
 }
 
+void applyExternC(TopForm *form, DeclFlags flags)
+{
+  ASTSWITCH(TopForm, form) {
+    ASTCASE(TF_decl, d)   d->decl->dflags |= flags;
+    ASTNEXT(TF_func, f)   f->f->dflags |= flags;
+    // just ignore other forms
+    ASTDEFAULT
+    ASTENDCASE
+  }
+}
+
 void TF_linkage::itcheck(Env &env)
-{  
+{
   env.setLoc(loc);
 
-  // set the linkage type for the duration of this form
-  Restorer<StringRef> restorer(env.currentLinkage, linkageType);
+  // dig down and apply DF_EXTERN_C to each form; this is preferable
+  // to a flag in Env because this way I can be sure that DF_EXTERN_C
+  // will only be applied to toplevel symbols
+  if (linkageType == env.quote_C_quote) {
+    FOREACH_ASTLIST_NC(TopForm, forms->topForms, iter) {
+      applyExternC(iter.data(), DF_EXTERN_C);
+    }
+  }
 
   forms->tcheck(env);
 }
@@ -198,21 +215,14 @@ void TF_one_linkage::itcheck(Env &env)
 {
   env.setLoc(loc);
 
-  // set the linkage type for the duration of this form
-  Restorer<StringRef> restorer(env.currentLinkage, linkageType);
-
   // we need to dig down into the form to apply 'extern'
   // [cppstd 7.5 para 7]
-  ASTSWITCH(TopForm, form) {
-    ASTCASE(TF_decl, d)   d->decl->dflags |= DF_EXTERN;
-    ASTNEXT(TF_func, f)   f->f->dflags |= DF_EXTERN;   // legal?  let Function catch it if not
-    ASTDEFAULT
-      // template, or another 'extern "C"'!
-      env.unimp(stringc
-        << "weird use of 'extern \"" << linkageType << "\"'");
-    ASTENDCASE
+  DeclFlags toApply = DF_EXTERN;
+  if (linkageType == env.quote_C_quote) {
+    toApply |= DF_EXTERN_C;
   }
-  
+  applyExternC(form, toApply);
+
   // typecheck the underlying form
   form->tcheck(env);
 }
@@ -2391,10 +2401,12 @@ realStart:
     return env.makeVariable(loc, NULL, dt.type, dt.dflags);
   }
 
+  #if 0    // problematic since applies to too many things
   // C linkage?
   if (env.linkageIs_C()) {
     dt.dflags |= DF_EXTERN_C;
   }
+  #endif // 0
 
   // friend?
   bool isFriend = (dt.dflags & DF_FRIEND);
@@ -6260,6 +6272,18 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
 
     // 10.2p2: must not ambiguously refer to fields of distinct
     // subobjects
+    //
+    // Scope::lookupPQVariable_considerBase has some overlapping
+    // functionality.  It seems to me that the check here should
+    // subsume the one in Scope, and furthermore I think *both*
+    // implementations may have subtle bugs, but I can't figure out a
+    // test that would properly reveal where the bugs/differences are
+    // (this is just a confusing part of the spec).  So, for the
+    // moment, the functionality remains duplicated.
+    //
+    // For example, I suspect that 'subobjs>1' is too crude because it
+    // does not take into account the notion of "hiding" defined in
+    // 10.2p2.
     if (!v->hasFlag(DF_STATIC) && subobjs>1) {
       return env.error(fieldName->loc, stringc
         << "field `" << *fieldName << "' ambiguously refers to "

@@ -353,8 +353,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
     tunit(tunit0),
 
-    currentLinkage(quote_C_plus_plus_quote),
-    
     doFunctionTemplateBodyInstantiation(!tracingSys("disableFBodyInst")),
                           
     // this can be turned off with its own flag, or in C mode (since I

@@ -182,9 +182,6 @@ public:      // data
   // TODO: eliminate this!
   TranslationUnit *tunit;
                 
-  // current linkage type, as a string literal like "C" or "C++"
-  StringRef currentLinkage;
-
   // when true, function template bodies are instantiated
   bool doFunctionTemplateBodyInstantiation;
 
@@ -615,9 +612,6 @@ public:      // funcs
   // subsequent overload resolution needs to pick from the set, before
   // de-aliasing happens
   Variable *storeVarIfNotOvl(Variable *var);
-
-  // true if the current linkage type is "C"
-  bool linkageIs_C() const { return currentLinkage == quote_C_quote; }
 
   // points of extension: These functions do nothing in the base
   // Elsa parser, but can be overridden in client analyses to
