@@ -762,7 +762,7 @@ appear is irrelevant; only the numbers matter.  Operators with the
 same precedence are resolved using associativity, typically either
 "<tt>left</tt>" or "<tt>right</tt>".  See the 
 <a href="manual.html">manual</a>
-(TODO: where?) for more information.
+(Section 7) for more information.
 
 <p>Now, <tt>elkhound</tt> reports no LR conflicts, which implies
 the grammar is unambiguous (though the converse is not true: the
@@ -1183,7 +1183,7 @@ no conflict.
 
 <p>Digression: Notice the difference between a parse tree and an AST.
 In the AST, we do not need nodes for the grouping parentheses (they
-are only an aid to the parser), and we are free to consolide similar
+are only an aid to the parser), and we are free to consolidate similar
 nodes like the binary arithmetic expressions.  In general, the AST
 should reflect semantics more than syntax, whereas the parse tree
 necessarily reflects the syntax directly.  A good AST design is a key

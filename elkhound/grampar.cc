@@ -494,6 +494,9 @@ void astParseDDM(Environment &env, Symbol *sym,
       if (numFormals != 1) {
         astParseError(func.name, "'dup' function must have one formal parameter");
       }
+      if (sym->dupParam) {
+        astParseError(func.name, "duplicate 'dup' function");
+      }
       sym->dupParam = func.nthFormal(0);
       sym->dupCode = func.code;
     }
@@ -510,6 +513,10 @@ void astParseDDM(Environment &env, Symbol *sym,
       else {
         astParseError(func.name, "'del' function must have either zero or one formal parameters");
       }
+
+      if (sym->delCode) {
+        astParseError(func.name, "duplicate 'del' function");
+      }
       sym->delCode = func.code;
     }
 
@@ -517,6 +524,9 @@ void astParseDDM(Environment &env, Symbol *sym,
       if (nonterm) {
         if (numFormals != 2) {
           astParseError(func.name, "'merge' function must have two formal parameters");
+        }
+        if (nonterm->mergeParam1) {
+          astParseError(func.name, "duplicate 'merge' function");
         }
         nonterm->mergeParam1 = func.nthFormal(0);
         nonterm->mergeParam2 = func.nthFormal(1);
@@ -532,6 +542,9 @@ void astParseDDM(Environment &env, Symbol *sym,
         if (numFormals != 1) {
           astParseError(func.name, "'keep' function must have one formal parameter");
         }
+        if (nonterm->keepParam) {
+          astParseError(func.name, "duplicate 'keep' function");
+        }
         nonterm->keepParam = func.nthFormal(0);
         nonterm->keepCode = func.code;
       }
@@ -545,6 +558,9 @@ void astParseDDM(Environment &env, Symbol *sym,
         if (numFormals != 1) {
           astParseError(func.name, "'classify' function must have one formal parameter");
         }
+        if (term->classifyParam) {
+          astParseError(func.name, "duplicate 'classify' function");
+        }
         term->classifyParam = func.nthFormal(0);
         term->classifyCode = func.code;
       }
@@ -555,6 +571,9 @@ void astParseDDM(Environment &env, Symbol *sym,
 
     else if (func.name.equals("maximal")) {
       if (nonterm) {
+        if (nonterm->maximal) {
+          astParseError(func.name, "duplicate 'maximal' declaration");
+        }
         nonterm->maximal = true;     // function body has no meaning
       }
       else {
