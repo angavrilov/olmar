@@ -129,6 +129,8 @@ public:     // funcs
   static bool pointerEqualKeyFn(void const *key1, void const *key2);
 };
 
+unsigned lcprngTwoSteps(unsigned v);
+
 
 // iterate over all stored values in a HashTable
 // NOTE: you can't change the table while an iter exists

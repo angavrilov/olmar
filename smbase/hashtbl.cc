@@ -237,18 +237,21 @@ STATICDEF void const *HashTable::identityKeyFn(void *data)
   return data;
 }
 
-STATICDEF unsigned HashTable::lcprngHashFn(void const *key)
+unsigned lcprngTwoSteps(unsigned v)
 {
-  unsigned ret = (unsigned)key;
-
   // this is the core of the LC PRNG in one of the many libcs
   // running around the net
-  ret = (ret * 1103515245) + 12345;
+  v = (v * 1103515245) + 12345;
 
   // do it again for good measure
-  ret = (ret * 1103515245) + 12345;
+  v = (v * 1103515245) + 12345;
 
-  return ret;
+  return v;
+}
+
+STATICDEF unsigned HashTable::lcprngHashFn(void const *key)
+{
+  return lcprngTwoSteps((unsigned)key);
 }
 
 STATICDEF bool HashTable::
