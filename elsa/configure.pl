@@ -11,6 +11,7 @@ $debug = 0;
 $SMBASE = "../smbase";
 $AST = "../ast";
 $ELKHOUND = "../elkhound";
+$USE_GNU = "yes";
 
 
 sub usage {
@@ -21,6 +22,7 @@ options:
   -debug,-nodebug:   enable/disable debugging options [disabled]
   -prof              enable profiling
   -devel             add options useful while developing
+  -gnu=yes/no        enable or disable GNU extensions [enabled]
   <op>:              add a given option to the gcc command line,
                        including forms: -W*, -D*, -O*
   -smbase=<dir>:     specify where the smbase library is [$SMBASE]
@@ -77,6 +79,9 @@ while (@ARGV) {
   }
   elsif (($tmp) = ($arg =~ m/^-elkhound=(.*)$/)) {
     $ELKHOUND = $tmp;
+  }
+  elsif (($tmp) = ($arg =~ m/^-gnu=(.*)$/)) {
+    $USE_GNU = $tmp;
   }
 
   else {
@@ -151,6 +156,7 @@ Compile flags:
   SMBASE:      $SMBASE
   AST:         $AST
   ELKHOUND:    $ELKHOUND
+  USE_GNU:     $USE_GNU
 
 EOF
 
@@ -194,6 +200,7 @@ sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
     -e "s|\@SMBASE\@|$SMBASE|g" \\
     -e "s|\@AST\@|$AST|g" \\
     -e "s|\@ELKHOUND\@|$ELKHOUND|g" \\
+    -e "s|\@USE_GNU\@|$USE_GNU|g" \\
   <Makefile.in >>Makefile || exit
 
 # discourage editing
