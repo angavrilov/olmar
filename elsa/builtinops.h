@@ -11,6 +11,7 @@ class Type;                // cc_type.h
 class Variable;            // variable.h
 class Env;                 // cc_env.h
 class OverloadResolver;    // overload.h
+class ArgumentInfo;        // overload.h
 
 
 // a set of candidates, usually one line of 13.6; since many of the
@@ -24,7 +25,7 @@ public:      // funcs
   // instantiate the pattern as many times as necessary, given the
   // argument types 'lhsType' and 'rhsType'
   virtual void instantiateBinary(Env &env, OverloadResolver &resolver,
-    OverloadableOp op, Type *lhsType, Type *rhsType)=0;
+    OverloadableOp op, ArgumentInfo &lhsInfo, ArgumentInfo &rhsInfo)=0;
 };
    
 
@@ -38,7 +39,7 @@ public:      // funcs
   PolymorphicCandidateSet(Variable *v);
 
   virtual void instantiateBinary(Env &env, OverloadResolver &resolver,
-    OverloadableOp op, Type *lhsType, Type *rhsType);
+    OverloadableOp op, ArgumentInfo &lhsInfo, ArgumentInfo &rhsInfo);
 };
 
 
@@ -118,7 +119,7 @@ public:      // funcs
   ~PredicateCandidateSet();
 
   virtual void instantiateBinary(Env &env, OverloadResolver &resolver,
-    OverloadableOp op, Type *lhsType, Type *rhsType);
+    OverloadableOp op, ArgumentInfo &lhsInfo, ArgumentInfo &rhsInfo);
 };
 
 
@@ -131,7 +132,7 @@ public:      // funcs
   AssignmentCandidateSet(SimpleTypeId retId, PreFilter pre, PostFilter post);
 
   virtual void instantiateBinary(Env &env, OverloadResolver &resolver,
-    OverloadableOp op, Type *lhsType, Type *rhsType);
+    OverloadableOp op, ArgumentInfo &lhsInfo, ArgumentInfo &rhsInfo);
 };
 
 
@@ -192,7 +193,7 @@ public:     // funcs
   ~ArrowStarCandidateSet();
 
   virtual void instantiateBinary(Env &env, OverloadResolver &resolver,
-    OverloadableOp op, Type *lhsType, Type *rhsType);
+    OverloadableOp op, ArgumentInfo &lhsInfo, ArgumentInfo &rhsInfo);
 };
 
 

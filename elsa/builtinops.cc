@@ -18,7 +18,7 @@ PolymorphicCandidateSet::PolymorphicCandidateSet(Variable *v)
 {}
 
 void PolymorphicCandidateSet::instantiateBinary(Env &env,
-  OverloadResolver &resolver, OverloadableOp op, Type *lhsType, Type *rhsType)
+  OverloadResolver &resolver, OverloadableOp op, ArgumentInfo &lhsInfo, ArgumentInfo &rhsInfo)
 {
   // polymorphic candidates are easy
   resolver.processCandidate(poly);
@@ -84,7 +84,8 @@ void getConversionOperatorResults(Env &env, SObjList<Type> &dest, Type *t)
 }
 
 void PredicateCandidateSet::instantiateBinary(Env &env,
-  OverloadResolver &resolver, OverloadableOp op, Type *lhsType, Type *rhsType)
+  OverloadResolver &resolver, OverloadableOp op, 
+  ArgumentInfo &lhsInfo, ArgumentInfo &rhsInfo)
 {
   // for this to overflow, I'd have to do 2^31 instantiations in a
   // single translation unit, which is very unlikely since the AST
@@ -119,8 +120,8 @@ void PredicateCandidateSet::instantiateBinary(Env &env,
 
   // collect all of the operator functions rettypes from lhs and rhs
   SObjList<Type> lhsRets, rhsRets;
-  getConversionOperatorResults(env, lhsRets, lhsType);
-  getConversionOperatorResults(env, rhsRets, rhsType);
+  getConversionOperatorResults(env, lhsRets, lhsInfo.type);
+  getConversionOperatorResults(env, rhsRets, rhsInfo.type);
 
   // consider all pairs of conversion results
   SFOREACH_OBJLIST_NC(Type, lhsRets, lhsIter) {
@@ -137,9 +138,22 @@ void PredicateCandidateSet::instantiateBinary(Env &env,
       if (wasAmbig) {
         addAmbigCandidate(env, resolver, op);
       }
-      else if (lub && post(lub)) {
-        // instantiate with this type
-        instantiateCandidate(env, resolver, op, lub);
+      else {
+        if (!lub) {
+          // 9/23/04: if either argument is "special" (like 0) I need
+          // to relax the LUB rules
+          if (rhsInfo.special == SE_ZERO && lhsRet->isPointerType()) {
+            lub = lhsRet;
+          }
+          else if (lhsInfo.special == SE_ZERO && rhsRet->isPointerType()) {
+            lub = rhsRet;
+          }
+        }
+
+        if (lub && post(lub)) {
+          // instantiate with this type
+          instantiateCandidate(env, resolver, op, lub);
+        }
       }
     }
   }
@@ -221,13 +235,14 @@ AssignmentCandidateSet::AssignmentCandidateSet(SimpleTypeId retId, PreFilter r, 
 
 
 void AssignmentCandidateSet::instantiateBinary(Env &env,
-  OverloadResolver &resolver, OverloadableOp op, Type *lhsType, Type *)
+  OverloadResolver &resolver, OverloadableOp op, 
+  ArgumentInfo &lhsInfo, ArgumentInfo &/*rhsInfo*/)
 {
   generation++;
 
   // collect all of the operator functions rettypes
   SObjList<Type> lhsRets;
-  getConversionOperatorResults(env, lhsRets, lhsType);
+  getConversionOperatorResults(env, lhsRets, lhsInfo.type);
 
   // consider conversion results
   SFOREACH_OBJLIST_NC(Type, lhsRets, lhsIter) {
@@ -302,7 +317,7 @@ ArrowStarCandidateSet::~ArrowStarCandidateSet()
 //   CV12 T& operator->* (CV1 C1 *, CV2 T C2::*);
 // by finding instantiation pairs (C1,C2)
 void ArrowStarCandidateSet::instantiateBinary(Env &env,
-  OverloadResolver &resolver, OverloadableOp op, Type *lhsType, Type *rhsType)
+  OverloadResolver &resolver, OverloadableOp op, ArgumentInfo &lhsInfo, ArgumentInfo &rhsInfo)
 {
   xassert(op == OP_ARROW_STAR);
   generation++;
@@ -314,8 +329,8 @@ void ArrowStarCandidateSet::instantiateBinary(Env &env,
 
   // collect all of the operator functions rettypes from lhs and rhs
   SObjList<Type> lhsRets, rhsRets;
-  getConversionOperatorResults(env, lhsRets, lhsType);
-  getConversionOperatorResults(env, rhsRets, rhsType);
+  getConversionOperatorResults(env, lhsRets, lhsInfo.type);
+  getConversionOperatorResults(env, rhsRets, rhsInfo.type);
 
   // consider all pairs of conversion results
   SFOREACH_OBJLIST_NC(Type, lhsRets, lhsIter) {

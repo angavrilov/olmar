@@ -426,11 +426,11 @@ void OverloadResolver::addBuiltinUnaryCandidates(OverloadableOp op)
 
 
 void OverloadResolver::addBuiltinBinaryCandidates(OverloadableOp op,
-  Type *lhsType, Type *rhsType)
+  ArgumentInfo &lhsInfo, ArgumentInfo &rhsInfo)
 {
   ObjArrayStack<CandidateSet> &builtins = env.builtinBinaryOperator[op];
   for (int i=0; i < builtins.length(); i++) {
-    builtins[i]->instantiateBinary(env, *this, op, lhsType, rhsType);
+    builtins[i]->instantiateBinary(env, *this, op, lhsInfo, rhsInfo);
   }
 }
 

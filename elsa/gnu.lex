@@ -38,14 +38,31 @@
   }
 }
 
-  /* hex floating literal: This is actually a C99-ism
-  http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Hex-Floats.html#Hex%20Floats
+  /* hex floating literal: This is actually a C99-ism.
+     See http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Hex-Floats.html
+     and C99 6.4.4.2.
   */
 [0][xX]{HEXDIGITS}"."{HEXDIGITS}?[pP]{SIGN}?{DIGITS}{FLOAT_SUFFIX}?   |
-[0][xX]{HEXDIGITS}"."?[pP]{SIGN}?{DIGITS}{FLOAT_SUFFIX}?	    |
-[0][xX]"."{HEXDIGITS}[pP]{SIGN}?{DIGITS}{FLOAT_SUFFIX}?	    {
+[0][xX]{HEXDIGITS}"."?[pP]{SIGN}?{DIGITS}{FLOAT_SUFFIX}?              |
+[0][xX]"."{HEXDIGITS}[pP]{SIGN}?{DIGITS}{FLOAT_SUFFIX}?               {
   return svalTok(TOK_FLOAT_LITERAL);
 }
+
+  /* malformed hex literal: missing 'p' */
+[0][xX]{HEXDIGITS}"."{HEXDIGITS}?     |
+[0][xX]"."{HEXDIGITS}?                {
+  err("hex literal missing 'p'");
+  return svalTok(TOK_FLOAT_LITERAL);
+}
+
+  /* malformed hex literal: no digits after 'p' */
+[0][xX]{HEXDIGITS}"."{HEXDIGITS}?[pP]{SIGN}?       |
+[0][xX]{HEXDIGITS}"."?[pP]{SIGN}?                  |
+[0][xX]"."{HEXDIGITS}[pP]{SIGN}?                   {
+  err("hex literal must have digits after 'p'");
+  return svalTok(TOK_FLOAT_LITERAL);
+}
+
 
 "__extension__" {
   /* treat this like a token, in that nonseparating checks are done,

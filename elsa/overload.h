@@ -171,7 +171,7 @@ public:      // funcs
   // instantiate built-in candidates
   void addBuiltinUnaryCandidates(OverloadableOp op);
   void addBuiltinBinaryCandidates(OverloadableOp op,
-    Type *lhsType, Type *rhsType);
+    ArgumentInfo &lhsInfo, ArgumentInfo &rhsInfo);
 
   // run the tournament to decide among the candidates; returns
   // NULL if there is no clear winner

@@ -5562,7 +5562,7 @@ Type *resolveOverloadedBinaryOperator(
     resolver.addUserOperatorCandidates(e1->type, opName);
 
     // built-in candidates
-    resolver.addBuiltinBinaryCandidates(op, args[0].type, args[1].type);
+    resolver.addBuiltinBinaryCandidates(op, args[0], args[1]);
 
     // pick one
     bool dummy;
