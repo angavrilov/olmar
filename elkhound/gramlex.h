@@ -22,8 +22,9 @@
 #define TOK_INCLUDE 1         // not seen by parser
 
 
-// other includes..
+// other includes
 #include "str.h"              // string
+#include "objlist.h"          // ObjList
 
 
 // this class just holds the lexer state so it is properly encapsulated
@@ -31,30 +32,48 @@
 class GrammarLexer : public yyFlexLexer {
 public:      // types
   enum Constants {
-    firstColumn = 1,           // how to number the columns
-    firstLine = 1,             // and lines
+    firstColumn = 1,               // how to number the columns
+    firstLine = 1,                 // and lines
+    lexBufferSize = 4096,          // size of new lex buffers
   };
 
 private:     // data
-  int line, column;            // for reporting errors
+  // state of a file we were or are lexing
+  struct FileState {
+    string fname;                  // file name
+    istream *source;               // (owner?) source stream
+    int line, column;              // textual position in file
+    yy_buffer_state *bufstate;     // (owner?) flex's internal buffer state
+
+  public:
+    FileState(char const *fname, istream *source);
+    ~FileState();
+
+    FileState(FileState const &obj);
+    FileState& operator= (FileState const &obj);
+  };
+
+  FileState fileState;             // state for file we're lexing now
+  ObjList<FileState> fileStack;    // stack of files we will return to
 
 public:      // data
-  int commentStartLine;        // for reporting unterminated C comments
-  int integerLiteral;          // to store number literal value
-  string stringLiteral;        // string in quotes, minus the quotes
-  string includeFileName;      // name in an #include directive
+  int commentStartLine;            // for reporting unterminated C comments
+  int integerLiteral;              // to store number literal value
+  string stringLiteral;            // string in quotes, minus the quotes
+  string includeFileName;          // name in an #include directive
 
   // defined in the base class, FlexLexer:
   //   const char *YYText();           // start of matched text
   //   int YYLeng();                   // number of matched characters
 
 private:     // funcs
-  void newLine();              // called when a newline is encountered
+  void newLine();                  // called when a newline is encountered
 
 public:      // funcs
   // create a new lexer that will read from to named stream,
   // or stdin if it is NULL
-  GrammarLexer(istream *source = NULL);
+  GrammarLexer(char const *fname = "<stdin>",
+               istream * /*owner*/ source = NULL);
 
   // clean up
   ~GrammarLexer();
@@ -64,11 +83,16 @@ public:      // funcs
   int curLen() const { return const_cast<GrammarLexer*>(this)->YYLeng(); }
 
   // read the next token and return its code; returns TOK_EOF for end of file;
-  // this function is defined in flex's output
+  // this function is defined in flex's output source code; this one
+  // *does* return TOK_INCLUDE
   virtual int yylex();
 
+  // similar to yylex, but process TOK_INCLUDE internally
+  int yylexInc();
+
   // info about location of current token
-  int curLine() const { return line; }
+  string const &curFname() const { return fileState.fname; }
+  int curLine() const { return fileState.line; }
   int curCol() const;
   string curLoc() const;              // string containing line/col of current token
 
@@ -77,6 +101,11 @@ public:      // funcs
   void errorUnterminatedComment();
   void errorMalformedInclude();
   void errorIllegalCharacter(char ch);
+
+  // for processing includes
+  void recursivelyProcess(char const *fname, istream * /*owner*/ source);
+  void popRecursiveFile();
+  bool hasPendingFiles() const;
 };
 
 

@@ -28,6 +28,7 @@ enum ASTTypeCode {
   AST_NTBODY,            // list of nonterminal body elements
   AST_ATTR,              // attribute decl: name
   AST_FORM,              // form: rhs, [formbody]
+  AST_RHSALTS,           // list of ALT_RHSs
   AST_RHS,               // list of RHS elements
   AST_TAGGEDNAME,        // tagged name: tag, name
 

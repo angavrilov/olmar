@@ -1,6 +1,6 @@
 # .gdbinit
 
-file grampar
+file gramlex
 #set args -tr progress,ambiguities cc.gr cc.in1
 
 #file lexer1
@@ -8,5 +8,5 @@ file grampar
 
 break main
 break breaker
-run < cexp2.gr
+run < gramlex.in1
 

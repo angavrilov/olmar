@@ -1,0 +1,10 @@
+// gramlex.in2
+// test file inclusion
+
+some stuff
+
+3+4
+
+{ include("gramlex.in3") }
+
+end of gramlex.in2

@@ -3,9 +3,9 @@
 
 foo bar(5);
 
-#include "a filename"
+include("a filename")
 
-#include "something unterminated
+include("something unterminated
 
 !    // illegal character
 

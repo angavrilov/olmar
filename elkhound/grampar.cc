@@ -106,9 +106,16 @@ ObjList<ASTNode> const &childList(ASTNode const *n, int c, int type)
   { return nodeList(nthChild(n, c), type); }
 
 
+// really a static semantic error, more than a parse error..
+void astParseError(ASTNode const *node, char const *msg)
+{
+  xfailure(stringc << node->toString() << ": " << msg);
+}
+
+
 // to put at the end of a switch statement after all the
 // legal types have been handled
-#define END_TYPE_SWITCH default: xfailure("bad type");
+#define END_TYPE_SWITCH(node) default: astParseError(node, "bad type") /* user ; */
 
 
 void astParseGrammar(Grammar &g, ASTNode const *treeTop)
@@ -142,7 +149,7 @@ void astParseGrammar(Grammar &g, ASTNode const *treeTop)
           }
 
           if (!ok) {
-            xfailure(stringc << "token `" << name << "' already declared");
+            astParseError(node, "token already declared");
           }
         }
         break;
@@ -161,7 +168,7 @@ void astParseGrammar(Grammar &g, ASTNode const *treeTop)
         break;
       }
 
-      END_TYPE_SWITCH
+      END_TYPE_SWITCH(node);
     }
   }
 }
@@ -188,7 +195,7 @@ void astParseNonterm(Environment &env, Nonterminal *nt,
         break;
       }
 
-      END_TYPE_SWITCH
+      END_TYPE_SWITCH(node);
     }
   }
 }
@@ -223,7 +230,7 @@ void astParseFormgroup(Environment &prevEnv, Nonterminal *nt,
         astParseFormgroup(env, nt, nodeList(node, AST_FORMGROUPBODY));
         break;
 
-      END_TYPE_SWITCH
+      END_TYPE_SWITCH(node);
     }
   }
 }
@@ -234,92 +241,136 @@ void astParseForm(Environment &env, Nonterminal *nt,
 {
   xassert(formNode->type == AST_FORM);
 
-  // build a production; use 'this' as the tag for LHS elements
-  Production *prod = new Production(nt, "this");
+  // every alternative separated by "|" requires the entire treatment
+  FOREACH_OBJLIST(ASTNode, childList(formNode, 0, AST_RHSALTS), altIter) {
+    ASTNode const *rhsListNode = altIter.data();
 
-  // first, deal with RHS of "->"
-  FOREACH_OBJLIST(ASTNode, childList(formNode, 0, AST_RHS), iter) {
-    ASTNode const *n = iter.data();
-    switch (n->type) {
-      case AST_NAME:
-        prod->append(env.g.getOrMakeSymbol(nodeName(n)), NULL /*tag*/);
-        break;
+    // build a production; use 'this' as the tag for LHS elements
+    Production *prod = new Production(nt, "this");
 
-      case AST_TAGGEDNAME:
-        prod->append(env.g.getOrMakeSymbol(childName(n, 1)),   // name
-                     childName(n, 0));                         // tag
-        break;
-
-      case AST_STRING:
-        prod->append(env.g.getOrMakeSymbol(nodeString(n)), NULL /*tag*/);
-        break;
-
-      END_TYPE_SWITCH
-    }
-  }
-
-  // after constructing the production we need to do this
-  prod->finished();
-
-  // deal with formBody
-  if (formNode->asInternalC().numChildren() == 2) {
-    // iterate over form body elements
-    FOREACH_OBJLIST(ASTNode, childList(formNode, 1, AST_FORMBODY), iter) {
+    // first, deal with RHS elements
+    FOREACH_OBJLIST(ASTNode, nodeList(rhsListNode, AST_RHS), iter) {
       ASTNode const *n = iter.data();
+      string symName;
+      string symTag;
+      bool tagValid = false;
       switch (n->type) {
-        case AST_ACTION:
-          prod->actions.actions.append(
-            astParseAction(env, prod, n));
+        case AST_NAME:
+          symName = nodeName(n);
           break;
-
-        case AST_CONDITION:
-          prod->conditions.conditions.append(
-            astParseCondition(env, prod, n));
+          
+        case AST_TAGGEDNAME:
+          symName = childName(n, 1);
+          symTag = childName(n, 0);
+          tagValid = true;
           break;
-
-        END_TYPE_SWITCH
+          
+        case AST_STRING:
+          symName = nodeString(n);
+          break;
+          
+        END_TYPE_SWITCH(n);
       }
+      
+      // see which (if either) thing this name already is
+      Terminal *term = env.g.findTerminal(symName);
+      Nonterminal *nonterm = env.g.findNonterminal(symName);
+      xassert(!( term && nonterm ));     // better not be both!
+
+      // some syntax rules
+      if (n->type == AST_TAGGEDNAME  &&  term) {
+        astParseError(n, "can't tag a terminal");
+      }
+
+      if (n->type == AST_STRING  &&  !term) {
+        astParseError(n, "terminals must be declared");
+      }
+
+      // decide which symbol to put in the production
+      Symbol *s;
+      if (nonterm) {
+        s = nonterm;            // could do these two with a bitwise OR
+      }                         // if I were feeling extra clever today
+      else if (term) {
+        s = term;
+      }
+      else {
+        // not declared as either; I require all tokens to be
+        // declared, so this must be a new nonterminal
+        s = env.g.getOrMakeNonterminal(symName);
+      }
+
+      // add it to the production
+      prod->append(s, tagValid? (char const*)symTag : (char const*)NULL);
     }
-  }
 
-  // grab actions from the environment
-  FOREACH_OBJLIST(string, nt->attributes, attrIter) {
-    char const *attr = attrIter.data()->pcharc();
-    if (!prod->actions.getAttrActionFor(attr)) {
-      // the production doesn't currently have a rule to set
-      // attribute 'attr'; look in the environment for one
-      bool foundOne = false;
-      SFOREACH_OBJLIST(ASTNode, env.actions, actIter) {
-        ASTNode const *actNode = actIter.data();
-        if (childName(actNode, 0) == string(attr)) {
-          // found a suitable action from the environment;
-          // parse it now
-          Action *action = astParseAction(env, prod, actNode);
-          prod->actions.actions.append(action);
+    // after constructing the production we need to do this
+    prod->finished();
 
-          // break out of the loop
-          foundOne = true;
-          break;
+    // deal with formBody (we evaluate it once for each alternative form)
+    if (formNode->asInternalC().numChildren() == 2) {
+      // iterate over form body elements
+      FOREACH_OBJLIST(ASTNode, childList(formNode, 1, AST_FORMBODY), iter) {
+        ASTNode const *n = iter.data();
+        switch (n->type) {
+          case AST_ACTION:
+            prod->actions.actions.append(
+              astParseAction(env, prod, n));
+            break;
+
+          case AST_CONDITION:
+            prod->conditions.conditions.append(
+              astParseCondition(env, prod, n));
+            break;
+
+          END_TYPE_SWITCH(n);
         }
       }
+    }
+    else {
+      // no form body
+    }
 
-      if (!foundOne) {
-        // for now, just a warning
-        // TODO: elevate to error
-        cout << "warning: rule " << *prod
-             << " has no action for `" << attr << "'\n";
+    // grab actions from the environment
+    FOREACH_OBJLIST(string, nt->attributes, attrIter) {
+      char const *attr = attrIter.data()->pcharc();
+      if (!prod->actions.getAttrActionFor(attr)) {
+        // the production doesn't currently have a rule to set
+        // attribute 'attr'; look in the environment for one
+        bool foundOne = false;
+        SFOREACH_OBJLIST(ASTNode, env.actions, actIter) {
+          ASTNode const *actNode = actIter.data();
+          if (childName(actNode, 0) == string(attr)) {
+            // found a suitable action from the environment;
+            // parse it now
+            Action *action = astParseAction(env, prod, actNode);
+            prod->actions.actions.append(action);
+
+            // break out of the loop
+            foundOne = true;
+            break;
+          }
+        }
+
+        if (!foundOne) {
+          // for now, just a warning
+          // TODO: elevate to error
+          cout << "WARNING: rule " << *prod
+               << " has no action for `" << attr << "'\n";
+        }
       }
     }
-  }
 
-  // grab conditions from the environment
-  SFOREACH_OBJLIST(ASTNode, env.conditions, envIter) {
-    prod->conditions.conditions.append(
-      astParseCondition(env, prod, envIter.data()));
-  }
+    // grab conditions from the environment
+    SFOREACH_OBJLIST(ASTNode, env.conditions, envIter) {
+      prod->conditions.conditions.append(
+        astParseCondition(env, prod, envIter.data()));
+    }
 
-  // add production to grammar
-  env.g.addProduction(prod);
+    // add production to grammar
+    env.g.addProduction(prod);
+
+  } // end of for-each alternative
 }
 
 
@@ -330,7 +381,7 @@ Action *astParseAction(Environment &env, Production *prod,
 
   string attrName = childName(act, 0);
   if (!prod->left->hasAttribute(attrName)) {
-    xfailure(stringc << "undeclared attribute: " << attrName);
+    astParseError(act, "undeclared attribute");
   }
 
   AExprNode *expr = astParseExpr(env, prod, nthChild(act, 1));
@@ -365,7 +416,7 @@ AExprNode *astParseExpr(Environment &env, Production *prod,
       string tag = childName(node, 0);
       int tagNum = prod->findTag(tag);
       if (tagNum == -1) {
-        xfailure(stringc << "invalid tag: " << tag);
+        astParseError(node, "invalid tag");
       }
 
       // attrName says which attribute of RHS symbol to use
@@ -414,7 +465,7 @@ AExprNode *astParseExpr(Environment &env, Production *prod,
   }
 
   // wasn't an ast expression node type we recongnize
-  xfailure("bad type");
+  astParseError(node, "bad type");
   return NULL;    // silence warning
 }
 
@@ -449,7 +500,7 @@ AExprNode *checkSpecial(Environment &env, Production *prod,
         seq -= childInt(incNode, 0);
       }
       else {
-        xfailure("sequence args need to be ints (or -ints)");
+        astParseError(node, "sequence args need to be ints (or -ints)");
       }
     }
 
@@ -469,10 +520,7 @@ int yylex(ASTNode **lvalp, void *parseParam)
   ParseParams *par = (ParseParams*)parseParam;
   GrammarLexer &lexer = par->lexer;
 
-  int code = lexer.yylex();
-  trace("yylex") << "yielding token (" << code << ") "
-                 << lexer.curToken() << " at "
-                 << lexer.curLoc() << endl;
+  int code = lexer.yylexInc();
 
   // yield semantic values for some things
   switch (code) {
@@ -524,7 +572,7 @@ int main(int argc, char **argv)
       cout << "error opening input file " << argv[1] << endl;
       return 2;
     }
-    lexer = new GrammarLexer(in);
+    lexer = new GrammarLexer(argv[1], in);
   }
 
   ParseParams params(*lexer);
@@ -534,10 +582,12 @@ int main(int argc, char **argv)
   if (retval == 0) {
     cout << "parsing finished successfully.\n";
 
-    // print AST
-    cout << "AST:\n";
-    params.treeTop->debugPrint(cout, 2);
-                
+    if (tracingSys("ast")) {
+      // print AST
+      cout << "AST:\n";
+      params.treeTop->debugPrint(cout, 2);
+    }
+
     // parse the AST into a Grammar
     Grammar g;
     astParseGrammar(g, params.treeTop);

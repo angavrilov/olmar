@@ -201,8 +201,8 @@ FormGroupBody: /* empty */                         { $$ = AST0(AST_FORMGROUPBODY
  * top level of a form; this is semantically equivalent to a formgroup
  * with the alternatives as alternative forms
  */
-FormRHS: RHSEltSeqOpt              { $$ = $1; }
-/*       | FormRHS "|" RHSEltSeqOpt   */
+FormRHS: RHSEltSeqOpt                              { $$ = AST1(AST_RHSALTS, $1); }
+       | FormRHS "|" RHSEltSeqOpt                  { $$ = iappend($1, $3); }
        ;
 
 /*

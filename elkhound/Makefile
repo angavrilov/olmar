@@ -41,8 +41,8 @@ gramlex.yy.cc: gramlex.h gramlex.cc gramlex.lex grampar.tab.h
 	flex -ogramlex.yy.cc gramlex.lex                     
 
 # grammar lexer test program
-gramlex: gramlex.yy.cc gramlex.cc gramlex.h
-	${link} -o gramlex -DTEST_GRAMLEX gramlex.yy.cc gramlex.cc ${linkend}
+gramlex: gramlex.yy.cc gramlex.cc gramlex.h trace.o
+	${link} -o gramlex -DTEST_GRAMLEX gramlex.yy.cc gramlex.cc trace.o ${linkend}
 
 # grammar parser
 grampar.tab.cc grampar.tab.h: grampar.y
@@ -52,6 +52,10 @@ grampar.tab.cc grampar.tab.h: grampar.y
 # grammar parser test program
 grampar: gramlex.yy.o grampar.tab.o gramlex.o grampar.cc trace.o ast.o gramast.o ${glr-dep}
 	${link} -o grampar -DTEST_GRAMPAR $^ ${linkend}
+
+# token list for my grammar
+cc.tok: lexer2
+	./lexer2 myparser > cc.tok
 
 clean:
 	rm -f grammar glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex *.o *~

@@ -13,8 +13,10 @@
 // action rules below
 #include "gramlex.h"
 
+#include <string.h>     // strchr, strrchr
+
 // for maintaining column count
-#define UPD_COL   column += yyleng;
+#define UPD_COL   fileState.column += yyleng;
 
 %}
 
@@ -54,6 +56,9 @@ DQUOTE    "\""
  * leave open that possibility, for now backslashes are illegal) */
 STRCHR    [^\n\\"]
 
+/* whitespace that doesn't cross line a boundary */
+SLWHITE   [ \t]
+
 
 /* --------------- start conditions ------------------- */
 %x C_COMMENT
@@ -77,7 +82,7 @@ STRCHR    [^\n\\"]
 "/*" {
   /* C-style comments */
   UPD_COL
-  commentStartLine = line;
+  commentStartLine = fileState.line;
   BEGIN(C_COMMENT);
 }
 
@@ -98,6 +103,7 @@ STRCHR    [^\n\\"]
   }
 
   <<EOF>> {
+    UPD_COL      // <<EOF>> yyleng is 1!
     errorUnterminatedComment();
     return TOK_EOF;
   }
@@ -147,6 +153,54 @@ STRCHR    [^\n\\"]
 "condition"        UPD_COL  return TOK_CONDITION;
 
 
+  /* ---------- includes ----------- */
+"include" {
+  UPD_COL
+  BEGIN(INCLUDE);
+}
+
+<INCLUDE>{
+  {SLWHITE}*"("{SLWHITE}*{DQUOTE}{STRCHR}+{DQUOTE}{SLWHITE}*")" {
+    /* e.g.: ("filename") */
+    /* file name to include */
+    UPD_COL
+
+    /* find quotes */
+    char const *leftq = strchr(yytext, '"');
+    char const *rightq = strchr(leftq+1, '"');
+    xassert(leftq && rightq);
+
+    /* extract filename string */
+    includeFileName = string(leftq+1, rightq-leftq-1);
+
+    /* go back to normal processing */
+    BEGIN(INITIAL);
+    return TOK_INCLUDE;
+  }
+
+  {ANY}      {
+    /* anything else: malformed */
+    UPD_COL
+    errorMalformedInclude();
+
+    /* rudimentary error recovery.. */
+    BEGIN(EAT_TO_NEWLINE);
+  }
+}
+
+<EAT_TO_NEWLINE>{
+  .+ {
+    UPD_COL
+    /* not newline, eat it */
+  }
+
+  "\n" {
+    /* get out of here */
+    newLine();
+    BEGIN(INITIAL);
+  }
+}
+
   /* -------- name literal --------- */
 {LETTER}({LETTER}|{DIGIT})* {
   /* get text from yytext and yyleng */
@@ -167,49 +221,6 @@ STRCHR    [^\n\\"]
   stringLiteral = string(yytext+1, yyleng-2);        // strip quotes
   return TOK_STRING;
 }
-
-  /* ---------- includes ----------- */
-"#include" {
-  UPD_COL
-  BEGIN(INCLUDE);
-}
-
-<INCLUDE>{
-  [ \t]* {
-    /* bypass same-line whitespace */
-    UPD_COL
-  }
-
-  "\""[^"\n]+"\"" {
-    /* e.g.: "filename" */
-    /* file name to include */
-    UPD_COL
-    includeFileName = string(yytext+1, yyleng-2);    // strip quotes
-    BEGIN(INITIAL);
-    return TOK_INCLUDE;
-  }
-
-  {ANY}      {
-    /* anything else: malformed */
-    UPD_COL
-    errorMalformedInclude();
-    BEGIN(EAT_TO_NEWLINE);
-  }
-}
-
-<EAT_TO_NEWLINE>{
-  .+ {
-    UPD_COL
-    /* not newline, eat it */
-  }
-
-  "\n" {
-    /* get out of here */
-    newLine();
-    BEGIN(INITIAL);
-  }
-}
-
 
   /* --------- illegal ------------- */
 {ANY} {

@@ -2,27 +2,120 @@
 // code for gramlex.h
 
 #include "gramlex.h"     // this module
-#include <iostream.h>    // cout
+#include "trace.h"       // debugging trace()
 
+#include <fstream.h>     // cout, ifstream
 
-GrammarLexer::GrammarLexer(istream *source)
-  : yyFlexLexer(source),                        
+                                  
+// ----------------- GrammarLexer::FileState --------------------
+GrammarLexer::FileState::FileState(char const *fn, istream *src)
+  : fname(fn),
+    source(src),
     line(firstLine),
     column(firstColumn),
+    bufstate(NULL)
+{}
+
+
+GrammarLexer::FileState::~FileState()
+{
+  // we let ~GrammarLexer take care of deletions here since we
+  // have to know what ~yyFlexLexer is going to do, and we
+  // don't have enough context here to know that
+}
+
+
+GrammarLexer::FileState::FileState(FileState const &obj)
+{
+  *this = obj;
+}
+
+
+GrammarLexer::FileState &GrammarLexer::FileState::
+  operator= (FileState const &obj)
+{
+  if (this != &obj) {
+    fname = obj.fname;
+    source = obj.source;
+    line = obj.line;
+    column = obj.column;
+    bufstate = obj.bufstate;
+  }
+  return *this;
+}
+
+
+// ---------------------- GrammarLexer --------------------------
+GrammarLexer::GrammarLexer(char const *fname, istream *source)
+  : yyFlexLexer(source),
+    fileState(fname, source),
     commentStartLine(0),
     integerLiteral(0),
     stringLiteral(""),
     includeFileName("")
-{}
+{
+  // grab initial buffer object so we can restore it after
+  // processing an include file
+  fileState.bufstate = yy_current_buffer;
+}
 
 GrammarLexer::~GrammarLexer()
-{}
+{
+  // ~yyFlexLexer deletes its current buffer, but not any
+  // of the istream sources it's been passed.  
+  
+  // first let's unpop any unpopped input files
+  while (hasPendingFiles()) {
+    popRecursiveFile();
+  }
+  
+  // now delete the original istream source
+  if (fileState.source != cin) {
+    delete fileState.source;
+  }
+}
 
 
 void GrammarLexer::newLine()
 {
-  line++;
-  column = firstColumn;
+  fileState.line++;
+  fileState.column = firstColumn;
+}
+
+
+int GrammarLexer::yylexInc()
+{                    
+  // get raw token
+  int code = yylex();
+
+  // include processing
+  if (code == TOK_INCLUDE) {
+    string fname = includeFileName;
+                                       
+    // 'in' will be deleted in ~GrammarLexer
+    ifstream *in = new ifstream(fname);
+    if (!*in) {
+      err(stringc << "unable to open include file `" << fname << "'");
+    }
+    else {
+      recursivelyProcess(fname, in);
+    }
+
+    // go to next token (tail recursive)
+    return yylexInc();
+  }
+
+  if (code == TOK_EOF  &&  hasPendingFiles()) {
+    popRecursiveFile();
+    return yylexInc();
+  }
+
+  trace("lex") << "yielding token (" << code << ") "
+               << curToken() << " at "
+               << curLoc() << endl;
+
+  // nothing special
+  return code;
 }
 
 
@@ -39,13 +132,14 @@ int GrammarLexer::curCol() const
 {
   // we want to report the *start* column, not the column
   // after the last character
-  return column - curLen();
+  return fileState.column - curLen();
 }
 
 
 string GrammarLexer::curLoc() const
 {
-  return stringc << "line " << curLine() << ", col " << curCol();
+  return stringc << curFname() << ", line " << curLine()
+                 << ", col " << curCol();
 }
 
 
@@ -62,7 +156,7 @@ void GrammarLexer::errorUnterminatedComment()
 
 void GrammarLexer::errorMalformedInclude()
 {
-  err(stringc << "malformed #include");
+  err(stringc << "malformed include");
 }
 
 void GrammarLexer::errorIllegalCharacter(char ch)
@@ -71,16 +165,71 @@ void GrammarLexer::errorIllegalCharacter(char ch)
 }
 
 
+void GrammarLexer::recursivelyProcess(char const *fname, istream *source)
+{
+  trace("lex") << "recursively processing " << fname << endl;
+                       
+  // grab current buffer; this is necessary because when we
+  // tried to grab it in the ctor it was NULL
+  fileState.bufstate = yy_current_buffer;
+  xassert(fileState.bufstate);
+
+  // push current state
+  fileStack.prepend(new FileState(fileState));
+
+  // reset current state
+  fileState = FileState(fname, source);
+
+  // storing this in 'bufstate' is redundant because of the
+  // assignment above, but no big deal
+  fileState.bufstate = yy_create_buffer(source, lexBufferSize);
+
+  // switch underlying lexer over to new file
+  yy_switch_to_buffer(fileState.bufstate);
+}
+
+
+void GrammarLexer::popRecursiveFile()
+{
+  trace("lex") << "done processing " << fileState.fname << endl;
+
+  // among other things, this prevents us from accidentally deleting
+  // flex's first buffer (which it presumably takes care of) or
+  // deleting 'cin'
+  xassert(hasPendingFiles());
+
+  // close down stuff associated with current file
+  yy_delete_buffer(fileState.bufstate);
+  delete fileState.source;
+  
+  // pop stack
+  FileState *st = fileStack.removeAt(0);
+  fileState = *st;
+  delete st;
+  
+  // point flex at the new (old) buffer
+  yy_switch_to_buffer(fileState.bufstate);
+}
+
+
+bool GrammarLexer::hasPendingFiles() const
+{
+  return fileStack.isNotEmpty();
+}
+
+
+
 #ifdef TEST_GRAMLEX
 
-int main()
+int main(int argc)
 {
   GrammarLexer lexer;
 
   cout << "go!\n";
 
   while (1) {
-    int code = lexer.yylex();
+    // any argument disables include processing
+    int code = argc==1? lexer.yylexInc() : lexer.yylex();
     if (code == 0) {  // eof
       break;
     }
@@ -92,9 +241,10 @@ int main()
            << endl;
     }
     else {
+      // if I use yylexInc above, this is never reached
       cout << "include at " << lexer.curLoc()
-           << ": filename is \"" << lexer.includeFileName.pcharc()
-           << "\"\n";
+           << ": filename is `" << lexer.includeFileName.pcharc()
+           << "'\n";
     }
   }
 

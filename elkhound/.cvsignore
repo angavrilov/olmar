@@ -27,3 +27,4 @@ gramlex
 gramlex.yy.cc
 grampar.tab.*
 grampar
+cc.tok
