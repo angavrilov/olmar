@@ -234,8 +234,8 @@ value cil_exp_to_ocaml(CilExpr *exp)
 		case OP_BITAND: code = 13; break;
 		case OP_BITXOR: code = 14;  break;
 		case OP_BITOR: code = 15; break;
-		case OP_AND: code = 16;  break;
-		case OP_OR: code = 17; break;
+		//case OP_AND: code = 16;  break;
+		//case OP_OR: code = 17; break;
 		default: xassert(0);
 	    }
 	    a = Val_int(code);
