@@ -12,7 +12,7 @@
 #include "sobjlist.h"     // SObjList
 #include "objstack.h"     // ObjStack
 #include "sobjstack.h"    // SObjStack
-#include "cc.ast.gen.h"   // C++ ast components
+#include "c.ast.gen.h"    // C ast components
 #include "variable.h"     // Variable (r)
 
 class StringTable;        // strtable.h
@@ -55,6 +55,60 @@ public:     // funcs
 #endif // 0
 
 
+// elements of the environment necessary for constructing the CFG
+class CFGEnv {
+private:    // data
+  ObjStack< SObjList<Statement> > pendingNexts;
+
+  ObjStack< SObjList<S_break> > breaks;
+
+  StringSObjDict<S_label> labels;       // goto targets
+  StringSObjDict<S_goto> gotos;         // goto sources
+
+  SObjStack<S_switch> switches;
+  SObjStack<Statement> loops;
+
+public:     // funcs
+  CFGEnv();
+  virtual ~CFGEnv();
+
+  // must be defined in child class
+  virtual Type const *err(char const *str)=0;
+
+  // manipulate a stack of lists of nodes whose 'next' link
+  // needs to be set
+  void pushNexts();          // push an empty top
+  void addPendingNext(Statement *source);
+  void popNexts();           // merge two topmost frames
+  void clearNexts();         // clear top
+  void resolveNexts(Statement *target, bool isContinue);
+
+  // manipulate a stack of lists of 'break' nodes whose 'next'
+  // link needs to be set
+  void pushBreaks();         // push empty top
+  void addBreak(S_break *source);
+  void popBreaks();          // resolve all at top, and pop frame
+
+  // manipulate lists of sources and targets of gotos
+  void addLabel(StringRef name, S_label *target);
+  void addPendingGoto(StringRef name, S_goto *source);
+  void resolveGotos();
+
+  // maintain a stack of nested switch statements
+  void pushSwitch(S_switch *sw);
+  S_switch *getCurrentSwitch();
+  void popSwitch();
+
+  // stack of nested loops
+  void pushLoop(Statement *loop);
+  Statement *getCurrentLoop();
+  void popLoop();
+
+  // check data structures for conditions which should hold between funcs
+  void verifyFunctionEnd();
+};
+
+
 // elements of the environment which are scoped
 class ScopedEnv {
 public:
@@ -68,7 +122,7 @@ public:
 
 
 // C++ compile-time binding environment
-class Env {
+class Env : public CFGEnv {
 private:    // data
   // ----------- fundamental maps ---------------
   // list of active scopes; element 0 is the innermost scope
@@ -95,7 +149,7 @@ private:    // data
   SObjList<CompoundType> compoundStack;
 
   // current function
-  Function *currentFunction;
+  TF_func *currentFunction;
 
   // stack of source locations considered 'current'
   SObjStack<SourceLocation /*const*/> locationStack;
@@ -119,7 +173,7 @@ private:    // funcs
 public:     // funcs
   // empty toplevel environment
   Env(StringTable &table, CCLang &lang);
-  virtual/*silence gcc warning*/ ~Env();
+  ~Env();
 
   // scope manipulation
   void enterScope();
@@ -204,8 +258,8 @@ public:     // funcs
   void pushStruct(CompoundType *ct)     { compoundStack.prepend(ct); }
   void popStruct()                      { compoundStack.removeAt(0); }
 
-  void setCurrentFunction(Function *f)  { currentFunction = f; }
-  Function *getCurrentFunction()        { return currentFunction; }
+  void setCurrentFunction(TF_func *f)   { currentFunction = f; }
+  TF_func *getCurrentFunction()         { return currentFunction; }
   Type const *getCurrentRetType();
 
   bool isGlobalEnv() const              { return scopes.count() <= 1; }

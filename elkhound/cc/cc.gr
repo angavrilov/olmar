@@ -18,7 +18,7 @@ verbatim CCGr [
 #include "strtable.h"     // StringRef (r)
 #include "cc_type.h"      // type identifiers like ST_CHAR (r)
 #include "lexer2.h"       // lexer2's token ids for classify()
-#include "cparse.h"       // ParseEnv
+#include "ccparse.h"      // ParseEnv
 #include "trace.h"        // trace
 #include "cc.ast.gen.h"   // C++ abstract syntax
 #include "cc_lang.h"      // CCLang
@@ -39,8 +39,9 @@ public:    // funcs
 
 private:
   #include "cc.gr.gen.h"
-  
-  void declareClassTag(StringRef tagName);
+
+  // retained for now in case I decide to try lexer hack with C++  
+  void declareClassTag(PQName const *tagName);
 };
 
 UserActions *makeUserActions(StringTable &table, CCLang &lang)
@@ -53,14 +54,15 @@ UserActions *makeUserActions(StringTable &table, CCLang &lang)
 ASTTypeId *ellipsisTypeId()
 {
   return new ASTTypeId(new TS_simple(ST_ELLIPSIS),
-                       new Declarator(new D_name(SourceLocation(), NULL, NULL), NULL));
+                       new Declarator(new D_name(SourceLocation(), NULL /*name*/), 
+                                      NULL /*init*/));
 }
 
-void CCGr::declareClassTag(StringRef tagName)
+void CCGr::declareClassTag(PQName const *tagName)
 {
   // TYPE/NAME
   if (lang.tagsAreTypes) {
-    D("defined new struct/class tag as type " << tagName);
+    D("defined new struct/class tag as type " << tagName->name);
     addType(tagName);
   }
 }
@@ -83,17 +85,18 @@ terminals {
     // run to possibly reclassify the token kind; the semantic
     // value is passed (and ParseEnv is available as context), but
     // the same semantic value will be used
-
+      
+    // -- no lexer hack now --
     // I mark this, and all places the deal with resolving the
     // type-name vs variable-name ambiguity, with "TYPE/NAME"
-    classify(s) [
-      if (isType(s)) {
-        return L2_TYPE_NAME;
-      }
-      else {
-        return L2_VARIABLE_NAME;
-      }
-    ]
+    //classify(s) [
+    //  if (isType(s)) {
+    //    return L2_TYPE_NAME;
+    //  }
+    //  else {
+    //    return L2_VARIABLE_NAME;
+    //  }
+    //]
   }
 
   token[StringRef] L2_TYPE_NAME;
@@ -168,10 +171,10 @@ nonterm[StringRef] VariableName {
 // names for situations where it does not matter what its previous
 // meaning may have been
 nonterm[StringRef] AnyName {
+  merge(L,R)            [ return L; ]    // for when not using lexer hack
+
   -> n:VariableName     [ return n; ]
   -> n:TypeName         [ return n; ]
-
-  merge(L,R)            [ return L; ]    // for when not using lexer hack
 }
 
 
@@ -192,7 +195,7 @@ nonterm[Expression*] PrimaryExpression {
        [ return e; ]
 
   -> "this"
-       [ return new E_variable(new PQName(NULL /*qualifiers*/, str("this"))); ]
+       [ return new E_variable(new PQName(str("this"))); ]
 
   -> "(" e:Expression ")"
        [ return e; ]
@@ -237,10 +240,10 @@ nonterm[StringRef] StringLiteral {
 
 // possibly-qualified name; essentially spec's id-expression
 // missing: template-id because I don't know what that is
-nonterm[PQName] PQVarName {
-  -> n:VariableName               [ return n; ]
+nonterm[PQName*] PQVarName {
+  -> n:VariableName               [ return new PQName(n); ]
 
-  -> q:Qualifier rhs:PQVarName    [ rhs->qualifiers.prepend(q); return rhs; ]
+  -> q:Qualifier rhs:PQVarName    [ rhs->prependQualifier(q); return rhs; ]
 
   //-> OperatorFunctionId ;
   //-> ConversionFunctionId ;
@@ -248,9 +251,9 @@ nonterm[PQName] PQVarName {
 }
 
 // similar for AnyName {
-nonterm[PQName] PQName {
-  -> n:AnyName                    [ return new PQName(new ASTList<StringRef>(), n); ]
-  -> q:Qualifier rhs:PQName       [ rhs->qualifiers.prepend(q); return rhs; ]
+nonterm[PQName*] PQName {
+  -> n:AnyName                    [ return new PQName(n); ]
+  -> q:Qualifier rhs:PQName       [ rhs->prependQualifier(q); return rhs; ]
 }
 
 nonterm[StringRef] Qualifier {
@@ -292,17 +295,17 @@ nonterm[Expression*] PostfixExpression {
 
   // explicit dtor call
   -> p:PostfixExpression "." n:PQDtorName
-       [ return E_fieldAcc(p, n); ]
-  -> p:PostfixExpression "->" n:PseudoDestructorName          
-       [ return E_fieldAcc(p, n); ]
+       [ return new E_fieldAcc(p, n); ]
+  -> p:PostfixExpression "->" n:PQDtorName
+       [ return new E_fieldAcc(p, n); ]
 
   -> k:CastKeyword "<" t:TypeId ">" "(" e:Expression ")"
-       [ return E_keywordCast(k, t, e); ]
+       [ return new E_keywordCast(k, t, e); ]
 
   -> "typeid" "(" e:Expression ")"
-       [ return E_typeidExpr(e); ]
+       [ return new E_typeidExpr(e); ]
   -> "typeid" "(" t:TypeId ")"
-       [ return E_typeidType(t); ]
+       [ return new E_typeidType(t); ]
 }
                                             
 // the std calls this SimpleTypeSpecifier, but then also uses that
@@ -312,19 +315,19 @@ nonterm[TypeSpecifier*] CtorExpressionType {
   //-> ColonColonOpt NestedNameSpecifier "template" TemplateId;
 
   -> n:PQTypeName        [ return new TS_name(n); ]
-  -> "char";             [ return new TS_simple(ST_CHAR); ]
-  -> "wchar_t";          [ return new TS_simple(ST_WCHAR_T); ]
-  -> "bool";             [ return new TS_simple(ST_BOOL); ]
-  -> "short";            [ return new TS_simple(ST_SHORT_INT); ]
-  -> "int";              [ return new TS_simple(ST_INT); ]
-  -> "long";             [ return new TS_simple(ST_LONG_INT); ]
-  -> "signed";           [ return new TS_simple(ST_INT); ]
-  -> "unsigned";         [ return new TS_simple(ST_UNSIGNED_INT); ]
-  -> "float";            [ return new TS_simple(ST_FLOAT); ]
-  -> "double";           [ return new TS_simple(ST_DOUBLE); ]
+  -> "char"              [ return new TS_simple(ST_CHAR); ]
+  -> "wchar_t"           [ return new TS_simple(ST_WCHAR_T); ]
+  -> "bool"              [ return new TS_simple(ST_BOOL); ]
+  -> "short"             [ return new TS_simple(ST_SHORT_INT); ]
+  -> "int"               [ return new TS_simple(ST_INT); ]
+  -> "long"              [ return new TS_simple(ST_LONG_INT); ]
+  -> "signed"            [ return new TS_simple(ST_INT); ]
+  -> "unsigned"          [ return new TS_simple(ST_UNSIGNED_INT); ]
+  -> "float"             [ return new TS_simple(ST_FLOAT); ]
+  -> "double"            [ return new TS_simple(ST_DOUBLE); ]
 
   // std has this, but I don't think it makes sense
-  //-> "void";
+  //-> "void"
 }
 
 nonterm[CastKeyword] CastKeyword {
@@ -386,12 +389,12 @@ nonterm[bool] ColonColonOpt {
 
 nonterm[E_new*] NewExpression {
   -> c:ColonColonOpt "new" p:NewPlacementOpt t:NewTypeId i:NewInitializerOpt
-       [ return E_new(c, p, t, i); ]
+       [ return new E_new(c, p, t, i); ]
   -> c:ColonColonOpt "new" p:NewPlacementOpt "(" t:TypeId ")" i:NewInitializerOpt
-       [ return E_new(c, p, t, i); ]
+       [ return new E_new(c, p, t, i); ]
 }
 
-nonterm[ASTList<Expression>*] NewPlacement {
+nonterm[ASTList<Expression>*] NewPlacementOpt {
   -> empty                          [ return NULL; ]
   -> "(" lst:ExpressionList ")"     [ return lst; ]
 }
@@ -413,20 +416,20 @@ nonterm[IDeclarator*] NewDeclaratorOpt {
 nonterm[IDeclarator*] DirectNewDeclarator {
   -> /*abstract declarator*/ "[" sz:Expression "]"
        [ return new D_array(new D_name(loc, NULL), sz); ]
-  -> d:DirectNewDeclarator "[" sz:ConstantExpression "]" ;
+  -> d:DirectNewDeclarator "[" sz:ConstantExpression "]"
        [ return new D_array(d, sz); ]
 }
 
 nonterm[ASTList<Expression>*] NewInitializerOpt {
-  -> empty                            [ return new NULL; ]
-  -> "(" lst:ExpressionListOpt ")"    [ return new lst; ]
+  -> empty                            [ return NULL; ]
+  -> "(" lst:ExpressionListOpt ")"    [ return lst; ]
 }
 
 nonterm[Expression*] DeleteExpression {
   -> c:ColonColonOpt "delete" e:CastExpression
-       [ return E_delete(c, false /*array*/, e); ]
+       [ return new E_delete(c, false /*array*/, e); ]
   -> c:ColonColonOpt "delete" "[" "]" e:CastExpression
-       [ return E_delete(c, true /*array*/, e); ]
+       [ return new E_delete(c, true /*array*/, e); ]
 }
 // ------------ end of "new" and "delete" expressions -------------
 
@@ -537,7 +540,7 @@ nonterm[Statement*] Statement {
        [ return new S_label(loc, n, s); ]
 
   -> "case" e:ConstantExpression ":" s:Statement
-       [ return new S_case(e, s); ]
+       [ return new S_case(loc, e, s); ]
 
   // gnu extension
   -> "case" low:ConstantExpression "..." high:ConstantExpression ":"
@@ -622,18 +625,19 @@ nonterm[Condition*] Condition {
 
   // variable declaration in the condition clause
   -> spec:TypeSpecifier decl:Declarator "=" e:AssignmentExpression
-       [ return new CN_decl(new ASTTypeId(spec, new Declarator(decl, e))); ]
+       [ return new CN_decl(new ASTTypeId(spec, 
+                                          new Declarator(decl, new IN_expr(e)))); ]
 }
 
-nonterm[Expression*] ConditionOpt {
+nonterm[Condition*] ConditionOpt {
   // an empty condition (e.g. in a for loop) is interpreted as true
-  -> empty             [ return new E_intLit(1); ]
+  -> empty             [ return new CN_expr(new E_boolLit(true)); ]
   -> c:Condition       [ return c; ]
 }
 
 nonterm[Statement*] ForInitStatement {
   -> s:ExpressionStatement     [ return s; ]
-  -> s:SimpleDeclaration       [ return S_decl(loc, s); ]
+  -> s:SimpleDeclaration       [ return new S_decl(loc, s); ]
 }
 
 
@@ -647,7 +651,7 @@ nonterm[Statement*] ForInitStatement {
 
 nonterm[TopForm*] Declaration {
   -> d:BlockDeclaration      [ return new TF_decl(loc, d); ]
-  -> d:FunctionDefinition    [ return d; ]
+  -> f:FunctionDefinition    [ return new TF_func(loc, f); ]
   //-> TemplateDeclaration ;
   //-> d:LinkageSpecification ;
 }
@@ -745,7 +749,7 @@ nonterm[TypeSpecifier*] TypeSpecifier {
   -> s:EnumSpecifier                  // enum { ... }
        [ return s; ]
 
-  // the following 3 rules create an ambiguity because they don't
+  // the following rules create an ambiguity because they don't
   // say how to parse things like "const int const"; so assign
   // all of them precedence higher than const/volatile/attribute,
   // so we'll just prefer reducing always
@@ -754,19 +758,15 @@ nonterm[TypeSpecifier*] TypeSpecifier {
        [ s->cv = (CVFlags)(s->cv | q); return s; ]
   -> s:TypeSpecifier q:CVQualifier  precedence(L2_PREFER_REDUCE)   // int const
        [ s->cv = (CVFlags)(s->cv | q); return s; ]
-
-  // yet another attempt to find a good place for this
-  -> s:TypeSpecifier GNUAttribute   precedence(L2_PREFER_REDUCE)
-       [ return s; ]      // drop attr for now
 }
 
 
 nonterm[TS_elaborated*] ElaboratedTypeSpecifier {
-  -> k:ClassKey n:AnyName   [
+  -> k:ClassKey n:PQName   [
        declareClassTag(n);
        return new TS_elaborated(k, n);
      ]
-  -> "enum" n:AnyName           [ return new TS_elaborated(TI_ENUM, n); ]
+  -> "enum" n:PQName            [ return new TS_elaborated(TI_ENUM, n); ]
 }
 
 
@@ -809,9 +809,9 @@ nonterm[enum SimpleTypeId] PrimitiveTypeSpecifier {
 // I had been separating these into typedef/enum/class names, but
 // the parser can never distinguish, so the grammar shouldn't suggest
 // that it can
-nonterm[PQName] PQTypeName {
-  -> n:TypeName                [ return new PQName(NULL /*qualifiers*/, n); ]
-  -> q:Qualifier n:PQTypeName  [ n->qualifiers.prepend(q); return n; ]
+nonterm[PQName*] PQTypeName {
+  -> n:TypeName                [ return new PQName(n); ]
+  -> q:Qualifier n:PQTypeName  [ n->prependQualifier(q); return n; ]
 
   //-> TemplateId ;
 }
@@ -939,31 +939,6 @@ nonterm[Initializer*] InitializerClause {
        [ return new IN_compound(c); ]
 }
 
-
-// gnu extensions: labeled elements in initializers
-// (*potentially* labeled)
-nonterm[Initializer*] LabeledInitializerClause {
-  // no label
-  -> init:InitializerClause
-       [ return init; ]
-
-  // initialize a specific element of the array
-  -> "[" index:ConstantExpression "]" "=" init:InitializerClause
-       [ init->label = new IL_element(index); return init; ]
-
-  // initialize a range (inclusive) of elements of the array
-  -> "[" lo:ConstantExpression "..." hi:ConstantExpression "]" "=" init:InitializerClause
-       [ init->label = new IL_range(lo, hi); return init; ]
-
-  // intialize a named element of a structure
-  -> "." field:PQVarName "=" init:InitializerClause
-       [ init->label = new IL_field(field); return init; ]
-
-  // initialize a field of a specific element of the array
-  -> "[" index:ConstantExpression "]" "." field:PQVarName "=" init:InitializerClause
-       [ init->label = new IL_elementField(index, field); return init; ]
-}
-
 nonterm[ASTList<Initializer>*] CompoundInitializer {
   // array/structure initializer
   -> "{" list:InitializerList CommaOpt "}"  [ return list; ]
@@ -978,11 +953,10 @@ nonterm CommaOpt {
   -> "," ;
 }
 
-
 nonterm[ASTList<Initializer>*] InitializerList {
-  -> init:LabeledInitializerClause
+  -> init:InitializerClause
        [ return new ASTList<Initializer>(init); ]
-  -> list:InitializerList "," init:LabeledInitializerClause
+  -> list:InitializerList "," init:InitializerClause
        [ list->append(init); return list; ]
 }
 
@@ -998,9 +972,6 @@ nonterm[IDeclarator*] Declarator {
   -> p:PtrOperator d:Declarator
        [ d->stars.prepend(p); return d; ]
 
-  // I'm still looking for the right place to put GNUAttribute ...
-  -> d:DirectDeclarator GNUAttribute         // GNU extension
-       [ return d; ]
   -> d:DirectDeclarator
        [ return d; ]
 }
@@ -1050,9 +1021,8 @@ nonterm[IDeclarator*] DirectDeclarator {
 // (I notice the standard calls this PseudoDestructorName; I'll stick with
 // my terminology.)
 nonterm[PQName*] PQDtorName {
-  -> "~" n:TypeName              [ return new PQName(new ASTList<StringRef>(),
-                                                     str(stringc << "~" << n)); ]
-  -> q:Qualifier rhs:PQDtorName  [ rhs->qualifiers.prepend(q); return rhs; ]
+  -> "~" n:TypeName              [ return new PQName(str(stringc << "~" << n)); ]
+  -> q:Qualifier rhs:PQDtorName  [ rhs->prependQualifier(q); return rhs; ]
 
   //-> ColonColonOpt NestedNameSpecifier "template" TemplateId "::" "~" TypeName;
 }
@@ -1090,7 +1060,8 @@ nonterm[enum CVFlags] CVQualifier {
 
 // -- declarators in typedefs --
 // these are separated out because the parser wants to track the
-// introduction of type names
+// introduction of type names; this is only for the lexer hack,
+// so for now the separation is not used
 nonterm[ASTList<Declarator>*] TypedefDeclaratorList {
   -> d:TypedefDeclarator
        [ return new ASTList<Declarator>(new Declarator(d, NULL)); ]
@@ -1106,13 +1077,11 @@ nonterm[IDeclarator*] TypedefDeclarator {
 }
 
 nonterm[IDeclarator*] DirectTypedefDeclarator {
-  // changed from VariableName because this is a binding introduction
-  // so it doesn't matter what its previous association might have been
-  -> n:AnyName [
+  -> n:PQName [
        // TYPE/NAME
-       D("defined new typedef name " << n);
+       D("defined new typedef name " << n->name);
        addType(n);
-       return new D_name(loc, n, NULL);
+       return new D_name(loc, n);
      ]
 
   -> d:DirectTypedefDeclarator
@@ -1120,10 +1089,10 @@ nonterm[IDeclarator*] DirectTypedefDeclarator {
      cv:CVQualifierSeqOpt
      e:ExceptionSpecificationOpt
        [ return new D_func(loc, d, args, cv, e); ]
-  -> d:DirectTypedefDeclarator "[" sz:ConstantExpression "]" 
+
+  -> d:DirectTypedefDeclarator "[" sz:ConstantExpressionOpt "]"
        [ return new D_array(d, sz); ]
-  -> d:DirectTypedefDeclarator "[" "]" 
-       [ return new D_array(d, NULL); ]
+
   -> "(" d:TypedefDeclarator ")"
        [ return d; ]
 }
@@ -1215,12 +1184,12 @@ nonterm[ASTTypeId*] ParameterDeclaration {
   -> RegisterOpt s:TypeSpecifier d:Declarator
        [ return new ASTTypeId(s, new Declarator(d, NULL /*init*/)); ]
   -> RegisterOpt s:TypeSpecifier d:Declarator "=" e:AssignmentExpression
-       [ return new ASTTypeId(s, new Declarator(d, e)); ]
+       [ return new ASTTypeId(s, new Declarator(d, new IN_expr(e))); ]
 
   -> RegisterOpt s:TypeSpecifier d:AbstractDeclaratorOpt
        [ return new ASTTypeId(s, new Declarator(d, NULL /*init*/)); ]
   -> RegisterOpt s:TypeSpecifier d:AbstractDeclarator "=" e:AssignmentExpression
-       [ return new ASTTypeId(s, new Declarator(d, e)); ]
+       [ return new ASTTypeId(s, new Declarator(d, new IN_expr(e))); ]
 }
 
 // old code uses the keyword "register" in the parameter declarations, but I
@@ -1295,8 +1264,8 @@ nonterm[DeclFlags] ExplicitOpt {
 }
 
 nonterm[ASTList<MemberInit>*] CtorInitializerOpt {
-  -> empty                      [ return new ASTList<MemberInit>(); ]
-  -> ":" lst:MemInitalizerList  [ return lst; ]
+  -> empty                        [ return new ASTList<MemberInit>(); ]
+  -> ":" list:MemInitializerList  [ return list; ]
 }
 
 
@@ -1311,7 +1280,7 @@ nonterm[TS_classSpec*] ClassSpecifier ->
 nonterm[StringRef] ClassNameOpt {
   -> empty     [ return NULL; ]
   -> n:AnyName [
-       declareClassTag(n);
+       //declareClassTag(n);   // wrong type.. whatever
        return n;
      ]
 }
@@ -1351,11 +1320,11 @@ nonterm SemicolonOpt {
 nonterm[Member*] MemberDeclaration {
   // member fn decl, or data member
   -> spec:DeclSpecifier list:MemberDeclaratorList ";"
-       [ spec->decllist.steal(list); return new MR_decl(spec); ]
+       [ spec->decllist.steal(list); return new MR_decl(AK_UNSPECIFIED, spec); ]
 
   // inline function definition; includes c/dtor definitions
   -> f:FunctionDefinition SemicolonOpt
-       [ return new MR_func(f); ]
+       [ return new MR_func(AK_UNSPECIFIED, f); ]
   
   // declaration (with no definition) of a c/dtor or conversion
   // operator function                                         
@@ -1363,8 +1332,9 @@ nonterm[Member*] MemberDeclaration {
   // A: it's part of the MemberDeclarator
   -> e:ExplicitOpt v:VirtualOpt d:MemberDeclarator ";"
        [ // 'd' is a Declarator
-         DeclFlags flags = e | (v? DF_VIRTUAL : DF_NONE);
+         DeclFlags flags = (DeclFlags)( e | (v? DF_VIRTUAL : DF_NONE) );
          return new MR_decl(
+           AK_UNSPECIFIED,
            new Declaration(
              flags,
              new TS_simple(ST_CDTOR),
@@ -1399,7 +1369,7 @@ nonterm[Declarator*] MemberDeclarator {
   // difference between PureSpecifier and ConstantInitializer just by
   // looking at their syntax, we'd be disambiguating this later anyway
   -> d:Declarator "=" e:ConstantExpression     // pure, and member inits
-       [ return new Declarator(d, e); ]
+       [ return new Declarator(d, new IN_expr(e)); ]
 
   -> n:AnyNameOpt ":" e:ConstantExpression     // bitfield
        [ return new Declarator(new D_bitfield(n, e), NULL /*init*/); ]
@@ -1425,9 +1395,9 @@ nonterm[ASTList<BaseClass>*] BaseSpecifierList {
 }
 
 
-nonterm BaseSpecifier {
+nonterm[BaseClass*] BaseSpecifier {
   -> v:VirtualOpt a:AccessSpecifierOpt n:PQClassName
-       [ return BaseClass(v, a, n); ]
+       [ return new BaseClass(v, a, n); ]
 }
 
 nonterm[bool] VirtualOpt {
@@ -1443,9 +1413,9 @@ nonterm[AccessKeyword] AccessSpecifierOpt {
   -> k:AccessSpecifier  [ return k; ]
 }
 
-nonterm[PQName] PQClassName {
-  -> n:TypeName                   [ return new PQName(NULL, n); ]
-  -> q:Qualifier rhs:PQClassName  [ rhs->qualifiers.prepend(q); return rhs; ]
+nonterm[PQName*] PQClassName {
+  -> n:TypeName                   [ return new PQName(n); ]
+  -> q:Qualifier rhs:PQClassName  [ rhs->prependQualifier(q); return rhs; ]
 }
 
 
@@ -1475,7 +1445,7 @@ nonterm[ASTList<MemberInit>*] MemInitializerList {
 }
 
 nonterm[MemberInit*] MemInitializer {
-  -> n:MemberInitializerId "(" e:ExpressionListOpt ")"
+  -> n:MemInitializerId "(" e:ExpressionListOpt ")"
        [ return new MemberInit(n, e); ]
 }
 
@@ -1484,7 +1454,7 @@ nonterm[MemberInit*] MemInitializer {
 // then in typechecking make sure that the latter case does not
 // have any qualifiers (because in most cases the parser can't make
 // the distinction so it would fall to typechecking anyway)
-nonterm[PQName] MemInitializerId {
+nonterm[PQName*] MemInitializerId {
   -> n:PQName  [ return n; ]
 }
 
@@ -1563,7 +1533,7 @@ nonterm TemplateArgument {
 
 // ------ A.13 Exception handling ------
 nonterm[S_try*] TryBlock {
-  -> "try" s:CompoundStatement h:HandlerSeq  [ return S_try(s, h); ]
+  -> "try" s:CompoundStatement h:HandlerSeq  [ return new S_try(loc, s, h); ]
 }
 
 nonterm[ASTList<Handler>*] HandlerSeq {
@@ -1588,8 +1558,8 @@ nonterm[ASTTypeId*] HandlerParameter {
 
 
 nonterm[E_throw*] ThrowExpression {
-  -> "throw"                         [ return E_throw(NULL); ]
-  -> "throw" e:AssignmentExpression  [ return E_throw(e); ]
+  -> "throw"                         [ return new E_throw(NULL); ]
+  -> "throw" e:AssignmentExpression  [ return new E_throw(e); ]
 }
 
 

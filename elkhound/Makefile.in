@@ -1,6 +1,8 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
+temp: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/ccparse
+
 all: cc/c.ast.gen.h glr.o cc/ccgr cc2/cc2.exe cc2/cc2t.exe cc/bccgr
 
 temporary: all triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
@@ -9,13 +11,6 @@ temporary: all triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
 	   triv/EFa.bison.exe triv/EFa.tree.bison.exe
 
 # main targets
-
-ifeq ($(ocaml), yes)
-  # old, obsolete
-  mode := --ocaml
-else
-  mode := --nocaml
-endif
 
 # this target ensures the Makefile is in synch with Makefile.in
 Makefile: Makefile.in
@@ -40,12 +35,6 @@ no-warnings := -w
 makelib     := ar -r
 ranlib      := ranlib
 
-ifeq ($(ocaml), yes)
-  libraries += /usr/lib/ocaml/libunix.a /usr/lib/ocaml/libcamlrun.a
-  includes  += -I/usr/lib/ocaml
-  ccflags   += -DWES_OCAML_LINKAGE
-endif
-
 # make warnings into errors so I always get a chance to fix them
 # (otherwise they scroll by and I might miss them)
 #ccflags += -Werror
@@ -54,7 +43,7 @@ endif
 #ccflags += -pg
 
 # optimizer...
-ccflags += -O2 -DNDEBUG
+#ccflags += -O2 -DNDEBUG
 
 # uncomment to turn off source location info
 #ccflags += -DNO_GLR_SOURCELOC
@@ -82,6 +71,8 @@ link    := g++ $(ccflags) $(includes)
 linkend := $(libraries)
 
 # compile .cc to .o; dependency manipulation involves:
+#   sed:    replace gcc's target with $@; this is needed because
+#           "gcc -M" strips any path component...
 #   sed:    strip the target (everything before colon)
 #   sed:    remove any continuation backslashes
 #   fmt -1: list words one per line
@@ -93,7 +84,8 @@ linkend := $(libraries)
 	$(compile) $< -o $@
 	@echo "dependencies for $< > $*.d"
 	@$(depend) $< > $*.d
-	@cp -f $*.d $*.d.tmp
+	@mv -f $*.d $*.d.tmp
+	@sed -e 's|.*:|$@:|' < $*.d.tmp > $*.d
 	@sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
           sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
 	@rm -f $*.d.tmp
@@ -144,15 +136,15 @@ support-set := \
   cc/parssppt.o
 -include $(filter-out $(AST)/%, $(support-set:.o=.d))
 
-# files for parsing C/C++ code with the cc.gr or cc2.gr grammars;
+# files for parsing C code with the c.gr or cc2.gr grammars;
 # since this set is used with both grammars, I don't include either
 # grammar in the set itself
-cc-set := \
+c-set := \
   $(support-set) \
   cc/c.ast.gen.o \
-  cc/cc_env.o \
+  cc/c_env.o \
   cc/cc_flags.o \
-  cc/cc_type.o \
+  cc/c_type.o \
   cc/cparse.o \
   cc/exprequal.o \
   cc/exprvisit.o \
@@ -160,6 +152,18 @@ cc-set := \
   cc/postorder.o \
   cc/stubs.o \
   cc/tcheck.o \
+  cc/treeout.o \
+  cc/variable.o
+-include $(filter-out $(AST)/%, $(c-set:.o=.d))
+
+# files for parsing C++ code with the cc.gr or cc2.gr grammars
+cc-set := \
+  $(support-set) \
+  cc/cc.ast.gen.o \
+  cc/cc_env.o \
+  cc/cc_flags.o \
+  cc/cc_type.o \
+  cc/cc_tcheck.o \
   cc/treeout.o \
   cc/variable.o
 -include $(filter-out $(AST)/%, $(cc-set:.o=.d))
@@ -175,7 +179,9 @@ $(AST)/%.o: $(AST)/%.cc
 random-obj := \
   parsstub.o \
   glrmain.o \
-  cc/ccgrmain.o
+  cc/ccgrmain.o \
+  cc/c.gr.gen.o \
+  cc/cc.gr.gen.o
 -include $(random-obj:.o=.d)
 
 # extra dependencies
@@ -253,7 +259,7 @@ libglr.a: $(glr-set)
 .PRECIOUS: %.gr.gen.cc %.gr.gen.h
 %.gr.gen.cc %.gr.gen.h %.gr.gen.y: %.gr cc/cc.tok gramanl
 	rm -f $*.gr.gen.*
-	./gramanl -tr conflict$(TRGRAMANL) $*
+	./gramanl -tr NOconflict$(TRGRAMANL) $*
 	chmod a-w $*.gr.gen.h $*.gr.gen.cc
 
 # intermediate files for an ast spec
@@ -266,26 +272,17 @@ libglr.a: $(glr-set)
 # don't delete these because error messages often point into them
 .PRECIOUS: cc.gr.gen.h cc.gr.gen.cc
 
-# parser and semantic analyzer for cc.gr, rolled up as a library for
-# easier importing into ocaml
-# turns out if you don't remove the library, there's a possibility
-# of old object files staying in it .. !
-cc/libccgr.a: cc/cc.gr.gen.o $(cc-set) libglr.a
-	cp -f libglr.a $@
-	ar -r $@ cc/cc.gr.gen.o $(cc-set)
-	ranlib $@
-
-# stand-alone executable
-ifeq ($(ocaml), no)
-cc/ccgr: cc/ccgrmain.o cc/libccgr.a $(SMBASE)/libsmbase.a
+# stand-alone executable for parsing C
+cc/cparse: cc/ccgrmain.o cc/c.gr.gen.o $(c-set) libglr.a $(SMBASE)/libsmbase.a
 	$(link) -o $@ $^
-	cc/ccgr cc/cc.bin c.in/c.in1
-else
-ccgr:
-	@echo "we don't build $@ in ocaml mode"
-endif
+	./$@ cc/c.bin c.in/c.in1
 
 .PRECIOUS: cc/ccgr
+
+# stand-alone executable for parsing C++
+cc/ccparse: cc/ccparse.o cc/cc.gr.gen.o $(cc-set) libglr.a $(SMBASE)/libsmbase.a
+	$(link) -o $@ $^
+	./$@ cc/cc.bin c.in/c.in1
 
 # bison parser from the same grammar; the 'sed' is because Bison
 # already interpretes 0 as EOF, and if my rule names it explicitly
@@ -580,7 +577,7 @@ clean:
 	rm -f $(CLEAN_PATTERNS)
 	rm -f gramanl glr cc/lexer1 cc/lexer1yy.cc gramlex.yy.cc gramlex cyctimer
 	rm -f cc/lexer2 grampar.tab.* grampar
-	rm -f cc/cc.bin cc/ccgr cc/libccgr.a libglr.a
+	rm -f cc/cc.bin cc/ccgr cc/ccparse cc/libccgr.a libglr.a
 	rm -f cc/bccgr
 	rm -f cc/bccgr.y cc/cc.tok grampar.codes.h
 	rm -f gdb.log gprof.out gmon.out test-bad-tmp.c

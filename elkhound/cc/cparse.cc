@@ -6,6 +6,7 @@
 #include "cparse.h"      // this module
 
 ParseEnv::ParseEnv(StringTable &table)
+  : str(table)
 {
   intType = table.add("int");
 }

@@ -3990,7 +3990,7 @@ char const *typeString(char const *type, LocString const &tag)
 {
   if (!type) {
     cout << tag.locString() << ": Production tag \"" << tag
-         << " on a symbol with no type.\n";
+         << "\" on a symbol with no type.\n";
     return "__error_no_type__";     // will make compiler complain
   }
   else {
