@@ -3685,18 +3685,7 @@ Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
   }
 
   // return a reference because this is an lvalue
-  #if 1
-    // this is how the code has been for quite a while
-    return makeLvalType(env, var->type);              
-  #else
-    // This is a new clone() call that Daniel asked me to put in,
-    // but when I do so oink's "make check" fails because some of
-    // the C language tests (e.g.
-    // "make qual-check-regression-cc-basic/oldstyle-with-proto.c")
-    // do not pass.  So for now I'm taking out the clone call, and
-    // he can put it back and debug the resulting failures later.
-    return makeLvalType(env, env.tfac.cloneType(var->type));
-  #endif
+  return makeLvalType(env, env.tfac.cloneType(var->type));
 }
 
 
