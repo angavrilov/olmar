@@ -1,0 +1,9 @@
+cc.gr.gen.o: cc.ast.gen.h
+cc_ast_aux.o: cc.ast.gen.h
+cc_env.o: cc.ast.gen.h
+cc_print.o: cc.ast.gen.h
+cc_scope.o: cc.ast.gen.h
+cc_tcheck.o: cc.ast.gen.h
+ccparse.o: cc.ast.gen.h
+main.o: cc.ast.gen.h
+main.o: cc.gr.gen.h

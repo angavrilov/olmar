@@ -19,6 +19,12 @@ LIBELKHOUND := $(ELKHOUND)/libelkhound.a
 Makefile: Makefile.in
 	./config.status
 
+# dependencies upon automatically-generated files
+extradep.mk:
+	$(ELKHOUND)/find-extra-deps *.d >$@
+
+-include extradep.mk
+
 
 # ----------------------- compiler configuration -------------------
 # C++ preprocessor, compiler and linker
