@@ -12,7 +12,7 @@ terminals {
 }
 
 
-// start symbol
+// dummy first rule
 nonterm StartSymbol -> TranslationUnit L2_EOF;
 
 

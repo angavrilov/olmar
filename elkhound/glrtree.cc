@@ -64,8 +64,7 @@ string TreeNode::unparseString() const
 
 // ------------------- TerminalNode -------------------------
 TerminalNode::TerminalNode(Lexer2Token const *tk, Terminal const *tc)
-  : TreeNode(TERMINAL),
-    token(tk),
+  : token(tk),
     terminalClass(tc)
 {}
 
@@ -109,7 +108,6 @@ void TerminalNode::getGroundTerms(SObjList<TerminalNode> &dest) const
 
 // ------------------ NonterminalNode -----------------------
 NonterminalNode::NonterminalNode(Reduction *red)
-  : TreeNode(NONTERMINAL)
 {
   // add the first reduction
   addReduction(red);
@@ -134,6 +132,13 @@ void NonterminalNode::addReduction(Reduction *red)
 Nonterminal const *NonterminalNode::getLHS() const
 {
   return reductions.firstC()->production->left;
+}
+
+
+Reduction const *NonterminalNode::only() const
+{
+  xassert(reductions.count() == 1);
+  return reductions.firstC();
 }
 
 

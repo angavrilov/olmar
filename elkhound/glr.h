@@ -231,8 +231,6 @@ public:
 
 private:    // funcs
   // comments in glr.cc
-  void glrParse(Lexer2 const &lexer2);
-  void glrParseFrontEnd(char const *input);
   int glrParseAction(StackNode *parser,
                      ObjList<PendingShift> &pendingShifts);
   int postponeShift(StackNode *parser,
@@ -265,9 +263,13 @@ public:     // funcs
   ~GLR();
 
   // 'main' for testing this class
-  void glrTest(char const *grammarFname, char const *inputFname,
-               char const *symOfInterestName);
-               
+  void glrParseFrontEnd(Lexer2 &lexer2, 
+                        char const *grammarFname, char const *inputFname,
+                        char const *symOfInterestName = NULL);
+
+  void glrParse(Lexer2 const &lexer2);
+  void glrParseNamedFile(Lexer2 &lexer2, char const *input);
+
   // after parsing, retrieve the parse tree
   TreeNode const *getParseTree() const;
 };

@@ -114,6 +114,9 @@
  * by the process of adding links, and when links are added, exactly the new
  * paths are collected and processed.  It's easy to see that every path is
  * considered exactly once.
+ *
+ *
+ * Below, parse-tree building activity is marked "TREEBUILD".
  */
 
 
@@ -205,7 +208,7 @@ void GLR::clearAllStackNodes()
 
 
 // process the input string, and yield a parse graph
-void GLR::glrParseFrontEnd(char const *inputFname)
+void GLR::glrParseNamedFile(Lexer2 &lexer2, char const *inputFname)
 {
   // do first phase lexer
   traceProgress() << "lexical analysis stage 1...\n";
@@ -227,7 +230,6 @@ void GLR::glrParseFrontEnd(char const *inputFname)
 
   // do second phase lexer
   traceProgress() << "lexical analysis stage 2...\n";
-  Lexer2 lexer2;
   lexer2_lex(lexer2, lexer1);
 
   // parsing itself
@@ -529,7 +531,7 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     }
 
     // we've popped the required number of symbols; collect the
-    // popped symbols into a Reduction
+    // popped symbols into a Reduction (TREEBUILD)
     Reduction *rn = makeReductionNode(pcs.production, pcs.poppedSymbols);
 
     // previously, I had been reversing the children here; that
@@ -545,7 +547,9 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
   else {
     // explore currentNode's siblings
     MUTATE_EACH_OBJLIST(SiblingLink, currentNode->leftSiblings, sibling) {
-      // the symbol on the sibling link is being popped
+      // the symbol on the sibling link is being popped;
+      // TREEBUILD: we are collecting 'treeNode' for the purpose
+      // of hanging it off of a Reduction node
       pcs.poppedSymbols.prepend(sibling.data()->treeNode);
 
       // recurse one level deeper, having traversed this link
@@ -621,7 +625,7 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling,
       // no, so add the link (and keep the ptr for below)
       sibLink =
         rightSibling->addSiblingLink(leftSibling,
-                                     makeNonterminalNode(actx));
+                                     makeNonterminalNode(actx));   // TREEBUILD
 
       // adding a new sibling link may have introduced additional
       // opportunties to do reductions from parsers we thought
@@ -658,7 +662,7 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling,
 
     // add the sibling link (and keep ptr for tree stuff)
     rightSibling->addSiblingLink(leftSibling,
-                                 makeNonterminalNode(actx));
+                                 makeNonterminalNode(actx));   // TREEBUILD
 
     // since this is a new parser top, it needs to become a
     // member of the frontier
@@ -706,8 +710,8 @@ void GLR::glrShiftTerminals(ObjList<PendingShift> &pendingShifts)
     }
 
     // either way, add the sibling link now
-    rightSibling->addSiblingLink(
-      leftSibling, makeTerminalNode(currentToken, currentTokenClass));
+    rightSibling->addSiblingLink(leftSibling, 
+      makeTerminalNode(currentToken, currentTokenClass));    // TREEBUILD
   }
 }
 
@@ -770,6 +774,8 @@ void GLR::mergeAlternativeParses(NonterminalNode &node, AttrContext &actx)
 
 
 // ------------------- parse tree construction --------------------
+// this section is TREEBUILD
+
 TerminalNode *GLR::makeTerminalNode(Lexer2Token const *tk, Terminal const *tc)
 {
   TerminalNode *ret = new TerminalNode(tk, tc);
@@ -777,12 +783,12 @@ TerminalNode *GLR::makeTerminalNode(Lexer2Token const *tk, Terminal const *tc)
   return ret;
 }
 
-Reduction *GLR::makeReductionNode(Production const *prod, 
+Reduction *GLR::makeReductionNode(Production const *prod,
                                   SObjList<TreeNode> const &children)
 {
   Reduction *rn = new Reduction(prod);
   rn->children = children;       // profiling: majority of time spent here
-  
+
   // note that 'rn' isn't added to a global owner list; Nonterminal
   // nodes own their reductions
 
@@ -1058,8 +1064,8 @@ string readFileIntoString(char const *fname)
 }
 
 
-void GLR::glrTest(char const *grammarFname, char const *inputFname,
-                  char const *symOfInterestName)
+void GLR::glrParseFrontEnd(Lexer2 &lexer2, char const *grammarFname, 
+                           char const *inputFname, char const *symOfInterestName)
 {
   #if 0
     // [ASU] grammar 4.19, p.222: demonstrating LR sets-of-items construction
@@ -1146,7 +1152,7 @@ void GLR::glrTest(char const *grammarFname, char const *inputFname,
 
 
     // parse input
-    glrParseFrontEnd(inputFname);
+    glrParseNamedFile(lexer2, inputFname);
 
   #endif // 0/1
 }
@@ -1190,7 +1196,8 @@ int main(int argc, char **argv)
   }
 
   GLR g;
-  g.glrTest(argv[1], argv[2], symOfInterestName);
+  Lexer2 lexer2;
+  g.glrParseFrontEnd(lexer2, argv[1], argv[2], symOfInterestName);
   return 0;
 }
 #endif // GLR_MAIN

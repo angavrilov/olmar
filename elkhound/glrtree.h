@@ -33,23 +33,19 @@ class Reduction;         // inside NonterminalNode, reduction choices
 // ([GLR] calls these "tree nodes" also)
 class TreeNode {
 public:	    // data
-  // kind of tree node
-  enum NodeType { TERMINAL, NONTERMINAL };
-  NodeType const type;
-
   // attributes associated with the node
   Attributes attr;
 
 public:	    // funcs
-  TreeNode(NodeType t) : type(t) {}
+  TreeNode() {}
   virtual ~TreeNode();
 
   // returns the representative symbol (terminal or nonterminal)
   virtual Symbol const *getSymbolC() const = 0;
 
   // type determination
-  bool isTerm() const { return type == TERMINAL; }
-  bool isNonterm() const { return type == NONTERMINAL; }
+  virtual bool isTerm() const = 0;
+  bool isNonterm() const { return !isTerm(); }
 
   // type-safe casts (exception thrown if bad)
   TerminalNode const &asTermC() const;
@@ -81,7 +77,9 @@ public:     // data
   // which token we're talking about
   Lexer2Token const * const token;
 
-  // and also its class
+  // and also its class; as far as I can tell this isn't
+  // really used, and it is redundant if one has the
+  // Grammar to query (since token->type is the same info)
   Terminal const * const terminalClass;
 
 public:     // funcs
@@ -89,6 +87,7 @@ public:     // funcs
   virtual ~TerminalNode();
 
   // TreeNode stuff
+  virtual bool isTerm() const { return true; }
   virtual Symbol const *getSymbolC() const;
   virtual TerminalNode const *getLeftmostTerminalC() const;
   virtual void ambiguityReport(ostream &os) const;
@@ -121,7 +120,12 @@ public:
   // get the symbol that is the LHS of all reductions here
   Nonterminal const *getLHS() const;
 
+  // assuming there is no ambiguity, get the single Reduction;
+  // if there is not 1 reduction, xassert
+  Reduction const *only() const;
+
   // TreeNode stuff
+  virtual bool isTerm() const { return false; }
   virtual Symbol const *getSymbolC() const;
   virtual TerminalNode const *getLeftmostTerminalC() const;
   virtual void ambiguityReport(ostream &os) const;

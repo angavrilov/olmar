@@ -9,15 +9,25 @@ terminals {
 // ------ end of tokens ------
 
 
-nonterm Input -> Expr L2_EOF;
+// dummy first rule
+nonterm StartSymbol -> Input L2_EOF ;
+
+
+// first some bindings, then an expression
+nonterm Input -> VarDefList ";" Expr ;
+
+// list of variable bindings
+nonterm VarDefList -> VarDef | VarDef "," VarDefList ;
+nonterm VarDef -> L2_NAME "=" Expr ;    // Expr contains constants only
 
 
 // primary expressions
 nonterm Expr {
   attr prec;              // precedence of binding (topmost) operator in expression
-
-  -> L2_NAME {
-    action  prec := 100;      // higher precedence than anything else
+                            
+  -> L2_NAME | L2_INT_LITERAL {
+    // variables and literals have higher precedence than anything else
+    action  prec := 100;
   }
 
   -> left:Expr op:Binop right:Expr {

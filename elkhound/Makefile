@@ -1,7 +1,7 @@
 # Makefile for parser generator project
 
 # main targets
-all: grampar
+all: cexp2.sem
 
 everything: grammar glr lexer1 lexer2 grampar
 
@@ -28,8 +28,8 @@ grammar: ${grammar-dep} grammar.h gramanl.h
 
 # GLR parser built on top of SLR(1) parser
 glr-dep = glr.cc ${grammar-set} ${common} gramanl.o glrtree.o \
-          lexer1.o lexer1yy.o lexer2.o grampar.o gramlex.yy.o \
-          grampar.tab.o gramlex.o ast.o fileloc.o gramast.o
+          lexer1.o lexer1yy.o lexer2.o grampar.tab.o gramlex.yy.o \
+          grampar.o gramlex.o ast.o fileloc.o gramast.o
 glr: ${glr-dep} glr.h ${SMBASE}/libsmbase.a
 	${link} -o glr -DGLR_MAIN ${glr-dep} ${linkend}
 
@@ -67,6 +67,13 @@ grampar: grampar.cc ${grammar-set} ${common} gramlex.yy.o grampar.tab.o \
 # token list for my grammar
 cc.tok: lexer2
 	./lexer2 myparser > cc.tok
+
+# C expression (sort of) evaluator
+cexp2-sem-dep = cexp2.sem.cc ${grammar-set} ${common} gramanl.o glrtree.o \
+		glr.o lexer1.o lexer1yy.o lexer2.o grampar.tab.o gramlex.yy.o \
+		grampar.o gramlex.o ast.o fileloc.o gramast.o
+cexp2.sem: ${cexp2-sem-dep}
+	${link} -o cexp2.sem -DTEST_CEXP2_SEM ${cexp2-sem-dep} ${linkend}
 
 clean:
 	rm -f grammar glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex *.o *~
