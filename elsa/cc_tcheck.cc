@@ -1986,10 +1986,11 @@ void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
 // that can't be done in one central location, so this does it unless
 // it has already been done, and is called in several places;
 // 'dt.funcSyntax' is used as a flag to tell when it's happened
-void possiblyConsumeFunctionType(Env &env, Declarator::Tcheck &dt)
+void possiblyConsumeFunctionType(Env &env, Declarator::Tcheck &dt, 
+                                 bool reportErrors = true)
 {
   if (dt.funcSyntax) {
-    if (dt.funcSyntax->cv != CV_NONE) {
+    if (dt.funcSyntax->cv != CV_NONE && reportErrors) {
       env.error("cannot have const/volatile on nonmember functions");
     }
     dt.funcSyntax = NULL;
@@ -2314,8 +2315,10 @@ realStart:
       // we're befriending something that either is already declared,
       // or will be declared before it is used; no need to contemplate
       // adding a declaration, so just make the required Variable
-      // and be done with it
-      possiblyConsumeFunctionType(env, dt);     // TODO: can't befriend cv members..
+      // and be done with it                                            
+      //
+      // TODO: can't befriend cv members, e.g. in/t0333.cc
+      possiblyConsumeFunctionType(env, dt, false /*reportErrors*/);
       return env.makeVariable(loc, unqualifiedName, dt.type, dt.dflags);
     }
     else {
