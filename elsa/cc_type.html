@@ -304,9 +304,11 @@ to have to deal with more than one name for "generic type" in
 analyses like the type checker.  Some care is required to achieve
 this, as I don't want to make the inheritance private (since that
 would necessitate repeating all of BaseType's member declarations).
+<!--
 This requirement is the reason that Type, and not BaseType, has
 the declaration of <code>anyCtorSatisfies()</code>.  Were it in BaseType,
 then <code>TypePred</code> would expose the BaseType name.
+-->
 
 
 <p>

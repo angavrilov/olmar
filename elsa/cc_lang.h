@@ -21,9 +21,19 @@ public:
   // when true, every function body gets an implicit
   //   static char const __func__[] = "function-name";
   // declaration just inside the opening brace, where function-name is
-  // the name of the function; this is a C99 feature
+  // the name of the function; this is a C99 feature (section 6.4.2.2)
   bool implicitFuncVariable;
-                      
+
+  // behavior of gcc __FUNCTION__ and __PRETTY_FUNCTION__
+  // see also
+  //   http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Function-Names.html#Function%20Names
+  //   http://gcc.gnu.org/onlinedocs/gcc-2.95.3/gcc_4.html#SEC101
+  enum GCCFuncBehavior {
+    GFB_none,              // ordinary symbols
+    GFB_string,            // string literal (they concatenate!)
+    GFB_variable,          // variables, like __func__
+  } gccFuncBehavior;
+
   // when true, and we see a class declaration inside something,
   // pretend it was at toplevel scope anyway; this also applies to
   // enums, enumerators and typedefs

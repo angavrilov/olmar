@@ -133,6 +133,12 @@ bigTest() {
 failTest() {
   reason="$1"
   shift
+  
+  if [ "$reason" = "" ]; then
+    echo "failTest $*: must supply a failure reason"
+    exit 4
+  fi
+
   if [ "$curtest" -lt "$skip" ]; then
     echo "[$curtest]: (fail) skipping $*"
   else
@@ -192,6 +198,10 @@ testparse() {
   runTest perl ./multitest.pl ./ccparse -tr doOperatorOverload,$TR_FLAGS in/$1
 }
 failparse() {
+  if [ "$2" = "" ]; then
+    echo "failparse $1: failparse takes two arguments"
+    exit 4
+  fi
   failTest "$2" perl ./multitest.pl ./ccparse -tr shortMTRecDepthLimit,doOperatorOverload,$TR_FLAGS in/$1
 }
 
@@ -312,7 +322,8 @@ testparse t0107.cc
 # the C++ feature allowing changing the template parameter names
 # between the declaration and definition of a member function of a
 # class template is not working
-# testparse t0108.cc
+failparse t0108.cc "changing template parameter names"
+
 # same test without that feature used
 testparse t0108b.cc
 
@@ -422,10 +433,11 @@ testparse t0211.cc
 testparse t0212.cc
 testparse t0213.cc
 # g++ compiles this but ccparse does not
-failparse t0214.cc
+failparse t0214.cc "(fill in a reason here)"
 # even g++ won't compile this; I'll bet not legal C++
-failparse t0215.cc
+failparse t0215.cc "(fill in a reason here)"
 testparse t0216.cc
+testparse t0217.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -507,7 +519,7 @@ testparse d0070.cc
 testparse d0071.cc
 testparse d0072.cc
 testparse d0073.cc
-failparse d0074.cc
+failparse d0074.cc "(fill in a reason here)"
 testparse d0075.cc
 # ---- END: lots of tests ----
 
@@ -550,6 +562,8 @@ if $use_gnu; then
   testparse gnu/g0005.cc
   testparse gnu/g0006.cc
   testparse gnu/g0007.cc
+  testparse gnu/g0008.cc
+  # g0009.c is a C test
 
   testparse gnu/t0124.cc
   testparse gnu/t0125.cc
@@ -620,6 +634,12 @@ for fn in \
     ; do
   runTest ./ccparse -tr c_lang in/c/$fn
 done
+
+
+# test GNU C
+if $use_gnu; then
+  runTest ./ccparse -tr c_lang in/gnu/g0009.c
+fi
 
 
 # final parser checks against the big files, since they've now become

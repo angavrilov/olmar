@@ -13,13 +13,22 @@
 
 // flags on errors
 enum ErrorFlags {
+  // ordinary error
   EF_NONE          = 0x00,
 
   // informative, but not an error; typically, such messages should
   // have a switch to disable them
   EF_WARNING       = 0x01,
 
-  // this error will not be supressed
+  // This flag means the error will not be supressed in template code.
+  // Most errors inside templates are suppressed since they may be due
+  // to having incomplete information; but an EF_STRONG error is one
+  // where we are sure that the code really is invalid.  In theory, as
+  // cppstd does not require diagnosis of errors in uninstantiated
+  // template code, changing an EF_STRONG to EF_NONE should not cause
+  // Elsa to become nonconformant, merely less convenient.  Nevertheless,
+  // some of our regression tests contain (intentional) errors that are 
+  // diagnosed only because of EF_STRONG.
   EF_STRONG        = 0x02,
 
   // when this is true, the error message should be considered

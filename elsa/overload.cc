@@ -11,46 +11,7 @@
 #include "variable.h"      // Variable
 #include "cc_type.h"       // Type, etc.
 #include "trace.h"         // TRACE
-
-
-// -------- TypeListIter_FakeList --------
-
-bool TypeListIter_FakeList::isDone() const
-{
-  return curFuncArgs == 0;
-}
-
-void TypeListIter_FakeList::adv()
-{
-  xassert(!isDone());
-  curFuncArgs = curFuncArgs->butFirst();
-}
-
-Type *TypeListIter_FakeList::data() const
-{
-  xassert(!isDone());
-  return curFuncArgs->first()->getType();
-}
-
-
-// -------- TypeListIter_GrowArray --------
-
-bool TypeListIter_GrowArray::isDone() const
-{
-  return i == args.size();
-}
-
-void TypeListIter_GrowArray::adv()
-{
-  xassert(!isDone());
-  ++i;
-}
-
-Type *TypeListIter_GrowArray::data() const
-{
-  xassert(!isDone());
-  return args[i].type;
-}
+#include "typelistiter.h"  // TypeListIter
 
 
 // ------------------- Candidate -------------------------

@@ -59,7 +59,7 @@ public:
 // because of sharing in the ambiguous forest--but it will
 // double-count exactly to the degree that debugPrint will
 // double-print, so they will agree in that regard
-int numAmbiguousNodes(TranslationUnit *unit, bool hasBeenTchecked);
+int numAmbiguousNodes(TranslationUnit *unit);
 
 
 #endif // CCPARSE_H

@@ -3,7 +3,6 @@
 
 #include "ccparse.h"      // this module
 #include "cc_ast.h"       // ASTVisitor
-#include "cc_ast_aux.h"   // class ASTTemplVisitor
 
 #include <iostream.h>     // cout
 
@@ -97,16 +96,15 @@ void ParseEnv::error(SourceLoc loc, char const *msg)
 
 // ---------------------- AmbiguityChecker -----------------
 // check for ambiguities
-class AmbiguityChecker : public ASTTemplVisitor {
+// (I don't want this inheriting from ASTTemplVisitor; I just
+// want to count ambiguities in the base AST.)
+class AmbiguityChecker : public ASTVisitor {
 public:
   int ambiguousNodes;    // count of nodes with non-NULL ambiguity links
-  
+
 public:
-  AmbiguityChecker(bool hasBeenTchecked0)
-    : ASTTemplVisitor(true /*primariesAndPartials*/, hasBeenTchecked0)
-    , ambiguousNodes(0)
-  {}
-  
+  AmbiguityChecker() : ambiguousNodes(0) {}
+
   // check each of the kinds of nodes that have ambiguity links
   bool visitASTTypeId(ASTTypeId *obj);
   bool visitDeclarator(Declarator *obj);
@@ -134,9 +132,9 @@ VISIT(TemplateArgument)
 #undef VISIT
 
 
-int numAmbiguousNodes(TranslationUnit *unit, bool hasBeenTchecked)
+int numAmbiguousNodes(TranslationUnit *unit)
 {
-  AmbiguityChecker c(hasBeenTchecked);
+  AmbiguityChecker c;
   unit->traverse(c);
   return c.ambiguousNodes;
 }

@@ -46,6 +46,24 @@ public:
 
 void throw_XMatchDepth() NORETURN;
 
+// sm: why weren't these implemented?
+void throw_XMatchDepth()
+{
+  XMatchDepth x;
+  THROW(x);
+}
+
+XMatchDepth::XMatchDepth()
+  : xBase("match depth exceeded")
+{}
+
+XMatchDepth::XMatchDepth(XMatchDepth const &obj)
+  : xBase(obj)
+{}
+
+XMatchDepth::~XMatchDepth()
+{}
+
 
 // ---------------------- MatchBindings ---------------------
 
@@ -102,7 +120,7 @@ void bindingsGdb(PtrMap<Variable, STemplateArgument> &bindings)
     Variable *key = bindIter.key();
     STemplateArgument *value = bindIter.value();
     cout << "'" << key->name << "' ";
-    printf("Variable* key: %p ", key);
+    cout << "Variable* key: " << stringf("%p ", key);
 //      printf("serialNumber %d ", key->serialNumber);
     cout << endl;
     value->debugPrint();

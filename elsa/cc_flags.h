@@ -98,9 +98,8 @@ enum DeclFlags {
   DF_MEMBER      = 0x00080000,    // true for members of classes (data, static data, functions)
   DF_DEFINITION  = 0x00100000,    // set once we've seen this Variable's definition
   DF_INLINE_DEFN = 0x00200000,    // set for inline function definitions on second pass of tcheck
-  DF_IMPLICIT = 0x00400000,       // set for C++ implicit typedefs (if also DF_TYPEDEF),
-                                  // and implicit compiler-supplied member decls
-                                  // (if not DF_TYPEDEF)
+  DF_IMPLICIT    = 0x00400000,    // set for C++ implicit typedefs (if also DF_TYPEDEF),
+                                  // and implicit compiler-supplied member decls (if not DF_TYPEDEF)
   DF_FORWARD     = 0x00800000,    // for syntax which only provides a forward declaration
   DF_TEMPORARY   = 0x01000000,    // temporary variable introduced by elaboration
   DF_EXTERN_C    = 0x08000000,    // name is marked extern "C"

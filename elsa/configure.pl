@@ -5,7 +5,6 @@ use strict 'subs';
 
 # defaults
 $BASE_FLAGS = "-Wall -Wno-deprecated -D__UNIX__";
-$default_hash = "-DWILKERSON_GOLDSMITH_HASH";
 @CCFLAGS = ();
 @LDFLAGS = ("-Wall");
 $debug = 0;
@@ -119,19 +118,14 @@ if (!$debug) {
 }
 
 if ($use_dash_g) {
-  push @CCFLAGS, "-g";
-  push @LDFLAGS, "-g";
+  unshift @CCFLAGS, "-g";
+  unshift @LDFLAGS, "-g";
 }
 
 $os = `uname -s`;
 chomp($os);
 if ($os eq "Linux") {
   push @CCFLAGS, "-D__LINUX__";
-}
-
-# if haven't seen a hashfunction by now, use the default
-if (!grep (/^-D.*_HASH$/, @CCFLAGS)) {
-  push @CCFLAGS, $default_hash;
 }
 
 # smash the list together to make a string
@@ -170,21 +164,27 @@ if (defined($smbase_flags)) {
 
 
 # ---------------------- etags? ---------------------
-print("checking for etags... ");
-if (system("type etags >/dev/null 2>&1")) {
-  # doesn't have etags; cygwin is an example of such a system
-  print("not found\n");
-  $ETAGS = "true";       # 'true' is a no-op
-}
-elsif (system("etags --help | grep -- --members >/dev/null")) {
-  # has it, but it does not know about the --members option
-  print("etags\n");
-  $ETAGS = "etags";
-}
-else {
-  # assume if it knows about --members it knows about --typedefs too
-  print("etags --members --typedefs\n");
-  $ETAGS = "etags --members --typedefs";
+# 7/19/04: sm: I've now disabled this since it's becoming too much of
+# a hassle; someone reported that there is an etags that knows about
+# --members but not --typedefs.  If you want etags, please run it
+# yourself.
+if (0) {
+  print("checking for etags... ");
+  if (system("type etags >/dev/null 2>&1")) {
+    # doesn't have etags; cygwin is an example of such a system
+    print("not found\n");
+    $ETAGS = "true";       # 'true' is a no-op
+  }
+  elsif (system("etags --help | grep -- --members >/dev/null")) {
+    # has it, but it does not know about the --members option
+    print("etags\n");
+    $ETAGS = "etags";
+  }
+  else {
+    # assume if it knows about --members it knows about --typedefs too
+    print("etags --members --typedefs\n");
+    $ETAGS = "etags --members --typedefs";
+  }
 }
 
 
@@ -254,7 +254,6 @@ sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
     -e "s|\@AST\@|$AST|g" \\
     -e "s|\@ELKHOUND\@|$ELKHOUND|g" \\
     -e "s|\@USE_GNU\@|$USE_GNU|g" \\
-    -e "s|\@ETAGS\@|$ETAGS|g" \\
   <Makefile.in >>Makefile || exit
 
 # discourage editing

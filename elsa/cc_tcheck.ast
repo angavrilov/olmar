@@ -307,6 +307,11 @@ class Declarator {
     // template arguments so that later when the template info is
     // created for the variable we can convert them into
     // STemplateArguments and attach them
+    //
+    // sm: I think this is a mistake.  It is used to pass a piece of
+    // information from a base declarator out to the enclosing D_func.
+    // Instead, it would be better for the necessary information to
+    // be passed *in*.
     ASTList<TemplateArgument> const *ASTTemplArgs;
 
     // syntactic context

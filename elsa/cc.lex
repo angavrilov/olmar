@@ -6,6 +6,7 @@
 %{
 
 #include "lexer.h"       // Lexer class
+#include "cc_lang.h"     // CCLang (actually gnu.lex needs CCLang, but can't add the #include by itself due to the way lexer extensions work ...)
 
 // this works around a problem with cygwin & fileno
 #define YY_NEVER_INTERACTIVE 1
@@ -246,6 +247,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
    * when there are two dots but not three */
 ".." {
   yyless(1);     /* put back all but 1; this is inexpensive */
+  #warning _Bool does not belong here; find the right place for it
   return tok(TOK_DOT);
 }
 

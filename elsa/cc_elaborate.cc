@@ -219,6 +219,7 @@ Function *ElabVisitor::makeFunction(SourceLoc loc, Variable *var,
     NULL /*handlers*/
   );
   f->funcType = env.tfac.cloneType(var->type)->asFunctionType();
+
   // FIX: it hasn't strictly been tchecked, but we are going to
   // manually annotate it with types, which is manually tchecking it
   f->hasBodyBeenTChecked = true;

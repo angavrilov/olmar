@@ -75,7 +75,7 @@ string ambiguousNodeName(ASTTypeId const *n)
 // typechecked
 class EnsureFuncBodiesTcheckedVisitor : public ASTTemplVisitor {
   Env &env;
-  public:
+public:
   EnsureFuncBodiesTcheckedVisitor(Env &env0) : env(env0) {}
   bool visitFunction(Function *f);
   bool visitDeclarator(Declarator *d);
@@ -413,28 +413,33 @@ void Function::tcheck(Env &env, bool checkBody,
   tcheck_memberInits(env);
 
   // declare the __func__ variable
-  if (env.lang.implicitFuncVariable) {
+  if (env.lang.implicitFuncVariable ||
+      env.lang.gccFuncBehavior == CCLang::GFB_variable) {
     // static char const __func__[] = "function-name";
     SourceLoc loc = body->loc;
     Type *charConst = env.getSimpleType(loc, ST_CHAR, CV_CONST);
     Type *charConstArr = env.makeArrayType(loc, charConst);
-    Variable *funcVar = env.makeVariable(loc, env.str.add("__func__"),
-                                         charConstArr, DF_STATIC);
+
+    if (env.lang.implicitFuncVariable) {
+      Variable *funcVar = env.makeVariable(loc, env.string__func__,
+                                           charConstArr, DF_STATIC);
+
+      // I'm not going to add the initializer, because I'd need to make
+      // an Expression AST node (which is no problem) but I don't have
+      // anything to hang it off of, so it would leak.. I could add
+      // a field to Function, but then I'd pay for that even when
+      // 'implicitFuncVariable' is false..
+      env.addVariable(funcVar);
+    }
+
     // dsw: these two are also gcc; see
     // http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Function-Names.html#Function%20Names
-    Variable *funcVar1 = env.makeVariable(loc, env.str.add("__FUNCTION__"),
-                                          charConstArr, DF_STATIC);
-    Variable *funcVar2 = env.makeVariable(loc, env.str.add("__PRETTY_FUNCTION__"),
-                                          charConstArr, DF_STATIC);
-                                         
-    // I'm not going to add the initializer, because I'd need to make
-    // an Expression AST node (which is no problem) but I don't have
-    // anything to hang it off of, so it would leak.. I could add
-    // a field to Function, but then I'd pay for that even when
-    // 'implicitFuncVariable' is false..
-    env.addVariable(funcVar);
-    env.addVariable(funcVar1);
-    env.addVariable(funcVar2);
+    if (env.lang.gccFuncBehavior == CCLang::GFB_variable) {
+      env.addVariable(env.makeVariable(loc, env.string__FUNCTION__,
+                                       charConstArr, DF_STATIC));
+      env.addVariable(env.makeVariable(loc, env.string__PRETTY_FUNCTION__,
+                                       charConstArr, DF_STATIC));
+    }
   }
 
   // check the body in the new scope as well
@@ -900,8 +905,8 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
 
   // if the user uses the keyword "typename", then the lookup errors
   // are non-disambiguating, because the syntax is unambiguous
-  bool disambiguates = (typenameUsed? false : true);
-                                       
+  ErrorFlags eflags = (typenameUsed? EF_NONE : EF_DISAMBIGUATES);
+
   LookupFlags lflags = (typenameUsed? LF_TYPENAME : LF_NONE);
   Variable *v = env.lookupPQVariable(name, lflags);
   if (!v) {
@@ -910,14 +915,12 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
     // means we prefer to report the error as if the interpretation as
     // "variable" were the only one.
     return env.error(stringc
-      << "there is no typedef called `" << *name << "'",
-      (disambiguates? EF_DISAMBIGUATES: EF_NONE) );
+      << "there is no typedef called `" << *name << "'", eflags);
   }
 
   if (!v->hasFlag(DF_TYPEDEF)) {
     return env.error(stringc
-      << "variable name `" << *name << "' used as if it were a type",
-      (disambiguates? EF_DISAMBIGUATES: EF_NONE) );
+      << "variable name `" << *name << "' used as if it were a type", eflags);
   }
 
   // TODO: access control check
@@ -3921,6 +3924,13 @@ Type *E_variable::itcheck_var(Env &env, LookupFlags flags)
     // variable with signature "int (...)" which is what I recall as
     // the correct signature for such an implicit variable.
     if (env.lang.allowCallToUndeclFunc && (flags & LF_IMPL_DECL_FUNC)) {
+      // sm: I believe this approach is wrong because:
+      //   - Since a declaration is added, if a proper declaration 
+      //     occurs later (in the same scope!) it will cause an error.
+      //   - This made-up decl will not be connected to the function's
+      //     real implementation, nor to other call sites.
+      // But I myself don't care about K&R so I'm not going to fix it.
+
       // this should happen in C mode only so name must be a PQ_name
       v = env.makeUndeclFuncVar(name->asPQ_name()->name);
     } else {

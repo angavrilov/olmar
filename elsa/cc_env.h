@@ -22,60 +22,11 @@
 
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
-class MatchTypes;         // matchtype.h
-class TypeListIter;       // overload.h
+class TypeListIter;       // typelistiter.h
 
-
-// sm: TODO: I think this class should be defined in overload.h
-// holder for the CompoundType template candidates
-class TemplCandidates {
-  public:
-  TypeFactory &tfac;
-
-  // sm: changed ObjArrayStack to ArrayStack so is not owner
-  ArrayStack<Variable*> candidates;
-
-  TemplCandidates(TypeFactory &t) : tfac(t) {}
-
-  private:
-  TemplCandidates(TemplCandidates const &); // forbid copying
-
-  public:
-  #if 0    // obsolete by above change to ArrayStack
-  ~TemplCandidates() {
-    // IMPORTANT: Since ObjArrayStack seems to be an owner container,
-    // I have to empty it out before it dtors.
-    while (candidates.isNotEmpty()) {
-      candidates.pop();
-    }
-  }
-  #endif // 0
-
-  private:
-  // Compare two STemplateArgument-s; There are four possible answers:
-  // leftGreater, rightGreater, equal, and incomparable.
-  enum STemplateArgsCmp {
-    STAC_LEFT_MORE_SPEC,
-    STAC_RIGHT_MORE_SPEC,
-    STAC_EQUAL,
-    STAC_INCOMPARABLE,
-  };
-  static STemplateArgsCmp compareSTemplateArgs
-    (TypeFactory &tfac, STemplateArgument const *larg, STemplateArgument const *rarg);
-
-  public:
-  // compare two different templates (primary / specialization /
-  // instantiation) to see which is more specific; used by
-  // instantiateTemplate() to decide which to use for a given
-  // instantiation request
-  // return:
-  //   -1 if left is better
-  //    0 if they are indistinguishable
-  //   +1 if right is better
-  static int compareCandidatesStatic
-    (TypeFactory &tfac, TemplateInfo const *lti, TemplateInfo const *rti);
-  int compareCandidates(Variable const *left, Variable const *right);
-};
+// fwd in this file, for helpers
+class FuncDeclThing;
+class PartialScopeStack;
 
 
 // type of collection to hold a sequence of scopes
@@ -85,108 +36,6 @@ typedef ArrayStackEmbed<Scope*, 2> ScopeSeq;
 
 // need to be able to print these out
 void gdbScopeSeq(ScopeSeq &ss);
-
-
-// utility class for maintaining a first-class sub-stack of the AST
-// stack isomorphic to the stackframe stack; Note that the fact that
-// nothing happens if 'obj' is NULL is a feature: sometimes you can't
-// map the need to call this class completely onto the control flow,
-// and so some dataflow is involved; since the dtor for this class is
-// used as a kind of finally statement, we can't nest its construction
-// in an 'if' statement!  Instead pass in NULL if you want a no-op
-// effect.
-template<class T>
-class StackMaintainer {
-  SObjStack<T> &s;
-  T *obj;
-
-  StackMaintainer(StackMaintainer&); // forbid copying
-
-  public:
-  explicit StackMaintainer(SObjStack<T> &s0, T *obj0)
-    : s(s0)
-    , obj(obj0)
-  {
-    if (obj) {
-      s.push(obj);
-    }
-  }
-
-  ~StackMaintainer() {
-    if (obj) {
-      T *obj0 = s.pop();
-      xassert(obj0 == obj);
-    }
-  }
-};
-
-
-// need a superclass of D_func and Initializer
-class FuncDeclThing {
-  enum FDTType {
-    FDT_NONE,
-    FDT_D_func,
-    FDT_Initializer,
-  };
-  FDTType t;
-  union {
-    D_func *dfunc;
-    Initializer *init;
-  };
-  public:
-  FuncDeclThing(D_func *dfunc0)     : t(FDT_D_func),      dfunc(dfunc0) {}
-  FuncDeclThing(Initializer *init0) : t(FDT_Initializer), init(init0)   {}
-  bool isD_func() const      {return t == FDT_D_func;}
-  bool isInitializer() const {return t == FDT_Initializer;}
-  D_func *asD_func() const {
-    xassert(isD_func());
-    return dfunc;
-  }
-  Initializer *asInitializer() const {
-    xassert(isInitializer());
-    return init;
-  }
-};
-
-
-// FIX: these should probably be methods on Env.
-bool isCopyConstructor(Variable const *funcVar, CompoundType *ct);
-bool isCopyAssignOp(Variable const *funcVar, CompoundType *ct);
-void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
-
-
-// preserve a template instantiation context
-struct InstContext {
-  Variable *baseV;
-  Variable *instV;
-  Scope *foundScope;
-  SObjList<STemplateArgument> *sargs;
-
-  InstContext
-    (Variable *baseV,
-     Variable *instV,
-     Scope *foundScope,
-     SObjList<STemplateArgument> &sargs);
-  // FIX: creates garbage when deleted; I don't want any dangling
-  // pointer bugs for now
-};
-
-
-struct PartialScopeStack {
-  SObjList<Scope> scopes;
-  void stackIntoEnv(Env &env);
-  void unStackOutOfEnv(Env &env);
-};
-
-
-// preserve the function typechecking context
-struct FuncTCheckContext {
-  Function *func;
-  Scope *foundScope;
-  PartialScopeStack *pss;
-
-  FuncTCheckContext(Function *func, Scope *foundScope, PartialScopeStack *pss);
-};
 
 
 // the entire semantic analysis state
@@ -230,6 +79,7 @@ public:      // data
   // infinite looping in template instantiation
   ArrayStack<SourceLoc> instantiationLocStack;
 
+  // ----- BEGIN: tcheck mode stacks -----
   // stack of TemplateDeclaration-s; inside the definition of a
   // template body, you are not in "real" code, you are in "might-be"
   // code, a sort of never-never land for typechecking; you might want
@@ -244,11 +94,12 @@ public:      // data
   // like FuncDeclThing but what a lot of work
   static TD_class mode1Dummy;
 
-  // stack of D_func-s; inside a D_func, except for in Initializers
-  // (default arguments), we are in a strange mode where we need to do
-  // template *declaration* instantiation but not *definition*
-  // instantiation.
+  // stack of D_func-s and/or Initializers; inside a D_func, except
+  // for in Initializers (default arguments), we are in a strange mode
+  // where we need to do template *declaration* instantiation but not
+  // *definition* instantiation.
   SObjStack<FuncDeclThing> funcDeclStack;
+  // ----- END: tcheck mode stacks -----
 
   // string table for making new strings
   StringTable &str;
@@ -291,6 +142,11 @@ public:      // data
   // linkage specification strings
   StringRef quote_C_quote;
   StringRef quote_C_plus_plus_quote;
+
+  // a few more just to save string table lookups
+  StringRef string__func__;
+  StringRef string__FUNCTION__;
+  StringRef string__PRETTY_FUNCTION__;
 
   // ---- END: special names ----
 
@@ -389,22 +245,13 @@ private:     // funcs
                                              bool isAssignment = false);
   void addBuiltinBinaryOp(OverloadableOp op, CandidateSet * /*owner*/ cset);
 
+  // this is an internal function that should only be called by
+  // Env::lookupPQVariable(PQName const *name, LookupFlags f, Scope
+  // *&scope) and no one else
+  Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
+                                           Scope *&scope);
+
 public:      // funcs
-  // make a function type for an undeclared K and R function at its
-  // call site: "int (...)"
-  FunctionType *makeUndeclFuncType();
-
-  // make function variable for an undeclared K and R function at its
-  // call site with type makeUndeclFuncType() above
-  Variable *makeUndeclFuncVar(StringRef name);
-
-  // find the template primary that matches the template args,
-  // returning NULL if does not exist; calls xfailure() for now if it
-  // is ambiguous
-  Variable *findTemplPrimaryForSignature(OverloadSet *oloadSet, 
-                                         FunctionType *signature,
-                                         MatchTypes::MatchMode matchMode);
-
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac, TranslationUnit *tunit0);
   virtual ~Env();      // 'virtual' only to silence stupid warning; destruction is not part of polymorphic contract
 
@@ -416,17 +263,12 @@ public:      // funcs
   void extendScope(Scope *s);     // push onto stack, but don't own
   void retractScope(Scope *s);    // paired with extendScope()
 
-  // print out the variables in every scope with serialNumber-s
-  void debugPrintScopes();
-
-  // clone the part of the scope stack from the current up to the foundScope
-  PartialScopeStack *shallowClonePartialScopeStack(Scope *foundScope);
-  // so I can put methods on PartialScopeStack which seems more natural to me
-  friend struct PartialScopeStack;
-
   // the current, innermost scope
   Scope *scope() { return scopes.first(); }
   Scope const *scopeC() const { return scopes.firstC(); }
+
+  // print out the variables in every scope with serialNumber-s
+  void debugPrintScopes();
 
   // innermost scope that can accept names; the decl flags might
   // be used to choose exactly which scope to use
@@ -458,14 +300,19 @@ public:      // funcs
 
   // true if the current scope contains 's' as a nested scope
   bool currentScopeEncloses(Scope const *s);
-  
+
   // return the innermost scope that contains both the current
   // scope and 'target'
   Scope *findEnclosingScope(Scope *target);
-                                    
+
   // bit of a hack: recompute what happens when all the active
   // scopes are opened; this is for using-directives
   void refreshScopeOpeningEffects();
+
+  // clone the part of the scope stack from the current up to the foundScope
+  PartialScopeStack *shallowClonePartialScopeStack(Scope *foundScope);
+  // so I can put methods on PartialScopeStack which seems more natural to me
+  friend struct PartialScopeStack;
 
 
   // template typechecking modes; see comment at the top of the
@@ -550,13 +397,6 @@ public:      // funcs
   Variable *lookupPQVariable(PQName const *name, LookupFlags f=LF_NONE);
   Variable *lookupVariable  (StringRef name,     LookupFlags f=LF_NONE);
 
-  // this is an internal function that should only be called by
-  // Env::lookupPQVariable(PQName const *name, LookupFlags f, Scope
-  // *&scope) and no one else
-  private:
-  Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags, 
-                                           Scope *&scope);
-  public:
   // this variant returns the Scope in which the name was found
   Variable *lookupPQVariable(PQName const *name, LookupFlags f, Scope *&scope);
   Variable *lookupVariable(StringRef name, LookupFlags f, Scope *&scope);
@@ -870,14 +710,29 @@ public:      // funcs
   ASTTypeId *buildASTTypeId(Type *type);
   ASTTypeId *inner_buildASTTypeId     // effectively private to buildASTTypeId
     (Type *type, IDeclarator *surrounding);
-                                                   
+
   // look among the typedef aliases of 'type' for one that maps to
   // 'type' in the current environment, and wrap that name in a
   // TS_name; or, return NULL if it has no such aliases
   TS_name *buildTypedefSpecifier(Type *type);
-                                            
+
   // make an AST node for an integer literal expression
   E_intLit *buildIntegerLiteralExp(int i);
+
+  // make a function type for an undeclared K and R function at its
+  // call site: "int ()(...)"
+  FunctionType *makeUndeclFuncType();
+
+  // make function variable for an undeclared K and R function at its
+  // call site with type makeUndeclFuncType() above
+  Variable *makeUndeclFuncVar(StringRef name);
+
+  // find the template primary that matches the template args,
+  // returning NULL if does not exist; calls xfailure() for now if it
+  // is ambiguous
+  Variable *findTemplPrimaryForSignature(OverloadSet *oloadSet,
+                                         FunctionType *signature,
+                                         MatchTypes::MatchMode matchMode);
 };
 
 
@@ -943,6 +798,166 @@ public:
     // put back the good ones
     env.errors.takeMessages(existing);
   }
+};
+
+
+// ---------- dsw's helpers -------------
+// sm: I moved the following declarations down from the top of this
+// file.  I prefer to have class Env come first, since it is the
+// main class in this module.  Then helpers can come after, in any
+// order.
+
+// sm: TODO: I think this class should be defined in overload.h
+// holder for the CompoundType template candidates
+class TemplCandidates {
+  public:
+  TypeFactory &tfac;
+
+  // sm: changed ObjArrayStack to ArrayStack so is not owner
+  ArrayStack<Variable*> candidates;
+
+  TemplCandidates(TypeFactory &t) : tfac(t) {}
+
+  private:
+  TemplCandidates(TemplCandidates const &); // forbid copying
+
+  public:
+  #if 0    // obsolete by above change to ArrayStack
+  ~TemplCandidates() {
+    // IMPORTANT: Since ObjArrayStack seems to be an owner container,
+    // I have to empty it out before it dtors.
+    while (candidates.isNotEmpty()) {
+      candidates.pop();
+    }
+  }
+  #endif // 0
+
+  private:
+  // Compare two STemplateArgument-s; There are four possible answers:
+  // leftGreater, rightGreater, equal, and incomparable.
+  enum STemplateArgsCmp {
+    STAC_LEFT_MORE_SPEC,
+    STAC_RIGHT_MORE_SPEC,
+    STAC_EQUAL,
+    STAC_INCOMPARABLE,
+  };
+  static STemplateArgsCmp compareSTemplateArgs
+    (TypeFactory &tfac, STemplateArgument const *larg, STemplateArgument const *rarg);
+
+  public:
+  // compare two different templates (primary / specialization /
+  // instantiation) to see which is more specific; used by
+  // instantiateTemplate() to decide which to use for a given
+  // instantiation request
+  // return:
+  //   -1 if left is better
+  //    0 if they are indistinguishable
+  //   +1 if right is better
+  static int compareCandidatesStatic
+    (TypeFactory &tfac, TemplateInfo const *lti, TemplateInfo const *rti);
+  int compareCandidates(Variable const *left, Variable const *right);
+};
+
+
+// utility class for maintaining a first-class sub-stack of the AST
+// stack isomorphic to the stackframe stack; Note that the fact that
+// nothing happens if 'obj' is NULL is a feature: sometimes you can't
+// map the need to call this class completely onto the control flow,
+// and so some dataflow is involved; since the dtor for this class is
+// used as a kind of finally statement, we can't nest its construction
+// in an 'if' statement!  Instead pass in NULL if you want a no-op
+// effect.
+template<class T>
+class StackMaintainer {
+  SObjStack<T> &s;
+  T *obj;
+
+  StackMaintainer(StackMaintainer&); // forbid copying
+
+  public:
+  explicit StackMaintainer(SObjStack<T> &s0, T *obj0)
+    : s(s0)
+    , obj(obj0)
+  {
+    if (obj) {
+      s.push(obj);
+    }
+  }
+
+  ~StackMaintainer() {
+    if (obj) {
+      T *obj0 = s.pop();
+      xassert(obj0 == obj);
+    }
+  }
+};
+
+
+// need a superclass of D_func and Initializer
+class FuncDeclThing {
+  enum FDTType {
+    //FDT_NONE,     // sm: this one is impossible and unnecessary
+    FDT_D_func,
+    FDT_Initializer,
+  };
+  FDTType t;
+  union {
+    D_func *dfunc;
+    Initializer *init;
+  };
+  public:
+  FuncDeclThing(D_func *dfunc0)     : t(FDT_D_func),      dfunc(dfunc0) {}
+  FuncDeclThing(Initializer *init0) : t(FDT_Initializer), init(init0)   {}
+  bool isD_func() const      {return t == FDT_D_func;}
+  bool isInitializer() const {return t == FDT_Initializer;}
+  D_func *asD_func() const {
+    xassert(isD_func());
+    return dfunc;
+  }
+  Initializer *asInitializer() const {
+    xassert(isInitializer());
+    return init;
+  }
+};
+
+
+// FIX: these should probably be methods on Env.
+bool isCopyConstructor(Variable const *funcVar, CompoundType *ct);
+bool isCopyAssignOp(Variable const *funcVar, CompoundType *ct);
+void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
+
+
+// preserve a template instantiation context
+struct InstContext {
+  Variable *baseV;
+  Variable *instV;
+  Scope *foundScope;
+  SObjList<STemplateArgument> *sargs;
+
+  InstContext
+    (Variable *baseV,
+     Variable *instV,
+     Scope *foundScope,
+     SObjList<STemplateArgument> &sargs);
+  // FIX: creates garbage when deleted; I don't want any dangling
+  // pointer bugs for now
+};
+
+
+struct PartialScopeStack {
+  SObjList<Scope> scopes;
+  void stackIntoEnv(Env &env);
+  void unStackOutOfEnv(Env &env);
+};
+
+
+// preserve the function typechecking context
+struct FuncTCheckContext {
+  Function *func;
+  Scope *foundScope;
+  PartialScopeStack *pss;
+
+  FuncTCheckContext(Function *func, Scope *foundScope, PartialScopeStack *pss);
 };
 
 

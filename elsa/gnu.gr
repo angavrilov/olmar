@@ -3,7 +3,7 @@
 
 // expected statistics
 option shift_reduce_conflicts 135;
-option reduce_reduce_conflicts 65;
+option reduce_reduce_conflicts 66;
 
 
 verbatim {
@@ -265,6 +265,14 @@ nonterm(IDeclarator*) Declarator {
 nonterm(IDeclarator*) DirectDeclarator {
   -> "(" attrspec:AttributeSpecifierList d:Declarator ")"
        { return new D_grouping(loc, d); }
+
+  // function declarator with asm section identifier
+  -> d:DirectDeclarator                        // name of function
+     "(" params:ParameterDeclarationClause ")" // parameters
+     cv:CVQualifierSeqOpt                      // optional "const"
+     "asm" "(" s:StringLiteral ")"             // <---- this
+     e:ExceptionSpecificationOpt               // optional "throw" clause
+       { return new D_func(loc, d, params, cv, e); }
 }
 
 

@@ -1,5 +1,5 @@
 // cc_ast_aux.h
-// stuff I would like to put into cc.ast but I can't
+// dsw: stuff I would like to put into cc.ast but I can't
 
 #ifndef CC_AST_AUX_H
 #define CC_AST_AUX_H
@@ -21,7 +21,7 @@ class ASTTemplVisitor : public ASTVisitor {
   // which we have visited; prevents us from visiting them twice
   SObjSet<TemplateInfo *> primaryTemplateInfos;
 
-  public:
+public:
   ASTTemplVisitor
     (bool primariesAndPartials0 = false,
      bool hasBeenTchecked0 = true
@@ -34,7 +34,7 @@ class ASTTemplVisitor : public ASTVisitor {
 
   bool visitTemplateDeclaration(TemplateDeclaration *td);
 
-  private:
+private:
   void visitTemplateDeclaration_oneTempl(Variable *var0);
 };
 

@@ -1,14 +1,15 @@
 // cc_env.cc            see license.txt for copyright and terms of use
 // code for cc_env.h
 
-#include "cc_env.h"      // this module
-#include "trace.h"       // tracingSys
-#include "ckheap.h"      // heapCheck
-#include "strtable.h"    // StringTable
-#include "cc_lang.h"     // CCLang
-#include "strutil.h"     // suffixEquals
-#include "overload.h"    // selectBestCandidate_templCompoundType
-#include "matchtype.h"   // MatchType
+#include "cc_env.h"        // this module
+#include "trace.h"         // tracingSys
+#include "ckheap.h"        // heapCheck
+#include "strtable.h"      // StringTable
+#include "cc_lang.h"       // CCLang
+#include "strutil.h"       // suffixEquals
+#include "overload.h"      // selectBestCandidate_templCompoundType
+#include "matchtype.h"     // MatchType
+#include "typelistiter.h"  // TypeListIter
 
 TD_class Env::mode1Dummy(NULL, NULL); // arguments are meaningless
 
@@ -523,6 +524,9 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     otherName(str("__other")),
     quote_C_quote(str("\"C\"")),
     quote_C_plus_plus_quote(str("\"C++\"")),
+    string__func__(str("__func__")),
+    string__FUNCTION__(str("__FUNCTION__")),
+    string__PRETTY_FUNCTION__(str("__PRETTY_FUNCTION__")),
 
     // these are done below because they have to be declared as functions too
     special_getStandardConversion(NULL),
@@ -678,6 +682,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // also be marked NORETURN.
     // void __assert_fail(char const *__assertion, char const *__file,
     // unsigned int __line, char const *__function);
+    #warning This is not the right place for __assert_fail.
     declareFunction4arg(t_void, "__assert_fail",
                         t_charconstptr, "__assertion",
                         t_charconstptr, "__file",
@@ -1400,6 +1405,12 @@ CompoundType *Env::getEnclosingCompound()
 }
 #endif // 0
 
+
+// sm: Currently, we are maintaining two stacks plus one weird global
+// all for the purpose of computing the tcheck mode.  I think we should
+// just maintain the mode explicitly.  Note that class Restorer, in
+// smbase/macros.h, can make restoring previous values convenient.
+#warning I think the tcheck mode stacks are overkill.
 
 Env::TemplTcheckMode Env::getTemplTcheckMode() const {
   if (templateDeclarationStack.isEmpty()
@@ -2315,7 +2326,7 @@ Variable *Env::lookupPQVariable_function_with_args(
 
 Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
 {
-  Scope *dummy = NULL;
+  Scope *dummy = NULL;     // paranoia; 'scope' is an OUT parameter
   return lookupPQVariable(name, flags, dummy);
 }
 
@@ -2430,6 +2441,7 @@ Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
         //
         // in fact, as I suspected, it is wrong; using-directives can
         // create aliases (e.g. t0194.cc)
+
         return instantiateTemplate_astArgs(loc(), scope, var, NULL /*inst*/,
                                            final->asPQ_templateC()->args);
       }
@@ -2464,13 +2476,11 @@ Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
   return var;
 }
 
-// NOTE: It is *not* the job of this function to do overload
-// resolution!  If the client wants that done, it must do it itself,
-// *after* doing the lookup.
-Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags, 
+Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags,
                                 Scope *&scope)
 {
   Variable *var = lookupPQVariable_internal(name, flags, scope);
+
   // in normal typechecking, nothing should look up to a variable from
   // template-definition never-never land
   if ( !(flags & LF_TEMPL_PRIMARY) &&
@@ -2484,6 +2494,7 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags,
     // DF_SELFNAME
     //      xassert(!var->type->containsVariables());
   }
+
   return var;
 }
 
@@ -3981,12 +3992,12 @@ Type *Env::error(SourceLoc L, char const *msg, ErrorFlags eflags)
   string instLoc = instLocStackString();
   TRACE("error",    (disambiguates? "[d] " : "")
                  << toString(L) << ": " << msg << instLoc);
+
   bool report = (eflags & EF_DISAMBIGUATES) || (eflags & EF_STRONG) || (!disambiguateOnly);
   if (report) {
-    errors.addError
-      (new ErrorMsg
-       (L, msg, disambiguates ? EF_DISAMBIGUATES : EF_NONE, instLoc));
+    errors.addError(new ErrorMsg(L, msg, eflags, instLoc));
   }
+
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }
 
@@ -4407,9 +4418,16 @@ Variable *Env::createDeclaration(
   CompoundType *enclosingClass,   // scope->curCompound, or NULL for a hack that is actually wrong anyway (!)
   Variable *prior,          // pre-existing variable with same name and type, if any
   OverloadSet *overloadSet, // set into which to insert it, if that's what to do
+
   // should we really add the variable to the scope?  if false, don't
   // register the variable anywhere, which is a situation that occurs
   // in template instantiation
+  // 
+  // sm: I don't like this solution.  It threads a small piece of context
+  // through many unrelated interfaces.  I suggest simply making a dummy
+  // scope for the variable to go in.  The same fix should work for the 
+  // 'priorTemplInst' that got added in similar places.
+  #warning I do not like reallyAddVariable.
   bool reallyAddVariable
 ) {
   // if this gets set, we'll replace a conflicting variable

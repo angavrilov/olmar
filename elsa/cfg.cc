@@ -101,34 +101,30 @@ void CFGEnv::addLabel(StringRef name, S_label *target)
   labels.add(name, target);
 }
 
-void CFGEnv::addPendingGoto(StringRef name, S_goto *source)
+void CFGEnv::addPendingGoto(S_goto *source)
 {
-  // dsw: FIX: this is fundamentally broken: the goto graph is not
-  // injective; that is, elsa can't handle two gotos to the same
-  // target.  Since this is non-critical functionality, I'm turning it
-  // off for now by skipping it if the name already maps to something
-  if (!gotos.isMapped(name)) {
-    gotos.add(name, source);
-  }
+  // sm: I'm not sure what I was thinking when I had 'gotos' as
+  // a dictionary...
+  
+  gotos.push(source);
 }
 
 void CFGEnv::resolveGotos()
 {
   // go over all the gotos and find their corresponding target
-  for (StringSObjDict<S_goto>::Iter iter(gotos);
-       !iter.isDone(); iter.next()) {
-    S_label *target = labels.queryif(iter.key());
+  while (gotos.isNotEmpty()) {
+    S_goto *g = gotos.pop();
+    S_label *target = labels.queryif(g->target);
     if (target) {
-      iter.value()->next = NextPtr(target, false);
+      g->next = NextPtr(target, false);
     }
     else {
-      err(iter.value()->loc, stringc << "goto to undefined label: " << iter.key());
+      err(g->loc, stringc << "goto to undefined label: " << g->target);
     }
   }
-  
-  // empty both dictionaries
+
+  // empty the label dictionary (goto set already empty)
   labels.empty();
-  gotos.empty();
 }
 
 
@@ -176,7 +172,7 @@ void CFGEnv::verifyFunctionEnd()
   xassert(breaks.top()->count() == 0);
 
   xassert(labels.size() == 0);
-  xassert(gotos.size() == 0);
+  xassert(gotos.isEmpty());
 
   xassert(switches.count() == 0);
   xassert(loops.count() == 0);
@@ -351,7 +347,7 @@ void S_return::icfg(CFGEnv &env)
 
 void S_goto::icfg(CFGEnv &env)
 {
-  env.addPendingGoto(target, this);
+  env.addPendingGoto(this);
 }
 
 

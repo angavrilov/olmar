@@ -4,7 +4,7 @@
 #tmp: cc.ast.gen.h cc_elaborate.o cc.ast.gen.o all
 
 # main target: a C++ parser
-all: cc.ast.gen.h tlexer ccparse quicktest TAGS
+all: cc.ast.gen.h tlexer ccparse quicktest
 
 # directories of other software
 SMBASE   := @SMBASE@
@@ -162,6 +162,7 @@ CCPARSE_OBJS := \
   stdconv.o \
   implconv.o \
   overload.o \
+  typelistiter.o \
   cc.ast.gen.o \
   cc.gr.gen.o \
   parssppt.o \
@@ -249,9 +250,9 @@ gendoc/3.4.5.png: gendoc/3.4.5.ps
 doc: gendoc gendoc/configure.txt gendoc/dependencies.png gendoc/3.4.5.png
 	@echo "built documentation"
 
-TOCLEAN += TAGS
-TAGS:
-	@ETAGS@ *.cc *.h
+#TOCLEAN += TAGS
+#TAGS:
+#	@ETAGS@ *.cc *.h
 
 
 # -------------------- count source lines -------------------

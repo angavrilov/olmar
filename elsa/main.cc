@@ -11,7 +11,6 @@
 #include "cc_env.h"       // Env
 #include "cc_ast.h"       // C++ AST (r)
 #include "cc_ast_aux.h"   // class ASTTemplVisitor
-#include "cc_ast_aux.h"   // class ASTTemplVisitor
 #include "cc_lang.h"      // CCLang
 #include "parsetables.h"  // ParseTables
 #include "cc_print.h"     // PrintEnv
@@ -229,7 +228,7 @@ void doit(int argc, char **argv)
   }
 
   if (unit) {     // when "-tr trivialActions" it's NULL...
-    cout << "ambiguous nodes: " << numAmbiguousNodes(unit, false /*hasBeenTchecked*/) << endl;
+    cout << "ambiguous nodes: " << numAmbiguousNodes(unit) << endl;
   }
 
   if (tracingSys("stopAfterParse")) {
@@ -321,7 +320,7 @@ void doit(int argc, char **argv)
     }
 
     // verify the tree now has no ambiguities
-    if (unit && numAmbiguousNodes(unit, true /*hasBeenTchecked*/) != 0) {
+    if (unit && numAmbiguousNodes(unit) != 0) {
       cout << "UNEXPECTED: ambiguities remain after type checking!\n";
       if (tracingSys("mustBeUnambiguous")) {
         exit(2);

@@ -5,8 +5,8 @@
 #include "generic_aux.h"    // C++ AST, and genericPrintAmbiguities, etc.
 #include "cc_ast_aux.h"     // class ASTTemplVisitor
 
-// ---------------------- ASTTemplVisitor ----------------------
 
+// ---------------------- ASTTemplVisitor ----------------------
 void ASTTemplVisitor::visitTemplateDeclaration_oneTempl(Variable *var0) {
   xassert(var0);
   xassert(var0->templateInfo());
@@ -105,8 +105,8 @@ bool ASTTemplVisitor::visitTemplateDeclaration(TemplateDeclaration *obj)
   return false;                 // prune the walk here; don't decend into template definitions
 }
 
-// ---------------------- refersTo ----------------------
 
+// ---------------------- refersTo ----------------------
 // Nominally "refers to <loc>", but with additional information
 // about "using declaration" aliasing.  This is an example of how
 // the aliasing complicates what used to be a simple process,

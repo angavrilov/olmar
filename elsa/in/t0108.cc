@@ -3,7 +3,7 @@
 
 template <int n>
 class Foo {
-  public:
+public:
   int x;
   Foo() { x=n; }    // assign from template argument
   int f();

@@ -6,11 +6,12 @@
 #define SPRINT_H
 
 #include "cc_ast.h"     // C++ AST, visitor, etc.
-#include "cc_ast_aux.h" // class ASTTemplVisitor
+
 
 // walk the AST, printing info about syntactic and
 // static semantic structure
-class StructurePrinter : public ASTTemplVisitor {
+// (sm: This should not inherit from ASTTemplVisitor.)
+class StructurePrinter : public ASTVisitor {
 private:     // data
   // current syntactic nesting level; 0 means toplevel
   int depth;

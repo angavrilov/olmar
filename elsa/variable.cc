@@ -236,6 +236,10 @@ void Variable::setInstCtxts(InstContext *instCtxt0, FuncTCheckContext *tcheckCtx
 
   xassert(!tcheckCtxt);
   tcheckCtxt = tcheckCtxt0;
+  
+  // sm: I still think it is a mistake to be saving any instantiation
+  // context, especially scope information.
+  #warning I think saving scopes is a mistake.
 }
 
 

@@ -75,7 +75,7 @@ private:    // data
   ObjStack< SObjList<S_break> > breaks;
 
   StringSObjDict<S_label> labels;       // goto targets
-  StringSObjDict<S_goto> gotos;         // goto sources
+  SObjStack<S_goto> gotos;              // goto sources (a set)
 
   SObjStack<S_switch> switches;
   SObjStack<Statement> loops;
@@ -107,7 +107,7 @@ public:     // funcs
 
   // manipulate lists of sources and targets of gotos
   void addLabel(StringRef name, S_label *target);
-  void addPendingGoto(StringRef name, S_goto *source);
+  void addPendingGoto(S_goto *source);
   void resolveGotos();
 
   // maintain a stack of nested switch statements

@@ -227,12 +227,21 @@ nonterm(Expression*) Literal {
   -> TOK_FALSE            { return new E_boolLit(false); }
 }
 
-// this is broken out to handle string concatenation
+// a single quoted sequence of characters
+nonterm(StringRef) PreprocString {
+  -> s:TOK_STRING_LITERAL                   { return s; }
+
+  // slightly subtle: ordinary strings are yielded *with quotes*,
+  // whereas these special guys are not quoted; also note that
+  // yielding of these token codes depends on lang.gccFuncBehavior
+  -> TOK___FUNCTION__ 	                    { return str("__FUNCTION__"); }
+  -> TOK___PRETTY_FUNCTION__                { return str("__PRETTY_FUNCTION__"); }
+}
+
+// a string literal, with all concatenated parts
 nonterm(E_stringLit*) StringLiteral {
-  -> s:TOK_STRING_LITERAL                      { return new E_stringLit(s); }
-  -> s:TOK_STRING_LITERAL cont:StringLiteral   { return new E_stringLit(s, cont); }
-  //-> StringLiteral "__FUNCTION__" ;
-  //-> StringLiteral "__PRETTY_FUNCTION__" ;
+  -> s:PreprocString                        { return new E_stringLit(s); }
+  -> s:PreprocString cont:StringLiteral     { return new E_stringLit(s, cont); }
 }
 
 
@@ -1158,18 +1167,7 @@ nonterm(Enumerator*) EnumeratorDefinition {
 
 
 nonterm(E_stringLit*) AsmDefinition {
-  -> t:AsmThing ";"    { return t; }
-}
-
-
-nonterm(E_stringLit*) AsmThingOpt {
-  -> empty       { return NULL; }
-  -> t:AsmThing  { return t; }
-}
-
-
-nonterm(E_stringLit*) AsmThing {
-  -> "asm" "(" s:StringLiteral ")"    { return s; }
+  -> "asm" "(" s:StringLiteral ")" ";"    { return s; }
 }
 
 
@@ -1314,7 +1312,6 @@ nonterm(IDeclarator*) DirectDeclarator {
   -> d:DirectDeclarator                        // name of function
      "(" params:ParameterDeclarationClause ")" // parameters
      cv:CVQualifierSeqOpt                      // optional "const"
-     AsmThingOpt                               // assembly things can go here
      e:ExceptionSpecificationOpt               // optional "throw" clause
        { return new D_func(loc, d, params, cv, e); }
 

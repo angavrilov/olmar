@@ -17,6 +17,9 @@
 #include <stdlib.h>     // getenv
 
 
+// sm: this is at least the second time this idea has cropped up,
+// and it still a mistake
+#warning global_tfac is a mistake
 TypeFactory * global_tfac = NULL;
 
 
@@ -74,6 +77,10 @@ bool AtomicType::equals(AtomicType const *obj) const
       obj->isTypeVariable()) {
     return true;
   }
+
+  // sm: Something is really wrong here.  AtomicType::equals
+  // is supposed to be simple.  The caller must be misusing it.
+  #warning AtomicType::equals should be simple
 
   // all of the AtomicTypes are unique-representation,
   // so pointer equality suffices
@@ -817,8 +824,12 @@ EnumType::Value *EnumType::addValue(StringRef name, int value, Variable *decl)
   xassert(!valueIndex.isMapped(name));
 
   Value *v = new Value(name, this, value, decl);
-  values.append(v);
   valueIndex.add(name, v);
+  
+  // 7/22/04: At one point I was also maintaining a linked list of
+  // the Value objects.  Daniel pointed out this was quadratic b/c
+  // I was using 'append()'.  Since I never used the list anyway,
+  // I just dropped it in favor of the dictionary (only).
   
   return v;
 }
@@ -826,8 +837,8 @@ EnumType::Value *EnumType::addValue(StringRef name, int value, Variable *decl)
 
 EnumType::Value const *EnumType::getValue(StringRef name) const
 {
-  Value *v;
-  if (valueIndex.query(name, v)) { 
+  Value const *v;
+  if (valueIndex.queryC(name, v)) { 
     return v;
   }
   else {
@@ -1063,6 +1074,13 @@ string BaseType::rightString(bool /*innerParen*/) const
 }
 
 
+bool BaseType::anyCtorSatisfiesF(TypePredFunc f) const 
+{
+  StatelessTypePred stp(f);
+  return anyCtorSatisfies(stp);
+}
+
+
 CVFlags BaseType::getCVFlags() const
 {
   return CV_NONE;
@@ -1231,10 +1249,9 @@ bool typeIsError(Type const *t)
 
 bool BaseType::containsErrors() const
 {
-  StatelessTypePred pred(typeIsError);
   // hmm.. bit of hack..
   return static_cast<Type const *>(this)->
-    anyCtorSatisfies(pred);
+    anyCtorSatisfiesF(typeIsError);
 }
 
 
@@ -1247,9 +1264,8 @@ bool typeHasTypeVariable(Type const *t)
 
 bool BaseType::containsTypeVariables() const
 {
-  StatelessTypePred pred(typeHasTypeVariable);
   return static_cast<Type const *>(this)->
-    anyCtorSatisfies(pred);
+    anyCtorSatisfiesF(typeHasTypeVariable);
 }
 
 
@@ -1265,9 +1281,8 @@ bool hasVariable(Type const *t)
 
 bool BaseType::containsVariables() const
 {
-  StatelessTypePred pred(hasVariable);
   return static_cast<Type const *>(this)->
-    anyCtorSatisfies(pred);
+    anyCtorSatisfiesF(hasVariable);
 }
 
 
@@ -2247,44 +2262,62 @@ void TemplateInfo::debugPrint(int depth)
 STemplateArgument::STemplateArgument(STemplateArgument const &obj)
   : kind(obj.kind)
 {
-  // take advantage of representation uniformity
-  // dsw: Ugh, a hidden reinterpret_cast!
-  // sm: not really.. it's just a bit-for-bit copy, with the
-  // same interpretation to be applied to the source and
-  // destination
-  value.i = obj.value.i;
-  value.v = obj.value.v;    // just in case ptrs and ints are diff't size
+  #if 0     // old
+    // take advantage of representation uniformity
+    // dsw: Ugh, a hidden reinterpret_cast!
+    // sm: not really.. it's just a bit-for-bit copy, with the
+    // same interpretation to be applied to the source and
+    // destination
+    value.i = obj.value.i;
+    value.v = obj.value.v;    // just in case ptrs and ints are diff't size
+  #else
+    // sm: ok, fine; rather than have two copy ctors, I'll just change
+    // this one so there are no borderline language abuses...
+    if (kind == STA_TYPE) {
+      value.t = obj.value.t;
+    }
+    else if (kind == STA_INT) {
+      value.i = obj.value.i;
+    }
+    else {
+      value.v = obj.value.v;
+    }
+  #endif
 }
 
 
 STemplateArgument *STemplateArgument::shallowClone() const
 {
-  STemplateArgument *ret = new STemplateArgument();
-  switch (kind) {
-  default:
-  case STA_NONE:
-    xfailure("STemplateArgument with illegal or undefined kind");
-    break;
-  case STA_TYPE:
-    ret->setType(getType());
-    break;
-  case STA_INT:
-    ret->setInt(getInt());
-    break;
-  case STA_REFERENCE:
-    ret->setReference(getReference());
-    break;
-  case STA_POINTER:
-    ret->setPointer(getPointer());
-    break;
-  case STA_MEMBER:
-    ret->setMember(getMember());
-    break;
-  case STA_TEMPLATE:
-    xfailure("STemplateArgument STA_MEMBER unimplemented");
-    break;
-  }
-  return ret;
+  #if 0    // old; can we delete this now?
+    STemplateArgument *ret = new STemplateArgument();
+    switch (kind) {
+    default:
+    case STA_NONE:
+      xfailure("STemplateArgument with illegal or undefined kind");
+      break;
+    case STA_TYPE:
+      ret->setType(getType());
+      break;
+    case STA_INT:
+      ret->setInt(getInt());
+      break;
+    case STA_REFERENCE:
+      ret->setReference(getReference());
+      break;
+    case STA_POINTER:
+      ret->setPointer(getPointer());
+      break;
+    case STA_MEMBER:
+      ret->setMember(getMember());
+      break;
+    case STA_TEMPLATE:
+      xfailure("STemplateArgument STA_MEMBER unimplemented");
+      break;
+    }
+    return ret;
+  #else
+    return new STemplateArgument(*this);
+  #endif
 }
 
 

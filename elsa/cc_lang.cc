@@ -5,19 +5,11 @@
 
 void CCLang::KandR_C()
 {
-  tagsAreTypes = false;
-  recognizeCppKeywords = false;
-  implicitFuncVariable = true;
-  noInnerClasses = true;
-  uninitializedGlobalDataIsCommon = true;
+  ANSI_C();
+
   emptyParamsMeansPureVarargFunc = true;
-  complainUponBadDeref = true;
-  strictArraySizeRequirements = false;
-  allowOverloading = false;
-  compoundSelfName = false;
   allowCallToUndeclFunc = true;
   allow_KR_ParamOmit = true;
-  isCplusplus = false;
 }
 
 void CCLang::ANSI_C()
@@ -25,6 +17,7 @@ void CCLang::ANSI_C()
   tagsAreTypes = false;
   recognizeCppKeywords = false;
   implicitFuncVariable = true;
+  gccFuncBehavior = GFB_string;         // gcc <= 3.3 compatibility by default
   noInnerClasses = true;
   uninitializedGlobalDataIsCommon = true;
   emptyParamsMeansPureVarargFunc = false;
@@ -42,6 +35,7 @@ void CCLang::ANSI_Cplusplus()
   tagsAreTypes = true;
   recognizeCppKeywords = true;
   implicitFuncVariable = false;
+  gccFuncBehavior = GFB_variable;       // g++ compatibility by default
   noInnerClasses = false;
   uninitializedGlobalDataIsCommon = false;
   emptyParamsMeansPureVarargFunc = false;

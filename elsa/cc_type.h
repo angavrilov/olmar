@@ -39,7 +39,6 @@
 #include "serialno.h"     // INHERIT_SERIAL_BASE
 
 class Variable;           // variable.h
-class MatchBindings;      // matchtype.h
 class Env;                // cc_env.h
 class TS_classSpec;       // cc.ast
 class Expression;         // cc.ast
@@ -215,6 +214,8 @@ public:      // data
   // of the class definition; note that this is partially redundant
   // with the Scope's 'variables' map, and hence should not be changed
   // without also updating that map
+  //
+  // TODO: change this to an array for performance
   SObjList<Variable> dataMembers;
 
   // classes from which this one inherits; 'const' so you have to
@@ -388,8 +389,7 @@ public:     // types
   };
 
 public:     // data
-  ASTList<Value> values;              // values in this enumeration
-  StringSObjDict<Value> valueIndex;   // name-based lookup
+  StringObjDict<Value> valueIndex;    // values in this enumeration
   int nextValue;                      // next value to assign to elements automatically
 
 public:     // funcs
@@ -407,6 +407,29 @@ public:     // funcs
 };
 
 
+// ---- Type predicates ----
+// dsw: It caused too much difficulty in the Oink build process to
+// have these as members of class Type.
+
+typedef bool (*TypePredFunc)(Type const *t);
+
+// abstract superclass
+class TypePred {
+public:
+  virtual bool operator() (Type const *t) = 0;
+  virtual ~TypePred() {}     // gcc sux
+};
+
+// when you just want a stateless predicate
+class StatelessTypePred : public TypePred {
+  TypePredFunc const f;
+public:
+  StatelessTypePred(TypePredFunc f0) : f(f0) {}
+  virtual bool operator() (Type const *t) { return f(t); }
+  virtual ~StatelessTypePred() {}
+};
+
+
 // ------------------- constructed types -------------------------
 // generic constructed type; to allow client analyses to annotate the
 // description of types, this class is inherited by "Type", the class
@@ -415,8 +438,8 @@ public:     // funcs
 // note: clients should refer to Type, not BaseType
 class BaseType INHERIT_SERIAL_BASE {
 public:     // types
-  enum Tag { 
-    T_ATOMIC, 
+  enum Tag {
+    T_ATOMIC,
     T_POINTER,
     T_REFERENCE,
     T_FUNCTION,
@@ -439,10 +462,6 @@ public:     // data
   //
   // TODO: Now that elaboration doesn't need this, remove it.
   SASTList<Variable> typedefAliases;
-
-  // moved this declaration into Type, along with the declaration of
-  // 'anyCtorSatisfies', so as not to leak the name "BaseType"
-  //typedef bool (*TypePred)(Type const *t);
 
   // when true (the default is false), types are printed in ML-like
   // notation instead of C notation by AtomicType::toString and
@@ -522,12 +541,15 @@ public:     // funcs
     // symmetric in their arguments
     EF_POLYMORPHIC     = 0x0080,
 
-    // In K&R mode to allow for the fact that, in some circumstances,
+    // dsw: In K&R mode to allow for the fact that, in some circumstances,
     // a function can be declared more than once but only some times
     // provide a parameter list and other times provide an empty
     // argument list, which in K&R mode this typechecks with a
     // parameter list of '(...)'.  Thus in K&R mode, we allow two such
     // function types to be considered equal.
+    //
+    // sm: I am not convinced that this is the proper way to handle K&R
+    // declarations.
     EF_ALLOW_KR_PARAM_OMIT = 0x0100,
 
     // ----- combined behaviors -----
@@ -594,8 +616,18 @@ public:     // funcs
   // values
   virtual int reprSize() const = 0;
 
-  // see description below, in class Type
-  //virtual bool anyCtorSatisfies(TypePred pred) const=0;
+  // filter on all constructed types that appear in the type,
+  // *including* parameter types; return true if any constructor
+  // satisfies 'pred' (note that recursive types always go through
+  // CompoundType, and this does not dig into the fields of
+  // CompoundTypes)
+  virtual bool anyCtorSatisfies(TypePred &pred) const=0;
+
+  // automatically wrap 'pred' in a StatelessTypePred;
+  // trailing 'F' in name means "function", so as to avoid
+  // overloading and overriding on the same name
+  bool anyCtorSatisfiesF(TypePredFunc f) const;
+
 
   // return the cv flags that apply to this type, if any;
   // default returns CV_NONE
@@ -690,13 +722,6 @@ ENUM_BITWISE_OPS(BaseType::EqFlags, BaseType::EF_ALL)
     Type() {}
 
   public:      // funcs
-    // filter on all constructed types that appear in the type,
-    // *including* parameter types; return true if any constructor
-    // satisfies 'pred' (note that recursive types always go through
-    // CompoundType, and this does not dig into the fields of
-    // CompoundTypes)
-    virtual bool anyCtorSatisfies(TypePred &pred) const=0;
-
     // do not leak the name "BaseType"
     Type const *asRvalC() const
       { return static_cast<Type const *>(BaseType::asRvalC()); }
@@ -704,30 +729,6 @@ ENUM_BITWISE_OPS(BaseType::EqFlags, BaseType::EF_ALL)
       { return static_cast<Type*>(BaseType::asRval()); }
   };
 #endif // TYPE_CLASS_FILE
-
-// ------------------ Type predicates --------------
-
-// It caused too much difficulty in the Oink build process to have
-// these as members of class Type.
-
-typedef bool (*TypePredFunc)(Type const *t);
-
-// abstract superclass
-class TypePred {
-  public:
-  virtual bool operator() (Type const *t) = 0;
-  virtual ~TypePred() {}
-};
-
-// when you just want a stateless predicate
-class StatelessTypePred : public TypePred {
-  TypePredFunc const f;
-  public:
-  StatelessTypePred(TypePredFunc f0) : f(f0) {}
-  virtual bool operator() (Type const *t) { return f(t); }
-  virtual ~StatelessTypePred() {}
-};
-
 
 // supports the use of 'Type*' in AST constructor argument lists
 string toString(Type *t);
@@ -864,6 +865,8 @@ public:     // data
 
   // list of function parameters; if (flags & FF_METHOD) then the
   // first parameter is '__receiver'
+  //
+  // TODO: change to an array
   SObjList<Variable> params;
 
   // allowable exceptions, if not NULL
@@ -1269,9 +1272,7 @@ public:
   STemplateArgument() : kind(STA_NONE) { value.i = 0; }
   STemplateArgument(STemplateArgument const &obj);
 
-  // FIX: dsw: this is probably completely duplicate functionality
-  // with the copy ctor, but I don't like the fast and loose bit copy
-  // going on there with respect to the union
+  // 'new' + copy ctor
   STemplateArgument *shallowClone() const;
 
   // get 'value', ensuring correspondence between it and 'kind'

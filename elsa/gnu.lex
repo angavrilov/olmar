@@ -14,10 +14,18 @@
 "__restrict__"         return tok(TOK___RESTRICT__);
 "__builtin_expect"     return tok(TOK___BUILTIN_EXPECT);
 
- /* dsw: these are actually the same as __func__; see note in cc_tcheck.cc
- "__FUNCTION__"         return tok(TOK___FUNCTION__);
- "__PRETTY_FUNCTION__"  return tok(TOK___PRETTY_FUNCTION__);
- */
+  /* behavior of these depends on CCLang settings */
+"__FUNCTION__"|"__PRETTY_FUNCTION__" {
+  if (lang.gccFuncBehavior == CCLang::GFB_string) {
+    // yield with special token codes
+    return tok(yytext[2]=='F'? TOK___FUNCTION__ : TOK___PRETTY_FUNCTION__);
+  }
+  else {
+    // ordinary identifier, possibly predefined (but that's not the
+    // lexer's concern)
+    return svalTok(TOK_NAME);
+  }
+}
 
 "__extension__" {
   /* treat this like a token, in that nonseparating checks are done,
