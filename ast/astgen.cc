@@ -22,6 +22,11 @@
 string visitorName;
 inline bool wantVisitor() { return visitorName.length() != 0; }
 
+// this is the name of the delegator-visitor, or ""
+// if the user does not want a delegator-visitor
+string dvisitorName;
+inline bool wantDVisitor() { return dvisitorName.length() != 0; }
+
 // similar for the modification visitor ("mvisitor")
 string mvisitorName;
 inline bool wantMVisitor() { return mvisitorName.length() != 0; }
@@ -308,6 +313,7 @@ private:        // funcs
   void emitUserDecls(ASTList<Annotation> const &decls);
   void emitCtor(ASTClass const &ctor, ASTClass const &parent);
   void emitVisitorInterface();
+  void emitDVisitorInterface();
   void emitMVisitorInterface();
 
 public:         // funcs
@@ -349,6 +355,16 @@ void HGen::emitFile()
   if (wantVisitor()) {
     out << "// visitor interface class\n"
         << "class " << visitorName << ";\n\n";
+  }
+  if (wantDVisitor()) {
+    // dsw: this seems necessary and here seems as good a place as any
+    // to do it
+    if (!wantVisitor()) {
+      cout << "If you specify the 'dvisitor' option, you must also specify the 'visitor' option\n";
+      exit(2);
+    }
+    out << "// delegator-visitor interface class\n"
+        << "class " << dvisitorName << ";\n\n";
   }
   if (wantMVisitor()) {
     out << "class " << mvisitorName << ";\n\n";
@@ -401,6 +417,9 @@ void HGen::emitFile()
 
   if (wantVisitor()) {
     emitVisitorInterface();
+  }
+  if (wantDVisitor()) {
+    emitDVisitorInterface();
   }
   if (wantMVisitor()) {
     emitMVisitorInterface();
@@ -815,6 +834,7 @@ public:
   void emitCloneCode(ASTClass const *super, ASTClass const *sub);
 
   void emitVisitorImplementation();
+  void emitDVisitorImplementation();
   void emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
                     bool hasChildren);
 
@@ -868,6 +888,9 @@ void CGen::emitFile()
 
   if (wantVisitor()) {
     emitVisitorImplementation();
+  }
+  if (wantDVisitor()) {
+    emitDVisitorImplementation();
   }
   if (wantMVisitor()) {
     emitMVisitorImplementation();
@@ -1395,6 +1418,64 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
 }
 
 
+// ------------------- delegation visitor --------------------
+void HGen::emitDVisitorInterface()
+{
+  out << "// the delegator-visitor interface class\n"
+      << "class " << dvisitorName << " : public " << visitorName << " {\n";
+
+  // client visitor to delegate to
+  out << "private:\n";
+  out << "  " << visitorName << " &client;\n";
+
+  // ctor
+  out << "public:\n";
+  out << "  explicit " << dvisitorName << "(" << visitorName << " &client0)\n";
+  out << "    : client(client0)\n";
+  out << "  {}\n";
+
+  // non-copy-ctor
+  out << "private:\n";
+  out << "  // prevent accidental copy construction with a private, explicit,\n";
+  out << "  // non-implemented copy ctor\n";
+  out << "  explicit " << dvisitorName << "(" << dvisitorName << " const &other);\n";
+
+  // methods
+  out << "public:\n";
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *c = iter.data();
+    out << "  virtual bool visit" << c->super->name << "("
+        <<   c->super->name << " *obj);\n"
+        << "  virtual void postvisit" << c->super->name << "("
+        <<   c->super->name << " *obj);\n";
+  }
+
+  // we are done
+  out << "};\n\n";
+}
+
+
+void CGen::emitDVisitorImplementation()
+{
+  // NOTE: the one-arg ctor implementation was in the declaration and
+  // we deliberately omit an implementation of the copy ctor
+  out << "// ---------------------- " << dvisitorName << " ---------------------\n";
+  out << "// default no-op delegator-visitor\n";
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *c = iter.data();
+    out << "bool " << dvisitorName << "::visit" << c->super->name
+        << "(" << c->super->name << " *obj) {\n"
+        << "  return client.visit" << c->super->name << "(obj);\n"
+        << "}\n"
+        << "void " << dvisitorName << "::postvisit" << c->super->name
+        << "(" << c->super->name << " *obj) {\n"
+        << "  client.postvisit" << c->super->name << "(obj);\n"
+        << "}\n";
+  }
+  out << "\n\n";
+}
+
+
 // ------------------- modification visitor --------------------
 void HGen::emitMVisitorInterface()
 {
@@ -1849,6 +1930,9 @@ void entry(int argc, char **argv)
 
         if (op->name.equals("visitor")) {
           grabVisitorName("visitor", visitorName, op);
+        }
+        else if (op->name.equals("dvisitor")) {
+          grabVisitorName("dvisitor", dvisitorName, op);
         }
         else if (op->name.equals("mvisitor")) {
           grabVisitorName("mvisitor", mvisitorName, op);
