@@ -15,7 +15,7 @@ all: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/c.ast.gen.h \
 # in which things are made
 .PHONY: workingFiles
 ifdef CC_QUAL
-  workingFiles: cc/cc_qual/cc_qual.o
+  workingFiles: cc/cc_qual/cc_qual_walk.o
 endif
 workingFiles: cc/cc_tcheck.o cc/cc_print.o
 #workingFiles: cc/cc_flatten.o
@@ -43,7 +43,7 @@ includes    := -I$(SMBASE) -I$(AST) -Icc
 ifdef CC_QUAL
 # dsw: don't know why this doesn't work, but I have never actually
 # tried this feature of make before.
-#  cc/cc_qual/cc_qual.o: includes += -I cc_qual/cqual/src -I cc_qual/cqual/src/libcompat
+#  cc/cc_qual/cc_qual_walk.o: includes += -I cc_qual/cqual/src -I cc_qual/cqual/src/libcompat
   includes += -I cc/cc_qual/cqual/src -I cc/cc_qual/cqual/src/libcompat
 endif
 
@@ -207,11 +207,11 @@ cc-set := \
 
 ifdef CC_QUAL
   cc-set += cc/cc_qual/cc_qualifiers.o
-  cc-set += cc/cc_qual/cc_qual.o
+  cc-set += cc/cc_qual/cc_qual_walk.o
   cc-set += cc/cc_qual/cqual_iface.o
 else
   cc-set += cc/cc_qualifiers_dummy.o
-  cc-set += cc/cc_qual_dummy.o
+  cc-set += cc/cc_qual_walk_dummy.o
 endif
 
 -include $(filter-out $(AST)/%, $(cc-set:.o=.d))
