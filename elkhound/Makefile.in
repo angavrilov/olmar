@@ -242,7 +242,7 @@ cexp3: $(cexp3-dep)
 # intermediate files for a grammar
 # ('chmod a-w' is so I don't accidentally edit it)
 .PRECIOUS: %.gr.gen.cc %.gr.gen.h
-%.gr.gen.cc %.gr.gen.h: %.gr cc.tok gramanl
+%.gr.gen.cc %.gr.gen.h %.gr.gen.y: %.gr cc.tok gramanl
 	rm -f $*.gr.gen.*
 	./gramanl -tr conflict $*
 	chmod a-w $*.gr.gen.h $*.gr.gen.cc
@@ -369,6 +369,12 @@ bccgr.tab.o: cc.gr.gen.cc bccgr.h bccgr.y
 	cat cc.gr.gen.y | sed 's/File "L2_EOF"/File/' >> bccgr.y
 	bison -d -v bccgr.y
 	gcc -c -g -O2 -DNDEBUG $(YYDEBUG) -Wall bccgr.tab.c
+
+bccgr.y: cc.gr.gen.y
+	echo '%{' > bccgr.y
+	echo '#include "bccgr.h"' >> bccgr.y
+	echo '%}' >> bccgr.y
+	sed 's/File "L2_EOF"/File/' <cc.gr.gen.y >>bccgr.y
 
 bccgr: bccgr.cc bccgr.tab.o lexer1.o lexer1yy.o lexer2.o $(AST)/fileloc.o \
        $(AST)/strtable.o $(SMBASE)/libsmbase.a

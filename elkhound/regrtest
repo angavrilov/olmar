@@ -216,6 +216,9 @@ vcgen callfind.c
 
 vcgen node.i
 vcgen owner1.i
+        
+# this one is my main performance tester
+runTest ./ccgr -tr trivialActions,stopAfterParse cc.bin c.in4d
 
 
 # final arithmetic to report result
