@@ -194,6 +194,8 @@ class TypeSpecifier(SourceLoc loc) {
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
 
+  public bool canBeTypeParam() const;
+
   // a typedef'd name (typedef might be implicit, as for classes);
   // if 'typenamedUsed' is true, then the user said "typename", so
   // we don't regard an error as disambiguating

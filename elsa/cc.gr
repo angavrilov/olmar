@@ -2050,8 +2050,7 @@ nonterm(TemplateParameter*) TemplateParameter {
        // if the specifier is a TS_elaborated, then it could be a type
        // parameter; cppstd 14.1 para 3 seems to say that in that case it
        // always *is* a type parameter
-       if (p->spec->isTS_elaborated()  &&
-           p->spec->asTS_elaborated()->keyword == TI_CLASS) {
+       if (p->spec->canBeTypeParam()) {
          trace("cancel") << loc << ": template parameter can be type param\n";
          return NULL;   // don't keep this, it's really a TP_type
        }

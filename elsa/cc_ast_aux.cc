@@ -201,6 +201,23 @@ void TypeSpecifier::printExtras(ostream &os, int indent) const
 }
 
 
+// disambiguation for cppstd 14.1 para 3
+bool TypeSpecifier::canBeTypeParam() const
+{
+  if (isTS_elaborated() &&
+      asTS_elaboratedC()->keyword == TI_CLASS) {
+    return true;
+  }
+
+  if (isTS_name() &&
+      asTS_nameC()->typenameUsed) {
+    return true;
+  }
+
+  return false;
+}
+
+
 // ------------------- BaseClassSpec ---------------------
 void BaseClassSpec::printExtras(ostream &os, int indent) const
 {
