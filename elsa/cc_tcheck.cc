@@ -1632,7 +1632,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
 
-  name->tcheck(env);
+  name->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   if (keyword == TI_ENUM) {
     Variable *tag = env.lookupPQ_one(name, LF_ONLY_TYPES);
