@@ -175,6 +175,8 @@ struct GNUKeywordMap {
   { "__volatile__", L2_VOLATILE },
   
   // hack to make some things not appear to be keywords
+  { "class", L2_NAME },
+  { "this", L2_NAME },
   { "new", L2_NAME },
 };
 

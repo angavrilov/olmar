@@ -94,8 +94,6 @@ private:    // data
 private:    // funcs
   void grab(Type *t);
   int makeFreshInteger();
-  string makeAnonName();
-  string makeFreshName(char const *prefix);
   ostream& indent(ostream &os) const;
   Variable *addVariable(char const *name, DeclFlags flags, Type const *type);
 
@@ -111,6 +109,10 @@ public:     // funcs
   // automatically done in ~Env, but sometimes we need to
   // deallocate the parent before the child)
   void killParentLink();
+  
+  // naming helpers
+  string makeAnonName();
+  string makeFreshName(char const *prefix);
 
   // given an AtomicType, wrap it in a CVAtomicType
   // with no const or volatile qualifiers
@@ -126,6 +128,11 @@ public:     // funcs
   // make a function type; initially, its parameter list is
   // empty, but can be built up by modifying the returned object
   FunctionType *makeFunctionType(Type const *retType, CVFlags cv);
+  
+  // sometimes it's handy to specify all args at once
+  FunctionType *makeFunctionType_1arg(
+    Type const *retType, CVFlags cv,
+    Type const *arg1Type, char const *arg1name);
 
   // make an array type, either of known or unknown size
   ArrayType *makeArrayType(Type const *eltType, int size);

@@ -46,8 +46,17 @@ Env::Env(DataflowEnv *d)
       b[i].cv = CV_NONE;
     }
     builtins = b;
+
+    declareVariable(NULL, "__builtin_constant_p", DF_NONE,
+      makeFunctionType_1arg(
+        getSimpleType(ST_INT),                          // return type
+        CV_NONE,
+        getSimpleType(ST_INT), "potentialConstant"));   // arg type
+        
+    declareVariable(NULL, "__end_of_fixed_addresses", DF_NONE,
+      getSimpleType(ST_INT));
   }
-  
+
   trace("refct") << "created toplevel Env at " << this << "\n";
 }
 
@@ -121,11 +130,11 @@ void Env::killParentLink()
     parent->referenceCt--;
     trace("refct") << "destroying Env at " << this << "; parent is "
                    << parent << " with new refct=" << parent->referenceCt << endl;
-                   
+
     // parent link is now gone; this is the only line that's allowed
     // to reassign 'parent', so I leave it declared const and just
     // cast it here
-    const_cast<Env*&>(parent) = NULL; 
+    const_cast<Env*&>(parent) = NULL;
   }
   else {
     // may as well print errors
@@ -226,6 +235,16 @@ FunctionType *Env::makeFunctionType(Type const *retType, CVFlags cv)
 {
   FunctionType *ret = new FunctionType(retType, cv);
   grab(ret);
+  return ret;
+}
+
+
+FunctionType *Env::makeFunctionType_1arg(
+  Type const *retType, CVFlags cv,
+  Type const *arg1Type, char const *arg1Name)
+{
+  FunctionType *ret = makeFunctionType(retType, cv);
+  ret->addParam(new Parameter(arg1Type, arg1Name));
   return ret;
 }
 

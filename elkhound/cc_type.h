@@ -256,7 +256,8 @@ public:
   // todo: repr. of default arguments?
 
 public:
-  Parameter(Type const *t) : name(""), type(t) {}
+  Parameter(Type const *t, char const *n="") 
+    : name(n), type(t) {}
   ~Parameter();
 
   string toString() const;
