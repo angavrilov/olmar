@@ -174,7 +174,7 @@ $(AST)/%.o: $(AST)/%.cc
 
 # a few random .o files which don't appear anyplace above, but I need
 # to make sure their dependency info (if it exists) gets included
-random-obj := lexer2stub.o parsstub.o cexp2.o cexp3.gen.o \
+random-obj := parsstub.o cexp2.o cexp3.gen.o \
               glrmain.o cexp3mrg.o cexp3ast.gen.o cdecl.gen.o \
               ccgrmain.o
 -include $(random-obj:.o=.d)
@@ -185,7 +185,7 @@ gramlex.yy.o: grampar.codes.h
 # ------ targets -------
 # reads the grammar and emits C++ code for semantic functions
 gramanl-dep := gramanl.cc gramexpl.o $(grammar-set) $(grampar-set) \
-               lexer2stub.o parsetables.o $(libraries)
+               parsetables.o $(libraries)
 gramanl: $(gramanl-dep) grammar.h gramanl.h
 	$(link) -o gramanl -DGRAMANL_MAIN $(gramanl-dep)
 
@@ -227,12 +227,12 @@ grampar.tab.cc grampar.tab.h grampar.codes.h: grampar.y gramast.ast.gen.h
 	rm tmp
 	grep '# *define' grampar.tab.h > grampar.codes.h
 
-# grammar parser test program
-grampar: grampar.cc $(grammar-set) gramlex.yy.o grampar.tab.o \
-         $(AST)/gramlex.o ast.o $(AST)/fileloc.o gramast.ast.gen.o $(AST)/ccsstr.o \
-         lexer2stub.o $(AST)/embedded.o $(AST)/strtable.o $(AST)/asthelp.o \
-         $(libraries)
-	$(link) -o grampar -DTEST_GRAMPAR $^
+# (unmaintained) grammar parser test program
+# grampar: grampar.cc $(grammar-set) gramlex.yy.o grampar.tab.o \
+#          $(AST)/gramlex.o ast.o $(AST)/fileloc.o gramast.ast.gen.o $(AST)/ccsstr.o \
+#          $(AST)/embedded.o $(AST)/strtable.o $(AST)/asthelp.o \
+#          $(libraries)
+# 	$(link) -o grampar -DTEST_GRAMPAR $^
 
 # cycle timer test
 cyctimer: cyctimer.cc cyctimer.h
