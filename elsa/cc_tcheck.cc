@@ -27,9 +27,9 @@ void genericPrintAmbiguities(NODE const *ths, char const *typeName,
        e != NULL;
        e = e->ambiguity) {
     NODE *tempAmbig = e->ambiguity;
-    e->ambiguity = NULL;
+    const_cast<NODE*&>(e->ambiguity) = NULL;
     e->debugPrint(os, indent+2);
-    e->ambiguity = tempAmbig;
+    const_cast<NODE*&>(e->ambiguity) = tempAmbig;
   }
 
   ind(os, indent) << "--------- end of ambiguous " << typeName
@@ -48,11 +48,55 @@ void Statement::printAmbiguities(ostream &os, int indent) const
 }
 
 
+void Expression::addAmbiguity(Expression *alt)
+{   
+  // 'alt' had better not already be on a list (shouldn't be,
+  // because it's the RHS argument to merge, which means it's
+  // never been yielded to anything)
+  xassert(alt->next == NULL);
+
+  if (next) {
+    // I don't expect to already be on a list myself, so I'll
+    // make some noise; but I think it will work anyway
+    cout << "note: ambiguous expression leader is already on a list..\n";
+  }
+
+  // if I have been added to a a list, add 'alt' also
+  const_cast<Expression*&>(alt->next) = next;
+  
+  // finally, prepend 'alt' to my ambiguity list
+  const_cast<Expression*&>(alt->ambiguity) = ambiguity;
+  const_cast<Expression*&>(ambiguity) = alt;
+}
+
+void Expression::setNext(Expression *newNext)
+{
+  // my 'next' should be NULL; if it's not, then I'm already
+  // on a list, and setting 'next' now will lose information
+  xassert(next == NULL);
+  const_cast<Expression*&>(next) = newNext;
+
+  // if I've got any ambiguous alternatives, set all their 'next'
+  // pointers too
+  if (ambiguity) {
+    ambiguity->setNext(newNext);    // recursively set them all
+  }
+}
+
+
+void Statement::addAmbiguity(Statement *alt)
+{
+  // prepend 'alt' to my list
+  const_cast<Statement*&>(alt->ambiguity) = ambiguity;
+  const_cast<Statement*&>(ambiguity) = alt;
+}
+
+
 void IDeclarator::printExtras(ostream &os, int indent) const
 {
   ind(os, indent) << "stars:";
-  FOREACH_ASTLIST(PtrOperator, stars, iter) {
-    os << " " << iter.data()->toString();
+  FAKELIST_FOREACH(PtrOperator, stars, iter) {
+    os << " " << iter->toString();
   }
   os << "\n";
 }

@@ -630,21 +630,16 @@ STATICDEF void Lexer2::nextToken(Lexer2 *ths)
   ths->copyFields();
 }
        
-LexerInterface::NextTokenFunc Lexer2::getTokenFunc()
+LexerInterface::NextTokenFunc Lexer2::getTokenFunc() const
 {
   return (NextTokenFunc)&Lexer2::nextToken;
 }
 
 
-string Lexer2::tokenDesc()
+string Lexer2::tokenDesc() const
 {
-  return currentToken.data()->toString();
-}
-
-string Lexer2::tokenDescType(int newType)
-{
-  return currentToken.data()->toStringType(false /*asSexp*/, 
-                                           (Lexer2TokenType)newType);
+  return currentToken.data()->toStringType(false /*asSexp*/,
+                                           (Lexer2TokenType)LexerInterface::type);
 }
 
 

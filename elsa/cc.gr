@@ -277,7 +277,7 @@ nonterm[Expression*] PostfixExpression {
   //   x(y)
   // can either be a function call (x is a function)
   // or a constructor call (x is a type)
-  merge(L,R) [ L->ambiguity = R; return L; ]
+  merge(L,R) [ L->addAmbiguity(R); return L; ]
 
   -> e:PrimaryExpression 
        [ return e; ]
@@ -353,15 +353,21 @@ nonterm[CastKeyword] CastKeyword {
   -> "const_cast"        [ return CK_CONST; ]
 }
 
-nonterm[ASTList<Expression>*] ExpressionList {
+// here, and everywhere else that FakeList is used, I use right
+// recursion to construct the list; this does mean the stack size
+// is linear in the size of the list, but the benefit of not
+// having to reverse the list of use ASTList (which is difficult
+// to share) is worth it
+nonterm[FakeList<Expression>*] ExpressionList {
   -> a:AssignmentExpression
-       [ return new ASTList<Expression>(a); ]
-  -> e:ExpressionList "," a:AssignmentExpression
-       [ e->append(a); return e; ]
+       [ return FakeList<Expression>::makeList(a); ]
+  -> a:AssignmentExpression "," e:ExpressionList
+       [ a->setNext(e->first()); 
+         return FakeList<Expression>::makeList(a); ]
 }
 
-nonterm[ASTList<Expression>*] ExpressionListOpt {
-  -> empty               [ return new ASTList<Expression>(); ]
+nonterm[FakeList<Expression>*] ExpressionListOpt {
+  -> empty               [ return FakeList<Expression>::emptyList(); ]
   -> e:ExpressionList    [ return e; ]
 }
 
@@ -374,7 +380,7 @@ nonterm[Expression*] UnaryExpression {
   //   sizeof(x)
   // could either be size of an expression 'x', or
   // size of a type called 'x'
-  merge(L,R) [ L->ambiguity = R; return L; ]
+  merge(L,R) [ L->addAmbiguity(R); return L; ]
 
   -> e:PostfixExpression         [ return e; ]
 
@@ -416,8 +422,8 @@ nonterm[E_new*] NewExpression {
        [ return new E_new(c, p, t, i); ]
 }
 
-nonterm[ASTList<Expression>*] NewPlacementOpt {
-  -> empty                          [ return NULL; ]
+nonterm[FakeList<Expression>*] NewPlacementOpt {
+  -> empty                          [ return FakeList<Expression>::emptyList(); ]
   -> "(" lst:ExpressionList ")"     [ return lst; ]
 }
 
@@ -430,7 +436,7 @@ nonterm[ASTTypeId*] NewTypeId {
 //   (PtrOperator)*  ("[" Expression "]"  ("[" ConstExpression "]")* )?
 nonterm[IDeclarator*] NewDeclaratorOpt {
   -> empty                               [ return new D_name(loc, NULL); ]
-  -> p:PtrOperator d:NewDeclaratorOpt    [ d->stars.prepend(p); return d; ]
+  -> p:PtrOperator d:NewDeclaratorOpt    [ d->stars = d->stars->prepend(p); return d; ]
 
   // commit to at least one "[" ... "]"
   -> d:DirectNewDeclarator               [ return d; ]
@@ -442,9 +448,9 @@ nonterm[IDeclarator*] DirectNewDeclarator {
        [ return new D_array(d, sz); ]
 }
 
-nonterm[ASTList<Expression>*] NewInitializerOpt {
+nonterm[ExpressionListOpt*] NewInitializerOpt {
   -> empty                            [ return NULL; ]
-  -> "(" lst:ExpressionListOpt ")"    [ return lst; ]
+  -> "(" lst:ExpressionListOpt ")"    [ return new ExpressionListOpt(lst); ]
 }
 
 nonterm[Expression*] DeleteExpression {
@@ -470,7 +476,7 @@ nonterm[Expression*] BinaryExpression {
   //   (x) & (y)
   // could either be the bitwise AND of expressions x and y, or
   // it could be the address of expression y, cast to type x
-  merge(L,R) [ L->ambiguity = R; return L; ]
+  merge(L,R) [ L->addAmbiguity(R); return L; ]
 
   -> e:CastExpression                                    [ return e; ]
 
@@ -568,7 +574,7 @@ nonterm[Statement*] Statement {
   //   x(y);
   // can either be an Expression statement (function call)
   // or a BlockDeclaration (declare variable y, of type x)
-  merge(L,R) [ L->ambiguity = R; return L; ]
+  merge(L,R) [ L->addAmbiguity(R); return L; ]
 
   -> n:L2_VARIABLE_NAME ":" s:Statement 
        [ return new S_label(loc, n, s); ]
@@ -641,15 +647,19 @@ nonterm[S_compound*] CompoundStatement {
   // I must enter scope immediately upon seeing the open-brace, so
   // that if the first token of the first statement changes or queries
   // the scope, it's in the new one
-  -> EnterScope "{" seq:StatementSeqOpt LeaveScope "}"
-       [ return new S_compound(loc, seq); ]
+  -> EnterScope seq:CompoundStmtSeq LeaveScope "}"
+       [ return seq; ]
 }
 
-nonterm[ASTList<Statement>*] StatementSeqOpt {
-  -> empty
-       [ return new ASTList<Statement>(); ]
-  -> seq:StatementSeqOpt s:Statement
-       [ seq->append(s); return seq; ]
+nonterm[S_compound*] CompoundStmtSeq {
+  // I pushed "{" into this nonterminal so the 'loc' would reflect
+  // its location, instead of the location of the first statement inside
+  // (and in fact since 'empty' has no location, I wouldn't even have
+  // been able to get that..)
+  -> "{" empty
+       [ return new S_compound(loc, NULL); ]
+  -> c:CompoundStmtSeq s:Statement
+       [ c->stmts.append(s); return c; ]
 }
 
 // the guard of e.g. an 'if' statement
@@ -703,12 +713,12 @@ nonterm[Declaration*] BlockDeclaration {
 nonterm[Declaration*] SimpleDeclaration {
   //e.g.: int                x                     ;
   -> spec:DeclSpecifier list:InitDeclaratorListOpt ";"
-       [ spec->decllist.steal(list); return spec; ]
+       [ spec->decllist = list; return spec; ]
 
   -> "typedef" spec:DeclSpecifier list:TypedefDeclaratorList ";"
        [
          spec->dflags = (DeclFlags)(spec->dflags | DF_TYPEDEF);
-         spec->decllist.steal(list);
+         spec->decllist = list;
          return spec;
        ]
 
@@ -897,17 +907,16 @@ nonterm[TS_enumSpec*] EnumSpecifier {
 }
 
 
-nonterm[ASTList<Enumerator>*] EnumeratorList {
+nonterm[FakeList<Enumerator>*] EnumeratorList {
   -> def:EnumeratorDefinition
-       [ return new ASTList<Enumerator>(def); ]
-  -> list:EnumeratorList "," def:EnumeratorDefinition
-       [ list->append(def); return list; ]
+       [ return FakeList<Enumerator>::makeList(def); ]
+  -> def:EnumeratorDefinition "," list:EnumeratorList
+       [ return list->prepend(def); ]
 }
 
-nonterm[ASTList<Enumerator>*] EnumeratorListOpt {
-  -> empty 
-       [ return new ASTList<Enumerator>(); ]
-
+nonterm[FakeList<Enumerator>*] EnumeratorListOpt {
+  -> empty
+       [ return FakeList<Enumerator>::emptyList(); ]
   -> list:EnumeratorList CommaOpt   // CommaOpt is GNU extension (??)
        [ return list; ]
 }
@@ -932,16 +941,16 @@ nonterm AsmDefinition -> "asm" "(" L2_STRING_LITERAL ")" ";" ;
 // -- declarator --
 // a declarator is the "x" in a declaration like "int x"
 
-nonterm[ASTList<Declarator>*] InitDeclaratorList {
+nonterm[FakeList<Declarator>*] InitDeclaratorList {
   -> d:InitDeclarator
-       [ return new ASTList<Declarator>(d); ]
-  -> list:InitDeclaratorList "," d:InitDeclarator
-       [ list->append(d); return list; ]
+       [ return FakeList<Declarator>::makeList(d); ]
+  -> d:InitDeclarator "," list:InitDeclaratorList
+       [ return list->prepend(d); ]
 }
 
-nonterm[ASTList<Declarator>*] InitDeclaratorListOpt {
+nonterm[FakeList<Declarator>*] InitDeclaratorListOpt {
   -> empty
-       [ return new ASTList<Declarator>(); ]
+       [ return FakeList<Declarator>::emptyList(); ]
   -> list:InitDeclaratorList
        [ return list; ]
 }
@@ -970,15 +979,15 @@ nonterm[Initializer*] InitializerClause {
   -> e:AssignmentExpression              // scalar
        [ return new IN_expr(e); ]
   -> c:CompoundInitializer               // array/structure initializer
-       [ return new IN_compound(c); ]
+       [ return c; ]
 }
 
-nonterm[ASTList<Initializer>*] CompoundInitializer {
+nonterm[IN_compound*] CompoundInitializer {
   // array/structure initializer
   -> "{" list:InitializerList CommaOpt "}"  [ return list; ]
 
   // zero whatever it is
-  -> "{" "}"  [ return new ASTList<Initializer>(); ]
+  -> "{" "}"  [ return new IN_compound(NULL); ]
 }
 
 // useful syntactic quirk
@@ -987,11 +996,13 @@ nonterm CommaOpt {
   -> "," ;
 }
 
-nonterm[ASTList<Initializer>*] InitializerList {
+nonterm[IN_compound*] InitializerList {
   -> init:InitializerClause
-       [ return new ASTList<Initializer>(init); ]
+       [ IN_compound *list = new IN_compound(NULL);
+         list->inits.append(init); 
+         return list; ]
   -> list:InitializerList "," init:InitializerClause
-       [ list->append(init); return list; ]
+       [ list->inits.append(init); return list; ]
 }
 
 
@@ -1004,7 +1015,7 @@ nonterm[ASTList<Initializer>*] InitializerList {
 nonterm[IDeclarator*] Declarator {
   // (PtrOperator)* DirectDeclarator
   -> p:PtrOperator d:Declarator
-       [ d->stars.prepend(p); return d; ]
+       [ d->stars = d->stars->prepend(p); return d; ]
 
   -> d:DirectDeclarator
        [ return d; ]
@@ -1096,16 +1107,16 @@ nonterm[enum CVFlags] CVQualifier {
 // these are separated out because the parser wants to track the
 // introduction of type names; this is only for the lexer hack,
 // so for now the separation is not used
-nonterm[ASTList<Declarator>*] TypedefDeclaratorList {
+nonterm[FakeList<Declarator>*] TypedefDeclaratorList {
   -> d:TypedefDeclarator
-       [ return new ASTList<Declarator>(new Declarator(d, NULL)); ]
-  -> list:TypedefDeclaratorList "," d:TypedefDeclarator
-       [ list->append(new Declarator(d, NULL)); return list; ]
+       [ return FakeList<Declarator>::makeList(new Declarator(d, NULL)); ]
+  -> d:TypedefDeclarator "," list:TypedefDeclaratorList
+       [ return list->prepend(new Declarator(d, NULL)); ]
 }
 
 nonterm[IDeclarator*] TypedefDeclarator {
   -> p:PtrOperator d:TypedefDeclarator
-       [ d->stars.prepend(p); return d; ]
+       [ d->stars = d->stars->prepend(p); return d; ]
   -> d:DirectTypedefDeclarator
        [ return d; ]
 }
@@ -1151,7 +1162,7 @@ nonterm[IDeclarator*] AbstractDeclaratorOpt {
 // an abstract declarator (not opt) must have *some* ground syntax in it
 nonterm[IDeclarator*] AbstractDeclarator {
   -> p:PtrOperator d:AbstractDeclaratorOpt
-       [ d->stars.prepend(p); return d; ]
+       [ d->stars = d->stars->prepend(p); return d; ]
 
   -> d:DirectAbstractDeclarator
        [ return d; ]
@@ -1194,24 +1205,33 @@ nonterm[IDeclarator*] DirectAbstractDeclarator {
 }
 
 
-nonterm[ASTList<ASTTypeId>*] ParameterDeclarationClause {
+nonterm[FakeList<ASTTypeId>*] ParameterDeclarationClause {
   -> p:ParameterDeclarationList              // some args
        [ return p; ]
   -> empty                                   // no args
-       [ return new ASTList<ASTTypeId>(); ]
-  -> "..."                                   // all args are optional
-       [ return new ASTList<ASTTypeId>(ellipsisTypeId()); ]
-  -> p:ParameterDeclarationList "..."        // args plus optionally more
-       [ p->append(ellipsisTypeId()); return p; ]
-  -> p:ParameterDeclarationList "," "..."    // same; alternative syntax
-       [ p->append(ellipsisTypeId()); return p; ]
+       [ return FakeList<ASTTypeId>::emptyList(); ]
 }
 
-nonterm[ASTList<ASTTypeId>*] ParameterDeclarationList {
-  -> d:ParameterDeclaration 
-       [ return new ASTList<ASTTypeId>(d); ]
-  -> list:ParameterDeclarationList "," d:ParameterDeclaration
-       [ list->append(d); return list; ]
+// little bending over backwards here to accomodate FakeList
+nonterm[FakeList<ASTTypeId>*] ParameterDeclarationList {
+  // last (and perhaps only) arg is "..."
+  -> "..."
+       [ return FakeList<ASTTypeId>::makeList(ellipsisTypeId()); ]
+
+  // last arg is "...", and 2nd-to-last is not separated by
+  // a comma from the "..."
+  -> d:ParameterDeclaration "..."
+       [ FakeList<ASTTypeId> *list =
+           FakeList<ASTTypeId>::makeList(ellipsisTypeId());
+         return list->prepend(d); ]
+
+  // last arg is not "..."
+  -> d:ParameterDeclaration
+       [ return FakeList<ASTTypeId>::makeList(d); ]
+
+  // argument then "," then arg or "..." or list
+  -> d:ParameterDeclaration "," list:ParameterDeclarationList
+       [ return list->prepend(d); ]
 }
 
 nonterm[ASTTypeId*] ParameterDeclaration {
@@ -1297,8 +1317,8 @@ nonterm[DeclFlags] ExplicitOpt {
   -> empty         [ return DF_NONE; ]
 }
 
-nonterm[ASTList<MemberInit>*] CtorInitializerOpt {
-  -> empty                        [ return new ASTList<MemberInit>(); ]
+nonterm[FakeList<MemberInit>*] CtorInitializerOpt {
+  -> empty                        [ return FakeList<MemberInit>::emptyList(); ]
   -> ":" list:MemInitializerList  [ return list; ]
 }
 
@@ -1326,18 +1346,20 @@ nonterm[enum TypeIntr] ClassKey {
 }
 
 
-nonterm[ASTList<Member>*] MemberDeclarationSeqOpt {
+// I'm using an encapsulated ASTList to avoid right recursion,
+// since there are often many members of classes
+nonterm[MemberList*] MemberDeclarationSeqOpt {
   -> empty
-       [ return new ASTList<Member>(); ]
+       [ return new MemberList(NULL); ]
 
   -> list:MemberDeclarationSeqOpt decl:MemberDeclaration
-       [ list->append(decl); return list; ]
+       [ list->list.append(decl); return list; ]
 
   // explicitly include access specifiers in the AST, instead of
   // propagating them in the parser, to avoid the complexities of
   // maintaining the state in the parser context
   -> list:MemberDeclarationSeqOpt k:AccessSpecifier ":"
-       [ list->append(new MR_access(k)); return list; ]
+       [ list->list.append(new MR_access(k)); return list; ]
 }
 
 nonterm[AccessKeyword] AccessSpecifier {
@@ -1354,7 +1376,8 @@ nonterm SemicolonOpt {
 nonterm[Member*] MemberDeclaration {
   // member fn decl, or data member
   -> spec:DeclSpecifier list:MemberDeclaratorList ";"
-       [ spec->decllist.steal(list); return new MR_decl(AK_UNSPECIFIED, spec); ]
+       [ spec->decllist = list; 
+         return new MR_decl(AK_UNSPECIFIED, spec); ]
 
   // inline function definition; includes c/dtor definitions
   -> f:FunctionDefinition SemicolonOpt
@@ -1372,7 +1395,7 @@ nonterm[Member*] MemberDeclaration {
            new Declaration(
              flags,
              new TS_simple(ST_CDTOR),
-             new ASTList<Declarator>(d)
+             FakeList<Declarator>::makeList(d)
            )
          );
        ]
@@ -1382,11 +1405,11 @@ nonterm[Member*] MemberDeclaration {
   // of processing will filter it out)
 }
 
-nonterm[ASTList<Declarator>*] MemberDeclaratorList {
+nonterm[FakeList<Declarator>*] MemberDeclaratorList {
   -> d:MemberDeclarator
-       [ return new ASTList<Declarator>(d); ]
-  -> list:MemberDeclaratorList "," d:MemberDeclarator
-       [ list->append(d); return list; ]
+       [ return FakeList<Declarator>::makeList(d); ]
+  -> d:MemberDeclarator "," list:MemberDeclaratorList
+       [ return list->prepend(d); ]
 }
 
 // this returns a full Declarator, instead of an IDeclarator, because
@@ -1416,16 +1439,16 @@ nonterm[StringRef] AnyNameOpt {
 
 
 // ------ A.9 Derived classes ------
-nonterm[ASTList<BaseClass>*] BaseClauseOpt {
-  -> empty                      [ return new ASTList<BaseClass>(); ]
+nonterm[FakeList<BaseClass>*] BaseClauseOpt {
+  -> empty                      [ return FakeList<BaseClass>::emptyList(); ]
   -> ":" b:BaseSpecifierList    [ return b; ]
 }
 
-nonterm[ASTList<BaseClass>*] BaseSpecifierList {
+nonterm[FakeList<BaseClass>*] BaseSpecifierList {
   -> b:BaseSpecifier
-       [ return new ASTList<BaseClass>(b); ]
-  -> lst:BaseSpecifierList "," b:BaseSpecifier
-       [ lst->append(b); return lst; ]
+       [ return FakeList<BaseClass>::makeList(b); ]
+  -> b:BaseSpecifier "," list:BaseSpecifierList
+       [ return list->prepend(b); ]
 }
 
 
@@ -1466,16 +1489,18 @@ nonterm[ASTTypeId*] ConversionTypeId {
 // collects the stars that might follow a type specifier in a
 // conversion function (for converting to pointer type)
 nonterm[IDeclarator*] ConversionDeclaratorOpt {
-  -> empty                                    [ return new D_name(loc, NULL /*name*/); ]
-  -> p:PtrOperator d:ConversionDeclaratorOpt  [ d->stars.prepend(p); return d; ]
+  -> empty                                    
+       [ return new D_name(loc, NULL /*name*/); ]
+  -> p:PtrOperator d:ConversionDeclaratorOpt  
+       [ d->stars = d->stars->prepend(p); return d; ]
 }
 
 
-nonterm[ASTList<MemberInit>*] MemInitializerList {
+nonterm[FakeList<MemberInit>*] MemInitializerList {
   -> i:MemInitializer
-       [ return new ASTList<MemberInit>(i); ]
-  -> lst:MemInitializerList "," i:MemInitializer
-       [ lst->append(i); return lst; ]
+       [ return FakeList<MemberInit>::makeList(i); ]
+  -> i:MemInitializer "," list:MemInitializerList
+       [ return list->prepend(i); ]
 }
 
 nonterm[MemberInit*] MemInitializer {
@@ -1570,9 +1595,9 @@ nonterm[S_try*] TryBlock {
   -> "try" s:CompoundStatement h:HandlerSeq  [ return new S_try(loc, s, h); ]
 }
 
-nonterm[ASTList<Handler>*] HandlerSeq {
-  -> h:Handler                 [ return new ASTList<Handler>(); ]
-  -> seq:HandlerSeq h:Handler  [ seq->append(h); return seq; ]
+nonterm[FakeList<Handler>*] HandlerSeq {
+  -> h:Handler                 [ return FakeList<Handler>::makeList(h); ]
+  -> h:Handler seq:HandlerSeq  [ return seq->prepend(h); ]
 }
 
 nonterm[Handler*] Handler {
@@ -1598,12 +1623,15 @@ nonterm[E_throw*] ThrowExpression {
 
 
 nonterm[ExceptionSpec*] ExceptionSpecificationOpt {
-  -> empty                            [ return NULL; ]
-  -> "throw" "(" ")"                  [ return new ES_None(); ]
-  -> "throw" "(" list:TypeIdList ")"  [ return new ES_Some(list); ]
+  -> empty                            
+       [ return NULL; ]
+  -> "throw" "(" ")"                  
+       [ return new ExceptionSpec(FakeList<ASTTypeId>::emptyList()); ]
+  -> "throw" "(" list:TypeIdList ")"
+       [ return new ExceptionSpec(list); ]
 }
 
-nonterm[ASTList<ASTTypeId>*] TypeIdList {
-  -> t:TypeId                      [ return new ASTList<ASTTypeId>(t); ]
-  -> list:TypeIdList "," t:TypeId  [ list->append(t); return list; ]
+nonterm[FakeList<ASTTypeId>*] TypeIdList {
+  -> t:TypeId                      [ return FakeList<ASTTypeId>::makeList(t); ]
+  -> t:TypeId "," list:TypeIdList  [ return list->prepend(t); ]
 }
