@@ -149,7 +149,6 @@ void Function::printExtras(ostream &os, int indent) const
     ind(os, indent) << "funcType: " << funcType->toString() << "\n";
   }
   ind(os, indent) << "receiver: " << refersTo(receiver) << "\n";
-  ind(os, indent) << "ctorReceiver: " << refersTo(ctorReceiver) << "\n";
 }
 
 

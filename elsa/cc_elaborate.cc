@@ -229,8 +229,6 @@ Function *ElabVisitor::makeFunction(SourceLoc loc, Variable *var,
     f->receiver = f->funcType->getReceiver();
   }
 
-  // the caller should set 'ctorReceiver' if appropriate
-
   f->implicitlyDefined = true;
 
   // the existence of a definition has implications for the Variable too
@@ -939,7 +937,7 @@ MR_func *ElabVisitor::makeNoArgCtorBody(CompoundType *ct, Variable *ctor)
   FakeList<MemberInit> *inits = FakeList<MemberInit>::emptyList();
 
   Function *f = makeFunction(loc, ctor, inits, body);
-  f->ctorReceiver = env.makeCtorReceiver(loc, ct);
+  f->receiver = env.makeCtorReceiver(loc, ct);
 
   return new MR_func(loc, f);
 }
@@ -1064,7 +1062,7 @@ MR_func *ElabVisitor::makeCopyCtorBody(CompoundType *ct, Variable *ctor)
   }
 
   Function *f = makeFunction(loc, ctor, inits, body);
-  f->ctorReceiver = env.makeCtorReceiver(loc, ct);
+  f->receiver = env.makeCtorReceiver(loc, ct);
 
   return new MR_func(loc, f);
 }
@@ -1559,7 +1557,7 @@ bool ElabVisitor::visitFunction(Function *f)
   if (doing(EA_IMPLICIT_MEMBER_CTORS) &&
       ft->isConstructor()) {
     // pull out the compound that this ctor creates
-    CompoundType *ct = f->ctorReceiver->type->asReferenceType()->
+    CompoundType *ct = f->receiver->type->asReferenceType()->
                           atType->asCompoundType();
     completeNoArgMemberInits(f, ct);
   } 
@@ -1609,7 +1607,7 @@ bool ElabVisitor::visitMemberInit(MemberInit *mi)
       Type *type = tfac.makeCVAtomicType(loc, mi->base, CV_NONE);
 
       mi->ctorStatement = makeCtorStatement
-        (loc, makeE_variable(loc, func->ctorReceiver), type,
+        (loc, makeE_variable(loc, func->receiver), type,
          mi->ctorVar, orig);
     }
 

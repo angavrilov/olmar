@@ -52,20 +52,9 @@ class Function {
   // since the body of the function (if a class member) may refer
   // to the receiver object, I need to write it down so client
   // analyses can find it
+  //
+  // 7/29/04: combined this with the old 'ctorReceiver'
   public Variable *receiver = NULL;
-
-  // dsw: this is the receiver object for ctors; obviously it
-  // might be possible to combine it with the above thisVar, but I
-  // won't do it now to prevent the possibility of creating a subtle
-  // bug somewhere.
-  //
-  // UPDATE: I now rely on this to be different from "thisVar" so that
-  // I can tell in cc_qual when I'm in a function body and when I'm in
-  // a ctor body.
-  //
-  // sm: There are lots of other ways to make that distinction.  I
-  // think this should be merged with 'receiver' ASAP.
-  public Variable *ctorReceiver = NULL;
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
@@ -103,7 +92,7 @@ class MemberInit {
     ret->ctorVar = ctorVar;
   }
 
-  public void tcheck(Env &env, Variable *ctorReceiver, CompoundType *enclosing);
+  public void tcheck(Env &env, CompoundType *enclosing);
 }
 
 

@@ -343,14 +343,12 @@ void Function::tcheckBody(Env &env)
   if (nameAndParams->var->name == env.constructorSpecialName) {
     xassert(inClass);
 
-    xassert(!ctorReceiver);
-    ctorReceiver = env.receiverParameter(loc, inClass, CV_NONE,
-                                         NULL /*syntax*/);
+    xassert(!receiver);
+    receiver = env.receiverParameter(loc, inClass, CV_NONE,
+                                     NULL /*syntax*/);
 
-    xassert(ctorReceiver->type->isReference());   // paranoia
-    env.addVariable(ctorReceiver);
-    
-    #warning ctorReceiver should be merged with receiver
+    xassert(receiver->type->isReference());   // paranoia
+    env.addVariable(receiver);
   }
 
   // have to check the member inits after adding the parameters
@@ -470,7 +468,7 @@ void Function::tcheck_memberInits(Env &env)
     // ok, so far so good; now go through and check the member inits
     // themselves
     FAKELIST_FOREACH_NC(MemberInit, inits, iter) {
-      iter->tcheck(env, ctorReceiver, enclosing);
+      iter->tcheck(env, enclosing);
     }
   }
   else {
@@ -478,11 +476,8 @@ void Function::tcheck_memberInits(Env &env)
   }
 }
 
-void MemberInit::tcheck(Env &env, Variable *ctorReceiver, CompoundType *enclosing)
+void MemberInit::tcheck(Env &env, CompoundType *enclosing)
 {
-  // TODO: why is 'ctorReceiver' a parameter?  it isn't used
-  xassert(ctorReceiver);    // a member init is always on a ctor for a well-defined class
-
   // resolve template arguments in 'name'
   name->tcheck(env);
 
