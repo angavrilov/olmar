@@ -539,8 +539,6 @@ public:
 
   // if the 'this' parameter (if any) is ignored in both function
   // types, am I equal to 'obj'?
-  // TODO: I think this is now equivalent to a signature comparison;
-  // once I'm satisfied that's correct, I'll rename this
   bool equalOmittingThisParam(FunctionType const *obj) const
     { return innerEquals(obj, true /*skipThis*/); }
 

@@ -1704,6 +1704,8 @@ Type *getNormalizedSignature(Env &env, Type *orig)
     return orig;    // nothing must be stripped
   }
 
+  //cout << "warning: normalizing...\n";
+
   TRACE("normalizeSignature", "before: " << orig->toString());
 
   Type *ret = env.tfac.normalizeSignature(orig);
@@ -1719,9 +1721,20 @@ Type *getNormalizedSignature(Env &env, Type *orig)
 // not two overloaded instances
 bool equivalentSignatures(FunctionType const *ft1, FunctionType const *ft2)
 {
-  // new method: always use 'equalOmittingThisParam', and rely on
-  // normalization to take care of f(int) vs f(int const)
-  return ft1->equalOmittingThisParam(ft2);
+  // NOTE: equivalence of 'f(int)' and 'f(int const)' is handled
+  // above, by 'normalizeSignature'
+
+  if (ft1->isMember == ft2->isMember) {
+    // if both are nonstatic members, or neither is, then we
+    // simply compare all parameters
+    return ft1->equalParameterLists(ft2);
+  }
+  else {
+    // if one is a nonstatic member and the other is a static member,
+    // then comparison ignores the 'this' param on the nonstatic one
+    // [cppstd 13.1 para 2]
+    return ft1->equalParameterLists(ft2, true /*skipThis*/);
+  }
 }
 
 

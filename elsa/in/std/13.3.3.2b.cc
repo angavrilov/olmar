@@ -12,9 +12,7 @@ int k = g(i);                      // ambiguous
 class X {
 public:
     void f() const;
-    
-    // TODO: working on this
-    //void f();
+    void f();
 };
 void g(const X& a, X b)
 {
