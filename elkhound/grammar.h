@@ -186,6 +186,7 @@ public:     // funcs
     { return const_cast<DottedProduction*>(getDProdC(dotPlace)); }
 
   // print to cout as 'A -> B c D' (no newline)
+  string toString() const;
   void print(ostream &os) const;
   OSTREAM_OPERATOR(Production)
 };
@@ -277,7 +278,7 @@ public:     // funcs
 
   // set transition on 'sym' to be 'dest'
   void setTransition(Symbol const *sym, ItemSet *dest);
-				    
+
   // get the list of productions that are ready to reduce, given
   // that the next input symbol is 'lookahead' (i.e. in the follow
   // of a production's LHS)
@@ -285,6 +286,7 @@ public:     // funcs
                              Terminal const *lookahead) const;
 
   // debugging
+  void writeGraph(ostream &os) const;
   void print(ostream &os) const;
   OSTREAM_OPERATOR(ItemSet)
 };

@@ -165,11 +165,21 @@ DottedProduction const *Production::getDProdC(int dotPlace) const
 
 void Production::print(ostream &os) const
 {
-  os << left->name << " ->";
+  os << toString();
+}
+
+
+string Production::toString() const
+{
+  stringBuilder sb;
+
+  sb << left->name << " ->";
 
   for (SymbolListIter iter(right); !iter.isDone(); iter.adv()) {
-    os << " " << iter.data()->name;
+    sb << " " << iter.data()->name;
   }
+
+  return sb;
 }
 
 
@@ -317,6 +327,41 @@ void ItemSet::print(ostream &os) const
       }		 
     }
     os << endl;
+  }
+}
+
+
+void ItemSet::writeGraph(ostream &os) const
+{
+  // node: n <name> <desc>
+  os << "\nn ItemSet" << id << " ItemSet" << id << "/";
+    // rest of desc will follow
+
+  // for each item, print the item text
+  SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
+    DottedProduction const *dprod = itemIter.data();
+
+    // print its text
+    os << "   ";
+    dprod->print(os);
+    os << "/";      // line separator in my node format
+  }
+  os << endl;
+
+  // print transitions on terminals
+  INTLOOP(t, 0, terms) {
+    if (termTransition[t] != NULL) {
+      os << "e ItemSet" << id
+         << " ItemSet" << termTransition[t]->id << endl;
+    }
+  }
+
+  // print transitions on nonterminals
+  INTLOOP(nt, 0, nonterms) {
+    if (nontermTransition[nt] != NULL) {
+      os << "e ItemSet" << id
+         << " ItemSet" << nontermTransition[nt]->id << endl;
+    }
   }
 }
 

@@ -67,16 +67,57 @@
 
 #include "glr.h"         // this module
 #include "strtokp.h"     // StrtokParse
+#include "syserr.h"      // xsyserror
+
+#include <stdio.h>       // FILE
+
+
+// convenient indented output
+ostream &doIndent(ostream &os, int i)
+{
+  while (i--) {
+    os << " ";
+  }   
+  return os;
+}
+
+#define IND doIndent(cout, indent)
 
 
 // ----------------------- StackNode -----------------------
-StackNode::StackNode(ItemSet const *st, Symbol const *sym)
-  : state(st),
+StackNode::StackNode(int id, int col, ItemSet const *st, Symbol const *sym)
+  : stackNodeId(id),
+    tokenColumn(col),
+    state(st),
     symbol(sym)
 {}
 
 StackNode::~StackNode()
 {}
+
+
+void StackNode::printParseTree(int indent) const
+{
+  if (rules.isEmpty()) {
+    // I am a leaf
+    IND << symbol->name << endl;
+  }
+
+  else if (rules.count() == 1) {
+    // I am an unambiguous rule node
+    rules.nthC(0)->printParseTree(indent);
+  }
+
+  else {
+    // I am an ambiguous rule node
+    IND << "ALTERNATIVE PARSES for nonterminal " << symbol->name << ":\n";
+    indent += 2;
+
+    FOREACH_OBJLIST(RuleNode, rules, rule) {
+      rule.data()->printParseTree(indent);
+    }
+  }
+}
 
 
 // ---------------------- RuleNode -------------------------
@@ -89,13 +130,35 @@ RuleNode::~RuleNode()
 {}
 
 
+void RuleNode::printParseTree(int indent) const
+{
+  IND << *(production) << endl;
+              
+  // print children
+  indent += 2;     
+  SFOREACH_OBJLIST(StackNode, children, child) {
+    child.data()->printParseTree(indent);
+  }
+}
+
+
 // ------------------------- GLR ---------------------------
 GLR::GLR()
   : currentToken(NULL)
+  // some fields initialized by 'clearAllStackNodes'
 {}
 
 GLR::~GLR()
 {}
+
+
+void GLR::clearAllStackNodes()
+{
+  // throw away any parse nodes leftover from previous parses
+  allStackNodes.deleteAll();
+  nextStackNodeId = initialStackNodeId;
+  currentTokenColumn = 0;
+}
 
 
 // process the input string, and yield a parse graph
@@ -103,6 +166,9 @@ void GLR::glrParse(char const *input)
 {
   // tokenize the input
   StrtokParse tok(input, " \t\r\n");
+
+  // get ready..
+  clearAllStackNodes();
 
   // create an initial ParseTop with grammar-initial-state,
   // set active-parsers to contain just this
@@ -112,19 +178,20 @@ void GLR::glrParse(char const *input)
   // for each input symbol
   INTLOOP(t, 0, tok) {
     // debugging
-    cout << "processing token " << tok[t] 
+    cout << "processing token " << tok[t]
          << ", # active parsers = " << activeParsers.count()
          << endl;
 
     // convert the token to a symbol
     currentToken = findTerminalC(tok[t]);
+    currentTokenColumn = t;
 
     // ([GLR] called the code from here to the end of
     // the loop 'parseword')
 
     // we will queue up shifts and process them all
     // at the end
-    ObjList<PendingShift> pendingShifts;     // starts empty
+    ObjList<PendingShift> pendingShifts;                  // starts empty
 
     // put active parser tops into a worklist
     parserWorklist = activeParsers;
@@ -145,10 +212,25 @@ void GLR::glrParse(char const *input)
     }
   }
 
-  
+
   cout << "Parse succeeded!\n";
 
-  // print the parse (nothing yet..)
+
+  // print the parse as a graph for my graph viewer
+  // (the slight advantage to printing the graph first is that
+  // if there is circularity in the parse tree, the graph
+  // printer will handle it ok, whereas thet tree printer will
+  // get into an infinite loop.)
+  writeParseGraph(input);
+
+
+  // print parse tree in ascii; the final activeParser is the one
+  // that shifted the end-of-stream marker, so we want its left
+  // sibling, since that will be the reduction(s) to the start
+  // symbol
+  activeParsers.nthC(0)->                // end-of-stream
+    leftAdjStates.nthC(0)->              // start symbol
+    printParseTree(2 /*indent*/);
 }
 
 
@@ -266,7 +348,10 @@ void GLR::popStackSearch(int popsRemaining, SObjList<StackNode> &poppedSymbols,
     // popped symbols into a RuleNode
     RuleNode *rn = new RuleNode(production);
     rn->children = poppedSymbols;
-    rn->children.reverse();         // since poppedSymbols is in reverse order
+    
+    // previously, I had been reversing the children here; that
+    // is wrong!  since the most recent symbol prepended is the
+    // leftmost one in the input, the list is in the correct order
 
     // this is like shifting LHS onto 'currentNode'
     glrShiftRule(currentNode, rn);
@@ -397,9 +482,9 @@ void GLR::glrShiftTerminals(ObjList<PendingShift> &pendingShifts)
 
     // debugging
     cout << "from state " << leftSibling->state->id
-       	 << ", shifting terminal " << currentToken->name
-	 << ", transitioning to state " << newState->id
-	 << endl;
+         << ", shifting terminal " << currentToken->name
+         << ", transitioning to state " << newState->id
+         << endl;
 
     // if there's already a parser with this state
     StackNode *rightSibling = findActiveParser(newState);
@@ -441,9 +526,106 @@ StackNode *GLR::findActiveParser(ItemSet const *state)
 
 StackNode *GLR::makeStackNode(ItemSet const *state, Symbol const *symbol)
 {
-  StackNode *sn = new StackNode(state, symbol);
+  StackNode *sn = new StackNode(nextStackNodeId++, currentTokenColumn,
+                                state, symbol);
   allStackNodes.prepend(sn);
   return sn;
+}
+
+
+// ------------------ stuff for outputting raw graphs ------------------
+// name for graphs (can't have any spaces in the name)
+string stackNodeName(StackNode const *sn)
+{
+  char const *symName = (sn->symbol? sn->symbol->name.pcharc() : "(null)");
+  return stringb(sn->stackNodeId
+              << ":col="  << sn->tokenColumn
+              << ",st=" << sn->state->id
+              << ",sym=" << symName);
+}
+
+// name for rules; 'rn' is the 'ruleNo'-th rule in 'sn'
+// (again, no spaces allowed)
+string ruleNodeName(StackNode const *sn, int ruleNo, RuleNode const *rn)
+{
+  return stringb(sn->stackNodeId << "/" << ruleNo << ":"
+              << replace(rn->production->toString(), " ", "_"));
+}
+
+
+// this prints the graph in my java graph applet format, where
+// nodes lines look like
+//   n <name> <optional-desc>
+// and edges look like
+//   e <from> <to>
+// unfortunately, the graph applet needs a bit of work before it
+// is worthwhile to use this routinely (though it's great for
+// quickly verifying a single (small) parse)
+// 
+// however, it's worth noting that the text output is not entirely
+// unreadable...
+void GLR::writeParseGraph(char const *input) const
+{
+  // write it to a file named the same as the input
+  FILE *out = fopen(stringb("graphs/" << input), "w");
+  if (!out) {
+    xsyserror("fopen", stringb("opening file `graphs/" << input << "'"));
+  }
+
+  // header info
+  fprintf(out, "# parse graph file: %s\n", input);
+  fprintf(out, "# automatically generated\n"
+               "\n");
+
+  // for each stack node
+  FOREACH_OBJLIST(StackNode, allStackNodes, stackNodeIter) {
+    StackNode const *stackNode = stackNodeIter.data();
+    string myName = stackNodeName(stackNode);
+
+    // visual delimiter
+    fputs(stringb("\n# ------ node: " << myName << " ------\n"), out);
+
+    // write info for the node itself
+    fputs(stringb("n " << myName << "\n"), out);
+
+    // write all sibling links
+    SFOREACH_OBJLIST(StackNode, stackNode->leftAdjStates, sibling) {
+      fputs(stringb("e " << myName << " "
+                         << stackNodeName(sibling.data()) << "\n"), out);
+    }
+
+    if (stackNode->rules.isNotEmpty()) {
+      fputs("\n# rule nodes\n", out);
+    }
+
+    // for each rule node
+    int ruleNo=0;
+    FOREACH_OBJLIST(RuleNode, stackNode->rules, ruleIter) {
+      RuleNode const *rule = ruleIter.data();
+      ruleNo++;
+
+      string ruleName = ruleNodeName(stackNode, ruleNo, rule);
+
+      // write info for the rule node
+      fputs(stringb("n " << ruleName << "\n"), out);
+
+      // put the link from the stack node to the rule node
+      fputs(stringb("e " << myName << " " << ruleName << "\n"), out);
+
+      // write all child links
+      SFOREACH_OBJLIST(StackNode, rule->children, child) {
+        fputs(stringb("e " << ruleName << " "
+                           << stackNodeName(child.data()) << "\n"), out);
+      }
+      
+      fputs("\n", out);
+    }
+  }
+
+  // done
+  if (fclose(out) != 0) {
+    xsyserror("fclose");
+  }
 }
 
 
@@ -469,13 +651,32 @@ void GLR::glrTest()
     };
   #endif // 0/1
 
-  #if 1
+ #if 0
     // a simple ambiguous expression grammar
     parseLine("S  ->  E  $                  ");
     parseLine("E  ->  x  |  E + E  | E * E  ");
 
     char const *input[] = {
       "x + x * x $",
+    };
+  #endif // 0/1
+
+  #if 1
+    // my cast-problem grammar
+    parseLine("Start -> Expr $");
+    parseLine("Expr -> CastExpr");
+    parseLine("Expr -> Expr + CastExpr");
+    parseLine("CastExpr -> AtomExpr");
+    parseLine("CastExpr -> ( Type ) CastExpr");
+    parseLine("AtomExpr -> 3");
+    parseLine("AtomExpr -> x");
+    parseLine("AtomExpr -> ( Expr )");
+    parseLine("AtomExpr -> AtomExpr ( Expr )");
+    parseLine("Type -> int");
+    parseLine("Type -> x");
+
+    char const *input[] = {
+      "( x ) ( x ) $",
     };
   #endif // 0/1
 

@@ -54,6 +54,16 @@ class PendingShift;
 // are represented
 class StackNode {
 public:
+  // it's convenient when printing diagnostic info to have
+  // a unique integer id for these
+  int stackNodeId;		  
+  
+  // node layout is also important; I think this info will
+  // be useful; it's the number of the input token that was
+  // being processed when this node was created (first token
+  // is column 1; initial stack node is column 0)
+  int tokenColumn;
+
   // the LR state the parser is in when this node is at the
   // top ("at the top" means nothing, besides perhaps itself,
   // is pointing to it)
@@ -79,8 +89,11 @@ public:
 
 
 public:     // funcs
-  StackNode(ItemSet const *state, Symbol const *symbol);
+  StackNode(int id, int tokenColumn,
+            ItemSet const *state, Symbol const *symbol);
   ~StackNode();
+  
+  void printParseTree(int indent) const;
 };
 
 
@@ -99,6 +112,8 @@ public:
 public:
   RuleNode(Production const *prod);
   ~RuleNode();
+
+  void printParseTree(int indent) const;
 };
 
 
@@ -147,11 +162,18 @@ public:
   // state, so I keep all the nodes in an owner list
   ObjList<StackNode> allStackNodes;
 
+  // this is for assigning unique ids to stack nodes
+  int nextStackNodeId;
+  enum { initialStackNodeId = 1 };
+
   // ---- parser state during each token ----
   // the token we're trying to shift; any parser that fails to
   // shift this token (or reduce to one that can, recursively)
   // will "die"
   Terminal const *currentToken;
+  
+  // this is maintained for labelling stack nodes
+  int currentTokenColumn;
 
   // parsers that haven't yet had a chance to try to make progress
   // on this token
@@ -159,6 +181,7 @@ public:
 
 
 private:    // funcs
+  // comments in glr.cc
   void glrParse(char const *input);
   void glrParseAction(StackNode *parser,
                       ObjList<PendingShift> &pendingShifts);
@@ -173,11 +196,13 @@ private:    // funcs
   void glrShiftTerminals(ObjList<PendingShift> &pendingShifts);
   StackNode *findActiveParser(ItemSet const *state);
   StackNode *makeStackNode(ItemSet const *state, Symbol const *symbol);
+  void writeParseGraph(char const *input) const;
+  void clearAllStackNodes();
 
 public:     // funcs
   GLR();
   ~GLR();
-		 
+
   // 'main' for testing this class
   void glrTest();
 };

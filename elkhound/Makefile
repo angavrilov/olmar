@@ -1,7 +1,7 @@
 # Makefile for parser generator project
 
 # main target
-all: grammar
+all: glr
 
 # directories
 SMBASE = /home/scott/wrk/lib/smbase
@@ -14,9 +14,10 @@ includes = -I${SMBASE}
 include ${SMBASE}/Makefile.base.mk
 
 # ------ targets -------
-# my parser!
+# SLR(1) parser
 grammar: grammar.h grammar.cc gramanl.h gramanl.cc
 	${link} -o grammar -DGRAMANL_MAIN grammar.cc gramanl.cc ${linkend}
 
+# GLR parser built on top of SLR(1) parser
 glr: grammar.o gramanl.o glr.h glr.cc
 	${link} -o glr -DGLR_MAIN grammar.o gramanl.o glr.cc ${linkend}

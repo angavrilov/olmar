@@ -5,6 +5,9 @@
 
 #include "bit2d.h"       // Bit2d
 #include "strtokp.h"     // StrtokParse
+#include "syserr.h"      // xsyserror
+
+#include <fstream.h>     // ofstream
 
 
 GrammarAnalysis::GrammarAnalysis()
@@ -791,6 +794,18 @@ void GrammarAnalysis::constructLRItemSets()
   // print each item set
   FOREACH_OBJLIST(ItemSet, itemSetsDone, itemSet) {
     itemSet.data()->print(cout);
+  }
+
+
+  // write this info to a graph applet file
+  ofstream out("lrsets.g");
+  if (!out) {
+    xsyserror("ofstream open");
+  }
+  out << "# lr sets in graph form\n";
+
+  FOREACH_OBJLIST(ItemSet, itemSetsDone, itemSet) {
+    itemSet.data()->writeGraph(out);
   }
 }
 
