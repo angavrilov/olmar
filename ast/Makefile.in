@@ -161,18 +161,18 @@ clean:
 	rm -f agrampar astgen ccsstr towner exampletest libast.a
 	rm -f agrampar.output
 	rm -f example.{h.cc} ext1.{h,cc}
+	rm -f agramlex.yy.cc
 
 # return to pristine checked-out state
 distclean: clean
 	rm -f Makefile config.status config.summary
 	rm -rf gendoc
 
-# 'clean', plus remove distributed outputs of tools like flex, bison
+# 'clean', plus remove distributed outputs of bison
 toolclean: clean
 	rm -f agrampar.tab.h
 	rm -f agrampar.tab.cc
 	rm -f agrampar.codes.h
-	rm -f agramlex.yy.cc
 
 # test for owner
 towner: owner.h towner.o
