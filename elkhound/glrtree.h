@@ -22,17 +22,19 @@
 #include "exc.h"         // xBase
 #include "trdelete.h"    // TRASHINGDELETE
 
-#ifdef WES_OCAML_LINKAGE
-  extern "C" {
-  #include "caml/mlvalues.h"
-  #include "caml/alloc.h"
-  #include "caml/memory.h"
-  }
-#else
-  // provide a dummy decl so the fn prototypes don't
-  // need to be protected by ugly #ifdefs
-  struct wes_ast_node { int x; };
-#endif
+#if 0     // sm: I think we don't need this
+  #ifdef WES_OCAML_LINKAGE
+    extern "C" {
+    #include "caml/mlvalues.h"
+    #include "caml/alloc.h"
+    #include "caml/memory.h"
+    }
+  #else
+    // provide a dummy decl so the fn prototypes don't
+    // need to be protected by ugly #ifdefs
+    struct wes_ast_node { int x; };
+  #endif
+#endif // 0
 
 
 // forward decls for things declared below

@@ -53,7 +53,7 @@ grampar-set = grampar.tab.o gramlex.yy.o grampar.o gramlex.o \
 glr-set = gramanl.o glrtree.o glr.o lexer1.o lexer1yy.o \
           lexer2.o parssppt.o strtable.o
 cc-set = cc_tree.o cc_type.o cc_env.o cc_err.o dataflow.o cil.o \
-         stmt2bb.o
+         stmt2bb.o cc_parse.o
 common = 
 
 # ------ targets -------
