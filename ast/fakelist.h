@@ -19,9 +19,11 @@
 // what is the type of 'next'?  it has to be FakeListNode*, but
 // then either it must be physically first, or else 'next' is
 // a pointer to the interior and I have to worry about whether
-// the casts to/from the outer type will be correctly offset..
+// the casts to/from the outer type will be correctly offset; and
+// then getting to the next node requires a cast (the usual
+// problem with subtyping polymorphism)
 
-// for now, the list is non-owning (unless youcall 'deallocNodes')
+// for now, the list is non-owning (unless you call 'deallocNodes')
 
 template <class T>
 class FakeList {
@@ -90,7 +92,7 @@ public:
 // I'm deliberately contradicting the convention elsewhere, where
 // "FOREACH" comes first; I think it should have come second to begin
 // with, and since this class isn't derived from any of the others
-// with the opposite convention this is as good a place as any to
+// with the opposite convention, this is as good a place as any to
 // reverse it
 
 #define FAKELIST_FOREACH(NodeType, listPtr, nodePtrVar)   \
