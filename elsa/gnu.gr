@@ -181,29 +181,29 @@ nonterm(ASTTypeId*) TypeofType {
 
 // dsw: FIX: add returning semantic value
 nonterm BracketedWordOpt {
-  -> empty { return 0; }
-  -> "[" id:Identifier "]" { return 0; }
+  -> empty ;
+  -> "[" id:Identifier "]" ;
 }
 
 
 // dsw: FIX: add returning semantic value
 nonterm ParenthesizedExpressionOpt {
-  -> empty { return 0; }
-  ->  "(" e:Expression ")" { return 0; }
+  -> empty ;
+  ->  "(" e:Expression ")" ;
 }
 
 
 // dsw: FIX: add returning semantic value
 nonterm OpConstraint {
-  -> name:BracketedWordOpt constr:StringLiteral e:ParenthesizedExpressionOpt { return 0; }
+  -> name:BracketedWordOpt constr:StringLiteral e:ParenthesizedExpressionOpt ;
 }
 
 
 // dsw: FIX: add returning semantic value
 nonterm OpConstraintList {
-  -> empty { return 0; }
-  -> oc:OpConstraint { return 0; }
-  -> oc:OpConstraint "," ocl:OpConstraintList { return 0; }
+  -> empty ;
+  -> oc:OpConstraint ;
+  -> oc:OpConstraint "," ocl:OpConstraintList ;
 }
 
 
@@ -214,8 +214,8 @@ nonterm OpConstraints {
   -> NonemptyOpConstraints;
 }
 nonterm NonemptyOpConstraints {
-  -> ocs:OpConstraints ":" ocl:OpConstraintList { return 0; }
-  -> ocs:OpConstraints "::" ocl:OpConstraintList { return 0; }
+  -> ocs:OpConstraints ":" ocl:OpConstraintList ;
+  -> ocs:OpConstraints "::" ocl:OpConstraintList ;
 }
 
 
@@ -325,73 +325,73 @@ nonterm(ASTTypeId*) ImplicitIntTypeId {
 // word such as const)."
 nonterm AttributeWord {
   // non-keyword name
-  -> n:TOK_NAME { return 0; }
+  -> n:TOK_NAME ;
   // keywords
-  -> "asm" { return 0; }
-  -> "auto" { return 0; }
-  -> "break" { return 0; }
-  -> "bool" { return 0; }
-  -> "case" { return 0; }
-  -> "catch" { return 0; }
-  -> "cdecl" { return 0; }
-  -> "char" { return 0; }
-  -> "class" { return 0; }
-  -> "const" { return 0; }
-  -> "const_cast" { return 0; }
-  -> "continue" { return 0; }
-  -> "default" { return 0; }
-  -> "delete" { return 0; }
-  -> "do" { return 0; }
-  -> "double" { return 0; }
-  -> "dynamic_cast" { return 0; }
-  -> "else" { return 0; }
-  -> "enum" { return 0; }
-  -> "explicit" { return 0; }
-  -> "export" { return 0; }
-  -> "extern" { return 0; }
-  -> "false" { return 0; }
-  -> "float" { return 0; }
-  -> "for" { return 0; }
-  -> "friend" { return 0; }
-  -> "goto" { return 0; }
-  -> "if" { return 0; }
-  -> "inline" { return 0; }
-  -> "int" { return 0; }
-  -> "long" { return 0; }
-  -> "mutable" { return 0; }
-  -> "namespace" { return 0; }
-  -> "new" { return 0; }
-  -> "operator" { return 0; }
-  -> "pascal" { return 0; }
-  -> "private" { return 0; }
-  -> "protected" { return 0; }
-  -> "public" { return 0; }
-  -> "register" { return 0; }
-  -> "reinterpret_cast" { return 0; }
-  -> "return" { return 0; }
-  -> "short" { return 0; }
-  -> "signed" { return 0; }
-  -> "sizeof" { return 0; }
-  -> "static" { return 0; }
-  -> "static_cast" { return 0; }
-  -> "struct" { return 0; }
-  -> "switch" { return 0; }
-  -> "template" { return 0; }
-  -> "this" { return 0; }
-  -> "throw" { return 0; }
-  -> "true" { return 0; }
-  -> "try" { return 0; }
-  -> "typedef" { return 0; }
-  -> "typeid" { return 0; }
-  -> "typename" { return 0; }
-  -> "union" { return 0; }
-  -> "unsigned" { return 0; }
-  -> "using" { return 0; }
-  -> "virtual" { return 0; }
-  -> "void" { return 0; }
-  -> "volatile" { return 0; }
-  -> "wchar_t" { return 0; }
-  -> "while" { return 0; }
+  -> "asm" ;
+  -> "auto" ;
+  -> "break" ;
+  -> "bool" ;
+  -> "case" ;
+  -> "catch" ;
+  -> "cdecl" ;
+  -> "char" ;
+  -> "class" ;
+  -> "const" ;
+  -> "const_cast" ;
+  -> "continue" ;
+  -> "default" ;
+  -> "delete" ;
+  -> "do" ;
+  -> "double" ;
+  -> "dynamic_cast" ;
+  -> "else" ;
+  -> "enum" ;
+  -> "explicit" ;
+  -> "export" ;
+  -> "extern" ;
+  -> "false" ;
+  -> "float" ;
+  -> "for" ;
+  -> "friend" ;
+  -> "goto" ;
+  -> "if" ;
+  -> "inline" ;
+  -> "int" ;
+  -> "long" ;
+  -> "mutable" ;
+  -> "namespace" ;
+  -> "new" ;
+  -> "operator" ;
+  -> "pascal" ;
+  -> "private" ;
+  -> "protected" ;
+  -> "public" ;
+  -> "register" ;
+  -> "reinterpret_cast" ;
+  -> "return" ;
+  -> "short" ;
+  -> "signed" ;
+  -> "sizeof" ;
+  -> "static" ;
+  -> "static_cast" ;
+  -> "struct" ;
+  -> "switch" ;
+  -> "template" ;
+  -> "this" ;
+  -> "throw" ;
+  -> "true" ;
+  -> "try" ;
+  -> "typedef" ;
+  -> "typeid" ;
+  -> "typename" ;
+  -> "union" ;
+  -> "unsigned" ;
+  -> "using" ;
+  -> "virtual" ;
+  -> "void" ;
+  -> "volatile" ;
+  -> "wchar_t" ;
+  -> "while" ;
   // don't know if I need to allow these; gcc 2.95.3 doesn't like them
   //  // GNU extensions
   //  TOK___ATTRIBUTE__,       "__attribute__",             :    n
@@ -402,37 +402,37 @@ nonterm AttributeWord {
 }
 
 nonterm CommaSepExpressionListOpt {
-  -> empty { return 0; }
-  -> el:ExpressionList { return 0; }
+  -> empty ;
+  -> el:ExpressionList ;
 }
 
 nonterm AttributeParameters {
-//    -> id:Identifier "," exprs:CommaSepExpressionListOpt { return 0; }
+//    -> id:Identifier "," exprs:CommaSepExpressionListOpt ;
   // NOTE: the below includes the above, except that the first
   // expression, if an identifier, should not be typechecked as an
   // E_varaible, since it need not match a declared name; first it
   // should be checked against know attribute parameters (maybe?).
-  -> exprs:CommaSepExpressionListOpt { return 0; }
+  -> exprs:CommaSepExpressionListOpt ;
 }
 
 nonterm Attribute {
-  -> empty { return 0; }
-  -> w:AttributeWord { return 0; }
-  -> w:AttributeWord "(" ap:AttributeParameters ")" { return 0; }
+  -> empty ;
+  -> w:AttributeWord ;
+  -> w:AttributeWord "(" ap:AttributeParameters ")" ;
 }
 
 nonterm AttributeList {
-  -> at:Attribute { return 0; }
-  -> ap:AttributeList "," at:Attribute { return 0; }
+  -> at:Attribute ;
+  -> ap:AttributeList "," at:Attribute ;
 }
 
 nonterm AttributeSpecifier {
-  -> "__attribute__" "(" "(" ap:AttributeList ")" ")" { return 0; }
+  -> "__attribute__" "(" "(" ap:AttributeList ")" ")" ;
 }
 
 nonterm AttributeSpecifierList {
-  -> as:AttributeSpecifier { return 0; }
-  -> asl:AttributeSpecifierList as:AttributeSpecifier { return 0; }
+  -> as:AttributeSpecifier ;
+  -> asl:AttributeSpecifierList as:AttributeSpecifier ;
 }
 
 // sm: removed this because its use leads to extra conflicts, and
@@ -440,6 +440,6 @@ nonterm AttributeSpecifierList {
 // a gcc extension module, where it will be a bunch of extra rules,
 // rather than optional modifications of exiting rules
 //  nonterm AttributeSpecifierListOpt {
-//    -> empty { return 0; }
-//    -> asl:AttributeSpecifierList { return 0; }
+//    -> empty ;
+//    -> asl:AttributeSpecifierList ;
 //  }
