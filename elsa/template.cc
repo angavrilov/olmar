@@ -13,8 +13,6 @@
 #include "cc_ast_aux.h"    // ASTTemplVisitor
 
 
-TD_class Env::mode1Dummy(NULL, NULL); // arguments are meaningless
-
 /* static */
 TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
   (TypeFactory &tfac, STemplateArgument const *larg, STemplateArgument const *rarg)
@@ -241,25 +239,9 @@ PartialScopeStack *Env::shallowClonePartialScopeStack(Scope *foundScope)
   return NULL;
 }
 
-      
-// sm: Currently, we are maintaining two stacks plus one weird global
-// all for the purpose of computing the tcheck mode.  I think we should
-// just maintain the mode explicitly.  Note that class Restorer, in
-// smbase/macros.h, can make restoring previous values convenient.
-#warning I think the tcheck mode stacks are overkill.
 
 Env::TemplTcheckMode Env::getTemplTcheckMode() const {
-  if (templateDeclarationStack.isEmpty()
-      || templateDeclarationStack.topC() == &mode1Dummy) {
-    return TTM_1NORMAL;
-  }
-  // we are in a template declaration
-  if (funcDeclStack.isEmpty()) return TTM_3TEMPL_DEF;
-  // we are in a function declaration somewhere
-  if (funcDeclStack.topC()->isInitializer()) return TTM_3TEMPL_DEF;
-  // we are in a function declaration and not in a default argument
-  xassert(funcDeclStack.topC()->isD_func());
-  return TTM_2TEMPL_FUNC_DECL;
+  return tcheckMode;
 }
 
 
@@ -1138,15 +1120,23 @@ static bool doSTemplArgsContainVars(SObjList<STemplateArgument> &sargs)
 // it is not relevant anyway.
 //
 //
-// dsw: We have three typechecking modes:
+// dsw: We have three typechecking modes, enum Env::TemplTcheckMode:
 //
-//   1) normal: template instantiations are done fully;
+//   TTM_1NORMAL:
+//     This mode is for when you are in normal code.
+//     Template instantiations are done fully.
 //
-//   2) template function declaration: declarations are instantiated
-//   but not definitions;
+//   TTM_2TEMPL_FUNC_DECL:
+//     This mode is for when you're in the parameter list (D_func)
+//     of a function template.
+//     Template declarations are instantiated but not definitions.
+//     This is necessary so type matching may be done for template
+//     argument inference when template functions are called.
 //
-//   3) template definition: template instantiation request just result
-//   in the primary being returned.
+//   TTM_3TEMPL_DEF:
+//     This mode is for when you're in the body of a function template.
+//     Template instantiation requests just result in the primary being 
+//     returned; nothing is instantiated.
 //
 // Further, inside template definitions, default arguments are not
 // typechecked and function template calls do not attempt to infer
@@ -1797,7 +1787,7 @@ void Env::instantiateForwardFunctions(Variable *forward, Variable *primary)
 
   // temporarily supress TTM_3TEMPL_DEF and return to TTM_1NORMAL for
   // purposes of instantiating the forward function templates
-  StackMaintainer<TemplateDeclaration> sm1(templateDeclarationStack, &mode1Dummy);
+  Restorer<TemplTcheckMode> restoreMode(tcheckMode, TTM_1NORMAL);
 
   // Find all the places where this declaration was instantiated,
   // where this function template specialization was
@@ -1865,7 +1855,7 @@ void Env::instantiateForwardClasses(Scope *scope, Variable *baseV)
 {
   // temporarily supress TTM_3TEMPL_DEF and return to TTM_1NORMAL for
   // purposes of instantiating the forward classes
-  StackMaintainer<TemplateDeclaration> sm(templateDeclarationStack, &mode1Dummy);
+  Restorer<TemplTcheckMode> restoreMode(tcheckMode, TTM_1NORMAL);
 
   SFOREACH_OBJLIST_NC(Variable, baseV->templateInfo()->getInstantiations(), iter) {
     Variable *instV = iter.data();

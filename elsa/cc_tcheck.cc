@@ -1861,8 +1861,8 @@ void Declarator::tcheck_init(Env &env)
   xassert(init);
 
   // record that we are in an initializer
-  FuncDeclThing dfuncFDT(init);
-  StackMaintainer<FuncDeclThing> sm(env.funcDeclStack, &dfuncFDT);
+  Restorer<Env::TemplTcheckMode> changeMode(env.tcheckMode,
+    env.tcheckMode==Env::TTM_1NORMAL ? env.tcheckMode : Env::TTM_3TEMPL_DEF);
 
   init->tcheck(env, type);
 
@@ -2551,8 +2551,8 @@ static Type *normalizeParameterType(Env &env, SourceLoc loc, Type *t)
 void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 {
   // record that we are in a function declaration
-  FuncDeclThing dfuncFDT(this);
-  StackMaintainer<FuncDeclThing> sm(env.funcDeclStack, &dfuncFDT);
+  Restorer<Env::TemplTcheckMode> changeMode(env.tcheckMode,
+    env.tcheckMode==Env::TTM_1NORMAL ? env.tcheckMode : Env::TTM_2TEMPL_FUNC_DECL);
 
   env.setLoc(loc);
   possiblyConsumeFunctionType(env, dt);
@@ -5536,8 +5536,8 @@ void TemplateDeclaration::tcheck(Env &env)
   // we are still in normal code
   bool inCompleteSpec = params->isEmpty();
   // Second star to the right, and straight on till morning
-  StackMaintainer<TemplateDeclaration> sm
-    (env.templateDeclarationStack, inCompleteSpec ? NULL : this);
+  Restorer<Env::TemplTcheckMode> changeMode(env.tcheckMode,
+    inCompleteSpec? env.tcheckMode : Env::TTM_3TEMPL_DEF);
 
   // make a new scope to hold the template parameters
   Scope *paramScope = env.enterScope(SK_TEMPLATE, "template declaration parameters");

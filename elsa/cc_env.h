@@ -171,27 +171,16 @@ public:      // data
   // an an 'asm' directive (see TF_asm::itcheck)
   StringRef collectLookupResults;
 
-  // ----- BEGIN: tcheck mode stacks -----
-  // stack of TemplateDeclaration-s; inside the definition of a
-  // template body, you are not in "real" code, you are in "might-be"
-  // code, a sort of never-never land for typechecking; you might want
-  // to change your behavior in such situations.
-  SObjStack<TemplateDeclaration> templateDeclarationStack;
+  // template typechecking modes; see comment at the top of the
+  // implementation of Env::instantiateTemplate()
+  enum TemplTcheckMode {
+    TTM_1NORMAL          = 1,
+    TTM_2TEMPL_FUNC_DECL = 2,
+    TTM_3TEMPL_DEF       = 3,
+  };
 
-  // this strange creature is so that we have something to put on the
-  // stack inside instantiateForwardClasses() so that we can push it
-  // onto the templateDeclarationStack to temporarily supress
-  // TTM_3TEMPL_DEF and return to TTM_1NORMAL for purposes of
-  // instantiating the forward classes; FIX: maybe should do something
-  // like FuncDeclThing but what a lot of work
-  static TD_class mode1Dummy;
-
-  // stack of D_func-s and/or Initializers; inside a D_func, except
-  // for in Initializers (default arguments), we are in a strange mode
-  // where we need to do template *declaration* instantiation but not
-  // *definition* instantiation.
-  SObjStack<FuncDeclThing> funcDeclStack;
-  // ----- END: tcheck mode stacks -----
+  // current template instantiation tcheck mode
+  TemplTcheckMode tcheckMode;
 
 private:     // funcs
   // old
@@ -591,17 +580,9 @@ public:      // template funcs
   friend struct PartialScopeStack;
 
 
-  // template typechecking modes; see comment at the top of the
-  // implementation of Env::instantiateTemplate()
-  enum TemplTcheckMode {
-    TTM_UNDEF            = 0,
-    TTM_1NORMAL          = 1,
-    TTM_2TEMPL_FUNC_DECL = 2,
-    TTM_3TEMPL_DEF       = 3,
-  };
-
   // return the current mode
   TemplTcheckMode getTemplTcheckMode() const;
+  TemplTcheckMode old_getTemplTcheckMode() const;
 
   // some extensions to lookupPQVariable that I want to move elsewhere;
   // for now I'm just trying to factor them out of lookup..
@@ -870,68 +851,6 @@ class TemplCandidates {
   static int compareCandidatesStatic
     (TypeFactory &tfac, TemplateInfo const *lti, TemplateInfo const *rti);
   int compareCandidates(Variable const *left, Variable const *right);
-};
-
-
-// utility class for maintaining a first-class sub-stack of the AST
-// stack isomorphic to the stackframe stack; Note that the fact that
-// nothing happens if 'obj' is NULL is a feature: sometimes you can't
-// map the need to call this class completely onto the control flow,
-// and so some dataflow is involved; since the dtor for this class is
-// used as a kind of finally statement, we can't nest its construction
-// in an 'if' statement!  Instead pass in NULL if you want a no-op
-// effect.
-template<class T>
-class StackMaintainer {
-  SObjStack<T> &s;
-  T *obj;
-
-  StackMaintainer(StackMaintainer&); // forbid copying
-
-  public:
-  explicit StackMaintainer(SObjStack<T> &s0, T *obj0)
-    : s(s0)
-    , obj(obj0)
-  {
-    if (obj) {
-      s.push(obj);
-    }
-  }
-
-  ~StackMaintainer() {
-    if (obj) {
-      T *obj0 = s.pop();
-      xassert(obj0 == obj);
-    }
-  }
-};
-
-
-// need a superclass of D_func and Initializer
-class FuncDeclThing {
-  enum FDTType {
-    //FDT_NONE,     // sm: this one is impossible and unnecessary
-    FDT_D_func,
-    FDT_Initializer,
-  };
-  FDTType t;
-  union {
-    D_func *dfunc;
-    Initializer *init;
-  };
-  public:
-  FuncDeclThing(D_func *dfunc0)     : t(FDT_D_func),      dfunc(dfunc0) {}
-  FuncDeclThing(Initializer *init0) : t(FDT_Initializer), init(init0)   {}
-  bool isD_func() const      {return t == FDT_D_func;}
-  bool isInitializer() const {return t == FDT_Initializer;}
-  D_func *asD_func() const {
-    xassert(isD_func());
-    return dfunc;
-  }
-  Initializer *asInitializer() const {
-    xassert(isInitializer());
-    return init;
-  }
 };
 
 

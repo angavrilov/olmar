@@ -347,8 +347,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     doOperatorOverload(tracingSys("doOperatorOverload") && lang.allowOverloading),
     collectLookupResults(NULL),
     
-    templateDeclarationStack(),
-    funcDeclStack()
+    tcheckMode(TTM_1NORMAL)
 {
   // dsw: for esoteric reasions I need the tfac to be publicly
   // available at times
