@@ -68,29 +68,28 @@ void AttrLvalue::check(Production const *ctx) const
 }
 
 
-Attributes const &AttrLvalue::getNamedAttrC(AttrContext const &actx) const
-{
-  if (symbolIndex == 0) {
-    return actx.parentAttrC();
-  }
-
-  else {
-    return actx.reductionC().children.nthC(symbolIndex-1)->attr;
-  }
-}
-
-
 int AttrLvalue::getFrom(AttrContext const &actx) const
 {
-  return getNamedAttrC(actx).get(attrName);
+  if (symbolIndex == 0) {
+    return actx.reductionC().getAttrValue(attrName);
+  }
+  else {
+    return actx.reductionC().children.nthC(symbolIndex-1)->
+             getAttrValue(attrName);
+  }
 }
 
 
 void AttrLvalue::storeInto(AttrContext &actx, int newValue) const
 {
-  getNamedAttr(actx).set(attrName, newValue);
+  if (symbolIndex == 0) {
+    actx.reduction().setAttrValue(attrName, newValue);
+  }
+  else {
+    actx.reduction().children.nth(symbolIndex-1)->
+      setAttrValue(attrName, newValue);
+  }
 }
-
 
 
 // ---------------------- AExprNode --------------------------

@@ -35,7 +35,7 @@ Attributes::~Attributes()
 
 
 // locate an entry by name, return NULL if isn't there
-Attributes::Entry const *Attributes::findEntryC(char const *name) const
+Attributes::Entry const *Attributes::findEntryC(AttrName name) const
 {
   FOREACH_OBJLIST(Entry, dict, entry) {
     if (entry.data()->name.equals(name)) {
@@ -46,13 +46,13 @@ Attributes::Entry const *Attributes::findEntryC(char const *name) const
 }
 
 
-bool Attributes::hasEntry(char const *name) const
+bool Attributes::hasEntry(AttrName name) const
 {
   return findEntryC(name) != NULL;
 }
 
 
-int Attributes::get(char const *name) const
+AttrValue Attributes::get(AttrName name) const
 {
   Entry const *e = findEntryC(name);
   if (!e) {
@@ -62,7 +62,7 @@ int Attributes::get(char const *name) const
 }
 
 
-void Attributes::set(char const *name, int value)
+void Attributes::set(AttrName name, AttrValue value)
 {
   if (!hasEntry(name)) {
     addEntry(name, value);
@@ -73,7 +73,7 @@ void Attributes::set(char const *name, int value)
 }
 
 
-void Attributes::addEntry(char const *name, int value)
+void Attributes::addEntry(AttrName name, AttrValue value)
 {
   xassert(!hasEntry(name));
 
@@ -82,7 +82,7 @@ void Attributes::addEntry(char const *name, int value)
 }
 
 
-void Attributes::changeEntry(char const *name, int value)
+void Attributes::changeEntry(AttrName name, AttrValue value)
 {
   Entry *e = findEntry(name);
   xassert(e);
@@ -95,7 +95,7 @@ void Attributes::changeEntry(char const *name, int value)
 }
 
 
-void Attributes::removeEntry(char const *name)
+void Attributes::removeEntry(AttrName name)
 {
   Entry *e = findEntry(name);
   xassert(e);

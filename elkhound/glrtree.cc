@@ -120,6 +120,17 @@ Symbol const *TerminalNode::getSymbolC() const
 }
 
 
+AttrValue TerminalNode::getAttrValue(AttrName name) const      
+{
+  xfailure("getAttrValue: terminals do not have attributes");
+}
+
+void TerminalNode::setAttrValue(AttrName name, AttrValue value)
+{
+  xfailure("setAttrValue: terminals do not have attributes");
+}
+
+
 void TerminalNode::printParseTree(ostream &os, int indent) const
 {
   // I am a leaf
@@ -179,7 +190,7 @@ Nonterminal const *NonterminalNode::getLHS() const
 Reduction const *NonterminalNode::only() const
 {
   if (reductions.count() != 1) {
-    THROW(XAmbiguity(this));
+    THROW(XAmbiguity(this, "in only()"));
   }
 
   return reductions.firstC();
@@ -210,6 +221,35 @@ Symbol const *NonterminalNode::getSymbolC() const
 }
 
 
+AttrValue NonterminalNode::getAttrValue(AttrName name) const
+{
+  // get the first child's opinion
+  AttrValue val = reductions.firstC()->getAttrValue(name);
+
+  // if there are alternative parses, for now I'm keeping the old
+  // policy that they must agree on the value of all attributes
+  for (int i=1; i<reductions.count(); i++) {
+    // get another child's opinion
+    AttrValue val2 = reductions.nthC(i)->getAttrValue(name);
+    if (val != val2) {
+      THROW(XAmbiguity(this, "unequal alternative child attributes"));
+    }
+  }
+
+  // consensus!
+  return val;
+}
+
+void NonterminalNode::setAttrValue(AttrName name, AttrValue value)
+{
+  // this is mainly because I don't have inherited attributes, so I
+  // should only ever set attributes in reductions that are being
+  // built at the time, i.e. there is no containing NonterminalNode
+  // for them
+  xfailure("setAttrValue: setting of attributes via Nonterminal isn't supported");
+}
+
+
 TreeNode const *NonterminalNode::walkTree(WalkFn func, void *extra) const
 {
   TreeNode const *n;
@@ -233,7 +273,7 @@ void NonterminalNode::printParseTree(ostream &os, int indent) const
   int parses = reductions.count();
   if (parses == 1) {
     // I am unambiguous
-    reductions.firstC()->printParseTree(attr, os, indent);
+    reductions.firstC()->printParseTree(os, indent);
   }
 
   else {
@@ -246,7 +286,7 @@ void NonterminalNode::printParseTree(ostream &os, int indent) const
     FOREACH_OBJLIST(Reduction, reductions, red) {
       ct++;
       IND << "---- alternative " << ct << " ----\n";
-      red.data()->printParseTree(attr, os, indent);
+      red.data()->printParseTree(os, indent);
     }
   }
 }
@@ -329,6 +369,17 @@ Reduction::~Reduction()
 {}
 
 
+AttrValue Reduction::getAttrValue(AttrName name) const
+{                  
+  return attr.get(name);
+}
+
+void Reduction::setAttrValue(AttrName name, AttrValue value)
+{
+  attr.set(name, value);
+}
+
+
 TreeNode const *Reduction::walkTree(TreeNode::WalkFn func, void *extra) const
 {
   // walk children
@@ -340,8 +391,7 @@ TreeNode const *Reduction::walkTree(TreeNode::WalkFn func, void *extra) const
 }
 
 
-void Reduction::printParseTree(Attributes const &attr,
-                               ostream &os, int indent) const
+void Reduction::printParseTree(ostream &os, int indent) const
 {
   // print the production that was used to reduce
   // debugging: print address too, as a clumsy uniqueness identifier
@@ -393,10 +443,10 @@ Reduction *AttrContext::grabReduction()
 
 
 // -------------------- XAmbiguity -------------------
-STATICDEF string XAmbiguity::makeWhy(NonterminalNode const *n)
+STATICDEF string XAmbiguity::makeWhy(NonterminalNode const *n, char const *m)
 {
   stringBuilder sb;
-  sb << "Ambiguity at " << n->locString() 
+  sb << "Ambiguity (" << m << ") at " << n->locString()
      << " between productions:";
 
   FOREACH_OBJLIST(Reduction, n->reductions, iter) {
@@ -407,14 +457,16 @@ STATICDEF string XAmbiguity::makeWhy(NonterminalNode const *n)
 }
 
 
-XAmbiguity::XAmbiguity(NonterminalNode const *n)
-  : xBase(makeWhy(n)),
-    node(n)
+XAmbiguity::XAmbiguity(NonterminalNode const *n, char const *m)
+  : xBase(makeWhy(n, m)),
+    node(n),
+    message(m)
 {}
 
 XAmbiguity::XAmbiguity(XAmbiguity const &obj)
   : xBase(obj),
-    DMEMB(node)
+    DMEMB(node),
+    DMEMB(message)
 {}
 
 XAmbiguity::~XAmbiguity()

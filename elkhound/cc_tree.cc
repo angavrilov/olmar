@@ -107,7 +107,7 @@ void CCTreeNode::disambiguate(Env &env, DisambFn func) const
   }
   else if (realReds.count() > 1) {
     // more than one worked..
-    THROW(XAmbiguity(this));
+    THROW(XAmbiguity(this, "multiple trees passed semantic checks"));
   }
   else {
     // none of them worked.. let's arbitrarily pick the first and

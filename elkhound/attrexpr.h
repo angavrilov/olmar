@@ -6,6 +6,7 @@
 
 #include "str.h"          // string
 #include "objlist.h"      // ObjList
+#include "attr.h"         // Attributes, AttrValue, AttrName
 
 class Reduction;          // glrtree.h
 class AttrContext;        // glrtree.h
@@ -18,15 +19,10 @@ class Attributes;         // attr.h
 class AttrLvalue {
 public:	     // data
   int symbolIndex;      // 0 means LHS symbol, 1 is first RHS symbol, 2 is next, etc.
-  string attrName;      // name of attribute to change
-
-private:     // funcs
-  Attributes const &getNamedAttrC(AttrContext const &actx) const;
-  Attributes &getNamedAttr(AttrContext &actx) const
-    { return const_cast<Attributes&>(getNamedAttrC(actx)); }
+  AttrName attrName;    // name of attribute to change
 
 public:	     // funcs
-  AttrLvalue(int s, string a)
+  AttrLvalue(int s, AttrName a)
     : symbolIndex(s), attrName(a) {}
   AttrLvalue(AttrLvalue const &obj)
     : symbolIndex(obj.symbolIndex), attrName(obj.attrName) {}
@@ -39,18 +35,18 @@ public:	     // funcs
   // return the attribute as it would have been supplied on input,
   // e.g. Expr.left
   string toString(Production const *prod) const;
-  
+
   // check that the lvalue is a valid reference in the
   // context of the given production; throw exception if not
   void check(Production const *ctx) const;
 
   // given an instantiated production, yield the referred value
-  int getFrom(AttrContext const &actx) const;
+  AttrValue getFrom(AttrContext const &actx) const;
 
   // store a new value
   // (this fn is "const", meaning it does not modify the ref itself,
   // only the thing referred-to)
-  void storeInto(AttrContext &actx, int newValue) const;
+  void storeInto(AttrContext &actx, AttrValue newValue) const;
 };
 
 

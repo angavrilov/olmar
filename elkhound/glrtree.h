@@ -38,9 +38,6 @@ public:     // types
   typedef bool (*WalkFn)(TreeNode const *node, void *extra);
 
 public:	    // data
-  // attributes associated with the node
-  Attributes attr;
-  
   // count and high-water for tree nodes
   static int numTreeNodesAllocd;
   static int maxTreeNodesAllocd;
@@ -62,6 +59,10 @@ public:	    // funcs
 
   NonterminalNode const &asNontermC() const;
   NonterminalNode &asNonterm() { return const_cast<NonterminalNode&>(asNontermC()); }
+
+  // attribute access
+  virtual AttrValue getAttrValue(AttrName name) const = 0;
+  virtual void setAttrValue(AttrName name, AttrValue value) = 0;
 
   // walk the tree, calling 'func' on each node encountered (in order),
   // until it returns true; returns the tree node at which 'func' retruned
@@ -105,6 +106,8 @@ public:     // funcs
   // TreeNode stuff
   virtual bool isTerm() const { return true; }
   virtual Symbol const *getSymbolC() const;
+  virtual AttrValue getAttrValue(AttrName name) const;
+  virtual void setAttrValue(AttrName name, AttrValue value);
   virtual TerminalNode const *getLeftmostTerminalC() const;
   virtual void ambiguityReport(ostream &os) const;
   virtual void getGroundTerms(SObjList<TerminalNode> &dest) const;
@@ -150,6 +153,8 @@ public:
   virtual bool isTerm() const { return false; }
   virtual Symbol const *getSymbolC() const;
   virtual TreeNode const *walkTree(WalkFn func, void *extra=NULL) const;
+  virtual AttrValue getAttrValue(AttrName name) const;
+  virtual void setAttrValue(AttrName name, AttrValue value);
   virtual TerminalNode const *getLeftmostTerminalC() const;
   virtual void ambiguityReport(ostream &os) const;
   virtual void getGroundTerms(SObjList<TerminalNode> &dest) const;
@@ -162,7 +167,11 @@ public:
 // the production
 // ([GLR] calls these "rule nodes")
 class Reduction {
-public:
+private:     // data
+  // attributes associated with the node
+  Attributes attr;
+
+public:      // data
   // the production that generated this node
   Production const * const production;         // (serf)
 
@@ -170,11 +179,14 @@ public:
   // that matches that symbol (terminal or nonterminal)
   SObjList<TreeNode> children;                 // this is a list
 
-public:
+public:      // funcs
   Reduction(Production const *prod);
   ~Reduction();
 
-  void printParseTree(Attributes const &attr, ostream &os, int indent) const;
+  AttrValue getAttrValue(AttrName name) const;
+  void setAttrValue(AttrName name, AttrValue value);
+
+  void printParseTree(ostream &os, int indent) const;
   TreeNode const *walkTree(TreeNode::WalkFn func, void *extra=NULL) const;
   void ambiguityReport(ostream &os) const;
 
@@ -182,26 +194,23 @@ public:
 };
 
 
-// during attribution, a context for evaluation is provided by a
+// OLD: during attribution, a context for evaluation is provided by a
 // list of children (a Reduction) and the attributes for the parent;
 // this structure is created at that time to carry around that
 // context, though it is not stored anywhere in the tree
 class AttrContext {
-  Attributes &att;
   Reduction *red;      	   // (owner)
 
 public:
-  AttrContext(Attributes &a, Reduction *r)
-    : att(a), red(r) {}
+  AttrContext(Reduction *r)
+    : red(r) {}
   ~AttrContext();
 
   // access without modification
   Reduction const &reductionC() const { return *red; }
-  Attributes const &parentAttrC() const { return att; }
 
   // access with modification
   Reduction &reduction() { return *red; }
-  Attributes &parentAttr() { return att; }
 
   // transfer of ownership (nullifies 'red')
   Reduction *grabReduction();
@@ -216,12 +225,15 @@ public:     // data
   // NOTE: since this is a pointer into the tree, this
   // exception must be caught *before* the tree is destroyed
   NonterminalNode const *node;
-  
+
+  // additional info what/why about the ambiguity
+  string message;
+
 private:    // funcs
-  static string makeWhy(NonterminalNode const *n);
+  static string makeWhy(NonterminalNode const *n, char const *m);
 
 public:     // funcs
-  XAmbiguity(NonterminalNode const *n);
+  XAmbiguity(NonterminalNode const *n, char const *msg);
   XAmbiguity(XAmbiguity const &obj);
   ~XAmbiguity();
 };

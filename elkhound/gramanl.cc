@@ -1641,6 +1641,16 @@ int main()
 
 #include "ccwrite.h"      // emitSemFun{Impl,Decl}File
 #include "grampar.h"      // readGrammarFile
+#include "glrtree.h"      // Reduction
+
+  
+// these are here so I don't have to link with things that
+// I consider conceptually unrelated
+AttrValue Reduction::getAttrValue(AttrName name) const
+  { xfailure("no!"); }
+void Reduction::setAttrValue(AttrName name, AttrValue value)
+  { xfailure("no!"); }
+
 
 int main(int argc, char **argv)
 {

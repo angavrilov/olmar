@@ -596,11 +596,11 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling,
                               Reduction * /*(owner)*/ reduction)
 {
   // package some things up
-  Attributes parentAttr;       // attributes for parent of reduction's children
   Production const *prod = reduction->production;
-  AttrContext actx(parentAttr, transferOwnership(reduction));
+  AttrContext actx(transferOwnership(reduction));
 
-  // apply the actions and conditions for this production
+  // apply the actions and conditions for this production; this is
+  // fundamentally a disambiguation activity
   prod->actions.fire(actx);
   if (!prod->conditions.test(actx)) {
     // failed to satisfy conditions
@@ -755,6 +755,8 @@ StackNode *GLR::makeStackNode(ItemSet const *state)
 }
 
 
+// 'node' is the existing tree node, and 'actx' has the node that we're
+// considering merging into 'node'; some disambiguation is applied here
 void GLR::mergeAlternativeParses(NonterminalNode &node, AttrContext &actx)
 {
   // we only get here if the single-tree tests have passed, but we
@@ -763,6 +765,7 @@ void GLR::mergeAlternativeParses(NonterminalNode &node, AttrContext &actx)
   // TODO: figure out interface and specification for multi-tree
   // comparisons
 
+  #if 0   // old
   // at this point, we still have multiple trees; we require of
   // the parser that the parent attributes MUST match exactly
   if (actx.parentAttr() != node.attr) {
@@ -774,9 +777,10 @@ void GLR::mergeAlternativeParses(NonterminalNode &node, AttrContext &actx)
     cout << "  new parse and attributes:\n";
     actx.reduction().printParseTree(actx.parentAttr(), cout, 4 /*indent*/);
 
-    xfailure(stringc << node.locString() << 
+    xfailure(stringc << node.locString() <<
              ": parser bug: alternative parses with different attributes");
   }
+  #endif // 0
 
   // ok, they match; just add the reduction to the existing node
   // (and let 'parentAttr' drop on the floor since it was the same anyway)
@@ -816,7 +820,6 @@ Reduction *GLR::makeReductionNode(Production const *prod,
 NonterminalNode *GLR::makeNonterminalNode(AttrContext &actx)
 {
   NonterminalNode *ret = new NonterminalNode(actx.grabReduction());
-  ret->attr.destructiveEquals(actx.parentAttr());   // effect: ret->attr = parentAttr
   treeNodes.prepend(ret);
   return ret;
 }

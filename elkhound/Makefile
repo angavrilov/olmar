@@ -117,6 +117,14 @@ clean:
 	rm -f cexp2.sem ccsstr cexp2.{h,cc} cexp2 cc.{h,cc} ccgr
 	rm -f towner cc.gr.ps
 
+# regression tests
+check: cexp2 ccgr
+	./cexp2 cexp2.gr cexp2.in2
+	./ccgr cc.gr c.in1
+	./ccgr cc.gr c.in4
+	@echo ""
+	@echo "Regression tests passed."
+
 # --------------- random other stuff --------------------
 # printable version of the C++ grammar; removes the '// C++' tags
 # because they just wrap onto next line and mess things up
