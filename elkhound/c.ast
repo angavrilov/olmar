@@ -4,6 +4,7 @@
 // included in generated header
 verbatim {
   #include "cc_flags.h"      // CVFlags, DeclFlags, etc.
+  #include "sobjlist.h"      // SObjList
 
   class Env;                 // cc_env.h
   class Type;                // cc_type.h
@@ -90,6 +91,8 @@ class TypeSpecifier {
   // apply the 'cv' information
   protected Type const *applyCV(Env &env, Type const *base);
 
+  //pure_virtual void vcgen(AEnv &env) const;
+
   -> TS_name(StringRef name);              // a typedef'd name
 
   -> TS_simple(SimpleTypeId id);           // int or char or float or ..
@@ -172,8 +175,27 @@ class PtrOperator (CVFlags cv);
 
 // ------------------- statements -----------------
 class Statement {
-  pure_virtual void tcheck(Env &env);
+  public void tcheck(Env &env);
+  pure_virtual void itcheck(Env &env);
   pure_virtual void vcgen(AEnv &env) const;
+
+  // embedded control flow successor edge (for some constructs, like
+  // 'if', some/all of the successors are already explicit)
+  public Statement *next;
+  ctor next=NULL;
+
+  // this is true when the 'next' edge points at a looping construct,
+  // but the flow is interpreted as a 'continue', rather than starting
+  // the loop from scratch
+  public bool nextContinue;
+  ctor nextContinue = false;
+
+  custom debugPrint {
+    ind(os, indent) << "this=" << (void*)this 
+                    << ", next=" << (void*)next
+                    << ", cont=" << (nextContinue? "true" : "false")
+                    << endl;
+  }
 
   -> S_skip();      // nop; used whenever optional Statement is not present
   -> S_label(StringRef name, Statement s);
@@ -183,7 +205,10 @@ class Statement {
   -> S_expr(Expression expr);      // expression evaluated for side effect
   -> S_compound(ASTList<Statement> stmts);
   -> S_if(Expression cond, Statement thenBranch, Statement elseBranch);
-  -> S_switch(Expression expr, Statement branches);
+  -> S_switch(Expression expr, Statement branches) {
+       // pointers to all of the cases (& default) in this switch
+       public SObjList<Statement> cases;
+     }
   -> S_while(Expression cond, Statement body);
   -> S_doWhile(Statement body, Expression cond);
   -> S_for(Statement init, Expression cond,

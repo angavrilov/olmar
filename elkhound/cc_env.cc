@@ -59,6 +59,155 @@ MLValue Variable::toMLValue() const
 #endif // 0
 
 
+// --------------------- CFGEnv -----------------------
+CFGEnv::CFGEnv()
+{
+  // make empty top frames
+  pushNexts();
+  pushBreaks();
+}
+
+CFGEnv::~CFGEnv()
+{}
+
+
+// -------- nexts -------
+void CFGEnv::pushNexts()
+{
+  pendingNexts.push(new SObjList<Statement>());
+}
+
+void CFGEnv::addPendingNext(Statement *source)
+{
+  pendingNexts.top()->prepend(source);    // O(n)
+}
+
+void CFGEnv::popNexts()
+{
+  SObjList<Statement> *top = pendingNexts.pop();
+  pendingNexts.top()->concat(*top);    // empties 'top'
+  delete top;
+}
+
+void CFGEnv::clearNexts()
+{
+  pendingNexts.top()->removeAll();
+}
+
+void CFGEnv::resolveNexts(Statement *target, bool isContinue)
+{
+  SMUTATE_EACH_OBJLIST(Statement, *(pendingNexts.top()), iter) {
+    iter.data()->next = target;
+    iter.data()->nextContinue = isContinue;
+  }
+  clearNexts();
+}
+
+
+// -------- breaks --------
+void CFGEnv::pushBreaks()
+{
+  breaks.push(new SObjList<S_break>());
+}
+
+void CFGEnv::addBreak(S_break *source)
+{
+  breaks.top()->prepend(source);     // O(n)
+}
+
+void CFGEnv::popBreaks()
+{
+  // all topmost breaks become pending nexts
+  SMUTATE_EACH_OBJLIST(S_break, *(breaks.top()), iter) {
+    addPendingNext(iter.data());
+  }
+  breaks.delPop();
+}
+
+
+// -------- labels --------
+void CFGEnv::addLabel(StringRef name, S_label *target)
+{
+  labels.add(name, target);
+}
+
+void CFGEnv::addPendingGoto(StringRef name, S_goto *source)
+{
+  gotos.add(name, source);
+}
+
+void CFGEnv::resolveGotos()
+{                                     
+  // go over all the gotos and find their corresponding target
+  for (StringSObjDict<S_goto>::Iter iter(gotos);
+       !iter.isDone(); iter.next()) {    
+    S_label *target = labels.queryif(iter.key());
+    if (target) {
+      iter.value()->next = target;
+      iter.value()->nextContinue = false;
+    }
+    else {
+      err(stringc << "goto to undefined label: " << iter.key());
+    }
+  }
+  
+  // empty both dictionaries
+  labels.empty();
+  gotos.empty();
+}
+
+
+// -------- switches --------
+void CFGEnv::pushSwitch(S_switch *sw)
+{
+  switches.push(sw);
+}
+
+S_switch *CFGEnv::getCurrentSwitch()
+{
+  return switches.top();
+}
+
+void CFGEnv::popSwitch()
+{
+  switches.pop();
+}
+
+
+// --------- loops ----------
+void CFGEnv::pushLoop(Statement *loop)
+{
+  loops.push(loop);
+}
+
+Statement *CFGEnv::getCurrentLoop()
+{
+  return loops.top();
+}
+
+void CFGEnv::popLoop()
+{
+  loops.pop();
+}
+
+
+// -------- end --------
+void CFGEnv::verifyFunctionEnd()
+{
+  xassert(pendingNexts.count() == 1);
+  xassert(pendingNexts.top()->count() == 0);
+  
+  xassert(breaks.count() == 1);
+  xassert(breaks.top()->count() == 0);
+  
+  xassert(labels.size() == 0);
+  xassert(gotos.size() == 0);
+
+  xassert(switches.count() == 0);
+  xassert(loops.count() == 0);
+}
+
+
 // --------------------- ScopedEnv ---------------------
 ScopedEnv::ScopedEnv()
 {}

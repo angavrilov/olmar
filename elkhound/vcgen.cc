@@ -30,7 +30,9 @@ void TranslationUnit::vcgen(AEnv &env) const
 
 // --------------------- TopForm ----------------------
 void TF_decl::vcgen(AEnv &env) const
-{}
+{
+  decl->vcgen(env);
+}
 
 
 void TF_func::vcgen(AEnv &env) const
@@ -101,8 +103,49 @@ void Declaration::vcgen(AEnv &env) const
   }
 }
 
-void Declarator::vcgen(AEnv &env) const
+AVvar *fieldRep(CompoundType::Field const *field)
 {
+  return new AVvar(field->name, "field value representative");
+}
+
+void Declarator::vcgen(AEnv &env) const
+{       
+  // TODO: finish structure-valued objects
+  #if 0
+  if (type->isCVAtomicType() &&
+      type->asCVAtomicTypeC().atomic->isCompoundType()) {
+    CompoundType const &ct = type->asCVAtomicTypeC().atomic->asCompoundTypeC();
+
+    if (ct.keyword != CompoundType::K_UNION &&
+        !env.seenStructs.contains(ct.name)) {
+      env.seenStructs.add(ct.name);
+
+      // construct an example object
+      AVfunc *obj = new AVfunc(stringc << "struct_" << ct.name, NULL);
+      FOREACH_OBJLIST(CompoundType::Field, ct.fields, iter) {
+        obj->args.append(fieldRep(iter.data()));
+      }
+
+      // create accessor functions for each field
+      FOREACH_OBJLIST(CompoundType::Field, ct.fields, field) {
+        P_forall *fa = new P_forall(NULL,
+          new P_binary(avFunc1(stringc << "acc_" << field.data()->name, obj),
+                       RE_EQUAL,
+                       fieldRep(field.data())));
+
+        // add quantifiers
+        FOREACH_OBJLIST(CompoundType::Field, ct.fields, iter) {
+          fa->variables.append(fieldRep(iter.data()));
+        }
+
+        // remember this rule
+        env.typeFacts.append(fa);
+      }
+    }
+  }
+  #endif // 0
+
+
   if (name) {
     // make up a name for the initial value
     AbsValue *value;
@@ -528,8 +571,6 @@ AbsValue *E_assign::vcgen(AEnv &env) const
 {
   AbsValue *v = src->vcgen(env);
 
-  // since I have no reasonable hold on pointers yet, I'm only
-  // going to keep track of assignments to (integer) variables
   if (target->isE_variable()) {
     StringRef name = target->asE_variable()->name;
                                                   
@@ -557,6 +598,17 @@ AbsValue *E_assign::vcgen(AEnv &env) const
     env.setMem(env.avUpdate(env.getMem(), env.avObject(addr),
                             env.avOffset(addr), v));
   }
+       
+  // TODO: finish structure field accesses
+  #if 0
+  else if (target->isE_fieldAcc()) {
+    E_fieldAcc *fldAcc = target->asE_fieldAcc();
+    AbsValue *obj = fldAcc->obj->vcgen(env);
+  #endif // 0  
+
+
+
+
   else {
     cout << "warning: unhandled assignment: " << toString() << endl;
   }

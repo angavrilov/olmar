@@ -89,12 +89,20 @@ void TF_func::tcheck(Env &env)
       env.leaveScope();
     }
   }
+  
+  // may as well check that things are as I expect *before* I muck with them
+  env.verifyFunctionEnd();
 
   // check the body in the new environment
   body->tcheck(env);
 
   // clean up
-  env.leaveScope();
+  env.resolveGotos();
+  env.resolveNexts(NULL /*target*/, false /*isContinue*/);
+  env.leaveScope(); 
+  
+  // let the environment verify everything got cleaned up properly
+  env.verifyFunctionEnd();
 }
 
 
@@ -433,83 +441,179 @@ StringRef D_bitfield::getName() const
 
 
 // ----------------------- Statement ---------------------
-void S_skip::tcheck(Env &env)
+void Statement::tcheck(Env &env)
+{
+  // the default actions here are suitable for most kinds of
+  // statements, but there are exceptions which require special
+  // treatment, and that is elaborated below
+
+  // any pending 'next' pointers go here
+  env.resolveNexts(this /*target*/, false /*continue*/);
+
+  // my 'next' will go to whoever's (outer) tcheck is called next
+  env.addPendingNext(this /*source*/);
+
+  // do inner typecheck
+  itcheck(env);
+}
+
+
+void S_skip::itcheck(Env &env)
 {}
 
-void S_label::tcheck(Env &env)
+void S_label::itcheck(Env &env)
 {
+  env.addLabel(name, this);
   s->tcheck(env);
 }
 
-void S_case::tcheck(Env &env)
+
+void connectEnclosingSwitch(Env &env, Statement *stmt, char const *kind)
 {
+  S_switch *sw = env.getCurrentSwitch();
+  if (!sw) {
+    env.err(stringc << kind << " can only appear in the context of a 'switch'");
+  }
+  else {
+    sw->cases.append(stmt);
+  }
+}
+
+void S_case::itcheck(Env &env)
+{
+  connectEnclosingSwitch(env, this, "'case'");
   s->tcheck(env);
 }
 
-void S_caseRange::tcheck(Env &env)
+void S_caseRange::itcheck(Env &env)
 {
+  connectEnclosingSwitch(env, this, "'case'");
   s->tcheck(env);
 }
 
-void S_default::tcheck(Env &env)
+void S_default::itcheck(Env &env)
 {
+  connectEnclosingSwitch(env, this, "'default'");
   s->tcheck(env);
 }
 
-void S_expr::tcheck(Env &env)
+
+void S_expr::itcheck(Env &env)
 {
   expr->tcheck(env);
 }
 
-void S_compound::tcheck(Env &env)
+void S_compound::itcheck(Env &env)
 {
   env.enterScope();
   FOREACH_ASTLIST_NC(Statement, stmts, iter) {
     iter.data()->tcheck(env);
-  }                
+  }
   env.leaveScope();
 }
 
-void S_if::tcheck(Env &env)
+void S_if::itcheck(Env &env)
 {
   checkBoolean(env, cond->tcheck(env), cond);
   thenBranch->tcheck(env);
+
+  // any pending 'next's should not be resolved as pointing into
+  // the 'else' clause, but instead as pointing at whatever follows
+  // the entire 'if' statement
+  env.pushNexts();
+
   elseBranch->tcheck(env);
+
+  // merge current pending nexts with those saved above
+  env.popNexts();
 }
 
-void S_switch::tcheck(Env &env)
+void S_switch::itcheck(Env &env)
 {
+  // existing 'break's must be postponed
+  env.pushBreaks();
+
+  // any occurrances of 'case' will be relative to this switch
+  env.pushSwitch(this);
   branches->tcheck(env);
+  env.popSwitch();
+
+  // any previous 'break's will resolve to whatever comes next
+  env.popBreaks();
 }
 
-void S_while::tcheck(Env &env)
+
+void tcheckLoop(Env &env, Statement *loop, Expression *cond,
+                     Statement *body)
 {
+  // existing 'break's must be postponed
+  env.pushBreaks();
+
   checkBoolean(env, cond->tcheck(env), cond);
+
+  // any occurrances of 'continue' will be relative to this loop
+  env.pushLoop(loop);
   body->tcheck(env);
+  env.popLoop();
+
+  // the body continues back into this loop
+  env.resolveNexts(loop /*target*/, true /*continue*/);
+
+  // any previous 'break's will resolve to whatever comes next
+  env.popBreaks();
+
+  // I want the loop's 'next' to point to what comes after; right
+  // now it points at the body, and this will change it
+  env.addPendingNext(loop /*source*/);
 }
 
-void S_doWhile::tcheck(Env &env)
+void S_while::itcheck(Env &env)
 {
-  body->tcheck(env);
-  checkBoolean(env, cond->tcheck(env), cond);
+  tcheckLoop(env, this, cond, body);
 }
 
-void S_for::tcheck(Env &env)
+void S_doWhile::itcheck(Env &env)
+{
+  tcheckLoop(env, this, cond, body);
+}
+
+void S_for::itcheck(Env &env)
 {
   init->tcheck(env);
-  checkBoolean(env, cond->tcheck(env), cond);
   after->tcheck(env);
-  body->tcheck(env);
+
+  tcheckLoop(env, this, cond, body);
 }
 
-void S_break::tcheck(Env &env)
-{}
 
-void S_continue::tcheck(Env &env)
-{}
-
-void S_return::tcheck(Env &env)
+void S_break::itcheck(Env &env)
 {
+  // add myself to the list of active breaks
+  env.addBreak(this);
+}
+
+void S_continue::itcheck(Env &env)
+{
+  Statement *loop = env.getCurrentLoop();
+  if (!loop) {
+    env.err("'continue' can only occur in the scope of a loop");
+  }
+  else {
+    // take myself off the list of pending nexts
+    env.clearNexts();
+
+    // point my next at the loop
+    next = loop;
+    nextContinue = true;
+  }
+}
+
+void S_return::itcheck(Env &env)
+{
+  // ensure my 'next' is null
+  env.clearNexts();          
+  xassert(next == NULL);
+
   Type const *rettype = env.getCurrentRetType();
   if (expr) {
     Type const *t = expr->tcheck(env);
@@ -520,16 +624,20 @@ void S_return::tcheck(Env &env)
   }
 }
 
-void S_goto::tcheck(Env &env)
-{}
 
-void S_decl::tcheck(Env &env)
+void S_goto::itcheck(Env &env)
+{
+  env.addPendingGoto(target, this);
+}
+
+
+void S_decl::itcheck(Env &env)
 {
   decl->tcheck(env);
 }
 
 
-void S_assert::tcheck(Env &env)
+void S_assert::itcheck(Env &env)
 {
   IN_PREDICATE(env);
 
@@ -537,22 +645,24 @@ void S_assert::tcheck(Env &env)
   checkBoolean(env, type, expr);
 }
 
-void S_assume::tcheck(Env &env)
+void S_assume::itcheck(Env &env)
 {
   IN_PREDICATE(env);
 
   checkBoolean(env, expr->tcheck(env), expr);
 }
 
-void S_invariant::tcheck(Env &env)
+void S_invariant::itcheck(Env &env)
 {
+  IN_PREDICATE(env);
+
   checkBoolean(env, expr->tcheck(env), expr);
 }
 
-void S_thmprv::tcheck(Env &env)
+void S_thmprv::itcheck(Env &env)
 {
   IN_PREDICATE(env);
-  
+
   s->tcheck(env);
 }
 

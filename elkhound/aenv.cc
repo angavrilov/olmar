@@ -10,6 +10,8 @@
 #include "exc.h"                // xBase
 #include "owner.h"              // Owner
 
+#include <assert.h>             // assert
+
 
 // ----------------- VariablePrinter ----------------
 // used to print what variables stand for
@@ -55,6 +57,8 @@ AEnv::AEnv(StringTable &table)
     memVars(),
     distinct(),
     counter(1),
+    typeFacts(new P_and(NULL)),
+    seenStructs(),
     inPredicate(false),
     stringTable(table),
     failedProofs(0)
@@ -74,9 +78,11 @@ void AEnv::clear()
   facts->conjuncts.deleteAll();
   memVars.empty();
   distinct.removeAll();
-  
+
   // initialize the environment with a fresh variable for memory
   set(str("mem"), freshVariable("mem", "initial contents of memory"));
+  
+  // part of the deal with type facts is I don't clear them..
 }
 
 
@@ -285,38 +291,46 @@ bool AEnv::innerProve(Predicate * /*serf*/ goal,
                       char const *context)
 {
   // build an implication
-  P_impl implication(facts, goal);
-  try {
-    bool ret = false;
-    char const *print = printFalse;
-    if (runProver(implication.toSexpString())) {
-      ret = true;
-      print = printTrue;
+  string implSexp;
+  {
+    // temporarily let 'facts' own 'typeFacts'
+    facts->conjuncts.prepend(typeFacts);
+    P_impl implication(facts, goal);
+
+    try {
+      implSexp = implication.toSexpString();
+    }
+    catch (...) {
+      assert(!"not prepared to handle this");
     }
 
-    if (print) {
-      VariablePrinter vp;
-      cout << print << ": " << context << endl;
-      printFact(vp, facts);
-      cout << "  goal: " << goal->toSexpString() << "\n";
-      walkValuePredicate(vp, goal);
-
-      // print out variable map
-      vp.dump();
-    }
-
-    // don't let the implication delete its arguments
+    // restore proper ownership
+    facts->conjuncts.removeFirst();
     implication.premise = NULL;
     implication.conclusion = NULL;
+  }
 
-    return ret;
+  bool ret = false;
+  char const *print = printFalse;
+  if (runProver(implSexp)) {
+    ret = true;
+    print = printTrue;
   }
-  catch (...) {
-    implication.premise = NULL;
-    implication.conclusion = NULL;
-    throw;
+
+  if (print) {
+    VariablePrinter vp;
+    cout << print << ": " << context << endl;
+    printFact(vp, facts);
+    cout << "  goal: " << goal->toSexpString() << "\n";
+    walkValuePredicate(vp, goal);
+
+    // print out variable map
+    vp.dump();
   }
+
+  return ret;
 }
+
 
 // print a fact, breaking apart conjunctions
 void AEnv::printFact(VariablePrinter &vp, Predicate const *fact)

@@ -10,9 +10,11 @@
 #include "owner.h"        // Owner
 #include "exc.h"          // xBase
 #include "sobjlist.h"     // SObjList
+#include "objstack.h"     // ObjStack
+#include "sobjstack.h"    // SObjStack
+#include "c.ast.gen.h"    // C ast components
 
 class StringTable;        // strtable.h
-class Declarator;         // c.ast
 
 
 // thrown by some error functions
@@ -47,12 +49,66 @@ public:     // funcs
 };
 
 
+// elements of the environment necessary for constructing the CFG
+class CFGEnv {
+private:    // data
+  ObjStack< SObjList<Statement> > pendingNexts;
+
+  ObjStack< SObjList<S_break> > breaks;
+
+  StringSObjDict<S_label> labels;       // goto targets
+  StringSObjDict<S_goto> gotos;         // goto sources
+
+  SObjStack<S_switch> switches;
+  SObjStack<Statement> loops;
+
+public:     // funcs
+  CFGEnv();
+  virtual ~CFGEnv();
+
+  // must be defined in child class
+  virtual void err(char const *str)=0;
+
+  // manipulate a stack of lists of nodes whose 'next' link
+  // needs to be set
+  void pushNexts();          // push an empty top
+  void addPendingNext(Statement *source);
+  void popNexts();           // merge two topmost frames
+  void clearNexts();         // clear top
+  void resolveNexts(Statement *target, bool isContinue);
+
+  // manipulate a stack of lists of 'break' nodes whose 'next'
+  // link needs to be set
+  void pushBreaks();         // push empty top
+  void addBreak(S_break *source);
+  void popBreaks();          // resolve all at top, and pop frame
+
+  // manipulate lists of sources and targets of gotos
+  void addLabel(StringRef name, S_label *target);
+  void addPendingGoto(StringRef name, S_goto *source);
+  void resolveGotos();
+
+  // maintain a stack of nested switch statements
+  void pushSwitch(S_switch *sw);
+  S_switch *getCurrentSwitch();
+  void popSwitch();
+
+  // stack of nested loops
+  void pushLoop(Statement *loop);
+  Statement *getCurrentLoop();
+  void popLoop();
+
+  // check data structures for conditions which should hold between funcs
+  void verifyFunctionEnd();
+};
+
+
 // elements of the environment which are scoped
 class ScopedEnv {
 public:
   // variables: map name -> Type
   StringObjDict<Variable> variables;
-  
+
 public:
   ScopedEnv();
   ~ScopedEnv();
@@ -60,7 +116,7 @@ public:
 
 
 // C++ compile-time binding environment
-class Env {
+class Env : public CFGEnv {
 private:    // data
   // ----------- fundamental maps ---------------
   // list of active scopes; element 0 is the innermost scope
@@ -161,7 +217,7 @@ public:     // funcs
 
   // ------------------ error/warning reporting -----------------
   // report an error
-  void err(char const *str);
+  virtual void err(char const *str);
 
   // report an error, and throw an exception
   void errThrow(char const *str);

@@ -7,6 +7,7 @@
 #include "strsobjdict.h"   // StringSObjDict
 #include "strtable.h"      // StringRef
 #include "sobjlist.h"      // SObjList
+#include "stringset.h"     // StringSet
 
 class AbsValue;            // absval.ast
 class P_and;               // predicate.ast
@@ -31,8 +32,14 @@ private:     // data
 
   // monotonic integer for making new names
   int counter;
+  
+  // accessor functions for types
+  P_and *typeFacts;
 
 public:      // data
+  // list of types we've codified with accessor functions
+  StringSet seenStructs;
+
   // true when we're analyzing a predicate; among other things,
   // this changes how function applications are treated
   bool inPredicate;

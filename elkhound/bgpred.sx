@@ -1,4 +1,4 @@
-; bgpred.sx
+; bgpred.sx  -*- lisp -*-
 ; background predicate for running Simplify
 
 (PROMPT_OFF)
