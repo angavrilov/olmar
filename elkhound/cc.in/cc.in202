@@ -3,6 +3,6 @@ int main() {
   int $untainted y;
   int q;
   q = x;
-//    y = q;                        // bad
-  q = y;                        // ok
+  y = q;                        // bad
+//    q = y;                        // ok
 }

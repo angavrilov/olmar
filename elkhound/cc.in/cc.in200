@@ -3,12 +3,12 @@
 int const $tainted $wagaaa x;
 int $gronk q;
 
-int $Btainted * $tainted y;
+int $Btainted * $Ctainted y;
 
-char $Atainted * $tainted gronk($tainted int x, $tainted char) $tainted;
+char $Atainted * $barf gronk($Dtainted int x, $Etainted char) $snarg;
 
-void foo() {
-  char $untainted * $tainted $gronk $foo * $blort x;
+void foo() $lurp $goink {
+  char $untainted * $Ftainted $gronk $foo * $blort x;
 }
 
 typedef $waga int foo2;
