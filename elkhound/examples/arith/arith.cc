@@ -71,6 +71,9 @@ int main(int argc)
 
   // uncomment this to get bison-like shift/reduce reports
   //traceAddSys("parse");
+  
+  // get tracing info from environment variable TRACE
+  traceAddFromEnvVar();
 
   if (argc == 1) {
     // start parsing

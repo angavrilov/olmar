@@ -323,6 +323,8 @@ inline void StackNode::init(StateId st, GLR *g)
 
   #if DO_ACCOUNTING
     INC_HIGH_WATER(numStackNodesAllocd, maxStackNodesAllocd);
+    //TRACE("nodes", "(!!!) init stack node: num=" << numStackNodesAllocd
+    //            << ", max=" << maxStackNodesAllocd);
   #endif
 }
 
@@ -330,6 +332,8 @@ inline void StackNode::decrementAllocCounter()
 {
   #if DO_ACCOUNTING
     numStackNodesAllocd--;
+    //TRACE("nodes", "(...) deinit stack node: num=" << numStackNodesAllocd
+    //            << ", max=" << maxStackNodesAllocd);
   #endif
 }
 
@@ -1489,7 +1493,7 @@ void GLR::pullFromTopmostParsers(StackNode *parser)
         // (no need to actually copy 'i' into 'last')
       }
       topmostParsers.pop();     // removes a reference to 'parser'
-      parser->decRefCt();      // so decrement reference count
+      parser->decRefCt();       // so decrement reference count
       break;
     }
   }
@@ -2402,6 +2406,4 @@ string readFileIntoString(char const *fname)
 }
 
 
-// to delete:
-//   parserWorklist
-//   pendingShifts
+// EOF
