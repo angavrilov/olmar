@@ -42,31 +42,25 @@ FullExpressionAnnot::StackBracket::~StackBracket()
 // (what follows could be better organized)
 
 E_constructor *makeCtorExpr
-  (Env &env, Variable *var, Type *type, FakeList<ArgExpression> *args)
+  (Env &env, Variable *var, CompoundType *cpdType, FakeList<ArgExpression> *args)
 {
   xassert(env.doElaboration);
   xassert(var);                 // this is never for a temporary
   xassert(!var->hasFlag(DF_TYPEDEF));
-  PQName *name0 = env.make_PQ_fullyQualifiedName(type->asCompoundType());
+  PQName *name0 = env.make_PQ_fullyQualifiedName(cpdType);
   E_constructor *ector0 =
     new E_constructor(new TS_name(env.loc(), name0, false),
                       args);
   ector0->artificial = true;
-  // this way the E_constructor::itcheck() can tell that it is not for
-  // a temporary; update: I think the previous sentence is now wrong,
-  // and it is due to the artificial flag that it can tell; however I
-  // think I need the var set here for a different reason; not
-  // investigating this now; just wanted to note that the comment is
-  // probably wrong.
-  ector0->var = var;
+  ector0->var = var;            // The variable being ctored
   return ector0;
 }
 
 Statement *makeCtorStatement
-  (Env &env, Variable *var, Type *type, FakeList<ArgExpression> *args)
+  (Env &env, Variable *var, CompoundType *cpdType, FakeList<ArgExpression> *args)
 {
   xassert(env.doElaboration);
-  E_constructor *ector0 = makeCtorExpr(env, var, type, args);
+  E_constructor *ector0 = makeCtorExpr(env, var, cpdType, args);
   Statement *ctorStmt0 = new S_expr(env.loc(), new FullExpression(ector0));
   ctorStmt0->tcheck(env);
   return ctorStmt0;
@@ -166,22 +160,26 @@ void Declarator::elaborateCDtors(Env &env)
         xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
         // FIX: What should we do for non-CompoundTypes?
         if (type->isCompoundType()) {
-          ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
+          ctorStatement = makeCtorStatement(env, var, type->asCompoundType(),
+                                            init->asIN_ctor()->args);
         }
       } else if (type->isCompoundType()) {
         if (init->isIN_expr()) {
-          xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
+          // assert that it is not an abstract decl
+          xassert(!(decl->isD_name() && !decl->asD_name()->name));
           // just call the one-arg ctor; FIX: this is questionable; we
-          // haven't decided what should really happen for an IN_expr
+          // haven't decided what should really happen for an IN_expr;
+          // update: dsw: I'm sure that is right
           ctorStatement =
-            makeCtorStatement(env, var, type,
+            makeCtorStatement(env, var, type->asCompoundType(),
                               makeExprList1(init->asIN_expr()->e));
         } else if (init->isIN_compound()) {
           xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
           // just call the no-arg ctor; FIX: this is questionable; it
           // is undefined what should happen for an IN_compound since
           // it is a C99-ism.
-          ctorStatement = makeCtorStatement(env, var, type, FakeList<ArgExpression>::emptyList());
+          ctorStatement = makeCtorStatement(env, var, type->asCompoundType(),
+                                            FakeList<ArgExpression>::emptyList());
         }
       }
 
@@ -199,7 +197,8 @@ void Declarator::elaborateCDtors(Env &env)
           ) {
         // call the no-arg ctor; for temporaries do nothing since this is
         // a temporary, it will be initialized later
-        ctorStatement = makeCtorStatement(env, var, type, FakeList<ArgExpression>::emptyList());
+        ctorStatement = makeCtorStatement(env, var, type->asCompoundType(),
+                                          FakeList<ArgExpression>::emptyList());
       }
     }
 
@@ -428,7 +427,7 @@ Expression *elaborateCallSite(Env &env, FunctionType *ft,
       // E_constructor for the temporary that calls the copy ctor for
       // the temporary taking the real argument as the copy ctor
       // argument.
-      E_constructor *ector = makeCtorExpr(env, tempVar, paramType,
+      E_constructor *ector = makeCtorExpr(env, tempVar, paramType->asCompoundType(),
                                           makeExprList1(arg->expr));
 
       // combine into a comma expression so we do both but return the
@@ -571,7 +570,7 @@ void completeNoArgMemberInits(Env &env, Function *ctor, CompoundType *ct)
       MemberInit *mi = findMemberInitSuperclass(oldInits, base->ct);
       if (!mi) {
         mi = new MemberInit(name, FakeList<ArgExpression>::emptyList());
-        mi->tcheck(env, ct);
+        mi->tcheck(env, ctor->ctorThisLocalVar, ct);
       }
       newInits.prepend(mi);
     } else {
@@ -598,7 +597,7 @@ void completeNoArgMemberInits(Env &env, Function *ctor, CompoundType *ct)
     // -- Otherwise, the entity is not initialized. ....
     if (!mi && var->type->isCompoundType()) {
       mi = new MemberInit(new PQ_name(loc, var->name), FakeList<ArgExpression>::emptyList());
-      mi->tcheck(env, ct);
+      mi->tcheck(env, ctor->ctorThisLocalVar, ct);
     }
     if (mi) newInits.prepend(mi);
   }
@@ -1474,7 +1473,7 @@ void E_new::elaborate(Env &env, Type *t)
       xassert(ctorArgs);
       // FIX: this creates a lot of extra junk if we are typechecked
       // twice
-      ctorStatement = makeCtorStatement(env, var, t, ctorArgs->list);
+      ctorStatement = makeCtorStatement(env, var, t->asCompoundType(), ctorArgs->list);
     }
   }
 }
@@ -1526,7 +1525,7 @@ void E_throw::elaborate(Env &env)
       gscope->registerVariable(globalVar);
       gscope->addVariable(globalVar);
 
-      ctorStatement = makeCtorStatement(env, globalVar, exprType,
+      ctorStatement = makeCtorStatement(env, globalVar, exprType->asCompoundType(),
                                         makeExprList1(expr));
     }
   }
@@ -1559,7 +1558,7 @@ void S_return::elaborate(Env &env)
       xassert(args0->count() == 1);
 
       // make the constructor function
-      E_constructor *tmpE_ctor = makeCtorExpr(env, retVal, ft->retType, args0);
+      E_constructor *tmpE_ctor = makeCtorExpr(env, retVal, ft->retType->asCompoundType(), args0);
       xassert(tmpE_ctor);       // FIX: what happens if there is no such compatable copy ctor?
 
       // Recall that expr is a FullExpression, so we re-use it,

@@ -51,6 +51,12 @@ class Function {
   // analyses can find it
   public Variable *thisVar = NULL;
 
+  // dsw: this is the 'this' local variable for ctors; obviously it
+  // might be possible to combine it with the above thisVar, but I
+  // won't do it now to prevent the possibility of creating a subtle
+  // bug somewhere.
+  public Variable *ctorThisLocalVar = NULL;
+
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
 
@@ -84,7 +90,7 @@ class MemberInit {
     ret->ctorVar = ctorVar;
   }
 
-  public void tcheck(Env &env, CompoundType *enclosing);
+  public void tcheck(Env &env, Variable *ctorThisLocalVar, CompoundType *enclosing);
 }
 
 

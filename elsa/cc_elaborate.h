@@ -56,10 +56,10 @@ public:      // funcs
 
 
 E_constructor *makeCtorExpr
-  (Env &env, Variable *var, Type *type, FakeList<ArgExpression> *args);
+  (Env &env, Variable *var, CompoundType *cpdType, FakeList<ArgExpression> *args);
 
 Statement *makeCtorStatement
-  (Env &env, Variable *var, Type *type, FakeList<ArgExpression> *args);
+  (Env &env, Variable *var, CompoundType *cpdType, FakeList<ArgExpression> *args);
 
 Statement *makeDtorStatement(Env &env, Type *type);
 

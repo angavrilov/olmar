@@ -295,12 +295,18 @@ void Function::tcheck(Env &env, bool checkBody)
 
   // constructors have a 'this' local variable, even though they
   // do not have a 'this' parameter
+  // dsw: I need access in the MemberInit::tcheck() to the ctor 'this'
+  // local variable, so I'm pulling it out of the loop and putting it
+  // into the Function AST node.  It seems likely that thisVar and
+  // ctorThisLocalVar could be merged together, but I won't do it for
+  // now to prevent the possibility of creating a subtle bug
+  // somewhere.
   if (nameAndParams->var->name == env.constructorSpecialName) {
     xassert(inClass);
     SourceLoc loc = nameAndParams->var->loc;
     Type *thisType = env.tfac.makeTypeOf_this(loc, inClass, CV_NONE, NULL /*syntax*/);
-    Variable *thisVar = env.makeVariable(loc, env.thisName, thisType, DF_NONE);
-    env.addVariable(thisVar);
+    ctorThisLocalVar = env.makeVariable(loc, env.thisName, thisType, DF_NONE);
+    env.addVariable(ctorThisLocalVar);
   }
                           
   if (env.doElaboration) {
@@ -408,7 +414,7 @@ void Function::tcheck_memberInits(Env &env)
     // ok, so far so good; now go through and check the member inits
     // themselves
     FAKELIST_FOREACH_NC(MemberInit, inits, iter) {
-      iter->tcheck(env, enclosing);
+      iter->tcheck(env, ctorThisLocalVar, enclosing);
     }
 
     // Add and tcheck any MemberInits needed to call no-arg (default)
@@ -421,9 +427,10 @@ void Function::tcheck_memberInits(Env &env)
   }
 }
 
-void MemberInit::tcheck(Env &env, CompoundType *enclosing)
+void MemberInit::tcheck(Env &env, Variable *ctorThisLocalVar, CompoundType *enclosing)
 {
   FullExpressionAnnot::StackBracket fea0(env, annot);
+  xassert(ctorThisLocalVar);    // a member init is always on a ctor for a well-defined class
 
   // resolve template arguments in 'name'
   name->tcheck(env);
@@ -448,34 +455,55 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
       // annotate the AST
       member = env.storeVar(v);
 
-      // typecheck the arguments
-      tcheckArgExprList(args, env);
-        
-      // decide which of v's possible constructors is being used
-      Variable *ctor = outerResolveOverload_ctor(env, env.loc(), v->type, args,
-                                                 reallyDoOverload(env, args));
-      if (ctor) {
-        ctorVar = env.storeVar(ctor);
+      if (v->type->isCompoundType()) {
+        if (env.doElaboration) {
+          ctorStatement = makeCtorStatement(env, member, v->type->asCompoundType(), args);
+          // dig down and get the ctorVar
+          ctorVar = env.storeVar
+            (ctorStatement->asS_expr()->expr->expr->asE_constructor()->ctorVar);
+        } else {
+          // typecheck the arguments
+          tcheckArgExprList(args, env);
 
-        // FIX: do this; we need a variable for when it is a base class
-        // the var is the MemberInit::member
-        // only do this if env.doElaboration
-        //            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
+          // decide which of v's possible constructors is being used
+          Variable *ctor = outerResolveOverload_ctor(env, env.loc(), v->type, args,
+                                                     reallyDoOverload(env, args));
+          if (ctor) {
+            ctorVar = env.storeVar(ctor);
+          }
+        }
+      } else {
+        // dsw: I had to do this to get rid of any ambiguities in the
+        // arguments.
+        // typecheck the arguments
+        tcheckArgExprList(args, env);
       }
 
       // I think with the implicit ctors added now, this should
       // always succeed
-      xassert(!!ctor == v->type->asRval()->isCompoundType());
+//        xassert(!!ctorVar == v->type->asRval()->isCompoundType());
+      // dsw: why the "->asRval()"; if it is not an rval, then it is a
+      // reference, and that means it is initialized like a common
+      // pointer
+      xassert(!!ctorVar == v->type->isCompoundType());
 
       // TODO: check that the passed arguments are consistent
-      // with at least one constructor of the variable's type
+      // with at least one constructor of the variable's type.
+      // dsw: update: isn't this what the assertion that ctorVar is
+      // non-null is doing, since the call to
+      // outerResolveOverload_ctor() will not succeed otherwise?
 
-      // TODO: make sure that we only initialize each member once
+      // TODO: make sure that we only initialize each member once.
+      // dsw: update: see below; do this in
+      // cc_elaborate.cc:completeNoArgMemberInits()
 
       // TODO: provide a warning if the order in which the
       // members are initialized is different from their
       // declaration order, since the latter determines the
-      // order of side effects
+      // order of side effects.
+      // dsw: update: this would have to be done in
+      // cc_elaborate.cc:completeNoArgMemberInits(), since I re-order
+      // the MemberInits there.
 
       return;
     }
@@ -543,27 +571,33 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
   // in the initializer name and template arguments in the
   // base class list
 
-  // typecheck the arguments
-  tcheckArgExprList(args, env);
+  if (env.doElaboration) {
+    ctorStatement = makeCtorStatement(env, ctorThisLocalVar, base, args);
+    // dig down and get the ctorVar
+    ctorVar = env.storeVar(ctorStatement->asS_expr()->expr->expr->asE_constructor()->ctorVar);
+  } else {
+    // typecheck the arguments
+    tcheckArgExprList(args, env);
     
-  // determine which constructor is being called
-  Variable *ctor = outerResolveOverload_ctor(env, env.loc(),
-                                             baseVar->type,
-                                             args,
-                                             reallyDoOverload(env, args));
-  if (ctor) {
-    ctorVar = env.storeVar(ctor);
-
-    // FIX: do this; we need a variable for when it is a base class
-    // the var is Function::retVar; NOTE: the types won't match so
-    // watch out.
-    // only do this if env.doElaboration
-    //            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
+    // determine which constructor is being called
+    Variable *ctor = outerResolveOverload_ctor(env, env.loc(),
+                                               baseVar->type,
+                                               args,
+                                               reallyDoOverload(env, args));
+    if (ctor) {
+      ctorVar = env.storeVar(ctor);
+    }
   }
 
   // I think with the implicit ctors added now, this should always
   // succeed
-  xassert(!!ctor == baseVar->type->asRval()->isCompoundType());
+//    xassert(!!ctorVar == baseVar->type->asRval()->isCompoundType());
+  xassert(!!ctorVar);
+  // dsw: 1) why the "->asRval()"; if it is not an rval, then it is a
+  // reference, and that means it is initialized like a common
+  // pointer.  2) I think that is impossible for a baseVar->type
+  // anwyay, otherwise this line above would fail:
+//    CompoundType *baseClass = baseVar->type->asCompoundType();
 
   // TODO: check that the passed arguments are consistent
   // with at least one constructor in the base class
