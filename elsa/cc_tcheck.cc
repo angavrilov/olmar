@@ -231,9 +231,7 @@ void Function::tcheck(Env &env, bool checkBody)
   }
 
   // check the body in the new scope as well
-  env.functionStack.push(this); // dsw: need this for the 'this' arg in E_funCall
   Statement *sel = body->tcheck(env);
-  env.functionStack.pop();      // dsw: see note on 'push' above.
   xassert(sel == body);     // compounds are never ambiguous
 
   if (handlers) {

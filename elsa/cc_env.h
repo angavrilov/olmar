@@ -28,17 +28,6 @@ protected:   // data
   // it.  otherwise it does own it.
   ObjList<Scope> scopes;
 
-  public:
-  // dsw: Stack of defined functions.  It is maintained exactly in
-  // Function::tcheck(), pushing before checking the body and popping
-  // afterward.  It is read in E_funCall so that we know the 'this'
-  // argument for method calls.  I'm not sure if this can be computed
-  // from your stack of scopes above so I will try both and assert
-  // that they are always equal.  Feel free to remove this if you are
-  // sure of a better way.
-  SObjStack<Function> functionStack;
-
-  protected:
   // list of named scopes (i.e. namespaces)
   //StringObjDict<Scope> namespaces;    // not implemented yet
 
