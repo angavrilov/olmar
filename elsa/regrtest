@@ -478,6 +478,7 @@ done
 #    runTest ./ccparse -tr $TR_FLAGS "$fn"
 #  done
 
+# FIX:
 #  Exception thrown: Assertion failed: shouldn't get here: top scope kind is SK_UNKNOWN, file cc_type.cc line 653
 #    in/big/nsMsgServiceProvider.i
 
