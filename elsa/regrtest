@@ -709,6 +709,7 @@ testparse d0118.cc
 testparse d0119.cc
 testparse d0120.cc
 failparse d0121.cc "segfaults but I don't know why"
+testparse d0122.cc
 # ---- END: lots of tests ----
 
 

@@ -90,8 +90,9 @@ INT_SUFFIX    ([uU]{ELL_SUFFIX}?|{ELL_SUFFIX}[uU]?)
 /* floating-point suffix letter */
 FLOAT_SUFFIX  [flFL]
 
-/* normal string character: any but quote, newline, or backslash */
-STRCHAR       [^\"\n\\]
+/* normal string character: any but quote or backslash; dsw: removed
+   'newline' from that list since gcc sometimes allows it */
+STRCHAR       [^\"\\]
 
 /* (start of) an escape sequence */
 ESCAPE        ({BACKSL}{ANY})
