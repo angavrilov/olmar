@@ -47,6 +47,11 @@ void Flatten::xferHeapBuffer(void *&buf, int len)
 void Flatten::xferCharString(char *&str)
 {
   if (writing()) {
+    if (!str) {
+      writeInt(-1);     // representation of NULL
+      return;
+    }
+
     int len = strlen(str);
     writeInt(len);
 
@@ -56,6 +61,9 @@ void Flatten::xferCharString(char *&str)
   }
   else {
     int len = readInt();
+    if (len == -1) {
+      str = NULL;
+    }
 
     str = new char[len+1];
     xferSimple(str, len+1);

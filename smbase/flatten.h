@@ -33,7 +33,8 @@ public:
   virtual void xferLong(long &l);
   virtual void xferBool(bool &b);
 
-  // read or write a null-terminated character buffer, allocated with new
+  // read or write a null-terminated character buffer, allocated with new;
+  // this works if 'str' is NULL
   virtual void xferCharString(char *&str);
 
   // xfer a buffer allocated with 'new', of a given length
@@ -41,6 +42,7 @@ public:
 
   // read: write the code; write: read & compare to code, fail if != ;
   // the code is arbitrary, but should be unique across the source tree
+  // (I usually make the code with my Emacs' Ctl-Alt-R, which inserts a random number)
   virtual void checkpoint(int code);
 
   // ------------- utilities ---------
