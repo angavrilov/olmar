@@ -25,8 +25,10 @@ private:     // funcs
   int datasize() const                        { return size.y * stride; }
 
 public:      // funcs
+  // NOTE: does *not* clear the bitmap!  use 'setall' to do that
   Bit2d(point const &aSize);
   Bit2d(Bit2d const &obj);
+
   Bit2d& operator= (Bit2d const &obj);     // sizes must be equal already
   ~Bit2d();
 

@@ -153,7 +153,8 @@ void Bit2d::print() const
   for (int row=0; row<size.y; row++) {
     printf("%*d [ ", rowLabelWidth, row);
     loopi(size.x) {
-      printf("%*d ", colLabelWidth, (int)get(point(i, row)));   // 0 or 1
+      printf("%*s ", colLabelWidth, 
+                     get(point(i, row))? "1" : ".");    // "." so easier to see patterns
     }
     printf("]\n");
   }

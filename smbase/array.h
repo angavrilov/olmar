@@ -31,6 +31,13 @@ public:
   
   T const* operator+ (int i) const { return arr+i; }
   T * operator+ (int i) { return arr+i; }
+  
+  // convenience
+  void setAll(T val, int len) {
+    for (int i=0; i<len; i++) {
+      arr[i] = val;
+    }
+  }
 };
 
 
@@ -95,6 +102,13 @@ public:      // funcs
   void swapWith(GrowArray<T> &obj) {
     T *tmp1 = obj.arr; obj.arr = this->arr; this->arr = tmp1;
     int tmp2 = obj.sz; obj.sz = this->sz; this->sz = tmp2;
+  }
+
+  // convenience
+  void setAll(T val) {
+    for (int i=0; i<sz; i++) {
+      arr[i] = val;
+    }
   }
 };
 
