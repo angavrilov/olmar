@@ -975,6 +975,13 @@ void E_typeidType::iprint(PrintEnv &env)
   ttype->print(env);
 }
 
+void E_statement::iprint(PrintEnv &env)
+{
+  olayer ol("E_statement::iprint");
+  codeout co(env, "", "(", ")");
+  s->iprint(env);
+}
+
 void E_grouping::iprint(PrintEnv &env)
 {
   olayer ol("E_grouping::iprint");

@@ -517,6 +517,8 @@ class Expression {
 
   -> E_typeidExpr(Expression expr);
   -> E_typeidType(ASTTypeId ttype);
+
+  -> E_statement(S_compound s);
                                  
   // for syntactic disambiguation of angle brackets; E_grouping
   // is a pair of grouping parentheses

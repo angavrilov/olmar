@@ -2038,7 +2038,7 @@ realStart:
           << "duplicate definition for `" << *name
           << "' of type `" << prior->type->toString()
           << "'; previous at " << toString(prior->loc));
-          goto makeDummyVar;
+        goto makeDummyVar;
       }
 
       // check for violation of rule disallowing multiple
@@ -3901,6 +3901,21 @@ Type *E_typeidType::itcheck(Env &env)
   ASTTypeId::Tcheck tc;
   ttype = ttype->tcheck(env, tc);
   return env.type_info_const_ref;
+}
+
+
+Type *E_statement::itcheck(Env &env)
+{
+  s = s->tcheck(env)->asS_compound();
+  if (s->stmts.count() < 1) {
+    return env.error("statement expression is emtpy");
+  }
+  Statement *last = s->stmts.last();
+  if (last->isS_expr()) {
+    return last->asS_expr()->expr->type;
+  } else {
+    return env.error("last member of statement expression is not an expression");
+  }
 }
 
 

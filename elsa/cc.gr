@@ -230,7 +230,8 @@ nonterm(Expression*) PrimaryExpression {
        { return new E_variable(loc, e); }
 
   // GNU extension
-  //-> "(" s:CompoundStatement ")" ;
+  -> "(" cs:CompoundStatement ")"
+       { return new E_statement(cs); }
 
   // gnu extension: "constructor expression"
   // (notation for literal struct values)
@@ -1117,6 +1118,9 @@ nonterm(Enumerator*) EnumeratorDefinition {
   
 nonterm(StringRef) AsmDefinition {
   -> "asm" "(" s:TOK_STRING_LITERAL ")" ";"    { return s; }
+
+   // NOTE: the volatile modifier is simply discarded here
+  -> "asm" "volatile" "(" s:TOK_STRING_LITERAL ")" ";"    { return s; }
 }
 
 
