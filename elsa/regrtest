@@ -211,7 +211,7 @@ for fn in                                                                 \
   # $TR_EXTRA is here so I can put additional tracing flags into this
   # command from the command line, to test them across all my test inputs;
   # by default it expands to "", and hence has no effect
-  runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS in/$fn
+  runTest perl ./multitest.pl ./ccparse -tr doOperatorOverload,$TR_FLAGS in/$fn
 done
 
 # known bugs

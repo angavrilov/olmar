@@ -17,13 +17,17 @@ typedef TPoint<double> fpoint;
 
 
 stringBuilder& operator<< (stringBuilder &sb, point const &pt)
-{
-  return sb << "(" << pt.x << ", " << pt.y << ")";
+{   
+  // would require adding operators for stringBuilder, but
+  // that is not what this file is intended to test
+  //return sb << "(" << pt.x << ", " << pt.y << ")";
+  return sb;
 }
 
 stringBuilder& operator<< (stringBuilder &sb, fpoint const &pt)
 {
-  return sb << "(" << pt.x << ", " << pt.y << ")";
+  //return sb << "(" << pt.x << ", " << pt.y << ")";
+  return sb;
 }
 
 
