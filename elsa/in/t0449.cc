@@ -207,5 +207,14 @@ void makePtrsToMembers()
 }
 
 
+// ------------------
+void charStuff()
+{
+  char x;
+  
+  x = 'a';                  // ok
+  //ERROR(43): x = '';      // not ok
+}
+
 
 // EOF

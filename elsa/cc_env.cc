@@ -4979,19 +4979,8 @@ ErrorFlags Env::maybeEF_STRONG() const
 }
 
 
-bool Env::doOverload() const
-{
-  static bool disabled = tracingSys("doNotOverload");
-  if (disabled) { return false; }
+// 2005-03-11: removed Env::doOverload
 
-  if (!lang.allowOverloading) { return false; }
-
-  // 10/09/04: *Do* overload resolution even in template bodies, as
-  // long as the arguments are not dependent (checked elsewhere).
-  //if (disambiguateOnly) { return false; }
-
-  return true;
-}
 
 bool Env::doOperatorOverload() const
 {

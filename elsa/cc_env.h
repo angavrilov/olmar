@@ -508,9 +508,6 @@ public:      // funcs
   // return value for (some...) erroneous lookups
   Variable *lookupErrorObject(LookupFlags flags);
 
-  // when true, the type checker does overload resolution
-  bool doOverload() const;
-
   // when true, operator expressions are checked to see if they
   // are to be treated as calls to overloaded operator functions
   bool doOperatorOverload() const;

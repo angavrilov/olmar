@@ -32,4 +32,15 @@ void f()
 {
   uint x;
   x.~uint();    // legal
+  
+  //ERROR(1): x.~uint(1);   // not legal
+}
+
+
+typedef unsigned uintArr[3];
+
+void g()
+{
+  uintArr x;
+  x.~uintArr();
 }

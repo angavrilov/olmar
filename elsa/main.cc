@@ -170,6 +170,10 @@ void doit(int argc, char **argv)
     lang.ANSI_C99();
   }
 
+  if (tracingSys("warnings")) {
+    lang.enableAllWarnings();
+  }
+
   if (tracingSys("c_lang")) {
     lang.GNU_C();
   }

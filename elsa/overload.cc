@@ -683,13 +683,18 @@ Candidate const *OverloadResolver::resolveCandidate(bool &wasAmbig)
       // adds one
       stringBuilder sb;
       sb << "no viable candidate for function call; " << argInfoString();
-      sb << " original candidates:";
-      for (int i=0; i<origCandidates.length(); i++) {
-        Variable *v = origCandidates[i];
+      if (origCandidates.length()) {
+        sb << " original candidates:";
+        for (int i=0; i<origCandidates.length(); i++) {
+          Variable *v = origCandidates[i];
 
-        // it might be nice to go further and explain why this
-        // candidate was not viable ...
-        sb << "\n  " << v->loc << ": " << v->toQualifiedString();
+          // it might be nice to go further and explain why this
+          // candidate was not viable ...
+          sb << "\n  " << v->loc << ": " << v->toQualifiedString();
+        }
+      }
+      else {
+        sb << " (no original candidates)";
       }
 
       errors->addError(new ErrorMsg(loc, sb, EF_NONE));

@@ -41,7 +41,7 @@
 
 // forwards in this file
 static Variable *outerResolveOverload_ctor
-  (Env &env, SourceLoc loc, Type *type, ArgumentInfoArray &argInfo, bool really);
+  (Env &env, SourceLoc loc, Type *type, ArgumentInfoArray &argInfo);
 
 static Variable *outerResolveOverload_explicitSet(
   Env &env,
@@ -680,8 +680,7 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
       if (!hasDependentActualArgs(args)) {     // in/t0270.cc
         // decide which of v's possible constructors is being used
         ctorVar = env.storeVar(
-          outerResolveOverload_ctor(env, env.loc(), v->type, argInfo,
-                                    env.doOverload()));
+          outerResolveOverload_ctor(env, env.loc(), v->type, argInfo));
         compareCtorArgsToParams(env, ctorVar, args, argInfo);
       }
 
@@ -787,8 +786,7 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
   ctorVar = env.storeVar(
     outerResolveOverload_ctor(env, env.loc(),
                               baseVar->type,
-                              argInfo,
-                              env.doOverload()));
+                              argInfo));
   compareCtorArgsToParams(env, ctorVar, args, argInfo);
 }
 
@@ -2652,6 +2650,11 @@ Declarator *Declarator::tcheck(Env &env, Tcheck &dt)
     return this;
   }
 
+  // The reason for the "gcov-begin/end-ignore" below is that this
+  // code is at the mercy of the parser when it comes to the order in
+  // which ambiguous alternatives are presented.  So, I tell 'mygcov'
+  // not to count coverage in the affected region.
+
   // As best as I can tell from the standard, cppstd sections 6.8 and
   // 8.2, we always prefer a Declarator interpretation which has no
   // initializer (if that's valid) to one that does.  I'm not
@@ -2662,7 +2665,7 @@ Declarator *Declarator::tcheck(Env &env, Tcheck &dt)
   // InitDeclarator.
   if (this->init == NULL &&
       ambiguity->init != NULL &&
-      ambiguity->ambiguity == NULL) {
+      ambiguity->ambiguity == NULL) {                // gcov-begin-ignore
     // already in priority order
     return resolveAmbiguity(this, env, "Declarator", true /*priority*/, dt);
   }
@@ -2671,7 +2674,7 @@ Declarator *Declarator::tcheck(Env &env, Tcheck &dt)
            ambiguity->ambiguity == NULL) {
     // reverse priority order; swap them
     return swap_then_resolveAmbiguity(this, env, "Declarator", true /*priority*/, dt);
-  }
+  }                                                  // gcov-end-ignore
   else {
     // if both have an initialzer or both lack an initializer, then
     // we'll resolve without ambiguity; otherwise we'll probably fail
@@ -3872,7 +3875,7 @@ Statement *Statement::tcheck(Env &env)
   // and this one is always resolved in favor of S_decl if the S_decl
   // is a valid interpretation [cppstd, sec. 6.8]
   if (this->isS_decl() && ambiguity->isS_expr() &&
-      ambiguity->ambiguity == NULL) {
+      ambiguity->ambiguity == NULL) {                  // gcov-begin-ignore
     // S_decl is first, run resolver with priority enabled
     return resolveAmbiguity(this, env, "Statement", true /*priority*/, dummy);
   }
@@ -3880,7 +3883,7 @@ Statement *Statement::tcheck(Env &env)
            ambiguity->ambiguity == NULL) {
     // swap the expr and decl
     return swap_then_resolveAmbiguity(this, env, "Statement", true /*priority*/, dummy);
-  }
+  }                                                    // gcov-end-ignore
   
   // unknown ambiguity situation
   xfailure("unknown statement ambiguity");
@@ -4206,13 +4209,13 @@ void Expression::tcheck(Env &env, Expression *&replacement)
     E_funCall *call;
     E_constructor *ctor;
     if (this->isE_funCall()) {
-      call = this->asE_funCall();
+      call = this->asE_funCall();             // gcov-begin-ignore
       ctor = ambiguity->asE_constructor();
     }
     else {
       ctor = this->asE_constructor();
       call = ambiguity->asE_funCall();
-    }
+    }                                         // gcov-end-ignore
 
     // The code that follows is essentially resolveAmbiguity(),
     // specialized to two particular kinds of nodes, but only
@@ -4282,28 +4285,15 @@ void Expression::tcheck(Env &env, Expression *&replacement)
 }
 
 
-bool const CACHE_EXPR_TCHECK = false;
-
 void Expression::mid_tcheck(Env &env, Expression *&replacement)
 {
-  if (CACHE_EXPR_TCHECK && type && !type->isError()) {
-    // this expression has already been checked
-    //
-    // we also require that 'type' not be ST_ERROR, because if the
-    // error was disambiguating then we need to check it again to
-    // insert the disambiguating message into the environment again;
-    // see cc.in/cc.in59
-    //
-    // update: I've modified the ambiguity resolution engine to
-    // fix this itself, by nullifying the 'type' field of any
-    // failing subtree
-    //
-    // update update: but that doesn't work (see markAsFailed, above)
-    // so now I'm back to presuming that every node marks itself
-    // as ST_ERROR if it should be re-checked in additional
-    // contexts (which is almost everywhere)
-    return;
-  }
+  // 2005-03-10: There used to be code here that would re-use an
+  // already-computed type.  That code had been disabled for a long
+  // time because it did not work; for example, the type of an
+  // expression can depend on the context in which it appears.  So I
+  // have now removed the code altogether, leaving only this note as a
+  // reminder that that approach (along with several variations) was
+  // tried and it failed.
 
   // during ambiguity resolution, 'replacement' is set to whatever
   // the original (first in the ambiguity list) Expression pointer
@@ -4910,7 +4900,7 @@ static Variable *outerResolveOverload_explicitSet(
 // version of 'outerResolveOverload' for constructors; 'type' is the
 // type of the object being constructed
 static Variable *outerResolveOverload_ctor
-  (Env &env, SourceLoc loc, Type *type, ArgumentInfoArray &argInfo, bool really)
+  (Env &env, SourceLoc loc, Type *type, ArgumentInfoArray &argInfo)
 {
   // skip overload resolution if any dependent args (in/t0412.cc)
   for (int i=0; i<argInfo.size(); i++) {
@@ -4931,18 +4921,14 @@ static Variable *outerResolveOverload_ctor
     CompoundType *ct = type->asCompoundType();
     Variable *ctor = ct->getNamedField(env.constructorSpecialName, env, LF_INNER_ONLY);
     xassert(ctor);
-    if (really) {
-      Variable *chosen = outerResolveOverload(env,
-                                              NULL, // finalName; none for a ctor
-                                              loc,
-                                              ctor,
-                                              argInfo);
-      if (chosen) {
-        ret = chosen;
-      } else {
-        ret = ctor;
-      }
-    } else {                    // if we aren't really doing overloading
+    Variable *chosen = outerResolveOverload(env,
+                                            NULL, // finalName; none for a ctor
+                                            loc,
+                                            ctor,
+                                            argInfo);
+    if (chosen) {
+      ret = chosen;
+    } else {
       ret = ctor;
     }
   }
@@ -5302,33 +5288,6 @@ void E_funCall::inner1_itcheck(Env &env, LookupSet &candidates)
 }
 
 
-static bool shouldUseArgDepLookup(E_variable *evar)
-{
-  if (evar->type->isSimple(ST_NOTFOUND)) {
-    // lookup failed; use it
-    return true;
-  }
-
-  if (!evar->type->isFunctionType()) {
-    // We found a non-function, like an (function) object or a
-    // function pointer.  The standard seems to say that even in
-    // this case we do arg-dependent lookup, but I think that is a
-    // little strange, and it does not work in the current
-    // implementation because we end up doing overload resolution
-    // with the object name as a candidate, and that messes up
-    // everything (how should it work???).  So I am just going to
-    // let it go.  A testcase is in/t0360.cc.
-    return false;
-  }
-
-  if (evar->var->isMember()) {
-    // found a member function; we do *not* use arg-dep lookup
-    return false;
-  }
-
-  return true;
-}
-
 void possiblyWrapWithImplicitThis(Env &env, Expression *&func,
                                   E_variable *&fevar, E_fieldAcc *&feacc)
 {
@@ -5405,9 +5364,10 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
     //LookupSet candidates;   // use passed-in list
 
     // augment with arg-dep lookup?
-    if (fevar &&                              // E_variable
-        !pqname->hasQualifiers() &&           // unqualified
-        shouldUseArgDepLookup(fevar)) {       // (some other tests pass)
+    if (fevar &&                                // E_variable,
+        !pqname->hasQualifiers() &&             // unqualified,
+        (fevar->type->isSimple(ST_NOTFOUND) ||  // orig lookup failed
+         !fevar->var->isMember())) {            //   or found a nonmember 
       // get additional candidates from associated scopes
       ArrayStack<Type*> argTypes(args->count());
       FAKELIST_FOREACH(ArgExpression, args, iter) {
@@ -5619,29 +5579,18 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
              func->asE_binary()->op == BIN_ARROW_STAR) {
       // explicit receiver via '->*'
       receiverType = func->asE_binary()->e1->type->asRval();
-      if (!receiverType->isPointerType()) {
-        // this message is partially redundant; the error(1) in in/t0298.cc
-        // also yields the rather vague "no viable candidate"
-        env.error("LHS of ->* must be a pointer");
-        receiverType = NULL;
-      }
-      else {
-        receiverType = receiverType->asPointerType()->atType;
-      }
+
+      // if this weren't true, then the type checker for '->*' would
+      // already have indicated the error and assigned the ST_ERROR
+      // type, so 't' would not be a FunctionType
+      xassert(receiverType->isPointerType());
+
+      receiverType = receiverType->asPointerType()->atType;
     }
-    else {
+    else {        // gcov-ignore
       // now that we wrap with 'this->' explicitly, this code should
       // not be reachable
       xfailure("got to implicit receiver code; should not be possible!");
-
-      // implicit receiver
-      Variable *receiver = env.lookupVariable(env.receiverName);
-      if (!receiver) {
-        return env.error("must supply a receiver object to invoke a method");
-      }
-      else {
-        receiverType = receiver->type;
-      }
     }
 
     if (receiverType) {
@@ -5830,7 +5779,7 @@ static Type *internalTestingHooks
       return args->first()->getType();
     }
     else {
-      env.error("invalid call to __testOverload");
+      env.error("invalid call to __checkCalleeDefnLine");
     }
   }
 
@@ -5916,8 +5865,7 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
     return type;     // recovery: skip what follows
   }
 
-  Variable *ctor = outerResolveOverload_ctor(env, env.loc(), type, argInfo,
-                                             env.doOverload());
+  Variable *ctor = outerResolveOverload_ctor(env, env.loc(), type, argInfo);
   ctorVar = env.storeVar(ctor);
   compareCtorArgsToParams(env, ctor, args, argInfo);
 
@@ -7526,8 +7474,7 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
     ArgumentInfoArray argInfo(ctorArgs->list->count() + 1);
     ctorArgs->list = tcheckArgExprList(ctorArgs->list, env, argInfo);
     Variable *ctor0 =
-      outerResolveOverload_ctor(env, env.loc(), t, argInfo,
-                                env.doOverload());
+      outerResolveOverload_ctor(env, env.loc(), t, argInfo);
     // ctor0 can be null when the type is a simple type, such as an
     // int; I assume that ctor0 being NULL is the correct behavior in
     // that case
@@ -7789,7 +7736,7 @@ void IN_ctor::tcheck(Env &env, Type *type)
   ArgumentInfoArray argInfo(args->count() + 1);
   args = tcheckArgExprList(args, env, argInfo);
   ctorVar = env.storeVar(
-    outerResolveOverload_ctor(env, loc, type, argInfo, env.doOverload()));
+    outerResolveOverload_ctor(env, loc, type, argInfo));
   compareCtorArgsToParams(env, ctorVar, args, argInfo);
 }
 
