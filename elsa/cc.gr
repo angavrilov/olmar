@@ -1380,9 +1380,12 @@ nonterm[Function*] FunctionDefinition {
 nonterm[S_compound*] FunctionBody -> s:CompoundStatement
   [ return s; ]
 
+// it turns out "inline" also can appear here, at least according
+// to my streambuf.h
 nonterm[DeclFlags] ExplicitOpt {
-  -> "explicit"    [ return DF_EXPLICIT; ]
-  -> empty         [ return DF_NONE; ]
+  -> "explicit" e:ExplicitOpt   [ return (DeclFlags)(e | DF_EXPLICIT); ]
+  -> "inline" e:ExplicitOpt     [ return (DeclFlags)(e | DF_INLINE); ]
+  -> empty                      [ return DF_NONE; ]
 }
 
 nonterm[FakeList<MemberInit>*] CtorInitializerOpt {
