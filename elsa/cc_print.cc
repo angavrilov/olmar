@@ -970,6 +970,26 @@ void E_typeidType::iprint(PrintEnv &env)
   ttype->print(env);
 }
 
+void E_grouping::iprint(PrintEnv &env)
+{
+  olayer ol("E_grouping::iprint");
+  
+  // sm: given that E_grouping is now in the tree, and prints its
+  // parentheses, perhaps we could eliminate some of the
+  // paren-printing above?
+  //codeout co(env, "", "(", ")");
+  //
+  // update:  Actually, it's a problem for E_grouping to print parens
+  // because it messes up idempotency.  And, if we restored idempotency
+  // by turning off paren-printing elsewhere, then we'd have a subtle
+  // long-term problem that AST transformations would be required to
+  // insert E_grouping when composing new expression trees, and that
+  // would suck.  So I'll let E_grouping be a no-op, and continue to
+  // idly plan some sort of precedence-aware paren-inserter mechanism.
+
+  expr->iprint(env);    // iprint means Expression won't put parens either
+}
+
 // ----------------------- Initializer --------------------
 
 // this is under a declaration
@@ -1057,6 +1077,12 @@ void TP_type::print(PrintEnv &env)
   }
 }
 
+void TP_nontype::print(PrintEnv &env)
+{
+  olayer ol("TP_nontype");
+  param->print(env);
+}
+
 
 // -------------------- TemplateArgument ------------------
 void TA_type::print(PrintEnv &env)
@@ -1064,4 +1090,9 @@ void TA_type::print(PrintEnv &env)
   // dig down to prevent printing "/*anon*/" since template
   // type arguments are always anonymous so it's just clutter
   env << type->decl->var->type->toCString();
+}
+
+void TA_nontype::print(PrintEnv &env)
+{
+  expr->print(env);
 }

@@ -513,6 +513,10 @@ class Expression {
 
   -> E_typeidExpr(Expression expr);
   -> E_typeidType(ASTTypeId ttype);
+                                 
+  // for syntactic disambiguation of angle brackets; E_grouping
+  // is a pair of grouping parentheses
+  -> E_grouping(Expression expr);
 }
 
 
@@ -577,13 +581,30 @@ class TemplateParameter (SourceLoc loc) {
   -> TP_type(StringRef /*nullable*/ name,
              ASTTypeId /*nullable*/ defaultType);
 
-  // TODO: add non-type paramters
+  // non-type paramters
+  -> TP_nontype(ASTTypeId param);
 }
 
 
 // one of the arguments to a template instantiation
 class TemplateArgument {
-  public TemplateArgument *next;  ctor next=NULL;   // FakeList link
+  // FakeList link, same as Expressions
+  public TemplateArgument *next;  ctor next=NULL;
+  public void setNext(TemplateArgument *newNext);
+
+  // also same as Expressions
+  public TemplateArgument *ambiguity;  ctor ambiguity=NULL;
+  public void addAmbiguity(TemplateArgument *alternative);
+  custom traverse { if (ambiguity) ambiguity->traverse(vis); }
+
+  // print ambiguities
+  public void printAmbiguities(ostream &os, int indent) const;
+  custom preemptDebugPrint {
+    if (ambiguity) {
+      printAmbiguities(os, indent);
+      return;     // skip the normal, unambiguous-node print code
+    }
+  }
 
   // return a canonical string for this template argument,
   // such that different arguments get different strings
@@ -592,7 +613,8 @@ class TemplateArgument {
   // type argument, corresponds to a TP_type parameter
   -> TA_type(ASTTypeId type);
 
-  // TODO: add non-type arguments
+  // non-type arguments, corresponds to a TP_nontype parameter
+  -> TA_nontype(Expression expr);
 }
 
 

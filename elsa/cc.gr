@@ -59,8 +59,8 @@ option useGCDefaults;
 option defaultMergeAborts;
 
 // expected statistics
-option shift_reduce_conflicts 53;
-option reduce_reduce_conflicts 54;
+option shift_reduce_conflicts 58;
+option reduce_reduce_conflicts 58;
 option unreachable_nonterminals 0;
 option unreachable_terminals 27;
 
@@ -76,6 +76,9 @@ verbatim {
 
 #define D(msg) \
   trace("cc") << msg << endl
+
+inline ostream& operator<< (ostream &os, SourceLoc sl)
+  { return os << toString(sl); }
 
 }
 
@@ -139,7 +142,12 @@ terminals {
     left  110 "*" "/" "%";
     left  100 "+" "-";
     left   90 "<<" ">>";
-    left   80 "<" ">" "<=" ">=";
+    
+    // part of the solution to the angle bracket problem requires
+    // dropping these precedence specs and implementing them in the
+    // grammar instead
+    //left   80 "<" ">" "<=" ">=";
+
     left   70 "==" "!=";
     left   60 "&";
     left   50 "^";
@@ -216,7 +224,7 @@ nonterm(Expression*) PrimaryExpression {
        { return new E_variable(new PQ_name(str("this"))); }
 
   -> "(" e:Expression ")"
-       { return e; }
+       { return new E_grouping(e); }
 
   -> e:IdExpression
        { return new E_variable(e); }
@@ -516,8 +524,50 @@ nonterm(Expression*) CastExpression {
        { return new E_cast(t, e); }
 }
 
-// ++++ binary operator expression ++++
-// primary expressions
+// ---- binary operator expression ----
+// binary exprs with precedence higher than ">"
+nonterm(Expression*) BinExp_high {
+  // ambiguous:
+  //   (x) - (y)
+  // could either be the difference of expressions x and y, or
+  // it could be negation of expression y, cast to type x
+  fun merge(L,R) { L->addAmbiguity(R); return L; }
+
+  -> e:CastExpression                          { return e; }
+
+  -> left:BinExp_high ".*"  right:BinExp_high  { return new E_binary(left, BIN_DOT_STAR, right); }
+  -> left:BinExp_high "->*" right:BinExp_high  { return new E_binary(left, BIN_ARROW_STAR, right); }
+
+  -> left:BinExp_high "*"  right:BinExp_high   { return new E_binary(left, BIN_MULT, right); }
+  -> left:BinExp_high "/"  right:BinExp_high   { return new E_binary(left, BIN_DIV, right); }
+  -> left:BinExp_high "%"  right:BinExp_high   { return new E_binary(left, BIN_MOD, right); }
+  -> left:BinExp_high "+"  right:BinExp_high   { return new E_binary(left, BIN_PLUS, right); }
+  -> left:BinExp_high "-"  right:BinExp_high   { return new E_binary(left, BIN_MINUS, right); }
+  -> left:BinExp_high "<<" right:BinExp_high   { return new E_binary(left, BIN_LSHIFT, right); }
+  -> left:BinExp_high ">>" right:BinExp_high   { return new E_binary(left, BIN_RSHIFT, right); }
+}
+
+// binary exprs with same precedence as ">"
+nonterm(Expression*) BinExp_mid {
+  // ambiguous:
+  //   x<y>z(3)
+  // could either be two relationals and a fn call, or else
+  // it could be the construction of a templatized object,
+  // depending on whether 'x' names a type or not
+  fun merge(L,R) { L->addAmbiguity(R); return L; }
+
+  -> e:BinExp_high                             { return e; }
+
+  // must express associativity directly; since these are all
+  // left-associative, we require that there not be any reduced
+  // ">" operators in the right context
+  -> left:BinExp_mid "<"  right:BinExp_high    { return new E_binary(left, BIN_LESS, right); }
+  -> left:BinExp_mid ">"  right:BinExp_high    { return new E_binary(left, BIN_GREATER, right); }
+  -> left:BinExp_mid "<=" right:BinExp_high    { return new E_binary(left, BIN_LESSEQ, right); }
+  -> left:BinExp_mid ">=" right:BinExp_high    { return new E_binary(left, BIN_GREATEREQ, right); }
+}
+
+// binary exprs with lower precedence than ">"
 nonterm(Expression*) BinaryExpression {
   // ambiguous:
   //   (x) & (y)
@@ -525,22 +575,8 @@ nonterm(Expression*) BinaryExpression {
   // it could be the address of expression y, cast to type x
   fun merge(L,R) { L->addAmbiguity(R); return L; }
 
-  -> e:CastExpression                                    { return e; }
+  -> e:BinExp_mid                                        { return e; }
 
-  -> left:BinaryExpression ".*"  right:BinaryExpression  { return new E_binary(left, BIN_DOT_STAR, right); }
-  -> left:BinaryExpression "->*" right:BinaryExpression  { return new E_binary(left, BIN_ARROW_STAR, right); }
-
-  -> left:BinaryExpression "*"  right:BinaryExpression   { return new E_binary(left, BIN_MULT, right); }
-  -> left:BinaryExpression "/"  right:BinaryExpression   { return new E_binary(left, BIN_DIV, right); }
-  -> left:BinaryExpression "%"  right:BinaryExpression   { return new E_binary(left, BIN_MOD, right); }
-  -> left:BinaryExpression "+"  right:BinaryExpression   { return new E_binary(left, BIN_PLUS, right); }
-  -> left:BinaryExpression "-"  right:BinaryExpression   { return new E_binary(left, BIN_MINUS, right); }
-  -> left:BinaryExpression "<<" right:BinaryExpression   { return new E_binary(left, BIN_LSHIFT, right); }
-  -> left:BinaryExpression ">>" right:BinaryExpression   { return new E_binary(left, BIN_RSHIFT, right); }
-  -> left:BinaryExpression "<"  right:BinaryExpression   { return new E_binary(left, BIN_LESS, right); }
-  -> left:BinaryExpression ">"  right:BinaryExpression   { return new E_binary(left, BIN_GREATER, right); }
-  -> left:BinaryExpression "<=" right:BinaryExpression   { return new E_binary(left, BIN_LESSEQ, right); }
-  -> left:BinaryExpression ">=" right:BinaryExpression   { return new E_binary(left, BIN_GREATEREQ, right); }
   -> left:BinaryExpression "==" right:BinaryExpression   { return new E_binary(left, BIN_EQUAL, right); }
   -> left:BinaryExpression "!=" right:BinaryExpression   { return new E_binary(left, BIN_NOTEQUAL, right); }
   -> left:BinaryExpression "&"  right:BinaryExpression   { return new E_binary(left, BIN_BITAND, right); }
@@ -1428,12 +1464,12 @@ nonterm(Function*) FunctionDefinition {
   //   F::G() {}
   // can either be a definition of F's constructor (then G equals F), or
   // it can be a definition of a function G in the global scope, with
-  // return value F
+  // return type F
   //
   // for now I've removed this ambiguity by not allowing declarator
   // D_names to have the "::" qualifier (but E_variables still can),
   // but I'll have to reintroduce it to handle namespaces
-  fun merge(L,R) { xfailure("attempt to merge function defns"); return L; }
+  //fun merge(L,R) { xfailure("attempt to merge function defns"); return L; }
 
 
   // destructive action on 'r'
@@ -1956,10 +1992,24 @@ nonterm(FakeList<TemplateParameter>*) TemplateParameterList {
 
 
 nonterm(TemplateParameter*) TemplateParameter {
+  fun keep(n) { return n!=NULL; }
+
   -> p:TemplateTypeParameter  { return p; }
 
-  // for now, don't allow this
-  //-> ParameterDeclaration;
+  // non-type template parameter
+  -> p:ParameterDeclaration   {
+       // if the specifier is a TS_elaborated, then it could be a type
+       // parameter; cppstd 14.1 para 3 seems to say that in that case it
+       // always *is* a type parameter
+       if (p->spec->isTS_elaborated()  &&
+           p->spec->asTS_elaborated()->keyword == TI_CLASS) {
+         trace("cancel") << loc << ": template parameter can be type param\n";
+         return NULL;   // don't keep this, it's really a TP_type
+       }
+       else {
+         return new TP_nontype(loc, p); 
+       }
+     }
 }
 
 // called "TypeParameter" in std
@@ -1988,14 +2038,39 @@ nonterm(FakeList<TemplateArgument>*) TemplateArgumentList {
   -> a:TemplateArgument
        { return FakeList<TemplateArgument>::makeList(a); }
   -> a:TemplateArgument "," list:TemplateArgumentList
-       { return list->prepend(a); }
+       { a->setNext(list->first());
+         return FakeList<TemplateArgument>::makeList(a); }
 }
 
 nonterm(TemplateArgument*) TemplateArgument {
-  //-> AssignmentExpression;
-  
-  // this is the only one I want for now
-  -> t:TypeId    { return new TA_type(t); }
+  // ambiguous due to type/variable name ambiguity
+  fun merge(L,R) { L->addAmbiguity(R); return L; }
+
+  fun keep(n) { return n!=NULL; }
+
+  -> t:TypeId                 { return new TA_type(t); }
+
+  -> e:AssignmentExpression   {
+       if (e->hasUnparenthesizedGT()) {
+         // this is the wrong interpretation because template argument
+         // expressions aren't allowed to have unparenthesized
+         // greater-than operators [cppstd 14.1 para 15]
+         //
+         // this helps eliminate a nasty ambiguity in function
+         // declarators, as otherwise
+         //   template <class T>
+         //   Foo<T> & Foo<T>::get() {}
+         // could be interpreted as a constructor (we don't realize
+         // that 'get' != 'Foo') of a template class with template
+         // argument "T > &Foo < T"
+         trace("cancel") << loc
+           << ": template argument has unparenthesized greater-than operator\n";
+         return NULL;
+       }
+       else {
+         return new TA_nontype(e);
+       }
+     }
 
   // is this for template args that are templates, or what?
   //-> IdExpression;

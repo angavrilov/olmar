@@ -481,7 +481,35 @@ void TD_class::printExtras(ostream &os, int indent) const
 // TemplateParameter
 
 // -------------------- TemplateArgument ---------------------
+void TemplateArgument::printAmbiguities(ostream &os, int indent) const
+{
+  genericPrintAmbiguities(this, "TemplateArgument", os, indent);
+
+  genericCheckNexts(this);
+}
+
+
+void TemplateArgument::addAmbiguity(TemplateArgument *alt)
+{
+  genericAddAmbiguity(this, alt);
+}
+
+void TemplateArgument::setNext(TemplateArgument *newNext)
+{
+  if (next == newNext) {
+    return;    // bail if it's already what we want..
+  }
+
+  genericSetNext(this, newNext);
+}
+
+
 string TA_type::argString() const
 {
   return type->getType()->toString();
+}
+
+string TA_nontype::argString() const
+{
+  return expr->exprToString();
 }

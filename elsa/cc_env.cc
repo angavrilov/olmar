@@ -420,7 +420,7 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
         // alternatively, I could just re-traverse the original name;
         // I'm lazy for now
         error(stringc
-          << "cannot find scope name `" << qual << "' for `" << *name << "'",
+          << "cannot find scope name `" << qual << "'",
           true /*disambiguating*/);
         return NULL;
       }

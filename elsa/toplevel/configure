@@ -8,7 +8,7 @@
 # bail on error
 set -e
 
-(cd smbase && ./configure)
-(cd ast && ./configure)
-(cd elkhound && ./configure)
-(cd elsa && ./configure)
+(cd smbase && ./configure "$@")
+(cd ast && ./configure "$@")
+(cd elkhound && ./configure "$@")
+(cd elsa && ./configure "$@")

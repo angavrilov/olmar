@@ -3515,6 +3515,13 @@ Type *E_typeidType::itcheck(Env &env)
 }
 
 
+Type *E_grouping::itcheck(Env &env)
+{
+  expr->tcheck(expr, env);
+  return expr->type;
+}
+
+
 // --------------------- Expression constEval ------------------
 bool Expression::constEval(Env &env, int &result) const
 {
@@ -3653,12 +3660,78 @@ bool Expression::constEval(Env &env, int &result) const
       result = s->size;
       return true;
 
+    ASTNEXTC(E_grouping, e)
+      return e->expr->constEval(env, result);
+
     ASTDEFAULTC
       env.error(stringc <<
         kindName() << " is not constEval'able",
         false /*disambiguates*/);
       return false;
 
+    ASTENDCASEC
+  }
+}
+
+
+bool Expression::hasUnparenthesizedGT() const
+{
+  // recursively dig down into any subexpressions which syntactically
+  // aren't enclosed in parentheses or brackets
+  ASTSWITCHC(Expression, this) {
+    ASTCASEC(E_funCall, f)
+      return f->func->hasUnparenthesizedGT();
+
+    ASTNEXTC(E_fieldAcc, f)
+      return f->obj->hasUnparenthesizedGT();
+
+    ASTNEXTC(E_unary, u)
+      return u->expr->hasUnparenthesizedGT();
+
+    ASTNEXTC(E_effect, e)
+      return e->expr->hasUnparenthesizedGT();
+
+    ASTNEXTC(E_binary, b)
+      if (b->op == BIN_GREATER) {
+        // all this just to find one little guy..
+        return true;
+      }
+
+      return b->e1->hasUnparenthesizedGT() ||
+             b->e2->hasUnparenthesizedGT();
+
+    ASTNEXTC(E_addrOf, a)
+      return a->expr->hasUnparenthesizedGT();
+
+    ASTNEXTC(E_deref, d)
+      return d->ptr->hasUnparenthesizedGT();
+      
+    ASTNEXTC(E_cast, c)
+      return c->expr->hasUnparenthesizedGT();
+      
+    ASTNEXTC(E_cond, c)
+      return c->cond->hasUnparenthesizedGT() ||
+             c->th->hasUnparenthesizedGT() ||
+             c->el->hasUnparenthesizedGT();
+             
+    ASTNEXTC(E_comma, c)
+      return c->e1->hasUnparenthesizedGT() ||
+             c->e2->hasUnparenthesizedGT();
+
+    ASTNEXTC(E_assign, a)
+      return a->target->hasUnparenthesizedGT() ||
+             a->src->hasUnparenthesizedGT();
+             
+    ASTNEXTC(E_delete, d)
+      return d->expr->hasUnparenthesizedGT();
+      
+    ASTNEXTC(E_throw, t)
+      return t->expr && t->expr->hasUnparenthesizedGT();
+      
+    ASTDEFAULTC
+      // everything else, esp. E_grouping, is false
+      return false;
+      
     ASTENDCASEC
   }
 }
@@ -3768,11 +3841,6 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
     defaultType = defaultType->tcheck(env, tc);
   }
 
-  if (!name) {
-    // nothing to do for anonymous parameters
-    return;
-  }
-
   // the standard is not clear about whether the user code should
   // be able to do this:
   //   template <class T>
@@ -3784,16 +3852,19 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
 
   // make a type variable for this thing
   TypeVariable *tvar = new TypeVariable(name);
-
-  // introduce 'name' into the environment as a typedef for the
-  // type variable
   CVAtomicType *fullType = env.makeType(loc, tvar);
+
+  // make a typedef variable for this type
   Variable *var = env.makeVariable(loc, name, fullType, DF_TYPEDEF);
   tvar->typedefVar = var;
-  if (!env.addVariable(var)) {
-    env.error(stringc
-      << "duplicate template parameter `" << name << "'",
-      false /*disambiguates*/);
+    
+  if (name) {
+    // introduce 'name' into the environment
+    if (!env.addVariable(var)) {
+      env.error(stringc
+        << "duplicate template parameter `" << name << "'",
+        false /*disambiguates*/);
+    }
   }
 
   // annotate this AST node with the type
@@ -3804,9 +3875,42 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
 }
 
 
+void TP_nontype::tcheck(Env &env, TemplateParams *tparams)
+{
+  ASTTypeId::Tcheck tc;
+  tc.isParameter = true;
+  
+  // check the parameter; this actually adds it to the
+  // environment too, so we don't need to do so here
+  param = param->tcheck(env, tc);
+
+  // add to the parameter list
+  tparams->params.append(param->decl->var);
+}
+
+
 // -------------------- TemplateArgument ------------------
-void TA_type::tcheck(Env &env)
+TemplateArgument *TemplateArgument::tcheck(Env &env)
+{
+  int dummy;
+  if (!ambiguity) {
+    // easy case
+    mid_tcheck(env, dummy);
+    return this;
+  }
+
+  // generic resolution: whatever tchecks is selected
+  return resolveAmbiguity(this, env, "TemplateArgument", false /*priority*/, dummy);
+}
+
+
+void TA_type::itcheck(Env &env)
 {
   ASTTypeId::Tcheck tc;
   type = type->tcheck(env, tc);
+}
+
+void TA_nontype::itcheck(Env &env)
+{
+  expr->tcheck(expr, env);
 }

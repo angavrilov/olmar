@@ -317,10 +317,14 @@ class Expression {
   public Type *type;
   ctor type=NULL;
 
-  // const-eval; for now very simple; will add an error message to
-  // the environment if this expression is not a constant (and also
-  // return false); can only call this after tchecking
+  // const-eval; will add an error message to the environment if this
+  // expression is not a constant (and also return false); can only
+  // call this after tchecking
   public bool constEval(Env &env, int &result) const;
+
+  // return true if this expression has any greater-than operators
+  // that are not buried under an E_grouping
+  public bool hasUnparenthesizedGT() const;
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
@@ -383,14 +387,20 @@ class TemplateDeclaration {
 
 
 class TemplateParameter {
-  // stand-in for the type used when checking the body; it's
-  // always a CVAtomic wrapped around a TypeVariable
-  public CVAtomicType *type;  ctor type=NULL;
-
   pure_virtual void tcheck(Env &env, TemplateParams *tparams);
+  
+  -> TP_type {
+       // stand-in for the type used when checking the body; it's
+       // always a CVAtomic wrapped around a TypeVariable
+       public CVAtomicType *type;  ctor type=NULL;
+     }
 }
 
 
 class TemplateArgument {
-  pure_virtual void tcheck(Env &env);
+  // same scheme as for Statement
+  public /*no_ignore*/ TemplateArgument *tcheck(Env &env);
+
+  public void mid_tcheck(Env &env, int &) { itcheck(env); };
+  pure_virtual void itcheck(Env &env);
 }
