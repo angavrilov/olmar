@@ -96,7 +96,7 @@ Type const *TS_name::tcheck(Env &env)
   Variable *var = env.lookupPQVariable(name);
   if (!var) {
     return env.error(stringc
-      << "there is no typedef called `" << name << "'");
+      << "there is no typedef called `" << *name << "'");
   }
 
   if (!var->hasFlag(DF_TYPEDEF)) {
@@ -292,8 +292,15 @@ Variable *D_bitfield::itcheck(Env &env, Type const *spec)
 // OperatorDeclarator
 
 // ---------------------- Statement ---------------------
+// Generic ambiguity resolution:  We check all the alternatives,
+// and select the one which typechecks without errors.  If
+// 'priority' is true, then the alternatives are considered to be
+// listed in order of preference, such that the first one to
+// successfully typecheck is immediately chosen.  Otherwise, we
+// complain if the number of successful alternatives is not 1.
 template <class NODE>
-NODE *resolveAmbiguity(NODE *ths, Env &env, char const *nodeTypeName)
+NODE *resolveAmbiguity(NODE *ths, Env &env, char const *nodeTypeName,
+                       bool priority)
 {
   // grab the existing list of error messages
   ObjList<ErrorMsg> existingErrors;
@@ -327,6 +334,12 @@ NODE *resolveAmbiguity(NODE *ths, Env &env, char const *nodeTypeName)
     if (altErrors[altIndex].isEmpty()) {
       numOk++;
       lastOk = alt;
+      
+      if (priority) {
+        // the alternatives are listed in priority order, so once an
+        // alternative succeeds, stop and select it
+        break;
+      }
     }
     else {
       // if this NODE failed to check, then it had better not
@@ -368,7 +381,7 @@ NODE *resolveAmbiguity(NODE *ths, Env &env, char const *nodeTypeName)
 
   else {
     // more than one alternative succeeds, not good
-    trace("disamb") << locStr << ": ambiguous " << nodeTypeName 
+    trace("disamb") << locStr << ": ambiguous " << nodeTypeName
                     << ": multiple good!\n";
 
     // first put back the old errors
@@ -381,6 +394,7 @@ NODE *resolveAmbiguity(NODE *ths, Env &env, char const *nodeTypeName)
   
   // what is g++ smoking?  for some reason it wants this,
   // even though it's clear it is unreachable...
+  xfailure("something weird happened.. this shouldn't be reachable");
   return ths;
 }
 
@@ -394,7 +408,31 @@ Statement *Statement::tcheck(Env &env)
     return this;
   }
 
-  return resolveAmbiguity(this, env, "Statement");
+  // the only ambiguity for Statements I know if is S_decl vs. S_expr,
+  // and this one is always resolved in favor of S_decl if the S_decl
+  // is a valid interpretation [cppstd, sec. 6.8]
+  if (this->isS_decl() && ambiguity->isS_expr() && 
+      ambiguity->ambiguity == NULL) {
+    // S_decl is first, run resolver with priority enabled
+    return resolveAmbiguity(this, env, "Statement", true /*priority*/);
+  }
+  else if (this->isS_expr() && ambiguity->isS_decl() &&
+           ambiguity->ambiguity == NULL) {
+    // swap the expr and decl
+    S_expr *expr = this->asS_expr();
+    S_decl *decl = ambiguity->asS_decl();
+    
+    const_cast<Statement*&>(expr->ambiguity) = NULL;
+    const_cast<Statement*&>(decl->ambiguity) = expr;
+    
+    // now run it with priority
+    return resolveAmbiguity(static_cast<Statement*>(decl), env, 
+                            "Statement", true /*priority*/);
+  }
+  
+  // unknown ambiguity situation
+  env.error("unknown statement ambiguity");
+  return this;
 }
 
 
@@ -607,7 +645,7 @@ Expression *Expression::tcheck(Env &env)
     return this;
   }
   
-  return resolveAmbiguity(this, env, "Expression");
+  return resolveAmbiguity(this, env, "Expression", false /*priority*/);
 }
 
 
@@ -658,9 +696,14 @@ Type const *E_variable::itcheck(Env &env)
 {
   var = env.lookupPQVariable(name);
   if (!var) {
-    env.error(stringc
-      << "there is no variable called `" << name << "'");
-  }                             
+    return env.error(stringc
+      << "there is no variable called `" << *name << "'");
+  }
+
+  if (var->hasFlag(DF_TYPEDEF)) {
+    return env.error(stringc
+      << "`" << *name << "' used as a variable, but it's actually a typedef");
+  }
   
   // return a reference because this is an lvalue
   return makeRefType(var->type);

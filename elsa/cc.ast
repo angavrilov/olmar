@@ -452,6 +452,9 @@ class Expression {
   public Type const *type;
   ctor type=NULL;
 
+  public void printExtras(ostream &os, int indent) const;
+  custom debugPrint { printExtras(os, indent); }
+
   // unparse the expression
   //pure_virtual string toString() const;
 

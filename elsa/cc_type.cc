@@ -760,7 +760,7 @@ bool PointerType::innerEquals(PointerType const *obj) const
 string PointerType::leftString() const
 {
   return stringc << atType->leftString()
-                 << (op==PO_POINTER? "*" : "&")
+                 << (op==PO_POINTER? " *" : " &")
                  << cvToString(cv);
 }
 
