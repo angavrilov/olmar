@@ -22,6 +22,20 @@ void xferOwnerPtr(Flatten &flat, T *&ptr)
 
 
 template <class T>
+void xferOwnerPtr_readObj(Flatten &flat, T *&ptr)
+{
+  if (flat.reading()) {
+    // construct a new object, *and* read it from file
+    ptr = T::readObj(flat);
+  }
+  else {
+    // write it
+    ptr->xfer(flat);
+  }  
+}
+
+
+template <class T>
 void xferObjList(Flatten &flat, ObjList <T> &list)
 {
   if (flat.writing()) {
@@ -41,6 +55,35 @@ void xferObjList(Flatten &flat, ObjList <T> &list)
 
       // read it
       obj->xfer(flat);
+
+      // add it to the list
+      mut.append(obj);
+    }
+  }
+}
+
+
+// for things like AExprNode which have a readObj
+// static method .. it's possible to merge this with
+// the above code, but I'm not sure that's a good idea yet
+template <class T>
+void xferObjList_readObj(Flatten &flat, ObjList <T> &list)
+{
+  if (flat.writing()) {
+    flat.writeInt(list.count());
+
+    MUTATE_EACH_OBJLIST(T, list, iter) {
+      iter.data()->xfer(flat);
+    }
+  }
+  else {
+    int listLen = flat.readInt();
+
+    ObjListMutator<T> mut(list);
+    while (listLen--) {
+      // construct a new object, *and* read its
+      // contents from the file
+      T *obj = T::readObj(flat);
 
       // add it to the list
       mut.append(obj);

@@ -8,7 +8,7 @@ terminals {
 
 
 // stuff that goes at top of cexp2.h
-prologue {
+literalCode "prologue" {
   #include "objlist.h"     // ObjList
   #include "lexer2.h"      // Lexer2Token
   #include "ccwrite.h"     // NonterminalInfo
@@ -250,9 +250,9 @@ nonterm Binop {
   // lowest precedence
 }
 
-              
+
 // stuff that goes at the end of cexp2.cc
-epilogue {
+literalCode "epilogue" {
   #include "glr.h"       // GLR
   #include "cexp2.h"     // Input_Node, Bindings
   #include "trace.h"     // TRACE_ARGS

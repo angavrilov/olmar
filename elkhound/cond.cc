@@ -6,6 +6,7 @@
 #include "glrtree.h"   // AttrContext
 #include "util.h"      // TVAL
 #include "exc.h"       // xBase
+#include "flatutil.h"  // xferOwnerPtr_readObj
 
 
 // ----------------------- Condition --------------------
@@ -17,6 +18,16 @@ Condition::~Condition()
 ExprCondition::~ExprCondition()
 {
   delete expr;
+}
+
+
+ExprCondition::ExprCondition(Flatten&)
+  : expr(NULL)
+{}
+
+void ExprCondition::xfer(Flatten &flat)
+{
+  xferOwnerPtr_readObj(flat, expr);
 }
 
 
@@ -53,16 +64,18 @@ Conditions::~Conditions()
 Conditions::Conditions(Flatten&)
 {}
 
-void Conditions::xfer(Flatten&)
-{}
+void Conditions::xfer(Flatten &flat)
+{
+  xferObjList(flat, conditions);
+}
 
 
 bool Conditions::test(AttrContext const &actx) const
 {
-  FOREACH_OBJLIST(Condition, conditions, iter) {
+  FOREACH_OBJLIST(ExprCondition, conditions, iter) {
     try {
       if (!iter.data()->test(actx)) {
-	trace("conditions") 
+	trace("conditions")
 	  << "condition " << iter.data()->toString(actx.reductionC(0).production)
 	  << " not satisfied\n";
 	return false;
@@ -80,12 +93,12 @@ bool Conditions::test(AttrContext const &actx) const
 
 void Conditions::check(Production const *ctx) const
 {
-  FOREACH_OBJLIST(Condition, conditions, iter) {
+  FOREACH_OBJLIST(ExprCondition, conditions, iter) {
     try {
       iter.data()->check(ctx);
     }
     catch (xBase &x) {
-      THROW(xBase(stringc << "in " << iter.data()->toString(ctx) 
+      THROW(xBase(stringc << "in " << iter.data()->toString(ctx)
                           << ", " << x.why() ));
     }
   }
@@ -95,7 +108,7 @@ void Conditions::check(Production const *ctx) const
 string Conditions::toString(Production const *prod) const
 {
   stringBuilder sb;
-  FOREACH_OBJLIST(Condition, conditions, iter) {
+  FOREACH_OBJLIST(ExprCondition, conditions, iter) {
     sb << "  %condition { " << iter.data()->toString(prod) << " }\n";
   }
   return sb;

@@ -30,6 +30,9 @@ public:	     // funcs
     : DMEMB(whichTree), DMEMB(symbolIndex), DMEMB(attrName) {}
   ~AttrLvalue();
 
+  AttrLvalue(Flatten&);
+  void xfer(Flatten &flat);
+
   // create an AttrLvalue by parsing a textual reference; throw
   // exception on failure
   static AttrLvalue parseRef(Production const *prod, char const *refString);
@@ -56,7 +59,16 @@ public:	     // funcs
 // so I define an attribute expression tree hierarchy; this first one
 // is the interface of a tree node
 class AExprNode {
+public:     // types
+  enum Tag { T_LITERAL, T_ATTRREF, T_FUNC, NUM_TAGS };
+
 public:
+  AExprNode() {}
+  virtual ~AExprNode();
+
+  // get tag for the object; needed for flatten/unflatten
+  virtual Tag getTag() const = 0;
+
   // evaluate the expression and return its value, within the
   // context of an instantiated production
   virtual int eval(AttrContext const &actx) const = 0;
@@ -68,8 +80,10 @@ public:
   // print this node in syntax that might be parseable, e.g. "(+ a b)"
   virtual string toString(Production const *prod) const = 0;
 
-  // delete children (if any)
-  virtual ~AExprNode();
+  // read/write
+  AExprNode(Flatten&) {}
+  virtual void xfer(Flatten &flat);    // call me from derived
+  static AExprNode *readObj(Flatten &flat);
 };
 
 
@@ -80,7 +94,11 @@ class AExprLiteral : public AExprNode {
 public:
   AExprLiteral(int v) : value(v) {}
 
+  AExprLiteral(Flatten&);
+  virtual void xfer(Flatten &flat);
+
   // AExprNode stuff
+  virtual Tag getTag() const { return T_LITERAL; }
   virtual int eval(AttrContext const &actx) const;
   virtual string toString(Production const *prod) const;
 };
@@ -94,7 +112,11 @@ public:
   AExprAttrRef(AttrLvalue const &r) : ref(r) {}
   virtual ~AExprAttrRef();
 
+  AExprAttrRef(Flatten&);
+  virtual void xfer(Flatten &flat);
+
   // AExprNode stuff
+  virtual Tag getTag() const { return T_ATTRREF; }
   virtual int eval(AttrContext const &actx) const;
   virtual void check(Production const *ctx) const;
   virtual string toString(Production const *prod) const;
@@ -124,7 +146,11 @@ public:
   AExprFunc(char const *name);     // the name must match something predefined
   virtual ~AExprFunc();
 
+  AExprFunc(Flatten&);
+  virtual void xfer(Flatten &flat);
+
   // AExprNode stuff
+  virtual Tag getTag() const { return T_FUNC; }
   virtual int eval(AttrContext const &actx) const;
   virtual void check(Production const *ctx) const;
   virtual string toString(Production const *prod) const;

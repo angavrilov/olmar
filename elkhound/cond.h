@@ -33,6 +33,9 @@ public:
   ExprCondition(AExprNode *e) : expr(e) {}
   virtual ~ExprCondition();
 
+  ExprCondition(Flatten&);
+  void xfer(Flatten &flat);
+
   // Condition stuff
   virtual bool test(AttrContext const &actx) const;
   virtual void check(Production const *ctx) const;
@@ -44,7 +47,7 @@ public:
 // (question of whether to derive this from Condition is still open)
 class Conditions {
 public:
-  ObjList<Condition> conditions;
+  ObjList<ExprCondition> conditions;
 
 public:
   Conditions();

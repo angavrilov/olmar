@@ -43,6 +43,9 @@ public:	  // funcs
     : lvalue(L), expr(e) {}
   ~AttrAction();
 
+  AttrAction(Flatten&);
+  void xfer(Flatten &flat);
+
   // Action stuff
   virtual void fire(AttrContext &actx) const;
   virtual void check(Production const *ctx) const;
@@ -53,7 +56,7 @@ public:	  // funcs
 // a collection of actions associated with a production
 class Actions {
 public:	  // data
-  ObjList<Action> actions;
+  ObjList<AttrAction> actions;
 
 public:	  // funcs
   Actions();
@@ -64,7 +67,7 @@ public:	  // funcs
 
   // fire all actions on an instantiated production
   void fire(AttrContext &actx) const;
-  
+
   // check all actions for integrity
   void check(Production const *ctx) const;
 
@@ -77,10 +80,10 @@ public:	  // funcs
   // context of the given production, and add the action to the list;
   // throw an exception on a parsing error
   void parse(Production const *prod, char const *actionsText);
-  
+
   // find an action that sets the named attribute; return
   // NULL if none do
-  Action const *getAttrActionFor(char const *attr) const;
+  AttrAction const *getAttrActionFor(char const *attr) const;
 };
 
 

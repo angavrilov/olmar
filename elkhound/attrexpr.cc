@@ -8,6 +8,7 @@
 #include "attr.h"         // Attributes
 #include "gramast.h"      // ast type constants
 #include "exc.h"          // xBase
+#include "flatutil.h"     // Flatten, xfer helpers
 
 #include <ctype.h>        // isspace
 #include <stdlib.h>       // atoi
@@ -16,6 +17,19 @@
 // --------------- AttrLvalue ---------------------
 AttrLvalue::~AttrLvalue()
 {}
+
+
+AttrLvalue::AttrLvalue(Flatten &flat)
+  : attrName(flat)
+{}
+
+void AttrLvalue::xfer(Flatten &flat)
+{
+  flat.xferInt(whichTree);
+  flat.xferInt(symbolIndex);
+  attrName.xfer(flat);
+}
+
 
 STATICDEF AttrLvalue AttrLvalue::
   parseRef(Production const *prod, char const *refString)
@@ -93,17 +107,60 @@ void AttrLvalue::storeInto(AttrContext &actx, int newValue) const
 
 
 // ---------------------- AExprNode --------------------------
-void AExprNode::check(Production const *) const
-{}
-
-
 AExprNode::~AExprNode()
 {}
 
 
+void AExprNode::xfer(Flatten &flat)
+{
+  if (flat.writing()) {
+    // write the tag
+    flat.writeInt((int)getTag());
+  }
+  else {
+    // the tag gets read by 'readObj', below
+  }
+}
+
+
+STATICDEF AExprNode *AExprNode::readObj(Flatten &flat)
+{
+  // read the tag
+  Tag tag = (Tag)flat.readInt();
+  formatAssert(0 <= tag && tag < NUM_TAGS);
+
+  // create the object
+  AExprNode *ret;
+  switch (tag) {
+    default: xfailure("bad tag");
+    case T_LITERAL:   ret = new AExprLiteral(flat);    break;
+    case T_ATTRREF:   ret = new AExprAttrRef(flat);    break;
+    case T_FUNC:      ret = new AExprFunc(flat);       break;
+  }
+
+  ret->xfer(flat);
+  return ret;
+}
+
+
+void AExprNode::check(Production const *) const
+{}
+
+
 // --------------------- AExprLiteral ------------------------
+AExprLiteral::AExprLiteral(Flatten &flat)
+  : AExprNode(flat)
+{}
+
+void AExprLiteral::xfer(Flatten &flat)
+{
+  AExprNode::xfer(flat);
+  flat.xferInt(value);
+}
+
+
 int AExprLiteral::eval(AttrContext const &) const
-{					  
+{
   return value;
 }
 
@@ -117,6 +174,18 @@ string AExprLiteral::toString(Production const *) const
 // ------------------- AExprAttrRef --------------------------
 AExprAttrRef::~AExprAttrRef()
 {}
+
+
+AExprAttrRef::AExprAttrRef(Flatten &flat)
+  : AExprNode(flat),
+    ref(flat)
+{}
+
+void AExprAttrRef::xfer(Flatten &flat)
+{
+  AExprNode::xfer(flat);
+  ref.xfer(flat);
+}
 
 
 int AExprAttrRef::eval(AttrContext const &actx) const
@@ -147,7 +216,7 @@ AExprFunc::AExprFunc(char const *name)
       break;
     }
   }
-  
+
   if (func == NULL) {
     xfailure(stringc << "nonexistent function: " << name);
   }
@@ -156,6 +225,30 @@ AExprFunc::AExprFunc(char const *name)
 
 AExprFunc::~AExprFunc()
 {}
+
+
+AExprFunc::AExprFunc(Flatten &flat)
+  : AExprNode(flat),
+    func(NULL)
+{}
+
+void AExprFunc::xfer(Flatten &flat)
+{
+  AExprNode::xfer(flat);
+  
+  // xfer the function index
+  if (flat.writing()) {
+    flat.writeInt(func - funcEntries);
+  }
+  else {
+    func = funcEntries + flat.readInt();
+    formatAssert(0 <= func - funcEntries &&
+                      func - funcEntries < numFuncEntries);
+  }
+
+  // xfer the args list
+  xferObjList_readObj(flat, args);
+}
 
 
 #define MAKE_OP_FUNC(name, op) \

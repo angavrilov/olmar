@@ -1,7 +1,8 @@
 # .gdbinit
 
-file ccgr
-set args cc.gr tmp
+#file ccgr
+file grampar
+set args cexp2.gr
 
 break main
 break breaker

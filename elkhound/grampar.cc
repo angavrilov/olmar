@@ -109,8 +109,8 @@ void astParseFormBodyElt(Environment &env, Production *prod,
                          ASTNode const *n, bool dupsOk);
 void astParseAction(Environment &env, Production *prod,
                     ASTNode const *act, bool dupsOk);
-Condition *astParseCondition(Environment &env, Production *prod,
-                             ASTNode const *cond);
+ExprCondition *astParseCondition(Environment &env, Production *prod,
+                                 ASTNode const *cond);
 void astParseTreeCompare(Environment &env, Production *prod,
                          ASTNode const *node);
 void astParseFunction(Environment &env, Production *prod,
@@ -766,8 +766,8 @@ void astParseAction(Environment &env, Production *prod,
 }
 
 
-Condition *astParseCondition(Environment &env, Production *prod,
-                             ASTNode const *cond)
+ExprCondition *astParseCondition(Environment &env, Production *prod,
+                                 ASTNode const *cond)
 {
   checkType(cond, AST_CONDITION);
 
@@ -1110,6 +1110,9 @@ int main(int argc, char **argv)
   traceAddSys("progress");
   TRACE_ARGS();
 
+  bool printActions = true;
+  bool printCode = false;
+
   // read the file
   Grammar g1;
   readGrammarFile(g1, argc>=2? argv[1] : NULL /*stdin*/);
@@ -1119,7 +1122,7 @@ int main(int argc, char **argv)
   traceProgress() << "printing initial grammar to " << g1Fname << "\n";
   {
     ofstream out(g1Fname);
-    g1.printProductions(out, false /*actions*/, false /*code*/);
+    g1.printProductions(out, printActions, printCode);
   }
 
   // write it to a binary file
@@ -1143,7 +1146,7 @@ int main(int argc, char **argv)
   traceProgress() << "printing just-read grammar to " << g2Fname << "\n";
   {
     ofstream out(g2Fname);
-    g2.printProductions(out, false /*actions*/, false /*code*/);
+    g2.printProductions(out, printActions, printCode);
   }
 
   // compare the two written files
