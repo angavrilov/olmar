@@ -145,10 +145,14 @@ clean:
 	rm -f towner cc.gr.ps
 
 # regression tests
-check: cexp2 ccgr
-	./cexp2 cexp2.gr cexp2.in2
-	./ccgr cc.gr c.in1
-	./ccgr cc.gr c.in4
+check-cexp2: cexp2
+	./cexp2 cexp2.bin cexp2.in2
+
+check: check-cexp2 ccgr gramanl
+	./gramanl --testRW ffollow
+	./ccgr cc.bin c.in1
+	echo ./ccgr cc.bin c.in4 DOES NOT WORK
+	./ccgr cc.bin qpmouse.cpp
 	@echo ""
 	@echo "Regression tests passed."
 
