@@ -330,6 +330,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     special_getImplicitConversion(NULL),
     special_testOverload(NULL),
     special_computeLUB(NULL),
+    special_checkCalleeDefnLine(NULL),
 
     dependentTypeVar(NULL),
     dependentVar(NULL),
@@ -497,6 +498,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   special_getImplicitConversion = declareSpecialFunction("__getImplicitConversion")->name;
   special_testOverload = declareSpecialFunction("__testOverload")->name;
   special_computeLUB = declareSpecialFunction("__computeLUB")->name;
+  special_checkCalleeDefnLine = declareSpecialFunction("__checkCalleeDefnLine")->name;
 
   setupOperatorOverloading();
 

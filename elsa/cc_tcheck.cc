@@ -4578,6 +4578,43 @@ static Type *internalTestingHooks
     }
   }
 
+  // given a call site, check that the function it calls is
+  // (a) defined, and (b) defined at a particular line
+  if (funcName == env.special_checkCalleeDefnLine) {
+    int expectLine;
+    if (args->count() == 2 &&
+        args->nth(1)->constEval(env, expectLine)) {
+
+      if (args->first()->expr->isE_funCall() &&
+          hasNamedFunction(args->first()->expr->asE_funCall()->func)) {
+        // resolution yielded a function call
+        Variable *chosen = getNamedFunction(args->first()->expr->asE_funCall()->func);
+        if (!chosen->funcDefn) {
+          env.error("expected to be calling a defined function");
+        }
+        else {
+          int actualLine = sourceLocManager->getLine(chosen->funcDefn->getLoc());
+          if (expectLine != actualLine) {
+            env.error(stringc
+              << "expected to call function on line "
+              << expectLine << ", but it chose line " << actualLine);
+          }
+        }
+      }
+      else if (expectLine != 0) {
+        // resolution yielded something else
+        env.error("expected overload to choose a function, but it "
+                  "chose a non-function");
+      }
+
+      // propagate return type
+      return args->first()->getType();
+    }
+    else {
+      env.error("invalid call to __testOverload");
+    }
+  }
+
   // E_funCall::itcheck should continue, and tcheck this normally
   return NULL;
 }

@@ -133,6 +133,7 @@ public:      // data
   StringRef special_getImplicitConversion;
   StringRef special_testOverload;
   StringRef special_computeLUB;
+  StringRef special_checkCalleeDefnLine;
 
   // special variables associated with particular types
   Variable *dependentTypeVar;           // (serf)
