@@ -813,7 +813,12 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
 
   // call the inner parser core, which is a static member function
   bool ret = innerGlrParse(*this, lexer, treeTop);
-  stackNodePool = NULL;     // prevent dangling references
+                            
+  // prevent dangling references, clear any stack node pointers
+  stackNodePool = NULL;
+  topmostParsers.empty();
+  prevTopmost.empty();
+
   if (!ret) {
     lexerPtr = NULL;
     return ret;
