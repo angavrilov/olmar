@@ -794,16 +794,28 @@ void CGen::emitDestructor(ASTClass const &cls)
       out << "  " << arg.name << ".deleteAll();\n";
     }
     else if (isListType(arg.type)) {
-      // we don't own the list elements; it's *essential* to
-      // explicitly remove the elements; this is a hack, since the
-      // ideal solution is to make a variant of ASTList which is
-      // explicitly serf pointers.. the real ASTList doesn't have
-      // a removeAll method (since it's an owner list), and rather
-      // than corrupting that interface I'll emit the code each time..
-      out << "  while (" << arg.name << ".isNotEmpty()) {\n"
-          << "    " << arg.name << ".removeFirst();\n"
-          << "  }\n";
-      //out << "  " << arg.name << ".removeAll();\n";
+      if (0==strcmp(extractListType(arg.type), "LocString")) {
+        // these are owned even though they aren't actually tree nodes
+        out << "  " << arg.name << ".deleteAll();\n";
+        
+        // TODO: this analysis is duplicated below, during cloning;
+        // the astgen tool should do a better job of encapsulating
+        // the relationships (particularly owning/non-owning) between
+        // its parts, instead of doing ad-hoc type inspection in random
+        // places during emission
+      }
+      else {
+        // we don't own the list elements; it's *essential* to
+        // explicitly remove the elements; this is a hack, since the
+        // ideal solution is to make a variant of ASTList which is
+        // explicitly serf pointers.. the real ASTList doesn't have
+        // a removeAll method (since it's an owner list), and rather
+        // than corrupting that interface I'll emit the code each time..
+        out << "  while (" << arg.name << ".isNotEmpty()) {\n"
+            << "    " << arg.name << ".removeFirst();\n"
+            << "  }\n";
+        //out << "  " << arg.name << ".removeAll();\n";
+      }
     }
     else if (arg.owner || isTreeNode(arg.type)) {
       out << "  delete " << arg.name << ";\n";
@@ -899,8 +911,14 @@ void CGen::emitCloneCtorArg(CtorArg const *arg, int &ct)
     out << "cloneASTList(" << arg->name << ")";
   }
   else if (isListType(arg->type)) {
-    // clone an ASTList of non-tree nodes
-    out << "shallowCloneASTList(" << arg->name << ")";
+    if (0==strcmp(extractListType(arg->type), "LocString")) {
+      // these are owned, so clone deeply
+      out << "cloneASTList(" << arg->name << ")";
+    }
+    else {
+      // clone an ASTList of non-tree nodes
+      out << "shallowCloneASTList(" << arg->name << ")";
+    }
   }
   else if (isFakeListType(arg->type)) {
     // clone a FakeList (of tree nodes, we assume..)
