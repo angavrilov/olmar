@@ -614,8 +614,6 @@ begin
     (addTopmostParser glr first);
   end;
 
-  (* MINI_LR TODO: reductionAction *)
-
   (* array for passing semantic values in the mini lr core *)
   let toPass: tSemanticValue array = (Array.make cMAX_RHSLEN cNULL_SVAL) in
 
@@ -826,7 +824,10 @@ begin
   with
   | Exit -> false
   | End_of_file -> (
-      (* MINI_LR TODO: detShift, detReduce accounting *)
+      if (accounting) then (
+        glr.detShift <- glr.detShift + !localDetShift;
+        glr.detReduce <- glr.detReduce + !localDetReduce;
+      );
 
       (* end of parse *)
       (cleanupAfterParse glr (*timer*) treeTop)

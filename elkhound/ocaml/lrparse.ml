@@ -8,6 +8,8 @@ open Useract        (* reductionAction *)
 
 type tStateId = int
 
+let debug : bool = false
+
 let stateStack : tStateId array ref = ref (Array.make 10 0)
 let svalStack : Obj.t array ref = ref (Array.make 10 (Obj.repr 0))
 let stackLen : int ref = ref 0
@@ -63,13 +65,15 @@ begin
     let tt:int = (lex#getTokType()) in        (* token type *)
     let state:tStateId = (topState()) in      (* current state *)
 
-    (Printf.printf "state=%d tokType=%d sval=%d desc=\"%s\"\n"
-                   state
-                   tt
-                   (lex#getIntSval())
-                   (lex#tokenDesc())
-                 );
-    (flush stdout);
+    if (debug) then (
+      (Printf.printf "state=%d tokType=%d sval=%d desc=\"%s\"\n"
+                     state
+                     tt
+                     (lex#getIntSval())
+                     (lex#tokenDesc())
+                   );
+      (flush stdout);
+    );
 
     (* read from action table *)
     let act:tActionEntry = (getActionEntry tables state tt) in
@@ -81,9 +85,11 @@ begin
 
       (* next token *)
       (lex#getToken());
-
-      (Printf.printf "shift to state %d\n" dest);
-      (flush stdout);
+             
+      if (debug) then (
+        (Printf.printf "shift to state %d\n" dest);
+        (flush stdout);
+      );
     )
 
     (* reduce? *)
@@ -115,9 +121,11 @@ begin
       let dest:tStateId = (decodeGoto (getGotoEntry tables newTopState lhs) lhs) in
       (pushStateSval dest sval);
 
-      (Printf.printf "reduce by rule %d (len=%d, lhs=%d), goto state %d\n"
-                     rule ruleLen lhs dest);
-      (flush stdout);
+      if (debug) then (
+        (Printf.printf "reduce by rule %d (len=%d, lhs=%d), goto state %d\n"
+                       rule ruleLen lhs dest);
+        (flush stdout);
+      );
     )
 
     (* error? *)
@@ -134,13 +142,15 @@ begin
   done;
 
   (* print final parse stack *)
-  (Printf.printf "final parse stack (up is top):\n");
-  let i:int ref = ref (pred !stackLen) in
-  while (!i >= 0) do
-    (Printf.printf "  %d\n" (!stateStack).(!i));
-    (decr i);
-  done;
-  (flush stdout);
+  if (debug) then (
+    (Printf.printf "final parse stack (up is top):\n");
+    let i:int ref = ref (pred !stackLen) in
+    while (!i >= 0) do
+      (Printf.printf "  %d\n" (!stateStack).(!i));
+      (decr i);
+    done;
+    (flush stdout);
+  );
 
   (* return value: sval of top element *)
   let topSval:Obj.t = (!svalStack).(!stackLen - 1) in

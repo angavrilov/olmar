@@ -11,6 +11,9 @@ ELKHOUND := ..
 OCAMLCFLAGS := -noassert
 #OCAMLCFLAGS :=
 
+#OCAMLOPTFLAGS := $(OCAMLCFLAGS) -p
+OCAMLOPTFLAGS := $(OCAMLCFLAGS)
+
 # using dependency strategy from 
 # http://www.cs.berkeley.edu/~smcpeak/autodepend/autodepend.html
 %.cmo: %.ml
@@ -19,7 +22,7 @@ OCAMLCFLAGS := -noassert
 
 # I'll try maintaining separate dependency info for .cmo and .cmx
 %.cmx: %.ml
-	ocamlopt -c $(OCAMLCFLAGS) $*.ml
+	ocamlopt -c $(OCAMLOPTFLAGS) $*.ml
 	@ocamldep $*.ml > $*.dx
 
 # run elkhound on a grammar spec
@@ -52,7 +55,7 @@ tobjpool: $(TOBJPOOL_MODULES)
 	ocamlc -o $@ -g $^
 
 tobjpool.opt: $(TOBJPOOL_MODULES:.cmo=.cmx)
-	ocamlopt -o $@ $^
+	ocamlopt $(OCAMLOPTFLAGS) -o $@ $^
 
 # these are the minimal set of modules needed for an elkhound parser
 MINIMAL_MODULES = \
@@ -81,7 +84,7 @@ main: $(MAIN_MODULES)
 	ocamlc -o $@ -g $^
 
 main.opt: $(MAIN_MODULES:.cmo=.cmx)
-	ocamlopt -o $@ $^
+	ocamlopt $(OCAMLOPTFLAGS) -o $@ $^
 
 # dependencies
 ALL_MODULES = \

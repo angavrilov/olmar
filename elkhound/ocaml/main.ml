@@ -201,6 +201,10 @@ begin
       (Printf.printf "stack nodes: num=%d max=%d\n"
                      !numStackNodesAllocd
                      !maxStackNodesAllocd);
+      (Printf.printf "detShift:     %d\n" glr.detShift);
+      (Printf.printf "detReduce:    %d\n" glr.detReduce);
+      (Printf.printf "nondetShift:  %d\n" glr.nondetShift);
+      (Printf.printf "nondetReduce: %d\n" glr.nondetReduce);
       (flush stdout);
       
       !treeTop
