@@ -80,7 +80,7 @@ else {
 }
 
 # directory for last-printed 'run' command
-$lastRunDir = "";
+#$lastRunDir = "";
 
 # statistics
 %ppfail    = ('gcc' => 0, 'g++' => 0);     # preprocessing failures, per mode
@@ -176,10 +176,12 @@ sub bail {
 sub run {
   my ($cmd) = @_;
 
-  if ($cwd ne $lastRunDir) {
-    print("cd $cwd\n");
-    $lastRunDir = $cwd;
-  }
+  #if ($cwd ne $lastRunDir) {
+  #  print("cd $cwd\n");
+  #  $lastRunDir = $cwd;
+  #}
+  
+  print("cwd: $cwd\n");
 
   print("$runCount: $cmd\n");
   my $code = 0;

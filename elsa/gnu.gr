@@ -8,21 +8,31 @@
 // whatever gcc/g++ accepts.  The "gnu" extensions (try to) provide
 // the latter.  (Also, there are a few extensions like "long long"
 // that are provided by both, so the split wouldn't be 100% clean.)
+//
+// 9/27/04: The current concept is that gnu.gr contains the syntactic
+// extensions that comprise the modern, extended C++ language,
+// especially as used on linux.  It does *not* include old K&R syntax,
+// which will be put in kandr.gr.
+//
+// Specifically, the extensions found in this file are:
+//   - gcc statement expression: "({ ... })"
+//   - gcc compound literals: "(struct Foo){ ... }"
+//   - gcc misc: __FUNCTION__, __alignof__, etc.
+//   - gcc dangling labels: "{ ... foo: }"
+//   - gcc typeof
+//   - gcc asm with register constraints, etc.
+//   - gcc asm labels: "int foo asm("myfoo") = 2"
+//   - C99 designated initializers: "... = { .x=..., .y=... }"
+//     including gcc range extension: "[ 1 .. 3 ] = ..."
+//   - C99 restrict keyword
+//   - C99 qualifiers in array brackets: "[const ...]"
+//   - K&R implicit int in cast expressions (TODO: move)
+//   - gcc __attribute__
+
 
 // expected statistics
 option shift_reduce_conflicts 83;
 option reduce_reduce_conflicts 111;
-
-
-verbatim {
-  // make a TS_typeof, and supply CV flags
-  inline static TS_typeof *new_TS_typeof(SourceLoc loc, CVFlags cv, ASTTypeof *atype)
-  {
-    TS_typeof *ret = new TS_typeof(loc, atype);
-    ret->cv = cv;
-    return ret;
-  }
-}
 
 
 terminals {
@@ -33,22 +43,30 @@ terminals {
 }
 
 
+// ----------- gcc statement expression -----------
+// http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Statement-Exprs.html
 nonterm(Expression*) PrimaryExpression {
   -> "(" cs:CompoundStatement ")"
        { return new E_statement(cs); }
+}
 
-  // GNU extension: "Compound Literal"
-  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Compound-Literals.html
-  // (notation for literal struct values)
-  // e.g.:
-  //   struct Foo { int x; int y; } myfoo;
-  //   myfoo = (struct Foo) { 4, 5 };        <-- here
-  // which would assign x=4 and y=5 in 'myfoo'
+
+// ----------- gcc compound literals -----------
+// GNU extension: "Compound Literal"
+// http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Compound-Literals.html
+// (notation for literal struct values)
+// e.g.:
+//   struct Foo { int x; int y; } myfoo;
+//   myfoo = (struct Foo) { 4, 5 };        <-- here
+// which would assign x=4 and y=5 in 'myfoo'
+nonterm(Expression*) PrimaryExpression {
   -> "(" t:TypeId ")" i:CompoundInitializer
        { return new E_compoundLit(t, i); }
 }
 
 
+// ----------- gcc misc -----------
+// http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Function-Names.html
 nonterm(StringRef) PreprocString {
   // slightly subtle: ordinary strings are yielded *with quotes*,
   // whereas these special guys are not quoted; also note that
@@ -57,7 +75,6 @@ nonterm(StringRef) PreprocString {
   -> TOK___PRETTY_FUNCTION__                { return str("__PRETTY_FUNCTION__"); }
 }
 
-
 nonterm(Expression*) UnaryExpression {
   // GNU extension; dsw: Since the argument is an expression, I know
   // of no way to handle this other than putting it into the grammar
@@ -65,7 +82,7 @@ nonterm(Expression*) UnaryExpression {
   -> "__builtin_constant_p" pe:ParenthesizedExpression
        { return new E___builtin_constant_p(loc, pe); }
 
-  // dsw: some undocumented gcc extension
+  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Alignment.html
   -> "__alignof__" "(" t:TypeId ")"
        { return new E_alignofType(t); }
        
@@ -94,26 +111,34 @@ nonterm(Expression*) ParenthesizedExpression {
        { return new E_grouping(e); }
 }
 
+
+// http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Conditionals.html
 nonterm(Expression*) ConditionalExpression {
-  -> cond:BinaryExpression "?" /*th:Expression*/ ":" el:AssignmentExpression 
+  -> cond:BinaryExpression "?" /*th:Expression*/ ":" el:AssignmentExpression
        { return new E_gnuCond(cond, el); }
 }
 
 
-// This nonterminal gives me a good place to solve the ambiguity
-// between associating the attrs with the label and associating
-// them with the next declaration.
-nonterm(StringRef) LabelAndColon {
-  -> n:Identifier ":" AttributeSpecifierList     precedence(TOK_PREFER_REDUCE)
-       { return n; }
-}
-
-
+// http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Nested-Functions.html
 nonterm(Statement*) Statement {
-  // nested function definition
   -> f:FunctionDefinition
        { return new S_function(loc, f); }
 }
+
+
+// http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Template-Instantiation.html
+nonterm(TopForm*) ExplicitInstantiation {
+  // here's one for things like (in/gnu/g0002.cc)
+  //   extern template class allocator<char>;
+  // note: Elsa just ignores the "extern"
+  -> "extern" "template" d:BlockDeclaration
+       { return new TF_explicitInst(loc, d); }
+}
+
+
+// ----------- gcc dangling labels -----------
+// gcc allows a compound statement to end with a label, whereas
+// the C++ grammar requires a statement after every label
 
 nonterm(S_compound*) CompoundStatement {
   // special case for a block that ends in a label; Warning: no don't
@@ -143,37 +168,18 @@ nonterm(Statement*) LabeledEmptyStatementList {
 }
 
 
-nonterm(TopForm*) ExplicitInstantiation {
-  // here's one for things like (in/gnu/g0002.cc)
-  //   extern template class allocator<char>;
-  -> "extern" "template" d:BlockDeclaration
-       { return new TF_explicitInst(loc, d); }
+// ----------- gcc typeof -----------
+// http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Typeof.html
+
+verbatim {
+  // make a TS_typeof, and supply CV flags
+  inline static TS_typeof *new_TS_typeof(SourceLoc loc, CVFlags cv, ASTTypeof *atype)
+  {
+    TS_typeof *ret = new TS_typeof(loc, atype);
+    ret->cv = cv;
+    return ret;
+  }
 }
-
-
-// attributes between classkeys and their names
-nonterm(enum TypeIntr) ClassKey {
-  // *not* AttributeSpecifierList; this context is naturally repeating
-  -> k:ClassKey AttributeSpecifier       { return k; }
-}
-
-// attributes after "enum"
-nonterm(TypeSpecifier*) ElaboratedTypeSpecifier {
-  -> "enum" AttributeSpecifierList n:PQTypeName        
-       { return new TS_elaborated(loc, TI_ENUM, n); }
-}
-
-nonterm(TS_enumSpec*) EnumSpecifier {
-  -> "enum" AttributeSpecifierList "{" list:EnumeratorListOpt "}"
-       { return new TS_enumSpec(loc, NULL /*name*/, list); }
-       
-  // Adding this adds one S/R conflict... it was 3 until I changed
-  // Identifier to PQTypeName.  I think cc.gr should similarly use
-  // PQName instead of Identifier, and catch qualifiers in tcheck...
-  -> "enum" AttributeSpecifierList n:PQTypeName "{" list:EnumeratorListOpt "}"
-       { return new TS_enumSpec(loc, n->getName(), list); }
-}
-
 
 
 nonterm(Declaration*) DeclSpecifier {
@@ -186,32 +192,6 @@ nonterm(Declaration*) DeclSpecifier {
        { UberModifiers m = uberCombine(loc, m1, m2);
          return new Declaration(uberDeclFlags(m),
            new_TS_typeof(loc, uberCVFlags(m), te), NULL); }
-}
-
-
-// As can be seen in the note at the end of this file, allowing
-// attributes in these two nonterminals is responsible for the
-// majority of the tolerance for them.  However, as UberModifiers are
-// an 'enum', this is also why retaining attributes in the AST is a
-// bit challenging: right here, there is nothing of substance to
-// attach them to!
-//
-// To fix this, one would probably have to find all occurrences of
-// UberModifier and UberCVQualifier, and add an alternative that goes
-// "... attr(one!) attrs-or-others-seq-opt ...", like below where I
-// use CVQualAttrSeqOpt.
-//
-// If all you care about is retaining one specific attribute that has
-// no arguments, you could get by with a new UberModifier flag and
-// associated DeclFlag.
-nonterm(UberModifiers) UberModifier {
-  -> "restrict"              { return UM_RESTRICT; }        // C99
-  -> AttributeSpecifier      { return UM_NONE; }
-}
-
-nonterm(UberModifiers) UberCVQualifier {
-  -> "restrict"              { return UM_RESTRICT; }        // C99
-  -> AttributeSpecifier      { return UM_NONE; }
 }
 
 
@@ -233,7 +213,6 @@ nonterm(ASTTypeof*) TypeofTypeSpecifier {
   //   typeof(x)
   // could either be type of an expression 'x', or
   // type (of a type) called 'x'
-  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Typeof.html
   fun merge(L,R) { L->addAmbiguity(R); return L; }
 
   -> e:TypeofExpr       { return new TS_typeof_expr(e); }
@@ -254,7 +233,9 @@ nonterm(ASTTypeId*) TypeofType {
 }
 
 
-// ---- BEGIN: asm ----
+// ----------- gcc asm -----------
+// http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Extended-Asm.html
+
 //  nonterm(UberModifiers) VolatileOpt {
 //    -> empty
 //         { return UM_NONE; }
@@ -314,7 +295,7 @@ nonterm(E_stringLit*) AsmDefinition {
   // NOTE: CVQualifierSeqOpt is simply discarded here
   -> "asm" q:CVQualifierSeq "(" s:StringLiteral ")" ";"
        { return s; }
-       
+
   // I write two rules, exposing the optionality of CVQualifierSeq at
   // this level instead of pushing it down into CVQualifierSeqOpt, to
   // avoid an S/R conflict.
@@ -323,7 +304,163 @@ nonterm(E_stringLit*) AsmDefinition {
   -> "asm" "(" s:StringLiteral ocs:NonemptyOpConstraints ")" ";"
        { return s; }
 }
-// ---- END: asm ----
+
+
+// ----------- gcc asm labels -----------
+// http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Asm-Labels.html
+nonterm(IDeclarator*) Declarator {
+  // Asm Labels after declarators; see in/gnu/asm01.c
+  -> d:DirectDeclarator "asm" "(" StringLiteral ")"
+       { return d; }
+  -> d:DirectDeclarator "asm" "(" StringLiteral ")" AttributeSpecifierList
+       { return d; }
+}
+
+
+// ----------- C99 designated initializers -----------
+// Designated Initializers
+nonterm(Initializer*) InitializerClause {
+  // obsolescent form
+  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Designated-Inits.html
+  -> d:Identifier ":" init:SimpleInitializerClause
+    { return new IN_designated(loc, FakeList<Designator>::makeList(new FieldDesignator(loc, d)),
+                               init); }
+  // C99 official form; C99 standard section 6.7.8
+  -> dl:DesignatorList "=" init:SimpleInitializerClause
+    { return new IN_designated(loc, dl, init); }
+}
+
+nonterm(FakeList<Designator>*) DesignatorList {
+  -> d:Designator
+    { return FakeList<Designator>::makeList(d); }
+  -> d:Designator dl:DesignatorList
+    { d->setNext(dl->first());
+    return FakeList<Designator>::makeList(d); }
+}
+
+nonterm(Designator*) Designator {
+  -> "." id:Identifier
+    { return new FieldDesignator(loc, id); }
+  -> "[" idx_expr:ConstantExpression "]"
+    { return new SubscriptDesignator(loc, idx_expr, NULL); }
+  // range designator "[ 1 ... 3 ] =".  This is a gcc-ism:
+  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Designated-Inits.html
+  -> "[" idx_expr:ConstantExpression "..." idx_expr2:ConstantExpression "]"
+    { return new SubscriptDesignator(loc, idx_expr, idx_expr2); }
+}
+
+
+// ----------- C99 restrict keyword -----------
+nonterm(enum CVFlags) CVQualifier {
+  -> "restrict"              { return CV_RESTRICT; }
+}
+
+nonterm(UberModifiers) UberModifier {
+  -> "restrict"              { return UM_RESTRICT; }
+}
+
+nonterm(UberModifiers) UberCVQualifier {
+  -> "restrict"              { return UM_RESTRICT; }
+}
+
+
+// ----------- C99 qualifiers in array brackets -----------
+nonterm(IDeclarator*) DirectDeclarator {
+  // array with qualifier in the brackets; see the version for
+  // DirectAbstractDeclarator for comments
+  -> d:DirectDeclarator "[" q:CVQualifierSeq "]"
+    {
+      // FIX: CVQualifierSeq goes on the array
+      return new D_array(loc, d, NULL /*size*/);
+    }
+}
+
+nonterm(IDeclarator*) DirectAbstractDeclarator {
+  // array with qualifier in the brackets
+  -> d:DirectAbstractDeclaratorOpt "[" q:CVQualifierSeq "]"
+    {
+      // FIX: Ben says the CVQualifierSeq goes on the array itself,
+      // just as if the array were a pointer and it was on the pointer
+      return new D_array(loc, d, NULL /*size*/);
+    }
+}
+
+
+// ------ implicit int for cast expressions ------
+// TODO: move into kandr.gr
+nonterm(Expression*) CastExpression {
+  -> "(" t:ImplicitIntTypeId ")" e:CastExpression
+       { return new E_cast(t, e); }
+}
+
+nonterm(TypeSpecifier*) ImplicitIntTypeSpecifier {
+  -> m:UberCVQualifierSeq
+       { UberModifiers k = uberCombine(loc, UM_INT, m);
+         return new_TS_simple(loc, uberCVFlags(m), uberSimpleType(loc, k)); }
+}
+
+nonterm(ASTTypeId*) ImplicitIntTypeId {
+  -> spec:ImplicitIntTypeSpecifier
+       { return new ASTTypeId(spec, new Declarator(new D_name(loc, NULL), NULL)); }
+}
+
+
+// ----------- gcc __attribute__ -----------
+// This nonterminal gives me a good place to solve the ambiguity
+// between associating the attrs with the label and associating
+// them with the next declaration.
+nonterm(StringRef) LabelAndColon {
+  -> n:Identifier ":" AttributeSpecifierList     precedence(TOK_PREFER_REDUCE)
+       { return n; }
+}
+
+
+// attributes between classkeys and their names
+nonterm(enum TypeIntr) ClassKey {
+  // *not* AttributeSpecifierList; this context is naturally repeating
+  -> k:ClassKey AttributeSpecifier       { return k; }
+}
+
+// attributes after "enum"
+nonterm(TypeSpecifier*) ElaboratedTypeSpecifier {
+  -> "enum" AttributeSpecifierList n:PQTypeName        
+       { return new TS_elaborated(loc, TI_ENUM, n); }
+}
+
+nonterm(TS_enumSpec*) EnumSpecifier {
+  -> "enum" AttributeSpecifierList "{" list:EnumeratorListOpt "}"
+       { return new TS_enumSpec(loc, NULL /*name*/, list); }
+       
+  // Adding this adds one S/R conflict... it was 3 until I changed
+  // Identifier to PQTypeName.  I think cc.gr should similarly use
+  // PQName instead of Identifier, and catch qualifiers in tcheck...
+  -> "enum" AttributeSpecifierList n:PQTypeName "{" list:EnumeratorListOpt "}"
+       { return new TS_enumSpec(loc, n->getName(), list); }
+}
+
+
+// As can be seen in the note at the end of this file, allowing
+// attributes in these two nonterminals is responsible for the
+// majority of the tolerance for them.  However, as UberModifiers are
+// an 'enum', this is also why retaining attributes in the AST is a
+// bit challenging: right here, there is nothing of substance to
+// attach them to!
+//
+// To fix this, one would probably have to find all occurrences of
+// UberModifier and UberCVQualifier, and add an alternative that goes
+// "... attr(one!) attrs-or-others-seq-opt ...", like below where I
+// use CVQualAttrSeqOpt.
+//
+// If all you care about is retaining one specific attribute that has
+// no arguments, you could get by with a new UberModifier flag and
+// associated DeclFlag.
+nonterm(UberModifiers) UberModifier {
+  -> AttributeSpecifier      { return UM_NONE; }
+}
+
+nonterm(UberModifiers) UberCVQualifier {
+  -> AttributeSpecifier      { return UM_NONE; }
+}
 
 
 // attribute after the "," in a sequence of declarators
@@ -364,40 +501,12 @@ nonterm(IDeclarator*) Declarator {
   // doesn't
   -> d:DirectDeclarator AttributeSpecifierList
        { return d; }
-
-  // Asm Labels after declarators; see in/gnu/asm01.c
-  -> d:DirectDeclarator "asm" "(" StringLiteral ")"
-       { return d; }
-  -> d:DirectDeclarator "asm" "(" StringLiteral ")" AttributeSpecifierList
-       { return d; }
 }
 
 
 nonterm(IDeclarator*) DirectDeclarator {
   -> "(" attrspec:AttributeSpecifierList d:Declarator ")"
        { return new D_grouping(loc, d); }
-
-//    // function declarator with asm section identifier
-//    -> d:DirectDeclarator                        // name of function
-//       "(" params:ParameterDeclarationClause ")" // parameters
-//       cv:CVQualifierSeqOpt                      // optional "const"
-//       e:ExceptionSpecificationOpt               // optional "throw" clause
-//       // sm: I doubt cv-flags can go after this "asm" ...
-//       "asm" "(" s:StringLiteral ")"             // <---- this
-//         { return new D_func(loc, d, params, cv, e); }
-
-  // array with qualifier in the brackets; see the version for
-  // DirectAbstractDeclarator for comments
-  -> d:DirectDeclarator "[" q:CVQualifierSeq "]"          // C99
-    {
-      // FIX: CVQualifierSeq goes on the array
-      return new D_array(loc, d, NULL /*size*/);
-    }
-}
-
-
-nonterm(enum CVFlags) CVQualifier {
-  -> "restrict"          { return CV_RESTRICT; }          // C99
 }
 
 
@@ -412,75 +521,10 @@ nonterm(IDeclarator*) AbstractDeclarator {
 nonterm(IDeclarator*) DirectAbstractDeclarator {
   -> "(" attrspec:AttributeSpecifierList d:AbstractDeclarator ")"
        { return new D_grouping(loc, d); }
-
-  // array with qualifier in the brackets
-  -> d:DirectAbstractDeclaratorOpt "[" q:CVQualifierSeq "]"        // C99
-    {
-      // FIX: Ben says the CVQualifierSeq goes on the array itself,
-      // just as if the array were a pointer and it was on the pointer
-      return new D_array(loc, d, NULL /*size*/);
-    }
 }
 
 
-//  nonterm(TS_classSpec*) ClassSpecifier {
-//    -> k:ClassKey n:ClassHeadNameOpt b:BaseClauseOpt "{" memb:MemberDeclarationSeqOpt "}"
-//           // dsw: Should this work?  It causes a the popClassName() to pop an empty stack
-//           attrspec:AttributeSpecifierList
-//         { popClassName(); return new TS_classSpec(loc, k, n, b, memb); }
-//  }
-
-
-// Designated Initializers
-nonterm(Initializer*) InitializerClause {
-  // obsolescent form
-  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Designated-Inits.html
-  -> d:Identifier ":" init:SimpleInitializerClause
-    { return new IN_designated(loc, FakeList<Designator>::makeList(new FieldDesignator(loc, d)),
-                               init); }
-  // C99 official form; C99 standard section 6.7.8
-  -> dl:DesignatorList "=" init:SimpleInitializerClause
-    { return new IN_designated(loc, dl, init); }
-}
-
-nonterm(FakeList<Designator>*) DesignatorList {
-  -> d:Designator
-    { return FakeList<Designator>::makeList(d); }
-  -> d:Designator dl:DesignatorList
-    { d->setNext(dl->first());
-    return FakeList<Designator>::makeList(d); }
-}
-
-nonterm(Designator*) Designator {
-  -> "." id:Identifier
-    { return new FieldDesignator(loc, id); }
-  -> "[" idx_expr:ConstantExpression "]"
-    { return new SubscriptDesignator(loc, idx_expr, NULL); }
-  // range designator "[ 1 ... 3 ] =".  This is a gcc-ism:
-  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Designated-Inits.html
-  -> "[" idx_expr:ConstantExpression "..." idx_expr2:ConstantExpression "]"
-    { return new SubscriptDesignator(loc, idx_expr, idx_expr2); }
-}
-
-// ------ implicit int for cast expressions ------
-
-nonterm(Expression*) CastExpression {
-  -> "(" t:ImplicitIntTypeId ")" e:CastExpression
-       { return new E_cast(t, e); }
-}
-
-nonterm(TypeSpecifier*) ImplicitIntTypeSpecifier {
-  -> m:UberCVQualifierSeq
-       { UberModifiers k = uberCombine(loc, UM_INT, m);
-         return new_TS_simple(loc, uberCVFlags(m), uberSimpleType(loc, k)); }
-}
-
-nonterm(ASTTypeId*) ImplicitIntTypeId {
-  -> spec:ImplicitIntTypeSpecifier
-       { return new ASTTypeId(spec, new Declarator(new D_name(loc, NULL), NULL)); }
-}
-
-// ------ attributes ------
+// -- attributes themselves --
 // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Attribute-Syntax.html
 
 // "A word (which may be an identifier such as unused, or a reserved
@@ -614,7 +658,7 @@ nonterm AttributeSpecifierList {
   description, so I explored a bit with gcc-2 and gcc-2.
   in/gnu/attr02.c contains a variety of syntax that gcc-3 accepts;
   gcc-2 accepts most of it.
-  
+
   Based on this exploration, I decided to put attributes in a number
   of places in cc.gr (via this gnu.gr extension grammar), listed
   below.  In some cases I also determined (manually) the set of
