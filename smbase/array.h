@@ -274,6 +274,20 @@ public:      // funcs
 
 // I want const polymorphism!
 
+                        
+template <class T>
+class ArrayStackPopper {
+private:
+  ArrayStack<T> &stk;
+  
+public:
+  ArrayStackPopper(ArrayStack<T> &s) : stk(s) {}
+  ArrayStackPopper(ArrayStack<T> &s, T const &pushVal) 
+    : stk(s) { stk.push(pushVal); }
+  ~ArrayStackPopper()
+    { stk.pop(); }
+};
+
 
 // ------------------- ObjArrayStack -----------------
 // an ArrayStack of owner pointers
