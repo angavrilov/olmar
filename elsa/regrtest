@@ -197,6 +197,12 @@ TR_FLAGS=doOverload,mustBeUnambiguous$TR_EXTRA
 testparse() {
   runTest perl ./multitest.pl ./ccparse -tr doOperatorOverload,$TR_FLAGS in/$1
 }
+testparse_strict() {
+  # this is for tests that include things that should be diagnosed
+  # as errors, but (for the moment) require the "strict" flag for
+  # that to occur
+  runTest perl ./multitest.pl ./ccparse -tr strict,doOperatorOverload,$TR_FLAGS in/$1
+}
 testparse_KandR() {
   runTest perl ./multitest.pl ./ccparse -tr kandr_c_lang,doOperatorOverload,$TR_FLAGS in/$1
 }
@@ -477,11 +483,14 @@ testparse t0256.cc
 testparse t0257.cc
 testparse t0258.cc
 testparse t0259.cc
-testparse t0260.cc
+testparse_strict t0260.cc
 testparse t0261.cc
 testparse t0262.cc
 testparse t0263.cc
 testparse t0264.cc
+failparse t0265.cc "<dependent> needs to carry more information"
+testparse t0266.cc
+# it's not clear whether t0267.cc is valid C++ or not, no point in testing it here
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

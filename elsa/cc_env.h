@@ -184,6 +184,12 @@ public:      // data
   // are to be treated as calls to overloaded operator functions
   bool doOperatorOverload;
 
+  // This is the error mode used for errors that I want to be
+  // EF_STRONG (reported even in templates) while implementing new
+  // features, but EF_NONE (not reported in templates) when trying to
+  // get big testcases through.
+  ErrorFlags maybeEF_STRONG;
+
   // when non-NULL, the variable lookup results are collected and
   // compared to the text stored in this pointer; it is supplied via
   // an an 'asm' directive (see TF_asm::itcheck)

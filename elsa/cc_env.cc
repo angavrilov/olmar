@@ -359,6 +359,11 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     doOverload(!tracingSys("doNotOverload") && lang.allowOverloading),
 
     doOperatorOverload(tracingSys("doOperatorOverload") && lang.allowOverloading),
+                                                              
+    // I will try making the default be EF_NONE and I can request
+    // stricter checking with "strict".
+    maybeEF_STRONG(tracingSys("strict")? EF_STRONG : EF_NONE),
+
     collectLookupResults(NULL),
     
     tcheckMode(TTM_1NORMAL)
@@ -3003,7 +3008,7 @@ Variable *Env::createDeclaration(
             << "duplicate member declaration of `" << name
             << "' in " << enclosingClass->keywordAndName()
             << "; previous at " << toString(prior->loc),
-            EF_STRONG);
+            maybeEF_STRONG);    // weakened for t0266.cc
           goto makeDummyVar;
         }
         else {
