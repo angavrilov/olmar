@@ -471,9 +471,14 @@ public:
   // ultimately succeed to parse the input, or might reach a
   // point where it cannot proceed, and therefore dies.  (See
   // comments at top of glr.cc for more details.)
-  ArrayStack<StackNode*> activeParsers;     // (refct list)
+  ArrayStack<StackNode*> topmostParsers;     // (refct list)
 
-  // index: StateId -> index in 'activeParsers' of unique parser
+  // persistent array that I swap with 'topmostParsers' during
+  // 'rwlShiftTerminals' to avoid extra copying or allocation;
+  // this should be regarded as variable local to that function
+  ArrayStack<StackNode*> prevTopmost;        // (refct list)
+
+  // index: StateId -> index in 'topmostParsers' of unique parser
   // with that state, or INDEX_NO_PARSER if none has that state
   typedef unsigned char ParserIndexEntry;
   enum { INDEX_NO_PARSER = 255 };
@@ -495,11 +500,11 @@ public:
 
   // parsers that haven't yet had a chance to try to make progress
   // on this token
-  #if USE_DELAYED_STATES
-    StackNodeWorklist parserWorklist;         // (refct list)
-  #else
-    ArrayStack<StackNode*> parserWorklist;    // (refct list)
-  #endif
+  //#if USE_DELAYED_STATES
+  //  StackNodeWorklist parserWorklist;         // (refct list)
+  //#else
+  //  ArrayStack<StackNode*> parserWorklist;    // (refct list)
+  //#endif
 
   // ---- scratch space re-used at token-level (or finer) granularity ----
   // to be regarded as a local variable of GLR::doReduction; since
@@ -545,6 +550,7 @@ private:    // funcs
   void deallocateSemanticValue(SymbolId sym, SemanticValue sval);
   SemanticValue grabTopSval(StackNode *node);
 
+  #if 0
   int glrParseAction(StackNode *parser, ActionEntry action,
                      ArrayStack<PendingShift> &pendingShifts);
   void doLimitedReductions(StackNode *parser, ActionEntry action,
@@ -561,12 +567,14 @@ private:    // funcs
                                    SemanticValue sval
                                    SOURCELOCARG( SourceLocation const &loc ) );
   void glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts);
-  StackNode *findActiveParser(StateId state);
+  #endif // 0
+
+  StackNode *findTopmostParser(StateId state);
   StackNode *makeStackNode(StateId state);
   void writeParseGraph(char const *input) const;
   void clearAllStackNodes();
-  void addActiveParser(StackNode *parser);
-  void pullFromActiveParsers(StackNode *parser);
+  void addTopmostParser(StackNode *parser);
+  void pullFromTopmostParsers(StackNode *parser);
   bool canMakeProgress(StackNode *parser);
   void dumpGSS(int tokenNumber) const;
   void dumpGSSEdge(FILE *dest, StackNode const *src,
@@ -575,18 +583,18 @@ private:    // funcs
   void buildParserIndex();
   void printParseErrorMessage(StateId lastToDie);
   bool cleanupAfterParse(CycleTimer &timer, SemanticValue &treeTop);
-  bool nondeterministicParseToken(ArrayStack<PendingShift> &pendingShifts);
+  bool nondeterministicParseToken();
   static bool innerGlrParse(GLR &glr, LexerInterface &lexer, SemanticValue &treeTop);
   SemanticValue doReductionAction(
     int productionId, SemanticValue const *svals
     SOURCELOCARG( SourceLocation const &loc ) );
 
-  void rwlReductionAlgorithm(
-    ArrayStack<PendingShift> &pendingShifts, StateId &lastToDie);
-  int rwlParseAction(StackNode *parser, ActionEntry action,
-                     ArrayStack<PendingShift> &pendingShifts);
-  void rwlEnqueueReductions(
-    StackNode *parser, SiblingLink *mustUseLink, int prodIndex);
+  void rwlProcessWorklist();
+  SiblingLink *rwlShiftNonterminal(StackNode *leftSibling, int lhsIndex,
+                                   SemanticValue /*owner*/ sval
+                                   SOURCELOCARG( SourceLocation const &loc ) );
+  int rwlEnqueueReductions(StackNode *parser, ActionEntry action,
+                           SiblingLink *sibLink);
   void rwlCollectPathLink(
     ReductionPathQueue::Path *proto, int popsRemaining,
     StackNode *currentNode, SiblingLink *mustUseLink, SiblingLink *linkToAdd);
@@ -595,8 +603,7 @@ private:    // funcs
     int popsRemaining,
     StackNode *currentNode,
     SiblingLink *mustUseLink);
-  void rwlLimitedReductions(StackNode *parser, ActionEntry action,
-                            SiblingLink *sibLink);
+  void rwlShiftTerminals();
 
 public:     // funcs
   GLR(UserActions *userAct, ParseTables *tables);
