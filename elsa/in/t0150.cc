@@ -55,27 +55,3 @@ void f1()
 }
 
 
-
-//        F     G     .
-//        | \ / |     .
-//        | / \ |     .
-//        H     I     .
-//         \   /      .
-//          \ /       .
-//           J        .
-struct F {};
-struct G {};
-struct H : F, G {};
-struct I : F, G {};
-struct J : H, I {};
-
-
-struct HH {
-  operator H* ();
-};
-
-struct II {
-  operator I* ();
-};
-
-

@@ -107,6 +107,15 @@ void CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
     Type *lhsRet = pre(lhsIter.data(), true /*isLeft*/);
     if (!lhsRet) continue;
 
+    if (isAssignment) {
+      // the way the assignment built-ins work, we only need to
+      // instantiate with the types to which the LHS convert, to
+      // get a complete set (i.e. no additional instantiations
+      // would change the answer)
+      addTypeUniquely(instTypes, lhsRet);
+      continue;
+    }
+
     SFOREACH_OBJLIST_NC(Type, rhsRets, rhsIter) {
       Type *rhsRet = pre(rhsIter.data(), false /*isLeft*/);
       if (!rhsRet) continue;
@@ -169,13 +178,18 @@ void CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
     else {
       // left parameter is a reference, and we need two versions,
       // one with volatile and one without
-      Type *Tv = env.tfac.applyCVToType(SL_INIT, CV_VOLATILE, T, NULL /*syntax*/);
+      //
+      // update: now that I directly instantiate the LHS types,
+      // without first stripping their volatile-ness, I don't need
+      // to add volatile versions of types that don't already have
+      // volatile versions present
+      //Type *Tv = env.tfac.applyCVToType(SL_INIT, CV_VOLATILE, T, NULL /*syntax*/);
 
       Type *Tr = env.tfac.makeRefType(SL_INIT, T);
-      Type *Tvr = env.tfac.makeRefType(SL_INIT, Tv);
-      
+      //Type *Tvr = env.tfac.makeRefType(SL_INIT, Tv);
+
       resolver.processCandidate(env.createBuiltinBinaryOp(op, Tr, T));
-      resolver.processCandidate(env.createBuiltinBinaryOp(op, Tvr, T));
+      //resolver.processCandidate(env.createBuiltinBinaryOp(op, Tvr, T));
     }
   }
 }

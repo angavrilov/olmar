@@ -441,9 +441,13 @@ void Env::setupOperatorOverloading()
   // T* VQ & operator= (T* VQ &, T*);
   addBuiltinBinaryOp(OP_ASSIGN, rvalIsPointer_leftIsRef, pointerToAny, true /*assignment*/);
 
-  // TODO: the correlated-pair machinery is overkill; the LHS arg
-  // type is all that's relevant, because it can't convert to
-  // any LUB that isn't equal to itself
+  // the correlated-pair machinery is overkill; the LHS arg type is
+  // all that's relevant, because it can't convert to any LUB that
+  // isn't equal to itself
+  //
+  // update: I've now modified the way pattern instantiation behaves
+  // for assignment operators so that it ignores the RHS types when
+  // choosing what to instantiate
 
   // ------------ 13.6 para 20 ------------
   // 20: assignment to enumeration and ptr-to-member
