@@ -2,7 +2,7 @@
 # see license.txt for copyright and terms of use
 
 # I uncomment this temporarily to just build certain modules
-#tmp: elkhound
+#tmp: elkhound libelkhound.a
 
 # main targets: two C parsers and one C++ parser
 all: elkhound libelkhound.a c cc2/cc2.exe

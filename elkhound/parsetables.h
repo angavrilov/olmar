@@ -178,6 +178,12 @@ public:     // data
   // used to access the compressed action table; it maps the terminal
   // id (as reported by the lexer) to the proper action table column
   TermIndex *actionIndexMap;             // (nullable owner)
+  //
+  // this is a map from states to the beginning of the action table
+  // row that pertains to that state; it effectively factors the
+  // states into equivalence classes
+  int actionRows;                        // rows in actionTable[]
+  ActionEntry **actionRowPointers;       // (nullable owner ptr to serfs)
 
 private:    // funcs
   void alloc(int numTerms, int numNonterms, int numStates, int numProds,
@@ -203,7 +209,7 @@ public:     // funcs
   ActionEntry &actionEntry(int stateId, int termId)
     { return actionTable[stateId*actionCols + termId]; }
   int actionTableSize() const
-    { return numStates * actionCols; }
+    { return actionRows * actionCols; }
   GotoEntry &gotoEntry(int stateId, int nontermId)
     { return gotoTable[stateId*numNonterms + nontermId]; }
   int gotoTableSize() const
@@ -223,7 +229,7 @@ public:     // funcs
   // query action table, without checking the error bitmap
   ActionEntry getActionEntry_noError(int stateId, int termId) {
     #if ENABLE_GCS_COMPRESSION
-      return actionTable[stateId*actionCols + actionIndexMap[termId]];
+      return actionRowPointers[stateId][actionIndexMap[termId]];
     #else
       return actionEntry(stateId, termId);
     #endif
@@ -290,6 +296,7 @@ public:     // funcs
   // 'errorBits' bitmap
   void computeErrorBits();
   void mergeActionColumns();
+  void mergeActionRows();
 };
 
 

@@ -3126,6 +3126,7 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
 
   if (ENABLE_GCS_COMPRESSION) {
     tables->mergeActionColumns();
+    tables->mergeActionRows();
   }
 }
 

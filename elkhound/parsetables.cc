@@ -21,10 +21,13 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
 {
   owning = true;
 
-  numTerms = actionCols = t;
+  numTerms = t;
   numNonterms = nt;
   numStates = s;
   numProds = p;
+
+  actionCols = numTerms;
+  actionRows = numStates;
 
   actionTable = new ActionEntry[actionTableSize()];
   memset(actionTable, 0, sizeof(actionTable[0]) * actionTableSize());
@@ -51,7 +54,9 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
   uniqueErrorRows = 0;
   errorBits = NULL;
   errorBitsPointers = NULL;
+
   actionIndexMap = NULL;
+  actionRowPointers = NULL;
 }
 
 
@@ -76,10 +81,13 @@ ParseTables::~ParseTables()
       delete[] actionIndexMap;
     }
   }
-  
-  // this one is always owned
+
+  // these are always owned
   if (errorBitsPointers) {
     delete[] errorBitsPointers;
+  }            
+  if (actionRowPointers) {
+    delete[] actionRowPointers;
   }
 }
 
@@ -181,7 +189,6 @@ void ParseTables::xfer(Flatten &flat)
 }
 
 
-// see emittables.cc for ParseTables::emitConstructionCode()
 ParseTables *readParseTablesFile(char const *fname)
 {
   // assume it's a binary grammar file and try to
@@ -218,6 +225,8 @@ ParseTables::ParseTables(bool o)
 // -------------------- table compression --------------------
 void ParseTables::computeErrorBits()
 {                     
+  traceProgress() << "computing errorBits[]\n";
+
   // should only be done once
   xassert(!errorBits);       
 
@@ -364,10 +373,10 @@ void ParseTables::mergeActionColumns()
     // fill in the action index map
     TermIndex ti = (TermIndex)c;
     xassert(ti == c);     // otherwise value truncation happened
-    actionIndexMap[t] = c;
+    actionIndexMap[t] = ti;
   }
 
-  trace("compression") 
+  trace("compression")
     << "action table: from " << (actionTableSize() * sizeof(ActionEntry))
     << " down to " << (numStates * numColors * sizeof(ActionEntry))
     << " bytes\n";
@@ -376,6 +385,137 @@ void ParseTables::mergeActionColumns()
   delete[] actionTable;
   actionTable = newTable;
   actionCols = numColors;
+}
+
+
+void ParseTables::mergeActionRows()
+{
+  traceProgress() << "merging action rows\n";
+
+  // can only do this if we've already pulled out the errors
+  xassert(errorBits);
+
+  // I should already have a column map
+  xassert(actionIndexMap);
+
+  // for now I assume we don't have a map yet
+  xassert(!actionRowPointers);
+
+  // compute graph of conflicting 'action' rows
+  // (will be symmetric)
+  Bit2d graph(point(numStates, numStates));
+  graph.setall(0);
+
+  // fill it in
+  for (int s1=0; s1 < numStates; s1++) {
+    for (int s2=0; s2 < s1; s2++) {
+      // does row 's1' conflict with row 's2'?
+      for (int t=0; t < actionCols; t++) {    // t is an equivalence class of terminals
+        ActionEntry a1 = actionTable[s1*actionCols + t];
+        ActionEntry a2 = actionTable[s2*actionCols + t];
+
+        if (isErrorAction(a1) ||
+            isErrorAction(a2) ||
+            a1 == a2) {
+          // no problem
+        }
+        else {
+          // conflict!
+          graph.set(point(s1, s2));
+          graph.set(point(s2, s1));
+          break;
+        }
+      }
+    }
+  }
+  
+  // color the graph
+  Array<int> color(numStates);      // state -> color (equivalence class)
+  int numColors = colorTheGraph(color, graph);
+  
+  // build a new, compressed action table
+  ActionEntry *newTable = new ActionEntry[numColors * actionCols];
+  memset(newTable, 0, sizeof(newTable[0]) * numColors * actionCols);
+
+  // merge rows in 'actionTable' into those in 'newTable'
+  // according to the 'color' map
+  
+  // actionTable[]:
+  //
+  //             t0    t1    t2    t3      // terminal equivalence classes
+  //   s0
+  //   s1
+  //   s2
+  //    ...
+  //   /*states*/
+
+  // newTable[]:
+  //
+  //             t0    t1    t2    t3      // terminal equivalence classes
+  //   c0
+  //   c1
+  //   c2    < e.g., union of state1 and state4 (color[1]==color[4]==2) >
+  //    ...
+  //   /*state equivalence classes (colors)*/
+
+  actionRowPointers = new ActionEntry* [numStates];
+  for (int s=0; s<numStates; s++) {
+    int c = color[s];
+
+    // merge actionTable row 's' into newTable row 'c'
+    for (int t=0; t<actionCols; t++) {
+      ActionEntry &dest = newTable[c*actionCols + t];
+
+      ActionEntry src = actionTable[s*actionCols + t];
+      if (!isErrorAction(src)) {
+        // make sure there's no conflict (otherwise the graph
+        // coloring algorithm screwed up)
+        xassert(isErrorAction(dest) ||
+                dest == src);
+
+        // merge the entry
+        dest = src;
+      }
+    }
+
+    // fill in the row pointer map
+    actionRowPointers[s] = newTable + c*actionCols;
+  }
+
+  trace("compression")
+    << "action table: from " << (numStates * actionCols * sizeof(ActionEntry))
+    << " down to " << (numColors * actionCols * sizeof(ActionEntry))
+    << " bytes\n";
+
+  // replace the existing table with the compressed one
+  delete[] actionTable;
+  actionTable = newTable;
+  actionRows = numColors;
+  
+  // how many single-value rows?
+  {
+    int ct=0;
+    for (int s=0; s<actionRows; s++) {
+      int val = 0;
+      for (int t=0; t<actionCols; t++) {
+        int entry = actionRowPointers[s][t];
+        if (val==0) {
+          val = entry;
+        }
+        else if (entry != 0 && entry != val) {
+          // not all the same
+          goto next_s;
+        }
+      }
+      
+      // all same
+      ct++;
+      
+    next_s:
+      ;
+    }
+    trace("compression") << ct << " same-valued rows\n";
+  }
 }
 
 
@@ -388,7 +528,7 @@ int ParseTables::colorTheGraph(int *color, Bit2d &graph)
 {
   int n = graph.Size().x;  // same as y
 
-  if (tracingSys("graphColor")) {
+  if (tracingSys("graphColor") && n < 20) {
     graph.print();
   }
 
@@ -517,6 +657,9 @@ void emitTable(EmitCode &out, EltType const *table, int size, int rowLength,
   
   if (size * sizeof(*table) > 50) {    // suppress small ones
     out << "  // storage size: " << size * sizeof(*table) << " bytes\n";
+    if (size % rowLength == 0) {
+      out << "  // rows: " << (size/rowLength) << "  cols: " << rowLength << "\n";
+    }
   }
 
   out << "  static " << typeName << " " << tableName << "[" << size << "] = {";
@@ -552,6 +695,27 @@ stringBuilder& operator<< (stringBuilder &sb, ParseTables::ProdInfo const &info)
 }
 
 
+template <class EltType>
+void emitOffsetTable(EmitCode &out, EltType **table, EltType *base, int size,
+                     char const *typeName, char const *tableName, char const *baseName)
+{
+  out << "  ret->" << tableName << " = new " << typeName << " [" << size << "];\n";
+
+  // make the pointers persist by storing a table of offsets
+  Array<int> offsets(size);
+  for (int i=0; i < size; i++) {
+    offsets[i] = table[i] - base;
+  }
+  emitTable(out, (int*)offsets, size, 16, "int", stringc << tableName << "_offsets");
+
+  // at run time, interpret the offsets table
+  out << "  for (int i=0; i < " << size << "; i++) {\n"
+      << "    ret->" << tableName << "[i] = ret->" << baseName
+      <<                                " + " << tableName << "_offsets[i];\n"
+      << "  }\n";
+}
+
+
 // emit code for a function which, when compiled and executed, will
 // construct this same table (except the constructed table won't own
 // the table data, since it will point to static program data)
@@ -574,6 +738,7 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
   SET_VAR(numStates);
   SET_VAR(numProds);
   SET_VAR(actionCols);
+  SET_VAR(actionRows);
   out << "  ret->startState = (StateId)" << (int)startState << ";\n";
   SET_VAR(finalProductionIndex);
   SET_VAR(errorBitsRowSize);
@@ -623,6 +788,11 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
               "ErrorBitsEntry", "errorBits");
     out << "  ret->errorBits = errorBits;\n";
     out << "\n";
+
+    emitOffsetTable(out, errorBitsPointers, errorBits, numStates,
+                    "ErrorBitsEntry*", "errorBitsPointers", "errorBits");
+
+    #if 0     // delete me
     out << "  ret->errorBitsPointers = new ErrorBitsEntry* [" << numStates << "];\n";
 
     // make the pointers persist by storing a table of offsets
@@ -636,7 +806,8 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
     // at run time, interpret the offsets table
     out << "  for (int s=0; s < " << numStates << "; s++) {\n"
         << "    ret->errorBitsPointers[s] = ret->errorBits + offsets[s];\n"
-        << "  }\n";
+        << "  }\n";       
+    #endif // 0
   }
   out << "\n";
 
@@ -648,6 +819,16 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
     emitTable(out, actionIndexMap, numTerms, 16,
               "TermIndex", "actionIndexMap");
     out << "  ret->actionIndexMap = actionIndexMap;\n";
+  }
+  out << "\n";
+
+  // actionRowPointers
+  if (!actionRowPointers) {
+    out << "  ret->actionRowPointers = NULL;\n";
+  }
+  else {
+    emitOffsetTable(out, actionRowPointers, actionTable, numStates,
+                    "ActionEntry*", "actionRowPointers", "actionTable");
   }
   out << "\n";
 
