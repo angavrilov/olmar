@@ -58,7 +58,7 @@ ccflags += -O2 -DNDEBUG
 ccflags += -DNO_GLR_SOURCELOC
 
 # even fewer debugging checks
-ccflags += -DNDEBUG_NO_ASSERTIONS
+#ccflags += -DNDEBUG_NO_ASSERTIONS
 
 # turn on to enable bison's debugging features
 #YYDEBUG := -DYYDEBUG=1

@@ -167,7 +167,7 @@
 // enables tracking of some statistics useful for debugging and profiling
 #define DO_ACCOUNTING 1
 
-// unroll the inner loop; approx. 5% performance improvement
+// unroll the inner loop; approx. 3% performance improvement
 #define USE_UNROLLED_REDUCE 1
 
 // some things we track..
@@ -861,8 +861,8 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
     // at least one other place, so modifications will usually have
     // to be done in both places.
     //
-    // This code is the inner loop of the parsing algorithm, so it's
-    // a bit hairy for its performance optimizations.
+    // This code is the core of the parsing algorithm, so it's a bit
+    // hairy for its performance optimizations.
     if (activeParsers.length() == 1) {
       StackNode *parser = activeParsers[0];
       xassertdb(parser->referenceCount==1);     // 'activeParsers[0]' is referrer
