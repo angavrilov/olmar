@@ -40,9 +40,6 @@ TOCHECK += cc.in10
 TOCHECK += cc.in12
 TOCHECK += cc.in13
 TOCHECK += cc.in14
-
-# FIXED: This was a real bug.
-# p = new int[x]; -> ( (p)= (new int []));
 TOCHECK += cc.in14a
 
 # DEFERRED: Won't print scope operator; When you print a PQname, you
@@ -84,10 +81,7 @@ TOCHECK += cc.in29
 # ( (operator-delete) ( (x)));
 # TOCHECK += cc.in31
 
-# DSW: Anonymous unions printed incorrectly.
-# union (null) {
-# TOCHECK += cc.in32
-
+TOCHECK += cc.in32
 TOCHECK += cc.in33
 
 # Stopping here as there are too many errors.
