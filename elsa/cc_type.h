@@ -260,6 +260,9 @@ public:      // funcs
   // that come from templates, but all arguments have been supplied)
   bool isTemplate() const;
 
+  // true if the class has RTTI/vtable
+  bool hasVirtualFns() const;
+
   static char const *keywordName(Keyword k);
 
   // AtomicType interface
