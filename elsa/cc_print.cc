@@ -1095,6 +1095,10 @@ void SubscriptDesignator::print(PrintEnv &env)
   xassert(idx_expr);
   codeout co(env, "", "[", "]");
   idx_expr->print(env);
+  if (idx_expr2) {
+    env << " ... ";
+    idx_expr2->print(env);
+  }
 }
 
 // InitLabel

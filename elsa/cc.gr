@@ -1371,8 +1371,12 @@ nonterm(FakeList<Designator>*) DesignatorList {
 nonterm(Designator*) Designator {
   -> "." id:Identifier
     { return new FieldDesignator(id); }
-  -> "[" idx_expr:ConstantExpressionOpt "]"
-    { return new SubscriptDesignator(idx_expr); }
+  -> "[" idx_expr:ConstantExpression "]"
+    { return new SubscriptDesignator(idx_expr, NULL); }
+  // range designator "[ 1 ... 3 ] =".  This is a gcc-ism:
+  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Designated-Inits.html#Designated%20Inits
+  -> "[" idx_expr:ConstantExpression "..." idx_expr2:ConstantExpression "]"
+    { return new SubscriptDesignator(idx_expr, idx_expr2); }
 }
 
 nonterm(IN_compound*) CompoundInitializer {

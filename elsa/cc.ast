@@ -604,8 +604,8 @@ class Designator {
   }
 
   -> FieldDesignator(StringRef id);
-  -> SubscriptDesignator(Expression /*nullable*/ idx_expr // taken from D_array
-                         );
+  -> SubscriptDesignator(Expression idx_expr, // taken from D_array
+                         Expression /*nullable*/ idx_expr2);
 }
 
 // gnu extension to attach particular elements of an initializer list

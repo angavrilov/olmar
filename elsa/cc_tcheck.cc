@@ -4276,14 +4276,21 @@ SpecialExpr Expression::getSpecial() const
 // TODO: all the initializers need to be checked for compatibility
 // with the types they initialize
 
+static void compile_time_compute_int_expr(Env &env, Expression *e, int &x, char *error_msg) {
+  e->tcheck(e, env);
+  if (!e->constEval(env, x)) env.error(error_msg);
+}
+
 static void check_designator_list(Env &env, FakeList<Designator> *dl)
 {
   xassert(dl);
   FAKELIST_FOREACH_NC(Designator, dl, d) {
     if (SubscriptDesignator *sd = dynamic_cast<SubscriptDesignator*>(d)) {
-      sd->idx_expr->tcheck(sd->idx_expr, env);
-      if (!sd->idx_expr->constEval(env, sd->idx_computed)) {
-        env.error("compile-time computation of designator array index fails");
+      compile_time_compute_int_expr(env, sd->idx_expr, sd->idx_computed,
+                                    "compile-time computation of range start designator array index fails");
+      if (sd->idx_expr2) {
+        compile_time_compute_int_expr(env, sd->idx_expr2, sd->idx_computed2,
+                                      "compile-time computation of range end designator array index fails");
       }
     }
     // nothing to do for FieldDesignator-s
