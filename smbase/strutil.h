@@ -2,8 +2,8 @@
 // various string utilities built upon the 'str' module
 // Scott McPeak, July 2000
 
-#ifndef __STRUTIL_H
-#define __STRUTIL_H
+#ifndef STRUTIL_H
+#define STRUTIL_H
 
 #include "str.h"      // string
 
@@ -12,7 +12,7 @@
 string replace(char const *src, char const *oldstr, char const *newstr);
 
 // works like unix "tr": the source string is translated character-by-character,
-// with occurrances of 'srcchars' replaced by corresponding characters from
+// with occurrences of 'srcchars' replaced by corresponding characters from
 // 'destchars'; further, either set may use the "X-Y" notation to denote a
 // range of characters from X to Y
 string translate(char const *src, char const *srcchars, char const *destchars);
@@ -63,7 +63,11 @@ string sm_basename(char const *src);
 string dirname(char const *src);
 
 
-// return 'prefix', pluralized if n!=1
+// return 'prefix', pluralized if n!=1; for example
+//   plural(1, "egg") yields "egg", but
+//   plural(2, "egg") yields "eggs";
+// it knows about a few irregular pluralizations (see the source),
+// and the expectation is I'll add more irregularities as I need them
 string plural(int n, char const *prefix);
 
 
@@ -74,4 +78,4 @@ string plural(int n, char const *prefix);
 char *copyToStaticBuffer(char const *src);
 
 
-#endif // __STRUTIL_H
+#endif // STRUTIL_H
