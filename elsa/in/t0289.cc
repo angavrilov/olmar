@@ -1,5 +1,5 @@
 // t0289.cc
-// repeated 'using' things
+// repeated 'using' declarations
 
 typedef int Int;
 

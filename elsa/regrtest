@@ -521,7 +521,7 @@ testparse t0285.cc
 testparse t0286.cc
 testparse t0287.cc
 failparse t0288.cc "ambiguous function template instantiation (not minimized)"
-failparse t0289.cc "repeated using things"
+testparse t0289.cc # "repeated using declarations"
 failparse t0290.cc "problem matching definition and decl with <dependent>"
 testparse t0291.cc
 testparse t0292.cc
@@ -683,7 +683,7 @@ testparse d0105.cc
 failparse d0106.cc "gcc-2 bug: missing template <>"
 testparse d0107.cc # "assertion failure in MatchTypes"
 testparse d0108.cc
-failparse d0109.cc "'using' same namespace twice causes error"
+testparse d0109.cc # "duplicate 'using' declaration"
 failparse d0110.cc "class specialization without 'template' prefix?"
 testparse d0111.cc # "failure to use 'typename' when defining static member"
 failparse d0112.cc "some template dependent name problem"

@@ -2841,6 +2841,17 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
   Variable *prior = lookupVariableForDeclaration(scope, name, type,
     type->isFunctionType()? type->asFunctionType()->getReceiverCV() : CV_NONE);
 
+  // 10/20/04: 7.3.3 para 8 says duplicate aliases are allowed wherever
+  // duplicate declarations are normally allowed.  I don't quite understand
+  // where they are normally allowed; the example suggests they are ok
+  // at global/namespace scope, so that is what I will allow...
+  // (in/d0109.cc) (in/t0289.cc) (in/t0161.cc) (in/std/7.3.3f.cc)
+  if (prior &&
+      prior->usingAlias == origVar &&
+      (scope->isGlobalScope() || scope->isNamespace())) {
+    return;
+  }
+
   // check for overloading
   OverloadSet *overloadSet = getOverloadForDeclaration(prior, type);
 

@@ -2,6 +2,7 @@
 
 namespace MagickLib {
   typedef enum {ReadMode, WriteMode, IOMode} NoiseType;
+  //typedef int NoiseType;    // same effect
 }
 
 namespace Magick {

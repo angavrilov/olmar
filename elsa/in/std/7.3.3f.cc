@@ -6,7 +6,7 @@ namespace A {
 
 namespace A1 {
   using A::i;
-  //using A::i;         // OK: double declaration  (but Elsa rejects it)
+  using A::i;                     // OK: double declaration
 }
 
 void f()
