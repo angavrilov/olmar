@@ -916,7 +916,7 @@ void E_keywordCast::iprint(PrintEnv &env)
   env << toString(key);
   {
     codeout co(env, "", "<", ">");
-    type->print(env);
+    ctype->print(env);
   }
   codeout co(env, "", "(", ")");
   expr->print(env);
@@ -935,7 +935,7 @@ void E_typeidType::iprint(PrintEnv &env)
 {
   olayer ol("E_typeidType::iprint");
   codeout co(env, "typeid", "(", ")");
-  type->print(env);
+  ttype->print(env);
 }
 
 // ----------------------- Initializer --------------------

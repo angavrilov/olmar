@@ -2872,13 +2872,13 @@ Type const *E_throw::itcheck(Env &env)
 
 Type const *E_keywordCast::itcheck(Env &env)
 {
-  type = type->tcheck(env, NULL /*sizeExpr*/);
+  ctype = ctype->tcheck(env, NULL /*sizeExpr*/);
   expr->tcheck(expr, env);
   
   // TODO: make sure that 'expr' can be cast to 'type'
   // using the 'key'-style cast
   
-  return type->getType();
+  return ctype->getType();
 }
 
 
@@ -2891,7 +2891,7 @@ Type const *E_typeidExpr::itcheck(Env &env)
 
 Type const *E_typeidType::itcheck(Env &env)
 {
-  type = type->tcheck(env, NULL /*sizeExpr*/);
+  ttype = ttype->tcheck(env, NULL /*sizeExpr*/);
   return env.type_info_const_ref;
 }
 

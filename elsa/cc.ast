@@ -795,11 +795,11 @@ class Expression {
   -> E_throw(Expression /*nullable*/ expr);
 
   -> E_keywordCast(CastKeyword key,              // dynamic_cast, static_cast, etc.
-                   ASTTypeId type,               // type to cast to
+                   ASTTypeId ctype,              // type to cast to
                    Expression expr);             // expression being cast
 
   -> E_typeidExpr(Expression expr);
-  -> E_typeidType(ASTTypeId type);
+  -> E_typeidType(ASTTypeId ttype);
 }
 
 verbatim {
