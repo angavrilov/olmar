@@ -484,13 +484,6 @@ public:	    // data
   // nice to treat empty like any other symbol
   Nonterminal emptyString;
   
-  // a list of disambiguation heuristics; if we have an ambiguity, and
-  // the ground token sequence of the ambiguous section matches the RHS
-  // of anything in 'tokSeqAmbList', then we only keep the interpretation
-  // whose RHS is the single nonterminal on the LHS of the matching 
-  // tokSeqAmbList rule.. (there are problems here obviously)
-  //ObjList<Production> tokSeqAmbList;
-
   // ---- stuff for emitting treewalk code ----
   // extra user-supplied source in the embedded language,
   // meant to appear in the generated semantic-functions files
@@ -505,7 +498,6 @@ private:    // funcs
   bool parseAnAction(char const *keyword, char const *insideBraces,
                      Production *lastProduction);
 
-  bool parseTokSeqAmb(StrtokParse const &tok);
   Symbol *parseGrammarSymbol(char const *token, string &tag);
   bool parseProduction(ProductionList &prods, StrtokParse const &tok);
 

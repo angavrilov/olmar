@@ -797,13 +797,6 @@ void Grammar::printProductions(ostream &os) const
        !iter.isDone(); iter.adv()) {
     os << " " << iter.data()->toStringWithActions();
   }
-
-  // also print the tokSeqAmbList ..
-  //os << "Grammar tokSeqAmbList:\n";
-  //for (ObjListIter<Production> iter(tokSeqAmbList);
-  //     !iter.isDone(); iter.adv()) {
-  //  os << " " << iter.data()->toStringWithActions();
-  //} 
 }
 
 
@@ -1234,11 +1227,6 @@ bool Grammar::parseLine(char const *preLine, SObjList<Production> &lastProductio
       return declareToken(tok[1], atoi(tok[2]), tok>3? tok[3] : NULL);
     }
 
-    // token sequence disambiguation
-    if (0==strcmp(tok[0], "%tokSeqAmb")) {
-      return parseTokSeqAmb(tok);
-    }
-
     // action or condition?
     if (0==strcmp(tok[0], "%action") || 0==strcmp(tok[0], "%condition")) {
       if (lastProductions.isEmpty()) {
@@ -1290,59 +1278,6 @@ bool Grammar::parseLine(char const *preLine, SObjList<Production> &lastProductio
     cout << "parse error: " << x << endl;
     return false;
   }
-}
-
-
-// parse %tokSeqAmb
-bool Grammar::parseTokSeqAmb(StrtokParse const &)
-{              
-  cout << "%tokSeqAmb is obsolete\n";
-  return false;
-
-  #if 0   // obsolete
-  xassert(0==strcmp(tok[0], "%tokSeqAmb"));
-
-  if (tok < 4  ||  0!=strcmp(tok[2], "->")) {
-    // we require at least one terminal because it would be
-    // strange to have am ambiguity for emptyString (and I guess
-    // if you wanted that you could use 'empty')
-    cout << "directive should be: %tokSeqAmb Nonterminal -> Terminal [...]\n";
-    return false;
-  }
-
-  // parseProduction expects the nonterminal to be first, instead
-  // of the directive symbol, so make a new StrtokParse with all
-  // the tokens shifted over one
-  StrtokParse adjustedTok(tok.join(1, tok-1, " "), " ");
-
-  // now parse it
-  ProductionList prods;
-  if (!parseProduction(prods, adjustedTok)) {
-    return false;
-  }
-
-  // make sure we didn't get any alternatives, and that at least one
-  // production was in fact parsed
-  xassert(prods.count() >= 1);
-  if (prods.count() > 1) {
-    cout << "%tokSeqAmb RHS can't have alternatives (`|')\n";
-    return false;
-  }
-
-  // make sure we only got terminals
-  Production *prod = prods.first();
-  SFOREACH_SYMBOL(prod->right, symIter) {
-    if (!symIter.data()->isTerminal()) {
-      cout << "%tokSeqAmb RHS must be terminals only, no nonterminals\n";
-      return false;
-    }
-  }
-
-  // add it to our list of token sequence disambiguators
-  tokSeqAmbList.append(prods.first());
-
-  return true;
-  #endif // 0
 }
 
 

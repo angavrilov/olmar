@@ -785,13 +785,6 @@ void GLR::mergeAlternativeParses(NonterminalNode &node, AttrContext &actx)
   // ok, they match; just add the reduction to the existing node
   // (and let 'parentAttr' drop on the floor since it was the same anyway)
   node.addReduction(actx.grabReduction());
-
-
-  // the first multi-tree comparison is the tokSeqAmbList; since it is
-  // only supposed to be a heuristic, the above attribute equality should
-  // hold, and by delaying the test until now, it is much easier to
-  // apply the test because I have a uniform list of alternatives
-  applyTokSeqAmbTest(node);
 }
 
 
@@ -840,109 +833,6 @@ TreeNode const *GLR::getParseTree() const
 
   return tn;
 }
-
-
-// -------------- token sequence ambiguity stuff --------------------
-// this whole section is pretty much useless
-
-void GLR::applyTokSeqAmbTest(NonterminalNode &) {}
-bool GLR::tokSeqAmbRuleMatch(Production const *,
-                             SObjList<TerminalNode> const &) { return false ; }
-bool GLR::tokSeqAmbConsequenceMatch(Production const *,
-                                    Production const *) { return false; }
-
-
-#if 0   // obsolete
-void GLR::applyTokSeqAmbTest(NonterminalNode &node)
-{
-  // first, I need the ground token sequence
-  SObjList<TerminalNode> groundTerms;
-  node.getGroundTerms(groundTerms);
-
-  // now, see which tokSeqAmb rule applies (if any)
-  FOREACH_PRODUCTION(tokSeqAmbList, iter) {
-    Production const *tokSeqAmb = iter.data();
-         
-    if (!tokSeqAmbRuleMatch(tokSeqAmb, groundTerms)) {
-      // they don't match
-      continue;
-    }
-
-    // ok, we have a match.  we need to throw away all trees in 'node' that
-    // don't satisfy the tokSeqAmb's match criteria
-    ObjListMutator<Reduction> redMut(node.reductions);
-    while (!redMut.isDone()) {
-      if (!tokSeqAmbConsequenceMatch(tokSeqAmb, redMut.data()->production)) {
-        trace("parse") << "removing alternative "
-                       << redMut.data()->production->rhsString()
-                       << " because it doesn't match tokSeqAmb\n";
-
-        // remove (and delete) it from the list, and advance to
-        // the next reduction
-        redMut.deleteIt();
-      }
-      else {
-        // it passes the test; advance without changing the list
-        redMut.adv();
-      }
-    }
-
-    if (node.reductions.count() == 0) {
-      // if this happens a lot I'll add more diagnostic info..
-      // ("-tr parse" gives it, though)
-      cout << "we threw away all the trees!  this leaves the parse\n"
-              "tree in an inconsistent state.  aborting.\n";
-      xfailure("aborting because we threw away all trees");
-    }
-
-    // since only one tokSeqAmb rule should match, let's stop iterating
-    break;
-  }
-}
-
-
-// does 'tokSeqAmb' rule apply when 'groundTerms' are terms?
-bool GLR::tokSeqAmbRuleMatch(Production const *tokSeqAmb,
-                             SObjList<TerminalNode> const &groundTerms)
-{
-  SObjListIter<Symbol> symIter(tokSeqAmb->right);
-  SObjListIter<TerminalNode> termIter(groundTerms);
-
-  while (!symIter.isDone() && !termIter.isDone()) {
-    xassert(symIter.data()->isTerminal());     // syntactic requirement of input
-
-    if (symIter.data() != termIter.data()->terminalClass) {
-      // no match
-      return false;
-    }
-
-    symIter.adv();
-    termIter.adv();
-  }
-
-  if (symIter.isDone() && termIter.isDone()) {
-    // exhausted both lists at same time: match
-    return true;
-  }
-  else {
-    return false;
-  }
-}
-
-
-// does 'tokSeqAmb' say that 'subjProd' is an allowed production?
-bool GLR::tokSeqAmbConsequenceMatch(Production const *tokSeqAmb,
-                                    Production const *subjProd)
-{
-  if (subjProd->right.count() == 1  &&
-      subjProd->right.firstC() == tokSeqAmb->left) {
-    return true;
-  }
-  else {
-    return false;
-  }
-}
-#endif // 0
 
 
 // ------------------ stuff for outputting raw graphs ------------------
