@@ -21,27 +21,32 @@ struct OwnerPtrMeta {      // name is special
   int state;
 };
 
-int offset(int *ptr);
-int *object(int *ptr);
-int length(int *obj);
+//  int offset(int *ptr);
+//  int *object(int *ptr);
+//  int length(int *obj);
 thmprv_predicate int/*bool*/ freshObj(int *obj, int *mem);
+thmprv_predicate int okSelOffset(int mem, int offset);
+int *sub(int index, int *rest);
 
 #define VALID_INTPTR(ptr)        \
   (ptr != (int*)0 &&             \
-   offset(ptr) == 0 &&           \
-   length(object(ptr)) == 4)
+   okSelOffset(mem, ptr))
 
 int * owner allocFunc()
   thmprv_pre(int *pre_mem = mem; true)
   thmprv_post(
-    // returns a valid pointer
-    VALID_INTPTR(result.ptr) &&
-    // returns an owner pointer
-    result.state == OWNING &&
-    // to a new object
-    freshObj(object(result), pre_mem) &&
-    // and does not modify anything reachable from pre_mem
-    pre_mem == mem
+    thmprv_exists(
+      int address;
+      // the returned pointer is a toplevel address only
+      address != 0 &&
+      result.ptr == sub(address, 0 /*whole*/) &&
+      // returns an owner pointer
+      result.state == OWNING &&
+      // to a new object
+      freshObj(address, pre_mem) &&
+      // and does not modify anything reachable from pre_mem
+      pre_mem == mem
+    )
   );
 
 void deallocFunc(int * owner q)

@@ -170,7 +170,7 @@ void TF_func::vcgen(AEnv &env) const
 
 
 // --------------------- Declaration --------------------
-// this is only used for globals; local declarations are
+// NOTE: this is only used for globals; local declarations are
 // taken apart by S_decl
 void Declaration::vcgen(AEnv &env) const
 {
@@ -491,6 +491,14 @@ void S_decl::vcgen(STMT_VCGEN_PARAMS) const
       // UPDATE2: putting it back as I try to sort this out..
       initVal = env.freshVariable(d->var->name,
         stringc << "UNINITialized value of var " << d->var->name);
+        
+      if (d->var->type->asRval()->isOwnerPtr()) {
+        // OWNER: uninitialized pointers are implicitly dead
+        trace("owner") << "initing state to dead for " << d->var->name << endl;
+        initVal = env.avUpd(initVal,                     // start object
+                            env.avOwnerField_state(),    // field to set
+                            env.avOwnerState_dead());    // field value
+      }
     }
 
     // add a binding for the variable
@@ -635,7 +643,14 @@ AbsValue *E_variable::vcgen(AEnv &env, int path) const
 
 void deadenOwnerState(AEnv &env, AbsValue *value)
 {
-  xassert(value->isAVlval());     // otherwise can't deaden state!
+  if (!value->isAVlval()) {
+    // not an lval; probably either NULL, or the return value
+    // from an owner-returning function; it will have to be up
+    // to the type system to prevent me from losing a reference
+    // this way
+    return;
+  }
+
   AVlval *lval = value->asAVlval();
 
   // modify source's 'state' field

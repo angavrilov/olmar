@@ -100,3 +100,52 @@ valid "goal" (
   (okSelOffset mem_26 (addOffset a_13 1))
 )
 bg_pop
+
+
+; ---------------------------------
+bg_push (
+  (EQ a_12 (sub a_index_13 a_rest_13))
+  (DISTINCT 0)
+  (uncheckedAccess mem_25)
+  (EQ a_13 (sub a_index_14 a_rest_14))
+  (okSelOffsetRange mem_25 a_13 5)
+  (EQ mem_26 (updOffset mem_25 (addOffset a_13 0) 0))
+  (EQ mem_27 (updOffset mem_26 (addOffset a_13 1) 1))
+  (EQ mem_28 (updOffset mem_27 (addOffset a_13 2) 2))
+  (EQ mem_29 (updOffset mem_28 (addOffset a_13 3) 3))
+  (EQ mem_30 (updOffset mem_29 (addOffset a_13 4) 4))
+  (EQ mem_31 (updOffset mem_30 (addOffset a_13 5) 5))
+)
+valid "goal1" (
+  (EQ (selOffset mem_26 (addOffset a_13 0)) 0)
+)
+valid "goal2" (
+  (EQ (selOffset mem_27 (addOffset a_13 0)) 0)
+)
+valid "goal3" (
+  (EQ (selOffset mem_31 (addOffset a_13 2)) 2)
+)
+bg_pop
+
+
+; ------------------------------
+bg_push (
+  (DISTINCT 0)
+  (uncheckedAccess mem_8)
+  (EQ A_5 (sub A_index_5 A_rest_5))
+  (okSelOffsetRange mem_8 A_5 (+ N_5 1))
+  (<= 1 i_5)
+  (<= i_5 N_5)
+  (<= 1 j_5)
+  (<= j_5 N_5)
+  (<= (selOffset mem_8 (addOffset A_5 j_5)) r_4)
+  (<= r_4 (selOffset mem_8 (addOffset A_5 i_5)))
+  ;(NEQ i_5 j_5)     ; doesn't help
+  (EQ mem_9 (updOffset mem_8 (addOffset A_5 i_5)
+              (selOffset mem_8 (addOffset A_5 j_5))))
+  (EQ mem_10 (updOffset mem_9 (addOffset A_5 j_5) (selOffset mem_8 (addOffset A_5 i_5))))
+)
+valid "goal" (
+  (<= (selOffset mem_10 (addOffset A_5 i_5)) r_4)
+)
+bg_pop

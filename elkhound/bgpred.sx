@@ -6,7 +6,9 @@
 (DEFPRED (inDegree0 mem field obj))
 (DEFPRED (inDegree1 mem field obj referrerObj))
 (DEFPRED (hasTypeNode obj))
-(DEFPRED (freshObj obj mem))
+
+; true when nothing stored in 'mem' refers to 'objAddr'
+(DEFPRED (freshObj objAddr mem))
 
 ; true iff ok to (sel obj index)
 (DEFPRED (okSel obj index))
@@ -16,6 +18,9 @@
 
 ; true iff ok to (selOffset obj (addOffset offset i)) for all 0 <= i < len
 (DEFPRED (okSelOffsetRange obj offset len))
+
+; true iff ptr1 is not a prefix of ptr2, and vice-versa
+(DEFPRED (unrelated ptr1 ptr2))
 
 ; true when 'okSel' is always true for an object (typically memory)
 (DEFPRED (uncheckedAccess obj))
@@ -446,6 +451,46 @@
       val
     ))
 
+  ; ------------------ direct read/write with offsets ----------------
+  ; selOffset of updOffset at same place
+  (FORALL (mem ptr val)
+    (EQ
+      (selOffset (updOffset mem ptr val) ptr)
+      val
+    ))
+
+  ; setOffset of updOffset at different place
+  (FORALL (mem ptr1 ptr2 val2)
+    (IMPLIES
+      (unrelated ptr1 ptr2)
+      (EQ
+        (selOffset mem ptr1)
+        (selOffset (updOffset mem ptr2 val2) ptr1)
+      )
+    ))
+
+  ; ----------------------- unrelated -------------------
+  ; [unr1] unrelated: first indices differ
+  (FORALL (a rest1 b rest2)    ;(PATS (unrelated (sub a rest1) (sub b rest2)))
+    (IMPLIES
+      (NEQ a b)
+      (unrelated (sub a rest1) (sub b rest2))
+    ))
+
+  ; [unr2] unrelated: unrelated rests
+  (FORALL (a rest1 b rest2)    ;(PATS (unrelated (sub a rest1) (sub b rest2)))
+    (IMPLIES
+      (unrelated rest1 rest2)
+      (unrelated (sub a rest1) (sub b rest2))
+    ))
+
+  ; [unr3] unrelated: different offsets of same pointer
+  (FORALL (ptr i j)
+    (IMPLIES
+      (NEQ i j)
+      (unrelated (addOffset ptr i) (addOffset ptr j))
+    ))
+
   ; -------------------- okSelOffset ----------------
   ; if the offset is 'whole', it's always ok
   (FORALL (obj)
@@ -524,22 +569,6 @@
       )
       (okSelOffset obj (addOffset offset i))
     ))
-
-;   ; it survives all memory updates; this is true because I don't model
-;   ; *pointer* dereferences with 'sel', I only model accesses within
-;   ; objects, which doesn't change
-;   (FORALL (mem obj1 len obj2 val)
-;     (IMPLIES
-;       (okSelOffsetRange mem obj1 len)
-;       (okSelOffsetRange (upd mem obj2 val) obj1 len)
-;     ))
-
-;   ; survives the other kind of update too..
-;   (FORALL (mem obj1 len ofs val)
-;     (IMPLIES
-;       (okSelOffsetRange mem obj1 len)
-;       (okSelOffsetRange (updOffset mem ofs val) obj1 len)
-;     ))
 
   ; -------------------- appendIndex ----------------
   ; append an index specifier to an empty offset

@@ -46,18 +46,21 @@ while (defined($line = <EXPER>)) {
     next;
   }
 
-  my ($inv, $val, $dummy2, $comment) =
-    ($line =~ /^\s*(not)?(valid)\s+(\"(.*)\"\s+)?\(\s*$/);
+  my ($skip, $inv, $val, $dummy2, $comment) =
+    ($line =~ /^\s*(skip)?(not)?(valid)\s+(\"(.*)\"\s+)?\(\s*$/);
   if (defined($val)) {     # predicate
-    if ($inv) {
-      notvalid($comment, collectPred());
-    }
-    else {
-      valid($comment, collectPred());
+    my @pred = collectPred();
+    if (!$skip) {          # "skip" is a way to comment-out
+      if ($inv) {
+        notvalid($comment, @pred);
+      }
+      else {
+        valid($comment, @pred);
+      }
     }
     next;
   }
-  
+
   if ($line =~ /^\s*bg_push\s+\(\s*$/) {     # bg_push
     my @pred = collectPred();
     print Writer ("(BG_PUSH (AND\n", @pred, "))\n");
@@ -74,6 +77,15 @@ while (defined($line = <EXPER>)) {
     # into the middle of a file
     last;
   }
+
+  # all on one line:
+  #   prove <predicate>
+  my ($predicate) =
+    ($line =~ /^\s*prove (.*)$/);
+  if (defined($predicate)) {
+    valid("prove", $predicate);
+    next;
+  } 
 
   print("not understood: $line\n");
   pretendUsed($dummy2);

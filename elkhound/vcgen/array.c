@@ -35,6 +35,9 @@ void init(int *a)
   thmprv_pre(
     okSelOffsetRange(mem, a, 5)
   )
+  thmprv_post(
+    a[2] == 2
+  )
 {
   a[0] = 0;
   a[1] = 1;

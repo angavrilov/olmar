@@ -304,7 +304,14 @@ void AEnv::addDeclarationFacts(Variable const *var, AbsValue *value)
   if (type->isPointerType()) {
     // Simplify would like to know that every pointer variable's value
     // is of the form (sub index rest)
-    addFact(P_equal(rval(value),
+    AbsValue *pointerVal = rval(value);
+    
+    if (type->isOwnerPtr()) {
+      // OWNER: this decomposition needs to be adjust to be in a field
+      pointerVal = avSel(pointerVal, avOwnerField_ptr());
+    }
+
+    addFact(P_equal(pointerVal,
                     avSub(freshVariable(stringc << name << "_index",
                                         stringc << "supposed first index of " << name),
                           freshVariable(stringc << name << "_rest",

@@ -13,7 +13,7 @@
 #set args -tr stopAfterTCheck cc.bin c.in3
 
 file ccgr
-set args -tr predicates,owner,printAnalysisPath,addFact cc.bin vcgen/loop1.c
+set args -tr predicates,owner,printAnalysisPath,addFact cc.bin vcgen/owner1.i
 
 #set args -tr factflow cc.bin vcgen/ff.c
 

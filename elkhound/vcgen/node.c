@@ -19,7 +19,7 @@ struct Node {
 //  }
 
 // declare a predicate which means has-type-node
-int hasTypeNode(Node *n);
+thmprv_predicate int hasTypeNode(Node *n);
 
 #define isNode(n)                                      \
   hasTypeNode(n) &&                                    \

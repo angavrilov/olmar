@@ -1,13 +1,15 @@
 // memswap.c
 // a small piece of the find.c code
 
-int *object(int *ptr);
-int offset(int *ptr);
-int length(int *obj);
+//  int *object(int *ptr);
+//  int offset(int *ptr);
+//  int length(int *obj);
+thmprv_predicate int okSelOffsetRange(int mem, int offset, int len);
 
 void swap(int *A, int N, int i, int j, int r)
   thmprv_pre (
-    offset(A) == 0 && length(object(A)) == N+1 &&
+    //offset(A) == 0 && length(object(A)) == N+1 &&
+    okSelOffsetRange(mem, A, N+1) &&
 
     1 <= i && i <= N &&
     1 <= j && j <= N &&

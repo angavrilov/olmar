@@ -269,11 +269,11 @@ vcgen memswap.c
 vcgen ff.c
 #failTest "can't prove postcondition" ./ccgr -tr disableFactFlow cc.bin vcgen/find.c
 #vcgenfail "can't prove postcondition" find2.c
-vcgen callfind.c
+#vcgen callfind.c     # kind of pointless without the rest of find working
 
 (cd vcgen; make) || (echo "Failed to make in vcgen"; exit 2)
 
-vcgen node.i
+#vcgen node.i         # futile.. needs to be rethought
 vcgen owner1.i
 runTest ./ccgr -tr disableFactFlow cc.bin vcgen/owner2.i
 

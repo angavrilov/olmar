@@ -1,0 +1,12 @@
+; simpbug1.sx    -*- Lisp -*-
+; arithmetic incompleteness bug
+
+valid "first" (
+  (EXISTS (len)
+    (AND
+      (EQ len 5)
+      (EQ (- len 0) 5)     ; comment this out and it works, despite len == 5
+    ))
+)
+
+
