@@ -401,7 +401,22 @@ bool MatchTypes::match_cva(CVAtomicType *a, Type *b, int matchDepth)
     // deal with top-level qualifiers; if we are not at MT_TOP, then
     // they had better match exactly
     if (matchDepth > 0) {
-      if (a->getCVFlags() != b->getCVFlags()) return false;
+      if (eflags & Type::EF_DEDUCTION) {
+        // 10/09/04: (in/t0348.cc) In EF_DEDUCTION mode, allow qualification
+        // conversions, i.e. allow 'b' to be more cv-qualified.  Once again,
+        // this entire module needs to be rewritten according to 14.8.2.1 ....
+        if (b->getCVFlags() >= a->getCVFlags()) {
+          // ok
+        }
+        else {
+          return false;
+        }
+      }
+      else {
+        if (a->getCVFlags() != b->getCVFlags()) {
+          return false; 
+        }
+      }
     }
 
     // sm: below here all supplied matchDepths were 0, so I've pulled

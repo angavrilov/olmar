@@ -1120,7 +1120,7 @@ bool Env::inferTemplArgsFromFuncArgs
           if (reportErrors) {
             error(stringc << "during function template argument deduction: "
                   << "argument " << i << " `" << curArgType->toString() << "'"
-                  << " is incompatable with parameter, `"
+                  << " is incompatible with parameter, `"
                   << param->type->toString() << "'");
           }
           return false;             // FIX: return a variable of type error?
