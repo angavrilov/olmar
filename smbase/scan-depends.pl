@@ -9,11 +9,21 @@
 # of three ways:
 #   1. direct #inclusion, using quotes to delimit the filename
 #      (assuption is that angle brackets are used to refer to
-#      system headers, and we don't want to see those dependencies)
+#      system headers, and we don't want to see those 
+#      dependencies)
 #   2. implicit link dependency of foo.h on foo.{c,cc,cpp},
 #      whichever exists, if any
 #   3. explicit link dependency expressed as a comment of the form
 #      // linkdepend: <filename>
+
+# Any line containing "(r)" is ignored by this script.  The intent
+# is to mark #include lines with this if the file included is
+# actually pulled in by another #include (so it's redundant, hence
+# the "r") but I don't want to remove the #include altogether
+# (because it still provides useful documentation).  By adding the
+# occasional "(r)" here and there one can prune the dependency tree
+# output to get a pleasing output (I wish Dot itself exposed more
+# knobs to tweak...)
 
 # The scanner does *not* run the preprocessor or otherwise use any
 # smarts to decode #ifdefs, #defines, tricky #inclusion sequences,
@@ -373,6 +383,12 @@ sub exploreFile {
   # scan the file for its edges
   my $line;
   while (defined($line = <IN>)) {
+    # is this line marked with "(r)", meaning "redundant", and
+    # should therefore be ignored by this script?
+    if ($line =~ m/\(r\)/) {
+      next;
+    }
+
     # is this an #include line?
     my ($target) = ($line =~ m/^\s*\#include\s+\"([^\"]*)\"/);
     if (defined($target)) {
