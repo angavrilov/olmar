@@ -149,6 +149,14 @@ for ($i=0; $i < @lines; $i++) {
   }
 
   elsif ($state == 3) {
+    if ($line =~ m/^\#include <FlexLexer.h>/) {
+      $state++;
+      print OUT ("#include \"sm_flexlexer.h\"\n");
+      next;
+    }
+  }
+
+  elsif ($state == 4) {
     if ($line =~ m/^int yyFlexLexer::yylex/) {
       $state++;
       $i++;       # skip the '{' line, to keep #line numbers in sync
@@ -159,7 +167,7 @@ for ($i=0; $i < @lines; $i++) {
     }
   }
 
-  elsif ($state == 4) {
+  elsif ($state == 5) {
     if ($line =~ m/^\s*\}\s*$/) {
       $state++;
       $i++;       # skip subsequent blank line
@@ -169,7 +177,7 @@ for ($i=0; $i < @lines; $i++) {
     }
   }
 
-  elsif ($state == 5) {
+  elsif ($state == 6) {
     if ($lines[$i+1] =~ m/^yyFlexLexer::yyFlexLexer/) {
       $state++;
       print OUT ("#ifndef NO_YYFLEXLEXER_METHODS\n");
@@ -177,27 +185,27 @@ for ($i=0; $i < @lines; $i++) {
     }
   }
 
-  elsif ($state == 6) {
-    if ($lines[$i+1] =~ m/yyFlexLexer::yy_get_previous_state/) {
-      $state++;
-    }
-  }
-
   elsif ($state == 7) {
-    push @methodCopies, ($line);
-    if ($line =~ m/yyFlexLexer::yy_try_NUL_trans/) {
+    if ($lines[$i+1] =~ m/yyFlexLexer::yy_get_previous_state/) {
       $state++;
     }
   }
 
   elsif ($state == 8) {
     push @methodCopies, ($line);
-    if ($line =~ m/^\s*\}\s*$/) {
+    if ($line =~ m/yyFlexLexer::yy_try_NUL_trans/) {
       $state++;
     }
   }
 
   elsif ($state == 9) {
+    push @methodCopies, ($line);
+    if ($line =~ m/^\s*\}\s*$/) {
+      $state++;
+    }
+  }
+
+  elsif ($state == 10) {
     if ($line =~ m/^\#line/) {    # #line directive just before section 3
       $state++;
 
@@ -224,8 +232,8 @@ for ($i=0; $i < @lines; $i++) {
     }
   }
 
-  elsif ($state == 10) {
-    # state 10 prevails until the end of the file; just check
+  elsif ($state == 11) {
+    # this state prevails until the end of the file; just check
     # that the yynext breakage isn't being exposed
     if ($line =~ m/yynext/) {
       die("$0: unimplemented: 'yynext' used in section 3\n");
@@ -235,10 +243,11 @@ for ($i=0; $i < @lines; $i++) {
   print OUT ($line);
 }
 
-if ($state != 10) {
-  print OUT ("#error please rebuild $outputFile\n");   # make sure must rebuilt
+$lastState = 11;
+if ($state != $lastState) {
+  print OUT ("#error please rebuild $outputFile\n");    # in case not deleted
   close(OUT);    # flush
-  die("failed to reach state 10; got stuck in state " . $state);
+  die("failed to reach state $lastState; got stuck in state " . $state);
 }
 
 close(OUT);
