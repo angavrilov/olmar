@@ -99,7 +99,8 @@ public:     // funcs
   ~StackNode();
 
   // add a new link with the given tree node; return the link
-  SiblingLink *addSiblingLink(StackNode *leftSib, SemanticValue sval);
+  SiblingLink *addSiblingLink(StackNode *leftSib, SemanticValue sval,
+                              SourceLocation const &loc);
 
   // return the symbol represented by this stack node;  it's
   // the symbol shifted or reduced-to to get to this state
@@ -132,9 +133,14 @@ public:
   // this is an *owner* pointer
   SemanticValue sval;
 
+  // the source location of the left edge of the subtree rooted
+  // at this stack node; this is in essence part of the semantic
+  // value, but automatically propagated by the parser
+  SourceLocation const loc;
+
 public:
-  SiblingLink(StackNode *s, SemanticValue sv)
-    : sib(s), sval(sv) {}
+  SiblingLink(StackNode *s, SemanticValue sv, SourceLocation const &L)
+    : sib(s), sval(sv), loc(L) {}
   ~SiblingLink();
 };
 
@@ -171,9 +177,12 @@ public:    // types
     // the semantic value yielded by the reduction action (owner)
     SemanticValue sval;
 
+    // location of left edge of this subtree
+    SourceLocation loc;
+
   public:
-    ReductionPath(StackNode *f, SemanticValue s)
-      : finalState(f), sval(s) {}
+    ReductionPath(StackNode *f, SemanticValue s, SourceLocation const &L)
+      : finalState(f), sval(s), loc(L) {}
     ~ReductionPath();
   };
 
@@ -233,6 +242,9 @@ public:
   // the semantic value associated with that token
   SemanticValue currentTokenValue;
 
+  // location of that current token
+  SourceLocation currentTokenLoc;
+
   // parsers that haven't yet had a chance to try to make progress
   // on this token
   SObjList<StackNode> parserWorklist;       // (refct list)
@@ -253,7 +265,7 @@ private:    // funcs
   void collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
                              StackNode *currentNode, SiblingLink *mustUseLink);
   void glrShiftNonterminal(StackNode *leftSibling, Production const *prod,
-                           SemanticValue sval);
+                           SemanticValue sval, SourceLocation const &loc);
   void glrShiftTerminals(ObjList<PendingShift> &pendingShifts);
   StackNode *findActiveParser(ItemSet const *state);
   StackNode *makeStackNode(ItemSet const *state);

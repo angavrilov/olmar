@@ -236,6 +236,8 @@ public:
   Lexer2();                              // table is created locally
   Lexer2(StringTable &externalTable);    // table given externally
   ~Lexer2();
+  
+  SourceLocation startLoc() const;
 };
 
 

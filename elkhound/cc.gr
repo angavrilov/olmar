@@ -451,7 +451,7 @@ nonterm[Expression*] ConstantExpression -> e:ConditionalExpression
 // labeled-statement
 nonterm[Statement*] Statement {
   -> n:L2_VARIABLE_NAME ":" s:Statement 
-       [ return new S_label(n, s); ]
+       [ return new S_label(loc, n, s); ]
 
   // I need a disambiguation here other than prec/assoc..
   //-> "case" e:ConstantExpression ":" s:Statement
@@ -461,40 +461,40 @@ nonterm[Statement*] Statement {
   // code that has "case:" immediately followed by "}"; I still
   // prefer the above when I can, so as to minimize the use of this
   -> "case" e:ConstantExpression ":" precedence(L2_PREFER_SHIFT)
-       [ return new S_case(e, new S_skip()); ]
+       [ return new S_case(loc, e, new S_skip(loc)); ]
 
   // gnu extension
   -> "case" low:ConstantExpression "..." high:ConstantExpression ":"
-       [ return new S_caseRange(low, high, new S_skip()); ]
+       [ return new S_caseRange(loc, low, high, new S_skip(loc)); ]
 
-  -> "default" ":" s:Statement 
-       [ return new S_default(s); ]
+  -> "default" ":" s:Statement
+       [ return new S_default(loc, s); ]
 
   // expression-statement
   -> s:ExpressionStatement
        [ return s; ]
 
   // compound-statement
-  -> s:CompoundStatement 
+  -> s:CompoundStatement
        [ return s; ]
 
   // selection-statement
   // (prefer to shift "else" over reducing by this rule)
   -> "if" "(" e:Condition ")" s:Statement precedence(L2_PREFER_SHIFT)
-       [ return new S_if(e, s, new S_skip()); ]
+       [ return new S_if(loc, e, s, new S_skip(loc)); ]
 
   // if-then-else preferred over if-then when ambiguous
   -> "if" "(" e:Condition ")" s1:Statement "else" s2:Statement
-       [ return new S_if(e, s1, s2); ]
+       [ return new S_if(loc, e, s1, s2); ]
 
   -> "switch" "(" e:Condition ")" s:Statement
-       [ return new S_switch(e, s); ]
+       [ return new S_switch(loc, e, s); ]
 
   -> "while" "(" e:Condition ")" s:Statement
-       [ return new S_while(e, s); ]
+       [ return new S_while(loc, e, s); ]
 
   -> "do" s:Statement "while" "(" e:Expression ")" ";"
-       [ return new S_doWhile(s, e); ]
+       [ return new S_doWhile(loc, s, e); ]
 
   // this is a special-purpose rule intended for use with (unexpanded)
   // macros that, internally, contain a for loop; it is *not* part of
@@ -506,38 +506,38 @@ nonterm[Statement*] Statement {
   // I might like to rework this so both semicolons appear here instead
   // of buried in ForInitStatement.  this is also a good rule to use
   // inline alternatives
-  -> "for" "(" s1:ForInitStatement c:ConditionOpt ";" e:ExpressionOpt ")" s2:Statement 
-       [ return new S_for(s1, c, e, s2); ]
+  -> "for" "(" s1:ForInitStatement c:ConditionOpt ";" e:ExpressionOpt ")" s2:Statement
+       [ return new S_for(loc, s1, c, e, s2); ]
 
-  -> "break" ";"                        [ return new S_break(); ]
+  -> "break" ";"                        [ return new S_break(loc); ]
 
-  -> "continue" ";"                     [ return new S_continue(); ]
+  -> "continue" ";"                     [ return new S_continue(loc); ]
 
-  -> "return" e:Expression ";"          [ return new S_return(e); ]
+  -> "return" e:Expression ";"          [ return new S_return(loc, e); ]
 
-  -> "return" ";"                       [ return new S_return(NULL); ]
+  -> "return" ";"                       [ return new S_return(loc, NULL); ]
 
-  -> "goto" n:L2_VARIABLE_NAME ";"      [ return new S_goto(n); ]
+  -> "goto" n:L2_VARIABLE_NAME ";"      [ return new S_goto(loc, n); ]
 
   // declaration-statement
-  -> d:BlockDeclaration                 [ return new S_decl(d); ]
+  -> d:BlockDeclaration                 [ return new S_decl(loc, d); ]
 
   // try-block
   //-> s:TryBlock ;
 
   // GNU extensions
-  -> GNUAsmStatement                    [ return new S_skip(); ]
-  
+  -> GNUAsmStatement                    [ return new S_skip(loc); ]
+
   // theorem prover extensions
-  -> "thmprv_assert"    e:Expression ";"   [ return new S_assert(e); ]
-  -> "thmprv_assume"    e:Expression ";"   [ return new S_assume(e); ]
-  -> "thmprv_invariant" e:Expression ";"   [ return new S_invariant(e); ]
-  -> "thmprv_let"       s:Statement        [ return new S_thmprv(s); ]
+  -> "thmprv_assert"    e:Expression ";"   [ return new S_assert(loc, e); ]
+  -> "thmprv_assume"    e:Expression ";"   [ return new S_assume(loc, e); ]
+  -> "thmprv_invariant" e:Expression ";"   [ return new S_invariant(loc, e); ]
+  -> "thmprv_let"       s:Statement        [ return new S_thmprv(loc, s); ]
 }
 
 nonterm[Statement*] ExpressionStatement {
-  -> ";"                [ return new S_skip(); ]
-  -> e:Expression ";"   [ return new S_expr(e); ]
+  -> ";"                [ return new S_skip(loc); ]
+  -> e:Expression ";"   [ return new S_expr(loc, e); ]
 }
 
 nonterm[S_compound*] CompoundStatement {
@@ -545,7 +545,7 @@ nonterm[S_compound*] CompoundStatement {
   // that if the first token of the first statement changes or queries
   // the scope, it's in the new one
   -> EnterScope "{" seq:StatementSeqOpt LeaveScope "}"
-       [ return new S_compound(seq); ]
+       [ return new S_compound(loc, seq); ]
 }
 
 nonterm[ASTList<Statement>*] StatementSeqOpt {

@@ -11,6 +11,7 @@
 #ifndef USERACT_H
 #define USERACT_H
 
+class SourceLocation;      // fileloc.h
 
 // user-supplied semantic values:
 //  - semantic values are represented as void* since their type is
@@ -35,10 +36,11 @@ public:
   //    symbols, such that the 0th element is the leftmost RHS element;
   //    the pointers in the array are owner pointers (the array ptr itself
   //    is a serf)
+  //  - 'loc' is the location of the left edge of the parse subtree
   //  - this fn returns the semantic value for the reduction; this return
   //    value is an owner pointer
   virtual SemanticValue doReductionAction(
-    int productionId, SemanticValue *svals)=0;
+    int productionId, SemanticValue *svals, SourceLocation const &loc)=0;
 
   // duplication of semantic values:
   //  - the given 'sval' is about to be passed to a reduction action
@@ -95,7 +97,7 @@ public:
 // (this macro used by the generated code)
 #define USER_ACTION_FUNCTIONS                                          \
   virtual SemanticValue doReductionAction(                             \
-    int productionId, SemanticValue *svals);                           \
+    int productionId, SemanticValue *svals, SourceLocation const &loc);\
                                                                        \
   virtual SemanticValue duplicateTerminalValue(                        \
     int termId, SemanticValue sval);                                   \

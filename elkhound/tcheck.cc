@@ -1168,7 +1168,7 @@ string Expression::extrasToString() const
     sb << type->toCString();
   }
   else {
-    sb << "(null)\n";
+    sb << "(null)";
   }
   return sb;
 }

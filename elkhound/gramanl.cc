@@ -3124,12 +3124,14 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
     out << "// " << prod.toString() << "\n";
 
     out << "inline " << prod.left->type << " "
-        << g.actionClassName << "::" << actionFuncName(prod) << "(";
+        << g.actionClassName << "::" << actionFuncName(prod)
+        << "(SourceLocation const &loc";
 
-    dcl << prod.left->type << " " << actionFuncName(prod) << "(";
+    dcl << prod.left->type << " " << actionFuncName(prod)
+        << "(SourceLocation const &loc";
 
     // iterate over RHS elements, emitting formals for each with a tag
-    int ct=0;
+    int ct=1;
     FOREACH_OBJLIST(Production::RHSElt, prod.right, rhsIter) {
       Production::RHSElt const &elt = *(rhsIter.data());
       if (elt.tag.length() == 0) continue;
@@ -3159,7 +3161,8 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
 
   // main action function; calls the inline functions emitted above
   out << "SemanticValue " << g.actionClassName << "::doReductionAction(\n"
-      << "  int productionId, SemanticValue *semanticValues)\n";
+      << "  int productionId, SemanticValue *semanticValues,\n"
+      << "  SourceLocation const &loc)\n";
   out << "{\n";
   out << "  switch (productionId) {\n";
 
@@ -3168,11 +3171,11 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
     Production const &prod = *(iter.data());
 
     out << "    case " << prod.prodIndex << ":\n";
-    out << "      return (SemanticValue)" << actionFuncName(prod) << "(";
+    out << "      return (SemanticValue)" << actionFuncName(prod) << "(loc";
 
     // iterate over RHS elements, emitting arguments for each with a tag
     int index = -1;    // index into 'semanticValues'
-    int ct=0;
+    int ct=1;
     FOREACH_OBJLIST(Production::RHSElt, prod.right, rhsIter) {
       Production::RHSElt const &elt = *(rhsIter.data());
 

@@ -13,6 +13,9 @@ class Flatten;
 class FileLocation {
 public:
   enum Constants {
+    // I pick 1,1 as my upper left, since it's traditional to number
+    // lines at 1, and 1,1 is nicer than 0,1 as an origin; I modified
+    // emacs' sources to display 1-based columns on my system..
     firstColumn = 1,               // number of first column
     firstLine = 1,                 // number of first line
 
@@ -86,6 +89,9 @@ public:
   // "<file>:<line>: (col <col>) "
   string likeGccToString() const;
 };
+
+inline string toString(SourceLocation const &loc)
+  { return loc.toString(); }
 
 
 // global list of files processed; expectation is tools toss

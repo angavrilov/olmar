@@ -395,16 +395,22 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
     Nonterminal *nonterm = env.g.findNonterminal(symName);
     xassert(!( term && nonterm ));     // better not be both!
 
-    // a syntax rule
+    // syntax rules
     if (isString  &&  !term) {
       astParseError(symName, "terminals must be declared");
     }
 
     if (!term && !nonterm) {
       astParseErrorCont(symName, "undeclared symbol");
-      
+
       // synthesize one anyway so we can find more errors
       nonterm = env.g.getOrMakeNonterminal(symName);
+    }
+
+    if (symTag.equals("loc")) {
+      // bad because loc is the name of the automatically-propagated
+      // source location information
+      astParseErrorCont(symTag, "cannot use \"loc\" as a tag");
     }
 
     // whenever we see a terminal, copy its precedence spec to

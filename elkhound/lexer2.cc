@@ -569,6 +569,17 @@ Lexer2::~Lexer2()
 }
 
 
+SourceLocation Lexer2::startLoc() const
+{
+  if (tokens.isNotEmpty()) {
+    return tokens.firstC()->loc;
+  }
+  else {
+    return SourceLocation();    // empty
+  }
+}
+
+
 // ------------- experimental interface for (e.g.) bison ------------
 Lexer2Token const *yylval = NULL;
 

@@ -201,7 +201,7 @@ verbatim {
 }
 
 
-class Statement {
+class Statement (SourceLocation loc) {
   public void tcheck(Env &env);
   pure_virtual void itcheck(Env &env);
   pure_virtual void vcgen(AEnv &env) const;

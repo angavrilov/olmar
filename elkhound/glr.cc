@@ -216,9 +216,10 @@ Symbol const *StackNode::getSymbolC() const
 
 // add a new sibling by creating a new link
 SiblingLink *StackNode::
-  addSiblingLink(StackNode *leftSib, SemanticValue sval)
+  addSiblingLink(StackNode *leftSib, SemanticValue sval, 
+                 SourceLocation const &loc)
 {
-  SiblingLink *link = new SiblingLink(leftSib, sval);
+  SiblingLink *link = new SiblingLink(leftSib, sval, loc);
   leftSiblings.append(link);
   return link;
 }
@@ -409,6 +410,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     currentTokenClass = indexedTerms[classifiedType];
     currentTokenColumn = tokenNumber;
     currentTokenValue = currentToken->sval;
+    currentTokenLoc = currentToken->loc;
 
     // ([GLR] called the code from here to the end of
     // the loop 'parseword')
@@ -500,7 +502,8 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   trace("sval") << "handing toplevel svals " << arr[0]
                 << " and " << arr[1] << " top start's reducer\n";
   treeTop = userAct->doReductionAction(
-              last->state->getFirstReduction()->prodIndex, arr);
+              last->state->getFirstReduction()->prodIndex, arr,
+              last->leftSiblings.firstC()->loc);
 
 
   #if 0
@@ -633,7 +636,8 @@ int GLR::doAllPossibleReductions(StackNode *parser,
       actions++;
 
       // this is like shifting the reduction's LHS onto 'finalParser'
-      glrShiftNonterminal(rpath->finalState, prod.data(), rpath->sval);
+      glrShiftNonterminal(rpath->finalState, prod.data(), 
+                          rpath->sval, rpath->loc);
       
       // nullify 'sval' to mark it as consumed
       rpath->sval = NULL;
@@ -690,6 +694,9 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
         << endl;
     }
 
+    // record location of left edge
+    SourceLocation leftEdge;     // defaults to no location (used for epsilon rules)
+
     // before calling the user, duplicate any needed values
     int rhsLen = pcs.production->rhsLength();
     SemanticValue *toPass = new SemanticValue[rhsLen];
@@ -698,6 +705,12 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
 
       // we're about to yield sib's 'sval' to the reduction action
       toPass[i] = sib->sval;
+
+      // left edge?  or, have all previous tokens failed to yield
+      // information?
+      if (!leftEdge.validLoc()) {
+        leftEdge = sib->loc;
+      }
 
       // we inform the user, and the user responds with a value
       // to be kept in this sibling link *instead* of the passed
@@ -713,7 +726,7 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     // user's code to synthesize a semantic value by combining them
     // (TREEBUILD)
     SemanticValue sval = userAct->doReductionAction(
-                           pcs.production->prodIndex, toPass);
+                           pcs.production->prodIndex, toPass, leftEdge);
     D(trace("sval") << "reduced " << pcs.production->toString()
                     << ", yielding " << sval << endl);
     delete[] toPass;
@@ -727,7 +740,7 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     // and just collect this reduction, and the final state, in our
     // running list
     pcs.paths.append(new PathCollectionState::
-      ReductionPath(currentNode, sval));
+      ReductionPath(currentNode, sval, leftEdge));
   }
 
   else {
@@ -770,10 +783,12 @@ void *mergeAlternativeParses(int ntIndex, void *left, void *right)
 
 
 // shift reduction onto 'leftSibling' parser, 'prod' says which
-// production we're using
+// production we're using; 'sval' is the semantic value of this
+// subtree, and 'loc' is the location of the left edge
 // ([GLR] calls this 'reducer')
 void GLR::glrShiftNonterminal(StackNode *leftSibling, Production const *prod,
-                              SemanticValue /*owner*/ sval)
+                              SemanticValue /*owner*/ sval,
+                              SourceLocation const &loc)
 {
   // this is like a shift -- we need to know where to go
   ItemSet const *rightSiblingState =
@@ -822,7 +837,7 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, Production const *prod,
     // we get here if there is no suitable sibling link already
     // existing; so add the link (and keep the ptr for loop below)
     SiblingLink *sibLink =
-      rightSibling->addSiblingLink(leftSibling, sval);
+      rightSibling->addSiblingLink(leftSibling, sval, loc);
 
     // adding a new sibling link may have introduced additional
     // opportunties to do reductions from parsers we thought
@@ -857,7 +872,7 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, Production const *prod,
     rightSibling = makeStackNode(rightSiblingState);
 
     // add the sibling link (and keep ptr for tree stuff)
-    rightSibling->addSiblingLink(leftSibling, sval);
+    rightSibling->addSiblingLink(leftSibling, sval, loc);
 
     // since this is a new parser top, it needs to become a
     // member of the frontier
@@ -908,7 +923,8 @@ void GLR::glrShiftTerminals(ObjList<PendingShift> &pendingShifts)
 
     // either way, add the sibling link now
     D(trace("sval") << "grabbed token sval " << currentTokenValue << endl);
-    rightSibling->addSiblingLink(leftSibling, currentTokenValue);
+    rightSibling->addSiblingLink(leftSibling, currentTokenValue, 
+                                 currentTokenLoc);
   }
 }
 
