@@ -487,7 +487,7 @@ private:    // funcs
 
   void singleItemClosure(OwnerKHashTable<LRItem, DottedProduction> &finished,
                          OwnerKHashArray<LRItem, DottedProduction> &workhash,
-                         LRItem const *item);
+                         LRItem const *item, TerminalSet &scratchSet);
 
 public:	    // funcs
   GrammarAnalysis();

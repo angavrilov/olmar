@@ -1850,13 +1850,16 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
     &LRItem::dataToKey,
     &LRItem::hash,
     &LRItem::dpEqual, 13);
-  //SObjList<LRItem> worklist;
+    
+  // scratch terminal set for singleItemClosure
+  TerminalSet scratchSet(numTerminals());
 
   // and another for the items we've finished
   OwnerKHashTable<LRItem, DottedProduction> finished(
     &LRItem::dataToKey,
     &LRItem::hash,
     &LRItem::dpEqual, 13);
+  finished.setEnableShrink(false);
 
   // put all the nonkernels we have into 'finished'
   while (itemSet.nonkernelItems.isNotEmpty()) {
@@ -1866,7 +1869,7 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 
   // first, close the kernel items -> workhash
   FOREACH_OBJLIST(LRItem, itemSet.kernelItems, itemIter) {
-    singleItemClosure(finished, workhash, itemIter.data());
+    singleItemClosure(finished, workhash, itemIter.data(), scratchSet);
   }
 
   while (workhash.isNotEmpty()) {
@@ -1879,7 +1882,7 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
     finished.add(item->dprod, item);
 
     // close it -> worklist
-    singleItemClosure(finished, workhash, item);
+    singleItemClosure(finished, workhash, item, scratchSet);
   }
 
   // move everything from 'finished' to the nonkernel items list
@@ -1913,8 +1916,10 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 void GrammarAnalysis::
   singleItemClosure(OwnerKHashTable<LRItem, DottedProduction> &finished,
                     OwnerKHashArray<LRItem, DottedProduction> &workhash,
-                    LRItem const *item)
+                    LRItem const *item, TerminalSet &newItemLA)
 {
+  INITIAL_MALLOC_STATS();
+
   bool const tr = tracingSys("closure");
   ostream &trs = trace("closure");     // trace stream
 
@@ -1928,6 +1933,7 @@ void GrammarAnalysis::
     if (tr) {
       trs << "    dot is at the end" << endl;
     }
+    CHECK_MALLOC_STATS("return, dot at end");
     return;
   }
 
@@ -1940,17 +1946,18 @@ void GrammarAnalysis::
     if (tr) {
       trs << "    symbol after the dot is a terminal" << endl;
     }
+    CHECK_MALLOC_STATS("return, dot sym is terminal");
     return;
   }
   int nontermIndex = B->asNonterminalC().ntIndex;
-  
+
   // could pull this out of even this fn, to the caller, but I don't
   // see any difference in time when I make it static (which simulates
   // the effect, though static itself is a bad idea because it makes
   // the size constant through a whole run); but maybe when other things
   // are faster I will be able to notice the difference, so I might
   // revisit this
-  TerminalSet newItemLA(numTerminals());
+  //TerminalSet newItemLA(numTerminals());
 
   // for each production "B -> gamma"
   SMUTATE_EACH_PRODUCTION(productionsByLHS[nontermIndex], prodIter) {    // (constness)
@@ -2028,7 +2035,9 @@ void GrammarAnalysis::
           // pull from the 'done' list and put in worklist, since the
           // lookahead changed
           finished.remove(already->dprod);
-          workhash.push(already->dprod, already);
+          CHECK_MALLOC_STATS("before workhash push");
+          workhash.push(already->dprod, already);    
+          UPDATE_MALLOC_STATS();     // allow expansion
         }
         else {
           // 'already' is in the worklist, so that's fine
@@ -2041,6 +2050,8 @@ void GrammarAnalysis::
       }
     }
     else {
+      CHECK_MALLOC_STATS("bunch of stuff before 'if'");
+
       // it's not already there, so add it to worklist (but first
       // actually create it!)
       LRItem *newItem = new LRItem(numTerms, newDP);
@@ -2049,8 +2060,14 @@ void GrammarAnalysis::
         trs << "      this dprod is new, queueing it to add" << endl;
       }
       workhash.push(newItem->dprod, newItem);
+
+      UPDATE_MALLOC_STATS();     // "new LRItem" or expansion of workhash
     }
+
+    CHECK_MALLOC_STATS("processing of production");
   } // for each production
+
+  CHECK_MALLOC_STATS("end of singleItemClosure");
 }
 
 
