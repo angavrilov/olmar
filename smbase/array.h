@@ -78,6 +78,7 @@ public:      // funcs
 
   // grab a writable pointer; use with care
   T *getDangerousWritableArray() { return arr; }
+  T *getArrayNC() { return arr; }     // ok, not all that dangerous..
 
   // make sure the given index is valid; if this requires growing,
   // do so by doubling the size of the array (repeatedly, if
