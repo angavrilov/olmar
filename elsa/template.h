@@ -139,13 +139,6 @@ public:    // data
   // using two connected objects
   Variable * const var;                    // (serf)
 
-  // whereas for classes the 'baseName' suffices to create a
-  // forward-declared version of the object, functions need
-  // the entire declaration; so here it is
-  //
-  // TODO: now that I have 'var', I don't need this, right?
-  Declaration *declSyntax;                 // (serf AST)
-
   // inherited parameters, in order from outermost to innermost; this
   // TemplateThing is parameterized by the inherited parameters *and*
   // the main 'params' list

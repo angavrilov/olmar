@@ -704,66 +704,6 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
     Declarator::Tcheck dt1(specType, dflags, context);
     decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
 
-    Variable *dt1var = decllist->first()->var;
-    if (dt1var && dt1var->templInfo) {
-      // this could have been a forward declaration of a templatized
-      // function, for which we will need to remember the syntax of
-      // the declaration so it can be re-tchecked with parameters
-      // bound to arguments
-      dt1var->templInfo->declSyntax = this;
-
-      // cppstd 14 para 3: there can be at most one declarator
-      // in a template declaration; this justifies not repeating
-      // this 'declSyntax' action in the loop below
-      if (decllist->count() > 1) {
-        env.error("there can be at most one declarator in a template declaration");
-      }
-
-      #if 0     // I think all of this is now done elsewhere
-      // is this a function template?
-      if (dt1.var->type->isFunctionType()) {
-        // We need to get ahold of the primary, so we can add this
-        // instantiation to its instantiation list.
-        xassert(!dt1.var->templInfo->isMutant());
-        // lookup the Declarator
-        Declarator *declarator = decllist->first();
-        xassert(declarator->var == dt1.var);
-        PQ_name dt1_varName(dt1.var->loc, dt1.var->name);
-        Variable *previous = env.lookupPQVariable_primary_resolve
-          // FIX: this test doesn't work for special names like for
-          // constructors
-//            (declarator->decl->getDeclaratorId(),
-          // FIX: this won't work if you need anything other than the
-          // base name.  I'm hoping we are still in the same scope.
-          (&dt1_varName,
-           LF_TEMPL_PRIMARY,
-           dt1.var->type->asFunctionType(),
-           MatchTypes::MM_WILD);
-        if (previous != dt1.var) {     // hack for complete specialization member funcs ...
-          xassert(previous);
-          xassert(previous->templateInfo()->isPrimary());
-          if (dt1.var->templInfo->isPrimary()) {
-            // if this is a forward declaration for a primary, it should
-            // already be in the namespace and should be isomorphic
-            MatchTypes match(env.tfac, MatchTypes::MM_ISO);
-            xassert(match.match_Type(dt1.var->type, previous->type));
-          } else {
-            // if this is a forward declaration for a specialization /
-            // instantiation, it should not be in the namespace but
-            // should be put into the instantiation list of 'previous',
-            // but only if it is not already there
-            Variable *var0 = previous->templateInfo()->
-              getInstantiationOfVar(env.tfac, dt1.var);
-            if (!var0) {
-              xassert(!dt1.var->funcDefn); // pure declaration, not definition
-              previous->templateInfo()->addInstantiation(env.tfac, dt1.var);
-            }
-          }
-        }
-      }
-      #endif // 0
-    }
-
     // check subsequent declarators
     Declarator *prev = decllist->first();
     while (prev->next) {
@@ -5958,6 +5898,12 @@ void TD_func::itcheck(Env &env)
 
 void TD_proto::itcheck(Env &env)
 {
+  // cppstd 14 para 3: there can be at most one declarator
+  // in a template declaration
+  if (d->decllist->count() > 1) {
+    env.error("there can be at most one declarator in a template declaration");
+  }
+
   // check the declaration; works like TD_func because D_func is the
   // place we grab template parameters, and that's shared by both
   // definitions and prototypes

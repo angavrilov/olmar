@@ -181,7 +181,6 @@ InheritedTemplateParams::~InheritedTemplateParams()
 TemplateInfo::TemplateInfo(SourceLoc il, Variable *v)
   : TemplateParams(),
     var(NULL),
-    declSyntax(NULL),
     instantiationOf(NULL),
     instantiations(),
     specializationOf(NULL),
@@ -206,7 +205,6 @@ TemplateInfo::TemplateInfo(SourceLoc il, Variable *v)
 TemplateInfo::TemplateInfo(TemplateInfo const &obj)
   : TemplateParams(obj),
     var(NULL),                // caller must call Variable::setTemplateInfo
-    declSyntax(NULL),
     instantiationOf(NULL),
     instantiations(obj.instantiations),      // suspicious... oh well
     specializationOf(NULL),
