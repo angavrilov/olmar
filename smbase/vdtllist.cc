@@ -46,13 +46,13 @@ void VoidTailList::insertAt(void *newitem, int index)
 void VoidTailList::concat(VoidTailList &srcList)
 {
   // grab what will be the tail of the concatenated list
-  VoidNode *srcTail = srcList.tail;
+  VoidNode *catTail = srcList.top? srcList.tail : tail;
 
   // build proper backbone structure
   VoidList::concat(srcList);
 
   // fix tails
-  tail = srcTail;
+  tail = catTail;
   srcList.tail = NULL;
 }
 

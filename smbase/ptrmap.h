@@ -1,5 +1,6 @@
 // ptrmap.h
 // map from KEY* to VALUE* for arbitrary types KEY and VALUE
+// (neither are owned by the table)
 
 // for const purposes, I regard the mapping itself as the only
 // thing that cannot be modified in a "const" map; in particular,
