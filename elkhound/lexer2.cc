@@ -155,6 +155,9 @@ Lexer2TokenTypeDesc const l2TokTypes[] = {
   { N(L2_LBRACE),               "{", true },
   { N(L2_RBRACE),               "}", true },
   { N(L2___ATTRIBUTE__),        "__attribute__", true },
+  { N(L2___FUNCTION__),         "__FUNCTION__", true },
+  { N(L2___LABEL__),            "__label__", true },
+  { N(L2___PRETTY_FUNCTION__),  "__PRETTY_FUNCTION__", true },
   { N(L2___TYPEOF__),           "__typeof__", true },
   { N(L2_OWNER),                "owner", true },
 };
@@ -170,10 +173,13 @@ struct GNUKeywordMap {
 } gnuKeywordMap[] = {
   { "__asm__", L2_ASM },
   { "__const__", L2_CONST },
+  { "__label__", L2___LABEL__ },
   { "__inline__", L2_INLINE },
   { "__signed__", L2_SIGNED },
   { "__volatile__", L2_VOLATILE },
-  
+  { "__FUNCTION__", L2___FUNCTION__ },
+  { "__PRETTY_FUNCTION__", L2___PRETTY_FUNCTION__ },
+
   // hack to make C++ keywords not appear to be keywords;
   // need to make this dependent on some flag somewhere ..
   { "bool", L2_NAME },

@@ -188,6 +188,18 @@ nonterm TranslationUnit : Checkable {
     }
   }
 
+  // gnu extension: allow random semicolons at toplevel
+  -> t:TranslationUnit ";" {
+    fun typeCheck {
+      return t.typeCheck(env, inst);
+    }
+    
+    // sm: wes, is this right?
+    fun camlAST {
+      return t.camlAST();
+    }
+  }
+
   literalCode "constructor" {
     // if we just constructed the "-> empty" production,
     // do nothing special
@@ -371,7 +383,7 @@ nonterm Literal : ExprBase {
   -> L2_FLOAT_LITERAL {
     fun getType = env->getSimpleType(ST_FLOAT);
   }
-  -> L2_STRING_LITERAL {
+  -> StringLiteral {
     // gnu c treats char literals as char const*, so I will too
     fun getType = env->makePtrOperType(PO_POINTER, CV_CONST,
                                        env->getSimpleType(ST_CHAR));
@@ -381,6 +393,15 @@ nonterm Literal : ExprBase {
     fun getType = env->getSimpleType(ST_CHAR);
   }
 }
+
+// gnu: this is to handle gnu's f'd up pseduo-symbols, which
+// have the annoying property that they have to concatenate
+// with string literals
+nonterm StringLiteral
+  -> L2_STRING_LITERAL |
+     StringLiteral L2_STRING_LITERAL |
+     StringLiteral "__FUNCTION__" |
+     StringLitearl "__PRETTY_FUNCTION__" ;
 
 
 // gnu extension:
@@ -2019,8 +2040,6 @@ nonterm DeclarationSeqOpt : Checkable {
 nonterm Declaration : Checkable {
   fun typeCheck = d.typeCheck(env, inst);
 
-  -> GNUAttribute d:Declaration ;    // yet more
-
   -> d:BlockDeclaration ;
   -> d:FunctionDefinition ;
   //-> TemplateDeclaration ;
@@ -2048,6 +2067,11 @@ nonterm SimpleDeclaration : Checkable {
       list.declare(env, inst, flags, type);
       return noCilValue();
     }
+  }
+                 
+  // gnu; specifically for linux printk declaration
+  -> GNUAttribute decl:SimpleDeclaration {
+    fun typeCheck = decl.typeCheck(env, inst);
   }
 }
 
@@ -2155,6 +2179,9 @@ nonterm TypeSpecifier : HasTypeName, HasType, HasCVFlags {
     -> q:CVQualifier s:TypeSpecifier ;  // const int
     -> s:TypeSpecifier q:CVQualifier ;  // int const
   }
+
+  // yet another attempt to find a good place for this
+  -> s:TypeSpecifier GNUAttribute ;
 }
 
 
@@ -2472,20 +2499,24 @@ nonterm Initializer {
 nonterm InitializerClause {
   -> AssignmentExpression                 ;   // scalar
   -> CompoundInitializer                  ;   // array/structure initializer
-  
-  // gnu extensions: labeled elements in initializers
+} 
+
+// gnu extensions: labeled elements in initializers
+nonterm LabeledInitializerClause {            // *potentially* labeled
+  // no label
+  -> InitializerClause ;
 
   // initialize a specific element of the array
-  -> "[" ConstantExpression "]" "=" AssignmentExpression ;
+  -> "[" ConstantExpression "]" "=" InitializerClause ;
 
   // initialize a range (inclusive) of elements of the array
-  -> "[" ConstantExpression "..." ConstantExpression "]" "=" AssignmentExpression ;
+  -> "[" ConstantExpression "..." ConstantExpression "]" "=" InitializerClause ;
 
   // intialize a named element of a structure
-  -> "." PQVarName "=" AssignmentExpression ;
+  -> "." PQVarName "=" InitializerClause ;
 
   // initialize a field of a specific element of the array
-  -> "[" ConstantExpression "]" "." PQVarName "=" AssignmentExpression ;
+  -> "[" ConstantExpression "]" "." PQVarName "=" InitializerClause ;
 }
 
 nonterm CompoundInitializer {
@@ -2496,8 +2527,8 @@ nonterm CompoundInitializer {
 // useful syntactic quirk
 nonterm CommaOpt -> empty | "," ;
 
-nonterm InitializerList -> InitializerClause |
-                           InitializerList "," InitializerClause ;
+nonterm InitializerList -> LabeledInitializerClause |
+                           InitializerList "," LabeledInitializerClause ;
 
 
 nonterm HasDeclType {
@@ -2550,6 +2581,8 @@ nonterm Declarator : DeclaratorBase {
     fun retTypeName = stringc << "*" << d.retTypeName();
 
     fun getFnParams {
+      // hmm...
+      cout << "using suspicious deref-declarator getFnParams\n";
       return d.getFnParams();
     }
 
@@ -2902,8 +2935,7 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
   // this works for all the productions
 
   // return type      name/params   body
-  -> r:DeclSpecifier  d:Declarator  b:FunctionBody
-   | r:DeclSpecifier  GNUAttribute d:Declarator  b:FunctionBody {    // arg..
+  -> r:DeclSpecifier  d:Declarator  b:FunctionBody {
     fun printSig {
       cout << d.getDeclName() << ": returns "
            << r.typeName() << d.retTypeName() << ", arg types: ";
@@ -3137,6 +3169,10 @@ nonterm MemberDeclarator : HasDeclareNoSE {
   -> Declarator "=" ConstantExpression ;   // pure; and member inits??
   -> L2_NAME ":" ConstantExpression ;      // named bitfield
   -> ":" ConstantExpression ;              // unnamed bitfield
+  
+  // more crap
+  -> L2_NAME ":" ConstantExpression GNUAttribute ;
+  -> ":" ConstantExpression GNUAttribute ;
 }
 
 
@@ -3387,7 +3423,9 @@ int fakemain(int argc, char *argv[])
         // this sets everything in motion, including analysis of
         // tree, etc; it returns when the entire tree has been
         // processed
-        treeMain(tree, argc, argv);
+        if (!treeMain(tree, argc, argv)) {
+          return 2;    // parse error
+        }
       }
       catch (XAmbiguity &x) {
         cout << x << endl;
@@ -3409,10 +3447,19 @@ int fakemain(int argc, char *argv[])
 
   // since this is outside all the scopes that create interesting
   // nodes, the stat counts should be 0
-  TreeNode::printAllocStats();
-  StackNode::printAllocStats();
-  CilExpr::printAllocStats();
-  CilInst::printAllocStats();
+  bool anyway = tracingSys("allocStats");
+  if (anyway || TreeNode::numTreeNodesAllocd != 0) {
+    TreeNode::printAllocStats();
+  }
+  if (anyway || StackNode::numStackNodesAllocd != 0) {
+    StackNode::printAllocStats();
+  }
+  if (anyway || CilExpr::numAllocd != 0) {
+    CilExpr::printAllocStats();
+  }
+  if (anyway || CilInst::numAllocd != 0) {
+    CilInst::printAllocStats();
+  }
 
   return 0;
 }

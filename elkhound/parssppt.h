@@ -23,11 +23,12 @@ public:
 
 
 // given grammar and input, yield a parse tree
-void toplevelParse(ParseTreeAndTokens &ptree, char const *grammarFname,
+// returns false on error
+bool toplevelParse(ParseTreeAndTokens &ptree, char const *grammarFname,
                    char const *inputFname, char const *symOfInterestName);
 
-// useful for simple treewalkers
-void treeMain(ParseTreeAndTokens &ptree, int argc, char **argv);
+// useful for simple treewalkers; false on error
+bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv);
 
 
 // ------------- interface to create nodes -------------

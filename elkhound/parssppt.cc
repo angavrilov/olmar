@@ -16,18 +16,18 @@ ParseTreeAndTokens::~ParseTreeAndTokens()
 
 
 // ---------------------- other support funcs ------------------
-void toplevelParse(ParseTreeAndTokens &ptree, char const *grammarFname,
+bool toplevelParse(ParseTreeAndTokens &ptree, char const *grammarFname,
                    char const *inputFname, char const *symOfInterestName)
 {
   // parse
   GLR glr(ptree);
-  glr.glrParseFrontEnd(ptree.lexer2, grammarFname,
-                       inputFname, symOfInterestName);
+  return glr.glrParseFrontEnd(ptree.lexer2, grammarFname,
+                              inputFname, symOfInterestName);
 }
 
 
 // useful for simple treewalkers
-void treeMain(ParseTreeAndTokens &ptree, int argc, char **argv)
+bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv)
 {
   // remember program name
   char const *progName = argv[0];
@@ -59,5 +59,5 @@ void treeMain(ParseTreeAndTokens &ptree, int argc, char **argv)
     exit(0);
   }
 
-  toplevelParse(ptree, argv[1], argv[2], symOfInterestName);
+  return toplevelParse(ptree, argv[1], argv[2], symOfInterestName);
 }

@@ -272,13 +272,13 @@ public:     // funcs
   GLR(ParseTree &parseTree);
   ~GLR();
 
-  // 'main' for testing this class
-  void glrParseFrontEnd(Lexer2 &lexer2,
+  // 'main' for testing this class; returns false on error
+  bool glrParseFrontEnd(Lexer2 &lexer2,
                         char const *grammarFname, char const *inputFname,
                         char const *symOfInterestName = NULL);
 
-  void glrParse(Lexer2 const &lexer2);
-  void glrParseNamedFile(Lexer2 &lexer2, char const *input);
+  bool glrParse(Lexer2 const &lexer2);
+  bool glrParseNamedFile(Lexer2 &lexer2, char const *input);
 
   // after parsing, retrieve the parse tree
   TreeNode *getParseTree();

@@ -1085,7 +1085,7 @@ void readGrammarFile(Grammar &g, char const *fname)
 
     // then check grammar properties; throws exception
     // on failure
-    traceProgress() << "checking grammar well-formedness..\n";
+    traceProgress() << "beginning grammar analysis..\n";
     g.checkWellFormed();
 
     treeTop.del();

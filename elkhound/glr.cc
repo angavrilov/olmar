@@ -260,10 +260,11 @@ void GLR::clearAllStackNodes()
 
 
 // process the input string, and yield a parse graph
-void GLR::glrParseNamedFile(Lexer2 &lexer2, char const *inputFname)
+bool GLR::glrParseNamedFile(Lexer2 &lexer2, char const *inputFname)
 {
   // do first phase lexer
-  traceProgress() << "lexical analysis stage 1...\n";
+  traceProgress() << "lexical analysis...\n";
+  traceProgress(2) << "lexical analysis stage 1...\n";
   Lexer1 lexer1;
   {
     FILE *input = fopen(inputFname, "r");
@@ -276,20 +277,20 @@ void GLR::glrParseNamedFile(Lexer2 &lexer2, char const *inputFname)
 
     if (lexer1.errors > 0) {
       printf("L1: %d error(s)\n", lexer1.errors);
-      return;
+      return false;
     }
   }
 
   // do second phase lexer
-  traceProgress() << "lexical analysis stage 2...\n";
+  traceProgress(2) << "lexical analysis stage 2...\n";
   lexer2_lex(lexer2, lexer1);
 
   // parsing itself
-  glrParse(lexer2);
+  return glrParse(lexer2);
 }
 
 
-void GLR::glrParse(Lexer2 const &lexer2)
+bool GLR::glrParse(Lexer2 const &lexer2)
 {
   // get ready..
   traceProgress() << "parsing...\n";
@@ -381,7 +382,7 @@ void GLR::glrParse(Lexer2 const &lexer2)
                 "  left context: " << leftContextString(lastToDie->state) << "\n";
       }
 
-      return;
+      return false;
     }
   }
 
@@ -406,9 +407,6 @@ void GLR::glrParse(Lexer2 const &lexer2)
   }
 
 
-  // TODO: blow away parse graph
-
-
   // print parse tree in ascii
   TreeNode const *tn = getParseTree();
   if (tracingSys("parse-tree")) {
@@ -420,6 +418,8 @@ void GLR::glrParse(Lexer2 const &lexer2)
   if (tracingSys("ambiguities")) {
     tn->ambiguityReport(trace("ambiguities") << endl);
   }
+  
+  return true;
 }
 
 
@@ -1128,7 +1128,7 @@ string readFileIntoString(char const *fname)
 }
 
 
-void GLR::glrParseFrontEnd(Lexer2 &lexer2, char const *grammarFname, 
+bool GLR::glrParseFrontEnd(Lexer2 &lexer2, char const *grammarFname, 
                            char const *inputFname, char const *symOfInterestName)
 {
   #if 0
@@ -1231,7 +1231,7 @@ void GLR::glrParseFrontEnd(Lexer2 &lexer2, char const *grammarFname,
 
 
     // parse input
-    glrParseNamedFile(lexer2, inputFname);
+    return glrParseNamedFile(lexer2, inputFname);
 
   #endif // 0/1
 }

@@ -296,6 +296,12 @@ int itemDiff(DottedProduction const *a, DottedProduction const *b, void*)
     return 1;
   }
 
+  cout << "a: "; a->print(cout);
+  cout << "\nb: "; b->print(cout);
+  cout << endl;
+
+  // this can be caused if the grammar input file actually
+  // has the same production listed twice
   xfailure("two dotted productions with diff addrs are equal!\n");
 }
 
@@ -1456,7 +1462,7 @@ void GrammarAnalysis::constructLRItemSets()
 
   // do the BFS now, since we want to print the sample inputs
   // in the loop that follows
-  traceProgress() << "BFS tree on transition graph...\n";
+  traceProgress(2) << "BFS tree on transition graph...\n";
   computeBFSTree();
 
 
@@ -2153,16 +2159,16 @@ void GrammarAnalysis::runAnalyses()
   checkWellFormed();
 
   // precomputations
-  traceProgress() << "init...\n";
+  traceProgress(2) << "init...\n";
   initializeAuxData();
 
-  traceProgress() << "derivability relation...\n";
+  traceProgress(2) << "derivability relation...\n";
   computeWhatCanDeriveWhat();
 
-  traceProgress() << "first...\n";
+  traceProgress(2) << "first...\n";
   computeFirst();
 
-  traceProgress() << "follow...\n";
+  traceProgress(2) << "follow...\n";
   computeFollow();
 
   // print results
@@ -2179,7 +2185,7 @@ void GrammarAnalysis::runAnalyses()
   if (tracingSys("derivable")) {
     derivable->print();
   }
-    
+
   // testing closure
   #if 0
   {
@@ -2207,10 +2213,10 @@ void GrammarAnalysis::runAnalyses()
 
 
   // LR stuff
-  traceProgress() << "LR item sets...\n";
+  traceProgress(2) << "LR item sets...\n";
   constructLRItemSets();
 
-  traceProgress() << "SLR conflicts...\n";
+  traceProgress(2) << "SLR conflicts...\n";
   findSLRConflicts();
 
 
@@ -2219,7 +2225,7 @@ void GrammarAnalysis::runAnalyses()
   //cout << "throwing away items\n";
   MUTATE_EACH_OBJLIST(ItemSet, itemSets, iter) {
     iter.data()->throwAwayItems();
-  }    
+  }
   #endif // 0
 
 
@@ -2295,10 +2301,12 @@ int main(int argc, char **argv)
   }
 
   // emit some C++ code
-  traceProgress() << "emitting C++ code...\n";
-  string header = stringc << prefix << ".h";
-  emitSemFunImplFile(stringc << prefix << ".cc", header, &g);
-  emitSemFunDeclFile(header, &g);
+  string headerFname = stringc << prefix << ".h";
+  string implFname = stringc << prefix << ".cc";
+  traceProgress() << "emitting C++ code to "
+                  << headerFname << " and " << implFname << " ...\n";
+  emitSemFunImplFile(implFname, headerFname, &g);
+  emitSemFunDeclFile(headerFname, &g);
 
   // write the analyzed grammar to a file
   string binFname = stringc << prefix << ".bin";

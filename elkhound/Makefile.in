@@ -130,7 +130,10 @@ ccgr-dep = cc.o ${grammar-set} ${common} ${grampar-set} \
 
 # parser and semantic analyzer for cc.gr, rolled up as a library for
 # easier importing into ocaml
+# turns out if you don't remove the library, there's a possibility
+# of old object files staying in it .. !
 libccgr.a: ${ccgr-dep} cc.h
+	rm -f libccgr.a
 	ar -r libccgr.a ${ccgr-dep}
 	ranlib libccgr.a
 

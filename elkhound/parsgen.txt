@@ -31,5 +31,6 @@ tracing strings:
   refct:         environment reference count ops
   cil-tree:      print the Cil tree
   eh:            print when exceptions are thrown  
-
+  allocStats:    print stats about allocated nodes
+  
 

@@ -603,7 +603,8 @@ void Env::printLocalErrors(ostream &os) const
     // indenting here doesn't quite work because sometimes
     // the error is passed to a parent in ~Env and then
     // we get the wrong indentation level...
-    indent(os) << "Error: " << iter.data()->whyStr() << endl;
+    // so, screw it; the indentation looks ugly anyway
+    os << "Error: " << iter.data()->whyStr() << endl;
   }
 }
 
