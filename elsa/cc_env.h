@@ -661,6 +661,11 @@ public:      // funcs
   // error message (using 'action') and return false
   bool ensureCompleteType(char const *action, Type *type);
 
+  // support for cppstd 13.4; see implementations for more details
+  Variable *getOverloadedFunctionVar(Expression *e);
+  void setOverloadedFunctionVar(Expression *e, Variable *selVar);
+  Variable *pickMatchingOverloadedFunctionVar(Variable *ovlVar, Type *type);
+
   // ------------ template instantiation stuff ------------
   // the following methods are implemented in template.cc
 private:     // template funcs

@@ -4434,6 +4434,20 @@ static bool allMethods(SObjList<Variable> &set)
 #endif // 0
 
 
+// set an ArgumentInfo according to an expression
+void getArgumentInfo(Env &env, ArgumentInfo &ai, Expression *e)
+{
+  Variable *ovlVar = env.getOverloadedFunctionVar(e);
+  if (ovlVar) {
+    ai.ovlVar = ovlVar;
+  }
+  else {
+    ai.special = e->getSpecial(env.lang);
+    ai.type = e->type;
+  }
+}
+
+
 // Given a Variable that might denote an overloaded set of functions,
 // and the syntax of the arguments that are to be passed to the
 // function ultimately chosen, pick one of the functions using
@@ -4515,7 +4529,7 @@ static Variable *outerResolveOverload(Env &env,
     }
 
     FAKELIST_FOREACH_NC(ArgExpression, args, iter) {
-      argInfo[index] = ArgumentInfo(iter->getSpecial(env.lang), iter->getType());
+      getArgumentInfo(env, argInfo[index], iter->expr);
       index++;
     }
   }
@@ -4655,6 +4669,17 @@ void compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *ar
        paramIter.adv(), paramIndex++, argIter = argIter->butFirst()) {
     Variable *param = paramIter.data();
     ArgExpression *arg = argIter->first();
+
+    // is the argument the name of an overloaded function? [cppstd 13.4]
+    Variable *ovlVar = env.getOverloadedFunctionVar(arg->expr);
+    if (ovlVar) {
+      // pick the one that matches the target type
+      ovlVar = env.pickMatchingOverloadedFunctionVar(ovlVar, param->type);
+      if (ovlVar) {
+        // modify 'arg' accordingly
+        env.setOverloadedFunctionVar(arg->expr, ovlVar);
+      }
+    }
 
     // try to convert the argument to the parameter
     ImplicitConversion ic = getImplicitConversion(env,
@@ -5560,11 +5585,6 @@ Type *E_sizeof::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-inline ArgumentInfo argInfo(CCLang &lang, Expression *e)
-{
-  return ArgumentInfo(e->getSpecial(lang), e->type);
-}
-
 // do operator overload resolution for a unary operator; return
 // non-NULL if we've replaced this node, and want the caller to
 // return that value
@@ -5592,7 +5612,7 @@ Type *resolveOverloadedUnaryOperator(
 
     // argument information
     GrowArray<ArgumentInfo> args(1);
-    args[0] = argInfo(env.lang, expr);
+    getArgumentInfo(env, args[0], expr);
 
     // prepare resolver
     OverloadResolver resolver(env, env.loc(), &env.errors,
@@ -5691,9 +5711,9 @@ Type *resolveOverloadedBinaryOperator(
 
     // collect argument information
     GrowArray<ArgumentInfo> args(2);
-    args[0] = argInfo(env.lang, e1);
+    getArgumentInfo(env, args[0], e1);
     if (e2) {
-      args[1] = argInfo(env.lang, e2);
+      getArgumentInfo(env, args[1], e2);
     }
     else {
       // for postfix inc/dec, the second parameter is 'int'

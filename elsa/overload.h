@@ -58,15 +58,27 @@ public:
   SpecialExpr special;          // whether it's a special expression
   Type *type;                   // type of argument
 
+  // NOTE: 'type' may be NULL if the argument corresponds to a
+  // receiver object but the function being invoked might be static
+  // and there is no receiver at the call site.
+
+  // if this is non-NULL, then it means the argument is the name
+  // (or address of name) of an overloaded function, hence we must
+  // consider all the possible types; in this case, 'special' will
+  // be SE_NONE and 'type' will be NULL
+  Variable *ovlVar;
+
 public:
   ArgumentInfo()
-    : special(SE_NONE), type(NULL) {}
+    : special(SE_NONE), type(NULL), ovlVar(NULL) {}
   ArgumentInfo(SpecialExpr s, Type *t)
-    : special(s), type(t) {}
+    : special(s), type(t), ovlVar(NULL) {}
+  ArgumentInfo(Variable *v)
+    : special(SE_NONE), type(NULL), ovlVar(v) {}
   ArgumentInfo(ArgumentInfo const &obj)
-    : DMEMB(special), DMEMB(type) {}
+    : DMEMB(special), DMEMB(type), DMEMB(ovlVar) {}
   ArgumentInfo& operator= (ArgumentInfo const &obj)
-    { CMEMB(special); CMEMB(type); return *this; }
+    { CMEMB(special); CMEMB(type); CMEMB(ovlVar); return *this; }
 };
 
 

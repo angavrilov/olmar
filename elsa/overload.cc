@@ -254,9 +254,22 @@ void OverloadResolver::printArgInfo()
       overloadTrace() << "arguments:\n";
       for (int i=0; i < args.size(); i++) {
         string typeString = "(missing)";
-        if (args[i].type) {
+        if (args[i].ovlVar) {
+          stringBuilder sb;
+          sb << "(13.4 set) ";
+          int ct=0;
+          SFOREACH_OBJLIST_NC(Variable, args[i].ovlVar->overload->set, iter) {
+            if (ct++ > 0) {
+              sb << " or ";
+            }
+            sb << iter.data()->type->toString();
+          }
+          typeString = sb;
+        }
+        else if (args[i].type) {
           typeString = args[i].type->toString();
         }
+
         overloadTrace() << "  " << i << ": "
              << toString(args[i].special) << ", "
              << typeString << "\n";
@@ -342,7 +355,7 @@ void OverloadResolver::processCandidate(Variable *v)
     // FIX: This is a bug!  If the args contain template parameters,
     // they will be the wrong template parameters.
     GrowArray<ArgumentInfo> &args0 = this->args;
-    // FIX: check there are no dependent types in the arugments
+    // FIX: check there are no dependent types in the arguments
     TypeListIter_GrowArray argListIter(args0);
     MatchTypes match(env.tfac, MatchTypes::MM_BIND, Type::EF_DEDUCTION);
     if (!env.getFuncTemplArgs(match, sargs, finalName, v, argListIter, false /*reportErrors*/)) {
@@ -633,7 +646,29 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate
   SObjListIter<Variable> paramIter(ft->params);
   int argIndex = 0;
   while (!paramIter.isDone() && argIndex < args.size()) {
-    bool destIsReceiver = argIndex==0 && ft->isMethod();
+    // address of overloaded function?
+    if (args[argIndex].ovlVar) {
+      Variable *selVar =
+        env.pickMatchingOverloadedFunctionVar(args[argIndex].ovlVar,
+                                              paramIter.data()->type);
+      if (selVar) {
+        // just say it matches; we don't need to record *which* one was
+        // chosen, because that will happen later when the arguments are
+        // checked against the parameters of the chosen function
+        ImplicitConversion ics;
+        ics.addStdConv(SC_IDENTITY);
+        c->conversions[argIndex] = ics;
+
+        // go to next arg/param pair
+        paramIter.adv();
+        argIndex++;
+        continue;
+      }
+      else {
+        // whole thing not viable
+        return NULL;
+      }
+    }
 
     if (argIndex==0 && (flags & OF_METHODS)) {
       if (!args[argIndex].type && ft->isMethod()) {
@@ -646,6 +681,8 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate
         continue;
       }
     }
+
+    bool destIsReceiver = argIndex==0 && ft->isMethod();
 
     if (flags & OF_NO_USER) {
       // only consider standard conversions
@@ -674,7 +711,7 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate
         return NULL;           // no conversion sequence possible
       }
     }
-    
+
     paramIter.adv();
     argIndex++;
   }

@@ -7,6 +7,7 @@
 #include "strtable.h"      // StringTable
 #include "cc_lang.h"       // CCLang
 #include "strutil.h"       // suffixEquals, prefixEquals
+#include "overload.h"      // OVERLOADTRACE
 
 
 void gdbScopeSeq(ScopeSeq &ss)
@@ -3608,6 +3609,82 @@ bool Env::ensureCompleteType(char const *action, Type *type)
   }
 
   return true;
+}
+
+
+// if 'e' is the name of a function, or an address of one, which is
+// overloaded, get the Variable denoting the overload set; otherwise,
+// return NULL
+Variable *Env::getOverloadedFunctionVar(Expression *e)
+{
+  if (e->isE_addrOf()) {
+    e = e->asE_addrOf()->expr;
+  }
+
+  if (e->isE_variable()) {
+    Variable *ret = e->asE_variable()->var;
+    if (ret && ret->isOverloaded()) {
+      return ret;
+    }
+  }
+
+  return NULL;
+}
+
+
+// having selected 'selVar' from the set of overloaded names denoted
+// by 'e', modify 'e' to reflect that selection, by modifying the
+// 'type' and 'var' annotations; this function mirrors
+// 'getOverloadedFunctionVar' in structure, as we assume that 'e'
+// already went through that one and returned non-NULL
+void Env::setOverloadedFunctionVar(Expression *e, Variable *selVar)
+{
+  if (e->isE_addrOf()) {
+    e->type = makePointerType(loc(), CV_NONE, selVar->type);
+    e = e->asE_addrOf()->expr;
+  }
+
+  xassert(e->isE_variable());
+  E_variable *ev = e->asE_variable();
+
+  ev->type = selVar->type;
+  ev->var = selVar;
+}
+
+
+// given the Variable denoting an overload set, and the type to which
+// the overloaded name is being converted, select the element that
+// matches that type, if any [cppstd 13.4 para 1]
+Variable *Env::pickMatchingOverloadedFunctionVar(Variable *ovlVar, Type *type)
+{
+  // normalize 'type' to just be a FunctionType
+  type = type->asRval();
+  if (type->isPointerType()) {
+    type = type->getAtType();
+  }
+  if (!type->isFunctionType()) {
+    return NULL;     // no matching element if not converting to function
+  }
+
+  // as there are no standard conversions for function types or
+  // pointer to function types [cppstd 13.4 para 7], simply find an
+  // element with an equal type
+  SFOREACH_OBJLIST_NC(Variable, ovlVar->overload->set, iter) {
+    Variable *v = iter.data();
+
+    if (v->isTemplate()) {
+      // TODO: cppstd 13.4 paras 2,3,4
+      unimp("address of overloaded name, with a templatized element");
+    }
+
+    if (v->type->equals(type)) {
+      OVERLOADTRACE("13.4: selected `" << v->toString() << "'");
+      return v;     // found it
+    }
+  }
+
+  OVERLOADTRACE("13.4: no match for type `" << type->toString() << "'");
+  return NULL;      // no matching element
 }
 
 
