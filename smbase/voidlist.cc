@@ -204,7 +204,7 @@ void *VoidList::removeAt(int index)
   // will look for the node just before the one to delete
   index--;
 
-  VoidNode *p;
+  VoidNode *p;	   
   for (p = top; p->next && index>0;
        p = p->next, index--)
     {}
@@ -234,6 +234,24 @@ void VoidList::removeAll()
   }
 }
 
+	    
+void VoidList::reverse()
+{
+  // transfer list to a temporary
+  VoidNode *oldlist = top;
+  top = NULL;
+  
+  // prepend all nodes
+  while (oldlist != NULL) {
+    // take first node from oldlist
+    VoidNode *node = oldlist;
+    oldlist = oldlist->next;
+
+    // prepend it to new list
+    node->next = top;
+    top = node;
+  }
+}
 
 
 //   The difference function should return <0 if left should come before
@@ -603,6 +621,14 @@ void entry()
       // now it is (b c d)
     verifySorted(list);
     PRINT(list);
+    
+    // test reverse
+    list.reverse();    	 
+      // list is now (d c b)
+    xassert(list.indexOf(d) == 0 &&
+            list.indexOf(c) == 1 &&
+            list.indexOf(b) == 2);
+    PRINT(list);	
   }
 
   // this hits most of the remaining code

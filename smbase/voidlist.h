@@ -50,6 +50,7 @@ public:
   // selectors
   int count() const;                 // # of items in list
   bool isEmpty() const               { return top == NULL; }
+  bool isNotEmpty() const            { return top != NULL; }
   void *nth(int which) const;        // get particular item, 0 is first (item must exist)
 
   // insertion
@@ -73,7 +74,8 @@ public:
   void removeItem(void *item);       // remove first occurrance -- must exist
   bool removeIfPresent(void *item);  // remove first occurrance; return true if changed
 
-  // complex modifiers
+  // complex modifiers				  
+  void reverse();
   void insertionSort(VoidDiff diff, void *extra=NULL);
   void mergeSort(VoidDiff diff, void *extra=NULL);
 

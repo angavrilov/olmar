@@ -40,6 +40,7 @@ public:
   // selectors
   int count() const                     { return list.count(); }
   bool isEmpty() const                  { return list.isEmpty(); }
+  bool isNotEmpty() const               { return list.isNotEmpty(); }
   T *nth(int which)                     { return (T*)list.nth(which); }
   T const *nthC(int which) const        { return (T const*)list.nth(which); }
 
@@ -63,6 +64,7 @@ public:
   bool removeIfPresent(T const *item)   { return list.removeIfPresent((void*)newitem); }
 
   // complex modifiers
+  void reverse()                                    { list.reverse(); }
   void insertionSort(Diff diff, void *extra=NULL)   { list.insertionSort((VoidDiff)diff, extra); }
   void mergeSort(Diff diff, void *extra=NULL)       { list.mergeSort((VoidDiff)diff, extra); }
 
