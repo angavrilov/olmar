@@ -73,6 +73,7 @@ mysig.o: mysig.cc mysig.h
 
 # library itself
 OBJS := \
+  autofile.o \
   bflatten.o \
   bit2d.o \
   bitarray.o \

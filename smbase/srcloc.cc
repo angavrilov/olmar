@@ -1,14 +1,14 @@
-// srcloc.cc
+// srcloc.cc            see license.txt for copyright and terms of use
 // code for srcloc.h
 
 #include "srcloc.h"     // this module
-#include "exc.h"        // throw_XOpen
+#include "autofile.h"   // AutoFILE
 #include "array.h"      // ArrayStack
 #include "syserr.h"     // xsyserror
 #include "trace.h"      // traceProgress
 #include "hashline.h"   // HashLineMap
 
-#include <stdio.h>      // FILE, etc.
+#include <stdio.h>      // fprintf
 
 
 // this parameter controls the frequency of Markers in 
@@ -40,10 +40,7 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
     marker(0, 1, 0),
     markerCol(1)
 {
-  FILE *fp = fopen(name, "r");
-  if (!fp) {
-    throw_XOpen(name);
-  }
+  AutoFILE fp(name, "r");
 
   // the buffering that FILE would do would be wasted, so
   // make it unbuffered (if this causes a problem on some
@@ -153,6 +150,8 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
   this->index = new Marker[indexSize];
   memcpy(this->index, index.getArray(),
          indexSize * sizeof(this->index[0]));
+         
+  // 'fp' closed by the AutoFILE
 }
 
 
@@ -711,15 +710,10 @@ void testFile(char const *fname)
   // find the file's length
   int len;
   {
-    FILE *fp = fopen(fname, "r");
-    if (!fp) {
-      throw_XOpen(fname);
-    }
+    AutoFILE fp(fname, "r");
 
     fseek(fp, 0, SEEK_END);
     len = (int)ftell(fp);
-
-    fclose(fp);
   }
 
   // get locations for the start and end
@@ -822,10 +816,7 @@ void testHashMap()
   // read srcloc.tmp and install the hash maps
   int expanderLine=0;
   {
-    FILE *fp = fopen("srcloc.tmp", "r");
-    if (!fp) {
-      throw_XOpen("srcloc.tmp");
-    }
+    AutoFILE fp("srcloc.tmp", "r");
 
     enum { SZ=256 };
     char buf[SZ];
@@ -850,8 +841,6 @@ void testHashMap()
       pp->addHashLine(ppLine, origLine, origFname);
     }
     pp->doneAdding();
-
-    fclose(fp);
   }
 
   // the 2nd line in the pp source should correspond to the
