@@ -41,7 +41,10 @@ information down.
 ** Undefined behavior
 
 Many sources of undefined behavior, like multiple interacting
-side effects between sequence points, is not diagnosed.
+side effects between sequence points, are not diagnosed.  As the
+standard does not require a diagnostic, this isn't a standards
+conformance problem, but it would be nice to detect as many of
+these as possible.
 
 ** Default arguments
 
@@ -196,8 +199,7 @@ as a group despite the internal sharing
 
 ** Hash-consing for types
 
-Dramatically reduce storage requirements for types by implementing
-hash-consing.
+Reduce storage requirements for types by implementing hash-consing.
 
 ** Do something about variables
 

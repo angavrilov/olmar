@@ -14,13 +14,13 @@ Elsa: The Elkhound-based C/C++ Parser
 </h2></center>
 
 <p>
-Elsa is a C and C++ parser.  It is based on the
-<a href="../elkhound/index.html">Elkhound</a> parser generator.
-It lexes and parses input C/C++ code into an abstract syntax tree.
-It also does some type checking, but (currently) only insofar as that
-is required to disambiguate the syntax.  The only major C++ features
-still not implemented are namespaces and template partial
-specializations.
+Elsa is a C and C++ parser.  It is based on the <a
+href="../elkhound/index.html">Elkhound</a> parser generator.  It lexes
+and parses input C/C++ code into an abstract syntax tree.  It does
+some type checking, in the interest of elaborating the meaning of
+constructs, but it does not (yet?) reject all invalid programs.  The
+only major C++ features still not implemented are namespaces and
+template partial specializations.
 
 <p>
 To download Elkhound and Elsa, see the
@@ -30,12 +30,14 @@ To download Elkhound and Elsa, see the
 Additional documentation:
 <ul>
 <li><a href="cc.ast.html">cc.ast.html</a>: The C/C++ abstract syntax tree
-    created by the parser.  <b>Read this first.</b>
+    created by the parser.
 <li><a href="cc_type.html">cc_type.html</a>: The type representation
-    objects created by the type checker.  <b>Read this second.</b>
+    objects created by the type checker.
 <li><a href="convertibility.txt">convertibility.txt</a>: A discussion
     of the standard-convertibility relation, and its application to
     operator overload resolution.
+<li><a href="todo.txt">todo.txt</a>: Current list of planned but 
+    unimplemented features.
 </ul>
 
 <p>
@@ -43,7 +45,7 @@ Elsa requires the following external software:
 <ul>
 <li><a href="../elkhound/index.html">elkhound</a>, a GLR parser generator.
 <li><a href="../ast/index.html">ast</a>, a system for making abstract syntax trees.
-<li><a href="../smbase/index.html">smbase</a>, my utility library.
+<li><a href="../smbase/index.html">smbase</a>, a utility library.
 <li><a href="http://www.gnu.org/software/flex/flex.html">Flex</a>,
     a lexical analyzer generator.
 </ul>
@@ -73,18 +75,18 @@ make it print the annotated, post-type-check AST, say
 <p>
 Additional <tt>-tr</tt> flags of interest:
 <ul>
-<li>printAST: Print the (possibly ambiguous) AST before type checking.
-<li>printTypedAST: Print the AST after type checking.
-<li>env: Print environment modifications as they happen.
-<li>disamb: Print disambiguation activity.
-<li>printHierarchies: Print inheritance hierarchies in
+<li><tt>printAST</tt>: Print the (possibly ambiguous) AST before type checking.
+<li><tt>printTypedAST</tt>: Print the AST after type checking.
+<li><tt>env</tt>: Print environment modifications as they happen.
+<li><tt>disamb</tt>: Print disambiguation activity.
+<li><tt>printHierarchies</tt>: Print inheritance hierarchies in
     <a href="http://www.research.att.com/sw/tools/graphviz/">Dot</a> format.
     Interesting in that virtual inheritance is represented properly;
     for example <a href="in/std/3.4.5.cc">in/std/3.4.5.cc</a> yields
     <a href="gendoc/3.4.5.png">3.4.5.png</a>.
-<li>mustBeUnambiguous: After type checking, scan the AST to verify there
+<li><tt>mustBeUnambiguous</tt>: After type checking, scan the AST to verify there
     are no remaining ambiguities.  If there are, abort.
-<li>prettyPrint: Print out the AST as C++.  This is still somewhat incomplete.
+<li><tt>prettyPrint</tt>: Print out the AST as C++.  This is still somewhat incomplete.
 </ul>
 The <tt>-tr</tt> flags can be passed separately, or strung together
 separated by commas (e.g. "<tt>-tr env,disamb,printAST</tt>").
