@@ -2728,32 +2728,37 @@ void Expression::mid_tcheck(Env &env, int &)
 
 Type *E_boolLit::itcheck(Env &env)
 {
-  return env.getSimpleType(ST_BOOL, CV_CONST);
+  // cppstd 2.13.5 para 1
+  return env.getSimpleType(ST_BOOL);
 }
 
 Type *E_intLit::itcheck(Env &env)
 {
-  // TODO: what about unsigned and/or long literals?
-  // TODO: sm: I am not sure that "5" has type "int const".. this
-  // might affect overload resolution
-  return env.getSimpleType(ST_INT, CV_CONST);
+  // TODO: this is wrong; see cppstd 2.13.1 para 2
+  return env.getSimpleType(ST_INT);
 }
 
 Type *E_floatLit::itcheck(Env &env)
-{                                
-  // TODO: doubles
-  return env.getSimpleType(ST_FLOAT, CV_CONST);
+{
+  // TODO: wrong; see cppstd 2.13.3 para 1
+  return env.getSimpleType(ST_FLOAT);
 }
 
 Type *E_stringLit::itcheck(Env &env)
-{                                                                     
-  return env.makePointerType(PO_POINTER, CV_NONE, env.getSimpleType(ST_CHAR, CV_CONST));
+{
+  // cppstd 2.13.4 para 1
+  // TODO: wide character strings
+
+  // TODO: this is wrong because I'm not properly tracking the string
+  // size if it has embedded NULs
+  Type *charConst = env.getSimpleType(ST_CHAR, CV_CONST);
+  return env.makeArrayType(charConst, strlen(s)+1);
 }
 
 Type *E_charLit::itcheck(Env &env)
-{                               
-  // TODO: unsigned
-  return env.getSimpleType(ST_CHAR, CV_CONST);
+{
+  // TODO: wrong; cppstd 2.13.2 paras 1 and 2
+  return env.getSimpleType(ST_CHAR);
 }
 
 
