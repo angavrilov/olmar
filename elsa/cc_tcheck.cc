@@ -3745,6 +3745,15 @@ Type *E_fieldAcc::itcheck(Env &env, Expression *&replacement)
   }
 }
 
+Type *E_arrow::itcheck(Env &env, Expression *&replacement)
+{
+  // TODO: do overloading here; for now, just replace ourselves with a
+  // '*' and a '.'
+  replacement = new E_fieldAcc(new E_deref(obj), fieldName);
+  replacement->tcheck(env, replacement);
+  return replacement->type;
+}
+
 
 Type *E_sizeof::itcheck(Env &env, Expression *&replacement)
 {
@@ -4174,6 +4183,14 @@ Type *E_deref::itcheck(Env &env, Expression *&replacement)
   }
 }
 
+Type *E_brackets::itcheck(Env &env, Expression *&replacement)
+{
+  // TODO: do overloading here; for now, just replace ourselves with a
+  // '+' and a '*'
+  replacement = new E_deref(new E_binary(obj, BIN_PLUS, index));
+  replacement->tcheck(env, replacement);
+  return replacement->type;
+}
 
 Type *E_cast::itcheck(Env &env, Expression *&replacement)
 {

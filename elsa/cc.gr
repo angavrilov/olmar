@@ -324,7 +324,7 @@ nonterm(Expression*) PostfixExpression {
 
   // array access
   -> a:PostfixExpression "[" e:Expression "]"
-       { return new E_deref(new E_binary(a, BIN_PLUS, e)); }
+       { return new E_brackets(a, e); }
 
   // fn call
   -> f:PostfixExpression a:ArgumentList
@@ -342,7 +342,7 @@ nonterm(Expression*) PostfixExpression {
 
   // deref + field access
   -> p:PostfixExpression "->" n:IdExpression
-       { return new E_fieldAcc(new E_deref(p), n); }
+       { return new E_arrow(p, n); }
 
   -> p:PostfixExpression "++"
        { return new E_effect(EFF_POSTINC, p); }
@@ -353,7 +353,7 @@ nonterm(Expression*) PostfixExpression {
   -> p:PostfixExpression "." n:PQDtorName
        { return new E_fieldAcc(p, n); }
   -> p:PostfixExpression "->" n:PQDtorName
-       { return new E_fieldAcc(new E_deref(p), n); }
+       { return new E_arrow(p, n); }
 
   -> k:CastKeyword "<" t:TypeId ">" "(" e:Expression ")"
        { return new E_keywordCast(k, t, e); }

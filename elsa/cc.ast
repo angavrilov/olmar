@@ -489,6 +489,7 @@ class Expression {
   // field within an object; as a special case, fieldName might begin
   // with "~", meaning we're naming the destructor
   -> E_fieldAcc(Expression obj, PQName fieldName);
+  -> E_arrow(Expression obj, PQName fieldName);
 
   -> E_sizeof(Expression expr);
 
@@ -498,6 +499,7 @@ class Expression {
 
   -> E_addrOf(Expression expr);
   -> E_deref(Expression ptr);
+  -> E_brackets(Expression obj, Expression index);
 
   -> E_cast(ASTTypeId ctype, Expression expr);
   -> E_cond(Expression cond, Expression th, Expression el);

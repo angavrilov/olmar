@@ -402,6 +402,12 @@ class Expression {
        ctor field=NULL;
        custom clone { ret->field = field; }
      }
+  // dsw: copied from E_fieldAcc
+  -> E_arrow {
+       public Variable *field;      // sm: why did I have this 'const'?
+       ctor field=NULL;
+       custom clone { ret->field = field; }
+     }
 
   -> E_sizeof {
        public int size;     // size of the type of expr
