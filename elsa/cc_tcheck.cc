@@ -2063,7 +2063,8 @@ realStart:
     // can only be an overloading if their signatures differ,
     // or it's a conversion operator
     if (!equivalentSignatures(priorFt, specFt) ||
-        unqualifiedName == env.conversionOperatorName) {
+        (unqualifiedName == env.conversionOperatorName &&
+         !priorFt->equals(specFt))) {
       // ok, allow the overload
       TRACE("ovl",    "overloaded `" << prior->name
                    << "': `" << prior->type->toString()
