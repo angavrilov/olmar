@@ -235,7 +235,8 @@ nonterm[PQName*] IdExpression {
   // a bare "::" qualifier can only appear at the start of a qualifier
   // sequence; I'm enforcing it a little bit differently than the std
   // does
-  -> "::" id:PQualifiedId         [ return new PQ_qualifier(NULL, id); ]
+  -> "::" id:PQualifiedId         
+       [ return new PQ_qualifier(NULL /*qualifier*/, NULL /*targs*/, id); ]
 }
 
 // names that are not qualified
@@ -254,8 +255,14 @@ nonterm[PQName*] UnqualifiedId {
 // optional qualifier sequence (with no bare "::"), then an
 // UnqualifiedId
 nonterm[PQName*] PQualifiedId {
-  -> n:TypeName "::" id:PQualifiedId  [ return new PQ_qualifier(n, id); ]
-  -> id:UnqualifiedId                 [ return id; ]
+  -> id:UnqualifiedId                 
+       [ return id; ]
+
+  -> n:TypeName "::" id:PQualifiedId
+       [ return new PQ_qualifier(n, NULL /*targs*/, id); ]
+
+  -> n:TypeName "<" targs:TemplateArgumentList ">" "::" id:PQualifiedId
+       [ return new PQ_qualifier(n, targs, id); ]
 
   // std has a couple places where "template" occurs, I'm leaving
   // those out for now..
@@ -880,16 +887,23 @@ nonterm[enum SimpleTypeId] PrimitiveTypeSpecifier {
 // the parser can never distinguish, so the grammar shouldn't suggest
 // that it can
 nonterm[PQName*] PQTypeName {
-  -> n:PQTypeName_ncc              [ return n; ]
-  -> "::" n:PQTypeName_ncc         [ return new PQ_qualifier(NULL, n); ]
+  -> n:PQTypeName_ncc              
+       [ return n; ]
+  -> "::" n:PQTypeName_ncc
+       [ return new PQ_qualifier(NULL /*qualifier*/, NULL /*targs*/, n); ]
 }
-                                 
+
 // no-colon-colon
 nonterm[PQName*] PQTypeName_ncc {
-  -> n:TypeName                    [ return new PQ_name(n); ]
-  -> q:TypeName "::" n:PQTypeName  [ return new PQ_qualifier(q, n); ]
+  -> n:TypeName                    
+       [ return new PQ_name(n); ]
+  -> id:TemplateId
+       [ return id; ]
 
-  -> id:TemplateId                 [ return id; ]
+  -> q:TypeName "::" n:PQTypeName_ncc
+       [ return new PQ_qualifier(q, NULL /*targs*/, n); ]
+  -> q:TypeName "<" targs:TemplateArgumentList ">" "::" n:PQTypeName_ncc
+       [ return new PQ_qualifier(q, targs, n); ]
 }
 
 
@@ -1090,12 +1104,17 @@ nonterm[IDeclarator*] DirectDeclarator {
 // (I notice the standard calls this PseudoDestructorName; I'll stick with
 // my terminology.)
 nonterm[PQName*] PQDtorName {
-  -> "~" n:TypeName              [ return new PQ_name(str(stringc << "~" << n)); ]
+  -> "~" n:TypeName              
+       [ return new PQ_name(str(stringc << "~" << n)); ]
 
   // as above for PQName_no_colon_colon, I'm temporarily removing an
   // ambiguity that relates to namespaces (e.g. "::F::~F()")
   //-> q:Qualifier rhs:PQDtorName  [ return new PQ_qualifier(q, rhs); ]
-  -> q:TypeName "::" rhs:PQDtorName  [ return new PQ_qualifier(q, rhs); ]
+  -> q:TypeName "::" rhs:PQDtorName
+       [ return new PQ_qualifier(q, NULL /*targs*/, rhs); ]
+
+  -> q:TypeName "<" targs:TemplateArgumentList ">" "::" rhs:PQDtorName
+       [ return new PQ_qualifier(q, targs, rhs); ]
 
   //-> ColonColonOpt NestedNameSpecifier "template" TemplateId "::" "~" TypeName;
 }
@@ -1557,8 +1576,13 @@ nonterm[MemberInit*] MemInitializer {
 // have any qualifiers (because in most cases the parser can't make
 // the distinction so it would fall to typechecking anyway)
 nonterm[PQName*] MemInitializerId {
-  -> id:Identifier                         [ return new PQ_name(id); ]
-  -> n:TypeName "::" id:MemInitializerId   [ return new PQ_qualifier(n, id); ]
+  -> id:Identifier                         
+       [ return new PQ_name(id); ]
+
+  -> n:TypeName "::" id:MemInitializerId   
+       [ return new PQ_qualifier(n, NULL /*targs*/, id); ]
+  -> n:TypeName "<" targs:TemplateArgumentList ">" "::" id:MemInitializerId
+       [ return new PQ_qualifier(n, targs, id); ]
 }
 
 

@@ -210,7 +210,11 @@ Scope *Env::lookupQualifiedScope(PQName const *name)
     if (!qual) {
       // this is a reference to the global scope, i.e. the scope
       // at the bottom of the stack
-      scope = scopes.last();
+      scope = scopes.last();     
+      
+      // should be syntactically impossible to construct bare "::"
+      // with template arguments
+      xassert(!qualifier->targs);
     }
 
     else {
@@ -232,6 +236,26 @@ Scope *Env::lookupQualifiedScope(PQName const *name)
           true /*disambiguating*/);
         return NULL;
       }
+
+      // check template argument compatibility
+      if (!qualifier->targs != !ct->templateParams) {
+        if (qualifier->targs) {
+          error(stringc
+            << "class `" << qual << "' isn't a template");
+        }
+        else {
+          error(stringc
+            << "class `" << qual
+            << "' is a template, you have to supply template arguments");
+        } 
+        
+        // actually, let the typechecker use the scope even without
+        // template arguments (for now?)
+        //return NULL;
+      }
+
+      // TODO: actually check that there are the right number
+      // of arguments, of the right types, etc.
 
       // now that we've found it, that's our active scope
       scope = ct;
