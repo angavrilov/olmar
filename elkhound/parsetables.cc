@@ -66,8 +66,12 @@ ParseTables::~ParseTables()
 
     if (errorBits) {
       delete[] errorBits;
-      delete[] errorBitsPointers;    // TODO: this one is always owned..
     }
+  }
+  
+  if (errorBitsPointers) {
+    // this one is always owned
+    delete[] errorBitsPointers;
   }
 }
 
@@ -254,6 +258,7 @@ void ParseTables::computeErrorBits()
   for (s=0; s < numStates; s++) {
     errorBitsPointers[s] = errorBits + (compressed[s] * errorBitsRowSize);
   }
+  delete[] compressed;
 
   // fill in the bits again, using the new pointers map
   fillInErrorBits(false /*setPointers*/);
@@ -395,11 +400,18 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
     out << "\n";
     out << "  ret->errorBitsPointers = new ErrorBitsEntry* [" << numStates << "];\n";
     
-    // for now, use this sort of hackish way of making the pointers persist
+    // make the pointers persist by storing a table of offsets
+    int *offsets = new int[numStates];
     for (int s=0; s < numStates; s++) {
-      out << "  ret->errorBitsPointers[" << s << "] = ret->errorBits + "
-          << (errorBitsPointers[s] - errorBits) << ";\n";
+      offsets[s] = errorBitsPointers[s] - errorBits;
     }
+    emitTable(out, offsets, numStates, 16, "int", "offsets");
+    delete[] offsets;
+
+    // at run time, interpret the offsets table
+    out << "  for (int s=0; s < " << numStates << "; s++) {\n"
+        << "    ret->errorBitsPointers[s] = ret->errorBits + offsets[s];\n"
+        << "  }\n";
   }
   out << "\n";
 
