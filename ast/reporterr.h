@@ -19,9 +19,20 @@ class SimpleReportError : public ReportError {
 public:
   virtual void reportError(char const *str);
   virtual void reportWarning(char const *str);
-};                                  
+};
 
 extern SimpleReportError simpleReportError;
+
+
+// throw away messages
+class SilentReportError : public ReportError {
+public:
+  virtual void reportError(char const *str);
+  virtual void reportWarning(char const *str);
+};
+
+extern SilentReportError silentReportError;
+
 
 
 #endif // REPORTERR_H

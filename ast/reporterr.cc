@@ -5,6 +5,8 @@
 
 #include <iostream.h>       // cout
 
+
+// --------------------- SimpleReportError -------------------------
 void SimpleReportError::reportError(char const *str)
 {
   cout << "error: " << str << endl;
@@ -16,3 +18,16 @@ void SimpleReportError::reportWarning(char const *str)
 }
 
 SimpleReportError simpleReportError;
+
+
+// --------------------- SilentReportError -------------------------
+void SilentReportError::reportError(char const *str)
+{}
+
+void SilentReportError::reportWarning(char const *str)
+{}
+
+SilentReportError silentReportError;
+
+
+// EOF

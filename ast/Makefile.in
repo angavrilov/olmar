@@ -2,7 +2,7 @@
 # see license.txt for copyright and terms of use
 
 # main targets
-all: ccsstr astgen libast.a TAGS example.o ext1.o
+all: ccsstr astgen libast.a example.o ext1.o
 
 
 # directories of other software
@@ -23,7 +23,6 @@ LDFLAGS := -g -Wall $(LIBSMBASE)
 # some other tools
 AR     := ar
 RANLIB := ranlib
-ETAGS  := @ETAGS@
 
 
 # compile .cc to .o
@@ -151,9 +150,6 @@ gendoc/demo.h gendoc/demo.cc: demo.ast astgen
 doc: gendoc gendoc/configure.txt gendoc/demo.h
 	@echo "built documentation"
 
-TAGS:
-	$(ETAGS) *.cc *.h
-
 
 # ------------------------ misc ---------------------
 check: ccsstr
@@ -165,7 +161,6 @@ clean:
 	rm -f agrampar astgen ccsstr towner exampletest libast.a
 	rm -f agrampar.output
 	rm -f example.{h.cc} ext1.{h,cc}
-	rm -f TAGS
 
 # return to pristine checked-out state
 distclean: clean

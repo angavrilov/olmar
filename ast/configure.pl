@@ -9,7 +9,6 @@ use strict 'subs';
 
 # defaults
 $BASE_FLAGS = "-Wall -Wno-deprecated -D__UNIX__";
-$default_hash = "-DWILKERSON_GOLDSMITH_HASH";
 $CCFLAGS = ();
 $debug = 0;
 $use_dash_g = 1;
@@ -100,7 +99,7 @@ if (!$debug) {
 }
 
 if ($use_dash_g) {
-  push @CCFLAGS, "-g";
+  unshift @CCFLAGS, "-g";
 }
 
 $os = `uname -s`;
@@ -110,9 +109,10 @@ if ($os eq "Linux") {
 }
 
 # if haven't seen a hashfunction by now, use the default
-if (!grep (/^-D.*_HASH$/, @CCFLAGS)) {
-  push @CCFLAGS, $default_hash;
-}
+# sm: ... the only thing sensitive to this is strhash.cc, in smbase!
+#  if (!grep (/^-D.*_HASH$/, @CCFLAGS)) {
+#    push @CCFLAGS, $default_hash;
+#  }
 
 # smash the list together to make a string
 $CCFLAGS = join(' ', @CCFLAGS);
@@ -138,23 +138,7 @@ if (defined($smbase_flags)) {
 }
 
 
-# ---------------------- etags? ---------------------
-print("checking for etags... ");
-if (system("type etags >/dev/null 2>&1")) {
-  # doesn't have etags; cygwin is an example of such a system
-  print("not found\n");
-  $ETAGS = "true";       # 'true' is a no-op
-}
-elsif (system("etags --help | grep -- --members >/dev/null")) {
-  # has it, but it does not know about the --members option
-  print("etags\n");
-  $ETAGS = "etags";
-}
-else {
-  # assume if it knows about --members it knows about --typedefs too
-  print("etags --members --typedefs\n");
-  $ETAGS = "etags --members --typedefs";
-}
+# etags: see elsa/configure.pl
 
 
 # ------------------ config.summary -----------------
@@ -212,7 +196,6 @@ EOF
 # substitute variables
 sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
     -e "s|\@SMBASE\@|$SMBASE|g" \\
-    -e "s|\@ETAGS\@|$ETAGS|g" \\
   <Makefile.in >>Makefile || exit
 
 # discourage editing ..

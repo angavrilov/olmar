@@ -5,6 +5,7 @@
 #include "xassert.h"     // xassert
 #include "exc.h"         // xformat
 #include "strutil.h"     // string, replace
+#include "reporterr.h"   // silentReportError
 
 #include <iostream.h>    // cout
 #include <ctype.h>       // isspace
@@ -216,7 +217,7 @@ public:
 
 void Test::feed(CC &cc, char const *src)
 {
-  cout << "trying: " << src << endl;
+  //cout << "trying: " << src << endl;
   while (*src) {
     // feed it in 10 char increments, to test split processing too
     int len = min(strlen(src), 10);
@@ -228,7 +229,7 @@ void Test::feed(CC &cc, char const *src)
 
 void Test::test(char const *src, CC::State state, int nesting, bool flag)
 {
-  CC cc;
+  CC cc(&silentReportError);
   feed(cc, src);
 
   if (!( cc.state == state &&
@@ -257,7 +258,7 @@ void Test::str(char const *src, int nesting, bool bs)
 
 void Test::yes(char const *src)
 {
-  CC cc;
+  CC cc(&silentReportError);
   feed(cc, src);
 
   xassert(cc.zeroNesting());
@@ -265,7 +266,7 @@ void Test::yes(char const *src)
 
 void Test::no(char const *src)
 {
-  CC cc;
+  CC cc(&silentReportError);
   feed(cc, src);
 
   xassert(!cc.zeroNesting());
@@ -273,14 +274,14 @@ void Test::no(char const *src)
 
 void Test::name(char const *body, char const *n)
 {
-  CC cc;
+  CC cc(&silentReportError);
   feed(cc, body);
   xassert(cc.getDeclName().equals(n));
 }
 
 void Test::badname(char const *body)
 {
-  CC cc;
+  CC cc(&silentReportError);
   feed(cc, body);
   try {
     cc.getDeclName();
@@ -293,6 +294,9 @@ void Test::badname(char const *body)
 
 int Test::main()
 {
+  // quiet!
+  xBase::logExceptions = false;
+
   normal("int main()", 0);
   normal("int main() { hi", 1);
   normal("int main() { hi {", 2);
