@@ -440,6 +440,7 @@ class Expression {
   public Expression *ambiguity;  ctor ambiguity=NULL;
   public void addAmbiguity(Expression *alternative);
   custom traverse { if (ambiguity) ambiguity->traverse(vis); }
+  custom clone { xassert(!ambiguity); }    // we only clone things that are still ambiguous (i.e. not tcheck'd)
 
   // print ambiguities
   public void printAmbiguities(ostream &os, int indent) const;

@@ -195,6 +195,14 @@ void Scope::registerVariable(Variable *v)
 }
 
 
+void Scope::addUniqueVariable(Variable *v)
+{
+  registerVariable(v);
+  bool ok = addVariable(v);
+  xassert(ok);
+}
+
+
 // -------- lookup --------                            
 // vfilter: variable filter
 // implements variable-filtering aspect of the flags; the idea

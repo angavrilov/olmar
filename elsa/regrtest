@@ -364,6 +364,8 @@ testparse t0163.cc
 testparse t0164.cc
 testparse t0165.cc
 testparse t0166.cc
+testparse t0167.cc
+testparse t0168.cc
 
 # known bugs
 

@@ -185,6 +185,9 @@ public:      // funcs
   // and 'scopeKind' members (this is not done by 'addVariable')
   void registerVariable(Variable *v);
 
+  // somewhat common sequence: register, add, assert that the add worked
+  void addUniqueVariable(Variable *v);
+
   // lookup; these return NULL if the name isn't found; 'env' is
   // passed for the purpose of reporting ambiguity errors
   Variable const *lookupVariableC(StringRef name, Env &env, LookupFlags f=LF_NONE) const;
