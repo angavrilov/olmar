@@ -887,6 +887,7 @@ failparse k0022.cc "explicit instantiation of template loses original template p
 failparse k0023.cc "typedef pointer to member function in template"
 failparse k0024.cc "overloaded function resolution in an array"
 failparse k0025.cc "fully-namespace-qualified base class initialization"
+failparse k0026.cc "template argument default value from another template class"
 
 # ---- END: lots of tests ----
 
