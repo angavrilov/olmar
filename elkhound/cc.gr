@@ -13,33 +13,6 @@ terminals {
 }
 
 
-// declarations for semantic functions
-literalCode "prologue" {
-  #include "cc_env.h"    // Env
-  #include "cc_tree.h"   // CCTreeNode
-  #include "cc_cfg.h"    // CFG, etc.
-  #include "dataflow.h"  // DataflowEnv
-  #include "cil.h"       // CilXXX stuff (C Intermediate Language)
-  #include "cc_parse.h"  // emptyCamlAST
-
-  // provide easy-to-grep-for (and easy-to-put-a-breakpt) names for
-  // places I haven't implemented the Cil translation
-  CilExpr *todoCilExpr(CilExtraInfo tn);
-  CilStmt *todoCilStmt(CilExtraInfo tn);
-
-  // this is for places where there is no value
-  // for a construct
-  inline CilExpr *noCilValue(CilExtraInfo) { return NULL; }
-
-  // related, because I'm not yet sure what the
-  // best way to handle void is
-  inline CilExpr *voidCilValue(CilExtraInfo) { return NULL; }
-}
-
-// use a custom base class
-treeNodeBase "CCTreeNode";
-
-
 // dummy first rule
 nonterm StartSymbol -> TranslationUnit L2_EOF;
 
@@ -49,17 +22,29 @@ nonterm StartSymbol -> TranslationUnit L2_EOF;
 // source of problems parsing C and C++
 // (here, "variable" means variable or function; it names
 // an object that exists at runtime)
-nonterm HasName {
-  fundecl string getName() const;
-  fun getName = n.nameValue;
-}
-nonterm TypedefName : HasName -> n:L2_NAME   ;
-nonterm EnumName : HasName -> n:L2_NAME      ;
-nonterm EnumValueName : HasName -> n:L2_NAME ;     // called 'enumerator' in spec
-nonterm ClassName : HasName -> n:L2_NAME     ;
-nonterm TemplateName : HasName -> n:L2_NAME  ;
-nonterm VariableName : HasName -> n:L2_NAME  ;
-nonterm LabelName : HasName -> n:L2_NAME     ;
+
+// typedef int <name>
+nonterm TypedefName -> n:L2_NAME   ;
+
+// enum <name> { ... }
+nonterm EnumName -> n:L2_NAME      ;
+
+// enum foo { ..., <name>, ... }
+nonterm EnumValueName -> n:L2_NAME ;     // called 'enumerator' in spec
+
+// class <name> { ... }
+nonterm ClassName -> n:L2_NAME     ;
+
+// template<...> class <name> { ... }
+nonterm TemplateName -> n:L2_NAME  ;
+
+// int <name>;
+// void <name>() { ... }
+nonterm VariableName -> n:L2_NAME  ;
+
+// <name>: ...
+// goto <name>;
+nonterm LabelName -> n:L2_NAME     ;
 
 
 // ---------------- higher-level syntax -----------------
@@ -67,217 +52,46 @@ nonterm LabelName : HasName -> n:L2_NAME     ;
 // C++ standard document (should track down a proper reference..)
 
 // ------ A.3 Basic Concepts ------
-nonterm Checkable {
-  // this does several jobs:
-  //   - check type consistency, and report errors where
-  //     inconsistencies are found
-  //   - add new symbols to the environment, with their types
-  //   - return an expression ptr for the value of the
-  //     language construct, when evaluated as an expression
-  //     (deliberately vague here, for now..)
-  fundecl CilExpr *typeCheck(Env *passedEnv, CilContext const &ctxt);
+nonterm TranslationUnit {
+  -> empty ;
 
-  // first thing in every typeCheck function
-  literalCode "prefix" typeCheck {
-    env = passedEnv;
-  }
-
-  // default impl is to do nothing
-  fun typeCheck = NULL;
-
-  // but of syntactic sugar: typeCheck, and be sure the
-  // type of the result isn't void
-  fundecl CilExpr *rvalueTypeCheck(Env *passedEnv, CilContext const &ctxt);
-  fun rvalueTypeCheck {
-    return asRval(typeCheck(passedEnv, ctxt), *this);
-  }
-}
-
-nonterm TranslationUnit : Checkable {
-  // simple indirection so I can print just the d's
-  fundecl void printTree();
-  fun printTree {}      // NOP; never called
-
-  // entry point to gather an ocaml ast; this *overrides*
-  // the camlAST declared in glrtree.h; can't say 'virtual',
-  // however, because this decl text is also emitted for
-  // the fn definition
-  fundecl /*virtual*/ struct wes_ast_node *camlAST();
-
-  -> empty {
-    fun camlAST { // return our ocaml AST
-      return emptyCamlAST();
-    }
-  }
-
-  -> t:TranslationUnit d:Declaration {
-    fun typeCheck {
-      delete t.typeCheck(env, ctxt);
-
-      try {
-        delete d.typeCheck(env, ctxt);
-      }
-      catch (XSemanticError &x) {
-        // error recovery; report and proceed
-        env->report(x.err);
-      }
-      env->flushLocalErrors(cout);
-
-      return noCilValue(cilExtra());
-    }
-
-    fun printTree {
-      if (tracingSys("parse-sexp")) {
-        // I really just want a sequence of declarations, so just
-        // print d's tree
-        d.printParseTree(cout, 2 /*indent*/, true /*asSexp*/);
-        cout << endl;
-      }
-
-      if (tracingSys("parse-tree")) {
-        d.printParseTree(cout, 2 /*indent*/, false /*asSexp*/);
-      }
-    }
-
-    fun camlAST {
-      return d.camlAST();
-    }
-  }
+  -> t:TranslationUnit d:Declaration ;
 
   // allow assembly at toplevel for gnu compatibility
-  -> t:TranslationUnit a:GNUAsmStatement {
-    fun typeCheck {
-      return t.typeCheck(env, ctxt);
-    }
-    
-    fun camlAST {
-      // sm: I'm suspicious of this .. if I wasn't doing analysis
-      // on each function before processing the next, this would
-      // prevent camlAST from visiting anything before the last
-      // toplevel ASM ..
-      return a.camlAST();
-    }
-  }
+  -> t:TranslationUnit a:GNUAsmStatement ;
 
   // gnu extension: allow random semicolons at toplevel
-  -> t:TranslationUnit ";" {
-    fun typeCheck {
-      return t.typeCheck(env, ctxt);
-    }
-    
-    // sm: wes, is this right?
-    fun camlAST {
-      return t.camlAST();
-    }
-  }
-
-  // we process the parse tree one declaration
-  // at a time; this declares the function that
-  // does that processing; it is defined in cc_parse.cc,
-  // which explains the parameters' meanings
-  datadecl void analyzeToplevelDecl(Reduction *red, ParseTree &tree);
-
-  literalCode "constructor" {
-    // simply hand the node to the analysis routine; all the code
-    // that was here has been moved there (cc_parse.cc), since it's
-    // slow to change this file (it has to be re-processed, etc.)
-    analyzeToplevelDecl(red, tree);
-  }
+  -> t:TranslationUnit ";" ;
 }
 
 // ------ A.4 Expressions ------
-nonterm HasType {
-  // return the Type represented by this syntax
-  fundecl Type const *getType(Env *passedEnv);
-  literalCode "prefix" getType {
-    env = passedEnv;
-  }
+nonterm PrimaryExpression {
+  -> e:Literal ;
 
-  // by default, and on error cases:
-  fun getType {
-    //annoyingBreaker();
-    throwError("I don't know this kind of expression's type");
-  }
-}
+  -> "this" ;
 
+  -> "(" e:Expression ")" ;
 
-// base class for expressions
-nonterm ExprBase : Checkable, HasType {
-  // return the integer this expression evaluates to at compile time
-  fundecl int intEval(Env *passedEnv);
-  fun intEval { throwError("not a constant integer expression"); }
-  literalCode "prefix" intEval {
-    env = passedEnv;
-  }
-}
-
-
-nonterm PrimaryExpression : ExprBase {
-  -> e:Literal {
-    fun intEval = e.intEval(env);
-    fun getType = e.getType(env);
-    fun typeCheck {
-      try {
-        return newIntLit(intEval(env));
-      }
-      catch (...) {
-        // not an int .. no current repr in Cil
-        return todoCilExpr(cilExtra());
-      }
-    }
-  }
-
-  -> "this"                     {}
-
-  formGroup {
-    fun getType = e.getType(env);
-
-    -> "(" e:Expression ")" {
-      fun intEval = e.intEval(env);
-      fun typeCheck = e.typeCheck(env, ctxt);
-    }
-
-    -> e:PQVarName {
-      fun typeCheck = newVarRefExpr(e.typeCheck(env));
-      fun intEval {
-        Variable *var = e.typeCheck(env);
-        if (var->isEnumValue()) {
-          return var->enumValue;
-        }
-        else {
-          throwError(stringc
-            << "`" << var->name << "' is not a constant integer");
-        }
-      }
-    }
-  }
+  -> e:PQVarName ;
 
   // GNU extension
-  -> "(" s:CompoundStatement ")"
-    { fun typeCheck = s.typeCheck(env, ctxt); }
-    
-  // more gnu bs
-  -> e:ConstructorExpression
-    { fun typeCheck = e.typeCheck(env, ctxt); }
+  -> "(" s:CompoundStatement ")" ;
+
+  // gnu extension: "constructor expression"
+  // (notation for literal struct values)
+  // e.g.:
+  //   struct Foo { int x; int y; };
+  //   struct Foo myfoo;
+  //   myfoo = (struct Foo) { 4, 5 };        <-- here
+  // which would assign x=4 and y=5 in 'myfoo'
+  -> "(" TypeId ")" CompoundInitializer ;
 }
 
 nonterm Literal : ExprBase {
-  -> i:L2_INT_LITERAL {
-    fun intEval = i.intValue;
-    fun getType = env->getSimpleType(ST_INT);
-  }
-  -> L2_FLOAT_LITERAL {
-    fun getType = env->getSimpleType(ST_FLOAT);
-  }
-  -> StringLiteral {
-    // gnu c treats char literals as char const*, so I will too
-    fun getType = env->makePtrOperType(PO_POINTER, CV_CONST,
-                                       env->getSimpleType(ST_CHAR));
-  }
-  -> c:L2_CHAR_LITERAL {
-    fun intEval = c.charValue;
-    fun getType = env->getSimpleType(ST_CHAR);
-  }
+  -> i:L2_INT_LITERAL ;
+  -> L2_FLOAT_LITERAL ;
+  -> StringLiteral ;
+  -> c:L2_CHAR_LITERAL ;
 }
 
 // gnu: this is to handle gnu's f'd up pseduo-symbols, which
@@ -288,302 +102,48 @@ nonterm StringLiteral
   -> L2_STRING_LITERAL |
      StringLiteral L2_STRING_LITERAL |
      StringLiteral "__FUNCTION__" |
-     StringLitearl "__PRETTY_FUNCTION__" ;
-
-
-// gnu extension:
-// e.g.:
-//   struct Foo { int x; int y; };
-//   struct Foo myfoo;
-//   myfoo = (struct Foo) { 4, 5 };        <-- ConstructorExpression
-// which would assign x=4 and y=5 in 'myfoo'
-nonterm ConstructorExpression : ExprBase {
-  -> "(" TypeId ")" CompoundInitializer {
-    fun typeCheck {
-      // TODO: handle initializers generally
-      return todoCilExpr(cilExtra());
-    }
-  }
-}
-
-
-// base class for nonterminals that yield a part of a
-// string that describes a type
-nonterm HasTypeName {
-  // return either a complete type description, or part
-  // of one to be concatenated in context
-  fundecl string typeName();
-
-  // default implementation: just yield the original input
-  fun typeName = unparseString();
-}
-
-nonterm HasDeclName {
-  // retrieve the name of the variable being declared
-  fundecl string getDeclName();
-
-  // again, for now, take the easy road
-  fun getDeclName = unparseString();
-}
+     StringLiteral "__PRETTY_FUNCTION__" ;
 
 
 // possibly-qualified name; essentially spec's id-expression
 // missing: template-id because I don't know what that is
 nonterm PQVarName : HasTypeName, HasDeclName, HasType {
-  fundecl Variable *typeCheck(Env *passedEnv);
-  literalCode "prefix" typeCheck {
-    env = passedEnv;
-  }
+  -> n:VariableName ;
 
-  // 'colonColon' attribute of PQVarName and Qualifier: set to 1 when "::" is
-  // the leftmost token in the tree matched; this is important because
-  // declarators aren't allowed to have the bare "::" qualifier
-  attr colonColon;        // true if a bare "::" is in front
-
-  -> n:VariableName {
-    action colonColon := 0;
-    fun typeCheck {
-      env = passedEnv;
-      if (!env->isDeclaredVar(n.getName())) {
-        SemanticError err(this, SE_UNDECLARED_VAR);
-        err.varName = n.getName();
-        
-        // TODO2: is this a good idea?
-        THROW(XSemanticError(err));
-      }
-      return env->getVariable(n.getName());
-    }
-
-    fun getType {
-      if (!env->isDeclaredVar(n.getName())) {
-        throwError("tried to get type of an undeclared identifier");
-      }
-      else {
-        Variable *v = env->getVariable(n.getName());
-        xassert(v);
-        xassert(v->type);    // having trouble with gdb ... !
-        return v->type;
-      }
-    }
-  }
-
-  fun typeCheck {
-    // each of the remaining rules requires some more sophisticated
-    // way of naming symbols
-    throwError("typeCheck unimplemented for complicated names");
-  }
-
-  -> OperatorFunctionId     { action colonColon := 0; }
-  -> ConversionFunctionId   { action colonColon := 0; }
-  -> "~" ClassName          { action colonColon := 0; }
-  -> q:Qualifier rhs:PQVarName  {
-    // this PQVarName is preceeded by :: if the Qualifier is
-    action colonColon := q.colonColon;
-
-    // can't put any more qualifiers on to left of ::
-    condition rhs.colonColon == 0;
-  }
+  -> OperatorFunctionId ;
+  -> ConversionFunctionId ;
+  -> "~" ClassName ;
+  -> q:Qualifier rhs:PQVarName ;
 }
 
 nonterm Qualifier {
-  attr colonColon;     // true for leading "::"
-
-  -> "::"              { action colonColon := 1; }
-  -> ClassName "::"    { action colonColon := 0; }
+  -> "::" ;
+  -> ClassName "::" ;
 }
 
 
-nonterm PostfixExpression : ExprBase {
-  -> e:PrimaryExpression {
-    fun intEval = e.intEval(env);
-    fun getType = e.getType(env);
-    fun typeCheck = e.typeCheck(env, ctxt);
-  }
-                                                         
+nonterm PostfixExpression {
   // array access
-  -> a:PostfixExpression "[" e:Expression "]" {
-    fun typeCheck {
-      Owner<CilExpr> array; array = a.rvalueTypeCheck(env, ctxt);
-      Owner<CilExpr> index; index = e.rvalueTypeCheck(env, ctxt);
-
-      // don't check array index; could be many types
-      // (int, long, unsigned long...); TODO -- fix this
-      #if 0
-      Type const *type = typeOf(index, env);
-      if (!( type->isCVAtomicType() &&
-             type->asCVAtomicTypeC().atomic->isSimpleType() &&
-             type->asCVAtomicTypeC().atomic->asSimpleTypeC().type == ST_INT )) {
-        throwError(stringc ..);
-      }
-      #endif // 0
-
-      if (typeOf(array, env)->isArrayType()) {
-        return newLvalExpr(newArrayAccess(array.xfr(), index.xfr()));
-      }
-      else if (typeOf(array, env)->isPointerType()) {
-        // translate it to addition and derference
-        return newLvalExpr(newDeref(newBinExpr(OP_PLUS, array.xfr(), index.xfr())));
-      }
-      else {
-        throwError(stringc
-          << "expression `" << array->toString() << "' has type `"
-          << typeOf(array, env)->toString()
-          << "', but its should be an array or a pointer");
-      }
-    }
-  }
+  -> a:PostfixExpression "[" e:Expression "]" ;
 
   // fn call
-  -> f:PostfixExpression "(" e:ExpressionListOpt ")" {
-    fun typeCheck {
-      // check the fn name
-      Owner<CilExpr> fn; fn = f.rvalueTypeCheck(env, ctxt);
-
-      Type const *origFnType = typeOf(fn, env);
-      Type const *fnType = origFnType;
-      if (fnType->isPointerType()) {
-        // you get 1 free dereference when computing
-        // a function to call
-        fnType = fnType->asPointerTypeC().atType;
-      }
-
-      if (!fnType->isFunctionType()) {
-        throwError(stringc
-          << "expression `" << fn->toString() << "' has type `"
-          << origFnType->toString() << "', which is neither a "
-          << "function type nor a pointer to a function type");
-      }
-
-      // get its return type
-      Type const *retType = fnType->asFunctionTypeC().retType;
-
-      // need a temprary for the result
-      Variable *result;
-      if (retType->isSimple(ST_VOID)) {
-        result = NULL;      // no result for void
-      }
-      else {
-        result = env->newTmpVar(retType);
-        ctxt.addVarDecl(result);
-      }
-
-      // make a CIL object to hold the call
-      Owner<CilFnCall> call;
-      call = newFnCall(result? newVarRef(result) : NULL,
-                       fn.xfr());
-
-      // check the arglist, adding the arguments to the
-      // 'call' object
-      e.typeCheck(env, CilContext(ctxt, *call));
-
-      // insert the call into the list of instructions
-      ctxt.append(newInst(call.xfr()));
-
-      if (!env->isTrialBalloon() &&
-          f.getLeftmostTerminalC()->token->unparseString().equals("free")) {
-        // conditions for analysis
-        if (e.numGroundTerms() == 1) {
-          ana_free(e.unparseString());
-        }
-        else {
-          cout << locString() << ": can't analyze\n";
-        }
-      }
-
-      // anything that uses this call can get the value
-      // from the temporary I created
-      return result? newVarRefExpr(result) : voidCilValue(cilExtra());
-    }
-  }
-
+  -> f:PostfixExpression "(" e:ExpressionListOpt ")" ;
 
   // field access or deref + field access
-  -> p:PostfixExpression op:"."  n:PQVarName
-   | p:PostfixExpression op:"->" n:PQVarName {
-    fun typeCheck {
-      // check the left side
-      Owner<CilExpr> record; record = p.rvalueTypeCheck(env, ctxt);
+  -> p:PostfixExpression op:"."  n:PQVarName ;
+  -> p:PostfixExpression op:"->" n:PQVarName ;
 
-      // look up its type
-      Type const *type = record->getType(env);
-
-      if (op.type == L2_ARROW) {
-        // deref the type
-        if (!type->isPointerType()) {
-          throwError(stringc
-            << "left side of `->' (" << record->toString()
-            << ") must be a *pointer* to a struct; its type is "
-            << type->toString());
-        }
-
-        // deref
-        record = newLvalExpr(newDeref(record.xfr()));
-        type = type->asPointerTypeC().atType;
-      }
-
-      // for the moment, I'm requiring that it be an lvalue because we
-      // don't have a Cil expression for <rvalue>.field
-      Owner<CilLval> recordLval; recordLval = asLval(record.xfr(), p);
-
-      // the type should be a structure whose fields we can access
-      if (!( type->isCVAtomicType() &&
-             type->asCVAtomicTypeC().atomic->isCompoundType() )) {
-        throwError(stringc <<
-          "left side of `" << op.unparseString() <<
-          "' must be a struct");
-      }
-      CompoundType const &ctype =
-        type->asCVAtomicTypeC().atomic->asCompoundTypeC();
-
-      if (!ctype.isComplete()) {
-        throwError(stringc
-          << "can't access field of " << recordLval->toString()
-          << " because its type (" << ctype.toString()
-          << ") is incomplete (it's only forward-declared)");
-      }
-
-      // check the right side in the context of the
-      // struct we just found
-      Variable *field; field = n.typeCheck(ctype.getEnv());
-
-      return newLvalExpr(newFieldRef(recordLval.xfr(), field));
-    }
-  }
-
-  -> p:PostfixExpression op:"++"
-   | p:PostfixExpression op:"--" {
-    fun typeCheck {
-      // get expression being incremented
-      Owner<CilLval> lval; lval = asLval(p.typeCheck(env, ctxt), p);
-
-      // save old value
-      Variable *tmp = env->newTmpVar(typeOf(lval, env));
-      ctxt.addVarDecl(tmp);
-      ctxt.append(newAssignVar(tmp, newLvalExpr(lval->clone())));
-
-      // increment the expression
-      BinOp bop = (op.type==L2_PLUSPLUS? OP_PLUS : OP_MINUS);
-      Owner<CilLval> lhs; lhs = lval->clone();
-      ctxt.append(newAssign(lhs.xfr(),
-                            newBinExpr(bop, newLvalExpr(lval.xfr()), newIntLit(1))));
-
-      // return a reference to the old value
-      return newVarRefExpr(tmp);
-    }
-  }
+  -> p:PostfixExpression op:"++" ;
+  -> p:PostfixExpression op:"--" ;
 
   // pulled these two because other rules supercede them
   //-> PostfixExpression "." PseudoDestructorName           ; // explicit dtor call
   //-> PostfixExpression "->" PseudoDestructorName          ;
 
-  formGroup {
-    fun typeCheck = e.typeCheck(env, ctxt);
-
-    -> "dynamic_cast"     "<" TypeId ">" "(" e:Expression ")" ;   // casts
-    -> "static_cast"      "<" TypeId ">" "(" e:Expression ")" ;
-    -> "reinterpret_cast" "<" TypeId ">" "(" e:Expression ")" ;
-    -> "const_cast"       "<" TypeId ">" "(" e:Expression ")" ;
-  }
+  -> "dynamic_cast"     "<" TypeId ">" "(" e:Expression ")" ;   // casts
+  -> "static_cast"      "<" TypeId ">" "(" e:Expression ")" ;
+  -> "reinterpret_cast" "<" TypeId ">" "(" e:Expression ")" ;
+  -> "const_cast"       "<" TypeId ">" "(" e:Expression ")" ;
 
   // removed for now since I don't know much about them
   //-> "typeid" "(" Expression ")"                          ;   // RTTI
@@ -591,200 +151,44 @@ nonterm PostfixExpression : ExprBase {
 }
 
 
-nonterm ExpressionList : Checkable {
-  -> a:AssignmentExpression {
-    fun typeCheck {
-      ctxt.call->appendArg(a.typeCheck(env, ctxt));
-      return noCilValue(cilExtra());
-    }
-  }
-
-  -> e:ExpressionList "," a:AssignmentExpression {
-    fun typeCheck {
-      e.typeCheck(env, ctxt);
-      ctxt.call->appendArg(a.typeCheck(env, ctxt));
-      return noCilValue(cilExtra());
-    }
-  }
+nonterm ExpressionList {
+  -> a:AssignmentExpression ;
+  -> e:ExpressionList "," a:AssignmentExpression ;
 }
 
-nonterm ExpressionListOpt : Checkable {
-  -> empty
-    { fun typeCheck = noCilValue(cilExtra()); }
-  -> e:ExpressionList
-    { fun typeCheck = e.typeCheck(env, ctxt); }
+nonterm ExpressionListOpt {
+  -> empty ;
+  -> e:ExpressionList ;
 }
 
 // I am pulling these out since PQVarName can be ~class
 //PseudoDestructorName -> "~" ClassName
 //PseudoDestructorName -> Qualifier PseudoDestructorName
 
-nonterm UnaryExpression : ExprBase {
-  // TODO: better abstraction of this mechanism
-  literalCode "disamb" typeCheck {
-    return disambiguate(passedEnv, ctxt, (DisambFn)&UnaryExpression_Node::unamb_typeCheck);
-  }
+nonterm UnaryExpression {
+  -> e:PostfixExpression ;
 
-  formGroup {
-    fun typeCheck = e.typeCheck(env, ctxt);
+  -> op:"++" e:CastExpression ;
+  -> op:"--" e:CastExpression ;
 
-    -> e:PostfixExpression {
-      fun intEval = e.intEval(env);
-      fun getType = e.getType(env);
-    }
+  // size of expression
+  -> "sizeof" e:UnaryExpression ;
 
-    -> op:"++" e:CastExpression
-     | op:"--" e:CastExpression {
-      fun typeCheck {
-        Owner<CilLval> lval; lval = asLval(e.typeCheck(env, ctxt), e);
-
-        // increment the expression
-        BinOp bop = (op.type==L2_PLUSPLUS? OP_PLUS : OP_MINUS);
-        Owner<CilLval> lhs; lhs = lval->clone();
-        Owner<CilLval> rhs; rhs = lval->clone();
-        ctxt.append(newAssign(lhs.xfr(), 
-                              newBinExpr(bop, newLvalExpr(rhs.xfr()),
-                                              newIntLit(1))));
-
-        // return a reference to the incremented lval
-        return newLvalExpr(lval.xfr());
-      }
-    }
-
-    // size of expression
-    -> "sizeof" e:UnaryExpression {
-      fun intEval {
-        Type const *type = e.getType(env);
-        xassert(type);
-        return type->reprSize();
-      }
-
-      fun typeCheck {
-        Owner<CilExpr> expr; expr = e.typeCheck(env, ctxt);
-
-        ostream &os = trace("sizeof") << locString() << ": sizeof(expr) is ";
-        int s=0;
-        try {
-          s = typeOf(expr, env)->reprSize();
-          os << s << endl;
-          setTheInt(s);
-        }
-        catch (xBase &x) {
-          os << "unknown (reason: " << x << ")\n";
-        }
-
-        return newIntLit(s);
-      }
-
-      fun getType = env->getSimpleType(ST_INT);
-    }
-
-    -> e:DeleteExpression ;
-  }
+  -> e:DeleteExpression ;
 
   // dereference
-  -> "*" e:CastExpression {
-    fun intEval { throwError("can't intEval"); }
-
-    fun typeCheck {
-      // check arg
-      Owner<CilExpr> expr; expr = e.rvalueTypeCheck(env, ctxt);
-      
-      // check that it's a pointer type
-      Type const *type = typeOf(expr, env);
-      if (!type->isPointerType()) {
-        throwError(stringc
-          << "the `*' operator is for dereferencing pointers; `"
-          << expr->toString() << "' has type " << type->toString());
-      }
-
-      e.ana_checkDeref();
-      
-      return newLvalExpr(newDeref(expr.xfr()));
-    }
-
-    fun getType {
-      Type const *derefd = e.getType(env);
-      if (!derefd->isPointerType()) {
-        throwError("don't dereference things that aren't pointers");
-      }
-      PointerType const &pt = derefd->asPointerTypeC();
-
-      return pt.atType;      // type of thing pointed at
-    }
-  }
-
+  -> "*" e:CastExpression ;
 
   // other unary operators
-  formGroup {
-    fun getType {
-      throwError("it's a unary operator I don't handle yet for getType");
-    }
+  -> "&" e:CastExpression ;
+  -> "+" e:CastExpression ;
+  -> "-" e:CastExpression ;
+  -> "!" e:CastExpression ;
+  -> "~" e:CastExpression ;
 
-    -> "&" e:CastExpression {
-      fun intEval { throwError("can't apply this operator to an integer"); }
+  -> "sizeof" "(" t:TypeId ")" ;               // size of type
 
-      fun typeCheck {
-        Owner<CilLval> lval; lval = asLval(e.typeCheck(env, ctxt), e);
-        return newAddrOfExpr(lval.xfr());
-      }
-    }
-
-    -> "+" e:CastExpression {
-      fun intEval = e.intEval(env);
-      fun typeCheck = 
-        e.rvalueTypeCheck(env, ctxt);
-    }
-
-    -> "-" e:CastExpression {
-      fun intEval = -e.intEval(env);
-      fun typeCheck =
-        newUnaryExpr(OP_NEGATE, e.rvalueTypeCheck(env, ctxt));
-    }
-
-    -> "!" e:CastExpression {
-      fun intEval = !e.intEval(env);
-      fun typeCheck =
-        newUnaryExpr(OP_NOT, e.rvalueTypeCheck(env, ctxt));
-    }
-
-    -> "~" e:CastExpression {
-      fun intEval = ~e.intEval(env);
-      fun typeCheck =
-        newUnaryExpr(OP_BITNOT, e.rvalueTypeCheck(env, ctxt));
-    }
-  }
-
-  -> "sizeof" "(" t:TypeId ")" {               // size of type
-    fun typeCheck {
-      Type const *type = t.getType(env);
-
-      ostream &os = trace("sizeof") << locString() << ": sizeof(type) is ";
-      int s=0;
-      try {
-        s = type->reprSize();
-        os << s << endl;
-        setTheInt(s);
-      }
-      catch (xBase &x) {
-        os << "unknown (reason: " << x << ")\n";
-      }
-
-      return newIntLit(s);
-    }
-
-    fun intEval {
-      Type const *type = t.getType(env);
-      if (type) {
-        return type->reprSize();
-      }
-      else {
-        throwError("unknown type");
-      }
-    }
-  }
-
-  -> NewExpression                   ;
+  -> NewExpression ;
 }
 
 
@@ -798,476 +202,91 @@ nonterm NewExpression {
 
 // NewDeclaratorOpt is, as a regular expression:
 //   (PtrOperator)*  ("[" Expression "]")?  ("[" ConstExpression "]")*
-nonterm NewDeclaratorOpt -> empty |
-                            PtrOperator NewDeclaratorOpt |
-                            DirectNewDeclarator ;        // commit to at least one "[" ... "]"
-nonterm DirectNewDeclarator -> "[" Expression "]" |
-                               DirectNewDeclarator "[" ConstantExpression "]" ;
+nonterm NewDeclaratorOpt {
+  -> empty ;
+  -> PtrOperator NewDeclaratorOpt ;
+  -> DirectNewDeclarator ;        // commit to at least one "[" ... "]"
+}
+nonterm DirectNewDeclarator {
+  -> "[" Expression "]" ;
+  -> DirectNewDeclarator "[" ConstantExpression "]" ;
+}
 
-nonterm NewInitializerOpt -> empty | "(" ExpressionListOpt ")" ;
+nonterm NewInitializerOpt {
+  -> empty ;
+  -> "(" ExpressionListOpt ")" ;
+}
 
 // omitting possibility of initial "::"
-nonterm DeleteExpression : Checkable {
-  fun typeCheck {
-    /*Owner<CilExpr> expr; expr =*/ delete e.typeCheck(env, ctxt);
-    //ctxt.append(newFreeInst(expr.xfr()));
-    return noCilValue(cilExtra());     // TODO3: is this correct according to C++ std?
-  }
-
+nonterm DeleteExpression {
   -> "delete" e:CastExpression ;
   -> "delete" "[" "]" e:CastExpression ;
 }
 
-nonterm CastExpression : ExprBase {
-  // added this to disambiguate fn calls and casts
-  literalCode "disamb" typeCheck {
-    return disambiguate(passedEnv, ctxt, (DisambFn)&CastExpression_Node::unamb_typeCheck);
-  }
-
-  -> e:UnaryExpression {
-    fun intEval = e.intEval(env);
-    fun typeCheck = e.typeCheck(env, ctxt);
-    fun getType = e.getType(env);
-  }
-
-  -> "(" t:TypeId ")" e:CastExpression {
-    fun typeCheck {
-      Type const *type = t.getType(env);
-      Owner<CilExpr> expr; expr = e.typeCheck(env, ctxt);
-            
-      // if we're casting to void, drop the expression;
-      // implicitly, that means it could be void too
-      if (type->isVoid()) {
-        return voidCilValue(cilExtra());
-      }
-      
-      // if we're not casting to void, then the expression
-      // can't be void
-      expr = asRval(expr.xfr(), e);
-
-      // cast to union is allowed as a gnu extension, but
-      // it yields an rvalue
-      if (isLval(expr) && !type->isUnionType()) {
-        return newLvalExpr(newCastLval(type, asLval(expr.xfr(), e)));
-      }
-      else {
-        return newCastExpr(type, expr.xfr());
-      }
-    }
-
-    fun getType {
-      // should check castability ...
-      return t.getType(env);
-    }
-  }
+nonterm CastExpression {
+  -> e:UnaryExpression ;
+  -> "(" t:TypeId ")" e:CastExpression ;
 }
 
 // ++++ binary operator expression ++++
 // primary expressions
 nonterm BinaryExpression : ExprBase {
-  attr prec;                  // precedence of binding (topmost) operator in expression
+  -> e:CastExpression ;
 
-  literalCode "disamb" typeCheck {
-    return disambiguate(passedEnv, ctxt, (DisambFn)&BinaryExpression_Node::unamb_typeCheck);
-  }
+  -> left:BinaryExpression "*"  right:BinaryExpression ;
+  -> left:BinaryExpression "/"  right:BinaryExpression ;
+  -> left:BinaryExpression "%"  right:BinaryExpression ;
+  -> left:BinaryExpression "+"  right:BinaryExpression ;
+  -> left:BinaryExpression "-"  right:BinaryExpression ;
+  -> left:BinaryExpression "<<" right:BinaryExpression ;
+  -> left:BinaryExpression ">>" right:BinaryExpression ;
+  -> left:BinaryExpression "<"  right:BinaryExpression ;
+  -> left:BinaryExpression ">"  right:BinaryExpression ;
+  -> left:BinaryExpression "<=" right:BinaryExpression ;
+  -> left:BinaryExpression ">=" right:BinaryExpression ;
+  -> left:BinaryExpression "==" right:BinaryExpression ;
+  -> left:BinaryExpression "!=" right:BinaryExpression ;
+  -> left:BinaryExpression "&"  right:BinaryExpression ;
+  -> left:BinaryExpression "^"  right:BinaryExpression ;
+  -> left:BinaryExpression "|"  right:BinaryExpression ;
 
-  -> e:CastExpression {
-    action  prec := 100;      // higher precedence than anything else
-
-    fun intEval = e.intEval(env);
-    fun typeCheck = e.typeCheck(env, ctxt);
-    fun getType = e.getType(env);
-  }
-
-  formGroup {
-    condition  this.prec <= left.prec;             // precedence
-    condition  this.prec <= right.prec;            // more precedence
-
-    fun getType {
-      return left.getType(env);      // todo: more omitted consistency checks ...
-    }
-
-    -> left:BinaryExpression op:BinaryOperator right:BinaryExpression {
-      action  prec := op.prec;
-
-      condition  op.leftAssoc == 1 ?
-                   this.prec < right.prec :          // left associative
-                   this.prec < left.prec;            // right associative
-
-      fun intEval = op.intEval(left.intEval(env), right.intEval(env));
-
-      fun typeCheck {
-        Owner<CilExpr> L; L = left.rvalueTypeCheck(env, ctxt);
-        Owner<CilExpr> R; R = right.rvalueTypeCheck(env, ctxt);
-
-        // something of a hack: my Cil type-checking code only looks
-        // at left operands, but int+pointer has type pointer; so let's
-        // detect that, and swap the operand order in the expression node
-        if (typeOf(L, env)->isIntegerType() &&
-            typeOf(R, env)->isPointerType()) {
-          swap(L, R);
-        }
-
-        BinOp bop = op.getOp();
-        return newBinExpr(bop, L.xfr(), R.xfr());
-      }
-    }
-
-    formGroup {
-      condition  this.prec < right.prec;          // left associative
-
-      // -> left:BinaryExpression op:"&&" right:BinaryExpression
-      //  | left:BinaryExpression op:"||" right:BinaryExpression
-      fun typeCheck {
-        // the code is written as if we're doing "||"; "&&" differs only
-        // at the end
-
-        // TODO2: are these operators guaranteed to return 0 or 1?
-        // the code emitted now doesn't necessarily do that..
-
-        // need a temprary for the result of this computation
-        Variable *result = env->newTmpVar(env->getSimpleType(ST_INT));
-        ctxt.addVarDecl(result);
-
-        // evaluate left operand, and give the result a name
-        Owner<CilExpr> L; L = left.rvalueTypeCheck(env, ctxt);
-
-        // create the code to execute if 'L' is true
-        Owner<CilStmt> leftTrue;
-                       leftTrue = left.newAssignVar(result, L->clone());
-
-        // create the code to execute if 'L' is false
-        Owner<CilCompound> evalRight; evalRight = newCompound();
-        {
-          // evaluate right operand, putting code into 'evalRight'
-          Owner<CilExpr> R;
-          R = right.rvalueTypeCheck(env, CilContext(ctxt, *evalRight));
-
-          // store R into the result
-          evalRight->append(right.newAssignVar(result, R.xfr()));
-        }
-
-        // combine the test and both branches
-        if (op.type == L2_OROR) {
-          ctxt.append(newIfThenElse(L.xfr(),              // if (left)
-                                    leftTrue.xfr(),       //   tmp = left;   <-- no side effects
-                                    evalRight.xfr()));    // else tmp = right;
-        }
-        else {
-          // to handle "&&", just reverse the sense of the 'if'
-          ctxt.append(newIfThenElse(L.xfr(),              // if (left)
-                                    evalRight.xfr(),      //   tmp = right;
-                                    leftTrue.xfr()));     // else tmp = left;   <-- no side effects
-        }
-
-        // finally, the result of all this is the new temporary
-        return newVarRefExpr(result);
-      }
-
-      -> left:BinaryExpression op:"&&" right:BinaryExpression {
-        action  prec := 28;
-        fun intEval = left.intEval(env) && right.intEval(env);
-      }
-
-      -> left:BinaryExpression op:"||" right:BinaryExpression {
-        action  prec := 28;
-        fun intEval = left.intEval(env) && right.intEval(env);
-      }
-    }
-  }
+  -> left:BinaryExpression op:"&&" right:BinaryExpression ;
+  -> left:BinaryExpression op:"||" right:BinaryExpression ;
 }
 
-nonterm BinOpBase {
-  attr prec;             // precedence of operator; higher value binds more tightly
-  attr leftAssoc;        // 1 means left-associative, 0 means right-associative
-
-  // all have left precedence by default; can override individually
-  action  leftAssoc := 1;
-
-  // return this operator's effect on integers
-  fundecl int intEval(int left, int right);
-
-  // return this operator's intermediate repr
-  fundecl BinOp getOp();
-}
-
-// an operator in a binary expression
-nonterm BinaryOperator : BinOpBase {
-  // highest precedence
-  // (don't need .* and ->* right now...)
-  //formGroup {
-  //  action prec:=64;
-  //  -> ".*" | "->*"     { fun intEval { throwError("can't apply this operator to integers"); } }
-  //}
-
-  formGroup {
-    action prec:=60;
-    -> "*"              { fun intEval = left * right;   fun getOp = OP_TIMES; }
-    -> "/"              { fun intEval = left / right;   fun getOp = OP_DIVIDE; }
-    -> "%"              { fun intEval = left % right;   fun getOp = OP_MOD; }
-  }
-
-  formGroup {
-    action prec:=56;
-    -> "+"              { fun intEval = left + right;   fun getOp = OP_PLUS; }
-    -> "-"              { fun intEval = left - right;   fun getOp = OP_MINUS; }
-  }
-
-  formGroup {
-    action prec:=52;
-    -> "<<"             { fun intEval = left << right;   fun getOp = OP_LSHIFT; }
-    -> ">>"             { fun intEval = left >> right;   fun getOp = OP_RSHIFT; }
-  }
-
-  formGroup {
-    action prec:=48;
-    -> "<"              { fun intEval = left < right;   fun getOp = OP_LT; }
-    -> ">"              { fun intEval = left > right;   fun getOp = OP_GT; }
-    -> "<="             { fun intEval = left <= right;   fun getOp = OP_LTE; }
-    -> ">="             { fun intEval = left >= right;   fun getOp = OP_GTE; }
-  }
-
-  formGroup {
-    action prec:=44;
-    -> "=="             { fun intEval = left == right;   fun getOp = OP_EQUAL; }
-    -> "!="             { fun intEval = left != right;   fun getOp = OP_NOTEQUAL; }
-  }
-
-  -> "&" {
-    action prec:=40;      fun intEval = left & right;    fun getOp = OP_BITAND;
-  }
-
-  -> "^" {
-    action prec:=36;      fun intEval = left ^ right;    fun getOp = OP_BITXOR;
-  }
-
-  -> "|" {
-    action prec:=32;      fun intEval = left | right;    fun getOp = OP_BITOR;
-  }
-}
-
-/*
-// pulled these out to implement short-circuit evaluation for booleans
-nonterm ShortCircuitLogical {
-  // everything in BinOpBase except getOp, since we don't have
-  // operators to represent && and ||, because we factor out
-  // implicit control flow ..
-  attr prec;
-  attr leftAssoc;
-  action  leftAssoc := 1;
-  fundecl int intEval(int left, int right);
-
-  -> "&&" {
-    action prec:=28;        fun intEval = left && right;
-  }
-
-  -> "||" {
-    action prec:=24;        fun intEval = left || right;
-  }
-  // lowest precedence
-}
-// ---- end of binary operator expression ----
-*/
 
 nonterm ConditionalExpression : ExprBase {
-  literalCode "disamb" typeCheck {
-    return disambiguate(passedEnv, ctxt, (DisambFn)&ConditionalExpression_Node::unamb_typeCheck);
-  }
+  -> e:BinaryExpression ;
 
-  -> e:BinaryExpression {
-    fun intEval = e.intEval(env);
-    fun typeCheck = e.typeCheck(env, ctxt);
-    fun getType = e.getType(env);
-  }
-
-  -> cond:BinaryExpression "?" th:Expression ":" el:AssignmentExpression {
-    fun intEval {
-      // evaluate all of them first, so we get the check for the
-      // expression being const regardless of which way the test goes
-      // (this may in fact turn out to be wrong, but for now it's what
-      // I think it should be)
-      int c = cond.intEval(env);
-      int t = th.intEval(env);
-      int e = el.intEval(env);
-      return c ? t : e;
-    }
-
-    fun typeCheck {
-      // since it occurs frequently in the linux kernel, and because without
-      // this optimization ?; in ConstantExpression will cause problems
-      // due to apparent side effects, start by checking if the condition
-      // is evaluable at compile time
-      try {
-        int c = cond.intEval(env);
-        
-        // it is -- so just statically evaluate the correct operand
-        return c? th.typeCheck(env, ctxt) : el.typeCheck(env, ctxt);
-      }
-      catch (...)
-        {}     // fine; go ahead with the usual stuff
-
-
-      // grab guard expression
-      Owner<CilExpr> condExpr;
-                     condExpr = cond.rvalueTypeCheck(env, ctxt);
-
-      // figure out what it will take to evaluate the 'then'
-      Owner<CilCompound> thenInsts; thenInsts = newCompound();
-      Owner<CilExpr> thenExpr;
-                     thenExpr = th.typeCheck(env, CilContext(ctxt, *thenInsts));
-
-      // simiarly for 'else'
-      Owner<CilCompound> elseInsts; elseInsts = newCompound();
-      Owner<CilExpr> elseExpr;
-                     elseExpr = el.typeCheck(env, CilContext(ctxt, *elseInsts));
-
-      // check that both expressions yield values
-      if (thenExpr && elseExpr) {
-        // ok
-      }
-      else if (!thenExpr && !elseExpr) {
-        // also ok
-      }
-      else {
-        cout << locString() << " warning: one half of ?: yields "
-             << "a value, and the other doesn't; pretending "
-             << "neither did\n";
-        thenExpr.del();
-        elseExpr.del();
-      }
-
-      // store result of evaluation in a temporary
-      // TODO: check that the expression types match
-      Variable *tmp = thenExpr? env->newTmpVar(typeOf(thenExpr, env)) : NULL;
-      if (tmp) {
-        ctxt.addVarDecl(tmp);
-
-        // append to each sequence an assignment from the
-        // computed expression to the temporary
-        thenInsts->append(th.newAssignVar(tmp, thenExpr.xfr()));
-        elseInsts->append(el.newAssignVar(tmp, elseExpr.xfr()));
-      }
-
-      // finally, append an if-then-else instruction
-      ctxt.append(newIfThenElse(
-        condExpr.xfr(), thenInsts.xfr(), elseInsts.xfr()));
-
-      // return a ref to the temporary, which can be used
-      // as the value of the ?: expression
-      return tmp? newVarRefExpr(tmp) : voidCilValue(cilExtra());
-    }
-
-    fun getType {
-      // a consistency check would be in order .. but I don't
-      // have a type equality predicate yet ..
-      return el.getType(env);
-    }
-  }
+  -> cond:BinaryExpression "?" th:Expression ":" el:AssignmentExpression ;
 
   // wtf?  gnu...
   // linux driver code has "expr ? : expr" ...
   // according to Marat, "e1 ? : e2" is the same as "e1 ? e1 : e2",
   // except that e1 is only evaluated once
-  -> cond:BinaryExpression "?" ":" el:AssignmentExpression {
-    fun intEval {
-      // evaluate all of them first, so we get the check for the
-      // expression being const regardless of which way the test goes
-      // (this may in fact turn out to be wrong, but for now it's what
-      // I think it should be)
-      int c = cond.intEval(env);
-      int t = 0;    // ?
-      int e = el.intEval(env);
-      return c ? t : e;
-    }
-
-    fun typeCheck {
-      // TODO2: this isn't right
-      delete cond.typeCheck(env, ctxt);
-      return el.typeCheck(env, ctxt);
-    }
-
-    fun getType {
-      // a consistency check would be in order .. but I don't
-      // have a type equality predicate yet ..
-      return el.getType(env);
-    }
-  }
-
+  -> cond:BinaryExpression "?" ":" el:AssignmentExpression ;
 }
 
 // why is conditional not allowed on left side of = ?  can I confirm
 // that in another language spec?  clearly both alternatives would have
 // to be like-typed lvalues, but...
 nonterm AssignmentExpression : ExprBase {
-  formGroup {
-    fun typeCheck = e.typeCheck(env, ctxt);
-    fun getType = e.getType(env);
+  -> e1:BinaryExpression "=" e2:AssignmentExpression ;
 
-    -> e:ConditionalExpression   { fun intEval = e.intEval(env); }
-    -> e:ThrowExpression ;
-  }
-
-  formGroup {
-    fun getType {
-      // .. here I should check that e2's type can be coerced to
-      // e1's type, but wtf ...
-      return e2.getType(env);
-    }
-
-    -> e1:BinaryExpression "=" e2:AssignmentExpression {
-      fun typeCheck {
-        Owner<CilLval> lval; lval = asLval(e1.typeCheck(env, ctxt), e1);
-        Owner<CilExpr> expr; expr = e2.rvalueTypeCheck(env, ctxt);
-
-        if (!env->isTrialBalloon() &&
-            e2.unparseString().equals("malloc ( )")) {
-          // conditions for analysis
-          if (e1.numGroundTerms() == 1) {
-            ana_malloc(e1.unparseString());
-          }
-          else {
-            cout << locString() << ": can't analyze\n";
-          }
-        }
-
-        Owner<CilLval> lval2; lval2 = lval->clone();
-        ctxt.append(newAssign(lval2.xfr(), expr.xfr()));
-        return newLvalExpr(lval.xfr());
-      }
-
-    }
-
-    -> e1:BinaryExpression op:AssignmentOperator e2:AssignmentExpression {
-      fun typeCheck {
-        // evaluation order?
-        Owner<CilLval> lval; lval = asLval(e1.typeCheck(env, ctxt), e1);
-        Owner<CilExpr> expr; expr = e2.rvalueTypeCheck(env, ctxt);
-
-        BinOp bop = op.getOp();
-        Owner<CilLval> lhs; lhs = lval->clone();
-        Owner<CilLval> rhs; rhs = lval->clone();
-        ctxt.append(newAssign(lhs.xfr(),
-                              newBinExpr(bop, newLvalExpr(rhs.xfr()), 
-                                              expr.xfr())));
-        return newLvalExpr(lval.xfr());
-      }
-    }
-  }
+  -> e1:BinaryExpression op:AssignmentOperator e2:AssignmentExpression ;
 }
 
 nonterm AssignmentOperator {
-  fundecl BinOp getOp();
-
-  -> "*="   { fun getOp = OP_TIMES; }
-  -> "/="   { fun getOp = OP_DIVIDE; }
-  -> "%="   { fun getOp = OP_MOD; }
-  -> "+="   { fun getOp = OP_PLUS; }
-  -> "-="   { fun getOp = OP_MINUS; }
-  -> ">>="  { fun getOp = OP_RSHIFT; }
-  -> "<<="  { fun getOp = OP_LSHIFT; }
-  -> "&="   { fun getOp = OP_BITAND; }
-  -> "^="   { fun getOp = OP_BITXOR; }
-  -> "|="   { fun getOp = OP_BITOR; }
+  -> "*="  ;
+  -> "/="  ;
+  -> "%="  ;
+  -> "+="  ;
+  -> "-="  ;
+  -> ">>=" ;
+  -> "<<=" ;
+  -> "&="  ;
+  -> "^="  ;
+  -> "|="  ;
 }
 
 
@@ -1277,134 +296,39 @@ nonterm AssignmentOperator {
 // update: now that I'm doing translation too, the difference
 // in the meanings is great enough that I think they should be
 // separate, as they are
-nonterm Expression : ExprBase {
-  -> ae:AssignmentExpression {
-    fun intEval = ae.intEval(env);
-    fun typeCheck = ae.typeCheck(env, ctxt);
-    fun getType = ae.getType(env);
-  }
+nonterm Expression {
+  -> ae:AssignmentExpression ;
 
-  -> e:Expression "," ae:AssignmentExpression {
-    // choosing again to evaluate everything..
-    fun intEval = e.intEval(env), ae.intEval(env);
-
-    fun typeCheck {
-      delete e.typeCheck(env, ctxt);     // throw away all but last
-      return ae.typeCheck(env, ctxt);    // keep last value
-    }
-
-    // type of ',' is last one in sequence ..
-    fun getType = ae.getType(env);
-  }
+  -> e:Expression "," ae:AssignmentExpression ;
 }
 
-nonterm ExpressionOpt : Checkable {
+nonterm ExpressionOpt {
   -> empty ;
-  -> e:Expression  { fun typeCheck = e.typeCheck(env, ctxt); }
+  -> e:Expression ;
 }
 
 // this is an expression with the additional requirement that
 // it be entirely evaluable to an int at compile time
-nonterm ConstantExpression {
-  fundecl int intEval(Env *passedEnv);
-  -> e:ConditionalExpression {
-    fun intEval {
-      env = passedEnv;
+// (the name exists simply to help document that fact; the grammar
+// cannot enforce it)
+nonterm ConstantExpression -> e:ConditionalExpression ;
 
-      // typeCheck before intEval to eliminate any ambiguities
-      CilFnDefn dummy(cilExtra(), NULL);
-      delete e.typeCheck(env, CilContext(dummy, 1 /*explicit*/));
-      if (!dummy.bodyStmt.isEmpty()) {
-        throwError("constant exprs can't have side effects");
-      }
-
-      int val = e.intEval(env);
-      setTheInt(val);
-      return val;
-    }
-  }
-}
 
 // ------ A.5 Statements ------
-nonterm HasCFG {
-  // add this node to 'cfg'; 'edge' is the edge to split to insert
-  // the CFG nodes; returns the edge that leaves the region
-  fundecl CFGEdge *getCFG(CFG &cfg, CFGEdge *edge);
-  fun getCFG = edge;
-}
-
-
 // labeled-statement
-nonterm Statement : Checkable, HasCFG {
-  literalCode "disamb" typeCheck {
-    return disambiguate(passedEnv, ctxt, (DisambFn)&Statement_Node::unamb_typeCheck);
-  }
-
-  fun typeCheck = s.typeCheck(env, ctxt);
-
-  fundecl bool isWhileLoop() const;
-  fun isWhileLoop = false;
-
-  -> n:LabelName ":" s:Statement {
-    fun getCFG {
-      // associate the label with the edge 'edge'
-      cfg.addLabel(n.getName(), edge);
-
-      // insert statement's CFG
-      return s.getCFG(cfg, edge);
-    }
-
-    fun typeCheck {
-      ctxt.append(newLabel(n.getName()));
-      return s.typeCheck(env, ctxt);
-    }
-  }
+nonterm Statement {
+  -> n:LabelName ":" s:Statement ;
 
   // had to remove the statement because I found linux kernel
   // code that has "case:" immediately followed by "}"
   // TODO: revise grammar syntax so I can have both, and simply
   // prefer the one with a statement..
-  -> "case" e:ConstantExpression ":" /*s:Statement*/ {
-    fun typeCheck {
-      int val = e.intEval(env);
-      ctxt.append(newCase(val));
-      return noCilValue(cilExtra());
-    }
-    fun getCFG {
-      // just associate the expression with the edge, and return
-      cfg.addCaseLabel(&e, edge);
-      return edge;
-    }
-  }
+  -> "case" e:ConstantExpression ":" /*s:Statement*/ ;
 
   // gnu extension
-  -> "case" low:ConstantExpression "..." high:ConstantExpression ":" {
-    fun typeCheck {
-      int lowVal = low.intEval(env);
-      int highVal = high.intEval(env);
-      if (lowVal > highVal) {
-        throwError("empty range in case range label");
-      }
-                                          
-      // just make lots of separate case labels
-      for (int i=lowVal; i<=highVal; i++) {
-        ctxt.append(newCase(i));
-      }
+  -> "case" low:ConstantExpression "..." high:ConstantExpression ":" ;
 
-      return noCilValue(cilExtra());
-    }
-  }
-
-  -> "default" ":" s:Statement {
-    fun typeCheck {
-      ctxt.append(newDefault());
-      return s.typeCheck(env, ctxt);
-    }
-    fun getCFG {
-      cfg.addDefaultLabel(edge);
-      return s.getCFG(cfg, edge);
-    }
-  }
+  -> "default" ":" s:Statement ;
 
   // expression-statement
   -> s:ExpressionStatement ;
@@ -1412,396 +336,40 @@ nonterm Statement : Checkable, HasCFG {
   // compound-statement
   -> s:CompoundStatement ;
 
-  formGroup {
-    fun typeCheck = e.typeCheck(env, ctxt);
+  // selection-statement
+  -> "if" "(" e:Condition ")" s:Statement ;
 
-    // selection-statement
-    -> "if" "(" e:Condition ")" s:Statement {
-      fun getCFG {
-        // splice a conditional node into 'edge', initially
-        // with both targets pointing to a null block that
-        // itself points where 'edge' did
-        CFGNullNode *join = cfg.makeNullNode(edge->getTarget());
-        CFGIfNode *cond = cfg.makeIfNode(&e, join, join);
-        edge->setTarget(cond);
+  // if-then-else preferred over if-then when ambiguous
+  // (so far unimplemented! (TODO))
+  -> "if" "(" e:Condition ")" s1:Statement "else" s2:Statement ;
 
-        // now insert s's CFG into the "then" branch
-        s.getCFG(cfg, cond->getThenEdge());
+  -> "switch" "(" e:Condition ")" s:Statement ;
 
-        return join->getOutgoingEdge();
-      }
+  -> "while" "(" e:Condition ")" s:Statement ;
 
-      fun typeCheck {
-        // make a copy of the current dataflow environment
-        DataflowEnv initialDenv(env->getDenv());
+  -> "do" s:Statement "while" "(" e:Expression ")" ";" ;
 
-        // check the expression first; this sets its 'env' pointer
-        Owner<CilExpr> cond; cond = e.rvalueTypeCheck(env, ctxt);
-
-        // apply the constraints implied by the condition to
-        // the current dataflow environment
-        e.ana_applyConstraint(false /*negated*/);
-
-        // flow through 'then' branch
-        Owner<CilCompound> thenInst; thenInst = newCompound();
-        delete s.typeCheck(env, CilContext(ctxt, *thenInst));
-
-        // grab resulting dataflow env
-        DataflowEnv afterThen(env->getDenv());
-
-        // restore original env
-        env->getDenv() = initialDenv;
-
-        // apply the negation of the condition to the
-        // now-current dataflow environment
-        e.ana_applyConstraint(true /*negated*/);
-
-        // merge the branches
-        env->getDenv().mergeWith(afterThen);
-
-        // add the intermediate form of if-then-else, where
-        // the else branch is empty
-        ctxt.append(newIfThenElse(
-          cond.xfr(), thenInst.xfr(), newCompound()));
-
-        return noCilValue(cilExtra());      // can't treat an if-then-else as a value
-      }
-    }
-
-    // if-then-else preferred over if-then when ambiguous
-    // (so far unimplemented! (TODO))
-    -> "if" "(" e:Condition ")" s1:Statement "else" s2:Statement {
-      fun typeCheck {
-        // make a copy of the current dataflow environment
-        DataflowEnv initialDenv(env->getDenv());
-
-        // check the expression first; this sets its 'env' pointer
-        Owner<CilExpr> cond; cond = e.rvalueTypeCheck(env, ctxt);
-
-        // apply the constraints implied by the condition to
-        // the current dataflow environment
-        e.ana_applyConstraint(false /*negated*/);
-
-        // flow through 'then' branch
-        Owner<CilCompound> thenInst; thenInst = newCompound();
-        delete s1.typeCheck(env, CilContext(ctxt, *thenInst));
-
-        // grab resulting dataflow env
-        DataflowEnv afterThen(env->getDenv());
-
-        // restore original env
-        env->getDenv() = initialDenv;
-
-        // apply the negation of the condition to the
-        // now-current dataflow environment
-        e.ana_applyConstraint(true /*negated*/);
-
-        // flow through 'else' branch
-        Owner<CilCompound> elseInst; elseInst = newCompound();
-        delete s2.typeCheck(env, CilContext(ctxt, *elseInst));
-
-        // merge the branches
-        env->getDenv().mergeWith(afterThen);
-
-        // append if-then-else
-        ctxt.append(newIfThenElse(
-          cond.xfr(), thenInst.xfr(), elseInst.xfr()));
-
-        return noCilValue(cilExtra());      // no value
-      }
-
-      fun getCFG {
-        // make the conditional structure
-        CFGNullNode *join = cfg.makeNullNode(edge->getTarget());
-        CFGIfNode *cond = cfg.makeIfNode(&e, join, join);
-        edge->setTarget(cond);
-
-        // insert then and else branches
-        s1.getCFG(cfg, cond->getThenEdge());
-        s2.getCFG(cfg, cond->getElseEdge());
-
-        return join->getOutgoingEdge();
-      }
-    }
-
-    -> "switch" "(" e:Condition ")" s:Statement {
-      fun typeCheck {
-        Owner<CilExpr> expr; expr = e.rvalueTypeCheck(env, ctxt);
-
-        Owner<CilCompound> body; body = newCompound();
-        delete s.typeCheck(env, CilContext(ctxt, *body));
-        
-        ctxt.append(newSwitch(expr.xfr(), body.xfr()));
-        return noCilValue(cilExtra());
-      }
-
-      fun getCFG {
-        // make a switch node where a 'break' statement will go to a
-        // null node, which itself points to edge's target, and splice
-        // that in
-        CFGNullNode *join = cfg.makeNullNode(edge->getTarget());
-        CFGSwitchNode *sw = cfg.makeSwitchNode(&e, join);
-        edge->setTarget(sw);
-
-        // indicate that this is the current switch node
-        cfg.pushSwitch(sw);
-
-        // let the statement, which has the "case:" labels,
-        // add their own stuff
-        s.getCFG(cfg, NULL /*?*/);
-
-        // restore old switch context, if any
-        cfg.popSwitch();
-
-        return join->getOutgoingEdge();
-      }
-    }
-
-    // iteration-statement
-    formGroup {
-      fun getCFG {
-        // build an empty looping structure, essentially:
-        //   cond:        if (e) {
-        //   bodyStart:     /* empty */
-        //                  /* insert body here */
-        //   bodyEnd:       goto cond;     /* target of 'continue' */
-        //                }
-        //   loopExit:    /* target of 'break' */
-        CFGNullNode *loopExit = cfg.makeNullNode(edge->getTarget());
-        CFGNullNode *bodyEnd = cfg.makeNullNode(NULL);
-        CFGNullNode *bodyStart = cfg.makeNullNode(bodyEnd);
-        CFGIfNode *cond = cfg.makeIfNode(&e, bodyStart, loopExit);
-        bodyEnd->setTarget(cond);
-
-        // difference between while and do-while
-        if (isWhileLoop()) {
-          edge->setTarget(cond);
-        }
-        else {    // do-while
-          edge->setTarget(bodyStart);
-        }
-
-        // mark the exit targets
-        cfg.pushContinue(bodyEnd);
-        cfg.pushBreak(loopExit);
-
-        // build loop body
-        s.getCFG(cfg, bodyStart->getOutgoingEdge());
-
-        // restore loop context
-        cfg.popContinue();
-        cfg.popBreak();
-
-        return loopExit->getOutgoingEdge();
-      }
-
-      -> "while" "(" e:Condition ")" s:Statement {
-        fun isWhileLoop = true;
-        
-        fun typeCheck {
-          // get condition's imperative and non-imperative elements
-          Owner<CilCompound> condInst; condInst = newCompound();
-          Owner<CilExpr> cond; 
-          cond = e.rvalueTypeCheck(env, CilContext(ctxt, *condInst));
-
-          // get statement's imperatives
-          Owner<CilCompound> body; body = newCompound();
-          delete s.typeCheck(env, CilContext(ctxt, *body));
-
-          // TODO: break and continue
-
-          // append the condition's imperative to the body
-          body->append(condInst->clone());
-
-          // also put condition's imperative just before loop ...
-          ctxt.append(condInst.xfr());
-
-          // then the loop body itself
-          ctxt.append(newWhileLoop(cond.xfr(), body.xfr()));
-
-          // no value
-          return noCilValue(cilExtra());
-        }
-      }
-
-      -> "do" s:Statement "while" "(" e:Expression ")" ";" {
-        fun isWhileLoop = false;
-
-        fun typeCheck {
-          // make the body, and start with a label so we can jump
-          // past the initial test on the first iteration
-          Owner<CilCompound> body; body = newCompound();
-          LabelName topOfBody = newTmpLabel();
-          body->append(newLabel(topOfBody));
-
-          // get statement's imperatives
-          delete s.typeCheck(env, CilContext(ctxt, *body));
-
-          // get condition, putting its imperative at the end
-          // of the body
-          Owner<CilExpr> cond; 
-          cond = e.rvalueTypeCheck(env, CilContext(ctxt, *body));
-
-          // TODO: break and continue
-
-          // just before loop we jump into it, past test
-          ctxt.append(newGoto(topOfBody));
-
-          // then the loop body itself
-          ctxt.append(newWhileLoop(cond.xfr(), body.xfr()));
-
-          // no value
-          return noCilValue(cilExtra());
-        }
-      }
-    }
-
-    // this is a special-purpose rule intended for use with (unexpanded)
-    // macros that, internally, contain a for loop; it is *not* part of
-    // the C or C++ languages!
-    -> L2_NAME "(" e:ExpressionList ")" s:CompoundStatement {
-      fun typeCheck = NULL;       // TODO: implement?  eliminate?
-    }
-  }
+  // this is a special-purpose rule intended for use with (unexpanded)
+  // macros that, internally, contain a for loop; it is *not* part of
+  // the C or C++ languages!
+  //-> L2_NAME "(" e:ExpressionList ")" s:CompoundStatement {
+  //  fun typeCheck = NULL;       // TODO: implement?  eliminate?
+  //}
 
   // I might like to rework this so both semicolons appear here instead
   // of buried in ForInitStatement.  this is also a good rule to use
   // inline alternatives
-  -> "for" "(" s1:ForInitStatement c:ConditionOpt ";" e:ExpressionOpt ")" s2:Statement {
-    fun typeCheck {
-      // initializer is just as if it were before the loop (except
-      // declared variables are supposed to have loop scope .. TODO)
-      delete s1.typeCheck(env, ctxt);
+  -> "for" "(" s1:ForInitStatement c:ConditionOpt ";" e:ExpressionOpt ")" s2:Statement ;
 
-      // grab condition and its imperative elements
-      Owner<CilCompound> condInst; condInst = newCompound();
-      Owner<CilExpr> cond; 
-      cond = c.rvalueTypeCheck(env, CilContext(ctxt, *condInst));
+  -> "break" ";" ;
 
-      // TODO: break and continue
+  -> "continue" ";" ;
 
-      // loop body
-      Owner<CilCompound> body; body = newCompound();
-      delete s2.typeCheck(env, CilContext(ctxt, *body));
+  -> "return" e:Expression ";" ;
 
-      // increment expression; as if at end of body (except
-      // for "continue" ..)
-      delete e.typeCheck(env, CilContext(ctxt, *body));
+  -> "return" ";" ;
 
-      // stick test at end of body too
-      body->append(condInst->clone());
-
-      // test imperative goes before loop body
-      ctxt.append(condInst.xfr());
-
-      // then the loop body
-      ctxt.append(newWhileLoop(cond.xfr(), body.xfr()));
-
-      return noCilValue(cilExtra());
-    }
-
-    fun getCFG {
-      // stick in the init code
-      edge = s1.getCFG(cfg, edge);
-
-      // build an empty looping structure, essentially:
-      //   cond:        if (e) {
-      //   bodyStart:     /* empty */
-      //                  /* insert body here */
-      //   bodyEnd:       goto cond;     /* target of 'continue' */
-      //                }
-      //   loopExit:    /* target of 'break' */
-      CFGNullNode *loopExit = cfg.makeNullNode(edge->getTarget());
-      CFGNullNode *bodyEnd = cfg.makeNullNode(NULL);
-      CFGNullNode *bodyStart = cfg.makeNullNode(bodyEnd);
-      CFGIfNode *cond = cfg.makeIfNode(c.getGuardExpr(), bodyStart, loopExit);
-      bodyEnd->setTarget(cond);
-      edge->setTarget(cond);
-
-      // mark the exit targets
-      cfg.pushContinue(bodyEnd);
-      cfg.pushBreak(loopExit);
-
-      // build loop body
-      s2.getCFG(cfg, bodyStart->getOutgoingEdge());
-
-      // stick in the increment code
-      // TODO
-      //e2.getCFG(cfg, bodyEnd->getOutgoingEdge());
-
-      // restore loop context
-      cfg.popContinue();
-      cfg.popBreak();
-
-      return loopExit->getOutgoingEdge();
-    }
-  }
-
-  // jump-statement
-  formGroup {
-    fun typeCheck = NULL;
-
-    -> "break" ";" {
-      // TODO2: typeCheck
-      fun getCFG {
-        edge->setTarget(cfg.getBreakTarget());
-        return edge;
-      }
-    }
-
-    -> "continue" ";" {
-      // TODO2: typeCheck
-      fun getCFG {
-        edge->setTarget(cfg.getContinueTarget());
-        return edge;
-      }
-    }
-
-    -> "return" e:Expression ";" {
-      fun typeCheck {                
-        // I have long wanted to be able to write:
-        //   return <void expr>;
-        // since it makes certain C++ template code possible,
-        // so I will *not* enforce the usual C rule here
-        Owner<CilExpr> expr; expr = e.typeCheck(env, ctxt);
-        ctxt.append(newReturn(expr.xfr()));
-        return noCilValue(cilExtra());
-      }
-
-      fun getCFG {
-        CFGReturnNode *node = cfg.makeReturnNode(&e,
-          cfg.getReturnTarget());
-        edge->setTarget(node);
-        return edge;
-      }
-    }
-
-    -> "return" ";" {
-      fun typeCheck {
-        ctxt.append(newReturn(NULL));
-        return noCilValue(cilExtra());
-      }
-
-      fun getCFG {
-        CFGReturnNode *node = cfg.makeReturnNode(NULL,
-          cfg.getReturnTarget());
-        edge->setTarget(node);
-        return edge;
-      }
-    }
-
-    -> "goto" n:LabelName ";" {
-      fun typeCheck {
-        ctxt.append(newGoto(n.getName()));
-        return noCilValue(cilExtra());
-      }
-
-      fun getCFG {
-        edge->setTarget(cfg.getLabelTarget(n.getName()));
-        return edge;
-      }
-    }
-  }
+  -> "goto" n:LabelName ";" ;
 
   // declaration-statement
   -> s:BlockDeclaration ;
@@ -1810,166 +378,53 @@ nonterm Statement : Checkable, HasCFG {
   -> s:TryBlock ;
 
   // GNU extensions
-  -> GNUAsmStatement {
-    fun typeCheck = NULL;
-    fun getCFG = edge;
-  }
+  -> GNUAsmStatement ;
 }
 
-nonterm ExpressionStatement : Checkable, HasCFG {
+nonterm ExpressionStatement {
   -> ";" ;
-  -> e:Expression ";" {
-    fun typeCheck = e.typeCheck(env, ctxt);
-
-    fun getCFG {
-      CFGExprNode *node = cfg.makeExprNode(&e);
-      return cfg.insertNode(node, edge);
-    }
-  }
+  -> e:Expression ";" ;
 }
 
-// base class for nodes that establish a new scope
-nonterm ScopeNode {
-  datadecl Owner<Env> localEnv;
-
-  // this overrides a virtual method in CCTreeNode
-  fundecl void killParentLink();
-  fun killParentLink {
-    if (localEnv) {
-      localEnv->killParentLink();
-    }
-  }
+nonterm CompoundStatement {
+  -> "{" seq:StatementSeqOpt "}" ;
 }
 
-nonterm CompoundStatement : Checkable, HasCFG, ScopeNode {
-  -> "{" seq:StatementSeqOpt "}" {
-    fun typeCheck {
-      xassert(!localEnv);
-      localEnv = env->newScope();     // scope
-
-      try {
-        Owner<CilExpr> ret; ret = seq.typeCheck(localEnv, ctxt);
-
-        ana_endScope(localEnv);
-
-        return ret.xfr();
-      }
-      catch (...) {
-        // kill the localEnv so it doesn't continue to
-        // point to 'env', which may well be destroyed during
-        // the unwind process before 'localEnv' is
-        //localEnv.del();
-        
-        // different strategy: the problem with deleting localEnv
-        // is we could have pointers from below pointing at us;
-        // this happens if e.g. we have two children, and the
-        // left child typeChecks *and* has its own scope; then
-        // that scope will point at us; if the right child then
-        // fails to segfault, we execute this code; so now my
-        // strategy is to simply break the parent link; I still
-        // need to rethink my whole approach to environments ...
-        localEnv->killParentLink();
-
-        throw;
-      }
-    }
-
-    fun getCFG = seq.getCFG(cfg, edge);
-  }
-}
-
-nonterm StatementSeqOpt : Checkable, HasCFG {
+nonterm StatementSeqOpt {
   -> empty ;
-  -> seq:StatementSeqOpt s:Statement {
-    fun typeCheck {
-      try {
-        delete seq.typeCheck(env, ctxt);
-      }
-      catch (XSemanticError &x) {
-        // error recovery; report and proceed
-        env->report(x.err);
-      }
-      env->flushLocalErrors(cout);
-
-      try {
-        return s.typeCheck(env, ctxt);
-      }
-      catch (XSemanticError &x) {
-        env->report(x.err);
-        env->flushLocalErrors(cout);
-        return noCilValue(cilExtra());
-      }
-    }
-
-    fun getCFG {
-      return s.getCFG(cfg, seq.getCFG(cfg, edge));
-    }
-  }
+  -> seq:StatementSeqOpt s:Statement ;
 }
 
-nonterm Condition : Checkable {
+// the guard of e.g. an 'if' statement
+nonterm Condition {
   fun typeCheck = e.typeCheck(env, ctxt);
 
   -> e:Expression ;
-  -> spec:TypeSpecifier decl:Declarator "=" e:AssignmentExpression {
-    fun typeCheck {
-      // basic declaration handling
-      Type const *declType = decl.getDeclType(env, spec.getType(env));
-      VarName name = decl.getDeclName();
-      declareVariable(env, name, DF_NONE, declType, true /*initialzed*/);
-
-      // declare a new intermediate variable
-      Variable *var = env->getVariable(name);
-      ctxt.addVarDecl(var);
-
-      // initialize it
-      Owner<CilExpr> initVal; initVal = e.rvalueTypeCheck(env, ctxt);
-      ctxt.append(newAssignVar(var, initVal.xfr()));
-
-      return noCilValue(cilExtra());
-    }
-  }
+  
+  // C++ allows variable declarations in some interesting places...
+  -> spec:TypeSpecifier decl:Declarator "=" e:AssignmentExpression ;
 }
 
-nonterm ConditionOpt : Checkable {
-  fundecl CCTreeNode *getGuardExpr();
-  fun getGuardExpr = NULL;
-    
+nonterm ConditionOpt {
   // an empty condition in a for loop is interpreted as true
-  -> empty {
-    fun typeCheck = newIntLit(1 /*true*/);
-  }
+  -> empty ;
 
-  -> c:Condition {
-    fun typeCheck = c.typeCheck(env, ctxt);
-  }
+  -> c:Condition ;
 }
 
-nonterm ForInitStatement : Checkable, HasCFG {
-  -> s:ExpressionStatement | s:SimpleDeclaration {
-    fun typeCheck = s.typeCheck(env, ctxt);
-  }
+nonterm ForInitStatement {
+  -> s:ExpressionStatement ;
+  -> s:SimpleDeclaration ;
 }
-
-
 
 
 // ----- A.6 Declarations ------
-nonterm DeclarationSeqOpt : Checkable {
-  -> empty {
-    fun typeCheck = NULL;
-  }
-  -> seq:DeclarationSeqOpt d:Declaration {
-    fun typeCheck {
-      delete seq.typeCheck(env, ctxt);
-      return d.typeCheck(env, ctxt);
-    }
-  }
+nonterm DeclarationSeqOpt {
+  -> empty ;
+  -> seq:DeclarationSeqOpt d:Declaration ;
 }
 
-nonterm Declaration : Checkable {
-  fun typeCheck = d.typeCheck(env, ctxt);
-
+nonterm Declaration {
   -> d:BlockDeclaration ;
   -> d:FunctionDefinition ;
   //-> TemplateDeclaration ;
@@ -1977,10 +432,8 @@ nonterm Declaration : Checkable {
 }
 
 // C++ has other alternatives..
-nonterm BlockDeclaration : Checkable, HasCFG {
-  -> d:SimpleDeclaration {
-    fun typeCheck = d.typeCheck(env, ctxt);
-  }
+nonterm BlockDeclaration {
+  -> d:SimpleDeclaration ;
 }
 
 // is the DeclSpecifierSeq optional for implicit-int??
@@ -1988,21 +441,12 @@ nonterm BlockDeclaration : Checkable, HasCFG {
 //   all of which are C++ only, so the DeclSpecifierSeq is now mandatory
 // ok, why is the InitDeclaratorList optional?
 //   for declaring classes and enums
-nonterm SimpleDeclaration : Checkable {
+nonterm SimpleDeclaration {
   //e.g.: int                x                     ;
-  -> spec:DeclSpecifier list:InitDeclaratorListOpt ";" {
-    fun typeCheck {
-      Type const *type = spec.getType(env);    // a complete type
-      DeclFlags flags = spec.getDeclFlags();   // inline, virtual, etc.
-      list.declare(env, ctxt, flags, type);
-      return noCilValue(cilExtra());
-    }
-  }
-                 
+  -> spec:DeclSpecifier list:InitDeclaratorListOpt ";" ;
+
   // gnu; specifically for linux printk declaration
-  -> GNUAttribute decl:SimpleDeclaration {
-    fun typeCheck = decl.typeCheck(env, ctxt);
-  }
+  -> GNUAttribute decl:SimpleDeclaration ;
 }
 
 
@@ -2012,28 +456,14 @@ nonterm SimpleDeclaration : Checkable {
 // now I'm folding CVQualifier into TypeSpecifier; in particular, this allows
 // the TypeId in a cast expression to contain a "const"
 
-nonterm HasDeclFlags {
-  // return the set of declaration flags present here
-  fundecl DeclFlags getDeclFlags();
-}
+nonterm DeclSpecifier {
+  -> "inline" m:DeclModifier s:TypeSpecifier ;
+  -> m:DeclModifier "inline" s:TypeSpecifier ;
 
-nonterm DeclSpecifier : HasTypeName, HasType, HasDeclFlags {
-  fun typeName = s.typeName();
-  fun getType = s.getType(env);
+  -> m:DeclModifier s:TypeSpecifier ;
 
-  -> "inline" m:DeclModifier s:TypeSpecifier
-   | m:DeclModifier "inline" s:TypeSpecifier {
-    fun getDeclFlags = (DeclFlags)(DF_INLINE | m.getDeclFlags());
-  }
-
-  -> m:DeclModifier s:TypeSpecifier {
-    fun getDeclFlags = m.getDeclFlags();
-  }
-  
-  -> "inline" s:TypeSpecifier
-   | s:TypeSpecifier {
-    fun getDeclFlags = DF_NONE;
-  }
+  -> "inline" s:TypeSpecifier ;
+  -> s:TypeSpecifier ;
 }
 
 // my analysis (informal and ad-hoc) indicates that none of these can
@@ -2041,117 +471,39 @@ nonterm DeclSpecifier : HasTypeName, HasType, HasDeclFlags {
 // with "virtual", "static", "friend", and possibly "extern"; I
 // consider all this preferable to just allowing a "word soup"
 nonterm DeclModifier : HasDeclFlags {
-  -> "virtual"     { fun getDeclFlags = DF_VIRTUAL; }
-  -> "friend"      { fun getDeclFlags = DF_FRIEND; }
-  -> "mutable"     { fun getDeclFlags = DF_MUTABLE; }
-  -> "typedef"     { fun getDeclFlags = DF_TYPEDEF; }
-  -> "auto"        { fun getDeclFlags = DF_AUTO; }
-  -> "register"    { fun getDeclFlags = DF_REGISTER; }
-  -> "static"      { fun getDeclFlags = DF_STATIC; }
-  -> "extern"      { fun getDeclFlags = DF_EXTERN; }
+  -> "virtual"     ;
+  -> "friend"      ;
+  -> "mutable"     ;
+  -> "typedef"     ;
+  -> "auto"        ;
+  -> "register"    ;
+  -> "static"      ;
+  -> "extern"      ;
 }
 
 
-nonterm HasCVFlags {
-  // return all const/volatile at this level
-  fundecl CVFlags getCVFlags();
-}
+nonterm TypeSpecifier {
+  -> s:SimpleTypeSpecifier ;          // int
 
-nonterm TypeSpecifier : HasTypeName, HasType, HasCVFlags {
-  // generic implementation
-  fun getType {
-    Type const *baseType = s.getType(env);
-    CVFlags cv = getCVFlags();
+  -> s:SimpleCVTypeSpecifier ;        // unsigned const char  (not good style, IMO)
 
-    // apply the cv flags to what we have
-    Type const *ret = env->applyCVToType(cv, baseType);
-    if (!ret) {
-      // e.g.:
-      //   typedef int (*Foo)();
-      //   Foo const f;
-      reportError(env, "cannot apply const/volatile to this type");
-      return baseType;    // error recovery
-    }
-    return ret;
-  }
+  -> s:ElaboratedTypeSpecifier ;      // class foo  or  enum bar
 
-  // default impls
-  fun typeName = s.typeName();
-  fun getCVFlags = CV_NONE;
+  -> s:ClassSpecifier ;               // class { ... }
+  -> s:EnumSpecifier ;                // enum { ... }
 
-  // these are the atomic types (see types.txt)
-  formGroup {
-    -> s:SimpleTypeSpecifier ;          // int
-
-    -> s:SimpleCVTypeSpecifier          // unsigned const char  (not good style, IMO)
-         { fun getCVFlags = s.getCVFlags(); }
-
-    -> s:ElaboratedTypeSpecifier ;      // class foo  or  enum bar
-
-    -> s:ClassSpecifier                 // class { ... }
-         { fun typeName = "class { ... }"; }
-    -> s:EnumSpecifier                  // enum { ... }
-         { fun typeName = "enum { ... }"; }
-  }
-
-  // these are: "CV* atomic-type" or "atomic-type CV*"
-  formGroup {
-    fun typeName = stringc << s.typeName() << " " << q.typeName();
-
-    fun getCVFlags {
-      // get flags from underlying specifier
-      CVFlags flags = s.getCVFlags();
-
-      // add the flag at this level
-      return (CVFlags)(flags | q.getCVFlags());
-    }
-
-    -> q:CVQualifier s:TypeSpecifier ;  // const int
-    -> s:TypeSpecifier q:CVQualifier ;  // int const
-  }
+  -> q:CVQualifier s:TypeSpecifier ;  // const int
+  -> s:TypeSpecifier q:CVQualifier ;  // int const
 
   // yet another attempt to find a good place for this
   -> s:TypeSpecifier GNUAttribute ;
 }
 
 
-nonterm ElaboratedTypeSpecifier : HasTypeName, HasType {
-  -> k:ClassKeyword n:L2_NAME {
-    fun getType {
-      CompoundType::Keyword keyword = k.getKeyword();
-      CompoundType const *type = env->lookupOrMakeCompound(n.nameValue, keyword);
-      if (!type) {
-        // e.g.:
-        //   class Foo;
-        //   struct Foo *f;
-        throwError("compound kind mismatch");
-      }
+nonterm ElaboratedTypeSpecifier {
+  -> k:ClassKeyword n:L2_NAME ;
 
-      return env->makeType(type);
-    }
-  }
-
-  -> "enum" n:L2_NAME {
-    fun getType {
-      EnumType const *type = env->lookupEnum(n.nameValue);
-      if (!type) {
-        throwError("undeclared enum");
-      }
-      return env->makeType(type);
-    }
-  }
-}
-
-
-nonterm SimpleTypeBase : HasType {
-  // helper to get the simple type spec, to cut down on
-  // syntactic verbiage
-  fundecl SimpleTypeId getst();
-  fun getst { internalError("can't call me"); }
-
-  fun getType {
-    return env->getSimpleType(getst());
-  }
+  -> "enum" n:L2_NAME ;
 }
 
 
@@ -2159,61 +511,48 @@ nonterm SimpleTypeBase : HasType {
 // NOTE: this deviates from the language spec, which allows other
 // decl-specifiers to mix with the tokens here; I do not
 nonterm SimpleTypeSpecifier : SimpleTypeBase, HasTypeName {
-  fun typeName {
-    return simpleTypeName(getst());
-  }
-
   // the existence of this production is part of why parsing C is hard
-  -> n:PQTypeName {
-    fun getType {
-      Type const *ret = env->lookupType(n.typeName());
-      if (!ret) {
-        throwError(stringc << "undefined type: " << n.typeName());
-      }
-      return ret;
-    }
-    fun typeName = n.typeName();
-  }
+  -> n:PQTypeName ;
 
-  -> "char"                     { fun getst = ST_CHAR; }
-  -> "unsigned" "char"          { fun getst = ST_UNSIGNED_CHAR; }
-  -> "signed" "char"            { fun getst = ST_SIGNED_CHAR; }
-  -> "bool"                     { fun getst = ST_BOOL; }
-  -> "unsigned"                 { fun getst = ST_UNSIGNED_INT; }
-  -> "unsigned" "int"           { fun getst = ST_UNSIGNED_INT; }
-  -> "signed"                   { fun getst = ST_INT; }
-  -> "signed" "int"             { fun getst = ST_INT; }
-  -> "int"                      { fun getst = ST_INT; }
-  -> "unsigned" "short" "int"   { fun getst = ST_UNSIGNED_SHORT_INT; }
-  -> "unsigned" "short"         { fun getst = ST_UNSIGNED_SHORT_INT; }
-  -> "unsigned" "long" "int"    { fun getst = ST_UNSIGNED_LONG_INT; }
-  -> "unsigned" "long"          { fun getst = ST_UNSIGNED_LONG_INT; }
-  -> "signed" "long" "int"      { fun getst = ST_LONG_INT; }
-  -> "signed" "long"            { fun getst = ST_LONG_INT; }
-  -> "long" "int"               { fun getst = ST_LONG_INT; }
-  -> "long"                     { fun getst = ST_LONG_INT; }
-  -> "signed" "long" "long"     { fun getst = ST_LONG_LONG; }
-  -> "long" "long"              { fun getst = ST_LONG_LONG; }
-  -> "unsigned" "long" "long"   { fun getst = ST_UNSIGNED_LONG_LONG; }
-  -> "signed" "short" "int"     { fun getst = ST_SHORT_INT; }
-  -> "signed" "short"           { fun getst = ST_SHORT_INT; }
-  -> "short" "int"              { fun getst = ST_SHORT_INT; }
-  -> "short"                    { fun getst = ST_SHORT_INT; }
-  -> "wchar_t"                  { fun getst = ST_WCHAR_T; }
-  -> "float"                    { fun getst = ST_FLOAT; }
-  -> "double"                   { fun getst = ST_DOUBLE; }
-  -> "long" "double"            { fun getst = ST_LONG_DOUBLE; }
-  -> "void"                     { fun getst = ST_VOID; }
+  -> "char"                     [ return ST_CHAR; ]
+  -> "unsigned" "char"          [ return ST_UNSIGNED_CHAR; ]
+  -> "signed" "char"            [ return ST_SIGNED_CHAR; ]
+  -> "bool"                     [ return ST_BOOL; ]
+  -> "unsigned"                 [ return ST_UNSIGNED_INT; ]
+  -> "unsigned" "int"           [ return ST_UNSIGNED_INT; ]
+  -> "signed"                   [ return ST_INT; ]
+  -> "signed" "int"             [ return ST_INT; ]
+  -> "int"                      [ return ST_INT; ]
+  -> "unsigned" "short" "int"   [ return ST_UNSIGNED_SHORT_INT; ]
+  -> "unsigned" "short"         [ return ST_UNSIGNED_SHORT_INT; ]
+  -> "unsigned" "long" "int"    [ return ST_UNSIGNED_LONG_INT; ]
+  -> "unsigned" "long"          [ return ST_UNSIGNED_LONG_INT; ]
+  -> "signed" "long" "int"      [ return ST_LONG_INT; ]
+  -> "signed" "long"            [ return ST_LONG_INT; ]
+  -> "long" "int"               [ return ST_LONG_INT; ]
+  -> "long"                     [ return ST_LONG_INT; ]
+  -> "signed" "long" "long"     [ return ST_LONG_LONG; ]
+  -> "long" "long"              [ return ST_LONG_LONG; ]
+  -> "unsigned" "long" "long"   [ return ST_UNSIGNED_LONG_LONG; ]
+  -> "signed" "short" "int"     [ return ST_SHORT_INT; ]
+  -> "signed" "short"           [ return ST_SHORT_INT; ]
+  -> "short" "int"              [ return ST_SHORT_INT; ]
+  -> "short"                    [ return ST_SHORT_INT; ]
+  -> "wchar_t"                  [ return ST_WCHAR_T; ]
+  -> "float"                    [ return ST_FLOAT; ]
+  -> "double"                   [ return ST_DOUBLE; ]
+  -> "long" "double"            [ return ST_LONG_DOUBLE; ]
+  -> "void"                     [ return ST_VOID; ]
 }
 
 
 // I had been separating these into typedef/enum/class names, but
 // the parser can never distinguish, so the grammar shouldn't suggest
 // that it can
-nonterm PQTypeName : HasTypeName {
-  -> n:L2_NAME                 { fun typeName = n.nameValue; }
-  -> TemplateId                { fun typeName = "(template-id)"; }
-  -> Qualifier n:PQTypeName    { fun typeName = stringc << "(qualifier)" << n.typeName(); }
+nonterm PQTypeName {
+  -> n:L2_NAME ;
+  -> TemplateId ;
+  -> Qualifier n:PQTypeName ;
 }
 
 // the C++ standard allows "const" and "volatile" to be arbitrarily
@@ -2228,279 +567,86 @@ nonterm PQTypeName : HasTypeName {
 // I really should just fold these into the above, but my dislike for
 // the interleaving thing makes me try to keep the above decls more
 // or less "pure".. but I'll probably merge them at some point
-nonterm SimpleCVTypeSpecifier : SimpleTypeBase, HasTypeName, HasCVFlags {
-  fun typeName {
-    return stringc << simpleTypeName(getst()) << " " << q.typeName();
-  }
-
-  fun getCVFlags = q.getCVFlags();
-
-  -> "unsigned" q:CVQualifierSeq "char"         { fun getst = ST_UNSIGNED_CHAR; }
-  -> "signed" q:CVQualifierSeq "char"           { fun getst = ST_SIGNED_CHAR; }
-  -> "unsigned" q:CVQualifierSeq "int"          { fun getst = ST_UNSIGNED_INT; }
-  -> "signed" q:CVQualifierSeq "int"            { fun getst = ST_INT; }
-  -> "unsigned" q:CVQualifierSeq "short" "int"  { fun getst = ST_UNSIGNED_SHORT_INT; }
-  -> "unsigned" "short" q:CVQualifierSeq "int"  { fun getst = ST_UNSIGNED_SHORT_INT; }
-  -> "unsigned" q:CVQualifierSeq "short"        { fun getst = ST_UNSIGNED_SHORT_INT; }
-  -> "unsigned" q:CVQualifierSeq "long" "int"   { fun getst = ST_UNSIGNED_LONG_INT; }
-  -> "unsigned" "long" q:CVQualifierSeq "int"   { fun getst = ST_UNSIGNED_LONG_INT; }
-  -> "unsigned" q:CVQualifierSeq "long"         { fun getst = ST_UNSIGNED_LONG_INT; }
-  -> "signed" q:CVQualifierSeq "long" "int"     { fun getst = ST_LONG_INT; }
-  -> "signed" "long" q:CVQualifierSeq "int"     { fun getst = ST_LONG_INT; }
-  -> "signed" q:CVQualifierSeq "long"           { fun getst = ST_LONG_INT; }
-  -> "long" q:CVQualifierSeq "int"              { fun getst = ST_LONG_INT; }
-  -> "signed" q:CVQualifierSeq "long" "long"    { fun getst = ST_LONG_LONG; }
-  -> "unsigned" q:CVQualifierSeq "long" "long"  { fun getst = ST_UNSIGNED_LONG_LONG; }
-  -> "signed" q:CVQualifierSeq "short" "int"    { fun getst = ST_SHORT_INT; }
-  -> "signed" "short" q:CVQualifierSeq "int"    { fun getst = ST_SHORT_INT; }
-  -> "signed" q:CVQualifierSeq "short"          { fun getst = ST_SHORT_INT; }
-  -> "short" q:CVQualifierSeq "int"             { fun getst = ST_SHORT_INT; }
-  -> "long" q:CVQualifierSeq "double"           { fun getst = ST_LONG_DOUBLE; }
+nonterm SimpleCVTypeSpecifier {
+  -> "unsigned" q:CVQualifierSeq "char"         [ return ST_UNSIGNED_CHAR; ]
+  -> "signed" q:CVQualifierSeq "char"           [ return ST_SIGNED_CHAR; ]
+  -> "unsigned" q:CVQualifierSeq "int"          [ return ST_UNSIGNED_INT; ]
+  -> "signed" q:CVQualifierSeq "int"            [ return ST_INT; ]
+  -> "unsigned" q:CVQualifierSeq "short" "int"  [ return ST_UNSIGNED_SHORT_INT; ]
+  -> "unsigned" "short" q:CVQualifierSeq "int"  [ return ST_UNSIGNED_SHORT_INT; ]
+  -> "unsigned" q:CVQualifierSeq "short"        [ return ST_UNSIGNED_SHORT_INT; ]
+  -> "unsigned" q:CVQualifierSeq "long" "int"   [ return ST_UNSIGNED_LONG_INT; ]
+  -> "unsigned" "long" q:CVQualifierSeq "int"   [ return ST_UNSIGNED_LONG_INT; ]
+  -> "unsigned" q:CVQualifierSeq "long"         [ return ST_UNSIGNED_LONG_INT; ]
+  -> "signed" q:CVQualifierSeq "long" "int"     [ return ST_LONG_INT; ]
+  -> "signed" "long" q:CVQualifierSeq "int"     [ return ST_LONG_INT; ]
+  -> "signed" q:CVQualifierSeq "long"           [ return ST_LONG_INT; ]
+  -> "long" q:CVQualifierSeq "int"              [ return ST_LONG_INT; ]
+  -> "signed" q:CVQualifierSeq "long" "long"    [ return ST_LONG_LONG; ]
+  -> "unsigned" q:CVQualifierSeq "long" "long"  [ return ST_UNSIGNED_LONG_LONG; ]
+  -> "signed" q:CVQualifierSeq "short" "int"    [ return ST_SHORT_INT; ]
+  -> "signed" "short" q:CVQualifierSeq "int"    [ return ST_SHORT_INT; ]
+  -> "signed" q:CVQualifierSeq "short"          [ return ST_SHORT_INT; ]
+  -> "short" q:CVQualifierSeq "int"             [ return ST_SHORT_INT; ]
+  -> "long" q:CVQualifierSeq "double"           [ return ST_LONG_DOUBLE; ]
 }
 
 
-nonterm EnumSpecifier : HasType {
-  fundecl string getEnumName();
-
-  fun getType {
-    // get preliminary info
-    string name = getEnumName();    
-    if (name.equals("")) {
-      name = env->makeFreshName("__anonEnum");
-    }
-
-    // construct the vessel to carry additional stuff
-    EnumType *type = env->lookupEnum(name);
-    if (type) {
-      // TODO: wrong because this prevents local redeclaration
-      throwError(stringc << "enum already declared: " << name);
-    }
-    if (!type) {
-      type = env->makeEnumType(name);
-      xassert(type);
-    }
-
-    // get elements
-    list.collectEnumValues(env, type);
-
-    return env->makeType(type);
-  }
-
-  -> "enum" "{" list:EnumeratorListOpt "}"
-    { fun getEnumName = ""; }
-  -> "enum" n:EnumName "{" list:EnumeratorListOpt "}"
-    { fun getEnumName = n.getName(); }
+nonterm EnumSpecifier {
+  -> "enum" "{" list:EnumeratorListOpt "}" ;
+  -> "enum" n:EnumName "{" list:EnumeratorListOpt "}" ;
 }
 
 
-nonterm EnumeratorBase {
-  fundecl void collectEnumValues(Env *passedEnv, EnumType *type);
-  fun collectEnumValues {}
-  literalCode "prefix" collectEnumValues {
-    env = passedEnv;
-  }
+nonterm EnumeratorList {
+  -> def:EnumeratorDefinition ;
+  -> list:EnumeratorList "," def:EnumeratorDefinition ;
 }
 
-nonterm EnumeratorList : EnumeratorBase {
-  -> def:EnumeratorDefinition {
-    fun collectEnumValues {
-      def.collectEnumValues(env, type);
-    }
-  }
-
-  -> list:EnumeratorList "," def:EnumeratorDefinition {
-    fun collectEnumValues {
-      list.collectEnumValues(env, type);
-      def.collectEnumValues(env, type);
-    }
-  }
-}
-
-nonterm EnumeratorListOpt : EnumeratorBase {
+nonterm EnumeratorListOpt {
   -> empty ;
 
-  -> list:EnumeratorList
-   | list:EnumeratorList "," {     // GNU extension (??)
-    fun collectEnumValues { list.collectEnumValues(env, type); }
-  }
+  -> list:EnumeratorList ;
+  -> list:EnumeratorList "," ;     // GNU extension (??)
 }
 
 
-nonterm EnumeratorDefinition : EnumeratorBase {
-  -> name:EnumValueName {
-    fun collectEnumValues {
-      env->addEnumValue(this, name.getName(), type, type->nextValue++);
-    }
-  }
-
-  -> name:EnumValueName "=" expr:ConstantExpression {
-    fun collectEnumValues {
-      // get the expression value
-      try {
-        type->nextValue = expr.intEval(env);
-        env->addEnumValue(this, name.getName(), type, type->nextValue++);
-      }
-      catch (XSemanticError &x) {
-        cout << x.err.whyStr() << endl;
-      }
-    }
-  }
+nonterm EnumeratorDefinition {
+  -> name:EnumValueName ;
+  -> name:EnumValueName "=" expr:ConstantExpression ;
 }
 
 
 nonterm AsmDefinition -> "asm" "(" L2_STRING_LITERAL ")" ";" ;
 
 nonterm LinkageSpecification : Checkable {
-  // todo: actually record the linkage spec
-  -> "extern" L2_STRING_LITERAL "{" d:DeclarationSeqOpt "}" |
-     "extern" L2_STRING_LITERAL d:Declaration {
-    fun typeCheck = d.typeCheck(env, ctxt);
-  }
+  -> "extern" L2_STRING_LITERAL "{" d:DeclarationSeqOpt "}" ;
+  -> "extern" L2_STRING_LITERAL d:Declaration ;
 }
 
 // ------ A.7 Declarators ------
 // -- declarator --
-// declarator: the "x" in a declaration like "int x"
+// a declarator is the "x" in a declaration like "int x"
 
-nonterm HasDeclare {
-  // this function is defined for declarators, etc.; for each declarator
-  // in the subtree, combine 'type' with the additional type modifiers
-  // associated with the declarator (if any), and add the completed
-  // declaration, with 'flags', to 'env'
-  fundecl void declare(Env *passedEnv, CilContext const &ctxt, 
-                       DeclFlags flags, Type const *type);
-  literalCode "prefix" declare {
-    env = passedEnv;
-  }
+nonterm InitDeclaratorList {
+  -> d:InitDeclarator ;
+  -> list:InitDeclaratorList "," d:InitDeclarator ;
 }
 
-nonterm InitDeclaratorList : HasDeclare {
-  -> d:InitDeclarator {
-    fun declare { d.declare(env, ctxt, flags, type); }
-  }
-
-  -> list:InitDeclaratorList "," d:InitDeclarator {
-    fun declare {
-      list.declare(env, ctxt, flags, type);
-      d.declare(env, ctxt, flags, type);
-    }
-  }
-}
-
-nonterm InitDeclaratorListOpt : HasDeclare {
-  -> empty                      { fun declare {} }
-  -> list:InitDeclaratorList    { fun declare { list.declare(env, ctxt, flags, type); } }
+nonterm InitDeclaratorListOpt {
+  -> empty ;
+  -> list:InitDeclaratorList ;
 }
 
 
-nonterm InitializerBase {
-  // same as Checkable's typeCheck, but we include the type of the
-  // thing we expect, since we need that info for e.g. structure field
-  // initializers
-  fundecl CilExpr *typeCheck(Env *passedEnv, CilContext const &ctxt, 
-                             Type const *type);
+nonterm InitDeclarator {
+  -> d:Declarator ;                     // (int)  x
 
-  // and the usual prefix
-  literalCode "prefix" typeCheck {
-    env = passedEnv;
-  }
+  -> d:Declarator i:Initializer ;       // (int)  x = 5
 }
 
-nonterm InitDeclarator : HasDeclare, InitializerBase {
-  fundecl bool hasInit();
-
-  fun declare {
-    // get the full type from the declarator
-    Type const *fullType = d.getDeclType(env, type);
-
-    // get the declared name
-    string name = d.getDeclName();
-
-    // get the value of the initializer, if any (will be
-    // NULL if there is no initializer)
-    Owner<CilExpr> initExpr; initExpr = typeCheck(env, ctxt, fullType);
-
-    // if it's an array with an an initializer here, then count the
-    // initializers so we can add that to the array's type
-    if (fullType->isArrayType() && initExpr) {
-      ArrayType const *arrType = &( fullType->asArrayTypeC() );
-
-      if (initExpr->etag != CilExpr::T_LARRAY) {
-        // TODO2: obviously, there is a more general type consistency check
-        // to be performed here ...
-        throwError("array-valued variables require array-valued initializers");
-      }
-      xassert(initExpr->larray.type->isArrayType());
-      int numInitElems = initExpr->larray.elements->count();
-
-      if (arrType->hasSize) {
-        if (numInitElems > arrType->size) {
-          throwError(stringc
-            << "array `" << name << "' was declared to have "
-            << arrType->size << " only elements, but you gave "
-            << "it " << numInitElems << " initializers");
-        }
-        else {
-          // the uninitialized elements, if any, must be zeroed
-          for (int index=numInitElems; index < arrType->size; index++) {
-            // construct a zero-valued initializer for this element
-            trace("initializer") << "synthesizing zero init for element " 
-                                 << index << endl;
-            initExpr->larray.elements->append(
-              zeroValuedInit(cilExtra(), arrType->eltType));
-          }
-        }
-      }
-      else /*no size was declared*/ {
-        // change the type to match the initializer
-        trace("initializer") << "setting array type length to "
-                             << numInitElems << endl;
-        fullType = env->setArraySize(arrType, numInitElems);
-      }
-    }
-
-    // put that pair into the environment
-    declareVariable(env, name, flags, fullType, hasInit());
-
-    // and add an intermediate form declaration too (but
-    // we essentially translate away typedefs for Cil, so
-    // pass over them)
-    // TODO2: are other DeclFlags relevant?  e.g. static??
-    Variable *var = env->getVariable(name);
-    if (!( flags & DF_TYPEDEF )) {
-      ctxt.addVarDecl(var);
-    }
-
-    // if there is an initializer
-    if (initExpr) {
-      xassert(var->isGlobal() == env->isGlobalEnv());   // paranoia
-      if (env->isGlobalEnv()) {
-        // the declaration itself will contain the initializer
-        // for global variables
-        var->initVal = initExpr.xfr();
-      }
-      else /*local*/ {
-        // add a statement to set the variable's value
-        ctxt.append(newAssignVar(var, initExpr.xfr()));
-      }
-    }
-  }
-
-  -> d:Declarator {                     // (int)  x
-    fun hasInit = false;
-    fun typeCheck = NULL;
-  }
-
-  -> d:Declarator i:Initializer {       // (int)  x = 5
-    fun hasInit = true;
-    fun typeCheck = i.typeCheck(env, ctxt, type);
-  }
-}
-
-nonterm Initializer : InitializerBase {
-  -> "=" i:InitializerClause {
-    fun typeCheck = i.typeCheck(env, ctxt, type);
-  }
+nonterm Initializer {
+  -> "=" i:InitializerClause ;
 
   // this causes an ambiguity with
   //   int fileno(FILE *f);
@@ -2510,79 +656,16 @@ nonterm Initializer : InitializerBase {
 }
 
 nonterm InitializerClause : InitializerBase {
-  -> e:AssignmentExpression {           // scalar
-    // again, coercions are still implicit..
-    fun typeCheck = e.typeCheck(env, ctxt);
-  }
-
-  -> c:CompoundInitializer {          // array/structure initializer
-    fun typeCheck = c.typeCheck(env, ctxt, type);
-  }
-}
-
-                              
-// base class for initializers of elements of aggregates
-// (arrays and structures)
-nonterm AggregateInitializer {
-  // fill in the elements of an array
-  fundecl void collectArrayInits(
-    Env *passedEnv, CilContext const &ctxt,  // usual
-    CilExpr *dest,                           // place to put array elements (T_LARRAY)
-    Type const *eltType,                     // type of the array elements
-    int &index);                             // next index to fill in
-
-  // fill in elements of a structure
-  fundecl void collectStructInits(
-    Env *passedEnv, CilContext const &ctxt,  // usual
-    CilExpr *dest,                           // place to put fields (T_LSTRUCT)
-    CompoundType const *ctype,               // type of the structure
-    int &index);                             // index of next field to fill in
-    
-  // usual prefix junk .. I'm reconsidering if I want to be storing
-  // environment pointers in nodes ...
-  literalCode "prefix" collectArrayInits {
-    env = passedEnv;
-  }
-  literalCode "prefix" collectStructInits {
-    env = passedEnv;
-  }
-  
-  // default implementations throw errors
-  fun collectArrayInits {
-    throwError("collectArrayInits not defined for this syntax");
-  }
-  fun collectStructInits {
-    throwError("collectStructInits not defined for this syntax");
-  }
+  -> e:AssignmentExpression ;           // scalar
+  -> c:CompoundInitializer ;            // array/structure initializer
 }
 
 
 // gnu extensions: labeled elements in initializers
 // (*potentially* labeled)
-nonterm LabeledInitializerClause : AggregateInitializer {
+nonterm LabeledInitializerClause {
   // no label
-  -> init:InitializerClause {
-    fun collectArrayInits {
-      // grab this element, and stick it in the next slot
-      dest->larray.elements->append(
-        init.typeCheck(env, ctxt, eltType));
-
-      // increment the next-index counter
-      index++;
-    }
-
-    fun collectStructInits {
-      // get info about which field we're going to initialize
-      Variable *field = ctype->getNthField(index);
-
-      // grab the value here, and add it to the value being constructed
-      dest->lstruct.fields->append(
-        new FieldInit(field, init.typeCheck(env, ctxt, field->type)));
-
-      // next initializer will be next field
-      index++;
-    }
-  }
+  -> init:InitializerClause ;
 
   // initialize a specific element of the array
   -> "[" ConstantExpression "]" "=" InitializerClause ;
@@ -2599,290 +682,74 @@ nonterm LabeledInitializerClause : AggregateInitializer {
 
 nonterm CompoundInitializer : InitializerBase {
   // array/structure initializer
-  -> "{" list:InitializerList CommaOpt "}" {
-    fun typeCheck {
-      // look at the type, and figure out whether we're going to
-      // go collect array elements or structure fields
-      if (type->isArrayType()) {
-        ArrayType const *atype = &( type->asArrayTypeC() );
-
-        // make an empty shell to put the elements in
-        CilExpr *ret = newLitArray(atype);
-
-        // start collecting the elements, starting at index 0
-        int index = 0;
-        list.collectArrayInits(env, ctxt, ret, atype->eltType, index);
-
-        return ret;
-      }
-
-      if (type->isCVAtomicType() &&
-          type->asCVAtomicTypeC().atomic->isCompoundType()) {
-        CompoundType const *ctype = &( type->asCVAtomicTypeC().
-                                             atomic->asCompoundTypeC() );
-
-        if (ctype->keyword == CompoundType::K_UNION) {
-          throwError("I don't know how to initialize unions");
-        }
-
-        // make shell to store field initializers in
-        CilExpr *ret = newLitStruct(ctype);
-
-        // collect field inits, starting with first field ..
-        int fieldIndex;
-        list.collectStructInits(env, ctxt, ret, ctype, fieldIndex);
-
-        return ret;
-      }
-
-      // not an aggregate type
-      throwError("you can't use the {} notation to initialize this type");
-      return NULL;     // silence warning
-    }
-  }
+  -> "{" list:InitializerList CommaOpt "}" ;
 
   // zero whatever it is
-  -> "{" "}" {
-    fun typeCheck = zeroValuedInit(cilExtra(), type);
-  }
+  -> "{" "}" ;
 }
 
 // useful syntactic quirk
-nonterm CommaOpt -> empty | "," ;
-
-
-nonterm InitializerList : AggregateInitializer {
-  -> init:LabeledInitializerClause {
-    fun collectArrayInits {
-      init.collectArrayInits(env, ctxt, dest, eltType, index);
-    }
-
-    fun collectStructInits {
-      init.collectStructInits(env, ctxt, dest, ctype, index);
-    }
-  }
-
-  -> list:InitializerList "," init:LabeledInitializerClause {
-    fun collectArrayInits {
-      list.collectArrayInits(env, ctxt, dest, eltType, index);
-      init.collectArrayInits(env, ctxt, dest, eltType, index);
-    }
-
-    fun collectStructInits {
-      list.collectStructInits(env, ctxt, dest, ctype, index);
-      init.collectStructInits(env, ctxt, dest, ctype, index);
-    }
-  }
+nonterm CommaOpt {
+  -> empty ;
+  -> "," ;
 }
 
 
-nonterm HasDeclType {
-  // retrieve the type associated with this declaration, where
-  // 'type' is the type as built so far (inherited from the
-  // specifier, or constructed by parsing type constructors)
-  fundecl Type const *getDeclType(Env *passedEnv, Type const *type);
-  literalCode "prefix" getDeclType {
-    env = passedEnv;
-  }
+nonterm InitializerList {
+  -> init:LabeledInitializerClause ;
+  -> list:InitializerList "," init:LabeledInitializerClause ;
 }
 
-nonterm DeclaratorBase : HasTypeName, HasDeclType, HasDeclName {
-  // get the node that has the function parameters, or NULL if this
-  // isn't a function declaration
-  fundecl ParameterDeclarationClause_Node *getFnParams();
-  fun getFnParams = NULL;
 
-  // return the type name string for the return type, if this is
-  // a function declaration
-  fundecl string retTypeName();
-  fun retTypeName { internalError("not a function type"); }
-
-  // name of variable or function being declared
-  fun getDeclName = d.getDeclName();
-
-  // attribute 'isFunction' of Declarator and DirectDeclarator: if the
-  // type of the thing declared is a function (not a ptr to a
-  // function, or an array of fns...), this is 1, otherwise 0; it is
-  // used to do some disambiguation later on, where functions are
-  // allowed to not have return types (DeclSpecifiers) to allow for
-  // ctors and dtors, but other declarations must have types
-  attr isFunction;
-  
-  // this attribute is needed to compute isFunction; it is 1 if the
-  // declarator is simply a PQName, and 0 otherwise
-  attr isName;
-}
-
-nonterm Declarator : DeclaratorBase {
+nonterm Declarator {
   // (PtrOperator)* DirectDeclarator
-  -> p:PtrOperator d:Declarator {
-  
-    // if d is a function, then this declares a function that
-    // returns a pointer
-    action isFunction := d.isFunction;
-    action isName := 0;
-
-    fun typeName = stringc << "*" << d.typeName();
-    fun retTypeName = stringc << "*" << d.retTypeName();
-
-    fun getFnParams {
-      // hmm...
-      cout << "using suspicious deref-declarator getFnParams\n";
-      return d.getFnParams();
-    }
-
-    fun getDeclType {
-      // grab info about the syntax
-      CVFlags cv = p.getCVFlags();
-      PtrOper op = p.getPtrOper();
-
-      // make a new type that is, e.g., a pointer to the type
-      // we were already given
-      Type *newType = env->makePtrOperType(op, cv, type);
-
-      // and declare the variable with that new, constructed type
-      return d.getDeclType(env, newType);
-    }
-  }
+  -> p:PtrOperator d:Declarator ;
 
   // I'm still looking for the right place to put GNUAttribute ...
-  -> d:DirectDeclarator GNUAttribute |       // GNU extension
-     d:DirectDeclarator {
-    action isFunction := d.isFunction;
-    action isName := d.isName;
-
-    fun getFnParams = d.getFnParams();
-    fun typeName = d.typeName();
-    fun retTypeName = d.retTypeName();
-    fun getDeclType = d.getDeclType(env, type);
-  }
+  -> d:DirectDeclarator GNUAttribute ;       // GNU extension
+  -> d:DirectDeclarator ;
 }
 
-nonterm DirectDeclarator : DeclaratorBase {
-  // for arrays
-  fundecl bool hasSize();             // true if a size is specified
-  fun hasSize = false;
-  fundecl int getSize(Env *env);      // get declared size
-  fun getSize { internalError("can't call getSize"); }
-
-  -> n:PQVarName {
-    action isFunction := 0;
-    action isName := 1;
-
-    // declarator names can't be qualified with "::" (this resolves an
-    // ambiguity with constructs like "Foo::Foo() {}")
-    condition n.colonColon == 0;
-
-    fun typeName = "";
-
-    fun getDeclName = n.getDeclName();
-    fun getDeclType {
-      // having carried the type info along, we finally reach the
-      // name of interest; return the final, collected type
-      return type;
-    }
-  }
+nonterm DirectDeclarator {
+  -> n:PQVarName ;
 
   // function  declarator; the return type comes from the type
   // specifier that preceeds this
-  -> d:DirectDeclarator "(" args:ParameterDeclarationClause ")" q:CVQualifierSeqOpt  {
+  -> d:DirectDeclarator "(" args:ParameterDeclarationClause ")" q:CVQualifierSeqOpt  ;
   // ^^^ name of fn ^^^     ^^^^^^^^^^ arguments ^^^^^^^^^^     ^^^^^ const? ^^^^^^
-    action isFunction := d.isName? 1 : d.isFunction;
-    action isName := 0;
 
-    fun getFnParams = &args;
-    fun typeName = "(function)";
-    fun retTypeName = d.typeName();
+  // array of specified size
+  -> d:DirectDeclarator "[" sz:ConstantExpression "]" ;
 
-    fun getDeclType {
-      // build a container for the function type
-      FunctionType *fnType =
-        env->makeFunctionType(type /*return type*/, q.getCVFlags());
-
-      // fill in the details about arguments
-      args.getArgTypes(env, fnType);
-
-      // continue on down
-      return d.getDeclType(env, fnType);
-    }
-  }
-
-  // arrays
-  formGroup {
-    // Q: is there such a thing as returning an array, and could
-    // this syntax declare one?  looks like yes...
-    action isFunction := 0;
-    action isName := 0;
-
-    fun getDeclType {
-      Type *arrType;
-      if (hasSize()) {
-        arrType = env->makeArrayType(type, getSize(env));    // known size
-      }
-      else {
-        arrType = env->makeArrayType(type);                  // unknown size
-      }
-
-      return d.getDeclType(env, arrType);
-    }
-
-    // array of specified size
-    -> d:DirectDeclarator "[" sz:ConstantExpression "]" {
-      fun hasSize = true;
-      fun getSize = sz.intEval(env);
-      fun typeName = stringc << d.typeName() << "[" << sz.unparseString() << "]";
-    }
-
-    // array of unspecified size
-    -> d:DirectDeclarator "[" "]" {
-      fun typeName = stringc << d.typeName() << "[]";
-    }
-  }
+  // array of unspecified size
+  -> d:DirectDeclarator "[" "]" ;
 
   // precedence grouping
-  -> "(" d:Declarator ")"  {
-    action isFunction := d.isFunction;
-    action isName := d.isName;
-
-    fun getFnParams = d.getFnParams();
-    fun typeName = d.typeName();
-    fun retTypeName = d.retTypeName();
-    fun getDeclType = d.getDeclType(env, type);
-  }
+  -> "(" d:Declarator ")"  ;
 }
 
 
-nonterm PtrOperator : HasCVFlags {
-  // return which of the two "pointer" operators this is
-  fundecl PtrOper getPtrOper();
-
+nonterm PtrOperator {
   // c++ std mentions something with "::" as well, I don't know what that means
-  -> "*" q:CVQualifierSeqOpt {
-    fun getCVFlags = q.getCVFlags();
-    fun getPtrOper = PO_POINTER;
-  }
+  -> "*" q:CVQualifierSeqOpt ;
 
-  -> "&" {
-    fun getCVFlags = CV_NONE;
-    fun getPtrOper = PO_REFERENCE;
-  }
+  -> "&" ;
 }
 
 
-nonterm CVQualifierSeqOpt : HasCVFlags {
-  -> empty              { fun getCVFlags = CV_NONE; }
-  -> s:CVQualifierSeq   { fun getCVFlags = s.getCVFlags(); }
+nonterm CVQualifierSeqOpt {
+  -> empty ;
+  -> s:CVQualifierSeq ;
 }
 
-nonterm CVQualifierSeq : HasTypeName, HasCVFlags {
-  -> q:CVQualifier                    { fun getCVFlags = q.getCVFlags(); }
-  -> q:CVQualifier s:CVQualifierSeq   { fun getCVFlags = (CVFlags)(q.getCVFlags() | s.getCVFlags()); }
+nonterm CVQualifierSeq {
+  -> q:CVQualifier ;
+  -> q:CVQualifier s:CVQualifierSeq ;
 }
 
-nonterm CVQualifier : HasTypeName, HasCVFlags {
-  -> "const"            { fun getCVFlags = CV_CONST; }
-  -> "volatile"         { fun getCVFlags = CV_VOLATILE; }
-  -> "owner"            { fun getCVFlags = CV_OWNER; }
+nonterm CVQualifier {
+  -> "const" ;
+  -> "volatile" ;
 }
 
 
@@ -2890,480 +757,183 @@ nonterm CVQualifier : HasTypeName, HasCVFlags {
 // a type-id is like a declaration of one thing, but without the variable name;
 // it is, for example, what appears inside the parens of a typecast
 nonterm TypeId : HasType {
-  -> spec:TypeSpecifier decl:AbstractDeclarator {
-    fun getType {
-      Type const *specType = spec.getType(env);
-      return decl.getDeclType(env, specType);
-    }
-  }
-     
+  -> spec:TypeSpecifier decl:AbstractDeclarator ;
+
   // gnu extension
-  -> "__typeof__" "(" e:Expression ")" {
-    fun getType {                                      
-      CilFnDefn dummy(cilExtra(), NULL);        // will simply discard
-      Owner<CilExpr> expr;
-      expr = e.typeCheck(env, CilContext(dummy, 1 /*explicit*/));
-      return typeOf(expr, env);
-    }
-  }
+  -> "__typeof__" "(" e:Expression ")" ;
 }
 
-// note: the semantic functions in AbstractDeclarator are
-// essentially duplicated code from Declarator ...
-nonterm AbstractDeclarator : HasTypeName, HasDeclType {
-  -> p:PtrOperator d:AbstractDeclarator {
-    fun typeName = stringc << "*" << d.typeName();
-    
-    fun getDeclType =
-      d.getDeclType(env, env->makePtrOperType(
-        p.getPtrOper(), p.getCVFlags(), type));
-  }
+nonterm AbstractDeclarator {
+  -> p:PtrOperator d:AbstractDeclarator ;
 
-  -> d:DirectAbstractDeclarator {
-    fun typeName = d.typeName();
-    fun getDeclType = d.getDeclType(env, type);
-  }
+  -> d:DirectAbstractDeclarator ;
 }
 
-nonterm DirectAbstractDeclarator : HasTypeName, HasDeclType {
-  fun typeName = d.typeName();
-
+nonterm DirectAbstractDeclarator {
   // this is where abstract declarators differ from regular declarators;
   // for a declarator, this rule is "-> PQVarName"
-  -> empty {
-    fun typeName = "";
-    fun getDeclType = type;
-  }
+  -> empty ;
 
   // function
-  -> d:DirectAbstractDeclarator "(" args:ParameterDeclarationClause ")" q:CVQualifierSeqOpt {
-    fun getDeclType {
-      FunctionType *fnType = 
-        env->makeFunctionType(type /*return type*/, q.getCVFlags());
-      args.getArgTypes(env, fnType);
-      return d.getDeclType(env, fnType);
-    }
-  }
+  -> d:DirectAbstractDeclarator "(" args:ParameterDeclarationClause ")" q:CVQualifierSeqOpt ;
 
-  -> d:DirectAbstractDeclarator "[" sz:ConstantExpression "]" {     // array of specified size
-    fun getDeclType =
-      d.getDeclType(env, env->makeArrayType(type, sz.intEval(env)));
-  }
+  -> d:DirectAbstractDeclarator "[" sz:ConstantExpression "]" ;     // array of specified size
 
-  -> d:DirectAbstractDeclarator "[" "]" {                        // array of unspecified size
-    fun getDeclType =
-      d.getDeclType(env, env->makeArrayType(type));
-  }
+  -> d:DirectAbstractDeclarator "[" "]" ;                        // array of unspecified size
 
-  -> "(" d:AbstractDeclarator ")" {                              // precedence grouping
-    fun getDeclType = d.getDeclType(env, type);
-  }
+  -> "(" d:AbstractDeclarator ")" ;                              // precedence grouping
 }
 
 
-nonterm HasPrintSig {
-  // print to cout some part of the function signature
-  fundecl void printSig();
+nonterm ParameterDeclarationClause {
+  -> p:ParameterDeclarationList ;            // some args
+  -> empty ;                                 // no args
+  -> "..." ;                                 // all args are optional
+  -> p:ParameterDeclarationList "..." ;      // args plus optionally more
+  -> p:ParameterDeclarationList "," "..." ;  // same; alternative syntax
 }
 
-
-// -- parameters in declarations --
-nonterm HasArgTypes {
-  // accumulate the types of the arguments and store them in 'fnType'
-  fundecl void getArgTypes(Env *passedEnv, FunctionType *fnType);
-  literalCode "prefix" getArgTypes {
-    env = passedEnv;
-  }
+nonterm ParameterDeclarationList {
+  -> d:ParameterDeclaration ;
+  -> list:ParameterDeclarationList "," d:ParameterDeclaration ;
 }
 
-nonterm ParameterDeclarationClause : HasPrintSig, HasArgTypes {
-  -> p:ParameterDeclarationList {            // some args
-    fun printSig { p.printSig(); }
-    fun getArgTypes { p.getArgTypes(env, fnType); }
-  }
-  -> empty {                                 // no args
-    fun printSig {}
-    
-    // it's here I'd implement the notion that
-    // "foo();" means "foo(...);", but doing so requires
-    // one more parameter (bool: whether I'm in a fn
-    // decl or defn), and that's annoying, so I'll leave
-    // it as-is for now
-    fun getArgTypes {}
-  }
-  -> "..." {                                 // all args are optional
-    fun printSig { cout << "..."; }
-    fun getArgTypes { fnType->acceptsVarargs = true; }
-  }
-
-  formGroup {
-    fun printSig { p.printSig(); cout << ", ..."; }
-    fun getArgTypes {
-      p.getArgTypes(env, fnType);
-      fnType->acceptsVarargs = true;
-    }
-
-    -> p:ParameterDeclarationList "..." ;      // args plus optionally more
-    -> p:ParameterDeclarationList "," "..." ;  // same; alternative syntax
-  }
-}
-
-nonterm ParameterDeclarationList : HasPrintSig, HasArgTypes {
-  -> d:ParameterDeclaration {
-    fun printSig { cout << d.typeName(); }
-    fun getArgTypes { d.getArgTypes(env, fnType); }
-  }
-
-  -> list:ParameterDeclarationList "," d:ParameterDeclaration {
-    fun printSig {
-      list.printSig();
-      cout << ", " << d.typeName();
-    }
-    fun getArgTypes {
-      list.getArgTypes(env, fnType);
-      d.getArgTypes(env, fnType);
-    }
-  }
-}
-
-nonterm ParameterDeclaration : HasTypeName, HasArgTypes {
-  fundecl bool hasName();
-  fundecl string getDeclName();
-
-  fun typeName = stringc << s.typeName() << d.typeName();
-
-  fun getArgTypes {
-    // type
-    Type const *specType = s.getType(env);
-    Type const *fullType = d.getDeclType(env, specType);
-
-    // check that there are no modifiers.. this could also be
-    // done with attributes, and it's a toss-up in my mind now
-    // which is the superior approach
-    DeclFlags flags = s.getDeclFlags();
-    if (flags != DF_NONE) {
-      reportError(env, "modifiers not allowed in parameter declarations");
-    }
-
-    // handle the C's quirky way of saying a function
-    // takes no arguments
-    if (fullType->isVoid()) {
-      if (hasName()) {
-        reportError(env, "you can't name the no-args `void' parameter");
-      }
-      return;     // don't add it as an actual parameter
-    }
-
-    Parameter *param = new Parameter(fullType);
-    if (hasName()) {
-      param->name = getDeclName();
-    }
-    //if (hasDefaultArg()) {
-    //  // these are nontrivial to handle, so for now I do nothing
-    //}
-
-    fnType->addParam(param);
-  }
-
-  formGroup {
-    fun hasName = true;
-    fun getDeclName = d.getDeclName();
-
+nonterm ParameterDeclaration {
     -> s:DeclSpecifier d:Declarator ;
     -> s:DeclSpecifier d:Declarator "=" AssignmentExpression ;
-  }
-
-  formGroup {
-    fun hasName = false;
-    fun getDeclName { internalError("can't call me"); }
 
     -> s:DeclSpecifier d:AbstractDeclarator ;
     -> s:DeclSpecifier d:AbstractDeclarator "=" AssignmentExpression ;
-  }
 }
 
 // -- function definition --
-nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
+nonterm FunctionDefinition {
   // I am wary of letting the declspecifier be optional, because it seems
   // to me that may introduce more ambiguities.. but it truly is missing
   // in ctors and dtors; so my idea now is to only permit it when the
   // declarator declares a function type (can't be more specific since there
   // aren't good syntactic clues for ctors)
 
-  // all declarators must be of function type
-  condition d.isFunction == 1;
-
-  // this works for all the productions
+  // return type      name/params   body
+  -> r:DeclSpecifier  d:Declarator  b:FunctionBody ;
 
   // return type      name/params   body
-  -> r:DeclSpecifier  d:Declarator  b:FunctionBody {
-    fun printSig {
-      cout << d.getDeclName() << ": returns "
-           << r.typeName() << d.retTypeName() << ", arg types: ";
-
-      ParameterDeclarationClause_Node *pdc = d.getFnParams();
-      xassert(pdc);    // otherwise isFunction had to be 0
-      pdc->printSig();
-      cout << endl;
-    }
-
-    fun typeCheck {
-      // typecheck the signature
-      Type const *type = d.getDeclType(env, r.getType(env));
-
-      // must be a function type, otherwise the parser has
-      // screwed up (in particular the 'isFunction' attribute)
-      xassert(type->isFunctionType());
-      FunctionType const *fnType = &type->asFunctionTypeC();
-
-      // add the function decl to the original environment
-      DeclFlags flags = r.getDeclFlags();   // inline, virtual, etc.
-      string name = d.getDeclName();
-      declareVariable(env, name, flags, fnType, true /*initialized*/);
-
-      // then grab it
-      Variable *funcVar = env->getVariable(name);
-
-      // 'fnType' might not equal to funcVar->type if this is a
-      // definition of a function that's already had a prototype
-      // declared; I proceed with 'fnType' because it has the
-      // parameter names used at the definition site, rather than the
-      // prototype site
-
-      // make the shell to hold the function definition, and
-      // immediately add it to the context (we don't do name
-      // lookups in the context right now, but if we did, we'd
-      // need the name to be defined before we process the body)
-      CilFnDefn *defn = new CilFnDefn(cilExtra(), funcVar);
-      ctxt.prog->funcs.append(defn);     // ownership transfer ..
-
-      // add the formals to the new environment we'll create for
-      // the function body
-      xassert(!localEnv);
-      localEnv = env->newVariableScope(&(defn->locals));  // scope
-
-      try {
-        FOREACH_OBJLIST(Parameter, fnType->params, iter) {
-          Parameter const *param = iter.data();
-          if (!param->name.isempty()) {
-            // would really like to be doing this in the context
-            // of the tree node that actually defined the name...
-            declareVariable(localEnv, param->name, DF_NONE, param->type,
-                            false /*initialized*/);
-          }
-        }
-
-        // typecheck the body
-        delete b.typeCheck(localEnv, CilContext(ctxt, *defn));
-
-        ana_endScope(localEnv);
-
-        return noCilValue(cilExtra());
-      }       
-      
-      catch (...) {
-        // see above
-        localEnv->killParentLink();
-        throw;
-      }
-    }
-  }
+  -> ExplicitOpt      d:Declarator  FunctionBody ;         // {c,d}tor
 
   // return type      name/params   body
-  -> ExplicitOpt      d:Declarator  FunctionBody          // {c,d}tor
-    { fun printSig { cout << d.getDeclName() << ": ctor or dtor\n"; } }
-
-  // return type      name/params   body
-  -> ExplicitOpt      d:Declarator  ":" MemInitializerList FunctionBody   // ctor
-    { fun printSig { cout << d.getDeclName() << ": ctor with init list\n"; } }
+  -> ExplicitOpt      d:Declarator  ":" MemInitializerList FunctionBody ;  // ctor
 }
 
-nonterm FunctionBody : Checkable -> s:CompoundStatement {
-  fun typeCheck = s.typeCheck(env, ctxt);
-}
+nonterm FunctionBody -> s:CompoundStatement ;
 
-nonterm ExplicitOpt -> "explicit" | empty ;
+nonterm ExplicitOpt {
+  -> "explicit" ;
+  -> empty ;
+}
 
 
 // ------ A.8 Classes ------
 // I'm going to use the "class" terminology throughout, even though
 // C only has "struct" and "union"
-nonterm ClassSpecifier : HasType ->
-  k:ClassKeyword n:ClassNameOpt base:BaseClauseOpt "{" memb:MemberDeclarationSeqOpt "}"
-{
-  fun getType {
-    // get preliminary info
-    CompoundType::Keyword keyword = k.getKeyword();
-    string name = n.getName();    // could be ""
-
-    // TODO: the rules below are wrong since they don't allow
-    // something to be redeclared inside a nested scope
-
-    // construct the vessel to carry additional stuff
-    CompoundType *compound = env->lookupCompound(name);
-    if (compound && compound->isComplete()) {
-      throwError(stringc << "already declared: " << name);
-    }
-    if (compound && compound->keyword != keyword) {
-      throwError(stringc << "declared as different kind of compound: " << name);
-    }
-    if (!compound) {
-      compound = env->lookupOrMakeCompound(name, keyword);
-      xassert(compound);
-    }
-    compound->makeComplete(NULL /*no enclosing env for C structs*/,
-                           env->getTypeEnv(), env->getVarEnv());
-
-    // ignore 'base' for now
-
-    // add info about the members
-    memb.addMemberInfo(env, compound,
-                       keyword==CompoundType::K_CLASS?
-                         AM_PRIVATE : AM_PUBLIC);
-
-    // print the compound we just declared
-    trace("compounds") << compound->toStringWithFields() << endl;
-
-    return env->makeType(compound);
-  }
-}
+nonterm ClassSpecifier ->
+  k:ClassKeyword n:ClassNameOpt base:BaseClauseOpt "{" memb:MemberDeclarationSeqOpt "}" ;
 
 nonterm ClassNameOpt {
-  fundecl string getName();
-  -> empty         { fun getName = ""; }
-  -> n:ClassName   { fun getName = n.getName(); }
+  -> empty         ;
+  -> n:ClassName   ;
 }
 
 nonterm ClassKeyword {
-  fundecl CompoundType::Keyword getKeyword();
-  -> "class"       { fun getKeyword = CompoundType::K_CLASS; }
-  -> "struct"      { fun getKeyword = CompoundType::K_STRUCT; }
-  -> "union"       { fun getKeyword = CompoundType::K_UNION; }
+  -> "class"       ;
+  -> "struct"      ;
+  -> "union"       ;
 }
 
-
-nonterm MemberDeclBase {
-  // add info in this subtree to the compound we're building
-  fundecl void addMemberInfo(Env *passedEnv, CompoundType *compound, AccessMode access);
-
-  // for now, just eat it
-  fun addMemberInfo {}
-
-  literalCode "prefix" addMemberInfo {
-    env = passedEnv;
-  }
-}
 
 nonterm MemberDeclarationSeqOpt : MemberDeclBase {
   -> empty ;
 
-  -> decl:MemberDeclaration list:MemberDeclarationSeqOpt {
-    fun addMemberInfo {
-      try {
-        decl.addMemberInfo(env, compound, access);
-      }
-      catch (XSemanticError &x) {
-        cout << "Error: " << x.err.whyStr() << endl;
-      }
+  -> decl:MemberDeclaration list:MemberDeclarationSeqOpt ;
 
-      list.addMemberInfo(env, compound, access);
-    }
-  }
-
-  // unhandled
   -> AccessSpecifier ":" MemberDeclarationSeqOpt ;
 }
 
-nonterm AccessSpecifier -> "public" | "private" | "protected" ;
+nonterm AccessSpecifier -> {
+  -> "public" ;
+  -> "private" ;
+  -> "protected" ;
+}
 
 nonterm MemberDeclaration : MemberDeclBase {
-  -> spec:DeclSpecifier list:MemberDeclaratorList ";" {    // member fn or data
-    fun addMemberInfo {
-      // same code from SimpleDeclaration
-      Type const *type = spec.getType(env);
-      DeclFlags flags = spec.getDeclFlags();
-      list.declare(env, compound->getEnv(), flags, type);
-    }
-  }
+  -> spec:DeclSpecifier list:MemberDeclaratorList ";" ;    // member fn or data
 
   -> FunctionDefinition ";" ;                    // inline fn
   -> FunctionDefinition ;                        // syntactic tweak
   -> ExplicitOpt VirtualOpt d:Declarator ";"     // ctor, dtor, conv op
-       { condition d.isFunction == 1; }
+
   // note above that "explicit" and "virtual" can't be mixed because the former
   // is for ctors only and the latter can't be used with ctors (so a later stage
   // of processing will filter it out)
 }
 
-nonterm HasDeclareNoSE {     // "SE" = "side effects"
-  // this function is defined for declarators, etc.; for each declarator
-  // in the subtree, combine 'type' with the additional type modifiers
-  // associated with the declarator (if any), and add the completed
-  // declaration, with 'flags', to 'env'
-  fundecl void declare(Env *passedEnv, Env *destEnv, DeclFlags flags, Type const *type);
-  literalCode "prefix" declare {
-    env = passedEnv;
-  }
-}
-
 // very similar to InitDeclaratorList
 nonterm MemberDeclaratorList : HasDeclareNoSE {
-  -> d:MemberDeclarator {
-    fun declare { d.declare(env, destEnv, flags, type); }
-  }
+  -> d:MemberDeclarator ;
 
-  -> list:MemberDeclaratorList "," d:MemberDeclarator {
-    fun declare {
-      list.declare(env, destEnv, flags, type);
-      d.declare(env, destEnv, flags, type);
-    }
-  }
+  -> list:MemberDeclaratorList "," d:MemberDeclarator ;
 }
 
 nonterm MemberDeclarator : HasDeclareNoSE {
-  -> d:Declarator {
-    fun declare {
-      Type const *fullType = d.getDeclType(env, type);
-      declareVariable(destEnv, d.getDeclName(), flags, fullType,
-                      false /*initialized*/);
-    }
-  }
+  -> d:Declarator ;
 
-  // other cases unhandled as yet
-  fun declare {}
   -> Declarator "=" ConstantExpression ;   // pure; and member inits??
   -> ":" ConstantExpression ;              // unnamed bitfield
   -> ":" ConstantExpression GNUAttribute ;
 
-  -> n:L2_NAME ":" e:ConstantExpression GNUAttribute
-   | n:L2_NAME ":" e:ConstantExpression {      // named bitfield
-    fun declare {
-      declareVariable(destEnv, n.nameValue, DF_NONE, type, false /*initialized*/);
-    }
-  }
+  -> n:L2_NAME ":" e:ConstantExpression GNUAttribute ;
+  -> n:L2_NAME ":" e:ConstantExpression ;      // named bitfield
 }
 
 
 // ------ A.9 Derived classes ------
-nonterm BaseClauseOpt -> empty |
-                         ":" BaseSpecifierList ;
+nonterm BaseClauseOpt {
+  -> empty ;
+  -> ":" BaseSpecifierList ;
+}
 
-nonterm BaseSpecifierList -> BaseSpecifier | BaseSpecifierList "," BaseSpecifier ;
+nonterm BaseSpecifierList {
+  -> BaseSpecifier ;
+  -> BaseSpecifierList "," BaseSpecifier ;
+}
 
 nonterm BaseSpecifier -> VirtualOpt AccessSpecifierOpt PQClassName ;
-nonterm VirtualOpt -> empty | "virtual" ;
-nonterm AccessSpecifierOpt -> empty | AccessSpecifier ;
+nonterm VirtualOpt {
+  -> empty ;
+  -> "virtual" ;
+}
+nonterm AccessSpecifierOpt {
+  -> empty ;
+  -> AccessSpecifier ;
+}
 
-nonterm PQClassName -> ClassName | Qualifier PQClassName ;
+nonterm PQClassName {
+  -> ClassName ;
+  -> Qualifier PQClassName ;
+}
 
 
 // ------ A.10 Special member functions ------
 nonterm ConversionFunctionId -> "operator" ConversionTypeId ;
 nonterm ConversionTypeId -> TypeSpecifier ConversionDeclaratorOpt ;
-nonterm ConversionDeclaratorOpt -> empty | PtrOperator ConversionDeclaratorOpt ;
+nonterm ConversionDeclaratorOpt {
+  -> empty ;
+  -> PtrOperator ConversionDeclaratorOpt ;
+}
 
-nonterm MemInitializerList
-  -> MemInitializer | MemInitializer "," MemInitializerList ;
+nonterm MemInitializerList {
+  -> MemInitializer ;
+  -> MemInitializer "," MemInitializerList ;
+}
 
 // std has a separate rule for base class ctor call, but that's not
 // a useful parsing distinction, so it just creates gratuitous
@@ -3392,72 +962,37 @@ nonterm Operator {
 //TemplateParameter -> TypeParameter | ParameterDeclaration
 
 
-nonterm TemplateId -> TemplateName "<" TemplateArgumentList ">" |
-                      TemplateName "<" ">" ;
+nonterm TemplateId {
+  -> TemplateName "<" TemplateArgumentList ">" ;
+  -> TemplateName "<" ">" ;
+}
 
-nonterm TemplateArgumentList -> TemplateArgument |
-                                TemplateArgumentList "," TemplateArgument ;
+nonterm TemplateArgumentList {
+  -> TemplateArgument ;
+  -> TemplateArgumentList "," TemplateArgument ;
+}
 
-nonterm TemplateArgument -> Literal | TypeId ;
-// where I have Literal the std has AssignmentExpression...
-// std also mentions IdExpression here, which is my PQVarName.....
+nonterm TemplateArgument {
+  // where I have Literal the std has AssignmentExpression...
+  // std also mentions IdExpression here, which is my PQVarName.....
+  -> Literal ;
+  -> TypeId ;
+}
 
 
 // ------ A.13 Exception handling ------
-// TODO: intermediate code gen for EH constructs
-// is *all* wrong
+nonterm TryBlock -> "try" s:CompoundStatement h:HandlerSeq ;
 
-nonterm TryBlock : Checkable, HasCFG
-  -> "try" s:CompoundStatement h:HandlerSeq {
-  fun typeCheck {
-    delete s.typeCheck(env, ctxt);
-    return h.typeCheck(env, ctxt);
-  }
+nonterm HandlerSeq {
+  -> h:Handler ;
+  -> h:Handler seq:HandlerSeq ;
 }
 
-nonterm HandlerSeq : Checkable {
-  -> h:Handler { fun typeCheck = h.typeCheck(env, ctxt); }
-  -> h:Handler seq:HandlerSeq {
-    fun typeCheck {
-      delete h.typeCheck(env, ctxt);
-      return seq.typeCheck(env, ctxt);
-    }
-  }
-}
+nonterm Handler
+  -> "catch" "(" d:ExceptionDeclaration ")" s:CompoundStatement ;
 
-nonterm Handler : Checkable, ScopeNode {
-  -> "catch" "(" d:ExceptionDeclaration ")" s:CompoundStatement {
-    fun typeCheck {
-      xassert(!localEnv);
-      localEnv = env->newScope();      // scope
-
-      try {
-        delete d.typeCheck(localEnv, ctxt);
-        return s.typeCheck(localEnv, ctxt);
-
-        ana_endScope(localEnv);
-
-        return noCilValue(cilExtra());
-      }
-      catch (...) {
-        // see above
-        localEnv->killParentLink();
-        throw;
-      }
-    }
-  }
-}
-
-nonterm ExceptionDeclaration : Checkable {
-  -> s:TypeSpecifier d:Declarator {          // named exception object
-    fun typeCheck {
-      Type const *type = d.getDeclType(env, s.getType(env));
-      string name = d.getDeclName();
-      declareVariable(env, name, DF_NONE, type, false /*initialized*/);
-
-      return noCilValue(cilExtra());
-    }
-  }
+nonterm ExceptionDeclaration {
+  -> s:TypeSpecifier d:Declarator ;          // named exception object
 
   -> TypeSpecifier AbstractDeclarator     ;  // unnamed exception object
   -> "..."                                ;  // anything
@@ -3465,10 +1000,7 @@ nonterm ExceptionDeclaration : Checkable {
 
 nonterm ThrowExpression : Checkable, HasType {
   -> "throw" ;
-  -> "throw" e:AssignmentExpression {
-    fun typeCheck = e.typeCheck(env, ctxt);
-    fun getType = e.getType(env);
-  }
+  -> "throw" e:AssignmentExpression ;
 }
 
 
@@ -3476,42 +1008,138 @@ nonterm ThrowExpression : Checkable, HasType {
 // just enough to get past them ..
 
 // all operators/punctuators except "(" and ")"
-nonterm GNUExprOp ->
-  "[" | "]" | "->" | "::" | "." | "!" | "~" | "+" | "-" | "++" | "--" |
-  "&" | "*" | ".*" | "->*" | "/" | "%" | "<<" | ">>" | "<" | "<=" | ">" |
-  ">=" | "==" | "!=" | "^" | "|" | "&&" | "||" | "?" | ":" | "=" | "*=" |
-  "/=" | "%=" | "+=" | "-=" | "&=" | "^=" | "|=" | "<<=" | ">>=" | "," |
-  "..." | ";" | "{" | "}" ;
+nonterm GNUExprOp {
+  -> "[" ;
+  -> "]" ;
+  -> "->" ;
+  -> "::" ;
+  -> "." ;
+  -> "!" ;
+  -> "~" ;
+  -> "+" ;
+  -> "-" ;
+  -> "++" ;
+  -> "--" ;
+  -> "&" ;
+  -> "*" ;
+  -> ".*" ;
+  -> "->*" ;
+  -> "/" ;
+  -> "%" ;
+  -> "<<" ;
+  -> ">>" ;
+  -> "<" ;
+  -> "<=" ;
+  -> ">" ;
+  -> ">=" ;
+  -> "==" ;
+  -> "!=" ;
+  -> "^" ;
+  -> "|" ;
+  -> "&&" ;
+  -> "||" ;
+  -> "?" ;
+  -> ":" ;
+  -> "=" ;
+  -> "*=" ;
+  -> "/=" ;
+  -> "%=" ;
+  -> "+=" ;
+  -> "-=" ;
+  -> "&=" ;
+  -> "^=" ;
+  -> "|=" ;
+  -> "<<=" ;
+  -> ">>=" ;
+  -> "," ;
+  -> "..." ;
+  -> ";" ;
+  -> "{" ;
+  -> "}" ;
+}
 
 // all of them, I guess..
-nonterm GNUExprKeyword ->
-  "asm" | "auto" | "break" | "bool" | "case" | "catch" | "cdecl" | "char" |
-  "class" | "const" | "const_cast" | "continue" | "default" | "delete" |
-  "do" | "double" | "dynamic_cast" | "else" | "enum" | "explicit" | "extern" |
-  "float" | "for" | "friend" | "goto" | "if" | "inline" | "int" | "long" |
-  "mutable" | "new" | "operator" | "pascal" | "private" | "protected" |
-  "public" | "register" | "reinterpret_cast" | "return" | "short" |
-  "signed" | "sizeof" | "static" | "static_cast" | "struct" | "switch" |
-  "template" | "this" | "throw" | "try" | "typedef" | "typeid" | "union" |
-  "unsigned" | "virtual" | "void" | "volatile" | "wchar_t" | "while" | "__typeof__";
-
+nonterm GNUExprKeyword {
+  -> "asm" ;
+  -> "auto" ;
+  -> "break" ;
+  -> "bool" ;
+  -> "case" ;
+  -> "catch" ;
+  -> "cdecl" ;
+  -> "char" ;
+  -> "class" ;
+  -> "const" ;
+  -> "const_cast" ;
+  -> "continue" ;
+  -> "default" ;
+  -> "delete" ;
+  -> "do" ;
+  -> "double" ;
+  -> "dynamic_cast" ;
+  -> "else" ;
+  -> "enum" ;
+  -> "explicit" ;
+  -> "extern" ;
+  -> "float" ;
+  -> "for" ;
+  -> "friend" ;
+  -> "goto" ;
+  -> "if" ;
+  -> "inline" ;
+  -> "int" ;
+  -> "long" ;
+  -> "mutable" ;
+  -> "new" ;
+  -> "operator" ;
+  -> "pascal" ;
+  -> "private" ;
+  -> "protected" ;
+  -> "public" ;
+  -> "register" ;
+  -> "reinterpret_cast" ;
+  -> "return" ;
+  -> "short" ;
+  -> "signed" ;
+  -> "sizeof" ;
+  -> "static" ;
+  -> "static_cast" ;
+  -> "struct" ;
+  -> "switch" ;
+  -> "template" ;
+  -> "this" ;
+  -> "throw" ;
+  -> "try" ;
+  -> "typedef" ;
+  -> "typeid" ;
+  -> "union" ;
+  -> "unsigned" ;
+  -> "virtual" ;
+  -> "void" ;
+  -> "volatile" ;
+  -> "wchar_t" ;
+  -> "while" ;
+  -> "__typeof__" ;
+}
 
 nonterm GNUAttribute -> "__attribute__" "(" "(" GNUExprSeq ")" ")";
 
 // recognize grouping only
-nonterm GNUExprSeq -> empty | GNUExpr GNUExprSeq ;
-nonterm GNUExpr -> "(" GNUExprSeq ")"
-                 | L2_NAME | GNUExprOp | GNUExprKeyword
-                 | L2_INT_LITERAL | L2_STRING_LITERAL ;
+nonterm GNUExprSeq {
+  -> empty ;
+  -> GNUExpr GNUExprSeq ;
+}
 
-nonterm GNUAsmStatement -> "asm" "(" GNUExprSeq ")" ";"
-                         | "asm" "volatile" "(" GNUExprSeq ")" ";" ;
+nonterm GNUExpr {
+  -> "(" GNUExprSeq ")" ;
+  -> L2_NAME ;
+  -> GNUExprOp ;
+  -> GNUExprKeyword ;
+  -> L2_INT_LITERAL ;
+  -> L2_STRING_LITERAL ;
+}
 
-
-// -------------------------------------------------------
-literalCode "epilogue" {
-
-// sm: 12/14/00: all the code that was here has
-// been moved to cc_parse.cc
-
-} // epilogue
+nonterm GNUAsmStatement {
+  -> "asm" "(" GNUExprSeq ")" ";" ;
+  -> "asm" "volatile" "(" GNUExprSeq ")" ";" ;
+}
