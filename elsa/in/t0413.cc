@@ -1,14 +1,11 @@
-// t0382.cc
-// use a 'using' declaration to name an enum
-
-// icc fails to reject: 1
+// t0413.cc
+// variant of t0382.cc that also tests struct tags
 
 namespace N {
   enum E { e };
+  struct S { int x; };
   int g(int);
 }
-
-struct S { int x; };
 
 void foo()
 {
@@ -20,7 +17,7 @@ void foo()
   //ERROR(1): enum S s2;      // S is a struct, not an enum
 
   int x = e;      // 'e' *does* come along
-
+  
   g(3);
 }
 
@@ -28,6 +25,7 @@ void foo()
 void bar()
 {
   using N::E;     // get just 'E'
+  using N::S;     // and 'S'
 
   enum E e1;
   struct S s1;

@@ -614,7 +614,7 @@ testparse t0378.cc
 failparse t0379.cc "buggy qualified lookup involving a typedef in a declarator"
 testparse t0380.cc
 failparse t0381.cc "should not allow elaborated type spec to refer to a typedef"
-failparse t0382.cc "fail to pull in enum tag from a using directive"
+testparse t0382.cc
 testparse t0383.cc
 testparse t0384.cc
 testparse t0385.cc
@@ -645,6 +645,7 @@ testparse t0409.cc
 testparse t0410.cc
 testparse t0411.cc
 testparse t0412.cc
+failparse t0413.cc "lookup of struct tags still uses old lookup mechanism"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

@@ -1604,8 +1604,8 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
   name->tcheck(env);
 
   if (keyword == TI_ENUM) {
-    EnumType *et = env.lookupPQEnum(name);
-    if (!et) {
+    Variable *tag = env.lookupPQ_one(name, LF_QUERY_TAGS);
+    if (!tag) {
       if (!env.lang.allowIncompleteEnums ||
           name->hasQualifiers()) {
         return env.error(stringc << "there is no enum called `" << *name << "'",
@@ -1613,10 +1613,16 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
       }
       else {
         // make a forward-declared enum (gnu/d0083.c)
-        et = new EnumType(name->getName());
+        EnumType *et = new EnumType(name->getName());
         return env.declareEnum(loc, et);
       }
     }
+    xassert(tag->isType());      // ensured by LF_QUERY_TAGS
+    
+    if (!tag->type->isEnumType()) {
+      return env.error(stringc << "`" << *name << "' is not an enum");
+    }
+    EnumType *et = tag->type->asCVAtomicType()->atomic->asEnumType();
 
     this->atype = et;          // annotation
     return env.makeType(loc, et);
