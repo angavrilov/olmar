@@ -5,20 +5,34 @@
 #define BFLATTEN_H
 
 #include "flatten.h"      // Flatten
+#include "ohashtbl.h"     // OwnerHashTable
 #include <stdio.h>        // FILE
 
 class BFlatten : public Flatten {
 private:     // data
-  FILE *fp;
-  bool readMode;
+  FILE *fp;               // file being read/written
+  bool readMode;          // true=read, false=write
 
-public:
+  struct OwnerMapping {
+    void *ownerPtr;       // a pointer
+    int intName;          // a unique integer name
+  };
+  OwnerHashTable<OwnerMapping> ownerTable;      // owner <-> int mapping
+  int nextUniqueName;     // counter for making int names
+
+private:     // funcs
+  static void const* getOwnerPtrKeyFn(OwnerMapping *data);
+  static void const* getIntNameKeyFn(OwnerMapping *data);
+
+public:      // funcs
   BFlatten(char const *fname, bool reading);
   virtual ~BFlatten();
 
   // Flatten funcs
   virtual bool reading() const { return readMode; }
   virtual void xferSimple(void *var, unsigned len);
+  virtual void noteOwner(void *ownerPtr);
+  virtual void xferSerf(void *&serfPtr, bool nullable=false);
 };
 
                   

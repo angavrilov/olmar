@@ -42,13 +42,21 @@ public:
   // read: write the code; write: read & compare to code, fail if != ;
   // the code is arbitrary, but should be unique across the source tree
   virtual void checkpoint(int code);
-  
+
   // ------------- utilities ---------
   // for when we already know whether we're reading or writing; internally,
   // these assert which state we're in
   void writeInt(int i);
-  int readInt(); 
+  int readInt();
+   
+  // ------------- owner/serf ------------
+  // take note of an owner pointer where we expect to xfer serfs to it
+  virtual void noteOwner(void *ownerPtr) = 0;
 
+  // xfer a serf pointer that we've previously taken note of
+  virtual void xferSerf(void *&serfPtr, bool nullable=false) = 0;
+  void writeSerf(void *serfPtr);
+  void *readSerf();
 };
 
 #endif // FLATTEN_H

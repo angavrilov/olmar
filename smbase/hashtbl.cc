@@ -229,3 +229,29 @@ void *HashTableIter::data()
   xassert(!isDone());
   return table.hashTable[index];
 }
+
+
+STATICDEF void const *HashTable::identityKeyFn(void *data)
+{
+  return data;
+}
+
+STATICDEF unsigned HashTable::lcprngHashFn(void const *key)
+{
+  unsigned ret = (unsigned)key;
+
+  // this is the core of the LC PRNG in one of the many libcs
+  // running around the net
+  ret = (ret * 1103515245) + 12345;
+
+  // do it again for good measure
+  ret = (ret * 1103515245) + 12345;
+
+  return ret;
+}
+
+STATICDEF bool HashTable::
+  pointerEqualKeyFn(void const *key1, void const *key2)
+{
+  return key1 == key2;
+}

@@ -7,6 +7,8 @@
 
 #include "hashtbl.h"       // HashTable
 
+template <class T> class OwnerHashTableIter;
+
 template <class T>
 class OwnerHashTable {
 public:     // types
@@ -23,13 +25,13 @@ private:    // data
 
 public:     // funcs
   OwnerHashTable(GetKeyFn gk, HashFn hf, EqualKeyFn ek)
-    : HashTable(gk, hf, ek) {}
+    : table((HashTable::GetKeyFn)gk, hf, ek) {}
   ~OwnerHashTable() { empty(); }
 
   int getNumEntries() const               { return table.getNumEntries(); }
   T *get(void const *key) const           { return (T*)table.get(key); }
-  void add(void const *key, T *value);    { table.add(key, value); }
-  T *remove(void const *key);             { return (T*)table.remove(key); }
+  void add(void const *key, T *value)     { table.add(key, value); }
+  T *remove(void const *key)              { return (T*)table.remove(key); }
   void empty();
   void selfCheck() const                  { table.selfCheck(); }
 };
@@ -56,7 +58,7 @@ public:       // funcs
 
   bool isDone() const      { return iter.isDone(); }
   void adv()               { iter.adv(); }
-  void *data();            { return (T*)iter.data(); }
+  void *data()             { return (T*)iter.data(); }
 };
 
 #endif // OHASHTBL_H

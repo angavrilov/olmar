@@ -1,7 +1,7 @@
 // hashtbl.h
 // hash table mapping arbitrary keys to void*, where
-// the stored pointers can be used to derive the key, and
-// cannot be NULL
+// the stored pointers can be used to derive the key,
+// and cannot be NULL
 
 #ifndef HASHTBL_H
 #define HASHTBL_H
@@ -98,6 +98,17 @@ public:     // funcs
   // check the data structure's invariants, and throw an exception
   // if there is a problem
   void selfCheck() const;
+  
+  // ------ useful default functions -------
+  // returns its argument
+  static void const* identityKeyFn(void *data);
+
+  // puts the argument through two cycles of a linear
+  // congruential pseudo-random number generator
+  static unsigned lcprngHashFn(void const *key);
+
+  // does pointer equuality comparison
+  static bool pointerEqualKeyFn(void const *key1, void const *key2);
 };
 
 
