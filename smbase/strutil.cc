@@ -206,8 +206,10 @@ void decodeEscapes(string &dest, int &destLen, char const *src,
   }
 
   // copy to 'dest'
-  dest.setlength(destLen);
-  memcpy(dest.pchar(), sb.pchar(), destLen+1);   // copy NUL too
+  dest.setlength(destLen);       // this sets the NUL
+  if (destLen > 0) {
+    memcpy(dest.pchar(), sb.pchar(), destLen);
+  }
 }
 
 

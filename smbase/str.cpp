@@ -32,7 +32,7 @@ string::string(char const *src, int length)
 
 void string::dup(char const *src)
 {
-  if (!src || src[0]=0) {
+  if (!src || src[0]==0) {
     s = empty;
   }
   else {
