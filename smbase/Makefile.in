@@ -37,6 +37,11 @@ RANLIB := ranlib
 	$(CC) -c -o $@ $< $(CCFLAGS)
 
 
+# remake the generated Makefile if its inputs have changed
+Makefile: Makefile.in
+	./config.status
+
+
 # -------- experimenting with m4 for related files -------
 # I don't delete these during make clean because I don't want
 # to force people to have m4 installed

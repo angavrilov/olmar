@@ -36,3 +36,4 @@ gprof.out
 config.status
 config.summary
 hide
+Makefile

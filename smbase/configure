@@ -1,7 +1,10 @@
-# configure script for smbase    -*- sh -*-
+#!/usr/bin/perl -w
+# configure script for smbase
 
-usage() {
-cat <<EOF
+use strict 'subs';
+
+sub usage {
+  print(<<"EOF");
 usage: $0 [options]
 options:
   -h:                print this message
@@ -15,59 +18,66 @@ EOF
 
 
 # defaults
-BASE_FLAGS="-g -Wall -Wno-deprecated -D__UNIX__"
-CCFLAGS=""
-debug=false
-loc=true
+$BASE_FLAGS = "-g -Wall -Wno-deprecated -D__UNIX__";
+$CCFLAGS = ();
+$debug = 0;
+
 
 # process command-line arguments
-while [ "$1" != "" ]; do
-  case $1 in
-    -h|-help|--help)
-      usage
-      exit 0
-      ;;
+while (@ARGV) {
+  my $arg = $ARGV[0];
+  shift @ARGV;
 
-    # things that look like options to gcc should just
-    # be added to CCFLAGS
-    -W*|-pg|-D*|-O*)
-      CCFLAGS="$CCFLAGS $1"
-      ;;
+  if ($arg eq "-h" ||
+      $arg eq "-help" ||
+      $arg eq "--help") {
+    usage();
+    exit(0);
+  }
 
-    -d|-debug)
-      debug=true
-      ;;
+  # things that look like options to gcc should just
+  # be added to CCFLAGS
+  elsif ($arg =~ m/^(-W|-pg$|-D|-O)/) {
+    push @CCFLAGS, $arg;
+  }
 
-    -nodebug)
-      debug=false
-      ;;
+  elsif ($arg eq "-d" ||
+         $arg eq "-debug") {
+    $debug = 1;
+  }
+  elsif ($arg eq "-nodebug") {
+    $debug = 0;
+  }
 
-    -prof)
-      CCFLAGS="$CCFLAGS -pg"
-      ;;
+  elsif ($arg eq "-prof") {
+    push @CCFLAGS, "-pg";
+  }
 
-    -devel)
-      CCFLAGS="$CCFLAGS -Werror"
-      ;;
-  esac
+  elsif ($arg eq "-devel") {
+    push @CCFLAGS, "-Werror";
+  }
+}
 
-  shift
-done
+if (!$debug) {
+  push @CCFLAGS, "-O2";
+  push @CCFLAGS, "-DNDEBUG";
+}
 
-if $debug; then
-  true
-else
-  CCFLAGS="$CCFLAGS -O2 -DNDEBUG"
-fi
+$os = `uname -s`;
+chomp($os);
+if ($os eq "Linux") {
+  push @CCFLAGS, "-D__LINUX__";
+}
 
-if [ `uname -s` = 'Linux' ]; then
-  CCFLAGS="$CCFLAGS -D__LINUX__"
-fi
+# smash the list together to make a string
+$CCFLAGS = join(' ', @CCFLAGS);
+
 
 
 # ------------------ config.summary -----------------
 # create a program to summarize the configuration
-cat >config.summary <<EOF
+open(OUT, ">config.summary") or die("can't make config.summary");
+print OUT (<<"EOF");
 #!/bin/sh
 # config.summary
 
@@ -76,20 +86,21 @@ echo "  debug:       $debug"
 echo ""
 echo "Compile flags:"
 echo "  BASE_FLAGS:  $BASE_FLAGS"
-echo "  CCFLAGS:    $CCFLAGS"
+echo "  CCFLAGS:     $CCFLAGS"
 echo ""
 EOF
 
-chmod a+x config.summary
-
+close(OUT) or die;
+chmod 0755, "config.summary";
 
 
 # ------------------- config.status ------------------
 # from here on, combine BASE_FLAGS and CCFLAGS
-CCFLAGS="$BASE_FLAGS$CCFLAGS"
+$CCFLAGS = "$BASE_FLAGS $CCFLAGS";
 
 # create a program which will create the Makefile
-cat >config.status <<__OUTER_EOF__
+open(OUT, ">config.status") or die("can't make config.status");
+print OUT (<<"__OUTER_EOF__");
 #!/bin/sh
 # config.status
 
@@ -98,7 +109,7 @@ cat >config.status <<__OUTER_EOF__
 # report on configuration
 ./config.summary
 
-echo "creating Makefile"
+echo "creating Makefile ..."
 
 # overcome my chmod below
 rm -f Makefile
@@ -111,7 +122,7 @@ EOF
 
 
 # substitute the CCFLAGS
-sed "s/@CCFLAGS@/$CCFLAGS/g" <Makefile.in >>Makefile
+sed "s/\@CCFLAGS\@/$CCFLAGS/g" <Makefile.in >>Makefile
 
 # discourage editing ..
 chmod a-w Makefile
@@ -119,11 +130,26 @@ chmod a-w Makefile
 
 __OUTER_EOF__
 
+close(OUT) or die;
+chmod 0755, "config.status";
+
 
 # ----------------- final actions -----------------
 # run the output file generator
-chmod a+x config.status
-./config.status
+my $code = system("./config.status");
+if ($code != 0) {
+  # hopefully ./config.status has already printed a message,
+  # I'll just relay the status code
+  if ($code >> 8) {                
+    exit($code >> 8);
+  }
+  else {
+    exit($code & 127);
+  }
+}
+
 
 # I don't think there are GNU-specific things in my Makefile
-echo "You can now run make, usually called 'make' or 'gmake'."
+print("\nYou can now run make, usually called 'make' or 'gmake'.\n");
+
+exit(0);
