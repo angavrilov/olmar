@@ -59,7 +59,12 @@ Env::~Env()
 void Env::enterScope()
 {
   trace("env") << "entered scope\n";
-  scopes.prepend(new Scope(getChangeCount(), loc()));
+  
+  // propagate the 'curFunction' field
+  Function *f = scopes.first()->curFunction;
+  Scope *newScope = new Scope(getChangeCount(), loc());
+  scopes.prepend(newScope);
+  newScope->curFunction = f;
 }
 
 void Env::exitScope()
@@ -136,6 +141,11 @@ bool Env::addVariable(Variable *v)
                  << "' of type `" << v->type->toString()
                  << "' at " << v->loc.toString()
                  << " to " << s->curCompound->keywordAndName() << endl;
+
+    if (s->curCompound->name) {
+      // since the scope has a name, let the variable point at it
+      v->scope = s;
+    }
   }
 
   return insertUnique(s->variables, v->name, v, s->changeCount);

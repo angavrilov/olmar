@@ -30,7 +30,7 @@ int main()
 
 int Foo::func()
 {
-  return 8;
+  return x;    // requires that scope includes Foo's variables
 }
 
 

@@ -29,6 +29,7 @@
 
 class Type;               // cc_type.h
 class OverloadSet;        // below
+class Scope;              // scope
 
 class Variable {
 public:    // data
@@ -49,6 +50,11 @@ public:    // data
   // access control applied to this variable in the context
   // in which it appears (defaults to AK_PUBLIC)
   AccessKeyword access;
+
+  // named scope in which the variable appears; this is only non-NULL
+  // if the scope has a name, i.e. it continues to be available for
+  // use even after it's lexically closed
+  Scope *scope;
 
 public:    // funcs
   Variable(SourceLocation const &L, StringRef n,
