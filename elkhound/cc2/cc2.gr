@@ -177,6 +177,8 @@ nonterm ExpressionListOpt {
 }
 
 nonterm PostfixExpression {
+  merge(l,r) [ return l; ]
+
   -> PrimaryExpression;
   -> PostfixExpression "[" Expression "]";
   -> PostfixExpression "(" ExpressionListOpt ")";
@@ -209,6 +211,8 @@ nonterm PseudoDestructorName {
 }
 
 nonterm UnaryExpression {
+  merge(l,r) [ return l; ]
+
   -> PostfixExpression;
   -> "++" CastExpression;
   -> "--" CastExpression;
@@ -276,6 +280,8 @@ nonterm DeleteExpression {
 }
 
 nonterm CastExpression {
+  merge(l,r) [ return l; ]
+
   -> UnaryExpression;
   -> "(" TypeId ")" CastExpression;
 }
@@ -294,6 +300,8 @@ nonterm MultiplicativeExpression {
 }
 
 nonterm AdditiveExpression {
+  merge(l,r) [ return l; ]
+
   -> MultiplicativeExpression;
   -> AdditiveExpression "+" MultiplicativeExpression;
   -> AdditiveExpression "-" MultiplicativeExpression;
@@ -320,6 +328,8 @@ nonterm EqualityExpression {
 }
 
 nonterm AndExpression {
+  merge(l,r) [ return l; ]
+
   -> EqualityExpression;
   -> AndExpression "&" EqualityExpression;
 }
@@ -382,6 +392,8 @@ nonterm ConstantExpression {
 // -------------------- A.5 Statements --------------------
 
 nonterm Statement {
+  merge(l,r) [ return l; ]
+
   -> LabeledStatement;
   -> ExpressionStatement;
   -> CompoundStatement;
@@ -444,6 +456,8 @@ nonterm IterationStatement {
 }
 
 nonterm ForInitStatement {
+  merge(l,r) [ return l; ]
+
   -> ExpressionStatement;
   -> SimpleDeclaration;
 }
@@ -496,6 +510,8 @@ nonterm InitDeclaratorListOpt {
 }
 
 nonterm SimpleDeclaration {
+  merge(l,r) [ return l; ]
+
   -> DeclSpecifierSeqOpt InitDeclaratorListOpt ";";
 }
 
@@ -555,6 +571,8 @@ nonterm SimpleTypeSpecifier {
 }
 
 nonterm TypeName {
+  merge(l,r) [ return l; ]
+
   -> ClassName;
   -> EnumName;
   -> TypedefName;
@@ -692,6 +710,8 @@ nonterm InitializerOpt {
 }
 
 nonterm InitDeclarator {
+  merge(l,r) [ return l; ]
+
   -> Declarator InitializerOpt;
 }
 
@@ -738,6 +758,8 @@ nonterm CvQualifier {
 }
 
 nonterm DeclaratorId {
+  merge(l,r) [ return l; ]
+
   -> IdExpression;
   -> ColonColonOpt NestedNameSpecifierOpt TypeName;
 }
@@ -797,6 +819,8 @@ nonterm ParameterDeclarationList {
 }
 
 nonterm ParameterDeclaration {
+  merge(l,r) [ return l; ]
+
   -> DeclSpecifierSeq Declarator;
   -> DeclSpecifierSeq Declarator "=" AssignmentExpression;
   -> DeclSpecifierSeq AbstractDeclaratorOpt;
@@ -889,6 +913,8 @@ nonterm SemicolonOpt {
 }
 
 nonterm MemberDeclaration {
+  merge(l,r) [ return l; ]
+
   -> DeclSpecifierSeqOpt MemberDeclaratorListOpt ";";
   -> FunctionDefinition SemicolonOpt;
   -> ColonColonOpt NestedNameSpecifier TemplateOpt UnqualifiedId ";";
@@ -900,7 +926,7 @@ nonterm MemberDeclaratorList {
   -> MemberDeclarator;
   -> MemberDeclaratorList "," MemberDeclarator;
 }
-  
+
 nonterm PureSpecifierOpt {
   -> empty;
   -> PureSpecifier;
@@ -912,6 +938,8 @@ nonterm ConstantInitializerOpt {
 }
 
 nonterm MemberDeclarator {
+  merge(l,r) [ return l; ]
+
   -> Declarator PureSpecifierOpt;
   -> Declarator ConstantInitializerOpt;
   -> IdentifierOpt ":" ConstantExpression;
@@ -1101,6 +1129,8 @@ nonterm TemplateArgumentList {
 }
 
 nonterm TemplateArgument {
+  merge(l,r) [ return l; ]
+
   -> AssignmentExpression;
   -> TypeId;
   -> IdExpression;

@@ -4030,12 +4030,14 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
 
 
 // ------------------ emitting action code -----------------------
-// prototypes for this section
-void emitActionCode(Grammar const &g, char const *hFname,
-                    char const *ccFname, char const *srcFname);
+// prototypes for this section; some of them accept Grammar simply
+// because that's all they need; there's no problem upgrading them
+// to GrammarAnalysis
+void emitActionCode(GrammarAnalysis const &g, char const *hFname,
+                   char const *ccFname, char const *srcFname);
 void emitUserCode(EmitCode &out, LocString const &code);
 void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl);
-void emitDupDelMerge(Grammar const &g, EmitCode &out, EmitCode &dcl);
+void emitDupDelMerge(GrammarAnalysis const &g, EmitCode &out, EmitCode &dcl);
 void emitFuncDecl(Grammar const &g, EmitCode &out, EmitCode &dcl,
                   char const *rettype, char const *params);
 void emitDDMInlines(Grammar const &g, EmitCode &out, EmitCode &dcl,
@@ -4056,7 +4058,7 @@ string actionFuncName(Production const &prod)
 
 
 // emit the user's action code to a file
-void emitActionCode(Grammar const &g, char const *hFname,
+void emitActionCode(GrammarAnalysis const &g, char const *hFname,
                     char const *ccFname, char const *srcFname)
 {
   EmitCode dcl(hFname);
@@ -4262,9 +4264,27 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
 }
 
 
-void emitDupDelMerge(Grammar const &g, EmitCode &out, EmitCode &dcl)
+void emitDupDelMerge(GrammarAnalysis const &g, EmitCode &out, EmitCode &dcl)
 {
-  out << "// ---------------- dup/del/merge/keep nonterminals ---------------\n";
+  out << "// ---------------- dup/del/merge/keep nonterminals ---------------\n"
+      << "\n";
+
+  // emit a map of nonterm ids to their names, to greatly improves the
+  // information value of the "no action to (deallocate|merge)" messages
+  out << "static char const *nontermNames[] = {\n";
+  for (int code=0; code < g.numNonterminals(); code++) {
+    Nonterminal const *nt = g.getNonterminal(code);
+    if (!nt) {                                                   
+      // no nonterminal for that code
+      out << "  \"(no nonterminal)\",  // " << code << "\n";
+    }
+    else {
+      out << "  \"" << nt->name << "\",  // " << code << "\n";
+    }
+  }
+  out << "};\n"
+      << "\n";
+
   // emit inlines for dup/del/merge of nonterminals
   FOREACH_OBJLIST(Nonterminal, g.nonterminals, ntIter) {
     emitDDMInlines(g, out, dcl, *(ntIter.data()));
@@ -4440,8 +4460,8 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
     out << "      return oldTokenType;\n";
   }
   else {
-    out << "      cout << \"WARNING: there is no action to " << actUpon << " id \"\n"
-           "           << " << switchVar << " << endl;\n";
+    out << "      cout << \"WARNING: there is no action to " << actUpon << " \"\n"
+           "           << nontermNames[" << switchVar << "] << endl;\n";
     if (whichFunc == 2) {    
       // merge; arbitrarily choose to keep first one
       //out << "      abort();\n";

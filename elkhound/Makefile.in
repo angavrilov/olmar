@@ -62,7 +62,7 @@ endif
 #ccflags += $(YYDEBUG)
 
 # generate debug table every time
-TRGRAMANL := ,lrtable
+TRGRAMANL := foo,lrtable
 
 
 # flags on command line
