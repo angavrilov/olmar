@@ -59,6 +59,7 @@ int main()
 
   deallocFunc(p);
   //p.state = DEAD;         // now automatic whenever owner is passed
+  thmprv_assert(p.state == DEAD);
 
   // function return
   thmprv_assert(p.state != OWNING);    // otherwise leak
