@@ -377,6 +377,7 @@ testparse t0173.cc
 testparse t0174.cc
 testparse t0175.cc
 testparse t0176.cc
+testparse t0177.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
