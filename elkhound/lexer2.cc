@@ -528,13 +528,25 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
 
 // --------------------- Lexer2 ------------------
 Lexer2::Lexer2()
-  : idTable(),
+  : myIdTable(new StringTable()),
+    idTable(*myIdTable),      // hope this works..
+    tokens(),
+    tokensMut(tokens)
+{}
+
+Lexer2::Lexer2(StringTable &extTable)
+  : myIdTable(NULL),
+    idTable(extTable),
     tokens(),
     tokensMut(tokens)
 {}
 
 Lexer2::~Lexer2()
-{}
+{
+  if (myIdTable) {
+    delete myIdTable;
+  }
+}
 
 
 // ------------- experimental interface for (e.g.) bison ------------

@@ -1,9 +1,9 @@
-// gramast.gen.h
+// gramast.ast.gen.h
 // *** DO NOT EDIT ***
 // generated automatically by astgen, from gramast.ast
 
-#ifndef GRAMAST_GEN_H
-#define GRAMAST_GEN_H
+#ifndef GRAMAST_AST_GEN_H
+#define GRAMAST_AST_GEN_H
 
 #include "asthelp.h"        // helpers for generated code
 
@@ -21,6 +21,7 @@ class RH_name;
 class RH_string;
 class RH_prec;
 
+// *** DO NOT EDIT ***
 
   #include "locstr.h"       // LocString
   #include "asockind.h"     // AssocKind
@@ -251,4 +252,4 @@ public:      // funcs
 
 
 
-#endif // GRAMAST_GEN_H
+#endif // GRAMAST_AST_GEN_H

@@ -24,6 +24,7 @@ public:
 
 public:
   ParseTreeAndTokens(SemanticValue &top);
+  ParseTreeAndTokens(SemanticValue &top, StringTable &extTable);
   ~ParseTreeAndTokens();
 };
 

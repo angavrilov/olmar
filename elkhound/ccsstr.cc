@@ -141,7 +141,10 @@ bool CCSubstrate::zeroNesting() const
 string CCSubstrate::getFuncBody() const
 {
   if (isDeclaration) {
-    return stringc << text << ";";
+    // I used to be appending ';' here, but now I need the flexibility to
+    // add additional test before it, so I will rely on the caller to add
+    // semicolons where necessary
+    return text;
   }
   else if (exprOnly) {
     return stringc << "return " << text << ";";

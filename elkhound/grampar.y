@@ -6,7 +6,7 @@
 %{
 
 #include "grampar.h"        // yylex, etc.
-#include "gramast.gen.h"    // grammar syntax AST definition
+#include "gramast.ast.gen.h"// grammar syntax AST definition
 #include "gramlex.h"        // GrammarLexer
 #include "owner.h"          // Owner
 

@@ -6,7 +6,7 @@
 #include "grampar.h"     // this module
 #include "gramlex.h"     // GrammarLexer
 #include "trace.h"       // tracing debug functions
-#include "gramast.gen.h" // grammar AST nodes
+#include "gramast.ast.gen.h" // grammar AST nodes
 #include "grammar.h"     // Grammar, Production, etc.
 #include "owner.h"       // Owner
 #include "syserr.h"      // xsyserror

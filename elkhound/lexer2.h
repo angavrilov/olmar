@@ -207,9 +207,13 @@ public:
 
 // lexing state
 class Lexer2 {
+private:
+  // locally-created string table, if we're not given one explicitly
+  StringTable *myIdTable;
+
 public:
   // storage of all the identifiers we encounter
-  StringTable idTable;
+  StringTable &idTable;
 
   // output token stream
   ObjList<Lexer2Token> tokens;
@@ -218,7 +222,8 @@ public:
   ObjListMutator<Lexer2Token> tokensMut;
 
 public:
-  Lexer2();
+  Lexer2();                              // table is created locally
+  Lexer2(StringTable &externalTable);    // table given externally
   ~Lexer2();
 };
 

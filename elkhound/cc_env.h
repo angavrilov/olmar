@@ -1,8 +1,12 @@
 // cc_env.h
 // Env class, which is the compile-time C++ environment
 
-#ifndef __CC_ENV_H
-#define __CC_ENV_H
+#ifndef CC_ENV_H
+#define CC_ENV_H
+              
+class Env {};
+
+#if 0   // old
 
 #include "cc_type.h"      // Type, AtomicType, etc.
 #include "cc_err.h"       // SemanticError
@@ -319,5 +323,6 @@ public:
 #define FOREACH_VARIABLE(env, var) \
   FOREACH_ARRAYMAP(Variable, (env).getVars(), var)
 
+#endif // 0 
 
-#endif // __CC_ENV_H
+#endif // CC_ENV_H

@@ -5,15 +5,22 @@ verbatim {
 
 #include "cc_flags.h"      // CVFlags, DeclFlags, etc.
 
+class Env;                 // cc_env.h
+
 } // end verbatim
 
 
 // ---------------- file -------------
 // an entire file (with included stuff) of toplevel forms
-class TranslationUnit (ASTList<TopForm> topForms);
+class TranslationUnit (ASTList<TopForm> topForms) {
+  // type checker
+  public void tcheck(Env &env);
+}
 
 // a toplevel form
 class TopForm {
+  pure_virtual void tcheck(Env &env);
+
   -> TF_decl(Declaration decl);        // includes function prototypes
 
   // functions with bodies
@@ -32,7 +39,9 @@ class Declaration (
   enum DeclFlags dflags,               // typedef, virtual, extern, etc.
   TypeSpecifier spec,                  // e.g. "int"
   ASTList<Declarator> decllist         // e.g. "x=3, y"
-);
+) {
+  public void tcheck(Env &env);
+}
 
 // just one complete type; appears in parameter decls and in casts
 class ASTTypeId (
@@ -44,9 +53,9 @@ class ASTTypeId (
 // (e.g. '*') can be applied, but which itself is not built with type
 // constructors
 class TypeSpecifier {
-  public enum CVFlags cv;                               
+  public enum CVFlags cv;
   ctor { cv=CV_NONE; };
-
+  
   -> TS_name(StringRef name);                           // a typedef'd name
   -> TS_simple(SimpleTypeId id);                        // int or char or float or ..
   -> TS_elaborated(TypeIntr keyword, StringRef name);   // "class Foo"
@@ -62,6 +71,8 @@ class Declarator {
   public ASTList<PtrOperator> stars;   // pointer constructors, right to left
   public Initializer *init;            // (nullable) optional data initializer
   ctor { init=NULL; };
+
+  pure_virtual void tcheck(Env &env);
 
   -> D_name(StringRef /*nullable*/ name);                      // "x" (NULL means abstract declarator or anonymous parameter)
   -> D_func(Declarator base, ASTList<ASTTypeId> params);       // "f(int)"
@@ -95,6 +106,8 @@ class Enumerator (
 
 // ------------------- statements -----------------
 class Statement {
+  pure_virtual void tcheck(Env &env);
+
   -> S_skip();      // nop; used whenever optional Statement is not present
   -> S_label(StringRef name, Statement s);
   -> S_case(Expression expr, Statement s);

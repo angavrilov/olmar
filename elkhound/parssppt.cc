@@ -13,6 +13,13 @@ ParseTreeAndTokens::ParseTreeAndTokens(SemanticValue &top)
     userAct(NULL)
 {}
 
+ParseTreeAndTokens::ParseTreeAndTokens(SemanticValue &top,
+                                       StringTable &extTable)
+  : treeTop(top),
+    lexer2(extTable),
+    userAct(NULL)
+{}
+
 ParseTreeAndTokens::~ParseTreeAndTokens()
 {}
 
