@@ -3,10 +3,10 @@
 
 #ifndef BOOTSTRAP
   // in non-bootstrap mode, use the generated file
-  #include "ast.ast.gen.h"
+  #include "ast.ast.h"
 #endif
 
-#ifndef AST_AST_GEN_H
+#ifndef AST_AST_H
 // use the code below if either:
 //   - BOOTSTRAP was defined
 //   - ast.gen.h was empty
@@ -149,4 +149,4 @@ public:
 
 #endif // AST_HAND_H
 
-#endif // !AST_AST_GEN_H
+#endif // !AST_AST_H

@@ -1,9 +1,9 @@
-// ast.ast.gen.h
+// ast.ast.h
 // *** DO NOT EDIT ***
 // generated automatically by astgen, from ast.ast
 
-#ifndef AST_AST_GEN_H
-#define AST_AST_GEN_H
+#ifndef AST_AST_H
+#define AST_AST_H
 
 #include "asthelp.h"        // helpers for generated code
 
@@ -224,4 +224,4 @@ public:      // funcs
 
 
 
-#endif // AST_AST_GEN_H
+#endif // AST_AST_H

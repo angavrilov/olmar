@@ -652,13 +652,13 @@ void entry(int argc, char **argv)
 
   // generate the header
   string base = srcFname;       //replace(srcFname, ".ast", "");
-  string hdrFname = base & ".gen.h";
+  string hdrFname = base & ".h";
   cout << "writing " << hdrFname << "...\n";
   HGen hg(srcFname, hdrFname, *ast);
   hg.emitFile();
 
   // generated the c++ code
-  string codeFname = base & ".gen.cc";
+  string codeFname = base & ".cc";
   cout << "writing " << codeFname << "...\n";
   CGen cg(srcFname, codeFname, *ast, hdrFname);
   cg.emitFile();
