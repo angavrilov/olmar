@@ -98,24 +98,43 @@ class IDeclarator {
   public void qual(QualEnv &env);
 //    public void flatten(FlattenEnv &env);
 
-  // compute the type denoted by this declarator fragment,
-  // and store it in the 'dtor' pointer's 'qtype' field;
-  // 'typeSoFar' is the type denoted by the specifier and
-  // any other surrounding declarator fragments
-  //pure_virtual void qualTcheck(Declarator *dtor, Type_Q *typeSoFar);
+  // declarator name; replaces the PQName that had been in the superclass
+  public string declaratorName;
+
+  -> D_name
+  {
+     ctor { declaratorName = (name? name->getName() : "__anonymous"); };
+  }
 
   -> D_pointer(QualifierLiterals *ql)
   {
      public Qualifiers *q;
-     ctor { q = new Qualifiers((name?strdup(name->getName()):"__null_pointer"), loc, 1 /*default to global*/, NULL, ql); };
+     ctor { declaratorName = stringc << base->declaratorName << (isPtr? "_p" : "_r");
+            q = new Qualifiers(declaratorName, loc, 1 /*default to global*/, NULL, ql); };
 //       ctor { q = new Qualifiers("anonymous_pointer", loc, 1 /*default to global*/, NULL, ql); };
   }
 
   -> D_func(QualifierLiterals *ql)
   {
      public Qualifiers *q;
-     ctor {q = new Qualifiers((name?strdup(name->getName()):"__null_function"), loc, 1 /*default to global*/, NULL, ql);};
+     ctor { declaratorName = stringc << base->declaratorName << "_func";
+            q = new Qualifiers(declaratorName, loc, 1 /*default to global*/, NULL, ql); };
 //       ctor {q = new Qualifiers("anonymous_function", loc, 1 /*default to global*/, NULL, ql);};
+  }
+
+  -> D_array
+  {
+     ctor { declaratorName = stringc << base->declaratorName << "_array"; };
+  }
+  
+  -> D_bitfield
+  {
+     ctor { declaratorName = (name? name->getName() : "__anonymous"); };
+  }
+  
+  -> D_grouping
+  {
+     ctor { declaratorName = base->declaratorName; };
   }
 }
 

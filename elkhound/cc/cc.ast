@@ -271,7 +271,7 @@ class Declarator (
 // once typechecking determines what type is denoted;
 // type constructors are encoded as a (possibly empty) list of pointer
 // constructors, then maybe a function or array type, recursively
-class IDeclarator(PQName /*nullable*/ name, SourceLocation loc) {
+class IDeclarator(SourceLocation loc) {
   // dig down and find the name being declared; may return NULL
   pure_virtual PQName const *getDeclaratorId() const;
 
@@ -281,8 +281,7 @@ class IDeclarator(PQName /*nullable*/ name, SourceLocation loc) {
   // "x" (NULL means abstract declarator or anonymous parameter);
   // this is used for ctors and dtors as well as ordinary names
   // (dtor names start with "~"); it's also used for operator names
-  -> D_name(// moved to superclass: PQName /*nullable*/ name
-           );
+  -> D_name(PQName /*nullable*/ name);
 
   // "*x" (as in "int *x")
   -> D_pointer(bool isPtr,  // true for "*", false for "&"
@@ -303,8 +302,7 @@ class IDeclarator(PQName /*nullable*/ name, SourceLocation loc) {
   // I use a PQName here instead of a StringRef for uniformity
   // (so every IDeclarator ends with a PQName); there are never
   // qualifiers on a bitfield name
-  -> D_bitfield(// moved to superclass: PQName /*nullable*/ name,
-                Expression bits);
+  -> D_bitfield(PQName /*nullable*/ name, Expression bits);
 
   // declarator grouping operator: it's semantically irrelevant
   // (i.e. equivalent to just 'base' alone), but plays a role in
