@@ -1492,7 +1492,7 @@ bool GLR::nondeterministicParseToken(ArrayStack<PendingShift> &pendingShifts)
   // work through the worklist
   StateId lastToDie = STATE_INVALID;
   
-  #if 0      // disable the other GLR core
+  #if !YTM_FIX      // disable the other GLR core
   while (parserWorklist.isNotEmpty_prime()) {
     RCPtr<StackNode> parser(parserWorklist.pop());     // dequeue
     parser->decRefCt();     // no longer on worklist
@@ -2484,7 +2484,7 @@ void ReductionPathQueue::insertPathCopy(Path const *src, StackNode *leftEdge)
   else {
     // search
     Path *prev = top;
-    while (prev->next && !goesBefore(p, prev)) {
+    while (prev->next && !goesBefore(p, prev->next)) {
       prev = prev->next;
     }
 
