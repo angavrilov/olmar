@@ -62,6 +62,9 @@ public:      // funcs
   void ana_endScope(Env *localEnv);
   void ana_applyConstraint(bool negated);
   void ana_checkDeref();
+  
+  // NonterminalNode funcs
+  virtual bool getIsJustInt() const { return isJustInt; }
 };
 
 

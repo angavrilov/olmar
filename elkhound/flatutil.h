@@ -8,6 +8,8 @@
 #include "objlist.h"     // ObjList
 #include "sobjlist.h"    // SObjList
 
+
+// ------------- xfer of owners -----------------
 template <class T>
 void xferOwnerPtr(Flatten &flat, T *&ptr)
 {
@@ -18,6 +20,9 @@ void xferOwnerPtr(Flatten &flat, T *&ptr)
 
   // read/write it
   ptr->xfer(flat);
+
+  // note it so we can have serfs to it
+  flat.noteOwner(ptr);
 }
 
 
@@ -31,7 +36,10 @@ void xferOwnerPtr_readObj(Flatten &flat, T *&ptr)
   else {
     // write it
     ptr->xfer(flat);
-  }  
+  }
+
+  // note it so we can have serfs to it
+  flat.noteOwner(ptr);
 }
 
 
@@ -43,6 +51,7 @@ void xferObjList(Flatten &flat, ObjList <T> &list)
 
     MUTATE_EACH_OBJLIST(T, list, iter) {
       iter.data()->xfer(flat);
+      flat.noteOwner(iter.data());
     }
   }
   else {
@@ -55,6 +64,7 @@ void xferObjList(Flatten &flat, ObjList <T> &list)
 
       // read it
       obj->xfer(flat);
+      flat.noteOwner(obj);
 
       // add it to the list
       mut.append(obj);
@@ -74,6 +84,7 @@ void xferObjList_readObj(Flatten &flat, ObjList <T> &list)
 
     MUTATE_EACH_OBJLIST(T, list, iter) {
       iter.data()->xfer(flat);
+      flat.noteOwner(iter.data());
     }
   }
   else {
@@ -84,6 +95,7 @@ void xferObjList_readObj(Flatten &flat, ObjList <T> &list)
       // construct a new object, *and* read its
       // contents from the file
       T *obj = T::readObj(flat);
+      flat.noteOwner(obj);
 
       // add it to the list
       mut.append(obj);
@@ -92,6 +104,7 @@ void xferObjList_readObj(Flatten &flat, ObjList <T> &list)
 }
 
 
+// ------------- xfer of serfs -----------------
 // xfer a list of serf pointers to objects, each object
 // could be in one of several owner lists
 template <class T>
@@ -314,6 +327,19 @@ void xferSObjList_twoLevelAccess(
       mut.append(leaf);
     }
   }
+}
+
+
+template <class T>
+void xferSerfPtr(Flatten &flat, T *&serfPtr)
+{
+  flat.xferSerf((void*&)serfPtr, false /*nullable*/);
+}
+
+template <class T>
+void xferNullableSerfPtr(Flatten &flat, T *&serfPtr)
+{
+  flat.xferSerf((void*&)serfPtr, true /*nullable*/);
 }
 
 

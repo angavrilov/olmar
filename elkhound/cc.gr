@@ -472,8 +472,23 @@ nonterm PostfixExpression : ExprBase {
       // check the fn name
       Owner<CilExpr> fn; fn = p.typeCheck(env, inst);
 
+      Type const *origFnType = typeOf(fn, env);
+      Type const *fnType = origFnType;
+      if (fnType->isPointerType()) {
+        // you get 1 free dereference when computing
+        // a function to call
+        fnType = fnType->asPointerTypeC().atType;
+      }
+
+      if (!fnType->isFunctionType()) {
+        throwError(stringc
+          << "expression `" << fn->toString() << "' has type `"
+          << origFnType->toString() << "', which is neither a "
+          << "function type nor a pointer to a function type");
+      }
+
       // get its return type
-      Type const *retType = typeOf(fn, env)->asFunctionTypeC().retType;
+      Type const *retType = fnType->asFunctionTypeC().retType;
 
       // need a temprary for the result
       Variable *result = env->newTmpVar(retType);
@@ -2766,7 +2781,7 @@ nonterm ClassSpecifier : HasType ->
     // ignore 'base' for now
 
     // add info about the members
-    memb.addMemberInfo(compound,
+    memb.addMemberInfo(env, compound,
                        keyword==CompoundType::K_CLASS?
                          AM_PRIVATE : AM_PUBLIC);
 
@@ -2793,13 +2808,13 @@ nonterm ClassKeyword {
 
 nonterm MemberDeclBase {
   // add info in this subtree to the compound we're building
-  fundecl void addMemberInfo(CompoundType *compound, AccessMode access);
+  fundecl void addMemberInfo(Env *passedEnv, CompoundType *compound, AccessMode access);
 
   // for now, just eat it
   fun addMemberInfo {}
 
   literalCode "prefix" addMemberInfo {
-    env = compound->env;
+    env = passedEnv;
   }
 }
 
@@ -2808,8 +2823,14 @@ nonterm MemberDeclarationSeqOpt : MemberDeclBase {
 
   -> decl:MemberDeclaration list:MemberDeclarationSeqOpt {
     fun addMemberInfo {
-      decl.addMemberInfo(compound, access);
-      list.addMemberInfo(compound, access);
+      try {
+        decl.addMemberInfo(env, compound, access);
+      }
+      catch (XSemanticError &x) {
+        cout << "Error: " << x.err.whyStr() << endl;
+      }
+
+      list.addMemberInfo(env, compound, access);
     }
   }
 
@@ -2821,11 +2842,11 @@ nonterm AccessSpecifier -> "public" | "private" | "protected" ;
 
 nonterm MemberDeclaration : MemberDeclBase {
   -> spec:DeclSpecifier list:MemberDeclaratorList ";" {    // member fn or data
-    fun addMemberInfo {                     
+    fun addMemberInfo {
       // same code from SimpleDeclaration
       Type const *type = spec.getType(env);
       DeclFlags flags = spec.getDeclFlags();
-      list.declare(env, flags, type);
+      list.declare(env, compound->env, flags, type);
     }
   }
 
@@ -2843,7 +2864,7 @@ nonterm HasDeclareNoSE {     // "SE" = "side effects"
   // in the subtree, combine 'type' with the additional type modifiers
   // associated with the declarator (if any), and add the completed
   // declaration, with 'flags', to 'env'
-  fundecl void declare(Env *passedEnv, DeclFlags flags, Type const *type);
+  fundecl void declare(Env *passedEnv, Env *destEnv, DeclFlags flags, Type const *type);
   literalCode "prefix" declare {
     env = passedEnv;
   }
@@ -2852,13 +2873,13 @@ nonterm HasDeclareNoSE {     // "SE" = "side effects"
 // very similar to InitDeclaratorList
 nonterm MemberDeclaratorList : HasDeclareNoSE {
   -> d:MemberDeclarator {
-    fun declare { d.declare(env, flags, type); }
+    fun declare { d.declare(env, destEnv, flags, type); }
   }
 
   -> list:MemberDeclaratorList "," d:MemberDeclarator {
     fun declare {
-      list.declare(env, flags, type);
-      d.declare(env, flags, type);
+      list.declare(env, destEnv, flags, type);
+      d.declare(env, destEnv, flags, type);
     }
   }
 }
@@ -2868,7 +2889,7 @@ nonterm MemberDeclarator : HasDeclareNoSE {
     fun declare {
       // this code is same as InitDeclarator
       Type const *fullType = d.getDeclType(env, type);
-      declareVariable(env, d.getDeclName(), flags, fullType);
+      declareVariable(destEnv, d.getDeclName(), flags, fullType);
     }
   }
 

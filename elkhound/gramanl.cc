@@ -154,10 +154,12 @@ void ItemSet::xferSerfs(Flatten &flat, GrammarAnalysis &g)
     allocateTransitionFunction();
   }
   INTLOOP(t, 0, terms) {
-    xferNullableSerfPtrToList(flat, termTransition[t], g.itemSets);
+    //xferNullableSerfPtrToList(flat, termTransition[t], g.itemSets);
+    xferNullableSerfPtr(flat, termTransition[t]);
   }
   INTLOOP(n, 0, nonterms) {
-    xferNullableSerfPtrToList(flat, nontermTransition[n], g.itemSets);
+    //xferNullableSerfPtrToList(flat, nontermTransition[n], g.itemSets);
+    xferNullableSerfPtr(flat, nontermTransition[n]);
   }
 
 
@@ -170,12 +172,15 @@ void ItemSet::xferSerfs(Flatten &flat, GrammarAnalysis &g)
     dotsAtEnd = new DottedProduction const * [numDotsAtEnd];
   }
   INTLOOP(p, 0, numDotsAtEnd) {
+    #if 0
     xferSerfPtr_twoLevelAccess(
       flat,
       const_cast<DottedProduction*&>(dotsAtEnd[p]),   // serf
       static_cast<Grammar*>(&g), // root of access path
       getNthProduction,          // first access path link
       getNthDottedProduction);   // second access path link
+    #endif // 0
+    xferSerfPtr(flat, dotsAtEnd[p]);
   }
 
   xferNullableSerfPtrToList(flat, BFSparent, g.itemSets);

@@ -370,6 +370,10 @@ struct wes_ast_node * NonterminalNode::camlAST(void) const
 
 void NonterminalNode::printParseTree(ostream &os, int indent, bool asSexp) const
 {
+  if (getIsJustInt()) {
+    os << "*\b";  // excessive cleverness
+  }
+
   int parses = reductions.count();
   if (parses == 1) {
     // I am unambiguous

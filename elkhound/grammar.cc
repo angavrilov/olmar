@@ -268,6 +268,11 @@ void Production::xferSerfs(Flatten &flat, Grammar &g)
   if (flat.reading()) {
     finished();
   }
+  
+  // to allow pointers to 'dprods', register them
+  loopi(numDotPlaces) {
+    flat.noteOwner(dprods+i);
+  }
 }
 
 

@@ -185,6 +185,9 @@ public:
   TreeNode const *getOnlyChild(int childNum) const;
   Lexer2Token const &getOnlyChildToken(int childNum) const;
 
+  // little hack to get info from CCTreeNode
+  virtual bool getIsJustInt() const { return false; }
+
   // TreeNode stuff
   virtual bool isTerm() const { return false; }
   virtual Symbol const *getSymbolC() const;
