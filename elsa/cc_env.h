@@ -28,7 +28,6 @@ protected:   // data
   // it.  otherwise it does own it.
   ObjList<Scope> scopes;
 
-private:
   // list of named scopes (i.e. namespaces)
   //StringObjDict<Scope> namespaces;    // not implemented yet
 

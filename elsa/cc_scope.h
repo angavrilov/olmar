@@ -171,10 +171,10 @@ public:      // funcs
   int private_compoundTop() const
     { return compounds.private_getTopAddr(); }
 
-  public:                       // dsw: needed this and this was a natual place to put it
+  // dsw: needed this and this was a natual place to put it
   bool immediateGlobalScopeChild();
   bool linkerVisible();
-  stringBuilder fullyQualifiedName();
+  string fullyQualifiedName();
 };
 
 

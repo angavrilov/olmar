@@ -57,9 +57,10 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
   // create first scope
   SourceLoc emptyLoc = SL_UNKNOWN;
-  {
-    Scope *s = new Scope(SK_GLOBAL // cause Variables inserted into this scope to acquire DF_GLOBAL
-                         , 0 /*changeCount*/, emptyLoc, tunit);
+  {                               
+    // among other things, SK_GLOBAL causes Variables inserted into
+    // this scope to acquire DF_GLOBAL
+    Scope *s = new Scope(SK_GLOBAL, 0 /*changeCount*/, emptyLoc, tunit);
     scopes.prepend(s);
   }
 
