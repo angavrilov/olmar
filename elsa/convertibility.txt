@@ -2,13 +2,13 @@ Date: 8/10/03
 Author: Scott McPeak
 
 
-Convertibility and Operator Overloading
+             Convertibility and Operator Overloading
 
 
 --- Introduction ---
 
-This is a characterization of (standard) convertibility relation
-(cppstd section 4), and its role in operator overload analysis.  
+This is a characterization of (standard) convertibility relation (C++
+standard, section 4), and its role in operator overload analysis. 
 The first part builds a partial order on types, R, to describe
 convertibility.  The second part uses R to assist in the
 implementation of operator overload resolution.
@@ -165,9 +165,7 @@ pointer can be converted to a void pointer).  This doesn't
 compromise the partial order; it's a one-way trip to void-land.
 
 Also note that pointers cannot convert to or from any of the atomic
-types.  (The convertibility from the null constant doesn't affect
-this; this analysis is concerned with convertibility where the types
-of literals have already been established.)
+types.  (TODO: What about convertibility from the null literal?)
 
 
 --- Pointers to members ---
@@ -226,6 +224,9 @@ constructor.  For example:
 
 There's no conversion to 'void &', however.
 
+(TODO: I'm not 100% sure about this, but it's what my implementation
+does for now.)
+
 
 --- Order on conversions ---
 
@@ -248,17 +249,19 @@ to the order given in 13.3.3.2, paragraphs 3 and 4:
 
   S("A->B", "A->C") iff R(B,C)                   ($$)
 
-That is, "A->B" is better than "A->C" if and only if B is convertible
-to C (using the convertibility relation R defined above, where the
-atomic types are unified, etc.).  For the except quoted, the order
-is the same: that induced by the cv subset lattice.
+That is, "A->B" (the standard conversion from A to B) is better than
+"A->C" if and only if B is convertible to C (using the convertibility
+relation R defined above, where the atomic types are unified, etc.).
+For the excerpt quoted, the order is the same: that induced by the cv
+subset lattice.
 
-Now, proving this requires a detailed analysis of the specific rules
-provided in 13.3.3.2.  I think it's right, but I'm not completely
-sure.  I haven't so far been able to adequately formalize those rules
-in a way that would allow a formal proof (not that I've tried much).
-In any case, it's close enough that I'm confident if a discrepancy is
-found, it won't be difficult to hack around it in practice.
+Now, proving this for all types A, B and C requires a detailed
+analysis of the specific rules provided in 13.3.3.2.  I think it's
+right, but I'm not completely sure.  I haven't so far been able to
+adequately formalize those rules in a way that would allow a formal
+proof (not that I've tried much).  In any case, it's close enough that
+I'm confident if a discrepancy is found, it won't be difficult to hack
+around it in the implementation.
 
 
 --- Application to operator overload resolution ---
@@ -267,7 +270,7 @@ Where this analysis becomes useful is when we try to implement
 operator overload resolution.  The difficulty arises from section
 13.6, which says (paragraph 14, for example):
 
-  "For every T, where T is a ponter to object type, there exist
+  "For every T, where T is a pointer to object type, there exist
   candidate operator functions of the form
   
     ptrdiff_t  operator- (T, T);"
@@ -276,12 +279,12 @@ Two things make this difficult.  First, this is an infinite set
 of candidate functions; we can't straightforwardly materialize all
 of the candidates and hand them to overload resolution.  
 
-Second, the types of the arguments are *correlated*: they have to be
-equal.  If they were not correlated (as in e.g. paragraph 12), then we
-could simply analyze the arguments separately: ambiguity in either
-argument would imply ambiguity for the entire analysis.  But for
-operator-, it is in fact possible to have (naive) ambiguity in *both*
-arguments but still an unambiguous call:
+Second, the types of the arguments are *correlated*; in fact, they
+have to be equal.  If they were not correlated (as in e.g. 13.6
+paragraph 12), then we could simply analyze the arguments separately:
+ambiguity in either argument would imply ambiguity for the entire
+analysis.  But for operator-, it is in fact possible to have (naive)
+ambiguity in *both* arguments but still an unambiguous call:
 
   struct A {
     operator int* ();
@@ -343,16 +346,16 @@ arguments can convert (directly).  If the ultimate resolution picks
 those two conversions, what would the instantiation of the operator
 function be? 
 
-Suppose the first argument to operator- can convert to U, and the
-second can convert to V.  We need a type T such that both U and V can
-convert to T (existence).  We also need (for uniqueness) that for any
-T' (not equal to T) such that U and V can convert to T', that:
+Suppose the first argument to operator- has a conversion to U, and the
+second has a conversion to V.  We need a type T such that both U and V
+can convert to T (existence).  We also need (for uniqueness) that for
+any T' not equal to T, such that U and V can convert to T':
 
   U->T' is not better than U->T, and
   V->T' is not better than V->T, and
   either
     U->T is better than U->T', or
-    V->T is better than V->T
+    V->T is better than V->T'
 
 (These rules paraphrase the relevant parts of 13.3.3 paragraph 1.)
 Applying equation ($$) above, rewrite this as
@@ -369,8 +372,10 @@ apply antisymmetry and simplifying, we have
 
 Ok!  Now this is a question we can restate as a familiar algebraic
 question: do U and V have a least upper bound (LUB)?  If they do, then
-LUB(U,V) is the only possible instantiation of T that could yield a
-winning candidate function, if the arguments are converted to U and V.
+LUB(U,V) is the T that satisfies the existence and uniqueness
+requirements above (by definition, essentially).  Consequently, it is
+the only possible instantiation of T that could yield a winning
+candidate function, if the arguments are converted to U and V.
 
 Based on the characterization of R given above, computing the LUB is
 fairly easy.  For single-level pointers or pointers to member, we need
@@ -383,13 +388,14 @@ a product of underlying orders.
 But not all pairs of types have a LUB.  First, there might not be
 any types to which both can convert; 'int*' and 'int' are such
 a pair.  In that case, the pair cannot possibly be the pair selected
-for the winning candidate.
+for the winning candidate; the set of viable candidates to which
+that conversion pair corresponds is empty.
 
 Second, there may not be a least element for the set of types to which
 U and V can convert.  For example, if classes C1 and C2 both inherit
 from P1 and P2, but P1 and P2 are not related by inheritance, then
 'C1*' and 'C2*' can both convert to 'P1*' and 'P2*', but these latter
-two types cannot convert either way.
+two types are not comparable under R.
 
 When the upper bound set is not empty, but there is no least element,
 resolution among the set of candidates generated by the pattern is
@@ -410,15 +416,15 @@ but by ($$), this won't be possible.  (Just do the original reduction
 to R(T,T') backwards.)
 
 Furthermore, no other pairs of conversions (U',V') can yield a
-candidate that can beat either of these candidates, because (13.3.3.2,
-para 3, final bullet) as implicit conversion sequences, they will use
-different user-defined conversion functions, and hence be
-incomparable.
+candidate that can beat either of these candidates, because they will
+use different user-defined conversion functions, and hence be
+incomparable as implicit conversion sequences (13.3.3.2, para 3,
+final bullet).
 
-(Note that the reason we can choose among user-defined conversion
-functions when instantiating for a particular pair is that it's
-the situation covered by 13.3.3 para 1, final bullet.  But once
-we're looking across pairs, that provision no longer applies.)
+(Note that the reason we *can* choose among user-defined conversion
+functions when instantiating for a particular pair is that it's the
+situation covered by 13.3.3 para 1, final bullet.  But once we're
+looking across pairs, that provision no longer applies.)
 
 However, though there cannot be a clear winner from among the pattern
 (built-in) candidates if the LUB is ambiguous, there might be a
@@ -434,14 +440,13 @@ types, is:
 
   - consider every pair (U,V) of types to which the arguments can
     convert
-    - compute the LUB(U,V) on the order R
-    - if the LUB exists, instantiate the pattern with it (if more
-      than one pair has the same LUB, don't instantiate it more than
-      once)
+    - compute the LUB(U,V) w.r.t. the order R
+    - if the LUB exists, instantiate the pattern with it
     - if the UB set is empty, do nothing with that pair
     - if the UB set is nonempty, generate a fake candidate, both
       of whose arguments are converted by the ambiguous conversion
-      sequence (13.3.3.1 para 10)
+      sequence (13.3.3.1 para 10); this effectively summarizes
+      the built-in candidate set
 
 Then, run the usual overload resolution algorithm on this finite
 candidate set (plus member and non-member user-defined candidates; see
@@ -457,9 +462,9 @@ clear about there being only one candidate with a given signature;
 we're computing an instantiation sub*set*, not a multiset.
 
 Second, a given LUB type might not fit the requirements of the
-pattern.  Taking the operator- example, it says "pointer to *object*
-type".  That means (1.8 para 1) that T is not a pointer to function
-type, nor pointer to void.  This can be implemented simply by
+pattern.  Taking the operator- example, it says T has "pointer to
+*object* type".  That means (1.8 para 1) that T is not a pointer to
+function type, nor pointer to void.  This can be implemented simply by
 filtering types before instantiating, because those types are at the
 top of the hierarchy; they represent the best type from a (small) set
 of upper bound types, none of which are admissable to the pattern.
@@ -485,8 +490,8 @@ don't see an argument (such as a constructive adversary) to say that
 it could not be done.  
 
 Another interesting question: GCC's (current) algorithm is linear, but
-it is also wrong.  Does that matter?  Do users need or want the full
-analysis?  Might there be hidden ambiguities due to the incomplete
-analysis?  Or is this a good practical corner to cut?  I have
-relatively little experience with programs that make heavy use of
-conversion operators, so I just don't know.
+it is also wrong.  Does that matter?  Do users need or want the
+correct analysis?  Might there be hidden ambiguities or other problems
+due to the incomplete analysis?  Or is this a good practical corner to
+cut?  I have relatively little experience with programs that make
+heavy use of conversion operators, so I just don't know.

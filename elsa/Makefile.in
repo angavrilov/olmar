@@ -198,7 +198,9 @@ gendoc/configure.txt: configure
 
 .PHONY: gendoc/dependencies.dot
 gendoc/dependencies.dot:
-	perl $(SMBASE)/scan-depends.pl -r main.cc >$@
+	perl $(SMBASE)/scan-depends.pl -r \
+	  -Xcc_env.h=1 -Xcc_type.h=1 -Xcc_flags.h=1 \
+	  main.cc cc_tcheck.cc >$@
 
 gendoc/3.4.5.dot: ccparse in/std/3.4.5.cc
 	./ccparse -tr printHierarchies in/std/3.4.5.cc | \

@@ -1,5 +1,5 @@
 // overload.h                       see license.txt for copyright and terms of use
-// attempt at implementing C++ overload resolution;
+// implements C++ overload resolution
 // see cppstd section ("clause") 13
 
 #ifndef OVERLOAD_H
