@@ -134,6 +134,7 @@ class PQName (
 
   // for cc_tcheck.cc ...
   public SObjList<char const> const &getQualifiers() const { return qualifiers; };
+  public bool hasQualifiers() const { return qualifiers.isNotEmpty(); };
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
@@ -164,11 +165,13 @@ class TypeSpecifier {
   -> TS_simple(SimpleTypeId id);           // int or char or float or ..
 
   -> TS_elaborated(                        // "class Foo"
+       SourceLocation loc,
        TypeIntr keyword,
        PQName name
      );
 
   -> TS_classSpec(                         // "class { ... }"
+       SourceLocation loc,
        TypeIntr keyword,                     // "class", "struct", "union"
        StringRef /*nullable*/ name,          // user-provided name, if any
        FakeList<BaseClass> *bases,           // base classes
@@ -202,6 +205,8 @@ class Member(
   -> MR_decl(Declaration d);            // data members or functions w/o bodies
   -> MR_func(Function f);               // function with body
   -> MR_access();                       // section header
+  
+  pure_virtual void tcheck(Env &env);
 }
 
 // a binding of a name to a constant value

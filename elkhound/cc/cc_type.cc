@@ -3,6 +3,8 @@
 
 #include "cc_type.h"    // this module
 #include "trace.h"      // tracingSys
+#include "variable.h"   // Variable
+
 #include <assert.h>     // assert
 
 
@@ -215,11 +217,16 @@ string SimpleType::uniqueName() const
 
 // ------------------ NamedAtomicType --------------------
 NamedAtomicType::NamedAtomicType(StringRef n)
-  : name(n)
+  : name(n),
+    typedefVar(NULL)
 {}
 
 NamedAtomicType::~NamedAtomicType()
-{}
+{
+  if (typedefVar) {
+    delete typedefVar;
+  }
+}
 
 
 string NamedAtomicType::uniqueName() const
@@ -434,6 +441,13 @@ CompoundType::Field *CompoundType::
   fieldIndex.add(name, f);
 
   return f;
+}
+
+
+string toString(CompoundType::Keyword k)
+{
+  xassert((unsigned)k < (unsigned)CompoundType::NUM_KEYWORDS);
+  return string(typeIntrNames[k]);    // see cc_type.h
 }
 
 

@@ -100,24 +100,27 @@ bool insertUnique(StringSObjDict<T> &table, char const *key, T *value,
 
 bool Env::addVariable(Variable *v)
 {
-  Scope *s = scope();
   trace("env") << "added variable `" << v->name
                << "' of type `" << v->type->toString()
                << "' at " << v->loc.toString() << endl;
+
+  Scope *s = scope();
   return insertUnique(s->variables, v->name, v, s->changeCount);
 }
 
-bool Env::addCompound(CompoundType const *ct)
+bool Env::addCompound(CompoundType *ct)
 {
-  Scope *s = scope();
   trace("env") << "added " << toString(ct->keyword) << " " << ct->name << endl;
+
+  Scope *s = scope();
   return insertUnique(s->compounds, ct->name, ct, s->changeCount);
 }
 
-bool Env::addEnum(EnumType const *et)
+bool Env::addEnum(EnumType *et)
 {
-  Scope *s = scope();
   trace("env") << "added enum " << et->name << endl;
+
+  Scope *s = scope();
   return insertUnique(s->enums, et->name, et, s->changeCount);
 }
 
@@ -139,15 +142,24 @@ Variable *Env::lookupPQVariable(PQName const *name) const
   return NULL;    // not found
 }
 
-CompoundType const *Env::lookupPQCompound(PQName const *name) const
+CompoundType *Env::lookupPQCompound(PQName const *name) const
 {
   if (!name->getQualifiers().isEmpty()) {
     cout << "warning: ignoring qualifiers\n";
   }
+  
+  return lookupCompound(name->name, false /*innerOnly*/);
+}
+
+CompoundType *Env::lookupCompound(StringRef name, bool innerOnly) const
+{
+  if (innerOnly) {
+    return scopes.firstC()->compounds.queryif(name);
+  }
 
   // look in all the scopes
   FOREACH_OBJLIST(Scope, scopes, iter) {
-    CompoundType const *ct = iter.data()->compounds.queryif(name->name);
+    CompoundType *ct = iter.data()->compounds.queryif(name);
     if (ct) {
       return ct;
     }
@@ -155,7 +167,7 @@ CompoundType const *Env::lookupPQCompound(PQName const *name) const
   return NULL;    // not found
 }
 
-EnumType const *Env::lookupPQEnum(PQName const *name) const
+EnumType *Env::lookupPQEnum(PQName const *name) const
 {
   if (!name->getQualifiers().isEmpty()) {
     cout << "warning: ignoring qualifiers\n";
@@ -163,7 +175,7 @@ EnumType const *Env::lookupPQEnum(PQName const *name) const
 
   // look in all the scopes
   FOREACH_OBJLIST(Scope, scopes, iter) {
-    EnumType const *et = iter.data()->enums.queryif(name->name);
+    EnumType *et = iter.data()->enums.queryif(name->name);
     if (et) {
       return et;
     }
