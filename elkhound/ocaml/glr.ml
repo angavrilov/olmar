@@ -41,8 +41,8 @@ type tSymbolId = int
 
 (* link from one stack node to another *)
 type tSiblingLink = {
-  (* stack node we're pointing at *)
-  mutable sib: tStackNode option (*ouch!*);   (* TODO: Obj.magic trick again? *)
+  (* stack node we're pointing at; == cNULL_STACK_NODE if none *)
+  mutable sib: tStackNode;
 
   (* semantic value on this link *)
   mutable sval: tSemanticValue;
@@ -226,29 +226,42 @@ end
 
 
 (* --------------------- SiblingLink ----------------------- *)
-let makeSiblingLink (s: tStackNode option) (sv: tSemanticValue) : tSiblingLink =
+(* NULL sibling link *)
+let cNULL_SIBLING_LINK:tSiblingLink = {
+  sib = (Obj.magic []);
+  sval = cNULL_SVAL;
+}
+
+let makeSiblingLink (s: tStackNode) (sv: tSemanticValue) : tSiblingLink =
 begin
   { sib=s; sval=sv; }
 end
 
-let dummyLink:tSiblingLink = (makeSiblingLink None cNULL_SVAL)
-
 
 (* --------------------- StackNode -------------------------- *)
+(* NULL stack node *)
+let cNULL_STACK_NODE:tStackNode = {
+  state          = cSTATE_INVALID;
+  leftSiblings   = [];
+  firstSib       = (Obj.magic []);
+  referenceCount = 0;
+  determinDepth  = 0;
+  glr            = (Obj.magic []);
+  column         = 0
+}
+
 let emptyStackNode(g : tGLR) : tStackNode =
 begin
   {
     state = cSTATE_INVALID;
     leftSiblings = [];
-    firstSib = (makeSiblingLink None cNULL_SVAL);
+    firstSib = (makeSiblingLink cNULL_STACK_NODE cNULL_SVAL);
     referenceCount = 0;
     determinDepth = 0;
     glr = g;
     column = 0
   }
 end
-
-let dummyNode:tStackNode = (emptyStackNode (Obj.magic []))
 
 
 let getNodeSymbol (ths: tStackNode) : tSymbolId =
@@ -258,7 +271,7 @@ end
 
 let rec deallocSemanticValues (ths: tStackNode) : unit =
 begin
-  if (isSome ths.firstSib.sib) then (
+  if (ths.firstSib.sib != cNULL_STACK_NODE) then (
     (deallocateSemanticValue (getNodeSymbol ths) ths.glr.userAct ths.firstSib.sval)
   );
 
@@ -267,7 +280,7 @@ begin
       (deallocateSemanticValue (getNodeSymbol ths) ths.glr.userAct s.sval);
 
       (* this is implicit in the C++ version, due to Owner<> *)
-      (decRefCt (getSome s.sib))
+      (decRefCt s.sib)
     ))
     ths.leftSiblings);
   ths.leftSiblings <- [];
@@ -277,7 +290,7 @@ and initStackNode (ths: tStackNode) (st: tStateId) : unit =
 begin
   ths.state <- st;
   (assert (isEmpty ths.leftSiblings));
-  (assert (isNone ths.firstSib.sib));
+  (assert (ths.firstSib.sib == cNULL_STACK_NODE));
   ths.referenceCount <- 0;
   ths.determinDepth <- 1;
 
@@ -301,11 +314,11 @@ begin
 
   (* this is implicit in the C++ implementation because firstSib.sib
    * is an RCPtr in C++ *)
-  (match ths.firstSib.sib with
-  | None -> ()
-  | Some(s) -> (decRefCt s));
+  (if (ths.firstSib.sib != cNULL_STACK_NODE) then (
+    (decRefCt ths.firstSib.sib)
+  ));
 
-  ths.firstSib.sib <- None;
+  ths.firstSib.sib <- cNULL_STACK_NODE;
 
   if (accounting) then (
     (decr numStackNodesAllocd);
@@ -340,12 +353,12 @@ end
 
 let hasZeroSiblings (ths: tStackNode) : bool =
 begin
-  (isNone ths.firstSib.sib)
+  (ths.firstSib.sib == cNULL_STACK_NODE)
 end
 
 let hasOneSibling (ths: tStackNode) : bool =
 begin
-  (isSome ths.firstSib.sib) && (isEmpty ths.leftSiblings)
+  (ths.firstSib.sib != cNULL_STACK_NODE) && (isEmpty ths.leftSiblings)
 end
 
 let hasMultipleSiblings (ths: tStackNode) : bool =
@@ -360,8 +373,8 @@ begin
 
   ths.determinDepth <- leftSib.determinDepth + 1;
 
-  (assert (isNone ths.firstSib.sib));
-  ths.firstSib.sib <- (Some leftSib);     (* update w/o refct *)
+  (assert (ths.firstSib.sib == cNULL_STACK_NODE));
+  ths.firstSib.sib <- leftSib;     (* update w/o refct *)
 
   ths.firstSib.sval <- sval;
 end
@@ -375,7 +388,7 @@ begin
   (* this was implicit in the C++ verison *)
   (incRefCt leftSib);
 
-  let link:tSiblingLink = (makeSiblingLink (Some leftSib) sval) in
+  let link:tSiblingLink = (makeSiblingLink leftSib sval) in
   ths.leftSiblings <- link :: ths.leftSiblings;
   link
 end
@@ -383,7 +396,7 @@ end
 let addSiblingLink (ths: tStackNode) (leftSib: tStackNode)
                    (sval: tSemanticValue) : tSiblingLink =
 begin
-  if (isNone ths.firstSib.sib) then (
+  if (ths.firstSib.sib == cNULL_STACK_NODE) then (
     (addFirstSiblingLink_noRefCt ths leftSib sval);
 
     (* manually inc refct *)
@@ -403,11 +416,11 @@ begin
   ths.firstSib
 end
 
-let getLinkTo (ths: tStackNode) (another: tStackNode) 
+let getLinkTo (ths: tStackNode) (another: tStackNode)
   : tSiblingLink (*not tStackNode!*) option =
 begin
   (* first? *)
-  if (someEquals ths.firstSib.sib another) then (
+  if (ths.firstSib.sib == another) then (
     (Some ths.firstSib)
   )
 
@@ -415,7 +428,7 @@ begin
     (* rest? *)
     try
       let link:tSiblingLink = (List.find
-        (fun candidate -> (someEquals candidate.sib another))
+        (fun candidate -> (candidate.sib == another))
         ths.leftSiblings) in
       (Some link)
     with Not_found ->
@@ -432,7 +445,7 @@ begin
   )
   else if (hasOneSibling ths) then (
     (* sibling's plus one *)
-    (getSome ths.firstSib.sib).determinDepth + 1
+    ths.firstSib.sib.determinDepth + 1
   )
   else (
     (assert (hasMultipleSiblings ths));
@@ -496,12 +509,13 @@ begin
    *
    * In fact, I *did* use the 'option' approach for tSiblingLink.sib,
    * and it is indeed a pain.
+   * UPDATE: Switched to using Obj.magic there too, for performance.
    *)
 
-  glr.topmostParsers <- (new tArrayStack dummyNode);
-  glr.prevTopmost <- (new tArrayStack dummyNode);
+  glr.topmostParsers <- (new tArrayStack cNULL_STACK_NODE);
+  glr.prevTopmost <- (new tArrayStack cNULL_STACK_NODE);
   glr.stackNodePool <- (new tObjectPool (fun () -> (emptyStackNode glr)));
-  glr.pathQueue <- (makeReductionPathQueue tablesIn dummyNode dummyLink);
+  glr.pathQueue <- (makeReductionPathQueue tablesIn);
                    
   if (use_mini_lr) then (
     (* check that none of the productions exceed cMAX_RHSLEN *)
@@ -679,7 +693,7 @@ begin
               (* pop 'parsr' and move to next one *)
               (stackNodePool#dealloc !parsr);
               let prev:tStackNode = !parsr in
-              parsr := (getSome sib.sib);
+              parsr := sib.sib;
 
               (assert (!parsr.referenceCount = 1));
               (assert (prev.referenceCount = 1));
@@ -687,7 +701,7 @@ begin
               (* adjust a couple things about 'prev' reflecting
                * that it has been deallocated *)
               (decr numStackNodesAllocd);
-              prev.firstSib.sib <- None;
+              prev.firstSib.sib <- cNULL_STACK_NODE;
 
               (assert (!parsr.referenceCount = 1));
             done;
@@ -918,7 +932,7 @@ begin
 
     (* prepare to run final action *)
     let arr: tSemanticValue array = (Array.make 2 cNULL_SVAL) in
-    let nextToLast: tStackNode = (getSome (getUniqueLink last).sib) in
+    let nextToLast: tStackNode = (getUniqueLink last).sib in
     arr.(0) <- (grabTopSval glr nextToLast);      (* sval we want *)
     arr.(1) <- (grabTopSval glr last);            (* EOF's sval *)
 
@@ -1023,7 +1037,7 @@ begin
     (* remember that we've now printed 'node' *)
     printed := node :: !printed;
 
-    if (isNone node.firstSib.sib) then (
+    if (node.firstSib.sib == cNULL_STACK_NODE) then (
       (* no siblings *)
       (nodeSummary node)
     )
@@ -1031,17 +1045,17 @@ begin
     else if (isEmpty node.leftSiblings) then (
       (* one sibling *)
       (nodeSummary node) ^ "-" ^ 
-      (innerStackSummary printed (getSome node.firstSib.sib))
+      (innerStackSummary printed node.firstSib.sib)
     )
 
     else (
       (* multiple siblings *)
       let tmp1:string =       (* force order of eval *)
         (nodeSummary node) ^ "-(" ^
-        (innerStackSummary printed (getSome node.firstSib.sib)) in
+        (innerStackSummary printed node.firstSib.sib) in
       tmp1 ^ (List.fold_left 
         (fun (acc:string) (link:tSiblingLink) -> (
-          acc ^ "|" ^ (innerStackSummary printed (getSome link.sib))
+          acc ^ "|" ^ (innerStackSummary printed link.sib)
         ))
         ""
         node.leftSiblings
@@ -1053,14 +1067,14 @@ end
 
 
 (* ------------------------ RWL algorithm ------------------------- *)
-and makePath (dummyNode: tStackNode) (dummyLink: tSiblingLink) : tPath =
+and makePath() : tPath =
 begin
   {
     startStateId = cSTATE_INVALID;
     prodIndex = -1;
     startColumn = -1;
-    leftEdgeNode = dummyNode;
-    sibLinks = ref (Array.make cINITIAL_RHSLEN_SIZE dummyLink);
+    leftEdgeNode = cNULL_STACK_NODE;
+    sibLinks = ref (Array.make cINITIAL_RHSLEN_SIZE cNULL_SIBLING_LINK);
     symbols = ref (Array.make cINITIAL_RHSLEN_SIZE 0);
     next = None;
   }
@@ -1078,10 +1092,9 @@ begin
 end
 
 
-and makeReductionPathQueue (tablesIn: tParseTables) (dummyNode: tStackNode) 
-                           (dummyLink: tSiblingLink) : tReductionPathQueue =
+and makeReductionPathQueue (tablesIn: tParseTables) : tReductionPathQueue =
 begin
-  let allocator() : tPath = (makePath dummyNode dummyLink) in
+  let allocator() : tPath = (makePath ()) in
   {
     top = None;
     pathPool = (new tObjectPool allocator);
@@ -1420,11 +1433,11 @@ begin
 
   if (someEquals mustUseLink linkToAdd) then (
     (* consume must-use link *)
-    (rwlRecursiveEnqueue glr proto popsRemaining (getSome linkToAdd.sib)
+    (rwlRecursiveEnqueue glr proto popsRemaining linkToAdd.sib
                          None(*mustUse*));
   )
   else (
-    (rwlRecursiveEnqueue glr proto popsRemaining (getSome linkToAdd.sib)
+    (rwlRecursiveEnqueue glr proto popsRemaining linkToAdd.sib
                          mustUseLink);
   );
 end

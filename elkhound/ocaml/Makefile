@@ -8,8 +8,8 @@ all: tobjpool main main.opt
 ELKHOUND := ..
 
 # compiler options
-#OCAMLCFLAGS := -noassert
-OCAMLCFLAGS :=
+OCAMLCFLAGS := -noassert
+#OCAMLCFLAGS :=
 
 # using dependency strategy from 
 # http://www.cs.berkeley.edu/~smcpeak/autodepend/autodepend.html
