@@ -83,15 +83,20 @@ string TreeNode::unparseString() const
 }
 
 
-string TreeNode::locString() const
+string terminalLocString(TerminalNode const *term)
 {
-  TerminalNode const *left = getLeftmostTerminalC();
-  if (left) {
-    return left->token->loc.toString();
+  if (term) {
+    return term->token->loc.toString();
   }
   else {
     return "(?loc)";
   }
+}
+
+
+string TreeNode::locString() const
+{
+  return terminalLocString(getLeftmostTerminalC());
 }
 
 
@@ -341,19 +346,7 @@ TerminalNode const *NonterminalNode::getLeftmostTerminalC() const
 {
   // all reductions (if there are more than one) will have same
   // answer for this question
-  Reduction const *red = reductions.firstC();
-  
-  // since some nonterminals derive empty, we walk the list until
-  // we find a nonempty entry
-  for (int i=0; i < red->children.count(); i++) {
-    TerminalNode const *node = red->children.nthC(i)->getLeftmostTerminalC();
-    if (node) {
-      return node;    // got it
-    }
-  }
-  
-  // all children derived empty, so 'this' derives empty
-  return NULL;
+  return reductions.firstC()->getLeftmostTerminalC();
 }
 
 
@@ -428,6 +421,28 @@ void Reduction::ambiguityReport(ostream &os) const
   SFOREACH_OBJLIST(TreeNode, children, child) {
     child.data()->ambiguityReport(os);
   }
+}
+
+
+string Reduction::locString() const
+{
+  return terminalLocString(getLeftmostTerminalC());
+}
+
+
+TerminalNode const *Reduction::getLeftmostTerminalC() const
+{
+  // since some nonterminals derive empty, we walk the list until
+  // we find a nonempty entry
+  for (int i=0; i < children.count(); i++) {
+    TerminalNode const *node = children.nthC(i)->getLeftmostTerminalC();
+    if (node) {
+      return node;    // got it
+    }
+  }
+  
+  // all children derived empty, so 'this' derives empty
+  return NULL;
 }
 
 

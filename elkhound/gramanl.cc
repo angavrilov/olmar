@@ -1643,16 +1643,6 @@ int main()
 #include "grampar.h"      // readGrammarFile
 
 
-// these are here so I don't have to link with things that
-// I consider conceptually unrelated
-#include "lexer2.h"       // Lexer2
-
-string Lexer2Token::unparseString() const
-  { xfailure("no!"); }
-string Lexer2Token::toString() const
-  { xfailure("no!"); }
-
-
 int main(int argc, char **argv)
 {
   char const *progName = argv[0];

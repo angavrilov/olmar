@@ -196,6 +196,8 @@ public:      // funcs
   TreeNode const *walkTree(TreeNode::WalkFn func, void *extra=NULL) const;
   void ambiguityReport(ostream &os) const;
 
+  string locString() const;
+  TerminalNode const *getLeftmostTerminalC() const;
   void getGroundTerms(SObjList<TerminalNode> &dest) const;
   int numGroundTerms() const;
 };

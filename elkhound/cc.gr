@@ -455,6 +455,10 @@ nonterm BinaryOperator {
 
 
 nonterm ConditionalExpression : ExprBase {
+  disamb varsDecld {
+    disambiguate(env, (DisambFn)&unamb_varsDecld);
+  }
+
   -> e:BinaryExpression {
     fun intEval = e.intEval(env);
     fun varsDecld { e.varsDecld(env); }

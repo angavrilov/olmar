@@ -95,7 +95,9 @@ public:     // funcs
 
   // if 'leftSib' is one of our siblings, return the link that
   // makes that true
-  SiblingLink *findSiblingLink(StackNode *leftSib);
+  // UPDATE: obsolete because now I allow multiple sibling links
+  // between two given stack nodes
+  //SiblingLink *findSiblingLink(StackNode *leftSib);
 
   // return the symbol represented by this stack node;  it's
   // the symbol shifted or reduced-to to get to this state
@@ -248,7 +250,7 @@ private:    // funcs
   void collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
                              StackNode *currentNode, SiblingLink *mustUseLink);
   bool glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction);
-  void mergeAlternativeParses(NonterminalNode &node, Owner<Reduction> &reduction);
+  bool mergeAlternativeParses(NonterminalNode &node, Owner<Reduction> &reduction);
   static int compareAlternatives(Reduction *left, Reduction *right);
   void glrShiftTerminals(ObjList<PendingShift> &pendingShifts);
   StackNode *findActiveParser(ItemSet const *state);

@@ -169,6 +169,7 @@ SiblingLink *StackNode::
 }
 
 
+#if 0   // obsolete
 SiblingLink *StackNode::
   findSiblingLink(StackNode *leftSib)
 {
@@ -179,6 +180,7 @@ SiblingLink *StackNode::
   }
   return NULL;
 }
+#endif // 0
 
 
 STATICDEF void StackNode::printAllocStats()
@@ -466,7 +468,7 @@ int GLR::doAllPossibleReductions(StackNode *parser,
     // terminology:
     //   - a 'reduction' is a grammar rule plus the TreeNode children
     //     that constitute the RHS
-    //	 - a 'path' is a reduction plus the parser (StackNode) that is
+    //   - a 'path' is a reduction plus the parser (StackNode) that is
     //     at the end of the sibling link path (which is essentially the
     //     parser we're left with after "popping" the reduced symbols)
 
@@ -627,51 +629,64 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling,
   StackNode *rightSibling = findActiveParser(rightSiblingState);
   if (rightSibling) {
     // does it already have a sibling link to 'leftSibling'?
-    SiblingLink *sibLink = rightSibling->findSiblingLink(leftSibling);
-    if (sibLink != NULL) {
-      // yes; don't need to add a sibling link
+    MUTATE_EACH_OBJLIST(SiblingLink, rightSibling->leftSiblings, sibIter) {
+      SiblingLink *sibLink = sibIter.data();
 
-      // +--------------------------------------------------+
-      // | it is here that we are bringing the tops of two  |
-      // | alternative parses together 	       	       	    |
-      // +--------------------------------------------------+
-      mergeAlternativeParses(sibLink->treeNode->asNonterm(), 
-                             reduction);
+      // check this link for pointing at the right place
+      if (sibLink->sib == leftSibling) {
+        // we already have a sibling link, so we don't need to add one
 
-      // and since we didn't add a link, there is no potential for new
-      // paths
+        // +--------------------------------------------------+
+        // | it is here that we are bringing the tops of two  |
+        // | alternative parses together                      |
+        // +--------------------------------------------------+
+        if (!mergeAlternativeParses(sibLink->treeNode->asNonterm(),
+                                    reduction)) {
+          // but they are not mergeable because they are too different;
+          // so we will keep looking for a suitable sibling link, and
+          // create a new one if none is found
+          trace("tree-merge") << reduction->locString() 
+            << ": no merge because of attr mismatch\n";
+        }
+        else {
+          // ok, done
+          return true;
+
+          // and since we didn't add a link, there is no potential for new
+          // paths
+        }
+      }
     }
 
-    else {
-      // no, so add the link (and keep the ptr for below)
-      sibLink =
-        rightSibling->addSiblingLink(leftSibling,
-          makeNonterminalNode(reduction.xfr()));   // TREEBUILD
+    // we get here if there is no suitable sibling link already
+    // existing; so add the link (and keep the ptr for loop below)
+    SiblingLink *sibLink =
+      rightSibling->addSiblingLink(leftSibling,
+        makeNonterminalNode(reduction.xfr()));   // TREEBUILD
 
-      // adding a new sibling link may have introduced additional
-      // opportunties to do reductions from parsers we thought
-      // we were finished with.
-      //
-      // what's more, it's not just the parser ('rightSibling') we
-      // added the link to -- if rightSibling's itemSet contains 'A ->
-      // alpha . B beta' and B ->* empty (so A's itemSet also has 'B
-      // -> .'), then we reduced it (if lookahead ok), so
-      // 'rightSibling' now has another left sibling with 'A -> alpha
-      // B . beta'.  We need to let this sibling re-try its reductions
-      // also.
-      //
-      // so, the strategy is to let all 'finished' parsers re-try
-      // reductions, and process those that actually use the just-
-      // added link
+    // adding a new sibling link may have introduced additional
+    // opportunties to do reductions from parsers we thought
+    // we were finished with.
+    //
+    // what's more, it's not just the parser ('rightSibling') we
+    // added the link to -- if rightSibling's itemSet contains 'A ->
+    // alpha . B beta' and B ->* empty (so A's itemSet also has 'B
+    // -> .'), then we reduced it (if lookahead ok), so
+    // 'rightSibling' now has another left sibling with 'A -> alpha
+    // B . beta'.  We need to let this sibling re-try its reductions
+    // also.
+    //
+    // so, the strategy is to let all 'finished' parsers re-try
+    // reductions, and process those that actually use the just-
+    // added link
 
-      // for each 'finished' parser (i.e. those not still on
-      // the worklist)
-      SMUTATE_EACH_OBJLIST(StackNode, activeParsers, parser) {
-        if (parserWorklist.contains(parser.data())) continue;
+    // for each 'finished' parser (i.e. those not still on
+    // the worklist)
+    SMUTATE_EACH_OBJLIST(StackNode, activeParsers, parser) {
+      if (parserWorklist.contains(parser.data())) continue;
 
-        // do any reduce actions that are now enabled
-        doAllPossibleReductions(parser.data(), sibLink);
-      }
+      // do any reduce actions that are now enabled
+      doAllPossibleReductions(parser.data(), sibLink);
     }
   }
 
@@ -760,13 +775,15 @@ StackNode *GLR::makeStackNode(ItemSet const *state)
 
 
 // 'node' is the existing tree node, and 'actx' has the node that we're
-// considering merging into 'node'; some disambiguation is applied here
-void GLR::mergeAlternativeParses(NonterminalNode &node, 
+// considering merging into 'node'; some disambiguation is applied here;
+// return false if we can't merge them because they're too dissimilar
+bool GLR::mergeAlternativeParses(NonterminalNode &node,
                                  Owner<Reduction> &reduction)
 {
   // we only get here if the single-tree tests have passed, but we
   // haven't applied the multi-tree comparisons; so do that now
 
+  #if 0    // doesn't work -- haven't bothered to figure out why
   // for each existing tree, compare the new one
   ObjListMutator<Reduction> mut(node.reductions);
   while (!mut.isDone()) {
@@ -790,7 +807,15 @@ void GLR::mergeAlternativeParses(NonterminalNode &node,
       mut.adv();
     }
   }
+  #endif // 0
 
+  if (node.reductions.isNotEmpty() &&
+      !node.reductions.firstC()->attrsAreEqual(*reduction)) {
+    // don't merge them because attributes are different
+    return false;
+  }
+
+  #if 0   // obsolete
   // early detection of mismatching attributes
   if (node.reductions.isNotEmpty() &&
       !node.reductions.firstC()->attrsAreEqual(*reduction)) {
@@ -805,9 +830,13 @@ void GLR::mergeAlternativeParses(NonterminalNode &node,
     xfailure(stringc << node.locString() <<
              ": parser bug: alternative parses with different attributes");
   }
+  #endif // 0
 
   // ok, add the reduction to the existing node
   node.addReduction(reduction.xfr());
+              
+  // successfully merged
+  return true;
 }
 
 
@@ -902,7 +931,7 @@ string reductionName(StackNode const *sn, int ruleNo, Reduction const *red)
 {
   return stringb(sn->stackNodeId << "/" << ruleNo << ":"
               << replace(red->production->toString(), " ", "_"));
-}							     
+}                                                            
 
 
 // this prints the graph in my java graph applet format, where

@@ -28,13 +28,13 @@ common = trace.o
 # ------ targets -------
 # reads the grammar and emits C++ code for semantic functions
 gramanl-dep = gramanl.cc ${grammar-set} ${common} ${grampar-set} \
-              ccwrite.o emitcode.o glrtree.o
+              ccwrite.o emitcode.o glrtree.o lexer2stub.o
 gramanl: ${gramanl-dep} grammar.h gramanl.h 
 	${link} -o gramanl -DGRAMANL_MAIN ${gramanl-dep} ${linkend}
 
 # GLR parser built on top of SLR(1) parser
 glr-dep = glr.cc ${grammar-set} ${common} ${grampar-set} gramanl.o \
-          glrtree.o lexer1.o lexer1yy.o lexer2.o 
+          glrtree.o lexer1.o lexer1yy.o lexer2.o parssppt.o
 glr: ${glr-dep} glr.h ${SMBASE}/libsmbase.a
 	${link} -o glr -DGLR_MAIN ${glr-dep} ${linkend}
 
@@ -67,7 +67,8 @@ grampar.tab.cc grampar.tab.h: grampar.y
 
 # grammar parser test program
 grampar: grampar.cc ${grammar-set} ${common} gramlex.yy.o grampar.tab.o \
-         gramlex.o ast.o fileloc.o gramast.o ccsstr.o
+         gramlex.o ast.o fileloc.o gramast.o ccsstr.o glrtree.o \
+         lexer2stub.o
 	${link} -o grampar -DTEST_GRAMPAR $^ ${linkend}
 
 # token list for my grammar

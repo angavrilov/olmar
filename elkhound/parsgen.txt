@@ -24,6 +24,7 @@ tracing strings:
   ast:           print AST of grammar file
   lex:           print each token of grammar file
   sem-fns:       print names of semantic functions as they're called
-
+  tree-merge:    print when we don't merge trees because of attr mismatch
+  
 
 

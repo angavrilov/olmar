@@ -8,7 +8,7 @@ int foo ( )
   return 1 + 2 * 3 ;
   
   int dest, a, b;
-  //( dest )  = ( a )  & ( b ) ;     // AMBIGUOUS
+  ( dest )  = ( a )  & ( b ) ;     // AMBIGUOUS (no longer!)
 
   enum E { a,b,c };
 }
