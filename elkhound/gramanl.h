@@ -370,9 +370,9 @@ private:    // funcs
   void leftContext(SymbolList &output, ItemSet const *state) const;
   bool rewriteAsTerminals(TerminalList &output, SymbolList const &input) const;
   bool rewriteAsTerminalsHelper(TerminalList &output, SymbolList const &input,
-				NonterminalList &reducedStack) const;
+				ProductionList &reductionStack) const;
   bool rewriteSingleNTAsTerminals(TerminalList &output, Nonterminal const *nonterminal,
-				  NonterminalList &reducedStack) const;
+				  ProductionList &reductionStack) const;
 
   // let's try this .. it needs to access 'itemSets'
   friend void ItemSet::xferSerfs(Flatten &flat, GrammarAnalysis &g);

@@ -2428,14 +2428,23 @@ void GrammarAnalysis::leftContext(SymbolList &output,
 }
 
 
-// compare two-element quantities where one dominates and the other
-// is only for tie-breaking; return true if a's quantities are fewer
-// (candidate for adding to a library somewhere)
+// compare two-element quantities where one dominates and the other is
+// only for tie-breaking; return <0/=0/>0 if a's quantities are
+// fewer/equal/grearter (this fn is a candidate for adding to a
+// library somewhere)
+int priorityCompare(int a_dominant, int b_dominant,
+                    int a_recessive, int b_recessive)
+{
+  if (a_dominant < b_dominant) return -1;
+  if (a_dominant > b_dominant) return +1;
+  return a_recessive - b_recessive;
+}
+
 int priorityFewer(int a_dominant, int b_dominant,
                   int a_recessive, int b_recessive)
 {
-  return (a_dominant < b_dominant) ||
-       	 ((a_dominant == b_dominant) && (a_recessive < b_recessive));
+  return priorityCompare(a_dominant, b_dominant,
+                         a_recessive, b_recessive) < 1;
 }
 
 
@@ -2464,22 +2473,25 @@ string GrammarAnalysis::sampleInput(ItemSet const *state) const
 // CONSTNESS: ideally, 'output' would contain const ptrs to terminals
 bool GrammarAnalysis::rewriteAsTerminals(TerminalList &output, SymbolList const &input) const
 {
-  // we detect looping by noticing if we ever reduce the same
-  // nonterminal more than once in a single vertical recursive slice
-  // (which is necessary and sufficient for looping, since we have a
-  // context-*free* grammar)
-  NonterminalList reducedStack;      // starts empty
+  // we detect looping by noticing if we ever reduce via the same
+  // production more than once in a single vertical recursive slice
+  ProductionList reductionStack;      // starts empty
 
   // start the recursive version
-  return rewriteAsTerminalsHelper(output, input, reducedStack);
+  return rewriteAsTerminalsHelper(output, input, reductionStack);
 }
 
 
-// (nonterminals and terminals) -> terminals
+// (nonterminals and terminals) -> terminals;
+// if this returns false, it's guaranteed to return with 'output'
+// unchanged from when the function was invoked
 bool GrammarAnalysis::
   rewriteAsTerminalsHelper(TerminalList &output, SymbolList const &input,
-                           NonterminalList &reducedStack) const
+                           ProductionList &reductionStack) const
 {
+  // remember the initial 'output' length so we can restore
+  int origLength = output.count();
+
   // walk down the input list, creating the output list by copying
   // terminals and reducing nonterminals
   SFOREACH_SYMBOL(input, symIter) {
@@ -2498,8 +2510,11 @@ bool GrammarAnalysis::
       // not too bad either, just reduce it, sticking the result
       // directly into our output list
       if (!rewriteSingleNTAsTerminals(output, &sym->asNonterminalC(),
-                                      reducedStack)) {
-        // oops..
+                                      reductionStack)) {
+        // oops.. restore 'output'
+        while (output.count() > origLength) {
+          output.removeAt(origLength);
+        }
         return false;
       }
     }
@@ -2510,27 +2525,23 @@ bool GrammarAnalysis::
 }
 
 
+// for rewriting into sequences of terminals, we prefer rules with
+// fewer nonterminals on the RHS, and then (to break ties) rules with
+// fewer RHS symbols altogether
+int compareProductionsForRewriting(Production const *p1, Production const *p2, void*)
+{
+  return priorityCompare(p1->numRHSNonterminals(), p2->numRHSNonterminals(),
+                         p1->rhsLength(), p2->rhsLength());
+}
+
 // nonterminal -> terminals
-// CONSTNESS: want 'reducedStack' to be list of const ptrs
+// CONSTNESS: want 'reductionStack' to be list of const ptrs
 bool GrammarAnalysis::
   rewriteSingleNTAsTerminals(TerminalList &output, Nonterminal const *nonterminal,
-                             NonterminalList &reducedStack) const
+                             ProductionList &reductionStack) const
 {
-  // have I already reduced this?
-  if (reducedStack.contains(nonterminal)) {
-    // we'd loop if we continued
-    trace("rewrite") << "aborting rewrite of " << nonterminal->name
-                     << " because of looping\n";
-    return false;
-  }
-
-  // add myself to the stack
-  reducedStack.prepend(const_cast<Nonterminal*>(nonterminal));
-
-  // look for best rule to use
-  Production const *best = NULL;
-
-  // for each rule with 'nonterminal' on LHS ...
+  // get all of 'nonterminal's productions that are not recursive
+  ProductionList candidates;
   FOREACH_PRODUCTION(productions, prodIter) {
     Production const *prod = prodIter.data();
     if (prod->left != nonterminal) continue;
@@ -2542,43 +2553,56 @@ bool GrammarAnalysis::
       continue;
     }
 
-    // no champ yet?
-    if (best == NULL) {
-      best = prod;
+    // if this production has already been used, don't use it again
+    if (reductionStack.contains(prod)) {
       continue;
     }
 
-    // compare new guy to existing champ
-    if (priorityFewer(prod->numRHSNonterminals(), best->numRHSNonterminals(),
-		      prod->rhsLength(), best->rhsLength())) {
-      // 'prod' is better
-      best = prod;
-    }
+    // it's a candidate
+    candidates.prepend(const_cast<Production*>(prod));   // constness
   }
 
-  // I don't expect this... either the NT doesn't have any rules,
-  // or all of them are recursive (which means the language doesn't
-  // have any finite sentences)
-  if (best == NULL) {
-    trace("rewrite") << "couldn't find suitable rule to reduce "
-		     << nonterminal->name << "!!\n";
+  if (candidates.isEmpty()) {
+    // I don't expect this... either the NT doesn't have any rules,
+    // or all of them are recursive (which means the language doesn't
+    // have any finite sentences)
+    trace("rewrite") << "couldn't find any unused, non-recursive rules for "
+                     << nonterminal->name << endl;
     return false;
   }
 
-  // now, the chosen rule provides a RHS, which is a sequence of
-  // terminals and nonterminals; recursively reduce that sequence
-  SymbolList bestRHS;
-  best->getRHSSymbols(bestRHS);
-  bool retval = rewriteAsTerminalsHelper(output, bestRHS, reducedStack);
+  // sort them into order of preference
+  candidates.mergeSort(compareProductionsForRewriting);
 
-  // remove myself from stack
-  Nonterminal *temp = reducedStack.removeAt(0);
-  xassert((temp == nonterminal) || !retval);
-    // make sure pushes are paired with pops properly (unless we're just
-    // bailing out of a failed attempt, in which case some things might
-    // not get popped)
+  // try each in turn until one succeeds; this effectively uses
+  // backtracking when one fails
+  bool retval;
+  SFOREACH_PRODUCTION(candidates, candIter) {
+    Production const *prod = candIter.data();
 
-  // and we succeed only if the recursive call succeeded
+    // add chosen production to the stack
+    reductionStack.prepend(const_cast<Production*>(prod));
+
+    // now, the chosen rule provides a RHS, which is a sequence of
+    // terminals and nonterminals; recursively reduce that sequence
+    SymbolList rhsSymbols;
+    prod->getRHSSymbols(rhsSymbols);
+    retval = rewriteAsTerminalsHelper(output, rhsSymbols, reductionStack);
+
+    // remove chosen production from stack
+    Production *temp = reductionStack.removeFirst();
+    xassert(temp == prod);
+
+    if (retval) {
+      // success!
+      break;
+    }
+    else {
+      // failed; try the next production
+    }
+  }
+
+  // and we succeed only if we found a valid rewriting
   return retval;
 }
 
