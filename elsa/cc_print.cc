@@ -51,11 +51,11 @@ void CodeOutputStream::finish()
   //      printf("BUFFERED NEWLINES: %d\n", buffered_newlines);
   stringBuilder s;
   for(;buffered_newlines>1;buffered_newlines--) s << "\n";
-  raw_print_and_indent(indent_message(depth,s));
+  rawPrintAndIndent(indentMessage(depth,s));
   xassert(buffered_newlines == 1 || buffered_newlines == 0);
   if (buffered_newlines) {
     buffered_newlines--;
-    raw_print_and_indent(string("\n")); // don't indent after last one
+    rawPrintAndIndent(string("\n")); // don't indent after last one
   }
 }
 
@@ -67,7 +67,7 @@ void CodeOutputStream::flush()
   if (!using_sb) out->flush();
 }
 
-void CodeOutputStream::raw_print_and_indent(string s)
+void CodeOutputStream::rawPrintAndIndent(string s)
 {
   if (using_sb) *sb << s;
   else *out << s;
@@ -94,7 +94,7 @@ CodeOutputStream & CodeOutputStream::operator << (char const *message)
   message2 << message1;
   buffered_newlines += pending_buffered_newlines;
 
-  raw_print_and_indent(indent_message(depth, message2));
+  rawPrintAndIndent(indentMessage(depth, message2));
   return *this;
 }
 
@@ -106,7 +106,7 @@ CodeOutputStream & CodeOutputStream::operator << (ostream& (*manipfunc)(ostream&
     // well-known omanips, since we certainly can't execute it...
     if (buffered_newlines) {
       *sb << "\n";
-      *sb << make_indentation(depth);
+      *sb << makeIndentation(depth);
     } else buffered_newlines++;
   }
   else {
@@ -114,7 +114,7 @@ CodeOutputStream & CodeOutputStream::operator << (ostream& (*manipfunc)(ostream&
     //        *out << manipfunc;
     if (buffered_newlines) {
       *out << endl;
-      *out << make_indentation(depth);
+      *out << makeIndentation(depth);
     } else buffered_newlines++;
     out->flush();
   }
@@ -131,6 +131,23 @@ stringBuilder const &CodeOutputStream::getString() const
 {
   xassert(using_sb);
   return *sb;
+}
+
+string CodeOutputStream::makeIndentation(int n) {
+  stringBuilder s;
+  for (int i=0; i<n; ++i) s << "  ";
+  return s;
+}
+
+string CodeOutputStream::indentMessage(int n, rostring message) {
+  stringBuilder s;
+  char const *m = message.c_str();
+  int len = strlen(m);
+  for(int i=0; i<len; ++i) {
+    s << m[i];
+    if (m[i] == '\n') s << makeIndentation(n);
+  }
+  return s;
 }
 
 // **** class PairDelim
@@ -216,24 +233,14 @@ TreeWalkDebug::~TreeWalkDebug()
   out.up();
 }
 
+// **** class PrintEnv
+
+void PrintEnv::printType(Type *type)
+{
+  out << type->toString();
+}
+
 // ****************
-
-string CodeOutputStream::make_indentation(int n) {
-  stringBuilder s;
-  for (int i=0; i<n; ++i) s << "  ";
-  return s;
-}
-
-string CodeOutputStream::indent_message(int n, rostring message) {
-  stringBuilder s;
-  char const *m = message.c_str();
-  int len = strlen(m);
-  for(int i=0; i<len; ++i) {
-    s << m[i];
-    if (m[i] == '\n') s << make_indentation(n);
-  }
-  return s;
-}
 
 // function for printing declarations (without the final semicolon);
 // handles a variety of declarations such as:

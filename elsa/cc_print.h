@@ -50,10 +50,10 @@ class CodeOutputStream {
 
   #undef MAKE_INSERTER
 
-  static string make_indentation(int n);
-  static string indent_message(int n, rostring s);
+  static string makeIndentation(int n);
+  static string indentMessage(int n, rostring s);
 
-  void raw_print_and_indent(string s);
+  void rawPrintAndIndent(string s);
 
   CodeOutputStream & operator << (char const *message);
   CodeOutputStream & operator << (ostream& (*manipfunc)(ostream& outs));
@@ -119,11 +119,9 @@ class PrintEnv {
     , loc(SL_UNKNOWN)
   {}
   virtual ~PrintEnv() {}
-};
 
-// for printing types
-//  class TypePrinter {
-//  };
+  virtual void printType(Type *);
+};
 
 #define PRINT_AST(AST)               \
   do {                               \
