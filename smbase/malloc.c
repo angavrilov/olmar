@@ -4756,7 +4756,11 @@ void mSTATs()
   {
     mstate av = get_malloc_state();
     fprintf(stderr, "total malloc calls = %u\n", av->numMallocCalls);
-    fprintf(stderr, "total free calls = %u\n", av->numFreeCalls);
+    #ifdef DEBUG_HEAP
+      fprintf(stderr, "(free is never called because of DEBUG_HEAP)\n");
+    #else
+      fprintf(stderr, "total free calls = %u\n", av->numFreeCalls);
+    #endif
   }
 
 
