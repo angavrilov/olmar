@@ -3577,6 +3577,7 @@ int fakemain(int argc, char *argv[])
     cout << "last line checked: " << lastLineChecked << endl;
     return 7;
   }
+  setHandler(SIGSEGV, SIG_DFL);
 
   // since this is outside all the scopes that create interesting
   // nodes, the stat counts should be 0
