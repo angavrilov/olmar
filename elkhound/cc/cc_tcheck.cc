@@ -1510,8 +1510,9 @@ void D_func::tcheck(Env &env, DeclaratorTcheck &dt)
                   "not a compound (e.g. \"= { ... }\") or constructor "
                   "(e.g. \"int x(3)\") initalizer");
       }
-      else {
-        p->defaultArgument = i->asIN_expr()->e;
+      else {                
+        Expression *e = i->asIN_expr()->e;
+        p->defaultArgument = new DefaultArgument(e, e->exprToString());
       }
     }
 

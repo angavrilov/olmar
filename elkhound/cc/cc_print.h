@@ -5,44 +5,63 @@
 #ifndef CC_PRINT_H
 #define CC_PRINT_H
 
-#include "cc.ast.gen.h"         // C++ AST
+#include "cc.ast.gen.h"         // C++ AST; this module
+#include "str.h"                // stringBuilder
+
+#include <iostream.h>           // ostream
 
 class code_output_stream {
-  std::ostream &out;
+  std::ostream *out;
+  stringBuilder *sb;
 
-  public:
-  code_output_stream(std::ostream &out) : out(out) {}
-  void flush() {out.flush();}
+  // true, write to 'sb'; false, write to 'out'
+  bool using_sb;
 
-  code_output_stream & operator << (const char *message) {
-    out << message;
-    out.flush();
-    return *this;
+public:
+  code_output_stream(std::ostream &out)
+    : out(&out), sb(NULL), using_sb(false) {}
+  code_output_stream(stringBuilder &sb)
+    : out(NULL), sb(&sb), using_sb(true) {}
+
+  void flush() {
+    if (!using_sb) out->flush();
   }
-  code_output_stream & operator << (bool message) {
-    out << message;
-    out.flush();
-    return *this;
-  }
-  code_output_stream & operator << (int message) {
-    out << message;
-    out.flush();
-    return *this;
-  }
-  code_output_stream & operator << (long message) {
-    out << message;
-    out.flush();
-    return *this;
-  }
-  code_output_stream & operator << (double message) {
-    out << message;
-    out.flush();
-    return *this;
-  }
+
+  #define MAKE_INSERTER(type)                          \
+    code_output_stream & operator << (type message) {  \
+      if (using_sb) *sb << message;                    \
+      else *out << message;                            \
+      flush();                                         \
+      return *this;                                    \
+    }
+
+  MAKE_INSERTER(char const*)
+  MAKE_INSERTER(bool)
+  MAKE_INSERTER(int)
+  MAKE_INSERTER(long)
+  MAKE_INSERTER(double)
+
+  #undef MAKE_INSERTER
+
   code_output_stream & operator << (ostream& (*manipfunc)(ostream& outs)) {
-    out << manipfunc;
-    out.flush();
+    if (using_sb) {
+      // sm: just assume it's "endl"; the only better thing I could
+      // imagine doing is pointer comparisons with some other
+      // well-known omanips, since we certainly can't execute it...
+      *sb << "\n";
+    }
+    else {
+      *out << manipfunc;
+      out->flush();
+    }
     return *this;
+  }
+  
+  // provide access to the built string
+  stringBuilder const &getString() const
+  {
+    xassert(using_sb);
+    return *sb;
   }
 };
 
@@ -134,6 +153,7 @@ public:
   
 public:
   PrintEnv(ostream &out) : code_output_stream(out) {}
+  PrintEnv(stringBuilder &sb) : code_output_stream(sb) {}
 };
 
 

@@ -4,7 +4,7 @@
 // included in generated header
 verbatim {
   #include "sobjlist.h"      // SObjList
-  #include "variable.h"      // Variable
+  #include "c_variable.h"    // Variable
   #include "cc_flags.h"      // CVFlags, DeclFlags, etc. (r)
   #include "c_type.h"        // Type, FunctonType, CompoundType
 

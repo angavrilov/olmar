@@ -29,6 +29,7 @@ class CVAtomicType;
 class PointerType;
 class FunctionType;
 class Parameter;
+class DefaultArgument;
 class ArrayType;
 class Type;
 class TemplateParams;
@@ -438,21 +439,39 @@ public:
   // syntactic introduction
   Variable *decl;              // (serf)
   
-  // default argument.. ouch!  I didn't want the type language to be
-  // dependent on the Expression language.. this means some care must
-  // be taken to ensure the referred-to AST subtree doesn't get
-  // deallocated before we're done using this type.  I don't add this
-  // to the constructor because I want to easily be able to grep for
-  // places where this field is being set or used, since I'm very
-  // suspicious that adding this is a mistake..
-  Expression *defaultArgument;   // (nullable serf) NULL if no default
+  // default argument.. I don't add this to the constructor because I
+  // want to easily be able to grep for places where this field is
+  // being set or used, since I'm very suspicious that adding this is
+  // a mistake..
+  DefaultArgument *defaultArgument;     // (owner)
 
 public:
   Parameter(StringRef n, Type const *t, Variable *d)
     : name(n), type(t), decl(d), defaultArgument(NULL) {}
-  ~Parameter() {}
+  ~Parameter();
 
   string toString() const;
+};
+
+
+// default argument to something
+class DefaultArgument {
+public:
+  // expression.. ouch!  I didn't want the type language to be
+  // dependent on the Expression language.. this means some care must
+  // be taken to ensure the referred-to AST subtree doesn't get
+  // deallocated before we're done using this type.
+  Expression const *expr;      // NULL if no default
+
+  // to reduce dependency on AST somewhat, I'll require that you
+  // give me a textual representation up-front, so I don't have
+  // to call Expression::exprToString later on
+  string exprText;
+
+public:
+  DefaultArgument(Expression const *e, char const *t)
+    : expr(e), exprText(t) {}
+  ~DefaultArgument();
 };
 
 

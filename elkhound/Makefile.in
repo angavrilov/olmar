@@ -170,7 +170,7 @@ c-set := \
   cc/stubs.o \
   cc/tcheck.o \
   cc/treeout.o \
-  cc/variable.o
+  cc/c_variable.o
 -include $(filter-out $(AST)/%, $(c-set:.o=.d))
 
 # files for parsing C++ code with the cc.gr or cc2.gr grammars
@@ -201,7 +201,9 @@ random-obj := \
   glrmain.o \
   cc/ccgrmain.o \
   cc/c.gr.gen.o \
-  cc/cc.gr.gen.o
+  cc/cc.gr.gen.o \
+  cc/ccparse.o \
+  cc/ccparset.o
 -include $(random-obj:.o=.d)
 
 # extra dependencies

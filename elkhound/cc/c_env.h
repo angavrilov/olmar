@@ -13,7 +13,7 @@
 #include "objstack.h"     // ObjStack
 #include "sobjstack.h"    // SObjStack
 #include "c.ast.gen.h"    // C ast components
-#include "variable.h"     // Variable (r)
+#include "c_variable.h"   // Variable (r)
 
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
