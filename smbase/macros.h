@@ -135,4 +135,11 @@ inline void pretendUsedFn(T const &) {}
   }
 
 
+// egcs has the annoying "feature" that it warns
+// about switches on enums where not all cases are
+// covered .... what is this, f-ing ML??
+#define INCL_SWITCH \
+  default: break; /*silence warning*/ 
+
+
 #endif // __MACROS_H

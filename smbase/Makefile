@@ -41,7 +41,7 @@ objlist.h: xobjlist.h
 # testing a new malloc
 # add the -DDEBUG flag to turn on additional checks
 malloc.o: malloc.c
-	gcc -c -g malloc.c
+	gcc -c -g -DDEBUG malloc.c
 
 # library itself
 library-objs = \
