@@ -1121,8 +1121,7 @@ string readFileIntoString(char const *fname)
 
 
 bool GLR::glrParseFrontEnd(Lexer2 &lexer2, SemanticValue &treeTop,
-                           char const *grammarFname, char const *inputFname, 
-                           char const *symOfInterestName)
+                           char const *grammarFname, char const *inputFname)
 {
   #if 0
     // [ASU] grammar 4.19, p.222: demonstrating LR sets-of-items construction
@@ -1198,14 +1197,6 @@ bool GLR::glrParseFrontEnd(Lexer2 &lexer2, SemanticValue &treeTop,
       //  ofstream bisonOut("bisongr.y");
       //  printAsBison(bisonOut);
       //}
-
-      // prepare for symbol of interest
-      if (symOfInterestName != NULL) {
-        symOfInterest = findSymbolC(symOfInterestName);
-        if (!symOfInterest) {
-          cout << "warning: " << symOfInterestName << " isn't in the grammar\n";
-        }
-      }
 
       if (tracingSys("grammar")) {
         printProductions(trace("grammar") << endl);

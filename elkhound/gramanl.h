@@ -43,6 +43,11 @@ private:    // data
                                  // lsb of byte 0 is index 0
   int lookaheadLen;              // # of bytes in 'lookahead'
 
+public:     // data
+  // printing customization: when non-NULL only print lookahead if
+  // it includes this token, and then *only* print this one
+  static Terminal const *lookaheadSuppressExcept;
+
 private:    // funcs
   void init(int numTerms);
   unsigned char *laGetByte(int terminalId) const;
@@ -215,7 +220,7 @@ public:     // funcs
   void getPossibleReductions(ProductionList &reductions,
                              Terminal const *lookahead,
                              bool parsing) const;
-  
+
                     
   // assuming this itemset has at least one reduction ready (an assertion
   // checks this), retrieve the first one
@@ -388,6 +393,9 @@ public:	    // funcs
   Terminal const *getTerminal(int index) const;
   Nonterminal const *getNonterminal(int index) const;
 
+  ItemSet const *getItemSet(int index) const;
+  int numItemSets() const { return nextItemSetId; }
+
   // binary read/write
   void xfer(Flatten &flat);
 
@@ -423,6 +431,10 @@ public:	    // funcs
   // ---- moved out of private ----
   void itemSetClosure(ItemSet &itemSet);
 };
+
+
+// in gramexpl.cc: interactive grammar experimentation system
+void grammarExplorer(GrammarAnalysis &g);
 
 
 #endif // __GRAMANL_H

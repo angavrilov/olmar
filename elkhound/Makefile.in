@@ -1,7 +1,7 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-temporary: check-makefiles c.ast.gen.o cc.gr.gen.o cc_type.o cc_env.o ccgr
+temporary: check-makefiles gramanl
 
 # main targets
 all: check-makefiles ccgr
@@ -116,7 +116,7 @@ random-obj := lexer2stub.o glrtree.o parsstub.o cexp2.o cexp3.gen.o \
 
 # ------ targets -------
 # reads the grammar and emits C++ code for semantic functions
-gramanl-dep := gramanl.cc $(grammar-set) $(common) $(grampar-set) \
+gramanl-dep := gramanl.cc gramexpl.o $(grammar-set) $(common) $(grampar-set) \
                lexer2stub.o $(libraries)
 gramanl: $(gramanl-dep) grammar.h gramanl.h
 	$(link) -o gramanl -DGRAMANL_MAIN $(gramanl-dep)

@@ -15,6 +15,7 @@
 #include "strutil.h"     // replace
 
 #include <fstream.h>     // ofstream
+#include <stdlib.h>      // getenv
 
 
 // for now, we'll just have these be global variables; if I later
@@ -39,6 +40,8 @@ static bool const LALR1 = true;
 
 
 // ----------------- DottedProduction ------------------
+STATICDEF Terminal const *DottedProduction::lookaheadSuppressExcept = NULL;
+
 DottedProduction::DottedProduction(DottedProduction const &obj)
 {
   init(obj.lookaheadLen * 8);    // close enough
@@ -285,6 +288,9 @@ void DottedProduction::print(ostream &os, GrammarAnalysis const &g) const
   int ct=0;
   for (int id=0; id < numTerms; id++) {
     if (!laContains(id)) continue;
+
+    if (lookaheadSuppressExcept &&                      // suppressing..
+        lookaheadSuppressExcept->termIndex != id) continue;    // and this isn't exception
 
     Terminal const *t = g.getTerminal(id);
     if (ct++ == 0) {
@@ -987,6 +993,17 @@ Nonterminal const *GrammarAnalysis::getNonterminal(int index) const
 {
   xassert((unsigned)index < (unsigned)numNonterms);
   return indexedNonterms[index];
+}
+
+ItemSet const *GrammarAnalysis::getItemSet(int index) const
+{
+  // no pretense of efficiency; this is only used interactively
+  FOREACH_OBJLIST(ItemSet, itemSets, iter) {
+    if (iter.data()->id == index) {
+      return iter.data();
+    }
+  }
+  return NULL;
 }
 
 
@@ -2934,6 +2951,17 @@ void GrammarAnalysis::exampleGrammar()
 
 void GrammarAnalysis::runAnalyses(char const *setsFname)
 {            
+  // prepare for symbol of interest
+  {
+    char const *name = getenv("SYM_OF_INTEREST");
+    if (name != NULL) {
+      symOfInterest = findSymbolC(name);
+      if (!symOfInterest) {
+        cout << "warning: " << name << " isn't in the grammar\n";
+      }
+    }
+  }
+
   // reset error count so it might be possible to reuse the object
   // for another grammar
   errors = 0;
@@ -3476,6 +3504,7 @@ int main(int argc, char **argv)
             "    closure     : details of item-set closure algorithm\n"
             "    prec        : show how prec/assoc are used to resolve conflicts\n"
             "    item-sets   : print the LR item sets after they're computed\n"
+            "    explore     : start the interactive grammar explorer at the end\n"
             ;
     return 0;
   }
@@ -3556,6 +3585,10 @@ int main(int argc, char **argv)
   else {
     // I want to know how long writing takes
     traceProgress() << "done\n";
+  }
+
+  if (tracingSys("explore")) {
+    grammarExplorer(g);
   }
 
   return 0;

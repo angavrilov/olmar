@@ -87,3 +87,4 @@ test-bad-tmp.c
 tmp.c
 *.i
 predicate.log
+cexp3.gr.gen.*

@@ -279,8 +279,7 @@ public:     // funcs
   // 'main' for testing this class; returns false on error;
   // yielded 'treeTop' is an owner (if a pointer)
   bool glrParseFrontEnd(Lexer2 &lexer2, SemanticValue &treeTop,
-                        char const *grammarFname, char const *inputFname,
-                        char const *symOfInterestName = NULL);
+                        char const *grammarFname, char const *inputFname);
                          
   // parse, using the token stream in 'lexer2', and store the final
   // semantic value in 'treeTop'
