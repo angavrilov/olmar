@@ -165,6 +165,21 @@
 //#define USE_PARSER_INDEX
 
 
+// Note on inlining generally: Inlining functions is a very important
+// way to improve performance, in inner loops.  However it's easy to
+// guess wrong about where and what to inline.  So generally I mark
+// things as inline whenver the profiler (gprof) reports:
+//   - it's showing up in gprof as a function call (i.e. not already
+//     being inlined)
+//   - the function that calls it takes significant time
+//   - the call itself takes significant time
+// All this is obvious, but is worth saying, since otherwise the
+// tendency is to inline everything, which is a mistake because it
+// makes the system as a whole slower (by wasting space in the I-cache)
+// without leaving a clear indicator of who is to blame (it's very
+// hard to profile for over-aggressive inlining).
+
+
 // the transition to array-based implementations requires I specify
 // initial sizes (they all grow as needed though)
 enum {
