@@ -60,12 +60,6 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
 {
   xassert(canAcceptNames);
 
-  // classify the variable for debugging purposes
-  char const *classification =
-    v->hasFlag(DF_TYPEDEF)? "typedef" :
-    v->type->isFunctionType()? "function" :
-                               "variable" ;
-
   // does the type contain any error-recovery types?  if so,
   // then we don't want to add the variable because we could
   // be trying to disambiguate a declarator, and this would
@@ -77,33 +71,10 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
     prefix = "[cancel/error] ";
   }
 
-  if (!curCompound) {
-    // variable outside a class
-    trace("env") << prefix << "added " << classification
-                 << " `" << v->name
-                 << "' of type `" << v->type->toString()
-                 << "' at " << toString(v->loc)
-                 << " (" << toString(v->scopeKind) << " scope)"
-                 << endl;
-  }
-  else {
-    // class member
-    v->access = curAccess;
-    trace("env") << prefix << "added " << toString(v->access)
-                 << " member " << classification
-                 << " `" << v->name
-                 << "' of type `" << v->type->toString()
-                 << "' at " << toString(v->loc)
-                 << " to " << curCompound->keywordAndName()
-                 << endl;
-  }
-
+  // dsw: NOTE: I did NOT duplicate this error recovery functionality
+  // in registerVariable()
   if (containsErrors) {
     return true;     // pretend it worked; don't further rock the boat
-  }
-
-  if (isGlobalScope()) {
-    v->setFlag(DF_GLOBAL);
   }
 
   if (insertUnique(variables, v->name, v, changeCount, forceReplace)) {
@@ -158,6 +129,43 @@ void Scope::registerVariable(Variable *v)
   if (curCompound && curCompound->name) {
     // since the scope has a name, let the variable point at it
     v->scope = this;
+  }
+
+  bool containsErrors = v->type->containsErrors();
+  char const *prefix = "";
+  if (containsErrors) {
+    prefix = "[cancel/error] ";
+  }
+
+  // classify the variable for debugging purposes
+  char const *classification =
+    v->hasFlag(DF_TYPEDEF)? "typedef" :
+    v->type->isFunctionType()? "function" :
+                               "variable" ;
+
+  if (!curCompound) {
+    // variable outside a class
+    trace("env") << prefix << "added " << classification
+                 << " `" << v->name
+                 << "' of type `" << v->type->toString()
+                 << "' at " << toString(v->loc)
+                 << " (" << toString(v->scopeKind) << " scope)"
+                 << endl;
+  }
+  else {
+    // class member
+    v->access = curAccess;
+    trace("env") << prefix << "added " << toString(v->access)
+                 << " member " << classification
+                 << " `" << v->name
+                 << "' of type `" << v->type->toString()
+                 << "' at " << toString(v->loc)
+                 << " to " << curCompound->keywordAndName()
+                 << endl;
+  }
+
+  if (isGlobalScope()) {
+    v->setFlag(DF_GLOBAL);
   }
 }
 

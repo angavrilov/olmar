@@ -407,7 +407,7 @@ OverloadableOp toOverloadableOp(EffectOp op)
   return map[op];
 }
 
-OverloadableOp toOverloadableOp(BinaryOp op, bool isAssignment=false)
+OverloadableOp toOverloadableOp(BinaryOp op, bool isAssignment)
 { 
   xassert(validCode(op));
 

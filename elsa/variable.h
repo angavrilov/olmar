@@ -118,7 +118,7 @@ public:
   string toString() const;
   
   // syntax when used in a parameter list
-  string toStringAsParameter() const;
+  string toStringAsParameter(TypeToStringFlags tsf) const;
 };
 
 inline string toString(Variable const *v) { return v->toString(); }

@@ -648,7 +648,7 @@ Variable *Env::declareFunction2arg(Type *retType, char const *funcName,
 }
 
 
-FunctionType *Env::makeDestructorFunctionType(SourceLoc loc)
+FunctionType *Env::makeCDtorFunctionType(SourceLoc loc)
 {
   FunctionType *ft = makeFunctionType(loc, getSimpleType(loc, ST_CDTOR));
   ft->doneParams();

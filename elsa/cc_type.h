@@ -98,8 +98,8 @@ public:     // funcs
   bool equals(AtomicType const *obj) const;
 
   // print in C notation
-  virtual string toCString() const = 0;
-  string toString() const { return toCString(); }
+  virtual string toCString(TypeToStringFlags tsf = TTS_NONE) const = 0;
+  string toString(TypeToStringFlags tsf = TTS_NONE) const { return toCString(tsf); }
 
   // size this type's representation occupies in memory
   virtual int reprSize() const = 0;
@@ -125,7 +125,7 @@ public:     // funcs
 
   // AtomicType interface
   virtual Tag getTag() const { return T_SIMPLE; }
-  virtual string toCString() const;
+  virtual string toCString(TypeToStringFlags tsf = TTS_NONE) const;
   virtual int reprSize() const;
 };
 
@@ -262,11 +262,11 @@ public:      // funcs
 
   // AtomicType interface
   virtual Tag getTag() const { return T_COMPOUND; }
-  virtual string toCString() const;
+  virtual string toCString(TypeToStringFlags tsf = TTS_NONE) const;
   virtual int reprSize() const;
 
-  string toStringWithFields() const;
-  string keywordAndName() const { return toCString(); }
+  string toStringWithFields(TypeToStringFlags tsf = TTS_NONE) const;
+  string keywordAndName(TypeToStringFlags tsf = TTS_NONE) const { return toCString(tsf); }
 
   int numFields() const;
 
@@ -362,7 +362,7 @@ public:     // funcs
 
   // AtomicType interface
   virtual Tag getTag() const { return T_ENUM; }
-  virtual string toCString() const;
+  virtual string toCString(TypeToStringFlags tsf = TTS_NONE) const;
   virtual int reprSize() const;
 
   Value *addValue(StringRef name, int value, /*nullable*/ Variable *d);
@@ -496,16 +496,16 @@ public:     // funcs
 
   // print the type, with an optional name like it was a declaration
   // for a variable of that type
-  string toCString() const;
-  string toCString(char const *name) const;
-  string toString() const { return toCString(); }
+  string toCString(TypeToStringFlags tsf = TTS_NONE) const;
+  string toCString(char const *name, TypeToStringFlags tsf = TTS_NONE) const;
+  string toString(TypeToStringFlags tsf = TTS_NONE) const { return toCString(tsf); }
 
   // the left/right business is to allow us to print function
   // and array types in C's syntax; if 'innerParen' is true then
   // the topmost type constructor should print the inner set of
   // paretheses
-  virtual string leftString(bool innerParen=true) const = 0;
-  virtual string rightString(bool innerParen=true) const;    // default: returns ""
+  virtual string leftString(TypeToStringFlags tsf = TTS_NONE, bool innerParen=true) const = 0;
+  virtual string rightString(TypeToStringFlags tsf = TTS_NONE, bool innerParen=true) const;    // default: returns ""
 
   // size of representation
   virtual int reprSize() const = 0;
@@ -625,7 +625,7 @@ public:
   // Type interface
   virtual Tag getTag() const { return T_ATOMIC; }
   unsigned innerHashValue() const;
-  virtual string leftString(bool innerParen=true) const;
+  virtual string leftString(TypeToStringFlags tsf = TTS_NONE, bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
   virtual CVFlags getCVFlags() const;
@@ -656,8 +656,8 @@ public:
   // Type interface
   virtual Tag getTag() const { return T_POINTER; }
   unsigned innerHashValue() const;
-  virtual string leftString(bool innerParen=true) const;
-  virtual string rightString(bool innerParen=true) const;
+  virtual string leftString(TypeToStringFlags tsf = TTS_NONE, bool innerParen=true) const;
+  virtual string rightString(TypeToStringFlags tsf = TTS_NONE, bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
   virtual CVFlags getCVFlags() const;
@@ -725,6 +725,7 @@ public:
   bool isConversionOperator() const   { return !!(flags & FF_CONVERSION); }
   bool isConstructor() const          { return !!(flags & FF_CTOR); }
   bool isDestructor() const           { return !!(flags & FF_DTOR); }
+  bool isCopyConstructorFor(CompoundType *ct) const;
 
   // this is the old name; use 'isMethod' instead (more descriptive)
   bool isMember() const               { return !!(flags & FF_METHOD); }
@@ -757,17 +758,17 @@ public:
   Variable *getThis() { return const_cast<Variable*>(getThisC()); }
 
   // more specialized printing, for Cqual++ syntax
-  virtual string rightStringUpToQualifiers(bool innerParen) const;
-  virtual string rightStringAfterQualifiers() const;
+  virtual string rightStringUpToQualifiers(TypeToStringFlags tsf /*= TTS_NONE*/, bool innerParen) const;
+  virtual string rightStringAfterQualifiers(TypeToStringFlags tsf = TTS_NONE) const;
 
   // a hook for the verifier's printer
-  virtual void extraRightmostSyntax(stringBuilder &sb) const;
+  virtual void extraRightmostSyntax(stringBuilder &sb, TypeToStringFlags tsf = TTS_NONE) const;
 
   // Type interface
   virtual Tag getTag() const { return T_FUNCTION; }
   unsigned innerHashValue() const;
-  virtual string leftString(bool innerParen=true) const;
-  virtual string rightString(bool innerParen=true) const;
+  virtual string leftString(TypeToStringFlags tsf = TTS_NONE, bool innerParen=true) const;
+  virtual string rightString(TypeToStringFlags tsf = TTS_NONE, bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
 };
@@ -798,8 +799,8 @@ public:
   // Type interface
   virtual Tag getTag() const { return T_ARRAY; }
   unsigned innerHashValue() const;
-  virtual string leftString(bool innerParen=true) const;
-  virtual string rightString(bool innerParen=true) const;
+  virtual string leftString(TypeToStringFlags tsf = TTS_NONE, bool innerParen=true) const;
+  virtual string rightString(TypeToStringFlags tsf = TTS_NONE, bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
 };
@@ -826,8 +827,8 @@ public:
   // Type interface
   virtual Tag getTag() const { return T_POINTERTOMEMBER; }
   unsigned innerHashValue() const;
-  virtual string leftString(bool innerParen=true) const;
-  virtual string rightString(bool innerParen=true) const;
+  virtual string leftString(TypeToStringFlags tsf = TTS_NONE, bool innerParen=true) const;
+  virtual string rightString(TypeToStringFlags tsf = TTS_NONE, bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
   virtual CVFlags getCVFlags() const;
@@ -843,7 +844,7 @@ public:
 
   // AtomicType interface
   virtual Tag getTag() const { return T_TYPEVAR; }
-  virtual string toCString() const;
+  virtual string toCString(TypeToStringFlags tsf = TTS_NONE) const;
   virtual int reprSize() const;
 };
 
@@ -857,7 +858,7 @@ public:
   TemplateParams(TemplateParams const &obj);
   ~TemplateParams();
 
-  string toString() const;
+  string toString(TypeToStringFlags tsf = TTS_NONE) const;
   bool equalTypes(TemplateParams const *obj) const;
   bool anyCtorSatisfies(Type::TypePred pred) const;
 };
@@ -904,10 +905,10 @@ public:
   bool equals(STemplateArgument const *obj) const;
   
   // debug print
-  string toString() const;
+  string toString(TypeToStringFlags tsf = TTS_NONE) const;
 };
 
-string sargsToString(SObjList<STemplateArgument> const &list);
+string sargsToString(SObjList<STemplateArgument> const &list, TypeToStringFlags tsf = TTS_NONE);
 inline string sargsToString(ObjList<STemplateArgument> const &list)
   { return sargsToString((SObjList<STemplateArgument> const &)list); }
 

@@ -21,6 +21,19 @@
 #include "str.h"     // string
 #include "macros.h"  // ENUM_BITWISE_OPS
 
+// dsw: not sure where to put this, since there is no true root to the
+// type heirarcy and so no natural class to make it a member of; so I
+// put it here; I know you said to not put it into cc_flags.h, but if
+// I put it into cc_type.h then variable.h doesn't know about it, and
+// I'm pretty sure you don't want to introduce such a strong
+// dependency of variable.h including cc_type.h just for this.
+
+// set of flags for influencing the behavior of toString() on types
+enum TypeToStringFlags {
+  TTS_NONE        = 0x00000000, // print the type toString normally
+  TTS_CANON       = 0x00000001, // print a canonical string for this type
+};
+
 // ----------------------- TypeIntr ----------------------
 // type introducer keyword
 // NOTE: keep consistent with CompoundType::Keyword (cc_type.h)

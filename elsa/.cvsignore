@@ -38,3 +38,5 @@ regrtest.log
 gendoc
 *.diff
 lexer.lex
+delta*
+diff

@@ -23,6 +23,11 @@
 
 #include <stdlib.h>         // strtoul, strtod
 
+// forwards in this file
+static Variable *outerResolveOverload_ctor
+  (Env &env, SourceLoc loc, Type *type, FakeList<ICExpression> *args, bool really);
+static bool reallyDoOverload(Env &env, FakeList<ICExpression> *args);
+
 // D(): debug code
 #ifdef NDEBUG
   #define D(stuff)
@@ -325,6 +330,11 @@ void Function::tcheck_memberInits(Env &env)
 
         // typecheck the arguments
         tcheckFakeExprList(iter->args, env);
+        Variable *var0 = outerResolveOverload_ctor(env, env.loc(), v->type, iter->args,
+                                                   reallyDoOverload(env, iter->args));
+        if (var0) {
+          iter->var = var0;
+        }
 
         // TODO: check that the passed arguments are consistent
         // with at least one constructor of the variable's type
@@ -404,6 +414,17 @@ void Function::tcheck_memberInits(Env &env)
 
     // typecheck the arguments
     tcheckFakeExprList(iter->args, env);
+    // dsw: I would like to pass in baseClass, but it is not a type,
+    // only a CompoundType; check that this is still a valid relation:
+    xassert(baseClass == baseVar->type->asCompoundType());
+    Variable *var0 = outerResolveOverload_ctor(env, env.loc(),
+                                               // then use it:
+                                               baseVar->type,
+                                               iter->args,
+                                               reallyDoOverload(env, iter->args));
+    if (var0) {
+      iter->var = var0;
+    }
 
     // TODO: check that the passed arguments are consistent
     // with at least one constructor in the base class
@@ -1047,15 +1068,97 @@ void TS_classSpec::tcheckIntoCompound(
     iter.data()->tcheck(env);
   }
 
-  // declare a destructor if one wasn't declared already; this allows
-  // the user to call the dtor explicitly, like "a->~A();", since
-  // I treat that like a field lookup
   StringRef stringName = name? name->getName() : NULL;
   if (stringName) {
+    // **** implicit default ctor: cppstd 12.1 para 5: "If there is no
+    // user-declared constructor for class X, a default constructor is
+    // implicitly declared."
+    if (!ct->getNamedFieldC(env.constructorSpecialName, env, LF_INNER_ONLY)) {
+      // add a no-arg ctor declaration: "Class();".  For now we just
+      // add the variable to the scope and don't construct the AST, in
+      // order to be symmetric with what is going on with the dtor
+      // below.
+      FunctionType *ft = env.makeCDtorFunctionType(loc);
+      Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_NONE);
+      env.addVariable(v);
+      // put it on the list of made-up variables since there are no
+      // (e.g.) $tainted qualifiers (since the user didn't even type
+      // the dtor's name)
+      env.madeUpVariables.push(v);
+
+//        // make a no-arg ctor; make AST as if it had been parsed; this
+//        // has been reconstructed from cc.gr
+//        char *id = stringName; // in cc.gr, a string ref of the name
+//        D_name *d0 = new D_name(loc, new PQ_name(loc, id));
+//        Function *f0 =
+//          new Function(DF_NONE,   // decl flags: explicit, virtual, or none
+//                       new TS_simple(loc, ST_CDTOR), // type specifier: ctor or dtor
+//                       new Declarator(d0, NULL), // declarator with fn name, params
+//                       FakeList<MemberInit>::emptyList(), // ctor member inits
+//                       new S_compound(loc, NULL), // function body statement
+//                       NULL       // exception handlers
+//                       );
+    }
+
+    // **** implicit copy ctor: cppstd 12.8 para 4: "If the class
+    // definition does not explicitly declare a copy constructor, one
+    // is declared implicitly."
+    Variable const *ctor0 = ct->getNamedFieldC(env.constructorSpecialName, env, LF_INNER_ONLY);
+    xassert(ctor0);             // we just added one if there wasn't one
+    // is there a copy constructor?  I'm rolling my own here.
+    bool hasCopyCtor = false;
+    // special case for if there is only one:
+    if (!ctor0->overload) {
+      if (ctor0->type->asFunctionType()->isCopyConstructorFor(ct)) {
+        hasCopyCtor = true;
+      }
+    } else {
+      // general case for more
+      SFOREACH_OBJLIST_NC(Variable, ctor0->overload->set, iter) {
+        FunctionType *iterft = iter.data()->type->asFunctionType();
+        if (iterft->isCopyConstructorFor(ct)) {
+          hasCopyCtor = true;
+          break;
+        }
+      }
+    }
+
+    // cppstd 12.8 para 5: "The implicitly-declared copy constructor
+    // for a class X will have the form X::X(const X&) if <lots of
+    // complicated conditions about the superclasses have const copy
+    // ctors, etc.> ... Otherwise, the implicitly-declared copy
+    // constructor will have the form X::X(X&).  An
+    // implicitly-declared copy constructor is an inline public member
+    // of its class."  dsw: I'm going to just always make it X::X(X&)
+    // for now.  TODO: do it right.
+    if (!hasCopyCtor) {
+      // add a copy ctor declaration: Class(&Class);
+      FunctionType *ft = env.makeFunctionType(loc, env.getSimpleType(loc, ST_CDTOR));
+      Variable *refToSelfParam =
+        env.makeVariable(loc,
+                         env.constructorSpecialName,
+                         env.makePointerType(loc, PO_REFERENCE, CV_NONE,
+                                             env.makeCVAtomicType(loc, ct, CV_NONE)),
+                         DF_NONE);
+      refToSelfParam->setFlag(DF_PARAMETER);
+      ft->addParam(refToSelfParam);
+      ft->doneParams();
+
+      Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_NONE);
+      env.addVariable(v);
+      // put it on the list of made-up variables since there are no
+      // (e.g.) $tainted qualifiers (since the user didn't even type the
+      // dtor's name)
+      env.madeUpVariables.push(v);
+    }
+
+    // **** implicit dtor: declare a destructor if one wasn't declared
+    // already; this allows the user to call the dtor explicitly, like
+    // "a->~A();", since I treat that like a field lookup
     StringRef dtorName = env.str(stringc << "~" << stringName);
     if (!ct->lookupVariable(dtorName, env, LF_INNER_ONLY)) {
       // add a dtor declaration: ~Class();
-      FunctionType *ft = env.makeDestructorFunctionType(loc);
+      FunctionType *ft = env.makeCDtorFunctionType(loc);
       Variable *v = env.makeVariable(loc, dtorName, ft, DF_NONE);
       env.addVariable(v);
 
@@ -3377,6 +3480,7 @@ static bool allNonTemplateFunctions(SObjList<Variable> &set)
   return true;
 }
 
+
 // return true iff all the args variables are non-templates; this is
 // temporary
 static bool allNonTemplates(FakeList<ICExpression> *args)
@@ -3388,6 +3492,7 @@ static bool allNonTemplates(FakeList<ICExpression> *args)
   }
   return true;
 }
+
 
 // return true iff all the variables are non-methods; this is
 // temporary, otherwise I'd make it a method on class OverloadSet
@@ -3428,8 +3533,8 @@ static bool allMethods(SObjList<Variable> &set)
 // to reflect the chosen function.  Rationale: the caller is in a
 // better position to know what things need to be rewritten, since it
 // is fully aware of the syntactic context.
-Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
-                               Type *receiverType, FakeList<ICExpression> *args)
+static Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
+                                      Type *receiverType, FakeList<ICExpression> *args)
 {
   // are we even in a situation where we can do overloading?
   if (!var->overload) return NULL;
@@ -3479,6 +3584,49 @@ Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
   bool wasAmbig;     // ignored, since error will be reported
   return resolveOverload(env, loc, &env.errors,
                          OF_NONE, var->overload->set, argInfo, wasAmbig);
+}
+
+
+static Variable *outerResolveOverload_ctor
+  (Env &env, SourceLoc loc, Type *type, FakeList<ICExpression> *args, bool really)
+{
+  Variable *ret = NULL;
+  // dsw: FIX: should I be generating error messages if I get a weird
+  // type here, or if I get a weird var below?
+  if (type->asRval()->isCompoundType()) {
+    CompoundType *ct = type->asRval()->asCompoundType();
+    Variable *ctor = const_cast<Variable*>
+      (ct->getNamedFieldC(env.constructorSpecialName, env, LF_INNER_ONLY));
+    xassert(ctor);
+    if (really) {
+      Variable *chosen = outerResolveOverload(env, loc, ctor,
+                                              NULL, // not a method call, so no 'this' object
+                                              args);
+      if (chosen) {
+        ret = chosen;
+      } else {
+        // dsw: FIX: NOTE: this case only applies when
+        // outerResolveOverload() can't deal with the complexity of the
+        // situation due to templates etc.  When we are really done,
+        // this case should go away, I think.
+        ret = ctor;
+      }
+    } else {                    // if we aren't really doing overloading
+      ret = ctor;
+    }
+    xassert(ret);               // var should never be null when we are done
+  }
+  // dsw: Note var can be NULL here for ctors for built-in types like
+  // int; see t0080.cc
+  return ret;
+}
+
+
+// dsw: this function should eventually be the constant function "true"
+static bool reallyDoOverload(Env &env, FakeList<ICExpression> *args) {
+  return env.doOverload         // user wants overloading
+    && !env.inTemplate()        // don't do any of this in a template context
+    && allNonTemplates(args);   // avoid dealing with template args
 }
 // ------------- END: outerResolveOverload ------------------
 
@@ -3644,12 +3792,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
   }
 
   // check for function calls that need overload resolution
-  if (env.doOverload &&
-      // dsw: don't do any of this in a template context
-      !env.inTemplate() &&
-      // dsw: temporarily avoid dealing with template args
-      allNonTemplates(args)) {
-      
+  if (reallyDoOverload(env, args)) {
     // simple E_funCall to a named function
     if (func->isE_variable()) {
       E_variable *evar = func->asE_variable();
@@ -3674,14 +3817,16 @@ Type *E_funCall::inner2_itcheck(Env &env)
         func->asE_fieldAcc()->field) {
       E_fieldAcc *efld = func->asE_fieldAcc();
 
-      Variable *chosen =
-        outerResolveOverload(env, efld->fieldName->loc, efld->field, 
-                             efld->obj->type, args);
-      if (chosen) {
-        // rewrite AST
-        efld->field = chosen;
-        efld->type = chosen->type;
-        t = chosen->type;
+      if (reallyDoOverload(env, args)) {
+        Variable *chosen =
+          outerResolveOverload(env, efld->fieldName->loc, efld->field, 
+                               efld->obj->type, args);
+        if (chosen) {
+          // rewrite AST
+          efld->field = chosen;
+          efld->type = chosen->type;
+          t = chosen->type;
+        }
       }
     }
   }
@@ -3825,8 +3970,16 @@ Type *E_constructor::inner2_itcheck(Env &env)
 {
   tcheckFakeExprList(args, env);
 
+  // dsw: I will assume for now that if overloading succeeds, that the
+  // checking that it implies subsumes the below concern:
   // TODO: make sure the argument types are compatible
   // with the constructor parameters
+
+  Variable *var0 = outerResolveOverload_ctor(env, env.loc(), type, args,
+                                             reallyDoOverload(env, args));
+  if (var0) {
+    var = var0;
+  }
 
   return type;
 }
@@ -3857,7 +4010,7 @@ Type *E_fieldAcc::itcheck(Env &env, Expression *&replacement)
       // will replace this, but in the case of a type which is an
       // array of objects, this will leave the E_fieldAcc's 'field'
       // member NULL ...
-      return env.makeDestructorFunctionType(SL_UNKNOWN);
+      return env.makeCDtorFunctionType(SL_UNKNOWN);
     }
 
     return env.error(rt, stringc
@@ -4178,7 +4331,8 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
       return env.getSimpleType(SL_UNKNOWN, ST_BOOL);
 
     case BIN_COMMA:
-      return env.tfac.cloneType(rhsType);
+      // dsw: I changed this to allow the following: &(3, a);
+      return env.tfac.cloneType(e2->type/*rhsType*/);
 
     case BIN_PLUS:                // +
       // dsw: deal with pointer arithmetic correctly; Note that the case
@@ -4545,6 +4699,11 @@ Type *E_new::itcheck(Env &env, Expression *&replacement)
 
   if (ctorArgs) {
     tcheckFakeExprList(ctorArgs->list, env);
+    Variable *var0 = outerResolveOverload_ctor(env, env.loc(), t, ctorArgs->list,
+                                               reallyDoOverload(env, ctorArgs->list));
+    if (var0) {
+      ctor_var = var0;
+    }
   }
 
   // TODO: check for a constructor in 't' which accepts these args
@@ -4895,27 +5054,10 @@ void IN_compound::tcheck(Env &env, Type* type)
 void IN_ctor::tcheck(Env &env, Type *type0)
 {
   tcheckFakeExprList(args, env);
-  // dsw: FIX: should I be generating error messages if I get a weird
-  // type here, or if I get a weird var below?
-  if (type0->asRval()->isCompoundType()) {
-    CompoundType *ct = type0->asRval()->asCompoundType();
-    Variable *ctor = ct->getNamedField(env.constructorSpecialName, env);
-    Variable *chosen = outerResolveOverload(env, loc, ctor,
-                                            NULL, // not a method call, so no 'this' object
-                                            args);
-    if (chosen) {
-      cfunc = chosen;
-    } else {
-      // dsw: FIX: NOTE: this case only applies when
-      // outerResolveOverload() can't deal with the complexity of the
-      // situation due to templates etc.  When we are really done,
-      // this case should go away, I think.
-      cfunc = ctor;
-    }
-    xassert(cfunc);               // cfunc should never be null when we are done
+  Variable *var0 = outerResolveOverload_ctor(env, loc, type0, args, reallyDoOverload(env, args));
+  if (var0) {
+    cfunc = var0;
   }
-  // dsw: Note var can be NULL here for ctors for built-in types like
-  // int; see t0080.cc
 }
 
 

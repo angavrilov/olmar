@@ -98,7 +98,7 @@ SimpleType SimpleType::fixed[NUM_SIMPLE_TYPES] = {
   SimpleType(ST_ANY_TYPE),
 };
 
-string SimpleType::toCString() const
+string SimpleType::toCString(TypeToStringFlags) const
 {
   return simpleTypeName(type);
 }
@@ -200,13 +200,13 @@ bool CompoundType::isTemplate() const
 }
 
 
-string CompoundType::toCString() const
+string CompoundType::toCString(TypeToStringFlags tsf) const
 {
   stringBuilder sb;
       
   bool hasParams = templateInfo && templateInfo->params.isNotEmpty();
   if (hasParams) {
-    sb << templateInfo->toString() << " ";
+    sb << templateInfo->toString(tsf) << " ";
   }
 
   if (!templateInfo || hasParams) {   
@@ -217,7 +217,9 @@ string CompoundType::toCString() const
     sb << keywordName(keyword) << " ";
   }
 
-  sb << (name? name : "/*anonymous*/");
+  if (!(tsf & TTS_CANON)) {
+    sb << (name? name : "/*anonymous*/");
+  }
 
   // template arguments are now in the name
   //if (templateInfo && templateInfo->specialArguments) {
@@ -612,9 +614,14 @@ EnumType::~EnumType()
 {}
 
 
-string EnumType::toCString() const
+string EnumType::toCString(TypeToStringFlags tsf) const
 {
-  return stringc << "enum " << (name? name : "/*anonymous*/");
+  stringBuilder sb;
+  sb << "enum ";
+  if (!(tsf & TTS_CANON)) {
+    sb << (name? name : "/*anonymous*/");
+  }
+  return sb;
 }
 
 
@@ -662,7 +669,7 @@ EnumType::Value::~Value()
 TypeVariable::~TypeVariable()
 {}
 
-string TypeVariable::toCString() const
+string TypeVariable::toCString(TypeToStringFlags tsf) const
 {
   // use the "typename" syntax instead of "class", to distinguish
   // this from an ordinary class, and because it's syntax which
@@ -673,7 +680,11 @@ string TypeVariable::toCString() const
   // circumstances.. so I'll suppress it in the general case and add
   // it explicitly when printing the few constructs that allow it
   //return stringc << "/*typename*/ " << name;
-  return string(name);
+  if (!(tsf & TTS_CANON)) {
+    return string(name);
+  } else {
+    return string("TVAR");      // dsw: my replacement for an actual name
+  }
 }
 
 int TypeVariable::reprSize() const
@@ -806,22 +817,22 @@ string cvToString(CVFlags cv)
 }
 
 
-string BaseType::toCString() const
+string BaseType::toCString(TypeToStringFlags tsf) const
 {
   if (isCVAtomicType()) {
     // special case a single atomic type, so as to avoid
     // printing an extra space
     CVAtomicType const *atomic = asCVAtomicTypeC();
     return stringc
-      << atomic->atomic->toCString()
+      << atomic->atomic->toCString(tsf)
       << cvToString(atomic->cv);
   }
   else {
-    return stringc << leftString() << rightString();
+    return stringc << leftString(tsf) << rightString(tsf);
   }
 }
 
-string BaseType::toCString(char const *name) const
+string BaseType::toCString(char const *name, TypeToStringFlags tsf) const
 {
   // print the inner parentheses if the name is omitted
   bool innerParen = (name && name[0])? false : true;
@@ -836,13 +847,15 @@ string BaseType::toCString(char const *name) const
   #endif // 0
 
   stringBuilder s;
-  s << leftString(innerParen);
-  s << (name? name : "/*anon*/");
-  s << rightString(innerParen);
+  s << leftString(tsf, innerParen);
+  if (!(tsf & TTS_CANON)) {
+    s << (name? name : "/*anon*/");
+  }
+  s << rightString(tsf, innerParen);
   return s;
 }
 
-string BaseType::rightString(bool /*innerParen*/) const
+string BaseType::rightString(TypeToStringFlags tsf, bool /*innerParen*/) const
 {
   return "";
 }
@@ -1015,10 +1028,10 @@ unsigned CVAtomicType::innerHashValue() const
 }
 
 
-string CVAtomicType::leftString(bool /*innerParen*/) const
+string CVAtomicType::leftString(TypeToStringFlags tsf, bool /*innerParen*/) const
 {
   stringBuilder s;
-  s << atomic->toCString();
+  s << atomic->toCString(tsf);
   s << cvToString(cv);
 
   // this is the only mandatory space in the entire syntax
@@ -1103,10 +1116,10 @@ unsigned PointerType::innerHashValue() const
 }
 
 
-string PointerType::leftString(bool /*innerParen*/) const
+string PointerType::leftString(TypeToStringFlags tsf, bool /*innerParen*/) const
 {
   stringBuilder s;
-  s << atType->leftString(false /*innerParen*/);
+  s << atType->leftString(tsf, false /*innerParen*/);
   if (atType->isFunctionType() ||
       atType->isArrayType()) {
     s << "(";
@@ -1119,14 +1132,14 @@ string PointerType::leftString(bool /*innerParen*/) const
   return s;
 }
 
-string PointerType::rightString(bool /*innerParen*/) const
+string PointerType::rightString(TypeToStringFlags tsf, bool /*innerParen*/) const
 {
   stringBuilder s;
   if (atType->isFunctionType() ||
       atType->isArrayType()) {
     s << ")";
   }
-  s << atType->rightString(false /*innerParen*/);
+  s << atType->rightString(tsf, false /*innerParen*/);
   return s;
 }
 
@@ -1197,6 +1210,40 @@ FunctionType::~FunctionType()
 }
 
 
+// cppstd 12.8 para 2: "A non-template constructor for a class X is a
+// _copy_ constructor if its first parameter is of type X&, const X&,
+// volatile X&, or const volatile X&, and either there are no other
+// parameters or else all other parameters have default arguments
+// (8.3.6)."
+bool FunctionType::isCopyConstructorFor(CompoundType *ct) const
+{
+  if (!(flags & FF_CTOR)) return false; // is a ctor?
+  if (isTemplate()) return false; // non-template?
+  if (params.isEmpty()) return false; // has at least one arg?
+
+  // is the first parameter a ref to the class type?
+  Type *t0 = params.firstC()->type;
+  if (!t0->isReference()) return false;
+  PointerType *pt0 = t0->asPointerType();
+  if (!pt0->atType->isCVAtomicType()) return false;
+  CVAtomicType *at0 = pt0->atType->asCVAtomicType();
+  if (at0->atomic != ct) return false; // NOTE: atomics are equal iff pointer equal
+
+  // do all the parameters past the first one have default arguments?
+  bool first_time = true;
+  SFOREACH_OBJLIST(Variable, params, paramiter) {
+    // skip the first variable
+    if (first_time) {
+      first_time = false;
+      continue;
+    }
+    if (!paramiter.data()->value) return false;
+  }
+
+  return true;                  // all test pass
+}
+
+
 // NOTE:  This function (and the parameter comparison function that
 // follows) is at the core of the overloadability analysis; it's
 // complicated.  The set of EqFlags has been carefully chosen to try
@@ -1211,6 +1258,7 @@ FunctionType::~FunctionType()
 //
 // Of course, this advice holds for almost any code, but this one is
 // sufficiently central to warrant a reminder.
+
 bool FunctionType::innerEquals(FunctionType const *obj, EqFlags flags) const
 {
   // I do not compare 'FunctionType::flags' explicitly since their
@@ -1393,13 +1441,13 @@ CVFlags FunctionType::getThisCV() const
 }
 
 
-string FunctionType::leftString(bool innerParen) const
+string FunctionType::leftString(TypeToStringFlags tsf, bool innerParen) const
 {
   stringBuilder sb;
 
   // template parameters
   if (templateParams) {
-    sb << templateParams->toString() << " ";
+    sb << templateParams->toString(tsf) << " ";
   }
 
   // return type and start of enclosing type's description
@@ -1410,32 +1458,36 @@ string FunctionType::leftString(bool innerParen) const
     // since otherwise I can't tell what it converts to!
   }
   else {
-    sb << retType->leftString();
+    sb << retType->leftString(tsf);
   }
 
   // NOTE: we do *not* propagate 'innerParen'!
-  if (innerParen) {
+  if (innerParen ||
+      (tsf & TTS_CANON)         // force innerParen for canonical type names
+      ) {
     sb << "(";
   }
 
   return sb;
 }
 
-string FunctionType::rightString(bool innerParen) const
+string FunctionType::rightString(TypeToStringFlags tsf, bool innerParen) const
 {
   // I split this into two pieces because the Cqual++ concrete
   // syntax puts $tainted into the middle of my rightString,
   // since it's following the placement of 'const' and 'volatile'
   return stringc
-    << rightStringUpToQualifiers(innerParen)
-    << rightStringAfterQualifiers();
+    << rightStringUpToQualifiers(tsf, innerParen)
+    << rightStringAfterQualifiers(tsf);
 }
 
-string FunctionType::rightStringUpToQualifiers(bool innerParen) const
+string FunctionType::rightStringUpToQualifiers(TypeToStringFlags tsf, bool innerParen) const
 {
   // finish enclosing type
   stringBuilder sb;
-  if (innerParen) {
+  if (innerParen ||
+      (tsf & TTS_CANON)         // force innerParen for canonical type names
+      ) {
     sb << ")";
   }
 
@@ -1453,7 +1505,7 @@ string FunctionType::rightStringUpToQualifiers(bool innerParen) const
     if (ct >= 3 || (!isMember() && ct>=2)) {
       sb << ", ";
     }
-    sb << iter.data()->toStringAsParameter();
+    sb << iter.data()->toStringAsParameter(tsf);
   }
 
   if (acceptsVarargs()) {
@@ -1468,7 +1520,7 @@ string FunctionType::rightStringUpToQualifiers(bool innerParen) const
   return sb;
 }
 
-string FunctionType::rightStringAfterQualifiers() const
+string FunctionType::rightStringAfterQualifiers(TypeToStringFlags tsf) const
 {
   stringBuilder sb;
 
@@ -1478,28 +1530,28 @@ string FunctionType::rightStringAfterQualifiers() const
   }
 
   // exception specs
-  if (exnSpec) {
+  if (exnSpec && !(tsf & TTS_CANON)) {
     sb << " throw(";                
     int ct=0;
     SFOREACH_OBJLIST(Type, exnSpec->types, iter) {
       if (ct++ > 0) {
         sb << ", ";
       }
-      sb << iter.data()->toString();
+      sb << iter.data()->toString(tsf);
     }
     sb << ")";
   }
 
   // hook for verifier syntax
-  extraRightmostSyntax(sb);
+  extraRightmostSyntax(sb, tsf);
 
   // finish up the return type
-  sb << retType->rightString();
+  sb << retType->rightString(tsf);
 
   return sb;
 }
 
-void FunctionType::extraRightmostSyntax(stringBuilder &) const
+void FunctionType::extraRightmostSyntax(stringBuilder &, TypeToStringFlags) const
 {}
 
 
@@ -1545,7 +1597,7 @@ TemplateParams::~TemplateParams()
 {}
 
 
-string TemplateParams::toString() const
+string TemplateParams::toString(TypeToStringFlags tsf) const
 {
   stringBuilder sb;
   sb << "template <";
@@ -1561,7 +1613,7 @@ string TemplateParams::toString() const
     }
     else {
       // non-type parameter
-      sb << p->toStringAsParameter();
+      sb << p->toStringAsParameter(tsf);
     }
   }
   sb << ">";
@@ -1615,24 +1667,35 @@ bool STemplateArgument::equals(STemplateArgument const *obj) const
 }
 
 
-string STemplateArgument::toString() const
+string STemplateArgument::toString(TypeToStringFlags tsf) const
 {
+  // dsw: TODO: I'm not sure at all that the TTS_CANON flag is being
+  // used correctly here; in what sense are these parameters part of
+  // the type (especially for the int case) ?
   switch (kind) {
     default: xfailure("bad kind");
     case STA_NONE:      return string("STA_NONE");
-    case STA_TYPE:      return value.t->toString();   // assume 'type' if no comment
-    case STA_INT:       return stringc << "/*int*/ " << value.i;
-    case STA_REFERENCE: return stringc << "/*ref*/ " << value.v->name;
-    case STA_POINTER:   return stringc << "/*ptr*/ &" << value.v->name;
-    case STA_MEMBER:    return stringc
-      << "/*member*/ &" << value.v->scope->curCompound->name 
-      << "::" << value.v->name;
+    case STA_TYPE:      return value.t->toString(tsf);   // assume 'type' if no comment
+    case STA_INT:
+      return stringc << "/*int*/ "  << ((tsf & TTS_CANON) ? "" : stringc << value.i);
+    case STA_REFERENCE:
+      return stringc << "/*ref*/ "  << ((tsf & TTS_CANON) ? "" : stringc << value.v->name);
+    case STA_POINTER:
+      return stringc << "/*ptr*/ &" << ((tsf & TTS_CANON) ? "" : stringc << value.v->name);
+    case STA_MEMBER:
+      if (tsf & TTS_CANON) {
+        return stringc << "/*member*/ &";
+      } else {
+        return stringc
+          << "/*member*/ &" << value.v->scope->curCompound->name 
+          << "::" << value.v->name;
+      }
     case STA_TEMPLATE:  return string("template (?)");
   }
 }
 
 
-string sargsToString(SObjList<STemplateArgument> const &list)
+string sargsToString(SObjList<STemplateArgument> const &list, TypeToStringFlags tsf)
 {
   stringBuilder sb;
   sb << "<";
@@ -1642,7 +1705,7 @@ string sargsToString(SObjList<STemplateArgument> const &list)
     if (ct++ > 0) {
       sb << ", ";
     }
-    sb << iter.data()->toString();
+    sb << iter.data()->toString(tsf);
   }
 
   sb << ">";
@@ -1713,13 +1776,12 @@ unsigned ArrayType::innerHashValue() const
          T_ARRAY * TAG_KICK;
 }
 
-
-string ArrayType::leftString(bool /*innerParen*/) const
+string ArrayType::leftString(TypeToStringFlags tsf, bool /*innerParen*/) const
 {
-  return eltType->leftString();
+  return eltType->leftString(tsf);
 }
 
-string ArrayType::rightString(bool /*innerParen*/) const
+string ArrayType::rightString(TypeToStringFlags tsf, bool /*innerParen*/) const
 {
   stringBuilder sb;
 
@@ -1730,7 +1792,7 @@ string ArrayType::rightString(bool /*innerParen*/) const
     sb << "[]";
   }
 
-  sb << eltType->rightString();
+  sb << eltType->rightString(tsf);
 
   return sb;
 }
@@ -1785,10 +1847,10 @@ unsigned PointerToMemberType::innerHashValue() const
 }
 
 
-string PointerToMemberType::leftString(bool /*innerParen*/) const
+string PointerToMemberType::leftString(TypeToStringFlags tsf, bool /*innerParen*/) const
 {
   stringBuilder s;
-  s << atType->leftString(false /*innerParen*/);
+  s << atType->leftString(tsf, false /*innerParen*/);
   s << " ";
   if (atType->isFunctionType() ||
       atType->isArrayType()) {
@@ -1799,14 +1861,14 @@ string PointerToMemberType::leftString(bool /*innerParen*/) const
   return s;
 }
 
-string PointerToMemberType::rightString(bool /*innerParen*/) const
+string PointerToMemberType::rightString(TypeToStringFlags tsf, bool /*innerParen*/) const
 {
   stringBuilder s;
   if (atType->isFunctionType() ||
       atType->isArrayType()) {
     s << ")";
   }
-  s << atType->rightString(false /*innerParen*/);
+  s << atType->rightString(tsf, false /*innerParen*/);
   return s;
 }
 
