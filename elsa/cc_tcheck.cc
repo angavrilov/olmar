@@ -174,7 +174,7 @@ void TF_namespaceDefn::tcheck(Env &env)
 
     // recovery: pretend it didn't have a name
     existing = NULL;
-    name = NULL;
+    name = NULL;                // dsw: this causes problems when you add it to the scope
   }
     
   Scope *s;
@@ -182,7 +182,9 @@ void TF_namespaceDefn::tcheck(Env &env)
     // extend existing scope
     s = existing->scope;
   }
-  else {
+  // dsw: I predicated this on name so that you don't try to add a
+  // variable with a NULL name to the namespace
+  else if (name) {
     // make an entry in the surrounding scope to refer to the new namespace
     Variable *v = env.makeVariable(loc, name, NULL /*type*/, DF_NAMESPACE);
     env.addVariable(v);
