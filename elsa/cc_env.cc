@@ -457,20 +457,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // args as a placeholder for it sometimes.
     var__builtin_constant_p = declareSpecialFunction("__builtin_constant_p");
 
-    // dsw: g++ seems to define a variable __null that my guess is a
-    // void* to 0.
-    if (lang.isCplusplus) {
-      // void *__null = 0;
-      Variable *null0 = 
-        makeVariable(SL_INIT, str("__null"),
-                     t_voidptr, DF_BUILTIN | DF_GLOBAL);
-      E_intLit *intLit0 = new E_intLit(str("0"));
-      intLit0->i = 0;
-      intLit0->type = getSimpleType(HERE, ST_INT);
-      null0->value = intLit0;
-      addVariable(null0);
-    }
-
     // typedef void *__builtin_va_list;
     addVariable(makeVariable(SL_INIT, str("__builtin_va_list"),
                              t_voidptr, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL));

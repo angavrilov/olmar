@@ -14,6 +14,16 @@
 "__builtin_expect"     return tok(TOK___BUILTIN_EXPECT);
 "__builtin_va_arg"     return tok(TOK___BUILTIN_VA_ARG);
 
+"__null" {
+  // gcc only recognizes __null as 0 in C++ mode, but I prefer the
+  // simplicity of always doing it; This is Scott's inlined and
+  // modified Lexer::svalTok()
+  checkForNonsep(TOK_INT_LITERAL);
+  updLoc();
+  sval = (SemanticValue)addString("0", 1);
+  return TOK_INT_LITERAL;
+}
+
   /* behavior of these depends on CCLang settings */
 "__FUNCTION__"|"__PRETTY_FUNCTION__" {
   if (lang.gccFuncBehavior == CCLang::GFB_string) {
