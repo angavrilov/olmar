@@ -32,6 +32,19 @@ void *VoidList::nth(int which) const
 }
 
 
+// get the index of an item's first occurrance
+int VoidList::indexOf(void *item) const
+{			  
+  int index = 0;
+  for (VoidNode *p = top; p != NULL; p = p->next, index++) {
+    if (p->data == item) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+
 // return false if list fails integrity check
 bool VoidList::invariant() const
 {
@@ -470,13 +483,18 @@ void entry()
              list.nth(0) == a &&
              list.nth(1) == b &&
              list.nth(2) == d &&
-             list.invariant()     );
+             list.indexOf(a) == 0 &&
+             list.indexOf(b) == 1 &&
+             list.indexOf(c) == -1 &&
+             list.indexOf(d) == 2 &&
+             list.invariant()
+           );
   }
 
   // this hits most of the remaining code
   // (a decent code coverage tool for C++ would be nice!)
   testSorting();
-  
+
   printf("voidlist ok\n");
 }
 

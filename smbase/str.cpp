@@ -72,6 +72,12 @@ int string::compareTo(string const &src) const
   return strcmp(s, src.s);
 }
 
+int string::compareTo(char const *src) const
+{
+  xassert(s && src);
+  return strcmp(s, src);
+}
+
 
 string string::operator&(string const &tail) const
 {

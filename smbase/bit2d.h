@@ -36,6 +36,7 @@ public:
   void setto(point const &p, int val);
   void toggle(point const &p);
 
+  // set the bit, but return what it was previously
   int testAndSet(point const &p);
 
   // set everything

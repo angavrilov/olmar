@@ -57,9 +57,11 @@ public:
 
   // comparison; same semantics as strcmp
   int compareTo(string const &src) const;
+  int compareTo(char const *src) const;
 
-  #define MAKEOP(op) \
-  bool operator op (string const &src) const { return compareTo(src) op 0; }
+  #define MAKEOP(op)							       	\
+    bool operator op (string const &src) const { return compareTo(src) op 0; }	\
+    bool operator op (const char *src) const { return compareTo(src) op 0; }
   MAKEOP(==)  MAKEOP(!=)
   MAKEOP(>=)  MAKEOP(>)
   MAKEOP(<=)  MAKEOP(<)

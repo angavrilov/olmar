@@ -44,8 +44,12 @@ public:
 
   // selectors
   int count() const;                 // # of items in list
-  void *nth(int which) const;        // get particular item, 0 is first (item must exist)
   bool isEmpty() const               { return top == NULL; }
+
+  void *nth(int which) const;        // get particular item, 0 is first (item must exist)
+  int indexOf(void *item) const;     // returns index of *first* occurrance, or -1 if not present
+  bool contains(void *item) const    // true if the item appears in the list
+    { return indexOf(item) >= 0; }
 
   // insertion
   void prepend(void *newitem);       // insert at front

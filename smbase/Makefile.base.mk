@@ -3,14 +3,14 @@
 #   provides a basic set of definitions
 # a Makefile that includes this one should specify,
 # *before* including this one:
-#   - a default target, since I define a target here intended 
+#   - a default target, since I define a target here intended
 #     to catch undefined PLATFORM
 #   - libraries: any needed libraries
 #   - includes: any needed includes
 #   - ccflags: any other needed flags
 
 # pull in platform-specifics
-PLAT = ../plat
+PLAT = /home/scott/wrk/lib/plat
 include ${PLAT}/Makefile.${PLATFORM}
 
 # catch undefined PLATFORM (this appears to fail on older 'make'.. try gmake)
