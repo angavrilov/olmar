@@ -1,3 +1,5 @@
+// error: there is no type called `Iter'
+
 template<class C> struct A {
   typedef A<C> Iter;
 };
