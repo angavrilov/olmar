@@ -237,26 +237,27 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "__PRETTY_FUNCTION__"  return tok(TOK___PRETTY_FUNCTION__);
 "__typeof__"           return tok(TOK___TYPEOF__);
 
-"thmprv_assert"        return tok(TOK_THMPRV_ASSERT);
-"thmprv_assume"        return tok(TOK_THMPRV_ASSUME);
-"thmprv_invariant"     return tok(TOK_THMPRV_INVARIANT);
-"==>"                  return tok(TOK_IMPLIES);
-"thmprv_pre"           return tok(TOK_THMPRV_PRE);
-"thmprv_post"          return tok(TOK_THMPRV_POST);
-"thmprv_let"           return tok(TOK_THMPRV_LET);
-"thmprv_attr"          return tok(TOK_THMPRV_ATTR);
-"thmprv_forall"        return tok(TOK_THMPRV_FORALL);
-"thmprv_exists"        return tok(TOK_THMPRV_EXISTS);
-"thmprv_pure_assert"   return tok(TOK_THMPRV_PURE_ASSERT);
-"thmprv_bind"          return tok(TOK_THMPRV_BIND);
-"thmprv_decl"          return tok(TOK_THMPRV_DECL);
-"thmprv_predicate"     return tok(TOK_THMPRV_PREDICATE);
+  /* TODO: delete me */
+  /*  "thmprv_assert"        return tok(TOK_THMPRV_ASSERT); */
+  /*  "thmprv_assume"        return tok(TOK_THMPRV_ASSUME); */
+  /*  "thmprv_invariant"     return tok(TOK_THMPRV_INVARIANT); */
+  /*  "==>"                  return tok(TOK_IMPLIES); */
+  /*  "thmprv_pre"           return tok(TOK_THMPRV_PRE); */
+  /*  "thmprv_post"          return tok(TOK_THMPRV_POST); */
+  /*  "thmprv_let"           return tok(TOK_THMPRV_LET); */
+  /*  "thmprv_attr"          return tok(TOK_THMPRV_ATTR); */
+  /*  "thmprv_forall"        return tok(TOK_THMPRV_FORALL); */
+  /*  "thmprv_exists"        return tok(TOK_THMPRV_EXISTS); */
+  /*  "thmprv_pure_assert"   return tok(TOK_THMPRV_PURE_ASSERT); */
+  /*  "thmprv_bind"          return tok(TOK_THMPRV_BIND); */
+  /*  "thmprv_decl"          return tok(TOK_THMPRV_DECL); */
+  /*  "thmprv_predicate"     return tok(TOK_THMPRV_PREDICATE); */
 
   /* this rule is to avoid backing up in the lexer 
    * when there are two dots but not three */
 ".." {
   yyless(1);     /* put back all but 1; this is inexpensive */
-  return tok(TOK_ELLIPSIS);
+  return tok(TOK_DOT);
 }
 
   /* identifier: e.g. foo */

@@ -1,6 +1,6 @@
 // cc_tokens.tok  -*- c++ -*-
 // this is the master description of the token classes; from
-// this several other files are generator, and extensions can
+// this several other files are generated, and extensions can
 // add new tokens by appending to this file
 
 // flags:
@@ -159,20 +159,20 @@ TOK_OWNER,               "owner_ptr_qualifier",       :    n
 TOK_PREFER_REDUCE,       "<prefer reduce>",           :
 TOK_PREFER_SHIFT,        "<prefer shift>",            :
 
-// theorem prover extensions
-// TODO: move this into an extension
-TOK_THMPRV_ASSERT,       "thmprv_assert",             :    n
-TOK_THMPRV_ASSUME,       "thmprv_assume",             :    n
-TOK_THMPRV_INVARIANT,    "thmprv_invariant",          :    n
-TOK_IMPLIES,             "==>",                       :
-TOK_THMPRV_PRE,          "thmprv_pre",                :    n
-TOK_THMPRV_POST,         "thmprv_post",               :    n
-TOK_THMPRV_LET,          "thmprv_let",                :    n
-TOK_THMPRV_ATTR,         "thmprv_attr",               :    n
-TOK_THMPRV_FORALL,       "thmprv_forall",             :    n
-TOK_THMPRV_EXISTS,       "thmprv_exists",             :    n
-TOK_THMPRV_PURE_ASSERT,  "thmprv_pure_assert",        :    n
-TOK_THMPRV_BIND,         "thmprv_bind",               :    n
-TOK_THMPRV_DECL,         "thmprv_decl",               :    n
-TOK_THMPRV_PREDICATE,    "thmprv_predicate",          :    n
+//  // theorem prover extensions
+//  // TODO: move this into an extension
+//  TOK_THMPRV_ASSERT,       "thmprv_assert",             :    n
+//  TOK_THMPRV_ASSUME,       "thmprv_assume",             :    n
+//  TOK_THMPRV_INVARIANT,    "thmprv_invariant",          :    n
+//  TOK_IMPLIES,             "==>",                       :
+//  TOK_THMPRV_PRE,          "thmprv_pre",                :    n
+//  TOK_THMPRV_POST,         "thmprv_post",               :    n
+//  TOK_THMPRV_LET,          "thmprv_let",                :    n
+//  TOK_THMPRV_ATTR,         "thmprv_attr",               :    n
+//  TOK_THMPRV_FORALL,       "thmprv_forall",             :    n
+//  TOK_THMPRV_EXISTS,       "thmprv_exists",             :    n
+//  TOK_THMPRV_PURE_ASSERT,  "thmprv_pure_assert",        :    n
+//  TOK_THMPRV_BIND,         "thmprv_bind",               :    n
+//  TOK_THMPRV_DECL,         "thmprv_decl",               :    n
+//  TOK_THMPRV_PREDICATE,    "thmprv_predicate",          :    n
 

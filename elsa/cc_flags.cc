@@ -228,6 +228,11 @@ bool isRelational(BinaryOp op)
   return BIN_EQUAL <= op && op <= BIN_GREATEREQ;
 }
 
+bool isInequality(BinaryOp op)
+{
+  return BIN_LESS <= op && op <= BIN_GREATEREQ;
+}
+
 
 // ------------------- AccessKeyword -------------------
 char const * const accessKeywordNames[NUM_ACCESS_KEYWORDS] = {
