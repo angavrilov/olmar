@@ -224,7 +224,7 @@ void HashTableIter::moveToSth()
 }
 
 
-void *HashTableIter::data()
+void *HashTableIter::data() const
 {
   xassert(!isDone());
   return table.hashTable[index];

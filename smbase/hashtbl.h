@@ -127,7 +127,7 @@ public:       // funcs
 
   bool isDone() const { return index == -1; }
   void adv();
-  void *data();          // returns a value stored in the table
+  void *data() const;          // returns a value stored in the table
 };
 
 
