@@ -4030,6 +4030,24 @@ SavedScopePair::~SavedScopePair()
 }
 
 
+// ------------------- DefaultArgumentChecker -----------------
+bool DefaultArgumentChecker::visitIDeclarator(IDeclarator *obj)
+{
+  // I do this from D_func to be sure I am only getting Declarators
+  // that represent parameters, as opposed to random other uses
+  // of Declarators.
+  if (obj->isD_func()) {
+    FAKELIST_FOREACH(ASTTypeId, obj->asD_func()->params, iter) {
+      if (iter->decl->init) {
+        iter->decl->tcheck_init(env);
+      }
+    }
+  }
+
+  return true;    // traverse into children
+}
+
+
 // -------- diagnostics --------
 Type *Env::errorType()
 {

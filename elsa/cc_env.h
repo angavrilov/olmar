@@ -976,6 +976,18 @@ public:
 };
 
 
+// check default arguments during pass 2
+class DefaultArgumentChecker : public ASTVisitor {
+public:
+  Env &env;
+
+public:
+  DefaultArgumentChecker(Env &e) : env(e) {}
+
+  virtual bool visitIDeclarator(IDeclarator *obj);
+};
+
+
 // FIX: move this somewhere else
 bool isCopyConstructor(Variable const *funcVar, CompoundType *ct);
 bool isCopyAssignOp(Variable const *funcVar, CompoundType *ct);
