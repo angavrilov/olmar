@@ -1888,6 +1888,8 @@ int Env::countInitializers(SourceLoc loc, Type *type, IN_compound const *cpd)
 void Env::addedNewVariable(Scope *, Variable *)
 {}
 
+
+// ------------------------ elaboration -------------------------
 PQ_name *Env::makeTempName()
 {
   // FIX: this name is a string, not a StringRef, because it has not
@@ -1903,5 +1905,329 @@ char const *Env::makeE_newVarName()
   char const *name0 = strdup(stringc << e_newNamePrefix << e_newSerialNumber++);
   return name0;
 }
+
+
+// see comments for the SK_FUNCTION case, below
+PQName *Env::make_PQ_fullyQualifiedName(CompoundType *ct, PQName *name0)
+{
+  xassert(ct->curCompound);
+  xassert(ct->typedefVar);
+
+  {
+    StringRef typedefVarName = ct->typedefVar->name;
+//      cout
+//        << "curCompound->name '" << curCompound->name
+//        << "' typedefVar->name '" << typedefVar->name << "'"
+//        << "' typedefVarName '" << typedefVarName << "'"
+//        << endl;
+
+    // construct the list of template arguments; we must rebuild them
+    // instead of using templateInfo->argumentSyntax directly, because the
+    // TS_names that are used in the latter might not be in scope here
+    FakeList<TemplateArgument> *targs = FakeList<TemplateArgument>::emptyList();
+    if (ct->templateInfo) {
+      FAKELIST_FOREACH_NC(TemplateArgument, ct->templateInfo->argumentSyntax, iter) {
+        ASTSWITCH(TemplateArgument, iter) {
+          ASTCASE(TA_type, t) {
+            // pull out the Type, then build a new ASTTypeId for it
+            targs = targs->prepend(new TA_type(buildASTTypeId(t->type->getType())));
+          }
+          ASTNEXT(TA_nontype, n) {
+            // just use it directly.. someone could be evil and include
+            // sizeof(TS_name(...)) in here to fool us, but oh well
+            targs = targs->prepend(n);
+          }
+          ASTENDCASED
+        }
+      }
+
+      // built them in reverse order for O(1) insertion, now fix that
+      targs->reverse();
+    }
+
+    // now build a PQName
+    if (name0) {
+      // cons a qualifier on to the front
+      name0 = new PQ_qualifier(loc(), typedefVarName, targs, name0);
+    } 
+    else {
+      // dsw: dang it Scott, why the templatization asymmetry between
+      // PQ_name/template on one hand and PQ_qualifier on the other?
+      //
+      // sm: to save space in the common PQ_name case
+      if (targs) {
+        name0 = new PQ_template(loc(), typedefVarName, targs);
+      }
+      else {
+        name0 = new PQ_name(loc(), typedefVarName);
+      }
+    }
+  }
+
+  if (ct->parentScope) {
+    xassert(ct->parentScope->curCompound);
+    return make_PQ_fullyQualifiedName(ct->parentScope->curCompound, name0);
+  } 
+  else {
+    xassert(ct->scopeKind == SK_CLASS);
+    switch(ct->typedefVar->scopeKind) {
+      default:
+      case SK_UNKNOWN:
+        xfailure("shouldn't get here: top scope kind is SK_UNKNOWN");
+        break;
+
+      case SK_TEMPLATE:
+        xfailure("unimplemented: don't handle template scopes yet");
+        break;
+
+      case SK_PARAMETER:
+        // FIX: Is it possible to declare a type in a parameter?
+        // sm: Yes, but it's always a mistake to do so.
+        xfailure("shouldn't be getting a parameter scope here");
+        break;
+
+      case SK_GLOBAL:
+        return new PQ_qualifier(loc(), NULL /*qualifier*/,
+                                FakeList<TemplateArgument>::emptyList(),
+                                name0);
+        break;
+
+      case SK_CLASS:
+        // FIX: is that right?
+        // sm: At least if every class has a name, then whenever scopeKind
+        // is SK_CLASS, parentScope will be non-NULL, so this isn't possible.
+        // But for an anonymous class it's conceivable...
+        xfailure("I don't think this is possible.");
+        break;
+
+      case SK_FUNCTION:
+        // sm: This case reveals a subtle, misleading aspect to the
+        // behavior of this function.  A local name cannot be "fully
+        // qualified", since its scope is anonymous.  What this
+        // function *really* does is "make me a name that will
+        // typecheck to this compound type I give you, in this
+        // environment".  Sometimes that entails qualifying it (to
+        // avoid colliding with an inner name), but not always.  In my
+        // opinion the name should be changed (and perhaps its
+        // overzealous qualification behavior reduced) to reflect this
+        // intent.
+        return name0;
+        break;
+    }
+  }
+}
+
+
+PQName *Env::make_PQ_fullyQualifiedDtorName(CompoundType *ct)
+{
+  return make_PQ_fullyQualifiedName(ct,
+    new PQ_name(loc(), str(stringc << "~" << ct->name)));
+}
+
+
+ASTTypeId *Env::buildASTTypeId(Type *type)
+{
+  // kick off the recursive decomposition
+  IDeclarator *surrounding = new D_name(loc(), NULL /*name*/);
+  return inner_buildASTTypeId(type, surrounding);
+}
+
+
+// 'surrounding' is the syntax that denotes the type constructors already
+// stripped off of 'type' since the outer call to 'buildASTTypeId'.  The
+// manipulations here are a little strange because we're turning the
+// Type world inside-out to get the TypeSpecifier/Declarator syntax.
+//
+// Here's an example scenario:
+//
+//         ASTTypeId         <---- this is what we're ultimately trying to make
+//          /      \                                                         .
+//         /     D_pointer         <-- return value for this invocation
+//        /        /   \                                                     .
+//       /        /  D_pointer     <-- current value of 'surrounding'
+//      |        /     /   \                                                 .
+//  TS_simple   /     |   D_name   <-- first value of 'surrounding'
+//     |       |      |     |
+//    int      *      *   (null)
+//     .       .      .
+//     .       .      .
+//     .       .    PointerType    <-- original argument to buildASTTypeId
+//     .       .     /
+//     .     PointerType           <-- current 'type'
+//     .      /
+//    CVAtomic                     <-- type->asPointerType()->atType
+//      |
+//    Simple(int)
+//
+// The dotted lines show the correspondence between structures in the
+// Type world and those in the TypeSpecifier/Declarator world.  The
+// pictured scenario is midway through the recursive decomposition of
+// 'int**'.
+//
+ASTTypeId *Env::inner_buildASTTypeId(Type *type, IDeclarator *surrounding)
+{
+  // The strategy here is to use typedefs when we can, and build
+  // declarators when we have to.  Consider:
+  //
+  //   // from t0027.cc
+  //   { typedef int* x; }     // 'int*' has a defunct typedef
+  //   Foo<int*> f;            // cannot typedef 'x'!  must use 'int*'
+  //
+  // but
+  //
+  //   // related to t0156.cc
+  //   template <class T>
+  //   class A {
+  //     T t;                  // must use typedef 'T'!  'C' isn't visible
+  //   };
+  //   void foo() {
+  //     class C {};           // local class; cannot name directly
+  //     A<C*> a;              // template argument not a simple TS_name
+  //   }
+  //
+  // So:
+  //   - for simple types, we use TS_simple
+  //   - for compound types, typedefs are only option
+  //   - for constructed types, try the typedefs, then resort to D_pointer, etc.
+
+  // first part tries to build a type specifier
+  TypeSpecifier *spec = NULL;
+
+  if (type->isCVAtomicType()) {        // expected common case
+    CVAtomicType *at = type->asCVAtomicType();
+
+    if (at->isSimpleType()) {
+      // easy case
+      spec = new TS_simple(loc(), at->atomic->asSimpleType()->type);
+    }
+    else {
+      // typedef is only option, since we can't sit down and spell
+      // out the definition again
+      spec = buildTypedefSpecifier(type);
+      if (!spec) {
+        xfailure(stringc << locStr()
+          << ": failed to find a usable typedef alias for `"
+          << type->toString() << "'");
+      }
+    }
+  }
+  else {
+    // try the typedef option, but it's not necessarily a problem if
+    // we don't find one now
+    spec = buildTypedefSpecifier(type);
+  }
+
+  // did the above efforts find a spec we can use?
+  if (spec) {
+    return new ASTTypeId(
+      spec,
+      new Declarator(surrounding, NULL /*init*/)
+    );
+  }
+
+  // we must deconstruct the type and build a declarator that will
+  // denote it; somewhere down here we've got to find a name that has
+  // meaning in this scope, or else reach a simple type
+  switch (type->getTag()) {
+    default: xfailure("bag tag");
+
+    case Type::T_POINTER: {
+      PointerType *pt = type->asPointerType();
+      return inner_buildASTTypeId(pt->atType,
+        new D_pointer(loc(), pt->op==PO_POINTER, pt->cv, surrounding));
+    }
+
+    case Type::T_FUNCTION: {
+      FunctionType *ft = type->asFunctionType();
+
+      // I don't think you can use a member function in any of the
+      // contexts that provoke type syntax synthesis
+      xassert(!ft->isMethod());
+
+      // parameter list (isn't this fun?)
+      FakeList<ASTTypeId> *paramSyntax = FakeList<ASTTypeId>::emptyList();
+      SFOREACH_OBJLIST_NC(Variable, ft->params, iter) {
+        paramSyntax = paramSyntax->prepend(buildASTTypeId(iter.data()->type));
+      }
+      paramSyntax->reverse();    // pray at altar of O(n)
+
+      if (ft->exnSpec) {
+        // straightforward to implement, but I'm lazy right now
+        xfailure("unimplemented: synthesized type name with an exception spec");
+      }
+
+      return inner_buildASTTypeId(ft->retType,
+        new D_func(loc(), surrounding, paramSyntax, CV_NONE, NULL /*exnSpec*/));
+    }
+
+    case Type::T_ARRAY: {
+      ArrayType *at = type->asArrayType();
+      return inner_buildASTTypeId(at->eltType,
+        new D_array(loc(), surrounding,
+          at->hasSize()? buildIntegerLiteralFE(at->size) : NULL));
+    }
+
+    case Type::T_POINTERTOMEMBER: {
+      PointerToMemberType *ptm = type->asPointerToMemberType();
+      return inner_buildASTTypeId(ptm->atType,
+        new D_ptrToMember(loc(), make_PQ_fullyQualifiedName(ptm->inClass),
+                          ptm->cv, surrounding));
+    }
+  }
+}
+
+
+TS_name *Env::buildTypedefSpecifier(Type *type)
+{
+  if (type->typedefAliases.isEmpty()) {
+    return NULL;    // no aliases to try
+  }
+
+  // since I'm going to be doing speculative lookups that shouldn't
+  // become user-visible error messages, arrange to throw away any
+  // that get generated
+  SuppressErrors suppress(*this);
+
+  // to make this work in some pathological cases (d0026.cc,
+  // t0156.cc), we need to iterate over the list of typedef aliases
+  // until we find the one that will tcheck to 'type'
+  SFOREACH_OBJLIST_NC(Variable, type->typedefAliases, iter) {
+    Variable *alias = iter.data();
+
+    TRACE("buildTypedefSpecifier",
+      "`" << type->toString() << "': trying " << alias->name);
+
+    // first, the final component of the name
+    PQName *name = new PQ_name(loc(), alias->name);
+
+    // then the qualifier prefix, if any
+    if (alias->scope) {
+      name = make_PQ_fullyQualifiedName(alias->scope->curCompound, name);
+    }
+
+    // did that work?
+    Variable *found = lookupPQVariable(name);
+    if (found && found->type == type) {
+      // good to go; wrap it in a type specifier
+      return new TS_name(loc(), name, false /*typenameUsed*/);
+    }
+
+    // didn't work, try the next alias
+
+    // it's tempting to deallocate 'name', but since
+    // make_PQ_fullyQualifiedName might return something that shares
+    // subtrees with the original AST, we can't
+  }
+
+  return NULL;      // none of the aliases work
+}
+
+
+FullExpression *Env::buildIntegerLiteralFE(int i)
+{
+  StringRef text = str(stringc << i);
+  return new FullExpression(new E_intLit(text));
+}
+
 
 // EOF

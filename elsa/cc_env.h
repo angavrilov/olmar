@@ -397,10 +397,33 @@ public:      // funcs
   // less context is necessary
   virtual void addedNewVariable(Scope *s, Variable *v);
 
+  // -------------- stuff for elaboration support ---------------
   // make a unique name for a new temporary
   virtual PQ_name *makeTempName();
   // make a unique name for a new E_new variable
   virtual char const *makeE_newVarName();
+
+  // return a PQName that will typecheck in the current environment to
+  // find (the typedef for) the 'ct' type; it's also maximally
+  // qualified
+  PQName *make_PQ_fullyQualifiedName(CompoundType *ct, PQName *name0 = NULL);
+        
+  // go from "A" to "A::~A"
+  PQName *make_PQ_fullyQualifiedDtorName(CompoundType *ct);
+
+  // given a type, return an ASTTypeId AST node that denotes that
+  // type in the current environment
+  ASTTypeId *buildASTTypeId(Type *type);
+  ASTTypeId *inner_buildASTTypeId     // effectively private to buildASTTypeId
+    (Type *type, IDeclarator *surrounding);
+                                                   
+  // look among the typedef aliases of 'type' for one that maps to
+  // 'type' in the current environment, and wrap that name in a
+  // TS_name; or, return NULL if it has no such aliases
+  TS_name *buildTypedefSpecifier(Type *type);
+                                            
+  // make an AST node for an integer literal full expression
+  FullExpression *Env::buildIntegerLiteralFE(int i);
 };
 
 
@@ -414,21 +437,40 @@ private:
 public:
   DisambiguateOnlyTemp(Env &e, bool disOnly)
     : env(e),
-      active(disOnly)
-  {
+      active(disOnly) {
     if (active) {
       prev = e.setDisambiguateOnly(true);
     }
   }
 
-  ~DisambiguateOnlyTemp()
-  {
+  ~DisambiguateOnlyTemp() {
     if (active) {
       env.setDisambiguateOnly(prev);
     }
   }
 };
 
+
+// little hack to suppress errors in a given segment
+class SuppressErrors {
+private:
+  Env &env;               // relevant environment
+  ErrorList existing;     // errors before the operation
+
+public:
+  SuppressErrors(Env &e) : env(e) {
+    // squirrel away the good messages
+    existing.takeMessages(env.errors);
+  }
+
+  ~SuppressErrors() {
+    // get rid of any messages added in the meantime
+    env.errors.deleteAll();
+
+    // put back the good ones
+    env.errors.takeMessages(existing);
+  }
+};
 
 
 #endif // CC_ENV_H

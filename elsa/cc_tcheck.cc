@@ -712,11 +712,12 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
 
   // dsw: store the pointer to the variable in the type; Note that, as
   // Scott points out, if it already has a name, we keep it because it
-  // doesn't matter.  That is, you have have two typedefs that are
-  // both for "int".
-  if (!var->type->typedefName) {
-    var->type->typedefName = var;
-  }
+  // doesn't matter.
+  //
+  // sm: update: I thought this might happen.  Using typedefs means
+  // dealing with scoping, so we need to keep all the typedefs so that
+  // at least one will be in scope.
+  var->type->typedefAliases.append(var);
 
   // there used to be a call to applyCV here, but that's redundant
   // since the caller (tcheck) calls it too
@@ -1043,6 +1044,9 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
       // the same syntax doesn't work because the location has changed
       // and we are down in some namespace where the names in the
       // argumentSyntax now resolve to different variables.
+      
+      // sm: update: that corner case (d0026.cc) is now handled by
+      // rebuilding the arguments in Env::make_PQ_fullyQualifiedName
 
       ct->templateInfo->argumentSyntax = templateArgs;
     }
@@ -1832,7 +1836,7 @@ static Statement *makeCtorStatement
 {
   xassert(var);                 // this is never for a temporary
   xassert(!var->hasFlag(DF_TYPEDEF));
-  PQName *name0 = type->asCompoundType()->PQ_fullyQualifiedName(env.loc());
+  PQName *name0 = env.make_PQ_fullyQualifiedName(type->asCompoundType());
   E_constructor *ector0 =
     new E_constructor(new TS_name(env.loc(), name0, false),
                       args);
@@ -1849,7 +1853,7 @@ static Statement *makeDtorStatement(Env &env, Type *type)
   // hmm, can't say this because I don't have a var to say it about.
 //    xassert(!var->hasFlag(DF_TYPEDEF));
   E_funCall *efc0 =
-    new E_funCall(new E_variable(type->asCompoundType()->PQ_fullyQualifiedDtorName(env.loc())),
+    new E_funCall(new E_variable(env.make_PQ_fullyQualifiedDtorName(type->asCompoundType())),
                   FakeList<Expression>::emptyList());
   Statement *dtorStmt0 = new S_expr(env.loc(), new FullExpression(efc0));
   dtorStmt0->tcheck(env);
@@ -4451,7 +4455,7 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
   xassert(retType->isCompoundType());
   TypeSpecifier *typeSpecifier =
     new TS_name(env.loc(),
-                retType->asCompoundType()->PQ_fullyQualifiedName(env.loc()),
+                env.make_PQ_fullyQualifiedName(retType->asCompoundType()),
                 false);
   xassert(typeSpecifier);
   Declarator *declarator0 =
@@ -4520,33 +4524,32 @@ static Declaration *insertTempDeclaration(Env &env, Type *retType)
 
 static E_variable *wrapVarWithE_variable(Env &env, Variable *var)
 {
-  // FIX: fullyQualifiedName doesn't actually return a StringRef
   PQName *name0 = NULL;
   switch(var->scopeKind) {
-  default:
-  case SK_UNKNOWN:
-    xfailure("E_variable *wrapVarWithE_variable: var->scopeKind == SK_UNKNOWN; shouldn't get here");
-    break;
-  case SK_TEMPLATE:
-    xfailure("don't handle template scopes yet");
-    break;
-  case SK_PARAMETER:
-    xfailure("shouldn't be getting a parameter scope here");
-    break;
-  case SK_GLOBAL:
-    xassert(!var->scope);
-    name0 = new PQ_qualifier(env.loc(), NULL,
-                             FakeList<TemplateArgument>::emptyList(),
-                             new PQ_name(env.loc(), strdup(var->name))); // garbage?
-    break;
-  case SK_CLASS:
-    xassert(var->scope->curCompound);
-    name0 = var->scope->curCompound->PQ_fullyQualifiedName
-      (env.loc(), new PQ_name(env.loc(), strdup(var->name))); // garbage?
-    break;
-  case SK_FUNCTION:
-    name0 = new PQ_name(env.loc(), strdup(var->name));
-    break;
+    default:
+    case SK_UNKNOWN:
+      xfailure("E_variable *wrapVarWithE_variable: var->scopeKind == SK_UNKNOWN; shouldn't get here");
+      break;
+    case SK_TEMPLATE:
+      xfailure("don't handle template scopes yet");
+      break;
+    case SK_PARAMETER:
+      xfailure("shouldn't be getting a parameter scope here");
+      break;
+    case SK_GLOBAL:
+      xassert(!var->scope);
+      name0 = new PQ_qualifier(env.loc(), NULL,
+                               FakeList<TemplateArgument>::emptyList(),
+                               new PQ_name(env.loc(), var->name));
+      break;
+    case SK_CLASS:
+      xassert(var->scope->curCompound);
+      name0 = env.make_PQ_fullyQualifiedName
+        (var->scope->curCompound, new PQ_name(env.loc(), var->name));
+      break;
+    case SK_FUNCTION:
+      name0 = new PQ_name(env.loc(), var->name);
+      break;
   }
   xassert(name0);
 
@@ -4826,40 +4829,9 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
 
     // there had better be exactly one argument to this ctor
     xassert(args->count() == 1);
-    TypeSpecifier *typeSpecifier = NULL;
-    if (type->isSimpleType()) {
-      typeSpecifier = new TS_simple(env.loc(),
-                                    type->asSimpleTypeC()->type);
-    } else if (type->typedefName) {
-      // comes from a typedef
-      PQName *name0 = NULL;
-      if (type->typedefName->scope) {
-        name0 = type->typedefName->scope->curCompound->
-          PQ_fullyQualifiedName(env.loc(),
-                                new PQ_name(env.loc(),
-                                            strdup(type->typedefName->name)) // garbage?
-                                );
-      } else {
-        name0 = new PQ_name(env.loc(), strdup(type->typedefName->name)); // garbage?
-      }
-      typeSpecifier =
-        new TS_name(env.loc(), name0,
-                    false       // typename used; FIX: is this right?
-                    );
-    } else {
-      xfailure("shouldn't be able to get an E_constructor for a type that is not "
-               "a CompoundType, nor a SimpleType, nor a type from a typedef");
-    }
+    ASTTypeId *typeSyntax = env.buildASTTypeId(type);
     replacement =
-      new E_cast
-      (new ASTTypeId
-       (typeSpecifier,
-        new Declarator
-        (new D_name(env.loc(),
-                    NULL        // abstract
-                    ),
-         NULL)),
-       args->first());
+      new E_cast(typeSyntax, args->first());
     replacement->tcheck(env, replacement);
     xassert(type->equals(replacement->type));
     xassert(type);

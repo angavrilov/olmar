@@ -333,15 +333,6 @@ public:      // funcs
   // name under which the conversion operators have been filed in
   // the class scope
   virtual void finishedClassDefinition(StringRef specialName);
-
-  PQName *PQ_fullyQualifiedName(SourceLoc loc, PQName *name0);
-  // dsw: Maybe this should go into NamedAtomicType, except that
-  // NamedAtomicType does not have a scope field and I need one.
-  PQName *PQ_fullyQualifiedName(SourceLoc loc);
-  // NOTE: there is an asymmetry with the above function that just
-  // returns the type name, not the ctor name, and hence the asymmetry
-  // in the names of these functions.
-  PQName *PQ_fullyQualifiedDtorName(SourceLoc loc);
 };
 
 string toString(CompoundType::Keyword k);
@@ -393,10 +384,19 @@ class BaseType {    // note: clients should refer to Type, not BaseType
 public:     // types
   enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY, T_POINTERTOMEMBER };
 
-  // if it came from a typedef, what is it?  NULL if not from a
-  // typedef.
-  Variable *typedefName;        // not to be confused with typedefVar
-  
+  // This is a list of typedef'd aliases for this type.  It may be
+  // empty.  For compound types, there will be at least one, and it
+  // (the first one) will be the same as the corresponding
+  // NamedAtomicType::typedefVar (this is not so much an invariant to
+  // be relied upon as an explanation of the difference between them).
+  //
+  // The reason this was introduced is to make it easier to build an
+  // AST node referring to a given type (i.e. can just use TS_name
+  // instead of building the whole thing) during elaboration.  It also
+  // can be used to make error messages that use the programmer's
+  // names instead of their normal form.
+  SObjList<Variable> typedefAliases;
+
   // moved this declaration into Type, along with the declaration of
   // 'anyCtorSatisfies', so as not to leak the name "BaseType"
   //typedef bool (*TypePred)(Type const *t);
@@ -584,6 +584,9 @@ public:     // funcs
 
   // similar for TypeVariable
   bool containsTypeVariables() const;
+
+  // get the first typedef alias, if any
+  Variable *typedefName();
 
   ALLOC_STATS_DECLARE
 };

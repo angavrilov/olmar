@@ -709,6 +709,12 @@ char *expr_toString(Expression const *e)
   return copyToStaticBuffer(e->exprToString());
 }
 
+int expr_debugPrint(Expression const *e)
+{
+  e->debugPrint(cout, 0);
+  return 0;    // make gdb happy?
+}
+
 
 void E_boolLit::iprint(PrintEnv &env)
 {

@@ -78,8 +78,6 @@ public:    // data
   // is SK_UNKNOWN
   ScopeKind scopeKind;
 
-  char *fqNameCache;
-
 protected:    // funcs
   friend class BasicTypeFactory;
   Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f);
@@ -125,7 +123,7 @@ public:
   string toStringAsParameter() const;
 
   // fully qualified but not mangled name
-  char *fullyQualifiedName();
+  string fullyQualifiedName() const;
 };
 
 inline string toString(Variable const *v) { return v->toString(); }

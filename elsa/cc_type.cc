@@ -7,7 +7,11 @@
 #include "strutil.h"    // copyToStaticBuffer
 #include "sobjset.h"    // SObjSet
 #include "hashtbl.h"    // lcprngTwoSteps
-#include "cc.ast.gen.h" // PQ_name
+
+// Do *not* add a dependency on cc.ast or cc_env.  cc_type is about
+// the intrinsic properties of types, independent of any particular
+// syntax for denoting them.  (toString() uses C's syntax, but that's
+// just for debugging.)
 
 #include <assert.h>     // assert
 
@@ -626,86 +630,6 @@ void CompoundType::addLocalConversionOp(Variable *op)
 }
 
 
-PQName *CompoundType::PQ_fullyQualifiedName(SourceLoc loc, PQName *name0)
-{
-  xassert(curCompound);
-  xassert(typedefVar);
-  {
-    char *typedefVarName = strdup(typedefVar->name); // garbage
-//      cout
-//        << "curCompound->name '" << curCompound->name
-//        << "' typedefVar->name '" << typedefVar->name << "'"
-//        << "' typedefVarName '" << typedefVarName << "'"
-//        << endl;
-    if (name0) {
-      name0 =
-        new PQ_qualifier(loc, typedefVarName,
-                         (templateInfo
-                          ? templateInfo->argumentSyntax
-                          : FakeList<TemplateArgument>::emptyList()),
-                         name0);
-    } else {
-      // dang it Scott, why the templatization asymmetry between
-      // PQ_name/template on one hand and PQ_qualifier on the other?
-      if (templateInfo) {
-        name0 = new PQ_template(loc, typedefVarName, templateInfo->argumentSyntax);
-      } else {
-        name0 = new PQ_name(loc, typedefVarName);
-      }
-    }
-  }
-
-  if (parentScope) {
-    xassert(parentScope->curCompound);
-    return parentScope->curCompound->PQ_fullyQualifiedName(loc, name0);
-  } else {
-    xassert(scopeKind == SK_CLASS);
-    switch(typedefVar->scopeKind) {
-    default:
-    case SK_UNKNOWN:
-      xfailure("shouldn't get here: top scope kind is SK_UNKNOWN");
-      break;
-    case SK_TEMPLATE:
-      xfailure("unimplemented: don't handle template scopes yet");
-      break;
-    case SK_PARAMETER:
-      // FIX: Is it possible to declare a type in a parameter?
-      xfailure("shouldn't be getting a parameter scope here");
-      break;
-    case SK_GLOBAL:
-      return new PQ_qualifier(loc, NULL,
-                              FakeList<TemplateArgument>::emptyList(),
-                              name0);
-      break;
-    case SK_CLASS:
-      xfailure("I don't think this is possible."); // FIX: is that right?
-      break;
-    case SK_FUNCTION:
-      return name0;
-      break;
-    }
-  }
-}
-
-// dsw: FIX: The result of this should probably be cached and reused.
-PQName *CompoundType::PQ_fullyQualifiedName(SourceLoc loc)
-{
-  return PQ_fullyQualifiedName(loc, NULL);
-}
-
-// Please note the asymmetry with the above function
-// PQ_fullyQualifiedName(): the above function simply returns the name
-// of the class, whereas this function below finishes with the name of
-// a member of that class, namely the dtor.
-// FIX: the dtor can probably be templatized, but that is so rare I'm
-// going to ignore it for now.
-// dsw: FIX: The result of this should probably be cached and reused.
-PQName *CompoundType::PQ_fullyQualifiedDtorName(SourceLoc loc)
-{
-  // FIX: replace strdup with env.str() ?
-  return PQ_fullyQualifiedName(loc, new PQ_name(loc, strdup(stringc << "~" << name)));
-}
-
 // ---------------- EnumType ------------------
 EnumType::~EnumType()
 {}
@@ -790,7 +714,7 @@ int TypeVariable::reprSize() const
 ALLOC_STATS_DEFINE(BaseType)
 
 BaseType::BaseType()
-  : typedefName(NULL)
+  : typedefAliases()     // initially empty
 {
   ALLOC_STATS_IN_CTOR
 }
@@ -1144,6 +1068,12 @@ bool BaseType::containsTypeVariables() const
 {
   return static_cast<Type const *>(this)->
     anyCtorSatisfies(typeHasTypeVariable);
+}
+
+
+Variable *BaseType::typedefName()
+{
+  return typedefAliases.isEmpty()? NULL : typedefAliases.first();
 }
 
 
@@ -1770,6 +1700,11 @@ bool STemplateArgument::equals(STemplateArgument const *obj) const
     return false;
   }
 
+  // At one point I tried making type arguments unequal if they had
+  // different typedefs, but that does not work, because I need A<int>
+  // to be the *same* type as A<my_int>, for example to do base class
+  // constructor calls.
+
   switch (kind) {
     case STA_TYPE:     return value.t->equals(obj->value.t);
     case STA_INT:      return value.i == obj->value.i;
@@ -1832,7 +1767,9 @@ bool ClassTemplateInfo::equalArguments
   SObjListIter<STemplateArgument> iter2(list);
   
   while (!iter1.isDone() && !iter2.isDone()) {
-    if (!iter1.data()->equals(iter2.data())) {
+    STemplateArgument const *sta1 = iter1.data();
+    STemplateArgument const *sta2 = iter2.data();
+    if (!sta1->equals(sta2)) {
       return false;
     }
     
@@ -2192,7 +2129,7 @@ CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
 
 CVAtomicType *BasicTypeFactory::makeCVAtomicType(SourceLoc,
   AtomicType *atomic, CVFlags cv)
-{
+{      
   if (cv==CV_NONE && atomic->isSimpleType()) {
     // since these are very common, and ordinary Types are immutable,
     // share them

@@ -15,8 +15,7 @@ Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
     overload(NULL),
     access(AK_PUBLIC),
     scope(NULL),
-    scopeKind(SK_UNKNOWN),
-    fqNameCache(NULL)
+    scopeKind(SK_UNKNOWN)
 {
   xassert(type);        // (just a stab in the dark debugging effort)
 }
@@ -83,15 +82,14 @@ string Variable::toStringAsParameter() const
 }
 
 
-char *Variable::fullyQualifiedName()
+// sm: I removed the cache; I'm much more concerned about wasted space
+// than wasted time (because the latter is much easier to profile)
+string Variable::fullyQualifiedName() const
 {
-  if (!fqNameCache) {
-    stringBuilder tmp;
-    if (scope) tmp << scope->fullyQualifiedName();
-    tmp << "::" << name;        // NOTE: not mangled
-    fqNameCache = strdup(tmp.pcharc());
-  }
-  return fqNameCache;
+  stringBuilder tmp;
+  if (scope) tmp << scope->fullyQualifiedName();
+  tmp << "::" << name;        // NOTE: not mangled
+  return tmp;
 }
 
 
