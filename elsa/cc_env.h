@@ -383,8 +383,8 @@ public:      // funcs
   Variable *lookupPQVariable(PQName const *name, LookupFlags f, Scope *&scope);
   Variable *lookupVariable(StringRef name, LookupFlags f, Scope *&scope);
 
-  CompoundType *lookupPQCompound(PQName const *name, LookupFlags f=LF_NONE);
-  CompoundType *lookupCompound  (StringRef name,     LookupFlags f=LF_NONE);
+  CompoundType *lookupPQCompound(PQName const *name, DeclFlags df=DF_NONE, LookupFlags f=LF_NONE);
+  CompoundType *lookupCompound  (StringRef name,     DeclFlags df=DF_NONE, LookupFlags f=LF_NONE);
 
   EnumType *lookupPQEnum(PQName const *name, LookupFlags f=LF_NONE);
   EnumType *lookupEnum  (StringRef name,     LookupFlags f=LF_NONE);

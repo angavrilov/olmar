@@ -538,7 +538,8 @@ Variable const *Scope
 }
 
 
-CompoundType const *Scope::lookupCompoundC(StringRef name, LookupFlags /*flags*/) const
+CompoundType const *Scope::lookupCompoundC
+  (StringRef name, DeclFlags /*df*/, LookupFlags /*flags*/) const
 {
   // TODO: implement base class lookup for CompoundTypes
   // (rather obscure, since most uses of types defined in the

@@ -253,7 +253,8 @@ public:      // funcs
   // lookup; these return NULL if the name isn't found; 'env' is
   // passed for the purpose of reporting ambiguity errors
   Variable const *lookupVariableC(StringRef name, Env &env, LookupFlags f=LF_NONE) const;
-  CompoundType const *lookupCompoundC(StringRef name, LookupFlags f=LF_NONE) const;
+  CompoundType const *lookupCompoundC
+    (StringRef name, DeclFlags df=DF_NONE, LookupFlags f=LF_NONE) const;
   EnumType const *lookupEnumC(StringRef name, Env &env, LookupFlags f=LF_NONE) const;
 
   // lookup of a possibly-qualified name; used for member access
@@ -264,8 +265,8 @@ public:      // funcs
   // non-const versions..
   Variable *lookupVariable(StringRef name, Env &env, LookupFlags f=LF_NONE)
     { return const_cast<Variable*>(lookupVariableC(name, env, f)); }
-  CompoundType *lookupCompound(StringRef name, LookupFlags f=LF_NONE)
-    { return const_cast<CompoundType*>(lookupCompoundC(name, f)); }
+  CompoundType *lookupCompound(StringRef name, DeclFlags df=DF_NONE, LookupFlags f=LF_NONE)
+    { return const_cast<CompoundType*>(lookupCompoundC(name, df, f)); }
   EnumType *lookupEnum(StringRef name, Env &env, LookupFlags f=LF_NONE)
     { return const_cast<EnumType*>(lookupEnumC(name, env, f)); }
   Variable *lookupPQVariable(PQName const *name, Env &env, LookupFlags f=LF_NONE)

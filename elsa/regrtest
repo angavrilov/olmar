@@ -845,6 +845,13 @@ fi
 testCparse() {
   runTest perl ./multitest.pl ./ccparse -tr c_lang in/$1
 }
+failCparse() {
+  if [ "$2" = "" ]; then
+    echo "failparse $1: failparse takes two arguments"
+    exit 4
+  fi
+  failTest "$2" perl ./multitest.pl ./ccparse -tr c_lang,shortMTRecDepthLimit,$TR_FLAGS in/$1
+}
 testCparse c/t0001.c
 testCparse c/t0002.c
 testCparse c/t0003.c
@@ -895,6 +902,7 @@ if $use_gnu; then
 
   testCparse gnu/dC0001.c # hex floating-point literals
   testCparse gnu/dC0002.c # arrays of no length are assumed to have length 1
+  testCparse gnu/dC0003.c # noInnerClasses: use a struct then define it but inside another
 
   # attribute tests
   testCparse gnu/attr01.c

@@ -2210,14 +2210,14 @@ Variable *Env::lookupVariable(StringRef name, LookupFlags flags,
   return NULL;    // not found
 }
 
-CompoundType *Env::lookupPQCompound(PQName const *name, LookupFlags flags)
+CompoundType *Env::lookupPQCompound(PQName const *name, DeclFlags df, LookupFlags flags)
 {
   CompoundType *ret;
   if (name->hasQualifiers()) {
     Scope *scope = lookupQualifiedScope(name);
     if (!scope) return NULL;
 
-    ret = scope->lookupCompound(name->getName(), flags);
+    ret = scope->lookupCompound(name->getName(), df, flags);
     if (!ret) {
       error(stringc
         << name->qualifierString() << " has no class/struct/union called `"
@@ -2227,7 +2227,7 @@ CompoundType *Env::lookupPQCompound(PQName const *name, LookupFlags flags)
     }
   }
   else {
-    ret = lookupCompound(name->getName(), flags);
+    ret = lookupCompound(name->getName(), df, flags);
   }
 
   // apply template arguments if any
@@ -2242,15 +2242,15 @@ CompoundType *Env::lookupPQCompound(PQName const *name, LookupFlags flags)
   return ret;
 }
 
-CompoundType *Env::lookupCompound(StringRef name, LookupFlags flags)
+CompoundType *Env::lookupCompound(StringRef name, DeclFlags df, LookupFlags flags)
 {
   if (flags & LF_INNER_ONLY) {
-    return acceptingScope()->lookupCompound(name, flags);
+    return acceptingScope(df)->lookupCompound(name, df, flags);
   }
 
   // look in all the scopes
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
-    CompoundType *ct = iter.data()->lookupCompound(name, flags);
+    CompoundType *ct = iter.data()->lookupCompound(name, df, flags);
     if (ct) {
       return ct;
     }
