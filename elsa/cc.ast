@@ -31,9 +31,6 @@ verbatim {
   #include "cc_type.h"       // Type, FunctonType, CompoundType
 
   class Env;                 // cc_env.h
-  class AEnv;                // aenv.h
-  class AbsValue;            // absval.ast
-  class Predicate;           // predicate.ast
 } // end verbatim
 
 // included in generated source file
@@ -48,13 +45,12 @@ impl_verbatim {
 // there's never a multiple-yield problem with toplevel forms
 class TranslationUnit (ASTList<TopForm> topForms) {
   // type checker
-  //public void tcheck(Env &env);
+  public void tcheck(Env &env);
 }
 
 // a toplevel form
 class TopForm (SourceLocation loc) {
-  //public void tcheck(Env &env);
-  //pure_virtual void itcheck(Env &env);
+  pure_virtual void tcheck(Env &env);
 
   -> TF_decl(Declaration decl);        // includes function prototypes
 
@@ -79,7 +75,7 @@ class Function (
 
   FakeList<Handler> *handlers   // handlers for ctor "try" block
 ) {
-  //public void tcheck(Env &env);
+  public void tcheck(Env &env);
   //public StringRef name() const;
 }
 
@@ -105,7 +101,7 @@ class Declaration (
   TypeSpecifier spec,                  // e.g. "int"
   FakeList<Declarator> *decllist       // e.g. "x=3, y"
 ) {
-  //public void tcheck(Env &env);        // adds declared variables to env
+  public void tcheck(Env &env);        // adds declared variables to env
 }
 
 // just one complete type; appears in parameter decls and in casts
@@ -115,10 +111,9 @@ class ASTTypeId (
 ) {
   public ASTTypeId *next;  ctor next=NULL;     // FakeList link
 
-  //public Type const *tcheck(Env &env);
-
-  //public Type const *type;   // result of first tcheck
-  //ctor { type=NULL; };
+  public void tcheck(Env &env);
+  
+  public Type const *getType() const;      // can use after calling 'tcheck'
 }
 
 // a name with optional class qualifiers (PQ: "possibly qualified");
@@ -137,8 +132,13 @@ class PQName (
   // a qualifier
   public void prependQualifier(StringRef q) { qualifiers.prepend(q); };
 
+  // for cc_tcheck.cc ...
+  public SObjList<char const> const &getQualifiers() const { return qualifiers; };
+
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
+  
+  public friend stringBuilder& operator<< (stringBuilder &sb, PQName const &obj);
 }
 
 
@@ -156,10 +156,7 @@ class TypeSpecifier {
 
   // yield the type named by the specifier; this type may of course
   // get refined when the declarator is considered
-  //pure_virtual Type const *tcheck(Env &env);
-
-  // apply the 'cv' information
-  //protected Type const *applyCV(Env &env, Type const *base);
+  pure_virtual Type const *tcheck(Env &env);
 
   -> TS_name(PQName name);                 // a typedef'd name (typedef might be implicit, as for classes)
 
@@ -235,9 +232,10 @@ class Declarator (
 
   public Declarator *next;  ctor next=NULL;     // FakeList link
 
-  // returns the type denoted by the combination of 'base' and the
-  // type constructors in this declarator
-  //public Type const *tcheck(Env &env, Type const *base, DeclFlags dflags);
+  // determine the type denoted by the combination of 'spec' and the
+  // type constructors in this declarator, then make a Variable which
+  // has that type and store it in 'var'
+  public void tcheck(Env &env, Type const *spec/*, DeclFlags dflags*/);
 }
 
 
@@ -253,17 +251,12 @@ class IDeclarator {
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
 
-  // external interface; adds 'stars' before calling 'itcheck'; the
-  // toplevel 'declarator' is passed along so we can reflect the meaning
-  // back into the 'var' field
-  //public void tcheck(Env &env, Type const *base,
-  //                   DeclFlags dflags, Declarator *declarator);
+  // external interface; adds 'stars' before calling 'itcheck';
+  // add the type constructor represented by this IDeclarator to
+  // 'spec' and then make a Variable to represent it
+  public Variable *tcheck(Env &env, Type const *spec);
 
-  // ultimate type attached to 'declarator' is the type denoted by the
-  // combination of 'base' and the type constructors in this
-  // declarator (recursively)
-  //pure_virtual void itcheck(Env &env, Type const *base,
-  //                          DeclFlags dflags, Declarator *declarator);
+  pure_virtual Variable *itcheck(Env &env, Type const *spec);
 
   // dig down and find the name being declared; may return NULL
   //pure_virtual StringRef getName() const;
@@ -348,7 +341,7 @@ class OperatorDeclarator {
 
 
 // ------------------- statements -----------------
-class Statement (SourceLocation loc) {          
+class Statement (SourceLocation loc) {
   // represent ambiguous statements by forming a linked list of alternatives
   public Statement * const ambiguity;
   ctor const_cast<Statement*&>(ambiguity) = NULL;
@@ -364,8 +357,12 @@ class Statement (SourceLocation loc) {
   }
 
 
-  //public virtual void tcheck(Env &env);
-  //pure_virtual void itcheck(Env &env);
+  // typecheck, and return which Statement is selected from among
+  // syntactically ambiguous choices
+  public Statement *tcheck(Env &env);
+  public void mid_tcheck(Env &env) { itcheck(env); };
+
+  pure_virtual void itcheck(Env &env);
 
   // e.g. "S_if@4:5" -- kind, line, col
   //public string kindLocString() const;
@@ -373,14 +370,13 @@ class Statement (SourceLocation loc) {
   -> S_skip();      // nop; used whenever optional Statement is not present
   -> S_label(StringRef name, Statement s);
   -> S_case(Expression expr, Statement s);
-  -> S_caseRange(Expression low, Expression high, Statement s);
   -> S_default(Statement s);
   -> S_expr(Expression expr);       // expression evaluated for side effect
   -> S_compound(ASTList<Statement> stmts);        // using ASTList for performance, I never yield it in cc.gr
   -> S_if(Condition cond, Statement thenBranch, Statement elseBranch);
-  -> S_switch(Condition expr, Statement branches);
+  -> S_switch(Condition cond, Statement branches);
   -> S_while(Condition cond, Statement body);
-  -> S_doWhile(Statement body, Expression cond);  // note: 'cond' is not a Condition
+  -> S_doWhile(Statement body, Expression expr);  // note: 'expr' is not a Condition
   -> S_for(Statement init, Condition cond,
            Expression after, Statement body) {
        //public virtual void tcheck(Env &env);      // special handling of 'init'
@@ -399,6 +395,8 @@ class Statement (SourceLocation loc) {
 class Condition {
   -> CN_expr(Expression expr);      // simple expression
   -> CN_decl(ASTTypeId typeId);     // type, name, & initializer (must all be present)
+  
+  pure_virtual void tcheck(Env &env);
 }
 
 // exception handler
@@ -409,6 +407,8 @@ class Handler (
 
   -> HR_type(ASTTypeId typeId);     // handles given type of exception
   -> HR_default();                  // handles any type; synactically "..."
+
+  pure_virtual void tcheck(Env &env);
 }
 
 
@@ -436,9 +436,18 @@ class Expression {
   }
 
   // type check and yield the type of the expression; this type
-  // gets automatically stored in the 'type' field
-  //public Type const *tcheck(Env &env);
-  //pure_virtual Type const *itcheck(Env &env);
+  // gets automatically stored in the 'type' field; the return
+  // value specifies which of possibly ambiguous alternatives
+  // was selected for retention
+  public Expression *tcheck(Env &env);
+  public void mid_tcheck(Env &env);
+
+  // per-type checker; return type this expression eval's to
+  pure_virtual Type const *itcheck(Env &env);
+
+  // type computed for this expression; might be a SimpleType for
+  // ST_ERROR, in which case a subsequent attempt to typecheck the
+  // same expression should stop and look for an ambiguous alt.
   public Type const *type;
   ctor type=NULL;
 

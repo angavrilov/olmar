@@ -8,6 +8,171 @@
 #include "cc_lang.h"     // CCLang
 
 
+// ----------------- ErrorMsg -----------------
+ErrorMsg::~ErrorMsg()
+{}
+
+
+// -------------------- Scope -----------------
+Scope::Scope(int cc)
+  : variables(),
+    compounds(),
+    enums(),
+    changeCount(cc),
+    curCompound(NULL),
+    curFunction(NULL),
+    curLoc()
+{}
+
+Scope::~Scope()
+{}
+
+
+// --------------------- Env -----------------
+Env::Env()
+  : scopes(),
+    errors()
+{
+  // create first scope
+  scopes.prepend(new Scope(0 /*changeCount*/));
+}
+
+Env::~Env()
+{
+  scopes.deleteAll();
+  errors.deleteAll();
+}
+
+
+void Env::enterScope()
+{
+  scopes.prepend(new Scope(getChangeCount()));
+}
+
+void Env::exitScope()
+{
+  delete scopes.removeFirst();
+}
+
+
+// -------- insertion --------
+template <class T>
+bool insertUnique(StringSObjDict<T> &table, char const *key, T *value)
+{
+  if (table.isMapped(key)) {
+    return false;
+  }
+  else {
+    table.add(key, value);
+    return true;
+  }
+}
+
+bool Env::addVariable(Variable *v)
+{
+  return insertUnique(scope()->variables, v->name, v);
+}
+
+bool Env::addCompound(CompoundType const *ct)
+{
+  return insertUnique(scope()->compounds, ct->name, ct);
+}
+
+bool Env::addEnum(EnumType const *et)
+{
+  return insertUnique(scope()->enums, et->name, et);
+}
+
+
+// -------- lookup --------
+Variable *Env::lookupPQVariable(PQName const *name) const
+{
+  if (!name->getQualifiers().isEmpty()) {
+    cout << "warning: ignoring qualifiers\n";
+  }
+
+  // look in all the scopes
+  FOREACH_OBJLIST(Scope, scopes, iter) {
+    Variable *v = iter.data()->variables.queryif(name->name);
+    if (v) {
+      return v;
+    }
+  }
+  return NULL;    // not found
+}
+
+CompoundType const *Env::lookupPQCompound(PQName const *name) const
+{
+  if (!name->getQualifiers().isEmpty()) {
+    cout << "warning: ignoring qualifiers\n";
+  }
+
+  // look in all the scopes
+  FOREACH_OBJLIST(Scope, scopes, iter) {
+    CompoundType const *ct = iter.data()->compounds.queryif(name->name);
+    if (ct) {
+      return ct;
+    }
+  }
+  return NULL;    // not found
+}
+
+EnumType const *Env::lookupPQEnum(PQName const *name) const
+{
+  if (!name->getQualifiers().isEmpty()) {
+    cout << "warning: ignoring qualifiers\n";
+  }
+
+  // look in all the scopes
+  FOREACH_OBJLIST(Scope, scopes, iter) {
+    EnumType const *et = iter.data()->enums.queryif(name->name);
+    if (et) {
+      return et;
+    }
+  }
+  return NULL;    // not found
+}
+
+
+// -------- diagnostics --------
+Type const *Env::error(char const *msg)
+{
+  errors.prepend(new ErrorMsg(stringc << "error: " << msg));
+  return getSimpleType(ST_ERROR);
+}
+
+
+Type const *Env::warning(char const *msg)
+{
+  errors.prepend(new ErrorMsg(stringc << "warning: " << msg));
+  return getSimpleType(ST_ERROR);
+}
+
+
+Type const *Env::unimp(char const *msg)
+{
+  errors.prepend(new ErrorMsg(stringc << "unimplemented: " << msg));
+  return getSimpleType(ST_ERROR);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#if 0
+
 // --------------------- ScopedEnv ---------------------
 ScopedEnv::ScopedEnv()
 {}
@@ -606,3 +771,4 @@ void Env::selfCheck() const
 {}
 
 
+#endif // 0

@@ -11,14 +11,6 @@
 #include "strtable.h"     // StringRef
 #include "strsobjdict.h"  // StrSObjDict
 
-// below, the type language refers to the AST language in exactly
-// one place: function pre/post conditions; the type language treats
-// these opaquely; it is important to prevent the type language from
-// depending on the AST language (NOTE: c.ast #includes this file,
-// so I can't #include c.ast.gen.h here)
-class FA_precondition;    // c.ast
-class FA_postcondition;   // c.ast
-
 class Variable;           // variable.h
 
 // fwd in this file
@@ -119,7 +111,7 @@ public:
 // C++ class member access modes
 enum AccessMode {
   AM_PUBLIC, 
-  AM_PROTECTED, 
+  AM_PROTECTED,
   AM_PRIVATE,
   NUM_ACCESS_MODES
 };
@@ -320,9 +312,6 @@ public:     // funcs
   virtual int reprSize() const;
 };
 
-inline Type const *fixed(SimpleTypeId id)
-  { return &CVAtomicType::fixed[id]; }
-
 
 // "*" vs "&"
 enum PtrOper {
@@ -360,8 +349,7 @@ public:     // types
     StringRef name;              // can be NULL to mean unnamed
     Type const *type;            // (serf) type of the parameter
 
-    // I can't interpret the precondition or postcondition
-    // unless I know the Variable that gave rise to each parameter
+    // syntactic introduction
     Variable *decl;              // (serf)
 
   public:
@@ -374,17 +362,12 @@ public:     // types
 
 public:     // data
   Type const *retType;         // (serf) type of return value
-  //CVFlags cv;                  // const/volatile for class member fns
+  CVFlags cv;                  // const/volatile for class member fns
   ObjList<Param> params;       // list of function parameters
   bool acceptsVarargs;         // true if add'l args are allowed
 
-  // thmprv extensions
-  FA_precondition *precondition;     // (serf) precondition predicate
-  FA_postcondition *postcondition;   // (serf) postcondition predicate
-  Variable *result;                  // required to interpret postcondition
-
 public:     // funcs
-  FunctionType(Type const *retType/*, CVFlags cv*/);
+  FunctionType(Type const *retType, CVFlags cv);
   virtual ~FunctionType();
 
   bool innerEquals(FunctionType const *obj) const;
@@ -421,6 +404,36 @@ public:
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
 };
+
+
+//--------------- lots of useful type constructors ---------------
+// given an AtomicType, wrap it in a CVAtomicType
+// with no const or volatile qualifiers
+CVAtomicType *makeType(AtomicType const *atomic);
+
+// given an AtomicType, wrap it in a CVAtomicType
+// with specified const or volatile qualifiers
+CVAtomicType *makeCVType(AtomicType const *atomic, CVFlags cv);
+
+// given a type, qualify it with 'cv'; return NULL
+// if the base type cannot be so qualified
+Type const *applyCVToType(CVFlags cv, Type const *baseType);
+
+// given an array type with no size, return one that is
+// the same except its size is as specified
+ArrayType const *setArraySize(ArrayType const *type, int size);
+
+// make a ptr-to-'type' type; returns generic Type instead of
+// PointerType because sometimes I return fixed(ST_ERROR)
+Type const *makePtrOperType(PtrOper op, CVFlags cv, Type const *type);
+inline Type const *makePtrType(Type const *type)
+  { return makePtrOperType(PO_POINTER, CV_NONE, type); }
+inline Type const *makeRefType(Type const *type)
+  { return makePtrOperType(PO_REFERENCE, CV_NONE, type); }
+
+// map a simple type into its CVAtomicType (with no const or
+// volatile) representative
+CVAtomicType const *getSimpleType(SimpleTypeId st);
 
 
 #endif // CC_TYPE_H

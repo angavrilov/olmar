@@ -58,10 +58,10 @@ enum DeclFlags {
   DF_STATIC      = 0x00000080,
   DF_EXTERN      = 0x00000100,
   DF_EXPLICIT    = 0x00100000,
-  DF_SOURCEFLAGS = 0x001801FF,    // all flags that come from source declarations
+  DF_SOURCEFLAGS = 0x001801FF,    // all flags that come from keywords in the source
 
   // flags on Variables
-  DF_ENUMVAL     = 0x00000200,    // true for values in an 'enum'
+  DF_ENUMERATOR  = 0x00000200,    // true for values in an 'enum' (enumerators in the terminology of the C++ standard)
   DF_GLOBAL      = 0x00000400,    // set for globals, unset for locals
   DF_INITIALIZED = 0x00000800,    // true if has been declared with an initializer (or, for functions, with code)
   DF_BUILTIN     = 0x00001000,    // true for e.g. __builtin_constant_p -- don't emit later
