@@ -459,6 +459,9 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
                              t_bool, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL));
   }
 
+  // both gcc and edg seem to predefine this (in/k0017.cc)
+  createNamespace(SL_INIT, str("std"));
+
   #ifdef GNU_EXTENSION
     if (lang.declareGNUBuiltins) {
       addGNUBuiltins();
@@ -4866,6 +4869,37 @@ void Env::checkForQualifiedMemberDeclarator(Declarator *decl)
   else {
     xfailure("unknown leaf IDeclarator");
   }
+}
+
+
+Scope *Env::createNamespace(SourceLoc loc, StringRef name)
+{
+  // make an entry in the surrounding scope to refer to the new namespace
+  Variable *v = makeVariable(loc, name, NULL /*type*/, DF_NAMESPACE);
+  if (name) {
+    addVariable(v);
+  }
+
+  // make new scope
+  Scope *s = new Scope(SK_NAMESPACE, 0 /*changeCount; irrelevant*/, loc);
+  s->namespaceVar = v;
+
+  // point the variable at it so we can find it later
+  v->scope = s;
+
+  // hook it into the scope tree; this must be done before the
+  // using edge is added, for anonymous scopes
+  setParentScope(s);
+
+  // if name is NULL, we need to add an "active using" edge from the
+  // surrounding scope to 's'
+  if (!name) {
+    Scope *parent = scope();
+    parent->addUsingEdge(s);
+    parent->addUsingEdgeTransitively(env, s);
+  }
+  
+  return s;
 }
 
 

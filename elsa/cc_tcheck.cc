@@ -272,30 +272,8 @@ void TF_namespaceDefn::itcheck(Env &env)
     s = existing->scope;
   }
   else {
-    // make an entry in the surrounding scope to refer to the new namespace
-    Variable *v = env.makeVariable(loc, name, NULL /*type*/, DF_NAMESPACE);
-    if (name) {
-      env.addVariable(v);
-    }
-
-    // make new scope
-    s = new Scope(SK_NAMESPACE, 0 /*changeCount; irrelevant*/, loc);
-    s->namespaceVar = v;
-
-    // point the variable at it so we can find it later
-    v->scope = s;
-
-    // hook it into the scope tree; this must be done before the
-    // using edge is added, for anonymous scopes
-    env.setParentScope(s);
-
-    // if name is NULL, we need to add an "active using" edge from the
-    // surrounding scope to 's'
-    if (!name) {
-      Scope *parent = env.scope();
-      parent->addUsingEdge(s);
-      parent->addUsingEdgeTransitively(env, s);
-    }
+    // make new namespace
+    s = env.createNamespace(loc, name);
   }
 
   // check the namespace body in its scope

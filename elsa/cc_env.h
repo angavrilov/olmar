@@ -687,6 +687,8 @@ public:      // funcs
   // see comments at implementation
   void checkForQualifiedMemberDeclarator(Declarator *decl);
 
+  Scope *createNamespace(SourceLoc loc, StringRef name);
+
   // ------------ new lookup mechanism ---------------
 private:     // funcs
   void unqualifiedLookup(LookupSet &set, Scope * /*nullable*/ scope,
