@@ -41,7 +41,7 @@ $(PARSGEN)/%.o: $(PARSGEN)/%.cc
 	$(COMPILE) $*.c
 
 agrampar-dep = $(PARSGEN)/gramlex.o agrampar.tab.o $(PARSGEN)/ccsstr.o \
-               $(PARSGEN)/fileloc.o agramlex.yy.o embedded.o ast.o ast.hand.o \
+               $(PARSGEN)/fileloc.o agramlex.yy.o embedded.o ast.hand.o \
                asthelp.o $(PARSGEN)/strtable.o
 agrampar: $(agrampar-dep) agrampar.cc $(LIBSMBASE) 
 	$(LINK) -o agrampar $(CXXFLAGS) $(agrampar-dep) \

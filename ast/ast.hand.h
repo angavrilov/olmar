@@ -6,7 +6,7 @@
   #include "ast.ast.h"
 #endif
 
-#ifndef AST_AST_H
+#ifndef GENERATED_AST_PRESENT
 // use the code below if either:
 //   - BOOTSTRAP was defined
 //   - ast.gen.h was empty
@@ -149,4 +149,4 @@ public:
 
 #endif // AST_HAND_H
 
-#endif // !AST_AST_H
+#endif // !GENERATED_AST_PRESENT

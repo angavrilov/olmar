@@ -640,18 +640,46 @@ void entry(int argc, char **argv)
   TRACE_ARGS();
   checkHeap();
 
-  if (argc != 2) {
-    cout << "usage: " << argv[0] << " ast-spec-file\n";
+  if (argc < 2) {
+    cout << "usage: " << argv[0] << " [options] ast-spec-file\n"
+         << "  options:\n"
+         << "    -bname   output filenames are name.{h,cc}\n"
+         << "             (default replaces .ast with .{h,cc})\n"
+         ;
+
     return;
   }
-  char const *srcFname = argv[1];
+                            
+  char const *basename = NULL;      // nothing set
+
+  argv++;
+  while (argv[0][0] == '-') {
+    if (argv[0][1] == 'b') {
+      basename = argv[0]+2;
+    }
+    else {
+      cout << "unknown option: " << argv[0] << "\n";
+      exit(2);
+    }
+    argv++;
+  }                              
+  if (!argv[0]) {
+    cout << "missing ast spec file name\n";
+    exit(2);
+  }
+
+  char const *srcFname = argv[0];
 
   // parse the grammar spec
   Owner<ASTSpecFile> ast;
   ast = readAbstractGrammar(srcFname);
 
   // generate the header
-  string base = srcFname;       //replace(srcFname, ".ast", "");
+  string base = replace(srcFname, ".ast", "");
+  if (basename) {
+    base = basename;
+  }
+
   string hdrFname = base & ".h";
   cout << "writing " << hdrFname << "...\n";
   HGen hg(srcFname, hdrFname, *ast);

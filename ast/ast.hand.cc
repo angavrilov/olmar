@@ -6,7 +6,7 @@
   #include "ast.ast.cc"
 #endif
 
-#ifndef AST_AST_H
+#ifndef GENERATED_AST_PRESENT
 // if either we're in bootstrap mode, or else ast.gen.cc was empty, use this
 
 #include "ast.hand.h"      // this module
@@ -84,4 +84,4 @@ void CtorArg::debugPrint(ostream &os, int indent) const
 }
 
 
-#endif // !AST_AST_H
+#endif // !GENERATED_AST_PRESENT

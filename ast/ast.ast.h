@@ -22,6 +22,8 @@ class CtorArg;
 // *** DO NOT EDIT ***
 
   #include "str.h"         // string
+  
+  #define GENERATED_AST_PRESENT
 
 // *** DO NOT EDIT ***
 class ASTSpecFile {
@@ -221,6 +223,7 @@ public:      // funcs
   void debugPrint(ostream &os, int indent) const;
 
 };
+
 
 
 
