@@ -20,5 +20,5 @@ Variable::~Variable()
 string Variable::toString() const
 {
   // don't care about printing the declflags right now
-  return type->toCString(name);
+  return type->toCString(name? name : "");
 }
