@@ -820,26 +820,39 @@ string FunctionType::Param::toString() const
 }
 
 
+// -------------------- FunctionType::ExnSpec --------------
+FunctionType::ExnSpec::~ExnSpec()
+{
+  types.removeAll();
+}
+
+
 // -------------------- FunctionType -----------------
 FunctionType::FunctionType(Type const *r, CVFlags c)
   : retType(r),
     cv(c),
     params(),
-    acceptsVarargs(false)
+    acceptsVarargs(false),
+    exnSpec(NULL)
 {}
 
 
 FunctionType::~FunctionType()
-{}
+{        
+  if (exnSpec) {
+    delete exnSpec;
+  }
+}
 
 
 bool FunctionType::innerEquals(FunctionType const *obj) const
 {
   if (retType->equals(obj->retType) &&
-      //cv == obj->cv &&
+      cv == obj->cv &&
       acceptsVarargs == obj->acceptsVarargs) {
     // so far so good, try the parameters
-    return equalParameterLists(obj);
+    return equalParameterLists(obj) &&
+           equalExceptionSpecs(obj);
   }
   else {
     return false;
@@ -855,6 +868,32 @@ bool FunctionType::equalParameterLists(FunctionType const *obj) const
     // parameter names do not have to match, but
     // the types do
     if (iter1.data()->type->equals(iter2.data()->type)) {
+      // ok
+    }
+    else {
+      return false;
+    }
+  }
+
+  return iter1.isDone() == iter2.isDone();
+}
+
+
+// almost identical code to the above.. list comparison is
+// always a pain..
+bool FunctionType::equalExceptionSpecs(FunctionType const *obj) const
+{
+  if (exnSpec==NULL && obj->exnSpec==NULL)  return true;
+  if (exnSpec==NULL || obj->exnSpec==NULL)  return false;
+
+  // hmm.. this is going to end up requiring that exception specs
+  // be listed in the same order, whereas I think the semantics
+  // imply they're more like a set.. oh well
+  SObjListIter<Type const> iter1(exnSpec->types);
+  SObjListIter<Type const> iter2(obj->exnSpec->types);
+  for (; !iter1.isDone() && !iter2.isDone();
+       iter1.adv(), iter2.adv()) {
+    if (iter1.data()->equals(iter2.data())) {
       // ok
     }
     else {
@@ -906,6 +945,19 @@ string FunctionType::rightString() const
   // qualifiers
   if (cv) {
     sb << " " << ::toString(cv);
+  }
+
+  // exception specs
+  if (exnSpec) {
+    sb << " throw(";                
+    int ct=0;
+    SFOREACH_OBJLIST(Type const, exnSpec->types, iter) {
+      if (ct++ > 0) {
+        sb << ", ";
+      }
+      sb << iter.data()->toString();
+    }
+    sb << ")";
   }
 
   // finish up the return type

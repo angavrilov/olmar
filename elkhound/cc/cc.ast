@@ -308,7 +308,9 @@ class PtrOperator (
 // can be thrown
 class ExceptionSpec (
   FakeList<ASTTypeId> *types       // list of allowable types; might be empty (NULL)
-);
+) {
+  public FunctionType::ExnSpec *tcheck(Env &env);
+}
 
 // declarators for operator and conversion functions
 class OperatorDeclarator {

@@ -7,6 +7,7 @@
 
 #include "str.h"          // string
 #include "objlist.h"      // ObjList
+#include "sobjlist.h"     // SObjList
 #include "cc_flags.h"     // CVFlags, DeclFlags, SimpleTypeId
 #include "strtable.h"     // StringRef
 #include "strsobjdict.h"  // StrSObjDict
@@ -351,11 +352,22 @@ public:     // types
     string toString() const;
   };
 
+  // list of exception types that can be thrown
+  class ExnSpec {
+  public:
+    SObjList<Type const> types;
+    
+  public:
+    ExnSpec() {}
+    ~ExnSpec();
+  };
+
 public:     // data
   Type const *retType;         // (serf) type of return value
   CVFlags cv;                  // const/volatile for class member fns
   ObjList<Param> params;       // list of function parameters
   bool acceptsVarargs;         // true if add'l args are allowed
+  ExnSpec *exnSpec;            // (nullable owner) allowable exceptions if not NULL
 
 public:     // funcs
   FunctionType(Type const *retType, CVFlags cv);
@@ -363,6 +375,7 @@ public:     // funcs
 
   bool innerEquals(FunctionType const *obj) const;
   bool equalParameterLists(FunctionType const *obj) const;
+  bool equalExceptionSpecs(FunctionType const *obj) const;
 
   // append a parameter to the parameters list
   void addParam(Param *param);

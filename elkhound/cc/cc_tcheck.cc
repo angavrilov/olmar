@@ -529,14 +529,65 @@ Variable *IDeclarator::tcheck(Env &env, Type const *spec, DeclFlags dflags)
 }
 
 
+// This function is perhaps the most complicated in this entire
+// module.  It has the responsibility of adding a variable called
+// 'name', with type 'spec', to the environment.  But to do this it
+// has to implement the various rules for when declarations conflict,
+// overloading, qualified name lookup, etc.
 Variable *D_name_itcheck(Env &env, SourceLocation const &loc,
                          Type const *spec, PQName const *name, DeclFlags dflags)
 {
+  // this is used to refer to a pre-existing declaration of the same
+  // name; I moved it up top so my error subroutines can use it
+  Variable *prior = NULL;
+
+  goto realStart;
+
+  // This code has a number of places where very different logic paths
+  // lead to the same conclusion.  So, I'm going to put the code for
+  // these conclusions up here (like mini-subroutines), and 'goto'
+  // them when appropriate.  I put them at the top instead of the
+  // bottom since g++ doesn't like me to jump forward over variable
+  // declarations.
+
+  makeDummyVar:
+  {
+    // the purpose of this is to allow the caller to have a workable
+    // object, so we can continue making progress diagnosing errors
+    // in the program; this won't be entered in the environment, even
+    // though the 'name' is not NULL
+    Variable *ret = new Variable(loc, name->getName(), spec, dflags);
+
+    // a bit of error recovery: if we clashed with a prior declaration,
+    // and that one was in a named scope, then make our fake variable
+    // also appear to be in that scope (this helps for parsing
+    // constructor definitions, even when the declarator has a type
+    // clash)
+    if (prior && prior->scope) {
+      ret->scope = prior->scope;
+    }
+
+    return ret;
+  }
+
+  declarationTypeMismatch:
+  {
+    // this message reports two declarations which declare the same
+    // name, but their types are different; we only jump here *after*
+    // ruling out the possibility of function overloading
+    env.error(stringc
+      << "prior declaration of `" << *name << "' had type `"
+      << prior->type->toString() << "', but this one uses `"
+      << spec->toString() << "'");
+    goto makeDummyVar;
+  }
+
+realStart:
   if (!name) {
     // no name, nothing to enter in environment
     return new Variable(loc, NULL, spec, dflags);
   }
-  
+
   // are we in a class member list?
   CompoundType *enclosingClass = env.scope()->curCompound;
 
@@ -550,7 +601,7 @@ Variable *D_name_itcheck(Env &env, SourceLocation const &loc,
   }
 
   // has this variable already been declared?
-  Variable *prior = NULL;
+  //Variable *prior = NULL;    // moved to the top
 
   if (name->hasQualifiers()) {
     // the name has qualifiers, which means it *must* be
@@ -559,24 +610,7 @@ Variable *D_name_itcheck(Env &env, SourceLocation const &loc,
     if (!prior) {
       env.error(stringc
         << "undeclared identifier `" << *name << "'");
-
-    makeDummyVar:
-      // the purpose of this is to allow the caller to have a workable
-      // object, so we can continue making progress diagnosing errors
-      // in the program; this won't be entered in the environment, even
-      // though the 'name' is not NULL
-      Variable *ret = new Variable(loc, name->getName(), spec, dflags);
-
-      // a bit of error recovery: if we clashed with a prior declaration,
-      // and that one was in a named scope, then make our fake variable
-      // also appear to be in that scope (this helps for parsing
-      // constructor definitions, even when the declarator has a type
-      // clash)
-      if (prior && prior->scope) {
-        ret->scope = prior->scope;
-      }
-
-      return ret;
+      goto makeDummyVar;
     }
 
     // ok, so we found a prior declaration; but if it's a member of
@@ -626,8 +660,10 @@ Variable *D_name_itcheck(Env &env, SourceLocation const &loc,
       prior->type->isFunctionType() &&
       spec->isFunctionType() &&
       !prior->type->equals(spec)) {
-    // potential overloading situation
-    
+    // potential overloading situation; get the two function types
+    FunctionType const *priorFt = &( prior->type->asFunctionTypeC() );
+    FunctionType const *specFt = &( spec->asFunctionTypeC() );
+
     // (BUG: this isn't the exact criteria for allowing overloading,
     // but it's close)
     if (
@@ -635,13 +671,22 @@ Variable *D_name_itcheck(Env &env, SourceLocation const &loc,
          (name->getName() != env.conversionOperatorName) &&
 
          // make sure the parameter lists are not the same
-         (prior->type->asFunctionTypeC().equalParameterLists(
-                                           &(spec->asFunctionTypeC())))
+         (priorFt->equalParameterLists(specFt))
        ) {
-      env.error(stringc
-        << "cannot overload `" << *name << "' on return type only");
-      goto makeDummyVar;
-    }    
+      // figure out *what* was different, so the error message can
+      // properly tell the user
+      if (!priorFt->retType->equals(specFt->retType)) {
+        env.error(stringc
+          << "cannot overload `" << *name << "' on return type only");
+        goto makeDummyVar;
+      }
+      else {
+        // this probably should be an error message more like "this
+        // definition conflicts with the previous" instead of mentioning
+        // the overload possibility, so..
+        goto declarationTypeMismatch;
+      }
+    }
 
     else {
       // ok, allow the overload
@@ -659,7 +704,7 @@ Variable *D_name_itcheck(Env &env, SourceLocation const &loc,
     if (prior->hasFlag(DF_DEFINITION) &&
         (dflags & DF_DEFINITION)) {
       env.error(stringc
-        << "duplicate definition for `" << *name 
+        << "duplicate definition for `" << *name
         << "'; previous at " << prior->loc.toString());
       goto makeDummyVar;
     }
@@ -684,11 +729,7 @@ Variable *D_name_itcheck(Env &env, SourceLocation const &loc,
 
     // check that the types match
     if (!prior->type->equals(spec)) {
-      env.error(stringc
-        << "prior declaration of `" << *name << "' had type `"
-        << prior->type->toString() << "', but this one uses `"
-        << spec->toString() << "'");
-      goto makeDummyVar;
+      goto declarationTypeMismatch;
     }
 
     // ok, use the prior declaration, but update the 'loc'
@@ -750,7 +791,7 @@ Variable *D_operator::itcheck(Env &env, Type const *spec, DeclFlags dflags)
     OD_conversion *c = o->asOD_conversion();
 
     c->type->tcheck(env);
-    Type const *destType = c->type->decl->var->type;
+    Type const *destType = c->type->getType();
 
     // need a function which returns 'destType', but has the
     // other characteristics gathered into 'spec'; make sure
@@ -801,7 +842,7 @@ Variable *D_func::itcheck(Env &env, Type const *retSpec, DeclFlags dflags)
   env.exitScope();
 
   if (exnSpec) {
-    env.unimp("exception specification");
+    ft->exnSpec = exnSpec->tcheck(env);
   }
 
   // now that we've constructed this function type, pass it as
@@ -860,7 +901,20 @@ Variable *D_bitfield::itcheck(Env &env, Type const *spec, DeclFlags dflags)
 
 
 // PtrOperator
-// ExceptionSpec
+
+// ------------------- ExceptionSpec --------------------
+FunctionType::ExnSpec *ExceptionSpec::tcheck(Env &env)
+{
+  FunctionType::ExnSpec *ret = new FunctionType::ExnSpec;
+  
+  FAKELIST_FOREACH_NC(ASTTypeId, types, iter) {
+    iter->tcheck(env);
+    ret->types.append(iter->getType());
+  }
+
+  return ret;
+}
+
 
 // ------------------ OperatorDeclarator ----------------
 char const *OD_newDel::getOperatorName() const
