@@ -162,6 +162,14 @@ void doit(int argc, char **argv)
     lang.ANSI_Cplusplus();
   }
 
+  if (tracingSys("ansi_c")) {
+    lang.ANSI_C89();
+  }
+
+  if (tracingSys("ansi_c99")) {
+    lang.ANSI_C99();
+  }
+
   if (tracingSys("c_lang")) {
     lang.GNU_C();
   }

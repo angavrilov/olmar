@@ -103,4 +103,89 @@ enum SomeEnum { SE_ONE };
 //ERROR(17): enum SomeEnum { SE_TWO };
 
 
+// ------------------
+struct C {
+  //ERROR(18): auto int x;
+  //ERROR(19): extern int y;
+  //ERROR(20): register int z;
+};
+
+
+// ------------------
+//ERROR(21): int AE_THREE;    // would conflict
+enum AnotherEnum { AE_ONE, AE_TWO, AE_THREE, AE_FOUR };
+//ERROR(22): int AE_TWO;      // would conflict
+
+
+// ------------------
+//ERROR(23): int operator+;
+
+
+// ------------------
+int operator++ (B &c, int);
+//ERROR(24): int operator++ (C &c, float);
+//ERROR(25): int operator++ (C &c, int = 2);
+
+
+// ------------------
+struct D {
+  int f();
+  int f(int);
+};
+
+//ERROR(26): int D::f;
+
+
+// ------------------
+//ERROR(27): int &*ptr_to_ref;
+//ERROR(28): int &&ref_to_ref;
+
+typedef int &reference;
+//ERROR(29): reference &ref_to_ref;
+
+
+// ------------------
+struct E {
+  E();
+};
+ 
+// grouping parens on a ctor declarator
+(E::E)()
+{}
+
+
+// ------------------
+// destructors must be class members
+//ERROR(30): ~foo() {}
+
+
+// ------------------
+//ERROR(31): int someFunc(int x(3));
+//ERROR(32): int someFunc(int x = {3});
+
+
+// ------------------
+struct F {
+  //ERROR(33): operator int (int);
+};
+
+
+// ------------------
+//ERROR(34): reference array_of_ref[3];
+
+typedef void VOID;
+//ERROR(35): VOID array_of_void[4];
+
+//ERROR(36): Func array_of_func[5];
+
+int *makeSomeInts(int x)
+{
+  //ERROR(37): return new (int[/*oops*/]);
+
+  //ERROR(38): return new int[4][x];
+}
+
+
+
+
 // EOF

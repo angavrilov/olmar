@@ -150,7 +150,7 @@ void CCLang::ANSI_Cplusplus()
   // these aren't exactly ANSI C++; they might be "pragmatic C++"
   // for the current state of the parser
   complainUponBadDeref = false;
-  strictArraySizeRequirements = false;
+  strictArraySizeRequirements = true;
   assumeNoSizeArrayHasSizeOne = false;
 
   allowOverloading = true;
@@ -184,6 +184,7 @@ void CCLang::GNU_Cplusplus()
 
   // is this really right?  Oink tests it like it is ...
   allowDynamicallySizedArrays = true;
+  strictArraySizeRequirements = false;
 
   allowMemberWithClassName = true;
   allowExternCThrowMismatch = true;

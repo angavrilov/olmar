@@ -6,3 +6,7 @@ struct X {
 
   int Y;     // ok
 };
+
+
+// another ansi-only rule
+//ERROR(2): int arr[0];

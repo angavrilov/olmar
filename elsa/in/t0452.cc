@@ -87,4 +87,22 @@ struct S {
 //ERROR(8): struct A<nonexist> { int z; };
 
 
+template <class T>
+struct C {
+  static int x;
+};
+
+// specialize a non-function
+template <>
+int C<int>::x = 5;
+
+// specialize a non-member non-function
+//ERROR(9): template <>
+//ERROR(9): int y<int>;
+
+
+
+
+
+
 // EOF

@@ -2294,7 +2294,9 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
         okOneParam && okTwoParams? "one or two parameters" :
                       okTwoParams? "two parameters" :
                                    "one parameter" ;
-      env.error(loc, stringc << strname << " must have " << howmany);
+      char const *extra =
+        ft->isMethod()? " (including receiver object)" : "";
+      env.error(loc, stringc << strname << " must have " << howmany << extra);
     }
 
     if ((desc & INCDEC) && (params==2)) {
@@ -3494,16 +3496,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
     // get the default argument, if any
     if (iter->decl->init) {
       Initializer *i = iter->decl->init;
-      if (!i->isIN_expr()) {
-        env.error("function parameter default value must be a simple initializer, "
-                  "not a compound (e.g. \"= { ... }\") or constructor "
-                  "(e.g. \"int x(3)\") initializer");
-      }
-      else {
-        // this is obsolete, now that Variable has a 'value' field
-        //Expression *e = i->asIN_expr()->e;
-        //p->defaultArgument = new DefaultArgument(e, e->exprToString());
-      }
+      xassert(i->isIN_expr());    // ensured by grammar
     }
 
     // dsw: You didn't implement adding DF_PARAMETER to variables that
