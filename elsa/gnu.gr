@@ -140,11 +140,22 @@ nonterm(TopForm*) ExplicitInstantiation {
 }
 
 
+// http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Case-Ranges.html
+nonterm(Statement*) Statement {
+  -> "case" e:ConstantExpression "..." e2:ConstantExpression ":" s:Statement
+       { return new S_rangeCase(loc, e, e2, s); }
+}
+
+
 // ----------- gcc dangling labels -----------
 // gcc allows a compound statement to end with a label, whereas the C
 // and C++ grammars require a statement after every label; I can't
 // find any place in the gcc docs that specifically addresses this
 // extension; linux uses it heavily
+//
+// 10/17/04: It seems that gcc-3, even in C mode, rejects labels at
+// the end of compound blocks.  Therefore I suspect the tolerance in
+// gcc-2 was unintentional.  Oh well, Elsa allows it in all gcc modes..
 
 nonterm(S_compound*) CompoundStatement {
   // special case for a block that ends in a label; Warning: no don't
@@ -159,18 +170,21 @@ nonterm(S_compound*) CompoundStatement {
 
 // a sequence of labels with no statement following, not even a skip
 nonterm(Statement*) LabeledEmptyStatementList {
-  -> n:LabelAndColon
-       { return new S_label(loc, n, new S_skip(loc)); }
-  -> "case" e:ConstantExpression ":"
+  -> n:LabelAndColon s:LabeledEmptyStatementListOpt
+       { return new S_label(loc, n, s); }
+  -> "case" e:ConstantExpression ":" s:LabeledEmptyStatementListOpt
        { return new S_case(loc, e, new S_skip(loc)); }
-  -> "default" ":"
+  -> "case" e:ConstantExpression "..." e2:ConstantExpression ":" s:LabeledEmptyStatementListOpt
+       { return new S_rangeCase(loc, e, e2, s); }
+  -> "default" ":" s:LabeledEmptyStatementListOpt
        { return new S_default(loc, new S_skip(loc)); }
-  -> n:LabelAndColon lesl:LabeledEmptyStatementList
-       { return new S_label(loc, n, lesl); }
-  -> "case" e:ConstantExpression ":" lesl:LabeledEmptyStatementList
-       { return new S_case(loc, e, lesl); }
-  -> "default" ":" lesl:LabeledEmptyStatementList
-       { return new S_default(loc, lesl); }
+}
+
+nonterm(Statement*) LabeledEmptyStatementListOpt {
+  -> empty
+       { return new S_skip(loc); }
+  -> s:LabeledEmptyStatementList
+       { return s; }
 }
 
 

@@ -229,13 +229,13 @@ void S_function::itcheck(Env &env)
 
 void S_rangeCase::itcheck(Env &env)
 {
-  expr->tcheck(env, expr);
-  expr2->tcheck(env, expr2);
+  exprLo->tcheck(env, exprLo);
+  exprHi->tcheck(env, exprHi);
   s = s->tcheck(env);
-                           
+
   // compute case label values
-  expr->constEval(env, labelVal);
-  expr2->constEval(env, labelVal2);
+  exprLo->constEval(env, labelValLo);
+  exprHi->constEval(env, labelValHi);
 }
 
 
@@ -502,9 +502,9 @@ void S_rangeCase::iprint(PrintEnv &env)
 {                    
   olayer ol("S_rangeCase::iprint");
   env << "case";
-  expr->print(env);
+  exprLo->print(env);
   env << "...";
-  expr2->print(env);
+  exprHi->print(env);
   env << ":";
   s->print(env);
 }

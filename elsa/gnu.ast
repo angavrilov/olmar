@@ -55,10 +55,11 @@ class Expression {
 class Statement {
   // nested function definition
   -> S_function(Function f);
-  -> S_rangeCase(Expression expr, Expression expr2, Statement s) {
-    // the case label must be an integer; this its value
-    public int labelVal = 0;
-    public int labelVal2 = 0;
+
+  // case ranges
+  -> S_rangeCase(Expression exprLo, Expression exprHi, Statement s) {
+       public int labelValLo = 0;
+       public int labelValHi = 0;
   }
 }
 
