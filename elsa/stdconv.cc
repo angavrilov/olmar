@@ -397,7 +397,21 @@ StandardConversion getStandardConversion
         // rules in cppstd talk about things like "pointer to cv T",
         // i.e. pairing the * with the cv one level down in their
         // descriptive patterns
-        if (conv.stripPtrCtor(src->getCVFlags(), dest->getCVFlags(), isReference))
+        CVFlags srcCV = src->getCVFlags();
+        CVFlags destCV = dest->getCVFlags();
+        
+        // 9/23/04: If the destination type is polymorphic, then pretend
+        // the flags match.
+        if (dest->isSimpleType()) {
+          SimpleTypeId id = dest->asSimpleTypeC()->type;
+          if (id == ST_ANY_OBJ_TYPE ||
+              id == ST_ANY_NON_VOID ||
+              id == ST_ANY_TYPE) {
+            destCV = srcCV;
+          }
+        }
+
+        if (conv.stripPtrCtor(srcCV, destCV, isReference))
           { return conv.ret; }
 
         break;
