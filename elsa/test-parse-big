@@ -13,3 +13,5 @@ echo "DDD 3.3.1"
 echo "Mozilla 1.0"
 ./test-parse-buildlog $HOME/bld/mozilla-1.0/make.out >moz.parse.out
 
+echo "Doxygen 1.2.14"
+./test-parse-buildlog $HOME/bld/doxygen-1.2.14/make.out >doxygen.parse.out

@@ -7,12 +7,14 @@
 
 
 // expected statistics
-option shift_reduce_conflicts 131;
+option shift_reduce_conflicts 139;
 option reduce_reduce_conflicts 139;
 
 
 // this verbatim section is appended to the one in cc.gr
 verbatim {
+  Function *makeKandRdefn(SourceLoc loc, Declaration *rds, IDeclarator *id,
+                          S_compound *ds, S_compound *b);
   void fixUpKandRFunctionDef
     (Declaration *rds, IDeclarator *id, S_compound *ds);
   D_func *new_D_func_kandr
@@ -61,6 +63,22 @@ impl_verbatim {
     // methods on null pointers as long as they are not virtual
     d->setNext(list->first());
     return FakeList<ASTTypeId>::makeList(d);
+  }
+  
+  // create a Function definition with K&R params
+  Function *makeKandRdefn(SourceLoc loc, Declaration *rds, IDeclarator *id,
+                          S_compound *ds, S_compound *b)
+  {
+    Function *ret = new Function (
+       rds->dflags,           // decl flags (static, extern, etc.)
+       rds->spec,             // type specifier for return value
+       new Declarator(id, NULL), // declarator with fn name, params
+       NULL,                  // ctor member inits
+       b,                     // function body statement
+       NULL                   // exception handlers
+       );
+    fixUpKandRFunctionDef(rds, id, ds);
+    return ret;
   }
 
   // convert ds to params and insert
@@ -132,16 +150,7 @@ nonterm(Function*) FunctionDefinition {
   //     body
          b:FunctionBody
     {
-      Function *ret = new Function (
-         rds->dflags,           // decl flags (static, extern, etc.)
-         rds->spec,             // type specifier for return value
-         new Declarator(id, NULL), // declarator with fn name, params
-         NULL,                  // ctor member inits
-         b,                     // function body statement
-         NULL                   // exception handlers
-         );
-      fixUpKandRFunctionDef(rds, id, ds);
-      return ret;
+      return makeKandRdefn(loc, rds, id, ds, b);
     }
 
   // no return type!      name/params
@@ -154,18 +163,18 @@ nonterm(Function*) FunctionDefinition {
       // FIX: otherwise this is a parse error; what should we do in
       // that case?
       xassert(lang.allowImplicitInt);
+
       // the return type defaults to int
       Declaration *rds = new Declaration(DF_NONE, new TS_simple(loc, ST_INT), NULL);
-      Function *ret = new Function (
-         rds->dflags,           // decl flags (static, extern, etc.)
-         rds->spec,             // type specifier for return value
-         new Declarator(id, NULL), // declarator with fn name, params
-         NULL,                  // ctor member inits
-         b,                     // function body statement
-         NULL                   // exception handlers
-         );
-      fixUpKandRFunctionDef(rds, id, ds);
-      return ret;
+      return makeKandRdefn(loc, rds, id, ds, b);
+    }
+
+  // one more, for "static"
+  -> "static" id:KandRDeclarator ds:KandRSimpleDeclarationSeq b:FunctionBody
+    {
+      xassert(lang.allowImplicitInt);
+      Declaration *rds = new Declaration(DF_STATIC, new TS_simple(loc, ST_INT), NULL);
+      return makeKandRdefn(loc, rds, id, ds, b);
     }
 }
 
@@ -313,6 +322,26 @@ nonterm(PQ_name*) KandRIdentifier {
 }
 
 // implicit-int ****************
+
+// most instances of implicit-int in function definitions are 
+// covered by the existing syntax for constructors; but if the
+// 'static' keyword is used, that isn't legal for ctors, so we
+// need a special rule
+nonterm(Function*) FunctionDefinition {
+  // make it look like the existing ctor AST, since those get
+  // converted into implicit-int
+  -> "static" d:Declarator b:FunctionBody
+       {
+         return new Function(
+           DF_STATIC,                     // decl flags
+           new TS_simple(loc, ST_CDTOR),  // type specifier: ctor or dtor
+           new Declarator(d, NULL),       // declarator with fn name, params
+           NULL,                          // ctor member inits
+           b,                             // function body statement
+           NULL                           // exception handlers
+         );
+       }
+}
 
 nonterm(TopForm*) Declaration {
   fun keep(x) { return x!=NULL; }

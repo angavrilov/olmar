@@ -874,6 +874,8 @@ if $use_kandr; then
   }
   testKANDRparse kandr/t0001.c
   testKANDRparse kandr/t0002.c
+  testKANDRparse kandr/t0003.c
+  testKANDRparse kandr/t0004.c
 fi
 
 
