@@ -86,7 +86,7 @@ public:     // types
 
     // others must be const-ified
     string const &key() const { return Iter::key(); }
-    void *value() const { return Iter::value(); }
+    void const *&value() const { return (void const *&)Iter::value(); }
   };
 
 private:    // data

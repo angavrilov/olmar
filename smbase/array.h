@@ -231,6 +231,29 @@ ArrayStack<T>::~ArrayStack()
 {}
 
 
+// iterator over contents of an ArrayStack, to make it easier to
+// switch between it and SObjList as a representation
+template <class T>
+class ArrayStackIterNC {
+  NO_OBJECT_COPIES(ArrayStackIterNC);   // for now
+
+private:     // data
+  ArrayStack<T> /*const*/ &arr;   // array being accessed
+  int index;                      // current element
+
+public:      // funcs
+  ArrayStackIterNC(ArrayStack<T> /*const*/ &a) : arr(a), index(0) {}
+
+  // iterator actions
+  bool isDone() const             { return index >= arr.length(); }
+  void adv()                      { xassert(!isDone()); index++; }
+  T /*const*/ *data() const       { return &(arr[index]); }
+};
+
+
+// I want const polymorphism!
+
+
 // ------------------- ObjArrayStack -----------------
 // an ArrayStack of owner pointers
 template <class T>
