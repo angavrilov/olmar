@@ -6,33 +6,12 @@
 #ifndef STRHASH_H
 #define STRHASH_H
 
-#include "typ.h"     // STATICDEF
+#include "hashtbl.h"      // HashTable
 
-class StringHash {
-private:    // types
-  // constants
-  enum {
-    initialTableSize = 33,
-  };
-
+class StringHash : private HashTable {
 public:     // types
   // given a stored data pointer, retrieve the associated key
   typedef char const* (*GetKeyFn)(void *data);
-
-private:    // data
-  // data -> key mapper
-  GetKeyFn getKey;
-
-  // array of pointers to data, indexed by the key hash value,
-  // with collisions resolved by moving to adjacent entries;
-  // some entries are NULL, meaning that hash value has no mapping
-  void **hashTable;
-
-  // number of slots in the hash table
-  int tableSize;
-
-  // number of mapped (non-NULL) entries
-  int numEntries;
 
 private:    // funcs
   // disallowed
@@ -40,52 +19,36 @@ private:    // funcs
   void operator=(StringHash&);
   void operator==(StringHash&);
 
-  // core hash function, which returns a 32-bit integer ready
-  // to be mod'ed by the table size
-  static unsigned coreHashFunction(char const *key);
-
-  // hash fn for the current table size; always in [0,tableSize-1]
-  unsigned hashFunction(char const *key) const;
-
-  // given a collision at 'index', return the next index to try
-  int nextIndex(int index) const { return (index+1) % tableSize; }
-                                
-  // resize the table, transferring all the entries to their
-  // new positions
-  void resizeTable(int newSize);
-  
-  // return the index of the entry corresponding to 'key' if it
-  // is mapped, or a pointer to the entry that should be filled
-  // with its mapping, if unmapped
-  int getEntry(char const *key) const;
-
-  // make a new table with the given size
-  void makeTable(int size);
-       
-  // check a single entry for integrity
-  void checkEntry(int entry) const;
-
 public:     // funcs
   StringHash(GetKeyFn getKey);
   ~StringHash();
 
+  // utilities
+  static unsigned coreHash(char const *key);
+  static bool keyCompare(char const *key1, char const *key2);
+
   // return # of mapped entries
-  int getNumEntries() const { return numEntries; }
+  int getNumEntries() const
+    { return HashTable::getNumEntries(); }
 
   // if this key has a mapping, return it; otherwise,
   // return NULL
-  void *get(char const *key) const;
+  void *get(char const *key) const
+    { return HashTable::get(key); }
 
   // add a mapping from 'key' to 'value'; there must not already
   // be a mapping for this key
-  void add(char const *key, void *value);
+  void add(char const *key, void *value)
+    { HashTable::add(key, value); }
 
   // remove the mapping for 'key' -- it must exist
-  void remove(char const *key);
+  void remove(char const *key)
+    { HashTable::remove(key); }
 
   // check the data structure's invariants, and throw an exception
   // if there is a problem
-  void selfCheck() const;
+  void selfCheck() const
+    { HashTable::selfCheck(); }
 };
 
 #endif // STRHASH_H
