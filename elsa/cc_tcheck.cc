@@ -2799,6 +2799,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   }
 
   base->tcheck(env, dt, inGrouping);
+  xassert(dt.var);
 
   // don't stomp on an existing template info
   if (!dt.var->templateInfo()) {
