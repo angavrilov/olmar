@@ -5,6 +5,9 @@ class Foo {
 public:
   static int x;
   int y;
+  
+  int func();
+  int func2();
 };
 
 // qualifiers on a declarator, so it refers to
@@ -23,3 +26,14 @@ int main()
   // qualifiers on an E_variable
   return Foo::x;
 }
+
+
+int Foo::func()
+{
+  return 8;
+}
+
+
+//ERROR3: int Foo::func() {  return 18; }
+
+//ERROR4: void Foo::func2() {}
