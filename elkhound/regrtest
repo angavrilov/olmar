@@ -222,68 +222,6 @@ if ! $vcgenOnly; then
 fi
 
 
-# --------------- test Simplify directly ----------------
-runTest ./test-Simplify.pl simp-ex/indegree.sx
-runTest ./test-Simplify.pl simp-ex/sel_upd.sx
-runTest ./test-Simplify.pl simp-ex/misc.sx
-runTest ./test-Simplify.pl simp-ex/examples.sx
-
-
-# --------------- test the program verifier ---------------
-vcgen() {
-  runTest ./ccgr cc.bin vcgen/$1
-}
-vcgenfail() {
-  failTest "$1" ./ccgr cc.bin vcgen/"$2"
-}
-vcgentb() {
-  runTest ./test-bad vcgen/$1 cc.bin
-}
-vcgencpp() {
-  echo "cpp vcgen/$1 >tmp.i"
-  cpp vcgen/$1 >tmp.i
-  runTest ./ccgr cc.bin tmp.i
-}
-
-vcgen if.c
-vcgen ptr.c
-vcgen invar.c
-vcgen global.c
-vcgen global2.c
-vcgen global3.c
-vcgen blast1.c
-vcgentb clash1.c
-vcgentb swap1.c
-vcgentb array.c
-vcgen ptrptr.c
-vcgen simple.c
-vcgen fact1.c
-vcgen fact2.c
-vcgen fact3.c
-vcgen fact4.c
-
-# fails because I can't seem to capture the notion of
-# a string in my new sel/upd model
-#vcgentb str.c
-
-vcgentb struct.c
-vcgen loop1.c
-vcgen corrcond.c
-vcgentb npktsmall.c
-vcgen cutpt.c
-runTest ./ccgr -tr printAnalysisPath cc.bin vcgen/nestwhile.c
-vcgen memswap.c
-vcgen ff.c
-#failTest "can't prove postcondition" ./ccgr -tr disableFactFlow cc.bin vcgen/find.c
-#vcgenfail "can't prove postcondition" find2.c
-#vcgen callfind.c     # kind of pointless without the rest of find working
-
-(cd vcgen; make) || (echo "Failed to make in vcgen"; exit 2)
-
-#vcgen node.i         # futile.. needs to be rethought
-vcgen owner1.i
-runTest ./ccgr -tr disableFactFlow cc.bin vcgen/owner2.i
-
 # this one is my main performance tester
 runTest ./ccgr -tr trivialActions,stopAfterParse cc.bin c.in/c.in4d
 

@@ -12,9 +12,9 @@
 #include "fileloc.h"      // sourceFileList
 #include "c.ast.gen.h"    // C ast
 #include "cc_env.h"       // Env
-#include "aenv.h"         // AEnv
+//#include "aenv.h"         // AEnv
 #include "strutil.h"      // plural
-#include "factflow.h"     // factFlow
+//#include "factflow.h"     // factFlow
 #include "cc_lang.h"      // CCLang
 #include "treeout.h"      // treeOut
 
@@ -70,12 +70,6 @@ void doit(int argc, char **argv)
           "    printAST           print AST after parsing\n"
           "    stopAfterTCheck    stop after typechecking\n"
           "    printTypedAST      print AST with type info\n"
-          "    disableFactFlow    don't do invariant strengthening\n"
-          "    factflow           print details of factflow computation\n"
-          "    stopAfterVCGen     stop after vcgen\n"
-          "    printAnalysisPath  print each path that is analyzed\n"
-          "    predicates         print all predicates (proved or not)\n"
-          "    absInterp          print results of abstract interpretation\n"
           "    tcheck             print typechecking info\n"
           "")) {
       // parse error
@@ -131,37 +125,6 @@ void doit(int argc, char **argv)
     }
 
     if (tracingSys("stopAfterTCheck")) {
-      return;
-    }
-  }
-
-  
-  // ------------- automatic invariant strengthening ---------
-  traceProgress() << "automatic invariant strengthening...\n";
-  if (!tracingSys("disableFactFlow")) {
-    FOREACH_ASTLIST_NC(TopForm, unit->topForms, tf) {
-      if (tf.data()->isTF_func()) {
-        factFlow(*( tf.data()->asTF_func() ));
-      }
-    }
-  }
-
-
-  // --------------- abstract interp ------------
-  {
-    traceProgress() << "verification condition generation...\n";
-    AEnv env(strTable, &mem);
-
-    unit->vcgen(env);
-
-    traceProgress(2) << "done with vcgen\n";
-
-    if (env.failedProofs != 0) {
-      treeOut(1) << "there were " << env.failedProofs << " failed proofs\n";
-      exit(5);
-    }
-
-    if (tracingSys("stopAfterVCGen")) {
       return;
     }
   }

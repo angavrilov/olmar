@@ -236,8 +236,6 @@ libglr.a: $(libglr-dep)
 # AUXDEPEND
 cexp3.gr.gen.o: cexp3ast.ast.gen.h
 
-absval.ast.gen.o: sexp.ast.gen.h
-
 # ast for cexp3
 # (these rules should be superceded by pattern rule below)
 #cexp3ast.gen.cc cexp3ast.gen.h: cexp3ast.ast $(AST)/astgen
@@ -332,24 +330,16 @@ cc.gr.gen.o: c.ast.gen.h
 # tried moving cc.o to end so the most expensive part would get
 # done last, but that breaks a dependency with cc_tree.cc and cc.h ..)
 ccgr-dep := cc.gr.gen.o c.ast.gen.o cc_flags.o tcheck.o variable.o \
-            absval.ast.gen.o absval.o vcgen.o aenv.o prover.o \
-            predicate.ast.gen.o paths.o $(cc-set) postorder.o \
-            factflow.o exprvisit.o exprequal.o cc_lang.o treeout.o \
-            sexp.ast.gen.o sexp.o
+            paths.o $(cc-set) postorder.o stubs.o \
+            exprvisit.o exprequal.o cc_lang.o treeout.o
+
 # don't generate dependencies for *.gen.o, since it makes 'make' think
 # it needs to rebuild a bunch of stuff just to calculate dependencies
 #-include $(filter-out %.gen.d, $(ccgr-dep:.o=.d))
 -include $(ccgr-dep:.o=.d)
 
-# this dependency is known once aenv.o is compiled, but it's required
-# before then, because it says predicate.ast must be astgen'd before
-# aenv.cc is compiled
-aenv.o: predicate.ast.gen.h
-vcgen.o: predicate.ast.gen.h
-
 # don't delete these because error messages often point into them
-.PRECIOUS: absval.ast.gen.cc absval.ast.gen.h predicate.ast.gen.h predicate.ast.gen.cc \
-           cc.gr.gen.h cc.gr.gen.cc
+.PRECIOUS: cc.gr.gen.h cc.gr.gen.cc
 
 # parser and semantic analyzer for cc.gr, rolled up as a library for
 # easier importing into ocaml
@@ -586,12 +576,6 @@ triv/sssx.notree.perf.txt:
 	done
 
 
-# ------------------------ sexp ---------------------------
-# test program for 'sexp' module
-sexp: sexp.ast.gen.o sexp.cc $(AST)/fileloc.o $(AST)/asthelp.o
-	g++ -o $@ $(ccflags) $(includes) -DTEST_SEXP $^ $(linkend)
-
-
 # -------------------- clean, check, etc. ------------------
 clean:
 	rm -f gramanl glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex *.o *~
@@ -599,9 +583,9 @@ clean:
 	rm -f cexp2.sem cexp2 cc.bin ccgr libccgr.a libglr.a
 	rm -f cc.gr.ps
 	rm -f *.exe *.gen.* *.bin *.tab.* *.output
-	rm -f core cdecl cexp3 bccgr cdecl2 cexp3b sexp
+	rm -f core cdecl cexp3 bccgr cdecl2 cexp3b
 	rm -f bccgr.y cc.tok grampar.codes.h
-	rm -f gdb.log gprof.out gmon.out predicate.log
+	rm -f gdb.log gprof.out gmon.out
 	rm -f *.d *.exe
 	cd triv; rm -f *.exe *.gen.* *.bin *.tab.* *.output *.y *.gr
 

@@ -1,6 +1,9 @@
 // paths.h
 // AST routines for enumerating paths
 
+// unfortunately it turns out that there is a /usr/include/paths.h
+// on some systems, so inclusion order is important..
+
 #ifndef PATHS_H
 #define PATHS_H
 
