@@ -5,6 +5,7 @@
 #include "glr.h"       // GLR parser
 #include "ptreenode.h" // PTreeNode
 #include "ptreeact.h"  // ParseTreeLexer, ParseTreeActions
+#include "trace.h"     // traceAddSys
 
 #include <assert.h>    // assert
 
@@ -67,6 +68,9 @@ int main(int argc)
   // create parser; actions and tables not dealloc'd but who cares
   Arith *arith = new Arith;
   ParseTables *tables = arith->makeTables();
+
+  // uncomment this to get bison-like shift/reduce reports
+  //traceAddSys("parse");
 
   if (argc == 1) {
     // start parsing

@@ -40,7 +40,6 @@
 
 #include "glrconfig.h"     // SOURCELOC
 #include "parsetables.h"   // StateId
-#include "owner.h"         // Owner
 #include "rcptr.h"         // RCPtr
 #include "useract.h"       // UserActions, SemanticValue
 #include "objpool.h"       // ObjectPool, GrowArray
@@ -371,6 +370,11 @@ public:
                                
   // pool and list for the RWL implementation
   ReductionPathQueue pathQueue;
+
+  // ---- user options ----
+  // when true, failed parses are accompanied by some rudimentary
+  // diagnosis; when false, failed parses are silent (default: true)
+  bool noisyFailedParse;
 
   // ---- debugging trace ----
   // these are computed during GLR::GLR since the profiler reports

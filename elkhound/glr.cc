@@ -114,6 +114,7 @@
 #include "test.h"        // PVAL
 #include "cyctimer.h"    // CycleTimer
 #include "sobjlist.h"    // SObjList
+#include "owner.h"       // Owner
 
 #include <stdio.h>       // FILE
 #include <fstream.h>     // ofstream
@@ -547,6 +548,7 @@ GLR::GLR(UserActions *user, ParseTables *t)
     prevTopmost(),
     stackNodePool(NULL),
     pathQueue(t),
+    noisyFailedParse(true),
     trParse(tracingSys("parse")),
     trsParse(trace("parse") << "parse tracing enabled\n"),
     detShift(0),
@@ -1367,6 +1369,10 @@ bool GLR::nondeterministicParseToken()
 // pulled out of glrParse() to reduce register pressure
 void GLR::printParseErrorMessage(StateId lastToDie)
 {
+  if (!noisyFailedParse) {
+    return;
+  }
+
   // print which tokens could have allowed progress; this isn't
   // perfect because I'm only printing this for one state, but in the
   // nondeterministic algorithm there might have been more than one
