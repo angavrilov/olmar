@@ -48,6 +48,9 @@ protected:  // funcs
   // do everything for a multi-spelling token
   int svalTok(TokenType t);
 
+  // C++ "alternate keyword" token
+  int alternateKeyword_tok(TokenType t);
+
   // handle a #line directive
   void parseHashLine(char *directive, int len);
 

@@ -1149,7 +1149,7 @@ testCparse c/k0011.c #"ambiguous s->z < 1 || 2 > (3)"
 failCparse c/k0007.c "duplicate modifiers in C as warning, not error (?)"
 failCparse c/k0008.c "function call vs type-cast ambiguity"
 failCparse c/k0009.c "func returning array of function pointers with old-style parm list"
-failCparse c/k0010.c "'and' etc. not keywords in C"
+testCparse c/k0010.c
 
 ### </quarl-testcases-c>
 

@@ -134,6 +134,18 @@ int Lexer::svalTok(TokenType t)
 }
 
 
+int Lexer::alternateKeyword_tok(TokenType t)
+{
+  if (lang.isCplusplus) {
+    return tok(t);
+  }
+  else {
+    // in C mode, they are just identifiers
+    return svalTok(TOK_NAME);
+  }
+}
+
+
 // examples of recognized forms
 //   #line 4 "foo.cc"       // canonical form
 //   # 4 "foo.cc"           // "line" can be omitted

@@ -241,23 +241,23 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "}"                return tok(TOK_RBRACE);
 
   /* "alternative tokens" of cppstd 2.5p2 */
-"<%"               return tok(TOK_LBRACE);
-"%>"               return tok(TOK_RBRACE);
-"<:"               return tok(TOK_LBRACKET);
-":>"               return tok(TOK_RBRACKET);
+"<%"               return alternateKeyword_tok(TOK_LBRACE);
+"%>"               return alternateKeyword_tok(TOK_RBRACE);
+"<:"               return alternateKeyword_tok(TOK_LBRACKET);
+":>"               return alternateKeyword_tok(TOK_RBRACKET);
   /* "%:" and "%:%:" correspond to "#" and "##", which are only for
    * the preprocessor, so I will ignore them here */
-"and"              return tok(TOK_ANDAND);
-"bitor"            return tok(TOK_OR);
-"or"               return tok(TOK_OROR);
-"xor"              return tok(TOK_XOR);
-"compl"            return tok(TOK_TILDE);
-"bitand"           return tok(TOK_AND);
-"and_eq"           return tok(TOK_ANDEQUAL);
-"or_eq"            return tok(TOK_OREQUAL);
-"xor_eq"           return tok(TOK_XOREQUAL);
-"not"              return tok(TOK_BANG);
-"not_eq"           return tok(TOK_NOTEQUAL);
+"and"              return alternateKeyword_tok(TOK_ANDAND);
+"bitor"            return alternateKeyword_tok(TOK_OR);
+"or"               return alternateKeyword_tok(TOK_OROR);
+"xor"              return alternateKeyword_tok(TOK_XOR);
+"compl"            return alternateKeyword_tok(TOK_TILDE);
+"bitand"           return alternateKeyword_tok(TOK_AND);
+"and_eq"           return alternateKeyword_tok(TOK_ANDEQUAL);
+"or_eq"            return alternateKeyword_tok(TOK_OREQUAL);
+"xor_eq"           return alternateKeyword_tok(TOK_XOREQUAL);
+"not"              return alternateKeyword_tok(TOK_BANG);
+"not_eq"           return alternateKeyword_tok(TOK_NOTEQUAL);
 
   /* this rule is to avoid backing up in the lexer
    * when there are two dots but not three */
