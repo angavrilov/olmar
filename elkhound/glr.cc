@@ -195,9 +195,12 @@ int computeDepthIters = 0;
 
 
 // the transition to array-based implementations requires I specify
-// initial sizes (they all grow as needed though)
+// initial sizes
 enum {
-  TYPICAL_MAX_RHSLEN = 10,
+  // this one does *not* grow as needed (at least not in the mini-LR core)
+  MAX_RHSLEN = 30,
+
+  // this one grows as needed
   TYPICAL_MAX_REDUCTION_PATHS = 5,
 };
 
@@ -496,8 +499,8 @@ inline void PendingShift::deinit()
 // ------------------ PathCollectionState -----------------
 PathCollectionState::PathCollectionState()
   : startStateId(STATE_INVALID),
-    siblings(TYPICAL_MAX_RHSLEN),
-    symbols(TYPICAL_MAX_RHSLEN),
+    siblings(MAX_RHSLEN),
+    symbols(MAX_RHSLEN),
     paths(TYPICAL_MAX_REDUCTION_PATHS)
 {}
 
@@ -611,7 +614,7 @@ GLR::GLR(UserActions *user, ParseTables *t)
     parserWorklist(),
     pcsStack(),
     pcsStackHeight(0),
-    toPass(TYPICAL_MAX_RHSLEN),
+    toPass(MAX_RHSLEN),
     stackNodePool(NULL),
     trParse(tracingSys("parse")),
     trsParse(trace("parse")),
@@ -624,6 +627,24 @@ GLR::GLR(UserActions *user, ParseTables *t)
   if (tracingSys("glrConfig")) {
     printConfig();
   }
+
+  // the ordinary GLR core doesn't have this limitation because
+  // it uses a growable array
+  #if USE_MINI_LR
+    // make sure none of the productions have right-hand sides
+    // that are too long; I think it's worth doing an iteration
+    // here since going over the limit would be really hard to
+    // debug, and this ctor is of course outside the main
+    // parsing loop
+    for (int i=0; i < tables->numProds; i++) {
+      if (tables->prodInfo[i].rhsLen > MAX_RHSLEN) {
+        printf("Production %d contains %d right-hand side symbols,\n"
+               "but the GLR core has been compiled with a limit of %d.\n"
+               "Please adjust MAX_RHSLEN and recompile the GLR core.\n",
+               i, tables->prodInfo[i].rhsLen, MAX_RHSLEN);
+      }
+    }
+  #endif // USE_MINI_LR
 }
 
 GLR::~GLR()
@@ -865,7 +886,11 @@ STATICDEF bool GLR
     // doesn't need to be shared with the rest of the algorithm (it's
     // only used in the Mini-LR core), and by having it directly on
     // the stack another indirection is saved
-    GrowArray<SemanticValue> toPass(TYPICAL_MAX_RHSLEN);
+    //
+    // new approach: let's try embedding this directly into the stack
+    // (this saves 10% in end-to-end performance!)
+    //GrowArray<SemanticValue> toPass(TYPICAL_MAX_RHSLEN);
+    SemanticValue toPass[MAX_RHSLEN];
   #endif
 
   // we will queue up shifts and process them all at the end (pulled
@@ -954,7 +979,7 @@ STATICDEF bool GLR
 
             // make sure we don't have to actually do a check-and-resize
             // for any of the unrolled cases
-            xassertdb(toPass.size() >= 5);
+            //xassertdb(toPass.size() >= 5);
 
             // What follows is three unrollings of the loop below,
             // labeled "loop for arbitrary rhsLen".  Read that loop
@@ -1066,7 +1091,8 @@ STATICDEF bool GLR
           // ------ loop for arbitrary rhsLen ------
           {
             // not using the unrolled loops; make the check
-            toPass.ensureIndexDoubler(rhsLen-1);
+            //toPass.ensureIndexDoubler(rhsLen-1);
+            xassertdb(rhsLen <= MAX_RHSLEN);
 
             // we will manually string the stack nodes together onto
             // the free list in 'stackNodePool', and 'prev' will point
@@ -1171,7 +1197,7 @@ STATICDEF bool GLR
           // call the user's action function (TREEBUILD)
           SemanticValue sval =
           #if USE_ACTIONS
-            userAct->doReductionAction(prodIndex, toPass.getArray()
+            userAct->doReductionAction(prodIndex, toPass /*.getArray()*/
                                        SOURCELOCARG( leftEdge ) );
           #else
             NULL;
