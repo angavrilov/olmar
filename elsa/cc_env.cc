@@ -1748,19 +1748,16 @@ Scope *Env::lookupOneQualifier_useArgs(
 
     if (qualVar->hasFlag(DF_SELFNAME) &&
         targs.isNotEmpty() &&
-        ct->isInstantiation()) {
+        ct->templateInfo()) {
       // 2005-03-04: referring to the self-name but passing args:
       // regard the arguments as being applied to the primary
-      // (in/t0425.cc)
+      // (in/t0425.cc) (in/0428.cc)
       //
       // what it if the arguments are the same as the current
       // parameter list?  will this mess up that case?  (could only
       // cause problems in uninstantiated template definitions...)
-      qualVar = ct->templateInfo()->instantiationOf;
-      ct = qualVar->type->asCompoundType();       
-      
-      // should *not* fall into older (obsolete?) handling below
-      xassert(!qualVar->hasFlag(DF_SELFNAME));
+      qualVar = ct->templateInfo()->getPrimary()->var;
+      ct = qualVar->type->asCompoundType();
     }
 
     if (ct->isTemplate()) {
@@ -1770,15 +1767,8 @@ Scope *Env::lookupOneQualifier_useArgs(
     // This is the same check as below in lookupPQVariable; why
     // is the mechanism duplicated?  It seems my scope lookup
     // code should be a special case of general variable lookup..
-    if (qualVar->hasFlag(DF_SELFNAME)) {
-      // don't check anything, assume it's a reference to the
-      // class I'm in (testcase: t0168.cc)
-
-      // TODO: I think this is wrong; what if someone supplies
-      // (different) template args?
-      //
-      // 2005-03-04: Maybe that case is now handled by the test
-      // for DF_SELFNAME above?  I'm not sure at the moment.
+    if (qualVar->hasFlag(DF_SELFNAME) && targs.isEmpty()) {
+      // it's a reference to the class I'm in (testcase: t0168.cc)
     }
 
     // check template argument compatibility
