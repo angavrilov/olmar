@@ -109,7 +109,9 @@ Type *E_statement::itcheck_x(Env &env, Expression *&replacement)
     return last->asS_expr()->expr->getType();
   }
   else {
-    return env.error("last thing in `({ ... })' must be an expression");
+    return env.getSimpleType(env.loc(), ST_VOID, CV_NONE);
+    // There are examples that do not end with an S_expr.
+//      return env.error("last thing in `({ ... })' must be an expression");
   }
 }
 
