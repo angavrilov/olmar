@@ -452,6 +452,10 @@ public:      // funcs
   bool checkIsoToASTTemplArgs
     (ObjList<STemplateArgument> &templateArgs0,
      ASTList<TemplateArgument> const &templateArgs1);
+  // get the instantiation that matches the arguments
+  Variable *getInstThatMatchesArgs
+    (TemplateInfo *tinfo, ObjList<STemplateArgument> &arguments, Type *type0=NULL);
+
   // load the bindings with any explicit template arguments; return true if successful
   bool loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
                                      MatchTypes &match);

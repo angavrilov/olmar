@@ -1161,7 +1161,10 @@ public:    // funcs
   // 'this' (since myPrimary for a primary is NULL)
   TemplateInfo *getMyPrimaryIdem() const;
 
-  void addInstantiation(Variable *inst);
+  // add to the instantiation list; supress duplicate mutants by
+  // assigning to the reference 'inst0' only if suppressDupMutant is
+  // true
+  Variable *addInstantiation(Variable *inst0, bool suppressDupMutant=false);
   // only use this for iteration, not appending!  Don't know a good
   // way to enforce that
   SObjList<Variable> &getInstantiations();

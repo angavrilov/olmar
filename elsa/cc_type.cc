@@ -2014,12 +2014,39 @@ TemplateInfo *TemplateInfo::getMyPrimaryIdem() const
 }
 
 
-void TemplateInfo::addInstantiation(Variable *inst)
+Variable *TemplateInfo::addInstantiation(Variable *inst0, bool suppressDupMutant)
 {
-  xassert(inst);
-  xassert(inst->templateInfo());
-  inst->templateInfo()->setMyPrimary(this);
-  instantiations.append(inst);
+  xassert(inst0);
+  xassert(inst0->templateInfo());
+  inst0->templateInfo()->setMyPrimary(this);
+  // check that we don't match something that is already on the list
+  // FIX: I suppose we should turn this off since it makes it quadratic
+
+  // FIX: could do this if we had an Env
+//    xassert(!getInstThatMatchesArgs(env, inst->templateInfo()->arguments));
+
+  bool inst0IsMutant = inst0->templateInfo()->isMutant();
+  SFOREACH_OBJLIST_NC(Variable, getInstantiations(), iter) {
+    Variable *inst1 = iter.data();
+    MatchTypes match(*global_tfac, MatchTypes::MM_ISO);
+    bool unifies = match.match_Lists2
+      (inst1->templateInfo()->arguments,
+       inst0->templateInfo()->arguments,
+       2 /*matchDepth*/);
+    if (unifies && inst0IsMutant && inst1->templateInfo()->isMutant()) {
+      // I find it difficult to prevent the creation of duplicat
+      // mutants, so I just filter them out here, but only if the
+      // client is expecting this behavior by setting
+      // suppressDupMutant
+      xassert(suppressDupMutant);
+      return inst1;
+    }
+    // other, non-mutant instantiations should never be duplicated
+    xassert(!unifies);
+  }
+
+  instantiations.append(inst0);
+  return inst0;
 }
 
 

@@ -1359,24 +1359,24 @@ Scope *Env::lookupOneQualifier(
       else {
         // TODO: maybe put this back in
         //ct = checkTemplateArguments(ct, qualifier->targs);
+        // UPDATE: dsw: I think the code below will fail if this is
+        // has not been done, so I typecheck the PQName now in
+        // Declarator::mid_tcheck() before this is called
 
-        // for now, restricted form of specialization selection to
-        // get in/t0154.cc through
-        if (qualifier->targs.count() == 1) {
-          SFOREACH_OBJLIST_NC(Variable, ct->templateInfo()->getInstantiations(), iter) {
-            Variable *special = iter.data();
-            if (!special->templateInfo()->arguments.count() == 1) continue;
-
-            if (qualifier->targs.firstC()->sarg.equals(
-                  special->templateInfo()->arguments.first())) {
-              // found the specialization or existing instantiation!
-              xassert(special->type->isCompoundType());
-              ct = special->type->asCompoundType();
-              break;
-            }
-          }
+        SObjList<STemplateArgument> qsargs;
+        templArgsASTtoSTA(qualifier->targs, qsargs);
+        // this reinterpret_cast trick seems to be what Scott wants
+        // for this lack of owner/serf polymorphism problem
+        xassert(ct->templateInfo()->isPrimary());
+        Variable *inst = getInstThatMatchesArgs
+          (ct->templateInfo(), reinterpret_cast<ObjList<STemplateArgument>&>(qsargs));
+        if (inst) {
+          ct = inst->type->asCompoundType();
         }
-
+        // otherwise, we just stay with the primary.
+        // FIX: in that case, we should assert that the args all match
+        // what they would if they were for a primary; such as a
+        // typevar arg for a type template parameter
       }
     }
 
@@ -1582,6 +1582,25 @@ bool Env::checkIsoToASTTemplArgs
     iter0.adv();
   }
   return iter0.isDone();
+}
+
+
+Variable *Env::getInstThatMatchesArgs
+  (TemplateInfo *tinfo, ObjList<STemplateArgument> &arguments, Type *type0)
+{
+  Variable *prevInst = NULL;
+  SFOREACH_OBJLIST_NC(Variable, tinfo->getInstantiations(), iter) {
+    Variable *instantiation = iter.data();
+    if (type0 && !instantiation->getType()->equals(type0)) continue;
+    MatchTypes match(tfac, MatchTypes::MM_ISO);
+    bool unifies = match.match_Lists2
+      (instantiation->templateInfo()->arguments, arguments, 2 /*matchDepth*/);
+    if (unifies) {
+      xassert(!prevInst);       // I don't think you can get an instance in more than once
+      prevInst = instantiation;
+    }
+  }
+  return prevInst;
 }
 
 
@@ -2501,8 +2520,8 @@ Variable *Env::findMostSpecific(Variable *baseV, SObjList<STemplateArgument> &sa
   SFOREACH_OBJLIST_NC(Variable, baseV->templateInfo()->getInstantiations(), iter) {
     Variable *var0 = iter.data();
     TemplateInfo *templInfo0 = var0->templateInfo();
-    // Sledgehammer time.
     xassert(templInfo0);        // should have templateness
+    // Sledgehammer time.
     if (templInfo0->isMutant()) continue;
     // see if this candidate matches
     MatchTypes match(tfac, matchMode);
@@ -2728,7 +2747,7 @@ Variable *Env::instantiateTemplate
   // primary.  At the end of this section if we have not returned then
   // baseV is the template to instantiate.
 
-  Variable *oldBaseV = baseV;   // save this for other uses later
+  Variable *oldBaseV = baseV;   // save baseV for other uses later
   // has this class already been instantiated?
   if (!instV) {
     // Search through the instantiations of this primary and do an
@@ -2984,7 +3003,20 @@ Variable *Env::instantiateTemplate
       // addInstantiation would have done this
       instV->templateInfo()->setMyPrimary(oldBaseV->templateInfo());
     } else {
-      oldBaseV->templateInfo()->addInstantiation(instV);
+      // NOTE: this can mutate instV if instV is a duplicated mutant
+      // in the instantiation list; FIX: perhaps find another way to
+      // prevent creating duplicate mutants in the first place; this
+      // is quite wasteful if we have cloned an entire class of AST
+      // only to throw it away again
+      Variable *newInstV = oldBaseV->templateInfo()->addInstantiation
+        (instV, true /*suppressDupMutant*/);
+      if (newInstV != instV) {
+        // don't do stage 5 below; just use the new instV and be done
+        // with it
+        copyCpd = NULL;
+        copyFun = NULL;
+        instV = newInstV;
+      }
       xassert(instV->templateInfo()->getMyPrimaryIdem() == oldBaseV->templateInfo());
     }
     xassert(instTInfo->isNotPrimary());
@@ -3098,9 +3130,12 @@ Variable *Env::instantiateTemplate
       if (copyCpd) copyCpd->debugPrint(cout, 0);
       if (copyFun) copyFun->debugPrint(cout, 0);
     }
-  } else {
-    xassert(baseForward);
   }
+  // this else case can now happen if we find that there was a
+  // duplicated instV and therefore jump out during stage 4
+//    } else {
+//      xassert(baseForward);
+//    }
 
   // 6 **** Undo the scope, reversing step 2
   if (argScope) {

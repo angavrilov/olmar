@@ -763,6 +763,7 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
 
 Type *ASTTypeId::getType() const
 {
+  xassert(decl->var);
   return decl->var->type;
 }
 
@@ -2043,7 +2044,15 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // 4/21/04: in fact, I need the entire sequence of scopes
   // in the qualifier, since all of them need to be visible
   ScopeSeq qualifierScopes;
-  env.getQualifierScopes(qualifierScopes, decl->getDeclaratorId());
+  // Scott, I need the declaratorId to be typechecked before we do the
+  // getQualifierScopes(); the method for getting it returns a pointer
+  // to const, which is not what the typechecking code wants.
+  // Therefore, I see no way to avoid the const_cast.
+  PQName *name = const_cast<PQName*>(decl->getDeclaratorId());
+  if (name) {
+    name->tcheck(env);
+  }
+  env.getQualifierScopes(qualifierScopes, name);
   env.extendScopeSeq(qualifierScopes);
 
   if (init) dt.dflags |= DF_INITIALIZED;
@@ -2762,20 +2771,8 @@ realStart:
         env.initArgumentsFromASTTemplArgs(sTemplArgsHolder, *dt.ASTTemplArgs);
       }
 
-      Variable *prevInst = NULL;
-      SFOREACH_OBJLIST_NC(Variable, prim->templateInfo()->getInstantiations(), iter) {
-        Variable *candidate = iter.data();
-        if (candidate->getType()->equals(dt.type)) {
-          MatchTypes match(env.tfac, MatchTypes::MM_ISO);
-          bool unifies = match.match_Lists2
-            (candidate->templateInfo()->arguments,
-             sTemplArgsHolder->arguments, 2 /*matchDepth*/);
-          if (unifies) {
-            xassert(!prevInst); // I don't think you can get an instance in more than once
-            prevInst = candidate;
-          }
-        }
-      }
+      Variable *prevInst = env.getInstThatMatchesArgs
+        (prim->templateInfo(), sTemplArgsHolder->arguments, dt.type);
       if (prevInst) {
         prior = prevInst;
       }
