@@ -63,6 +63,11 @@ void f(int x, int y)
       (y? bc : d).baseFuncC();
       break;
 
+    case 41:
+      // actual rvalue, rather than ref-to-const?
+      (y? Base() : Derived()).baseFunc();
+      break;
+
     case 5:
       // illegal due to base having less cv qualification
       //ERROR(2): (y? b : dc);

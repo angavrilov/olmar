@@ -5961,7 +5961,7 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
     // 5.2.4: pseudo-destructor
     if (!isDestructor ||
         !fieldName->getUnqualifiedName()->isPQ_name()) {
-      return env.error(fieldName->loc, stringc
+      return env.error(lhsType, fieldName->loc, stringc
         << "RHS of . or -> must be of the form \"~ identifier\" if the LHS "
         << "is not a class; the LHS is `" << lhsType->toString() << "'");
     }
@@ -7238,7 +7238,7 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
 
       // TODO (elaboration): rewrite AST according to 'ic_thToEl'
       thType = thConv;
-      thRval = th->type->asRval();
+      thRval = thType->asRval();
     }
 
     if (elConv) {
@@ -7248,7 +7248,7 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
 
       // TODO (elaboration): rewrite AST according to 'ic_elToTh'
       elType = elConv;
-      elRval = el->type->asRval();
+      elRval = elType->asRval();
     }
   }
 

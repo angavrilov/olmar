@@ -4949,7 +4949,7 @@ Type *Env::unimp(rostring msg)
 }
 
 
-Type *Env::error(Type *t, rostring msg)
+Type *Env::error(Type *t, SourceLoc loc, rostring msg)
 {
   if (t->isSimple(ST_DEPENDENT)) {
     // no report, propagate dependentness
@@ -4963,8 +4963,13 @@ Type *Env::error(Type *t, rostring msg)
   }
   else {
     // report; clashes never disambiguate
-    return error(msg, EF_NONE);
+    return error(loc, msg, EF_NONE);
   }
+}
+
+Type *Env::error(Type *t, rostring msg)
+{
+  return error(t, loc(), msg);
 }
 
 

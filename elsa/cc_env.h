@@ -472,6 +472,7 @@ public:      // funcs
   // diagnostics involving type clashes; will be suppressed
   // if the type is ST_ERROR
   Type *error(Type *t, rostring msg);
+  Type *error(Type *t, SourceLoc loc, rostring msg);
 
   // just return ST_ERROR
   Type *errorType();
