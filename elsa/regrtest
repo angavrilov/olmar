@@ -470,7 +470,7 @@ testparse t0249.cc
 testparse t0250.cc
 testparse t0251.cc
 testparse t0252.cc
-failparse t0253.cc "uninst templ calling inst non-type param func"
+testparse t0253.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

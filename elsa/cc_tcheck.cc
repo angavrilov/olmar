@@ -4146,10 +4146,16 @@ Type *E_variable::itcheck_var(Env &env, LookupFlags flags)
       << "`" << *name << "' used as a variable, but it's actually a type",
       EF_DISAMBIGUATES);
   }
-       
+
   // TODO: access control check
 
   var = env.storeVarIfNotOvl(v);
+
+  if (v->hasFlag(DF_BOUND_TARG)) {
+    // this variable is actually a bound meta-variable (template
+    // argument), so it is *not* to be regarded as a reference
+    return var->type;
+  }
 
   // return a reference because this is an lvalue
   return makeLvalType(env, var->type);
