@@ -14,8 +14,9 @@ template class A<char>;
 template class A<int>;
 
 // requires merge of SimpleDeclaration
-extern template
-A<char>& foo(char);
+// this is gnu-specific it seems, and is tested in gnu/g0002.cc
+//extern template
+//A<char>& foo(char);
 
 // requires merge of Declaration
 template
