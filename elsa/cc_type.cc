@@ -117,19 +117,9 @@ bool AtomicType::equals(AtomicType const *obj) const
     Variable *param1 = this->asTypeVariableC()->typedefVar;
     Variable *param2 = obj->asTypeVariableC()->typedefVar;
 
-    // don't let this rule kick in until the parameters have been
-    // annotated with which template they refer to
-    if (param1->getParameterizedEntity() == NULL) {
-      return false;
-    }
-
-    if (param1->getParameterOrdinal() == param2->getParameterOrdinal() &&
-        param1->getParameterizedEntity() == param2->getParameterizedEntity()) {
-      // same!
-      return true;
-    }
+    return param1->sameTemplateParameter(param2);
   }
-
+  
   return false;
 }
 

@@ -419,6 +419,24 @@ void Variable::setParameterizedEntity(Variable *templ)
 }
 
 
+bool Variable::sameTemplateParameter(Variable const *other) const
+{
+  if (getParameterizedEntity() == NULL) {
+    // I haven't been associated with a template yet, so don't
+    // claim to be the same as anything else
+    return false;
+  }
+
+  if (getParameterOrdinal() == other->getParameterOrdinal() &&
+      getParameterizedEntity() == other->getParameterizedEntity()) {
+    // same!
+    return true;
+  }
+  
+  return false;
+}
+
+
 // I'm not sure what analyses' disposition towards usingAlias ought to
 // be.  One possibility is to just say they should sprinkle calls to
 // skipAlias all over the place, but that's obviously not very nice.

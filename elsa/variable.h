@@ -265,6 +265,10 @@ public:
   // template entity is paramterized by it; otherwise NULL
   Variable *getParameterizedEntity() const;
   void setParameterizedEntity(Variable *templ);
+                                                          
+  // true if 'this' and 'other' are the same ordinal parameter of
+  // the same template entity
+  bool sameTemplateParameter(Variable const *other) const;
 
   // follow the 'usingAlias' field if non-NULL; otherwise return this
   Variable const *skipAliasC() const;

@@ -341,8 +341,6 @@ public:
     STA_POINTER,     // pointer to global object
     STA_MEMBER,      // pointer to class member
 
-    // 2005-02-23: a first step.. this means the argument is a
-    // value-dependent expression (the expr itself is unspecified)
     STA_DEPEXPR,     // value-dependent expression
 
     STA_TEMPLATE,    // template argument (not implemented)
@@ -353,6 +351,7 @@ public:
     Type *t;         // (serf) for STA_TYPE
     int i;           // for STA_INT
     Variable *v;     // (serf) for STA_REFERENCE, STA_POINTER, STA_MEMBER
+    Expression *e;   // (serf) for STA_DEPEXPR
   } value;
 
 public:
@@ -369,12 +368,13 @@ public:
   Variable *getReference() const { xassert(kind==STA_REFERENCE); return value.v; }
   Variable *getPointer()   const { xassert(kind==STA_POINTER);   return value.v; }
   Variable *getMember()    const { xassert(kind==STA_MEMBER);    return value.v; }
+  Expression *getDepExpr() const { xassert(kind==STA_DEPEXPR);   return value.e; }
 
   // set 'value', ensuring correspondence between it and 'kind'
   void setType(Type *t)          { kind=STA_TYPE;      value.t=t; }
   void setInt(int i)             { kind=STA_INT;       value.i=i; }
   void setReference(Variable *v) { kind=STA_REFERENCE; value.v=v; }
-  void setDepExpr()              { kind=STA_DEPEXPR;   value.i=0; }
+  void setDepExpr(Expression *e) { kind=STA_DEPEXPR;   value.e=e; }
   void setPointer(Variable *v)   { kind=STA_POINTER;   value.v=v; }
   void setMember(Variable *v)    { kind=STA_MEMBER;    value.v=v; }
 

@@ -774,7 +774,7 @@ string STemplateArgument::toString() const
     case STA_MEMBER:    return stringc
       << "/*member*/ &" << value.v->scope->curCompound->name
       << "::" << value.v->name;
-    case STA_DEPEXPR:   return string("<value-dep-expr>");
+    case STA_DEPEXPR:   return getDepExpr()->exprToString();
     case STA_TEMPLATE:  return string("template (?)");
   }
 }

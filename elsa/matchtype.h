@@ -218,6 +218,8 @@ private:                        // funcs
   // internal method for checking if Type 'a' matches Type 'b'.
   bool match0(Type *a, Type *b, int matchDepth);
 
+  bool matchExpr(Expression const *a, Expression const *b);
+
 public:
   MatchTypes(TypeFactory &tfac0, MatchMode mode0, Type::EqFlags eflags0 = Type::EF_EXACT);
   ~MatchTypes();

@@ -8265,7 +8265,7 @@ static void setSTemplArgFromExpr
     else if (env.inUninstTemplate()) {
       // assume that the cause is evaluating an expression that refers
       // to a (non-type) template argument (TODO: confirm)
-      sarg.setDepExpr();
+      sarg.setDepExpr(expr);
     }
     else {
       env.error(stringc

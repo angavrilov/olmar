@@ -6,6 +6,7 @@
 #include "variable.h"        // Variable
 #include "trace.h"           // tracingSys
 #include "template.h"        // STemplateArgument, etc.
+#include "cc_ast.h"          // Expression, etc.
 
 
 // FIX: I'll bet the matchDepth here isn't right; not sure what should
@@ -886,6 +887,12 @@ bool MatchTypes::match_STA(STemplateArgument *a, STemplateArgument const *b, int
     xfailure("STemplateArgument::STA_TEMPLATE non implemented");
     break;
 
+  case STemplateArgument::STA_DEPEXPR:
+    if (a->kind != b->kind) {
+      return false;
+    }
+    return matchExpr(a->getDepExpr(), b->getDepExpr());
+
   default:
     xfailure("illegal STemplateArgument::kind");
     break;
@@ -921,6 +928,43 @@ bool MatchTypes::match0(Type *a, Type *b, int matchDepth)
   }
 
   --recursionDepth;
+}
+
+
+// -------------- matching expressions ----------------
+bool MatchTypes::matchExpr(Expression const *a, Expression const *b)
+{
+  // for now, only allow exact structural matching
+  if (a->kind() != b->kind()) {
+    return false;
+  }
+
+  // at first, implement just a few kinds of nodes
+  ASTSWITCH2C(Expression, a, b) {
+    ASTCASE2C(E_binary, aBin, bBin)
+      return aBin->op == bBin->op &&
+             matchExpr(aBin->e1, bBin->e1) &&
+             matchExpr(aBin->e2, bBin->e2);
+             
+    ASTNEXT2C(E_intLit, aLit, bLit)
+      return aLit->i == bLit->i;
+      
+    ASTNEXT2C(E_variable, aVar, bVar)
+      if (aVar->var == bVar->var) {
+        return true;      // literally the same
+      }
+      if (aVar->var->isTemplateParam() &&
+          bVar->var->isTemplateParam() &&
+          aVar->var->sameTemplateParameter(bVar->var)) {
+        return true;      // same logical parameter
+      }
+      return false;
+
+    ASTDEFAULT2C
+      return false;
+      
+    ASTENDCASE2C
+  }
 }
 
 
