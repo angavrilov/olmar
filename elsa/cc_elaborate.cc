@@ -629,10 +629,6 @@ Expression *ElabVisitor::elaborateCallByValue
   (SourceLoc loc, Type *paramType, Expression *argExpr)
 {
   CompoundType *paramCt = paramType->asCompoundType();
-  // we should never be using a mutant type here and this seems a
-  // reasonable place to check
-  xassert(!paramCt->templateInfo()
-          || !paramCt->templateInfo()->isMutant());
 
   // E_variable that points to the temporary
   Variable *tempVar = insertTempDeclaration(loc, tfac.cloneType(paramType));
@@ -1522,7 +1518,7 @@ bool ElabVisitor::visitTopForm(TopForm *tf)
 {
   static int elabTopForm = 0;
   ++elabTopForm;
-  TRACE("topform", elabTopForm);
+  TRACE("elabtopform", elabTopForm);
   if (doing(EA_VARIABLE_DECL_CDTOR) &&
       tf->isTF_decl()) {
     // global variables
@@ -1893,7 +1889,7 @@ StringRef PQ_variable::getName() const
   return var->name;
 }
 
-void PQ_variable::tcheck(Env &env)
+void PQ_variable::tcheck(Env &env, Scope*, LookupFlags)
 {
   // nothing to check
 }

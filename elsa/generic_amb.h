@@ -75,6 +75,13 @@ NODE *resolveAmbiguity(
   ErrorList existingErrors;
   existingErrors.takeMessages(env.errors);
 
+  // tell the environment about this hidden list of errors, so that
+  // if an error needs to be added that has nothing to do with this
+  // disambiguation, it can be
+  if (env.hiddenErrors == NULL) {     // no hidden yet, I'm the first
+    env.hiddenErrors = &existingErrors;
+  }
+
   // having stolen the existing errors, we now tell the environment
   // we're in a disambiguation pass so it knows that any disambiguating
   // errors are participating in an active disambiguation
@@ -170,10 +177,15 @@ NODE *resolveAmbiguity(
   // we're about to put the pre-existing errors back into env.errors
   env.disambiguationNestingLevel--;
 
+  if (env.hiddenErrors == &existingErrors) {     // I'm the first
+    env.hiddenErrors = NULL;          // no more now
+  }
+
   if (numOk == 0) {
     // none of the alternatives checked out
     TRACE("disamb",
       toString(loc) << ": ambiguous " << nodeTypeName << ": all bad");
+    breaker();
 
     // put all the errors in and also a note about the ambiguity
     env.errors.takeMessages(existingErrors);

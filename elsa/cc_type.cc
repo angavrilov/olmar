@@ -8,6 +8,13 @@
 #include "sobjset.h"    // SObjSet
 #include "hashtbl.h"    // lcprngTwoSteps
 #include "matchtype.h"  // MatchTypes
+#include "asthelp.h"    // ind
+
+// TemplateInfo, etc... it would be sort of nice if this module didn't
+// have to #include template.h, since most of what it does is
+// independent of that, but there are enough little dependencies that
+// for now I just live with it.
+#include "template.h"
 
 // Do *not* add a dependency on cc.ast or cc_env.  cc_type is about
 // the intrinsic properties of types, independent of any particular
@@ -229,11 +236,20 @@ STATICDEF char const *CompoundType::keywordName(Keyword k)
   }
 }
 
+
 bool CompoundType::isTemplate() const
 {
   TemplateInfo *tinfo = templateInfo();
   return tinfo != NULL &&
          tinfo->hasParameters();
+}
+
+
+bool CompoundType::isInstantiation() const
+{
+  TemplateInfo *tinfo = templateInfo();
+  return tinfo != NULL &&
+         tinfo->isInstantiation();
 }
 
 
@@ -253,7 +269,9 @@ TemplateInfo *CompoundType::templateInfo() const
 
 void CompoundType::setTemplateInfo(TemplateInfo *templInfo0)
 {
-  return getTypedefVar()->setTemplateInfo(templInfo0);
+  if (templInfo0) {
+    getTypedefVar()->setTemplateInfo(templInfo0);
+  }
 }
 
 
@@ -291,15 +309,17 @@ string CompoundType::toCString() const
     sb << keywordName(keyword) << " ";
   }
 
-  sb << (name? name : "/*anonymous*/");
+  sb << (instName? instName : "/*anonymous*/");
 
   // template arguments are now in the name
   // 4/22/04: they were removed from the name a long time ago;
   //          but I'm just now uncommenting this code
-  if (tinfo && tinfo->arguments.isNotEmpty()) {
-    sb << sargsToString(tinfo->arguments);
-  }
-   
+  // 8/03/04: restored the original purpose of 'instName', so
+  //          once again that is name+args, so this code is not needed
+  //if (tinfo && tinfo->arguments.isNotEmpty()) {
+  //  sb << sargsToString(tinfo->arguments);
+  //}
+
   return sb;
 }
 
@@ -840,62 +860,6 @@ EnumType::Value::Value(StringRef n, EnumType *t, int v, Variable *d)
 
 EnumType::Value::~Value()
 {}
-
-
-// ------------------ TypeVariable ----------------
-TypeVariable::~TypeVariable()
-{}
-
-string TypeVariable::toCString() const
-{
-  // use the "typename" syntax instead of "class", to distinguish
-  // this from an ordinary class, and because it's syntax which
-  // more properly suggests the ability to take on *any* type,
-  // not just those of classes
-  //
-  // but, the 'typename' syntax can only be used in some specialized
-  // circumstances.. so I'll suppress it in the general case and add
-  // it explicitly when printing the few constructs that allow it
-  //return stringc << "/*typename*/ " << name;
-  return stringc << "/""*typevar"
-//                   << "typedefVar->serialNumber:"
-//                   << (typedefVar ? typedefVar->serialNumber : -1)
-                 << "*/" << name;
-}
-
-int TypeVariable::reprSize() const
-{
-  //xfailure("you can't ask a type variable for its size");
-
-  // this happens when we're typechecking a template class, without
-  // instantiating it, and we want to verify that some size expression
-  // is constant.. so make up a number
-  return 4;
-}
-
-
-// -------------------- PseudoInstantiation ------------------
-PseudoInstantiation::PseudoInstantiation(CompoundType *p)
-  : NamedAtomicType(p->name),
-    primary(p),
-    args()        // empty initially
-{}
-
-PseudoInstantiation::~PseudoInstantiation()
-{}
-
-string PseudoInstantiation::toCString() const
-{
-  return stringc << primary->name << sargsToString(args);
-}
-
-int PseudoInstantiation::reprSize() const
-{
-  // it shouldn't matter what we say here, since the query will only
-  // be made in the context of checking (but not instantiating) a
-  // template definition body
-  return 4;
-}
 
 
 // -------------------- BaseType ----------------------
@@ -1819,7 +1783,7 @@ string FunctionType::leftString(bool innerParen) const
 
   // return type and start of enclosing type's description
   if (flags & (/*FF_CONVERSION |*/ FF_CTOR | FF_DTOR)) {
-    // don't print the return type, it's implicit       
+    // don't print the return type, it's implicit
 
     // 7/18/03: changed so we print ret type for FF_CONVERSION,
     // since otherwise I can't tell what it converts to!
@@ -1843,6 +1807,7 @@ string FunctionType::rightString(bool innerParen) const
   // since it's following the placement of 'const' and 'volatile'
   return stringc
     << rightStringUpToQualifiers(innerParen)
+    << rightStringQualifiers(getReceiverCV())
     << rightStringAfterQualifiers();
 }
 
@@ -1883,18 +1848,23 @@ string FunctionType::rightStringUpToQualifiers(bool innerParen) const
   return sb;
 }
 
+STATICDEF string FunctionType::rightStringQualifiers(CVFlags cv)
+{
+  if (cv) {
+    return stringc << " " << ::toString(cv);
+  }
+  else {
+    return "";
+  }
+}
+
 string FunctionType::rightStringAfterQualifiers() const
 {
   stringBuilder sb;
 
-  CVFlags cv = getReceiverCV();
-  if (cv) {
-    sb << " " << ::toString(cv);
-  }
-
   // exception specs
   if (exnSpec) {
-    sb << " throw(";                
+    sb << " throw(";
     int ct=0;
     SFOREACH_OBJLIST(Type, exnSpec->types, iter) {
       if (ct++ > 0) {
@@ -1916,6 +1886,16 @@ string FunctionType::rightStringAfterQualifiers() const
 
 void FunctionType::extraRightmostSyntax(stringBuilder &) const
 {}
+
+
+string FunctionType::toString_withCV(CVFlags cv) const
+{
+  return stringc
+    << leftString(true /*innerParen*/)
+    << rightStringUpToQualifiers(true /*innerParen*/)
+    << rightStringQualifiers(cv)
+    << rightStringAfterQualifiers();
+}
 
 
 int FunctionType::reprSize() const
@@ -1949,605 +1929,6 @@ bool FunctionType::anyCtorSatisfies(TypePred &pred) const
   // type templates are dealt with, which is to say we do not recurse
   // on the parameters
 //      || (templateInfo && templateInfo->anyParamCtorSatisfies(pred));
-}
-
-
-// ------------------ TemplateParams ---------------
-TemplateParams::TemplateParams(TemplateParams const &obj)
-  : params(obj.params)
-{}
-
-TemplateParams::~TemplateParams()
-{}
-
-
-string TemplateParams::paramsToCString() const
-{
-  return ::paramsToCString(params);
-}
-
-string paramsToCString(SObjList<Variable> const &params)
-{
-  stringBuilder sb;
-  sb << "template <";
-  int ct=0;
-  SFOREACH_OBJLIST(Variable, params, iter) {
-    Variable const *p = iter.data();
-    if (ct++ > 0) {
-      sb << ", ";
-    }
-
-    if (p->type->isTypeVariable()) {
-      sb << "class " << p->type->asTypeVariable()->name;
-    }
-    else {
-      // non-type parameter
-      sb << p->toCStringAsParameter();
-    }
-  }
-  sb << ">";
-  return sb;
-}
-
-
-bool TemplateParams::anyParamCtorSatisfies(TypePred &pred) const
-{
-  return parameterListCtorSatisfies(pred, params);
-}
-
-
-// --------------- InheritedTemplateParams ---------------
-InheritedTemplateParams::InheritedTemplateParams(InheritedTemplateParams const &obj)
-  : TemplateParams(obj),
-    enclosing(obj.enclosing)
-{}
-
-InheritedTemplateParams::~InheritedTemplateParams()
-{}
-
-
-// ------------------ TemplateInfo -------------
-TemplateInfo::TemplateInfo(SourceLoc il)
-  : TemplateParams(),
-    var(NULL),
-    declSyntax(NULL),
-    myPrimary(NULL),
-    instantiatedFrom(NULL),
-    instantiations(),         // empty list
-    arguments(),              // empty list
-    instLoc(il)
-{}
-
-
-// this is called by Env::makeUsingAliasFor ..
-TemplateInfo::TemplateInfo(TemplateInfo const &obj)
-  : TemplateParams(obj),
-    var(NULL),                // caller must call Variable::setTemplateInfo
-    myPrimary(obj.myPrimary),
-    instantiations(obj.instantiations),      // suspicious... oh well
-    arguments(),                             // copied below
-    instLoc(obj.instLoc)
-{
-  // inheritedParams
-  FOREACH_OBJLIST(InheritedTemplateParams, obj.inheritedParams, iter2) {
-    inheritedParams.prepend(new InheritedTemplateParams(*(iter2.data())));
-  }
-  inheritedParams.reverse();
-
-  // arguments
-  FOREACH_OBJLIST(STemplateArgument, obj.arguments, iter) {
-    arguments.prepend(new STemplateArgument(*(iter.data())));
-  }
-  arguments.reverse();
-}
-
-
-TemplateInfo::~TemplateInfo()
-{}
-
-
-StringRef TemplateInfo::getBaseName() const
-{
-  if (var->type->isCompoundType()) {
-    return var->type->asCompoundType()->name;
-  }
-  else {
-    return NULL;     // function template
-  }
-}
-
-
-void TemplateInfo::setMyPrimary(TemplateInfo *prim)
-{
-  xassert(prim);                // argument must be non-NULL
-  xassert(prim->isPrimary());   // myPrimary can only be a primary
-  xassert(!myPrimary);          // can only do this once
-  xassert(isNotPrimary());      // can't set myPrimary of a primary
-  myPrimary = prim;
-}
-
-
-// this one is idempotent
-TemplateInfo *TemplateInfo::getMyPrimaryIdem() const
-{
-  // I know, this is weird; you have to protect isPrimary() from being
-  // called on a mutant.
-  if (isMutant()) {
-    xassert(myPrimary);
-    return myPrimary;
-  } else if (isPrimary()) {
-    xassert(!myPrimary);
-    return const_cast<TemplateInfo*>(this);
-  } else {
-    xassert(myPrimary);
-    return myPrimary;
-  }
-}
-
-
-Variable *TemplateInfo::addInstantiation(TypeFactory &tfac, Variable *inst0, 
-                                         bool suppressDup)
-{
-  xassert(inst0);
-  xassert(inst0->templateInfo());
-  inst0->templateInfo()->setMyPrimary(this);
-  // check that we don't match something that is already on the list
-  // FIX: I suppose we should turn this off since it makes it quadratic
-
-  // FIX: could do this if we had an Env
-//    xassert(!getInstThatMatchesArgs(env, inst->templateInfo()->arguments));
-
-  bool inst0IsMutant = inst0->templateInfo()->isMutant();
-  SFOREACH_OBJLIST_NC(Variable, getInstantiations(), iter) {
-    Variable *inst1 = iter.data();
-    MatchTypes match(tfac, MatchTypes::MM_ISO);
-    bool unifies = match.match_Lists
-      (inst1->templateInfo()->arguments,
-       inst0->templateInfo()->arguments,
-       2 /*matchDepth*/);
-    if (unifies) {
-      if (inst0IsMutant) {
-        xassert(inst1->templateInfo()->isMutant());
-        // Note: Never remove duplicate mutants; isomorphic mutants
-        // are not interchangable.
-      } else {
-        xassert(!inst1->templateInfo()->isMutant());
-        // other, non-mutant instantiations should never be duplicated
-        //        xassert(!unifies);
-        xassert(suppressDup);
-        return inst1;
-      }
-    }
-  }
-
-  instantiations.append(inst0);
-  return inst0;
-}
-
-
-SObjList<Variable> &TemplateInfo::getInstantiations()
-{
-  return instantiations;
-}
-
-
-Variable *TemplateInfo::getInstantiationOfVar(TypeFactory &tfac, Variable *var)
-{
-  xassert(var->templateInfo());
-  ObjList<STemplateArgument> &varTArgs = var->templateInfo()->arguments;
-  Variable *matchingVar = NULL;
-  SFOREACH_OBJLIST_NC(Variable, getInstantiations(), iter) {
-    Variable *candidate = iter.data();
-    MatchTypes match(tfac, MatchTypes::MM_ISO);
-    // FIX: I use MT_NONE only because the matching is supposed to be
-    // exact.  If you wanted the standard effect of const/volatile not
-    // making a difference at the top of a parameter type, you would
-    // have to match each parameter separately
-    if (!match.match_Type(var->type, candidate->type, 2 /*matchDepth*/)) continue;
-    if (!match.match_Lists(varTArgs, candidate->templateInfo()->arguments, 2 /*matchDepth*/)) {
-      continue;
-    }
-    xassert(!matchingVar);      // shouldn't be in there twice
-    matchingVar = iter.data();
-  }
-  return matchingVar;
-}
-
-
-bool TemplateInfo::equalArguments
-  (TypeFactory &tfac, SObjList<STemplateArgument> const &list) const
-{
-  ObjListIter<STemplateArgument> iter1(arguments);
-  SObjListIter<STemplateArgument> iter2(list);
-
-  while (!iter1.isDone() && !iter2.isDone()) {
-    STemplateArgument const *sta1 = iter1.data();
-    STemplateArgument const *sta2 = iter2.data();
-    if (!sta1->isomorphic(tfac, sta2)) {
-      return false;
-    }
-
-    iter1.adv();
-    iter2.adv();
-  }
-
-  return iter1.isDone() && iter2.isDone();
-}
-
-
-Variable *TemplateInfo::getPrimaryOrSpecialization
-  (TypeFactory &tfac, SObjList<STemplateArgument> const &sargs)
-{
-  // primary?
-  //
-  // I can't just test for 'sargs' equalling 'this->arguments',
-  // because for the primary, the latter is always empty.
-  //
-  // So I'm just going to test that 'sargs' consists entirely
-  // of toplevel type variables, which isn't exactly right ...
-  bool allToplevelVars = true;
-  SFOREACH_OBJLIST(STemplateArgument, sargs, argIter) {
-    STemplateArgument const *arg = argIter.data();
-
-    if (arg->isType()) {
-      if (!arg->getType()->isTypeVariable()) {
-        allToplevelVars = false;
-      }
-    }
-    else {
-      // we do not (yet) have a proper way of distinguishing object
-      // placeholders from true concrete objects in template
-      // arguments..... so just assume it's toplevel
-    }
-  }
-  if (allToplevelVars) {
-    return var;
-  }
-
-  // specialization?
-  //
-  // (for now, since specializations and instantiations are mixed
-  // together, search the combined list and hope for no confusion to
-  // arise)
-  SFOREACH_OBJLIST_NC(Variable, instantiations, iter) {
-    Variable *spec = iter.data();
-    if (spec->templateInfo()->equalArguments(tfac, sargs)) {
-      return spec;
-    }
-  }
-
-  // no matching specialization
-  return NULL;
-}
-
-
-bool TemplateInfo::argumentsContainTypeVariables() const
-{
-  FOREACH_OBJLIST(STemplateArgument, arguments, iter) {
-    STemplateArgument const *sta = iter.data();
-    if (sta->kind == STemplateArgument::STA_TYPE) {
-      if (sta->value.t->containsTypeVariables()) return true;
-    }
-    // FIX: do other kinds
-  }
-  return false;
-}
-
-
-bool TemplateInfo::argumentsContainVariables() const
-{
-  FOREACH_OBJLIST(STemplateArgument, arguments, iter) {
-    if (iter.data()->containsVariables()) return true;
-  }
-  return false;
-}
-
-
-bool TemplateInfo::hasParameters() const
-{  
-  // check params attached directly to this object
-  if (params.isNotEmpty()) {
-    return true;
-  }
-  
-  // check for inherited parameters
-  FOREACH_OBJLIST(InheritedTemplateParams, inheritedParams, iter) {
-    if (iter.data()->params.isNotEmpty()) {
-      return true;
-    }
-  }
-               
-  // no parameters at any level
-  return false;                
-}
-
-
-bool TemplateInfo::hasSpecificParameter(Variable const *v) const
-{
-  // 'params'?
-  if (params.contains(v)) { return true; }
-  
-  // inherited?
-  FOREACH_OBJLIST(InheritedTemplateParams, inheritedParams, iter) {
-    if (iter.data()->params.contains(v)) { 
-      return true; 
-    }
-  }
-
-  return false;     // 'v' does not appear in any parameter list
-}
-
-
-// You may ask why I don't implement isMutant() as simply "return
-// isPrimary() || isPartialSpec() || isCompleteSpecOrInstantiation()".
-// I don't because I want the assertions in the three other methods,
-// as they are used directly and always in cases where there should
-// never be a mutant, and I have to avoid circularity, therefore
-// isMutant() does not depend on them.  I have also avoided references
-// to the instantiations list, as that is somehow a different
-// consideration from mutantness
-bool TemplateInfo::isMutant() const {
-  // primary
-  if (hasParameters() && arguments.isEmpty()) return false;
-  // partial specialization
-  if (hasParameters() && argumentsContainVariables()) return false;
-  // complete specialization / instantiation
-  if (!hasParameters() && !argumentsContainVariables()) return false;
-  // mutant!
-  xassert(!hasParameters());
-  xassert(instantiations.isEmpty());
-  xassert(arguments.isNotEmpty());
-  xassert(argumentsContainVariables());
-
-  return true;
-}
-
-
-bool TemplateInfo::isPrimary() const {
-  xassert(!isMutant());
-  return hasParameters() && arguments.isEmpty();
-}
-
-
-bool TemplateInfo::isNotPrimary() const {
-  if (isMutant()) return true;
-  return !isPrimary();
-}
-
-
-bool TemplateInfo::isPartialSpec() const {
-  xassert(!isMutant());
-  bool ret = hasParameters() && argumentsContainVariables();
-  if (ret) {
-    xassert(instantiations.isEmpty());
-  }
-  return ret;
-}
-
-
-bool TemplateInfo::isCompleteSpecOrInstantiation() const {
-  xassert(!isMutant());
-  bool ret = !hasParameters() && !argumentsContainVariables();
-  if (ret) {
-    xassert(instantiations.isEmpty());
-  }
-  return ret;
-}
-
-
-void TemplateInfo::gdb()
-{
-  debugPrint(0);
-}
-
-
-void TemplateInfo::debugPrint(int depth)
-{
-  for (int i=0; i<depth; ++i) cout << "  ";
-  cout << "TemplateInfo";
-  StringRef baseName = getBaseName();
-  if (baseName) {
-    cout << ", baseName: " << baseName;
-  } else {
-    cout << ", null base name";
-  }
-  cout << endl;
-  for (int i=0; i<depth; ++i) cout << "  ";
-  cout << "params:" << endl;
-  SFOREACH_OBJLIST_NC(Variable, params, iter) {
-    Variable *var = iter.data();
-    cout << "\t'" << var->name << "' ";
-    printf("%p ", var);
-//      cout << "var->serialNumber " << var->serialNumber << endl;
-//      cout << iter.data()->toString();
-    cout << endl;
-  }
-  for (int i=0; i<depth; ++i) cout << "  ";
-  cout << "instantiations:" << endl;
-  SFOREACH_OBJLIST_NC(Variable, instantiations, iter) {
-    Variable *var = iter.data();
-    for (int i=0; i<depth; ++i) cout << "  ";
-    cout << var->toString() << endl;
-    var->templateInfo()->debugPrint(depth+1);
-  }
-  for (int i=0; i<depth; ++i) cout << "  ";
-  cout << "arguments:" << endl;
-  FOREACH_OBJLIST_NC(STemplateArgument, arguments, iter) {
-    iter.data()->debugPrint(depth+1);
-  }
-  for (int i=0; i<depth; ++i) cout << "  ";
-  cout << "TemplateInfo end" << endl;
-}
-
-
-// ------------------- STemplateArgument ---------------
-STemplateArgument::STemplateArgument(STemplateArgument const &obj)
-  : kind(obj.kind)
-{
-  // sm: ok, fine; rather than have two copy ctors, I'll just change
-  // this one so there are no borderline language abuses...
-  if (kind == STA_TYPE) {
-    value.t = obj.value.t;
-  }
-  else if (kind == STA_INT) {
-    value.i = obj.value.i;
-  }
-  else {
-    value.v = obj.value.v;
-  }
-}
-
-
-STemplateArgument *STemplateArgument::shallowClone() const
-{
-  return new STemplateArgument(*this);
-}
-
-
-bool STemplateArgument::isObject() const
-{
-  switch (kind) {
-  default:
-    xfailure("illegal STemplateArgument kind"); break;
-
-  case STA_TYPE:                // type argument
-    return false; break;
-
-  case STA_INT:                 // int or enum argument
-  case STA_REFERENCE:           // reference to global object
-  case STA_POINTER:             // pointer to global object
-  case STA_MEMBER:              // pointer to class member
-    return true; break;
-
-  case STA_TEMPLATE:            // template argument (not implemented)
-    return false; break;
-  }
-}
-
-
-bool STemplateArgument::equals(STemplateArgument const *obj) const
-{
-  if (kind != obj->kind) {
-    return false;
-  }
-
-  // At one point I tried making type arguments unequal if they had
-  // different typedefs, but that does not work, because I need A<int>
-  // to be the *same* type as A<my_int>, for example to do base class
-  // constructor calls.
-
-  switch (kind) {
-    case STA_TYPE:     return value.t->equals(obj->value.t);
-    case STA_INT:      return value.i == obj->value.i;
-    default:           return value.v == obj->value.v;
-  }
-}
-
-
-bool STemplateArgument::containsVariables() const
-{
-  if (kind == STemplateArgument::STA_TYPE) {
-    if (value.t->containsVariables()) {
-      return true;
-    }
-  } else if (kind == STemplateArgument::STA_REFERENCE) {
-    // FIX: I am not at all sure that my interpretation of what
-    // STemplateArgument::kind == STA_REFERENCE means; I think it
-    // means it is a non-type non-template (object) variable in an
-    // argument list
-    return true;
-  }
-  // FIX: do other kinds
-  return false;
-}
-
-
-bool STemplateArgument::isomorphic(TypeFactory &tfac, STemplateArgument const *obj) const
-{
-  if (kind != obj->kind) {
-    return false;
-  }
-
-  switch (kind) {
-    case STA_TYPE: {
-      MatchTypes match(tfac, MatchTypes::MM_ISO);
-      return match.match_Type(value.t, obj->value.t);
-    }
-
-    // TODO: these are wrong, because we don't have a proper way
-    // to represent non-type template parameters in argument lists
-    case STA_INT:      return value.i == obj->value.i;
-    default:           return value.v == obj->value.v;
-  }
-}
-
-
-string STemplateArgument::toString() const
-{
-  switch (kind) {
-    default: xfailure("bad kind");
-    case STA_NONE:      return string("STA_NONE");
-    case STA_TYPE:      return value.t->toString();   // assume 'type' if no comment
-    case STA_INT:       return stringc << "/*int*/ " << value.i;
-    case STA_REFERENCE: return stringc << "/*ref*/ " << value.v->name;
-    case STA_POINTER:   return stringc << "/*ptr*/ &" << value.v->name;
-    case STA_MEMBER:    return stringc
-      << "/*member*/ &" << value.v->scope->curCompound->name 
-      << "::" << value.v->name;
-    case STA_TEMPLATE:  return string("template (?)");
-  }
-}
-
-
-void STemplateArgument::gdb()
-{
-  debugPrint(0);
-}
-
-
-void STemplateArgument::debugPrint(int depth)
-{
-  for (int i=0; i<depth; ++i) cout << "  ";
-  cout << "STemplateArgument: " << toString() << endl;
-}
-
-
-SObjList<STemplateArgument> *cloneSArgs(SObjList<STemplateArgument> &sargs)
-{
-  SObjList<STemplateArgument> *ret = new SObjList<STemplateArgument>();
-  SFOREACH_OBJLIST_NC(STemplateArgument, sargs, iter) {
-    ret->append(iter.data());
-  }
-  return ret;
-}
-
-
-string sargsToString(SObjList<STemplateArgument> const &list)
-{
-  stringBuilder sb;
-  sb << "<";
-
-  int ct=0;
-  SFOREACH_OBJLIST(STemplateArgument, list, iter) {
-    if (ct++ > 0) {
-      sb << ", ";
-    }
-    sb << iter.data()->toString();
-  }
-
-  sb << ">";
-  return sb;
-}
-
-
-bool containsTypeVariables(SObjList<STemplateArgument> const &args)
-{
-  SFOREACH_OBJLIST(STemplateArgument, args, iter) {
-    if (iter.data()->containsVariables()) {
-      return true;
-    }
-  }
-  return false;
 }
 
 

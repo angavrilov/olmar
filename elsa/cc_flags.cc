@@ -76,7 +76,7 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "<global>",
   "<initialized>",
   "<builtin>",
-  "<delayed inst>", // 14
+  "<bound templ var>", // 14
   "<addrtaken>",
   "<parameter>",
   "<universal>",
@@ -114,7 +114,8 @@ char const *toString(ScopeKind sk)
     "parameter",
     "function",
     "class",
-    "template",
+    "template_params",
+    "template_args",
     "eat_templ_inst",
     "namespace",
   };

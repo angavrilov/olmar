@@ -231,6 +231,13 @@ void Function::print(PrintEnv &env)
                          nameAndParams->getDeclaratorId(),
                          nameAndParams->var);
 
+  if (nameAndParams->var->templateInfo() &&
+      !hasBodyBeenTChecked) {
+    // this is an unchecked instantiation
+    env << "; // not instantiated\n";
+    return;
+  }
+
   if (inits) {
     env << ":";
     bool first_time = true;
@@ -247,7 +254,13 @@ void Function::print(PrintEnv &env)
 
   if (handlers) env << "\ntry";
 
-  body->print(env);
+  if (body->stmts.isEmpty()) {
+    // more concise
+    env << " {}\n";
+  }
+  else {
+    body->print(env);
+  }
 
   if (handlers) {
     FAKELIST_FOREACH_NC(Handler, handlers, iter) {
@@ -280,6 +293,8 @@ void Declaration::print(PrintEnv &env)
       env << toString(extras) << " ";
     }
 
+    // TODO: this will not work if there is more than one declarator ...
+
     iter->print(env);
     env << ";" << endl;
   }
@@ -289,7 +304,11 @@ void Declaration::print(PrintEnv &env)
 void ASTTypeId::print(PrintEnv &env)
 {
   olayer ol("ASTTypeId");
-  decl->print(env);
+  env << getType()->toString();
+  if (decl->getDeclaratorId()) {
+    env << " ";
+    decl->getDeclaratorId()->print(env);
+  }
 }
 
 // ---------------------- PQName -------------------
@@ -306,9 +325,13 @@ void printTemplateArgumentList(PrintEnv &env, ASTList<TemplateArgument> &args)
 
 void PQ_qualifier::print(PrintEnv &env)
 {
-  env << qualifier << "<";
-  printTemplateArgumentList(env, targs);
-  env << ">::";
+  env << qualifier;
+  if (targs.isNotEmpty()) {
+    env << "<";
+    printTemplateArgumentList(env, targs);
+    env << ">";
+  }
+  env << "::";
   rest->print(env);
 }
 
@@ -365,10 +388,10 @@ void TS_classSpec::print(PrintEnv &env)
   bool first_time = true;
   FAKELIST_FOREACH_NC(BaseClassSpec, bases, iter) {
     if (first_time) {
-      env << ":";
+      env << " : ";
       first_time = false;
     }
-    else env << ",";
+    else env << ", ";
     iter->print(env);
   }
   codeout co(env, "", "{\n", "}");
@@ -471,7 +494,10 @@ void Declarator::print(PrintEnv &env)
     IN_ctor *ctor = dynamic_cast<IN_ctor*>(init);
     if (ctor) {
       // sm: don't print "()" as an IN_ctor initializer (cppstd 8.5 para 8)
-      if (!ctor->args->isEmpty()) {
+      if (ctor->args->isEmpty()) {
+        env << " /*default-ctor-init*/";
+      }
+      else {
         // dsw:Constructor arguments.
         codeout co(env, "", "(", ")");
         ctor->print(env);       // NOTE: You can NOT factor this line out of the if!
@@ -811,15 +837,56 @@ void E_this::iprint(PrintEnv &env)
   env << "this";
 }
 
+// print template args, if any
+void printTemplateArgs(PrintEnv &env, Variable *var)
+{
+  if (!( var && var->templateInfo() )) {
+    return;
+  }
+
+  TemplateInfo *tinfo = var->templateInfo();
+  int totArgs = tinfo->arguments.count();
+  if (totArgs == 0) {
+    return;
+  }
+
+  // use only arguments that apply to non-inherited parameters
+  int args = totArgs;
+  if (tinfo->isInstantiation()) {
+    args = tinfo->instantiationOf->templateInfo()->params.count();
+    if (args == 0) {
+      return;
+    }
+  }
+
+  // print final 'args' arguments
+  ObjListIter<STemplateArgument> iter(var->templateInfo()->arguments);
+  for (int i=0; i < (totArgs-args); i++) {
+    iter.adv();
+  }
+  env << "<";
+  int ct=0;
+  for (; !iter.isDone(); iter.adv()) {
+    if (ct++ > 0) {
+      env << ", ";
+    }
+    env << iter.data()->toString();
+  }
+  env << ">";
+}
+
 void E_variable::iprint(PrintEnv &env)
 {
   olayer ol("E_variable::iprint");
-  env << name->qualifierString();
-  if (var) {
-    env << var->name;          // use results of type checking
+  if (var && var->hasFlag(DF_BOUND_TEMPL_VAR)) {
+    // this is a bound template variable, so print its value instead
+    // of printing its name
+    xassert(var->value);
+    var->value->print(env);
   }
   else {
-    env << name->getName();    // type checking hasn't been done
+    env << name->qualifierString() << name->getName();
+    printTemplateArgs(env, var);
   }
 }
 
@@ -858,6 +925,7 @@ void E_fieldAcc::iprint(PrintEnv &env)
   if (field &&
       !field->type->isDependent()) {
     env << field->name;
+    printTemplateArgs(env, field);
   }
   else {
     // the 'field' remains NULL if we're in a template
@@ -1121,17 +1189,61 @@ void IN_ctor::print(PrintEnv &env)
 void TemplateDeclaration::print(PrintEnv &env)
 { 
   olayer ol("TemplateDeclaration");
-  // sm: the declared variable knows it is a template, and
-  // knows what its parameters are, so it will print that
-  // stuff (e.g. "template <...>")
+
+  env << "template <";
+  int ct=0;
+  FAKELIST_FOREACH_NC(TemplateParameter, params, iter) {
+    if (ct++ > 0) {
+      env << ", ";
+    }
+    iter->print(env);
+  }
+  env << ">\n";
 
   iprint(env);
+}
+
+void printFuncInstantiations(PrintEnv &env, Variable const *var)
+{
+  TemplateInfo *ti = var->templateInfo();
+  SFOREACH_OBJLIST(Variable, ti->instantiations, iter) {
+    Variable const *inst = iter.data();
+    if (inst->funcDefn) {
+      inst->funcDefn->print(env);
+    }
+    else {
+      env << inst->toQualifiedString() << ";    // decl but not defn\n";
+    }
+  }
 }
 
 void TD_func::iprint(PrintEnv &env)
 {
   olayer ol("TD_func");
   f->print(env);
+
+  // print instantiations
+  Variable *var = f->nameAndParams->var;
+  if (var->isTemplate()) {      // for complete specializations, don't print
+    env << "#if 0    // instantiations of " << var->toString() << "\n";
+    printFuncInstantiations(env, var);
+
+    TemplateInfo *varTI = var->templateInfo();
+    if (!varTI->definitionTemplateInfo) {
+      // little bit of a hack: if this does not have a
+      // 'definitionTemplateInfo', then it was defined inline, and
+      // the partial instantiations will be printed when the class
+      // instantiation is
+    }
+    else {
+      // also look in partial instantiations
+      SFOREACH_OBJLIST(Variable, varTI->partialInstantiations, iter) {
+        printFuncInstantiations(env, iter.data());
+      }
+    }
+
+    env << "#endif   // instantiations of " << var->name << "\n\n";
+  }
 }
 
 void TD_proto::iprint(PrintEnv &env)
@@ -1141,30 +1253,41 @@ void TD_proto::iprint(PrintEnv &env)
 
 void TD_class::iprint(PrintEnv &env)
 {
-  // here, the type specifier doesn't know about the template-ness
-  // since it doesn't have access to the created Variable
-  env << "template <";
-  int ct=0;
-  FAKELIST_FOREACH_NC(TemplateParameter, params, iter) {
-    if (ct++ > 0) {
-      env << ", ";
-    }
-    iter->print(env);
-  }  
-  env << ">\n";
-
   spec->print(env);
   env << ";\n";
+
+  // print instantiations
+  if (spec->isTS_classSpec()) {
+    CompoundType *ct = spec->asTS_classSpec()->ctype;
+    TemplateInfo *ti = ct->typedefVar->templateInfo();
+    if (!ti->isCompleteSpec()) {
+      env << "#if 0    // instantiations of " << ct->name << "\n";
+
+      SFOREACH_OBJLIST(Variable, ti->instantiations, iter) {
+        Variable const *instV = iter.data();
+
+        env << "// " << instV->type->toString();
+        CompoundType *instCT = instV->type->asCompoundType();
+        if (instCT->syntax) {
+          env << "\n";
+          instCT->syntax->print(env);
+          env << ";\n";
+        }
+        else {
+          env << ";     // body not instantiated\n";
+        }
+      }
+      env << "#endif   // instantiations of " << ct->name << "\n\n";
+    }
+  }
+  else {
+    // it could be a forward declaration of a template class;
+    // do nothing more
+  }
 }
 
 void TD_tmember::iprint(PrintEnv &env)
 {
-  // If I print the params, then the TD_func case will be wrong
-  // since it prints all the params; if I don't, then the TD_class
-  // case will be wrong since it prints only the params that are
-  // syntactically present in TD_class.  Our printing design needs
-  // both cases to work the same way...
-  env << "/""* TD_member::iprint is fundamentally broken */\n";
   d->print(env);
 }
 

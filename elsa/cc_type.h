@@ -278,6 +278,10 @@ public:      // funcs
   // template arguments to be supplied (i.e. not true for classes
   // that come from templates, but all arguments have been supplied)
   bool isTemplate() const;
+  
+  // true if it is an instance (fully concrete type arguments) of some
+  // template
+  bool isInstantiation() const;
 
   // manipulate 'templateInfo' which is now in Variable
   TemplateInfo *templateInfo() const;
@@ -410,32 +414,7 @@ public:     // funcs
 };
 
 
-// denote a class template with arguments supplied, so it's like an
-// instantiation, but some of those arguments contain type variables,
-// so this does not denote a single concrete type; this appears in
-// template definitions only
-//
-// actually it might not contain type variables but instead only
-// contain non-type argument variables; the point is we don't have
-// enough information to do a concrete instantiation
-class PseudoInstantiation : public NamedAtomicType {
-public:      // data
-  // class template primary to which we are adding arguments
-  CompoundType *primary;
-
-  // the arguments, some of which contain type variables
-  ObjList<STemplateArgument> args;
-
-public:      // funcs
-  PseudoInstantiation(CompoundType *p);
-  ~PseudoInstantiation();
-
-  // AtomicType interface
-  virtual Tag getTag() const { return T_PSEUDOINSTANTIATION; }
-  virtual string toCString() const;
-  virtual string toMLString() const;
-  virtual int reprSize() const;
-};
+// moved PseudoInstantiation into template.h
 
 
 // ------------------- constructed types -------------------------
@@ -569,9 +548,15 @@ public:     // funcs
     // declarations.
     EF_ALLOW_KR_PARAM_OMIT = 0x0100,
 
+    // for use by the matchtype module: this flag means we are trying
+    // to deduce function template arguments, so the variations
+    // allowed in 14.8.2.1 are in effect (for the moment I don't know
+    // what propagation properties this flag should have)
+    EF_DEDUCTION       = 0x0200,
+
     // ----- combined behaviors -----
     // all flags set to 1
-    EF_ALL             = 0x01FF,
+    EF_ALL             = 0x03FF,
 
     // signature equivalence for the purpose of detecting whether
     // two declarations refer to the same entity (as opposed to two
@@ -950,7 +935,12 @@ public:
 
   // more specialized printing, for Cqual++ syntax
   virtual string rightStringUpToQualifiers(bool innerParen) const;
+  static string rightStringQualifiers(CVFlags cv);
   virtual string rightStringAfterQualifiers() const;
+
+  // print the function type, but use these cv-flags as the
+  // receiver param cv-flags
+  string toString_withCV(CVFlags cv) const;
 
   // a hook for the verifier's printer
   virtual void extraRightmostSyntax(stringBuilder &sb) const;
@@ -1039,366 +1029,12 @@ public:
 };
 
 
-// -------------------- templates -------------------------
-// used for template parameter types
-class TypeVariable : public NamedAtomicType {
-public:
-  TypeVariable(StringRef name) : NamedAtomicType(name) {}
-  ~TypeVariable();
-
-  // AtomicType interface
-  virtual Tag getTag() const { return T_TYPEVAR; }
-  virtual string toCString() const;
-  virtual string toMLString() const;
-  virtual int reprSize() const;
-};
-
-
-// just some template parameters (this class exists, in part, so
-// that Scope doesn't have to instantiate a full TemplateInfo)
-class TemplateParams {
-public:    // data
-  // template parameters: the dimensions along which the associated
-  // entity may be specialized at compile time
-  SObjList<Variable> params;
-
-public:    // funcs
-  TemplateParams() {}
-  TemplateParams(TemplateParams const &obj);
-  ~TemplateParams();
-
-  // queries on parameters
-  string paramsToCString() const;
-  string paramsToMLString() const;
-  bool anyParamCtorSatisfies(TypePred &pred) const;
-};
-
-// make this available outside the class too
-string paramsToCString(SObjList<Variable> const &params);
-
-
-// template parameters on an enclosing object; for example, if "this"
-// object is a member function enclosed in a template class, then
-// this object will store (a copy of) the parameters for the class
-// (this is needed, among other reasons, because when the member
-// function is defined, the user is free to rename the parameters
-// that applied to the class)
-class InheritedTemplateParams : public TemplateParams {
-public:      // data
-  // We can only inherit params from a class; this is it.  If these
-  // inherited parameters are attached to an instantiation, then
-  // 'enclosing' is the instantiated enclosing class.
-  CompoundType *enclosing;          // (serf)
-
-public:      // funcs
-  InheritedTemplateParams(CompoundType *e) : enclosing(e) {}
-  InheritedTemplateParams(InheritedTemplateParams const &obj);
-  ~InheritedTemplateParams();
-};
-
-
-// for a template function or class, including instantiations thereof,
-// this is the information regarding its template-ness
-class TemplateInfo : public TemplateParams {
-public:    // data
-  // every TemplateInfo is associated 1-to-1 with some Variable,
-  // and this is the associated Variable; this value is initially
-  // NULL, and set by Variable::setTemplateInfo
-  //
-  // TODO: make TemplateInfo inherit from Variable instead of
-  // using two connected objects
-  Variable *var;
-
-  // whereas for classes the 'baseName' suffices to create a
-  // forward-declared version of the object, functions need
-  // the entire declaration; so here it is
-  //
-  // TODO: now that I have 'var', I don't need this, right?
-  Declaration *declSyntax;          // (serf AST)
-
-  // inherited parameters, in order from outermost to innermost
-  ObjList<InheritedTemplateParams> inheritedParams;
-
-private:                        // go through the accessors
-  // The primary of this template info if we are a specialization or
-  // an instantiation; NULL if we are a primary.
-  TemplateInfo *myPrimary;
-
-public:
-  // The specialization / primary that we were instantiated from, if
-  // we are an instantiation; NULL if we are not
-  Variable *instantiatedFrom;
-
-  // NOTE: There is an over-orthogonalization here.  The semantics of
-  // instantiations and arguments are as follows; all other
-  // combinations are illegal.  The astute reader will note that there
-  // is no circumstance under which both instantiations and arguments
-  // are non-empty.
-  //
-  // parameters | instantiations     | arguments            : role
-  // -----------+--------------------+----------------------:------------------------
-  // non-empty  | possibly non-empty | empty                : primary template
-  // non-empty  | empty              | containVariables     : partial specialization
-  // empty      | empty              | not containVariables : complete specialization or
-  //                                                          instantiation
-  // empty      | empty              | containVariables     : mutant, see below
-  //
-  // NOTE: during the typechecking of a primary, a mutant
-  // instantiation is created; It has no parameters (like an
-  // instantiation or complete specialization) but *does* have a
-  // non-empty arguments list containing type variables.  This mutant
-  // cannot be immediately destroyed, as some templates refer to
-  // themselves; finding a place where it can be has proven
-  // prohibitively difficult and so we simply filter them out before
-  // template specialization resolution is done.
-
-  // list of instantiations and specializations of this template IF it
-  // is a PRIMARY; the specializations or instantiations of a
-  // specialization, S, go under the instantiations of S's primary, P,
-  // NOT under S's instantiations
-  //
-  // This is private so that you have to go through my accessor
-  // methods.  One thing this does is that it ensures that it is
-  // impossible to insert a member into the instantiations list
-  // without setting its myPrimary field to the primary
-  private:
-  SObjList<Variable> instantiations;
-
-  public:
-
-  // if this is an instantiation or specialization, then this is the
-  // list of template arguments; note that an argument for a
-  // specialization is known as as "specialization pattern" and may
-  // contain typevars.
-  //
-  // Q: do they line up with 'params'?  what is the relationship
-  // between 'params' and 'arguments'?
-  //
-  // A: The relationship between arguments and params seems to be as
-  // follows.  A primary has params and no arguments and any
-  // instantiation of it must supply values for those params.
-  //
-  // An instantiation of the primary does that, and therefore the
-  // number of arguments to an instantiation is the same as the number
-  // of params of the primary.
-  //
-  // A complete specialization is an alternate implementation for the
-  // body of the primary that should be used when an instantiation of
-  // the primary is requested with a particular set of arguments.  The
-  // syntax indicates this by prefixing with "template <>" which adds
-  // no parameters, and suffixing the name with "<(args_here)>" where
-  // "args_here" is the list of arguments such that when an
-  // instantiation of the primary is requested that *exactly* matches
-  // that list, the body of the complete specialization is used
-  // instead of that of the primary.  Note that the number of
-  // arguments again must match the number of parameters in the
-  // primary, and that the number of parameters is zero.  [That
-  // paragraph could be more efficient.]
-  //
-  // A partial specialization is like a complete specialization except
-  // that the arguments may contains variables, such as type variables
-  // for type arguments [FIX: how does this work for other types of
-  // arguments?] and are therefore known as "specialization patterns".
-  // Exactly the union of these free variables in the patterns *must*
-  // be listed in a "template<(vars_here)>" prefix to the partial
-  // specialization and they *may* be used in the body just as in a
-  // primary template.  When an instantiation of the primary is
-  // requested and the arguments "fit the pattern" when type
-  // unification is requested, the partial specialization *may* [more
-  // below] be used.  Bindings of the variables to parts of the actual
-  // arguments are created when unification with the actual arguments
-  // is performed, such that if those bindings were substituted in for
-  // the variables in the specialization patterns, they would match the
-  // actual arguments exactly.  The partial specialization is then
-  // instantiated just as a primary and this is used in place of
-  // instantiating the primary.  Therefore, for a partial
-  // specialization, the number of arguments again must match the
-  // number of parameters of the primary, and the number of parameters
-  // is the number of free variables in the arguments (specialization
-  // patterns), which can be more or less than the number of
-  // parameters to the primary.
-  //
-  // A note on ambiguity and its resolution: the astute reader will
-  // note that partial specializations make this process ambiguous;
-  // often there are more than one partial specialization that could
-  // apply.  Note that specialization patterns form a partial order
-  // under the "is more specific than" relation.  For class templates,
-  // there must be a unique "most specific" pattern that matches the
-  // arguments or the call is ambiguous and illegal.  For function
-  // templates, all the elements in the partial order that can unify
-  // with the arguments are thrown into the overload set for that
-  // function along with any other non-template functions and normal
-  // function overloading resolution is done.  During this process a
-  // template instantiation always loses to a normal function, but if
-  // it comes down to two template functions, then they are
-  // disambiguated according to "is more specific than", as with class
-  // templates.
-  ObjList<STemplateArgument> arguments;
-  
-  // if this is an instantiation, this records the (most proximal)
-  // source location that gave rise to the need to instantiate it;
-  // if not, it's just the location of the declaration of the
-  // template itself
-  SourceLoc instLoc;
-
-public:    // funcs
-  TemplateInfo(SourceLoc instLoc);
-  TemplateInfo(TemplateInfo const &obj);
-  ~TemplateInfo();
-
-  // name of the least-specialized ("primary") template; this is used
-  // to detect when a name is the name of the template we're inside
-  // (this is NULL for TemplateInfos attached to FunctionTypes)
-  StringRef getBaseName() const;
-
-  // just sets 'myPrimary', plus a couple assertions regarding 'prim'
-  void setMyPrimary(TemplateInfo *prim);
-  // return myPrimary unless we are a primary, in which case return
-  // 'this' (since myPrimary for a primary is NULL)
-  TemplateInfo *getMyPrimaryIdem() const;
-
-  // TODO: The following block of functions has several that accept
-  // TypeFactory arguments because they need to call into the
-  // MatchTypes module.  Either MatchTypes should be changed so it
-  // doesn't use the factory (preferable), or these methods should be
-  // moved into Env to reflect their dependence on the TypeFactory.
-
-  // add to the instantiation list; supress duplicates by assigning to
-  // the reference 'inst0' only if suppressDup is true
-  Variable *addInstantiation(TypeFactory &tfac, Variable *inst0, 
-                             bool suppressDup=false);
-  // only use this for iteration, not appending!  Don't know a good
-  // way to enforce that
-  SObjList<Variable> &getInstantiations();
-  // get the instantiation that matches 'var' in type (types are
-  // MM_ISO) and in template arguments; handy for finding the previous
-  // declaration of a function to hook up the definition to
-  Variable *getInstantiationOfVar(TypeFactory &tfac, Variable *var);
-
-  // true if 'list' contains equivalent semantic arguments
-  bool equalArguments(TypeFactory &tfac, SObjList<STemplateArgument> const &list) const;
-
-  // select either the primary or one of the specializations, based
-  // on the supplied arguments; these arguments will likely contain
-  // type variables; e.g., given "T*", select specialization C<T*>;
-  // return NULL if no matching definition found
-  Variable *getPrimaryOrSpecialization(TypeFactory &tfac, SObjList<STemplateArgument> const &sargs);
-
-  // true if the arguments contain type variables
-  bool argumentsContainTypeVariables() const;
-
-  // dsw: check the arguments contain type or object (say, int)
-  // variables; FIX: I'm not sure this is implemented right; see
-  // comments in implementation
-  bool argumentsContainVariables() const;
-
-  // true if there are parameters at any level (either right here,
-  // or inherited from above)
-  bool hasParameters() const;
-
-  // true if the given Variable is among the parameters (at any level)
-  bool hasSpecificParameter(Variable const *v) const;
-
-  bool isMutant() const;
-  bool isPrimary() const;
-  bool isNotPrimary() const;    // "!isPrimary()" fails on mutants
-  bool isPartialSpec() const;
-  bool isCompleteSpecOrInstantiation() const;
-
-  // debugging
-  void gdb();
-  void debugPrint(int depth = 0);
-};
-
-
-// semantic template argument (semantic as opposed to syntactic); this
-// breaks the argument down into the cases described in cppstd 14.3.2
-// para 1, plus types, minus template parameters, then grouped into
-// equivalence classes as implied by cppstd 14.4 para 1
-class STemplateArgument {
-public:
-  // FIX: make these data members private
-  enum Kind {
-    STA_NONE,        // not yet resolved into a valid template argument
-    STA_TYPE,        // type argument
-    STA_INT,         // int or enum argument
-
-    // dsw: this may not be a ref to a global object, but instead a
-    // template parameter; in this example from in/t0180.cc, note the
-    // use of 'C' here is an argument, where it is brought into
-    // existence as a template parameter in the outer scope:
-    //   template <typename A, typename B, int C>
-    //   struct Traits<A, Helper1<B, Helper2<C> > >
-    //
-    // sm: STA_REFERENCE is being abused here; note how it would not
-    // work if the code said "C+2".  We need something like STA_EXPR
-    // that means "integer argument, but not evaluatable to a constant
-    // in this context".
-    STA_REFERENCE,   // reference to global object
-
-    STA_POINTER,     // pointer to global object
-    STA_MEMBER,      // pointer to class member
-    STA_TEMPLATE,    // template argument (not implemented)
-    NUM_STA_KINDS
-  } kind;
-
-  union {
-    Type *t;         // (serf) for STA_TYPE
-    int i;           // for STA_INT
-    Variable *v;     // (serf) for STA_REFERENCE, STA_POINTER, STA_MEMBER
-  } value;
-
-public:
-  STemplateArgument() : kind(STA_NONE) { value.i = 0; }
-  STemplateArgument(STemplateArgument const &obj);
-
-  // 'new' + copy ctor
-  STemplateArgument *shallowClone() const;
-
-  // get 'value', ensuring correspondence between it and 'kind'
-  Type *    getType()      const { xassert(kind==STA_TYPE);      return value.t; }
-  int       getInt()       const { xassert(kind==STA_INT);       return value.i; }
-  Variable *getReference() const { xassert(kind==STA_REFERENCE); return value.v; }
-  Variable *getPointer()   const { xassert(kind==STA_POINTER);   return value.v; }
-  Variable *getMember()    const { xassert(kind==STA_MEMBER);    return value.v; }
-
-  // set 'value', ensuring correspondence between it and 'kind'
-  void setType(Type *t)          { kind=STA_TYPE;      value.t=t; }
-  void setInt(int i)             { kind=STA_INT;       value.i=i; }
-  void setReference(Variable *v) { kind=STA_REFERENCE; value.v=v; }
-  void setPointer(Variable *v)   { kind=STA_POINTER;   value.v=v; }
-  void setMember(Variable *v)    { kind=STA_MEMBER;    value.v=v; }
-
-  bool isObject() const;         // "non-type non-template" in the spec
-  bool isType() const            { return kind==STA_TYPE;         }
-  bool isTemplate() const        { return kind==STA_TEMPLATE;     }
-
-  bool hasValue() const { return kind!=STA_NONE; }
-
-  // the point of boiling down the syntactic arguments into this
-  // simpler semantic form is to make equality checking easy
-  bool equals(STemplateArgument const *obj) const;
-
-  // does it contain variables?
-  bool containsVariables() const;
-
-  // if it does contain variables, then 'equals' is inappropriate;
-  // isomorphism is the right thing to check
-  bool isomorphic(TypeFactory &tfac, STemplateArgument const *obj) const;
-
-  // debug print
-  string toString() const;
-
-  // debugging
-  void gdb();
-  void debugPrint(int depth = 0);
-};
-
-SObjList<STemplateArgument> *cloneSArgs(SObjList<STemplateArgument> &sargs);
-string sargsToString(SObjList<STemplateArgument> const &list);
-inline string sargsToString(ObjList<STemplateArgument> const &list)
-  { return sargsToString((SObjList<STemplateArgument> const &)list); }
-bool containsTypeVariables(SObjList<STemplateArgument> const &args);
+// moved into template.h:
+//   class TypeVariable
+//   class TemplateParams
+//   class InheritedTemplateParams
+//   class TemplateInfo
+//   class STemplateArgument
 
 
 // ------------------- type factory -------------------
@@ -1493,6 +1129,8 @@ public:
   // base type cannot be so qualified; I pass the syntax from which
   // the 'cv' flags were derived, when I have it, for the benefit of
   // extension analyses
+  //
+  // NOTE: 'baseType' is *not* modified; a copy is returned if necessary
   virtual Type *setCVQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
                                 TypeSpecifier * /*nullable*/ syntax);
 

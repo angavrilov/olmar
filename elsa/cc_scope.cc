@@ -18,6 +18,7 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
     scopeKind(sk),
     namespaceVar(NULL),
     templateParams(),
+    parameterizedPrimary(NULL),
     usingEdges(0),            // the arrays start as NULL b/c in the
     usingEdgesRefct(0),       // common case the sets are empty
     activeUsingEdges(0),
@@ -30,7 +31,14 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
 }
 
 Scope::~Scope()
-{}
+{
+  if (scopeKind == SK_TEMPLATE_PARAMS && !parameterizedPrimary) {
+    // my intent is that all SK_TEMPLATE_PARAMSs get assigned to some
+    // primary eventually; this warning should be commented-out once
+    // the implementation stabilizes
+    cout << "warning (bug?): " << desc() << " has no parameterizedPrimary\n";
+  }
+}
 
 
 bool Scope::isPermanentScope() const
@@ -64,24 +72,25 @@ bool insertUnique(StringSObjDict<T> &table, char const *key, T *value,
 
 bool Scope::isGlobalTemplateScope() const 
 {
-  return isTemplateScope() && 
+  return isTemplateParamScope() && 
          (parentScope && parentScope->isGlobalScope());
 }
 
 
-bool Scope::isWithinUninstTemplate() const {
-  if (curCompound && curCompound->templateInfo()) {
-    TemplateInfo *ti = curCompound->templateInfo();
-    xassert(ti);
-    if (ti->isMutant()
-        || !ti->isCompleteSpecOrInstantiation()) {
-      return true;
-    }
+bool Scope::isWithinUninstTemplate() const 
+{
+  if (curCompound && 
+      curCompound->templateInfo() &&
+      curCompound->templateInfo()->hasParameters()) {
+    return true;
   }
+
   if (parentScope) {
     return parentScope->isWithinUninstTemplate();
   }
-  return false;
+  else {
+    return false;
+  }
 }
 
 
@@ -775,56 +784,24 @@ bool Scope::linkerVisible()
   }
 }
 
-// FIX: Would be cleaner to implement this as a call to
-// PQ_fullyQualifiedName() below and then to a toString() method.
-// UPDATE: After long discussion with Scott, we determine that that
-// idea is not practical.
-// FIX: This is wrong as it does not take into account template
-// arguments; Should be moved into CompoundType and done right.
-string Scope::fullyQualifiedName()
+
+void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &args,
+                         bool doMangle)
 {
-  // 7/28/04: I just changed things so that children of the global
-  // scope have a non-NULL 'parentScope', and then adjusted this
-  // code so it works like it used to.  I suspect this code could
-  // be simplified in light of the new invariant.
-
-  // a few places are still calling into this when it is the global
-  // scope; since those places should be happy with "", and that is
-  // in fact the "name" of the global scope, let's try this...
-  if (isGlobalScope()) {
-    return "";
+  if (!doMangle) {
+    sb << sargsToString(args);
+    return;
   }
 
-  stringBuilder sb;
-  if (parentScope && !parentScope->isGlobalScope()) {
-    sb = parentScope->fullyQualifiedName();
-  }
-  else {
-    if (!immediateGlobalScopeChild()) {
-      // we didn't end up in the global scope; for example a function
-      // in a class in a function
-      xfailure("fullyQualifiedName called on scope that doesn't terminate in the global scope");
-    }
-  }          
-
-  xassert(hasName());
-  Variable *v = getTypedefName();
-  xassert(v);
-  sb << "::" << v->name;
-
-  // return if no templates are involved
-  if (!curCompound || !(curCompound->templateInfo())) return sb;
-  TemplateInfo *tinfo = curCompound->templateInfo();
   sb << "<";
-  bool firstTime = true;
-  FOREACH_OBJLIST(STemplateArgument, tinfo->arguments, iter) {
-    if (firstTime) firstTime = false;
-    else sb << ", ";
+  int ct=0;
+  FOREACH_OBJLIST(STemplateArgument, args, iter) {
+    if (ct++) { sb << ", "; }
     switch(iter.data()->kind) {
     default:
       xfailure("Illegal STemplateArgument::kind");
       break;
-        
+
     case STemplateArgument::STA_NONE:
       xfailure("STA_NONE should never occur here");
       //          sb << "-NONE"; break;
@@ -851,6 +828,71 @@ string Scope::fullyQualifiedName()
     }
   }
   sb << ">";
+}
+
+
+// FIX: Would be cleaner to implement this as a call to
+// PQ_fullyQualifiedName() below and then to a toString() method.
+// UPDATE: After long discussion with Scott, we determine that that
+// idea is not practical.
+// FIX: This is wrong as it does not take into account template
+// arguments; Should be moved into CompoundType and done right.
+//
+// 8/09/04: sm: mangle=true is the original behavior of this function,
+// mangle=false is the behavior I want
+string Scope::fullyQualifiedName(bool mangle)
+{
+  // temporary
+  xassert(!mangle);
+
+  // 7/28/04: I just changed things so that children of the global
+  // scope have a non-NULL 'parentScope', and then adjusted this
+  // code so it works like it used to.  I suspect this code could
+  // be simplified in light of the new invariant.
+
+  // a few places are still calling into this when it is the global
+  // scope; since those places should be happy with "", and that is
+  // in fact the "name" of the global scope, let's try this...
+  if (isGlobalScope()) {
+    return "";
+  }
+
+  stringBuilder sb;
+  if (parentScope && !parentScope->isGlobalScope()) {
+    sb = parentScope->fullyQualifiedName(mangle);
+  }
+  else {
+    if (!immediateGlobalScopeChild()) {
+      // we didn't end up in the global scope; for example a function
+      // in a class in a function
+      xfailure("fullyQualifiedName called on scope that doesn't terminate in the global scope");
+    }
+  }
+
+  xassert(hasName());
+  Variable *v = getTypedefName();
+  xassert(v);
+  sb << "::" << v->name;
+
+  // return if no templates are involved
+  if (!curCompound || !(curCompound->templateInfo())) return sb;
+  TemplateInfo *tinfo = curCompound->templateInfo();
+  if (tinfo->isPrimary()) {
+    // print the params like arguments for a primary
+    sb << tinfo->paramsLikeArgsToString();
+  }
+  else {
+    if (tinfo->isInstantiation() &&
+        tinfo->instantiationOf->templateInfo()->isPartialSpec()) {
+      // print the partial spec args first, so then the instantiation
+      // args can be interpreted relative to the partial spec args
+      mangleSTemplateArgs(sb, tinfo->instantiationOf->templateInfo()->arguments, 
+                          mangle);
+    }
+
+    mangleSTemplateArgs(sb, tinfo->arguments, mangle);
+  }
+
   return sb;
 }
 
@@ -869,6 +911,21 @@ void Scope::removeSoleVariableFromEatScope()
 {
   xassert(variables.size() == 1);
   variables.empty();
+}
+
+
+void Scope::setParameterizedPrimary(Variable *primary)
+{
+  xassert(!parameterizedPrimary);            // should do this only once
+  xassert(isTemplateScope());                // doesn't make sense otherwise
+                                 
+  // for now, I want to associate only with the primary; I could
+  // conceive of changing to allowing associations to partial
+  // specializations, but that's not my intent right now
+  TemplateInfo *ti = primary->templateInfo();
+  xassert(ti && ti->isPrimary());
+
+  parameterizedPrimary = primary;
 }
 
 

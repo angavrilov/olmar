@@ -402,7 +402,6 @@ void doit(int argc, char **argv)
 
   // dsw: pretty printing
   if (tracingSys("prettyPrint")) {
-    cout << endl;
     traceProgress() << "dsw pretty print...\n";
     PrintEnv env(cout);
     cout << "---- START ----" << endl;
@@ -411,7 +410,6 @@ void doit(int argc, char **argv)
     env.finish();
     cout << "---- STOP ----" << endl;
     traceProgress() << "dsw pretty print... done\n";
-    cout << endl;
   }
 
   // test AST cloning

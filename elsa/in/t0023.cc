@@ -9,7 +9,8 @@ int foo() throw()
 }
 
 
-class Exc;
+// 15.4 para 1: this must be a complete type
+class Exc {};
 
 void bar() throw(Exc);
 

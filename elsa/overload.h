@@ -143,25 +143,7 @@ public:      // funcs
                    OverloadFlags f,
                    PQName *finalName0,
                    GrowArray<ArgumentInfo> &a,
-                   int numCand = 10 /*estimate of # of candidates*/)
-    : env(en),
-      loc(L),
-      errors(er),
-      flags(f),
-      finalName(finalName0),
-      args(a),
-      finalDestType(NULL),
-      emptyCandidatesIsOk(false),
-
-      // this estimate does not have to be perfect; if it's high,
-      // then more space will be allocated than necessary; if it's
-      // low, then the 'candidates' array will have to be resized
-      // at some point; it's entirely a performance issue
-      candidates(numCand)
-  {
-    //overloadNesting++;
-    printArgInfo();
-  }
+                   int numCand = 10 /*estimate of # of candidates*/);
   ~OverloadResolver();
 
   // public so 'tournament' can use it

@@ -318,15 +318,8 @@ testparse t0104.cc
 testparse t0105.cc
 testparse t0106.cc
 testparse t0107.cc
-
-# the C++ feature allowing changing the template parameter names
-# between the declaration and definition of a member function of a
-# class template is not working
-failparse t0108.cc "changing template parameter names"
-
-# same test without that feature used
+testparse t0108.cc
 testparse t0108b.cc
-
 testparse t0109.cc
 testparse t0110.cc
 testparse t0111.cc
@@ -427,19 +420,18 @@ testparse t0205.cc
 testparse t0206.cc
 testparse t0207.cc
 testparse t0208.cc
-failparse t0209.cc "bug: type equivalence under default args"
+testparse t0209.cc
 testparse t0210.cc
 testparse t0211.cc
 testparse t0212.cc
 testparse t0213.cc
-# g++ compiles this but ccparse does not
-failparse t0214.cc "(fill in a reason here)"
+testparse t0214.cc
 # even g++ won't compile this; I'll bet not legal C++
 failparse t0215.cc "(fill in a reason here)"
 testparse t0216.cc
 testparse t0217.cc
 testparse t0218.cc
-failparse t0219.cc "template argument inference fails for member template function"
+testparse t0219.cc
 testparse t0220.cc
 testparse t0221.cc
 testparse t0222.cc
@@ -452,6 +444,14 @@ testparse t0228.cc
 testparse t0229.cc
 testparse t0230.cc
 testparse t0231.cc
+testparse t0232.cc
+failparse t0233.cc "flawed interaction between overloading and instantiation"
+testparse t0234.cc
+testparse t0235.cc
+testparse t0236.cc
+testparse t0237.cc
+testparse t0238.cc
+testparse t0239.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -540,7 +540,7 @@ testparse d0070.cc
 testparse d0071.cc
 testparse d0072.cc
 testparse d0073.cc
-failparse d0074.cc "(fill in a reason here)"
+testparse d0074.cc
 testparse d0075.cc
 # ---- END: lots of tests ----
 

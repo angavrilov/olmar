@@ -1,4 +1,4 @@
-// cc.in54
+// t0054.cc
 // explicit template class specialization
 
 // primary template

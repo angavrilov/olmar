@@ -18,7 +18,7 @@
 #include "cc_err.h"       // ErrorList
 #include "array.h"        // ArrayStack, ArrayStackEmbed
 #include "builtinops.h"   // CandidateSet
-#include "matchtype.h"    // MatchType
+#include "matchtype.h"    // MatchType, STemplateArgumentCMap
 
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
@@ -68,6 +68,10 @@ public:      // data
   // list is set aside, so 'errors' only has errors from the
   // disambiguation we're doing now (if any)
   ErrorList errors;
+
+  // if the disambiguator has temporarily hidden the "real" list of
+  // errors, it can still be found here
+  ErrorList *hiddenErrors;           // (nullable serf stackptr)
 
   // stack of locations at which template instantiation has been
   // initiated but not finished; this information can be used to
@@ -136,6 +140,11 @@ public:      // data
   Variable *errorTypeVar;               // (serf)
   Variable *errorVar;                   // (serf)
 
+  // Variable that acts like the name of the global scope; used in a
+  // place where I want to return the global scope, but the function
+  // is returning a Variable.. has DF_NAMESPACE
+  Variable *globalScopeVar;             // (serf)
+
   // dsw: Can't think of a better way to do this, sorry.
   // sm: Do what?  Who uses this?  I don't see any uses in Elsa.
   Variable *var__builtin_constant_p;
@@ -170,6 +179,10 @@ public:      // data
 
   // template typechecking modes; see comment at the top of the
   // implementation of Env::instantiateTemplate()
+  //
+  // sm: TODO: I believe these modes are now redundant, because
+  // the new PseudoInstantiation mechanism should take care of
+  // doing the right thing.  So, I want to try removing this.
   enum TemplTcheckMode {
     TTM_1NORMAL          = 1,
     TTM_2TEMPL_FUNC_DECL = 2,
@@ -237,10 +250,13 @@ private:     // funcs
 
   PseudoInstantiation *createPseudoInstantiation
     (CompoundType *ct, SObjList<STemplateArgument> const &args);
-  
+
   bool equivalentSignatures(FunctionType *ft1, FunctionType *ft2);
   bool equalOrIsomorphic(Type *a, Type *b,
                          Type::EqFlags eflags = Type::EF_EXACT);
+
+  Variable *getPrimaryOrSpecialization
+    (TemplateInfo *tinfo, SObjList<STemplateArgument> const &sargs);
 
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac, TranslationUnit *tunit0);
@@ -282,9 +298,9 @@ public:      // funcs
   CompoundType *enclosingClassScope();
 
   bool inTemplate()
-    { return !!enclosingKindScope(SK_TEMPLATE); }
+    { return !!enclosingKindScope(SK_TEMPLATE_PARAMS); }
 
-  // innermost scope that is neither SK_TEMPLATE nor SK_EAT_TEMPL_INST
+  // innermost scope that is neither SK_TEMPLATE_PARAMS nor SK_EAT_TEMPL_INST
   Scope *nonTemplateScope();
 
   // if we are in a template scope, go up one and then call
@@ -335,8 +351,9 @@ public:      // funcs
   void addVariableWithOload(Variable *prevLookup, Variable *v);
 
 
-  // lookup in the environment (all scopes); return NULL if can't
-  // find the name
+  // lookup in the environment (all scopes); if the name is not found,
+  // it return NULL, and emit an error if the name is qualified
+  // (otherwise do not emit an error)
   Variable *lookupPQVariable(PQName const *name, LookupFlags f=LF_NONE);
   Variable *lookupVariable  (StringRef name,     LookupFlags f=LF_NONE);
 
@@ -369,14 +386,25 @@ public:      // funcs
     bool &anyTemplates,
     LookupFlags lflags = LF_NONE);
 
+  // 'lookupOneQualifier', broken into two pieces; see implementation
+  Variable *lookupOneQualifier_bareName(
+    Scope *startingScope,
+    PQ_qualifier const *qualifier,
+    LookupFlags lflags);
+  Scope *lookupOneQualifier_useArgs(
+    Variable *qualVar,
+    PQ_qualifier const *qualifier,
+    bool &dependent,
+    bool &anyTemplates,
+    LookupFlags lflags);
+
   // run through the sequence of qualifiers on 'name',
   // adding each named scope in turn to 'scopes';
   // 'dependent' and 'anyTemplates' are as above;
   // returns false (and adds an error message) on error
   bool getQualifierScopes(ScopeSeq &scopes, PQName const *name,
-    bool &dependent, bool &anyTemplates, LookupFlags lf = LF_NONE);
-  bool getQualifierScopes(ScopeSeq &scopes, PQName const *name,
-    LookupFlags lf = LF_NONE);
+    bool &dependent, bool &anyTemplates);
+  bool getQualifierScopes(ScopeSeq &scopes, PQName const *name);
 
   // extend/retract entire scope sequences
   void extendScopeSeq(ScopeSeq const &scopes);
@@ -415,6 +443,9 @@ public:      // funcs
   // diagnostics involving type clashes; will be suppressed
   // if the type is ST_ERROR
   Type *error(Type *t, char const *msg);
+
+  // just return ST_ERROR
+  Type *errorType();
 
   // set 'disambiguateOnly' to 'val', returning prior value
   bool setDisambiguateOnly(bool val);
@@ -571,11 +602,65 @@ public:      // funcs
   // see implementation; this is here b/c gnu.cc wants to call it
   Type *computeArraySizeFromCompoundInit(SourceLoc tgt_loc, Type *tgt_type,
                                          Type *src_type, Initializer *init);
+                                                          
+  // if 'type' is not a complete type, attempt to make it into one
+  // (by template instantiation); if it cannot be, then emit an
+  // error message (using 'action') and return false
+  bool ensureCompleteType(char const *action, Type *type);
 
   // ------------ template instantiation stuff ------------
   // the following methods are implemented in template.cc
 private:     // template funcs
   CompoundType *findEnclosingTemplateCalled(StringRef name);
+
+  void transferTemplateMemberInfo
+    (SourceLoc instLoc, TS_classSpec *source,
+     TS_classSpec *dest, ObjList<STemplateArgument> const &sargs);
+  void transferTemplateMemberInfo_one
+    (SourceLoc instLoc, Variable *srcVar, Variable *destVar,
+     ObjList<STemplateArgument> const &sargs);
+  void transferTemplateMemberInfo_membert
+    (SourceLoc instLoc, Variable *srcVar, Variable *destVar,
+     ObjList<STemplateArgument> const &sargs);
+
+  void insertTemplateArgBindings
+    (Variable *baseV, SObjList<STemplateArgument> &sargs);
+  void insertTemplateArgBindings
+    (Variable *baseV, ObjList<STemplateArgument> &sargs);
+  bool insertTemplateArgBindings_oneParamList
+    (Variable *baseV, SObjListIterNC<STemplateArgument> &argIter,
+     SObjList<Variable> const &params);
+
+  void mapPrimaryArgsToSpecArgs(
+    Variable *baseV,
+    MatchTypes &match,
+    SObjList<STemplateArgument> &partialSpecArgs,
+    SObjList<STemplateArgument> const &primaryArgs);
+  void mapPrimaryArgsToSpecArgs_oneParamList(
+    SObjList<Variable> const &params,
+    MatchTypes &match,
+    SObjList<STemplateArgument> &partialSpecArgs);
+
+  Variable *findInstantiation(TemplateInfo *tinfo,
+                              SObjList<STemplateArgument> const &sargs);
+  Variable *findCompleteSpecialization(TemplateInfo *tinfo,
+                                       SObjList<STemplateArgument> const &sargs);
+  void bindParametersInMap(STemplateArgumentCMap &map, TemplateInfo *tinfo,
+                           SObjList<STemplateArgument> const &sargs);
+  void bindParametersInMap(STemplateArgumentCMap &map,
+                           SObjList<Variable> const &params,
+                           SObjListIter<STemplateArgument> &argIter);
+
+  Type *pseudoSelfInstantiation(CompoundType *ct, CVFlags cv);
+
+  Variable *makeInstantiationVariable(Variable *templ, Type *instType);
+
+  bool supplyDefaultTemplateArguments
+    (TemplateInfo *primaryTI,
+     ObjList<STemplateArgument> &dest,
+     SObjList<STemplateArgument> const &src);
+  STemplateArgument *makeDefaultTemplateArgument
+    (Variable const *param, STemplateArgumentCMap &map);
 
 public:      // template funcs
   // return the current mode
@@ -598,8 +683,8 @@ public:      // template funcs
     (ObjList<STemplateArgument> &templateArgs0,
      ASTList<TemplateArgument> const &templateArgs1);
   // get the instantiation that matches the arguments
-  Variable *getInstThatMatchesArgs
-    (TemplateInfo *tinfo, SObjList<STemplateArgument> &arguments, Type *type0=NULL);
+  //Variable *getInstThatMatchesArgs
+  //  (TemplateInfo *tinfo, SObjList<STemplateArgument> &arguments, Type *type0=NULL);
 
   // load the bindings with any explicit template arguments; return true if successful
   bool loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
@@ -618,8 +703,19 @@ public:      // template funcs
      Variable *var,
      TypeListIter &argListIter,
      bool reportErrors);
+  void getFuncTemplArgs_oneParamList
+    (MatchTypes &match,
+     ObjList<STemplateArgument> &sargs,
+     bool reportErrors,
+     bool &haveAllArgs,
+     //ObjListIter<STemplateArgument> &piArgIter,
+     SObjList<Variable> const &paramList);
+     
   Variable *lookupPQVariable_function_with_args
     (PQName const *name, LookupFlags flags, FakeList<ArgExpression> *funcArgs);
+  Variable *lookupPQVariable_applyArgs
+    (Scope *foundScope, Variable *primary, PQName const *name, 
+     FakeList<ArgExpression> *funcArgs);
 
   // find the template primary that matches the template args,
   // returning NULL if does not exist; calls xfailure() for now if it
@@ -628,16 +724,7 @@ public:      // template funcs
                                          FunctionType *signature,
                                          MatchTypes::MatchMode matchMode);
                                          
-  // for the instantiation of a primary template, simultaneously
-  // iterate over the parameters and arguments, creating bindings from
-  // params to args
-  //
-  // FIX: the assymetry in the way the bindings are passed to
-  // insertBindingsForPrimary() and insertBindingsForPartialSpec() is
-  // gratuitous
-  void insertBindingsForPrimary
-    (Variable *baseV, SObjList<STemplateArgument> &sargs);
-
+  #if 0    // removed
   // for the instantiation of a partial specialization, iterate over
   // the parameters and retrieve their bindings; insert these into the
   // scope
@@ -650,6 +737,7 @@ public:      // template funcs
     (Variable *baseV, SObjList<STemplateArgument> &sargs);
   void insertBindings      // a variant for an ObjList ...
     (Variable *baseV, ObjList<STemplateArgument> &sargs);
+  #endif // 0
 
   void templArgsASTtoSTA
     (ASTList<TemplateArgument> const &arguments,
@@ -659,18 +747,21 @@ public:      // template funcs
   // given template arguments 'sargs'; for full generality we allow
   // the primary itself as a "trivial specialization" and may return
   // that.
-  Variable *findMostSpecific(Variable *baseV, SObjList<STemplateArgument> &sargs);
+  Variable *findMostSpecific(Variable *baseV, SObjList<STemplateArgument> const &sargs);
 
   // Prepare the argument scope for the present typechecking of the
   // cloned AST for effecting the instantiation of the template;
   // Please see Scott's extensive comments at the implementation.
   Scope *prepArgScopeForTemlCloneTcheck
-    (ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes, Scope *foundScope);
+    (ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes, Scope *foundScope,
+     bool makeEatScope = true);
 
   // Undo prepArgScopeForTemlCloneTcheck().
   void unPrepArgScopeForTemlCloneTcheck
-    (Scope *argScope, ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes);
+    (Scope *argScope, ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes,
+     bool makeEatScopes = true);
 
+  #if 0
   // instantate 'base' with arguments 'sargs', and return the implicit
   // typedef Variable associated with the resulting type; 'foundScope'
   // is the scope in which 'base' was found; if 'instV' is not NULL
@@ -708,30 +799,84 @@ public:      // template funcs
      Variable *bestV,
      ObjList<STemplateArgument> &sargs,
      Variable *funcFwdInstV=NULL);
-   
+  #endif // 0
+
   // pick the MatchMode appropriate for the the TemplTcheckMode
   MatchTypes::MatchMode mapTcheckModeToTypeMatchMode(TemplTcheckMode tcheckMode);
 
+  #if 0
   // given a previously forwarded function template declaration and a
   // defintion that we have just found for it, attach that definition
   // to it and clean up a few things
   void provideDefForFuncTemplDecl
     (Variable *forward, TemplateInfo *primaryTI, Function *f);
+  #endif // 0
 
-  void ensureFuncMemBodyTChecked(Variable *funcDefnInstV);
+  void ensureFuncBodyTChecked(Variable *instV);
+  void instantiateFunctionBody(Variable *instV);
+
+  void instantiateClassBody(Variable *inst);
+  
+  // instantiate the given class' body, *if* it is an instantiation
+  // and that hasn't already been done; note that most of the time
+  // you want to call ensureCompleteType, not this functions; this
+  // is for 14.7.1 para 4 *only*
+  void ensureClassBodyInstantiated(CompoundType *ct);
 
   // given a template function that was just made non-forward,
-  // instantiate all of its forward-declared instances; NOTE: neither
-  // the API nor the implementation is not as parallel to
-  // instantiateForwardClasses() as you might at first suspect
-  void instantiateForwardFunctions(Variable *forward, Variable *primary);
+  // instantiate all of its forward-declared instances
+  void instantiateForwardFunctions(Variable *primary);
 
   // given a template class that was just made non-forward,
   // instantiate all of its forward-declared instances
-  void instantiateForwardClasses(Scope *scope, Variable *baseV);
+  void instantiateForwardClasses(Variable *baseV);
 
   // match via MM_ISO ..
   bool isomorphicTypes(Type *a, Type *b);
+                                                             
+  // find template scope corresp. to this var
+  Scope *findParameterizingScope(Variable *bareQualifierVar);
+       
+  // remove/restore scopes below 'bound'
+  void removeScopesInside(ObjList<Scope> &dest, Scope *bound);
+  void restoreScopesInside(ObjList<Scope> &src, Scope *bound);
+
+  // merging template parameter lists from different declarations
+  bool mergeParameterLists(Variable *prior,
+                           SObjList<Variable> &destParams,
+                           SObjList<Variable> const &srcParams);
+  bool mergeTemplateInfos(Variable *prior, TemplateInfo *dest,
+                          TemplateInfo const *src);
+
+  // apply template arguments to make concrete types
+  Type *applyArgumentMapToType(STemplateArgumentCMap &map, Type *origSrc);
+  Type *applyArgumentMapToAtomicType
+    (STemplateArgumentCMap &map, AtomicType *origSrc, CVFlags srcCV);
+
+  // yet more entries into instantiation...
+  Variable *instantiateFunctionTemplate
+    (SourceLoc loc,
+     Variable *primary,
+     SObjList<STemplateArgument> const &sargs);
+  Variable *instantiateFunctionTemplate
+    (SourceLoc loc,
+     Variable *primary,
+     ObjList<STemplateArgument> const &sargs);
+
+  Variable *instantiateClassTemplate
+    (SourceLoc loc,
+     Variable *primary,
+     SObjList<STemplateArgument> const &sargs);
+  Variable *instantiateClassTemplate
+    (SourceLoc loc,
+     Variable *primary,
+     ObjList<STemplateArgument> const &sargs);
+
+  Variable *makeExplicitFunctionSpecialization
+    (SourceLoc loc, DeclFlags dflags, PQName *name, FunctionType *ft);
+  Variable *makeSpecializationVariable
+    (SourceLoc loc, DeclFlags dflags, Variable *templ, Type *type,
+     SObjList<STemplateArgument> const &args);
 };
 
 
@@ -759,22 +904,22 @@ public:
 };
 
 
-// set/reset 'disambiguationNestingLevel'
-class DisambiguateNestingTemp {
-private:
-  Env &env;       // relevant environment
-  int prev;       // previous value of 'disambiguationNestingLevel'
+// isolate template instantiation from affecting other things that
+// might be going on in the instantiation request context, in
+// particular disambiguation
+class InstantiationContextIsolator {
+public:      // data
+  Env &env;                    // tcheck env
+  int origNestingLevel;        // original value of env.disambiguationNestingLevel
+  ErrorList origErrors;        // errors extant before instantiation
 
-public:
-  DisambiguateNestingTemp(Env &e, int newValue)
-    : env(e),
-      prev(e.disambiguationNestingLevel) {
-    env.disambiguationNestingLevel = newValue;
-  }
+private:     // disallowed
+  InstantiationContextIsolator(InstantiationContextIsolator&);
+  void operator=(InstantiationContextIsolator&);
 
-  ~DisambiguateNestingTemp() {
-    env.disambiguationNestingLevel = prev;
-  }
+public:      // funcs
+  InstantiationContextIsolator(Env &env, SourceLoc loc);
+  ~InstantiationContextIsolator();
 };
 
 
@@ -800,71 +945,9 @@ public:
 };
 
 
-// FIX: these should probably be methods on Env.
 bool isCopyConstructor(Variable const *funcVar, CompoundType *ct);
 bool isCopyAssignOp(Variable const *funcVar, CompoundType *ct);
 void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
-
-
-// ---------- template instantiation helpers -------------
-// implementations for what follows are in template.cc
-
-// sm: I moved the following declarations down from the top of this
-// file.  I prefer to have class Env come first, since it is the
-// main class in this module.  Then helpers can come after, in any
-// order.
-
-// sm: TODO: I think this class should be defined in overload.h
-// holder for the CompoundType template candidates
-class TemplCandidates {
-  public:
-  TypeFactory &tfac;
-
-  // sm: changed ObjArrayStack to ArrayStack so is not owner
-  ArrayStack<Variable*> candidates;
-
-  TemplCandidates(TypeFactory &t) : tfac(t) {}
-
-  private:
-  TemplCandidates(TemplCandidates const &); // forbid copying
-
-  public:
-  #if 0    // obsolete by above change to ArrayStack
-  ~TemplCandidates() {
-    // IMPORTANT: Since ObjArrayStack seems to be an owner container,
-    // I have to empty it out before it dtors.
-    while (candidates.isNotEmpty()) {
-      candidates.pop();
-    }
-  }
-  #endif // 0
-
-  private:
-  // Compare two STemplateArgument-s; There are four possible answers:
-  // leftGreater, rightGreater, equal, and incomparable.
-  enum STemplateArgsCmp {
-    STAC_LEFT_MORE_SPEC,
-    STAC_RIGHT_MORE_SPEC,
-    STAC_EQUAL,
-    STAC_INCOMPARABLE,
-  };
-  static STemplateArgsCmp compareSTemplateArgs
-    (TypeFactory &tfac, STemplateArgument const *larg, STemplateArgument const *rarg);
-
-  public:
-  // compare two different templates (primary / specialization /
-  // instantiation) to see which is more specific; used by
-  // instantiateTemplate() to decide which to use for a given
-  // instantiation request
-  // return:
-  //   -1 if left is better
-  //    0 if they are indistinguishable
-  //   +1 if right is better
-  static int compareCandidatesStatic
-    (TypeFactory &tfac, TemplateInfo const *lti, TemplateInfo const *rti);
-  int compareCandidates(Variable const *left, Variable const *right);
-};
-
 
 // implemented in template.cc
 void instantiateRemainingMethods(Env &env, TranslationUnit *tunit);

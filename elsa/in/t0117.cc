@@ -59,7 +59,8 @@ void f()
   // for now my implementation doesn't classify it as such
   //__getStandardConversion((Foo const &)0, (Foo)0, SC_ERROR);
 
-  __getStandardConversion((Incomplete &)0, (Incomplete)0, SC_ERROR);
+  // this now fails with a different error mode than SC_ERROR
+  //ERROR(1): __getStandardConversion((Incomplete &)0, (Incomplete)0, SC_ERROR);
 
   // binding to references
   __getStandardConversion((int)0, (int const &)0, SC_IDENTITY);

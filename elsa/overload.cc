@@ -80,6 +80,80 @@ Variable *resolveOverload(
 }
 
 
+OverloadResolver::OverloadResolver
+  (Env &en, SourceLoc L, ErrorList *er,
+   OverloadFlags f,
+   PQName *finalName0,
+   GrowArray<ArgumentInfo> &a,
+   int numCand)
+  : env(en),
+    loc(L),
+    errors(er),
+    flags(f),
+    finalName(finalName0),
+    args(a),
+    finalDestType(NULL),
+    emptyCandidatesIsOk(false),
+
+    // this estimate does not have to be perfect; if it's high,
+    // then more space will be allocated than necessary; if it's
+    // low, then the 'candidates' array will have to be resized
+    // at some point; it's entirely a performance issue
+    candidates(numCand)
+{
+  //overloadNesting++;
+
+  // part of 14.7.1 para 4: If any argument types is a reference to a
+  // template class instantiation, but the body has not been
+  // instantiated yet, instantiate it.
+  //
+  // Further, if an argument is (a reference to) a class type and that
+  // class has conversion operators that yield pointers or references
+  // to template class instnatiations, make sure *their* bodies are
+  // instantiated too.
+  //
+  // All this could conceivably be too much instantiation, as I could
+  // imagine that some of these don't necessarily "affect the
+  // semantics of the program"; but 14.7.1 para 5 goes on to say that
+  // even if you can do overload resolution without instantiating some
+  // class, it's ok to do so anyway.  Of course, this begs the
+  // question: exactly which classes are in their margin for error?
+  // Clearly they don't mean that all instantiations in the program
+  // are fair game (14.7.1 para 9), but they do not specify how
+  // tangentially related something must be to the overload resolution
+  // at hand before it's allowed to be instantiated...
+  for (int i=0; i < args.size(); i++) {
+    Type *argType = a[i].type;
+    if (argType->asRval()->isCompoundType()) {
+      CompoundType *argCT = argType->asRval()->asCompoundType();
+
+      // instantiate the argument class if necessary
+      env.ensureClassBodyInstantiated(argCT);
+
+      // iterate over the set of conversion operators
+      if (argCT->isComplete()) {      // non-instantiations can be incomplete here
+        SFOREACH_OBJLIST(Variable, argCT->conversionOperators, iter) {
+          Type *convType = iter.data()->type->asFunctionTypeC()->retType;
+
+          // we should only need to consider pointers or references;
+          // if 'convType' is itself an instantiation, it should have
+          // had its body instantiated when its containing class body
+          // was tchecked
+          if (convType->isPtrOrRef()) {
+            Type *convAtType = convType->getAtType();
+            if (convAtType->isCompoundType()) {
+              env.ensureClassBodyInstantiated(convAtType->asCompoundType());
+            }
+          }
+        }
+      }
+    }
+  }
+
+  printArgInfo();
+}
+
+
 void OverloadResolver::printArgInfo()
 {
   IFDEBUG(
@@ -116,8 +190,19 @@ void OverloadResolver::addCandidate(Variable *var0, Variable *instFrom)
   Candidate *c = makeCandidate(var0, instFrom);
   if (c) {
     IFDEBUG( c->conversionDescriptions(); )
-      candidates.push(c);
-  } else {
+    candidates.push(c);
+    
+    // part of 14.7.1 para 4: If a candidate function parameter is
+    // (a reference to) a template class instantiation, force its body
+    // to be instantiated.
+    SFOREACH_OBJLIST(Variable, var0->type->asFunctionType()->params, iter) {
+      Type *paramType = iter.data()->type;
+      if (paramType->asRval()->isCompoundType()) {
+        env.ensureClassBodyInstantiated(paramType->asRval()->asCompoundType());
+      }
+    }
+  }
+  else {
     OVERLOADTRACE("(not viable)");
   }
 }
@@ -126,13 +211,9 @@ void OverloadResolver::addTemplCandidate
   (Variable *baseV, Variable *var0, ObjList<STemplateArgument> &sargs)
 {
   Variable *var0inst =
-    env.instantiateTemplate
+    env.instantiateFunctionTemplate
     (env.loc(),
-     // FIX: is this right?
-     var0->scope ? var0->scope : env.globalScope(),
      baseV,
-     NULL /*instV*/,
-     var0 /*bestV*/,
      sargs);
   xassert(var0inst->templateInfo()->isCompleteSpecOrInstantiation());
 
@@ -151,9 +232,7 @@ void OverloadResolver::processCandidate(Variable *v)
     return;
   }
 
-  TemplateInfo *vTI = v->templateInfo();
-
-  if (!vTI) {
+  if (!v->isTemplate()) {
     // non-template function; process and return
     addCandidate(v, NULL /*instFrom*/);
     return;
@@ -162,6 +241,7 @@ void OverloadResolver::processCandidate(Variable *v)
   // template function; we have to filter out all of the possible
   // specializations and put them, together with the primary, into the
   // candidates list
+  TemplateInfo *vTI = v->templateInfo();
   xassert(vTI->isPrimary());
 
   // get the semantic template arguments
@@ -170,7 +250,7 @@ void OverloadResolver::processCandidate(Variable *v)
     // FIX: This is a bug!  If the args contain template parameters,
     // they will be the wrong template parameters.
     TypeListIter_GrowArray argListIter(this->args);
-    MatchTypes match(env.tfac, MatchTypes::MM_BIND);
+    MatchTypes match(env.tfac, MatchTypes::MM_BIND, Type::EF_DEDUCTION);
     if (!env.getFuncTemplArgs(match, sargs, finalName, v, argListIter, false /*reportErrors*/)) {
       // something doesn't work about processing the template arguments
       return;
@@ -180,12 +260,10 @@ void OverloadResolver::processCandidate(Variable *v)
   // FIX: the following is copied from Env::findMostSpecific(); it
   // could be factored out and merged but adding to the list in the
   // inner loop would be messy; you would have to make it an iterator
-  SFOREACH_OBJLIST_NC(Variable, vTI->getInstantiations(), iter) {
+  SFOREACH_OBJLIST_NC(Variable, vTI->specializations, iter) {
     Variable *var0 = iter.data();
     TemplateInfo *templInfo0 = var0->templateInfo();
     xassert(templInfo0);      // should have templateness
-    // Sledgehammer time.
-    if (templInfo0->isMutant()) continue;
     // see if this candidate matches
     MatchTypes match(env.tfac, MatchTypes::MM_BIND);
     if (!match.match_Lists(sargs, templInfo0->arguments, 2 /*matchDepth*/)) {
@@ -410,13 +488,17 @@ Variable *OverloadResolver::resolve(bool &wasAmbig)
   // function signatures and not the whole body then here is the place
   // you would actually do the whole body instantiation; for now there
   // is nothing to do here as it has already been done
+  //
+  // sm: TODO: Yes, we do need to delay instantiation until after
+  // overload resolution selects the function, as part of the delayed
+  // instantiation for class member functions.  See in/t0233.cc.
   Variable *retV = winner->var;
   if (winner->instFrom) {
     // instantiation is now done during candidate processing
     xassert(retV->templateInfo());
     xassert(retV->templateInfo()->isCompleteSpecOrInstantiation());
   } else {
-    xassert(!retV->templateInfo());
+    xassert(!retV->isTemplate());
   }
 
   return retV;

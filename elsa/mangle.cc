@@ -2,7 +2,7 @@
 // code for mangle.h
 
 #include "mangle.h"     // this module
-#include "cc_type.h"    // Type, etc.
+#include "template.h"   // Type, TemplateInfo, etc.
 #include "variable.h"   // Variable
     
 

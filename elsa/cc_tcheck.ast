@@ -12,6 +12,7 @@
 verbatim {
   #include "variable.h"      // Variable
   #include "cc_type.h"       // Type, FunctonType, CompoundType
+  #include "template.h"      // STemplateArgument
 
   class Env;                 // cc_env.h
 }
@@ -55,12 +56,20 @@ class Function {
   // 7/29/04: combined this with the old 'ctorReceiver'
   public Variable *receiver = NULL;
 
+  // for template functions, I need to know the scope where the
+  // definition appeared; but this need not be the same as
+  // nameAndParams->var->scope, in the case of out-of-line defns of
+  // member funcs of classes
+  public Scope *defnScope = NULL;
+
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
 
   // if 'checkBody' is false, we treat this like it was just
-  // a prototype for the function
-  public void tcheck(Env &env, bool checkBody);
+  // a prototype for the function; if 'instV' is not NULL, then
+  // force the declarator 'nameAndParams' to refer to it instead
+  // of using the usual lookup/creation mechanism
+  public void tcheck(Env &env, bool checkBody, Variable *instV = NULL);
   
   // this is where we end up if 'checkBody' is true
   public void tcheckBody(Env &env);
@@ -132,7 +141,24 @@ class ASTTypeId {
 
 class PQName {
   // typecheck the template arguments buried in this PQName
-  pure_virtual void tcheck(Env &env);
+  //
+  // 8/01/04: Go all the way to looking up the scopes denoted by the
+  // qualifiers.  'scope' is the scope denoted by the qualifiers seen
+  // so far, or NULL to mean "current scope", and 'lflags' might be
+  // LF_DECLARATOR if this PQName is the name of a declarator.
+  pure_virtual void tcheck(Env &env, Scope *scope = NULL, 
+                           LookupFlags lflags = LF_NONE);
+
+  -> PQ_qualifier {
+       // record the scope denoted by this qualifier; name the
+       // associated variable instead of the scope directly so we can
+       // use 'dependentVar' when the denoted scope is dependent on a
+       // template parameter
+       public Variable *denotedScopeVar = NULL;
+       custom debugPrint {
+         ind(os, indent) << "denotedScopeVar: " << refersTo(denotedScopeVar) << "\n";
+       }
+     }
 }
 
 
@@ -161,8 +187,7 @@ class TypeSpecifier {
        public void tcheckIntoCompound(
          Env &env, DeclFlags dflags, CompoundType *ct,
          bool inTemplate,
-         bool reallyTcheckFunctionBodies,
-         CompoundType *containingClass);
+         bool reallyTcheckFunctionBodies);
        private void tcheckFunctionBodies
          (Env &env,
           bool reallyTcheckFunctionBodies);
@@ -261,6 +286,11 @@ class Declarator {
   public struct Tcheck {
     // the bottom-most IDeclarator (D_name or D_bitfield) creates
     // or looks up a Variable, and sets this to point at it
+    //
+    // 8/06/04: now set by Declarator::mid_tcheck directly
+    //
+    // hack: on the way in, if already set, use it instead of
+    // looking up or making another one
     Variable *var;
 
     // on the way in, this is the type computed so far; initially
@@ -339,6 +369,9 @@ class IDeclarator {
   // write down the type denoted by this type constructor, in
   // conjunction with the constructors that surround it, and the
   // type specifier
+  //
+  // TODO: I think I can safely drop this; no one would be able
+  // to make much use of this.
   public Type *type = NULL;
 
   // external interface; add the type constructor represented by this
@@ -348,7 +381,11 @@ class IDeclarator {
   // 'inGrouping' should be true if this IDeclarator is inside
   // a D_grouping but not a D_pointer or D_ptrToMember (or the
   // former is inside the latter)
-  pure_virtual void tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping);
+  pure_virtual void tcheck(Env &env, Declarator::Tcheck &dt);
+
+  // returns true if there is a D_grouping that does not have
+  // any D_pointer or D_ptrToMember inside it
+  public bool hasInnerGrouping() const;
 
   -> D_func {
        // I want to know which D_funcs are members of classes (whether
@@ -490,6 +527,7 @@ class Expression {
 
   -> E_fieldAcc {
        public Variable *field = NULL;
+       public Type *itcheck_fieldAcc(Env &env, LookupFlags flags);
        custom clone { ret->field = field; }
      }
 

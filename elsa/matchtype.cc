@@ -5,6 +5,7 @@
 #include "matchtype.h"       // this module
 #include "variable.h"        // Variable
 #include "trace.h"           // tracingSys
+#include "template.h"        // STemplateArgument, etc.
 
 
 // FIX: I'll bet the matchDepth here isn't right; not sure what should
@@ -80,7 +81,7 @@ MatchBindings::MatchBindings()
 MatchBindings::~MatchBindings()
 {
   // delete all the STemplateArguments from the map
-  PtrMap<Variable, STemplateArgument>::Iter iter(map);
+  STemplateArgumentMap::Iter iter(map);
   for (; !iter.isDone(); iter.adv()) {
     delete iter.value();
   }
@@ -90,9 +91,9 @@ MatchBindings::~MatchBindings()
 void MatchBindings::put0(Variable *key, STemplateArgument *val) {
   xassert(key);
   xassert(val);
-  if (map.get(key)) xfailure("attempted to re-bind var");
+  if (map.get(key->name)) xfailure("attempted to re-bind var");
   ++entryCount;                 // note: you can't rebind a var
-  map.add(key, val);
+  map.add(key->name, val);
 }
 
 void MatchBindings::putObjVar(Variable *key, STemplateArgument *val) {
@@ -106,12 +107,17 @@ void MatchBindings::putTypeVar(TypeVariable *key, STemplateArgument *val) {
   put0(key->typedefVar, val);
 }
 
-STemplateArgument *MatchBindings::get0(Variable *key) {
+STemplateArgument const *MatchBindings::get0(Variable const *key) {
   xassert(key);
-  return map.get(key);
+  return getVar(key->name);
 }
 
-STemplateArgument const *MatchBindings::getObjVar(Variable *key) {
+STemplateArgument const *MatchBindings::getVar(StringRef name) {
+  xassert(name);
+  return map.get(name);
+}
+
+STemplateArgument const *MatchBindings::getObjVar(Variable const *key) {
   xassert(key);
   xassert(!key->type->isTypeVariable());
   return get0(key);
@@ -131,16 +137,16 @@ void MatchBindings::gdb()
   bindingsGdb(map);
 }
 
-void bindingsGdb(PtrMap<Variable, STemplateArgument> &bindings)
+void bindingsGdb(STemplateArgumentMap &bindings)
 {
   cout << "Bindings" << endl;
-  for (PtrMap<Variable, STemplateArgument>::Iter bindIter(bindings);
+  for (STemplateArgumentMap::Iter bindIter(bindings);
        !bindIter.isDone();
        bindIter.adv()) {
-    Variable *key = bindIter.key();
+    StringRef key = bindIter.key();
     STemplateArgument *value = bindIter.value();
-    cout << "'" << key->name << "' ";
-    cout << "Variable* key: " << stringf("%p ", key);
+    cout << "'" << key << "' ";
+//      cout << "Variable* key: " << stringf("%p ", key);
 //      printf("serialNumber %d ", key->serialNumber);
     cout << endl;
     value->debugPrint();
@@ -230,6 +236,9 @@ bool MatchTypes::bindValToVar(Type *a, Type *b, int matchDepth)
 
   targa->setType(a);
   bindings.putTypeVar(b->asTypeVariable(), targa);
+  TRACE("matchtype", "bound " << b->asTypeVariable()->name <<
+                     " to " << a->toString());
+
   return true;
 }
 
@@ -337,6 +346,8 @@ bool MatchTypes::match_variables(Type *a, TypeVariable *b, int matchDepth)
         STemplateArgument *targa = new STemplateArgument;
         targa->setType(a);
         bindings.putTypeVar(b, targa);
+        TRACE("matchtype", "bound " << b->asTypeVariable()->name << 
+                           " to " << a->toString());
         return true;
       }
     }
@@ -389,10 +400,14 @@ bool MatchTypes::match_cva(CVAtomicType *a, Type *b, int matchDepth)
     //   used to be not top but I don't remember why
     matchDepth = 0;
 
+    // sm: 8/10/04: changed 'isTemplate()' calls to
+    // 'isInstantiation()'; we should never be matching against raw
+    // templates, only instantiations and PseudoInstantiations
+    // (t0220.cc was failing)
     bool aIsCpdTemplate = a->isCompoundType()
-      && a->asCompoundType()->typedefVar->isTemplate();
+      && a->asCompoundType()->typedefVar->isInstantiation();
     bool bIsCpdTemplate = b->isCompoundType()
-      && b->asCompoundType()->typedefVar->isTemplate();
+      && b->asCompoundType()->typedefVar->isInstantiation();
 
     if (aIsCpdTemplate && bIsCpdTemplate) {
       TemplateInfo *aTI = a->asCompoundType()->typedefVar->templateInfo();
@@ -479,6 +494,7 @@ bool MatchTypes::match_ref(ReferenceType *a, Type *b, int matchDepth)
   //   A ref, B non-ref: A's ref-ness silently goes away.
   //   A ref to non-const, B ref to const: both ref's and the const go away
   //     and unification continues below.
+  //     sm: not anymore, see below
   //   A ref, B ref: the ref's match and unification continues below.
   //     do those here
 
@@ -492,7 +508,19 @@ bool MatchTypes::match_ref(ReferenceType *a, Type *b, int matchDepth)
       // go through; But how to get rid of the const in Scott's type
       // system!  This is the only way I can think of: start again at
       // the top.
-      matchDepth0 = 0;
+      //
+      // sm: 8/07/04: Indeed it is ad-hoc, and wrong, as demonstrated
+      // by t0114.cc.  ref-to-const-Foo is quite different from
+      // ref-to-Foo.  I will find a better solution for whatever is
+      // happening in nsAtomTable.i.
+      //
+      // sm: 8/10/04: Ok, d0072.cc seems to be the testcase for when
+      // this behavior is desired, and it corresponds to function
+      // template argument deduction.  The actual rules are spelled
+      // out in 14.8.2.1, but for now I'll just put this back.
+      if (eflags & Type::EF_DEDUCTION) {
+        matchDepth0 = 0;
+      }
     }
   }
   return match0(a->getAtType(), b,
@@ -529,19 +557,26 @@ bool MatchTypes::match_func(FunctionType *a, Type *b, int matchDepth)
   if (b->isFunctionType()) {
     FunctionType *ftb = b->asFunctionType();
 
-    // check all the parameters
-    if (a->params.count() != ftb->params.count()) {
-      return false;
-    }
+    // set up iterators to examine the parameters
     SObjListIterNC<Variable> iterA(a->params);
     SObjListIterNC<Variable> iterB(ftb->params);
+
+    // skip receiver parameters?
+    if (eflags & Type::EF_IGNORE_IMPLICIT) {
+      if (a->isMethod()) {
+        iterA.adv();
+      }
+      if (ftb->isMethod()) {
+        iterB.adv();
+      }
+    }
+
+    // now check the lists
     for(;
-        !iterA.isDone();
+        !iterA.isDone() && !iterB.isDone();
         iterA.adv(), iterB.adv()) {
       Variable *varA = iterA.data();
       Variable *varB = iterB.data();
-      xassert(!varA->hasFlag(DF_TYPEDEF)); // should not be possible
-      xassert(!varB->hasFlag(DF_TYPEDEF)); // should not be possible
       if (!match0
           (varA->type, varB->type,
            // FIX: I don't know if this is right: are we at the top
@@ -551,7 +586,10 @@ bool MatchTypes::match_func(FunctionType *a, Type *b, int matchDepth)
         return false; // conjunction
       }
     }
-    xassert(iterB.isDone());
+
+    if (!iterA.isDone() || !iterB.isDone()) {
+      return false;   // differing number of params
+    }
 
     // check the return type
     return match0
@@ -660,9 +698,9 @@ bool MatchTypes::match_TInfo(TemplateInfo *a, TemplateInfo *b, int matchDepth)
 //    xassert(!(mFlags & MT_TOP));
 
   // are we from the same primary even?
-  TemplateInfo *ati = a->getMyPrimaryIdem();
+  TemplateInfo *ati = a->getPrimary();
   xassert(ati);
-  TemplateInfo *bti = b->getMyPrimaryIdem();
+  TemplateInfo *bti = b->getPrimary();
   xassert(bti);
   // FIX: why did I do it this way?  It seems that before if a and b
   // were equal and both primaries that they would fail to match
@@ -675,10 +713,7 @@ bool MatchTypes::match_TInfo(TemplateInfo *a, TemplateInfo *b, int matchDepth)
   // match it.  FIX: I wonder if we are going to omit some bindings
   // getting created in the the modes that create bindings by doing
   // this?
-  //
-  // FIX: I treat mutants just like anything else; I think this is
-  // right
-  if ((!b->isMutant()) && b->isPrimary()) return true;
+  if (b->isPrimary()) return true;
   return match_Lists(a->arguments, b->arguments, matchDepth);
 }
 
@@ -688,14 +723,15 @@ bool MatchTypes::match_TInfo_with_PI(TemplateInfo *a, PseudoInstantiation *b,
 {
   // preamble similar to match_TInfo, to check that these are
   // (pseudo) instantiations of the same primary
-  TemplateInfo *ati = a->getMyPrimaryIdem();
+  TemplateInfo *ati = a->getPrimary();
   xassert(ati);
-  TemplateInfo *bti = b->primary->templateInfo()->getMyPrimaryIdem();
+  TemplateInfo *bti = b->primary->templateInfo()->getPrimary();
   xassert(bti);
   if (ati != bti) return false;
 
-  // compare arguments
-  return match_Lists(a->arguments, b->args, matchDepth);
+  // compare arguments; use the args to the primary, not the args to
+  // the partial spec (if any)
+  return match_Lists(a->getArgumentsToPrimary(), b->args, matchDepth);
 }
 
 
@@ -828,12 +864,12 @@ bool MatchTypes::match0(Type *a, Type *b, int matchDepth)
 
 // ---------- MatchTypes public methods ----------
 
-MatchTypes::MatchTypes(TypeFactory &tfac0, MatchMode mode0)
-  : tfac(tfac0), mode(mode0), recursionDepth(0)
+MatchTypes::MatchTypes(TypeFactory &tfac0, MatchMode mode0, Type::EqFlags eflags0)
+  : tfac(tfac0), mode(mode0), eflags(eflags0), recursionDepth(0)
 {
   xassert(mode!=MM_NONE);
   if (tracingSys("shortMTRecDepthLimit")) {
-    recursionDepthLimit = 10;   // make test for this feature go alot faster
+    recursionDepthLimit = 10;   // make test for this feature go a lot faster
   }
 }
 

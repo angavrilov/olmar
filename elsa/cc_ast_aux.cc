@@ -10,7 +10,6 @@
 void ASTTemplVisitor::visitTemplateDeclaration_oneTempl(Variable *var0) {
   xassert(var0);
   xassert(var0->templateInfo());
-  xassert(!var0->templateInfo()->isMutant());
 
   // run a sub-traversal of the AST instantiation
   if (var0->funcDefn) {
@@ -38,6 +37,31 @@ void ASTTemplVisitor::visitTemplateDeclaration_oneTempl(Variable *var0) {
     }
   } else {
     xassert(!var0->funcDefn);
+  }
+}
+
+// sm: added this layer to handle new design with specializations
+// as a middle layer between primaries and instantiations
+void ASTTemplVisitor::visitTemplateDeclaration_oneContainer
+  (Variable *container)
+{
+  TemplateInfo *ti = container->templateInfo();
+  xassert(ti);
+
+  if (ti->isCompleteSpec()) {
+    // visit as template and bail
+    visitTemplateDeclaration_oneTempl(container);
+    return;
+  }
+
+  // visit the container itself, if desired
+  if (primariesAndPartials) {
+    visitTemplateDeclaration_oneTempl(container);
+  }
+
+  // visit each instantiation
+  SFOREACH_OBJLIST_NC(Variable, ti->instantiations, iter) {
+    visitTemplateDeclaration_oneTempl(iter.data());
   }
 }
 
@@ -82,26 +106,15 @@ bool ASTTemplVisitor::visitTemplateDeclaration(TemplateDeclaration *obj)
     }
     primaryTemplateInfos.add(tinfo);
 
-    // visit the primary
-    if (primariesAndPartials) {
-      visitTemplateDeclaration_oneTempl(tinfoVar);
-    }
-
-    // visit each instantiation
-    SFOREACH_OBJLIST_NC(Variable, tinfo->getInstantiations(), iter) {
-      Variable *var0 = iter.data();
-      // skip mutants
-      if (var0->templateInfo()->isMutant()) continue;
-      // skip primaries and partials unless told otherwise during
-      // construction
-      bool isPrimaryOrPartial = !var0->templateInfo()->isCompleteSpecOrInstantiation();
-      if (isPrimaryOrPartial && !primariesAndPartials) continue;
-
-      // run a sub-traversal of the AST instantiation
-      visitTemplateDeclaration_oneTempl(var0);
+    // look in the primary (as a container)
+    visitTemplateDeclaration_oneContainer(tinfoVar);
+    
+    // look in the specializations (as containers)
+    SFOREACH_OBJLIST_NC(Variable, tinfo->specializations, iter) {
+      visitTemplateDeclaration_oneContainer(iter.data());
     }
   }
-  
+
   return false;                 // prune the walk here; don't decend into template definitions
 }
 
@@ -684,6 +697,9 @@ string TA_type::argString() const
 
 string TA_nontype::argString() const
 {
+  if (sarg.kind != STemplateArgument::STA_NONE) {
+    return sarg.toString();       // hope to get concrete value like "3"
+  }
   return expr->exprToString();
 }   
 

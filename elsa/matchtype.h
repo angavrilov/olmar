@@ -43,19 +43,30 @@
 #include "cc_type.h"            // Type hierarchy
 #include "ptrmap.h"             // PtrMap
 #include "strsobjdict.h"        // StringSObjDict
+  
+
+// sm: 8/05/04: changed to using StringRef indices instead of
+// Variables, because the latter is difficult to use in the
+// presence of member templates, as the template parameter lists
+// get cloned and re-tchecked, creating new Variables
+typedef PtrMap<char const /*StringRef*/, STemplateArgument> STemplateArgumentMap;
+
+// version for a map that hold const ptrs to the values
+typedef PtrMap<char const /*StringRef*/, STemplateArgument const> STemplateArgumentCMap;
+
 
 class MatchBindings {
 private:     // data
   // primary map from vars to their bindings; the STemplateArguments
   // are owned by this map
-  PtrMap<Variable, STemplateArgument> map;
+  STemplateArgumentMap map;
 
   // count the entries; they can't be deleted or overwritten
   int entryCount;
 
 private:     // funcs
   void put0(Variable *key, STemplateArgument *val);
-  STemplateArgument *get0(Variable *key);
+  STemplateArgument const *get0(Variable const *key);
 
 public:      // funcs
   MatchBindings();
@@ -70,8 +81,9 @@ public:      // funcs
   //
   // these return serf pointers which will become invalid once
   // this MatchBindings object goes away
-  STemplateArgument const *getObjVar(Variable *key);
+  STemplateArgument const *getObjVar(Variable const *key);
   STemplateArgument const *getTypeVar(TypeVariable *key);
+  STemplateArgument const *getVar(StringRef name);
 
   // are the number of bound (not just bindable) entries greater than
   // zero?
@@ -82,7 +94,7 @@ public:      // funcs
 };
 
 
-void bindingsGdb(PtrMap<Variable, STemplateArgument> &bindings);
+void bindingsGdb(STemplateArgumentMap &bindings);
 
 
 // this class holds the "global" data used during matching,
@@ -146,6 +158,18 @@ private:                        // data
 
   MatchMode const mode;
 
+  // sm: Respect the same kinds of comparison modifiers as
+  // Type::equals.
+  //
+  // TODO: Type::equals passes the eflags down manually, because only
+  // some of the flags are propagated down to lower levels.  For now,
+  // in this module, I just propagate them all, which is probably
+  // wrong, but it's not clear how best to fold masking propagation
+  // into the existing recursion structure.
+  //
+  // TODO: Not all the flags are respected yet.
+  Type::EqFlags const eflags;
+
   // recursion depth of calls to match0(); used to detect infinite
   // loops
   int recursionDepth;
@@ -199,8 +223,11 @@ private:                        // funcs
   bool match0(Type *a, Type *b, int matchDepth);
 
 public:
-  MatchTypes(TypeFactory &tfac0, MatchMode mode0);
+  MatchTypes(TypeFactory &tfac0, MatchMode mode0, Type::EqFlags eflags0 = Type::EF_EXACT);
   ~MatchTypes();
+
+  MatchMode getMode() const { return mode; }
+  bool hasEFlag(Type::EqFlags f) const { return !!(eflags & f); }
 
   // top level entry for checking if Type 'a' matches Type 'b'.
   bool match_Type(Type *a, Type *b, int matchDepth = 0);

@@ -12,6 +12,7 @@
 #include "sobjlist.h"     // SObjList
 #include "array.h"        // ArrayStack
 #include "serialno.h"     // INHERIT_SERIAL_BASE
+#include "ptrmap.h"       // PtrMap
 
 // NOTE: We cannot #include cc_type.h b/c cc_type.h #includes cc_scope.h.
 
@@ -45,6 +46,10 @@ enum LookupFlags {
 };
 
 ENUM_BITWISE_OPS(LookupFlags, LF_ALL_FLAGS)     // smbase/macros.h
+
+
+// map from StringRef to StringRef
+typedef PtrMap<char const, char const> StringRefMap;
 
 
 // information about a single scope: the names defined in it,
@@ -106,11 +111,17 @@ public:      // data
   // find the namespace during lookups
   Variable *namespaceVar;
                                       
-  // If this is a template (SK_TEMPLATE) scope, these are the template
-  // parameters.  We will attach them to functions and classes
-  // contained in this scope, as those functions and classes are
-  // parameterized by these variables.
+  // If this is a template (SK_TEMPLATE_PARAMS) scope, these are the
+  // template parameters.  We will attach them to functions and
+  // classes contained in this scope, as those functions and classes
+  // are parameterized by these variables.
   SObjList<Variable> templateParams;
+
+  // If this is SK_TEMPLATE_PARAMS, then the parameters correspond to
+  // some specific template primary.  This pointer names that primary.
+  // It is initially NULL, as we don't immediately know which is being
+  // parameterized, but is set to non-NULL as soon as we know.
+  Variable *parameterizedPrimary;          // (nullable serf)
 
   // --------------- for using-directives ----------------
   // possible optim:  For most scopes, these three arrays waste 13
@@ -180,8 +191,12 @@ public:      // funcs
   bool isParameterScope() const     { return scopeKind == SK_PARAMETER; }
   bool isFunctionScope() const      { return scopeKind == SK_FUNCTION; }
   bool isClassScope() const         { return scopeKind == SK_CLASS; }
-  bool isTemplateScope() const      { return scopeKind == SK_TEMPLATE; }
+  bool isTemplateParamScope() const { return scopeKind == SK_TEMPLATE_PARAMS; }
+  bool isTemplateArgScope() const   { return scopeKind == SK_TEMPLATE_ARGS; }
   bool isNamespace() const          { return scopeKind == SK_NAMESPACE; }
+
+  // template params or args ...
+  bool isTemplateScope() const      { return isTemplateParamScope() || isTemplateArgScope(); }
 
   // true if this scope is guaranteed to stick around until the end of
   // the translation unit, and hence child scopes' 'parentScope' field
@@ -197,9 +212,9 @@ public:      // funcs
   // True if this scope has extant template parameters.
   //
   // Actually, I think the places that call this are really just
-  // asking whether this is an SK_TEMPLATE, because an empty template
-  // parameter list is treated uniformly.
-  bool hasTemplateParams() const { return isTemplateScope(); }
+  // asking whether this is an SK_TEMPLATE_PARAMS, because an empty
+  // template parameter list is treated uniformly.
+  bool hasTemplateParams() const { return isTemplateParamScope(); }
 
   // insertion; these return false if the corresponding map already
   // has a binding (unless 'forceReplace' is true)
@@ -275,13 +290,28 @@ public:      // funcs
   // dsw: needed this and this was a natural place to put it
   bool immediateGlobalScopeChild();
   bool linkerVisible();
+
   // This is just a unique and possibly human readable string; it is
   // used in the Oink linker imitator.
-  string fullyQualifiedName();
+  //
+  // sm: TODO: Change the name so it reflects the mangling activity;
+  // I want "fullyQualifiedName" to do what "fullyQualifiedCName"
+  // does now.
+  string fullyQualifiedName(bool mangle = true);
+  
+  // more C-like notation for a fully qualified name
+  string fullyQualifiedCName()
+    { return fullyQualifiedName(false /*mangle*/); }
 
   // support a hack...
   void addSoleVariableToEatScope(Variable *v);
   void removeSoleVariableFromEatScope();
+
+  // set 'parameterizedPrimary', checking a few things in the process
+  void setParameterizedPrimary(Variable *primary);
+       
+  // see implementation, in template.cc
+  void applyVariableMap(StringRefMap &map);
 
   // for debugging, a quick description of this scope
   string desc() const;

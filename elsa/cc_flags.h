@@ -106,7 +106,7 @@ enum DeclFlags {
   DF_EXTERN_C    = 0x08000000,    // name is marked extern "C"
   DF_SELFNAME    = 0x10000000,    // section 9 para 2: name of class inside its own scope
   DF_TEMPL_SPEC  = 0x20000000,    // name is a template specialization
-  DF_DELAYED_INST= 0x00004000,    // member function of template class whose instantiation has been delayed
+  DF_BOUND_TEMPL_VAR=0x00004000,  // Variable bound to a concrete template argument
 
   // syntactic declaration extensions
   DF_PREDICATE   = 0x02000000,    // Simplify-declared predicate (i.e. DEFPRED)
@@ -132,7 +132,8 @@ enum ScopeKind {
   SK_PARAMETER,                   // parameter list
   SK_FUNCTION,                    // includes local variables
   SK_CLASS,                       // class member scope
-  SK_TEMPLATE,                    // template paramter list (inside the '<' and '>')
+  SK_TEMPLATE_PARAMS,             // template paramter list (inside the '<' and '>')
+  SK_TEMPLATE_ARGS,               // bound template arguments, during instantiation
   SK_EAT_TEMPL_INST,              // dummy scope to eat a template instantiation variable
   SK_NAMESPACE,                   // namespace
   NUM_SCOPEKINDS

@@ -77,7 +77,9 @@ void TranslationUnit::tcheck(Env &env)
   static int topForm = 0;
   FOREACH_ASTLIST_NC(TopForm, topForms, iter) {
     ++topForm;
-    TRACE("topform", topForm);
+    TRACE("topform", "--------- topform " << topForm <<
+                     ", at " << toString(iter.data()->loc) <<
+                     " --------");
     iter.data()->tcheck(env);
   }
 
@@ -211,10 +213,18 @@ void TF_namespaceDecl::tcheck(Env &env)
 
 
 // --------------------- Function -----------------
-void Function::tcheck(Env &env, bool checkBody)
+void Function::tcheck(Env &env, bool checkBody, Variable *instV)
 {
   // are we in a template function?
   bool inTemplate = env.scope()->hasTemplateParams();
+
+  // remember what scope this definition appears in (skipping
+  // any intervening template scopes)
+  {
+    Scope *s = env.nonTemplateScope();
+    xassert(!defnScope || defnScope == s);     // shouldn't be changing it...
+    defnScope = s;
+  }
 
   // only disambiguate, if template
   DisambiguateOnlyTemp disOnly(env, inTemplate /*disOnly*/);
@@ -230,6 +240,7 @@ void Function::tcheck(Env &env, bool checkBody)
   Declarator::Tcheck dt(retTypeSpec,
                         dflags | (checkBody? DF_DEFINITION : DF_NONE),
                         DC_FUNCTION);
+  dt.var = instV;
   nameAndParams = nameAndParams->tcheck(env, dt);
   if (!nameAndParams->var) {
     return;                     // error should have already been reported
@@ -251,6 +262,47 @@ void Function::tcheck(Env &env, bool checkBody)
 
   // grab the definition type for later use
   funcType = dt.type->asFunctionType();
+
+  if (checkBody) {      // so this is a definition and not just a declaration
+    // force the parameter and return types to be complete (8.3.5 para 6)
+    env.ensureCompleteType("use as return type", funcType->retType);
+    SFOREACH_OBJLIST(Variable, funcType->params, iter) {
+      env.ensureCompleteType("use as parameter type", iter.data()->type);
+    }
+
+    // NASTY (expletive) (expletive) HACK: Our STA_REFERENCE thing is
+    // causing a problem for d0053.cc, because 'dt.type' is A2<17>
+    // whereas 'dt.var->type' is A2<I>, 'I' being a reference (to the
+    // param itself...).  So, do the same force-complete to the
+    // dt.var->type.....
+    {
+      FunctionType *declFuncType = dt.var->type->asFunctionType();
+      env.ensureCompleteType("use (in declFuncType) as return type", declFuncType->retType);
+      SFOREACH_OBJLIST(Variable, declFuncType->params, iter) {
+        env.ensureCompleteType("use (in declFuncType) as parameter type", iter.data()->type);
+      }
+    }
+  }
+
+  // record the definition scope for this template, since this
+  // information is needed to instantiate it
+  //
+  // different place for defnScope; TODO: remove the one above
+  if (nameAndParams->var->templateInfo()) {
+    Scope *s = env.nonTemplateScope();
+    if (s->isPermanentScope()) {
+      nameAndParams->var->templateInfo()->defnScope = s;
+    }
+    else {
+      // If I just point 'defnScope' at 's' anyway, it might even
+      // work, but it would violate my invariant that we only point at
+      // permanent scopes.
+      //
+      // Actually, my grammar currently doesn't allow local templates,
+      // so this is probably a non-issue.
+      env.warning("local template instantiation is not currently implemented");
+    }
+  }
 
   if (checkBody) {
     tcheckBody(env);
@@ -292,14 +344,16 @@ void Function::tcheckBody(Env &env)
       // keeping the surrounding stuff, though, because it has that
       // error report above, and simply to avoid disturbing existing
       // (working) mechanism
-      env.getQualifierScopes(qualifierScopes, nameAndParams->getDeclaratorId(),
-                             LF_DECLARATOR);
+      env.getQualifierScopes(qualifierScopes, nameAndParams->getDeclaratorId());
       env.extendScopeSeq(qualifierScopes);
 
       // the innermost scope listed in 'qualifierScopes'
       // should be the same one in which the variable was
       // declared (could this be triggered by user code?)
       if (encloses && qualifierScopes.isNotEmpty()) {
+        xassert(s == qualifierScopes.top());
+        
+        #if 0      // wrong
         // I had to weaken this assertion to deal with the difference
         // between the template scope and its instantiation which
         // occurs when a function member of a class template is
@@ -313,6 +367,7 @@ void Function::tcheckBody(Env &env)
           xassert(qCpd);
           xassert(match.match_Atomic(sCpd, qCpd, 0 /*matchDepth*/));
         }
+        #endif // 0
       }
     }
   }
@@ -417,7 +472,7 @@ void Function::tcheckBody(Env &env)
   // Env::instantiateTemplate()
   //
   // UPDATE: I've changed this invariant, as I need to point the
-  // funcDefn at the definition even if the body has not bee tchecked.
+  // funcDefn at the definition even if the body has not been tchecked.
   if (nameAndParams->var->funcDefn) {
     xassert(nameAndParams->var->funcDefn == this);
   } else {
@@ -511,10 +566,7 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
       ctorVar = env.storeVar(
         outerResolveOverload_ctor(env, env.loc(), v->type, args,
                                   reallyDoOverload(env, args)));
-
-      if (ctorVar && ctorVar->type->isFunctionType()) {
-        env.ensureFuncMemBodyTChecked(ctorVar);
-      }
+      env.ensureFuncBodyTChecked(ctorVar);
 
       // TODO: check that the passed arguments are consistent
       // with at least one constructor of the variable's type.
@@ -610,9 +662,7 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
                               baseVar->type,
                               args,
                               reallyDoOverload(env, args)));
-  if (ctorVar->type->isFunctionType()) {
-    env.ensureFuncMemBodyTChecked(ctorVar);
-  }
+  env.ensureFuncBodyTChecked(ctorVar);
 }
 
 
@@ -678,8 +728,11 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
         env.error("there can be at most one declarator in a template declaration");
       }
 
+      #if 0     // I think all of this is now done elsewhere
       // is this a function template?
       if (dt1.var->type->isFunctionType()) {
+        // We need to get ahold of the primary, so we can add this
+        // instantiation to its instantiation list.
         xassert(!dt1.var->templInfo->isMutant());
         // lookup the Declarator
         Declarator *declarator = decllist->first();
@@ -695,26 +748,29 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
            LF_TEMPL_PRIMARY,
            dt1.var->type->asFunctionType(),
            MatchTypes::MM_WILD);
-        xassert(previous);
-        xassert(previous->templateInfo()->isPrimary());
-        if (dt1.var->templInfo->isPrimary()) {
-          // if this is a forward declaration for a primary, it should
-          // already be in the namespace and should be isomorphic
-          MatchTypes match(env.tfac, MatchTypes::MM_ISO);
-          xassert(match.match_Type(dt1.var->type, previous->type));
-        } else {
-          // if this is a forward declaration for a specialization /
-          // instantiation, it should not be in the namespace but
-          // should be put into the instantiation list of 'previous',
-          // but only if it is not already there
-          Variable *var0 = previous->templateInfo()->
-            getInstantiationOfVar(env.tfac, dt1.var);
-          if (!var0) {
-            xassert(!dt1.var->funcDefn); // pure declaration, not definition
-            previous->templateInfo()->addInstantiation(env.tfac, dt1.var);
+        if (previous != dt1.var) {     // hack for complete specialization member funcs ...
+          xassert(previous);
+          xassert(previous->templateInfo()->isPrimary());
+          if (dt1.var->templInfo->isPrimary()) {
+            // if this is a forward declaration for a primary, it should
+            // already be in the namespace and should be isomorphic
+            MatchTypes match(env.tfac, MatchTypes::MM_ISO);
+            xassert(match.match_Type(dt1.var->type, previous->type));
+          } else {
+            // if this is a forward declaration for a specialization /
+            // instantiation, it should not be in the namespace but
+            // should be put into the instantiation list of 'previous',
+            // but only if it is not already there
+            Variable *var0 = previous->templateInfo()->
+              getInstantiationOfVar(env.tfac, dt1.var);
+            if (!var0) {
+              xassert(!dt1.var->funcDefn); // pure declaration, not definition
+              previous->templateInfo()->addInstantiation(env.tfac, dt1.var);
+            }
           }
         }
       }
+      #endif // 0
     }
 
     // check subsequent declarators
@@ -793,21 +849,98 @@ void tcheckTemplateArgumentList(ASTList<TemplateArgument> &list, Env &env)
   }
 }
 
-void PQ_qualifier::tcheck(Env &env)
+void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
 {
+  // begin by looking up the bare name, igoring template arguments
+  Variable *bareQualifierVar = env.lookupOneQualifier_bareName(scope, this, lflags);
+
+  // scope that has my template params
+  Scope *hasParamsForMe = NULL;
+
+  // template scopes temporarily removed
+  ObjList<Scope> temporarilyRemoved;
+
+  if ((lflags & LF_DECLARATOR) &&
+      bareQualifierVar &&
+      targs.isNotEmpty()) {
+    // In a template declarator context, we want to stage the use of
+    // the template parameters so as to ensure proper association
+    // between parameters and qualifiers.  For example, if we have
+    //
+    //   template <class S>
+    //   template <class T>
+    //   int A<S>::foo(T *t) { ... }
+    //
+    // and we're about to tcheck "A<S>", the SK_TEMPLATE_PARAMS scope
+    // containing T that is currently on the stack must be temporarily
+    // removed so that the template arguments to A cannot see it.
+    //
+    // So, for this and other reasons, find the template argument or
+    // parameter scope that corresponds to 'bareQualifierVar'.
+    hasParamsForMe = env.findParameterizingScope(bareQualifierVar);
+
+    // now remove scopes inside that one
+    if (hasParamsForMe) {
+      env.removeScopesInside(temporarilyRemoved, hasParamsForMe);
+      
+      // 'findParameterizingScope' ensures this
+      xassert(hasParamsForMe->parameterizedPrimary == bareQualifierVar);
+    }
+  }
+
+  // now check the arguments, having (possibly) removed template
+  // scopes that should not be visible
   tcheckTemplateArgumentList(targs, env);
-  rest->tcheck(env);
+
+  // restore the original scope structure, if we modified it
+  if (temporarilyRemoved.isNotEmpty()) {
+    env.restoreScopesInside(temporarilyRemoved, hasParamsForMe);
+  }
+
+  // finish looking up this qualifier
+  bool dependent;
+  bool anyTemplates;        // will be ignored
+  Scope *denotedScope = env.lookupOneQualifier_useArgs(
+    bareQualifierVar,       // scope found w/o using args
+    this,                   // qualifier (to look up)
+    dependent, anyTemplates, lflags);
+    
+  // save the result in our AST annotation field, 'denotedScopeVar'
+  if (!denotedScope) {
+    if (dependent) {
+      denotedScopeVar = env.dependentVar;
+    }
+    else {
+      // error; recovery: just keep going (error already reported)
+    }
+  }
+  else {
+    if (denotedScope->curCompound) {
+      denotedScopeVar = denotedScope->curCompound->typedefVar;
+    }
+    else if (denotedScope->isGlobalScope()) {
+      denotedScopeVar = env.globalScopeVar;
+    }
+    else {
+      xassert(denotedScope->isNamespace());
+      denotedScopeVar = denotedScope->namespaceVar;
+
+      xassert(!hasParamsForMe);     // namespaces aren't templatized
+    }
+  }
+
+  rest->tcheck(env, denotedScope, lflags);
 }
 
-void PQ_name::tcheck(Env &env)
+void PQ_name::tcheck(Env &env, Scope *, LookupFlags)
 {}
 
-void PQ_operator::tcheck(Env &env)
+void PQ_operator::tcheck(Env &env, Scope *, LookupFlags)
 {
   o->tcheck(env);
 }
 
-void PQ_template::tcheck(Env &env)
+void PQ_template::tcheck(Env &env, Scope *, LookupFlags)
 {
   tcheckTemplateArgumentList(args, env);
 }
@@ -1001,11 +1134,9 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   // are we in a template?
   bool inTemplate = env.scope()->hasTemplateParams();
 
-  // are we an inner class?
-  CompoundType *containingClass = env.acceptingScope()->curCompound;
-  if (env.lang.noInnerClasses) {
-    // nullify the above; act as if it's an outer class
-    containingClass = NULL;
+  // lookup scopes in the name, if any
+  if (name) {
+    name->tcheck(env);
   }
 
   // check restrictions on the form of the name
@@ -1020,8 +1151,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
       else {
         PQ_template *t = unqual->asPQ_template();
 
-        // typecheck the arguments
-        tcheckTemplateArgumentList(t->args, env);
+        // get the arguments
         templateArgs = &(t->args);
       }
     }
@@ -1068,6 +1198,12 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // now it is no longer a forward declaration
     ct->forward = false;
     prevWasForward = true;
+                                                       
+    // TODO: these lines appear in two places, can I consolidate?
+    // the template parameters parameterize the primary
+    if (env.scope()->isTemplateParamScope()) {
+      env.scope()->setParameterizedPrimary(ct->typedefVar);
+    }
 
     verifyCompatibleTemplates(env, ct);
 
@@ -1089,6 +1225,14 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     ret = env.makeNewCompound(ct, NULL /*scope*/, stringName, loc, keyword,
                               false /*forward*/);
 
+    // the template parameters parameterize the primary
+    //
+    // 8/09/04: moved this below 'makeNewCompound' so the params
+    // aren't regarded as inherited
+    if (env.scope()->isTemplateParamScope()) {
+      env.scope()->setParameterizedPrimary(ct->typedefVar);
+    }
+
     // dsw: need to register it at least, even if it isn't added to
     // the scope, otherwise I can't print out the name of the type
     // because at the top scope I don't know the scopeKind
@@ -1108,19 +1252,23 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
         xassert(iter->sarg.hasValue());
         ct->templateInfo()->arguments.append(new STemplateArgument(iter->sarg));
       }
+
+      // synthesize an instName to aid in debugging
+      ct->instName = env.str(stringc <<
+        ct->name << sargsToString(ct->templateInfo()->arguments));
     }
 
     // add this type to the primary's list of specializations; we are not
     // going to add 'ct' to the environment, so the only way to find the
     // specialization is to go through the primary template
-    primaryTI->addInstantiation(env.tfac, ct->getTypedefVar());
-    
-    if (tracingSys("template")) {
-      cout << "TS_classSpec::itcheck: "
-           << "template typechecked, appending to instantiations of primary"
-           << endl;
-      primaryTI->debugPrint();
-    }
+    primaryTI->addSpecialization(ct->getTypedefVar());
+
+    // record the definition scope, for instantiation to use
+    ct->templateInfo()->defnScope = env.nonTemplateScope();
+
+    TRACE("template", "created specialization of template class " <<
+                      primary->typedefVar->fullyQualifiedName() <<
+                      ", " << ct->instName);
   }
 
   else {      // !ct
@@ -1134,18 +1282,20 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     ret = env.makeNewCompound(ct, destScope, stringName,
                               loc, keyword, false /*forward*/);
     this->ctype = ct;              // annotation
+
+    if (ct->isTemplate()) {
+      TRACE("template", "template class defn: " << ct->templateInfo()->templateName());
+    }
   }
 
   tcheckIntoCompound(env, dflags, ct, inTemplate,
-                     true /*reallyTcheckFunctionBodies*/,
-                     containingClass);
-//    env.deMutantify(ct);             // we now just avoid them during specialization resolution
+                     true /*reallyTcheckFunctionBodies*/);
   
   if (prevWasForward && ct->isTemplate()) {
     // we might have had forward declarations of template
     // instances that now can be made non-forward by tchecking
     // this syntax
-    env.instantiateForwardClasses(env.acceptingScope(), ct->getTypedefVar());
+    env.instantiateForwardClasses(ct->getTypedefVar());
   }
 
   return ret;
@@ -1158,11 +1308,17 @@ void TS_classSpec::tcheckIntoCompound(
   Env &env, DeclFlags dflags,    // as in tcheck
   CompoundType *ct,              // compound into which we're putting declarations
   bool inTemplate,               // true if this is a template class (uninstantiated)
-  bool reallyTcheckFunctionBodies, // in second pass really tcheck or just save the context
-  CompoundType *containingClass) // if non-NULL, ct is an inner class
+  bool reallyTcheckFunctionBodies) // in second pass really tcheck or just save the context
 {
   // should have set the annotation by now
   xassert(ctype);
+
+  // are we an inner class?
+  CompoundType *containingClass = env.acceptingScope()->curCompound;
+  if (env.lang.noInnerClasses) {
+    // nullify the above; act as if it's an outer class
+    containingClass = NULL;
+  }
 
   // FIX: how can this fail?
   //    xassert(inTemplate == !!ct->templateInfo());
@@ -1222,6 +1378,11 @@ void TS_classSpec::tcheckIntoCompound(
         env.error(stringc
           << "`" << *(iter->name) << "' is not a class or "
           << "struct or union, so it cannot be used as a base class");
+        continue;
+      }
+
+      // also 10 para 1: must be complete type
+      if (!env.ensureCompleteType("use as base class", baseVar->type)) {
         continue;
       }
 
@@ -1352,7 +1513,6 @@ void TS_classSpec::tcheckFunctionBodies
           // function body from the variable and instantiate it
           fvar->funcDefn = f;
         }
-        fvar->setFlag(DF_DELAYED_INST);
       }
     }
     else if (iter.data()->isMR_decl()) {
@@ -1496,6 +1656,8 @@ void MR_access::tcheck(Env &env)
 void MR_publish::tcheck(Env &env)
 {
   env.setLoc(loc);
+
+  name->tcheck(env);
 
   if (!name->hasQualifiers()) {
     env.error(stringc
@@ -1657,11 +1819,28 @@ bool isVariableDC(DeclaratorContext dc)
          dc==DC_S_DECL ||     // local
          dc==DC_CN_DECL;      // local in a Condition
 }
+  
+// TODO: rename, move
+static void D_name_tcheck(
+  Env &env,
+  Declarator::Tcheck &dt,
+  bool inGrouping,
+  SourceLoc loc,
+  PQName const *name);
 
 void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 {
   // true if we're immediately in a class body
-  bool inClassBody = !!env.scope()->curCompound;
+  Scope *enclosingScope = env.scope();
+  bool inClassBody = !!(enclosingScope->curCompound);
+           
+  // is this declarator in a templatizable context?  this prevents 
+  // confusion when processing the template arguments themselves (which
+  // contain declarators), among other things
+  bool templatizableContext = 
+    dt.context == DC_FUNCTION ||   // could be in MR_func or TD_func
+    dt.context == DC_TD_PROTO ||
+    dt.context == DC_MR_DECL;
 
   // cppstd sec. 3.4.3 para 3:
   //    "In a declaration in which the declarator-id is a
@@ -1684,22 +1863,160 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   ScopeSeq qualifierScopes;
   PQName *name = decl->getDeclaratorId();
   if (name) {
-    name->tcheck(env);
+    name->tcheck(env, NULL /*scope*/, LF_DECLARATOR);
   }
-  env.getQualifierScopes(qualifierScopes, name, LF_DECLARATOR);
+  env.getQualifierScopes(qualifierScopes, name);
   env.extendScopeSeq(qualifierScopes);
 
   if (init) dt.dflags |= DF_INITIALIZED;
 
-  // get the variable from the IDeclarator
-  decl->tcheck(env, dt, false /*inGrouping*/);
+  // get the type from the IDeclarator
+  decl->tcheck(env, dt);
+
+  // declarators usually require complete types (are there exceptions?)
+  //
+  // TODO: According to 15.4 para 1, not only must the type in
+  // DC_EXCEPTIONSPEC be complete (which this code enforces), but if
+  // it is a pointer or reference type, the pointed-to thing must be
+  // complete too!
+  if (dt.context == DC_D_FUNC) {
+    // 8.3.5 para 6: ok to be incomplete unless this is a definition;
+    // I'll just allow it (here) in all cases (t0048.cc)
+  }
+  else if (dt.context == DC_TA_TYPE) {
+    // mere appearance of a type in an argument list is not enough
+    // to require that it be complete; maybe the instantiation will
+    // need it, but that is detected later
+  }
+  else if (dt.dflags & (DF_TYPEDEF | DF_EXTERN)) {
+    // 7.1.3 does not say that the type named by a typedef must be
+    // complete, so I will allow it to be incomplete (t0079.cc)
+    //
+    // I'm not sure where the exception for 'extern' is specified, but
+    // it clearly exists.... (t0170.cc)
+  }
+  else if (!env.ensureCompleteType(
+              // context-specific action text
+              dt.context==DC_EXCEPTIONSPEC? "name in exception spec" :
+                     /* catch-all */        "create an object of" /*...*/,
+              dt.type)) {
+    dt.type = env.errorType();        // recovery
+  }
+
+  // is this an explicit specialization?  look for the innermost scope
+  // being "template <>"
+  bool isExplicitSpec = 
+    templatizableContext &&                      // e.g. toplevel
+    enclosingScope->isTemplateParamScope() &&    // "template <...>" above
+    !enclosingScope->parameterizedPrimary &&     // that's mine, not my class' (need to wait until after name->tcheck to test this)
+    enclosingScope->templateParams.isEmpty();    // just "template <>"
+
+  if (isExplicitSpec) {
+    if (dt.type->isFunctionType()) {
+      dt.var = env.makeExplicitFunctionSpecialization
+                 (decl->loc, dt.dflags, name, dt.type->asFunctionType());
+      if (dt.var) {
+        enclosingScope->setParameterizedPrimary
+          (dt.var->templateInfo()->getPrimary()->var);
+      }
+    }
+    else {
+      // for class specializations, we should not get here, as the syntax
+      //
+      //   template <>
+      //   class A<int> { ... }  /*declarator goes here*/  ;
+      //
+      // does not have (and cannot have) any declarators
+      env.error("can only specialize functions", EF_STRONG);
+    }
+  }
+
+  // TODO: fix the name of D_name_tcheck, collapse 'dt', etc.
+  //
+  // make a Variable, add it to the environment
+  bool callerPassedInstV = false;
   if (!dt.var) {
+    D_name_tcheck(env, dt, decl->hasInnerGrouping(), decl->loc, name);
+  }
+  else {
+    // caller already gave me a Variable to use
+    callerPassedInstV = true;
+  }
+
+  if (!dt.var) {
+    env.retractScopeSeq(qualifierScopes);
     return;      // an error was found and reported; bail rather than die later
   }
   var = env.storeVar(dt.var);
   type = env.tfac.cloneType(dt.type);
   context = dt.context;
 
+  // handle function template declarations ....
+  TemplateInfo *templateInfo = NULL;
+  if (callerPassedInstV) {
+    // don't try to take it; dt.var probably already has it, etc.
+  }
+  else if (templatizableContext) {
+    if (dt.type->isFunctionType()) {
+      templateInfo = env.takeFTemplateInfo();
+    }
+    else {
+      // non-templatizable entity
+      //
+      // TODO: I should allow static members of template classes
+      // to be templatizable too
+    }
+  }
+  else {
+    // other contexts: don't try to take it, you're not a
+    // templatizable declarator
+  }
+
+  if (templateInfo) {
+    TRACE("template", "template func " << 
+                      ((dt.dflags & DF_DEFINITION) ? "defn" : "decl")
+                      << ": " << dt.type->toCString(dt.var->fullyQualifiedName()));
+
+    if (!dt.var->templateInfo()) {
+      // this is a new template decl; attach it to the Variable
+      dt.var->setTemplateInfo(templateInfo);
+
+      // 
+
+    }
+    else {
+      // TODO: merge default arguments
+
+      if (dt.dflags & DF_DEFINITION) {
+        // save this templateInfo for use with the definition  
+        //
+        // TODO: this really should just be TemplateParams, not
+        // a full TemplateInfo ...
+        dt.var->templateInfo()->definitionTemplateInfo = templateInfo;
+      }
+      else {
+        // discard this templateInfo
+        delete templateInfo;
+      }
+    }
+
+    // no such thing as a function partial specialization, so this
+    // is automatically the primary
+    if (enclosingScope->isTemplateParamScope() &&
+        !enclosingScope->parameterizedPrimary) {
+      enclosingScope->setParameterizedPrimary(dt.var);
+    }
+
+    // sm: I'm not sure what this is doing.  It used to only be done when
+    // dt.var had no templateInfo to begin with.  Now I'm doing it always,
+    // which might not be right.
+    if (getDeclaratorId() &&
+        getDeclaratorId()->isPQ_template()) {
+      env.initArgumentsFromASTTemplArgs(dt.var->templateInfo(),
+                                        getDeclaratorId()->asPQ_templateC()->args);
+    }
+  }
+  
   // cppstd, sec. 3.3.1:
   //   "The point of declaration for a name is immediately after
   //   its complete declarator (clause 8) and before its initializer
@@ -2316,10 +2633,12 @@ realStart:
       int howMany = prior->overload->set.count();
       prior = env.findInOverloadSet(prior->overload, dtft, dt.funcSyntax->cv);
       if (!prior) {
-        env.error(dt.type, stringc
+        env.error(stringc
           << "the name `" << *name << "' is overloaded, but the type `"
-          << dt.type->toString() << "' doesn't match any of the "
-          << howMany << " declared overloaded instances");
+          << dtft->toString_withCV(dt.funcSyntax->cv) 
+          << "' doesn't match any of the "
+          << howMany << " declared overloaded instances",
+          EF_STRONG);
         goto makeDummyVar;
       }
     }
@@ -2342,6 +2661,10 @@ realStart:
   }
 
   // is this a nonstatic member function?
+  //
+  // TODO: This can't be right in the presence of overloaded functions,
+  // since we're just testing the static-ness of the first element of
+  // the overload set!
   if (dt.type->isFunctionType()) {
     if (scope->curCompound &&
         !isFriend &&
@@ -2349,13 +2672,13 @@ realStart:
         !(dt.dflags & DF_STATIC) &&
         (!name->hasQualifiers() ||
          prior->type->asFunctionTypeC()->isMethod())) {
-      TRACE("memberFunc", "member function: " << *name);
+      TRACE("memberFunc", "nonstatic member function: " << *name);
 
       // add the implicit 'this' parameter
       makeMemberFunctionType(env, dt, scope->curCompound, loc);
     }
     else {
-      TRACE("memberFunc", "non-member function: " << *name);
+      TRACE("memberFunc", "static member function: " << *name);
       possiblyConsumeFunctionType(env, dt);
     }
   }
@@ -2371,6 +2694,7 @@ realStart:
     name->hasQualifiers() ? NULL /* I don't think this is right! */ :
     env.getOverloadForDeclaration(prior, dt.type);
 
+  #if 0     // I think this is now obviated
   // For function templates at least we need to intercept template
   // specializations (at least complete specializiations, since this
   // only really matters for the instantiations and there is never all
@@ -2415,13 +2739,14 @@ realStart:
       }
     }
   }
+  #endif // 0
 
   // make a new variable; see implementation for details
   dt.var = env.createDeclaration(loc, unqualifiedName, dt.type, dt.dflags,
                                  scope, enclosingClass, prior, overloadSet);
 }
 
-void D_name::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
+void D_name::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   env.setLoc(loc);
 
@@ -2435,7 +2760,6 @@ void D_name::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   // will do so if necessary, and in a different way
 
   this->type = dt.type;     // annotation
-  D_name_tcheck(env, dt, inGrouping, loc, name);
 }
 
 
@@ -2443,7 +2767,7 @@ void D_name::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 //   "There shall be no references to references, no arrays of
 //    references, and no pointers to references."
 
-void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
+void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   env.setLoc(loc);
   possiblyConsumeFunctionType(env, dt);
@@ -2465,7 +2789,7 @@ void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   }
   
   // recurse
-  base->tcheck(env, dt, false /*inGrouping*/);
+  base->tcheck(env, dt);
 }
 
 
@@ -2514,7 +2838,7 @@ static Type *normalizeParameterType(Env &env, SourceLoc loc, Type *t)
 }
 
 
-void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
+void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   // record that we are in a function declaration
   Restorer<Env::TemplTcheckMode> changeMode(env.tcheckMode,
@@ -2586,6 +2910,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
           // can occur, because I don't parse something as a ctor unless
           // some very similar conditions hold
           if (!inClass) {
+            breaker();
             env.error("constructors must be class members");
             return;    // otherwise would segfault below..
           }
@@ -2615,17 +2940,6 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
       }
     }
   }
-
-  // grab the template parameters before entering the parameter scope
-  //
-  // dsw: FIX: I think this is seriously broken in the case of
-  // typechecking a function template instantiation and just by
-  // accident doesn't show up in any of our tests; maybe it is not
-  // possible for it to go wrong, but it sure is weird.
-  //
-  // sm: I agree this isn't right in all cases, though I don't quite
-  // get the point you're making.
-  TemplateInfo *templateInfo = env.takeFTemplateInfo();
 
   // make a new scope for the parameter list
   Scope *paramScope = env.enterScope(SK_PARAMETER, "D_func parameter list scope");
@@ -2728,6 +3042,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   dt.type = ft;
   this->type = dt.type;       // annotation
 
+  #if 0     // sm: not sure what this is supposed to do ...
   // if this variable is a specialization, then mark it as such so
   // that in particular it doesn't get added to the overload set of
   // its primary during typechecking below
@@ -2741,44 +3056,13 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
       dt.dflags |= DF_TEMPL_SPEC;
     }
   }
+  #endif // 0
 
-  base->tcheck(env, dt, inGrouping);
-
-  // don't stomp on an existing template info
-  if (!dt.var->templateInfo()) {
-//        cout << "before: dt.var->setTemplateInfo(templateInfo)" << endl;
-//        cout << "templateInfo->debugPrint()" << endl;
-//        if (templateInfo) templateInfo->debugPrint();
-//        if (params->first()) {
-//          cout << "params->first()->gdb()" << endl;
-//          params->first()->gdb();
-//        }
-
-    dt.var->setTemplateInfo(templateInfo);
-    if (getDeclaratorId() &&
-        getDeclaratorId()->isPQ_template()) {
-      // some disambiguation situations don't end up attaching a
-      // template info: elsa/in/d0005.cc
-      if (!dt.var->templateInfo()) {
-        // FIX: this can happen if we have gone down the wrong
-        // branch of a disambiguation.  It can also happen if we are
-        // in a function template instantiation where we are
-        // typechecking the cloned AST.  Since it isn't easy to
-        // check for this second case, I just avoid it.  All I
-        // really need the arguments for is when we are creating a
-        // declaration so that when we find the definition later we
-        // can match them up.
-//            xassert(env.hasDisambErrors());
-      } else {
-        env.initArgumentsFromASTTemplArgs(dt.var->templateInfo(),
-                                          getDeclaratorId()->asPQ_templateC()->args);
-      }
-    }
-  }
+  base->tcheck(env, dt);
 }
 
 
-void D_array::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
+void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   env.setLoc(loc);
   possiblyConsumeFunctionType(env, dt);
@@ -2829,7 +3113,7 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
         // is left unchanged, because this D_array contributed nothing
         // to the *type* of the objects we're allocating
         this->type = dt.type;       // annotation
-        base->tcheck(env, dt, inGrouping);
+        base->tcheck(env, dt);
         return;
       }
       else {
@@ -2902,11 +3186,11 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   // that on to the next declarator
   dt.type = at;
   this->type = dt.type;       // annotation
-  base->tcheck(env, dt, inGrouping);
+  base->tcheck(env, dt);
 }
 
 
-void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
+void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   env.setLoc(loc);
   possiblyConsumeFunctionType(env, dt);
@@ -2934,12 +3218,11 @@ void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   // construct such an animal here.
 
   this->type = dt.type;       // annotation
-  D_name_tcheck(env, dt, inGrouping, loc, name);
 }
 
 
 // this function is very similar to D_pointer::tcheck
-void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
+void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   env.setLoc(loc);                   
   
@@ -2980,7 +3263,7 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
     TRACE("dependent", "ptr-to-member: propagating dependentness of " <<
                        nestedName->toString());
     this->type = dt.type = env.getSimpleType(SL_UNKNOWN, ST_DEPENDENT);
-    base->tcheck(env, dt, false /*inGrouping*/);
+    base->tcheck(env, dt);
     return;
   }
 
@@ -3007,11 +3290,11 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   this->type = dt.type;
 
   // recurse
-  base->tcheck(env, dt, false /*inGrouping*/);
+  base->tcheck(env, dt);
 }
 
 
-void D_grouping::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
+void D_grouping::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   env.setLoc(loc);
 
@@ -3020,9 +3303,50 @@ void D_grouping::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 
   this->type = dt.type;       // annotation
 
-  // the whole purpose of this AST node is to communicate
-  // this one piece of context: inGrouping = true
-  base->tcheck(env, dt, true /*inGrouping*/);
+  base->tcheck(env, dt);
+}
+
+
+bool IDeclarator::hasInnerGrouping() const
+{
+  bool ret = false;
+  
+  IDeclarator const *p = this;
+  for(;;) {
+    switch (p->kind()) {
+      default: xfailure("bad kind");
+
+      // base cases; return what we have
+      case D_NAME:
+      case D_BITFIELD:
+        return ret;
+
+      // turn off the flag because innermost so far is now
+      // a pointer type constructor
+      case D_POINTER:
+        ret = false;
+        p = p->asD_pointerC()->base;
+        break;
+      case D_PTRTOMEMBER:
+        ret = false;
+        p = p->asD_ptrToMemberC()->base;
+        break;
+
+      // propagate obliviously
+      case D_FUNC:
+        p = p->asD_funcC()->base;
+        break;
+      case D_ARRAY:
+        p = p->asD_arrayC()->base;
+        break;
+
+      // turn on the flag b/c innermost is now grouping
+      case D_GROUPING:
+        ret = true;
+        p = p->asD_groupingC()->base;
+        break;
+    }
+  }
 }
 
 
@@ -3715,7 +4039,8 @@ Type *E_variable::itcheck_var(Env &env, LookupFlags flags)
 
       // this should happen in C mode only so name must be a PQ_name
       v = env.makeUndeclFuncVar(name->asPQ_name()->name);
-    } else {
+    } 
+    else {
       // 10/23/02: I've now changed this to non-disambiguating,
       // prompted by the need to allow template bodies to call
       // undeclared functions in a "dependent" context [cppstd 14.6
@@ -3729,7 +4054,7 @@ Type *E_variable::itcheck_var(Env &env, LookupFlags flags)
 
   if (v->hasFlag(DF_TYPEDEF)) {
     return env.error(name->loc, stringc
-      << "`" << *name << "' used as a variable, but it's actually a typedef",
+      << "`" << *name << "' used as a variable, but it's actually a type",
       EF_DISAMBIGUATES);
   }
        
@@ -4065,7 +4390,13 @@ void E_funCall::inner1_itcheck(Env &env)
     func->type = evar->type = env.tfac.cloneType(
       evar->itcheck_var(env, LF_TEMPL_PRIMARY | LF_IMPL_DECL_FUNC));
   }
-  // TODO: need similar handling for member function templates
+  else if (f->isE_fieldAcc()) {
+    // similar handling for member function templates
+    E_fieldAcc *eacc = f->asE_fieldAcc();
+    xassert(!eacc->ambiguity);
+    func->type = eacc->type = env.tfac.cloneType(
+      eacc->itcheck_fieldAcc(env, LF_TEMPL_PRIMARY | LF_IMPL_DECL_FUNC));
+  }
   else {
     // do the general thing
     func->tcheck(env, func);
@@ -4088,8 +4419,16 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // argument-dependent re-lookup and function template instantiation
   if (func->skipGroups()->isE_variable()) {
     E_variable *evar = func->skipGroups()->asE_variable();
+    
+    // TODO: do the following with 'lookupPQVariable_applyArgs', 
+    // as in the block below
+    //
+    // Ah, the difficulty is 'foundScope'.  So, making these blocks
+    // uniform would require implementing the notion of "declaration
+    // scope" discussed below.
     evar->var = env.lookupPQVariable_function_with_args(
       evar->name, LF_NONE, args /*funcArgs*/);
+
     if (evar->var) {
       evar->type = env.tfac.cloneType(evar->var->type);
     }
@@ -4097,6 +4436,44 @@ Type *E_funCall::inner2_itcheck(Env &env)
       // error already reported, but don't proceed below since
       // the NULL evar->var will cause problems
       return evar->type = env.getSimpleType(SL_UNKNOWN, ST_ERROR);
+    }
+  }
+  else if (func->skipGroups()->isE_fieldAcc()) {
+    // this block is basically a copy of the one above, but for
+    // E_fieldAcc instead of E_variable
+    E_fieldAcc *eacc = func->skipGroups()->asE_fieldAcc();
+    if (eacc->field) {
+      // here's a cute hack: I need to pass the receiver object as one
+      // of the arguments to participate in overload resolution, so
+      // just make a temporary ArgExpression grafted onto the front of
+      // the real arguments list
+      ArgExpression tmpReceiver(eacc->obj);
+      FakeList<ArgExpression> *argsWithRec = args->prepend(&tmpReceiver);
+
+      // I'm going to use the primary's declaration scope as the
+      // 'foundScope'... I'm not sure if this is right, esp.  for
+      // out-of-line definitions.
+      //
+      // I now believe that the notion of a "found scope" is bad, b/c
+      // it is tied too closely to lookup.  Instead, I think the
+      // Variable should be annotated with its "declaration scope", if
+      // that is relevant.  That is, I want to make this property
+      // intrinsic to Variable.  But that will have to wait ...
+      xassert(eacc->field->scope);
+      eacc->field = env.lookupPQVariable_applyArgs(
+        eacc->field->scope /*foundScope*/,
+        eacc->field /*primary*/, eacc->fieldName, argsWithRec);
+        
+      // now disconnect the temporary object so it can be safely
+      // disposed of
+      tmpReceiver.expr = NULL;
+      tmpReceiver.next = NULL;
+    }
+    if (eacc->field) {
+      eacc->type = env.tfac.cloneType(eacc->field->type);
+    }
+    else {
+      return eacc->type = env.getSimpleType(SL_UNKNOWN, ST_ERROR);
     }
   }
 
@@ -4200,27 +4577,33 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // make sure this function has been typechecked; FIX: when we
   // explicitly elaborate in the implicit "this->" then this code
   // should become redundant
+  //
+  // sm: why would it become redundant?  it is still needed for
+  // nonmember function templates, and for member function templates
+  // that are static. right?
   if (func->isE_variable()) {
     // if it is a pointer to a function that function should get
     // instantiated when its address is taken
-    if (func->asE_variable()->var->type->isFunctionType()) {
-      env.ensureFuncMemBodyTChecked(func->asE_variable()->var);
-    }
+    env.ensureFuncBodyTChecked(func->asE_variable()->var);
   }
+  else if (func->isE_fieldAcc()) {
+    env.ensureFuncBodyTChecked(func->asE_fieldAcc()->field);
+  }
+
 
   // TODO: make sure the argument types are compatible
   // with the function parameters
-
+  //
   // dsw: doesn't overloading succeeding guarantee this?
-
+  //
   // sm: Actually, it doesn't.  First, if there's no overload set,
   // then we won't have done any such resolution.  Moreover, there are
   // instances where overload resolution will choose a candidate that
   // later yields an error (e.g. access control, binding a non-const
   // reference to a temporary, etc.).  So, the strategy is to do
-  // overload resolution when necessary to pick the best type 't', but
-  // then tcheck the arguments against 't' as if we had no reason to
-  // suspect 't' was a good function to call.
+  // overload resolution when necessary to pick the best function, but
+  // then tcheck the arguments against it as if we had no reason to
+  // suspect it was a good function to call.
 
   FunctionType *ft = t->asFunctionType();
 
@@ -4420,23 +4803,17 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
   // check arguments
   args = tcheckArgExprList(args, env);
 
-  // dsw: I will assume for now that if overloading succeeds, that the
-  // checking that it implies subsumes the below concern:
   // TODO: make sure the argument types are compatible
   // with the constructor parameters
 
-  if (type->isCompoundType() &&
-      !type->asCompoundType()->isComplete()) {
-    return env.error(stringc
-      << "attempt to construct incomplete type `" << type->toString() << "'");
+  if (!env.ensureCompleteType("construct", type)) {
+    return type;     // recovery: skip what follows
   }
 
   Variable *ctor = outerResolveOverload_ctor(env, env.loc(), type, args,
                                              reallyDoOverload(env, args));
-  if (ctor) {
-    env.ensureFuncMemBodyTChecked(ctor);
-    ctorVar = env.storeVar(ctor);
-  }
+  ctorVar = env.storeVar(ctor);
+  env.ensureFuncBodyTChecked(ctor);
 
   return type;
 }
@@ -4444,6 +4821,11 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
 
 // cppstd sections: 5.2.5 and 3.4.5
 Type *E_fieldAcc::itcheck_x(Env &env, Expression *&replacement)
+{
+  return itcheck_fieldAcc(env, LF_NONE);
+}
+
+Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
 {
   obj->tcheck(env, obj);
   fieldName->tcheck(env);   // shouldn't have template arguments, but won't hurt
@@ -4474,16 +4856,14 @@ Type *E_fieldAcc::itcheck_x(Env &env, Expression *&replacement)
       << "non-compound `" << rt->toString()
       << "' doesn't have fields to access");
   }
-  
+
   // make sure the type has been completed
-  if (!ct->isComplete()) {
-    return env.error(rt, stringc
-      << "attempt to access a member of incomplete type "
-      << ct->keywordAndName());
+  if (!env.ensureCompleteType("access a member of", rt)) {
+    return env.errorType();
   }
 
   // look for the named field
-  Variable *f = ct->lookupPQVariable(fieldName, env);
+  Variable *f = ct->lookupPQVariable(fieldName, env, flags);
   if (!f) {
     return env.error(rt, stringc
       << "there is no member called `" << *fieldName
@@ -4498,9 +4878,7 @@ Type *E_fieldAcc::itcheck_x(Env &env, Expression *&replacement)
        
   // TODO: access control check
   
-  if (f->getType()->isFunctionType()) {
-    env.ensureFuncMemBodyTChecked(f);
-  }
+  env.ensureFuncBodyTChecked(f);
   field = env.storeVarIfNotOvl(f);
 
   // type of expression is type of field; possibly as an lval
@@ -4974,11 +5352,11 @@ Type *E_addrOf::itcheck_x(Env &env, Expression *&replacement)
   if (expr->isE_variable()) {
     E_variable *e_var = expr->asE_variable();
     xassert(e_var->var);
+
     // make sure we instantiate any functions that have their address
     // taken
-    if (e_var->var->type->isFunctionType()) {
-      env.ensureFuncMemBodyTChecked(e_var->var);
-    }
+    env.ensureFuncBodyTChecked(e_var->var);
+
     if (e_var->var->hasFlag(DF_MEMBER) &&
         (!e_var->var->hasFlag(DF_STATIC)) &&
         // cppstd 5.3.1 para 3: Nor is &unqualified-id a pointer to
@@ -5195,10 +5573,7 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
   Type *t = atype->getType();
       
   // cannot allocate incomplete types
-  if (t->isCompoundType() &&
-      !t->asCompoundType()->isComplete()) {
-    env.error(stringc << "cannot create an object of incomplete type `"
-                      << t->toString() << "'");
+  if (!env.ensureCompleteType("create an object of", t)) {
     return env.makePtrType(SL_UNKNOWN, t);     // error recovery
   }
 
@@ -5220,10 +5595,8 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
     // ctor0 can be null when the type is a simple type, such as an
     // int; I assume that ctor0 being NULL is the correct behavior in
     // that case
-    if (ctor0) {
-      env.ensureFuncMemBodyTChecked(ctor0);
-    }
     ctorVar = env.storeVar(ctor0);
+    env.ensureFuncBodyTChecked(ctor0);
   }
 
   return env.makePtrType(SL_UNKNOWN, t);
@@ -5581,6 +5954,7 @@ void IN_ctor::tcheck(Env &env, Type *type)
   args = tcheckArgExprList(args, env);
   ctorVar = env.storeVar(
     outerResolveOverload_ctor(env, loc, type, args, reallyDoOverload(env, args)));
+  env.ensureFuncBodyTChecked(ctorVar);
 }
 
 
@@ -5597,7 +5971,7 @@ void TemplateDeclaration::tcheck(Env &env)
     inCompleteSpec? env.tcheckMode : Env::TTM_3TEMPL_DEF);
 
   // make a new scope to hold the template parameters
-  Scope *paramScope = env.enterScope(SK_TEMPLATE, "template declaration parameters");
+  Scope *paramScope = env.enterScope(SK_TEMPLATE_PARAMS, "template declaration parameters");
 
   // check each of the parameters, i.e. enter them into the scope
   // and its 'templateParams' list
@@ -5632,9 +6006,17 @@ void TD_func::itcheck(Env &env)
   // check the function definition; internally this will get
   // the template parameters attached to the function type
   f->tcheck(env, true /*checkBody*/);
+                                                                            
+  // instantiate any instantiations that were requested but delayed
+  // due to not having the definition
+  env.instantiateForwardFunctions(f->nameAndParams->var);
 
+  // should be superceded by activity in Declarator::mid_tcheck
+  #if 0
   // dsw: Template function specializations (both complete and
-  // partial) have to get registered into the namespace somewhere.
+  // partial [sm: there is no such thing as a function template
+  // partial specialization...]) have to get registered into the
+  // namespace somewhere.
   // For compound types it is done in TS_classSpec::itcheck() (from
   // which the code below is imitated), but I wonder why it isn't in
   // TD_class.  This seems to be the proper place for it to be done
@@ -5657,6 +6039,7 @@ void TD_func::itcheck(Env &env)
     //
     // FIX: do this
     xassert(!fVar->templateInfo());
+    xfailure("this should not be reachable; TD_func should always get a TemplateInfo");
   } else if (fVar->templateInfo()->isCompleteSpecOrInstantiation() ||
              fVar->templateInfo()->isPartialSpec()) {
     // find the primary
@@ -5756,6 +6139,7 @@ void TD_func::itcheck(Env &env)
     }
     env.instantiateForwardFunctions(fVar, primary);
   }
+  #endif // 0
 }
 
 
@@ -5779,6 +6163,12 @@ void TD_class::itcheck(Env &env)
 
 void TD_tmember::itcheck(Env &env)
 {
+  // just recursively introduce the next level of parameters; the
+  // new take{C,F}TemplateInfo functions know how to get parameters
+  // out of multiple layers of nested template scopes
+  d->tcheck(env);
+
+  #if 0    // old, doesn't really work
   // The params from 'this' object have already been set up; but I need
   // to dig down into 'd' and get its params too, since otherwise its
   // default 'tcheck' would obliterate the ones from 'this'.
@@ -5799,7 +6189,7 @@ void TD_tmember::itcheck(Env &env)
 
   // get the scope made by my caller
   Scope *paramScope = env.scope();
-  xassert(paramScope->isTemplateScope() &&
+  xassert(paramScope->isTemplateParamScope() &&
           !paramScope->canAcceptNames);
 
   // temporarily allow it to accept more names
@@ -5815,6 +6205,7 @@ void TD_tmember::itcheck(Env &env)
 
   // check what is inside 'd', past its template parameters
   d->itcheck(env);
+  #endif // 0
 }
 
 
@@ -6021,6 +6412,9 @@ void TA_nontype::itcheck(Env &env)
 // -------------------------- NamespaceDecl -------------------------
 void ND_alias::tcheck(Env &env)
 {
+  // lookup the qualifiers in the name
+  original->tcheck(env);
+
   // find the namespace we're talking about
   Variable *origVar = env.lookupPQVariable(original, LF_ONLY_NAMESPACES);
   if (!origVar) {
@@ -6074,6 +6468,9 @@ void ND_usingDecl::tcheck(Env &env)
     return;
   }
 
+  // lookup the qualifiers in the name
+  name->tcheck(env);
+
   // find what we're referring to; if this is a template, then it
   // names the template primary, not any instantiated version
   Variable *origVar = env.lookupPQVariable(name, LF_TEMPL_PRIMARY);
@@ -6123,6 +6520,9 @@ void ND_usingDecl::tcheck(Env &env)
 
 void ND_usingDir::tcheck(Env &env)
 {
+  // lookup the qualifiers in the name
+  name->tcheck(env);
+
   // find the namespace we're talking about
   Variable *targetVar = env.lookupPQVariable(name, LF_ONLY_NAMESPACES);
   if (!targetVar) {
