@@ -33,7 +33,9 @@
 // members before initing a base class
 istream *BaseLexer::openFile(char const *fname)
 {
-  this->inputStream = new ifstream(fname);
+  // 2005-01-17: open in binary mode to coincide with srcloc.cc
+  // doing the same, for cygwin reasons
+  this->inputStream = new ifstream(fname, ios::in | ios::binary);
   if (!*inputStream) {
     throw_XOpen(fname);
   }

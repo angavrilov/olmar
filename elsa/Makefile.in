@@ -16,6 +16,9 @@ LIBSMBASE   := $(SMBASE)/libsmbase.a
 LIBAST      := $(AST)/libast.a
 LIBELKHOUND := $(ELKHOUND)/libelkhound.a
 
+# external tools
+PERL := @PERL@
+
 # list of files to clean in 'clean' (etc.) targets
 # (these get added to below)
 TOCLEAN =
@@ -29,7 +32,7 @@ Makefile: Makefile.in
 
 # dependencies upon automatically-generated files
 extradep.mk:
-	perl $(ELKHOUND)/find-extra-deps *.d >$@
+	$(PERL) $(ELKHOUND)/find-extra-deps *.d >$@
 
 -include extradep.mk
 
@@ -91,7 +94,7 @@ LDFLAGS := @LDFLAGS@ $(libraries)
 TOCLEAN += *.o *.d
 %.o: %.cc
 	$(CXX) -c -o $@ $< $(CCFLAGS)
-	@perl $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) >$*.d
+	@$(PERL) $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) >$*.d
 
 
 # ------------------------ tlexer -------------------
@@ -115,7 +118,7 @@ tlexer: tlexer.o $(LEXER_OBJS) $(libraries)
 TOCLEAN += lexer.lex
 lexer.lex: $(LEXER_MODS) merge-lexer-exts.pl
 	rm -f $@
-	perl merge-lexer-exts.pl $(LEXER_MODS) >$@
+	$(PERL) merge-lexer-exts.pl $(LEXER_MODS) >$@
 	chmod a-w $@
 
 # run flex on the lexer description
@@ -135,7 +138,7 @@ TOK_FILES := cc_tokens.h cc_tokens.cc cc_tokens.ids
 TOCLEAN += $(TOK_FILES)
 $(TOK_FILES): $(TOK_MODS) make-token-files
 	rm -f $(TOK_FILES)
-	perl ./make-token-files $(TOK_MODS)
+	$(PERL) ./make-token-files $(TOK_MODS)
 	chmod a-w $(TOK_FILES)
 
 
@@ -213,13 +216,13 @@ TODISTCLEAN += in/big/*.i
 in/big/%.i: in/big/gz/%.i.gz
 	gunzip -c <$^ >$@
 # comment out line directives
-	perl -i -lpe 's|^\W*(#.*)$$|//$$1|' $@
+	$(PERL) -i -lpe 's|^\W*(#.*)$$|//$$1|' $@
 # this line is illegal C++ and for now we just comment it out
-	perl -i -lpe 's|^(\W*)(char ip_opts\[40\];)\W*$$|$$1//$$2|' $@
+	$(PERL) -i -lpe 's|^(\W*)(char ip_opts\[40\];)\W*$$|$$1//$$2|' $@
 # change "((void *)0)" to "0" to compensate for a bad NULL macro somewhere...
-	perl -i -lpe 's|\(\(void \*\)0\)|0|' $@
+	$(PERL) -i -lpe 's|\(\(void \*\)0\)|0|' $@
 # define bad_alloc, don't just declare it
-	perl -i -lpe 's|class bad_alloc;|class bad_alloc {};|' $@
+	$(PERL) -i -lpe 's|class bad_alloc;|class bad_alloc {};|' $@
 
 # decompress all of them which haven't already been decompressed
 .PHONY: in/big
@@ -236,13 +239,13 @@ gendoc/configure.txt: configure
 
 .PHONY: gendoc/dependencies.dot
 gendoc/dependencies.dot:
-	perl $(SMBASE)/scan-depends.pl -r \
+	$(PERL) $(SMBASE)/scan-depends.pl -r \
 	  -Xcc_env.h=1 -Xcc_type.h=1 -Xcc_flags.h=1 -Xcc_ast.h=1 -Xvariable.h=1 \
 	  main.cc cc_tcheck.cc >$@
 
 gendoc/3.4.5.dot: ccparse in/std/3.4.5.cc
 	./ccparse -tr printHierarchies in/std/3.4.5.cc | \
-	perl ./chop_out "--- E ---" "--- F ---" >$@
+	$(PERL) ./chop_out "--- E ---" "--- F ---" >$@
 
 # because of the above dependency on ccparse, if someone does 'make doc'
 # without first building Elsa, they get an error about libsmbase.a; so

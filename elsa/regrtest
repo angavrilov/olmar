@@ -971,7 +971,7 @@ runTest ./ccparse -tr msvcBugs in/msvc/m0001.cc
 
 # final parser checks against the big files, since they've now become
 # my performance measurement files
-$MAKE in/big
+if $MAKE in/big; then
 
 testnsparse() {
   runTest ./ccparse -tr $TR_FLAGS "$1"
@@ -990,7 +990,14 @@ testnsparse in/big/nsCLiveconnectFactory.i
 testnsparse in/big/nsHTMLEditRules.i
 testnsparse in/big/nsMsgServiceProvider.i
 
-
+else
+  # Even though my in/big/gz/nsAtomTable.i.gz has the right md5sum,
+  # I can't convince gunzip to uncompress it under cygwin with text
+  # mounts (which it should be ignoring since it's getting the file
+  # contents via pipe, and ought to use O_BINARY anyway).
+  echo "Skipping large file tests because could not uncompress them."
+  echo "This may be due to a buggy cygwin gunzip."
+fi
 
 # final arithmetic to report result
 echo ""
