@@ -58,14 +58,26 @@ objlist.h: xobjlist.h
 	chmod a-w objlist.h
 
 
-# -------------- main target --------------
+# ----------------------- malloc ------------------------
 # Doug Lea's malloc:
 #   add the -DDEBUG flag to turn on doug lea's additional checks
 #   add the -DDEBUG_HEAP flag to turn on my zone-based protection
 #   add the -DTRACE_MALLOC_CALLS flag to print on every alloc/dealloc
 #   normally -O3 is specified
+ifeq (@DEBUG_HEAP@,1)
+# debug version (much slower, but *great* for finding memory errors)
+malloc.o: malloc.c
+	$(CC) -c -g -DDEBUG -DTRACE_MALLOC_CALLS -DDEBUG_HEAP malloc.c
+
+else
+# non-debug version
 malloc.o: malloc.c
 	$(CC) -c -g -O3 -DNO_DEBUG -DNO_TRACE_MALLOC_CALLS -DNO_DEBUG_HEAP malloc.c
+
+endif
+
+
+# --------------------- main target ---------------------
 
 # mysig needs some flags to *not* be set ....
 mysig.o: mysig.cc mysig.h
