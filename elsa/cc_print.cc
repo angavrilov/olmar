@@ -161,6 +161,60 @@ codeout::~codeout() {
   out << close;
 }
 
+// **** class twalk_output_stream
+
+twalk_output_stream::twalk_output_stream(ostream &out, bool on)
+  : out(out), on(on), depth(0)
+{}
+
+void twalk_output_stream::indent() {
+  out << endl;
+  //      fprintf(out, "\n");
+  out.flush();
+  //      fflush(out);
+  for(int i=0; i<depth; ++i) out << " ";
+  //      for(int i=0; i<depth; ++i) fprintf(out, " ");
+  out.flush();
+  //      fflush(out);
+  out << ":::::";
+  //      fprintf(out, ":::::");
+  out.flush();
+  //      fflush(out);
+}
+
+void twalk_output_stream::flush() {out.flush();}
+
+twalk_output_stream & twalk_output_stream::operator << (char *message)
+{
+  if (on) {
+    indent();
+    out << message;
+    //        fprintf(out, message);
+    out.flush();
+    //        fflush(out);
+  }
+  return *this;
+}
+
+twalk_output_stream & twalk_output_stream::operator << (ostream& (*manipfunc)(ostream& outs))
+{
+  if (on) out << manipfunc;
+  return *this;
+}
+
+void twalk_output_stream::down() {++depth;}
+void twalk_output_stream::up()   {--depth;}
+
+// **** class olayer
+
+olayer::olayer(char *message, twalk_output_stream &out)
+  : out(out)
+{
+  out << message << endl;
+  out.flush();
+  out.down();
+}
+
 // ****************
 
 string make_indentation(int n) {

@@ -78,45 +78,18 @@ class twalk_output_stream {
   bool on;
   int depth;
 
+  public:
+  twalk_output_stream(ostream &out, bool on = true);
+
   private:
-  void indent() {
-    out << endl;
-//      fprintf(out, "\n");
-    out.flush();
-//      fflush(out);
-    for(int i=0; i<depth; ++i) out << " ";
-//      for(int i=0; i<depth; ++i) fprintf(out, " ");
-    out.flush();
-//      fflush(out);
-    out << ":::::";
-//      fprintf(out, ":::::");
-    out.flush();
-//      fflush(out);
-  }
+  void indent();
 
   public:
-  twalk_output_stream(ostream &out, bool on = true)
-//    twalk_output_stream(FILE *out, bool on = true)
-    : out(out), on(on), depth(0) {}
-
-  void flush() {out.flush();}
-//    void flush() {fflush(out);}
-  twalk_output_stream & operator << (char *message) {
-    if (on) {
-      indent();
-      out << message;
-//        fprintf(out, message);
-      out.flush();
-//        fflush(out);
-    }
-    return *this;
-  }
-  twalk_output_stream & operator << (ostream& (*manipfunc)(ostream& outs)) {
-    if (on) out << manipfunc;
-    return *this;
-  }
-  void down() {++depth;}
-  void up() {--depth;}
+  void flush();
+  twalk_output_stream & operator << (char *message);
+  twalk_output_stream & operator << (ostream& (*manipfunc)(ostream& outs));
+  void down();
+  void up();
 };
 
 extern twalk_output_stream twalk_layer_out;
@@ -124,12 +97,7 @@ extern twalk_output_stream twalk_layer_out;
 class olayer {
   twalk_output_stream &out;
   public:
-  olayer(char *message, twalk_output_stream &out = twalk_layer_out)
-    : out(out) {
-    out << message << endl;
-    out.flush();
-    out.down();
-  }
+  olayer(char *message, twalk_output_stream &out = twalk_layer_out);
   ~olayer() {out.up();}
 };
 
@@ -140,8 +108,13 @@ public:
   SourceLoc current_loc;
   
 public:
-  PrintEnv(ostream &out) : code_output_stream(out) {}
-  PrintEnv(stringBuilder &sb) : code_output_stream(sb) {}
+  PrintEnv(ostream &out)
+    : code_output_stream(out)
+  {}
+
+  PrintEnv(stringBuilder &sb)
+    : code_output_stream(sb)
+  {}
 };
 
 // for printing types
