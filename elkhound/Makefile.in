@@ -291,8 +291,14 @@ libelkhound.a: $(glr-set)
 .PRECIOUS: %.ast.gen.cc %.ast.gen.h
 %.ast.gen.cc %.ast.gen.h: %.ast $(AST)/astgen
 	rm -f $*.ast.gen.*
-	$(AST)/astgen -b$*.ast.gen $*.ast
+	$(AST)/astgen -o$*.ast.gen $*.ast
 	chmod a-w $*.ast.gen.h $*.ast.gen.cc
+
+# specific instructions for cc.ast, so I can add extension modules
+cc/cc.ast.gen.cc cc/cc.ast.gen.h: cc/cc.ast cc/cc_tcheck.ast $(AST)/astgen
+	rm -f cc/cc.ast.gen.cc cc/cc.ast.gen.h
+	$(AST)/astgen -occ/cc.ast.gen cc/cc.ast cc/cc_tcheck.ast
+	chmod a-w cc/cc.ast.gen.cc cc/cc.ast.gen.h
 
 # don't delete these because error messages often point into them
 .PRECIOUS: cc.gr.gen.h cc.gr.gen.cc
