@@ -259,7 +259,7 @@ public:
   }
 
   void sort(int (*compare)(T const *t1, T const *t2)) {
-    qsort(getArrayNC(), len, sizeof(T),
+    qsort(GrowArray<T>::getArrayNC(), len, sizeof(T),
           (int (*)(void const*, void const*))compare );
   }
 };
