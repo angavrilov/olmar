@@ -1932,7 +1932,9 @@ void GrammarAnalysis::
   // could pull this out of even this fn, to the caller, but I don't
   // see any difference in time when I make it static (which simulates
   // the effect, though static itself is a bad idea because it makes
-  // the size constant through a whole run)
+  // the size constant through a whole run); but maybe when other things
+  // are faster I will be able to notice the difference, so I might
+  // revisit this
   TerminalSet newItemLA(numTerminals());
 
   // for each production "B -> gamma"
@@ -1941,6 +1943,12 @@ void GrammarAnalysis::
     if (tr) {
       trs << "    considering production " << prod << endl;
     }
+
+    // key to good performance: do *no* dynamic allocation in this
+    // loop (one of two inner loops in the grammar analysis), until a
+    // new item is actually *needed* (which is the uncommon case); for
+    // example, all debug output statements are guarded by 'if (tr)'
+    // because otherwise they would allocate
 
     // invariant of the indexed productions list
     xassert(prod.left == B);
@@ -2013,7 +2021,9 @@ void GrammarAnalysis::
         }
       }
       else {
-        trs << "      this dprod already existed" << endl;
+        if (tr) {
+          trs << "      this dprod already existed" << endl;
+        }
       }
     }
     else {
@@ -2238,7 +2248,8 @@ void GrammarAnalysis::disposeItemSet(ItemSet *is)
 // yield a new itemset by moving the dot across the productions
 // in 'source' that have 'symbol' to the right of the dot; do *not*
 // compute the closure
-ItemSet *GrammarAnalysis::moveDotNoClosure(ItemSet const *source, Symbol const *symbol)
+ItemSet *GrammarAnalysis
+  ::moveDotNoClosure(ItemSet const *source, Symbol const *symbol)
 {
   ItemSet *ret = makeItemSet();
     
@@ -4184,8 +4195,9 @@ int main(int argc, char **argv)
             "    conflict    : print LALR(1) conflicts\n"
             "    closure     : details of item-set closure algorithm\n"
             "    prec        : show how prec/assoc are used to resolve conflicts\n"
-            "    item-sets   : print the LR item sets after they're computed\n"
+            //"    item-sets   : print the LR item sets after they're computed\n"
             "    explore     : start the interactive grammar explorer at the end\n"
+            "    lrtable     : print entire LR parsing tables\n"
             ;
     return 0;
   }
@@ -4200,7 +4212,7 @@ int main(int argc, char **argv)
   g.printProductions(trace("grammar") << endl);
 
   string setsFname = stringc << prefix << ".gr.gen.out";
-  g.runAnalyses(setsFname);
+  g.runAnalyses(tracingSys("lrtable")? setsFname.pcharc() : NULL);
   if (g.errors) {
     return 2;
   }
