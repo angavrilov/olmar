@@ -3540,7 +3540,7 @@ Type *E_effect::itcheck(Env &env)
   // TODO: make sure 'expr' is compatible with given operator
   // TODO: make sure that 'expr' is an lvalue (reference type)
   // TODO: consider possibility of operator overloading
-  return expr->type;
+  return expr->type->asRval();
 }
 
 
