@@ -67,7 +67,9 @@ cd ..
 # --------- setup smbase ----------
 # fill in correct PLAT line in smbase Makefile
 echo "rewriting smbase/Makefile.base.mk ..."
-apply 'sed s,PLAT\ =.\*,PLAT\ =\ '`pwd`/plat, smbase/Makefile.base.mk || exit
+cp smbase/Makefile.base.mk tmp || exit
+sed 's,PLAT\ =.\*,PLAT\ =\ '`pwd`/plat, < tmp > smbase/Makefile.base.mk || exit
+rm tmp || exit
 
 
 # ---------- setup parsgen ----------
@@ -81,3 +83,16 @@ echo "making symlink in parsgen ...."
 ln -s ../smbase . || exit
 
 cd ..
+
+
+# ---------- setup ml_cil ---------------
+if [ "$ocaml" = "yes" ]; then
+  cd ml_cil || exit
+  
+  echo "ml_cil: making symlink to ../parsgen/cc.bin ..."
+  ln -s ../parsgen/cc.bin . || exit
+
+  echo "ml_cil: creating obj/ and obj/.depend/ ..."
+  mkdir obj || exit
+  mkdir obj/.depend || exit
+fi
