@@ -292,6 +292,7 @@ int throwClauseSerialNumber = 0; // don't make this a member of Env
 Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   : ErrorList(),
 
+    env(*this),
     scopes(),
     disambiguateOnly(false),
     anonTypeCounter(1),
@@ -3736,6 +3737,282 @@ Variable *Env::pickMatchingOverloadedFunctionVar(Variable *ovlVar, Type *type)
 
   OVERLOADTRACE("13.4: no match for type `" << type->toString() << "'");
   return NULL;      // no matching element
+}
+
+
+// get scopes associated with 'type'; cppstd 3.4.2 para 2
+//
+// this could perhaps be made faster by using a hash table set
+void Env::getAssociatedScopes(SObjList<Scope> &associated, Type *type)
+{
+  switch (type->getTag()) {
+    default:
+      xfailure("bad type tag");
+
+    case Type::T_ATOMIC: {
+      AtomicType *atomic = type->asCVAtomicType()->atomic;
+      switch (atomic->getTag()) {
+        default:
+          // other cases: nothing
+          return;
+
+        case AtomicType::T_SIMPLE:
+          // bullet 1: nothing
+          return;
+
+        case AtomicType::T_COMPOUND: {
+          CompoundType *ct = atomic->asCompoundType();
+          if (ct->keyword != CompoundType::K_UNION) {
+            if (!ct->isInstantiation()) {
+              // bullet 2: the class, all base classes, and definition scopes
+
+              // class + bases
+              SObjList<BaseClassSubobj const> bases;
+              ct->getSubobjects(bases);
+
+              // put them into 'associated'
+              SFOREACH_OBJLIST(BaseClassSubobj const, bases, iter) {
+                CompoundType *base = iter.data()->ct;
+                associated.prependUnique(base);
+
+                // get definition namespace too
+                if (base->parentScope) {
+                  associated.prependUnique(base->parentScope);
+                }
+                else {
+                  // parent is not named.. I'm pretty sure in this case
+                  // any names that should be found will be found by
+                  // ordinary lookup, so it will not matter whether the
+                  // parent scope of 'base' gets added to 'associated'
+                }
+              }
+            }
+            else {
+              // bullet 7: template instantiation: definition scope plus
+              // associated scopes of template type arguments
+              
+              // definition scope
+              if (ct->parentScope) {
+                associated.prependUnique(ct->parentScope);
+              } 
+
+              // look at template arguments
+              TemplateInfo *ti = ct->templateInfo();
+              xassert(ti);
+              FOREACH_OBJLIST(STemplateArgument, ti->arguments, iter) {
+                STemplateArgument const *arg = iter.data();
+                if (arg->isType()) {
+                  getAssociatedScopes(associated, arg->getType());
+                }
+                else if (arg->isTemplate()) {
+                  // TODO: implement this
+                }
+              }
+            }
+          }
+          else {
+            // bullet 3 (union): definition scope
+            if (ct->parentScope) {
+              associated.prependUnique(ct->parentScope);
+            }
+          }
+          break;
+        }
+
+        case AtomicType::T_ENUM: {
+          // bullet 3 (enum): definition scope
+          EnumType *et = atomic->asEnumType();
+          if (et->typedefVar &&        // ignore anonymous enumerations...
+              et->typedefVar->scope) {
+            associated.prependUnique(et->typedefVar->scope);
+          }
+          break;
+        }
+      }
+      break;
+    }
+    
+    case Type::T_REFERENCE:
+      // implicitly skipped as being an lvalue
+    case Type::T_POINTER:
+    case Type::T_ARRAY:
+      // bullet 4: skip to atType
+      getAssociatedScopes(associated, type->getAtType());
+      break;
+
+    case Type::T_FUNCTION: {
+      // bullet 5: recursively look at param/return types
+      FunctionType *ft = type->asFunctionType();
+      getAssociatedScopes(associated, ft->retType);
+      SFOREACH_OBJLIST(Variable, ft->params, iter) {
+        getAssociatedScopes(associated, iter.data()->type);
+      }
+      break;
+    }
+
+    case Type::T_POINTERTOMEMBER: {
+      // bullet 6/7: the 'inClassNAT', plus 'atType'
+      PointerToMemberType *ptm = type->asPointerToMemberType();
+      if (ptm->inClassNAT->isCompoundType()) {
+        associated.prependUnique(ptm->inClassNAT->asCompoundType());
+      }
+      getAssociatedScopes(associated, ptm->atType);
+      break;
+    }
+  }
+}
+
+
+// cppstd 3.4.2; returns entries for 'name' in scopes
+// that are associated with the types in 'args'
+void Env::associatedScopeLookup(SObjList<Variable> &candidates, StringRef name, 
+                                ArrayStack<Type*> const &argTypes, LookupFlags flags)
+{
+  // let me disable this entire mechanism, to measure its performance
+  //
+  // 2005-02-11: On in/big/nsHTMLEditRules, I see no measurable difference
+  static bool enabled = !tracingSys("disableArgDepLookup");
+  if (!enabled) {
+    return;
+  }
+
+  // union over all arguments of "associated" namespaces and classes
+  SObjList<Scope> associated;
+  for (int i=0; i < argTypes.length(); i++) {
+    getAssociatedScopes(associated, argTypes[i]);
+  }
+
+  // 3.4.2 para 3: ignore 'using' directives for these lookups
+  flags |= LF_IGNORE_USING;
+
+  // get candidates from the lookups in the "associated" scopes
+  SFOREACH_OBJLIST_NC(Scope, associated, scopeIter) {
+    Scope *s = scopeIter.data();
+    if ((flags & LF_SKIP_CLASSES) && s->isClassScope()) {
+      continue;
+    }
+
+    // lookup
+    Variable *v = s->lookupVariable(name, env, flags);
+
+    // toss them into the set
+    if (v) {
+      if (!v->type->isFunctionType()) {
+        env.error(loc(), stringc
+          << "during argument-dependent lookup of `" << name
+          << "', found non-function of type `" << v->type->toString()
+          << "' in " << s->desc());
+      }
+      else {
+        addCandidates(candidates, v);
+      }
+    }
+  }
+}
+
+
+// some lookup yielded 'var'; add its candidates to 'candidates'
+void Env::addCandidates(SObjList<Variable> &candidates, Variable *var)
+{
+  SObjList<Variable> tmp;
+  var->getOverloadList(tmp);
+  SFOREACH_OBJLIST_NC(Variable, tmp, iter) {
+    candidates.prependUnique(iter.data());
+  }
+}
+
+
+// ----------------------- makeQualifiedName -----------------------
+// prepend to 'name' all possible qualifiers, starting with 's'
+PQName *Env::makeFullyQualifiedName(Scope *s, PQName *name)
+{
+  if (!s || s->scopeKind == SK_GLOBAL) {
+    // cons the global-scope qualifier on front
+    return new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/,
+                            NULL /*targs*/, name);
+  }
+
+  // add 's'
+  name = makeQualifiedName(s, name);
+
+  // now find additional qualifiers needed to name 's'
+  return makeFullyQualifiedName(s->parentScope, name);
+}
+
+
+// prepend to 'name' information about 's', the scope that contains it
+PQName *Env::makeQualifiedName(Scope *s, PQName *name)
+{
+  // should only be called for named scopes
+  Variable *typedefVar = s->getTypedefName();
+  xassert(typedefVar);
+
+  // is this scope an instantiated template class?
+  TemplateInfo *ti = typedefVar->templateInfo();
+  if (ti) {
+    // construct the list of template arguments; we must rebuild them
+    // instead of using templateInfo->arguments directly, because the
+    // TS_names that are used in the latter might not be in scope here
+    ASTList<TemplateArgument> *targs = makeTemplateArgs(ti);
+
+    // cons a template-id qualifier on to the front
+    return new PQ_qualifier(loc(), typedefVar->name, targs, name);
+  }
+  else {
+    // cons an ordinary qualifier in from
+    return new PQ_qualifier(loc(), typedefVar->name, NULL /*targs*/, name);
+  }
+}
+
+
+// construct the list of template arguments
+ASTList<TemplateArgument> *Env::makeTemplateArgs(TemplateInfo *ti)
+{
+  ASTList<TemplateArgument> *targs = new ASTList<TemplateArgument>;
+
+  FOREACH_OBJLIST(STemplateArgument, ti->arguments, iter) {
+    STemplateArgument const *sarg = iter.data();
+    if (sarg->kind == STemplateArgument::STA_TYPE) {
+      // pull out the Type, then build a new ASTTypeId for it
+      targs->append(new TA_type(buildASTTypeId(sarg->getType())));
+    }
+    else {
+      // will make an Expr node; put it here
+      Expression *e = NULL;
+      switch (sarg->kind) {
+        default: xfailure("bad kind");
+
+        case STemplateArgument::STA_REFERENCE:
+        case STemplateArgument::STA_POINTER:
+        case STemplateArgument::STA_MEMBER:
+        case STemplateArgument::STA_TEMPLATE:
+          // I want to find a place where someone is mapping a Variable
+          // into a PQName, so I can re-use/abstract that mechanism.. but
+          // I can't even find a place where the present code is even
+          // called!  So for now....
+          xfailure("unimplemented");
+
+        case STemplateArgument::STA_INT:
+          // synthesize an AST node for the integer
+          e = buildIntegerLiteralExp(sarg->getInt());
+          break;
+      }
+
+      // put the expr in a TA_nontype
+      targs->append(new TA_nontype(e));
+    }
+  }
+  return targs;
+}
+
+
+ASTTypeId *Env::buildASTTypeId(Type *type)
+{
+  // there used to be a big function here that built the full syntax
+  // of a type, but I am going to try to use TS_type instead
+  return new ASTTypeId(new TS_type(loc(), type),
+                       new Declarator(new D_name(loc(), NULL /*name*/),
+                                      NULL /*init*/));
 }
 
 

@@ -416,10 +416,42 @@ void OverloadResolver::addAmbiguousBinaryCandidate(Variable *v)
 }
 
 
-void OverloadResolver::
-  addUserOperatorCandidates(Type *lhsType, StringRef opName)
+static EnumType *ifEnumType(Type *t)
+{
+  if (t && t->isCVAtomicType()) {
+    CVAtomicType *cvat = t->asCVAtomicType();
+    if (cvat->atomic->isEnumType()) {
+      return cvat->atomic->asEnumType();
+    }
+  }
+  return NULL;
+}
+
+static bool parameterAcceptsDirectly(EnumType *et, FunctionType *ft, int param)
+{
+  if (et &&
+      ft->params.count() > param) {
+    Type *paramType = ft->params.nth(param)->type;
+                                    
+    // treat 'T&' the same as 'T'
+    paramType = paramType->asRval();
+    
+    // get down to an enumtype
+    EnumType *paramEnumType = ifEnumType(paramType);
+
+    return paramEnumType && et->equals(paramEnumType);
+  }
+
+  return false;
+}
+
+void OverloadResolver::addUserOperatorCandidates
+  (Type *lhsType, Type * /*nullable*/ rhsType, StringRef opName)
 {
   lhsType = lhsType->asRval();
+  if (rhsType) {
+    rhsType = rhsType->asRval();
+  }
 
   // member candidates
   if (lhsType->isCompoundType()) {
@@ -429,10 +461,59 @@ void OverloadResolver::
     }
   }
 
-  // non-member candidates; this lookup ignores member functions
-  Variable *nonmember = env.lookupVariable(opName, LF_SKIP_CLASSES);
-  if (nonmember) {
-    processPossiblyOverloadedVar(nonmember);
+  // non-member candidates
+  SObjList<Variable> candidates;
+  {
+    // 13.3.1.2 para 3 bullet 2: "... all member functions are ignored."
+    LookupFlags flags = LF_SKIP_CLASSES;
+
+    // associated scopes lookup
+    ArrayStack<Type*> argTypes(2);
+    argTypes.push(lhsType);
+    if (rhsType) {
+      argTypes.push(rhsType);
+    }
+    env.associatedScopeLookup(candidates, opName, argTypes, flags);
+
+    // ordinary lookup
+    Variable *ordinary = env.lookupVariable(opName, flags);
+    if (ordinary) {
+      env.addCandidates(candidates, ordinary);
+    }
+    
+    // filter candidates if no class-typed args
+    if (lhsType->isCompoundType() ||
+        (rhsType && rhsType->isCompoundType())) {
+      // at least one arg is of class type; nothing special is done
+    }
+    else {
+      // no class-typed arguments; at least one must be enumeration type
+      // (otherwise operator overload resolution isn't done at all),
+      // and we require that every candidate explicitly accept one of
+      // the enumeration types
+      EnumType *et1 = ifEnumType(lhsType);
+      EnumType *et2 = ifEnumType(rhsType);
+
+      SObjListMutator<Variable> mut(candidates);
+      while (!mut.isDone()) {
+        FunctionType *ft = mut.data()->type->asFunctionType();
+
+        if (parameterAcceptsDirectly(et1, ft, 0) ||
+            parameterAcceptsDirectly(et2, ft, 1)) {
+          // ok, keep it
+          mut.adv();
+        }
+        else {
+          // drop it
+          mut.remove();
+        }
+      }
+    }
+  }
+
+  // process the resulting set
+  SFOREACH_OBJLIST_NC(Variable, candidates, iter) {
+    processCandidate(iter.data());
   }
 }
 

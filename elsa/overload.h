@@ -184,8 +184,9 @@ public:      // funcs
   void addAmbiguousBinaryCandidate(Variable *v);
 
   // look up and process operator candidate functions, given the
-  // type of the first argument and the name of the operator
-  void addUserOperatorCandidates(Type *lhsType, StringRef opName);
+  // types of the arguments and the name of the operator
+  void addUserOperatorCandidates
+    (Type *lhsType, Type * /*nullable*/ rhsType, StringRef opName);
 
   // instantiate built-in candidates
   void addBuiltinUnaryCandidates(OverloadableOp op);

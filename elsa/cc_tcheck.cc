@@ -5520,150 +5520,24 @@ bool dependentInstantiation(Env &env,
 }
 
 
-// get scopes associated with 'type'; cppstd 3.4.2 para 2
-//
-// this could perhaps be made faster by using a hash table set
-void getAssociatedScopes(SObjList<Scope> &associated, Type *type)
-{
-  switch (type->getTag()) {
-    default:
-      xfailure("bad type tag");
-
-    case Type::T_ATOMIC: {
-      AtomicType *atomic = type->asCVAtomicType()->atomic;
-      switch (atomic->getTag()) {
-        default:
-          // other cases: nothing
-          return;
-
-        case AtomicType::T_SIMPLE:
-          // bullet 1: nothing
-          return;
-
-        case AtomicType::T_COMPOUND: {
-          CompoundType *ct = atomic->asCompoundType();
-          if (ct->keyword != CompoundType::K_UNION) {
-            if (!ct->isInstantiation()) {
-              // bullet 2: the class, all base classes, and definition scopes
-
-              // class + bases
-              SObjList<BaseClassSubobj const> bases;
-              ct->getSubobjects(bases);
-
-              // put them into 'associated'
-              SFOREACH_OBJLIST(BaseClassSubobj const, bases, iter) {
-                CompoundType *base = iter.data()->ct;
-                associated.prependUnique(base);
-
-                // get definition namespace too
-                if (base->parentScope) {
-                  associated.prependUnique(base->parentScope);
-                }
-                else {
-                  // parent is not named.. I'm pretty sure in this case
-                  // any names that should be found will be found by
-                  // ordinary lookup, so it will not matter whether the
-                  // parent scope of 'base' gets added to 'associated'
-                }
-              }
-            }
-            else {
-              // bullet 7: template instantiation: definition scope plus
-              // associated scopes of template type arguments
-              
-              // definition scope
-              if (ct->parentScope) {
-                associated.prependUnique(ct->parentScope);
-              } 
-
-              // look at template arguments
-              TemplateInfo *ti = ct->templateInfo();
-              xassert(ti);
-              FOREACH_OBJLIST(STemplateArgument, ti->arguments, iter) {
-                STemplateArgument const *arg = iter.data();
-                if (arg->isType()) {
-                  getAssociatedScopes(associated, arg->getType());
-                }
-                else if (arg->isTemplate()) {
-                  // TODO: implement this
-                }
-              }
-            }
-          }
-          else {
-            // bullet 3 (union): definition scope
-            if (ct->parentScope) {
-              associated.prependUnique(ct->parentScope);
-            }
-          }
-          break;
-        }
-
-        case AtomicType::T_ENUM: {
-          // bullet 3 (enum): definition scope
-          EnumType *et = atomic->asEnumType();
-          if (et->typedefVar &&        // ignore anonymous enumerations...
-              et->typedefVar->scope) {
-            associated.prependUnique(et->typedefVar->scope);
-          }
-          break;
-        }
-      }
-      break;
-    }
-    
-    case Type::T_REFERENCE:
-      // implicitly skipped as being an lvalue
-    case Type::T_POINTER:
-    case Type::T_ARRAY:
-      // bullet 4: skip to atType
-      getAssociatedScopes(associated, type->getAtType());
-      break;
-
-    case Type::T_FUNCTION: {
-      // bullet 5: recursively look at param/return types
-      FunctionType *ft = type->asFunctionType();
-      getAssociatedScopes(associated, ft->retType);
-      SFOREACH_OBJLIST(Variable, ft->params, iter) {
-        getAssociatedScopes(associated, iter.data()->type);
-      }
-      break;
-    }
-
-    case Type::T_POINTERTOMEMBER: {
-      // bullet 6/7: the 'inClassNAT', plus 'atType'
-      PointerToMemberType *ptm = type->asPointerToMemberType();
-      if (ptm->inClassNAT->isCompoundType()) {
-        associated.prependUnique(ptm->inClassNAT->asCompoundType());
-      }
-      getAssociatedScopes(associated, ptm->atType);
-      break;
-    }
-  }
-}
-
-
 // cppstd 3.4.2, plus a call to overload resolution
 static Variable *argumentDependentLookup(Env &env, E_variable *fvar,
                                          FakeList<ArgExpression> *args)
 {
-  // let me disable this entire mechanism, to measure its performance
-  //
-  // 2005-02-11: On in/big/nsHTMLEditRules, I see no measurable difference
-  static bool enabled = !tracingSys("disableArgDepLookup");
-
-  // union over all arguments of "associated" namespaces and classes
-  SObjList<Scope> associated;
-  if (enabled) {
-    FAKELIST_FOREACH(ArgExpression, args, argIter) {
-      getAssociatedScopes(associated, argIter->getType());
-    }
-  }
-
   // we only get here for unqualified names
   StringRef name = fvar->name->asPQ_name()->name;
+  
+  // get candidates from associated scopes
+  SObjList<Variable> candidates;
+  {
+    ArrayStack<Type*> argTypes(args->count());
+    FAKELIST_FOREACH(ArgExpression, args, iter) {
+      argTypes.push(iter->getType());
+    }
+    env.associatedScopeLookup(candidates, name, argTypes, LF_NONE);
+  }
 
-  if (associated.isEmpty()) {
+  if (candidates.isEmpty()) {
     if (!fvar->var) {
       // this error was originally found during ordinary lookup, but
       // we suppressed it; now is the time to report it
@@ -5673,52 +5547,16 @@ static Variable *argumentDependentLookup(Env &env, E_variable *fvar,
       return NULL;
     }
 
-    // easy case, just do the normal thing
+    // easy case, just do the normal thing with results of
+    // simple lookup (which is what is in fvar->var)
     return outerResolveOverload(env, fvar->name, fvar->name->loc, fvar->var,
                                 env.implicitReceiverType(), args);
   }
 
-  // build a set of candidates; start with what ordinary lookup found
-  SObjList<Variable> candidates;
+  // add to associated candidates those found by ordinary lookup, if
+  // there were any
   if (fvar->var) {
-    fvar->var->getOverloadList(candidates);
-  }
-
-  // 3.4.2 para 3: ignore 'using' directives for these lookups
-  LookupFlags flags = LF_IGNORE_USING;
-
-  // now start piling in additional candidates from the lookups in
-  // the various "associated" scopes
-  SFOREACH_OBJLIST_NC(Scope, associated, scopeIter) {
-    Scope *s = scopeIter.data();
-
-    // lookup
-    Variable *v = s->lookupVariable(name, env, flags);
-
-    // toss them into the set
-    if (v) {
-      if (!v->type->isFunctionType()) {
-        env.error(fvar->name->loc, stringc
-          << "during argument-dependent lookup of `" << name
-          << "', found non-function of type `" << v->type->toString()
-          << "' in " << s->desc());
-      }
-      else {
-        SObjList<Variable> tmp;
-        v->getOverloadList(tmp);
-        SFOREACH_OBJLIST_NC(Variable, tmp, iter) {
-          candidates.prependUnique(iter.data());
-        }
-      }
-    }
-  }
-
-  // if no candidates, then (like above) we need to report the error
-  if (candidates.isEmpty()) {
-    fvar->type = env.error(fvar->name->loc, stringc <<
-                           "there is no function called `" << name << "'",
-                           EF_NONE);
-    return NULL;
+    env.addCandidates(candidates, fvar->var);
   }
 
   // throw the whole mess at overload resolution
@@ -6252,7 +6090,7 @@ Type *resolveOverloadedUnaryOperator(
                               args);
 
     // user-defined candidates
-    resolver.addUserOperatorCandidates(expr->type, opName);
+    resolver.addUserOperatorCandidates(expr->type, NULL /*rhsType*/, opName);
 
     // built-in candidates
     resolver.addBuiltinUnaryCandidates(op);
@@ -6275,12 +6113,10 @@ Type *resolveOverloadedUnaryOperator(
           );
         }
         else {
-          // replace '~a' with '::operator~(a)'
-          // TODO: that is wrong if namespaces exist
+          // replace '~a' with '<scope>::operator~(a)'
           replacement = new E_funCall(
             // function to invoke
-            new E_variable(new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/,
-                                            NULL /*targs*/, pqo)),
+            new E_variable(env.makeFullyQualifiedName(winner->scope, pqo)),
             // arguments
             makeExprList1(expr)
           );
@@ -6362,7 +6198,7 @@ Type *resolveOverloadedBinaryOperator(
     }
 
     // user-defined candidates
-    resolver.addUserOperatorCandidates(e1->type, opName);
+    resolver.addUserOperatorCandidates(args[0].type, args[1].type, opName);
 
     // built-in candidates
     resolver.addBuiltinBinaryCandidates(op, args[0], args[1]);
@@ -6391,12 +6227,10 @@ Type *resolveOverloadedBinaryOperator(
           );
         }
         else {
-          // replace 'a+b' with '::operator+(a,b)'
-          // (TODO: that's wrong in the presence of namespaces)
+          // replace 'a+b' with '<scope>::operator+(a,b)'
           replacement = new E_funCall(
             // function to invoke
-            new E_variable(new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/,
-                                            NULL /*targs*/, pqo)),
+            new E_variable(env.makeFullyQualifiedName(winner->scope, pqo)),
             // arguments
             makeExprList2(e1, e2)
           );

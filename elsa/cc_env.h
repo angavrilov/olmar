@@ -47,6 +47,9 @@ ENUM_BITWISE_OPS(InferArgFlags, IA_ALL)
 // the entire semantic analysis state
 class Env : protected ErrorList {
 protected:   // data
+  // bound to '*this'; facilitates moving code into and out of Env
+  Env &env;
+
   // stack of lexical scopes; first is innermost
   //
   // NOTE: If a scope has a non-NULL curCompound or namespaceVar,
@@ -649,6 +652,12 @@ public:      // funcs
   //   buildASTTypeId
   //   inner_buildASTTypeId
   //   buildTypedefSpecifier
+  
+  // 2005-02-14: partially resurrected
+  PQName *makeFullyQualifiedName(Scope *s, PQName *name);
+  PQName *makeQualifiedName(Scope *s, PQName *name);
+  ASTList<TemplateArgument> *makeTemplateArgs(TemplateInfo *ti);
+  ASTTypeId *buildASTTypeId(Type *type);
 
   // make an AST node for an integer literal expression
   E_intLit *buildIntegerLiteralExp(int i);
@@ -678,6 +687,12 @@ public:      // funcs
   Variable *getOverloadedFunctionVar(Expression *e);
   void setOverloadedFunctionVar(Expression *e, Variable *selVar);
   Variable *pickMatchingOverloadedFunctionVar(Variable *ovlVar, Type *type);
+
+  // support for 3.4.2
+  void getAssociatedScopes(SObjList<Scope> &associated, Type *type);
+  void associatedScopeLookup(SObjList<Variable> &candidates, StringRef name,
+                             ArrayStack<Type*> const &argTypes, LookupFlags flags);
+  void addCandidates(SObjList<Variable> &candidates, Variable *var);
 
   // ------------ template instantiation stuff ------------
   // the following methods are implemented in template.cc
