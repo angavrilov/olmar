@@ -278,7 +278,7 @@ public:      // funcs
   // alias for Scope::addVariable (should probably be deleted)
   void addField(Variable *v);
 
-  // sm: for compatibility with existing code; should be deleted
+  // sm: for compatibility with existing code
   SObjList<Variable> &get_data_variables_in_order() 
     { return dataMembers; }
 
@@ -965,7 +965,7 @@ public:
   //   - Variable is used by Type and vice-versa.. they could have
   //     both been defined in cc_type.h
   virtual Variable *makeVariable(SourceLoc L, StringRef n,
-                                 Type *t, DeclFlags f)=0;
+                                 Type *t, DeclFlags f, TranslationUnit *tunit)=0;
   virtual Variable *cloneVariable(Variable *src)=0;
 
 
@@ -1022,7 +1022,7 @@ public:    // funcs
   virtual PointerToMemberType *clonePointerToMemberType(PointerToMemberType *src);
 
   virtual Variable *makeVariable(SourceLoc L, StringRef n,
-                                 Type *t, DeclFlags f);
+                                 Type *t, DeclFlags f, TranslationUnit *tunit);
   virtual Variable *cloneVariable(Variable *src);
 };
 

@@ -1776,8 +1776,10 @@ PointerToMemberType *BasicTypeFactory::clonePointerToMemberType(PointerToMemberT
 
 
 Variable *BasicTypeFactory::makeVariable(
-  SourceLoc L, StringRef n, Type *t, DeclFlags f)
+  SourceLoc L, StringRef n, Type *t, DeclFlags f, TranslationUnit *)
 {
+  // the TranslationUnit parameter is ignored by default; it is passed
+  // only for the possible benefit of an extension analysis
   return new Variable(L, n, t, f);
 }
 

@@ -249,7 +249,7 @@ public:      // funcs
 
   Variable *makeVariable(SourceLoc L, StringRef n,
                          Type *t, DeclFlags f)
-    { return tfac.makeVariable(L, n, t, f); }
+    { return tfac.makeVariable(L, n, t, f, tunit); }
 
   CVAtomicType *getSimpleType(SourceLoc loc, SimpleTypeId st, CVFlags cv = CV_NONE)
     { return tfac.getSimpleType(loc, st, cv); }

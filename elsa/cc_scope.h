@@ -174,7 +174,12 @@ public:      // funcs
   // and the inner classes
   StringSObjDict<CompoundType>::IterC getCompoundIter() const
     { return StringSObjDict<CompoundType>::IterC(compounds); }
-    
+
+  // lookup within the 'variables' map, without consulting base
+  // classes, etc.; returns NULL if not found
+  Variable *rawLookupVariable(StringRef name)
+    { return variables.queryif(name); }
+
   int private_compoundTop() const
     { return compounds.private_getTopAddr(); }
 
