@@ -610,8 +610,7 @@ void S_continue::itcheck(Env &env)
     env.clearNexts();
 
     // point my next at the loop
-    next = loop;
-    nextContinue = true;
+    next = makeNextPtr(loop, true /*continue*/);
   }
 }
 

@@ -97,8 +97,7 @@ void CFGEnv::clearNexts()
 void CFGEnv::resolveNexts(Statement *target, bool isContinue)
 {
   SMUTATE_EACH_OBJLIST(Statement, *(pendingNexts.top()), iter) {
-    iter.data()->next = target;
-    iter.data()->nextContinue = isContinue;
+    iter.data()->next = makeNextPtr(target, isContinue);
   }
   clearNexts();
 }
@@ -143,8 +142,7 @@ void CFGEnv::resolveGotos()
        !iter.isDone(); iter.next()) {    
     S_label *target = labels.queryif(iter.key());
     if (target) {
-      iter.value()->next = target;
-      iter.value()->nextContinue = false;
+      iter.value()->next = makeNextPtr(target, false);
     }
     else {
       err(stringc << "goto to undefined label: " << iter.key());

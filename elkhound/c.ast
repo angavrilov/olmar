@@ -173,7 +173,34 @@ class IDeclarator {
 // it to include C++'s '&'
 class PtrOperator (CVFlags cv);
 
+
 // ------------------- statements -----------------
+verbatim {
+  // arguably premature optimization, I encode 'next' pointers as
+  // the pointer itself, bitwise OR'd with 1 if it's a "continue"
+  // edge, and use void* as the abstract type
+  typedef void *NextPtr;
+
+  inline NextPtr makeNextPtr(Statement *next, bool isContinue)
+  {
+    return (NextPtr)((long)next | !!isContinue);
+  }
+
+  inline Statement *nextPtrStmt(NextPtr np)
+  {
+    return (Statement*)((long)np & ~1L);
+  }
+
+  // this is true when the 'next' edge points at a looping construct,
+  // but the flow is interpreted as a 'continue', rather than starting
+  // the loop from scratch
+  inline bool nextPtrContinue(NextPtr np)
+  {
+    return (bool)((int)np & 1);
+  }
+}
+
+
 class Statement {
   public void tcheck(Env &env);
   pure_virtual void itcheck(Env &env);
@@ -181,19 +208,13 @@ class Statement {
 
   // embedded control flow successor edge (for some constructs, like
   // 'if', some/all of the successors are already explicit)
-  public Statement *next;
+  public NextPtr next;
   ctor next=NULL;
-
-  // this is true when the 'next' edge points at a looping construct,
-  // but the flow is interpreted as a 'continue', rather than starting
-  // the loop from scratch
-  public bool nextContinue;
-  ctor nextContinue = false;
 
   custom debugPrint {
     ind(os, indent) << "this=" << (void*)this
-                    << ", next=" << (void*)next
-                    << ", cont=" << (nextContinue? "true" : "false")
+                    << ", next=" << (void*)nextPtrStmt(next)
+                    << ", cont=" << (nextPtrContinue(next)? "true" : "false")
                     << endl;
   }
 
