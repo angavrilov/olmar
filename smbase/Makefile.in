@@ -1,4 +1,4 @@
-# Makefile for libsmbase
+# Makefile.in for libsmbase
 # see license.txt for copyright and terms of use
 
 # main target
