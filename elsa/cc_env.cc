@@ -61,7 +61,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     Scope *s = new Scope(SK_GLOBAL // cause Variables inserted into this scope to acquire DF_GLOBAL
                          , 0 /*changeCount*/, emptyLoc, tunit);
     scopes.prepend(s);
-    tunit->globalScope = s;
   }
 
   // create the typeid type
