@@ -20,6 +20,7 @@ class SimpleType;
 class CompoundType;
 class BaseClass;
 class EnumType;
+class TypeVariable;
 class CVAtomicType;
 class PointerType;
 class FunctionType;
@@ -35,7 +36,7 @@ void cc_type_checker();
 // modifiers can be stripped away; see types.txt
 class AtomicType {
 public:     // types
-  enum Tag { T_SIMPLE, T_COMPOUND, T_ENUM, NUM_TAGS };
+  enum Tag { T_SIMPLE, T_COMPOUND, T_ENUM, T_TYPEVAR, NUM_TAGS };
 
 public:     // funcs
   AtomicType();
@@ -45,13 +46,15 @@ public:     // funcs
   int getId() const { return (int)this; }
 
   virtual Tag getTag() const = 0;
-  bool isSimpleType() const { return getTag() == T_SIMPLE; }
+  bool isSimpleType() const   { return getTag() == T_SIMPLE; }
   bool isCompoundType() const { return getTag() == T_COMPOUND; }
-  bool isEnumType() const { return getTag() == T_ENUM; }
+  bool isEnumType() const     { return getTag() == T_ENUM; }
+  bool isTypeVariable() const { return getTag() == T_TYPEVAR; }
 
   CAST_MEMBER_FN(SimpleType)
   CAST_MEMBER_FN(CompoundType)
   CAST_MEMBER_FN(EnumType)
+  CAST_MEMBER_FN(TypeVariable)
 
   // this is type equality, *not* coercibility -- e.g. if
   // we say "extern type1 x" and then "extern type2 x" we
@@ -90,6 +93,7 @@ public:     // data
 public:     // funcs
   SimpleType(SimpleTypeId t) : type(t) {}
 
+  // AtomicType interface
   virtual Tag getTag() const { return T_SIMPLE; }
   virtual string toCString() const;
   virtual string toCilString(int depth) const;
@@ -135,6 +139,7 @@ public:      // funcs
 
   static char const *keywordName(Keyword k);
 
+  // AtomicType interface
   virtual Tag getTag() const { return T_COMPOUND; }
   virtual string toCString() const;
   virtual string toCilString(int depth) const;
@@ -196,6 +201,7 @@ public:     // funcs
   EnumType(StringRef n) : NamedAtomicType(n), nextValue(0) {}
   ~EnumType();
 
+  // AtomicType interface
   virtual Tag getTag() const { return T_ENUM; }
   virtual string toCString() const;
   virtual string toCilString(int depth) const;
@@ -203,6 +209,20 @@ public:     // funcs
 
   Value *addValue(StringRef name, int value, /*nullable*/ Variable *d);
   Value const *getValue(StringRef name) const;
+};
+
+
+// used for template parameter types
+class TypeVariable : public NamedAtomicType {
+public:
+  TypeVariable(StringRef name) : NamedAtomicType(name) {}
+  ~TypeVariable();
+
+  // AtomicType interface
+  virtual Tag getTag() const { return T_TYPEVAR; }
+  virtual string toCString() const;
+  virtual string toCilString(int depth) const;
+  virtual int reprSize() const;
 };
 
 

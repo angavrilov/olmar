@@ -698,13 +698,19 @@ nonterm[Statement*] ForInitStatement {
 nonterm[TopForm*] Declaration {
   -> d:BlockDeclaration      [ return new TF_decl(loc, d); ]
   -> f:FunctionDefinition    [ return new TF_func(loc, f); ]
-  //-> TemplateDeclaration ;
-  //-> d:LinkageSpecification ;
+  -> t:TemplateDeclaration   [ return new TF_template(loc, t); ]
+  //-> ExplicitInstantiation;
+  //-> ExplicitSpecialization;
+  //-> LinkageSpecification ;
+  //-> NamespaceDefinition;
 }
 
-// C++ has other alternatives..
 nonterm[Declaration*] BlockDeclaration {
   -> d:SimpleDeclaration     [ return d; ]
+  //-> AsmDefinition;
+  //-> NamespaceAliasDefinition;
+  //-> UsingDeclaration;
+  //-> UsingDirective;
 }
 
 // is the DeclSpecifierSeq optional for implicit-int??
@@ -1604,28 +1610,49 @@ nonterm[OperatorName*] Operator {
 
 
 // ------ A.12 Templates ------
-//TemplateParameterList -> TemplateParameter
-//TemplateParameterList -> TemplateParameterList "," TemplateParameter
-
-//TemplateParameter -> TypeParameter | ParameterDeclaration
-
-
-nonterm TemplateId {
-  -> TypeName "<" TemplateArgumentList ">" ;
-  -> TypeName "<" ">" ;
+// I recognize this syntax, but ignore it
+nonterm ExportOpt {
+  -> empty;
+  -> "export";
 }
 
-nonterm TemplateArgumentList {
-  -> TemplateArgument ;
-  -> TemplateArgumentList "," TemplateArgument ;
+nonterm[TemplateDeclaration*] TemplateDeclaration {
+  // this is the std's rule
+  //-> ExportOpt "template" "<" TemplateParameterList ">" Declaration;
+
+  // this is my for-now rule
+  -> ExportOpt "template" "<" plist:TemplateParameterList ">" def:FunctionDefinition
+       [ return new TD_func(plist, def); ]
 }
 
-nonterm TemplateArgument {
-  // where I have Literal the std has AssignmentExpression...
-  // std also mentions IdExpression here, which is my PQVarName.....
-  -> Literal ;
-  -> TypeId ;
+nonterm[FakeList<TemplateParameter>*] TemplateParameterList {
+  -> p:TemplateParameter
+       [ return FakeList<TemplateParameter>::makeList(p); ]
+  -> p:TemplateParameter "," list:TemplateParameterList
+       [ return list->prepend(p); ]
 }
+
+
+nonterm[TemplateParameter*] TemplateParameter {
+  -> p:TemplateTypeParameter  [ return p; ]
+
+  // for now, don't allow this
+  //-> ParameterDeclaration;
+}
+
+nonterm[TP_type*] TemplateTypeParameter {
+  // for now, only allow some of these forms
+  -> "class" i:IdentifierOpt                  [ return new TP_type(loc, i, NULL /*default*/); ]
+  -> "class" i:IdentifierOpt "=" t:TypeId     [ return new TP_type(loc, i, t); ]
+  -> "typename" i:IdentifierOpt               [ return new TP_type(loc, i, NULL /*default*/); ]
+  -> "typename" i:IdentifierOpt "=" t:TypeId  [ return new TP_type(loc, i, t); ]
+
+  //-> "template" "<" TemplateParameterList ">" "class" IdentifierOpt;
+  //-> "template" "<" TemplateParameterList ">" "class" IdentifierOpt "=" IdExpression;
+}
+
+
+// TODO: template ids, arguments, etc.
 
 
 // ------ A.13 Exception handling ------

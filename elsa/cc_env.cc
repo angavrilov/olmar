@@ -22,10 +22,14 @@ string ErrorMsg::toString() const
 // --------------------- Env -----------------
 Env::Env(StringTable &s, CCLang &L)
   : scopes(),
+    disambiguateOnly(false),
     errors(),
     str(s),
-    lang(L),
-    type_info_const_ref(NULL)    // filled in below
+    lang(L),                      
+    
+    // filled in below; initialized for definiteness
+    type_info_const_ref(NULL),
+    conversionOperatorName(NULL)
 {
   // create first scope
   scopes.prepend(new Scope(0 /*changeCount*/, SourceLocation()));
@@ -59,21 +63,25 @@ Env::~Env()
 }
 
 
-void Env::enterScope()
+Scope *Env::enterScope()
 {
   trace("env") << "entered scope\n";
-  
+
   // propagate the 'curFunction' field
   Function *f = scopes.first()->curFunction;
   Scope *newScope = new Scope(getChangeCount(), loc());
   scopes.prepend(newScope);
   newScope->curFunction = f;
+  
+  return newScope;
 }
 
-void Env::exitScope()
+void Env::exitScope(Scope *s)
 {
   trace("env") << "exited scope\n";
-  delete scopes.removeFirst();
+  Scope *f = scopes.removeFirst();
+  xassert(s == f);
+  delete f;
 }
 
 
@@ -137,16 +145,35 @@ SourceLocation const &Env::loc() const
 
 
 // -------- insertion --------
+Scope *Env::acceptingScope()
+{
+  Scope *s = scopes.first();    // first in list
+  if (s->canAcceptNames) {
+    return s;    // common case
+  }
+
+  s = scopes.nth(1);            // second in list
+  if (s->canAcceptNames) {
+    return s;
+  }
+                                                                   
+  // since non-accepting scopes should always be just above
+  // an accepting scope
+  xfailure("had to go more than two deep to find accepting scope");
+  return NULL;    // silence warning
+}
+
+
 bool Env::addVariable(Variable *v)
 {
-  Scope *s = scope();
+  Scope *s = acceptingScope();
   registerVariable(v);
   return s->addVariable(v);
 }
 
 void Env::registerVariable(Variable *v)
 {
-  Scope *s = scope();
+  Scope *s = acceptingScope();
   if (s->curCompound && s->curCompound->name) {
     // since the scope has a name, let the variable point at it
     v->scope = s;
@@ -156,13 +183,13 @@ void Env::registerVariable(Variable *v)
 
 bool Env::addCompound(CompoundType *ct)
 {
-  return scope()->addCompound(ct);
+  return acceptingScope()->addCompound(ct);
 }
 
 
 bool Env::addEnum(EnumType *et)
 {
-  return scope()->addEnum(et);
+  return acceptingScope()->addEnum(et);
 }
 
 
@@ -304,8 +331,10 @@ EnumType *Env::lookupPQEnum(PQName const *name)
 // -------- diagnostics --------
 Type const *Env::error(char const *msg, bool disambiguates)
 {
-  trace("error") << "error: " << msg << endl;
-  errors.prepend(new ErrorMsg(stringc << "error: " << msg, loc(), disambiguates));
+  trace("error") << (disambiguates? "[d] " : "") << "error: " << msg << endl;
+  if (!disambiguateOnly || disambiguates) {
+    errors.prepend(new ErrorMsg(stringc << "error: " << msg, loc(), disambiguates));
+  }
   return getSimpleType(ST_ERROR);
 }
 
@@ -313,7 +342,9 @@ Type const *Env::error(char const *msg, bool disambiguates)
 Type const *Env::warning(char const *msg)
 {
   trace("error") << "warning: " << msg << endl;
-  errors.prepend(new ErrorMsg(stringc << "warning: " << msg, loc()));
+  if (!disambiguateOnly) {
+    errors.prepend(new ErrorMsg(stringc << "warning: " << msg, loc()));
+  }
   return getSimpleType(ST_ERROR);
 }
 
@@ -327,6 +358,18 @@ Type const *Env::unimp(char const *msg)
   errors.prepend(new ErrorMsg(stringc << "unimplemented: " << msg, loc()));
   return getSimpleType(ST_ERROR);
 }
+
+
+bool Env::setDisambiguateOnly(bool newVal)
+{
+  bool ret = disambiguateOnly;
+  disambiguateOnly = newVal;
+  return ret;
+}
+
+
+
+
 
 
 

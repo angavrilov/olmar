@@ -28,6 +28,12 @@ void TF_func::tcheck(Env &env)
   f->tcheck(env, true /*checkBody*/);
 }
 
+void TF_template::tcheck(Env &env)
+{
+  env.setLoc(loc);
+  td->tcheck(env);
+}
+
 
 // --------------------- Function -----------------
 void Function::tcheck(Env &env, bool checkBody)
@@ -63,8 +69,8 @@ void Function::tcheck(Env &env, bool checkBody)
   // the parameters will have been entered into the parameter
   // scope, but that's gone now; make a new scope for the
   // function body and enter the parameters into that
-  env.enterScope();
-  env.scope()->curFunction = this;
+  Scope *bodyScope = env.enterScope();
+  bodyScope->curFunction = this;
   FunctionType const &ft = nameParams->var->type->asFunctionTypeC();
   FOREACH_OBJLIST(FunctionType::Param, ft.params, iter) {
     Variable *v = iter.data()->decl;
@@ -89,7 +95,7 @@ void Function::tcheck(Env &env, bool checkBody)
   }
 
   // close the new scope
-  env.exitScope();
+  env.exitScope(bodyScope);
 
   // stop extending the named scope, if there was one
   if (nameParams->var->scope) {
@@ -876,7 +882,7 @@ Variable *D_func::itcheck(Env &env, Type const *retSpec, DeclFlags dflags)
   FunctionType *ft = new FunctionType(retSpec, cv);
 
   // make a new scope for the parameter list
-  env.enterScope();
+  Scope *paramScope = env.enterScope();
 
   // typecheck and add the parameters
   FAKELIST_FOREACH_NC(ASTTypeId, params, iter) {
@@ -886,7 +892,7 @@ Variable *D_func::itcheck(Env &env, Type const *retSpec, DeclFlags dflags)
     ft->addParam(new FunctionType::Param(v->name, v->type, v));
   }
 
-  env.exitScope();
+  env.exitScope(paramScope);
 
   if (exnSpec) {
     ft->exnSpec = exnSpec->tcheck(env);
@@ -1254,14 +1260,14 @@ void S_expr::itcheck(Env &env)
 
 void S_compound::itcheck(Env &env)
 { 
-  env.enterScope();
+  Scope *scope = env.enterScope();
 
   FOREACH_ASTLIST_NC(Statement, stmts, iter) {
     // have to potentially change the list nodes themselves
     iter.setDataLink( iter.data()->tcheck(env) );
   }
 
-  env.exitScope();
+  env.exitScope(scope);
 }
 
 
@@ -1269,35 +1275,35 @@ void S_if::itcheck(Env &env)
 {
   // if 'cond' declares a variable, its scope is the
   // body of the "if"
-  env.enterScope();
+  Scope *scope = env.enterScope();
 
   cond->tcheck(env);
   thenBranch = thenBranch->tcheck(env);
   elseBranch = elseBranch->tcheck(env);
 
-  env.exitScope();
+  env.exitScope(scope);
 }
 
 
 void S_switch::itcheck(Env &env)
 {
-  env.enterScope();
+  Scope *scope = env.enterScope();
 
   cond->tcheck(env);
   branches = branches->tcheck(env);
 
-  env.exitScope();
+  env.exitScope(scope);
 }
 
 
 void S_while::itcheck(Env &env)
 {
-  env.enterScope();
+  Scope *scope = env.enterScope();
 
   cond->tcheck(env);
   body = body->tcheck(env);
 
-  env.exitScope();
+  env.exitScope(scope);
 }
 
 
@@ -1312,14 +1318,14 @@ void S_doWhile::itcheck(Env &env)
 
 void S_for::itcheck(Env &env)
 {
-  env.enterScope();
+  Scope *scope = env.enterScope();
 
   init = init->tcheck(env);
   cond->tcheck(env);
   after = after->tcheck(env);
   body = body->tcheck(env);
 
-  env.exitScope();
+  env.exitScope(scope);
 }
 
 
@@ -1398,12 +1404,12 @@ void CN_decl::tcheck(Env &env)
 // ------------------- Handler ----------------------
 void HR_type::tcheck(Env &env)
 {           
-  env.enterScope();
-  
+  Scope *scope = env.enterScope();
+
   typeId->tcheck(env);
   body->tcheck(env);
 
-  env.exitScope();
+  env.exitScope(scope);
 }
 
 
@@ -1854,5 +1860,82 @@ void IN_compound::tcheck(Env &env)
 
 
 // InitLabel
+
+// -------------------- TemplateDeclaration ---------------
+void TemplateDeclaration::tcheck(Env &env)
+{
+  // make a new scope to hold the template parameters
+  Scope *paramScope = env.enterScope();
+
+  // check each of the parameters, i.e. enter them into the scope
+  FAKELIST_FOREACH_NC(TemplateParameter, params, iter) {
+    iter->tcheck(env);
+  }
+
+  // mark the new scope as unable to accept new names, so
+  // that the function or class being declared will be entered
+  // into the scope above us
+  paramScope->canAcceptNames = false;
+
+  // in what follows, ignore errors that are not disambiguating
+  bool prev = env.setDisambiguateOnly(true);
+
+  // check the particular declaration
+  itcheck(env);
+
+  // restore prior error mode
+  env.setDisambiguateOnly(prev);
+
+  // remove the template argument scope
+  env.exitScope(paramScope);
+}
+
+
+void TD_func::itcheck(Env &env)
+{
+  // check the function definition
+  f->tcheck(env, true /*checkBody*/);
+
+  // TODO: attach these parameters to the function type
+  // so later references to it can be checked
+}
+
+
+void TP_type::tcheck(Env &env)
+{
+  // std 14.1 is a little unclear about whether the type
+  // name is visible to its own default argument; but that
+  // would make no sense, so I'm going to check the
+  // default type first
+  if (defaultType) {
+    defaultType->tcheck(env);
+  }
+
+  if (!name) {
+    // nothing to do for anonymous parameters
+    return;
+  }
+
+  // the standard is not clear about whether the user code should
+  // be able to do this:
+  //   template <class T>
+  //   int f(class T &t)      // can use "class T" instead of just "T"?
+  //   { ... }
+  // my approach of making a TypeVariable, instead of calling
+  // it a CompoundType with a flag for 'is type variable', rules
+  // out the subsequent use of "class T" ...
+
+  // make a type variable for this thing
+  TypeVariable *type = new TypeVariable(name);
+
+  // introduce 'name' into the environment as a typedef for the
+  // type variable
+  Variable *var = new Variable(loc, name, makeType(type), DF_TYPEDEF);
+  type->typedefVar = var;
+  if (!env.addVariable(var)) {
+    env.error(stringc
+      << "duplicate template parameter `" << name << "'");
+  }
+}
 
 

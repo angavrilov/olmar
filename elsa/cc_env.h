@@ -31,6 +31,14 @@ private:     // data
   // list of named scopes (i.e. namespaces)
   //StringObjDict<Scope> namespaces;    // not implemented yet
 
+  // when true, all errors are ignored (dropped on floor) except:
+  //   - errors with the 'disambiguates' flag set
+  //   - unimplemented functionality
+  // this is used when processing bodies of template classes and
+  // functions, where we don't know anything about the type
+  // parameters
+  bool disambiguateOnly;
+
 public:      // data
   // stack of error messages; the first one is the latest
   // one inserted; during disambiguation, I'll remember where
@@ -57,13 +65,16 @@ public:      // function
   int getChangeCount() const { return scopeC()->getChangeCount(); }
 
   // scopes
-  void enterScope();
-  void exitScope();
+  Scope *enterScope();            // returns new Scope
+  void exitScope(Scope *s);       // paired with enterScope()
   void extendScope(Scope *s);     // push onto stack, but don't own
   void retractScope(Scope *s);    // paired with extendScope()
 
   Scope *scope() { return scopes.first(); }
   Scope const *scopeC() const { return scopes.firstC(); }
+
+  // innermost scope that can accept names
+  Scope *acceptingScope();
 
   // get the innermost CompoundType (aka class) scope, or NULL
   // if we're not in the scope of any class
@@ -101,6 +112,9 @@ public:      // function
   Type const *error(char const *msg, bool disambiguates=false);
   Type const *warning(char const *msg);
   Type const *unimp(char const *msg);
+  
+  // set 'disambiguateOnly' to 'val', returning prior value
+  bool setDisambiguateOnly(bool val);
 };
 
 

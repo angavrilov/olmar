@@ -37,6 +37,12 @@ private:     // data
   int changeCount;
 
 public:      // data
+  // when this is set to false, the environment knows it should not
+  // put new names into this scope, but rather go further down into
+  // the scope stack to insert the name (used for environments of
+  // template parameters)
+  bool canAcceptNames;
+
   // ------------- "current" entities -------------------
   // these are set to allow the typechecking code to know about
   // the context we're in

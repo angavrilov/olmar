@@ -61,12 +61,17 @@ AtomicType::~AtomicType()
 CAST_MEMBER_IMPL(AtomicType, SimpleType)
 CAST_MEMBER_IMPL(AtomicType, CompoundType)
 CAST_MEMBER_IMPL(AtomicType, EnumType)
+CAST_MEMBER_IMPL(AtomicType, TypeVariable)
 
 
 bool AtomicType::equals(AtomicType const *obj) const
 {
   // all of the AtomicTypes are unique-representation,
   // so pointer equality suffices
+  //
+  // it is *important* that we don't do structural equality
+  // here, because then we'd be confused by types with the
+  // same name that appear in different scopes!
   return this == obj;
 }
 
@@ -521,7 +526,32 @@ EnumType::Value::~Value()
 {}
 
 
-// --------------- Type ---------------
+// ------------------ TypeVariable ----------------
+TypeVariable::~TypeVariable()
+{}
+
+string TypeVariable::toCString() const
+{
+  // use the "typename" syntax instead of "class", to distinguish
+  // this from an ordinary class, and because it's syntax which
+  // more properly suggests the ability to take on *any* type,
+  // not just those of classes
+  return stringc << "typename " << name;
+}
+
+string TypeVariable::toCilString(int /*depth*/) const
+{
+  return toCString();
+}
+
+int TypeVariable::reprSize() const
+{
+  xfailure("you can't ask a type variable for its size");
+  return 0;     // silence warning
+}
+
+
+// -------------------- Type ----------------------
 ALLOC_STATS_DEFINE(Type)
 
 Type::Type()
