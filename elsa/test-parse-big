@@ -21,7 +21,7 @@ if [ $? = 130 ]; then exit 130; fi
 
 # 36 modules
 echo "elsa"
-./test-parse-buildlog make.out >elsa.make.out
+./test-parse-buildlog make.out >elsa.parse.out
 if [ $? = 130 ]; then exit 130; fi
 
 # 80 modules

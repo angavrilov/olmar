@@ -6,7 +6,13 @@ namespace N {
   class B {};
   void g(B);
   int h;
+  
+  // interestingly, icc does not regard this as an error,
+  // though gcc-3 does ...
+  //ERROR(3): int k;
 }
+
+int k(N::B);
 
 class A {
 public:
@@ -15,7 +21,9 @@ public:
     g(b);
 
     //ERROR(1): g(b,1);
-    
+
     //ERROR(2): h(b);
+    
+    k(b);
   }
 };

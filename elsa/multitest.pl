@@ -5,9 +5,16 @@
 use strict 'subs';
 use Config;
 
+$selectedError = "";
+if ($ARGV[0] eq "-errnum") {
+  $selectedError = $ARGV[1];
+  shift @ARGV;
+  shift @ARGV;
+}
+
 if (@ARGV == 0) {
   print(<<"EOF");
-usage: $0 ./ccparse [-tr flags] input.cc
+usage: $0 [-errnum n] ./ccparse [-tr flags] input.cc
 
 This will first invoke the command line as given, expecting
 that to succeed.
@@ -19,6 +26,8 @@ Then, it will scan input.cc for any lines of the form:
 If it finds them, then for each such 'n' the lines ERROR(n)
 will be uncommented (and "ERROR(n)" removed), and the original
 command executed again.  These additional runs should fail.
+
+If you say "-errnum 3", then only ERROR(3) will be tested.
 EOF
 
   exit(0);
@@ -71,7 +80,14 @@ if ($numkeys == 0) {
 }
 
 # consider each in turn
+$testedVariations = 0;
 foreach $selcode (@allkeys) {
+  if ($selectedError &&
+      $selectedError ne $selcode) {
+    next;
+  }
+  $testedVariations++;
+
   print("-- selecting ERROR($selcode) --\n");
 
   # run through the lines in the file, generating a new file
@@ -112,7 +128,7 @@ foreach $selcode (@allkeys) {
 
 unlink("multitest.tmp");
 
-print("\nmultitest: success: all $numkeys variations failed as expected\n");
+print("\nmultitest: success: all $testedVariations variations failed as expected\n");
 
 exit(0);
 
