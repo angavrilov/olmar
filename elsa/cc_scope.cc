@@ -7,6 +7,7 @@
 #include "cc_type.h"      // CompoundType
 #include "cc_env.h"       // doh.  Env::error
 #include "mangle.h"       // mangle
+#include "cc_print.h"     // PrintEnv
 
 
 Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
@@ -1247,9 +1248,12 @@ void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &ar
       sb << "OBJECT-" << mangle(iter.data()->value.v->type);
       break;
 
-    case STemplateArgument::STA_DEPEXPR: // value-dependent expression
-      sb << "DEPEXPR-" << mangle(iter.data()->value.e->type);
+    case STemplateArgument::STA_DEPEXPR: { // value-dependent expression
+      sb << "DEPEXPR-";
+      PrintEnv penv(sb);
+      iter.data()->value.e->print(penv);
       break;
+    }
 
     case STemplateArgument::STA_TEMPLATE: // template argument (not implemented)
       xfailure("STA_TEMPLATE is not implemented");
