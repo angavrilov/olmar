@@ -124,10 +124,10 @@ string SourceLocation::oldToString() const
 string SourceLocation::likeGccToString() const
 {
   if (validLoc()) {
-    return stringc << fname() << ":" << line << ":" << col << ": ";
+    return stringc << fname() << ":" << line << ":" << col;
   }
   else {
-    return string("");
+    return string("(?loc?)");
   }
 }
 

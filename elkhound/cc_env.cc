@@ -279,9 +279,6 @@ void Env::addVariable(StringRef name, Variable *decl)
     if (isGlobalEnv()) {
       decl->flags = (DeclFlags)(decl->flags | DF_GLOBAL);
     }
-    else {
-      currentFunction->locals.prepend(decl);
-    }
 
     scopes.first()->variables.add(name, decl);
   }
@@ -599,15 +596,15 @@ Type const *Env::promoteTypes(BinaryOp op, Type const *t1, Type const *t2)
 void Env::err(char const *str)
 {
   cout << currentLoc().likeGccToString()
-       << "error: " << str << endl;
+       << ": error: " << str << endl;
   errors++;
 }
 
 
 void Env::warn(char const *str)
 {
-  cout << currentLoc().likeGccToString() 
-       << "warning: " << str << endl;
+  cout << currentLoc().likeGccToString()
+       << ": warning: " << str << endl;
   warnings++;
 }
 

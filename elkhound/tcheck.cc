@@ -52,12 +52,12 @@ void TF_decl::itcheck(Env &env)
 
 void TF_func::itcheck(Env &env)
 {
+  // we're the current function
+  env.setCurrentFunction(this);
+
   Type const *r = retspec->tcheck(env);
   Type const *f = nameParams->tcheck(env, r, dflags);
   xassert(f->isFunctionType());
-
-  // we're the current function
-  env.setCurrentFunction(this);
 
   // put parameters into the environment
   env.enterScope();
@@ -71,7 +71,6 @@ void TF_func::itcheck(Env &env)
       if (var->name) {
         env.addVariable(var->name, var);
       }
-      
       params.prepend(var);
     }
     params.reverse();
@@ -122,7 +121,7 @@ void TF_func::itcheck(Env &env)
   // check the body in the new environment
   body->tcheck(env);
 
-  // when the environment adds locals, it prepends
+  // when the local are added, they are prepended
   locals.reverse();
 
   // clean up
@@ -158,14 +157,14 @@ void printSObjList(ostream &os, int indent, char const *label,
 
 StringRef varName(Variable const *v)
   { return v->name; }
-int stmtLine(Statement const *s)
-  { return s->loc.line; }
+string stmtLoc(Statement const *s)
+  { return stringc << s->loc.line << ":" << s->loc.col; }
 
 void TF_func::printExtras(ostream &os, int indent) const
 {
   printSObjList(os, indent, "params", params, varName);
   printSObjList(os, indent, "locals", locals, varName);
-  printSObjList(os, indent, "roots", roots, stmtLine);
+  printSObjList(os, indent, "roots", roots, stmtLoc);
 }
 
 
@@ -195,7 +194,14 @@ void Declaration::tcheck(Env &env)
 
   // apply this type to each of the declared entities
   FOREACH_ASTLIST_NC(Declarator, decllist, iter) {
-    iter.data()->tcheck(env, base, dflags);
+    Declarator *d = iter.data();
+    d->tcheck(env, base, dflags);
+    
+    // we just declared a local variable, if we're in a function
+    TF_func *func = env.getCurrentFunction();
+    if (func) {
+      func->locals.prepend(d->var);
+    }
   }
 }
 
@@ -832,8 +838,9 @@ string Statement::successorsToString() const
     // this node is reached via continue; a trailing "(c)" means that
     // successor is itself a continue edge; the algorithm assumes
     // that 'succYesCont' is a superset of 'succNoCont'
+    SourceLocation const &loc = nextPtrStmt(np)->loc;
     sb << (succNoCont.contains(np)? " " : " (c)")
-       << (void*)nextPtrStmt(np)
+       << loc.line << ":" << loc.col
        << (nextPtrContinue(np)? "(c)" : "");
   }
 
