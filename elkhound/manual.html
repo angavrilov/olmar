@@ -312,6 +312,47 @@ Common <tt>merge()</tt> strategies:
     due to the type/variable ambiguity.
 </ul>
 
+<p>
+<b>Note that ambiguity is different from a reduce/reduce conflict.</b>
+A reduce/reduce conflict happens when
+the top few symbols of the parse stack can be reduced by two different
+rules.  It is not (necessarily) an ambiguity, as the reduced input
+portions are different.  In <tt>merge()</tt>, the merging fragments arise from
+reductions applied to the *same* sequence of ground terminals.
+
+<p>
+For example, the following unambiguous(!) grammar
+<pre>
+  S -&gt; B a c | b A a d
+  B -&gt; b a a
+  A -&gt; a a
+</pre>
+has a reduce/reduce conflict because after seeing "baa" with "a" in the
+lookahead, the parser cannot tell whether to reduce the topmost "aa" to A,
+or the entire "baa" to B, since it only has one token of lookahead and
+can't see whether the token after the lookahead is "c" or "d".
+
+<p>
+On the other hand, the ambiguous grammar
+<pre>
+  S -&gt; A b | a b
+  A -&gt; a
+</pre>
+contains no reduce/reduce conflicts.  The only conflict is a shift/reduce,
+as after seeing "a" with "b" as lookahead the parser cannot tell whether
+to reduce "a" to A, or shift the "b" and later reduce the combination
+directly as S.
+
+<p>
+Conceptually, if you imagine a nondeterministic LALR parsing algorithm,
+conflicts are split (choice) points and ambiguities are join points.  You
+cannot have a join without a split, but there is no easy way (in fact it's
+undecidable) to compute a precise relationship between splits and possible
+future joins.  Both shift/reduce and reduce/reduce are split points,
+whereas <tt>merge()</tt> is a join.
+
+
+
 <h2>4.4 keep</h2>
 
 <p>
@@ -707,7 +748,9 @@ or as
 
 <p>
 As with all uses of prec/assoc, it is possible to resolve the
-ambiguity by modifying the grammar.  However, in this case, doing so
+ambiguity by modifying the grammar.  (Actually, I'm not 100% sure
+about this fact, especially because of LALR vs LR.  But it seems
+to be true in practice.)  However, in this case, doing so
 means duplicating the entire Stmt nonterm, creating one case for when
 it is the first thing in the then-block of an "if" statement with an
 "else" clause (in which case the version missing an "else" is not
