@@ -826,6 +826,7 @@ testCparse c/t0008.c
 testCparse c/t0009.c
 testCparse c/t0010.c
 testCparse c/t0011.c
+testCparse c/t0012.c
 
 
 # test GNU C

@@ -6225,14 +6225,16 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
     // ANSI C99 mostly requires that the types be the same, but gcc
     // doesn't seem to enforce anything, so I won't either; and if
     // they are different, it isn't clear what the type should be ...
-    
+
+    bool bothLvals = thType->isLval() && elType->isLval();
+
     // for in/gnu/d0095.c
     if (thRval->isPointerType() &&
         thRval->asPointerType()->atType->isVoid()) {
-      return elRval;
+      return bothLvals? elType : elRval;
     }
 
-    return thRval;
+    return bothLvals? thType : thRval;
   }
 
   // para 2: if one or the other has type 'void'
