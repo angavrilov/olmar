@@ -463,6 +463,12 @@ nonterm[Expression*] DeleteExpression {
 
 
 nonterm[Expression*] CastExpression {
+  // ambiguous:
+  //   (x)(y)
+  // could either be a call to function 'x' with argument 'y', or
+  // it could be a cast to type 'x' of the expression 'y'
+  merge(L,R) [ L->addAmbiguity(R); return L; ]
+
   -> e:UnaryExpression
        [ return e; ]
   -> "(" t:TypeId ")" e:CastExpression
@@ -907,18 +913,16 @@ nonterm[TS_enumSpec*] EnumSpecifier {
 }
 
 
-nonterm[FakeList<Enumerator>*] EnumeratorList {
-  -> def:EnumeratorDefinition
-       [ return FakeList<Enumerator>::makeList(def); ]
-  -> def:EnumeratorDefinition "," list:EnumeratorList
-       [ return list->prepend(def); ]
-}
-
+// rewrote this definition so I can always tell with one token of
+// lookahead whether this is the last enumerator definition; this
+// allows an optional comma at the end, on purpose
 nonterm[FakeList<Enumerator>*] EnumeratorListOpt {
   -> empty
        [ return FakeList<Enumerator>::emptyList(); ]
-  -> list:EnumeratorList CommaOpt   // CommaOpt is GNU extension (??)
-       [ return list; ]
+  -> def:EnumeratorDefinition
+       [ return FakeList<Enumerator>::makeList(def); ]
+  -> def:EnumeratorDefinition "," list:EnumeratorListOpt
+       [ return list->prepend(def); ]
 }
 
 

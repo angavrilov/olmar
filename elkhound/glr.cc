@@ -1768,9 +1768,10 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
 
       // continue building rhs desc
       ACTION( rhsDescription =
-        stringc << " " 
-                << symbolDescription(pcs.symbols[i], userAct, sib->sval)
-                << rhsDescription; )
+        stringc << rhsDescription
+                << " "
+                << symbolDescription(pcs.symbols[i], userAct, sib->sval);
+      )
 
       // left edge?  or, have all previous tokens failed to yield
       // information?

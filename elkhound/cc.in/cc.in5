@@ -1,15 +1,16 @@
 // cc.in5
-// tricky example of an ambiguous expression in an exprlist;
-// goal is to make sure that both interpretations are seen
-// has having two expressions in the list
+// some tricky ambiguous syntax examples
+
+enum MyEnum { e8, e4=4, e5 };
 
 int main()
 {
   f( (a)&(b), c );
-  
-  { 
+
+  {
     x(y);
     3;
   }
-}
 
+  (q)(p);
+}
