@@ -172,6 +172,12 @@ Variable const *Scope
 {
   Variable const *v1 = NULL;
 
+  // if the qualifier names my own compound, strip it
+  if (name->hasQualifiers() &&
+      name->asPQ_qualifierC()->qualifier == curCompound->name) {
+    name = name->asPQ_qualifierC()->rest;
+  }
+
   // [cppstd sec. 10.2]: class members hide all members from
   // base classes
   if (!name->hasQualifiers()) {
@@ -193,6 +199,8 @@ Variable const *Scope
   // to implement this, I'll walk the list of base classes,
   // keeping in 'ret' the latest successful lookup, and if I
   // find another successful lookup then I'll complain
+  //
+  // TODO: this is wrong I think; I should use 'bases/virtualBases'
   CompoundType const *v1Base = NULL;
   bool v1CrossVirtual = false;
   FOREACH_OBJLIST(BaseClass, curCompound->bases, iter) {

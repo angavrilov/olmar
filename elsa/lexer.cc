@@ -57,6 +57,7 @@
 // make that output dependent on smbase/xassert.h
 char const *toString(TokenType type)
 {
+  xassert(NUM_TOKEN_TYPES == tokenNameTableSize);
   xassert((unsigned)type < (unsigned)NUM_TOKEN_TYPES);
   return tokenNameTable[type];
 }
