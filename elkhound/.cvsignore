@@ -84,7 +84,7 @@ absval.ast.gen.*
 predicate.ast.gen.*
 *.d
 test-bad-tmp.c
-tmp.c
+tmp*
 *.i
 predicate.log
 cexp3.gr.gen.*

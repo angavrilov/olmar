@@ -496,7 +496,7 @@ nonterm[Statement*] Statement {
   // had to add this variant because I found linux kernel
   // code that has "case:" immediately followed by "}"; I still
   // prefer the above when I can, so as to minimize the use of this
-  -> "case" e:ConstantExpression ":" precedence(L2_PREFER_SHIFT)
+  -> "case" e:ConstantExpression ":"   precedence(L2_PREFER_SHIFT)
        [ return new S_case(loc, e, new S_skip(loc)); ]
 
   // gnu extension
@@ -516,7 +516,7 @@ nonterm[Statement*] Statement {
 
   // selection-statement
   // (prefer to shift "else" over reducing by this rule)
-  -> "if" "(" e:Condition ")" s:Statement precedence(L2_PREFER_SHIFT)
+  -> "if" "(" e:Condition ")" s:Statement     precedence(L2_PREFER_SHIFT)
        [ return new S_if(loc, e, s, new S_skip(loc)); ]
 
   // if-then-else preferred over if-then when ambiguous

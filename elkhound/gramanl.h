@@ -317,6 +317,8 @@ private:    // funcs
   void computeIndexedNonterms();
   void computeIndexedTerms();
   void computeProductionsByLHS();
+  void computeReachable();
+  void computeReachableDFS(Nonterminal *nt);
 
   // ---- derivability ----
   // iteratively compute every pair A,B such that A can derive B

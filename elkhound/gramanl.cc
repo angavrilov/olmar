@@ -1269,6 +1269,7 @@ void GrammarAnalysis::initializeAuxData()
   computeIndexedTerms();
 
   computeProductionsByLHS();
+  computeReachable();
 
   // initialize the derivable relation
   initDerivableRelation();
@@ -2147,6 +2148,46 @@ Symbol const *GrammarAnalysis::
 
   xfailure("GrammarAnalysis::inverseTransitionC: no transition from source to target");
   return NULL;     // silence warning
+}
+
+
+void GrammarAnalysis::computeReachable()
+{
+  // start by clearing the reachability flags
+  MUTATE_EACH_NONTERMINAL(nonterminals, iter) {
+    iter.data()->reachable = false;
+  }
+  
+  // do a DFS on the grammar, marking things reachable as
+  // they're encountered
+  computeReachableDFS(startSymbol);
+}
+
+
+void GrammarAnalysis::computeReachableDFS(Nonterminal *nt)
+{
+  if (nt->reachable) {
+    // already looked at this nonterminal
+    return;
+  }
+  nt->reachable = true;
+
+  // iterate over this nonterminal's rules
+  SFOREACH_PRODUCTION(productionsByLHS[nt->ntIndex], iter) {
+    // iterate over symbols in the rule RHS
+    FOREACH_OBJLIST(Production::RHSElt, iter.data()->right, jter) {
+      Production::RHSElt const *elt = jter.data();
+
+      if (elt->sym->isNonterminal()) {
+        // recursively analyze nonterminal elements
+        computeReachableDFS(elt->sym->ifNonterminal());
+      }
+      else {
+        // just mark terminals
+        elt->sym->reachable = true;
+      }
+    }
+  }
 }
 
 
@@ -3041,17 +3082,77 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
     printProductionsAndItems(cout, true /*code*/);
   }
 
-  // print the item sets
+  // open debug output file
+  ofstream *setsOutput = NULL;
   if (setsFname) {
-    ofstream os(setsFname);
-    if (!os) {
+    setsOutput = new ofstream(setsFname);
+    if (!*setsOutput) {
       cout << "couldn't open " << setsFname << " to write item sets\n";
-    }
-    else {
-      traceProgress() << "printing item sets to " << setsFname << " ..." << endl;
-      printItemSets(os);
+      delete setsOutput;
+      setsOutput = NULL;
     }
   }
+
+  // count the number of unreachable nonterminals & terminals
+  {                   
+    if (setsOutput) {
+      *setsOutput << "unreachable nonterminals:\n";
+    }
+    int ct=0;
+    FOREACH_NONTERMINAL(nonterminals, iter) {
+      if (!iter.data()->reachable) {
+        ct++;
+
+        if (setsOutput) {
+          *setsOutput << "  " << iter.data()->name << "\n";
+        }
+      }
+    }
+
+    if (ct > 0) {
+      cout << "grammar contains " << ct << " unreachable nonterminals\n";
+      // bison also reports the number of productions under all the
+      // unreachable nonterminals, but that doesn't seem especially
+      // useful to me
+    }
+
+    if (setsOutput) {
+      *setsOutput << "unreachable terminals:\n";
+    }
+    ct=0;
+    FOREACH_TERMINAL(terminals, jter) {
+      if (!jter.data()->reachable) {
+        ct++;
+
+        if (setsOutput) {
+          *setsOutput << "  " << jter.data()->name << "\n";
+        }
+      }
+    }
+
+    if (ct > 0) {
+      cout << "grammar contains " << ct << " unreachable terminals\n";
+    }
+  }
+
+  // print the item sets
+  if (setsOutput) {
+    traceProgress() << "printing item sets to " << setsFname << " ..." << endl;
+    printItemSets(*setsOutput);
+  }
+  
+  // print information about all tokens
+  if (setsOutput) {
+    *setsOutput << "terminals:\n";
+    FOREACH_TERMINAL(terminals, iter) {
+      Terminal const *t = iter.data();
+      *setsOutput << "  ";
+      t->print(*setsOutput);
+      *setsOutput << "\n";
+    }
+  }
+
+  delete setsOutput;
 
   // I don't need (most of) the item sets during parsing, so
   // throw them away once I'm done analyzing the grammar
@@ -3548,6 +3649,14 @@ int main(int argc, char **argv)
   {
     BFlatten flatOut(binFname, false /*reading*/);
     g.xfer(flatOut);
+  }
+
+  // write it in a bison-compatible format as well
+  {                     
+    string bisonFname = stringc << prefix << ".gr.gen.y";
+    traceProgress() << "writing bison-compatible grammar to " << bisonFname << endl;
+    ofstream out(bisonFname);
+    g.printAsBison(out);
   }
 
   if (testRW) {

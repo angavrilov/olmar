@@ -70,7 +70,11 @@ public:
   StringRef delParam;       // param name; may be NULL to indicate not used
   LocString delCode;        // code
 
-protected:  // funcs  
+// ----------- annotation ------------
+public:
+  bool reachable;           // computed by constructLRItemSets; true when nonterminal reachable from start symbol
+
+protected:  // funcs
   virtual void internalPrintDDM(ostream &os) const;
 
 public:      // funcs

@@ -30,7 +30,10 @@ Symbol::Symbol(LocString const &n, bool t, bool e = false)
     isEmptyString(e),
     type(NULL),
     dupParam(NULL),
-    delParam(NULL)
+    dupCode(),
+    delParam(NULL),
+    delCode(),
+    reachable(false)
 {}
 
 Symbol::~Symbol()
@@ -54,12 +57,14 @@ void Symbol::xfer(Flatten &flat)
   flat.xferBool(const_cast<bool&>(isEmptyString));
 
   flattenStrTable->xfer(flat, type);
-  
+
   flattenStrTable->xfer(flat, dupParam);
   dupCode.xfer(flat);
 
   flattenStrTable->xfer(flat, delParam);
   delCode.xfer(flat);
+  
+  flat.xferBool(reachable);
 }
 
 
@@ -747,6 +752,49 @@ void Grammar::printAsBison(ostream &os) const
   }
   os << "\n\n";
 
+  os << "/* -------- precedence and associativity ---------*/\n"
+        "/* low precedence */\n";
+  {
+    // first, compute the highest precedence used anywhere in the grammar
+    int highMark=0;
+    FOREACH_TERMINAL(terminals, iter) {
+      highMark = max(iter.data()->precedence, highMark);
+    }
+            
+    // map AssocKind to bison declaration; map stuff bison doesn't
+    // have to %nonassoc
+    static char const * const kindMap[NUM_ASSOC_KINDS] =
+      { "%left", "%right", "%nonassoc", "%nonassoc", "%nonassoc" };
+
+    // now iterate over the precedence levels (level 0 is skipped
+    // because it means 'unspecified')
+    for (int level=1; level <= highMark; level++) {
+      AssocKind kind = NUM_ASSOC_KINDS;   // means we haven't seen any kind yet
+      FOREACH_TERMINAL(terminals, iter) {
+        Terminal const *t = iter.data();
+
+        if (t->precedence == level) {
+          if (kind == NUM_ASSOC_KINDS) {
+            // first token at this level
+            kind = t->associativity;
+            os << kindMap[kind];
+          }
+          else if (kind != t->associativity) {
+            xfailure("different associativities at same precedence?!");
+          }
+
+          // print the token itself
+          os << " \"" << t->name << "\"";
+        }
+      }
+
+      // end of the level
+      os << "\n";
+    }
+  }
+  os << "/* high precedence */\n"
+        "\n\n";
+
   os << "/* -------- productions ------ */\n"
         "%%\n\n";
   // print every nonterminal's rules
@@ -783,6 +831,26 @@ void Grammar::printAsBison(ostream &os) const
         // or, if empty..
         if (prod.data()->rhsLength() == 0) {
           os << " /* empty */";
+        }
+
+        // precedence?
+        if (prod.data()->precedence) {
+          // search for a terminal with the required precedence level
+          bool found=false;
+          FOREACH_TERMINAL(terminals, iter) {
+            if (iter.data()->precedence == prod.data()->precedence) {
+              // found suitable token
+              os << " %prec \"" << iter.data()->name << "\"";
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            cout << "warning: cannot find token for precedence level "
+                 << prod.data()->precedence << endl;
+            os << " /* no token precedence level "/* */
+               << prod.data()->precedence << " */";
+          }
         }
 
         first = false;
