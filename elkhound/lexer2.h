@@ -5,7 +5,7 @@
 #define __LEXER2_H
 
 #include "lexer1.h"       // Lexer1
-#include "fileloc.h"      // SourceLocation
+#include "fileloc.h"      // SourceLocation (r)
 #include "strtable.h"     // StringRef, StringTable
 #include "useract.h"      // SemanticValue
 #include "lexerint.h"     // LexerInterface

@@ -7,8 +7,8 @@
 
 verbatim CCGr [
 
-#include "strtable.h"     // StringRef
-#include "cc_type.h"      // type identifiers like ST_CHAR
+#include "strtable.h"     // StringRef (r)
+#include "cc_type.h"      // type identifiers like ST_CHAR (r)
 #include "lexer2.h"       // lexer2's token ids for classify()
 #include "cparse.h"       // ParseEnv
 #include "trace.h"        // trace

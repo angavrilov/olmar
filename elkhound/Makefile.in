@@ -628,7 +628,7 @@ doc/glr.dot:
 
 # dependencies for 'ccgr', the prototype C parser and typechecker
 doc/cc.dot:
-	$(SMBASE)/scan-depends.pl -r -I$(AST) -Sglr.h ccgrmain.h >$@
+	$(SMBASE)/scan-depends.pl -r -I$(AST) -Sglr.h -Xfileloc.h ccgrmain.h >$@
 
 # dependencies for 'trivmain.cc', the trivial grammar driver
 doc/triv.dot:
@@ -657,13 +657,13 @@ doc-clean:
 # -------------------- clean, check, etc. ------------------
 clean:
 	rm -f *.o *~ *.d *.exe *.gen.* *.bin *.tab.* *.output
-	rm -f gramanl glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex
+	rm -f gramanl glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex cyctimer
 	rm -f lexer2 grampar.tab.* grampar a.out
 	rm -f cexp2.sem cexp2 cc.bin ccgr libccgr.a libglr.a
 	rm -f cc.gr.ps
 	rm -f core cdecl cexp3 bccgr cdecl2 cexp3b
 	rm -f bccgr.y cc.tok grampar.codes.h
-	rm -f gdb.log gprof.out gmon.out
+	rm -f gdb.log gprof.out gmon.out test-bad-tmp.c
 	cd triv; rm -f *.exe *.gen.* *.bin *.tab.* *.output *.y *.gr
 
 distclean:

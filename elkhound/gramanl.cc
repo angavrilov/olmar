@@ -4061,8 +4061,9 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
   #endif
   out << "\n";
   out << "#include <assert.h>      // assert\n";
+  out << "#include <iostream.h>    // cout\n";
   out << "#include \"useract.h\"     // SemanticValue\n";
-  out << "#include \"gramanl.h\"     // ParseTables\n";
+  out << "#include \"parsetables.h\" // ParseTables\n";
   out << "\n";
 
   // insert user's verbatim code at top

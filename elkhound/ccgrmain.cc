@@ -6,10 +6,11 @@
 
 #include "ccgrmain.h"     // this module, sorta..
 #include "trace.h"        // traceAddSys
-#include "parssppt.h"     // ParseTreeAndTokens, treeMain, sourceFileList
+#include "parssppt.h"     // ParseTreeAndTokens, treeMain
+#include "fileloc.h"      // sourceFileList (r)
 #include "ckheap.h"       // malloc_stats
-#include "c.ast.gen.h"    // C ast
 #include "cc_env.h"       // Env
+#include "c.ast.gen.h"    // C AST (r)
 #include "strutil.h"      // plural
 #include "cc_lang.h"      // CCLang
 #include "treeout.h"      // treeOut
@@ -20,6 +21,7 @@
 Lexer2Token const *yylval = NULL;
 
 // how to get the parse tables
+// linkdepend: cc.gr.gen.cc
 ParseTables *make_CCGr_tables();
 
 

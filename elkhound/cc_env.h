@@ -4,7 +4,7 @@
 #ifndef CC_ENV_H
 #define CC_ENV_H
 
-#include "cc_type.h"      // Type, AtomicType, etc.
+#include "cc_type.h"      // Type, AtomicType, etc. (r)
 #include "strobjdict.h"   // StrObjDict
 #include "strsobjdict.h"  // StrSObjDict
 #include "owner.h"        // Owner
@@ -13,7 +13,7 @@
 #include "objstack.h"     // ObjStack
 #include "sobjstack.h"    // SObjStack
 #include "c.ast.gen.h"    // C ast components
-#include "variable.h"     // Variable
+#include "variable.h"     // Variable (r)
 
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h

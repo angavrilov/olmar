@@ -2,9 +2,7 @@
 // code for cc_type.h
 
 #include "cc_type.h"    // this module
-//#include "cc_env.h"     // Env
 #include "trace.h"      // tracingSys
-//#include "cil.h"        // CilExpr
 #include <assert.h>     // assert
 
 

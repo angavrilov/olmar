@@ -3,9 +3,9 @@
 
 // included in generated header
 verbatim {
-  #include "cc_flags.h"      // CVFlags, DeclFlags, etc.
   #include "sobjlist.h"      // SObjList
   #include "variable.h"      // Variable
+  #include "cc_flags.h"      // CVFlags, DeclFlags, etc. (r)
   #include "cc_type.h"       // Type, FunctonType, CompoundType
 
   class Env;                 // cc_env.h
