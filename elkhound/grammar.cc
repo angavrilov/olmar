@@ -786,6 +786,7 @@ Grammar::Grammar()
   : startSymbol(NULL),
     emptyString(LocString(HERE_SOURCELOC, "empty"),
                 true /*isEmptyString*/),
+    targetLang("C++"),
     useGCDefaults(false),
     defaultMergeAborts(false),
     expectedSR(-1),
@@ -815,7 +816,8 @@ void Grammar::xfer(Flatten &flat)
   xferObjList(flat, actionClasses);
 
   xferObjList(flat, implVerbatim);
-
+                               
+  targetLang.xfer(flat);
   flat.xferBool(useGCDefaults);
   flat.xferBool(defaultMergeAborts);
 

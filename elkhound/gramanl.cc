@@ -15,6 +15,7 @@
 #include "emitcode.h"    // EmitCode
 #include "strutil.h"     // replace
 #include "ckheap.h"      // numMallocCalls
+#include "genml.h"       // emitMLActionCode
 
 #include <fstream.h>     // ofstream
 #include <stdlib.h>      // getenv
@@ -4831,7 +4832,7 @@ int inner_entry(int argc, char **argv)
   // as long as this remains 0-length, it means to use
   // the default naming scheme
   string prefix;
-  
+
   while (argv[0] && argv[0][0] == '-') {
     char const *op = argv[0]+1;
     if (0==strcmp(op, "tr")) {
@@ -4919,13 +4920,24 @@ int inner_entry(int argc, char **argv)
     return 2;
   }
 
-  // emit some C++ code
-  string hFname = stringc << prefix << ".h";
-  string ccFname = stringc << prefix << ".cc";
-  traceProgress() << "emitting C++ code to " << ccFname
-                  << " and " << hFname << " ...\n";
+  if (!g.targetLang.equals("OCaml")) {
+    // emit some C++ code
+    string hFname = stringc << prefix << ".h";
+    string ccFname = stringc << prefix << ".cc";
+    traceProgress() << "emitting C++ code to " << ccFname
+                    << " and " << hFname << " ...\n";
 
-  emitActionCode(g, hFname, ccFname, grammarFname);
+    emitActionCode(g, hFname, ccFname, grammarFname);
+  }
+  else {
+    // emit some ML code
+    string mliFname = stringc << prefix << ".mli";
+    string mlFname = stringc << prefix << ".ml";
+    traceProgress() << "emitting OCaml code to " << mlFname 
+                    << " and " << mliFname << " ...\n";
+
+    emitMLActionCode(g, mliFname, mlFname, grammarFname);
+  }
 
   // before using 'xfer' we have to tell it about the string table
   flattenStrTable = &grammarStringTable;

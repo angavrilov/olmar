@@ -2,7 +2,7 @@
 # see license.txt for copyright and terms of use
 
 # I uncomment this temporarily to just build certain modules
-#tmp: parsetables.o elkhound libelkhound.a
+#tmp: parsetables.o elkhound libelkhound.a ocaml
 
 # main targets: elkhound, a C parser and a C++ parser
 all: elkhound libelkhound.a TAGS arith c cc2/cc2.exe
@@ -62,8 +62,10 @@ grammar-set := \
 -include $(grammar-set:.o=.d)
 
 # in addition to grammar-set, files needed to parse a grammar description
+# and emit action code
 grampar-set := \
   emitcode.o \
+  genml.o \
   gramast.ast.gen.o \
   gramlex.yy.o \
   grampar.o \
@@ -281,6 +283,10 @@ examples: all glrmain.o arith gcom
 	$(MAKE) -C examples/cexp
 	$(MAKE) -C examples/cdecl
 	$(MAKE) -C examples/scannerless
+
+.PHONY: ocaml
+ocaml:
+	$(MAKE) -C ocaml
 
 
 # ---------------------------- gcom -----------------------

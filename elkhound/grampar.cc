@@ -169,15 +169,9 @@ LocString extractActionClassName(LocString const &body)
 }
 
 
-// map the grammar definition AST into a Grammar data structure
-void astParseGrammar(Grammar &g, GrammarAST *ast)
+// handle TF_verbatim and TF_option
+void astParseOptions(Grammar &g, GrammarAST *ast)
 {
-  // default, empty environment
-  Environment env(g);
-
-  // handle TF_terminals
-  astParseTerminals(env, *(ast->terms));
-
   // handle TF_verbatim and TF_option
   FOREACH_ASTLIST_NC(TopForm, ast->forms, iter) {
     ASTSWITCH(TopForm, iter.data()) {
@@ -220,6 +214,9 @@ void astParseGrammar(Grammar &g, GrammarAST *ast)
         else if (name.equals("unreachable_terminals")) {
           g.expectedUNRTerms = value;
         }
+        else if (name.equals("lang_OCaml")) {
+          g.targetLang = "OCaml";
+        }
         else {
           astParseError(name, "unknown option name");
         }
@@ -228,6 +225,17 @@ void astParseGrammar(Grammar &g, GrammarAST *ast)
       ASTENDCASED
     }
   }
+}
+
+
+// map the grammar definition AST into a Grammar data structure
+void astParseGrammar(Grammar &g, GrammarAST *ast)
+{
+  // default, empty environment
+  Environment env(g);
+
+  // handle TF_terminals
+  astParseTerminals(env, *(ast->terms));
 
   // process all nonterminal declarations first, so while we're
   // looking at their bodies we can tell if one isn't declared
@@ -479,7 +487,7 @@ void astParseDDM(Environment &env, Symbol *sym,
 }
 
 
-void synthesizeStartRule(GrammarAST *ast)
+void synthesizeStartRule(Grammar &g, GrammarAST *ast)
 {
   // get the first nonterminal; this is the user's start symbol
   TF_nonterm *firstNT = ast->firstNT;
@@ -502,7 +510,8 @@ void synthesizeStartRule(GrammarAST *ast)
   ASTList<RHSElt> *rhs = new ASTList<RHSElt>();
   rhs->append(rhs1);
   rhs->append(rhs2);
-  char const *action = firstNT->type.equals("void")? " return; " :
+  char const *action = g.targetLang.equals("OCaml")? " top " :
+                       firstNT->type.equals("void")? " return; " :
                                                      " return top; ";
   ProdDecl *startProd = new ProdDecl(rhs, LIT_STR(action).clone());
 
@@ -1019,9 +1028,13 @@ GrammarAST *parseGrammarFile(char const *fname)
 void parseGrammarAST(Grammar &g, GrammarAST *treeTop)
 {
   setAnnotations(treeTop);
+  
+  // look at TF_options before synthesizing start rule,
+  // so we can know what language is the target
+  astParseOptions(g, treeTop);
 
   // synthesize a rule "TrueStart -> Start EOF"
-  synthesizeStartRule(treeTop);
+  synthesizeStartRule(g, treeTop);
 
   // parse the AST into a Grammar
   traceProgress() << "parsing grammar AST..\n";

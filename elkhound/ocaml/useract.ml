@@ -46,7 +46,7 @@ type tUserActions = {
     unit;
 
   (* merge svals for alternative derivations of the same nonterminal *)
-  mergeAlternativeParsers:
+  mergeAlternativeParses:
     int ->                     (* nonterminal with two derivations *)
     tSemanticValue ->          (* sval from derivation 1 *)  
     tSemanticValue ->          (* sval from derivation 2 *)
@@ -69,7 +69,7 @@ type tUserActions = {
 
 
 (* ---------------- sample reduction actions -------------- *)
-let arithUserActions = {
+let handcoded_arithUserActions = {
   reductionAction = (fun prodId svals -> (
     (* this is how ocamlyacc does it, so I assume it's the fastest way *)
     let actions : (tSemanticValue array -> tSemanticValue) array = [|
@@ -135,7 +135,7 @@ let arithUserActions = {
   deallocateTerminalValue = (fun termId sval -> ());
   deallocateNontermValue = (fun termId sval -> ());
   
-  mergeAlternativeParsers = (fun nontermId sval1 sval2 -> sval1);
+  mergeAlternativeParses = (fun nontermId sval1 sval2 -> sval1);
   
   keepNontermValue = (fun nontermId sval -> true);
 

@@ -1037,7 +1037,7 @@ begin
           else (
             (* call user's merge code *)
             sibLink.sval <-
-              (glr.userAct.mergeAlternativeParsers lhsIndex sibLink.sval sval);
+              (glr.userAct.mergeAlternativeParses lhsIndex sibLink.sval sval);
           );
 
           (* ok, done *)

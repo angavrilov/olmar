@@ -7,6 +7,7 @@ open Glr           (* tGLR, makeGLR, glrParse *)
 open Useract       (* tSemanticValue *)
 open Parsetables   (* tParseTables *)
 open Useract       (* tUserActions *)
+open Arith         (* arithParseTables, arithUserActions *)
 
 (* ------------------ lexer ------------------- *)
 class tLexer =

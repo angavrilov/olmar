@@ -4,3 +4,4 @@ main
 *.d
 tobjpool
 tmp
+arith.ml*

@@ -1,14 +1,23 @@
 # Makefile
 
+# directories
+ELKHOUND := ..
+
 #tmp: glr.cmo
 
-all: tobjpool main glr.cmo
+all: tobjpool main
 
 # using dependency strategy from 
 # http://www.cs.berkeley.edu/~smcpeak/autodepend/autodepend.html
 %.cmo: %.ml
 	ocamlc -c -g $*.ml
 	@ocamldep $*.ml > $*.d
+
+# run elkhound on the sample grammar spec
+# (for now I don't want to use the interface stuff)
+arith.ml: arith.gr $(ELKHOUND)/elkhound
+	$(ELKHOUND)/elkhound -v arith.gr
+	rm -f arith.mli
 
 # NOTE: Module order is important!  OCaml module dependencies cannot
 # be cyclic, and the order presented must respect the dependency order.
@@ -28,6 +37,7 @@ MAIN_MODULES = \
   arraystack.cmo \
   objpool.cmo \
   glr.cmo \
+  arith.cmo \
   main.cmo
 main: $(MAIN_MODULES)
 	ocamlc -o $@ -g $^
@@ -39,4 +49,4 @@ ALL_MODULES = \
 -include $(ALL_MODULES:.cmo=.d)
 
 clean:
-	rm -f *.cmo *.cmi main tobjpool
+	rm -f *.cmo *.cmi arith.ml* main tobjpool

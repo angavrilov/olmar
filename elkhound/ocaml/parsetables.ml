@@ -93,7 +93,7 @@ type tParseTables = {
 
 
 (* ------------- sample parse tables (from arith.gr.gen.cc) ------------ *)
-let arithParseTables:tParseTables = {
+let handcoded_arithParseTables:tParseTables = {
   numTerms = 8;
   numNonterms = 4;
   numProds = 8;

@@ -474,6 +474,9 @@ public:	    // data
   ObjList<LocString> implVerbatim;
 
   // ---- declarative options ----
+  // name of the target language; nominally "C++"
+  string targetLang;
+
   // when true, the default dup/del is what's expected for a
   // garbage-collected system: dup() is the identity function,
   // and del() is a no-op

@@ -323,6 +323,9 @@ public:     // funcs
   // the program that will ultimately do the parsing
   void emitConstructionCode(EmitCode &out, char const *className, char const *funcName);
 
+  // this does the same thing for ML, and is implemented in genml.cc
+  void emitMLConstructionCode(EmitCode &out, char const *className, char const *funcName);
+
 
   // -------------------- table construction ------------------------
   // CRS dest-state origin tables
