@@ -12,14 +12,24 @@ void addone()
   x = x + 1;
 }
 
+void bar()
+  thmprv_pre
+    int pre_x = x;
+    x > 0;
+  thmprv_post
+    x == pre_x;
+{}
+
 int main()
 {
   x = 2;
   thmprv_assert x == 2;
-  
+
   addone();
   thmprv_assert x == 3;
-  thmprv_assert x != 4;
+
+  bar();
+  thmprv_assert x == 3;
 
   return 0;
 }

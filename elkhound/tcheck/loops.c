@@ -1,4 +1,5 @@
 // loops.c
+// NUMERRORS 0
 // test my CFG extraction
 
 void foo()

@@ -421,6 +421,23 @@ void /*Type const * */D_name::itcheck(Env &env, Type const *base,
   xassert(declarator->var == NULL);     // otherwise leak
   declarator->var = var;
 
+  // look at the attributes
+  if (attr) {
+    xassert(attr->name == env.str("attr"));
+    FOREACH_ASTLIST_NC(ThmprvAttr, attr->args, iter) {
+      ThmprvAttr *at = iter.data();
+      if (at->name == env.str("addrtaken")) {
+        var->setFlag(DF_ADDRTAKEN);
+        if (at->args.count() != 0) {
+          env.err(stringc << "addrtaken cannot have parameters");
+        }
+      }
+      else {
+        env.err(stringc << "unknown attribute " << at->name);
+      }
+    }
+  }
+
   // one way this happens is in prototypes with unnamed arguments
   if (!name) {
     // skip the following
@@ -1112,7 +1129,21 @@ Type const *E_addrOf::itcheck(Env &env)
   if (expr->isE_variable()) {
     // mark the variable as having its address taken
     Variable *v = expr->asE_variable()->var;
-    v->flags = (DeclFlags)(v->flags | DF_ADDRTAKEN);
+    if (!v->isGlobal()) {
+      // for locals, we infer DF_ADDRTAKEN simply by scanning the
+      // body of the function
+      v->setFlag(DF_ADDRTAKEN);
+    }
+    else {
+      // for globals, we require that DF_ADDRTAKEN be specified by
+      // an attribute, for it to be legal to take that global's
+      // address, so we have a consistent view across compilation
+      // units
+      if (!v->hasFlag(DF_ADDRTAKEN)) {
+        env.err(stringc << "you have to mark the global " << v->name
+                        << " as thmprv_attr(addrtaken) if you take its address");
+      }
+    }
   }
 
   return env.makePtrOperType(PO_POINTER, CV_NONE, t);

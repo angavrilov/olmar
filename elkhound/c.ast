@@ -184,17 +184,25 @@ class IDeclarator {
 
   // dig down and find the name being declared; may return NULL
   pure_virtual StringRef getName() const;
+                                                                
+  // "x" (NULL means abstract declarator or anonymous parameter)
+  -> D_name(SourceLocation loc, StringRef /*nullable*/ name,
+            ThmprvAttr attr);
 
-  -> D_name(SourceLocation loc, StringRef /*nullable*/ name);   // "x" (NULL means abstract declarator or anonymous parameter)
-  -> D_func(SourceLocation loc, IDeclarator base, 
-            ASTList<ASTTypeId> params, ASTList<FuncAnnotation> ann) {        // "f(int)"
+  // "f(int)"
+  -> D_func(SourceLocation loc, IDeclarator base,
+            ASTList<ASTTypeId> params, ASTList<FuncAnnotation> ann) {
        // variable synthesized to give a name to the return value
        public Variable *result;        // (owner)
        ctor result=NULL;
        dtor delete result;
      }
-  -> D_array(IDeclarator base, Expression /*nullable*/ size);   // "a[5]" or "b[]"
-  -> D_bitfield(StringRef /*nullable*/ name, Expression bits);  // "c : 2"
+
+  // "a[5]" or "b[]"
+  -> D_array(IDeclarator base, Expression /*nullable*/ size);
+
+  // "c : 2"
+  -> D_bitfield(StringRef /*nullable*/ name, Expression bits);
 }
 
 // each star is associated with one of these; it's here so I can expand
@@ -419,3 +427,10 @@ class FuncAnnotation {
   -> FA_precondition(ASTList<Declaration> decls, Expression expr);
   -> FA_postcondition(Expression expr);
 }
+
+// Typically a name will have associated with it a list of attributes,
+// which is wrapped up into a single attribute with the name "attr".
+// Each of these attributes can then be just a name (with empty args)
+// or a name with some attr args (and so on recursively).  It's wrapped
+// like this so unattributed names can have a simple NULL*.
+class ThmprvAttr(StringRef name, ASTList<ThmprvAttr> args);

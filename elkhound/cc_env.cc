@@ -650,7 +650,8 @@ void Env::errIf(bool condition, char const *str)
 // ------------------- translation context -------------------
 Type const *Env::getCurrentRetType()
 {
-  return currentFunction->nameParams->var->type;
+  return currentFunction->nameParams->var->type
+           ->asFunctionTypeC().retType;
 }
 
 

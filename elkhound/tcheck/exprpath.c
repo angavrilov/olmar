@@ -1,4 +1,5 @@
 // exprpath.c
+// NUMERRORS 0
 // demonstrate a range of expressions with tricky control flow paths
   
 
@@ -51,10 +52,10 @@ void foo()
   x++? (y++ + y++) : z++;
   x++? y++ : (z++ + z++);
   
-  x ?: y;
-  x++ ?: y;
-  x ?: y++;
-  x++ ?: y++;
+  //x ?: y;
+  //x++ ?: y;
+  //x ?: y++;
+  //x++ ?: y++;
   
   x,y;
   x++, y;
@@ -67,9 +68,9 @@ void foo()
   //(x=y) = x++;
 
   x += y;
-  x++ += y;
+  //x++ += y;
   x += y++;
-  x++ += y++;
+  //x++ += y++;
 
   x ? y++ :
   y ? z++ :

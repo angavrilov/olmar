@@ -231,7 +231,7 @@ public:     // funcs
 
 
   // ------------------ error/warning reporting -----------------
-  // report an error
+  // report an error ('str' should *not* have a newline)
   virtual void err(char const *str);
   void warn(char const *str);
 

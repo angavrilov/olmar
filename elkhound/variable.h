@@ -36,7 +36,7 @@ public:    // funcs
            Type const *t, DeclFlags f);
   ~Variable();
 
-  bool hasFlag(DeclFlags f) const { return flags & f != 0; }
+  bool hasFlag(DeclFlags f) const { return (flags & f) != 0; }
   void setFlag(DeclFlags f) { flags = (DeclFlags)(flags | f); }
 
   // some convenient interpretations of 'flags'

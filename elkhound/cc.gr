@@ -18,8 +18,12 @@ verbatim CCGr [
   trace("cc") << msg << endl
 
 class CCGr : public UserActions, public ParseEnv {
-public:
-  CCGr(StringTable &table) : ParseEnv(table) {}
+public:    // data 
+  StringRef strRefAttr;         // "attr"
+
+public:    // funcs
+  CCGr(StringTable &table)
+    : ParseEnv(table), strRefAttr(table.add("attr")) {}
 
 private:
   #include "cc.gr.gen.h"
@@ -35,7 +39,7 @@ UserActions *makeUserActions(StringTable &table)
 ASTTypeId *ellipsisTypeId()
 {
   return new ASTTypeId(new TS_simple(ST_ELLIPSIS),
-                       new Declarator(new D_name(SourceLocation(), NULL), NULL));
+                       new Declarator(new D_name(SourceLocation(), NULL, NULL), NULL));
 }
 
 ]
@@ -943,8 +947,8 @@ nonterm[IDeclarator*] Declarator {
 nonterm[IDeclarator*] DirectDeclarator {
   // it doesn't matter how this was classified before, because
   // a declarator binds a new name, so it shadows any prior definitions
-  -> n:AnyName
-       [ return new D_name(loc, n); ]
+  -> n:AnyName a:ThmprvAttr
+       [ return new D_name(loc, n, a); ]
 
   // function declarator; the return type comes from the type
   // specifier that preceeds this
@@ -1013,7 +1017,7 @@ nonterm[IDeclarator*] DirectTypedefDeclarator {
        // TYPE/NAME
        D("defined new typedef name " << n);
        addType(n);
-       return new D_name(loc, n);
+       return new D_name(loc, n, NULL);
      ]
 
   -> d:DirectTypedefDeclarator "(" args:ParameterDeclarationClause ")" //CVQualifierSeqOpt
@@ -1040,7 +1044,7 @@ nonterm[ASTTypeId*] TypeId {
 }
 
 nonterm[IDeclarator*] AbstractDeclaratorOpt {
-  -> empty                 [ return new D_name(loc, NULL); ]
+  -> empty                 [ return new D_name(loc, NULL, NULL); ]
   -> d:AbstractDeclarator  [ return d; ]
 }
 
@@ -1054,7 +1058,7 @@ nonterm[IDeclarator*] AbstractDeclarator {
 }
 
 nonterm[IDeclarator*] DirectAbstractDeclaratorOpt {
-  -> empty                       [ return new D_name(loc, NULL); ]
+  -> empty                       [ return new D_name(loc, NULL, NULL); ]
   -> d:DirectAbstractDeclarator  [ return d; ]
 }
 
@@ -1547,4 +1551,25 @@ nonterm[ASTList<Declaration>*] DeclListOpt {
        [ return new ASTList<Declaration>(); ]
   -> list:DeclListOpt d:SimpleDeclaration
        [ list->append(d); return list; ]
+}
+
+nonterm[ThmprvAttr*] ThmprvAttr {
+  -> empty 
+       [ return NULL; ]
+  -> "thmprv_attr" "(" list:ThmprvAttrList ")"
+       [ return new ThmprvAttr(strRefAttr, list); ]
+}
+
+nonterm[ASTList<ThmprvAttr>*] ThmprvAttrList {
+  -> o:OneThmprvAttr
+       [ return new ASTList<ThmprvAttr>(o); ]
+  -> list:ThmprvAttrList "," o:OneThmprvAttr
+       [ list->append(o); return list; ]
+}
+
+nonterm[ThmprvAttr*] OneThmprvAttr {
+  -> name:AnyName
+       [ return new ThmprvAttr(name, NULL /*args*/); ]
+  -> name:AnyName "(" args:ThmprvAttrList ")"
+       [ return new ThmprvAttr(name, args); ]
 }
