@@ -3064,6 +3064,33 @@ Variable *Env::createDeclaration(
     }
 
     else {
+      // In the case of a duplicated function definition (yes, two
+      // bodies) if the first was extern inline, then just stomp on
+      // the old body with the new one.  This "feature" is documented
+      // here:
+      // http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Inline.html#Inline
+      // ; The documentation suggests that the first definition would
+      // be used up until the second is encountered, which would be
+      // the only possible behavior for a one-pass compiler when the
+      // first definition is being inlined; however that is not how
+      // gcc 3.4.0 actually behaves: the second definition is what is
+      // called at all call sites.
+      if (prior->hasFlag(DF_DEFINITION) &&
+          (dflags & DF_DEFINITION) &&
+          prior->type->isFunctionType() &&
+          type->isFunctionType() &&
+          prior->hasFlag(DF_EXTERN) &&
+          prior->hasFlag(DF_INLINE)) {
+        // blow away the previous function definition; high above us,
+        // it will be replaced
+        xassert(prior->funcDefn);
+        prior->funcDefn = NULL;
+        prior->loc = loc;       // use the new location as well
+        warning(stringc << "second definition for extern inline function " << prior->name
+                << " is overriding the first definition at " << prior->loc);
+        return prior;
+      }
+
       // check for violation of the One Definition Rule
       if (prior->hasFlag(DF_DEFINITION) &&
           (dflags & DF_DEFINITION) &&
