@@ -69,6 +69,9 @@ void CCLang::GNU_C()
   allowIncompleteEnums = true;
 }
 
+// dsw: FIX: Multiple inheritance problem: should this be an extension
+// of GNU_C() or of KandR_C().  This shows up because in GNU_C() you
+// set allowIncompleteEnums = true but here you don't.
 void CCLang::GNU_KandR_C()
 {
   KandR_C();
@@ -76,6 +79,7 @@ void CCLang::GNU_KandR_C()
   implicitFuncVariable = true;
   gccFuncBehavior = GFB_string;
   allowDynamicallySizedArrays = true;
+  allowIncompleteEnums = true;  // gnu according to Scott, above
   
   // this seems wrong, but Oink's tests want it this way...
   isC99 = true;
