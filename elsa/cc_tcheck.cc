@@ -3163,7 +3163,8 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     if (getDeclaratorId() &&
         getDeclaratorId()->isPQ_template()) {
       if (var->type->isFunctionType() &&
-          var->type->asFunctionType()->isConstructor()) {
+          (var->type->asFunctionType()->isConstructor() ||
+           var->type->asFunctionType()->isDestructor())) {   // k0019.cc
         // in/t0461.cc: template args on the name are simply naming the
         // type that this function constructs, so should not be copied
       }

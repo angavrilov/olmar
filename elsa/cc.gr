@@ -1487,6 +1487,8 @@ nonterm(PQName*) PQDtorName {
 
   -> "~" n:Identifier              
        { return new PQ_name(loc, str(stringc << "~" << n)); }
+  -> "~" n:Identifier "<" list:TemplateArgumentList ">"
+       { return new PQ_template(loc, str(stringc << "~" << n), list); }
 
   // as above for PQName_no_colon_colon, I'm temporarily removing an
   // ambiguity that relates to namespaces (e.g. "::F::~F()")
