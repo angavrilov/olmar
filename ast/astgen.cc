@@ -1316,6 +1316,18 @@ void entry(int argc, char **argv)
             exit(2);
           }
 
+          if (visitorName.length() > 0) {
+            // It would be conceivable to allow multiple visitors, but
+            // I don't see any advantage to doing so.  If the extension
+            // simply changes the name, then the resulting error messages
+            // (compilation errors from parts of the system using the
+            // old name) are not obvious to diagnose.
+            cout << "error: there is already a visitor class, called "
+                 << visitorName << "\n";
+            cout << "you should can use (subclass) that one\n";
+            exit(2);
+          }
+
           // name of the visitor interface class
           visitorName = *( op->args.firstC() );
         }

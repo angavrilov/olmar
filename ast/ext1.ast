@@ -6,6 +6,8 @@ verbatim {
   // first verbatim in ext1.ast
 }
 
+// another visitor?  now it's an error
+//option visitor ExtVisitor;
 
 class Node (int z) {
   public int an_annotation;
