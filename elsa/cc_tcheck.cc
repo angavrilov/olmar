@@ -4852,12 +4852,13 @@ Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
       // notice this fact and if we are in K and R C we insert a
       // variable with signature "int ()(...)" which is what I recall as
       // the correct signature for such an implicit variable.
-      if (env.lang.allowImplicitFunctionDecls && (flags & LF_FUNCTION_NAME)) {
+      if (env.lang.allowImplicitFunctionDecls && 
+          (flags & LF_FUNCTION_NAME) &&
+          name->isPQ_name()) {
         if (env.lang.allowImplicitFunctionDecls == B3_WARN) {
           env.warning(name->loc, stringc << "implicit declaration of `" << *name << "'");
         }
 
-        // this should happen in C mode only so name must be a PQ_name
         v = env.makeImplicitDeclFuncVar(name->asPQ_name()->name);
       }
       else {
