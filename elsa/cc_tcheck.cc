@@ -1223,7 +1223,7 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
   }
 
   if (!v->hasFlag(DF_TYPEDEF)) {
-    if (v->type->isSimple(ST_DEPENDENT)) {
+    if (v->type && v->type->isSimple(ST_DEPENDENT)) {
       // more informative error message (in/d0111.cc, error 1)
       return env.error(stringc
         << "dependent name `" << *name
