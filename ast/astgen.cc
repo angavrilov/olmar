@@ -268,6 +268,9 @@ void HGen::emitTFClass(TF_class const &cls)
 
     out << "  virtual Kind kind() const = 0;\n";
     out << "\n";
+    out << "  static char const * const kindNames[NUM_KINDS];\n";
+    out << "  char const *kindName() const { return kindNames[kind()]; }\n";
+    out << "\n";
   }
 
   // declare checked downcast functions
@@ -524,6 +527,17 @@ void CGen::emitTFClass(TF_class const &cls)
 
   // class destructor
   emitDestructor(*(cls.super));
+
+  // kind name map
+  if (cls.hasChildren()) {
+    out << "char const * const " << cls.super->name << "::kindNames["
+        <<   cls.super->name << "::NUM_KINDS] = {\n";
+    FOREACH_ASTLIST(ASTClass, cls.ctors, ctor) {
+      out << "  \"" << ctor.data()->name << "\",\n";
+    }
+    out << "};\n";
+    out << "\n";
+  }
 
   // debugPrint
   out << "void " << cls.super->name << "::debugPrint(ostream &os, int indent) const\n";
