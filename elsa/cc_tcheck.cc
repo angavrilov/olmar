@@ -1928,7 +1928,6 @@ void MR_decl::tcheck(Env &env)
     if (d->spec->isTS_classSpec()) {
       d->spec->asTS_classSpec()->tcheck(env, d->dflags);
     }
-
     return;
   }
 
