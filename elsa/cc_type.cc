@@ -1150,11 +1150,6 @@ Type *BaseType::getAtType() const
   else if (isPointerToMemberType()) {
     return asPointerToMemberTypeC()->atType;
   }
-  else if (isFunctionType()) {
-    // Scott, I see no way around this const cast
-    // sm: remove this case!
-    return const_cast<BaseType*>(this)->asFunctionType();
-  }
   else {
     xfailure("illegal call to getAtType");
     return NULL;       // silence warning
