@@ -208,7 +208,7 @@ bool Env::addVariable(Variable *v, bool forceReplace)
     // do much good; also add it to the enclosing scope
     if (s != scopes.first()) {
       error("did you just make a templatized member of an "
-            "anonymous union?  don't do that!");
+            "anonymous union?  silly rabbit!");
       return true;
     }
 

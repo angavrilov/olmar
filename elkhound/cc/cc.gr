@@ -1,6 +1,7 @@
 // cc.gr            see license.txt for copyright and terms of use
 // grammar for C++
 
+
 // A word of warning: there are three sources of names running
 // around here:
 //   (1) the c++ standard's grammar's names
@@ -11,7 +12,44 @@
 // for declarators) and where I've chosen to fold in "opt".  The
 // names in (3) are often different because later phases of analysis
 // want to see different conceptual structure.  Anyway, the point is
-// to be aware which kind of name a given thing is.
+// to be aware of which kind of name a given thing is.
+
+
+// Note about destructive actions: because semantic values can be
+// yielded to more than one reduction action (a phenomenon I call
+// "multi-yield"), actions which modify one of their subtree semantic
+// values are dangerous, because you can have actions from one
+// interpretation interfering with actions from another
+// interpretation.
+//
+// Therefore, to the extent reasonable, I avoid destructive actions.
+// 
+// However there are a few places where I want destructive actions
+// anyway, and there are two broad strategies employed for managing
+// them:                                                   
+//
+//   (1) Disable multi-yield for the modified subtrees.  If an action
+//       modifies subtree nonterminal 'A', then in the definition of
+//       'A' I say "dup(n) [ return NULL; ]" to ensure that once the
+//       value is yielded once, it can't be yielded again.  Thus, if
+//       in fact it *is* yielded a second time, I'll get a segfault
+//       which will alert me to the design flaw in my rules.
+//       (DeclSpecifier is a good example of this.)
+//
+//   (2) Design the actions to that multiple modifications are
+//       checked for bad interactions.  In this grammar that is what
+//       I do for FakeLists, where I either (a) prevent putting a
+//       node at the head of two lists, or else (b) make sure that
+//       the two lists are in fact the same list both times.  For
+//       potentially-ambiguous nodes with FakeList links (Expression
+//       and Declarator), additional measures are taken to ensure
+//       the consistency of interaction with the ambiguity links.
+//       (See Expression::addAmbiguity and Expression::setNext in
+//       cc_ast_aux.cc.)
+//
+// Every place there's a destructive modification which isn't handled
+// by FakeLists is marked by the phrase 'destructive action'.
+
 
 // this makes it so that, by default, dup() is the identity function,
 // and del() is a no-op
@@ -80,7 +118,11 @@ terminals {
 
   token[int] L2_INT_LITERAL ;
 
-  token[float*] L2_FLOAT_LITERAL ;
+  token[float*] L2_FLOAT_LITERAL {
+    // yields are destructive
+    dup(f) [ return new float(*f); ]
+    del(f) [ delete f; ]
+  }
 
   token[char] L2_CHAR_LITERAL ;
 
@@ -89,7 +131,7 @@ terminals {
     // run to possibly reclassify the token kind; the semantic
     // value is passed (and ParseEnv is available as context), but
     // the same semantic value will be used
-      
+
     // -- no lexer hack now --
     // I mark this, and all places the deal with resolving the
     // type-name vs variable-name ambiguity, with "TYPE/NAME"
@@ -101,7 +143,7 @@ terminals {
     //    return L2_VARIABLE_NAME;
     //  }
     //]
-    
+
     dup(n) [ return n; ]
     del(n) []
   }
@@ -174,8 +216,11 @@ nonterm[StringRef] TypeName {
 
 // ------ A.3 Basic Concepts ------
 nonterm[TranslationUnit*] TranslationUnit {
+  dup(n) [ return NULL; ]    // prevent multi-yield
+
   -> empty                                [ return new TranslationUnit(NULL); ]
 
+  // destructive action on 't'
   -> t:TranslationUnit d:Declaration      [ t->topForms.append(d); return t; ]
 }
 
@@ -209,6 +254,7 @@ nonterm[Expression*] PrimaryExpression {
 
 nonterm[Expression*] Literal {
   -> i:L2_INT_LITERAL    [ return new E_intLit(i); ]
+  // destructive action on 'f'
   -> f:L2_FLOAT_LITERAL  [ E_floatLit *ret = new E_floatLit(*f); delete f; return ret; ]
   -> s:StringLiteral     [ return new E_stringLit(s); ]
   -> c:L2_CHAR_LITERAL   [ return new E_charLit(c); ]
@@ -737,6 +783,7 @@ nonterm[Declaration*] BlockDeclaration {
 // ok, why is the InitDeclaratorList optional?
 //   for declaring classes and enums
 nonterm[Declaration*] SimpleDeclaration {
+  // destructive action on 'spec'
   //e.g.: int                x                     ;
   -> spec:DeclSpecifier list:InitDeclaratorListOpt ";"
        [ spec->decllist = list; return spec; ]
@@ -763,6 +810,8 @@ nonterm[Declaration*] SimpleDeclaration {
 // I return a Declaration object with an empty decllist, as a proxy
 // for returning dflags and spec as a pair
 nonterm[Declaration*] DeclSpecifier {
+  dup(d) [ return NULL; ]    // prevent multi-yield
+
   -> m:DeclModifierSeq s:TypeSpecifier
        [ return new Declaration(m, s, NULL); ]
 
@@ -841,6 +890,9 @@ nonterm[TypeSpecifier*] TypeSpecifier {
   // all of them precedence higher than const/volatile/attribute,
   // so we'll just prefer reducing always
 
+  // destructive actions on 's', but since any interpretation will
+  // have the same final effect of adding the cv flags to the
+  // specifier, I won't disable multi-yield for TypeSpecifier
   -> q:CVQualifier s:TypeSpecifier  precedence(L2_PREFER_REDUCE)   // const int
        [ s->cv = (CVFlags)(s->cv | q); return s; ]
   -> s:TypeSpecifier q:CVQualifier  precedence(L2_PREFER_REDUCE)   // int const
@@ -1069,10 +1121,14 @@ nonterm CommaOpt {
 }
 
 nonterm[IN_compound*] InitializerList {
+  dup(i) [ return NULL; ]     // prevent multi-yield
+
   -> init:InitializerClause
        [ IN_compound *list = new IN_compound(NULL);
          list->inits.append(init); 
          return list; ]
+         
+  // destructive action on 'list'
   -> list:InitializerList "," init:InitializerClause
        [ list->inits.append(init); return list; ]
 }
@@ -1319,6 +1375,8 @@ nonterm[Function*] FunctionDefinition {
   merge(L,R) [ xfailure("attempt to merge function defns"); return L; ]
 
 
+  // destructive action on 'r'
+
   // ordinary function:
   // return type      name/params   body
   -> r:DeclSpecifier  d:Declarator  b:FunctionBody
@@ -1408,9 +1466,12 @@ nonterm[enum TypeIntr] ClassKey {
 // I'm using an encapsulated ASTList to avoid right recursion,
 // since there are often many members of classes
 nonterm[MemberList*] MemberDeclarationSeqOpt {
+  dup(m) [ return NULL; ]       // prevent multi-yield
+
   -> empty
        [ return new MemberList(NULL); ]
 
+  // destructive actions on 'list'
   -> list:MemberDeclarationSeqOpt decl:MemberDeclaration
        [ list->list.append(decl); return list; ]
 
@@ -1433,6 +1494,7 @@ nonterm SemicolonOpt {
 }
 
 nonterm[Member*] MemberDeclaration {
+  // destructive action on 'spec'
   // member fn decl, or data member
   -> spec:DeclSpecifier list:MemberDeclaratorList ";"
        [ spec->decllist = list; 
