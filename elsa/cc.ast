@@ -514,6 +514,9 @@ class Expression {
     }
   }
 
+  // true if this expression is an E_binary with the given operator
+  public bool isBinary(BinaryOp op) const;
+
   // dig down past any E_grouping nodes; this is sometimes necessary
   // when a node needs to examine the syntax of subexpressions
   public Expression *skipGroups();

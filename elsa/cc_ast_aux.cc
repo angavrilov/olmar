@@ -711,6 +711,13 @@ void Expression::printExtras(ostream &os, int indent) const
 }
 
 
+bool Expression::isBinary(BinaryOp op) const
+{
+  return isE_binary() &&
+         asE_binaryC()->op == op;
+}
+
+
 // remove layers of parens: keep going down until the expression is
 // not an E_grouping and return that
 Expression *Expression::skipGroups()
