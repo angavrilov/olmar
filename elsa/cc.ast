@@ -59,7 +59,7 @@ class TopForm (SourceLoc loc) {
   -> TF_one_linkage(StringRef linkageType, TopForm form);
 
   // assembly directive at toplevel
-  -> TF_asm(StringRef text);
+  -> TF_asm(E_stringLit text);
 }
 
 
@@ -406,7 +406,7 @@ class Statement (SourceLoc loc) {
   -> S_goto(StringRef target);
   -> S_decl(Declaration decl);
   -> S_try(Statement body, FakeList<Handler> *handlers);
-  -> S_asm(StringRef text);
+  -> S_asm(E_stringLit text);
 }
 
 // condition expression in a control-flow statement; it's allowed

@@ -1115,12 +1115,55 @@ nonterm(Enumerator*) EnumeratorDefinition {
        { return new Enumerator(loc, name, expr); }
 }
 
-  
-nonterm(StringRef) AsmDefinition {
-  -> "asm" "(" s:TOK_STRING_LITERAL ")" ";"    { return s; }
 
-   // NOTE: the volatile modifier is simply discarded here
-  -> "asm" "volatile" "(" s:TOK_STRING_LITERAL ")" ";"    { return s; }
+nonterm(UberModifiers) VolatileOpt {
+  -> empty
+       { return UM_NONE; }
+  -> "volatile"
+       { return UM_VOLATILE; }
+}
+
+
+// dsw: FIX: add returning semantic value
+nonterm BracketedWordOpt {
+  -> empty { return 0; }
+  -> "[" id:Identifier "]" { return 0; }
+}
+
+
+// dsw: FIX: add returning semantic value
+nonterm ParenthesizedExpressionOpt {
+  -> empty { return 0; }
+  ->  "(" e:Expression ")" { return 0; }
+}
+
+
+// dsw: FIX: add returning semantic value
+nonterm OpConstraint {
+  -> name:BracketedWordOpt constr:StringLiteral e:ParenthesizedExpressionOpt { return 0; }
+}
+
+
+// dsw: FIX: add returning semantic value
+nonterm OpConstraintList {
+  -> empty { return 0; }
+  -> oc:OpConstraint { return 0; }
+  -> oc:OpConstraint "," ocl:OpConstraintList { return 0; }
+}
+
+
+// dsw: FIX: add returning semantic value
+// note: technically you can only have up to 3, but I allow 0 or more
+nonterm OpConstraints {
+  -> empty { return 0; }
+  -> ocs:OpConstraints ":" ocl:OpConstraintList { return 0; }
+}
+
+  
+// dsw: FIX: add returning rest of semantic value
+nonterm(E_stringLit*) AsmDefinition {
+  // NOTE: volatile modifier is simply discarded here
+  -> "asm" vo:VolatileOpt "(" s:StringLiteral ocs:OpConstraints ")" ";"    { return s; }
 }
 
 
