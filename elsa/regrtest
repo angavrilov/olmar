@@ -231,6 +231,10 @@ T="$T t0037.cc"
 # getIter() to return void or an Iter reference.  Change the Iter ctor
 # to have no arguments and make "StringDict &dict" a member of class
 # Iter.  Change the Iter ctor to just be a normal method.
+
+# Also, it fails in a different way if StringDict is passed as a
+# parameter by value instead of by reference.
+
 # T="$T t0038.cc"
 
 T="$T t0039.cc"
