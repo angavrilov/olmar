@@ -1,4 +1,4 @@
-// owner.h
+// owner.h            see license.txt for copyright and terms of use
 // a stab at an owner ptr abstraction
 
 #ifndef __OWNER_H

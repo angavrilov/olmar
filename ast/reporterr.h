@@ -1,4 +1,4 @@
-// reporterr.h
+// reporterr.h            see license.txt for copyright and terms of use
 // interface for reporting errors and warnings
 
 #ifndef REPORTERR_H

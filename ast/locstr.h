@@ -1,4 +1,4 @@
-// locstr.h
+// locstr.h            see license.txt for copyright and terms of use
 // location & string table reference
 
 #ifndef LOCSTR_H

@@ -1,4 +1,4 @@
-// gramlex.h
+// gramlex.h            see license.txt for copyright and terms of use
 // GrammarLexer: a c++ lexer class for use with Flex's generated c++ scanner
 // this lexer class is used both for parsing both AST and grammar descriptions;
 // they differ in their .lex description, but their lexing state is the same

@@ -1,4 +1,4 @@
-// asthelp.cc
+// asthelp.cc            see license.txt for copyright and terms of use
 // code for what's declared in asthelp.h
 
 #include "asthelp.h"       // this module

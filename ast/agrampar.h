@@ -1,4 +1,4 @@
-// agrampar.h
+// agrampar.h            see license.txt for copyright and terms of use
 // declarations for things that the bison-generated parser uses
 
 #ifndef AGRAMPAR_H

@@ -1,4 +1,4 @@
-// embedded.cc
+// embedded.cc            see license.txt for copyright and terms of use
 // code for embedded.h
 
 #include "embedded.h"     // EmbeddedLang

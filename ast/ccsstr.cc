@@ -1,4 +1,4 @@
-// ccsstr.cc
+// ccsstr.cc            see license.txt for copyright and terms of use
 // code for ccsstr.h
 
 #include "ccsstr.h"      // this module

@@ -1,4 +1,5 @@
 # Makefile for ast project
+# see license.txt for copyright and terms of use
 
 SMBASE  := ../smbase
 
@@ -84,6 +85,7 @@ example.cc: astgen example.ast
 
 clean:
 	rm -f *.o agrampar astgen agrampar.tab.* tmp *.d ccsstr towner
+	rm -f agrampar.{codes.h,output} agramlex.yy.cc
 
 # test for owner
 towner: owner.h towner.cc

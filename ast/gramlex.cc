@@ -1,4 +1,4 @@
-// gramlex.cc
+// gramlex.cc            see license.txt for copyright and terms of use
 // code for gramlex.h
 
 #include "gramlex.h"     // this module

@@ -1,4 +1,4 @@
-// strtable.h
+// strtable.h            see license.txt for copyright and terms of use
 // implements a collection of immutable strings with unique representatives
 
 #ifndef STRTABLE_H

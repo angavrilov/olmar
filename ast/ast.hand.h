@@ -1,4 +1,4 @@
-// ast.hand.h
+// ast.hand.h            see license.txt for copyright and terms of use
 // generated (by hand) from ast.ast
 
 #ifndef BOOTSTRAP

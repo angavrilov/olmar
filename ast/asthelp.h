@@ -1,4 +1,4 @@
-// asthelp.h
+// asthelp.h            see license.txt for copyright and terms of use
 // included by generated ast code
 
 #ifndef ASTHELP_H

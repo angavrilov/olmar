@@ -1,4 +1,4 @@
-// embedded.h
+// embedded.h            see license.txt for copyright and terms of use
 // interface to an embedded language processor
 
 #ifndef EMBEDDED_H

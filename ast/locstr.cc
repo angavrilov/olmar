@@ -1,4 +1,4 @@
-// locstr.cc
+// locstr.cc            see license.txt for copyright and terms of use
 // code for locstr.h
 
 #include "locstr.h"     // this module

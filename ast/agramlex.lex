@@ -1,4 +1,4 @@
-/* agrammar.lex
+/* agrammar.lex            see license.txt for copyright and terms of use
  * lexical analyzer for my AST input format
  */
 

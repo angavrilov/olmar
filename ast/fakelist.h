@@ -1,4 +1,4 @@
-// fakelist.h
+// fakelist.h            see license.txt for copyright and terms of use
 // headerless list of nodes where each node has a 'next' field
 
 #ifndef FAKELIST_H

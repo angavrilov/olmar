@@ -1,4 +1,4 @@
-/* agrampar.y
+/* agrampar.y            see license.txt for copyright and terms of use
  * parser for abstract grammar definitions (.ast files) */
 
 

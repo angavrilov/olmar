@@ -1,4 +1,4 @@
-// reporterr.cc
+// reporterr.cc            see license.txt for copyright and terms of use
 // code for reporterr.h
 
 #include "reporterr.h"      // this module

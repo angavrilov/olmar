@@ -1,4 +1,4 @@
-// ccsstr.h
+// ccsstr.h            see license.txt for copyright and terms of use
 // C++ substrate for my parser
 
 #ifndef __CCSSTR_H

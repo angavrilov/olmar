@@ -1,4 +1,4 @@
-// fileloc.h
+// fileloc.h            see license.txt for copyright and terms of use
 // data structures for recording character positions in files
 
 #ifndef __FILELOC_H

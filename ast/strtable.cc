@@ -1,4 +1,4 @@
-// strtable.cc
+// strtable.cc            see license.txt for copyright and terms of use
 // code for strtable.h
 
 #include "strtable.h"    // this module
