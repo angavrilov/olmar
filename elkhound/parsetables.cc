@@ -40,6 +40,8 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
   
   delayedStates = new unsigned char[delayedTableSize()];
   memset(delayedStates, 0, sizeof(delayedStates[0]) * delayedTableSize());
+  
+  derivability = new Bit2d(point(numNonterms, numNonterms));
 }
 
 
@@ -54,9 +56,13 @@ ParseTables::~ParseTables()
     for (int i=0; i<numAmbig(); i++) {
       delete[] ambigAction[i];
     }
-    
+
     delete[] delayedStates;
   }
+  
+  // this is always owned, but the object itself might not own
+  // its internal data (that's controlled by a flag inside it)
+  delete derivability;
 }
 
 

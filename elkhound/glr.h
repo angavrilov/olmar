@@ -254,8 +254,9 @@ public:
 // across the recursion (comments in code have some details, too)
 class PathCollectionState {
 public:    // types
-  // each particular reduction possibility is one of these
-  class ReductionPath {
+  // this is the result of applying a reduction action along
+  // a particular path in the stack
+  class ReducedPath {
   public:
     // the state we end up in after reducing those symbols
     RCPtr<StackNode> finalState;
@@ -271,13 +272,13 @@ public:    // types
     // state from 'obj' to 'this', on the expectation that 'obj'
     // is about to be deallocated (since we transfer state, 'obj'
     // is *not* const)
-    ReductionPath& operator=(ReductionPath &obj);
-    friend class GrowArray<ReductionPath>;
+    ReducedPath& operator=(ReducedPath &obj);
+    friend class GrowArray<ReducedPath>;
 
   public:
-    ReductionPath()
+    ReducedPath()
       : finalState(NULL_SVAL), sval(NULL_SVAL)  SOURCELOCARG( loc() ) {}
-    ~ReductionPath();
+    ~ReducedPath();
 
     // begin using this
     void init(StackNode *f, SemanticValue s 
@@ -312,7 +313,7 @@ public:	   // data
   //SymbolId *symbols;             // (owner ptr to array)
 
   // as reduction possibilities are encountered, we record them here
-  ArrayStack<ReductionPath> paths;
+  ArrayStack<ReducedPath> paths;
 
 public:	   // funcs
   PathCollectionState();
@@ -325,8 +326,8 @@ public:	   // funcs
   void deinit();
                   
   // add something to the 'paths' array
-  void addReductionPath(StackNode *f, SemanticValue s
-                        SOURCELOCARG( SourceLocation const &L ) );
+  void addReducedPath(StackNode *f, SemanticValue s
+                      SOURCELOCARG( SourceLocation const &L ) );
 };
 
 
@@ -346,8 +347,12 @@ public:
   void empty() { eager.empty(); delayed.empty(); }
 
   // test if both lists are empty
-  bool isEmpty() const;
+  bool isEmpty() const { return eager.isEmpty() && delayed.isEmpty(); }
   bool isNotEmpty() const { return !isEmpty(); }
+
+  // test for empty, or no clear choice for next state
+  bool isEmpty_prime() const;
+  bool isNotEmpty_prime() const { return !isEmpty_prime(); }
 
   // remove a node from one of the lists (eager is preferred);
   // 'isEmpty()' must be false to do this
@@ -355,6 +360,98 @@ public:
 
   // sum of the lengths
   int length() const { return eager.length() + delayed.length(); }
+};
+
+
+// for YTM_FIX: This is a priority queue of stack node paths that are
+// candidates to reduce, maintained such that we can select paths in
+// an order which will avoid yield-then-merge.  There is some overlap
+// between ReductionPathQueue and PathCollectionState, but they're
+// used by different parts of the algorithm.
+class ReductionPathQueue {
+public:       // types
+  // a single path in the stack
+  class Path {
+  public:     // data
+    // ---- right edge info ----
+    // the rightmost state's id; we're reducing in this state
+    StateId startStateId;
+
+    // id of the production with which we're reducing
+    int prodIndex;
+
+    // ---- left edge info ----
+    // the token column (ordinal position of a token in the token
+    // stream) of the leftmost stack node; the smaller the
+    // startColumn, the more tokens this reduction spans
+    int startColumn;
+
+    // stack node at the left edge; our reduction will push a new
+    // stack node on top of this one
+    StackNode *leftEdgeNode;
+
+    // ---- path in between ----
+    // array of sibling links, naming the path; 'sibLink[0]' is the
+    // leftmost link; array length is given by the rhsLen of
+    // prodIndex's production
+    GrowArray<SiblingLink*> sibLinks;    // (array of serfs)
+
+    // corresponding array of symbol ids so we know how to interpret
+    // the semantic values in the links
+    GrowArray<SymbolId> symbols;
+
+    union {
+      // link between nodes for construction of a linked list,
+      // kept in sorted order
+      Path *next;
+
+      // link for free list in the object pool
+      Path *nextInFreeList;
+    };
+
+  public:     // funcs
+    Path();
+    ~Path();
+
+    void init(StateId startStateId, int prodIndex, int rhsLen);
+    void deinit() {}
+  };
+
+private:      // data
+  // head of the list
+  Path *top;
+
+  // allocation pool of Path objects
+  ObjectPool<Path> pathPool;
+
+  // parse tables, so we can decode prodIndex and also compare
+  // production ids for sorting purposes
+  ParseTables *tables;
+       
+private:      // funcs
+  bool goesBefore(Path const *p1, Path const *p2) const;
+
+public:       // funcs
+  ReductionPathQueue(ParseTables *t);
+  ~ReductionPathQueue();
+
+  // get another Path object, inited with these values
+  Path *newPath(StateId startStateId, int prodIndex, int rhsLen);
+
+  // make a copy of the prototype 'src', fill in its left-edge
+  // fields using 'leftEdge', and insert it into sorted order
+  // in the queue
+  void insertPathCopy(Path const *src, StackNode *leftEdge);
+                       
+  // true if there are no more paths
+  bool isEmpty() const { return top == NULL; }
+  bool isNotEmpty() const { return !isEmpty(); }
+
+  // remove the next path to reduce from the list, and return it
+  Path *dequeue();
+
+  // mark a path as not being used, so it will be recycled into the pool
+  void deletePath(Path *p);
 };
 
 
@@ -417,12 +514,15 @@ public:
   // pcsStackHeight > pcsStack.length
   int pcsStackHeight;
 
-  // to be regarded as a local variable of GLR::collectReductionPaths
+  // to be regarded as a local variable of GLR::collectReducedPaths
   GrowArray<SemanticValue> toPass;
 
   // ---- allocation pools ----
   // this is a pointer to the same-named local variable in innerGlrParse
   ObjectPool<StackNode> *stackNodePool;
+                               
+  // pool and list for the YTM implementation
+  ReductionPathQueue pathQueue;
 
   // ---- debugging trace ----
   // these are computed during GLR::GLR since the profiler reports
@@ -453,14 +553,14 @@ private:    // funcs
   void doReduction(StackNode *parser,
                    SiblingLink *mustUseLink,
                    int prodIndex);
-  void collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
-                             StackNode *currentNode, SiblingLink *mustUseLink);
+  void collectReducedPaths(PathCollectionState &pcs, int popsRemaining,
+                           StackNode *currentNode, SiblingLink *mustUseLink);
   void collectPathLink(PathCollectionState &pcs, int popsRemaining,
                        StackNode *currentNode, SiblingLink *mustUseLink,
                        SiblingLink *linkToAdd);
-  void glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
-                           SemanticValue sval
-                           SOURCELOCARG( SourceLocation const &loc ) );
+  SiblingLink *glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
+                                   SemanticValue sval
+                                   SOURCELOCARG( SourceLocation const &loc ) );
   void glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts);
   StackNode *findActiveParser(StateId state);
   StackNode *makeStackNode(StateId state);
@@ -481,6 +581,23 @@ private:    // funcs
   SemanticValue doReductionAction(
     int productionId, SemanticValue const *svals
     SOURCELOCARG( SourceLocation const &loc ) );
+
+  void ytmReductionAlgorithm(
+    ArrayStack<PendingShift> &pendingShifts, StateId &lastToDie);
+  int ytmParseAction(StackNode *parser, ActionEntry action,
+                     ArrayStack<PendingShift> &pendingShifts);
+  void ytmEnqueueReductions(
+    StackNode *parser, SiblingLink *mustUseLink, int prodIndex);
+  void ytmCollectPathLink(
+    ReductionPathQueue::Path *proto, int popsRemaining,
+    StackNode *currentNode, SiblingLink *mustUseLink, SiblingLink *linkToAdd);
+  void ytmRecursiveEnqueue(
+    ReductionPathQueue::Path *proto,
+    int popsRemaining,
+    StackNode *currentNode,
+    SiblingLink *mustUseLink);
+  void ytmLimitedReductions(StackNode *parser, ActionEntry action,
+                            SiblingLink *sibLink);
 
 public:     // funcs
   GLR(UserActions *userAct, ParseTables *tables);

@@ -6,10 +6,11 @@
 #define PARSETABLES_H
 
 #include "array.h"        // ArrayStack
+#include "bit2d.h"        // Bit2d
 
-class Flatten;
-class EmitCode;
-class Symbol;
+class Flatten;            // flatten.h
+class EmitCode;           // emitcode.h
+class Symbol;             // grammar.h
 
 
 // integer id for an item-set DFA state; I'm using an 'enum' to
@@ -102,7 +103,10 @@ public:     // data
   int finalProductionIndex;
 
   // per-state bit flag: eager or delayed?
-  unsigned char *delayedStates;
+  unsigned char *delayedStates;          // (owner)
+
+  // derivability relation among nonterminals
+  Bit2d *derivability;                   // (owner)
 
 private:    // funcs
   void alloc(int numTerms, int numNonterms, int numStates, int numProds,
@@ -174,6 +178,10 @@ public:     // funcs
     { return (delayedStates[stateId >> 3] >> (stateId & 7)) & 1; }
   void markDelayed(StateId stateId)
     { delayedStates[stateId >> 3] |= (1 << (stateId & 7)); }
+    
+  // derivability
+  bool canDerive(int ntIndex1, int ntIndex2) const
+    { return derivability->get(point(ntIndex1, ntIndex2)); }
 };
 
 

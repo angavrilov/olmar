@@ -38,6 +38,7 @@
 
 // when enabled, NODE_COLUMN tracks in each stack node the
 // appropriate column to display it for in debugging dump
+#define ENABLE_NODE_COLUMNS     // need them for ytm fix
 #ifdef ENABLE_NODE_COLUMNS
   #define NODE_COLUMN(stuff) stuff
 #else
@@ -57,6 +58,9 @@
   #define YIELD_COUNT(stuff)
 #endif
 
+
+// still working on it.. now testing..
+#define YTM_FIX 1
 
 
 #endif // GLRCONFIG_H

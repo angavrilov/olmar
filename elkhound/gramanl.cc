@@ -3200,6 +3200,9 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
     tables->prodInfo[p].rhsLen = prod->rhsLength();
     tables->prodInfo[p].lhsIndex = prod->left->ntIndex;
   }
+  
+  // copy the derivability table
+  tables->derivability->operator=(*derivable);
 }
 
 
