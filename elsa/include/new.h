@@ -11,7 +11,7 @@
 // namespaces (i.e. this file is "new.h", not "new")
 
 //namespace std {
-  class bad_alloc;
+  class bad_alloc {};
   struct nothrow_t {};
   extern const nothrow_t nothrow;
   typedef void (*new_handler)();

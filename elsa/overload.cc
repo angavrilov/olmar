@@ -204,10 +204,20 @@ OverloadResolver::OverloadResolver
   // are fair game (14.7.1 para 9), but they do not specify how
   // tangentially related something must be to the overload resolution
   // at hand before it's allowed to be instantiated...
+  //
+  // 9/22/04: As demonstrated by t0293.cc, we also need to instantiate
+  // classes mentioned by way of pointers (in addition to references),
+  // to enable derived-to-base conversions.
   for (int i=0; i < args.size(); i++) {
     Type *argType = a[i].type;
-    if (argType->asRval()->isCompoundType()) {
-      CompoundType *argCT = argType->asRval()->asCompoundType();
+
+    argType = argType->asRval();     // skip references
+    if (argType->isPointerType()) {  // skip pointers (9/22/04)
+      argType = argType->asPointerType()->atType;
+    }
+
+    if (argType->isCompoundType()) {
+      CompoundType *argCT = argType->asCompoundType();
 
       // instantiate the argument class if necessary
       env.ensureClassBodyInstantiated(argCT);

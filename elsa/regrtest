@@ -528,6 +528,7 @@ failparse t0289.cc "repeated using things"
 failparse t0290.cc "problem matching definition and decl with <dependent>"
 testparse t0291.cc
 testparse t0292.cc
+testparse t0293.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
