@@ -139,6 +139,7 @@ cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
 CCPARSE_OBJS := \
   $(LEXER_OBJS) \
   $(EXT_OBJS) \
+  builtinops.o \
   cfg.o \
   sprint.o \
   cc_env.o \

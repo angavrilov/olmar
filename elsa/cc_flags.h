@@ -4,7 +4,8 @@
 // Basically, this module is a set of enums that are used by at
 // least two different modules in the C/C++ front end (if they
 // were only used by one module, they'd be declared in that
-// module instead).
+// module instead).  It's intended to be a lightweight module,
+// dependent on almost nothing else.
 //
 // Each enum has a 'toString' that yields a printable representation.
 // If it yields 'char const *', then it's guaranteed to be a valid

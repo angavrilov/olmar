@@ -3816,67 +3816,6 @@ inline ArgumentInfo argInfo(Expression *e)
   return ArgumentInfo(e->getSpecial(), e->type);
 }
 
-// get the set of types that 't' can be converted to via a
-// user-defined conversion operator, or by the identity conversion
-void getConversionOperatorResults(Env &env, SObjList<Type> &dest, Type *t)
-{
-  if (!t->isCompoundType()) {
-    dest.append(t);
-  }
-  else {
-    // get conops
-    SObjList<Variable> convs;
-    getConversionOperators(convs, env, t->asCompoundType());
-
-    // get return types
-    dest.reverse();
-    SFOREACH_OBJLIST_NC(Variable, convs, iter) {
-      dest.prepend(iter.data()->type->asFunctionType()->retType);
-    }
-    dest.reverse();
-  }
-}
-
-Type *opMinusPreFilter(Type *t)
-{
-  // 13.3.1.5: functions that return 'T&' are regarded as
-  // yielding 'T' for purposes of this analysis
-  t = t->asRval();
-
-  // only pointer types need consideration
-  if (t->isPointer()) {
-    return t;
-  }
-  else {
-    return NULL;
-  }
-}
-
-bool opMinusPostFilter(Type *t)
-{
-  // the pre-filter already guarantees that only pointer types
-  // can result from the LUB, but we need to ensure that 
-  // only pointer-to-object types are instantiated
-  Type *at = t->asPointerType()->atType;
-  if (at->isVoid() || at->isFunctionType()) {
-    return false;    // don't instantiate with this one
-  }
-  else {
-    return true;
-  }
-}
-
-// add 't' to 'instTypes', but only if it isn't already present
-void addTypeUniquely(SObjList<Type> &instTypes, Type *t)
-{
-  SFOREACH_OBJLIST(Type, instTypes, iter) {
-    if (iter.data()->equals(t)) {
-      return;   // already present
-    }
-  }
-  instTypes.append(t);
-}
-
 Type *E_binary::itcheck(Env &env, Expression *&replacement)
 {
   e1->tcheck(env, e1);
@@ -3926,77 +3865,11 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
       // implementation is as part of the tournament algorithm (if I
       // see two identical candidates, but one is built-in, then
       // the non-built-in is better)
-      ArrayStack<Variable*> &builtins = env.builtinBinaryOperator[op];
+      ObjArrayStack<CandidateSet> &builtins = env.builtinBinaryOperator[op];
       for (int i=0; i < builtins.length(); i++) {
-        resolver.processCandidate(builtins[i]);
-      }
-
-      if (op == BIN_MINUS) {
-        // tricky built-in: 13.6 para 14:
-        //
-        // For every T, where T is a pointer to object type, there exist
-        // candidate operator functions of the form
-        //   ptrdiff_t operator-(T, T);
-
-        // The essential idea here is to compute a set of types with
-        // which to instantiate the above pattern.  Naively, we'd like
-        // to instantiate it with all types, but of course that is not
-        // practical.  Instead, we compute a finite set S of types such
-        // that we get the same answer as we would have if we had
-        // instantiated it with all types.  Note that if we compute S
-        // correctly, it will be the case that any superset of S would
-        // also work; we do not necessarily compute the minimal S.
-        //
-        // The core of the analysis is the least-upper-bound function
-        // on types.  Given a pair of types, the LUB type
-        // instantiation would win against all the other
-        // instantiations the LUB dominates, in the final overload
-        // analysis.  Thus we populate S with the LUBs of all pairs
-        // of types the arguments' con-ops can yield.
-
-        // set of types with which to instantiate T
-        SObjList<Type> instTypes;      // called 'S' in the comments above
-
-        // collect all of the operator functions rettypes from lhs and rhs
-        SObjList<Type> lhsRets, rhsRets;
-        getConversionOperatorResults(env, lhsRets, lhsType);
-        getConversionOperatorResults(env, rhsRets, rhsType);
-
-        // consider all pairs of conversion results
-        SFOREACH_OBJLIST_NC(Type, lhsRets, lhsIter) {
-          Type *lhsRet = opMinusPreFilter(lhsIter.data());
-          if (!lhsRet) continue;
-
-          SFOREACH_OBJLIST_NC(Type, rhsRets, rhsIter) {
-            Type *rhsRet = opMinusPreFilter(rhsIter.data());
-            if (!rhsRet) continue;
-
-            // compute LUB
-            bool wasAmbig;
-            Type *lub = computeLUB(env, lhsRet, rhsRet, wasAmbig);
-            if (wasAmbig) {
-              // if any LUB is ambiguous, then the final overload analysis
-              // over the infinite set of instantiations would also have
-              // been ambiguous
-              env.error(stringc
-                << "In resolving operator-, LHS can convert to "
-                << lhsRet->toString()
-                << ", and RHS can convert to "
-                << rhsRet->toString()
-                << ", but their LUB is ambiguous");
-              goto after_overload_resolution;
-            }
-            else if (lub && opMinusPostFilter(lub)) {
-              // add the LUB to our list of to-instantiate types
-              addTypeUniquely(instTypes, lub);
-            }
-          }
-        }
-
-        // instantiate T with all the types we've collected
-        SFOREACH_OBJLIST_NC(Type, instTypes, iter) {
-          Variable *v = env.getBuiltinBinaryOp(op, iter.data(), iter.data());
-          resolver.processCandidate(v);
+        if (!builtins[i]->instantiateBinary(env, resolver, op, lhsType, rhsType)) {
+          // there was a problem; abort overload resolution
+          goto after_overload_resolution;
         }
       }
     }

@@ -228,12 +228,8 @@ void Env::setupOperatorOverloading()
 
   // TODO: T& operator[] (ptrdiff_t, T*);
 
-  #if 0   // working on different implementation
   // ---- 13.6 para 14 ----
-  addBuiltinBinaryOp(BIN_MINUS,
-    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
-    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)));
-  #endif // 0
+  addPatternBuiltin(BIN_MINUS, new CandidateSet(rvalIsPointer, pointerToObject));
 
   exitScope(dummyScope);
   
@@ -241,20 +237,18 @@ void Env::setupOperatorOverloading()
   // items in each array; go back and resize them to their current
   // length (since that won't change after this point)
   for (i=0; i < NUM_BINARYOPS; i++) {
-    builtinBinaryOperator[i].setSize(builtinBinaryOperator[i].length());
+    builtinBinaryOperator[i].consolidate();
   }
 }
 
 void Env::addBuiltinBinaryOp(BinaryOp op, Type *x, Type *y)
 {
-  Type *t_void = getSimpleType(SL_INIT, ST_VOID);
+  addPatternBuiltin(op, new CandidateSet(createBuiltinBinaryOp(op, x, y)));
+}
 
-  Variable *v = declareFunction2arg(
-    t_void /*irrelevant*/, binaryOperatorName[op],
-    x, "x", y, "y");
-  v->setFlag(DF_BUILTIN);
-
-  builtinBinaryOperator[op].push(v);
+void Env::addPatternBuiltin(BinaryOp op, CandidateSet * /*owner*/ cset)
+{
+  builtinBinaryOperator[op].push(cset);
 }
 
 
@@ -1441,7 +1435,7 @@ Type *Env::implicitReceiverType()
 
 
 // mostly copied from addBuiltinBinaryOp
-Variable *Env::getBuiltinBinaryOp(BinaryOp op, Type *x, Type *y)
+Variable *Env::createBuiltinBinaryOp(BinaryOp op, Type *x, Type *y)
 {
   // PLAN:  Right now, I just leak a bunch of things.  To fix
   // this, I want to have the Env maintain a pool of Variables

@@ -17,6 +17,7 @@
 #include "cc_scope.h"     // Scope
 #include "cc_err.h"       // ErrorList
 #include "array.h"        // ArrayStack
+#include "builtinops.h"   // CandidateSet
 
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
@@ -100,9 +101,8 @@ public:      // data
   // operator function names, indexed by the operators they overload
   StringRef binaryOperatorName[NUM_BINARYOPS];
 
-  // polymorphic built-in operator functions (all serfs), indexed
-  // by operator
-  ArrayStack<Variable*> builtinBinaryOperator[NUM_BINARYOPS];
+  // built-in operator function sets, indexed by operator
+  ObjArrayStack<CandidateSet> builtinBinaryOperator[NUM_BINARYOPS];
 
   TranslationUnit *tunit;
   
@@ -150,6 +150,7 @@ private:     // funcs
 
   void setupOperatorOverloading();
   void addBuiltinBinaryOp(BinaryOp op, Type *x, Type *y);
+  void addPatternBuiltin(BinaryOp op, CandidateSet * /*owner*/ cset);
 
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac, TranslationUnit *tunit0);
@@ -319,8 +320,8 @@ public:      // funcs
   // others are more obscure, so I'll just call into 'tfac' directly
   // in the places I call them
                                                               
-  // get a built-in candidate for operator overload resolution
-  Variable *getBuiltinBinaryOp(BinaryOp op, Type *x, Type *y);
+  // create a built-in candidate for operator overload resolution
+  Variable *createBuiltinBinaryOp(BinaryOp op, Type *x, Type *y);
 
   // points of extension: These functions do nothing in the base
   // Elsa parser, but can be overridden in client analyses to
