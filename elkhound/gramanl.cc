@@ -1705,47 +1705,25 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
     itemSet.print(trs, *this);
   }
 
-  // a place to store the items just generated, and another
-  // for items ready to be closed; I used to do a simple iterate-
-  // until-change algorithm, but that is quadratic, so now I
-  // explicitly track the newly-added items and only close them
-  DProductionList justGenerated, readyToClose;
+  // list of items yet to close
+  DProductionList worklist;
 
-  // first, close the kernel items -> justGenerated
+  // first, close the kernel items -> worklist
   FOREACH_DOTTEDPRODUCTION(itemSet.kernelItems, itemIter) {
-    singleItemClosure(itemSet, justGenerated, readyToClose, itemIter.data());
+    singleItemClosure(itemSet, worklist, itemIter.data());
   }
 
-  // as long as some items are in 'justGenerated' ...
-  //int changes = 1;
-  int loopNum = 1;
-  while (justGenerated.isNotEmpty()) {
-    if (tr) {
-      trs << "beginning loop " << (loopNum++) << endl;
-    }
-    //changes = 0;
+  while (worklist.isNotEmpty()) {
+    // pull the first production
+    DottedProduction *dprod = worklist.removeFirst();
 
-    // move all the recently-generated items into the list of items
-    // we're ready to close
-    readyToClose.concat(justGenerated);
+    // put it into list of 'done' items; this way, if this
+    // exact item is generated during closure, it will be
+    // seen and re-inserted (instead of duplicated)
+    itemSet.addNonkernelItem(dprod);
 
-    // for each item "A -> alpha . B beta, LA" in 'readyToClose'
-    FOREACH_DOTTEDPRODUCTION(readyToClose, itemIter) {
-      // close it -> justGenerated
-      singleItemClosure(itemSet, justGenerated, readyToClose, itemIter.data());
-    }
-
-    // add the items just closed to 'nonkernelItems'
-    while (readyToClose.isNotEmpty()) {
-      DottedProduction *dprod = readyToClose.removeFirst();
-      if (tr) {
-        trs << "  (chg) dequeueing and adding ";
-        dprod->print(trs, *this);
-        trs << endl;
-      }
-      itemSet.addNonkernelItem(dprod);
-      //changes++;
-    }
+    // close it -> worklist
+    singleItemClosure(itemSet, worklist, dprod);
   }
 
   trs << "done with closure of state " << itemSet.id << endl;
@@ -1756,8 +1734,7 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 
 
 void GrammarAnalysis::
-  singleItemClosure(ItemSet &itemSet, DProductionList &justGenerated,
-                    DProductionList &readyToClose,
+  singleItemClosure(ItemSet &itemSet, DProductionList &worklist,
                     DottedProduction const *item)
 {
   bool const tr = tracingSys("closure");
@@ -1834,29 +1811,24 @@ void GrammarAnalysis::
         already = dprod.data();
         break;
       }
-    }}                                                    
+    }}
     #endif // 0
 
+    // check in list of already-done items
+    bool inDoneList = false;
     if (!already) {
       MUTATE_EACH_DOTTEDPRODUCTION(itemSet.nonkernelItems, dprod) {
         if (dp->equalNoLA(*(dprod.data()))) {
           already = dprod.data();
+          inDoneList = true;
           break;
         }
       }
     }
 
+    // check in the worklist
     if (!already) {
-      MUTATE_EACH_DOTTEDPRODUCTION(justGenerated, dprod) {
-        if (dp->equalNoLA(*(dprod.data()))) {
-          already = dprod.data();
-          break;
-        }
-      }
-    }
-
-    if (!already) {
-      MUTATE_EACH_DOTTEDPRODUCTION(readyToClose, dprod) {
+      MUTATE_EACH_DOTTEDPRODUCTION(worklist, dprod) {
         if (dp->equalNoLA(*(dprod.data()))) {
           already = dprod.data();
           break;
@@ -1875,18 +1847,27 @@ void GrammarAnalysis::
       // but the new item may have additional lookahead
       // components, so merge them with the old
       if (already->laMerge(*dp)) {
-        //changes++;
-
+        // merging changed 'already'
         if (tr) {
           trs << "      (chg) merged it to make ";
           already->print(trs, *this);
           trs << endl;
         }
+
+        if (inDoneList) {
+          // pull from the 'done' list and put in worklist, since the
+          // lookahead changed
+          itemSet.nonkernelItems.removeItem(already);
+          worklist.append(already);
+        }
+        else {
+          // 'already' is in the worklist, so that's fine
+        }
       }
       else {
         trs << "      this dprod already existed" << endl;
       }
-      
+
       // don't need the new dotted production (would have happened
       // anyway at fn end, wanted to make this more explicit)
       dp.del();
@@ -1896,7 +1877,7 @@ void GrammarAnalysis::
       if (tr) {
         trs << "      this dprod is new, queueing it to add" << endl;
       }
-      justGenerated.append(dp.xfr());
+      worklist.append(dp.xfr());
     }
   } // for each production
 }

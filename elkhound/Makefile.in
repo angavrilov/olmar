@@ -47,7 +47,7 @@ endif
 ccflags += -Werror
 
 # when uncommented, we get profiling info
-ccflags += -pg
+#ccflags += -pg
 
 # optimizer...
 #ccflags += -O2
@@ -294,7 +294,7 @@ cdecl2: $(cdecl2-dep)
 #	chmod a-w cc.gr.gen.*
 
 # AUXDEPEND (should be redundant)
-#cc.gr.gen.o: cparse.h
+cc.gr.gen.o: c.ast.gen.h
 
 # (called the target 'ccgr' instead of 'cc' to avoid name collision)
 # tried moving cc.o to end so the most expensive part would get

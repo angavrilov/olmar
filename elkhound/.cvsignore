@@ -88,3 +88,4 @@ tmp*
 *.i
 predicate.log
 cexp3.gr.gen.*
+regrtest.log
