@@ -86,11 +86,14 @@ public:     // funcs
 
   // simple unparse: yield string of tokens in this tree, separated by spaces
   string unparseString() const;
+  
+  // location of source that generated this subtree
+  string locString() const;               // may be "(?loc)"
+  SourceLocation const *loc() const;      // may be NULL if no leaves
 
   // debugging
-  virtual void printParseTree(ostream &os, int indent, 
+  virtual void printParseTree(ostream &os, int indent,
                               bool asSexp) const = 0;
-  string locString() const;
   static void printAllocStats();
   
   // selfOnly: check this node's internal invariants

@@ -13,6 +13,7 @@ type constant =
 type unop = 
     Neg                                 (* unary - *)
   | Not                                 (* ! *)
+  | BitNot                              (* ~ *)
 
                                         (* Commutative binary operators *)
 type combinop = 
@@ -56,15 +57,15 @@ type exp =
   | BinOp      of binop * exp * exp
   | ComBinOp   of combinop * exp * exp 
   | CastE      of typeinfo * exp
+  | AddrOf     of lval                  (* & e *)
 
                                         (* L-values *)
-and lval = 
+and lval =
     Global     of string
   | Local      of int * varinfo         (* an indentifier and some other info*)
   | Mem        of exp                   (* *e *)
   | Field      of exp * fieldinfo       (* e.f *)
-  | AddrOf     of exp                   (* & e *)
-  | CastL      of typeinfo * exp
+  | CastL      of typeinfo * lval
 
                                         (* Instructions. Can have side-effects 
                                          * but no control flow *)

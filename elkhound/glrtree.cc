@@ -99,6 +99,17 @@ string terminalLocString(TerminalNode const *term)
 }
 
 
+SourceLocation const *TreeNode::loc() const
+{
+  TerminalNode const *t = getLeftmostTerminalC();
+  if (t) {
+    return &(t->loc);
+  }
+  else { 
+    return NULL;
+  }
+}
+
 string TreeNode::locString() const
 {
   return terminalLocString(getLeftmostTerminalC());
