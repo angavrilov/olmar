@@ -110,12 +110,11 @@ public:     // funcs
   // will allow it only if type1==type2
   bool equals(AtomicType const *obj) const;
 
+  void gdb() const;
   // print the string according to 'Type::printAsML'
   string toString() const;
-
   // print in C notation
   virtual string toCString() const = 0;
-
   // print in ML notation
   virtual string toMLString() const = 0;
 
@@ -550,6 +549,7 @@ public:     // funcs
   unsigned hashValue() const;
   virtual unsigned innerHashValue() const = 0;
 
+  void gdb() const;
   // print the string according to 'printAsML'
   string toString() const;
   string toString(char const *name) const;

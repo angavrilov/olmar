@@ -139,11 +139,14 @@ public:
   // overload set
   int overloadSetSize() const;
 
-  // some ad-hoc thing
+  void gdb() const;
   string toString() const;
-
+  // some ad-hoc thing
+  string toCString() const;
   // syntax when used in a parameter list
-  string toStringAsParameter() const;
+  string toCStringAsParameter() const;
+  // ML-style
+  string toMLString() const;
 
   // fully qualified but not mangled name
   string fullyQualifiedName() const;

@@ -38,6 +38,12 @@ DOWNCAST_IMPL(AtomicType, EnumType)
 DOWNCAST_IMPL(AtomicType, TypeVariable)
 
 
+void AtomicType::gdb() const
+{
+  cout << toString() << endl;
+}
+
+
 string AtomicType::toString() const
 {
   if (Type::printAsML) {
@@ -950,6 +956,11 @@ string printSerialNo(int serialNumber)
 }
 
 
+void BaseType::gdb() const
+{
+  cout << toString() << endl;
+}
+
 string BaseType::toString() const 
 {
   if (printAsML) {
@@ -1682,7 +1693,7 @@ string FunctionType::rightStringUpToQualifiers(bool innerParen) const
     if (ct >= 3 || (!isMethod() && ct>=2)) {
       sb << ", ";
     }
-    sb << iter.data()->toStringAsParameter();
+    sb << iter.data()->toCStringAsParameter();
   }
 
   if (acceptsVarargs()) {
@@ -1790,7 +1801,7 @@ string TemplateParams::toCString() const
     }
     else {
       // non-type parameter
-      sb << p->toStringAsParameter();
+      sb << p->toCStringAsParameter();
     }
   }
   sb << ">";
@@ -2188,8 +2199,8 @@ string FunctionType::toMLString() const
 //        sb << "this: " << v->type->toMLString();
 //        continue;
 //      }
-//      v->toMLString();
-    sb << "\"" << v->name << "\"->" << v->type->toMLString();
+    v->toMLString();
+//      sb << "\"" << v->name << "\"->" << v->type->toMLString();
   }
   sb << ")";
   return sb;
@@ -2240,12 +2251,13 @@ string TemplateParams::toMLString() const
     }
 
     // FIX: is there any difference here?
+    // NOTE: use var->toMLString()
     if (p->type->isTypeVariable()) {
-      sb << "var(name:" << p->name << ", " << v->type->toMLString() << ")";
+//        sb << "var(name:" << p->name << ", " << v->type->toMLString() << ")";
     }
     else {
       // non-type parameter
-      sb << p->toStringAsParameter();
+//        sb << p->toStringAsParameter();
     }
   }
 #endif

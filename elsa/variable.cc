@@ -49,7 +49,23 @@ bool Variable::isTemplateClass() const
 }
 
 
+void Variable::gdb() const
+{
+  cout << toString() << endl;
+}
+
 string Variable::toString() const
+{
+  if (Type::printAsML) {
+    return toMLString();
+  }
+  else {
+    return toCString();
+  }
+}
+
+
+string Variable::toCString() const
 {
   // as an experiment, I'm saying public(field) in the .ast file
   // in a place where the Variable* might be NULL, so I will
@@ -65,11 +81,11 @@ string Variable::toString() const
   // If more specialized printing is desired, do that specialized
   // printing from outside (by directly accessing 'name', 'type',
   // 'flags', etc.).
-  return type->toString(stringc << (name? name : "") << namePrintSuffix());
+  return type->toCString(stringc << (name? name : "") << namePrintSuffix());
 }
 
 
-string Variable::toStringAsParameter() const
+string Variable::toCStringAsParameter() const
 {
   stringBuilder sb;
   if (type->isTypeVariable()) {
@@ -77,12 +93,24 @@ string Variable::toStringAsParameter() const
     sb << type->asTypeVariable()->name << " " << name;
   }
   else {
-    sb << type->toString(name);
+    sb << type->toCString(name);
   }
 
   if (value) {
     sb << renderExpressionAsString(" = ", value);
   }
+  return sb;
+}
+
+
+string Variable::toMLString() const
+{
+  stringBuilder sb;
+  char const *name0 = "<no_name>";
+  if (name) {
+    name0 = name;
+  }
+  sb << "\"" << name0 << "\"->" << type->toMLString();
   return sb;
 }
 
