@@ -168,7 +168,7 @@
 #define DO_ACCOUNTING 1
 
 // unroll the inner loop; approx. 3% performance improvement
-#define USE_UNROLLED_REDUCE 1
+#define USE_UNROLLED_REDUCE 0
 
 // some things we track..
 int parserMerges = 0;
@@ -408,7 +408,7 @@ inline void StackNode::decRefCt()
 {
   xassert(referenceCount > 0);
   if (--referenceCount == 0) {
-    glr->stackNodePool.dealloc(this);
+    glr->stackNodePool->dealloc(this);
   }
 }
 
@@ -612,7 +612,7 @@ GLR::GLR(UserActions *user, ParseTables *t)
     pcsStack(),
     pcsStackHeight(0),
     toPass(TYPICAL_MAX_RHSLEN),
-    stackNodePool(30),
+    stackNodePool(NULL),
     trParse(tracingSys("parse")),
     trsParse(trace("parse")),
     trSval(tracingSys("sval")),
@@ -628,8 +628,6 @@ GLR::GLR(UserActions *user, ParseTables *t)
 
 GLR::~GLR()
 {
-  decParserList(activeParsers);
-  decParserList(parserWorklist);
   if (parserIndex) {
     delete[] parserIndex;
   }
@@ -728,14 +726,23 @@ SemanticValue GLR::grabTopSval(StackNode *node)
   return ret;
 }
 
-                     
+
+// This macro has been pulled out so I can have even finer control
+// over the allocation process from the mini-LR core.
+//   dest: variable into which the pointer to the new node will be put
+//   state: DFA state for this node
+//   glr: pointer to the associated GLR object
+//   pool: node pool from which to allocate
+#define MAKE_STACK_NODE(dest, state, glr, pool)              \
+  dest = (pool).alloc();                                     \
+  dest->init(state, glr);                                    \
+  NODE_COLUMN( dest->column = (glr)->globalNodeColumn; )
+
+// more-friendly inline version, for use outside mini-LR
 inline StackNode *GLR::makeStackNode(StateId state)
 {
-  StackNode *sn = stackNodePool.alloc();
-  sn->init(state, this);
-
-  NODE_COLUMN( sn->column = globalNodeColumn; )
-
+  StackNode *sn;
+  MAKE_STACK_NODE(sn, state, this, *stackNodePool);
   return sn;
 }
 
@@ -780,22 +787,12 @@ void GLR::buildParserIndex()
 }
 
 
-// NOTE: this function's complexity and/or size is *right* at the
-// limit of what gcc-2.95.3 is capable of optimizing well; I've already
-// pulled quite a bit of functionality into separate functions to try
-// to reduce the register pressure, but it's still near the limit;
-// if you do something to cross a pressure threshold, performance drops
-// 25% so watch out!
 bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
 {
   // get ready..
   traceProgress() << "parsing...\n";
-  CycleTimer timer;
   clearAllStackNodes();
-  #ifndef NDEBUG
-    bool doDumpGSS = tracingSys("dumpGSS");
-  #endif
-  
+
   // this should be reset to NULL on all exit paths..
   lexerPtr = &lexer;
 
@@ -804,13 +801,72 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
   // and I'd like as little code as possible being #ifdef'd)
   buildParserIndex();
 
+  // call the inner parser core, which is a static member function
+  bool ret = innerGlrParse(*this, lexer, treeTop);
+  stackNodePool = NULL;     // prevent dangling references
+  if (!ret) {
+    lexerPtr = NULL;
+    return ret;
+  }
+
+  #if DO_ACCOUNTING
+    StackNode::printAllocStats();
+    //PVAL(parserMerges);
+    //PVAL(computeDepthIters);
+  #endif
+
+  lexerPtr = NULL;
+  return ret;
+}
+
+
+// old note: this function's complexity and/or size is *right* at the
+// limit of what gcc-2.95.3 is capable of optimizing well; I've already
+// pulled quite a bit of functionality into separate functions to try
+// to reduce the register pressure, but it's still near the limit;
+// if you do something to cross a pressure threshold, performance drops
+// 25% so watch out!
+//
+// This function is the core of the parser, and its performance is
+// critical to the end-to-end performance of the whole system.  It is
+// a static member so the accesses to 'glr' (aka 'this') will be
+// visible.
+STATICDEF bool GLR
+  ::innerGlrParse(GLR &glr, LexerInterface &lexer, SemanticValue &treeTop)
+{
+  CycleTimer timer;
+  #ifndef NDEBUG
+    bool doDumpGSS = tracingSys("dumpGSS");
+  #endif
+
+  // pull a bunch of things out of 'glr' so they'll be accessible from
+  // the stack frame instead of having to indirect into the 'glr' object
+  UserActions *userAct = glr.userAct;
+  ParseTables *tables = glr.tables;
+  ArrayStack<StackNode*> &activeParsers = glr.activeParsers;
+
+  // the stack node pool is a local variable of this function for
+  // fastest access by the mini-LR core; other parts of the algorihthm
+  // can access it using a pointer stored in the GLR class (caller
+  // nullifies this pointer to prevent dangling references)
+  ObjectPool<StackNode> stackNodePool(30);
+  glr.stackNodePool = &stackNodePool;
+
   // create an initial ParseTop with grammar-initial-state,
   // set active-parsers to contain just this
   NODE_COLUMN( globalNodeColumn = 0; )
   {
-    StackNode *first = makeStackNode(tables->startState);
-    addActiveParser(first);
+    StackNode *first = glr.makeStackNode(tables->startState);
+    glr.addActiveParser(first);
   }
+
+  #if USE_MINI_LR
+    // this is *not* a reference to the 'glr' member because it
+    // doesn't need to be shared with the rest of the algorithm (it's
+    // only used in the Mini-LR core), and by having it directly on
+    // the stack another indirection is saved
+    GrowArray<SemanticValue> toPass(TYPICAL_MAX_RHSLEN);
+  #endif
 
   // we will queue up shifts and process them all at the end (pulled
   // out of loop so I don't deallocate the array between tokens)
@@ -819,6 +875,10 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
   // for each input symbol
   #ifndef NDEBUG
     int tokenNumber = 0;
+    
+    // some debugging streams so the TRSPARSE etc. macros work
+    bool trParse       = glr.trParse;
+    ostream &trsParse  = glr.trsParse;
   #endif
   for (;;) {
     // debugging
@@ -831,7 +891,7 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
 
     #ifndef NDEBUG
       if (doDumpGSS) {
-        dumpGSS(tokenNumber);
+        glr.dumpGSS(tokenNumber);
       }
     #endif
 
@@ -888,8 +948,10 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
           // record location of left edge; defaults to no location
           // (used for epsilon rules)
           SOURCELOC( SourceLocation leftEdge; )
-                                    
+
           #if USE_UNROLLED_REDUCE
+            #error This code has not been updated to match what is below
+
             // make sure we don't have to actually do a check-and-resize
             // for any of the unrolled cases
             xassertdb(toPass.size() >= 5);
@@ -1006,6 +1068,13 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
             // not using the unrolled loops; make the check
             toPass.ensureIndexDoubler(rhsLen-1);
 
+            // we will manually string the stack nodes together onto
+            // the free list in 'stackNodePool', and 'prev' will point
+            // to the head of the current list; at the end, we'll
+            // install the final value of 'prev' back into
+            // 'stackNodePool' as the new head of the list
+            StackNode *prev = stackNodePool.private_getHead();
+
             // pop off 'rhsLen' stack nodes, collecting as many semantic
             // values into 'toPass'
             // NOTE: this loop is the innermost inner loop of the entire
@@ -1037,46 +1106,59 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
               )
 
               // pop 'parser' and move to the next one
-              StackNode *next = sib.sib;              // grab before deallocating
+              parser->nextInFreeList = prev;
+              prev = parser;
+              parser = sib.sib;
 
               // don't actually increment, since I now no longer actually decrement
-              // cancelled(1) effect: next->incRefCt();    // so 'next' survives deallocation of 'sib'
-              // cancelled(1) observable: xassertdb(next->referenceCount==1);       // 'sib' and the fake one
+              // cancelled(1) effect: parser->incRefCt();    // so 'parser' survives deallocation of 'sib'
+              // cancelled(1) observable: xassertdb(parser->referenceCount==1);       // 'sib' and the fake one
 
               // so now it's just the one
-              xassertdb(next->referenceCount==1);       // just 'sib'
+              xassertdb(parser->referenceCount==1);     // just 'sib'
 
-              xassertdb(parser->referenceCount==1);
-              // expand "parser->decRefCt();"           // deinit 'parser', dealloc 'sib'
+              xassertdb(prev->referenceCount==1);
+              // expand "prev->decRefCt();"             // deinit 'prev', dealloc 'sib'
               {
-                parser->decrementAllocCounter();
+                // I don't actually decrement the reference count on 'prev'
+                // because it will be reset to 0 anyway when it is inited
+                // the next time it is used
+                //prev->referenceCount = 0;
 
-                // I previously had a test for "parser->firstSib.sval != NULL",
+                // adjust the global count of stack nodes
+                prev->decrementAllocCounter();
+
+                // I previously had a test for "prev->firstSib.sval != NULL",
                 // but that can't happen because I set it to NULL above!
                 // (as the alias sib.sval)
                 // update: now I don't even set it to NULL because the code here
                 // has been changed to ignore *any* value
-                //if (parser->firstSib.sval != NULL) {
+                //if (prev->firstSib.sval != NULL) {
                 //  cout << "I GOT THE ANALYSIS WRONG!\n";
                 //}
 
-                // cancelled(1) effect: next->decRefCt();
-                parser->firstSib.sib.setWithoutUpdateRefct(NULL);
+                // cancelled(1) effect: parser->decRefCt();
+                prev->firstSib.sib.setWithoutUpdateRefct(NULL);
 
                 // possible optimization: I could eliminiate
-                // "firstSib.sib=NULL" if I consistently modified all
+                // "prev->firstSib.sib=NULL" if I consistently modified all
                 // creation of stack nodes to treat sib as a dead value:
                 // right after creation I would make sure the new
                 // sibling value *overwrites* sib, and no attempt is
                 // made to decrement a refct on the dead value
 
-                stackNodePool.deallocNoDeinit(parser);
+                // this is obviated by the manual construction of the
+                // free list links (nestInFreeList) above
+                //stackNodePool.deallocNoDeinit(prev);
               }
 
-              parser = next;
               xassertdb(parser->referenceCount==1);     // fake refct only
             }
-          } // end of general rhsLen loop
+
+            // having now manually strung the deallocated stack nodes together
+            // on the free list, I need to make the node pool's head point at them
+            stackNodePool.private_setHead(prev);
+          } // end of general rhsLen section
 
         #if USE_UNROLLED_REDUCE    // suppress the warning when not using it..
         afterGeneralLoop:
@@ -1115,7 +1197,9 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
           xassertdb(parser->referenceCount==1);
 
           // push new state
-          StackNode *newNode = makeStackNode(newState);
+          StackNode *newNode;
+          MAKE_STACK_NODE(newNode, newState, &glr, stackNodePool)
+
           newNode->addFirstSiblingLink_noRefCt(
             parser, sval  SOURCELOCARG( leftEdge ) );
           // cancelled(3) effect: parser->incRefCt();
@@ -1151,7 +1235,9 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
 
         NODE_COLUMN( globalNodeColumn++; )
 
-        StackNode *rightSibling = makeStackNode(newState);
+        StackNode *rightSibling;
+        MAKE_STACK_NODE(rightSibling, newState, &glr, stackNodePool);
+
         rightSibling->addFirstSiblingLink_noRefCt(
           parser, lexer.sval  SOURCELOCARG( lexer.loc ) );
         // cancelled(2) effect: parser->incRefCt();
@@ -1185,11 +1271,10 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
 
     // if we get here, we're dropping into the nondeterministic GLR
     // algorithm in its full glory
-    if (!nondeterministicParseToken(pendingShifts)) {
-      lexerPtr = NULL;
+    if (!glr.nondeterministicParseToken(pendingShifts)) {
       return false;
     }
-    
+
   getNextToken:
     // was that the last token?
     if (lexer.type == 0) {
@@ -1203,44 +1288,9 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
     #endif
   }
 
-  bool ret = cleanupAfterParse(timer, treeTop);
-
-  #if 0
-  if (ret) {
-    // print the parse as a graph for my graph viewer
-    // (the slight advantage to printing the graph first is that
-    // if there is circularity in the parse tree, the graph
-    // printer will handle it ok, whereas thet tree printer will
-    // get into an infinite loop (so at least the graph will be
-    // available in a file after I kill the process))
-    if (tracingSys("parse-graph")) {      // profiling says this is slow
-      traceProgress() << "writing parse graph...\n";
-      writeParseGraph("parse.g");
-    }
-
-
-    // print parse tree in ascii
-    TreeNode const *tn = getParseTree();
-    if (tracingSys("parse-tree")) {
-      tn->printParseTree(trace("parse-tree") << endl, 2 /*indent*/, false /*asSexp*/);
-    }
-
-
-    // generate an ambiguity report
-    if (tracingSys("ambiguities")) {
-      tn->ambiguityReport(trace("ambiguities") << endl);
-    }
-  }
-  #endif // 0
-
-  #if DO_ACCOUNTING
-    StackNode::printAllocStats();
-    //PVAL(parserMerges);
-    //PVAL(computeDepthIters);
-  #endif
-
-  lexerPtr = NULL;
-  return ret;
+  // end of parse; note that this function must be called *before*
+  // the stackNodePool is deallocated
+  return glr.cleanupAfterParse(timer, treeTop);
 }
 
 
@@ -1404,6 +1454,10 @@ bool GLR::cleanupAfterParse(CycleTimer &timer, SemanticValue &treeTop)
   // always finishes its iterations with a shift, and it's not trivial
   // to add a special exception for the case of the reduce which
   // finishes the parse
+
+  // these also must be done before the pool goes away..
+  decParserList(activeParsers);
+  decParserList(parserWorklist);
 
   return true;
 }

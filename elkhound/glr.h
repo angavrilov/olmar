@@ -394,7 +394,8 @@ public:
   GrowArray<SemanticValue> toPass;
 
   // ---- allocation pools ----
-  ObjectPool<StackNode> stackNodePool;
+  // this is a pointer to the same-named local variable in innerGlrParse
+  ObjectPool<StackNode> *stackNodePool;
 
   // ---- debugging trace ----
   // these are computed during GLR::GLR since the profiler reports
@@ -445,6 +446,7 @@ private:    // funcs
   void printParseErrorMessage(StateId lastToDie);
   bool cleanupAfterParse(CycleTimer &timer, SemanticValue &treeTop);
   bool nondeterministicParseToken(ArrayStack<PendingShift> &pendingShifts);
+  static bool innerGlrParse(GLR &glr, LexerInterface &lexer, SemanticValue &treeTop);
 
 public:     // funcs
   GLR(UserActions *userAct, ParseTables *tables);
