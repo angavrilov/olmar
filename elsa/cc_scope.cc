@@ -835,9 +835,6 @@ void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &ar
 // mangle=false is the behavior I want
 string Scope::fullyQualifiedName(bool mangle)
 {
-  // temporary
-  xassert(!mangle);
-
   // 7/28/04: I just changed things so that children of the global
   // scope have a non-NULL 'parentScope', and then adjusted this
   // code so it works like it used to.  I suspect this code could
