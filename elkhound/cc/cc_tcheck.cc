@@ -517,7 +517,13 @@ void PQ_template::tcheck(Env &env)
 
 
 // --------------------- TypeSpecifier --------------
-Type const *TS_name::tcheck(Env &env)
+Type const *TypeSpecifier::tcheck(Env &env)
+{
+  return applyCVToType(cv, itcheck(env));
+}
+
+
+Type const *TS_name::itcheck(Env &env)
 {
   name->tcheck(env);
 
@@ -545,7 +551,7 @@ Type const *TS_name::tcheck(Env &env)
 }
 
 
-Type const *TS_simple::tcheck(Env &env)
+Type const *TS_simple::itcheck(Env &env)
 {
   return getSimpleType(id);
 }
@@ -650,7 +656,7 @@ Type const *makeNewCompound(CompoundType *&ct, Env &env, StringRef name,
 }
 
 
-Type const *TS_elaborated::tcheck(Env &env)
+Type const *TS_elaborated::itcheck(Env &env)
 {
   env.setLoc(loc);
 
@@ -717,7 +723,7 @@ Type const *TS_elaborated::tcheck(Env &env)
 }
 
 
-Type const *TS_classSpec::tcheck(Env &env)
+Type const *TS_classSpec::itcheck(Env &env)
 {
   env.setLoc(loc);
 
@@ -899,7 +905,7 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
 }
 
 
-Type const *TS_enumSpec::tcheck(Env &env)
+Type const *TS_enumSpec::itcheck(Env &env)
 {
   env.setLoc(loc);
 
