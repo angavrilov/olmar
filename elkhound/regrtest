@@ -66,13 +66,13 @@ done
 MAKE=${MAKE:-make}
 
 # clear the logfile
-log=regrtest.log
-rm -f $log
+logfile=regrtest.log
+rm -f $logfile
 
 # write something to terminal and log
 log() {
   echo "$@"
-  echo "$@" >> $log
+  echo "$@" >> $logfile
 }
 
 
@@ -248,8 +248,8 @@ echo "Failed as expected:    $failure"
 if [ $contin = 1 ]; then
   echo "Unexpected success:    $unexSuccess"
   echo "Unexpected failure:    $unexFailure"
-  if [ -f "$log" ]; then
-    cat "$log"
+  if [ -f "$logfile" ]; then
+    cat "$logfile"
   fi
 fi
 

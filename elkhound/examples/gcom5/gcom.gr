@@ -3,8 +3,9 @@
 
 verbatim {
   #include "str.h"        // stringf
-  #include <stdlib.h>     // getenv, atoi, setenv
+  #include <stdlib.h>     // getenv, atoi, putenv
   #include <stdio.h>      // printf
+  #include <string.h>     // strdup
 }
 
 // the parser context class is useful in large examples;
@@ -91,7 +92,7 @@ nonterm Stmt {
 
   -> x:TOK_IDENTIFIER ":=" a:AExp {
        // like above, use the environment variables
-       setenv(x, stringf("%d", a), 1 /*overwrite*/);
+       putenv(strdup(stringf("%s=%d", x, a)));
      }
 
   -> Stmt ";" Stmt {
