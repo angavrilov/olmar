@@ -406,11 +406,24 @@ string stringf(char const *format, ...)
 }
  
 
+// this should eventually be put someplace more general...
+#ifndef va_copy
+  #ifdef __va_copy
+    #define va_copy(a,b) __va_copy(a,b)
+  #else
+    #define va_copy(a,b) (a)=(b)
+  #endif
+#endif
+
+
 string vstringf(char const *format, va_list args)
 {                                  
   // estimate string length
-  int est = vnprintf(format, args);
-                    
+  va_list args2;
+  va_copy(args2, args);
+  int est = vnprintf(format, args2);
+  va_end(args2);
+
   // allocate space
   Array<char> buf(est+1);
 
