@@ -142,7 +142,12 @@ void setAnnotations(GrammarAST *ast)
           ast->terms = t;
         }
         else {
-          astParseError("there is more than one 'Terminals' section");
+          // 12/07/04: Allow more than one 'terminals' section,
+          // by simply concatenating them.  This is useful when
+          // I want to merge two grammars together textually.
+          ast->terms->decls.concat(t->decls);
+          ast->terms->types.concat(t->types);
+          ast->terms->prec.concat(t->prec);
         }
       }
 

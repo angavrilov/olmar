@@ -147,6 +147,13 @@ As a representative example, here is the <tt>classify</tt> function from
   }
 </pre>
 
+<h3>3.4 Precedence and Associativity</h3>
+
+<p>
+[TODO: Write this.  For now, you can look at what
+<a href="http://www.gnu.org/software/bison/manual/html_node/Precedence.html">Bison has to say</a>,
+though that is pretty short.]
+
 <h2>4. Nonterminals</h2>
 
 <p>
@@ -402,13 +409,11 @@ inaccessible):
   option unreachable_terminals 2;
 </pre>
 
-<h3>5.4 lang_OCaml</h3>
+<h2>6. OCaml</h2>
 
 <p>
 By default, Elkhound generates a parser in C++.  By specifying
-<pre>
-  option lang_OCaml;
-</pre>
+"<tt>-ocaml</tt>" on the command line,
 the user can request that instead the parser generate OCaml code.
 Please see <a href="ocaml/">ocaml/</a>, probably starting with
 the example driver <a href="ocaml/main.ml">ocaml/main.ml</a>.
