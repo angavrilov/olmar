@@ -427,6 +427,17 @@ public:      // funcs
   // that.
   Variable *findMostSpecific(Variable *baseV, SObjList<STemplateArgument> &sargs);
 
+  // Prepare the argument scope for the present typechecking of the
+  // cloned AST for effecting the instantiation of the template;
+  // Please see Scott's extensive comments at the implementation.
+  Scope *prepArgScopeForTemlCloneTcheck
+    (ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes,
+     Scope *foundScope, Variable *baseV, SObjList<STemplateArgument> &sargs);
+
+  // Undo prepArgScopeForTemlCloneTcheck().
+  void unPrepArgScopeForTemlCloneTcheck
+    (Scope *argScope, ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes);
+
   // instantate 'base' with arguments 'sargs', and return the implicit
   // typedef Variable associated with the resulting type; 'foundScope' is
   // the scope in which 'base' was found; if 'inst' is not NULL then
