@@ -22,9 +22,9 @@ public:
   ~Variable_Q();
 
   // Q++Qual-aware type of this variable
-  Type_Q const *qtypeC() const;
-  Type_Q *qtype()
-    { return const_cast<Type_Q*>(qtypeC()); }
+  Type_Q const *typeC() const;
+  Type_Q *type()
+    { return const_cast<Type_Q*>(typeC()); }
 };
 
 

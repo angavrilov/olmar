@@ -107,6 +107,7 @@ public:
   string toCString(char const *name) const { return typeC()->toCString(name); }
   string toString() const                  { return typeC()->toCString(); }
   bool isError() const                     { return typeC()->isError(); }
+  bool isReference() const                 { return typeC()->isReference(); }
 
   // get associated qualifiers
   Qualifiers *&getQualifiersPtr() { return q; }
@@ -141,10 +142,10 @@ public:
 // below CVAtomicType_Q so I could use that as the prototypical object
 // into which the Type_Q is embedded, on the assumption that the
 // offsets are the same for all Type_Q derivatives.
-inline Type_Q const *asType_QC(Type const *t)
+inline Type_Q const *asTypeC_Q(Type const *t)
   { return static_cast<Type_Q const*>(static_cast<CVAtomicType_Q const*>(t)); }
 inline Type_Q *asType_Q(Type *t)
-  { return const_cast<Type_Q*>(asType_QC(t)); }
+  { return const_cast<Type_Q*>(asTypeC_Q(t)); }
 
 inline CVAtomicType_Q *asCVAtomicType_Q(CVAtomicType *t)
   { return static_cast<CVAtomicType_Q*>(t); }
@@ -279,7 +280,7 @@ public:    // funcs
   virtual FunctionType *cloneFunctionType(FunctionType *src);
   virtual ArrayType *cloneArrayType(ArrayType *src);
 
-  virtual Type *applyCVToType(CVFlags cv, Type *baseType, TypeSpecifier *syntax);
+  virtual Type *applyQualifiersToType(CVFlags cv, Type *baseType, TypeSpecifier *syntax);
   virtual Type *makeRefType(Type *underlying);
 
   virtual PointerType *syntaxPointerType(
