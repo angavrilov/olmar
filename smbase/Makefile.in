@@ -122,6 +122,7 @@ OBJS := \
   trdelete.o \
   unixutil.o \
   vdtllist.o \
+  vptrmap.o \
   voidlist.o \
   warn.o
 -include $(OBJS:.o=.d)
@@ -136,7 +137,7 @@ $(THIS): $(OBJS)
 TESTS := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen \
          strdict svdict str strutil trdelete bflatten mysig \
          testmalloc mypopen tobjpool strhash cycles tsobjlist crc \
-         srcloc hashline gprintf smregexp
+         srcloc hashline gprintf smregexp vptrmap
 tests: $(TESTS)
 
 # command to compile and link
@@ -220,6 +221,9 @@ gprintf: gprintf.c gprintf.h
 smregexp: smregexp.cc $(THIS)
 	$(TESTCXX) -o $@ -DTEST_SMREGEXP smregexp.cc $(TESTFLAGS)
 
+vptrmap: vptrmap.cc $(THIS)
+	$(TESTCXX) -o $@ -DTEST_VPTRMAP vptrmap.cc $(TESTFLAGS)
+
 check: $(TESTS)
 	./nonport
 	./voidlist
@@ -243,6 +247,7 @@ check: $(TESTS)
 	./srcloc
 	./gprintf
 	./smregexp
+	./vptrmap
 	@echo
 	@echo "make check: all the tests PASSED"
 

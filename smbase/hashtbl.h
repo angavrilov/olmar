@@ -40,6 +40,13 @@ private:    // data
   // some entries are NULL, meaning that hash value has no mapping
   void **hashTable;
 
+  // Why use linear hashing instead of double hashing?  To support
+  // deletion.  Since every probe sequence that goes through index k
+  // will have a tail of k+1,k+2,... (mod tableSize) I can easily find
+  // and re-insert all the elements whose position might have depended
+  // on the presence of a now-deleted element.  Excessive clustering
+  // is (hopefully) avoided through load factor control.
+
   // number of slots in the hash table
   int tableSize;
 
