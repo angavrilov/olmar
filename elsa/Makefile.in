@@ -18,6 +18,7 @@ LIBELKHOUND := $(ELKHOUND)/libelkhound.a
 
 # external tools
 PERL := @PERL@
+MYFLEX := $(PERL) $(SMBASE)/run-flex.pl -nobackup -copies
 
 # list of files to clean in 'clean' (etc.) targets
 # (these get added to below)
@@ -124,13 +125,7 @@ lexer.lex: $(LEXER_MODS) merge-lexer-exts.pl
 # run flex on the lexer description
 TOCLEAN += lexer.yy.cc
 lexer.yy.cc: lexer.lex lexer.h
-	flex -o$@ -b lexer.lex
-	cat lex.backup
-	mv $@ lexer.tmp
-	sed -e 's/class istream;/#include <iostream.h>/' \
-            -e 's/#include <FlexLexer.h>/#include "sm_flexlexer.h"/' \
-	  <lexer.tmp >$@
-	rm lexer.tmp
+	$(MYFLEX) -o$@ lexer.lex
 
 
 # generate token lists

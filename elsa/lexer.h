@@ -54,9 +54,7 @@ protected:  // funcs
   // report an error in a preprocessing task
   void pp_err(char const *msg);
 
-  // read the next token and return its code; returns 0 for end of file;
-  // this function is defined in flex's output source code
-  virtual int yylex();
+  FLEX_OUTPUT_METHOD_DECLS
 
 public:     // funcs
   // make a lexer to scan the given file
