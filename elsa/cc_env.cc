@@ -2536,24 +2536,12 @@ bool Env::setDisambiguateOnly(bool newVal)
 
 Type *Env::implicitReceiverType()
 {
-  // TODO: this appears to be wrong in several respects:
-  //   - we should be checking scope()->curFunction, not
-  //     an enclosing class scope
-  //   - static methods (both caller and callee) might need
-  //     special treatment
-  //   - when the caller is a non-static method, the cv-flags
-  //     for the receiver object must match those of 'this'
-
-  CompoundType *encScope = enclosingClassScope();
-  if (!encScope) {
-    // there's no 'this' object to use as an implicit receiver
+  Variable *receiver = lookupVariable(receiverName);
+  if (!receiver) {
     return NULL;
   }
   else {
-    // we're in the scope of some class, so the call could be a
-    // method call, passing 'this' as the receiver; compute the type
-    // of that receiver argument
-    return tfac.makeTypeOf_receiver(loc() /*?*/, encScope, CV_NONE, NULL);
+    return receiver->type;
   }
 }
 

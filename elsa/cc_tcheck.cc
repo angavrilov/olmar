@@ -4826,28 +4826,35 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // the type of the function that is being invoked
   Type *t = func->type->asRval();
 
+  // check for operator()
+  CompoundType *ct = t->ifCompoundType();
+  if (ct) {
+    Variable *funcVar = ct->getNamedField(env.functionOperatorName, env);
+    if (funcVar && funcVar->overload) {
+      // resolve overloading
+      funcVar = outerResolveOverload(env, NULL /*finalName*/, env.loc(), funcVar,
+                                     func->type, args);
+    }
+    if (funcVar) {
+      // rewrite AST to reflect use of 'operator()'
+      Expression *object = func;
+      E_fieldAcc *fa = new E_fieldAcc(object,
+        new PQ_operator(SL_UNKNOWN, new ON_operator(OP_PARENS), env.functionOperatorName));
+      fa->field = funcVar;
+      fa->type = funcVar->type;
+      func = fa;
+
+      return funcVar->type->asFunctionType()->retType;
+    }
+
+    // fall through, error case below handles it
+  }
+
   // automatically coerce function pointers into functions
   if (t->isPointerType()) {
     t = t->asPointerTypeC()->atType;
     // if it is an E_variable then its overload set will be NULL so we
     // won't be doing overload resolution in this case
-  }
-
-  // check for operator()
-  CompoundType *ct = t->ifCompoundType();
-  if (ct) {
-    Variable const *funcVar = ct->getNamedFieldC(env.functionOperatorName, env);
-    if (funcVar) {
-      t = funcVar->type;
-      
-      // TODO: There are (at least) two problems here:
-      //   - 'operator()' may be overloaded, but we only pick the first
-      //   - the AST should be rewritten to explicitly refer to
-      //     'operator()' so that elaboration works correctly
-    }
-    else {
-      // fall through, error case below handles it
-    }
   }
 
   if (!t->isFunctionType()) {
@@ -4952,6 +4959,66 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // suspect it was a good function to call.
 
   FunctionType *ft = t->asFunctionType();
+
+  // receiver object?
+  if (env.doCompareArgsToParams && ft->isMethod()) {
+    Type *receiverType = NULL;
+    Expression *ffunc = func->skipGroups();
+    if (ffunc->isE_fieldAcc()) {
+      // explicit receiver via '.'
+      receiverType = ffunc->asE_fieldAcc()->obj->type;
+    }
+    else if (ffunc->isE_binary() &&
+             ffunc->asE_binary()->op == BIN_DOT_STAR) {
+      // explicit receiver via '.*'
+      receiverType = ffunc->asE_binary()->e1->type;
+    }
+    else if (ffunc->isE_binary() &&
+             ffunc->asE_binary()->op == BIN_ARROW_STAR) {
+      // explicit receiver via '->*'
+      receiverType = ffunc->asE_binary()->e1->type->asRval();
+      if (!receiverType->isPointerType()) {
+        // this message is partially redundant; the error(1) in in/t0298.cc
+        // also yields the rather vague "no viable candidate"
+        env.error("LHS of ->* must be a pointer");
+        receiverType = NULL;
+      }                     
+      else {
+        receiverType = receiverType->asPointerType()->atType;
+      }
+    }
+    else {
+      // implicit receiver
+      Variable *receiver = env.lookupVariable(env.receiverName);
+      if (!receiver) {
+        return env.error("must supply a receiver object to invoke a method");
+      }
+      else {
+        receiverType = receiver->type;
+      }
+    }
+    
+    if (receiverType) {
+      // check that the receiver object matches the receiver parameter
+      if (!getImplicitConversion(env,
+             SE_NONE,
+             receiverType,
+             ft->getReceiver()->type,
+             true /*destIsReceiver*/)) {
+        env.error(stringc
+          << "cannot convert argument type `" << receiverType->toString()
+          << "' to receiver parameter type `" << ft->getReceiver()->type->toString()
+          << "'");
+      }
+      else {
+        // TODO (elaboration): replace 'func' with an E_fieldAcc that
+        // explicitly uses '__receiver'
+      }
+    }
+    else {
+      // error already reported
+    }
+  }
 
   // compare argument types to parameters
   compareArgsToParams(env, ft, args);
@@ -5702,7 +5769,7 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
       if (op == BIN_ARROW_STAR) {
         // left side should be a pointer to a class
         if (!lhsType->isPointer()) {
-          return env.error(stringc 
+          return env.error(stringc
             << "left side of ->* must be a pointer, not `"
             << lhsType->toString() << "'");
         }
