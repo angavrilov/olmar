@@ -150,6 +150,8 @@ void Env::declareFunction1arg(Type *retType, char const *funcName,
       ft->exnSpec->types.append(exnType);
     }
   }
+  ft->doneParams();
+
   Variable *var = makeVariable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
   addVariable(var);
   madeUpVariables.append(var);

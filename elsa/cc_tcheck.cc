@@ -2194,6 +2194,9 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
   if (exnSpec) {
     ft->exnSpec = exnSpec->tcheck(env);
   }
+  
+  // call this after attaching the exception spec, if any
+  ft->doneParams();
 
   // now that we've constructed this function type, pass it as
   // the 'base' on to the next-lower declarator
