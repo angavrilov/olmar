@@ -153,11 +153,17 @@ print("checking for etags... ");
 if (system("type etags >/dev/null 2>&1")) {
   # doesn't have etags; cygwin is an example of such a system
   print("not found\n");
-  $ETAGS = "true";
+  $ETAGS = "true";       # 'true' is a no-op
 }
-else {
+elsif (system("etags --help | grep -- --members")) {
+  # has it, but it does not know about the --members option
   print("etags\n");
   $ETAGS = "etags";
+}
+else {
+  # assume if it knows about --members it knows about --typedefs too
+  print("etags --members --typedefs\n");
+  $ETAGS = "etags --members --typedefs";
 }
 
 

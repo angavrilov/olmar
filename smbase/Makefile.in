@@ -316,7 +316,7 @@ doc: gendoc gendoc/dependencies.png gendoc/configure.txt
 	@echo "built documentation"
 
 TAGS:
-	$(ETAGS) --members --typedefs *.cc *.h
+	$(ETAGS) *.cc *.h
 
 
 # --------------------- clean --------------------
