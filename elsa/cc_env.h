@@ -206,6 +206,8 @@ public:      // funcs
   // name collides with one that is already there (but if
   // 'forceReplace' true, silently replace instead)
   bool addVariable(Variable *v, bool forceReplace=false);
+  // dsw: FIX: Scott said he would make a better way of doing this
+  void addVariableWithOload(Variable *prevLookup, Variable *v);
   bool addCompound(CompoundType *ct);
   bool addEnum(EnumType *et);
 

@@ -1080,7 +1080,9 @@ void TS_classSpec::tcheckIntoCompound(
       // order to be symmetric with what is going on with the dtor
       // below.
       FunctionType *ft = env.makeCDtorFunctionType(loc);
-      Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_NONE);
+      Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_MEMBER);
+      // NOTE: we don't use env.addVariableWithOload() because this is
+      // a special case: we only insert if there are no ctors AT ALL.
       env.addVariable(v);
       env.madeUpVariables.push(v);
 
@@ -1101,7 +1103,7 @@ void TS_classSpec::tcheckIntoCompound(
     // **** implicit copy ctor: cppstd 12.8 para 4: "If the class
     // definition does not explicitly declare a copy constructor, one
     // is declared implicitly."
-    Variable const *ctor0 = ct->getNamedFieldC(env.constructorSpecialName, env, LF_INNER_ONLY);
+    Variable *ctor0 = ct->getNamedField(env.constructorSpecialName, env, LF_INNER_ONLY);
     xassert(ctor0);             // we just added one if there wasn't one
     // is there a copy constructor?  I'm rolling my own here.
     bool hasCopyCtor = false;
@@ -1127,7 +1129,7 @@ void TS_classSpec::tcheckIntoCompound(
     // ctors, etc.] ... Otherwise, the implicitly-declared copy
     // constructor will have the form X::X(X&).  An
     // implicitly-declared copy constructor is an inline public member
-    // of its class."  dsw: I'm going to just always make it X::X(X&)
+    // of its class."  dsw: I'm going to just always make it X::X(X const &)
     // for now.  TODO: do it right.
     if (!hasCopyCtor) {
       // add a copy ctor declaration: Class(Class&);
@@ -1136,15 +1138,87 @@ void TS_classSpec::tcheckIntoCompound(
         env.makeVariable(loc,
                          NULL,     // no parameter name
                          env.makePointerType(loc, PO_REFERENCE, CV_NONE,
-                                             env.makeCVAtomicType(loc, ct, CV_NONE)),
+                                             env.makeCVAtomicType(loc, ct, CV_CONST)),
                          DF_NONE);
       // sm: Q: why not pass in DF_PARAMETER to begin with?
       refToSelfParam->setFlag(DF_PARAMETER);
       ft->addParam(refToSelfParam);
       ft->doneParams();
 
-      Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_NONE);
-      env.addVariable(v);
+      Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_MEMBER);
+      env.addVariableWithOload(ctor0, v);
+      env.madeUpVariables.push(v);
+    }
+
+    // **** implicit copy assignment operator: 12.8 para 10: "If the
+    // class definition does not explicitly declare a copy assignment
+    // operator, one is declared implicitly."
+    Variable *assign_op0 = ct->getNamedField(env.operatorName[OP_ASSIGN],
+                                             env, LF_INNER_ONLY);
+    // is there a copy assign op?  I'm rolling my own here.
+    bool hasCopyAssignOp = false;
+    if (assign_op0) {
+      // special case for if there is only one:
+      if (!assign_op0->overload) {
+        if (assign_op0->type->asFunctionType()->isCopyAssignOpFor(ct)) {
+          hasCopyAssignOp = true;
+        }
+      } else {
+        // general case for more
+        SFOREACH_OBJLIST_NC(Variable, assign_op0->overload->set, iter) {
+          FunctionType *iterft = iter.data()->type->asFunctionType();
+          if (iterft->isCopyAssignOpFor(ct)) {
+            hasCopyAssignOp = true;
+            break;
+          }
+        }
+      }
+    } 
+
+    // 12.8 para 10: "The implicitly-declared copy assignment operator
+    // for a class X will have the form X& X::operator=(const X&) if
+    // [lots of complicated conditions about the superclasses have
+    // const-parmeter copy assignment, etc.] ... Otherwise, the
+    // implicitly-declared copy assignment operator [mistake in spec:
+    // it says "copy constructor"] will have the form X&
+    // X::operator=(X&) The implicitly-declared copy assignment
+    // operator for class X has the return type X&; it returns the
+    // object for which the assignment operator is invoked, that is,
+    // the object assigned to.  An implicitly-declared copy assignment
+    // operator is an inline public member of its class.  Because a
+    // copy assignment operator is always hidden by the copy
+    // assignment operator of a derived class (13.5.3).  A
+    // using-declaration (7.3.3) that brings in from a base class an
+    // assignment operator with a parameter type that could be that of
+    // a copy-assignment operator; the operator introduced by the
+    // using-declaration is hidden by the implicitly-declared
+    // copy-assignment operator in the derived class."  dsw: I'm going
+    // to just always make the parameter const for now.  TODO: do it
+    // right.
+    if (!hasCopyAssignOp) {
+      // add a copy assignment op declaration: Class(Class&);
+      Type *refToSelfType = 
+        env.makePointerType(loc, PO_REFERENCE, CV_NONE,
+                            env.makeCVAtomicType(loc, ct, CV_CONST));
+      FunctionType *ft = env.makeFunctionType(loc, refToSelfType);
+      Variable *refToSelfParam =
+        env.makeVariable(loc,
+                         NULL,  // no parameter name
+                         env.tfac.cloneType(refToSelfType),
+                         DF_NONE);
+      // sm: Q: why not pass in DF_PARAMETER to begin with?
+      refToSelfParam->setFlag(DF_PARAMETER);
+      ft->addParam(refToSelfParam);
+      // dsw: cloneVariable() is a no-op?!  Clone it manually.
+      Variable *thisVar = env.makeVariable(refToSelfParam->loc,
+                                           refToSelfParam->name,
+                                           env.tfac.cloneType(refToSelfParam->type),
+                                           refToSelfParam->flags);
+      ft->addThisParam(thisVar);
+      ft->doneParams();
+
+      Variable *v = env.makeVariable(loc, env.operatorName[OP_ASSIGN], ft, DF_MEMBER);
+      env.addVariableWithOload(assign_op0, v);
       env.madeUpVariables.push(v);
     }
 
@@ -1155,8 +1229,14 @@ void TS_classSpec::tcheckIntoCompound(
     if (!ct->lookupVariable(dtorName, env, LF_INNER_ONLY)) {
       // add a dtor declaration: ~Class();
       FunctionType *ft = env.makeDestructorFunctionType(loc);
-      Variable *v = env.makeVariable(loc, dtorName, ft, DF_NONE);
+      Variable *v = env.makeVariable(loc, dtorName, ft, DF_MEMBER);
+      // NOTE: we don't use env.addVariableWithOload() because this is
+      // a special case: we only insert if there are no dtors AT ALL.
       env.addVariable(v);
+
+      // FIX: Scott says the dtor should have a this parameter added
+      // with addThisParam(); I'm leaving it out so that we don't add
+      // this feature until we have a test that makes it fail
 
       // put it on the list of made-up variables since there are no
       // (e.g.) $tainted qualifiers (since the user didn't even type the
@@ -1462,26 +1542,27 @@ Type *computeArraySizeFromCompoundInit(Env &env, SourceLoc tgt_loc, Type *tgt_ty
   return tgt_type;
 }
 
-// array compound literal initializer case
+// provide a well-defined size for the array from the size of the
+// initializer, such as in this case:
+//   char sName[] = "SOAPPropertyBag";
+// or in this case (a gnu extention):
 // http://gcc.gnu.org/onlinedocs/gcc-3.3/gcc/Compound-Literals.html#Compound%20Literals
 //   static int y[] = (int []) {1, 2, 3};
-// is equivalent to:
+// which is equivalent to:
 //   static int y[] = {1, 2, 3};
-Type *computeArraySizeFromCompoundLiteral(Env &env, Type *tgt_type, Initializer *init)
+// note that the this code subsumes completely the functionality of
+// the previous computeArraySizeFromCompoundLiteral()
+Type *computeArraySizeFromLiteral(Env &env, Type *tgt_type, Initializer *init)
 {
-#ifdef GNU_EXTENSION
-  // E_compoundLit is the part of the gnu extension that this is
-  // computing the array type size for
   if (tgt_type->isArrayType() &&
       !tgt_type->asArrayType()->hasSize() &&
       init->isIN_expr() &&
       init->asIN_expr()->e->expr->type->isArrayType() &&
-      init->asIN_expr()->e->expr->type->asArrayType()->hasSize() &&
-      init->asIN_expr()->e->expr->isE_compoundLit()) {
+      init->asIN_expr()->e->expr->type->asArrayType()->hasSize()
+      ) {
     tgt_type = env.tfac.cloneType(init->asIN_expr()->e->expr->type);
     xassert(tgt_type->asArrayType()->hasSize());
   }
-#endif // GNU_EXTENSION
   return tgt_type;
 }
 
@@ -1556,7 +1637,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // array initializer case
     var->type = computeArraySizeFromCompoundInit(env, var->loc, var->type, type, init);
     // array compound literal initializer case
-    var->type = computeArraySizeFromCompoundLiteral(env, var->type, init);
+    var->type = computeArraySizeFromLiteral(env, var->type, init);
   }
 
   if (qualifiedScope) {
@@ -4052,7 +4133,11 @@ Type *E_sizeof::itcheck(Env &env, Expression *&replacement)
 
   // TODO: this will fail an assertion if someone asks for the
   // size of a variable of template-type-parameter type..
-  size = expr->type->asRval()->reprSize();
+  try {
+    size = expr->type->asRval()->reprSize();
+  } catch (XReprSize &e) {
+    return env.error(e.why());  // jump out with an error
+  }
   TRACE("sizeof", "sizeof(" << expr->exprToString() <<
                   ") is " << size);
 
@@ -4638,7 +4723,11 @@ Type *E_sizeofType::itcheck(Env &env, Expression *&replacement)
   ASTTypeId::Tcheck tc;
   atype = atype->tcheck(env, tc);
   Type *t = atype->getType();
-  size = t->reprSize();
+  try {
+    size = t->reprSize();
+  } catch (XReprSize &e) {
+    t = env.error(e.why());
+  }
 
   // dsw: I think under some gnu extensions perhaps sizeof's aren't
   // const (like with local arrays that use a variable to determine

@@ -34,6 +34,7 @@
 #include "cc_scope.h"     // Scope
 #include "fakelist.h"     // FakeList
 #include "srcloc.h"       // SourceLoc
+#include "exc.h"          // xBase
 
 class Variable;           // variable.h
 class Env;                // cc_env.h
@@ -751,6 +752,8 @@ public:
   
   // does this match the signature of a copy constructor?
   bool isCopyConstructorFor(CompoundType *ct) const;
+  // does this match the signature of a copy assign operator?
+  bool isCopyAssignOpFor(CompoundType *ct) const;
 
   bool isTemplate() const { return templateParams!=NULL; }
   
@@ -1122,6 +1125,18 @@ public:    // funcs
                                  Type *t, DeclFlags f, TranslationUnit *tunit);
   virtual Variable *cloneVariable(Variable *src);
 };
+
+
+// -------------------- XReprSize ---------------------
+// thrown when we fail to open a file
+class XReprSize : public xBase {
+public:
+  XReprSize();
+  XReprSize(XReprSize const &obj);
+  ~XReprSize();
+};
+
+void throw_XReprSize() NORETURN;
 
 
 // ------ for debugging ------

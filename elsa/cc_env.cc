@@ -848,6 +848,15 @@ bool Env::addVariable(Variable *v, bool forceReplace)
 }
 
 
+void Env::addVariableWithOload(Variable *prevLookup, Variable *v) {
+  if (prevLookup) {
+    prevLookup->getOverloadSet()->addMember(v);
+  } else {
+    addVariable(v);
+  }
+}
+
+
 void Env::registerVariable(Variable *v)
 {
   Scope *s = acceptingScope(v->flags);

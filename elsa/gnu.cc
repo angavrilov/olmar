@@ -70,6 +70,8 @@ Type *E___builtin_constant_p::itcheck(Env &env, Expression *&replacement)
 
 //    // TODO: this will fail an assertion if someone asks for the
 //    // size of a variable of template-type-parameter type..
+//    // dsw: If this is turned back on, be sure to catch the possible
+//    // XReprSize exception and add its message to the env.error-s
 //    size = expr->type->asRval()->reprSize();
 //    TRACE("sizeof", "sizeof(" << expr->exprToString() <<
 //                    ") is " << size);
@@ -87,6 +89,8 @@ Type *E_alignofType::itcheck(Env &env, Expression *&replacement)
   ASTTypeId::Tcheck tc;
   atype = atype->tcheck(env, tc);
   Type *t = atype->getType();
+  // dsw: If this is turned back on, be sure to catch the possible
+  // XReprSize exception and add its message to the env.error-s
 //    size = t->reprSize();
 
   return t->isError()? t : env.getSimpleType(SL_UNKNOWN, ST_UNSIGNED_INT);

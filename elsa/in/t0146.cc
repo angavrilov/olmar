@@ -41,7 +41,7 @@ void f1()
 
   a = b;
   __testOverload(c = b, 18);
-  //ERROR(1): b = b;           // 'b' can't convert to an L&
+  //ERROR(1): b.operator int() = b;           // 'b' can't convert to an L&
   d = b;
   e = 3;
   

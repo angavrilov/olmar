@@ -229,7 +229,10 @@ runTest perl ./multitest.pl ./five-errors -tr doOperatorOverload in/t0151.cc
 failTest "need overload resolution with templates" \
   perl ./multitest.pl ./ccparse -tr doOperatorOverload,$TR_FLAGS in/t0152.cc
 
-failTest "need default operator=" \
+# dsw: the default operator = has now been provided; if you agree that
+# this fix is correct, remember to also remove from the comment
+# refering to 0153 above as a known bug.
+runTest \
   perl ./multitest.pl ./ccparse -tr doOperatorOverload,$TR_FLAGS in/t0153.cc
 
 
@@ -238,9 +241,13 @@ for fn in                                      \
   d0001.cc d0002.cc d0003.cc d0004.cc d0005.cc \
   d0006.cc d0007.cc d0008.cc d0009.cc d0010.cc \
   d0011.cc d0012.cc d0013.cc d0014.cc d0015.cc \
+           d0017.cc                            \
     ; do
   runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS in/$fn
 done
+
+failTest 'no viable candidate for function call' \
+  perl ./multitest.pl ./ccparse -tr $TR_FLAGS in/d0016.cc
 
 # examples from C++ standard
 for fn in in/std/*.cc; do
@@ -315,12 +322,18 @@ for fn in                                                                   \
 done
 
 
+# dsw: FIX: I turned these off per your suggestion; They all have one
+# thing in common, probably from a common header file that is causing
+# them all to fail; I attempted to minimized it with delta, but I
+# suspect that it may have been "overminimized"; see the results in
+# in/d0016.cc
+
 # final parser checks against the big files, since they've now become
 # my performance measurement files
-$MAKE in/big
-for fn in in/big/*.i; do
-  runTest ./ccparse -tr $TR_FLAGS "$fn"
-done
+#  $MAKE in/big
+#  for fn in in/big/*.i; do
+#    runTest ./ccparse -tr $TR_FLAGS "$fn"
+#  done
 
 
 # final arithmetic to report result

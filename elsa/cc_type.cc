@@ -1231,6 +1231,33 @@ bool FunctionType::isCopyConstructorFor(CompoundType *ct) const
 }
 
 
+// cppstd 12.8 para 9: "A user-declared _copy_ assignment operator
+// X::operator= is a non-static non-template member function of class
+// X with exactly one parameter of type X, X&, const X&, volatile X&
+// or const volatile X&."
+bool FunctionType::isCopyAssignOpFor(CompoundType *ct) const
+{
+  if (!(flags & FF_METHOD)) return false; // is a non-static member?
+  if (isTemplate()) return false; // non-template?
+  if (params.count() != 1) return false; // has exactly one arg?
+
+  // the parameter
+  Type *t0 = params.firstC()->type;
+
+  // is the parameter of the class type?  NOTE: atomics are equal iff
+  // pointer equal
+  if (t0->isCVAtomicType() && t0->asCVAtomicType()->atomic != ct) return true;
+
+  // or, is the parameter a ref to the class type?
+  if (!t0->isReference()) return false;
+  PointerType *pt0 = t0->asPointerType();
+  if (!pt0->atType->isCVAtomicType()) return false;
+  CVAtomicType *at0 = pt0->atType->asCVAtomicType();
+  if (at0->atomic != ct) return false; // NOTE: atomics are equal iff pointer equal
+  return true;                  // all test pass
+}
+
+
 // NOTE:  This function (and the parameter comparison function that
 // follows) is at the core of the overloadability analysis; it's
 // complicated.  The set of EqFlags has been carefully chosen to try
@@ -1777,9 +1804,8 @@ int ArrayType::reprSize() const
     return eltType->reprSize() * size;
   }
   else {
-    // or should I throw an exception ..?
-    cout << "warning: reprSize of a sizeless array\n";
-    return 0;
+    throw_XReprSize();
+    return ArrayType::NO_SIZE;  // won't get here
   }
 }
 
@@ -2153,6 +2179,26 @@ void cc_type_checker()
     #endif // 0
   }
   #endif // NDEBUG
+}
+
+
+// -------------------- XReprSize -------------------
+XReprSize::XReprSize()
+  : xBase(stringc << "reprSize of a sizeless array")
+{}
+
+XReprSize::XReprSize(XReprSize const &obj)
+  : xBase(obj)
+{}
+
+XReprSize::~XReprSize()
+{}
+
+
+void throw_XReprSize()
+{
+  XReprSize x;
+  THROW(x);
 }
 
 
