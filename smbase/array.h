@@ -11,6 +11,11 @@
 // this class implements an array of T's; it automatically expands
 // when 'ensureAtLeast' or 'ensureIndexDoubler' is used; it does not
 // automatically contract
+//
+// class T must have:
+//   T::T();           // default ctor for making arrays
+//   operator=(T&);    // assignment for copying to new storage
+//   T::~T();          // dtor for when old array is cleared
 template <class T>
 class GrowArray {
 private:     // data
