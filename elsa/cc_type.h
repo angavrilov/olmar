@@ -306,6 +306,8 @@ public:     // funcs
   
   bool isTemplateFunction() const;
   bool isTemplateClass() const;
+  
+  bool isCDtorFunction() const;
 
   ALLOC_STATS_DECLARE
 };

@@ -40,8 +40,14 @@ Env::Env(StringTable &s, CCLang &L)
   // TODO: fill in the proper fields and methods
   type_info_const_ref = makeRefType(makeCVType(ct, CV_CONST));
   
-  // cache this because I compare with it frequently
+  // some special names; pre-computed (instead of just asking the
+  // string table for it each time) because in certain situations
+  // I compare against them frequently; the main criteria for
+  // choosing these names is they have to be untypable by the C++
+  // programmer (i.e. if the programmer types them they won't be
+  // lexed as single names)
   conversionOperatorName = str("conversion-operator");
+  constructorSpecialName = str("constructor-special");
 
   // create declarations for some built-in operators
 

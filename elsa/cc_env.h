@@ -57,6 +57,9 @@ public:      // data
 
   // special name for conversion operators
   StringRef conversionOperatorName;
+  
+  // special name for constructors
+  StringRef constructorSpecialName;
 
 public:      // function
   Env(StringTable &str, CCLang &lang);
