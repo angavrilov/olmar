@@ -121,8 +121,8 @@ ImplicitConversion getImplicitConversion
         GrowArray<ArgumentInfo> argTypes(1);
         argTypes[0] = ArgumentInfo(special, src);
         TRACE("overload", "  overloaded call to constructor " << ct->name);
-        ctor = resolveOverload(env, OF_NO_USER|OF_NO_ERRORS,
-                               ctor->overload->set, argTypes);
+        ctor = resolveOverload(env, SL_UNKNOWN, NULL /*errors*/, 
+                               OF_NO_USER, ctor->overload->set, argTypes);
         if (ctor) {
           TRACE("overload", "  selected constructor at " << toString(ctor->loc));
         }

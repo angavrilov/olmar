@@ -3374,8 +3374,9 @@ Type *E_funCall::inner2_itcheck(Env &env)
       }
 
       // resolve overloading
-      Variable *chosen =
-        resolveOverload(env, OF_NONE, funcEVar->var->overload->set, argInfo);
+      Variable *chosen = resolveOverload(
+        env, funcEVar->name->loc, &env.errors,
+        OF_NONE, funcEVar->var->overload->set, argInfo);
       if (!chosen) {
         // error has already been reported
       }

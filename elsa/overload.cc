@@ -63,10 +63,12 @@ bool isProperSubpath(CompoundType const *LS, CompoundType const *LD,
 
 Variable *resolveOverload(
   Env &env,
+  SourceLoc loc,
+  ErrorList * /*nullable*/ errors,
   OverloadFlags flags,
   SObjList<Variable> &varList,
   GrowArray<ArgumentInfo> &args)
-{                   
+{
   // for debug printing
   IFDEBUG( char const *indent = (flags & OF_NO_USER)? "    " : "  "; )
 
@@ -84,10 +86,11 @@ Variable *resolveOverload(
   }
 
   if (candidates.isEmpty()) {
-    if (!( flags & OF_NO_ERRORS )) {
+    if (errors) {
       // TODO: expand this message greatly: explain which functions
       // are candidates, and why each is not viable
-      env.error("no viable candidate for function call");
+      errors->addError(new ErrorMsg(
+        loc, "no viable candidate for function call", EF_NONE));
     }
     return NULL;
   }
@@ -110,9 +113,10 @@ Variable *resolveOverload(
     else {
       // not better, so there is no function that is better than
       // all others
-      if (!( flags & OF_NO_ERRORS )) {
+      if (errors) {
         // TODO: expand this message
-        env.error("ambiguous overload, no function is better than all others");
+        errors->addError(new ErrorMsg(
+          loc, "ambiguous overload, no function is better than all others", EF_NONE));
       }
       return NULL;
     }

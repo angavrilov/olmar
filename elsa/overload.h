@@ -13,6 +13,7 @@
 class Env;
 class Variable;
 class Type;
+class ErrorList;
 
 
 // information about an argument expression, for use with
@@ -55,12 +56,11 @@ public:
 };
 
 
-// flags to control overload resolution
+// flags to control overload resolution (there used to be more than one...)
 enum OverloadFlags {
   OF_NONE        = 0x00,           // nothing special
   OF_NO_USER     = 0x01,           // don't consider user-defined conversions
-  OF_NO_ERRORS   = 0x02,           // don't insert error messages into the environment
-  OF_ALL         = 0x03,           // all flags
+  OF_ALL         = 0x01,           // all flags
 };
 
 ENUM_BITWISE_OPS(OverloadFlags, OF_ALL);
@@ -70,7 +70,9 @@ ENUM_BITWISE_OPS(OverloadFlags, OF_ALL);
 // matches or there's an ambiguity, adds an error to 'env' and returns
 // NULL
 Variable *resolveOverload(
-  Env &env,                        // for emitting error messages, etc.
+  Env &env,                        // environment in which to perform lookups
+  SourceLoc loc,                   // location for error reports
+  ErrorList * /*nullable*/ errors, // where to insert errors; if NULL, don't
   OverloadFlags flags,             // various options
   SObjList<Variable> &list,        // list of overloaded possibilities
   GrowArray<ArgumentInfo> &args);  // list of argument types at the call site
