@@ -2544,6 +2544,12 @@ bool verifyCompatibleTemplates(Env &env, CompoundType *prior)
     return true;
   }
 
+  // before going further, associate the scope's parameters
+  // so that happens regardless of the decision here
+  if (scope->hasTemplateParams()) {
+    scope->setParameterizedPrimary(prior->typedefVar);
+  }
+
   if (!scope->hasTemplateParams() && prior->isTemplate()) {
     env.error(stringc
       << "prior declaration of " << prior->keywordAndName()

@@ -910,14 +910,7 @@ nonterm(Declaration*) SimpleDeclaration {
 
   // a bare specifier is a type definition or forward declaration
   -> spec:DeclSpecifier ";"
-       { if (spec->spec->isTS_elaborated()) {
-           // cppstd 3.3.1 para 5: the special form
-           //   class-key identifier ;
-           // is treated specially; mark it with a special flag
-           spec->dflags = (DeclFlags)(spec->dflags | DF_FORWARD);
-         }
-         return spec; 
-       }
+       { return spec; }
 
 
   // this is now redundant because DeclSpecifier allows "typedef"
@@ -1752,10 +1745,6 @@ nonterm(Member*) MemberDeclaration {
              spec->spec->isTS_classSpec() ||
              spec->spec->isTS_enumSpec()) {
            // ok
-           if (spec->spec->isTS_elaborated()) {
-             // see similar rule in SimpleDeclaration for why I do this
-             spec->dflags = (DeclFlags)(spec->dflags | DF_FORWARD);
-           }
            return new MR_decl(loc, spec);
          }
          else {

@@ -32,12 +32,21 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
 
 Scope::~Scope()
 {
+  // 8/14/04: I got all of our test suite to go through without
+  // running into what is now the xfailure below, so I think I've got
+  // most of this straightened out.  But this isn't such a big deal if
+  // it fails so I'm going to turn it off again.  If at some point
+  // we are more interested in improving the implementation than in
+  // getting code to go through, I might turn it on again.
+  #if 0
   if (scopeKind == SK_TEMPLATE_PARAMS && !parameterizedPrimary) {
     // my intent is that all SK_TEMPLATE_PARAMSs get assigned to some
     // primary eventually; this warning should be commented-out once
     // the implementation stabilizes
     cout << "warning (bug?): " << desc() << " has no parameterizedPrimary\n";
+    xfailure("does our test suite contain this?");
   }
+  #endif // 0
 }
 
 

@@ -734,6 +734,13 @@ void Function::tcheck_handlers(Env &env)
 // -------------------- Declaration -------------------
 void Declaration::tcheck(Env &env, DeclaratorContext context)
 {
+  // if there are no declarators, the type specifier's tchecker
+  // needs to know this (for e.g. 3.3.1 para 5)
+  if (decllist->isEmpty() &&
+      spec->isTS_elaborated()) {
+    dflags |= DF_FORWARD;
+  }
+
   // if we're declaring an anonymous type, and there are
   // some declarators, then give the type a name; we don't
   // give names to anonymous types with no declarators as
@@ -1073,17 +1080,28 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
   if (!name->hasQualifiers() &&
       (dflags & DF_FORWARD) &&
       !(dflags & DF_FRIEND)) {
+    // we might be forward declaring a template that has already
+    // been declared (t0027.cc); don't complain about the lack of
+    // template arguments
+    LookupFlags lflags = LF_INNER_ONLY;
+    if (!name->getUnqualifiedName()->isPQ_template()) {
+      lflags |= LF_TEMPL_PRIMARY;
+    }
+  
     // cppstd 3.3.1 para 5:
     //   "for an elaborated-type-specifier of the form
     //      class-key identifier ;
     //    the elaborated-type-specifier declares the identifier to be a
     //    class-name in the scope that contains the declaration"
-    ct = env.lookupPQCompound(name, LF_INNER_ONLY);
+    ct = env.lookupPQCompound(name, lflags);
     if (!ct) {
       // make a forward declaration
       Type *ret =
          env.makeNewCompound(ct, env.acceptingScope(), name->getName(),
                              loc, keyword, true /*forward*/);
+      if (ct->templateInfo()) {
+        TRACE("template", "template class decl: " << ct->templateInfo()->templateName());
+      }
       this->atype = ct;        // annotation
       return ret;
     }
@@ -1095,6 +1113,9 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
           << "you asked for a " << toString(keyword) << " called `"
           << *name << "', but that's actually a " << toString(ct->keyword));
       }
+      
+      verifyCompatibleTemplates(env, ct);
+
       this->atype = ct;        // annotation
       return env.makeType(loc, ct);
     }
@@ -1227,18 +1248,12 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 
     // check that the previous was a forward declaration
     if (!ct->forward) {
-      return env.error(stringc
-        << ct->keywordAndName() << " has already been defined");
+      env.error(stringc << ct->keywordAndName() << " has already been defined");
     }
 
     // now it is no longer a forward declaration
     ct->forward = false;
     prevWasForward = true;
-                                                       
-    // the template parameters parameterize the primary
-    if (env.scope()->isTemplateParamScope()) {
-      env.scope()->setParameterizedPrimary(ct->typedefVar);
-    }
 
     verifyCompatibleTemplates(env, ct);
 
@@ -6048,8 +6063,6 @@ void IN_ctor::tcheck(Env &env, Type *type)
 // -------------------- TemplateDeclaration ---------------
 void TemplateDeclaration::tcheck(Env &env)
 {
-  // Note: This code has been partially copied to TD_tmember::itcheck (below).
-
   // if this is a complete specialization put nothing on the stack as
   // we are still in normal code
   bool inCompleteSpec = params->isEmpty();
@@ -6123,7 +6136,7 @@ void TD_class::itcheck(Env &env)
 {
   // check the class definition; it knows what to do about
   // the template parameters (just like for functions)
-  type = spec->tcheck(env, DF_NONE);
+  type = spec->tcheck(env, spec->isTS_elaborated()? DF_FORWARD : DF_NONE);
 }
 
 

@@ -4,6 +4,9 @@
 // forward decl
 template <class T> class Foo;
 
+// a redudant forward decl
+template <class T> class Foo;
+
 //ERROR(2): template <class TT, class YY> class Foo;     // inconsistent
 
 template <class T>
