@@ -92,9 +92,15 @@ void T::insertOstream(ostream &os) const
 
 // assert something at compile time (must use this inside a function);
 // works because compilers won't let us declare negative-length arrays
-// (the expression below works with egcs-1.1.2)
+// (the expression below works with egcs-1.1.2, gcc-2.x, gcc-3.x)
 #define STATIC_ASSERT(cond) \
   { (void)((int (*)(char failed_static_assertion[(cond)?1:-1]))0); }
+
+// assert that a table is an expected size; the idea is to make sure
+// that static data in some table gets updated when a corresponding
+// symbolic constant is changed
+#define ASSERT_TABLESIZE(table, size) \
+  STATIC_ASSERT(TABLESIZE(table) == (size))
 
   
 // for silencing variable-not-used warnings
