@@ -238,8 +238,6 @@ private:     // funcs
                                 FunctionFlags flags,
                                 Type * /*nullable*/ exnType);
 
-  Variable *declareSpecialFunction(char const *name);
-
   void addGNUBuiltins();
 
   void setupOperatorOverloading();
@@ -652,6 +650,10 @@ public:      // funcs
   // make function variable for an implicitly declared function at its
   // call site with type makeImplicitDeclFuncType() above
   Variable *makeImplicitDeclFuncVar(StringRef name);
+
+  // declare a function that can accept basically anything; mainly
+  // used for functions the translator itself interprets
+  Variable *declareSpecialFunction(char const *name);
 
   // see implementation; this is here b/c gnu.cc wants to call it
   Type *computeArraySizeFromCompoundInit(SourceLoc tgt_loc, Type *tgt_type,
