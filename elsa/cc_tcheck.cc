@@ -1707,503 +1707,58 @@ void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
 }
 
 
-// -------------------- Declarator --------------------
-Declarator *Declarator::tcheck(Env &env, Tcheck &dt)
+// ----------------- declareNewVariable ---------------   
+// This block of helpers, especially 'declareNewVariable', is the
+// heart of the type checker, and the most complicated.
+
+// This function is called whenever a constructed type is passed to a
+// lower-down IDeclarator which *cannot* accept member function types.
+// (sm 7/10/03: I'm now not sure exactly what that means...)
+//
+// sm 8/10/04: the issue is that someone has to call 'doneParams', but
+// that can't be done in one central location, so this does it unless
+// it has already been done, and is called in several places;
+// 'dt.funcSyntax' is used as a flag to tell when it's happened
+void possiblyConsumeFunctionType(Env &env, Declarator::Tcheck &dt)
 {
-  if (!ambiguity) {
-    mid_tcheck(env, dt);
-    return this;
-  }
-
-  // As best as I can tell from the standard, cppstd sections 6.8 and
-  // 8.2, we always prefer a Declarator interpretation which has no
-  // initializer (if that's valid) to one that does.  I'm not
-  // completely sure because, ironically, the English text there ("the
-  // resolution is to consider any construct that could possibly be a
-  // declaration a declaration") is ambiguous in my opinion.  See the
-  // examples of ambiguous syntax in cc.gr, nonterminal
-  // InitDeclarator.
-  if (this->init == NULL &&
-      ambiguity->init != NULL &&
-      ambiguity->ambiguity == NULL) {
-    // already in priority order
-    return resolveAmbiguity(this, env, "Declarator", true /*priority*/, dt);
-  }
-  else if (this->init != NULL &&
-           ambiguity->init == NULL &&
-           ambiguity->ambiguity == NULL) {
-    // reverse priority order; swap them
-    Declarator *withInit = this;
-    Declarator *noInit = ambiguity;
-
-    noInit->ambiguity = withInit;    // 'noInit' is first
-    withInit->ambiguity = NULL;      // 'withInit' is second
-
-    // run with priority
-    return resolveAmbiguity(noInit, env, "Declarator", true /*priority*/, dt);
-  }
-  else {
-    // if both have an initialzer or both lack an initializer, then
-    // we'll resolve without ambiguity; otherwise we'll probably fail
-    // to resolve, which will be reported as such
-    return resolveAmbiguity(this, env, "Declarator", false /*priority*/, dt);
-  }
-}
-
-
-// array initializer case
-//   static int y[] = {1, 2, 3};
-// or in this case (a gnu extention):
-// http://gcc.gnu.org/onlinedocs/gcc-3.3/gcc/Compound-Literals.html#Compound%20Literals
-//   static int y[] = (int []) {1, 2, 3};
-// which is equivalent to:
-//   static int y[] = {1, 2, 3};
-Type *Env::computeArraySizeFromCompoundInit(SourceLoc tgt_loc, Type *tgt_type,
-                                            Type *src_type, Initializer *init)
-{
-  if (tgt_type->isArrayType() &&
-      init->isIN_compound()) {
-    ArrayType *at = tgt_type->asArrayType();
-    IN_compound const *cpd = init->asIN_compoundC();
-                   
-    // count the initializers; this is done via the environment
-    // so the designated-initializer extension can intercept
-    int initLen = countInitializers(loc(), src_type, cpd);
-
-    if (!at->hasSize()) {
-      // replace the computed type with another that has
-      // the size specified; the location isn't perfect, but
-      // getting the right one is a bit of work
-      tgt_type = tfac.setArraySize(tgt_loc, at, initLen);
+  if (dt.funcSyntax) {
+    if (dt.funcSyntax->cv != CV_NONE) {
+      env.error("cannot have const/volatile on nonmember functions");
     }
-    else {
-      // TODO: cppstd wants me to check that there aren't more
-      // initializers than the array's specified size, but I
-      // don't want to do that check since I might have an error
-      // in my const-eval logic which could break a Mozilla parse
-      // if my count is short
-    }
+    dt.funcSyntax = NULL;
+
+    // close the parameter list
+    dt.type->asFunctionType()->doneParams();
   }
-  return tgt_type;
 }
 
-// provide a well-defined size for the array from the size of the
-// initializer, such as in this case:
-//   char sName[] = "SOAPPropertyBag";
-Type *computeArraySizeFromLiteral(Env &env, Type *tgt_type, Initializer *init)
-{
-  if (tgt_type->isArrayType() &&
-      !tgt_type->asArrayType()->hasSize() &&
-      init->isIN_expr() &&
-      init->asIN_expr()->e->type->isArrayType() &&
-      init->asIN_expr()->e->type->asArrayType()->hasSize()
-      ) {
-    tgt_type = env.tfac.cloneType(tgt_type);
-    tgt_type->asArrayType()->size = init->asIN_expr()->e->type->asArrayType()->size;
-    xassert(tgt_type->asArrayType()->hasSize());
-  }
-  return tgt_type;
-}
 
-// true if the declarator corresponds to a local/global variable declaration
-bool isVariableDC(DeclaratorContext dc)
-{
-  return dc==DC_TF_DECL ||    // global
-         dc==DC_S_DECL ||     // local
-         dc==DC_CN_DECL;      // local in a Condition
-}
-
-// TODO: rename, move, etc. this block of functions
-static void D_name_tcheck(
-  Env &env,
-  Declarator::Tcheck &dt,
-  bool inGrouping,
-  SourceLoc loc,
-  PQName const *name);
+// given a 'dt.type' that is a function type, and a 'dt.funcSyntax'
+// that's carrying information about the function declarator syntax,
+// and 'inClass' the class that the function will be considered a
+// member of, attach a 'this' parameter to the function type, and
+// close its parameter list
 void makeMemberFunctionType(Env &env, Declarator::Tcheck &dt,
-                            NamedAtomicType *inClassNAT, SourceLoc loc);
-void possiblyConsumeFunctionType(Env &env, Declarator::Tcheck &dt);
-
-void Declarator::mid_tcheck(Env &env, Tcheck &dt)
+                            NamedAtomicType *inClassNAT, SourceLoc loc)
 {
-  // true if we're immediately in a class body
-  Scope *enclosingScope = env.scope();
-  bool inClassBody = !!(enclosingScope->curCompound);
-           
-  // is this declarator in a templatizable context?  this prevents 
-  // confusion when processing the template arguments themselves (which
-  // contain declarators), among other things
-  bool templatizableContext = 
-    dt.context == DC_FUNCTION ||   // could be in MR_func or TD_func
-    dt.context == DC_TD_PROTO ||
-    dt.context == DC_MR_DECL;
+  // make the implicit 'this' parameter
+  xassert(dt.funcSyntax);
+  CVFlags thisCV = dt.funcSyntax->cv;
+  Variable *receiver = env.receiverParameter(loc, inClassNAT, thisCV, dt.funcSyntax);
 
-  // cppstd sec. 3.4.3 para 3:
-  //    "In a declaration in which the declarator-id is a
-  //    qualified-id, names used before the qualified-id
-  //    being declared are looked up in the defining
-  //    namespace scope; names following the qualified-id
-  //    are looked up in the scope of the member's class
-  //    or namespace."
-  //
-  // to implement this, I'll find the declarator's qualified
-  // scope ahead of time and add it to the scope stack
-  //
-  // 4/21/04: in fact, I need the entire sequence of scopes
-  // in the qualifier, since all of them need to be visible
-  //
-  // dsw points out that this furthermore requires that the underlying
-  // PQName be tchecked, so we can use the template arguments (if
-  // any).  Hence, down in D_name::tcheck, we no longer tcheck the
-  // name since it's now always done out here.
-  ScopeSeq qualifierScopes;
-  PQName *name = decl->getDeclaratorId();
-  if (name) {
-    name->tcheck(env, NULL /*scope*/, LF_DECLARATOR);
-  }
-  env.getQualifierScopes(qualifierScopes, name);
-  env.extendScopeSeq(qualifierScopes);
+  // add it to the function type
+  FunctionType *ft = dt.type->asFunctionType();
+  ft->addReceiver(receiver);
 
-  if (init) dt.dflags |= DF_INITIALIZED;
-
-  // get the type from the IDeclarator
-  decl->tcheck(env, dt);
-
-  // declarators usually require complete types (are there exceptions?)
-  //
-  // TODO: According to 15.4 para 1, not only must the type in
-  // DC_EXCEPTIONSPEC be complete (which this code enforces), but if
-  // it is a pointer or reference type, the pointed-to thing must be
-  // complete too!
-  if (dt.context == DC_D_FUNC) {
-    // 8.3.5 para 6: ok to be incomplete unless this is a definition;
-    // I'll just allow it (here) in all cases (t0048.cc)
-  }
-  else if (dt.context == DC_TA_TYPE) {
-    // mere appearance of a type in an argument list is not enough
-    // to require that it be complete; maybe the instantiation will
-    // need it, but that is detected later
-  }
-  else if (dt.dflags & (DF_TYPEDEF | DF_EXTERN)) {
-    // 7.1.3 does not say that the type named by a typedef must be
-    // complete, so I will allow it to be incomplete (t0079.cc)
-    //
-    // I'm not sure where the exception for 'extern' is specified, but
-    // it clearly exists.... (t0170.cc)
-  }
-  else if (!env.ensureCompleteType(
-              // context-specific action text
-              dt.context==DC_EXCEPTIONSPEC? "name in exception spec" :
-                     /* catch-all */        "create an object of" /*...*/,
-              dt.type)) {
-    dt.type = env.errorType();        // recovery
-  }
-
-  // is this an explicit specialization?  look for the innermost scope
-  // being "template <>"
-  bool isExplicitSpec = 
-    templatizableContext &&                      // e.g. toplevel
-    enclosingScope->isTemplateParamScope() &&    // "template <...>" above
-    !enclosingScope->parameterizedPrimary &&     // that's mine, not my class' (need to wait until after name->tcheck to test this)
-    enclosingScope->templateParams.isEmpty();    // just "template <>"
-
-  if (isExplicitSpec) {
-    if (dt.type->isFunctionType()) {
-      dt.var = env.makeExplicitFunctionSpecialization
-                 (decl->loc, dt.dflags, name, dt.type->asFunctionType());
-      if (dt.var) {
-        enclosingScope->setParameterizedPrimary
-          (dt.var->templateInfo()->getPrimary()->var);
-      }
-    }
-    else {
-      // for class specializations, we should not get here, as the syntax
-      //
-      //   template <>
-      //   class A<int> { ... }  /*declarator goes here*/  ;
-      //
-      // does not have (and cannot have) any declarators
-      env.error("can only specialize functions", EF_STRONG);
-    }
-  }
-
-  // TODO: fix the name of D_name_tcheck, collapse 'dt', etc.
-  //
-  // make a Variable, add it to the environment
-  bool callerPassedInstV = false;
-  if (!dt.var) {
-    D_name_tcheck(env, dt, decl->hasInnerGrouping(), decl->loc, name);
-  }
-  else {
-    // caller already gave me a Variable to use
-    callerPassedInstV = true;
-    
-    // D_name_tcheck is normally responsible for adding the receiver
-    // param to 'dt.type', but since I skipped it, I have to do it
-    // here too
-    if (dt.var->type->isFunctionType() &&
-        dt.var->type->asFunctionType()->isMethod()) {
-      TRACE("memberFunc", "nonstatic member function: " << dt.var->name);
-
-      // add the implicit 'this' parameter
-      makeMemberFunctionType(env, dt,
-        dt.var->type->asFunctionType()->getClassOfMember(), decl->loc);
-    }
-    else {
-      TRACE("memberFunc", "static or non-member function: " << dt.var->name);
-      possiblyConsumeFunctionType(env, dt);
-    }
-  }
-
-  if (!dt.var) {
-    env.retractScopeSeq(qualifierScopes);
-    return;      // an error was found and reported; bail rather than die later
-  }
-  var = env.storeVar(dt.var);
-  type = env.tfac.cloneType(dt.type);
-  context = dt.context;
-
-  // handle function template declarations ....
-  TemplateInfo *templateInfo = NULL;
-  if (callerPassedInstV) {
-    // don't try to take it; dt.var probably already has it, etc.
-  }
-  else if (templatizableContext) {
-    if (dt.type->isFunctionType()) {
-      templateInfo = env.takeFTemplateInfo();
-    }
-    else {
-      // non-templatizable entity
-      //
-      // TODO: I should allow static members of template classes
-      // to be templatizable too
-    }
-  }
-  else {
-    // other contexts: don't try to take it, you're not a
-    // templatizable declarator
-  }
-
-  if (templateInfo) {
-    TRACE("template", "template func " << 
-                      ((dt.dflags & DF_DEFINITION) ? "defn" : "decl")
-                      << ": " << dt.type->toCString(dt.var->fullyQualifiedName()));
-
-    if (!dt.var->templateInfo()) {
-      // this is a new template decl; attach it to the Variable
-      dt.var->setTemplateInfo(templateInfo);
-
-      // 
-
-    }
-    else {
-      // TODO: merge default arguments
-
-      if (dt.dflags & DF_DEFINITION) {
-        // save this templateInfo for use with the definition  
-        //
-        // TODO: this really should just be TemplateParams, not
-        // a full TemplateInfo ...
-        dt.var->templateInfo()->definitionTemplateInfo = templateInfo;
-      }
-      else {
-        // discard this templateInfo
-        delete templateInfo;
-      }
-    }
-
-    // no such thing as a function partial specialization, so this
-    // is automatically the primary
-    if (enclosingScope->isTemplateParamScope() &&
-        !enclosingScope->parameterizedPrimary) {
-      enclosingScope->setParameterizedPrimary(dt.var);
-    }
-
-    // sm: I'm not sure what this is doing.  It used to only be done when
-    // dt.var had no templateInfo to begin with.  Now I'm doing it always,
-    // which might not be right.
-    if (getDeclaratorId() &&
-        getDeclaratorId()->isPQ_template()) {
-      env.initArgumentsFromASTTemplArgs(dt.var->templateInfo(),
-                                        getDeclaratorId()->asPQ_templateC()->args);
-    }
-  }
-  
-  // cppstd, sec. 3.3.1:
-  //   "The point of declaration for a name is immediately after
-  //   its complete declarator (clause 8) and before its initializer
-  //   (if any), except as noted below."
-  // (where "below" talks about enumerators, class members, and
-  // class names)
-  //
-  // However, since the bottom of the recursion for IDeclarators
-  // is always D_name, it's equivalent to add the name to the
-  // environment then instead of here.
-
-  // want only declarators corresp. to local/global variables
-  // (it is disturbing that I have to check for so many things...)
-  if (env.lang.isCplusplus &&
-      !dt.hasFlag(DF_EXTERN) &&                 // not an extern decl
-      !dt.hasFlag(DF_TYPEDEF) &&                // not a typedef
-      isVariableDC(dt.context) &&               // local/global variable
-      var->type->isCompoundType()) {            // class-valued
-    if (!init) {
-      // cppstd 8.5 paras 7,8,9: treat
-      //   C c;
-      // like
-      //   C c();
-      // except that the latter is not actually allowed since it would
-      // be interpreted as a declaration of a function
-      init = new IN_ctor(decl->loc, NULL /*args*/);
-    }
-    else if (init->isIN_expr()) {
-      // cppstd reference? treat
-      //   C c = 5;
-      // like
-      //   C c(5);
-      // except the latter isn't always syntactically allowed (e.g. CN_decl)
-
-      // take out the IN_expr
-      IN_expr *inexpr = init->asIN_expr();
-      Expression *e = inexpr->e;
-      inexpr->e = NULL;
-      delete inexpr;
-
-      // put in an IN_ctor
-      init = new IN_ctor(decl->loc, makeExprList1(e));
-    }
-  }
-
-  // tcheck the initializer, unless we're inside a class, in which
-  // case wait for pass two
-  if (init && !inClassBody) {
-    // TODO: check the initializer for compatibility with
-    // the declared type
-
-    // TODO: check compatibility with dflags; e.g. we can't allow
-    // an initializer for a global variable declared with 'extern'
-
-    tcheck_init(env);
-  }
-
-  // not sure what's the best place to test this, nor what the
-  // exact rule is; let's try this...
-  if (isVariableDC(dt.context) &&
-      !dt.hasFlag(DF_EXTERN) &&
-      type->isArrayType() &&
-      type->asArrayType()->size == ArrayType::NO_SIZE) {
-    env.error("array must have a size in variable declaration");
-  }
-
-  // pull the scope back out of the stack; if this is a
-  // declarator attached to a function definition, then
-  // Function::tcheck will re-extend it for analyzing
-  // the function body
-  env.retractScopeSeq(qualifierScopes);
-
-  // If it is a function, is it virtual?
-  if (inClassBody
-      && var->type->isMethod()
-      && !var->hasFlag(DF_VIRTUAL)) {
-    FunctionType *varft = var->type->asFunctionType();
-
-//      printf("var->name: %s\n", var->name);
-//      printf("env.scope->curCompound->name: %s\n", env.scope()->curCompound->name);
-
-    // find the next variable up the hierarchy
-    FOREACH_OBJLIST(BaseClass, env.scope()->curCompound->bases, base_iter) {
-      // FIX: Should I skip it for private inheritance?  Hmm,
-      // experiments on g++ indicate that private inheritance does not
-      // prevent the virtuality from coming through.  Ben agrees.
-
-      // FIX: deal with ambiguity if we find more than one
-      // FIX: is there something to do for virtual inheritance?
-      //        printf("iterating over base base_iter.data()->ct->name: %s\n",
-      //               base_iter.data()->ct->name);
-      Variable *var2 = base_iter.data()->ct->lookupVariable(var->name, env);
-      xassert(var2 != var);
-      if (var2 &&
-          var2->type->isMethod()) {
-        FunctionType *var2ft = var2->type->asFunctionType();
-
-        // one could write this without the case split, but I don't want
-        // to call getOverloadSet() (which makes new OverloadSet objects
-        // if they are not already present) when I don't need to
-
-        if (!var2->overload) {
-          // see if it's virtual and has the same signature
-          if (var2->hasFlag(DF_VIRTUAL) &&
-              var2ft->equalOmittingReceiver(varft) &&
-              var2ft->getReceiverCV() == varft->getReceiverCV()) {
-            var->setFlag(DF_VIRTUAL);
-          }
-        }
-
-        else {
-          // check for member of overload set with same signature
-          // and marked 'virtual'
-          if (Variable *var_overload = env.findInOverloadSet(
-                var2->overload, var->type->asFunctionType())) {
-            xassert(var_overload != var);
-            xassert(var_overload->type->isFunctionType());
-            xassert(var_overload->type->asFunctionType()->isMethod());
-            if (var_overload->hasFlag(DF_VIRTUAL)) {
-              // then we inherit the virtuality
-              var->setFlag(DF_VIRTUAL);
-              break;
-            }
-          }
-        }
-      }
-    }
-  }
+  // close it
+  dt.funcSyntax = NULL;
+  ft->doneParams();
 }
 
 
-// pulled out so it could be done in pass 1 or pass 2
-void Declarator::tcheck_init(Env &env)
-{
-  xassert(init);
-
-  // record that we are in an initializer
-  Restorer<Env::TemplTcheckMode> changeMode(env.tcheckMode,
-    env.tcheckMode==Env::TTM_1NORMAL ? env.tcheckMode : Env::TTM_3TEMPL_DEF);
-
-  init->tcheck(env, type);
-
-  // TODO: check the initializer for compatibility with
-  // the declared type
-
-  // TODO: check compatibility with dflags; e.g. we can't allow
-  // an initializer for a global variable declared with 'extern'
-
-  // TODO: in the case of class data members, delay checking the
-  // initializer until the entire class body has been scanned
-      
-  // remember the initializing value, for const values
-  if (init->isIN_expr()) {
-    var->value = init->asIN_exprC()->e;
-  }
-
-  Type *origType = var->type;
-
-  // use the initializer size to refine array types
-  // array initializer case
-  var->type = env.computeArraySizeFromCompoundInit(var->loc, var->type, type, init);
-  // array compound literal initializer case
-  var->type = computeArraySizeFromLiteral(env, var->type, init);
-
-  // update 'type' if necessary
-  if (origType != var->type) {
-    type = env.tfac.cloneType(var->type);
-  }
-}
-
-
-// ------------------ IDeclarator ------------------
 // Check some restrictions regarding the use of 'operator'; might
 // add some errors to the environment, but otherwise doesn't
-// change anything.  Parameters are same as D_name_tcheck, plus
+// change anything.  Parameters are same as declareNewVariable, plus
 // 'scope', the scope into which the name will be inserted.
 void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
                            SourceLoc loc, PQName const *name,
@@ -2378,51 +1933,6 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
 }
 
 
-// This function is called whenever a constructed type is passed to a
-// lower-down IDeclarator which *cannot* accept member function types.
-// (sm 7/10/03: I'm now not sure exactly what that means...)
-//
-// sm 8/10/04: the issue is that someone has to call 'doneParams', but
-// that can't be done in one central location, so this does it unless
-// it has already been done, and is called in several places;
-// 'dt.funcSyntax' is used as a flag to tell when it's happened
-void possiblyConsumeFunctionType(Env &env, Declarator::Tcheck &dt)
-{
-  if (dt.funcSyntax) {
-    if (dt.funcSyntax->cv != CV_NONE) {
-      env.error("cannot have const/volatile on nonmember functions");
-    }
-    dt.funcSyntax = NULL;
-
-    // close the parameter list
-    dt.type->asFunctionType()->doneParams();
-  }
-}
-
-
-// given a 'dt.type' that is a function type, and a 'dt.funcSyntax'
-// that's carrying information about the function declarator syntax,
-// and 'inClass' the class that the function will be considered a
-// member of, attach a 'this' parameter to the function type, and
-// close its parameter list
-void makeMemberFunctionType(Env &env, Declarator::Tcheck &dt,
-                            NamedAtomicType *inClassNAT, SourceLoc loc)
-{
-  // make the implicit 'this' parameter
-  xassert(dt.funcSyntax);
-  CVFlags thisCV = dt.funcSyntax->cv;
-  Variable *receiver = env.receiverParameter(loc, inClassNAT, thisCV, dt.funcSyntax);
-
-  // add it to the function type
-  FunctionType *ft = dt.type->asFunctionType();
-  ft->addReceiver(receiver);
-
-  // close it
-  dt.funcSyntax = NULL;
-  ft->doneParams();
-}
-
-
 // This function is perhaps the most complicated in this entire
 // module.  It has the responsibility of adding a variable called
 // 'name' to the environment.  But to do this it has to implement the
@@ -2431,7 +1941,12 @@ void makeMemberFunctionType(Env &env, Declarator::Tcheck &dt,
 //
 // Update: I've now broken some of this mechanism apart and implemented
 // the pieces in Env, so it's perhaps a bit less complicated now.
-static void D_name_tcheck(
+//
+// 8/11/04: I renamed it from D_name_tcheck, to reflect that it is no
+// longer done at the bottom of the IDeclarator chain, but instead is
+// done right after processing the IDeclarator,
+// Declarator::mid_tcheck.
+static void declareNewVariable(
   // environment in which to do general lookups
   Env &env,
 
@@ -2719,6 +2234,490 @@ realStart:
                                  scope, enclosingClass, prior, overloadSet);
 }
 
+
+// -------------------- Declarator --------------------
+Declarator *Declarator::tcheck(Env &env, Tcheck &dt)
+{
+  if (!ambiguity) {
+    mid_tcheck(env, dt);
+    return this;
+  }
+
+  // As best as I can tell from the standard, cppstd sections 6.8 and
+  // 8.2, we always prefer a Declarator interpretation which has no
+  // initializer (if that's valid) to one that does.  I'm not
+  // completely sure because, ironically, the English text there ("the
+  // resolution is to consider any construct that could possibly be a
+  // declaration a declaration") is ambiguous in my opinion.  See the
+  // examples of ambiguous syntax in cc.gr, nonterminal
+  // InitDeclarator.
+  if (this->init == NULL &&
+      ambiguity->init != NULL &&
+      ambiguity->ambiguity == NULL) {
+    // already in priority order
+    return resolveAmbiguity(this, env, "Declarator", true /*priority*/, dt);
+  }
+  else if (this->init != NULL &&
+           ambiguity->init == NULL &&
+           ambiguity->ambiguity == NULL) {
+    // reverse priority order; swap them
+    Declarator *withInit = this;
+    Declarator *noInit = ambiguity;
+
+    noInit->ambiguity = withInit;    // 'noInit' is first
+    withInit->ambiguity = NULL;      // 'withInit' is second
+
+    // run with priority
+    return resolveAmbiguity(noInit, env, "Declarator", true /*priority*/, dt);
+  }
+  else {
+    // if both have an initialzer or both lack an initializer, then
+    // we'll resolve without ambiguity; otherwise we'll probably fail
+    // to resolve, which will be reported as such
+    return resolveAmbiguity(this, env, "Declarator", false /*priority*/, dt);
+  }
+}
+
+
+// array initializer case
+//   static int y[] = {1, 2, 3};
+// or in this case (a gnu extention):
+// http://gcc.gnu.org/onlinedocs/gcc-3.3/gcc/Compound-Literals.html#Compound%20Literals
+//   static int y[] = (int []) {1, 2, 3};
+// which is equivalent to:
+//   static int y[] = {1, 2, 3};
+Type *Env::computeArraySizeFromCompoundInit(SourceLoc tgt_loc, Type *tgt_type,
+                                            Type *src_type, Initializer *init)
+{
+  if (tgt_type->isArrayType() &&
+      init->isIN_compound()) {
+    ArrayType *at = tgt_type->asArrayType();
+    IN_compound const *cpd = init->asIN_compoundC();
+                   
+    // count the initializers; this is done via the environment
+    // so the designated-initializer extension can intercept
+    int initLen = countInitializers(loc(), src_type, cpd);
+
+    if (!at->hasSize()) {
+      // replace the computed type with another that has
+      // the size specified; the location isn't perfect, but
+      // getting the right one is a bit of work
+      tgt_type = tfac.setArraySize(tgt_loc, at, initLen);
+    }
+    else {
+      // TODO: cppstd wants me to check that there aren't more
+      // initializers than the array's specified size, but I
+      // don't want to do that check since I might have an error
+      // in my const-eval logic which could break a Mozilla parse
+      // if my count is short
+    }
+  }
+  return tgt_type;
+}
+
+// provide a well-defined size for the array from the size of the
+// initializer, such as in this case:
+//   char sName[] = "SOAPPropertyBag";
+Type *computeArraySizeFromLiteral(Env &env, Type *tgt_type, Initializer *init)
+{
+  if (tgt_type->isArrayType() &&
+      !tgt_type->asArrayType()->hasSize() &&
+      init->isIN_expr() &&
+      init->asIN_expr()->e->type->isArrayType() &&
+      init->asIN_expr()->e->type->asArrayType()->hasSize()
+      ) {
+    tgt_type = env.tfac.cloneType(tgt_type);
+    tgt_type->asArrayType()->size = init->asIN_expr()->e->type->asArrayType()->size;
+    xassert(tgt_type->asArrayType()->hasSize());
+  }
+  return tgt_type;
+}
+
+// true if the declarator corresponds to a local/global variable declaration
+bool isVariableDC(DeclaratorContext dc)
+{
+  return dc==DC_TF_DECL ||    // global
+         dc==DC_S_DECL ||     // local
+         dc==DC_CN_DECL;      // local in a Condition
+}
+
+void Declarator::mid_tcheck(Env &env, Tcheck &dt)
+{
+  // true if we're immediately in a class body
+  Scope *enclosingScope = env.scope();
+  bool inClassBody = !!(enclosingScope->curCompound);
+           
+  // is this declarator in a templatizable context?  this prevents 
+  // confusion when processing the template arguments themselves (which
+  // contain declarators), among other things
+  bool templatizableContext = 
+    dt.context == DC_FUNCTION ||   // could be in MR_func or TD_func
+    dt.context == DC_TD_PROTO ||
+    dt.context == DC_MR_DECL;
+
+  // cppstd sec. 3.4.3 para 3:
+  //    "In a declaration in which the declarator-id is a
+  //    qualified-id, names used before the qualified-id
+  //    being declared are looked up in the defining
+  //    namespace scope; names following the qualified-id
+  //    are looked up in the scope of the member's class
+  //    or namespace."
+  //
+  // to implement this, I'll find the declarator's qualified
+  // scope ahead of time and add it to the scope stack
+  //
+  // 4/21/04: in fact, I need the entire sequence of scopes
+  // in the qualifier, since all of them need to be visible
+  //
+  // dsw points out that this furthermore requires that the underlying
+  // PQName be tchecked, so we can use the template arguments (if
+  // any).  Hence, down in D_name::tcheck, we no longer tcheck the
+  // name since it's now always done out here.
+  ScopeSeq qualifierScopes;
+  PQName *name = decl->getDeclaratorId();
+  if (name) {
+    name->tcheck(env, NULL /*scope*/, LF_DECLARATOR);
+  }
+  env.getQualifierScopes(qualifierScopes, name);
+  env.extendScopeSeq(qualifierScopes);
+
+  if (init) dt.dflags |= DF_INITIALIZED;
+
+  // get the type from the IDeclarator
+  decl->tcheck(env, dt);
+
+  // declarators usually require complete types (are there exceptions?)
+  //
+  // TODO: According to 15.4 para 1, not only must the type in
+  // DC_EXCEPTIONSPEC be complete (which this code enforces), but if
+  // it is a pointer or reference type, the pointed-to thing must be
+  // complete too!
+  if (dt.context == DC_D_FUNC) {
+    // 8.3.5 para 6: ok to be incomplete unless this is a definition;
+    // I'll just allow it (here) in all cases (t0048.cc)
+  }
+  else if (dt.context == DC_TA_TYPE) {
+    // mere appearance of a type in an argument list is not enough
+    // to require that it be complete; maybe the instantiation will
+    // need it, but that is detected later
+  }
+  else if (dt.dflags & (DF_TYPEDEF | DF_EXTERN)) {
+    // 7.1.3 does not say that the type named by a typedef must be
+    // complete, so I will allow it to be incomplete (t0079.cc)
+    //
+    // I'm not sure where the exception for 'extern' is specified, but
+    // it clearly exists.... (t0170.cc)
+  }
+  else if (!env.ensureCompleteType(
+              // context-specific action text
+              dt.context==DC_EXCEPTIONSPEC? "name in exception spec" :
+                     /* catch-all */        "create an object of" /*...*/,
+              dt.type)) {
+    dt.type = env.errorType();        // recovery
+  }
+
+  // is this an explicit specialization?  look for the innermost scope
+  // being "template <>"
+  bool isExplicitSpec = 
+    templatizableContext &&                      // e.g. toplevel
+    enclosingScope->isTemplateParamScope() &&    // "template <...>" above
+    !enclosingScope->parameterizedPrimary &&     // that's mine, not my class' (need to wait until after name->tcheck to test this)
+    enclosingScope->templateParams.isEmpty();    // just "template <>"
+
+  if (isExplicitSpec) {
+    if (dt.type->isFunctionType()) {
+      dt.var = env.makeExplicitFunctionSpecialization
+                 (decl->loc, dt.dflags, name, dt.type->asFunctionType());
+      if (dt.var) {
+        enclosingScope->setParameterizedPrimary
+          (dt.var->templateInfo()->getPrimary()->var);
+      }
+    }
+    else {
+      // for class specializations, we should not get here, as the syntax
+      //
+      //   template <>
+      //   class A<int> { ... }  /*declarator goes here*/  ;
+      //
+      // does not have (and cannot have) any declarators
+      env.error("can only specialize functions", EF_STRONG);
+    }
+  }
+
+  // TODO: w.r.t. declareNewVariable, collapse 'dt', etc.
+  //
+  // make a Variable, add it to the environment
+  bool callerPassedInstV = false;
+  if (!dt.var) {
+    declareNewVariable(env, dt, decl->hasInnerGrouping(), decl->loc, name);
+  }
+  else {
+    // caller already gave me a Variable to use
+    callerPassedInstV = true;
+
+    // declareNewVariable is normally responsible for adding the receiver
+    // param to 'dt.type', but since I skipped it, I have to do it
+    // here too
+    if (dt.var->type->isFunctionType() &&
+        dt.var->type->asFunctionType()->isMethod()) {
+      TRACE("memberFunc", "nonstatic member function: " << dt.var->name);
+
+      // add the implicit 'this' parameter
+      makeMemberFunctionType(env, dt,
+        dt.var->type->asFunctionType()->getClassOfMember(), decl->loc);
+    }
+    else {
+      TRACE("memberFunc", "static or non-member function: " << dt.var->name);
+      possiblyConsumeFunctionType(env, dt);
+    }
+  }
+
+  if (!dt.var) {
+    env.retractScopeSeq(qualifierScopes);
+    return;      // an error was found and reported; bail rather than die later
+  }
+  var = env.storeVar(dt.var);
+  type = env.tfac.cloneType(dt.type);
+  context = dt.context;
+
+  // handle function template declarations ....
+  TemplateInfo *templateInfo = NULL;
+  if (callerPassedInstV) {
+    // don't try to take it; dt.var probably already has it, etc.
+  }
+  else if (templatizableContext) {
+    if (dt.type->isFunctionType()) {
+      templateInfo = env.takeFTemplateInfo();
+    }
+    else {
+      // non-templatizable entity
+      //
+      // TODO: I should allow static members of template classes
+      // to be templatizable too
+    }
+  }
+  else {
+    // other contexts: don't try to take it, you're not a
+    // templatizable declarator
+  }
+
+  if (templateInfo) {
+    TRACE("template", "template func " << 
+                      ((dt.dflags & DF_DEFINITION) ? "defn" : "decl")
+                      << ": " << dt.type->toCString(dt.var->fullyQualifiedName()));
+
+    if (!dt.var->templateInfo()) {
+      // this is a new template decl; attach it to the Variable
+      dt.var->setTemplateInfo(templateInfo);
+
+      // 
+
+    }
+    else {
+      // TODO: merge default arguments
+
+      if (dt.dflags & DF_DEFINITION) {
+        // save this templateInfo for use with the definition  
+        //
+        // TODO: this really should just be TemplateParams, not
+        // a full TemplateInfo ...
+        dt.var->templateInfo()->definitionTemplateInfo = templateInfo;
+      }
+      else {
+        // discard this templateInfo
+        delete templateInfo;
+      }
+    }
+
+    // no such thing as a function partial specialization, so this
+    // is automatically the primary
+    if (enclosingScope->isTemplateParamScope() &&
+        !enclosingScope->parameterizedPrimary) {
+      enclosingScope->setParameterizedPrimary(dt.var);
+    }
+
+    // sm: I'm not sure what this is doing.  It used to only be done when
+    // dt.var had no templateInfo to begin with.  Now I'm doing it always,
+    // which might not be right.
+    if (getDeclaratorId() &&
+        getDeclaratorId()->isPQ_template()) {
+      env.initArgumentsFromASTTemplArgs(dt.var->templateInfo(),
+                                        getDeclaratorId()->asPQ_templateC()->args);
+    }
+  }
+  
+  // cppstd, sec. 3.3.1:
+  //   "The point of declaration for a name is immediately after
+  //   its complete declarator (clause 8) and before its initializer
+  //   (if any), except as noted below."
+  // (where "below" talks about enumerators, class members, and
+  // class names)
+  //
+  // However, since the bottom of the recursion for IDeclarators
+  // is always D_name, it's equivalent to add the name to the
+  // environment then instead of here.
+
+  // want only declarators corresp. to local/global variables
+  // (it is disturbing that I have to check for so many things...)
+  if (env.lang.isCplusplus &&
+      !dt.hasFlag(DF_EXTERN) &&                 // not an extern decl
+      !dt.hasFlag(DF_TYPEDEF) &&                // not a typedef
+      isVariableDC(dt.context) &&               // local/global variable
+      var->type->isCompoundType()) {            // class-valued
+    if (!init) {
+      // cppstd 8.5 paras 7,8,9: treat
+      //   C c;
+      // like
+      //   C c();
+      // except that the latter is not actually allowed since it would
+      // be interpreted as a declaration of a function
+      init = new IN_ctor(decl->loc, NULL /*args*/);
+    }
+    else if (init->isIN_expr()) {
+      // cppstd reference? treat
+      //   C c = 5;
+      // like
+      //   C c(5);
+      // except the latter isn't always syntactically allowed (e.g. CN_decl)
+
+      // take out the IN_expr
+      IN_expr *inexpr = init->asIN_expr();
+      Expression *e = inexpr->e;
+      inexpr->e = NULL;
+      delete inexpr;
+
+      // put in an IN_ctor
+      init = new IN_ctor(decl->loc, makeExprList1(e));
+    }
+  }
+
+  // tcheck the initializer, unless we're inside a class, in which
+  // case wait for pass two
+  if (init && !inClassBody) {
+    // TODO: check the initializer for compatibility with
+    // the declared type
+
+    // TODO: check compatibility with dflags; e.g. we can't allow
+    // an initializer for a global variable declared with 'extern'
+
+    tcheck_init(env);
+  }
+
+  // not sure what's the best place to test this, nor what the
+  // exact rule is; let's try this...
+  if (isVariableDC(dt.context) &&
+      !dt.hasFlag(DF_EXTERN) &&
+      type->isArrayType() &&
+      type->asArrayType()->size == ArrayType::NO_SIZE) {
+    env.error("array must have a size in variable declaration");
+  }
+
+  // pull the scope back out of the stack; if this is a
+  // declarator attached to a function definition, then
+  // Function::tcheck will re-extend it for analyzing
+  // the function body
+  env.retractScopeSeq(qualifierScopes);
+
+  // If it is a function, is it virtual?
+  if (inClassBody
+      && var->type->isMethod()
+      && !var->hasFlag(DF_VIRTUAL)) {
+    FunctionType *varft = var->type->asFunctionType();
+
+//      printf("var->name: %s\n", var->name);
+//      printf("env.scope->curCompound->name: %s\n", env.scope()->curCompound->name);
+
+    // find the next variable up the hierarchy
+    FOREACH_OBJLIST(BaseClass, env.scope()->curCompound->bases, base_iter) {
+      // FIX: Should I skip it for private inheritance?  Hmm,
+      // experiments on g++ indicate that private inheritance does not
+      // prevent the virtuality from coming through.  Ben agrees.
+
+      // FIX: deal with ambiguity if we find more than one
+      // FIX: is there something to do for virtual inheritance?
+      //        printf("iterating over base base_iter.data()->ct->name: %s\n",
+      //               base_iter.data()->ct->name);
+      Variable *var2 = base_iter.data()->ct->lookupVariable(var->name, env);
+      xassert(var2 != var);
+      if (var2 &&
+          var2->type->isMethod()) {
+        FunctionType *var2ft = var2->type->asFunctionType();
+
+        // one could write this without the case split, but I don't want
+        // to call getOverloadSet() (which makes new OverloadSet objects
+        // if they are not already present) when I don't need to
+
+        if (!var2->overload) {
+          // see if it's virtual and has the same signature
+          if (var2->hasFlag(DF_VIRTUAL) &&
+              var2ft->equalOmittingReceiver(varft) &&
+              var2ft->getReceiverCV() == varft->getReceiverCV()) {
+            var->setFlag(DF_VIRTUAL);
+          }
+        }
+
+        else {
+          // check for member of overload set with same signature
+          // and marked 'virtual'
+          if (Variable *var_overload = env.findInOverloadSet(
+                var2->overload, var->type->asFunctionType())) {
+            xassert(var_overload != var);
+            xassert(var_overload->type->isFunctionType());
+            xassert(var_overload->type->asFunctionType()->isMethod());
+            if (var_overload->hasFlag(DF_VIRTUAL)) {
+              // then we inherit the virtuality
+              var->setFlag(DF_VIRTUAL);
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+// pulled out so it could be done in pass 1 or pass 2
+void Declarator::tcheck_init(Env &env)
+{
+  xassert(init);
+
+  // record that we are in an initializer
+  Restorer<Env::TemplTcheckMode> changeMode(env.tcheckMode,
+    env.tcheckMode==Env::TTM_1NORMAL ? env.tcheckMode : Env::TTM_3TEMPL_DEF);
+
+  init->tcheck(env, type);
+
+  // TODO: check the initializer for compatibility with
+  // the declared type
+
+  // TODO: check compatibility with dflags; e.g. we can't allow
+  // an initializer for a global variable declared with 'extern'
+
+  // TODO: in the case of class data members, delay checking the
+  // initializer until the entire class body has been scanned
+      
+  // remember the initializing value, for const values
+  if (init->isIN_expr()) {
+    var->value = init->asIN_exprC()->e;
+  }
+
+  Type *origType = var->type;
+
+  // use the initializer size to refine array types
+  // array initializer case
+  var->type = env.computeArraySizeFromCompoundInit(var->loc, var->type, type, init);
+  // array compound literal initializer case
+  var->type = computeArraySizeFromLiteral(env, var->type, init);
+
+  // update 'type' if necessary
+  if (origType != var->type) {
+    type = env.tfac.cloneType(var->type);
+  }
+}
+
+
+// ------------------ IDeclarator ------------------
 void D_name::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   env.setLoc(loc);
@@ -2729,7 +2728,7 @@ void D_name::tcheck(Env &env, Declarator::Tcheck &dt)
   //  name->tcheck(env);
   //}
 
-  // do *not* call 'possiblyConsumeFunctionType', since D_name_tcheck
+  // do *not* call 'possiblyConsumeFunctionType', since declareNewVariable
   // will do so if necessary, and in a different way
 
   this->type = dt.type;     // annotation
@@ -3007,7 +3006,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
   // call this after attaching the exception spec, if any
   //ft->doneParams();
   // update: doneParams() is done by 'possiblyConsumeFunctionType'
-  // or 'D_name_tcheck', depending on what declarator is next in
+  // or 'declareNewVariable', depending on what declarator is next in
   // the chain
 
   // now that we've constructed this function type, pass it as
