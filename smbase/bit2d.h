@@ -12,6 +12,7 @@ class Flatten;
 class Bit2d {        
 private:     // data
   byte *data;  	    // bits; [0..stride-1] is first row, etc.
+  bool owning;      // when false, 'data' is not owned by this object
   point size;       // size.x is # of cols, size.y is # of rows
   int stride;       // bytes between starts of adjacent rows;
                     // computable from size.x but stored for quick access
@@ -53,6 +54,14 @@ public:      // funcs
 
   // debugging
   void print() const;
+
+  // bit of a hack: I want to be able to save the data as code which,
+  // when compiled, will build a bit2d from static data.. for this
+  // I need access to some private fields and a special ctor
+  Bit2d(byte * /*serf*/ data, point const &size, int stride);
+  byte *private_data() { return data; }
+  int private_datasize() const { return datasize(); }
+  int private_stride() const { return stride; }
 };
 
 #endif // __BIT2D_H

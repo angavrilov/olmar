@@ -10,7 +10,8 @@
 
 
 Bit2d::Bit2d(point const &aSize)
-  : size(aSize)
+  : owning(true),
+    size(aSize)
 {
   xassert(size.x > 0 && size.y > 0);
   stride = (size.x+7)/8;
@@ -20,7 +21,9 @@ Bit2d::Bit2d(point const &aSize)
 
 Bit2d::~Bit2d()
 {
-  delete data;
+  if (owning) {
+    delete data;
+  }
 }
 
 
@@ -29,6 +32,7 @@ Bit2d::Bit2d(Bit2d const &obj)
   size = obj.size;
   stride = obj.stride;
   data = new byte[datasize()];
+  owning = true;
   memcpy(data, obj.data, datasize());
 }
 
@@ -51,7 +55,8 @@ bool Bit2d::operator== (Bit2d const &obj) const
 
 
 Bit2d::Bit2d(Flatten &)
-  : data(NULL)
+  : data(NULL),
+    owning(true)
 {}
 
 void Bit2d::xfer(Flatten &flat)
@@ -59,7 +64,7 @@ void Bit2d::xfer(Flatten &flat)
   flat.xferInt(size.x);
   flat.xferInt(size.y);
   flat.xferInt(stride);
-  
+
   flat.xferHeapBuffer((void*&)data, datasize());
 }
 
@@ -155,8 +160,19 @@ void Bit2d::print() const
 }
 
 
+// hack
+Bit2d::Bit2d(byte * /*serf*/ d, point const &sz, int str)
+  : data(d),
+    owning(false),    // since it's a serf ptr
+    size(sz),
+    stride(str)
+{}
+
+
+
+// ------------------------ test code ------------------------
 #ifdef TEST_BIT2D
-  
+
 #include "bflatten.h"     // BFlatten
 
 int main()
