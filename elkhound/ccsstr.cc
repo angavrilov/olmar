@@ -1,16 +1,6 @@
 // ccsstr.cc
 // code for ccsstr.h
 
-// I don't want to link with the entire planet just to test
-#ifdef TEST_CCSSTR
-  #define __GRAMLEX_H    // prevent that one from being pulled in
-  #include "str.h"       // stringBuilder
-  class EmbeddedLang {   // tiny version of this
-  public:
-    stringBuilder text;
-  };
-#endif
-
 #include "ccsstr.h"      // this module
 #include "xassert.h"     // xassert
 #include "exc.h"         // xformat
@@ -20,8 +10,8 @@
 #include <ctype.h>       // isspace
 
 
-CCSubstrate::CCSubstrate(GrammarLexer &lexer)
-  : EmbeddedLang(lexer)
+CCSubstrate::CCSubstrate(ReportError &err)
+  : EmbeddedLang(err)
 {
   reset();
 }
@@ -58,9 +48,7 @@ void CCSubstrate::handle(char const *str, int len)
           case ')':
           case ']':
             if (nesting == 0) {
-              cout << "WARNING: C++ nesting tried to go negative, "
-                   << "in embedded starting at " 
-                   << lexer.curLocStr() << endl;
+              err.reportWarning("C++ nesting tried to go negative");
             }
             else {
               nesting--;
@@ -74,7 +62,7 @@ void CCSubstrate::handle(char const *str, int len)
           case '\'':
             state = ST_CHAR;
             break;
-            
+
           case '/':
             state = ST_SLASH;
             break;
@@ -92,7 +80,7 @@ void CCSubstrate::handle(char const *str, int len)
             backslash = true;
           }
           else if (*str == '\n') {
-            cout << "WARNING: unterminated string or char literal\n";
+            err.reportWarning("unterminated string or char literal");
           }
         }
         else {
@@ -216,7 +204,7 @@ void feed(CC &cc, char const *src)
 
 void test(char const *src, CC::State state, int nesting, bool flag)
 {
-  CC cc;
+  CC cc(simpleReportError);
   feed(cc, src);
 
   if (!( cc.state == state &&
@@ -245,7 +233,7 @@ void str(char const *src, int nesting, bool bs)
 
 void yes(char const *src)
 {
-  CC cc;
+  CC cc(simpleReportError);
   feed(cc, src);
 
   xassert(cc.zeroNesting());
@@ -253,7 +241,7 @@ void yes(char const *src)
 
 void no(char const *src)
 {
-  CC cc;
+  CC cc(simpleReportError);
   feed(cc, src);
 
   xassert(!cc.zeroNesting());
@@ -261,14 +249,14 @@ void no(char const *src)
 
 void name(char const *body, char const *n)
 {
-  CC cc;
+  CC cc(simpleReportError);
   feed(cc, body);
   xassert(cc.getDeclName().equals(n));
 }
 
 void badname(char const *body)
 {
-  CC cc;
+  CC cc(simpleReportError);
   feed(cc, body);
   try {
     cc.getDeclName();

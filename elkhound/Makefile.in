@@ -26,10 +26,11 @@ everything: gramanl glr lexer1 lexer2 grampar cexp2 ccgr
 # directories; let's just assume it's a symlink, and
 # ./configure will make that link
 SMBASE = smbase
+AST = ../ast
 
 # dependencies
 libraries = ${SMBASE}/libsmbase.a
-includes = -I${SMBASE}
+includes = -I${SMBASE} -I$(AST)
 
 # ocaml stuff -- ./configure will either leave these lines
 # in (removing "OCAMLINCL" of course for --ocaml) or will
@@ -91,7 +92,8 @@ gramlex.yy.cc: gramlex.h gramlex.cc gramlex.lex grampar.tab.h
 	flex -ogramlex.yy.cc gramlex.lex                     
 
 # grammar lexer test program
-gramlex-dep = gramlex.yy.cc gramlex.cc fileloc.o ccsstr.o ${common}
+gramlex-dep = gramlex.yy.cc gramlex.cc fileloc.o ccsstr.o ${common} \
+              $(AST)/embedded.o
 gramlex: gramlex.h ${gramlex-dep}
 	${link} -o gramlex -DTEST_GRAMLEX ${gramlex-dep} ${linkend}
 
@@ -117,9 +119,14 @@ cexp2-sem-dep = cexp2.sem.cc ${grammar-set} ${common} ${glr-set} \
 cexp2.sem: ${cexp2-sem-dep}
 	${link} -o cexp2.sem -DTEST_CEXP2_SEM ${cexp2-sem-dep} ${linkend}
 
+# how to compile a .o in an adjacent directory
+$(AST)/%.o: $(AST)/%.cc
+	make -C $(AST) $*.o
+
 # test code for ccsstr
-ccsstr: ccsstr.cc ccsstr.h
-	${link} -o ccsstr -DTEST_CCSSTR ccsstr.cc ${linkend}
+ccsstr: ccsstr.cc ccsstr.h $(AST)/reporterr.o  $(AST)/embedded.o
+	${link} -o ccsstr -DTEST_CCSSTR ccsstr.cc \
+                $(AST)/reporterr.o $(AST)/embedded.o ${linkend}
 
 # intermediate files for cexp2
 # ('chmod a-w' is so I don't accidentally edit them)

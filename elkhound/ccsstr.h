@@ -4,10 +4,9 @@
 #ifndef __CCSSTR_H
 #define __CCSSTR_H
 
-#include "gramlex.h"      // EmbeddedLang
+#include "embedded.h"      // EmbeddedLang
 
-
-class CCSubstrate : public EmbeddedLang { 
+class CCSubstrate : public EmbeddedLang {
 public:
   // these are public so the test code can access them,
   // and because it doesn't hurt much
@@ -25,7 +24,7 @@ public:
   bool star;         // in ST_C_COMMENT, just seen '*'?
 
 public:
-  CCSubstrate(GrammarLexer &lexer);
+  CCSubstrate(ReportError &err);
   virtual ~CCSubstrate();
 
   // EmbeddedLang entry points (see gramlex.h for description

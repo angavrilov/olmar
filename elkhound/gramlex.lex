@@ -5,13 +5,13 @@
 /* ----------------- C definitions -------------------- */
 %{
 
-// pull in the bison-generated token codes
-#include "grampar.tab.h"
-
 // pull in my declaration of the lexer class -- this defines
 // the additional lexer state, some of which is used in the
 // action rules below
 #include "gramlex.h"
+
+// pull in the bison-generated token codes
+#include "grampar.tab.h"
 
 #include <string.h>     // strchr, strrchr
 
@@ -56,7 +56,7 @@ DQUOTE    "\""
 /* character that can appear in a quoted string */
 /* (I currently don't have any backslash codes, but I want to
  * leave open that possibility, for now backslashes are illegal) */
-STRCHR    [^\n\\"]
+STRCHR    [^\n\\\"]
 
 /* whitespace that doesn't cross line a boundary */
 SLWHITE   [ \t]
@@ -339,3 +339,11 @@ SLWHITE   [ \t]
 
 %%
 /* -------------------- additional C code -------------------- */
+
+// identify tokens representing embedded text
+bool isGramlexEmbed(int code)
+{
+  return code == TOK_FUNDECL_BODY ||
+         code == TOK_FUN_BODY ||
+         code == TOK_DECL_BODY;
+}

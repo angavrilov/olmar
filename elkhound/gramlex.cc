@@ -8,18 +8,6 @@
 #include <fstream.h>     // cout, ifstream
 
 
-// ------------------- EmbeddedLang -------------------
-EmbeddedLang::EmbeddedLang(GrammarLexer &lex)
-  : lexer(lex),
-    text(),
-    exprOnly(false),
-    isDeclaration(false)
-{}
-
-EmbeddedLang::~EmbeddedLang()
-{}
-
-                                  
 // ----------------- GrammarLexer::FileState --------------------
 GrammarLexer::FileState::FileState(SourceFile *file, istream *src)
   : SourceLocation(file),
@@ -55,7 +43,7 @@ GrammarLexer::FileState &GrammarLexer::FileState::
 
 
 // ---------------------- GrammarLexer --------------------------
-GrammarLexer::GrammarLexer(char const *fname, istream *source)
+GrammarLexer::GrammarLexer(isEmbedTok test, char const *fname, istream *source)
   : yyFlexLexer(source),
     fileState(sourceFileList.open(fname), source),
     fileStack(),
@@ -64,6 +52,7 @@ GrammarLexer::GrammarLexer(char const *fname, istream *source)
     embedFinish(0),
     embedMode(0),
     embedded(new CCSubstrate(*this)),
+    embedTokTest(test),
     commentStartLine(0),
     integerLiteral(0),
     stringLiteral(""),
@@ -78,31 +67,31 @@ GrammarLexer::GrammarLexer(char const *fname, istream *source)
 GrammarLexer::~GrammarLexer()
 {
   // ~yyFlexLexer deletes its current buffer, but not any
-  // of the istream sources it's been passed.  
-  
+  // of the istream sources it's been passed
+
   // first let's unpop any unpopped input files
   while (hasPendingFiles()) {
     popRecursiveFile();
   }
-  
+
   // now delete the original istream source
   if (fileState.source != cin) {
     delete fileState.source;
   }
-  
+
   delete embedded;
 }
 
 
 int GrammarLexer::yylexInc()
-{                    
+{
   // get raw token
   int code = yylex();
 
   // include processing
   if (code == TOK_INCLUDE) {
     string fname = includeFileName;
-                                       
+
     // 'in' will be deleted in ~GrammarLexer
     ifstream *in = new ifstream(fname);
     if (!*in) {
@@ -122,7 +111,7 @@ int GrammarLexer::yylexInc()
   }
 
 
-  if (code == TOK_FUNDECL_BODY || code == TOK_FUN_BODY || code == TOK_DECL_BODY) {
+  if (embedTokTest(code)) {
     trace("lex") << "yielding embedded (" << code << ") at "
                  << curLocStr() << ": "
                  << curFuncBody() << endl;
@@ -165,9 +154,15 @@ string GrammarLexer::curLocStr() const
 }
 
 
-void GrammarLexer::err(char const *msg)
+void GrammarLexer::reportError(char const *msg)
 {
-  cerr << "lexer error at " << curLocStr() << ": " << msg << endl;
+  cerr << curLocStr() << ": error: " << msg << endl;
+}
+
+
+void GrammarLexer::reportWarning(char const *msg)
+{
+  cerr << curLocStr() << ": warning: " << msg << endl;
 }
 
 
@@ -243,9 +238,12 @@ bool GrammarLexer::hasPendingFiles() const
 
 #ifdef TEST_GRAMLEX
 
+// defined in gramlex.lex
+bool isGramlexEmbed(int code);
+
 int main(int argc)
 {
-  GrammarLexer lexer;
+  GrammarLexer lexer(isGramlexEmbed);
   traceAddSys("lex");
 
   cout << "go!\n";
@@ -257,26 +255,24 @@ int main(int argc)
       break;
     }
 
-    switch (code) {
-      case TOK_INCLUDE:
-        // if I use yylexInc above, this is never reached
-        cout << "include at " << lexer.curLocStr()
-             << ": filename is `" << lexer.includeFileName.pcharc()
-             << "'\n";
-        break;
-
-      case TOK_FUNDECL_BODY:
-      case TOK_FUN_BODY:
-      case TOK_DECL_BODY:
-        cout << "embedded code at " << lexer.curLocStr()
-             << ": " << lexer.curFuncBody()
-             << endl;
-
-      default:
-        cout << "token at " << lexer.curLocStr()
-             << ": code=" << code
-             << ", text: " << lexer.curToken().pcharc()
-             << endl;
+    else if (isGramlexEmbed(code)) {
+      cout << "embedded code at " << lexer.curLocStr()
+           << ": " << lexer.curFuncBody()
+           << endl;
+    }
+    
+    else if (code == TOK_INCLUDE) {
+      // if I use yylexInc above, this is never reached
+      cout << "include at " << lexer.curLocStr()
+           << ": filename is `" << lexer.includeFileName.pcharc()
+           << "'\n";
+    }
+    
+    else {
+      cout << "token at " << lexer.curLocStr()
+           << ": code=" << code
+           << ", text: " << lexer.curToken().pcharc()
+           << endl;
     }
   }
 
