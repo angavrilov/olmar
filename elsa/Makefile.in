@@ -83,17 +83,18 @@ cc.gr.gen.h cc.gr.gen.cc: cc.gr cc_tokens.ids $(ELKHOUND)/elkhound
 	$(ELKHOUND)/elkhound -v -o cc.gr.gen cc.gr
 
 
-# list of modules needed for the parser
+# list of modules needed for the parser; ideally they're in an order
+# that finds serious compilation problems earliest
 CCPARSE_OBJS := \
   $(LEXER_OBJS) \
+  cc_env.o \
+  cc_type.o \
+  cc_tcheck.o \
   cc.ast.gen.o \
   cc.gr.gen.o \
   parssppt.o \
-  cc_env.o \
   cc_scope.o \
   cc_flags.o \
-  cc_type.o \
-  cc_tcheck.o \
   cc_print.o \
   cc_ast_aux.o \
   variable.o \

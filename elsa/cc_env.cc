@@ -39,6 +39,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
     functionOperatorName(NULL),
 
     dependentTypeVar(NULL),
+    dependentVar(NULL),
+    errorTypeVar(NULL),
     errorVar(NULL)
 {
   #define HERE HERE_SOURCELOC
@@ -48,7 +50,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
   {
     Scope *s = new Scope(0 /*changeCount*/, emptyLoc);
     scopes.prepend(s);
-    
+
     // cause Variables inserted into this scope to acquire DF_GLOBAL
     s->isGlobalScope = true;
   }
@@ -73,6 +75,14 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
   dependentTypeVar = makeVariable(HERE, str("<dependentTypeVar>"),
                                   getSimpleType(HERE, ST_DEPENDENT), DF_TYPEDEF);
   madeUpVariables.append(dependentTypeVar);
+
+  dependentVar = makeVariable(HERE, str("<dependentVar>"),
+                              getSimpleType(HERE, ST_DEPENDENT), DF_NONE);
+  madeUpVariables.append(dependentVar);
+
+  errorTypeVar = makeVariable(HERE, str("<errorTypeVar>"),
+                              getSimpleType(HERE, ST_ERROR), DF_TYPEDEF);
+  madeUpVariables.append(errorTypeVar);
 
   // this is *not* a typedef, because I use it in places that I
   // want something to be treated as a variable, not a type
@@ -177,9 +187,17 @@ void Env::declareFunction1arg(Type *retType, char const *funcName,
 }
 
 
-Scope *Env::enterScope()
+FunctionType *Env::makeDestructorFunctionType(SourceLoc loc)
 {
-  trace("env") << locStr() << ": entered scope\n";
+  FunctionType *ft = makeFunctionType(loc, getSimpleType(loc, ST_CDTOR), CV_NONE);
+  ft->doneParams();
+  return ft;
+}
+
+
+Scope *Env::enterScope(char const *forWhat)
+{
+  trace("env") << locStr() << ": entered scope for " << forWhat << "\n";
 
   // propagate the 'curFunction' field
   Function *f = scopes.first()->curFunction;
@@ -588,14 +606,20 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
 {
   Variable *var;
 
+  Scope *scope;      // scope in which name is found, if it is
   if (name->hasQualifiers()) {
     // look up the scope named by the qualifiers
     bool dependent = false, anyTemplates = false;
-    Scope *scope = lookupQualifiedScope(name, dependent, anyTemplates);
+    scope = lookupQualifiedScope(name, dependent, anyTemplates);
     if (!scope) {
       if (dependent) {
         // tried to look into a template parameter
-        return dependentTypeVar;
+        if (flags & LF_TYPENAME) {
+          return dependentTypeVar;    // user claims it's a type
+        }
+        else {
+          return dependentVar;        // user makes no claim, so it's a variable
+        }
       }
       else if (anyTemplates) {
         // maybe failed due to incompleteness of specialization implementation
@@ -626,10 +650,10 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
   }
 
   else {
-    var = lookupVariable(name->getName(), flags);
+    var = lookupVariable(name->getName(), flags, scope);
   }
 
-  if (var) {                
+  if (var) {
     // get the final component of the name, so we can inspect
     // whether it has template arguments
     PQName const *final = name->getUnqualifiedNameC();
@@ -640,33 +664,30 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
     // functions can infer their arguments
     if (var->isTemplateClass()) {
       if (!final->isPQ_template()) {
+        // cppstd 14.6.1 para 1: if the name refers to a template
+        // in whose scope we are, then it need not have arguments
+        CompoundType *enclosing = findEnclosingTemplateCalled(final->getName());
+        if (enclosing) {
+          trace("template") << "found bare reference to enclosing template: "
+                            << enclosing->name << "\n";
+          return enclosing->typedefVar;
+        }
+
         // this disambiguates
         //   new Foo< 3 > +4 > +5;
         // which could absorb the '3' as a template argument or not,
         // depending on whether Foo is a template
-        #if 0      // removed this restriction until my template impl is better
         error(stringc
           << "`" << var->name << "' is a template, but template "
           << "arguments were not supplied",
           true /*disambiguating*/);
         return NULL;
-        #endif
       }
       else {
-        #if 0    // aborted
         // apply the template arguments to yield a new type based
         // on the template
-        FakeList<TemplateArgument> *targs = final->asPQ_template()->args;
-        CompoundType *ct = var->type;
-        xassert(ct->isTemplate());
-
-        // make the new type (or get the one that already exists, if
-        // this isn't the first time we've asked for this set of
-        // arguments applied to this template)
-        CompoundType *instantiated = ct->instantiate(targs);
-
-
-        #endif // 0
+        return instantiateClassTemplate(scope, var->type->asCompoundType(),
+                                        final->asPQ_templateC()->args);
       }
     }
     else if (!var->isTemplate() &&
@@ -686,17 +707,26 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
 
 Variable *Env::lookupVariable(StringRef name, LookupFlags flags)
 {
+  Scope *dummy;
+  return lookupVariable(name, flags, dummy);
+}
+
+Variable *Env::lookupVariable(StringRef name, LookupFlags flags,
+                              Scope *&foundScope)
+{
   if (flags & LF_INNER_ONLY) {
     // here as in every other place 'innerOnly' is true, I have
     // to skip non-accepting scopes since that's not where the
     // client is planning to put the name
-    return acceptingScope()->lookupVariable(name, *this, flags);
+    foundScope = acceptingScope();
+    return foundScope->lookupVariable(name, *this, flags);
   }
 
   // look in all the scopes
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
     Variable *v = iter.data()->lookupVariable(name, *this, flags);
     if (v) {
+      foundScope = iter.data();
       return v;
     }
   }
@@ -789,6 +819,7 @@ TemplateParams * /*owner*/ Env::takeTemplateParams()
 }
 
 
+#if 0      // previous implementation; similar to below, but obsolete
 // given 'tclass', the type of the uninstantiated template, and 'args'
 // which specifies the template arguments to use for instantiation,
 // create an instantiated type and associated typedef Variable, and
@@ -839,7 +870,7 @@ CompoundType *Env::instantiateClass(
   SObjListIter<Variable> paramIter(tclass->templateInfo->params);
 
   // create a new scope, and insert the template argument bindings
-  Scope *argScope = enterScope();
+  Scope *argScope = enterScope("template argument bindings");
   FAKELIST_FOREACH(TemplateArgument, args, iter) {
     TA_type const *arg = iter->asTA_typeC();
 
@@ -902,6 +933,7 @@ CompoundType *Env::instantiateClass(
 
   return ret;
 }
+#endif // 0
 
 
 StringRef Env::getAnonName(TypeIntr keyword)
@@ -923,13 +955,13 @@ StringRef Env::getAnonName(TypeIntr keyword)
 }
 
 
-ClassTemplateInfo *Env::takeTemplateClassInfo()
+ClassTemplateInfo *Env::takeTemplateClassInfo(StringRef baseName)
 {
   ClassTemplateInfo *ret = NULL;
 
   Scope *s = scope();
   if (s->curTemplateParams) {
-    ret = new ClassTemplateInfo;
+    ret = new ClassTemplateInfo(baseName);
     ret->params.concat(s->curTemplateParams->params);
     delete takeTemplateParams();
   }
@@ -938,17 +970,17 @@ ClassTemplateInfo *Env::takeTemplateClassInfo()
 }
 
 
-Type *Env::makeNewCompound(CompoundType *&ct, Scope *scope,
+Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                            StringRef name, SourceLoc loc,
                            TypeIntr keyword, bool forward)
 {
   ct = new CompoundType((CompoundType::Keyword)keyword, name);
 
   // transfer template parameters
-  ct->templateInfo = takeTemplateClassInfo();
+  ct->templateInfo = takeTemplateClassInfo(name);
 
   ct->forward = forward;
-  if (name) {
+  if (name && scope) {
     bool ok = scope->addCompound(ct);
     xassert(ok);     // already checked that it was ok
   }
@@ -957,7 +989,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope *scope,
   Type *ret = makeType(loc, ct);
   Variable *tv = makeVariable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
   ct->typedefVar = tv;
-  if (name) {
+  if (name && scope) {
     if (!scope->addVariable(tv)) {
       // this isn't really an error, because in C it would have
       // been allowed, so C++ does too [ref?]
@@ -969,6 +1001,234 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope *scope,
   }
 
   return ret;
+}
+
+
+// ----------------- template instantiation -------------
+Variable *Env::instantiateClassTemplate
+  (Scope *foundScope, CompoundType *base, 
+   FakeList<TemplateArgument> *arguments, CompoundType *inst)
+{
+  // go over the list of arguments, and make a list of
+  // semantic arguments
+  SObjList<STemplateArgument> sargs;
+  {
+    FAKELIST_FOREACH_NC(TemplateArgument, arguments, iter) {
+      if (iter->sarg.hasValue()) {
+        sargs.append(&iter->sarg);
+      }
+      else {
+        // this happens frequently when processing the uninstantiated
+        // template, but should then be suppressed in that case
+        error("attempt to use unresolved arguments to instantiate a class");
+        return dependentTypeVar;
+      }
+    }
+  }
+
+  // has this class already been instantiated?
+  if (!inst) {
+    SFOREACH_OBJLIST(CompoundType, base->templateInfo->instantiations, iter) {
+      if (iter.data()->templateInfo->equalArguments(sargs)) {
+        // found it
+        Variable *ret = iter.data()->typedefVar;
+        xassert(ret);    // I've had a few instances of failing to make this,
+                         // and if it looks like lookup failed if it's NULL
+        return ret;
+      }
+    }
+  }
+
+  // render the template arguments into a string that we can use
+  // as the name of the instantiated class; my plan is *not* that
+  // this string server as the unique ID, but rather that it be
+  // a debugging aid only
+  StringRef instName = str.add(stringc << base->name << sargsToString(sargs));
+  trace("template") << (base->forward? "(forward) " : "")
+                    << "instantiating class: " << instName << endl;
+
+  // remove scopes from the environment until the innermost
+  // scope on the scope stack is the same one that the template
+  // definition appeared in; template definitions can see names
+  // visible from their defining scope only [cppstd 14.6 para 1]
+  ObjList<Scope> innerScopes;
+  Scope *argScope = NULL;
+  if (!base->forward) {      // don't mess with it if not going to tcheck anything
+    while (scopes.first() != foundScope) {
+      innerScopes.prepend(scopes.removeFirst());
+    }
+
+    // make a new scope for the template arguments
+    argScope = enterScope("template argument bindings");
+
+    // simultaneously iterate over the parameters and arguments,
+    // creating bindings from params to args
+    SObjListIter<Variable> paramIter(base->templateInfo->params);
+    FakeList<TemplateArgument> *argIter(arguments);
+    while (!paramIter.isDone() && argIter) {
+      Variable const *param = paramIter.data();
+      TemplateArgument *arg = argIter->first();
+
+      if (param->hasFlag(DF_TYPEDEF) &&
+          arg->isTA_type()) {
+        // bind the type parameter to the type argument; I considered
+        // simply modifying 'param' but decided this would be cleaner
+        // for now..
+        Variable *binding = makeVariable(param->loc, param->name,
+                                         arg->asTA_type()->type->getType(),
+                                         DF_TYPEDEF);
+        addVariable(binding);
+      }
+      else if (!param->hasFlag(DF_TYPEDEF) &&
+               arg->isTA_nontype()) {
+        // TODO: verify that the argument in fact matches the parameter type
+
+        // bind the nontype parameter directly to the nontype expression;
+        // this will suffice for checking the template body, because I
+        // can const-eval the expression whenever it participates in
+        // type determination; the type must be made 'const' so that
+        // E_variable::constEval will believe it can evaluate it
+        Type *bindType = tfac.applyCVToType(param->loc, CV_CONST,
+                                            param->type, NULL /*syntax*/);
+        Variable *binding = makeVariable(param->loc, param->name,
+                                         bindType, DF_NONE);
+        binding->value = arg->asTA_nontype()->expr;
+        addVariable(binding);
+      }
+      else {                 
+        // mismatch between argument kind and parameter kind
+        char const *paramKind = param->hasFlag(DF_TYPEDEF)? "type" : "non-type";
+        char const *argKind = arg->isTA_type()? "type" : "non-type";
+        error(stringc
+          << "`" << param->name << "' is a " << paramKind
+          << " parameter, but `" << arg->argString() << "' is a "
+          << argKind << " argument");
+      }
+
+      paramIter.adv();
+      argIter = argIter->butFirst();
+    }
+
+    if (!paramIter.isDone()) {
+      error(stringc
+        << "too few template arguments to `" << base->name
+        << "' (and partial specialization is not implemented)");
+    }
+    else if (argIter) {
+      error(stringc
+        << "too many template arguments to `" << base->name << "'");
+    }
+  }
+
+  // make a copy of the template definition body AST
+  TS_classSpec *copy = base->forward? NULL : base->syntax->clone();
+  if (copy && tracingSys("cloneAST")) {
+    cout << "--------- clone of " << base->name << " ------------\n";
+    copy->debugPrint(cout, 0);
+  }
+
+  // make the CompoundType that will represent the instantiated class,
+  // if we don't already have one
+  if (!inst) {
+    inst = new CompoundType(base->keyword, instName);
+    inst->forward = base->forward;
+
+    // copy over the template arguments so we can recognize this
+    // instantiation later
+    inst->templateInfo = new ClassTemplateInfo(base->name);
+    {
+      SFOREACH_OBJLIST(STemplateArgument, sargs, iter) {
+        inst->templateInfo->arguments.append(new STemplateArgument(*iter.data()));
+      }
+
+      // remember the argument syntax too, in case this is a
+      // forward declaration
+      inst->templateInfo->argumentSyntax = arguments;
+    }
+
+    // tell the base template about this instantiation; this has to be
+    // done before invoking the type checker, to handle cases where the
+    // template refers to itself recursively (which is very common)
+    base->templateInfo->instantiations.append(inst);
+
+    // wrap the compound in a regular type
+    SourceLoc copyLoc = copy? copy->loc : SL_UNKNOWN;
+    Type *type = makeType(copyLoc, inst);
+
+    // make a fake implicit typedef; this class and its typedef won't
+    // actually appear in the environment directly, but making the
+    // implicit typedef helps ensure uniformity elsewhere; also must be
+    // done before type checking since it's the typedefVar field which
+    // is returned once the instantiation is found via 'instantiations'
+    Variable *var = makeVariable(copyLoc, instName, type,
+                                 DF_TYPEDEF | DF_IMPLICIT);
+    inst->typedefVar = var;
+  }
+
+  if (copy) {
+    // invoke the TS_classSpec typechecker, giving to it the
+    // CompoundType we've built to contain its declarations; for
+    // now I don't support nested template instantiation
+    copy->ctype = inst;
+    copy->tcheckIntoCompound(*this, DF_NONE, inst, false /*inTemplate*/,
+                             NULL /*containingClass*/);
+
+    if (tracingSys("cloneTypedAST")) {
+      cout << "--------- typed clone of " << base->name << " ------------\n";
+      copy->debugPrint(cout, 0);
+    }
+
+    // remove the argument scope
+    exitScope(argScope);
+
+    // re-add the inner scopes removed above
+    while (innerScopes.isNotEmpty()) {
+      scopes.prepend(innerScopes.removeFirst());
+    }
+  }
+
+  return inst->typedefVar;
+}
+
+
+// given a name that was found without qualifiers or template arguments,
+// see if we're currently inside the scope of a template definition
+// with that name
+CompoundType *Env::findEnclosingTemplateCalled(StringRef name)
+{
+  FOREACH_OBJLIST(Scope, scopes, iter) {
+    Scope const *s = iter.data();
+
+    if (s->curCompound &&
+        s->curCompound->templateInfo &&
+        s->curCompound->templateInfo->baseName == name) {
+      return s->curCompound;
+    }
+  }
+  return NULL;     // not found
+}
+
+
+void Env::instantiateForwardClasses(Scope *scope, CompoundType *base)
+{
+  SFOREACH_OBJLIST_NC(CompoundType, base->templateInfo->instantiations, iter) {
+    CompoundType *inst = iter.data();
+    xassert(inst->templateInfo);
+
+    if (inst->forward) {
+      trace("template") << "instantiating previously forward " << inst->name << "\n";
+      inst->forward = false;
+      instantiateClassTemplate(scope, base, inst->templateInfo->argumentSyntax, 
+                               inst /*use this one*/);
+    }
+    else {
+      // this happens in e.g. t0079.cc, when the template becomes
+      // an instantiation of itself because the template body
+      // refers to itself with template arguments supplied
+      
+      // update: maybe not true anymore?
+    }
+  }
 }
 
 

@@ -24,3 +24,12 @@ void forkNode::foo()
   this->~forkNode();
   this->forkNode::~forkNode();
 }
+
+
+typedef unsigned uint;
+
+void f()
+{
+  uint x;
+  x.~uint();    // legal
+}

@@ -159,43 +159,63 @@ void ASTTypeId::setNext(ASTTypeId *newNext)
 
 
 // ------------------------ PQName ------------------------
+string targsToString(FakeList<TemplateArgument> const *list)
+{
+  stringBuilder sb;
+  sb << "<";
+  int ct=0;
+  FAKELIST_FOREACH(TemplateArgument, list, iter) {
+    if (ct++ > 0) {
+      sb << ", ";
+    }
+    sb << iter->argString();
+  }
+  sb << ">";       
+  return sb;
+}
+
+
 string PQName::qualifierString() const
 {
   stringBuilder sb;
-  
+
   PQName const *p = this;
   while (p->isPQ_qualifier()) {
     PQ_qualifier const *q = p->asPQ_qualifierC();
     if (q->qualifier) {
       sb << q->qualifier;
-      
+
       if (q->targs) {
-        sb << "<";
-        int ct=0;
-        FAKELIST_FOREACH(TemplateArgument, q->targs, iter) {
-          if (ct++ > 0) {
-            sb << ", ";
-          }
-          sb << iter->argString();
-        }
-        sb << ">";
+        sb << targsToString(q->targs);
       }
-    }         
+    }
     else {
       // for a NULL qualifier, don't print anything; it means
       // there was a leading "::" with no explicit qualifier,
       // and I'll use similar syntax on output
     }
     sb << "::";
-    
+
     p = q->rest;
   }
   return sb;
 }
 
 stringBuilder& operator<< (stringBuilder &sb, PQName const &obj)
-{
-  return sb << obj.qualifierString() << obj.getName();
+{ 
+  // leading qualifiers, with template arguments as necessary
+  sb << obj.qualifierString();
+
+  // final simple name
+  PQName const *final = obj.getUnqualifiedNameC();
+  sb << final->getName();
+                      
+  // template arguments applied to final name
+  if (final->isPQ_template()) {
+    sb << targsToString(final->asPQ_templateC()->args);
+  }
+
+  return sb;
 }
 
 string PQName::toString() const
@@ -512,4 +532,12 @@ string TA_type::argString() const
 string TA_nontype::argString() const
 {
   return expr->exprToString();
+}   
+
+
+void TemplateArgument::printExtras(ostream &os, int indent) const
+{
+  if (sarg.hasValue()) {
+    ind(os, indent) << "sarg: " << sarg.toString() << "\n";
+  }
 }

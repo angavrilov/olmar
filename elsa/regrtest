@@ -170,7 +170,6 @@ grepBoth() {
 # ---------- test C++ parser ------------
 # the gaps below are for the tests which don't work
 #   0094: weird g++ iomanip.h "<>" syntax
-#   0109: can't disambiguate example from paper..
 for fn in                                                                 \
   t0001.cc   t0002.cc  t0003.cc  t0004.cc   t0005.cc   t0006.cc  t0007.cc \
   t0008.cc   t0009.cc  t0010.cc  t0011.cc   t0012.cc   t0013.cc  t0014.cc \
@@ -187,9 +186,13 @@ for fn in                                                                 \
   t0082.cc   t0083.cc  t0084.cc  t0085.cc   t0086.cc   t0087.cc  t0088.cc \
   t0089.cc   t0090.cc  t0091.cc  t0092.cc   t0093.cc             t0095.cc \
   t0096.cc   t0097.cc  t0098.cc  t0099.cc   t0100.cc   t0101.cc  t0102.cc \
-  t0103.cc   t0104.cc  t0105.cc  t0106.cc   t0107.cc   t0108.cc           \
+  t0103.cc   t0104.cc  t0105.cc  t0106.cc   t0107.cc   t0108.cc  t0109.cc \
+  t0110.cc   t0111.cc  t0112.cc  t0113.cc   t0114.cc                      \
     ; do
-  runTest ./ccparse -tr mustBeUnambiguous in/$fn
+  # $TR_EXTRA is here so I can put additional tracing flags into this
+  # command from the command line, to test them across all my test inputs;
+  # by default it expands to "", and hence has no effect
+  runTest ./ccparse -tr mustBeUnambiguous$TR_EXTRA in/$fn
 done
 
 for fn in in/std/*.cc; do

@@ -27,8 +27,9 @@ enum LookupFlags {
   LF_NONE            = 0,
   LF_INNER_ONLY      = 0x01,    // only look in the innermost scope
   LF_ONLY_TYPES      = 0x02,    // ignore (skip over) non-type names
+  LF_TYPENAME        = 0x04,    // user used 'typename' keyword
 
-  LF_ALL_FLAGS       = 0x03,    // bitwise OR of all flags
+  LF_ALL_FLAGS       = 0x07,    // bitwise OR of all flags
 };
 
 // experiment: will this work?

@@ -134,6 +134,9 @@ class TypeSpecifier {
 
   -> TS_classSpec {
        public CompoundType *ctype;  ctor ctype=NULL;
+       public void tcheckIntoCompound(
+         Env &env, DeclFlags dflags, CompoundType *ct,
+         bool inTemplate, CompoundType *containingClass);
        private void tcheckFunctionBodies(Env &env);
      }
 
@@ -400,7 +403,14 @@ class TemplateParameter {
 class TemplateArgument {
   // same scheme as for Statement
   public /*no_ignore*/ TemplateArgument *tcheck(Env &env);
-
   public void mid_tcheck(Env &env, int &) { itcheck(env); };
   pure_virtual void itcheck(Env &env);
+  
+  // semantically resolved argument; the tcheck pass resolves
+  // the argument if it can (and if it can't, then this won't
+  // be usable to instantiate a template)
+  public STemplateArgument sarg;
+
+  public void printExtras(ostream &os, int indent) const;
+  custom debugPrint { printExtras(os, indent); }
 }

@@ -179,21 +179,36 @@ STATICDEF char const *CompoundType::keywordName(Keyword k)
   }
 }
 
+bool CompoundType::isTemplate() const
+{ 
+  return templateInfo != NULL  &&
+         templateInfo->params.isNotEmpty();
+}
+
 
 string CompoundType::toCString() const
 {
   stringBuilder sb;
-  
-  if (templateInfo) {
+      
+  bool hasParams = templateInfo && templateInfo->params.isNotEmpty();
+  if (hasParams) {
     sb << templateInfo->toString() << " ";
   }
 
-  sb << keywordName(keyword) << " "
-     << (name? name : "/*anonymous*/");
-     
-  if (templateInfo && templateInfo->specialArguments) {
-    sb << "<" << templateInfo->specialArgumentsRepr << ">";
+  if (!templateInfo || hasParams) {   
+    // only say 'class' if this is like a class definition, or
+    // if we're not a template, since template instantiations
+    // usually don't include the keyword 'class' (this isn't perfect..
+    // I think I need more context)
+    sb << keywordName(keyword) << " ";
   }
+
+  sb << (name? name : "/*anonymous*/");
+
+  // template arguments are now in the name
+  //if (templateInfo && templateInfo->specialArguments) {
+  //  sb << "<" << templateInfo->specialArgumentsRepr << ">";
+  //}
    
   return sb;
 }
@@ -645,6 +660,13 @@ bool Type::isIntegerType() const
 {
   return isSimpleType() &&
          simpleTypeInfo(asSimpleTypeC()->type).isInteger;
+}
+                       
+
+bool Type::isEnumType() const
+{
+  return isCVAtomicType() &&
+         asCVAtomicTypeC()->atomic->isEnumType();
 }
 
 
@@ -1151,15 +1173,90 @@ bool TemplateParams::anyCtorSatisfies(Type::TypePred pred) const
 }
 
 
+// ------------------- STemplateArgument ---------------
+STemplateArgument::STemplateArgument(STemplateArgument const &obj)
+  : kind(obj.kind)
+{
+  // take advantage of representation uniformity
+  value.i = obj.value.i;
+  value.v = obj.value.v;    // just in case ptrs and ints are diff't size
+}
+
+bool STemplateArgument::equals(STemplateArgument const *obj) const
+{
+  if (kind != obj->kind) {
+    return false;
+  }
+
+  // take advantage of representation uniformity
+  return value.i == obj->value.i;
+}
+
+
+string STemplateArgument::toString() const
+{
+  switch (kind) {
+    default: xfailure("bad kind");
+    case STA_NONE:      return string("STA_NONE");
+    case STA_TYPE:      return value.t->toString();   // assume 'type' if no comment
+    case STA_INT:       return stringc << "/*int*/ " << value.i;
+    case STA_REFERENCE: return stringc << "/*ref*/ " << value.v->name;
+    case STA_POINTER:   return stringc << "/*ptr*/ &" << value.v->name;
+    case STA_MEMBER:    return stringc
+      << "/*member*/ &" << value.v->scope->curCompound->name 
+      << "::" << value.v->name;
+    case STA_TEMPLATE:  return string("template (?)");
+  }
+}
+
+
+string sargsToString(SObjList<STemplateArgument> const &list)
+{
+  stringBuilder sb;
+  sb << "<";
+
+  int ct=0;
+  SFOREACH_OBJLIST(STemplateArgument, list, iter) {
+    if (ct++ > 0) {
+      sb << ", ";
+    }
+    sb << iter.data()->toString();
+  }
+
+  sb << ">";
+  return sb;
+}
+
+
 // ------------------ ClassTemplateInfo -------------
-ClassTemplateInfo::ClassTemplateInfo()
-  : instantiated(),           // empty map
-    specializations(),        // empty list
-    specialArguments(NULL)    // empty list
+ClassTemplateInfo::ClassTemplateInfo(StringRef name)
+  : baseName(name),
+    instantiations(),         // empty list
+    arguments(),              // empty list
+    argumentSyntax(NULL)
 {}
 
 ClassTemplateInfo::~ClassTemplateInfo()
 {}
+
+
+bool ClassTemplateInfo::equalArguments
+  (SObjList<STemplateArgument> const &list) const
+{
+  ObjListIter<STemplateArgument> iter1(arguments);
+  SObjListIter<STemplateArgument> iter2(list);
+  
+  while (!iter1.isDone() && !iter2.isDone()) {
+    if (!iter1.data()->equals(iter2.data())) {
+      return false;
+    }
+    
+    iter1.adv();
+    iter2.adv();
+  }
+  
+  return iter1.isDone() && iter2.isDone();
+}
 
 
 // -------------------- ArrayType ------------------

@@ -176,8 +176,8 @@ void doit(int argc, char **argv)
 
 
   // ---------------- typecheck -----------------
+  BasicTypeFactory tfac;
   {
-    BasicTypeFactory tfac;
 
     traceProgress() << "type checking...\n";
     long tcheckStart = getMilliseconds();
@@ -283,10 +283,31 @@ void doit(int argc, char **argv)
 
   // test AST cloning
   if (tracingSys("testClone")) {
-    cout << "------- cloned tree --------\n";
     TranslationUnit *u2 = unit->clone();
-    u2->debugPrint(cout, 0);
+
+    if (tracingSys("cloneAST")) {
+      cout << "------- cloned AST --------\n";
+      u2->debugPrint(cout, 0);
+    }
+
+    if (tracingSys("cloneCheck")) {
+      Env env3(strTable, lang, tfac);
+      u2->tcheck(env3);
+
+      if (tracingSys("cloneTypedAST")) {
+        cout << "------- cloned typed AST --------\n";
+        u2->debugPrint(cout, 0);
+      }
+
+      if (tracingSys("clonePrint")) {
+        PrintEnv penv(cout);
+        cout << "---- cloned pretty print ----" << endl;
+        u2->print(penv);
+        penv.finish();
+      }
+    }
   }
+
 
   traceProgress() << "cleaning up...\n";
 

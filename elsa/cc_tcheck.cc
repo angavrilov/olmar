@@ -336,7 +336,10 @@ void Function::tcheck(Env &env, bool checkBody)
 {
   // are we in a template function?
   bool inTemplate = env.scope()->curTemplateParams != NULL;
-  
+
+  // only disambiguate, if template
+  DisambiguateOnlyTemp disOnly(env, inTemplate /*disOnly*/);
+
   // get return type
   Type *retTypeSpec = retspec->tcheck(env, dflags);
 
@@ -364,12 +367,6 @@ void Function::tcheck(Env &env, bool checkBody)
     return;
   }
 
-  bool prevDO = false;
-  if (inTemplate) {
-    // while checking the body, only report/use serious errors
-    prevDO = env.setDisambiguateOnly(true);
-  }
-
   // if this function was originally declared in another scope
   // (main example: it's a class member function), then start
   // by extending that scope so the function body can access
@@ -384,7 +381,7 @@ void Function::tcheck(Env &env, bool checkBody)
   // the parameters will have been entered into the parameter
   // scope, but that's gone now; make a new scope for the
   // function body and enter the parameters into that
-  Scope *bodyScope = env.enterScope();
+  Scope *bodyScope = env.enterScope("function parameter bindings");
   bodyScope->curFunction = this;
   SFOREACH_OBJLIST_NC(Variable, funcType->params, iter) {
     Variable *v = iter.data();
@@ -396,7 +393,10 @@ void Function::tcheck(Env &env, bool checkBody)
   // is this a nonstatic member function?
   if (funcType->isMember) {
     this->thisVar = funcType->getThis();
-    env.addVariable(thisVar);
+    
+    // this would be redundant--the parameter list already got
+    // added to the environment, and it included 'this'
+    //env.addVariable(thisVar);
   }
 
   // have to check the member inits after adding the parameters
@@ -441,10 +441,6 @@ void Function::tcheck(Env &env, bool checkBody)
   if (nameAndParams->var->scope) {
     xassert(prevChangeCount == env.getChangeCount());
     env.retractScope(nameAndParams->var->scope);
-  }
-  
-  if (inTemplate) {
-    env.setDisambiguateOnly(prevDO);
   }
   
   // this is a function definition; add a pointer from the
@@ -795,8 +791,9 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
   // if the user uses the keyword "typename", then the lookup errors
   // are non-disambiguating, because the syntax is unambiguous
   bool disambiguates = (typenameUsed? false : true);
-
-  this->var = env.lookupPQVariable(name);      // annotation
+                                       
+  LookupFlags lflags = (typenameUsed? LF_TYPENAME : LF_NONE);
+  this->var = env.lookupPQVariable(name, lflags);      // annotation
   if (!var) {
     // NOTE:  Since this is marked as disambiguating, but the same
     // error message in E_variable::itcheck is not marked as such, it
@@ -1002,17 +999,17 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
 
+  // was the previous declaration a forward declaration?
+  bool prevWasForward = false;
+
   // are we in a template?
   bool inTemplate = env.scope()->curTemplateParams != NULL;
 
   // are we an inner class?
   CompoundType *containingClass = env.acceptingScope()->curCompound;
-  bool innerClass = !!containingClass;
-
   if (env.lang.noInnerClasses) {
     // nullify the above; act as if it's an outer class
     containingClass = NULL;
-    innerClass = false;
   }
 
   // check restrictions on the form of the name
@@ -1078,6 +1075,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 
     // now it is no longer a forward declaration
     ct->forward = false;
+    prevWasForward = true;
 
     verifyCompatibleTemplates(env, ct);
 
@@ -1095,28 +1093,37 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     }
 
     // make a new type, since a specialization is a distinct template
-    // [cppstd 14.5.4 and 14.7]
+    // [cppstd 14.5.4 and 14.7]; but don't add it to any scopes
+    ret = env.makeNewCompound(ct, NULL /*scope*/, stringName, loc, keyword,
+                              false /*forward*/);
+    #if 0   // previous; delete me
     ct = new CompoundType((CompoundType::Keyword)keyword, stringName);
-    ClassTemplateInfo *specialTI = ct->templateInfo = env.takeTemplateClassInfo();
+    ClassTemplateInfo *specialTI = ct->templateInfo =
+      env.takeTemplateClassInfo(stringName);
     xassert(specialTI);
-    this->ctype = ct;           // annotation
     ret = env.makeType(loc, ct);
+    #endif // 0
+    this->ctype = ct;           // annotation
 
     // add this type to the primary's list of specializations; we are not
     // going to add 'ct' to the environment, so the only way to find the
     // specialization is to go through the primary template
-    primaryTI->specializations.append(ct);
+    primaryTI->instantiations.append(ct);
 
     // 'makeNewCompound' will already have put the template *parameters*
     // into 'specialTI', but not the template arguments
-    specialTI->specialArguments = templateArgs;
-
-    // compute a textual representation of 'templateArgs' to facilitate
-    // printing of 'ct' from cc_type.cc
-    stringBuilder sb;
-    PrintEnv penv(sb);
-    printTemplateArgumentFakeList(penv, templateArgs);
-    specialTI->specialArgumentsRepr = sb;
+    // TODO: this is copied from Env::instantiateClassTemplate; collapse it
+    {
+      FAKELIST_FOREACH_NC(TemplateArgument, templateArgs, iter) {
+        if (iter->sarg.hasValue()) {
+          ct->templateInfo->arguments.append(new STemplateArgument(iter->sarg));
+        }
+        else {
+          return env.error(
+            "attempt to use unresolved arguments to specialize a class");
+        }
+      }
+    }
   }
 
   else {      // !ct
@@ -1136,18 +1143,43 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     this->ctype = ct;              // annotation
   }
 
+  tcheckIntoCompound(env, dflags, ct, inTemplate, containingClass);
+  
+  if (prevWasForward && inTemplate) {
+    // we might have had forward declarations of template
+    // instances that now can be made non-forward by tchecking
+    // this syntax
+    env.instantiateForwardClasses(env.acceptingScope(), ct);
+  }
+
+  return ret;
+}
+
+
+// type check once we know what 'ct' is; this is also called
+// to check newly-cloned AST fragments for template instantiation
+void TS_classSpec::tcheckIntoCompound(
+  Env &env, DeclFlags dflags,    // as in tcheck
+  CompoundType *ct,              // compound into which we're putting declarations
+  bool inTemplate,               // true if this is a template class
+  CompoundType *containingClass) // if non-NULL, ct is an inner class
+{
   // should have set the annotation by now
   xassert(ctype);
 
   // let me map from compounds to their AST definition nodes
   ct->syntax = this;
 
+  // only report serious errors while checking the class,
+  // in the absence of actual template arguments
+  DisambiguateOnlyTemp disOnly(env, inTemplate /*disOnly*/);
+
   // look at the base class specifications
   if (bases) {
     FAKELIST_FOREACH_NC(BaseClassSpec, bases, iter) {
       // resolve any template arguments in the base class name
       iter->name->tcheck(env);
-                                                                         
+
       // cppstd 10, para 1: ignore non-types when looking up
       // base class names
       Variable *baseVar = env.lookupPQVariable(iter->name, LF_ONLY_TYPES);
@@ -1158,7 +1190,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
         continue;
       }
       xassert(baseVar->hasFlag(DF_TYPEDEF));    // that's what LF_ONLY_TYPES means
-      
+
       // special case for template parameters
       if (baseVar->type->isTypeVariable()) {
         // let it go.. we're doing the pseudo-check of a template;
@@ -1207,13 +1239,6 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     }
   }
 
-  bool prevDO = false;
-  if (inTemplate) {
-    // only report serious errors while checking the class
-    // body, in the absence of actual template arguments
-    prevDO = env.setDisambiguateOnly(true);
-  }
-
   // open a scope, and install 'ct' as the compound which is
   // being built; in fact, 'ct' itself is a scope, so we use
   // that directly
@@ -1227,15 +1252,15 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   // declare a destructor if one wasn't declared already; this allows
   // the user to call the dtor explicitly, like "a->~A();", since
   // I treat that like a field lookup
+  StringRef stringName = name? name->getName() : NULL;
   if (stringName) {
     StringRef dtorName = env.str(stringc << "~" << stringName);
     if (!ct->lookupVariable(dtorName, env, LF_INNER_ONLY)) {
       // add a dtor declaration: ~Class();
-      FunctionType *ft = env.makeFunctionType(loc, env.getSimpleType(loc, ST_CDTOR), CV_NONE);
-      ft->doneParams();
+      FunctionType *ft = env.makeDestructorFunctionType(loc);
       Variable *v = env.makeVariable(loc, dtorName, ft, DF_NONE);
       env.addVariable(v);
-      
+
       // put it on the list of made-up variables since there are no
       // (e.g.) $tainted qualifiers (since the user didn't even type the
       // dtor's name)
@@ -1244,6 +1269,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   }
 
   // second pass: check function bodies
+  bool innerClass = !!containingClass;
   if (!innerClass) {
     tcheckFunctionBodies(env);
   }
@@ -1252,10 +1278,6 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   // *not* destroy it!
   env.retractScope(ct);
 
-  if (inTemplate) {
-    env.setDisambiguateOnly(prevDO);
-  }
-
   if (innerClass) {
     // set the constructed scope's 'parentScope' pointer now that
     // we've removed 'ct' from the Environment scope stack; future
@@ -1263,9 +1285,8 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // into the containin class [cppstd 3.4.1 para 8]
     ct->parentScope = containingClass;
   }
-
-  return ret;
 }
+
 
 void TS_classSpec::tcheckFunctionBodies(Env &env)
 {
@@ -2285,7 +2306,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
   ft->templateParams = env.takeTemplateParams();
 
   // make a new scope for the parameter list
-  Scope *paramScope = env.enterScope();
+  Scope *paramScope = env.enterScope("D_func parameter list scope");
   paramScope->isParameterListScope = true;
 
   // typecheck the parameters; this disambiguates any ambiguous type-ids
@@ -2731,7 +2752,7 @@ void S_expr::itcheck(Env &env)
 
 void S_compound::itcheck(Env &env)
 { 
-  Scope *scope = env.enterScope();
+  Scope *scope = env.enterScope("compound statement");
 
   FOREACH_ASTLIST_NC(Statement, stmts, iter) {
     // have to potentially change the list nodes themselves
@@ -2746,7 +2767,7 @@ void S_if::itcheck(Env &env)
 {
   // if 'cond' declares a variable, its scope is the
   // body of the "if"
-  Scope *scope = env.enterScope();
+  Scope *scope = env.enterScope("condition in an 'if' statement");
 
   cond->tcheck(env);
   thenBranch = thenBranch->tcheck(env);
@@ -2758,7 +2779,7 @@ void S_if::itcheck(Env &env)
 
 void S_switch::itcheck(Env &env)
 {
-  Scope *scope = env.enterScope();
+  Scope *scope = env.enterScope("condition in a 'switch' statement");
 
   cond->tcheck(env);
   branches = branches->tcheck(env);
@@ -2769,7 +2790,7 @@ void S_switch::itcheck(Env &env)
 
 void S_while::itcheck(Env &env)
 {
-  Scope *scope = env.enterScope();
+  Scope *scope = env.enterScope("condition in a 'while' statement");
 
   cond->tcheck(env);
   body = body->tcheck(env);
@@ -2789,7 +2810,7 @@ void S_doWhile::itcheck(Env &env)
 
 void S_for::itcheck(Env &env)
 {
-  Scope *scope = env.enterScope();
+  Scope *scope = env.enterScope("condition in a 'for' statement");
 
   init = init->tcheck(env);
   cond->tcheck(env);
@@ -2880,7 +2901,7 @@ void CN_decl::tcheck(Env &env)
 // ------------------- Handler ----------------------
 void HR_type::tcheck(Env &env)
 {           
-  Scope *scope = env.enterScope();
+  Scope *scope = env.enterScope("exception handler");
 
   ASTTypeId::Tcheck tc;
   typeId = typeId->tcheck(env, tc);
@@ -3172,6 +3193,12 @@ Type *E_fieldAcc::itcheck(Env &env)
       // leaving it NULL; this helps the Cqual++ type checker a little
       field = env.dependentTypeVar;
       return field->type;
+    }
+
+    if (fieldName->getName()[0] == '~') {
+      // invoking destructor explicitly, which is allowed
+      // for all types
+      return env.makeDestructorFunctionType(SL_UNKNOWN);
     }
 
     return env.error(rt, stringc
@@ -3791,7 +3818,7 @@ void IN_ctor::tcheck(Env &env)
 void TemplateDeclaration::tcheck(Env &env)
 {
   // make a new scope to hold the template parameters
-  Scope *paramScope = env.enterScope();
+  Scope *paramScope = env.enterScope("template declaration parameters");
     
   // make a list of template parameters
   TemplateParams *tparams = new TemplateParams;
@@ -3839,6 +3866,7 @@ void TD_proto::itcheck(Env &env)
   // check the declaration; works like TD_func because D_func is the
   // place we grab template parameters, and that's shared by both
   // definitions and prototypes
+  DisambiguateOnlyTemp disOnly(env, true /*disOnly*/);
   d->tcheck(env);
 }
 
@@ -3930,9 +3958,75 @@ void TA_type::itcheck(Env &env)
 {
   ASTTypeId::Tcheck tc;
   type = type->tcheck(env, tc);
+
+  Type *t = type->getType();
+  if (!t->isTypeVariable()) {
+    sarg.setType(t);
+  }
 }
 
 void TA_nontype::itcheck(Env &env)
 {
   expr->tcheck(expr, env);
+
+  // see cppstd 14.3.2 para 1
+
+  if (expr->type->isIntegerType() || expr->type->isEnumType()) {
+    int i;
+    if (expr->constEval(env, i)) {
+      sarg.setInt(i);
+    }
+    else {
+      env.error(stringc
+        << "cannot evaluate `" << expr->exprToString()
+        << "' as a template integer argument");
+    }
+  }
+
+  else if (expr->type->isReference()) {
+    if (expr->isE_variable()) {
+      sarg.setReference(expr->asE_variable()->var);
+    }
+    else {
+      env.error(stringc
+        << "`" << expr->exprToString() << " must be a simple variable "
+        << "for it to be a template reference argument");
+    }
+  }
+
+  else if (expr->type->isPointer()) {
+    if (expr->isE_addrOf() &&
+        expr->asE_addrOf()->expr->isE_variable()) {
+      sarg.setPointer(expr->asE_addrOf()->asE_variable()->var);
+    }
+    else {
+      env.error(stringc
+        << "`" << expr->exprToString() << " must be the address of a "
+        << "simple variable for it to be a template pointer argument");
+    }
+  }
+
+  else if (expr->type->isPointerToMemberType()) {
+    // this check is identical to the case above, but combined with
+    // the inferred type it checks for a different syntax
+    if (expr->isE_addrOf() &&
+        expr->asE_addrOf()->expr->isE_variable()) {
+      sarg.setMember(expr->asE_addrOf()->asE_variable()->var);
+    }
+    else {
+      env.error(stringc
+        << "`" << expr->exprToString() << " must be the address of a "
+        << "class member for it to be a template pointer argument");
+    }
+  }
+
+  // do I need an explicit exception for this?
+  //else if (expr->type->isTypeVariable()) {
+
+  else {
+    env.error(expr->type, stringc
+      << "`" << expr->exprToString() << "' has type `"
+      << expr->type->toString() << "' but that's not an allowable "
+      << "type for a template argument");
+  }
 }

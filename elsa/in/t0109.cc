@@ -10,10 +10,6 @@ class Bar;
 
 void f()
 {
-  // unfortunately, my template implementation is too weak
-  // to require arguments to templates, therefore I cannot
-  // yet disambiguate these examples
-
   // <3> is a template argument
   new Foo< 3 > +4 > +5;
                                

@@ -171,6 +171,7 @@ class PQName {
 // TypeSpecifier refers only to the name)
 class TypeSpecifier(SourceLoc loc) {
   public enum CVFlags cv;  ctor cv=CV_NONE;
+  custom clone { ret->cv = cv; }
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
@@ -617,6 +618,11 @@ class TemplateArgument {
 
   // non-type arguments, corresponds to a TP_nontype parameter
   -> TA_nontype(Expression expr);
+}
+
+verbatim {                                                     
+  // render template arguments between angle brackets
+  string targsToString(FakeList<TemplateArgument> const *list);
 }
 
 

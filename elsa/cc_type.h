@@ -228,7 +228,11 @@ public:      // funcs
   ~CompoundType();
 
   bool isComplete() const { return !forward; }
-  bool isTemplate() const { return templateInfo != NULL; }
+  
+  // true if this is a class that is incomplete because it requires
+  // template arguments to be supplied (i.e. not true for classes
+  // that come from templates, but all arguments have been supplied)
+  bool isTemplate() const;
 
   static char const *keywordName(Keyword k);
 
@@ -384,6 +388,7 @@ public:     // funcs
   SimpleType const *asSimpleTypeC() const;
   bool isSimple(SimpleTypeId id) const;
   bool isIntegerType() const;            // any of the simple integer types
+  bool isEnumType() const;
   bool isUnionType() const { return isCompoundTypeOf(CompoundType::K_UNION); }
   bool isStructType() const { return isCompoundTypeOf(CompoundType::K_STRUCT); }
   bool isCompoundTypeOf(CompoundType::Keyword keyword) const;
@@ -641,7 +646,6 @@ public:
 };
 
 
-#if 0     // aborted for now
 // semantic template argument (semantic as opposed to syntactic); this
 // breaks the argument down into the cases described in cppstd 14.3.2
 // para 1, plus types, minus template parameters, then grouped into
@@ -649,51 +653,72 @@ public:
 class STemplateArgument {
 public:
   enum Kind {
+    STA_NONE,        // not yet resolved into a valid template argument
     STA_TYPE,        // type argument
     STA_INT,         // int or enum argument
-    STA_VARIABLE,    // object reference, object pointer, or ptr-to-member
+    STA_REFERENCE,   // reference to global object
+    STA_POINTER,     // pointer to global object
+    STA_MEMBER,      // pointer to class member
     STA_TEMPLATE,    // template argument (not implemented)
     NUM_STA_KINDS
   } kind;
 
   union {
-    Type *t;         // for STA_TYPE (serf)
+    Type *t;         // (serf) for STA_TYPE
     int i;           // for STA_INT
-    Variable *v;     // for STA_VARIABLE (serf)
+    Variable *v;     // (serf) for STA_REFERENCE, STA_POINTER, STA_MEMBER
   } value;
 
 public:
-  STemplateArgument(Kind k) : kind(k) { value.i = 0; }
+  STemplateArgument() : kind(STA_NONE) { value.i = 0; }
+  STemplateArgument(STemplateArgument const &obj);
+
+  // set 'value', ensuring correspondence between it and 'kind'
+  void setType(Type *t)          { kind=STA_TYPE;      value.t=t; }
+  void setInt(int i)             { kind=STA_INT;       value.i=i; }
+  void setReference(Variable *v) { kind=STA_REFERENCE; value.v=v; }
+  void setPointer(Variable *v)   { kind=STA_POINTER;   value.v=v; }
+  void setMember(Variable *v)    { kind=STA_MEMBER;    value.v=v; }
+
+  bool hasValue() const { return kind!=STA_NONE; }
 
   // the point of boiling down the syntactic arguments into this
   // simpler semantic form is to make equality checking easy
   bool equals(STemplateArgument const *obj) const;
+  
+  // debug print
+  string toString() const;
 };
-#endif // 0
+
+string sargsToString(SObjList<STemplateArgument> const &list);
+inline string sargsToString(ObjList<STemplateArgument> const &list)
+  { return sargsToString((SObjList<STemplateArgument> const &)list); }
 
 
-// for a template class, this is the template-related info
+// for a template class, including instantiations thereof, this is the
+// template-related info
 class ClassTemplateInfo : public TemplateParams {
 public:    // data
-  // given a rendering of an instantiation name, e.g. "Foo<int>", map
-  // it to the instantiated type if we've already instantiated it
-  StringObjDict<CompoundType> instantiated;
+  // name of the least-specialized template; this is used to detect
+  // when a name is the name of the template we're inside
+  StringRef baseName;
 
-  // unordered list of specializations; this list is nonempty only
-  // for the primary template
-  SObjList<CompoundType> specializations;
+  // list of instantiations and specializations of this template class
+  SObjList<CompoundType> instantiations;
 
-  // if this is a specialization, then this is the specialized
-  // argument list (AST pointer); the arguments are used during
-  // template specialization matching (which is not implemented for
-  // now)
-  // TODO: replace TemplateArgument with STemplateArgument
-  FakeList<TemplateArgument> *specialArguments;
-  string specialArgumentsRepr;      // textual repr. for printing
+  // if this is an instantiation or specialization, then this is the
+  // list of template arguments
+  ObjList<STemplateArgument> arguments;
+                                            
+  // keep the syntactic arguments around so we can deal with
+  // forward-declared templates
+  FakeList<TemplateArgument> *argumentSyntax;
 
 public:    // funcs
-  ClassTemplateInfo();
+  ClassTemplateInfo(StringRef baseName);
   ~ClassTemplateInfo();
+  
+  bool equalArguments(SObjList<STemplateArgument> const &list) const;
 };
 
 
@@ -748,9 +773,10 @@ public:
   // ---- create a type based on another one ----
   // given a type, qualify it with 'cv'; return NULL if the base type
   // cannot be so qualified; I pass the syntax from which the 'cv'
-  // flags were derived, for the benefit of extension analyses
+  // flags were derived, when I have it, for the benefit of extension
+  // analyses
   virtual Type *applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
-                              TypeSpecifier *syntax);
+                              TypeSpecifier * /*nullable*/ syntax);
 
   // this is called in a few specific circumstances when we want to
   // know the reference type corresponding to some variable; the

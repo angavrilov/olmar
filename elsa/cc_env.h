@@ -78,15 +78,20 @@ public:      // data
 
   // special variables associated with particular types
   Variable *dependentTypeVar;           // (serf)
+  Variable *dependentVar;               // (serf)
+  Variable *errorTypeVar;               // (serf)
   Variable *errorVar;                   // (serf)
 
 private:     // funcs
-  CompoundType *instantiateClass(
-    CompoundType *tclass, FakeList<TemplateArgument> *args);
+  // old
+  //CompoundType *instantiateClass(
+  //  CompoundType *tclass, FakeList<TemplateArgument> *args);
 
   void declareFunction1arg(Type *retType, char const *funcName,
                            Type *arg1Type, char const *arg1Name,
                            Type * /*nullable*/ exnType);
+
+  CompoundType *findEnclosingTemplateCalled(StringRef name);
 
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac);
@@ -95,7 +100,7 @@ public:      // funcs
   int getChangeCount() const { return scopeC()->getChangeCount(); }
 
   // scopes
-  Scope *enterScope();            // returns new Scope
+  Scope *enterScope(char const *forWhat);   // returns new Scope
   void exitScope(Scope *s);       // paired with enterScope()
   void extendScope(Scope *s);     // push onto stack, but don't own
   void retractScope(Scope *s);    // paired with extendScope()
@@ -133,6 +138,9 @@ public:      // funcs
   // lookup in the environment (all scopes); return NULL if can't find
   Variable *lookupPQVariable(PQName const *name, LookupFlags f=LF_NONE);
   Variable *lookupVariable  (StringRef name,     LookupFlags f=LF_NONE);
+  
+  // this variant returns the Scope in which the name was found
+  Variable *lookupVariable(StringRef name, LookupFlags f, Scope *&scope);
 
   CompoundType *lookupPQCompound(PQName const *name, LookupFlags f=LF_NONE);
   CompoundType *lookupCompound  (StringRef name,     LookupFlags f=LF_NONE);
@@ -156,7 +164,7 @@ public:      // funcs
   TemplateParams * /*owner*/ takeTemplateParams();
   
   // like the above, but wrap it in a ClassTemplateInfo
-  ClassTemplateInfo * /*owner*/ takeTemplateClassInfo();
+  ClassTemplateInfo * /*owner*/ takeTemplateClassInfo(StringRef baseName);
 
   // return a new name for an anonymous type; 'keyword' says
   // which kind of type we're naming
@@ -164,9 +172,23 @@ public:      // funcs
 
   // introduce a new compound type name; return the constructed
   // CompoundType's pointer in 'ct', after inserting it into 'scope'
-  Type *makeNewCompound(CompoundType *&ct, Scope *scope,
+  // (if that is not NULL)
+  Type *makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                         StringRef name, SourceLoc loc,
                         TypeIntr keyword, bool forward);
+
+  // instantate 'base' with 'arguments', and return the implicit
+  // typedef Variable associated with the resulting type; 'scope'
+  // is the scope in which 'base' was found; if 'inst' is not
+  // NULL then we already have a compound for this instantiation
+  // (from a forward declaration), so use that one
+  Variable *instantiateClassTemplate(
+    Scope *scope, CompoundType *base,
+    FakeList<TemplateArgument> *arguments, CompoundType *inst = NULL);
+
+  // given a template class that was just made non-forward,
+  // instantiate all of its forward-declared instances
+  void instantiateForwardClasses(Scope *scope, CompoundType *base);
 
   // diagnostic reports; all return ST_ERROR type
   Type *error(char const *msg, bool disambiguates=false);
@@ -190,6 +212,8 @@ public:      // funcs
   // because of disambiguating errors
   bool disambErrorsSuppressChanges() const
     { return disambiguationNestingLevel>0 && hasDisambErrors(); }
+
+  FunctionType *makeDestructorFunctionType(SourceLoc loc);
 
   // TypeFactory funcs; all of these simply delegate to 'tfac'
   CVAtomicType *makeCVAtomicType(SourceLoc loc, AtomicType *atomic, CVFlags cv)
@@ -215,6 +239,33 @@ public:      // funcs
   // others are more obscure, so I'll just call into 'tfac' directly
   // in the places I call them
 };
+
+
+// set/reset 'disambiguateOnly'
+class DisambiguateOnlyTemp {
+private:
+  Env &env;       // relevant environment
+  bool prev;      // previous value of 'disambiguateOnly'
+  bool active;    // when false, we do nothing
+
+public:
+  DisambiguateOnlyTemp(Env &e, bool disOnly)
+    : env(e),
+      active(disOnly)
+  {
+    if (active) {
+      prev = e.setDisambiguateOnly(true);
+    }
+  }
+
+  ~DisambiguateOnlyTemp()
+  {
+    if (active) {
+      env.setDisambiguateOnly(prev);
+    }
+  }
+};
+
 
 
 #endif // CC_ENV_H
