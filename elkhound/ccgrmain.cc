@@ -94,7 +94,7 @@ void doit(int argc, char **argv)
 
     if (env.getErrors() != 0) {
       cout << "there were " << env.getErrors() << " typechecking errors\n";
-      exit(2);
+      exit(4);
     }
 
     if (tracingSys("stopAfterTCheck")) {
@@ -111,6 +111,11 @@ void doit(int argc, char **argv)
     unit->vcgen(env);
 
     traceProgress(2) << "done with vcgen\n";
+
+    if (env.failedProofs != 0) {
+      cout << "there were " << env.failedProofs << " failed proofs\n";
+      exit(5);
+    }
 
     if (tracingSys("stopAfterVCGen")) {
       return;

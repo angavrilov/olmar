@@ -32,6 +32,9 @@ public:      // data
   // need access to the string table to make new names
   StringTable &stringTable;
 
+  // # of failed proofs
+  int failedProofs;
+
 public:      // funcs
   AEnv(StringTable &table);
   ~AEnv();

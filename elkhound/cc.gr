@@ -190,6 +190,8 @@ nonterm[Expression*] Literal {
   -> f:L2_FLOAT_LITERAL  [ E_floatLit *ret = new E_floatLit(*f); delete f; return ret; ]
   -> s:StringLiteral     [ return new E_stringLit(s); ]
   -> c:L2_CHAR_LITERAL   [ return new E_charLit(c); ]
+  -> L2_TRUE             [ return new E_intLit(1); ]
+  -> L2_FALSE            [ return new E_intLit(0); ]
 }
 
 // gnu: this is to handle gnu's f'd up pseduo-symbols, which

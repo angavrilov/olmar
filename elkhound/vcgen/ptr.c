@@ -34,7 +34,7 @@ int select(int *mem, int *addr);
 int update(int *mem, int *addr, int value);
 
 void inc(int *x)
-  thmprv_pre int *pre_mem = mem; 1;
+  thmprv_pre int *pre_mem = mem; true;
   thmprv_post mem == update(pre_mem, x, select(pre_mem, x)+1);
 {
   *x = *x + 1;
@@ -50,4 +50,7 @@ void callInc()
   inc(p);
 
   thmprv_assert x == 7;
+
+  thmprv_assume false;
+  thmprv_assert 1 == 2;
 }
