@@ -41,26 +41,30 @@ FullExpressionAnnot::StackBracket::~StackBracket()
 // ------------------------ misc ----------------------
 // (what follows could be better organized)
 
-E_constructor *makeCtorExpr
-  (Env &env, Variable *var, CompoundType *cpdType, FakeList<ArgExpression> *args)
+E_constructor *makeCtorExpr(Env &env,
+                            Variable *target,
+                            CompoundType *cpdType,
+                            FakeList<ArgExpression> *args)
 {
   xassert(env.doElaboration);
-  xassert(var);                 // this is never for a temporary
-  xassert(!var->hasFlag(DF_TYPEDEF));
+  xassert(target);
+  xassert(!target->hasFlag(DF_TYPEDEF));
   PQName *name0 = env.make_PQ_fullyQualifiedName(cpdType);
   E_constructor *ector0 =
     new E_constructor(new TS_name(env.loc(), name0, false),
                       args);
   ector0->artificial = true;
-  ector0->var = var;            // The variable being ctored
+  ector0->retObj = wrapVarWithE_variable(env, target);
   return ector0;
 }
 
-Statement *makeCtorStatement
-  (Env &env, Variable *var, CompoundType *cpdType, FakeList<ArgExpression> *args)
+Statement *makeCtorStatement(Env &env,
+                             Variable *target,
+                             CompoundType *cpdType,
+                             FakeList<ArgExpression> *args)
 {
   xassert(env.doElaboration);
-  E_constructor *ector0 = makeCtorExpr(env, var, cpdType, args);
+  E_constructor *ector0 = makeCtorExpr(env, target, cpdType, args);
   Statement *ctorStmt0 = new S_expr(env.loc(), new FullExpression(ector0));
   ctorStmt0->tcheck(env);
   return ctorStmt0;
@@ -251,8 +255,7 @@ void Declarator::elaborateCDtors(Env &env)
 // If the return type is a CompoundType, then make a temporary and
 // point the retObj at it.  The intended semantics of this is to
 // override the usual way of analyzing the return value just from the
-// return type of the function.  Some analyses may want us to do this
-// for all return values, not just those of CompoundType.
+// return type of the function.
 //
 // Make a Declaration for a temporary.
 static Declaration *makeTempDeclaration(Env &env, Type *retType)
@@ -326,7 +329,7 @@ static Declaration *insertTempDeclaration(Env &env, Type *retType)
   return declaration0;
 }
 
-static E_variable *wrapVarWithE_variable(Env &env, Variable *var)
+E_variable *wrapVarWithE_variable(Env &env, Variable *var)
 {
   PQName *name0 = NULL;
   switch(var->scopeKind) {
@@ -336,9 +339,6 @@ static E_variable *wrapVarWithE_variable(Env &env, Variable *var)
       break;
     case SK_TEMPLATE:
       xfailure("don't handle template scopes yet");
-      break;
-    case SK_PARAMETER:
-      xfailure("shouldn't be getting a parameter scope here");
       break;
     case SK_GLOBAL:
       xassert(!var->scope);
@@ -351,6 +351,7 @@ static E_variable *wrapVarWithE_variable(Env &env, Variable *var)
       name0 = env.make_PQ_fullyQualifiedName
         (var->scope->curCompound, new PQ_name(env.loc(), var->name));
       break;
+    case SK_PARAMETER:
     case SK_FUNCTION:
       name0 = new PQ_name(env.loc(), var->name);
       break;
@@ -387,7 +388,7 @@ Expression *elaborateCallSite(Env &env, FunctionType *ft,
   // a temporary for a dtor for a non-temporary object because the
   // retType for a dtor is void.  However, we do need to guard against
   // this possibility for ctors.
-  if (ft->retType->isCompoundType()) {
+  if (ft->retType->isCompoundType() && !ft->isConstructor()) {
     Declaration *declaration0 = insertTempDeclaration(env, ft->retType);
     xassert(declaration0->decllist->count() == 1);
     Variable *var0 = declaration0->decllist->first()->var;
@@ -1014,9 +1015,9 @@ static S_expr *make_S_expr_superclassCopyAssign(Env &env, BaseClass *base)
   //                   PQ_name:
   PQ_name *thisName = new PQ_name(loc, env.str.add("this"));
   //                 E_variable:
-  E_variable *thisVar = new E_variable(thisName);
+  E_variable *this0 = new E_variable(thisName);
   //               E_arrow:
-  E_arrow *earrow = new E_arrow(thisVar, superclassName);
+  E_arrow *earrow = new E_arrow(this0, superclassName);
   //             E_funCall:
   E_funCall *efuncall = new E_funCall(earrow, args);
   //           FullExpression:
@@ -1321,7 +1322,7 @@ static S_expr *make_S_expr_superclassDtor(Env &env, BaseClass *base)
   //             var: refers to ex/dtor2.cc:5:3
   //             type: struct C *
   //           E_variable:
-  E_variable *thisVar = new E_variable(thisName);
+  E_variable *this0 = new E_variable(thisName);
   //           type: struct C &
   //         E_deref:
   //         field: refers to ex/dtor2.cc:2:1
@@ -1329,7 +1330,7 @@ static S_expr *make_S_expr_superclassDtor(Env &env, BaseClass *base)
   //       E_fieldAcc:
   //       type: /*cdtor*/
   // not sure why it isn't printing as E_arrow
-  E_arrow *earrow = new E_arrow(thisVar, name);
+  E_arrow *earrow = new E_arrow(this0, name);
   //     E_funCall:
   E_funCall *efuncall = new E_funCall(earrow, args);
   //   FullExpression:

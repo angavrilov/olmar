@@ -1393,7 +1393,8 @@ void FunctionType::addThisParam(Variable *param)
 {
   xassert(param->type->isReference());
   xassert(param->hasFlag(DF_PARAMETER));
-  xassert(!isMethod());
+  xassert(!isConstructor());    // ctors don't get a _this_ param
+  xassert(!isMethod());         // this is about to change below
   params.prepend(param);
   flags |= FF_METHOD;
 }

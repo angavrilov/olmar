@@ -19,6 +19,7 @@ class Variable;           // variable.h
 // cc.ast classes
 class Declaration;
 class E_constructor;
+class E_variable;
 class Statement;
 class ArgExpression;
 class Expression;
@@ -55,17 +56,18 @@ public:      // funcs
 };
 
 
-E_constructor *makeCtorExpr
-  (Env &env, Variable *var, CompoundType *cpdType, FakeList<ArgExpression> *args);
-
-Statement *makeCtorStatement
-  (Env &env, Variable *var, CompoundType *cpdType, FakeList<ArgExpression> *args);
-
+E_constructor *makeCtorExpr(Env &env,
+                            Variable *target,
+                            CompoundType *cpdType,
+                            FakeList<ArgExpression> *args);
+Statement *makeCtorStatement(Env &env,
+                             Variable *target,
+                             CompoundType *cpdType,
+                             FakeList<ArgExpression> *args);
 Statement *makeDtorStatement(Env &env, Type *type);
 
-Expression *elaborateCallSite(Env &env, FunctionType *ft,
-                              FakeList<ArgExpression> *args);
-
+E_variable *wrapVarWithE_variable(Env &env, Variable *var);
+Expression *elaborateCallSite(Env &env, FunctionType *ft, FakeList<ArgExpression> *args);
 void elaborateFunctionStart(Env &env, FunctionType *ft);
 
 void completeNoArgMemberInits(Env &env, Function *ctor, CompoundType *ct);

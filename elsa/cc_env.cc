@@ -2118,8 +2118,8 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
       // add the receiver parameter
       CompoundType *ct = scope->curCompound;
       Type *thisType = tfac.makeTypeOf_this(SL_UNKNOWN, ct, oldFt->getThisCV(), NULL /*syntax*/);
-      Variable *thisVar = makeVariable(loc, thisName, thisType, DF_PARAMETER);
-      newFt->addThisParam(thisVar);
+      Variable *this0 = makeVariable(loc, thisName, thisType, DF_PARAMETER);
+      newFt->addThisParam(this0);
 
       // copy the other parameters
       SObjListIterNC<Variable> iter(oldFt->params);

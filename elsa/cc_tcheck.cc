@@ -2318,11 +2318,11 @@ void makeMemberFunctionType(Env &env, Declarator::Tcheck &dt,
   xassert(dt.funcSyntax);
   CVFlags thisCV = dt.funcSyntax->cv;
   Type *thisType = env.tfac.makeTypeOf_this(loc, inClass, thisCV, dt.funcSyntax);
-  Variable *thisVar = env.makeVariable(loc, env.thisName, thisType, DF_PARAMETER);
+  Variable *this0 = env.makeVariable(loc, env.thisName, thisType, DF_PARAMETER);
 
   // add it to the function type
   FunctionType *ft = dt.type->asFunctionType();
-  ft->addThisParam(thisVar);
+  ft->addThisParam(this0);
 
   // close it
   dt.funcSyntax = NULL;
@@ -4172,6 +4172,9 @@ Type *E_funCall::inner2_itcheck(Env &env)
 
   FunctionType *ft = t->asFunctionType();
   if (env.doElaboration) {
+    // dsw: I think I can't assert this since typechecking can happen
+    // more than once.
+//      xassert(!retObj);
     retObj = elaborateCallSite(env, ft, args);
   }
 
@@ -4347,7 +4350,14 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
     ctorVar = env.storeVar(ctor);
 
     if (env.doElaboration) {
-      retObj = elaborateCallSite(env, ctor->type->asFunctionType(), args);
+      // It seems that if the E_constructor were ever typechecked
+      // twice, say if it were shared between two ambiguous trees,
+      // then I think this should fail, but trying, I can't get it to
+      // so I'll leave it for now.
+      xassert(!!retObj == artificial);
+      if (!artificial) {
+        retObj = elaborateCallSite(env, ctor->type->asFunctionType(), args);
+      }
     }
   }
 
