@@ -4,8 +4,8 @@
 template <class T>
 void f(T const *);
 
-//template <class T>
-//void f(T const *, int);
+template <class T>
+void f(T const *, int);
 
 void foo()
 {

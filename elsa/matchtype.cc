@@ -144,14 +144,15 @@ void bindingsGdb(STemplateArgumentMap &bindings)
         
 // compute 'acv' - 'bcv'
 bool MatchTypes::subtractFlags(CVFlags acv, CVFlags bcv, CVFlags &finalFlags)
-{
+{ 
+  // set subtraction
+  finalFlags = (acv & ~bcv);
+
   // if 'bcv' has any flags that 'acv' doesn't, return false
   if (bcv & ~acv) {
     return false;
   }
 
-  // otherwise, just do the set subtraction
-  finalFlags = (acv & ~bcv);
   return true;
 }
 
@@ -178,7 +179,8 @@ bool MatchTypes::bindValToVar(Type *a, Type *b, int matchDepth)
     a = tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, a, NULL /*syntax*/);
   } else {
     // sm: 8/15/04: in MM_ISO mode, the cv flags on both must match (t0259.cc)
-    if (acv != b->getCVFlags()) {
+    if (mode == MM_ISO &&
+        acv != b->getCVFlags()) {
       return false;
     }
 
@@ -187,7 +189,21 @@ bool MatchTypes::bindValToVar(Type *a, Type *b, int matchDepth)
     // qualifer that the param has) we fail to match
     CVFlags finalFlags;
     bool aCvSuperBcv = subtractFlags(acv, b->getCVFlags(), finalFlags);
-    if (!aCvSuperBcv) return false;
+
+    // sm: 9/25/04: experiment: what does wrong if I turn this off?
+    //
+    // As far as I can tell, nothing goes wrong.  14.8.2.1 para 3
+    // bullet 2 allows cv variation, but only to the extent allowed by
+    // qualification conversions.  Now, stdconv.cc has a little
+    // machine (class Conversion) that encapsulates the needed
+    // knowledge, but the matchtype module is very inconsistent in its
+    // treatment of cv flags so adapting it to use the Conversion
+    // machine would be a nontrivial change.  Therefore I'm just going
+    // to disable this check in MM_BIND mode, thereby allowing *all*
+    // cv variations, and hope that later checking (specifically,
+    // argument conversion checking after template argument inference)
+    // will take care of things.
+    if (mode != MM_BIND && !aCvSuperBcv) return false;
 
     // if there's been a change, must (shallow) clone a and apply new
     // CV qualifiers
