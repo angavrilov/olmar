@@ -12,33 +12,49 @@
 // ASTTypeId
 
 // ------------------------ PQName ------------------------
-void PQName::printExtras(ostream &os, int indent) const
-{
-  ind(os, indent) << "qualifiers: " << qualifierString() << "\n";
-}
-
-
 string PQName::qualifierString() const
 {
   stringBuilder sb;
-  SFOREACH_OBJLIST(char const, qualifiers, iter) {
-    char const *q = iter.data();
-    if (q) {
-      sb << q;
-    }
+  
+  PQName const *p = this;
+  while (p->isPQ_qualifier()) {
+    PQ_qualifier const *q = p->asPQ_qualifierC();
+    if (q->qualifier) {
+      sb << q->qualifier;
+    }         
     else {
       // for a NULL qualifier, don't print anything; it means
       // there was a leading "::" with no explicit qualifier,
       // and I'll use similar syntax on output
     }
     sb << "::";
+    
+    p = q->rest;
   }
   return sb;
 }
 
 stringBuilder& operator<< (stringBuilder &sb, PQName const &obj)
 {
-  return sb << obj.qualifierString() << obj.name;
+  return sb << obj.qualifierString() << obj.getName();
+}
+
+string PQName::toString() const
+{
+  stringBuilder sb;
+  sb << *this;
+  return sb;
+}
+
+
+StringRef PQ_name::getName() const
+{
+  return name;
+}
+
+StringRef PQ_qualifier::getName() const
+{
+  return rest->getName();
 }
 
 

@@ -119,28 +119,21 @@ class ASTTypeId (
 // a name with optional class qualifiers (PQ: "possibly qualified");
 // if the first qualifier is NULL, then it means there was a leading
 // "::" symbol
-class PQName (
-  StringRef name                   // final name
-) {
-  // sequence of qualifiers, as a list of 'char const', which then
-  // becomes a list of 'char const *', i.e. StringRef; private to
-  // reduce implementation knowledge because this is a little bit
-  // of a hack
-  private SObjList<char const> qualifiers;
-
-  // clients should use this interface to (conceptually) prepend
-  // a qualifier
-  public void prependQualifier(StringRef q) { qualifiers.prepend(q); };
-
-  // for cc_tcheck.cc ...
-  public SObjList<char const> const &getQualifiers() const { return qualifiers; };
-  public bool hasQualifiers() const { return qualifiers.isNotEmpty(); };
-
-  public void printExtras(ostream &os, int indent) const;
-  custom debugPrint { printExtras(os, indent); }
+class PQName {
+  public bool hasQualifiers() const { return isPQ_qualifier(); };
 
   public string qualifierString() const;  
+  public string toString() const;
   public friend stringBuilder& operator<< (stringBuilder &sb, PQName const &obj);
+                                   
+  // retrieve the eventual PQ_name's name
+  pure_virtual StringRef getName() const;
+
+  // final name
+  -> PQ_name(StringRef name);
+
+  // outer qualifier applied to some inner PQName
+  -> PQ_qualifier(StringRef qualifier, PQName rest);
 }
 
 

@@ -174,7 +174,7 @@ Type const *TS_elaborated::tcheck(Env &env)
         // rather elaborate rules for deciding in which contexts this is
         // right, but for now I'll just remark that my implementation
         // has a BUG since it doesn't quite conform)
-        return makeNewCompound(ct, env, name->name, loc, keyword);
+        return makeNewCompound(ct, env, name->getName(), loc, keyword);
       }
     }
 
@@ -410,7 +410,7 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
       // object, so we can continue making progress diagnosing errors
       // in the program; this won't be entered in the environment, even
       // though the 'name' is not NULL
-      return new Variable(loc, name->name, spec, dflags);
+      return new Variable(loc, name->getName(), spec, dflags);
     }
 
     // this intends to be the definition of a class member; make sure
@@ -425,7 +425,7 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
   }
   else {
     // has this name already been declared in the innermost scope?
-    prior = env.lookupVariable(name->name, true /*innerOnly*/);
+    prior = env.lookupVariable(name->getName(), true /*innerOnly*/);
   }
 
   // did we find something?
@@ -480,7 +480,7 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
   // no prior declaration, make a new variable and put it
   // into the environment (see comments in Declarator::tcheck
   // regarding point of declaration)
-  Variable *var = new Variable(loc, name->name, spec, dflags);
+  Variable *var = new Variable(loc, name->getName(), spec, dflags);
   if (!var->type->isError()) {
     env.addVariable(var);
   }
@@ -1110,10 +1110,10 @@ Type const *E_fieldAcc::itcheck(Env &env)
   }
 
   // look for the named field
-  CompoundType::Field const *field = ct->getNamedField(fieldName->name);
+  CompoundType::Field const *field = ct->getNamedField(fieldName->getName());
   if (!field) {
     return env.error(stringc
-      << "there is no field called `" << fieldName->name
+      << "there is no field called `" << fieldName->getName()
       << "' in " << obj->type->toString());
   }
 
