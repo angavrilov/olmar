@@ -51,10 +51,10 @@ private:     // data
   StringSObjDict<Variable> variables;
 
   // compounds: map name -> CompoundType
-  StringSObjDict<CompoundType const> compounds;
+  StringSObjDict<CompoundType> compounds;
 
   // enums: map name -> EnumType
-  StringSObjDict<EnumType const> enums;
+  StringSObjDict<EnumType> enums;
 
   // per-scope change count
   int changeCount;
@@ -113,13 +113,14 @@ public:      // function
   // insertion into the current scope; return false if the
   // name collides with one that is already there
   bool addVariable(Variable *v);
-  bool addCompound(CompoundType const *ct);
-  bool addEnum(EnumType const *et);
+  bool addCompound(CompoundType *ct);
+  bool addEnum(EnumType *et);
 
   // lookup in the environment (all scopes)
   Variable *lookupPQVariable(PQName const *name) const;
-  CompoundType const *lookupPQCompound(PQName const *name) const;
-  EnumType const *lookupPQEnum(PQName const *name) const;
+  CompoundType *lookupPQCompound(PQName const *name) const;
+  CompoundType *lookupCompound(StringRef name, bool innerOnly) const;
+  EnumType *lookupPQEnum(PQName const *name) const;
 
   // diagnostic reports; all return ST_ERROR type
   Type const *error(char const *msg);

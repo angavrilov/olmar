@@ -58,7 +58,7 @@ UserActions *makeUserActions(StringTable &table, CCLang &lang)
 ASTTypeId *ellipsisTypeId()
 {
   return new ASTTypeId(new TS_simple(ST_ELLIPSIS),
-                       new Declarator(new D_name(SourceLocation(), NULL /*name*/), 
+                       new Declarator(new D_name(SourceLocation(), NULL /*name*/),
                                       NULL /*init*/));
 }
 
@@ -807,9 +807,9 @@ nonterm[TypeSpecifier*] TypeSpecifier {
 nonterm[TS_elaborated*] ElaboratedTypeSpecifier {
   -> k:ClassKey n:PQName   [
        declareClassTag(n);
-       return new TS_elaborated(k, n);
+       return new TS_elaborated(loc, k, n);
      ]
-  -> "enum" n:PQName            [ return new TS_elaborated(TI_ENUM, n); ]
+  -> "enum" n:PQName            [ return new TS_elaborated(loc, TI_ENUM, n); ]
 }
 
 
@@ -1325,7 +1325,7 @@ nonterm[TS_classSpec*] ClassSpecifier ->
   k:ClassKey n:ClassNameOpt b:BaseClauseOpt
     "{" memb:MemberDeclarationSeqOpt "}"
   [
-    return new TS_classSpec(k, n, b, memb);
+    return new TS_classSpec(loc, k, n, b, memb);
   ]
 
 nonterm[StringRef] ClassNameOpt {

@@ -98,6 +98,7 @@ public:     // funcs
 class NamedAtomicType : public AtomicType {
 public:     // data
   StringRef name;          // (nullable) user-assigned name of this struct or enum
+  Variable *typedefVar;    // (owner) implicit typedef variable
 
 public:
   NamedAtomicType(StringRef name);
@@ -175,6 +176,8 @@ public:      // funcs
   Field *addField(StringRef name, Type const *type, 
                   /*nullable*/ Variable *d);
 };
+
+string toString(CompoundType::Keyword k);
 
 
 // represent an enumerated type

@@ -66,10 +66,18 @@ void Function::tcheck(Env &env)
 void Declaration::tcheck(Env &env)
 {
   Type const *specType = spec->tcheck(env);
-  
+
   FAKELIST_FOREACH_NC(Declarator, decllist, iter) {
     iter->tcheck(env, specType);
-    iter->var->addFlags(dflags);
+    Variable *v = iter->var;
+    v->addFlags(dflags);
+
+    // are we inside a class member list?  if so, then
+    // add this to the class
+    CompoundType *ct = env.scope()->curCompound;
+    if (ct) {
+      ct->addField(v->name, v->type, v);
+    }
   }
 }
 
@@ -121,6 +129,29 @@ Type const *TS_simple::tcheck(Env &env)
 }
 
 
+Type const *makeNewCompound(CompoundType *&ct, Env &env, StringRef name,
+                            SourceLocation const &loc, TypeIntr keyword)
+{
+  ct = new CompoundType((CompoundType::Keyword)keyword, name);
+  ct->forward = false;
+  bool ok = env.addCompound(ct);
+  xassert(ok);     // already checked that it was ok
+
+  // make the implicit typedef
+  Type const *ret = makeType(ct);
+  Variable *tv = new Variable(loc, name, ret, DF_TYPEDEF);
+  ct->typedefVar = tv;
+  ok = env.addVariable(tv);
+  if (!ok) {
+    return env.error(stringc
+      << "implicit typedef associated with " << ct->keywordAndName()
+      << " conflicts with an existing typedef or variable");
+  }
+
+  return ret;
+}
+
+
 Type const *TS_elaborated::tcheck(Env &env)
 {
   if (keyword == TI_ENUM) {
@@ -129,15 +160,24 @@ Type const *TS_elaborated::tcheck(Env &env)
       return env.error(stringc
         << "there is no enum called `" << name << "'");
     }
-    
+
     return makeType(et);
   }
 
   else {
-    CompoundType const *ct = env.lookupPQCompound(name);
+    CompoundType *ct = env.lookupPQCompound(name);
     if (!ct) {
-      return env.error(stringc
-        << "there is no " << toString(keyword) << " called `" << name << "'");
+      if (name->hasQualifiers()) {
+        return env.error(stringc
+          << "there is no " << toString(keyword) << " called `" << *name << "'");
+      }
+      else {
+        // forward declaration (actually, cppstd sec. 3.3.1 has some
+        // rather elaborate rules for deciding in which contexts this is
+        // right, but for now I'll just remark that my implementation
+        // has a BUG since it doesn't quite conform)
+        return makeNewCompound(ct, env, name->name, loc, keyword);
+      }
     }
 
     // check that the keywords match; these are different enums,
@@ -155,7 +195,50 @@ Type const *TS_elaborated::tcheck(Env &env)
 
 Type const *TS_classSpec::tcheck(Env &env)
 {
-  return env.unimp("class specifier");
+  // see if the environment already has this name
+  CompoundType *ct = env.lookupCompound(name, true /*innerOnly*/);
+  Type const *ret;
+  if (ct) {
+    // check that the keywords match
+    if ((int)ct->keyword != (int)keyword) {
+      return env.error(stringc
+        << "there is already a " << ct->keywordAndName()
+        << ", but here you're defining a " << toString(keyword)
+        << " " << name);
+    }
+
+    // check that the previous was a forward declaration
+    if (!ct->forward) {
+      return env.error(stringc
+        << ct->keywordAndName() << " has already been defined");
+    }
+
+    ret = makeType(ct);
+  }
+
+  else {
+    // no existing compound; make a new one
+    ret = makeNewCompound(ct, env, name, loc, keyword);
+  }
+
+  // look at the base class specifications
+  if (bases) {
+    env.unimp("inheritance");
+  }
+
+  // open a scope, and install 'ct' as the compound which is
+  // being built
+  env.enterScope();
+  env.scope()->curCompound = ct;
+
+  // look at members
+  FOREACH_ASTLIST_NC(Member, members->list, iter) {
+    iter.data()->tcheck(env);
+  }
+
+  env.exitScope();
+
+  return ret;
 }
   
 
@@ -168,19 +251,39 @@ Type const *TS_enumSpec::tcheck(Env &env)
     iter->tcheck(env, et, ret);
   }
 
+  env.addEnum(et);
+
   return ret;
 }
 
 
 // BaseClass
 // MemberList
-// Member
+
+// ---------------------- Member ----------------------
+void MR_decl::tcheck(Env &env)
+{                   
+  // the declaration knows to add its variables to
+  // the curCompound
+  d->tcheck(env);
+}
+
+void MR_func::tcheck(Env &env)
+{
+  env.unimp("member function");
+}
+
+void MR_access::tcheck(Env &env)
+{
+  env.unimp("access specifier");
+}
+
 
 // -------------------- Enumerator --------------------
 void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
 {
   Variable *v = new Variable(loc, name, parentType, DF_ENUMERATOR);
-    
+
   int enumValue = parentEnum->nextValue;
   if (expr) {
     // will either set 'enumValue', or print (add) an error message
@@ -189,6 +292,19 @@ void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
 
   parentEnum->addValue(name, enumValue, v);
   parentEnum->nextValue = enumValue + 1;
+  
+  // cppstd sec. 3.3.1: 
+  //   "The point of declaration for an enumerator is immediately after
+  //   its enumerator-definition. [Example:
+  //     const int x = 12;
+  //     { enum { x = x }; }
+  //   Here, the enumerator x is initialized with the value of the 
+  //   constant x, namely 12. ]"
+  if (!env.addVariable(v)) {
+    env.error(stringc
+      << "enumerator " << name << " conflicts with an existing variable "
+      << "or typedef by the same name");
+  }
 }
 
 
@@ -778,7 +894,8 @@ Type const *E_funCall::itcheck(Env &env)
   // TODO: make sure the argument types are compatible
   // with the function parameters
 
-  return &( func->type->asFunctionTypeC() );
+  // type of the expr is type of the return value
+  return func->type->asFunctionTypeC().retType;
 }
 
 
