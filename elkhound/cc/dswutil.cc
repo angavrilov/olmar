@@ -12,7 +12,7 @@ PQName *appendToDeclaratorName(Declarator *d, StringRef suffix) {
   if (!basename) basename = "__anonymous";
   stringBuilder sb;
   sb << basename << suffix;
-  return new PQ_name(sb);
+  return new PQ_name(strdup(sb.pcharc()));
 }
 
 PQName *appendToDeclaratorName(IDeclarator *d, StringRef suffix) {
@@ -22,5 +22,5 @@ PQName *appendToDeclaratorName(IDeclarator *d, StringRef suffix) {
   if (!basename) basename = "__anonymous";
   stringBuilder sb;
   sb << basename << suffix;
-  return new PQ_name(sb);
+  return new PQ_name(strdup(sb.pcharc()));
 }
