@@ -1,14 +1,5 @@
 #define NULL 0
 
-#ifndef PLAIN
-#include <cm/cmmd.h>
-
-#ifdef FUTURES
-#include "future-cell.h"
-#endif
-#include "mem-ref.h"
-#endif
-
 typedef enum {black, white, grey} Color;
 typedef enum {northwest, northeast, southwest, southeast} ChildType;
 typedef enum {north, east, south, west} Direction;
@@ -34,7 +25,6 @@ extern void exit(int);
 
 extern int __NumNodes;
 
-#ifdef PLAIN
 #include <time.h>
 #define local
 #define mymalloc malloc
@@ -48,7 +38,3 @@ extern double wallclock;
 #define chatting printf
 #define NOTEST() (void)0
 #define RETEST() (void)0
-#define mymalloc malloc
-#endif
-
-

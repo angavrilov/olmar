@@ -4,7 +4,7 @@
 SRCS     = main.c maketree.c
 
 CPP         = gcc -E 
-CPPFLAGS    = -D_NO_LONGLONG -DPLAIN
+CPPFLAGS    = 
 CFLAGS      = $(CPPFLAGS)
 OBJS        = maketree.o main.o
 
