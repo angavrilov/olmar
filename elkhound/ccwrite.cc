@@ -100,12 +100,27 @@ stringBuilder &restoreLine(stringBuilder &sb)
 
 
 // ----------------- code emitters -----------------
+// arguments to node constructors, specified here to
+// collapse redundancy
+char const * const nodeCtorArgs =
+  "(Reduction *red, ParseTree &tree)";
+
+
 string getTraceCode(char const *functionDecl)
 {
   return stringc
     << "  if (tracingSys(\"sem-fns\")) {\n"
     << "    cout << locString() << \": in " << functionDecl << "\\n\";\n"
     << "  }\n";
+}
+
+
+void insertLiteralCode(EmitCode &os, LiteralCode const *code)
+{
+  os << lineDirective(code->loc)
+     << code->code << "\n"
+     << restoreLine
+     ;
 }
 
 
@@ -118,14 +133,21 @@ void emitSemFuns(EmitCode &os, Grammar const *g,
 
   // emit the node type ctor
   string typeName = nodeTypeName(nonterm);
-  os << "NonterminalNode *" << nodeCtorName(nonterm) << "(Reduction *red)\n"
+  os << "NonterminalNode *" << nodeCtorName(nonterm) << nodeCtorArgs << "\n"
      << "{\n"
-     << "  return new " << typeName << "(red);\n"
+     << "  return new " << typeName << "(red, tree);\n"
      << "}\n"
      << "\n"
-     << typeName << "::" << typeName << "(Reduction *red)\n"
+     << typeName << "::" << typeName << nodeCtorArgs << "\n"
      << "  : " << g->treeNodeBaseClass << "(red)\n"
-     << "{}\n"
+     << "{\n"
+     ;
+
+  if (nonterm->constructor) {
+    insertLiteralCode(os, nonterm->constructor);
+  }
+
+  os << "}\n"
      << "\n"
      << "\n"
      ;
@@ -203,13 +225,9 @@ void emitSemFuns(EmitCode &os, Grammar const *g,
       }
 
       // write the user's code
-      os << "\n"
-         << "      // begin user code\n"
-         <<        lineDirective(body->loc)
-         <<        body->code << "\n"
-         <<        restoreLine
-         << "      // end user code\n"
-         << "      break;\n"    // catch missing returns, or for void fns
+      os << "\n";
+      insertLiteralCode(os, body);
+      os << "      break;\n"    // catch missing returns, or for void fns
          << "    }\n"
          << "\n";
 
@@ -239,13 +257,9 @@ void emitDisambiguationFun(EmitCode &os, Nonterminal const *nonterm,
      << functionDecl << "\n"
      << restoreLine
      << "{\n"
-     <<    getTraceCode(functionDecl)
-     << "  // begin user code\n"
-     <<    lineDirective(code->loc)
-     <<    code->code << "\n"
-     <<    restoreLine
-     << "  // end user code\n"
-     << "}\n"
+     <<    getTraceCode(functionDecl);
+  insertLiteralCode(os, code);
+  os << "}\n"
      << "\n\n"
      ;
 }
@@ -258,7 +272,7 @@ void emitClassDecl(EmitCode &os, Grammar const *g, Nonterminal const *nonterm)
   os << "class " << nodeTypeName(nonterm)
        << " : public " << g->treeNodeBaseClass << " {\n"
      << "public:\n"
-     << "  " << nodeTypeName(nonterm) << "(Reduction *red);\n"
+     << "  " << nodeTypeName(nonterm) << nodeCtorArgs << ";\n"
      ;
 
   // loop over all declared functions
@@ -295,7 +309,7 @@ void GrammarAnalysis::emitTypeCtorMap(EmitCode &os) const
   // prologue
   os << "// ---------- nonterm info map ----------\n";
   os << "// this is put into the map so...\n"
-        "NonterminalNode *make_empty_Node(Reduction *red)\n"
+        "NonterminalNode *make_empty_Node" << nodeCtorArgs << "\n"
         "{\n"
         "   xfailure(\"can't call make_empty_node!\");\n"
         "   return NULL;    // silence warning\n"
@@ -322,7 +336,7 @@ void GrammarAnalysis::emitTypeCtorMap(EmitCode &os) const
 
 
 // emit the complete C++ file of semantic functions in 'g'
-void emitSemFunImplFile(char const *fname, char const *headerFname, 
+void emitSemFunImplFile(char const *fname, char const *headerFname,
                         GrammarAnalysis const *g)
 {
   EmitCode os(fname);
@@ -346,11 +360,9 @@ void emitSemFunImplFile(char const *fname, char const *headerFname,
   g->emitTypeCtorMap(os);
 
   if (g->semanticsEpilogue != NULL) {
-    os << "// -------- user-supplied semantics epilogue --------\n"
-       << lineDirective(g->semanticsEpilogue->loc)
-       << g->semanticsEpilogue->code << "\n"
-       << restoreLine
-       << "\n"
+    os << "// -------- user-supplied semantics epilogue --------\n";
+    insertLiteralCode(os, g->semanticsEpilogue);
+    os << "\n"
        << "\n"
        << "// end of " << fname << "\n";
   }
@@ -374,13 +386,11 @@ void emitSemFunDeclFile(char const *fname, GrammarAnalysis const *g)
      << "#include \"parssppt.h\"    // parser support routines\n"
      << "\n"
      << "\n";
-             
+
   if (g->semanticsPrologue != NULL) {
-    os << "// ------------ user-supplied prologue ----------\n"
-       << lineDirective(g->semanticsPrologue->loc)
-       << g->semanticsPrologue->code << "\n"
-       << restoreLine
-       << "\n"
+    os << "// ------------ user-supplied prologue ----------\n";
+    insertLiteralCode(os, g->semanticsPrologue);
+    os << "\n"
        << "\n";
   }
 

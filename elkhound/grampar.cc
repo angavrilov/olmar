@@ -450,6 +450,18 @@ void astParseGroupBody(Environment &env, Nonterminal *nt,
           }
           break;
 
+        case AST_CONSTRUCTOR:
+          if (attrDeclAllowed) {
+            if (nt->constructor) {
+              astParseError(node, "constructor already defined");
+            }
+            nt->constructor = childLitCode(node, 0);
+          }
+          else {
+            astParseError(node, "can't define constructors here");
+          }
+          break;
+
         case AST_ACTION:
         case AST_CONDITION:
         case AST_FUNCTION:

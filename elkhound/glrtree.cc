@@ -197,7 +197,7 @@ Nonterminal const *NonterminalNode::getLHS() const
 }
 
 
-Reduction const *NonterminalNode::only() const
+Reduction const *NonterminalNode::onlyC() const
 {
   if (reductions.count() != 1) {
     THROW(XAmbiguity(this, "in only()"));
@@ -209,12 +209,12 @@ Reduction const *NonterminalNode::only() const
 
 int NonterminalNode::onlyProductionIndex() const
 {
-  return only()->production->prodIndex;
+  return onlyC()->production->prodIndex;
 }
 
 TreeNode const *NonterminalNode::getOnlyChild(int childNum) const
 {
-  return only()->children.nthC(childNum);
+  return onlyC()->children.nthC(childNum);
 }
 
 Lexer2Token const &NonterminalNode::getOnlyChildToken(int childNum) const
@@ -461,6 +461,16 @@ int Reduction::numGroundTerms() const
   }
   return sum;
 }
+
+
+// -------------------- ParseTree -------------
+ParseTree::ParseTree()
+  : treeTop(NULL),
+    treeNodes()
+{}
+
+ParseTree::~ParseTree()
+{}
 
 
 // --------------------- AttrContext -------------------

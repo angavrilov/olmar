@@ -207,8 +207,7 @@ public:	   // funcs
 class GLR : public GrammarAnalysis {
 public:
   // ---- state to keep after parsing is done ----
-  // list of all parse tree (graph) nodes
-  ObjList<TreeNode> treeNodes;
+  ParseTree &parseTree;
 
   // ---- parser state between tokens ----
   // Every node in this set is (the top of) a parser that might
@@ -216,10 +215,6 @@ public:
   // point where it cannot proceed, and therefore dies.  (See
   // comments at top of glr.cc for more details.)
   SObjList<StackNode> activeParsers;        // (refct list)
-
-  // after parsing I need an easy way to throw away the parse
-  // state, so I keep all the nodes in an owner list
-  //ObjList<StackNode> allStackNodes;
 
   // this is for assigning unique ids to stack nodes
   int nextStackNodeId;
@@ -274,11 +269,11 @@ private:    // funcs
                                  Production const *subjProd);
 
 public:     // funcs
-  GLR();
+  GLR(ParseTree &parseTree);
   ~GLR();
 
   // 'main' for testing this class
-  void glrParseFrontEnd(Lexer2 &lexer2, 
+  void glrParseFrontEnd(Lexer2 &lexer2,
                         char const *grammarFname, char const *inputFname,
                         char const *symOfInterestName = NULL);
 
@@ -286,7 +281,7 @@ public:     // funcs
   void glrParseNamedFile(Lexer2 &lexer2, char const *input);
 
   // after parsing, retrieve the parse tree
-  TreeNode const *getParseTree() const;
+  TreeNode *getParseTree();
 };
 
 

@@ -49,6 +49,7 @@ enum ASTTypeCode {
   AST_TREENODEBASE,      // base class: string
   AST_DISAMB,            // disambiguating function: name, body
   AST_TREECOMPARE,       // name1, name2, expr
+  AST_CONSTRUCTOR,       // ctor: body
 
   // attribute-expression components
   EXP_ATTRREF,           // reference to an attribute

@@ -231,10 +231,15 @@ void incParserList(SObjList<StackNode> &list)
 }
 
 
-GLR::GLR()
-  : currentToken(NULL),
-    currentTokenClass(NULL)
-  // some fields initialized by 'clearAllStackNodes'
+GLR::GLR(ParseTree &ptree)
+  : parseTree(ptree),
+    activeParsers(),
+    nextStackNodeId(initialStackNodeId),
+    currentTokenColumn(0),
+    currentToken(NULL),
+    currentTokenClass(NULL),
+    parserWorklist()
+  // some fields (re-)initialized by 'clearAllStackNodes'
 {}
 
 GLR::~GLR()
@@ -247,8 +252,7 @@ GLR::~GLR()
 void GLR::clearAllStackNodes()
 {
   // throw away any parse nodes leftover from previous parses
-  //allStackNodes.deleteAll();
-  treeNodes.deleteAll();
+  parseTree.treeNodes.deleteAll();
   nextStackNodeId = initialStackNodeId;
   currentTokenColumn = 0;
 }
@@ -384,6 +388,10 @@ void GLR::glrParse(Lexer2 const &lexer2)
   traceProgress() << "done parsing\n";
   trace("parse") << "Parse succeeded!\n";
 
+  
+  // finish specifying the parse tree
+  parseTree.setTop(getParseTree());
+
 
   // print the parse as a graph for my graph viewer
   // (the slight advantage to printing the graph first is that
@@ -396,7 +404,7 @@ void GLR::glrParse(Lexer2 const &lexer2)
     writeParseGraph("parse.g");
   }
 
-  
+
   // TODO: blow away parse graph
 
 
@@ -805,7 +813,6 @@ StackNode *GLR::makeStackNode(ItemSet const *state)
 {
   StackNode *sn = new StackNode(nextStackNodeId++, currentTokenColumn,
                                 state);
-  //allStackNodes.prepend(sn);
   return sn;
 }
 
@@ -908,7 +915,7 @@ STATICDEF int GLR::compareAlternatives(Reduction *left, Reduction *right)
 TerminalNode *GLR::makeTerminalNode(Lexer2Token const *tk, Terminal const *tc)
 {
   TerminalNode *ret = new TerminalNode(tk, tc);
-  treeNodes.prepend(ret);
+  parseTree.treeNodes.prepend(ret);
   return ret;
 }
 
@@ -938,24 +945,30 @@ NonterminalNode *GLR::makeNonterminalNode(Reduction *red)
     int id = red->production->left->ntIndex;
     xassert(0 <= id && id < nontermMapLength);
 
-    ret = (nontermMap[id].ctor)(red);
+    ret = (nontermMap[id].ctor)(red, parseTree);
+    
+    // DESIGN FLAW: this is really the wrong place to be calling the
+    // constructor-like code (that has a parseTree argument) -- here,
+    // it's only called if we make an entirely new node, whereas there
+    // are cases where we simply add a reduction to an existing
+    // node.. ideally, it should be done there...
   }
 
-  treeNodes.prepend(ret);
+  parseTree.treeNodes.prepend(ret);
   return ret;
 }
 
 
-TreeNode const *GLR::getParseTree() const
+TreeNode *GLR::getParseTree()
 {
   // the final activeParser is the one that shifted the end-of-stream
   // marker, so we want its left sibling, since that will be the
   // reduction(s) to the start symbol
-  TreeNode const *tn =
-    activeParsers.firstC()->                    // parser that shifted end-of-stream
-      leftSiblings.firstC()->sib->              // parser that shifted start symbol
-      leftSiblings.firstC()->                   // sibling link with start symbol
-      treeNode;                                 // start symbol tree node
+  TreeNode *tn =
+    activeParsers.first()->                    // parser that shifted end-of-stream
+      leftSiblings.first()->sib->              // parser that shifted start symbol
+      leftSiblings.first()->                   // sibling link with start symbol
+      treeNode;                                // start symbol tree node
 
   xassert(tn);
 

@@ -143,7 +143,8 @@ public:
 
   // assuming there is no ambiguity, get the single Reduction;
   // if there is not 1 reduction, xassert
-  Reduction const *only() const;
+  Reduction const *onlyC() const;
+  Reduction *only() { return const_cast<Reduction*>(onlyC()); }
 
   // same assumption; nice pre-chewed calls for
   // emitted code
@@ -200,6 +201,29 @@ public:      // funcs
   TerminalNode const *getLeftmostTerminalC() const;
   void getGroundTerms(SObjList<TerminalNode> &dest) const;
   int numGroundTerms() const;
+};
+
+
+// container to carry an entire parse tree
+class ParseTree {
+private:     // data
+  // top of the tree; set after parsing is complete
+  TreeNode *treeTop;              // (serf)
+
+public:      // data
+  // list of all parse tree (graph) nodes
+  ObjList<TreeNode> treeNodes;
+
+  // additional data for use in semantic functions
+  void *extra;                    // (serf)
+
+public:      // funcs
+  ParseTree();
+  ~ParseTree();
+
+  // thin level of indirection..
+  void setTop(TreeNode *t) { treeTop = t; }
+  TreeNode *getTop() { return treeTop; }
 };
 
 

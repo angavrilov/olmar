@@ -30,6 +30,7 @@
 #include "action.h"      // Actions
 #include "cond.h"        // Conditions
 #include "litcode.h"     // LitCodeDict
+#include "owner.h"       // Owner
 
 class StrtokParse;       // strtokp.h
 
@@ -159,6 +160,9 @@ public:     // data
   
   // definitions of disambiguation routines
   LitCodeDict disambFuns;
+
+  // constructor function
+  Owner<LiteralCode> constructor;
 
 public:     // funcs
   Nonterminal(char const *name);

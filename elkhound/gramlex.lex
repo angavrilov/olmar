@@ -169,7 +169,7 @@ SLWHITE   [ \t]
   return TOK_FUNDECL;
 }
 
-("fun"|"disamb"|"prologue"|"epilogue") {
+("fun"|"disamb"|"prologue"|"epilogue"|"constructor") {
   TOK_UPD_COL;
 
   // one or two tokens must be processed before we start the embedded
@@ -180,10 +180,14 @@ SLWHITE   [ \t]
 
   embedded->reset();
   embedMode = TOK_FUN_BODY;
-  return yytext[0]=='f'? TOK_FUN :
-         yytext[0]=='d'? TOK_DISAMB :
-         yytext[0]=='p'? TOK_PROLOGUE :
-                         TOK_EPILOGUE;
+  switch (yytext[0]) {
+    default: xfailure("huh?");
+    case 'f': return TOK_FUN;
+    case 'd': return TOK_DISAMB;
+    case 'p': return TOK_PROLOGUE;
+    case 'e': return TOK_EPILOGUE;
+    case 'c': return TOK_CONSTRUCTOR;
+  }
 }
 
   /* punctuation that can start embedded code */

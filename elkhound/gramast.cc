@@ -40,6 +40,7 @@ string astTypeToString(int type)
     N(AST_TREENODEBASE)
     N(AST_DISAMB)
     N(AST_TREECOMPARE)
+    N(AST_CONSTRUCTOR)
 
     N(EXP_ATTRREF)
     N(EXP_FNCALL)

@@ -5,42 +5,35 @@
 #ifndef __PARSSPPT_H
 #define __PARSSPPT_H
                
-#include "glrtree.h"      // NonterminalNode, etc.
-#include "glr.h"          // GLR
+#include "glrtree.h"      // NonterminalNode, ParseTree, etc.
 #include "lexer2.h"       // Lexer2
 
 
 // ----------------- helpers for analysis drivers ---------------
 // a self-contained parse tree (or parse DAG, as the case may be)
-struct ParseTree {
+class ParseTreeAndTokens : public ParseTree {
 public:
   // we need a place to put the ground tokens
   Lexer2 lexer2;
 
-  // this holds the grammar and the parse tree
-  GLR glr;
-
 public:
-  ParseTree();
-  ~ParseTree();
-
-  // get the tree top
-  TreeNode const *getTop() const;
+  ParseTreeAndTokens();
+  ~ParseTreeAndTokens();
 };
 
+
 // given grammar and input, yield a parse tree
-ParseTree * /*owner*/ toplevelParse(char const *grammarFname,
-                                    char const *inputFname,
-                                    char const *symOfInterestName = NULL);
+void toplevelParse(ParseTreeAndTokens &ptree, char const *grammarFname,
+                   char const *inputFname, char const *symOfInterestName);
 
 // useful for simple treewalkers
-ParseTree * /*owner*/ treeMain(int argc, char **argv);
+void treeMain(ParseTreeAndTokens &ptree, int argc, char **argv);
 
 
 // ------------- interface to create nodes -------------
 // constructs a tree node of some type; signature matches
 // NonterminalNode's ctor
-typedef NonterminalNode* (*TreeNodeCtorFn)(Reduction *red);
+typedef NonterminalNode* (*TreeNodeCtorFn)(Reduction *red, ParseTree &tree);
 
 // describes a nonterminal, for use at runtime by the
 // user of the generated code

@@ -61,6 +61,7 @@
 %token TOK_TREENODEBASE "treeNodeBase"
 %token TOK_DISAMB "disamb"
 %token TOK_TREECOMPARE "treeCompare"
+%token TOK_CONSTRUCTOR "constructor"
 
 /* operators */
 %token TOK_OROR "||"
@@ -168,6 +169,7 @@ NonterminalBody: /* empty */                       { $$ = AST0(AST_NTBODY); }
                | NonterminalBody AttributeDecl     { $$ = iappend($1, $2); }
                | NonterminalBody GroupElement      { $$ = iappend($1, $2); }
                | NonterminalBody DisambFunction    { $$ = iappend($1, $2); }
+               | NonterminalBody Constructor       { $$ = iappend($1, $2); }
                ;
 
 /* things that can appear in any grouping construct; specifically,
@@ -374,9 +376,14 @@ Function: "fun" TOK_NAME "{" TOK_FUN_BODY "}"    { $$ = AST2(AST_FUNCTION, $2, $
         | "fun" TOK_NAME "=" TOK_FUN_BODY ";"    { $$ = AST2(AST_FUNEXPR, $2, $4); }
         ;
 
-
+/* disambiguation functions get to trim the tree based on
+ * semantic knowledge */
 DisambFunction: "disamb" TOK_NAME "{" TOK_FUN_BODY "}"   { $$ = AST2(AST_DISAMB, $2, $4); }
               ;
+
+/* constructors are called whenever a tree node is created */
+Constructor: "constructor" "{" TOK_FUN_BODY "}"          { $$ = AST1(AST_CONSTRUCTOR, $3); }
+           ;
 
 
 /* ------ prologue, epilogue -------- */
