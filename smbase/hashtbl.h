@@ -45,6 +45,9 @@ private:    // data
 
   // number of mapped (non-NULL) entries
   int numEntries;
+  
+  // when false, we never make the table smaller (default: true)
+  bool enableShrink;
 
 private:    // funcs
   // disallowed
@@ -96,10 +99,14 @@ public:     // funcs
   // remove all mappings
   void empty(int initSize = HashTable::defaultSize);
 
+  // set whether shrinkage is allowed; it's useful to be able to
+  // disable this to avoid any allocation in certain situations
+  void setEnableShrink(bool en) { enableShrink = en; }
+
   // check the data structure's invariants, and throw an exception
   // if there is a problem
   void selfCheck() const;
-  
+
   // ------ useful default functions -------
   // returns its argument
   static void const* identityKeyFn(void *data);

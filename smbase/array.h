@@ -36,6 +36,15 @@ public:      // funcs
 
   // grab a read-only pointer to the raw array
   T const *getArray() const { return arr; }
+  
+  // make sure the given index is valid; if this requires growing,
+  // do so by doubling the size of the array (repeatedly, if
+  // necessary)
+  void ensureIndexDoubler(int index);
+  
+  // set an element, using the doubler if necessary
+  void setIndexDoubler(int index, T const &value)
+    { ensureIndexDoubler(index); arr[index] = value; }
 };
 
 
@@ -95,6 +104,27 @@ void GrowArray<T>::setLength(int newLen)
       delete[] oldArr;
     }
   }
+}
+
+
+template <class T>
+void GrowArray<T>::ensureIndexDoubler(int index)
+{                  
+  if (len-1 >= index) {
+    return;
+  }
+
+  int newLen = len;
+  while (newLen-1 < index) {
+    int prevLen = newLen;
+    if (newLen == 0) {
+      newLen = 1;
+    }
+    newLen = newLen*2;
+    xassert(newLen > prevLen);   // otherwise overflow -> infinite loop
+  }
+
+  setLength(newLen);
 }
 
 

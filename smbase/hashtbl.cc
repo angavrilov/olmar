@@ -108,7 +108,8 @@ void HashTable::add(void const *key, void *value)
 
 void *HashTable::remove(void const *key)
 {
-  if (numEntries-1 < tableSize/5  &&
+  if (enableShrink                &&
+      numEntries-1 < tableSize/5  &&
       tableSize > defaultSize) {
     // we're below threshold; reduce table size
     resizeTable(tableSize / 2);
