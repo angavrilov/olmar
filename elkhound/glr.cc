@@ -451,6 +451,9 @@ SiblingLink *StackNode::
 inline void StackNode::decRefCt()
 {
   xassert(referenceCount > 0);
+  
+  //printf("decrementing node %d to %d\n", state, referenceCount-1);
+
   if (--referenceCount == 0) {
     glr->stackNodePool->dealloc(this);
   }
@@ -924,6 +927,7 @@ STATICDEF bool GLR
         << ", " << glr.topmostParsers.length() << " active parsers"
         << " -------"
     )
+    TRSPARSE("Stack:" << glr.stackSummary())
 
     #ifndef NDEBUG
       if (doDumpGSS) {
@@ -1582,17 +1586,77 @@ void GLR::dumpGSS(int tokenNumber) const
       }
     }
   }
-  
+
   fclose(dest);
 }
 
 
-void GLR::dumpGSSEdge(FILE *dest, StackNode const *src, 
+void GLR::dumpGSSEdge(FILE *dest, StackNode const *src,
                                   StackNode const *target) const
 {
   fprintf(dest, "e %d_%p_%d %d_%p_%d\n",
                 0 NODE_COLUMN( + src->column ), src, src->state,
                 0 NODE_COLUMN( + target->column ), target, target->state);
+}
+
+
+// alternative to above: stack info in a single string
+string GLR::stackSummary() const
+{
+  stringBuilder sb;
+
+  // list of nodes we've already printed, to avoid printing any
+  // node more than once
+  SObjList<StackNode const> printed;
+
+  for (int i=0; i < topmostParsers.length(); i++) {
+    sb << " (" << i << ": ";
+    innerStackSummary(sb, printed, topmostParsers[i]);
+    sb << ")";
+  }
+
+  return sb;
+}
+
+void GLR::nodeSummary(stringBuilder &sb, StackNode const *node) const
+{
+  sb << node->state << "[" << node->referenceCount << "]";
+}
+
+void GLR::innerStackSummary(stringBuilder &sb, SObjList<StackNode const> &printed,
+                            StackNode const *node) const
+{
+  if (printed.contains(node)) {
+    sb << "(rep:";
+    nodeSummary(sb, node);
+    sb << ")";
+    return;
+  }
+
+  nodeSummary(sb, node);
+  printed.append(node);
+
+  if (!node->firstSib.sib) {
+    return;   // no siblings
+  }
+
+  sb << "-";
+
+  if (node->leftSiblings.isEmpty()) {
+    // one sibling
+    innerStackSummary(sb, printed, node->firstSib.sib);
+  }
+  else {
+    // multiple siblings
+    sb << "(";
+    innerStackSummary(sb, printed, node->firstSib.sib);
+
+    FOREACH_OBJLIST(SiblingLink, node->leftSiblings, iter) {
+      sb << "|";
+      innerStackSummary(sb, printed, iter.data()->sib);
+    }
+    sb << ")";
+  }
 }
 
 

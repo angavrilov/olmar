@@ -4343,9 +4343,9 @@ char const *notVoid(char const *type)
 char const *typeString(char const *type, LocString const &tag)
 {
   if (!type) {
-    cout << tag.locString() << ": Production tag \"" << tag
-         << "\" on a symbol with no type.\n";
-    return "__error_no_type__";     // will make compiler complain
+    xbase(stringc << tag.locString() << ": Production tag \"" << tag
+                  << "\" on a symbol with no type.\n");
+    return NULL;     // silence warning
   }
   else {
     return notVoid(type);

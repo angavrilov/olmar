@@ -251,26 +251,31 @@ begin
   ths.glr.tables.stateSymbol.(ths.state)
 end
 
-let deallocSemanticValues (ths: tStackNode) : unit =
+let rec deallocSemanticValues (ths: tStackNode) : unit =
 begin
   if (isSome ths.firstSib.sib) then (
     (deallocateSemanticValue (getNodeSymbol ths) ths.glr.userAct ths.firstSib.sval)
   );
 
   (List.iter
-    (fun s -> (deallocateSemanticValue (getNodeSymbol ths) ths.glr.userAct s.sval))
+    (fun s -> (
+      (deallocateSemanticValue (getNodeSymbol ths) ths.glr.userAct s.sval);
+
+      (* this is implicit in the C++ version, due to Owner<> *)
+      (decRefCt (getSome s.sib))
+    ))
     ths.leftSiblings);
   ths.leftSiblings <- [];
 end
 
-let initStackNode (ths: tStackNode) (st: tStateId) : unit =
+and initStackNode (ths: tStackNode) (st: tStateId) : unit =
 begin
   ths.state <- st;
   (xassertdb (isEmpty ths.leftSiblings));
   (xassertdb (isNone ths.firstSib.sib));
   ths.referenceCount <- 0;
   ths.determinDepth <- 1;
-  
+
   if (accounting) then (
     (incr numStackNodesAllocd);
     if (!numStackNodesAllocd > !maxStackNodesAllocd) then (
@@ -285,7 +290,7 @@ begin
   );
 end
 
-let rec deinitStackNode (ths: tStackNode) : unit =
+and deinitStackNode (ths: tStackNode) : unit =
 begin
   (deallocSemanticValues ths);
 
@@ -318,6 +323,10 @@ begin
   (xassert (ths.referenceCount > 0));
 
   ths.referenceCount <- ths.referenceCount - 1;
+
+  (*(Printf.printf "decrementing node %d to %d\n" ths.state ths.referenceCount);*)
+  (*(flush stdout);*)
+
   if (ths.referenceCount = 0) then (
     (deinitStackNode ths);
     (ths.glr.stackNodePool#dealloc ths)
@@ -607,6 +616,7 @@ begin
                          (lexer#tokenDesc())
                          (glr.topmostParsers#length())
           );
+          (Printf.printf "Stack:%s\n" (stackSummary glr));
           (flush stdout);
         );
 
@@ -963,6 +973,81 @@ end
 
 (* dumpGSS goes here *)
 (* dumpGSSEdge goes here *)
+
+
+and stackSummary (glr: tGLR) : string =
+begin
+  (* nodes already printed *)
+  let printed: tStackNode list ref = ref [] in
+
+  (* loop/fold *)
+  let len:int = (glr.topmostParsers#length ()) in
+  let rec loop (acc: string) (i: int) : string =
+  begin
+    if (i > len-1) then (
+      acc                      (* done *)
+    )
+    else (
+      let n:tStackNode = (glr.topmostParsers#elt i) in
+
+      (loop
+        (acc ^ " (" ^ (string_of_int i) ^ ": " ^
+         (innerStackSummary printed n) ^
+         ")")
+        (i+1)
+      )
+    )
+  end in
+
+  (loop "" 0)
+end
+  
+and nodeSummary (node: tStackNode) : string =
+begin
+  (string_of_int node.state) ^ 
+  "[" ^ (string_of_int node.referenceCount) ^ "]"
+end
+
+and innerStackSummary (printed: tStackNode list ref) (node: tStackNode) : string =
+begin
+  if (List.exists
+       (fun (n:tStackNode) -> n = node)
+       !printed) then (
+    (* already printed *)
+    "(rep:" ^ (nodeSummary node) ^ ")"
+  ) 
+  
+  else (  
+    (* remember that we've now printed 'node' *)
+    printed := node :: !printed;
+
+    if (isNone node.firstSib.sib) then (
+      (* no siblings *)
+      (nodeSummary node)
+    )
+
+    else if (isEmpty node.leftSiblings) then (
+      (* one sibling *)
+      (nodeSummary node) ^ "-" ^ 
+      (innerStackSummary printed (getSome node.firstSib.sib))
+    )
+
+    else (
+      (* multiple siblings *)
+      let tmp1:string =       (* force order of eval *)
+        (nodeSummary node) ^ "-(" ^
+        (innerStackSummary printed (getSome node.firstSib.sib)) in
+      tmp1 ^ (List.fold_left 
+        (fun (acc:string) (link:tSiblingLink) -> (
+          acc ^ "|" ^ (innerStackSummary printed (getSome link.sib))
+        ))
+        ""
+        node.leftSiblings
+      ) ^
+      ")"
+    )
+  )
+end
 
 
 (* ------------------------ RWL algorithm ------------------------- *)

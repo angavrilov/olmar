@@ -500,24 +500,47 @@ void addDefaultTypesActions(Grammar &g, GrammarAST *ast)
     defaultAction = grammarStringTable.add("return;");
   }
 
+  // hook to allow me to force defaults everywhere (this is useful
+  // when I want to try a grammar written for one language using
+  // another language's core)
+  bool forceDefaults = tracingSys("forceDefaultActions");
+
   // iterate over nonterminals
   FOREACH_ASTLIST_NC(TopForm, ast->forms, iter) {
     if (!iter.data()->isTF_nonterm()) { continue; }
     TF_nonterm *nt = iter.data()->asTF_nonterm();
 
     // default type
-    if (nt->type.isNull()) {
+    if (forceDefaults || nt->type.isNull()) {
       nt->type.str = defaultType;
     }
 
     // iterate over productions
     FOREACH_ASTLIST_NC(ProdDecl, nt->productions, iter2) {
       ProdDecl *pd = iter2.data();
-       
+
       // default action
-      if (pd->actionCode.isNull()) {
+      if (forceDefaults || pd->actionCode.isNull()) {
         pd->actionCode.str = defaultAction;
-      }                
+      }
+                          
+      if (forceDefaults) {
+        // clear RHSElt tags, since otherwise the lack of types
+        // will provoke errors; and default actions don't refer to
+        // the RHSElts anyway
+        StringRef empty = grammarStringTable.add("");
+        FOREACH_ASTLIST_NC(RHSElt, pd->rhs, iter3) {
+          ASTSWITCH(RHSElt, iter3.data()) {
+            ASTCASE(RH_name, n)
+              n->tag.str = empty;
+
+            ASTNEXT(RH_string, s)
+              s->tag.str = empty;
+            
+            ASTENDCASED
+          }
+        }
+      }
     }
   }
 }
