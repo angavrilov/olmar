@@ -336,6 +336,9 @@ void HGen::emitFile()
   out << "#define " << includeLatch << "\n";
   out << "\n";
   out << "#include \"asthelp.h\"        // helpers for generated code\n";
+  if (wantDVisitor) {
+    out << "#include \"sobjset.h\"        // SObjSet\n";
+  }
   out << "\n";
 
   // forward-declare all the classes
@@ -1428,11 +1431,22 @@ void HGen::emitDVisitorInterface()
   out << "protected:\n";
   out << "  " << visitorName << " &client;\n";
 
+  // flag as to whether to check that an AST node has been visited at
+  // most once
+  out << "  bool ensureOneVisit;\n";
+  // set of visited nodes
+  out << "  SObjSet<void*> wasVisitedASTNodes;\n";
+
   // ctor
   out << "public:\n";
-  out << "  explicit " << dvisitorName << "(" << visitorName << " &client0)\n";
+  out << "  explicit " << dvisitorName << "("
+      << visitorName << " &client0, "
+      << "bool ensureOneVisit0 = true"
+      << ")\n";
   out << "    : client(client0)\n";
+  out << "    , ensureOneVisit(ensureOneVisit0)\n";
   out << "  {}\n";
+  out << "  virtual ~" << dvisitorName << "() {}\n";
 
   // non-copy-ctor
   out << "private:\n";
@@ -1440,7 +1454,11 @@ void HGen::emitDVisitorInterface()
   out << "  // non-implemented copy ctor\n";
   out << "  explicit " << dvisitorName << "(" << dvisitorName << " const &other);\n";
 
-  // methods
+  // internal methods
+  out << "protected:\n";
+  out << "bool wasVisitedAST(void *ast);\n\n";
+
+  // visitor methods
   out << "public:\n";
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
@@ -1460,11 +1478,27 @@ void CGen::emitDVisitorImplementation()
   // NOTE: the one-arg ctor implementation was in the declaration and
   // we deliberately omit an implementation of the copy ctor
   out << "// ---------------------- " << dvisitorName << " ---------------------\n";
+
+  out << "bool " << dvisitorName << "::wasVisitedAST(void *ast)\n";
+  out << "{\n";
+  out << "  // do not bother to check if the user does not want us to\n";
+  out << "  if (!ensureOneVisit) {\n";
+  out << "    return false;\n";
+  out << "  }\n\n";
+  out << "  if (wasVisitedASTNodes.contains(ast)) {\n";
+  out << "    return true;\n";
+  out << "  } else {\n";
+  out << "    wasVisitedASTNodes.add(ast);\n";
+  out << "    return false;\n";
+  out << "  }\n";
+  out << "}\n\n";
+
   out << "// default no-op delegator-visitor\n";
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
     out << "bool " << dvisitorName << "::visit" << c->super->name
         << "(" << c->super->name << " *obj) {\n"
+        << "  xassertdb(!wasVisitedAST(obj));\n"
         << "  return client.visit" << c->super->name << "(obj);\n"
         << "}\n"
         << "void " << dvisitorName << "::postvisit" << c->super->name
