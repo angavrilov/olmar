@@ -223,6 +223,9 @@ failTest "conversion functions aren't inherited properly" \
 failTest "need to insert conversion functions" \
   perl ./multitest.pl ./ccparse -tr doOperatorOverload in/t0151.cc
 
+# this hacky variation *does* work
+runTest perl ./multitest.pl ./five-errors -tr doOperatorOverload in/t0151.cc
+
 
 # another set of tests, generally isolated by Daniel
 for fn in                                      \

@@ -284,10 +284,9 @@ void ArrowStarCandidateSet::instantiateBinary(Env &env,
   SFOREACH_OBJLIST_NC(Type, lhsRets, lhsIter) {
     Type *lhsRet = lhsIter.data();
 
-    // expect 'lhsRet' to be of form 'class U cv1 *'; extract cv1 and U
+    // expect 'lhsRet' to be of form 'class U cv1 *'; extract U
     if (!lhsRet->isPointer()) continue;
     Type *lhsUnder = lhsRet->asPointerType()->atType;
-    CVFlags cv1 = lhsUnder->getCVFlags();
     if (!lhsUnder->isCompoundType()) continue;
     CompoundType *U = lhsUnder->asCompoundType();
 
@@ -320,11 +319,11 @@ void ArrowStarCandidateSet::instantiateBinary(Env &env,
         continue;
       }
 
-      // build operator's parameter types
-      Type *lhsParam = env.makePtrType(SL_INIT,
-                         env.makeCVAtomicType(SL_INIT, U, cv1));
-      Type *rhsParam = env.tfac.makePointerToMemberType(SL_INIT,
-        V, CV_NONE /*pointer itself is CV_NONE*/, rhsPtm->atType);
+      // build operator's parameter types; they're essentially just
+      // lhsRet and rhsRet, except I want to strip toplevel cv flags
+      // before making the instance
+      Type *lhsParam = env.tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, lhsRet, NULL /*syntax*/);
+      Type *rhsParam = env.tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, rhsRet, NULL /*syntax*/);
 
       // have we instantiated this pair already?
       for (int i=0; i < lhsInst.length(); i++) {

@@ -92,7 +92,7 @@ void f1()
   // are perfect conversions
   //ERROR(3): aep->*apm;
   //ERROR(4): bep->*apm;
-  //ERROR(5); bcp->*apm;
+  //ERROR(5): bcp->*apm;
 
   // one pair goes wrong way in inheritance hierarchy, the other is
   // not related all
