@@ -3609,7 +3609,7 @@ Type *E_binary::itcheck(Env &env)
       ret = makeLvalType(env, ret);
     }
 
-    return ret;
+    return env.tfac.cloneType(ret);
   }
 
 
@@ -3618,21 +3618,74 @@ Type *E_binary::itcheck(Env &env)
     lhsType = env.makePtrType(SL_UNKNOWN, lhsType->asArrayType()->eltType);
   }
 
-  // dsw: deal with pointer arithmetic correctly: p is a pointer; Note
-  // that case p + 1 is handled correctly by the default behavior
-  // case: 1 + p
-  if (lhsType->isIntegerType() && op==BIN_PLUS && rhsType->isPointerType()) {
-    return env.tfac.cloneType(rhsType); // a pointer type, that is
-  }
-  // case: p1 - p2
-  if (lhsType->isPointerType() && op==BIN_MINUS && rhsType->isPointerType() ) {
-    return env.getSimpleType(SL_UNKNOWN, ST_INT);
+  switch(op) {
+  default: xfailure("illegal op code"); break;
+
+  // the relationals come first, and in this order, to correspond
+  // to RelationOp in predicate.ast
+  case BIN_EQUAL:               // ==
+  case BIN_NOTEQUAL:            // !=
+  case BIN_LESS:                // <
+  case BIN_GREATER:             // >
+  case BIN_LESSEQ:              // <=
+  case BIN_GREATEREQ:           // >=
+    return env.getSimpleType(SL_UNKNOWN, ST_BOOL);
+    break;
+
+  case BIN_PLUS:                // +
+    // dsw: deal with pointer arithmetic correctly; Note that the case
+    // p + 1 is handled correctly by the default behavior; this is the
+    // case 1 + p.
+    if (lhsType->isIntegerType() && rhsType->isPointerType()) {
+      return env.tfac.cloneType(rhsType); // a pointer type, that is
+    }
+    // default behavior of returning the left side is close enough for now.
+    break;
+
+  case BIN_MINUS:               // -
+    // dsw: deal with pointer arithmetic correctly; this is the case
+    // p1 - p2
+    if (lhsType->isPointerType() && rhsType->isPointerType() ) {
+      return env.getSimpleType(SL_UNKNOWN, ST_INT);
+    }
+    // default behavior of returning the left side is close enough for now.
+    break;
+
+  case BIN_MULT:                // *
+  case BIN_DIV:                 // /
+  case BIN_MOD:                 // %
+  case BIN_LSHIFT:              // <<
+  case BIN_RSHIFT:              // >>
+  case BIN_BITAND:              // &
+  case BIN_BITXOR:              // ^
+  case BIN_BITOR:               // |
+  case BIN_AND:                 // &&
+  case BIN_OR:                  // ||
+    // default behavior of returning the left side is close enough for now.
+    break;
+
+  case BIN_ASSIGN:    // = (used to denote simple assignments in AST, as opposed to (say) "+=")
+    // default behavior of returning the left side is close enough for now.
+    break;
+
+  // C++ operators
+  case BIN_DOT_STAR:            // .*
+  case BIN_ARROW_STAR:          // ->*
+    // dealt with above
+    xfailure("should not get here");
+    break;
+
+  // theorem prover extension
+  case BIN_IMPLIES:             // ==>
+    // Scott knows what to do with this
+    break;
   }
 
   // TODO: make sure 'expr' is compatible with given operator
   // TODO: consider the possibility of operator overloading
   return env.tfac.cloneType(lhsType);
 }
+
 
 
 Type *E_addrOf::itcheck(Env &env)
