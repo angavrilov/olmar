@@ -2,8 +2,17 @@
 
 // originally found in package bzip2
 
-struct S{ int x; } *s;
+struct S{ int z; } *s;
 
 int foo() {
-    s->x < 1 || 2 > (3);
+    int x, y;
+
+    s->z < 1 || 2 > (3);
+    s->z < 1 && 2 > (3);
+
+    x < 1 || y > (3);
+    x < 1 && y > (3);
+
+    x < 1 || 2 > (3);
+    x < 1 && y > (3);
 }
