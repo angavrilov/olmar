@@ -2736,7 +2736,7 @@ TS_name *Env::buildTypedefSpecifier(Type *type)
 
     // did that work?
     Variable *found = lookupPQVariable(name);
-    if (found && found->type == type) {
+    if (found && found->type->equals(type)) {
       // good to go; wrap it in a type specifier
       return new TS_name(loc(), name, false /*typenameUsed*/);
     }

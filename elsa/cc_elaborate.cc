@@ -95,7 +95,6 @@ void Declarator::elaborateCDtors(Env &env)
   // open the scope indicated by the qualifiers, if any
   Scope *qualifierScope = openQualifierScope(env);
 
-  xassert(!ctorStatement);
   if (!isParameter) {
     if (init) {
       if (isMember && !isStatic) {
@@ -144,7 +143,6 @@ void Declarator::elaborateCDtors(Env &env)
         xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
         // FIX: What should we do for non-CompoundTypes?
         if (type->isCompoundType()) {
-          xassert(!ctorStatement);
           ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
         }
       } else if (type->isCompoundType()) {
@@ -152,7 +150,6 @@ void Declarator::elaborateCDtors(Env &env)
           xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
           // just call the one-arg ctor; FIX: this is questionable; we
           // haven't decided what should really happen for an IN_expr
-          xassert(!ctorStatement);
           ctorStatement =
             makeCtorStatement(env, var, type,
                               makeExprList1(init->asIN_expr()->e));
@@ -161,7 +158,6 @@ void Declarator::elaborateCDtors(Env &env)
           // just call the no-arg ctor; FIX: this is questionable; it
           // is undefined what should happen for an IN_compound since
           // it is a C99-ism.
-          xassert(!ctorStatement);
           ctorStatement = makeCtorStatement(env, var, type, FakeList<ArgExpression>::emptyList());
         }
       }
@@ -180,7 +176,6 @@ void Declarator::elaborateCDtors(Env &env)
           ) {
         // call the no-arg ctor; for temporaries do nothing since this is
         // a temporary, it will be initialized later
-        xassert(!ctorStatement);
         ctorStatement = makeCtorStatement(env, var, type, FakeList<ArgExpression>::emptyList());
       }
     }
@@ -204,7 +199,6 @@ void Declarator::elaborateCDtors(Env &env)
 //    } else {
 //      // isParameter
 //      // make the copy ctor
-//      xassert(!ctorStatement);
 //      ctorStatement = makeCtorStatement(env, var, type, FakeList<ArgExpression>::emptyList());
 
     // make the dtorStatement
@@ -500,7 +494,6 @@ void E_throw::elaborate(Env &env)
       gscope->registerVariable(globalVar);
       gscope->addVariable(globalVar);
 
-      xassert(!ctorStatement);
       ctorStatement = makeCtorStatement(env, globalVar, exprType,
                                         makeExprList1(expr));
     }
