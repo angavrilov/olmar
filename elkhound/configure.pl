@@ -67,8 +67,7 @@ options:
   -fastest:          turn off all Elkhound features that are not present
                      in Bison, for the purpose of performance comparison
                      (note that Elsa will not work in this mode)
-  <op>:              add a given option to the gcc command line,
-                       including forms: -W*, -pg, -D*, -O*
+  -ccflag <arg>:     add <arg> to gcc command line
   -nosub:            do not invoke subdirectory configure scripts
   -smbase=<dir>:     specify where the smbase library is [$SMBASE]
   -ast=<dir>:        specify where the ast library is [$AST]
@@ -97,6 +96,10 @@ while (@ARGV) {
   elsif ($arg =~ m/^(-W|-pg$|-D|-O)/) {
     push @CCFLAGS, $arg;
     push @c_args, $arg;
+  }
+  elsif ($arg eq "-ccflag") {
+    push @CCFLAGS, $ARGV[0];
+    shift @ARGV;
   }
 
   elsif ($arg eq "-d" ||
