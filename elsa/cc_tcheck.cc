@@ -3340,7 +3340,10 @@ void Declarator::tcheck_init(Env &env)
   var->type = computeArraySizeFromLiteral(env, var->type, init);
 
   // update 'type' if necessary
-  if (type->asRval()->isArrayType()) {
+  //
+  // (k0018.cc) check if 'var->type' is an array, rather than just
+  // 'type', so we see the type after parameter type normalization
+  if (var->type->asRval()->isArrayType()) {
     type->asRval()->asArrayType()->size = var->type->asRval()->asArrayType()->size;
   }
 }

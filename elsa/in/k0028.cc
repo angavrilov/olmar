@@ -5,6 +5,8 @@
 // error: function definition of `S::foo' must appear in a namespace that
 // encloses the original declaration
 
+// sm: This is invalid C++.
+
 // ERR-MATCH: must appear in a namespace
 
 namespace NS1 {

@@ -890,7 +890,7 @@ testparse k0014.cc #"ambiguous lookup of base class constructor with constructor
 testparse k0015.cc #"catch namespace_qualified::class_name"
 testparse k0016.cc #"explicit instantiation of template member function"
 testparse k0017.cc #"using namespace std' before 'namespace std"
-failparse k0018.cc "member function taking an array argument with default value __null"
+testparse k0018.cc #"member function taking an array argument with default value __null"
 failparse k0019.cc "template parameters named for ctor/dtor"
 testparse k0020.cc #"deleting pointers of template-type"
 testparse k0021.cc #"calling a templated function pointer"
@@ -900,7 +900,10 @@ failparse k0024.cc "overloaded function resolution in an array"
 failparse k0025.cc "fully-namespace-qualified base class initialization"
 failparse k0026.cc "template argument default value from another template class"
 failparse k0027.cc "reprSize of a sizeless array"
-failparse k0028.cc "definition of member function declared in another namespace"
+
+# invalid
+#failparse k0028.cc "definition of member function declared in another namespace"
+
 failparse k0029.cc 'ambiguous overload "char* const*" vs "char const* const*"'
 failparse k0030.cc '"and" and "or" keywords'
 failparse k0031.cc "weird function typedefs used in a class"
