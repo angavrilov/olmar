@@ -337,7 +337,7 @@ void OverloadResolver::processCandidate(Variable *v)
     return;
   }
 
-  if (!v->isTemplate()) {
+  if (!v->isTemplate(false /*considerInherited*/)) {
     // 2005-02-18: Since reorganizing call site name lookup, I am now
     // doing overload resolution among *instantiations*, rather than
     // template primaries.

@@ -626,6 +626,18 @@ CompoundType *Function::verifyIsCtor(Env &env, char const *context)
 }
 
 
+bool hasDependentActualArgs(FakeList<ArgExpression> *args)
+{
+  FAKELIST_FOREACH(ArgExpression, args, iter) {
+    // <dependent> or TypeVariable or PseudoInstantiation
+    if (iter->expr->type->containsGeneralizedDependent()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
 // cppstd 12.6.2 covers member initializers
 void Function::tcheck_memberInits(Env &env)
 {
@@ -679,11 +691,13 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
       member = env.storeVar(v);
 
       args = tcheckArgExprList(args, env);
-      // decide which of v's possible constructors is being used
-      ctorVar = env.storeVar(
-        outerResolveOverload_ctor(env, env.loc(), v->type, args,
-                                  env.doOverload()));
-      env.ensureFuncBodyTChecked(ctorVar);
+      if (!hasDependentActualArgs(args)) {     // in/t0270.cc
+        // decide which of v's possible constructors is being used
+        ctorVar = env.storeVar(
+          outerResolveOverload_ctor(env, env.loc(), v->type, args,
+                                    env.doOverload()));
+        env.ensureFuncBodyTChecked(ctorVar);
+      }
 
       // TODO: check that the passed arguments are consistent
       // with at least one constructor of the variable's type.
@@ -1146,18 +1160,6 @@ Variable *maybeReuseNondependent(Env &env, SourceLoc loc, LookupFlags &lflags,
 
   // do the lookup without using 'nondependentVar'
   return NULL;
-}
-
-
-bool hasDependentActualArgs(FakeList<ArgExpression> *args)
-{
-  FAKELIST_FOREACH(ArgExpression, args, iter) {
-    // <dependent> or TypeVariable or PseudoInstantiation
-    if (iter->expr->type->containsGeneralizedDependent()) {
-      return true;
-    }
-  }
-  return false;
 }
 
 
@@ -4905,14 +4907,13 @@ static Variable *outerResolveOverload_explicitSet(
     }
   }
 
-  // 10/09/04: (in/t0270.cc) bail if any arguments are dependent
-  for (int i=0; i < argInfo.size(); i++) {
-    // in/t0349.cc builds 'A<T>&', so I need "contains"...
-    if (argInfo[i].type &&
-        argInfo[i].type->containsGeneralizedDependent()) {
-      return NULL;
-    }
-  }
+  // 2005-02-23: There used to be code here that would bail on
+  // overload resolution if any of the arguments was dependent.
+  // However, that caused a problem (e.g. in/t0386.cc) because if the
+  // receiver object is implicit, it does not matter if it is
+  // dependent, but we cannot tell from here whether it was implicit.
+  // Therefore I have moved the obligation of skipping overload
+  // resolution to the caller, who *can* tell.
 
   // resolve overloading
   bool wasAmbig;     // ignored, since error will be reported

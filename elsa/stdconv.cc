@@ -312,6 +312,35 @@ CVFlags getDestCVFlags(Type const *dest, CVFlags srcCV)
 }
 
 
+bool canConvertToBaseClass(Type const *src, Type const *dest, bool &ambig)
+{
+  if (!dest->isCompoundType()) {
+    return false;
+  }
+  CompoundType const *destCt = dest->asCompoundTypeC();
+
+  CompoundType const *srcCt = NULL;
+  if (src->isCompoundType()) {
+    srcCt = src->asCompoundTypeC();
+  }
+  else if (src->isPseudoInstantiation()) {
+    // (e.g. in/t0386.cc) conversion from pseudoinstantiation: can
+    // convert to any of the concrete bases
+    srcCt = src->asCVAtomicTypeC()->atomic->asPseudoInstantiationC()->primary;
+  }
+  else {
+    return false;
+  }
+
+  if (srcCt->hasStrictBaseClass(destCt)) {
+    ambig = !srcCt->hasUnambiguousBaseClass(destCt);
+    return true;
+  }
+
+  return false;
+}
+
+
 // one of the goals of this function is to *not* construct any
 // intermediate Type objects; I should be able to do this computation
 // without allocating, and if I can then that avoids interaction
@@ -622,11 +651,9 @@ StandardConversion getStandardConversion
 
   if (conv.ptrCtorsStripped > 0) {
     if (conv.ptrCtorsStripped == 1) {
-      if (src->isCompoundType() &&
-          dest->isCompoundType() &&
-          src->asCompoundTypeC()->hasStrictBaseClass(dest->asCompoundTypeC())) {
-        if (!src->asCompoundTypeC()->
-              hasUnambiguousBaseClass(dest->asCompoundTypeC())) {
+      bool ambig = false;
+      if (canConvertToBaseClass(src, dest, ambig)) {
+        if (ambig) {
           return conv.error("base class is ambiguous");
         }
         // TODO: check accessibility.. this depends on the access privileges
