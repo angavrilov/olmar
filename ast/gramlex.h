@@ -7,6 +7,10 @@
 #define __GRAMLEX_H
 
 
+// work around an apparent bug in flex-2.5.31 (why did they
+// define this?)
+#undef yyFlexLexer
+
 // This included file is part of the Flex distribution.  It is
 // installed in /usr/include on my Linux machine.  By including it, we
 // get the declaration of the yyFlexLexer class.  Note that the file
