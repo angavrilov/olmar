@@ -771,22 +771,22 @@ void GLR::printConfig() const
   printf("GLR configuration follows.  Settings marked with an\n"
          "asterisk (*) are the higher-performance settings.\n");
 
-  printf("  source location information: %s\n",
+  printf("  source location information: \t\t\t%s\n",
          SOURCELOC(1+)0? "enabled" : "disabled *");
 
-  printf("  stack node columns: %s\n",
+  printf("  stack node columns: \t\t\t\t%s\n",
          NODE_COLUMN(1+)0? "enabled" : "disabled *");
 
-  printf("  semantic value yield count: %s\n",
+  printf("  semantic value yield count: \t\t\t%s\n",
          YIELD_COUNT(1+)0? "enabled" : "disabled *");
 
-  printf("  ACTION_TRACE (for debugging): %s\n",
+  printf("  ACTION_TRACE (for debugging): \t\t%s\n",
          ACTION(1+)0? "enabled" : "disabled *");
 
-  printf("  NDEBUG: %s\n",
-         IF_NDEBUG(1+)0? "set *" : "not set");
+  printf("  NDEBUG: \t\t\t\t\t%s\n",
+         IF_NDEBUG(1+)0? "set      *" : "not set");
 
-  printf("  xassert-style assertions: %s\n",
+  printf("  xassert-style assertions: \t\t\t%s\n",
          #ifdef NDEBUG_NO_ASSERTIONS
            "disabled *"
          #else
@@ -794,34 +794,34 @@ void GLR::printConfig() const
          #endif
          );
 
-  printf("  user actions: %s\n",
-         USE_ACTIONS? "respected" : "ignored *");
+  printf("  user actions: \t\t\t\t%s\n",
+         USE_ACTIONS? "respected" : "ignored  *");
 
-  printf("  token reclassification: %s\n",
+  printf("  token reclassification: \t\t\t%s\n",
          USE_RECLASSIFY? "enabled" : "disabled *");
 
-  printf("  reduction cancellation: %s\n",
+  printf("  reduction cancellation: \t\t\t%s\n",
          USE_KEEP? "enabled" : "disabled *");
 
-  printf("  SWL parser core: %s\n",
-         USE_SWL_CORE? "enabled *" : "disabled");
+  printf("  SWL parser core: \t\t\t\t%s\n",
+         USE_SWL_CORE? "enabled  *" : "disabled");
 
-  printf("  delayed states heuristic: %s\n",
+  printf("  delayed states heuristic: \t\t\t%s\n",
          USE_DELAYED_STATES? "enabled" : "disabled *");
 
-  printf("  RWL parser core: %s\n",
+  printf("  RWL parser core: \t\t\t\t%s\n",
          USE_RWL_CORE? "enabled" : "disabled");   // not sure about performance here
 
-  printf("  mini-LR parser core: %s\n",
-         USE_MINI_LR? "enabled *" : "disabled");
-         
-  printf("  allocated-node and parse action accounting: %s\n",
+  printf("  mini-LR parser core: \t\t\t\t%s\n",
+         USE_MINI_LR? "enabled  *" : "disabled");
+
+  printf("  allocated-node and parse action accounting: \t%s\n",
          ACCOUNTING(1+)0? "enabled" : "disabled *");
 
-  printf("  unrolled reduce loop: %s\n",
-         USE_UNROLLED_REDUCE? "enabled *" : "disabled");
+  printf("  unrolled reduce loop: \t\t\t%s\n",
+         USE_UNROLLED_REDUCE? "enabled  *" : "disabled");
 
-  printf("  parser index: %s\n",
+  printf("  parser index: \t\t\t\t%s\n",
          #ifdef USE_PARSER_INDEX
            "enabled"
          #else
@@ -833,9 +833,9 @@ void GLR::printConfig() const
   // divorced from compilation proper, but I still think this printout
   // is useful; also, gcc does not provide a way to tell what level of
   // optimization was applied (as far as I know)
-  printf("  C++ compiler's optimizer: %s\n",
+  printf("  C++ compiler's optimizer: \t\t\t%s\n",
          #ifdef __OPTIMIZE__
-           "enabled *"
+           "enabled  *"
          #else
            "disabled"
          #endif
@@ -2514,10 +2514,6 @@ void ReductionPathQueue::insertPathCopy(Path const *src, StackNode *leftEdge)
   }
 }
 
-// for a slight performance improvement, this function tries
-// to return 'true' whenever that's consistent with the purpose
-// of the sort, since that terminates the insertion iteration
-// sooner
 bool ReductionPathQueue::goesBefore(Path const *p1, Path const *p2) const
 {
   if (p1->startColumn > p2->startColumn) {
@@ -2531,24 +2527,30 @@ bool ReductionPathQueue::goesBefore(Path const *p1, Path const *p2) const
   else {
     // equal start columns, so compare ids of nonterminals
     // to which we're reducing in each case
-    int p1NtIndex = tables->prodInfo[p1->prodIndex].lhsIndex;
-    int p2NtIndex = tables->prodInfo[p2->prodIndex].lhsIndex;
+    NtIndex p1NtIndex = tables->prodInfo[p1->prodIndex].lhsIndex;
+    NtIndex p2NtIndex = tables->prodInfo[p2->prodIndex].lhsIndex;
 
-    if (tables->canDerive(p1NtIndex, p2NtIndex)) {
-      // cannot return true because p2 definitely has to come
-      // before p1 to avoid YTM
-      //
-      // NOTE: if the grammar is cyclic then this function might not
-      // return true for p1<p2 nor p2<p1, but of course the insertion
-      // algorithm will end up putting p1 *somewhere*, and that's as
-      // good as we can do for a cyclic grammar anyway
-      return false;
-    }
-    else {
-      // if p1's LHS can't derive p2's LHS, then it's safe to
-      // do p1 first
-      return true;
-    }
+    // consult total order on nonterminals
+    int ord1 = tables->getNontermOrdinal(p1NtIndex);
+    int ord2 = tables->getNontermOrdinal(p2NtIndex);
+
+    return ord1 < ord2;
+
+    //      if (tables->canDerive(p1NtIndex, p2NtIndex)) {
+    //        // cannot return true because p2 definitely has to come
+    //        // before p1 to avoid YTM
+    //        //
+    //        // NOTE: if the grammar is cyclic then this function might not
+    //        // return true for p1<p2 nor p2<p1, but of course the insertion
+    //        // algorithm will end up putting p1 *somewhere*, and that's as
+    //        // good as we can do for a cyclic grammar anyway
+    //        return false;
+    //      }
+    //      else {
+    //        // if p1's LHS can't derive p2's LHS, then it's safe to
+    //        // do p1 first
+    //        return true;
+    //      }
   }
 }
 

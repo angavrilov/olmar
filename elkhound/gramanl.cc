@@ -4,6 +4,7 @@
 #include "gramanl.h"     // this module
 
 #include "bit2d.h"       // Bit2d
+#include "bitarray.h"    // BitArray
 #include "strtokp.h"     // StrtokParse
 #include "syserr.h"      // xsyserror
 #include "trace.h"       // tracing system
@@ -3202,7 +3203,53 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
   }
   
   // copy the derivability table
-  tables->derivability->operator=(*derivable);
+  //tables->derivability->operator=(*derivable);
+  
+  // use the derivability relation to compute a total order
+  // on nonterminals                    
+  BitArray seen(numNonterms);
+  int nextOrdinal = numNonterms-1;
+  for (int nt=0; nt < numNonterms; nt++) {               
+    // expand from 'nt' in case it's disconnected; this will be
+    // a no-op if we've already 'seen' it
+    topologicalSort(tables->nontermOrder, nextOrdinal, nt, seen);
+  }
+  xassert(nextOrdinal == -1);    // should have used them all
+}
+
+
+// this is a depth-first traversal of the 'derivable' relation;
+// when we reach a nonterminal that can't derive any others not
+// already in the order, we give its entry the latest ordinal
+// that isn't already taken ('nextOrdinal')
+void GrammarAnalysis::topologicalSort(
+  NtIndex *order,    // table we're filling with ordinals
+  int &nextOrdinal,  // latest ordinal not yet used
+  NtIndex current,   // current nonterminal to expand
+  BitArray &seen)    // set of nonterminals we've already seen
+{
+  if (seen.test(current)) {
+    // already expanded this one
+    return;
+  }
+
+  // don't expand this one again
+  seen.set(current);
+
+  // look at all nonterminals this one can derive
+  for (int nt=0; nt < numNonterms; nt++) {
+    if (derivable->get(point(nt, current))) {
+      // 'nt' can derive 'current'; expand 'nt' first, thus making
+      // it later in the order, so we'll reduce to 'current' before
+      // reducing to 'nt' (when token spans are equal)
+      xassert((NtIndex)nt == nt);
+      topologicalSort(order, nextOrdinal, (NtIndex)nt, seen);
+    }
+  }
+
+  // finally, put 'current' into the order
+  order[current] = nextOrdinal;
+  nextOrdinal--;
 }
 
 
@@ -3217,6 +3264,10 @@ SymbolId encodeSymbolId(Symbol const *sym)
   }
   else /*nonterminal*/ {
     ret = - sym->asNonterminalC().ntIndex - 1;
+    
+    // verify encoding of nonterminals is sufficiently wide
+    int idx = sym->asNonterminalC().ntIndex;
+    xassert((NtIndex)idx == idx);
   }      
   
   // verify encoding is lossless

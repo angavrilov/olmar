@@ -26,6 +26,7 @@
 
 // forward decls
 class Bit2d;              // bit2d.h
+class BitArray;           // bitarray.h
 class EmitCode;           // emitcode.h
 
 // this file
@@ -502,6 +503,9 @@ private:    // funcs
   void computePredictiveParsingTable();
     // non-const because have to add productions to lists
 
+  void topologicalSort(NtIndex *order,  int &nextOrdinal,
+                       NtIndex current, BitArray &seen);
+  
   // the inverse of transition: map a target state to the symbol that
   // would transition to that state (from the given source state)
   Symbol const *inverseTransitionC(ItemSet const *source,

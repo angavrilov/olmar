@@ -97,13 +97,18 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
             "unsigned char", "delayedStates");
   out << "  ret->delayedStates = delayedStates;\n\n";
 
-  // derivability relation
-  emitTable(out, derivability->private_data(), derivability->private_datasize(),
-            derivability->private_stride(),
-            "byte", "derivData");
-  out << "  ret->derivability = new Bit2d(derivData, "
-      << "point" << derivability->Size() << ", "     // Size() prints parens
-      << derivability->private_stride() << ");\n\n";
+  //    // derivability relation
+  //    emitTable(out, derivability->private_data(), derivability->private_datasize(),
+  //              derivability->private_stride(),
+  //              "byte", "derivData");
+  //    out << "  ret->derivability = new Bit2d(derivData, "
+  //        << "point" << derivability->Size() << ", "     // Size() prints parens
+  //        << derivability->private_stride() << ");\n\n";
+
+  // nonterminal order
+  emitTable(out, nontermOrder, nontermOrderSize(), 16,
+            "NtIndex", "nontermOrder");
+  out << "  ret->nontermOrder = nontermOrder;\n\n";
 
   out << "  return ret;\n"
       << "}\n";
