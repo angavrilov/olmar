@@ -158,7 +158,10 @@ There are a few other documentation files lying around:
   grammar.txt   Describes the format of grammar files like cc.gr.
 
   parsgen.txt   Some of the trace flags defined.  Currently incomplete.
-
+  
+  doc/          Additional documentation.  Currently, it has some diagrams
+                which show some of the module dependencies (very helpful
+                for navigating among these sources).
 
 
 Directories
