@@ -127,26 +127,6 @@ public:      // data
   // an an 'asm' directive (see TF_asm::itcheck)
   StringRef collectLookupResults;
 
-  // ------------------- for elaboration ------------------
-  // when true, do dynamic-semantic elaboration:
-  //   - add ctor/dtor calls for locals, members
-  //   - expand 'new' into alloc, ctor
-  //   - expand 'delete' into dtor, dealloc
-  //   - change return-by-value for class-valued objects into pass-by-ref
-  bool doElaboration;
-
-#if 0    // delete me
-  // so that we can find the closest nesting S_compound for when we
-  // need to insert temporary variables; its scope should always be
-  // the current scope.
-  SObjStack<FullExpressionAnnot> fullExpressionAnnotStack;
-
-  // counters for generating unique temporary names; not unique
-  // across translation units
-  int tempSerialNumber;
-  int e_newSerialNumber;
-#endif // 0
-
 private:     // funcs
   // old
   //CompoundType *instantiateClass(
@@ -444,23 +424,11 @@ public:      // funcs
   // less context is necessary
   virtual void addedNewVariable(Scope *s, Variable *v);
 
-  // -------------- stuff for elaboration support ---------------
   // change 'tv' into a shadow typedef var
   void makeShadowTypedef(Scope *scope, Variable *tv);
-  
+
   // true if 'tv' is a shadow typedef made by the above function
   bool isShadowTypedef(Variable *tv);
-
-#if 0    // delete me
-  // make a unique name for a new temporary variable
-  virtual PQ_name *makeTempName();
-  // make a unique name for a new E_new variable
-  virtual StringRef makeE_newVarName();
-  // make a unique name for a new throw clause global
-  virtual StringRef makeThrowClauseVarName();
-  // make a unique name for a new catch clause global
-  virtual StringRef makeCatchClauseVarName();
-#endif // 0
 
   // --- begin: syntax -> PQName ---
   // return a PQName that will typecheck in the current environment to

@@ -282,14 +282,6 @@ class Declarator {
     // syntactic context
     DeclaratorContext context;
     
-//      enum Context {
-//        CTX_ORDINARY  = 0x0,     // no particular context
-//        CTX_E_NEW     = 0x1,     // inside an E_new (array)
-//        CTX_PARAM     = 0x2,     // in a parameter declarator
-//        CTX_GROUPING  = 0x4,     // in a grouping declarator, without inner pointer constructor
-//        CTX_ASTTYPEID = 0x8,     // some form of an ASTTypeId, as opposed to Declaration
-//      } context;
-
   public:
     Tcheck(Type *t, DeclFlags d, DeclaratorContext dc)
       : var         (NULL)
@@ -316,12 +308,6 @@ class Declarator {
       context     = obj.context;
       return *this;
     }
-
-    // manipulate context
-//      void setInGrouping()    { context = (Context)(context | CTX_GROUPING); }
-//      void clearInGrouping()  { context = (Context)(context & ~CTX_GROUPING); }
-//      void setInASTTypeId()   { context = (Context)(context | CTX_ASTTYPEID); }
-//      bool inContext(Context f) const { return !!(context & f); }
 
     bool hasFlag(DeclFlags f) const { return !!(dflags &f); }
   };

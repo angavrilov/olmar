@@ -71,29 +71,11 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
     doOverload(tracingSys("doOverload") && lang.allowOverloading),
     doOperatorOverload(tracingSys("doOperatorOverload") && lang.allowOverloading),
-    collectLookupResults(NULL),
-    doElaboration(false)       // is turned on later if lang.hasImplicitStuff
-
-#if 0    // delete me
-    tempSerialNumber(0),
-    e_newSerialNumber(0)
-#endif // 0
-
-    // made this global
-//      throwClauseSerialNumber(0),
+    collectLookupResults(NULL)
 {
   // slightly less verbose
   //#define HERE HERE_SOURCELOC     // old
   #define HERE SL_INIT              // decided I prefer this
-
-#if 0    // delete me
-  // elaboration is on by default if we are in a language that
-  // hasImplicitStuff
-  if (lang.hasImplicitStuff &&
-      !tracingSys("disableElaboration")) {
-    doElaboration = true;
-  }
-#endif // 0
 
   // create first scope
   SourceLoc emptyLoc = SL_UNKNOWN;
@@ -560,17 +542,6 @@ void Env::setupOperatorOverloading()
 
 Env::~Env()
 {
-#if 0    // delete me
-  // sm: Generally, I don't like to do things that might throw
-  // exceptions in destructors, b/c if we're unwinding the stack then
-  // it escalates the failure (thereby complicating diagnosis of the
-  // original problem, and making recovery impossible). 
-  //xassert(fullExpressionAnnotStack.isEmpty());
-  if (!fullExpressionAnnotStack.isEmpty()) {
-    cout << "BUG: fullExpressionAnnotStack isn't empty!\n";
-  }
-#endif // 0
-
   // delete the scopes one by one, so we can skip any
   // which are in fact not owned
   while (scopes.isNotEmpty()) {
@@ -1530,6 +1501,10 @@ ClassTemplateInfo *Env::takeTemplateClassInfo(StringRef baseName)
 }
 
 
+// This function was originally created to support the elaboration
+// phase, as it happened interleaved with type checking.  Now that
+// elaboration is its own pass, we could get rid of the notion of
+// shadow typedefs entirely.
 void Env::makeShadowTypedef(Scope *scope, Variable *tv)   // "tv" = typedef var
 {
   xassert(tv->hasFlag(DF_TYPEDEF));
@@ -2539,31 +2514,6 @@ void Env::addedNewVariable(Scope *, Variable *)
 
 
 // ------------------------ elaboration -------------------------
-#if 0    // delete me
-PQ_name *Env::makeTempName()
-{
-  // can't collide with user identifier
-  StringRef name0 = str(stringc << "temp-name-" << tempSerialNumber++);
-  return new PQ_name(loc(), name0);
-}
-
-StringRef Env::makeE_newVarName()
-{
-  return str(stringc << "e_new-name-" << e_newSerialNumber++);
-}
-
-StringRef Env::makeThrowClauseVarName()
-{
-  return str(stringc << "throwClause-name-" << throwClauseSerialNumber++);
-}
-
-StringRef Env::makeCatchClauseVarName()
-{
-  return str(stringc << "catchClause-name-" << throwClauseSerialNumber++);
-}
-#endif // 0
-
-
 PQName *Env::make_PQ_fullyQualifiedName(Scope *s, PQName *name0)
 {
   name0 = make_PQ_qualifiedName(s, name0);
