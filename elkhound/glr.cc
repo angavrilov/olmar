@@ -1012,37 +1012,24 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
       if (actions == 0) {
         TRSPARSE("parser in state " << parser->state << " died");
         lastToDie = parser->state;          // for reporting the error later if necessary
-        
+
         // in the if-then-else grammar, I have a parser which dies but
         // then gets merged with something else, prompting a request
         // for the user's merge function; to avoid this, kill it early.
         // first verify my assumptions: it should be on 'activeParsers'
         // and pointed-to by 'parser
-        xassert(parser->referenceCount == 2);
-        
+        xassertdb(parser->referenceCount == 2);
+
         // the only reason nodes are retained on 'activeParsers' is so if
         // some other node gets a new sibling link, the finished parsers
         // can be reconsidered; but new sibling links never enable a parser
         // to act where it couldn't before (among other things, we don't
         // even look at siblings when deciding whether to act), so we should
         // go ahead and eliminate this parser from all lists now
-        int last = activeParsers.length()-1;
-        for (int i=0; i <= last; i++) {
-          if (activeParsers[i] == parser) {
-            // remove it; if it's not last in the list, swap it with
-            // the last one to maintain contiguity
-            if (i < last) {
-              activeParsers[i] = activeParsers[last];
-              // (no need to actually copy 'i' into 'last')
-            }
-            activeParsers.pop();     // removes a reference to 'parser'
-            parser->decRefCt();      // so decrement reference count
-            break;
-          }
-        }
+        pullFromActiveParsers(parser);
 
         // verify we got it
-        xassert(parser->referenceCount == 1);
+        xassertdb(parser->referenceCount == 1);
 
         // now when 'parser' passes out of scope, it will be deallocated,
         // and will not interfere with another parser reaching the same
@@ -1074,9 +1061,9 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
       else {
         // print out the context of that parser
         cout << "last parser (state " << lastToDie << ") to die had:\n"
-             << "  sample input: " 
+             << "  sample input: "
              << sampleInput(getItemSet(lastToDie)) << "\n"
-             << "  left context: " 
+             << "  left context: "
              << leftContextString(getItemSet(lastToDie)) << "\n";
       }
 
@@ -1084,7 +1071,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     }
   }
 
-  traceProgress() << "done parsing (" 
+  traceProgress() << "done parsing ("
                   << (getMilliseconds() - startParseTime)
                   << " ms)\n";
   trsParse << "Parse succeeded!\n";
@@ -1146,6 +1133,28 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   #endif
 
   return true;
+}
+
+
+// this used to be code in glrParse(), but its presense disturbs gcc's
+// register allocator to the tune of a 33% performance hit!  so I've
+// pulled it in hopes the allocator will be happier now
+void GLR::pullFromActiveParsers(StackNode *parser)
+{
+  int last = activeParsers.length()-1;
+  for (int i=0; i <= last; i++) {
+    if (activeParsers[i] == parser) {
+      // remove it; if it's not last in the list, swap it with
+      // the last one to maintain contiguity
+      if (i < last) {
+        activeParsers[i] = activeParsers[last];
+        // (no need to actually copy 'i' into 'last')
+      }
+      activeParsers.pop();     // removes a reference to 'parser'
+      parser->decRefCt();      // so decrement reference count
+      break;
+    }
+  }
 }
 
 

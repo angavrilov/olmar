@@ -399,6 +399,7 @@ private:    // funcs
   void writeParseGraph(char const *input) const;
   void clearAllStackNodes();
   void addActiveParser(StackNode *parser);
+  void pullFromActiveParsers(StackNode *parser);
 
 public:     // funcs
   GLR(UserActions *userAct);
