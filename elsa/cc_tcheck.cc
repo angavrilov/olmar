@@ -168,10 +168,7 @@ void Function::tcheck(Env &env, bool checkBody)
   // dt.type will come back with a function type which always has the
   // parameter names for this definition
   Declarator::Tcheck dt(retTypeSpec,
-                        (DeclFlags)(dflags | (checkBody? DF_DEFINITION : 0)),
-                        // The *function* is not a parameter
-                        false   // isE_new
-                        );
+                        (DeclFlags)(dflags | (checkBody? DF_DEFINITION : 0)));
   nameAndParams = nameAndParams->tcheck(env, dt);
 
   if (! dt.type->isFunctionType() ) {
@@ -524,11 +521,7 @@ void Declaration::tcheck(Env &env)
   // each declarator..)
   if (decllist) {
     // check first declarator
-    Declarator::Tcheck dt1(specType, dflags,
-                           // Parameter Declarators are not within
-                           // Declarations, but in ASTTypeIds
-                           false // isE_new
-                           );
+    Declarator::Tcheck dt1(specType, dflags);
     decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
 
     // check subsequent declarators
@@ -538,11 +531,7 @@ void Declaration::tcheck(Env &env)
       // the factory clone it if it wants to
       Type *dupType = env.tfac.cloneType(specType);
 
-      Declarator::Tcheck dt2(dupType, dflags,
-                             // Parameter Declarators are not within
-                             // Declarations, but in ASTTypeIds
-                             false // isE_new
-                             );
+      Declarator::Tcheck dt2(dupType, dflags);
       prev->next = prev->next->tcheck(env, dt2);
 
       prev = prev->next;
@@ -580,13 +569,10 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
   Type *specType = spec->tcheck(env, DF_NONE);
                          
   // pass contextual info to declarator
-  Declarator::Tcheck dt(specType, tc.dflags,
-                        tc.newSizeExpr // isE_new: are we in an E_new?
-                        );
-  bool isParameter = !!(tc.dflags & DF_PARAMETER);
-  dt.context = tc.newSizeExpr? Declarator::Tcheck::CTX_E_NEW :
-               isParameter?    Declarator::Tcheck::CTX_PARAM :
-                               Declarator::Tcheck::CTX_ORDINARY;
+  Declarator::Tcheck dt(specType, tc.dflags);
+  dt.context = tc.newSizeExpr?             Declarator::Tcheck::CTX_E_NEW :
+               (tc.dflags & DF_PARAMETER)? Declarator::Tcheck::CTX_PARAM :
+                                           Declarator::Tcheck::CTX_ORDINARY;
 
   // check declarator
   decl = decl->tcheck(env, dt);
@@ -1999,9 +1985,10 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // they can have a type of the class that we are still in the
   // definition of, and therefore any references to implicit members
   // of that class don't exist yet.
+  bool isE_new = (dt.context == Tcheck::CTX_E_NEW);
   if (!var->isMember() &&
-//        !dt.isParameter &&
-      !dt.isE_new) {
+//        !isParameter &&
+      !isE_new) {
     elaborateCDtors(env,
                     dt.dflags);
   }

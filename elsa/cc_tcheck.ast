@@ -230,11 +230,6 @@ class Declarator {
     // the cv flags of the implicit 'this' parameter of member functions
     D_func *funcSyntax;
 
-    // is this declarator that sorry little runt of a one that should
-    // have been killed at birth down inside the ASTTypeId of an
-    // E_new?  true iff ASTTypeId::Tcheck::newSizeExpr != NULL
-    bool isE_new;
-
     // syntactic context
     enum Context {
       CTX_ORDINARY  = 0x0,     // no particular context
@@ -245,15 +240,12 @@ class Declarator {
     } context;
 
   public:
-    Tcheck(Type *t, DeclFlags d,
-           bool isE_new0
-           )
+    Tcheck(Type *t, DeclFlags d)
       : var         (NULL)
       , type        (t)
       , dflags      (d)
       , size_E_new  (NULL)
       , funcSyntax  (NULL)
-      , isE_new     (isE_new0)
       , context     (CTX_ORDINARY)
     {}
     Tcheck(Tcheck const &obj)
@@ -262,7 +254,6 @@ class Declarator {
       , dflags      (obj.dflags)
       , size_E_new  (obj.size_E_new)
       , funcSyntax  (obj.funcSyntax)
-      , isE_new     (obj.isE_new)
       , context     (obj.context)
     {}
 
@@ -273,7 +264,6 @@ class Declarator {
       size_E_new  = obj.size_E_new;
       context     = obj.context;
       funcSyntax  = obj.funcSyntax;
-      isE_new     = obj.isE_new;
       return *this;
     }
 
