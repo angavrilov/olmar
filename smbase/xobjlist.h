@@ -88,6 +88,7 @@ public:
 
   // removal
   T *removeAt(int index)                { return (T*)list.removeAt(index); }
+  T *removeFirst()                      { return (T*)list.removeFirst(); }
 outputCond([[[m4_dnl     // sobjlist
   void removeAll()                      { list.removeAll(); }
 ]]], [[[m4_dnl           // objlist
