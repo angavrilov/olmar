@@ -264,7 +264,10 @@ StandardConversion getStandardConversion
   Conversion conv(errorMsg, src, dest);
 
   // --------------- group 1 ----------------
-  if (src->isReference() && !dest->isReference()) {
+  if (src->isReference() &&
+      !src->asRvalC()->isFunctionType() &&
+      !src->asRvalC()->isArrayType() &&
+      !dest->isReference()) {
     conv.ret |= SC_LVAL_TO_RVAL;
 
     src = src->asPointerTypeC()->atType;
@@ -286,10 +289,12 @@ StandardConversion getStandardConversion
     // best
     dest = dest->asPointerTypeC()->atType;
   }
-  else if (src->isArrayType() && dest->isPointer()) {
+  else if (src->asRvalC()->isArrayType() && dest->isPointer()) {
+    // 7/19/03: fix: 'src' can be an lvalue (cppstd 4.2 para 1)
+
     conv.ret |= SC_ARRAY_TO_PTR;
 
-    src = src->asArrayTypeC()->eltType;
+    src = src->asRvalC()->asArrayTypeC()->eltType;
     dest = dest->asPointerTypeC()->atType;
 
     // do one level of qualification conversion checking

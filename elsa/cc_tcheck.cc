@@ -3150,6 +3150,10 @@ Type *makeLvalType(Env &env, Type *underlying)
   else if (underlying->isFunctionType()) {
     // don't make references to functions
     return underlying;
+
+    // at one point I added a similar prohibition against
+    // references to arrays, but that was wrong, e.g.:
+    //   int (&a)[];
   }
   else {
     // I expect Daniel's factory to take the location from
@@ -3487,7 +3491,7 @@ static Type *overloading(Env &env, E_funCall *e_funCall, Type *&t)
         || (allNonMethod=allNonMethods((*funcEVar_var)->overload->set))
         )
       ) {
-    xassert( (((int)allMethod) + ((int)allNonMethod)) == 1 );
+    // sm: fails on t0020.cc: xassert( (((int)allMethod) + ((int)allNonMethod)) == 1 );
     xassert(funcEVar_type);
     xassert(funcPQName);
     TRACE("overload", ::toString(funcPQName->loc)

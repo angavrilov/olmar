@@ -197,6 +197,13 @@ for fn in                                                                 \
   runTest perl ./multitest.pl ./ccparse -tr mustBeUnambiguous$TR_EXTRA in/$fn
 done
 
+# another set of tests, generally isolated by Daniel
+for fn in                                                                 \
+  d0001.cc                                                                \
+    ; do
+  runTest perl ./multitest.pl ./ccparse -tr mustBeUnambiguous$TR_EXTRA in/$fn
+done
+
 # examples from C++ standard
 for fn in in/std/*.cc; do
   runTest perl ./multitest.pl ./ccparse "$fn"
