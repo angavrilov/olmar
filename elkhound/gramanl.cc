@@ -3238,9 +3238,9 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
       // fill in entry
       tables->gotoEntry(state->id, nontermId) = cellGoto;
     }
-    
+
     // get the state symbol
-    tables->stateSymbol[state->id] = 
+    tables->stateSymbol[state->id] =
       encodeSymbolId(state->getStateSymbolC());
   }
 
@@ -3248,6 +3248,14 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
   if (sr + rr > 0) {
     cout << sr << " shift/reduce conflicts and "
          << rr << " reduce/reduce conflicts\n";
+  }
+
+  // report on cyclicity
+  for (int nontermId=0; nontermId<numNonterms; nontermId++) {
+    Nonterminal const *nonterminal = getNonterminal(nontermId);
+    if (nonterminal->cyclic) {
+      cout << "grammar symbol " << nonterminal->name << " is cyclic\n";
+    }
   }
 
   // fill in 'prodInfo'

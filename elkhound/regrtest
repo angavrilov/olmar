@@ -13,11 +13,13 @@ failure=0
 unexSuccess=0
 unexFailure=0
 vcgenOnly=false
+runOneTest=false
 
 usage() {
 cat <<EOF
 usage: $0 [options]
-  -skip n      skip the first n tests
+  -skip <n>    skip the first <n> tests
+  -one <n>     run only test <n>
   -big         run the big, timeconsuming tests
   -contin      keep going even after a test fails (or succeeds) unexpectedly
   -help        print this message
@@ -31,6 +33,12 @@ while [ "$1" != "" ]; do
     -skip)
       shift
       skip="$1"
+      ;;
+
+    -one)
+      shift
+      skip="$1"
+      runOneTest=true
       ;;
 
     -big)
@@ -99,6 +107,11 @@ runTestInternal() {
     else
       success=$[ $success + 1 ]
     fi
+
+    if $runOneTest; then
+      # exit with code 0 if the test succeeded
+      exit $[ 1 - $success ]
+    fi
   fi
 
   curtest=$[ $curtest + 1 ]
@@ -132,6 +145,11 @@ failTest() {
       failure=$[ $failure + 1 ]
       echo "Failed as expected: $reason"
     fi
+
+    if $runOneTest; then
+      # exit with code 0 if the test failed
+      exit $[ 1 - $failure ]
+    fi
   fi
 
   curtest=$[ $curtest + 1 ]
@@ -150,17 +168,41 @@ grepBoth() {
 }
 
 
+# ------------- small test grammars ----------
 runTest make cexp3
 runTest make cexp3b
 
-runTest make aSEb.gr.exe
-runTest ./aSEb.gr.exe aSEb.in1
+# usage: testTrivGrammar <name> [<inputSuffix1> [<inputSuffix2> ...]]
+testTrivGrammar() {
+  name="$1"
+  shift
+  runTest make "$name.gr.exe" TRGRAMANL=,lrtable
+  
+  while [ "$1" != "" ]; do
+    suffix="$1"
+    shift
 
-runTest make ite.gr.exe
-for n in 1 2 3 4; do
-  runTest ./ite.gr.exe ite.in$n
-done
+    runTest "./$name.gr.exe" "$name.in$suffix"
+  done
+}
 
+testTrivGrammar aSEb 1
+testTrivGrammar ite 1 2 3 4
+testTrivGrammar AdB 1
+testTrivGrammar CNI 1
+testTrivGrammar ESb 1
+
+#runTest make aSEb.gr.exe
+#runTest ./aSEb.gr.exe aSEb.in1
+
+#  runTest make ite.gr.exe
+#  for n in 1 2 3 4; do
+#    runTest ./ite.gr.exe ite.in$n
+#  done
+
+
+
+# ------------ test the C grammar and parser -------------
 if ! $vcgenOnly; then
   for n in 1 2 3 4 5 6 7 8 9 10 11 12; do
     runTest ./ccgr -tr stopAfterTCheck cc.bin c.in$n
@@ -178,6 +220,8 @@ if ! $vcgenOnly; then
   runTest ./ccgr -tr printAnalysisPath cc.bin tcheck/morepaths.c
 fi
 
+
+# --------------- test the program verifier ---------------
 vcgen() {
   runTest ./ccgr cc.bin vcgen/$1
 }

@@ -998,16 +998,20 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 
       // to count actions, first record how many parsers we have
       // before processing this one
-      int parsersBefore = parserWorklist.length() + pendingShifts.length();
+      //int parsersBefore = parserWorklist.length() + pendingShifts.length();
 
       // process this parser
       ActionEntry action =      // consult the 'action' table
         tables->actionEntry(parser->state, currentTokenClass->termIndex);
-      glrParseAction(parser, action, pendingShifts);
-
+      int actions = glrParseAction(parser, action, pendingShifts);
+        
+      // OLD: why was I doing this?  it doesn't work, anyway; the CNI grammar
+      // provides a counterexample (the parser could reduce, but the state it
+      // reduces to could already exist, so we wouldn't observe the change
+      // by counting parsers)
       // now observe change -- normal case is we now have one more
-      int actions = (parserWorklist.length() + pendingShifts.length()) -
-                      parsersBefore;
+      //int actions = (parserWorklist.length() + pendingShifts.length()) -
+      //                parsersBefore;
 
       if (actions == 0) {
         TRSPARSE("parser in state " << parser->state << " died");

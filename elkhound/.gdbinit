@@ -23,8 +23,8 @@
 #file gramanl
 #set args -tr conflict,lrtable ite
 
-file ite.gr.exe
-set args -tr parse ite.in3
+file CNI.gr.exe
+set args -tr parse CNI.in1
 
 #file aSEb.gr.exe
 #set args aSEb.in1

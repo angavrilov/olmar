@@ -74,7 +74,7 @@ while (defined($line = <STDIN>)) {
     next;
   }
   
-  # expand terminals
+  # expand terminals (single letter with *no* semicolon, and possibly a comment)
   ($letter, $comment) = ($line =~ m'^\s*([a-z])\s*(//.*)?$');   #'
   if (defined($letter)) {
     if (!defined($comment)) {
