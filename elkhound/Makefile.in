@@ -40,7 +40,7 @@ endif
 ccflags += -Werror
 
 # when uncommented, we get profiling info
-ccflags += -pg -O2 -DNDEBUG
+#ccflags += -pg -O2
 
 # optimizer...
 #ccflags += -O2 -DNDEBUG
@@ -227,7 +227,7 @@ cexp3: $(cexp3-dep)
 # ('chmod a-w' is so I don't accidentally edit it)
 %.gr.gen.cc %.gr.gen.h: %.gr cc.tok gramanl
 	rm -f $*.gr.gen.*
-	./gramanl -tr conflict $*
+	./gramanl $*
 	chmod a-w $*.gr.gen.{h,cc}
 
 # intermediate files for an ast spec

@@ -98,6 +98,7 @@ void DottedProduction::init()
   dot = -1;
   afterDot = NULL;
   canDeriveEmpty = false;
+  backPointer = NULL;
 }
 
 
@@ -1872,11 +1873,17 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 
   // hashtable, list of items still yet to close; items are
   // simultaneously in both the hash and the list, or not in either
+  #if 0
   OwnerKHashArray<LRItem, DottedProduction> workhash(
     &LRItem::dataToKey,
     &LRItem::hash,
     &LRItem::dpEqual, 13);
-    
+  #endif // 0
+  
+  // every 'item' on the worklist has item->dprod->backPointer == item;
+  // every 'dprod' not associated has dprod->backPointer == NULL
+  ArrayStack<LRItem*> worklist;
+
   // scratch terminal set for singleItemClosure
   TerminalSet scratchSet(numTerminals());
 
@@ -1893,14 +1900,16 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
     finished.add(dp->dprod, dp);
   }
 
-  // first, close the kernel items -> workhash
+  // first, close the kernel items -> worklist
   FOREACH_OBJLIST(LRItem, itemSet.kernelItems, itemIter) {
-    singleItemClosure(finished, workhash, itemIter.data(), scratchSet);
+    singleItemClosure(finished, worklist, itemIter.data(), scratchSet);
   }
 
-  while (workhash.isNotEmpty()) {
+  while (worklist.isNotEmpty()) {
     // pull the first production
-    LRItem *item = workhash.pop();
+    LRItem *item = worklist.pop();
+    xassert(item->dprod->backPointer == item);     // was on worklist
+    item->dprod->backPointer = NULL;               // now off of worklist
 
     // put it into list of 'done' items; this way, if this
     // exact item is generated during closure, it will be
@@ -1908,7 +1917,7 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
     finished.add(item->dprod, item);
 
     // close it -> worklist
-    singleItemClosure(finished, workhash, item, scratchSet);
+    singleItemClosure(finished, worklist, item, scratchSet);
   }
 
   // move everything from 'finished' to the nonkernel items list
@@ -1939,10 +1948,11 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 }
 
 
-void GrammarAnalysis::
-  singleItemClosure(OwnerKHashTable<LRItem, DottedProduction> &finished,
-                    OwnerKHashArray<LRItem, DottedProduction> &workhash,
-                    LRItem const *item, TerminalSet &newItemLA)
+void GrammarAnalysis
+  ::singleItemClosure(OwnerKHashTable<LRItem, DottedProduction> &finished,
+                      ArrayStack<LRItem*> &worklist,
+                      //OwnerKHashArray<LRItem, DottedProduction> &workhash,
+                      LRItem const *item, TerminalSet &newItemLA)
 {
   INITIAL_MALLOC_STATS();
 
@@ -2029,13 +2039,13 @@ void GrammarAnalysis::
 
     // is 'newDP' already there?
     // check in working and finished tables
-    bool inDoneList = false;
-    LRItem *already = finished.get(newDP);
+    bool inDoneList = true;
+    LRItem *already = newDP->backPointer;   // workhash.lookup(newDP);
     if (already) {
-      inDoneList = true;
+      inDoneList = false;  
     }
     else {
-      already = workhash.lookup(newDP);
+      already = finished.get(newDP);
     }
 
     if (already) {
@@ -2060,8 +2070,10 @@ void GrammarAnalysis::
           // pull from the 'done' list and put in worklist, since the
           // lookahead changed
           finished.remove(already->dprod);
-          CHECK_MALLOC_STATS("before workhash push");
-          workhash.push(already->dprod, already);    
+          CHECK_MALLOC_STATS("before worklist push");
+          worklist.push(already);
+          xassert(already->dprod->backPointer == NULL);   // was not on
+          already->dprod->backPointer = already;          // now is on worklist
           UPDATE_MALLOC_STATS();     // allow expansion
         }
         else {
@@ -2084,9 +2096,12 @@ void GrammarAnalysis::
       if (tr) {
         trs << "      this dprod is new, queueing it to add" << endl;
       }
-      workhash.push(newItem->dprod, newItem);
 
-      UPDATE_MALLOC_STATS();     // "new LRItem" or expansion of workhash
+      worklist.push(newItem);
+      xassert(newItem->dprod->backPointer == NULL);
+      newItem->dprod->backPointer = newItem;
+
+      UPDATE_MALLOC_STATS();     // "new LRItem" or expansion of worklist
     }
 
     CHECK_MALLOC_STATS("processing of production");

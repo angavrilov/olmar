@@ -57,6 +57,13 @@ public:     // data
   // sentential form can derive epsilon (the empty string)
   bool canDeriveEmpty;
 
+  // during item set closure, I need a way to map from dotted prods to
+  // the items which use them; so rather than use a hash table, I'll
+  // just annotate the dprods themselves with backpointers; these
+  // backpointers *must* be maintained as NULL when there's no
+  // association
+  mutable class LRItem *backPointer;
+
 private:    // funcs
   void init();
 
@@ -498,7 +505,8 @@ private:    // funcs
   friend void ItemSet::xferSerfs(Flatten &flat, GrammarAnalysis &g);
 
   void singleItemClosure(OwnerKHashTable<LRItem, DottedProduction> &finished,
-                         OwnerKHashArray<LRItem, DottedProduction> &workhash,
+                         ArrayStack<LRItem*> &worklist,
+                         //OwnerKHashArray<LRItem, DottedProduction> &workhash,
                          LRItem const *item, TerminalSet &scratchSet);
 
 public:	    // funcs
