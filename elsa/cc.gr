@@ -409,6 +409,9 @@ nonterm(CastKeyword) CastKeyword {
 // having to reverse the list or use ASTList (which is difficult
 // to share) is worth it
 nonterm(FakeList<ArgExpression>*) ExpressionList {
+  // ambiguous; see t0182.cc
+  fun merge(L,R) { L->first()->addAmbiguity(R->first()); return L; }
+
   -> a:AssignmentExpression
        { return FakeList<ArgExpression>::makeList(new ArgExpression(a)); }
   -> a:AssignmentExpression "," e:ExpressionList

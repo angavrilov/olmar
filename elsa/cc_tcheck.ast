@@ -544,7 +544,8 @@ class ArgExpression {
   public SpecialExpr getSpecial() const
     { return expr->getSpecial(); };
 
-  public void tcheck(Env &env);
+  public ArgExpression *tcheck(Env &env);
+  public void mid_tcheck(Env &env, int &);
 }
 
 

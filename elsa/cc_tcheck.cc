@@ -38,7 +38,7 @@
 static Variable *outerResolveOverload_ctor
   (Env &env, SourceLoc loc, Type *type, FakeList<ArgExpression> *args, bool really);
 static bool reallyDoOverload(Env &env, FakeList<ArgExpression> *args);
-void tcheckArgExprList(FakeList<ArgExpression> *list, Env &env);
+FakeList<ArgExpression> *tcheckArgExprList(FakeList<ArgExpression> *list, Env &env);
 void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
                               SourceLoc loc, CompoundType *ct);
 
@@ -418,7 +418,7 @@ void MemberInit::tcheck(Env &env, Variable *ctorReceiver, CompoundType *enclosin
   // typecheck the arguments
   // dsw: I do not want to typecheck the args twice, as it is giving
   // me problems, so I moved this
-//    tcheckArgExprList(args, env);
+//    args = tcheckArgExprList(args, env);
 
   // check for a member variable, since they have precedence over
   // base classes [para 2]; member inits cannot have qualifiers
@@ -440,7 +440,7 @@ void MemberInit::tcheck(Env &env, Variable *ctorReceiver, CompoundType *enclosin
       // annotate the AST
       member = env.storeVar(v);
 
-      tcheckArgExprList(args, env);
+      args = tcheckArgExprList(args, env);
       // decide which of v's possible constructors is being used
       ctorVar = env.storeVar(
         outerResolveOverload_ctor(env, env.loc(), v->type, args,
@@ -533,7 +533,7 @@ void MemberInit::tcheck(Env &env, Variable *ctorReceiver, CompoundType *enclosin
   // TODO: check that the passed arguments are consistent
   // with the chosen constructor
 
-  tcheckArgExprList(args, env);
+  args = tcheckArgExprList(args, env);
   // determine which constructor is being called
   ctorVar = env.storeVar(
     outerResolveOverload_ctor(env, env.loc(),
@@ -3946,16 +3946,37 @@ FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env)
 #endif // 0
 
 // here's the new code that serves the same role as the old
-void tcheckArgExprList(FakeList<ArgExpression> *list, Env &env)
+FakeList<ArgExpression> *tcheckArgExprList(FakeList<ArgExpression> *list, Env &env)
 {
-  FAKELIST_FOREACH_NC(ArgExpression, list, iter) {
-    iter->tcheck(env);
+  if (!list) {
+    return list;
   }
+
+  // check it recursively from inside ArgExpression::tcheck
+  return FakeList<ArgExpression>::makeList(list->first()->tcheck(env));
 }
 
-void ArgExpression::tcheck(Env &env)
+ArgExpression *ArgExpression::tcheck(Env &env)
+{
+  // modeled after Statement::tcheck
+
+  int dummy;
+  if (!ambiguity) {
+    mid_tcheck(env, dummy);
+    return this;
+  }
+
+  return resolveAmbiguity(this, env, "ArgExpression", false /*priority*/, dummy);
+}
+
+void ArgExpression::mid_tcheck(Env &env, int &)
 {
   expr->tcheck(env, expr);
+
+  // recursively check the tail of the list
+  if (next) {
+    next = next->tcheck(env);
+  }
 }
 
 
@@ -4038,7 +4059,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
   }
 
   // check the argument list
-  tcheckArgExprList(args, env);
+  args = tcheckArgExprList(args, env);
 
   // the type of the function that is being invoked
   Type *t = func->type->asRval();
@@ -4306,7 +4327,7 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
   }
 
   // check arguments
-  tcheckArgExprList(args, env);
+  args = tcheckArgExprList(args, env);
 
   // dsw: I will assume for now that if overloading succeeds, that the
   // checking that it implies subsumes the below concern:
@@ -4640,6 +4661,11 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
 {
   e1->tcheck(env, e1);
   e2->tcheck(env, e2);
+
+  // help disambiguate t0182.cc
+  if (op == BIN_LESS && e1->type->isFunctionType()) {
+    return env.error("cannot apply '<' to a function", true /*disambiguating*/);
+  }
 
   // check for operator overloading
   if (isOverloadable(op)) {
@@ -5042,7 +5068,7 @@ Type *E_assign::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_new::itcheck_x(Env &env, Expression *&replacement)
 {
-  tcheckArgExprList(placementArgs, env);
+  placementArgs = tcheckArgExprList(placementArgs, env);
 
   // TODO: check the environment for declaration of an operator 'new'
   // which accepts the given placement args
@@ -5075,7 +5101,7 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
   }
 
   if (ctorArgs) {
-    tcheckArgExprList(ctorArgs->list, env);
+    ctorArgs->list = tcheckArgExprList(ctorArgs->list, env);
     ctorVar = env.storeVar(
       outerResolveOverload_ctor(env, env.loc(), t, ctorArgs->list,
                                 reallyDoOverload(env, ctorArgs->list)));
@@ -5425,7 +5451,7 @@ void IN_compound::tcheck(Env &env, Type* type)
 
 void IN_ctor::tcheck(Env &env, Type *type)
 {
-  tcheckArgExprList(args, env);
+  args = tcheckArgExprList(args, env);
   ctorVar = env.storeVar(
     outerResolveOverload_ctor(env, loc, type, args, reallyDoOverload(env, args)));
 }

@@ -524,6 +524,27 @@ void ArgExpression::setNext(ArgExpression *newNext)
   xassert(next == NULL);
   next = newNext;
 }
+        
+
+void ArgExpression::addAmbiguity(ArgExpression *alt)
+{
+  // find the end of alt's ambiguity list
+  ArgExpression *altLast = alt;
+  while (altLast->ambiguity) {
+    altLast = altLast->ambiguity;
+  }
+
+  // finally, prepend 'alt's ambiguity list to 'this's ambiguity list
+  altLast->ambiguity = this->ambiguity;
+  this->ambiguity = alt;
+}
+
+
+void ArgExpression::printAmbiguities(ostream &os, int indent) const
+{
+  genericPrintAmbiguities(this, "ArgExpression", os, indent);
+}
+
 
 // ExpressionListOpt
 // Initializer

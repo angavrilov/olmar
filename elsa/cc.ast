@@ -583,6 +583,21 @@ class ArgExpression(Expression expr) {   // expression in an argument list
   // FakeList link
   public ArgExpression *next = NULL;
   public void setNext(ArgExpression *newNext);
+  
+  // argh.. t0182.cc demonstrates I need ambiguity links at this
+  // level too!  but at least these aren't the matrix-style links
+  // I had before; the 'next' links among ambiguous alternatives
+  // are independent
+  public ArgExpression *ambiguity = NULL;
+  public void addAmbiguity(ArgExpression *alternative);
+  public void printAmbiguities(ostream &os, int indent) const;
+  custom traverse { if (ambiguity) ambiguity->traverse(vis); }
+  custom preemptDebugPrint {
+    if (ambiguity) {
+      printAmbiguities(os, indent);
+      return;     // skip the normal, unambiguous-node print code
+    }
+  }
 }
 
 
