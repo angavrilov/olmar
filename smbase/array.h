@@ -8,6 +8,9 @@
 
 
 // ------------------ GrowArray --------------------
+// this class implements an array of T's; it automatically expands
+// when 'ensureAtLeast' or 'ensureIndexDoubler' is used; it does not
+// automatically contract
 template <class T>
 class GrowArray {
 private:     // data
@@ -166,7 +169,6 @@ ArrayStack<T>::~ArrayStack()
 {}
 
 
-#if 0      // in progress
 // ------------------- ObjArrayStack -----------------
 // an ArrayStack of owner pointers
 template <class T>
@@ -178,24 +180,31 @@ public:     // funcs
   ObjArrayStack(int initArraySize = 10)
     : arr(initArraySize)
     {}
-  ~ObjArrayStack() { deleteTopSeveral(length()); }
+  ~ObjArrayStack() { deleteAll(); }
 
   void push(T *ptr)          { arr.push(ptr); }
   T *pop()                   { return arr.pop(); }
   T const *top() const       { return arr.top(); }
 
+  T const * operator[](int index) const  { return arr[index]; }
+  T *       operator[](int index)        { return arr[index]; }
+
   int length() const         { return arr.length(); }
   bool isEmpty() const       { return arr.isEmpty(); }
   bool isNotEmpty() const    { return !isEmpty(); }
-  #error in progress
+
+  void deleteTopSeveral(int ct);
+  void deleteAll()           { deleteTopSeveral(length()); }
 };
 
 
 template <class T>
-void ObjArrayStack::deleteAll()
+void ObjArrayStack<T>::deleteTopSeveral(int ct)
 {
-#endif // 0
-
+  while (ct--) {
+    delete pop();
+  }
+}
 
 
 #endif // ARRAY_H

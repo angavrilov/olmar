@@ -7,6 +7,11 @@
 #include <unistd.h>     // sleep
 #include <stdio.h>      // printf
 
+// needed on Solaris; is __sun__ a good way to detect that?
+#ifdef __sun__
+  #include <siginfo.h>
+#endif
+
 #ifndef __CYGWIN__      // everything here is for *not* cygwin
 
 void setHandler(int signum, SignalHandler handler)

@@ -13,7 +13,7 @@ makelib     := ar -r
 ranlib      := ranlib
 
 # make warnings into errors so I always get a chance to fix them
-#ccflags += -Werror
+ccflags += -Werror
 
 # when uncommented, we get profiling info
 ccflags += -pg -O2
