@@ -9,11 +9,6 @@
 #include "mangle.h"       // mangle
 
 
-// 2005-02-19:  I am hacking through some 'const' issues at the
-// moment; I plan to fix these.
-#define HACK_CAST(v) const_cast<Variable*>(v)
-
-
 Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
   : variables(),
     compounds(),
@@ -354,16 +349,16 @@ Variable *vfilter(Variable *v, LookupFlags flags)
 
 // the lookup semantics here are a bit complicated; relevant tests
 // include t0099.cc and std/3.4.5.cc
-Variable const *Scope
-  ::lookupPQVariableC(PQName const *name, Env &env, LookupFlags flags) const
+Variable *Scope
+  ::lookupPQVariable(PQName const *name, Env &env, LookupFlags flags)
 {
   LookupSet candidates;
-  return lookupPQVariableC_set(candidates, name, env, flags);
+  return lookupPQVariable_set(candidates, name, env, flags);
 }
 
-Variable const *Scope::lookupPQVariableC_set
-  (LookupSet &candidates, PQName const *name, 
-   Env &env, LookupFlags flags) const
+Variable *Scope::lookupPQVariable_set
+  (LookupSet &candidates, PQName const *name,
+   Env &env, LookupFlags flags)
 {
   if (isDelegated()) {
     // this is a scope for which lookup has been delegated to the
@@ -371,15 +366,15 @@ Variable const *Scope::lookupPQVariableC_set
     return NULL;
   }
 
-  return lookupPQVariableC_inner(candidates, name, env, flags);
+  return lookupPQVariable_inner(candidates, name, env, flags);
 }
 
 // same as above, but skip delegation check
-Variable const *Scope::lookupPQVariableC_inner
+Variable *Scope::lookupPQVariable_inner
   (LookupSet &candidates, PQName const *name,
-   Env &env, LookupFlags flags) const
+   Env &env, LookupFlags flags)
 {
-  Variable const *v1 = NULL;
+  Variable *v1 = NULL;
 
   // [cppstd sec. 10.2]: class members hide all members from
   // base classes
@@ -391,9 +386,9 @@ Variable const *Scope::lookupPQVariableC_inner
 //        cout << endl;
 //      }
 //      cout << "name->getName() " << name->getName() << endl;
-    v1 = vfilterC(variables.get(name->getName()), flags);
+    v1 = vfilter(variables.get(name->getName()), flags);
     if (v1 && (flags & LF_LOOKUP_SET)) {
-      prependUniqueEntities(candidates, HACK_CAST(v1));
+      prependUniqueEntities(candidates, v1);
     }
 
     if (!(flags & LF_IGNORE_USING)) {
@@ -434,19 +429,19 @@ Variable const *Scope::lookupPQVariableC_inner
   // recursively examine the subobject hierarchy
   BaseClassSubobj const *v1Subobj = NULL;
   curCompound->clearSubobjVisited();
-  lookupPQVariableC_considerBase(name, env, flags,
-                                 v1, v1Subobj, &curCompound->subobj);
+  lookupPQVariable_considerBase(name, env, flags,
+                                v1, v1Subobj, &curCompound->subobj);
 
   if (!v1) {
     // not in any base class; delegate to parameterizingScope, if any
     if (hasDelegationPointer()) {
       // delegate, skipping its delegation check
       return curCompound->parameterizingScope->
-        lookupPQVariableC_inner(candidates, name, env, flags);
+        lookupPQVariable_inner(candidates, name, env, flags);
     }
   }
   else if (flags & LF_LOOKUP_SET) {
-    prependUniqueEntities(candidates, HACK_CAST(v1));
+    prependUniqueEntities(candidates, v1);
   }
 
   return v1;
@@ -454,11 +449,11 @@ Variable const *Scope::lookupPQVariableC_inner
 
 // helper for lookupPQVariableC; if we find a suitable variable, set
 // v1/v1Subobj to refer to it; if we find an ambiguity, report that
-void Scope::lookupPQVariableC_considerBase
+void Scope::lookupPQVariable_considerBase
   (PQName const *name, Env &env, LookupFlags flags,  // stuff from caller
-   Variable const *&v1,                              // best so far
+   Variable *&v1,                                    // best so far
    BaseClassSubobj const *&v1Subobj,                 // where 'v1' was found
-   BaseClassSubobj const *v2Subobj) const            // where we're looking now
+   BaseClassSubobj const *v2Subobj)                  // where we're looking now
 {
   if (v2Subobj->visited) return;
   v2Subobj->visited = true;
@@ -474,8 +469,8 @@ void Scope::lookupPQVariableC_considerBase
 
   if (!name->hasQualifiers()) {
     // look in 'v2Base' for the field
-    Variable const *v2 =
-      vfilterC(v2Base->variables.get(name->getName()), flags);
+    Variable *v2 =
+      vfilter(v2Base->variables.get(name->getName()), flags);
     if (v2) {
       TRACE("lookup",    "found " << v2Base->name << "::"
                       << name->toString());
@@ -529,31 +524,31 @@ void Scope::lookupPQVariableC_considerBase
   // name is still qualified, or we didn't find it; recursively
   // look into base classes of 'v2Subobj'
   SFOREACH_OBJLIST(BaseClassSubobj, v2Subobj->parents, iter) {
-    lookupPQVariableC_considerBase(name, env, flags, v1, v1Subobj, iter.data());
+    lookupPQVariable_considerBase(name, env, flags, v1, v1Subobj, iter.data());
   }
 }
 
 
-Variable const *Scope::lookupVariableC(StringRef name, Env &env, 
-                                       LookupFlags flags) const
+Variable *Scope::lookupVariable(StringRef name, Env &env,
+                                LookupFlags flags)
 {
   LookupSet candidates;
-  return lookupVariableC_set(candidates, name, env, flags);
+  return lookupVariable_set(candidates, name, env, flags);
 }
 
-Variable const *Scope::lookupVariableC_set
-  (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags) const
+Variable *Scope::lookupVariable_set
+  (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags)
 {
   if (flags & LF_INNER_ONLY) {
-    Variable const *ret = vfilterC(variables.get(name), flags);
+    Variable *ret = vfilter(variables.get(name), flags);
     if (ret && (flags & LF_LOOKUP_SET)) {
-      prependUniqueEntity(candidates, HACK_CAST(ret));
+      prependUniqueEntity(candidates, ret);
     }
     return ret;
   }
 
   PQ_name wrapperName(SL_UNKNOWN, name);
-  Variable const *ret = lookupPQVariableC_set(candidates, &wrapperName, env, flags);
+  Variable *ret = lookupPQVariable_set(candidates, &wrapperName, env, flags);
   if (ret) return ret;
 
   // previously, I had code here which traversed the 'parentScope'
@@ -973,7 +968,7 @@ void Scope::getUsingClosure(ArrayStack<Scope*> &dest)
 
 // return true if caller should return 'v'
 bool Scope::foundViaUsingEdge(LookupSet &candidates, Env &env, LookupFlags flags,
-                              Variable const *v, Variable const *&vfound) const
+                              Variable *v, Variable *&vfound)
 {
   if (vfound) {
     if (!sameEntity(vfound, v)) {
@@ -1001,23 +996,23 @@ bool Scope::foundViaUsingEdge(LookupSet &candidates, Env &env, LookupFlags flags
   }
 
   if (flags & LF_LOOKUP_SET) {
-    prependUniqueEntities(candidates, HACK_CAST(v));
+    prependUniqueEntities(candidates, v);
   }
 
   return false;
 }
 
 
-Variable const *Scope::searchActiveUsingEdges
+Variable *Scope::searchActiveUsingEdges
   (LookupSet &candidates, StringRef name,
-   Env &env, LookupFlags flags, Variable const *vfound) const
+   Env &env, LookupFlags flags, Variable *vfound)
 {
   // just consider the set of "active using" edges
   for (int i=0; i<activeUsingEdges.length(); i++) {
     Scope const *s = activeUsingEdges[i];
 
     // look for 'name' in 's'
-    Variable const *v = vfilterC(s->variables.get(name), flags);
+    Variable *v = vfilter(s->variables.get(name), flags);
     if (v) {
       if (foundViaUsingEdge(candidates, env, flags, v, vfound)) {
         return v;
@@ -1030,8 +1025,8 @@ Variable const *Scope::searchActiveUsingEdges
 
 
 // another DFS; 3.4.3.2 para 2
-Variable const *Scope::searchUsingEdges
-  (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags) const
+Variable *Scope::searchUsingEdges
+  (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags)
 {
   // set of scopes already searched
   ArrayStack<Scope*> black;
@@ -1040,8 +1035,8 @@ Variable const *Scope::searchUsingEdges
   ArrayStack<Scope*> gray;
 
   // initial condition
-  gray.push(const_cast<Scope*>(this));   // elim'ng this cast would require some work..
-  Variable const *vfound = NULL;
+  gray.push(this);
+  Variable *vfound = NULL;
 
   // process the gray set until empty
   while (gray.isNotEmpty()) {
@@ -1049,7 +1044,7 @@ Variable const *Scope::searchUsingEdges
     black.push(s);
 
     // does 's' have the name?
-    Variable const *v = vfilterC(s->variables.get(name), flags);
+    Variable *v = vfilter(s->variables.get(name), flags);
     if (v) {
       if (foundViaUsingEdge(candidates, env, flags, v, vfound)) {
         return v;

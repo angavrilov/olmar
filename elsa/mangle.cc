@@ -18,7 +18,7 @@ string mangleAtomic(AtomicType const *t)
     }
 
     case AtomicType::T_COMPOUND: {
-      CompoundType *ct = const_cast<AtomicType*>(t)->asCompoundType();
+      CompoundType const *ct = t->asCompoundTypeC();
 
       stringBuilder sb;
 

@@ -169,12 +169,12 @@ ImplicitConversion getImplicitConversion
   // work, the dest type must be a class type or a const reference
   // to one
   if (dest->isCompoundType() ||
-      (dest->asRvalC()->isCompoundType() &&
-       dest->asRvalC()->isConst())) {
-    CompoundType const *ct = dest->asRvalC()->asCompoundTypeC();
+      (dest->asRval()->isCompoundType() &&
+       dest->asRval()->isConst())) {
+    CompoundType *ct = dest->asRval()->asCompoundType();
 
     // get the overload set of constructors
-    Variable const *ctor = ct->getNamedFieldC(env.constructorSpecialName, env);
+    Variable *ctor = ct->getNamedField(env.constructorSpecialName, env);
     if (!ctor) {
       // ideally we'd have at least one ctor for every class, but I
       // think my current implementation doesn't add all of the

@@ -18,16 +18,13 @@ class SomeTypeVarNotInTemplParams_Pred : public TypePred {
   virtual ~SomeTypeVarNotInTemplParams_Pred() {}
 };
 
-bool SomeTypeVarNotInTemplParams_Pred::operator() (Type const *t0)
+bool SomeTypeVarNotInTemplParams_Pred::operator() (Type const *t)
 {
-  // other tests on 't' seem to want a non-const version
-  Type *t = const_cast<Type*>(t0);
-
   if (!t->isCVAtomicType()) return false;
-  CVAtomicType *cv = t->asCVAtomicType();
+  CVAtomicType const *cv = t->asCVAtomicTypeC();
 
   if (cv->isCompoundType()) {
-    CompoundType *cpd = cv->asCompoundType();
+    CompoundType const *cpd = cv->asCompoundTypeC();
     // recurse on all of the arugments of the template instantiation
     // if any
     if (cpd->templateInfo()) {
@@ -44,7 +41,7 @@ bool SomeTypeVarNotInTemplParams_Pred::operator() (Type const *t0)
   if (cv->isTypeVariable()) {
     // check that this tvar occurs in the parameters list of the
     // template info
-    Variable *tvar = cv->asTypeVariable()->typedefVar;
+    Variable *tvar = cv->asTypeVariableC()->typedefVar;
     if (ti->hasSpecificParameter(tvar)) {
       return false;
     }

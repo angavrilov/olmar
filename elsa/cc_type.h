@@ -312,8 +312,6 @@ public:      // funcs
   int numFields() const;
 
   // returns NULL if doesn't exist
-  Variable const *getNamedFieldC(StringRef name, Env &env, LookupFlags f=LF_NONE) const
-    { return lookupVariableC(name, env, f); }
   Variable *getNamedField(StringRef name, Env &env, LookupFlags f=LF_NONE)
     { return lookupVariable(name, env, f); }
 
@@ -666,7 +664,9 @@ public:     // funcs
 
   bool isCVAtomicType(AtomicType::Tag tag) const;
   bool isTypeVariable() const { return isCVAtomicType(AtomicType::T_TYPEVAR); }
-  TypeVariable *asTypeVariable();
+  TypeVariable const *asTypeVariableC() const;
+  TypeVariable *asTypeVariable()
+    { return const_cast<TypeVariable*>(asTypeVariableC()); }
 
   // downcast etc. to NamedAtomicType
   bool isNamedAtomicType() const;

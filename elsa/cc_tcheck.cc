@@ -1722,10 +1722,8 @@ void TS_classSpec::tcheckIntoCompound(
         continue;
       }
 
-      // cppstd 10, para 1: must be a class type (another
-      // unfortunate const cast..)
-      CompoundType *base 
-        = const_cast<CompoundType*>(baseVar->type->ifCompoundType());
+      // cppstd 10, para 1: must be a class type
+      CompoundType *base = baseVar->type->ifCompoundType();
       if (!base) {
         env.error(stringc
           << "`" << *(iter->name) << "' is not a class or "
@@ -3851,8 +3849,8 @@ Statement *Statement::tcheck(Env &env)
     S_expr *expr = this->asS_expr();
     S_decl *decl = ambiguity->asS_decl();
 
-    const_cast<Statement*&>(expr->ambiguity) = NULL;
-    const_cast<Statement*&>(decl->ambiguity) = expr;
+    expr->ambiguity = NULL;
+    decl->ambiguity = expr;
 
     // now run it with priority
     return resolveAmbiguity(static_cast<Statement*>(decl), env,
@@ -6737,7 +6735,7 @@ Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
   // 'x[y]' into '*(x+y)')
   if (rt->isCompoundType()) {
     CompoundType *ct = rt->asCompoundType();
-    if (ct->lookupVariableC(env.operatorName[OP_STAR], env)) {
+    if (ct->lookupVariable(env.operatorName[OP_STAR], env)) {
       // replace this Expression node with one that looks like
       // an explicit call to the overloaded operator*
       replacement = new E_funCall(
@@ -6754,7 +6752,7 @@ Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
     }
 
     // this is an older hack..
-    if (ct->lookupVariableC(env.operatorName[OP_BRACKETS], env)) {
+    if (ct->lookupVariable(env.operatorName[OP_BRACKETS], env)) {
       // ok.. gee what type?  would have to do the full deal, and
       // would likely get it wrong for operator[] since I don't have
       // the right info to do an overload calculation.. well, if I

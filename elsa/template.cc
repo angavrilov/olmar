@@ -921,9 +921,9 @@ STATICDEF int TemplCandidates::compareCandidatesStatic
 
 int TemplCandidates::compareCandidates(Variable const *left, Variable const *right)
 {
-  TemplateInfo *lti = const_cast<Variable*>(left)->templateInfo();
+  TemplateInfo *lti = left->templateInfo();
   xassert(lti);
-  TemplateInfo *rti = const_cast<Variable*>(right)->templateInfo();
+  TemplateInfo *rti = right->templateInfo();
   xassert(rti);
 
   return compareCandidatesStatic(tfac, lti, rti);

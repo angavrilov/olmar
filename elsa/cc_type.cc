@@ -427,6 +427,7 @@ void CompoundType::addBaseClass(BaseClass * /*owner*/ newBase)
   xassert(newBase->access != AK_UNSPECIFIED);
 
   // add the new base; override 'const' so we can modify the list
+  // (this is the one function allowed to do this)
   const_cast<ObjList<BaseClass>&>(bases).append(newBase);
 
   // replicate 'newBase's inheritance hierarchy in the subobject
@@ -1153,9 +1154,9 @@ bool BaseType::isCVAtomicType(AtomicType::Tag tag) const
 }
 
 
-TypeVariable *BaseType::asTypeVariable() 
-{ 
-  return asCVAtomicType()->atomic->asTypeVariable(); 
+TypeVariable const *BaseType::asTypeVariableC() const
+{
+  return asCVAtomicTypeC()->atomic->asTypeVariableC();
 }
 
 

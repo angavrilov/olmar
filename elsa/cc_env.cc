@@ -154,7 +154,7 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
   // **** implicit no-arg (aka "default") ctor: cppstd 12.1 para 5:
   // "If there is no user-declared constructor for class X, a default
   // constructor is implicitly declared."
-  if (!ct->getNamedFieldC(env.constructorSpecialName, env, LF_INNER_ONLY)) {
+  if (!ct->getNamedField(env.constructorSpecialName, env, LF_INNER_ONLY)) {
     // add a no-arg ctor declaration: "Class();".  For now we just
     // add the variable to the scope and don't construct the AST, in
     // order to be symmetric with what is going on with the dtor

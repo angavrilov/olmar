@@ -165,30 +165,30 @@ public:      // data
   SourceLoc curLoc;                   // latest AST location marker seen
 
 private:     // funcs
-  void lookupPQVariableC_considerBase
+  void lookupPQVariable_considerBase
     (PQName const *name, Env &env, LookupFlags flags,
-     Variable const *&v1, BaseClassSubobj const *&v1Subobj,
-     BaseClassSubobj const *v2Subobj) const;
+     Variable *&v1, BaseClassSubobj const *&v1Subobj,
+     BaseClassSubobj const *v2Subobj);
   void lookupPQEnumC_considerBase
     (PQName const *name, Env &env, LookupFlags flags,
      EnumType const *&v1,
      BaseClassSubobj const *&v1Subobj,
      BaseClassSubobj const *v2Subobj) const;
-  Variable const *lookupPQVariableC_inner
+  Variable *lookupPQVariable_inner
     (LookupSet &candidates, PQName const *name,
-     Env &env, LookupFlags flags) const;
+     Env &env, LookupFlags flags);
 
   // more using-directive stuff
   void addActiveUsingEdge(Scope *target);
   void removeActiveUsingEdge(Scope *target);
   void scheduleActiveUsingEdge(Env &env, Scope *target);
   bool foundViaUsingEdge(LookupSet &candidates, Env &env, LookupFlags flags,
-                         Variable const *v, Variable const *&vfound) const;
-  Variable const *searchActiveUsingEdges
+                         Variable *v, Variable *&vfound);
+  Variable *searchActiveUsingEdges
     (LookupSet &candidates, StringRef name,
-     Env &env, LookupFlags flags, Variable const *vfound) const;
-  Variable const *searchUsingEdges
-    (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags) const;
+     Env &env, LookupFlags flags, Variable *vfound);
+  Variable *searchUsingEdges
+    (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags);
   void getUsingClosure(ArrayStack<Scope*> &dest);
 
 protected:   // funcs
@@ -261,24 +261,20 @@ public:      // funcs
 
   // lookup; these return NULL if the name isn't found; 'env' is
   // passed for the purpose of reporting ambiguity errors
-  Variable const *lookupVariableC(StringRef name, Env &env, LookupFlags f=LF_NONE) const;
+  Variable *lookupVariable(StringRef name, Env &env, LookupFlags f=LF_NONE);
   CompoundType const *lookupCompoundC(StringRef name, LookupFlags f=LF_NONE) const;
   EnumType const *lookupEnumC(StringRef name, Env &env, LookupFlags f=LF_NONE) const;
 
   // lookup of a possibly-qualified name; used for member access
   // like "a.B::f()"
-  Variable const *lookupPQVariableC(PQName const *name, Env &env, LookupFlags f=LF_NONE) const;
+  Variable *lookupPQVariable(PQName const *name, Env &env, LookupFlags f=LF_NONE);
   EnumType const *lookupPQEnumC(PQName const *name, Env &env, LookupFlags flags) const;
 
   // non-const versions..
-  Variable *lookupVariable(StringRef name, Env &env, LookupFlags f=LF_NONE)
-    { return const_cast<Variable*>(lookupVariableC(name, env, f)); }
   CompoundType *lookupCompound(StringRef name, LookupFlags f=LF_NONE)
     { return const_cast<CompoundType*>(lookupCompoundC(name, f)); }
   EnumType *lookupEnum(StringRef name, Env &env, LookupFlags f=LF_NONE)
     { return const_cast<EnumType*>(lookupEnumC(name, env, f)); }
-  Variable *lookupPQVariable(PQName const *name, Env &env, LookupFlags f=LF_NONE)
-    { return const_cast<Variable*>(lookupPQVariableC(name, env, f)); }
 
   // for iterating over the variables
   StringRefMap<Variable>::Iter getVariableIter() const
@@ -294,20 +290,11 @@ public:      // funcs
     { return variables.get(name); }
 
   // extended interface for returning sets
-  Variable const *lookupVariableC_set
-    (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags) const;
-  Variable const *lookupPQVariableC_set
-    (LookupSet &candidates, PQName const *name,
-     Env &env, LookupFlags flags) const;
-
-  // oy ..
   Variable *lookupVariable_set
-    (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags)
-    { return const_cast<Variable*>(lookupVariableC_set(candidates, name, env, flags)); }
+    (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags);
   Variable *lookupPQVariable_set
     (LookupSet &candidates, PQName const *name,
-     Env &env, LookupFlags flags) const
-    { return const_cast<Variable*>(lookupPQVariableC_set(candidates, name, env, flags)); }
+     Env &env, LookupFlags flags);
 
 
   // if this scope has a name, return the typedef variable that
