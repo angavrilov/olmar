@@ -336,15 +336,18 @@ void ASTTypeId::print(PrintEnv &env)
 }
 
 // ---------------------- PQName -------------------
-void printTemplateArgumentList(PrintEnv &env, ASTList<TemplateArgument> &args)
+void printTemplateArgumentList(PrintEnv &env, /*fakelist*/TemplateArgument *args)
 {
   int ct=0;
-  FOREACH_ASTLIST_NC(TemplateArgument, args, iter) {
-    if (iter.data()->isTA_templateUsed()) continue;
-    if (ct++ > 0) {
-      env << ", ";
+  while (args) {
+    if (!args->isTA_templateUsed()) {
+      if (ct++ > 0) {
+        env << ", ";
+      }
+      args->print(env);
     }
-    iter.data()->print(env);
+
+    args = args->next;
   }
 }
 
@@ -355,9 +358,9 @@ void PQ_qualifier::print(PrintEnv &env)
   }
 
   env << qualifier;
-  if (targs.isNotEmpty()) {
+  if (templArgs/*isNotEmpty*/) {
     env << "<";
-    printTemplateArgumentList(env, targs);
+    printTemplateArgumentList(env, templArgs);
     env << ">";
   }
   env << "::";
@@ -381,7 +384,7 @@ void PQ_template::print(PrintEnv &env)
   }
 
   env << name << "<";
-  printTemplateArgumentList(env, args);
+  printTemplateArgumentList(env, templArgs);
   env << ">";
 }
 

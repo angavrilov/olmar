@@ -345,7 +345,7 @@ public:      // funcs
                                                              
   // see comments at implementation
   bool matchesPI(TypeFactory &tfac, CompoundType *primary,
-                 SObjList<STemplateArgument> const &args);
+                 ObjList<STemplateArgument> const &args);
 
   // debugging
   void gdb();
@@ -440,15 +440,16 @@ SObjList<STemplateArgument> *cloneSArgs(SObjList<STemplateArgument> &sargs);
 string sargsToString(SObjList<STemplateArgument> const &list);
 inline string sargsToString(ObjList<STemplateArgument> const &list)
   { return sargsToString((SObjList<STemplateArgument> const &)list); }
-string sargsToString(ASTList<TemplateArgument> const &list);
 
-bool containsTypeVariables(SObjList<STemplateArgument> const &args);
+bool containsVariables(SObjList<STemplateArgument> const &args);
+bool containsVariables(ObjList<STemplateArgument> const &args);
+
 bool hasDependentArgs(SObjList<STemplateArgument> const &args);
 
 void copyTemplateArgs(ObjList<STemplateArgument> &dest,
-                      SObjList<STemplateArgument> const &src);
+                      ObjList<STemplateArgument> const &src);
 void copyTemplateArgs(ObjList<STemplateArgument> &dest,
-                      ASTList<TemplateArgument> const &src);
+                      SObjList<STemplateArgument> const &src);
 
 bool equalArgumentLists(TypeFactory &tfac,
                         SObjList<STemplateArgument> const &list1,

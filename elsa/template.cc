@@ -24,26 +24,17 @@ inline SObjList<T>& objToSObjList(ObjList<T> &list)
 
 
 void copyTemplateArgs(ObjList<STemplateArgument> &dest,
+                      ObjList<STemplateArgument> const &src)
+{
+  copyTemplateArgs(dest, objToSObjListC(src));
+}
+
+void copyTemplateArgs(ObjList<STemplateArgument> &dest,
                       SObjList<STemplateArgument> const &src)
 {
   xassert(dest.isEmpty());    // otherwise prepend/reverse won't work
   SFOREACH_OBJLIST(STemplateArgument, src, iter) {
     dest.prepend(new STemplateArgument(*(iter.data())));
-  }
-  dest.reverse();
-}
-
-
-void copyTemplateArgs(ObjList<STemplateArgument> &dest,
-                      ASTList<TemplateArgument> const &src)
-{
-  xassert(dest.isEmpty());    // for prepend/reverse
-  FOREACH_ASTLIST(TemplateArgument, src, iter) {
-    TemplateArgument const *targ = iter.data();
-    if (targ->isTA_templateUsed()) { continue; }
-
-    xassert(targ->sarg.hasValue());
-    dest.prepend(new STemplateArgument(targ->sarg));
   }
   dest.reverse();
 }
@@ -160,12 +151,10 @@ int DependentQType::reprSize() const
 }
 
   
-void traverseTargs(TypeVisitor &vis, ASTList<TemplateArgument> &list)
+void traverseTargs(TypeVisitor &vis, ObjList<STemplateArgument> &list)
 {
-  FOREACH_ASTLIST_NC(TemplateArgument, list, iter) {
-    if (iter.data()->isTA_templateUsed()) continue;
-    
-    iter.data()->sarg.traverse(vis);
+  FOREACH_OBJLIST_NC(STemplateArgument, list, iter) {
+    iter.data()->traverse(vis);
   }
 }
 
@@ -181,12 +170,12 @@ void DependentQType::traverse(TypeVisitor &vis)
   while (name->isPQ_qualifier()) {
     PQ_qualifier *qual = name->asPQ_qualifier();
 
-    traverseTargs(vis, qual->targs);
+    traverseTargs(vis, qual->sargs);
     name = qual->rest;
   }
 
   if (name->isPQ_template()) {
-    traverseTargs(vis, name->asPQ_template()->args);
+    traverseTargs(vis, name->asPQ_template()->sargs);
   }
 }
 
@@ -888,32 +877,21 @@ string sargsToString(SObjList<STemplateArgument> const &list)
 }
 
 
-string sargsToString(ASTList<TemplateArgument> const &list)
-{
-  stringBuilder sb;
-  sb << "<";
-
-  int ct=0;
-  FOREACH_ASTLIST(TemplateArgument, list, iter) {
-    if (ct++ > 0) {
-      sb << ", ";
-    }
-    sb << iter.data()->sarg.toString();
-  }
-
-  sb << ">";
-  return sb;
-}
-
-
-bool containsTypeVariables(SObjList<STemplateArgument> const &args)
+// return true if the semantic template arguments in 'args' are not
+// all concrete
+bool containsVariables(SObjList<STemplateArgument> const &args)
 {
   SFOREACH_OBJLIST(STemplateArgument, args, iter) {
     if (iter.data()->containsVariables()) {
       return true;
     }
   }
-  return false;
+  return false;     // all are concrete
+}
+
+bool containsVariables(ObjList<STemplateArgument> const &args)
+{
+  return containsVariables(objToSObjListC(args));
 }
 
 
@@ -1089,32 +1067,19 @@ int TemplCandidates::compareCandidates(Variable const *left, Variable const *rig
 // section for templates.
 
 
-void Env::initArgumentsFromASTTemplArgs
-  (TemplateInfo *tinfo,
-   ASTList<TemplateArgument> const &templateArgs)
-{
-  xassert(tinfo);
-  copyTemplateArgs(tinfo->arguments, templateArgs);
-}
-
-
-bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
+bool Env::loadBindingsWithExplTemplArgs(Variable *var, ObjList<STemplateArgument> const &args,
                                         MatchTypes &match, InferArgFlags iflags)
 {
   xassert(var->templateInfo());
   xassert(var->templateInfo()->isPrimary());
   xassert(match.getMode() == MatchTypes::MM_BIND);
 
-  ASTListIter<TemplateArgument> argIter(args);
-  if (!argIter.isDone() && argIter.data()->isTA_templateUsed()) {
-    argIter.adv();      // skip TA_templateUsed
-  }
-
+  ObjListIter<STemplateArgument> argIter(args);
   SObjListIterNC<Variable> paramIter(var->templateInfo()->params);
   for (; !paramIter.isDone() && !argIter.isDone();
        paramIter.adv(), argIter.adv()) {
     Variable *param = paramIter.data();
-    TemplateArgument const *arg = argIter.data();
+    STemplateArgument const *arg = argIter.data();
 
     // is the parameter already bound?  this happens e.g. during
     // explicit function instantiation, when the type of the function
@@ -1129,16 +1094,16 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument>
 
     // if so, it should agree with the explicitly provided argument
     if (existing) {
-      if (!existing->equals(arg->sarg)) {
+      if (!existing->equals(*arg)) {
         if (iflags & IA_REPORT_ERRORS) {
           error(stringc << "for parameter `" << param->name
                         << "', inferred argument `" << existing->toString()
-                        << "' does not match supplied argument `" << arg->sarg.toString()
+                        << "' does not match supplied argument `" << arg->toString()
                         << "'");
         }
         return false;
       }
-      else {     
+      else {
         // no need to get down into the (rather messy...) binding code
         // below
         continue;
@@ -1149,21 +1114,18 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument>
     // check for it here.
     //              xassert("Template template parameters are not implemented");
 
-    if (param->hasFlag(DF_TYPEDEF) && arg->isTA_type()) {
-      STemplateArgument *bound = new STemplateArgument;
-      bound->setType(arg->asTA_typeC()->type->getType());
+    if (param->hasFlag(DF_TYPEDEF) && arg->isType()) {
+      STemplateArgument *bound = new STemplateArgument(*arg);
       match.bindings.putTypeVar(param->type->asTypeVariable(), bound);
     }
-    else if (!param->hasFlag(DF_TYPEDEF) && arg->isTA_nontype()) {
-      STemplateArgument *bound = new STemplateArgument;
-      Expression *expr = arg->asTA_nontypeC()->expr;
-      setSTemplArgFromExpr(*bound, expr, 0 /*recursionCount*/);
+    else if (!param->hasFlag(DF_TYPEDEF) && arg->isObject()) {
+      STemplateArgument *bound = new STemplateArgument(*arg);
       match.bindings.putObjVar(param, bound);
     }
     else {
       // mismatch between argument kind and parameter kind
       char const *paramKind = param->hasFlag(DF_TYPEDEF)? "type" : "non-type";
-      char const *argKind = arg->isTA_type()? "type" : "non-type";
+      char const *argKind = arg->isType()? "type" : "non-type";
       // FIX: make a provision for template template parameters here
 
       // NOTE: condition this upon a boolean flag reportErrors if it
@@ -1172,7 +1134,7 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument>
       // example
       error(stringc
             << "`" << param->name << "' is a " << paramKind
-            << " parameter, but `" << arg->argString() << "' is a "
+            << " parameter, but `" << arg->toString() << "' is a "
             << argKind << " argument",
             EF_STRONG);
       return false;
@@ -1338,7 +1300,7 @@ bool Env::getFuncTemplArgs
   // for templatized ctors (that is, the ctor is templatized, but not
   // necessarily the class)
   if (final && final->isPQ_template()) {
-    if (!loadBindingsWithExplTemplArgs(var, final->asPQ_templateC()->args, match,
+    if (!loadBindingsWithExplTemplArgs(var, final->asPQ_templateC()->sargs, match,
                                        iflags)) {
       return false;
     }
@@ -1749,43 +1711,6 @@ void Env::mapPrimaryArgsToSpecArgs_oneParamList(
     // relationships, this should be safe.
     partialSpecArgs.append(const_cast<STemplateArgument*>(arg));
   }
-}
-
-
-// go over the list of arguments, and extract a list of semantic
-// arguments
-bool Env::templArgsASTtoSTA
-  (ASTList<TemplateArgument> const &arguments,
-   SObjList<STemplateArgument> &sargs)
-{
-  FOREACH_ASTLIST(TemplateArgument, arguments, iter) {
-    // the caller wants me not to modify the list, and I am not going
-    // to, but I need to put non-const pointers into the 'sargs' list
-    // since that's what the interface to 'equalArguments' expects..
-    // this is a problem with const-polymorphism again
-    TemplateArgument *ta = const_cast<TemplateArgument*>(iter.data());
-    
-    if (ta->isTA_templateUsed()) {
-      // skip this, it is not a real argument
-      continue;
-    }
-
-    if (!ta->sarg.hasValue()) {
-      // sm: 7/24/04: This used to be a user error, but I think it should
-      // be an assertion because it is referring to internal implementation
-      // details, not anything the user knows about.
-      //xfailure(stringc << "TemplateArgument has no value " << ta->argString());
-      //
-      // sm: 8/10/04: push reporting/handling obligation back to
-      // caller; this can happen when a template argument has an error
-      // (e.g., refers to an undeclared identifier) (t0245.cc, error 1)
-      return false;
-    }
-    sargs.prepend(&(ta->sarg));     // O(1)
-  }
-  sargs.reverse();                  // O(n)
-  
-  return true;
 }
 
 
@@ -3784,12 +3709,10 @@ Variable *Env::makeExplicitFunctionSpecialization
   // find last component of 'name' so we can see if template arguments
   // are explicitly supplied
   PQ_template *pqtemplate = NULL;
-  SObjList<STemplateArgument> nameArgs;
+  ObjList<STemplateArgument> *nameArgs = NULL;
   if (name->getUnqualifiedName()->isPQ_template()) {
     pqtemplate = name->getUnqualifiedName()->asPQ_template();
-    if (!templArgsASTtoSTA(pqtemplate->args, nameArgs)) {
-      return NULL;       // error already reported
-    }
+    nameArgs = &(pqtemplate->sargs);
   }
 
   // get set of overloaded names (might be singleton)
@@ -3828,7 +3751,8 @@ Variable *Env::makeExplicitFunctionSpecialization
 
       // simultanously iterate over the user's provided arguments,
       // if any, checking for correspondence with inferred arguments
-      SObjListIter<STemplateArgument> nameArgsIter(nameArgs);
+      ObjList<STemplateArgument> empty;
+      ObjListIter<STemplateArgument> nameArgsIter(nameArgs? *nameArgs : empty);
 
       // just use the main (not inherited) parameters...
       SFOREACH_OBJLIST_NC(Variable, primaryTI->params, paramIter) {
@@ -4018,9 +3942,9 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type)
   }
 
   // did the user attach arguments to the name?
-  ASTList<TemplateArgument> *nameArgs = NULL;
+  ObjList<STemplateArgument> *nameArgs = NULL;
   if (name->getUnqualifiedName()->isPQ_template()) {
-    nameArgs = &( name->getUnqualifiedName()->asPQ_template()->args );
+    nameArgs = &( name->getUnqualifiedName()->asPQ_template()->sargs );
   }
 
   // instantiation to eventually return
@@ -4097,7 +4021,7 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type)
 // that for this to work the parameters S and m must already have been
 // associated with a specific (i.e., this) template.
 bool TemplateInfo::matchesPI(TypeFactory &tfac, CompoundType *otherPrimary,
-                             SObjList<STemplateArgument> const &otherArgs)
+                             ObjList<STemplateArgument> const &otherArgs)
 {
   // same template?
   if (getPrimary()->var != otherPrimary->typedefVar) {
@@ -4108,7 +4032,7 @@ bool TemplateInfo::matchesPI(TypeFactory &tfac, CompoundType *otherPrimary,
   // type variables that correspond to my parameters
   if (isPrimary()) {
     int ct = -1;
-    SFOREACH_OBJLIST(STemplateArgument, otherArgs, iter) {
+    FOREACH_OBJLIST(STemplateArgument, otherArgs, iter) {
       ct++;
       Variable *argVar = NULL;
 
@@ -4150,7 +4074,7 @@ bool TemplateInfo::matchesPI(TypeFactory &tfac, CompoundType *otherPrimary,
 
   // not a primary; we are a specialization; check against arguments
   // to primary
-  return equalArgumentLists(tfac, objToSObjListC(argumentsToPrimary), otherArgs);
+  return equalArgumentLists(tfac, argumentsToPrimary, otherArgs);
 }
   
      

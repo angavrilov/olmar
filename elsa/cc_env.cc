@@ -1563,27 +1563,12 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
 }
 
                                                                  
-// return true if the semantic template arguments in 'args' are not
-// all concrete
-bool containsVariables(ASTList<TemplateArgument> const &args)
-{
-  FOREACH_ASTLIST(TemplateArgument, args, iter) {
-    if (iter.data()->isTA_templateUsed()) continue;
-
-    if (iter.data()->sarg.containsVariables()) {
-      return true;
-    }
-  }
-  return false;     // all are concrete
-}
-
-
 // select either the primary or one of the specializations, based
 // on the supplied arguments; these arguments will likely contain
 // type variables; e.g., given "T*", select specialization C<T*>;
 // return NULL if no matching definition found
 Variable *Env::getPrimaryOrSpecialization
-  (TemplateInfo *tinfo, SObjList<STemplateArgument> const &sargs)
+  (TemplateInfo *tinfo, ObjList<STemplateArgument> const &sargs)
 {
   // check that the template scope from which the (otherwise) free
   // variables of 'sargs' are drawn is all the same scope, and
@@ -1598,7 +1583,7 @@ Variable *Env::getPrimaryOrSpecialization
   // So I'm just going to test that 'sargs' consists entirely
   // of toplevel type variables, which isn't exactly right ...
   bool allToplevelVars = true;
-  SFOREACH_OBJLIST(STemplateArgument, sargs, argIter) {
+  FOREACH_OBJLIST(STemplateArgument, sargs, argIter) {
     STemplateArgument const *arg = argIter.data();
 
     if (arg->isType()) {
@@ -1619,7 +1604,7 @@ Variable *Env::getPrimaryOrSpecialization
   // specialization?
   SFOREACH_OBJLIST_NC(Variable, tinfo->specializations, iter) {
     Variable *spec = iter.data();
-    if (spec->templateInfo()->equalArguments(tfac, sargs)) {
+    if (spec->templateInfo()->equalArguments(tfac, objToSObjListC(sargs))) {
       return spec;
     }
   }
@@ -1658,8 +1643,8 @@ Scope *Env::lookupOneQualifier(
   }
 
   // refine using the arguments, and yield a Scope
-  return lookupOneQualifier_useArgs(qualVar, qualifier->targs, dependent, 
-                                    anyTemplates, lflags);
+  return lookupOneQualifier_useArgs(qualVar, qualifier->sargs,
+                                    dependent, anyTemplates, lflags);
 }
 
 
@@ -1675,7 +1660,7 @@ Variable *Env::lookupOneQualifier_bareName(
   if (!qual) {      // i.e. "::" qualifier
     // should be syntactically impossible to construct bare "::"
     // with template arguments
-    xassert(qualifier->targs.isEmpty());
+    xassert(qualifier->sargs.isEmpty());
 
     // this is a reference to the global scope
     return globalScopeVar;
@@ -1723,7 +1708,7 @@ Variable *Env::lookupOneQualifier_bareName(
 // Second half of 'lookupOneQualifier': use the template args.
 Scope *Env::lookupOneQualifier_useArgs(
   Variable *qualVar,                // bare name scope Variable
-  ASTList<TemplateArgument> const &targs, // template args to apply
+  ObjList<STemplateArgument> const &sargs, // template args to apply
   bool &dependent,                  // set to true if we have to look inside a TypeVariable
   bool &anyTemplates,               // set to true if we look in uninstantiated templates
   LookupFlags lflags)
@@ -1763,12 +1748,12 @@ Scope *Env::lookupOneQualifier_useArgs(
     // This is the same check as below in lookupPQVariable; why
     // is the mechanism duplicated?  It seems my scope lookup
     // code should be a special case of general variable lookup..
-    if (qualVar->hasFlag(DF_SELFNAME) && targs.isEmpty()) {
+    if (qualVar->hasFlag(DF_SELFNAME) && sargs.isEmpty()) {
       // it's a reference to the class I'm in (testcase: t0168.cc)
     }
 
     // check template argument compatibility
-    else if (targs.isNotEmpty()) {
+    else if (sargs.isNotEmpty()) {
       if (!ct->isTemplate()) {
         error(stringc
           << "class `" << qual << "' isn't a template");
@@ -1776,20 +1761,8 @@ Scope *Env::lookupOneQualifier_useArgs(
       }   
 
       else {
-        // TODO: maybe put this back in
-        //ct = checkTemplateArguments(ct, qualifier->targs);
-        // UPDATE: dsw: I think the code below will fail if this is
-        // has not been done, so I typecheck the PQName now in
-        // Declarator::mid_tcheck() before this is called
-
-        // obtain a list of semantic arguments
-        SObjList<STemplateArgument> sargs;
-        if (!templArgsASTtoSTA(targs, sargs)) {
-          return ct;      // error already reported; recovery: use primary
-        }
-
         if ((lflags & LF_DECLARATOR) &&
-            containsVariables(targs)) {    // fix t0185.cc?  seems to...
+            containsVariables(sargs)) {    // fix t0185.cc?  seems to...
           // Since we're in a declarator, the template arguments are
           // being supplied for the purpose of denoting an existing
           // template primary or specialization, *not* to cause
@@ -1822,7 +1795,7 @@ Scope *Env::lookupOneQualifier_useArgs(
             // 8/07/04: I think the test above, 'containsVariables',
             // has resolved this issue.
             error(stringc << "cannot find template primary or specialization `"
-                          << qual << targsToString(targs) << "'",
+                          << qual << sargsToString(sargs) << "'",
                   EF_DISAMBIGUATES);
             return ct;     // recovery: use the primary
           }
@@ -1832,7 +1805,7 @@ Scope *Env::lookupOneQualifier_useArgs(
 
         // if the template arguments are not concrete, then this is
         // a dependent name, e.g. "C<T>::foo"
-        if (containsVariables(targs)) {
+        if (containsVariables(sargs)) {
           // 2005-03-07: I think this little mechanism might obviate
           // a number of DF_SELFNAME hacks running around... but I am
           // not going to try removing them just yet.
@@ -1856,31 +1829,6 @@ Scope *Env::lookupOneQualifier_useArgs(
         ensureCompleteType("use as qualifier", inst->type);
 
         ct = inst->type->asCompoundType();
-
-        // NOTE: don't delete this yet.  If you replace the above code
-        // with this code, then in/t0216.cc should fail, but it
-        // doesn't.  There is an assertion in Variable
-        // *Env::lookupPQVariable(PQName const *name, LookupFlags
-        // flags, Scope *&scope) right after the (only) call to
-        // lookupPQVariable_internal() that should fail for
-        // in/t0216.cc but 1) it doesn't anyway, something I don't
-        // understand, since the lookup to foo() at the bottom of
-        // t0216.cc doesn't find the instantiated one, and 2) other
-        // tests fail that assertion also.
-//          SObjList<STemplateArgument> qsargs;
-//          templArgsASTtoSTA(qualifier->targs, qsargs);
-//          // this reinterpret_cast trick seems to be what Scott wants
-//          // for this lack of owner/serf polymorphism problem
-//          xassert(ct->templateInfo()->isPrimary());
-//          Variable *inst = getInstThatMatchesArgs
-//            (ct->templateInfo(), reinterpret_cast<ObjList<STemplateArgument>&>(qsargs));
-//          if (inst) {
-//            ct = inst->type->asCompoundType();
-//          }
-//          // otherwise, we just stay with the primary.
-//          // FIX: in that case, we should assert that the args all match
-//          // what they would if they were for a primary; such as a
-//          // typevar arg for a type template parameter
       }
     }
 
@@ -1900,7 +1848,7 @@ Scope *Env::lookupOneQualifier_useArgs(
 
   // case 2: qualifier refers to a namespace
   else /*DF_NAMESPACE*/ {
-    if (targs.isNotEmpty()) {
+    if (sargs.isNotEmpty()) {
       error(stringc << "namespace `" << qual << "' can't accept template args");
     }
 
@@ -2137,23 +2085,17 @@ Variable *Env::applyPQNameTemplateArguments
       // apply the template arguments to yield a new type based
       // on the template
 
-      // obtain a list of semantic arguments
-      PQ_template const *tqual = final->asPQ_templateC();
-      SObjList<STemplateArgument> sargs;
-      if (!templArgsASTtoSTA(tqual->args, sargs)) {
-        return NULL;       // error already reported
-      }
-
       // if the template arguments are not concrete, then create
       // a PseudoInstantiation
-      if (containsTypeVariables(sargs)) {
+      PQ_template const *tqual = final->asPQ_templateC();
+      if (containsVariables(tqual->sargs)) {
         PseudoInstantiation *pi =
-          createPseudoInstantiation(var->type->asCompoundType(), tqual->args);
+          createPseudoInstantiation(var->type->asCompoundType(), tqual->sargs);
         xassert(pi->typedefVar);
         return pi->typedefVar;
       }
 
-      return instantiateClassTemplate(loc(), var, sargs);
+      return instantiateClassTemplate(loc(), var, tqual->sargs);
     }
     else {                    // template function
       xassert(var->isTemplateFunction());
@@ -2167,14 +2109,7 @@ Variable *Env::applyPQNameTemplateArguments
       else {
         // hope that all of the arguments have been supplied
         xassert(var->templateInfo()->isPrimary());
-
-        // make a list of semantic template args
-        SObjList<STemplateArgument> sargs;
-        if (!templArgsASTtoSTA(final->asPQ_templateC()->args, sargs)) {
-          return NULL;      // error already reporeted
-        }
-
-        return instantiateFunctionTemplate(loc(), var, sargs);
+        return instantiateFunctionTemplate(loc(), var, final->asPQ_templateC()->sargs);
       }
     }
   }
@@ -3600,11 +3535,10 @@ E_intLit *Env::buildIntegerLiteralExp(int i)
 }
 
 
-#if 0    // not needed, right?
 // create a PseudoInstantiation, bind its arguments, and create
 // the associated typedef variable
 PseudoInstantiation *Env::createPseudoInstantiation
-  (CompoundType *ct, SObjList<STemplateArgument> const &args)
+  (CompoundType *ct, ObjList<STemplateArgument> const &args)
 {
   TRACE("pseudo", "creating " << ct->name << sargsToString(args));
 
@@ -3612,32 +3546,10 @@ PseudoInstantiation *Env::createPseudoInstantiation
   PseudoInstantiation *pi = new PseudoInstantiation(ct);
 
   // attach the template arguments
-  SFOREACH_OBJLIST(STemplateArgument, args, iter) {
+  FOREACH_OBJLIST(STemplateArgument, args, iter) {
     pi->args.prepend(new STemplateArgument(*(iter.data())));
   }
   pi->args.reverse();
-
-  // make the typedef var; do *not* add it to the environment
-  pi->typedefVar = makeVariable(loc(), ct->name, makeType(loc(), pi),
-                                DF_TYPEDEF | DF_IMPLICIT);
-
-  return pi;
-}
-#endif // 0
-
-
-// create a PseudoInstantiation, bind its arguments, and create
-// the associated typedef variable
-PseudoInstantiation *Env::createPseudoInstantiation
-  (CompoundType *ct, ASTList<TemplateArgument> const &args)
-{
-  TRACE("pseudo", "creating " << ct->name << sargsToString(args));
-
-  // make the object itself
-  PseudoInstantiation *pi = new PseudoInstantiation(ct);
-
-  // attach the template arguments
-  copyTemplateArgs(pi->args, args);
 
   // make the typedef var; do *not* add it to the environment
   pi->typedefVar = makeVariable(loc(), ct->name, makeType(loc(), pi),
@@ -4261,7 +4173,7 @@ Type *Env::resolveDQTs_atomic(SourceLoc loc, AtomicType *t)
   // Is there a template definition whose primary is
   // 'firstPI->primary' somewhere on the scope stack?
   CompoundType *scopeCt = 
-    getMatchingTemplateInScope(firstPI->primary, objToSObjListC(firstPI->args));
+    getMatchingTemplateInScope(firstPI->primary, firstPI->args);
   if (scopeCt) {
     // re-start lookup from 'scopeCt'
     LookupSet set;
@@ -4284,7 +4196,7 @@ Type *Env::resolveDQTs_atomic(SourceLoc loc, AtomicType *t)
 
 // given 'C' and '<T>', check if it 'C<T>' is already in scope
 CompoundType *Env::getMatchingTemplateInScope
-  (CompoundType *primary, SObjList<STemplateArgument> const &sargs)
+  (CompoundType *primary, ObjList<STemplateArgument> const &sargs)
 {
   FOREACH_OBJLIST(Scope, scopes, iter) {
     // filter for scopes that are template definitions
@@ -4342,18 +4254,14 @@ string Env::unsearchedDependentBases()
 
 
 // ---------------- new lookup mechanism --------------------
-bool sameArguments(ASTList<TemplateArgument> const &args1,
+bool sameArguments(ObjList<STemplateArgument> const &args1,
                    ObjList<STemplateArgument> const &args2)
 {
-  ASTListIter<TemplateArgument> iter1(args1);
+  ObjListIter<STemplateArgument> iter1(args1);
   ObjListIter<STemplateArgument> iter2(args2);
 
-  if (!iter1.isDone() && iter1.data()->isTA_templateUsed()) {
-    iter1.adv();
-  }
-
   for (; !iter1.isDone() && !iter2.isDone(); iter1.adv(), iter2.adv()) {
-    STemplateArgument const &sarg1 = iter1.data()->sarg;
+    STemplateArgument const &sarg1 = *(iter1.data());
     STemplateArgument const &sarg2 = *(iter2.data());
 
     if (!sarg1.equals(sarg2)) {
@@ -4409,7 +4317,7 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
       // (in/t0425.cc) (in/0428.cc)
       if (svar &&
           svar->hasFlag(DF_SELFNAME) &&
-          qual->targs.isNotEmpty()) {
+          qual->sargs.isNotEmpty()) {
         if (svar->type->isCompoundType()) {
           // have to go via the CompoundType because the DF_SELFNAME
           // may not have templateInfo
@@ -4426,7 +4334,7 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
           // template, not a generic dependent type; this is important
           // because we may need to get a more precise type for
           // decl-defn matching
-          if (sameArguments(qual->targs, pi->args)) {
+          if (sameArguments(qual->sargs, pi->args)) {
             scope = svar->scope;    // selfname -> container
             goto bottom_of_loop;    // ...
           }
@@ -4438,7 +4346,7 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
     
       // interpret 'var', apply template args, etc. (legacy call)
       bool dependent=false, anyTemplates=false;
-      scope = lookupOneQualifier_useArgs(svar, qual->targs, dependent,
+      scope = lookupOneQualifier_useArgs(svar, qual->sargs, dependent,
                                          anyTemplates, flags);
 
       // dependent qualified name: if a variable, just yield
@@ -4453,15 +4361,15 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
         }
 
         else if (svar->type->isCompoundType()) {
-          xassert(containsVariables(qual->targs));  // otherwise why dependent?
+          xassert(containsVariables(qual->sargs));  // otherwise why dependent?
 
           // build DependentQType PseudoInstantiation(svar, qual->targs)::...
           CompoundType *ct = svar->type->asCompoundType();
-          dqt = new DependentQType(createPseudoInstantiation(ct, qual->targs));
+          dqt = new DependentQType(createPseudoInstantiation(ct, qual->sargs));
         }
 
         else if (svar->type->isNamedAtomicType()) {
-          if (qual->targs.isNotEmpty()) {
+          if (qual->sargs.isNotEmpty()) {
             error(name->loc, stringc     // t0265.cc error 1
               << "cannot apply template arguments to `" << qual->qualifier << "'",
               EF_STRONG);
@@ -4725,7 +4633,7 @@ void Env::checkTemplateKeyword(PQName *name)
 {
   bool templateUsed = name->templateUsed();
   bool hasTemplArgs = name->isPQ_template() ||
-                      (name->isPQ_qualifier() && name->asPQ_qualifier()->targs.isNotEmpty());
+                      (name->isPQ_qualifier() && name->asPQ_qualifier()->sargs.isNotEmpty());
 
   // we only need to check for one kind of mismatch, because the
   // other kind is rejected by the parser
@@ -4792,7 +4700,7 @@ PQName *Env::makeQualifiedName(Scope *s, PQName *name)
     // construct the list of template arguments; we must rebuild them
     // instead of using templateInfo->arguments directly, because the
     // TS_names that are used in the latter might not be in scope here
-    ASTList<TemplateArgument> *targs = makeTemplateArgs(ti);
+    /*fakelist*/TemplateArgument *targs = makeTemplateArgs(ti);
 
     // cons a template-id qualifier on to the front
     return new PQ_qualifier(loc(), typedefVar->name, targs, name);
@@ -4805,15 +4713,16 @@ PQName *Env::makeQualifiedName(Scope *s, PQName *name)
 
 
 // construct the list of template arguments
-ASTList<TemplateArgument> *Env::makeTemplateArgs(TemplateInfo *ti)
+/*fakelist*/TemplateArgument *Env::makeTemplateArgs(TemplateInfo *ti)
 {
-  ASTList<TemplateArgument> *targs = new ASTList<TemplateArgument>;
+  // will build the reversed list first
+  TemplateArgument *targs = NULL;
 
   FOREACH_OBJLIST(STemplateArgument, ti->arguments, iter) {
     STemplateArgument const *sarg = iter.data();
     if (sarg->kind == STemplateArgument::STA_TYPE) {
       // pull out the Type, then build a new ASTTypeId for it
-      targs->append(new TA_type(buildASTTypeId(sarg->getType())));
+      targs = new TA_type(targs, buildASTTypeId(sarg->getType()));
     }
     else {
       // will make an Expr node; put it here
@@ -4838,10 +4747,15 @@ ASTList<TemplateArgument> *Env::makeTemplateArgs(TemplateInfo *ti)
       }
 
       // put the expr in a TA_nontype
-      targs->append(new TA_nontype(e));
+      targs = new TA_nontype(targs, e);
     }
   }
-  return targs;
+
+  // get the un-reversed version
+  FakeList<TemplateArgument> *ret = FakeList<TemplateArgument>::makeList(targs);
+  ret = ret->reverse();
+
+  return ret->first();
 }
 
 

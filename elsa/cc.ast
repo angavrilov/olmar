@@ -188,10 +188,17 @@ class PQName(SourceLoc loc) {
   // true if the 'template' keyword was used in this part of the name
   public bool templateUsed() const;
 
+  // The reason for the "/*fakelist*/TemplateArgument" stuff is that
+  // those fields are treated like lists, but I want to hide their
+  // fake-list-ness from astgen.  Instead, astgen will print and
+  // traverse using the 'next' fields in the TemplateArguments
+  // directly (and if I did not hide the fake-list-ness, these things
+  // would be done twice).
+
   // outer qualifier applied to some inner PQName, plus an optional
   // list of template arguments to the qualifier
   -> PQ_qualifier(StringRef /*nullable*/qualifier,
-                  ASTList<TemplateArgument> targs,
+                  /*fakelist*/TemplateArgument templArgs,
                   PQName rest);
 
   // final name, when it's an ordinary identifier
@@ -205,7 +212,7 @@ class PQName(SourceLoc loc) {
 
   // template instances: a template function or class name, plus
   // some template arguments
-  -> PQ_template(StringRef name, ASTList<TemplateArgument> args);
+  -> PQ_template(StringRef name, /*fakelist*/TemplateArgument templArgs);
 }
 
 
@@ -704,10 +711,18 @@ class TemplateParameter (SourceLoc loc) {
 
 
 // one of the arguments to a template instantiation
-class TemplateArgument {
+class TemplateArgument(TemplateArgument next) {
   // NOTE: At one point TemplateArguments were connected with a
   // FakeList, but it turns out that interacts badly with failing
   // parses (in/t0179.cc), and the fix is to use ASTLists instead.
+  //
+  // 2005-03-13: Trying again with FakeLists... as an experiment, I
+  // will make 'next' a ctor parameter.  Ok, this is working, but one
+  // unfortunate side effect is that 'next' is passed and printed
+  // before the info associated with 'this' object, so lists are
+  // printed (and visited) in reverse order.  I think a good fix would
+  // be to add an astgen feature to mark a ctor parameter as 'last',
+  // so it would appear after the subclass parameters in all orders.
 
   // ambiguity link
   public TemplateArgument *ambiguity = NULL;
@@ -740,11 +755,6 @@ class TemplateArgument {
   // classes, saves a little space in the common case, and avoids
   // cluttering creation sites with "false /*templateUsed*/".
   -> TA_templateUsed();
-}
-
-verbatim {
-  // render template arguments between angle brackets
-  string targsToString(ASTList<TemplateArgument> const &list);
 }
 
 

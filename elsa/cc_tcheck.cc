@@ -928,13 +928,54 @@ Type *ASTTypeId::getType() const
 
 
 // ---------------------- PQName -------------------
-void tcheckTemplateArgumentList(ASTList<TemplateArgument> &list, Env &env)
+// The given 'src' is a DAG of 'ambiguity' and 'next' links encoding
+// all possible ways to interpret some syntax as a list of template
+// arguments.  We must pick one such list and store the interpreted
+// arguments in 'dest'.  The strategy is to check the arguments in
+// order, and follow the 'next' link only of the chosen argument at
+// each step.
+bool tcheckTemplateArgumentList(ObjList<STemplateArgument> &dest,
+                                TemplateArgument *&src, Env &env)
 {
-  // loop copied/modified from S_compound::itcheck
-  FOREACH_ASTLIST_NC(TemplateArgument, list, iter) {
-    // have to potentially change the list nodes themselves
-    iter.setDataLink( iter.data()->tcheck(env) );
+  bool ret = true;
+
+  // normally I would expect 'dest' to be empty, but apparently we
+  // sometimes tcheck PQNames more than once (maybe due to ambiguities
+  // higher up?), and so I will just throw away any previous
+  // results....
+  dest.deleteAll();
+
+  // keep track of the previous node in the list, so we can string
+  // together the final disambiguated sequence
+  TemplateArgument **prev = &src;
+
+  TemplateArgument *ta = *prev;
+  while (ta) {
+    if (!ta->isTA_templateUsed()) {
+      // disambiguate and check 'ta', putting its final result
+      // into 'sarg'
+      STemplateArgument *sarg = new STemplateArgument;
+      ta = ta->tcheck(env, *sarg);
+      if (!sarg->hasValue()) {
+        ret = false;        // some kind of error
+      }
+
+      // remember 'sarg' (in wrong order, will fix below)
+      dest.prepend(sarg);
+    }
+
+    // string up the chosen one
+    xassert(ta->ambiguity == NULL);     // these links should all be cut now
+    *prev = ta;
+
+    // follow the 'next' link in 'ta', as it was the chosen one
+    prev = &(ta->next);
+    ta = *prev;
   }
+
+  // fix the order of 'dest'
+  dest.reverse();
+  return ret;
 }
 
 void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
@@ -945,7 +986,7 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
     // E_fieldAcc.  So, my plan is to specify LF_NO_DENOTED_SCOPE
     // before tchecking PQNames in contexts where I do not need the
     // denotedScopeVar.
-    tcheckTemplateArgumentList(targs, env);
+    tcheckTemplateArgumentList(sargs, templArgs, env);
     rest->tcheck(env, scope, lflags);
     return;
   }
@@ -953,7 +994,7 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
   if (lflags & LF_DEPENDENT) {
     // the previous qualifier was dependent (and in fact erroneous);
     // do truncated processing here
-    tcheckTemplateArgumentList(targs, env);
+    tcheckTemplateArgumentList(sargs, templArgs, env);
     denotedScopeVar = env.dependentVar;
     rest->tcheck(env, scope, lflags);
     return;
@@ -963,15 +1004,14 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
   Variable *bareQualifierVar = env.lookupOneQualifier_bareName(scope, this, lflags);
 
   // now check the arguments
-  tcheckTemplateArgumentList(targs, env);
-
-  // pull them out into a list
-  SObjList<STemplateArgument> sargs;
-  if (!env.templArgsASTtoSTA(targs, sargs)) {
+  if (!tcheckTemplateArgumentList(sargs, templArgs, env)) {
     // error already reported; just finish up and bail
     rest->tcheck(env, scope, lflags);
     return;
   }
+  
+  // convenient name for serf-ified list
+  SObjList<STemplateArgument> const &ssargs = objToSObjListC(sargs);
 
   // scope that has my template params
   Scope *hasParamsForMe = NULL;
@@ -979,7 +1019,7 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
   if ((lflags & LF_DECLARATOR) &&                // declarator context
       bareQualifierVar &&                        // lookup succeeded
       bareQualifierVar->isTemplate() &&          // names a template
-      targs.isNotEmpty()) {                      // arguments supplied
+      sargs.isNotEmpty()) {                      // arguments supplied
     // In a template declarator context, we want to stage the use of
     // the template parameters so as to ensure proper association
     // between parameters and qualifiers.  For example, if we have
@@ -1004,8 +1044,8 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
     //   - they correspond to an explicit specialization
     //   - then "template <>" is *not* used (for that class)
     // t0248.cc tests a couple cases...
-    if (!containsTypeVariables(sargs) &&
-        bareQualifierVar->templateInfo()->getSpecialization(env.tfac, sargs)) {
+    if (!containsVariables(ssargs) &&
+        bareQualifierVar->templateInfo()->getSpecialization(env.tfac, ssargs)) {
       // do not associate 'bareQualifier' with any template scope
     }
     else {
@@ -1018,7 +1058,7 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
   bool anyTemplates;        // will be ignored
   Scope *denotedScope = env.lookupOneQualifier_useArgs(
     bareQualifierVar,       // scope found w/o using args
-    targs,                  // template args
+    sargs,                  // template args
     dependent, anyTemplates, lflags);
 
   // save the result in our AST annotation field, 'denotedScopeVar'
@@ -1071,7 +1111,7 @@ void PQ_operator::tcheck(Env &env, Scope *, LookupFlags)
 
 void PQ_template::tcheck(Env &env, Scope *, LookupFlags lflags)
 {                             
-  tcheckTemplateArgumentList(args, env);
+  tcheckTemplateArgumentList(sargs, templArgs, env);
 }
 
 
@@ -1330,12 +1370,12 @@ CompoundType *checkClasskeyAndName(
     env.scope()->hasTemplateParams()? &(env.scope()->templateParams) : NULL;
 
   // template args?
-  ASTList<TemplateArgument> *templateArgs = NULL;
+  ObjList<STemplateArgument> *templateArgs = NULL;
   if (name) {
     PQName *unqual = name->getUnqualifiedName();
     if (unqual->isPQ_template()) {
       // get the arguments
-      templateArgs = &(unqual->asPQ_template()->args);
+      templateArgs = &(unqual->asPQ_template()->sargs);
     }
   }
 
@@ -1423,14 +1463,9 @@ CompoundType *checkClasskeyAndName(
       return NULL;
     }
 
-    // get the template arguments
-    SObjList<STemplateArgument> sargs;
-    if (!env.templArgsASTtoSTA(*templateArgs, sargs)) {
-      return NULL;         // already reported the error
-    }
-
     // does this specialization already exist?
-    Variable *spec = primaryTI->getSpecialization(env.tfac, sargs);
+    SObjList<STemplateArgument> const &ssargs = objToSObjListC(*templateArgs);
+    Variable *spec = primaryTI->getSpecialization(env.tfac, ssargs);
     if (spec) {
       ct = spec->type->asCompoundType();
     }
@@ -1517,11 +1552,7 @@ CompoundType *checkClasskeyAndName(
 
     // making a template specialization
     else {
-      // get the template arguments (again)
-      SObjList<STemplateArgument> sargs;
-      if (!env.templArgsASTtoSTA(*templateArgs, sargs)) {
-        xfailure("what what what?");     // already got them above!
-      }
+      SObjList<STemplateArgument> const &ssargs = objToSObjListC(*templateArgs);
 
       // make a new type, since a specialization is a distinct template
       // [cppstd 14.5.4 and 14.7]; but don't add it to any scopes
@@ -1539,13 +1570,13 @@ CompoundType *checkClasskeyAndName(
       // 'makeNewCompound' will already have put the template *parameters*
       // into 'specialTI', but not the template arguments
       TemplateInfo *ctTI = ct->templateInfo();
-      ctTI->copyArguments(sargs);
+      ctTI->copyArguments(ssargs);
       
       // fix the self-type arguments (only if partial inst)
       if (ct->selfType->isPseudoInstantiation()) {
         PseudoInstantiation *selfTypePI = ct->selfType->asPseudoInstantiation();
         selfTypePI->args.deleteAll();
-        copyTemplateArgs(selfTypePI->args, sargs);
+        copyTemplateArgs(selfTypePI->args, ssargs);
       }
 
       // synthesize an instName to aid in debugging
@@ -3037,8 +3068,8 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // which might not be right.
     if (getDeclaratorId() &&
         getDeclaratorId()->isPQ_template()) {
-      env.initArgumentsFromASTTemplArgs(var->templateInfo(),
-                                        getDeclaratorId()->asPQ_templateC()->args);
+      copyTemplateArgs(var->templateInfo()->arguments, 
+                       getDeclaratorId()->asPQ_templateC()->sargs);
     }
   }
   
@@ -5416,7 +5447,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
         // initialize the bindings with those explicitly provided
         MatchTypes match(env.tfac, MatchTypes::MM_BIND, Type::EF_DEDUCTION);
         if (targs) {
-          if (!env.loadBindingsWithExplTemplArgs(v, targs->args, match, iflags)) {
+          if (!env.loadBindingsWithExplTemplArgs(v, targs->sargs, match, iflags)) {
             mut.remove();
             lastRemovalReason = "incompatible explicit template args";
             continue;
@@ -5981,7 +6012,7 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
       }
       xassert(secondLast);
 
-      if (secondLast->targs.isNotEmpty()) {
+      if (secondLast->sargs.isNotEmpty()) {
         return env.error(fieldName->loc, "cannot have templatized qualifier as "
           "second-to-last element of RHS of . or -> when LHS is not a class");
       }
@@ -7871,53 +7902,42 @@ void TP_nontype::tcheck(Env &env, SObjList<Variable> &tparams)
 
 
 // -------------------- TemplateArgument ------------------
-TemplateArgument *TemplateArgument::tcheck(Env &env)
+TemplateArgument *TemplateArgument::tcheck(Env &env, STemplateArgument &sarg)
 {
-  int dummy;
   if (!ambiguity) {
     // easy case
-    mid_tcheck(env, dummy);
+    mid_tcheck(env, sarg);
     return this;
   }
 
   // generic resolution: whatever tchecks is selected
-  return resolveAmbiguity(this, env, "TemplateArgument", false /*priority*/, dummy);
+  return resolveAmbiguity(this, env, "TemplateArgument", false /*priority*/, sarg);
 }
 
+void TemplateArgument::mid_tcheck(Env &env, STemplateArgument &sarg)
+{
+  itcheck(env, sarg);
+}
 
-void TA_type::itcheck(Env &env)
+void TA_type::itcheck(Env &env, STemplateArgument &sarg)
 {
   ASTTypeId::Tcheck tc(DF_NONE, DC_TA_TYPE);
   type = type->tcheck(env, tc);
 
   Type *t = type->getType();
-//    if (t->isCVAtomicType() && t->asCVAtomicType()->isTypeVariable()) {
-//      TypeVariable *tv = t->asCVAtomicType()->asTypeVariable();
-//      Variable *v0 = tv->typedefVar;
-//      xassert(v0);
-//      cout << "env.locStr() " << env.locStr()
-//           << " v0->name '" << v0->name
-//           << "' v0->serialNumber " << v0->serialNumber
-//           << endl;
-//    }
-  
-  // dsw: it would be a gratuitious non-orthgonality to guard the
-  // following with a test such as
-  //   if (!t->isTypeVariable())
   sarg.setType(t);
 }
 
-void TA_nontype::itcheck(Env &env)
+void TA_nontype::itcheck(Env &env, STemplateArgument &sarg)
 {
   expr->tcheck(env, expr);
   env.setSTemplArgFromExpr(sarg, expr, 0 /*recursionCount*/);
 }
 
 
-void TA_templateUsed::itcheck(Env &env)
+void TA_templateUsed::itcheck(Env &env, STemplateArgument &sarg)
 {
-  // nothing to do; 'sarg' is already STA_NONE, and the plan is
-  // that no one will ever look at it anyway
+  // nothing to do; leave 'sarg' as STA_NONE
 }
 
 

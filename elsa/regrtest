@@ -312,7 +312,7 @@ testparse t0078.cc
 testparse t0079.cc
 testparse t0080.cc
 testparse t0081.cc
-failparse t0082.cc "grammar hacked to be too restrictive w.r.t. template args"
+testparse t0082.cc
 testparse t0083.cc
 testparse t0084.cc
 testparse t0085.cc
@@ -699,6 +699,7 @@ testparse t0450.cc
 testparse t0451.cc
 testparse t0452.cc
 testparse t0453.cc
+failparse t0454.cc "assertion failure on invalid code"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

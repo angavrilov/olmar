@@ -254,19 +254,39 @@ void ASTTypeId::setNext(ASTTypeId *newNext)
 
 
 // ------------------------ PQName ------------------------
-string targsToString(ASTList<TemplateArgument> const &list)
+string targsToString(ObjList<STemplateArgument> const &sargs,
+                     /*fakelist*/TemplateArgument const *targs)
 {
+  // iterate down both lists
+  ObjListIter<STemplateArgument> siter(sargs);
+  TemplateArgument const *titer = targs/*firstC*/;
+
+  if (titer && titer->isTA_templateUsed()) {
+    titer = titer->next;
+  }
+
   stringBuilder sb;
   sb << "<";
   int ct=0;
-  FOREACH_ASTLIST(TemplateArgument, list, iter) {
-    if (iter.data()->isTA_templateUsed()) continue;
 
+  while (titer) {
     if (ct++ > 0) {
       sb << ", ";
     }
-    sb << iter.data()->argString();
+
+    if (!siter.isDone()) {
+      // use 'siter'
+      sb << siter.data()->toString();
+      siter.adv();
+    }
+    else {
+      // use 'titer'
+      sb << titer->argString();
+    }
+
+    titer = titer->next;
   }
+
   sb << ">";
   return sb;
 }
@@ -327,8 +347,8 @@ StringRef PQ_template::getName() const
 
 string PQ_qualifier::toComponentString() const
 {
-  if (targs.isNotEmpty()) {
-    return stringc << qualifier << targsToString(targs);
+  if (templArgs/*isNotEmpty*/) {
+    return stringc << qualifier << targsToString(sargs, templArgs);
   }
   else if (qualifier) {
     return qualifier;
@@ -353,7 +373,7 @@ string PQ_operator::toComponentString() const
 
 string PQ_template::toComponentString() const
 {
-  return stringc << name << targsToString(args);
+  return stringc << name << targsToString(sargs, templArgs);
 }
 
 
@@ -370,14 +390,14 @@ PQName const *PQName::getUnqualifiedNameC() const
 bool PQName::templateUsed() const
 {
   if (isPQ_qualifier() &&
-      asPQ_qualifierC()->targs.isNotEmpty() &&
-      asPQ_qualifierC()->targs.firstC()->isTA_templateUsed()) {
+      asPQ_qualifierC()->templArgs/*->isNotEmpty()*/ &&
+      asPQ_qualifierC()->templArgs/*->firstC()*/->isTA_templateUsed()) {
     return true;
   }
 
   if (isPQ_template() &&
-      asPQ_templateC()->args.isNotEmpty() &&
-      asPQ_templateC()->args.firstC()->isTA_templateUsed()) {
+      asPQ_templateC()->templArgs/*->isNotEmpty()*/ &&
+      asPQ_templateC()->templArgs/*->firstC()*/->isTA_templateUsed()) {
     return true;
   }
 
@@ -808,17 +828,11 @@ void TemplateArgument::addAmbiguity(TemplateArgument *alt)
 
 string TA_type::argString() const
 {
-  if (!type->decl->var) {
-    return "(un-tchecked-TA_type)";
-  }
-  return type->getType()->toString();
+  return "(un-tchecked-TA_type)";
 }
 
 string TA_nontype::argString() const
 {
-  if (sarg.kind != STemplateArgument::STA_NONE) {
-    return sarg.toString();       // hope to get concrete value like "3"
-  }
   return expr->exprToString();
 }
 
@@ -831,9 +845,4 @@ string TA_templateUsed::argString() const
 }
 
 
-void TemplateArgument::printExtras(ostream &os, int indent) const
-{
-  if (sarg.hasValue()) {
-    ind(os, indent) << "sarg: " << sarg.toString() << "\n";
-  }
-}
+// EOF

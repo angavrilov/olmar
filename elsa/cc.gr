@@ -156,6 +156,11 @@ public:
     }
     return new D_array(loc, base, size);
   }
+  
+  TemplateArgument *templateUsed(TemplateArgument *list)
+  {
+    return new TA_templateUsed(list);
+  }
 };
 
 } // verbatim
@@ -339,8 +344,7 @@ nonterm(PQName*) PQualifiedId {
   //-> "template" n:Identifier "::" id:PQualifiedId
   //     { return new PQ_qualifier(loc, n, NULL /*targs*/, id); }
   -> "template" n:Identifier "<" targs:TemplateArgumentList ">" "::" id:PQualifiedId
-       { targs->prepend(new TA_templateUsed());
-         return new PQ_qualifier(loc, n, targs, id); }
+       { return new PQ_qualifier(loc, n, templateUsed(targs), id); }
 }
 
 
@@ -603,8 +607,7 @@ nonterm(PQName*) NAD1 {
 
   // final names
   -> "template" n:Identifier "<" list:TemplateArgumentListOpt ">"
-       { list->prepend(new TA_templateUsed());
-         return new PQ_template(loc, n, list); }
+       { return new PQ_template(loc, n, templateUsed(list)); }
   -> "~" n:Identifier
        { return new PQ_name(loc, str(stringc << "~" << n)); }
   -> "~" n:Identifier "<" list:TemplateArgumentListOpt ">"
@@ -614,8 +617,7 @@ nonterm(PQName*) NAD1 {
 
   // qualifier name
   -> "template" n:Identifier "<" list:TemplateArgumentListOpt ">" "::" rest:NAD1
-       { list->prepend(new TA_templateUsed());
-         return new PQ_qualifier(loc, n, list, rest); }
+       { return new PQ_qualifier(loc, n, templateUsed(list), rest); }
 }
 
 // can only begin with Identifier or "operator"; this is essentially
@@ -1244,15 +1246,14 @@ nonterm(PQName*) PQTypeName_notfirst {
 
   // template declaration
   -> "template" id:TemplateId       // in/t0254.cc
-       { id->args.prepend(new TA_templateUsed());    // destructive action
+       { id->templArgs = templateUsed(id->templArgs);    // destructive action
          return id; }
 
   // TEMPLATE_QUALIFIER_HACK
   //-> "template" q:Identifier "::" n:PQTypeName_notfirst
   //     { return new PQ_qualifier(loc, q, NULL /*targs*/, n); }
   -> "template" q:Identifier "<" targs:TemplateArgumentList ">" "::" n:PQTypeName_notfirst
-       { targs->prepend(new TA_templateUsed());
-         return new PQ_qualifier(loc, q, targs, n); }
+       { return new PQ_qualifier(loc, q, templateUsed(targs), n); }
 }
 
 
@@ -1477,8 +1478,7 @@ nonterm(PQName*) PQDtorName {
   //-> "template" q:Identifier "::" rhs:PQDtorName
   //     { return new PQ_qualifier(loc, q, NULL /*targs*/, rhs); }
   -> "template" q:Identifier "<" targs:TemplateArgumentList ">" "::" rhs:PQDtorName
-       { targs->prepend(new TA_templateUsed());
-         return new PQ_qualifier(loc, q, targs, rhs); }
+       { return new PQ_qualifier(loc, q, templateUsed(targs), rhs); }
 
   // this rule from cppstd is partially subsumed by the "template" hack
   //-> ColonColonOpt NestedNameSpecifier "template" TemplateId "::" "~" TypeName;
@@ -1828,8 +1828,7 @@ nonterm(PQName*) ClassHeadName {
   //-> "template" n:Identifier "::" rest:ClassHeadName
   //     { return new PQ_qualifier(loc, n, NULL /*targs*/, rest); }
   -> "template" n:Identifier "<" targs:TemplateArgumentList ">" "::" rest:ClassHeadName
-       { targs->prepend(new TA_templateUsed());
-         return new PQ_qualifier(loc, n, targs, rest); }
+       { return new PQ_qualifier(loc, n, templateUsed(targs), rest); }
 }
 
 nonterm(enum TypeIntr) ClassKey {
@@ -2144,8 +2143,7 @@ nonterm(PQName*) MemInitializerId {
   //-> "template" n:Identifier "::" id:MemInitializerId
   //     { return new PQ_qualifier(loc, n, NULL /*targs*/, id); }
   -> "template" n:Identifier "<" targs:TemplateArgumentList ">" "::" id:MemInitializerId
-       { targs->prepend(new TA_templateUsed());
-         return new PQ_qualifier(loc, n, targs, id); }
+       { return new PQ_qualifier(loc, n, templateUsed(targs), id); }
 }
 
 
@@ -2325,12 +2323,8 @@ nonterm(TP_type*) TemplateTypeParameter {
   //-> "template" "<" TemplateParameterList ">" "class" IdentifierOpt "=" IdExpression;
 }
 
-nonterm(ASTList<TemplateArgument>*) TemplateArgumentListOpt {
-  // like below in TemplateArgumentList
-  fun dup(lst) { return shallowCopy(lst);                 }
-  fun del(lst) { lst->removeAll_dontDelete(); delete lst; }
-
-  -> empty                       { return new ASTList<TemplateArgument>; }
+nonterm(/*fakelist*/TemplateArgument*) TemplateArgumentListOpt {
+  -> empty                       { return NULL; }
   -> list:TemplateArgumentList   { return list; }
 }
 
@@ -2354,49 +2348,36 @@ nonterm(PQ_template*) TemplateId {
 
 
   // version with the word "template" in front
-  // 
+  //
   // arg.. this causes some extra ambiguities, see t0255.cc.  since I
   // don't have a testcase that requires this yet, I'll just remove it
   //-> "template" n:Identifier "<" list:TemplateArgumentListOpt ">"
-  //     { list->prepend(new TA_templateUsed());
-  //       return new PQ_template(loc, n, list); }
+  //     { return new PQ_template(loc, n, templateUsed(list)); }
 }
 
-nonterm(ASTList<TemplateArgument>*) TemplateArgumentList {
-  // in some situations (e.g. in/t0179.cc) we might yield a template
-  // argument list more than once, and since yielding it deallocates
-  // the list backbone, this dup/del will compensate
-  fun dup(lst) { return shallowCopy(lst);                 /* duplicate the backbone */ }
-  fun del(lst) { lst->removeAll_dontDelete(); delete lst; /* deallocate the backbone */ }
-
+nonterm(/*fakelist*/TemplateArgument*) TemplateArgumentList {
+  // the list-ness is embedded in TemplateArgument
   -> a:TemplateArgument
-       { return new ASTList<TemplateArgument>(a); }
-  -> list:TemplateArgumentList "," a:TemplateArgument
-       { list->append(a); return list; }
+       { return a; }
+}
+
+nonterm(TemplateArgument*) TemplateArgumentListTailOpt {
+  -> empty                      { return NULL; }
+  -> "," a:TemplateArgument     { return a; }
 }
 
 nonterm(TemplateArgument*) TemplateArgument {
-  // ambiguous due to type/variable name ambiguity
+  // ambiguous due to type/variable name ambiguity, and also
+  // due to angle brackets vs. less-than
   fun merge(L,R) { L->addAmbiguity(R); return L; }
 
   fun keep(n) { return n!=NULL; }
 
-  -> t:TypeId               { return new TA_type(t); }
-  
-  // this is the correct syntax, but t0180.cc doesn't work at the
-  // moment if I allow it
-  //-> e:AssignmentExpression
-    
-  // as an experiment, let's use the g++ approach of only allowing
-  // expressions with toplevel operators above '<', '>' in precedence
-  //
-  // well, the experiment is a success: all ambiguities related to
-  // template arguments are removed!
-  //
-  // it's not correct of course, but fixing it means messing with the
-  // representation of template arguments and I want to wait on that
-  // until Daniel's recent changes are committed
-  -> e:BinExp_high {
+  -> type:TypeId tail:TemplateArgumentListTailOpt
+     { return new TA_type(tail, type); }
+
+  -> e:AssignmentExpression tail:TemplateArgumentListTailOpt
+     {
        if (e->hasUnparenthesizedGT()) {
          // this is the wrong interpretation because template argument
          // expressions aren't allowed to have unparenthesized
@@ -2414,7 +2395,7 @@ nonterm(TemplateArgument*) TemplateArgument {
          return NULL;
        }
        else {
-         return new TA_nontype(e);
+         return new TA_nontype(tail, e);
        }
      }
 

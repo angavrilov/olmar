@@ -845,65 +845,34 @@ bool MatchTypes::match_DQT(DependentQType *a, DependentQType *b,
     }
 
     // compare arguments
-    if (!match_TargLists(aQual->targs, bQual->targs, matchDepth)) {
+    if (!match_Lists(aQual->sargs, bQual->sargs, matchDepth)) {
       return false;
     }
 
     // next name component
     aName = aQual->rest;
     bName = bQual->rest;
-  }                     
-  
+  }
+
   if (aName->kind() != bName->kind()) {
     return false;
   }
-  
+
   if (aName->isPQ_name()) {
     return aName->asPQ_name()->name == bName->asPQ_name()->name;
   }
-                                    
+
   // must be a PQ_template
   PQ_template *aTempl = aName->asPQ_template();
   PQ_template *bTempl = bName->asPQ_template();
-  
+
   if (aTempl->name != bTempl->name) {
     return false;
   }
-  
-  return match_TargLists(aTempl->args, bTempl->args, matchDepth);
+
+  return match_Lists(aTempl->sargs, bTempl->sargs, matchDepth);
 }
 
-
-bool MatchTypes::match_TargLists(ASTList<TemplateArgument> &aList,
-                                 ASTList<TemplateArgument> &bList,
-                                 int matchDepth)
-{
-  ASTListIterNC<TemplateArgument> aIter(aList);
-  ASTListIterNC<TemplateArgument> bIter(bList);
-
-  while (!aIter.isDone() && !bIter.isDone()) {
-    TemplateArgument *sA = aIter.data();
-    if (sA->isTA_templateUsed()) {
-      aIter.adv();
-      continue;
-    }
-
-    TemplateArgument *sB = bIter.data();
-    if (sB->isTA_templateUsed()) {
-      bIter.adv();
-      continue;
-    }
-
-    if (!match_STA(&(sA->sarg), &(sB->sarg), matchDepth)) {
-      return false;
-    }
-
-    aIter.adv();
-    bIter.adv();
-  }
-
-  return aIter.isDone() && bIter.isDone();
-}
 
 // helper function for when we find an int
 bool MatchTypes::unifyIntToVar(int i0, Variable *v1)

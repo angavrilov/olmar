@@ -250,13 +250,13 @@ private:     // funcs
      Scope *&scope);
 
   PseudoInstantiation *createPseudoInstantiation
-    (CompoundType *ct, ASTList<TemplateArgument> const &args);
+    (CompoundType *ct, ObjList<STemplateArgument> const &args);
 
   bool equivalentSignatures(FunctionType *ft1, FunctionType *ft2);
   bool equivalentTypes(Type *t1, Type *t2, Type::EqFlags eflags = Type::EF_EXACT);
 
   Variable *getPrimaryOrSpecialization
-    (TemplateInfo *tinfo, SObjList<STemplateArgument> const &sargs);
+    (TemplateInfo *tinfo, ObjList<STemplateArgument> const &sargs);
 
   bool addVariableToScope(Scope *s, Variable *v, bool forceReplace=false);
 
@@ -411,7 +411,7 @@ public:      // funcs
     LookupFlags lflags);
   Scope *lookupOneQualifier_useArgs(
     Variable *qualVar,
-    ASTList<TemplateArgument> const &targs,
+    ObjList<STemplateArgument> const &sargs,
     bool &dependent,
     bool &anyTemplates,
     LookupFlags lflags);
@@ -640,7 +640,7 @@ public:      // funcs
   // 2005-02-14: partially resurrected
   PQName *makeFullyQualifiedName(Scope *s, PQName *name);
   PQName *makeQualifiedName(Scope *s, PQName *name);
-  ASTList<TemplateArgument> *makeTemplateArgs(TemplateInfo *ti);
+  /*fakelist*/TemplateArgument *makeTemplateArgs(TemplateInfo *ti);
   ASTTypeId *buildASTTypeId(Type *type);
 
   // make an AST node for an integer literal expression
@@ -720,7 +720,7 @@ public:      // funcs
   Type *resolveDQTs(SourceLoc loc, Type *t);
   Type *resolveDQTs_atomic(SourceLoc loc, AtomicType *t);
   CompoundType *getMatchingTemplateInScope
-    (CompoundType *primary, SObjList<STemplateArgument> const &sargs);
+    (CompoundType *primary, ObjList<STemplateArgument> const &sargs);
 
   // ------------ template instantiation stuff ------------
   // the following methods are implemented in template.cc
@@ -781,16 +781,11 @@ private:     // template funcs
     (Variable const *param, STemplateArgumentCMap &map);
 
 public:      // template funcs
-  // initialize the arguments from an AST list of TempateArgument-s
-  void initArgumentsFromASTTemplArgs
-    (TemplateInfo *tinfo,
-     ASTList<TemplateArgument> const &templateArgs);
-
   void setSTemplArgFromExpr
     (STemplateArgument &sarg, Expression *expr, int recursionCount);
   
   // load the bindings with any explicit template arguments; return true if successful
-  bool loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
+  bool loadBindingsWithExplTemplArgs(Variable *var, ObjList<STemplateArgument> const &args,
                                      MatchTypes &match, InferArgFlags iflags);
   // infer template arguments from the function arguments; return true if successful
   bool inferTemplArgsFromFuncArgs(Variable *var,
@@ -820,11 +815,6 @@ public:      // template funcs
   // name + template args + function call args = inst     
   Variable *lookupPQVariable_applyArgsTemplInst
     (Variable *primary, PQName const *name, FakeList<ArgExpression> *funcArgs);
-
-  // return false if some of the arguments had errors
-  bool templArgsASTtoSTA
-    (ASTList<TemplateArgument> const &arguments,
-     SObjList<STemplateArgument> &sargs);
 
   // Given a primary, find the most specific specialization for the
   // given template arguments 'sargs'; for full generality we allow

@@ -11,21 +11,25 @@
 // as large a syntax for non-template arguments
 // (at least for the moment)
 
+// 2005-03-13: can put it back now?
 
-// primary
-//  template <class S, class T>
-//  struct A { /*...*/ };
 
-//  template <class S, int T>
-//  struct Helper1 {};
+namespace N {
+  // primary
+  template <class S, class T>
+  struct A { /*...*/ };
 
-//  typedef int myint;
-//  enum foo { enumerator };
+  template <class S, int T>
+  struct Helper1 {};
 
-// specialization
-//  template <>
-//  struct A<int, Helper1<myint, enumerator<3> >
-//  {};
+  typedef int myint;
+  enum foo { enumerator };
+
+  // specialization
+  template <>
+  struct A<int, Helper1<myint, enumerator<3> >
+  {};
+}
 
 
 // -----------------------------
