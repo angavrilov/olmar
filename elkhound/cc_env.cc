@@ -61,12 +61,20 @@ Env::Env(Env *p)
     intermediates(),
     errors(),
     trialBalloon(false),
-    denv(p->denv),
+    denv(p? p->denv : NULL),
     referenceCt(0)
 {
-  p->referenceCt++;
-  trace("refct") << "created Env at " << this << "; parent is "
-                 << p << " with new refct=" << p->referenceCt << endl;
+  if (p) {
+    p->referenceCt++;
+    trace("refct") << "created Env at " << this << "; parent is "
+                   << p << " with new refct=" << p->referenceCt << endl;
+  }
+  else {
+    // at the moment, this happens when I make the environments
+    // which hold info about struct members .. I will probably
+    // redesign the Env ctors at some point
+    trace("refct") << "created struct interior Env at " << this << endl;
+  }
 }
 
 
@@ -445,7 +453,9 @@ Variable *Env::addVariable(char const *name, DeclFlags flags, Type const *type)
   variables.add(name, var);
 
   // add this to the dataflow environment too (if it wants it)
-  denv->addVariable(var);
+  if (denv) {
+    denv->addVariable(var);
+  }
   
   return var;
 }

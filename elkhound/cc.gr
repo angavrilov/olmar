@@ -444,8 +444,22 @@ nonterm PostfixExpression : ExprBase {
   // field access
   -> p:PostfixExpression "." n:PQVarName {
     fun typeCheck {
+      // check the left side
       Owner<CilExpr> record; record = p.typeCheck(env, inst);
-      Owner<Variable> field; field = n.typeCheck(env);
+
+      // look up its type
+      Type const *type = record->getType(env);
+      if (!( type->isCVAtomicType() &&
+             type->asCVAtomicTypeC().atomic->isCompoundType() )) {
+        throwError("left side of `.' must be a struct");
+      }
+      CompoundType const &ctype =
+        type->asCVAtomicTypeC().atomic->asCompoundTypeC();
+
+      // check the right side in the context of the
+      // struct we just found
+      Owner<Variable> field; field = n.typeCheck(ctype.env);
+
       return newFieldRef(record.xfr(), field.xfr());
     }
   }
@@ -453,9 +467,32 @@ nonterm PostfixExpression : ExprBase {
   // deref + field access
   -> p:PostfixExpression "->" n:PQVarName {
     fun typeCheck {
-      Owner<CilExpr> record; 
-      record = newDeref(p.typeCheck(env, inst));
-      Variable *field = n.typeCheck(env);
+      // check the left side
+      Owner<CilExpr> record; record = p.typeCheck(env, inst);
+
+      // look up its type, expecting a pointer
+      Type const *type = record->getType(env);
+      if (!type->isPointerType()) {
+        throwError(stringc
+          << "left side of `->' (" << record->toString()
+          << ") must be a *pointer* to a struct; its type is "
+          << type->toString());
+      }
+      
+      // deref
+      record = newDeref(record.xfr());
+      type = type->asPointerTypeC().atType;
+
+      // look up the type of the thing it points to
+      if (!( type->isCVAtomicType() &&
+             type->asCVAtomicTypeC().atomic->isCompoundType() )) {
+        throwError("left side of `->' must be a pointer to a *struct*");
+      }
+      CompoundType const &ctype =
+        type->asCVAtomicTypeC().atomic->asCompoundTypeC();
+
+      // check the field in environment of the struct
+      Variable *field = n.typeCheck(ctype.env);
       return newFieldRef(record.xfr(), field);
     }
   }
@@ -2633,7 +2670,7 @@ nonterm ClassSpecifier : HasType ->
       compound = env->lookupOrMakeCompound(name, keyword);
       xassert(compound);
     }
-    compound->makeComplete(env);
+    compound->makeComplete(NULL /*no enclosing env for C structs*/);
 
     // ignore 'base' for now
 

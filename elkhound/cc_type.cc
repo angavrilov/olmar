@@ -65,6 +65,11 @@ AtomicType::~AtomicType()
 {}
 
 
+CAST_MEMBER_IMPL(AtomicType, SimpleType)
+CAST_MEMBER_IMPL(AtomicType, CompoundType)
+CAST_MEMBER_IMPL(AtomicType, EnumType)
+
+
 // ------------------ SimpleType -----------------
 string SimpleType::toString() const
 {

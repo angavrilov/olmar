@@ -41,17 +41,21 @@ void exprs()
 }
 
 
+struct S { int m; };
+
 void lvals()
 {
   int x,y,z;
   int a[3];
+  S s, *sp;
 
   x = y;
   *x = z;
-  x.y = z;      // TODO: fix parser to see the error here
+  s.m = z;
+  sp->m = 5;
   (char)x = z;
   a[1] = y;
-  
+
   // TODO: handle this more gracefully
   //(char)(x+y) = z;
 }

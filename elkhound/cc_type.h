@@ -8,7 +8,17 @@
 #include "str.h"        // string
 #include "objlist.h"    // ObjList
 
+// other files
 class Env;              // cc_env.h
+              
+// fwd in this file
+class SimpleType;
+class CompoundType;
+class EnumType;
+class CVAtomicType;
+class PointerType;
+class FunctionType;
+class ArrayType;
 
 
 // --------------------- atomic types --------------------------
@@ -49,12 +59,16 @@ public:     // funcs
   virtual ~AtomicType();
 
   virtual Tag getTag() const = 0;
-  bool isSimple() const { return getTag() == T_SIMPLE; }
-  bool isCompound() const { return getTag() == T_COMPOUND; }
-  bool isEnum() const { return getTag() == T_ENUM; }
-  
+  bool isSimpleType() const { return getTag() == T_SIMPLE; }
+  bool isCompoundType() const { return getTag() == T_COMPOUND; }
+  bool isEnumType() const { return getTag() == T_ENUM; }
+
+  CAST_MEMBER_FN(SimpleType)
+  CAST_MEMBER_FN(CompoundType)
+  CAST_MEMBER_FN(EnumType)
+
   virtual string toString() const = 0;
-  
+
   // size this type's representation occupies in memory
   virtual int reprSize() const = 0;
 };
@@ -131,11 +145,6 @@ public:
 
 
 // ------------------- constructed types -------------------------
-class CVAtomicType;
-class PointerType;
-class FunctionType;
-class ArrayType;
-
 // generic constructed type
 class Type {
 public:     // types
