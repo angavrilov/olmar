@@ -330,13 +330,39 @@ public:	   // funcs
 };
 
 
-// (OLD) the GLR analyses are performed within this class; GLR
-// differs from GrammarAnalysis in that the latter should have
-// stuff useful across a wide range of possible analyses
-//
-// update: trying to separate GLR from GrammarAnalysis entirely..
+// worklist of stack nodes; conceptually, it is a pair of
+// ArrayStack<StackNode*> with one stack given priority over
+// the other; syntactically, I've designed the interface so I
+// can easily switch it to be a single StackNodeWorklist to
+// test the performance impact of having two lists
+class StackNodeWorklist {
+public:
+  // the pair of stacks; we process all the nodes in the 'eager'
+  // list before any in the 'delayed' list
+  ArrayStack<StackNode*> eager, delayed;
+
+public:
+  // empty both lists
+  void empty() { eager.empty(); delayed.empty(); }
+
+  // test if both lists are empty
+  bool isEmpty() const { return eager.isEmpty() && delayed.isEmpty(); }
+  bool isNotEmpty() const { return !isEmpty(); }
+
+  // remove a node from one of the lists (eager is preferred);
+  // 'isEmpty()' must be false to do this
+  StackNode *pop()
+    { return eager.isNotEmpty()? eager.pop() : delayed.pop(); }
+
+  // sum of the lengths
+  int length() const { return eager.length() + delayed.length(); }
+};
+
+
+// each GLR object is a parser for a specific grammar, but can be
+// used to parse multiple token streams
 class GLR {
-public:                    
+public:
   // ---- grammar-wide data ----
   // user-specified actions
   UserActions *userAct;                     // (serf)
@@ -377,7 +403,8 @@ public:
 
   // parsers that haven't yet had a chance to try to make progress
   // on this token
-  ArrayStack<StackNode*> parserWorklist;    // (refct list)
+  //ArrayStack<StackNode*> parserWorklist;    // (refct list)
+  StackNodeWorklist parserWorklist;         // (refct list)
 
   // ---- scratch space re-used at token-level (or finer) granularity ----
   // to be regarded as a local variable of GLR::doReduction; since

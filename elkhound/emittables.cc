@@ -5,7 +5,7 @@
 #include "emitcode.h"       // EmitCode
 
 
-// create literal tables and initialize 'ret' with pointers to them
+// create literal tables
 template <class EltType>
 void emitTable(EmitCode &out, EltType const *table, int size, int rowLength,
                char const *typeName, char const *tableName)
@@ -15,12 +15,22 @@ void emitTable(EmitCode &out, EltType const *table, int size, int rowLength,
     if (i % rowLength == 0) {    // one row per state
       out << "\n    ";
     }
-    out << table[i] << ", ";
+
+    if (sizeof(table[i]) == 1) {
+      // little bit of a hack to make sure 'unsigned char' gets
+      // printed as an int; the casts are necessary because this
+      // code gets compiled even when EltType is ProdInfo
+      out << (int)(*((unsigned char*)(table+i))) << ", ";
+    }
+    else {
+      // print the other int-sized things, or ProdInfo using
+      // the overloaded '<<' below
+      out << table[i] << ", ";
+    }
   }
   out << "\n"
       << "  };\n";
 }
-
 
 // used to emit the elements of the prodInfo table
 stringBuilder& operator<< (stringBuilder &sb, ParseTables::ProdInfo const &info)
@@ -29,9 +39,10 @@ stringBuilder& operator<< (stringBuilder &sb, ParseTables::ProdInfo const &info)
   return sb;
 }
 
+
 // emit code for a function which, when compiled and executed, will
 // construct this same table (except the constructed table won't own
-// the table data, since it will be static program data)
+// the table data, since it will point to static program data)
 void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
 {
   out << "// this makes a ParseTables from some literal data;\n"
@@ -80,6 +91,11 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
     out << "  ret->ambigAction[" << i << "] = " << name << ";\n\n";
   }
   out << "\n";
+
+  // table of ambiguous nonterminals
+  emitTable(out, ambigNonterms, ambigTableSize(), 16, 
+            "unsigned char", "ambigNonterms");
+  out << "  ret->ambigNonterms = ambigNonterms;\n\n";
 
   out << "  return ret;\n"
       << "}\n";

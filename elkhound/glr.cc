@@ -610,7 +610,7 @@ PathCollectionState::ReductionPath& PathCollectionState::ReductionPath
 }
 
 
-// ------------------------- GLR ---------------------------
+// ------------- stack node list ops ----------------
 void decParserList(ArrayStack<StackNode*> &list)
 {
   for (int i=0; i < list.length(); i++) {
@@ -624,7 +624,7 @@ void incParserList(ArrayStack<StackNode*> &list)
     list[i]->incRefCt();
   }
 }
-               
+
 // candidate for adding to ArrayStack.. but I'm hesitant for some reason
 bool parserListContains(ArrayStack<StackNode*> &list, StackNode *node)
 {
@@ -636,7 +636,59 @@ bool parserListContains(ArrayStack<StackNode*> &list, StackNode *node)
   return false;
 }
 
+// plain insertion
+inline void priorityWorklistInsert(
+  GLR &, ArrayStack<StackNode*> &list, StackNode *node)
+{
+  list.push(node);
+}
 
+
+// work-alikes for StackNodeWorklist
+void decParserList(StackNodeWorklist &list)
+{
+  decParserList(list.eager);
+  decParserList(list.delayed);
+}
+
+void incParserList(StackNodeWorklist &list)
+{
+  incParserList(list.eager);
+  incParserList(list.delayed);
+}
+
+bool parserListContains(StackNodeWorklist &list, StackNode *node)
+{
+  return parserListContains(list.eager, node) ||
+         parserListContains(list.delayed, node);
+}
+
+
+// priority insertion; implement heuristic where we prefer to 
+// reduce at states whose rightmost RHS nonterminal is unambiguous
+void priorityWorklistInsert(
+  GLR &glr, StackNodeWorklist &list, StackNode *node)
+{
+  SymbolId id = node->getSymbolC();
+  if (symIsTerm(id)) {
+    // rightmost symbol is a terminal: eager
+    list.eager.push(node);
+    return;
+  }
+
+  int nonterm = symAsNonterm(id);
+  if (glr.tables->isAmbiguous(nonterm)) {
+    // ambiguous: delay
+    list.delayed.push(node);
+  }
+  else {
+    // unambiguous: eager
+    list.eager.push(node);
+  }
+}
+
+
+// ------------------------- GLR ---------------------------
 GLR::GLR(UserActions *user, ParseTables *t)
   : userAct(user),
     tables(t),
@@ -1390,7 +1442,8 @@ bool GLR::nondeterministicParseToken(ArrayStack<PendingShift> &pendingShifts)
   {
     parserWorklist.empty();
     for (int i=0; i < activeParsers.length(); i++) {
-      parserWorklist.push(activeParsers[i]);
+      //parserWorklist.push(activeParsers[i]);
+      priorityWorklistInsert(*this, parserWorklist, activeParsers[i]);
     }
   }
   incParserList(parserWorklist);
@@ -1933,10 +1986,10 @@ void *mergeAlternativeParses(int ntIndex, void *left, void *right)
 #endif // 0
 
 
-// shift reduction onto 'leftSibling' parser, 'prod' says which
-// production we're using; 'sval' is the semantic value of this
-// subtree, and 'loc' is the location of the left edge
-// ([GLR] calls this 'reducer')
+// shift reduction onto 'leftSibling' parser, 'lhsIndex' says which
+// nonterminal is being shifted; 'sval' is the semantic value of this
+// subtree, and 'loc' is the location of the left edge ([GLR] calls
+// this 'reducer')
 void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
                               SemanticValue /*owner*/ sval
                               SOURCELOCARG( SourceLocation const &loc ) )
@@ -2095,7 +2148,8 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
     // member of the frontier
     addActiveParser(rightSibling);
 
-    parserWorklist.push(rightSibling);
+    //parserWorklist.push(rightSibling);
+    priorityWorklistInsert(*this, parserWorklist, rightSibling);
     rightSibling->incRefCt();
 
     // no need for the elaborate re-checking above, since we
