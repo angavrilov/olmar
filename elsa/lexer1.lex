@@ -74,7 +74,9 @@ DIGITS        ({DIGIT}+)
 SIGN          ("+"|"-")
 
 /* integer suffix */
-INT_SUFFIX    ([uU][lL]?|[lL][uU]?)
+/* added 'LL' option for GNU long long compatibility.. */
+ELL_SUFFIX    [lL]([lL]?)
+INT_SUFFIX    ([uU]{ELL_SUFFIX}?|{ELL_SUFFIX}[uU]?)
 
 /* floating-point suffix letter */
 FLOAT_SUFFIX  [flFL]
