@@ -24,3 +24,9 @@ distclean:
 	$(MAKE) -C ast distclean
 	$(MAKE) -C elkhound distclean
 	$(MAKE) -C elsa distclean
+
+doc:
+	$(MAKE) -C smbase doc
+	$(MAKE) -C ast doc
+	$(MAKE) -C elkhound doc
+	$(MAKE) -C elsa doc

@@ -172,7 +172,7 @@ doc: gendoc gendoc/configure.txt gendoc/dependencies.png gendoc/3.4.5.png
 # -------------------- clean, etc. -------------------
 clean:
 	rm -f *.o *.d *.gen.* *.tab.* *.output a.out core
-	rm -f lexer.yy.cc cc_tokens.{h,cc,ids}
+	rm -f lexer.yy.cc
 	rm -f outdir/[a-z]*
 	rm -f ccparse tlexer
 
@@ -180,6 +180,7 @@ distclean: clean
 	rm -f Makefile config.status config.summary
 	rm -f in/big/*.i
 	rm -rf gendoc
+	rm -f cc_tokens.{h,cc,ids}
 
 check: all
 	MAKE=$(MAKE) ./regrtest
