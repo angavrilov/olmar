@@ -151,17 +151,13 @@ bool isOwnerPointer(Type const *t)
 
 DataflowVar *CCTreeNode::getOwnerPtr(char const *name)
 {
-  if (env->isDeclaredVar(name)) {
-    Variable *var = env->getVariable(name);
-    if (isOwnerPointer(var->type)) {               
-      // it's declared, and it's an owner -- wrap a
-      // DataflowVar around it, and return that
-      return env->getDenv().getVariable(env, name);
-    }
+  DataflowVar *var = env->getDenv().getVariable(name);
+  if (var && isOwnerPointer(var->getType())) {
+    return var;
   }
-  
-  // not declared, or not an owner
-  return NULL;
+  else {
+    return NULL;
+  }
 }
 
 
@@ -217,10 +213,11 @@ void CCTreeNode::ana_endScope(Env *localEnv)
 {
   StringObjDict<Variable>::Iter iter(localEnv->getVariables());
   for(; !iter.isDone(); iter.next()) {
-    cout << locString() << ", end of scope,";
-
     // look in *localEnv*, not env
-    DataflowVar *var = localEnv->getDenv().getVariable(localEnv, iter.key());
+    DataflowVar *var = localEnv->getDenv().getVariable(iter.key());
+    if (!var) { continue; }
+
+    cout << locString() << ", end of scope,";
     printVar(var);
 
     if (isOwnerPointer(var->getType())) {

@@ -51,4 +51,8 @@ public:      // funcs
 };
 
 
+// more analysis helpers
+bool isOwnerPointer(Type const *t);
+
+
 #endif // CC_TREE_H

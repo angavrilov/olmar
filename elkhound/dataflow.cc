@@ -3,6 +3,7 @@
 
 #include "dataflow.h"     // this module
 #include "trace.h"        // trace
+#include "cc_tree.h"      // isOwnerPointer
 
 
 char const *fv_name(FlowValue v)
@@ -69,6 +70,16 @@ DataflowEnv& DataflowEnv::operator= (DataflowEnv const &obj)
 }
 
 
+void DataflowEnv::addVariable(Variable *var)
+{
+  trace("DataflowEnv") << "addVariable(" << var->name << ")\n";
+                                                
+  if (isOwnerPointer(var->type)) {
+    vars.add(var->name, new DataflowVar(var));
+  }
+}
+
+
 void DataflowEnv::mergeWith(DataflowEnv const &obj)
 {
   trace("DataflowEnv") << "mergeWith" << endl;
@@ -96,7 +107,7 @@ void DataflowEnv::mergeWith(DataflowEnv const &obj)
 }
 
 
-DataflowVar *DataflowEnv::getVariable(Env *env, char const *name)
+DataflowVar *DataflowEnv::getVariable(char const *name)
 {
   trace("DataflowEnv") << "getVariable(" << name << ")\n";
 
@@ -104,9 +115,7 @@ DataflowVar *DataflowEnv::getVariable(Env *env, char const *name)
     return vars.queryf(name);
   }
   else {
-    DataflowVar *ret = new DataflowVar(env->getVariable(name));
-    vars.add(name, ret);
-    return ret;
+    return NULL;
   }
 }
 

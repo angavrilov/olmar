@@ -3,6 +3,7 @@
 
 #include "cc_env.h"      // this module
 #include "trace.h"       // tracingSys
+#include "dataflow.h"    // DataflowEnv
 
 
 SimpleType const *Env::simpleBuiltins = NULL;
@@ -343,8 +344,13 @@ bool Env::declareVariable(char const *name, DeclFlags flags, Type const *type)
     if (variables.isMapped(name)) {
       // duplicate name
       return false;
-    }
-    variables.add(name, new Variable(name, flags, type));
+    }                             
+    
+    Variable *var = new Variable(name, flags, type);
+    variables.add(name, var);
+
+    // add this to the dataflow environment too (if it wants it)
+    denv->addVariable(var);
   }
 
   else {

@@ -13,22 +13,21 @@ void ok()
     *p = 5;
     free(p);
   }
-  else {
-  }
 }
 
 void leaks()
 {
   int * owner p;
   p = malloc();
-}
+  p = malloc();           // LEAK of p
+}                         // LEAK of p
 
 void bad_derefs()
 {
   int * owner p;
-  *p = 6;
+  *p = 6;                 // BAD DEREF
   p = 0;
-  *p = 7;
+  *p = 7;                 // BAD DEREF
 }
 
 void more_complicated()
@@ -43,9 +42,7 @@ void more_complicated()
     }
     free(p);
   }
-  else {}
 }
-
 
 /*
 void bad()

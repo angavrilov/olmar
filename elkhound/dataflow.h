@@ -94,15 +94,16 @@ public:
 
   DataflowEnv& operator= (DataflowEnv const &obj);
 
+  // add a new variable to track; must not collide with an existing value
+  void addVariable(Variable *var);
+
   // use the dataflow 'meet' operator to combine this dataflow
   // mapping with another (e.g. at the end of an if-then-else)
   void mergeWith(DataflowEnv const &obj);
 
   // get the structure that records info about a given name;
-  // if we don't have any info, assume it's a new name, and make
-  // up new info based on what's in 'env' (where the name must
-  // be declared)
-  DataflowVar *getVariable(Env *env, char const *name);
+  // return NULL if we don't have any info for this name
+  DataflowVar *getVariable(char const *name);
 
   // true if we have any information about the named variable
   bool haveInfoFor(char const *name) const;
