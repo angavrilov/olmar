@@ -4,6 +4,7 @@
 //   module should be entirely algorithm
 
 // Author: Scott McPeak, April 2000
+// Updates: March 2002
 
 // references:
 //
@@ -18,6 +19,9 @@
 
 #define HASHCLOSURE     // use a hashtable for item set closure
 #define HASHLRITEMSETS  // use a hashtable for lr item set construction
+
+// note: the !HASHCLOSURE case hasn't been maintained in a while..
+// will probably delete it soon
 
 #include "grammar.h"    // Grammar and friends
 #include "ohashtbl.h"   // OwnerHashTable
@@ -442,7 +446,8 @@ private:    // funcs
   // ---- LR item sets ----
   ItemSet *makeItemSet();
   void disposeItemSet(ItemSet *is);
-  ItemSet *moveDotNoClosure(ItemSet const *source, Symbol const *symbol);
+  void moveDotNoClosure(ItemSet const *source, Symbol const *symbol,
+                        ItemSet *dest, ObjList<LRItem> &unusedTail);
   ItemSet *findItemSetInList(ObjList<ItemSet> &list,
                              ItemSet const *itemSet);
   static bool itemSetsEqual(ItemSet const *is1, ItemSet const *is2);

@@ -238,6 +238,9 @@ public:     // funcs
   TerminalSet(TerminalSet const &obj);
   ~TerminalSet();
 
+  TerminalSet& operator= (TerminalSet const &obj)
+    { copy(obj); return *this; }
+
   TerminalSet(Flatten&);
   void xfer(Flatten &flat);
 

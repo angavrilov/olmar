@@ -742,7 +742,7 @@ void ItemSet::changedItems()
 
   // count number with dots at end
   int count = 0;
-  {                    
+  {
     SFOREACH_OBJLIST(LRItem, items, itemIter) {
       LRItem const *item = itemIter.data();
 
@@ -2245,57 +2245,75 @@ void GrammarAnalysis::disposeItemSet(ItemSet *is)
 }
 
 
-// yield a new itemset by moving the dot across the productions
-// in 'source' that have 'symbol' to the right of the dot; do *not*
-// compute the closure
-ItemSet *GrammarAnalysis
-  ::moveDotNoClosure(ItemSet const *source, Symbol const *symbol)
+// yield (by filling 'dest') a new itemset by moving the dot across
+// the productions in 'source' that have 'symbol' to the right of the
+// dot; do *not* compute the closure; since 'dest' comes with a bunch
+// of kernel items, some of which we most likely won't need, put the
+// unused ones into 'unusedTail'
+void GrammarAnalysis::moveDotNoClosure(ItemSet const *source, Symbol const *symbol,
+                                       ItemSet *dest, ObjList<LRItem> &unusedTail)
 {
-  ItemSet *ret = makeItemSet();
-    
+  //ItemSet *ret = makeItemSet();
+
   // total # of items added
   int appendCt=0;
 
+  // iterator for walking down dest's kernel list
+  ObjListMutator<LRItem> destIter(dest->kernelItems);
+
   // iterator for walking both lists of items; switching from an
   // implementation which used 'getAllItems' for performance reasons
-  ObjListIter<LRItem> dprodi(source->kernelItems);
+  ObjListIter<LRItem> srcIter(source->kernelItems);
   int passCt=0;    // 0=kernelItems, 1=nonkernelItems
   while (passCt < 2) {
     if (passCt == 1) {
-      dprodi.reset(source->nonkernelItems);
+      srcIter.reset(source->nonkernelItems);
     }
 
     // for each item
-    for (; !dprodi.isDone(); dprodi.adv()) {
-      LRItem const *dprod = dprodi.data();
+    for (; !srcIter.isDone(); srcIter.adv()) {
+      LRItem const *item = srcIter.data();
 
-      if (dprod->isDotAtEnd() ||
-          dprod->symbolAfterDotC() != symbol) {
+      if (item->isDotAtEnd() ||
+          item->symbolAfterDotC() != symbol) {
         continue;    // can't move dot
       }
 
-      // move the dot
-      LRItem *dotMoved = new LRItem(*dprod);
-      dotMoved->dprod = nextDProd(dotMoved->dprod);
+      // need to access destIter; if there are no more items, make more
+      if (destIter.isDone()) {
+        // the new item becomes the current 'data()'
+        destIter.insertBefore(new LRItem(numTerminals(), NULL /*dprod*/));
+      }
+
+      // move the dot; write dot-moved item into 'destIter'
+      LRItem *dotMoved = destIter.data();
+      dotMoved->dprod = nextDProd(item->dprod);
+      dotMoved->lookahead = item->lookahead;
 
       // add the new item to the itemset I'm building
-      ret->addKernelItem(dotMoved);
+      //ret->addKernelItem(dotMoved);   // UPDATE: it's already in the list
       appendCt++;
+      destIter.adv();
     }
 
     passCt++;
   }
 
-  // for now, verify we actually got something; though it would
-  // be easy to simply return null (after dealloc'ing ret)
+  // pull out any unused items into 'unusedItems'; it's important that
+  // this action not have to look at each unused item, because I want
+  // to be able to make a really big scratch item list and not pay for
+  // items I don't end up using
+  unusedTail.stealTailAt(appendCt, dest->kernelItems);
+
+  // verify we actually got something
   xassert(appendCt > 0);
 
   // we added stuff
-  ret->sortKernelItems();
-  ret->changedItems();
+  dest->sortKernelItems();
 
-  // return built itemset
-  return ret;
+  // TODO: changedItems allocates a lot; need to reduce the allocations
+  // TODO: in there, but moreover avoid the call at all here (just need crc)
+  dest->changedItems();
 }
 
 
@@ -2366,6 +2384,26 @@ void GrammarAnalysis::constructLRItemSets()
     &ItemSet::hash,
     &ItemSet::equalKey);
 
+  // to avoid allocating in the inner loop, we make a single item set
+  // which we'll fill with kernel items every time we think we *might*
+  // make a new state, and if it turns out we really do need a new
+  // state, then the kernel items in this one will be copied elsewhere
+  Owner<ItemSet> scratchState(
+    new ItemSet(-1 /*id*/, numTerms, numNonterms));
+
+  // fill the scratch state with lots of kernel items to start with;
+  // since these items will be re-used over and over, filling it now
+  // ensures good locality on those accesses (assuming malloc returns
+  // objects close together)
+  enum { INIT_LIST_LEN = 5 };   // TODO: increase count to 100 (5 for testing)
+  for (int i=0; i<INIT_LIST_LEN; i++) {
+    // this is a dummy item; it allocates the bitmap for 'lookahead',
+    // but those bits and the 'dprod' pointer will be overwritten
+    // many times during the algorithm
+    LRItem *item = new LRItem(numTerms, NULL /*dottedprod*/);
+    scratchState->addKernelItem(item);
+  }
+
   // start by constructing closure of first production
   // (basically assumes first production has start symbol
   // on LHS, and no other productions have the start symbol
@@ -2430,17 +2468,22 @@ void GrammarAnalysis::constructLRItemSets()
         }
       }
 
-      // compute the itemSet produced by moving the dot
-      // across 'sym'; but don't take closure yet since
-      // we first want to check whether it is already present
-      ItemSet *withDotMoved = moveDotNoClosure(itemSet, sym);
+      // compute the itemSet (into 'scratchState') produced by moving
+      // the dot across 'sym'; don't take closure yet since we
+      // first want to check whether it is already present
+      //
+      // this call also yields the unused remainder of the kernel items,
+      // so we can add them back in at the end
+      ObjList<LRItem> unusedTail;
+      moveDotNoClosure(itemSet, sym, scratchState, unusedTail);
+      ItemSet *withDotMoved = scratchState;    // clarify role from here down
 
       // see if we already have it, in either set
       ItemSet *already = itemSetsPending.get(withDotMoved);
       bool inDoneList = false;
       if (already == NULL) {
         already = itemSetsDone.get(withDotMoved);
-        inDoneList = true;
+        inDoneList = true;    // used if 'already' != NULL
       }
 
       // have it?
@@ -2477,13 +2520,20 @@ void GrammarAnalysis::constructLRItemSets()
         }
 
         // we already have it, so throw away one we made
-        disposeItemSet(withDotMoved);     // deletes 'withDotMoved'
+        // UPDATE: we didn't allocate, so don't deallocate
+        //disposeItemSet(withDotMoved);     // deletes 'withDotMoved'
 
         // and use existing one for setting the transition function
         withDotMoved = already;
       }
       else {
-        // we don't already have it; finish it by computing its closure
+        // we don't already have it; need to actually allocate & copy
+        withDotMoved = makeItemSet();
+        FOREACH_OBJLIST(LRItem, scratchState->kernelItems, iter) {
+          withDotMoved->addKernelItem(new LRItem( *(iter.data()) ));
+        }
+
+        // finish it by computing its closure
         itemSetClosure(*withDotMoved);
 
         // then add it to 'pending'
@@ -2493,6 +2543,14 @@ void GrammarAnalysis::constructLRItemSets()
 
       // setup the transition function
       itemSet->setTransition(sym, withDotMoved);
+
+      // finally, restore 'scratchState's kernel item list
+      scratchState->kernelItems.concat(unusedTail);
+
+      #ifdef EXTRA_CHECKS
+        // make sure the link restoration process works as expected
+        xassert(scratchState->kernelItemList.count() >= INIT_LIST_LEN);
+      #endif
 
     } // for each item
   } // for each item set
