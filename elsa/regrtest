@@ -564,6 +564,7 @@ if $use_gnu; then
   testparse gnu/g0007.cc
   testparse gnu/g0008.cc
   # g0009.c is a C test
+  testparse gnu/g0010.cc
 
   testparse gnu/t0124.cc
   testparse gnu/t0125.cc
