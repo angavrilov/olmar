@@ -4,6 +4,7 @@
 #include "mangle.h"     // this module
 #include "template.h"   // Type, TemplateInfo, etc.
 #include "variable.h"   // Variable
+#include "cc_print.h"   // PrintEnv
     
 
 
@@ -384,6 +385,53 @@ string mangleTemplateParams(TemplateInfo const *tp)
   }
   sb << ">";
   return sb;
+}
+
+
+void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &args)
+{
+  sb << "<";
+  int ct=0;
+  FOREACH_OBJLIST(STemplateArgument, args, iter) {
+    if (ct++) { sb << ", "; }
+    switch(iter.data()->kind) {
+    default:
+      xfailure("Illegal STemplateArgument::kind");
+      break;
+
+    case STemplateArgument::STA_NONE:
+      xfailure("STA_NONE should never occur here");
+      //          sb << "-NONE"; break;
+      break;
+
+    case STemplateArgument::STA_TYPE:
+      sb << "TYPE-" << mangle(iter.data()->value.t);
+      break;
+
+    case STemplateArgument::STA_INT:
+      sb << "INT-" << iter.data()->value.i;
+      break;
+
+    case STemplateArgument::STA_REFERENCE: // reference to global object
+    case STemplateArgument::STA_POINTER: // pointer to global object
+    case STemplateArgument::STA_MEMBER: // pointer to class member
+      sb << "OBJECT-" << mangle(iter.data()->value.v->type);
+      break;
+
+    case STemplateArgument::STA_DEPEXPR: { // value-dependent expression
+      sb << "DEPEXPR-";
+      PrintEnv penv(sb);
+      iter.data()->value.e->print(penv);
+      break;
+    }
+
+    case STemplateArgument::STA_TEMPLATE: // template argument (not implemented)
+      xfailure("STA_TEMPLATE is not implemented");
+      break;
+
+    }
+  }
+  sb << ">";
 }
 
          

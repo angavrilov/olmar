@@ -7,7 +7,6 @@
 #include "cc_type.h"      // CompoundType
 #include "cc_env.h"       // doh.  Env::error
 #include "mangle.h"       // mangle
-#include "cc_print.h"     // PrintEnv
 
 
 Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
@@ -1212,56 +1211,15 @@ bool Scope::linkerVisible()
 }
 
 
-void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &args,
-                         bool doMangle)
+void fqn_STemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &args,
+                       bool doMangle)
 {
   if (!doMangle) {
     sb << sargsToString(args);
-    return;
   }
-
-  sb << "<";
-  int ct=0;
-  FOREACH_OBJLIST(STemplateArgument, args, iter) {
-    if (ct++) { sb << ", "; }
-    switch(iter.data()->kind) {
-    default:
-      xfailure("Illegal STemplateArgument::kind");
-      break;
-
-    case STemplateArgument::STA_NONE:
-      xfailure("STA_NONE should never occur here");
-      //          sb << "-NONE"; break;
-      break;
-
-    case STemplateArgument::STA_TYPE:
-      sb << "TYPE-" << mangle(iter.data()->value.t);
-      break;
-
-    case STemplateArgument::STA_INT:
-      sb << "INT-" << iter.data()->value.i;
-      break;
-
-    case STemplateArgument::STA_REFERENCE: // reference to global object
-    case STemplateArgument::STA_POINTER: // pointer to global object
-    case STemplateArgument::STA_MEMBER: // pointer to class member
-      sb << "OBJECT-" << mangle(iter.data()->value.v->type);
-      break;
-
-    case STemplateArgument::STA_DEPEXPR: { // value-dependent expression
-      sb << "DEPEXPR-";
-      PrintEnv penv(sb);
-      iter.data()->value.e->print(penv);
-      break;
-    }
-
-    case STemplateArgument::STA_TEMPLATE: // template argument (not implemented)
-      xfailure("STA_TEMPLATE is not implemented");
-      break;
-
-    }
+  else {
+    mangleSTemplateArgs(sb, args);
   }
-  sb << ">";
 }
 
 
@@ -1322,11 +1280,11 @@ string Scope::fullyQualifiedName(bool mangle)
         tinfo->instantiationOf->templateInfo()->isPartialSpec()) {
       // print the partial spec args first, so then the instantiation
       // args can be interpreted relative to the partial spec args
-      mangleSTemplateArgs(sb, tinfo->instantiationOf->templateInfo()->arguments, 
-                          mangle);
+      fqn_STemplateArgs(sb, tinfo->instantiationOf->templateInfo()->arguments,
+                        mangle);
     }
 
-    mangleSTemplateArgs(sb, tinfo->arguments, mangle);
+    fqn_STemplateArgs(sb, tinfo->arguments, mangle);
   }
 
   return sb;

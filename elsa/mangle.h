@@ -13,13 +13,14 @@
 #ifndef MANGLE_H
 #define MANGLE_H
 
-#include "str.h"      // string
+#include "str.h"             // string, stringBuilder
+#include "objlist.h"         // ObjList
 
-// forwards for cc_type.h and variable.h
-class Type;
-class AtomicType;
-class Variable;
-class TemplateInfo;
+class Type;                  // cc_type.h
+class AtomicType;            // cc_type.h
+class Variable;              // variable.h
+class TemplateInfo;          // template.h
+class STemplateArgument;     // template.h
 
 
 // main entry point
@@ -32,6 +33,7 @@ string leftMangle(Type const *t, bool innerParen = true);
 string rightMangle(Type const *t, bool innerParen = true);
 string mangleVariable(Variable const *v);
 string mangleTemplateParams(TemplateInfo const *tp);
+void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &args);
 
 
 #endif // MANGLE_H

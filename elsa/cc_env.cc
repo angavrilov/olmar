@@ -4722,7 +4722,7 @@ PQName *Env::makeQualifiedName(Scope *s, PQName *name)
     STemplateArgument const *sarg = iter.data();
     if (sarg->kind == STemplateArgument::STA_TYPE) {
       // pull out the Type, then build a new ASTTypeId for it
-      targs = new TA_type(targs, buildASTTypeId(sarg->getType()));
+      targs = new TA_type(buildASTTypeId(sarg->getType()), targs);
     }
     else {
       // will make an Expr node; put it here
@@ -4747,7 +4747,7 @@ PQName *Env::makeQualifiedName(Scope *s, PQName *name)
       }
 
       // put the expr in a TA_nontype
-      targs = new TA_nontype(targs, e);
+      targs = new TA_nontype(e, targs);
     }
   }
 

@@ -2374,7 +2374,7 @@ nonterm(TemplateArgument*) TemplateArgument {
   fun keep(n) { return n!=NULL; }
 
   -> type:TypeId tail:TemplateArgumentListTailOpt
-     { return new TA_type(tail, type); }
+     { return new TA_type(type, tail); }
 
   -> e:AssignmentExpression tail:TemplateArgumentListTailOpt
      {
@@ -2395,7 +2395,7 @@ nonterm(TemplateArgument*) TemplateArgument {
          return NULL;
        }
        else {
-         return new TA_nontype(tail, e);
+         return new TA_nontype(e, tail);
        }
      }
 

@@ -711,18 +711,15 @@ class TemplateParameter (SourceLoc loc) {
 
 
 // one of the arguments to a template instantiation
-class TemplateArgument(TemplateArgument next) {
+class TemplateArgument(/*first*/)(/*last*/ TemplateArgument next) {
   // NOTE: At one point TemplateArguments were connected with a
   // FakeList, but it turns out that interacts badly with failing
   // parses (in/t0179.cc), and the fix is to use ASTLists instead.
   //
   // 2005-03-13: Trying again with FakeLists... as an experiment, I
-  // will make 'next' a ctor parameter.  Ok, this is working, but one
-  // unfortunate side effect is that 'next' is passed and printed
-  // before the info associated with 'this' object, so lists are
-  // printed (and visited) in reverse order.  I think a good fix would
-  // be to add an astgen feature to mark a ctor parameter as 'last',
-  // so it would appear after the subclass parameters in all orders.
+  // will make 'next' a ctor parameter.  Ok, this is working.  I have
+  // made it a 'last' parameter, meaning it is printed and traversed
+  // *after* everything else.
 
   // ambiguity link
   public TemplateArgument *ambiguity = NULL;
