@@ -344,7 +344,7 @@ public:	    // data
   // fundamental context-free grammar (CFG) component
   Nonterminal * const left;     // (serf) left hand side; must be nonterminal
   ObjList<RHSElt> right;        // right hand side; terminals & nonterminals
-  int precedence;               // precedence level for disambiguation
+  int precedence;               // precedence level for disambiguation (0 for none specified)
 
   // user-supplied reduction action code
   LocString action;

@@ -2639,136 +2639,6 @@ void GrammarAnalysis::computeReachableDFS(Nonterminal *nt)
 
 
 // --------------- LR support -------------------
-// find and print all the conflicts that would be reported by
-// an SLR(1) parser; this is a superset of the conflicts reported
-// by bison, which is LALR(1); found conflicts are printed with
-// trace("conflict")
-void GrammarAnalysis::findSLRConflicts(int &sr, int &rr)
-{
-  xfailure("this code is superceded by computeParseTables");
-
-  // for every item set..
-  MUTATE_EACH_OBJLIST(ItemSet, itemSets, itemSet) {
-
-    // we want to print something special for the first conflict
-    // in a state, so track which is first
-    bool printedConflictHeader = false;
-
-    // for every input symbol..
-    FOREACH_TERMINAL(terminals, t) {
-      // check it
-      checkSLRConflicts(itemSet.data(), t.data(), printedConflictHeader, sr, rr);
-    }
-  }
-}
-
-
-// given a parser state and an input symbol determine if we will fork
-// the parse stack; return true if there is a conflict
-bool GrammarAnalysis
-  ::checkSLRConflicts(ItemSet *state, Terminal const *sym,
-                      bool &printedConflictHeader /*inout*/,
-                      int &sr /*inout*/, int &rr /*inout*/)
-{
-  xfailure("this code is superceded by computeParseTables");
-
-  // see where a shift would go
-  ItemSet const *shiftDest = state->transition(sym);
-
-  // get all possible reductions where 'sym' is in Follow(LHS)
-  ProductionList reductions;
-  state->getPossibleReductions(reductions, sym, false /*parsing*/);
-
-  // how many actions are there?
-  int actions = (shiftDest? 1 : 0) + reductions.count();
-  if (actions <= 1) {
-    return false;      // no conflict
-  }
-
-  // count how many warning suppressions we have
-  int dontWarns = 0;
-
-  if (shiftDest != NULL) {
-    // we have (at least) a shift/reduce conflict, which is the
-    // situation in which prec/assoc specifications are used; consider
-    // all the possible reductions, so we can resolve S/R conflicts
-    // even when there are R/R conflicts present too
-    SObjListMutator<Production> mut(reductions);
-    while (!mut.isDone() && shiftDest != NULL) {
-      Production const *prod = mut.data();
-
-      bool keepShift=true, keepReduce=true, dontWarn=false;
-      handleShiftReduceConflict(keepShift, keepReduce, dontWarn, state, prod, sym);
-
-      if (!keepShift) {
-        state->removeShift(sym);
-        actions--;
-        shiftDest = NULL;
-      }
-
-      if (!keepReduce) {
-        state->removeReduce(prod, sym);
-        actions--;
-        mut.remove();
-      }
-      else {
-        mut.adv();
-      }
-
-      if (dontWarn) {
-        dontWarns++;
-      }
-    }
-
-    // there is still a potential for misbehavior.. e.g., if there are two
-    // possible reductions (R1 and R2), and one shift (S), then the user
-    // could have specified prec/assoc to disambiguate, e.g.
-    //   R1 < S
-    //   S < R2
-    // so that R2 is the right choice; but if I consider (S,R2) first,
-    // I'll simply drop S, leaving no way to disambiguate R1 and R2 ..
-    // for now I'll just note the possibility...
-  }
-
-  // after the disambiguation, maybe now there's no conflicts?
-  // or, if conflicts remain, did we get at least that many warning
-  // suppressions?
-  if ((actions-dontWarns) <= 1) {
-    return false;
-  }
-
-  if (!printedConflictHeader) {
-    trace("conflict")
-      << "--------- state " << state->id << " ----------\n"
-      << "left context: " << leftContextString(state)
-      << endl
-      << "sample input: " << sampleInput(state)
-      << endl
-      ;           
-    printedConflictHeader = true;
-  }
-
-  trace("conflict")
-    << "conflict for symbol " << sym->name
-    << endl;
-
-  if (shiftDest) {
-    trace("conflict") << "  shift, and move to state " << shiftDest->id << endl;
-    sr++;                 // shift/reduce conflict
-    rr += actions - 2;    // any reduces beyond first are r/r errors
-  }                                                                 
-  else {
-    rr += actions - 1;    // all reduces beyond first are r/r errors
-  }
-
-  SFOREACH_PRODUCTION(reductions, prod) {
-    trace("conflict") << "  reduce by rule " << *(prod.data()) << endl;
-  }
-
-  return true;    // found conflict
-}
-
-
 // decide what to do, and record the result into the two
 // boolean reference parameters
 void GrammarAnalysis::handleShiftReduceConflict(
@@ -2900,6 +2770,21 @@ void GrammarAnalysis::computeBFSTree()
 
 
 // --------------- parse table construction -------------------
+// compare two productions by precedence
+static int productionPrecCompare(Production const *p1, Production const *p2, void*)
+{
+  if (p1->precedence && p2->precedence) {
+    // I want the low precedence first
+    return p1->precedence - p2->precedence;
+  }
+  else {
+    // if one or the other doesn't have a precedence, then there's
+    // no basis for distinction
+    return 0;
+  }
+}
+
+
 // given some potential parse actions, apply available disambiguation
 // to remove some of them; print warnings about conflicts, in some
 // situations
@@ -2921,7 +2806,7 @@ void GrammarAnalysis::resolveConflicts(
   // count how many warning suppressions we have
   int dontWarns = 0;
 
-  // at the moment, I only have static disambiguation for S/R conflicts
+  // static disambiguation for S/R conflicts
   if (shiftDest) {
     // we have (at least) a shift/reduce conflict, which is the
     // situation in which prec/assoc specifications are used; consider
@@ -2935,15 +2820,13 @@ void GrammarAnalysis::resolveConflicts(
       handleShiftReduceConflict(keepShift, keepReduce, dontWarn, state, prod, sym);
 
       if (!keepShift) {
-        //state->removeShift(sym);
         actions--;
-        shiftDest = NULL;
+        shiftDest = NULL;      // remove the shift
       }
 
       if (!keepReduce) {
-        //state->removeReduce(prod, sym);
         actions--;
-        mut.remove();
+        mut.remove();          // remove the reduction
       }
       else {
         mut.adv();
@@ -2962,6 +2845,34 @@ void GrammarAnalysis::resolveConflicts(
     // so that R2 is the right choice; but if I consider (S,R2) first,
     // I'll simply drop S, leaving no way to disambiguate R1 and R2 ..
     // for now I'll just note the possibility...
+  }
+
+  // static disambiguation for R/R conflicts
+  if (reductions.count() > 1) {
+    // sort the reductions so the lowest precedence reductions are
+    // first, then higher precedences, and finally reductions that
+    // lack any precedence (use insertion sort since I expect that
+    // most of the time the list won't require any changes)
+    reductions.insertionSort(productionPrecCompare);
+
+    // work through the head of the list, discarding productions
+    // that have higher-precedence productions beneath them
+    int ct = reductions.count();
+    while (ct >= 2) {
+      Production *p1 = reductions.nth(0);
+      Production *p2 = reductions.nth(1);
+      if (!(p1->precedence && p2->precedence)) break;
+
+      // remove first one
+      reductions.removeFirst();
+      ct--;
+      actions--;
+
+      // report
+      trace("prec")
+        << "in state " << state->id << ", R/R conflict on token "
+        << sym->name << ", removed production " << *p1 << endl;
+    }
   }
 
   // after the disambiguation, maybe now there's no conflicts?
