@@ -1,7 +1,7 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-all: cc/c.ast.gen.h glr.o cc/ccgr cc2/cc2.exe cc2/cc2t.exe cc/bccgr cexp3
+all: cc/c.ast.gen.h glr.o cc/ccgr cc2/cc2.exe cc2/cc2t.exe cc/bccgr
 
 temporary: all triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
            triv/EEb.tree.gr.exe triv/eeb.in triv/SSSx.tree.gr.exe triv/sssx.in \
@@ -20,8 +20,6 @@ endif
 # this target ensures the Makefile is in synch with Makefile.in
 Makefile: Makefile.in
 	./configure $(mode)
-
-everything: gramanl glr cc/lexer1 cc/lexer2 grampar cexp2 cc/ccgr
 
 # directories
 SMBASE := ../smbase
@@ -176,12 +174,7 @@ $(AST)/%.o: $(AST)/%.cc
 # to make sure their dependency info (if it exists) gets included
 random-obj := \
   parsstub.o \
-  cexp2.o \
-  cexp3.gen.o \
   glrmain.o \
-  cexp3mrg.o \
-  cexp3ast.gen.o \
-  cdecl.gen.o \
   cc/ccgrmain.o
 -include $(random-obj:.o=.d)
 
@@ -248,60 +241,11 @@ cyctimer: cyctimer.cc cyctimer.h
 cc/cc.tok: cc/lexer2
 	cc/lexer2 myparser >$@
 
-# C expression (sort of) evaluator
-cexp2-sem-dep := cexp2.sem.cc $(grammar-set) $(glr-set) \
-                 $(grampar-set) $(libraries)
-cexp2.sem: $(cexp2-sem-dep)
-	$(link) -o cexp2.sem -DTEST_CEXP2_SEM $(cexp2-sem-dep)
-
-# intermediate files for cexp2
-# ('chmod a-w' is so I don't accidentally edit them)
-cexp2.cc cexp2.h: cexp2.gr gramanl
-	rm -f cexp2.h cexp2.cc
-	./gramanl cexp2
-	chmod a-w cexp2.cc cexp2.h
-
-# parser and semantic analyzer for cexp2.gr
-cexp2-dep := cexp2.o $(grammar-set) $(grampar-set) \
-             $(glr-set) $(libraries)
-cexp2: $(cexp2-dep) cexp2.h
-	$(link) -o cexp2 $(cexp2-dep)
-
 # glr parsing engine
 libglr.a: $(glr-set)
 	rm -f libglr.a
 	ar -r libglr.a $(glr-set)
 	ranlib libglr.a
-
-# intermediate files for cexp3 (disambiguates using prec/assoc)
-# ('chmod a-w' is so I don't accidentally edit it)
-#cexp3.gr.gen.cc cexp3.gr.gen.h: cexp3.gr cc/cc.tok gramanl
-#	rm -f cexp3.gr.gen.*
-#	./gramanl cexp3
-#	chmod a-w cexp3.gr.gen.{h,cc}
-
-#cexp3ast.h cexp3ast.cc: cexp3ast.ast
-#	../../ast/astgen cexp3ast.ast
-
-# AUXDEPEND
-cexp3.gr.gen.o: cexp3ast.ast.gen.h
-
-# ast for cexp3
-# (these rules should be superceded by pattern rule below)
-#cexp3ast.gen.cc cexp3ast.gen.h: cexp3ast.ast $(AST)/astgen
-#	$(AST)/astgen cexp3ast.ast
-
-# parser and semantic analyzer for cexp3.gr
-# the egrep below is because there's a bug in gcc-2's 'cout',
-# which prints ints in hex even when it shouldn't ...
-cexp-dep := glrmain.o cexp3mrg.o cexp3ast.ast.gen.o \
-            $(support-set) libglr.a $(libraries)
-cexp3-dep := cexp3.gr.gen.o $(cexp-dep)
-cexp3: $(cexp3-dep)
-	$(link) -o cexp3 $(cexp3-dep)
-	./cexp3 cexp3.bin in/cexp3.in1 | tee tmp.out
-	egrep 'result: (0x)?7' tmp.out
-	rm tmp.out
 
 # intermediate files for a grammar
 # TRGRAMANL: extra trace flags specified by user; starts with "," if defined
@@ -318,53 +262,6 @@ cexp3: $(cexp3-dep)
 	rm -f $*.ast.gen.*
 	$(AST)/astgen -b$*.ast.gen $*.ast
 	chmod a-w $*.ast.gen.h $*.ast.gen.cc
-
-# don't delete these things
-.PRECIOUS: cexp3b cexp3
-
-# cexp3b: disambiguation using 'merge'
-cexp3b.gr: cexp3.gr
-	rm -f cexp3b.gr
-	grep -v PREC cexp3.gr > cexp3b.gr
-	chmod a-w cexp3b.gr
-
-# parser and semantic analyzer for cexp3b.gr
-cexp3b-dep := cexp3b.gr.gen.o $(cexp-dep)
-cexp3b: $(cexp3b-dep)
-	$(link) -o cexp3b $(cexp3b-dep)
-	./cexp3b cexp3b.bin in/cexp3.in1 | tee tmp.out
-	egrep 'result: (0x)?7' tmp.out
-	rm tmp.out
-
-# intermediate files for cdecl
-# (superceded by pattern rule)
-#cdecl.gen.cc cdecl.gen.h: cdecl.gr cc/cc.tok gramanl
-#	rm -f cdecl.gen.*
-#	./gramanl cdecl
-#	chmod a-w cdecl.gen.{h,cc}
-
-# parser and semantic analyzer for cdecl.gr
-cdecl-dep := cdecl.gen.o glrmain.o libglr.a $(libraries)
-cdecl: $(cdecl-dep)
-	$(link) -o cdecl $(cdecl-dep)
-	./cdecl cdecl.bin in/cdecl.in1
-	./cdecl -tr cdecl cdecl.bin in/cdecl.in1 | grep -v progress > tmp
-	diff out/cdecl.out1 tmp
-
-# intermediate files for cdecl2
-# (superceded by pattern rule)
-#cdecl2.gen.cc cdecl2.gen.h: cdecl2.gr cc/cc.tok gramanl
-#	rm -f cdecl2.gen.*
-#	./gramanl cdecl2
-#	chmod a-w cdecl2.gen.{h,cc}
-
-# parser and semantic analyzer for cdecl2.gr
-cdecl2-dep := cdecl2.gen.o glrmain.o libglr.a $(libraries)
-cdecl2: $(cdecl2-dep)
-	$(link) -o cdecl2 $(cdecl2-dep)
-	./cdecl2 cdecl2.bin in/cdecl.in1
-	./cdecl2 -tr cdecl cdecl2.bin in/cdecl.in1 | grep -v progress > tmp
-	diff out/cdecl.out1 tmp
 
 # don't delete these because error messages often point into them
 .PRECIOUS: cc.gr.gen.h cc.gr.gen.cc
@@ -471,8 +368,10 @@ cc2/cc2t.exe: cc2/cc2main.o $(cc-set) cc2/cc2t.gr.gen.o ptreenode.o libglr.a $(S
 
 # stuff in examples directory
 .PHONY: examples
-examples:
-	cd examples/arith; make clean && make
+examples: all
+	cd examples/arith; make
+	cd examples/cexp; make
+	cd examples/cdecl; make
 
 
 # ----------------------------- EFa -----------------------
@@ -681,13 +580,16 @@ clean:
 	rm -f $(CLEAN_PATTERNS)
 	rm -f gramanl glr cc/lexer1 cc/lexer1yy.cc gramlex.yy.cc gramlex cyctimer
 	rm -f cc/lexer2 grampar.tab.* grampar
-	rm -f cexp2.sem cexp2 cc/cc.bin cc/ccgr cc/libccgr.a libglr.a
-	rm -f cdecl cexp3 cc/bccgr cdecl2 cexp3b cexp3b.gr
+	rm -f cc/cc.bin cc/ccgr cc/libccgr.a libglr.a
+	rm -f cc/bccgr
 	rm -f cc/bccgr.y cc/cc.tok grampar.codes.h
 	rm -f gdb.log gprof.out gmon.out test-bad-tmp.c
 	cd cc; rm -f $(CLEAN_PATTERNS)
 	cd cc2; rm -f $(CLEAN_PATTERNS)
 	cd triv; rm -f $(CLEAN_PATTERNS) *.y *.gr
+	for dir in arith cdecl cexp; do \
+	  (cd examples/$$dir; make clean); \
+	done
 
 distclean:
 	rm -f Makefile

@@ -39,7 +39,7 @@ verbatim Cexp3 [
 
 terminals {
   // grab the lexer's token list
-  include("cc/cc.tok")
+  include("../../cc/cc.tok")
 
   // annotate some with semantic types
   token[int] L2_INT_LITERAL {

@@ -1,5 +1,7 @@
 // glrmain.cc
-// simple 'main' to parse a file
+// simple 'main' to parse a file; used by some of the example
+// grammars (this file is *not* required for general use of
+// the Elkhound parser)
 
 #include <iostream.h>     // cout
 #include <stdlib.h>       // exit

@@ -163,9 +163,6 @@ grepBoth() {
 
 
 # ------------- small test grammars ----------
-runTest make cexp3
-runTest make cexp3b
-
 # usage: testTrivGrammar <name> [<inputSuffix1> [<inputSuffix2> ...]]
 testTrivGrammar() {
   name="$1"
