@@ -717,13 +717,19 @@ void Scope::lookupPQEnumC_considerBase
 
 Variable *Scope::lookupSingleVariable(StringRef name, LookupFlags flags)
 {
-  Variable *v;
   if (flags & LF_QUERY_TAGS) {
-    v = typeTags.get(name);
+    return vfilter(typeTags.get(name), flags);
   }
-  else {
-    v = variables.get(name);
+
+  Variable *v = vfilter(variables.get(name), flags);
+
+  if (!v && (flags & LF_ONLY_TYPES)) {
+    // 3.4.4p2,3: what we are really implementing is "ignoring any
+    // non-type names that have been declared"; if 'v' is NULL because
+    // it was a non-type, we need to "ignore" it by looking in tags too
+    v = vfilter(typeTags.get(name), flags);
   }
+
   return vfilter(v, flags);
 }
 

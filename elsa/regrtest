@@ -613,7 +613,7 @@ testparse t0377.cc
 testparse t0378.cc
 failparse t0379.cc "buggy qualified lookup involving a typedef in a declarator"
 testparse t0380.cc
-failparse t0381.cc "should not allow elaborated type spec to refer to a typedef"
+testparse t0381.cc
 testparse t0382.cc
 testparse t0383.cc
 testparse t0384.cc
@@ -646,6 +646,7 @@ testparse t0410.cc
 testparse t0411.cc
 testparse t0412.cc
 testparse t0413.cc
+testparse t0414.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

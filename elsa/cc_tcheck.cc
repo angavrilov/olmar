@@ -1417,7 +1417,7 @@ CompoundType *checkClasskeyAndName(
   CompoundType *ct = NULL;
   if (name) {
     // decide how the lookup should be performed
-    LookupFlags lflags = LF_QUERY_TAGS;
+    LookupFlags lflags = LF_ONLY_TYPES;     // 3.4.4p2,3
     if (!name->hasQualifiers() && (forward || definition)) {
       lflags |= LF_INNER_ONLY;
     }
@@ -1437,6 +1437,14 @@ CompoundType *checkClasskeyAndName(
       Variable *tag = env.lookupPQ_one(name, lflags);
       if (tag) {
         if (tag->type->isCompoundType()) {
+          if (!tag->hasFlag(DF_IMPLICIT)) {
+            // found a user-introduced (not implicit) typedef, which
+            // is illegal (3.4.4p2,3)
+            env.error(stringc << "`" << *name << "' is a typedef-name, "
+                              << "so cannot be used after '" 
+                              << toString(keyword) << "'");
+            return NULL;
+          }
           ct = tag->type->asCompoundType();
         } 
         // not sure if I need this
@@ -1627,7 +1635,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
   name->tcheck(env);
 
   if (keyword == TI_ENUM) {
-    Variable *tag = env.lookupPQ_one(name, LF_QUERY_TAGS);
+    Variable *tag = env.lookupPQ_one(name, LF_ONLY_TYPES);
     if (!tag) {
       if (!env.lang.allowIncompleteEnums ||
           name->hasQualifiers()) {
@@ -1640,10 +1648,16 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
         return env.declareEnum(loc, et);
       }
     }
-    xassert(tag->isType());      // ensured by LF_QUERY_TAGS
+    xassert(tag->isType());      // ensured by LF_ONLY_TYPES
     
     if (!tag->type->isEnumType()) {
       return env.error(stringc << "`" << *name << "' is not an enum");
+    }
+    if (!tag->hasFlag(DF_IMPLICIT)) {
+      // found a user-introduced (not implicit) typedef, which
+      // is illegal (3.4.4p2,3)
+      return env.error(stringc << "`" << *name << "' is a typedef-name, "
+                               << "so cannot be used after 'enum'");
     }
     EnumType *et = tag->type->asCVAtomicType()->atomic->asEnumType();
 

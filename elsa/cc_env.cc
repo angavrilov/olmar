@@ -3207,11 +3207,15 @@ Variable *Env::createDeclaration(
       // same types, same typedef disposition, so they refer
       // to the same thing
     }
-    else if (prior->isImplicitTypedef()) {
+    else if (prior->isImplicitTypedef() &&
+             !(dflags & DF_TYPEDEF)) {
       // if the previous guy was an implicit typedef, then as a
       // special case allow it, and arrange for the environment
       // to replace the implicit typedef with the variable being
-      // declared here
+      // declared here                
+      //
+      // 2005-03-01: this is only legal if the new declaration
+      // is for a non-type (7.1.3p3)
 
       TRACE("env",    "replacing implicit typedef of " << prior->name
                    << " at " << prior->loc << " with new decl at "
@@ -4141,7 +4145,7 @@ Scope *Env::lookupScope(Scope * /*nullable*/ scope, StringRef name,
 
   // lookup 'name' in 'scope'
   flags |= LF_QUALIFIER_LOOKUP;
-  flags &= ~LF_QUERY_TAGS;      // query-tags is only for the final component, not the qualifiers
+  flags &= ~LF_ONLY_TYPES;      // only-types is only for the final component, not the qualifiers
   LookupSet set;
   unqualifiedLookup(set, scope, name, flags);
   if (set.isEmpty()) {
