@@ -3770,13 +3770,7 @@ Type *makeLvalType(TypeFactory &tfac, Type *underlying)
     //   int (&a)[];
   }
   else {
-    // I expect Daniel's factory to take the location from
-    // 'underlying', instead of the passed location
-    //
-    // this is the *one* place that makeReferenceTypeIdem
-    // is called, though this 'makeLvalType' is called in
-    // several places in cc_theck.cc
-    return tfac.makeReferenceTypeIdem(SL_UNKNOWN, underlying);
+    return tfac.makeReferenceType(SL_UNKNOWN, underlying);
   }
 }
 

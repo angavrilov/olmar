@@ -2654,17 +2654,6 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
 }
 
 
-Type *TypeFactory::makeReferenceTypeIdem(SourceLoc loc, Type *underlying)
-{
-  if (underlying->isError()) {
-    return underlying;
-  }
-  else {
-    return makeReferenceType(loc, underlying);
-  }
-}
-
-
 Type *TypeFactory::syntaxPointerType(SourceLoc loc,
   bool isPtr, CVFlags cv, Type *type, D_pointer *)
 {
@@ -2691,7 +2680,7 @@ PointerToMemberType *TypeFactory::syntaxPointerToMemberType(SourceLoc loc,
 }
 
 
-ReferenceType *TypeFactory::makeTypeOf_receiver(SourceLoc loc,
+Type *TypeFactory::makeTypeOf_receiver(SourceLoc loc,
   NamedAtomicType *classType, CVFlags cv, D_func *syntax)
 {
   CVAtomicType *at = makeCVAtomicType(loc, classType, cv);
@@ -2788,7 +2777,7 @@ PointerType *BasicTypeFactory::makePointerType(SourceLoc,
 }
 
 
-ReferenceType *BasicTypeFactory::makeReferenceType(SourceLoc,
+Type *BasicTypeFactory::makeReferenceType(SourceLoc,
   Type *atType)
 {
   return new ReferenceType(atType);

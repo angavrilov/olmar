@@ -483,16 +483,12 @@ public:      // funcs
     { return tfac.makeCVAtomicType(loc, atomic, cv); }
   PointerType *makePointerType(SourceLoc loc, CVFlags cv, Type *atType)
     { return tfac.makePointerType(loc, cv, atType); }
-  ReferenceType *makeReferenceType(SourceLoc loc, Type *atType)
+  Type *makeReferenceType(SourceLoc loc, Type *atType)
     { return tfac.makeReferenceType(loc, atType); }
   FunctionType *makeFunctionType(SourceLoc loc, Type *retType)
     { return tfac.makeFunctionType(loc, retType); }
   ArrayType *makeArrayType(SourceLoc loc, Type *eltType, int size = -1)
     { return tfac.makeArrayType(loc, eltType, size); }
-
-  // slight oddball since no 'loc' passed..
-  Type *makeReferenceTypeIdem(Type *underlying)
-    { return tfac.makeReferenceTypeIdem(loc(), underlying); }
 
   // (this does the work of the old 'makeMadeUpVariable')
   Variable *makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f);

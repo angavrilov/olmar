@@ -616,7 +616,7 @@ public:     // funcs
 
   // allow some degree of unified handling of PointerType and ReferenceType
   bool isPtrOrRef() const { return isPointer() || isReference(); }
-  Type *getAtType() const;                     // isPtrOrRef() must be true
+  Type *getAtType() const;
 
   // note that Type overrides these to return Type instead of BaseType
   BaseType const *asRvalC() const;             // if I am a reference, return referrent type
@@ -1286,7 +1286,9 @@ public:
   virtual PointerType *makePointerType(SourceLoc loc,
     CVFlags cv, Type *atType)=0;
 
-  virtual ReferenceType *makeReferenceType(SourceLoc loc,
+  // this returns a Type* instead of a ReferenceType because I need to
+  // be able to return an error type
+  virtual Type *makeReferenceType(SourceLoc loc,
     Type *atType)=0;
 
   virtual FunctionType *makeFunctionType(SourceLoc loc,
@@ -1338,20 +1340,6 @@ public:
   virtual Type *applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
                               TypeSpecifier * /*nullable*/ syntax);
 
-  // this is called in a few specific circumstances when we want to
-  // know the reference type corresponding to some variable (or
-  // lvalue, more generally); The name means make a reference type to
-  // this in an idempotent way; the analysis may need to do something
-  // other than a straightforward "makeReferenceType(underlying)"
-  // (which is the default behavior); this also has the semantics that
-  // if 'underlying' is ST_ERROR then this must return ST_ERROR
-  //
-  // sm: The existence of the "idem" part of the semantics again
-  // exposes the strained relationship between cc_type and Oink.
-  // Someday I'm gonna clean all this crap up, and this function will
-  // die.
-  virtual Type *makeReferenceTypeIdem(SourceLoc loc, Type *underlying);
-
   // build a pointer type from a syntactic description; here I allow
   // the factory to know the name of an AST node, but the default
   // implementation will not use it, so it need not be linked in for
@@ -1378,7 +1366,7 @@ public:
   // 4/18/04: the 'classType' has been generalized because we
   //          represent ptr-to-member-func using a FunctionType
   //          with receiver parameter of type 'classType'
-  virtual ReferenceType *makeTypeOf_receiver(SourceLoc loc,
+  virtual Type *makeTypeOf_receiver(SourceLoc loc,
     NamedAtomicType *classType, CVFlags cv, D_func * /*nullable*/ syntax);
 
   // this will cause a compile error if anyone uses the old name; it
@@ -1446,7 +1434,7 @@ public:    // funcs
     AtomicType *atomic, CVFlags cv);
   virtual PointerType *makePointerType(SourceLoc loc,
     CVFlags cv, Type *atType);
-  virtual ReferenceType *makeReferenceType(SourceLoc loc,
+  virtual Type *makeReferenceType(SourceLoc loc,
     Type *atType);
   virtual FunctionType *makeFunctionType(SourceLoc loc,
     Type *retType);
