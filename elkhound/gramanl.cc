@@ -2337,10 +2337,6 @@ void GrammarAnalysis::moveDotNoClosure(ItemSet const *source, Symbol const *symb
   // for the lookahead merge step that follows a successful lookup
   dest->sortKernelItems();
 
-  // TODO: changedItems allocates a lot; need to reduce the allocations
-  // TODO: in there, but moreover avoid the call at all here (just need crc)
-  //dest->changedItems();  
-  
   // recompute the one thing I need to do hashing
   dest->computeKernelCRC(array);
 }
@@ -2768,6 +2764,8 @@ void GrammarAnalysis::computeReachableDFS(Nonterminal *nt)
 // trace("conflict")
 void GrammarAnalysis::findSLRConflicts(int &sr, int &rr)
 {
+  xfailure("this code is superceded by computeParseTables");
+
   // for every item set..
   MUTATE_EACH_OBJLIST(ItemSet, itemSets, itemSet) {
 
@@ -2784,8 +2782,6 @@ void GrammarAnalysis::findSLRConflicts(int &sr, int &rr)
 }
 
 
-// TODO: remove this, now that computeParseTables supercedes it
-
 // given a parser state and an input symbol determine if we will fork
 // the parse stack; return true if there is a conflict
 bool GrammarAnalysis
@@ -2793,6 +2789,8 @@ bool GrammarAnalysis
                       bool &printedConflictHeader /*inout*/,
                       int &sr /*inout*/, int &rr /*inout*/)
 {
+  xfailure("this code is superceded by computeParseTables");
+
   // see where a shift would go
   ItemSet const *shiftDest = state->transition(sym);
 
@@ -3852,8 +3850,6 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
   computeFirst();
   computeDProdFirsts();
 
-  // TODO: rewrite computeFollow to use precomputed First info
-
   traceProgress(1) << "follow...\n";
   computeFollow();
 
@@ -3905,7 +3901,7 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
   traceProgress(1) << "parse tables...\n";
   computeParseTables(!tracingSys("deterministic"));
 
-  #if 1     // old code; need it for just a while longer
+  #if 0     // old code; need it for just a while longer
   {
     int sr=0, rr=0;           // numbers of each kind of conflict
     findSLRConflicts(sr, rr);
