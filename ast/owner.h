@@ -1,8 +1,8 @@
 // owner.h            see license.txt for copyright and terms of use
 // a stab at an owner ptr abstraction
 
-#ifndef __OWNER_H
-#define __OWNER_H
+#ifndef OWNER_H
+#define OWNER_H
 
 #include "typ.h"      // NULL
 
@@ -89,4 +89,4 @@ T *xfr(T *&ptr)
 }
 
 
-#endif // __OWNER_H
+#endif // OWNER_H
