@@ -171,73 +171,104 @@ void Env::setupOperatorOverloading()
   Type *t_ptrdiff_t = getSimpleType(SL_INIT, ST_INT);
 
   // ---- 13.6 para 12 ----
+  // LR operator* (L, R);
   addBuiltinBinaryOp(BIN_MULT,
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
 
+  // LR operator/ (L, R);
   addBuiltinBinaryOp(BIN_DIV,
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
 
+  // LR operator+ (L, R);
   addBuiltinBinaryOp(BIN_PLUS,
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
 
+  // LR operator- (L, R);
   addBuiltinBinaryOp(BIN_MINUS,
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
 
+  // bool operator< (L, R);
   addBuiltinBinaryOp(BIN_LESS,
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
 
+  // bool operator> (L, R);
   addBuiltinBinaryOp(BIN_GREATER,
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
 
+  // bool operator<= (L, R);
   addBuiltinBinaryOp(BIN_LESSEQ,
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
 
+  // bool operator>= (L, R);
   addBuiltinBinaryOp(BIN_GREATEREQ,
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
 
+  // bool operator== (L, R);
   addBuiltinBinaryOp(BIN_EQUAL,
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
 
+  // bool operator!= (L, R);
   addBuiltinBinaryOp(BIN_NOTEQUAL,
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
 
   // ---- 13.6 para 13 ----
+  // T* operator+ (T*, ptrdiff_t);
   addBuiltinBinaryOp(BIN_PLUS,
     makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
     t_ptrdiff_t);
 
-  // TODO: T& operator[] (T*, ptrdiff_t);
+  // T& operator[] (T*, ptrdiff_t);
+  addBuiltinBinaryOp(BIN_BRACKETS,
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
+    t_ptrdiff_t);
 
+  // T* operator- (T*, ptrdiff_t);
   addBuiltinBinaryOp(BIN_MINUS,
     makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
     t_ptrdiff_t);
 
+  // T* operator+ (ptrdiff_t, T*);
   addBuiltinBinaryOp(BIN_PLUS,
     t_ptrdiff_t,
     makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)));
 
-  // TODO: T& operator[] (ptrdiff_t, T*);
+  // T& operator[] (ptrdiff_t, T*);
+  addBuiltinBinaryOp(BIN_BRACKETS,
+    t_ptrdiff_t,
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)));
 
   // ---- 13.6 para 14 ----
+  // ptrdiff_t operator-(T,T);
   addBuiltinBinaryOp(BIN_MINUS, rvalIsPointer, pointerToObject);
 
   // ---- 13.6 para 15 ----
+  // bool operator< (T, T);
   addBuiltinBinaryOp(BIN_LESS, rvalFilter, pointerOrEnum);
+
+  // bool operator> (T, T);
   addBuiltinBinaryOp(BIN_GREATER, rvalFilter, pointerOrEnum);
+
+  // bool operator<= (T, T);
   addBuiltinBinaryOp(BIN_LESSEQ, rvalFilter, pointerOrEnum);
+
+  // bool operator>= (T, T);
   addBuiltinBinaryOp(BIN_GREATEREQ, rvalFilter, pointerOrEnum);
-  // 15 & 16
+
+  // ---- 13.6 para 15 & 16 ----
+  // bool operator== (T, T);
   addBuiltinBinaryOp(BIN_EQUAL, rvalFilter, pointerOrEnumOrPTM);
+
+  // bool operator!= (T, T);
   addBuiltinBinaryOp(BIN_NOTEQUAL, rvalFilter, pointerOrEnumOrPTM);
 
   exitScope(dummyScope);

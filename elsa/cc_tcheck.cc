@@ -1516,6 +1516,47 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
 
 // ------------------ IDeclarator ------------------
+// Check some restrictions regarding the use of 'operator'; might
+// add some errors to the environment, but otherwise doesn't
+// change anything.  Parameters are same as D_name_tcheck, plus
+// 'scope', the scope into which the name will be inserted.
+void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
+                           SourceLoc loc, PQName const *name,
+                           Scope *scope)
+{
+  if (!dt.type->isFunctionType()) {
+    env.error(loc, "operator names must be functions");
+    return;
+  }
+  FunctionType *ft = dt.type->asFunctionType();
+
+  // caller guarantees this will work
+  OperatorName const *on = name->getUnqualifiedNameC()->asPQ_operatorC()->o;
+
+  // For now, I'm only checking a few ad-hoc things as I run across
+  // them in the spec.  This function is a place-holder for when I
+  // more thoroughly do these checks.
+
+  if (on->isON_binary()) {
+    BinaryOp op = on->asON_binaryC()->op;
+
+    if (op == BIN_BRACKETS) {
+      // 13.5.5: "operator[] shall be a non-static member function with
+      // exactly one parameter"
+      if (!scope->curCompound) {
+        env.error("operator[] must be a member function");
+      }
+      else if (dt.dflags & DF_STATIC) {
+        env.error("operator[] must not be static");
+      }
+      else if (ft->params.count() != 2) {     // 'this', plus one more
+        env.error("operator[] must accept exactly one parameter");
+      }
+    }
+  }
+}
+
+
 // This function is called whenever a constructed type is passed to a
 // lower-down IDeclarator which *cannot* accept member function types.
 // (sm 7/10/03: I'm now not sure exactly what that means...)
@@ -1896,6 +1937,11 @@ realStart:
     }
   }
   consumedFunction = true;
+
+  // check restrictions on operator overloading
+  if (name->getUnqualifiedNameC()->isPQ_operator()) {
+    checkOperatorOverload(env, dt, loc, name, scope);
+  }
 
   // check for overloading
   OverloadSet *overloadSet = NULL;    // null until valid overload seen
@@ -3816,14 +3862,6 @@ inline ArgumentInfo argInfo(Expression *e)
 
 Type *E_binary::itcheck(Env &env, Expression *&replacement)
 {
-  if (op == BIN_BRACKETS) {
-    // TODO: do overloading here; for now, just replace ourselves with a
-    // '+' and a '*'
-    replacement = new E_deref(new E_binary(e1, BIN_PLUS, e2));
-    replacement->tcheck(env, replacement);
-    return replacement->type;
-  }
-
   e1->tcheck(env, e1);
   e2->tcheck(env, e2);
 
@@ -3847,6 +3885,10 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
     // prepare the overload resolver
     OverloadResolver resolver(env, env.loc(), &env.errors,
                               OF_NONE, args, 10 /*numCand*/);
+    if (op == BIN_COMMA) {
+      // 13.3.1.2 para 9: no viable -> use built-in
+      resolver.emptyCandidatesIsOk = true;
+    }
 
     // collect candidates: cppstd 13.3.1.2 para 3
     {
@@ -3916,6 +3958,13 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
   }
 
 after_overload_resolution:
+
+  if (op == BIN_BRACKETS) {
+    // built-in a[b] is equivalent to *(a+b)
+    replacement = new E_deref(new E_binary(e1, BIN_PLUS, e2));
+    replacement->tcheck(env, replacement);
+    return replacement->type;
+  }
 
   // if the LHS is an array, coerce it to a pointer
   if (lhsType->isArrayType()) {

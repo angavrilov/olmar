@@ -116,6 +116,10 @@ public:      // data
   // the best function (13.3.3, final bullet)
   Type *finalDestType;
 
+  // when true, the lack of any viable candidates is *not*
+  // an error
+  bool emptyCandidatesIsOk;
+
   // these are the "viable candidate functions" of the standard
   ObjArrayStack<Candidate> candidates;
 
@@ -133,6 +137,7 @@ public:      // funcs
       flags(f),
       args(a),
       finalDestType(NULL),
+      emptyCandidatesIsOk(false),
 
       // this estimate does not have to be perfect; if it's high,
       // then more space will be allocated than necessary; if it's
