@@ -24,7 +24,7 @@ $| = 1;
 
 # defaults
 $BASE_FLAGS = "-Wall -Wno-deprecated -D__UNIX__";
-$default_hash = "-DWILKERSON_GOLDSMITH_HASH";
+$default_hash = "-DHASH_ALG=2";
 $CCFLAGS = ();
 $DEBUG_HEAP = 0;
 $TRACE_HEAP = 0;
@@ -111,7 +111,7 @@ if ($os eq "Linux") {
 }
 
 # if haven't seen a hashfunction by now, use the default
-if (!grep (/^-D.*_HASH$/, @CCFLAGS)) {
+if (!grep (/^-DHASH_ALG=/, @CCFLAGS)) {
   push @CCFLAGS, $default_hash;
 }
 
