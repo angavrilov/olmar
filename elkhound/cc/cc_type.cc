@@ -420,7 +420,7 @@ int CompoundType::reprSize() const
 int CompoundType::numFields() const
 {                                                
   int ct = 0;
-  for (StringSObjDict<Variable>::Iter iter(variables);
+  for (StringSObjDict<Variable>::Iter iter(getVariableIter());
        !iter.isDone(); iter.next()) {
     Variable *v = iter.value();
            
@@ -438,7 +438,7 @@ int CompoundType::numFields() const
 
 void CompoundType::addField(Variable *v)
 {
-  variables.add(v->name, v);
+  addVariable(v);
 }
 
 

@@ -8,6 +8,7 @@
 #include "strsobjdict.h"  // StrSObjDict
 #include "cc_flags.h"     // AccessKeyword
 #include "fileloc.h"      // SourceLocation
+#include "strtable.h"     // StringRef
 
 class Env;                // cc_env.h
 class Variable;           // variable.h
@@ -19,9 +20,6 @@ class Function;           // cc.ast
 // information about a single scope: the names defined in it,
 // any "current" things being built (class, function, etc.)
 class Scope {
-  friend class Env;
-  friend class CompoundType;
-
 private:     // data
   // ----------------- name spaces --------------------
   // variables: name -> Variable
@@ -50,6 +48,31 @@ public:      // data
 public:
   Scope(int changeCount, SourceLocation const &initLoc);
   ~Scope();
+
+  int getChangeCount() const { return changeCount; }
+
+  // insertion; these return false if the corresponding map already
+  // has a binding
+  bool addVariable(Variable *v);
+  bool addCompound(CompoundType *ct);
+  bool addEnum(EnumType *et);
+  
+  // lookup; these return NULL if the name isn't found
+  Variable const *lookupVariableC(StringRef name) const;
+  CompoundType const *lookupCompoundC(StringRef name) const;
+  EnumType const *lookupEnumC(StringRef name) const;
+
+  // non-const versions..
+  Variable *lookupVariable(StringRef name)
+    { return const_cast<Variable*>(lookupVariableC(name)); }
+  CompoundType *lookupCompound(StringRef name)
+    { return const_cast<CompoundType*>(lookupCompoundC(name)); }
+  EnumType *lookupEnum(StringRef name)
+    { return const_cast<EnumType*>(lookupEnumC(name)); }
+    
+  // for iterating over the variables
+  StringSObjDict<Variable> getVariableIter() const
+    { return StringSObjDict<Variable>(variables); }
 };
 
 

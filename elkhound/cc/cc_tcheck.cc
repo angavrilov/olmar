@@ -338,7 +338,22 @@ Type const *TS_classSpec::tcheck(Env &env)
 
   // look at the base class specifications
   if (bases) {
-    env.unimp("inheritance");
+    FAKELIST_FOREACH(BaseClassSpec, bases, iter) {
+      CompoundType *base = env.lookupPQCompound(iter->name);
+      if (!base) {
+        env.error(stringc
+          << "no class called `" << *(iter->name) << "' was found");
+      }
+      else {                                 
+        AccessKeyword acc = iter->access;
+        if (acc == AK_UNSPECIFIED) {
+          // if the user didn't specify, then apply the default
+          // access mode for the inheriting class
+          acc = (ct->keyword==CompoundType::K_CLASS? AK_PRIVATE : AK_PUBLIC);
+        }
+        ct->bases.append(new BaseClass(base, acc, iter->isVirtual));
+      }
+    }
   }
 
   // open a scope, and install 'ct' as the compound which is

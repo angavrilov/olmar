@@ -76,7 +76,7 @@ public:      // function
   Env(StringTable &str, CCLang &lang);
   ~Env();
 
-  int getChangeCount() const { return scopeC()->changeCount; }
+  int getChangeCount() const { return scopeC()->getChangeCount(); }
 
   // scopes
   void enterScope();
@@ -107,11 +107,11 @@ public:      // function
   void registerVariable(Variable *v);
 
   // lookup in the environment (all scopes)
-  Variable *lookupPQVariable(PQName const *name) const;
-  Variable *lookupVariable(StringRef name, bool innerOnly) const;
-  CompoundType *lookupPQCompound(PQName const *name) const;
-  CompoundType *lookupCompound(StringRef name, bool innerOnly) const;
-  EnumType *lookupPQEnum(PQName const *name) const;
+  Variable *lookupPQVariable(PQName const *name);
+  Variable *lookupVariable(StringRef name, bool innerOnly);
+  CompoundType *lookupPQCompound(PQName const *name);
+  CompoundType *lookupCompound(StringRef name, bool innerOnly);
+  EnumType *lookupPQEnum(PQName const *name);
 
   // diagnostic reports; all return ST_ERROR type
   Type const *error(char const *msg, bool disambiguates=false);

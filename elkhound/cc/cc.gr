@@ -1460,22 +1460,22 @@ nonterm[StringRef] AnyNameOpt {
 
 
 // ------ A.9 Derived classes ------
-nonterm[FakeList<BaseClass>*] BaseClauseOpt {
-  -> empty                      [ return FakeList<BaseClass>::emptyList(); ]
+nonterm[FakeList<BaseClassSpec>*] BaseClauseOpt {
+  -> empty                      [ return FakeList<BaseClassSpec>::emptyList(); ]
   -> ":" b:BaseSpecifierList    [ return b; ]
 }
 
-nonterm[FakeList<BaseClass>*] BaseSpecifierList {
+nonterm[FakeList<BaseClassSpec>*] BaseSpecifierList {
   -> b:BaseSpecifier
-       [ return FakeList<BaseClass>::makeList(b); ]
+       [ return FakeList<BaseClassSpec>::makeList(b); ]
   -> b:BaseSpecifier "," list:BaseSpecifierList
        [ return list->prepend(b); ]
 }
 
 
-nonterm[BaseClass*] BaseSpecifier {
+nonterm[BaseClassSpec*] BaseSpecifier {
   -> v:VirtualOpt a:AccessSpecifierOpt n:PQClassName
-       [ return new BaseClass(v, a, n); ]
+       [ return new BaseClassSpec(v, a, n); ]
 }
 
 nonterm[bool] VirtualOpt {
