@@ -158,6 +158,9 @@ enum Lexer2TokenType {
   L2_PREFER_REDUCE,
   L2_PREFER_SHIFT,
 
+  // theorem prover extensions
+  L2_THMPRV_ASSERT,
+
   L2_NUM_TYPES
 };
 

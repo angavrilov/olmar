@@ -78,16 +78,16 @@ terminals {
     // low precedence
     prec L2_PREFER_SHIFT;
 
-    left "*" "/" "%";
-    left "+" "-";
-    left "<<" ">>";
-    left "<" ">" "<=" ">=";
-    left "==" "!=";
-    left "&";
-    left "^";
-    left "|";
-    left "&&";
     left "||";
+    left "&&";
+    left "|";
+    left "^";
+    left "&";
+    left "==" "!=";
+    left "<" ">" "<=" ">=";
+    left "<<" ">>";
+    left "+" "-";
+    left "*" "/" "%";
 
     prec "const" "volatile" "__attribute__" "else";
     prec L2_PREFER_REDUCE;
@@ -520,6 +520,9 @@ nonterm[Statement*] Statement {
 
   // GNU extensions
   -> GNUAsmStatement                    [ return new S_skip(); ]
+  
+  // theorem prover extensions
+  -> "thmprv_assert" e:Expression ";"   [ return new S_assert(e); ]
 }
 
 nonterm[Statement*] ExpressionStatement {

@@ -156,14 +156,23 @@ Lexer2TokenTypeDesc const l2TokTypes[] = {
   { N(L2_SEMICOLON),            ";", true },
   { N(L2_LBRACE),               "{", true },
   { N(L2_RBRACE),               "}", true },
+  
+  // extensions for parsing gnu
   { N(L2___ATTRIBUTE__),        "__attribute__", true },
   { N(L2___FUNCTION__),         "__FUNCTION__", true },
   { N(L2___LABEL__),            "__label__", true },
   { N(L2___PRETTY_FUNCTION__),  "__PRETTY_FUNCTION__", true },
   { N(L2___TYPEOF__),           "__typeof__", true },
+  
+  // my own extension
   { N(L2_OWNER),                "owner", true },
+  
+  // additional tokens to help in specifying disambiguation
   { N(L2_PREFER_REDUCE),        "PREFER_REDUCE", true },
   { N(L2_PREFER_SHIFT),         "PREFER_SHIFT", true },
+                                                           
+  // theorem-prover extensions
+  { N(L2_THMPRV_ASSERT),        "thmprv_assert", true },
 };
 
 #undef N
@@ -220,6 +229,9 @@ struct GNUKeywordMap {
 
 Lexer2TokenType lookupKeyword(char const *keyword)
 {
+  // works?
+  STATIC_ASSERT(TABLESIZE(l2TokTypes) == L2_NUM_TYPES);
+
   xassert(TABLESIZE(l2TokTypes) == L2_NUM_TYPES);
 
   {loopi(TABLESIZE(gnuKeywordMap)) {

@@ -114,6 +114,17 @@ void S_decl::vcgen(AEnv &env)
 }
 
 
+void S_assert::vcgen(AEnv &env)
+{                                
+  // map the expression to my abstract domain
+  IntValue *v = expr->vcgen(env);            
+  xassert(v);     // already checked it was boolean
+  
+  // try to prove it (is not equal to 0)
+  env.prove(v);
+}
+
+
 // ---------------------- Expression -----------------
 IntValue *E_intLit::vcgen(AEnv &env)
 {
@@ -188,7 +199,13 @@ IntValue *E_fieldAcc::vcgen(AEnv &env)
 IntValue *E_unary::vcgen(AEnv &env)
 {
   // TODO: deal with ++, --
-  return env.grab(new IVunary(op, expr->vcgen(env)));
+  
+  if (op == UNY_SIZEOF) {
+    return env.grab(new IVint(expr->type->reprSize()));
+  }
+  else {
+    return env.grab(new IVunary(op, expr->vcgen(env)));
+  }
 }
 
 IntValue *E_binary::vcgen(AEnv &env)

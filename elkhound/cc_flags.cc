@@ -159,6 +159,13 @@ MAKE_TOSTRING(UnaryOp, NUM_UNARYOPS, unaryOpNames)
 
 // ---------------------- BinaryOp -------------------------
 char const * const binaryOpNames[NUM_BINARYOPS] = {
+  "==",
+  "!=",
+  "<",
+  ">",
+  "<=",
+  ">=",
+
   "*",
   "/",
   "%",
@@ -166,12 +173,6 @@ char const * const binaryOpNames[NUM_BINARYOPS] = {
   "-",
   "<<",
   ">>",
-  "<",
-  ">",
-  "<=",
-  ">=",
-  "==",
-  "!=",
   "&",
   "^",
   "|",

@@ -36,6 +36,9 @@ public:
   // or why it was created
   IntValue *freshIntVariable(char const *why);
 
+  // proof obligation
+  void prove(IntValue const *expr);
+
   // pseudo-memory-management; semantics not very precise at the moment
   IntValue *grab(IntValue *v);
   void discard(IntValue *v);

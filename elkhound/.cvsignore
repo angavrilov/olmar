@@ -81,3 +81,4 @@ cexp3b*
 c.ast.gen.*
 gramast.ast.gen.*
 absval.ast.gen.*
+predicate.ast.gen.*

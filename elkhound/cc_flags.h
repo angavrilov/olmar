@@ -131,6 +131,15 @@ string toString(UnaryOp op);
 
 // ------------------------ BinaryOp --------------------------
 enum BinaryOp {
+  // the relationals come first, and in this order, to correspond
+  // to RelationOp in predicate.ast
+  BIN_EQUAL,     // ==
+  BIN_NOTEQUAL,  // !=
+  BIN_LESS,      // <
+  BIN_GREATER,   // >
+  BIN_LESSEQ,    // <=
+  BIN_GREATEREQ, // >=
+
   BIN_MULT,      // *
   BIN_DIV,       // /
   BIN_MOD,       // %
@@ -138,12 +147,6 @@ enum BinaryOp {
   BIN_MINUS,     // -
   BIN_LSHIFT,    // <<
   BIN_RSHIFT,    // >>
-  BIN_LESS,      // <
-  BIN_GREATER,   // >
-  BIN_LESSEQ,    // <=
-  BIN_GREATEREQ, // >=
-  BIN_EQUAL,     // ==
-  BIN_NOTEQUAL,  // !=
   BIN_BITAND,    // &
   BIN_BITXOR,    // ^
   BIN_BITOR,     // |

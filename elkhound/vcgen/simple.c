@@ -13,7 +13,7 @@ void bar()
 {
   int z = 1;
   
-  [[ assert z+3 > 3; ]]
+  thmprv_assert z+3 > 3;
 
   z = foo(z+3);
 }

@@ -445,6 +445,15 @@ void S_decl::tcheck(Env &env)
 }
 
 
+void S_assert::tcheck(Env &env)
+{
+  // TODO: verify the expression has no side effects
+
+  Type const *type = expr->tcheck(env);
+  checkBoolean(env, type, expr);
+}
+
+
 // ------------------ Expression::tcheck --------------------
 Type const *Expression::tcheck(Env &env)
 {

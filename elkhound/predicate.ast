@@ -1,0 +1,187 @@
+// predicate.ast
+// abstract syntax of predicates that can be passed to Simplify
+
+verbatim {
+  #include "cc_flags.h"     // BinaryOp
+
+  class stringBuilder;      // str.h
+  class IntValue;           // absval.ast
+
+  enum RelationOp {
+    RE_EQUAL,       // ==
+    RE_NOTEQUAL,    // !=
+    RE_LESS,        // <
+    RE_GREATER,     // >
+    RE_LESSEQ,      // <=
+    RE_GREATEREQ,   // >=
+    NUM_RELATIONOPS
+  };
+
+  extern char const * const relationOpNames[NUM_RELATIONOPS];
+  string toString(RelationOp op);
+  RelationOp binOpToRelation(BinaryOp op);
+
+  // syntactic sugar for constructing conjunctions
+  class Predicate;
+  Predicate *P_and2(Predicate *p1, Predicate *p2);    // p1,p2 owner pointers
+  Predicate *P_or2(Predicate *p1, Predicate *p2);
+}
+
+impl_verbatim {
+  // for debugPrint; IntValue doesn't have a convenient toString,
+  // and the printing interface isn't really set up to call its
+  // debugPrint method
+  string toString(IntValue const *v)
+    { return stringc << (void*)v; }
+}
+
+
+class Predicate {
+  pure_virtual void toSexp(stringBuilder &sb) const;
+
+  // --------------- "literals" --------------
+  // true or false
+  -> P_lit(bool b);
+
+  // propositional variable
+  // (leaving out for now since I don't seem to need it)
+
+  // arithmetic relation; perhaps I want to allow generalized
+  // predicate symbols (but would Simplify accept them?)
+  -> P_relation(IntValue const *e1, RelationOp op, IntValue const *e2);
+
+  // distinction: leaving out for now
+
+  // negation of a predicate
+  -> P_not(Predicate p);
+
+  // ---------------- "boolean functions" --------------
+  -> P_and(ASTList<Predicate> conjuncts);
+  -> P_or(ASTList<Predicate> disjuncts);
+  -> P_impl(Predicate premise, Predicate conclusion);
+  -> P_iff(Predicate p1, Predicate p2);
+
+  // quantification: not yet
+
+  // ordering: not yet
+  // labelled predicates: not yet
+}
+
+
+impl_verbatim {
+  #include "str.h"                // stringBuilder
+  #include "absval.ast.gen.h"     // IntValue
+
+  char const * const relationOpNames[NUM_RELATIONOPS] = {
+    "==",
+    "!=",
+    "<",
+    ">",
+    "<=",
+    ">="
+  };
+
+  string toString(RelationOp op)
+  {
+    xassert((unsigned)op < NUM_RELATIONOPS);
+    return string(relationOpNames[op]);
+  }
+
+  RelationOp binOpToRelation(BinaryOp op)
+  {
+    xassert(op >= BIN_EQUAL && op <= BIN_GREATEREQ);
+    return (RelationOp)op;
+  }
+
+  Predicate *P_and2(Predicate *p1, Predicate *p2)
+  {
+    P_and *p = new P_and(NULL);
+    p->conjuncts.append(p1);
+    p->conjuncts.append(p2);
+    return p;
+  }
+
+  Predicate *P_or2(Predicate *p1, Predicate *p2)
+  {
+    P_or *p = new P_or(NULL);
+    p->disjuncts.append(p1);
+    p->disjuncts.append(p2);
+    return p;
+  }
+
+  
+  // -------------------- toSexp -------------------------
+  void P_lit::toSexp(stringBuilder &sb) const
+  {
+    if (b) {
+      sb << "TRUE";
+    }
+    else {
+      sb << "FALSE";
+    }
+  }
+
+  void P_relation::toSexp(stringBuilder &sb) const
+  {
+    static char const * const names[] = {
+      "EQ", "NEQ", "<", ">", "<=", ">="
+    };
+    STATIC_ASSERT(TABLESIZE(names) == NUM_RELATIONOPS);
+
+    sb << "(" << names[op] << " ";
+    e1->toSexp(sb);
+    sb << " ";
+    e2->toSexp(sb);
+    sb << ")";
+  }
+
+  void P_not::toSexp(stringBuilder &sb) const
+  {
+    sb << "(NOT ";
+    p->toSexp(sb);
+    sb << ")";
+  }
+
+  void P_and::toSexp(stringBuilder &sb) const
+  {
+    sb << "(AND";
+    FOREACH_ASTLIST(Predicate, conjuncts, iter) {
+      sb << " ";
+      iter.data()->toSexp(sb);
+    }
+    sb << ")";
+  }
+
+  void P_or::toSexp(stringBuilder &sb) const
+  {
+    sb << "(OR";
+    FOREACH_ASTLIST(Predicate, disjuncts, iter) {
+      sb << " ";
+      iter.data()->toSexp(sb);
+    }
+    sb << ")";
+  }
+
+  void P_impl::toSexp(stringBuilder &sb) const
+  {
+    sb << "(IMPLIES ";
+    premise->toSexp(sb);
+    sb << " ";
+    conclusion->toSexp(sb);
+    sb << ")";
+  }
+
+  void P_iff::toSexp(stringBuilder &sb) const
+  {
+    sb << "(IFF ";
+    p1->toSexp(sb);
+    sb << " ";
+    p2->toSexp(sb);
+    sb << ")";
+  }
+}
+
+
+
+
+

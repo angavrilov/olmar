@@ -189,6 +189,9 @@ class Statement {
   -> S_return(Expression /*nullable*/ expr);
   -> S_goto(StringRef target);
   -> S_decl(Declaration decl);
+  
+  // theorem prover extensions
+  -> S_assert(Expression expr);
 }
 
 
