@@ -435,7 +435,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
   #ifdef GNU_EXTENSION
     Type *t_int = getSimpleType(HERE, ST_INT);
-    Type *t_unsigned_int = getSimpleType(HERE, ST_UNSIGNED_INT);
+    //Type *t_unsigned_int = getSimpleType(HERE, ST_UNSIGNED_INT);
     Type *t_char = getSimpleType(HERE, ST_CHAR);
     Type *t_charconst = getSimpleType(HERE, ST_CHAR, CV_CONST);
     Type *t_charptr = makePtrType(HERE, t_char);
@@ -472,18 +472,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     declareFunction2arg(t_charptr, "__builtin_strstr",
                         t_charconstptr, "haystack",
                         t_charconstptr, "needle",
-                        FF_NONE, NULL);
-
-    // dsw: I made up the signature to this one; FIX: should probably
-    // also be marked NORETURN.
-    // void __assert_fail(char const *__assertion, char const *__file,
-    // unsigned int __line, char const *__function);
-    #warning This is not the right place for __assert_fail.
-    declareFunction4arg(t_void, "__assert_fail",
-                        t_charconstptr, "__assertion",
-                        t_charconstptr, "__file",
-                        t_unsigned_int, "__line",
-                        t_charconstptr, "__function",
                         FF_NONE, NULL);
   #endif // GNU_EXTENSION
 

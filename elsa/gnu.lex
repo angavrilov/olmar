@@ -14,6 +14,10 @@
 "__restrict__"         return tok(TOK___RESTRICT__);
 "__builtin_expect"     return tok(TOK___BUILTIN_EXPECT);
 
+  /* where does this come from?  gcc-3.4.0 seems to know about it,
+   * but gcc-2.95.3 doesn't .... */
+"_Bool"                return tok(TOK_BOOL);
+
   /* behavior of these depends on CCLang settings */
 "__FUNCTION__"|"__PRETTY_FUNCTION__" {
   if (lang.gccFuncBehavior == CCLang::GFB_string) {
