@@ -95,6 +95,9 @@ public:      // data
 
   StringTable &strtable;           // string table
 
+  // count of errors encountered
+  int errors;
+
 private:     // funcs
   // disallowed
   GrammarLexer(GrammarLexer const &);

@@ -71,6 +71,7 @@ ASTGEN_OBJS := \
   strtable.o \
   agrampar.o  \
   astgen.o
+-include $(ASTGEN_OBJS:.o=.d)
 
 # ast.ast.cc is a dependency here but not explicitly in the command
 # line because ast.hand.cc #includes it
@@ -110,6 +111,7 @@ LIB_OBJS := \
   asthelp.o \
   strtable.o \
   locstr.o
+-include $(ASTGEN_OBJS:.o=.d)
 
 libast.a: $(LIB_OBJS)
 	$(AR) -r $@ $(LIB_OBJS)

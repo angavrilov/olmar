@@ -72,7 +72,8 @@ GrammarLexer::GrammarLexer(isEmbedTok test, StringTable &strtbl,
     integerLiteral(0),
     stringLiteral(""),
     includeFileName(""),
-    strtable(strtbl)
+    strtable(strtbl),
+    errors(0)
 {
   trace("tmp") << "source is " << source << endl;
 
@@ -196,6 +197,7 @@ void GrammarLexer::reportError(char const *msg)
 
 void GrammarLexer::printError(SourceLoc loc, char const *msg)
 {
+  errors++;
   cerr << toString(loc) << ": error: " << msg << endl;
 }
 
