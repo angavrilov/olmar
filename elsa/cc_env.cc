@@ -3115,12 +3115,8 @@ noPriorDeclaration:
   if (overloadSet) {
     // don't add it to the environment (another overloaded version
     // is already in the environment), instead add it to the overload set
-    //
-    // dsw: don't add it if it is a template specialization
-    if (!(dflags & DF_TEMPL_SPEC)) {
-      overloadSet->addMember(newVar);
-      newVar->overload = overloadSet;
-    }
+    overloadSet->addMember(newVar);
+    newVar->overload = overloadSet;
   }
   else if (!type->isError()) {       
     // 8/09/04: add error-typed vars anyway?            

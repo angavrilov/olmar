@@ -105,14 +105,13 @@ enum DeclFlags {
   DF_TEMPORARY   = 0x01000000,    // temporary variable introduced by elaboration
   DF_EXTERN_C    = 0x08000000,    // name is marked extern "C"
   DF_SELFNAME    = 0x10000000,    // section 9 para 2: name of class inside its own scope
-  DF_TEMPL_SPEC  = 0x20000000,    // name is a template specialization
-  DF_BOUND_TEMPL_VAR=0x00004000,  // Variable bound to a concrete template argument
+  DF_BOUND_TARG  = 0x00004000,    // Variable bound to a concrete template argument
 
   // syntactic declaration extensions
   DF_PREDICATE   = 0x02000000,    // Simplify-declared predicate (i.e. DEFPRED)
 
-  ALL_DECLFLAGS  = 0x3FFFFFFF,
-  NUM_DECLFLAGS  = 30             // # bits set to 1 in ALL_DECLFLAGS
+  ALL_DECLFLAGS  = 0x1FFFFFFF,
+  NUM_DECLFLAGS  = 29             // # bits set to 1 in ALL_DECLFLAGS
 };
 
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..

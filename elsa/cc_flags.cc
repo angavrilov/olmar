@@ -92,7 +92,6 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "namespace",
   "<extern \"C\">",
   "<selfname>",     // 28
-  "<template specialization>",
 };
 
 

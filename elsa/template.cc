@@ -1331,7 +1331,7 @@ bool Env::insertTemplateArgBindings_oneParamList
       // bind the type parameter to the type argument
       Type *t = sarg? sarg->getType() : param->defaultParamType;
       Variable *binding = makeVariable(param->loc, param->name,
-                                       t, DF_TYPEDEF | DF_BOUND_TEMPL_VAR);
+                                       t, DF_TYPEDEF | DF_BOUND_TARG);
       addVariable(binding);
     }
     else if (!param->hasFlag(DF_TYPEDEF) &&
@@ -1352,7 +1352,7 @@ bool Env::insertTemplateArgBindings_oneParamList
       Type *bindType = tfac.applyCVToType(param->loc, CV_CONST,
                                           param->type, NULL /*syntax*/);
       Variable *binding = makeVariable(param->loc, param->name,
-                                       bindType, DF_BOUND_TEMPL_VAR);
+                                       bindType, DF_BOUND_TARG);
 
       // set 'bindings->value', in some cases creating AST
       if (!sarg) {

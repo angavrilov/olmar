@@ -3008,22 +3008,6 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
   // the 'base' on to the next-lower declarator
   dt.type = ft;
 
-  #if 0     // sm: not sure what this is supposed to do ...
-  // if this variable is a specialization, then mark it as such so
-  // that in particular it doesn't get added to the overload set of
-  // its primary during typechecking below
-  if (templateInfo) {
-    if (templateInfo->isMutant()) {
-      // strange case that happens when one function template body
-      // instantiates another; make sure that this concern it
-      // irrelevant since nothing will get added to the scope
-    } else if (templateInfo->isCompleteSpecOrInstantiation() ||
-               templateInfo->isPartialSpec()) {
-      dt.dflags |= DF_TEMPL_SPEC;
-    }
-  }
-  #endif // 0
-
   base->tcheck(env, dt);
 }
 
