@@ -160,7 +160,7 @@ AbsValue *AEnv::get(Variable const *var)
   xassert(name);    // otherwise how did it get referred-to?
   Type const *type = var->type;
                         
-  // the way the conditionals work below this actually always gets
+  // the way the conditionals below work, this actually always gets
   // set to something else, but gcc doesn't know that
   AbsValue *value = NULL;
 
@@ -180,7 +180,9 @@ AbsValue *AEnv::get(Variable const *var)
     return value;
   }
 
-  // reference to a structure field
+  // reference to a structure field (field as a *whole*--not the field
+  // of some particular object, but the "array" which represents
+  // *every* object's value for this field)
   if (var->hasFlag(DF_FIELD)) {
     value = freshVariable(var->name,
       stringc << "models object offset of field " << var->name);
@@ -235,6 +237,15 @@ AbsValue *AEnv::get(Variable const *var)
   else {
     // model the variable as a simple, named, unaliasable variable
     set(var, value);
+    
+    if (var->type->isOwnerPtr()) {
+      // OWNER: initialize 'state' to DEAD(1)
+      trace("owner") << "initializing state of " << name << " to DEAD\n";
+      addFact(P_equal(avGetElt(avOwnerField_state(), value),
+                      avOwnerState_dead()),
+              stringc << "initial state of owner pointer " << name);
+    }
+
     return value;
   }
 }
@@ -805,6 +816,37 @@ AbsValue *AEnv::avInt(int i)
 AbsValue *AEnv::avSum(AbsValue *a, AbsValue *b)
 {
   return new AVbinary(a, BIN_PLUS, b);
+}
+                  
+
+StringRef AEnv::str(char const *s)
+{
+  return stringTable.add(s);
+}
+
+bool AEnv::isNullPointer(AbsValue const *val) const
+{
+  // here's a case where ML-style pattern matching would actually
+  // make a difference..
+  if (val->isAVfunc()) {
+    AVfunc const *f = val->asAVfuncC();
+    if (f->func == str("pointer") &&
+        f->args.count() == 2) {
+      if (isZero(f->args.nthC(0)) &&
+          isZero(f->args.nthC(1))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool AEnv::isZero(AbsValue const *val) const
+{
+  if (val->isAVint()) {
+    return val->asAVintC()->i == 0;
+  }
+  return false;
 }
 
 

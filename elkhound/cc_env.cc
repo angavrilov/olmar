@@ -611,6 +611,16 @@ ArrayType *Env::makeArrayType(Type const *eltType)
 
 void Env::checkCoercible(Type const *src, Type const *dest)
 {
+  if (dest->asRval()->isOwnerPtr()) {
+    // can only assign owners into owner owners (whereas it's
+    // ok to assign an owner into a serf)
+    if (!src->asRval()->isOwnerPtr()) {
+      err(stringc
+        << "cannot convert `" << src->toString()
+        << "' to `" << dest->toString());
+    }
+  }
+
   // just say yes
 }
 

@@ -80,7 +80,7 @@ void TF_func::vcgen(AEnv &env) const
   // for every local variable, and every global variable referenced,
   // make up logic variables and introduce type-based facts; the
   // purpose of this is to make sure these things get introduced now,
-  // now in the middle of some quantified expression where the
+  // not in the middle of some quantified expression where the
   // quantifier will want to capture new facts..
   env.pushPathFactsFrame();
   instantiateVariables(env, params);
@@ -454,8 +454,11 @@ void S_decl::vcgen(STMT_VCGEN_PARAMS) const
     else {
       // make up a new name for the uninitialized value
       // (if it's global we get to assume it's 0... not implemented..)
-      initVal = env.freshVariable(d->var->name, 
-        stringc << "UNINITialized value of var " << d->var->name);
+      // UPDATE: now that TF_func::vcgen does a pre-instantiation of
+      // all locals, this should not be needed
+      //initVal = env.freshVariable(d->var->name,
+      //  stringc << "UNINITialized value of var " << d->var->name);
+      continue;
     }
 
     // add a binding for the variable
@@ -593,6 +596,9 @@ AbsValue *E_variable::vcgen(AEnv &env, int path) const
 
 AbsValue *E_funCall::vcgen(AEnv &env, int path) const
 {
+  // get type of called function
+  FunctionType const &ft = func->type->asRval()->asFunctionTypeC();
+
   // evaluate the argument expressions, taking into consideration
   // which path to follow
   SObjList<AbsValue> argExps;
@@ -603,17 +609,44 @@ AbsValue *E_funCall::vcgen(AEnv &env, int path) const
     path = path / subexpPaths;
 
     // args
+    ObjListIter<FunctionType::Param> paramIter(ft.params);
     FOREACH_ASTLIST(Expression, args, iter) {
-      subexpPaths = iter.data()->numPaths1();
-      argExps.prepend(iter.data()->vcgen(env, path % subexpPaths));
+      Expression const *arg = iter.data();
+
+      // evaluate
+      subexpPaths = arg->numPaths1();
+      AbsValue *val = arg->vcgen(env, path % subexpPaths);
+      argExps.prepend(val);
       path = path / subexpPaths;
+                 
+      if (arg->type->asRval()->isOwnerPtr() &&
+          paramIter.data()->type->isOwnerPtr()) {
+        // OWNER: when an owner pointer is passed to an owner param,
+        // the argument becomes dead
+        // TODO: replace all of this with a source-to-source instrumentation
+        // phase, so I don't have to re-do what E_assign does...
+        if (arg->isE_variable()) {
+          E_variable const *evar = arg->asE_variableC();
+          trace("owner") << "deadening argument " << evar->var->name << "\n";
+                                                                             
+          // get current value
+          AbsValue *prev = env.get(evar->var);
+                              
+          // update the 'state' field
+          env.set(evar->var, env.avSetElt(env.avOwnerField_state(),
+                                          prev, env.avOwnerState_dead()));
+        }
+        else {
+          cout << "WARNING: unhandled owner argument: " << arg->toString() << "\n";
+        }
+      }
+      // TODO: add typechecking rules to prevent passing a serf pointer
+      // into an owner param
     }
     xassert(path < subexpPaths);
 
     argExps.reverse();      // when it's easy to stay linear..
   }
-
-  FunctionType const &ft = func->type->asRval()->asFunctionTypeC();
 
   // --------------- predicate: fn symbol application ----------------
   if (env.inPredicate) {
@@ -840,6 +873,18 @@ AbsValue *E_deref::vcgen(AEnv &env, int path) const
 {
   AbsValue *addr = ptr->vcgen(env, path);
 
+  // DUPLICATED in E_assign
+  if (ptr->type->asRval()->isOwnerPtr()) {
+    // OWNER: pointer must be in owning state to use
+    trace("owner") << "owner pointer being dereferenced for read\n";
+    env.prove(P_equal(env.avGetElt(env.avOwnerField_state(), addr),
+                      env.avOwnerState_owning()),
+              "owner must be in owner state to dereference");
+
+    // dereferencing an owner needs to actually dereference the 'ptr' field
+    addr = env.avGetElt(env.avOwnerField_ptr(), addr);
+  }
+
   // emit a proof obligation for safe access through 'addr'
   verifyPointerAccess(env, this, addr);
 
@@ -859,6 +904,27 @@ AbsValue *E_cast::vcgen(AEnv &env, int path) const
       expr->type->isSimple(ST_INT)) {
     // encode as pointer: some integer offset from the null object
     v = env.avPointer(env.avInt(0), v);
+
+    // OWNER: if the target is an owner pointer, construct
+    // a tuple for it
+    if (ctype->type->asRval()->isOwnerPtr()) {
+      // first of all, we can only assign the integer zero to owners
+      if (!env.isNullPointer(v)) {       // only prove if nonobvious
+        env.prove(P_equal(v, env.nullPointer()),
+                  "can only assign zero to owners");
+      }
+
+      // construct the tuple
+      trace("owner") << "yielding a null-owner tuple\n";
+      v = env.avSetElt(
+            env.avOwnerField_ptr(),      // field: ptr
+            env.avInt(0),                // start with no-information tuple
+            v);                          // value: pointer(0,0)
+      v = env.avSetElt(
+            env.avOwnerField_state(),    // field: state
+            v,                           // value to update
+            env.avOwnerState_null());    // value: nullowner
+    }
   }
 
   return v;
@@ -991,22 +1057,42 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
     xassert(path==0);
     Variable const *var = target->asE_variable()->var;
 
-    if (op != BIN_ASSIGN) {
-      // extract old value
-      AbsValue *old = env.get(var);
+    // extract old value
+    AbsValue *old = env.get(var);
 
-      // combine it
+    if (op != BIN_ASSIGN) {
+      // combine new with old
       v = env.grab(new AVbinary(old, op, v));
+    }
+
+    if (var->type->isOwnerPtr()) {
+      // OWNER: verify it is nonowning before reassignment
+      env.prove(P_notEqual(env.avGetElt(env.avOwnerField_state(), old),
+                           env.avOwnerState_owning()),
+                "verify owner pointer is nonowning before reassignment");
     }
 
     // properly handles memvars vs regular vars
     env.updateVar(var, v);
   }
   else if (op == BIN_ASSIGN && target->isE_deref()) {
-    string syntax = target->toString();
+    E_deref *deref = target->asE_deref();
+    //string syntax = target->toString();
 
     // get an abstract value for the address being modified
-    AbsValue *addr = target->asE_deref()->ptr->vcgen(env, path);
+    AbsValue *addr = deref->ptr->vcgen(env, path);
+
+    // COPIED from E_deref
+    if (deref->ptr->type->asRval()->isOwnerPtr()) {
+      // OWNER: pointer must be in owning state to use
+      trace("owner") << "owner pointer being dereferenced for write\n";
+      env.prove(P_equal(env.avGetElt(env.avOwnerField_state(), addr),
+                        env.avOwnerState_owning()),
+                "owner must be in owner state to dereference");
+
+      // dereferencing an owner needs to actually dereference the 'ptr' field
+      addr = env.avGetElt(env.avOwnerField_ptr(), addr);
+    }
 
     // emit a proof obligation for safe access
     verifyPointerAccess(env, this, addr);
@@ -1036,6 +1122,14 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
             env.avInt(fldAcc->field->index),      // field index
             current,                              // value being updated
             v);                                   // new field value
+
+        if (var->type->isOwnerPtr() &&
+            fldAcc->field->index == 0 /*ptr*/) {
+          // OWNER: verify it is nonowning before reassignment
+          env.prove(P_notEqual(env.avGetElt(env.avOwnerField_state(), current),
+                               env.avOwnerState_owning()),
+                    "verify owner pointer is nonowning before reassignment");
+        }
 
         // replace old with new in abstract environment
         env.set(var, updated);

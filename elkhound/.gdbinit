@@ -12,7 +12,8 @@
 
 #set args -tr stopAfterTCheck cc.bin c.in3
 
-#set args cc.bin c.in1
+file ccgr
+set args -tr predicates,owner cc.bin vcgen/owner1.i
 
 #set args -tr factflow cc.bin vcgen/ff.c
 
@@ -23,8 +24,8 @@
 #file gramanl
 #set args -tr conflict,lrtable ite
 
-file CNI.gr.exe
-set args -tr parse CNI.in1
+#file CNI.gr.exe
+#set args -tr parse CNI.in1
 
 #file aSEb.gr.exe
 #set args aSEb.in1

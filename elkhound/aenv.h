@@ -125,6 +125,8 @@ public:      // funcs
   AEnv(StringTable &table, Variable const *mem);
   ~AEnv();
 
+  StringRef str(char const *s);
+
   // prepare for a new path; forget everything that was particular
   // to the last path analyzed
   void newPath();
@@ -158,7 +160,7 @@ public:      // funcs
 
   // add an address to those considered mutually distinct
   void addDistinct(AbsValue *obj);
-                                          
+
   // add an assumption to pathFacts which says that no memory location
   // currently points to 'v'; useful after an allocation, when 'v'
   // stands for the address of the newly allocated object
@@ -241,6 +243,9 @@ public:      // funcs
   AbsValue *avInDegree(AbsValue *mem, AbsValue *ofs, AbsValue *obj)
     { return avFunc3("inDegree", mem, ofs, obj); }
 
+  AbsValue *nullPointer() 
+    { return avPointer(avInt(0), avInt(0)); }
+
   AbsValue *avFunc1(char const *func, AbsValue *v1);
   AbsValue *avFunc2(char const *func, AbsValue *v1, AbsValue *v2);
   AbsValue *avFunc3(char const *func, AbsValue *v1, AbsValue *v2, AbsValue *v3);
@@ -249,6 +254,18 @@ public:      // funcs
 
   AbsValue *avInt(int i);
   AbsValue *avSum(AbsValue *a, AbsValue *b);
+
+  // owner-pointer manipulation constants
+  AbsValue *avOwnerField_ptr()            { return avInt(0); }
+  AbsValue *avOwnerField_state()          { return avInt(1); }
+  
+  AbsValue *avOwnerState_null()           { return avInt(0); }
+  AbsValue *avOwnerState_dead()           { return avInt(1); }
+  AbsValue *avOwnerState_owning()         { return avInt(2); }
+
+  // query..
+  bool isNullPointer(AbsValue const *val) const;
+  bool isZero(AbsValue const *val) const;
 
   // debugging
   void print();

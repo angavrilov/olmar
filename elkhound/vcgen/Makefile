@@ -4,5 +4,5 @@ all: node.i node2.i owner1.i
 
 %.i: %.c
 	rm -f $*.i
-	cpp $*.c > $*.i
+	cpp -C $*.c > $*.i
 	chmod a-w $*.i
