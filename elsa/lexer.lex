@@ -376,6 +376,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 
   /* C comment */
 "/""*"([^*]|"*"[^/])*"*/"     {
+  // TODO: I think this fails to match /***/
   whitespace();
 }
 

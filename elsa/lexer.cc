@@ -308,7 +308,8 @@ string Lexer::tokenDesc() const
   if (tokenFlags((TokenType)type) & TF_MULTISPELL) {
     // for tokens with multiple spellings, decode 'sval' as a
     // StringRef
-    return string((StringRef)sval);
+    //return string((StringRef)sval);
+    return stringc << toString((TokenType)type) << ": " << (StringRef)sval;
   }
   else {
     // for all others, consult the static table
