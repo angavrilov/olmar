@@ -136,4 +136,11 @@ public:
 extern SourceFileList sourceFileList;
 
 
+// macro for obtaining a source location that points at the 
+// point in the source code where this macro is invoked
+#define HERE_SOURCELOC                             \
+  SourceLocation(FileLocation(__LINE__, 1),        \
+                 sourceFileList.open(__FILE__))
+
+
 #endif // __FILELOC_H
