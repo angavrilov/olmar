@@ -193,6 +193,10 @@ chmod 0755, "config.summary";
 # from here on, combine BASE_FLAGS and CCFLAGS
 $CCFLAGS = "$BASE_FLAGS $CCFLAGS";
 
+# make a variant, CFLAGS, that doesn't include -Wno-deprecated
+$CFLAGS = $CCFLAGS;
+$CFLAGS =~ s| -Wno-deprecated||;
+
 # create a program which will create the Makefile
 open(OUT, ">config.status") or die("can't make config.status");
 print OUT (<<"__OUTER_EOF__");
@@ -218,6 +222,7 @@ EOF
 
 # substitute the CCFLAGS
 sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
+    -e "s|\@CFLAGS\@|$CFLAGS|g" \\
     -e "s|\@DEBUG_HEAP\@|$DEBUG_HEAP|g" \\
     -e "s|\@TRACE_HEAP\@|$TRACE_HEAP|g" \\
     -e "s|\@ETAGS\@|$ETAGS|g" \\

@@ -3260,6 +3260,16 @@ static Void_t* sYSMALLOc(nb, av) INTERNAL_SIZE_T nb; mstate av;
       set_head(p, nb | PREV_INUSE);
       set_head(remainder, remainder_size | PREV_INUSE);
       check_malloced_chunk(p, nb);
+
+      /* sm: moved the setting of 'firstChunk' in here so that it never
+       * points to a mmap'd region */
+      if (!av->firstChunk ||
+          p < av->firstChunk) {
+        /* new 'first' */
+        printf("new firstChunk: %p\n", p);
+        av->firstChunk = p;
+      }
+
       return chunk2mem(p);
     }
   }
@@ -3717,12 +3727,22 @@ Void_t* mALLOc(size_t bytes)
     */
     else {
       Void_t *ret = sYSMALLOc(nb, av);
+
+      // As pointed out by Jonathon Jamison, the following code is wrong
+      // because if sYSMALLOc used mmap to get the memory, and the address
+      // happened to be below the sbrk() regions retrieved so far, then
+      // 'firstChunk' would get updated to point at the mmap region, which
+      // is bad.  Therefore this code has been moved inside sYSMALLOc, to
+      // a point where it doesn't get to see mmap returns.
+      #if 0
       mchunkptr retchunk = mem2chunk(ret);
       if (!av->firstChunk ||
           retchunk < av->firstChunk) {
         /* new 'first' */
         av->firstChunk = retchunk;
-      }
+      }                                                   
+      #endif /* 0 */
+
       RETURN(ret);
     }
   }

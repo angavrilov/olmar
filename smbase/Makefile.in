@@ -13,6 +13,7 @@ CC := gcc
 CXX := g++
 
 # flags for the C and C++ compilers (and preprocessor)
+CFLAGS  := @CFLAGS@
 CCFLAGS := @CCFLAGS@
 
 # flags for the linker
@@ -35,7 +36,7 @@ ETAGS  := @ETAGS@
 	@perl ./depend.pl -o $@ $< $(CCFLAGS) > $*.d
 
 %.o: %.c
-	$(CC) -c -o $@ $< $(CCFLAGS)
+	$(CC) -c -o $@ $< $(CFLAGS)
 
 
 # remake the generated Makefile if its inputs have changed
@@ -67,18 +68,28 @@ objlist.h: xobjlist.h
 #   normally -O3 is specified
 MALLOC_CCFLAGS := -O3
 
+# By default, compile+link a stub module that does nothing, so that
+# we will just use the normal system malloc.  Only if the user wants
+# special malloc features will we switch to Doug Lea's.  The reason
+# is I've only tested my extra features on Linux, and on some other
+# systems (cygwin, OSX) they don't work and I don't have the inclination
+# to fix all my hacks.
+MALLOC_MODULE := malloc_stub
+
 # debug version (much slower, but *great* for finding memory errors)
 ifeq (@DEBUG_HEAP@,1)
   MALLOC_CCFLAGS := -DDEBUG -DDEBUG_HEAP
+  MALLOC_MODULE := malloc
 endif
 
 # tracing messages
 ifeq (@TRACE_HEAP@,1)
   MALLOC_CCFLAGS += -DTRACE_MALLOC_CALLS
+  MALLOC_MODULE := malloc
 endif
 
-malloc.o: malloc.c
-	$(CC) -c -g $(MALLOC_CCFLAGS) malloc.c
+$(MALLOC_MODULE).o: $(MALLOC_MODULE).c
+	$(CC) -c -g $(MALLOC_CCFLAGS) $(MALLOC_MODULE).c
 
 
 # --------------------- main target ---------------------
@@ -104,7 +115,7 @@ OBJS := \
   growbuf.o \
   hashline.o \
   hashtbl.o \
-  malloc.o \
+  $(MALLOC_MODULE).o \
   missing.o \
   mypopen.o \
   mysig.o \
