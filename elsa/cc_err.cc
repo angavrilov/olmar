@@ -1,6 +1,10 @@
 // cc_err.cc            see license.txt for copyright and terms of use
 // code for cc_err.h
 
+// I put the implementation of ErrorMsg's functions into cc_err.cc
+// for some reason...
+#error This is obsolete
+
 #include "cc_err.h"      // this module
 #include "cc_tree.h"     // CCTreeNode
 

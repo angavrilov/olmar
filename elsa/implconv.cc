@@ -5,6 +5,7 @@
 #include "cc_env.h"        // Env
 #include "variable.h"      // Variable
 #include "overload.h"      // resolveOverload
+#include "trace.h"         // tracingSys
 
 
 // prototypes
@@ -14,6 +15,14 @@ StandardConversion tryCallCtor
 
 
 // ------------------- ImplicitConversion --------------------
+char const * const ImplicitConversion::kindNames[NUM_KINDS] = {
+  "IC_NONE",
+  "IC_STANDARD",
+  "IC_USER_DEFINED",
+  "IC_ELLIPSIS",
+  "IC_AMBIGUOUS"
+};
+
 void ImplicitConversion::addStdConv(StandardConversion newScs)
 {
   if (kind != IC_NONE) {
@@ -53,6 +62,26 @@ void ImplicitConversion::addEllipsisConv()
 }
 
 
+string ImplicitConversion::debugString() const
+{
+  stringBuilder sb;
+  sb << kindNames[kind];
+
+  if (kind == IC_STANDARD || kind == IC_USER_DEFINED) {
+    sb << "(" << toString(scs); 
+
+    if (kind == IC_USER_DEFINED) {
+      sb << ", " << user->name << " @ " << toString(user->loc)
+         << ", " << toString(scs2);
+    }
+    
+    sb << ")";
+  }
+  
+  return sb;
+}
+
+
 // --------------------- getImplicitConversion ---------------
 ImplicitConversion getImplicitConversion
   (Env &env, SpecialExpr special, Type const *src, Type const *dest)
@@ -87,10 +116,11 @@ ImplicitConversion getImplicitConversion
     }
     else {
       if (ctor->overload) {
-        // multiple ctors, resolve overloading
+        // multiple ctors, resolve overloading; but don't further
+        // consider user-defined conversions
         GrowArray<ArgumentInfo> argTypes(1);
         argTypes[0] = ArgumentInfo(special, src);
-        ctor = resolveOverload(env, ctor->overload->set, argTypes);
+        ctor = resolveOverload(env, OF_NO_USER, ctor->overload->set, argTypes);
       }
       
       if (ctor) {
@@ -139,6 +169,104 @@ StandardConversion tryCallCtor
   
   Variable const *param = ft->params.firstC();
   return getStandardConversion(NULL /*env*/, special, src, param->type);
+}
+
+
+// ----------------- test_getImplicitConversion ----------------
+int getLine(SourceLoc loc)
+{
+  return sourceLocManager->getLine(loc);
+}
+
+
+bool matchesExpectation(ImplicitConversion const &actual,
+  int expectedKind, int expectedSCS, int expectedUserLine, int expectedSCS2)
+{
+  if (expectedKind != actual.kind) return false;
+
+  if (actual.kind == ImplicitConversion::IC_STANDARD) {
+    return actual.scs == expectedSCS;
+  }
+
+  if (actual.kind == ImplicitConversion::IC_USER_DEFINED) {
+    int actualLine = getLine(actual.user->loc);
+    return actual.scs == expectedSCS &&
+           actualLine == expectedUserLine &&
+           actual.scs2 == expectedSCS2;
+  }
+
+  // other kinds are equal without further checking
+  return true;
+}
+
+
+void test_getImplicitConversion(
+  Env &env, SpecialExpr special, Type const *src, Type const *dest,
+  int expectedKind, int expectedSCS, int expectedUserLine, int expectedSCS2)
+{
+  // grab existing error messages
+  ObjList<ErrorMsg> existing;
+  existing.concat(env.errors);
+
+  // run our function
+  ImplicitConversion actual = getImplicitConversion(env, special, src, dest);
+
+  // turn any resulting messags into warnings, so I can see their
+  // results without causing the final exit status to be nonzero
+  FOREACH_OBJLIST_NC(ErrorMsg, env.errors, iter) {
+    iter.data()->isWarning = true;
+  }
+
+  // put the old messages back
+  env.errors.concat(existing);
+
+  // did it behave as expected?
+  bool matches = matchesExpectation(actual, expectedKind, expectedSCS,
+                                            expectedUserLine, expectedSCS2);
+  if (!matches || tracingSys("gIC")) {
+    // construct a description of the actual result
+    stringBuilder actualDesc;
+    actualDesc << ImplicitConversion::kindNames[actual.kind];
+    if (actual.kind == ImplicitConversion::IC_STANDARD ||
+        actual.kind == ImplicitConversion::IC_USER_DEFINED) {
+      actualDesc << "(" << toString(actual.scs);
+      if (actual.kind == ImplicitConversion::IC_USER_DEFINED) {
+        actualDesc << ", " << getLine(actual.user->loc)
+                   << ", " << toString(actual.scs2);
+      }
+      actualDesc << ")";
+    }
+
+    // construct a description of the call site
+    stringBuilder callDesc;
+    callDesc << "getImplicitConversion("
+             << toString(special) << ", `"
+             << src->toString() << "', `"
+             << dest->toString() << "')";
+
+    if (!matches) {
+      // construct a description of the expected result
+      stringBuilder expectedDesc;
+      xassert((unsigned)expectedKind <= (unsigned)ImplicitConversion::NUM_KINDS);
+      expectedDesc << ImplicitConversion::kindNames[expectedKind];
+      if (expectedKind == ImplicitConversion::IC_STANDARD ||
+          expectedKind == ImplicitConversion::IC_USER_DEFINED) {
+        expectedDesc << "(" << toString((StandardConversion)expectedSCS);
+        if (expectedKind == ImplicitConversion::IC_USER_DEFINED) {
+          expectedDesc << ", " << expectedUserLine
+                       << ", " << toString((StandardConversion)expectedSCS2);
+        }
+        expectedDesc << ")";
+      }
+
+      env.error(stringc
+        << callDesc << " yielded " << actualDesc
+        << ", but I expected " << expectedDesc);
+    }
+    else {
+      env.warning(stringc << callDesc << " yielded " << actualDesc);
+    }
+  }
 }
 
 

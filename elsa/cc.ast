@@ -468,7 +468,7 @@ class Expression {
   //-> E_structLit(ASTTypeId stype, ASTList<Initializer> init);
 
   // variable reference; 'name' might be "this"
-  -> E_variable(PQName name);
+  -> E_variable(SourceLoc loc, PQName name);
 
   -> E_funCall(Expression func, FakeList<Expression> *args);
 

@@ -1,19 +1,23 @@
 // t0116.c
-// experimenting with overloading
+// experimenting with overloading; be careful with line numbers!
 
-void foo(int i)
+int foo(int i)    // line 4
 {
-  i;
+  return i;
 }
 
-void foo(float f)
-{  
-  f;
+float foo(float f)  // line 9
+{
+  return f;
 }
+
+void notOverloaded() {}     // line 14
 
 void bar()
 {
-  foo(3);
-  foo(3.4);
+  __testOverload(notOverloaded(), 14);    // turn on overload resolution
+
+  __testOverload(foo(3), 4);
+  __testOverload(foo(3.4), 9);
 }
 

@@ -221,13 +221,13 @@ nonterm(Expression*) PrimaryExpression {
        { return e; }
 
   -> "this"
-       { return new E_variable(new PQ_name(str("this"))); }
+       { return new E_variable(loc, new PQ_name(str("this"))); }
 
   -> "(" e:Expression ")"
        { return new E_grouping(e); }
 
   -> e:IdExpression
-       { return new E_variable(e); }
+       { return new E_variable(loc, e); }
 
   // GNU extension
   //-> "(" s:CompoundStatement ")" ;
@@ -309,6 +309,23 @@ nonterm(PQName*) IdExpression_no_colon_colon {
 }
 
 
+// This is a little subtle.  Most of the function calls in a C++
+// source program appear to be ambiguous between E_funCall and
+// E_constructor.  However both of these constructs contain an
+// argument list, and I want the constructed AST nodes to share that
+// list, instead of duplicating it (and only sharing argument
+// subexpressions), for space efficiency reasons.
+//
+// To do that, I insert this nonterminal, which effectively hides the
+// differences in context from the parsing algorithm, so it will be
+// able to share the expression list one level higher than it
+// otherwise would.  (To see the effect, print the node addresses in
+// the resulting ASTs.)
+nonterm(FakeList<Expression>*) ArgumentList {
+  -> "(" e:ExpressionListOpt ")"      { return e; }
+}
+
+
 nonterm(Expression*) PostfixExpression {
   // ambiguous:
   //   x(y)
@@ -316,7 +333,7 @@ nonterm(Expression*) PostfixExpression {
   // or a constructor call (x is a type)
   fun merge(L,R) { L->addAmbiguity(R); return L; }
 
-  -> e:PrimaryExpression 
+  -> e:PrimaryExpression
        { return e; }
 
   // array access
@@ -324,14 +341,14 @@ nonterm(Expression*) PostfixExpression {
        { return new E_deref(new E_binary(a, BIN_PLUS, e)); }
 
   // fn call
-  -> f:PostfixExpression "(" e:ExpressionListOpt ")"
-       { return new E_funCall(f, e); }
+  -> f:PostfixExpression a:ArgumentList
+       { return new E_funCall(f, a); }
 
   // function-style cast, or (equivalently) call to constructor; will
   // almost always be ambiguous with function call, so the distinction
   // will have to be delayed until typechecking
-  -> spec:CtorExpressionType "(" e:ExpressionListOpt ")"
-       { return new E_constructor(spec, e); }
+  -> spec:CtorExpressionType a:ArgumentList
+       { return new E_constructor(spec, a); }
 
   // field access
   -> p:PostfixExpression "."  n:IdExpression

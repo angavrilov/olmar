@@ -19,6 +19,7 @@ public:    // data
     IC_AMBIGUOUS,        // 13.3.3.1 para 10
     NUM_KINDS
   } kind;
+  static char const * const kindNames[NUM_KINDS];
 
   // for IC_STANDARD, this is the conversion sequence
   // for IC_USER_DEFINED, this is the *first* conversion sequence
@@ -43,9 +44,18 @@ public:    // funcs
   void addUserConv(StandardConversion first, Variable const *user, 
                    StandardConversion second);
   void addEllipsisConv();
+  
+  // debugging
+  // experiment: member function is called 'debugString', and
+  // global function is called 'toString'
+  string debugString() const;
+  friend string toString(ImplicitConversion const &ics)
+    { return ics.debugString(); }
 };
 
 
+// given two types, find an implicit conversion between them, or
+// return IC_NONE if none exists
 ImplicitConversion getImplicitConversion(
   Env &env,            // type checking environment
   SpecialExpr special, // properties of the source expression
@@ -54,8 +64,14 @@ ImplicitConversion getImplicitConversion(
 );
 
 
-
-
+// testing interface, for use by type checker
+void test_getImplicitConversion(
+  Env &env, SpecialExpr special, Type const *src, Type const *dest,
+  int expectedKind,      // ImplicitConversion::kind
+  int expectedSCS,       // ImplicitConversion::scs
+  int expectedUserLine,  // ImplicitConversion::user->loc's line number
+  int expectedSCS2       // ImplicitConversion::scs2
+);
 
 
 #endif // IMPLCONV_H

@@ -15,7 +15,9 @@ ErrorMsg::~ErrorMsg()
 
 string ErrorMsg::toString() const
 {
-  return stringc << ::toString(loc) << " " << msg;
+  return stringc << ::toString(loc)
+                 << (isWarning? ": warning: " : ": error: ")
+                 << msg;
 }
 
 
@@ -37,12 +39,16 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
     conversionOperatorName(NULL),
     constructorSpecialName(NULL),
     functionOperatorName(NULL),
+    special_getStandardConversion(NULL),
+    special_getImplicitConversion(NULL),
+    special_testOverload(NULL),
 
     dependentTypeVar(NULL),
     dependentVar(NULL),
     errorTypeVar(NULL),
     errorVar(NULL)
 {
+  // slightly less verbose
   #define HERE HERE_SOURCELOC
 
   // create first scope
@@ -66,8 +72,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
   // string table for it each time) because in certain situations
   // I compare against them frequently; the main criteria for
   // choosing these names is they have to be untypable by the C++
-  // programmer (i.e. if the programmer types them they won't be
-  // lexed as single names)
+  // programmer (i.e. if the programmer types one it won't be
+  // lexed as a single name)
   conversionOperatorName = str("conversion-operator");
   constructorSpecialName = str("constructor-special");
   functionOperatorName = str("operator()");
@@ -95,9 +101,9 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
   Type *t_void = getSimpleType(HERE, ST_VOID);
   Type *t_voidptr = makePtrType(HERE, t_void);
 
-  // note: my stddef.h typedef's size_t to be 'int', so I use
+  // note: my stddef.h typedef's size_t to be 'int', so I just use
   // 'int' directly here instead of size_t
-  Type *t_int = getSimpleType(HERE, ST_INT);
+  Type *t_size_t = getSimpleType(HERE, ST_INT);
 
   // but I do need a class called 'bad_alloc'..
   //   class bad_alloc;
@@ -108,12 +114,12 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
 
   // void* operator new(std::size_t sz) throw(std::bad_alloc);
   declareFunction1arg(t_voidptr, "operator new",
-                      t_int, "sz",
+                      t_size_t, "sz",
                       t_bad_alloc);
 
   // void* operator new[](std::size_t sz) throw(std::bad_alloc);
   declareFunction1arg(t_voidptr, "operator new[]",
-                      t_int, "sz",
+                      t_size_t, "sz",
                       t_bad_alloc);
 
   // void operator delete (void *p) throw();
@@ -132,18 +138,10 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
                       t_voidptr, "p",
                       NULL /*exnType*/);
 
-  // for testing 'stdconv' module
-  // void __getStandardConversion(...);
-  {
-    FunctionType *ft = makeFunctionType(HERE, tfac.cloneType(t_void), false /*isMember*/);
-    ft->acceptsVarargs = true;
-    ft->doneParams();
-
-    special_getStandardConversion = str("__getStandardConversion");
-    Variable *var = makeVariable(HERE, special_getStandardConversion, ft, DF_NONE);
-    addVariable(var);
-    madeUpVariables.append(var);
-  }
+  // for testing various modules
+  special_getStandardConversion = declareSpecialFunction("__getStandardConversion");
+  special_getImplicitConversion = declareSpecialFunction("__getImplicitConversion");
+  special_testOverload = declareSpecialFunction("__testOverload");
 
   #undef HERE
 }
@@ -200,6 +198,24 @@ void Env::declareFunction1arg(Type *retType, char const *funcName,
 }
 
 
+// this declares a function that accepts any # of arguments,
+// and returns 'void'
+StringRef Env::declareSpecialFunction(char const *name)
+{                                                     
+  Type *t_void = getSimpleType(HERE_SOURCELOC, ST_VOID);
+  FunctionType *ft = makeFunctionType(HERE_SOURCELOC, t_void, false /*isMember*/);
+  ft->acceptsVarargs = true;
+  ft->doneParams();
+
+  StringRef ret = str(name);
+  Variable *var = makeVariable(HERE_SOURCELOC, ret, ft, DF_NONE);
+  addVariable(var);
+  madeUpVariables.append(var);                                   
+  
+  return ret;
+}
+
+  
 FunctionType *Env::makeDestructorFunctionType(SourceLoc loc)
 {
   FunctionType *ft = makeFunctionType(loc, getSimpleType(loc, ST_CDTOR), false /*isMember*/);
@@ -1251,7 +1267,7 @@ Type *Env::error(char const *msg, bool disambiguates)
   trace("error") << (disambiguates? "[d] " : "") << "error: " << msg << endl;
   if (!disambiguateOnly || disambiguates) {
     errors.prepend(new ErrorMsg(
-      stringc << "error: " << msg, false /*isWarning*/, loc(), disambiguates));
+      stringc << msg, false /*isWarning*/, loc(), disambiguates));
   }
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }
@@ -1262,7 +1278,7 @@ Type *Env::warning(char const *msg)
   trace("error") << "warning: " << msg << endl;
   if (!disambiguateOnly) {
     errors.prepend(new ErrorMsg(
-      stringc << "warning: " << msg, true /*isWarning*/, loc(), false /*disambiguates*/));
+      stringc << msg, true /*isWarning*/, loc(), false /*disambiguates*/));
   }
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }

@@ -346,6 +346,18 @@ class Expression {
        ctor var=NULL;
      }
 
+  // these two kinds have their tcheck further split into two stages
+  // so I can use a more specialized disambiguation procedure; the
+  // first stage is sufficient to disambiguate between thet two
+  -> E_funCall {
+       public void inner1_itcheck(Env &env);
+       public Type *inner2_itcheck(Env &env);
+     }
+  -> E_constructor {
+       public void inner1_itcheck(Env &env);
+       public Type *inner2_itcheck(Env &env);
+     }
+
   -> E_fieldAcc {
        public Variable const *field;
        ctor field=NULL;

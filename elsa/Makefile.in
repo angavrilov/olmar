@@ -91,6 +91,8 @@ CCPARSE_OBJS := \
   cc_type.o \
   cc_tcheck.o \
   stdconv.o \
+  implconv.o \
+  overload.o \
   cc.ast.gen.o \
   cc.gr.gen.o \
   parssppt.o \

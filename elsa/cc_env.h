@@ -76,6 +76,8 @@ public:      // data
   StringRef constructorSpecialName;
   StringRef functionOperatorName;
   StringRef special_getStandardConversion;
+  StringRef special_getImplicitConversion;
+  StringRef special_testOverload;
 
   // special variables associated with particular types
   Variable *dependentTypeVar;           // (serf)
@@ -91,6 +93,8 @@ private:     // funcs
   void declareFunction1arg(Type *retType, char const *funcName,
                            Type *arg1Type, char const *arg1Name,
                            Type * /*nullable*/ exnType);
+
+  StringRef declareSpecialFunction(char const *name);
 
   CompoundType *findEnclosingTemplateCalled(StringRef name);
 

@@ -34,15 +34,6 @@ public:
 };
 
 
-// resolve the overloading, return the selected candidate; if nothing
-// matches or there's an ambiguity, adds an error to 'env' and returns
-// one of the candidates arbitrarily (for error recovery)
-Variable *resolveOverload(
-  Env &env,                        // for emitting error messages, etc.
-  SObjList<Variable> &list,        // list of overloaded possibilities
-  GrowArray<ArgumentInfo> &args);  // list of argument types at the call site
-
-
 // information about a single overload possibility
 class Candidate {
 public:
@@ -57,7 +48,27 @@ public:
   // number of parameters in var's function; it's passed so I know
   // how big to make 'conversions'
   Candidate(Variable *v, int numArgs);
+  ~Candidate();
+                                        
+  // debugging
+  string conversionDescriptions() const;
 };
+
+
+// flags to control overload resolution
+enum OverloadFlags {
+  OF_NONE        = 0x00,           // nothing special
+  OF_NO_USER     = 0x01,           // don't consider user-defined conversions
+};
+
+// resolve the overloading, return the selected candidate; if nothing
+// matches or there's an ambiguity, adds an error to 'env' and returns
+// one of the candidates arbitrarily (for error recovery)
+Variable *resolveOverload(
+  Env &env,                        // for emitting error messages, etc.
+  OverloadFlags flags,             // various options
+  SObjList<Variable> &list,        // list of overloaded possibilities
+  GrowArray<ArgumentInfo> &args);  // list of argument types at the call site
 
 
 

@@ -10,11 +10,35 @@
 #include "cc_env.h"        // Env
 #include "variable.h"      // Variable
 #include "cc_type.h"       // Type, etc.
+#include "trace.h"         // TRACE
 
 
+// ------------------- Candidate -------------------------
+Candidate::Candidate(Variable *v, int numArgs)
+  : var(v),
+    conversions(numArgs)
+{}
+
+Candidate::~Candidate()
+{}
+
+
+string Candidate::conversionDescriptions() const
+{
+  stringBuilder sb;
+  
+  for (int i=0; i < conversions.size(); i++) {
+    sb << "\n%%% overload:     " << toString(conversions[i]);
+  }
+  
+  return sb;
+}
+
+
+// ------------------ resolveOverload --------------------
 // prototypes
 Candidate * /*owner*/ makeCandidate
-  (Env &env, Variable *var, GrowArray<ArgumentInfo> &args);
+  (Env &env, OverloadFlags flags, Variable *var, GrowArray<ArgumentInfo> &args);
 Candidate *pickWinner(ObjArrayStack<Candidate> &candidates,
                       GrowArray<ArgumentInfo> &args,
                       int low, int high);
@@ -39,6 +63,7 @@ bool isProperSubpath(CompoundType const *LS, CompoundType const *LD,
 
 Variable *resolveOverload(
   Env &env,
+  OverloadFlags flags,
   SObjList<Variable> &varList,
   GrowArray<ArgumentInfo> &args)
 {
@@ -46,8 +71,11 @@ Variable *resolveOverload(
   // array
   ObjArrayStack<Candidate> candidates(varList.count());
   SFOREACH_OBJLIST_NC(Variable, varList, iter) {
-    Candidate *c = makeCandidate(env, iter.data(), args);
+    Candidate *c = makeCandidate(env, flags, iter.data(), args);
     if (c) {
+      TRACE("overload", "  candidate: " << c->var->toString() <<
+                        " at " << toString(c->var->loc) <<
+                        c->conversionDescriptions());
       candidates.push(c);
     }
   }
@@ -92,7 +120,7 @@ Variable *resolveOverload(
 // Candidate; return NULL if the function isn't viable; this
 // implements cppstd 13.3.2
 Candidate * /*owner*/ makeCandidate
-  (Env &env, Variable *var, GrowArray<ArgumentInfo> &args)
+  (Env &env, OverloadFlags flags, Variable *var, GrowArray<ArgumentInfo> &args)
 {
   Owner<Candidate> c(new Candidate(var, args.size()));
 
@@ -102,15 +130,32 @@ Candidate * /*owner*/ makeCandidate
   SObjListIter<Variable> paramIter(ft->params);
   int argIndex = 0;
   while (!paramIter.isDone() && argIndex < args.size()) {
-    ImplicitConversion ics =
-      getImplicitConversion(env, args[argIndex].special, args[argIndex].type,
-                            paramIter.data()->type);
-    if (ics) {
-      c->conversions[argIndex] = ics;
+    if (flags & OF_NO_USER) {  
+      // only consider standard conversions
+      StandardConversion scs =
+        getStandardConversion(NULL /*env*/, args[argIndex].special, args[argIndex].type,
+                              paramIter.data()->type);
+      if (scs != SC_ERROR) {
+        ImplicitConversion ics;
+        ics.addStdConv(scs);
+        c->conversions[argIndex] = ics;
+      }
     }
     else {
-      return NULL;           // no conversion sequence possible
+      // consider both standard and user-defined
+      ImplicitConversion ics =
+        getImplicitConversion(env, args[argIndex].special, args[argIndex].type,
+                              paramIter.data()->type);
+      if (ics) {
+        c->conversions[argIndex] = ics;
+      }
+      else {
+        return NULL;           // no conversion sequence possible
+      }
     }
+    
+    paramIter.adv();
+    argIndex++;
   }
 
   // extra arguments?
@@ -208,7 +253,7 @@ int compareCandidates(Candidate const *left, Candidate const *right,
                                              right->conversions[i], rightDest);
     if (ret == 0) {
       // no decision so far, fold in this comparison
-      choice = ret;
+      ret = choice;
     }
     else if (choice == 0) {
       // this comparison offers no information
