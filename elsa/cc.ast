@@ -33,6 +33,7 @@ verbatim {
 
 // use a new astgen feature: make a visitor!
 option visitor ASTVisitor;
+option dvisitor DelegatorASTVisitor;
 
 // emit gdb() methods for debugging
 option gdb;
