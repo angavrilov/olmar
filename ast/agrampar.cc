@@ -38,7 +38,7 @@ string *appendStr(string *left, string *right)
 
 CtorArg *parseCtorArg(char const *origStr)
 {
-  CtorArg *ret = new CtorArg(false, "", "");
+  CtorArg *ret = new CtorArg(false, "", "", "");
 
   // strip leading and trailing whitespace
   string str = trimWhitespace(origStr);
@@ -47,6 +47,15 @@ CtorArg *parseCtorArg(char const *origStr)
   if (0==strncmp(str, "owner", 5)) {
     ret->owner = true;
     str = str.substring(6, str.length() - 6);    // skip "owner "
+  }
+
+  // check for an initial value
+  char const *equals = strchr(str, '=');
+  if (equals) {
+    ret->defaultValue = equals+1;
+    str = trimWhitespace(str.substring(0, equals-str.pcharc()));
+    trace("defaultValue") << "split into `" << str 
+                          << "' and `" << ret->defaultValue << "'\n";
   }
 
   // work from the right adge, collecting alphanumerics into the name;

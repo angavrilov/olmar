@@ -131,6 +131,7 @@ SLWHITE   [ \t]
 ">"                TOK_UPD_COL;  return TOK_RANGLE;
 "*"                TOK_UPD_COL;  return TOK_STAR;
 "&"                TOK_UPD_COL;  return TOK_AMPERSAND;
+"="                TOK_UPD_COL;  return TOK_EQUALS;
 
 "class"            TOK_UPD_COL;  return TOK_CLASS;
 "option"           TOK_UPD_COL;  return TOK_OPTION;

@@ -20,6 +20,7 @@ class UserDecl;
 class CustomCode;
 class CtorArg;
 
+
 // *** DO NOT EDIT ***
 
   #include "str.h"         // string
@@ -274,9 +275,10 @@ public:      // data
   bool owner;
   string type;
   string name;
+  string defaultValue;
 
 public:      // funcs
-  CtorArg(bool _owner, string _type, string _name) : owner(_owner), type(_type), name(_name) {
+  CtorArg(bool _owner, string _type, string _name, string _defaultValue) : owner(_owner), type(_type), name(_name), defaultValue(_defaultValue) {
   }
   ~CtorArg();
 

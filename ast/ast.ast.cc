@@ -350,6 +350,7 @@ void CtorArg::debugPrint(ostream &os, int indent) const
   PRINT_BOOL(owner);
   PRINT_STRING(type);
   PRINT_STRING(name);
+  PRINT_STRING(defaultValue);
 }
 
 void CtorArg::xmlPrint(ostream &os, int indent) const
@@ -359,6 +360,7 @@ void CtorArg::xmlPrint(ostream &os, int indent) const
   XMLPRINT_BOOL(owner);
   XMLPRINT_STRING(type);
   XMLPRINT_STRING(name);
+  XMLPRINT_STRING(defaultValue);
   XMLPRINT_FOOTER(CtorArg);
 }
 
@@ -367,7 +369,8 @@ CtorArg *CtorArg::clone() const
   CtorArg *ret = new CtorArg(
     owner,
     type,
-    name
+    name,
+    defaultValue
   );
   return ret;
 }
@@ -405,4 +408,6 @@ string ASTClass::classKindName() const
   }
   return ret;
 }
+
+
 

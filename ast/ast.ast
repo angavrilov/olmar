@@ -72,7 +72,7 @@ class Annotation {
 }
 
 // something that has to be passed to create a constructor
-class CtorArg (bool owner, string type, string name);
+class CtorArg (bool owner, string type, string name, string defaultValue);
 
 
 // ------------------- extra implementation helpers ------------------

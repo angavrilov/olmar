@@ -408,6 +408,11 @@ void HGen::emitCtorFormal(int &ct, CtorArg const *arg)
   }
 
   out << "_" << arg->name;      // prepend underscore to param's name
+
+  // emit default value, if any  
+  if (arg->defaultValue.length() > 0) {
+    out << " = " << arg->defaultValue;
+  }
 }
 
 

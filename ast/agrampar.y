@@ -43,6 +43,7 @@
 %token TOK_STAR "*"
 %token TOK_AMPERSAND "&"
 %token TOK_COMMA ","
+%token TOK_EQUALS "="
 
 /* keywords */
 %token TOK_CLASS "class"
@@ -174,6 +175,7 @@ ArgWord
   | "<" ArgList ">"  { $$ = appendStr(box("<"), appendStr($2, box(">"))); }
   | "*"              { $$ = box("*"); }
   | "&"              { $$ = box("&"); }
+  | "="              { $$ = box("="); }
   | TOK_CLASS        { $$ = box("class "); }    /* special b/c is ast spec keyword */
   ;
 
