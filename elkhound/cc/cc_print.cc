@@ -52,6 +52,7 @@ string declaration_toString(
   // used to look up the variable's scope
   Variable *var)
 {
+  olayer ol("declaration_toString");
   stringBuilder s;
 
   // mask off flags used for internal purposes, so all that's
@@ -82,7 +83,16 @@ string declaration_toString(
   else {
     //s << var->type->toCString(qualifierName);
     //s << var->toString();
-    s << type->toCString(finalName);
+//      s << type->toCString(finalName);
+    if (finalName) {
+      string scope_thing = string("");
+      if (pqname) {
+        scope_thing = pqname->qualifierString();
+      }
+      s << type->toCString(stringc << scope_thing << finalName);
+    } else {
+      s << type->toCString(finalName);
+    }
   }
 
   return s;
@@ -165,6 +175,8 @@ void Function::print(PrintEnv &env)
       printFakeExprList(iter->args, env);
     }
   }
+
+  if (handlers) env << "try";
 
   body->print(env);
 
@@ -595,6 +607,7 @@ void E_charLit::iprint(PrintEnv &env)
 void E_variable::iprint(PrintEnv &env)
 {
   olayer ol("E_variable::itprint");
+  env << name->qualifierString();
   env << var->name;
 }
 

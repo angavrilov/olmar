@@ -1,5 +1,6 @@
-*.out
+*.out_cpp
 *.out_raw
-*.out2
+*.out
 *.out2_raw
+*.out2
 *.diff
