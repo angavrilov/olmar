@@ -1619,15 +1619,20 @@ Type const *makePtrOperType(PtrOper op, CVFlags cv, Type const *type)
 }
 
 
+#ifdef DISTINCT_CVATOMIC_TYPES
+CVAtomicType const *getSimpleType(SimpleTypeId st, CVFlags cv = CV_NONE)
+{
+  xassert((unsigned)st < (unsigned)NUM_SIMPLE_TYPES);
+  return new CVAtomicType(&SimpleType::fixed[st], cv);
+}
+
+#else
 CVAtomicType const *getSimpleType(SimpleTypeId st)
 {
   xassert((unsigned)st < (unsigned)NUM_SIMPLE_TYPES);
-#ifdef DISTINCT_CVATOMIC_TYPES
-  return new CVAtomicType(&SimpleType::fixed[st], CV_NONE);
-#else
   return &(CVAtomicType::fixed[st]);
-#endif
 }
+#endif
 
 
 // ------------------ test -----------------

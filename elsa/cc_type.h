@@ -649,7 +649,11 @@ inline Type const *makeRefType(Type const *type)
 
 // map a simple type into its CVAtomicType (with no const or
 // volatile) representative
+#ifdef DISTINCT_CVATOMIC_TYPES
+CVAtomicType const *getSimpleType(SimpleTypeId st, CVFlags cv = CV_NONE);
+#else
 CVAtomicType const *getSimpleType(SimpleTypeId st);
+#endif
 
 
 // ------ for debugging ------
