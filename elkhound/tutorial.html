@@ -39,7 +39,7 @@ has much more information.
 <li><a href="#refs">References</a>
 </ul>
 
-<a name="sec1">
+<a name="sec1"></a>
 <h2>1. The Language to Parse</h2>
 <!-- FILES: gcom1 -->
 
@@ -83,7 +83,7 @@ example.  Of course, we'll start with just AExp (since it's the only
 nonterminal that doesn't depend on the others), so initially it
 will be the same old example.
 
-<a name="sec2">
+<a name="sec2"></a>
 <h2>2. The Lexer</h2>
 <!-- FILES: gcom1 -->
 
@@ -93,7 +93,7 @@ put the lexer definition right into the grammar file (using the
 doing so might make the example shorter, it would not represent
 very good design.  So the lexer is its own module.
 
-<a name="sec2.1">
+<a name="sec2.1"></a>
 <h3>2.1 &nbsp; lexer.h</h3>
 
 <p>The header <a href="examples/gcom1/lexer.h"><tt>lexer.h</tt></a>
@@ -126,7 +126,7 @@ interaction with the lexer is conducted via this interface:
     // the input stream
     static void nextToken(LexerInterface *lex);
     virtual NextTokenFunc getTokenFunc() const
-      { return &Lexer::nextToken; }
+      { return &amp;Lexer::nextToken; }
 
     // debugging assistance functions
     string tokenDesc() const;
@@ -134,7 +134,7 @@ interaction with the lexer is conducted via this interface:
   };
 </pre>
 
-<a name="sec2.2">
+<a name="sec2.2"></a>
 <h3>2.2 &nbsp; lexer.cc</h3>
 
 <p>Typically, one would use a lexer generator such as <a
@@ -253,7 +253,7 @@ more informative.
   }
 </pre>
 
-<a name="sec2.3">
+<a name="sec2.3"></a>
 <h3>2.3 &nbsp; Test the lexer</h3>
 
 <p>Finally, it's useful to write a simple driver to test the lexer by
@@ -305,11 +305,11 @@ it's not the <tt>main()</tt> function of the completed parser program.
 to do the compilation step; just say <tt>make lexer</tt> in the
 <tt>examples/gcom1</tt> directory of Elkhound.
 
-<a name="sec3">
+<a name="sec3"></a>
 <h2>3. A grammar for AExp</h2>
 <!-- FILES: gcom1 -->
 
-<a name="sec3.1">
+<a name="sec3.1"></a>
 <h3>3.1 &nbsp; Context class</h3>
 
 <p>All of the parsing actions become methods of a class, called the
@@ -326,7 +326,7 @@ must implement the <tt>UserActions</tt>
   };
 </pre>
 
-<a name="sec3.2">
+<a name="sec3.2"></a>
 <h3>3.2 &nbsp; Terminals</h3>
 
 <p>Next, the tokens or terminal symbols of the grammar must be
@@ -363,7 +363,7 @@ and then the terminals section of the grammar becomes simply
   }
 </pre>
 
-<a name="sec3.3">
+<a name="sec3.3"></a>
 <h3>3.3 &nbsp; The grammar</h3>
 
 <p>Finally, we specify the grammar.  Nonterminals are introduced with
@@ -394,7 +394,7 @@ whitespace.
 semantic value types, right-hand side (RHS) labels, and parse
 actions.  They will be addressed in subsequent sections.
 
-<a name="sec3.4">
+<a name="sec3.4"></a>
 <h3>3.4 &nbsp; Running elkhound</h3>
 
 <p>The next step is to run <tt>elkhound</tt>, the parser generator
@@ -470,7 +470,7 @@ plus the parse tables themselves as static data.  I don't include
 example output here because the details aren't very important
 right now.
 
-<a name="sec4">
+<a name="sec4"></a>
 <h2>4. The parser driver</h2>
 <!-- FILES: gcom1 -->
 
@@ -588,11 +588,11 @@ ambiguity resolution procedure, but let's leave it alone for now.
 <li><a href="examples/gcom1/Makefile"><tt>Makefile</tt></a>
 </ul>
 
-<a name="sec5">
+<a name="sec5"></a>
 <h2>5. Resolving the ambiguity</h2>
 <!-- FILES: gcom2 -->
 
-<a name="sec5.1">
+<a name="sec5.1"></a>
 <h3>5.1 &nbsp; Look at the conflicts</h3>
 
 <p>Often, you can tell what the problem is by looking at the parser's
@@ -633,7 +633,7 @@ find yourself wanting to see the entire LR table.  To do that,
 add "<tt>-tr conflict</tt>" to the <tt>elkhound</tt> command
 line.  It will write another file (<tt>gcom.out</tt>).
 
-<a name="sec5.2">
+<a name="sec5.2"></a>
 <h3>5.2 &nbsp; Print the tree</h3>
 
 <p>If you have an input that demonstrates a geniune ambiguity, you can
@@ -655,11 +655,11 @@ Then, run the parser like this:
 
 <pre>
   // wrap the lexer and actions with versions that make a parse tree
-  ParseTreeLexer ptlexer(&lexer, &gcom);
-  ParseTreeActions ptact(&gcom, gcom.makeTables());
+  ParseTreeLexer ptlexer(&amp;lexer, &amp;gcom);
+  ParseTreeActions ptact(&amp;gcom, gcom.makeTables());
 
   // initialize the parser
-  GLR glr(&ptact, ptact.getTables());
+  GLR glr(&amp;ptact, ptact.getTables());
 
   // parse the input
   SemanticValue result;
@@ -670,7 +670,7 @@ Then, run the parser like this:
 
   // print the tree
   PTreeNode *ptn = (PTreeNode*)result;
-  ptn->printTree(cout, PTreeNode::PF_EXPAND);
+  ptn-&gt;printTree(cout, PTreeNode::PF_EXPAND);
 </pre>
 
 <p>The file <a href="examples/gcom2/parser.cc"><tt>parser.cc</tt></a>
@@ -734,7 +734,7 @@ does not specify an associativity for "<tt>+</tt>".  Moreover, we
 can see that "<tt>-</tt>" and "<tt>*</tt>" have the same problem,
 and that there is no specified precedence among these operators.
 
-<a name="sec5.3">
+<a name="sec5.3"></a>
 <h3>5.3 &nbsp; Precedence and associativity</h3>
 <!-- FILES: gcom3 -->
 
@@ -791,7 +791,7 @@ ambiguity during parsing, letting the user defer disambiguation until
 it is convenient.  Later on I'll demonstrate how to do this.
 
 
-<a name="sec6">
+<a name="sec6"></a>
 <h2>6. Parse actions</h2>
 <!-- FILES: gcom4 -->
 
@@ -903,7 +903,7 @@ variables.)
 <li><a href="examples/gcom4/Makefile"><tt>Makefile</tt></a>
 </ul>
 
-<a name="sec7">
+<a name="sec7"></a>
 <h2>7. Filling out the language</h2>
 <!-- FILES: gcom5 -->
 
@@ -1049,7 +1049,7 @@ parser to skip sections of input, nor loop over the input.
 <li><a href="examples/gcom5/Makefile"><tt>Makefile</tt></a>
 </ul>
 
-<a name="sec8">
+<a name="sec8"></a>
 <h2>8. Building an AST</h2>
 <!-- FILES: gcom -->
 
@@ -1060,7 +1060,7 @@ syntax tree (AST), instead of evaluating the program directly.  This
 will involve the use of another tool, <tt>astgen</tt>, which is
 useful in its own right.
 
-<a name="sec8.1">
+<a name="sec8.1"></a>
 <h3>8.1 &nbsp; AST definition</h3>
 
 <p>The input to <tt>astgen</tt> consists of a sequence of class
@@ -1122,7 +1122,7 @@ full C++ class definitions for the AST nodes.  See
   writing ast.cc...
 </pre>
 
-<a name="sec8.2">
+<a name="sec8.2"></a>
 <h3>8.2 &nbsp; AST-building grammar actions</h3>
 
 <p>Next, we modify the grammar to build these AST components,
@@ -1251,7 +1251,7 @@ well:
   }
 </pre>
 
-<a name="#sec8.4">
+<a name="#sec8.4"></a>
 <h3>8.4 &nbsp; Modifications to the driver</h3>
 
 <p>We need a few modifications to the driver,
@@ -1299,7 +1299,7 @@ method automatically.
   delete top;
 </pre>
 
-<a name="sec8.5">
+<a name="sec8.5"></a>
 <h3>8.5 &nbsp; A few examples</h3>
 
 <p>Let's try it on a few examples!
@@ -1402,7 +1402,7 @@ common divisor of two numbers:
 <li><a href="examples/gcom/Makefile"><tt>Makefile</tt></a>
 </ul>
 
-<a name="sec9">
+<a name="sec9"></a>
 <h2>9. Late disambiguation</h2>
 <!-- FILES: gcom7 -->
 
@@ -1415,7 +1415,7 @@ href="examples/gcom7/gcom.gr"><tt>gcom.gr</tt></a>, there are two main
 tasks: specify how to deallocate unused semantic values, and specify
 how to merge ambiguous alternatives.
 
-<a name="sec9.1">
+<a name="sec9.1"></a>
 <h3>9.1 &nbsp; dup and del</h3>
 
 <p>Anytime the grammar contains LR conflicts, the parser will pursue
@@ -1468,7 +1468,7 @@ insert trivial dup/del everywhere, to suppress the warning that
 is otherwise printed when such a function is called but not
 implemented.
 
-<a name="sec9.2">
+<a name="sec9.2"></a>
 <h3>9.2 &nbsp; merge</h3>
 
 <p>An ambiguity is a situation where some sequence of terminals
@@ -1623,7 +1623,7 @@ there for further guidance.
 </ul>
 
 
-<a name="conc">
+<a name="conc"></a>
 <h2>Conclusion</h2>
 
 <p>By now you know how to:
@@ -1648,13 +1648,19 @@ programs.  If not, you can always email me (smcpeak <tt>at</tt> cs
 
 
 
-<a name="refs">
+<a name="refs"></a>
 <h2>References</h2>
 
 <p>
-<a name="ref1">
+<a name="ref1"></a>
 [1] Edsger W. Dijkstra.  <i>A Discipline of Programming.</i>
 Prentice-Hall, 1976.
+
+<p>
+  <a href="http://validator.w3.org/check/referer"><img border="0"
+      src="http://www.w3.org/Icons/valid-html401"
+      alt="Valid HTML 4.01!" height="31" width="88"></a>
+</p>
 
 </body>
 </html>
