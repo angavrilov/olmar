@@ -135,3 +135,7 @@ class TemplateArgument {
   pure_virtual void print(PrintEnv &env);
 }
 
+
+class NamespaceDecl {
+  pure_virtual void print(PrintEnv &env);
+}

@@ -523,3 +523,11 @@ class TemplateArgument {
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
 }
+
+
+class NamespaceDecl {
+  pure_virtual void tcheck(Env &env);
+}
+
+
+// EOF

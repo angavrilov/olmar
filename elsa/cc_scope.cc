@@ -15,6 +15,7 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
     canAcceptNames(true),
     parentScope(),
     scopeKind(sk),
+    namespaceVar(NULL),
     curCompound(NULL),
     curFunction(NULL),
     curTemplateParams(NULL),
@@ -62,46 +63,48 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
 {
   xassert(canAcceptNames);
 
-  // classify the variable for debugging purposes
-  char const *classification =
-    v->hasFlag(DF_TYPEDEF)? "typedef" :
-    v->type->isFunctionType()? "function" :
-                               "variable" ;
+  if (!v->isNamespace()) {
+    // classify the variable for debugging purposes
+    char const *classification =
+      v->hasFlag(DF_TYPEDEF)?    "typedef" :
+      v->type->isFunctionType()? "function" :
+                                 "variable" ;
 
-  // does the type contain any error-recovery types?  if so,
-  // then we don't want to add the variable because we could
-  // be trying to disambiguate a declarator, and this would
-  // be the erroneous interpretation which is not supposed to
-  // modify the environment
-  bool containsErrors = v->type->containsErrors();
-  char const *prefix = "";
-  if (containsErrors) {
-    prefix = "[cancel/error] ";
-  }
+    // does the type contain any error-recovery types?  if so,
+    // then we don't want to add the variable because we could
+    // be trying to disambiguate a declarator, and this would
+    // be the erroneous interpretation which is not supposed to
+    // modify the environment
+    bool containsErrors = v->type->containsErrors();
+    char const *prefix = "";
+    if (containsErrors) {
+      prefix = "[cancel/error] ";
+    }
 
-  if (!curCompound) {
-    // variable outside a class
-    trace("env") << prefix << "added " << classification
-                 << " `" << v->name
-                 << "' of type `" << v->type->toString()
-                 << "' at " << toString(v->loc)
-                 << " (" << toString(v->scopeKind) << " scope)"
-                 << endl;
-  }
-  else {
-    // class member
-    //v->access = curAccess;      // moved into registerVariable()
-    trace("env") << prefix << "added " << toString(v->access)
-                 << " member " << classification
-                 << " `" << v->name
-                 << "' of type `" << v->type->toString()
-                 << "' at " << toString(v->loc)
-                 << " to " << curCompound->keywordAndName()
-                 << endl;
-  }
+    if (!curCompound) {
+      // variable outside a class
+      trace("env") << prefix << "added " << classification
+                   << " `" << v->name
+                   << "' of type `" << v->type->toString()
+                   << "' at " << toString(v->loc)
+                   << " (" << toString(v->scopeKind) << " scope)"
+                   << endl;
+    }
+    else {
+      // class member
+      //v->access = curAccess;      // moved into registerVariable()
+      trace("env") << prefix << "added " << toString(v->access)
+                   << " member " << classification
+                   << " `" << v->name
+                   << "' of type `" << v->type->toString()
+                   << "' at " << toString(v->loc)
+                   << " to " << curCompound->keywordAndName()
+                   << endl;
+    }
 
-  if (containsErrors) {
-    return true;     // pretend it worked; don't further rock the boat
+    if (containsErrors) {
+      return true;     // pretend it worked; don't further rock the boat
+    }
   }
 
   // moved into registerVariable()
@@ -172,6 +175,11 @@ void Scope::registerVariable(Variable *v)
     v->access = curAccess;
   }
 
+  if (scopeKind == SK_NAMESPACE) {
+    // point at enclosing namespace (Q: even for anon namespaces?)
+    v->scope = this;
+  }
+
   if (isGlobalScope()) {
     v->setFlag(DF_GLOBAL);
   }
@@ -189,6 +197,17 @@ Variable const *vfilterC(Variable const *v, LookupFlags flags)
 
   if ((flags & LF_ONLY_TYPES) &&
       !v->hasFlag(DF_TYPEDEF)) {
+    return NULL;
+  }
+
+  if ((flags & LF_ONLY_NAMESPACES) &&
+      !v->hasFlag(DF_NAMESPACE)) {
+    return NULL;
+  }
+
+  if ((flags & LF_TYPES_NAMESPACES) &&
+      !v->hasFlag(DF_TYPEDEF) &&
+      !v->hasFlag(DF_NAMESPACE)) {
     return NULL;
   }
 

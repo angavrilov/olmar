@@ -100,6 +100,7 @@ public:
 
   // print all the errors, one per line, in order
   void print(ostream &os) const;
+  string printToString() const;
 };
 
 

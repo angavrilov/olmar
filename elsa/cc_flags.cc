@@ -87,7 +87,8 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "<forward>",
   "<temporary>",    // 24
 
-  "<predicate>",    // 25
+  "<predicate>",
+  "namespace",      // 26
 };
 
 
@@ -110,7 +111,7 @@ char const *toString(ScopeKind sk)
     "function",
     "class",
     "template",
-    //"namespace",
+    "namespace",
   };
   STATIC_ASSERT(TABLESIZE(arr) == NUM_SCOPEKINDS);
 

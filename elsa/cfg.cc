@@ -387,6 +387,9 @@ void S_try::icfg(CFGEnv &env)
 void S_asm::icfg(CFGEnv &env)
 {}
 
+void S_namespaceDecl::icfg(CFGEnv &env)
+{}
+
 
 // ------------------ Statement::getSuccessors ----------------
 // add it if it's not NULL

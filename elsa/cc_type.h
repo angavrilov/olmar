@@ -64,9 +64,6 @@ class ClassTemplateInfo;
 class TypeFactory;
 class BasicTypeFactory;
 
-// static data consistency checker
-void cc_type_checker();
-
 
 // --------------------- atomic types --------------------------
 // interface to types that are atomic in the sense that no
@@ -79,15 +76,13 @@ public:     // funcs
   AtomicType();
   virtual ~AtomicType();
 
-  // stand-in if I'm not really using ids..
-  int getId() const { return (int)this; }
-
   virtual Tag getTag() const = 0;
   bool isSimpleType() const   { return getTag() == T_SIMPLE; }
   bool isCompoundType() const { return getTag() == T_COMPOUND; }
   bool isEnumType() const     { return getTag() == T_ENUM; }
   bool isTypeVariable() const { return getTag() == T_TYPEVAR; }
 
+  // see smbase/macros.h
   DOWNCAST_FN(SimpleType)
   DOWNCAST_FN(CompoundType)
   DOWNCAST_FN(EnumType)
@@ -377,9 +372,8 @@ public:     // funcs
 
 // ------------------- constructed types -------------------------
 // generic constructed type; to allow client analyses to annotate the
-// description of types, this class becomes is inherited by "Type",
-// the class that all of the rest of the parser regards as being a
-// "type"
+// description of types, this class is inherited by "Type", the class
+// that all of the rest of the parser regards as being a "type"
 class BaseType {    // note: clients should refer to Type, not BaseType
 public:     // types
   enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY, T_POINTERTOMEMBER };
@@ -400,9 +394,6 @@ public:     // types
   // moved this declaration into Type, along with the declaration of
   // 'anyCtorSatisfies', so as not to leak the name "BaseType"
   //typedef bool (*TypePred)(Type const *t);
-
-private:    // funcs
-  string idComment() const;
 
 private:    // disallowed
   BaseType(BaseType&);
@@ -449,7 +440,8 @@ public:     // funcs
     EF_STAT_EQ_NONSTAT = 0x0002,    // static can equal nonstatic
 
     // when comparing function types, only compare the explicit
-    // parameters; this does *not* imply EF_STATE_EQ_NONSTAT
+    // (non-receiver) parameters; this does *not* imply
+    // EF_STAT_EQ_NONSTAT
     EF_IGNORE_IMPLICIT = 0x0004,
 
     // ignore the topmost cv qualifications of all parameters in
@@ -488,7 +480,7 @@ public:     // funcs
       EF_IGNORE_EXN_SPEC       // can't overload on exn spec
     ),
 
-    // ----- combinations useful to the equality implementation -----
+    // ----- combinations used by the equality implementation -----
     // this is the set of flags that allow CV variance within the
     // current type constructor
     EF_OK_DIFFERENT_CV = (EF_IGNORE_TOP_CV | EF_SIMILAR),
@@ -525,7 +517,8 @@ public:     // funcs
   virtual string leftString(bool innerParen=true) const = 0;
   virtual string rightString(bool innerParen=true) const;    // default: returns ""
 
-  // size of representation
+  // size of representation at run-time; for now uses nominal 32-bit
+  // values
   virtual int reprSize() const = 0;
 
   // see description below, in class Type
@@ -541,7 +534,7 @@ public:     // funcs
   SimpleType const *asSimpleTypeC() const;
   bool isSimple(SimpleTypeId id) const;
   bool isSimpleCharType() const { return isSimple(ST_CHAR); }
-  bool isSimpleWChar_TType() const { return isSimple(ST_WCHAR_T); }
+  bool isSimpleWChar_tType() const { return isSimple(ST_WCHAR_T); }
   bool isIntegerType() const;            // any of the simple integer types
   bool isEnumType() const;
   bool isUnionType() const { return isCompoundTypeOf(CompoundType::K_UNION); }
@@ -556,6 +549,7 @@ public:     // funcs
   CompoundType const *asCompoundTypeC() const; // fail assertion if not
   CompoundType *asCompoundType() { return const_cast<CompoundType*>(asCompoundTypeC()); }
   bool isOwnerPtr() const;
+  bool isMethod() const;                 // function and method
 
   // pointer/reference stuff
   bool isPointer() const;                // as opposed to reference or non-pointer
@@ -593,7 +587,7 @@ ENUM_BITWISE_OPS(BaseType::EqFlags, BaseType::EF_ALL)
 
 #ifdef TYPE_CLASS_FILE
   // pull in the definition of Type, which may have additional
-  // fields (etc.) added by the client
+  // fields (etc.) added for the client analysis
   #include TYPE_CLASS_FILE
 #else
   // please see cc_type.html, section 6, "BaseType and Type", for more
@@ -634,7 +628,7 @@ protected:
   CVAtomicType(AtomicType *a, CVFlags c)
     : atomic(a), cv(c) {}
 
-  // need this to make an array of them
+  // need this to make a static array of them
   CVAtomicType(CVAtomicType const &obj)
     : atomic(obj.atomic), cv(obj.cv) {}
 
@@ -661,7 +655,7 @@ enum PtrOper {
 // type of a pointer or reference
 class PointerType : public Type {
 public:     // data
-  PtrOper op;                  // "*" or "&"; see note at end
+  PtrOper op;                  // "*" or "&"; see note at end of file
   CVFlags cv;                  // const/volatile, if "*"; refers to pointer *itself*
   Type *atType;                // (serf) type of thing pointed-at
 
@@ -727,9 +721,10 @@ public:     // data
   // as we think of it as an lvalue to which the function is
   // assigning.
   //
-  // We don't need this for the base Elsa parser.  If an analysis
-  // would like to have a Variable here, it's free to add it in its
-  // derived version of FunctionType.
+  // We don't need this for the base Elsa parser, because there's
+  // nothing for the type checker to "check".  If an analysis would
+  // like to have a Variable here, it's free to add it in its derived
+  // version of FunctionType.
   //Variable *retVal;
 
   // list of function parameters; if (flags & FF_METHOD) then the
@@ -835,8 +830,7 @@ public:
 
 // pointer to member; at least for now, this is not unified with
 // PointerType because that would make it too easy to have silent bugs
-// in code that deals with ptr-to-member, where e.g. something just
-// plain fails to check if the pointer is a ptr-to-member
+// in code that fails to explicitly deal with ptr-to-member
 class PointerToMemberType : public Type {
 public:
   CompoundType *inClass;        // class whose member is being pointed at
@@ -971,20 +965,26 @@ public:    // funcs
 // The type factory is used for constructing objects that represent
 // C++ types.  The reasons for using a factory instead of direct
 // construction include:
+//
 //   - Types have a complicated and unpredictable sharing structure,
 //     which makes recursive deallocation impossible.  The factory
 //     is thus given responsibility for deallocation of all objects
-//     created by that factory.
+//     created by that factory.  (Hmm.. currently there's no interface
+//     for relinquishing a reference back to the factory... doh.)
+//
 //   - Types are intended to be immutable, and thus referentially
 //     transparent.  This enables the optimization of "hash consing"
 //     where multiple requests for the same equivalent object yield
 //     the exact same object.  The factory is responsible for
 //     maintaining the data structures necessary for this, and for
-//     choosing whether to do so at all.
+//     choosing whether to do it at all.
+//
 //   - It is often desirable to annotate Types, but the base Type
 //     hierarchy should be free from any particular annotations.
 //     The factory allows one to derive subclasses of Type to add
-//     such annotations, without modifying creation sites.
+//     such annotations, without modifying creation sites (since
+//     they use the factory).  Of course, an alternative is to use
+//     a hash table on the side, but that's sometimes inconvenient.
 
 // first, we have the abstract interface of a TypeFactory
 class TypeFactory {
@@ -1000,8 +1000,7 @@ public:
 
   // ---- constructors for the constructed types ----
   // the 'loc' being passed is the start of the syntactic construct
-  // which causes the type to be created or needed (until I get more
-  // experience with this I can't be more precise)
+  // which causes the type to be created or needed (but see below)
   virtual CVAtomicType *makeCVAtomicType(SourceLoc loc,
     AtomicType *atomic, CVFlags cv)=0;
 
@@ -1016,6 +1015,16 @@ public:
 
   virtual PointerToMemberType *makePointerToMemberType(SourceLoc loc,
     CompoundType *inClass, CVFlags cv, Type *atType)=0;
+
+    
+  // NOTE: I very much want to get rid of this 'loc' business in the
+  // type constructors, however there is a client analysis (ccqual)
+  // that currently needs them.  Once ccqual is modified to not
+  // require this information, the 'loc' arguments are going to go
+  // away.  Until then, it's fine to just say SL_UNKNOWN every time
+  // you need to make a type.  (And in the meantime while they're
+  // here, do not write code that relies on them!)
+
 
   // ---- clone types ----
   // when types are cloned, their location is expected to be copied too
@@ -1075,7 +1084,7 @@ public:
 
   // given a function type and a return type, make a new function type
   // which is like it but has no parameters; i.e., copy all fields
-  // except 'params'
+  // except 'params'; this does *not* call doneParams
   virtual FunctionType *makeSimilarFunctionType(SourceLoc loc,
     Type *retType, FunctionType *similar);
 
@@ -1101,7 +1110,7 @@ public:
     { return makeCVAtomicType(loc, atomic, CV_NONE); }
 
   // make a ptr-to-'type' type; returns generic Type instead of
-  // PointerType because sometimes I return fixed(ST_ERROR)
+  // PointerType because sometimes I return ST_ERROR
   inline Type *makePtrType(SourceLoc loc, Type *type)
     { return type->isError()? type : makePointerType(loc, PO_POINTER, CV_NONE, type); }
 
@@ -1125,8 +1134,7 @@ public:
 class BasicTypeFactory : public TypeFactory {
 private:   // data
   // global array of non-const, non-volatile built-ins; it's expected
-  // to be treated as read-only, but enforcement (naive 'const' would
-  // not work because Type* aren't const above)
+  // to be treated as read-only
   static CVAtomicType unqualifiedSimple[NUM_SIMPLE_TYPES];
 
 public:    // funcs

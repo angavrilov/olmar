@@ -747,6 +747,9 @@ nonterm(Statement*) Statement {
   
   // assembly statement
   -> a:AsmDefinition                    { return new S_asm(loc, a); }
+  
+  // namespace declaration
+  -> n:NamespaceDecl                    { return new S_namespaceDecl(loc, n); }
 }
 
 nonterm(Statement*) ExpressionStatement {
@@ -817,18 +820,19 @@ nonterm(TopForm*) Declaration {
   //-> ExplicitInstantiation;
   //-> ExplicitSpecialization  // folded into TemplateDeclaration
   -> s:LinkageSpecification    { return s; }
-  //-> NamespaceDefinition;
-  
+
+  // substituted from BlockDeclaration
   -> a:AsmDefinition           { return new TF_asm(loc, a); }
+  -> n:NamespaceDefinition     { return n; }
+  -> n:NamespaceDecl           { return new TF_namespaceDecl(loc, n); }
 }
 
 nonterm(Declaration*) BlockDeclaration {
   -> d:SimpleDeclaration     { return d; }
-  
-  // substituted into the places BlockDeclaration occurs, so I can
-  // specialize the AST storage
-  //-> AsmDefinition;
 
+  // all of these have been substituted into the places BlockDeclaration occurs
+  // (namely Declaration and Statement)
+  //-> AsmDefinition;
   //-> NamespaceAliasDefinition;
   //-> UsingDeclaration;
   //-> UsingDirective;
@@ -1678,6 +1682,10 @@ nonterm(Member*) MemberDeclaration {
   // need for cancellation in both of those two
   -> n:PQualifiedId ";"                              
        { return new MR_publish(loc, n); }
+       
+  // generalization of MR_publish
+  -> "using" /*typename?*/ n:IdExpression ";"
+       { return new MR_usingDecl(loc, new ND_usingDecl(n)); }
 
   // inline function definition; includes c/dtor definitions
   -> f:FunctionDefinition SemicolonOpt
@@ -2161,3 +2169,32 @@ nonterm(FakeList<ASTTypeId>*) TypeIdList {
        { t->setNext(list->first());
          return FakeList<ASTTypeId>::makeList(t); }
 }
+
+
+// ------------------------ namespaces -----------------------
+nonterm(TF_namespaceDefn*) NamespaceDefinition {
+  -> "namespace" n:IdentifierOpt "{" unit:TranslationUnit "}"
+       {
+         TF_namespaceDefn *ret = new TF_namespaceDefn(loc, n, NULL /*forms*/);
+         ret->forms.concat(unit->topForms);     // steal list contents
+         delete unit;
+         return ret;
+       }
+}
+
+nonterm(NamespaceDecl*) NamespaceDecl {
+  -> "namespace" alias:Identifier "=" orig:IdExpression ";"
+       { return new ND_alias(alias, orig); }
+       
+  // cppstd allows "typename" after "using", but doesn't specify what
+  // it means; I assume they mean to use its semantics as described
+  // elsewhere, but I don't feel like tracking that down now
+  -> "using" /*typename?*/ n:IdExpression ";"
+       { return new ND_usingDecl(n); }
+       
+  -> "using" "namespace" n:IdExpression ";"
+       { return new ND_usingDir(n); }
+}
+
+
+// EOF

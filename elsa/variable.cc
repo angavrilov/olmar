@@ -14,11 +14,14 @@ Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
     value(NULL),
     funcDefn(NULL),
     overload(NULL),
+    usingAlias(NULL),
     access(AK_PUBLIC),
     scope(NULL),
     scopeKind(SK_UNKNOWN)
-{
-  xassert(type);        // (just a stab in the dark debugging effort)
+{                 
+  if (!isNamespace()) {
+    xassert(type);
+  }
 }
 
 Variable::~Variable()
@@ -34,14 +37,15 @@ void Variable::setFlagsTo(DeclFlags f)
 
 bool Variable::isTemplateFunction() const
 {
-  return type->isTemplateFunction() &&
+  return type &&
+         type->isTemplateFunction() &&
          !hasFlag(DF_TYPEDEF);
 }
 
 bool Variable::isTemplateClass() const
 {
-  return type->isTemplateClass() &&
-         hasFlag(DF_TYPEDEF);
+  return hasFlag(DF_TYPEDEF) &&
+         type->isTemplateClass();
 }
 
 
@@ -107,6 +111,28 @@ OverloadSet *Variable::getOverloadSet()
 int Variable::overloadSetSize() const
 {
   return overload? overload->count() : 1;
+}
+
+
+// I'm not sure what analyses' disposition towards usingAlias ought to
+// be.  One possibility is to just say they should sprinke calls to
+// skipAlias all over the place, but that's obviously not very nice.
+// However, I can't just make the lookup functions call skipAlias,
+// since the access control for the *alias* is what's relevant for
+// implementing access control restrictions.  Perhaps there should be
+// a pass that replaces all Variables in the AST with their skipAlias
+// versions?  I don't know yet.  Aliasing is often convenient for the
+// programmer but a pain for the analysis.
+
+Variable const *Variable::skipAliasC() const
+{
+  // tolerate NULL 'this' so I don't have to conditionalize usage
+  if (this && usingAlias) {
+    return usingAlias->skipAliasC();
+  }
+  else {
+    return this;
+  }
 }
 
 

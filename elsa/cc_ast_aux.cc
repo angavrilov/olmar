@@ -5,6 +5,28 @@
 #include "generic_aux.h"    // C++ AST, and genericPrintAmbiguities, etc.
 
 
+// Nominally "refers to <loc>", but with additional information
+// about "using declaration" aliasing.  This is an example of how
+// the aliasing complicates what used to be a simple process,
+// in this case getting a unique name for an entity.  We'll see
+// how much more of this I can take before I implement some global
+// de-aliasing measure.
+//
+// Now that I'm using Env::storeVar, the AST shouldn't have any
+// alias pointers in it.  But this method remains so I can do things
+// like grepping through printTypedAST output for stray aliases.
+string refersTo(Variable *v)
+{
+  if (!v->usingAlias) {
+    return stringc << "refers to " << toString(v->loc);
+  }
+  else {
+    return stringc << "refers to " << toString(v->loc)
+                   << " (alias of " << toString(v->skipAlias()->loc) << ")";
+  }
+}
+
+
 // TranslationUnit
 // TopForm
 
@@ -21,15 +43,15 @@ void Function::printExtras(ostream &os, int indent) const
 void MemberInit::printExtras(ostream &os, int indent) const
 {
   if (member) {
-    ind(os, indent) << "member: refers to " << toString(member->loc) << "\n";
-  }       
+    ind(os, indent) << "member: " << refersTo(member) << "\n";
+  }
 
   if (base) {
     ind(os, indent) << "base: " << base->toCString() << "\n";
   }
-  
+
   if (ctorVar) {
-    ind(os, indent) << "ctorVar: refers to " << toString(ctorVar->loc) << "\n";
+    ind(os, indent) << "ctorVar: " << refersTo(ctorVar) << "\n";
   }
 }
 
@@ -444,7 +466,7 @@ void Expression::printExtras(ostream &os, int indent) const
 
     ASTNEXTC(E_variable, v)
       if (v->var) {
-        ind(os, indent) << "var: refers to " << toString(v->var->loc) << "\n";
+        ind(os, indent) << "var: " << refersTo(v->var) << "\n";
       }
 
     ASTNEXTC(E_new, n)
@@ -452,7 +474,7 @@ void Expression::printExtras(ostream &os, int indent) const
 
     ASTNEXTC(E_fieldAcc, f)
       if (f->field) {
-        ind(os, indent) << "field: refers to " << toString(f->field->loc) << "\n";
+        ind(os, indent) << "field: " << refersTo(f->field) << "\n";
       }
 
     ASTDEFAULTC

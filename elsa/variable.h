@@ -8,16 +8,26 @@
 //
 // The name 'variable' is a slight misnomer; it's used for naming:
 //   - local and global variables
-//   - logic variables (in the thmprv context)
-//   - function names
+//   - logic variables (in the verifier)
+//   - functions
 //   - function parameters
 //   - structure fields
 //   - enumeration values
-//   - typedef'd names (though these are translated-away early on)
+//   - typedefs
+//   - namespaces
+// All of these things can appear in syntactically similar contexts,
+// and the lookup rules generally treat them as all being in the
+// same lookup space (as opposed to enum and class tag names).
 //
 // I've decided that, rather than AST nodes trying to own Variables,
 // Variables will live in a separate pool (like types) so the AST
-// nodes can properly share them at will.
+// nodes can share them at will.
+//
+// In fact, my current idea is that the cc_type and variable modules
+// are so intertwined they might as well be one.  They share
+// dependencies extensively, including the TypeFactory.  So while
+// they are (and will remain) physically separate files, they
+// should be treated as their own subsystem.
 
 #ifndef VARIABLE_H
 #define VARIABLE_H
@@ -30,7 +40,7 @@
 class Type;                    // cc_type.h
 class FunctionType;            // cc_type.h
 class OverloadSet;             // below
-class Scope;                   // scope
+class Scope;                   // cc_scope.h
 class Expression;              // cc.ast
 class Function;                // cc.ast
 class BasicTypeFactory;        // cc_type.h
@@ -46,7 +56,7 @@ public:    // data
   // name introduced (possibly NULL for abstract declarators)
   StringRef name;        
 
-  // type of the variable
+  // type of the variable (NULL iff flags has DF_NAMESPACE)
   Type *type;             
   
   // various flags; 'const' to force modifications to go through
@@ -64,6 +74,12 @@ public:    // data
   // if this name has been overloaded, then this will be a pointer
   // to the set of overloaded names; otherwise it's NULL
   OverloadSet *overload;  // (nullable serf)
+
+  // if this is variable is actually an alias for another one, via a
+  // "using declaration" (cppstd 7.3.3), then this points to the one
+  // it is an alias of; otherwise NULL; see comments near
+  // implementation of Variable::skipAliasC
+  Variable *usingAlias;   // (nullable serf)
 
   // access control applied to this variable in the context
   // in which it appears (defaults to AK_PUBLIC)
@@ -86,6 +102,9 @@ public:
   virtual ~Variable();
 
   bool hasFlag(DeclFlags f) const { return (flags & f) != 0; }
+  bool hasAnyFlags(DeclFlags /*union*/ f) const { return (flags & f) != 0; }
+  bool hasAllFlags(DeclFlags /*union*/ f) const { return (flags & f) == f; }
+
   void setFlag(DeclFlags f) { setFlagsTo(flags | f); }
   void addFlags(DeclFlags f) { setFlag(f); }
   void clearFlag(DeclFlags f) { setFlagsTo(flags & ~f); }
@@ -99,6 +118,7 @@ public:
   bool isGlobal() const { return hasFlag(DF_GLOBAL); }
   bool isStatic() const { return hasFlag(DF_STATIC); }
   bool isMember() const { return hasFlag(DF_MEMBER); }
+  bool isNamespace() const { return hasFlag(DF_NAMESPACE); }
 
   // true if this name refers to a template function, or is
   // the typedef-name of a template class
@@ -125,6 +145,10 @@ public:
 
   // fully qualified but not mangled name
   string fullyQualifiedName() const;
+  
+  // follow the 'usingAlias' field if non-NULL; otherwise return this
+  Variable const *skipAliasC() const;
+  Variable *skipAlias() { return const_cast<Variable*>(skipAliasC()); }
 };
 
 inline string toString(Variable const *v) { return v->toString(); }

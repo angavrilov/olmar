@@ -196,6 +196,24 @@ void TF_asm::print(PrintEnv &env)
   env << "asm(" << text << ");\n";
 }
 
+void TF_namespaceDefn::print(PrintEnv &env)
+{
+  olayer ol("TF_namespaceDefn");
+  env.current_loc = loc;
+  env << "namespace " << name << " {\n";
+  FOREACH_ASTLIST_NC(TopForm, forms, iter) {
+    iter.data()->print(env);
+  }
+  env << "} /""* namespace " << name << " */\n";
+}
+
+void TF_namespaceDecl::print(PrintEnv &env)
+{
+  olayer ol("TF_namespaceDecl");
+  env.current_loc = loc;
+  decl->print(env);
+}
+
 
 // --------------------- Function -----------------
 void Function::print(PrintEnv &env)
@@ -406,6 +424,13 @@ void MR_publish::print(PrintEnv &env)
   olayer ol("MR_publish");
   env << name->toString() << ";\n";
 }
+
+void MR_usingDecl::print(PrintEnv &env)
+{
+  olayer ol("MR_usingDecl");
+  decl->print(env);
+}
+
 
 // -------------------- Enumerator --------------------
 void Enumerator::print(PrintEnv &env)
@@ -628,6 +653,13 @@ void S_asm::iprint(PrintEnv &env)
   olayer ol("S_asm::iprint");
   env << "asm(" << text << ");\n";
 }
+
+void S_namespaceDecl::iprint(PrintEnv &env)
+{
+  olayer ol("S_namespaceDecl::iprint");
+  decl->print(env);
+}
+
 
 // ------------------- Condition --------------------
 // CN = ConditioN
@@ -1137,3 +1169,29 @@ void TA_nontype::print(PrintEnv &env)
 {
   expr->print(env);
 }
+
+
+// -------------------- NamespaceDecl ---------------------
+void ND_alias::print(PrintEnv &env)
+{
+  env << "namespace " << alias << " = ";
+  original->print(env);
+  env << ";\n";
+}
+
+void ND_usingDecl::print(PrintEnv &env)
+{
+  env << "using ";
+  name->print(env);
+  env << ";\n";
+}
+
+void ND_usingDir::print(PrintEnv &env)
+{
+  env << "using namespace ";
+  name->print(env);
+  env << ";\n";
+}
+
+
+// EOF

@@ -21,6 +21,7 @@
 #include "overload.h"       // resolveOverload
 #include "generic_amb.h"    // resolveAmbiguity, etc.
 #include "ast_build.h"      // makeExprList1, etc.
+#include "strutil.h"        // prefixEquals
 
 #include <stdlib.h>         // strtoul, strtod
 
@@ -126,8 +127,80 @@ void TF_one_linkage::tcheck(Env &env)
   form->tcheck(env);
 }
 
-void TF_asm::tcheck(Env &)
-{}
+void TF_asm::tcheck(Env &env)
+{
+  env.setLoc(loc);
+
+  StringRef t = text->text;
+  if (prefixEquals(t, "\"collectLookupResults")) {
+    // this activates an internal diagnostic that will collect
+    // the E_variable lookup results as warnings, then at the
+    // end of the program, compare them to this string
+    env.collectLookupResults = t;
+  }
+}
+
+
+void TF_namespaceDefn::tcheck(Env &env)
+{
+  env.setLoc(loc);
+
+  // currently, what does the name refer to in this scope?
+  Variable *existing = NULL;
+  if (name) {
+    existing = env.lookupVariable(name, LF_INNER_ONLY);
+  }
+  
+  // violation of 7.3.1 para 2?
+  if (existing && !existing->hasFlag(DF_NAMESPACE)) {
+    env.error(loc, stringc
+      << "attempt to redefine `" << name << "' as a namespace");
+
+    // recovery: pretend it didn't have a name
+    existing = NULL;
+    name = NULL;
+  }
+    
+  Scope *s;
+  if (existing) {
+    // extend existing scope
+    s = existing->scope;
+  }
+  else {
+    // make an entry in the surrounding scope to refer to the new namespace
+    Variable *v = env.makeVariable(loc, name, NULL /*type*/, DF_NAMESPACE);
+    env.addVariable(v);
+
+    // make new scope
+    s = new Scope(SK_NAMESPACE, 0 /*changeCount; irrelevant*/, loc);
+    s->namespaceVar = v;
+
+    // point the variable at it so we can find it later
+    v->scope = s;
+    
+    // TODO: if name is NULL, we need to add an "active using" edge
+    // from the surrounding scope to s
+    
+    if (env.scope()->isNamespace()) {
+      // current scope has a name, hook up parent link for new namespace
+      s->parentScope = env.scope();
+    }
+  }
+
+  // check the namespace body in its scope
+  env.extendScope(s);
+  FOREACH_ASTLIST_NC(TopForm, forms, iter) {
+    iter.data()->tcheck(env);
+  }
+  env.retractScope(s);
+}
+
+
+void TF_namespaceDecl::tcheck(Env &env)
+{
+  env.setLoc(loc);
+  decl->tcheck(env);
+}
 
 
 // --------------------- Function -----------------
@@ -177,6 +250,16 @@ void Function::tcheck(Env &env, bool checkBody)
     Scope *s = nameAndParams->var->scope;
     if (s) {
       inClass = s->curCompound;   // might be NULL, that's ok
+
+      // current scope must enclose 's':
+      //   - if 's' is a namespace, 7.3.1.2 para 2 says so
+      //   - if 's' is a class, 9.3 para 2 says so
+      // example of violation: in/std/7.3.1.2b.cc, error 2  
+      if (!env.currentScopeEncloses(s)) {
+        env.error(stringc
+          << "function definition of `" << *(nameAndParams->getDeclaratorId())
+          << "' must appear in a namespace that encloses the original declaration");
+      }
 
       env.extendScope(s);
       prevChangeCount = env.getChangeCount();
@@ -328,7 +411,7 @@ void Function::tcheck_memberInits(Env &env)
         }
 
         // annotate the AST
-        iter->member = v;
+        iter->member = env.storeVar(v);
 
         // typecheck the arguments
         tcheckArgExprList(iter->args, env);
@@ -337,7 +420,7 @@ void Function::tcheck_memberInits(Env &env)
         Variable *ctor = outerResolveOverload_ctor(env, env.loc(), v->type, iter->args,
                                                    reallyDoOverload(env, iter->args));
         if (ctor) {
-          iter->ctorVar = ctor;
+          iter->ctorVar = env.storeVar(ctor);
 
           // FIX: do this; we need a variable for when it is a base class
           // the var is the MemberInit::member
@@ -434,7 +517,7 @@ void Function::tcheck_memberInits(Env &env)
                                                iter->args,
                                                reallyDoOverload(env, iter->args));
     if (ctor) {
-      iter->ctorVar = ctor;
+      iter->ctorVar = env.storeVar(ctor);
 
       // FIX: do this; we need a variable for when it is a base class
       // the var is Function::retVar; NOTE: the types won't match so
@@ -642,8 +725,8 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
   bool disambiguates = (typenameUsed? false : true);
                                        
   LookupFlags lflags = (typenameUsed? LF_TYPENAME : LF_NONE);
-  this->var = env.lookupPQVariable(name, lflags);      // annotation
-  if (!var) {
+  Variable *v = env.lookupPQVariable(name, lflags);
+  if (!v) {
     // NOTE:  Since this is marked as disambiguating, but the same
     // error message in E_variable::itcheck is not marked as such, it
     // means we prefer to report the error as if the interpretation as
@@ -653,11 +736,15 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
       disambiguates);
   }
 
-  if (!var->hasFlag(DF_TYPEDEF)) {
+  if (!v->hasFlag(DF_TYPEDEF)) {
     return env.error(stringc
       << "variable name `" << *name << "' used as if it were a type",
       disambiguates);
   }
+
+  // TODO: access control check
+
+  var = env.storeVar(v);    // annotation
 
   // dsw: store the pointer to the variable in the type; Note that, as
   // Scott points out, if it already has a name, we keep it because it
@@ -1594,8 +1681,15 @@ void MR_publish::tcheck(Env &env)
       << "in superclass publication, you have to specify the superclass");
   }
   else {
-    // TODO: actually verify the superclass has such a member..
+    // TODO: actually verify the superclass has such a member, and make
+    // it visible in this class
   }
+}
+
+void MR_usingDecl::tcheck(Env &env)
+{
+  env.setLoc(loc);
+  decl->tcheck(env);
 }
 
 
@@ -1750,7 +1844,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
   // get the variable from the IDeclarator
   decl->tcheck(env, dt);
-  var = dt.var;
+  var = env.storeVar(dt.var);
   type = dt.type;
 
   // cppstd, sec. 3.3.1:
@@ -1786,9 +1880,10 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
   // If it is a function, is it virtual?
   if (inClassBody
-      && var->type->isFunctionType()
-      && var->type->asFunctionType()->isMethod()
+      && var->type->isMethod()
       && !var->hasFlag(DF_VIRTUAL)) {
+    FunctionType *varft = var->type->asFunctionType();
+
 //      printf("var->name: %s\n", var->name);
 //      printf("env.scope->curCompound->name: %s\n", env.scope()->curCompound->name);
     // find the next variable up the hierarchy
@@ -1803,19 +1898,38 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       //               base_iter.data()->ct->name);
       Variable *var2 = base_iter.data()->ct->lookupVariable(var->name, env);
       xassert(var2 != var);
-      if (var2 && var2->type->isFunctionType() && var2->type->asFunctionType()->isMethod()) {
-        if (Variable *var_overload =
-            var2->getOverloadSet()->findByType
-            (var->type->asFunctionType(),
-             var->type->asFunctionType()->getThisCV())) {
-          xassert(var_overload != var);
-          xassert(var_overload->type->isFunctionType());
-          xassert(var_overload->type->asFunctionType()->isMethod());
-          if (var_overload->hasFlag(DF_VIRTUAL)) {
-            // then we inherit the virtuality
+      if (var2 &&
+          var2->type->isMethod()) {
+        FunctionType *var2ft = var2->type->asFunctionType();
+
+        // one could write this without the case split, but I don't want
+        // to call getOverloadSet() (which makes new OverloadSet objects
+        // if they are not already present) when I don't need to
+
+        if (!var2->overload) {
+          // see if it's virtual and has the same signature
+          if (var2->hasFlag(DF_VIRTUAL) &&
+              var2ft->equalOmittingThisParam(varft) &&
+              var2ft->getThisCV() == varft->getThisCV()) {
             var->setFlag(DF_VIRTUAL);
-            // FIX: We could actually break out of the loop at this
-            // point
+          }
+        }
+
+        else {
+          // check for member of overload set with same signature
+          // and marked 'virtual'
+          if (Variable *var_overload =
+              var2->getOverloadSet()->findByType
+              (var->type->asFunctionType(),
+               var->type->asFunctionType()->getThisCV())) {
+            xassert(var_overload != var);
+            xassert(var_overload->type->isFunctionType());
+            xassert(var_overload->type->asFunctionType()->isMethod());
+            if (var_overload->hasFlag(DF_VIRTUAL)) {
+              // then we inherit the virtuality
+              var->setFlag(DF_VIRTUAL);
+              break;
+            }
           }
         }
       }
@@ -2089,71 +2203,6 @@ void possiblyConsumeFunctionType(Env &env, Declarator::Tcheck &dt)
 }
 
 
-// true if two function types have equivalent signatures, meaning
-// if their names are the same then they refer to the same function,
-// not two overloaded instances
-bool equivalentSignatures(FunctionType const *ft1, FunctionType const *ft2)
-{
-  return ft1->innerEquals(ft2, Type::EF_SIGNATURE);
-}
-
-
-// comparing types for equality, *except* we allow array types
-// to match even when one of them is missing a bound and the
-// other is not; I cannot find where in the C++ standard this
-// exception is specified, so I'm just guessing about where to
-// apply it and exactly what the rule should be
-//
-// note that this is *not* the same rule that allows array types in
-// function parameters to vary similarly, see
-// 'normalizeParameterType()'
-bool almostEqualTypes(Type const *t1, Type const *t2)
-{
-  if (t1->isArrayType() &&
-      t2->isArrayType()) {
-    ArrayType const *at1 = t1->asArrayTypeC();
-    ArrayType const *at2 = t2->asArrayTypeC();
-
-    if ((at1->hasSize() && !at2->hasSize()) ||
-        (at2->hasSize() && !at1->hasSize())) {
-      // the exception kicks in
-      return at1->eltType->equals(at2->eltType);
-    }
-  }
-
-  // no exception: strict equality (well, toplevel param cv can differ)
-  return t1->equals(t2, Type::EF_IGNORE_PARAM_CV);
-}
-
-
-// check if multiple definitions of a global symbol are ok; also
-// updates some data structures so that future checks can be made
-static bool multipleDefinitionsOK(Env &env, Variable *prior, 
-                                  Declarator::Tcheck &dt_current) 
-{
-  if (!env.lang.uninitializedGlobalDataIsCommon) {
-    return false;
-  }
-
-  // dsw: I think the "common symbol exception" only applies to
-  // globals.
-  if (!prior->hasFlag(DF_GLOBAL)) {
-    return false;
-  }
-
-  // can't be initialized more then once
-  if (dt_current.dflags & DF_INITIALIZED) {
-    if (prior->hasFlag(DF_INITIALIZED)) {
-      return false; // can't both be initialized
-    }
-    else {
-      prior->setFlag(DF_INITIALIZED); // update for future reference
-    }
-  }
-  return true;
-}
-
-
 // given a 'dt.type' that is a function type, and a 'dt.funcSyntax'
 // that's carrying information about the function declarator syntax,
 // and 'inClass' the class that the function will be considered a
@@ -2183,6 +2232,9 @@ void makeMemberFunctionType(Env &env, Declarator::Tcheck &dt,
 // 'name' to the environment.  But to do this it has to implement the
 // various rules for when declarations conflict, overloading,
 // qualified name lookup, etc.
+//
+// TODO: I've now broken some of this mechanism apart and implemented
+// the pieces in Env, switch this implementation over to using them.
 static void D_name_tcheck(
   // environment in which to do general lookups
   Env &env,
@@ -2246,6 +2298,7 @@ static void D_name_tcheck(
     return;
   }
 
+  #if 0      // old; delete me
   declarationTypeMismatch:
   {
     // this message reports two declarations which declare the same
@@ -2258,6 +2311,7 @@ static void D_name_tcheck(
       << "', but this one uses `" << dt.type->toString() << "'");
     goto makeDummyVar;
   }
+  #endif // 0
 
 realStart:
   if (!name) {
@@ -2339,6 +2393,14 @@ realStart:
   //
   // TODO: this is wrong because qualified names *can* appear in
   // class member lists..
+  //
+  // Essentially, what I'm doing is saying that if you have
+  // qualifiers then you're a definition outside the class body,
+  // otherwise you're inside it.  But of course that is not the
+  // way to tell if you're outside a class body!  But the fix is
+  // still not perfectly clear to me, so it remains a TODO.
+  // (When I fix this, I may be able to remove the 'enclosingClass'
+  // argument from 'createDeclaration'.)
   CompoundType *enclosingClass =
     name->hasQualifiers()? NULL : scope->curCompound;
 
@@ -2360,6 +2422,12 @@ realStart:
   //Variable *prior = NULL;    // moved to the top
 
   if (name->hasQualifiers()) {
+    // TODO: I think this is wrong, but I'm not sure how.  For one
+    // thing, it's very similar to what happens below for unqualified
+    // names; could those be unified?  Second, the thing above about
+    // how class member declarations can be qualified, but I don't
+    // allow it ...
+
     // the name has qualifiers, which means it *must* be declared
     // somewhere; now, Declarator::tcheck will have already pushed the
     // qualified scope, so we just look up the name in the now-current
@@ -2415,6 +2483,9 @@ realStart:
   }
   else {
     // has this name already been declared in the innermost scope?
+    prior = env.lookupVariableForDeclaration(scope, unqualifiedName, dt.type,
+      dt.funcSyntax? dt.funcSyntax->cv : CV_NONE);
+    #if 0     // old; delete me
     prior = scope->lookupVariable(unqualifiedName, env, LF_INNER_ONLY);
 
     if (prior &&
@@ -2428,6 +2499,7 @@ realStart:
         prior = match;
       }
     }
+    #endif // 0
   }
 
   // is this a nonstatic member function?
@@ -2456,6 +2528,10 @@ realStart:
   }
 
   // check for overloading
+  OverloadSet *overloadSet = 
+    name->hasQualifiers() ? NULL /* I don't think this is right! */ :
+    env.getOverloadForDeclaration(prior, dt.type);
+  #if 0     // old; delete me
   OverloadSet *overloadSet = NULL;    // null until valid overload seen
   if (env.lang.allowOverloading &&
       !name->hasQualifiers() &&
@@ -2479,7 +2555,12 @@ realStart:
       prior = NULL;    // so we don't consider this to be the same
     }
   }
+  #endif // 0
 
+  // make a new variable; see implementation for details
+  dt.var = env.createDeclaration(loc, unqualifiedName, dt.type, dt.dflags, 
+                                 scope, enclosingClass, prior, overloadSet);
+  #if 0    // old; delete me
   // if this gets set, we'll replace a conflicting variable
   // when we go to do the insertion
   bool forceReplace = false;
@@ -2499,7 +2580,7 @@ realStart:
       // check for violation of the One Definition Rule
       if (prior->hasFlag(DF_DEFINITION) &&
           (dt.dflags & DF_DEFINITION) &&
-          !multipleDefinitionsOK(env, prior, dt)) {
+          !multipleDefinitionsOK(env, prior, dt.dflags)) {
         // HACK: if the type refers to type variables, then let it slide
         // because it might be Foo<int> vs. Foo<float> but my simple-
         // minded template implementation doesn't know they're different
@@ -2523,7 +2604,7 @@ realStart:
       // of typechecking for inline members (the user's code doesn't
       // violate the rule, it only appears to because of the second
       // pass); this exception is indicated by DF_INLINE_DEFN.
-      if (enclosingClass && 
+      if (enclosingClass &&
           !(dt.dflags & DF_INLINE_DEFN) &&
           !prior->hasFlag(DF_IMPLICIT)) {   // allow implicit typedef override here too
         env.error(stringc
@@ -2619,6 +2700,7 @@ noPriorDeclaration:
   }
 
   return;
+  #endif // 0
 }
 
 void D_name::tcheck(Env &env, Declarator::Tcheck &dt)
@@ -3381,6 +3463,12 @@ void S_asm::itcheck(Env &)
 {}
 
 
+void S_namespaceDecl::itcheck(Env &env)
+{
+  decl->tcheck(env);
+}
+
+
 // ------------------- Condition --------------------
 void CN_expr::tcheck(Env &env)
 {
@@ -3686,8 +3774,8 @@ Type *makeLvalType(Env &env, Type *underlying)
 Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
 {
   name->tcheck(env);
-  var = env.lookupPQVariable(name);
-  if (!var) {
+  Variable *v = env.lookupPQVariable(name);
+  if (!v) {
     // 10/23/02: I've now changed this to non-disambiguating, prompted
     // by the need to allow template bodies to call undeclared
     // functions in a "dependent" context [cppstd 14.6 para 8].
@@ -3697,10 +3785,21 @@ Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
       false /*disambiguates*/);
   }
 
-  if (var->hasFlag(DF_TYPEDEF)) {
+  if (v->hasFlag(DF_TYPEDEF)) {
     return env.error(name->loc, stringc
       << "`" << *name << "' used as a variable, but it's actually a typedef",
       true /*disambiguates*/);
+  }
+       
+  // TODO: access control check
+
+  var = env.storeVarIfNotOvl(v);
+
+  if (env.collectLookupResults) {
+    // gcc bug?: if '*name' is first argument to '<<', then
+    // it complains about rval initializing a reference?
+    env.warning(stringc << "collect: " << *name << " "
+                        << toLCString(var->loc));
   }
 
   // special case for "this": the parameter is declared as a reference
@@ -4097,6 +4196,12 @@ Type *E_funCall::inner2_itcheck(Env &env)
                              env.implicitReceiverType(), args);
       if (chosen) {
         // rewrite AST to reflect choice
+        //
+        // the stored type will be the dealiased type in hopes this
+        // achieves 7.3.3 para 13, "This has no effect on the type of
+        // the function, and in all other respects the function
+        // remains a member of the base class."
+        chosen = env.storeVar(chosen);
         evar->var = chosen;
         evar->type = chosen->type;
         t = chosen->type;    // for eventual return value
@@ -4117,6 +4222,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
                              efld->obj->type, args);
       if (chosen) {
         // rewrite AST
+        chosen = env.storeVar(chosen);
         efld->field = chosen;
         efld->type = chosen->type;
         t = chosen->type;
@@ -4306,7 +4412,7 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
   Variable *ctor = outerResolveOverload_ctor(env, env.loc(), type, args,
                                              reallyDoOverload(env, args));
   if (ctor) {
-    ctorVar = ctor;
+    ctorVar = env.storeVar(ctor);
 
     if (env.doElaboration) {
       retObj = elaborateCallSite(env, ctor->type->asFunctionType(), args);
@@ -4358,18 +4464,22 @@ Type *E_fieldAcc::itcheck_x(Env &env, Expression *&replacement)
   }
 
   // look for the named field
-  field = ct->lookupPQVariable(fieldName, env);
-  if (!field) {
+  Variable *f = ct->lookupPQVariable(fieldName, env);
+  if (!f) {
     return env.error(rt, stringc
       << "there is no member called `" << *fieldName
       << "' in " << rt->toString());
   }
 
   // should not be a type
-  if (field->hasFlag(DF_TYPEDEF)) {
+  if (f->hasFlag(DF_TYPEDEF)) {
     return env.error(rt, stringc
       << "member `" << *fieldName << "' is a typedef!");
   }
+       
+  // TODO: access control check
+  
+  field = env.storeVarIfNotOvl(f);
 
   // type of expression is type of field; possibly as an lval
   if (obj->type->isLval() &&
@@ -5061,7 +5171,7 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
     Variable *ctor = outerResolveOverload_ctor(env, env.loc(), t, ctorArgs->list,
                                                reallyDoOverload(env, ctorArgs->list));
     if (ctor) {
-      ctorVar = ctor;
+      ctorVar = env.storeVar(ctor);
     }
   }
 
@@ -5462,7 +5572,7 @@ void IN_ctor::tcheck(Env &env, Type *type)
   tcheckArgExprList(args, env);
   Variable *ctor = outerResolveOverload_ctor(env, loc, type, args, reallyDoOverload(env, args));
   if (ctor) {
-    ctorVar = ctor;
+    ctorVar = env.storeVar(ctor);
   }
 }
 
@@ -5685,3 +5795,75 @@ void TA_nontype::itcheck(Env &env)
       << "type for a template argument");
   }
 }
+
+
+// -------------------------- NamespaceDecl -------------------------
+void ND_alias::tcheck(Env &env)
+{
+  // find the namespace we're talking about
+  Variable *origVar = env.lookupPQVariable(original, LF_ONLY_NAMESPACES);
+  if (!origVar) {
+    env.error(stringc
+      << "could not find namespace `" << *original << "'");
+    return;
+  }
+  xassert(origVar->isNamespace());   // meaning of LF_ONLY_NAMESPACES
+
+  // is the alias already bound to something?
+  Variable *existing = env.lookupVariable(alias, LF_INNER_ONLY);
+  if (existing) {
+    // 7.3.2 para 3: redefinitions are allowed only if they make it
+    // refer to the same thing
+    if (existing->isNamespace() &&
+        existing->scope == origVar->scope) {
+      return;     // ok; nothing needs to be done
+    }
+    else {
+      env.error(stringc
+        << "redefinition of namespace alias `" << alias
+        << "' not allowed because the new definition isn't the same as the old");
+      return;
+    }
+  }
+
+  // make a new namespace variable entry
+  Variable *v = env.makeVariable(env.loc(), alias, NULL /*type*/, DF_NAMESPACE);
+  env.addVariable(v);
+
+  // make it refer to the same namespace as the original one
+  v->scope = origVar->scope;
+  
+  // note that, if one cares to, the alias can be distinguished from
+  // the original name in that the scope's 'namespaceVar' still points
+  // to the original one (only)
+}
+
+
+void ND_usingDecl::tcheck(Env &env)
+{
+  // find what we're referring to
+  Variable *origVar = env.lookupPQVariable(name);
+  if (!origVar) {
+    env.error(stringc
+      << "undeclared identifier: `" << *name << "'");
+    return;
+  }
+  
+  if (!origVar->overload) {
+    env.makeUsingAliasFor(name->loc, origVar);
+  }
+  else {
+    SFOREACH_OBJLIST_NC(Variable, origVar->overload->set, iter) {
+      env.makeUsingAliasFor(name->loc, iter.data());
+    }
+  }
+}
+
+
+void ND_usingDir::tcheck(Env &env)
+{
+  // TODO
+}
+
+
+// EOF

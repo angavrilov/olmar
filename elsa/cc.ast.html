@@ -120,7 +120,9 @@ are data members or method prototypes (MR_decl), or inline
 definitions of methods (MR_func).  MR_publish is obscure,
 corresponding to an "access declaration" [cppstd Section 11.3].
 
+<a name="declarator">
 <h3>Declarator, IDeclarator, ExceptionSpec</h3>
+</a>
 
 <p>
 The C/C++ syntax for declarators is probably the strangest part
@@ -161,13 +163,15 @@ pointer to a function which returns a pointer to pointer to an
 integer--you read it from right to left.  The type checker
 (<a href="cc_tcheck.cc">cc_tcheck.cc</a>) sorts the types out into
 a more usable representation
-(<a href="cc_type.html">cc_type</a>), but they start like this.
+(<a href="cc_type.html">cc_type</a>), but they start as above.
 
 <p>
 (By the way: declarators are inside-out not because Kernighan
 and Ritchie are evil or stupid, but because they wanted the syntax of
 declarations to mirror the syntax of expressions, to try to make the
-language easier to learn.)
+language easier to learn.  When I first learned C, I thought it
+made perfect sense.  Only now as a PhD student in computer science
+do I find it confusing.  <tt>:)</tt>&nbsp;  )
 
 <h3>OperatorName</h3>
 

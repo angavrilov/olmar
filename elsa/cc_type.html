@@ -26,11 +26,11 @@ The broad intent of cc_type is to represent types in a way that's easy
 to understand and manipulate.  The abstract syntax of C/C++ type
 declarations is very much <em>not</em> amenable to either, because it
 shares type specifiers among declarators in a declaration, and because
-declarators are inside-out (see the description of Declarator in
-<a href="cc.ast.html">cc.ast.html</a>).  The type checker has the responsibility
-of interpreting the C/C++ syntax, and constructing corresponding Type
-objects so that subsequent analyses don't have to deal with the actual
-syntax.
+declarators are inside-out (see the description of <a
+href="cc.ast.html#declarator">Declarator in cc.ast.html</a>).  The
+type checker has the responsibility of interpreting the C/C++ syntax,
+and constructing corresponding Type objects so that subsequent
+analyses don't have to deal with the actual syntax.
 
 <p>
 Another goal of the type representation is general independence from
@@ -50,8 +50,8 @@ won't use the programmer's names when referring to types in error
 messages, but there's an easy solution to that too: every constructed
 type could have a field saying what name, if any, the programmer had
 been using as an alias for this type.  That's not implemented, but I'm
-confident it would eliminate any advantage to retaining typedefs, so
-I do not.
+confident it would eliminate any advantage to retaining typedefs.
+(Update: It has recently been implemented, see Type::typedefAliases.)
 
 <p>
 Types are divided into two major classes: atomic types and constructed
@@ -76,7 +76,24 @@ contains methods to figure out what kind of type it actually is.
 
 <p>
 <b>SimpleType</b> is represents simple types built-in to C/C++, like
-"int".
+"int".  <a href="cc_flags.h">cc_flags.h</a> contains the definition of
+SimpleTypeId.  Note that there is no attempt to break down primitive
+types along dimensions like "signed" or "long", since the set of types
+is not orthogonal w.r.t. those dimensions (e.g. there is no "signed
+float" or "long char").  If an analysis wants (e.g.) an "isSigned"
+function, it should provide it itself, and make the associated
+decisions about what "isSigned(ST_FLOAT)" returns.
+
+<p>
+There are some SimpleTypeId codes that do not correspond to
+primitive C/C++ types, but are used instead by the front-end for
+various intermediate communication purposes.  For example, ST_ERROR
+represents the type of an expression that contained an error, and
+is used to try to reduce the amount of error cascading.  There
+are also some ids used to help implement section 13.6 of the C++
+standard.  Analyses generally won't have to concern themselves
+with such oddball values, since they shouldn't be visible outside
+the type checker implementation.
 
 <p>
 <b>CompoundType</b> is certainly the most complex of all the type classes.
@@ -97,7 +114,8 @@ the final object's layout.
 
 <p>
 CompoundType knows how to print out its DAG to
-<a href="http://www.research.att.com/sw/tools/graphviz/">Dot</a> format.
+<a href="http://www.research.att.com/sw/tools/graphviz/">Dot</a> format;
+see CompoundType::renderSubobjHierarchy.
 For example, <a href="in/std/3.4.5.cc">in/std/3.4.5.cc</a> yields
 <a href="gendoc/3.4.5.png">3.4.5.png</a>.
 

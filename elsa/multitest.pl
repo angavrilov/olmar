@@ -106,7 +106,7 @@ foreach $selcode (@allkeys) {
 
 unlink("multitest.tmp");
 
-print("\nmultitest: all $numkeys variations failed as expected\n");
+print("\nmultitest: success: all $numkeys variations failed as expected\n");
 
 exit(0);
 

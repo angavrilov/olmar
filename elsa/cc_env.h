@@ -123,6 +123,11 @@ public:      // data
   // are to be treated as calls to overloaded operator functions
   bool doOperatorOverload;
 
+  // when non-NULL, the variable lookup results are collected and
+  // compared to the text stored in this pointer; it is supplied via
+  // an an 'asm' directive (see TF_asm::itcheck)
+  StringRef collectLookupResults;
+
   // ------------------- for elaboration ------------------
   // when true, do elaboration
   bool doElaboration;
@@ -217,6 +222,9 @@ public:      // funcs
 
   bool inTemplate()
     { return !!enclosingKindScope(SK_TEMPLATE); }
+
+  // true if the current scope contains 's' as a nested scope
+  bool currentScopeEncloses(Scope *s);
 
   // source location tracking
   void setLoc(SourceLoc loc);                // sets scope()->curLoc
@@ -364,6 +372,35 @@ public:      // funcs
   // create a built-in candidate for operator overload resolution
   Variable *createBuiltinUnaryOp(OverloadableOp op, Type *x);
   Variable *createBuiltinBinaryOp(OverloadableOp op, Type *x, Type *y);
+
+  // several steps of the declaration creation process, broken apart
+  // to aid sharing among D_name_tcheck and makeUsingAliasFor; best
+  // to look at their implementations and the comments therein
+  Variable *lookupVariableForDeclaration
+    (Scope *scope, StringRef name, Type *type, CVFlags this_cv);
+  OverloadSet *getOverloadForDeclaration(Variable *&prior, Type *type);
+  Variable *createDeclaration(
+    SourceLoc loc,
+    StringRef name,
+    Type *type,
+    DeclFlags dflags,
+    Scope *scope,
+    CompoundType *enclosingClass,
+    Variable *prior,
+    OverloadSet *overloadSet
+  );
+
+  // create a "using declaration" alias
+  void makeUsingAliasFor(SourceLoc loc, Variable *origVar);
+                                    
+  // pass Variable* through this before storing in the AST, so
+  // that the AST only has de-aliased pointers (if desired)
+  Variable *storeVar(Variable *var);
+
+  // this version will do pass-through if 'var' has an overload
+  // set; it's for those cases where subsequent overload resolution
+  // needs to pick from the set, before de-aliasing happens
+  Variable *storeVarIfNotOvl(Variable *var);
 
   // points of extension: These functions do nothing in the base
   // Elsa parser, but can be overridden in client analyses to

@@ -106,16 +106,26 @@ bool ErrorList::hasDisambErrors() const
 
 
 void ErrorList::print(ostream &os) const
-{                                                                  
+{
+  os << printToString();
+}
+
+
+string ErrorList::printToString() const
+{
+  stringBuilder sb;
+
   // need to temporarily reverse it, but I promise to restore it
   // when I'm done
   ObjList<ErrorMsg> &nclist = const_cast<ObjList<ErrorMsg>&>(list);
 
   nclist.reverse();
   FOREACH_OBJLIST(ErrorMsg, nclist, iter) {
-    os << iter.data()->toString() << "\n";
+    sb << iter.data()->toString() << "\n";
   }
   nclist.reverse();
+
+  return sb;
 }
 
 

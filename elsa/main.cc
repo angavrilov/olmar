@@ -18,6 +18,8 @@
 #include "ptreenode.h"    // PTreeNode
 #include "ptreeact.h"     // ParseTreeLexer, ParseTreeActions
 #include "sprint.h"       // structurePrint
+#include "strtokp.h"      // StrtokParse
+#include "smregexp.h"     // regexpMatch
 
 
 // little check: is it true that only global declarators
@@ -110,7 +112,7 @@ void doit(int argc, char **argv)
     CCParse *parseContext = new CCParse(strTable, lang);
     tree.userAct = parseContext;
 
-    traceProgress() << "building parse tables from internal data\n";
+    traceProgress(2) << "building parse tables from internal data\n";
     ParseTables *tables = parseContext->makeTables();
     tree.tables = tables;
 
@@ -176,7 +178,7 @@ void doit(int argc, char **argv)
   BasicTypeFactory tfac;
   {
 
-    traceProgress() << "type checking...\n";
+    traceProgress(2) << "type checking...\n";
     long tcheckStart = getMilliseconds();
     Env env(strTable, lang, tfac, unit);
     unit->tcheck(env);
@@ -244,6 +246,42 @@ void doit(int argc, char **argv)
       cout << "instances of type != var->type: " << vis.instances << endl;
     }
 
+    // lookup diagnostic
+    if (env.collectLookupResults) {
+      // will build expected string here
+      stringBuilder expected;
+      expected << "\"collectLookupResults";
+
+      // get all messages
+      string warns = env.errors.printToString();
+
+      // break into lines
+      StrtokParse lines(warns, "\n");
+      for (int line=0; line<lines; line++) {
+        if (!regexpMatch(lines[line], "collect:")) continue;
+
+        // break into words
+        StrtokParse words(lines[line], " ");
+
+        // make expected text from the last two words
+        expected << " " << words[words-2] << " " << words[words-1];
+      }
+      expected << "\"";
+
+      // compare to given text
+      if (0==strcmp(env.collectLookupResults, expected)) {
+        // ok
+      }
+      else {
+        cout << "collectLookupResults do not match:\n"
+             << "  source: " << env.collectLookupResults << "\n"
+             << "  tcheck: " << expected << "\n"
+             ;
+        exit(4);
+      }
+    }
+
+
 //      if (tracingSys("flattenTemplates")) {
 //        traceProgress() << "dsw flatten...\n";
 //        FlattenEnv env(cout);
@@ -300,7 +338,7 @@ void doit(int argc, char **argv)
   }
 
 
-  traceProgress() << "cleaning up...\n";
+  //traceProgress() << "cleaning up...\n";
 
   //malloc_stats();
 

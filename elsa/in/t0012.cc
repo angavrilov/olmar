@@ -34,7 +34,6 @@ int Foo::func()
   return x;    // requires that scope includes Foo's variables
 }
 
-
 //ERROR(3): int Foo::func() {  return 18; }
 
 //ERROR(4): void Foo::func2() {}

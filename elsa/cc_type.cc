@@ -16,18 +16,6 @@
 #include <assert.h>     // assert
 
 
-string makeIdComment(int id)
-{
-  if (tracingSys("type-ids")) {
-    return stringc << "/""*" << id << "*/";
-                     // ^^ this is to work around an Emacs highlighting bug
-  }
-  else {
-    return "";
-  }
-}
-
-
 // ------------------ AtomicType -----------------
 ALLOC_STATS_DEFINE(AtomicType)
 
@@ -937,6 +925,12 @@ CompoundType const *BaseType::asCompoundTypeC() const
 bool BaseType::isOwnerPtr() const
 {
   return isPointer() && ((asPointerTypeC()->cv & CV_OWNER) != 0);
+}
+
+bool BaseType::isMethod() const
+{
+  return isFunctionType() &&
+         asFunctionTypeC()->isMethod();
 }
 
 bool BaseType::isPointer() const
@@ -2138,26 +2132,6 @@ Variable *BasicTypeFactory::cloneVariable(Variable *src)
 {
   // immutable => don't clone
   return src;
-}
-
-
-// ------------------ test -----------------
-void cc_type_checker()
-{
-  #ifndef NDEBUG
-  // verify the fixed[] arrays
-  // it turns out this is probably redundant, since the compiler will
-  // complain if I leave out an entry, now that the classes do not have
-  // default constructors! yes!
-  for (int i=0; i<NUM_SIMPLE_TYPES; i++) {
-    assert(SimpleType::fixed[i].type == i);
-
-    #if 0    // disabled for now
-    SimpleType const *st = (SimpleType const*)(CVAtomicType::fixed[i].atomic);
-    assert(st && st->type == i);
-    #endif // 0
-  }
-  #endif // NDEBUG
 }
 
 

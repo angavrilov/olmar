@@ -61,6 +61,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
     doOverload(tracingSys("doOverload")),
     doOperatorOverload(tracingSys("doOperatorOverload")),
+    collectLookupResults(NULL),
     doElaboration(true),
 
     tempSerialNumber(0),
@@ -856,6 +857,25 @@ CompoundType *Env::enclosingClassScope()
 }
 
 
+bool Env::currentScopeEncloses(Scope *s)
+{
+  // in all situations where this is relevant, 's' has named parent
+  // scopes (since we found it by qualified lookup), so just walk
+  // the tree
+
+  Scope *cur = scope();
+  if (cur->isGlobalScope()) {
+    cur = NULL;     // null 'parentScope' means its in global
+  }
+
+  while (s && s!=cur) {
+    s = s->parentScope;
+  }
+
+  return s == cur;
+}
+
+
 bool Env::addVariable(Variable *v, bool forceReplace)
 {
   if (disambErrorsSuppressChanges()) {
@@ -970,10 +990,11 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
       // a qualifier
       //
       // however, this still is not quite right, see cppstd 3.4.3 para 1
-      // update: LF_ONLY_TYPES now gets it right, I think
+      //
+      // update: LF_TYPES_NAMESPACES now gets it right, I think
       Variable *qualVar =
-        scope==NULL? lookupVariable(qual, LF_ONLY_TYPES) :
-                     scope->lookupVariable(qual, *this, LF_ONLY_TYPES);
+        scope==NULL? lookupVariable(qual, LF_TYPES_NAMESPACES) :
+                     scope->lookupVariable(qual, *this, LF_TYPES_NAMESPACES);
       if (!qualVar) {
         // I'd like to include some information about which scope
         // we were looking in, but I don't want to be computing
@@ -988,80 +1009,91 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
           true /*disambiguating*/);
         return NULL;
       }
+                                                                              
+      // this is what LF_TYPES_NAMESPACES means
+      xassert(qualVar->hasFlag(DF_TYPEDEF) || qualVar->hasFlag(DF_NAMESPACE));
+                                         
+      // case 1: qualifier refers to a type
+      if (qualVar->hasFlag(DF_TYPEDEF)) {
+        // check for a special case: a qualifier that refers to
+        // a template parameter
+        if (qualVar->type->isTypeVariable()) {
+          // we're looking inside an uninstantiated template parameter
+          // type; the lookup fails, but no error is generated here
+          dependent = true;     // tell the caller what happened
+          return NULL;
+        }
 
-      if (!qualVar->hasFlag(DF_TYPEDEF)) {
-        error(stringc
-          << "variable `" << qual << "' used as if it were a scope name");
-        return NULL;
-      }
-
-      // check for a special case: a qualifier that refers to
-      // a template parameter
-      if (qualVar->type->isTypeVariable()) {
-        // we're looking inside an uninstantiated template parameter
-        // type; the lookup fails, but no error is generated here
-        dependent = true;     // tell the caller what happened
-        return NULL;
-      }
-        
-      // the const_cast here is unfortunate, but I don't see an
-      // easy way around it
-      CompoundType *ct =
-        const_cast<CompoundType*>(qualVar->type->ifCompoundType());
-      if (!ct) {
-        error(stringc
-          << "typedef'd name `" << qual << "' doesn't refer to a class, "
-          << "so it can't be used as a scope qualifier");
-        return NULL;
-      }
-
-      if (ct->isTemplate()) {
-        anyTemplates = true;
-      }
-
-      // check template argument compatibility
-      if (qualifier->targs) {
-        if (!ct->isTemplate()) {
+        // the const_cast here is unfortunate, but I don't see an
+        // easy way around it
+        CompoundType *ct =
+          const_cast<CompoundType*>(qualVar->type->ifCompoundType());
+        if (!ct) {
           error(stringc
-            << "class `" << qual << "' isn't a template");
-          // recovery: use the scope anyway
-        }   
+            << "typedef'd name `" << qual << "' doesn't refer to a class, "
+            << "so it can't be used as a scope qualifier");
+          return NULL;
+        }
 
-        else {
-          // TODO: maybe put this back in
-          //ct = checkTemplateArguments(ct, qualifier->targs);
-          
-          // for now, restricted form of specialization selection to
-          // get in/t0154.cc through
-          if (qualifier->targs->count() == 1) {
-            SFOREACH_OBJLIST_NC(CompoundType, ct->templateInfo->instantiations, iter) {
-              CompoundType *special = iter.data();
-              if (!special->templateInfo->arguments.count() == 1) continue;
-              
-              if (qualifier->targs->first()->sarg.equals(
-                    special->templateInfo->arguments.first())) {
-                // found the specialization or existing instantiation!
-                ct = special;
-                break;
+        if (ct->isTemplate()) {
+          anyTemplates = true;
+        }
+
+        // check template argument compatibility
+        if (qualifier->targs) {
+          if (!ct->isTemplate()) {
+            error(stringc
+              << "class `" << qual << "' isn't a template");
+            // recovery: use the scope anyway
+          }   
+
+          else {
+            // TODO: maybe put this back in
+            //ct = checkTemplateArguments(ct, qualifier->targs);
+
+            // for now, restricted form of specialization selection to
+            // get in/t0154.cc through
+            if (qualifier->targs->count() == 1) {
+              SFOREACH_OBJLIST_NC(CompoundType, ct->templateInfo->instantiations, iter) {
+                CompoundType *special = iter.data();
+                if (!special->templateInfo->arguments.count() == 1) continue;
+
+                if (qualifier->targs->first()->sarg.equals(
+                      special->templateInfo->arguments.first())) {
+                  // found the specialization or existing instantiation!
+                  ct = special;
+                  break;
+                }
               }
             }
+
           }
-
         }
+
+        else if (ct->isTemplate()) {
+          error(stringc
+            << "class `" << qual
+            << "' is a template, you have to supply template arguments");
+          // recovery: use the scope anyway
+        }
+
+        // TODO: actually check that there are the right number
+        // of arguments, of the right types, etc.
+
+        // now that we've found it, that's our active scope
+        scope = ct;
       }
-
-      else if (ct->isTemplate()) {
-        error(stringc
-          << "class `" << qual
-          << "' is a template, you have to supply template arguments");
-        // recovery: use the scope anyway
+      
+      // case 2: qualifier refers to a namespace
+      else /*DF_NAMESPACE*/ {
+        if (qualifier->targs) {
+          error(stringc << "namespace `" << qual << "' can't accept template args");
+        }
+        
+        // the namespace becomes the active scope
+        scope = qualVar->scope;
+        xassert(scope);
       }
-
-      // TODO: actually check that there are the right number
-      // of arguments, of the right types, etc.
-
-      // now that we've found it, that's our active scope
-      scope = ct;
     }
 
     // advance to the next name in the sequence
@@ -1878,6 +1910,406 @@ Variable *Env::createBuiltinBinaryOp(OverloadableOp op, Type *x, Type *y)
   v->setFlag(DF_BUILTIN);
 
   return v;
+}
+
+
+// true if two function types have equivalent signatures, meaning
+// if their names are the same then they refer to the same function,
+// not two overloaded instances
+bool equivalentSignatures(FunctionType const *ft1, FunctionType const *ft2)
+{
+  return ft1->innerEquals(ft2, Type::EF_SIGNATURE);
+}
+
+
+// comparing types for equality, *except* we allow array types
+// to match even when one of them is missing a bound and the
+// other is not; I cannot find where in the C++ standard this
+// exception is specified, so I'm just guessing about where to
+// apply it and exactly what the rule should be
+//
+// note that this is *not* the same rule that allows array types in
+// function parameters to vary similarly, see
+// 'normalizeParameterType()'
+bool almostEqualTypes(Type const *t1, Type const *t2)
+{
+  if (t1->isArrayType() &&
+      t2->isArrayType()) {
+    ArrayType const *at1 = t1->asArrayTypeC();
+    ArrayType const *at2 = t2->asArrayTypeC();
+
+    if ((at1->hasSize() && !at2->hasSize()) ||
+        (at2->hasSize() && !at1->hasSize())) {
+      // the exception kicks in
+      return at1->eltType->equals(at2->eltType);
+    }
+  }
+
+  // no exception: strict equality (well, toplevel param cv can differ)
+  return t1->equals(t2, Type::EF_IGNORE_PARAM_CV);
+}
+
+
+// check if multiple definitions of a global symbol are ok; also
+// updates some data structures so that future checks can be made
+bool multipleDefinitionsOK(Env &env, Variable *prior, DeclFlags dflags)
+{
+  if (!env.lang.uninitializedGlobalDataIsCommon) {
+    return false;
+  }
+
+  // dsw: I think the "common symbol exception" only applies to
+  // globals.
+  if (!prior->hasFlag(DF_GLOBAL)) {
+    return false;
+  }
+
+  // can't be initialized more than once
+  if (dflags & DF_INITIALIZED) {
+    if (prior->hasFlag(DF_INITIALIZED)) {
+      return false; // can't both be initialized
+    }
+    else {
+      prior->setFlag(DF_INITIALIZED); // update for future reference
+    }
+  }
+  return true;
+}
+
+
+void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
+{
+  Type *type = origVar->type;
+  StringRef name = origVar->name;
+  Scope *scope = this->scope();
+  CompoundType *enclosingClass = scope->curCompound;
+
+  // TODO: check that 'origVar' is accessible (w.r.t. access control)
+  // in the current context
+
+  // 7.3.3 paras 4 and 6: the original and alias must either both
+  // be class members or neither is class member
+  if (scope->isClassScope() !=
+      (origVar->scope? origVar->scope->isClassScope() : false)) {
+    error(stringc << "bad alias `" << name
+                  << "; alias and original must both be class members or both not members");
+    return;
+  }
+
+  // 7.3.3 para 13: overload resolution for imported class members
+  // needs to treat them as accepting a derived-class receiver argument,
+  // so we'll make the alias have a type consistent with its new home
+  if (scope->isClassScope() &&
+      type->isMethod()) {
+    FunctionType *oldFt = type->asFunctionType();
+
+    // everything the same but empty parameter list
+    FunctionType *newFt =
+      tfac.makeSimilarFunctionType(SL_UNKNOWN, oldFt->retType, oldFt);
+
+    // add the receiver parameter
+    CompoundType *ct = scope->curCompound;
+    Type *thisType = tfac.makeTypeOf_this(SL_UNKNOWN, ct, oldFt->getThisCV(), NULL /*syntax*/);
+    Variable *thisVar = makeVariable(loc, thisName, thisType, DF_PARAMETER);
+    newFt->addThisParam(thisVar);
+
+    // copy the other parameters
+    SObjListIterNC<Variable> iter(oldFt->params);
+    iter.adv();     // skip oldFt's receiver
+    for (; !iter.isDone(); iter.adv()) {
+      newFt->addParam(iter.data());    // share parameter objects
+    }
+    newFt->doneParams();
+
+    // treat this new type as the one to declare from here out
+    type = newFt;
+  }
+
+  // check for existing declarations
+  Variable *prior = lookupVariableForDeclaration(scope, name, type,
+    type->isFunctionType()? type->asFunctionType()->getThisCV() : CV_NONE);
+
+  // check for overloading
+  OverloadSet *overloadSet = getOverloadForDeclaration(prior, type);
+
+  // make new declaration, taking to account various restrictions
+  Variable *newVar = createDeclaration(loc, name, type, origVar->flags,
+                                       scope, enclosingClass, prior, overloadSet);
+
+  if (newVar == prior) {
+    // found that 'newVar' named an equivalent entity already in this
+    // scope, so do nothing
+  }
+  else {
+    // hook 'newVar' up as an alias for 'origVar'
+    newVar->usingAlias = origVar->skipAlias();    // don't make long chains
+
+    TRACE("env", "made alias `" << name <<
+                 "' for origVar at " << toString(origVar->loc));
+  }
+}
+
+
+// lookup in inner, plus signature matching in overload set; the
+// const/volatile flags on the receiver parameter are given by this_cv
+// since in D_name_tcheck they aren't yet attached to the type (and it
+// isn't easy to do so because of ordering issues)
+Variable *Env::lookupVariableForDeclaration
+  (Scope *scope, StringRef name, Type *type, CVFlags this_cv)
+{
+  // does this name already have a declaration in this scope?
+  Variable *prior = scope->lookupVariable(name, *this, LF_INNER_ONLY);
+  if (prior &&
+      prior->overload &&
+      type->isFunctionType()) {
+    // set 'prior' to the previously-declared member that has
+    // the same signature, if one exists
+    FunctionType *ft = type->asFunctionType();
+    Variable *match = prior->overload->findByType(ft, this_cv);
+    if (match) {
+      prior = match;
+    }
+  }
+
+  return prior;
+}
+
+
+// if 'prior' refers to an overloaded set, and 'type' could be the type
+// of a new (not existing) member of that set, then return that set
+// and nullify 'prior'; otherwise return NULL
+OverloadSet *Env::getOverloadForDeclaration(Variable *&prior, Type *type)
+{
+  OverloadSet *overloadSet = NULL;    // null until valid overload seen
+  if (lang.allowOverloading &&
+      prior &&
+      prior->type->isFunctionType() &&
+      type->isFunctionType()) {
+    // potential overloading situation; get the two function types
+    FunctionType *priorFt = prior->type->asFunctionType();
+    FunctionType *specFt = type->asFunctionType();
+
+    // can only be an overloading if their signatures differ,
+    // or it's a conversion operator
+    if (!equivalentSignatures(priorFt, specFt) ||
+        (prior->name == conversionOperatorName &&
+         !priorFt->equals(specFt))) {
+      // ok, allow the overload
+      TRACE("ovl",    "overloaded `" << prior->name
+                   << "': `" << prior->type->toString()
+                   << "' and `" << type->toString() << "'");
+      overloadSet = prior->getOverloadSet();
+      prior = NULL;    // so we don't consider this to be the same
+    }
+  }
+
+  return overloadSet;
+}
+
+
+// possible outcomes:
+//   - error, make up a dummy variable
+//   - create new declaration
+//   - re-use existing declaration 'prior'
+// caller shouldn't have to distinguish first two
+Variable *Env::createDeclaration(
+  SourceLoc loc,            // location of new declaration
+  StringRef name,           // name of new declared variable
+  Type *type,               // type of that variable
+  DeclFlags dflags,         // declaration flags for new variable
+  Scope *scope,             // scope into which to insert it
+  CompoundType *enclosingClass,   // scope->curCompound, or NULL for a hack that is actually wrong anyway (!)
+  Variable *prior,          // pre-existing variable with same name and type, if any
+  OverloadSet *overloadSet  // set into which to insert it, if that's what to do
+) {
+  // if this gets set, we'll replace a conflicting variable
+  // when we go to do the insertion
+  bool forceReplace = false;
+
+  // is there a prior declaration?
+  if (prior) {
+    // check for exception given by [cppstd 7.1.3 para 2]:
+    //   "In a given scope, a typedef specifier can be used to redefine
+    //    the name of any type declared in that scope to refer to the
+    //    type to which it already refers."
+    if (prior->hasFlag(DF_TYPEDEF) &&
+        (dflags & DF_TYPEDEF)) {
+      // let it go; the check below will ensure the types match
+    }
+
+    else {
+      // check for violation of the One Definition Rule
+      if (prior->hasFlag(DF_DEFINITION) &&
+          (dflags & DF_DEFINITION) &&
+          !multipleDefinitionsOK(*this, prior, dflags)) {
+        // HACK: if the type refers to type variables, then let it slide
+        // because it might be Foo<int> vs. Foo<float> but my simple-
+        // minded template implementation doesn't know they're different
+        //
+        // actually, I just added TypeVariables to 'Type::containsErrors',
+        // so the error message will be suppressed automatically
+        error(prior->type, stringc
+          << "duplicate definition for `" << name
+          << "' of type `" << prior->type->toString()
+          << "'; previous at " << toString(prior->loc));
+
+      makeDummyVar:
+        // the purpose of this is to allow the caller to have a workable
+        // object, so we can continue making progress diagnosing errors
+        // in the program; this won't be entered in the environment, even
+        // though the 'name' is not NULL
+        Variable *ret = makeVariable(loc, name, type, dflags);
+
+        // set up the variable's 'scope' field as if it were properly
+        // entered into the scope; this is for error recovery, in particular
+        // for going on to check the bodies of methods
+        scope->registerVariable(ret);
+
+        return ret;
+      }
+
+      // check for violation of rule disallowing multiple
+      // declarations of the same class member; cppstd sec. 9.2:
+      //   "A member shall not be declared twice in the
+      //   member-specification, except that a nested class or member
+      //   class template can be declared and then later defined."
+      //
+      // I have a specific exception for this when I do the second pass
+      // of typechecking for inline members (the user's code doesn't
+      // violate the rule, it only appears to because of the second
+      // pass); this exception is indicated by DF_INLINE_DEFN.
+      if (enclosingClass &&
+          !(dflags & DF_INLINE_DEFN) &&
+          !prior->hasFlag(DF_IMPLICIT)) {    // allow implicit typedef to be hidden
+        error(stringc
+          << "duplicate member declaration of `" << name
+          << "' in " << enclosingClass->keywordAndName()
+          << "; previous at " << toString(prior->loc));
+        goto makeDummyVar;
+      }
+    }
+
+    // check that the types match, and either both are typedefs
+    // or neither is a typedef
+    if (almostEqualTypes(prior->type, type) &&
+        (prior->flags & DF_TYPEDEF) == (dflags & DF_TYPEDEF)) {
+      // same types, same typedef disposition, so they refer
+      // to the same thing
+    }
+    else {
+      // if the previous guy was an implicit typedef, then as a
+      // special case allow it, and arrange for the environment
+      // to replace the implicit typedef with the variable being
+      // declared here
+      if (prior->hasFlag(DF_IMPLICIT)) {
+        TRACE("env",    "replacing implicit typedef of " << prior->name
+                     << " at " << prior->loc << " with new decl at "
+                     << loc);
+        forceReplace = true;
+
+        // for support of the elaboration module, we don't want to lose
+        // the previous name altogether; make a shadow
+        makeShadowTypedef(scope, prior);
+
+        goto noPriorDeclaration;
+      }
+      else {
+        // this message reports two declarations which declare the same
+        // name, but their types are different; we only jump here *after*
+        // ruling out the possibility of function overloading
+        error(type, stringc
+          << "prior declaration of `" << name
+          << "' at " << prior->loc
+          << " had type `" << prior->type->toString()
+          << "', but this one uses `" << type->toString() << "'");
+        goto makeDummyVar;
+      }
+    }
+
+    // ok, use the prior declaration, but update the 'loc'
+    // if this is the definition
+    if (dflags & DF_DEFINITION) {
+      TRACE("odr",    "def'n of " << name
+                   << " at " << toString(loc)
+                   << " overrides decl at " << toString(prior->loc));
+      prior->loc = loc;
+      prior->setFlag(DF_DEFINITION);
+      prior->clearFlag(DF_EXTERN);
+    }
+
+    // prior is a ptr to the previous decl/def var; type is the
+    // type of the alias the user wanted to introduce, but which
+    // was found to be equivalent to the previous declaration
+
+    // TODO: if 'type' refers to a function type, and it has
+    // some default arguments supplied, then:
+    //   - it should only be adding new defaults, not overriding
+    //     any from a previous declaration
+    //   - the new defaults should be merged into the type retained
+    //     in 'prior->type', so that further uses in this translation
+    //     unit will have the benefit of the default arguments
+    //   - the resulting type should have all the default arguments
+    //     contiguous, and at the end of the parameter list
+    // reference: cppstd, 8.3.6
+
+    // TODO: enforce restrictions on successive declarations'
+    // DeclFlags; see cppstd 7.1.1, around para 7
+
+    // it's an allowed, repeated declaration
+    return prior;
+  }
+
+noPriorDeclaration:
+  // no prior declaration, make a new variable and put it
+  // into the environment (see comments in Declarator::tcheck
+  // regarding point of declaration)
+  Variable *newVar = makeVariable(loc, name, type, dflags);
+
+  // set up the variable's 'scope' field
+  scope->registerVariable(newVar);
+
+  if (overloadSet) {
+    // don't add it to the environment (another overloaded version
+    // is already in the environment), instead add it to the overload set
+    overloadSet->addMember(newVar);
+    newVar->overload = overloadSet;
+  }
+  else if (!type->isError()) {
+    if (disambErrorsSuppressChanges()) {
+      TRACE("env", "not adding D_name `" << name <<
+                   "' because there are disambiguating errors");
+    }
+    else {
+      scope->addVariable(newVar, forceReplace);
+      addedNewVariable(scope, newVar);
+    }
+  }
+
+  return newVar;
+}
+
+
+Variable *Env::storeVar(Variable *var)
+{
+  // this is my point of global de-aliasing; it's the obvious place to
+  // potentially implement a more flexible scheme where the analysis
+  // could request that dealiasing not be done
+
+  return var->skipAlias();
+}
+
+Variable *Env::storeVarIfNotOvl(Variable *var)
+{
+  if (!var->overload) {
+    // not overloaded, can skip aliases now
+    return storeVar(var);
+  }
+  else {
+    // since 'var' is overloaded, we'll need to wait for overload
+    // resolution, which must act on the aliases; when it is finished
+    // it will skip remaining aliases
+    return var;
+  }
 }
 
 

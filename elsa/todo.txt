@@ -155,7 +155,8 @@ some cases
 
 * Namespaces
 
-In general, namespaces are not implemented.
+In general, namespaces are not implemented.  (Actually, now they
+partially are.)
 
 ** Synthesized calls
 
@@ -171,6 +172,10 @@ In at least one place, cc.gr doesn't allow leading "::"s where it should.
 
 None of the language-defined entities, e.g. the "typeid" class, are
 in the "std" namespace as they should be.
+
+** friend declarations
+
+I haven't done anything with friends, esp. 7.3.1.2 para 3.
 
 * Templates
 

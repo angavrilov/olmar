@@ -30,11 +30,13 @@ enum LookupFlags {
   LF_ONLY_TYPES      = 0x02,    // ignore (skip over) non-type names
   LF_TYPENAME        = 0x04,    // user used 'typename' keyword
   LF_SKIP_CLASSES    = 0x08,    // skip class scopes
+  LF_ONLY_NAMESPACES = 0x10,    // ignore non-namespace names
+  LF_TYPES_NAMESPACES= 0x20,    // ignore non-type, non-namespace names
 
-  LF_ALL_FLAGS       = 0x0F,    // bitwise OR of all flags
+  LF_ALL_FLAGS       = 0x3F,    // bitwise OR of all flags
 };
 
-// experiment: will this work?
+// experiment: will this work?  yes
 inline LookupFlags operator| (LookupFlags f1, LookupFlags f2)
   { return (LookupFlags)((int)f1 | (int)f2); }
 inline LookupFlags operator& (LookupFlags f1, LookupFlags f2)
@@ -69,17 +71,22 @@ public:      // data
   // parameters, after the names have been added)
   bool canAcceptNames;
 
-  // (serf) parent named scope; presently, this is only used so that
-  // inner classes can refer to their containing classes (eventually
-  // nested namespaces will be supported this way too); this field is
-  // only set to non-NULL after the inner class has been fully
-  // constructed, since we can rely on the Environment's scope stack
-  // to look up things in containing classes while building the inner
-  // class for the first time
+  // (serf) This is the parent (enclosing) scope, but only if that
+  // scope has a name (rationale: allow anonymous scopes to be
+  // deallocated).  For classes, this field is only set to non-NULL
+  // after the inner class has been fully constructed, since we can
+  // rely on the Environment's scope stack to look up things in
+  // containing classes while building the inner class for the first
+  // time (why did I do that??).  For namespaces, it's set as soon as
+  // the namespace is created.
   Scope *parentScope;
 
   // what kind of scope is this?
   ScopeKind scopeKind;
+
+  // if this is a namespace, this points to the variable used to
+  // find the namespace during lookups
+  Variable *namespaceVar;
 
   // ------------- "current" entities -------------------
   // these are set to allow the typechecking code to know about
@@ -115,6 +122,7 @@ public:      // funcs
   bool isFunctionScope() const      { return scopeKind == SK_FUNCTION; }
   bool isClassScope() const         { return scopeKind == SK_CLASS; }
   bool isTemplateScope() const      { return scopeKind == SK_TEMPLATE; }
+  bool isNamespace() const          { return scopeKind == SK_NAMESPACE; }
 
   // insertion; these return false if the corresponding map already
   // has a binding (unless 'forceReplace' is true)
