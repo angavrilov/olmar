@@ -17,6 +17,7 @@
 class Variable;           // variable.h
 class Env;                // cc_env.h
 class TS_classSpec;       // cc.ast
+class Expression;         // cc.ast
 
 // fwd in this file
 class SimpleType;
@@ -263,9 +264,11 @@ public:     // funcs
   string toCString(char const *name) const;
 
   // the left/right business is to allow us to print function
-  // and array types in C's syntax
-  virtual string leftString() const = 0;
-  virtual string rightString() const;    // default: returns ""
+  // and array types in C's syntax; if 'innerParen' is true then
+  // the topmost type constructor should print the inner set of
+  // paretheses
+  virtual string leftString(bool innerParen=true) const = 0;
+  virtual string rightString(bool innerParen=true) const;    // default: returns ""
 
   // same alternate syntaxes as AtomicType
   virtual string toCilString(int depth=1) const = 0;
@@ -342,7 +345,7 @@ public:     // funcs
 
   // Type interface
   virtual Tag getTag() const { return T_ATOMIC; }
-  virtual string leftString() const;
+  virtual string leftString(bool innerParen=true) const;
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
@@ -370,8 +373,8 @@ public:
 
   // Type interface
   virtual Tag getTag() const { return T_POINTER; }
-  virtual string leftString() const;
-  virtual string rightString() const;
+  virtual string leftString(bool innerParen=true) const;
+  virtual string rightString(bool innerParen=true) const;
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
@@ -418,8 +421,8 @@ public:     // funcs
 
   // Type interface
   virtual Tag getTag() const { return T_FUNCTION; }
-  virtual string leftString() const;
-  virtual string rightString() const;
+  virtual string leftString(bool innerParen=true) const;
+  virtual string rightString(bool innerParen=true) const;
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
@@ -434,10 +437,19 @@ public:
 
   // syntactic introduction
   Variable *decl;              // (serf)
+  
+  // default argument.. ouch!  I didn't want the type language to be
+  // dependent on the Expression language.. this means some care must
+  // be taken to ensure the referred-to AST subtree doesn't get
+  // deallocated before we're done using this type.  I don't add this
+  // to the constructor because I want to easily be able to grep for
+  // places where this field is being set or used, since I'm very
+  // suspicious that adding this is a mistake..
+  Expression *defaultArgument;   // (nullable serf) NULL if no default
 
 public:
   Parameter(StringRef n, Type const *t, Variable *d)
-    : name(n), type(t), decl(d) {}
+    : name(n), type(t), decl(d), defaultArgument(NULL) {}
   ~Parameter() {}
 
   string toString() const;
@@ -461,8 +473,8 @@ public:
 
   // Type interface
   virtual Tag getTag() const { return T_ARRAY; }
-  virtual string leftString() const;
-  virtual string rightString() const;
+  virtual string leftString(bool innerParen=true) const;
+  virtual string rightString(bool innerParen=true) const;
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;

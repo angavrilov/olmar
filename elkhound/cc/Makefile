@@ -35,7 +35,8 @@ TOCHECK += cc.in9
 TOCHECK += cc.in10
 
 # SCOTT: Using different parameter var from prototype fails.
-# TOCHECK += cc.in11
+# sm: should be fixed
+TOCHECK += cc.in11
 
 TOCHECK += cc.in12
 TOCHECK += cc.in13
@@ -79,7 +80,8 @@ TOCHECK += cc.in29
 
 # SCOTT:
 # ( (operator-delete) ( (x)));
-# TOCHECK += cc.in31
+# sm: should be fixed now
+TOCHECK += cc.in31
 
 TOCHECK += cc.in32
 TOCHECK += cc.in33

@@ -627,16 +627,15 @@ string Type::toCString() const
 
 string Type::toCString(char const *name) const
 {
-//    bool isConversionOperator = strcmp(name,"conversion-operator")==0;
+  // print the inner parentheses if the name is omitted
+  bool innerParen = (name && name[0])? false : true;
+
   stringBuilder s;
   s << idComment();
-//    s << leftString(!isConversionOperator);
-  s << leftString();
+  s << leftString(innerParen);
   s << " ";
-//    if (!isConversionOperator) s << (name? name : "/*anon*/");
   s << (name? name : "/*anon*/");
-//    s << rightString(!isConversionOperator);
-  s << rightString();
+  s << rightString(innerParen);
   return s;
 
   // removing the space causes wrong output:
@@ -644,7 +643,7 @@ string Type::toCString(char const *name) const
   //               ^^
 }
 
-string Type::rightString() const
+string Type::rightString(bool /*innerParen*/) const
 {
   return "";
 }
@@ -830,7 +829,7 @@ string CVAtomicType::atomicIdComment() const
 }
 
 
-string CVAtomicType::leftString() const
+string CVAtomicType::leftString(bool /*innerParen*/) const
 {
   stringBuilder s;
   s << atomicIdComment();
@@ -888,14 +887,14 @@ bool PointerType::innerEquals(PointerType const *obj) const
 }
 
 
-string PointerType::leftString() const
+string PointerType::leftString(bool /*innerParen*/) const
 {
   return stringc << atType->leftString()
                  << (op==PO_POINTER? " *" : " &")
                  << cvToString(cv);
 }
 
-string PointerType::rightString() const
+string PointerType::rightString(bool /*innerParen*/) const
 {
   return atType->rightString();
 }
@@ -1050,7 +1049,7 @@ void FunctionType::addParam(Parameter *param)
 }
 
 
-string FunctionType::leftString() const
+string FunctionType::leftString(bool innerParen) const
 {
   stringBuilder sb;
 
@@ -1060,19 +1059,23 @@ string FunctionType::leftString() const
   }
 
   // return type and start of enclosing type's description
+  // NOTE: we do *not* propagate 'innerParen'!
   sb << retType->leftString();
-//    if (printParen) sb << " (";
-  sb << " (";
-  
+  sb << " ";
+  if (innerParen) {
+    sb << "(";
+  }
+
   return sb;
 }
 
-string FunctionType::rightString() const
+string FunctionType::rightString(bool innerParen) const
 {
   // finish enclosing type
   stringBuilder sb;
-//    if (printParen) sb << ")";
-  sb << ")";
+  if (innerParen) {
+    sb << ")";
+  }
 
   // arguments
   sb << "(";
@@ -1201,7 +1204,16 @@ string Parameter::toString() const
     return type->toCString();
   }
   else {
-    return type->toCString(name);
+    stringBuilder sb;
+    sb << type->toCString(name);
+    if (defaultArgument) {
+      // don't have a way to print the expression.. will
+      // synch with Daniel's stuff before making the
+      // changes to his treewalker that let me ask for
+      // a string
+      sb << " /* = <some default arg>*/";
+    }
+    return sb;
   }
 }
 
@@ -1269,12 +1281,12 @@ bool ArrayType::innerEquals(ArrayType const *obj) const
 }
 
 
-string ArrayType::leftString() const
+string ArrayType::leftString(bool /*innerParen*/) const
 {
   return eltType->leftString();
 }
 
-string ArrayType::rightString() const
+string ArrayType::rightString(bool /*innerParen*/) const
 {
   stringBuilder sb;
 

@@ -209,9 +209,15 @@ void Function::tcheck(Env &env, bool checkBody)
 {
   // are we in a template function?
   bool inTemplate = env.scope()->curTemplateParams != NULL;
-
-  // construct the type of the function
+  
+  // get return type
   Type const *retTypeSpec = retspec->tcheck(env);
+
+  // construct the full type of the function; this will set
+  // nameAndParams->var, which includes a type, but that type might
+  // use different parameter names if there is already a prototype;
+  // dt.type will come back with a function type which always has the
+  // parameter names for this definition
   DeclaratorTcheck dt(retTypeSpec,
                       (DeclFlags)(dflags | (checkBody? DF_DEFINITION : 0)));
   nameAndParams = nameAndParams->tcheck(env, dt);
@@ -223,6 +229,9 @@ void Function::tcheck(Env &env, bool checkBody)
       true /*disambiguating*/);
     return;
   }
+
+  // grab the definition type for later use
+  funcType = &( dt.type->asFunctionTypeC() );
 
   if (!checkBody) {
     return;
@@ -250,8 +259,7 @@ void Function::tcheck(Env &env, bool checkBody)
   // function body and enter the parameters into that
   Scope *bodyScope = env.enterScope();
   bodyScope->curFunction = this;
-  FunctionType const &ft = dt.type->asFunctionTypeC();
-  FOREACH_OBJLIST(Parameter, ft.params, iter) {
+  FOREACH_OBJLIST(Parameter, funcType->params, iter) {
     Variable *v = iter.data()->decl;
     if (v->name) {
       env.addVariable(v);
@@ -269,7 +277,7 @@ void Function::tcheck(Env &env, bool checkBody)
     // with some 'cv' flags, then those become attached to the
     // pointed-to type; the pointer itself is always 'const'
     Type const *thisType =
-      makePtrOperType(PO_POINTER, CV_CONST, makeCVType(ct, ft.cv));
+      makePtrOperType(PO_POINTER, CV_CONST, makeCVType(ct, funcType->cv));
 
     // add the implicit 'this' parameter
     Variable *ths = new Variable(nameAndParams->var->loc, env.str("this"),
@@ -1378,8 +1386,8 @@ realStart:
     //   member-specification, except that a nested class or member
     //   class template can be declared and then later defined."
     //
-    // I have a specific exception for this when I do the second
-    // pass of typechecking for inline members (the code doesn't
+    // I have a specific exception for this when I do the second pass
+    // of typechecking for inline members (the user's code doesn't
     // violate the rule, it only appears to because of the second
     // pass); this exception is indicated by DF_INLINE_DEFN.
     if (enclosingClass && !(dt.dflags & DF_INLINE_DEFN)) {
@@ -1418,6 +1426,17 @@ realStart:
       prior->setFlag(DF_DEFINITION);
       prior->clearFlag(DF_EXTERN);
     }
+
+    // TODO: if 'dt.type' refers to a function type, and it has
+    // some default arguments supplied, then:
+    //   - it should only be adding new defaults, not overriding
+    //     any from a previous declaration
+    //   - the new defaults should be merged into the type retained
+    //     in 'dt.var->type', so that further uses in this translation
+    //     unit will have the benefit of the default arguments
+    //   - the resulting type should have all the default arguments
+    //     contiguous, and at the end of the parameter list
+    // reference: cppstd, 8.3.6
 
     dt.var = prior;
     return;
@@ -1481,10 +1500,22 @@ void D_func::tcheck(Env &env, DeclaratorTcheck &dt)
   FAKELIST_FOREACH_NC(ASTTypeId, params, iter) {
     iter->tcheck(env);
     Variable *v = iter->decl->var;
+    Parameter *p = new Parameter(v->name, v->type, v);
+    
+    // get the default argument, if any
+    if (iter->decl->init) {
+      Initializer *i = iter->decl->init;
+      if (!i->isIN_expr()) {
+        env.error("function parameter default value must be a simple initializer, "
+                  "not a compound (e.g. \"= { ... }\") or constructor "
+                  "(e.g. \"int x(3)\") initalizer");
+      }
+      else {
+        p->defaultArgument = i->asIN_expr()->e;
+      }
+    }
 
-    // TODO: record the default argument somewhere
-
-    ft->addParam(new Parameter(v->name, v->type, v));
+    ft->addParam(p);
   }
 
   env.exitScope(paramScope);
@@ -1617,10 +1648,14 @@ FunctionType::ExnSpec *ExceptionSpec::tcheck(Env &env)
 // ------------------ OperatorDeclarator ----------------
 char const *ON_newDel::getOperatorName() const
 {
-  return (isNew && isArray)? "operator-new[]" :
-         (isNew && !isArray)? "operator-new" :
-         (!isNew && isArray)? "operator-delete[]" :
-                              "operator-delete";
+  // changed the names so that they can be printed out with these
+  // names and it will be the correct syntax; it means the identifier
+  // has a space in it, which isn't exactly ideal, but the alternative
+  // (ad-hoc decoding) isn't much better
+  return (isNew && isArray)? "operator new[]" :
+         (isNew && !isArray)? "operator new" :
+         (!isNew && isArray)? "operator delete[]" :
+                              "operator delete";
 }
 
 char const *ON_binary::getOperatorName() const

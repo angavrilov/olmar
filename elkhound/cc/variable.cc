@@ -21,6 +21,7 @@ Variable::Variable(SourceLocation const &L, StringRef n, Type const *t, DeclFlag
 Variable::~Variable()
 {}
 
+
 string Variable::toString() const
 {
   // The purpose of this method is to print the name and type

@@ -143,7 +143,7 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "long double",         10,   false   },
   { "void",                1,    false   },    // gnu: sizeof(void) is 1
   { "...",                 0,    false   },
-  { "/*<cdtor>*/",         0,    false   },    // dsw: don't want to print <cdtor>
+  { "/*cdtor*/",           0,    false   },    // dsw: don't want to print <cdtor>
   { "<error>",             0,    false   },
 };
 
