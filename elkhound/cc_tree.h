@@ -35,6 +35,11 @@ public:
 
   // throw an internal error
   void internalError(char const *msg) const NORETURN;
+
+  // analysis entry points
+  void ana_free(string varName);
+  void ana_malloc(string varName);
+  void ana_endScope(Env *localEnv);
 };
 
 

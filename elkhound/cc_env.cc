@@ -15,7 +15,8 @@ Env::Env()
     compounds(),
     enums(),
     intermediates(),
-    errors()
+    errors(),
+    trialBalloon(false)
 {
   // init of global data (won't be freed)
   if (!builtins) {
@@ -43,7 +44,8 @@ Env::Env(Env *p)
     typedefs(),
     variables(),
     intermediates(),
-    errors()
+    errors(),
+    trialBalloon(false)
 {}
 
 
@@ -384,6 +386,21 @@ bool Env::isDeclaredVar(char const *name)
 }
 
 
+Variable *Env::getVariable(char const *name)
+{
+  if (variables.isMapped(name)) {
+    return variables.queryf(name);
+  }
+  
+  if (!parent) {
+    xfailure(stringc << "getVariable: undeclared variable `" << name << "'");
+  }
+
+  return parent->getVariable(name);
+}
+
+
+
 void Env::report(SemanticError const &err)
 {
   errors.append(new SemanticError(err));
@@ -429,3 +446,13 @@ void Env::forgetLocalErrors()
 {
   errors.deleteAll();
 }
+
+
+bool Env::isTrialBalloon() const
+{
+  // true if we, or any parent, is a trial
+  return trialBalloon ||
+         (parent && parent->isTrialBalloon());
+}
+
+

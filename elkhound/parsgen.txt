@@ -25,6 +25,8 @@ tracing strings:
   lex:           print each token of grammar file
   sem-fns:       print names of semantic functions as they're called
   tree-merge:    print when we don't merge trees because of attr mismatch
+  disamb:        disambiguation mechanisms
+  
   
 
 

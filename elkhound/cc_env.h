@@ -32,12 +32,13 @@ class Variable {
 public:     // data
   DeclFlags declFlags;       // inline, etc.
   Type const *type;          // type of this variable
+  int value;                 // abstract domain value, for dataflow analysis
 
   // the name is stored in the dictionary mapping below
 
 public:     // funcs
   Variable(DeclFlags d, Type const *t)
-    : declFlags(d), type(t) {}
+    : declFlags(d), type(t), value(0) {}
 };
 
 
@@ -47,7 +48,7 @@ private:    // data
   // built-in types -- one global immutable array, indexed
   // by SimpleTypeId
   static SimpleType const *simpleBuiltins;
-  
+
   // and another for wrappers around them
   static CVAtomicType const *builtins;
 
@@ -77,6 +78,9 @@ private:    // data
 
   // list of errors found so far
   ObjList<SemanticError> errors;
+
+  // true during a disambiguation trial
+  bool trialBalloon;
 
 private:    // funcs
   void grab(Type *t);
@@ -141,6 +145,10 @@ public:     // funcs
   bool isLocalDeclaredVar(char const *name);
   bool isDeclaredVar(char const *name);
 
+  // return the associated Variable structure for a variable;
+  // throws an exception if it doesn't exist
+  Variable *getVariable(char const *name);
+
   // report an error
   void report(SemanticError const &err);
 
@@ -155,6 +163,13 @@ public:     // funcs
 
   // print local errors and then throw them away
   void flushLocalErrors(ostream &os);
+  
+  // trial balloon flag
+  void setTrialBalloon(bool val) { trialBalloon = val; }
+  bool isTrialBalloon() const;
+  
+  // support for analysis routines
+  StringObjDict<Variable> &getVariables() { return variables; }
 };
 
 

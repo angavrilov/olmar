@@ -117,9 +117,6 @@ nonterm TranslationUnit : Checkable {
   }
 
   literalCode "constructor" {
-    // inherited ctor ... (hack!)
-    env = NULL;
-
     // if we just constructed the "-> empty" production,
     // do nothing special
     if (red->children.isEmpty()) {
@@ -127,7 +124,7 @@ nonterm TranslationUnit : Checkable {
     }
 
     // cast context argument
-    Env *env = (Env*)(tree.extra);
+    env = (Env*)(tree.extra);
 
     // run the analysis on this piece of the tree
     typeCheck(env);
@@ -289,6 +286,17 @@ nonterm PostfixExpression : ExprBase {
     fun varsDecld {
       p.varsDecld(env);
       e.varsDecld(env);
+      
+      if (!env->isTrialBalloon() &&
+          p.getLeftmostTerminalC()->token->unparseString().equals("free")) {
+        // conditions for analysis
+        if (e.numGroundTerms() == 1) {
+          ana_free(e.unparseString());
+        }
+        else {
+          cout << locString() << ": can't analyze\n";
+        }
+      }
     }
   }
 
@@ -571,10 +579,22 @@ nonterm AssignmentExpression : ExprBase {
     -> e:ThrowExpression ;
   }
 
-  -> e1:BinaryExpression AssignmentOperator e2:AssignmentExpression {
+  -> e1:BinaryExpression op:AssignmentOperator e2:AssignmentExpression {
     fun varsDecld {
       e1.varsDecld(env);
       e2.varsDecld(env);
+
+      if (!env->isTrialBalloon() &&
+          op.unparseString().equals("=") &&
+          e2.unparseString().equals("malloc ( )")) {
+        // conditions for analysis
+        if (e1.numGroundTerms() == 1) {
+          ana_malloc(e1.unparseString());
+        }
+        else {
+          cout << locString() << ": can't analyze\n";
+        }
+      }
     }
   }
 }
@@ -690,8 +710,23 @@ nonterm Statement : Checkable, HasVarsDecld, HasCFG {
     // (so far unimplemented!)
     -> "if" "(" e:Condition ")" s1:Statement "else" s2:Statement {
       fun typeCheck {
+        // make a copy of the current dataflow environment
+        DataflowEnv initialDenv(*(env->denv));
+
+        // flow through 'then' branch
         s1.typeCheck(env);
+
+        // grab resulting dataflow env
+        DataflowEnv afterThen(*(env->denv));
+
+        // restore original env
+        *(env->denv) = initialDenv;
+
+        // flow through 'else' branch
         s2.typeCheck(env);
+
+        // merge the branches
+        env->denv->mergeWith(afterThen);
       }
 
       fun getCFG {
@@ -911,6 +946,8 @@ nonterm CompoundStatement : Checkable, HasCFG, ScopeNode {
       localEnv = new Env(env);    // scope
       //Env newEnv(&env);
       seq.typeCheck(localEnv);
+      
+      ana_endScope(localEnv);
     }
 
     fun getCFG = seq.getCFG(cfg, edge);
@@ -1821,6 +1858,8 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
 
       // typecheck the body
       b.typeCheck(localEnv);
+
+      ana_endScope(localEnv);
     }
   }
 
@@ -2015,11 +2054,13 @@ nonterm HandlerSeq : Checkable {
 
 nonterm Handler : Checkable, ScopeNode {
   -> "catch" "(" d:ExceptionDeclaration ")" s:CompoundStatement {
-    fun typeCheck {                       
+    fun typeCheck {
       xassert(!localEnv);
       localEnv = new Env(env);    // scope
       d.typeCheck(localEnv);
       s.typeCheck(localEnv);
+      
+      ana_endScope(localEnv);
     }
   }
 }
@@ -2118,7 +2159,7 @@ int main(int argc, char *argv[])
     // toplevel environment, in which each toplevel form
     // will be evaluated, just before that form is thrown
     // away
-    traceAddSys("env-declare");
+    //traceAddSys("env-declare");
     Env env;
 
     // carry this context in the tree, since it is an argument

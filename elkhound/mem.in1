@@ -19,3 +19,12 @@ void leaks()
   int * owner p;
   p = malloc();
 }
+
+/*
+void bad()
+{
+  int * q;
+  q = malloc();
+  free(q);
+}
+*/

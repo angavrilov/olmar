@@ -17,6 +17,9 @@ cvs export -D now parsgen || exit
 cp parsgen/configure . || exit
 cp parsgen/build . || exit
 
+# may as well grab my 'apply' script
+cp `which apply` . || exit
+
 cd ..
 
 targz $distname || exit
