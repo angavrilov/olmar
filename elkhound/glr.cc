@@ -440,7 +440,7 @@ SiblingLink *StackNode::
   determinDepth = 0;
 
   SiblingLink *link = new SiblingLink(leftSib, sval  SOURCELOCARG( loc ) );
-  leftSiblings.append(link);
+  leftSiblings.prepend(link);   // don't append; it becomes quadratic!
   return link;
 }
 
