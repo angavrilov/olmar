@@ -5,16 +5,25 @@
 <HEAD>
   <TITLE>smbase</TITLE>
   <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+  <style type="text/css">
+    H1 { font-size: 150% }
+    H2 { font-size: 125% }
+    H3 { font-size: 100% }
+    P.title { font-size: 175% }
+  </style>
 </HEAD>
 
 <body>
 
-<center><h2>
-smbase: A Utility Library
-</h2></center>
+<center>
+<p class="title"><b>smbase: A Utility Library</b></p>
+</center>
+
+<h1>Introduction</h1>
 
 <p>
-"smbase" stands for Scott McPeak's Base Library.  It's a bunch of
+"smbase" stands for Scott McPeak's Base Library (sorry, naming things
+is not my specialty).  It's a bunch of
 utility modules I use in virtually all of my projects.  The entire
 library is in the public domain.
 
@@ -23,8 +32,9 @@ Some of the links below refer to generated documentation files.  If
 you are reading this from your local filesystem, you may have to
 say <tt>"make gendoc"</tt> (after <tt>"./configure"</tt>) to get them.
 
+<h1>Build Instructions</h1>
+
 <p>
-Build instructions:
 <pre>
   $ ./configure
   $ make
@@ -34,8 +44,9 @@ Build instructions:
 <a href="gendoc/configure.txt">these options</a>.  You can also
 look at the <a href="Makefile.in">Makefile</a>.
 
+<h1>Module List</h1>
+
 <p>
-Module List:
 <ul>
 
 <li><a href="array.h">array.h</a>:
@@ -251,13 +262,8 @@ A few test-harness macros.
 
 <li><a href="trace.h">trace.h</a>,
     <a href="trace.cc">trace.cc</a>:
-Module for recording and querying a set of debug tracing flags.  The
-idea is you can write
-<pre>
-  trace("myflag") &lt;&lt; "the value of foo is: " &lt;&lt; foo &lt;&lt; endl;
-</pre>
-Then usually nothing is printed, but if the user turns on the "myflag"
-tracing flag then the line prints to stdout.
+Module for recording and querying a set of debug tracing flags.  
+It is documented in <a href="trace.html">trace.html</a>.
 
 <li><a href="trdelete.h">trdelete.h</a>,
     <a href="trdelete.cc">trdelete.cc</a>:
@@ -322,6 +328,7 @@ Test driver for <a href="sobjlist.h">sobjlist.h</a>.
 
 </ul>
 
+<h1>Module Dependencies</h1>
 
 <p>
 The <a href="scan-depends.pl">scan-depends.pl</a> script is capable
