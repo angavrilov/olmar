@@ -24,7 +24,6 @@ $| = 1;
 
 # defaults
 $BASE_FLAGS = "-Wall -Wno-deprecated -D__UNIX__";
-$default_hash = "-DHASH_ALG=2";
 $CCFLAGS = ();
 $DEBUG_HEAP = 0;
 $TRACE_HEAP = 0;
@@ -108,11 +107,6 @@ $os = `uname -s`;
 chomp($os);
 if ($os eq "Linux") {
   push @CCFLAGS, "-D__LINUX__";
-}
-
-# if haven't seen a hashfunction by now, use the default
-if (!grep (/^-DHASH_ALG=/, @CCFLAGS)) {
-  push @CCFLAGS, $default_hash;
 }
 
 # smash the list together to make a string

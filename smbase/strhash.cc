@@ -57,9 +57,16 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
   return val;
   #endif // 0
 
+  // pick a default STRHASH_ALG
+  #ifndef STRHASH_ALG
+    #define STRHASH_ALG 2
+  #endif // STRHASH_ALG
 
-  #if HASH_ALG == 1
-  #warning Nelson hashfunction
+
+  #if STRHASH_ALG == 1
+  #ifdef SAY_STRHASH_ALG
+    #warning Nelson hash function
+  #endif // SAY_STRHASH_ALG
   // this one is supposed to be better
   /* An excellent string hashing function.
      Adapted from glib's g_str_hash().
@@ -88,8 +95,10 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
   return h;
 
 
-  #elif HASH_ALG == 2
-  #warning Wilkerson/Goldsmith hashfunction
+  #elif STRHASH_ALG == 2
+  #ifdef SAY_STRHASH_ALG
+    #warning Wilkerson/Goldsmith hash function
+  #endif // SAY_STRHASH_ALG
   // dsw: A slighly faster and likely more random implementation
   // invented in collaboration with Simon Goldsmith.
   //
@@ -196,7 +205,7 @@ end0:
 
   #else
     #error You must pick a hash function
-  #endif // HASH_ALG multi-switch
+  #endif // STRHASH_ALG multi-switch
 }
 
 
