@@ -144,8 +144,8 @@ AbsValue *AEnv::get(Variable const *var)
 
     if (!type->isArrayType()) {
       // state that, right now, that memory location contains 'value'
-      addFact(new AVbinary(value, BIN_EQUAL,
-        avSelect(getMem(), addr, new AVint(0))));
+      addFact(P_equal(value,
+                      avSelect(getMem(), addr, new AVint(0))));
     }
     else {
       // will model array contents as elements in memory, rather
@@ -163,8 +163,7 @@ AbsValue *AEnv::get(Variable const *var)
     }
 
     // remember the length, as a predicate in the set of known facts
-    addFact(new AVbinary(avLength(addr), BIN_EQUAL,
-                         new AVint(size)));
+    addFact(P_equal(avLength(addr), new AVint(size)));
                          
     // caller knows that we're yielding the address, not the value,
     // since this is a memvar
@@ -348,30 +347,30 @@ Predicate *exprToPred(AbsValue const *expr)
 }
 
 
-void AEnv::addFact(AbsValue *expr)
+void AEnv::addFact(Predicate *pred)
 {
-  facts->conjuncts.append(exprToPred(expr));
+  facts->conjuncts.append(pred);
 }
 
-void AEnv::addBoolFact(AbsValue *expr, bool istrue)
+void AEnv::addBoolFact(Predicate *pred, bool istrue)
 {
   if (istrue) {
-    addFact(expr);
+    addFact(pred);
   }
   else {
-    addFact(grab(avNot(expr)));
+    addFact(P_negate(pred));    // strip outer P_not (if exists)
   }
 }
 
 
-void AEnv::prove(AbsValue const *expr, char const *context)
+void AEnv::prove(Predicate *_goal, char const *context)
 {
   char const *proved =
     tracingSys("predicates")? "predicate proved" : NULL;
   char const *notProved = "*** predicate NOT proved ***";
 
-  // map the goal into a predicate
-  Owner<Predicate> goal(exprToPred(expr));
+  // take ownership of the goal predicate
+  Owner<Predicate> goal(_goal);
 
   // add the fact that all known local variable addresses are distinct
   P_distinct *addrs = new P_distinct(NULL);

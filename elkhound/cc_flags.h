@@ -179,5 +179,8 @@ enum BinaryOp {
 extern char const * const binaryOpNames[NUM_BINARYOPS];   // "*", ..
 string toString(BinaryOp op);
 
+bool isPredicateCombinator(BinaryOp op);     // &&, ||, ==>
+bool isRelational(BinaryOp op);              // == thru >=
+
 
 #endif // CC_FLAGS_H

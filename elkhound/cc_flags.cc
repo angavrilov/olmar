@@ -202,3 +202,14 @@ char const * const binaryOpNames[NUM_BINARYOPS] = {
 };
 
 MAKE_TOSTRING(BinaryOp, NUM_BINARYOPS, binaryOpNames)
+
+bool isPredicateCombinator(BinaryOp op)
+{
+  return op==BIN_AND || op==BIN_OR || op==BIN_IMPLIES;
+}
+
+bool isRelational(BinaryOp op)
+{
+  return BIN_EQUAL <= op && op <= BIN_GREATEREQ;
+}
+

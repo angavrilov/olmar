@@ -19,6 +19,11 @@ class TF_func;             // c.ast
 class E_funCall;           // c.ast
 
 
+// map terms into predicates.. mostly superceded by Expression::vcgenPred,
+// but still used in at least one place..
+Predicate *exprToPred(AbsValue const *expr);
+
+
 // abstract variable: info maintained about program variables
 class AbsVariable {
 public:
@@ -128,12 +133,12 @@ public:      // funcs
   void setMem(AbsValue *newMem) { set(mem, newMem); }
 
   // proof assumption
-  void addFact(AbsValue *expr);
-  void addBoolFact(AbsValue *expr, bool istrue);
-  void addFalseFact(AbsValue *falseExpr) { addBoolFact(falseExpr, false); }
+  void addFact(Predicate * /*owner*/ pred);
+  void addBoolFact(Predicate *pred, bool istrue);
+  void addFalseFact(Predicate *falsePred) { addBoolFact(falsePred, false); }
 
   // proof obligation
-  void prove(AbsValue const *expr, char const *context);
+  void prove(Predicate * /*owner*/ pred, char const *context);
 
   // pseudo-memory-management; semantics not very precise at the moment
   AbsValue *grab(AbsValue *v);

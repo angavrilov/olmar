@@ -311,6 +311,7 @@ ccgr-dep := cc.gr.gen.o c.ast.gen.o cc_flags.o tcheck.o variable.o \
 # before then, because it says predicate.ast must be astgen'd before
 # aenv.cc is compiled
 aenv.o: predicate.ast.gen.h
+vcgen.o: predicate.ast.gen.h
 
 # don't delete these because error messages often point into them
 .PRECIOUS: absval.ast.gen.cc absval.ast.gen.h predicate.ast.gen.h predicate.ast.gen.cc \

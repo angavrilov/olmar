@@ -1116,6 +1116,13 @@ Type const *E_binary::itcheck(Env &env)
   Type const *t1 = e1->tcheck(env)->asRval();
   Type const *t2 = e2->tcheck(env)->asRval();
 
+  if (!env.inPredicate && op >= BIN_IMPLIES) {
+    // this restriction is useful because it means I don't have to
+    // do path analysis for this operator
+    env.err(stringc << "the " << ::toString(op)
+                    << " operator can only be used in predicates");
+  }
+
   checkBoolean(env, t1, e1);     // pointer is acceptable here..
   checkBoolean(env, t2, e2);
 

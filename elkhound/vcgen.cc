@@ -9,6 +9,7 @@
 #include "trace.h"              // tracingSys
 #include "strutil.h"            // quoted, plural
 #include "paths.h"              // countExprPaths
+#include "predicate.ast.gen.h"  // Predicate ast, incl. P_equal, etc.
 
 #define IN_PREDICATE(env) Restorer<bool> restorer(env.inPredicate, true)
 
@@ -68,79 +69,6 @@ void TF_func::vcgen(AEnv &env) const
       // clear anything left over in env
       env.clear();
 
-      #if 0    // new: I don't add things until they're asked for
-      // add the function parameters to the environment
-      {SFOREACH_OBJLIST(Variable, params, iter) {
-        Variable const *v = iter.data();
-
-        if (v->name) {
-          // the function parameter's initial value is represented
-          // by a logic variable of the same name
-          env.set(v, new AVvar(v->name,
-            stringc << "starting value of parameter " << v->name));
-        }
-      }}
-
-      // add local variables to the environment
-      {SFOREACH_OBJLIST(Variable, locals, iter) {
-        Variable const *var = iter.data();
-        xassert(var->name);
-
-        // convenience
-        StringRef name = var->name;
-        Type const *type = var->type;
-
-        // locals start uninitialized; we make up a new logic variable
-        // for each one's initial value
-        AbsValue *value = new AVvar(name,
-          stringc << "starting value of variable " << name);
-
-        if (var->hasAddrTaken() || type->isArrayType()) {
-          // model this variable as a location in memory; make up a name
-          // for its address
-          AbsValue *addr = env.addMemVar(var);
-
-          if (!type->isArrayType()) {
-            // state that, right now, that memory location contains 'value'
-            env.addFact(new AVbinary(value, BIN_EQUAL,
-              env.avSelect(env.getMem(), addr, new AVint(0))));
-          }
-          else {
-            // will model array contents as elements in memory, rather
-            // than as symbolic whole-array values...
-            delete value;
-          }
-
-          int size = 1;         // default for non-arrays
-          if (type->isArrayType() && type->asArrayTypeC().hasSize) {
-            // state that the length is whatever the array length is
-            // (if the size isn't specified I have to get it from the
-            // initializer, but that will be TODO for now)
-            size = type->asArrayTypeC().size;
-          }
-
-          // remember the length, as a predicate in the set of known facts
-          env.addFact(new AVbinary(env.avLength(addr), BIN_EQUAL,
-                                   new AVint(size)));
-        }
-
-        else {
-          // model the variable as a simple, named, unaliasable variable
-          env.set(var, value);
-        }
-      }}
-
-      // add 'result' to the environment so we can record what value
-      // is actually returned; initially it has no defined value
-      if (!ft.retType->isVoid()) {
-        env.set(env.result, env.freshVariable("result", "UNDEFINED return value"));
-      }
-      #endif // 0
-
-      // let pre_mem be the name of memory now
-      // update: the user can bind this herself
-      //env.set(env.str("pre_mem"), env.getMem());
-
       // ------------- establish set of known facts ---------------
       // add the path's start predicate as an assumption
       if (root == body) {
@@ -153,7 +81,7 @@ void TF_func::vcgen(AEnv &env) const
             iter.data()->vcgen(env);
           }
 
-          env.addFact(ft.precondition->expr->vcgen(env, 0 /*path*/));
+          env.addFact(ft.precondition->expr->vcgenPred(env, 0 /*path*/));
         }
       }
       else {
@@ -162,7 +90,7 @@ void TF_func::vcgen(AEnv &env) const
         S_invariant const *inv = root->asS_invariantC();
 
         IN_PREDICATE(env);
-        env.addFact(inv->expr->vcgen(env, 0 /*path*/));
+        env.addFact(inv->expr->vcgenPred(env, 0 /*path*/));
       }
 
       // -------------- interpret the code ------------
@@ -210,86 +138,6 @@ AVvar *fieldRep(CompoundType::Field const *field)
 
 void Declarator::vcgen(AEnv &env, AbsValue *value) const
 {
-  // TODO: finish structure-valued objects
-  #if 0
-  if (type->isCVAtomicType() &&
-      type->asCVAtomicTypeC().atomic->isCompoundType()) {
-    CompoundType const &ct = type->asCVAtomicTypeC().atomic->asCompoundTypeC();
-
-    if (ct.keyword != CompoundType::K_UNION &&
-        !env.seenStructs.contains(ct.name)) {
-      env.seenStructs.add(ct.name);
-
-      // construct an example object
-      AVfunc *obj = new AVfunc(stringc << "struct_" << ct.name, NULL);
-      FOREACH_OBJLIST(CompoundType::Field, ct.fields, iter) {
-        obj->args.append(fieldRep(iter.data()));
-      }
-
-      // create accessor functions for each field
-      FOREACH_OBJLIST(CompoundType::Field, ct.fields, field) {
-        P_forall *fa = new P_forall(NULL,
-          new P_binary(avFunc1(stringc << "acc_" << field.data()->name, obj),
-                       RE_EQUAL,
-                       fieldRep(field.data())));
-
-        // add quantifiers
-        FOREACH_OBJLIST(CompoundType::Field, ct.fields, iter) {
-          fa->variables.append(fieldRep(iter.data()));
-        }
-
-        // remember this rule
-        env.typeFacts.append(fa);
-      }
-    }
-  }
-  #endif // 0
-
-  #if 0     // moved into TF_func
-  // convenience
-  StringRef name = var->name;
-  Type const *type = var->type;
-
-  if (name) {
-    xassert(value != NULL);
-
-    if (var->hasAddrTaken() || type->isArrayType()) {
-      // model this variable as a location in memory; make up a name
-      // for its address
-      AbsValue *addr = env.addMemVar(var);
-
-      if (!type->isArrayType()) {
-        // state that, right now, that memory location contains 'value'
-        env.addFact(new AVbinary(value, BIN_EQUAL,
-          env.avSelect(env.getMem(), addr, new AVint(0))));
-      }
-      else {
-        // will model array contents as elements in memory, rather
-        // than as symbolic whole-array values...
-      }
-
-      // variables have length 1
-      int size = 1;             
-
-      if (type->isArrayType() && type->asArrayTypeC().hasSize) {
-        // state that the length is whatever the array length is
-        // (if the size isn't specified I have to get it from the
-        // initializer, but that will be TODO for now)
-        size = type->asArrayTypeC().size;
-      }
-
-      // remember the length
-      env.addFact(new AVbinary(env.avLength(addr), BIN_EQUAL,
-                               new AVint(size)));
-    }
-
-    else {
-      // model the variable as a simple, named, unaliasable variable
-      env.set(var, value);
-    }
-  }
-  #endif // 0
-  
   // treat the declaration as an assignment; the variable was added
   // to the abstract environment in TF_func::vcgen
   env.updateVar(var, value);
@@ -297,12 +145,12 @@ void Declarator::vcgen(AEnv &env, AbsValue *value) const
 
 
 // ----------------------- Statement ----------------------
-// eval 'expr' in a predicate context
-AbsValue *vcgenPredicate(AEnv &env, Expression *expr, int path)
+// eval 'expr' in a predicate (theorem-proving) context
+Predicate *vcgenPredicate(AEnv &env, Expression *expr, int path)
 {
   xassert(path == 0);
   IN_PREDICATE(env);
-  return expr->vcgen(env, path);
+  return expr->vcgenPred(env, path);
 }
 
 
@@ -342,7 +190,7 @@ void Statement::vcgenPath(AEnv &env, SObjList<Statement /*const*/> &path,
     FA_postcondition const *post = env.currentFunc->ftype()->postcondition;
     if (post) {
       IN_PREDICATE(env);
-      env.prove(post->expr->vcgen(env, 0 /*path*/), "postcondition");
+      env.prove(post->expr->vcgenPred(env, 0 /*path*/), "postcondition");
     }
   }
   else {
@@ -414,16 +262,16 @@ void S_compound::vcgen(STMT_VCGEN_PARAMS) const
 void S_if::vcgen(STMT_VCGEN_PARAMS) const
 {
   // evaluate the guard
-  AbsValue *val = cond->vcgen(env, path);
+  Predicate *pred = cond->vcgenPred(env, path);
 
   if (next == thenBranch) {
     // remember that the guard was true
-    env.addFact(val);
+    env.addFact(pred);
   }
-  else { 
+  else {
     // guard is false
     xassert(next == elseBranch);
-    env.addFact(avNot(val));
+    env.addFalseFact(pred);
   }
 }
 
@@ -434,19 +282,20 @@ void S_switch::vcgen(STMT_VCGEN_PARAMS) const
   expr->vcgen(env, path);
 
   // for now, learn nothing from the outgoing edge
-  cout << "ignoring implication of followed switch edge\n";
+  cout << "TODO: ignoring implication of followed switch edge\n";
 }
 
 
 void S_while::vcgen(STMT_VCGEN_PARAMS) const
 {
-  AbsValue *val = cond->vcgen(env, path);
+  Predicate *pred = cond->vcgenPred(env, path);
+
   if (next == body) {
-    env.addFact(val);
+    env.addFact(pred);
   }
   else {
     // 'next' is whatever follows the loop
-    env.addFact(avNot(val));
+    env.addFalseFact(pred);
   }
 }
 
@@ -458,12 +307,12 @@ void S_doWhile::vcgen(STMT_VCGEN_PARAMS) const
     xassert(path == 0);
   }
   else {
-    AbsValue *val = cond->vcgen(env, path);
+    Predicate *pred = cond->vcgenPred(env, path);
     if (next == body) {
-      env.addFact(val);
+      env.addFact(pred);
     }
     else {
-      env.addFact(avNot(val));
+      env.addFalseFact(pred);
     }
   }
 }
@@ -483,14 +332,14 @@ void S_for::vcgen(STMT_VCGEN_PARAMS) const
   }
 
   // guard
-  AbsValue *val = cond->vcgen(env, path % modulus);
-  
+  Predicate *pred = cond->vcgenPred(env, path % modulus);
+
   // body?
   if (next == body) {
-    env.addFact(val);
-  }       
+    env.addFact(pred);
+  }
   else {
-    env.addFact(avNot(val));
+    env.addFalseFact(pred);
   }
 }
 
@@ -551,21 +400,21 @@ void S_decl::vcgen(STMT_VCGEN_PARAMS) const
 void S_assert::vcgen(STMT_VCGEN_PARAMS) const
 {
   // map the expression to my abstract domain
-  AbsValue *v = vcgenPredicate(env, expr, path);
-  xassert(v);     // already checked it was boolean
+  Predicate *p = vcgenPredicate(env, expr, path);
+  xassert(p);
 
   // try to prove it (is not equal to 0)
-  env.prove(v, stringc << "assertion at " << loc.toString());
+  env.prove(p, stringc << "assertion at " << loc.toString());
 }
 
 void S_assume::vcgen(STMT_VCGEN_PARAMS) const
 {
   // evaluate
-  AbsValue *v = vcgenPredicate(env, expr, path);
-  xassert(v);
+  Predicate *p = vcgenPredicate(env, expr, path);
+  xassert(p);
 
   // remember it as a known fact
-  env.addFact(v);
+  env.addFact(p);
 }
 
 void S_invariant::vcgen(STMT_VCGEN_PARAMS) const
@@ -603,12 +452,12 @@ AbsValue *E_stringLit::vcgen(AEnv &env, int path) const
   env.addDistinct(object);
 
   // assert the length of this object is the length of the string (w/ null)
-  env.addFact(new AVbinary(env.avLength(object), BIN_EQUAL,
-              new AVint(strlen(s)+1)));
+  env.addFact(P_equal(env.avLength(object),
+                      env.avInt(strlen(s)+1)));
 
   // assert that the first zero is (currently?) at the end
-  env.addFact(new AVbinary(env.avFirstZero(env.getMem(), object), BIN_EQUAL,
-              new AVint(strlen(s)+1)));
+  env.addFact(P_equal(env.avFirstZero(env.getMem(), object),
+                      env.avInt(strlen(s)+1)));
 
   // the result of this expression is a pointer to the string's start
   return env.avPointer(object, new AVint(0));
@@ -714,14 +563,11 @@ AbsValue *E_funCall::vcgen(AEnv &env, int path) const
 
     // finally, interpret the precondition to arrive at a predicate to
     // prove
-    AbsValue *predicate = ft.precondition->expr->vcgen(env, 0);
+    Predicate *predicate = ft.precondition->expr->vcgenPred(env, 0);
     xassert(predicate);      // tcheck should have verified we can represent it
 
     // prove this predicate
     env.prove(predicate, stringc << "precondition of call: " << toString());
-
-    // no longer needed
-    env.discard(predicate);
   }
 
   // -------------- conservatively destroy state ------------
@@ -743,9 +589,9 @@ AbsValue *E_funCall::vcgen(AEnv &env, int path) const
 
   if (ft.postcondition) {
     // evaluate it
-    AbsValue *predicate = ft.postcondition->expr->vcgen(env, 0);
+    Predicate *predicate = ft.postcondition->expr->vcgenPred(env, 0);
     xassert(predicate);
-    
+
     // assume it
     env.addFact(predicate);
   }
@@ -798,13 +644,13 @@ AbsValue *E_binary::vcgen(AEnv &env, int path) const
     return env.grab(new AVbinary(e1->vcgen(env, path), op, e2->vcgen(env, 0)));
   }
 
-  // evaluate LHS
-  int modulus = e1->numPaths1();
-  AbsValue *lhs = e1->vcgen(env, path % modulus);
-  path = path / modulus;
-
   // consider operator
   if (op==BIN_AND || op==BIN_OR) {
+    // evaluate LHS
+    int modulus = e1->numPaths1();
+    Predicate *lhs = e1->vcgenPred(env, path % modulus);
+    path = path / modulus;
+
     // eval RHS *if* it's followed
     if (path > 0) {
       // we follow rhs; this implies something about the value of lhs:
@@ -817,13 +663,18 @@ AbsValue *E_binary::vcgen(AEnv &env, int path) const
     else {
       // we do *not* follow rhs; this also implies something about lhs
       env.addBoolFact(lhs, op==BIN_OR);
-      
+
       // it's a C boolean, yielding 1 or 0 (and we know which)
       return env.grab(new AVint(op==BIN_OR? 1 : 0));
     }
   }
 
   else {
+    // evaluate LHS
+    int modulus = e1->numPaths1();
+    AbsValue *lhs = e1->vcgen(env, path % modulus);
+    path = path / modulus;
+
     // non-short-circuit: always evaluate RHS
     return env.grab(new AVbinary(lhs, op, e2->vcgen(env, path)));
   }
@@ -845,17 +696,22 @@ AbsValue *E_addrOf::vcgen(AEnv &env, int path) const
 }
 
 
+void verifyPointerAccess(AEnv &env, Expression const *expr, AbsValue *addr)
+{
+  env.prove(new P_relation(env.avOffset(addr), RE_GREATEREQ,
+                           env.avInt(0)),
+                           stringc << "pointer lower bound: " << expr->toString());
+  env.prove(new P_relation(env.avOffset(addr), RE_LESS,
+                           env.avLength(env.avObject(addr))),
+                           stringc << "pointer upper bound: " << expr->toString());
+}
+
 AbsValue *E_deref::vcgen(AEnv &env, int path) const
 {
   AbsValue *addr = ptr->vcgen(env, path);
 
-  // emit a proof obligation for safe access
-  env.prove(new AVbinary(env.avOffset(addr), BIN_GREATEREQ,
-                         new AVint(0)),
-                         stringc << "pointer lower bound: " << toString());
-  env.prove(new AVbinary(env.avOffset(addr), BIN_LESS,
-                         env.avLength(env.avObject(addr))),
-                         stringc << "pointer upper bound: " << toString());
+  // emit a proof obligation for safe access through 'addr'
+  verifyPointerAccess(env, this, addr);
 
   return env.avSelect(env.getMem(), env.avObject(addr), env.avOffset(addr));
 }
@@ -870,17 +726,20 @@ AbsValue *E_cast::vcgen(AEnv &env, int path) const
 
 AbsValue *E_cond::vcgen(AEnv &env, int path) const
 {
-  // condition
-  int modulus = cond->numPaths1();
-  AbsValue *guard = cond->vcgen(env, path %modulus);
-  path = path / modulus;
-
   if (th->numPaths == 0 && el->numPaths == 0) {
+    int modulus = cond->numPaths1();
+    AbsValue *guard = cond->vcgen(env, path % modulus);
+    path = path / modulus;
+
     // no side effects in either branch; use ?: operator
     return env.grab(new AVcond(guard, th->vcgen(env,0), el->vcgen(env,0)));
   }
 
   else {
+    int modulus = cond->numPaths1();
+    Predicate *guard = cond->vcgenPred(env, path % modulus);
+    path = path / modulus;
+
     int thenPaths = th->numPaths1();
     int elsePaths = el->numPaths1();
 
@@ -954,13 +813,8 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
     // get an abstract value for the address being modified
     AbsValue *addr = target->asE_deref()->ptr->vcgen(env, path);
 
-    // emit a proof obligation for safe access
-    env.prove(new AVbinary(env.avOffset(addr), BIN_GREATEREQ, 
-                           new AVint(0)), 
-                           stringc << "array lower bound: " << syntax);
-    env.prove(new AVbinary(env.avOffset(addr), BIN_LESS,
-                           env.avLength(env.avObject(addr))),
-                           stringc << "array upper bound: " << syntax);
+    // emit a proof obligation for safe access               
+    verifyPointerAccess(env, this, addr);
 
     // memory changes
     env.setMem(env.avUpdate(env.getMem(), env.avObject(addr),
@@ -1004,6 +858,193 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
   }
 
   return env.dup(v);
+}
+
+
+// --------------- Expression::vcgenPred -------------------
+Predicate *Expression::vcgenPredDefault(AEnv &env, int path) const
+{
+  // use exprToPred to give this another chance to map into the
+  // predicate space; the vcgenPred functions below do a good job
+  // when it's obvious something is being used in a predicate context,
+  // but if I save a value into a variable and *then* try to treat
+  // it as a predicate, I won't learn until later that I need to
+  // map it into predicate space
+  return exprToPred(vcgen(env, path));
+}
+
+
+Predicate *E_intLit::vcgenPred(AEnv &env, int path) const
+{
+  xassert(path==0);
+
+  // when a literal integer is interpreted as a predicate,
+  // I can map it immediately to true/false
+  return new P_lit(i != 0);
+}
+
+
+Predicate *E_floatLit::vcgenPred(AEnv &env, int path) const
+  { return vcgenPredDefault(env, path); }
+
+Predicate *E_stringLit::vcgenPred(AEnv &env, int path) const
+{
+  return new P_lit(true);
+}
+
+Predicate *E_charLit::vcgenPred(AEnv &env, int path) const
+{
+  return new P_lit(c != 0);
+}
+
+Predicate *E_variable::vcgenPred(AEnv &env, int path) const
+  { return vcgenPredDefault(env, path); }
+Predicate *E_funCall::vcgenPred(AEnv &env, int path) const
+  { return vcgenPredDefault(env, path); }
+Predicate *E_fieldAcc::vcgenPred(AEnv &env, int path) const
+  { return vcgenPredDefault(env, path); }
+Predicate *E_sizeof::vcgenPred(AEnv &env, int path) const
+  { return vcgenPredDefault(env, path); }
+
+Predicate *E_unary::vcgenPred(AEnv &env, int path) const
+{
+  if (op == UNY_NOT) {
+    return new P_not(expr->vcgenPred(env, path));
+  }
+  else {
+    return vcgenPredDefault(env, path);
+  }
+}
+
+Predicate *E_effect::vcgenPred(AEnv &env, int path) const
+  { return vcgenPredDefault(env, path); }
+
+
+Predicate *E_binary::vcgenPred(AEnv &env, int path) const
+{
+  int modulus = e1->numPaths1();
+  int lhsPath = path % modulus;
+  int rhsPath = path / modulus;
+
+  if (isPredicateCombinator(op)) {
+    if (e2->numPaths == 0) {
+      // simple side-effect-free combinator
+      Predicate *lhs = e1->vcgenPred(env, lhsPath);
+      Predicate *rhs = e2->vcgenPred(env, 0); xassert(rhsPath == 0);
+      return P_combinator(op, lhs, rhs);
+    }
+
+    else {
+      // RHS has a side effect, so we need to analyze paths
+      xassert(op != BIN_IMPLIES);     // we don't allow ==> in side-effecting exprs
+
+      // evaluate LHS
+      Predicate *lhs = e1->vcgenPred(env, lhsPath);
+
+      // eval RHS *if* it's followed
+      if (rhsPath > 0) {
+        // we follow rhs; this implies something about the value of lhs:
+        // if it's &&, lhs had to be true; false for ||
+        env.addBoolFact(lhs, op==BIN_AND);
+
+        // the true/false value is now entirely determined by rhs
+        return e2->vcgenPred(env, rhsPath-1);
+      }
+      else {
+        // we do *not* follow rhs; this also implies something about lhs
+        env.addBoolFact(lhs, op==BIN_OR);
+
+        // it's a C boolean, yielding 1 or 0 (and we know which)
+        return new P_lit(op==BIN_OR? true : false);
+      }
+    }
+  }
+
+  else if (isRelational(op)) {
+    // non-short-circuit: always evaluate RHS
+    AbsValue *lhs = e1->vcgen(env, lhsPath);
+    AbsValue *rhs = e2->vcgen(env, rhsPath);
+    return new P_relation(lhs, binOpToRelation(op), rhs);
+  }
+
+  else {
+    return vcgenPredDefault(env, path);
+  }
+}
+
+
+Predicate *E_addrOf::vcgenPred(AEnv &env, int path) const
+{ 
+  return new P_lit(true);
+}
+
+Predicate *E_deref::vcgenPred(AEnv &env, int path) const
+  { return vcgenPredDefault(env, path); }
+
+Predicate *E_cast::vcgenPred(AEnv &env, int path) const
+{
+  // assume casts preserve truth or falsity (I think that's sound..)
+  return expr->vcgenPred(env, path);
+}
+
+Predicate *E_cond::vcgenPred(AEnv &env, int path) const
+{
+  // condition
+  int modulus = cond->numPaths1();
+  Predicate *guard = cond->vcgenPred(env, path % modulus);
+  path = path / modulus;
+
+  if (th->numPaths == 0 && el->numPaths == 0) {
+    // no side effects in either branch;
+    // map ?: as a pair of implications
+    return P_and2(new P_impl(cond->vcgenPred(env, 0),
+                             th->vcgenPred(env, 0)),
+                  new P_impl(new P_not(cond->vcgenPred(env, 0)),
+                             el->vcgenPred(env, 0)));
+  }
+
+  else {
+    int thenPaths = th->numPaths1();
+    int elsePaths = el->numPaths1();
+
+    if (path < thenPaths) {
+      // taking 'then' branch, so we can assume guard is true
+      env.addFact(guard);
+      return th->vcgenPred(env, path);
+    }
+    else {
+      // taking 'else' branch, so guard is false
+      env.addFalseFact(guard);
+      return el->vcgenPred(env, path - elsePaths);
+    }
+  }
+}
+
+Predicate *E_comma::vcgenPred(AEnv &env, int path) const
+{ 
+  int modulus = e1->numPaths1();
+  
+  // evaluate and discard
+  env.discard(e1->vcgen(env, path % modulus));
+
+  // evaluate and keep
+  return e2->vcgenPred(env, path / modulus);
+}
+
+
+Predicate *E_sizeofType::vcgenPred(AEnv &env, int path) const
+{ 
+  xassert(path==0);
+  return new P_lit(size != 0);     // should almost always be true
+}
+
+Predicate *E_assign::vcgenPred(AEnv &env, int path) const
+{
+  // full analysis in here would be a major pain, and suggests whether
+  // my vcgen vs vcgenPred separation is really the right one.. but
+  // for now I can punt and just keep using exprToPred to map the
+  // term that results from analyzing this thing
+  return exprToPred(this->vcgen(env, path));
 }
 
 

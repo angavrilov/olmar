@@ -1,5 +1,6 @@
 // predicate.ast
 // abstract syntax of predicates that can be passed to Simplify
+// NOTE: everywhere in this interface, Predicate* are owner pointers (unless const)
 
 verbatim {
   #include "cc_flags.h"         // BinaryOp
@@ -21,11 +22,17 @@ verbatim {
   string toString(RelationOp op);
   RelationOp binOpToRelation(BinaryOp op);
 
-  // syntactic sugar for constructing conjunctions
+  // syntactic sugar for constructing predicates
   class Predicate;
   Predicate *P_and2(Predicate *p1, Predicate *p2);    // p1,p2 owner pointers
   Predicate *P_or2(Predicate *p1, Predicate *p2);
-  
+
+  // construct and, or, or implies, depending on 'op'
+  Predicate *P_combinator(BinaryOp op, Predicate *p1, Predicate *p2);
+
+  Predicate *P_equal(AbsValue const *e1, AbsValue const *e2);
+  Predicate *P_negate(Predicate *p);    // will strip outer P_not if exists
+
   // visitor interface
   class PredicateVisitor {
   public:
@@ -107,12 +114,23 @@ impl_verbatim {
 
   RelationOp binOpToRelation(BinaryOp op)
   {
-    xassert(op >= BIN_EQUAL && op <= BIN_GREATEREQ);
+    xassert(isRelational(op));
     return (RelationOp)op;
   }
 
   Predicate *P_and2(Predicate *p1, Predicate *p2)
   {
+    // flatten some structures; this helps the presentation when
+    // displaying messages to the user
+    if (p1->isP_and()) {
+      p1->asP_and()->conjuncts.append(p2);
+      return p1;
+    }
+    else if (p2->isP_and()) {
+      p2->asP_and()->conjuncts.prepend(p1);
+      return p2;
+    }
+
     P_and *p = new P_and(NULL);
     p->conjuncts.append(p1);
     p->conjuncts.append(p2);
@@ -127,6 +145,35 @@ impl_verbatim {
     return p;
   }
 
+  Predicate *P_combinator(BinaryOp op, Predicate *lhs, Predicate *rhs)
+  {
+    switch (op) {
+      default:          xfailure("bad combinator op code");
+      case BIN_AND:     return P_and2(lhs, rhs);
+      case BIN_OR:      return P_or2(lhs, rhs);
+      case BIN_IMPLIES: return new P_impl(lhs, rhs);
+    }
+  }
+
+  Predicate *P_equal(AbsValue const *e1, AbsValue const *e2)
+  {
+    return new P_relation(e1, RE_EQUAL, e2);
+  }
+
+  Predicate *P_negate(Predicate *pred)
+  {
+    if (pred->isP_not()) {
+      // strip the outer not, instead of adding another, for
+      // presentation-to-user reasons
+      Predicate *ret = pred->asP_not()->p;
+      pred->asP_not()->p = NULL;     // prevent it from deleting p
+      delete pred;
+      return ret;
+    }
+    else {
+      return new P_not(pred);
+    }
+  }
 
   string Predicate::toSexpString() const
   {

@@ -11,6 +11,7 @@ verbatim {
   class Env;                 // cc_env.h
   class AEnv;                // aenv.h
   class AbsValue;            // absval.ast
+  class Predicate;           // predicate.ast
 } // end verbatim
 
 // included in generated source file
@@ -349,9 +350,15 @@ class Expression {
 
   // given the current abstract environment, return the abstract value
   // representing this expression's result, and also update the environment
-  // to reflect any side effects; for now, will return NULL if the value
-  // is not an integer type
+  // to reflect any side effects
   pure_virtual AbsValue *vcgen(AEnv &env, int path) const;
+
+  // similar to vcgen, but in a context where a boolean value is expected,
+  // so a predicate is yielded; the returned pointer is an owner pointer
+  pure_virtual Predicate *vcgenPred(AEnv &env, int path) const;
+
+  // use 'vcgen' and just say it's not equal to 0
+  public Predicate *vcgenPredDefault(AEnv &env, int path) const;
 
   -> E_intLit(int i);
   -> E_floatLit(float f);
