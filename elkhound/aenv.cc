@@ -9,8 +9,8 @@
 
 AEnv::AEnv(StringTable &table)
   : ints(),
-    stringTable(table),
-    counter(1)
+    counter(1),
+    stringTable(table)
 {}
 
 AEnv::~AEnv()

@@ -11,6 +11,9 @@ verbatim {
 
   class AEnv;                // aenv.h
   class IntValue;            // absval.ast
+  
+  // making vcgen's const, but want a quick way out
+  #define VCGEN_CONST const
 } // end verbatim
 
 // included in generated source file
@@ -24,15 +27,15 @@ impl_verbatim {
 class TranslationUnit (ASTList<TopForm> topForms) {
   // type checker
   public void tcheck(Env &env);
-  
+
   // abstract interpreter
-  public void vcgen(AEnv &env);
+  public void vcgen(AEnv &env) VCGEN_CONST;
 }
 
 // a toplevel form
 class TopForm {
   pure_virtual void tcheck(Env &env);
-  pure_virtual void vcgen(AEnv &env);
+  pure_virtual void vcgen(AEnv &env) VCGEN_CONST;
 
   -> TF_decl(Declaration decl);        // includes function prototypes
 
@@ -64,7 +67,7 @@ class Declaration (
   ASTList<Declarator> decllist         // e.g. "x=3, y"
 ) {
   public void tcheck(Env &env);
-  public void vcgen(AEnv &env);
+  public void vcgen(AEnv &env) VCGEN_CONST;
 }
 
 // just one complete type; appears in parameter decls and in casts
@@ -133,7 +136,7 @@ class Declarator (
   // type constructors in this declarator
   public Type const *tcheck(Env &env, Type const *base, DeclFlags dflags);
 
-  public void vcgen(AEnv &env);
+  public void vcgen(AEnv &env) VCGEN_CONST;
 }
 
 
@@ -170,7 +173,7 @@ class PtrOperator (CVFlags cv);
 // ------------------- statements -----------------
 class Statement {
   pure_virtual void tcheck(Env &env);
-  pure_virtual void vcgen(AEnv &env);
+  pure_virtual void vcgen(AEnv &env) VCGEN_CONST;
 
   -> S_skip();      // nop; used whenever optional Statement is not present
   -> S_label(StringRef name, Statement s);
@@ -230,7 +233,7 @@ class Expression {
   // representing this expression's result, and also update the environment
   // to reflect any side effects; for now, will return NULL if the value
   // is not an integer type
-  pure_virtual IntValue *vcgen(AEnv &env);
+  pure_virtual IntValue *vcgen(AEnv &env) VCGEN_CONST;
 
   -> E_intLit(int i);
   -> E_floatLit(float f);
@@ -276,7 +279,7 @@ class Initializer {
   pure_virtual void tcheck(Env &env, Type const *type);
 
   // compute an abstract value for this initializer
-  pure_virtual IntValue *vcgen(AEnv &env, Type const *type);
+  pure_virtual IntValue *vcgen(AEnv &env, Type const *type) VCGEN_CONST;
 
   -> IN_expr(Expression e);
   -> IN_compound(ASTList<Initializer> inits);

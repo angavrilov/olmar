@@ -54,6 +54,8 @@ void TF_func::tcheck(Env &env)
     env.addVariable(p->name, DF_NONE, p->type);
   }
 
+  // TODO: verify the pre/post don't have side effects
+
   // check the precondition
   Expression *pre = ftype()->precondition;
   if (pre) {
@@ -575,6 +577,9 @@ void fatal(Env &env, Expression const *expr, Type const *type, char const *msg)
 
 Type const *E_funCall::itcheck(Env &env)
 {
+  // TODO: if more than one argument expression has a side effect,
+  // should warn about undefined order of evaluation
+
   Type const *maybe = func->tcheck(env);
   if (!maybe->isFunctionType()) {
     fatal(env, func, maybe, "must be function type");

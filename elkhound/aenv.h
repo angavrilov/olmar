@@ -10,17 +10,18 @@
 class IntValue;            // absval.ast
 
 class AEnv {
-private:
+private:     // data
   // environment maps program variable names to abstract domain values
   StringSObjDict<IntValue> ints;
-
-  // need access to the string table to make new names
-  StringTable &stringTable;
 
   // monotonic integer for making new names
   int counter;
 
-public:
+public:      // data
+  // need access to the string table to make new names
+  StringTable &stringTable;
+
+public:      // funcs
   AEnv(StringTable &table);
   ~AEnv();
 
