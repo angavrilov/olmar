@@ -62,6 +62,10 @@
 
 # when I explore the edges from a node, I put a 1 in this table
 %explored = ();
+
+# when true, when we find a file on which one depends, we recursively
+# explore the dependee (breadth-first, as it turns out, so the code
+# isn't actually recursive)
 $recursive = 0;
 
 # list of files to explore; initially it's whatever is passed on the
@@ -74,7 +78,12 @@ $debug = 0;
 
 # true to suppress warning messages
 $quiet = 0;
-                     
+
+# true to switch to scanning for OCaml-style dependencies instead
+# of the default C-style dependencies (DOES NOT WORK; see comments
+# in extractCompileDependency)
+$mlMode = 0;
+
 # list of extensions to try when looking for implicit link dependencies
 @extensions = (".cc", ".cpp", ".c");
 
@@ -107,6 +116,7 @@ Options:
   -h,-help    Print this usage string.
 
 EOF
+#  -ml         Scan for ML-style dependencies instead of C-style.
   exit(0);
 }
 
@@ -145,6 +155,11 @@ sub processArguments {
 
     if ($option eq "-r") {
       $recursive = 1;
+      next;
+    }
+
+    if ($option eq "-ml") {
+      $mlMode = 1;
       next;
     }
 
@@ -333,11 +348,48 @@ sub addEdge {
 }
 
 
+# given a line of source code, if it names a compile-time dependency,
+# extract the name of the file it refers to and return that (without
+# path qualification); otherwise, return false
+sub extractCompileDependency {
+  my ($line) = @_;
+
+  my $ret;
+  if (!$mlMode) {
+    # C mode: is this an #include line?
+    ($ret) = ($line =~ m/^\s*\#include\s+\"([^\"]*)\"/);
+    if (defined($ret)) {
+      $ret = basename($ret);       # strip path
+    }
+  }
+  else {
+    # NOTE: this code doesn't work!  OCaml allows references to
+    # modules that are not declared at the top
+    
+    # ML mode: call everything a compile-time dependency
+
+    # look for an ML module reference
+    ($ret) = ($line =~ m/^\s*module\s.*=\s*(\S+)/);
+    if (!defined($ret)) {
+      # check for the 'open' syntax too
+      ($ret) = ($line =~ m/^\s*open\s+(\S+)/);
+    }
+
+    # map the module name to a file name
+    if (defined($ret)) {
+      $ret = lc($ret) . ".ml";     # 'lc' lowercases its argument
+    }
+  }
+
+  return defined($ret)? $ret : "";
+}
+
+
 # explore the edges emanating from this file; expect a filename
 # without path
 sub exploreFile {
   my ($filename) = @_;
-  
+
   # since we expect a filename without path, qualify it now
   # so we can open the file
   my $withPath = fileExists($filename);
@@ -389,14 +441,10 @@ sub exploreFile {
       next;
     }
 
-    # is this an #include line?
-    my ($target) = ($line =~ m/^\s*\#include\s+\"([^\"]*)\"/);
-    if (defined($target)) {
-      $target = basename($target);
-      if (fileExists($target)) {
-        # add a compile-time edge
-        addEdge($filename, $target, 0);
-      }
+    my $target = extractCompileDependency($line);
+    if ($target && fileExists($target)) {
+      # add a compile-time edge
+      addEdge($filename, $target, 0);
     }
 
     # is this a comment specifying a link-time dependency?
