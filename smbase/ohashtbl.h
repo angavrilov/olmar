@@ -24,26 +24,32 @@ private:    // data
   HashTable table;
 
 public:     // funcs
-  OwnerHashTable(GetKeyFn gk, HashFn hf, EqualKeyFn ek)
-    : table((HashTable::GetKeyFn)gk, hf, ek) {}
-  ~OwnerHashTable() { empty(); }
+  OwnerHashTable(GetKeyFn gk, HashFn hf, EqualKeyFn ek,
+                 int initSize = HashTable::defaultSize)
+    : table((HashTable::GetKeyFn)gk, hf, ek, initSize) {}
+  ~OwnerHashTable() { empty(1); }
 
   int getNumEntries() const               { return table.getNumEntries(); }
   T *get(void const *key) const           { return (T*)table.get(key); }
   void add(void const *key, T *value)     { table.add(key, value); }
   T *remove(void const *key)              { return (T*)table.remove(key); }
-  void empty();
+  void empty(int initSize = HashTable::defaultSize);
   void selfCheck() const                  { table.selfCheck(); }
+
+  // this simply drops all the entries without deleting them; it is
+  // useful when the objects have been taken out via iteration
+  void disownAndForgetAll(int initSize = HashTable::defaultSize)
+                                          { table.empty(initSize); }
 };
 
 template <class T>
-void OwnerHashTable<T>::empty()
+void OwnerHashTable<T>::empty(int initSize)
 {
   HashTableIter iter(table);
   for (; !iter.isDone(); iter.adv()) {
     delete (T*)iter.data();
   }
-  table.empty();
+  table.empty(initSize);
 }
 
 

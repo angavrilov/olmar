@@ -8,7 +8,7 @@
 // that maps values back to keys.. given that OwnerHashTable requires
 // this, I'll suspend this line of work for now and keep using
 // OwnerHashTable directly
-#error This doesn't work quite right
+#error This does not work quite right
 
 #ifndef OOBJMAP_H
 #define OOBJMAP_H

@@ -13,12 +13,12 @@ unsigned HashTable::hashFunction(void const *key) const
 }
 
 
-HashTable::HashTable(GetKeyFn gk, HashFn hf, EqualKeyFn ek)
+HashTable::HashTable(GetKeyFn gk, HashFn hf, EqualKeyFn ek, int initSize)
   : getKey(gk),
     coreHashFn(hf),
     equalKeys(ek)
 {
-  makeTable(initialTableSize);
+  makeTable(initSize);
 }
 
 HashTable::~HashTable()
@@ -109,7 +109,7 @@ void HashTable::add(void const *key, void *value)
 void *HashTable::remove(void const *key)
 {
   if (numEntries-1 < tableSize/5  &&
-      tableSize > initialTableSize) {
+      tableSize > defaultSize) {
     // we're below threshold; reduce table size
     resizeTable(tableSize / 2);
   }
@@ -150,10 +150,10 @@ void *HashTable::remove(void const *key)
 }
 
 
-void HashTable::empty()
+void HashTable::empty(int initSize)
 {
   delete[] hashTable;
-  makeTable(initialTableSize);
+  makeTable(initSize);
 }
 
 

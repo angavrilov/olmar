@@ -12,11 +12,6 @@ class HashTable {
 private:    // types
   friend class HashTableIter;
 
-  // constants
-  enum {
-    initialTableSize = 33,
-  };
-
 public:     // types
   // given a stored data pointer, retrieve the associated key
   typedef void const* (*GetKeyFn)(void *data);
@@ -28,6 +23,11 @@ public:     // types
   // compare two keys; this is needed so we can handle collisions
   // in the hash function; return true if they are equal
   typedef bool (*EqualKeyFn)(void const *key1, void const *key2);
+
+  // constants
+  enum {
+    defaultSize = 33,
+  };
 
 private:    // data
   // maps
@@ -74,7 +74,8 @@ private:    // funcs
   void checkEntry(int entry) const;
 
 public:     // funcs
-  HashTable(GetKeyFn gk, HashFn hf, EqualKeyFn ek);
+  HashTable(GetKeyFn gk, HashFn hf, EqualKeyFn ek,
+            int initSize = HashTable::defaultSize);
   ~HashTable();
 
   // return # of mapped entries
@@ -93,7 +94,7 @@ public:     // funcs
   void *remove(void const *key);
 
   // remove all mappings
-  void empty();
+  void empty(int initSize = HashTable::defaultSize);
 
   // check the data structure's invariants, and throw an exception
   // if there is a problem
