@@ -415,8 +415,12 @@ testparse d0038.cc
 testparse d0039.cc
 
 # examples from C++ standard
-# 7.3.3c.cc: nerfed because member templates aren't implemented
-# 7.3.3f.cc: "int i; int i;" is supposed to be allowed
+#
+# a few examples have parts commented-out:
+#   7.3.3c.cc: nerfed because member templates aren't implemented
+#   7.3.3f.cc: "int i; int i;" is supposed to be allowed
+#   7.3.3k.cc: I don't detect a purported ambiguity
+#   (more from before I started maintaining this list)
 for fn in in/std/*.cc; do
   runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS "$fn"
 done
