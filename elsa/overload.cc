@@ -352,14 +352,20 @@ void OverloadResolver::processCandidate(Variable *v)
   // get the semantic template arguments
   ObjList<STemplateArgument> sargs;
   {
+    InferArgFlags iflags = IA_NO_ERRORS;
+    if (flags & OF_METHODS) {
+      iflags |= IA_RECEIVER;
+    }
+
     // FIX: This is a bug!  If the args contain template parameters,
     // they will be the wrong template parameters.
     GrowArray<ArgumentInfo> &args0 = this->args;
     // FIX: check there are no dependent types in the arguments
     TypeListIter_GrowArray argListIter(args0);
     MatchTypes match(env.tfac, MatchTypes::MM_BIND, Type::EF_DEDUCTION);
-    if (!env.getFuncTemplArgs(match, sargs, finalName, v, argListIter, false /*reportErrors*/)) {
+    if (!env.getFuncTemplArgs(match, sargs, finalName, v, argListIter, iflags)) {
       // something doesn't work about processing the template arguments
+      OVERLOADTRACE("(not viable because args to not match template params)");
       return;
     }
   }

@@ -33,6 +33,16 @@ typedef ArrayStackEmbed<Scope*, 2> ScopeSeq;
 // need to be able to print these out
 void gdbScopeSeq(ScopeSeq &ss);
 
+// flags for the template argument inference functions
+enum InferArgFlags {
+  IA_NONE            = 0,
+  IA_NO_ERRORS       = 0,      // do not report errors
+  IA_REPORT_ERRORS   = 0x01,   // report inference errors in Env
+  IA_RECEIVER        = 0x02,   // passed arguments include potential receiver obj
+  
+  IA_ALL             = 0x03
+};
+ENUM_BITWISE_OPS(InferArgFlags, IA_ALL)
 
 // the entire semantic analysis state
 class Env : protected ErrorList {
@@ -738,13 +748,13 @@ public:      // template funcs
 
   // load the bindings with any explicit template arguments; return true if successful
   bool loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
-                                     MatchTypes &match, bool reportErrors);
+                                     MatchTypes &match, InferArgFlags iflags);
   // infer template arguments from the function arguments; return true if successful
   bool inferTemplArgsFromFuncArgs(Variable *var,
                                   TypeListIter &argsListIter,
 //                                    FakeList<ArgExpression> *funcArgs,
                                   MatchTypes &match,
-                                  bool reportErrors);
+                                  InferArgFlags iflags);
   // get both the explicit and implicit function template arguments
   bool getFuncTemplArgs
     (MatchTypes &match,
@@ -752,11 +762,11 @@ public:      // template funcs
      PQName const *final,
      Variable *var,
      TypeListIter &argListIter,
-     bool reportErrors);
+     InferArgFlags iflags);
   void getFuncTemplArgs_oneParamList
     (MatchTypes &match,
      ObjList<STemplateArgument> &sargs,
-     bool reportErrors,
+     InferArgFlags iflags,
      bool &haveAllArgs,
      //ObjListIter<STemplateArgument> &piArgIter,
      SObjList<Variable> const &paramList);

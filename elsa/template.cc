@@ -961,7 +961,7 @@ void Env::initArgumentsFromASTTemplArgs
 
 
 bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
-                                        MatchTypes &match, bool reportErrors)
+                                        MatchTypes &match, InferArgFlags iflags)
 {
   xassert(var->templateInfo());
   xassert(var->templateInfo()->isPrimary());
@@ -992,7 +992,7 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument>
     // if so, it should agree with the explicitly provided argument
     if (existing) {
       if (!existing->equals(arg->sarg)) {
-        if (reportErrors) {
+        if (iflags & IA_REPORT_ERRORS) {
           error(stringc << "for parameter `" << param->name
                         << "', inferred argument `" << existing->toString()
                         << "' does not match supplied argument `" << arg->sarg.toString()
@@ -1075,7 +1075,7 @@ bool Env::inferTemplArgsFromFuncArgs
   (Variable *var,
    TypeListIter &argListIter,
    MatchTypes &match,
-   bool reportErrors)
+   InferArgFlags iflags)
 {
   xassert(var->templateInfo());
   xassert(var->templateInfo()->isPrimary());
@@ -1083,16 +1083,17 @@ bool Env::inferTemplArgsFromFuncArgs
 
   TRACE("template", "deducing template arguments from function arguments");
 
-  // TODO: make this work for static member template functions: the
-  // caller has passed in information about the receiver object (so
-  // this function can work for nonstatic members) but now we need to
-  // skip the receiver if the function in question is static
-  //
-  // The hard part about this is we can't easily tell whether the
-  // caller actually passed a receiver object...
+  // if the caller has passed in information about the receiver object
+  // (so this function can work for nonstatic members), but the
+  // function here is not a method, we need to skip the receiver
+  FunctionType *funcType = var->type->asFunctionType();
+  if ((iflags & IA_RECEIVER) &&          // receiver passed
+      !funcType->isMethod()) {           // not a method
+    argListIter.adv();                   // skip receiver
+  }
 
   int i = 1;            // for error messages
-  SFOREACH_OBJLIST_NC(Variable, var->type->asFunctionType()->params, paramIter) {
+  SFOREACH_OBJLIST_NC(Variable, funcType->params, paramIter) {
     Variable *param = paramIter.data();
     xassert(param);
     
@@ -1118,7 +1119,7 @@ bool Env::inferTemplArgsFromFuncArgs
         Type *curArgType = argListIter.data();
         bool argUnifies = match.match_Type(curArgType, param->type);
         if (!argUnifies) {
-          if (reportErrors) {
+          if (iflags & IA_REPORT_ERRORS) {
             error(stringc << "during function template argument deduction: "
                   << "argument " << i << " `" << curArgType->toString() << "'"
                   << " is incompatible with parameter, `"
@@ -1153,7 +1154,7 @@ bool Env::getFuncTemplArgs
    PQName const *final,
    Variable *var,
    TypeListIter &argListIter,
-   bool reportErrors)
+   InferArgFlags iflags)
 {
   TemplateInfo *varTI = var->templateInfo();
   xassert(varTI->isPrimary());
@@ -1163,12 +1164,12 @@ bool Env::getFuncTemplArgs
   // necessarily the class)
   if (final && final->isPQ_template()) {
     if (!loadBindingsWithExplTemplArgs(var, final->asPQ_templateC()->args, match,
-                                       reportErrors)) {
+                                       iflags)) {
       return false;
     }
   }
 
-  if (!inferTemplArgsFromFuncArgs(var, argListIter, match, reportErrors)) {
+  if (!inferTemplArgsFromFuncArgs(var, argListIter, match, iflags)) {
     return false;
   }
 
@@ -1177,12 +1178,12 @@ bool Env::getFuncTemplArgs
 
   // inherited params first
   FOREACH_OBJLIST(InheritedTemplateParams, varTI->inheritedParams, iter) {
-    getFuncTemplArgs_oneParamList(match, sargs, reportErrors, haveAllArgs,
+    getFuncTemplArgs_oneParamList(match, sargs, iflags, haveAllArgs,
                                   /*piArgIter,*/ iter.data()->params);
   }
 
   // then main params
-  getFuncTemplArgs_oneParamList(match, sargs, reportErrors, haveAllArgs,
+  getFuncTemplArgs_oneParamList(match, sargs, iflags, haveAllArgs,
                                 /*piArgIter,*/ varTI->params);
 
   // certainly the partial instantiation should not have provided
@@ -1196,7 +1197,7 @@ bool Env::getFuncTemplArgs
 void Env::getFuncTemplArgs_oneParamList
   (MatchTypes &match,
    ObjList<STemplateArgument> &sargs,
-   bool reportErrors,
+   InferArgFlags iflags,
    bool &haveAllArgs,
    //ObjListIter<STemplateArgument> &piArgIter,
    SObjList<Variable> const &paramList)
@@ -1213,7 +1214,7 @@ void Env::getFuncTemplArgs_oneParamList
     }
 
     if (!sta) {
-      if (reportErrors) {
+      if (iflags & IA_REPORT_ERRORS) {
         error(stringc << "arguments do not bind template parameter `" 
                       << templPIter.data()->name << "'");
       }
@@ -1269,7 +1270,7 @@ Variable *Env::lookupPQVariable_applyArgsTemplInst
     TypeListIter_FakeList argListIter(funcArgs);
     MatchTypes match(tfac, MatchTypes::MM_BIND, Type::EF_DEDUCTION);
     if (!getFuncTemplArgs(match, sargs, final, primary, 
-                          argListIter, true /*reportErrors*/)) {
+                          argListIter, IA_REPORT_ERRORS)) {
       return NULL;
     }
   }
@@ -3540,7 +3541,7 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type)
     // use user's arguments (if any) to fill in missing bindings
     if (nameArgs) {
       if (!loadBindingsWithExplTemplArgs(primary, *nameArgs, match, 
-                                         false /*reportErrors*/)) {
+                                         IA_NO_ERRORS)) {
         continue;      // no match
       }
     }
@@ -3550,7 +3551,7 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type)
     // is correct to use them here...)
     ObjList<STemplateArgument> sargs;
     bool haveAllArgs = true;
-    getFuncTemplArgs_oneParamList(match, sargs, false /*reportErrors*/,
+    getFuncTemplArgs_oneParamList(match, sargs, IA_NO_ERRORS,
                                   haveAllArgs, primaryTI->params);
     if (!haveAllArgs) {
       continue;   // no match
@@ -3578,34 +3579,6 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type)
 }
   
      
-// this isn't used; I'm using it here so it will go through
-// one CVS commit cycle before being removed
-#if 0
-void Env::insertScopeJustBelowInstOf(Scope *toInsert, Variable *justAbove)
-{
-  for (ObjListMutator<Scope> mut(scopes);
-       !mut.isDone(); mut.adv()) {
-    // it is possible I will have to weaken this condition to just be
-    // that the scopes (when interpreted as CompoundTypes) have the
-    // same template primary
-    //
-    // ok, let's try that
-    Scope *s = mut.data();
-    if (s->curCompound &&
-        s->curCompound->typedefVar->templateInfo() &&
-        s->curCompound->typedefVar->templateInfo()->instantiationOf == justAbove) {
-      mut.insertAfter(toInsert);
-      TRACE("env", "inserted " << toInsert->desc() << " just below " <<
-                   s->desc());
-      return;
-    }
-  }
-
-  xfailure("could not find scope to insert below");
-}
-#endif // 0
-
-
 // ------------------- InstantiationContextIsolator -----------------------
 InstantiationContextIsolator::InstantiationContextIsolator(Env &e, SourceLoc loc)
   : env(e),
