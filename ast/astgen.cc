@@ -568,7 +568,8 @@ public:
   void emitCloneCode(ASTClass const *super, ASTClass const *sub);
 
   void emitVisitorImplementation();
-  void emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super);
+  void emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
+                    bool hasChildren);
 };
 
 
@@ -958,21 +959,12 @@ void HGen::emitVisitorInterface()
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
 
-    out << "  virtual void visit" << c->super->name << "("
+    out << "  virtual bool visit" << c->super->name << "("
+        <<   c->super->name << " *obj);\n"
+        << "  virtual void postvisit" << c->super->name << "("
         <<   c->super->name << " *obj);\n";
   }
   out << "};\n\n";
-
-  #if 0      // obsolete
-  out << "// prototypes for the traversal entry points\n";
-  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
-    TF_class const *c = iter.data();
-
-    out << "void traverse" << c->super->name << "("
-        <<   visitorName << " &vis, "
-        <<   c->super->name << " *obj);\n";
-  }
-  #endif // 0
 }
 
 
@@ -982,7 +974,9 @@ void CGen::emitVisitorImplementation()
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
 
-    out << "void " << visitorName << "::visit" << c->super->name << "("
+    out << "bool " << visitorName << "::visit" << c->super->name << "("
+        <<   c->super->name << " *obj) { return true; }\n"
+        << "void " << visitorName << "::postvisit" << c->super->name << "("
         <<   c->super->name << " *obj) {}\n";
   }
   out << "\n\n";
@@ -992,33 +986,45 @@ void CGen::emitVisitorImplementation()
     TF_class const *c = iter.data();
 
     // superclass traversal
-    emitTraverse(c->super, NULL /*super*/);
+    emitTraverse(c->super, NULL /*super*/, c->hasChildren());
 
     // subclass traversal
     FOREACH_ASTLIST(ASTClass, c->ctors, iter) {
       ASTClass const *sub = iter.data();
 
-      emitTraverse(sub, c->super);
+      emitTraverse(sub, c->super, false /*hasChildren*/);
     }
   }
 }
 
 
-void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super)
+void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
+                        bool hasChildren)
 {
   out << "void " << c->name << "::traverse("
       <<   visitorName << " &vis)\n"
       << "{\n";
 
-  if (super) {
-    // visit superclass, if this class has one
-    out << "  " << super->name << "::traverse(vis);\n"
-        << "\n";
+  // name of the 'visit' method that applies to this class;
+  // these methods are always named according to the least-derived
+  // class in the hierarchy
+  string visitName = stringc << "visit" << (super? super : c)->name;
+
+  // we only call 'visit' in the most-derived classes; this of course
+  // assumes that classes with children are never themselves instantiated
+  if (!hasChildren) {
+    // visit this node; if the visitor doesn't want to traverse
+    // the children, then bail
+    out << "  if (!vis." << visitName << "(this)) { return; }\n\n";
   }
   else {
-    // visit this node *only* in the superclass (since the subclasses
-    // call the super's traversal)
-    out << "  vis.visit" << c->name << "(this);\n";
+    out << " // no 'visit' because it's handled by subclasses\n\n";
+  }
+
+  if (super) {
+    // traverse superclass ctor args, if this class has one
+    out << "  " << super->name << "::traverse(vis);\n"
+        << "\n";
   }
 
   // traverse into the ctor arguments
@@ -1035,7 +1041,7 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super)
              isTreeNode(extractListType(arg->type))) {
       // list of tree nodes: iterate and traverse
       string eltType = extractListType(arg->type);
-      
+
       // compute list accessor names
       char const *iterMacroName = "FOREACH_ASTLIST_NC";
       char const *iterElt = ".data()";
@@ -1053,7 +1059,11 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super)
 
   // do any additional traversal action specified by the user
   emitCustomCode(c->decls, "traverse");
-  
+
+  // if we did the preorder visit on the way in, do the
+  // postorder visit now
+  out << "  vis.post" << visitName << "(this);\n";
+
   out << "}\n\n";
 }
 
