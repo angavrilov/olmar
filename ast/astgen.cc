@@ -904,6 +904,7 @@ void CGen::emitCloneCode(ASTClass const *super, ASTClass const *sub)
 void mergeClass(ASTClass *base, ASTClass *ext)
 {
   xassert(base->name.equals(ext->name));
+  trace("merge") << "merging class: " << ext->name << endl;
 
   // move all ctor args to the base
   while (ext->args.isNotEmpty()) {
@@ -912,7 +913,7 @@ void mergeClass(ASTClass *base, ASTClass *ext)
 
   // and same for annotations
   while (ext->decls.isNotEmpty()) {
-    ext->decls.append(ext->decls.removeFirst());
+    base->decls.append(ext->decls.removeFirst());
   }
 }
 
@@ -931,6 +932,7 @@ void mergeSuperclass(TF_class *base, TF_class *ext)
 {
   // should only get here for same-named classes
   xassert(base->super->name.equals(ext->super->name));
+  trace("merge") << "merging superclass: " << ext->super->name << endl;
 
   // merge the superclass ctor args and annotations
   mergeClass(base->super, ext->super);
@@ -946,6 +948,7 @@ void mergeSuperclass(TF_class *base, TF_class *ext)
     }
     else {
       // add it wholesale
+      trace("merge") << "adding subclass: " << c->name << endl;
       base->ctors.append(c);
     }
   }
@@ -967,12 +970,38 @@ TF_class *findSuperclass(ASTSpecFile *base, char const *name)
 void mergeExtension(ASTSpecFile *base, ASTSpecFile *ext)
 {
   // for each toplevel form, either add it or merge it
+  int ct = 0;
   while (ext->forms.isNotEmpty()) {
     ToplevelForm * /*owner*/ tf = ext->forms.removeFirst();
 
     if (!tf->isTF_class()) {
       // verbatim: just add it directly
-      base->forms.append(tf);
+
+      if (ct == 0) {
+        // *first* verbatim: goes into a special place in the
+        // base, before any classes but after any base verbatims
+        int i;
+        for (i=0; i < base->forms.count(); i++) {
+          ToplevelForm *baseForm = base->forms.nth(i);
+
+          if (baseForm->isTF_class()) {
+            // ok, this is the first class, so stop here
+            // and we'll insert at 'i', thus inserting
+            // just before this class
+            break;
+          }
+        }
+
+        // insert the base so it becomes position 'i'
+        trace("merge") << "inserting extension verbatim near top\n";
+        base->forms.insertAt(tf, i);
+      }
+
+      else {
+        // normal processing: append everything
+        trace("merge") << "appending extension verbatim section\n";
+        base->forms.append(tf);
+      }
     }
     else {
       TF_class *c = tf->asTF_class();
@@ -986,9 +1015,12 @@ void mergeExtension(ASTSpecFile *base, ASTSpecFile *ext)
       }
       else {
         // add the whole class
+        trace("merge") << "adding new superclass: " << c->super->name << endl;
         base->forms.append(c);
       }
     }
+
+    ct++;
   }
 }
 
@@ -1004,6 +1036,7 @@ void entry(int argc, char **argv)
          << "  options:\n"
          << "    -o<name>   output filenames are name.{h,cc}\n"
          << "               (default is \"file\" for \"file.ast\")\n"
+         << "    -v         verbose operation, particularly for merging\n"
          ;
 
     return;
@@ -1016,6 +1049,9 @@ void entry(int argc, char **argv)
     if (argv[0][1] == 'b' ||        // 'b' is for compatibility
         argv[0][1] == 'o') {
       basename = argv[0]+2;
+    }
+    else if (argv[0][1] == 'v') {
+      traceAddSys("merge");
     }
     else {
       cout << "unknown option: " << argv[0] << "\n";

@@ -100,10 +100,8 @@ Input: /* empty */           { $$ = new ASTList<ToplevelForm>; }
 
 /* a class is a nonterminal in the abstract grammar */
 /* yields TF_class */
-Class: "class" TOK_NAME ClassBody
-         { ($$=$3)->super->name = unbox($2); }
-     | "class" TOK_NAME "(" CtorArgsOpt ")" ClassBody
-         { ($$=$6)->super->name = unbox($2); $$->super->args.steal($4); }
+Class: "class" TOK_NAME CtorArgsOpt ClassBody
+         { ($$=$4)->super->name = unbox($2); $$->super->args.steal($3); }
      ;
 
 /*
@@ -126,20 +124,23 @@ ClassBody: "{" ClassMembersOpt "}" /* no ";", see above */
 ClassMembersOpt
   : /* empty */
       { $$ = new TF_class(new ASTClass("(placeholder)", NULL, NULL), NULL); }
-  | ClassMembersOpt "->" TOK_NAME "(" CtorArgsOpt ")" ";"
-      { ($$=$1)->ctors.append(new ASTClass(unbox($3), $5, NULL)); }
-  | ClassMembersOpt "->" TOK_NAME "(" CtorArgsOpt ")" "{" CtorMembersOpt "}"
-      { ($$=$1)->ctors.append(new ASTClass(unbox($3), $5, $8)); }
+  | ClassMembersOpt "->" TOK_NAME CtorArgsOpt ";"
+      { ($$=$1)->ctors.append(new ASTClass(unbox($3), $4, NULL)); }
+  | ClassMembersOpt "->" TOK_NAME CtorArgsOpt "{" CtorMembersOpt "}"
+      { ($$=$1)->ctors.append(new ASTClass(unbox($3), $4, $6)); }
   | ClassMembersOpt Annotation
       { ($$=$1)->super->decls.append($2); }
   ;
-  
+
+/* empty ctor args can have parens or not, at user's disrection */  
 /* yields ASTList<CtorArg> */
 CtorArgsOpt
   : /* empty */
       { $$ = new ASTList<CtorArg>; }
-  | CtorArgs
-      { $$ = $1; }
+  | "(" ")"
+      { $$ = new ASTList<CtorArg>; }
+  | "(" CtorArgs ")"
+      { $$ = $2; }
   ;
 
 /* yields ASTList<CtorArg> */

@@ -1,6 +1,10 @@
 // example.ast            see license.txt for copyright and terms of use
 // demonstrate a few features; I use this a testbed for features
 
+verbatim {
+  // first verbatim in example.ast
+}
+
 class Node (
   int x,
   int y
