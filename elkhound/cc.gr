@@ -121,6 +121,15 @@ nonterm TranslationUnit : Checkable {
     }
   }
 
+  // allow assembly at toplevel for gnu compatibility
+  -> t:TranslationUnit a:GNUAsmStatement {
+    fun typeCheck {
+      t.typeCheck(env);
+    }
+   
+    fun printTree {}
+  }
+
   literalCode "constructor" {
     // if we just constructed the "-> empty" production,
     // do nothing special
@@ -1279,6 +1288,8 @@ nonterm DeclarationSeqOpt : Checkable {
 nonterm Declaration : Checkable {
   fun typeCheck { d.typeCheck(env); }
 
+  -> GNUAttribute d:Declaration ;    // yet more
+
   -> d:BlockDeclaration ;
   -> d:FunctionDefinition ;
   //-> TemplateDeclaration ;
@@ -1741,7 +1752,9 @@ nonterm Declarator : DeclaratorBase {
     }
   }
 
-  -> d:DirectDeclarator {
+  // I'm still looking for the right place to put GNUAttribute ...
+  -> d:DirectDeclarator GNUAttribute |       // GNU extension
+     d:DirectDeclarator {
     action isFunction := d.isFunction;
     action isName := d.isName;
 
@@ -1759,7 +1772,7 @@ nonterm DirectDeclarator : DeclaratorBase {
   fundecl int getSize(Env *env);      // get declared size
   fun getSize { internalError("can't call getSize"); }
 
-  -> n:PQVarName GNUAttribute |       // GNU extension
+  -> //n:PQVarName GNUAttribute |       // GNU extension
      n:PQVarName {
     action isFunction := 0;
     action isName := 1;
@@ -1878,7 +1891,7 @@ nonterm CVQualifier : HasTypeName, HasCVFlags {
   -> "const"            { fun getCVFlags = CV_CONST; }
   -> "volatile"         { fun getCVFlags = CV_VOLATILE; }
   -> "owner"            { fun getCVFlags = CV_OWNER; }
-  -> GNUAttribute       { fun getCVFlags = CV_NONE; }     // GNU extension
+  //-> GNUAttribute       { fun getCVFlags = CV_NONE; }     // GNU extension
 }
 
 
@@ -2072,9 +2085,10 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
   condition d.isFunction == 1;
 
   // this works for all the productions
-
+  
   // return type      name/params   body
-  -> r:DeclSpecifier  d:Declarator  b:FunctionBody {
+  -> r:DeclSpecifier  d:Declarator  b:FunctionBody
+   | r:DeclSpecifier  GNUAttribute d:Declarator  b:FunctionBody {    // arg..
     fun printSig {
       cout << d.getDeclName() << ": returns "
            << r.typeName() << d.retTypeName() << ", arg types: ";

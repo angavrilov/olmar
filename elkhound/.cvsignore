@@ -47,3 +47,4 @@ ccgr.gprof*
 fsyncd.log
 .fsync-save
 qpmouse.i
+qpmouse.cpp
