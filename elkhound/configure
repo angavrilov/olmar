@@ -23,7 +23,7 @@ options:
   -loc,-noloc:       enable/disable source location tracking [enabled]
   -fastest:          turn off all Elkhound features that are not present
                      in Bison, for the purpose of performance comparison
-                     (note that the C++ parser will not work in this mode)
+                     (note that Elsa will not work in this mode)
   <op>:              add a given option to the gcc command line,
                        including forms: -W*, -pg, -D*, -O*
   -smbase=<dir>:     specify where the smbase library is [$SMBASE]
@@ -243,7 +243,6 @@ if ($code != 0) {
 }
 
 
-# I don't think there are GNU-specific things in my Makefile
 print("\nYou can now run make, usually called 'make' or 'gmake'.\n");
 
 exit(0);

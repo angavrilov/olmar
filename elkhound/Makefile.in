@@ -55,7 +55,7 @@ RANLIB := ranlib
 # compile .cc to .o
 %.o: %.cc
 	$(CXX) -c -o $@ $< $(CCFLAGS)
-	@$(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) > $*.d
+	@$(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) >$*.d
 
 
 # ----------------- sets of related object files ---------------------
@@ -618,6 +618,7 @@ clean:
 
 distclean: clean
 	rm -f Makefile config.status config.summary glrconfig.h
+	rm -f cc.in/big/*.i
 	cd triv; rm -rf sssx.in ssx.in eeb.in
 
 check: all
