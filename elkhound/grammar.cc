@@ -28,7 +28,8 @@ Symbol::~Symbol()
 Symbol::Symbol(Flatten &flat)
   : name(flat),
     isTerm(false),
-    isEmptyString(false)
+    isEmptyString(false),
+    type(NULL)
 {}
 
 void Symbol::xfer(Flatten &flat)
@@ -37,12 +38,17 @@ void Symbol::xfer(Flatten &flat)
   const_cast<string&>(name).xfer(flat);
   flat.xferBool(const_cast<bool&>(isTerm));
   flat.xferBool(const_cast<bool&>(isEmptyString));
+  flattenStrTable->xfer(flat, type);
 }
 
 
 void Symbol::print(ostream &os) const
 {
-  os << name << ":";
+  os << name;
+  if (type) {
+    os << "[" << type << "]";
+  }
+  os << ":";
   PVAL(isTerm);
 }
 
@@ -98,14 +104,6 @@ string Terminal::toString() const
 // ----------------- Nonterminal ------------------------
 Nonterminal::Nonterminal(char const *name, bool isEmpty)
   : Symbol(name, false /*terminal*/, isEmpty),
-    attributes(),
-    superclasses(),
-    funDecls(),
-    funPrefixes(),
-    declarations(),
-    disambFuns(),
-    constructor(),
-    destructor(),
     ntIndex(-1),
     cyclic(false),
     first(),
@@ -123,19 +121,10 @@ Nonterminal::Nonterminal(Flatten &flat)
 void Nonterminal::xfer(Flatten &flat)
 {
   Symbol::xfer(flat);
-
-  xferObjList(flat, attributes);
 }
 
 void Nonterminal::xferSerfs(Flatten &flat, Grammar &g)
 {
-  // xfer 'superclasses' (I probably don't need this info, but
-  // I wanted to try reading/writing them anyway)
-  xferSObjList(flat, superclasses, g.nonterminals);
-
-  // skip literal code: funDecls, funPrefixes, declarations, 
-  // disambFuns, constructor, destructor
-
   // annotation
   flat.xferInt(ntIndex);
   flat.xferBool(cyclic);
@@ -178,39 +167,12 @@ void Nonterminal::print(ostream &os) const
 }
 
 
-bool Nonterminal::hasSuperclass(Nonterminal const *nt) const
-{
-  SFOREACH_OBJLIST(Nonterminal, superclasses, iter) {
-    if (iter.data() == nt  ||
-        iter.data()->hasSuperclass(nt)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
-bool Nonterminal::hasAttribute(char const *attr) const
-{
-  FOREACH_OBJLIST(string, attributes, iter) {
-    if (0==strcmp(iter.data()->pcharc(), attr)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
 // -------------------- Production -------------------------
 Production::Production(Nonterminal *L, char const *Ltag)
   : left(L),
     right(),
     leftTag(Ltag),
     rightTags(),
-    conditions(),
-    actions(),
-    treeCompare(NULL),
-    functions(),
     numDotPlaces(-1),    // so the check in getDProd will fail
     dprods(NULL),
     prodIndex(-1)
@@ -218,9 +180,6 @@ Production::Production(Nonterminal *L, char const *Ltag)
 
 Production::~Production()
 {
-  if (treeCompare) {
-    delete treeCompare;
-  }
   if (dprods) {
     delete[] dprods;
   }
@@ -229,7 +188,7 @@ Production::~Production()
 
 Production::Production(Flatten &flat)
   : left(NULL),
-    treeCompare(NULL),
+    action(flat),
     dprods(NULL)
 {}
 
@@ -238,15 +197,8 @@ void Production::xfer(Flatten &flat)
   leftTag.xfer(flat);
   xferObjList(flat, rightTags);
 
-  conditions.xfer(flat);
-  actions.xfer(flat);
-
-  // it's not used yet
-  computedValue(flat, treeCompare, (AExprNode*)NULL);
-
-  // skip literal code: functions
-
   flat.xferInt(prodIndex);
+  action.xfer(flat);
 }
 
 void Production::xferSerfs(Flatten &flat, Grammar &g)
@@ -425,19 +377,6 @@ DottedProduction const *Production::getDProdC(int dotPlace) const
 }
 
 
-void Production::checkRefs() const
-{
-  try {
-    actions.check(this);
-    conditions.check(this);
-  }
-  catch (xBase &x) {
-    THROW(xBase(stringc << "in " << toString()
-                        << ", " << x.why() ));
-  }
-}
-
-
 void Production::print(ostream &os) const
 {
   os << toString();
@@ -448,7 +387,13 @@ string Production::toString() const
 {
   // LHS "->" RHS
   // 9/27/00: don't print tag for LHS
-  return stringc << left->name << " -> " << rhsString();
+  stringBuilder sb;
+  sb << left->name;
+  if (left->type) {
+    sb << "[" << left->type << "]";
+  }
+  sb << " -> " << rhsString();
+  return sb;
 }
 
 
@@ -493,24 +438,16 @@ string Production::rhsString() const
 }
 
 
-string Production::toStringMore(bool printActions, bool printCode) const
+string Production::toStringMore(bool printCode) const
 {
   stringBuilder sb;
-  sb << toString() << "\n";
-  
-  if (printActions) {
-    sb << actions.toString(this)
-       << conditions.toString(this)
-       ;
-  }
+  sb << toString();
 
-  if (printCode) {
-    for (LitCodeDict::Iter iter(functions);
-         !iter.isDone(); iter.next()) {
-      sb << "  fun " << iter.key() << "{ "
-         << iter.value()->strref() << " }\n";
-    }
+  if (printCode && !action.isNull()) {
+    sb << "\t\t[" << action.strref() << "]";
   }
+  
+  sb << "\n";
 
   return sb;
 }
@@ -563,10 +500,7 @@ void DottedProduction::print(ostream &os) const
 // ------------------ Grammar -----------------
 Grammar::Grammar()
   : startSymbol(NULL),
-    emptyString("empty", true /*isEmptyString*/),
-    semanticsPrologue(),     // initially invalid, meaning not defined
-    semanticsEpilogue(),
-    treeNodeBaseClass("NonterminalNode")
+    emptyString("empty", true /*isEmptyString*/)
 {}
 
 
@@ -583,10 +517,6 @@ void Grammar::xfer(Flatten &flat)
   xferObjList(flat, productions);
 
   // emptyString is const
-
-  // skip the literal code and the base class, because the intent is
-  // to read/write grammars *after* the C++ code has been emitted:
-  // 'semanticsPrologue', 'semanticsEpilogue', 'treeNodeBaseClass'
 
   // serfs
   flat.checkpoint(0x8580AAD2);
@@ -616,12 +546,12 @@ int Grammar::numNonterminals() const
 }
 
 
-void Grammar::printProductions(ostream &os, bool actions, bool code) const
+void Grammar::printProductions(ostream &os, bool code) const
 {
   os << "Grammar productions:\n";
   for (ObjListIter<Production> iter(productions);
        !iter.isDone(); iter.adv()) {
-    os << " " << iter.data()->toStringMore(actions, code);
+    os << " " << iter.data()->toStringMore(code);
   }
 }
 
@@ -687,30 +617,7 @@ bool Grammar::declareToken(char const *symbolName, int code, char const *alias)
 // well-formedness check
 void Grammar::checkWellFormed() const
 {
-  #if 0   // I no longer check this, because most of my 
-          // base classes are empty of productions
-  // verify every nonterminal has at least one rule
-  FOREACH_NONTERMINAL(nonterminals, nt) {
-    // does this nonterminal have a rule?
-    bool hasRule = false;
-    FOREACH_PRODUCTION(productions, prod) {
-      if (prod.data()->left == nt.data()) {
-        hasRule = true;
-        break;
-      }
-    }
-
-    if (!hasRule) {
-      xfailure(stringc << "nonterminal " << nt.data()->name
-                       << " has no rules");
-    }
-  }
-  #endif // 0
-  
-  // verify referential integrity in actions/conditions
-  FOREACH_PRODUCTION(productions, prod) {
-    prod.data()->checkRefs();
-  }
+  // after removing some things, now there's nothing to check...
 }
 
 
@@ -930,271 +837,5 @@ void Grammar::emitSelfCC(ostream &os) const
   // todo: more
 }
 #endif // 0
-
-
-// -------------- obsolete parsing code ------------------
-// the present syntax defined for grammars is not ideal, and the code
-// to parse it shouldn't be in this file; I'll fix these problems at
-// some point..
-
-
-bool Grammar::readFile(char const *fname)
-{
-  FILE *fp = fopen(fname, "r");
-  if (!fp) {
-    xsyserror("fopen", stringb("opening " << fname));
-  }
-
-  // state between lines
-  SObjList<Production> lastProductions;      // the last one(s) we created
-
-  char buf[256];
-  int line = 0;
-  bool ok = true;
-  while (fgets(buf, 256, fp)) {
-    line++;
-
-    if (!parseLine(buf, lastProductions)) {
-      cerr << "error parsing line " << line << endl;
-      ok = false;
-      break;    // stop after first error
-    }
-  }
-
-  if (fclose(fp) != 0) {
-    xsyserror("fclose");
-  }
-  
-  return ok;
-}
-
-
-// parse a possibly-tagged symbol name into 'name' and 'tag'
-// syntax is "tag:name" or just "name"
-void parseTaggedName(string &name, string &tag, char const *tagged)
-{
-  StrtokParse tok(tagged, ":");
-  if (tok < 1) {
-    xfailure("tagged name consisting only of colons!");
-  }
-  if (tok > 2) {
-    xfailure("tagged name with too many tags");
-  }
-
-  if (tok == 1) {
-    tag = NULL;
-    name = tok[0];
-  }
-  else {
-    tag = tok[0];
-    name = tok[1];
-  }
-}
-
-
-bool Grammar::parseLine(char const *preLine)
-{
-  SObjList<Production> dummy;
-  return parseLine(preLine, dummy);
-}
-
-
-// returns false on parse error
-bool Grammar::parseLine(char const *preLine, SObjList<Production> &lastProductions)
-{
-  // wrap it all in a try so we catch all parsing errors
-  try {
-    // strip comments
-    string line(preLine);
-    {
-      char *p = strchr(line, '#');
-      if (p != NULL) {
-        *p = 0;    // truncate line there
-      }
-    }
-
-    // parse on whitespace
-    StrtokParse tok(line, " \t\n\r");
-    if (tok == 0) {
-      // blank line or comment
-      return true;
-    }
-
-    // bison-compatible token definition
-    if (0==strcmp(tok[0], "%token")) {
-      if (tok != 3  &&  tok != 4) {
-        cout << "directive should be: %token <symbolName> <code> [<alias>]\n";
-        return false;
-      }
-
-      return declareToken(tok[1], atoi(tok[2]), tok>3? tok[3] : NULL);
-    }
-
-    // action or condition?
-    if (0==strcmp(tok[0], "%action") || 0==strcmp(tok[0], "%condition")) {
-      if (lastProductions.isEmpty()) {
-        cout << "action or condition must be preceeded by a production\n";
-        return false;
-      }
-
-      // for now, I'm being a bit redundant in my syntax
-      if (!(  0==strcmp(tok[1], "{")     &&
-              0==strcmp(tok[tok-1], "}")    )) {
-        cout << "action or condition must be surrounded by braces\n";
-        return false;
-      }
-
-      // apply the rule to all of the productions in the previous line
-      SMUTATE_EACH_OBJLIST(Production, lastProductions, iter) {
-        if (!parseAnAction(tok[0], tok.reassemble(2, tok-2, line), iter.data())) {
-          return false;
-        }
-      }
-
-      // success parsing the action or condition
-      return true;
-    }
-
-    // some unknown directive
-    if (tok[0][0] == '%') {
-      cout << "unknown directive: " << tok[0] << endl;
-      return false;
-    }
-
-    // going to parse a production, so clear the list
-    lastProductions.removeAll();
-
-    if (!parseProduction(lastProductions, tok)) {
-      return false;    // parse error, message already printed
-    }
-
-    // add the productions
-    SMUTATE_EACH_PRODUCTION(lastProductions, prod) {
-      addProduction(prod.data());
-    }
-
-    // ok
-    return true;
-  }
-
-  catch (xBase &x) {
-    cout << "parse error: " << x << endl;
-    return false;
-  }
-}
-
-
-// parse %action or %condition
-bool Grammar::parseAnAction(char const *keyword, char const *insideBraces,
-                            Production *lastProduction)
-{
-  if (0==strcmp(keyword, "%action")) {
-    lastProduction->actions.parse(lastProduction, insideBraces);
-    return true;
-  }
-
-  else if (0==strcmp(keyword, "%condition")) {
-    lastProduction->conditions.parse(lastProduction, insideBraces);
-    return true;
-  }
-
-  else {
-    xfailure("parseAnAction called with wrong directive!");
-    return false;      // silence warning
-  }
-}
-
-
-// given the name of a symbol (terminal or nonterminal) as it
-// appears in the grammar input file, return the symbol named,
-// and the tag (or NULL); returns NULL if there is an error
-Symbol *Grammar::parseGrammarSymbol(char const *token, string &tag)
-{
-  // assume there will be no tag
-  tag = NULL;
-
-  // terminal?
-  if (findTerminalC(token)) {
-    return findTerminal(token);
-  }
-
-  // empty string
-  else if (0==strcmp(token, "empty")) {
-    return &emptyString;
-  }
-
-  // nonterminal (has to start with an uppercase letter)
-  else if (strchr(token, ':') || isupper(token[0])) {
-    string name;
-    parseTaggedName(name, tag, token);
-    return getOrMakeNonterminal(name);
-  }
-
-  // old code for automatically defining new tokens
-  //if (token[0] == '"') {
-  //  return getOrMakeTerminal(parseQuotedString(token));
-  //}
-
-  // error
-  else {
-    cout << "not a valid symbol (tokens must be declared): " << token << endl;
-    return NULL;
-  }
-}
-
-
-// given a token sequence representing one or more productions, parse
-// them and put the productions into 'prods' (does NOT add them to
-// the Grammar's main 'productions' list); return false on parse error
-bool Grammar::parseProduction(ProductionList &prods, StrtokParse const &tok)
-{
-  // check that the 2nd token is the "rewrites-as" symbol
-  if (0!=strcmp(tok[1], "->")) {
-    cout << "2nd token of production must be `->'\n";
-    return false;
-  }
-
-  // get LHS token
-  string name, tag;
-  parseTaggedName(name, tag, tok[0]);
-  string leftTag = tag;     // need to remember it in case we see '|'
-  Nonterminal *LHS = getOrMakeNonterminal(name);
-
-  // make a production
-  Production *prod = new Production(LHS, leftTag);
-
-  // process RHS symbols
-  for (int i=2; i<tok; i++) {
-    // alternatives -- syntactic sugar
-    if (0==strcmp(tok[i], "|")) {
-      // finish the current production
-      prods.append(prod);
-
-      // start another
-      prod = new Production(LHS, leftTag);
-    }
-
-    else {
-      // terminal or nonterminal
-      Symbol *sym = parseGrammarSymbol(tok[i], tag /*out*/);
-      if (!sym) {
-        return false;
-      }
-
-      if (sym == &emptyString) {
-        // new policy is to not include it
-      }
-      else {
-        // add it to the production
-        prod->append(sym, tag);
-      }
-    }
-  }
-
-  // done, so add the production
-  prods.append(prod);
-  return true;
-}
-
 
 

@@ -272,12 +272,10 @@ public:	    // funcs
 
   // overrides base class to add a little bit of the
   // annotated info
-  void printProductions(ostream &os, bool printActions=true,
-                                     bool printCode=true) const;
+  void printProductions(ostream &os, bool printCode=true) const;
 
   // print lots of stuff
-  void printProductionsAndItems(ostream &os, bool printActions=true,
-                                             bool printCode=true) const;
+  void printProductionsAndItems(ostream &os, bool printCode=true) const;
 
   // when grammar is built, this runs all analyses and stores
   // the results in this object's data fields

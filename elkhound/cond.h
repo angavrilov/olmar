@@ -1,6 +1,8 @@
 // cond.h
 // conditions that must be true for a grammar rule to apply
 
+#error This module is obsolete.
+
 #ifndef __COND_H
 #define __COND_H
 

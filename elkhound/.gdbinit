@@ -12,8 +12,11 @@
 #  file gramanl
 #  set args -tr semant cc
 
-file cexp2
-set args cexp2.bin cexp.in1
+#  file cexp2
+#  set args cexp2.bin cexp.in1
+
+file grampar
+set args -tr grampar asu419.gr
 
 break main
 break breaker

@@ -9,91 +9,33 @@
 // *** DO NOT EDIT ***
 GrammarAST::~GrammarAST()
 {
-  forms.deleteAll();
+  delete terms;
+  nonterms.deleteAll();
 }
 
 void GrammarAST::debugPrint(ostream &os, int indent) const
 {
   PRINT_HEADER(GrammarAST);
 
-  PRINT_LIST(ToplevelForm, forms);
+  PRINT_SUBTREE(terms);
+  PRINT_LIST(NontermDecl, nonterms);
 }
 
 
-// ------------------ ToplevelForm -------------------
+// ------------------ Terminals -------------------
 // *** DO NOT EDIT ***
-ToplevelForm::~ToplevelForm()
+Terminals::~Terminals()
 {
+  decls.deleteAll();
+  types.deleteAll();
 }
 
-void ToplevelForm::debugPrint(ostream &os, int indent) const
+void Terminals::debugPrint(ostream &os, int indent) const
 {
-}
+  PRINT_HEADER(Terminals);
 
-DEFN_AST_DOWNCASTS(ToplevelForm, TF_terminals, TF_TERMINALS)
-
-TF_terminals::~TF_terminals()
-{
-  terms.deleteAll();
-}
-
-void TF_terminals::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(TF_terminals);
-
-  ToplevelForm::debugPrint(os, indent);
-
-  PRINT_LIST(TermDecl, terms);
-}
-
-DEFN_AST_DOWNCASTS(ToplevelForm, TF_nonterminal, TF_NONTERMINAL)
-
-TF_nonterminal::~TF_nonterminal()
-{
-  baseClasses.deleteAll();
-  elts.deleteAll();
-}
-
-void TF_nonterminal::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(TF_nonterminal);
-
-  ToplevelForm::debugPrint(os, indent);
-
-  PRINT_GENERIC(name);
-  PRINT_LIST(LocString, baseClasses);
-  PRINT_LIST(NTBodyElt, elts);
-}
-
-DEFN_AST_DOWNCASTS(ToplevelForm, TF_lit, TF_LIT)
-
-TF_lit::~TF_lit()
-{
-  delete lit;
-}
-
-void TF_lit::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(TF_lit);
-
-  ToplevelForm::debugPrint(os, indent);
-
-  PRINT_SUBTREE(lit);
-}
-
-DEFN_AST_DOWNCASTS(ToplevelForm, TF_treeNodeBase, TF_TREENODEBASE)
-
-TF_treeNodeBase::~TF_treeNodeBase()
-{
-}
-
-void TF_treeNodeBase::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(TF_treeNodeBase);
-
-  ToplevelForm::debugPrint(os, indent);
-
-  PRINT_GENERIC(baseClassName);
+  PRINT_LIST(TermDecl, decls);
+  PRINT_LIST(TermType, types);
 }
 
 
@@ -113,246 +55,51 @@ void TermDecl::debugPrint(ostream &os, int indent) const
 }
 
 
-// ------------------ NTBodyElt -------------------
+// ------------------ TermType -------------------
 // *** DO NOT EDIT ***
-NTBodyElt::~NTBodyElt()
+TermType::~TermType()
 {
 }
 
-void NTBodyElt::debugPrint(ostream &os, int indent) const
+void TermType::debugPrint(ostream &os, int indent) const
 {
-}
-
-DEFN_AST_DOWNCASTS(NTBodyElt, NT_attr, NT_ATTR)
-
-NT_attr::~NT_attr()
-{
-}
-
-void NT_attr::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(NT_attr);
-
-  NTBodyElt::debugPrint(os, indent);
+  PRINT_HEADER(TermType);
 
   PRINT_GENERIC(name);
-}
-
-DEFN_AST_DOWNCASTS(NTBodyElt, NT_decl, NT_DECL)
-
-NT_decl::~NT_decl()
-{
-}
-
-void NT_decl::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(NT_decl);
-
-  NTBodyElt::debugPrint(os, indent);
-
-  PRINT_GENERIC(declBody);
-}
-
-DEFN_AST_DOWNCASTS(NTBodyElt, NT_elt, NT_ELT)
-
-NT_elt::~NT_elt()
-{
-  delete elt;
-}
-
-void NT_elt::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(NT_elt);
-
-  NTBodyElt::debugPrint(os, indent);
-
-  PRINT_SUBTREE(elt);
-}
-
-DEFN_AST_DOWNCASTS(NTBodyElt, NT_lit, NT_LIT)
-
-NT_lit::~NT_lit()
-{
-  delete lit;
-}
-
-void NT_lit::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(NT_lit);
-
-  NTBodyElt::debugPrint(os, indent);
-
-  PRINT_SUBTREE(lit);
-}
-
-DEFN_AST_DOWNCASTS(NTBodyElt, NT_funDecl, NT_FUNDECL)
-
-NT_funDecl::~NT_funDecl()
-{
-}
-
-void NT_funDecl::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(NT_funDecl);
-
-  NTBodyElt::debugPrint(os, indent);
-
-  PRINT_GENERIC(declName);
-  PRINT_GENERIC(declBody);
+  PRINT_GENERIC(type);
 }
 
 
-// ------------------ GroupElement -------------------
+// ------------------ NontermDecl -------------------
 // *** DO NOT EDIT ***
-GroupElement::~GroupElement()
+NontermDecl::~NontermDecl()
 {
+  productions.deleteAll();
 }
 
-void GroupElement::debugPrint(ostream &os, int indent) const
+void NontermDecl::debugPrint(ostream &os, int indent) const
 {
-}
-
-DEFN_AST_DOWNCASTS(GroupElement, GE_form, GE_FORM)
-
-GE_form::~GE_form()
-{
-  rhsides.deleteAll();
-  elts.deleteAll();
-}
-
-void GE_form::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(GE_form);
-
-  GroupElement::debugPrint(os, indent);
-
-  PRINT_LIST(RHS, rhsides);
-  PRINT_LIST(FormBodyElt, elts);
-}
-
-DEFN_AST_DOWNCASTS(GroupElement, GE_formGroup, GE_FORMGROUP)
-
-GE_formGroup::~GE_formGroup()
-{
-  elts.deleteAll();
-}
-
-void GE_formGroup::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(GE_formGroup);
-
-  GroupElement::debugPrint(os, indent);
-
-  PRINT_LIST(GroupElement, elts);
-}
-
-DEFN_AST_DOWNCASTS(GroupElement, GE_fbe, GE_FBE)
-
-GE_fbe::~GE_fbe()
-{
-  delete e;
-}
-
-void GE_fbe::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(GE_fbe);
-
-  GroupElement::debugPrint(os, indent);
-
-  PRINT_SUBTREE(e);
-}
-
-
-// ------------------ FormBodyElt -------------------
-// *** DO NOT EDIT ***
-FormBodyElt::~FormBodyElt()
-{
-}
-
-void FormBodyElt::debugPrint(ostream &os, int indent) const
-{
-}
-
-DEFN_AST_DOWNCASTS(FormBodyElt, FB_action, FB_ACTION)
-
-FB_action::~FB_action()
-{
-  delete expr;
-}
-
-void FB_action::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(FB_action);
-
-  FormBodyElt::debugPrint(os, indent);
+  PRINT_HEADER(NontermDecl);
 
   PRINT_GENERIC(name);
-  PRINT_SUBTREE(expr);
-}
-
-DEFN_AST_DOWNCASTS(FormBodyElt, FB_condition, FB_CONDITION)
-
-FB_condition::~FB_condition()
-{
-  delete condExpr;
-}
-
-void FB_condition::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(FB_condition);
-
-  FormBodyElt::debugPrint(os, indent);
-
-  PRINT_SUBTREE(condExpr);
-}
-
-DEFN_AST_DOWNCASTS(FormBodyElt, FB_treeCompare, FB_TREECOMPARE)
-
-FB_treeCompare::~FB_treeCompare()
-{
-  delete decideExpr;
-}
-
-void FB_treeCompare::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(FB_treeCompare);
-
-  FormBodyElt::debugPrint(os, indent);
-
-  PRINT_GENERIC(leftName);
-  PRINT_GENERIC(rightName);
-  PRINT_SUBTREE(decideExpr);
-}
-
-DEFN_AST_DOWNCASTS(FormBodyElt, FB_funDefn, FB_FUNDEFN)
-
-FB_funDefn::~FB_funDefn()
-{
-}
-
-void FB_funDefn::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(FB_funDefn);
-
-  FormBodyElt::debugPrint(os, indent);
-
-  PRINT_GENERIC(name);
-  PRINT_GENERIC(defnBody);
+  PRINT_GENERIC(type);
+  PRINT_LIST(ProdDecl, productions);
 }
 
 
-// ------------------ RHS -------------------
+// ------------------ ProdDecl -------------------
 // *** DO NOT EDIT ***
-RHS::~RHS()
+ProdDecl::~ProdDecl()
 {
   rhs.deleteAll();
 }
 
-void RHS::debugPrint(ostream &os, int indent) const
+void ProdDecl::debugPrint(ostream &os, int indent) const
 {
-  PRINT_HEADER(RHS);
+  PRINT_HEADER(ProdDecl);
 
   PRINT_LIST(RHSElt, rhs);
+  PRINT_GENERIC(actionCode);
 }
 
 
@@ -426,180 +173,6 @@ void RH_taggedString::debugPrint(ostream &os, int indent) const
 
   PRINT_GENERIC(tag);
   PRINT_GENERIC(str);
-}
-
-
-// ------------------ ExprAST -------------------
-// *** DO NOT EDIT ***
-ExprAST::~ExprAST()
-{
-}
-
-void ExprAST::debugPrint(ostream &os, int indent) const
-{
-}
-
-DEFN_AST_DOWNCASTS(ExprAST, E_attrRef, E_ATTRREF)
-
-E_attrRef::~E_attrRef()
-{
-}
-
-void E_attrRef::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(E_attrRef);
-
-  ExprAST::debugPrint(os, indent);
-
-  PRINT_GENERIC(tag);
-  PRINT_GENERIC(attr);
-}
-
-DEFN_AST_DOWNCASTS(ExprAST, E_treeAttrRef, E_TREEATTRREF)
-
-E_treeAttrRef::~E_treeAttrRef()
-{
-}
-
-void E_treeAttrRef::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(E_treeAttrRef);
-
-  ExprAST::debugPrint(os, indent);
-
-  PRINT_GENERIC(tree);
-  PRINT_GENERIC(tag);
-  PRINT_GENERIC(attr);
-}
-
-DEFN_AST_DOWNCASTS(ExprAST, E_intLit, E_INTLIT)
-
-E_intLit::~E_intLit()
-{
-}
-
-void E_intLit::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(E_intLit);
-
-  ExprAST::debugPrint(os, indent);
-
-  PRINT_GENERIC(val);
-}
-
-DEFN_AST_DOWNCASTS(ExprAST, E_funCall, E_FUNCALL)
-
-E_funCall::~E_funCall()
-{
-  args.deleteAll();
-}
-
-void E_funCall::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(E_funCall);
-
-  ExprAST::debugPrint(os, indent);
-
-  PRINT_GENERIC(funcName);
-  PRINT_LIST(ExprAST, args);
-}
-
-DEFN_AST_DOWNCASTS(ExprAST, E_unary, E_UNARY)
-
-E_unary::~E_unary()
-{
-  delete exp;
-}
-
-void E_unary::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(E_unary);
-
-  ExprAST::debugPrint(os, indent);
-
-  PRINT_GENERIC(op);
-  PRINT_SUBTREE(exp);
-}
-
-DEFN_AST_DOWNCASTS(ExprAST, E_binary, E_BINARY)
-
-E_binary::~E_binary()
-{
-  delete left;
-  delete right;
-}
-
-void E_binary::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(E_binary);
-
-  ExprAST::debugPrint(os, indent);
-
-  PRINT_GENERIC(op);
-  PRINT_SUBTREE(left);
-  PRINT_SUBTREE(right);
-}
-
-DEFN_AST_DOWNCASTS(ExprAST, E_cond, E_COND)
-
-E_cond::~E_cond()
-{
-  delete test;
-  delete thenExp;
-  delete elseExp;
-}
-
-void E_cond::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(E_cond);
-
-  ExprAST::debugPrint(os, indent);
-
-  PRINT_SUBTREE(test);
-  PRINT_SUBTREE(thenExp);
-  PRINT_SUBTREE(elseExp);
-}
-
-
-// ------------------ LiteralCodeAST -------------------
-// *** DO NOT EDIT ***
-LiteralCodeAST::~LiteralCodeAST()
-{
-}
-
-void LiteralCodeAST::debugPrint(ostream &os, int indent) const
-{
-  PRINT_GENERIC(codeKindTag);
-  PRINT_GENERIC(codeBody);
-}
-
-DEFN_AST_DOWNCASTS(LiteralCodeAST, LC_modifier, LC_MODIFIER)
-
-LC_modifier::~LC_modifier()
-{
-}
-
-void LC_modifier::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(LC_modifier);
-
-  LiteralCodeAST::debugPrint(os, indent);
-
-  PRINT_GENERIC(funcToModify);
-}
-
-DEFN_AST_DOWNCASTS(LiteralCodeAST, LC_standAlone, LC_STANDALONE)
-
-LC_standAlone::~LC_standAlone()
-{
-}
-
-void LC_standAlone::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(LC_standAlone);
-
-  LiteralCodeAST::debugPrint(os, indent);
-
 }
 
 

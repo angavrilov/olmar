@@ -2,8 +2,16 @@
 // code for fileloc.h
 
 #include "fileloc.h"       // this module
+#include "flatten.h"       // Flatten
 
 // -------------------- FileLocation -----------------------------
+void FileLocation::xfer(Flatten &flat)
+{
+  flat.xferInt(line);
+  flat.xferInt(col);
+}
+
+
 string FileLocation::toString() const
 {
   if (isValid()) {
@@ -67,6 +75,29 @@ SourceLocation::SourceLocation(FileLocation const &floc, SourceFile *f)
   : FileLocation(floc),
     file(f)
 {}
+
+
+void SourceLocation::xfer(Flatten &flat)
+{
+  if (flat.writing()) { 
+    char *str = file? file->filename.pchar() : NULL;
+    flat.xferCharString(str);
+  }
+
+  else { // reading
+    char *str;
+    flat.xferCharString(str);
+
+    if (!str) {
+      file = NULL;
+    }
+    else {
+      // not null; allocate a new (if necessary) object in the global list
+      file = sourceFileList.open(str);
+      delete[] str;
+    }
+  }
+}
 
 
 char const *SourceLocation::fname() const

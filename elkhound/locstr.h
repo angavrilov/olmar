@@ -18,6 +18,9 @@ public:    // funcs
   LocString(SourceLocation const &loc, StringRef str);
   LocString(FileLocation const &floc, SourceFile *f, StringRef str);
 
+  LocString(Flatten&);
+  void xfer(Flatten &flat);
+
   // deallocates its argument; intended for convenient use in bison grammar files
   EXPLICIT LocString(LocString *obj);
 

@@ -4,13 +4,12 @@
 OCAMLINCL mode = --ocaml
 NOCAMLINCL mode = --nocaml
 
-# main targets; a few objs in front to tweak compile order
-# so I get to the errors faster
-all: check-makefiles gramast.gen.h ccgr
+temporary: check-makefiles grampar
 
-# added this because otherwise there's a decent chance
-# that changes I make and Wes cvs-updates won't make it
-# into his Makefile
+# main targets
+all: check-makefiles ccgr
+
+# this target ensures the Makefile is in synch with Makefile.in
 check-makefiles:
 	@if [ Makefile -ot Makefile.in ]; then             \
           echo "Makefile.in has changed; I will now do:" ; \
@@ -51,14 +50,14 @@ include ${SMBASE}/Makefile.base.mk
 
 # sets of related object files
 # files needed to represent a grammar in memory
-grammar-set = grammar.o action.o cond.o attr.o attrexpr.o locstr.o
+grammar-set = grammar.o locstr.o
 
 # in addition to grammar-set, files needed to parse a grammar description
 grampar-set = grampar.tab.o gramlex.yy.o grampar.o gramlex.o \
               ast.o fileloc.o ccsstr.o ../ast/embedded.o \
               gramast.gen.o strtable.o ../ast/asthelp.o
 
-# in addition to grammar-set, file needed to do GLR parsing
+# in addition to grammar-set, file needed to do GLR parsing of C/C++ code
 glr-set = gramanl.o glrtree.o glr.o lexer1.o lexer1yy.o \
           lexer2.o parssppt.o
 
@@ -130,9 +129,10 @@ grampar.tab.cc grampar.tab.h grampar.codes.h: grampar.y gramast.gen.h
 
 # grammar parser test program
 grampar: grampar.cc ${grammar-set} ${common} gramlex.yy.o grampar.tab.o \
-         gramlex.o ast.o fileloc.o gramast.o ccsstr.o glrtree.o \
-         lexer2stub.o ../ast/embedded.o
-	${link} -o grampar -DTEST_GRAMPAR $^ ${linkend}
+         gramlex.o ast.o fileloc.o gramast.gen.o ccsstr.o \
+         lexer2stub.o ../ast/embedded.o strtable.o ../ast/asthelp.o \
+         ${libraries}
+	${link} -o grampar -DTEST_GRAMPAR $^
 
 # token list for my grammar
 cc.tok: lexer2

@@ -10,6 +10,7 @@
 #include "nonport.h"     // getMilliseconds
 #include "crc.h"         // crc32
 #include "flatutil.h"    // Flatten, xfer helpers
+#include "grampar.h"     // readGrammarFile
 
 #include <fstream.h>     // ofstream
 
@@ -625,21 +626,19 @@ void GrammarAnalysis::xfer(Flatten &flat)
 
 
 void GrammarAnalysis::
-  printProductions(ostream &os, bool printActions,
-                                bool printCode) const
+  printProductions(ostream &os, bool printCode) const
 {
   if (cyclic) {
     os << "(cyclic!) ";
   }
-  Grammar::printProductions(os, printActions, printCode);
+  Grammar::printProductions(os, printCode);
 }
 
 
 void GrammarAnalysis::
-  printProductionsAndItems(ostream &os, bool printActions,
-                                        bool printCode) const
+  printProductionsAndItems(ostream &os, bool printCode) const
 {
-  printProductions(os, printActions, printCode);
+  printProductions(os, printCode);
 
   FOREACH_OBJLIST(ItemSet, itemSets, iter) {
     iter.data()->print(os);
@@ -2100,11 +2099,16 @@ void GrammarAnalysis::exampleGrammar()
   #endif // 0
 
   #if 1
-    // [ASU] grammar 4.19, p.222: demonstrating LR sets-of-items construction
-    parseLine("E' ->  E $                ");
-    parseLine("E  ->  E + T  |  T        ");
-    parseLine("T  ->  T * F  |  F        ");
-    parseLine("F  ->  ( E )  |  id       ");
+    #if 0
+      // [ASU] grammar 4.19, p.222: demonstrating LR sets-of-items construction
+      parseLine("E' ->  E $                ");
+      parseLine("E  ->  E + T  |  T        ");
+      parseLine("T  ->  T * F  |  F        ");
+      parseLine("F  ->  ( E )  |  id       ");
+    #else
+      // get that grammar from a file instead
+      readGrammarFile(*this, "asu419.gr");
+    #endif
 
     char const *input[] = {
       " id                 $",
@@ -2230,7 +2234,7 @@ void GrammarAnalysis::runAnalyses()
 
 
   if (tracingSys("itemsets")) {
-    printProductionsAndItems(cout, true, false);
+    printProductionsAndItems(cout, true /*code*/);
   }
 
 
@@ -2281,8 +2285,7 @@ int main(int argc, char **argv)
   string prefix = argv[1];
 
   
-  bool printActions = true;
-  bool printCode = false;
+  bool printCode = true;
 
 
   GrammarAnalysis g;
@@ -2297,7 +2300,7 @@ int main(int argc, char **argv)
     traceProgress() << "printing ascii grammar " << g1Fname << endl;
     {
       ofstream out(g1Fname);
-      g.printProductionsAndItems(out, printActions, printCode);
+      g.printProductionsAndItems(out, printCode);
     }
   }
 
@@ -2329,7 +2332,7 @@ int main(int argc, char **argv)
     traceProgress() << "printing ascii grammar " << g2Fname << endl;
     {
       ofstream out(g2Fname);
-      g2.printProductionsAndItems(out, printActions, printCode);
+      g2.printProductionsAndItems(out, printCode);
     }
 
     // diff 'em

@@ -1,11 +1,19 @@
 // strtable.h
-// implements a collection of immutable strings (assumed relatively
-// short length) with unique representatives
+// implements a collection of immutable strings with unique representatives
 
 #ifndef STRTABLE_H
 #define STRTABLE_H
 
 #include "strhash.h"     // StringHash
+
+// fwd
+class Flatten;
+
+// global string table for use during flattening/unflattening;
+// it's up to clients to manage this ptr, as this module doesn't
+// do anything besides define it into existence
+// (this isn't the ideal solution..)
+extern class StringTable *flattenStrTable;
 
 
 // the type of references to strings in a string table; the pointer
@@ -16,7 +24,7 @@ typedef char const *StringRef;
 
 
 class StringTable {
-private:    // types                                       
+private:    // types
   // constants
   enum {
     rackSize = 16000,      // size of one rack
@@ -78,11 +86,14 @@ public:     // funcs
   // if 'src' is in the table, return its representative; if not,
   // return NULL
   StringRef get(char const *src) const;
-  
+
   // similar functions for strings with specified lengths
   // this doesn't work because the underlying hash table interface needs null terminators..
   //StringRef add(char const *src, int len);
   //StringRef get(char const *src, int len) const;
+
+  // read/write binary
+  void xfer(Flatten &flat, StringRef &ref);
 };
 
 

@@ -27,9 +27,7 @@
 #include "objlist.h"     // ObjList
 #include "sobjlist.h"    // SObjList
 #include "util.h"        // OSTREAM_OPERATOR, INTLOOP
-#include "action.h"      // Actions
-#include "cond.h"        // Conditions
-#include "locstr.h"      // LocString
+#include "locstr.h"      // LocString, StringRef
 #include "strobjdict.h"  // StringObjDict
 #include "owner.h"       // Owner
 
@@ -58,9 +56,11 @@ public:
                             // false: nonterminal (can appear on left-hand sides)
   bool const isEmptyString; // true only for the emptyString nonterminal
 
+  StringRef type;           // C type of semantic value
+
 public:
   Symbol(char const *n, bool t, bool e = false)
-    : name(n), isTerm(t), isEmptyString(e) {}
+    : name(n), isTerm(t), isEmptyString(e), type(NULL) {}
   virtual ~Symbol();
 
   Symbol(Flatten&);
@@ -155,35 +155,37 @@ string terminalSequenceToString(TerminalList const &list);
 // (or, emptyString, since we classify that as a nonterminal also)
 class Nonterminal : public Symbol {
 // ------ representation ------
-public:     // data          
-  // names of attributes that are associated with this nonterminal;
-  // every production with this NT on its LHS must specify values
-  // for all attributes
-  ObjList<string> attributes;
+public:     // data
+  #if 0
+    // names of attributes that are associated with this nonterminal;
+    // every production with this NT on its LHS must specify values
+    // for all attributes
+    ObjList<string> attributes;
 
-  // inheritance relationships
-  SObjList<Nonterminal> superclasses;
+    // inheritance relationships
+    SObjList<Nonterminal> superclasses;
 
-  // declarations of functions, as a dictionary: name -> declBody; the
-  // text of the declaration is stored because it is needed when
-  // emitting substrate code
-  LitCodeDict funDecls;
+    // declarations of functions, as a dictionary: name -> declBody; the
+    // text of the declaration is stored because it is needed when
+    // emitting substrate code
+    LitCodeDict funDecls;
 
-  // for each function, we can optionally have prefix code which is run
-  // at the start of that function, regardless of the production in
-  // which it appears
-  LitCodeDict funPrefixes;
+    // for each function, we can optionally have prefix code which is run
+    // at the start of that function, regardless of the production in
+    // which it appears
+    LitCodeDict funPrefixes;
 
-  // declarations of things (data and fns) that are *not* implemented
-  // in generated code
-  ObjList<LocString> declarations;
+    // declarations of things (data and fns) that are *not* implemented
+    // in generated code
+    ObjList<LocString> declarations;
 
-  // definitions of disambiguation routines
-  LitCodeDict disambFuns;
+    // definitions of disambiguation routines
+    LitCodeDict disambFuns;
 
-  // con/destructor functions
-  LocString constructor;
-  LocString destructor;
+    // con/destructor functions
+    LocString constructor;
+    LocString destructor;
+  #endif // 0
 
 public:     // funcs
   Nonterminal(char const *name, bool isEmptyString=false);
@@ -193,16 +195,18 @@ public:     // funcs
   void xfer(Flatten &flat);
   void xferSerfs(Flatten &flat, Grammar &g);
 
-  // return true if 'attr' is among 'attributes'
-  // (by 0==strcmp comparison)
-  bool hasAttribute(char const *attr) const;
+  #if 0
+    // return true if 'attr' is among 'attributes'
+    // (by 0==strcmp comparison)
+    bool hasAttribute(char const *attr) const;
 
-  // true if the given nonterminal is a superclass (transitively)
-  bool hasSuperclass(Nonterminal const *nt) const;
+    // true if the given nonterminal is a superclass (transitively)
+    bool hasSuperclass(Nonterminal const *nt) const;
 
-  // true if the named function has a declaration here
-  bool hasFunDecl(char const *name) const
-    { return funDecls.isMapped(name); }
+    // true if the named function has a declaration here
+    bool hasFunDecl(char const *name) const
+      { return funDecls.isMapped(name); }
+  #endif // 0
 
   virtual void print(ostream &os) const;
   OSTREAM_OPERATOR(Nonterminal)
@@ -248,13 +252,18 @@ public:	    // data
   // if repr. changes) overhead of access via member fn.  use 'append' to
   // add new elements.
 
-  // disambiguation during tree-building
-  Conditions conditions;       	// every condition must be satisfied for a rule to be used
-  Actions actions;              // when used, a rule has these effects
-  AExprNode *treeCompare;       // (owner) tree comparison routine
+  #if 0
+    // disambiguation during tree-building
+    Conditions conditions;        // every condition must be satisfied for a rule to be used
+    Actions actions;              // when used, a rule has these effects
+    AExprNode *treeCompare;       // (owner) tree comparison routine
 
-  // semantics and post-tree-build disambiguation
-  LitCodeDict functions;        // semantic functions: name -> body
+    // semantics and post-tree-build disambiguation
+    LitCodeDict functions;        // semantic functions: name -> body
+  #endif // 0
+
+  // user-supplied reduction action code
+  LocString action;
 
 public:	    // funcs
   Production(Nonterminal *left, char const *leftTag);
@@ -270,15 +279,20 @@ public:	    // funcs
 
   // number of nonterminals on RHS
   int numRHSNonterminals() const;
-  
-  // find an action that sets the named attribute; return
-  // NULL if none do
-  Action const *getAttrActionFor(char const *attr) const
-    { return actions.getAttrActionFor(attr); }
 
-  // true if the named function has an implementation here
-  bool hasFunction(char const *name) const
-    { return functions.isMapped(name); }
+  #if 0
+    // find an action that sets the named attribute; return
+    // NULL if none do
+    Action const *getAttrActionFor(char const *attr) const
+      { return actions.getAttrActionFor(attr); }
+
+    // true if the named function has an implementation here
+    bool hasFunction(char const *name) const
+      { return functions.isMapped(name); }
+
+    // check for referential integrity in actions and conditions
+    void checkRefs() const;
+  #endif // 0
 
   // append a RHS symbol
   void append(Symbol *sym, char const *tag);
@@ -307,9 +321,6 @@ public:	    // funcs
   DottedProduction *getDProd(int dotPlace)
     { return const_cast<DottedProduction*>(getDProdC(dotPlace)); }
 
-  // check for referential integrity in actions and conditions
-  void checkRefs() const;  
-
   // print 'A -> B c D' (no newline)
   string toString() const;
   string rhsString() const;       // 'B c D' for above example rule
@@ -317,10 +328,8 @@ public:	    // funcs
   OSTREAM_OPERATOR(Production)
 
   // print entire input syntax, with newlines, e.g.
-  //   A -> B c D
-  //     %action { A.x = B.x }
-  //     %condition { B.y > D.y }
-  string toStringMore(bool printActions, bool printCode) const;
+  //   A -> B c D { return foo; }
+  string toStringMore(bool printCode) const;
 
 // ------ annotation ------
 private:    // data
@@ -408,22 +417,26 @@ public:	    // data
   // nice to treat empty like any other symbol
   Nonterminal emptyString;
 
-  // ---- stuff for emitting treewalk code ----
-  // extra user-supplied source in the embedded language,
-  // meant to appear in the generated semantic-functions files
-  LocString semanticsPrologue;          // top of .h file
-  LocString semanticsEpilogue;          // bottom of .cc file
+  #if 0
+    // ---- stuff for emitting treewalk code ----
+    // extra user-supplied source in the embedded language,
+    // meant to appear in the generated semantic-functions files
+    LocString semanticsPrologue;          // top of .h file
+    LocString semanticsEpilogue;          // bottom of .cc file
 
-  // name of base class for tree nodes; defaults to "NonterminalNode"
-  string treeNodeBaseClass;
+    // name of base class for tree nodes; defaults to "NonterminalNode"
+    string treeNodeBaseClass;
+  #endif // 0
 
 private:    // funcs
-  // obsolete parsing functions
-  bool parseAnAction(char const *keyword, char const *insideBraces,
-                     Production *lastProduction);
+  #if 0
+    // obsolete parsing functions
+    bool parseAnAction(char const *keyword, char const *insideBraces,
+                       Production *lastProduction);
 
-  Symbol *parseGrammarSymbol(char const *token, string &tag);
-  bool parseProduction(ProductionList &prods, StrtokParse const &tok);
+    Symbol *parseGrammarSymbol(char const *token, string &tag);
+    bool parseProduction(ProductionList &prods, StrtokParse const &tok);
+  #endif // 0
 
 public:     // funcs
   Grammar();                            // set everything manually
@@ -450,8 +463,7 @@ public:     // funcs
 
   // ---------- outputting a grammar --------------
   // print the current list of productions
-  void printProductions(ostream &os, bool printActions=true,
-                                     bool printCode=true) const;
+  void printProductions(ostream &os, bool printCode=true) const;
 
   // emit C++ code to construct this grammar later
   void emitSelfCC(ostream &os) const;
@@ -459,7 +471,7 @@ public:     // funcs
   // ---- whole-grammar stuff ----
   // after adding all rules, check that all nonterminals have
   // at least one rule; also checks referential integrity
-  // in actions and conditiosn; throw exception if there is a
+  // in actions and conditions; throw exception if there is a
   // problem
   void checkWellFormed() const;
 
@@ -468,13 +480,15 @@ public:     // funcs
   // dump syntax is identical to my (current) input syntax!)
   void printAsBison(ostream &os) const;
 
-  // ---- grammar parsing (obsolete) ----
-  // these are retained because a few test codes use them
-  bool readFile(char const *fname);
+  #if 0
+    // ---- grammar parsing (obsolete) ----
+    // these are retained because a few test codes use them
+    bool readFile(char const *fname);
 
-  // parse a line like "LHS -> R1 R2 R3", return false on parse error
-  bool parseLine(char const *grammarLine);
-  bool parseLine(char const *preLine, SObjList<Production> &lastProductions);
+    // parse a line like "LHS -> R1 R2 R3", return false on parse error
+    bool parseLine(char const *grammarLine);
+    bool parseLine(char const *preLine, SObjList<Production> &lastProductions);
+  #endif // 0
 
 
   // ---- symbol access ----

@@ -66,8 +66,7 @@ SLWHITE   [ \t]
 %x C_COMMENT
 %x INCLUDE
 %x EAT_TO_NEWLINE
-%x FUNDECL
-%x FUN
+%x LITCODE
 
 
 /* ---------------------- rules ----------------------- */
@@ -123,90 +122,31 @@ SLWHITE   [ \t]
 
 
   /* -------- punctuators, operators, keywords --------- */
+"{"                TOK_UPD_COL;  return TOK_LBRACE;
 "}"                TOK_UPD_COL;  return TOK_RBRACE;
 ":"                TOK_UPD_COL;  return TOK_COLON;
 ";"                TOK_UPD_COL;  return TOK_SEMICOLON;
 "->"               TOK_UPD_COL;  return TOK_ARROW;
-"|"                TOK_UPD_COL;  return TOK_VERTBAR;
-":="               TOK_UPD_COL;  return TOK_COLONEQUALS;
 "("                TOK_UPD_COL;  return TOK_LPAREN;
 ")"                TOK_UPD_COL;  return TOK_RPAREN;
-"."                TOK_UPD_COL;  return TOK_DOT;
-","                TOK_UPD_COL;  return TOK_COMMA;
-
-"||"               TOK_UPD_COL;  return TOK_OROR;
-"&&"               TOK_UPD_COL;  return TOK_ANDAND;
-"!="               TOK_UPD_COL;  return TOK_NOTEQUAL;
-"=="               TOK_UPD_COL;  return TOK_EQUALEQUAL;
-">="               TOK_UPD_COL;  return TOK_GREATEREQ;
-"<="               TOK_UPD_COL;  return TOK_LESSEQ;
-">"                TOK_UPD_COL;  return TOK_GREATER;
-"<"                TOK_UPD_COL;  return TOK_LESS;
-"-"                TOK_UPD_COL;  return TOK_MINUS;
-"+"                TOK_UPD_COL;  return TOK_PLUS;
-"%"                TOK_UPD_COL;  return TOK_PERCENT;
-"/"                TOK_UPD_COL;  return TOK_SLASH;
-"*"                TOK_UPD_COL;  return TOK_ASTERISK;
-"?"                TOK_UPD_COL;  return TOK_QUESTION;
 
 "terminals"        TOK_UPD_COL;  return TOK_TERMINALS;
+"token"            TOK_UPD_COL;  return TOK_TOKEN;
 "nonterm"          TOK_UPD_COL;  return TOK_NONTERM;
-"formGroup"        TOK_UPD_COL;  return TOK_FORMGROUP;
-"attr"             TOK_UPD_COL;  return TOK_ATTR;
-"action"           TOK_UPD_COL;  return TOK_ACTION;
-"condition"        TOK_UPD_COL;  return TOK_CONDITION;
-"treeNodeBase"     TOK_UPD_COL;  return TOK_TREENODEBASE;
-"treeCompare"      TOK_UPD_COL;  return TOK_TREECOMPARE;
 
-  /* --------- embedded semantic functions --------- */
-"fundecl" {
+  /* --------- embedded literal code --------- */
+"[" {
   TOK_UPD_COL;
-  BEGIN(FUNDECL);
+  BEGIN(LITCODE);
   embedded->reset();
-  embedFinish = ';';
-  embedMode = TOK_FUNDECL_BODY;
-  return TOK_FUNDECL;
+  embedFinish = ']';
+  embedMode = TOK_LIT_CODE;
 }
-
-"datadecl" {
-  TOK_UPD_COL;
-  BEGIN(FUNDECL);
-  embedded->reset();
-  embedFinish = ';';
-  embedMode = TOK_DECL_BODY;
-  return TOK_DECLARE;
-}
-
-("fun"|"literalCode") {
-  TOK_UPD_COL;
-
-  // one or two tokens must be processed before we start the embedded
-  // stuff; the parser will ensure they are there, and then this flag
-  // will get us into embedded processing; rules for "{" and "=" deal
-  // with 'expectedEmbedded' and transitioning into FUN state
-  expectingEmbedded = true;
-
-  embedded->reset();
-  embedMode = TOK_FUN_BODY;
-  return yytext[0]=='f'? TOK_FUN : TOK_LITERALCODE;
-}
-
-  /* punctuation that can start embedded code */
-("{"|"=") {
-  TOK_UPD_COL;
-  if (expectingEmbedded) {
-    expectingEmbedded = false;
-    embedFinish = (yytext[0] == '{' ? '}' : ';');
-    BEGIN(FUN);
-  }
-  return yytext[0] == '{' ? TOK_LBRACE : TOK_EQUAL;
-}
-
 
   /* no TOKEN_START here; we'll use the tokenStartLoc that
    * was computed in the opening punctuation */
-<FUNDECL,FUN>{
-  [^;}\n]+ {
+<LITCODE>{
+  [^\]\n]+ {
     UPD_COL;
     embedded->handle(yytext, yyleng, embedFinish);
   }
@@ -216,45 +156,23 @@ SLWHITE   [ \t]
     embedded->handle(yytext, yyleng, embedFinish);
   }
 
-  ("}"|";") {
+  "]" {
     UPD_COL;
-    if (yytext[0] == embedFinish &&
-        embedded->zeroNesting()) {
+    if (embedded->zeroNesting()) {
       // done
       BEGIN(INITIAL);
 
-      // adjust tokenStartLoc
-      if (embedMode == TOK_FUN_BODY) {
-        // we get into embedded mode from a single-char token ('{' or
-        // '='), and tokenStartLoc currently has that token's location;
-        // since lexer 1 is supposed to partition the input, I want it
-        // right
-        tokenStartLoc.col++;
-      }
-      else {
-        // here we get into embedded from 'fundecl'
-        tokenStartLoc.col += 7;
-      }
-
-      // put back delimeter
-      yyless(yyleng-1);
-      fileState.col--;
-
-      // tell the 'embedded' object whether the text just
-      // added is to be considered an expression or a
-      // complete function body
-      embedded->exprOnly =
-        (embedMode == TOK_FUN_BODY &&
-         embedFinish == ';');
-                                                             
-      // and similarly for the other flag
-      embedded->isDeclaration = (embedMode == TOK_DECL_BODY);
+      // don't add "return" or ";"
+      embedded->exprOnly = false;
+      
+      // can't extract anything
+      embedded->isDeclaration = false;
 
       // caller can get text from embedded->text
       return embedMode;
     }
     else {
-      // embedded delimeter, mostly ignore it
+      // delimeter paired within the embedded code, mostly ignore it
       embedded->handle(yytext, yyleng, embedFinish);
     }
   }
@@ -343,7 +261,5 @@ SLWHITE   [ \t]
 // identify tokens representing embedded text
 bool isGramlexEmbed(int code)
 {
-  return code == TOK_FUNDECL_BODY ||
-         code == TOK_FUN_BODY ||
-         code == TOK_DECL_BODY;
+  return code == TOK_LIT_CODE;
 }

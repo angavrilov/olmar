@@ -1,6 +1,8 @@
 // action.h
 // actions that may be associated with grammar productions
 
+#error This module is obsolete.
+
 #ifndef __ACTION_H
 #define __ACTION_H
 

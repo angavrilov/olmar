@@ -1,53 +1,32 @@
 // gramast.ast
 // grammar AST, in a new experimental format
-// todo: replace owner* with simple subtree reference
 
 verbatim {
   #include "locstr.h"       // LocString
 }
 
 // the entire grammar spec
-class GrammarAST (ASTList<ToplevelForm> forms);
+class GrammarAST (Terminals terms, ASTList<NontermDecl> nonterms);
 
-// something at the top level
-class ToplevelForm {
-  -> TF_terminals(ASTList<TermDecl> terms);
-  -> TF_nonterminal(LocString name, ASTList<LocString> baseClasses, ASTList<NTBodyElt> elts);
-  -> TF_lit(LC_standAlone lit);
-  -> TF_treeNodeBase(LocString baseClassName);
-}
 
-// declaration of a single terminal, aka token
+// definition of tokens: first the ids and aliases, then types
+class Terminals (ASTList<TermDecl> decls, ASTList<TermType> types);
+
+// token with lexer code 'code' and grammar name 'name', with grammar
+// alias 'alias'
 class TermDecl (int code, LocString name, LocString alias);
 
-// something that appears in the body of a nonterminal declaration
-class NTBodyElt {
-  -> NT_attr(LocString name);
-  -> NT_decl(LocString declBody);
-  -> NT_elt(owner GroupElement *elt);
-  -> NT_lit(owner LiteralCodeAST *lit);
-  -> NT_funDecl(LocString declName, LocString declBody);
-}
+// declaration that token with grammar name 'name' has semantic
+// values with C type 'type'
+class TermType (LocString name, LocString type);
 
-// elements of nonterms or form groups
-class GroupElement {
-  -> GE_form(ASTList<RHS> rhsides, ASTList<FormBodyElt> elts);    // aka production
-  -> GE_formGroup(ASTList<GroupElement> elts);
-  -> GE_fbe(owner FormBodyElt *e);
-}
 
-// things that can be directly associated with a form
-class FormBodyElt {
-  -> FB_action(LocString name, ExprAST expr);
-  -> FB_condition(owner ExprAST *condExpr);
-  -> FB_treeCompare(LocString leftName, LocString rightName, owner ExprAST *decideExpr);
-  -> FB_funDefn(LocString name, LocString defnBody);
-}
+// a nonterminal, with its name and semantic value type, and list
+// of productions (right-hand side alternatives)
+class NontermDecl (LocString name, LocString type, ASTList<ProdDecl> productions);
 
-// what comes after '->' -- there can be several of these,
-// separated by '|', in the concrete syntax
-// possible todo: extend astgen to support nested lists
-class RHS (ASTList<RHSElt> rhs);
+// production: rhs description, and code to execute upon recognition
+class ProdDecl (ASTList<RHSElt> rhs, LocString actionCode);
 
 // one of the things that appears after the '->', i.e. the
 // right-hand-side elements
@@ -58,26 +37,3 @@ class RHSElt {
   -> RH_taggedString(LocString tag, LocString str);  // tagged terminal reference by string alias
 }
 
-// ast for expressions
-class ExprAST {
-  -> E_attrRef(LocString tag, LocString attr);       // attribute of tagged rhs elt
-  -> E_treeAttrRef(LocString tree, LocString tag, LocString attr);
-  -> E_intLit(int val);
-  -> E_funCall(LocString funcName, ASTList<ExprAST> args);
-
-  // op codes are TOK_xxx from grampar.tab.h
-  -> E_unary(int op, owner ExprAST *exp);
-  -> E_binary(int op, owner ExprAST *left, owner ExprAST *right);
-
-  -> E_cond(ExprAST test, ExprAST thenExp, ExprAST elseExp);
-}
-
-// some literal C++ code to be copied verbatim somewhere
-class LiteralCodeAST(LocString codeKindTag, LocString codeBody) {
-  // code that gets associated with some existing semantic function
-  -> LC_modifier(LocString funcToModify);
-
-  // code that lives on its own, its use entirely determined by
-  // the codeKindTag
-  -> LC_standAlone();
-}

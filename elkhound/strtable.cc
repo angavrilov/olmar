@@ -3,7 +3,11 @@
 
 #include "strtable.h"    // this module
 #include "xassert.h"     // xassert
-                          
+#include "flatten.h"     // Flatten
+
+
+StringTable *flattenStrTable = NULL;
+
 
 STATICDEF char const *StringTable::identity(void *data)
 {
@@ -80,4 +84,33 @@ StringRef StringTable::add(char const *src)
 StringRef StringTable::get(char const *src) const
 {
   return (StringRef)hash.get(src);
+}
+
+                                        
+// for now, just store each instance separately ...
+void StringTable::xfer(Flatten &flat, StringRef &ref)
+{
+  if (flat.reading()) {
+    // read the string
+    char *str;
+    flat.xferCharString(str);
+
+    if (str) {
+      // add to table
+      ref = add(str);
+
+      // delete string's storage
+      delete str;
+    }
+    else {
+      // was NULL
+      ref = NULL;
+    }
+  }
+  
+  else {
+    // copy it to disk
+    // since we're writing, the cast is ok
+    flat.xferCharString(const_cast<char*&>(ref));
+  }
 }

@@ -1,6 +1,8 @@
 // attrexpr.h
 // expression tree for attribute expressions
 
+#error This module is obsolete.
+
 #ifndef __ATTREXPR_H
 #define __ATTREXPR_H
 

@@ -30,6 +30,17 @@ LocString::LocString(LocString *obj)
   delete obj;
 }
 
+
+LocString::LocString(Flatten&)
+  : str(NULL)
+{}
+
+void LocString::xfer(Flatten &flat)
+{
+  flattenStrTable->xfer(flat, str);
+}
+
+
 bool LocString::equals(char const *other) const
 {
   if (!str) {

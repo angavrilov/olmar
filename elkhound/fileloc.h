@@ -7,13 +7,15 @@
 #include "str.h"       // string
 #include "objlist.h"   // ObjList
 
+class Flatten;
+
 // identifies a location in a source file
 class FileLocation {
 public:
   enum Constants {
     firstColumn = 1,               // number of first column
     firstLine = 1,                 // number of first line
-    
+
     invalid = -1,                  // no useful value known
   };
 
@@ -25,6 +27,9 @@ public:
   FileLocation(int l, int c)              : line(l), col(c) {}
   FileLocation(FileLocation const &obj)	  : line(obj.line), col(obj.col) {}
   ~FileLocation()                         {}
+
+  FileLocation(Flatten&)                  {}
+  void xfer(Flatten &flat);
 
   FileLocation& operator= (FileLocation const &obj)
     { line=obj.line; col=obj.col; return *this; }
@@ -67,8 +72,11 @@ public:
   SourceLocation(SourceLocation const &obj);
   ~SourceLocation() {}
 
+  SourceLocation(Flatten&) {}
+  void xfer(Flatten &flat);
+
   SourceLocation& operator= (SourceLocation const &obj);
-                            
+
   // can return NULL
   char const *fname() const;
 

@@ -1,6 +1,8 @@
 // attr.h
 // represent attributes attached to GLR parse tree nodes
 
+#error This module is obsolete.
+
 #ifndef __ATTR_H
 #define __ATTR_H
 
