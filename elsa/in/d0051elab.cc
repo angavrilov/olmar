@@ -3,7 +3,9 @@
 // find the error that is exhibited here.
 struct A {};
 struct B {
-  const A x;
+  A
+  //ERROR(1): const
+    x;
   B &operator =(B const &other) {
     x = other.x;
     return *this;
