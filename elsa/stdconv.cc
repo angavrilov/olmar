@@ -322,7 +322,7 @@ StandardConversion getStandardConversion
     }
   }
   else if (src->asRvalC()->isArrayType() && dest->isPointer()) {
-    // 7/19/03: fix: 'src' can be an lvalue (cppstd 4.2 para 1)
+    // 7/19/03: 'src' can be an lvalue (cppstd 4.2 para 1)
 
     conv.ret |= SC_ARRAY_TO_PTR;
 
@@ -358,6 +358,19 @@ StandardConversion getStandardConversion
 
     if (conv.stripPtrCtor(src->getCVFlags(), dest->getCVFlags()))
       { return conv.ret; }
+  }
+
+  // 9/25/04: conversions to bool that must be preceded by a
+  // group 1 conversion (lval to rval would already have happened)
+  if (dest->isBool()) {
+    // these conversions always yield 'true'.. I wonder if there
+    // is a good way to take advantage of that..
+    if (src->isArrayType()) {
+      return conv.ret | SC_ARRAY_TO_PTR | SC_BOOL_CONV;
+    }
+    if (src->isFunctionType()) {
+      return conv.ret | SC_FUNC_TO_PTR | SC_BOOL_CONV;
+    }
   }
 
   // At this point, if the types are to be convertible, their
