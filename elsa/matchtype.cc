@@ -304,8 +304,13 @@ bool MatchTypes::match_rightTypeVar(Type *a, Type *b, int matchDepth)
         // must be the same typevar; NOTE: don't compare the types, as
         // they can change when cv qualifiers are added etc. but the
         // variables have to be the same
-        ((a->asTypeVariable()->typedefVar ==
-          targb->value.t->asTypeVariable()->typedefVar));
+        //
+        // sm: 8/16/04: Comparing typedefVars does not work in situations
+        // where there are more than one template parameter list in play,
+        // as with out-of-line definitions (t0268.cc).  So I am changing
+        // this to just compare the names.
+        ((a->asTypeVariable()->name ==
+          targb->value.t->asTypeVariable()->name));
     } else {
       if (a->isTypeVariable()) {
         return bindValToVar(a, b, matchDepth);
@@ -350,8 +355,11 @@ bool MatchTypes::match_variables(Type *a, TypeVariable *b, int matchDepth)
           // must be the same typevar; NOTE: don't compare the types, as
           // they can change when cv qualifiers are added etc. but the
           // variables have to be the same
-          ((aTV->typedefVar ==
-            targb->value.t->asTypeVariable()->typedefVar));
+          //
+          // sm: 8/16/04: Corresponding to the above change, I am
+          // replacing uses of 'typedefVar' here with 'name'.
+          ((aTV->name ==
+            targb->value.t->asTypeVariable()->name));
       }
       else {
         // copied+modified from bindValToVar

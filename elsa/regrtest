@@ -491,6 +491,7 @@ testparse t0264.cc
 failparse t0265.cc "<dependent> needs to carry more information"
 testparse t0266.cc
 # it's not clear whether t0267.cc is valid C++ or not, no point in testing it here
+testparse t0268.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
