@@ -1083,7 +1083,7 @@ void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
   while (pendingShifts.isNotEmpty()) {
     RCPtr<StackNode> leftSibling = pendingShifts.top().parser;
     StateId newState = pendingShifts.top().shiftDest;
-    pendingShifts.popAlt();
+    pendingShifts.popAlt().deinit();
 
     // debugging
     if (trParse) {
