@@ -919,7 +919,8 @@ void Grammar::printAsBison(ostream &os) const
   os << "/* -------- tokens -------- */\n";
   FOREACH_TERMINAL(terminals, term) {
     // I'll surround all my tokens with quotes and see how Bison likes it
-    os << "%token \"" << term.data()->name << "\"\n";
+    os << "%token \"" << term.data()->name << "\" "
+       << term.data()->termIndex << "\n";
   }
   os << "\n\n";
 
@@ -1023,6 +1024,9 @@ void Grammar::printAsBison(ostream &os) const
                << prod.data()->precedence << " */";
           }
         }
+
+        // dummy action to help while debugging
+        os << " { $$=" << prod.data()->prodIndex << "; }";
 
         first = false;
       }

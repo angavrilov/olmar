@@ -1,0 +1,108 @@
+// bccgr.cc
+// driver for bison parser for cc.gr
+
+#include "bccgr.h"      // this module
+#include "lexer2.h"     // Lexer2
+#include "lexer1.h"     // Lexer1
+#include "trace.h"      // traceProgress
+#include "syserr.h"     // xsyserror
+
+#include <stdio.h>      // printf
+#include <iostream.h>   // cout, etc.
+
+// global list of L2 tokens for yielding to Bison
+Lexer2 lexer2;
+
+// parsing entry point
+int yyparse();
+
+// returns token types until EOF, at which point L2_EOF is returned
+int yylex()
+{
+  static ObjListIter<Lexer2Token> *iter = NULL;
+
+  if (!iter) {
+    // prepare to return tokens
+    iter = new ObjListIter<Lexer2Token>(lexer2.tokens);
+  }
+
+  if (!iter->isDone()) {
+    // grab type to return
+    Lexer2TokenType ret = iter->data()->type;
+
+    // advance to next token
+    iter->adv();
+
+    // since my token reclassifier is hard to translate to
+    // Bison, I'll just yield variable names always, and only
+    // parse typedef-less C programs
+    if (ret == L2_NAME) {
+      ret = L2_VARIABLE_NAME;
+    }
+
+    // return one we just advanced past
+    return ret;
+  }
+  else {
+    // done; don't bother freeing things
+    return L2_EOF;
+  }
+}
+
+
+void yyerror(char const *s)
+{
+  cerr << s << endl;
+}
+
+
+int main(int argc, char *argv[])
+{
+  char const *progname = argv[0];
+
+  if (0==strcmp(argv[1], "-d")) {
+    yydebug = 1;
+    argc--;
+    argv++;
+  }
+
+  if (argc < 2) {
+    printf("usage: %s [-d] input.c\n", progname);
+    printf("  -d: turn on yydebug, so it prints shift/reduce actions\n");
+    return 0;
+  }
+
+  char const *inputFname = argv[1];
+
+  traceAddSys("progress");
+
+  traceProgress() << "lexical analysis stage 1...\n";
+  Lexer1 lexer1;
+  {
+    FILE *input = fopen(inputFname, "r");
+    if (!input) {
+      xsyserror("fopen", inputFname);
+    }
+
+    lexer1_lex(lexer1, input);
+    fclose(input);
+
+    if (lexer1.errors > 0) {
+      printf("L1: %d error(s)\n", lexer1.errors);
+      return 2;
+    }
+  }
+
+  // do second phase lexer
+  traceProgress() << "lexical analysis stage 2...\n";
+  lexer2_lex(lexer2, lexer1, inputFname);
+
+  // start Bison-parser
+  traceProgress() << "starting parse..." << endl;
+  if (yyparse() != 0) {
+    cout << "yyparse returned with an error\n";
+  }
+  traceProgress() << "finished parse" << endl;
+
+  return 0;
+}
