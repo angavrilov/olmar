@@ -144,6 +144,7 @@ bool isNumeric(Type const *t, SimpleType const *tSimple)
 }
 
 
+#if 0  // delete me
 // cppstd 13.6 para 2
 bool isPromotedIntegral(SimpleTypeId id)
 {
@@ -156,7 +157,17 @@ bool isPromotedArithmetic(SimpleTypeId id)
 }
 
 
-#if 0   // unused
+// I'm not sure exactly where this is defined, but it's whatever
+// the (built-in) ++ operator can be applied to
+bool isArithmetic(SimpleTypeId id)
+{
+  SimpleTypeInfo const &sti = simpleTypeInfo(id);
+  return sti.isInteger || sti.isFloat;
+}
+#endif // 0
+
+
+#if 0   // unused, but potentially useful at some point
 static char const *atomicName(AtomicType::Tag tag)
 {
   switch (tag) {
@@ -180,8 +191,6 @@ static char const *ctorName(Type::Tag tag)
     case Type::T_POINTERTOMEMBER: return "ptr-to-member";
   }
 }
-
-
 
 
 // implementation class
@@ -496,10 +505,21 @@ StandardConversion getStandardConversion
   }
 
   // ---------------- group 2 --------------
+  
+  // if I check equality here, will it mess anything up?
+  // no, looks ok; I'm going to try folding polymorphic
+  // checking into equality itself...
+  // 
+  // appears to work!  I'll tag the old stuf with "delete me"
+  // for the moment
+  if (src->equals(dest, Type::EF_POLYMORPHIC)) {
+    return conv.ret;    // identical now
+  }
 
+  #if 0   // delete me
   if (dest->isSimpleType()) {
     SimpleTypeId destId = dest->asSimpleTypeC()->type;
-    
+
     if (destId == ST_ANY_TYPE) {
       // polymorphic match
       return conv.ret;
@@ -518,6 +538,7 @@ StandardConversion getStandardConversion
       return conv.ret;
     }
   }
+  #endif // 0
 
   // if both types have not arrived at CVAtomic, then they
   // are not convertible
@@ -608,7 +629,7 @@ StandardConversion getStandardConversion
 
     if (scv != dcv) {
       return conv.error("different cv flags (is this right?)");
-    }                         
+    }
     #endif // 0
   }
 
@@ -618,6 +639,13 @@ StandardConversion getStandardConversion
 
   SimpleType const *srcSimple = src->isSimpleType() ? src->asSimpleTypeC() : NULL;
   SimpleType const *destSimple = dest->isSimpleType() ? dest->asSimpleTypeC() : NULL;
+
+  #if 0   // delete me
+  if (destSimple && destSimple->type == ST_ARITHMETIC &&
+      srcSimple && isArithmetic(srcSimple->type)) {
+    // polymorphic match
+    return conv.ret;
+  }
 
   if (destSimple && destSimple->type == ST_PROMOTED_INTEGRAL &&
       srcSimple && isPromotedIntegral(srcSimple->type)) {
@@ -630,6 +658,7 @@ StandardConversion getStandardConversion
     // polymorphic match
     return conv.ret;
   }
+  #endif // 0
 
   if (isIntegerPromotion(s->atomic, d->atomic)) {
     return conv.ret | SC_INT_PROM;
@@ -771,7 +800,8 @@ bool isReferenceRelatedTo(Type *t1, Type *t2)
   // the same type, or they must be classes and t1 must be a base
   // class of t2
 
-  if (t1->equals(t2, Type::EF_IGNORE_TOP_CV)) {
+  // this sometimes ends up with t2 being polymorphic, so it goes first
+  if (t2->equals(t1, Type::EF_IGNORE_TOP_CV | Type::EF_POLYMORPHIC)) {
     return true;
   }
   

@@ -122,40 +122,42 @@ bool isValid(SimpleTypeId id)
 }
 
 
+#define S(x) ((SimpleTypeFlags)(x))    // work around bitwise-OR in initializers..
 static SimpleTypeInfo const simpleTypeInfoArray[] = {
-  //name                   size,    int?,  float?,
-  { "char",                   1,    true,   false, },
-  { "unsigned char",          1,    true,   false, },
-  { "signed char",            1,    true,   false, },
-  { "bool",                   4,    false,  false, },
-  { "int",                    4,    true,   false, },
-  { "unsigned int",           4,    true,   false, },
-  { "long int",               4,    true,   false, },
-  { "unsigned long int",      4,    true,   false, },
-  { "long long int",          8,    true,   false, },
-  { "unsigned long long int", 8,    true,   false, },
-  { "short int",              2,    true,   false, },
-  { "unsigned short int",     2,    true,   false, },
-  { "wchar_t",                2,    true,   false, },
-  { "float",                  4,    false,  true,  },
-  { "double",                 8,    false,  true,  },
-  { "long double",           10,    false,  true,  },
-  { "void",                   1,    false,  false, },    // gnu: sizeof(void) is 1
+  //name                   size,    flags
+  { "char",                   1,    S(STF_INTEGER)              },
+  { "unsigned char",          1,    S(STF_INTEGER)              },
+  { "signed char",            1,    S(STF_INTEGER)              },
+  { "bool",                   4,    S(STF_NONE)                 },
+  { "int",                    4,    S(STF_INTEGER | STF_PROM)   },
+  { "unsigned int",           4,    S(STF_INTEGER | STF_PROM)   },
+  { "long int",               4,    S(STF_INTEGER | STF_PROM)   },
+  { "unsigned long int",      4,    S(STF_INTEGER | STF_PROM)   },
+  { "long long int",          8,    S(STF_INTEGER)              },
+  { "unsigned long long int", 8,    S(STF_INTEGER)              },
+  { "short int",              2,    S(STF_INTEGER)              },
+  { "unsigned short int",     2,    S(STF_INTEGER)              },
+  { "wchar_t",                2,    S(STF_INTEGER)              },
+  { "float",                  4,    S(STF_FLOAT)                },
+  { "double",                 8,    S(STF_FLOAT | STF_PROM)     },
+  { "long double",           10,    S(STF_FLOAT)                },
+  { "void",                   1,    S(STF_NONE)                 },    // gnu: sizeof(void) is 1
 
 
-  { "...",                    0,    false,  false, },
-  { "/*cdtor*/",              0,    false,  false, },    // dsw: don't want to print <cdtor>
-  { "<error>",                0,    false,  false, },
-  { "<dependent>",            0,    false,  false, },
+  { "...",                    0,    S(STF_NONE)                 },
+  { "/*cdtor*/",              0,    S(STF_NONE)                 },    // dsw: don't want to print <cdtor>
+  { "<error>",                0,    S(STF_NONE)                 },
+  { "<dependent>",            0,    S(STF_NONE)                 },
 
 
-  { "<prom_int>",             0,    false,  false, },
-  { "<prom_arith>",           0,    false,  false, },
-
-  { "<any_obj>",              0,    false,  false, },
-  { "<non_void>",             0,    false,  false, },
-  { "<any_type>",             0,    false,  false, },
+  { "<prom_int>",             0,    S(STF_NONE)                 },
+  { "<prom_arith>",           0,    S(STF_NONE)                 },
+  { "<arith>",                0,    S(STF_NONE)                 },
+  { "<any_obj>",              0,    S(STF_NONE)                 },
+  { "<non_void>",             0,    S(STF_NONE)                 },
+  { "<any_type>",             0,    S(STF_NONE)                 },
 };
+#undef S
 
 SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id)
 {

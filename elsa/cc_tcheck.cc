@@ -1516,20 +1516,6 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
 
 // ------------------ IDeclarator ------------------
-// this enum describes an operator; it really should be inside
-// 'checkOperatorOverload', but then I would not be able to
-// declare the operator functions that do bitwise manipulation...
-enum OperatorDesc {
-  OD_NONE    = 0x00,
-  NONMEMBER  = 0x01,      // can be a non-member function (anything can be a member function)
-  ONEPARAM   = 0x02,      // can accept one parameter
-  TWOPARAMS  = 0x04,      // can accept two parameters
-  ANYPARAMS  = 0x08,      // can accept any number of parameters
-  INCDEC     = 0x10,      // it's ++ or --
-  OD_ALL     = 0x1F,
-};
-ENUM_BITWISE_OPS(OperatorDesc, OD_ALL)
-
 // Check some restrictions regarding the use of 'operator'; might
 // add some errors to the environment, but otherwise doesn't
 // change anything.  Parameters are same as D_name_tcheck, plus
@@ -1555,6 +1541,15 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
     env.error(loc, "operator member functions cannot be static");
   }
 
+  // describe the operator
+  enum OperatorDesc {
+    OD_NONE    = 0x00,
+    NONMEMBER  = 0x01,      // can be a non-member function (anything can be a member function)
+    ONEPARAM   = 0x02,      // can accept one parameter
+    TWOPARAMS  = 0x04,      // can accept two parameters
+    ANYPARAMS  = 0x08,      // can accept any number of parameters
+    INCDEC     = 0x10,      // it's ++ or --
+  };
   OperatorDesc desc = OD_NONE;
 
   ASTSWITCHC(OperatorName, oname) {
@@ -1564,7 +1559,7 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
       return;
 
     ASTNEXTC(ON_operator, o)
-      static OperatorDesc const map[] = {
+      static int/*OperatorDesc*/ const map[] = {
         // each group of similar operators is prefixed with a comment
         // that says which section of cppstd specifies the restrictions
         // that are enforced here
@@ -1632,8 +1627,15 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
         NONMEMBER | TWOPARAMS,                      // OP_COMMA
       };
       ASSERT_TABLESIZE(map, NUM_OVERLOADABLE_OPS);
-      xassert(validCode(o->op));
-      desc = map[o->op];
+      xassert(validCode(o->op));      
+      
+      // the table is declared int[] so that I can bitwise-OR
+      // enumerated values without a cast; and overloading operator|
+      // like I do elsewhere is nonportable b/c then an initializing
+      // expression (which is supposed to be a literal) involves a
+      // function call, at least naively...
+      desc = (OperatorDesc)map[o->op];
+
       break;
 
     ASTNEXTC(ON_conversion, c)
@@ -4004,6 +4006,7 @@ Type *E_unary::itcheck(Env &env, Expression *&replacement)
   }
 
   // TODO: make sure 'expr' is compatible with given operator
+
   return env.getSimpleType(SL_UNKNOWN, ST_INT);
 }
 
@@ -4012,9 +4015,17 @@ Type *E_effect::itcheck(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
+  // consider the possibility of operator overloading
+  Type *ovlRet = isPrefix(op)?
+    resolveOverloadedUnaryOperator(
+      env, replacement, /*this,*/ expr, toOverloadableOp(op)) :
+    NULL /*for now*/ ;
+  if (ovlRet) {
+    return ovlRet;
+  }
+
   // TODO: make sure 'expr' is compatible with given operator
-  // TODO: make sure that 'expr' is an lvalue (reference type)
-  // TODO: consider possibility of operator overloading
+
   return expr->type->asRval();
 }
 

@@ -164,23 +164,30 @@ enum SimpleTypeId {
   // for polymorphic built-in operators (cppstd 13.6)
   ST_PROMOTED_INTEGRAL,      // int,uint,long,ulong
   ST_PROMOTED_ARITHMETIC,    // promoted integral + float,double,longdouble
-  //ST_ARITHMETIC,             // every simple type except bool & void
+  ST_ARITHMETIC,             // every simple type except bool & void
   ST_ANY_OBJ_TYPE,           // any object (non-function, non-void) type
   ST_ANY_NON_VOID,           // any type except void
   ST_ANY_TYPE,               // any type, including functions and void
-  //ST_ENUM_TYPE,              // any 'enum' type
-  // ... there are more, and I'm not sure what the ones I have mean ...
 
   NUM_SIMPLE_TYPES,
   ST_BITMASK = 0xFF          // for extraction for OR with CVFlags
 };
 
+// some flags that can be set for simple types
+enum SimpleTypeFlags {
+  STF_NONE       = 0x00,
+  STF_INTEGER    = 0x01,     // full name is "... int" or "... char" or wchar_t
+  STF_FLOAT      = 0x02,     // float, double, long double
+  STF_PROM       = 0x04,     // can be destination of a promotion
+  STF_ALL        = 0x07,
+};
+//ENUM_BITWISE_OPS(SimpleTypeFlags, STF_ALL)   // wondering about problems with initializers..
+
 // info about each simple type
 struct SimpleTypeInfo {
   char const *name;       // e.g. "unsigned char"
   int reprSize;           // # of bytes to store
-  bool isInteger;         // ST_INT, etc., but not ST_FLOAT or ST_BOOL
-  bool isFloat;           // ST_FLOAT, ST_DOUBLE, ST_LONG_DOUBLE
+  SimpleTypeFlags flags;  // various boolean attributes
 };
 
 bool isValid(SimpleTypeId id);                          // bounds check
@@ -188,11 +195,10 @@ SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id);
 
 inline char const *simpleTypeName(SimpleTypeId id)  { return simpleTypeInfo(id).name; }
 inline int simpleTypeReprSize(SimpleTypeId id)      { return simpleTypeInfo(id).reprSize; }
-inline bool isIntegerType(SimpleTypeId id)          { return simpleTypeInfo(id).isInteger; }
-inline bool isFloatType(SimpleTypeId id)            { return simpleTypeInfo(id).isFloat; }
+inline bool isIntegerType(SimpleTypeId id)          { return !!(simpleTypeInfo(id).flags & STF_INTEGER); }
+inline bool isFloatType(SimpleTypeId id)            { return !!(simpleTypeInfo(id).flags & STF_FLOAT); }
 
-inline string toString(SimpleTypeId id)
-  { return string(simpleTypeName(id)); }
+inline char const *toString(SimpleTypeId id)        { return simpleTypeName(id); }
 
 
 // ---------------------------- UnaryOp ---------------------------
@@ -227,6 +233,7 @@ inline bool validCode(EffectOp op)
 extern char const * const effectOpNames[NUM_EFFECTOPS];   // "++", ...
 char const *toString(EffectOp op);
 bool isPostfix(EffectOp op);
+inline bool isPrefix(EffectOp op) { return !isPostfix(op); }
 
 
 // ------------------------ BinaryOp --------------------------

@@ -89,6 +89,7 @@ SimpleType SimpleType::fixed[NUM_SIMPLE_TYPES] = {
   
   SimpleType(ST_PROMOTED_INTEGRAL),
   SimpleType(ST_PROMOTED_ARITHMETIC),
+  SimpleType(ST_ARITHMETIC),
   SimpleType(ST_ANY_OBJ_TYPE),
   SimpleType(ST_ANY_NON_VOID),
   SimpleType(ST_ANY_TYPE),
@@ -658,6 +659,54 @@ DOWNCAST_IMPL(BaseType, PointerToMemberType)
 
 bool BaseType::equals(BaseType const *obj, EqFlags flags) const
 {
+  if (flags & EF_POLYMORPHIC) {
+    // check for polymorphic match
+    if (obj->isSimpleType()) {
+      SimpleTypeId objId = obj->asSimpleTypeC()->type;
+      if (!(ST_PROMOTED_INTEGRAL <= objId && objId <= ST_ANY_TYPE)) {
+        goto not_polymorphic;
+      }
+
+      // check those that can match any type constructor
+      if (objId == ST_ANY_TYPE) {
+        return true;
+      }
+
+      if (objId == ST_ANY_NON_VOID) {
+        return !this->isVoid();
+      }
+
+      if (objId == ST_ANY_OBJ_TYPE) {
+        return !this->isFunctionType() &&
+               !this->isVoid();
+      }
+
+      // check those that only match atomics
+      if (this->isSimpleType()) {
+        SimpleTypeId thisId = this->asSimpleTypeC()->type;
+        SimpleTypeFlags flags = simpleTypeInfo(thisId).flags;
+
+        // see cppstd 13.6 para 2
+        if (objId == ST_PROMOTED_INTEGRAL) {
+          return (flags & (STF_INTEGER | STF_PROM)) == (STF_INTEGER | STF_PROM);
+        }
+
+        if (objId == ST_PROMOTED_ARITHMETIC) {
+          return (flags & (STF_INTEGER | STF_PROM)) == (STF_INTEGER | STF_PROM) ||
+                 (flags & STF_FLOAT);      // need not be promoted!
+        }
+
+        if (objId == ST_ARITHMETIC) {
+          return (flags & (STF_INTEGER | STF_FLOAT)) != 0;
+        }
+      }
+
+      // polymorphic type failed to match
+      return false;
+    }
+  }
+
+not_polymorphic:
   if (getTag() != obj->getTag()) {
     return false;
   }
@@ -760,9 +809,9 @@ bool BaseType::isSimple(SimpleTypeId id) const
 bool BaseType::isIntegerType() const
 {
   return isSimpleType() &&
-         simpleTypeInfo(asSimpleTypeC()->type).isInteger;
+         ::isIntegerType(asSimpleTypeC()->type);
 }
-                       
+
 
 bool BaseType::isEnumType() const
 {
@@ -1814,6 +1863,7 @@ CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
 
   CVAT(ST_PROMOTED_INTEGRAL)
   CVAT(ST_PROMOTED_ARITHMETIC)
+  CVAT(ST_ARITHMETIC)
   CVAT(ST_ANY_OBJ_TYPE)
   CVAT(ST_ANY_NON_VOID)
   CVAT(ST_ANY_TYPE)

@@ -174,6 +174,18 @@ void Env::setupOperatorOverloading()
   // this has to match the typedef in include/stddef.h
   Type *t_ptrdiff_t = getSimpleType(SL_INIT, ST_INT);
 
+  // ---- 13.6 para 3 ----
+  // VQ T& operator++ (VQ T&);
+  addBuiltinUnaryOp(OP_PLUSPLUS,
+    tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC)));
+  addBuiltinUnaryOp(OP_PLUSPLUS,
+    tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC, CV_VOLATILE)));
+
+  // T operator++ (VQ T&, int);
+  addBuiltinBinaryOp(OP_PLUSPLUS,
+    tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC)),
+    getSimpleType(SL_INIT, ST_INT));
+
   // ---- 13.6 para 6,7 ----
   // T& operator* (T*);
   addBuiltinUnaryOp(OP_STAR,

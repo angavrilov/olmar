@@ -406,40 +406,47 @@ public:     // funcs
     // syntax used to denote it, so we do *not* compare:
     //   - function parameter names
     //   - typedef usage
-    EF_EXACT           = 0x00,
+    EF_EXACT           = 0x0000,
 
     // ----- basic behaviors -----
     // when comparing function types, do not check whether the
     // return types are equal
-    EF_IGNORE_RETURN   = 0x01,
+    EF_IGNORE_RETURN   = 0x0001,
 
     // when comparing function types, if one is a nonstatic member
     // function and the other is not, then do not (necessarily)
     // call them unequal
-    EF_STAT_EQ_NONSTAT = 0x02,    // static can equal nonstatic
+    EF_STAT_EQ_NONSTAT = 0x0002,    // static can equal nonstatic
 
     // when comparing function types, only compare the explicit
     // parameters; this does *not* imply EF_STATE_EQ_NONSTAT
-    EF_IGNORE_IMPLICIT = 0x04,
+    EF_IGNORE_IMPLICIT = 0x0004,
 
     // ignore the topmost cv qualifications of all parameters in
     // parameter lists throughout the type
-    EF_IGNORE_PARAM_CV = 0x08,
+    EF_IGNORE_PARAM_CV = 0x0008,
 
     // ignore the topmost cv qualification of the two types compared
-    EF_IGNORE_TOP_CV   = 0x10,
+    EF_IGNORE_TOP_CV   = 0x0010,
 
     // when comparing function types, ignore the exception specs
-    EF_IGNORE_EXN_SPEC = 0x20,
+    EF_IGNORE_EXN_SPEC = 0x0020,
 
     // allow the cv qualifications to differ up to the first type
     // constructor that is not a pointer or pointer-to-member; this
     // is cppstd 4.4 para 4 "similar"; implies EF_IGNORE_TOP_CV
-    EF_SIMILAR         = 0x40,
+    EF_SIMILAR         = 0x0040,
+
+    // when the second type in the comparison is polymorphic (for
+    // built-in operators; this is not for templates), and the first
+    // type is in the set of types described, say they're equal;
+    // note that polymorhism-enabled comparisons therefore are not
+    // symmetric in their arguments
+    EF_POLYMORPHIC     = 0x0080,
 
     // ----- combined behaviors -----
     // all flags set to 1
-    EF_ALL             = 0x7F,
+    EF_ALL             = 0x00FF,
 
     // signature equivalence for the purpose of detecting whether
     // two declarations refer to the same entity (as opposed to two
@@ -459,7 +466,7 @@ public:     // funcs
     // this is the set of flags that automatically propagate down
     // the type tree equality checker; others are suppressed once
     // the first type constructor looks at them
-    EF_PROP            = EF_IGNORE_PARAM_CV,
+    EF_PROP            = (EF_IGNORE_PARAM_CV | EF_POLYMORPHIC),
     
     // these flags are propagated below ptr and ptr-to-member
     EF_PTR_PROP        = (EF_PROP | EF_SIMILAR)
