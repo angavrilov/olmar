@@ -17,7 +17,7 @@ CLEAN_PATTERNS := \
   core
 
 .PHONY: clean
-clean: idem/clean idem/clean2
+clean: idemclean
 	rm -f $(CLEAN_PATTERNS)
 	rm -f lexer1 lexer1yy.cc
 	rm -f lexer2 
@@ -26,232 +26,199 @@ clean: idem/clean idem/clean2
 	rm -f bccgr.y cc.tok
 	rm -f ccparse_twalk
 
-# ****************
+# Check idempotency of ccparse -tr prettyPrint ****************
 
-# Check in the things I work on.
-DSW_STUFF := Makefile cc_twalk.cc cc.ast idemcheck chop_out
-
-.PHONY: commit
-commit:
-	ci -l -m"no message" $(DSW_STUFF)
-
-dsw_changes.tar.gz:
-	rm -f $@;
-	tar cvzf $@ $(DSW_STUFF)
-
-# ****************
-
-.PHONY: check
-check: idem/check idem/check2
-
-# Check idempotency of ccparse -tr prettyPrint on files in parsgen/cc.in.
-
-TOCHECK :=
-TOCHECK += cc.in1
-TOCHECK += cc.in2
-TOCHECK += cc.in3
-TOCHECK += cc.in4
-TOCHECK += cc.in5
-TOCHECK += cc.in6
-TOCHECK += cc.in7
-TOCHECK += cc.in8
-TOCHECK += cc.in9
-TOCHECK += cc.in10
-TOCHECK += cc.in11
-TOCHECK += cc.in12
-TOCHECK += cc.in13
-TOCHECK += cc.in14
-TOCHECK += cc.in14a
-TOCHECK += cc.in15
-TOCHECK += cc.in16
-TOCHECK += cc.in17
-TOCHECK += cc.in18
-TOCHECK += cc.in19
-TOCHECK += cc.in20
-TOCHECK += cc.in21
-TOCHECK += cc.in22
-TOCHECK += cc.in23
-TOCHECK += cc.in24
+CHK_CCIN :=
+CHK_CCIN += cc.in1
+CHK_CCIN += cc.in2
+CHK_CCIN += cc.in3
+CHK_CCIN += cc.in4
+CHK_CCIN += cc.in5
+CHK_CCIN += cc.in6
+CHK_CCIN += cc.in7
+CHK_CCIN += cc.in8
+CHK_CCIN += cc.in9
+CHK_CCIN += cc.in10
+CHK_CCIN += cc.in11
+CHK_CCIN += cc.in12
+CHK_CCIN += cc.in13
+CHK_CCIN += cc.in14
+CHK_CCIN += cc.in14a
+CHK_CCIN += cc.in15
+CHK_CCIN += cc.in16
+CHK_CCIN += cc.in17
+CHK_CCIN += cc.in18
+CHK_CCIN += cc.in19
+CHK_CCIN += cc.in20
+CHK_CCIN += cc.in21
+CHK_CCIN += cc.in22
+CHK_CCIN += cc.in23
+CHK_CCIN += cc.in24
 
 # Scope operator not being printed before using type.
 #  A::B b;
 #  class B b;
-# TOCHECK += cc.in25
+# CHK_CCIN += cc.in25
 
-TOCHECK += cc.in26
+CHK_CCIN += cc.in26
 
 # DSW: Templates not being printed correctly when the template
 # arguments are used within the template.
-#TOCHECK += cc.in27
-#TOCHECK += cc.in28
+#CHK_CCIN += cc.in27
+#CHK_CCIN += cc.in28
 
-TOCHECK += cc.in29
+CHK_CCIN += cc.in29
 
 # scope not printing.
-#TOCHECK += cc.in30
+#CHK_CCIN += cc.in30
 
-TOCHECK += cc.in30a
-TOCHECK += cc.in30b
+CHK_CCIN += cc.in30a
+CHK_CCIN += cc.in30b
 
-TOCHECK += cc.in31
-TOCHECK += cc.in32
-TOCHECK += cc.in33
-TOCHECK += cc.in34
+CHK_CCIN += cc.in31
+CHK_CCIN += cc.in32
+CHK_CCIN += cc.in33
+CHK_CCIN += cc.in34
 
 # template <class num>
 # class TPoint {
 # becomes:
 # class TPoint {
 # Plus has other template printing problems mentioned above.
-#TOCHECK += cc.in35
+#CHK_CCIN += cc.in35
 
 # Same template printing problems.
-#TOCHECK += cc.in36
+#CHK_CCIN += cc.in36
 
-TOCHECK += cc.in37
-TOCHECK += cc.in38
-TOCHECK += cc.in39
-TOCHECK += cc.in40
-TOCHECK += cc.in41
-TOCHECK += cc.in42
-TOCHECK += cc.in43
+CHK_CCIN += cc.in37
+CHK_CCIN += cc.in38
+CHK_CCIN += cc.in39
+CHK_CCIN += cc.in40
+CHK_CCIN += cc.in41
+CHK_CCIN += cc.in42
+CHK_CCIN += cc.in43
 
-# That's all for parsgen/cc.in.
+CHK_CCEX :=
+CHK_CCEX += Box.cc
+CHK_CCEX += JustHello.c
+CHK_CCEX += JustWorld.c
+CHK_CCEX += Test_005true.c
+CHK_CCEX += Test_010hello.c
+CHK_CCEX += Test_105true.cc
+CHK_CCEX += Test_110hello.cc
 
-.PHONY: idem/check
-idem/check: idem/clean
-	./idemcheck -d outdir $(addprefix ../cc.in/,$(TOCHECK))
+CHK_CCEX += Test_210box.cc
+#CHK_CCEX += Test_220tbox.cc
+CHK_CCEX += Test_310hello.c
+CHK_CCEX += Test_315hello.c
+#CHK_CCEX += Test_320hello_tbox.cc
+#CHK_CCEX += Test_325hello_tbox.cc
 
-TEST_SUFFIXES_TO_CLEAN := 0cppout.cc 1rawout.cc 2out.cc 3rawout.cc 4out.cc 5diff
-TEST_PATTERNS_TO_CLEAN := $(patsubst %,-o -name '*.%',$(TEST_SUFFIXES_TO_CLEAN))
-.PHONY: idem/clean
-idem/clean:
-	find outdir -type f \( -false $(TEST_PATTERNS_TO_CLEAN) \) | xargs rm -f
-
-# Check idempotency of ccparse -tr prettyPrint on C and C++ files in
-# cure_cpp/cc_examples.
-
-TOCHECK2 :=
-
-TOCHECK2 += Box.cc
-TOCHECK2 += JustHello.c
-TOCHECK2 += JustWorld.c
-TOCHECK2 += Test_005true.c
-TOCHECK2 += Test_010hello.c
-TOCHECK2 += Test_105true.cc
-TOCHECK2 += Test_110hello.cc
-
-TOCHECK2 += Test_210box.cc
-#TOCHECK2 += Test_220tbox.cc
-TOCHECK2 += Test_310hello.c
-TOCHECK2 += Test_315hello.c
-#TOCHECK2 += Test_320hello_tbox.cc
-#TOCHECK2 += Test_325hello_tbox.cc
-
-# TOCHECK2 += calc/Test_100.cc
-# TOCHECK2 += calc/Test_110.cc
-# TOCHECK2 += calc/Test_200Lexer.cc
-# TOCHECK2 += calc/Test_300Parser.cc
-# TOCHECK2 += calc/Test_400Eval.cc
-# TOCHECK2 += calc/calc.cc
-# TOCHECK2 += calc/lexer.cc
-# TOCHECK2 += calc/parser.cc
-# TOCHECK2 += calc/util.cc
+CHK_CALC :=
+# CHK_CALC += calc/Test_100.cc
+# CHK_CALC += calc/Test_110.cc
+# CHK_CALC += calc/Test_200Lexer.cc
+# CHK_CALC += calc/Test_300Parser.cc
+# CHK_CALC += calc/Test_400Eval.cc
+# CHK_CALC += calc/calc.cc
+# CHK_CALC += calc/lexer.cc
+# CHK_CALC += calc/parser.cc
+# CHK_CALC += calc/util.cc
 
 #Exception thrown: Assertion failed: !a->isReference(), file cc/cc_type.cc line 884
-#TOCHECK2 += ch5/ex1.cc
+#CHK_CHAP += ch5/ex1.cc
 
-#TOCHECK2 += ch5/ex3.cc
+#CHK_CHAP += ch5/ex3.cc
 
-TOCHECK2 += ch5/ex4.cc
+CHK_CHAP += ch5/ex4.cc
 
-#TOCHECK2 += ch7/overload.cc
-#TOCHECK2 += ch7/va_args_ex.c
+#CHK_CHAP += ch7/overload.cc
+#CHK_CHAP += ch7/va_args_ex.c
 
-#TOCHECK2 += ch8/dc_except.cc
+#CHK_CHAP += ch8/dc_except.cc
 
 #Line 3154, col 1: Parse error at namespace
-#TOCHECK2 += ch8/namespaces.cc
+#CHK_CHAP += ch8/namespaces.cc
 
-TOCHECK2 += ch10/Arena.cc
-TOCHECK2 += ch10/NonLocal.cc
-TOCHECK2 += ch10/NonLocalB.cc
+CHK_CHAP += ch10/Arena.cc
+CHK_CHAP += ch10/NonLocal.cc
+CHK_CHAP += ch10/NonLocalB.cc
 #Line 3193, col 1: Parse error at namespace
-#TOCHECK2 += ch10/NonLocalC.cc
+#CHK_CHAP += ch10/NonLocalC.cc
 
-TOCHECK2 += ch10/Person.cc
-#TOCHECK2 += ch10/PlacementNew.cc
-#TOCHECK2 += ch10/RefBox.cc
-#TOCHECK2 += ch10/Test1.cc
-TOCHECK2 += ch10/Test2.cc
+CHK_CHAP += ch10/Person.cc
+#CHK_CHAP += ch10/PlacementNew.cc
+#CHK_CHAP += ch10/RefBox.cc
+#CHK_CHAP += ch10/Test1.cc
+CHK_CHAP += ch10/Test2.cc
 
 #outdir/Union.cc.0cppout.cc:3166:12 error: unions cannot have member functions
-#TOCHECK2 += ch10/Union.cc
+#CHK_CHAP += ch10/Union.cc
 
-TOCHECK2 += ch10/test_ambig1.cc
+CHK_CHAP += ch10/test_ambig1.cc
 
-#TOCHECK2 += ch11/apply.cc
-#TOCHECK2 += ch11/arrow.cc
-TOCHECK2 += ch11/complex.cc
-#TOCHECK2 += ch11/complex3.cc
+#CHK_CHAP += ch11/apply.cc
+#CHK_CHAP += ch11/arrow.cc
+CHK_CHAP += ch11/complex.cc
+#CHK_CHAP += ch11/complex3.cc
 
-#TOCHECK2 += ch11/day.cc
-TOCHECK2 += ch11/map.cc
-TOCHECK2 += ch11/my_ostream.cc
+#CHK_CHAP += ch11/day.cc
+CHK_CHAP += ch11/map.cc
+CHK_CHAP += ch11/my_ostream.cc
 
-# TOCHECK2 += ch11/test1.cc
-# TOCHECK2 += ch11/test2.cc
-# TOCHECK2 += ch11/test3.cc
-# TOCHECK2 += ch11/test4.cc
-# TOCHECK2 += ch11/test5.cc
+# CHK_CHAP += ch11/test1.cc
+# CHK_CHAP += ch11/test2.cc
+# CHK_CHAP += ch11/test3.cc
+# CHK_CHAP += ch11/test4.cc
+# CHK_CHAP += ch11/test5.cc
 
-#TOCHECK2 += ch12/impl0_IO.cc
-#TOCHECK2 += ch12/impl1_IO.cc
-#TOCHECK2 += ch12/test1.cc
-# TOCHECK2 += ch12/test2.cc
-# TOCHECK2 += ch12/test3.cc
-# TOCHECK2 += ch12/test4.cc
+#CHK_CHAP += ch12/impl0_IO.cc
+#CHK_CHAP += ch12/impl1_IO.cc
+#CHK_CHAP += ch12/test1.cc
+# CHK_CHAP += ch12/test2.cc
+# CHK_CHAP += ch12/test3.cc
+# CHK_CHAP += ch12/test4.cc
 
-# TOCHECK2 += ch13/test1.cc
-# TOCHECK2 += ch13/test10.cc
-# TOCHECK2 += ch13/test11.cc
-# TOCHECK2 += ch13/test12.cc
-# TOCHECK2 += ch13/test13.cc
-# TOCHECK2 += ch13/test2.cc
-# TOCHECK2 += ch13/test3.cc
-# TOCHECK2 += ch13/test4.cc
-# TOCHECK2 += ch13/test5.cc
-TOCHECK2 += ch13/test6.cc
-# TOCHECK2 += ch13/test7.cc
-# TOCHECK2 += ch13/test8.cc
-# TOCHECK2 += ch13/test9.cc
+# CHK_CHAP += ch13/test1.cc
+# CHK_CHAP += ch13/test10.cc
+# CHK_CHAP += ch13/test11.cc
+# CHK_CHAP += ch13/test12.cc
+# CHK_CHAP += ch13/test13.cc
+# CHK_CHAP += ch13/test2.cc
+# CHK_CHAP += ch13/test3.cc
+# CHK_CHAP += ch13/test4.cc
+# CHK_CHAP += ch13/test5.cc
+CHK_CHAP += ch13/test6.cc
+# CHK_CHAP += ch13/test7.cc
+# CHK_CHAP += ch13/test8.cc
+# CHK_CHAP += ch13/test9.cc
 
-# TOCHECK2 += ch14/test1.cc
-# TOCHECK2 += ch14/test2.cc
-TOCHECK2 += ch14/test3.cc
-TOCHECK2 += ch14/test4.cc
-# TOCHECK2 += ch14/test5.cc
-# TOCHECK2 += ch14/test6.cc
-# TOCHECK2 += ch14/test7.cc
-# TOCHECK2 += ch14/test8.cc
+# CHK_CHAP += ch14/test1.cc
+# CHK_CHAP += ch14/test2.cc
+CHK_CHAP += ch14/test3.cc
+CHK_CHAP += ch14/test4.cc
+# CHK_CHAP += ch14/test5.cc
+# CHK_CHAP += ch14/test6.cc
+# CHK_CHAP += ch14/test7.cc
+# CHK_CHAP += ch14/test8.cc
 
-# TOCHECK2 += ch15/test1.cc
-# TOCHECK2 += ch15/test10.cc
-# TOCHECK2 += ch15/test11.cc
-# TOCHECK2 += ch15/test12.cc
-# TOCHECK2 += ch15/test13.cc
-#TOCHECK2 += ch15/test14.cc
-#TOCHECK2 += ch15/test15.cc
-#TOCHECK2 += ch15/test16.cc
-#TOCHECK2 += ch15/test2.cc
-#TOCHECK2 += ch15/test3.cc
-#TOCHECK2 += ch15/test3virtual.cc
-#TOCHECK2 += ch15/test4.cc
-#TOCHECK2 += ch15/test5.cc
-#TOCHECK2 += ch15/test6.cc
-#TOCHECK2 += ch15/test7.cc
-#TOCHECK2 += ch15/test8.cc
-#TOCHECK2 += ch15/test9.cc
+# CHK_CHAP += ch15/test1.cc
+# CHK_CHAP += ch15/test10.cc
+# CHK_CHAP += ch15/test11.cc
+# CHK_CHAP += ch15/test12.cc
+# CHK_CHAP += ch15/test13.cc
+#CHK_CHAP += ch15/test14.cc
+#CHK_CHAP += ch15/test15.cc
+#CHK_CHAP += ch15/test16.cc
+#CHK_CHAP += ch15/test2.cc
+#CHK_CHAP += ch15/test3.cc
+#CHK_CHAP += ch15/test3virtual.cc
+#CHK_CHAP += ch15/test4.cc
+#CHK_CHAP += ch15/test5.cc
+#CHK_CHAP += ch15/test6.cc
+#CHK_CHAP += ch15/test7.cc
+#CHK_CHAP += ch15/test8.cc
+#CHK_CHAP += ch15/test9.cc
 
 # TOCHECK2 += eon/eon.cc
 #TOCHECK2 += eon/eonImageCalculator.cc
@@ -405,46 +372,62 @@ TOCHECK2 += ch14/test4.cc
 #TOCHECK2 += eon/mrZEllipticalCylinder.cc
 #TOCHECK2 += eon/myrand.cc
 
-# TOCHECK2 += estl/00-1.cc
-# TOCHECK2 += estl/02-1.cc
+# CHK_OTHER1 += estl/00-1.cc
+# CHK_OTHER1 += estl/02-1.cc
 
 #WARNING: there is no action to merge nonterm Expression
-#TOCHECK2 += estl/02-2.cc
+#CHK_OTHER1 += estl/02-2.cc
 
-#TOCHECK2 += estl/02-3.cc
-#TOCHECK2 += estl/02-4.cc
-#TOCHECK2 += estl/02-5.cc
+#CHK_OTHER1 += estl/02-3.cc
+#CHK_OTHER1 += estl/02-4.cc
+#CHK_OTHER1 += estl/02-5.cc
 
-#TOCHECK2 += exceptions/except1.cc
-#TOCHECK2 += exceptions/except2.cc
-#TOCHECK2 += exceptions/except3.cc
+#CHK_OTHER1 += exceptions/except1.cc
+#CHK_OTHER1 += exceptions/except2.cc
+#CHK_OTHER1 += exceptions/except3.cc
 
-TOCHECK2 += infer_graph/test1.c
-TOCHECK2 += infer_graph/test2.c
-TOCHECK2 += infer_graph/test3.c
-TOCHECK2 += infer_graph/test4.c
+CHK_OTHER1 += infer_graph/test1.c
+CHK_OTHER1 += infer_graph/test2.c
+CHK_OTHER1 += infer_graph/test3.c
+CHK_OTHER1 += infer_graph/test4.c
 
-TOCHECK2 += laundering/test1.cc
-TOCHECK2 += laundering/test2.cc
+CHK_OTHER1 += laundering/test1.cc
+CHK_OTHER1 += laundering/test2.cc
 
-#TOCHECK2 += stl/cout1.cc
-#TOCHECK2 += stl/encrypt.cc
-#TOCHECK2 += stl/iostream2.cc
-#TOCHECK2 += stl/rectangle.cc
-#TOCHECK2 += stl/sizes.cc
-#TOCHECK2 += stl/stl1.cc
-#TOCHECK2 += stl/structs.cc
-#TOCHECK2 += stl/tinycout.cc
-#TOCHECK2 += stl/triangle.cc
-#TOCHECK2 += stl/tstring1.cc
-#TOCHECK2 += stl/tstring2.cc
+#CHK_OTHER1 += stl/cout1.cc
+#CHK_OTHER1 += stl/encrypt.cc
+#CHK_OTHER1 += stl/iostream2.cc
+#CHK_OTHER1 += stl/rectangle.cc
+#CHK_OTHER1 += stl/sizes.cc
+#CHK_OTHER1 += stl/stl1.cc
+#CHK_OTHER1 += stl/structs.cc
+#CHK_OTHER1 += stl/tinycout.cc
+#CHK_OTHER1 += stl/triangle.cc
+#CHK_OTHER1 += stl/tstring1.cc
+#CHK_OTHER1 += stl/tstring2.cc
 
-#TOCHECK2 += tests/Barrier_Test.merged.c
+#CHK_OTHER1 += tests/Barrier_Test.merged.c
 
-TESTDIR2 := ../../cure_cpp/cc_examples/
-idem/check2: idem/clean2
-	./idemcheck -d outdir $(addprefix $(TESTDIR2),$(TOCHECK2))
+.PHONY: idemcheck
+idemcheck: idem/cc.in idem/cc_examples idem/chap idem/other1
 
-# Both do the same now.
-.PHONY: idem/clean2
-idem/clean2: idem/clean
+DIR_CCIN := ../cc.in/
+.PHONY: idem/cc.in
+idem/cc.in:; ./idemcheck -d outdir $(addprefix $(DIR_CCIN),$(CHK_CCIN))
+
+DIR_CCEX := ../../cure_cpp/cc_examples/
+.PHONY: idem/cc_examples
+idem/cc_examples:; ./idemcheck -d outdir $(addprefix $(DIR_CCEX),$(CHK_CCEX))
+.PHONY: idem/calc
+idem/calc:; ./idemcheck -d outdir $(addprefix $(DIR_CCEX),$(CHK_CALC))
+.PHONY: idem/chap
+idem/chap:; ./idemcheck -d outdir $(addprefix $(DIR_CCEX),$(CHK_CHAP))
+.PHONY: idem/other1
+idem/other1:; ./idemcheck -d outdir $(addprefix $(DIR_CCEX),$(CHK_OTHER1))
+
+# Clean
+TEST_SUFFIXES_TO_CLEAN := 0cppout.cc 1rawout.cc 2out.cc 3rawout.cc 4out.cc 5diff
+TEST_PATTERNS_TO_CLEAN := $(patsubst %,-o -name '*.%',$(TEST_SUFFIXES_TO_CLEAN))
+.PHONY: idemclean
+idemclean:
+	find outdir -type f \( -false $(TEST_PATTERNS_TO_CLEAN) \) | xargs rm -f
