@@ -52,5 +52,10 @@ agrampar: $(agrampar-dep) agrampar.cc $(LIBSMBASE)
 astgen: $(agrampar-dep) agrampar.o astgen.o $(LIBSMBASE) 
 	$(LINK) -o astgen $(agrampar-dep) agrampar.o astgen.o $(LINKEND)
 
+# test code for ccsstr
+ccsstr: ccsstr.cc ccsstr.h reporterr.o embedded.o
+	$(link) -o ccsstr -DTEST_CCSSTR ccsstr.cc \
+                reporterr.o embedded.o $(linkend)
+
 clean:
-	rm -f *.o agrampar astgen agrampar.tab.* tmp *.d
+	rm -f *.o agrampar astgen agrampar.tab.* tmp *.d ccsstr
