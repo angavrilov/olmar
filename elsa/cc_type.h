@@ -473,9 +473,14 @@ protected:  // funcs
 public:
   virtual ~FunctionType();
 
-  bool innerEquals(FunctionType const *obj) const;
-  bool equalParameterLists(FunctionType const *obj) const;
+  bool innerEquals(FunctionType const *obj, bool skipThis=false) const;
+  bool equalParameterLists(FunctionType const *obj, bool skipThis=false) const;
   bool equalExceptionSpecs(FunctionType const *obj) const;
+
+  // if the 'this' parameter (if any) is ignored in both function
+  // types, am I equal to 'obj'?
+  bool equalOmittingThisParam(FunctionType const *obj) const
+    { return innerEquals(obj, true /*skipThis*/); }
 
   // append a parameter to the (ordinary) parameters list
   void addParam(Variable *param);

@@ -26,8 +26,9 @@ enum LookupFlags {
   LF_NONE            = 0,
   LF_INNER_ONLY      = 0x01,    // only look in the innermost scope
   LF_ONLY_TYPES      = 0x02,    // ignore (skip over) non-type names
+  LF_IGNORE_VIRTUAL  = 0x04,    // for internal use by lookupPQVariableC
 
-  LF_ALL_FLAGS       = 0x03,    // bitwise OR of all flags
+  LF_ALL_FLAGS       = 0x07,    // bitwise OR of all flags
 };
 
 // experiment: will this work?
@@ -93,8 +94,10 @@ public:      // data
   SourceLoc curLoc;                   // latest AST location marker seen
                                     
 private:     // funcs
-  Variable const *lookupPQVariableC(PQName const *name, bool &crossVirtual,
-                                    Env &env, LookupFlags f) const;
+  void Scope::lookupPQVariableC_considerBase
+    (PQName const *name, Env &env, LookupFlags flags,
+     Variable const *&v1, CompoundType const *&v1Base, 
+     CompoundType const *v2Base) const;
 
 public:      // funcs
   Scope(int changeCount, SourceLoc initLoc);

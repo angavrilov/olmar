@@ -778,13 +778,13 @@ FunctionType::~FunctionType()
 }
 
 
-bool FunctionType::innerEquals(FunctionType const *obj) const
+bool FunctionType::innerEquals(FunctionType const *obj, bool skipThis) const
 {
   if (retType->equals(obj->retType) &&
-      isMember == obj->isMember &&
+      ((isMember == obj->isMember) || skipThis) &&
       acceptsVarargs == obj->acceptsVarargs) {
     // so far so good, try the parameters
-    return equalParameterLists(obj) &&
+    return equalParameterLists(obj, skipThis) &&
            equalExceptionSpecs(obj);
   }
   else {
@@ -792,10 +792,16 @@ bool FunctionType::innerEquals(FunctionType const *obj) const
   }
 }
 
-bool FunctionType::equalParameterLists(FunctionType const *obj) const
+bool FunctionType::equalParameterLists(FunctionType const *obj, 
+                                       bool skipThis) const
 {
-  SObjListIter<Variable> iter1(params);
+  SObjListIter<Variable> iter1(this->params);
   SObjListIter<Variable> iter2(obj->params);
+    
+  // skip the 'this' parameters if desired
+  if (skipThis && this->isMember) iter1.adv();
+  if (skipThis && obj->isMember) iter2.adv();
+
   for (; !iter1.isDone() && !iter2.isDone();
        iter1.adv(), iter2.adv()) {
     // parameter names do not have to match, but
@@ -836,6 +842,7 @@ bool FunctionType::equalExceptionSpecs(FunctionType const *obj) const
 
   return iter1.isDone() == iter2.isDone();
 }
+
 
 
 void FunctionType::addParam(Variable *param)

@@ -1862,40 +1862,32 @@ realStart:
       goto makeDummyVar;
     }
 
-    if (prior->hasFlag(DF_MEMBER)) {
-      // this intends to be the definition of a class member; make sure
-      // the code doesn't try to define a nonstatic data member
-      if (!prior->type->isFunctionType() &&
-          !prior->hasFlag(DF_STATIC)) {
-        env.error(stringc
-          << "cannot define nonstatic data member `" << *name << "'");
-        goto makeDummyVar;
-      }
-
-      // if the prior declaration is for a static method of a class,
-      // then the computed type we have so far is wrong because
-      // DF_STATIC won't have been syntactically present at the definition
-      if (prior->type->isFunctionType() &&
-          dt.type->isFunctionType() &&
-          prior->hasFlag(DF_STATIC)) {
-        xassert(!prior->type->asFunctionType()->isMember);
-        xassert(dt.type->asFunctionType()->isMember);
-
-        // make the correct type
-        dt.type = env.tfac.makeIntoStaticMember(dt.type->asFunctionType());
-      }
-    }
-
     // ok, so we found a prior declaration; but if it's a member of
     // an overload set, then we need to pick the right one now for
     // several reasons:
     //   - the DF_DEFINITION flag is per-member, not per-set
     //   - below we'll be checking for type equality again
     if (prior->overload) {
+      // only functions can be overloaded
+      if (!dt.type->isFunctionType()) {
+        env.error(dt.type, stringc
+          << "the name `" << *name << "' is overloaded, but the type `"
+          << dt.type->toString() << "' isn't even a function; it must "
+          << "be a function and match one of the overloadings");
+        goto makeDummyVar;
+      }
+      FunctionType *dtft = dt.type->asFunctionType();
+
       OverloadSet *set = prior->overload;
       prior = NULL;     // for now we haven't found a valid prior decl
       SMUTATE_EACH_OBJLIST(Variable, set->set, iter) {
-        if (iter.data()->type->equals(dt.type)) {
+        FunctionType *iterft = iter.data()->type->asFunctionType();
+
+        // 'dtft' is incomplete for the moment, because we don't know
+        // yet whether it's supposed to be a static member or a
+        // nonstatic member; this is determined by finding a function
+        // whose signature (ignoring 'this' parameter, if any) matches
+        if (iterft->equalOmittingThisParam(dtft)) {
           // ok, this is the right one
           prior = iter.data();
           break;
@@ -1908,6 +1900,33 @@ realStart:
           << dt.type->toString() << "' doesn't match any of the "
           << set->set.count() << " declared overloaded instances");
         goto makeDummyVar;
+      }
+    }
+
+    if (prior->hasFlag(DF_MEMBER)) {
+      // this intends to be the definition of a class member; make sure
+      // the code doesn't try to define a nonstatic data member
+      if (!prior->type->isFunctionType() &&
+          !prior->hasFlag(DF_STATIC)) {
+        env.error(stringc
+          << "cannot define nonstatic data member `" << *name << "'");
+        goto makeDummyVar;
+      }
+
+      // if the prior declaration is for a static method of a class,
+      // then the computed type we have so far is wrong because
+      // DF_STATIC won't have been syntactically present at the definition;
+      // note that this must be done *after* overload resolution because
+      // it's legal to have both static and nonstatic overloaded functions
+      // (t0098.cc is a testcase)
+      if (prior->type->isFunctionType() &&
+          dt.type->isFunctionType() &&
+          prior->hasFlag(DF_STATIC)) {
+        xassert(!prior->type->asFunctionType()->isMember);
+        xassert(dt.type->asFunctionType()->isMember);
+
+        // make the correct type
+        dt.type = env.tfac.makeIntoStaticMember(dt.type->asFunctionType());
       }
     }
   }
