@@ -190,7 +190,7 @@ void Production::append(Symbol *sym, char const *tag)
 void Production::finished()
 {
   xassert(dprods == NULL);    // otherwise we leak
-                                              
+
   // invariant check
   xassert(right.count() == rightTags.count());
 
@@ -217,49 +217,37 @@ void Production::finished()
   // Second, should there ever arise the desire to store additional
   // info with each dotted production, that option is easy to support.
   // (So I guess this is the real reason.)
-} 
+}
 
-             
-// in my infinite wisdom, I have to representations of the empty
-// string...
-bool tagEqual(char const *tag1, char const *tag2)
+                                               
+// basically strcmp but without the segfaults when s1 or s2
+// is null; return true if strings are equal
+bool tagCompare(char const *s1, char const *s2)
 {
-  if ((tag1==NULL || tag1[0]==0) &&
-      (tag2==NULL || tag2[0]==0)) {
-    return true;     // both are some form of empty string
+  if (s1 == NULL  ||  s2 == NULL) {
+    return s1 == s2;
   }
-
-  if (tag1==NULL || tag2==NULL) {
-    return false;    // one is empty and other isn't (and I can't call strcmp)
+  else {
+    return 0==strcmp(s1, s2);
   }
-                  
-  // neither is NULL, can use strcmp
-  return 0==strcmp(tag1, tag2);
 }
 
 
-int Production::findTaggedSymbol(char const *name, char const *tag) const
+int Production::findTag(char const *tag) const
 {
   // check LHS
-  if (left->name.equals(name) &&
-      tagEqual(leftTag, tag)) {
+  if (tagCompare(leftTag, tag)) {
     return 0;
   }
 
   // walk RHS list looking for a match
   ObjListIter<string> tagIter(rightTags);
-  SymbolListIter symIter(right);
   int index=1;
-  for(; !symIter.isDone() && !tagIter.isDone();
-        symIter.adv(), tagIter.adv(), index++) {
-    if (symIter.data()->name.equals(name) &&
-        tagEqual(*(tagIter.data()), tag)) {
+  for(; !tagIter.isDone(); tagIter.adv(), index++) {
+    if (tagCompare( *(tagIter.data()) , tag )) {
       return index;
     }
   }
-
-  // verify same length
-  xassert(symIter.isDone() && tagIter.isDone());
 
   // not found
   return -1;
@@ -273,22 +261,21 @@ string taggedName(char const *name, char const *tag)
     return string(name);
   }
   else {
-    return stringb(name << "." << tag);
+    return stringb(tag << ":" << name);
   }
 }
 
 
-string Production::taggedSymbolName(int index) const
+string Production::symbolTag(int index) const
 {
   // check LHS
   if (index == 0) {
-    return taggedName(left->name, leftTag);
+    return leftTag;
   }
 
   // find index in RHS list
   index--;
-  return taggedName(right.nthC(index)->name,
-                    *(rightTags.nthC(index)));
+  return *(rightTags.nthC(index));
 }
 
 
@@ -839,22 +826,24 @@ bool Grammar::readFile(char const *fname)
 
 
 // parse a possibly-tagged symbol name into 'name' and 'tag'
+// syntax is "tag:name" or just "name"
 void parseTaggedName(string &name, string &tag, char const *tagged)
 {
-  StrtokParse tok(tagged, ".");
+  StrtokParse tok(tagged, ":");
   if (tok < 1) {
-    xfailure("tagged name consisting only of dots!");
+    xfailure("tagged name consisting only of colons!");
   }
   if (tok > 2) {
     xfailure("tagged name with too many tags");
   }
 
-  name = tok[0];
-  if (tok == 2) {
-    tag = tok[1];
+  if (tok == 1) {
+    tag = NULL;
+    name = tok[0];
   }
   else {
-    tag = NULL;
+    tag = tok[0];
+    name = tok[1];
   }
 }
 
@@ -1064,7 +1053,7 @@ Symbol *Grammar::parseGrammarSymbol(char const *token, string &tag)
   }
 
   // nonterminal (has to start with an uppercase letter)
-  else if (isupper(token[0])) {
+  else if (strchr(token, ':') || isupper(token[0])) {
     string name;
     parseTaggedName(name, tag, token);
     return getOrMakeNonterminal(name);

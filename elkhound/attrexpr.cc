@@ -18,21 +18,17 @@ AttrLvalue::~AttrLvalue()
 STATICDEF AttrLvalue AttrLvalue::
   parseRef(Production const *prod, char const *refString)
 {
-  // parse refString into name, tag (optional), and field
+  // parse refString into tag  and field
   StrtokParse tok(refString, ".");
-  if (tok < 2 || tok > 3) {
+  if (tok != 2) {
     xfailure("attribute reference has too many or too few fields");
   }
-  
-  string name = tok[0];	       // first
-  string field = tok[tok-1];   // last
-  string tag(NULL);
-  if (tok == 3) {
-    tag = tok[1];	       // middle
-  }
+
+  string tag = tok[0];
+  string field = tok[1];
 
   // search in the production for this name and tag
-  int index = prod->findTaggedSymbol(name, tag);
+  int index = prod->findTag(tag);
   if (index == -1) {
     // didn't find it
     xfailure(stringb("couldn't find symbol for " << refString));
@@ -45,7 +41,7 @@ STATICDEF AttrLvalue AttrLvalue::
 
 string AttrLvalue::toString(Production const *prod) const
 {
-  return stringc << prod->taggedSymbolName(symbolIndex)
+  return stringc << prod->symbolTag(symbolIndex)
                  << "." << attrName;
 }
 

@@ -163,24 +163,24 @@ Literal -> L2_INT_LITERAL | L2_FLOAT_LITERAL | L2_STRING_LITERAL | L2_CHAR_LITER
 
 # possibly-qualified name; essentially spec's id-expression
 # missing: template-id because I don't know what that is
-PQVarName -> VariableName
-  %action { PQVarName.colonColon := 0 }                                                   
-PQVarName -> OperatorFunctionId                                                           # C++
-  %action { PQVarName.colonColon := 0 }                                                   # C++
-PQVarName -> ConversionFunctionId                                                         # C++
-  %action { PQVarName.colonColon := 0 }                                                   # C++
-PQVarName -> "~" ClassName                                                                # C++
-  %action { PQVarName.colonColon := 0 }                                                   # C++
-PQVarName.lhs -> Qualifier PQVarName.rhs                                                  # C++
-  %action { PQVarName.lhs.colonColon := Qualifier.colonColon }                            # C++
+n:PQVarName -> VariableName
+  %action { n.colonColon := 0 }
+n:PQVarName -> OperatorFunctionId                                                         # C++
+  %action { n.colonColon := 0 }                                                           # C++
+n:PQVarName -> ConversionFunctionId                                                       # C++
+  %action { n.colonColon := 0 }                                                           # C++
+n:PQVarName -> "~" ClassName                                                              # C++
+  %action { n.colonColon := 0 }                                                           # C++
+lhs:PQVarName -> q:Qualifier rhs:PQVarName                                                # C++
+  %action { lhs.colonColon := q.colonColon }                                              # C++
     # the PQVarName is preceeded by :: if the Qualifier is
-  %condition { (== PQVarName.rhs.colonColon 0) }                                          # C++
+  %condition { (== rhs.colonColon 0) }                                                    # C++
     # can't put any more qualifiers on to left of ::
 
-Qualifier -> "::"                                                                         # C++
-  %action { Qualifier.colonColon := 1 }                                                   # C++
-Qualifier -> ClassName "::"                                                               # C++
-  %action { Qualifier.colonColon := 0 }                                                   # C++
+q:Qualifier -> "::"                                                                       # C++
+  %action { q.colonColon := 1 }                                                           # C++
+q:Qualifier -> ClassName "::"                                                             # C++
+  %action { q.colonColon := 0 }                                                           # C++
 
 
 PostfixExpression -> PrimaryExpression
@@ -241,63 +241,63 @@ DeleteExpression -> "delete" "[" "]" CastExpression                             
 CastExpression -> UnaryExpression | "(" TypeId ")" CastExpression
 
 # ++++ binary operator expression ++++
-BinaryExpression -> CastExpression
-  %action { BinaryExpression.prec := 100 }
+e:BinaryExpression -> CastExpression
+  %action { e.prec := 100 }
 
-BinaryExpression.result -> BinaryExpression.left BinaryOperator BinaryExpression.right
-  %action { BinaryExpression.result.prec := BinaryOperator.prec }
-  %condition { (<= BinaryExpression.result.prec BinaryExpression.left.prec) }         # precedence
-  %condition { (<= BinaryExpression.result.prec BinaryExpression.right.prec) }        # more precedence
-  %condition { (if (== BinaryOperator.leftAssoc 1) (< BinaryExpression.result.prec BinaryExpression.right.prec) (< BinaryExpression.result.prec BinaryExpression.left.prec)) }
+result:BinaryExpression -> left:BinaryExpression op:BinaryOperator right:BinaryExpression
+  %action { result.prec := op.prec }
+  %condition { (<= result.prec left.prec) }         # precedence
+  %condition { (<= result.prec right.prec) }        # more precedence
+  %condition { (if (== op.leftAssoc 1) (< result.prec right.prec) (< result.prec left.prec)) }
     # associativity
-  %condition { (|| (!= BinaryOperator.leftAssoc 2) (< BinaryExpression.result.prec BinaryExpression.right.prec)) }
+  %condition { (|| (!= op.leftAssoc 2) (< result.prec right.prec)) }
     # for nonassoc (2), the first associativity condition will make sure that
     # result.prec < left.prec, so the 2nd associativity condition ensures
     # result.prec < right.prec
 
-BinaryOperator -> ".*" | "->*"                                                            # C++
-  %action { BinaryOperator.prec := 64 }                                                   # C++
-  %action { BinaryOperator.leftAssoc := 1 }                                               # C++
+op:BinaryOperator -> ".*" | "->*"                                                            # C++
+  %action { op.prec := 64 }                                                   # C++
+  %action { op.leftAssoc := 1 }                                               # C++
 
-BinaryOperator -> "*" | "/" | "%"
-  %action { BinaryOperator.prec := 60 }
-  %action { BinaryOperator.leftAssoc := 1 }
+op:BinaryOperator -> "*" | "/" | "%"
+  %action { op.prec := 60 }
+  %action { op.leftAssoc := 1 }
 
-BinaryOperator -> "+" | "-"
-  %action { BinaryOperator.prec := 56 }
-  %action { BinaryOperator.leftAssoc := 1 }
+op:BinaryOperator -> "+" | "-"
+  %action { op.prec := 56 }
+  %action { op.leftAssoc := 1 }
 
-BinaryOperator -> "<<" | ">>"
-  %action { BinaryOperator.prec := 52 }
-  %action { BinaryOperator.leftAssoc := 1 }
+op:BinaryOperator -> "<<" | ">>"
+  %action { op.prec := 52 }
+  %action { op.leftAssoc := 1 }
 
-BinaryOperator -> "<" | ">" | "<=" | ">="
-  %action { BinaryOperator.prec := 48 }
-  %action { BinaryOperator.leftAssoc := 2 }      # 2 means nonassociative
+op:BinaryOperator -> "<" | ">" | "<=" | ">="
+  %action { op.prec := 48 }
+  %action { op.leftAssoc := 2 }      # 2 means nonassociative
 
-BinaryOperator -> "==" | "!="
-  %action { BinaryOperator.prec := 44 }
-  %action { BinaryOperator.leftAssoc := 1 }
+op:BinaryOperator -> "==" | "!="
+  %action { op.prec := 44 }
+  %action { op.leftAssoc := 1 }
 
-BinaryOperator -> "&"
-  %action { BinaryOperator.prec := 40 }
-  %action { BinaryOperator.leftAssoc := 1 }
+op:BinaryOperator -> "&"
+  %action { op.prec := 40 }
+  %action { op.leftAssoc := 1 }
 
-BinaryOperator -> "^"
-  %action { BinaryOperator.prec := 36 }
-  %action { BinaryOperator.leftAssoc := 1 }
+op:BinaryOperator -> "^"
+  %action { op.prec := 36 }
+  %action { op.leftAssoc := 1 }
 
-BinaryOperator -> "|"
-  %action { BinaryOperator.prec := 32 }
-  %action { BinaryOperator.leftAssoc := 1 }
+op:BinaryOperator -> "|"
+  %action { op.prec := 32 }
+  %action { op.leftAssoc := 1 }
 
-BinaryOperator -> "&&"
-  %action { BinaryOperator.prec := 28 }
-  %action { BinaryOperator.leftAssoc := 1 }
+op:BinaryOperator -> "&&"
+  %action { op.prec := 28 }
+  %action { op.leftAssoc := 1 }
 
-BinaryOperator -> "||"
-  %action { BinaryOperator.prec := 24 }
-  %action { BinaryOperator.leftAssoc := 1 }
+op:BinaryOperator -> "||"
+  %action { op.prec := 24 }
+  %action { op.leftAssoc := 1 }
 
 # ---- end of binary operator expression ----
 
@@ -541,26 +541,26 @@ InitializerList -> InitializerList "," InitializerClause
 
 
 # (PtrOperator)* DirectDeclarator
-Declarator.lhs -> PtrOperator Declarator
-  %action { Declarator.lhs.isFunction := 0 }
-Declarator.lhs -> DirectDeclarator
-  %action { Declarator.lhs.isFunction := DirectDeclarator.isFunction }
+lhs:Declarator -> PtrOperator Declarator
+  %action { lhs.isFunction := 0 }
+lhs:Declarator -> d:DirectDeclarator
+  %action { lhs.isFunction := d.isFunction }
 
-DirectDeclarator.lhs -> PQVarName
-  %action { DirectDeclarator.lhs.isFunction := 0 }
-  %condition { (== PQVarName.colonColon 0) }
+lhs:DirectDeclarator -> n:PQVarName
+  %action { lhs.isFunction := 0 }
+  %condition { (== n.colonColon 0) }
     # declarator names can't be qualified with "::" (this resolves an
     # ambiguity with constructs like "Foo::Foo() {}")
-DirectDeclarator.lhs -> DirectDeclarator "(" ParameterDeclarationClause ")" CVQualifierSeqOpt  # fn
+lhs:DirectDeclarator -> DirectDeclarator "(" ParameterDeclarationClause ")" CVQualifierSeqOpt  # fn
   #                     ^^ name of fn ^^     ^^^^^^^ arguments ^^^^^^^^     ^^^^ const? ^^^^^
   # the return type comes from the type specifier that preceeds this
-  %action { DirectDeclarator.lhs.isFunction := 1 }
-DirectDeclarator.lhs -> DirectDeclarator "[" ConstantExpression "]"      # array of specified size
-  %action { DirectDeclarator.lhs.isFunction := 0 }
-DirectDeclarator.lhs -> DirectDeclarator "[" "]"                         # array of unspecified size
-  %action { DirectDeclarator.lhs.isFunction := 0 }
-DirectDeclarator.lhs -> "(" Declarator ")"                               # precedence grouping
-  %action { DirectDeclarator.lhs.isFunction := Declarator.isFunction }
+  %action { lhs.isFunction := 1 }
+lhs:DirectDeclarator -> DirectDeclarator "[" ConstantExpression "]"      # array of specified size
+  %action { lhs.isFunction := 0 }
+lhs:DirectDeclarator -> DirectDeclarator "[" "]"                         # array of unspecified size
+  %action { lhs.isFunction := 0 }
+lhs:DirectDeclarator -> "(" d:Declarator ")"                               # precedence grouping
+  %action { lhs.isFunction := d.isFunction }
 
 PtrOperator -> "*" CVQualifierSeqOpt
 PtrOperator -> "&"                                                                        # C++
@@ -615,12 +615,12 @@ ParameterDeclaration -> DeclSpecifier AbstractDeclarator "=" AssignmentExpressio
 # in ctors and dtors; so my idea now is to only permit it when the
 # declarator declares a function type (can't be more specific since there
 # aren't good syntactic clues for ctors)
-#                     return type      name/params body
-FunctionDefinition -> DeclSpecifier    Declarator  FunctionBody
-FunctionDefinition ->   ExplicitOpt    Declarator  FunctionBody                         # {c,d}tor  # C++
-  %condition { (== Declarator.isFunction 1) }                                                       # C++
-FunctionDefinition ->   ExplicitOpt    Declarator ":" MemInitializerList FunctionBody   # ctor      # C++
-  %condition { (== Declarator.isFunction 1) }                                                       # C++
+#                     return type      name/params   body
+FunctionDefinition -> DeclSpecifier    d:Declarator  FunctionBody
+FunctionDefinition ->   ExplicitOpt    d:Declarator  FunctionBody                         # {c,d}tor  # C++
+  %condition { (== d.isFunction 1) }                                                       # C++
+FunctionDefinition ->   ExplicitOpt    d:Declarator  ":" MemInitializerList FunctionBody   # ctor      # C++
+  %condition { (== d.isFunction 1) }                                                       # C++
 
 FunctionBody -> CompoundStatement
 
@@ -645,8 +645,8 @@ AccessSpecifier -> "public" | "private" | "protected"                           
 MemberDeclaration -> DeclSpecifier MemberDeclaratorList ";"     # member fn or data       # C++
 MemberDeclaration -> FunctionDefinition ";"                     # inline fn               # C++
 MemberDeclaration -> FunctionDefinition                         # syntactic tweak         # C++
-MemberDeclaration -> ExplicitOpt VirtualOpt Declarator ";"      # ctor, dtor, conv op     # C++
-  %condition { (== Declarator.isFunction 1) }                                             # C++
+MemberDeclaration -> ExplicitOpt VirtualOpt d:Declarator ";"    # ctor, dtor, conv op     # C++
+  %condition { (== d.isFunction 1) }                                                      # C++
   # note above that "explicit" and "virtual" can't be mixed because the former
   # is for ctors only and the latter can't be used with ctors
 
@@ -743,3 +743,6 @@ ThrowExpression -> "throw"                                                      
 # to assume this is a fn call
 %tokSeqAmb  ExpressionStatement  ->  L2_NAME "(" L2_NAME ")" ";"
 
+# update: after implementing the mechanism to do this in general, I found
+# it really didn't apply (at least as limited as it currently is) beyond
+# the single special case above

@@ -210,14 +210,14 @@ public:	    // funcs
   // call this when production is built, so it can compute dprods
   void finished();
 
-  // find a symbol by name and tag (tag can be NULL); returns 0 to
-  // identify LHS symbol, 1 for first RHS symbol, 2 for second, etc.;
-  // returns -1 if the name/tag doesn't match anything
-  int findTaggedSymbol(char const *name, char const *tag) const;
+  // find a symbol by tag; returns 0 to identify LHS symbol, 1 for
+  // first RHS symbol, 2 for second, etc.; returns -1 if the tag
+  // doesn't match anything
+  int findTag(char const *tag) const;
 
   // given an index as returned by 'findTaggedSymbol', translate that
-  // back into a string consisting of name and optional tag
-  string taggedSymbolName(int symbolIndex) const;
+  // back into a tag
+  string symbolTag(int symbolIndex) const;
 
   // retrieve an item
   DottedProduction const *getDProdC(int dotPlace) const;
