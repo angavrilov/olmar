@@ -386,6 +386,154 @@ CompoundType *Function::verifyIsCtor(Env &env, char const *context)
 }
 
 
+void MemberInit::tcheck(Env &env, CompoundType *enclosing)
+{
+  FullExpressionAnnot::StackBracket fea0(env, annot);
+
+  // resolve template arguments in 'name'
+  name->tcheck(env);
+
+  // check for a member variable, since they have precedence over
+  // base classes [para 2]; member inits cannot have qualifiers
+  if (!name->hasQualifiers()) {
+    // look for the given name in the class; should be an immediate
+    // member, not one that was inherited
+    Variable *v =
+      enclosing->lookupVariable(name->getName(), env, LF_INNER_ONLY);
+    if (v) {
+      // only "nonstatic data member"
+      if (v->hasFlag(DF_TYPEDEF) ||
+          v->hasFlag(DF_STATIC) ||
+          v->type->isFunctionType()) {
+        env.error("you can't initialize types, nor static data, "
+                  "nor member functions, in a ctor member init list");
+        return;
+      }
+
+      // annotate the AST
+      member = env.storeVar(v);
+
+      // typecheck the arguments
+      tcheckArgExprList(args, env);
+        
+      // decide which of v's possible constructors is being used
+      Variable *ctor = outerResolveOverload_ctor(env, env.loc(), v->type, args,
+                                                 reallyDoOverload(env, args));
+      if (ctor) {
+        ctorVar = env.storeVar(ctor);
+
+        // FIX: do this; we need a variable for when it is a base class
+        // the var is the MemberInit::member
+        // only do this if env.doElaboration
+        //            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
+      }
+
+      // I think with the implicit ctors added now, this should
+      // always succeed
+      xassert(!!ctor == v->type->asRval()->isCompoundType());
+
+      // TODO: check that the passed arguments are consistent
+      // with at least one constructor of the variable's type
+
+      // TODO: make sure that we only initialize each member once
+
+      // TODO: provide a warning if the order in which the
+      // members are initialized is different from their
+      // declaration order, since the latter determines the
+      // order of side effects
+
+      return;
+    }
+  }
+
+  // not a member name.. what about the name of base class?
+  // since the base class initializer can use any name which
+  // denotes the base class [para 2], first look up the name
+  // in the environment generally
+  Variable *baseVar = env.lookupPQVariable(name);
+  if (!baseVar ||
+      !baseVar->hasFlag(DF_TYPEDEF) ||
+      !baseVar->type->isCompoundType()) {
+    env.error(stringc
+              << "`" << *name << "' does not denote any class");
+    return;
+  }
+  CompoundType *baseClass = baseVar->type->asCompoundType();
+
+  // is this class a direct base, and/or an indirect virtual base?
+  bool directBase = false;
+  bool directVirtual = false;
+  bool indirectVirtual = false;
+  FOREACH_OBJLIST(BaseClass, enclosing->bases, baseIter) {
+    BaseClass const *b = baseIter.data();
+
+    // check for direct base
+    if (b->ct == baseClass) {
+      directBase = true;
+      directVirtual = b->isVirtual;
+    }
+
+    // check for indirect virtual base by looking for virtual
+    // base of a direct base class
+    if (b->ct->hasVirtualBase(baseClass)) {
+      indirectVirtual = true;
+    }
+  }
+
+  // did we find anything?
+  if (!directBase && !indirectVirtual) {
+    // if there are qualifiers, then it can't possibly be an
+    // attempt to initialize a data member
+    char const *norData = name->hasQualifiers()? "" : ", nor a data member,";
+    env.error(stringc
+              << "`" << *name << "' is not a base class" << norData
+              << " so it cannot be initialized here");
+    return;
+  }
+
+  // check for ambiguity [para 2]
+  if (directBase && !directVirtual && indirectVirtual) {
+    env.error(stringc
+              << "`" << *name << "' is both a direct non-virtual base, "
+              << "and an indirect virtual base; therefore the initializer "
+              << "is ambiguous (there's no quick fix--you have to change "
+              << "your inheritance hierarchy or forego initialization)");
+    return;
+  }
+
+  // annotate the AST
+  base = baseClass;
+
+  // TODO: verify correspondence between template arguments
+  // in the initializer name and template arguments in the
+  // base class list
+
+  // typecheck the arguments
+  tcheckArgExprList(args, env);
+    
+  // determine which constructor is being called
+  Variable *ctor = outerResolveOverload_ctor(env, env.loc(),
+                                             baseVar->type,
+                                             args,
+                                             reallyDoOverload(env, args));
+  if (ctor) {
+    ctorVar = env.storeVar(ctor);
+
+    // FIX: do this; we need a variable for when it is a base class
+    // the var is Function::retVar; NOTE: the types won't match so
+    // watch out.
+    // only do this if env.doElaboration
+    //            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
+  }
+
+  // I think with the implicit ctors added now, this should always
+  // succeed
+  xassert(!!ctor == baseVar->type->asRval()->isCompoundType());
+
+  // TODO: check that the passed arguments are consistent
+  // with at least one constructor in the base class
+}
+
 // cppstd 12.6.2 covers member initializers
 void Function::tcheck_memberInits(Env &env)
 {
@@ -394,156 +542,16 @@ void Function::tcheck_memberInits(Env &env)
     return;
   }
 
-  // ok, so far so good; now go through and check the member
-  // inits themselves
+  // ok, so far so good; now go through and check the member inits
+  // themselves
   FAKELIST_FOREACH_NC(MemberInit, inits, iter) {
-    FullExpressionAnnot::StackBracket fea0(env, iter->annot);
-
-    PQName *name = iter->name;
-
-    // resolve template arguments in 'name'
-    name->tcheck(env);
-
-    // check for a member variable, since they have precedence over
-    // base classes [para 2]; member inits cannot have qualifiers
-    if (!name->hasQualifiers()) {
-      // look for the given name in the class; should be an immediate
-      // member, not one that was inherited
-      Variable *v =
-        enclosing->lookupVariable(name->getName(), env, LF_INNER_ONLY);
-      if (v) {
-        // only "nonstatic data member"
-        if (v->hasFlag(DF_TYPEDEF) ||
-            v->hasFlag(DF_STATIC) ||
-            v->type->isFunctionType()) {
-          env.error("you can't initialize types, nor static data, "
-                    "nor member functions, in a ctor member init list");
-          continue;
-        }
-
-        // annotate the AST
-        iter->member = env.storeVar(v);
-
-        // typecheck the arguments
-        tcheckArgExprList(iter->args, env);
-        
-        // decide which of v's possible constructors is being used
-        Variable *ctor = outerResolveOverload_ctor(env, env.loc(), v->type, iter->args,
-                                                   reallyDoOverload(env, iter->args));
-        if (ctor) {
-          iter->ctorVar = env.storeVar(ctor);
-
-          // FIX: do this; we need a variable for when it is a base class
-          // the var is the MemberInit::member
-          // only do this if env.doElaboration
-//            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
-        }
-
-        // I think with the implicit ctors added now, this should
-        // always succeed
-        xassert(!!ctor == v->type->asRval()->isCompoundType());
-
-        // TODO: check that the passed arguments are consistent
-        // with at least one constructor of the variable's type
-
-        // TODO: make sure that we only initialize each member once
-
-        // TODO: provide a warning if the order in which the
-        // members are initialized is different from their
-        // declaration order, since the latter determines the
-        // order of side effects
-
-        continue;
-      }
-    }
-
-    // not a member name.. what about the name of base class?
-    // since the base class initializer can use any name which
-    // denotes the base class [para 2], first look up the name
-    // in the environment generally
-    Variable *baseVar = env.lookupPQVariable(name);
-    if (!baseVar ||
-        !baseVar->hasFlag(DF_TYPEDEF) ||
-        !baseVar->type->isCompoundType()) {
-      env.error(stringc
-        << "`" << *name << "' does not denote any class");
-      continue;
-    }
-    CompoundType *baseClass = baseVar->type->asCompoundType();
-
-    // is this class a direct base, and/or an indirect virtual base?
-    bool directBase = false;
-    bool directVirtual = false;
-    bool indirectVirtual = false;
-    FOREACH_OBJLIST(BaseClass, enclosing->bases, baseIter) {
-      BaseClass const *b = baseIter.data();
-
-      // check for direct base
-      if (b->ct == baseClass) {
-        directBase = true;
-        directVirtual = b->isVirtual;
-      }
-
-      // check for indirect virtual base by looking for virtual
-      // base of a direct base class
-      if (b->ct->hasVirtualBase(baseClass)) {
-        indirectVirtual = true;
-      }
-    }
-
-    // did we find anything?
-    if (!directBase && !indirectVirtual) {
-      // if there are qualifiers, then it can't possibly be an
-      // attempt to initialize a data member
-      char const *norData = name->hasQualifiers()? "" : ", nor a data member,";
-      env.error(stringc
-        << "`" << *name << "' is not a base class" << norData
-        << " so it cannot be initialized here");
-      continue;
-    }
-
-    // check for ambiguity [para 2]
-    if (directBase && !directVirtual && indirectVirtual) {
-      env.error(stringc
-        << "`" << *name << "' is both a direct non-virtual base, "
-        << "and an indirect virtual base; therefore the initializer "
-        << "is ambiguous (there's no quick fix--you have to change "
-        << "your inheritance hierarchy or forego initialization)");
-      continue;
-    }
-
-    // annotate the AST
-    iter->base = baseClass;
-
-    // TODO: verify correspondence between template arguments
-    // in the initializer name and template arguments in the
-    // base class list
-
-    // typecheck the arguments
-    tcheckArgExprList(iter->args, env);
-    
-    // determine which constructor is being called
-    Variable *ctor = outerResolveOverload_ctor(env, env.loc(),
-                                               baseVar->type,
-                                               iter->args,
-                                               reallyDoOverload(env, iter->args));
-    if (ctor) {
-      iter->ctorVar = env.storeVar(ctor);
-
-      // FIX: do this; we need a variable for when it is a base class
-      // the var is Function::retVar; NOTE: the types won't match so
-      // watch out.
-      // only do this if env.doElaboration
-//            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
-    }
-
-    // I think with the implicit ctors added now, this should always
-    // succeed
-    xassert(!!ctor == baseVar->type->asRval()->isCompoundType());
-
-    // TODO: check that the passed arguments are consistent
-    // with at least one constructor in the base class
+    iter->tcheck(env, enclosing);
   }
+
+  // Add and tcheck any MemberInits needed to call no-arg (default)
+  // ctor for any of the (appropriate) superclasses or members that
+  // were left out of the MemberInit list by the user.
+  completeNoArgMemberInits(env, this, enclosing);
 }
 
 
@@ -1482,22 +1490,32 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
     return;
   }
 
-  // **** implicit default ctor: cppstd 12.1 para 5: "If there is no
-  // user-declared constructor for class X, a default constructor is
-  // implicitly declared."
+  // **** implicit no-arg (aka "default") ctor: cppstd 12.1 para 5:
+  // "If there is no user-declared constructor for class X, a default
+  // constructor is implicitly declared."
   if (!ct->getNamedFieldC(env.constructorSpecialName, env, LF_INNER_ONLY)) {
-    // add a no-arg ctor declaration: "Class();".  For now we just
-    // add the variable to the scope and don't construct the AST, in
-    // order to be symmetric with what is going on with the dtor
-    // below.
-    FunctionType *ft = env.beginConstructorFunctionType(loc);
-    ft->doneParams();
-    Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_MEMBER);
-    // NOTE: we don't use env.addVariableWithOload() because this is
-    // a special case: we only insert if there are no ctors AT ALL.
-    env.addVariable(v);
-    env.madeUpVariables.push(v);
+    if (env.doElaboration) {
+      // create the AST for a definition and do the first typechecking
+      // pass; the second part of the pass will be done with the rest
+      // of the members later.
+      MR_func *ctorBody = makeNoArgCtorBody(env, ct);
+      ctorBody->tcheck(env);
+      tsClassSpec->members->list.append(ctorBody);
+    } else {
+      // add a no-arg ctor declaration: "Class();".  For now we just
+      // add the variable to the scope and don't construct the AST, in
+      // order to be symmetric with what is going on with the dtor
+      // below.
+      FunctionType *ft = env.beginConstructorFunctionType(loc);
+      ft->doneParams();
+      Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_MEMBER);
+      // NOTE: we don't use env.addVariableWithOload() because this is
+      // a special case: we only insert if there are no ctors AT ALL.
+      env.addVariable(v);
+      env.madeUpVariables.push(v);
+    }
 
+    // This is old:
 //        // make a no-arg ctor; make AST as if it had been parsed; this
 //        // has been reconstructed from cc.gr
 //        char *id = ct->name; // in cc.gr, a string ref of the name
@@ -1542,8 +1560,6 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
       // pass; the second part of the pass will be done with the rest
       // of the members later.
       MR_func *ctorBody = makeCopyCtorBody(env, ct);
-      //      cout << "**** ct->name: " << ct->name << endl;
-      //      ctorBody->debugPrint(cout, 0);
       ctorBody->tcheck(env);
       tsClassSpec->members->list.append(ctorBody);
     } else {

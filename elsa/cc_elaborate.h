@@ -23,6 +23,7 @@ class Statement;
 class ArgExpression;
 class Expression;
 class MR_func;
+class Function;
 
 
 // Objects with a FullExpressionAnnot have their own scope containing
@@ -65,9 +66,11 @@ Statement *makeDtorStatement(Env &env, Type *type);
 Expression *elaborateCallSite(Env &env, FunctionType *ft,
                               FakeList<ArgExpression> *args);
 
+void elaborateFunctionStart(Env &env, FunctionType *ft);
+
+void completeNoArgMemberInits(Env &env, Function *ctor, CompoundType *ct);
+MR_func *makeNoArgCtorBody(Env &env, CompoundType *ct);
 MR_func *makeCopyCtorBody(Env &env, CompoundType *ct);
 MR_func *makeCopyAssignBody(Env &env, CompoundType *ct);
-
-void elaborateFunctionStart(Env &env, FunctionType *ft);
 
 #endif // CC_ELABORATE_H

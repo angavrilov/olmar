@@ -444,6 +444,261 @@ Expression *elaborateCallSite(Env &env, FunctionType *ft,
 }
 
 
+void elaborateFunctionStart(Env &env, FunctionType *ft)
+{
+  if (ft->retType->isCompoundType()) {
+    // We simulate return-by-value for class-valued objects by
+    // passing a hidden additional parameter of type C& for a
+    // return value of type C.  For static semantics, that means
+    // adding an environment entry for a special name, "<retVal>".
+    Variable *v = env.makeVariable(env.loc(), env.str("<retVal>"),
+                                   env.tfac.cloneType(ft->retType), DF_PARAMETER);
+    env.addVariable(v);
+  }
+}
+
+
+// add no-arg MemberInits to existing ctor body ****************
+
+// does this Variable want a MemberInitializer?
+static bool wantsMemberInit(Variable *var) {
+  // function members should be skipped
+  if (var->type->isFunctionType()) return false;
+  // skip arrays for now; FIX: do something correct here
+  if (var->type->isArrayType()) return false;
+  if (var->isStatic()) return false;
+  if (var->hasFlag(DF_TYPEDEF)) return false;
+  // FIX: do all this with one test
+  xassert(!var->hasFlag(DF_AUTO));
+  xassert(!var->hasFlag(DF_REGISTER));
+  xassert(!var->hasFlag(DF_EXTERN));
+  xassert(!var->hasFlag(DF_VIRTUAL)); // should be functions only
+  xassert(!var->hasFlag(DF_EXPLICIT)); // should be ctors only
+  xassert(!var->hasFlag(DF_FRIEND));
+  xassert(!var->hasFlag(DF_NAMESPACE));
+  xassert(var->isMember());
+  return true;
+}
+
+// find the MemberInitializer that initializes data member memberVar;
+// return NULL if none
+static MemberInit *findMemberInitDataMember
+  (FakeList<MemberInit> *inits, // the inits to search
+   Variable *memberVar)         // data member to search for the MemberInit for
+{
+  MemberInit *ret = NULL;
+  FAKELIST_FOREACH_NC(MemberInit, inits, mi) {
+    xassert(!mi->base || !mi->member); // MemberInit should do only one thing
+    if (mi->member == memberVar) {
+      xassert(!ret);            // >1 MemberInit; FIX: this is a user error, not our error
+      ret = mi;
+    }
+  }
+  return ret;
+}
+
+// find the MemberInitializer that initializes data member memberVar;
+// return NULL if none
+static MemberInit *findMemberInitSuperclass
+  (FakeList<MemberInit> *inits, // the inits to search
+   CompoundType *superclass)    // superclass to search for the MemberInit for
+{
+  MemberInit *ret = NULL;
+  FAKELIST_FOREACH_NC(MemberInit, inits, mi) {
+    xassert(!mi->base || !mi->member); // MemberInit should do only one thing
+    if (mi->base == superclass) {
+      xassert(!ret);            // >1 MemberInit; FIX: this is a user error, not our error
+      ret = mi;
+    }
+  }
+  return ret;
+}
+
+
+// Finish supplying to a ctor the no-arg MemberInits for unmentioned
+// superclasses and members.  NOTE: to be correct, the input
+// ctor->inits had better have already been typechecked.  Any new ones
+// created are typchecked here before being added.  FIX: maybe this
+// should be a method on Function.
+void completeNoArgMemberInits(Env &env, Function *ctor, CompoundType *ct)
+{
+  // can't do any of this since Function *ctor can't have been
+  // typechecked yet
+//    Type *funcType = ctor->funcType;
+//    xassert(funcType->isFunctionType());
+//    FunctionType *ctorFunc = funcType->asFunctionType();
+//    xassert(ctorFunc->isConstructor());
+//    // FIX: assert here that _ctor_ is a ctor for _ct_; don't know how
+//    // to do it.  Scott says it is not easy.
+
+  SourceLoc loc = env.loc();
+
+  // Iterate through the members in the declaration order (what is in
+  // the CompoundType).  For each one, check to see if we have a
+  // MemberInit for it.  If so, append that (prepend and revese
+  // later); otherwise, make one.  This has the effect of
+  // canonicalizing the MemberInit call order even if none needed to
+  // be added, which I think is in the spec; at least g++ does it (and
+  // gives a warning, which I won't do.)
+  FakeList<MemberInit> *oldInits = ctor->inits;
+  // NOTE: you can't make a new list of inits that is a FakeList
+  // because we are still traversing over the old one.  Linked lists
+  // are a premature optimization!
+  VoidList newInits;            // I don't care that this isn't typechecked.
+  // NOTE: don't do this!
+//    FakeList<MemberInit> *newInits = FakeList<MemberInit>::emptyList();
+  
+  FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
+    BaseClass *base = const_cast<BaseClass*>(iter.data());
+    // omit initialization of virtual base classes, whether direct
+    // virtual or indirect virtual.  See cppstd 12.6.2 and the
+    // implementation of Function::tcheck_memberInits()
+    //
+    // FIX: We really should be initializing the direct virtual bases,
+    // but the logic is so complex I'm just going to omit it for now
+    // and err on the side of not calling enough initializers;
+    // UPDATE: the spec says we can do it multiple times for copy
+    // assign operator, so I wonder if that holds for ctors also.
+    if (!ct->hasVirtualBase(base->ct)) {
+      FakeList<TemplateArgument> *targs = env.getTemplateArgs(base->ct);
+      PQName *name = env.makePossiblyTemplatizedName(loc, base->ct->name, targs);
+      MemberInit *mi = findMemberInitSuperclass(oldInits, base->ct);
+      if (!mi) {
+        mi = new MemberInit(name, FakeList<ArgExpression>::emptyList());
+        mi->tcheck(env, ct);
+      }
+      newInits.prepend(mi);
+    } else {
+//        cerr << "Omitting a direct base that is also a virtual base" << endl;
+    }
+  }
+  // FIX: virtual bases omitted for now
+
+  SFOREACH_OBJLIST_NC(Variable, ct->dataMembers, iter) {
+    Variable *var = iter.data();
+    if (!wantsMemberInit(var)) continue;
+    MemberInit *mi = findMemberInitDataMember(oldInits, var);
+    if (!mi) {
+      mi = new MemberInit(new PQ_name(loc, var->name), FakeList<ArgExpression>::emptyList());
+      mi->tcheck(env, ct);
+    }
+    newInits.prepend(mi);
+  }
+
+  // *Now* we can destroy the linked list structure and rebuild it
+  // again while also reversing the list.
+  ctor->inits = FakeList<MemberInit>::emptyList();
+  for (VoidListIter iter(newInits); !iter.isDone(); iter.adv()) {
+    MemberInit *mi = static_cast<MemberInit*>(iter.data());
+    mi->next = NULL;
+    ctor->inits->prepend(mi);
+  }
+}
+
+
+// make no-arg ctor ****************
+
+MR_func *makeNoArgCtorBody(Env &env, CompoundType *ct)
+{
+  // reversed print AST output; remember to read going up even for the
+  // tree leaves
+
+  SourceLoc loc = env.loc();
+
+  //     handlers:
+  FakeList<Handler> *handlers = FakeList<Handler>::emptyList();
+  //       stmts:
+  ASTList<Statement> *stmts = new ASTList<Statement>();
+  //       loc = ex/no_arg_ctor1.cc:2:7
+  //       succ={ }
+  //     S_compound:
+  S_compound *body = new S_compound(loc, stmts);
+  //     inits:
+  FakeList<MemberInit> *inits = FakeList<MemberInit>::emptyList();
+  
+  FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
+    BaseClass *base = const_cast<BaseClass*>(iter.data());
+    // omit initialization of virtual base classes, whether direct
+    // virtual or indirect virtual.  See cppstd 12.6.2 and the
+    // implementation of Function::tcheck_memberInits()
+    //
+    // FIX: We really should be initializing the direct virtual bases,
+    // but the logic is so complex I'm just going to omit it for now
+    // and err on the side of not calling enough initializers;
+    // UPDATE: the spec says we can do it multiple times for copy
+    // assign operator, so I wonder if that holds for ctors also.
+    if (!ct->hasVirtualBase(base->ct)) {
+      FakeList<TemplateArgument> *targs = env.getTemplateArgs(base->ct);
+      PQName *name = env.makePossiblyTemplatizedName(loc, base->ct->name, targs);
+      MemberInit *mi =
+        new MemberInit(name, FakeList<ArgExpression>::emptyList());
+      inits = inits->prepend(mi);
+    } else {
+//        cerr << "Omitting a direct base that is also a virtual base" << endl;
+    }
+  }
+  // FIX: virtual bases omitted for now
+
+  SFOREACH_OBJLIST_NC(Variable, ct->dataMembers, iter) {
+    Variable *var = iter.data();
+    if (!wantsMemberInit(var)) continue;
+    MemberInit *mi =
+      new MemberInit(new PQ_name(loc, var->name), FakeList<ArgExpression>::emptyList());
+    inits = inits->prepend(mi);
+  }
+
+  inits = inits->reverse();
+
+  //       init is null
+  Initializer *init = NULL;
+  //         exnSpec is null
+  ExceptionSpec *exnSpec = NULL;
+  //         cv = 
+  CVFlags cv = CV_NONE;
+  //         params:
+  // The no-arg ctor takes no parameters.
+  FakeList<ASTTypeId> *params = FakeList<ASTTypeId>::emptyList();
+  //             name = A
+  //             loc = ex/no_arg_ctor1.cc:2:3
+  //           PQ_name:
+  // see this point in makeCopyCtorBody() below for a comment on the
+  // sufficient generality of this
+  PQName *ctorName = new PQ_name(loc, ct->name);
+  //           loc = ex/no_arg_ctor1.cc:2:3
+  //         D_name:
+  IDeclarator *base = new D_name(loc, ctorName);
+  //         loc = ex/no_arg_ctor1.cc:2:3
+  //       D_func:
+  IDeclarator *decl = new D_func(loc,
+                                 base,
+                                 params,
+                                 cv,
+                                 exnSpec);
+  //     Declarator:
+  Declarator *nameAndParams = new Declarator(decl, init);
+  //       id = /*cdtor*/
+  //       loc = ex/no_arg_ctor1.cc:2:3
+  //       cv = 
+  //     TS_simple:
+  TypeSpecifier *retspec = new TS_simple(loc, ST_CDTOR);
+  //     dflags = 
+  DeclFlags dflags = DF_MEMBER | DF_INLINE;
+  //   Function:
+  Function *f =
+    new Function(dflags,
+                 retspec,
+                 nameAndParams,
+                 inits,
+                 body,
+                 handlers);
+  //   loc = ex/no_arg_ctor1.cc:2:3
+  // MR_func:
+  return new MR_func(loc, f);
+}
+
+
+// make copy ctor ****************
+
 static MemberInit *makeCopyCtorMemberInit(PQName *tgtName,
                                           StringRef srcNameS,
                                           StringRef srcMemberNameS,
@@ -510,17 +765,8 @@ MR_func *makeCopyCtorBody(Env &env, CompoundType *ct)
 
   StringRef srcNameS = env.str.add("__other");
 
-  SFOREACH_OBJLIST(Variable, ct->dataMembers, iter) {
-    Variable *var = const_cast<Variable *>(iter.data());
-    // skip arrays for now; FIX: do something correct here
-    if (var->type->isArrayType()) continue;
-    MemberInit *mi = makeCopyCtorMemberInit
-      (new PQ_name(loc, var->name), srcNameS, var->name, loc);
-    inits = inits->prepend(mi);
-  }
-
   FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
-    BaseClass *base = const_cast<BaseClass *>(iter.data());
+    BaseClass *base = const_cast<BaseClass*>(iter.data());
     // omit initialization of virtual base classes, whether direct
     // virtual or indirect virtual.  See cppstd 12.6.2 and the
     // implementation of Function::tcheck_memberInits()
@@ -550,13 +796,21 @@ MR_func *makeCopyCtorBody(Env &env, CompoundType *ct)
   // we pretty print.
   //
   // FIX: This code is broken anyway.
-//    FOREACH_OBJLIST(BaseClassSubobj, ct->virtualBases, iter) {
-//      BaseClass *base = const_cast<BaseClass *>(iter->data());
+//    FOREACH_OBJLIST_NC(BaseClassSubobj, ct->virtualBases, iter) {
+//      BaseClass *base = iter->data();
 // // This must not mean what I think.
 // //     xassert(base->isVirtual);
 //      MemberInit *mi = makeCopyCtorMemberInit(base->ct->name, srcNameS, NULL, loc);
 //      inits = inits->prepend(mi);
 //    }
+
+  SFOREACH_OBJLIST_NC(Variable, ct->dataMembers, iter) {
+    Variable *var = iter.data();
+    if (!wantsMemberInit(var)) continue;
+    MemberInit *mi = makeCopyCtorMemberInit
+      (new PQ_name(loc, var->name), srcNameS, var->name, loc);
+    inits = inits->prepend(mi);
+  }
 
   //     inits:
   inits = inits->reverse();
@@ -670,6 +924,8 @@ MR_func *makeCopyCtorBody(Env &env, CompoundType *ct)
   return new MR_func(loc, f);
 }
 
+
+// make copy assign op ****************
 
 // "return *this;"
 static S_return *make_S_return(Env &env)
@@ -921,7 +1177,7 @@ MR_func *makeCopyAssignBody(Env &env, CompoundType *ct)
 
   // For each superclass, make the call to operator =.
   FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
-    BaseClass *base = const_cast<BaseClass *>(iter.data());
+    BaseClass *base = const_cast<BaseClass*>(iter.data());
     // omit initialization of virtual base classes, whether direct
     // virtual or indirect virtual.  See cppstd 12.6.2 and the
     // implementation of Function::tcheck_memberInits()
@@ -934,15 +1190,14 @@ MR_func *makeCopyAssignBody(Env &env, CompoundType *ct)
     }
   }
 
-  SFOREACH_OBJLIST(Variable, ct->dataMembers, iter) {
-    Variable *var = const_cast<Variable *>(iter.data());
-    Type *type = var->type;
+  SFOREACH_OBJLIST_NC(Variable, ct->dataMembers, iter) {
+    Variable *var = iter.data();
+    if (!wantsMemberInit(var)) continue;
     // skip assigning to const or reference members; NOTE: this is an
     // asymmetry with copy ctor, which can INITIALIZE const or ref
     // types, however we cannot ASSIGN to them.
+    Type *type = var->type;
     if (type->isReference() || type->isConst()) continue;
-    // skip arrays for now; FIX: do something correct here
-    if (type->isArrayType()) continue;
     stmts->append(make_S_expr_memberCopyAssign(env, var->name));
   }
 
@@ -993,19 +1248,7 @@ MR_func *makeCopyAssignBody(Env &env, CompoundType *ct)
   return new MR_func(loc, f);
 }
 
-
-void elaborateFunctionStart(Env &env, FunctionType *ft)
-{
-  if (ft->retType->isCompoundType()) {
-    // We simulate return-by-value for class-valued objects by
-    // passing a hidden additional parameter of type C& for a
-    // return value of type C.  For static semantics, that means
-    // adding an environment entry for a special name, "<retVal>".
-    Variable *v = env.makeVariable(env.loc(), env.str("<retVal>"),
-                                   env.tfac.cloneType(ft->retType), DF_PARAMETER);
-    env.addVariable(v);
-  }
-}
+//  ****************
 
 
 void E_new::elaborate(Env &env, Type *t)

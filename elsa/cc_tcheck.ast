@@ -83,6 +83,8 @@ class MemberInit {
     ret->base = base;
     ret->ctorVar = ctorVar;
   }
+
+  public void tcheck(Env &env, CompoundType *enclosing);
 }
 
 
