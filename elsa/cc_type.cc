@@ -510,9 +510,8 @@ STATICDEF CompoundType *CompoundType::lub
   }
 
   // compute the set of base classes for each class
-  SObjSet<CompoundType*> t1Bases;
+  SObjSet<CompoundType*> t1Bases, t2Bases;
   getBaseClasses(t1Bases, t1);
-  SObjSet<CompoundType*> t2Bases;
   getBaseClasses(t2Bases, t2);
 
   // look for an element in the intersection that has nothing below it

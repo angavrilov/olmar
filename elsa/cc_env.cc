@@ -228,10 +228,12 @@ void Env::setupOperatorOverloading()
 
   // TODO: T& operator[] (ptrdiff_t, T*);
 
+  #if 0   // working on different implementation
   // ---- 13.6 para 14 ----
   addBuiltinBinaryOp(BIN_MINUS,
     makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
     makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)));
+  #endif // 0
 
   exitScope(dummyScope);
   
@@ -1435,6 +1437,27 @@ Type *Env::implicitReceiverType()
     // of that receiver argument
     return tfac.makeTypeOf_this(loc() /*?*/, encScope, CV_NONE, NULL);
   }
+}
+
+
+// mostly copied from addBuiltinBinaryOp
+Variable *Env::getBuiltinBinaryOp(BinaryOp op, Type *x, Type *y)
+{
+  // PLAN:  Right now, I just leak a bunch of things.  To fix
+  // this, I want to have the Env maintain a pool of Variables
+  // that represent built-in operators during overload
+  // resolution.  I ask the Env for operator-(T,T) with a
+  // specific T, and it rewrites an existing one from the pool
+  // for me.  Later I give all the pool elements back.
+
+  Type *t_void = getSimpleType(SL_INIT, ST_VOID);
+
+  Variable *v = declareFunction2arg(
+    t_void /*irrelevant*/, binaryOperatorName[op],
+    x, "x", y, "y");
+  v->setFlag(DF_BUILTIN);
+
+  return v;
 }
 
 

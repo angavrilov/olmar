@@ -16,6 +16,39 @@ class Type;
 class ErrorList;
 
 
+// debugging output support
+extern int overloadNesting;      // overload resolutions ongoing
+
+// ostream with line prefix already printed
+ostream &overloadTrace();
+
+#ifndef NDEBUG
+  class OverloadIndTrace {
+  public:
+    OverloadIndTrace(char const *msg) {
+      overloadTrace() << msg << endl;
+      overloadNesting++;
+    }
+    ~OverloadIndTrace() {
+      overloadNesting--;
+    }
+  };
+
+  // print a message, indent, and at the end of this function,
+  // outdent automatically
+  #define OVERLOADINDTRACE(msg) \
+    OverloadIndTrace otrace(stringc << msg);
+
+  // just print a message at the current indentation
+  #define OVERLOADTRACE(msg) \
+    overloadTrace() << msg << endl
+
+#else
+  #define OVERLOADINDTRACE(msg) ((void)0)
+  #define OVERLOADTRACE(msg) ((void)0)
+#endif
+
+
 // information about an argument expression, for use with
 // overload resolution
 class ArgumentInfo {
@@ -52,7 +85,7 @@ public:
   ~Candidate();
                                         
   // debugging
-  string conversionDescriptions(char const *indent) const;
+  void conversionDescriptions() const;
 };
 
 
@@ -107,6 +140,7 @@ public:      // funcs
       // at some point; it's entirely a performance issue
       candidates(numCand)
   {
+    //overloadNesting++;
     printArgInfo();
   }
   ~OverloadResolver();

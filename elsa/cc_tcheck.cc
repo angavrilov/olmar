@@ -3313,7 +3313,7 @@ Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
   if (! (allMethod0 || allNonMethod0) ) return NULL;
 
   xassert( (((int)allMethod0) + ((int)allNonMethod0)) == 1 );
-  TRACE("overload", ::toString(loc)
+  OVERLOADINDTRACE(::toString(loc)
         << ": overloaded(" << var->overload->set.count()
         << ") call to " << var->name);
 
@@ -3815,6 +3815,17 @@ inline ArgumentInfo argInfo(Expression *e)
   return ArgumentInfo(e->getSpecial(), e->type);
 }
 
+// add 't' to 'instTypes', but only if it isn't already present
+void addTypeUniquely(SObjList<Type> &instTypes, Type *t)
+{
+  SFOREACH_OBJLIST(Type, instTypes, iter) {
+    if (iter.data()->equals(t)) {
+      return;   // already present
+    }
+  }
+  instTypes.append(t);
+}
+
 Type *E_binary::itcheck(Env &env, Expression *&replacement)
 {
   e1->tcheck(env, e1);
@@ -3828,7 +3839,8 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
   if (env.doOperatorOverload &&
       isOverloadable(op) &&
       (lhsType->isCompoundType() || rhsType->isCompoundType())) {
-    TRACE("overload", "found overloadable " << toString(op));
+    OVERLOADINDTRACE("found overloadable " << toString(op) <<
+                     " near " << env.locStr());
     StringRef opName = env.binaryOperatorName[op];
 
     // collect argument information
@@ -3865,32 +3877,62 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
       for (int i=0; i < builtins.length(); i++) {
         resolver.processCandidate(builtins[i]);
       }
-        
-      #if 0       // work in progress
-      if (op == BIN_MINUS) {
+
+      if (op == BIN_MINUS &&
+          (lhsType->isCompoundType() && rhsType->isCompoundType())) {
         // tricky built-in: 13.6 para 14:
         // For every T, where T is a pointer to object type, there exist
         // candidate operator functions of the form
         //   ptrdiff_t operator-(T, T);
 
-        // collect all of the operator functions from the lhs
-        SObjList<Variable> convs;
-        getConversionOperators(convs, env, lhsType->asCompoundType());
+        // set of types with which to instantiate T
+        SObjList<Type> instTypes;
 
-        // find types T such that lhs can convert to T*
-        HERE         
+        // collect all of the operator functions from lhs and rhs
+        SObjList<Variable> lhsConvs, rhsConvs;
+        getConversionOperators(lhsConvs, env, lhsType->asCompoundType());
+        getConversionOperators(rhsConvs, env, rhsType->asCompoundType());
 
+        // consider all pairs of conversion functions (filter for
+        // those that yield pointer types)
+        SFOREACH_OBJLIST_NC(Variable, lhsConvs, lhsIter) {
+          FunctionType *lhsFt = lhsIter.data()->type->asFunctionType();
+          if (!lhsFt->retType->isPointer()) continue;
 
+          SFOREACH_OBJLIST_NC(Variable, rhsConvs, rhsIter) {
+            FunctionType *rhsFt = rhsIter.data()->type->asFunctionType();
+            if (!rhsFt->retType->isPointer()) continue;
 
+            // compute LUB
+            bool wasAmbig;
+            Type *lub = computeLUB(env, lhsFt->retType, rhsFt->retType, wasAmbig);
+            if (wasAmbig) {
+              env.error(stringc
+                << "In resolving operator-, LHS can convert to "
+                << lhsFt->retType->toString()
+                << ", and RHS can convert to "
+                << rhsFt->retType->toString()
+                << ", but their LUB is ambiguous");
+              goto after_overload_resolution;
+            }
+            else if (lub) {
+              // add the LUB to our list of to-instantiate types
+              addTypeUniquely(instTypes, lub);
+            }
+          }
+        }
+
+        // instantiate T with all the types we've collected
+        SFOREACH_OBJLIST_NC(Type, instTypes, iter) {
+          Variable *v = env.getBuiltinBinaryOp(op, iter.data(), iter.data());
+          resolver.processCandidate(v);
+        }
       }
-      #endif // 0
     }
 
     // pick one
     Variable *winner = resolver.resolve();
     if (winner) {
-      TRACE("overload", "chose candidate at " << toString(winner->loc));
-
       if (!winner->hasFlag(DF_BUILTIN)) {
         PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_binary(op), opName);
         if (winner->hasFlag(DF_MEMBER)) {
@@ -3928,6 +3970,8 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
       }
     }
   }
+
+after_overload_resolution:
 
   // if the LHS is an array, coerce it to a pointer
   if (lhsType->isArrayType()) {

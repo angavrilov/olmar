@@ -17,15 +17,15 @@ struct Float {
 
 // the built-in operators are all non-functions, and 0 is my code for that
 enum { BUILTIN=0 };
+void jekyl() { __testOverload(jekyl(), 20); }     // turn on operator overloading
 
-
-void f()
+void f()                   // line 22
 {
   Int i;
   Float f;
 
   // there is no candidate for this, since int* and float* do not convert
-  i-f;
+  //ERROR(1): i-f;
 }
 
 
@@ -280,4 +280,26 @@ void goo()
 {
   int const **p = 0;
   foo(p);
+}
+
+
+
+
+
+
+struct K {
+  operator A* ();     // line 291
+};
+
+struct L {
+  operator B* ();     // line 295
+};
+
+void jjj()
+{
+  K k;
+  L l;
+
+  // no type to which both can be converted
+  //ERROR(2): k-l;
 }

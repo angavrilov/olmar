@@ -122,20 +122,21 @@ ImplicitConversion getImplicitConversion
         // constructors are disregarded (OF_NO_EXPLICIT)
         GrowArray<ArgumentInfo> argTypes(1);
         argTypes[0] = ArgumentInfo(special, src);
-        TRACE("overload", "  overloaded call to constructor " << ct->name);
+        OVERLOADINDTRACE("overloaded call to constructor " << ct->name);
         bool wasAmbig;
         ctor = resolveOverload(env, env.loc(), NULL /*errors*/,
                                OF_NO_USER | OF_NO_EXPLICIT,
                                ctor->overload->set, argTypes, wasAmbig);
         if (ctor) {
-          TRACE("overload", "  selected constructor at " << toString(ctor->loc));
+          // printing is now done inside 'resolveOverload'
+          //TRACE("overload", "  selected constructor at " << toString(ctor->loc));
         }
         else if (wasAmbig) {
-          TRACE("overload", "  ambiguity while selecting constructor");
+          //TRACE("overload", "  ambiguity while selecting constructor");
           ret.addAmbig();
         }
         else {
-          TRACE("overload", "  no constructor matches");
+          //TRACE("overload", "  no constructor matches");
         }
       }
 

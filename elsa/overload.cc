@@ -23,16 +23,11 @@ Candidate::~Candidate()
 {}
 
 
-string Candidate::conversionDescriptions(char const *indent) const
+void Candidate::conversionDescriptions() const
 {
-  stringBuilder sb;
-
   for (int i=0; i < conversions.size(); i++) {
-    sb << "%%% overload:   " << indent << i << ": "
-       << toString(conversions[i]) << "\n";
+    OVERLOADTRACE(i << ": " << toString(conversions[i]));
   }
-  
-  return sb;
 }
 
 
@@ -75,9 +70,9 @@ void OverloadResolver::printArgInfo()
 {
   IFDEBUG(
     if (tracingSys("overload")) {
-      cout << "%%% overload:   arguments:\n";
+      overloadTrace() << "arguments:\n";
       for (int i=0; i < args.size(); i++) {
-        cout << "%%% overload:     " << i << ": "
+        overloadTrace() << "  " << i << ": "
              << toString(args[i].special) << ", "
              << args[i].type->toString() << "\n";
       }
@@ -87,7 +82,9 @@ void OverloadResolver::printArgInfo()
 
 
 OverloadResolver::~OverloadResolver()
-{}
+{
+  //overloadNesting--;
+}
 
 
 void OverloadResolver::processCandidates(SObjList<Variable> &varList)
@@ -99,29 +96,23 @@ void OverloadResolver::processCandidates(SObjList<Variable> &varList)
 
 void OverloadResolver::processCandidate(Variable *v)
 {
-  // for debug printing
-  IFDEBUG( char const *indent = (flags & OF_NO_USER)? "    " : "  "; )
-
-  TRACE("overload", indent << "candidate: " << v->toString() <<
-                    " at " << toString(v->loc));
+  OVERLOADINDTRACE("candidate: " << v->toString() <<
+                   " at " << toString(v->loc));
 
   if ((flags & OF_NO_EXPLICIT) && v->hasFlag(DF_EXPLICIT)) {
     // not a candidate, we're ignoring explicit constructors
+    OVERLOADTRACE("(not viable due to 'explicit')");
   }
   else {
     Candidate *c = makeCandidate(v);
     if (c) {
-      IFDEBUG(
-        if (tracingSys("overload")) {
-          cout << c->conversionDescriptions(indent);
-        }
-      )
+      IFDEBUG( c->conversionDescriptions(); )
       candidates.push(c);
-      return;
+    }
+    else {
+      OVERLOADTRACE("(not viable)");
     }
   }
-
-  TRACE("overload", indent << "  (not viable)");
 }
 
 
@@ -207,13 +198,14 @@ Variable *OverloadResolver::resolve(bool &wasAmbig)
       errors->addError(new ErrorMsg(
         loc, "no viable candidate for function call", EF_NONE));
     }
+    OVERLOADTRACE("no viable candidates");
     return NULL;
   }
 
   if (finalDestType) {
     // include this in the diagnostic output so that I can tell
     // when it will play a role in candidate comparison
-    TRACE("overload", "  finalDestType: " << finalDestType->toString());
+    OVERLOADTRACE("finalDestType: " << finalDestType->toString());
   }
 
   // use a tournament to select a candidate that is not worse
@@ -225,12 +217,14 @@ Variable *OverloadResolver::resolve(bool &wasAmbig)
       errors->addError(new ErrorMsg(
         loc, "ambiguous overload, no function is better than all others", EF_NONE));
     }
+    OVERLOADTRACE("ambiguous overload");
     wasAmbig = true;
     return NULL;
   }
 
-  TRACE("overload", toString(loc)
-        << ": selected instance at " << toString(winner->var->loc));
+  OVERLOADTRACE(toString(loc)
+    << ": selected " << winner->var->toString() 
+    << " at " << toString(winner->var->loc));
 
   return winner->var;
 }
@@ -829,6 +823,9 @@ ImplicitConversion getConversionOperator(
   GrowArray<ArgumentInfo> args(1);
   args[0] = ArgumentInfo(SE_NONE, srcClassType);
 
+  OVERLOADINDTRACE("converting " << srcClassType->toString() <<
+                   " to " << destType->toString());
+
   // set up the resolver; since the only argument is the receiver
   // object, user-defined conversions should never enter the picture,
   // but I'll supply OF_NO_USER just to be sure
@@ -939,6 +936,7 @@ ImplicitConversion getConversionOperator(
 
           
 
+// ------------------ LUB --------------------
 static CVFlags unionCV(CVFlags cv1, CVFlags cv2, bool &cvdiffers, bool toplevel)
 {
   CVFlags cvu = cv1 | cv2;
@@ -1144,6 +1142,19 @@ void test_computeLUB(Env &env, Type *t1, Type *t2, Type *answer, int code)
       << " to " << expect
       << ", but instead it " << actual);
   }
+}
+
+
+// ----------------- debugging -------------------
+int overloadNesting = 0;
+
+ostream &overloadTrace()
+{
+  ostream &os = trace("overload");
+  for (int i=0; i<overloadNesting; i++) {
+    os << "  ";
+  }
+  return os;
 }
 
 
