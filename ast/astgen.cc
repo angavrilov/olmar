@@ -1429,7 +1429,7 @@ void HGen::emitDVisitorInterface()
 
   // client visitor to delegate to
   out << "protected:\n";
-  out << "  " << visitorName << " &client;\n";
+  out << "  " << visitorName << " *client;\n";
 
   // flag as to whether to check that an AST node has been visited at
   // most once
@@ -1440,7 +1440,7 @@ void HGen::emitDVisitorInterface()
   // ctor
   out << "public:\n";
   out << "  explicit " << dvisitorName << "("
-      << visitorName << " &client0, "
+      << visitorName << " *client0 = NULL, "
       << "bool ensureOneVisit0 = true"
       << ")\n";
   out << "    : client(client0)\n";
@@ -1498,12 +1498,16 @@ void CGen::emitDVisitorImplementation()
     TF_class const *c = iter.data();
     out << "bool " << dvisitorName << "::visit" << c->super->name
         << "(" << c->super->name << " *obj) {\n"
-        << "  xassertdb(!wasVisitedAST(obj));\n"
-        << "  return client.visit" << c->super->name << "(obj);\n"
+      // dsw: I changed this back to xassert() from xassertdb()
+      // because NDEBUG just gets turned on more often than I like.
+        << "  xassert(!wasVisitedAST(obj));\n"
+        << "  return client ? client->visit" << c->super->name << "(obj) : true;\n"
         << "}\n"
         << "void " << dvisitorName << "::postvisit" << c->super->name
         << "(" << c->super->name << " *obj) {\n"
-        << "  client.postvisit" << c->super->name << "(obj);\n"
+        << "  if (client) {\n"
+        << "    client->postvisit" << c->super->name << "(obj);\n"
+        << "  }\n"
         << "}\n";
   }
   out << "\n\n";
