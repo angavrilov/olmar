@@ -84,7 +84,12 @@ $CCFLAGS = join(' ', @CCFLAGS);
 print("Testing C++ compiler ...\n");
 $cmd = "g++ -o testcout $BASE_FLAGS $CCFLAGS testcout.cc";
 if (system($cmd)) {
-  print(<<"EOF");
+  # maybe problem is -Wno-deprecated?
+  printf("Trying without -Wno-deprecated ...\n");
+  $BASE_FLAGS =~ s| -Wno-deprecated||;
+  $cmd = "g++ -o testcout $BASE_FLAGS $CCFLAGS testcout.cc";
+  if (system($cmd)) {
+    print(<<"EOF");
 
 I was unable to compile a really simple C++ program.  I tried:
   $cmd
@@ -94,7 +99,8 @@ Please double-check your compiler installation.
 Until this is fixed, smbase (and any software that depends on it) will
 certainly not compile either.
 EOF
-  exit(2);
+    exit(2);
+  }
 }
 
 if (system("./testcout")) {

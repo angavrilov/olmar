@@ -175,9 +175,14 @@ public:
   stringBuilder& operator << (unsigned long i);
   stringBuilder& operator << (int i) { return operator<<((long)i); }
   stringBuilder& operator << (unsigned i) { return operator<<((unsigned long)i); }
+  stringBuilder& operator << (short i) { return operator<<((long)i); }
+  stringBuilder& operator << (unsigned short i) { return operator<<((long)i); }
   stringBuilder& operator << (double d);
   stringBuilder& operator << (void *ptr);     // inserts address in hex
-  
+  #ifndef LACKS_BOOL
+    stringBuilder& operator << (bool b) { return operator<<((long)b); }
+  #endif // LACKS_BOOL
+
   // useful in places where long << expressions make it hard to
   // know when arguments will be evaluated, but order does matter
   typedef stringBuilder& (*Manipulator)(stringBuilder &sb);
