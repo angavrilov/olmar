@@ -30,7 +30,7 @@ public:
   CCSubstrate(ReportError *err = NULL);
   virtual ~CCSubstrate();
 
-  // EmbeddedLang entry points (see gramlex.h for description
+  // EmbeddedLang entry points (see embedded.h for description
   // of each function)
   virtual void reset(int initNest = 0);
   virtual void handle(char const *str, int len, char finalDelim);
