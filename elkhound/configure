@@ -66,10 +66,9 @@ cd ..
 
 # --------- setup smbase ----------
 # fill in correct PLAT line in smbase Makefile
-echo "rewriting smbase/Makefile.base.mk ..."
-cp smbase/Makefile.base.mk tmp || exit
-sed 's,PLAT\ =.\*,PLAT\ =\ '`pwd`/plat, < tmp > smbase/Makefile.base.mk || exit
-rm tmp || exit
+mf=smbase/Makefile.base.mk
+echo "making $mf ..."
+sed 's,PLAT =.*,PLAT = '`pwd`/plat, < $mf.in > $mf || exit
 
 
 # ---------- setup parsgen ----------
