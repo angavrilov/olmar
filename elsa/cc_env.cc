@@ -306,6 +306,12 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
                       FF_NONE, t_void);
 
   #ifdef GNU_EXTENSION
+    Type *t_int = getSimpleType(HERE, ST_INT);
+    Type *t_char = getSimpleType(HERE, ST_CHAR);
+    Type *t_charconst = getSimpleType(HERE, ST_CHAR, CV_CONST);
+    Type *t_charptr = makePtrType(HERE, t_char);
+    Type *t_charconstptr = makePtrType(HERE, t_charconst);
+
     // for GNU compatibility
     // void *__builtin_next_arg(void *p);
     declareFunction1arg(t_voidptr, "__builtin_next_arg",
@@ -317,8 +323,32 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     var__builtin_constant_p = declareSpecialFunction("__builtin_constant_p");
 
     // typedef void *__builtin_va_list;
-    addVariable(makeVariable(SL_INIT, str("__builtin_va_list"), 
+    addVariable(makeVariable(SL_INIT, str("__builtin_va_list"),
                              t_voidptr, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL));
+
+    // char *__builtin_strchr(char const *str, int ch);
+    declareFunction2arg(t_charptr, "__builtin_strchr",
+                        t_charconstptr, "str",
+                        t_int, "ch",
+                        FF_NONE, NULL);
+
+    // char *__builtin_strpbrk(char const *str, char const *accept);
+    declareFunction2arg(t_charptr, "__builtin_strpbrk",
+                        t_charconstptr, "str",
+                        t_charconstptr, "accept",
+                        FF_NONE, NULL);
+
+    // char *__builtin_strchr(char const *str, int ch);
+    declareFunction2arg(t_charptr, "__builtin_strrchr",
+                        t_charconstptr, "str",
+                        t_int, "ch",
+                        FF_NONE, NULL);
+
+    // char *__builtin_strstr(char const *haystack, char const *needle);
+    declareFunction2arg(t_charptr, "__builtin_strstr",
+                        t_charconstptr, "haystack",
+                        t_charconstptr, "needle",
+                        FF_NONE, NULL);
   #endif // GNU_EXTENSION
 
   // for testing various modules
