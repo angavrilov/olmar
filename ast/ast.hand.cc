@@ -3,10 +3,10 @@
 
 #ifndef BOOTSTRAP
   // in non-bootstrap, use autogen'd code
-  #include "ast.gen.cc"
+  #include "ast.ast.gen.cc"
 #endif
 
-#ifndef AST_GEN_H
+#ifndef AST_AST_GEN_H
 // if either we're in bootstrap mode, or else ast.gen.cc was empty, use this
 
 #include "ast.hand.h"      // this module
@@ -84,4 +84,4 @@ void CtorArg::debugPrint(ostream &os, int indent) const
 }
 
 
-#endif // !AST_GEN_H
+#endif // !AST_AST_GEN_H

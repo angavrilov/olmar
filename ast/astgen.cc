@@ -195,6 +195,10 @@ void HGen::emitFile()
         emitVerbatim(*( form.data()->asTF_verbatimC() ));
         break;
 
+      case ToplevelForm::TF_IMPL_VERBATIM:
+        // nop
+        break;
+
       case ToplevelForm::TF_CLASS:
         emitTFClass(*( form.data()->asTF_classC() ));
         break;
@@ -213,6 +217,7 @@ void HGen::emitFile()
 // emit a verbatim section
 void HGen::emitVerbatim(TF_verbatim const &v)
 {
+  out << "// *** DO NOT EDIT ***\n";
   out << v.code;
 }
 
@@ -452,7 +457,6 @@ public:
   {}
 
   void emitFile();
-  void emitVerbatim(TF_verbatim const &v);
   void emitTFClass(TF_class const &cls);
   void emitDestructor(ASTClass const &cls);
   void emitPrintCtorArgs(ASTList<CtorArg> const &args);
@@ -472,8 +476,12 @@ void CGen::emitFile()
 
   FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
     ASTSWITCHC(ToplevelForm, form.data()) {
-      ASTCASEC(TF_verbatim, v) {
-        emitVerbatim(*v);
+      //ASTCASEC(TF_verbatim, v) {
+      //  // nop
+      //}
+      ASTCASEC(TF_impl_verbatim, v) {
+        out << "// *** DO NOT EDIT ***\n";
+        out << v->code;
       }
       ASTNEXTC(TF_class, c) {
         emitTFClass(*c);
@@ -483,11 +491,6 @@ void CGen::emitFile()
   }
 }
 
-
-void CGen::emitVerbatim(TF_verbatim const &)
-{
-  // do nothing for verbatim ... that goes into the header ..
-}
 
 void CGen::emitTFClass(TF_class const &cls)
 {
@@ -617,7 +620,7 @@ void entry(int argc, char **argv)
   ast = readAbstractGrammar(srcFname);
 
   // generate the header
-  string base = replace(srcFname, ".ast", "");
+  string base = srcFname;       //replace(srcFname, ".ast", "");
   string hdrFname = base & ".gen.h";
   cout << "writing " << hdrFname << "...\n";
   HGen hg(srcFname, hdrFname, *ast);

@@ -148,7 +148,7 @@ SLWHITE   [ \t]
                            TOK_PRIVATE ;
 }
 
-"verbatim" {
+("verbatim"|"impl_verbatim") {
   TOK_UPD_COL;
 
   // need to see one more token ("{") before we begin embedded processing
@@ -156,7 +156,7 @@ SLWHITE   [ \t]
 
   embedded->reset();
   embedMode = TOK_EMBEDDED_CODE;
-  return TOK_VERBATIM;
+  return yytext[0]=='v'? TOK_VERBATIM : TOK_IMPL_VERBATIM;
 }
 
   /* punctuation that can start embedded code */

@@ -11,7 +11,10 @@ class ASTSpecFile (ASTList<ToplevelForm> forms);
 class ToplevelForm {
   // code to be copied verbatim into the generated .h file
   -> TF_verbatim(string code);
-                                    
+
+  // code to be copied verbatim into the generated .cc file
+  -> TF_impl_verbatim(string code);
+
   // a superclass, and a list of subclasses ("constructors")
   -> TF_class(ASTClass super,
               ASTList<ASTClass> ctors) {

@@ -50,6 +50,7 @@
 %token TOK_PRIVATE "private"
 %token TOK_PROTECTED "protected"
 %token TOK_VERBATIM "verbatim"
+%token TOK_IMPL_VERBATIM "impl_verbatim"
 %token TOK_CTOR "ctor"
 %token TOK_DTOR "dtor"
 
@@ -64,7 +65,7 @@
   ASTList<UserDecl> *userDeclList;
   string *str;
   enum AccessCtl accessCtl;
-  TF_verbatim *verbatim;
+  ToplevelForm *verbatim;
 }
 
 %type <file> StartSymbol
@@ -192,6 +193,8 @@ Public
 /* yields TF_verbatim */
 Verbatim: TOK_VERBATIM Embedded
             { $$ = new TF_verbatim(unbox($2)); }
+        | TOK_IMPL_VERBATIM Embedded
+            { $$ = new TF_impl_verbatim(unbox($2)); }
         ;
 
 %%

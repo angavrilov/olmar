@@ -100,8 +100,13 @@ void debugPrintList(ASTList<LocString> const &list, char const *name,
                     ostream &os, int indent);
 
 
-#define PRINT_SUBTREE(tree) \
-  (tree)->debugPrint(os, indent)  /* user ; */
+#define PRINT_SUBTREE(tree)                     \
+  if (tree) {                                   \
+    (tree)->debugPrint(os, indent);             \
+  }                                             \
+  else {                                        \
+    ind(os, indent) << #tree << " is null\n";   \
+  } /* user ; (optional) */
 
 
 #define PRINT_GENERIC(var) \
