@@ -96,13 +96,16 @@ public:
 // modifiers can be stripped away; see cc_type.html
 class AtomicType {
 public:     // types
-  enum Tag { 
-    T_SIMPLE, 
-    T_COMPOUND, 
-    T_ENUM, 
-    T_TYPEVAR, 
-    T_PSEUDOINSTANTIATION,
-    T_DEPENDENTQTYPE,
+  enum Tag {
+    // these are defined in cc_type.h
+    T_SIMPLE,                // int, char, float, etc.
+    T_COMPOUND,              // struct/class/union
+    T_ENUM,                  // enum
+
+    // these are defined in template.h
+    T_TYPEVAR,               // T
+    T_PSEUDOINSTANTIATION,   // C<T>
+    T_DEPENDENTQTYPE,        // C<T>::some_type
 
     NUM_TAGS
   };
@@ -144,7 +147,7 @@ public:     // funcs
   // print in C notation
   virtual string toCString() const = 0;
 
-  // print in ML notation
+  // print in "ML" notation (really just more verbose)
   virtual string toMLString() const = 0;
   
   // size this type's representation occupies in memory; this
@@ -488,12 +491,12 @@ public:
 class BaseType INHERIT_SERIAL_BASE {
 public:     // types
   enum Tag {
-    T_ATOMIC,
-    T_POINTER,
-    T_REFERENCE,
-    T_FUNCTION,
-    T_ARRAY,
-    T_POINTERTOMEMBER
+    T_ATOMIC,             // int const, class Foo, etc.
+    T_POINTER,            // int *
+    T_REFERENCE,          // int &
+    T_FUNCTION,           // int ()(int, float)
+    T_ARRAY,              // int [3]
+    T_POINTERTOMEMBER     // C::*int
   };
 
 public:     // data
@@ -819,13 +822,6 @@ public:
 };
 
              
-#if 0    // obsolete?
-// "*" vs "&"
-enum PtrOper {
-  PO_POINTER, PO_REFERENCE
-};
-#endif // 0
-
 // type of a pointer
 class PointerType : public Type {
 public:     // data
@@ -921,8 +917,6 @@ public:     // data
 
   // list of function parameters; if (flags & FF_METHOD) then the
   // first parameter is '__receiver'
-  //
-  // TODO (performance): change to an array
   SObjList<Variable> params;
 
   // allowable exceptions, if not NULL
@@ -1020,7 +1014,11 @@ public:       // types
 
 public:       // data
   Type *eltType;               // (serf) type of the elements
-  int size;                    // specified size, or NO_SIZE
+  int size;                    // specified size (>=0), or NO_SIZE or DYN_SIZE
+  
+  // Note that whether a size of 0 is legal depends on the current
+  // language settings (cc_lang.h), so most code should adapt itself
+  // to that possibility.
 
 private:      // funcs
   void checkWellFormedness() const;
@@ -1227,10 +1225,6 @@ public:
   virtual Type *makeTypeOf_receiver(SourceLoc loc,
     NamedAtomicType *classType, CVFlags cv, D_func * /*nullable*/ syntax);
 
-  // this will cause a compile error if anyone uses the old name; it
-  // can be removed after the switch is complete (~ 2/29/04)
-  #define makeTypeOf_this do_not_use the name makeTypeOf_this
-
   // given a function type and a return type, make a new function type
   // which is like it but has no parameters; i.e., copy all fields
   // except 'params'; this does *not* call doneParams
@@ -1338,23 +1332,10 @@ void throw_XReprSize() NORETURN;
 char *type_toString(Type const *t);
 
 
-// PointerType and references:
-//
-// PointerType is used for both pointers and references.  This choice
-// is motivated by the similarity of their run-time semantics and
-// likely implementation.  The case has been made that they should be
-// split into two classes, and also that ArrayType might be
-// conceivably merged with PointerType, both arguments made based on
-// similarities of *compile* time semantics.  So far, I haven't found
-// the arguments sufficiently convincing to change the hierarchy, but
-// I still consider it a possible point of future debate.
-//
-// UPDATE: I have now split PointerType and ReferenceType apart.
-//
-// One a somewhat related note, I should explain my intended
-// relationship between references and lvalues.  The C++ standard uses
-// the term 'reference' to refer to types (a compile-time concept),
-// and 'lvalue' to refer to values (a run-time concept).  Of course, a
+// I should explain my intended relationship between references and
+// lvalues.  The C++ standard uses the term 'reference' to refer to
+// types (a compile-time concept), and 'lvalue' to refer to
+// expressions and values (a run-time concept).  Of course, a
 // reference type gives rise to an lvalue, and a (non-const) reference
 // must be bound to an lvalue, so there's a close relationship between
 // the two.  In constrast, the same document uses the term 'pointer'

@@ -1721,6 +1721,23 @@ nonterm(Function*) FunctionDefinition {
          return ret;
        }
 
+  // 2005-03-09: I didn't even realize this was possible for non-ctors
+  // return type      name/params          body            handlers
+  -> r:DeclSpecifier  d:Declarator  "try"  b:FunctionBody  h:HandlerSeq
+       {
+         Function *ret = new Function(
+           r->dflags,                // decl flags (static, extern, etc.)
+           r->spec,                  // type specifier for return value
+           new Declarator(d, NULL),  // declarator with fn name, params
+           NULL,                     // ctor member inits
+           b,                        // function body statement
+           h                         // exception handlers
+         );
+         r->spec = NULL;    // stole it above (ownership transfer)
+         delete r;          // was just a carrier of dflags/spec
+         return ret;
+       }
+
   // I've now substituted the RHSs of CDtorModifierOpt, to eliminiate
   // a few s/r conflicts at the toplevel of parsing (where they are
   // the most harmful to performance)

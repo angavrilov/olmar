@@ -795,10 +795,6 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
 
 void Function::tcheck_handlers(Env &env)
 {
-  if (!verifyIsCtor(env, "ctor exception handlers")) {
-    return;
-  }
-  
   FAKELIST_FOREACH_NC(Handler, handlers, iter) {
     iter->tcheck(env);
   }
@@ -3420,7 +3416,15 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
             }
             else {
               env.error("constructors must be class members (and implicit int is not supported)");
-              return;    // otherwise would segfault below..
+              
+              // 2005-03-09: At one point I had the following:
+              //
+              //    return;    // otherwise would segfault below..
+              //
+              // but it appears there is no longer a risk of segfault,
+              // and by removing the 'return' I will consistently
+              // return a FunctionType from a D_func declarator, which
+              // helps other parts of the code.
             }
           }
           else {

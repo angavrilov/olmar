@@ -40,23 +40,28 @@ struct B {
   ~B()
 //ERROR(7):    : something(5)     // stray member init
   {}
+  
+  B();
+  
+  int x;
+  static int y;
+  int f(int);
 };
 
-struct C {
-  C();
-  ~C();
-};
+B::B()
+  : x(3)
+//ERROR(10):  , y(7)     // member init of static data
+//ERROR(11):  , f(4)     // member init of a member function
+{}
 
-C::C() 
-try
-  {}
-catch (int)
-  {}
 
-              C::~C()
-//ERROR(8):   try
-                {}
-//ERROR(8):   catch (int)
-//ERROR(8):     {}
+// ------------------
+// two things:
+//   - non-member constructor
+//   - member inits on non-constructor
+//ERROR(9):  d()
+//ERROR(9):    : something(6)
+//ERROR(9):  {}
+
 
 // EOF
