@@ -464,6 +464,7 @@ testparse d0052.cc
 testparse d0053.cc
 testparse d0054.cc
 testparse d0055.cc
+# testparse d0056.cc
 # ---- END: lots of tests ----
 
 

@@ -421,6 +421,12 @@ public:      // funcs
     (ASTList<TemplateArgument> const &arguments,
      SObjList<STemplateArgument> &sargs);
 
+  // Given a primary, find the most specific specialization for the
+  // given template arguments 'sargs'; for full generality we allow
+  // the primary itself as a "trivial specializtion" and may return
+  // that.
+  Variable *findMostSpecific(Variable *baseV, SObjList<STemplateArgument> &sargs);
+
   // instantate 'base' with arguments 'sargs', and return the implicit
   // typedef Variable associated with the resulting type; 'foundScope' is
   // the scope in which 'base' was found; if 'inst' is not NULL then

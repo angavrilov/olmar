@@ -2302,6 +2302,65 @@ Variable *Env::instantiateTemplate_astArgs
 }
 
 
+Variable *Env::findMostSpecific(Variable *baseV, SObjList<STemplateArgument> &sargs)
+{
+  // baseV should be a template primary
+  xassert(baseV->templateInfo()->isPrimary());
+  if (tracingSys("template")) {
+    cout << "Env::instantiateTemplate: "
+         << "template instantiation, searching instantiations of primary "
+         << "for best match to the template arguments"
+         << endl;
+    baseV->templateInfo()->debugPrint();
+  }
+
+  // iterate through all of the instantiations and build up an
+  // ObjArrayStack<Candidate> of candidates
+  TemplCandidates templCandidates(tfac);
+  SFOREACH_OBJLIST_NC(Variable, baseV->templateInfo()->instantiations, iter) {
+    Variable *var0 = iter.data();
+    TemplateInfo *templInfo0 = var0->templateInfo();
+    // Sledgehammer time.
+    if (templInfo0->isMutant()) continue;
+    // FIX: I think I should change this to StringObjDict, as the
+    // values (but not the keys) should get deleted when bindings
+    // goes out of scope   
+    MatchTypes match(tfac);
+    if (match.atLeastAsSpecificAs_STemplateArgument_list
+        (sargs, templInfo0->arguments, match.ASA_NONE)) {
+      templCandidates.candidates.push(var0);
+    }
+  }
+
+  // there are no candidates so we just use the primary
+  if (templCandidates.candidates.isEmpty()) {
+    return baseV;
+  }
+
+  // if there are any candidates to try, select the best
+  Variable *bestV = selectBestCandidate_templCompoundType(templCandidates);
+
+  // if there is not best candidiate, then the call is ambiguous and
+  // we should deal with that error
+  if (!bestV) {
+    // FIX: what is the right thing to do here?
+    error(stringc << "ambiguous attempt to instantiate template");
+    return NULL;
+  }
+  // otherwise, use the best one
+
+  // if the best is an instantiation/complete specialization check
+  // that no bindings get generated during unification
+  if (bestV->templateInfo()->isCompleteSpecOrInstantiation()) {
+    xassert(!doesUnificationRequireBindings
+            (tfac, sargs, bestV->templateInfo()->arguments));
+  }
+  // otherwise it is a partial specialization
+
+  return bestV;
+}
+
+
 // see comments in cc_env.h
 //
 // sm: TODO: I think this function should be split into two, one for
@@ -2322,67 +2381,16 @@ Variable *Env::instantiateTemplate
   if (!instV) {
     // Search through the instantiations of this primary and do an
     // argument/specialization pattern match.
-
-    // baseV should be a template primary
-    xassert(baseV->templateInfo()->isPrimary());
-    if (tracingSys("template")) {
-      cout << "Env::instantiateTemplate: "
-           << "template instantiation, searching instantiations of primary"
-           << endl;
-      baseV->templateInfo()->debugPrint();
+    Variable *bestV = findMostSpecific(baseV, sargs);
+    if (!bestV) {
+      // lookup was ambiguous, error has been reported
+      return NULL;
     }
-
-    // iterate through all of the instantiations and build up an
-    // ObjArrayStack<Candidate> of candidates
-    TemplCandidates templCandidates(tfac);
-    SFOREACH_OBJLIST_NC(Variable, baseV->templateInfo()->instantiations, iter) {
-      Variable *var0 = iter.data();
-      TemplateInfo *templInfo0 = var0->templateInfo();
-      // Sledgehammer time.
-      if (templInfo0->isMutant()) continue;
-      // FIX: I think I should change this to StringObjDict, as the
-      // values (but not the keys) should get deleted when bindings
-      // goes out of scope   
-      MatchTypes match(tfac);
-      if (match.atLeastAsSpecificAs_STemplateArgument_list
-          (sargs, templInfo0->arguments, match.ASA_NONE)) {
-        templCandidates.candidates.push(var0);
-      }
+    if (bestV->templateInfo()->isCompleteSpecOrInstantiation()) {
+      return bestV;
     }
-
-    // if there are any candidates to try, select the best; otherwise
-    // there are no candidates so we just use the primary, which is
-    // already the default
-    if (!templCandidates.candidates.isEmpty()) {
-      Variable *bestV = selectBestCandidate_templCompoundType(templCandidates);
-
-      // if there is not best candidiate, then the call is ambiguous
-      // and we should deal with that error; otherwise, use the best
-      // one
-      if (bestV) {
-        // if the best is an instantiation, return it
-        if (bestV->templateInfo()->isCompleteSpecOrInstantiation()) {
-          xassert(!doesUnificationRequireBindings
-            (tfac, sargs, bestV->templateInfo()->arguments));
-          // FIX: factor this out
-          if (bestV->type->isCompoundType()) {
-            xassert(bestV->type->asCompoundType()->getTypedefVar() == bestV);
-          }
-          return bestV;
-        }
-
-        // otherwise it is a partial specialization; we instantiate it
-        // below
-        baseV = bestV;          // baseV is saved in oldBaseV above
-      } else {
-        // FIX: what is the right thing to do here?
-        error(stringc << "ambiguous attempt to instantiate template");
-        return NULL;
-      }
-    }
-    // otherwise, if the candidates list is empty, we just go with the primary
+    baseV = bestV;              // baseV is saved in oldBaseV above
   }
-
   // there should be something non-trivial to instantiate
   xassert(baseV->templateInfo()->argumentsContainVariables()
           // or the special case of a primary, which doesn't have
