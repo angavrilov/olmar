@@ -9,12 +9,15 @@
 #include "strutil.h"       // replace, translate, localTimeString
 
 #include <string.h>        // strncmp
+#include <fstream.h>       // ofstream
 
 
 // translation-wide state
 class Gen {
 private:        // data
-  ostream &out;            // output stream
+  string srcFname;         // name of source file
+  string destFname;        // name of output file
+  ofstream out;            // output stream
 
 private:        // funcs
   void emitVerbatim(TF_verbatim const &v);
@@ -27,17 +30,30 @@ private:        // funcs
   void visitCtor(ASTClass const &parent, ASTCtor const &ctor);
 
 public:         // funcs
-  Gen(ostream &os) : out(os) {}
-  void emitFile(ASTSpecFile const &file, char const *srcFname);
+  Gen(char const *srcFname, char const *destFname);
+  ~Gen();
+  void emitFile(ASTSpecFile const &file);
 };
 
 
-// emit header code for an entire AST spec file
-void Gen::emitFile(ASTSpecFile const &file, char const *srcFname)
+// compute destination file name from source file name
+Gen::Gen(char const *srcfn, char const *destfn)
+  : srcFname(srcfn),
+    destFname(destfn),
+    out(destfn)
 {
-  // compute destination file name from source file name
-  string base = replace(srcFname, ".ast", "");
-  string destFname = base & ".gen.h";
+  if (!out) {
+    throw_XOpen(destfn);
+  }
+}
+
+Gen::~Gen()
+{}
+
+
+// emit header code for an entire AST spec file
+void Gen::emitFile(ASTSpecFile const &file)
+{
   string includeLatch = translate(destFname, "a-z.", "A-Z_");
 
   // header of comments
@@ -114,17 +130,19 @@ void Gen::emitASTClass(ASTClass const &cls)
 
   // destructor
   char const *virt = virtualIfChildren(cls);
-  out << "  " << virt << "~" << cls.name << "() {}\n\n";
+  out << "  " << virt << "~" << cls.name << "() {}\n";
+  out << "\n";
 
   // declare the child kind selector
   if (cls.hasChildren()) {
     out << "  enum Kind { ";
     FOREACH_ASTLIST(ASTCtor, cls.ctors, ctor) {
-      cout << ctor.data()->kindName() << ", ";
+      out << ctor.data()->kindName() << ", ";
     }
     out << "NUM_KINDS };\n";
 
-    out << "  virtual Kind kind() const = 0;\n\n";
+    out << "  virtual Kind kind() const = 0;\n";
+    out << "\n";
   }
 
   // declare checked downcast functions
@@ -142,7 +160,8 @@ void Gen::emitASTClass(ASTClass const &cls)
   emitUserDecls(cls.decls);
 
   // close the declaration of the parent class
-  out << "};\n\n";
+  out << "};\n";
+  out << "\n";
 
   // print declarations for all child classes
   {
@@ -264,7 +283,8 @@ void Gen::visitCtor(ASTClass const &parent, ASTCtor const &ctor)
   emitUserDecls(ctor.decls);
 
   // close the decl
-  out << "};\n\n";
+  out << "};\n";
+  out << "\n";
 }
 
 
@@ -277,14 +297,17 @@ void entry(int argc, char **argv)
     cout << "usage: " << argv[0] << " ast-spec-file\n";
     return;
   }
+  char const *srcFname = argv[1];
 
   // parse the grammar spec
   Owner<ASTSpecFile> ast;
-  ast = readAbstractGrammar(argv[1]);
+  ast = readAbstractGrammar(srcFname);
 
   // generated the header
-  Gen g(cout);
-  g.emitFile(*ast, argv[1]);
+  string base = replace(srcFname, ".ast", "");
+  string destFname = base & ".gen.h";
+  Gen g(srcFname, destFname);
+  g.emitFile(*ast);
 }
 
 ARGS_MAIN
