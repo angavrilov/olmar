@@ -28,6 +28,7 @@ void CCLang::ANSI_C()
   allowDynamicallySizedArrays = false;
   allowIncompleteEnums = false;
   allowMemberWithClassName = true;
+  nonstandardAssignmentOperator = false;
   declareGNUBuiltins = false;
 
   isCplusplus = false;
@@ -118,6 +119,10 @@ void CCLang::ANSI_Cplusplus()
   allowDynamicallySizedArrays = false;
   allowIncompleteEnums = false;
   allowMemberWithClassName = false;
+  
+  // indeed this is nonstandard but everyone seems to do it this way ...
+  nonstandardAssignmentOperator = true;
+
   declareGNUBuiltins = false;
 
   isCplusplus = true;

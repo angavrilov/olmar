@@ -7,9 +7,9 @@ void ddummy() { __testOverload(dummy(), 5); }
 
 struct A {
   operator int& ();
-  //ERROR(2): operator short& ();     // would create ambiguity
+  // Elsa doesn't diagnose this anymore b/c of 'nonstandardAssignmentOperator'
+  //-ERROR(2): operator short& ();     // would create ambiguity
 };
-
 struct B {
   operator int ();
 };

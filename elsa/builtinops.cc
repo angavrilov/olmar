@@ -478,14 +478,39 @@ Type *para19_20filter(Type *t, bool)
     return NULL;
   }
 
-  if (t->isPtrOrRef() ||
+  if (t->isPointer() ||
       t->isEnumType() ||
       t->isPointerToMemberType()) {
     return t;
   }
-  else {
+
+  return NULL;
+}
+
+// same as above but with arithmetic types too
+Type *para19_20_andArith_filter(Type *t, bool)
+{
+  if (!t->isReference()) {
     return NULL;
   }
+  t = t->asRval();
+  if (t->isConst()) {
+    return NULL;
+  }
+
+  if (t->isPointer() ||
+      t->isEnumType() ||
+      t->isPointerToMemberType()) {
+    return t;
+  }
+
+  // this is the change from above
+  if (t->isSimpleType() &&
+      isArithmeticType(t->asSimpleTypeC()->type)) {
+    return t;
+  }
+
+  return NULL;
 }
 
 

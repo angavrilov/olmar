@@ -105,9 +105,13 @@ public:
   bool allowIncompleteEnums;
 
   // C language, and GNU extension for C++: allow a class to have a
-  // member (other than the constructor) that has the same as the
+  // member (other than the constructor) that has the same name as the
   // class
   bool allowMemberWithClassName;
+
+  // every C++ compiler I have does overload resolution of operator=
+  // incorrectly; this flag causes Elsa to do the same
+  bool nonstandardAssignmentOperator;
 
   // declare the various GNU __builtin functions; see
   // Env::addGNUBuiltins in gnu.cc

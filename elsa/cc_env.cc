@@ -772,6 +772,11 @@ void Env::setupOperatorOverloading()
       OP_MINUSEQ       // VQ L& operator-= (VQ L&, R);
     };
     FOREACH_OPERATOR(op, ops) {
+      if (lang.nonstandardAssignmentOperator && op==OP_ASSIGN) {
+        // do not add this variant; see below
+        continue;
+      }
+
       addBuiltinBinaryOp(ST_PRET_FIRST, op, Lr, R);
       addBuiltinBinaryOp(ST_PRET_FIRST, op, Lvr, R);
     }
@@ -789,8 +794,18 @@ void Env::setupOperatorOverloading()
   // this pattern captures both:
   // T: pointer, ptr-to-member, or enumeration ('para19_20filter')
   // T VQ & operator= (T VQ &, T);
-  addBuiltinBinaryOp(ST_PRET_FIRST, OP_ASSIGN, para19_20filter,
-                     anyType, true /*isAssignment*/);
+  {
+    Type* (*filter)(Type *t, bool) = para19_20filter;
+    if (lang.nonstandardAssignmentOperator) {
+      // 9/25/04: as best I can tell, what is usually implemented is the
+      //   T* VQ & operator= (T* VQ &, T*);
+      // pattern where T can be pointer (para 19), enumeration (para 20),
+      // pointer to member (para 20), or arithmetic (co-opted para 18)
+      filter = para19_20_andArith_filter;
+    }
+    addBuiltinBinaryOp(ST_PRET_FIRST, OP_ASSIGN, filter,
+                       anyType, true /*isAssignment*/);
+  }
 
   // ------------ 13.6 para 21 ------------
   // 21: +=, -= for pointer type

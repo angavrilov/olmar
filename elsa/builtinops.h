@@ -201,6 +201,7 @@ public:     // funcs
 Type *rvalFilter(Type *t, bool);
 Type *rvalIsPointer(Type *t, bool);
 Type *para19_20filter(Type *t, bool);
+Type *para19_20_andArith_filter(Type *t, bool);
 
 // some post filters
 bool pointerToObject(Type *t);
