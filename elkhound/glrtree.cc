@@ -18,7 +18,7 @@
   // to far too many problems ...
   char *wes_strdup(const char *s) {
       char * retval;
-      size_t len = strlen(s);
+      size_t len = strlen(s)+1;
       retval = (char *)malloc(len * sizeof(char));
       xassert(retval);
       memcpy(retval, s, len);
