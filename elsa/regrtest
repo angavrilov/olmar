@@ -908,6 +908,9 @@ failparse k0035.cc "ambiguous int+sizeof(struct{})"
 failparse k0036.cc "taking the address of a string (?!)"
 failparse k0037.cc "new array of pointers"
 testparse k0038.cc #"templatized struct as template parameter to function"
+failparse k0039.cc "funky namespace resolution after 'using namespace'"
+
+### </quarl-testcases-c++>
 
 # ---- END: lots of tests ----
 
@@ -1105,6 +1108,8 @@ testCparse c/k0003a.c #"old-style function decl with parentheses around func nam
 failCparse c/k0004.c "merge nonterm MemberDeclaration"
 failCparse c/k0005.c "multiply defined enum 'option'"
 testCparse c/k0011.c #"ambiguous s->z < 1 || 2 > (3)"
+
+### </quarl-testcases-c>
 
 # is K&R built?
 use_kandr=false
