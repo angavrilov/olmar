@@ -1485,7 +1485,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
         init->isIN_compound()) {
       ArrayType &at = var->type->asArrayType();
       IN_compound const *cpd = init->asIN_compoundC();
-      if (!at.hasSize) {
+      if (!at.hasSize()) {
         // replace the computed type with another that has
         // the size specified
         var->type = env.makeArrayType(at.eltType, cpd->inits.count());
@@ -1585,8 +1585,8 @@ bool almostEqualTypes(Type const *t1, Type const *t2)
     ArrayType const &at1 = t1->asArrayTypeC();
     ArrayType const &at2 = t2->asArrayTypeC();
 
-    if ((at1.hasSize && !at2.hasSize) ||
-        (at2.hasSize && !at1.hasSize)) {
+    if ((at1.hasSize() && !at2.hasSize()) ||
+        (at2.hasSize() && !at1.hasSize())) {
       // the exception kicks in
       return at1.eltType->equals(at2.eltType);
     }

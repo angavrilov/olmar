@@ -108,12 +108,7 @@ FunctionType *TypeFactory_Q::makeFunctionType(Type *retType, CVFlags cv)
 
 ArrayType *TypeFactory_Q::makeArrayType(Type *eltType, int size)
 {
-  if (size == -1) {
-    return new ArrayType_Q(asType_Q(eltType));    
-  }
-  else {
-    return new ArrayType_Q(asType_Q(eltType), size);
-  }
+  return new ArrayType_Q(asType_Q(eltType), size);
 }
 
 
@@ -167,13 +162,7 @@ FunctionType_Q *TypeFactory_Q::cloneFunctionType_Q(FunctionType_Q *src)
 
 ArrayType_Q *TypeFactory_Q::cloneArrayType_Q(ArrayType_Q *src)
 {
-  ArrayType_Q *ret;
-  if (src->hasSize()) {
-    ret = new ArrayType_Q(cloneType_Q(src->eltType()), src->size());
-  }
-  else {
-    ret = new ArrayType_Q(cloneType_Q(src->eltType()));
-  }
+  ArrayType_Q *ret = new ArrayType_Q(cloneType_Q(src->eltType()), src->size());
   ret->q = src->q ? deepCloneLiterals(src->q) : NULL;
   return ret;
 }
