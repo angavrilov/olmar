@@ -119,6 +119,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 
   /* operators, punctuators and keywords: tokens with one spelling */
 "asm"              return tok(TOK_ASM);
+"__asm"            return tok(TOK_ASM);
 "__asm__"          return tok(TOK_ASM);
 "auto"             return tok(TOK_AUTO);
 "break"            return tok(TOK_BREAK);
