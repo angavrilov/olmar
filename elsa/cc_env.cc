@@ -2503,10 +2503,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
 
   if (name && scope) {
     scope->registerVariable(tv);
-    // dsw: I found that it interfered to put the implicit typedef
-    // into the space in C, and as far as I understand, it doesn't
-    // exist in C anyway.  See in/c/dC0012.c
-    if (lang.isCplusplus) {
+    if (lang.tagsAreTypes) {
       if (!scope->addVariable(tv)) {
         // this isn't really an error, because in C it would have
         // been allowed, so C++ does too [ref?]
@@ -2519,6 +2516,13 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
       else {
         addedNewVariable(scope, tv);
       }
+    }
+    else {
+      // dsw: I found that it interfered to put the implicit typedef
+      // into the space in C, and as far as I understand, it doesn't
+      // exist in C anyway.  See in/c/dC0012.c
+      //
+      // sm: yes, that is right
     }
   }
 

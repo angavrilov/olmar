@@ -15,9 +15,6 @@ public:
   // it will pretend it also saw "typedef struct Foo Foo;" -- i.e.,
   // the structure (or class) tag name is treated as a type name
   // by itself
-  //
-  // NOTE: right now I ignore this flag, and actually insert the
-  // implicit typedef in all cases
   bool tagsAreTypes;
 
   // when true, recognize C++ keywords in input stream
