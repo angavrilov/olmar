@@ -1586,6 +1586,10 @@ static unsigned int max_n_mmaps = 0;
 static unsigned long mmapped_mem = 0;
 static unsigned long max_mmapped_mem = 0;
 
+/* sm: my stuff */
+static unsigned int numMallocCalls = 0;
+static unsigned int numFreeCalls = 0;
+
 
 
 /* 
@@ -2136,6 +2140,7 @@ Void_t* mALLOc(bytes) size_t bytes;
   #ifdef TRACE_MALLOC_CALLS
   printf("malloc(%d)\n", bytes);
   #endif
+  numMallocCalls++;
 
   if ((long)bytes < 0) return 0;
 
@@ -2397,6 +2402,7 @@ void fREe(mem) Void_t* mem;
   #ifdef TRACE_MALLOC_CALLS
   printf("free(%p)\n", mem);
   #endif
+  numFreeCalls++;
 
   if (mem == 0)                              /* free(0) has no effect */
     return;
@@ -3115,16 +3121,19 @@ static void malloc_update_mallinfo()
 void malloc_stats()
 {
   malloc_update_mallinfo();
-  fprintf(stderr, "max system bytes = %10u\n", 
+  fprintf(stderr, "max system bytes = %10u\n",
           (unsigned int)(max_total_mem));
-  fprintf(stderr, "system bytes     = %10u\n", 
+  fprintf(stderr, "system bytes     = %10u\n",
           (unsigned int)(sbrked_mem + mmapped_mem));
-  fprintf(stderr, "in use bytes     = %10u\n", 
+  fprintf(stderr, "in use bytes     = %10u\n",
           (unsigned int)(current_mallinfo.uordblks + mmapped_mem));
 #if HAVE_MMAP
-  fprintf(stderr, "max mmap regions = %10u\n", 
+  fprintf(stderr, "max mmap regions = %10u\n",
           (unsigned int)max_n_mmaps);
 #endif
+  /* sm: my stats */
+  fprintf(stderr, "total malloc calls = %u\n", numMallocCalls);
+  fprintf(stderr, "total free calls = %u\n", numFreeCalls);
 }
 
 /*
