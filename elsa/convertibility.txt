@@ -138,7 +138,8 @@ or even
 
 even though this last example would not violate soundness of the type
 system, were it allowed in the language and given the obvious
-semantics.
+semantics.  (Perhaps a design oversight, or maybe just an intentional
+simplification of an already complex language.)
 
 The order induced by the conversion is straightforward.  For one-level
 pointers, it is the product of the inheritance order and the cv
@@ -149,23 +150,35 @@ subset lattice:
     cv is a subset of cv'
 
 For two- or more level pointers, it's the union of all cartesian products
-of the cv subset lattice:
+of the cv subset lattice, plus the restriction ($) about adding const
+above changed qualifiers:
 
   R(T cv1 * cv2 * ... cvN *, T cv1' * cv2' * ... cvN' *) iff
     cv1 is a subset of cv1' and
     cv2 is a subset of cv2' and
       ...
     cvN is a subset of cvN'
+  and
+    for all I in 1..N,                           ($)
+      if cvI != cvI', then
+        for all J in I+1..N,
+          cvJ' contains const
 
-Since we have the union of products of partial orders, and the sets of
-objects they relate are disjoint, the result is also a partial order.
+Ignoring the restriction ($), we have the union of products of partial
+orders, and the sets of objects they relate are disjoint, so the
+result is also a partial order.  The effect of ($) is to make the
+relation smaller, but it won't break transitivity anywhere (it
+monotonically adds const), and reflexivity and anti-symmetry are
+obviously preserved.
 
 Finally (4.10 para 2), for any T, R(T cv *, void cv *) (i.e., any
 pointer can be converted to a void pointer).  This doesn't
 compromise the partial order; it's a one-way trip to void-land.
 
 Also note that pointers cannot convert to or from any of the atomic
-types.  (TODO: What about convertibility from the null literal?)
+types.  (TODO: What about convertibility from the null literal?  I
+probably need to treat that like a class with conversions to int and
+T* (for any T), though Elsa at the moment does not.  Hmm...)
 
 
 --- Pointers to members ---
@@ -253,7 +266,8 @@ That is, "A->B" (the standard conversion from A to B) is better than
 "A->C" if and only if B is convertible to C (using the convertibility
 relation R defined above, where the atomic types are unified, etc.).
 For the excerpt quoted, the order is the same: that induced by the cv
-subset lattice.
+subset lattice.  (Technical point: I want S to be nonreflexive, so
+I really mean the nonreflexive version of R.)
 
 Now, proving this for all types A, B and C requires a detailed
 analysis of the specific rules provided in 13.3.3.2.  I think it's
@@ -336,10 +350,10 @@ The winning candidate is
   ptrdiff_t  operator- (int const volatile * const *,
                         int const volatile * const *);
                         
-but that parameter type doesn't appear in the program.  In fact, current
-versions of GCC (through 3.3 at least) mistakenly believe the expression
-above is illegal, because GCC only tries (a subset of) types that do
-appear in the program.
+even though that parameter type doesn't appear in the program.  In
+fact, current versions of GCC (through 3.3 at least) mistakenly
+believe the expression above is illegal, because GCC only tries (a
+subset of) types that do appear in the program.
 
 So what's the answer?  Well, consider any pair of types to which both
 arguments can convert (directly).  If the ultimate resolution picks
@@ -366,16 +380,16 @@ Applying equation ($$) above, rewrite this as
     R(T,T') or
     R(T,T')
 
-apply antisymmetry and simplifying, we have
+Applying antisymmetry and simplifying, we have
 
   R(T,T')
 
-Ok!  Now this is a question we can restate as a familiar algebraic
-question: do U and V have a least upper bound (LUB)?  If they do, then
-LUB(U,V) is the T that satisfies the existence and uniqueness
-requirements above (by definition, essentially).  Consequently, it is
-the only possible instantiation of T that could yield a winning
-candidate function, if the arguments are converted to U and V.
+Ok!  Now this is a familiar algebraic question: do U and V have a
+least upper bound (LUB) w.r.t. the partial order R?  By definition,
+the LUB(U,V) is the T that satisfies the existence and uniqueness
+requirements above.  Consequently, it is the only possible
+instantiation of T that could yield a winning candidate function, if
+the arguments are converted to U and V.
 
 Based on the characterization of R given above, computing the LUB is
 fairly easy.  For single-level pointers, we need the LUB in the class
@@ -383,9 +397,10 @@ hierarchy, which is straightforward to compute.  For single-level
 pointers to members, we need the greatest lower bound (GLB); but see
 the note about this at the end.  Then in all cases, we simply union
 the cv flags (only down to the first non-pointer,
-non-pointer-to-member type constructor).  That is, R's LUB is a
-product of underlying LUBs, just as the order itself is a product of
-underlying orders.
+non-pointer-to-member type constructor), adding const at all levels
+above the deepest difference.  That is, the LUB in R is essentially
+the product of the underlying LUBs, just as the order itself is the
+product of underlying orders.
 
 But not all pairs of types have a LUB.  First, there might not be
 any types to which both can convert; 'int*' and 'int' are such
@@ -430,8 +445,8 @@ looking across pairs, that provision no longer applies.)
 
 However, though there cannot be a clear winner from among the pattern
 (built-in) candidates if the LUB is ambiguous, there might be a
-non-built-in candidate that is better than any of the built-in
-candidates, so the algorithm must take that into account.
+non-built-in (i.e. user-defined) candidate that is better than any of
+the built-in candidates, so the algorithm must take that into account.
 
 
 --- An algorithm for candidate instantiation ---
@@ -453,9 +468,10 @@ types, is:
 Then, run the usual overload resolution algorithm on this finite
 candidate set (plus member and non-member user-defined candidates; see
 13.3.1.2 paragraph 3).  If the fake candidate is chosen, report an
-ambiguity.  Otherwise, if a winner arises, it is certain that winner
-is better than any of the pattern candidates, even those that were not
-instantiated, because of (among other things) the transitivity of R.
+ambiguity.  Otherwise, if a winner arises, it is certain that that
+winner is better than any of the pattern candidates, even those that
+were not instantiated, because of (among other things) the
+transitivity of R.
 
 Two comments are in order regarding instantiation.  First, if the
 LUB(U,V) = LUB(U',V') for distinct pairs (U,V) and (U',V'), do not
@@ -465,7 +481,7 @@ we're computing an instantiation sub*set*, not a multiset.
 
 Second, a given LUB type might not fit the requirements of the
 pattern.  Taking the operator- example, it says T has "pointer to
-*object* type".  That means (1.8 para 1) that T is not a pointer to
+object type".  That means (1.8 para 1) that T is not a pointer to
 function type, nor pointer to void.  This can be implemented simply by
 filtering types before instantiating, because those types are at the
 top of the hierarchy; they represent the best type from a (small) set
@@ -491,12 +507,12 @@ fewer LUB calls?  I don't know.  I certainly don't see how, but also
 don't see an argument (such as a constructive adversary) to say that
 it could not be done.  
 
-Another interesting question: GCC's (current) algorithm is linear, but
-it is also wrong.  Does that matter?  Do users need or want the
-correct analysis?  Might there be hidden ambiguities or other problems
-due to the incomplete analysis?  Or is this a good practical corner to
-cut?  I have relatively little experience with programs that make
-heavy use of conversion operators, so I just don't know.
+Another interesting question: GCC's (current) algorithm appears to be
+linear, but it is also wrong.  Does that matter?  Do users need or
+want the correct analysis?  Might there be hidden ambiguities or other
+problems due to the incomplete analysis?  Or is this a good practical
+corner to cut?  I have relatively little experience with programs that
+make heavy use of conversion operators, so I just don't know.
 
 
 --- GLB in the class hierarchy ---
@@ -576,11 +592,19 @@ using.
 
 It's not clear to me what the best language fix is.  I think that
 pointer-to-member (with its current semantics) should not be in the
-language at all (it's the one feature I would remove if I could).
-But given its presence, I don't see a quick fix to (e.g.) 13.6.
+language at all (it's the one feature I would remove if I could).  But
+given its presence, I don't see a quick fix to (e.g.) 13.6.  To attack
+the problem directly, e.g. "you don't need GLB" or "you don't need to
+instantiate the pattern with types outside such-and-such finite set",
+could easily make things worse.  To require that pointer-to-member
+conversions down the hierarchy be done with (e.g.) an explicit cast
+would go against the philosophy of minimal annotation for natural
+subtyping.  It's a dark, angry corner of the language, and it does
+not want to behave.
 
 Side note: In Elsa, I don't implement the GLB analysis.  If the
-classes in single-level pointer-to-member aren't equal, I reject the
-pair.  I pity the fool whose code this breaks.  I'd be surprised if
-such code even exists, outside C++ test suites.
+classes in a single-level pointer-to-member pair aren't equal, I
+reject the pair (the pair does not lead to an instantiation).  I pity
+the fool whose code this breaks.  I'd be surprised if such code even
+exists, outside C++ test suites.
 

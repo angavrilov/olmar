@@ -276,7 +276,7 @@ void Env::setupOperatorOverloading()
     addBuiltinBinaryOp(OP_MINUSMINUS, Tpvr, t_int);
   }
 
-  // ------------ 13.6 para 6,7 ------------
+  // ------------ 13.6 paras 6 and 7 ------------
   {
     Type *T = getSimpleType(SL_INIT, ST_ANY_NON_VOID);
     Type *Tp = makePtrType(SL_INIT, T);
@@ -435,23 +435,19 @@ void Env::setupOperatorOverloading()
     }
   }
 
-  // ------------ 13.6 para 19 ------------
+  // ------------ 13.6 paras 19 and 20 ------------
   // 19: assignment to pointer type
   // T: any type
   // T* VQ & operator= (T* VQ &, T*);
-  addBuiltinBinaryOp(OP_ASSIGN, rvalIsPointer_leftIsRef, pointerToAny, true /*assignment*/);
 
-  // the correlated-pair machinery is overkill; the LHS arg type is
-  // all that's relevant, because it can't convert to any LUB that
-  // isn't equal to itself
-  //
-  // update: I've now modified the way pattern instantiation behaves
-  // for assignment operators so that it ignores the RHS types when
-  // choosing what to instantiate
-
-  // ------------ 13.6 para 20 ------------
   // 20: assignment to enumeration and ptr-to-member
-  // correlated..
+  // T: enumeration or pointer-to-member
+  // T VQ & operator= (T VQ &, T);
+
+  // this pattern captures both:
+  // T: pointer, ptr-to-member, or enumeration ('para19_20filter')
+  // T VQ & operator= (T VQ &, T);
+  addBuiltinBinaryOp(OP_ASSIGN, para19_20filter, anyType, true /*assignment*/);
 
   // ------------ 13.6 para 21 ------------
   // 21: +=, -= for pointer type

@@ -216,20 +216,30 @@ Type *rvalIsPointer(Type *t, bool)
   }
 }
 
-Type *rvalIsPointer_leftIsRef(Type *t, bool isLeft)
+// we admit the pattern
+//   T VQ &
+// where T is a pointer to any type (para 19), or
+// is an enumeration or pointer-to-member (para 20)
+//
+// we yield the T for instantiation
+Type *para19_20filter(Type *t, bool)
 {
-  if (isLeft) {
-    // the type must be a reference to non-const
-    if (!t->isReference()) {
-      return NULL;
-    }
-    t = t->asRval();
-    if (t->isConst()) {
-      return NULL;
-    }
+  if (!t->isReference()) {
+    return NULL;
   }
-
-  return rvalIsPointer(t, isLeft);
+  t = t->asRval();
+  if (t->isConst()) {
+    return NULL;
+  }
+  
+  if (t->isPointerType() ||
+      t->isEnumType() ||
+      t->isPointerToMemberType()) {
+    return t;
+  }
+  else {
+    return NULL;
+  }
 }
 
 
@@ -262,6 +272,11 @@ bool pointerToAny(Type *t)
   // the LUB will ensure this, actually, but it won't
   // hurt to check again
   return t->isPointer();
+}
+
+bool anyType(Type *)
+{                  
+  return true;
 }
 
 

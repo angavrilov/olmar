@@ -21,7 +21,9 @@ public:      // types
   // being evaluated as part of a pair; it can return a different
   // type, and it can also return NULL to indicate that the type
   // shouldn't be considered; 'isLeft' says whether this is the left
-  // arg or right arg type
+  // arg or right arg type (actually, none of the filters use this
+  // information anymore, but I leave it because it makes sense for
+  // the filter to know this)
   typedef Type* (*PreFilter)(Type *t, bool isLeft);
 
   // after computing a pairwise LUB, the LUB type is passed
@@ -58,13 +60,14 @@ public:      // funcs
 // some pre filters
 Type *rvalFilter(Type *t, bool);
 Type *rvalIsPointer(Type *t, bool);
-Type *rvalIsPointer_leftIsRef(Type *t, bool isLeft);
+Type *para19_20filter(Type *t, bool);
 
 // some post filters
 bool pointerToObject(Type *t);
 bool pointerOrEnum(Type *t);
 bool pointerOrEnumOrPTM(Type *t);
 bool pointerToAny(Type *t);
+bool anyType(Type *t);
 
 
 #endif // BUILTINOPS_H
