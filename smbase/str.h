@@ -166,6 +166,11 @@ public:
   stringBuilder& operator << (unsigned i) { return operator<<((unsigned long)i); }
   stringBuilder& operator << (double d);
   stringBuilder& operator << (void *ptr);     // inserts address in hex
+  
+  // useful in places where long << expressions make it hard to
+  // know when arguments will be evaluated, but order does matter
+  typedef stringBuilder& (*Manipulator)(stringBuilder &sb);
+  stringBuilder& operator<< (Manipulator manip);
 
   // stream readers
   friend istream& operator>> (istream &is, stringBuilder &sb)

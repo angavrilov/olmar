@@ -92,7 +92,8 @@ inline T div_up(T const &x, T const &y)
   
 // verify something is true at compile time (will produce
 // a compile error if it isn't)
-#define staticAssert(cond) extern int dummyArray[cond? 1 : 0]
+// update: use STATIC_ASSERT defined in macros.h instead
+//#define staticAssert(cond) extern int dummyArray[cond? 1 : 0]
 
 
 #endif // __TYP_H

@@ -23,7 +23,7 @@ veryclean: clean
 library-objs = \
   breaker.o crc.o datablok.o exc.o missing.o nonport.o str.o \
   syserr.o voidlist.o warn.o bit2d.o point.o growbuf.o strtokp.o \
-  strutil.o strdict.o
+  strutil.o strdict.o svdict.o
 ${THISLIBRARY}: ${library-objs}
 	${makelib} libsmbase.a ${library-objs}
 	${ranlib} libsmbase.a
@@ -51,6 +51,9 @@ growbuf: growbuf.cc growbuf.h ${THISLIBRARY}
 strdict: strdict.cc strdict.h ${THISLIBRARY}
 	${link} -o strdict -DTEST_STRDICT strdict.cc ${THISLIBRARY} ${linkend}
 
+svdict: svdict.cc svdict.h ${THISLIBRARY}
+	${link} -o svdict -DTEST_SVDICT svdict.cc ${THISLIBRARY} ${linkend}
+
 check: ${tests-files}
 	./nonport
 	./voidlist
@@ -58,6 +61,7 @@ check: ${tests-files}
 	./bit2d
 	./growbuf
 	./strdict
+	./svdict
 	@echo
 	@echo "make check: all the tests PASSED"
 

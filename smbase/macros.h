@@ -1,6 +1,7 @@
 // macros.h
 // grab-bag of useful macros, stashed here to avoid mucking up
-//   other modules with more focus
+//   other modules with more focus; there's no clear rhyme or
+//   reason for why some stuff is here and some in typ.h
 // (no configuration stuff here!)
 
 #ifndef __MACROS_H
@@ -94,5 +95,35 @@ void T::insertOstream(ostream &os) const
 #define STATIC_ASSERT(cond) \
   { (void)((int (*)(char failed_static_assertion[(cond)?1:-1]))0); }
 
+  
+// for silencing variable-not-used warnings
+template <class T>
+inline void pretendUsedFn(T const &) {}
+#define PRETEND_USED(arg) pretendUsedFn(arg) /* user ; */
+
+
+// appended to function declarations to indicate they do not
+// return control to their caller; e.g.:
+//   void exit(int code) NORETURN;
+#ifdef __GNUC__
+  #define NORETURN __attribute__((noreturn))
+#else             
+  // just let the warnings roll if we can't suppress them
+  #define NORETURN
+#endif
+
+
+// these two are a common idiom in my code for typesafe casts;
+// they are essentially a roll-your-own RTTI
+#define CAST_MEMBER_FN(destType)                                                \
+  destType const &as##destType##C() const;                                      \
+  destType &as##destType() { return const_cast<destType&>(as##destType##C()); }
+
+#define CAST_MEMBER_IMPL(inClass, destType)         \
+  destType const &inClass::as##destType##C() const  \
+  {                                                 \
+    xassert(is##destType());                        \
+    return (destType const&)(*this);                \
+  }
 
 #endif // __MACROS_H

@@ -284,6 +284,12 @@ stringBuilder& stringBuilder::operator<< (
 }
 
 
+stringBuilder& stringBuilder::operator<< (Manipulator manip)
+{
+  return manip(*this);
+}
+
+
 // slow but reliable
 void stringBuilder::readdelim(istream &is, char const *delim)
 {

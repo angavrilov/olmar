@@ -73,6 +73,7 @@ static struct Escape {
   { '\v', 'v' },  // vertical tab
   { '\\', '\\'},  // backslash
   { '"',  '"' },  // double-quote
+  { '\'', '\''},  // single-quote
 };
 
 
@@ -149,6 +150,7 @@ void decodeEscapes(string &dest, int &destLen, char const *src,
       if (escapes[i].escape == *src) {
         sb << escapes[i].actual;
         destLen++;
+        src++;
         break;
       }
     }
