@@ -5,18 +5,22 @@
 #define CIL_H
 
 #include "str.h"       // string
+#include "objlist.h"   // ObjList
 
 // other files
-class Type;
-class FunctionType;
+class Type;            // cc_type.h
+class FunctionType;    // cc_type.h
+class Env;             // cc_env.h
+class Variable;        // cc_env.h
 
-// fwd
+// fwd for this file
 class CilExpr;
 class CilLval;
+class CilFnCall;
+class CilCompound;
 
 // ------------- names --------------
-typedef string VarName;
-VarName newTmpVar();
+typedef string VarName;     // TODO2: find a better place for this to live
 
 typedef string LabelName;
 LabelName newTmpLabel();
@@ -31,12 +35,16 @@ enum BinOp {
   OP_LT, OP_GT, OP_LTE, OP_GTE,
   OP_EQUAL, OP_NOTEQUAL,
   OP_BITAND, OP_BITXOR, OP_BITOR,
-  OP_AND, OP_OR
+  OP_AND, OP_OR,
   NUM_BINOPS
 };
+char const *binOpText(BinOp op);    // e.g. "+"
+void validate(BinOp op);            // exception if out of range
 
 
-enum UnaryOp { OP_NEGATE, OP_NOT, OP_BITNOT };
+enum UnaryOp { OP_NEGATE, OP_NOT, OP_BITNOT, NUM_UNOPS };
+char const *unOpText(UnaryOp op);   // e.g. "!"
+void validate(UnaryOp op);
 
 
 // -------------- CilExpr ------------
@@ -64,7 +72,7 @@ public:      // data
 
     // T_UNOP
     struct {
-      UnOp op;
+      UnaryOp op;
       CilExpr *exp;           // (owner)
     } unop;
 
@@ -91,23 +99,28 @@ public:      // funcs
   // other fields
   CilExpr(ETag tag);
   ~CilExpr();
+  
+  // we need the 'env' argument because we may have to
+  // synthesize a new type (e.g. if this is an addr-of
+  // expr, we'll need a ptr-to type)
+  Type const *getType(Env *env) const;
 
-  Type const *getType() const;
   CilLval *asLval();
   bool isLval() const { return etag == T_LVAL; }
-                               
+
   // throw an exception if 'tag' is out of range
   static void validate(ETag tag);
-  
+
   CilExpr *clone() const;     // deep copy
-  
+
   string toString() const;    // render as a string
 };
 
 
 // these functions are the interface cc.gr uses; this keeps
 // it at arms' length from the data structure implementation
-inline Type const *typeOf(CilExpr const *expr) { return expr->getType(); }
+inline Type const *typeOf(CilExpr const *expr, Env *env)
+  { return expr->getType(env); }
 inline CilLval *asLval(CilExpr *expr) { return expr->asLval(); }
 inline bool isLval(CilExpr const *expr) { return expr->isLval(); }
 
@@ -161,7 +174,7 @@ public:      // data
 
 public:      // funcs
   CilLval(LTag tag);       // caller must fill in right fields
-  ~CilLVal();
+  ~CilLval();
 
   static void validate(LTag ltag);
 
@@ -172,7 +185,7 @@ public:      // funcs
 CilLval *newVarRef(Variable *var);
 CilLval *newDeref(CilExpr *ptr);
 CilLval *newFieldRef(CilExpr *record, Variable *field);
-CilLval *newCastLval(Type const *type, CilExpr *expr);
+CilLval *newCastLval(Type const *type, CilLval *lval);
 CilLval *newArrayAccess(CilExpr *array, CilExpr *index);
 
 
@@ -273,7 +286,7 @@ public:      // funcs
   // deep copy
   CilInst *clone() const;
 
-  void printTree() const;
+  void printTree(int indent, ostream &os) const;
 };
 
 CilInst *newVarDecl(Variable *var);
@@ -298,6 +311,7 @@ public:     // funcs
   ~CilFnCall();
 
   CilFnCall *clone() const;
+  void printTree(int indent, ostream &os) const;
 
   void appendArg(CilExpr *arg);
 };
@@ -309,7 +323,7 @@ CilFnCall *newFnCall(CilLval *result, CilExpr *fn);    // args appended later
 // "i1 ; i2" and build all lists out of it ....
 class CilInstructions {
 public:    // data
-  ObjList<CilExpr> insts;    // list of instructions
+  ObjList<CilInst> insts;    // list of instructions
 
 public:    // funcs
   CilInstructions();
@@ -327,6 +341,7 @@ public:    // funcs
   ~CilCompound();
 
   CilCompound *clone() const;
+  void printTree(int indent, ostream &os) const;
 };
 
 CilCompound *newCompound();

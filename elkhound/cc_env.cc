@@ -22,7 +22,7 @@ CVAtomicType const *Env::builtins = NULL;
 
 Env::Env(DataflowEnv *d)
   : parent(NULL),
-    anonCounter(1),
+    nameCounter(1),
     compounds(),
     enums(),
     intermediates(),
@@ -53,7 +53,7 @@ Env::Env(DataflowEnv *d)
 
 Env::Env(Env *p)
   : parent(p),
-    anonCounter(-1000),    // so it will be obvious if I use it (I don't intend to)
+    nameCounter(-1000),    // so it will be obvious if I use it (I don't intend to)
     compounds(),
     enums(),
     typedefs(),
@@ -275,16 +275,27 @@ CompoundType *Env::lookupOrMakeCompound(char const *name, CompoundType::Keyword 
 }
 
 
-string Env::makeAnonName() 
+int Env::makeFreshInteger()
 {
-  // make the parent get the name so it's essentially a global
-  // counter
+  // make the parent get it so it's essentially a global counter
   if (parent) {
-    return parent->makeAnonName();
+    return parent->makeFreshInteger();
   }
   else {
-    return stringc << "__anon" << (anonCounter++);
+    return nameCounter++;
   }
+}
+
+
+string Env::makeFreshName(char const *prefix)
+{
+  return stringc << prefix << makeFreshInteger();
+}
+
+
+string Env::makeAnonName()
+{
+  return makeFreshName("__anon");
 }
 
 
@@ -400,13 +411,9 @@ bool Env::declareVariable(char const *name, DeclFlags flags, Type const *type)
     if (variables.isMapped(name)) {
       // duplicate name
       return false;
-    }                             
-    
-    Variable *var = new Variable(name, flags, type);
-    variables.add(name, var);
+    }
 
-    // add this to the dataflow environment too (if it wants it)
-    denv->addVariable(var);
+    addVariable(name, flags, type);
   }
 
   else {
@@ -426,6 +433,18 @@ bool Env::declareVariable(char const *name, DeclFlags flags, Type const *type)
   }
 
   return true;
+}
+
+
+Variable *Env::addVariable(char const *name, DeclFlags flags, Type const *type)
+{
+  Variable *var = new Variable(name, flags, type);
+  variables.add(name, var);
+
+  // add this to the dataflow environment too (if it wants it)
+  denv->addVariable(var);
+  
+  return var;
 }
 
 
@@ -517,6 +536,14 @@ bool Env::isTrialBalloon() const
   // true if we, or any parent, is a trial
   return trialBalloon ||
          (parent && parent->isTrialBalloon());
+}
+
+
+Variable *Env::newTmpVar(Type const *type)
+{                 
+  string name = makeFreshName("tmpvar");
+  Variable *var = addVariable(name, DF_NONE, type);
+  return var;
 }
 
 

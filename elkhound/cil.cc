@@ -7,24 +7,62 @@
 
 #include "cil.h"        // this module
 #include "cc_type.h"    // Type, etc.
+#include "cc_env.h"     // Env
 
 #include <stdlib.h>     // rand
+#include <string.h>     // memset
 
 
 // ------------- names --------------
-VarName newTmpVar()
-{
-  return stringc << "tmpvar" << rand();
-}
-
 LabelName newTmpLabel()
 {
-  return stringc << "tmplabel" << rand();
+  // TODO2: fix this sorry hack
+  return stringc << "tmplabel" << (rand() % 1000);
+}
+
+
+// ------------ operators -------------
+char const *binOpText(BinOp op)
+{ 
+  char const *names[] = {
+    "+", "-", "*", "/", "%",
+    "<<", ">>",
+    "<", ">", "<=", ">=",
+    "==", "!=",
+    "&", "^", "|",
+    "&&", "||"
+  };
+  STATIC_ASSERT(TABLESIZE(names) == NUM_BINOPS);
+
+  validate(op);
+  return names[op];
+}
+
+void validate(BinOp op)
+{
+  xassert(0 <= op && op < NUM_BINOPS);
+}
+
+
+char const *unOpText(UnaryOp op)
+{
+  char const *names[] = {
+    "-", "!", "~"
+  };
+  STATIC_ASSERT(TABLESIZE(names) == NUM_UNOPS);
+  
+  validate(op);
+  return names[op];
+}
+
+void validate(UnaryOp op)
+{
+  xassert(0 <= op && op < NUM_UNOPS);
 }
 
 
 // -------------- CilExpr ------------
-CilExpr::CilExpr(Tag t)
+CilExpr::CilExpr(ETag t)
   : etag(t)
 {
   validate(etag);
@@ -34,9 +72,10 @@ CilExpr::CilExpr(Tag t)
 
   // so some initialization
   switch (etag) {
-    case T_LVAL: 
+    case T_LVAL:
       lval = (CilLval*)this;
       break;
+    INCL_SWITCH
   }
 }
 
@@ -47,10 +86,12 @@ CilExpr::~CilExpr()
     case T_LVAL:
       // my masochistic tendencies show through: I do some tricks
       // to get the right dtor called, instead of just adding a
-      // virtual destructor to these classes ... :)
+      // virtual destructor to these classes ... :)  the pile of
+      // bones laid before the Altar of Efficiency grows yet higher ..
       if (lval) {
+        CilLval *ths = lval;
         lval = NULL;    // avoid infinite recursion
-        this->CilLval::~CilLval();
+        ths->CilLval::~CilLval();
       }
       break;
 
@@ -70,6 +111,8 @@ CilExpr::~CilExpr()
     case T_ADDROF:
       delete addrof.lval;
       break;
+      
+    INCL_SWITCH
   }
 }
 
@@ -80,9 +123,9 @@ Type const *CilExpr::getType(Env *env) const
     default: xfailure("bad tag");
     case T_LITERAL:    return env->getSimpleType(ST_INT);
     case T_LVAL:       return lval->getType(env);
-    case T_UNOP:       return exp->getType(env);
-    case T_BINOP:      return left->getType(env);    // TODO: check that arguments have related types??
-    case T_CASTE:      return type;                  // TODO: check castability?
+    case T_UNOP:       return unop.exp->getType(env);
+    case T_BINOP:      return binop.left->getType(env);    // TODO: check that arguments have related types??
+    case T_CASTE:      return caste.type;                  // TODO: check castability?
     case T_ADDROF:
       return env->makePtrOperType(PO_POINTER, CV_NONE,
                                   addrof.lval->getType(env));
@@ -106,6 +149,8 @@ STATICDEF void CilExpr::validate(ETag tag)
 CilExpr *CilExpr::clone() const
 {
   switch (etag) {
+    default: xfailure("bad tag");
+
     case T_LITERAL:
       return newIntLit(lit.value);
     
@@ -116,9 +161,9 @@ CilExpr *CilExpr::clone() const
       return newUnaryExpr(unop.op, unop.exp->clone());
 
     case T_BINOP:
-      return newBinaryExpr(binop.op, 
-                           binop.left->clone(), 
-                           binop.right->clone());
+      return newBinExpr(binop.op,
+                        binop.left->clone(),
+                        binop.right->clone());
                            
     case T_CASTE:
       return newCastExpr(caste.type, caste.exp->clone());
@@ -147,7 +192,7 @@ string CilExpr::toString() const
                      << binop.right->toString() << ")";
     case T_CASTE:
       return stringc << "([" << caste.type->toString()
-                     << "] " << caste.exp->toString << ")";
+                     << "] " << caste.exp->toString() << ")";
     case T_ADDROF:
       return stringc << "(& " << addrof.lval->toString() << ")";
   }
@@ -156,14 +201,14 @@ string CilExpr::toString() const
 
 CilExpr *newIntLit(int val)
 {
-  CilExpr *ret = new CilExpr(T_LITERAL);
+  CilExpr *ret = new CilExpr(CilExpr::T_LITERAL);
   ret->lit.value = val;
   return ret;
 }
 
 CilExpr *newUnaryExpr(UnaryOp op, CilExpr *expr)
 {
-  CilExpr *ret = new CilExpr(T_UNOP);
+  CilExpr *ret = new CilExpr(CilExpr::T_UNOP);
   ret->unop.op = op;
   ret->unop.exp = expr;
   return ret;
@@ -171,7 +216,7 @@ CilExpr *newUnaryExpr(UnaryOp op, CilExpr *expr)
 
 CilExpr *newBinExpr(BinOp op, CilExpr *e1, CilExpr *e2)
 {
-  CilExpr *ret = new CilExpr(T_BINOP);
+  CilExpr *ret = new CilExpr(CilExpr::T_BINOP);
   ret->binop.op = op;
   ret->binop.left = e1;
   ret->binop.right = e2;
@@ -180,7 +225,7 @@ CilExpr *newBinExpr(BinOp op, CilExpr *e1, CilExpr *e2)
 
 CilExpr *newCastExpr(Type const *type, CilExpr *expr)
 {
-  CilExpr *ret = new CilExpr(T_CASTE);
+  CilExpr *ret = new CilExpr(CilExpr::T_CASTE);
   ret->caste.type = type;
   ret->caste.exp = expr;
   return ret;
@@ -188,7 +233,7 @@ CilExpr *newCastExpr(Type const *type, CilExpr *expr)
 
 CilExpr *newAddrOfExpr(CilLval *lval)
 {
-  CilExpr *ret = new CilExpr(T_ADDROF);
+  CilExpr *ret = new CilExpr(CilExpr::T_ADDROF);
   ret->addrof.lval = lval;
   return ret;
 }
@@ -196,7 +241,7 @@ CilExpr *newAddrOfExpr(CilLval *lval)
 
 // ------------------- CilLval -------------------
 CilLval::CilLval(LTag tag)
-  : CilExpr(T_LVAL),
+  : CilExpr(CilExpr::T_LVAL),
     ltag(tag)
 {
   validate(ltag);
@@ -225,6 +270,8 @@ CilLval::~CilLval()
       delete arrayelt.array;
       delete arrayelt.index;
       break;
+      
+    INCL_SWITCH
   }
 }
 
@@ -238,18 +285,20 @@ STATICDEF void CilLval::validate(LTag ltag)
 CilLval *CilLval::clone() const
 {
   switch (ltag) {
+    default: xfailure("bad tag");
+
     case T_VARREF:
       return newVarRef(varref.var);
-      
+
     case T_DEREF:
       return newDeref(deref.addr->clone());
 
     case T_FIELDREF:
       return newFieldRef(fieldref.record->clone(), fieldref.field);
-      
+
     case T_CASTL:
       return newCastLval(castl.type, castl.lval->clone());
-      
+
     case T_ARRAYELT:
       return newArrayAccess(arrayelt.array->clone(),
                             arrayelt.index->clone());
@@ -260,46 +309,56 @@ CilLval *CilLval::clone() const
 string CilLval::toString() const
 {
   switch (ltag) {
-    case T_VARREF:
-      
-
-
-
+    default: xfailure("bad tag");
+    case T_VARREF:    return varref.var->name;
+    case T_DEREF:
+      return stringc << "(* " << deref.addr->toString() << ")";
+    case T_FIELDREF:
+      return stringc << "(" << fieldref.record->toString()
+                     << " . " << fieldref.field->name << ")";
+    case T_CASTL:
+      return stringc << "(@[" << castl.type->toString()
+                     << "] " << castl.lval->toString() << ")";
+    case T_ARRAYELT:
+      return stringc << "(" << arrayelt.array->toString()
+                     << " [" << arrayelt.index->toString() << "])";
+  }
+}
 
 
 CilLval *newVarRef(Variable *var)
 {
-  CilLval *ret = new CilLval(T_VARREF);
+  CilLval *ret = new CilLval(CilLval::T_VARREF);
   ret->varref.var = var;
   return ret;
 }
 
 CilLval *newDeref(CilExpr *ptr)
 {
-  CilLval *ret = new CilLval(T_DEREF);
+  CilLval *ret = new CilLval(CilLval::T_DEREF);
   ret->deref.addr = ptr;
   return ret;
 }
 
-CilLval *newFieldRef(CilExpr *record, VarName field)
+CilLval *newFieldRef(CilExpr *record, Variable *field)
 {
-  CilLval *ret = new CilLval(T_FIELDREF);
+  CilLval *ret = new CilLval(CilLval::T_FIELDREF);
   ret->fieldref.record = record;
   ret->fieldref.field = field;
   return ret;
 }
 
-CilLval *newCastLval(Type const *type, CilExpr *expr)
+CilLval *newCastLval(Type const *type, CilLval *lval)
 {
-  CilLval *ret = new CilLval(T_CASTL);
+  CilLval *ret = new CilLval(CilLval::T_CASTL);
   ret->castl.type = type;
-  ret->castl.lval = expr;
+  ret->castl.lval = lval;
   return ret;
 }
 
 CilLval *newArrayAccess(CilExpr *array, CilExpr *index)
 {
-  CilLval *ret = new CilLval(T_ARRAYELT);
+  CilLval *ret = new CilLval(CilLval::T_ARRAYELT);
   ret->arrayelt.array = array;
   ret->arrayelt.index = index;
   return ret;
@@ -322,8 +381,10 @@ CilInst::CilInst(ITag tag)
       break;
       
     case T_COMPOUND:
-      call = (CilCompound*)this;
+      comp = (CilCompound*)this;
       break;
+      
+    INCL_SWITCH
   }
 }
 
@@ -387,6 +448,8 @@ CilInst::~CilInst()
         delete ret.expr;
       }                         
       break;
+      
+    INCL_SWITCH
   }
 }
 
@@ -408,6 +471,8 @@ CilInst *CilInst::clone() const
   // note: every owner pointer must be cloned, not
   // merely copied!
   switch (itag) {
+    default: xfailure("bad tag");
+
     case T_VARDECL:
       return newVarDecl(vardecl.var);
 
@@ -446,16 +511,97 @@ CilInst *CilInst::clone() const
 }
 
 
+static ostream &indent(int ind, ostream &os)
+{
+  while (ind--) {
+    os << ' ';
+  }
+  return os;
+}
+
+
+void CilInst::printTree(int ind, ostream &os) const
+{ 
+  if (itag == T_COMPOUND) {
+    comp->printTree(ind, os);
+    return;
+  }
+  else if (itag == T_CALL) {
+    call->printTree(ind, os);
+    return;
+  }
+
+  indent(ind, os);
+
+  switch (itag) {
+    case T_VARDECL:
+      os << "vardecl " << vardecl.var->name
+         << " : " << vardecl.var->type->toString() << " ;\n";
+      break;
+
+    case T_FUNDECL:
+      os << "fundecl " << fundecl.func->name
+         << " : " << fundecl.func->type->toString();
+      indent(ind, os) << " {\n";
+      fundecl.body->printTree(ind+2, os);
+      indent(ind, os) << "}\n";
+      break;
+
+    case T_ASSIGN:
+      os << "assign " << assign.lval->toString()
+         << " := " << assign.expr->toString() << " ;\n";
+      break;
+
+    case T_FREE:
+      os << "free " << free.addr->toString() << " ;\n";
+      break;
+      
+    case T_LOOP:
+      os << "while ( " << loop.cond->toString() << " ) {\n";
+      loop.body->printTree(ind+2, os);
+      indent(ind, os) << "}\n";
+      break;
+      
+    case T_IFTHENELSE:
+      os << "if ( " << ifthenelse.cond->toString() << ") {\n";
+      ifthenelse.thenBr->printTree(ind+2, os);
+      indent(ind, os) << "}\n";
+      indent(ind, os) << "else {\n";
+      ifthenelse.elseBr->printTree(ind+2, os);
+      indent(ind, os) << "}\n";
+      break;
+      
+    case T_LABEL:
+      os << "label " << *(label.name) << " :\n";
+      break;
+      
+    case T_JUMP:
+      os << "goto " << *(jump.dest) << " ;\n";
+      break;
+      
+    case T_RET:
+      os << "return";
+      if (ret.expr) {
+        os << " " << ret.expr->toString();
+      }
+      os << " ;\n";  
+      break;
+      
+    INCL_SWITCH
+  }
+}
+
+
 CilInst *newVarDecl(Variable *var)
 {
-  CilInst *ret = new CilInst(T_VARDECL);
+  CilInst *ret = new CilInst(CilInst::T_VARDECL);
   ret->vardecl.var = var;
   return ret;
 }
 
 CilInst *newFunDecl(Variable *func, CilInst *body)
 {
-  CilInst *ret = new CilInst(T_FUNDECL);
+  CilInst *ret = new CilInst(CilInst::T_FUNDECL);
   ret->fundecl.func = func;
   ret->fundecl.body = body;
   return ret;
@@ -463,7 +609,7 @@ CilInst *newFunDecl(Variable *func, CilInst *body)
 
 CilInst *newAssign(CilLval *lval, CilExpr *expr)
 {
-  CilInst *ret = new CilInst(T_ASSIGN);
+  CilInst *ret = new CilInst(CilInst::T_ASSIGN);
   ret->assign.lval = lval;
   ret->assign.expr = expr;
   return ret;
@@ -471,14 +617,14 @@ CilInst *newAssign(CilLval *lval, CilExpr *expr)
 
 CilInst *newFreeInst(CilExpr *ptr)
 {
-  CilInst *ret = new CilInst(T_FREE);
+  CilInst *ret = new CilInst(CilInst::T_FREE);
   ret->free.addr = ptr;
   return ret;
 }
 
 CilInst *newWhileLoop(CilExpr *expr, CilInst *body)
 {
-  CilInst *ret = new CilInst(T_LOOP);
+  CilInst *ret = new CilInst(CilInst::T_LOOP);
   ret->loop.cond = expr;
   ret->loop.body = body;
   return ret;
@@ -486,7 +632,7 @@ CilInst *newWhileLoop(CilExpr *expr, CilInst *body)
 
 CilInst *newIfThenElse(CilExpr *cond, CilInst *thenBranch, CilInst *elseBranch)
 {
-  CilInst *ret = new CilInst(T_IFTHENELSE);
+  CilInst *ret = new CilInst(CilInst::T_IFTHENELSE);
   ret->ifthenelse.cond = cond;
   ret->ifthenelse.thenBr = thenBranch;
   ret->ifthenelse.elseBr = elseBranch;
@@ -495,21 +641,21 @@ CilInst *newIfThenElse(CilExpr *cond, CilInst *thenBranch, CilInst *elseBranch)
 
 CilInst *newLabel(LabelName label)
 {
-  CilInst *ret = new CilInst(T_LABEL);
+  CilInst *ret = new CilInst(CilInst::T_LABEL);
   ret->label.name = new LabelName(label);
   return ret;
 }
 
 CilInst *newGoto(LabelName label)
 {
-  CilInst *ret = new CilInst(T_JUMP);
+  CilInst *ret = new CilInst(CilInst::T_JUMP);
   ret->jump.dest = new LabelName(label);
   return ret;
 }
 
 CilInst *newReturn(CilExpr *expr /*nullable*/)
 {
-  CilInst *ret = new CilInst(T_RET);
+  CilInst *ret = new CilInst(CilInst::T_RET);
   ret->ret.expr = expr;
   return ret;
 }
@@ -517,7 +663,7 @@ CilInst *newReturn(CilExpr *expr /*nullable*/)
 
 // -------------------- CilFnCall -------------------
 CilFnCall::CilFnCall(CilLval *r, CilExpr *f)
-  : CilInst(T_CALL),
+  : CilInst(CilInst::T_CALL),
     result(r),
     func(f),
     args()      // initially empty
@@ -543,6 +689,24 @@ CilFnCall *CilFnCall::clone() const
 }
 
 
+void CilFnCall::printTree(int ind, ostream &os) const
+{
+  indent(ind, os);
+  os << "call " << func->toString()
+     << " withargs";
+
+  int ct=0;
+  FOREACH_OBJLIST(CilExpr, args, iter) {
+    if (++ct > 1) {
+      os << " , ";
+    }
+    os << iter.data()->toString();
+  }
+
+  os << " ;\n";
+}
+
+
 void CilFnCall::appendArg(CilExpr *arg)
 {
   args.append(arg);
@@ -551,7 +715,7 @@ void CilFnCall::appendArg(CilExpr *arg)
 
 CilFnCall *newFnCall(CilLval *result, CilExpr *fn)
 {
-  return newCilFnCall(result, fn);
+  return new CilFnCall(result, fn);
 }
 
 
@@ -571,7 +735,7 @@ void CilInstructions::append(CilInst *inst)
 
 // ----------------- CilCompound ---------------------
 CilCompound::CilCompound()
-  : CilInst(T_COMPOUND)
+  : CilInst(CilInst::T_COMPOUND)
 {}
 
 CilCompound::~CilCompound()
@@ -581,16 +745,24 @@ CilCompound::~CilCompound()
 CilCompound *CilCompound::clone() const
 {
   CilCompound *ret = new CilCompound();
-  
-  FOREACH_OBJLIST(CilExpr, insts, iter) {
+
+  FOREACH_OBJLIST(CilInst, insts, iter) {
     ret->append(iter.data()->clone());
   }
-  
+
   return ret;
 }
 
 
-void CilCompound::printTree() const {}
+void CilCompound::printTree(int ind, ostream &os) const
+{
+  indent(ind, os) << "{\n";
+  FOREACH_OBJLIST(CilInst, insts, iter) {
+    iter.data()->printTree(ind+2, os);
+  }
+  indent(ind, os) << "}\n";
+}
+
 
 CilCompound *newCompound()
 {

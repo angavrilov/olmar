@@ -58,9 +58,9 @@ private:    // data
   // to the parent before failing altogether
   Env * const parent;               // (serf)
 
-  // counter for synthesizing names of anonymous structures;
-  // only the counter in the toplevel environment is used
-  int anonCounter;
+  // counter for synthesizing names; only the counter in the toplevel
+  // environment is used
+  int nameCounter;
 
   // user-defined compounds
   StringObjDict<CompoundType> compounds;
@@ -92,8 +92,11 @@ private:    // data
 
 private:    // funcs
   void grab(Type *t);
+  int makeFreshInteger();
   string makeAnonName();
+  string makeFreshName(char const *prefix);
   ostream& indent(ostream &os) const;
+  Variable *addVariable(char const *name, DeclFlags flags, Type const *type);
 
   Env(Env&);               // not allowed
 
@@ -185,7 +188,12 @@ public:     // funcs
   // support for analysis routines
   StringObjDict<Variable> &getVariables() { return variables; }
   DataflowEnv &getDenv() { return *denv; }
-  
+
+  // support for translation
+  // make up a fresh variable name and install it into
+  // the environment with the given type
+  Variable *newTmpVar(Type const *type);
+
   // debugging
   string toString() const;
 };

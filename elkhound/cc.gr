@@ -18,6 +18,16 @@ literalCode "prologue" {
   #include "cc_cfg.h"    // CFG, etc.
   #include "dataflow.h"  // DataflowEnv
   #include "cil.h"       // CilXXX stuff (C Intermediate Language)
+
+  // provide easy-to-grep-for (and easy-to-put-a-breakpt) names for
+  // places I haven't implemented the Cil translation
+  CilExpr *todoCilExpr();
+  CilInst *todoCilInst();
+  Variable *todoVariable();
+  
+  // this is for places where there is no value
+  // for a construct
+  inline CilExpr *noCilValue() { return NULL; }
 }
 treeNodeBase "CCTreeNode";
 
@@ -109,7 +119,7 @@ nonterm TranslationUnit : Checkable {
       }
       env->flushLocalErrors(cout);
       
-      return NULL;
+      return noCilValue();
     }
 
     fun printTree {
@@ -159,7 +169,7 @@ nonterm TranslationUnit : Checkable {
     
     // or this
     if (tracingSys("cil-tree")) {
-      cil->printTree();
+      cil->insts.firstC()->printTree(0 /*indent*/, cout);
     }
     delete cil;
 
@@ -244,6 +254,15 @@ nonterm PrimaryExpression : ExprBase {
   -> e:Literal {
     fun intEval = e.intEval(env);
     fun getType = e.getType(env);
+    fun typeCheck {
+      try {
+        return newIntLit(intEval(env));
+      }
+      catch (...) {
+        // not an int .. no current repr in Cil
+        return todoCilExpr();
+      }
+    }
   }
 
   -> "this"                     {}
@@ -298,7 +317,7 @@ nonterm HasDeclName {
 // possibly-qualified name; essentially spec's id-expression
 // missing: template-id because I don't know what that is
 nonterm PQVarName : HasTypeName, HasDeclName, HasType {
-  fundecl VarName typeCheck(Env *passedEnv);
+  fundecl Variable *typeCheck(Env *passedEnv);
   literalCode "prefix" typeCheck {
     env = passedEnv;
   }
@@ -315,12 +334,11 @@ nonterm PQVarName : HasTypeName, HasDeclName, HasType {
       if (!env->isDeclaredVar(n.getName())) {
         SemanticError err(this, SE_UNDECLARED_VAR);
         err.varName = n.getName();
-        env->report(err);
-        return "undeclared_var";     // good idea?
+        
+        // TODO2: is this a good idea?
+        THROW(err);
       }
-      else {
-        return n.getName();
-      }
+      return env->getVariable(n.getName());
     }
 
     fun getType {
@@ -340,7 +358,7 @@ nonterm PQVarName : HasTypeName, HasDeclName, HasType {
     // each of the remaining rules requires some more sophisticated
     // way of naming symbols
     reportError(env, "typeCheck unimplemented for complicated names");
-    return "";      // silence warning
+    return todoVariable();
   }
 
   -> OperatorFunctionId     { action colonColon := 0; }
@@ -386,11 +404,11 @@ nonterm PostfixExpression : ExprBase {
       CilExpr *fn = p.typeCheck(env, inst);
 
       // get its return type
-      Type const *retType = NULL;    // TODO1: typeOf(fn)->asFunctionTypeC().retType;
+      Type const *retType = typeOf(fn, env)->asFunctionTypeC().retType;
 
       // need a temprary for the result
-      VarName result = newTmpVar();
-      inst.append(newVarDecl(result, retType));
+      Variable *result = env->newTmpVar(retType);
+      inst.append(newVarDecl(result));
 
       // make a CIL object to hold the call
       CilFnCall *call = newFnCall(newVarRef(result), fn);
@@ -420,7 +438,7 @@ nonterm PostfixExpression : ExprBase {
   -> p:PostfixExpression "." n:PQVarName {
     fun typeCheck {
       CilExpr *record = p.typeCheck(env, inst);
-      VarName field = n.typeCheck(env);
+      Variable *field = n.typeCheck(env);
       return newFieldRef(record, field);
     }
   }
@@ -429,7 +447,7 @@ nonterm PostfixExpression : ExprBase {
   -> p:PostfixExpression "->" n:PQVarName {
     fun typeCheck {
       CilExpr *record = newDeref(p.typeCheck(env, inst));
-      VarName field = n.typeCheck(env);
+      Variable *field = n.typeCheck(env);
       return newFieldRef(record, field);
     }
   }
@@ -439,8 +457,8 @@ nonterm PostfixExpression : ExprBase {
       CilLval *lval = asLval(p.typeCheck(env, inst));
 
       // save old value
-      VarName tmp = newTmpVar();
-      inst.append(newVarDecl(tmp, typeOf(lval)));
+      Variable *tmp = env->newTmpVar(typeOf(lval, env));
+      inst.append(newVarDecl(tmp));
       inst.append(newAssign(newVarRef(tmp), lval));
 
       // increment the expression
@@ -680,7 +698,7 @@ nonterm DeleteExpression : Checkable {
   fun typeCheck {
     CilExpr *expr = e.typeCheck(env, inst);
     inst.append(newFreeInst(expr));
-    return NULL;
+    return noCilValue();     // TODO3: is this correct?
   }
 
   -> "delete" e:CastExpression ;
@@ -874,8 +892,8 @@ nonterm ConditionalExpression : ExprBase {
 
       // store result of evaluation in a temporary
       // TODO: check that the expression types match
-      VarName tmp = newTmpVar();
-      inst.append(newVarDecl(tmp, typeOf(thenExpr)));
+      Variable *tmp = env->newTmpVar(typeOf(thenExpr, env));
+      inst.append(newVarDecl(tmp));
 
       // append to each sequence an assignment from the
       // computed expression to the temporary
@@ -1153,7 +1171,8 @@ nonterm Statement : Checkable, HasCFG {
         // add the intermediate form of if-then-else, where
         // the else branch is empty
         inst.append(newIfThenElse(cond, thenInst, newCompound()));
-        return NULL;      // can't treat an if-then-else as a value
+        
+        return noCilValue();      // can't treat an if-then-else as a value
       }
     }
 
@@ -1194,7 +1213,8 @@ nonterm Statement : Checkable, HasCFG {
         
         // append if-then-else
         inst.append(newIfThenElse(cond, thenInst, elseInst));
-        return NULL;      // no value
+        
+        return noCilValue();      // no value
       }
 
       fun getCFG {
@@ -1298,7 +1318,7 @@ nonterm Statement : Checkable, HasCFG {
           inst.append(newWhileLoop(cond, body));
 
           // no value
-          return NULL;
+          return noCilValue();
         }
       }
 
@@ -1328,7 +1348,7 @@ nonterm Statement : Checkable, HasCFG {
           inst.append(newWhileLoop(cond, body));
 
           // no value
-          return NULL;
+          return noCilValue();
         }
       }
     }
@@ -1373,7 +1393,7 @@ nonterm Statement : Checkable, HasCFG {
       // then the loop body
       inst.append(newWhileLoop(cond, body));
 
-      return NULL;
+      return noCilValue();
     }
 
     fun getCFG {
@@ -1437,7 +1457,7 @@ nonterm Statement : Checkable, HasCFG {
       fun typeCheck { 
         CilExpr *expr = e.typeCheck(env, inst);
         inst.append(newReturn(expr));
-        return NULL;
+        return noCilValue();
       }
 
       fun getCFG {
@@ -1451,7 +1471,7 @@ nonterm Statement : Checkable, HasCFG {
     -> "return" ";" {
       fun typeCheck {
         inst.append(newReturn(NULL));
-        return NULL;
+        return noCilValue();
       }
 
       fun getCFG {
@@ -1465,7 +1485,7 @@ nonterm Statement : Checkable, HasCFG {
     -> "goto" n:LabelName ";" {
       fun typeCheck {
         inst.append(newGoto(n.getName()));
-        return NULL;
+        return noCilValue();
       }
 
       fun getCFG {
@@ -1560,17 +1580,18 @@ nonterm Condition : Checkable {
     fun typeCheck {
       // basic declaration handling
       Type const *declType = decl.getDeclType(env, spec.getType(env));
-      VarName var = decl.getDeclName();
-      declareVariable(env, var, DF_NONE, declType);
+      VarName name = decl.getDeclName();
+      declareVariable(env, name, DF_NONE, declType);
 
       // declare a new intermediate variable
-      inst.append(newVarDecl(var, declType));
+      Variable *var = env->getVariable(name);
+      inst.append(newVarDecl(var));
 
       // initialize it
       CilExpr *initVal = e.typeCheck(env, inst);
       inst.append(newAssign(newVarRef(var), initVal));
-      
-      return NULL;
+
+      return noCilValue();
     }
   }
 }
@@ -1637,7 +1658,7 @@ nonterm SimpleDeclaration : Checkable {
       Type const *type = spec.getType(env);    // a complete type
       DeclFlags flags = spec.getDeclFlags();   // inline, virtual, etc.
       list.declare(env, inst, flags, type);
-      return NULL;
+      return noCilValue();
     }
   }
 }
@@ -1983,7 +2004,7 @@ nonterm InitDeclarator : HasDeclare {
     declareVariable(env, name, flags, fullType);
 
     // and add an intermediate form declaration too
-    inst.append(newVarDecl(name, fullType));
+    inst.append(newVarDecl(env->getVariable(name)));
   }
 
   // don't know what to do with the initializer at this point.. (TODO)
@@ -2440,6 +2461,10 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
       string name = d.getDeclName();
       declareVariable(env, name, flags, fnType);
 
+      // then grab it
+      Variable *funcVar = env->getVariable(name);
+      xassert(funcVar->type == fnType);
+
       // add the formals to the new environment we'll create for
       // the function body
       xassert(!localEnv);
@@ -2461,8 +2486,9 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
 
       // intermediate form: for now, just another instruction ...
       // perhaps I should separate out a language of declarations?
-      inst.append(newFunDecl(name, fnType, body));
-      return NULL;
+      inst.append(newFunDecl(funcVar, body));
+      
+      return noCilValue();
     }
   }
 
@@ -2718,7 +2744,7 @@ nonterm Handler : Checkable, ScopeNode {
 
       ana_endScope(localEnv);
 
-      return NULL;
+      return noCilValue();
     }
   }
 }
@@ -2730,7 +2756,7 @@ nonterm ExceptionDeclaration : Checkable {
       string name = d.getDeclName();
       declareVariable(env, name, DF_NONE, type);
 
-      return NULL;
+      return noCilValue();
     }
   }
 
@@ -2805,6 +2831,22 @@ bool processNode(TreeNode const *n, void*)
   cout << "------ all function def signatures ------\n";
   top->walkTree(processNode);
 #endif // 0
+
+
+CilExpr *todoCilExpr()
+{
+  return NULL;
+}
+
+CilInst *todoCilInst()
+{
+  return NULL;
+}
+
+Variable *todoVariable()
+{  
+  return NULL;
+}
 
 
 int fakemain(int argc, char *argv[])
