@@ -266,7 +266,7 @@ class IDeclarator {
   pure_virtual Variable * /*owner*/ itcheck(Env &env, Type const *spec, DeclFlags dflags);
 
   // dig down and find the name being declared; may return NULL
-  //pure_virtual StringRef getName() const;
+  //pure_virtual PQName const *getDeclaratorId() const;
 
   // "x" (NULL means abstract declarator or anonymous parameter);
   // this is used for ctors and dtors as well as ordinary names

@@ -91,6 +91,12 @@ public:      // function
   CompoundType *lookupCompound(StringRef name, bool innerOnly);
   EnumType *lookupPQEnum(PQName const *name);
 
+  // look up a particular scope; the 'name' part of the PQName
+  // will be ignored; if we can't find this scope, return NULL
+  // *and* report it as an error; there must be at least one
+  // qualified in 'name'
+  Scope *lookupQualifiedScope(PQName const *name);
+
   // diagnostic reports; all return ST_ERROR type
   Type const *error(char const *msg, bool disambiguates=false);
   Type const *warning(char const *msg);

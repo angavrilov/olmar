@@ -489,8 +489,49 @@ void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
 // -------------------- Declarator --------------------
 void Declarator::tcheck(Env &env, Type const *spec, DeclFlags dflags)
 {
+  #if 0   // this won't quite work right now..
+  // cppstd sec. 3.4.3 para 3:
+  //    "In a declaration in which the declarator-id is a
+  //    qualified-id, names used before the qualified-id
+  //    being declared are looked up in the defining
+  //    namespace scope; names following the qualified-id
+  //    are looked up in the scope of the member's class
+  //    or namespace."
+  //
+  // to implement this, I'll dig down into the declarator
+  // to find out if it's qualified
+  PQName *declaratorId = decl->getDeclaratorId();
+  Scope *qualifiedScope = NULL;
+  if (declaratorId &&     // i.e. not abstract
+      declaratorId->hasQualifiers()) {
+    // look up the scope named by the qualifiers
+    qualifiedScope = env.lookupQualifiedScope(declaratorId);
+    if (!qualifiedScope) {
+      // the environment will have already reported the
+      // problem; go ahead and check the declarator in the
+      // unqualified (normal) scope; it's about the best I
+      // could imagine doing as far as error recovery goes
+    }
+    else {
+      // ok, put the scope we found into the scope stack
+      // so the declarator's names will get its benefit
+      env.extendScope(qualifiedScope);
+    }
+  }
+  #endif // 0
+
   // get the variable from the IDeclarator
   var = decl->tcheck(env, spec, dflags);
+
+  #if 0
+  if (qualifiedScope) {
+    // pull the scope back out of the stack; if this is a
+    // declarator attached to a function definition, then
+    // Function::tcheck will re-extend it for analyzing
+    // the function body
+    env.retractScope(qualifiedScope);
+  }    
+  #endif // 0
 
   // cppstd, sec. 3.3.1: 
   //   "The point of declaration for a name is immediately after 
