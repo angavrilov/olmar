@@ -1253,7 +1253,7 @@ nonterm(IDeclarator*) DirectDeclarator {
        { return new D_name(loc, n); }
 
   // function declarator; the return type comes from the type
-  // specifier that preceeds this
+  // specifier that precedes this
   -> d:DirectDeclarator                        // name of function
      "(" params:ParameterDeclarationClause ")" // parameters
      cv:CVQualifierSeqOpt                      // optional "const"
@@ -1299,7 +1299,7 @@ nonterm(Expression*) ConstantExpressionOpt {
 }
 
 
-// syntax that preceeds "*" in the pointer-to-member declarator syntax
+// syntax that precedes "*" in the pointer-to-member declarator syntax
 nonterm(PQName*) PtrToMemberName {
   -> n:IdExpression "::"    { return n; }
 }
