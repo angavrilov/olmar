@@ -23,17 +23,18 @@
 
 #include <stdlib.h>         // strtoul, strtod
 
-// forwards in this file
-static Variable *outerResolveOverload_ctor
-  (Env &env, SourceLoc loc, Type *type, FakeList<ICExpression> *args, bool really);
-static bool reallyDoOverload(Env &env, FakeList<ICExpression> *args);
-
 // D(): debug code
 #ifdef NDEBUG
   #define D(stuff)
 #else
   #define D(stuff) stuff
 #endif
+
+
+// forwards in this file
+static Variable *outerResolveOverload_ctor
+  (Env &env, SourceLoc loc, Type *type, FakeList<ICExpression> *args, bool really);
+static bool reallyDoOverload(Env &env, FakeList<ICExpression> *args);
 
 
 // return true if the list contains no disambiguating errors
@@ -330,10 +331,12 @@ void Function::tcheck_memberInits(Env &env)
 
         // typecheck the arguments
         tcheckFakeExprList(iter->args, env);
-        Variable *var0 = outerResolveOverload_ctor(env, env.loc(), v->type, iter->args,
+        
+        // decide which of v's possible constructors is being used
+        Variable *ctor = outerResolveOverload_ctor(env, env.loc(), v->type, iter->args,
                                                    reallyDoOverload(env, iter->args));
-        if (var0) {
-          iter->var = var0;
+        if (ctor) {
+          iter->ctorVar = ctor;
         }
 
         // TODO: check that the passed arguments are consistent
@@ -414,16 +417,14 @@ void Function::tcheck_memberInits(Env &env)
 
     // typecheck the arguments
     tcheckFakeExprList(iter->args, env);
-    // dsw: I would like to pass in baseClass, but it is not a type,
-    // only a CompoundType; check that this is still a valid relation:
-    xassert(baseClass == baseVar->type->asCompoundType());
-    Variable *var0 = outerResolveOverload_ctor(env, env.loc(),
-                                               // then use it:
+    
+    // determine which constructor is being called
+    Variable *ctor = outerResolveOverload_ctor(env, env.loc(),
                                                baseVar->type,
                                                iter->args,
                                                reallyDoOverload(env, iter->args));
-    if (var0) {
-      iter->var = var0;
+    if (ctor) {
+      iter->ctorVar = ctor;
     }
 
     // TODO: check that the passed arguments are consistent
@@ -1081,9 +1082,6 @@ void TS_classSpec::tcheckIntoCompound(
       FunctionType *ft = env.makeCDtorFunctionType(loc);
       Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_NONE);
       env.addVariable(v);
-      // put it on the list of made-up variables since there are no
-      // (e.g.) $tainted qualifiers (since the user didn't even type
-      // the dtor's name)
       env.madeUpVariables.push(v);
 
 //        // make a no-arg ctor; make AST as if it had been parsed; this
@@ -1124,31 +1122,29 @@ void TS_classSpec::tcheckIntoCompound(
     }
 
     // cppstd 12.8 para 5: "The implicitly-declared copy constructor
-    // for a class X will have the form X::X(const X&) if <lots of
+    // for a class X will have the form X::X(const X&) if [lots of
     // complicated conditions about the superclasses have const copy
-    // ctors, etc.> ... Otherwise, the implicitly-declared copy
+    // ctors, etc.] ... Otherwise, the implicitly-declared copy
     // constructor will have the form X::X(X&).  An
     // implicitly-declared copy constructor is an inline public member
     // of its class."  dsw: I'm going to just always make it X::X(X&)
     // for now.  TODO: do it right.
     if (!hasCopyCtor) {
-      // add a copy ctor declaration: Class(&Class);
+      // add a copy ctor declaration: Class(Class&);
       FunctionType *ft = env.makeFunctionType(loc, env.getSimpleType(loc, ST_CDTOR));
       Variable *refToSelfParam =
         env.makeVariable(loc,
-                         env.constructorSpecialName,
+                         NULL,     // no parameter name
                          env.makePointerType(loc, PO_REFERENCE, CV_NONE,
                                              env.makeCVAtomicType(loc, ct, CV_NONE)),
                          DF_NONE);
+      // sm: Q: why not pass in DF_PARAMETER to begin with?
       refToSelfParam->setFlag(DF_PARAMETER);
       ft->addParam(refToSelfParam);
       ft->doneParams();
 
       Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_NONE);
       env.addVariable(v);
-      // put it on the list of made-up variables since there are no
-      // (e.g.) $tainted qualifiers (since the user didn't even type the
-      // dtor's name)
       env.madeUpVariables.push(v);
     }
 
@@ -1158,7 +1154,7 @@ void TS_classSpec::tcheckIntoCompound(
     StringRef dtorName = env.str(stringc << "~" << stringName);
     if (!ct->lookupVariable(dtorName, env, LF_INNER_ONLY)) {
       // add a dtor declaration: ~Class();
-      FunctionType *ft = env.makeCDtorFunctionType(loc);
+      FunctionType *ft = env.makeDestructorFunctionType(loc);
       Variable *v = env.makeVariable(loc, dtorName, ft, DF_NONE);
       env.addVariable(v);
 
@@ -1186,7 +1182,7 @@ void TS_classSpec::tcheckIntoCompound(
     // set the constructed scope's 'parentScope' pointer now that
     // we've removed 'ct' from the Environment scope stack; future
     // (unqualified) lookups in 'ct' will thus be able to see
-    // into the containin class [cppstd 3.4.1 para 8]
+    // into the containing class [cppstd 3.4.1 para 8]
     ct->parentScope = containingClass;
   }
   
@@ -3595,8 +3591,7 @@ static Variable *outerResolveOverload_ctor
   // type here, or if I get a weird var below?
   if (type->asRval()->isCompoundType()) {
     CompoundType *ct = type->asRval()->asCompoundType();
-    Variable *ctor = const_cast<Variable*>
-      (ct->getNamedFieldC(env.constructorSpecialName, env, LF_INNER_ONLY));
+    Variable *ctor = ct->getNamedField(env.constructorSpecialName, env, LF_INNER_ONLY);
     xassert(ctor);
     if (really) {
       Variable *chosen = outerResolveOverload(env, loc, ctor,
@@ -3817,25 +3812,17 @@ Type *E_funCall::inner2_itcheck(Env &env)
         func->asE_fieldAcc()->field) {
       E_fieldAcc *efld = func->asE_fieldAcc();
 
-      if (reallyDoOverload(env, args)) {
-        Variable *chosen =
-          outerResolveOverload(env, efld->fieldName->loc, efld->field, 
-                               efld->obj->type, args);
-        if (chosen) {
-          // rewrite AST
-          efld->field = chosen;
-          efld->type = chosen->type;
-          t = chosen->type;
-        }
+      Variable *chosen =
+        outerResolveOverload(env, efld->fieldName->loc, efld->field,
+                             efld->obj->type, args);
+      if (chosen) {
+        // rewrite AST
+        efld->field = chosen;
+        efld->type = chosen->type;
+        t = chosen->type;
       }
     }
   }
-
-  // TODO: I currently translate array deref into ptr arith plus
-  // ptr deref; that makes it impossible to overload [] !
-
-  // dsw: Also, you get rid of -> using * and . which makes it
-  // impossible to overload -> as well.
 
   // TODO: make sure the argument types are compatible
   // with the function parameters
@@ -3975,10 +3962,10 @@ Type *E_constructor::inner2_itcheck(Env &env)
   // TODO: make sure the argument types are compatible
   // with the constructor parameters
 
-  Variable *var0 = outerResolveOverload_ctor(env, env.loc(), type, args,
+  Variable *ctor = outerResolveOverload_ctor(env, env.loc(), type, args,
                                              reallyDoOverload(env, args));
-  if (var0) {
-    var = var0;
+  if (ctor) {
+    ctorVar = ctor;
   }
 
   return type;
@@ -4010,7 +3997,7 @@ Type *E_fieldAcc::itcheck(Env &env, Expression *&replacement)
       // will replace this, but in the case of a type which is an
       // array of objects, this will leave the E_fieldAcc's 'field'
       // member NULL ...
-      return env.makeCDtorFunctionType(SL_UNKNOWN);
+      return env.makeDestructorFunctionType(SL_UNKNOWN);
     }
 
     return env.error(rt, stringc
@@ -4699,14 +4686,15 @@ Type *E_new::itcheck(Env &env, Expression *&replacement)
 
   if (ctorArgs) {
     tcheckFakeExprList(ctorArgs->list, env);
-    Variable *var0 = outerResolveOverload_ctor(env, env.loc(), t, ctorArgs->list,
+    Variable *ctor = outerResolveOverload_ctor(env, env.loc(), t, ctorArgs->list,
                                                reallyDoOverload(env, ctorArgs->list));
-    if (var0) {
-      ctor_var = var0;
+    if (ctor) {
+      ctorVar = ctor;
     }
   }
 
   // TODO: check for a constructor in 't' which accepts these args
+  // (partially subsumed by overload resolution, above)
   
   return env.makePtrType(SL_UNKNOWN, t);
 }
@@ -5051,12 +5039,12 @@ void IN_compound::tcheck(Env &env, Type* type)
 }
 
 
-void IN_ctor::tcheck(Env &env, Type *type0)
+void IN_ctor::tcheck(Env &env, Type *type)
 {
   tcheckFakeExprList(args, env);
-  Variable *var0 = outerResolveOverload_ctor(env, loc, type0, args, reallyDoOverload(env, args));
-  if (var0) {
-    cfunc = var0;
+  Variable *ctor = outerResolveOverload_ctor(env, loc, type, args, reallyDoOverload(env, args));
+  if (ctor) {
+    ctorVar = ctor;
   }
 }
 

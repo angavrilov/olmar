@@ -72,13 +72,18 @@ class MemberInit {
   // if it's a base class ctor call, tcheck will set this instead
   public CompoundType *base;  ctor base=NULL;
 
-  // dsw: don't know if following comment is appropriate; was copied.
-  public Variable *var;          // (serf) binding introduction of this name
-  ctor var=NULL;
-  custom clone { ret->var = var; }
+  // the constructor used to initialize the member or subobject
+  // (can't call it "ctor".. that's an astgen keyword.. doh)
+  public Variable *ctorVar;   ctor ctorVar=NULL;
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
+
+  custom clone {
+    ret->member = member;
+    ret->base = base;
+    ret->ctorVar = ctorVar;
+  }
 }
 
 
@@ -398,12 +403,12 @@ class Expression {
        public Type *inner2_itcheck(Env &env);
      }
   -> E_constructor {
-       // dsw: don't know if following comment is appropriate; was copied.
-       public Variable *var;      // (serf) binding introduction of this name
-       ctor var=NULL;
-       custom clone { ret->var = var; }
        public void inner1_itcheck(Env &env);
        public Type *inner2_itcheck(Env &env);
+
+       // the constructor function being called
+       public Variable *ctorVar;  ctor ctorVar=NULL;
+       custom clone { ret->ctorVar = ctorVar; }
      }
 
   -> E_fieldAcc {
@@ -433,10 +438,9 @@ class Expression {
        public Expression /*nullable serf*/ *arraySize;
        ctor arraySize=NULL;
 
-       // dsw: don't know if the following comment is still appropriate: was copied.
-       public Variable *ctor_var; // (serf) binding introduction of this name
-       ctor ctor_var=NULL;
-       custom clone { ret->ctor_var = ctor_var; }
+       // constructor being called to initialize the storage
+       public Variable *ctorVar; ctor ctorVar=NULL;
+       custom clone { ret->ctorVar = ctorVar; }
      }
 }
 
@@ -461,9 +465,9 @@ class Initializer {
   pure_virtual void tcheck(Env &env, Type *type);
 
   -> IN_ctor() {
-       public Variable *cfunc;      // constructor function being called
-       ctor cfunc=NULL;
-       custom clone { ret->cfunc = cfunc; }
+       public Variable *ctorVar;      // constructor function being called
+       ctor ctorVar=NULL;
+       custom clone { ret->ctorVar = ctorVar; }
      }
 }
 

@@ -191,8 +191,9 @@ public:      // funcs
   // is none with that kind
   Scope *enclosingKindScope(ScopeKind k);
 
-  CompoundType *enclosingClassScope();
   // essentially: enclosingKindScope(SK_CLASS)->curCompound;
+  CompoundType *enclosingClassScope();
+
   bool inTemplate()
     { return !!enclosingKindScope(SK_TEMPLATE); }
 
@@ -294,7 +295,10 @@ public:      // funcs
   // to see how many errors (if any) resulted
   int numErrors() const { return errors.count(); }
 
+  // makes a function type that returns ST_CDTOR and accepts no params
   FunctionType *makeCDtorFunctionType(SourceLoc loc);
+  FunctionType *makeDestructorFunctionType(SourceLoc loc)
+    { return makeCDtorFunctionType(loc); }
 
   // TypeFactory funcs; all of these simply delegate to 'tfac'
   CVAtomicType *makeCVAtomicType(SourceLoc loc, AtomicType *atomic, CVFlags cv)

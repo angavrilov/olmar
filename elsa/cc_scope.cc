@@ -56,9 +56,17 @@ bool insertUnique(StringSObjDict<T> &table, char const *key, T *value,
 }
 
 
+// This function should not modify 'v'; any changes to 'v' should
+// instead be done by 'registerVariable'.
 bool Scope::addVariable(Variable *v, bool forceReplace)
 {
   xassert(canAcceptNames);
+
+  // classify the variable for debugging purposes
+  char const *classification =
+    v->hasFlag(DF_TYPEDEF)? "typedef" :
+    v->type->isFunctionType()? "function" :
+                               "variable" ;
 
   // does the type contain any error-recovery types?  if so,
   // then we don't want to add the variable because we could
@@ -71,11 +79,35 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
     prefix = "[cancel/error] ";
   }
 
-  // dsw: NOTE: I did NOT duplicate this error recovery functionality
-  // in registerVariable()
+  if (!curCompound) {
+    // variable outside a class
+    trace("env") << prefix << "added " << classification
+                 << " `" << v->name
+                 << "' of type `" << v->type->toString()
+                 << "' at " << toString(v->loc)
+                 << " (" << toString(v->scopeKind) << " scope)"
+                 << endl;
+  }
+  else {
+    // class member
+    //v->access = curAccess;      // moved into registerVariable()
+    trace("env") << prefix << "added " << toString(v->access)
+                 << " member " << classification
+                 << " `" << v->name
+                 << "' of type `" << v->type->toString()
+                 << "' at " << toString(v->loc)
+                 << " to " << curCompound->keywordAndName()
+                 << endl;
+  }
+
   if (containsErrors) {
     return true;     // pretend it worked; don't further rock the boat
   }
+
+  // moved into registerVariable()
+  //if (isGlobalScope()) {
+  //  v->setFlag(DF_GLOBAL);
+  //}
 
   if (insertUnique(variables, v->name, v, changeCount, forceReplace)) {
     afterAddVariable(v);
@@ -112,6 +144,10 @@ bool Scope::addEnum(EnumType *et)
 }
 
 
+// This function is responsble for modifying 'v' in preparation for
+// adding it to this scope.  It's separated out from 'addVariable'
+// because in certain cases the variable is actually not added; but
+// this function should behave as if it always is added.
 void Scope::registerVariable(Variable *v)
 {
   if (v->scopeKind == SK_UNKNOWN) {
@@ -126,42 +162,14 @@ void Scope::registerVariable(Variable *v)
     // been added to a function scope
   }
 
-  if (curCompound && curCompound->name) {
-    // since the scope has a name, let the variable point at it
-    v->scope = this;
-  }
-
-  bool containsErrors = v->type->containsErrors();
-  char const *prefix = "";
-  if (containsErrors) {
-    prefix = "[cancel/error] ";
-  }
-
-  // classify the variable for debugging purposes
-  char const *classification =
-    v->hasFlag(DF_TYPEDEF)? "typedef" :
-    v->type->isFunctionType()? "function" :
-                               "variable" ;
-
-  if (!curCompound) {
-    // variable outside a class
-    trace("env") << prefix << "added " << classification
-                 << " `" << v->name
-                 << "' of type `" << v->type->toString()
-                 << "' at " << toString(v->loc)
-                 << " (" << toString(v->scopeKind) << " scope)"
-                 << endl;
-  }
-  else {
-    // class member
+  if (curCompound) {
+    if (curCompound->name) {
+      // since the scope has a name, let the variable point at it
+      v->scope = this;
+    }
+  
+    // take access control from scope's current setting
     v->access = curAccess;
-    trace("env") << prefix << "added " << toString(v->access)
-                 << " member " << classification
-                 << " `" << v->name
-                 << "' of type `" << v->type->toString()
-                 << "' at " << toString(v->loc)
-                 << " to " << curCompound->keywordAndName()
-                 << endl;
   }
 
   if (isGlobalScope()) {

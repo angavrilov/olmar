@@ -57,22 +57,18 @@ string Variable::toString() const
 }
 
 
-string Variable::toStringAsParameter(TypeToStringFlags tsf) const
+string Variable::toStringAsParameter() const
 {
   stringBuilder sb;
   if (type->isTypeVariable()) {
-    if (tsf & TTS_CANON) {
-      sb << "TVAR";
-    } else {
-      // type variable's name, then the parameter's name
-      sb << type->asTypeVariable()->name << " " << name;
-    }
+    // type variable's name, then the parameter's name
+    sb << type->asTypeVariable()->name << " " << name;
   }
   else {
-    sb << type->toCString(name, tsf);
+    sb << type->toCString(name);
   }
 
-  if (value && (!(tsf & TTS_CANON))) {
+  if (value) {
     sb << renderExpressionAsString(" = ", value);
   }
   return sb;

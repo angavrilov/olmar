@@ -27,6 +27,10 @@ void MemberInit::printExtras(ostream &os, int indent) const
   if (base) {
     ind(os, indent) << "base: " << base->toCString() << "\n";
   }
+  
+  if (ctorVar) {
+    ind(os, indent) << "ctorVar: refers to " << toString(ctorVar->loc) << "\n";
+  }
 }
 
 

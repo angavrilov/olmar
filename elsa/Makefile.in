@@ -1,7 +1,7 @@
 # Makefile.in
 # this is the Makefile for Elsa, the Elkhound-based C++ Parser
 
-#tmp: overload.o
+#tmp: mangle.o
 
 # main target: a C++ parser
 all: cc.ast.gen.h tlexer ccparse quicktest
@@ -142,6 +142,7 @@ CCPARSE_OBJS := \
   builtinops.o \
   cfg.o \
   sprint.o \
+  mangle.o \
   cc_env.o \
   cc_err.o \
   cc_type.o \
