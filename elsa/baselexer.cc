@@ -6,7 +6,27 @@
 #include "exc.h"         // throw_XOpen
 
 #include <fstream.h>     // ifstream
-#include <strstream.h>   // istrstream
+
+#if defined(__GNUC__) && (__GNUC__ > 2)
+  // gcc-3 doesn't have istrstream (but it is standard!), so fake it
+  #include <sstream>       // istringstream
+
+  #undef string            // in case the string->mystring definition is active
+
+  inline istream *construct_istrstream(char const *buf, int len)
+  {
+    return new std::istringstream(std::string(buf, len));
+  }
+#else
+  // should work on any compiler that implements the C++98 standard
+  // (istrstream is deprecated but still standard)
+  #include <strstream.h>   // istrstream
+
+  inline istream *construct_istrstream(char const *buf, int len)
+  {
+    return new istrstream(buf, len);
+  }
+#endif
 
 
 // this function effectively lets me initialize one of the
@@ -42,7 +62,7 @@ BaseLexer::BaseLexer(StringTable &s, char const *fname)
 
 istream *BaseLexer::openString(char const *buf, int len)
 {
-  this->inputStream = new istrstream(buf, len);
+  this->inputStream = construct_istrstream(buf, len);
   return inputStream;
 }
 
