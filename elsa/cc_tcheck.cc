@@ -7999,20 +7999,16 @@ static void setSTemplArgFromExpr
 
   else if (expr->type->isReference()) {
     if (expr->isE_variable()) {
-      // lookup the variable in the scope and see if it has a value
-      // and replace it with that
+      // see if it has a value and replace it with that
       Env::TemplTcheckMode mode = env.getTemplTcheckMode();
       if (mode == Env::TTM_2TEMPL_FUNC_DECL
           || mode == Env::TTM_3TEMPL_DEF
           || recursionCount > 0) {
         sarg.setReference(expr->asE_variable()->var);
       } else if (mode == Env::TTM_1NORMAL) {
-        Variable *var0 = env.lookupPQVariable(expr->asE_variable()->name);
+        Variable *var0 = expr->asE_variable()->var;
         if (!var0) {
-          env.error(stringc
-                    << "`" << expr->exprToString() << "' must lookup to a variable "
-                    << "for it to be a variable template reference argument");
-          return;
+          return;     // the error will already have been reported
         }
         if (var0->isEnumerator()) {      // in/t0394.cc
           sarg.setInt(var0->getEnumeratorValue());

@@ -21,6 +21,15 @@ My analysis is independent, however.
 
 
 
+
+----------------------------------------------------
+Scope chaining
+
+As with most languages, C++ lookup often provides for searching in a
+sequence of locations (scopes), with priority given to the earliest
+scope that contains the name being looked up (e.g., 3.4.1p1).  I call
+this phenomenon "scope chaining".
+
 There are four kinds of scope chaining mechanisms:
   1. syntactic nesting for the current scope (Env::scopes)
   2. syntactic nesting for non-current scopes (Scope::parentScope)
@@ -30,12 +39,10 @@ There are four kinds of scope chaining mechanisms:
 Env is responsible for internally following chains 1 and 2; they are
 (only) used for unqualified lookup.  Scope is responsible for
 following chains 3 and 4; Env delegates to Scope as necessary.
-Consequently, using Scope::lookup disables use of chains 1 and 2.
-LF_IGNORE_USING disables chain 3.  LF_INNER_ONLY disables all four
-chains.  Currently, nothing disables chain 4 by itself.
-
-
-
+Consequently, using Scope::lookup (as opposed to Env::lookup) disables
+use of chains 1 and 2.  LF_IGNORE_USING disables chain 3.
+LF_INNER_ONLY disables all four chains.  Currently, nothing disables
+chain 4 by itself.
 
 
 -----------------------------------------------------------
@@ -100,7 +107,7 @@ overload resolution as necessary.  It does these steps:
 
 
 -------------------------------------------------------
-Scope::lookup: How does lookup within a Scope work?
+Scope::lookup: Lookup within a particular Scope
 
 Lookup within a scope has input:
   - StringRef name     : name of symbol to look up
@@ -117,14 +124,14 @@ If LF_INNER_ONLY, return what we have.
 
 Next, if this Scope is a namespace, and LF_IGNORE_USING is not
 specified, the 'using' directive edges are considered, as per 7.3.4
-and 3.4.3.2, adding to 'set':
+and 3.4.3.2, adding to 'set' (scope chain 3 above):
 
   (TODO: explain this process)
 
 If 'set' is not empty, return.
 
 Finally, if this Scope is a class, its base classes are searched
-according to 10.2:
+according to 10.2 (scope chain 4 above):
 
   - For each of the base class subobject, we search for 'name' in the
     scope corresponding to the subobject's class (Scope::lookup with
@@ -136,6 +143,119 @@ according to 10.2:
     - If v1 and v2 are the same entity (just in different subobjects),
       we can regard them as the same if the entity is static, a type,
       or an enumerator (10.2p5).
+
+
+-------------------------------------------------
+Env::lookupPQ: Lookup of possibly-qualified names
+
+Input:
+  - Possibly empty sequence of qualifiers; each qualifier is
+    - StringRef name
+    - Possibly empty sequence of template arguments
+  - StringRef name (final name)
+  - Possibly empty sequence of template arguments (final targs)
+  - Lookup flags
+Output:
+  - LookupSet &set
+
+If the name is unqualified, then the lookup is delegated to
+Env::unqualifiedLookup (with scope=NULL).  See below.
+
+For qualified lookup (3.4.3), the first qualifier in the chain is
+looked up using unqualified lookup (in Env::lookupScope), and any
+template arguments applied, to obtain a Scope object.  If the
+qualifier is "::", the global Scope is used.
+
+Subsequent lookups are done in the Scope computed from the previous
+qualifiers, forming a chain of lookups, until the final name is
+looked up in the final qualifier's Scope.
+
+Finally, unless LF_TEMPL_PRIMARY is set in 'flags', the template
+arguments are applied to the final name.  For this to be possible,
+the lookup must have been unambiguous, so any caller of lookup that
+*can* accept a lookup set *must* specify LF_TEMPL_PRIMARY.
+
+If LF_TEMPL_PRIMARY *is* set, then the final template arguments (if
+any) are ignored.
+
+If the lookup is being done in the context of an uninstantiated
+template, and any of the qualifiers are dependent types (14.6.2.1),
+then either Env::dependentTypeVar or Env::dependentVar will be the
+final result of lookup (depending on whether we are expecting to find
+a type or a variable).  It is the responsibility of the caller to
+decide what to do about lookups that turn out to be dependent.
+(Sometimes the dependent(Type)Var can be used directly, and sometimes
+it cannot.)
+
+
+-------------------------------------------------
+Env::unqualifiedLookup: Lookup of unqualified names
+
+Input:
+  - StringRef name
+  - LookupFlags flags
+Output:
+  - LookupSet &set
+
+(It turns out to be convenient to allow callers to pass a Scope, in
+which case this function simply delegates to Scope::lookup.  The
+description here ignores this possibility.)
+
+This function is responsible for doing lookup in the "current" scope,
+i.e., the set of scopes visible where the name appears.  The sequence
+of scopes to be searched is maintained in Env::scopes, and is updated
+as the recursive tcheck traversal enters/exits syntactic constructs
+that contain scopes (functions, blocks, namespaces, etc.).  
+
+This function is responsible for interpreting the contents of
+Env::scope.  At least at the moment, it contains scopes arising from
+both chains 1 and 2 above; where necessary, Scope::parentScope is
+traversed in the process of updating Env::scope.
+
+If LF_INNER_ONLY is specified, only the topmost element of Env::scope
+is used.  This corresponds to the innermost enclosing scope.  This is
+useful when a name is about to be added to the innermost scope, and we
+need to check if the name has already been declared.
+
+Otherwise, the scopes in Env::scope are searched in turn, stopping
+when the name is found.  
+
+As a wrinkle, the current design allows for certain Scopes to be
+searched in an order different from their physical ordering in
+Env::scope, via the Scope "delegation" mechanism.  This is a design
+wart that should probably be fixed.
+
+
+-------------------------------------------
+How is class member use-before-declaration implemented?
+
+One well-known difficulty with C++ name lookup is 3.3.6p1b1, which
+says that the scope of a class member includes (among other things)
+function bodies that occur textually *before* the member declaration.
+This is problematic because it means that it is not possible to
+classify each identifier as type or variable name based only on the
+text that precedes it.
+
+The (somewhat novel) solution adopted in Elsa is to allow each
+identifier to be interpreted as *both* a type and a variable.  The
+parser yields *all* possible resulting parses (represented compactly
+with nearly maximal sharing of identical subparses).  Later, this
+representation is disambiguated by the type checker.
+
+The reason this makes things easier is that, having created an
+(ambiguous) AST, it is easy for the type checker to skip over method
+bodies during a first pass over the class member declarations, and
+then make a second pass once the class' scope is completed.  The
+mechanism is implemented in TS_classSpec::tcheckIntoCompound.
+
+The alternative, using the traditional feedback loop from the symbol
+table to the lexer, would be to have the lexer save the method bodies
+(perhaps as a textual string) somewhere, and then re-lex them once the
+class symbol table is built.  It is my engineering opinion that it is
+better to avoid complicating lexing and parsing, and instead do
+disambiguation during type checking, where the full lookup mechanism
+is already present.
+
 
 
 
