@@ -19,6 +19,22 @@ void ASTSpecFile::debugPrint(ostream &os, int indent) const
   PRINT_LIST(ToplevelForm, forms);
 }
 
+void ASTSpecFile::xmlPrint(ostream &os, int indent) const
+{
+  XMLPRINT_HEADER(ASTSpecFile);
+
+  XMLPRINT_LIST(ToplevelForm, forms);
+  XMLPRINT_FOOTER(ASTSpecFile);
+}
+
+ASTSpecFile *ASTSpecFile::clone() const
+{
+  ASTSpecFile *ret = new ASTSpecFile(
+    cloneASTList(forms)
+  );
+  return ret;
+}
+
 
 // ------------------ ToplevelForm -------------------
 // *** DO NOT EDIT ***
@@ -26,7 +42,17 @@ ToplevelForm::~ToplevelForm()
 {
 }
 
+char const * const ToplevelForm::kindNames[ToplevelForm::NUM_KINDS] = {
+  "TF_verbatim",
+  "TF_impl_verbatim",
+  "TF_class",
+};
+
 void ToplevelForm::debugPrint(ostream &os, int indent) const
+{
+}
+
+void ToplevelForm::xmlPrint(ostream &os, int indent) const
 {
 }
 
@@ -45,6 +71,25 @@ void TF_verbatim::debugPrint(ostream &os, int indent) const
   PRINT_STRING(code);
 }
 
+void TF_verbatim::xmlPrint(ostream &os, int indent) const
+{
+  XMLPRINT_HEADER(TF_verbatim);
+
+  ToplevelForm::xmlPrint(os, indent);
+
+  XMLPRINT_STRING(code);
+  XMLPRINT_FOOTER(TF_verbatim);
+
+}
+
+TF_verbatim *TF_verbatim::clone() const
+{
+  TF_verbatim *ret = new TF_verbatim(
+    code
+  );
+  return ret;
+}
+
 DEFN_AST_DOWNCASTS(ToplevelForm, TF_impl_verbatim, TF_IMPL_VERBATIM)
 
 TF_impl_verbatim::~TF_impl_verbatim()
@@ -58,6 +103,25 @@ void TF_impl_verbatim::debugPrint(ostream &os, int indent) const
   ToplevelForm::debugPrint(os, indent);
 
   PRINT_STRING(code);
+}
+
+void TF_impl_verbatim::xmlPrint(ostream &os, int indent) const
+{
+  XMLPRINT_HEADER(TF_impl_verbatim);
+
+  ToplevelForm::xmlPrint(os, indent);
+
+  XMLPRINT_STRING(code);
+  XMLPRINT_FOOTER(TF_impl_verbatim);
+
+}
+
+TF_impl_verbatim *TF_impl_verbatim::clone() const
+{
+  TF_impl_verbatim *ret = new TF_impl_verbatim(
+    code
+  );
+  return ret;
 }
 
 DEFN_AST_DOWNCASTS(ToplevelForm, TF_class, TF_CLASS)
@@ -78,6 +142,27 @@ void TF_class::debugPrint(ostream &os, int indent) const
   PRINT_LIST(ASTClass, ctors);
 }
 
+void TF_class::xmlPrint(ostream &os, int indent) const
+{
+  XMLPRINT_HEADER(TF_class);
+
+  ToplevelForm::xmlPrint(os, indent);
+
+  XMLPRINT_SUBTREE(super);
+  XMLPRINT_LIST(ASTClass, ctors);
+  XMLPRINT_FOOTER(TF_class);
+
+}
+
+TF_class *TF_class::clone() const
+{
+  TF_class *ret = new TF_class(
+    super? super->clone() : NULL,
+    cloneASTList(ctors)
+  );
+  return ret;
+}
+
 
 // ------------------ ASTClass -------------------
 // *** DO NOT EDIT ***
@@ -96,6 +181,26 @@ void ASTClass::debugPrint(ostream &os, int indent) const
   PRINT_LIST(Annotation, decls);
 }
 
+void ASTClass::xmlPrint(ostream &os, int indent) const
+{
+  XMLPRINT_HEADER(ASTClass);
+
+  XMLPRINT_STRING(name);
+  XMLPRINT_LIST(CtorArg, args);
+  XMLPRINT_LIST(Annotation, decls);
+  XMLPRINT_FOOTER(ASTClass);
+}
+
+ASTClass *ASTClass::clone() const
+{
+  ASTClass *ret = new ASTClass(
+    name,
+    cloneASTList(args),
+    cloneASTList(decls)
+  );
+  return ret;
+}
+
 
 // ------------------ Annotation -------------------
 // *** DO NOT EDIT ***
@@ -103,7 +208,16 @@ Annotation::~Annotation()
 {
 }
 
+char const * const Annotation::kindNames[Annotation::NUM_KINDS] = {
+  "UserDecl",
+  "CustomCode",
+};
+
 void Annotation::debugPrint(ostream &os, int indent) const
+{
+}
+
+void Annotation::xmlPrint(ostream &os, int indent) const
 {
 }
 
@@ -123,6 +237,27 @@ void UserDecl::debugPrint(ostream &os, int indent) const
   PRINT_STRING(code);
 }
 
+void UserDecl::xmlPrint(ostream &os, int indent) const
+{
+  XMLPRINT_HEADER(UserDecl);
+
+  Annotation::xmlPrint(os, indent);
+
+  XMLPRINT_GENERIC(access);
+  XMLPRINT_STRING(code);
+  XMLPRINT_FOOTER(UserDecl);
+
+}
+
+UserDecl *UserDecl::clone() const
+{
+  UserDecl *ret = new UserDecl(
+    access,
+    code
+  );
+  return ret;
+}
+
 DEFN_AST_DOWNCASTS(Annotation, CustomCode, CUSTOMCODE)
 
 CustomCode::~CustomCode()
@@ -139,6 +274,27 @@ void CustomCode::debugPrint(ostream &os, int indent) const
   PRINT_STRING(code);
 }
 
+void CustomCode::xmlPrint(ostream &os, int indent) const
+{
+  XMLPRINT_HEADER(CustomCode);
+
+  Annotation::xmlPrint(os, indent);
+
+  XMLPRINT_STRING(qualifier);
+  XMLPRINT_STRING(code);
+  XMLPRINT_FOOTER(CustomCode);
+
+}
+
+CustomCode *CustomCode::clone() const
+{
+  CustomCode *ret = new CustomCode(
+    qualifier,
+    code
+  );
+  return ret;
+}
+
 
 // ------------------ CtorArg -------------------
 // *** DO NOT EDIT ***
@@ -153,6 +309,26 @@ void CtorArg::debugPrint(ostream &os, int indent) const
   PRINT_BOOL(owner);
   PRINT_STRING(type);
   PRINT_STRING(name);
+}
+
+void CtorArg::xmlPrint(ostream &os, int indent) const
+{
+  XMLPRINT_HEADER(CtorArg);
+
+  XMLPRINT_BOOL(owner);
+  XMLPRINT_STRING(type);
+  XMLPRINT_STRING(name);
+  XMLPRINT_FOOTER(CtorArg);
+}
+
+CtorArg *CtorArg::clone() const
+{
+  CtorArg *ret = new CtorArg(
+    owner,
+    type,
+    name
+  );
+  return ret;
 }
 
 
@@ -176,7 +352,7 @@ string toString(AccessCtl acc)
   return string(arr[acc]);
 }
 
-string ASTClass::kindName() const
+string ASTClass::classKindName() const
 {
   string ret = stringToupper(name);
   if (ret == name) {

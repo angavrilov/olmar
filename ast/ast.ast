@@ -3,7 +3,9 @@
 
 verbatim {
   #include "str.h"         // string
-  
+
+  // this signals to ast.hand.cc that ast.ast.cc is nonempty,
+  // so none of the bootstrap code in ast.hand.cc should be used
   #define GENERATED_AST_PRESENT
 }
 
@@ -30,7 +32,7 @@ class ASTClass (string name,
                 ASTList<Annotation> decls) {
   // the name of the enum constant denoting this ctor, as distinguished
   // from its sibling ctors
-  public string kindName() const;
+  public string classKindName() const;
 }
 
 verbatim {
@@ -86,7 +88,7 @@ string toString(AccessCtl acc)
   return string(arr[acc]);
 }
 
-string ASTClass::kindName() const
+string ASTClass::classKindName() const
 {
   string ret = stringToupper(name);
   if (ret == name) {

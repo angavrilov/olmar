@@ -1,0 +1,12 @@
+// ext1.ast
+// an extension module for example.ast
+
+class Node (int z);
+
+class Super {
+  -> Sub3(int q);
+}
+
+class NodeList {
+  -> ASubclass(int x);
+}

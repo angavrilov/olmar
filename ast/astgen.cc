@@ -275,7 +275,7 @@ void HGen::emitTFClass(TF_class const &cls)
   if (cls.hasChildren()) {
     out << "  enum Kind { ";
     FOREACH_ASTLIST(ASTClass, cls.ctors, ctor) {
-      out << ctor.data()->kindName() << ", ";
+      out << ctor.data()->classKindName() << ", ";
     }
     out << "NUM_KINDS };\n";
 
@@ -298,7 +298,7 @@ void HGen::emitTFClass(TF_class const &cls)
     FOREACH_ASTLIST(ASTClass, cls.ctors, ctor) {
       // declare the const downcast
       ASTClass const &c = *(ctor.data());
-      out << "  DECL_AST_DOWNCASTS(" << c.name << ", " << c.kindName() << ")\n";
+      out << "  DECL_AST_DOWNCASTS(" << c.name << ", " << c.classKindName() << ")\n";
     }
     out << "\n";
   }
@@ -479,8 +479,8 @@ void HGen::emitCtor(ASTClass const &ctor, ASTClass const &parent)
   out << "\n";
 
   // type tag
-  out << "  virtual Kind kind() const { return " << ctor.kindName() << "; }\n";
-  out << "  enum { TYPE_TAG = " << ctor.kindName() << " };\n";
+  out << "  virtual Kind kind() const { return " << ctor.classKindName() << "; }\n";
+  out << "  enum { TYPE_TAG = " << ctor.classKindName() << " };\n";
   out << "\n";
 
   // common functions
@@ -645,7 +645,7 @@ void CGen::emitTFClass(TF_class const &cls)
     // downcast function
     out << "DEFN_AST_DOWNCASTS(" << cls.super->name << ", "
                                  << ctor.name << ", "
-                                 << ctor.kindName() << ")\n";
+                                 << ctor.classKindName() << ")\n";
     out << "\n";
 
     // subclass destructor
@@ -900,6 +900,99 @@ void CGen::emitCloneCode(ASTClass const *super, ASTClass const *sub)
 }
 
 
+// -------------------- extension merging ------------------
+void mergeClass(ASTClass *base, ASTClass *ext)
+{
+  xassert(base->name.equals(ext->name));
+
+  // move all ctor args to the base
+  while (ext->args.isNotEmpty()) {
+    base->args.append(ext->args.removeFirst());
+  }
+
+  // and same for annotations
+  while (ext->decls.isNotEmpty()) {
+    ext->decls.append(ext->decls.removeFirst());
+  }
+}
+
+
+ASTClass *findClass(TF_class *base, char const *name)
+{
+  FOREACH_ASTLIST_NC(ASTClass, base->ctors, iter) {
+    if (iter.data()->name.equals(name)) {
+      return iter.data();
+    }
+  }
+  return NULL;   // not found
+}
+
+void mergeSuperclass(TF_class *base, TF_class *ext)
+{
+  // should only get here for same-named classes
+  xassert(base->super->name.equals(ext->super->name));
+
+  // merge the superclass ctor args and annotations
+  mergeClass(base->super, ext->super);
+
+  // for each subclass, either add it or merge it
+  while (ext->ctors.isNotEmpty()) {
+    ASTClass * /*owner*/ c = ext->ctors.removeFirst();
+
+    ASTClass *prev = findClass(base, c->name);
+    if (prev) {
+      mergeClass(prev, c);
+      delete c;
+    }
+    else {
+      // add it wholesale
+      base->ctors.append(c);
+    }
+  }
+}
+
+
+TF_class *findSuperclass(ASTSpecFile *base, char const *name)
+{
+  FOREACH_ASTLIST_NC(ToplevelForm, base->forms, iter) {
+    ToplevelForm *tf = iter.data();
+    if (tf->isTF_class() &&
+        tf->asTF_class()->super->name.equals(name)) {
+      return tf->asTF_class();
+    }
+  }
+  return NULL;    // not found
+}
+
+void mergeExtension(ASTSpecFile *base, ASTSpecFile *ext)
+{
+  // for each toplevel form, either add it or merge it
+  while (ext->forms.isNotEmpty()) {
+    ToplevelForm * /*owner*/ tf = ext->forms.removeFirst();
+
+    if (!tf->isTF_class()) {
+      // verbatim: just add it directly
+      base->forms.append(tf);
+    }
+    else {
+      TF_class *c = tf->asTF_class();
+
+      // is the superclass name something present in the
+      // base specification?
+      TF_class *prev = findSuperclass(base, c->super->name);
+      if (prev) {
+        mergeSuperclass(prev, c);
+        delete c;
+      }
+      else {
+        // add the whole class
+        base->forms.append(c);
+      }
+    }
+  }
+}
+
+
 // --------------------- toplevel control ----------------------
 void entry(int argc, char **argv)
 {
@@ -907,20 +1000,21 @@ void entry(int argc, char **argv)
   checkHeap();
 
   if (argc < 2) {
-    cout << "usage: " << argv[0] << " [options] ast-spec-file\n"
+    cout << "usage: " << argv[0] << " [options] file.ast [extension.ast [...]]\n"
          << "  options:\n"
-         << "    -bname   output filenames are name.{h,cc}\n"
-         << "             (default replaces .ast with .{h,cc})\n"
+         << "    -o<name>   output filenames are name.{h,cc}\n"
+         << "               (default is \"file\" for \"file.ast\")\n"
          ;
 
     return;
   }
-                            
+
   char const *basename = NULL;      // nothing set
 
   argv++;
   while (argv[0][0] == '-') {
-    if (argv[0][1] == 'b') {
+    if (argv[0][1] == 'b' ||        // 'b' is for compatibility
+        argv[0][1] == 'o') {
       basename = argv[0]+2;
     }
     else {
@@ -928,17 +1022,29 @@ void entry(int argc, char **argv)
       exit(2);
     }
     argv++;
-  }                              
+  }
   if (!argv[0]) {
     cout << "missing ast spec file name\n";
     exit(2);
   }
 
   char const *srcFname = argv[0];
+  argv++;
 
   // parse the grammar spec
   Owner<ASTSpecFile> ast;
   ast = readAbstractGrammar(srcFname);
+
+  // parse and merge extension modules
+  while (*argv) {
+    char const *fname = *argv;
+    argv++;
+
+    Owner<ASTSpecFile> extension;
+    extension = readAbstractGrammar(fname);
+
+    mergeExtension(ast, extension);
+  }
 
   // generate the header
   string base = replace(srcFname, ".ast", "");

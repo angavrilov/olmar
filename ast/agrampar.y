@@ -106,8 +106,16 @@ Class: "class" TOK_NAME ClassBody
          { ($$=$6)->super->name = unbox($2); $$->super->args.steal($4); }
      ;
 
+/*
+ * I contemplated making both kinds of forms end in semicolon, but then
+ * realized that for consistency I should also put semis after the
+ * inner ctor bodies, which I didn't want to do.  So, I'll stick with the
+ * general schema that entities are followed either by brace-delimited
+ * bodies or a single ";".  I can always put extensions inside the braces,
+ * so the lack of syntax after "}" won't be a problem later.
+ */
 /* yields TF_class */
-ClassBody: "{" ClassMembersOpt "}"
+ClassBody: "{" ClassMembersOpt "}" /* no ";", see above */
              { $$=$2; }
          | ";"
              { $$ = new TF_class(new ASTClass("(placeholder)", NULL, NULL), NULL); }

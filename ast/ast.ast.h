@@ -35,8 +35,12 @@ public:      // funcs
   }
   ~ASTSpecFile();
 
+  char const *kindName() const { return "ASTSpecFile"; }
+
+  ASTSpecFile *clone() const;
 
   void debugPrint(ostream &os, int indent) const;
+  void xmlPrint(ostream &os, int indent) const;
 
 };
 
@@ -54,11 +58,17 @@ public:      // funcs
   enum Kind { TF_VERBATIM, TF_IMPL_VERBATIM, TF_CLASS, NUM_KINDS };
   virtual Kind kind() const = 0;
 
+  static char const * const kindNames[NUM_KINDS];
+  char const *kindName() const { return kindNames[kind()]; }
+
   DECL_AST_DOWNCASTS(TF_verbatim, TF_VERBATIM)
   DECL_AST_DOWNCASTS(TF_impl_verbatim, TF_IMPL_VERBATIM)
   DECL_AST_DOWNCASTS(TF_class, TF_CLASS)
 
+  virtual ToplevelForm *clone() const=0;
+
   virtual void debugPrint(ostream &os, int indent) const;
+  virtual void xmlPrint(ostream &os, int indent) const;
 
 };
 
@@ -75,6 +85,9 @@ public:      // funcs
   enum { TYPE_TAG = TF_VERBATIM };
 
   virtual void debugPrint(ostream &os, int indent) const;
+  virtual void xmlPrint(ostream &os, int indent) const;
+
+  virtual TF_verbatim *clone() const;
 
 };
 
@@ -91,6 +104,9 @@ public:      // funcs
   enum { TYPE_TAG = TF_IMPL_VERBATIM };
 
   virtual void debugPrint(ostream &os, int indent) const;
+  virtual void xmlPrint(ostream &os, int indent) const;
+
+  virtual TF_impl_verbatim *clone() const;
 
 };
 
@@ -108,6 +124,9 @@ public:      // funcs
   enum { TYPE_TAG = TF_CLASS };
 
   virtual void debugPrint(ostream &os, int indent) const;
+  virtual void xmlPrint(ostream &os, int indent) const;
+
+  virtual TF_class *clone() const;
 
   public:  bool hasChildren() const { return ctors.isNotEmpty(); };
 };
@@ -126,10 +145,14 @@ public:      // funcs
   }
   ~ASTClass();
 
+  char const *kindName() const { return "ASTClass"; }
+
+  ASTClass *clone() const;
 
   void debugPrint(ostream &os, int indent) const;
+  void xmlPrint(ostream &os, int indent) const;
 
-  public:  string kindName() const;
+  public:  string classKindName() const;
 };
 
 
@@ -164,10 +187,16 @@ public:      // funcs
   enum Kind { USERDECL, CUSTOMCODE, NUM_KINDS };
   virtual Kind kind() const = 0;
 
+  static char const * const kindNames[NUM_KINDS];
+  char const *kindName() const { return kindNames[kind()]; }
+
   DECL_AST_DOWNCASTS(UserDecl, USERDECL)
   DECL_AST_DOWNCASTS(CustomCode, CUSTOMCODE)
 
+  virtual Annotation *clone() const=0;
+
   virtual void debugPrint(ostream &os, int indent) const;
+  virtual void xmlPrint(ostream &os, int indent) const;
 
 };
 
@@ -185,6 +214,9 @@ public:      // funcs
   enum { TYPE_TAG = USERDECL };
 
   virtual void debugPrint(ostream &os, int indent) const;
+  virtual void xmlPrint(ostream &os, int indent) const;
+
+  virtual UserDecl *clone() const;
 
 };
 
@@ -202,6 +234,9 @@ public:      // funcs
   enum { TYPE_TAG = CUSTOMCODE };
 
   virtual void debugPrint(ostream &os, int indent) const;
+  virtual void xmlPrint(ostream &os, int indent) const;
+
+  virtual CustomCode *clone() const;
 
 };
 
@@ -219,8 +254,12 @@ public:      // funcs
   }
   ~CtorArg();
 
+  char const *kindName() const { return "CtorArg"; }
+
+  CtorArg *clone() const;
 
   void debugPrint(ostream &os, int indent) const;
+  void xmlPrint(ostream &os, int indent) const;
 
 };
 
