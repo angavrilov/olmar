@@ -18,8 +18,11 @@ while (defined($line = <IN>)) {
   print($line);
 
   if ($line =~ m/EXTENSION RULES GO HERE/) {
-    # insert all extension modules
-    for ($i=0; $i < @ARGV; $i++) {
+    # insert all extension modules; insert in reverse order to
+    # preserve the idea that later files are extending earlier
+    # files, and the last-added extension should come first so
+    # it has total control
+    for ($i = @ARGV-1; $i >= 0; $i--) {
       my $ext = $ARGV[$i];
       open(EXT, "<$ext") or die("cannot open $ext: $!\n");
       while (defined($extline = <EXT>)) {

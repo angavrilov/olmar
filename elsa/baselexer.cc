@@ -6,6 +6,7 @@
 #include "exc.h"         // throw_XOpen
 
 #include <fstream.h>     // ifstream
+#include <strstream.h>   // istrstream
 
 
 // this function effectively lets me initialize one of the
@@ -36,6 +37,39 @@ BaseLexer::BaseLexer(StringTable &s, char const *fname)
 
   loc = sourceLocManager->encodeBegin(fname);
   nextLoc = loc;
+}
+
+
+istream *BaseLexer::openString(char const *buf, int len)
+{
+  this->inputStream = new istrstream(buf, len);
+  return inputStream;
+}
+
+BaseLexer::BaseLexer(StringTable &s, SourceLoc initLoc,
+                     char const *buf, int len)
+  : yyFlexLexer(openString(buf, len)),
+
+    // 'inputStream' is initialized by 'openString'
+    srcFile(NULL),           // changed below
+
+    nextLoc(initLoc),
+    curLine(0),              // changed below
+
+    strtable(s),
+    errors(0),
+    warnings(0)
+{
+  // decode the given location
+  char const *fname;
+  int line, col;
+  sourceLocManager->decodeLineCol(initLoc, fname, line, col);
+
+  // finish initializing data members
+  srcFile = sourceLocManager->getInternalFile(fname);
+  curLine = line;
+
+  loc = initLoc;
 }
 
 

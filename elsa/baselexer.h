@@ -60,6 +60,7 @@ protected:  // funcs
 
   // part of the constructor
   istream *openFile(char const *fname);
+  istream *openString(char const *buf, int len);
 
   // read the next token and return its code; returns 0 for end of file;
   // this function is defined in flex's output source code
@@ -72,6 +73,13 @@ protected:  // funcs
 public:     // funcs
   // make a lexer to scan the given file
   BaseLexer(StringTable &strtable, char const *fname);
+  
+  // make a lexer to scan an in-memory string; 'initLoc' is the
+  // location that the first character should be regarded as being at;
+  // the buffer must remain allocated as long as this BaseLexer is
+  BaseLexer(StringTable &strtable, SourceLoc initLoc,
+            char const *buf, int len);
+
   ~BaseLexer();
 
   static void tokenFunc(LexerInterface *lex);

@@ -60,6 +60,9 @@ public:
 // double-count exactly to the degree that debugPrint will
 // double-print, so they will agree in that regard
 int numAmbiguousNodes(TranslationUnit *unit);
+int numAmbiguousNodes(Statement *stmt);
+int numAmbiguousNodes(Expression *e);
+int numAmbiguousNodes(ASTTypeId *t);
 
 
 #endif // CCPARSE_H

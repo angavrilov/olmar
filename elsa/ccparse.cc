@@ -132,10 +132,26 @@ VISIT(TemplateArgument)
 #undef VISIT
 
 
-int numAmbiguousNodes(TranslationUnit *unit)
+template <class T>
+int numAmbiguousNodes_impl(T *t)
 {
   AmbiguityChecker c;
-  unit->traverse(c);
+  t->traverse(c);
   return c.ambiguousNodes;
 }
 
+
+int numAmbiguousNodes(TranslationUnit *unit)
+{ return numAmbiguousNodes_impl(unit); }
+
+int numAmbiguousNodes(Statement *stmt)
+{ return numAmbiguousNodes_impl(stmt); }
+
+int numAmbiguousNodes(Expression *e)
+{ return numAmbiguousNodes_impl(e); }
+
+int numAmbiguousNodes(ASTTypeId *t)
+{ return numAmbiguousNodes_impl(t); }
+
+
+// EOF

@@ -85,6 +85,20 @@ Lexer::Lexer(StringTable &s, CCLang &L, char const *fname)
 }
 
 
+Lexer::Lexer(StringTable &s, CCLang &L, SourceLoc initLoc,
+             char const *buf, int len)
+  : BaseLexer(s, initLoc, buf, len),
+
+    prevIsNonsep(false),
+    prevHashLineFile(s.add(sourceLocManager->getFile(initLoc))),
+
+    lang(L)
+{
+  // do *not* prime the lexer; I think it is a mistake above, but
+  // am leaving it for now
+}
+
+
 Lexer::~Lexer()
 {}
 

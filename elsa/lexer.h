@@ -61,6 +61,8 @@ protected:  // funcs
 public:     // funcs
   // make a lexer to scan the given file
   Lexer(StringTable &strtable, CCLang &lang, char const *fname);
+  Lexer(StringTable &strtable, CCLang &lang, SourceLoc initLoc,
+        char const *buf, int len);
   ~Lexer();
 
   static void tokenFunc(LexerInterface *lex);
