@@ -14,6 +14,14 @@
 // functions because of the cost of calling them; everything
 // here will be in the inner loop of the parser.
 class LexerInterface {
+public:     // types
+  // This special constant is the initial value of 'sval'.  It is used
+  // to heuristically detect when the user has failed to prime the
+  // lexer by loading it with the first token.  The number itself
+  // is arbitrary, but should not be 0 or any other value that is
+  // likely to be used as a legitimate sval for EOF.
+  enum { DEFAULT_UNPRIMED_SVAL = 0x34D9423E };
+
 public:     // data
   // NOTE: All of these fields are *written* by the lexer, and
   // *read* by the parser.
@@ -37,7 +45,7 @@ public:     // data
 public:     // funcs
   LexerInterface()
     : type(0),
-      sval(0),
+      sval((SemanticValue)DEFAULT_UNPRIMED_SVAL),
       loc(SL_UNKNOWN)
   {}
   virtual ~LexerInterface() {}

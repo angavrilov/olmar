@@ -15,6 +15,7 @@
 #include "treeout.h"      // treeOut
 #include "parsetables.h"  // ParseTables
 #include "c.gr.gen.h"     // CParse
+#include "cyctimer.h"     // CycleTimer
 
 
 // no bison-parser present, so need to define this
@@ -64,6 +65,8 @@ void doit(int argc, char **argv)
     ParseTables *tables = user->makeTables();
     tree.tables = tables;
 
+    CycleTimer timer;
+
     if (!treeMain(tree, argc, argv,
           "  additional flags for cparse:\n"
           "    malloc_stats       print malloc stats every so often\n"
@@ -76,6 +79,8 @@ void doit(int argc, char **argv)
       // parse error
       exit(2);
     }
+
+    traceProgress() << "done parsing (" << timer.elapsed() << ")\n";
 
     traceProgress(2) << "final parse result: " << treeTop << endl;
     unit = (TranslationUnit*)treeTop;

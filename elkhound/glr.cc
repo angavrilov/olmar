@@ -812,8 +812,13 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
   buildParserIndex();
 
   // call the inner parser core, which is a static member function
-  bool ret = innerGlrParse(*this, lexer, treeTop);
-                            
+  bool ret;
+  {
+    //CycleTimer timer;
+    ret = innerGlrParse(*this, lexer, treeTop);
+    //traceProgress() << "done parsing (" << timer.elapsed() << ")\n";
+  }
+
   // prevent dangling references, clear any stack node pointers
   stackNodePool = NULL;
   topmostParsers.empty();
@@ -862,7 +867,6 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
 STATICDEF bool GLR
   ::innerGlrParse(GLR &glr, LexerInterface &lexer, SemanticValue &treeTop)
 {
-  CycleTimer timer;
   #ifndef NDEBUG
     bool doDumpGSS = tracingSys("dumpGSS");
   #endif
@@ -1319,7 +1323,7 @@ STATICDEF bool GLR
 
   // end of parse; note that this function must be called *before*
   // the stackNodePool is deallocated
-  return glr.cleanupAfterParse(timer, treeTop);
+  return glr.cleanupAfterParse(treeTop);
 }
 
 
@@ -1412,6 +1416,12 @@ void GLR::printParseErrorMessage(StateId lastToDie)
     cout << "(expected-token info not available due to nondeterministic mode)\n";
   }
 
+  // failure caused by unprimed lexer?
+  if (lexerPtr->type == 0 && 
+      lexerPtr->sval == (SemanticValue)LexerInterface::DEFAULT_UNPRIMED_SVAL) {
+    cout << "It looks like you forgot to prime the lexer before calling the parser.\n";
+  }
+
   cout << toString(lexerPtr->loc)
        << ": Parse error (state " << lastToDie << ") at "
        << lexerPtr->tokenDesc()
@@ -1448,9 +1458,8 @@ SemanticValue GLR::doReductionAction(
 
 
 // pulled from glrParse() to reduce register pressure
-bool GLR::cleanupAfterParse(CycleTimer &timer, SemanticValue &treeTop)
+bool GLR::cleanupAfterParse(SemanticValue &treeTop)
 {
-  traceProgress() << "done parsing (" << timer.elapsed() << ")\n";
   trsParse << "Parse succeeded!\n";
 
 

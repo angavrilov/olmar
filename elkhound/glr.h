@@ -53,7 +53,6 @@
 
 // fwds from other files
 class LexerInterface;      // lexerint.h
-class CycleTimer;          // cyctimer.h
 
 // forward decls for things declared below
 class StackNode;           // unit of parse state
@@ -412,7 +411,7 @@ private:    // funcs
   void printConfig() const;
   void buildParserIndex();
   void printParseErrorMessage(StateId lastToDie);
-  bool cleanupAfterParse(CycleTimer &timer, SemanticValue &treeTop);
+  bool cleanupAfterParse(SemanticValue &treeTop);
   bool nondeterministicParseToken();
   static bool innerGlrParse(GLR &glr, LexerInterface &lexer, SemanticValue &treeTop);
   SemanticValue doReductionAction(
