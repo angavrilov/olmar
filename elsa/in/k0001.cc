@@ -2,7 +2,7 @@
 
 // originally found in package apt
 
-//ERROR: left side of .* must be a class or reference to a class
+// error: left side of .* must be a class or reference to a class
 template <class T> void foo() {
     T t;
     int (T::*bar)();
