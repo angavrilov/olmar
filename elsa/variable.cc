@@ -15,7 +15,8 @@ Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
     overload(NULL),
     access(AK_PUBLIC),
     scope(NULL),
-    scopeKind(SK_UNKNOWN)
+    scopeKind(SK_UNKNOWN),
+    fqNameCache(NULL)
 {
   xassert(type);        // (just a stab in the dark debugging effort)
 }
@@ -79,6 +80,18 @@ string Variable::toStringAsParameter() const
     sb << renderExpressionAsString(" = ", value);
   }
   return sb;
+}
+
+
+char *Variable::fullyQualifiedName()
+{
+  if (!fqNameCache) {
+    stringBuilder tmp;
+    if (scope) tmp << scope->fullyQualifiedName();
+    tmp << "::" << name;        // NOTE: not mangled
+    fqNameCache = strdup(tmp.pcharc());
+  }
+  return fqNameCache;
 }
 
 

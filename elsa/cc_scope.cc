@@ -358,6 +358,8 @@ bool Scope::linkerVisible()
   }
 }
 
+// FIX: Would be cleaner to implement this as a call to
+// PQ_fullyQualifiedName() below and then to a toString() method.
 string Scope::fullyQualifiedName() 
 {
   stringBuilder sb;
@@ -375,4 +377,20 @@ string Scope::fullyQualifiedName()
   xassert(curCompound);
   sb << "::" << curCompound->name;
   return sb;
+}
+
+PQ_qualifier *Scope::PQ_fullyQualifiedName(SourceLoc loc, PQName *name0)
+{
+  xassert(curCompound);
+  if (name0) {
+    name0 = new PQ_qualifier
+      (loc, curCompound->name, FakeList<TemplateArgument>::emptyList(), name0);
+  } else {
+    name0 = new PQ_name(loc, curCompound->name);
+  }
+  if (parentScope) {
+    return parentScope->PQ_fullyQualifiedName(loc, name0);
+  } else {
+    return new PQ_qualifier(loc, NULL, FakeList<TemplateArgument>::emptyList(), name0);
+  }
 }

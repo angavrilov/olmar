@@ -33,6 +33,18 @@ verbatim {
 option visitor ASTVisitor;
 
 
+// Objects with a FullExpressionAnnot have their own scope containing
+// both these declarations and their sub-expressions; The declarations
+// come semantically before the sub-expression
+class FullExpressionAnnot {
+  // I wonder if this clones correctly?
+  public ASTList<Declaration> declarations;
+
+  public Scope *tcheck_preorder(Env &env);
+  public void tcheck_postorder(Env &env, Scope *scope);
+}
+
+
 // ---------------- file -------------
 // an entire file (with included stuff) of toplevel forms; I use
 // an ASTList here because I want to use left recursion, and
@@ -82,12 +94,16 @@ class Function (
 );
 
 class MemberInit (
-  PQName name,                   // name of member or base class
-  FakeList<ICExpression> *args   // arguments to its constructor
+  PQName name,                  // name of member or base class
+  FakeList<Expression> *args    // arguments to its constructor
 ) {
   // standard way to make it possible to include something
   // in a FakeList; this line is repeated below in several places
   public MemberInit *next;  ctor next=NULL;     // FakeList link
+
+  // A single MemberInit seems very much like a single expression to
+  // me, since it is a ctor call and an IN_ctor is also
+  public FullExpressionAnnot annot;
 }
 
 
@@ -230,7 +246,7 @@ class BaseClassSpec (
 class Enumerator (
   SourceLoc loc,                        // location
   StringRef name,                       // name of this constant
-  Expression /*nullable*/ expr          // constant expr, or NULL for "next"
+  FullExpression /*nullable*/ expr      // constant expr, or NULL for "next"
 ) {
   public Enumerator *next;  ctor next=NULL;     // FakeList link
 }
@@ -277,6 +293,9 @@ class Declarator (
 
   // dig down and find the name being declared; may return NULL
   public PQName const *getDeclaratorId() const;
+
+  public Statement *ctorStatement; ctor ctorStatement = NULL;
+  public Statement *dtorStatement; ctor dtorStatement = NULL;
 }
 
 
@@ -309,14 +328,14 @@ class IDeclarator(SourceLoc loc) {
             ExceptionSpec /*nullable*/ exnSpec);    // throwable exceptions
 
   // "a[5]" or "b[]"
-  -> D_array(IDeclarator base, Expression /*nullable*/ size);
+  -> D_array(IDeclarator base, FullExpression /*nullable*/ size);
 
   // "c : 2"
   //
   // I use a PQName here instead of a StringRef for uniformity
   // (so every IDeclarator ends with a PQName); there are never
   // qualifiers on a bitfield name
-  -> D_bitfield(PQName /*nullable*/ name, Expression bits);
+  -> D_bitfield(PQName /*nullable*/ name, FullExpression bits);
 
   // "X::*p"
   // I don't unify this with D_pointer because ptr-to-member requires
@@ -375,19 +394,19 @@ class Statement (SourceLoc loc) {
 
   -> S_skip();      // nop; used whenever optional Statement is not present
   -> S_label(StringRef name, Statement s);
-  -> S_case(Expression expr, Statement s);
+  -> S_case(FullExpression expr, Statement s);
   -> S_default(Statement s);
-  -> S_expr(Expression expr);       // expression evaluated for side effect
+  -> S_expr(FullExpression expr);   // expression evaluated for side effect
   -> S_compound(ASTList<Statement> stmts);        // using ASTList for performance, I never yield it in cc.gr
   -> S_if(Condition cond, Statement thenBranch, Statement elseBranch);
   -> S_switch(Condition cond, Statement branches);
   -> S_while(Condition cond, Statement body);
-  -> S_doWhile(Statement body, Expression expr);  // note: 'expr' is not a Condition
+  -> S_doWhile(Statement body, FullExpression expr); // note: 'expr' is not a Condition
   -> S_for(Statement init, Condition cond,
-           Expression after, Statement body);
+           FullExpression after, Statement body);
   -> S_break();
   -> S_continue();
-  -> S_return(Expression /*nullable*/ expr);
+  -> S_return(FullExpression /*nullable*/ expr);
   -> S_goto(StringRef target);
   -> S_decl(Declaration decl);
   -> S_try(Statement body, FakeList<Handler> *handlers);
@@ -398,7 +417,7 @@ class Statement (SourceLoc loc) {
 // to declare a variable that will hold the condition's value for
 // the duration of the substatement(s)
 class Condition {
-  -> CN_expr(Expression expr);      // simple expression
+  -> CN_expr(FullExpression expr); // simple expression
   -> CN_decl(ASTTypeId typeId);     // type, name, & initializer (must all be present)
 }
 
@@ -423,9 +442,18 @@ class Handler (
 
 
 // ----------------- expressions -----------------
+
+// maximal expressions: the parent is not an expression
+class FullExpression (Expression expr) {
+  // We do not make lists of FullExpressions
+  public FullExpressionAnnot annot;
+}
+
 // C expressions
 class Expression {
-  // NOTE: we never make lists of Expressions, only of ICExpressions
+  // FakeList link
+  public Expression *next;  ctor next=NULL;
+  public void setNext(Expression *newNext);
 
   // same as we do for statements
   public Expression *ambiguity;  ctor ambiguity=NULL;
@@ -461,11 +489,15 @@ class Expression {
   // 5/19/03: 'loc' field removed because 'name' has a location
   -> E_variable(PQName name);
 
-  -> E_funCall(Expression func, FakeList<ICExpression> *args);
+  -> E_funCall(Expression func, FakeList<Expression> *args) {
+    public Expression *retObj; ctor retObj = NULL;
+  }
 
   // call to constructor as an expression; the expression's overall
   // type says which type is being constructed
-  -> E_constructor(TypeSpecifier spec, FakeList<ICExpression> *args);
+  -> E_constructor(TypeSpecifier spec, FakeList<Expression> *args) {
+    public Expression *retObj; ctor retObj = NULL;
+  }
 
   // field within an object; as a special case, fieldName might begin
   // with "~", meaning we're naming the destructor
@@ -486,16 +518,22 @@ class Expression {
 
   // this is a simple assignment if op==BIN_ASSIGN, otherwise it's an
   // incremental assignment, like a += 3 (e.g. for op=BIN_PLUS)
-  -> E_assign(Expression target, BinaryOp op, ICExpression src);
+  -> E_assign(Expression target, BinaryOp op, Expression src);
 
   -> E_new(bool colonColon,                      // true if "::" preceeds "new"
-           FakeList<ICExpression> *placementArgs,// arguments to placement-new (empty/NULL if no placement syntax)
+           FakeList<Expression> *placementArgs,  // arguments to placement-new (empty/NULL if no placement syntax)
            ASTTypeId atype,                      // type to allocate
-           ICExpressionListOpt ctorArgs);        // arguments to type's constructor (NULL if no ctor call syntax)
+           ExpressionListOpt ctorArgs            // arguments to type's constructor (NULL if no ctor call syntax)
+           ) {
+    public Statement *ctorStatement; ctor ctorStatement=NULL;
+  }
 
   -> E_delete(bool colonColon,                   // true if "::" preceeds "delete"
               bool array,                        // true if "[]" follows "delete"
-              Expression expr);                  // address of obj to deallocate
+              Expression expr                    // address of obj to deallocate
+              ) {
+    public Statement *dtorStatement; ctor dtorStatement=NULL;
+  }
 
   -> E_throw(Expression /*nullable*/ expr);
 
@@ -518,23 +556,12 @@ class Expression {
 }
 
 
-// implicit conversion, then Expression; the type checker will fill
-// in which implicit conversion (if any) takes place (cc_tcheck.ast
-// adds the 'ic' field); it's basically a level of indirection at
-// key places where implicit conversions are possible
-class ICExpression(Expression expr) {
-  // FakeList link
-  public ICExpression *next;  ctor next=NULL;
-  public void setNext(ICExpression *newNext);
-}
-
-
 // this is used for cases where there is a difference between a list
 // with no elements, and no list at all (the latter is represented by
-// a NULL pointer to an ICExpressionListOpt, while the former is a valid
-// ICExpressionListOpt with a NULL 'list' field)
-class ICExpressionListOpt (
-  FakeList<ICExpression> *list
+// a NULL pointer to an ExpressionListOpt, while the former is a valid
+// ExpressionListOpt with a NULL 'list' field)
+class ExpressionListOpt (
+  FakeList<Expression> *list
 );
 
 
@@ -542,8 +569,10 @@ class ICExpressionListOpt (
 class Initializer (SourceLoc loc) {
   public Initializer *next;  ctor next=NULL;       // FakeList link
 
+  public FullExpressionAnnot annot;
+
   // simple initializer, like "int x = 3"
-  -> IN_expr(ICExpression e);
+  -> IN_expr(Expression e);
 
   // compound initializer, like "int x[4] = { 1,2,3,4 };
   // using ASTList for performance; some files have initializers
@@ -551,7 +580,7 @@ class Initializer (SourceLoc loc) {
   -> IN_compound(ASTList<Initializer> inits);
 
   // constructor initializer, like "int x(3);"
-  -> IN_ctor(FakeList<ICExpression> *args);
+  -> IN_ctor(FakeList<Expression> *args);
 }
 
 
@@ -614,7 +643,7 @@ class TemplateArgument {
   -> TA_type(ASTTypeId type);
 
   // non-type arguments, corresponds to a TP_nontype parameter
-  -> TA_nontype(Expression expr);
+  -> TA_nontype(FullExpression expr);
 }
 
 verbatim {                                                     

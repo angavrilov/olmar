@@ -57,7 +57,11 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     tunit(tunit0),
 
     doOverload(tracingSys("doOverload")),
-    doOperatorOverload(tracingSys("doOperatorOverload"))
+    doOperatorOverload(tracingSys("doOperatorOverload")),
+
+    tempSerialNumber(0),
+    tempNamePrefix("temp-name-"),
+    tempNamePrefixLen(strlen(tempNamePrefix))
 {
   // slightly less verbose
   //#define HERE HERE_SOURCELOC     // old
@@ -528,6 +532,8 @@ void Env::setupOperatorOverloading()
 
 Env::~Env()
 {
+  xassert(fullExpressionAnnotStack.isEmpty());
+
   // delete the scopes one by one, so we can skip any
   // which are in fact not owned
   while (scopes.isNotEmpty()) {
@@ -1528,7 +1534,11 @@ Variable *Env::instantiateClassTemplate
                                             param->type, NULL /*syntax*/);
         Variable *binding = makeVariable(param->loc, param->name,
                                          bindType, DF_NONE);
-        binding->value = arg->asTA_nontype()->expr;
+        // NOTE: we dig down into the FullExpression and just return
+        // the Expression.  Perhaps we should put an assertion here
+        // that there are no Declarations in the FullExpression that
+        // are being omitted here.
+        binding->value = arg->asTA_nontype()->expr->expr;
         addVariable(binding);
       }
       else {                 
@@ -1840,5 +1850,12 @@ int Env::countInitializers(SourceLoc loc, Type *type, IN_compound const *cpd)
 void Env::addedNewVariable(Scope *, Variable *)
 {}
 
+PQ_name *Env::makeTempName()
+{
+  // FIX: this name is a string, not a StringRef, because it has not
+  // been through the string table.  Don't know if this will work.
+  char *name0 = strdup(stringc << tempNamePrefix << tempSerialNumber++);
+  return new PQ_name(loc(), name0);
+}
 
 // EOF

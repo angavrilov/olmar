@@ -49,6 +49,10 @@ class Function {
   // since the body of the function (if a class member) may refer
   // to the 'this' Variable, I need to write it down so client
   // analyses can find it
+
+  // NOTE!: If this function is a ctor, then the semantics is as if we
+  // have this line in the code before the MemberInit-s:
+  //   this = &retval;
   public Variable *thisVar = NULL;
 
   public void printExtras(ostream &os, int indent) const;
@@ -88,8 +92,10 @@ class MemberInit {
 
 class Declaration {                                   
   // adds declared variables to env; 'isMember' means that this
-  // declaration appears just inside a class body
-  public void tcheck(Env &env, bool isMember = false);
+  // declaration appears just inside a class body; 'isTemporary' means
+  // that this declaration is an artificial one created for an implied
+  // temporary, not one actually written by the user
+  public void tcheck(Env &env, bool isMember = false, bool isTemporary = false);
 }
 
 
@@ -233,6 +239,9 @@ class Declarator {
     // the cv flags of the implicit 'this' parameter of member functions
     D_func *funcSyntax;
 
+    // is this a declarator for a temporary?
+    bool isTemporary;
+
     // syntactic context
     enum Context {
       CTX_ORDINARY  = 0x0,     // no particular context
@@ -243,22 +252,25 @@ class Declarator {
     } context;
 
   public:
-    Tcheck(Type *t, DeclFlags d)
+    Tcheck(Type *t, DeclFlags d, bool isTemporary0)
       : var(NULL), type(t), dflags(d),
         size_E_new(NULL), funcSyntax(NULL),
+        isTemporary(isTemporary0),
         context(CTX_ORDINARY) {}
     Tcheck(Tcheck const &obj)
       : var(obj.var), type(obj.type), dflags(obj.dflags),
         size_E_new(obj.size_E_new), funcSyntax(obj.funcSyntax),
+        isTemporary(obj.isTemporary),
         context(obj.context) {}
 
     Tcheck& operator= (Tcheck const &obj) {
-      var = obj.var;
-      type = obj.type;
-      dflags = obj.dflags;
-      size_E_new = obj.size_E_new;
-      context = obj.context;
-      funcSyntax = funcSyntax;
+      var         = obj.var;
+      type        = obj.type;
+      dflags      = obj.dflags;
+      size_E_new  = obj.size_E_new;
+      context     = obj.context;
+      funcSyntax  = obj.funcSyntax;
+      isTemporary = obj.isTemporary;
       return *this;
     }
 
@@ -335,6 +347,19 @@ class Handler {
 }
 
 
+class FullExpression {
+  // duplicate the API of Expression and delegate all the calls down
+  // to the Expression *expr member
+  public void tcheck(Env &env,
+                     // dsw: this is just here so I don't change the
+                     // API from that of Expression; I don't use it.
+                     FullExpression *&replacement
+                     );
+  public Type *getType();       // can use after calling 'tcheck'
+  public bool constEval(Env &env, int &result) const;
+  public bool constEval(string &msg, int &result) const;
+}
+
 class Expression {
   // type check and yield the type of the expression; this type
   // gets automatically stored in the 'type' field; the return
@@ -355,6 +380,9 @@ class Expression {
   // same expression should stop and look for an ambiguous alt.
   public Type *type = NULL;
   custom clone { ret->type = type; }
+
+  // make the API for getting the type identical to that of FullExpression
+  public Type *getType();
 
   // const-eval; will add an error message to the environment if this
   // expression is not a constant (and also return false); can only
@@ -400,6 +428,14 @@ class Expression {
        // the constructor function being called
        public Variable *ctorVar = NULL;
        custom clone { ret->ctorVar = ctorVar; }
+
+       // The variable being ctored; NULL means it is for a temporary
+       // and a Declaration for that temporary should be created
+       // during typechecking.
+       // dsw: this comment copied from E_variable; is it still
+       // relevant??: (serf) binding introduction of this name
+       public Variable *var = NULL;
+       custom clone { ret->var = var; } // dsw: do I need this?
      }
 
   -> E_fieldAcc {
@@ -432,24 +468,33 @@ class Expression {
 }
 
 
-class ICExpression {
-  // implicit conversion; stored in compressed form
-  public CompressedImplicitConversion cic;
-
-  public void tcheck(Env &env);
-
-  // might be convenient
-  public Type *getType() { return expr->type; };
-
-  public void printExtras(ostream &os, int indent) const;
-  custom debugPrint { printExtras(os, indent); }
-}
-
-
 class Initializer {
   // check that the initializer is well-typed, given the type of
   // the thing it initializes
   pure_virtual void tcheck(Env &env, Type *type);
+
+  // [cppstd 1.9 para 12 and 13] "A full-expression is an expression
+  // that is not a subexpression of another expression.  If a language
+  // construct is defined to produce an implicit call of a function, a
+  // use of the language construct is considered to be an expression
+  // for the purposes of this definition.
+
+  // [Note: certain contexts in C++ cause the evaluation of a
+  // full-expression that results from a syntactic construct other
+  // than expression (5.18).  For example, in 8.5, another syntax for
+  // initializer is '( expression-list )' but the resulting construct
+  // is a function call upon a constructor function with
+  // expression-list as an argument list; such a function call is a
+  // full-expression.  For example, in 8.5, another syntax for
+  // initializer is '= initializer-clause' but again the resulting
+  // construct might be a function call upon a constructor function
+  // with one assignment-expression as an argument; again, the
+  // function call is a full-expression. ]
+
+  // Therefore, the arguments to IN_ctor and IN_expr are *not*
+  // FullExpressions because the whole of Initializer is.  I think the
+  // FullExpressionAnnot is redundant in the case of IN_compound, but
+  // I like sharing it in Initializer and an extra layer doesn't hurt.
 
   -> IN_ctor() {
        public Variable *ctorVar = NULL;      // constructor function being called

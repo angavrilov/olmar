@@ -327,13 +327,68 @@ bool Handler::isEllipsis() const
 }
 
 
+// --------------------- FullExpression ---------------------
+
+// NOTE: copied verbatim from Expression
+
+//  void FullExpression::printAmbiguities(ostream &os, int indent) const
+//  {
+//    genericPrintAmbiguities(this, "FullExpression", os, indent);
+    
+//    // dsw: I assmue this applies again now
+//    // old
+//    genericCheckNexts(this);
+//  }
+
+
+//  void FullExpression::addAmbiguity(FullExpression *alt)
+//  {
+//    // it turns out the RHS could have been yielded if the
+//    // reduction action is the identity function.. so instead
+//    // find the last node in the 'alt' list and we'll splice
+//    // that entire list into 'main's ambiguity list
+//  //    FullExpression *altLast = alt;
+//  //    while (altLast->ambiguity) {
+//  //      altLast = altLast->ambiguity;
+//  //    }
+
+//  //    // finally, prepend 'alt's ambiguity list to 'this's ambiguity list
+//  //    altLast->ambiguity = this->ambiguity;
+//  //    this->ambiguity = alt;
+
+//    // dsw: I assmue this applies again now
+//  //    #if 0     // old; from when I had lists of Expressions
+//    genericAddAmbiguity(this, alt);
+//  //    #endif // 0
+//  }
+
+// NOTE: copied verbatim from Expression::setNext() which was just
+// reinstated.
+//  void FullExpression::setNext(FullExpression *newNext)
+//  {
+//    // relaxation: The syntax
+//    //   tok = strtok(((void *)0) , delim);
+//    // provokes a double-add, where 'next' is the same both
+//    // times.  I think this is because we merge a little
+//    // later than usual due to unexpected state splitting.
+//    // I might try to investigate this more carefully at a
+//    // later time, but for now..
+//    if (next == newNext) {
+//      return;    // bail if it's already what we want..
+//    }
+
+//    genericSetNext(this, newNext);
+//  }
+
+
 // --------------------- Expression ---------------------
 void Expression::printAmbiguities(ostream &os, int indent) const
 {
   genericPrintAmbiguities(this, "Expression", os, indent);
     
+  // dsw: I assmue this applies again now
   // old
-  //genericCheckNexts(this);
+  genericCheckNexts(this);
 }
 
 
@@ -343,21 +398,22 @@ void Expression::addAmbiguity(Expression *alt)
   // reduction action is the identity function.. so instead
   // find the last node in the 'alt' list and we'll splice
   // that entire list into 'main's ambiguity list
-  Expression *altLast = alt;
-  while (altLast->ambiguity) {
-    altLast = altLast->ambiguity;
-  }
+//    Expression *altLast = alt;
+//    while (altLast->ambiguity) {
+//      altLast = altLast->ambiguity;
+//    }
 
-  // finally, prepend 'alt's ambiguity list to 'this's ambiguity list
-  altLast->ambiguity = this->ambiguity;
-  this->ambiguity = alt;
+//    // finally, prepend 'alt's ambiguity list to 'this's ambiguity list
+//    altLast->ambiguity = this->ambiguity;
+//    this->ambiguity = alt;
 
-  #if 0     // old; from when I had lists of Expressions
+  // dsw: I assmue this applies again now
+//    #if 0     // old; from when I had lists of Expressions
   genericAddAmbiguity(this, alt);
-  #endif // 0
+//    #endif // 0
 }
 
-#if 0     // old; from when I had lists of Expressions
+//#if 0     // old; from when I had lists of Expressions
 void Expression::setNext(Expression *newNext)
 {
   // relaxation: The syntax
@@ -373,7 +429,7 @@ void Expression::setNext(Expression *newNext)
 
   genericSetNext(this, newNext);
 }
-#endif // 0
+//#endif // 0
 
 
 void Expression::printExtras(ostream &os, int indent) const
@@ -434,20 +490,6 @@ Expression *Expression::skipGroups()
 }
 
 
-// ------------------- ICExpression -------------------------
-void ICExpression::setNext(ICExpression *newNext)
-{
-  xassert(next == NULL);
-  next = newNext;
-}
-
-
-void ICExpression::printExtras(ostream &os, int indent) const
-{
-  ind(os, indent) << "ic: " << cic.decode().debugString() << "\n";
-}
-
-
 // ExpressionListOpt
 // Initializer
 // InitLabel
@@ -494,7 +536,7 @@ string TA_type::argString() const
 
 string TA_nontype::argString() const
 {
-  return expr->exprToString();
+  return expr->expr->exprToString();
 }   
 
 

@@ -7,6 +7,7 @@
 #include "strutil.h"    // copyToStaticBuffer
 #include "sobjset.h"    // SObjSet
 #include "hashtbl.h"    // lcprngTwoSteps
+#include "cc.ast.gen.h" // PQ_name
 
 #include <assert.h>     // assert
 
@@ -622,6 +623,18 @@ void CompoundType::addLocalConversionOp(Variable *op)
   conversionOperators.append(op);
 }
 
+// dsw: FIX: The result of this should probably be cached and reused.
+PQ_qualifier *CompoundType::PQ_fullyQualifiedName(SourceLoc loc)
+{
+  return Scope::PQ_fullyQualifiedName(loc, NULL);
+}
+
+// dsw: FIX: The result of this should probably be cached and reused.
+PQ_qualifier *CompoundType::PQ_fullyQualifiedDtorName(SourceLoc loc)
+{
+  // FIX: replace strdup with env.str() ?
+  return Scope::PQ_fullyQualifiedName(loc, new PQ_name(loc, strdup(stringc << "~" << name)));
+}
 
 // ---------------- EnumType ------------------
 EnumType::~EnumType()

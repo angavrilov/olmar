@@ -333,6 +333,14 @@ public:      // funcs
   // name under which the conversion operators have been filed in
   // the class scope
   virtual void finishedClassDefinition(StringRef specialName);
+
+  // dsw: Maybe this should go into NamedAtomicType, except that
+  // NamedAtomicType does not have a scope field and I need one.
+  PQ_qualifier *PQ_fullyQualifiedName(SourceLoc loc);
+  // NOTE: there is an asymmetry with the above function that just
+  // returns the type name, not the ctor name, and hence the asymmetry
+  // in the names of these functions.
+  PQ_qualifier *PQ_fullyQualifiedDtorName(SourceLoc loc);
 };
 
 string toString(CompoundType::Keyword k);
@@ -705,6 +713,14 @@ public:     // data
 
   // type of return value
   Type *retType;                     // (serf)
+
+  // The implied parameter for the reference to the return value for
+  // implementing return by value.  Should always be of reference type
+  // as we think of it as an lvalue to which the function is
+  // assigning.  FIX: I suppose the type of this should always be a
+  // reference to the type of retType, unless it is a reference, in
+  // which case it is the same.  dsw: FIX: should be serf?
+  Variable *retVal;
 
   // list of function parameters; if (flags & FF_METHOD) then the
   // first parameter is 'this'

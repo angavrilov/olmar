@@ -138,7 +138,7 @@ string var_toString(Variable *var, PQName const * /*nullable*/ pqname)
 
 
 // this is a prototype for a function down near E_funCall::iprint
-void printFakeExprList(FakeList<ICExpression> *list, PrintEnv &env);
+void printFakeExprList(FakeList<Expression> *list, PrintEnv &env);
 
 
 // ------------------- TranslationUnit --------------------
@@ -664,6 +664,19 @@ void Handler::print(PrintEnv &env)
 }
 
 
+// ------------------- Full Expression print -----------------------
+void FullExpression::print(PrintEnv &env)
+{
+  olayer ol("FullExpression");
+  // FIX: for now I omit printing the declarations of the temporaries
+  // since we really don't have a syntax for it.  We would have to
+  // print some curlies somewhere to make it legal to parse it back in
+  // again, and we aren't using E_statement, so it would not reflect
+  // the actual ast.
+  expr->print(env);
+}
+
+
 // ------------------- Expression print -----------------------
 void Expression::print(PrintEnv &env)
 {
@@ -756,14 +769,14 @@ void E_variable::iprint(PrintEnv &env)
   }
 }
 
-void printFakeExprList(FakeList<ICExpression> *list, PrintEnv &env)
+void printFakeExprList(FakeList<Expression> *list, PrintEnv &env)
 {
   olayer ol("printFakeExprList");
   bool first_time = true;
-  FAKELIST_FOREACH_NC(ICExpression, list, iter) {
+  FAKELIST_FOREACH_NC(Expression, list, iter) {
     if (first_time) first_time = false;
     else env << ", ";
-    iter->expr->print(env);
+    iter->print(env);
   }
 }
 
@@ -906,7 +919,7 @@ void E_assign::iprint(PrintEnv &env)
   target->print(env);
   if (op!=BIN_ASSIGN) env << toString(op);
   env << "=";
-  src->expr->print(env);
+  src->print(env);
 }
 
 void E_new::iprint(PrintEnv &env)
@@ -1021,7 +1034,7 @@ void E_grouping::iprint(PrintEnv &env)
 void IN_expr::print(PrintEnv &env)
 {
   olayer ol("IN_expr");
-  e->expr->print(env);
+  e->print(env);
 }
 
 // int x[] = {1, 2, 3};

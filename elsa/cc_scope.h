@@ -21,6 +21,8 @@ class TemplateParams;     // cc_type.h
 class PQName;             // cc.ast
 class TranslationUnit;    // cc.ast.gen.h
 
+class PQName;             // cc.ast
+class PQ_qualifier;       // cc.ast
 
 // variable lookup sometimes has complicated exceptions or
 // special cases, so I'm folding lookup options into one value
@@ -166,6 +168,7 @@ public:      // funcs
   bool immediateGlobalScopeChild();
   bool linkerVisible();
   string fullyQualifiedName();
+  PQ_qualifier *PQ_fullyQualifiedName(SourceLoc loc, PQName *name0);
 };
 
 

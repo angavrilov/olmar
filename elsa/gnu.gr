@@ -84,7 +84,7 @@ nonterm(Statement*) LabeledEmptyStatementList {
        { return new S_label(loc, n, new S_skip(loc)); }
   -> n:Identifier ":" attrspec:AttributeSpecifierList
        { return new S_label(loc, n, new S_skip(loc)); }
-  -> "case" e:ConstantExpression ":"
+  -> "case" e:ConstantFullExpression ":"
        { return new S_case(loc, e, new S_skip(loc)); }
   -> "default" ":"
        { return new S_default(loc, new S_skip(loc)); }
@@ -92,7 +92,7 @@ nonterm(Statement*) LabeledEmptyStatementList {
        { return new S_label(loc, n, lesl); }
   -> n:Identifier ":" attrspec:AttributeSpecifierList lesl:LabeledEmptyStatementList
        { return new S_label(loc, n, lesl); }
-  -> "case" e:ConstantExpression ":" lesl:LabeledEmptyStatementList
+  -> "case" e:ConstantFullExpression ":" lesl:LabeledEmptyStatementList
        { return new S_case(loc, e, lesl); }
   -> "default" ":" lesl:LabeledEmptyStatementList
        { return new S_default(loc, lesl); }
@@ -158,8 +158,8 @@ nonterm(ASTTypeof*) TypeofTypeSpecifier {
 
 
 // gnu extension
-nonterm(Expression*) TypeofExpr {
-  -> "__typeof__" "(" e:Expression ")"
+nonterm(FullExpression*) TypeofExpr {
+  -> "__typeof__" "(" e:FullExpression ")"
        { return e; }
 }
 
@@ -292,11 +292,11 @@ nonterm(FakeList<Designator>*) DesignatorList {
 nonterm(Designator*) Designator {
   -> "." id:Identifier
     { return new FieldDesignator(loc, id); }
-  -> "[" idx_expr:ConstantExpression "]"
+  -> "[" idx_expr:ConstantFullExpression "]"
     { return new SubscriptDesignator(loc, idx_expr, NULL); }
   // range designator "[ 1 ... 3 ] =".  This is a gcc-ism:
   // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Designated-Inits.html#Designated%20Inits
-  -> "[" idx_expr:ConstantExpression "..." idx_expr2:ConstantExpression "]"
+  -> "[" idx_expr:ConstantFullExpression "..." idx_expr2:ConstantFullExpression "]"
     { return new SubscriptDesignator(loc, idx_expr, idx_expr2); }
 }
 

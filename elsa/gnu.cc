@@ -32,7 +32,7 @@ Type *TS_typeof_expr::itcheck(Env &env, DeclFlags dflags)
   // there as otherwise you get "error: cannot create a pointer to a
   // reference" when used to specify the type in a declarator that
   // comes from a de-reference (which yeilds a reference).
-  return expr->type->asRval();
+  return expr->getType()->asRval();
 }
 
 
@@ -106,7 +106,7 @@ Type *E_statement::itcheck(Env &env, Expression *&replacement)
 
   Statement *last = s->stmts.last();
   if (last->isS_expr()) {
-    return last->asS_expr()->expr->type;
+    return last->asS_expr()->expr->getType();
   }
   else {
     return env.error("last thing in `({ ... })' must be an expression");
@@ -114,7 +114,7 @@ Type *E_statement::itcheck(Env &env, Expression *&replacement)
 }
 
 
-static void compile_time_compute_int_expr(Env &env, Expression *e, int &x, char *error_msg) {
+static void compile_time_compute_int_expr(Env &env, FullExpression *e, int &x, char *error_msg) {
   e->tcheck(env, e);
   if (!e->constEval(env, x)) env.error(error_msg);
 }

@@ -95,6 +95,11 @@ class Handler {
 }
 
 
+class FullExpression {
+  public void print(PrintEnv &env);
+}
+
+
 class Expression {
   public void print(PrintEnv &env);
   pure_virtual void iprint(PrintEnv &env);

@@ -117,6 +117,21 @@ public:      // data
   // are to be treated as calls to overloaded operator functions
   bool doOperatorOverload;
 
+  // so that we can find the closest nesting S_compound for when we
+  // need to insert temporary variables; its scope should always be
+  // the current scope.
+  SObjStack<FullExpressionAnnot> fullExpressionAnnotStack;
+
+  // counter for generating unique temporary names; NOTE: they will be
+  // duplicated across translation units, but this won't matter
+  // because the linker can't see them.
+  int tempSerialNumber;
+  // the prefix used for generating temporary names; NOTE: it is
+  // important that this string contain at least one character that is
+  // not allowed in an user-identifier.
+  char const * const tempNamePrefix;
+  int const tempNamePrefixLen;
+
 private:     // funcs
   // old
   //CompoundType *instantiateClass(
@@ -361,6 +376,9 @@ public:      // funcs
   // is a similar mechanism in Scope itself, which can be used when
   // less context is necessary
   virtual void addedNewVariable(Scope *s, Variable *v);
+
+  // make a unique name for a new temporary
+  virtual PQ_name *makeTempName();
 };
 
 

@@ -39,7 +39,9 @@ new class ASTTypeof {
   // pattern that is used to resolve ambiguities.
   public Type *type;
 
-  -> TS_typeof_expr(Expression expr);
+  // dsw: I'm assuming that ASTTypeof should terminate the top of the
+  // Expression tree, but I don't feel absolutely sure about it.
+  -> TS_typeof_expr(FullExpression expr);
 
   -> TS_typeof_type(ASTTypeId atype);
 }
@@ -94,8 +96,8 @@ class Designator (SourceLoc loc) {
 
   -> FieldDesignator(StringRef id);
 
-  -> SubscriptDesignator(Expression idx_expr, // taken from D_array
-                         Expression /*nullable*/ idx_expr2)
+  -> SubscriptDesignator(FullExpression idx_expr, // taken from D_array
+                         FullExpression /*nullable*/ idx_expr2)
   {
     public int idx_computed;  ctor idx_computed  = INT_MIN; // index computed at compile time
     public int idx_computed2; ctor idx_computed2 = INT_MIN; // index range end computed at compile time
