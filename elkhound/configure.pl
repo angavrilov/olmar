@@ -3,6 +3,8 @@
 
 use strict 'subs';
 
+$| = 1;     # autoflush
+
 # defaults
 $BASE_FLAGS = "-g -Wall -D__UNIX__";
 $CCFLAGS = ();
@@ -154,10 +156,35 @@ if ($gccver =~ m/\(GCC\) 3\./) {
   # suppress warnings about deprecation
   push @CCFLAGS, "-Wno-deprecated";
 }
-else {
-  # every compiler wants -I., except gcc-3, who not only doesn't
-  # need it, but will emit a warning if I specify it
+
+
+# smash the list together to make a string
+$CCFLAGS = join(' ', @CCFLAGS);
+
+
+# does the compiler want me to pass "-I."?  unfortunately, some versions
+# of gcc-3 will emit an annoying warning if I pass "-I." when I don't need to
+print("checking whether compiler needs \"-I.\"... ");
+if (0!=system("g++ -c $CCFLAGS cc2/testprog.cc >/dev/null 2>&1")) {
+  # failed without "-I.", so try adding it
+  if (0!=system("g++ -c -I. $CCFLAGS cc2/testprog.cc >/dev/null 2>&1")) {
+    my $wd = `pwd`;
+    chomp($wd);
+    die "\n" .
+        "I was unable to compile a simple test program.  I tried:\n" .
+        "  cd $wd\n" .
+        "  g++ -c -I. $CCFLAGS cc2/testprog.cc\n" .
+        "Try it yourself to see the error message.  This needs be fixed\n" .
+        "before Elkhound will compile.\n";
+  }
+
+  # adding "-I." fixed the problem
+  print("yes\n");
   push @CCFLAGS, "-I.";
+  $CCFLAGS = join(' ', @CCFLAGS);
+}
+else {
+  print("no\n");
 }
 
 
@@ -178,10 +205,6 @@ if (! -f "$AST/asthelp.h") {
 
 
 # ------------------ config.summary -----------------
-# smash the list together to make a string
-$CCFLAGS = join(' ', @CCFLAGS);
-
-
 # create a program to summarize the configuration
 open(OUT, ">config.summary") or die("can't make config.summary");
 print OUT (<<"OUTER_EOF");
