@@ -525,6 +525,14 @@ nonterm(IDeclarator*) DirectAbstractDeclarator {
        { return new D_grouping(loc, d); }
 }
 
+// dsw: attributes after bitfields; from the kernel:
+// UCHAR8 SampleResolution:2 __attribute__ ((packed));
+nonterm(Declarator*) MemberDeclarator {
+  -> n:IdentifierOpt ":" e:ConstantExpression attrspec:AttributeSpecifierList    // bitfield
+       // this body is an exact copy of the cc.gr one without attributes
+       { return new Declarator(new D_bitfield(loc, n? new PQ_name(loc, n) : NULL, e),
+                               NULL /*init*/); }
+}
 
 // -- attributes themselves --
 // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Attribute-Syntax.html
@@ -635,7 +643,9 @@ nonterm AttributeList {
 }
 
 nonterm AttributeSpecifier {
-  -> "__attribute__" "(" "(" ap:AttributeList ")" ")" ;
+  -> "__attribute__" "(" "(" ap:AttributeList ")" ")" {
+    breaker();
+  }
 }
 
 nonterm AttributeSpecifierList {
