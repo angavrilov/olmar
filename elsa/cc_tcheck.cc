@@ -3779,7 +3779,7 @@ Type *E_addrOf::itcheck(Env &env)
       << expr->type->toString() << "'");
   }
   PointerType *pt = expr->type->asPointerType();
-  xassert(pt->op == PO_REFERENCE);      // that's what isLval checks
+  xassert(pt->op == PO_REFERENCE);     // that's what isLval checks
 
   // change the "&" into a "*"
   return env.makePtrType(SL_UNKNOWN, pt->atType);
@@ -3792,12 +3792,12 @@ Type *E_deref::itcheck(Env &env)
 
   Type *rt = ptr->type->asRval();
   if (rt->isFunctionType()) {
-    return rt;                  // deref is idempotent on FunctionType-s
+    return rt;                         // deref is idempotent on FunctionType-s
   }
 
   if (rt->isPointerType()) {
     PointerType *pt = rt->asPointerType();
-    xassert(pt->op == PO_POINTER);   // otherwise not rval!
+    xassert(pt->op == PO_POINTER);     // otherwise not rval!
 
     // dereferencing yields an lvalue
     return makeLvalType(env, pt->atType);
@@ -4453,7 +4453,9 @@ void TA_nontype::itcheck(Env &env)
 
   // see cppstd 14.3.2 para 1
 
-  if (expr->type->isIntegerType() || expr->type->isEnumType()) {
+  if (expr->type->isIntegerType() ||
+      expr->type->isBool() ||
+      expr->type->isEnumType()) {
     int i;
     if (expr->constEval(env, i)) {
       sarg.setInt(i);
