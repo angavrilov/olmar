@@ -1122,7 +1122,6 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     ct->forward = false;
     prevWasForward = true;
                                                        
-    // TODO: these lines appear in two places, can I consolidate?
     // the template parameters parameterize the primary
     if (env.scope()->isTemplateParamScope()) {
       env.scope()->setParameterizedPrimary(ct->typedefVar);
@@ -1212,7 +1211,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   }
 
   tcheckIntoCompound(env, dflags, ct, inTemplate,
-                     true /*reallyTcheckFunctionBodies*/);
+                     true /*checkMethodBodies*/);
   
   if (prevWasForward && ct->isTemplate()) {
     // we might have had forward declarations of template
@@ -1231,7 +1230,7 @@ void TS_classSpec::tcheckIntoCompound(
   Env &env, DeclFlags dflags,    // as in tcheck
   CompoundType *ct,              // compound into which we're putting declarations
   bool inTemplate,               // true if this is a template class (uninstantiated)
-  bool reallyTcheckFunctionBodies) // in second pass really tcheck or just save the context
+  bool checkMethodBodies)        // check the method bodies too
 {
   // should have set the annotation by now
   xassert(ctype);
@@ -1376,8 +1375,8 @@ void TS_classSpec::tcheckIntoCompound(
 
   // second pass: check function bodies
   bool innerClass = !!containingClass;
-  if (!innerClass) {
-    tcheckFunctionBodies(env, reallyTcheckFunctionBodies);
+  if (!innerClass && checkMethodBodies) {
+    tcheckFunctionBodies(env);
   }
 
   // now retract the class scope from the stack of scopes; do
@@ -1391,14 +1390,13 @@ void TS_classSpec::tcheckIntoCompound(
     // into the containing class [cppstd 3.4.1 para 8]
     ct->parentScope = containingClass;
   }
-  
+
   env.addedNewCompound(ct);
 }
 
 
 // this is pass 2 of tchecking a class
-void TS_classSpec::tcheckFunctionBodies
-  (Env &env, bool reallyTcheckFunctionBodies)
+void TS_classSpec::tcheckFunctionBodies(Env &env)
 {
   CompoundType *ct = env.scope()->curCompound;
   xassert(ct);
@@ -1415,28 +1413,13 @@ void TS_classSpec::tcheckFunctionBodies
       // tcheck of an inline member function
       f->dflags = (DeclFlags)(f->dflags | DF_INLINE_DEFN);
 
-      if (reallyTcheckFunctionBodies) {
-        // check it now
-        f->tcheck(env, true /*checkBody*/);
+      // check it
+      f->tcheck(env, true /*checkBody*/);
 
-        // remove DF_INLINE_DEFN so if I clone this later I can play the
-        // same trick again (TODO: what if we decide to clone while down
-        // in 'f->tcheck'?)
-        f->dflags = (DeclFlags)(f->dflags & ~DF_INLINE_DEFN);
-      }
-      else {
-        // check it later
-        Variable *fvar = f->nameAndParams->var;
-        xassert(fvar);
-        if (fvar->funcDefn) {
-          xassert(fvar->funcDefn == f);
-        } else {
-          // this would have been done in Function::tcheck() had it
-          // been called.  I need it so that later I can find the
-          // function body from the variable and instantiate it
-          fvar->funcDefn = f;
-        }
-      }
+      // remove DF_INLINE_DEFN so if I clone this later I can play the
+      // same trick again (TODO: what if we decide to clone while down
+      // in 'f->tcheck'?)
+      f->dflags = (DeclFlags)(f->dflags & ~DF_INLINE_DEFN);
     }
     else if (iter.data()->isMR_decl()) {
       Declaration *d0 = iter.data()->asMR_decl()->d;
@@ -1479,7 +1462,7 @@ void TS_classSpec::tcheckFunctionBodies
 
     // check its function bodies (it's somewhat of a hack to
     // resort to inner's 'syntax' poiner)
-    inner->syntax->tcheckFunctionBodies(env, reallyTcheckFunctionBodies);
+    inner->syntax->tcheckFunctionBodies(env);
 
     // retract the inner scope
     env.retractScope(inner);

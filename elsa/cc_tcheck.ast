@@ -181,10 +181,8 @@ class TypeSpecifier {
        public void tcheckIntoCompound(
          Env &env, DeclFlags dflags, CompoundType *ct,
          bool inTemplate,
-         bool reallyTcheckFunctionBodies);
-       private void tcheckFunctionBodies
-         (Env &env,
-          bool reallyTcheckFunctionBodies);
+         bool checkMethodBodies);
+       private void tcheckFunctionBodies(Env &env);
      }
 
   -> TS_enumSpec {
