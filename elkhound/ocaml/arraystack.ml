@@ -63,7 +63,41 @@ object (self)
     arr.(len) <- obj;
     len <- len + 1;
   end
-                   
+
+  (* get arbitrary element *)
+  method elt (i: int) : 'a =
+  begin
+    arr.(i)
+  end
+  
+  (* iterate *)
+  method iter (f: 'a -> unit) : unit =
+  begin
+    for i=0 to len-1 do
+      (f (arr.(i)))
+    done;
+  end
+
+  (* search *)
+  method contains (f: 'a -> bool) : bool =
+  begin            
+    (* ug.. must use tail recursion just so I can break early... *)
+    let rec loop (i: int) : bool =
+    begin
+      if (i >= len-1) then (
+        false         (* not found *)
+      )
+      else if (f (arr.(i))) then (
+        true          (* found *)
+      )
+      else (
+        (loop (i+1))  (* keep looking *)
+      )
+    end in
+    
+    (loop 0)
+  end
+
   (* just for 'swapWith' *)
   (* I tried making them 'private' but that only allows method calls
    * within the *same* object, not merely the same *type* object

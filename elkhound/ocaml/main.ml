@@ -4,7 +4,6 @@
 open Lexerint      (* tLexerInterface *)
 open Lrparse       (* parse *)
 
-
 (* ------------------ lexer ------------------- *)
 class tLexer =
 object (self)

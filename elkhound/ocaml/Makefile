@@ -1,8 +1,8 @@
 # Makefile
 
-#tmp: tobjpool
+#tmp: glr.cmo
 
-all: tobjpool main
+all: tobjpool main glr.cmo
 
 %.cmo: %.ml
 	ocamlc -c -g $*.ml
