@@ -846,54 +846,6 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
 }
 
 
-ClassTemplateInfo *takeTemplateClassInfo(Env &env)
-{
-  ClassTemplateInfo *ret = NULL;
-
-  Scope *scope = env.scope();
-  if (scope->curTemplateParams) {
-    ret = new ClassTemplateInfo;
-    ret->params.concat(env.scope()->curTemplateParams->params);
-    delete env.takeTemplateParams();
-  }    
-  
-  return ret;
-}
-
-Type const *makeNewCompound(CompoundType *&ct, Env &env, Scope *scope,
-                            StringRef name, SourceLocation const &loc,
-                            TypeIntr keyword, bool forward)
-{
-  ct = new CompoundType((CompoundType::Keyword)keyword, name);
-
-  // transfer template parameters
-  ct->templateInfo = takeTemplateClassInfo(env);
-
-  ct->forward = forward;
-  if (name) {
-    bool ok = scope->addCompound(ct);
-    xassert(ok);     // already checked that it was ok
-  }
-
-  // make the implicit typedef
-  Type const *ret = makeType(ct);
-  Variable *tv = new Variable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
-  ct->typedefVar = tv;
-  if (name) {
-    if (!scope->addVariable(tv)) {
-      // this isn't really an error, because in C it would have
-      // been allowed, so C++ does too [ref?]
-      //return env.error(stringc
-      //  << "implicit typedef associated with " << ct->keywordAndName()
-      //  << " conflicts with an existing typedef or variable",
-      //  true /*disambiguating*/);
-    }
-  }
-
-  return ret;
-}
-
-
 Type const *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
@@ -923,8 +875,8 @@ Type const *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     ct = env.lookupCompound(name->getName(), LF_INNER_ONLY);
     if (!ct) {
       // make a forward declaration
-      return makeNewCompound(ct, env, env.acceptingScope(), name->getName(), 
-                             loc, keyword, true /*forward*/);
+      return env.makeNewCompound(ct, env.acceptingScope(), name->getName(),
+                                 loc, keyword, true /*forward*/);
     }
     else {
       // redundant, nothing to do (what the hey, I'll check keywords)
@@ -964,8 +916,8 @@ Type const *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     // Note that due to the exclusion of DF_FRIEND above I'm actually
     // handling 'friend' here, despite what the standard says..
     Scope *scope = env.outerScope();
-    return makeNewCompound(ct, env, scope, name->getName(), loc, keyword,
-                           true /*forward*/);
+    return env.makeNewCompound(ct, scope, name->getName(), loc, keyword,
+                               true /*forward*/);
   }
 
   // check that the keywords match; these 'keyword's are different
@@ -1091,7 +1043,7 @@ Type const *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // make a new type, since a specialization is a distinct template
     // [cppstd 14.5.4 and 14.7]
     ct = new CompoundType((CompoundType::Keyword)keyword, stringName);
-    ClassTemplateInfo *specialTI = ct->templateInfo = takeTemplateClassInfo(env);
+    ClassTemplateInfo *specialTI = ct->templateInfo = env.takeTemplateClassInfo();
     xassert(specialTI);
     ret = makeType(ct);
 
@@ -1119,8 +1071,8 @@ Type const *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     }
 
     // no existing compound; make a new one
-    ret = makeNewCompound(ct, env, env.acceptingScope(), stringName, 
-                          loc, keyword, false /*forward*/);
+    ret = env.makeNewCompound(ct, env.acceptingScope(), stringName,
+                              loc, keyword, false /*forward*/);
   }
 
   // let me map from compounds to their AST definition nodes

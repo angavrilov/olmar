@@ -64,12 +64,16 @@ public:      // data
   StringRef functionOperatorName;
 
   // special variables associated with particular types
-  Variable *dependentTypeVar;           // (serf)      
-  Variable *errorVar;                   // (serf)      
+  Variable *dependentTypeVar;           // (serf)
+  Variable *errorVar;                   // (serf)
 
 private:     // funcs
   CompoundType *instantiateClass(
     CompoundType const *tclass, FakeList<TemplateArgument> *args);
+
+  void declareFunction1arg(Type const *retType, char const *funcName,
+                           Type const *arg1Type, char const *arg1Name,
+                           Type const *exnType);
 
 public:      // funcs
   Env(StringTable &str, CCLang &lang);
@@ -137,10 +141,19 @@ public:      // funcs
   // if the innermost scope has some template parameters, take
   // them out and return them; otherwise return NULL
   TemplateParams * /*owner*/ takeTemplateParams();
+  
+  // like the above, but wrap it in a ClassTemplateInfo
+  ClassTemplateInfo * /*owner*/ takeTemplateClassInfo();
 
   // return a new name for an anonymous type; 'keyword' says
   // which kind of type we're naming
   StringRef getAnonName(TypeIntr keyword);
+
+  // introduce a new compound type name; return the constructed
+  // CompoundType's pointer in 'ct', after inserting it into 'scope'
+  Type const *makeNewCompound(CompoundType *&ct, Scope *scope,
+                              StringRef name, SourceLocation const &loc,
+                              TypeIntr keyword, bool forward);
 
   // diagnostic reports; all return ST_ERROR type
   Type const *error(char const *msg, bool disambiguates=false);
