@@ -74,6 +74,15 @@ string cvToString(CVFlags cv);
 
 string mangle(Type const *t)
 {
+  // I'm pretty sure that it makes no sense to request a linker
+  // visible string (mangled name) for a type that contains template
+  // variables
+  //
+  // update: nope, a complete specialization contains type variables,
+  // but I suppose they got resolved as typedefs when the template
+  // scope provided binding for them; I'm too tired to think about
+  // this so I'll leave it for now; FIX: understand this.
+//    xassert(!t->containsVariables());
   if (t->isCVAtomicType()) {
     // special case a single atomic type, so as to avoid
     // printing an extra space
@@ -173,7 +182,7 @@ string leftMangle(Type const *t, bool innerParen)
           ptm->atType->isArrayType()) {
         s << "(";
       }
-      s << ptm->inClass->name << "::*";
+      s << ptm->inClass()->name << "::*";
       s << cvToString(ptm->cv);
       return s;
     }

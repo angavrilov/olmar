@@ -2233,12 +2233,12 @@ void possiblyConsumeFunctionType(Env &env, Declarator::Tcheck &dt)
 // member of, attach a 'this' parameter to the function type, and
 // close its parameter list
 void makeMemberFunctionType(Env &env, Declarator::Tcheck &dt,
-                            CompoundType *inClass, SourceLoc loc)
+                            NamedAtomicType *inClassNAT, SourceLoc loc)
 {
   // make the implicit 'this' parameter
   xassert(dt.funcSyntax);
   CVFlags thisCV = dt.funcSyntax->cv;
-  Variable *receiver = env.receiverParameter(loc, inClass, thisCV, dt.funcSyntax);
+  Variable *receiver = env.receiverParameter(loc, inClassNAT, thisCV, dt.funcSyntax);
 
   // add it to the function type
   FunctionType *ft = dt.type->asFunctionType();
@@ -3006,7 +3006,9 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
     return;
   }
 
-  if (ctVar->type->isDependent()) {
+  // NOTE dsw: don't do this; if it is a typevar, we handle it below
+  // if (ctVar->type->isDependent())
+  if (ctVar->type->isSimple(ST_DEPENDENT)) {
     // e.g. t0186.cc; propagate the dependentness
     TRACE("dependent", "ptr-to-member: propagating dependentness of " <<
                        nestedName->toString());
@@ -3015,21 +3017,21 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
     return;
   }
 
-  CompoundType *ct = ctVar->type->ifCompoundType();
-  if (!ct) {
+  NamedAtomicType *nat = ctVar->type->ifNamedAtomicType();
+  if (!nat) {
     env.error(stringc
       << "in ptr-to-member, `" << nestedName->toString()
-      << "' does not refer to a class");
+      << "' does not refer to a class nor is a type variable");
     return;
   }
 
   if (dt.type->isFunctionType()) {
     // add the 'this' parameter to the function type
-    makeMemberFunctionType(env, dt, ct, loc);
+    makeMemberFunctionType(env, dt, nat, loc);
   }
 
   // build the ptr-to-member type constructor
-  dt.type = env.tfac.syntaxPointerToMemberType(loc, ct, cv, dt.type, this);
+  dt.type = env.tfac.syntaxPointerToMemberType(loc, nat, cv, dt.type, this);
 
   // annotation
   this->type = dt.type;
@@ -3430,7 +3432,7 @@ void Handler::tcheck(Env &env)
 // a reference to it is now a parameter.
 
 
-void Expression::tcheck(Env &env, Expression *&replacement)
+void Expression::tcheck(Env &env, Expression *&replacement, FakeList<ArgExpression> *args)
 {
   // the replacement point should always start out in agreement with
   // the receiver object of the 'tcheck' call; consequently,
@@ -3438,7 +3440,7 @@ void Expression::tcheck(Env &env, Expression *&replacement)
   xassert(replacement == this);
 
   if (!ambiguity) {
-    mid_tcheck(env, replacement);
+    mid_tcheck(env, replacement, args);
     return;
   }
 
@@ -3529,7 +3531,8 @@ void Expression::tcheck(Env &env, Expression *&replacement)
 
 bool const CACHE_EXPR_TCHECK = false;
 
-void Expression::mid_tcheck(Env &env, Expression *&replacement)
+void Expression::mid_tcheck(Env &env, Expression *&replacement,
+                            FakeList<ArgExpression> *args)
 {
   if (CACHE_EXPR_TCHECK && type && !type->isError()) {
     // this expression has already been checked
@@ -3557,7 +3560,14 @@ void Expression::mid_tcheck(Env &env, Expression *&replacement)
   replacement = this;
 
   // check it, and store the result
-  Type *t = itcheck_x(env, replacement);
+  Type *t = NULL;
+  // dsw: deliberately prevent the args from being passed down unless
+  // it is an E_variable
+  if (isE_variable()) {
+    t = asE_variable()->itcheck_x2(env, replacement, args);
+  } else {
+    t = itcheck_x(env, replacement);
+  }
   
   // elaborate the AST by storing the computed type, *unless*
   // we're only disambiguating (because in that case many of
@@ -3709,8 +3719,14 @@ Type *E_this::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
 {
+  xfailure("E_variable::itcheck_x should not be called.");
+}
+
+Type *E_variable::itcheck_x2(Env &env, Expression *&replacement, FakeList<ArgExpression> *args)
+{
   name->tcheck(env);
-  Variable *v = env.lookupPQVariable(name);
+  Variable *v = env.lookupPQVariable(name, LF_NONE,
+                                     NULL /*signature*/, args /*funcArgs*/);
   if (!v) {
     // 10/23/02: I've now changed this to non-disambiguating, prompted
     // by the need to allow template bodies to call undeclared
@@ -3891,7 +3907,7 @@ static Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
     }
   }
 
-  // resolve overloading
+//    // resolve overloading
 //    cout << "resolve overloading" << endl;
 //    SFOREACH_OBJLIST(Variable, var->overload->set, iter) {
 //      Variable *var0 = const_cast<Variable *>(iter.data());
@@ -4084,7 +4100,13 @@ Type *E_funCall::itcheck_x(Env &env, Expression *&replacement)
 
 void E_funCall::inner1_itcheck(Env &env)
 {
-  func->tcheck(env, func);
+  // dsw: I need to know the arguments before I'm asked to instantiate
+  // the function template
+  //
+  // check the argument list
+  args = tcheckArgExprList(args, env);
+
+  func->tcheck(env, func, args);
 }
 
 Type *E_funCall::inner2_itcheck(Env &env)
@@ -4096,9 +4118,6 @@ Type *E_funCall::inner2_itcheck(Env &env)
     env.doOverload = true;
     env.doOperatorOverload = true;     // this too, when test wants overloading
   }
-
-  // check the argument list
-  args = tcheckArgExprList(args, env);
 
   // the type of the function that is being invoked
   Type *t = func->type->asRval();
@@ -4810,19 +4829,19 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
       }
       PointerToMemberType *ptm = rhsType->asPointerToMemberType();
 
-      // actual LHS class must be 'ptm->inClass', or a
+      // actual LHS class must be 'ptm->inClass()', or a
       // class unambiguously derived from it
-      int subobjs = lhsClass->countBaseClassSubobjects(ptm->inClass);
+      int subobjs = lhsClass->countBaseClassSubobjects(ptm->inClass());
       if (subobjs == 0) {
         return env.error(stringc
           << "the left side of .* or ->* has type `" << lhsClass->name
-          << "', but this is not equal to or derived from `" << ptm->inClass->name
+          << "', but this is not equal to or derived from `" << ptm->inClass()->name
           << "', the class whose members the right side can point at");
       }
       else if (subobjs > 1) {
         return env.error(stringc
           << "the left side of .* or ->* has type `" << lhsClass->name
-          << "', but this is derived from `" << ptm->inClass->name
+          << "', but this is derived from `" << ptm->inClass()->name
           << "' ambiguously (in more than one way)");
       }
 
@@ -5567,7 +5586,8 @@ void TD_func::itcheck(Env &env)
 
     FunctionType *funcType = f->nameAndParams->type->asFunctionType();
     xassert(funcType);
-    Variable *primary = env.lookupPQVariable(name, LF_TEMPL_PRIMARY, funcType);
+    Variable *primary = env.lookupPQVariable(name, LF_TEMPL_PRIMARY,
+                                             funcType, NULL /*funcArgs*/);
     if (!primary) {
       env.error("cannot specialize a template that hasn't been declared");
       return;

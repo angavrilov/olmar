@@ -308,16 +308,24 @@ public:      // funcs
   // lookup in the environment (all scopes); return NULL if can't
   // find; dsw: this one is now a wrapper
   Variable *lookupPQVariable(PQName const *name, LookupFlags f=LF_NONE) {
-    return lookupPQVariable(name, f, NULL);
+    return lookupPQVariable(name, f, NULL, NULL);
   }
-  // this is the real lookup function; specify a function signature
+  // this is the real lookup function; specify a function 'signature'
   // for when disambiguation between overloaded function templates is
-  // required
+  // required at a function template specialization site; specify the
+  // function 'args' when doing the same at a function template call
+  // site.  Yes, I know that sounds a bit redundant, but it works for
+  // now.
   //
   // sm: TODO: what is going on here?  lookup should return an
   // overload set if something is overloaded, and then the
   // overload set can be queried with the signature .. ?
-  Variable *lookupPQVariable(PQName const *name, LookupFlags f, FunctionType *signature);
+  //
+  // dsw: Now I've made it even worse :-) I thought you might say
+  // that, but this way was easier for me to implement for now.  Feel
+  // free to change it.
+  Variable *lookupPQVariable(PQName const *name, LookupFlags flags,
+                             FunctionType *signature, FakeList<ArgExpression> *funcArgs);
 
   Variable *lookupVariable  (StringRef name,     LookupFlags f=LF_NONE);
   
@@ -363,8 +371,12 @@ public:      // funcs
   // for the instantiation of a primary template, simultaneously
   // iterate over the parameters and arguments, creating bindings from
   // params to args
+  //
+  // FIX: the assymetry in the way the bindings are passed to
+  // insertBindingsForPrimary() and insertBindingsForPartialSpec() is
+  // gratuitous
   void insertBindingsForPrimary
-    (Variable *baseV, ASTList<TemplateArgument> const &arguments);
+    (Variable *baseV, SObjList<STemplateArgument> *sargs);
 
   // for the instantiation of a partial specialization, iterate over
   // the parameters and retrieve their bindings; insert these into the
@@ -372,15 +384,20 @@ public:      // funcs
   void insertBindingsForPartialSpec
     (Variable *baseV, StringSObjDict<STemplateArgument> &bindings);
 
-  // instantate 'base' with 'arguments', and return the implicit
-  // typedef Variable associated with the resulting type; 'scope'
-  // is the scope in which 'base' was found; if 'inst' is not
-  // NULL then we already have a compound for this instantiation
-  // (from a forward declaration), so use that one
-  Variable *instantiateTemplate(
-    Scope *scope, Variable *baseV,
-    ASTList<TemplateArgument> const &arguments, 
-    Variable *instV);
+  void templArgsASTtoSTA
+    (ASTList<TemplateArgument> const &arguments,
+     SObjList<STemplateArgument> &sargs);
+
+  // instantate 'base' with arguments, either 'astArgs' or 'sargs',
+  // and return the implicit typedef Variable associated with the
+  // resulting type; 'scope' is the scope in which 'base' was found;
+  // if 'inst' is not NULL then we already have a compound for this
+  // instantiation (from a forward declaration), so use that one
+  Variable *instantiateTemplate
+    (Scope *foundScope, Variable *baseV, Variable *instV,
+     // exactly one should be NULL and the other non-NULL
+     ASTList<TemplateArgument> const *astArgs,
+     SObjList<STemplateArgument> *sargs);
 
   // given a template class that was just made non-forward,
   // instantiate all of its forward-declared instances
@@ -450,7 +467,7 @@ public:      // funcs
   Type *implicitReceiverType();
   
   // create the receiver object parameter for use in a FunctionType
-  Variable *receiverParameter(SourceLoc loc, CompoundType *ct, CVFlags cv,
+  Variable *receiverParameter(SourceLoc loc, NamedAtomicType *nat, CVFlags cv,
                               D_func *syntax = NULL);
 
   // others are more obscure, so I'll just call into 'tfac' directly

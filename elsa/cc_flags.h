@@ -496,4 +496,14 @@ enum SpecialExpr {
 char const *toString(SpecialExpr se);
 
 
+// ------------------ at least as specific as ----------------
+// flags for modifying the behavior of atLeastAsSpecificAs() traversals
+enum AsSpecAsFlags {
+  ASA_NONE      = 0x00000000,
+  // this is the top-level call for the traversal of a given type
+  ASA_TOP       = 0x00000001,
+  ASA_NUM_FLAGS,
+};
+
+
 #endif // CC_FLAGS_H

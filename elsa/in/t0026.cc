@@ -2,7 +2,10 @@
 // template functions
 
 template <class T>
-int f(T &t)
+// dsw: it would help to compile these examples before using them as tests.
+//  t0026.cc:19: could not convert `9' to `int&'
+//  int f(T &t)
+int f(T t)
 {
   T(z);    // ambiguous, but I can disambiguate!
 

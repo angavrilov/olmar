@@ -326,7 +326,7 @@ void ArrowStarCandidateSet::instantiateBinary(Env &env,
       // expect 'rhsRet' to be of form 'T cv2 V::*'; extract V
       if (!rhsRet->isPointerToMemberType()) continue;
       PointerToMemberType *rhsPtm = rhsRet->asPointerToMemberType();
-      CompoundType *V = rhsPtm->inClass;
+      CompoundType *V = rhsPtm->inClass();
 
       // Now, any possible instantiation C1 and C2 must have an
       // inheritance relation like

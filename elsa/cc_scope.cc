@@ -69,6 +69,22 @@ bool Scope::isGlobalTemplateScope() const {
 }
 
 
+bool Scope::isWithinUninstTemplate() const {
+  if (curCompound && curCompound->templateInfo()) {
+    TemplateInfo *ti = curCompound->templateInfo();
+    xassert(ti);
+    if (ti->isMutant()
+        || !ti->isCompleteSpecOrInstantiation()) {
+      return true;
+    }
+  }
+  if (parentScope) {
+    return parentScope->isWithinUninstTemplate();
+  }
+  return false;
+}
+
+
 // This function should not modify 'v'; any changes to 'v' should
 // instead be done by 'registerVariable'.
 bool Scope::addVariable(Variable *v, bool forceReplace)

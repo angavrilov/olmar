@@ -3,7 +3,7 @@ template <class T> struct B {};
 template <class T> struct C {
   operator void **();
 };
-template <class T> C<T> f(B<T>&);
+template <class T> C<T> f(B<T>&) {}
 struct D {
   static void g(A &, void **);
   static void g(char *, void **);

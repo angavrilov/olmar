@@ -445,6 +445,9 @@ testparse d0050elab.cc
 testparse d0051.cc
 testparse d0051elab.cc
 testparse d0052.cc
+testparse d0053.cc
+testparse d0054.cc
+testparse d0055.cc
 # ---- END: lots of tests ----
 
 
@@ -552,14 +555,15 @@ failnsparse() {
   failTest "$2" ./ccparse -tr $TR_FLAGS "$1"
 }
 
-testnsparse in/big/nsAtomTable.i
-testnsparse in/big/nsSOAPPropertyBag.i
-testnsparse in/big/nsCLiveconnectFactory.i
-testnsparse in/big/nsHTMLEditRules.i
-testnsparse in/big/nsMsgServiceProvider.i
-testnsparse in/big/nsUnicodeToTeXCMRt1.i
-
+# put shorter tests first
 testnsparse in/big/nonport.i
+
+testnsparse in/big/nsUnicodeToTeXCMRt1.i
+# testnsparse in/big/nsAtomTable.i
+# testnsparse in/big/nsSOAPPropertyBag.i
+testnsparse in/big/nsCLiveconnectFactory.i
+# testnsparse in/big/nsHTMLEditRules.i
+# testnsparse in/big/nsMsgServiceProvider.i
 
 
 

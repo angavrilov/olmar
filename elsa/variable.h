@@ -132,6 +132,8 @@ public:
   // true if this name refers to a template function, or is
   // the typedef-name of a template class
   bool isTemplate() const { return isTemplateFunction() || isTemplateClass(); }
+  // are we an uninstantiated template or a member of one?
+  bool isUninstTemplateMember() const;
   bool isTemplateFunction() const;
   bool isTemplateClass() const;
   TemplateInfo *templateInfo() const;

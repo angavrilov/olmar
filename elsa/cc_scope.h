@@ -179,6 +179,9 @@ public:      // funcs
   bool isNamespace() const          { return scopeKind == SK_NAMESPACE; }
   // are we in a template scope that is in a global scope?
   bool isGlobalTemplateScope() const;
+  // are we in a scope that at some point above is an uninstantiated
+  // templatized scope?
+  bool isWithinUninstTemplate() const;
 
   // insertion; these return false if the corresponding map already
   // has a binding (unless 'forceReplace' is true)

@@ -63,6 +63,7 @@ class TemplateInfo;
 class STemplateArgument;
 class TypeFactory;
 class BasicTypeFactory;
+class NamedAtomicType;
 
 
 // --------------------- atomic types --------------------------
@@ -82,11 +83,15 @@ public:     // funcs
   bool isEnumType() const     { return getTag() == T_ENUM; }
   bool isTypeVariable() const { return getTag() == T_TYPEVAR; }
 
+  virtual bool isNamedAtomicType() const;
+
   // see smbase/macros.h
   DOWNCAST_FN(SimpleType)
   DOWNCAST_FN(CompoundType)
   DOWNCAST_FN(EnumType)
   DOWNCAST_FN(TypeVariable)
+
+  virtual NamedAtomicType const *asNamedAtomicTypeC() const;
 
   // this is type equality, *not* coercibility -- e.g. if
   // we say "extern type1 x" and then "extern type2 x" we
@@ -146,6 +151,9 @@ public:     // data
 public:
   NamedAtomicType(StringRef name);
   ~NamedAtomicType();
+
+  virtual bool isNamedAtomicType() const;
+  virtual NamedAtomicType const *asNamedAtomicTypeC() const;
 };
 
 
@@ -536,7 +544,9 @@ public:     // funcs
   // is a specialization pattern if it contains any type variables.
   // If it succeeds, creates the bindings that allow the unification
   // and returns true; if not returns false
-  virtual bool atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument> &bindings)=0;
+  virtual bool atLeastAsSpecificAs(Type *t,
+                                   StringSObjDict<STemplateArgument> &bindings,
+                                   AsSpecAsFlags asaFlags)=0;
 
   // compute a hash value: equal types (EF_EXACT) have the same hash
   // value, and unequal types are likely to have different values
@@ -593,8 +603,13 @@ public:     // funcs
   bool isEllipsis() const { return isSimple(ST_ELLIPSIS); }
   bool isError() const { return isSimple(ST_ERROR); }
   bool isDependent() const;
+  NamedAtomicType *ifNamedAtomicType();  // NULL or corresp. NamedAtomicType
   CompoundType *ifCompoundType();        // NULL or corresp. compound
+  NamedAtomicType const *asNamedAtomicTypeC() const;
   CompoundType const *asCompoundTypeC() const; // fail assertion if not
+  NamedAtomicType *asNamedAtomicType() {
+    return const_cast<NamedAtomicType*>(asNamedAtomicTypeC());
+  }
   CompoundType *asCompoundType() { return const_cast<CompoundType*>(asCompoundTypeC()); }
   bool isOwnerPtr() const;
   bool isMethod() const;                 // function and method
@@ -611,6 +626,7 @@ public:     // funcs
   bool isCVAtomicType(AtomicType::Tag tag) const;
   bool isTypeVariable() const { return isCVAtomicType(AtomicType::T_TYPEVAR); }
   TypeVariable *asTypeVariable();
+  bool isNamedAtomicType() const;
   bool isCompoundType() const { return isCVAtomicType(AtomicType::T_COMPOUND); }
 
   // this is true if any of the type *constructors* on this type
@@ -698,7 +714,9 @@ public:
   virtual string leftString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
-  virtual bool atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument> &bindings);
+  virtual bool atLeastAsSpecificAs(Type *t,
+                                   StringSObjDict<STemplateArgument> &bindings,
+                                   AsSpecAsFlags asaFlags);
   virtual CVFlags getCVFlags() const;
 };
 
@@ -732,7 +750,9 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
-  virtual bool atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument> &bindings);
+  virtual bool atLeastAsSpecificAs(Type *t,
+                                   StringSObjDict<STemplateArgument> &bindings,
+                                   AsSpecAsFlags asaFlags);
   virtual CVFlags getCVFlags() const;
 };
 
@@ -851,7 +871,9 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
-  virtual bool atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument> &bindings);
+  virtual bool atLeastAsSpecificAs(Type *t,
+                                   StringSObjDict<STemplateArgument> &bindings,
+                                   AsSpecAsFlags asaFlags);
 };
 
 
@@ -885,7 +907,9 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
-  virtual bool atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument> &bindings);
+  virtual bool atLeastAsSpecificAs(Type *t,
+                                   StringSObjDict<STemplateArgument> &bindings,
+                                   AsSpecAsFlags asaFlags);
 };
 
 
@@ -896,17 +920,19 @@ public:
 // it is a completely different kind of thing.
 class PointerToMemberType : public Type {
 public:
-  CompoundType *inClass;        // class whose member is being pointed at
+  NamedAtomicType *inClassNAT;  // Named Atomic Type whose member is being pointed at
   CVFlags cv;                   // whether this pointer is const
   Type *atType;                 // type of the member
 
 protected:
   friend class BasicTypeFactory;
-  PointerToMemberType(CompoundType *c, CVFlags c, Type *a);
+  PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c, Type *a);
 
 public:
   bool innerEquals(PointerToMemberType const *obj, EqFlags flags) const;
   bool isConst() const { return !!(cv & CV_CONST); }
+
+  CompoundType *inClass() const;
 
   // Type interface
   virtual Tag getTag() const { return T_POINTERTOMEMBER; }
@@ -916,7 +942,9 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
-  virtual bool atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument> &bindings);
+  virtual bool atLeastAsSpecificAs(Type *t,
+                                   StringSObjDict<STemplateArgument> &bindings,
+                                   AsSpecAsFlags asaFlags);
   virtual CVFlags getCVFlags() const;
 };
 
@@ -965,6 +993,10 @@ public:    // data
   // to detect when a name is the name of the template we're inside
   // (this is NULL for TemplateInfos attached to FunctionTypes)
   StringRef baseName;
+
+  // The primary of this template info if we are a specialization or
+  // an instantiation; NULL if we are a primary.
+  TemplateInfo *myPrimary;
 
   // NOTE: There is an over-orthogonalization here.  The semantics of
   // instantiations and arguments are as follows; all other
@@ -1075,16 +1107,35 @@ public:    // funcs
   TemplateInfo(TemplateInfo const &obj);
   ~TemplateInfo();
 
+  void setMyPrimary(TemplateInfo *prim);
+
   // true if 'list' contains equivalent semantic arguments
   bool equalArguments(SObjList<STemplateArgument> const &list) const;
 
   // true iff list1 is at least as specific as list2; creates any
   // bindings necessary to effect the unification; NOTE: assymetry in
   // the list serf/ownerness of the first and second arguments.
-  static bool TemplateInfo::atLeastAsSpecificAs
+  static bool atLeastAsSpecificAs_STemplateArgument_list
     (SObjList<STemplateArgument> &list1,
      ObjList<STemplateArgument> &list2,
-     StringSObjDict<STemplateArgument> &bindings);
+     StringSObjDict<STemplateArgument> &bindings,
+     AsSpecAsFlags asaFlags);
+
+  // FIX: EXACT COPY OF THE CODE ABOVE.  NOTE: the SYMMETRY in the
+  // list serf/ownerness, in contrast to the above.
+  static bool atLeastAsSpecificAs_STemplateArgument_list
+    (ObjList<STemplateArgument> &list1,
+     ObjList<STemplateArgument> &list2,
+     StringSObjDict<STemplateArgument> &bindings,
+     AsSpecAsFlags asaFlags);
+
+  // check if this template info is a specialization/instantiation of
+  // the same primary as the argument 'tinfo', and that we are at
+  // least as specific as
+  bool atLeastAsSpecificAs
+    (TemplateInfo *tinfo,
+     StringSObjDict<STemplateArgument> &bindings,
+     AsSpecAsFlags asaFlags);
 
   // check the arguments contain type variables
   bool argumentsContainTypeVariables() const;
@@ -1100,7 +1151,8 @@ public:    // funcs
   bool isCompleteSpecOrInstantiation() const;
 
   // debugging
-  void gdb(int depth = 0);
+  void gdb();
+  void gdbi(int depth);
 };
 
 
@@ -1110,11 +1162,20 @@ public:    // funcs
 // equivalence classes as implied by cppstd 14.4 para 1
 class STemplateArgument {
 public:
+  // FIX: make these data members private
   enum Kind {
     STA_NONE,        // not yet resolved into a valid template argument
     STA_TYPE,        // type argument
     STA_INT,         // int or enum argument
+
+    // dsw: this may not be a ref to a global object, but instead a
+    // template parameter; in this example from in/t0180.cc, note the
+    // use of 'C' here is an argument, where it is brought into
+    // existence as a template parameter in the outer scope:
+    //   template <typename A, typename B, int C>
+    //   struct Traits<A, Helper1<B, Helper2<C> > >
     STA_REFERENCE,   // reference to global object
+
     STA_POINTER,     // pointer to global object
     STA_MEMBER,      // pointer to class member
     STA_TEMPLATE,    // template argument (not implemented)
@@ -1130,6 +1191,13 @@ public:
 public:
   STemplateArgument() : kind(STA_NONE) { value.i = 0; }
   STemplateArgument(STemplateArgument const &obj);
+
+  // get 'value', ensuring correspondence between it and 'kind'
+  Type *    getType()      { xassert(kind==STA_TYPE);      return value.t; }
+  int       getInt()       { xassert(kind==STA_INT);       return value.i; }
+  Variable *getReference() { xassert(kind==STA_REFERENCE); return value.v; }
+  Variable *getPointer()   { xassert(kind==STA_POINTER);   return value.v; }
+  Variable *getMember()    { xassert(kind==STA_MEMBER);    return value.v; }
 
   // set 'value', ensuring correspondence between it and 'kind'
   void setType(Type *t)          { kind=STA_TYPE;      value.t=t; }
@@ -1153,18 +1221,21 @@ public:
   // STemplateArgument; if successful, any bindings necessary to
   // effect unification with the argument have been added to bindings
   bool atLeastAsSpecificAs(STemplateArgument const *obj,
-                           StringSObjDict<STemplateArgument> &bindings);
+                           StringSObjDict<STemplateArgument> &bindings,
+                           AsSpecAsFlags asaFlags);
 
   // debug print
   string toString() const;
 
   // debugging
-  void gdb(int depth = 0);
+  void gdb();
+  void gdbi(int depth);
 };
 
 string sargsToString(SObjList<STemplateArgument> const &list);
 inline string sargsToString(ObjList<STemplateArgument> const &list)
   { return sargsToString((SObjList<STemplateArgument> const &)list); }
+void bindingsGdb(StringSObjDict<STemplateArgument> &bindings);
 
 
 // ------------------- type factory -------------------
@@ -1220,7 +1291,7 @@ public:
     Type *eltType, int size = ArrayType::NO_SIZE)=0;
 
   virtual PointerToMemberType *makePointerToMemberType(SourceLoc loc,
-    CompoundType *inClass, CVFlags cv, Type *atType)=0;
+    NamedAtomicType *inClassNAT, CVFlags cv, Type *atType)=0;
 
     
   // NOTE: I very much want to get rid of this 'loc' business in the
@@ -1284,14 +1355,14 @@ public:
 
   // and another for pointer-to-member
   virtual PointerToMemberType *syntaxPointerToMemberType(SourceLoc loc,
-    CompoundType *inClass, CVFlags cv, Type *atType, 
+    NamedAtomicType *inClassNAT, CVFlags cv, Type *atType, 
     D_ptrToMember * /*nullable*/ syntax);
 
   // given a class, build the type of the receiver object parameter
   // 1/19/03: it should be a *reference* type
   // 1/30/04: fixing name: it's the receiver, not 'this'
   virtual PointerType *makeTypeOf_receiver(SourceLoc loc,
-    CompoundType *inClass, CVFlags cv, D_func * /*nullable*/ syntax);
+    NamedAtomicType *classType, CVFlags cv, D_func * /*nullable*/ syntax);
 
   // this will cause a compile error if anyone uses the old name; it
   // can be removed after the switch is complete (~ 2/29/04)
@@ -1363,7 +1434,7 @@ public:    // funcs
   virtual ArrayType *makeArrayType(SourceLoc loc,
     Type *eltType, int size);
   virtual PointerToMemberType *makePointerToMemberType(SourceLoc loc,
-    CompoundType *inClass, CVFlags cv, Type *atType);
+    NamedAtomicType *inClassNAT, CVFlags cv, Type *atType);
 
   virtual CVAtomicType *cloneCVAtomicType(CVAtomicType *src);
   virtual PointerType *clonePointerType(PointerType *src);
@@ -1375,6 +1446,12 @@ public:    // funcs
                                  Type *t, DeclFlags f, TranslationUnit *tunit);
   virtual Variable *cloneVariable(Variable *src);
 };
+
+
+// I need access to this from within cc_type.cc, and, ironically, you
+// need an Env for that otherwise, and it says at the top that this
+// file should not depend on cc_env.h
+extern TypeFactory *tfac_global;
 
 
 // -------------------- XReprSize ---------------------

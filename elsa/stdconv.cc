@@ -467,14 +467,14 @@ StandardConversion getStandardConversion
         PointerToMemberType const *s = src->asPointerToMemberTypeC();
         PointerToMemberType const *d = dest->asPointerToMemberTypeC();
 
-        if (s->inClass != d->inClass) {
+        if (s->inClass() != d->inClass()) {
           if (conv.ptrCtorsStripped == 0) {
             // opposite to first ptr ctor, we allow Base -> Derived
-            if (!d->inClass->hasUnambiguousBaseClass(s->inClass)) {
+            if (!d->inClass()->hasUnambiguousBaseClass(s->inClass())) {
               return conv.error("src member's class is not an unambiguous "
                                 "base of dest member's class");
             }
-            else if (d->inClass->hasVirtualBase(s->inClass)) {
+            else if (d->inClass()->hasVirtualBase(s->inClass())) {
               return conv.error("src member's class is a virtual base of "
                                 "dest member's class");
             }

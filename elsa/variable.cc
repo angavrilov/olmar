@@ -37,6 +37,16 @@ void Variable::setFlagsTo(DeclFlags f)
 }
 
 
+bool Variable::isUninstTemplateMember() const
+{
+  if (isTemplate() &&
+      (templateInfo()->isMutant() || !templateInfo()->isCompleteSpecOrInstantiation())) {
+    return true;
+  }
+  return scope && scope->isWithinUninstTemplate();
+}
+
+
 bool Variable::isTemplateFunction() const
 {
   return type &&
@@ -277,7 +287,12 @@ Variable *OverloadSet::findTemplPrimaryForSignature(FunctionType *signature)
     // FIX: I don't know if this is really as precise a lookup as is
     // possible.
     StringSObjDict<STemplateArgument> bindings;
-    if (signature->atLeastAsSpecificAs(var0->type, bindings)) {
+    if (signature->atLeastAsSpecificAs
+        (var0->type,
+         bindings,
+         // FIX: I don't know if this should be top or not or if it
+         // matters.
+         (AsSpecAsFlags) ASA_TOP)) {
       if (candidatePrim) {
         xfailure("ambiguous attempt to lookup "
                  "overloaded function template primary from specialization");

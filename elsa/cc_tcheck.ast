@@ -412,15 +412,37 @@ class Expression {
   // gets automatically stored in the 'type' field; the return
   // value specifies which of possibly ambiguous alternatives
   // was selected for retention
-  public void tcheck(Env &env, Expression *&ptr);
-  public void mid_tcheck(Env &env, Expression *&replacement);
+  //
+  // dsw: I had to add the 'args' argument so that when you typecheck
+  // an E_funCall, you can communicate the arguments to the E_variable
+  // tcheck code so that it can do function template instantiation
+  // with template arguments inferred from the (function) arguments.
+  // I couldn't think of any other way to communicate it down.  If you
+  // think of one, beware of odd illegal situations that will come up
+  // during disambiguation typecheckin, such as a the 'func' field of
+  // an E_funCall being refering to another E_variable that is a
+  // templatized function.  That E_variable tcheck code could possibly
+  // use the wrong set of args if instead I had just pushed them onto
+  // a stack of args in the Env object.  Therefore, I pass them down
+  // directly like this.
+  //
+  // FIX: what really doesn't work about this is that it is not
+  // possible to tell the difference between no function args and
+  // function args with no arugments (the empty list); this is of
+  // course due to the use of a FakeList.
+  public void tcheck(Env &env, Expression *&ptr,
+                     FakeList<ArgExpression> *args = NULL);
+  public void mid_tcheck(Env &env, Expression *&replacement,
+                         FakeList<ArgExpression> *args = NULL);
 
   // per-type checker; return type this expression eval's to; if
   // this Expression would like to rewrite itself, then it can put
   // the new Expression into 'replacement' and the parent AST node
   // will be updated accordingly; the caller should always put the
   // receiver object pointer into 'replacement' initially
-  pure_virtual Type *itcheck_x(Env &env, Expression *&replacement);     // the "_x" is for grepping value
+  //
+  // the "_x" is for grepping value; think of it as standing for 'eXpression'
+  pure_virtual Type *itcheck_x(Env &env, Expression *&replacement);
 
   // type computed for this expression; might be a SimpleType for
   // ST_ERROR, in which case a subsequent attempt to typecheck the
@@ -466,6 +488,7 @@ class Expression {
 
   -> E_variable {
        public Variable *var = NULL;      // (serf) binding introduction of this name
+       public Type *itcheck_x2(Env &env, Expression *&replacement, FakeList<ArgExpression> *args);
        custom clone { ret->var = var; }
      }
 

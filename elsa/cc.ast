@@ -339,6 +339,7 @@ class IDeclarator(SourceLoc loc) {
   // "X::*p"
   // I don't unify this with D_pointer because ptr-to-member requires
   // an extra field (nestedName), and ptr-to-member is rare
+  // dsw: and ptr-to-member has nothing to do with pointer
   -> D_ptrToMember(PQName nestedName, CVFlags cv, IDeclarator base);
 
   // declarator grouping operator: it's semantically irrelevant

@@ -792,7 +792,7 @@ int compareStandardConversions
             return 0;        // not subset, therefore no decision
           }
 
-          if (lptm->inClass != rptm->inClass) {
+          if (lptm->inClass() != rptm->inClass()) {
             return 0;        // different types, can't compare
           }
 
@@ -877,7 +877,7 @@ bool isPointerToCompoundMember(Type const *type, CompoundType const *&ct)
   type = type->asRvalC();
 
   if (type->isPointerToMemberType()) {
-    ct = type->asPointerToMemberTypeC()->inClass;
+    ct = type->asPointerToMemberTypeC()->inClass();
     return true;
   }
 
@@ -1128,7 +1128,7 @@ Type *similarLUB(Env &env, Type *t1, Type *t2, bool &cvdiffers, bool toplevel=fa
       PointerToMemberType *pmt2 = t2->asPointerToMemberType();
       Type *under = similarLUB(env, pmt1->atType, pmt2->atType, cvdiffers);
       CVFlags cvu = unionCV(pmt1->cv, pmt2->cv, cvdiffers, toplevel);
-      return env.tfac.makePointerToMemberType(SL_UNKNOWN, pmt1->inClass, cvu, under);
+      return env.tfac.makePointerToMemberType(SL_UNKNOWN, pmt1->inClassNAT, cvu, under);
     }
   }
 }
