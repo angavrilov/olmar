@@ -4,6 +4,10 @@
 (PROMPT_OFF)
 (BG_PUSH (AND
 
+  ; how to simplify a few expression kinds
+  (FORALL (x)     ; not needed: (PATS (MPAT (uMinus x)))
+    (EQ (uMinus x) (- 0 x)))
+
   ; how to take apart a pointer
   (FORALL (b f)
     (EQ
@@ -15,6 +19,30 @@
     (EQ
       (offset (pointer b f))
       f
+    ))
+
+  ; arithmetic does not change the object
+  (FORALL (ptr ofs)           (PATS (MPAT (object (+ ptr ofs))))
+    (EQ
+      (object (+ ptr ofs))
+      (object ptr)
+    ))
+  (FORALL (ptr ofs)           (PATS (MPAT (object (- ptr ofs))))
+    (EQ
+      (object (- ptr ofs))
+      (object ptr)
+    ))
+
+  ; arithmetic changes the offset in the obvious way
+  (FORALL (ptr ofs)           (PATS (MPAT (offset (+ ptr ofs))))
+    (EQ
+      (offset (+ ptr ofs))
+      (+ (offset ptr) ofs)
+    ))
+  (FORALL (ptr ofs)           (PATS (MPAT (offset (- ptr ofs))))
+    (EQ
+      (offset (- ptr ofs))
+      (- (offset ptr) ofs)
     ))
 
   ; reading from the same location as was last written

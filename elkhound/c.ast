@@ -245,7 +245,7 @@ class Expression {
   -> E_structLit(ASTTypeId stype, ASTList<Initializer> init);
 
   -> E_variable(StringRef name);
-  -> E_arrayAcc(Expression arr, Expression index);
+  //-> E_arrayAcc(Expression arr, Expression index);
   -> E_funCall(Expression func, ASTList<Expression> args);
   -> E_fieldAcc(Expression obj, StringRef field);
 

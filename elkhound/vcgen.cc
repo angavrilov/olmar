@@ -121,9 +121,15 @@ void Declarator::vcgen(AEnv &env) const
       // for its address
       AbsValue *addr = env.addMemVar(name);
 
-      // state that, right now, that memory location contains 'value'
-      env.addFact(new AVbinary(value, BIN_EQUAL,
-        env.avSelect(env.getMem(), addr, new AVint(0))));
+      if (!type->isArrayType()) {
+        // state that, right now, that memory location contains 'value'
+        env.addFact(new AVbinary(value, BIN_EQUAL,
+          env.avSelect(env.getMem(), addr, new AVint(0))));
+      }
+      else {
+        // will model array contents as elements in memory, rather
+        // than as symbolic whole-array values...
+      }
 
       // variables have length 1
       int size = 1;             
@@ -260,6 +266,11 @@ AbsValue *E_variable::vcgen(AEnv &env) const
     // variable, and simply return that
     return env.get(name);
   }
+  else if (type->isArrayType()) {
+    // is name of an array, in which case we return the name given
+    // to the array's location (it's like an immutable pointer)
+    return env.avPointer(env.getMemVarAddr(name), new AVint(0));
+  }
   else {
     // memory variable: return an expression which will read it out of memory
     return env.avSelect(env.getMem(), env.getMemVarAddr(name), new AVint(0));
@@ -267,17 +278,18 @@ AbsValue *E_variable::vcgen(AEnv &env) const
 }
 
 
+#if 0
 AbsValue *E_arrayAcc::vcgen(AEnv &env) const
 {
   AbsValue *i = index->vcgen(env);
 
   if (arr->isE_variable()) {
     AbsValue *object = env.getMemVarAddr(arr->asE_variable()->name);
-    
+
     // emit a proof obligation for safe access
     env.prove(new AVbinary(i, BIN_GREATEREQ, new AVint(0)), "array lower bound");
     env.prove(new AVbinary(i, BIN_LESS, env.avLength(object)), "array upper bound");
-    
+
     // yield whatever is in that location
     return env.avSelect(env.getMem(), object, i);
   }
@@ -288,6 +300,7 @@ AbsValue *E_arrayAcc::vcgen(AEnv &env) const
              << "array access: " << toString());
   }
 }
+#endif // 0
 
 
 AbsValue *E_funCall::vcgen(AEnv &env) const
@@ -441,7 +454,13 @@ AbsValue *E_addrOf::vcgen(AEnv &env) const
 AbsValue *E_deref::vcgen(AEnv &env) const
 {
   AbsValue *addr = ptr->vcgen(env);
-  
+
+  // emit a proof obligation for safe access
+  env.prove(new AVbinary(env.avOffset(addr), BIN_GREATEREQ, 
+                         new AVint(0)), "array lower bound");
+  env.prove(new AVbinary(env.avOffset(addr), BIN_LESS,
+                         env.avLength(env.avObject(addr))), "array upper bound");
+
   return env.avSelect(env.getMem(), env.avObject(addr), env.avOffset(addr));
 }
 
@@ -506,11 +525,17 @@ AbsValue *E_assign::vcgen(AEnv &env) const
   }
   else if (target->isE_deref()) {
     // get an abstract value for the address being modified
-    AbsValue *targetAddr = target->asE_deref()->ptr->vcgen(env);
+    AbsValue *addr = target->asE_deref()->ptr->vcgen(env);
+
+    // emit a proof obligation for safe access
+    env.prove(new AVbinary(env.avOffset(addr), BIN_GREATEREQ,
+                           new AVint(0)), "array lower bound");
+    env.prove(new AVbinary(env.avOffset(addr), BIN_LESS,
+                           env.avLength(env.avObject(addr))), "array upper bound");
 
     // memory changes
-    env.setMem(env.avUpdate(env.getMem(), env.avObject(targetAddr),
-                            env.avOffset(targetAddr), v));
+    env.setMem(env.avUpdate(env.getMem(), env.avObject(addr),
+                            env.avOffset(addr), v));
   }
   else {
     cout << "warning: unhandled assignment: " << toString() << endl;

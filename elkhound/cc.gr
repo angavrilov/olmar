@@ -229,7 +229,8 @@ nonterm[Expression*] PostfixExpression {
 
   // array access
   -> a:PostfixExpression "[" e:Expression "]"
-       [ return new E_arrayAcc(a, e); ]
+       //[ return new E_arrayAcc(a, e); ]
+       [ return new E_deref(new E_binary(a, BIN_PLUS, e)); ]
 
   // fn call
   -> f:PostfixExpression "(" e:ExpressionListOpt ")"

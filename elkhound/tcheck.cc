@@ -612,16 +612,27 @@ Type const *E_variable::itcheck(Env &env)
 }
 
 
+#if 0
 Type const *E_arrayAcc::itcheck(Env &env)
 {
-  ArrayType const *atype = &( arr->tcheck(env)->asArrayTypeC() );
   Type const *itype = index->tcheck(env);
   if (!itype->isIntegerType()) {
     env.err("array index type must be integer");
   }
 
-  return atype->eltType;
-}
+  Type const *lhsType = arr->tcheck(env);
+  if (lhsType->isArrayType()) {
+    return lhsType->asArrayTypeC().eltType;
+  }
+  else if (lhsType->isPointerType()) {
+    return lhsType->asPointerTypeC().atType;
+  }
+  else {
+    env.err("lhs of [] must be array or pointer");
+    return itype;     // whatever
+  }
+}    
+#endif // 0
 
 
 void fatal(Env &env, Expression const *expr, Type const *type, char const *msg)
@@ -928,7 +939,7 @@ int E_floatLit::constEval(Env &env) const { return xnonconst(); }
 int E_stringLit::constEval(Env &env) const { return xnonconst(); }
 int E_structLit::constEval(Env &env) const { return xnonconst(); }
 int E_variable::constEval(Env &env) const { return xnonconst(); }
-int E_arrayAcc::constEval(Env &env) const { return xnonconst(); }
+//int E_arrayAcc::constEval(Env &env) const { return xnonconst(); }
 int E_funCall::constEval(Env &env) const { return xnonconst(); }
 int E_fieldAcc::constEval(Env &env) const { return xnonconst(); }
 int E_addrOf::constEval(Env &env) const { return xnonconst(); }
@@ -956,8 +967,8 @@ string E_structLit::toString() const
   { return stringc << "(..some type..){ ... }"; }
 string E_variable::toString() const
   { return stringc << name; }
-string E_arrayAcc::toString() const
-  { return stringc << arr->toString() << "[" << index->toString() << "]"; }
+//string E_arrayAcc::toString() const
+//  { return stringc << arr->toString() << "[" << index->toString() << "]"; }
 
 string E_funCall::toString() const
 {
@@ -984,7 +995,7 @@ string E_binary::toString() const
 string E_addrOf::toString() const
   { return stringc << "&" << expr->toString(); }
 string E_deref::toString() const
-  { return stringc << "*" << ptr->toString(); }
+  { return stringc << "*(" << ptr->toString() << ")"; }
 string E_cast::toString() const
   { return stringc << "(..some type..)" << expr->toString(); }
 string E_cond::toString() const
