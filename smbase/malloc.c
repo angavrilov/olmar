@@ -4661,13 +4661,26 @@ void mSTATs()
   {
     unsigned long kernel, user;
     if (cpuinfo (TRUE, &kernel, &user)) {
-      fprintf(stderr, "kernel ms        = %10lu\n", 
+      fprintf(stderr, "kernel ms        = %10lu\n",
               kernel);
-      fprintf(stderr, "user ms          = %10lu\n", 
+      fprintf(stderr, "user ms          = %10lu\n",
               user);
     }
   }
 #endif
+}
+
+
+unsigned numMallocCalls()
+{
+  mstate av = get_malloc_state();
+  return av->numMallocCalls;
+}
+
+unsigned numFreeCalls()
+{
+  mstate av = get_malloc_state();
+  return av->numFreeCalls;
 }
 
 

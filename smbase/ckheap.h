@@ -19,6 +19,10 @@ void checkHeapNode(void *node);
 // prints allocation statistics to stderr
 void malloc_stats();
 
+// count # of malloc/free calls in program
+unsigned numMallocCalls();
+unsigned numFreeCalls();
+
 
 // actions the heap walk iterator might request
 enum HeapWalkOpts {
