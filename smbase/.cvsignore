@@ -4,7 +4,6 @@ tobjlist
 bit2d
 growbuf
 test.dir
-.cvsignore
 strdict
 svdict
 str
@@ -15,3 +14,4 @@ fsyncd.log
 trdelete
 bflatten
 mysig
+Makefile.base.mk
