@@ -2866,7 +2866,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
   // at global/namespace scope, so that is what I will allow...
   // (in/d0109.cc) (in/t0289.cc) (in/t0161.cc) (in/std/7.3.3f.cc)
   if (prior &&
-      prior->usingAlias == origVar &&
+      prior->getUsingAlias() == origVar &&
       (scope->isGlobalScope() || scope->isNamespace())) {
     return;
   }
@@ -2876,7 +2876,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
 
   // are we heading for a conflict with an alias?
   if (prior &&
-      prior->usingAlias &&
+      prior->getUsingAlias() &&
       !prior->hasFlag(DF_TYPEDEF) &&
       !sameScopes(prior->skipAlias()->scope, scope)) {
     // 7.3.3 para 11 says it's ok for two aliases to conflict when
@@ -2914,7 +2914,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
   }
 
   // hook 'newVar' up as an alias for 'origVar'
-  newVar->usingAlias = origVar->skipAlias();    // don't make long chains
+  newVar->setUsingAlias(origVar->skipAlias());    // don't make long chains
 
   TRACE("env", "made alias `" << name <<
                "' for origVar at " << toString(origVar->loc));
@@ -3159,7 +3159,7 @@ Variable *Env::createDeclaration(
       if (enclosingClass &&
           !secondPassTcheck &&
           !prior->isImplicitTypedef()) {    // allow implicit typedef to be hidden
-        if (prior->usingAlias) {
+        if (prior->getUsingAlias()) {
           // The declaration we're trying to make conflicts with an alias
           // imported from a base class.  7.3.3 para 12 says that's ok,
           // that the new declaration effectively replaces the old.
@@ -3176,7 +3176,7 @@ Variable *Env::createDeclaration(
           prior->setFlagsTo(dflags);
           prior->funcDefn = NULL;
           // overload can stay the same
-          prior->usingAlias = NULL;
+          prior->setUsingAlias(NULL);
           scope->registerVariable(prior);
           return prior;
         }
@@ -3470,11 +3470,11 @@ Variable *Env::storeVarIfNotOvl(Variable *var)
 {
   // NULL and non-aliases go through fine
   if (!var ||
-      !var->usingAlias) {
+      !var->getUsingAlias()) {
     return var;
   }
 
-  if (!var->overload && !var->usingAlias->overload) {
+  if (!var->overload && !var->getUsingAlias()->overload) {
     // neither the alias nor the aliased entity are overloaded, can
     // safely skip aliases now
     return storeVar(var);

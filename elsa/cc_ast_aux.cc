@@ -170,7 +170,7 @@ string refersTo(Variable *v)
 
   sb << v->toString();
   sb << ", at " << toString(v->loc);
-  if (v->usingAlias) {
+  if (v->getUsingAlias()) {
     sb << ", alias of " << toString(v->skipAlias()->loc);
   }
   sb << stringf(" (0x%08X)", (long)v);

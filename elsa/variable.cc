@@ -62,13 +62,38 @@ Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
     defaultParamType(NULL),
     funcDefn(NULL),
     overload(NULL),
-    usingAlias(NULL),
     scope(NULL),
     intData(0),
+    usingAlias_or_parameterizedEntity(NULL),
     templInfo(NULL)
 {
+  // the first time through, do some quick tests of the
+  // encodings of 'intData'
+  static int didSelfTest = false;
+  if (!didSelfTest) {
+    didSelfTest = true;
+
+    setAccess(AK_PRIVATE);
+    setScopeKind(SK_NAMESPACE);
+    setParameterOrdinal(1000);
+    
+    xassert(getAccess() == AK_PRIVATE);
+    xassert(getScopeKind() == SK_NAMESPACE);
+    xassert(getParameterOrdinal() == 1000);
+
+    // opposite order
+    setParameterOrdinal(88);
+    setScopeKind(SK_CLASS);
+    setAccess(AK_PROTECTED);
+
+    xassert(getAccess() == AK_PROTECTED);
+    xassert(getScopeKind() == SK_CLASS);
+    xassert(getParameterOrdinal() == 88);
+  }
+
   setAccess(AK_PUBLIC);
   setScopeKind(SK_UNKNOWN);
+  setParameterOrdinal(0);
 
   if (!isNamespace()) {
     xassert(type);
@@ -116,7 +141,18 @@ ScopeKind Variable::getScopeKind() const
 
 void Variable::setScopeKind(ScopeKind k)
 {
-  intData = (intData & ~0xFF00) | ((k >> 8) & 0xFF);
+  intData = (intData & ~0xFF00) | ((k << 8) & 0xFF00);
+}
+
+
+int Variable::getParameterOrdinal() const
+{
+  return (intData >> 16) & 0xFFFF;
+}
+
+void Variable::setParameterOrdinal(int ord)
+{
+  intData = (intData & ~0xFFFF0000) | ((ord << 16) & 0xFFFF0000);
 }
 
 
@@ -330,7 +366,7 @@ int Variable::overloadSetSize() const
 
 
 bool Variable::isMemberOfTemplate() const
-{ 
+{
   if (!scope) { return false; }
   if (!scope->curCompound) { return false; }
 
@@ -341,6 +377,40 @@ bool Variable::isMemberOfTemplate() const
   // member of non-template class; ask if that class is itself
   // a member of a template
   return scope->curCompound->typedefVar->isMemberOfTemplate();
+}
+
+
+Variable *Variable::getUsingAlias() const
+{
+  if (!hasFlag(DF_TEMPL_PARAM)) {
+    return usingAlias_or_parameterizedEntity;
+  }
+  else {
+    return NULL;
+  }
+}
+
+void Variable::setUsingAlias(Variable *target)
+{
+  xassert(!hasFlag(DF_TEMPL_PARAM));
+  usingAlias_or_parameterizedEntity = target;
+}
+
+
+Variable *Variable::getParameterizedEntity() const
+{
+  if (hasFlag(DF_TEMPL_PARAM)) {
+    return usingAlias_or_parameterizedEntity;
+  }
+  else {
+    return NULL;
+  }
+}
+
+void Variable::setParameterizedEntity(Variable *templ)
+{
+  xassert(hasFlag(DF_TEMPL_PARAM));
+  usingAlias_or_parameterizedEntity = templ;
 }
 
 
@@ -357,8 +427,8 @@ bool Variable::isMemberOfTemplate() const
 Variable const *Variable::skipAliasC() const
 {
   // tolerate NULL 'this' so I don't have to conditionalize usage
-  if (this && usingAlias) {
-    return usingAlias->skipAliasC();
+  if (this && getUsingAlias()) {
+    return getUsingAlias()->skipAliasC();
   }
   else {
     return this;

@@ -85,12 +85,6 @@ public:    // data
   // to the set of overloaded names; otherwise it's NULL
   OverloadSet *overload;  // (nullable serf)
 
-  // if this is variable is actually an alias for another one, via a
-  // "using declaration" (cppstd 7.3.3), then this points to the one
-  // it is an alias of; otherwise NULL; see comments near
-  // implementation of Variable::skipAliasC
-  Variable *usingAlias;   // (nullable serf)
-
   // named scope in which the variable appears; this is only non-NULL
   // if the scope has a name, i.e. it continues to be available for
   // use even after it's lexically closed
@@ -100,9 +94,23 @@ public:    // data
   Scope *scope;           // (nullable serf)
 
 private:      // data
+  // The next two fields are used to store conceptually different
+  // things in a single word in order to save space.  I am concerned
+  // about the space used by Variable because they are ubiquitous.  I
+  // would like to move to a model where Variable is a superclass and
+  // there are subclasses for various roles, as that would minimize
+  // wasted storage, but that is a fairly big change, and for the
+  // moment these localized hacks will suffice.
+
   // bits 0-7: result of 'getAccess()'
   // bits 8-15: result of 'getScopeKind()'
-  int intData;
+  // bits 16-31: result of 'getParameterOrdinal()'
+  unsigned intData;
+
+  // for most kinds of Variables, this is 'getUsingAlias()'; for
+  // template parameters (DF_TEMPL_PARAM), this is
+  // 'getParameterizedEntity()'
+  Variable *usingAlias_or_parameterizedEntity;   // (nullable serf)
 
   // for templates, this is the list of template parameters and other
   // template stuff; for a primary it includes a list of
@@ -159,6 +167,11 @@ public:
   // it is a candidate for removal at some point.
   ScopeKind getScopeKind() const;
   void setScopeKind(ScopeKind k);
+
+  // for template parameters, this says which parameter this is in
+  // the parameter list, e.g., 0 for first, 1 for second, etc.
+  int getParameterOrdinal() const;
+  void setParameterOrdinal(int ord);
 
   // true if this name refers to a template function, or is
   // the typedef-name of a template class (or partial specialization)
@@ -237,6 +250,18 @@ public:
   // hook for verifier: text to be printed after the variable's name
   // in declarator syntax
   virtual string namePrintSuffix() const;    // default: ""
+
+  // if this is variable is actually an alias for another one, via a
+  // "using declaration" (cppstd 7.3.3), then this points to the one
+  // it is an alias of; otherwise NULL; see comments near
+  // implementation of skipAliasC
+  Variable *getUsingAlias() const;
+  void setUsingAlias(Variable *target);
+
+  // if this variable is a template parameter, then this says which
+  // template entity is paramterized by it; otherwise NULL
+  Variable *getParameterizedEntity() const;
+  void setParameterizedEntity(Variable *templ);
 
   // follow the 'usingAlias' field if non-NULL; otherwise return this
   Variable const *skipAliasC() const;
