@@ -2501,17 +2501,22 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
 
   if (name && scope) {
     scope->registerVariable(tv);
-    if (!scope->addVariable(tv)) {
-      // this isn't really an error, because in C it would have
-      // been allowed, so C++ does too [ref?]
-      //return env.error(stringc
-      //  << "implicit typedef associated with " << ct->keywordAndName()
-      //  << " conflicts with an existing typedef or variable",
-      //  true /*disambiguating*/);
-      makeShadowTypedef(scope, tv);
-    }
-    else {
-      addedNewVariable(scope, tv);
+    // dsw: I found that it interfered to put the implicit typedef
+    // into the space in C, and as far as I understand, it doesn't
+    // exist in C anyway.  See in/c/dC0012.c
+    if (lang.isCplusplus) {
+      if (!scope->addVariable(tv)) {
+        // this isn't really an error, because in C it would have
+        // been allowed, so C++ does too [ref?]
+        //return env.error(stringc
+        //  << "implicit typedef associated with " << ct->keywordAndName()
+        //  << " conflicts with an existing typedef or variable",
+        //  true /*disambiguating*/);
+        makeShadowTypedef(scope, tv);
+      }
+      else {
+        addedNewVariable(scope, tv);
+      }
     }
   }
 

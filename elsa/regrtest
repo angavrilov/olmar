@@ -869,6 +869,7 @@ testCparse c/t0014.c
 testCparse c/t0015.c
 testCparse c/t0016.c
 testCparse gnu/d0096.c
+testCparse c/dC0012.c
 
 
 # is K&R built?
