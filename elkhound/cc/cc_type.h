@@ -287,9 +287,6 @@ protected:  // funcs
 public:     // funcs
   virtual ~Type();
 
-  // TODO: remove this
-  int getId() const { return (int)this; }
-
   virtual Tag getTag() const = 0;
   bool isCVAtomicType() const { return getTag() == T_ATOMIC; }
   bool isPointerType() const { return getTag() == T_POINTER; }
@@ -382,9 +379,6 @@ public:     // data
   Qualifiers *q;
   #endif
   CVFlags cv;                  // const/volatile
-
-private:    // funcs
-  string atomicIdComment() const;    // TODO: remove this
 
 protected:
   friend class BasicTypeFactory;
