@@ -1676,6 +1676,7 @@ static Statement *makeCtorStatement
   (Env &env, Variable *var, Type *type, FakeList<Expression> *args)
 {
   xassert(var);                 // this is never for a temporary
+  xassert(!var->hasFlag(DF_TYPEDEF));
   E_constructor *ector0 =
     new E_constructor(new TS_name(env.loc(),
                                   type->asCompoundType()->PQ_fullyQualifiedName(env.loc()),
@@ -1691,6 +1692,8 @@ static Statement *makeCtorStatement
 
 static Statement *makeDtorStatement(Env &env, Type *type)
 {
+  // hmm, can't say this:
+//    xassert(!var->hasFlag(DF_TYPEDEF));
   E_funCall *efc0 =
     new E_funCall(new E_variable(type->asCompoundType()->PQ_fullyQualifiedDtorName(env.loc())),
                   FakeList<Expression>::emptyList());
@@ -1766,40 +1769,49 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // TODO: check compatibility with dflags; e.g. we can't allow
     // an initializer for a global variable declared with 'extern'
 
-    // dsw: Arg, do I have to deal with this?
-    // TODO: in the case of class data members, delay checking the
-    // initializer until the entire class body has been scanned
+    // dsw: or a typedef
+    if (var->hasFlag(DF_TYPEDEF)) {
+      // dsw: FIX: should the return value get stored somewhere?
+      // FIX: the loc is probably wrong
+      env.error(env.loc(), "initializer not allowed for a typedef");
+    } else {
+      // dsw: Arg, do I have to deal with this?
+      // TODO: in the case of class data members, delay checking the
+      // initializer until the entire class body has been scanned
 
-    init->tcheck(env, type);
+      init->tcheck(env, type);
 
-    // remember the initializing value, for const values
-    if (init->isIN_expr()) {
-      var->value = init->asIN_exprC()->e;
-    }
+      // remember the initializing value, for const values
+      if (init->isIN_expr()) {
+        var->value = init->asIN_exprC()->e;
+      }
 
-    // use the initializer size to refine array types
+      // use the initializer size to refine array types
 
     // array initializer case
-    var->type = computeArraySizeFromCompoundInit(env, var->loc, var->type, type, init);
-    // array compound literal initializer case
-    var->type = computeArraySizeFromLiteral(env, var->type, init);
+      var->type = computeArraySizeFromCompoundInit(env, var->loc, var->type, type, init);
+      // array compound literal initializer case
+      var->type = computeArraySizeFromLiteral(env, var->type, init);
 
-    xassert(!dt.isTemporary);
-    // make the call to the ctor; FIX: Are there other things to check
-    // in the if clause, like whether this is a typedef?
-    if (type->isCompoundType() &&
-        (init->isIN_expr() || init->isIN_compound())
-        ) {
-      // just call the no-arg ctor; FIX: this is questionable; we
-      // haven't decided what should really happen for an IN_expr and
-      // it is undefined what should happen for an IN_compound since
-      // it is a C99-ism.
-      ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
-    } else if (init->isIN_ctor()) {
-      ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
+      xassert(!dt.isTemporary);
+      // make the call to the ctor; FIX: Are there other things to check
+      // in the if clause, like whether this is a typedef?
+      if (type->isCompoundType() &&
+          (init->isIN_expr() || init->isIN_compound())
+          ) {
+        // just call the no-arg ctor; FIX: this is questionable; we
+        // haven't decided what should really happen for an IN_expr and
+        // it is undefined what should happen for an IN_compound since
+        // it is a C99-ism.
+        ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
+      } else if (init->isIN_ctor()) {
+        ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
+      }
     }
   }
-  else /* init is NULL */ if (type->isCompoundType() && !dt.isTemporary) {
+  else /* init is NULL */ if (type->isCompoundType() &&
+                              !var->hasFlag(DF_TYPEDEF) &&
+                              !dt.isTemporary) {
     // call the no-arg ctor; for temporaries do nothing since this is
     // a temporary, it will be initialized later
     ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
@@ -1808,10 +1820,10 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // if dt.isTemporary we don't want to make a ctor since by
   // definition the temporary will be initialized later
   if (dt.isTemporary) xassert(!ctorStatement);
-  else if (type->isCompoundType()) xassert(ctorStatement);
+  else if (type->isCompoundType() && !var->hasFlag(DF_TYPEDEF)) xassert(ctorStatement);
 
   // make the dtorStatement
-  if (type->isCompoundType()) {
+  if (type->isCompoundType() && !var->hasFlag(DF_TYPEDEF)) {
     dtorStatement = makeDtorStatement(env, type);
   } else {
     xassert(!dtorStatement);
@@ -4054,7 +4066,10 @@ void E_funCall::inner1_itcheck(Env &env)
 // Make a Declaration for a temporary.
 static Declaration *makeTempDeclaration(Env &env, Type *retType)
 {
-  xassert(retType->isCompoundType()); // should only do this for CompoundTypes
+  // again, this is a counter example:
+  //   x = int(6);
+  // from in/t0014.cc
+//    xassert(retType->isCompoundType()); // should only do this for CompoundTypes
 
   PQName *tempName = env.makeTempName();// give it a new unique name
   Declarator *declarator0 =
@@ -4069,6 +4084,11 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
                     // auto; will get DF_DEFINITION as soon as
                     // typechecked, I hope
                     new TS_name(env.loc(),
+
+                                // NOTE: failing here when retType is
+                                // not a CompoundType, such as:
+                                //   x = int(6);
+
                                 retType->asCompoundType()->PQ_fullyQualifiedName(env.loc()),
                                 false),
                     FakeList<Declarator>::makeList(declarator0)
@@ -4112,7 +4132,7 @@ static E_variable *wrapVarWithE_variable(Env &env, Variable *var)
 {
   // FIX: fullyQualifiedName doesn't actually return a StringRef
   StringRef name = NULL;
-  switch(var->scope->scopeKind) {
+  switch(var->scopeKind) {
   default:
   case SK_UNKNOWN:
     xfailure("shouldn't get here");
@@ -4403,7 +4423,11 @@ Type *E_constructor::inner2_itcheck(Env &env)
   // not accidentally make a temporary for ctor for a non-temporary
   // object.
   if (!var) {                   // we are making a temporary
-    xassert(type->isCompoundType());
+    // dsw: don't know what I was thinking here; you can make a
+    // temporary for an int like this
+    //   x = int(6);
+    // from in/t0014.cc
+//      xassert(type->isCompoundType());
     Declaration *declaration0 = insertTempDeclaration(env, type);
     xassert(declaration0->decllist->count() == 1);
     var = declaration0->decllist->first()->var;
