@@ -13,6 +13,7 @@
 #define STDCONV_H
 
 #include "macros.h"    // ENUM_BITWISE_AND,OR
+#include "str.h"       // string
 
 // fwd
 class Type;            // cc_type.h
@@ -49,8 +50,15 @@ enum StandardConversion {
   SC_ERROR           = 0xFFFF, // cannot convert
 };
 
-ENUM_BITWISE_AND(StandardConversion)
+// for '&', one of the arguments should always be a mask
+ENUM_BITWISE_AND(StandardConversion)                    
+
+// for '|', some care should be taken to ensure you're not
+// ORing together nonzero elements from the same group
 ENUM_BITWISE_OR(StandardConversion)
+
+// render in C++ syntax as bitwise OR of the constants above
+string toString(StandardConversion c);
 
 
 // given two types, determine the Standard Conversion Sequence,
@@ -60,6 +68,13 @@ StandardConversion getStandardConversion(
   bool srcIsZero,   // true if src's expression is the literal "0"
   Type const *src,  // source type
   Type const *dest  // destination type
+);
+
+
+// testing interface, for use by the type checker
+void test_getStandardConversion(
+  Env &env, bool srcIsZero, Type const *src, Type const *dest,
+  int expected     // expected return value
 );
 
 

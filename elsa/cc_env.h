@@ -75,6 +75,7 @@ public:      // data
   StringRef conversionOperatorName;
   StringRef constructorSpecialName;
   StringRef functionOperatorName;
+  StringRef special_getStandardConversion;
 
   // special variables associated with particular types
   Variable *dependentTypeVar;           // (serf)
@@ -220,8 +221,8 @@ public:      // funcs
     { return tfac.makeCVAtomicType(loc, atomic, cv); }
   PointerType *makePointerType(SourceLoc loc, PtrOper op, CVFlags cv, Type *atType)
     { return tfac.makePointerType(loc, op, cv, atType); }
-  FunctionType *makeFunctionType(SourceLoc loc, Type *retType, CVFlags cv)
-    { return tfac.makeFunctionType(loc, retType, cv); }
+  FunctionType *makeFunctionType(SourceLoc loc, Type *retType, bool isMember)
+    { return tfac.makeFunctionType(loc, retType, isMember); }
   ArrayType *makeArrayType(SourceLoc loc, Type *eltType, int size = -1)
     { return tfac.makeArrayType(loc, eltType, size); }
 

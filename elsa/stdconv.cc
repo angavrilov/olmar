@@ -4,6 +4,61 @@
 #include "stdconv.h"      // this module
 #include "cc_type.h"      // Type
 #include "cc_env.h"       // Env
+#include "trace.h"        // tracingSys
+
+
+string toString(StandardConversion c)
+{
+  stringBuilder sb;
+
+  if (c == SC_ERROR) {
+    return string("SC_ERROR");
+  }
+
+  if (c == SC_IDENTITY) {
+    return string("SC_IDENTITY");
+  }
+
+  #define CASE(label)                  \
+    case label:                        \
+      if (sb.length()) { sb << "|"; }  \
+      sb << #label;                    \
+      break;
+
+  // I'd like to just have a case for SC_IDENTITY in each block,
+  // but some gcc retardedness doesn't allow it
+  if (c & SC_GROUP_1_MASK) switch (c & SC_GROUP_1_MASK) {
+    default: return stringc << "bad code: " << (int)c;
+    CASE(SC_LVAL_TO_RVAL)
+    CASE(SC_ARRAY_TO_PTR)
+    CASE(SC_FUNC_TO_PTR)
+  }
+
+  if (c & SC_GROUP_3_MASK) switch (c & SC_GROUP_3_MASK) {
+    default: return stringc << "bad code: " << (int)c;
+    CASE(SC_QUAL_CONV)
+  }
+
+  if (c & SC_GROUP_2_MASK) switch (c & SC_GROUP_2_MASK) {
+    default: return stringc << "bad code: " << (int)c;
+    CASE(SC_INT_PROM)
+    CASE(SC_FLOAT_PROM)
+    CASE(SC_INT_CONV)
+    CASE(SC_FLOAT_CONV)
+    CASE(SC_FLOAT_INT_CONV)
+    CASE(SC_PTR_CONV)
+    CASE(SC_PTR_MEMB_CONV)
+    CASE(SC_BOOL_CONV)
+  }
+
+  #undef CASE
+
+  if (c & ~(SC_GROUP_1_MASK | SC_GROUP_2_MASK | SC_GROUP_3_MASK)) {
+    return stringc << "bad code: " << (int)c;
+  }
+
+  return sb;
+}
 
 
 bool isIntegerPromotion(AtomicType const *src, AtomicType const *dest);
@@ -455,4 +510,47 @@ bool isIntegerPromotion(AtomicType const *src, AtomicType const *dest)
   }
 
   return false;
+}
+
+
+void test_getStandardConversion(
+  Env &env, bool srcIsZero, Type const *src, Type const *dest,
+  int expected) 
+{
+  // grab existing error messages
+  ObjList<ErrorMsg> existing;
+  existing.concat(env.errors);
+  
+  // run our function
+  StandardConversion actual = getStandardConversion(&env, srcIsZero, src, dest);
+  
+  // turn any resulting messags into warnings, so I can see their
+  // results without causing the final exit status to be nonzero
+  FOREACH_OBJLIST_NC(ErrorMsg, env.errors, iter) {
+    iter.data()->isWarning = true;
+  }
+  
+  // put the old messages back
+  env.errors.concat(existing);
+  
+  // did the function do what we expected?
+  if (actual != expected) {
+    // no, explain the situation
+    env.error(stringc
+      << "getStandardConversion("
+      << (srcIsZero? "true" : "false") << " /*srcIsZero*/, `"
+      << src->toString() << "', `"
+      << dest->toString() << "') yielded "
+      << toString(actual) << ", but I expected "
+      << toString((StandardConversion)expected));
+  }
+  else if (tracingSys("gSC")) {
+    // make a warning to show what happened anyway
+    env.warning(stringc
+      << "getStandardConversion("
+      << (srcIsZero? "true" : "false") << " /*srcIsZero*/, `"
+      << src->toString() << "', `"
+      << dest->toString() << "') yielded "
+      << toString(actual));
+  }
 }

@@ -131,7 +131,20 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
   declareFunction1arg(t_voidptr, "__builtin_next_arg",
                       t_voidptr, "p",
                       NULL /*exnType*/);
-                      
+
+  // for testing 'stdconv' module
+  // void __getStandardConversion(...);
+  {
+    FunctionType *ft = makeFunctionType(HERE, tfac.cloneType(t_void), false /*isMember*/);
+    ft->acceptsVarargs = true;
+    ft->doneParams();
+
+    special_getStandardConversion = str("__getStandardConversion");
+    Variable *var = makeVariable(HERE, special_getStandardConversion, ft, DF_NONE);
+    addVariable(var);
+    madeUpVariables.append(var);
+  }
+
   #undef HERE
 }
 
@@ -165,7 +178,7 @@ void Env::declareFunction1arg(Type *retType, char const *funcName,
     exnType = tfac.cloneType(exnType);
   }
 
-  FunctionType *ft = makeFunctionType(HERE_SOURCELOC, retType, CV_NONE);
+  FunctionType *ft = makeFunctionType(HERE_SOURCELOC, retType, false /*isMember*/);
   Variable *p = makeVariable(HERE_SOURCELOC, str(arg1Name), arg1Type, DF_NONE);
   // 'p' doesn't get added to 'madeUpVariables' because it's not toplevel,
   // and it's reachable through 'var' (below)
@@ -189,7 +202,7 @@ void Env::declareFunction1arg(Type *retType, char const *funcName,
 
 FunctionType *Env::makeDestructorFunctionType(SourceLoc loc)
 {
-  FunctionType *ft = makeFunctionType(loc, getSimpleType(loc, ST_CDTOR), CV_NONE);
+  FunctionType *ft = makeFunctionType(loc, getSimpleType(loc, ST_CDTOR), false /*isMember*/);
   ft->doneParams();
   return ft;
 }

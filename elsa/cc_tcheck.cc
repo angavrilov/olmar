@@ -16,6 +16,7 @@
 #include "cc_print.h"       // PrintEnv
 #include "strutil.h"        // decodeEscapes
 #include "cc_lang.h"        // CCLang
+#include "stdconv.h"        // getStandardConversion, test_...
 
 #include <stdlib.h>         // strtoul, strtod
 
@@ -3092,6 +3093,15 @@ Type *E_variable::itcheck(Env &env)
 }
 
 
+bool isZeroLiteral(Expression *e)
+{
+  if (e->isE_intLit()) {
+    StringRef text = e->asE_intLit()->text;
+    return text[0]=='0' && text[1]==0;
+  }
+  return false;
+}
+
 FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env)
 {
   if (!list) {
@@ -3145,6 +3155,23 @@ Type *E_funCall::itcheck(Env &env)
     return env.error(func->type->asRval(), stringc
       << "you can't use an expression of type `" << func->type->toString()
       << "' as a function");
+  }
+
+  if (func->isE_variable() &&
+      func->asE_variable()->name->getName() == env.special_getStandardConversion) {
+    // test vector for 'getStandardConversion'
+    if (args->count() != 3) {
+      // I'm in the mood to insult the user, but I'll refrain..
+      return env.error("this special function wants three arguments");
+    }
+    int expect;
+    if (args->nth(2)->constEval(env, expect)) {
+      test_getStandardConversion(env,
+        isZeroLiteral(args->nth(0)),    // true of 0 literal
+        args->nth(0)->type,             // source type
+        args->nth(1)->type,             // dest type
+        expect);                        // expected result
+    }
   }
 
   // TODO: Take into account possibility of operator overloading: If

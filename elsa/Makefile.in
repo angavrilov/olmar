@@ -90,6 +90,7 @@ CCPARSE_OBJS := \
   cc_env.o \
   cc_type.o \
   cc_tcheck.o \
+  stdconv.o \
   cc.ast.gen.o \
   cc.gr.gen.o \
   parssppt.o \
