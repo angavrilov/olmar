@@ -226,11 +226,17 @@ done
 runTest make examples
 
 
+# print config info
+runTest cc/cparse -tr trivialActions,stopAfterParse,glrConfig c.in/c.in4b
+
 # bison performance test
 runTest cc/bccgr c.in/c.in4d
 
 # this one is my main performance tester for comparison to bison
-runTest cc/cparse -tr trivialActions,stopAfterParse,glrConfig c.in/c.in4d
+runTest cc/cparse -tr trivialActions,stopAfterParse c.in/c.in4d
+
+# and similar for C++
+runTest cc/ccparse -tr trivialActions,identityReclassify c.in/c.in4d
 
 
 # final arithmetic to report result

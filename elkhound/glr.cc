@@ -169,6 +169,11 @@
 
 // enables tracking of some statistics useful for debugging and profiling
 #define DO_ACCOUNTING 1
+#if DO_ACCOUNTING
+  #define ACCOUNTING(stuff) stuff
+#else
+  #define ACCOUNTING(stuff)
+#endif
 
 // unroll the inner loop; approx. 3% performance improvement
 // update: right now, it actually *costs* about 8%..
@@ -642,7 +647,11 @@ GLR::GLR(UserActions *user, ParseTables *t)
     toPass(MAX_RHSLEN),
     stackNodePool(NULL),
     trParse(tracingSys("parse")),
-    trsParse(trace("parse"))
+    trsParse(trace("parse")),
+    detShift(0),
+    detReduce(0),
+    nondetShift(0),
+    nondetReduce(0)
   // some fields (re-)initialized by 'clearAllStackNodes'
 {
   // originally I had this inside glrParse() itself, but that
@@ -729,8 +738,8 @@ void GLR::printConfig() const
   printf("  mini-LR parser core: %s\n",
          USE_MINI_LR? "enabled *" : "disabled");
          
-  printf("  allocated-node accounting: %s\n",
-         DO_ACCOUNTING? "enabled" : "disabled *");
+  printf("  allocated-node and parse action accounting: %s\n",
+         ACCOUNTING(1+)0? "enabled" : "disabled *");
 
   printf("  unrolled reduce loop: %s\n",
          USE_UNROLLED_REDUCE? "enabled *" : "disabled");
@@ -862,6 +871,11 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
 
   #if DO_ACCOUNTING
     StackNode::printAllocStats();
+    cout << "detShift=" << detShift
+         << ", detReduce=" << detReduce
+         << ", nondetShift=" << nondetShift
+         << ", nondetReduce=" << nondetReduce
+         << endl;
     //PVAL(parserMerges);
     //PVAL(computeDepthIters);
   #endif
@@ -932,7 +946,11 @@ STATICDEF bool GLR
     // (this saves 10% in end-to-end performance!)
     //GrowArray<SemanticValue> toPass(TYPICAL_MAX_RHSLEN);
     SemanticValue toPass[MAX_RHSLEN];
+    
   #endif
+                   
+  // count # of times we use mini LR
+  ACCOUNTING( int localDetShift=0; int localDetReduce=0; )
 
   // we will queue up shifts and process them all at the end (pulled
   // out of loop so I don't deallocate the array between tokens)
@@ -941,7 +959,7 @@ STATICDEF bool GLR
   // for each input symbol
   #ifndef NDEBUG
     int tokenNumber = 0;
-    
+
     // some debugging streams so the TRSPARSE etc. macros work
     bool trParse       = glr.trParse;
     ostream &trsParse  = glr.trsParse;
@@ -1005,6 +1023,7 @@ STATICDEF bool GLR
       //   - decoding a reduction is one less integer comparison
       // however I can only measure ~1% performance difference
       if (tables->isReduceAction(action)) {
+        ACCOUNTING( localDetReduce++; )
         int prodIndex = tables->decodeReduce(action);
         ParseTables::ProdInfo const &prodInfo = tables->prodInfo[prodIndex];
         int rhsLen = prodInfo.rhsLen;
@@ -1236,6 +1255,8 @@ STATICDEF bool GLR
       }
 
       else if (tables->isShiftAction(action)) {
+        ACCOUNTING( localDetShift++; )
+
         // can shift unambiguously
         StateId newState = tables->decodeShift(action);
 
@@ -1297,6 +1318,12 @@ STATICDEF bool GLR
       tokenNumber++;
     #endif
   }
+
+  // push stats into main object
+  ACCOUNTING(
+    glr.detShift += localDetShift;
+    glr.detReduce += localDetReduce;
+  )
 
   // end of parse; note that this function must be called *before*
   // the stackNodePool is deallocated
@@ -1612,6 +1639,7 @@ int GLR::glrParseAction(StackNode *parser, ActionEntry action,
 
   if (tables->isShiftAction(action)) {
     // shift
+    ACCOUNTING( nondetShift++; )
     StateId destState = tables->decodeShift(action);
     // add (parser, shiftDest) to pending-shifts
     pendingShifts.pushAlt().init(parser, destState);
@@ -1626,6 +1654,7 @@ int GLR::glrParseAction(StackNode *parser, ActionEntry action,
 
   else if (tables->isReduceAction(action)) {
     // reduce
+    ACCOUNTING( nondetReduce++; )
     int prodIndex = tables->decodeReduce(action);
     doReduction(parser, NULL /*mustUseLink*/, prodIndex);
 

@@ -408,6 +408,9 @@ public:
   // track column for new nodes
   NODE_COLUMN( int globalNodeColumn; )
 
+  // statistics on parser actions
+  int detShift, detReduce, nondetShift, nondetReduce;
+
 private:    // funcs
   // comments in glr.cc
   SemanticValue duplicateSemanticValue(SymbolId sym, SemanticValue sval);

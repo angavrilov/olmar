@@ -84,7 +84,14 @@ public:
 
 UserActions::ReclassifyFunc SimpleActions::getReclassifier()
 {
-  return &SimpleActions::reclassifyToken;
+  if (tracingSys("identityReclassify")) {
+    // don't reclassify anything
+    return &TrivialUserActions::reclassifyToken;
+  }
+  else {
+    // reclassify as if typedef's weren't possible
+    return &SimpleActions::reclassifyToken;
+  }
 }
 
 STATICDEF int SimpleActions::reclassifyToken(UserActions *, int type, SemanticValue)
