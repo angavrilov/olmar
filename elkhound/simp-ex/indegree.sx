@@ -146,32 +146,32 @@ notvalid "inDegree1-to-inDegree0" (
         
 
 
-(IMPLIES
-  (AND
-    (DISTINCT 0)
+; (IMPLIES
+;   (AND
+;     (DISTINCT 0)
 
-    (EQ (offset head_19) 0)
-    (NEQ (object head_19) 0)
-    (hasTypeNode (object head_19))
-    (OR (inDegree0 mem_40 next_32 (object head_19)) (EXISTS (refObj_55 ) (inDegree1 mem_40 next_32 (object head_19) refObj_55)))
-    (IMPLIES (NEQ (select mem_40 (object head_19) next_32) (pointer 0 0)) (hasTypeNode (object (select mem_40 (object head_19) next_32))))
+;     (EQ (offset head_19) 0)
+;     (NEQ (object head_19) 0)
+;     (hasTypeNode (object head_19))
+;     (OR (inDegree0 mem_40 next_32 (object head_19)) (EXISTS (refObj_55 ) (inDegree1 mem_40 next_32 (object head_19) refObj_55)))
+;     (IMPLIES (NEQ (select mem_40 (object head_19) next_32) (pointer 0 0)) (hasTypeNode (object (select mem_40 (object head_19) next_32))))
 
-    (EQ (offset toAdd_19) 0)
-    (NEQ (object toAdd_19) 0)
-    (hasTypeNode (object toAdd_19))
-    (OR (inDegree0 mem_40 next_32 (object toAdd_19)) (EXISTS (refObj_56 ) (inDegree1 mem_40 next_32 (object toAdd_19) refObj_56)))
-    (IMPLIES (NEQ (select mem_40 (object toAdd_19) next_32) (pointer 0 0)) (hasTypeNode (object (select mem_40 (object toAdd_19) next_32))))
+;     (EQ (offset toAdd_19) 0)
+;     (NEQ (object toAdd_19) 0)
+;     (hasTypeNode (object toAdd_19))
+;     (OR (inDegree0 mem_40 next_32 (object toAdd_19)) (EXISTS (refObj_56 ) (inDegree1 mem_40 next_32 (object toAdd_19) refObj_56)))
+;     (IMPLIES (NEQ (select mem_40 (object toAdd_19) next_32) (pointer 0 0)) (hasTypeNode (object (select mem_40 (object toAdd_19) next_32))))
 
-    (inDegree0 mem_40 next_32 (object toAdd_19))
+;     (inDegree0 mem_40 next_32 (object toAdd_19))
     
-    (EQ somePtr (select mem_40 (object p_14) (+ (offset p_14) next_32)))
+;     (EQ somePtr (select mem_40 (object p_14) (+ (offset p_14) next_32)))
 
-    (NEQ somePtr (pointer 0 0))
+;     (NEQ somePtr (pointer 0 0))
 
-    (EQ (select mem_40 (object somePtr) (+ (offset somePtr) next_32)) (pointer 0 0))
+;     (EQ (select mem_40 (object somePtr) (+ (offset somePtr) next_32)) (pointer 0 0))
 
-    (EQ mem_41 (update mem_40 (object somePtr) (+ (offset somePtr) next_32) toAdd_19))
-  )
-  (EXISTS (refObj_58 )
-    (inDegree1 mem_41 next_32 (object toAdd_19) refObj_58))
-)
+;     (EQ mem_41 (update mem_40 (object somePtr) (+ (offset somePtr) next_32) toAdd_19))
+;   )
+;   (EXISTS (refObj_58 )
+;     (inDegree1 mem_41 next_32 (object toAdd_19) refObj_58))
+; )
