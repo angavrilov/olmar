@@ -1750,10 +1750,15 @@ nonterm[MemberInit*] MemInitializer {
 // or initializing a field; I'll simply call both a PQName, and
 // then in typechecking make sure that the latter case does not
 // have any qualifiers (because in most cases the parser can't make
-// the distinction so it would fall to typechecking anyway)
+// the distinction so it would fall through to typechecking anyway)
 nonterm[PQName*] MemInitializerId {
-  -> id:Identifier                         
+  // data member or base class
+  -> id:Identifier
        [ return new PQ_name(id); ]
+       
+  // base class which is a template
+  -> n:TypeName "<" targs:TemplateArgumentList ">"
+       [ return new PQ_template(n, targs); ]
 
   -> n:TypeName "::" id:MemInitializerId   
        [ return new PQ_qualifier(n, NULL /*targs*/, id); ]
