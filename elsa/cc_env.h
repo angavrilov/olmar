@@ -109,6 +109,10 @@ public:      // data
   // consequently, turning it on leads to spurious errors on some test
   // cases (TODO: eventually, enable this permanently)
   bool doOverload;
+  
+  // when true, operator expressions are checked to see if they
+  // are to be treated as calls to overloaded operator functions
+  bool doOperatorOverload;
 
 private:     // funcs
   // old
@@ -172,12 +176,15 @@ public:      // funcs
   // innermost scope that can accept names, *other* than
   // the one we're in now
   Scope *enclosingScope();
-  // return the nearest enclosing class scope
-  CompoundType *enclosingClassScope();
 
-  // returns true iff anywhere above us on the scope stack is a
-  // template scope
-  bool inTemplate();
+  // return the nearest enclosing scope of kind 'k', or NULL if there
+  // is none with that kind
+  Scope *enclosingKindScope(ScopeKind k);
+
+  CompoundType *enclosingClassScope();
+    // essentially: enclosingKindScope(SK_CLASS)->curCompound;
+  bool inTemplate()
+    { return !!enclosingKindScope(SK_TEMPLATE); }
 
   // source location tracking
   void setLoc(SourceLoc loc);                // sets scope()->curLoc
@@ -280,9 +287,6 @@ public:      // funcs
   FunctionType *makeDestructorFunctionType(SourceLoc loc);
 
   // TypeFactory funcs; all of these simply delegate to 'tfac'
-  Type *makeRefType(Type *underlying)
-    { return tfac.makeRefType(loc(), underlying); }
-
   CVAtomicType *makeCVAtomicType(SourceLoc loc, AtomicType *atomic, CVFlags cv)
     { return tfac.makeCVAtomicType(loc, atomic, cv); }
   PointerType *makePointerType(SourceLoc loc, PtrOper op, CVFlags cv, Type *atType)
@@ -291,6 +295,10 @@ public:      // funcs
     { return tfac.makeFunctionType(loc, retType); }
   ArrayType *makeArrayType(SourceLoc loc, Type *eltType, int size = -1)
     { return tfac.makeArrayType(loc, eltType, size); }
+
+  // slight oddball since no 'loc' passed..
+  Type *makeRefType(Type *underlying)
+    { return tfac.makeRefType(loc(), underlying); }
 
   // (this does the work of the old 'makeMadeUpVariable')
   Variable *makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f);
@@ -301,6 +309,10 @@ public:      // funcs
     { return tfac.makeType(loc, atomic); }
   Type *makePtrType(SourceLoc loc, Type *type)
     { return tfac.makePtrType(loc, type); }
+
+  // if in a context where an implicit receiver object is available,
+  // return its type; otherwise return NULL
+  Type *implicitReceiverType();
 
   // others are more obscure, so I'll just call into 'tfac' directly
   // in the places I call them

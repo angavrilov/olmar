@@ -52,7 +52,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
     tunit(tunit0),
 
-    doOverload(tracingSys("doOverload"))
+    doOverload(tracingSys("doOverload")),
+    doOperatorOverload(tracingSys("doOperatorOverload"))
 {
   // slightly less verbose
   //#define HERE HERE_SOURCELOC     // old
@@ -519,21 +520,26 @@ Scope *Env::enclosingScope()
 }
 
 
-CompoundType *Env::enclosingClassScope()
+Scope *Env::enclosingKindScope(ScopeKind k)
 {
-  FOREACH_OBJLIST(Scope, scopes, iter) {
-    if (iter.data()->curCompound) return iter.data()->curCompound;
+  FOREACH_OBJLIST_NC(Scope, scopes, iter) {
+    if (iter.data()->scopeKind == k) {
+      return iter.data();
+    }
   }
-  return NULL;
+  return NULL;    // not found
 }
 
 
-bool Env::inTemplate()
+CompoundType *Env::enclosingClassScope()
 {
-  FOREACH_OBJLIST(Scope, scopes, iter) {
-    if (iter.data()->scopeKind == SK_TEMPLATE) return true;
+  Scope *s = enclosingKindScope(SK_CLASS);
+  if (s) {
+    return s->curCompound;
   }
-  return false;
+  else {
+    return NULL;
+  }
 }
 
 
@@ -1397,6 +1403,30 @@ bool Env::setDisambiguateOnly(bool newVal)
   bool ret = disambiguateOnly;
   disambiguateOnly = newVal;
   return ret;
+}
+
+
+Type *Env::implicitReceiverType()
+{
+  // TODO: this appears to be wrong in several respects:
+  //   - we should be checking scope()->curFunction, not
+  //     an enclosing class scope
+  //   - static methods (both caller and callee) might need
+  //     special treatment
+  //   - when the caller is a non-static method, the cv-flags
+  //     for the receiver object must match those of 'this'
+
+  CompoundType *encScope = enclosingClassScope();
+  if (!encScope) {
+    // there's no 'this' object to use as an implicit receiver
+    return NULL;
+  }
+  else {
+    // we're in the scope of some class, so the call could be a
+    // method call, passing 'this' as the receiver; compute the type
+    // of that receiver argument
+    return tfac.makeTypeOf_this(loc() /*?*/, encScope, CV_NONE, NULL);
+  }
 }
 
 

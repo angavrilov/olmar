@@ -65,18 +65,6 @@ Variable *resolveOverload(
   GrowArray<ArgumentInfo> &args)
 {
   OverloadResolver r(env, loc, errors, flags, args, varList.count());
-                    
-  IFDEBUG(
-    if (tracingSys("overload")) {
-      cout << "%%% overload:   arguments:\n";
-      for (int i=0; i < args.size(); i++) {
-        cout << "%%% overload:     " << i << ": "
-             << toString(args[i].special) << ", "
-             << args[i].type->toString() << "\n";
-      }
-    }
-  )     
-
   r.processCandidates(varList);
   return r.resolve();
 }
@@ -228,6 +216,9 @@ Variable *OverloadResolver::resolve()
       loc, "ambiguous overload, no function is better than all others", EF_NONE));
     return NULL;
   }
+
+  TRACE("overload", toString(loc)
+        << ": selected instance at " << toString(winner->var->loc));
 
   return winner->var;
 }
