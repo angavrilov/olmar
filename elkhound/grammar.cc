@@ -17,7 +17,6 @@ void Symbol::print() const
 {
   cout << "[" << ntindex << "] " << name << ":";
   PVAL(isTerminal);
-  //PVAL(canDeriveEmpty);
 }
 
 
@@ -112,61 +111,6 @@ void Grammar::addProduction(Symbol *lhs, Symbol *firstRhs, ...)
 
 
 // ----------------- Grammar algorithms --------------------------
-#if 0
-void Grammar::computeWhichCanDeriveEmpty()
-{
-  // clear all the canDeriveEmpty flags
-  for (ObjListMutator<Symbol> iter(terminals);
-       !iter.isDone(); iter.adv()) {
-    iter.data()->canDeriveEmpty = false;
-  }
-  for (ObjListMutator<Symbol> iter(nonterminals);
-       !iter.isDone(); iter.adv()) {
-    iter.data()->canDeriveEmpty = false;
-  }
-
-  // set the seed flag
-  emptyString->canDeriveEmpty = true;
-
-  // iterate: propagate canDeriveEmpty up the grammar
-  for (;;) {
-    int changes = 0;       // for this iter, times we set canDeriveEmpty
-
-    // loop over all productions
-    for (ObjListMutator<Production> prodIter(productions);
-         !prodIter.isDone(); prodIter.adv()) {
-      // convenient alias
-      Production *prod = prodIter.data();
-      if (prod->left->canDeriveEmpty) {
-        continue;     // already set; skip it
-      }
-
-      // see if every symbol on the RHS can derive emptyString
-      bool allDeriveEmpty = true;
-      for (SymbolListIter sym(prod->right);
-           !sym.isDone(); sym.adv()) {
-        if (!sym.data()->canDeriveEmpty) {
-          allDeriveEmpty = false;
-          break;
-        }
-      }
-
-      if (allDeriveEmpty) {
-        prod->left->canDeriveEmpty = true;
-        changes++;
-      }
-    }
-
-    if (changes == 0) {
-      // everything has settled; we're done
-      break;
-    }
-  }
-}
-#endif // 0
-
-
-
 void Grammar::computeWhatCanDeriveWhat()
 {
   // one-dimensional indexing structure for accessing nonterminals
@@ -389,7 +333,6 @@ void Grammar::exampleGrammar()
 
   // precomputations
   computeWhatCanDeriveWhat();
-  //computeWhichCanDeriveEmpty();
 
   // print results
   cout << "Terminals:\n";
@@ -413,7 +356,9 @@ int main()
 
 
 
-// ------------------ trash ------------------------
+// ---------------------------------------------------------------------------
+// ----------------------------- trash ---------------------------------------
+// ---------------------------------------------------------------------------
   #if 0
   // compute the transitive closure of what we've got so far
   // e.g., if we've computed that A ->* B and B ->* C, write
@@ -451,5 +396,60 @@ int main()
     }
   }
   #endif // 0
+
+
+#if 0
+void Grammar::computeWhichCanDeriveEmpty()
+{
+  // clear all the canDeriveEmpty flags
+  for (ObjListMutator<Symbol> iter(terminals);
+       !iter.isDone(); iter.adv()) {
+    iter.data()->canDeriveEmpty = false;
+  }
+  for (ObjListMutator<Symbol> iter(nonterminals);
+       !iter.isDone(); iter.adv()) {
+    iter.data()->canDeriveEmpty = false;
+  }
+
+  // set the seed flag
+  emptyString->canDeriveEmpty = true;
+
+  // iterate: propagate canDeriveEmpty up the grammar
+  for (;;) {
+    int changes = 0;       // for this iter, times we set canDeriveEmpty
+
+    // loop over all productions
+    for (ObjListMutator<Production> prodIter(productions);
+         !prodIter.isDone(); prodIter.adv()) {
+      // convenient alias
+      Production *prod = prodIter.data();
+      if (prod->left->canDeriveEmpty) {
+        continue;     // already set; skip it
+      }
+
+      // see if every symbol on the RHS can derive emptyString
+      bool allDeriveEmpty = true;
+      for (SymbolListIter sym(prod->right);
+           !sym.isDone(); sym.adv()) {
+        if (!sym.data()->canDeriveEmpty) {
+          allDeriveEmpty = false;
+          break;
+        }
+      }
+
+      if (allDeriveEmpty) {
+        prod->left->canDeriveEmpty = true;
+        changes++;
+      }
+    }
+
+    if (changes == 0) {
+      // everything has settled; we're done
+      break;
+    }
+  }
+}
+#endif // 0
+
 
 

@@ -21,16 +21,15 @@ public:
                       // false: nonterminal (can appear on left-hand sides)
 
   // annotations used and computed by auxilliary algorithms
-  bool canDeriveEmpty;   // true if this symbol can (directly or indirectly) derive emptyString
-  int ntindex;           // nonterminal index; see ICFR::computeWhatCanDeriveWhat
+  int ntindex;        // nonterminal index; see Grammar::computeWhatCanDeriveWhat
 
 public:
   Symbol(char const *n, bool t)
     : name(n), isTerminal(t),
-      canDeriveEmpty(false), ntindex(0) {}
+      ntindex(0) {}
 
   // debugging
-  void print() const;    // print as 'emptyString: isTerminal=true, canDeriveEmpty=true' (no newline)
+  void print() const;    // print as 'emptyString: isTerminal=true' (no newline)
 };
 
 
@@ -107,10 +106,6 @@ public:
   ObjList<DottedProduction> dottedProductions;
 
 private:
-  // iteratively compute, for every nonterminal, whether it can
-  // derive emptyString (worst-case O(n^2) in size of grammar)
-  void computeWhichCanDeriveEmpty();
-
   // iteratively compute every pair A,B such that A can derive B
   void computeWhatCanDeriveWhat();
 
