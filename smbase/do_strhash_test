@@ -24,6 +24,7 @@ function buildit() {
     # sure that, say, profiling is off
     ./configure.pl -nodebug -DSTRHASH_ALG=$STRHASH_ALG -DSAY_STRHASH_ALG
     make -C $SMBASE clean all strhash
+    rm -f strhash_$STRHASH_ALG
     mv $SMBASE/strhash strhash_$STRHASH_ALG
 }
 
