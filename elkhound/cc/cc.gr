@@ -907,6 +907,12 @@ nonterm[Declaration*] DeclSpecifier {
        [ UberModifiers m = uberCombine(loc, m1, m2);
          e->cv |= uberCVFlags(m);      // destructive action
          return new Declaration(uberDeclFlags(m), e, NULL); ]
+         
+  // this is based on similar lines in TypeSpecifier
+  -> q:L2_UDEF_QUAL s:DeclSpecifier  precedence(L2_PREFER_REDUCE)
+       [ s->spec->q->prependLiteralString(q); return s; ]
+  -> s:DeclSpecifier q:L2_UDEF_QUAL  precedence(L2_PREFER_REDUCE)
+       [ s->spec->q->appendLiteralString(q); return s; ]
 }
 
 // choose among TS_elaborated, TS_classSpec and TS_enumSpec
