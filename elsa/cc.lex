@@ -39,7 +39,9 @@
 %option yyclass="Lexer"
 
 /* output file name */
-%option outfile="lexer.yy.cc"
+  /* dsw: Arg!  Don't do this, since it is not overrideable from the
+     command line with -o, which I consider to be a flex bug. */
+  /* %option outfile="lexer.yy.cc" */
 
 
 /* ------------------- definitions -------------------- */
