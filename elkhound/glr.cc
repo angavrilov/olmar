@@ -948,9 +948,15 @@ STATICDEF bool GLR
     if (topmostParsers.length() == 1) {
       StackNode *parser = topmostParsers[0];
       xassertdb(parser->referenceCount==1);     // 'topmostParsers[0]' is referrer
+      
+      #if ENABLE_EEF_COMPRESSION
+        if (tables->actionEntryIsError(parser->state, lexer.type)) {
+          return false;    // parse error
+        }
+      #endif
+
       ActionEntry action =
-        tables->getActionEntry(parser->state, lexer.type);
-        //actionTable[(parser->state)*numTerms + lexer.type];
+        tables->actionEntry(parser->state, lexer.type);
 
       // I decode reductions before shifts because:
       //   - they are 4x more common in my C grammar

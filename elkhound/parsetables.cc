@@ -41,10 +41,12 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
 
   nontermOrder = new NtIndex[nontermOrderSize()];
   memset(nontermOrder, 0, sizeof(nontermOrder[0]) * nontermOrderSize());
-
-  xassert(BITS_PER_WORD_SHIFT != 0);   // otherwise need to fix parsetables.h
-  numTermWords = (numTerms + BITS_PER_WORD - 1) >> BITS_PER_WORD_SHIFT;
+            
+  // # of bytes, but rounded up to nearest 32-bit boundary
+  errorBitsRowSize = ((numTerms+31) >> 5) * 4;
+  uniqueErrorRows = 0;
   errorBits = NULL;                    // not computed yet
+  errorBitsPointers = NULL;
 }
 
 
@@ -61,9 +63,10 @@ ParseTables::~ParseTables()
     }
 
     delete[] nontermOrder;
-    
+
     if (errorBits) {
       delete[] errorBits;
+      delete[] errorBitsPointers;    // TODO: this one is always owned..
     }
   }
 }
@@ -207,19 +210,72 @@ void ParseTables::computeErrorBits()
   xassert(!errorBits);       
 
   // allocate and clear it
-  errorBits = new ErrorBitsEntry [numStates*numTermWords];
-  memset(errorBits, 0, sizeof(errorBits[0]) * numStates * numTermWords);
+  int rowSize = ((numTerms+31) >> 5) * 4;
+  errorBits = new ErrorBitsEntry [numStates * rowSize];
+  memset(errorBits, 0, sizeof(errorBits[0]) * numStates * rowSize);
+
+  // build the pointer table
+  errorBitsPointers = new ErrorBitsEntry* [numStates];
 
   // find and set the error bits
+  fillInErrorBits(true /*setPointers*/);
+
+  // compute which rows are identical
+  int *compressed = new int[numStates];   // row -> new location in errorBits[]
+  uniqueErrorRows = 0;
+  int s;
+  for (s=0; s < numStates; s++) {
+    // is 's' the same as any rows that preceded it?
+    for (int t=0; t < s; t++) {
+      // do 's' and 't' have the same contents?
+      if (0==memcmp(errorBitsPointers[s],
+                    errorBitsPointers[t],
+                    sizeof(ErrorBitsEntry) * errorBitsRowSize)) {
+        // yes, map 's' to 't' instead
+        compressed[s] = compressed[t];
+        goto next_s;
+      }
+    }
+
+    // not the same as any
+    compressed[s] = uniqueErrorRows;
+    uniqueErrorRows++;
+
+  next_s:
+    ;
+  }
+
+  // make a smaller 'errorBits' array
+  delete[] errorBits;
+  errorBits = new ErrorBitsEntry [uniqueErrorRows * rowSize];
+  memset(errorBits, 0, sizeof(errorBits[0]) * uniqueErrorRows * rowSize);
+
+  // rebuild 'errorBitsPointers' according to 'compressed'
+  for (s=0; s < numStates; s++) {
+    errorBitsPointers[s] = errorBits + (compressed[s] * errorBitsRowSize);
+  }
+
+  // fill in the bits again, using the new pointers map
+  fillInErrorBits(false /*setPointers*/);
+}
+
+
+void ParseTables::fillInErrorBits(bool setPointers)
+{
   for (int s=0; s < numStates; s++) {
+    if (setPointers) {
+      errorBitsPointers[s] = errorBits + (s * errorBitsRowSize);
+    }
+
     for (int t=0; t < numTerms; t++) {
       if (isErrorAction(actionEntry(s, t))) {
-        ErrorBitsEntry &w = errorBits[s * numTermWords + (t >> BITS_PER_WORD_SHIFT)];
-        w |= 1 << (t & BITS_PER_WORD_MASK);
+        ErrorBitsEntry &b = errorBitsPointers[s][t >> 3];
+        b |= 1 << (t & 7);
       }
     }
   }
 }
+
 
 
 // --------------------- table emission -------------------
@@ -240,16 +296,14 @@ void emitTable(EmitCode &out, EltType const *table, int size, int rowLength,
       out << "\n    ";
     }
 
-    if (sizeof(table[i]) == 1) {
+    if (printHex) {
+      out << stringf("0x%02X, ", table[i]);
+    }
+    else if (sizeof(table[i]) == 1) {
       // little bit of a hack to make sure 'unsigned char' gets
       // printed as an int; the casts are necessary because this
       // code gets compiled even when EltType is ProdInfo
       out << (int)(*((unsigned char*)(table+i))) << ", ";
-    }
-    else if (printHex) {
-      out << stringf((BITS_PER_WORD==32? "0x%08XU, " :
-                      BITS_PER_WORD==64? "0x%16XU, " :
-                                         "0x%XU, "), table[i]);
     }
     else {
       // print the other int-sized things, or ProdInfo using
@@ -292,7 +346,8 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
   SET_VAR(numProds);
   out << "  ret->startState = (StateId)" << (int)startState << ";\n";
   SET_VAR(finalProductionIndex);
-  SET_VAR(numTermWords);
+  SET_VAR(errorBitsRowSize);
+  SET_VAR(uniqueErrorRows);
   #undef SET_VAR
   out << "\n";
 
@@ -330,13 +385,23 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
 
   // errorBits
   if (!errorBits) {
-    out << "  ret->errorBits = NULL;\n\n";
+    out << "  ret->errorBits = NULL;\n";
+    out << "  ret->errorBitsPointers = NULL;\n\n";
   }
   else {
-    emitTable(out, errorBits, numStates * numTermWords, numTermWords,
+    emitTable(out, errorBits, uniqueErrorRows * errorBitsRowSize, errorBitsRowSize,
               "ErrorBitsEntry", "errorBits");
-    out << "  ret->errorBits = errorBits;\n\n";
+    out << "  ret->errorBits = errorBits;\n";
+    out << "\n";
+    out << "  ret->errorBitsPointers = new ErrorBitsEntry* [" << numStates << "];\n";
+    
+    // for now, use this sort of hackish way of making the pointers persist
+    for (int s=0; s < numStates; s++) {
+      out << "  ret->errorBitsPointers[" << s << "] = ret->errorBits + "
+          << (errorBitsPointers[s] - errorBits) << ";\n";
+    }
   }
+  out << "\n";
 
   out << "  return ret;\n"
       << "}\n";

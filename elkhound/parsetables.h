@@ -32,10 +32,11 @@ typedef unsigned short GotoEntry;
 typedef unsigned char NtIndex;
 
 // an addressed cell in the 'errorBits' table
-typedef unsigned int ErrorBitsEntry;
+typedef unsigned char ErrorBitsEntry;
 
 
 // some word size statistics to help with bitmap encoding/decoding
+#if 0   // delete me
 enum {
   BITS_PER_WORD = sizeof(ErrorBitsEntry) * 8,    // 32
   BITS_PER_WORD_MASK = BITS_PER_WORD - 1,        // 31 = 0x1F
@@ -44,6 +45,7 @@ enum {
     BITS_PER_WORD==64? 6 :
                        0    // error; detected in ParseTables::ParseTables
 };
+#endif // 0
 
 
 // encodes either terminal index N (as N+1) or
@@ -153,17 +155,19 @@ public:     // data
   // regard error entries in the original tables as "insignificant".
   //
   // 'errorBits' is a map of where the error actions are in the action
-  // table.  It is indexed by
-  //   state*numTermWords + (lookahead >> BITS_PER_WORD_SHIFT)
-  // to get the relevant word, and then
-  //   (word >> (lookahead & BITS_PER_WORD_MASK)) & 1
-  // to get a bit that is 1 for error actions and 0 for non-errors.
-  int numTermWords;                      // numTerms / BITS_PER_WORD, rounded up
+  // table.  It is indexed through 'errorBitsPointers':
+  //   byte = errorBitsPointers[stateId][lookahead >> 3];
+  //   if ((byte >> (lookahead & 7)) & 1) then ERROR
+  int errorBitsRowSize;                  // bytes per row
+  int uniqueErrorRows;                   // distinct rows
   ErrorBitsEntry *errorBits;             // (nullable owner)
+  ErrorBitsEntry **errorBitsPointers;    // (nullable owner ptr to serfs)
 
 private:    // funcs
   void alloc(int numTerms, int numNonterms, int numStates, int numProds,
              StateId start, int finalProd);
+
+  void fillInErrorBits(bool setPointers);
 
 public:     // funcs
   ParseTables(int numTerms, int numNonterms, int numStates, int numProds,
@@ -188,15 +192,23 @@ public:     // funcs
   int gotoTableSize() const
     { return numStates * numNonterms; }
 
+  // return true if the action is an error
+  bool actionEntryIsError(int stateId, int termId) {
+    #if ENABLE_EEF_COMPRESSION
+      // check with the error table
+      return ( errorBitsPointers[stateId][termId >> 3]
+                 >> (termId & 7) ) & 1;
+    #else
+      return isErrorAction(actionEntry(stateId, termId));
+    #endif
+  }
+
   // query the action table in a way compatible with various
   // compression schemes
   ActionEntry getActionEntry(int stateId, int termId) {
     #if ENABLE_EEF_COMPRESSION
-      // check with the error table first
-      if ( ( errorBits[stateId * numTermWords + (termId >> BITS_PER_WORD_SHIFT)]
-             >> (termId & BITS_PER_WORD_MASK) ) & 1 ) {
-        // error
-        return 0;
+      if (actionEntryIsError(stateId, termId)) {
+        return 0;       // error
       }
     #endif
 
