@@ -2151,7 +2151,7 @@ void Declarator::elaborateCDtors(Env &env,
                               FakeList<Expression>::makeList(init->asIN_expr()->e));
         } else if (init->isIN_compound()) {
           xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
-          // just call the one-arg ctor; FIX: this is questionable; it
+          // just call the no-arg ctor; FIX: this is questionable; it
           // is undefined what should happen for an IN_compound since
           // it is a C99-ism.
           xassert(!ctorStatement);
@@ -3787,7 +3787,7 @@ void FullExpression::tcheck(Env &env,
 
 Type *FullExpression::getType()
 {
-  return expr->type;
+  return expr->getType();
 }
 
 bool FullExpression::constEval(Env &env, int &result) const
@@ -5636,14 +5636,22 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
   // dsw: I suppose the ctor elaboration here is effectively the
   // paragraph above.
   if (t->isCompoundType()) {
-    xassert(!var);
-    var = env.makeVariable(env.loc(), env.makeE_newVarName(), t, DF_NONE);
-    // even though this is on the heap, Scott says put it into the
-    // local scope
-    env.addVariable(var);
-    xassert(ctorArgs);
-    xassert(!ctorStatement);
-    ctorStatement = makeCtorStatement(env, var, t, ctorArgs->list);
+    if (env.disambErrorsSuppressChanges()) {
+      TRACE("env", "not adding variable or ctorStatement to E_new `" <<
+            "' because there are disambiguating errors");
+    }
+    else {
+      var = env.makeVariable(env.loc(), env.makeE_newVarName(), t, DF_NONE);
+      // even though this is on the heap, Scott says put it into the
+      // local scope
+      // FIX: this creates extra temporaries if we are typechecked
+      // twice
+      env.addVariable(var);
+      xassert(ctorArgs);
+      // FIX: this creates a lot of extra junk if we are typechecked
+      // twice
+      ctorStatement = makeCtorStatement(env, var, t, ctorArgs->list);
+    }
   }
 
   return env.makePtrType(SL_UNKNOWN, t);
