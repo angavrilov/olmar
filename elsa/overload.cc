@@ -937,16 +937,214 @@ ImplicitConversion getConversionOperator(
   return ic;
 }
 
+          
 
-#if 0   // old; delete me
-int ConversionResolver::compareCandidates(Variable *left, Variable *right)
+static CVFlags unionCV(CVFlags cv1, CVFlags cv2, bool &cvdiffers, bool toplevel)
 {
-  return compareStandardConversions(
-    ArgumentInfo(SE_NONE, left->type->asFunctionType()->retType), getSC(left), destType,
-    ArgumentInfo(SE_NONE, right->type->asFunctionType()->retType), getSC(right), destType
-  );
+  CVFlags cvu = cv1 | cv2;
+
+  // if underlying cv flags have already differed, then at this
+  // level we must have a 'const'
+  if (cvdiffers) {
+    if (toplevel) {
+      // once at toplevel, differences are irrelevant
+    }
+    else {
+      cvu |= CV_CONST;
+    }
+  }
+
+  // did this level witness a cv difference?
+  else if (cvu != cv1 || cvu != cv2) {
+    cvdiffers = true;
+  }
+
+  return cvu;
 }
-#endif // 0
+
+// must have already established similarity
+Type *similarLUB(Env &env, Type *t1, Type *t2, bool &cvdiffers, bool toplevel=false)
+{
+  // this analysis goes bottom-up, because if there are cv differences
+  // at a given level, then all levels above it must have CV_CONST in
+  // the LUB (otherwise t1 and t2 wouldn't be able to convert to it)
+
+  switch (t1->getTag()) {
+    default: xfailure("bad type code");
+
+    case Type::T_ATOMIC: {
+      CVAtomicType *at1 = t1->asCVAtomicType();
+      CVAtomicType *at2 = t2->asCVAtomicType();
+      CVFlags cvu = unionCV(at1->cv, at2->cv, cvdiffers, toplevel);
+      return env.tfac.makeCVAtomicType(SL_UNKNOWN, at1->atomic, cvu);
+    }
+
+    case Type::T_POINTER: {
+      PointerType *pt1 = t1->asPointerType();
+      PointerType *pt2 = t2->asPointerType();
+      Type *under = similarLUB(env, pt1->atType, pt2->atType, cvdiffers);
+      CVFlags cvu = unionCV(pt1->cv, pt2->cv, cvdiffers, toplevel);
+      return env.tfac.makePointerType(SL_UNKNOWN, pt1->op, cvu, under);
+    }
+
+    case Type::T_FUNCTION:
+    case Type::T_ARRAY:
+      // similarity implies equality, so LUB is t1==t2
+      return t1;
+
+    case Type::T_POINTERTOMEMBER: {
+      PointerToMemberType *pmt1 = t1->asPointerToMemberType();
+      PointerToMemberType *pmt2 = t2->asPointerToMemberType();
+      Type *under = similarLUB(env, pmt1->atType, pmt2->atType, cvdiffers);
+      CVFlags cvu = unionCV(pmt1->cv, pmt2->cv, cvdiffers, toplevel);
+      return env.tfac.makePointerToMemberType(SL_UNKNOWN, pmt1->inClass, cvu, under);
+    }
+  }
+}
+
+CompoundType *ifPtrToCompound(Type *t)
+{
+  if (t->isPointer()) {
+    PointerType *pt = t->asPointerType();
+    if (pt->atType->isCompoundType()) {
+      return pt->atType->asCompoundType();
+    }
+  }
+  return NULL;
+}
+
+Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
+{
+  wasAmbig = false;
+
+  // check for pointers-to-class first
+  {
+    CompoundType *ct1 = ifPtrToCompound(t1);
+    CompoundType *ct2 = ifPtrToCompound(t2);
+    CompoundType *lubCt = NULL;
+    if (ct1 && ct2) {
+      lubCt = CompoundType::lub(ct1, ct2, wasAmbig);
+      if (!lubCt) {
+        // no LUB, or it's not unique; that prevents us from computing
+        // a LUB overall ('wasAmbig' is already set properly)
+        return NULL;
+      }
+
+      // get CV under the pointers
+      CVFlags cv1 = t1->asPointerType()->atType->getCVFlags();
+      CVFlags cv2 = t2->asPointerType()->atType->getCVFlags();
+
+      // union them (LUB in cv lattice)
+      CVFlags cvu = cv1 | cv2;
+
+      // now I want to make the type 'pointer to <cvu> <lubCt>', but I
+      // suspect I may frequently be able to re-use t1 or t2; and,
+      // given the current fact that I don't deallocate types, that
+      // should be advantageous when possible
+      if (ct1==lubCt && cv1==cvu) return t1;
+      if (ct2==lubCt && cv2==cvu) return t2;
+
+      // neither existing type is right, make a new one
+      return env.tfac.makePointerType(SL_UNKNOWN, PO_POINTER, CV_NONE,
+        env.tfac.makeCVAtomicType(SL_UNKNOWN, lubCt, cvu));
+    }
+  }
+  
+  // ok, inheritance is irrelevant; I need to see if types
+  // are "similar" (4.4 para 4)
+  if (!t1->equals(t2, Type::EF_SIMILAR)) {
+    // not similar to each other, so there's no type that is similar
+    // to both (similarity is an equivalence relation)
+    return NULL;
+  }
+
+  // ok, well, are they equal?  if so, then I don't have to make
+  // a new type object
+  if (t1->equals(t2)) {
+    return t1;        // cool
+  }
+  
+  // not equal, but they *are* similar, so construct the lub type; for
+  // any pair of similar types, there is always a type to which both
+  // can be converted
+  bool cvdiffers = false;    // no difference recorded yet
+  return similarLUB(env, t1, t2, cvdiffers, true /*toplevel*/);
+}
+
+
+void test_computeLUB(Env &env, Type *t1, Type *t2, Type *answer, int code)
+{                          
+  // compute the LUB
+  bool wasAmbig;
+  Type *a = computeLUB(env, t1, t2, wasAmbig);
+
+  // did it do what we expected?
+  bool ok = false;
+  switch (code) {
+    default:
+      env.error("bad computeLUB code");
+      return;
+
+    case 0:
+      if (!a && !wasAmbig) {
+        ok = true;
+      }
+      break;
+
+    case 1:
+      if (a && a->equals(answer)) {
+        ok = true;
+      }
+      break;
+
+    case 2:
+      if (!a && wasAmbig) {
+        ok = true;
+      }
+      break;
+  }
+
+  static bool tracing = tracingSys("computeLUB");
+  if (!tracing && ok) {
+    return;
+  }
+
+  // describe the call
+  string call = stringc << "LUB(" << t1->toString()
+                        << ", " << t2->toString() << ")";
+
+  // expected result
+  string expect;
+  switch (code) {
+    case 0: expect = "fail"; break;
+    case 1: expect = stringc << "yield `" << answer->toString() << "'"; break;
+    case 2: expect = "fail with an ambiguity"; break;
+  }
+
+  // actual result
+  string actual;
+  if (a) {
+    actual = stringc << "yielded `" << a->toString() << "'";
+  }
+  else if (!wasAmbig) {
+    actual = "failed";
+  }
+  else {
+    actual = "failed with an ambiguity";
+  }
+
+  if (tracing) {
+    trace("computeLUB") << call << ": " << actual << "\n";
+  }
+
+  if (!ok) {
+    // synthesize complete message
+    env.error(stringc
+      << "I expected " << call
+      << " to " << expect
+      << ", but instead it " << actual);
+  }
+}
 
 
 // EOF

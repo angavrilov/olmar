@@ -3655,6 +3655,23 @@ static Type *internalTestingHooks
     }
   }
 
+  // test vector for 'computeLUB'
+  if (funcName == env.special_computeLUB) {
+    int expect;
+    if (args->count() == 4 &&
+        args->nth(3)->expr->constEval(env, expect)) {
+      test_computeLUB
+        (env,
+         args->nth(0)->expr->type,             // T1
+         args->nth(1)->expr->type,             // T2
+         args->nth(2)->expr->type,             // LUB
+         expect);                              // expected result
+    }
+    else {
+      env.error("invalid call to __computeLUB");
+    }
+  }
+
   // E_funCall::itcheck should continue, and tcheck this normally
   return NULL;
 }
@@ -3848,6 +3865,25 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
       for (int i=0; i < builtins.length(); i++) {
         resolver.processCandidate(builtins[i]);
       }
+        
+      #if 0       // work in progress
+      if (op == BIN_MINUS) {
+        // tricky built-in: 13.6 para 14:
+        // For every T, where T is a pointer to object type, there exist
+        // candidate operator functions of the form
+        //   ptrdiff_t operator-(T, T);
+
+        // collect all of the operator functions from the lhs
+        SObjList<Variable> convs;
+        getConversionOperators(convs, env, lhsType->asCompoundType());
+
+        // find types T such that lhs can convert to T*
+        HERE         
+
+
+
+      }
+      #endif // 0
     }
 
     // pick one

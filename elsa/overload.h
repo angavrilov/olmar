@@ -143,7 +143,14 @@ Variable *resolveOverload(
   bool &wasAmbig                   // returns as true if error due to ambiguity
 );
 
-                           
+
+// collect the set of conversion operators that 'ct' has; this
+// interface will change once I get a proper implementation of
+// conversion operator inheritance
+void getConversionOperators(SObjList<Variable> &dest, Env &env,
+                            CompoundType *ct);
+
+
 // given an object of type 'srcClass', find a conversion operator
 // that will yield 'destType' (perhaps with an additional standard
 // conversion); for now, this function assumes the conversion
@@ -156,6 +163,24 @@ ImplicitConversion getConversionOperator(
   Type *srcClassType,      // must be a compound (or reference to one)
   Type *destType
 );
+
+
+// least upper bound: given two pointer types T1 and T2, compute the
+// unique type S such that:
+//   (a) T1 and T2 can be standard-converted to S
+//   (b) for any other type S' != S that T1 and T2 can be
+//       standard-converted to, the conversion T1->S is better than
+//       T1->S' or T2->S is better than T2->S', and neither ->S
+//       conversion is worse than a ->S' conversion
+// if no type satisfies (a) and (b), return NULL; furthermore, if
+// a type satisfies (a) but not (b), then yield 'wasAmbig'
+Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig);
+
+// test vector for 'computeLUB'; code:
+//   0=fail
+//   1=success, should match 'answer'
+//   2=ambiguous
+void test_computeLUB(Env &env, Type *t1, Type *t2, Type *answer, int code);
 
 
 #endif // OVERLOAD_H

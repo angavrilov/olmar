@@ -310,6 +310,12 @@ public:      // funcs
     { return countBaseClassSubobjects(ct)>=1; }
   bool hasStrictBaseClass(CompoundType const *ct) const
     { return this != ct && hasBaseClass(ct); }
+    
+  // compute the least upper bound of two compounds in the inheritance
+  // network; 'wasAmbig==true' means that the intersection of the
+  // superclasses was not empty, but that set had no least element;
+  // return NULL if no LUB ("least" means most-derived)
+  static CompoundType *lub(CompoundType *t1, CompoundType *t2, bool &wasAmbig);
 };
 
 string toString(CompoundType::Keyword k);
@@ -399,13 +405,21 @@ public:     // funcs
     EF_SIGNATURE       = 0x01,     // function signatures equivalence
     EF_IGNORE_TOP_CV   = 0x02,     // ok if toplevel cv flags differ
     EF_SKIPTHIS        = 0x04,     // skip any 'this' params at top level
+    EF_SIMILAR         = 0x08,     // 4.4 para 4: cv can differ up to first non-ptr, non-ptr-to-member ctor
 
-    EF_ALL             = 0x07,     // all flags set to 1
+    EF_ALL             = 0x0F,     // all flags set to 1
+
+    // this is the set of flags that allow CV variance within the
+    // current type constructor
+    EF_OK_DIFFERENT_CV = (EF_IGNORE_TOP_CV | EF_SIMILAR),
 
     // this is the set of flags that automatically propagate down
     // the type tree equality checker; others are suppressed once
     // the first type constructor looks at them
-    EF_PROP            = EF_SIGNATURE
+    EF_PROP            = EF_SIGNATURE,
+    
+    // these flags are propagated below ptr and ptr-to-member
+    EF_PTR_PROP        = (EF_PROP | EF_SIMILAR)
   };
 
   // like above, this is (structural) equality, not coercibility;

@@ -86,6 +86,7 @@ public:      // data
   StringRef special_getStandardConversion;
   StringRef special_getImplicitConversion;
   StringRef special_testOverload;
+  StringRef special_computeLUB;
 
   // special variables associated with particular types
   Variable *dependentTypeVar;           // (serf)

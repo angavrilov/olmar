@@ -5,6 +5,7 @@
 #include "trace.h"      // tracingSys
 #include "variable.h"   // Variable
 #include "strutil.h"    // copyToStaticBuffer
+#include "sobjset.h"    // SObjSet
 
 #include <assert.h>     // assert
 
@@ -487,6 +488,70 @@ int CompoundType::countBaseClassSubobjects(CompoundType const *ct) const
   return count;
 }
 
+  
+// simple recursive computation
+void getBaseClasses(SObjSet<CompoundType*> &bases, CompoundType *ct)
+{
+  bases.add(ct);
+
+  FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
+    getBaseClasses(bases, iter.data()->ct);
+  }
+}
+
+STATICDEF CompoundType *CompoundType::lub
+  (CompoundType *t1, CompoundType *t2, bool &wasAmbig)
+{
+  wasAmbig = false;
+
+  // might be a common case?
+  if (t1 == t2) {
+    return t1;
+  }
+
+  // compute the set of base classes for each class
+  SObjSet<CompoundType*> t1Bases;
+  getBaseClasses(t1Bases, t1);
+  SObjSet<CompoundType*> t2Bases;
+  getBaseClasses(t2Bases, t2);
+
+  // look for an element in the intersection that has nothing below it
+  // (hmm.. this will be quadratic due to linear-time 'hasBaseClass'...)
+  CompoundType *least = NULL;
+  {
+    for (SObjSetIter<CompoundType*> iter(t1Bases); !iter.isDone(); iter.adv()) {
+      if (!t2Bases.contains(iter.data())) continue;       // filter for intersection
+
+      if (!least ||
+          iter.data()->hasBaseClass(least)) {
+        // new least
+        least = iter.data();
+      }
+    }
+  }
+
+  if (!least) {
+    return NULL;        // empty intersection
+  }
+
+  // check that it's the unique least
+  for (SObjSetIter<CompoundType*> iter(t1Bases); !iter.isDone(); iter.adv()) {
+    if (!t2Bases.contains(iter.data())) continue;       // filter for intersection
+
+    if (least->hasBaseClass(iter.data())) {
+      // least is indeed less than (or equal to) this one
+    }
+    else {
+      // counterexample; 'least' is not in fact the least
+      wasAmbig = true;
+      return NULL;
+    }
+  }
+
+  // good to go
+  return least;
+}
+
 
 // ---------------- EnumType ------------------
 EnumType::~EnumType()
@@ -810,7 +875,7 @@ bool BaseType::containsTypeVariables() const
 bool CVAtomicType::innerEquals(CVAtomicType const *obj, EqFlags flags) const
 {
   return atomic->equals(obj->atomic) &&
-         ((flags & EF_IGNORE_TOP_CV) || (cv == obj->cv));
+         ((flags & EF_OK_DIFFERENT_CV) || (cv == obj->cv));
 }
 
 
@@ -868,8 +933,8 @@ bool PointerType::innerEquals(PointerType const *obj, EqFlags flags) const
   // behavior repeated in all 'innerEquals' methods
 
   return op == obj->op &&
-         ((flags & EF_IGNORE_TOP_CV) || (cv == obj->cv)) &&
-         atType->equals(obj->atType, flags & EF_PROP);
+         ((flags & EF_OK_DIFFERENT_CV) || (cv == obj->cv)) &&
+         atType->equals(obj->atType, flags & EF_PTR_PROP);
 }
 
 
@@ -1470,8 +1535,8 @@ PointerToMemberType::PointerToMemberType(CompoundType *i, CVFlags c, Type *a)
 bool PointerToMemberType::innerEquals(PointerToMemberType const *obj, EqFlags flags) const
 {
   return inClass == obj->inClass &&
-         ((flags & EF_IGNORE_TOP_CV) || (cv == obj->cv)) &&
-         atType->equals(obj->atType, flags & EF_PROP);
+         ((flags & EF_OK_DIFFERENT_CV) || (cv == obj->cv)) &&
+         atType->equals(obj->atType, flags & EF_PTR_PROP);
 }
 
 

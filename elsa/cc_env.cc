@@ -35,10 +35,12 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     constructorSpecialName(str("constructor-special")),
     functionOperatorName(str("operator()")),
     thisName(str("this")),
-
+                       
+    // these are done below because they have to be declared as functions too
     special_getStandardConversion(NULL),
     special_getImplicitConversion(NULL),
     special_testOverload(NULL),
+    special_computeLUB(NULL),
 
     dependentTypeVar(NULL),
     dependentVar(NULL),
@@ -139,6 +141,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   special_getStandardConversion = declareSpecialFunction("__getStandardConversion")->name;
   special_getImplicitConversion = declareSpecialFunction("__getImplicitConversion")->name;
   special_testOverload = declareSpecialFunction("__testOverload")->name;
+  special_computeLUB = declareSpecialFunction("__computeLUB")->name;
 
   setupOperatorOverloading();
 

@@ -125,6 +125,5 @@ int referenceCompatibility(Type *t1, Type *t2);
 inline bool isReferenceCompatibleWith(Type *t1, Type *t2)
   { return referenceCompatibility(t1, t2) != 0; }
 
-
-
+  
 #endif // STDCONV_H

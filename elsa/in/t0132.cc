@@ -51,16 +51,68 @@ void g()
   A a;
   B b;
 
-  // candidate operator-(Parent*,Parent*):
-  //   A -> Parent* is ambiguous, because either conversion would
-  //   work, and we can't decide between them.     (WRONG)
+  // candidate operator-(Parent*,Parent*):                              
+  //   arg0: A -> Parent* is better than A -> Child* by 13.3.3 para 1
+  //         final bullet(SC_IDENTITY)
+  //   arg1: B -> Child* which can be converted to Parent* (SC_PTR_CONV)
+  //
   // candidate operator-(Child*,Child*):
-  //   Both conversions are unique, A -> Child* compares as not worse
-  //   than (the ambiguous) A -> Parent*, but B -> Child* compares
-  //   as better than B -> Parent*, because the latter requires a
-  //   derived-to-base standard conversion wheras the former is
-  //   the identity standard conversion.  
+  //   arg0: A -> Child* is only possibility (SC_IDENTITY)
+  //   arg1: B -> Child* (SC_IDENTITY)
+  //
+  // candidate operator-(Foo*,Foo*):
+  //   arg0: no viable conversion candidates
+  //   not viable
+  //
+  // arg0 comparison is indistinguishable, since they use different
+  // user-defined conversion operators
+  //
+  // arg1 comparison favors second candidate, because it's the same
+  // user-defined conversion operator, but the final standard
+  // conversion is better
+  //
+  // therefore the winner is
+  //   operator-(Child*,Child*)
   a-b;
+}
+
+
+
+
+        
+
+
+
+
+
+
+struct C {
+  operator Parent* ();        // line 90
+};
+
+struct D {
+  operator Child* ();         // line 94
+};
+
+void h()
+{
+  C c;
+  D d;
+
+  // candidate operator-(Parent*,Parent*):
+  //   arg0: C -> Parent* (SC_IDENTITY);
+  //   arg1: B -> Child* which can be converted to Parent* (SC_PTR_CONV)
+  //
+  // candidate operator-(Child*,Child*):
+  //   arg0: no viable conversion
+  //   not viable
+  //
+  // candidate operator-(Foo*,Foo*):
+  //   not viable
+  //
+  // winner:
+  //   candidate operator-(Parent*,Parent*):
+  c-d;
 }
 
 
@@ -69,3 +121,163 @@ void g()
 
 
 
+
+class Child2 : public Parent {};
+
+struct E {
+  operator Child* ();         // line 128
+};
+
+struct F {
+  operator Child2* ();        // line 132
+};
+
+void i()
+{
+  E e;
+  F f;
+
+  // candidate operator-(Parent*,Parent*):
+  //   arg0: E -> Child* -> Parent* (SC_PTR_CONV)
+  //   arg1: F -> Child2* -> Parent* (SC_PTR_CONV)
+  //
+  // candidate operator-(Child*,Child*):
+  //   arg0: E -> Child* (SC_IDENTITY)
+  //   arg1: no viable conversion
+  //   not viable
+  //
+  // candidate operator-(Foo*,Foo*):
+  //   not viable
+  //
+  // winner:
+  //   candidate operator-(Parent*,Parent*):
+  //
+  // NOTE: gcc claims there is no candidate
+  e-f;
+}
+
+
+
+
+
+
+struct G {
+  operator int const * ();     // line 165
+};
+
+struct H {
+  operator int volatile * ();  // line 169
+};
+
+void j()
+{
+  G g;
+  H h;
+
+  // candidate operator-(int*,int*):
+  //   arg0: not viable
+  //   not viable
+  //
+  // candidate operator-(int const *, int const *):
+  //   arg0: SC_IDENTITY
+  //   arg1: not viable
+  //   not viable
+  //
+  // candidate operator-(int const volatile *, int const volatile *):
+  //   arg0: SC_QUAL_CONV
+  //   arg1: SC_QUAL_CONV
+  //
+  // winner:
+  //   candidate operator-(int const volatile *, int const volatile *):
+  //
+  // again, gcc thinks not
+  g-h;
+}
+
+
+
+
+
+struct I {
+  operator int const ** ();     // line 202
+};
+
+struct J {
+  operator int volatile ** ();  // line 206  
+};
+
+void k()
+{
+  I i;
+  J j;
+
+  // candidate operator-(int*,int*):
+  //   arg0: not viable
+  //   not viable
+  //
+  // candidate operator-(int**,int**):
+  //   arg0: not viable
+  //   not viable
+  //
+  // candidate operator-(int const **, int const **):
+  //   arg0: SC_IDENTITY
+  //   arg1: not viable
+  //   not viable
+  //
+  // candidate operator-(int const volatile **, int const volatile **):
+  //   arg0: not viable
+  //   not viable
+  //
+  // candidate operator-(int const volatile * const *, int const volatile * const *):
+  //   arg0: SC_QUAL_CONV
+  //   arg1: SC_QUAL_CONV
+  //
+  // winner:
+  //   candidate operator-(int const volatile * const *, int const volatile * const *)
+  i-j;
+}
+
+
+
+
+
+
+struct I2 {
+  operator int const * const * ();     // line 246
+};
+
+struct J2 {
+  operator int volatile * const * ();  // line 250
+};
+
+void k2()
+{
+  I2 i;
+  J2 j;
+
+  // candidate operator-(int const * const *, int const * const *):
+  //   arg0: SC_IDENTITY
+  //   arg1: not viable
+  //   not viable
+  //
+  // candidate operator-(int const volatile * const *, int const volatile * const *):
+  //   arg0: SC_QUAL_CONV
+  //   arg1: SC_QUAL_CONV
+  //
+  // winner:
+  //   candidate operator-(int const volatile * const *, int const volatile * const *):
+  //
+  // again, gcc thinks not
+  i-j;
+}
+
+
+
+// demonstration that gcc *does* have the right conversion rule
+void foo(int const volatile * const *);
+
+void goo()
+{
+  int const **p = 0;
+  foo(p);
+}

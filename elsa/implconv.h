@@ -83,6 +83,9 @@ void test_getImplicitConversion(
 // version of ImplicitConversion that only occupies two words,
 // instead of four, because I'd like to keep the persistent AST
 // small if possible
+//
+// TODO: I no longer think this is a good idea, so I want to
+// remove this entirely.
 class CompressedImplicitConversion {
 private:     // data
   // this is 'kind | (scs << 8) | (scs2 << 16)'
