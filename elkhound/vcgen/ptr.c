@@ -3,12 +3,16 @@
 
 void foo()
 {
-  int x = 5;
-  int *y = &x;
-  
-  *y = 6;
-  
+  int x = 5, y = 7;
+  int *p = &x;     
+  int *q = &y;
+
+  *p = 6;
+
   thmprv_assert x == 6;
+  thmprv_assert *q == 7;
+
+
 }
   
 

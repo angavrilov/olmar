@@ -364,16 +364,9 @@ AbsValue *E_addrOf::vcgen(AEnv &env) const
 
 AbsValue *E_deref::vcgen(AEnv &env) const
 {
-  // abstract knowledge about memory contents, possibly aided by
-  // detailed knowledge of what this pointer points at, could yield
-  // something more specific here
-  if (type->isIntegerType()) {
-    return env.freshVariable(stringc
-             << "pointer read: " << toString());
-  }
-  else {
-    return avTodo();
-  }
+  AbsValue *addr = ptr->vcgen(env);
+  
+  return env.avSelect(env.getMem(), addr);
 }
 
 

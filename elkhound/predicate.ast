@@ -2,10 +2,10 @@
 // abstract syntax of predicates that can be passed to Simplify
 
 verbatim {
-  #include "cc_flags.h"     // BinaryOp
+  #include "cc_flags.h"         // BinaryOp
+  #include "absval.ast.gen.h"   // AbsValue, AbsValueVisitor
 
-  class stringBuilder;      // str.h
-  class AbsValue;           // absval.ast
+  class stringBuilder;          // str.h
 
   enum RelationOp {
     RE_EQUAL,       // ==
@@ -25,6 +25,19 @@ verbatim {
   class Predicate;
   Predicate *P_and2(Predicate *p1, Predicate *p2);    // p1,p2 owner pointers
   Predicate *P_or2(Predicate *p1, Predicate *p2);
+  
+  // visitor interface
+  class PredicateVisitor {
+  public:
+    // return true to continue recursing or false to stop visiting children
+    virtual bool visitPredicate(Predicate const *pred);
+  };
+
+  class ValuePredicateVisitor : public PredicateVisitor, public AbsValueVisitor
+  {};
+
+  void walkPredicate(PredicateVisitor &vis, Predicate const *pred);
+  void walkValuePredicate(ValuePredicateVisitor &vis, Predicate const *pred);
 }
 
 impl_verbatim {
@@ -188,9 +201,77 @@ impl_verbatim {
     p2->toSexp(sb);
     sb << ")";
   }
+
+
+  // -------------- visitor ---------------
+  bool PredicateVisitor::visitPredicate(Predicate const *pred)
+  {
+    return true;
+  }
+
+  void walkPredicate(PredicateVisitor &vis, Predicate const *pred)
+  {
+    if (!vis.visitPredicate(pred)) {
+      return;
+    }
+
+    ASTSWITCHC(Predicate, pred) {
+      ASTCASEC(P_not, n) {
+        walkPredicate(vis, n->p);
+      }
+
+      ASTNEXTC(P_and, a) {
+        FOREACH_ASTLIST(Predicate, a->conjuncts, iter) {
+          walkPredicate(vis, iter.data());
+        }
+      }
+
+      ASTNEXTC(P_or, o) {
+        FOREACH_ASTLIST(Predicate, o->disjuncts, iter) {
+          walkPredicate(vis, iter.data());
+        }
+      }
+
+      ASTNEXTC(P_impl, i) {
+        walkPredicate(vis, i->premise);
+        walkPredicate(vis, i->conclusion);
+      }
+
+      ASTNEXTC(P_iff, i) {
+        walkPredicate(vis, i->p1);
+        walkPredicate(vis, i->p2);
+      }
+
+      ASTENDCASEC
+    }
+  }
+
+
+  class VPVisitThunk : public PredicateVisitor {
+    ValuePredicateVisitor &innerVis;
+  public:                   
+    VPVisitThunk(ValuePredicateVisitor &i) : innerVis(i) {}
+    virtual bool visitPredicate(Predicate const *pred);
+  };
+
+  bool VPVisitThunk::visitPredicate(Predicate const *pred)
+  {
+    if (!innerVis.visitPredicate(pred)) {
+      return false;
+    }
+
+    if (pred->isP_relation()) {
+      P_relation const *r = pred->asP_relationC();
+      walkAbsValue(innerVis, r->e1);
+      walkAbsValue(innerVis, r->e2);
+    }
+
+    return true;
+  }
+
+  void walkValuePredicate(ValuePredicateVisitor &vis, Predicate const *pred)
+  {
+    VPVisitThunk thunk(vis);
+    walkPredicate(thunk, pred);
+  }
 }
-
-
-
-
-

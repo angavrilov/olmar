@@ -1,10 +1,10 @@
 // absval.ast
 // abstract domain values
 
-verbatim {                     
+verbatim {
   #include "strtable.h"     // StringRef
   #include "cc_flags.h"     // UnaryOp, BinaryOp
-  
+
   class stringBuilder;      // str.h
 }
 
@@ -27,13 +27,22 @@ class AbsValue {
   -> AVfunc(StringRef func, ASTList<AbsValue> args);
 }
 
-verbatim {              
+verbatim {
   // some syntactic sugar
   AVfunc *avFunc1(StringRef func, AbsValue *a1);
   AVfunc *avFunc2(StringRef func, AbsValue *a1, AbsValue *a2);
   AVfunc *avFunc3(StringRef func, AbsValue *a1, AbsValue *a2, AbsValue *a3);
   AVfunc *avFunc4(StringRef func, AbsValue *a1, AbsValue *a2, AbsValue *a3, AbsValue *a4);
   AVfunc *avFunc5(StringRef func, AbsValue *a1, AbsValue *a2, AbsValue *a3, AbsValue *a4, AbsValue *a5);
+
+  // visitor interface
+  class AbsValueVisitor {
+  public:
+    // return true to continue recursing or false to stop visiting children
+    virtual bool visitAbsValue(AbsValue const *value);
+  };
+
+  void walkAbsValue(AbsValueVisitor &vis, AbsValue const *value);
 }
 
 
@@ -176,4 +185,41 @@ impl_verbatim {
     return f;
   }
 
+  // ------------- visitor ---------------
+  bool AbsValueVisitor::visitAbsValue(AbsValue const *value)
+  {
+    return true;
+  }
+
+  void walkAbsValue(AbsValueVisitor &vis, AbsValue const *value)
+  {
+    if (!vis.visitAbsValue(value)) {
+      return;
+    }
+
+    ASTSWITCHC(AbsValue, value) {
+      ASTCASEC(AVunary, u) {
+        walkAbsValue(vis, u->val);
+      }
+
+      ASTNEXTC(AVbinary, b) {
+        walkAbsValue(vis, b->v1);
+        walkAbsValue(vis, b->v2);
+      }
+
+      ASTNEXTC(AVcond, c) {
+        walkAbsValue(vis, c->cond);
+        walkAbsValue(vis, c->th);
+        walkAbsValue(vis, c->el);
+      }
+
+      ASTNEXTC(AVfunc, f) {
+        FOREACH_ASTLIST(AbsValue, f->args, iter) {
+          walkAbsValue(vis, iter.data());
+        }
+      }
+
+      ASTENDCASEC
+    }
+  }
 }

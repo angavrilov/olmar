@@ -8,6 +8,45 @@
 #include "predicate.ast.gen.h"  // Predicate, P_and
 #include "trace.h"              // tracingSys
 
+
+// ----------------- VariablePrinter ----------------
+// used to print what variables stand for
+class VariablePrinter : public ValuePredicateVisitor {
+  StringSObjDict<AVvar /*const*/> map;
+
+public:
+  virtual ~VariablePrinter() {}  // silence stupid warning
+  virtual bool visitAbsValue(AbsValue const *value);
+  void dump();
+};
+
+
+// remember every variable we see, but ignore duplicates
+bool VariablePrinter::visitAbsValue(AbsValue const *value)
+{
+  if (value->isAVvar()) {
+    AVvar const *v = value->asAVvarC();
+    if (!map.isMapped(v->name)) {
+      map.add(v->name, const_cast<AVvar*>(v));
+    }
+  }
+
+  return true;      // recurse into children
+}
+
+
+// print the variables we say, and why those variables were introduced
+void VariablePrinter::dump()
+{
+  StringSObjDict<AVvar>::Iter iter(map);
+  for (; !iter.isDone(); iter.next()) {
+    cout << "  " << iter.key() << ": "
+         << iter.value()->why << "\n";
+  }
+}
+
+
+// ------------------- AEnv -----------------
 AEnv::AEnv(StringTable &table)
   : ints(),
     facts(new P_and(NULL)),
@@ -147,7 +186,7 @@ void AEnv::addFact(AbsValue *expr)
   facts->conjuncts.append(exprToPred(expr));
 }
 
-
+  
 void AEnv::prove(AbsValue const *expr)
 {
   // map the goal into a predicate
@@ -177,12 +216,19 @@ void AEnv::prove(AbsValue const *expr)
     cout << "predicate NOT proved:\n";
     printPredicate = true;      // always print for unprovens
   }
-  
+
   if (printPredicate) {
+    VariablePrinter vp;
+    
     FOREACH_ASTLIST(Predicate, facts->conjuncts, iter) {
       cout << "  fact: " << iter.data()->toSexpString() << "\n";
+      walkValuePredicate(vp, iter.data());
     }
     cout << "  goal: " << goal->toSexpString() << "\n";
+    walkValuePredicate(vp, goal);
+
+    // print out variable map
+    vp.dump();
   }
 
   // if I did it right, 'implication' contains properly
