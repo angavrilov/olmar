@@ -236,6 +236,11 @@ void Function::tcheck(Env &env, bool checkBody,
                         DC_FUNCTION);
   dt.priorTemplInst = priorTemplInst;
   nameAndParams = nameAndParams->tcheck(env, dt);
+  // FIX: perhaps this should be an assertion failure
+  if (!nameAndParams->var) {
+    return;                     // error should have already been reported
+  }
+
   // this seems like it should be being done, but if I want this, I
   // should first write a test that fails if I don't do it
 //    if (!nameAndParams->var->funcDefn) {
@@ -243,7 +248,6 @@ void Function::tcheck(Env &env, bool checkBody,
 //    }
 
   // location for random purposes..
-  xassert(nameAndParams->var);
   SourceLoc loc = nameAndParams->var->loc;
 
   if (! dt.type->isFunctionType() ) {
