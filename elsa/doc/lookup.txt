@@ -21,6 +21,41 @@ My analysis is independent, however.
 
 
 
+----------------------------------------------------
+Notions of syntactic context
+
+There are two notions of syntactic context for a lookup.  
+
+Global syntactic context:
+
+The first, which I call "global syntactic context", specifies the
+sequence of scopes to look in for a nominal unqualified lookup.  It is
+affected by the nesting of scope-containing constructs such as
+functions and namespaces.  It is also affected by issues such as
+definitions of class and namespace members outside the syntax of their
+containing entity, and visibility of various scopes during template
+instantiation.
+
+Local syntactic context:
+
+The second kind of context, what I call "local syntactic context", is
+the immediately surrounding neighborhood of tokens, giving contexts
+like "function name in a function call", "type specifier in a
+declaration", etc.  The nominal lookup rules are in many cases
+slightly adjusted depending on this local context.
+
+This rest of this file has two parts.  The first part discusses global
+syntactic context, and the second part discusses local syntactic
+context.  Then, in principle, to find out the procedure for lookup of
+a given occurrence of a name, one first consults the global syntactic
+context rules to determine a nominal scope search order, which is then
+modified by the rules for the local syntactic context.
+
+
+====================================================
+============= Global syntactic context =============
+====================================================
+
 
 ----------------------------------------------------
 Scope chaining
@@ -43,67 +78,6 @@ Consequently, using Scope::lookup (as opposed to Env::lookup) disables
 use of chains 1 and 2.  LF_IGNORE_USING disables chain 3.
 LF_INNER_ONLY disables all four chains.  Currently, nothing disables
 chain 4 by itself.
-
-
------------------------------------------------------------
-How does name lookup for function all syntax (E_funCall) work?
-
-Note that context-specific name lookup only occurs if the 'func' is an
-E_variable or an E_fieldAcc.  Both contain a PQName, here called 'name'.
-
-At an E_funCall, we have the following information:
-  - func
-    - receiver object expression (if is E_fieldAcc)
-    - qualifiers (optional)
-    - StringRef name (name->getName())
-    - template arguments (optional), 'targs'
-  - function (expression) arguments, 'eargs'
-
-Lookup is split across E_funCall::inner1_tcheck and
-E_funCall::inner2_tcheck.  This split is for performance reasons, and
-forces a certain partition of the work (see comments in
-Expression::tcheck for more details).
-
-inner1's main job is to map the 'name' to an initial set of Variable 
-object pointers.  The set includes all overloaded instances from all
-relevant namespaces (i.e., those found via 'using' directives).
-
-  * Do an ordinary (as opposed to argument dependent) lookup of the
-    name, using the receiver object type, the qualifiers, and the
-    StringRef name.  Lookup is as specified in 10.2 if E_fieldAcc, or
-    3.4 if E_variable.
-
-  * If template arguments are present but the lookup did not find any
-    template functions, issue an error.
-
-The result of the inner1 lookup is carried in the 'candidates' list.
-
-inner2's job is to pick up where inner1 left off, and use the
-remaining information in the E_funCall to pick exactly the right
-Variable for the function call site, doing template instantiation and
-overload resolution as necessary.  It does these steps:
-
-  * It regards the set computed by inner1 (and stored in 'candidates') 
-    as denoting an initial candidate set (possibly empty).
-
-  * If no receiver object and no qualifiers are present, augment the
-    candidate set by using argument dependent lookup (3.4.2).
-
-  * Refine/filter the candidate set; for each candidate:
-
-    - If template arguments are explicitly present, but the candidate
-      is not a template, remove it.
-
-    - If the candidate is a template, bind the 'targs' (if present) to
-      template parameters (14.8.1), and then do template argument
-      deduction (using the 'eargs') to determine the remaining template
-      parameters (14.8.2, 14.8.2.1).  If any incompatibility is found,
-      or not all template arguments have been determined, remove the
-      candidate.  Otherwise, replace the candidate with its (fully
-      concrete) instantiation Variable.
-
-  * Use 'eargs' to do overload resolution (13.3) to select the best
-    candidate from the refined candidate set.
 
 
 -------------------------------------------------------
@@ -258,7 +232,152 @@ is already present.
 
 
 
+====================================================
+============= Local syntactic context ==============
+====================================================
 
+
+-----------------------------------------------------------
+E_funCall: Function name of a function call
+
+Note that context-specific name lookup only occurs if the 'func' is an
+E_variable or an E_fieldAcc.  Both contain a PQName, here called 'name'.
+
+At an E_funCall, we have the following information:
+  - func
+    - receiver object expression (if is E_fieldAcc)
+    - qualifiers (optional)
+    - StringRef name (name->getName())
+    - template arguments (optional), 'targs'
+  - function (expression) arguments, 'eargs'
+
+Lookup is split across E_funCall::inner1_tcheck and
+E_funCall::inner2_tcheck.  This split is for performance reasons, and
+forces a certain partition of the work (see comments in
+Expression::tcheck for more details).
+
+inner1's main job is to map the 'name' to an initial set of Variable 
+object pointers.  The set includes all overloaded instances from all
+relevant namespaces (i.e., those found via 'using' directives).
+
+  * Do an ordinary (as opposed to argument dependent) lookup of the
+    name, using the receiver object type, the qualifiers, and the
+    StringRef name.  Lookup is as specified in 10.2 if E_fieldAcc, or
+    3.4 if E_variable.
+
+  * If template arguments are present but the lookup did not find any
+    template functions, issue an error.
+
+The result of the inner1 lookup is carried in the 'candidates' list.
+
+inner2's job is to pick up where inner1 left off, and use the
+remaining information in the E_funCall to pick exactly the right
+Variable for the function call site, doing template instantiation and
+overload resolution as necessary.  It does these steps:
+
+  * It regards the set computed by inner1 (and stored in 'candidates') 
+    as denoting an initial candidate set (possibly empty).
+
+  * If no receiver object and no qualifiers are present, augment the
+    candidate set by using argument dependent lookup (3.4.2).
+
+  * Refine/filter the candidate set; for each candidate:
+
+    - If template arguments are explicitly present, but the candidate
+      is not a template, remove it.
+
+    - If the candidate is a template, bind the 'targs' (if present) to
+      template parameters (14.8.1), and then do template argument
+      deduction (using the 'eargs') to determine the remaining template
+      parameters (14.8.2, 14.8.2.1).  If any incompatibility is found,
+      or not all template arguments have been determined, remove the
+      candidate.  Otherwise, replace the candidate with its (fully
+      concrete) instantiation Variable.
+
+  * Use 'eargs' to do overload resolution (13.3) to select the best
+    candidate from the refined candidate set.
+
+
+-----------------------------------------------------------
+E_fieldAcc: Lookup of a field name after '.' or '->'
+
+Sections discussed here:
+  - 3.4.5: Lookup rules for field names.
+  - 5.2.4, 5.2.5: Meaning of expressions with '.' and '->'.
+  
+Other relevant sections:
+  - 13.3: Overloaded function name used in a function call.
+  - 13.4: Overloaded function name used in other contexts.
+  - 13.5.6: If '->' is overloaded.
+  - 14.6.2.2: Issues relating to dependent lookup.
+
+I am going to ignore the possibility of '->' and concentrate only on
+the '.' option.  (Perhaps I will ammend this later to discuss '->'.)
+
+The structure of an arbitrary E_fieldAcc can be dissected:
+
+  LHS           ICC QUAL          FIELD
+  -----------   --- ------------- -------------------------------
+  object-expr . ::  qualifiers :: identifier
+                                  ~ identifier
+                                  operator (op)
+                                  operator (type-id)
+                                  identifier < targs >
+                                  'template' identifier < targs >
+
+with components:
+  LHS, "left-hand side": the object being accessed.
+  ICC, "initial colon-colon": A leading "::".  Optional.
+  QUAL, "qualifiers": Qualifiers before FIELD.  Optional.
+  FIELD: The field being accessed.  There are six possibilities.
+
+I will divide this space along four dimensions:
+  - Whether the LHS is a class type or a scalar (non-class) type.
+  - Whether ICC is present.
+  - Whether QUAL is present.
+  - Which of the six options for FIELD is used.
+The notation "X" means "don't care".
+
+For each case, I say which paragraphs of section 3.4.5 of the standard
+are applicable.  With the space so analyzed, the standard's
+descriptions can be applied relatively easily, so I won't restate the
+rules of each section.
+
+  LHS:  X   class class scalar scalar
+  ICC:  yes no    no    no     no
+  QUAL: X   yes   no    yes    no
+        --- ----- ----- ------ ------
+        5   4     1,2   E      E      identifier
+        5   4     2,3   **     2,3    ~ identifier
+        5   4     2     E      E      operator (op)
+        5   4     2,7   E      E      operator (type-id)
+        5   4     1,2   E      E      identifier < targs >
+        5   4     *     E      E      'template' identifier < targs >
+
+The code 'E' means it is a syntax error.
+
+The codes '*' and '**' are cases that are not covered by the standard.
+
+It is probably intended that case '*' is covered by paragraph 2, but a
+leading 'template' keyword precludes FIELD from being an
+unqualified-id (only the first 5 cases of FIELD are unqualified-ids).
+
+For case '**', it is probably intended that the qualifier be looked up
+using nominal rules, expecting it to name the same type as the LHS, and
+that the 'identifier' in FIELD will be looked up in the same scope as
+the final component of QUAL, again expecting it to name the same type as
+the LHS.  I am less sure of this intention than in the '*' case.
+
+Note that the rules of paragraph 1 are used to decide between cases 1
+and 5 of FIELD, so I show paragraph 1 in both cells without
+qualifiers.  The standard does not explicitly state how to distinguish
+between cases 1 and 5 if qualifiers are present; I assume the intent
+is to generalize paragraph 1 in the obvious way, respecting which
+paragraph specifies how to lookup the qualified name.
+
+Finally, note that paragraph 6 (type checking template arguments in
+the scope where the E_fieldAcc occurs) potentially applies to all
+columns with a qualifier, and the last two rows.
 
 
 
