@@ -51,6 +51,9 @@ class PQName {
 class TypeSpecifier {
   public Qualifiers *q;
 
+  public void printExtras_Q(ostream &os, int indent) const;
+  custom debugPrint { printExtras_Q(os, indent); }
+
   // this function is called from all of the derived-class ctors; we
   // can't call it from the parent ctor because the derived vtable
   // (and data) isn't available yet
