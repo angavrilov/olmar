@@ -183,6 +183,7 @@ Lexer2TokenTypeDesc const l2TokTypes[] = {
   { N(L2_THMPRV_LET),           "thmprv_let", true },
   { N(L2_THMPRV_ATTR),          "thmprv_attr", true },
   { N(L2_THMPRV_FORALL),        "thmprv_forall", true },
+  { N(L2_THMPRV_PURE_ASSERT),   "thmprv_pure_assert", true },
 };
 
 #undef N

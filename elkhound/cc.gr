@@ -534,10 +534,11 @@ nonterm[Statement*] Statement {
   -> GNUAsmStatement                    [ return new S_skip(loc); ]
 
   // theorem prover extensions
-  -> "thmprv_assert"    e:Expression ";"   [ return new S_assert(loc, e); ]
-  -> "thmprv_assume"    e:Expression ";"   [ return new S_assume(loc, e); ]
-  -> "thmprv_invariant" e:Expression ";"   [ return new S_invariant(loc, e); ]
-  -> "thmprv_let"       s:Statement        [ return new S_thmprv(loc, s); ]
+  -> "thmprv_assert"      e:Expression ";"   [ return new S_assert(loc, e, false /*pure*/); ]
+  -> "thmprv_pure_assert" e:Expression ";"   [ return new S_assert(loc, e, true /*pure*/); ]
+  -> "thmprv_assume"      e:Expression ";"   [ return new S_assume(loc, e); ]
+  -> "thmprv_invariant"   e:Expression ";"   [ return new S_invariant(loc, e); ]
+  -> "thmprv_let"         s:Statement        [ return new S_thmprv(loc, s); ]
 }
 
 nonterm[Statement*] ExpressionStatement {

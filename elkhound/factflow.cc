@@ -612,8 +612,14 @@ void S_decl::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, Ne
 }
 
 void S_assert::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
-{
-  addFacts(facts, expr);
+{  
+  // the "pure" assertion is designed for me for debugging purposes
+  // so I can verify something is true, without suggesting it is a
+  // necessary annotation to get the proof to go through
+
+  if (!pure) {
+    addFacts(facts, expr);
+  }
 }
 
 void S_assume::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const

@@ -80,6 +80,7 @@ void find(int *A, int N, int f)
         true);
 
       while (A[i] < r) {
+        //thmprv_assert(i < n);
         thmprv_assume(i < n);     // HACK
 
         thmprv_invariant(
@@ -115,7 +116,8 @@ void find(int *A, int N, int f)
       }
 
       while (r < A[j]) {
-        thmprv_assume(m < j);        // HACK
+        thmprv_assert(m < j);      // how does it prove this??
+        //thmprv_assume(m < j);        // HACK
 
         thmprv_invariant(
           //RDNDT: offset(A) == 0 && length(object(A)) == N+1 &&
@@ -176,8 +178,8 @@ void find(int *A, int N, int f)
         //RDNDT: m < n ;
         true);
 
-      thmprv_assume(A[j] <= r && r <= A[i]);     // TEMPORARY HACK
-      //thmprv_assert(A[j] <= r && r <= A[i]);
+      thmprv_pure_assert(A[j] <= r && r <= A[i]);       // how is this proven?
+      //thmprv_assume(A[j] <= r && r <= A[i]);     // TEMPORARY HACK
 
       // if A[j] is left of A[i], swap them
       if (i <= j) {
