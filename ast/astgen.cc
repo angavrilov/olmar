@@ -127,7 +127,7 @@ void Gen::emitFiltered(ASTList<UserDecl> const &decls, AccessCtl mode,
   FOREACH_ASTLIST(UserDecl, decls, iter) {
     UserDecl const &decl = *(iter.data());
     if (decl.access == mode) {
-      out << indent << decl.code << "\n";
+      out << indent << decl.code << ";\n";
     }
   }
 }
@@ -217,7 +217,7 @@ void HGen::emitFile()
 // emit a verbatim section
 void HGen::emitVerbatim(TF_verbatim const &v)
 {
-  out << "// *** DO NOT EDIT ***\n";
+  doNotEdit();
   out << v.code;
 }
 
@@ -491,7 +491,7 @@ void CGen::emitFile()
       //  // nop
       //}
       ASTCASEC(TF_impl_verbatim, v) {
-        out << "// *** DO NOT EDIT ***\n";
+        doNotEdit();
         out << v->code;
       }
       ASTNEXTC(TF_class, c) {

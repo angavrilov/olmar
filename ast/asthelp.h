@@ -110,7 +110,7 @@ void debugPrintList(ASTList<LocString> const &list, char const *name,
 
 
 #define PRINT_GENERIC(var) \
-  ind(os, indent) << #var << " = " << toString(var) << "\n"   /* user ; */
+  ind(os, indent) << #var << " = " << ::toString(var) << "\n"   /* user ; */
 
 
 #define PRINT_BOOL(var) \
