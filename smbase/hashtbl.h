@@ -107,7 +107,7 @@ public:     // funcs
   // congruential pseudo-random number generator
   static unsigned lcprngHashFn(void const *key);
 
-  // does pointer equuality comparison
+  // does pointer equality comparison
   static bool pointerEqualKeyFn(void const *key1, void const *key2);
 };
 
