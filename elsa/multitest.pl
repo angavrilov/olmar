@@ -5,6 +5,7 @@
 use strict 'subs';
 use Config;
 
+$comment = "//";    # comment syntax
 $selectedError = "";
 $keepTemps = 0;
 $contin = 0;
@@ -43,8 +44,8 @@ This will first invoke the command line as given, expecting that to
 succeed.  Then, it will scan input.cc (which must be the last argument
 on the command line) for any lines of the forms:
 
-  //ERROR(n): <some C++ code>
-  <some C++ code>     //ERRORIFMISSING(n):
+  ${comment}ERROR(n): <some code>
+  <some code>     ${comment}ERRORIFMISSING(n):
 
 If it finds them, then for each such 'n' the lines ERROR(n) will be
 uncommented (and "ERROR(n)" removed), and lines ERRORIFMISSING(n)
@@ -106,14 +107,14 @@ sub failed {
 
 
 # read the input file
-open(IN, "<$fname") or die("can't open $fname: $!\n");
+open(IN, "<", $fname) or die("can't open $fname: $!\n");
 @lines = <IN>;
 close(IN) or die;
 
 # see what ERROR/ERRORIFMISSING lines are present
 %codes = ();
 foreach $line (@lines) {
-  my ($miss, $code) = ($line =~ m|//ERROR(IFMISSING)?\((\d+)\):|);
+  my ($miss, $code) = ($line =~ m|${comment}ERROR(IFMISSING)?\((\d+)\):|);
   if (defined($code)) {
     $codes{$code} = 1;
     $miss .= " ";     # pretend used
@@ -146,12 +147,12 @@ foreach $selcode (@allkeys) {
   open(OUT, ">$tempfname") or die("can't create $tempfname: $!\n");
   foreach $line (@lines) {
     my ($miss, $code, $rest) =
-      ($line =~ m|//ERROR(IFMISSING)?\((\d+)\):(.*)$|);
+      ($line =~ m|${comment}ERROR(IFMISSING)?\((\d+)\):(.*)$|);
       #                  miss          code    rest
     if (defined($code) && $selcode == $code) {
       if ($miss) {
         # ERRORIFMISSING: we want to comment the whole line
-        print OUT ("// $line");
+        print OUT ("${comment} $line");
       }
       else{
         # ERROR: we want to uncomment what follows the "ERROR" marker
@@ -162,7 +163,7 @@ foreach $selcode (@allkeys) {
       # comment-out this line in the error cases because if I do not
       # then it will often lead to its own error, which would mask the
       # one I am trying to verify
-      print OUT ("// $line");
+      print OUT ("${comment} $line");
     }
     else {
       print OUT ($line);         # emit as-is
