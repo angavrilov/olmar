@@ -781,7 +781,7 @@ public:     // data
   Type *retType;                     // (serf)
 
   // list of function parameters; if (flags & FF_METHOD) then the
-  // first parameter is 'this'
+  // first parameter is '__receiver'
   SObjList<Variable> params;
 
   // allowable exceptions, if not NULL
@@ -809,9 +809,9 @@ public:
   bool equalParameterLists(FunctionType const *obj, EqFlags flags = EF_EXACT) const;
   bool equalExceptionSpecs(FunctionType const *obj) const;
 
-  // if the 'this' parameter (if any) is ignored in both function
-  // types, am I equal to 'obj'?
-  bool equalOmittingThisParam(FunctionType const *obj) const
+  // if the '__receiver' parameter (if any) is ignored in both
+  // function types, am I equal to 'obj'?
+  bool equalOmittingReceiver(FunctionType const *obj) const
     { return innerEquals(obj, EF_STAT_EQ_NONSTAT | EF_IGNORE_IMPLICIT); }
                                              
   // true if all parameters after 'startParam' (0 is first) have
@@ -821,8 +821,8 @@ public:
   // append a parameter to the (ordinary) parameters list
   void addParam(Variable *param);
 
-  // add the implicit 'this' param; sets 'isMember()' to true
-  void addThisParam(Variable *param);
+  // add the implicit '__receiver' param; sets 'isMember()' to true
+  void addReceiver(Variable *param);
 
   // called when we're done adding parameters to this function
   // type, thus any Type annotation system can assume the
@@ -841,12 +841,11 @@ public:
 
   bool isTemplate() const { return templateParams!=NULL; }
 
-  CVFlags getThisCV() const;         // dig down; or CV_NONE if !isMember
+  Variable const *getReceiverC() const;  // 'isMember' must be true
+  Variable *getReceiver() { return const_cast<Variable*>(getReceiverC()); }
 
-  Variable const *getThisC() const;  // 'isMember' must be true
-  Variable *getThis() { return const_cast<Variable*>(getThisC()); }
-
-  CompoundType *getClassOfMember();  // 'isMember' must be true
+  CVFlags getReceiverCV() const;         // dig down; or CV_NONE if !isMember
+  CompoundType *getClassOfMember();      // 'isMember' must be true
 
   // more specialized printing, for Cqual++ syntax
   virtual string rightStringUpToQualifiers(bool innerParen) const;
@@ -1151,10 +1150,15 @@ public:
     CompoundType *inClass, CVFlags cv, Type *atType, 
     D_ptrToMember * /*nullable*/ syntax);
 
-  // given a class, build the type of the 'this' parameter
+  // given a class, build the type of the receiver object parameter
   // 1/19/03: it should be a *reference* type
-  virtual PointerType *makeTypeOf_this(SourceLoc loc,
+  // 1/30/04: fixing name: it's the receiver, not 'this'
+  virtual PointerType *makeTypeOf_receiver(SourceLoc loc,
     CompoundType *inClass, CVFlags cv, D_func * /*nullable*/ syntax);
+
+  // this will cause a compile error if anyone uses the old name; it
+  // can be removed after the switch is complete (~ 2/29/04)
+  #define makeTypeOf_this do_not_use the name makeTypeOf_this
 
   // given a function type and a return type, make a new function type
   // which is like it but has no parameters; i.e., copy all fields

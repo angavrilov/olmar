@@ -43,6 +43,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     constructorSpecialName(str("constructor-special")),
     functionOperatorName(str("operator()")),
     thisName(str("this")),
+    receiverName(str("__receiver")),
     otherName(str("__other")),
     quote_C_quote(str("\"C\"")),
     quote_C_plus_plus_quote(str("\"C++\"")),
@@ -682,7 +683,7 @@ FunctionType *Env::makeDestructorFunctionType(SourceLoc loc, CompoundType *ct)
     // the receiver
   }
   else {
-    ft->addThisParam(receiverParameter(loc, ct, CV_NONE));
+    ft->addReceiver(receiverParameter(loc, ct, CV_NONE));
   }
 
   ft->flags |= FF_DTOR;
@@ -1932,7 +1933,7 @@ Type *Env::implicitReceiverType()
     // we're in the scope of some class, so the call could be a
     // method call, passing 'this' as the receiver; compute the type
     // of that receiver argument
-    return tfac.makeTypeOf_this(loc() /*?*/, encScope, CV_NONE, NULL);
+    return tfac.makeTypeOf_receiver(loc() /*?*/, encScope, CV_NONE, NULL);
   }
 }
 
@@ -1941,8 +1942,8 @@ Variable *Env::receiverParameter(SourceLoc loc, CompoundType *ct, CVFlags cv,
                                  D_func *syntax)
 {
   // this doesn't use 'implicitReceiverType' because of the warnings above
-  Type *thisType = tfac.makeTypeOf_this(loc, ct, cv, syntax);
-  return makeVariable(loc, thisName, thisType, DF_PARAMETER);
+  Type *recType = tfac.makeTypeOf_receiver(loc, ct, cv, syntax);
+  return makeVariable(loc, receiverName, recType, DF_PARAMETER);
 }
 
 
@@ -2118,7 +2119,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
 
       // add the receiver parameter
       CompoundType *ct = scope->curCompound;
-      newFt->addThisParam(receiverParameter(SL_UNKNOWN, ct, oldFt->getThisCV()));
+      newFt->addReceiver(receiverParameter(SL_UNKNOWN, ct, oldFt->getReceiverCV()));
 
       // copy the other parameters
       SObjListIterNC<Variable> iter(oldFt->params);
@@ -2143,7 +2144,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
 
   // check for existing declarations
   Variable *prior = lookupVariableForDeclaration(scope, name, type,
-    type->isFunctionType()? type->asFunctionType()->getThisCV() : CV_NONE);
+    type->isFunctionType()? type->asFunctionType()->getReceiverCV() : CV_NONE);
 
   // check for overloading
   OverloadSet *overloadSet = getOverloadForDeclaration(prior, type);

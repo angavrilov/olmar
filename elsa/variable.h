@@ -184,7 +184,7 @@ public:
   void addMember(Variable *v);
   int count() const { return set.count(); }
 
-  Variable *findByType(FunctionType const *ft, CVFlags thisCV);
+  Variable *findByType(FunctionType const *ft, CVFlags receiverCV);
 };
 
 

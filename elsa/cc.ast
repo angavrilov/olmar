@@ -491,8 +491,12 @@ class Expression {
   -> E_stringLit(StringRef text, E_stringLit continuation = NULL);
   -> E_charLit(StringRef text);
 
-  // variable reference; 'name' might be "this"
+  // reference to 'this', the address of the receiver object
+  -> E_this();
+
+  // variable reference
   // 5/19/03: 'loc' field removed because 'name' has a location
+  // 1/30/04: split E_this off so now 'name' is never "this"
   -> E_variable(PQName name);
 
   -> E_funCall(Expression func, FakeList<ArgExpression> *args);

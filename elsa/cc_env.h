@@ -76,14 +76,34 @@ public:      // data
   // type for typeid expression
   Type *type_info_const_ref;      // (serf)
 
-  // special names
-  StringRef conversionOperatorName;
-  StringRef constructorSpecialName;
+  // ---- BEGIN: special names ----
+  // name under which conversion operators are looked up
+  StringRef conversionOperatorName;                     
+  
+  // name under which constructors are looked up
+  StringRef constructorSpecialName;             
+  
+  // name of the operator()() functions
   StringRef functionOperatorName;
+  
+  // "this", a local variable of methods that points at the
+  // receiver object
   StringRef thisName;
+
+  // "__receiver", a reference to the receiver object; it's a
+  // parameter of methods
+  StringRef receiverName;
+  
+  // "__other", the name of the parameter in implicit methods
+  // that accept a reference to another object of the same type
+  // (e.g. copy ctor)
   StringRef otherName;
+  
+  // linkage specification strings
   StringRef quote_C_quote;
   StringRef quote_C_plus_plus_quote;
+
+  // ---- END: special names ----
 
   StringRef special_getStandardConversion;
   StringRef special_getImplicitConversion;

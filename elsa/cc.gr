@@ -218,7 +218,7 @@ nonterm(Expression*) PrimaryExpression {
        { return e; }
 
   -> "this"
-       { return new E_variable(new PQ_name(loc, str("this"))); }
+       { return new E_this; }
 
   -> "(" e:Expression ")"
        { return new E_grouping(e); }

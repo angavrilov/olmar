@@ -46,8 +46,8 @@ void Function::printExtras(ostream &os, int indent) const
   if (funcType) {
     ind(os, indent) << "funcType: " << funcType->toString() << "\n";
   }
-  ind(os, indent) << "thisVar: " << refersTo(thisVar) << "\n";
-  ind(os, indent) << "ctorThisLocalVar: " << refersTo(ctorThisLocalVar) << "\n";
+  ind(os, indent) << "receiver: " << refersTo(receiver) << "\n";
+  ind(os, indent) << "ctorReceiver: " << refersTo(ctorReceiver) << "\n";
 }
 
 

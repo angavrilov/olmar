@@ -47,11 +47,11 @@ class Function {
   public FunctionType *funcType = NULL;
 
   // since the body of the function (if a class member) may refer
-  // to the 'this' Variable, I need to write it down so client
+  // to the receiver object, I need to write it down so client
   // analyses can find it
-  public Variable *thisVar = NULL;
+  public Variable *receiver = NULL;
 
-  // dsw: this is the 'this' local variable for ctors; obviously it
+  // dsw: this is the receiver object for ctors; obviously it
   // might be possible to combine it with the above thisVar, but I
   // won't do it now to prevent the possibility of creating a subtle
   // bug somewhere.
@@ -61,8 +61,8 @@ class Function {
   // a ctor body.
   //
   // sm: There are lots of other ways to make that distinction.  I
-  // think this should be merged with 'thisVar' ASAP.
-  public Variable *ctorThisLocalVar = NULL;
+  // think this should be merged with 'receiver' ASAP.
+  public Variable *ctorReceiver = NULL;
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
@@ -97,7 +97,7 @@ class MemberInit {
     ret->ctorVar = ctorVar;
   }
 
-  public void tcheck(Env &env, Variable *ctorThisLocalVar, CompoundType *enclosing);
+  public void tcheck(Env &env, Variable *ctorReceiver, CompoundType *enclosing);
 }
 
 
@@ -445,6 +445,14 @@ class Expression {
   -> E_floatLit    { public double d = 0; }
   -> E_stringLit   { /* TODO: put a DataBlock here */ }
   -> E_charLit     { public unsigned int c = 0; }
+
+  -> E_this {                              
+       // the receiver parameter to which this 'this' refers; NOTE
+       // that 'receiver' is a *reference* whereas E_this is a
+       // *pointer* (it's like taking the address of 'receiver')
+       public Variable *receiver = NULL;
+       custom clone { ret->receiver = receiver; }
+     }
 
   -> E_variable {
        public Variable *var = NULL;      // (serf) binding introduction of this name

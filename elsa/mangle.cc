@@ -250,7 +250,7 @@ string rightMangle(Type const *t, bool innerParen)
       // by FunctionType::rightStringUpToQualifiers and
       // FunctionType::rightStringAfterQualifiers
 
-      CVFlags cv = ft->getThisCV();
+      CVFlags cv = ft->getReceiverCV();
       if (cv) {
         sb << " " << ::toString(cv);
       }

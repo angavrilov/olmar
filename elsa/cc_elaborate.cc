@@ -78,7 +78,7 @@ ElabVisitor::ElabVisitor(StringTable &s, TypeFactory &tf,
     functionStack(),              // empty
     fullExpressionAnnotStack(),   // empty
     enclosingStmtLoc(SL_UNKNOWN),
-    thisName(s("this")),
+    receiverName(s("__receiver")),
     activities(EA_ALL),
     cloneDefunctChildren(false),
     tempSerialNumber(0),
@@ -221,10 +221,10 @@ Function *ElabVisitor::makeFunction(SourceLoc loc, Variable *var,
   f->funcType = var->type->asFunctionType();
 
   if (ft->isMethod()) {
-    f->thisVar = ft->getThis();
+    f->receiver = ft->getReceiver();
   }
 
-  // the caller should set 'ctorThisLocalVar' if appropriate
+  // the caller should set 'ctorReceiver' if appropriate
 
   f->implicitlyDefined = true;
 
@@ -277,18 +277,17 @@ FakeList<ArgExpression> *ElabVisitor::emptyArgs()
 // reference to the receiver object of the current function
 Expression *ElabVisitor::makeThisRef(SourceLoc loc)
 {
-  Variable *thisVar = functionStack.top()->thisVar;
+  Variable *receiver = functionStack.top()->receiver;
 
-  // 'thisVar' is a reference, but tcheck would make it into
-  // a pointer type anyway, so we follow that (broken) lead
-  E_variable *evar = new E_variable(new PQ_variable(loc, thisVar));
-  evar->type = tfac.makePointerType(loc, PO_POINTER, CV_NONE,
-                                    thisVar->type->asRval());
-  evar->var = thisVar;
+  // "this"
+  E_this *ths = new E_this;
+  ths->receiver = receiver;
+  ths->type = tfac.makePointerType(loc, PO_POINTER, CV_CONST,
+                                   receiver->type->asRval());
 
-  // then wrap that "pointer" in an E_deref
-  E_deref *deref = new E_deref(evar);
-  deref->type = thisVar->type;
+  // "*this"
+  E_deref *deref = new E_deref(ths);
+  deref->type = receiver->type;
 
   return deref;
 }
@@ -911,11 +910,11 @@ void ElabVisitor::completeNoArgMemberInits(Function *ctor, CompoundType *ct)
 // ---------------- make compiler-supplied member funcs -------------=
 // make no-arg ctor ****************
 
-// mirrors code in Function::tcheck()
-Variable *ElabVisitor::makeCtorThisLocalVar(SourceLoc loc, CompoundType *ct)
+// mirrors Env::receiverParameter()
+Variable *ElabVisitor::makeCtorReceiver(SourceLoc loc, CompoundType *ct)
 {
-  Type *thisType = tfac.makeTypeOf_this(loc, ct, CV_NONE, NULL /*syntax*/);
-  return makeVariable(loc, thisName, thisType, DF_NONE);
+  Type *recType = tfac.makeTypeOf_receiver(loc, ct, CV_NONE, NULL /*syntax*/);
+  return makeVariable(loc, receiverName, recType, DF_PARAMETER);
 }
 
 // for EA_IMPLICIT_MEMBER_DEFN
@@ -932,7 +931,7 @@ MR_func *ElabVisitor::makeNoArgCtorBody(CompoundType *ct, Variable *ctor)
   FakeList<MemberInit> *inits = FakeList<MemberInit>::emptyList();
 
   Function *f = makeFunction(loc, ctor, inits, body);
-  f->ctorThisLocalVar = env.makeCtorThisLocalVar(loc, ct);
+  f->ctorReceiver = env.makeCtorReceiver(loc, ct);
 
   return new MR_func(loc, f);
 }
@@ -1047,7 +1046,7 @@ MR_func *ElabVisitor::makeCopyCtorBody(CompoundType *ct, Variable *ctor)
   }
 
   Function *f = makeFunction(loc, ctor, inits, body);
-  f->ctorThisLocalVar = env.makeCtorThisLocalVar(loc, ct);
+  f->ctorReceiver = env.makeCtorReceiver(loc, ct);
 
   return new MR_func(loc, f);
 }
@@ -1536,7 +1535,7 @@ bool ElabVisitor::visitFunction(Function *f)
   if (doing(EA_IMPLICIT_MEMBER_CTORS) &&
       ft->isConstructor()) {
     // pull out the compound that this ctor creates
-    CompoundType *ct = f->ctorThisLocalVar->type->asPointerType()->
+    CompoundType *ct = f->ctorReceiver->type->asPointerType()->
                           atType->asCompoundType();
     completeNoArgMemberInits(f, ct);
   } 
@@ -1586,7 +1585,7 @@ bool ElabVisitor::visitMemberInit(MemberInit *mi)
       Type *type = tfac.makeCVAtomicType(loc, mi->base, CV_NONE);
 
       mi->ctorStatement = makeCtorStatement
-        (loc, makeE_variable(loc, func->ctorThisLocalVar), type,
+        (loc, makeE_variable(loc, func->ctorReceiver), type,
          mi->ctorVar, orig);
     }
 

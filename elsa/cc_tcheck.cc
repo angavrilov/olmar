@@ -230,6 +230,9 @@ void Function::tcheck(Env &env, bool checkBody)
                         dflags | (checkBody? DF_DEFINITION : DF_NONE),
                         DC_FUNCTION);
   nameAndParams = nameAndParams->tcheck(env, dt);
+  
+  // location for random purposes..
+  SourceLoc loc = nameAndParams->var->loc;
 
   if (! dt.type->isFunctionType() ) {
     env.error(stringc
@@ -287,32 +290,24 @@ void Function::tcheck(Env &env, bool checkBody)
 
   // is this a nonstatic member function?
   if (funcType->isMethod()) {
-    this->thisVar = funcType->getThis();
-    
+    this->receiver = funcType->getReceiver();
+
     // this would be redundant--the parameter list already got
-    // added to the environment, and it included 'this'
-    //env.addVariable(thisVar);
+    // added to the environment, and it included '__receiver'
+    //env.addVariable(receiver);
   }
 
-  // constructors have a 'this' local variable, even though they
-  // do not have a 'this' parameter
-  // dsw: I need access in the MemberInit::tcheck() to the ctor 'this'
-  // local variable, so I'm pulling it out of the loop and putting it
-  // into the Function AST node.  It seems likely that thisVar and
-  // ctorThisLocalVar could be merged together, but I won't do it for
-  // now to prevent the possibility of creating a subtle bug
-  // somewhere.
+  // while ctors do not appear to the caller to accept a receiver,
+  // to the ctor itself there *is* a receiver; so synthesize one
   if (nameAndParams->var->name == env.constructorSpecialName) {
     xassert(inClass);
-    SourceLoc loc = nameAndParams->var->loc;
-    Type *thisType = env.tfac.makeTypeOf_this(loc, inClass, CV_NONE, NULL /*syntax*/);
-    
-    // store in the AST; should not already have something there
-    xassert(!ctorThisLocalVar);
-    ctorThisLocalVar = env.makeVariable(loc, env.thisName, thisType, DF_NONE);
 
-    xassert(ctorThisLocalVar->type->isPointerType());   // paranoia
-    env.addVariable(ctorThisLocalVar);
+    xassert(!ctorReceiver);
+    ctorReceiver = env.receiverParameter(loc, inClass, CV_NONE,
+                                         NULL /*syntax*/);
+
+    xassert(ctorReceiver->type->isPointerType());   // paranoia
+    env.addVariable(ctorReceiver);
   }
 
   // have to check the member inits after adding the parameters
@@ -404,7 +399,7 @@ void Function::tcheck_memberInits(Env &env)
     // ok, so far so good; now go through and check the member inits
     // themselves
     FAKELIST_FOREACH_NC(MemberInit, inits, iter) {
-      iter->tcheck(env, ctorThisLocalVar, enclosing);
+      iter->tcheck(env, ctorReceiver, enclosing);
     }
   }
   else {
@@ -412,9 +407,10 @@ void Function::tcheck_memberInits(Env &env)
   }
 }
 
-void MemberInit::tcheck(Env &env, Variable *ctorThisLocalVar, CompoundType *enclosing)
+void MemberInit::tcheck(Env &env, Variable *ctorReceiver, CompoundType *enclosing)
 {
-  xassert(ctorThisLocalVar);    // a member init is always on a ctor for a well-defined class
+  // TODO: why is 'ctorReceiver' a parameter?  it isn't used
+  xassert(ctorReceiver);    // a member init is always on a ctor for a well-defined class
 
   // resolve template arguments in 'name'
   name->tcheck(env);
@@ -1576,9 +1572,9 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
     FunctionType *ft = env.makeFunctionType(loc, refToSelfType);
 
     // receiver object
-    ft->addThisParam(env.makeVariable(loc, env.thisName,
-                                      env.tfac.cloneType(refToSelfType),
-                                      DF_PARAMETER));
+    ft->addReceiver(env.makeVariable(loc, env.receiverName,
+                                     env.tfac.cloneType(refToSelfType),
+                                     DF_PARAMETER));
 
     // source object parameter
     ft->addParam(env.makeVariable(loc,
@@ -1951,8 +1947,8 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
         if (!var2->overload) {
           // see if it's virtual and has the same signature
           if (var2->hasFlag(DF_VIRTUAL) &&
-              var2ft->equalOmittingThisParam(varft) &&
-              var2ft->getThisCV() == varft->getThisCV()) {
+              var2ft->equalOmittingReceiver(varft) &&
+              var2ft->getReceiverCV() == varft->getReceiverCV()) {
             var->setFlag(DF_VIRTUAL);
           }
         }
@@ -1963,7 +1959,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
           if (Variable *var_overload =
               var2->getOverloadSet()->findByType
               (var->type->asFunctionType(),
-               var->type->asFunctionType()->getThisCV())) {
+               var->type->asFunctionType()->getReceiverCV())) {
             xassert(var_overload != var);
             xassert(var_overload->type->isFunctionType());
             xassert(var_overload->type->asFunctionType()->isMethod());
@@ -2239,11 +2235,11 @@ void makeMemberFunctionType(Env &env, Declarator::Tcheck &dt,
   // make the implicit 'this' parameter
   xassert(dt.funcSyntax);
   CVFlags thisCV = dt.funcSyntax->cv;
-  Variable *this0 = env.receiverParameter(loc, inClass, thisCV, dt.funcSyntax);
+  Variable *receiver = env.receiverParameter(loc, inClass, thisCV, dt.funcSyntax);
 
   // add it to the function type
   FunctionType *ft = dt.type->asFunctionType();
-  ft->addThisParam(this0);
+  ft->addReceiver(receiver);
 
   // close it
   dt.funcSyntax = NULL;
@@ -3650,6 +3646,24 @@ Type *makeLvalType(Env &env, Type *underlying)
 }
 
 
+Type *E_this::itcheck_x(Env &env, Expression *&replacement)
+{
+  // we should be in a method with a receiver parameter
+  receiver = env.lookupVariable(env.receiverName);
+  if (!receiver) {
+    return env.error("can only use 'this' in a nonstatic method");
+  }
+
+  // compute type: *pointer* to the thing 'receiverVar' is
+  // a *reference* to
+  //
+  // (sm: it seems to me that type cloning should be unnecessary since
+  // this is intended to be the *same* object as __receiver)
+  return env.makePointerType(env.loc(), PO_POINTER, CV_NONE,
+                             receiver->type->asRval());
+}
+
+
 Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
 {
   name->tcheck(env);
@@ -3673,16 +3687,6 @@ Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
   // TODO: access control check
 
   var = env.storeVarIfNotOvl(v);
-
-  // special case for "this": the parameter is declared as a reference
-  // (because the overload resolution procedure wants that, and because
-  // it more accurately reflects the calling convention), but the type
-  // of "this" is a pointer
-  if (name->getName() == env.thisName) {
-    // CV_NONE because this is an rvalue, so cv flags are not appropriate
-    return env.tfac.makePointerType(SL_UNKNOWN, PO_POINTER, CV_NONE,
-                                    var->type->asPointerType()->atType);
-  }
 
   // return a reference because this is an lvalue
   return makeLvalType(env, env.tfac.cloneType(var->type));

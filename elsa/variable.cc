@@ -213,16 +213,16 @@ void OverloadSet::addMember(Variable *v)
 }
 
 
-Variable *OverloadSet::findByType(FunctionType const *ft, CVFlags thisCV)
+Variable *OverloadSet::findByType(FunctionType const *ft, CVFlags receiverCV)
 {
   SFOREACH_OBJLIST_NC(Variable, set, iter) {
     FunctionType *iterft = iter.data()->type->asFunctionType();
 
-    // check the parameters other than 'this'
-    if (!iterft->equalOmittingThisParam(ft)) continue;
+    // check the parameters other than '__receiver'
+    if (!iterft->equalOmittingReceiver(ft)) continue;
     
-    // if 'this' exists, it must match 'thisCV'
-    if (iterft->getThisCV() != thisCV) continue;
+    // if 'this' exists, it must match 'receiverCV'
+    if (iterft->getReceiverCV() != receiverCV) continue;
 
     // ok, this is the right one
     return iter.data();

@@ -1589,11 +1589,11 @@ void FunctionType::addParam(Variable *param)
   params.append(param);
 }
 
-void FunctionType::addThisParam(Variable *param)
+void FunctionType::addReceiver(Variable *param)
 {
   xassert(param->type->isReference());
   xassert(param->hasFlag(DF_PARAMETER));
-  xassert(!isConstructor());    // ctors don't get a _this_ param
+  xassert(!isConstructor());    // ctors don't get a __receiver param
   xassert(!isMethod());         // this is about to change below
   params.prepend(param);
   flags |= FF_METHOD;
@@ -1607,7 +1607,7 @@ void FunctionType::registerRetVal(Variable *retVal)
 {}
 
 
-Variable const *FunctionType::getThisC() const
+Variable const *FunctionType::getReceiverC() const
 {
   xassert(isMethod());
   Variable const *ret = params.firstC();
@@ -1615,12 +1615,12 @@ Variable const *FunctionType::getThisC() const
   return ret;
 }
 
-CVFlags FunctionType::getThisCV() const
+CVFlags FunctionType::getReceiverCV() const
 {
   if (isMethod()) {
     // expect 'this' to be of type 'SomeClass cv &', and
     // dig down to get that 'cv'
-    return getThisC()->type->asPointerType()->atType->asCVAtomicType()->cv;
+    return getReceiverC()->type->asPointerType()->atType->asCVAtomicType()->cv;
   }
   else {
     return CV_NONE;
@@ -1629,7 +1629,7 @@ CVFlags FunctionType::getThisCV() const
 
 CompoundType *FunctionType::getClassOfMember()
 {
-  return getThis()->type->asPointerType()->atType->asCompoundType();
+  return getReceiver()->type->asPointerType()->atType->asCompoundType();
 }
 
 
@@ -1712,7 +1712,7 @@ string FunctionType::rightStringAfterQualifiers() const
 {
   stringBuilder sb;
 
-  CVFlags cv = getThisCV();
+  CVFlags cv = getReceiverCV();
   if (cv) {
     sb << " " << ::toString(cv);
   }
@@ -2387,7 +2387,7 @@ PointerToMemberType *TypeFactory::syntaxPointerToMemberType(SourceLoc loc,
 }
 
 
-PointerType *TypeFactory::makeTypeOf_this(SourceLoc loc,
+PointerType *TypeFactory::makeTypeOf_receiver(SourceLoc loc,
   CompoundType *classType, CVFlags cv, D_func *syntax)
 {
   CVAtomicType *at = makeCVAtomicType(loc, classType, cv);

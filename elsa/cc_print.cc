@@ -799,6 +799,12 @@ void E_charLit::iprint(PrintEnv &env)
   env << text;
 }
 
+void E_this::iprint(PrintEnv &env)
+{
+  olayer ol("E_this::iprint");
+  env << "this";
+}
+
 void E_variable::iprint(PrintEnv &env)
 {
   olayer ol("E_variable::iprint");

@@ -126,7 +126,7 @@ public:      // data
   SourceLoc enclosingStmtLoc;
 
   // strings
-  StringRef thisName;
+  StringRef receiverName;
 
   // what we're doing; this defaults to EA_ALL, but the client
   // is free to modify it
@@ -239,7 +239,7 @@ public:      // funcs
   void completeNoArgMemberInits(Function *ctor, CompoundType *ct);
 
   // make compiler-supplied member funcs
-  Variable *makeCtorThisLocalVar(SourceLoc loc, CompoundType *ct);
+  Variable *makeCtorReceiver(SourceLoc loc, CompoundType *ct);
   MR_func *makeNoArgCtorBody(CompoundType *ct, Variable *ctor);
   MemberInit *makeCopyCtorMemberInit(
     Variable *target,

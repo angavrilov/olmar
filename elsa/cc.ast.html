@@ -202,6 +202,17 @@ kind of literal, but concatenation semantics would require that it
 do so (e.g. "\xA" "B" is equivalent to "\x0AB", two characters,
 not "\xAB", one character).
 
+<p>
+One possibly surprising choice is not to fold E_this into E_variable.
+The reason E_this is split off is that "this" is a pointer to the
+receiver object (called "__receiver"), which already is represented by
+a Variable in the parameter list.  If "this" were parsed as an
+E_variable then its 'var' field would have to point at some
+<em>other</em> Variable (so the type makes sense), but then we'd have
+two Variables for the same concept (receiver), which would be extra
+disconnect for analyses to overcome.  Therefore E_this lets us treat
+"this" the same as "&amp;__receiver".
+
 <h3>Initializer</h3>
 
 <p>
