@@ -273,6 +273,12 @@ nonterm[StringRef] Qualifier {
 
 
 nonterm[Expression*] PostfixExpression {
+  // ambiguity:
+  //   x(y)
+  // can either be a function call (x is a function)
+  // or a constructor call (x is a type)
+  merge(L,R) [ L->ambiguity = R; return L; ]
+
   -> e:PrimaryExpression 
        [ return e; ]
 
@@ -546,6 +552,12 @@ nonterm[Expression*] ConstantExpression -> e:ConditionalExpression
 // ------ A.5 Statements ------
 // labeled-statement
 nonterm[Statement*] Statement {
+  // ambiguity:
+  //   x(y);
+  // can either be an Expression statement (function call)
+  // or a BlockDeclaration (declare variable y, of type x)
+  merge(L,R) [ L->ambiguity = R; return L; ]
+
   -> n:L2_VARIABLE_NAME ":" s:Statement 
        [ return new S_label(loc, n, s); ]
 
