@@ -882,6 +882,7 @@ if $use_gnu; then
   testCparse gnu/d0083.c
   testCparse gnu/t0126.c
   testCparse gnu/d0095.c
+  testCparse gnu/c0001.c
 
   testCparse gnu/dC0001.c # hex floating-point literals
   testCparse gnu/dC0002.c # arrays of no length are assumed to have length 1

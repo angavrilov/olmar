@@ -132,8 +132,13 @@ while (defined($line = <IN>)) {
   }
 
   # gcc or g++
-  ($s) = ($line =~ m/^(gcc|g\+\+) /);
+  ($s) = ($line =~ m/^(cc|gcc|g\+\+) /);
   if (defined($s)) {
+    # normalize cc vs gcc
+    if ($s eq "cc") {
+      $s = "gcc";
+    }
+
     # modify command string to send output to tmp.i
     if ($line !~ s/-o \S+/-o tmp.i/) {
       # no -o option, add one

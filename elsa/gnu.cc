@@ -300,9 +300,28 @@ Type *E_alignofType::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_statement::itcheck_x(Env &env, Expression *&replacement)
 {
-  s = s->tcheck(env)->asS_compound();
-  if (s->stmts.count() < 1) {
-    return env.error("`({ ... })' cannot be empty");
+  // An E_statement can contain declarations, and tchecking a
+  // declaration modifies the environment.  But expressions can occur
+  // in ambiguous contexts, and hence their tcheck should not modify
+  // the environment.
+  //
+  // Since the E_statements are themselves interpreted independently
+  // of such contexts, tcheck each E_statement exactly once.  Each
+  // ambiguous alternative will use the same interpretation.
+  //
+  // This avoids problems with e.g. in/gnu/c0001.c
+  if (!tchecked) {
+
+    // having committed to tchecking here, isolate these actions
+    // from the context
+    InstantiationContextIsolator isolate(env, env.loc());
+
+    s = s->tcheck(env)->asS_compound();
+    if (s->stmts.count() < 1) {
+      return env.error("`({ ... })' cannot be empty");
+    }
+
+    tchecked = true;
   }
 
   Statement *last = s->stmts.last();

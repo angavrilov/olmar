@@ -31,7 +31,12 @@ enum DeclaratorContext {
 class Expression {
   // statement-expression
   // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Statement-Exprs.html
-  -> E_statement(S_compound s);
+  -> E_statement(S_compound s) {
+       // sort of like E_compoundLit::tcheckedType, this ensures we
+       // only tcheck this once even though it might appear in
+       // ambiguous contexts
+       public bool tchecked = false;
+     }
 }
 
 
