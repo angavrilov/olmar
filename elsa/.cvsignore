@@ -10,3 +10,4 @@ bccgr
 *.output
 *.tab.*
 bccgr.y
+ccparse
