@@ -649,7 +649,7 @@ testparse d0103.cc
 testparse d0104.cc
 testparse d0105.cc
 failparse d0106.cc "can't define static member of a specialization of a class template"
-failparse d0107.cc "assertion failure in MatchTypes"
+testparse d0107.cc # "assertion failure in MatchTypes"
 testparse d0108.cc
 failparse d0109.cc "'using' same namespace twice causes error"
 failparse d0110.cc "class specialization without 'template' prefix?"

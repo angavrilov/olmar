@@ -5473,6 +5473,13 @@ Type *resolveOverloadedUnaryOperator(
     GrowArray<ArgumentInfo> args(1);
     args[0] = argInfo(expr);
 
+    // don't do this if it has dependent args
+    bool hasDepArgs = args[0].type->containsGeneralizedDependent();
+    if (hasDepArgs) {
+      // FIX: not sure what to return here
+      return args[0].type;
+    }
+
     // prepare resolver
     OverloadResolver resolver(env, env.loc(), &env.errors,
                               OF_NONE,
@@ -5571,6 +5578,15 @@ Type *resolveOverloadedBinaryOperator(
     else {
       // for postfix inc/dec, the second parameter is 'int'
       args[1] = ArgumentInfo(SE_NONE, env.getSimpleType(SL_UNKNOWN, ST_INT));
+    }
+
+    // don't do this if it has dependent args
+    bool hasDepArgs = 
+      args[0].type->containsGeneralizedDependent() ||
+      args[1].type->containsGeneralizedDependent();
+    if (hasDepArgs) {
+      // FIX: not sure what to return here
+      return args[0].type;
     }
 
     // prepare the overload resolver

@@ -346,7 +346,9 @@ void OverloadResolver::processCandidate(Variable *v)
   {
     // FIX: This is a bug!  If the args contain template parameters,
     // they will be the wrong template parameters.
-    TypeListIter_GrowArray argListIter(this->args);
+    GrowArray<ArgumentInfo> &args0 = this->args;
+    // FIX: check there are no dependent types in the arugments
+    TypeListIter_GrowArray argListIter(args0);
     MatchTypes match(env.tfac, MatchTypes::MM_BIND, Type::EF_DEDUCTION);
     if (!env.getFuncTemplArgs(match, sargs, finalName, v, argListIter, false /*reportErrors*/)) {
       // something doesn't work about processing the template arguments
