@@ -11,6 +11,8 @@
 #include "aenv.h"            // AEnv
 #include "nonport.h"         // getMilliseconds()
 
+#include <stdio.h>           // sprintf
+
 // info from ccgrmain.cc
 extern StringTable *globalStringTable;
 extern Variable const *globalMemVariable;
@@ -20,14 +22,48 @@ extern Variable const *globalMemVariable;
 class Timer {
   long &acc;      // accumulates spent time
   long start;     // start time for this section
-  
+
 public:
   Timer(long &a) : acc(a), start(getMilliseconds()) {}
   ~Timer() { acc += getMilliseconds() - start; }
 };
 
-// times of interest
-long intersectionTime, invalidationTime, weakeningTime, consistencyTime;
+// sections of interest
+class Section {
+public:
+  char const *name;       // section description
+  long acc;               // total time spent
+  int attempts;           // prover attempts
+  int proven;             // # of successful proofs
+
+public:
+  Section(char const *n)
+    : name(n), acc(0), attempts(0), proven(0) {}
+
+  string toString() const;
+};
+
+string Section::toString() const
+{
+  char buf[80];
+  sprintf(buf, "  %15s: %6ld ms   %d/%d proven\n",
+               name, acc, proven, attempts);
+  return string(buf);
+}
+
+string ltoaPad(long n, int pad)
+{
+  char buf[20];
+  sprintf(buf, "%*ld", pad, n);
+  return string(buf);
+}
+
+Section intersection("intersection");
+Section invalidation("invalidation");
+Section weakening("weakening");
+Section consistency("consistency");
+Section *sections[4] = { &intersection, &invalidation, 
+                         &weakening, &consistency };
 
 
 // -------------------- NodeFacts ------------------
@@ -145,11 +181,16 @@ bool intersectRawFacts(SObjList<Expression /*const*/> &lhs,
 #define DISABLE_PROVER(env) Restorer<bool> restorer(env.disableProver, true)
 
 bool miniProve(AEnv &aenv, Expression const *pred, char const *context,
-               long &accumulator)
-{                               
-  Timer timer(accumulator);
-  return aenv.prove(pred->vcgenPred(aenv, 0 /*path*/),
-                    context, !tracingSys("factflowPredicates"));
+               Section &section)
+{
+  Timer timer(section.acc);
+  bool ret = aenv.prove(pred->vcgenPred(aenv, 0 /*path*/),
+                        context, !tracingSys("factflowPredicates"));
+  section.attempts++;
+  if (ret) {
+    section.proven++;
+  }
+  return ret;                      
 }
 
 // return true if 'facts' imply 'candidate'
@@ -157,9 +198,10 @@ bool factsImply(SObjList<Expression /*const*/> const &facts,
                 Expression const *candidate)
 {
   // shortcut: if 'candidate' is in 'facts', it is clearly implied
-  if (hasFact(facts, candidate)) {
-    return true;
-  }
+  // no -- do this at call site to prevent spurious 'changed' reports
+  //if (hasFact(facts, candidate)) {
+  //  return true;
+  //}
 
   AEnv aenv(*globalStringTable, globalMemVariable);
   IN_PREDICATE(aenv);
@@ -170,10 +212,10 @@ bool factsImply(SObjList<Expression /*const*/> const &facts,
   }
 
   if (!miniProve(aenv, candidate, "testing for fact-set intersection",
-                 intersectionTime)) {
+                 intersection)) {
     trace("factflw2")
       << "    fact " << candidate->toString()
-      << " invalidated by intersection; premises: " 
+      << " invalidated by intersection; premises: "
       << factListString(facts) << endl;
     return false;
   }
@@ -189,21 +231,9 @@ bool intersectFacts(SObjList<Expression /*const*/> &lhs,
 {
   bool ret = false;
 
-  // for each thing in 'lhs'
-  SObjListMutator<Expression /*const*/> mut(lhs);
-  while (!mut.isDone()) {
-    // if it is not implied by 'rhs'
-    if (!factsImply(rhs, mut.data())) {
-      // remove it from 'lhs'
-      mut.remove();     // also advances 'mut'
-      ret = true;       // something changed
-    }
-    else {
-      mut.adv();
-    }
-  }
+  // do additions before subtractions to support weakened forms
 
-  // for each thing in 'rhs'
+  // additions: for each thing in 'rhs'
   SFOREACH_OBJLIST(Expression, rhs, iter) {
     // if it is not already in 'lhs' but is implied by 'lhs'
     if (!hasFact(lhs, iter.data()) &&
@@ -211,6 +241,21 @@ bool intersectFacts(SObjList<Expression /*const*/> &lhs,
       // add it to 'lhs'
       lhs.append(const_cast<Expression*>(iter.data()));
       ret = true;
+    }
+  }
+
+  // subtractions: for each thing in 'lhs'
+  SObjListMutator<Expression /*const*/> mut(lhs);
+  while (!mut.isDone()) {
+    // if it is not in 'rhs' and not implied by 'rhs'
+    if (!hasFact(rhs, mut.data()) &&
+        !factsImply(rhs, mut.data())) {
+      // remove it from 'lhs'
+      mut.remove();     // also advances 'mut'
+      ret = true;       // something changed
+    }
+    else {
+      mut.adv();
     }
   }
 
@@ -317,17 +362,17 @@ void factFlow(TF_func &func)
           }
 
           if (miniProve(aenv, pred, "testing for fact invalidation",
-                        invalidationTime)) {
+                        invalidation)) {
             // rescued by Simplfy!
             trace("factflw2")
-              << "    fact " << pred->toString()
-              << " validated by Simplify" << endl;
+              << "      validated fact " << pred->toString()
+              << " by Simplify" << endl;
             afterFacts.append(const_cast<Expression*>(pred));
           }
           else {
             trace("factflw2")
-              << "    fact " << pred->toString()
-              << " invalidated by " << stmt->kindLocString() << endl;
+              << "      invalidated fact " << pred->toString()
+              << " by " << stmt->kindLocString() << endl;
 
             // try to weaken the predicate slightly
             if (pred->isE_binary()) {
@@ -340,11 +385,10 @@ void factFlow(TF_func &func)
                     bin->op == BIN_LESS? BIN_LESSEQ : BIN_GREATEREQ,
                     bin->e2);
 
-                if (miniProve(aenv, weaker, "weakened form", weakeningTime)) {
+                if (miniProve(aenv, weaker, "weakened form", weakening)) {
                   trace("factflw2")
-                    << "    fact " << pred->toString()
-                    << " found to have valid weakened form "
-                    << weaker->toString() << endl;
+                    << "      weakened fact " << pred->toString()
+                    << " to " << weaker->toString() << endl;
                   afterFacts.append(weaker);
                 }
                 else {
@@ -362,7 +406,7 @@ void factFlow(TF_func &func)
         // are these facts consistent?  I.e., is the path feasible?
         E_intLit zero(0);
         if (miniProve(aenv, &zero, "testing fact-set consistency",
-                      consistencyTime)) {
+                      consistency)) {
           // they are inconsistent; do not contribute anything to the successor
           trace("factflw2") << "      flowing allTrue because of infeasible path" << endl;
           consistent = false;
@@ -429,22 +473,24 @@ void factFlow(TF_func &func)
       }
     }
   }
+    
+  long totalSimp = 0;
+  for (int i=0; i < TABLESIZE(sections); i++) {
+    totalSimp += sections[i]->acc;
+  }
+
+  trace("factflow")
+    << "done with " << func.name() << ":\n"
+    << intersection.toString()
+    << invalidation.toString()
+    << weakening.toString()
+    << consistency.toString()
+    << "     tot Simplify: " << ltoaPad(totalSimp, 6) << " ms\n"
+    << "     tot factflow: " << ltoaPad(getMilliseconds() - startTime, 6) << " ms\n";
+    ;
 
   // through the magic of destructors, the factMap (and all the
   // NodeFacts) and the allNodes list will all be deallocated
-  trace("factflow")
-    << "done with " << func.name() << ":\n"
-  #define PTIME(val) \
-    << "  " #val ":\t" << val##Time << " ms\n"
-    PTIME(intersection)
-    PTIME(invalidation)
-    PTIME(weakening)
-    PTIME(consistency)
-  #undef PTIME
-    << "  tot Simplify: " << (intersectionTime + invalidationTime +
-                              weakeningTime + consistencyTime) << " ms\n"
-    << "  tot factflow: " << (getMilliseconds() - startTime) << " ms\n";
-    ;
 }
 
 

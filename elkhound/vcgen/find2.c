@@ -122,7 +122,7 @@ void find(int *A, int N, int f)
           //RDNDT: m < j && j <= n &&
 
           // nonstrictness, so I need
-          i <= n &&    // (above it's i < n)
+          //SLOWINFER: i <= n &&    // (above it's i < n)
 
           // could infer these with a call to Simplfy each time
           //RDNDT: (thmprv_forall int p;
@@ -146,7 +146,7 @@ void find(int *A, int N, int f)
 
       thmprv_invariant
         // these two are not redundant, because of nonstrict vs strict
-        i <= n && m <= j &&
+        //SLOWINFER: i <= n && m <= j &&
 
         //RDNDT: offset(A) == 0 && length(object(A)) == N+1 &&
         //RDNDT: 1 <= f && f <= N &&
