@@ -49,7 +49,8 @@ public:
 class AEnv {
 private:     // data
   // environment maps program variable declarators (Variable const*)
-  // to abstract domain values (AbsVariable*)
+  // to abstract domain values (AbsVariable*); none of the values
+  // are ever AVlval's
   OwnerHashTable<AbsVariable> bindings;
 
   // set of facts that are applicable to all paths in the current
@@ -81,6 +82,9 @@ private:     // data
 
   // accessor functions for types
   //P_and *typeFacts;
+
+  // small attempt to conserve memory by reuse..
+  AVwhole whole;
 
 public:      // data
   // name of the memory variable
@@ -138,6 +142,10 @@ public:      // funcs
   void set(Variable const *var, AbsValue *value);
   AbsValue *get(Variable const *var);
 
+  // set lvalues
+  void setLval(AVlval const *lval, AbsValue *value);
+  void setLval(Variable const *var, AbsValue *offset, AbsValue *value);
+
   // make and return a fresh variable reference; the string
   // is attached to indicate what this variable stands for,
   // or why it was created; the prefix becomes part of the variable name
@@ -176,6 +184,10 @@ public:      // funcs
   // set/get the current abstract value of memory
   AbsValue *getMem() { return get(mem); }
   void setMem(AbsValue *newMem); // { set(mem, newMem); }
+
+  // given a value that might be an lvalue, map it to an rvalue;
+  // this dereferences AVaddr nodes
+  AbsValue *rval(AbsValue *possibleLvalue);
 
   // proof assumption; these things add to the *path* facts
   void addFact(Predicate * /*owner*/ pred, char const *why);
@@ -224,31 +236,57 @@ public:      // funcs
   StringRef str(char const *s) const { return stringTable.add(s); }
   
   // syntactic sugar for absvals
-  AbsValue *avSelect(AbsValue *mem, AbsValue *obj, AbsValue *offset)
-    { return avFunc3("select", mem, obj, offset); }
-  AbsValue *avUpdate(AbsValue *mem, AbsValue *obj, AbsValue *offset, AbsValue *newValue)
-    { return avFunc4("update", mem, obj, offset, newValue); }
-  AbsValue *avPointer(AbsValue *obj, AbsValue *offset)
-    { return avFunc2("pointer", obj, offset); }
-  AbsValue *avObject(AbsValue *ptr)
-    { return avFunc1("object", ptr); }
-  AbsValue *avOffset(AbsValue *ptr)
-    { return avFunc1("offset", ptr); }
+//    AbsValue *avSelect(AbsValue *mem, AbsValue *obj, AbsValue *offset)
+//      { return avFunc3("select", mem, obj, offset); }
+//    AbsValue *avUpdate(AbsValue *mem, AbsValue *obj, AbsValue *offset, AbsValue *newValue)
+//      { return avFunc4("update", mem, obj, offset, newValue); }
+//    AbsValue *avPointer(AbsValue *obj, AbsValue *offset)
+//      { return avFunc2("pointer", obj, offset); }
+//    AbsValue *avObject(AbsValue *ptr)
+//      { return avFunc1("object", ptr); }
+//    AbsValue *avOffset(AbsValue *ptr)
+//      { return avFunc1("offset", ptr); }
+
+  // new sel/upd symbols
+  AbsValue *avSel(AbsValue *obj, AbsValue *index)
+    { return avFunc2("sel", obj, index); }
+  AbsValue *avUpd(AbsValue *obj, AbsValue *index, AbsValue *value)
+    { return avFunc3("upd", obj, index, value); }
+
+  // new lval symbols
+  AVlval *avLval(Variable const *var, AbsValue *offset)
+    { return new AVlval(var, offset); }
+  AbsValue *avSub(AbsValue *index, AbsValue *rest)
+    { return new AVsub(index, rest); }
+  AVwhole *avWhole()
+    { return &whole; }
+
+  // sel/upd indexed with offsets (implementations do a little simplification)
+  AbsValue *avSelOffset(AbsValue *obj, AbsValue *offset);
+  AbsValue *avUpdOffset(AbsValue *obj, AbsValue *offset, AbsValue *value);
+  AbsValue *avAppendIndex(AbsValue *offset, AbsValue *index);
+
+  // pointer arithmetic
+  AbsValue *avAddOffset(AbsValue *offset, AbsValue *index)
+    { return avFunc2("addOffset", offset, index); }
+
+  // for char* strings
   AbsValue *avLength(AbsValue *obj)
     { return avFunc1("length", obj); }
   AbsValue *avFirstZero(AbsValue *mem, AbsValue *obj)
     { return avFunc2("firstZero", mem, obj); }
 
-  AbsValue *avSetElt(AbsValue *fieldIndex, AbsValue *obj, AbsValue *newValue)
-    { return avFunc3("setElt", fieldIndex, obj, newValue); }
-  AbsValue *avGetElt(AbsValue *fieldIndex, AbsValue *obj)
-    { return avFunc2("getElt", fieldIndex, obj); }
+//    AbsValue *avSetElt(AbsValue *fieldIndex, AbsValue *obj, AbsValue *newValue)
+//      { return avFunc3("setElt", fieldIndex, obj, newValue); }
+//    AbsValue *avGetElt(AbsValue *fieldIndex, AbsValue *obj)
+//      { return avFunc2("getElt", fieldIndex, obj); }
 
   AbsValue *avInDegree(AbsValue *mem, AbsValue *ofs, AbsValue *obj)
     { return avFunc3("inDegree", mem, ofs, obj); }
 
-  AbsValue *nullPointer() 
-    { return avPointer(avInt(0), avInt(0)); }
+  AbsValue *nullPointer()
+    //{ return avPointer(avInt(0), avInt(0)); }
+    { return new AVsub(avInt(0), avWhole()); }
 
   AbsValue *avFunc1(char const *func, AbsValue *v1);
   AbsValue *avFunc2(char const *func, AbsValue *v1, AbsValue *v2);
@@ -270,6 +308,10 @@ public:      // funcs
   // query..
   bool isNullPointer(AbsValue const *val) const;
   bool isZero(AbsValue const *val) const;
+
+  // prove if not obvious
+  void proveIsNullPointer(AbsValue const *val, char const *why);
+  void proveIsZero(AbsValue const *val, char const *why);
 
   // debugging
   void print();

@@ -37,6 +37,9 @@ verbatim {
   Predicate *P_forall(ASTList<AVvar> *variables, Predicate *body);
   Predicate *P_exists(ASTList<AVvar> *variables, Predicate *body);
 
+  Predicate *P_named1(StringRef name, AbsValue const *e1);
+  Predicate *P_named2(StringRef name, AbsValue const *e1, AbsValue const *e2);
+
   // visitor interface
   class PredicateVisitor {
   public:
@@ -77,7 +80,9 @@ class Predicate {
 
   // arithmetic relation; perhaps I want to allow generalized
   // predicate symbols (but would Simplify accept them?)
-  -> P_relation(AbsValue const *e1, RelationOp op, AbsValue const *e2);
+  -> P_relation(AbsValue const *e1, RelationOp op, AbsValue const *e2) {
+       ctor xassert(!e1->isAVlval() && !e2->isAVlval());
+     }
 
   // distinction: like O(n^2) disequalities
   -> P_distinct(ASTList<AbsValue> terms);
@@ -199,6 +204,20 @@ impl_verbatim {
     return new P_quantifier(variables, body, false /*forall*/);
   }
 
+  Predicate *P_named1(StringRef name, AbsValue const *e1)
+  {
+    ASTList<AbsValue> *args = new ASTList<AbsValue>;
+    args->append(const_cast<AbsValue*>(e1));    // list is imagined to have const ptrs..
+    return new P_named(name, args);
+  }
+
+  Predicate *P_named2(StringRef name, AbsValue const *e1, AbsValue const *e2)
+  {
+    ASTList<AbsValue> *args = new ASTList<AbsValue>;
+    args->append(const_cast<AbsValue*>(e1));    // list is imagined to have const ptrs..
+    args->append(const_cast<AbsValue*>(e2));
+    return new P_named(name, args);
+  }
 
   string Predicate::toSexpString() const
   {

@@ -2,7 +2,11 @@
 ; experiments with new sel/upd axioms
 
 
-bg_push (                                     
+; ---------------------- selOffset ----------------
+bg_push (
+  (uncheckedAccess mem0)           ; memory itself is not bounds-checked
+  (EQ (length (sel mem0 a)) 10)    ; a[] has 10 elements
+
   (EQ (sel (sel mem0 a) 2) 9)      ; mem.a.2 == 9
   (EQ p0 (sub a (sub 2 whole)))    ; p0 == .a.2
 )
@@ -14,7 +18,7 @@ valid "a" (
 notvalid "!a" (
   (EQ (selOffset mem0 p0) 8)
 )
-       
+
 
 bg_push (
   (EQ mem1 (updOffset mem0 p0 7))
@@ -29,6 +33,69 @@ notvalid "!b" (
 )
 
 
+; ------------------- okSel ------------------
+bg_push (
+  (EQ (length obj1) 3)
+)
+
+valid "oksel1" (
+  (okSel obj1 0)
+)
+
+valid "oksel2" (
+  (okSel obj1 2)
+)
+
+notvalid "!oksel1" (
+  (okSel obj1 -1)
+)
+
+notvalid "!oksel2" (
+  (okSel obj1 3)
+)
+
+valid "oksel3" (
+  (okSel mem0 a)
+)
+
+valid "oksel1 via write" (
+  (okSel mem1 a)
+)
+
+valid "oksel2 via write" (
+  (okSel (sel mem1 a) 2)
+)
+
+valid "oksel2b via write" (
+  (okSel (sel mem1 a) 0)
+)
+
+notvalid "!oksel2b via write" (
+  (okSel (sel mem1 a) -1)
+)
+
+valid "oksel2c via write" (
+  (okSel (sel mem1 a) 9)
+)
+
+notvalid "!oksel2c via write" (
+  (okSel (sel mem1 a) 10)
+)
+
+bg_pop
+
+
+; -------------------- okSelOffset ----------------
+valid "okselofs1" (
+  (okSelOffset mem1 p0)
+)
+
+notvalid "!okselofs1" (
+  (okSelOffset mem1 (sub a (sub 19 whole)))
+)
+
+
+; -------------------- addOffset ------------------
 bg_push (
   (EQ p1 (addOffset p0 4))
 )
@@ -39,4 +106,52 @@ valid "c" (
 
 notvalid "!c" (
   (EQ p1 (sub a (sub 2 whole)))
+)
+
+valid "okselofs2" (
+  (okSelOffset mem1 p1)
+)
+
+
+; ------------------ appendIndex ---------------------
+valid "d" (
+  (EQ p1 (appendIndex (appendIndex whole a) 6))
+)
+
+notvalid "!d" (
+  (EQ p1 (appendIndex (appendIndex whole a) 7))
+)
+
+
+; -------------- complicated example.. --------------
+bg_push (
+  ;(EQ (length (sel mem_33 addr_arr_2)) 10)
+  (DISTINCT addr_arr_3 0)
+  (uncheckedAccess mem_34)
+  (EQ (length (sel mem_34 addr_arr_3)) 10)
+  ;(EQ mem_35 (upd mem_34 addr_arr_3 arr_1))
+)
+
+valid "access1" (
+  (okSel mem_34 addr_arr_3)
+)
+
+valid "access2" (
+  (okSel (sel mem_34 addr_arr_3) 0)
+)
+
+valid "access2" (
+  (okSel (sel mem_34 addr_arr_3) 9)
+)
+
+valid "check1" (
+  (EQ (selOffset mem_34 (sub addr_arr_3 whole)) (sel mem_34 addr_arr_3))
+)
+                                                         
+valid "final accesses" (
+  (FORALL (i_30 )
+    (IMPLIES
+      (AND (<= 0 i_30) (< i_30 10))
+      (okSelOffset mem_34 (addOffset (sub addr_arr_3 (sub 0 whole)) i_30))
+    ))
 )

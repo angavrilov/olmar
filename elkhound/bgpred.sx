@@ -8,6 +8,15 @@
 (DEFPRED (hasTypeNode obj))
 (DEFPRED (freshObj obj mem))
 
+; true iff ok to (sel obj index)
+(DEFPRED (okSel obj index))
+
+; true iff ok to (selOffset obj offset)
+(DEFPRED (okSelOffset obj offset))
+
+; true when 'okSel' is always true for an object (typically memory)
+(DEFPRED (uncheckedAccess obj))
+
 (BG_PUSH (AND
 
   ; ---------------- misc -----------------
@@ -348,6 +357,39 @@
       )
     ))
 
+  ; ok to access a field
+  (FORALL (obj index)
+    (IMPLIES
+      (AND
+        (>= index 0)
+        (< index (length obj))
+      )
+      (okSel obj index)
+    ))
+
+  ; length survives updates to elements
+  (FORALL (obj index val)
+    (EQ
+      (length obj)
+      (length (upd obj index val))
+    ))
+
+  ; ---------------------- uncheckedAccess ------------------
+  ; ok to access any field in an unchecked-access object (like memory itself)
+  (FORALL (mem index)
+    (IMPLIES
+      (uncheckedAccess mem)
+      (okSel mem index)
+    ))
+
+  ; unchecked-access survives updates (another idea: I could make okSel
+  ; always skip updates..)
+  (FORALL (mem index val)
+    (IMPLIES
+      (uncheckedAccess mem)
+      (uncheckedAccess (upd mem index val))
+    ))
+
   ; =================== sel/upd with offsets ===================
   ; An "index" is an atomic array index or field number; it can
   ; be (or equal to) a literal integer.  An "offset" is a possibly
@@ -388,6 +430,28 @@
       val
     ))
 
+  ; -------------------- okSelOffset ----------------
+  ; if the offset is 'whole', it's always ok
+  (FORALL (obj)
+    (okSelOffset obj whole))                
+    
+  ; for non-whole offsets, check the first index, then recursively
+  ; check the rest of the offset (will Simplify get lost??  I'll
+  ; try to avoid that with a pattern that limits it to applications
+  ; when the goal is desired)
+  (FORALL (obj index rest)   (PATS (okSelOffset obj (sub index rest)))
+    (IMPLIES
+      (AND
+        (okSel obj index)
+        (okSelOffset (sel obj index) rest)
+      )
+      (okSelOffset obj (sub index rest))
+    ))
+
+  ; --------------------- addOffset -----------------
+  ; NOTE: I tried using "+" instead of "addOffset", but Simplify
+  ; loops forever
+
   ; arithmetic with a nested offset
   ;   addOffset(.i.k rest, j) === .i.addOffset(.k rest, j)
   (FORALL (i j k rest)
@@ -402,6 +466,23 @@
     (EQ
       (addOffset (sub i whole) j)
       (sub (+ i j) whole)
+    ))
+
+  ; -------------------- appendIndex ----------------
+  ; append an index specifier to an empty offset
+  ;   appendIndex(whole, index) === .index
+  (FORALL (index)
+    (EQ
+      (appendIndex whole index)
+      (sub index whole)
+    ))
+   
+  ; append an index to a nonempty offset
+  ;   appendIndex(.a rest, index) === .a.appendIndex(rest, index)
+  (FORALL (a rest index)
+    (EQ
+      (appendIndex (sub a rest) index)
+      (sub a (appendIndex rest index))
     ))
 
 ))

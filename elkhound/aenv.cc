@@ -121,6 +121,8 @@ void AEnv::newPath()
 
   // initialize the environment with a fresh variable for memory
   set(mem, freshVariable("mem", "initial contents of memory"));
+  addFact(P_named1(str("uncheckedAccess"), getMem()),
+          "memory itself is unchecked");
 
   // null is an address distinct from any other we'll encounter
   addDistinct(avInt(0));
@@ -134,6 +136,7 @@ void AEnv::newPath()
 
 void AEnv::set(Variable const *var, AbsValue *value)
 {
+  value = rval(value);
   AbsVariable *avar = bindings.get(var);
   if (!avar) {
     avar = new AbsVariable(var, value, false /*memvar*/);
@@ -141,6 +144,23 @@ void AEnv::set(Variable const *var, AbsValue *value)
   }
 
   avar->value = value;
+}
+
+
+void AEnv::setLval(AVlval const *lval, AbsValue *value)
+{
+  setLval(lval->progVar, lval->offset, value);
+}
+
+void AEnv::setLval(Variable const *var, AbsValue *offset, AbsValue *value)
+{          
+  AbsValue *updated = avUpdOffset(get(var), offset, value);
+  if (var == mem) {
+    setMem(updated);    // makes fresh memory variabes for each new state
+  }
+  else {
+    set(var, updated);
+  }
 }
 
 
@@ -205,11 +225,11 @@ AbsValue *AEnv::get(Variable const *var)
     // model this variable as a location in memory; make up a name
     // for its address
     AbsValue *addr = addMemVar(var);
+    AbsValue *initialObject = avSel(getMem(), addr);
 
     if (!type->isArrayType()) {
       // state that, right now, that memory location contains 'value'
-      addFact(P_equal(value,
-                      avSelect(getMem(), addr, new AVint(0))),
+      addFact(P_equal(value, initialObject),
               "initial value of memory variable");
     }
     else {
@@ -227,9 +247,11 @@ AbsValue *AEnv::get(Variable const *var)
       size = type->asArrayTypeC().size;
     }
 
+    #if 0     // moved down to addDeclarationFacts
     // remember the length, as a predicate in the set of known facts
-    addFact(P_equal(avLength(addr), new AVint(size)),
-            "memory object size");
+    addFact(P_equal(avLength(initialObject), new AVint(size)),
+            "memory object size");                
+    #endif // 0
                          
     // caller knows that we're yielding the address, not the value,
     // since this is a memvar
@@ -254,7 +276,7 @@ void AEnv::addDeclarationFacts(Variable const *var, AbsValue *value)
   if (type->isOwnerPtr()) {
     // OWNER: initialize 'state' to DEAD (1)
     trace("owner") << "initializing state of " << name << " to dead\n";
-    addFact(P_equal(avGetElt(avOwnerField_state(), value),
+    addFact(P_equal(avSel(value, avOwnerField_state()),
                     avOwnerState_dead()),
             stringc << "initial state of owner pointer " << name);
   }
@@ -262,18 +284,25 @@ void AEnv::addDeclarationFacts(Variable const *var, AbsValue *value)
   if (type->isArrayType()) {
     ArrayType const &at = type->asArrayTypeC();
     AbsValue *addr = get(var);      // need the object's address; 'value' isn't it
-
+    AbsValue *object = avSel(getMem(), addr);
+    
+    // length
+    if (at.hasSize) {
+      addFact(P_equal(avLength(object), avInt(at.size)),
+              "known array length");
+    }
+      
     if (at.eltType->isOwnerPtr()) {
       // OWNER: arrays of owners get initialized to the dead state
       trace("owner") << "initializing array of owners to dead\n";
 
-      // thmprv_forall(int j; 0<=j && j<length(addr) ==> addr[j].state==DEAD)
+      // thmprv_forall(int j; 0<=j && j<length(*addr) ==> addr[j].state==DEAD)
       AVvar *j = freshVariable("j", "quantifier for array index");
       addFact(P_forall(new ASTList<AVvar>(j),
                        new P_impl(P_and2(new P_relation(avInt(0), RE_LESSEQ,j),
-                                         new P_relation(j, RE_LESS, avLength(addr))),
-                                  P_equal(avGetElt(avOwnerField_state(),
-                                                   avSelect(getMem(), addr, j)),
+                                         new P_relation(j, RE_LESS, avLength(object))),
+                                  P_equal(avSel(avSel(object, j),
+                                                avOwnerField_state()),
                                           avOwnerState_dead())
                                  )
                       ),
@@ -339,8 +368,7 @@ AbsValue *AEnv::updateVar(Variable const *var, AbsValue *newValue)
   }
   else {
     // memory variable: memory changes
-    setMem(avUpdate(getMem(), getMemVarAddr(var),
-                    new AVint(0) /*offset*/, newValue));
+    setMem(avUpd(getMem(), getMemVarAddr(var), newValue));
   }
   
   return newValue;
@@ -355,6 +383,9 @@ void AEnv::addDistinct(AbsValue *obj)
 
 void AEnv::assumeNoFieldPointsTo(AbsValue *v)
 {
+  // TODO: don't know how to say this in my new sel/upd system...
+                                                                 
+  #if 0
   // need a quantification variable
   AVvar *objVar = freshVariable("obj",
     "introduced for quantifying over objects in assumeNoFieldPointsTo()");
@@ -379,7 +410,7 @@ void AEnv::assumeNoFieldPointsTo(AbsValue *v)
         v,
         avSelect(getMem(), objVar, ofsVar)
       )));
-                                            
+
   // need one more due to Simplify name capture bug
   AVvar *ofsVar2 = freshVariable("ofs",
     "introduced for quantifying over inDegree offsets in assumeNoFieldPointsTo()");
@@ -393,6 +424,7 @@ void AEnv::assumeNoFieldPointsTo(AbsValue *v)
         new AVint(0),
         avInDegree(getMem(), ofsVar2, v)
       )));
+  #endif // 0
 }
 
 
@@ -519,6 +551,18 @@ Predicate *exprToPred(AbsValue const *expr)
   // amenable to translation into a predicate, so we just construct
   // a predicate to express the usual C true/false convention
   return new P_relation(expr, RE_NOTEQUAL, &zero);
+}
+
+
+AbsValue *AEnv::rval(AbsValue *possible)
+{
+  if (possible->isAVlval()) {
+    AVlval *lval = possible->asAVlval();
+    return avSelOffset(get(lval->progVar), lval->offset);
+  }
+  else {
+    return possible;
+  }
 }
 
 
@@ -826,6 +870,44 @@ void AEnv::discard(AbsValue *)    {}
 AbsValue *AEnv::dup(AbsValue *v)  { return v; }
 
 
+AbsValue *AEnv::avSelOffset(AbsValue *obj, AbsValue *offset)
+{  
+  // do just a little simplification here..
+  if (offset->isAVwhole()) {
+    return obj;
+  }
+  else {
+    return avFunc2("selOffset", obj, offset);
+  }
+}
+
+
+AbsValue *AEnv::avUpdOffset(AbsValue *obj, AbsValue *offset, AbsValue *value)
+{
+  if (offset->isAVwhole()) {
+    return value;
+  }
+  else {
+    return avFunc3("updOffset", obj, offset, value);
+  }
+}
+
+
+AbsValue *AEnv::avAppendIndex(AbsValue *offset, AbsValue *index)
+{          
+  if (offset->isAVwhole()) {
+    return avSub(index, avWhole());
+  }
+  else if (offset->isAVsub()) {
+    AVsub *sub = offset->asAVsub();
+    return avSub(sub->index, avAppendIndex(sub->offset, index));
+  }
+  else {
+    return avFunc2("appendIndex", offset, index);
+  }
+}
+
+
 AbsValue *AEnv::avFunc5(char const *func, AbsValue *v1, AbsValue *v2, AbsValue *v3, AbsValue *v4, AbsValue *v5)
 {
   return ::avFunc5(str(func), v1, v2, v3, v4, v5);
@@ -884,12 +966,27 @@ bool AEnv::isNullPointer(AbsValue const *val) const
   return false;
 }
 
+void AEnv::proveIsNullPointer(AbsValue const *val, char const *why)
+{
+  if (!isNullPointer(val)) {
+    prove(P_equal(val, nullPointer()), why);
+  }
+}
+
+
 bool AEnv::isZero(AbsValue const *val) const
 {
   if (val->isAVint()) {
     return val->asAVintC()->i == 0;
   }
   return false;
+}
+
+void AEnv::proveIsZero(AbsValue const *val, char const *why)
+{
+  if (!isZero(val)) {
+    prove(P_equal(val, avInt(0)), why);
+  }
 }
 
 

@@ -220,7 +220,8 @@ Predicate *vcgenPredicate(AEnv &env, Expression *expr, int path)
 
 void proveNonOwning(AEnv &env, AbsValue *ptrVal, char const *why)
 {
-  env.prove(P_notEqual(env.avGetElt(env.avOwnerField_state(), ptrVal),
+  ptrVal = env.rval(ptrVal);
+  env.prove(P_notEqual(env.avSel(ptrVal, env.avOwnerField_state()),
                        env.avOwnerState_owning()),
             why);
 }
@@ -527,7 +528,7 @@ void S_invariant::vcgen(STMT_VCGEN_PARAMS) const
 {
   // we only call the 'vcgen' of an invariant at the *start* of a path
   //env.addFact(vcgenPredicate(env, expr, path));
-  
+
   // update: I'll let the path driver take care of both adding premises,
   // and proving obligations; so s_invariant itself just holds onto the
   // expression
@@ -585,7 +586,7 @@ AbsValue *E_stringLit::vcgen(AEnv &env, int path) const
                       env.avInt(strlen(s)+1)), "string literal zero");
 
   // the result of this expression is a pointer to the string's start
-  return env.avPointer(object, new AVint(0));
+  return env.avSub(object, env.avSub(new AVint(0), env.avWhole()));
 }
 
 
@@ -609,19 +610,35 @@ AbsValue *E_variable::vcgen(AEnv &env, int path) const
   }
 
   if (!env.isMemVar(var)) {
-    // ordinary variable: look up the current abstract value for this
-    // variable, and simply return that
-    return env.get(var);
-  }
-  else if (var->type->isArrayType()) {
-    // is name of an array, in which case we return the name given
-    // to the array's location (it's like an immutable pointer)
-    return env.avPointer(env.getMemVarAddr(var), new AVint(0));
+    // ordinary variable: lval of that name
+    return env.avLval(var, env.avWhole());
   }
   else {
-    // memory variable: return an expression which will read it out of memory
-    return env.avSelect(env.getMem(), env.getMemVarAddr(var), new AVint(0));
+    // memory variable: lval into 'mem' variable
+    return env.avLval(env.mem, env.avSub(env.getMemVarAddr(var), env.avWhole()));
   }
+  
+//    if (var->type->isArrayType()) {
+//      // is name of an array, in which case we return the name given
+//      // to the array's location (it's like an immutable pointer)
+//      return env.avPointer(env.getMemVarAddr(var), new AVint(0));
+//    }
+//    else {
+//      // memory variable: return an expression which will read it out of memory
+//      return env.avSelect(env.getMem(), env.getMemVarAddr(var), new AVint(0));
+//    }
+}
+
+
+void deadenOwnerState(AEnv &env, AbsValue *value)
+{
+  xassert(value->isAVlval());     // otherwise can't deaden state!
+  AVlval *lval = value->asAVlval();
+
+  // modify source's 'state' field
+  env.setLval(lval->progVar,
+              env.avAppendIndex(lval->offset, env.avOwnerField_state()),
+              env.avOwnerState_dead());
 }
 
 
@@ -647,32 +664,19 @@ AbsValue *E_funCall::vcgen(AEnv &env, int path) const
       // evaluate
       subexpPaths = arg->numPaths1();
       AbsValue *val = arg->vcgen(env, path % subexpPaths);
-      argExps.prepend(val);
-      path = path / subexpPaths;
-                 
+      
       if (arg->type->asRval()->isOwnerPtr() &&
           paramIter.data()->type->isOwnerPtr()) {
         // OWNER: when an owner pointer is passed to an owner param,
         // the argument becomes dead
-        // TODO: replace all of this with a source-to-source instrumentation
-        // phase, so I don't have to re-do what E_assign does...
-        if (arg->isE_variable()) {
-          E_variable const *evar = arg->asE_variableC();
-          trace("owner") << "deadening argument " << evar->var->name << "\n";
-                                                                             
-          // get current value
-          AbsValue *prev = env.get(evar->var);
-                              
-          // update the 'state' field
-          env.set(evar->var, env.avSetElt(env.avOwnerField_state(),
-                                          prev, env.avOwnerState_dead()));
-        }
-        else {
-          cout << "WARNING: unhandled owner argument: " << arg->toString() << "\n";
-        }
+        deadenOwnerState(env, val);
       }
       // TODO: add typechecking rules to prevent passing a serf pointer
       // into an owner param
+
+      argExps.prepend(env.rval(val));
+      path = path / subexpPaths;
+
     }
     xassert(path < subexpPaths);
 
@@ -758,67 +762,89 @@ AbsValue *E_funCall::vcgen(AEnv &env, int path) const
 
 AbsValue *E_fieldAcc::vcgen(AEnv &env, int path) const
 {
-  if (obj->isE_variable()) {
-    Variable *var = obj->asE_variable()->var;
-    if (!var->hasAddrTaken()) {
-      // modeled as an unaliased tuple
-      // retrieve named piece of the (whole) structure value
-      return env.avGetElt(env.avInt(field->index), env.get(var));
-    }
+  // get val for the object
+  AbsValue *objVal = obj->vcgen(env, path);
+    
+  // and field index for the field
+  AbsValue *fieldIndex = env.avInt(field->index);
+
+  // is it an lvalue?  (it almost always is)
+  if (objVal->isAVlval()) {
+    AVlval *objLval = objVal->asAVlval();
+
+    // append this field's index as an offset
+    objLval->offset = env.avAppendIndex(objLval->offset, fieldIndex);
+    return objLval;
   }
 
-  if (obj->isE_deref()) {
-    E_deref const *deref = obj->asE_derefC();
-
-    // partially DUPLICATED from E_assign::vcgen; reflective of general
-    // problem with lvalues
-
-    // get an abstract value for the address of the object being modified
-    AbsValue *addr = deref->ptr->vcgen(env, path);
-
-    if (0==strcmp(field->compound->name, "OwnerPtrMeta")) {
-      // OWNER: model the 'OwnerPtrMeta' struct as a tuple (obviously
-      // I need to generalize the decision of what to model as a tuple)
-      
-      // get the tuple value
-      AbsValue *tuple =
-         env.avSelect(
-           env.getMem(),
-           env.avObject(addr),
-           env.avOffset(addr));
-           
-      // select the field I want
-      return env.avGetElt(env.avInt(field->index), tuple);
-    }
-
-    #if 0    // old: from before I used + to form offset
-    if (!env.inPredicate) {
-      // the address should have offset 0
-      env.prove(P_equal(env.avOffset(addr), env.avInt(0)),
-                "object field access at offset 0");
-
-      // TODO: assign type tags to allocated regions, and prove here
-      // that the type tag is correct
-    }
-
-    // since we've proved the offset is 0, assume it (this really for
-    // the predicate case, where we *don't* prove it, so it acts like
-    // an unstated assumption about a pointer to which a field
-    // accessor is applied)
-    env.addFact(P_equal(env.avOffset(addr), env.avInt(0)),
-                "implicit offset=0 assumption for field access pointer");
-    #endif // 0
-
-    // read from memory
-    return env.avSelect(env.getMem(),
-      env.avObject(addr),                // object being accessed
-      env.avSum(env.avOffset(addr),      // offset is pointer's offset (usually 0)
-                env.get(field->decl)));  //  + symbolic offset of the field
+  else {
+    // unusual, but not impossible; just select within the rvalue
+    return env.avSel(objVal, fieldIndex);
   }
 
-  cout << "TODO: unhandled structure field access: " << toString() << endl;
-  return env.freshVariable("field",
-           stringc << "structure field access: " << toString());
+  #if 0   // old
+    if (obj->isE_variable()) {
+      Variable *var = obj->asE_variable()->var;
+      if (!var->hasAddrTaken()) {
+        // modeled as an unaliased tuple
+        // retrieve named piece of the (whole) structure value
+        return env.avGetElt(env.avInt(field->index), env.get(var));
+      }
+    }
+
+    if (obj->isE_deref()) {
+      E_deref const *deref = obj->asE_derefC();
+
+      // partially DUPLICATED from E_assign::vcgen; reflective of general
+      // problem with lvalues
+
+      // get an abstract value for the address of the object being modified
+      AbsValue *addr = deref->ptr->vcgen(env, path);
+
+      if (0==strcmp(field->compound->name, "OwnerPtrMeta")) {
+        // OWNER: model the 'OwnerPtrMeta' struct as a tuple (obviously
+        // I need to generalize the decision of what to model as a tuple)
+
+        // get the tuple value
+        AbsValue *tuple =
+           env.avSelect(
+             env.getMem(),
+             env.avObject(addr),
+             env.avOffset(addr));
+
+        // select the field I want
+        return env.avGetElt(env.avInt(field->index), tuple);
+      }
+
+      #if 0    // old: from before I used + to form offset
+      if (!env.inPredicate) {
+        // the address should have offset 0
+        env.prove(P_equal(env.avOffset(addr), env.avInt(0)),
+                  "object field access at offset 0");
+
+        // TODO: assign type tags to allocated regions, and prove here
+        // that the type tag is correct
+      }
+
+      // since we've proved the offset is 0, assume it (this really for
+      // the predicate case, where we *don't* prove it, so it acts like
+      // an unstated assumption about a pointer to which a field
+      // accessor is applied)
+      env.addFact(P_equal(env.avOffset(addr), env.avInt(0)),
+                  "implicit offset=0 assumption for field access pointer");
+      #endif // 0
+
+      // read from memory
+      return env.avSelect(env.getMem(),
+        env.avObject(addr),                // object being accessed
+        env.avSum(env.avOffset(addr),      // offset is pointer's offset (usually 0)
+                  env.get(field->decl)));  //  + symbolic offset of the field
+    }
+
+    cout << "TODO: unhandled structure field access: " << toString() << endl;
+    return env.freshVariable("field",
+             stringc << "structure field access: " << toString());
+  #endif // 0           
 }
 
 
@@ -841,11 +867,33 @@ AbsValue *E_effect::vcgen(AEnv &env, int path) const
 }
 
 
+// usually this is op(val1,val2), but it might be something else
+// depending on the type of 'e1' (the expression which yielded 'val1')
+AbsValue *arithmeticCombinator(AEnv &env, AbsValue *val1, Expression *e1,
+                               BinaryOp op, AbsValue *val2)
+{
+  if (e1->type->asRval()->isPointerType()) {
+    if (op==BIN_PLUS) {
+      // use the addOffset function
+      return env.avAddOffset(val1, val2);
+    }
+    if (op==BIN_MINUS) {
+      // similar but with negation
+      return env.avAddOffset(val1, env.grab(new AVunary(UNY_MINUS, val2)));
+    }
+    xfailure("bad pointer operation");
+  }
+
+  return env.grab(new AVbinary(val1, op, val2));
+}
+
+
 AbsValue *E_binary::vcgen(AEnv &env, int path) const
 {
   if (e2->numPaths == 0) {
     // simple side-effect-free binary op
-    return env.grab(new AVbinary(e1->vcgen(env, path), op, e2->vcgen(env, 0)));
+    return arithmeticCombinator(env, env.rval(e1->vcgen(env, path)), e1,
+                                op, env.rval(e2->vcgen(env, 0)));  
   }
 
   // consider operator
@@ -859,7 +907,7 @@ AbsValue *E_binary::vcgen(AEnv &env, int path) const
     if (path > 0) {
       // we follow rhs; this implies something about the value of lhs:
       // if it's &&, lhs had to be true; false for ||
-      env.addBoolFact(lhs, op==BIN_AND, 
+      env.addBoolFact(lhs, op==BIN_AND,
         stringc << "LHS guard given RHS is eval'd " << toString());
 
       // the true/false value is now entirely determined by rhs
@@ -878,11 +926,11 @@ AbsValue *E_binary::vcgen(AEnv &env, int path) const
   else {
     // evaluate LHS
     int modulus = e1->numPaths1();
-    AbsValue *lhs = e1->vcgen(env, path % modulus);
+    AbsValue *lhs = env.rval(e1->vcgen(env, path % modulus));
     path = path / modulus;
 
     // non-short-circuit: always evaluate RHS
-    return env.grab(new AVbinary(lhs, op, e2->vcgen(env, path)));
+    return arithmeticCombinator(env, lhs, e1, op, env.rval(e2->vcgen(env, path)));
   }
 }
 
@@ -891,10 +939,17 @@ AbsValue *E_addrOf::vcgen(AEnv &env, int path) const
 {
   xassert(path==0);
 
-  if (expr->isE_variable()) {
-    return env.avPointer(env.getMemVarAddr(expr->asE_variable()->var), // obj
-                         new AVint(0));                                // offset
+  AbsValue *exprVal = expr->vcgen(env, path);
+  if (exprVal->isAVlval()) {
+    AVlval *lval = exprVal->asAVlval();
+    xassert(lval->progVar == env.mem);
+    return lval->offset;       // pointer value relative to 'mem'
   }
+
+//    if (expr->isE_variable()) {
+//      return env.avPointer(env.getMemVarAddr(expr->asE_variable()->var), // obj
+//                           new AVint(0));                                // offset
+//    }
   else {
     cout << "TODO: unhandled addrof: " << toString() << endl;
     return avTodo();
@@ -907,36 +962,43 @@ void verifyPointerAccess(AEnv &env, Expression const *expr, AbsValue *addr)
   // for a while I was doing ok checking these even inside predicates,
   // but it induces an ordering constraint on the conjuncts in invariants,
   // and that is hard to respect during automatic strengthening
-  if (!env.inPredicate) {
+  if (!env.inPredicate) {                         
+    env.prove(P_named2(env.str("okSelOffset"),
+                       env.getMem(), addr),
+              stringc << "pointer access check: " << expr->toString());
+                                                         
+    #if 0     // old
     env.prove(new P_relation(env.avOffset(addr), RE_GREATEREQ,
                              env.avInt(0)),
                              stringc << "pointer lower bound: " << expr->toString());
     env.prove(new P_relation(env.avOffset(addr), RE_LESS,
                              env.avLength(env.avObject(addr))),
                              stringc << "pointer upper bound: " << expr->toString());
+    #endif // 0
   }
 }
 
 AbsValue *E_deref::vcgen(AEnv &env, int path) const
 {
-  AbsValue *addr = ptr->vcgen(env, path);
+  AbsValue *addr = env.rval(ptr->vcgen(env, path));
 
-  // DUPLICATED in E_assign
   if (ptr->type->asRval()->isOwnerPtr()) {
     // OWNER: pointer must be in owning state to use
     trace("owner") << "owner pointer being dereferenced for read\n";
-    env.prove(P_equal(env.avGetElt(env.avOwnerField_state(), addr),
+    env.prove(P_equal(env.avSel(addr, env.avOwnerField_state()),
                       env.avOwnerState_owning()),
               "owner must be in owner state to dereference");
 
     // dereferencing an owner needs to actually dereference the 'ptr' field
-    addr = env.avGetElt(env.avOwnerField_ptr(), addr);
+    addr = env.avSel(addr, env.avOwnerField_ptr());
   }
 
   // emit a proof obligation for safe access through 'addr'
   verifyPointerAccess(env, this, addr);
 
-  return env.avSelect(env.getMem(), env.avObject(addr), env.avOffset(addr));
+  return env.avLval(env.mem, addr);
+
+  //return env.avSelect(env.getMem(), env.avObject(addr), env.avOffset(addr));
 }
 
 
@@ -950,27 +1012,26 @@ AbsValue *E_cast::vcgen(AEnv &env, int path) const
   // that code eventually
   if (ctype->type->asRval()->isPointerType() &&
       expr->type->isSimple(ST_INT)) {
-    // encode as pointer: some integer offset from the null object
-    v = env.avPointer(env.avInt(0), v);
+    // encode as pointer: should be null..
+    env.proveIsZero(env.rval(v), "only zeroes can be cast to pointers");
+    v = env.nullPointer();
 
     // OWNER: if the target is an owner pointer, construct
     // a tuple for it
     if (ctype->type->asRval()->isOwnerPtr()) {
       // first of all, we can only assign the integer zero to owners
-      if (!env.isNullPointer(v)) {       // only prove if nonobvious
-        env.prove(P_equal(v, env.nullPointer()),
-                  "can only assign zero to owners");
-      }
+      // (redundant given above check, but won't hurt)
+      env.proveIsNullPointer(v, "can only assign zero to owners");
 
       // construct the tuple
       trace("owner") << "yielding a null-owner tuple\n";
-      v = env.avSetElt(
-            env.avOwnerField_ptr(),      // field: ptr
+      v = env.avUpd(
             env.avInt(0),                // start with no-information tuple
+            env.avOwnerField_ptr(),      // field: ptr
             v);                          // value: pointer(0,0)
-      v = env.avSetElt(
-            env.avOwnerField_state(),    // field: state
+      v = env.avUpd(
             v,                           // value to update
+            env.avOwnerField_state(),    // field: state
             env.avOwnerState_null());    // value: nullowner
     }
   }
@@ -978,7 +1039,15 @@ AbsValue *E_cast::vcgen(AEnv &env, int path) const
   if (!ctype->type->asRval()->isOwnerPtr() &&
       expr->type->asRval()->isOwnerPtr()) {
     // OWNER: if casting from owner to nonowner, select 'ptr' field
-    v = env.avGetElt(env.avOwnerField_ptr(), v);
+    v = env.avSel(env.rval(v), env.avOwnerField_ptr());
+  }
+
+  // if casting from array to pointer, get pointer to element 0
+  if (ctype->type->asRval()->isPointerType() &&
+      expr->type->asRval()->isArrayType()) {
+    xassert(v->isAVlval());     // must be a reference to the array
+    AVlval *lval = v->asAVlval();
+    v = env.avAppendIndex(lval->offset, env.avInt(0));
   }
 
   return v;
@@ -989,7 +1058,7 @@ AbsValue *E_cond::vcgen(AEnv &env, int path) const
 {
   if (th->numPaths == 0 && el->numPaths == 0) {
     int modulus = cond->numPaths1();
-    AbsValue *guard = cond->vcgen(env, path % modulus);
+    AbsValue *guard = env.rval(cond->vcgen(env, path % modulus));
     path = path / modulus;
 
     // no side effects in either branch; use ?: operator
@@ -1024,7 +1093,7 @@ AbsValue *E_gnuCond::vcgen(AEnv &env, int path) const
   // again on the assumption there are no side effects in the 'else' branch
   // TODO: make a deep-copier for astgen
   return avTodo();
-}    
+}
 #endif // 0
 
 
@@ -1050,7 +1119,7 @@ AbsValue *E_sizeofType::vcgen(AEnv &env, int path) const
 AbsValue *E_new::vcgen(AEnv &env, int path) const
 {
   xassert(path==0);
-  
+
   // to model allocation:
   //   - make up a new logic variable to stand for the address
   //   - state that this address is distinct from any others we know 
@@ -1065,8 +1134,8 @@ AbsValue *E_new::vcgen(AEnv &env, int path) const
   // distinct from others
   env.addDistinct(v);
 
-  // we yield a pointer with offset 0
-  AbsValue *ret = env.avPointer(v, env.avInt(0));
+  // we yield a memory offset
+  AbsValue *ret = env.avSub(v, env.avWhole());
 
   // nothing points to this new thing
   env.assumeNoFieldPointsTo(ret);
@@ -1078,35 +1147,65 @@ AbsValue *E_new::vcgen(AEnv &env, int path) const
 // return true if this variable's value is modeled as a tuple
 // which cannot have interior pointers
 bool modelAsTuple(Variable *var)
-{    
+{
   // old condition
   if (var->hasAddrTaken()) { return false; }
   if (var->type->isStructType()) { return true; }
 
   // OWNER: model owner pointers this way too
   if (var->type->isOwnerPtr()) { return true; }
-  
+
   return false;
 }
 
 
 AbsValue *E_assign::vcgen(AEnv &env, int path) const
 {
+  // get source value
   int modulus = src->numPaths1();
-  AbsValue *v = src->vcgen(env, path % modulus);
+  AbsValue *srcValue = src->vcgen(env, path % modulus);
   path = path / modulus;
 
+  // get target lvalue
+  AbsValue *targetValue = target->vcgen(env, path);
+  xassert(targetValue->isAVlval());     // otherwise can't modify!
+  AVlval *targetLval = targetValue->asAVlval();
+
+  // do compound assignment
+  if (op != BIN_ASSIGN) {
+    srcValue = env.grab(new AVbinary(env.rval(targetLval), op, env.rval(srcValue)));
+  }
+
+  if (target->type->asRval()->isOwnerPtr()) {
+    // OWNER: verify it is nonowning before reassignment
+    proveNonOwning(env, env.rval(targetLval),
+                   "verify owner pointer is nonowning before reassignment");
+  }
+
+  // do assignment
+  env.setLval(targetLval, env.rval(srcValue));
+
+  if (src->type->asRval()->isOwnerPtr()) {
+    // OWNER: deaden state of source
+    deadenOwnerState(env, srcValue);
+  }
+
+  return env.dup(srcValue);
+
+  #if 0      // I insert explicit casts now
   // HACK: if the target of the assignment has pointer type and
   // the source has integer type, encode it as a pointer with
   // object 0 (the right solution is to, during typechecking,
-  // insert explicit coercions; then this code would be a part 
+  // insert explicit coercions; then this code would be a part
   // of the cast-to-pointer coercion)
   if (target->type->asRval()->isPointerType() &&
       src->type->isSimple(ST_INT)) {
     // encode as pointer: some integer offset from the null object
-    v = env.avPointer(env.avInt(0), v);                           
+    v = env.avPointer(env.avInt(0), v);
   }
+  #endif // 0
 
+  #if 0     // old
   // HACK: if both the target and source are owners, and the source
   // is a dereference of another pointer, then I need to deaden the
   // state of the owner stored in memory (proper solution: do lvals
@@ -1134,7 +1233,9 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
         )));
     }
   }
+  #endif // 0
 
+  #if 0    // old
   if (target->isE_variable()) {
     xassert(path==0);
     Variable const *var = target->asE_variable()->var;
@@ -1252,8 +1353,7 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
   else {
     cout << "TODO: unhandled assignment: " << toString() << endl;
   }
-
-  return env.dup(v);
+  #endif // 0
 }
 
 
@@ -1276,7 +1376,7 @@ Predicate *Expression::vcgenPredDefault(AEnv &env, int path) const
   // but if I save a value into a variable and *then* try to treat
   // it as a predicate, I won't learn until later that I need to
   // map it into predicate space
-  return exprToPred(vcgen(env, path));
+  return exprToPred(env.rval(vcgen(env, path)));
 }
 
 
@@ -1320,7 +1420,7 @@ Predicate *E_funCall::vcgenPred(AEnv &env, int path) const
       // collect the list of argument values
       ASTList<AbsValue> *avArgs = new ASTList<AbsValue>;
       FOREACH_ASTLIST(Expression, args, iter) {
-        avArgs->append(iter.data()->vcgen(env, path));
+        avArgs->append(env.rval(iter.data()->vcgen(env, path)));
       }
       return new P_named(funcVar->var->name, avArgs);
     }
@@ -1419,8 +1519,8 @@ Predicate *E_binary::vcgenPred(AEnv &env, int path) const
 
   else if (isRelational(op)) {
     // non-short-circuit: always evaluate RHS
-    AbsValue *lhs = e1->vcgen(env, lhsPath);
-    AbsValue *rhs = e2->vcgen(env, rhsPath);
+    AbsValue *lhs = env.rval(e1->vcgen(env, lhsPath));
+    AbsValue *rhs = env.rval(e2->vcgen(env, rhsPath));
     return new P_relation(lhs, binOpToRelation(op), rhs);
   }
 

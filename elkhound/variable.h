@@ -47,4 +47,6 @@ public:    // funcs
   string toString() const;
 };
 
+inline string toString(Variable const *v) { return v->toString(); }
+
 #endif // VARIABLE_H

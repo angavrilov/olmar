@@ -20,14 +20,19 @@ int f(int x)
 }
 
 
-int *object(int *ptr);
-int offset(int *ptr);
-int length(int *obj);
+//int *object(int *ptr);
+//int offset(int *ptr);
+//int length(int *obj);
+
+thmprv_predicate int okSelOffset(int *mem, int offset);
 
 int sum(int *array, int len)
   thmprv_pre(
-    offset(array) == 0 &&
-    length(object(array)) == len )
+    thmprv_forall(int i; (0<=i && i<len) ==> okSelOffset(mem, array+i))
+  )
+
+    //offset(array) == 0 &&
+    //length(object(array)) == len
   // don't know what to say about result..
 {                                           
   int tot = 0;
@@ -35,8 +40,8 @@ int sum(int *array, int len)
   
   while (i < len) {
     thmprv_invariant 
-      offset(array) == 0 &&
-      length(object(array)) == len &&
+      //offset(array) == 0 &&
+      //length(object(array)) == len &&
       0 <= i && i < len;
 
     tot = tot + array[i];
@@ -46,5 +51,11 @@ int sum(int *array, int len)
 }
 
 
+int callSum()
+{
+  int arr[10];
+  int *p = (int*)arr;
+  return sum(p, 10);
+}
 
 

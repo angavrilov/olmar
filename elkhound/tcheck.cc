@@ -19,7 +19,8 @@ void checkBoolean(Env &env, Type const *t, Expression const *e)
 
   if (t->isError() ||          // don't report errors for <error> type
       t->isIntegerType() ||
-      t->isPointerType()) {    // what the hey..
+      t->isPointerType() ||
+      t->isArrayType()) {    // what the hey..
     // ok
   }
   else {
@@ -1021,6 +1022,8 @@ Type const *E_structLit::itcheck(Env &env)
 // like Env::makeRefType, except we handle array types specially
 Type const *makeReference(Env &env, Type const *type)
 {
+  // I no longer want the coercion to be implicit
+  #if 0
   if (type->isArrayType()) {
     // implicit coercion to a pointer to the first element
     return env.makePtrOperType(PO_POINTER, CV_NONE,
@@ -1030,6 +1033,10 @@ Type const *makeReference(Env &env, Type const *type)
     // since the name of a variable is an lvalue, return a reference type
     return env.makeRefType(type);
   }
+  #endif // 0
+
+  // since the name of a variable is an lvalue, return a reference type
+  return env.makeRefType(type);
 }
 
 Type const *E_variable::itcheck(Env &env)
@@ -1277,11 +1284,27 @@ Type const *E_addrOf::itcheck(Env &env)
 
   return env.makePtrOperType(PO_POINTER, CV_NONE, t);
 }
+                              
+
+// if 't' is an array type, return a type corresponding to a
+// pointer to its first element
+Type const *coerceArrayToPointer(Env &env, Type const *t)
+{
+  if (t->isArrayType()) {
+    ArrayType const &at = t->asArrayTypeC();
+    return env.makePtrType(at.eltType);
+  }
+  else {
+    return t;
+  }
+}
 
 
 Type const *E_deref::itcheck(Env &env)
 {
   Type const *t = ptr->tcheck(env)->asRval();
+  t = coerceArrayToPointer(env, t);
+
   if (!t->isPointer()) {
     env.err(stringc << "can only dereference pointers, not " << t->toCString());
     return fixed(ST_ERROR);

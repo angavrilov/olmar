@@ -1,16 +1,22 @@
 // absval.ast
 // abstract domain values
 
+// NOTE: I have not worked out a deallocation strategy, so you should
+// *never* try to deallocate these!
+
 verbatim {
   #include "strtable.h"     // StringRef
   #include "cc_flags.h"     // UnaryOp, BinaryOp
+  #include "variable.h"     // Variable
 
   class stringBuilder;      // str.h
 }
 
 class AbsValue {
   pure_virtual void toSexp(stringBuilder &sb) const;
+  //private ~AbsValue();      // don't call me! (astgen doesn't quite work with this..)
 
+  // ---------------- general-purpose ----------------
   // logic variable: unknown but definite integer value;
   // 'why' states what this variable stands for, or why it was created
   -> AVvar(StringRef name, string why);
@@ -25,6 +31,25 @@ class AbsValue {
 
   // function symbols, variously interpreted
   -> AVfunc(StringRef func, ASTList<AbsValue> args);
+
+  // --------------- symbolic addresses (lvalues) -------------
+  // symbolic address: tells me where in the symbolic register file
+  // to find the value, and update it if necessary; NOTE: Simplify
+  // never sees these--they must be translated away before giving
+  // them to the theorem prover; typically, these are yielded by
+  // lvalues
+  -> AVlval(Variable const *progVar,    // which register has the value
+            AbsValue offset);           // sequence of 'sub' nodes
+
+  // a symbolic subscript; could have an array index or a field number
+  -> AVsub(AbsValue index, AbsValue offset);
+
+  // symbolic null subscript: use the containing object in its entirety
+  -> AVwhole();
+  
+  // above, I chose to create dedicated nodes for 'sub' and 'whole'
+  // for possible recognition value; I may do the same for some of
+  // my other commonly-used functions (sel/upd?)
 }
 
 verbatim {
@@ -50,6 +75,8 @@ verbatim {
 // ------------------- implementation ----------------
 impl_verbatim {
   #include "str.h"          // stringBuilder
+
+  //AbsValue::~AbsValue
 
   void AVvar::toSexp(stringBuilder &sb) const
   {
@@ -137,8 +164,31 @@ impl_verbatim {
     }
     sb << ")";
   }
-  
-  
+
+  void AVlval::toSexp(stringBuilder &sb) const
+  {
+    // this should not be passed to simplify; but if it does, I want
+    // to see the information ("!" is to make Simplify choke)
+    sb << "(!AVlval " << progVar->name << " ";
+    offset->toSexp(sb);
+    sb << ")";
+  }
+
+  void AVsub::toSexp(stringBuilder &sb) const
+  {
+    sb << "(sub ";
+    index->toSexp(sb);
+    sb << " ";
+    offset->toSexp(sb);
+    sb << ")";
+  }
+
+  void AVwhole::toSexp(stringBuilder &sb) const
+  {
+    sb << "whole";
+  }
+
+
   // ------------ syntactic sugar ----------------
   AVfunc *avFunc1(StringRef func, AbsValue *a1)
   {

@@ -29,17 +29,23 @@ void bar()
 
 
 //int *mem;
-int *object(int *ptr);
-int offset(int *ptr);
-int length(int *obj);
-int select(int *mem, int *obj, int offset);
-int update(int *mem, int *obj, int offset, int value);
+//int *object(int *ptr);
+//int offset(int *ptr);
+//int length(int *obj);
+//int select(int *mem, int *obj, int offset);
+//int update(int *mem, int *obj, int offset, int value);
+
+//int sel(int *mem, int *obj);
+int selOffset(int *mem, int offset);
+thmprv_predicate int okSelOffset(int *mem, int offset);
+//int upd(int *mem, int *obj, int value);
+int updOffset(int *mem, int offset, int value);
 
 void inc(int *x)
-  thmprv_pre( int *pre_mem = mem;
-    offset(x) >= 0 && offset(x) < length(object(x)) )
-  thmprv_post( mem == update(pre_mem, object(x), offset(x),
-                              select(pre_mem, object(x), offset(x))+1) )
+  thmprv_pre( int *pre_mem = mem; 
+    okSelOffset(mem, x) )
+  thmprv_post( mem == updOffset(pre_mem, x,
+                        selOffset(pre_mem, x)+1) )
 {
   *x = *x + 1;
 }
