@@ -429,23 +429,26 @@ MLValue CompoundType::toMLContentsValue(int depth, CVFlags cv) const
 
 int CompoundType::reprSize() const
 {
-  return 0;    // unimplemented
-
-  #if 0
   int total = 0;
-  FOREACH_OBJLIST(Field, fields, iter) {
-    int membSize = iter.data()->type->reprSize();
-    if (keyword == K_UNION) {
-      // representation size is max over field sizes
-      total = max(total, membSize);
-    }
-    else {
-      // representation size is sum over field sizes
-      total += membSize;
+  for (StringSObjDict<Variable>::IterC iter(getVariableIter());
+       !iter.isDone(); iter.next()) {
+    Variable *v = iter.value();
+    // count nonstatic data members
+    if (!v->type->isFunctionType() &&
+        !v->hasFlag(DF_TYPEDEF) &&
+        !v->hasFlag(DF_STATIC)) {
+      int membSize = v->type->reprSize();
+      if (keyword == K_UNION) {
+        // representation size is max over field sizes
+        total = max(total, membSize);
+      }
+      else {
+        // representation size is sum over field sizes
+        total += membSize;
+      }
     }
   }
   return total;
-  #endif // 0
 }
 
 

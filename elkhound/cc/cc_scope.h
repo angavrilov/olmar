@@ -104,14 +104,14 @@ public:      // funcs
     { return const_cast<CompoundType*>(lookupCompoundC(name, innerOnly)); }
   EnumType *lookupEnum(StringRef name, bool innerOnly)
     { return const_cast<EnumType*>(lookupEnumC(name, innerOnly)); }
-    
+
   // for iterating over the variables
-  StringSObjDict<Variable> getVariableIter() const
-    { return StringSObjDict<Variable>(variables); }
+  StringSObjDict<Variable>::IterC getVariableIter() const
+    { return StringSObjDict<Variable>::IterC(variables); }
 
   // and the inner classes
-  StringSObjDict<CompoundType> getCompoundIter() const
-    { return StringSObjDict<CompoundType>(compounds); }
+  StringSObjDict<CompoundType>::IterC getCompoundIter() const
+    { return StringSObjDict<CompoundType>::IterC(compounds); }
     
   int private_compoundTop() const
     { return compounds.private_getTopAddr(); }

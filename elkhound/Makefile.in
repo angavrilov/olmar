@@ -1,12 +1,18 @@
 # Makefile.in            see license.txt for copyright and terms of use
 # source for Makefile for parser generator project
 
+ifdef CC_QUAL
+  CC_QUAL_EXE := cc/cc_qual/cc_qual
+else
+  CC_QUAL_EXE :=
+endif
+
 # the astgen-generated files need to come first because otherwise
 # the build doesn't go through properly.. I investigated a better
 # fix at one point but don't now remember what the problem was..
 all: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/c.ast.gen.h \
      workingFiles glrmain.o cc/cparse cc2/cc2.exe cc2/cc2t.exe cc/bccgr \
-     cc/cc.ast.gen.h cc/ccparse cc/ccparset
+     cc/cc.ast.gen.h cc/ccparse cc/ccparset $(CC_QUAL_EXE)
 	@echo BUILD FINISHED
 
 # these are files I'm working on now, so I want them compiled first;
@@ -75,7 +81,8 @@ ifdef ALLOW_DEBUG
   OPTIMIZATION_FLAGS += -DACTION_TRACE
 else
   # turn on the optimizer
-  OPTIMIZATION_FLAGS += -O2 -DNDEBUG
+  OPTIMIZATION_FLAGS += -O2
+#  OPTIMIZATION_FLAGS += -DNDEBUG
 endif
 ccflags += $(OPTIMIZATION_FLAGS)
 
@@ -235,6 +242,9 @@ random-obj := \
   cc/cc.gr.gen.o \
   cc/ccparse.o \
   cc/ccparset.o
+ifdef CC_QUAL
+  random-obj += cc/cc_qual/cc_qual.o
+endif
 -include $(random-obj:.o=.d)
 
 # extra dependencies
@@ -338,6 +348,8 @@ CQUAL_DEPS :=
 ifdef CC_QUAL
   CQUAL_DEPS += cc/cc_qual/cqual.a
   CQUAL_DEPS += cc/cc_qual/libregions.a
+cc/cc_qual/cc_qual: cc/cc_qual/cc_qual.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a $(CQUAL_DEPS)
+	$(link) -o $@ $^
 endif
 cc/ccparse: cc/ccparse.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a $(CQUAL_DEPS)
 	$(link) -o $@ $^
@@ -660,7 +672,7 @@ clean:
 	rm -f $(CLEAN_PATTERNS)
 	rm -f elkhound glr cc/lexer1 cc/lexer1yy.cc gramlex.yy.cc gramlex cyctimer
 	rm -f cc/lexer2 grampar.tab.* grampar
-	rm -f cc/cc.bin cc/ccgr cc/cparse cc/ccparse cc/ccparset
+	rm -f cc/cc.bin cc/ccgr cc/cparse cc/ccparse cc/ccparset $(CC_QUAL_EXE)
 	rm -f cc/libccgr.a libelkhound.a
 	rm -f cc/bccgr
 	rm -f cc/bccgr.y cc/cc.tok grampar.codes.h
