@@ -176,7 +176,7 @@ cexp3ast.gen.cc cexp3ast.gen.h: cexp3ast.ast ../ast/astgen
 # parser and semantic analyzer for cexp3.gr
 cexp3-dep = cexp3.o ${grammar-set} ${common} ${grampar-set} \
             ${glr-set} glrmain.o cexp3mrg.o cexp3ast.gen.o
-cexp3: ${cexp3-dep}
+cexp3: ${cexp3-dep} ${libraries}
 	${link} -o cexp3 ${cexp3-dep} ${linkend}
 
 # intermediate files for ccgr (the chmod is to make it harder

@@ -4,6 +4,9 @@
 verbatim [
   #include <iostream.h>      // cout
   #include "cexp3ast.gen.h"  // Exp
+  
+  #define D(msg) \
+    cout << msg << endl
 ]
 
 /*
@@ -34,19 +37,18 @@ terminals {
   }
 }
 
-nonterm[Exp*] Start {
-  dup(p) [ return p->deepCopy(); ]
-  del(p) [ delete p; ]
-  merge(p1, p2) [ return Exp::mergeAlts(p1, p2); ]
-
-  -> e:Exp L2_EOF      [ return e; ]
+nonterm[int] Start {
+  -> e:Exp L2_EOF      [ int ret = e->eval();
+                         cout << "reduced Start: " << ret << endl;
+                         delete e;
+                         return ret;]
 }
 
 nonterm[Exp*] Exp {
-  dup(p) [ return p->deepCopy(); ]
-  del(p) [ delete p; ]
+  dup(p) [ D("dup " << p); return p->deepCopy(); ]
+  del(p) [ D("del " << p); delete p; ]
   merge(p1, p2) [ return Exp::mergeAlts(p1, p2); ]
-    
+
   -> i:L2_INT_LITERAL  [ cout << "literal: " << i << endl;
                          return new E_int(i); ]
   -> e1:Exp "+" e2:Exp [ return new E_op('+', e1, e2); ]

@@ -63,6 +63,10 @@ private:    // data
   // concatenated into a buffer of sufficient size
   unsigned long kernelItemsCRC;
 
+  // need to store this, because I can't compute it once I throw
+  // away the items
+  Symbol const *stateSymbol;
+
 public:	    // data
   // numerical state id, should be unique among item sets
   // in a particular grammar's sets
@@ -83,10 +87,11 @@ private:    // funcs
   ItemSet *&refTransition(Symbol const *sym);
 
   // computes things derived from the item set lists:
-  // dotsAtEnd, numDotsAtEnd, kernelItemsCRC
+  // dotsAtEnd, numDotsAtEnd, kernelItemsCRC, stateSymbol
   void changedItems();
-  
+
   void allocateTransitionFunction();
+  Symbol const *computeStateSymbolC() const;
 
 public:     // funcs
   ItemSet(int id, int numTerms, int numNonterms);
@@ -102,7 +107,7 @@ public:     // funcs
   // to the left of a dot.  this fn retrieves that symbol
   // (if all items have dots at left edge, returns NULL; this
   // would be true only for the initial state)
-  Symbol const *getStateSymbolC() const;
+  Symbol const *getStateSymbolC() const { return stateSymbol; }
 
   // equality is defined as having the same items (basic set equality)
   bool operator== (ItemSet const &obj) const;
@@ -125,6 +130,11 @@ public:     // funcs
   void getPossibleReductions(ProductionList &reductions,
                              Terminal const *lookahead,
                              bool parsing) const;
+  
+                    
+  // assuming this itemset has at least one reduction ready (an assertion
+  // checks this), retrieve the first one
+  Production const *getFirstReduction() const;
 
   // ---- item mutations ----
   // add a kernel item; used while constructing the state

@@ -280,7 +280,8 @@ public:     // funcs
                          char const *input);
 
   // after parsing, retrieve the toplevel semantic value
-  SemanticValue getParseResult();
+  // (obsolete now; the parsing function returns it)
+  //SemanticValue getParseResult();
 };
 
 

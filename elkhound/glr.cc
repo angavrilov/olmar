@@ -134,10 +134,18 @@
 #include <stdio.h>       // FILE
 #include <fstream.h>     // ofstream
 
+#if 1
+  #define D(stmt) stmt
+#else
+  #define D(stmt) ((void)0)
+#endif
+
 
 // ------------- front ends to user code ---------------
 SemanticValue duplicateSemanticValue(Symbol const *sym, SemanticValue sval)
 {
+  if (!sval) return sval;
+
   if (sym->isTerminal()) {
     return duplicateTerminalValue(sym->asTerminalC().termIndex, sval);
   }
@@ -148,6 +156,8 @@ SemanticValue duplicateSemanticValue(Symbol const *sym, SemanticValue sval)
 
 void deallocateSemanticValue(Symbol const *sym, SemanticValue sval)
 {
+  if (!sval) return;
+
   if (sym->isTerminal()) {
     return deallocateTerminalValue(sym->asTerminalC().termIndex, sval);
   }
@@ -186,6 +196,7 @@ StackNode::~StackNode()
   while (leftSiblings.isNotEmpty()) {
     Owner<SiblingLink> sib(leftSiblings.removeAt(0));
     if (sib->svalRefCt == 0 && sib->sval) {
+      D(trace("sval") << "deleting refct 0 sval " << sib->sval << endl);
       deallocateSemanticValue(getSymbolC(), sib->sval);
     }
   }
@@ -342,6 +353,18 @@ bool GLR::glrParseNamedFile(Lexer2 &lexer2, SemanticValue &treeTop,
 }
 
 
+// used to extract the svals from the nodes just under the
+// start symbol reduction
+SemanticValue grabTopSval(SiblingLink *sib)
+{
+  if (sib->svalRefCt != 0) {
+    cout << "unexpected: toplevel refct is " << sib->svalRefCt << endl;
+    abort();
+  }
+  sib->svalRefCt++;     // so it won't be deleting by the sibling link
+  return sib->sval;
+}
+
 bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 {
   // get ready..
@@ -439,13 +462,29 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     }
   }
 
-
   traceProgress() << "done parsing\n";
   trace("parse") << "Parse succeeded!\n";
 
-  
-  // finish specifying the parse tree
-  treeTop = getParseResult();
+
+  // finish the parse by reducing to start symbol
+  if (activeParsers.count() != 1) {
+    cout << "parsing finished with more than one active parser!\n";
+    return false;
+  }
+  StackNode *last = activeParsers.nth(0);
+
+  // pull out the semantic values; this assumes the start symbol
+  // always looks like "Start -> Something EOF"; it also assumes
+  // the top of the tree is unambiguous
+  SemanticValue arr[2];
+  StackNode *nextToLast = last->leftSiblings.first()->sib;
+  arr[0] = grabTopSval(nextToLast->leftSiblings.first());   // Something's sval
+  arr[1] = grabTopSval(last->leftSiblings.first());         // eof's sval
+
+  // reduce
+  trace("sval") << "handing toplevel svals " << arr[0]
+                << " and " << arr[1] << " top start's reducer\n";
+  treeTop = doReductionAction(last->state->getFirstReduction()->prodIndex, arr);
 
 
   #if 0
@@ -554,7 +593,7 @@ int GLR::doAllPossibleReductions(StackNode *parser,
 
     // step 1: collect all paths of length 'rhsLen' that start at
     // 'parser', via DFS
-    PathCollectionState pcs(prod.data(), parser->stackNodeId);
+    PathCollectionState pcs(prod.data(), parser->state->id);
     collectReductionPaths(pcs, rhsLen, parser, mustUseLink);
 
     // invariant: poppedSymbols' length is equal to the recursion
@@ -639,10 +678,15 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     for (int i=0; i < pcs.production->rhsLength(); i++) {
       int &ct = *(pcs.svalRefCts[i]);
       ct++;                      // increment sval reference count
+      D(trace("sval") << "inc'd refct of " << pcs.poppedSymbols[i]
+                      << " to " << ct << " before passing to reduce" << endl);
       if (ct > 1) {
         // after the first use, call dup to get the rest
+        D(SemanticValue old = pcs.poppedSymbols[i]);
         pcs.poppedSymbols[i] =
           duplicateSemanticValue(pcs.svalSymbols[i], pcs.poppedSymbols[i]);
+        D(trace("sval") << "dup'd " << old << ", yielding "
+                        << pcs.poppedSymbols[i] << endl);
       }
     }
 
@@ -651,6 +695,8 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     // (TREEBUILD)
     SemanticValue sval = doReductionAction(pcs.production->prodIndex,
                                            pcs.poppedSymbols);
+    D(trace("sval") << "reduced " << pcs.production->toString()
+                    << ", yielding " << sval << endl);
 
     // and just collect this reduction, and the final state, in our
     // running list
@@ -734,8 +780,11 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, Production const *prod,
         // +--------------------------------------------------+
         // call the user's code to merge, and replace what we have
         // now with the merged version
+        D(SemanticValue old = sibLink->sval);
         sibLink->sval = mergeAlternativeParses(prod->left->ntIndex,
                                                sibLink->sval, sval);
+        D(trace("sval") << "merged " << old << " and " << sval
+                        << ", yielding " << sibLink->sval << endl);
 
         // ok, done
         return;
@@ -833,6 +882,7 @@ void GLR::glrShiftTerminals(ObjList<PendingShift> &pendingShifts)
     }
 
     // either way, add the sibling link now
+    D(trace("sval") << "grabbed token sval " << currentTokenValue << endl);
     rightSibling->addSiblingLink(leftSibling, currentTokenValue);
   }
 }
@@ -859,6 +909,7 @@ StackNode *GLR::makeStackNode(ItemSet const *state)
 }
 
 
+#if 0
 SemanticValue GLR::getParseResult()
 {
   // the final activeParser is the one that shifted the end-of-stream
@@ -871,7 +922,8 @@ SemanticValue GLR::getParseResult()
       sval;                                    // start symbol tree node
 
   return sv;
-}
+}    
+#endif // 0
 
 
 // ------------------ stuff for outputting raw graphs ------------------
@@ -1122,6 +1174,9 @@ bool GLR::glrParseFrontEnd(Lexer2 &lexer2, SemanticValue &treeTop,
     }
 
     else {
+      // before using 'xfer' we have to tell it about the string table
+      flattenStrTable = &gramparStringTable;
+
       // assume it's a binary grammar file and try to
       // read it in directly
       traceProgress() << "reading binary grammar file " << grammarFname << endl;

@@ -29,6 +29,7 @@ ItemSet::ItemSet(int anId, int numTerms, int numNonterms)
     nonterms(numNonterms),
     dotsAtEnd(NULL),
     numDotsAtEnd(0),
+    stateSymbol(NULL),
     id(anId),
     BFSparent(NULL)
 {
@@ -65,6 +66,7 @@ ItemSet::ItemSet(Flatten &flat)
     nontermTransition(NULL),
     dotsAtEnd(NULL),
     numDotsAtEnd(0),
+    stateSymbol(NULL),
     BFSparent(NULL)
 {}
 
@@ -186,11 +188,13 @@ void ItemSet::xferSerfs(Flatten &flat, GrammarAnalysis &g)
     xferSerfPtr(flat, dotsAtEnd[p]);
   }
 
+  xferNullableSerfPtr(flat, stateSymbol);
+
   xferNullableSerfPtrToList(flat, BFSparent, g.itemSets);
 }
 
 
-Symbol const *ItemSet::getStateSymbolC() const
+Symbol const *ItemSet::computeStateSymbolC() const
 {
   // need only check kernel items since all nonkernel items
   // have their dots at the left side
@@ -389,6 +393,13 @@ void ItemSet::getPossibleReductions(ProductionList &reductions,
 }
 
 
+Production const *ItemSet::getFirstReduction() const
+{
+  xassert(numDotsAtEnd >= 1);
+  return dotsAtEnd[0]->prod;
+}
+
+
 void ItemSet::changedItems()
 {
   // -- recompute dotsAtEnd --
@@ -463,6 +474,10 @@ void ItemSet::changedItems()
 
   // trash the array
   delete[] array;
+  
+
+  // compute this so we can throw away items later if we want to  
+  stateSymbol = computeStateSymbolC();
 }
 
 
