@@ -9,6 +9,12 @@ extern "C" {
 #endif
 
 
+#ifdef __WIN32__
+  // don't want to try to get dlmalloc working...
+  #define checkHeapNode(n) /*nothing*/
+#else
+  
+
 // check heap integrity, and fail an assertion if it's bad
 void checkHeap();
 
@@ -43,6 +49,8 @@ typedef enum HeapWalkOpts (*HeapWalkFn)(void *block, int size);
 // heap walk entry
 void walkMallocHeap(HeapWalkFn func);
 
+
+#endif // !__WIN32__
 
 #ifdef __cplusplus
 } // extern "C"

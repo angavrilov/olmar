@@ -529,6 +529,18 @@ unsigned getSystemCryptoRandom()
 }
 
 
+int getProcessId()
+{
+  #ifdef __UNIX__
+    return getpid();
+
+  #else // windows
+    return GetCurrentProcessId();
+
+  #endif
+}
+
+
 // ----------------- test code --------------------
 #ifdef TEST_NONPORT
 

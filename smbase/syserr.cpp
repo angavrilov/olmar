@@ -181,9 +181,9 @@ STATICDEF xSysError::Reason xSysError::portablize(int sysErrorCode, string &sysM
   // which is a pain.
 
   // Q: how to get a string from win32?
-  if (sysMsg != NULL) {
+  //if (sysMsg != NULL) {
     sysMsg = NULL;
-  }
+  //}
 
   static struct S {
     int code;

@@ -41,6 +41,13 @@ long getMilliseconds();
 bool limitFileAccess(char const *fname);
 
 
+// get process id; meaning is somewhat system-dependent, but the goal
+// is to return something that can be used to correlate log output
+// from (say) sftpd with log output from some other source (syslog,
+// or NT event viewer, etc.)
+int getProcessId();
+
+
 // create a new directory; returns false on error;
 // precise naming semantics, such as use
 // of 'current working directory', etc., are specified by the
