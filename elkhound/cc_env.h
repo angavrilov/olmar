@@ -145,7 +145,7 @@ public:     // funcs
 
   // map a simple type into its CVAtomicType (with no const or
   // volatile) representative
-  CVAtomicType const *getSimpleType(SimpleTypeId st);
+  static CVAtomicType const *getSimpleType(SimpleTypeId st);
 
   // lookup an existing type; if it doesn't exist, return NULL
   Type const *lookupLocalType(char const *name);

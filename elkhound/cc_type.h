@@ -210,7 +210,7 @@ enum PtrOper {
 class PointerType : public Type {
 public:
   PtrOper op;                  // "*" or "&"
-  CVFlags cv;                  // const/volatile, if "*"
+  CVFlags cv;                  // const/volatile, if "*"; refers to pointer *itself*
   Type const *atType;          // (serf) type of thing pointed-at
 
 public:

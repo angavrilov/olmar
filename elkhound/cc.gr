@@ -825,6 +825,7 @@ nonterm BinaryOperator {
     action prec:=32;      fun intEval = left | right;    fun getOp = OP_BITOR;
   }
 
+  // TODO: implement short-circuit evaluation for booleans
   -> "&&" {
     action prec:=28;      fun intEval = left && right;   fun getOp = OP_AND;
   }
@@ -898,6 +899,8 @@ nonterm ConditionalExpression : ExprBase {
 
   // wtf?  gnu...
   // linux driver code has "expr ? : expr" ...
+  // according to Marat, "e1 ? : e2" is the same as "e1 ? e1 : e2",
+  // except that e1 is only evaluated once
   -> cond:BinaryExpression "?" ":" el:AssignmentExpression {
     fun intEval {
       // evaluate all of them first, so we get the check for the

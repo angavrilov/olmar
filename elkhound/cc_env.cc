@@ -337,7 +337,7 @@ EnumType *Env::makeEnumType(char const *name)
 }
 
 
-CVAtomicType const *Env::getSimpleType(SimpleTypeId st)
+STATICDEF CVAtomicType const *Env::getSimpleType(SimpleTypeId st)
 {                     
   xassert(isValid(st));
   return &builtins[st];

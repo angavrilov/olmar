@@ -55,7 +55,7 @@ type exp =
   | Lval       of lval                  (* l-values *)
   | UnOp       of unop * exp
   | BinOp      of binop * exp * exp
-  | ComBinOp   of combinop * exp * exp 
+  | ComBinOp   of combinop * exp * exp
   | CastE      of typeinfo * exp
   | AddrOf     of lval                  (* & e *)
 
@@ -63,11 +63,12 @@ type exp =
 and lval =
     Global     of string
   | Local      of int * varinfo         (* an indentifier and some other info*)
-  | Mem        of exp                   (* *e *)
+  | Deref      of exp                   (* *e *)
   | Field      of exp * fieldinfo       (* e.f *)
   | CastL      of typeinfo * lval
+  | ArrayElt   of exp * exp             (* array, index *)
 
-                                        (* Instructions. Can have side-effects 
+                                        (* Instructions. Can have side-effects
                                          * but no control flow *)
 and instr = 
     Set        of lval * exp            (* An assignment *)
