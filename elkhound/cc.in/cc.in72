@@ -18,6 +18,7 @@ long long LL;    // support this because my libc headers use it..
 void foo()
 {
   LL = 12LL;
+  LL = -1LL;
 }
 
 

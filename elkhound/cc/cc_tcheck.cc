@@ -1954,7 +1954,9 @@ realStart:
       // of typechecking for inline members (the user's code doesn't
       // violate the rule, it only appears to because of the second
       // pass); this exception is indicated by DF_INLINE_DEFN.
-      if (enclosingClass && !(dt.dflags & DF_INLINE_DEFN)) {
+      if (enclosingClass && 
+          !(dt.dflags & DF_INLINE_DEFN) &&
+          !prior->hasFlag(DF_IMPLICIT)) {   // allow implicit typedef override here too
         env.error(stringc
           << "duplicate member declaration of `" << *name
           << "' in " << enclosingClass->keywordAndName()
@@ -1963,8 +1965,10 @@ realStart:
       }
     }
 
-    // check that the types match
-    if (!almostEqualTypes(prior->type, dt.type)) {
+    // check that the types match, and either both are typedefs
+    // or neither is a typedef
+    if (!( almostEqualTypes(prior->type, dt.type) &&
+           (prior->flags & DF_TYPEDEF) == (dt.dflags & DF_TYPEDEF) )) {
       // if the previous guy was an implicit typedef, then as a
       // special case allow it, and arrange for the environment
       // to replace the implicit typedef with the variable being
@@ -2880,8 +2884,14 @@ Type const *E_fieldAcc::itcheck(Env &env)
   field = ct->lookupPQVariableC(fieldName, env);
   if (!field) {
     return env.error(rt, stringc
-      << "there is no member called `" << fieldName->getName()
+      << "there is no member called `" << *fieldName
       << "' in " << obj->type->toString());
+  }
+
+  // should not be a type
+  if (field->hasFlag(DF_TYPEDEF)) {
+    return env.error(rt, stringc
+      << "member `" << *fieldName << "' is a typedef!");
   }
 
   // type of expression is type of field; possibly as an lval
