@@ -55,6 +55,9 @@ class TopForm (SourceLoc loc) {
   // linkage spec with one form; turns out this has different
   // semantics [cppstd 7.5 para 7]
   -> TF_one_linkage(StringRef linkageType, TopForm form);
+  
+  // assembly directive at toplevel
+  -> TF_asm(StringRef text);
 }
 
 
@@ -397,6 +400,7 @@ class Statement (SourceLoc loc) {
   -> S_goto(StringRef target);
   -> S_decl(Declaration decl);
   -> S_try(Statement body, FakeList<Handler> *handlers);
+  -> S_asm(StringRef text);
 }
 
 // condition expression in a control-flow statement; it's allowed

@@ -24,8 +24,8 @@ TOK_VARIABLE_NAME,       "<variable name>",           : m  n
 // literals
 TOK_INT_LITERAL,         "<int literal>",             : m  n
 TOK_FLOAT_LITERAL,       "<float literal>",           : m  n
-TOK_STRING_LITERAL,      "<string literal>",          : m  n
-TOK_CHAR_LITERAL,        "<char literal>",            : m  n
+TOK_STRING_LITERAL,      "<string literal>",          : m
+TOK_CHAR_LITERAL,        "<char literal>",            : m
 
 // keywords
 TOK_ASM,                 "asm",                       :    n

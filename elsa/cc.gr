@@ -682,6 +682,9 @@ nonterm(Statement*) Statement {
 
   // try-block
   -> s:TryBlock                         { return s; }
+  
+  // assembly statement
+  -> a:AsmDefinition                    { return new S_asm(loc, a); }
 }
 
 nonterm(Statement*) ExpressionStatement {
@@ -752,11 +755,17 @@ nonterm(TopForm*) Declaration {
   //-> ExplicitSpecialization  // folded into TemplateDeclaration
   -> s:LinkageSpecification    { return s; }
   //-> NamespaceDefinition;
+  
+  -> a:AsmDefinition           { return new TF_asm(loc, a); }
 }
 
 nonterm(Declaration*) BlockDeclaration {
   -> d:SimpleDeclaration     { return d; }
+  
+  // substituted into the places BlockDeclaration occurs, so I can
+  // specialize the AST storage
   //-> AsmDefinition;
+
   //-> NamespaceAliasDefinition;
   //-> UsingDeclaration;
   //-> UsingDirective;
@@ -1053,8 +1062,10 @@ nonterm(Enumerator*) EnumeratorDefinition {
 }
 
   
-// not used for now
-//nonterm AsmDefinition -> "asm" "(" TOK_STRING_LITERAL ")" ";" ;
+nonterm(StringRef) AsmDefinition {
+  -> "asm" "(" s:TOK_STRING_LITERAL ")" ";"    { return s; }
+}
+
 
 nonterm(TopForm*) LinkageSpecification {
   -> "extern" n:TOK_STRING_LITERAL "{" tu:TranslationUnit "}"

@@ -49,6 +49,11 @@
  * is of course nonideal.  I think the qualifier "numeric" on "literals"
  * is a mistake, otherwise "a'b'" would be a legal token sequence.  I
  * do not currently implement the "alternative tokens".
+ *
+ * Update: Mozilla includes things like "foo""bar", i.e. directly
+ * adjacent string literals.  Therefore I'm going to interpret the
+ * standard literally, and take char and string literals to be
+ * separating.
  */
 
 

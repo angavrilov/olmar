@@ -318,6 +318,9 @@ void TF_one_linkage::tcheck(Env &env)
   form->tcheck(env);
 }
 
+void TF_asm::tcheck(Env &)
+{}
+
 
 // --------------------- Function -----------------
 void Function::tcheck(Env &env, bool checkBody)
@@ -1335,9 +1338,11 @@ void MR_func::tcheck(Env &env)
   env.setLoc(loc);
 
   if (env.scope()->curCompound->keyword == CompoundType::K_UNION) {
-    // TODO: is this even true?
-    env.error("unions cannot have member functions");
-    return;
+    // TODO: is this even true?  
+    // apparently not, as Mozilla has them; would like to find 
+    // a definitive answer
+    //env.error("unions cannot have member functions");
+    //return;
   }
 
   // mark the function as inline, whether or not the
@@ -2773,6 +2778,10 @@ void S_try::itcheck(Env &env)
 }
 
 
+void S_asm::itcheck(Env &)
+{}
+
+
 // ------------------- Condition --------------------
 void CN_expr::tcheck(Env &env)
 {
@@ -2928,8 +2937,12 @@ Type *E_charLit::itcheck(Env &env)
 
   quotedUnescape(temp, tempLen, srcText, '\'',
                  false /*allowNewlines*/);
-  if (tempLen != 1) {
-    xformat("character literal must have 1 char");
+  if (tempLen == 0) {
+    return env.error("character literal with no characters");
+  }
+  else if (tempLen > 1) {
+    // below I only store the first byte
+    env.warning("wide character literals not properly implemented");
   }
 
   c = (unsigned int)temp[0];

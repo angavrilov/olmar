@@ -189,6 +189,13 @@ void TF_one_linkage::print(PrintEnv &env)
   form->print(env);
 }
 
+void TF_asm::print(PrintEnv &env)
+{    
+  olayer ol("TF_asm");
+  env.current_loc = loc;
+  env << "asm(" << text << ");\n";
+}
+
 
 // --------------------- Function -----------------
 void Function::print(PrintEnv &env)
@@ -614,6 +621,12 @@ void S_try::iprint(PrintEnv &env)
   FAKELIST_FOREACH_NC(Handler, handlers, iter) {
     iter->print(env);
   }
+}
+
+void S_asm::iprint(PrintEnv &env)
+{
+  olayer ol("S_asm::iprint");
+  env << "asm(" << text << ");\n";
 }
 
 // ------------------- Condition --------------------
