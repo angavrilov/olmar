@@ -694,11 +694,17 @@ fi
 
 
 # test the parser in C mode
-for fn in \
-  t0001.c t0002.c t0003.c t0004.c t0005.c t0006.c \
-    ; do
-  runTest perl ./multitest.pl ./ccparse -tr c_lang in/c/$fn
-done
+testCparse() {
+  runTest perl ./multitest.pl ./ccparse -tr c_lang in/c/$1
+}
+testCparse t0001.c
+testCparse t0002.c
+testCparse t0003.c
+testCparse t0004.c
+testCparse t0005.c
+testCparse t0006.c
+testCparse t0007.c
+testCparse t0008.c
 
 
 # test GNU C

@@ -2080,7 +2080,13 @@ realStart:
   // a class scope has been pushed, so we'd be fooled)
   //
   // TODO: this is wrong because qualified names *can* appear in
-  // class member lists..
+  // class member lists.. (according to gcc)
+  //
+  // 8/13/04: Actually, 8.3 para 1 says (in part):
+  //   "A declarator-id shall not be qualified except for the
+  //    definition of a member function [etc.] ... *outside* of
+  //    its class, ..." (emphasis mine)
+  // So maybe what I do is actually right?
   //
   // Essentially, what I'm doing is saying that if you have
   // qualifiers then you're a definition outside the class body,

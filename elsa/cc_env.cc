@@ -1996,6 +1996,10 @@ Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
     //
     // err... t0052.cc still doesn't work with this above, so now
     // I'm back to requiring no qualifiers and I nerfed that testcase.
+    //
+    // 8/13/04: For what it's worth, 9 para 2 is selfname for
+    // non-templates, and it seems to suggest that such selfnames
+    // *can* be found by qualified lookup...
     if (!final->isPQ_template()) {
       flags |= LF_SELFNAME;
     }
@@ -2879,7 +2883,10 @@ Variable *Env::lookupVariableForDeclaration
   (Scope *scope, StringRef name, Type *type, CVFlags this_cv)
 {
   // does this name already have a declaration in this scope?
-  Variable *prior = scope->lookupVariable(name, *this, LF_INNER_ONLY);
+  //
+  // 8/13/04: It seems like I need LF_SELFNAME (d0087.cc).  I think
+  // the callers generally have names w/o template arguments..
+  Variable *prior = scope->lookupVariable(name, *this, LF_INNER_ONLY | LF_SELFNAME);
   if (prior &&
       prior->overload &&
       type->isFunctionType()) {

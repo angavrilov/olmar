@@ -133,7 +133,7 @@ public:
   bool isStatic() const { return hasFlag(DF_STATIC); }
   bool isMember() const { return hasFlag(DF_MEMBER); }
   bool isNamespace() const { return hasFlag(DF_NAMESPACE); }
-  bool isImplicitTypedef() const;
+  bool isImplicitTypedef() const { return hasAllFlags(DF_IMPLICIT | DF_TYPEDEF); }
   bool isImplicitMemberFunc() const { return hasFlag(DF_IMPLICIT) && !hasFlag(DF_TYPEDEF); }
 
   // true if this name refers to a template function, or is
