@@ -617,7 +617,7 @@ clean:
 	done
 
 distclean: clean
-	rm -f Makefile config.status config.summary
+	rm -f Makefile config.status config.summary glrconfig.h
 	cd triv; rm -rf sssx.in ssx.in eeb.in
 
 check: all

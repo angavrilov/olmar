@@ -1,26 +1,9 @@
-// glrconfig.h            see license.txt for copyright and terms of use
+// glrconfig.h.in            see license.txt for copyright and terms of use
 // compile-time configuration options which affect the generated
 // GLR parser, and the interface to the user actions
-//
-// the intent is some macros get set externally, and that in turn
-// influences the definition of the macros actually used in the
-// parser code
-
 
 #ifndef GLRCONFIG_H
 #define GLRCONFIG_H
-
-
-// disable even xassert-style assertions
-//#define NDEBUG_NO_ASSERTIONS
-
-
-// parser core selection
-
-// ordinary LR core
-#ifndef USE_MINI_LR
-  #define USE_MINI_LR 1
-#endif
 
 
 // when NO_GLR_SOURCELOC is #defined, we disable all support for
@@ -28,7 +11,7 @@
 // parser; user actions can still refer to 'loc', but they just get
 // a dummy no-location value
 #ifndef GLR_SOURCELOC
-  #define GLR_SOURCELOC 1
+  #define GLR_SOURCELOC @GLR_SOURCELOC@        // set by ./configure
 #endif
 
 #if GLR_SOURCELOC
@@ -48,7 +31,8 @@
 
 
 // when enabled, NODE_COLUMN tracks in each stack node the
-// appropriate column to display it for in debugging dump
+// appropriate column to display it for in debugging dump.
+// in the new RWL core, this is required to always be 1.
 #ifndef ENABLE_NODE_COLUMNS
   #define ENABLE_NODE_COLUMNS 1
 #endif
@@ -56,10 +40,6 @@
   #define NODE_COLUMN(stuff) stuff
 #else
   #define NODE_COLUMN(stuff)
-#endif
-
-#if USE_RWL_CORE && !ENABLE_NODE_COLUMNS
-  #error node columns are requred for the RWL core
 #endif
 
 

@@ -142,7 +142,12 @@
   #define TRSPARSE_DECL(stuff)
 #endif
 
-// these disable featurs of mini-LR for performance testing
+// whether to use the ordinary LR core in addition to the GLR core
+#ifndef USE_MINI_LR
+  #define USE_MINI_LR 1
+#endif
+
+// these disable features of mini-LR for performance testing
 #ifndef USE_ACTIONS
   #define USE_ACTIONS 1
 #endif
