@@ -1360,7 +1360,7 @@ nonterm(Initializer*) InitializerClause {
   -> d:Identifier ":" init:SimpleInitializerClause
     { init->designator_list = FakeList<Designator>::makeList(new FieldDesignator(d));
       return init; }
-  // C99 official form; C99 standard p.125
+  // C99 official form; C99 standard section 6.7.8
   -> dl:DesignatorList "=" init:SimpleInitializerClause
     { init->designator_list = dl; return init; }
 }
