@@ -61,14 +61,11 @@ bool glrParseNamedFile(GLR &glr, Lexer2 &lexer2, SemanticValue &treeTop,
 }
 
 
-bool toplevelParse(ParseTreeAndTokens &ptree, char const *grammarFname,
-                   char const *inputFname)
+bool toplevelParse(ParseTreeAndTokens &ptree, char const *inputFname)
 {
   // parse
   xassert(ptree.userAct != NULL);    // must have been set by now
-  if (!ptree.tables) {
-    ptree.tables = readParseTablesFile(grammarFname);
-  }
+  xassert(ptree.tables != NULL);
 
   GLR glr(ptree.userAct, ptree.tables);
 
@@ -126,8 +123,8 @@ bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv,
     }
   }
 
-  if (argc != 3) {
-    cout << "usage: [env] " << progName << " [options] grammar-file input-file\n"
+  if (argc != 2) {
+    cout << "usage: [env] " << progName << " [options] input-file\n"
             "  env:\n"
             "    SYM_OF_INTEREST symbol to watch during analysis\n"
             "  options:\n"
@@ -150,5 +147,5 @@ bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv,
     ptree.userAct = new SimpleActions;
     cout << "using trivial (er, simple..) actions\n";
   }
-  return toplevelParse(ptree, argv[1], argv[2]);
+  return toplevelParse(ptree, argv[1]);
 }

@@ -97,6 +97,9 @@ terminals {
     //    return L2_VARIABLE_NAME;
     //  }
     //]
+    
+    dup(n) [ return n; ]
+    del(n) []
   }
 
   token[StringRef] L2_TYPE_NAME;
@@ -158,12 +161,16 @@ nonterm LeaveScope -> empty     [
 
 // name of a type; introduced by class, struct, union, enum, typedef
 nonterm[StringRef] TypeName {
+  dup(n) [ return n; ]
+  del(n) []
   -> n:L2_TYPE_NAME     [ return n; ]
   -> n:L2_NAME          [ return n; ]    // for when not using lexer hack
 }
 
 // name of a variable or function; introduced by a declaration
 nonterm[StringRef] VariableName {
+  dup(n) [ return n; ]
+  del(n) []
   -> n:L2_VARIABLE_NAME [ return n; ]
   -> n:L2_NAME          [ return n; ]    // for when not using lexer hack
 }
@@ -171,6 +178,10 @@ nonterm[StringRef] VariableName {
 // names for situations where it does not matter what its previous
 // meaning may have been
 nonterm[StringRef] AnyName {
+  //-> n:L2_TYPE_NAME     [ return n; ]
+  //-> n:L2_VARIABLE_NAME [ return n; ]
+  //-> n:L2_NAME          [ return n; ]    // for when not using lexer hack
+
   merge(L,R)            [ return L; ]    // for when not using lexer hack
 
   -> n:VariableName     [ return n; ]
