@@ -145,6 +145,16 @@ ImplicitConversion getImplicitConversion
 {
   ImplicitConversion ret;
 
+  // 9/25/04: conversion from template class pointer requires
+  // instantiating the template class, so we can try derived-to-base
+  // conversions
+  if (src->asRval()->isPointerType()) {
+    Type *at = src->asRval()->asPointerType()->atType;
+    if (at->isCompoundType()) {
+      env.ensureClassBodyInstantiated(at->asCompoundType());
+    }
+  }
+
   // check for a standard sequence
   {
     StandardConversion scs =
