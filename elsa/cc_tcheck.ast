@@ -1,0 +1,344 @@
+// cc_tcheck.ast
+// extension module for cc.ast that defines the entry points
+// for the type checker, and the annotations it produces
+
+// the implementation for the functions declared here is in
+// cc_tcheck.cc and cc_ast_aux.cc
+
+
+// extension modules' first "verbatim" section goes after
+// the initial verbatims from the base, but before any
+// of the classes from the base
+verbatim {
+  #include "variable.h"      // Variable
+  #include "cc_type.h"       // Type, FunctonType, CompoundType
+}
+
+
+class TranslationUnit {
+  // This is the type checker entry point at the top level.  It
+  // writes error messages (if any) into 'env' and annotations
+  // directly into the AST fields declared below.
+  //
+  // Most of the AST classes have their own 'tcheck' or similar
+  // function, though the exact calling convention (params, etc.)
+  // varies.
+  //
+  // Some classes have an 'itcheck' (internal type check) for the
+  // subclasses, meaning the superclass 'tcheck' does some common
+  // processing and then delegates to the per-subclass 'itcheck.
+  public void tcheck(Env &env);
+}
+
+
+class TopForm {
+  pure_virtual void tcheck(Env &env);
+}
+
+
+class Function {
+  // since 'nameAndParams->var' might refer to a previous declaration,
+  // and therefore might have differently-named parameters, I'll add
+  // another field specifically for a version of the FunctionType
+  // which has the parameters for *this* definition
+  public FunctionType const *funcType;
+  ctor funcType = NULL;
+
+  public void printExtras(ostream &os, int indent) const;
+  custom debugPrint { printExtras(os, indent); }
+
+  // if 'checkBody' is false, we treat this like it was just
+  // a prototype for the function
+  public void tcheck(Env &env, bool checkBody);
+
+  private CompoundType *verifyIsCtor(Env &env, char const *context);
+  private void tcheck_memberInits(Env &env);
+  private void tcheck_handlers(Env &env);
+}
+
+
+class MemberInit {
+  // if this is initializing a data member, tcheck will set this
+  public Variable *member;  ctor member=NULL;
+
+  // if it's a base class ctor call, tcheck will set this instead
+  public CompoundType const *base;  ctor base=NULL;
+
+  public void printExtras(ostream &os, int indent) const;
+  custom debugPrint { printExtras(os, indent); }
+}
+
+
+class Declaration {
+  public void tcheck(Env &env);        // adds declared variables to env
+}
+
+
+class ASTTypeId {
+  // tcheck params for ASTTypeId
+  public struct Tcheck {
+    // when non-NULL, we're in an E_new, and this points to an
+    // Expression* which should be set to the expression which denotes
+    // the number of elements for new[] to allocate
+    Expression **newSizeExpr;
+
+    // when true, this ASTTypeId denotes a parameter; this knowledge
+    // is used for disambiguation
+    bool isParameter;
+
+  public:
+    Tcheck() : newSizeExpr(NULL), isParameter(false) {}
+  };
+
+  // the return value is the ASTTypeId* to store in place of the
+  // one used to invoke the function, to resolve ambiguities
+  public ASTTypeId *tcheck(Env &env, Tcheck &tc);
+  public void mid_tcheck(Env &env, Tcheck &tc);
+
+  public Type const *getType() const;      // can use after calling 'tcheck'
+}
+
+
+class PQName {
+  // typecheck the template arguments buried in this PQName
+  pure_virtual void tcheck(Env &env);
+}
+
+
+class TypeSpecifier {
+  // yield the type named by the specifier; this type may of course
+  // get refined when the declarator is considered
+  public Type const *tcheck(Env &env, DeclFlags dflags);
+  pure_virtual Type const *itcheck(Env &env, DeclFlags dflags);
+
+  -> TS_classSpec {
+       private void tcheckFunctionBodies(Env &env);
+     }
+}
+
+
+class BaseClassSpec {
+  public void printExtras(ostream &os, int indent) const;
+  custom debugPrint { printExtras(os, indent); }
+
+  // the type named by the 'name'
+  public CompoundType const *type;  ctor type=NULL;
+}
+
+
+class Member {
+  pure_virtual void tcheck(Env &env);
+}
+
+
+class Enumerator {
+  public Variable *var;                 // (serf) introduction record
+  ctor var=NULL;
+
+  // when the enumerator values are computed, I store them here
+  // so I can see them in the AST printout; I only print this
+  // value if 'var' is non-NULL
+  public int enumValue;
+
+  public void printExtras(ostream &os, int indent) const;
+  custom debugPrint { printExtras(os, indent); }
+
+  // we pass both the base 'enum' and the Type wrapped around it,
+  // since both are needed and it's slightly expensive to compute
+  // one from the other for each enumerator
+  public void tcheck(Env &env, EnumType *parentEnum, Type *parentType);
+}
+
+
+class Declarator {
+  public Variable *var;                // (serf) computed information: name, type, etc.
+  ctor var=NULL;
+
+  public void printExtras(ostream &os, int indent) const;
+  custom debugPrint { printExtras(os, indent); }
+
+  // this class contains the data passed into and out of the
+  // declarator checking functions
+  public struct Tcheck {
+    // the bottom-most IDeclarator (D_name or D_bitfield) creates
+    // or looks up a Variable, and sets this to point at it
+    Variable *var;
+
+    // on the way in, this is the type computed so far; initially
+    // it's just the type specifier but additional declarators will
+    // layer additional type constructors on top of it and replace
+    // the pointer here with a pointer to the constructed type; at
+    // the end it is the fully-constructed type
+    //
+    // however, it need not be the same type as var->type at the
+    // end, because var->type might be a function type from a
+    // prototype (with the prototype's parameter names) while this
+    // field will be the constructed type with its own names
+    Type const *type;
+
+    // these are the declflags attached to the outer declaration
+    DeclFlags dflags;
+
+    // in a new[] declarator, when we hit the final [size], stash
+    // the size's AST node pointer here; then E_new can collect it
+    Expression *size_E_new;
+
+    // syntactic context
+    enum Context {
+      CTX_ORDINARY  = 0x0,     // no particular context
+      CTX_E_NEW     = 0x1,     // inside an E_new
+      CTX_PARAM     = 0x2,     // in a parameter declarator
+      CTX_GROUPING  = 0x4,     // in a grouping declarator, without inner pointer constructor
+      CTX_GROUP_PARAM = CTX_PARAM | CTX_GROUPING
+    } context;
+
+  public:
+    Tcheck(Type const *t, DeclFlags d)
+      : var(NULL), type(t), dflags(d),
+        size_E_new(NULL), context(CTX_ORDINARY) {}
+    Tcheck(Tcheck const &obj)
+      : var(obj.var), type(obj.type), dflags(obj.dflags),
+        size_E_new(obj.size_E_new), context(obj.context) {}
+
+    Tcheck& operator= (Tcheck const &obj) {
+      var = obj.var;
+      type = obj.type;
+      dflags = obj.dflags;
+      size_E_new = obj.size_E_new;
+      context = obj.context;
+      return *this;
+    }
+  };
+
+  // determine the type denoted by the combination of 'dt.type' and
+  // the type constructors in this declarator, then make a Variable
+  // which has that type and store it in 'dt.var'; if this declarator
+  // refers to something that is *already* declared (like a function
+  // with a prior prototype), the 'var' field will be shared among the
+  // various declarations; if not, put it into the environment
+  //
+  // the return value specifies which of possibly ambiguous
+  // alternatives was selected
+  public /*no_ignore*/ Declarator *tcheck(Env &env, Tcheck &dt);
+  public void mid_tcheck(Env &env, Tcheck &dt);
+}
+
+
+class IDeclarator {
+  // external interface; add the type constructor represented by this
+  // IDeclarator to 'dt.type' and then make a Variable to represent
+  // it; put the variable into the environment if appropriate
+  pure_virtual void tcheck(Env &env, Declarator::Tcheck &dt);
+}
+
+
+class ExceptionSpec {
+  public FunctionType::ExnSpec *tcheck(Env &env);
+}
+
+
+class Statement {
+  // typecheck, and return which Statement is selected from among
+  // syntactically ambiguous choices
+  public /*no_ignore*/ Statement *tcheck(Env &env);
+
+  public void mid_tcheck(Env &env, int &) { itcheck(env); };
+  pure_virtual void itcheck(Env &env);
+}
+
+
+class Condition {
+  pure_virtual void tcheck(Env &env);
+}
+
+
+class Handler {
+  pure_virtual void tcheck(Env &env);
+}
+
+
+class Expression {
+  // type check and yield the type of the expression; this type
+  // gets automatically stored in the 'type' field; the return
+  // value specifies which of possibly ambiguous alternatives
+  // was selected for retention
+  public void tcheck(Expression *&ptr, Env &env);
+  public void mid_tcheck(Env &env, int &);
+
+  // per-type checker; return type this expression eval's to
+  pure_virtual Type const *itcheck(Env &env);
+
+  // type computed for this expression; might be a SimpleType for
+  // ST_ERROR, in which case a subsequent attempt to typecheck the
+  // same expression should stop and look for an ambiguous alt.
+  public Type const *type;
+  ctor type=NULL;
+
+  // const-eval; for now very simple; will add an error message to
+  // the environment if this expression is not a constant (and also
+  // return false); can only call this after tchecking
+  public bool constEval(Env &env, int &result) const;
+
+  public void printExtras(ostream &os, int indent) const;
+  custom debugPrint { printExtras(os, indent); }
+
+  -> E_variable {
+       public Variable *var;      // (serf) binding introduction of this name
+       ctor var=NULL;
+     }
+
+  -> E_fieldAcc {
+       public Variable const *field;
+       ctor field=NULL;
+     }
+
+  -> E_sizeof {
+       public int size;     // size of the type of expr
+       ctor size=-1;
+     }
+
+  -> E_sizeofType {
+       public int size;     // size of the type
+       ctor size=-1;
+     }
+
+  -> E_new {
+       // if this is non-NULL, it's the number of elements to allocate via new[]
+       public Expression /*nullable serf*/ *arraySize;
+       ctor arraySize=NULL;
+     }
+}
+
+
+class Initializer {
+  // check that the initializer is well-typed, given the type of
+  // the thing it initializes
+  //pure_virtual void tcheck(Env &env, Type const *type);
+
+  // simpler tcheck for now..
+  pure_virtual void tcheck(Env &env);
+}
+
+
+class TemplateDeclaration {
+  public void tcheck(Env &env);
+  pure_virtual void itcheck(Env &env);
+
+  -> TD_class {
+       public Type const *type;  ctor type=NULL;     // defined type
+
+       public void printExtras(ostream &os, int indent) const;
+       custom debugPrint { printExtras(os, indent); }
+     }
+}
+
+
+class TemplateParameter {
+  pure_virtual void tcheck(Env &env, TemplateParams *tparams);
+
+}
+
+
+class TemplateArgument {
+  pure_virtual void tcheck(Env &env);
+}

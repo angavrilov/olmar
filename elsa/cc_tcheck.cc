@@ -101,7 +101,7 @@ NODE *resolveAmbiguity(
   // This extra argument will be passed to NODE->mid_tcheck, and
   // whatever the succeeding tcheck puts back into its 'extra' will
   // be copied into the caller's version.  (Currently, EXTRA is
-  // always either 'DeclaratorTcheck' or it is 'int' (and ignored),
+  // always either 'Declarator::Tcheck' or it is 'int' (and ignored),
   // if that helps for concreteness.)
   EXTRA &callerExtra)
 {
@@ -303,8 +303,8 @@ void Function::tcheck(Env &env, bool checkBody)
   // use different parameter names if there is already a prototype;
   // dt.type will come back with a function type which always has the
   // parameter names for this definition
-  DeclaratorTcheck dt(retTypeSpec,
-                      (DeclFlags)(dflags | (checkBody? DF_DEFINITION : 0)));
+  Declarator::Tcheck dt(retTypeSpec,
+                        (DeclFlags)(dflags | (checkBody? DF_DEFINITION : 0)));
   nameAndParams = nameAndParams->tcheck(env, dt);
 
   if (! dt.type->isFunctionType() ) {
@@ -599,17 +599,17 @@ void Declaration::tcheck(Env &env)
 
   // ---- the following code is adopted from tcheckFakeExprList ----
   // (I couldn't just use the same code, templatized as necessary,
-  // because I need my DeclaratorTcheck objects computed anew for
+  // because I need my Declarator::Tcheck objects computed anew for
   // each declarator..)
   if (decllist) {
     // check first declarator
-    DeclaratorTcheck dt1(specType, dflags);
+    Declarator::Tcheck dt1(specType, dflags);
     decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
 
     // check subsequent declarators
     Declarator *prev = decllist->first();
     while (prev->next) {
-      DeclaratorTcheck dt2(specType, dflags);
+      Declarator::Tcheck dt2(specType, dflags);
       prev->next = prev->next->tcheck(env, dt2);
 
       prev = prev->next;
@@ -647,10 +647,10 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
   Type const *specType = spec->tcheck(env, DF_NONE);
                          
   // pass contextual info to declarator
-  DeclaratorTcheck dt(specType, DF_NONE);
-  dt.context = tc.newSizeExpr? DeclaratorTcheck::CTX_E_NEW :
-               tc.isParameter? DeclaratorTcheck::CTX_PARAM :
-                               DeclaratorTcheck::CTX_ORDINARY;
+  Declarator::Tcheck dt(specType, DF_NONE);
+  dt.context = tc.newSizeExpr? Declarator::Tcheck::CTX_E_NEW :
+               tc.isParameter? Declarator::Tcheck::CTX_PARAM :
+                               Declarator::Tcheck::CTX_ORDINARY;
 
   // check declarator
   decl = decl->tcheck(env, dt);
@@ -1348,7 +1348,7 @@ void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
 
 
 // -------------------- Declarator --------------------
-Declarator *Declarator::tcheck(Env &env, DeclaratorTcheck &dt)
+Declarator *Declarator::tcheck(Env &env, Tcheck &dt)
 {
   if (!ambiguity) {
     mid_tcheck(env, dt);
@@ -1391,7 +1391,7 @@ Declarator *Declarator::tcheck(Env &env, DeclaratorTcheck &dt)
 }
 
 
-void Declarator::mid_tcheck(Env &env, DeclaratorTcheck &dt)
+void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 {
   // cppstd sec. 3.4.3 para 3:
   //    "In a declaration in which the declarator-id is a
@@ -1582,7 +1582,7 @@ static void D_name_tcheck(
   Env &env,
 
   // contains various information about 'name', notably it's type
-  DeclaratorTcheck &dt,
+  Declarator::Tcheck &dt,
 
   // source location where 'name' appeared
   SourceLocation const &loc,
@@ -1676,7 +1676,7 @@ realStart:
   }
 
   // ambiguous grouped declarator in a paramter list?
-  if (dt.context == DeclaratorTcheck::CTX_GROUP_PARAM) {
+  if (dt.context == Declarator::Tcheck::CTX_GROUP_PARAM) {
     // the name must *not* correspond to an existing type; this is
     // how I implement cppstd 8.2 para 7
     Variable *v = env.lookupPQVariable(name);
@@ -1988,7 +1988,7 @@ noPriorDeclaration:
   return;
 }
 
-void D_name::tcheck(Env &env, DeclaratorTcheck &dt)
+void D_name::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   env.setLoc(loc);
   if (name) {
@@ -2003,7 +2003,7 @@ void D_name::tcheck(Env &env, DeclaratorTcheck &dt)
 //   "There shall be no references to references, no arrays of
 //    references, and no pointers to references."
 
-void D_pointer::tcheck(Env &env, DeclaratorTcheck &dt)
+void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   if (dt.type->isReference()) {
     env.error(stringc
@@ -2018,7 +2018,7 @@ void D_pointer::tcheck(Env &env, DeclaratorTcheck &dt)
 
   // turn off CTX_GROUPING
   dt.context =
-    (DeclaratorTcheck::Context)(dt.context & ~DeclaratorTcheck::CTX_GROUPING);
+    (Declarator::Tcheck::Context)(dt.context & ~Declarator::Tcheck::CTX_GROUPING);
 
   // recurse
   base->tcheck(env, dt);
@@ -2069,7 +2069,7 @@ static Type const *normalizeParameterType(Type const *t)
 }
 
 
-void D_func::tcheck(Env &env, DeclaratorTcheck &dt)
+void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   env.setLoc(loc);
 
@@ -2138,7 +2138,7 @@ void D_func::tcheck(Env &env, DeclaratorTcheck &dt)
 }
 
 
-void D_array::tcheck(Env &env, DeclaratorTcheck &dt)
+void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   ArrayType *at;
 
@@ -2167,7 +2167,7 @@ void D_array::tcheck(Env &env, DeclaratorTcheck &dt)
     size->tcheck(size, env);
   }
 
-  if (dt.context == DeclaratorTcheck::CTX_E_NEW) {
+  if (dt.context == Declarator::Tcheck::CTX_E_NEW) {
     // we're in a new[] (E_new) type-id
     if (!size) {
       env.error("new[] must have an array size specified");
@@ -2229,7 +2229,7 @@ void D_array::tcheck(Env &env, DeclaratorTcheck &dt)
 }
 
 
-void D_bitfield::tcheck(Env &env, DeclaratorTcheck &dt)
+void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   env.setLoc(loc);
 
@@ -2256,12 +2256,12 @@ void D_bitfield::tcheck(Env &env, DeclaratorTcheck &dt)
 }
 
 
-void D_grouping::tcheck(Env &env, DeclaratorTcheck &dt)
+void D_grouping::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   // the whole purpose of this AST node is to communicate
   // this one piece of context
   dt.context =
-    (DeclaratorTcheck::Context)(dt.context | DeclaratorTcheck::CTX_GROUPING);
+    (Declarator::Tcheck::Context)(dt.context | Declarator::Tcheck::CTX_GROUPING);
 
   base->tcheck(env, dt);
 }
