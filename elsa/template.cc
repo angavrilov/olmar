@@ -1172,38 +1172,10 @@ void Env::getFuncTemplArgs_oneParamList
 }
 
 
-// lookup with template argument inference based on argument expressions
-Variable *Env::lookupPQVariable_function_with_args(
-  PQName const *name, LookupFlags flags,
-  FakeList<ArgExpression> *funcArgs)
+Variable *Env::lookupPQVariable_applyArgsTemplInst
+  (Variable *primary, PQName const *name, FakeList<ArgExpression> *funcArgs)
 {
-  // first, lookup the name but return just the template primary
-  Scope *scope;      // scope where found
-  Variable *var = lookupPQVariable(name, flags | LF_TEMPL_PRIMARY, scope);
-
-  // apply arguments
-  return lookupPQVariable_applyArgs(scope, var, name, funcArgs);
-}
-
-// TODO: remove 'foundScope'
-Variable *Env::lookupPQVariable_applyArgs(
-  Scope *foundScope, Variable *primary, PQName const *name,
-  FakeList<ArgExpression> *funcArgs)
-{
-  if (!primary || !primary->isTemplate()) {
-    // nothing unusual to do
-    return primary;
-  }
-
-  if (!primary->isTemplateFunction()) {
-    // most of the time this can't happen, b/c the func/ctor ambiguity
-    // resolution has already happened and inner2 is only called when
-    // the 'primary' looks ok; but if there are unusual ambiguities, e.g.
-    // in/t0171.cc, then we get here even after 'primary' has yielded an
-    // error.. so just bail, knowing that an error has already been
-    // reported (hence the ambiguity will be resolved as something else)
-    return NULL;
-  }
+  xassert(primary->isTemplateFunction());
 
   // if we are inside a function definition, just return the primary
   TemplTcheckMode ttm = getTemplTcheckMode();

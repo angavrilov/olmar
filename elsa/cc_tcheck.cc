@@ -4375,6 +4375,10 @@ void E_funCall::inner1_itcheck(Env &env)
     func->tcheck(env, func);
   }
 }
+       
+// defined below inner2_itcheck
+static bool argumentDependentReLookup(Env &env, Variable *&var, PQName *pqname, 
+  Type *&nodeType, Expression *receiver, FakeList<ArgExpression> *args);
 
 Type *E_funCall::inner2_itcheck(Env &env)
 {
@@ -4392,62 +4396,16 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // argument-dependent re-lookup and function template instantiation
   if (func->skipGroups()->isE_variable()) {
     E_variable *evar = func->skipGroups()->asE_variable();
-    
-    // TODO: do the following with 'lookupPQVariable_applyArgs', 
-    // as in the block below
-    //
-    // Ah, the difficulty is 'foundScope'.  So, making these blocks
-    // uniform would require implementing the notion of "declaration
-    // scope" discussed below.
-    evar->var = env.lookupPQVariable_function_with_args(
-      evar->name, LF_NONE, args /*funcArgs*/);
-
-    if (evar->var) {
-      evar->type = env.tfac.cloneType(evar->var->type);
-    }
-    else {
-      // error already reported, but don't proceed below since
-      // the NULL evar->var will cause problems
-      return evar->type = env.getSimpleType(SL_UNKNOWN, ST_ERROR);
+    if (!argumentDependentReLookup(env, evar->var, evar->name, evar->type,
+                                   NULL /*receiver*/, args)) {
+      return evar->type;    // is ST_ERROR
     }
   }
   else if (func->skipGroups()->isE_fieldAcc()) {
-    // this block is basically a copy of the one above, but for
-    // E_fieldAcc instead of E_variable
     E_fieldAcc *eacc = func->skipGroups()->asE_fieldAcc();
-    if (eacc->field &&
-        !eacc->field->type->isSimple(ST_DEPENDENT)) {   // t0240.cc
-      // here's a cute hack: I need to pass the receiver object as one
-      // of the arguments to participate in overload resolution, so
-      // just make a temporary ArgExpression grafted onto the front of
-      // the real arguments list
-      ArgExpression tmpReceiver(eacc->obj);
-      FakeList<ArgExpression> *argsWithRec = args->prepend(&tmpReceiver);
-
-      // I'm going to use the primary's declaration scope as the
-      // 'foundScope'... I'm not sure if this is right, esp.  for
-      // out-of-line definitions.
-      //
-      // I now believe that the notion of a "found scope" is bad, b/c
-      // it is tied too closely to lookup.  Instead, I think the
-      // Variable should be annotated with its "declaration scope", if
-      // that is relevant.  That is, I want to make this property
-      // intrinsic to Variable.  But that will have to wait ...
-      xassert(eacc->field->scope);
-      eacc->field = env.lookupPQVariable_applyArgs(
-        eacc->field->scope /*foundScope*/,
-        eacc->field /*primary*/, eacc->fieldName, argsWithRec);
-        
-      // now disconnect the temporary object so it can be safely
-      // disposed of
-      tmpReceiver.expr = NULL;
-      tmpReceiver.next = NULL;
-    }
-    if (eacc->field) {
-      eacc->type = env.tfac.cloneType(eacc->field->type);
-    }
-    else {
-      return eacc->type = env.getSimpleType(SL_UNKNOWN, ST_ERROR);
+    if (!argumentDependentReLookup(env, eacc->field, eacc->fieldName, eacc->type,
+                                   eacc->obj, args)) {
+      return eacc->type;    // is ST_ERROR
     }
   }
 
@@ -4583,6 +4541,46 @@ Type *E_funCall::inner2_itcheck(Env &env)
 
   // type of the expr is type of the return value
   return ft->retType;
+}
+
+// return false on error
+bool argumentDependentReLookup(Env &env,
+  Variable *&var,         // IN: primary; OUT: instantiated
+  PQName *pqname,         // name originally used to find 'var'
+  Type *&nodeType,        // Expression node 'type' field to modify
+  Expression *receiver,   // (nullable) receiver object expression
+  FakeList<ArgExpression> *args)      // function args
+{
+  if (var &&
+      var->isTemplateFunction()) {
+    // here's a cute hack: I need to pass the receiver object as one
+    // of the arguments to participate in overload resolution, so
+    // just make a temporary ArgExpression grafted onto the front of
+    // the real arguments list
+    ArgExpression tmpReceiver(receiver);
+    if (receiver) {
+      args = args->prepend(&tmpReceiver);
+    }
+
+    // apply the arguments to do template instantiation
+    var = env.lookupPQVariable_applyArgsTemplInst(var /*primary*/, pqname, args);
+
+    // now disconnect the temporary object so it can be safely
+    // disposed of
+    tmpReceiver.expr = NULL;
+    tmpReceiver.next = NULL;
+  }
+
+  if (var) {
+    // I think this 'cloneType' should also be inside the
+    // conditional above, but that's an Oink issue...
+    nodeType = env.tfac.cloneType(var->type);
+    return true;
+  }
+  else {
+    nodeType = env.getSimpleType(SL_UNKNOWN, ST_ERROR);
+    return false;
+  }
 }
 
 

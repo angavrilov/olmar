@@ -699,11 +699,8 @@ public:      // template funcs
      //ObjListIter<STemplateArgument> &piArgIter,
      SObjList<Variable> const &paramList);
      
-  Variable *lookupPQVariable_function_with_args
-    (PQName const *name, LookupFlags flags, FakeList<ArgExpression> *funcArgs);
-  Variable *lookupPQVariable_applyArgs
-    (Scope *foundScope, Variable *primary, PQName const *name, 
-     FakeList<ArgExpression> *funcArgs);
+  Variable *lookupPQVariable_applyArgsTemplInst
+    (Variable *primary, PQName const *name, FakeList<ArgExpression> *funcArgs);
 
   // return false if some of the arguments had errors
   bool templArgsASTtoSTA
