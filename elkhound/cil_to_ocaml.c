@@ -148,7 +148,7 @@ value cil_lval_to_ocaml(CilLval *lval)
 	case CilLval::T_CASTL:
 	    result = alloc(3,3);
 	    a = OCAML_DUMMY_TYPE;
-	    b = cil_exp_to_ocaml(lval->castl.lval);
+	    b = cil_lval_to_ocaml(lval->castl.lval);
 	    Store_field(result, 0, a);
 	    Store_field(result, 1, b);
 	    Store_field(result, 2, l);
