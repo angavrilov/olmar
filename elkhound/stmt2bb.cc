@@ -7,23 +7,36 @@
 #include "strsobjdict.h"  // StringSObjDict
 
 
-// translation context for Stmt -> BB
-class BBContext {
+// parts of translation context for Stmt -> BB
+// that don't change if we enter branch target scopes
+class BBTopContext {
 public:
   CilFnDefn &fn;                   // function being translated
   StringSObjDict<CilBB> labels;    // map: label -> basic block
   SObjList<CilBB> gotos;           // gotos that need to be fixed up
 
 public:
-  BBContext(CilFnDefn &f)
+  BBTopContext(CilFnDefn &f)
     : fn(f) {}
+};
+                                               
 
-  //BBContext(BBContext &c, CilBB *newNext)
-  //  : f(c.fn), next(newNext) {}
+// entire context, including things that change
+class BBContext {
+public:
+  BBTopContext &top;        // invariant context
+  
+  CilBB *breakTarget;       // (nullable serf) where to go on 'nreak'
+  CilBB *continueTarget;    // (nullable serf) .............. 'continue'
+
+public:
+  BBContext(BBTopContext &t)
+    : top(t), breakTarget(NULL), continueTarget(NULL) {}
+  BBContext(BBContext &c);
 
   // add 'bb' to fn's basic-block list
   void appendBB(CilBB *bb);
-  
+
   // delete a basic block that's dead
   // (for now, don't delete, because there could be pointers
   // to nodes due to 'gotos')
@@ -31,10 +44,18 @@ public:
     { appendBB(bb); }
 };
 
+
+BBContext::BBContext(BBContext &obj)
+  : DMEMB(top),
+    DMEMB(breakTarget),
+    DMEMB(continueTarget)
+{}
+
+
 void BBContext::appendBB(CilBB *bb)
 {
   // turns out prepend prints out nicer
-  fn.bodyBB.prepend(bb);
+  top.fn.bodyBB.prepend(bb);
 }
 
 
@@ -57,17 +78,23 @@ CilBB * /*owner*/ CilStmt::
       // inefficiency in the composition of the translations)
 
       // make a basic block to hold the condition evaluation
-      Owner<CilBB> cond; cond = new CilBB(CilBB::T_IF);
+      CilBB *cond = new CilBB(CilBB::T_IF);
       cond->ifbb.expr = loop.cond;
       cond->ifbb.loopHint = true;
+      ctxt.appendBB(cond);
 
       // make another basic block for the end of the loop
-      Owner<CilBB> bodyEnd; bodyEnd = new CilBB(CilBB::T_JUMP);
-      bodyEnd->jump.nextBB = cond;      // loops back to condition
+      Owner<CilBB> body; body = new CilBB(CilBB::T_JUMP);
+      body->jump.nextBB = cond;      // loops back to condition
+
+      // make a new context so we can say where the 'break'
+      // and 'continue' targets are
+      BBContext bodyCtxt(ctxt);
+      bodyCtxt.breakTarget = next;
+      bodyCtxt.continueTarget = cond;
 
       // translate the loop body
-      Owner<CilBB> body;
-      body = loop.body->translateToBB(ctxt, bodyEnd.xfr());
+      body = loop.body->translateToBB(ctxt, body.xfr());
 
       // connect the 'then' branch of conditional to the body
       cond->ifbb.thenBB = body.xfr();
@@ -79,9 +106,7 @@ CilBB * /*owner*/ CilStmt::
       // if someone wants to jump to me, jump to the conditional
       // (need to break the basic block because of the jump
       // target for the while-continue)
-      CilBB *condSerf = cond;
-      ctxt.appendBB(cond.xfr());
-      return newJumpBB(condSerf);
+      return newJumpBB(cond);
     }
 
     case T_IFTHENELSE: {
@@ -112,11 +137,11 @@ CilBB * /*owner*/ CilStmt::
       string name = *(label.name);
 
       // whatever is 'next' gets assigned this label
-      if (ctxt.labels.isMapped(name)) {
+      if (ctxt.top.labels.isMapped(name)) {
         xfailure(stringc << "duplicate label: " << name);
       }
       CilBB *nextSerf = next;
-      ctxt.labels.add(name, nextSerf);
+      ctxt.top.labels.add(name, nextSerf);
 
       // add this block to the global list
       ctxt.appendBB(next.xfr());
@@ -134,9 +159,9 @@ CilBB * /*owner*/ CilStmt::
       // can throw it away entirely (it's dead code)
       ctxt.deadCodeElim(next.xfr());
 
-      if (ctxt.labels.isMapped(name)) {
+      if (ctxt.top.labels.isMapped(name)) {
         // start a new 'jump' basic block with the known target
-        return newJumpBB(ctxt.labels.queryf(name));
+        return newJumpBB(ctxt.top.labels.queryf(name));
       }
       else {
         // start a new block, but leave the target empty; we'll
@@ -145,7 +170,7 @@ CilBB * /*owner*/ CilStmt::
         jmp->jump.targetLabel = new VarName(name);
 
         // add it to the post-process list
-        ctxt.gotos.append(jmp);
+        ctxt.top.gotos.append(jmp);
 
         // and this is where prior code goes next
         return jmp.xfr();
@@ -209,20 +234,21 @@ void translateStmtToBB(CilFnDefn &fn)
   final->ret.expr = NULL;
 
   // build a translation context
-  BBContext ctxt(fn);
+  BBTopContext topCtxt(fn);
+  BBContext ctxt(topCtxt);
 
   // recursive translation
   Owner<CilBB> start;
   start = fn.bodyStmt.translateToBB(ctxt, final.xfr());
   fn.startBB = start;
   fn.bodyBB.prepend(start.xfr());
-  
+
   // fix up the gotos
-  SMUTATE_EACH_OBJLIST(CilBB, ctxt.gotos, iter) {
+  SMUTATE_EACH_OBJLIST(CilBB, topCtxt.gotos, iter) {
     CilBB *jmp = iter.data();
     string label = *( jmp->jump.targetLabel );
-    if (ctxt.labels.isMapped(label)) {
-      jmp->jump.nextBB = ctxt.labels.queryf(label);
+    if (topCtxt.labels.isMapped(label)) {
+      jmp->jump.nextBB = topCtxt.labels.queryf(label);
       delete jmp->jump.targetLabel;
       jmp->jump.targetLabel = NULL;
     }
