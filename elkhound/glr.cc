@@ -129,6 +129,7 @@
 #include "lexer2.h"      // Lexer2
 #include "grampar.h"     // readGrammarFile
 #include "parssppt.h"    // treeMain
+#include "bflatten.h"    // BFlatten
 
 #include <stdio.h>       // FILE
 #include <fstream.h>     // ofstream
@@ -1192,26 +1193,41 @@ void GLR::glrParseFrontEnd(Lexer2 &lexer2, char const *grammarFname,
     //  // error with grammar; message already printed
     //  return;
     //}
-    
-    // new code to read a grammar (throws exception on failure)
-    readGrammarFile(*this, grammarFname);
 
-    // spit grammar out as something bison might be able to parse
-    {
-      ofstream bisonOut("bisongr.y");
-      printAsBison(bisonOut);
-    }
+    if (!strstr(grammarFname, ".bin")) { 
+      // assume it's an ascii grammar file and do the whole thing
 
-    // prepare for symbol of interest
-    if (symOfInterestName != NULL) {
-      symOfInterest = findSymbolC(symOfInterestName);
-      if (!symOfInterest) {
-        cout << "warning: " << symOfInterestName << " isn't in the grammar\n";
+      // new code to read a grammar (throws exception on failure)
+      readGrammarFile(*this, grammarFname);
+
+      // spit grammar out as something bison might be able to parse
+      //{
+      //  ofstream bisonOut("bisongr.y");
+      //  printAsBison(bisonOut);
+      //}
+
+      // prepare for symbol of interest
+      if (symOfInterestName != NULL) {
+        symOfInterest = findSymbolC(symOfInterestName);
+        if (!symOfInterest) {
+          cout << "warning: " << symOfInterestName << " isn't in the grammar\n";
+        }
       }
+
+      if (tracingSys("grammar")) {
+        printProductions(trace("grammar") << endl);
+      }
+
+      runAnalyses();
     }
 
-    printProductions(trace("grammar") << endl);
-    runAnalyses();
+    else {
+      // assume it's a binary grammar file and try to
+      // read it in directly
+      traceProgress() << "reading binary grammar file " << grammarFname << endl;
+      BFlatten flat(grammarFname, true /*reading*/);
+      xfer(flat);
+    }
 
 
     // parse input

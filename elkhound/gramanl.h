@@ -22,6 +22,9 @@
 class Bit2d;            // bit2d.h
 class EmitCode;         // emitcode.h
 
+// this file
+class GrammarAnalysis;
+
 
 // ---------------- ItemSet -------------------
 // a set of dotted productions, and the transitions between
@@ -78,13 +81,20 @@ private:    // funcs
   int bcheckTerm(int index);
   int bcheckNonterm(int index);
   ItemSet *&refTransition(Symbol const *sym);
-                      
-  // computes things derived from the item set lists
+
+  // computes things derived from the item set lists:
+  // dotsAtEnd, numDotsAtEnd, kernelItemsCRC
   void changedItems();
+  
+  void allocateTransitionFunction();
 
 public:     // funcs
   ItemSet(int id, int numTerms, int numNonterms);
   ~ItemSet();
+
+  ItemSet(Flatten&);
+  void xfer(Flatten &flat);
+  void xferSerfs(Flatten &flat, GrammarAnalysis &g);
 
   // ---- item queries ----
   // the set of items names a symbol as the symbol used
@@ -124,6 +134,9 @@ public:     // funcs
   // item must not already be in the item set
   void addNonkernelItem(DottedProduction *item);
 
+  // experiment: do I need them during parsing?
+  void throwAwayItems();
+
   // ---- transition mutations ----
   // set transition on 'sym' to be 'dest'
   void setTransition(Symbol const *sym, ItemSet *dest);
@@ -144,8 +157,8 @@ protected:  // data
   Bit2d *derivable;                     // (owner)
 
   // index the symbols on their integer ids
-  Nonterminal **indexedNonterms;        // (owner * serfs) ntIndex -> Nonterminal
-  Terminal **indexedTerms;              // (owner * serfs) termIndex -> Terminal
+  Nonterminal **indexedNonterms;        // (owner -> serfs) ntIndex -> Nonterminal
+  Terminal **indexedTerms;              // (owner -> serfs) termIndex -> Terminal
   int numNonterms;                      // length of 'indexedNonterms' array
   int numTerms;                         //   "     "         terms       "
 
@@ -182,6 +195,9 @@ private:    // funcs
   // ---- analyis init ----
   // call this after grammar is completely built
   void initializeAuxData();
+  void computeIndexedNonterms();
+  void computeIndexedTerms();
+  void computeProductionsByLHS();
 
   // ---- derivability ----
   // iteratively compute every pair A,B such that A can derive B
@@ -208,7 +224,6 @@ private:    // funcs
   bool addFollow(Nonterminal *NT, Terminal *term);
 
   // ---- LR item sets ----
-  void itemSetClosure(ItemSet &itemSet);
   ItemSet *makeItemSet();
   void disposeItemSet(ItemSet *is);
   ItemSet *moveDotNoClosure(ItemSet const *source, Symbol const *symbol);
@@ -242,17 +257,27 @@ private:    // funcs
   bool rewriteSingleNTAsTerminals(TerminalList &output, Nonterminal const *nonterminal,
 				  NonterminalList &reducedStack) const;
 
+  // let's try this .. it needs to access 'itemSets'
+  friend void ItemSet::xferSerfs(Flatten &flat, GrammarAnalysis &g);
 
 public:	    // funcs
   GrammarAnalysis();
   ~GrammarAnalysis();
+
+  // binary read/write
+  void xfer(Flatten &flat);
 
   // essentially, my 'main()' while experimenting
   void exampleGrammar();
 
   // overrides base class to add a little bit of the
   // annotated info
-  void printProductions(ostream &os) const;
+  void printProductions(ostream &os, bool printActions=true,
+                                     bool printCode=true) const;
+
+  // print lots of stuff
+  void printProductionsAndItems(ostream &os, bool printActions=true,
+                                             bool printCode=true) const;
 
   // when grammar is built, this runs all analyses and stores
   // the results in this object's data fields
@@ -262,7 +287,6 @@ public:	    // funcs
   // because the implementation needed private data..
   void emitTypeCtorMap(EmitCode &os) const;
 
-
   // ---- grammar queries ----
   bool canDerive(Nonterminal const *lhs, Nonterminal const *rhs) const;
   bool canDeriveEmpty(Nonterminal const *lhs) const;
@@ -270,10 +294,12 @@ public:	    // funcs
   bool firstIncludes(Nonterminal const *NT, Terminal const *term) const;
   bool followIncludes(Nonterminal const *NT, Terminal const *term) const;
 
-
   // ---- sample inputs and contexts ----
   string sampleInput(ItemSet const *state) const;
   string leftContextString(ItemSet const *state) const;
+  
+  // ---- moved out of private ----
+  void itemSetClosure(ItemSet &itemSet);
 };
 
 

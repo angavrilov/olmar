@@ -164,6 +164,24 @@ void xferSerfPtrToList(Flatten &flat, T *&ptr, ObjList<T> &masterList)
   }
 }
 
+
+template <class T>
+void xferNullableSerfPtrToList(Flatten &flat, T *&ptr, ObjList<T> &masterList)
+{
+  if (flat.writing()) {
+    flat.writeInt(masterList.indexOf(ptr));
+  }
+  else {
+    int index = flat.readInt();
+    if (index >= 0) {
+      ptr = masterList.nth(index);
+    }
+    else {
+      ptr = NULL;
+    }
+  }
+}
+
                   
 template <class T>
 void computedValue(Flatten &flat, T &variable, T value)
@@ -184,14 +202,14 @@ void computedValue(Flatten &flat, T &variable, T value)
 //#define Root void
 //#define FirstLevel void
 template <class Root, class FirstLevel, class Leaf>
-void xferSerfPtr_twoLevelAccess_void(
+void xferSerfPtr_twoLevelAccess(
   Flatten &flat,
   Leaf *&leaf,
   Root *root,
-  FirstLevel (*getNthFirst)(Root *r, int n),
-  Leaf (*getNthLeaf)(FirstLevel *f, int n))
+  FirstLevel* (*getNthFirst)(Root *r, int n),
+  Leaf* (*getNthLeaf)(FirstLevel *f, int n))
 {
-  if (writing()) {
+  if (flat.writing()) {
     // determine both indices
     for (int index1=0; ; index1++) {
       // get a first-level obj
@@ -247,8 +265,8 @@ inline void xferSerfPtr_twoLevelAccess(
   Flatten &flat,
   Leaf *&leaf,
   Root *root,
-  FirstLevel (*getNthFirst)(Root *r, int n),
-  Leaf (*getNthLeaf)(FirstLevel *f, int n))
+  FirstLevel* (*getNthFirst)(Root *r, int n),
+  Leaf* (*getNthLeaf)(FirstLevel *f, int n))
 {
   xferSerfPtr_twoLevelAccess(
     flat,
@@ -261,12 +279,12 @@ inline void xferSerfPtr_twoLevelAccess(
 
 
 template <class Root, class FirstLevel, class Leaf>
-void xferSObjlist_twoLevelAccess(
+void xferSObjList_twoLevelAccess(
   Flatten &flat,
   SObjList<Leaf> &serfList,
   Root *root,
-  FirstLevel (*getNthFirst)(Root *r, int n),
-  Leaf (*getNthLeaf)(FirstLevel *f, int n))
+  FirstLevel* (*getNthFirst)(Root *r, int n),
+  Leaf* (*getNthLeaf)(FirstLevel *f, int n))
 {
   if (flat.writing()) {
     // length of list

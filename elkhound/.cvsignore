@@ -51,3 +51,8 @@ qpmouse.cpp
 Makefile
 
 smbase
+ffollow.cc
+ffollow.h
+ffollow.bin
+cc.bin
+cexp2.bin

@@ -1891,13 +1891,18 @@ nonterm DeclSpecifier : HasTypeName, HasType, HasDeclFlags {
   fun typeName = s.typeName();
   fun getType = s.getType(env);
 
-  -> "inline" m:DeclModifierOpt s:TypeSpecifier
-   | m:DeclModifierOpt "inline" s:TypeSpecifier {
+  -> "inline" m:DeclModifier s:TypeSpecifier
+   | m:DeclModifier "inline" s:TypeSpecifier {
     fun getDeclFlags = (DeclFlags)(DF_INLINE | m.getDeclFlags());
   }
 
-  -> m:DeclModifierOpt s:TypeSpecifier {
+  -> m:DeclModifier s:TypeSpecifier {
     fun getDeclFlags = m.getDeclFlags();
+  }
+  
+  -> "inline" s:TypeSpecifier
+   | s:TypeSpecifier {
+    fun getDeclFlags = DF_NONE;
   }
 }
 
@@ -1905,8 +1910,7 @@ nonterm DeclSpecifier : HasTypeName, HasType, HasDeclFlags {
 // be used together; "inline" is pulled out because it can be used
 // with "virtual", "static", "friend", and possibly "extern"; I
 // consider all this preferable to just allowing a "word soup"
-nonterm DeclModifierOpt : HasDeclFlags {
-  -> empty         { fun getDeclFlags = DF_NONE; }
+nonterm DeclModifier : HasDeclFlags {
   -> "virtual"     { fun getDeclFlags = DF_VIRTUAL; }
   -> "friend"      { fun getDeclFlags = DF_FRIEND; }
   -> "mutable"     { fun getDeclFlags = DF_MUTABLE; }

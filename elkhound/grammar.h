@@ -446,7 +446,7 @@ public:     // funcs
   // ---------- outputting a grammar --------------
   // print the current list of productions
   void printProductions(ostream &os, bool printActions=true,
-                                     bool printProductions=true) const;
+                                     bool printCode=true) const;
 
   // emit C++ code to construct this grammar later
   void emitSelfCC(ostream &os) const;

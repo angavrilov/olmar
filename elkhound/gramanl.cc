@@ -9,10 +9,12 @@
 #include "trace.h"       // tracing system
 #include "nonport.h"     // getMilliseconds
 #include "crc.h"         // crc32
+#include "flatutil.h"    // Flatten, xfer helpers
 
 #include <fstream.h>     // ofstream
 
 
+int itemDiff(DottedProduction const *left, DottedProduction const *right, void*);
 
 // ----------------- ItemSet -------------------
 ItemSet::ItemSet(int anId, int numTerms, int numNonterms)
@@ -26,6 +28,11 @@ ItemSet::ItemSet(int anId, int numTerms, int numNonterms)
     numDotsAtEnd(0),
     id(anId),
     BFSparent(NULL)
+{
+  allocateTransitionFunction();
+}
+
+void ItemSet::allocateTransitionFunction()
 {
   termTransition = new ItemSet* [terms];
   nontermTransition = new ItemSet* [nonterms];
@@ -43,15 +50,20 @@ ItemSet::~ItemSet()
 {
   delete[] termTransition;
   delete[] nontermTransition;
-  
+
   if (dotsAtEnd) {
     delete[] dotsAtEnd;
   }
 }
 
 
-//ItemSet::ItemSet(Flatten &flat)
-//{}
+ItemSet::ItemSet(Flatten &flat)
+  : termTransition(NULL),
+    nontermTransition(NULL),
+    dotsAtEnd(NULL),
+    numDotsAtEnd(0),
+    BFSparent(NULL)
+{}
 
 
 Production *getNthProduction(Grammar *g, int n)
@@ -83,25 +95,91 @@ DottedProduction *getNthDottedProduction(Production *p, int n)
 }
 
 
-#if 0
-void ItemSet::xfer(Flatten &flat, Grammar &g)
+void ItemSet::xfer(Flatten &flat)
 {
-  // 'kernelItems' and 'nonkernelItems': each one accessed as
-  //   g.productions.nth(?)->dprods+?
-  xferSObjList_twoLevelAccess(
-    flat,
-    kernelItems,               // serf list
-    &g,                        // root of access path
-    getNthProduction,          // first access path link
-    getNthDottedProduction);   // second access path link
+  flat.xferInt(terms);
+  flat.xferInt(nonterms);
 
-  xferSObjList_twoLevelAccess(
-    flat,
-    nonkernelItems,            // serf list
-    &g,                        // root of access path
-    getNthProduction,          // first access path link
-    getNthDottedProduction);   // second access path link
-#endif // 0
+  // numDotsAtEnd and kernelItemsCRC are computed from
+  // other data
+  // NEW: but computing them requires the items, which I'm omitting
+
+  flat.xferInt(numDotsAtEnd);
+  flat.xferLong((long&)kernelItemsCRC);
+
+  flat.xferInt(id);
+}
+
+
+int ticksComputeNonkernel = 0;
+
+void ItemSet::xferSerfs(Flatten &flat, GrammarAnalysis &g)
+{
+  #if 1
+    // 'kernelItems' and 'nonkernelItems': each one accessed as
+    //   g.productions.nth(???)->getDProd(???)
+    xferSObjList_twoLevelAccess(
+      flat,
+      kernelItems,               // serf list
+      static_cast<Grammar*>(&g), // root of access path
+      getNthProduction,          // first access path link
+      getNthDottedProduction);   // second access path link
+
+    #if 1
+      xferSObjList_twoLevelAccess(
+        flat,
+        nonkernelItems,            // serf list
+        static_cast<Grammar*>(&g), // root of access path
+        getNthProduction,          // first access path link
+        getNthDottedProduction);   // second access path link
+    #else
+      // instead of the above, let's try computing the nonkernel items
+      if (flat.reading()) {
+        int start = getMilliseconds();
+        g.itemSetClosure(*this);
+        ticksComputeNonkernel += (getMilliseconds() - start);
+      }
+    #endif
+  #endif // 0
+
+  // these need to be sorted for 'changedItems'; but since
+  // we're sorting by *address*, that's not necessarily
+  // preserved across read/write
+  // NEW: it should be stable now
+  //kernelItems.insertionSort(itemDiff);
+
+
+  // transition functions
+  if (flat.reading()) {
+    allocateTransitionFunction();
+  }
+  INTLOOP(t, 0, terms) {
+    xferNullableSerfPtrToList(flat, termTransition[t], g.itemSets);
+  }
+  INTLOOP(n, 0, nonterms) {
+    xferNullableSerfPtrToList(flat, nontermTransition[n], g.itemSets);
+  }
+
+
+  // dotsAtEnd, numDotsAtEnd, kernelItemsCRC
+  //if (flat.reading()) {
+  //  changedItems();
+  //}
+
+  if (flat.reading()) {
+    dotsAtEnd = new DottedProduction const * [numDotsAtEnd];
+  }
+  INTLOOP(p, 0, numDotsAtEnd) {
+    xferSerfPtr_twoLevelAccess(
+      flat,
+      const_cast<DottedProduction*&>(dotsAtEnd[p]),   // serf
+      static_cast<Grammar*>(&g), // root of access path
+      getNthProduction,          // first access path link
+      getNthDottedProduction);   // second access path link
+  }
+
+  xferNullableSerfPtrToList(flat, BFSparent, g.itemSets);
+}
 
 
 Symbol const *ItemSet::getStateSymbolC() const
@@ -153,15 +231,67 @@ void ItemSet::setTransition(Symbol const *sym, ItemSet *dest)
   refTransition(sym) = dest;
 }
 
-            
+                                           
+// arbitrary integer unique to every symbol and preserved
+// across read/write
+int symbolIndex(Symbol const *s)
+{
+  if (s->isTerminal()) {
+    // make terminals negative since otherwise they'd
+    // collide with nonterminals
+    return -( s->asTerminalC().termIndex );
+  }
+  else {
+    return s->asNonterminalC().ntIndex;
+  }
+}
+
+
 // compare two items in an arbitrary (but deterministic) way so that
 // sorting will always put a list of items into the same order, for
 // comparison purposes
-int itemDiff(DottedProduction const *left, DottedProduction const *right, void*)
+int itemDiff(DottedProduction const *a, DottedProduction const *b, void*)
 {
-  // memory address is sufficient for my purposes, since I avoid ever
-  // creating two copies of a given item
-  return (int)left - (int)right;
+  // since I don't make copies of dotted productions, we
+  // can detect equality immediately
+  if (a == b) {
+    return 0;
+  }
+
+  // I want the sorting order to be preserved across read/write,
+  // so I do a real compare now, not just address diff
+
+  // 'dot'
+  int ret = a->dot - b->dot;
+  if (ret) { return ret; }
+
+  Production const *aProd = a->prod;
+  Production const *bProd = b->prod;
+
+  // LHS index
+  ret = aProd->left->ntIndex - bProd->left->ntIndex;
+  if (ret) { return ret; }
+
+  // RHS indices
+  SObjListIter<Symbol> aIter(aProd->right);
+  SObjListIter<Symbol> bIter(bProd->right);
+
+  while (!aIter.isDone() && !bIter.isDone()) {
+    ret = symbolIndex(aIter.data()) - symbolIndex(bIter.data());
+    if (ret) { return ret; }
+    
+    aIter.adv();
+    bIter.adv();
+  }
+
+  if (aIter.isDone() && !bIter.isDone()) {
+    return -1;
+  }
+  if (!aIter.isDone() && bIter.isDone()) {
+    return 1;
+  }
+
+  xfailure("two dotted productions with diff addrs are equal!\n");
 }
 
 
@@ -206,6 +336,13 @@ void ItemSet::getAllItems(DProductionList &dest) const
 {
   dest = kernelItems;
   dest.appendAll(nonkernelItems);
+}
+
+
+void ItemSet::throwAwayItems()
+{
+  kernelItems.removeAll();
+  nonkernelItems.removeAll();
 }
 
 
@@ -300,7 +437,7 @@ void ItemSet::changedItems()
     if (index > 0) {
       // may as well check sortedness and
       // uniqueness
-      xassert(array[index] > array[index-1]);
+      xassert(itemDiff(array[index], array[index-1], NULL) > 0);
     }
 
     index++;
@@ -343,6 +480,24 @@ void ItemSet::print(ostream &os) const
       }          
     }
     os << endl;
+  }
+
+  // print transition function directly, since I'm now throwing
+  // away items sometimes
+  for (int t=0; t<terms; t++) {
+    if (termTransition[t]) {
+      os << "  on terminal " << t << " go to " << termTransition[t]->id << endl;
+    }
+  }
+
+  for (int n=0; n<nonterms; n++) {
+    if (nontermTransition[n]) {
+      os << "  on nonterminal " << n << " go to " << nontermTransition[n]->id << endl;
+    }
+  }
+  
+  for (int p=0; p<numDotsAtEnd; p++) {
+    os << "  can reduce by " << dotsAtEnd[p]->prod->toString() << endl;
   }
 }
 
@@ -423,12 +578,61 @@ GrammarAnalysis::~GrammarAnalysis()
 }
 
 
-void GrammarAnalysis::printProductions(ostream &os) const
+void GrammarAnalysis::xfer(Flatten &flat)
+{
+  Grammar::xfer(flat);
+
+  xferOwnerPtr(flat, derivable);
+
+  // delay indexed[Non]Terms, productionsByLHS,
+  // and initialized
+
+  flat.xferInt(nextItemSetId);
+
+  xferObjList(flat, itemSets);
+  xferSerfPtrToList(flat, startState, itemSets);
+
+  flat.xferBool(cyclic);
+
+  // don't bother xferring 'symOfInterest', since it's
+  // only used for debugging
+
+  // now do the easily-computable stuff
+  computeIndexedNonterms();
+  computeIndexedTerms();
+  computeProductionsByLHS();
+
+  // do serfs after because if I want to compute the
+  // nonkernel items instead of storing them, I need
+  // the indices
+  MUTATE_EACH_OBJLIST(ItemSet, itemSets, iter) {
+    iter.data()->xferSerfs(flat, *this);
+  }
+
+  flat.xferBool(initialized);
+}
+
+
+void GrammarAnalysis::
+  printProductions(ostream &os, bool printActions,
+                                bool printCode) const
 {
   if (cyclic) {
     os << "(cyclic!) ";
   }
-  Grammar::printProductions(os);
+  Grammar::printProductions(os, printActions, printCode);
+}
+
+
+void GrammarAnalysis::
+  printProductionsAndItems(ostream &os, bool printActions,
+                                        bool printCode) const
+{
+  printProductions(os, printActions, printCode);
+
+  FOREACH_OBJLIST(ItemSet, itemSets, iter) {
+    iter.data()->print(os);
+  }
 }
 
 
@@ -574,12 +778,8 @@ bool GrammarAnalysis::addFollow(Nonterminal *NT, Terminal *term)
 
 
 // ----------------- Grammar algorithms --------------------------
-void GrammarAnalysis::initializeAuxData()
+void GrammarAnalysis::computeIndexedNonterms()
 {
-  // at the moment, calling this twice leaks memory
-  xassert(!initialized);
-
-
   // map: ntIndex -> Nonterminal*
   numNonterms = numNonterminals();
   indexedNonterms = new Nonterminal* [numNonterms];
@@ -594,8 +794,11 @@ void GrammarAnalysis::initializeAuxData()
     indexedNonterms[index] = sym.data();    // map: index to symbol
     sym.data()->ntIndex = index;            // map: symbol to index
   }
+}
 
 
+void GrammarAnalysis::computeIndexedTerms()
+{
   // map: termIndex -> Terminal*
   // the ids have already been assigned; but I'm going to continue
   // to insist on a contiguous space starting at 0
@@ -612,19 +815,11 @@ void GrammarAnalysis::initializeAuxData()
     }
     indexedTerms[index] = sym.data();    // map: index to symbol
   }
+}
 
 
-  #if 0     // old: this was when class ids were assigned automatically
-  indexedTerms = new Terminal* [numTerminals()];
-  index = 0;
-  for (ObjListMutator<Terminal> sym(terminals);
-       !sym.isDone(); index++, sym.adv()) {
-    indexedTerms[index] = sym.data();    // map: index to symbol
-    sym.data()->termIndex = index;       // map: symbol to index
-  }
-  #endif
-
-  
+void GrammarAnalysis::computeProductionsByLHS()
+{
   // map: nonterminal -> productions with that nonterm on LHS
   productionsByLHS = new SObjList<Production> [numNonterms];
   {
@@ -635,17 +830,26 @@ void GrammarAnalysis::initializeAuxData()
       productionsByLHS[LHSindex].append(prod.data());
     }
   }
+}
 
+
+void GrammarAnalysis::initializeAuxData()
+{
+  // at the moment, calling this twice leaks memory
+  xassert(!initialized);
+
+  computeIndexedNonterms();
+  computeIndexedTerms();
+
+  computeProductionsByLHS();
 
   // initialize the derivable relation
   initDerivableRelation();
 
-  
   // dotted productions
   MUTATE_EACH_PRODUCTION(productions, prod) {
     prod.data()->finished();
   }
-
 
   // mark the grammar as initialized
   initialized = true;
@@ -2004,6 +2208,21 @@ void GrammarAnalysis::runAnalyses()
   traceProgress() << "SLR conflicts...\n";
   findSLRConflicts();
 
+
+  // experiment: do I need the itemSet items during parsing?
+  #if 1
+  cout << "throwing away items\n";
+  MUTATE_EACH_OBJLIST(ItemSet, itemSets, iter) {
+    iter.data()->throwAwayItems();
+  }    
+  #endif // 0
+
+
+  if (tracingSys("itemsets")) {
+    printProductionsAndItems(cout, true, false);
+  }
+
+
   // another analysis
   //computePredictiveParsingTable();
 
@@ -2024,6 +2243,9 @@ int main()
 
 #include "ccwrite.h"      // emitSemFun{Impl,Decl}File
 #include "grampar.h"      // readGrammarFile
+#include "bflatten.h"     // BFlatten
+#include <stdio.h>        // remove
+#include <stdlib.h>       // system
 
 
 int main(int argc, char **argv)
@@ -2032,17 +2254,40 @@ int main(int argc, char **argv)
   TRACE_ARGS();
   traceAddSys("progress");
 
+  bool testRW = false;
+  if (argc >= 2 &&
+      0==strcmp(argv[1], "--testRW")) {
+    testRW = true;
+    argc--;
+    argv++;
+  }
+
   if (argc != 2) {
-    cout << "usage: " << progName << " prefix\n"
-            "  processes prefix.gr to make prefix.{h,cc}\n";
+    cout << "usage: " << progName << " [--testRW] prefix\n"
+            "  processes prefix.gr to make prefix.{h,cc,bin}\n";
     return 0;
-  }          
+  }
   string prefix = argv[1];
+
+  
+  bool printActions = true;
+  bool printCode = false;
+
 
   GrammarAnalysis g;
   readGrammarFile(g, stringc << prefix << ".gr");
 
   g.runAnalyses();
+
+  // print some stuff to a test file
+  char const g1Fname[] = "gramanl.g1.tmp";
+  if (testRW) {
+    traceProgress() << "printing ascii grammar " << g1Fname << endl;
+    {
+      ofstream out(g1Fname);
+      g.printProductionsAndItems(out, printActions, printCode);
+    }
+  }
 
   // emit some C++ code
   traceProgress() << "emitting C++ code...\n";
@@ -2050,117 +2295,52 @@ int main(int argc, char **argv)
   emitSemFunImplFile(stringc << prefix << ".cc", header, &g);
   emitSemFunDeclFile(header, &g);
 
+  // write the analyzed grammar to a file
+  string binFname = stringc << prefix << ".bin";
+  traceProgress() << "writing binary grammar file " << binFname << endl;
+  {
+    BFlatten flatOut(binFname, false /*reading*/);
+    g.xfer(flatOut);
+  }
+
+  if (testRW) {
+    // read in the binary file
+    traceProgress() << "reading binary grammar file " << binFname << endl;
+    BFlatten flatIn(binFname, true /*reading*/);
+    GrammarAnalysis g2;
+    g2.xfer(flatIn);
+
+    // print same stuff to another file
+    char const g2Fname[] = "gramanl.g2.tmp";
+    traceProgress() << "printing ascii grammar " << g2Fname << endl;
+    {
+      ofstream out(g2Fname);
+      g2.printProductionsAndItems(out, printActions, printCode);
+    }
+
+    // diff 'em
+    traceProgress() << "comparing ascii grammar\n";
+    if (system(stringc << "diff " << g1Fname << " " << g2Fname) != 0) {
+      cout << "the grammars differ!!\n";
+      return 4;
+    }
+
+    // remove the temps
+    if (!tracingSys("keep-tmp")) {
+      remove(g1Fname);
+      remove(g2Fname);
+    }
+
+    cout << "ticksComputeNonkernel: " << ticksComputeNonkernel << endl;    
+    cout << "testRW SUCCESS!\n";
+  }    
+
+  else {
+    // I want to know how long writing takes
+    traceProgress() << "done\n";
+  }
+
   return 0;
 }
 
 #endif // GRAMANL_MAIN
-
-
-
-// ---------------------------------------------------------------------------
-// ----------------------------- trash ---------------------------------------
-// ---------------------------------------------------------------------------
-  #if 0
-  // compute the transitive closure of what we've got so far
-  // e.g., if we've computed that A ->* B and B ->* C, write
-  // down that A ->* C
-
-  for (;;) {
-    // loop until things settle
-    int changes=0;
-
-    loopi(numNonterms) {
-      loopj(numNonterms) {
-        if (i==j) {
-          continue;    // ignore the diagonal
-        }
-
-        if (derivable->get(point(i,j))) {
-          // nonterminal i derives nonterminal j, so anything that
-          // nonterminal j can derive is derivable from i
-          for (int row=0; row<numNonterms; row++) {
-            if (derivable->get(point(j,row))) {           // if 'j' derive 'row'
-              if (!derivable->testAndSet(point(i,row))) {   // then 'i' can derive 'row'
-                cout << "discovered (by full closure): " << nonterms[i]->name
-                     << " ->* " << nonterms[row]->name << "\n";
-                changes++;     // and if that changed it, record it
-              }
-            }
-          }
-        }
-      }
-    }
-
-    if (changes==0) {
-      // settled
-      break;
-    }
-  }
-  #endif // 0
-
-
-#if 0
-void Grammar::computeWhichCanDeriveEmpty()
-{
-  // clear all the canDeriveEmpty flags
-  for (ObjListMutator<Symbol> iter(terminals);
-       !iter.isDone(); iter.adv()) {
-    iter.data()->canDeriveEmpty = false;
-  }
-  for (ObjListMutator<Symbol> iter(nonterminals);
-       !iter.isDone(); iter.adv()) {
-    iter.data()->canDeriveEmpty = false;
-  }
-
-  // set the seed flag
-  emptyString->canDeriveEmpty = true;
-
-  // iterate: propagate canDeriveEmpty up the grammar
-  for (;;) {
-    int changes = 0;       // for this iter, times we set canDeriveEmpty
-
-    // loop over all productions
-    for (ObjListMutator<Production> prodIter(productions);
-         !prodIter.isDone(); prodIter.adv()) {
-      // convenient alias
-      Production *prod = prodIter.data();
-      if (prod->left->canDeriveEmpty) {
-        continue;     // already set; skip it
-      }
-
-      // see if every symbol on the RHS can derive emptyString
-      bool allDeriveEmpty = true;
-      for (SymbolListIter sym(prod->right);
-           !sym.isDone(); sym.adv()) {
-        if (!sym.data()->canDeriveEmpty) {
-          allDeriveEmpty = false;
-          break;
-        }
-      }
-
-      if (allDeriveEmpty) {
-        prod->left->canDeriveEmpty = true;
-        changes++;
-      }
-    }
-
-    if (changes == 0) {
-      // everything has settled; we're done
-      break;
-    }
-  }
-}
-
-  // first, find the largest id
-  int maxId = 0;
-  {
-    for (ObjListIter<Terminal> sym(terminals); !sym.isDone(); sym.adv()) {
-      int id = sym.data()->termIndex;
-      xassert(id > 0);      // must have already been assigned
-      if (id > maxId) {
-        maxId = id;
-      }
-    }
-  }
-
-#endif // 0

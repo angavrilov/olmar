@@ -1,0 +1,19 @@
+#!/bin/sh
+# checkout all three source repositories and verify the build
+
+mkdir tmp-bld || exit
+cd tmp-bld || exit
+
+cvs checkout plat || exit
+cvs checkout smbase || exit
+cvs checkout parsgen || exit
+
+parsgen/configure --nocaml || exit
+parsgen/build || exit
+
+(cd parsgen; ./ccgr cc.gr c.in1) || exit
+
+cd .. || exit
+rm -rf tmp-bld || exit
+
+echo "Build verification: SUCCESS"
