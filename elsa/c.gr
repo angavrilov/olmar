@@ -96,7 +96,7 @@ terminals {
   precedence {
     // high precedence
     prec L2_PREFER_REDUCE;
-    prec "const" "volatile" "owner" "__attribute__" "else";
+    prec "const" "volatile" "owner_ptr_qualifier" "__attribute__" "else";
 
     right ".*" "->*";
     left "*" "/" "%";
@@ -1028,9 +1028,9 @@ nonterm[enum CVFlags] CVQualifierSeq {
 }
 
 nonterm[enum CVFlags] CVQualifier {
-  -> "const"        [ return CV_CONST; ]
-  -> "volatile"     [ return CV_VOLATILE; ]
-  -> "owner"        [ return CV_OWNER; ]
+  -> "const"                 [ return CV_CONST; ]
+  -> "volatile"              [ return CV_VOLATILE; ]
+  -> "owner_ptr_qualifier"   [ return CV_OWNER; ]
 }
 
 

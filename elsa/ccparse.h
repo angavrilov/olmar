@@ -7,22 +7,30 @@
 #include "strhash.h"       // StringHash
 #include "strtable.h"      // StringTable
 #include "objlist.h"       // ObjList
+#include "array.h"         // ArrayStack
 
 class PQName;              // cc.ast.gen.h
 
 // parsing action state
 class ParseEnv {
-public:
-  StringTable &str;               // string table
+private:
+  ArrayStack<StringRef> classNameStack;   // stack of class names
 
 public:
-  ParseEnv(StringTable &table) : str(table) {}
+  StringTable &str;                       // string table
+
+public:
+  ParseEnv(StringTable &table)
+    : classNameStack(), str(table) {}
   ~ParseEnv() {}
 
-  void enterScope() {}
-  void leaveScope() {}
-  void addType(PQName const *type) {}
-  bool isType(PQName const *name) { return false; }
+  // manipulate the name of the class whose declaration we're inside;
+  // this is *not* the general class context, merely the innermost
+  // syntactically-occurring "class { ... }" declaration syntax, and
+  // it is used only to recognize declarations of constructors
+  void pushClassName(StringRef n)  { classNameStack.push(n); }
+  void popClassName()              { classNameStack.pop(); }
+  StringRef curClassName() const   { return classNameStack.top(); }
 };
 
 #endif // CPARSE_H
