@@ -2,61 +2,53 @@
 ; experiments relating to in-degree
 
 ; -------------------- inDegree0 -----------------------
+bg_push (
+  ; three distinct objects
+  (DISTINCT obj1 obj2 obj3)
+
+  ; two distinct fields
+  (DISTINCT next otherField)
+
+  ; initially obj1 has nothing pointing to it
+  (inDegree0 mem0 next obj1)
+
+  ; then obj2 is modified to point at obj3
+  (EQ mem1 (update mem0 obj2 next (pointer obj3 0)))
+)
+
 valid "inDegree0-surv-otherObj" (
+  (inDegree0 mem1 next obj1)
+)
+
+notvalid "inDegree0-surv-otherObj" (
   (IMPLIES
-    (AND
-      (DISTINCT obj1 obj2 obj3)
-      (inDegree0 mem0 next obj1)
-      (EQ mem1 (update mem0 obj2 next (pointer obj3 0)))
-    )
-    (inDegree0 mem1 next obj1)
+    (EQ mem1b (update mem0 obj2 next (pointer obj4 0)))   ; obj4 could be obj1
+    (inDegree0 mem1b next obj1)
   )
 )
 
 notvalid "inDegree0-surv-otherObj" (
   (IMPLIES
-    (AND
-      ;(DISTINCT obj1 obj2 obj3)
-      (inDegree0 mem0 next obj1)
-      (EQ mem1 (update mem0 obj2 next (pointer obj3 0)))
-    )
-    (inDegree0 mem1 next obj1)
+    (EQ mem1c (update mem0 obj2 next (pointer obj1 0)))    ; definitely points at obj1
+    (inDegree0 mem1c next obj1)
   )
 )
-
-notvalid "inDegree0-surv-otherObj" (
-  (IMPLIES
-    (AND
-      (DISTINCT obj1 obj2 obj3)
-      (inDegree0 mem0 next obj1)
-      (EQ mem1 (update mem0 obj2 next (pointer obj1 0)))
-    )
-    (inDegree0 mem1 next obj1)
-  )
-)
-
 
 valid "inDegree0-surv-otherField" (
   (IMPLIES
-    (AND
-      (DISTINCT next next2)
-      (inDegree0 mem0 next obj1)
-      (EQ mem1 (update mem0 obj2 next2 (pointer obj3 0)))
-    )
-    (inDegree0 mem1 next obj1)
+    (EQ mem1d (update mem0 obj2 otherField (pointer obj3 0)))
+    (inDegree0 mem1d next obj1)
   )
 )
 
 notvalid "inDegree0-surv-otherField" (
   (IMPLIES
-    (AND
-      ;(DISTINCT next next2)
-      (inDegree0 mem0 next obj1)
-      (EQ mem1 (update mem0 obj2 next2 (pointer obj3 0)))
-    )
-    (inDegree0 mem1 next obj1)
+    (EQ mem1e (update mem0 obj2 ambigField (pointer obj1 0)))   ; possibly ambigField==next
+    (inDegree0 mem1e next obj1)
   )
 )
+
+bg_pop
 
 
 ; ------------------ inDegree1 ------------------------
