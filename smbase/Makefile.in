@@ -303,7 +303,7 @@ gendoc/dependencies.dot:
 	perl ./scan-depends.pl -r -Xxassert.h -Xtest.h -Xtyp.h -Xmacros.h -Xstr.h \
 		-Xbreaker.h \
 		growbuf.h objpool.h strhash.h voidlist.h svdict.h str.h \
-		warn.cpp mysig.h srcloc.cc hashline.cc astlist.h \
+		warn.cpp mysig.h srcloc.cc hashline.cc astlist.h sastlist.h \
 		objstack.h ohashtbl.h okhasharr.h okhashtbl.h sobjlist.h \
 		exc.h >$@
 
