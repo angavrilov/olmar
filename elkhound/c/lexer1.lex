@@ -266,7 +266,9 @@ int lexer1_lex(Lexer1 &lexer, FILE *inputFile)
   int ret = lexer1_inner_lex(lexer);
              
   // prevent leaking the big buffer
-  yy_delete_buffer(yy_current_buffer);
+  // 9/07/03: but this doesn't work with flex-2.5.31, and isn't worth the
+  // hassle to portablize, since lexer1 is obsolete anyway
+  //yy_delete_buffer(yy_current_buffer);
 
   return ret;
 }
