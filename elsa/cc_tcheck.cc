@@ -6152,7 +6152,7 @@ Type *E_effect::itcheck_x(Env &env, Expression *&replacement)
 
   // TODO: make sure 'expr' is compatible with given operator
 
-  // dsw: FIX: check that the arugment is an lvalue.
+  // dsw: FIX: check that the argument is an lvalue.
 
   // Cppstd 5.2.6 "Increment and decrement: The value obtained by
   // applying a postfix ++ ... .  The result is an rvalue."; Cppstd
