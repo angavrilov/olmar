@@ -141,6 +141,9 @@ enum Lexer2TokenType {
   L2_NUM_TYPES
 };
 
+// yield name as above from the int value
+char const *l2Tok2String(Lexer2TokenType type);
+
 
 // represent a unit of input to the parser
 class Lexer2Token {

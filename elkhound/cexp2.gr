@@ -1,12 +1,38 @@
 // cexp2.gr
 // subgrammar for C expressions; experimental syntax
 
-// ------ tokens -------
 terminals {
   // grab the lexer's token list
   include("cc.tok")
 }
-// ------ end of tokens ------
+
+
+// stuff that goes at top of cexp2.h
+prologue {
+  #include "objlist.h"     // ObjList
+  #include "lexer2.h"      // Lexer2Token
+  #include "ccwrite.h"     // NonterminalInfo
+
+  class Bindings {
+  private:  // data
+    struct Entry {
+      string name;
+      int value;
+    public:
+      Entry(char const *n, int v)
+        : name(n), value(v) {}
+      ~Entry();
+    };
+    ObjList<Entry> blist;
+
+  public:
+    Bindings();
+    ~Bindings();
+    
+    void add(char const *name, int val);
+    int lookup(char const *name) const;
+  };
+}
 
 
 // dummy first rule
@@ -20,7 +46,7 @@ nonterm Input -> defs:VarDefList ";" e:Expr {
 
   fun eval {
     // gather the bindings from the definitions
-    ObjList<Binding> bindings;
+    Bindings bindings;
     defs.gatherBindings(bindings);
 
     // use them to evaluate
@@ -31,7 +57,7 @@ nonterm Input -> defs:VarDefList ";" e:Expr {
   /*
   -> seq:(def:VarDef+) ";" e:Expr {
     fun eval {
-      ObjList<Binding> bindings;
+      Bindings bindings;
       FOREACH(seq) {
         // this would require.. hmmm.. maybe list of list of children?
         // or emit another kind of nonterminal?  ...
@@ -48,7 +74,7 @@ nonterm Input -> defs:VarDefList ";" e:Expr {
 // list of variable bindings
 nonterm VarDefList {
   // collect new bindings and put them in 'bindings'
-  fundecl void gatherBindings(ObjList<Binding> &bindings) const;
+  fundecl void gatherBindings(Bindings &bindings) const;
 
   -> def:VarDef {
     fun gatherBindings {
@@ -65,17 +91,17 @@ nonterm VarDefList {
 }
 
 nonterm VarDef -> n:L2_NAME "=" e:Expr {
-  fundecl void gatherBindings(ObjList<Binding> &bindings) const;
+  fundecl void gatherBindings(Bindings &bindings) const;
 
   fun gatherBindings {
     string name = n.strValue;
 
     // Expr contains constants only
-    ObjList<Binding> empty;
+    Bindings empty;
     int val = e.eval(empty);
     
     // add result to global bindings list
-    bindings.add(name, value);
+    bindings.add(name, val);
   }
 }
 
@@ -86,14 +112,14 @@ nonterm Expr {
 
   // return the value of this expression, in the given
   // binding environment
-  fundecl int eval(ObjList<Binding> const &bindings) const;
+  fundecl int eval(Bindings const &bindings) const;
 
   // variables and literals have higher precedence than anything else
   action  prec := 100;
 
   -> name:L2_NAME {
     fun eval {
-      return lookup(bindings, name.strValue);
+      return bindings.lookup(name.strValue);
     }
   }
 
@@ -109,9 +135,15 @@ nonterm Expr {
     condition  op.leftAssoc == 1 ?
                  this.prec < right.prec :          // left associative
                  this.prec < left.prec;            // right associative
-                 
-    fun eval = 
-      op.eval(left.eval(bindings), right.eval(bindings));
+
+    fun eval {
+      int L = left.eval(bindings);
+      int R = right.eval(bindings);
+      int ret = op.eval(L, R);
+      cout << L << " " << op.opSpelling() << " " << R
+           << " = " << ret << endl;
+      return ret;
+    }
   }
 }
 
@@ -124,12 +156,9 @@ nonterm Binop {
   // evaluate, given left and right operands
   fundecl int eval(int left, int right) const;
 
-  // default if unspecified (for convenience while playing)
-  fun eval = left + right;
-
-  // I wanted to say it in one place, but my implementation wasn't
-  // right, and I don't want to fix it just now
-  //action  prec := sequence(60 /*start value*/, -4 /*increment*/);
+  // give me the spelling of the L2 token for the operator
+  fundecl char const *opSpelling() const;
+  fun opSpelling = l2Tok2String(getOnlyChildToken(0).type);
 
   // all have left precedence by default; can override individually
   action  leftAssoc := 1;
@@ -137,34 +166,135 @@ nonterm Binop {
   // highest precedence
   formGroup {
     action prec:=60;
-    -> "*" { fun eval = left * right; }
-    -> "/" { fun eval = left / right; }
-    -> "%" { fun eval = left % right; }
+    -> "*"     { fun eval = left * right; }
+    -> "/"     { fun eval = left / right; }
+    -> "%"     { fun eval = left % right; }
   }
 
-  formGroup { action prec:=56;   -> "+" | "-"                 ;   }
-  formGroup { action prec:=52;   -> "<<"| ">>"                ;   }
-  formGroup { action prec:=48;   -> "<" | ">" | "<="| ">="    ;   }
-  // alternative syntax
-  formGroup { action prec:=44;   -> "=="; -> "!=";                      }
-  formGroup { action prec:=40;   -> "&";                                }
-  formGroup { action prec:=36;   -> "^";                                }
-  formGroup { action prec:=32;   -> "|";                                }
-  formGroup { action prec:=28;   -> "&&";                               }
-  formGroup { action prec:=24;   -> "||";                               }
-  // lowest precedence
+  formGroup {
+    action prec:=56;
+    -> "+"    { fun eval = left + right; }
+    -> "-"    { fun eval = left - right; }
+  }
 
-// alternative syntax
-//    // highest precedence
-//    -> "*" | "/" | "%"             ;
-//    -> "+" | "-"                   ;
-//    -> "<<" | ">>"                 ;
-//    -> "<" | ">" | "<=" | ">="     ;
-//    -> "==" | "!="                 ;
-//    -> "&"                         ;
-//    -> "^"                         ;
-//    -> "|"                         ;
-//    -> "&&"                        ;
-//    -> "||"                        ;
-//    // lowest precedence
+  formGroup {
+    action prec:=52;
+    -> "<<"   { fun eval = left << right; }
+    -> ">>"   { fun eval = left >> right; }
+  }
+
+  formGroup {
+    action prec:=48;
+    -> "<"    { fun eval = left < right; }
+    -> ">"    { fun eval = left > right; }
+    -> "<="   { fun eval = left <= right; }
+    -> ">="   { fun eval = left >= right; }
+  }
+
+  formGroup {
+    action prec:=44;
+    -> "=="   { fun eval = left == right; }
+    -> "!="   { fun eval = left != right; }
+  }
+
+  -> "&" {
+    action prec:=40;
+    fun eval = left & right;
+  }
+
+  -> "^" {
+    action prec:=36;
+    fun eval = left ^ right;
+  }
+
+  -> "|" {
+    action prec:=32;
+    fun eval = left | right;
+  }
+
+  -> "&&" {
+    action prec:=28;
+    fun eval = left && right;
+  }
+
+  -> "||" {
+    action prec:=24;
+    fun eval = left || right;
+  }
+  // lowest precedence
+}
+
+              
+// stuff that goes at the end of cexp2.cc
+epilogue {
+  #include "glr.h"       // GLR
+  #include "cexp2.h"     // Input_Node, Bindings
+  #include "trace.h"     // TRACE_ARGS
+
+  #include <iostream.h>  // cout
+
+
+  // ------------ Bindings -----------------
+  Bindings::Entry::~Entry()
+  {}
+
+  Bindings::Bindings()
+  {}
+
+  Bindings::~Bindings()
+  {}
+
+
+  void Bindings::add(char const *name, int val)
+  {
+    blist.prepend(new Entry(name, val));
+  }
+
+  int Bindings::lookup(char const *name) const
+  {          
+    int ret = 0;
+    FOREACH_OBJLIST(Entry, blist, iter) {
+      if (iter.data()->name.equals(name)) {
+        ret = iter.data()->value;
+        break;
+      }
+    }
+
+    // be lax
+    cout << "lookup " << name << ": " << ret << endl;
+    return ret;
+  }
+
+
+  // ----------------- main ------------------
+  int main(int argc, char *argv[])
+  {
+    char const *progName = argv[0];
+    TRACE_ARGS();
+    traceAddSys("progress");
+
+    if (argc != 3) {
+      cout << "usage: " << progName << " [options] grammar-file input-file\n"
+              "  options:\n"
+              "    -tr <sys>:  turn on tracing for the named subsystem\n"
+              ;
+      return 0;
+    }
+
+    // parse
+    GLR g;
+    Lexer2 lexer2;
+    g.glrParseFrontEnd(lexer2, argv[1], argv[2]);
+
+    // get tree
+    TreeNode const *top = g.getParseTree();
+    xassert(top->getSymbolC()->name.equals("Input"));
+    Input_Node const *in = (Input_Node const*)top;
+
+    // semantically analyze
+    int val = in->eval();
+    cout << "evaluation result: " << val << endl;
+
+    return 0;
+  }
 }

@@ -176,18 +176,20 @@ SLWHITE   [ \t]
   return TOK_FUNDECL;
 }
 
-"fun" {
+("fun"|"prologue"|"epilogue") {
   UPD_COL
-  
-  // two tokens must be processed before we start the embedded stuff;
-  // the parser will ensure they are there, and then this flag will
-  // get us into embedded processing; rules for "{" and "=" deal with
-  // 'expectedEmbedded' and transitioning into FUN state
+
+  // one or two tokens must be processed before we start the embedded
+  // stuff; the parser will ensure they are there, and then this flag
+  // will get us into embedded processing; rules for "{" and "=" deal
+  // with 'expectedEmbedded' and transitioning into FUN state
   expectingEmbedded = true;
 
   embedded->reset();
   embedMode = TOK_FUN_BODY;
-  return TOK_FUN;
+  return yytext[0]=='f'? TOK_FUN :
+         yytext[0]=='p'? TOK_PROLOGUE :
+                         TOK_EPILOGUE;
 }
 
 <FUNDECL,FUN>{

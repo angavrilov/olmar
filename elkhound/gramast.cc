@@ -33,6 +33,8 @@ string astTypeToString(int type)
     N(AST_FUNDECL)
     N(AST_FUNCTION)
     N(AST_FUNEXPR)
+    N(AST_PROLOGUE)
+    N(AST_EPILOGUE)
 
     N(EXP_ATTRREF)
     N(EXP_FNCALL)

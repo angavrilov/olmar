@@ -10,14 +10,15 @@ class Reduction;
 
 
 // for generating C++ code; see ccwrite.cc for comments
-void emitSemFunImplFile(char const *fname, GrammarAnalysis const *g);
+void emitSemFunImplFile(char const *fname, char const *headerFname,
+                        GrammarAnalysis const *g);
 void emitSemFunDeclFile(char const *fname, GrammarAnalysis const *g);
 
 
 // -------- for using the generated code ----------
 // constructs a tree node of some type; signature matches
 // NonterminalNode's ctor
-typedef NonterminalNode (*TreeNodeCtorFn)(Reduction *red);
+typedef NonterminalNode* (*TreeNodeCtorFn)(Reduction *red);
 
 // describes a nonterminal, for use at runtime by the
 // user of the generated code

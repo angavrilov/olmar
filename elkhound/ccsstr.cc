@@ -183,7 +183,9 @@ string CCSubstrate::getDeclName() const
   char const *nameEnd = p+1;    // char just past last
   
   // move backward through the name
-  while (p>=start && !isspace(*p)) { p--; }
+  while (p>=start && 
+         (isalnum(*p) || *p=='_'))
+    { p--; }
   p++;    // move back to most recent legal char
   
   // done

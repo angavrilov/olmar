@@ -8,6 +8,7 @@
 
 #include <string.h>       // strstr
 #include <fstream.h>      // ofstream
+#include <ctype.h>        // toupper
 
 
 // ------------- name constructors -------------
@@ -44,6 +45,18 @@ string semFuncDecl(string name, string decl, Nonterminal const *nonterm)
 }
 
 
+// foo.h -> __FOO_H
+string headerFileLatch(char const *fname)
+{
+  string ret = stringc << "__" << fname;
+  ret = replace(ret, ".", "_");
+  loopi(ret.length()) {
+    ret[i] = toupper(ret[i]);
+  }
+  return ret;
+}
+
+
 // ----------------- code emitters -----------------
 // emit the C++ code for a nonterminal's semantic functions
 void emitSemFuns(ostream &os, Grammar const *g,
@@ -53,10 +66,17 @@ void emitSemFuns(ostream &os, Grammar const *g,
   os << "// ------------- " << nonterm->name << " -------------\n";
 
   // emit the node type ctor
+  string typeName = nodeTypeName(nonterm);
   os << "NonterminalNode *" << nodeCtorName(nonterm) << "(Reduction *red)\n"
      << "{\n"
-     << "  return new " << nodeTypeName(nonterm) << "(red);\n"
-     << "}\n\n\n"
+     << "  return new " << typeName << "(red);\n"
+     << "}\n"
+     << "\n"
+     << typeName << "::" << typeName << "(Reduction *red)\n"
+     << "  : NonterminalNode(red)\n"
+     << "{}\n"
+     << "\n"
+     << "\n"
      ;
 
   // loop over all declared functions
@@ -138,7 +158,9 @@ void emitClassDecl(ostream &os, Nonterminal const *nonterm)
 {
   // type declaration prologue
   os << "class " << nodeTypeName(nonterm) << " : public NonterminalNode {\n"
-     << "public:\n";
+     << "public:\n"
+     << "  " << nodeTypeName(nonterm) << "(Reduction *red);\n"
+     ;
 
   // loop over all declared functions
   for (StringDict::IterC declaration(nonterm->funDecls);
@@ -162,7 +184,7 @@ void GrammarAnalysis::emitTypeCtorMap(ostream &os) const
   // prologue
   os << "// ---------- nonterm info map ----------\n";
   os << "// this is put into the map so...\n"
-        "NonterminalNode *make_empty_node(Reduction *red)\n"
+        "NonterminalNode *make_empty_Node(Reduction *red)\n"
         "{\n"
         "   xfailure(\"can't call make_empty_node!\");\n"
         "   return NULL;    // silence warning\n"
@@ -181,7 +203,7 @@ void GrammarAnalysis::emitTypeCtorMap(ostream &os) const
   }
 
   // epilogue
-  os << "}\n"
+  os << "};\n"
      << "\n"
      << "int nontermMapLength = " << numNonterms << ";\n"
      << "\n";
@@ -189,7 +211,8 @@ void GrammarAnalysis::emitTypeCtorMap(ostream &os) const
 
 
 // emit the complete C++ file of semantic functions in 'g'
-void emitSemFunImplFile(char const *fname, GrammarAnalysis const *g)
+void emitSemFunImplFile(char const *fname, char const *headerFname, 
+                        GrammarAnalysis const *g)
 {
   ofstream os(fname);
   if (!os) {
@@ -201,9 +224,10 @@ void emitSemFunImplFile(char const *fname, GrammarAnalysis const *g)
      << "// semantic functions for a grammar\n"
      << "// NOTE: automatically generated file -- editing inadvisable\n"
      << "\n"
-     << "// -------- user-supplied semantics prologue --------\n"
-     << g->semanticsPrologue
-     << "\n\n";
+     << "#include \"" << headerFname << "\"   // user's declarations\n"
+     << "\n"
+     << "\n"
+     ;
 
   // semantic functions
   FOREACH_OBJLIST(Nonterminal, g->nonterminals, iter) {
@@ -213,7 +237,11 @@ void emitSemFunImplFile(char const *fname, GrammarAnalysis const *g)
   // type map
   g->emitTypeCtorMap(os);
 
-  os << "// end of " << fname << "\n";
+  os << "// -------- user-supplied semantics epilogue --------\n"
+     << g->semanticsEpilogue
+     << "\n"
+     << "\n"
+     << "// end of " << fname << "\n";
 }
 
 
@@ -230,13 +258,24 @@ void emitSemFunDeclFile(char const *fname, GrammarAnalysis const *g)
      << "// declarations for tree node types\n"
      << "// NOTE: automatically generated file -- editing inadvisable\n"
      << "\n"
+     << "#ifndef " << headerFileLatch(fname) << "\n"
+     << "#define " << headerFileLatch(fname) << "\n"
+     << "\n"
      << "#include \"glrtree.h\"     // NonterminalNode\n"
-     << "\n\n";
+     << "\n"
+     << "\n"
+     << "// ------------ user-supplied prologue ----------\n"
+     << g->semanticsPrologue
+     << "\n"
+     << "\n"
+     << "// --------- generated class declarations --------\n"
+     ;
 
   // class declarations
   FOREACH_OBJLIST(Nonterminal, g->nonterminals, iter) {
     emitClassDecl(os, iter.data());
   }
 
-  os << "// end of " << fname << "\n";
+  os << "#endif // " << headerFileLatch(fname) << "\n"
+     << "// end of " << fname << "\n";
 }

@@ -175,6 +175,20 @@ void astParseGrammar(Grammar &g, ASTNode const *treeTop)
         break;
       }
 
+      case AST_PROLOGUE:
+        if (g.semanticsPrologue.length() != 0) {
+          astParseError(node, "prologue already defined");
+        }
+        g.semanticsPrologue = childString(node, 0);
+        break;
+
+      case AST_EPILOGUE:
+        if (g.semanticsEpilogue.length() != 0) {
+          astParseError(node, "epilogue already defined");
+        }
+        g.semanticsEpilogue = childString(node, 0);
+        break;
+
       case AST_NONTERM: {
         string name = childName(node, 0);
         

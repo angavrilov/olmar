@@ -20,6 +20,8 @@ include ${SMBASE}/Makefile.base.mk
 grammar-set = grammar.o action.o cond.o attr.o attrexpr.o
 grampar-set = grampar.tab.o gramlex.yy.o grampar.o gramlex.o \
               ast.o fileloc.o gramast.o ccsstr.o
+glr-set = gramanl.o glrtree.o glr.o lexer1.o lexer1yy.o \
+          lexer2.o
 common = trace.o
 
 # ------ targets -------
@@ -71,8 +73,8 @@ cc.tok: lexer2
 	./lexer2 myparser > cc.tok
 
 # C expression (sort of) evaluator
-cexp2-sem-dep = cexp2.sem.cc ${grammar-set} ${common} gramanl.o glrtree.o \
-		glr.o lexer1.o lexer1yy.o lexer2.o grampar.tab.o gramlex.yy.o \
+cexp2-sem-dep = cexp2.sem.cc ${grammar-set} ${common} ${glr-set} \
+		grampar.tab.o gramlex.yy.o \
 		grampar.o gramlex.o ast.o fileloc.o gramast.o
 cexp2.sem: ${cexp2-sem-dep}
 	${link} -o cexp2.sem -DTEST_CEXP2_SEM ${cexp2-sem-dep} ${linkend}
@@ -81,9 +83,22 @@ cexp2.sem: ${cexp2-sem-dep}
 ccsstr: ccsstr.cc ccsstr.h
 	${link} -o ccsstr -DTEST_CCSSTR ccsstr.cc ${linkend}
 
+# intermediate files for cexp2
+cexp2.cc cexp2.h: cexp2.gr gramanl
+	rm -f cexp2.{h,cc}
+	./gramanl cexp2
+	chmod u-w cexp2.cc cexp2.h
+
+# parser and semantic analyzer for cexp2.gr
+cexp2-dep = cexp2.cc ${grammar-set} ${common} ${grampar-set} \
+            ${glr-set}
+cexp2: ${cexp2-dep} cexp2.h
+	${link} -o cexp2 ${cexp2-dep} ${linkend}
+
 clean:
 	rm -f gramanl glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex *.o *~
 	rm -f lexer2 grampar.tab.* grampar a.out
+	rm -f cexp2.sem ccsstr cexp2.{h,cc} cexp2
 
 # --------------- random other stuff --------------------
 # printable version of the C++ grammar; removes the '// C++' tags

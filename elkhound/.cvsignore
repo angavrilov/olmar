@@ -35,3 +35,6 @@ cexp2.sem
 ccsstr
 semimpl.h
 semimpl.cc
+cexp2.cc
+cexp2.h
+cexp2

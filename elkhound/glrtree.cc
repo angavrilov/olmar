@@ -154,7 +154,7 @@ TreeNode const *NonterminalNode::getOnlyChild(int childNum) const
 
 Lexer2Token const &NonterminalNode::getOnlyChildToken(int childNum) const
 {
-  Lexer2Token *ret = getOnlyChild(childNum)->asTermC().token;
+  Lexer2Token const *ret = getOnlyChild(childNum)->asTermC().token;
   xassert(ret);
   return *ret;
 }

@@ -40,6 +40,8 @@ enum ASTTypeCode {
   AST_FUNDECL,           // fundecl: name, body
   AST_FUNCTION,          // fun: name, body
   AST_FUNEXPR,           // fun: name, expr-body
+  AST_PROLOGUE,          // prologue: body
+  AST_EPILOGUE,          // epilogue: body
 
   // attribute-expression components
   EXP_ATTRREF,           // reference to an attribute

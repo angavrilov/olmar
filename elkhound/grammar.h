@@ -483,8 +483,9 @@ public:	    // data
   ObjList<Production> tokSeqAmbList;
 
   // extra user-supplied source in the embedded language,
-  // meant to appear at the top of the semantic-functions file
-  string semanticsPrologue;
+  // meant to appear in the generated semantic-functions files
+  string semanticsPrologue;      // top of .h file
+  string semanticsEpilogue;      // bottom of .cc file
 
 private:    // funcs
   // obsolete parsing functions

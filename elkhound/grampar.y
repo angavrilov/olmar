@@ -56,6 +56,8 @@
 %token TOK_CONDITION "condition"
 %token TOK_FUNDECL "fundecl"
 %token TOK_FUN "fun"
+%token TOK_PROLOGUE "prologue"
+%token TOK_EPILOGUE "epilogue"
 
 /* operators */
 %token TOK_OROR "||"
@@ -104,6 +106,8 @@ StartSymbol: Input
 Input: /* empty */           { $$ = AST0(AST_TOPLEVEL); }
      | Input Terminals       { $$ = iappend($1, $2); }
      | Input Nonterminal     { $$ = iappend($1, $2); }
+     | Input Prologue        { $$ = iappend($1, $2); }
+     | Input Epilogue        { $$ = iappend($1, $2); }
      ;
 
 /* ------ terminals ------ */
@@ -123,9 +127,9 @@ TerminalSeqOpt: /* empty */                        { $$ = AST0(AST_TERMINALS); }
  * lexer uses to represent that terminal.  it is followed by a
  * canonical name, and an optional alias; the name/alias appears in
  * the forms, rather than the integer code itself */
-TerminalDecl: TOK_INTEGER ":" TOK_NAME ";"         
+TerminalDecl: TOK_INTEGER ":" TOK_NAME ";"
                                             { $$ = AST2(AST_TERMDECL, $1, $3); }
-            | TOK_INTEGER ":" TOK_NAME TOK_STRING ";"         
+            | TOK_INTEGER ":" TOK_NAME TOK_STRING ";"
                                             { $$ = AST3(AST_TERMDECL, $1, $3, $4); }
             ;
 
@@ -339,5 +343,18 @@ FunDecl: "fundecl" TOK_FUNDECL_BODY ";"          { $$ = $2; }
 Function: "fun" TOK_NAME "{" TOK_FUN_BODY "}"    { $$ = AST2(AST_FUNCTION, $2, $4); }
         | "fun" TOK_NAME "=" TOK_FUN_BODY ";"    { $$ = AST2(AST_FUNEXPR, $2, $4); }
         ;
+
+        
+/* ------ prologue, epilogue -------- */
+/* this additional C++ code goes at the top of the generated header */
+Prologue: "prologue" "{" TOK_FUN_BODY "}"          { $$ = AST1(AST_PROLOGUE, $3); }
+        ;
+
+/* this additional C++ code goes at the bottom of the generated
+ * implementation (.cc) file */
+Epilogue: "epilogue" "{" TOK_FUN_BODY "}"          { $$ = AST1(AST_EPILOGUE, $3); }
+        ;
+
+
 
 %%

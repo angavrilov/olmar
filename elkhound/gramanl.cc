@@ -1644,21 +1644,27 @@ int main()
 
 int main(int argc, char **argv)
 {
+  char const *progName = argv[0];
   TRACE_ARGS();
-
   traceAddSys("progress");
-  //traceAddSys("grammar");
+
+  if (argc != 2) {
+    cout << "usage: " << progName << " prefix\n"
+            "  processes prefix.gr to make prefix.{h,cc}\n";
+    return 0;
+  }          
+  string prefix = argv[1];
 
   GrammarAnalysis g;
-  readGrammarFile(g, argc>=2? argv[1] : NULL /*stdin*/);
+  readGrammarFile(g, stringc << prefix << ".gr");
 
   g.runAnalyses();
 
-  // emit some C++ code (at least my filenames aren't
-  // all named with some nonsense like "yy" ...)
+  // emit some C++ code
   traceProgress() << "emitting C++ code...\n";
-  emitSemFunImplFile("semimpl.cc", &g);
-  emitSemFunDeclFile("semimpl.h", &g);
+  string header = stringc << prefix << ".h";
+  emitSemFunImplFile(stringc << prefix << ".cc", header, &g);
+  emitSemFunDeclFile(header, &g);
 
   return 0;
 }
