@@ -7,7 +7,7 @@ verbatim {
 
 // the entire grammar spec
 class GrammarAST (LocString verbatimCode,
-                  Terminals terms, 
+                  Terminals terms,
                   ASTList<NontermDecl> nonterms);
 
 
@@ -20,12 +20,17 @@ class TermDecl (int code, LocString name, LocString alias);
 
 // declaration that token with grammar name 'name' has semantic
 // values with C type 'type'
-class TermType (LocString name, LocString type);
+class TermType (LocString name, LocString type, ASTList<SpecFunc> funcs);
+
+
+// specification function: formals + code
+class SpecFunc (LocString name, ASTList<LocString> formals, LocString code);
 
 
 // a nonterminal, with its name and semantic value type, and list
 // of productions (right-hand side alternatives)
-class NontermDecl (LocString name, LocString type, ASTList<ProdDecl> productions);
+class NontermDecl (LocString name, LocString type, ASTList<SpecFunc> funcs,
+                   ASTList<ProdDecl> productions);
 
 // production: rhs description, and code to execute upon recognition
 class ProdDecl (ASTList<RHSElt> rhs, LocString actionCode);

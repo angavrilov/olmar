@@ -129,6 +129,7 @@ SLWHITE   [ \t]
 "->"               TOK_UPD_COL;  return TOK_ARROW;
 "("                TOK_UPD_COL;  return TOK_LPAREN;
 ")"                TOK_UPD_COL;  return TOK_RPAREN;
+","                TOK_UPD_COL;  return TOK_COMMA;
 
 "terminals"        TOK_UPD_COL;  return TOK_TERMINALS;
 "token"            TOK_UPD_COL;  return TOK_TOKEN;

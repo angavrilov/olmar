@@ -12,6 +12,7 @@ class GrammarAST;
 class Terminals;
 class TermDecl;
 class TermType;
+class SpecFunc;
 class NontermDecl;
 class ProdDecl;
 class RHSElt;
@@ -81,10 +82,29 @@ class TermType {
 public:      // data
   LocString name;
   LocString type;
+  ASTList <SpecFunc > funcs;
 
 public:      // funcs
-  TermType(LocString *_name, LocString *_type) : name(_name), type(_type) {}
+  TermType(LocString *_name, LocString *_type, ASTList <SpecFunc > *_funcs) : name(_name), type(_type), funcs(_funcs) {}
   ~TermType();
+
+
+  void debugPrint(ostream &os, int indent) const;
+
+};
+
+
+
+// *** DO NOT EDIT ***
+class SpecFunc {
+public:      // data
+  LocString name;
+  ASTList <LocString > formals;
+  LocString code;
+
+public:      // funcs
+  SpecFunc(LocString *_name, ASTList <LocString > *_formals, LocString *_code) : name(_name), formals(_formals), code(_code) {}
+  ~SpecFunc();
 
 
   void debugPrint(ostream &os, int indent) const;
@@ -98,10 +118,11 @@ class NontermDecl {
 public:      // data
   LocString name;
   LocString type;
+  ASTList <SpecFunc > funcs;
   ASTList <ProdDecl > productions;
 
 public:      // funcs
-  NontermDecl(LocString *_name, LocString *_type, ASTList <ProdDecl > *_productions) : name(_name), type(_type), productions(_productions) {}
+  NontermDecl(LocString *_name, LocString *_type, ASTList <SpecFunc > *_funcs, ASTList <ProdDecl > *_productions) : name(_name), type(_type), funcs(_funcs), productions(_productions) {}
   ~NontermDecl();
 
 

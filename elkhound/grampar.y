@@ -66,6 +66,7 @@
 %token TOK_ARROW "->"
 %token TOK_LPAREN "("
 %token TOK_RPAREN ")"
+%token TOK_COMMA ","
 
 /* keywords */
 %token TOK_TERMINALS "terminals"
@@ -78,13 +79,18 @@
 /* all pointers are owner pointers */
 %union {
   int num;
-  LocString *str;              
+  LocString *str;
 
   Terminals *terminals;
   ASTList<TermDecl> *termDecls;
   TermDecl *termDecl;
   ASTList<TermType> *termTypes;
-  
+  TermType *termType;
+
+  ASTList<SpecFunc> *specFuncs;
+  SpecFunc *specFunc;
+  ASTList<LocString> *stringList;
+
   ASTList<NontermDecl> *nonterms;
   NontermDecl *nonterm;
   ASTList<ProdDecl> *prodDecls;
@@ -100,6 +106,11 @@
 %type <termDecls> TermDecls
 %type <termDecl> TerminalDecl
 %type <termTypes> TermTypes
+%type <termType> TermType
+
+%type <specFuncs> SpecFuncs
+%type <specFunc> SpecFunc
+%type <stringList> FormalsOpt Formals
 
 %type <nonterms> Nonterminals
 %type <nonterm> Nonterminal
@@ -159,15 +170,42 @@ TerminalDecl: TOK_INTEGER ":" TOK_NAME ";"
             ;
 
 /* yields: LocString */
-Type: TOK_LIT_CODE                                 { $$ = $1; }
+Type: TOK_LIT_CODE                    { $$ = $1; }
     ;
 
 /* yields: ASTList<TermType> */
-TermTypes: /* empty */
-             { $$ = new ASTList<TermType>; }
-         | TermTypes "token" Type TOK_NAME ";"
-             { ($$=$1)->append(new TermType($4, $3)); }
+TermTypes: /* empty */                { $$ = new ASTList<TermType>; }
+         | TermTypes TermType         { ($$=$1)->append($2); }
          ;
+
+/* yields: TermType */
+TermType: "token" Type TOK_NAME ";"
+            { $$ = new TermType($3, $2, new ASTList<SpecFunc>); }
+        | "token" Type TOK_NAME "{" SpecFuncs "}"
+            { $$ = new TermType($3, $2, $5); }
+        ;
+
+
+/* ------ specification functions ------ */
+/* yields: ASTList<SpecFunc> */
+SpecFuncs: /* empty */                { $$ = new ASTList<SpecFunc>; }
+         | SpecFuncs SpecFunc         { ($$=$1)->append($2); }
+         ;
+
+/* yields: SpecFunc */
+SpecFunc: TOK_NAME "(" FormalsOpt ")" TOK_LIT_CODE
+            { $$ = new SpecFunc($1, $3, $5); }
+        ;
+
+/* yields: ASTList<LocString> */
+FormalsOpt: /* empty */               { $$ = new ASTList<LocString>; }
+          | Formals                   { $$ = $1; }
+          ;
+
+/* yields: ASTList<LocString> */
+Formals: TOK_NAME                     { $$ = new ASTList<LocString>($1); }
+       | Formals "," TOK_NAME         { ($$=$1)->append($3); }
+       ;
 
 
 /* ------ nonterminals ------ */
@@ -183,9 +221,10 @@ Nonterminals: /* empty */                  { $$ = new ASTList<NontermDecl>; }
 
 /* yields: NontermDecl */
 Nonterminal: "nonterm" Type TOK_NAME Production
-               { $$ = new NontermDecl($3, $2, new ASTList<ProdDecl>($4)); }
-           | "nonterm" Type TOK_NAME "{" Productions "}"
-               { $$ = new NontermDecl($3, $2, $5); }
+               { $$ = new NontermDecl($3, $2, new ASTList<SpecFunc>,
+                                      new ASTList<ProdDecl>($4)); }
+           | "nonterm" Type TOK_NAME "{" SpecFuncs Productions "}"
+               { $$ = new NontermDecl($3, $2, $5, $6); }
            ;
 
 /* yields: ASTList<ProdDecl> */

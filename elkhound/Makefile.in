@@ -4,7 +4,7 @@
 OCAMLINCL mode = --ocaml
 NOCAMLINCL mode = --nocaml
 
-temporary: check-makefiles grampar gramanl glr.o cexp3
+temporary: check-makefiles grampar
 
 # main targets
 all: check-makefiles ccgr

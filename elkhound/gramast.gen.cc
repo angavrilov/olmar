@@ -60,6 +60,7 @@ void TermDecl::debugPrint(ostream &os, int indent) const
 // *** DO NOT EDIT ***
 TermType::~TermType()
 {
+  funcs.deleteAll();
 }
 
 void TermType::debugPrint(ostream &os, int indent) const
@@ -68,6 +69,24 @@ void TermType::debugPrint(ostream &os, int indent) const
 
   PRINT_GENERIC(name);
   PRINT_GENERIC(type);
+  PRINT_LIST(SpecFunc, funcs);
+}
+
+
+// ------------------ SpecFunc -------------------
+// *** DO NOT EDIT ***
+SpecFunc::~SpecFunc()
+{
+  formals.deleteAll();
+}
+
+void SpecFunc::debugPrint(ostream &os, int indent) const
+{
+  PRINT_HEADER(SpecFunc);
+
+  PRINT_GENERIC(name);
+  PRINT_LIST(LocString, formals);
+  PRINT_GENERIC(code);
 }
 
 
@@ -75,6 +94,7 @@ void TermType::debugPrint(ostream &os, int indent) const
 // *** DO NOT EDIT ***
 NontermDecl::~NontermDecl()
 {
+  funcs.deleteAll();
   productions.deleteAll();
 }
 
@@ -84,6 +104,7 @@ void NontermDecl::debugPrint(ostream &os, int indent) const
 
   PRINT_GENERIC(name);
   PRINT_GENERIC(type);
+  PRINT_LIST(SpecFunc, funcs);
   PRINT_LIST(ProdDecl, productions);
 }
 

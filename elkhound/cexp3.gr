@@ -6,32 +6,48 @@ verbatim [
   #include "cexp3ast.gen.h"  // Exp
 ]
 
-// this says that anyplace below where I say "[int]", the dup
-// and del functions should be as specified
-typemap [int] {
-  dup(i) {}
-  del(i) {}
-  // no merge provided, it should never be needed
-}
+/*
+  // this says that anyplace below where I say "[int]", the dup
+  // and del functions should be as specified
+  typemap [int] {
+    dup(i) {}
+    del(i) {}
+    // no merge provided, it should never be needed
+  }
 
-typemap [Exp*] {
-  dup(p) { return p->deepCopy(); }
-  del(p) { delete p; }
-  merge(p1, p2) { return Exp::mergeAlts(p1, p2); }
-}
+  typemap [Exp*] {
+    dup(p) { return p->deepCopy(); }
+    del(p) { delete p; }
+    merge(p1, p2) { return Exp::mergeAlts(p1, p2); }
+  }
+*/
 
 terminals {
   // grab the lexer's token list
   include("cc.tok")
 
   // annotate some with semantic types
-  token[int] L2_INT_LITERAL;
+  token[int] L2_INT_LITERAL {
+    dup(i) [ return i; ]
+    del()  []
+    // no merge provided, it should never be needed
+  }
 }
 
-nonterm[Exp*] Start -> e:Exp L2_EOF [ return e; ]
+nonterm[Exp*] Start {
+  dup(p) [ return p->deepCopy(); ]
+  del(p) [ delete p; ]
+  merge(p1, p2) [ return Exp::mergeAlts(p1, p2); ]
+
+  -> e:Exp L2_EOF      [ return e; ]
+}
 
 nonterm[Exp*] Exp {
-  -> i:L2_INT_LITERAL  [ cout << "literal: " << i << endl; 
+  dup(p) [ return p->deepCopy(); ]
+  del(p) [ delete p; ]
+  merge(p1, p2) [ return Exp::mergeAlts(p1, p2); ]
+    
+  -> i:L2_INT_LITERAL  [ cout << "literal: " << i << endl;
                          return new E_int(i); ]
   -> e1:Exp "+" e2:Exp [ return new E_op('+', e1, e2); ]
   -> e1:Exp "*" e2:Exp [ return new E_op('*', e1, e2); ]
