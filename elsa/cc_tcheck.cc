@@ -3147,12 +3147,8 @@ Type *makeLvalType(Env &env, Type *underlying)
     // a reference type
     return underlying;
   }
-  else if (underlying->isFunctionType() ||
-           underlying->isArrayType()) {
-    // don't make references to functions or arrays; there's not an
-    // explicit prohibition against this in cppstd, but there's also
-    // no syntax for constructing declarators that have such types,
-    // so I think they're not supposed to exist
+  else if (underlying->isFunctionType()) {
+    // don't make references to functions
     return underlying;
   }
   else {
@@ -3419,6 +3415,7 @@ static bool allNonMethods(SObjList<Variable> &set)
 static bool allMethods(SObjList<Variable> &set)
 {
   SFOREACH_OBJLIST(Variable, set, iter) {
+//      cout << "iter.data()->type->asFunctionType() " << iter.data()->type->asFunctionType()->toCString() << endl;
     if (!iter.data()->type->asFunctionType()->isMember()) return false;
   }
   return true;
@@ -3503,7 +3500,10 @@ static Type *overloading(Env &env, E_funCall *e_funCall, Type *&t)
       int index = 0;
 
       if (allMethod) {
-        xassert(this_arg_type);
+        if (!this_arg_type) {
+          // dsw: error message parallels that of g++; feel free to change it
+          return env.error("Cannot call member function without object");
+        }
         xassert(this_arg_type->isReference()); // recall, here 'this' is a refernce
         argInfo[index] = ArgumentInfo(SE_NONE, this_arg_type);
         index++;
@@ -4041,6 +4041,12 @@ Type *E_addrOf::itcheck(Env &env, Expression *&replacement)
   if (expr->type->isFunctionType()) {
     return env.makePtrType(SL_UNKNOWN, expr->type);
   }
+//    // dsw: since we may no longer make references to arrays, we have to
+//    // special case them here as well; The address of an array is a
+//    // pointer to its first element.
+//    if (expr->type->isArrayType()) {
+//      return env.makePtrType(SL_UNKNOWN, expr->type->asArrayType()->eltType);
+//    }
 
   if (!expr->type->isLval()) {
     return env.error(expr->type, stringc
