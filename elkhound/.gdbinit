@@ -7,13 +7,13 @@ file ccgr
 
 #set args -tr predicates cc.bin vcgen/struct.c
 
-#set args -tr predicates,printAnalysisPath,addFact cc.bin vcgen/find.c
+set args -tr factflow cc.bin vcgen/find2.c
 
 #set args -tr stopAfterTCheck cc.bin tcheck/loops.c
 
 #set args cc.bin test-bad-tmp.c
 
-set args -tr factflow cc.bin vcgen/ff.c
+#set args -tr factflow cc.bin vcgen/ff.c
 
 #  break main
 #  break breaker

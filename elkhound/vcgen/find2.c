@@ -35,16 +35,11 @@ void find(int *A, int N, int f)
     // f is between n and m, and both m and n are pivot points
     // (everything left is less than everything right)
     thmprv_invariant(
-      //RDNDT: offset(A) == 0 && length(object(A)) == N+1 &&
-      //RDNDT: 1 <= f && f <= N &&
-
       1 <= m && m <= f && f <= n && n <= N &&
       (thmprv_forall int p, q;
         ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
-        ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q]))) &&
-
-      //RDNDT: m < n ;
-      true);
+        ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q])))
+    );
 
     int r = A[f];    // approximation of the f-th element
     int i = m;
@@ -57,126 +52,33 @@ void find(int *A, int N, int f)
       // i and j are working inward from m and n, and both i and j
       // are half-pivots: one side of each is all less than r
       thmprv_invariant(
-        //RDNDT: i <= j &&
-
-        //RDNDT: offset(A) == 0 && length(object(A)) == N+1 &&
-        //RDNDT: 1 <= f && f <= N &&
-
-        //RDNDT: 1 <= m && m <= f && f <= n && n <= N &&
-        //RDNDT: (thmprv_forall int p, q;
-        //RDNDT:   ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
-        //RDNDT:   ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q]))) &&
-
-        m <= i && i < n &&    // i<n redundant?
-        m < j && j <= n &&    // m<j redundant?
+        m <= i && i < n &&
+        m < j && j <= n &&
         (thmprv_forall int p;
           (1 <= p && p < i) ==> (A[p] <= r)) &&
         (thmprv_forall int q;
-          (j < q && q <= N) ==> (r <= A[q])) &&
-
-        //RDNDT: m < n &&
-
-        //r == A[f] &&
-        true);
+          (j < q && q <= N) ==> (r <= A[q]))
+      );
 
       while (A[i] < r) {
         //thmprv_assert(i < n);
         thmprv_assume(i < n);     // HACK
 
-        thmprv_invariant(
-          //RDNDT: offset(A) == 0 && length(object(A)) == N+1 &&
-          //RDNDT: 1 <= f && f <= N &&
-
-          //RDNDT: 1 <= m && m <= f && f <= n && n <= N &&
-          //RDNDT: (thmprv_forall int p, q;
-          //RDNDT:   ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
-          //RDNDT:   ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q]))) &&
-
-          //RDNDT: m <= i && i < n &&         // same invariant as above..
-          //RDNDT: m < j && j <= n &&
-
-          // could infer these with a call to Simplfy each time
-          //RDNDT: (thmprv_forall int p;
-          //RDNDT:   (1 <= p && p < i) ==> (A[p] <= r)) &&
-          //RDNDT: (thmprv_forall int q;
-          //RDNDT:   (j < q && q <= N) ==> (r <= A[q])) &&
-
-          //RDNDT: m < n &&
-
-          //r == A[f] &&
-          //RDNDT: A[i] < r ;        // loop guard, plus
-          true);
+        thmprv_invariant(true);
 
         i = i+1;    // skip past small-enough elts
-
-        // could be retained in facts if I use Simplfy
-        //SLOWINFER: thmprv_assert
-        //SLOWINFER:   (thmprv_forall int p;
-        //SLOWINFER:     (1 <= p && p < i) ==> (A[p] <= r));
       }
 
       while (r < A[j]) {
         thmprv_assert(m < j);      // how does it prove this??
         //thmprv_assume(m < j);        // HACK
 
-        thmprv_invariant(
-          //RDNDT: offset(A) == 0 && length(object(A)) == N+1 &&
-          //RDNDT: 1 <= f && f <= N &&
-
-          //RDNDT: 1 <= m && m <= f && f <= n && n <= N &&
-          //RDNDT: (thmprv_forall int p, q;
-          //RDNDT:   ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
-          //RDNDT:   ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q]))) &&
-
-          //RDNDT: m <= i && i <= n &&         // almost same invariant as above..
-          //RDNDT: m < j && j <= n &&
-
-          // nonstrictness, so I need
-          //SLOWINFER: i <= n &&    // (above it's i < n)
-
-          // could infer these with a call to Simplfy each time
-          //RDNDT: (thmprv_forall int p;
-          //RDNDT:   (1 <= p && p < i) ==> (A[p] <= r)) &&
-          //RDNDT: (thmprv_forall int q;
-          //RDNDT:   (j < q && q <= N) ==> (r <= A[q])) &&
-
-          //RDNDT: m < n &&
-
-          //r == A[f] &&
-          //RDNDT: r < A[j] ;        // loop guard, plus
-          true);
+        thmprv_invariant(true);
 
         j = j-1;    // skip past large-enough elts
-
-        // could be retained in facts if I use Simplfy
-        //SLOWINFER: thmprv_assert
-        //SLOWINFER:   (thmprv_forall int q;
-        //SLOWINFER:     (j < q && q <= N) ==> (r <= A[q]));
       }
 
-      thmprv_invariant(
-        // these two are not redundant, because of nonstrict vs strict
-        //SLOWINFER: i <= n && m <= j &&
-
-        //RDNDT: offset(A) == 0 && length(object(A)) == N+1 &&
-        //RDNDT: 1 <= f && f <= N &&
-
-        //RDNDT: 1 <= m && m <= f && f <= n && n <= N &&
-        //RDNDT: (thmprv_forall int p, q;
-        //RDNDT:   ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
-        //RDNDT:   ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q]))) &&
-
-        //RDNDT: m <= i && i <= n &&
-        //RDNDT: m <= j && j <= n &&
-
-        // could infer these with a call to Simplfy each time
-        //RDNDT: (thmprv_forall int p;
-        //RDNDT:   (1 <= p && p < i) ==> (A[p] <= r)) &&
-        //RDNDT: (thmprv_forall int q;
-        //RDNDT:   (j < q && q <= N) ==> (r <= A[q])) &&
-
-        //RDNDT: m < n ;
-        true);
+      thmprv_invariant(true);
 
       thmprv_pure_assert(A[j] <= r && r <= A[i]);       // how is this proven?
       //thmprv_assume(A[j] <= r && r <= A[i]);     // TEMPORARY HACK
@@ -188,12 +90,6 @@ void find(int *A, int N, int f)
 
         // verify that now they're in the right order
         thmprv_assert(A[i] <= r && r <= A[j]);
-
-        // possibly I could get this with calls to Simplfy during inference?
-        //SLOWINFER: thmprv_assert
-        //SLOWINFER:   (thmprv_forall int p, q;
-        //SLOWINFER:     ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
-        //SLOWINFER:     ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q])));
 
         // skip past these two now-properly-ordered elements
         i = i+1;

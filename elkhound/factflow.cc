@@ -16,6 +16,9 @@
 // info from ccgrmain.cc
 extern StringTable *globalStringTable;
 extern Variable const *globalMemVariable;
+                                                         
+// from vcgen.cc
+bool shouldSkipFunc(char const *name, char const *stage);
 
 
 // utility timer
@@ -267,6 +270,10 @@ bool intersectFacts(SObjList<Expression /*const*/> &lhs,
 // annotate all invariants with facts flowed from above
 void factFlow(TF_func &func)
 {
+  if (shouldSkipFunc(func.name(), "factflow")) {
+    return;
+  }
+
   traceProgress() << "factflow function " << func.name() << endl;
   long startTime = getMilliseconds();
   

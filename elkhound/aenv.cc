@@ -78,7 +78,8 @@ AEnv::AEnv(StringTable &table, Variable const *m)
     inPredicate(false),
     disableProver(false),
     stringTable(table),
-    failedProofs(0)
+    failedProofs(0),
+    inconsistent(0)
 {
   clear();
 }
@@ -102,6 +103,11 @@ void AEnv::clear()
   set(mem, freshVariable("mem", "initial contents of memory"));
 
   // part of the deal with type facts is I don't clear them..
+
+  inconsistent = 0;
+  
+  // do *not* clear failedProofs; 'clear' is used to refresh between
+  // paths, but we want to accumulate failedProofs across all of them
 }
 
 
@@ -394,29 +400,43 @@ void AEnv::addBoolFact(Predicate *pred, bool istrue, char const *why)
 void AEnv::pushFact(Predicate *pred)
 {
   exprFacts.prepend(pred);
+  if (inconsistent) {
+    // still inconsistent; counteract decrement in popFact
+    inconsistent++;
+  }
 }
 
 void AEnv::popFact()
 {
-  exprFacts.removeFirst(); 
+  exprFacts.removeFirst();
+  if (inconsistent) {
+    // it's possible the corresponding pushFact introduced
+    // the inconsistency (if not, the above ++ counteracts this)
+    inconsistent--;
+  }
 }
 
 
-bool AEnv::prove(Predicate *_goal, char const *context, bool silent)
+AEnv::ProofResult AEnv::prove(Predicate *_goal, char const *context, bool silent)
 {
   if (disableProver) {
-    return true;
+    return PR_SUCCESS;
+  }
+
+  if (inconsistent) {
+    // anything is provable while our assumptions are inconsistent
+    return PR_INCONSISTENT;
   }
 
   char const *proved =
     tracingSys("predicates")? "predicate proved" : NULL;
   char const *notProved = "*** predicate NOT proved ***";
-  char const *inconsistent =
+  char const *inconsisMsg =
     tracingSys("predicates") || tracingSys("inconsistent")?
       "inconsistent assumptions" : NULL;
 
   if (silent) {
-    proved = notProved = inconsistent = NULL;
+    proved = notProved = inconsisMsg = NULL;
   }
 
   // take ownership of the goal predicate
@@ -436,17 +456,19 @@ bool AEnv::prove(Predicate *_goal, char const *context, bool silent)
   }
   pathFacts->conjuncts.prepend(addrs);
 
-  bool ret = true;
+  ProofResult ret = PR_SUCCESS;
 
   // first, we'll try to prove false, to check the consistency
   // of the assumptions
   P_lit falsePred(false);
   if (innerProve(&falsePred,
                  NULL,               // printFalse
-                 inconsistent,       // printTrue
+                 inconsisMsg,        // printTrue
                  context)) {
     // this counts as a proved predicate (we can prove anything if
     // we can prove false)
+    ret = PR_INCONSISTENT;
+    inconsistent++;
   }
 
   else {
@@ -459,7 +481,7 @@ bool AEnv::prove(Predicate *_goal, char const *context, bool silent)
                         proved,      // printTrue
                         context)) {
           failedProofs++;
-          ret = false;
+          ret = PR_FAIL;
         }
       }
     }
@@ -471,7 +493,7 @@ bool AEnv::prove(Predicate *_goal, char const *context, bool silent)
                       proved,        // printTrue
                       context)) {
         failedProofs++;
-        ret = false;
+        ret = PR_FAIL;
       }
     }
   }

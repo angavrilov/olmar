@@ -97,6 +97,11 @@ public:      // data
   // # of failed proofs
   int failedProofs;
 
+  // nominally, this is 0; when we discover that our assumptions are
+  // inconsistent, this is set to 1; a slightly clever scheme allows
+  // tracking of inconsistency across push/popFact
+  int inconsistent;
+
 private:     // funcs
   bool innerProve(Predicate * /*serf*/ pred,
                   char const *printFalse,
@@ -153,8 +158,11 @@ public:      // funcs
   void pushFact(Predicate * /*serf*/ pred);
   void popFact();      // must pop before corresponding 'pred' is deleted
 
-  // proof obligation
-  bool prove(Predicate * /*owner*/ pred, char const *context, bool silent=false);
+  // proof obligation; nonzero return means predicate proved, and in particular
+  // PR_INCONSISTENT means *any* predicate can be proved because assumptions
+  // active are inconsistent
+  enum ProofResult { PR_FAIL=0 /*aka false*/, PR_SUCCESS, PR_INCONSISTENT };
+  ProofResult prove(Predicate * /*owner*/ pred, char const *context, bool silent=false);
 
   // pseudo-memory-management; semantics not very precise at the moment
   AbsValue *grab(AbsValue *v);

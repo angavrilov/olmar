@@ -11,6 +11,8 @@
 #include "paths.h"              // countExprPaths
 #include "predicate.ast.gen.h"  // Predicate ast, incl. P_equal, etc.
 
+#include <stdlib.h>             // getenv
+
 #define IN_PREDICATE(env) Restorer<bool> restorer(env.inPredicate, true)
 
 
@@ -37,8 +39,26 @@ void TF_decl::vcgen(AEnv &env) const
 }
 
 
+bool shouldSkipFunc(char const *name, char const *stage)
+{
+  static char const *selectedFunc = getenv("SELFUNC");
+  if (selectedFunc && 0!=strcmp(name, selectedFunc)) {
+    traceProgress() << "skipping " << stage << " of "
+                    << name << " due to SELFUNC" << endl;
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
+
 void TF_func::vcgen(AEnv &env) const
 {
+  if (shouldSkipFunc(name(), "vcgen")) {
+    return;
+  }
+
   env.currentFunc = this;
   FunctionType const &ft = *(ftype());
 
@@ -103,6 +123,9 @@ void TF_func::vcgen(AEnv &env) const
       // now interpret the function body
       SObjList<Statement /*const*/> stmtList;
       root->vcgenPath(env, stmtList, path, false /*cont*/);
+      if (env.inconsistent) {
+        traceProgress() << "      (infeasible)\n";
+      }
 
       // NOTE: the path's termination predicate will be proven
       // inside the vcgenPath call above
@@ -197,7 +220,10 @@ void Statement::vcgenPath(AEnv &env, SObjList<Statement /*const*/> &path,
 
     // vcgen this statement, telling it no continuation path
     vcgen(env, isContinue, exprPath, NULL);
-    
+    if (env.inconsistent) {
+      return;
+    }
+
     // prove the function postcondition
     FA_postcondition const *post = env.currentFunc->ftype()->postcondition;
     if (post) {
@@ -215,6 +241,9 @@ void Statement::vcgenPath(AEnv &env, SObjList<Statement /*const*/> &path,
       if (index < s->numPaths) {
         // yes; vcgen 'node', telling it 's' as the continuation
         vcgen(env, isContinue, exprPath, s);
+        if (env.inconsistent) {
+          return;
+        }
 
         // is 's' an invariant?
         if (s->isS_invariant()) {
