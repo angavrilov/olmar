@@ -1572,6 +1572,17 @@ CompoundType *checkClasskeyAndName(
       }
     }
 
+    // do this before setting 'forward', so that inside
+    // 'verifyCompatibleTemplateParameters' I can tell whether the
+    // old declaration was a definition or not (in/k0022.cc)
+    if (!templateParams && templateArgs) {
+      // this is more like an instantiation than a declaration
+    }
+    else {
+      // check correspondence between extant params and params on 'ct'
+      env.verifyCompatibleTemplateParameters(ct);
+    }
+
     // definition of something previously declared?
     if (definition) {
       if (ct->templateInfo()) {
@@ -1587,14 +1598,6 @@ CompoundType *checkClasskeyAndName(
       else {
         env.error(stringc << ct->keywordAndName() << " has already been defined");
       }
-    }
-
-    if (!templateParams && templateArgs) {
-      // this is more like an instantiation than a declaration
-    }
-    else {
-      // check correspondence between extant params and params on 'ct'
-      env.verifyCompatibleTemplateParameters(ct);
     }
   }
 

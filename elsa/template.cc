@@ -3162,9 +3162,13 @@ bool Env::mergeParameterLists(Variable *prior,
                               SObjList<Variable> &destParams,
                               SObjList<Variable> const &srcParams)
 {
+  // if 'prior' is actually a definition, then don't make any changes
+  bool priorIsDefn = !prior->type->asCompoundType()->forward;
+
   TRACE("templateParams", "mergeParameterLists: prior=" << prior->name
     << ", dest=" << paramsToCString(destParams)
-    << ", src=" << paramsToCString(srcParams));
+    << ", src=" << paramsToCString(srcParams)
+    << ", priorIsDefn=" << priorIsDefn);
 
   // keep track of whether I've made any naming changes
   // (alpha conversions)
@@ -3216,7 +3220,8 @@ bool Env::mergeParameterLists(Variable *prior,
     }
 
     // do they use the same name?
-    if (dest->name != src->name) {
+    if (!priorIsDefn &&
+        dest->name != src->name) {
       // make the names the same
       TRACE("templateParams", "changing parameter " << dest->name
         << " to " << src->name);
