@@ -83,6 +83,7 @@ OBJS := \
   exc.o \
   flatten.o \
   growbuf.o \
+  hashline.o \
   hashtbl.o \
   malloc.o \
   missing.o \
@@ -117,7 +118,7 @@ $(THIS): $(OBJS)
 TESTS := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen \
          strdict svdict str strutil trdelete bflatten mysig \
          testmalloc mypopen tobjpool strhash cycles tsobjlist crc \
-         srcloc
+         srcloc hashline
 tests: $(TESTS)
 
 # command to compile and link
@@ -192,6 +193,9 @@ crc: crc.cpp
 srcloc: srcloc.cc $(THIS)
 	$(TESTCXX) -o srcloc -DTEST_SRCLOC srcloc.cc $(TESTFLAGS)
 
+hashline: hashline.cc $(THIS)
+	$(TESTCXX) -o $@ -DTEST_HASHLINE hashline.cc $(TESTFLAGS)
+
 check: $(TESTS)
 	./nonport
 	./voidlist
@@ -212,6 +216,7 @@ check: $(TESTS)
 	./cycles
 	./tsobjlist
 	./srcloc
+	./hashline
 	@echo
 	@echo "make check: all the tests PASSED"
 

@@ -37,3 +37,4 @@ config.status
 config.summary
 hide
 Makefile
+hashline

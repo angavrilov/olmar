@@ -49,6 +49,9 @@ public:      // funcs
   // grab a read-only pointer to the raw array
   T const *getArray() const { return arr; }
 
+  // grab a writable pointer; use with care
+  T *getDangerousWritableArray() { return arr; }
+
   // make sure the given index is valid; if this requires growing,
   // do so by doubling the size of the array (repeatedly, if
   // necessary)
@@ -184,7 +187,11 @@ public:
     { len -= ct; xassert(len >= 0); }
   void empty()
     { len = 0; }
-    
+
+  // useful when someone has used 'getDangerousWritableArray' to
+  // fill the array's internal storage
+  void setLength(int L) { len = L; }
+
   // swap
   void swapWith(ArrayStack<T> &obj) {
     GrowArray<T>::swapWith(obj);
