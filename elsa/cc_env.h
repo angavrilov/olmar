@@ -126,7 +126,7 @@ public:      // funcs
   // nothing is added to the maps
   void registerVariable(Variable *v);
 
-  // lookup in the environment (all scopes)
+  // lookup in the environment (all scopes); return NULL if can't find
   Variable *lookupPQVariable(PQName const *name, LookupFlags f=LF_NONE);
   Variable *lookupVariable  (StringRef name,     LookupFlags f=LF_NONE);
 
@@ -139,7 +139,7 @@ public:      // funcs
   // look up a particular scope; the 'name' part of the PQName
   // will be ignored; if we can't find this scope, return NULL
   // *and* report it as an error; there must be at least one
-  // qualified in 'name'; 'dependent' is set to true if the lookup
+  // qualifier in 'name'; 'dependent' is set to true if the lookup
   // failed because we tried to look into a template parameter;
   // 'anyTemplates' is set to true if any of the scopes named a
   // template type

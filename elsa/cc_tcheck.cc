@@ -1136,7 +1136,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
       }                                  
       
       // add this to the class's list of base classes
-      ct->bases.append(new BaseClass(base, acc, iter->isVirtual));
+      ct->addBaseClass(new BaseClass(base, acc, iter->isVirtual));
       
       // annotate the AST with the type we found
       iter->type = base;
@@ -1728,6 +1728,7 @@ realStart:
   }
 
   // ambiguous grouped declarator in a paramter list?
+  // (note: CTX_GROUP_PARAM includes CTX_GROUPING)
   if (dt.context == Declarator::Tcheck::CTX_GROUP_PARAM) {
     // the name must *not* correspond to an existing type; this is
     // how I implement cppstd 8.2 para 7
@@ -2085,8 +2086,7 @@ void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt)
   }
 
   // turn off CTX_GROUPING
-  dt.context =
-    (Declarator::Tcheck::Context)(dt.context & ~Declarator::Tcheck::CTX_GROUPING);
+  dt.clearInGrouping();
 
   // recurse
   base->tcheck(env, dt);
@@ -2334,12 +2334,58 @@ void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt)
 }
 
 
+// this function is very similar to D_pointer::tcheck
+void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
+{
+  // typecheck the nested name
+  nestedName->tcheck(env);
+
+  // enforce [cppstd 8.3.3 para 3]
+  if (dt.type->isReference()) {
+    env.error("you can't make a pointer-to-member refer to a reference type");
+
+  recover:
+    // keep going, as error recovery, pretending this level
+    // of the declarator wasn't present
+    base->tcheck(env, dt);
+    return;
+  }
+
+  if (dt.type->isVoid()) {
+    env.error("you can't make a pointer-to-member refer to `void'");
+    goto recover;
+  }
+
+  // find the compound to which it refers
+  CompoundType *ct = env.lookupPQCompound(nestedName);
+  if (!ct) {
+    env.error(stringc
+      << "cannot find class `" << nestedName->toString()
+      << "' for pointer-to-member");
+    goto recover;
+  }
+
+  else {
+    // build the ptr-to-member type constructor
+    dt.type = env.tfac.syntaxPointerToMemberType(loc, ct, cv, dt.type, this);
+
+    // annotation
+    this->type = dt.type;
+  }
+
+  // turn off CTX_GROUPING
+  dt.clearInGrouping();
+
+  // recurse
+  base->tcheck(env, dt);
+}
+
+
 void D_grouping::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   // the whole purpose of this AST node is to communicate
   // this one piece of context
-  dt.context =
-    (Declarator::Tcheck::Context)(dt.context | Declarator::Tcheck::CTX_GROUPING);
+  dt.setInGrouping();
 
   this->type = dt.type;       // annotation
   base->tcheck(env, dt);
@@ -3060,14 +3106,76 @@ Type *E_effect::itcheck(Env &env)
 Type *E_binary::itcheck(Env &env)
 {
   e1->tcheck(e1, env);
+  e2->tcheck(e2, env);
+
+  Type *lhsType = e1->type->asRval();
+  Type *rhsType = e2->type->asRval();
+
+  if (op == BIN_DOT_STAR || op == BIN_ARROW_STAR) {
+    // [cppstd 5.5] I handle this one in detail, unlike most of the
+    // other operators, because I just implemented ptr-to-member (and
+    // don't have much experience using it) and I want some validation
+    // that I did it right
+
+    if (op == BIN_ARROW_STAR) {
+      // left side should be a pointer to a class
+      if (!lhsType->isPointer()) {
+        return env.error("left side of ->* must be a pointer");
+      }
+      lhsType = lhsType->asPointerType()->atType;
+    }
+
+    // left side should be a class
+    CompoundType *lhsClass = lhsType->ifCompoundType();
+    if (!lhsClass) {
+      return env.error(op==BIN_DOT_STAR?
+        "left side of .* must be a class or reference to a class" :
+        "left side of ->* must be a pointer to a class");
+    }
+
+    // right side should be a pointer to a member
+    if (!rhsType->isPointerToMemberType()) {
+      return env.error("right side of .* or ->* must be a pointer-to-member");
+    }
+    PointerToMemberType *ptm = rhsType->asPointerToMemberType();
+
+    // actual LHS class must be 'ptm->inClass', or a
+    // class unambiguously derived from it
+    int subobjs = lhsClass->countBaseClassSubobjects(ptm->inClass);
+    if (subobjs == 0) {
+      return env.error(stringc
+        << "the left side of .* or ->* has type `" << lhsClass->name
+        << "', but this is not equal to or derived from `" << ptm->inClass->name
+        << "', the class whose members the right side can point at");
+    }
+    else if (subobjs > 1) {
+      return env.error(stringc
+        << "the left side of .* or ->* has type `" << lhsClass->name
+        << "', but this is derived from `" << ptm->inClass->name
+        << "' ambiguously (in more than one way)");
+    }
+
+    // the return type is essentially the 'atType' of 'ptm'
+    Type *ret = ptm->atType;
+
+    // but it might be an lvalue if it is a pointer to a data
+    // member, and either
+    //   - op==BIN_ARROW_STAR, or
+    //   - op==BIN_ARROW_DOT and 'e1->type' is an lvalue
+    if (op==BIN_ARROW_STAR ||
+        /*must be arrow_dot*/ e1->type->isLval()) {
+      // this internally handles 'ret' being a function type
+      ret = makeLvalType(env, ret);
+    }
+
+    return ret;
+  }
+
 
   // if the LHS is an array, coerce it to a pointer
-  Type *lhsType = e1->type->asRval();
   if (lhsType->isArrayType()) {
     lhsType = env.makePtrType(SL_UNKNOWN, lhsType->asArrayType()->eltType);
   }
-
-  e2->tcheck(e2, env);
 
   // TODO: make sure 'expr' is compatible with given operator
   // TODO: consider the possibility of operator overloading

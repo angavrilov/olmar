@@ -223,6 +223,8 @@ bool isRelational(BinaryOp op);              // == thru >=
 
 
 // ---------------- access control ------------
+// these are listed from least restrictive to most restrictive,
+// so < can be used to test for retriction level
 enum AccessKeyword {
   AK_PUBLIC,
   AK_PROTECTED,

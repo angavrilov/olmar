@@ -129,7 +129,7 @@ CompoundType::CompoundType(Keyword k, StringRef n)
 
 CompoundType::~CompoundType()
 {
-  bases.deleteAll();
+  //bases.deleteAll();    // automatic, and I'd need a cast to do it explicitly because it's 'const' now
   if (templateInfo) {
     delete templateInfo;
   }
@@ -216,6 +216,66 @@ void CompoundType::addField(Variable *v)
 }
 
 
+void CompoundType::addBaseClass(BaseClass * /*owner*/ newBase)
+{
+  xassert(newBase->access != AK_UNSPECIFIED);
+
+  // add the new base; override 'const' so we can modify the list
+  const_cast<ObjList<BaseClass>&>(bases).append(newBase);
+
+  // traverse into 'newBase' to find direct virtual bases
+  collectVirtualBases(newBase, AK_PUBLIC);
+}
+
+// recursive walk through an inheritance DAG
+void CompoundType::collectVirtualBases(BaseClass const *root, AccessKeyword access)
+{
+  // monotonic contribution from root's access
+  if (root->access > access) {
+    access = root->access;     // reduce access
+  }
+
+  // is this a virtual base class?
+  if (root->isVirtual) {
+    // is it already on the list?
+    BaseClass *v = findVirtualSubobject(root->ct);
+    if (v) {
+      // yes it's already on the list, but this is a second access path,
+      // so the subobject's accessibility is the least restrictive of
+      // the two [cppstd 11.7 para 1]
+      if (v->access < access) {
+        v->access = access;    // increase access
+      }
+    }
+    else {
+      // not already on the list, add it (the 'isVirtual' flag will be
+      // ignored, but setting it to 'true' seems the most sensible thing)
+      virtualBases.append(new BaseClass(root->ct, access, true /*isVirtual*/));
+    }
+  }
+
+  // descend into root's bases; presumably 'root->ct' has already had
+  // its virtual bases collected, but I'm not going to take advantage
+  // of that
+  FOREACH_OBJLIST(BaseClass, root->ct->bases, iter) {
+    collectVirtualBases(iter.data(), access);
+  }
+}
+
+
+// simple scan of 'virtualBases'
+BaseClass const *CompoundType::findVirtualSubobjectC
+  (CompoundType const *ct) const
+{
+  FOREACH_OBJLIST(BaseClass, virtualBases, iter) {
+    if (iter.data()->ct == ct) {
+      return iter.data();
+    }
+  }
+  return NULL;   // not found
+}
+
+
 string toString(CompoundType::Keyword k)
 {
   xassert((unsigned)k < (unsigned)CompoundType::NUM_KEYWORDS);
@@ -223,22 +283,57 @@ string toString(CompoundType::Keyword k)
 }
 
 
+#if 0      // supplanted by simpler inline definition; TODO: remove me
 bool CompoundType::hasVirtualBase(CompoundType const *ct) const
 {
   FOREACH_OBJLIST(BaseClass, bases, iter) {
     BaseClass const *b = iter.data();
-    
+
     // is this a virtual base?
     if (b->ct == ct && b->isVirtual) {
       return true;
-    }                         
-    
+    }
+
     // does it have a virtual base?
     if (b->ct->hasVirtualBase(ct)) {
       return true;
     }
   }
   return false;
+}
+#endif // 0
+
+
+int CompoundType::countBaseClassSubobjects(CompoundType const *ct) const
+{
+  // start with the nonvirtual bases
+  int count = countNonvirtualBaseClassSubobjects(ct);
+
+  // check among virtual subobjects too
+  FOREACH_OBJLIST(BaseClass, virtualBases, iter2) {
+    count += iter2.data()->ct->countBaseClassSubobjects(ct);
+  }
+
+  return count;
+}
+
+
+int CompoundType::countNonvirtualBaseClassSubobjects(CompoundType const *ct) const
+{
+  // I'll say that I count as a subobject of myself
+  if (this == ct) {
+    return 1;    // could not possibly be a subobject further down
+  }
+
+  // check for nonvirtual bases among nonvirtual bases
+  int count = 0;
+  FOREACH_OBJLIST(BaseClass, bases, iter) {
+    if (!iter.data()->isVirtual) {
+      count += iter.data()->ct->countNonvirtualBaseClassSubobjects(ct);
+    }
+  }
+
+  return count;
 }
 
 
@@ -340,6 +435,7 @@ DOWNCAST_IMPL(Type, CVAtomicType)
 DOWNCAST_IMPL(Type, PointerType)
 DOWNCAST_IMPL(Type, FunctionType)
 DOWNCAST_IMPL(Type, ArrayType)
+DOWNCAST_IMPL(Type, PointerToMemberType)
 
 
 bool Type::equals(Type const *obj) const
@@ -356,6 +452,7 @@ bool Type::equals(Type const *obj) const
     C(T_POINTER, PointerType)
     C(T_FUNCTION, FunctionType)
     C(T_ARRAY, ArrayType)
+    C(T_POINTERTOMEMBER, PointerToMemberType)
     #undef C
   }
 }
@@ -1001,6 +1098,67 @@ bool ArrayType::anyCtorSatisfies(TypePred pred) const
 }
 
 
+// ---------------- PointerToMemberType ---------------
+PointerToMemberType::PointerToMemberType(CompoundType *i, CVFlags c, Type *a)
+  : inClass(i), cv(c), atType(a)
+{
+  // cannot have pointer to reference type
+  xassert(!a->isReference());
+  
+  // there are some other semantic restrictions, but I let the
+  // type checker enforce them
+}
+
+
+bool PointerToMemberType::innerEquals(PointerToMemberType const *obj) const
+{
+  return inClass == obj->inClass &&
+         cv == obj->cv &&
+         atType->equals(obj->atType);
+}
+
+
+string PointerToMemberType::leftString(bool /*innerParen*/) const
+{
+  stringBuilder s;
+  s << atType->leftString(false /*innerParen*/);
+  s << " ";
+  if (atType->isFunctionType() ||
+      atType->isArrayType()) {
+    s << "(";
+  }
+  s << inClass->name << "::*";
+  s << cvToString(cv);
+  return s;
+}
+
+string PointerToMemberType::rightString(bool /*innerParen*/) const
+{
+  stringBuilder s;
+  if (atType->isFunctionType() ||
+      atType->isArrayType()) {
+    s << ")";
+  }
+  s << atType->rightString(false /*innerParen*/);
+  return s;
+}
+
+
+int PointerToMemberType::reprSize() const
+{
+  // a typical value .. (architecture-dependent)
+  return 4;
+}
+
+
+bool PointerToMemberType::anyCtorSatisfies(TypePred pred) const
+{
+  return pred(this) ||
+         atType->anyCtorSatisfies(pred);
+}
+
+
+
 // ---------------------- TypeFactory ---------------------
 Type *TypeFactory::cloneType(Type *src)
 {
@@ -1010,6 +1168,7 @@ Type *TypeFactory::cloneType(Type *src)
     case Type::T_POINTER:   return clonePointerType(src->asPointerType());
     case Type::T_FUNCTION:  return cloneFunctionType(src->asFunctionType());
     case Type::T_ARRAY:     return cloneArrayType(src->asArrayType());
+    case Type::T_POINTERTOMEMBER: return clonePointerToMemberType(src->asPointerToMemberType());
   }
 }
 
@@ -1067,6 +1226,18 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
       break;
     }
 
+    case Type::T_POINTERTOMEMBER: {
+      // again similar to the above
+      PointerToMemberType *ptm = baseType->asPointerToMemberType();
+      if ((ptm->cv | cv) == ptm->cv) {
+        return baseType;    // no-op
+      }
+      else {
+        return makePointerToMemberType(loc, ptm->inClass, ptm->cv | cv, ptm->atType);
+      }
+      break;
+    }
+
     default:    // silence warning
     case Type::T_FUNCTION:
     case Type::T_ARRAY:
@@ -1101,6 +1272,12 @@ FunctionType *TypeFactory::syntaxFunctionType(SourceLoc loc,
   return makeFunctionType(loc, retType, cv);
 }
 
+
+PointerToMemberType *TypeFactory::syntaxPointerToMemberType(SourceLoc loc,
+  CompoundType *inClass, CVFlags cv, Type *atType, D_ptrToMember *syntax)
+{
+  return makePointerToMemberType(loc, inClass, cv, atType);
+}  
 
 PointerType *TypeFactory::makeTypeOf_this(SourceLoc loc,
   CompoundType *classType, FunctionType *methodType)
@@ -1197,6 +1374,13 @@ ArrayType *BasicTypeFactory::makeArrayType(SourceLoc,
 }
 
 
+PointerToMemberType *BasicTypeFactory::makePointerToMemberType(SourceLoc,
+  CompoundType *inClass, CVFlags cv, Type *atType)
+{
+  return new PointerToMemberType(inClass, cv, atType);
+}
+
+
 // Types are immutable, so cloning is pointless
 CVAtomicType *BasicTypeFactory::cloneCVAtomicType(CVAtomicType *src)
   { return src; }
@@ -1205,6 +1389,8 @@ PointerType *BasicTypeFactory::clonePointerType(PointerType *src)
 FunctionType *BasicTypeFactory::cloneFunctionType(FunctionType *src)
   { return src; }
 ArrayType *BasicTypeFactory::cloneArrayType(ArrayType *src)
+  { return src; }
+PointerToMemberType *BasicTypeFactory::clonePointerToMemberType(PointerToMemberType *src)
   { return src; }
 
 

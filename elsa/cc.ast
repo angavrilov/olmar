@@ -304,6 +304,11 @@ class IDeclarator(SourceLoc loc) {
   // qualifiers on a bitfield name
   -> D_bitfield(PQName /*nullable*/ name, Expression bits);
 
+  // "X::*p"
+  // I don't unify this with D_pointer because ptr-to-member requires
+  // an extra field (nestedName), and ptr-to-member is rare
+  -> D_ptrToMember(PQName nestedName, CVFlags cv, IDeclarator base);
+
   // declarator grouping operator: it's semantically irrelevant
   // (i.e. equivalent to just 'base' alone), but plays a role in
   // disambiguation

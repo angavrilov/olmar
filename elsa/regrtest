@@ -177,7 +177,7 @@ for fn in                                                                 \
   t0061.cc   t0062.cc  t0063.cc  t0064.cc   t0065.cc   t0066.cc  t0067.cc \
   t0068.cc   t0069.cc  t0070.cc  t0071.cc   t0072.cc   t0073.cc  t0074.cc \
   t0075.cc   t0076.cc  t0077.cc  t0078.cc   t0079.cc   t0080.cc  t0081.cc \
-             t0083.cc            t0085.cc   t0086.cc                      \
+             t0083.cc  t0084.cc  t0085.cc   t0086.cc   t0087.cc  t0088.cc \
                                             t0100.cc   t0101.cc  t0102.cc \
                        t0105.cc  t0106.cc                                 \
     ; do

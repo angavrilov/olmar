@@ -342,6 +342,11 @@ PQName const *D_bitfield::getDeclaratorId() const
   return name;
 }
 
+PQName const *D_ptrToMember::getDeclaratorId() const
+{
+  return base->getDeclaratorId();
+}
+
 PQName const *D_grouping::getDeclaratorId() const
 {
   return base->getDeclaratorId();

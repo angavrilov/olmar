@@ -59,8 +59,8 @@ option useGCDefaults;
 option defaultMergeAborts;
 
 // expected statistics
-option shift_reduce_conflicts 37;
-option reduce_reduce_conflicts 47;
+option shift_reduce_conflicts 53;
+option reduce_reduce_conflicts 54;
 option unreachable_nonterminals 0;
 option unreachable_terminals 28;
 
@@ -476,6 +476,8 @@ nonterm(IDeclarator*) NewDeclaratorOpt {
   // pointers
   -> "*" cv:CVQualifierSeqOpt d:NewDeclaratorOpt
        { return new D_pointer(loc, true /*isPtr*/, cv, d); }
+  -> n:PtrToMemberName "*" cv:CVQualifierSeqOpt d:NewDeclaratorOpt
+       { return new D_ptrToMember(loc, n, cv, d); }
 
   // commit to at least one "[" ... "]"
   -> d:DirectNewDeclarator               { return d; }
@@ -1164,6 +1166,8 @@ nonterm(IDeclarator*) Declarator {
        { return new D_pointer(loc, true /*isPtr*/, cv, d); }
   -> "&" d:Declarator
        { return new D_pointer(loc, false /*isPtr*/, CV_NONE, d); }
+  -> n:PtrToMemberName "*" cv:CVQualifierSeqOpt d:Declarator
+       { return new D_ptrToMember(loc, n, cv, d); }
   -> d:DirectDeclarator
        { return d; }
 }
@@ -1227,6 +1231,26 @@ nonterm(Expression*) ConstantExpressionOpt {
 }
 
 
+// syntax that preceeds "*" in the pointer-to-member declarator syntax
+nonterm(PQName*) PtrToMemberName {
+  -> n:IdExpression "::"    { return n; }
+}
+
+
+// previous attempt.. TODO: remove if the above works
+//  nonterm(PQName*) NestedNameSpecifier {
+//    -> n:Identifier "::" rest:NestedNameSpecifierOpt
+//         { return new PQ_qualifier(n, NULL /*targs*/, rest); }
+//    -> n:Identifier "<" targs:TemplateArgumentList ">" "::" rest:NestedNameSpecifierOpt
+//         { return new PQ_qualifier(n, targs, rest); }
+//  }
+
+//  nonterm(PQName*) NestedNameSpecifierOpt {
+//    -> empty                  { return new PQ_empty(); }
+//    -> n:NestedNameSpecifier  { return n; }
+//  }
+
+
 // I'll leave this here because it's harmless and the cppstd has it;
 // also, it reminds me that every place I've substituted PtrOperator
 // into the syntaxes elsewhere has an implicit TODO for the
@@ -1279,6 +1303,8 @@ nonterm(IDeclarator*) AbstractDeclarator {
        { return new D_pointer(loc, true /*isPtr*/, cv, d); }
   -> "&" d:AbstractDeclaratorOpt
        { return new D_pointer(loc, false /*isPtr*/, CV_NONE, d); }
+  -> n:PtrToMemberName "*" cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
+       { return new D_ptrToMember(loc, n, cv, d); }
   -> d:DirectAbstractDeclarator
        { return d; }
 }
@@ -1761,6 +1787,8 @@ nonterm(IDeclarator*) ConversionDeclaratorOpt {
        { return new D_pointer(loc, true /*isPtr*/, cv, d); }
   -> "&" d:ConversionDeclaratorOpt
        { return new D_pointer(loc, false /*isPtr*/, CV_NONE, d); }
+  -> n:PtrToMemberName "*" cv:CVQualifierSeqOpt d:ConversionDeclaratorOpt
+       { return new D_ptrToMember(loc, n, cv, d); }
 }
 
 

@@ -42,6 +42,7 @@ class Expression;         // cc.ast
 class TemplateArgument;   // cc.ast
 class D_pointer;          // cc.ast
 class D_func;             // cc.ast
+class D_ptrToMember;      // cc.ast
 class TypeSpecifier;      // cc.ast
 
 // fwd in this file
@@ -54,6 +55,7 @@ class CVAtomicType;
 class PointerType;
 class FunctionType;
 class ArrayType;
+class PointerToMemberType;
 class Type;
 class TemplateParams;
 class ClassTemplateInfo;
@@ -150,7 +152,16 @@ public:      // types
 public:      // data
   bool forward;               // true when it's only fwd-declared
   Keyword keyword;            // keyword used to introduce the type
-  ObjList<BaseClass> bases;   // classes from which this one inherits
+
+  // classes from which this one inherits; 'const' so you have to
+  // use 'addBaseClass', but public to make traversal easy
+  const ObjList<BaseClass> bases;
+
+  // collected virtual base class subobjects; by traversing 'bases'
+  // and 'virtualBases', and ignoring all virtual inheritance links
+  // in this forest, you are guaranteed to traverse every "base
+  // class subobject" [cppstd 10.1 para 4] exactly once
+  ObjList<BaseClass> virtualBases;
 
   // for template classes, this is the list of template parameters,
   // and a list of already-instantiated versions
@@ -159,6 +170,15 @@ public:      // data
   // AST node that describes this class; used for implementing
   // templates (AST pointer)
   TS_classSpec *syntax;               // (serf)
+
+private:     // funcs
+  void collectVirtualBases(BaseClass const *root, AccessKeyword access);
+
+  BaseClass const *findVirtualSubobjectC(CompoundType const *ct) const;
+  BaseClass *findVirtualSubobject(CompoundType *ct)
+    { return const_cast<BaseClass*>(findVirtualSubobjectC(ct)); }
+
+  int countNonvirtualBaseClassSubobjects(CompoundType const *ct) const;
 
 public:      // funcs
   // create an incomplete (forward-declared) compound
@@ -187,10 +207,18 @@ public:      // funcs
     { return lookupVariable(name, env, f); }
 
   void addField(Variable *v);
-  
+
+  // add to 'bases'; incrementally maintains 'virtualBases'
+  void addBaseClass(BaseClass * /*owner*/ newBase);
+
   // true if this class inherits from 'ct', either directly or
   // indirectly, and the inheritance is virtual
-  bool hasVirtualBase(CompoundType const *ct) const;
+  bool hasVirtualBase(CompoundType const *ct) const
+    { return !!findVirtualSubobjectC(ct); }
+
+  // how many times does 'ct' appear as a subobject?
+  // returns 1 if ct==this
+  int countBaseClassSubobjects(CompoundType const *ct) const;
 };
 
 string toString(CompoundType::Keyword k);
@@ -249,7 +277,7 @@ public:     // funcs
 // generic constructed type
 class Type {
 public:     // types
-  enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY };
+  enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY, T_POINTERTOMEMBER };
   typedef bool (*TypePred)(Type const *t);
 
 private:    // funcs
@@ -272,11 +300,13 @@ public:     // funcs
   bool isPointerType() const { return getTag() == T_POINTER; }
   bool isFunctionType() const { return getTag() == T_FUNCTION; }
   bool isArrayType() const { return getTag() == T_ARRAY; }
+  bool isPointerToMemberType() const { return getTag() == T_POINTERTOMEMBER; }
 
   DOWNCAST_FN(CVAtomicType)
   DOWNCAST_FN(PointerType)
   DOWNCAST_FN(FunctionType)
   DOWNCAST_FN(ArrayType)
+  DOWNCAST_FN(PointerToMemberType)
 
   // like above, this is (structural) equality, not coercibility;
   // internally, this calls the innerEquals() method on the two
@@ -494,6 +524,33 @@ public:
 };
 
 
+// pointer to member; at least for now, this is not unified with
+// PointerType because that would make it too easy to have silent bugs
+// in code that deals with ptr-to-member, where e.g. something just
+// plain fails to check if the pointer is a ptr-to-member
+class PointerToMemberType : public Type {
+public:
+  CompoundType *inClass;        // class whose member is being pointed at
+  CVFlags cv;                   // whether this pointer is const
+  Type *atType;                 // type of the member
+
+protected:
+  friend class BasicTypeFactory;
+  PointerToMemberType(CompoundType *c, CVFlags c, Type *a);
+
+public:
+  bool innerEquals(PointerToMemberType const *obj) const;
+  bool isConst() const { return !!(cv & CV_CONST); }
+
+  // Type interface
+  virtual Tag getTag() const { return T_POINTERTOMEMBER; }
+  virtual string leftString(bool innerParen=true) const;
+  virtual string rightString(bool innerParen=true) const;
+  virtual int reprSize() const;
+  virtual bool anyCtorSatisfies(TypePred pred) const;
+};
+
+
 // -------------------- templates -------------------------
 // used for template parameter types
 class TypeVariable : public NamedAtomicType {
@@ -582,6 +639,8 @@ public:
     Type *retType, CVFlags cv)=0;
   virtual ArrayType *makeArrayType(SourceLoc loc,
     Type *eltType, int size = ArrayType::NO_SIZE)=0;
+  virtual PointerToMemberType *makePointerToMemberType(SourceLoc loc,
+    CompoundType *inClass, CVFlags cv, Type *atType)=0;
 
   // ---- clone types ----
   // when types are cloned, their location is expected to be copied too
@@ -589,6 +648,7 @@ public:
   virtual PointerType *clonePointerType(PointerType *src)=0;
   virtual FunctionType *cloneFunctionType(FunctionType *src)=0;
   virtual ArrayType *cloneArrayType(ArrayType *src)=0;
+  virtual PointerToMemberType *clonePointerToMemberType(PointerToMemberType *src)=0;
   Type *cloneType(Type *src);       // switch, clone, return
 
   // ---- create a type based on another one ----
@@ -617,6 +677,10 @@ public:
   // the caller after this function returns
   virtual FunctionType *syntaxFunctionType(SourceLoc loc,
     Type *retType, CVFlags cv, D_func *syntax);
+    
+  // and another for pointer-to-member
+  virtual PointerToMemberType *syntaxPointerToMemberType(SourceLoc loc,
+    CompoundType *inClass, CVFlags cv, Type *atType, D_ptrToMember *syntax);
 
   // given a class and a method, build the type of the 'this' pointer
   virtual PointerType *makeTypeOf_this(SourceLoc loc,
@@ -683,11 +747,14 @@ public:    // funcs
     Type *retType, CVFlags cv);
   virtual ArrayType *makeArrayType(SourceLoc loc,
     Type *eltType, int size);
+  virtual PointerToMemberType *makePointerToMemberType(SourceLoc loc,
+    CompoundType *inClass, CVFlags cv, Type *atType);
 
   virtual CVAtomicType *cloneCVAtomicType(CVAtomicType *src);
   virtual PointerType *clonePointerType(PointerType *src);
   virtual FunctionType *cloneFunctionType(FunctionType *src);
   virtual ArrayType *cloneArrayType(ArrayType *src);
+  virtual PointerToMemberType *clonePointerToMemberType(PointerToMemberType *src);
 
   virtual Variable *makeVariable(SourceLoc L, StringRef n,
                                  Type *t, DeclFlags f);

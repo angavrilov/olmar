@@ -236,6 +236,10 @@ class Declarator {
       context = obj.context;
       return *this;
     }
+
+    // manipulate CTX_GROUPING
+    void setInGrouping()   { context = (Context)(context | CTX_GROUPING); }
+    void clearInGrouping() { context = (Context)(context & ~CTX_GROUPING); }
   };
 
   // determine the type denoted by the combination of 'dt.type' and
