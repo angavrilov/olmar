@@ -3,7 +3,7 @@
 #set width 200
 
 file ccgr
-set args cc.bin tmp
+set args -tr cil-tree cc.bin tmp
 
 
 break main

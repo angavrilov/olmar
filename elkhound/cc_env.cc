@@ -9,6 +9,16 @@
 
 
 // ----------------------- Variable ---------------------------
+Variable::Variable(char const *n, DeclFlags d, Type const *t)
+  : id(NULL_VARIABLEID),
+    name(n),
+    declFlags(d), 
+    type(t), 
+    enumValue(0) 
+{
+  xassert(type);    // ?
+}
+
 string Variable::toString() const
 {
   // don't care about printing the declflags right now
@@ -17,9 +27,10 @@ string Variable::toString() const
 
 
 // --------------------------- Env ----------------------------
-Env::Env(DataflowEnv *d, TypeEnv *te)
+Env::Env(DataflowEnv *d, TypeEnv *te, VariableEnv *ve)
   : parent(NULL),
     typeEnv(te),
+    varEnv(ve),
     nameCounter(1),
     compounds(),
     enums(),
@@ -54,9 +65,10 @@ Env::Env(DataflowEnv *d, TypeEnv *te)
 }
 
 
-Env::Env(Env *p, TypeEnv *te)
+Env::Env(Env *p, TypeEnv *te, VariableEnv *ve)
   : parent(p),
     typeEnv(te),
+    varEnv(ve),
     nameCounter(-1000),    // so it will be obvious if I use it (I don't intend to)
     compounds(),
     enums(),
@@ -132,6 +144,12 @@ void Env::killParentLink()
     // may as well print errors
     flushLocalErrors(cout);
   }
+}
+
+
+Env *Env::newScope()
+{
+  return new Env(this, getTypeEnv(), getVarEnv());
 }
 
 
@@ -545,6 +563,7 @@ Variable *Env::declareVariable(CCTreeNode const *node, char const *name,
 Variable *Env::addVariable(char const *name, DeclFlags flags, Type const *type)
 {
   Variable *var = new Variable(name, flags, type);
+  varEnv->grab(var);
   variables.add(name, var);
 
   // add this to the dataflow environment too (if it wants it)
@@ -678,7 +697,7 @@ string Env::toString() const
   stringBuilder sb;
   
   // for now, just the variables
-  StringObjDict<Variable>::Iter iter(variables);
+  StringSObjDict<Variable>::Iter iter(variables);
   for (; !iter.isDone(); iter.next()) {
     sb << iter.value()->toString() << " ";
   }
@@ -710,4 +729,20 @@ AtomicTypeId TypeEnv::grabAtomic(AtomicType *type)
   type->id = ret;
   return ret;
 }
+  
 
+// -------------------- VariableEnv ----------------
+VariableEnv::VariableEnv()
+{}
+
+VariableEnv::~VariableEnv()
+{}
+
+
+VariableId VariableEnv::grab(Variable *var)
+{
+  xassert(var->id == NULL_VARIABLEID);
+  VariableId ret = vars.insert(var);
+  var->id = ret;
+  return ret;
+}

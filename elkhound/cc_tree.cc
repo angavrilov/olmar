@@ -108,23 +108,23 @@ CilExpr *CCTreeNode::disambiguate(Env *passedEnv, CilContext const &ctxt,
 
     // attempt type-check in a new environment so it can't
     // corrupt the main one we're working on
-    Env newEnv(passedEnv, passedEnv->getTypeEnv());
-    newEnv.setTrialBalloon(true);
-    CilFnDefn dummyDefn(this, NULL);
+    Owner<Env> newEnv; newEnv = passedEnv->newScope();
+    newEnv->setTrialBalloon(true);
+    CilFnDefn dummyDefn(cilExtra(), NULL);
     CilContext newCtxt(ctxt, dummyDefn);
     newCtxt.isTrial = true;
     try {
-      delete (this->*func)(&newEnv, newCtxt);
+      delete (this->*func)(newEnv, newCtxt);
     }
     catch (XSemanticError &x) {
-      newEnv.report(x.err);
+      newEnv->report(x.err);
     }
 
     // remove the reduction from the main node
     reductions.removeAt(0);
 
     // did that work?
-    if (newEnv.numLocalErrors() == 0) {
+    if (newEnv->numLocalErrors() == 0) {
       // yes
       okReds.append(red);
     }
@@ -134,7 +134,7 @@ CilExpr *CCTreeNode::disambiguate(Env *passedEnv, CilContext const &ctxt,
 
       // throw away the errors so they don't get
       // moved into the original environment
-      newEnv.forgetLocalErrors();
+      newEnv->forgetLocalErrors();
     }
   }
 
@@ -257,7 +257,7 @@ void CCTreeNode::ana_malloc(string name)
 
 void CCTreeNode::ana_endScope(Env *localEnv)
 {
-  StringObjDict<Variable>::Iter iter(localEnv->getVariables());
+  StringSObjDict<Variable>::Iter iter(localEnv->getVariables());
   for(; !iter.isDone(); iter.next()) {
     // look in *localEnv*, not env
     DataflowVar *var = localEnv->getDenv().getVariable(iter.key());

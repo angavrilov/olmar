@@ -142,10 +142,11 @@ CompoundType::~CompoundType()
 }
 
 
-void CompoundType::makeComplete(Env *parentEnv, TypeEnv *te)
+void CompoundType::makeComplete(Env *parentEnv, TypeEnv *te,
+                                VariableEnv *ve)
 {
-  xassert(!env);     // for now, no shadowing for field lookups
-  env = new Env(parentEnv, te);
+  xassert(!env);     // shouldn't have already made one yet
+  env = new Env(parentEnv, te, ve);
 }
 
 
@@ -196,8 +197,8 @@ string CompoundType::toCilString(int depth) const
 
   // iterate over fields
   // TODO2: this is not in the declared order ..
-  StringObjDict<Variable> &vars = env->getVariables();
-  StringObjDict<Variable>::Iter iter(vars);
+  StringSObjDict<Variable> &vars = env->getVariables();
+  StringSObjDict<Variable>::Iter iter(vars);
   for (; !iter.isDone(); iter.next()) {
     Variable const *var = iter.value();
     sb << "  " << var->name << ": "
@@ -212,7 +213,7 @@ string CompoundType::toCilString(int depth) const
 int CompoundType::reprSize() const
 {
   int total = 0;
-  StringObjDict<Variable>::Iter iter(env->getVariables());
+  StringSObjDict<Variable>::Iter iter(env->getVariables());
   for (; !iter.isDone(); iter.next()) {
     int membSize = iter.value()->type->reprSize();
     if (keyword == K_UNION) {

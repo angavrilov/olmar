@@ -17,6 +17,7 @@ class Env;             // cc_env.h
 class Variable;        // cc_env.h
 class BBContext;       // stmt2bb.cc
 class CCTreeNode;      // cc_tree.h
+class SourceLocation;  // fileloc.h
 
 // fwd for this file
 class CilExpr;
@@ -34,19 +35,32 @@ LabelName newTmpLabel();
 
 
 // ------------ CilThing -------------
+// my problem now is I want to switch from storing CCTreeNode*
+// to SourceLocation*, but that's syntactically painful; so here
+// I name the type that will carry "extra" info for this purpose
+typedef SourceLocation const *CilExtraInfo;
+
 // I want to put pointers back into the parse tree
 // in all these nodes; perhaps other things may be
 // common to Cil things and could go here too
 class CilThing {
+private:
+  // I switched to storing just the loc since, for the moment at
+  // least, that's all I need, and the tree nodes get thrown away
+  // after each function is processed (again, at least right now..)
+  //CCTreeNode *treeNode;       // (serf) ptr to tree node that generated this
+  SourceLocation const *_loc;   // (nullable serf) location of leftmost token
+
 public:
-  CCTreeNode *treeNode;       // (serf) ptr to tree node that generated this
- 
-public:
-  CilThing(CCTreeNode *tn) : treeNode(tn) {}
+  CilThing(CilExtraInfo tn);
   ~CilThing() {}
-  
+
   string locString() const;
   string locComment() const;
+  SourceLocation const *loc() const;   // can return NULL
+  
+  // for passing to constructors in clone()
+  CilExtraInfo extra() const { return _loc; }
 };
 
 
@@ -126,7 +140,7 @@ public:      // data
 public:      // funcs
   // the ctor just accepts a tag; caller must fill in the
   // other fields
-  CilExpr(CCTreeNode *tn, ETag tag);
+  CilExpr(CilExtraInfo info, ETag tag);
   ~CilExpr();
   
   // we need the 'env' argument because we may have to
@@ -155,11 +169,11 @@ inline Type const *typeOf(CilExpr const *expr, Env *env)
 inline bool isLval(CilExpr const *expr) { return expr->isLval(); }
 inline CilLval *asLval(CilExpr *expr) { return expr->asLval(); }
 
-CilExpr *newIntLit(CCTreeNode *tn, int val);
-CilExpr *newUnaryExpr(CCTreeNode *tn, UnaryOp op, CilExpr *expr);
-CilExpr *newBinExpr(CCTreeNode *tn, BinOp op, CilExpr *e1, CilExpr *e2);
-CilExpr *newCastExpr(CCTreeNode *tn, Type const *type, CilExpr *expr);
-CilExpr *newAddrOfExpr(CCTreeNode *tn, CilLval *lval);
+CilExpr *newIntLit(CilExtraInfo tn, int val);
+CilExpr *newUnaryExpr(CilExtraInfo tn, UnaryOp op, CilExpr *expr);
+CilExpr *newBinExpr(CilExtraInfo tn, BinOp op, CilExpr *e1, CilExpr *e2);
+CilExpr *newCastExpr(CilExtraInfo tn, Type const *type, CilExpr *expr);
+CilExpr *newAddrOfExpr(CilExtraInfo tn, CilLval *lval);
 
 
 // ------------------- CilLval -------------------
@@ -205,27 +219,27 @@ public:      // data
   };
 
 public:      // funcs
-  CilLval(CCTreeNode *tn, LTag tag);       // caller must fill in right fields
+  CilLval(CilExtraInfo tn, LTag tag);       // caller must fill in right fields
   ~CilLval();
 
   Type const *getType(Env *env) const;
-  
+
   static void validate(LTag ltag);
 
   CilLval *clone() const;
-  string toString() const;  
+  string toString() const;
 };
 
-CilLval *newVarRef(CCTreeNode *tn, Variable *var);
-CilLval *newDeref(CCTreeNode *tn, CilExpr *ptr);
-CilLval *newFieldRef(CCTreeNode *tn, CilLval *record, Variable *field, 
+CilLval *newVarRef(CilExtraInfo tn, Variable *var);
+CilLval *newDeref(CilExtraInfo tn, CilExpr *ptr);
+CilLval *newFieldRef(CilExtraInfo tn, CilLval *record, Variable *field,
                      CompoundType const *recType);
-CilLval *newCastLval(CCTreeNode *tn, Type const *type, CilLval *lval);
-CilLval *newArrayAccess(CCTreeNode *tn, CilExpr *array, CilExpr *index);
+CilLval *newCastLval(CilExtraInfo tn, Type const *type, CilLval *lval);
+CilLval *newArrayAccess(CilExtraInfo tn, CilExpr *array, CilExpr *index);
 
 // lile 'newVarRef', except it's allowed to replace
 // references to constants with the associated literal
-CilExpr *newVarRefExpr(CCTreeNode *tn, Variable *var);
+CilExpr *newVarRefExpr(CilExtraInfo tn, Variable *var);
 
 
 // ====================== Instruction Language =====================
@@ -264,7 +278,7 @@ public:      // data
   static int maxAllocd;
 
 public:      // funcs
-  CilInst(CCTreeNode *tn, ITag tag);        // caller fills in fields
+  CilInst(CilExtraInfo tn, ITag tag);        // caller fills in fields
   ~CilInst();
 
   static void validate(ITag tag);
@@ -276,7 +290,7 @@ public:      // funcs
   void printTree(int indent, ostream &os) const;
 };
 
-CilInst *newAssignInst(CCTreeNode *tn, CilLval *lval, CilExpr *expr);
+CilInst *newAssignInst(CilExtraInfo tn, CilLval *lval, CilExpr *expr);
 
 
 class CilFnCall : public CilInst {
@@ -287,7 +301,7 @@ public:     // data
   ObjList<CilExpr> args;   // list of arguments
 
 public:     // funcs
-  CilFnCall(CCTreeNode *tn, CilLval *result, CilExpr *expr);
+  CilFnCall(CilExtraInfo tn, CilLval *result, CilExpr *expr);
   ~CilFnCall();
 
   CilFnCall *clone() const;
@@ -296,7 +310,7 @@ public:     // funcs
   void appendArg(CilExpr *arg);
 };
 
-CilFnCall *newFnCall(CCTreeNode *tn, CilLval *result, CilExpr *fn);    // args appended later
+CilFnCall *newFnCall(CilExtraInfo tn, CilLval *result, CilExpr *fn);    // args appended later
 
 
 // ====================== Statement Language =====================
@@ -379,7 +393,7 @@ public:      // data
   static int maxAllocd;
 
 public:      // funcs
-  CilStmt(CCTreeNode *tn, STag stag);        // caller fills in fields
+  CilStmt(CilExtraInfo tn, STag stag);        // caller fills in fields
   ~CilStmt();
 
   static void validate(STag stag);
@@ -395,19 +409,19 @@ public:      // funcs
                                   CilBB * /*owner*/ next) const;
 };
 
-CilStmt *newWhileLoop(CCTreeNode *tn, CilExpr *expr, CilStmt *body);
-CilStmt *newIfThenElse(CCTreeNode *tn, CilExpr *cond, CilStmt *thenBranch, CilStmt *elseBranch);
-CilStmt *newLabel(CCTreeNode *tn, LabelName label);
-CilStmt *newGoto(CCTreeNode *tn, LabelName label);
-CilStmt *newReturn(CCTreeNode *tn, CilExpr *expr /*nullable*/);
-CilStmt *newSwitch(CCTreeNode *tn, CilExpr *expr, CilStmt *body);
-CilStmt *newCase(CCTreeNode *tn, int val);
-CilStmt *newDefault(CCTreeNode *tn);
-CilStmt *newInst(CCTreeNode *tn, CilInst *inst);
+CilStmt *newWhileLoop(CilExtraInfo tn, CilExpr *expr, CilStmt *body);
+CilStmt *newIfThenElse(CilExtraInfo tn, CilExpr *cond, CilStmt *thenBranch, CilStmt *elseBranch);
+CilStmt *newLabel(CilExtraInfo tn, LabelName label);
+CilStmt *newGoto(CilExtraInfo tn, LabelName label);
+CilStmt *newReturn(CilExtraInfo tn, CilExpr *expr /*nullable*/);
+CilStmt *newSwitch(CilExtraInfo tn, CilExpr *expr, CilStmt *body);
+CilStmt *newCase(CilExtraInfo tn, int val);
+CilStmt *newDefault(CilExtraInfo tn);
+CilStmt *newInst(CilExtraInfo tn, CilInst *inst);
 
 // since it's common, here's an assign that wraps
 // up its arguments into a CilStmt
-CilStmt *newAssign(CCTreeNode *tn, CilLval *lval, CilExpr *expr);
+CilStmt *newAssign(CilExtraInfo tn, CilLval *lval, CilExpr *expr);
 
 
 // sequential list of statements
@@ -429,7 +443,7 @@ public:    // funcs
 // from CilInst to CilCompound
 class CilCompound : public CilStmt, public CilStatements {
 public:    // funcs
-  CilCompound(CCTreeNode *tn);
+  CilCompound(CilExtraInfo tn);
   ~CilCompound();
 
   CilCompound *clone() const;
@@ -438,7 +452,7 @@ public:    // funcs
                                   CilBB * /*owner*/ next) const;
 };
 
-CilCompound *newCompound(CCTreeNode *tn);
+CilCompound *newCompound(CilExtraInfo tn);
 
 
 // ====================== Basic Block Language =====================
@@ -544,7 +558,7 @@ public:
   CilBB *startBB;              // (serf) starting basic block
 
 public:
-  CilFnDefn(CCTreeNode *tn, Variable *v)
+  CilFnDefn(CilExtraInfo tn, Variable *v)
     : CilThing(tn), var(v), bodyStmt(tn) {}
   ~CilFnDefn();
 

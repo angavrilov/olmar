@@ -75,20 +75,23 @@ public:      // funcs
   // NonterminalNode funcs
   virtual bool getIsJustInt() const { return isJustInt; }
   virtual int getTheInt() const { return theInt; }
-  
+
+  // get the Cil extra info from this node
+  CilExtraInfo cilExtra() { return loc(); }
+
   // Cil constructors where the tree node is implicit
   #define MKCILCTOR0(rettype,name) \
     rettype *name()                \
-      { return ::name(this); }
+      { return ::name(cilExtra()); }
   #define MKCILCTOR1(rettype,name,arg1type,arg1name) \
     rettype *name(arg1type arg1name)                 \
-      { return ::name(this, arg1name); }
+      { return ::name(cilExtra(), arg1name); }
   #define MKCILCTOR2(rettype,name,arg1type,arg1name,arg2type,arg2name) \
     rettype *name(arg1type arg1name, arg2type arg2name)                \
-      { return ::name(this, arg1name, arg2name); }
+      { return ::name(cilExtra(), arg1name, arg2name); }
   #define MKCILCTOR3(rettype,name,arg1type,arg1name,arg2type,arg2name,arg3type,arg3name) \
     rettype *name(arg1type arg1name, arg2type arg2name, arg3type arg3name)               \
-      { return ::name(this, arg1name, arg2name, arg3name); }
+      { return ::name(cilExtra(), arg1name, arg2name, arg3name); }
 
   MKCILCTOR1(CilExpr,  newIntLit,  int,val)
   MKCILCTOR2(CilExpr,  newUnaryExpr,  UnaryOp,op, CilExpr*,expr)

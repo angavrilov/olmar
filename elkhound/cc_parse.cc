@@ -33,6 +33,7 @@ public:
   Env *globalEnv;             // global environment (incl. ptr to type env)
   TypeId nextType;            // id of next one to emit
   AtomicTypeId nextAtomic;    // similarly for atomic types
+  CilProgram prog;            // Cil translation of this module
 
   struct wes_state *wes;      // stuff related to the ocaml translation
 
@@ -41,10 +42,13 @@ public:
     : globalEnv(e),
       nextType(FIRST_EMITTED_TYPE),
       nextAtomic(FIRST_EMITTED_TYPE),
+      prog(),
       wes(w)
   {}
+  ~TranslationState();
+  
+  void printTree();
 };
-
 
 
 // stuff related to exporting data to ocaml
@@ -86,6 +90,35 @@ struct wes_ast_node *emptyCamlAST()
 }
 
 
+TranslationState::~TranslationState()
+{}
+
+
+void TranslationState::printTree()
+{
+  if (tracingSys("cil-tree")) {
+    // emit types that are new since the last type we did this
+    TypeEnv *te = globalEnv->getTypeEnv();
+
+    while (nextType < te->numTypes()) {
+      Type *t = te->lookup(nextType);
+      cout << "type " << nextType << ": "
+           << t->toString() << ";\n";
+      nextType++;
+    }
+
+    while (nextAtomic < te->numAtomicTypes()) {
+      AtomicType *at = te->lookupAtomic(nextAtomic);
+      cout << "atomicType " << nextAtomic << ": "
+           << at->toString() << ";\n";
+      nextAtomic++;
+    }
+
+    prog.printTree(0 /*indent*/, cout);
+  }
+}
+
+
 // this fn is called each time we parse a C/C++ toplevel
 // declaration, which is is typically a function definition,
 // but there are other possibilities like globals or prototypes
@@ -118,11 +151,8 @@ void TranslationUnit_Node::analyzeToplevelDecl(Reduction *red, ParseTree &tree)
   trace("typeCheck") << locString() << endl;
   lastLineChecked = loc()->line;
 
-  // run the analysis on this piece of the tree; right
-  // now, I don't handle globals well because I'm doing
-  // fn-at-a-time ....
-  CilProgram prog;
-  delete typeCheck(env, CilContext(prog));
+  // run the analysis on this piece of the tree
+  delete typeCheck(env, CilContext(state.prog));
 
   #ifdef WES_OCAML_LINKAGE
     if (state.wes->want_cil) {
@@ -142,37 +172,16 @@ void TranslationUnit_Node::analyzeToplevelDecl(Reduction *red, ParseTree &tree)
   printTree();
 
   // print Cil if we want that
-  if (tracingSys("cil-tree")) {
-    // emit types that are new since the last type we did this
-    TypeEnv *te = env->getTypeEnv();
-
-    while (state.nextType < te->numTypes()) {
-      Type *t = te->lookup(state.nextType);
-      cout << "type " << state.nextType << ": "
-           << t->toString() << ";\n";
-      state.nextType++;
-    }
-
-    while (state.nextAtomic < te->numAtomicTypes()) {
-      AtomicType *at = te->lookupAtomic(state.nextAtomic);
-      cout << "atomicType " << state.nextAtomic << ": "
-           << at->toString() << ";\n";
-      state.nextAtomic++;
-    }
-
-    prog.printTree(0 /*indent*/, cout);
-  }
+  //state.printTree();
 
   // yeeha! translation!
-  MUTATE_EACH_OBJLIST(CilFnDefn, prog.funcs, iter) {
+  MUTATE_EACH_OBJLIST(CilFnDefn, state.prog.funcs, iter) {
     doTranslationStuff(*( iter.data() ));
   }
 
-  // deallocate now .. no good reason why .. (we can't
-  // keep this info beyond the end of this fn because
-  // we're about to delete e.g. all the environments
-  // into which 'prog' points (indirectly))
-  prog.empty();
+  // can delete the per-fn info, or keep it; when this
+  // is commented-out, we keep it all until the end
+  //state.prog.empty();
 
   #if 0      // for tracking down leaks
   CilExpr::printAllocStats(false /*anyway*/);
@@ -234,13 +243,13 @@ void TranslationUnit_Node::analyzeToplevelDecl(Reduction *red, ParseTree &tree)
 
 
 // ------------------ main, etc ------------------------
-CilExpr *todoCilExpr(CCTreeNode *tn)
+CilExpr *todoCilExpr(CilExtraInfo tn)
 {
   // rather than segfaulting, let's make something reasonable
   return newIntLit(tn, 12345678);    // hopefully recognizable
 }
 
-CilStmt *todoCilStmt(CCTreeNode *tn)
+CilStmt *todoCilStmt(CilExtraInfo tn)
 {
   return newLabel(tn, "unimplementedStmt");
 }
@@ -274,6 +283,9 @@ int fakemain(int argc, char *argv[], struct wes_state *wes)
       // toplevel type environment
       TypeEnv topTypeEnv;
 
+      // global variable environment
+      VariableEnv topVarEnv;
+
       // dataflow environment ...
       DataflowEnv denv;
 
@@ -281,7 +293,7 @@ int fakemain(int argc, char *argv[], struct wes_state *wes)
       // will be evaluated, just before that form is thrown
       // away
       //traceAddSys("env-declare");
-      Env env(&denv, &topTypeEnv);
+      Env env(&denv, &topTypeEnv, &topVarEnv);
 
       // carry this context in the tree, since it is an argument
       // to node constructors
@@ -297,6 +309,9 @@ int fakemain(int argc, char *argv[], struct wes_state *wes)
         if (!treeMain(tree, argc, argv)) {
           return 2;    // parse error
         }
+        
+        // it's now parsed .. print out the Cil translation
+        state.printTree();
       }
       catch (XAmbiguity &x) {
         cout << x << endl;

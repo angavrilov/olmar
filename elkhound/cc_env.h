@@ -16,6 +16,7 @@ class CCTreeNode;         // cc_tree.h
 
 // fwds for file
 class TypeEnv;
+class VariableEnv;
 
 
 // set of declaration modifiers present
@@ -42,18 +43,23 @@ enum DeclFlags {
 };
 
 
+// type of variable identifiers
+typedef int VariableId;
+enum { NULL_VARIABLEID = -1 };
+
+
 // thing to which a name is bound and for which runtime
 // storage is (usually) allocated
 class Variable {
 public:     // data
+  VariableId id;             // unique name (unique among .. ?)
   string name;               // declared name
   DeclFlags declFlags;       // inline, etc.
   Type const *type;          // type of this variable
   int enumValue;             // if isEnumValue(), its numerical value
 
 public:     // funcs
-  Variable(char const *n, DeclFlags d, Type const *t)
-    : name(n), declFlags(d), type(t), enumValue(0) {}
+  Variable(char const *n, DeclFlags d, Type const *t);
 
   string toString() const;
 
@@ -81,6 +87,9 @@ private:    // data
   // type env, even if this is a nested-scope Env
   TypeEnv * const typeEnv;          // (serf)
 
+  // variable environment; variable decls are stored there
+  VariableEnv * const varEnv;       // (serf)
+
   // counter for synthesizing names; only the counter in the toplevel
   // environment is used
   int nameCounter;
@@ -95,7 +104,7 @@ private:    // data
   StringSObjDict<Type /*const*/> typedefs;
 
   // variables
-  StringObjDict<Variable> variables;
+  StringSObjDict<Variable> variables;
 
   // list of errors found so far
   ObjList<SemanticError> errors;
@@ -118,17 +127,25 @@ private:    // funcs
 
   Env(Env&);               // not allowed
 
-public:     // funcs
-  Env(DataflowEnv *denv, TypeEnv *typeEnv);  // empty toplevel environment
-  Env(Env *parent, TypeEnv *typeEnv);        // nested environment
+public:     // funcs                         
+  // empty toplevel environment
+  Env(DataflowEnv *denv, TypeEnv *typeEnv, VariableEnv *varEnv);
+
+  // nested environment
+  Env(Env *parent, TypeEnv *typeEnv, VariableEnv *env);
+
   ~Env();
+
+  // create a new environment based on the current one, purely for
+  // scoping purposes
+  Env *newScope();
 
   // close this environment's link with its parent; this must
   // intended to be done before either is deallocated (it is
   // automatically done in ~Env, but sometimes we need to
   // deallocate the parent before the child)
   void killParentLink();
-  
+
   // naming helpers
   string makeAnonName();
   string makeFreshName(char const *prefix);
@@ -235,7 +252,7 @@ public:     // funcs
   bool isTrialBalloon() const;
   
   // support for analysis routines
-  StringObjDict<Variable> &getVariables() { return variables; }
+  StringSObjDict<Variable> &getVariables() { return variables; }
   DataflowEnv &getDenv() { return *denv; }
 
   // support for translation
@@ -247,6 +264,7 @@ public:     // funcs
   bool isGlobalEnv() const { return parent==NULL; }
 
   TypeEnv *getTypeEnv() { return typeEnv; }
+  VariableEnv *getVarEnv() { return varEnv; }
 
   // debugging
   string toString() const;
@@ -271,6 +289,23 @@ public:
   int numAtomicTypes() const { return atomicTypes.count(); }
   AtomicTypeId grabAtomic(AtomicType *type);
   AtomicType *lookupAtomic(AtomicTypeId id) { return atomicTypes.lookup(id); }
+};
+
+
+// ------------------ VariableEnv ---------------
+// something to own variable decls; current plan is to have
+// one for globals and then one for each function body
+class VariableEnv {
+private:
+  ArrayMap<Variable> vars;
+
+public:
+  VariableEnv();
+  ~VariableEnv();
+
+  int numVars() const { return vars.count(); }
+  VariableId grab(Variable * /*owner*/ var);
+  Variable *lookup(VariableId id) { return vars.lookup(id); }
 };
 
 
