@@ -3,6 +3,7 @@
 
 #include "cc_type.h"    // this module
 #include "cc_env.h"     // Env
+#include "trace.h"      // tracingSys
 
 
 bool isValid(SimpleTypeId id)
@@ -44,8 +45,19 @@ SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id)
 
 
 // ------------------ AtomicType -----------------
+ALLOC_STATS_DEFINE(AtomicType)
+
+AtomicType::AtomicType()
+  : id(NULL_ATOMICTYPEID)
+{                        
+  ALLOC_STATS_IN_CTOR
+}
+
+
 AtomicType::~AtomicType()
-{}
+{
+  ALLOC_STATS_IN_DTOR
+}
 
 
 CAST_MEMBER_IMPL(AtomicType, SimpleType)
@@ -176,8 +188,18 @@ EnumValue::~EnumValue()
 
 
 // --------------- Type ---------------
+ALLOC_STATS_DEFINE(Type)
+
+Type::Type()
+  : id(NULL_TYPEID)
+{
+  ALLOC_STATS_IN_CTOR
+}
+
 Type::~Type()
-{}
+{
+  ALLOC_STATS_IN_DTOR
+}
 
 
 CAST_MEMBER_IMPL(Type, CVAtomicType)
@@ -204,14 +226,32 @@ bool Type::equals(Type const *obj) const
 }
 
 
+string makeIdComment(int id)
+{
+  if (tracingSys("type-ids")) {
+    return stringc << "/""*" << id << "*/";
+  }
+  else {
+    return "";
+  }
+}
+
+
+string Type::idComment() const
+{
+  return makeIdComment(id);
+}
+
+
 string Type::toString() const
 {
-  return stringc << leftString() << rightString();
+  return stringc << idComment() << leftString() << rightString();
 }
 
 string Type::toString(char const *name) const
 {
-  return stringc << leftString() << " " << name << rightString();
+  return stringc << idComment() 
+                 << leftString() << " " << name << rightString();
 }
 
 string Type::rightString() const
@@ -283,9 +323,17 @@ string cvToString(CVFlags cv)
   return sb;
 }
 
+
+string CVAtomicType::atomicIdComment() const
+{
+  return makeIdComment(atomic->id);
+}
+
+
 string CVAtomicType::leftString() const
 {
-  return stringc << atomic->toString() << cvToString(cv);
+  return stringc << atomicIdComment()
+                 << atomic->toString() << cvToString(cv);
 }
 
 

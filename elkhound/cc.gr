@@ -3533,6 +3533,10 @@ int fakemain(int argc, char *argv[])
       // place to store the tree
       ParseTreeAndTokens tree;
 
+      // toplevel type environment
+      TypeEnv topTypeEnv;
+      typeEnv = &topTypeEnv;
+
       // dataflow environment ...
       DataflowEnv denv;
 
@@ -3587,6 +3591,8 @@ int fakemain(int argc, char *argv[])
   CilInst::printAllocStats(anyway);
   CilStmt::printAllocStats(anyway);
   CilBB::printAllocStats(anyway);
+  Type::printAllocStats(anyway);
+  AtomicType::printAllocStats(anyway);
 
   return 0;
 }

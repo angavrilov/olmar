@@ -59,7 +59,7 @@ public:     // funcs
   bool isEnumValue() const { return declFlags & DF_ENUMVAL; }
 
   bool isGlobal() const { return declFlags & DF_GLOBAL; }
-  
+
   bool isInitialized() const { return declFlags & DF_INITIALIZED; }
   void sayItsInitialized() { declFlags = (DeclFlags)(declFlags | DF_INITIALIZED); }
 };
@@ -68,13 +68,6 @@ public:     // funcs
 // C++ compile-time binding environment
 class Env {
 private:    // data
-  // built-in types -- one global immutable array, indexed
-  // by SimpleTypeId
-  static SimpleType const *simpleBuiltins;
-
-  // and another for wrappers around them
-  static CVAtomicType const *builtins;
-
   // parent environment; failed lookups in this environment go
   // to the parent before failing altogether
   Env * const parent;               // (serf)
@@ -84,20 +77,16 @@ private:    // data
   int nameCounter;
 
   // user-defined compounds
-  StringObjDict<CompoundType> compounds;
+  StringSObjDict<CompoundType> compounds;
 
   // user-defined enums
-  StringObjDict<EnumType> enums;
+  StringSObjDict<EnumType> enums;
 
   // user-defined typedefs
   StringSObjDict<Type /*const*/> typedefs;
 
   // variables
   StringObjDict<Variable> variables;
-
-  // intermediate types; their presence on this list is simply
-  // so they will be deallocated when the environment goes away
-  ObjList<Type> intermediates;
 
   // list of errors found so far
   ObjList<SemanticError> errors;
@@ -112,7 +101,8 @@ private:    // data
   int referenceCt;
 
 private:    // funcs
-  Type *grab(Type *t);
+  void grab(Type *t);
+  void grabAtomic(AtomicType *t);
   int makeFreshInteger();
   ostream& indent(ostream &os) const;
   Variable *addVariable(char const *name, DeclFlags flags, Type const *type);
@@ -188,7 +178,7 @@ public:     // funcs
 
   // map a simple type into its CVAtomicType (with no const or
   // volatile) representative
-  static CVAtomicType const *getSimpleType(SimpleTypeId st);
+  CVAtomicType const *getSimpleType(SimpleTypeId st);
 
   // lookup an existing type; if it doesn't exist, return NULL
   Type const *lookupLocalType(char const *name);
@@ -250,6 +240,106 @@ public:     // funcs
   // debugging
   string toString() const;
 };
+
+
+// ----------------- ArrayMap -----------------
+// map: int -> T   
+template <class T>
+class ArrayMap {
+private:     // data
+  T **map;               // array[0,nextId-1] of owner ptr
+  int nextId;            // next id to assign
+  int mapSize;           // allocated size of 'map'
+  
+public:
+  ArrayMap();
+  ~ArrayMap();
+
+  // # of elements defined
+  int count() const { return nextId; }
+
+  // insert a new element and yield its assigned id
+  int insert(T *t);
+  
+  // retrieve by id
+  T *lookup(int id);
+};
+
+template <class T>
+ArrayMap<T>::ArrayMap()
+{
+  mapSize = 100;      // TODO: reset; just for testing
+  nextId = 0;
+  map = new T* [mapSize];
+}
+
+template <class T>
+ArrayMap<T>::~ArrayMap()
+{
+  loopi(nextId) {
+    delete map[i];
+  }
+  delete[] map;
+}
+
+template <class T>
+int ArrayMap<T>::insert(T *t)
+{
+  if (nextId == mapSize) {
+    // make it bigger
+    int newMapSize = mapSize * 2;
+    T **newMap = new T* [newMapSize];
+
+    // copy the old contents to the new map
+    loopi(mapSize) {
+      newMap[i] = map[i];
+    }
+    mapSize = newMapSize;
+
+    // blow away the old map
+    delete[] map;
+
+    // grab the new map
+    map = newMap;
+  }
+  
+  int ret = nextId++;
+  map[ret] = t;
+  return ret;
+}
+
+template <class T>
+T *ArrayMap<T>::lookup(int id)
+{
+  xassert(0 <= id && id < nextId);
+  return map[id];
+}
+
+
+// --------------------- TypeEnv ------------------
+// toplevel environment that owns all the types
+class TypeEnv {
+private:     // data
+  ArrayMap<Type> types;               // TypeId -> Type*
+  ArrayMap<AtomicType> atomicTypes;   // AtomicTypeId -> AtomicType*
+
+public:
+  TypeEnv();
+  ~TypeEnv();
+                                                      
+  int numTypes() const { return types.count(); }
+  TypeId grab(Type *type);
+  Type *lookup(TypeId id) { return types.lookup(id); }
+
+  int numAtomicTypes() const { return atomicTypes.count(); }
+  AtomicTypeId grabAtomic(AtomicType *type);
+  AtomicType *lookupAtomic(AtomicTypeId id) { return atomicTypes.lookup(id); }
+};
+
+// single global type environment
+extern TypeEnv *typeEnv;
+
+
 
 
 #endif // __CC_ENV_H

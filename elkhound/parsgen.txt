@@ -34,5 +34,6 @@ tracing strings:
   allocStats:    print stats about allocated nodes
   cil-bb:        print the Cil basic blocks
   print-tree-before:   parse tree print before type checking
-  
+  type-ids:      print the type ids when types are printed
+    
 

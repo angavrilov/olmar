@@ -10,7 +10,7 @@
 
 // other files
 class Env;              // cc_env.h
-              
+
 // fwd in this file
 class SimpleType;
 class CompoundType;
@@ -22,6 +22,11 @@ class ArrayType;
 
 
 // --------------------- atomic types --------------------------
+// ids for atomic types
+typedef int AtomicTypeId;
+enum { NULL_ATOMICTYPEID = -1 };
+
+
 // C's built-in scalar types
 enum SimpleTypeId {
   ST_CHAR,
@@ -65,8 +70,13 @@ inline int simpleTypeReprSize(SimpleTypeId id)
 class AtomicType {
 public:     // types
   enum Tag { T_SIMPLE, T_COMPOUND, T_ENUM, NUM_TAGS };
-  
+
+public:     // data
+  // id as assigned by the global, flat type environment
+  AtomicTypeId id;
+
 public:     // funcs
+  AtomicType();
   virtual ~AtomicType();
 
   virtual Tag getTag() const = 0;
@@ -87,6 +97,8 @@ public:     // funcs
 
   // size this type's representation occupies in memory
   virtual int reprSize() const = 0;
+  
+  ALLOC_STATS_DECLARE
 };
 
 
@@ -173,12 +185,24 @@ public:
 
 
 // ------------------- constructed types -------------------------
+// ids for types
+typedef int TypeId;
+enum { NULL_TYPEID = -1 };
+
 // generic constructed type
 class Type {
 public:     // types
   enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY };
 
+public:     // data
+  // id assigned by global type environment
+  TypeId id;
+
+private:    // funcs
+  string idComment() const;
+
 public:     // funcs
+  Type();
   virtual ~Type();
 
   virtual Tag getTag() const = 0;
@@ -191,7 +215,7 @@ public:     // funcs
   CAST_MEMBER_FN(PointerType)
   CAST_MEMBER_FN(FunctionType)
   CAST_MEMBER_FN(ArrayType)
-                                    
+
   // like above, this is equality, not coercibility
   bool equals(Type const *obj) const;
 
@@ -204,10 +228,10 @@ public:     // funcs
   // and array types in C's syntax
   virtual string leftString() const = 0;
   virtual string rightString() const;    // default: returns ""
-  
+
   // size of representation
   virtual int reprSize() const = 0;
-  
+
   // some common queries
   bool isSimpleType() const;
   SimpleType const &asSimpleTypeC() const;
@@ -215,6 +239,8 @@ public:     // funcs
   bool isIntegerType() const;            // any of the simple integer types
   bool isUnionType() const;
   bool isVoid() const { return isSimple(ST_VOID); }
+
+  ALLOC_STATS_DECLARE
 };
 
 
@@ -233,6 +259,9 @@ class CVAtomicType : public Type {
 public:
   AtomicType const *atomic;    // (serf) underlying type
   CVFlags cv;                  // const/volatile
+
+private:    // funcs
+  string atomicIdComment() const;
 
 public:
   CVAtomicType(AtomicType const *a, CVFlags c)

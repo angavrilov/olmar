@@ -17,10 +17,6 @@ string Variable::toString() const
 
 
 // --------------------------- Env ----------------------------
-SimpleType const *Env::simpleBuiltins = NULL;
-CVAtomicType const *Env::builtins = NULL;
-
-
 Env::Env(DataflowEnv *d)
   : parent(NULL),
     nameCounter(1),
@@ -28,32 +24,23 @@ Env::Env(DataflowEnv *d)
     enums(),
     typedefs(),
     variables(),
-    intermediates(),
     errors(),
     trialBalloon(false),
     denv(d),
     referenceCt(0)
 {
-  // init of global data (won't be freed)
-  if (!builtins) {
-    SimpleType *sb = new SimpleType[NUM_SIMPLE_TYPES];
-    {loopi(NUM_SIMPLE_TYPES) {
-      sb[i].type = (SimpleTypeId)i;
-    }}
-    simpleBuiltins = sb;
+  // init by inserting the builtin types
+  loopi(NUM_SIMPLE_TYPES) {
+    SimpleType *st = new SimpleType((SimpleTypeId)i);
+    grabAtomic(st);
+    
+    // I want the first indices to match the SimpleTypeIds
+    // so I can use them as ids directly
+    xassert(st->type == i);
 
-    CVAtomicType *b = new CVAtomicType[NUM_SIMPLE_TYPES];
-    loopi(NUM_SIMPLE_TYPES) {
-      b[i].atomic = &simpleBuiltins[i];
-      b[i].cv = CV_NONE;
-    }
-    builtins = b;
-
-    // I'm not sure what this is.. let's try not defining it here..
-    //declareVariable(NULL, "__end_of_fixed_addresses", DF_NONE,
-    //  getSimpleType(ST_INT));
+    Type *t = makeType(st);
+    xassert(t->id == i);
   }
-
 
   declareVariable(NULL, "__builtin_constant_p", DF_NONE,
     makeFunctionType_1arg(
@@ -73,7 +60,6 @@ Env::Env(Env *p)
     enums(),
     typedefs(),
     variables(),
-    intermediates(),
     errors(),
     trialBalloon(false),
     denv(p? p->denv : NULL),
@@ -104,7 +90,6 @@ Env::~Env()
   enums.empty();
   typedefs.empty();
   variables.empty();
-  intermediates.deleteAll();
   errors.deleteAll();
 
   if (referenceCt != 0) {
@@ -150,10 +135,14 @@ void Env::killParentLink()
 
 // at one point I started switching all the calls over so they
 // did grab inline, but that downgrades the return type ..
-Type *Env::grab(Type *t)
+void Env::grab(Type *t)
 {
-  intermediates.prepend(t);
-  return t;
+  typeEnv->grab(t);
+}
+
+void Env::grabAtomic(AtomicType *t)
+{
+  typeEnv->grabAtomic(t);
 }
 
 
@@ -309,6 +298,7 @@ CompoundType *Env::lookupOrMakeCompound(char const *name, CompoundType::Keyword 
   }
 
   ret = new CompoundType(keyword, newName);
+  grabAtomic(ret);
   compounds.add(newName, ret);
 
   // debugging: print it
@@ -384,6 +374,7 @@ EnumType *Env::makeEnumType(char const *name)
 {                              
   EnumType *ret = new EnumType(name);
   enums.add(name, ret);
+  grabAtomic(ret);
   
   // debugging: print it
   if (tracingSys("env-declare")) {
@@ -405,10 +396,11 @@ void Env::addEnumValue(CCTreeNode const *node, char const *name,
 }
 
 
-STATICDEF CVAtomicType const *Env::getSimpleType(SimpleTypeId st)
-{                     
+CVAtomicType const *Env::getSimpleType(SimpleTypeId st)
+{
   xassert(isValid(st));
-  return &builtins[st];
+  Type *ret = typeEnv->lookup(st);
+  return &( ret->asCVAtomicTypeC() );
 }
 
 
@@ -690,5 +682,37 @@ string Env::toString() const
   }
   
   return sb;
+}
+
+
+// --------------------- TypeEnv ------------------
+TypeEnv *typeEnv = NULL;
+
+TypeEnv::TypeEnv()
+{}
+
+TypeEnv::~TypeEnv()
+{
+  if (typeEnv == this) {
+    // attempt to catch problems before they get hard ..
+    typeEnv = NULL;
+  }
+}
+
+
+TypeId TypeEnv::grab(Type *type)
+{ 
+  xassert(type->id == NULL_TYPEID);
+  TypeId ret = types.insert(type);
+  type->id = ret;
+  return ret;
+}
+
+AtomicTypeId TypeEnv::grabAtomic(AtomicType *type)
+{
+  xassert(type->id == NULL_ATOMICTYPEID);
+  AtomicTypeId ret = atomicTypes.insert(type);
+  type->id = ret;
+  return ret;
 }
 
