@@ -245,7 +245,7 @@ void Declaration::tcheck(Env &env)
 Type const *ASTTypeId::tcheck(Env &env)
 {
   Type const *s = spec->tcheck(env);
-  return decl->tcheck(env, s, DF_NONE);
+  return type = decl->tcheck(env, s, DF_NONE);
 }
 
 

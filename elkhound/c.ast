@@ -94,6 +94,9 @@ class ASTTypeId (
   Declarator decl          // this will be abstract sometimes
 ) {
   public Type const *tcheck(Env &env);
+
+  public Type const *type;       // result of first tcheck
+  ctor { type=NULL; };
 }
 
 // a name of an "atomic" type -- one to which type constructors

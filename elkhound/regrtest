@@ -172,6 +172,11 @@ vcgen() {
 vcgentb() {
   runTest ./test-bad vcgen/$1 cc.bin
 }
+vcgencpp() {
+  echo "cpp vcgen/$1 >tmp.i"
+  cpp vcgen/$1 >tmp.i
+  runTest ./ccgr cc.bin tmp.i
+}
 
 vcgen if.c
 vcgen ptr.c
@@ -196,7 +201,7 @@ vcgen ff.c
 runTest ./ccgr -tr disableFactFlow cc.bin vcgen/find.c
 vcgen find2.c
 vcgen callfind.c
-vcgen node.c
+vcgencpp node.c
 
 
 # final arithmetic to report result

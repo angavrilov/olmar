@@ -18,13 +18,25 @@ struct Node {
 //                    x->next==n && y->next==n ==> x==y);
 //  }
 
+// declare a predicate which means has-type-node
+int hasTypeNode(Node *n);
+
+#define isNode(n)                                      \
+  hasTypeNode(n) &&                                    \
+  thmprv_forall(Node *x, *y;                           \
+                x->next==n && y->next==n ==> x==y) &&  \
+  (n->next!=(Node*)0 ==> hasTypeNode(n->next))
+
 
 void foo()
 {
   struct Node *a = new Node;
   thmprv_assert(!thmprv_exists(Node *n; n->next == a));
 
+  thmprv_assume(hasTypeNode(a));
   a->next = 0;
+  thmprv_assert(isNode(a));
+
   thmprv_assert(!thmprv_exists(Node *n; n->next == a));
   //thmprv_assert(isNode(a));
 
@@ -40,5 +52,13 @@ void foo()
 
 }
 
-
+    
+/*
+  void append(struct Node *head, struct Node *toAdd)
+    thmprv_pre(
+      // nothing points to 'toAdd'
+      !thmprv_exists(Node *n; n->next == toAdd)
+    )
+    thmprv_post(
+*/
 

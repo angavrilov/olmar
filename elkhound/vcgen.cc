@@ -849,8 +849,19 @@ AbsValue *E_deref::vcgen(AEnv &env, int path) const
 
 AbsValue *E_cast::vcgen(AEnv &env, int path) const
 {
-  // I don't know what account I should take of casts..
-  return expr->vcgen(env, path);
+  AbsValue *v = expr->vcgen(env, path);
+
+  // if the target of the assignment has pointer type and
+  // the source has integer type, encode it as a pointer with
+  // object 0; this is copied from E_assign, and should replace
+  // that code eventually
+  if (ctype->type->asRval()->isPointerType() &&
+      expr->type->isSimple(ST_INT)) {
+    // encode as pointer: some integer offset from the null object
+    v = env.avPointer(env.avInt(0), v);
+  }
+
+  return v;
 }
 
 
