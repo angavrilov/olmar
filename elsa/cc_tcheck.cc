@@ -1066,6 +1066,9 @@ void TS_classSpec::tcheckIntoCompound(
     }
   }
 
+  // let the CompoundType build additional indexes if it wants
+  ct->finishedClassDefinition(env.conversionOperatorName);
+
   // second pass: check function bodies
   bool innerClass = !!containingClass;
   if (!innerClass) {

@@ -890,6 +890,7 @@ bool isProperSubpath(CompoundType const *LS, CompoundType const *LD,
 
 
 // --------------------- ConversionResolver -----------------------
+#if 0   // 8/13/03: delete me
 void getConversionOperators(SObjList<Variable> &dest, Env &env,
                             CompoundType *ct)
 {
@@ -907,6 +908,7 @@ void getConversionOperators(SObjList<Variable> &dest, Env &env,
     }
   }
 }
+#endif // 0
 
 
 ImplicitConversion getConversionOperator(
@@ -932,8 +934,7 @@ ImplicitConversion getConversionOperator(
   OverloadResolver resolver(env, loc, errors, OF_NO_USER, args);
 
   // get the conversion operators for the source class
-  SObjList<Variable> ops;
-  getConversionOperators(ops, env, srcClass);
+  SObjList<Variable> &ops = srcClass->conversionOperators;
 
   // 13.3.1.4?
   if (destType->isCompoundType()) {
@@ -947,7 +948,7 @@ ImplicitConversion getConversionOperator(
     // this process of selecting candidate functions."
     SFOREACH_OBJLIST_NC(Variable, ops, iter) {
       Variable *v = iter.data();
-      Type *retType = v->type->asFunctionType()->retType->asRval();
+      Type *retType = v->type->asFunctionTypeC()->retType->asRval();
       if (retType->isCompoundType() &&
           retType->asCompoundType()->hasBaseClass(destCT)) {
         // it's a candidate

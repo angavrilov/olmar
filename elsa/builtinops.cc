@@ -71,13 +71,12 @@ void getConversionOperatorResults(Env &env, SObjList<Type> &dest, Type *t)
     t = t->asRval();
 
     // get conops
-    SObjList<Variable> convs;
-    getConversionOperators(convs, env, t->asCompoundType());
+    SObjList<Variable> const &convs = t->asCompoundType()->conversionOperators;
 
     // get return types
     dest.reverse();
-    SFOREACH_OBJLIST_NC(Variable, convs, iter) {
-      dest.prepend(iter.data()->type->asFunctionType()->retType);
+    SFOREACH_OBJLIST(Variable, convs, iter) {
+      dest.prepend(iter.data()->type->asFunctionTypeC()->retType);
     }
     dest.reverse();
   }

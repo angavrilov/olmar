@@ -208,6 +208,10 @@ public:      // data
   // invariant: subobj.ct == this
   BaseClassSubobj subobj;
 
+  // list of all conversion operators this class has, including
+  // those that have been inherited but not then hidden
+  SObjList<Variable> conversionOperators;
+
   // for template classes, this is the list of template parameters,
   // and a list of already-instantiated versions
   ClassTemplateInfo *templateInfo;    // (owner)
@@ -232,6 +236,8 @@ private:     // funcs
 
   static void getSubobjects_helper
     (SObjList<BaseClassSubobj const> &dest, BaseClassSubobj const *subobj);
+
+  void addLocalConversionOp(Variable *op);
 
 protected:   // funcs
   // create an incomplete (forward-declared) compound
@@ -303,19 +309,25 @@ public:      // funcs
   // how many times does 'ct' appear as a subobject?
   // returns 1 if ct==this
   int countBaseClassSubobjects(CompoundType const *ct) const;
-                                                            
+
   bool hasUnambiguousBaseClass(CompoundType const *ct) const
     { return countBaseClassSubobjects(ct)==1; }
   bool hasBaseClass(CompoundType const *ct) const
     { return countBaseClassSubobjects(ct)>=1; }
   bool hasStrictBaseClass(CompoundType const *ct) const
     { return this != ct && hasBaseClass(ct); }
-    
+
   // compute the least upper bound of two compounds in the inheritance
   // network; 'wasAmbig==true' means that the intersection of the
   // superclasses was not empty, but that set had no least element;
   // return NULL if no LUB ("least" means most-derived)
   static CompoundType *lub(CompoundType *t1, CompoundType *t2, bool &wasAmbig);
+
+  // call this when we're finished adding base classes and member
+  // fields; it builds 'conversionOperators'; 'specialName' is the
+  // name under which the conversion operators have been filed in
+  // the class scope
+  virtual void finishedClassDefinition(StringRef specialName);
 };
 
 string toString(CompoundType::Keyword k);

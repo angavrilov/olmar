@@ -165,6 +165,7 @@ CompoundType::CompoundType(Keyword k, StringRef n)
     bases(),
     virtualBases(),
     subobj(BaseClass(this, AK_PUBLIC, false /*isVirtual*/)),
+    conversionOperators(),
     templateInfo(NULL),
     instName(n),
     syntax(NULL)
@@ -556,6 +557,53 @@ STATICDEF CompoundType *CompoundType::lub
 
   // good to go
   return least;
+}
+
+
+void CompoundType::finishedClassDefinition(StringRef specialName)
+{
+  // get inherited conversions
+  FOREACH_OBJLIST(BaseClass, bases, iter) {
+    conversionOperators.appendAll(iter.data()->ct->conversionOperators);
+  }
+
+  // add those declared locally; they hide any that are inherited
+  Variable *localOps = rawLookupVariable(specialName);
+  if (!localOps) {
+    return;      // nothing declared locally
+  }
+  
+  if (!localOps->overload) {
+    addLocalConversionOp(localOps);
+  }
+  else {
+    SFOREACH_OBJLIST_NC(Variable, localOps->overload->set, iter) {
+      addLocalConversionOp(iter.data());
+    }
+  }
+}
+
+void CompoundType::addLocalConversionOp(Variable *op)
+{
+  Type *opRet = op->type->asFunctionTypeC()->retType;
+
+  // remove any existing conversion operators that yield the same type
+  {
+    SObjListMutator<Variable> mut(conversionOperators);
+    while (!mut.isDone()) {
+      Type *mutRet = mut.data()->type->asFunctionTypeC()->retType;
+
+      if (mutRet->equals(opRet)) {
+        mut.remove();    // advances the iterator
+      }
+      else {
+        mut.adv();
+      }
+    }
+  }
+  
+  // add 'op'
+  conversionOperators.append(op);
 }
 
 

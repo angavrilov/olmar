@@ -202,8 +202,10 @@ Variable *resolveOverload(
 // collect the set of conversion operators that 'ct' has; this
 // interface will change once I get a proper implementation of
 // conversion operator inheritance
-void getConversionOperators(SObjList<Variable> &dest, Env &env,
-                            CompoundType *ct);
+//void getConversionOperators(SObjList<Variable> &dest, Env &env,
+//                            CompoundType *ct);
+//
+// update: use 'ct->conversionOperators' instead
 
 
 // given an object of type 'srcClass', find a conversion operator
