@@ -1044,10 +1044,6 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     {
       FOREACH_ASTLIST_NC(TemplateArgument, *templateArgs, _iter) {
         TemplateArgument *iter = _iter.data();
-        // The check was bogus, as this would cause an error
-        //          template<S> struct A<S> {};
-        // but this would not because the "*" sheilds the typevar
-        //          template<S> struct A<S*> {};
         xassert(iter->sarg.hasValue());
         ct->templateInfo->arguments.append(new STemplateArgument(iter->sarg));
       }
@@ -1071,10 +1067,13 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
       ct->templateInfo->argumentSyntax = templateArgs;
     }
 
-//      cout << "TS_classSpec::itcheck: "
-//           << "template typechecked, appending to instantiations of primary"
-//           << endl;
-//      primaryTI->gdb();
+    
+    if (tracingSys("template")) {
+      cout << "TS_classSpec::itcheck: "
+           << "template typechecked, appending to instantiations of primary"
+           << endl;
+      primaryTI->gdb();
+    }
   }
 
   else {      // !ct
