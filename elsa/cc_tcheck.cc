@@ -5585,13 +5585,14 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
   // dsw: if one of them is NULL, use the other one; see in/gnu/d0095.c;
   // actually gcc only allows this if it is not just void* but also 0,
   // so this is too lenient
-  #warning this should be a CCLang flag, not an ifdef
-  #ifdef GNU_EXTENSION
+  //
+  // sm: This is similar to one of the provisions in cppstd 5.16 
+  // (para 6 bullet 3), so I'm just going to make it the normal behavior
+  // (rather than conditionalizing it upon GNU_EXTENSION).
   if (th->type->isPointerType() &&
       th->type->asPointerType()->atType->isVoid()) {
     return el->type;
   }
-  #endif // GNU_EXTENSION
 
   return th->type;
 }

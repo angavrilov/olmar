@@ -24,7 +24,7 @@ Generally, language recognition (distinguishing valid from invalid
 C++) is incomplete.  This front end is currently envisioned working in
 an environment where the programs in question are already known to be
 valid, for example by checking with gcc.  As Elsa intended to be a
-research, isn't seen a problem for now.
+research tool, isn't seen as a problem for now.
 
 ** Type checking
 
@@ -94,12 +94,6 @@ AST does record them.
 
 * Overload resolution
 
-** Enable by default
-
-Currently, overload resolution (including operator overload
-resolution) is not enabled by default because not all the mozilla
-tests go through with it on.
-
 ** Conversions for control flow contexts
 
 For example, when a class that can convert to bool is used as the
@@ -134,7 +128,7 @@ are more serious problems in handling of qualified names.
 
 * Compiler-supplied functions
 
-Each class automatically gets a default (no-arg) and copy constructors,
+Each class automatically gets default (no-arg) and copy constructors,
 an operator=, and a destructor, depending on various conditions.
 
 ** We need operator=
@@ -148,15 +142,13 @@ in all cases.
 
 A general goal is to make all function calls explicit in the AST, even
 if they were implicit in the original syntax.  That's not done in
-some cases
+some cases.
 
 ** Conversions for function call arguments
 
 ** Implicit constructors and destructors
 
-*** Automatic variables
-*** Class members
-*** new/delete
+This is now done by the 'elaborate' module.
 
 * Namespaces
 
@@ -189,25 +181,13 @@ significant design changes to accomodate.  :(
 
 * Templates
 
-The template implementation is very incomplete.  This affects several
-other parts of the front end, like overload resolution, which take
-the attitude that if templates are involved then little or no analysis
-is performed.  Templates *are* syntactically disambiguated, however.
+The template implementation is still evolving.
 
 ** Grammar
 
 The standard grammar has a number of places where the keyword
 "template" is allowed, and has some meaning, but currently our grammar
-(cc.gr) does not allow it.  
-
-** Member templates
-
-At least one of those grammar omissions is probably why we can't
-handle member templates (e.g. 7.3.3c.cc) at all.
-
-** Partial specializations
-
-Template partial specializations are not implemented.
+(cc.gr) does not allow it.
 
 * Single-pass design
 
