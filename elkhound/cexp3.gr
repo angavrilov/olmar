@@ -36,6 +36,14 @@ terminals {
     del()  []
     // no merge provided, it should never be needed
   }
+  
+  // precedence and associativity
+  precedence {
+    // low precedence
+    left "+";
+    left "*";
+    // high precedence
+  }
 }
 
 nonterm[int] Start {

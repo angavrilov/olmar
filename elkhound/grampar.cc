@@ -133,6 +133,16 @@ void astParseGrammar(Grammar &g, GrammarAST const *treeTop)
 }
 
 
+Terminal *astParseToken(Environment &env, LocString const &name)
+{
+  Terminal *t = env.g.findTerminal(name);
+  if (!t) {
+    astParseError(name, "undeclared token");
+  }
+  return t;
+}
+
+
 void astParseTerminals(Environment &env, Terminals const &terms)
 {
   // basic declarations
@@ -167,19 +177,42 @@ void astParseTerminals(Environment &env, Terminals const &terms)
                        << ", type=" << type.type << endl;
 
       // look up the name
-      Terminal *t = env.g.findTerminal(type.name);
-      if (!t) {
-        astParseError(type.name, "undeclared token");
-      }
+      Terminal *t = astParseToken(env, type.name);
       if (t->type) {
         astParseError(type.name, "this token already has a type");
       }
 
       // annotate with declared type
       t->type = type.type;
-      
+
       // parse the dup/del/merge spec
       astParseDDM(env, t->ddm, type.funcs, false /*mergeOk*/);
+    }
+  }
+
+  // precedence specifications
+  {
+    int level = 0;
+    FOREACH_ASTLIST(PrecSpec, terms.prec, iter) {
+      PrecSpec const &spec = *(iter.data());
+      level++;
+
+      FOREACH_ASTLIST(LocString, spec.tokens, tokIter) {
+        LocString const &tokName = *(tokIter.data());
+        trace("grampar") << "prec: " << toString(spec.kind)
+                         << " " << tokName;
+
+        // look up the token
+        Terminal *t = astParseToken(env, tokName);
+        if (t->precedence) {
+          astParseError(tokName, 
+            stringc << tokName << " already has a specified precedence");
+        }
+
+        // apply spec
+        t->precedence = level;
+        t->associativity = spec.kind;
+      }
     }
   }
 }
@@ -276,6 +309,7 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
     LocString symTag;
     bool tagValid = false;
     bool isString = false;
+    bool isPrec = false;
 
     // pull varius info out of the AST node
     ASTSWITCHC(RHSElt, n) {
@@ -301,7 +335,25 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
         isString = true;
       }
 
+      ASTNEXTC(RH_prec, p) {
+        // apply the specified precedence
+        prod->precedence = astParseToken(env, p->tokName)->precedence;
+
+        // and require that this is the last RHS element
+        iter.adv();
+        if (!iter.isDone()) {
+          astParseError(p->tokName,
+            "precedence spec must be last thing in a production "
+            "(before the action code)");
+        }
+        isPrec = true;
+      }
+
       ASTENDCASEC
+    }
+
+    if (isPrec) {
+      break;     // last element anyway
     }
 
     // quote the string if it was quoted in syntax
@@ -315,16 +367,17 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
     Nonterminal *nonterm = env.g.findNonterminal(quotSymName);
     xassert(!( term && nonterm ));     // better not be both!
 
-    // some syntax rules
+    // a syntax rule
     if (isString  &&  !term) {
       astParseError(symName, "terminals must be declared");
     }
 
-    // I eliminated this rule because I need the tags to
-    // be able to refer to tokens in semantic functions
-    //if (n->type == AST_TAGGEDNAME  &&  term) {
-    //  astParseError(n, "can't tag a terminal");
-    //}
+    // whenever we see a terminal, copy its precedence spec to
+    // the production; thus, the last symbol appearing in the
+    // production will be the one that gives the precedence
+    if (term) {
+      prod->precedence = term->precedence;
+    }
 
     // decide which symbol to put in the production
     Symbol *s;

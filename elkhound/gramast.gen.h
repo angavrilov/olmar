@@ -12,6 +12,7 @@ class GrammarAST;
 class Terminals;
 class TermDecl;
 class TermType;
+class PrecSpec;
 class SpecFunc;
 class NontermDecl;
 class ProdDecl;
@@ -20,9 +21,11 @@ class RH_name;
 class RH_taggedName;
 class RH_string;
 class RH_taggedString;
+class RH_prec;
 
 
   #include "locstr.h"       // LocString
+  #include "asockind.h"     // AssocKind
 
 // *** DO NOT EDIT ***
 class GrammarAST {
@@ -48,9 +51,10 @@ class Terminals {
 public:      // data
   ASTList <TermDecl > decls;
   ASTList <TermType > types;
+  ASTList <PrecSpec > prec;
 
 public:      // funcs
-  Terminals(ASTList <TermDecl > *_decls, ASTList <TermType > *_types) : decls(_decls), types(_types) {
+  Terminals(ASTList <TermDecl > *_decls, ASTList <TermType > *_types, ASTList <PrecSpec > *_prec) : decls(_decls), types(_types), prec(_prec) {
   }
   ~Terminals();
 
@@ -91,6 +95,24 @@ public:      // funcs
   TermType(LocString *_name, LocString *_type, ASTList <SpecFunc > *_funcs) : name(_name), type(_type), funcs(_funcs) {
   }
   ~TermType();
+
+
+  void debugPrint(ostream &os, int indent) const;
+
+};
+
+
+
+// *** DO NOT EDIT ***
+class PrecSpec {
+public:      // data
+  AssocKind kind;
+  ASTList <LocString > tokens;
+
+public:      // funcs
+  PrecSpec(AssocKind _kind, ASTList <LocString > *_tokens) : kind(_kind), tokens(_tokens) {
+  }
+  ~PrecSpec();
 
 
   void debugPrint(ostream &os, int indent) const;
@@ -167,13 +189,14 @@ public:      // funcs
   }
   virtual ~RHSElt();
 
-  enum Kind { RH_NAME, RH_TAGGEDNAME, RH_STRING, RH_TAGGEDSTRING, NUM_KINDS };
+  enum Kind { RH_NAME, RH_TAGGEDNAME, RH_STRING, RH_TAGGEDSTRING, RH_PREC, NUM_KINDS };
   virtual Kind kind() const = 0;
 
   DECL_AST_DOWNCASTS(RH_name)
   DECL_AST_DOWNCASTS(RH_taggedName)
   DECL_AST_DOWNCASTS(RH_string)
   DECL_AST_DOWNCASTS(RH_taggedString)
+  DECL_AST_DOWNCASTS(RH_prec)
 
   virtual void debugPrint(ostream &os, int indent) const;
 
@@ -240,6 +263,22 @@ public:      // funcs
 
   virtual Kind kind() const { return RH_TAGGEDSTRING; }
   enum { TYPE_TAG = RH_TAGGEDSTRING };
+
+  virtual void debugPrint(ostream &os, int indent) const;
+
+};
+
+class RH_prec : public RHSElt {
+public:      // data
+  LocString tokName;
+
+public:      // funcs
+  RH_prec(LocString *_tokName) : RHSElt(), tokName(_tokName) {
+  }
+  virtual ~RH_prec();
+
+  virtual Kind kind() const { return RH_PREC; }
+  enum { TYPE_TAG = RH_PREC };
 
   virtual void debugPrint(ostream &os, int indent) const;
 

@@ -29,6 +29,7 @@ Terminals::~Terminals()
 {
   decls.deleteAll();
   types.deleteAll();
+  prec.deleteAll();
 }
 
 void Terminals::debugPrint(ostream &os, int indent) const
@@ -37,6 +38,7 @@ void Terminals::debugPrint(ostream &os, int indent) const
 
   PRINT_LIST(TermDecl, decls);
   PRINT_LIST(TermType, types);
+  PRINT_LIST(PrecSpec, prec);
 }
 
 
@@ -70,6 +72,22 @@ void TermType::debugPrint(ostream &os, int indent) const
   PRINT_GENERIC(name);
   PRINT_GENERIC(type);
   PRINT_LIST(SpecFunc, funcs);
+}
+
+
+// ------------------ PrecSpec -------------------
+// *** DO NOT EDIT ***
+PrecSpec::~PrecSpec()
+{
+  tokens.deleteAll();
+}
+
+void PrecSpec::debugPrint(ostream &os, int indent) const
+{
+  PRINT_HEADER(PrecSpec);
+
+  PRINT_GENERIC(kind);
+  PRINT_LIST(LocString, tokens);
 }
 
 
@@ -195,6 +213,21 @@ void RH_taggedString::debugPrint(ostream &os, int indent) const
 
   PRINT_GENERIC(tag);
   PRINT_GENERIC(str);
+}
+
+DEFN_AST_DOWNCASTS(RHSElt, RH_prec, RH_PREC)
+
+RH_prec::~RH_prec()
+{
+}
+
+void RH_prec::debugPrint(ostream &os, int indent) const
+{
+  PRINT_HEADER(RH_prec);
+
+  RHSElt::debugPrint(os, indent);
+
+  PRINT_GENERIC(tokName);
 }
 
 

@@ -3,6 +3,7 @@
 
 verbatim {
   #include "locstr.h"       // LocString
+  #include "asockind.h"     // AssocKind
 }
 
 // the entire grammar spec
@@ -11,8 +12,10 @@ class GrammarAST (LocString verbatimCode,
                   ASTList<NontermDecl> nonterms);
 
 
-// definition of tokens: first the ids and aliases, then types
-class Terminals (ASTList<TermDecl> decls, ASTList<TermType> types);
+// definition of tokens
+class Terminals (ASTList<TermDecl> decls,     // ids and aliases
+                 ASTList<TermType> types,     // type annotations
+                 ASTList<PrecSpec> prec);     // precedence and associativity
 
 // token with lexer code 'code' and grammar name 'name', with grammar
 // alias 'alias'
@@ -21,6 +24,10 @@ class TermDecl (int code, LocString name, LocString alias);
 // declaration that token with grammar name 'name' has semantic
 // values with C type 'type'
 class TermType (LocString name, LocString type, ASTList<SpecFunc> funcs);
+                
+// a set of equal-precedence tokens (named either by name or by alias),
+// and the 'kind' which tells how they associate
+class PrecSpec (AssocKind kind, ASTList<LocString> tokens);
 
 
 // specification function: formals + code
@@ -46,5 +53,6 @@ class RHSElt {
   -> RH_taggedName(LocString tag, LocString name);   // tagged terminal or nonterminal reference
   -> RH_string(LocString str);                       // untagged terminal reference by string alias
   -> RH_taggedString(LocString tag, LocString str);  // tagged terminal reference by string alias
+  -> RH_prec(LocString tokName);                     // %prec specification
 }
 

@@ -63,15 +63,15 @@ bool ConflictHandlers::anyNonNull() const
 void ConflictHandlers::print(ostream &os) const
 {
   if (dupCode.isNonNull()) {
-    os << "  dup(" << dupParam << ") [" << dupCode << "]\n";
+    os << "    dup(" << dupParam << ") [" << dupCode << "]\n";
   }
 
   if (delCode.isNonNull()) {
-    os << "  del(" << (delParam? delParam : "") << ") [" << delCode << "]\n";
+    os << "    del(" << (delParam? delParam : "") << ") [" << delCode << "]\n";
   }
 
   if (mergeCode.isNonNull()) {
-    os << "  merge(" << mergeParam1 << ", " << mergeParam2
+    os << "    merge(" << mergeParam1 << ", " << mergeParam2
        << ") [" << mergeCode << "]\n";
   }
 }
@@ -130,7 +130,7 @@ void Symbol::printDDM(ostream &os) const
   if (!ddm.anyNonNull()) return;
 
   // print with roughly the same syntax as input
-  os << (isTerminal()? "token" : "nonterm");
+  os << "  " << (isTerminal()? "token" : "nonterm");
   if (type) {
     os << "[" << type << "]";
   }
@@ -138,7 +138,7 @@ void Symbol::printDDM(ostream &os) const
 
   ddm.print(os);
 
-  os << "}\n";
+  os << "  }\n";
 }
 
 
@@ -164,17 +164,23 @@ Terminal::Terminal(Flatten &flat)
 void Terminal::xfer(Flatten &flat)
 {
   Symbol::xfer(flat);
+
+  alias.xfer(flat);        
+
+  flat.xferInt(precedence);
+  flat.xferInt((int&)associativity);
+
   flat.xferInt(termIndex);
-  
-  // arguable that for my purposes I don't need this; but
-  // it seems pretty easy to do it anyway ..
-  alias.xfer(flat);
 }
 
 
 void Terminal::print(ostream &os) const
 {
-  os << "[" << termIndex << "] ";
+  os << "[" << termIndex << "]";
+  if (precedence) {
+    os << "(" << ::toString(associativity) << " " << precedence << ")";
+  }
+  os << " ";
   Symbol::print(os);
 }
 
@@ -283,6 +289,7 @@ Production::Production(Nonterminal *L, char const *Ltag)
   : left(L),
     leftTag(Ltag),
     right(),
+    precedence(0),
     prodIndex(-1)
 {}
 
@@ -293,7 +300,6 @@ Production::~Production()
 Production::Production(Flatten &flat)
   : left(NULL),
     leftTag(flat),
-    right(),
     action(flat)
 {}
 
@@ -302,6 +308,7 @@ void Production::xfer(Flatten &flat)
   leftTag.xfer(flat);
   xferObjList(flat, right);
   action.xfer(flat);
+  flat.xferInt(precedence);
 
   flat.xferInt(prodIndex);
 }
@@ -476,13 +483,17 @@ void Production::print(ostream &os) const
 string Production::toString(bool printType) const
 {
   // LHS "->" RHS
-  // 9/27/00: don't print tag for LHS
   stringBuilder sb;
   sb << left->name;
   if (printType && left->type) {
     sb << "[" << left->type << "]";
   }
   sb << " -> " << rhsString();
+  
+  if (printType && precedence) {
+    // take this as licence to print prec too
+    sb << " %prec(" << precedence << ")";
+  }
   return sb;
 }
 
@@ -590,9 +601,14 @@ int Grammar::numNonterminals() const
 
 void Grammar::printSymbolTypes(ostream &os) const
 {
-  os << "Grammar terminals with types:\n";
+  os << "Grammar terminals with types or precedence:\n";
   FOREACH_OBJLIST(Terminal, terminals, term) {
-    term.data()->printDDM(os);
+    Terminal const &t = *(term.data());
+    t.printDDM(os);
+    if (t.precedence) {
+      os << "  " << t.name << " " << ::toString(t.associativity)
+         << " %prec " << t.precedence << endl;
+    }
   }
 
   os << "Grammar nonterminals with types:\n";

@@ -8,6 +8,8 @@
 #include "grampar.h"        // yylex, etc.
 #include "gramast.gen.h"    // grammar syntax AST definition
 #include "gramlex.h"        // GrammarLexer
+#include "owner.h"          // Owner
+#include "strutil.h"        // quoted
 
 #include <stdlib.h>         // malloc, free
 #include <iostream.h>       // cout
@@ -33,15 +35,20 @@
 #define yyparse grampar_yyparse
 
 
-// return contents of 's', which is then deallocated
-//LocString unbox(LocString *s);
+// grab the parameter
+#define PARAM ((ParseParams*)parseParam)
 
 // return a locstring for 's' with no location information
 #define noloc(str)                                                    \
   new LocString(SourceLocation(NULL),      /* unknown location */     \
-                ((ParseParams*)parseParam)->lexer.strtable.add(str))
+                PARAM->lexer.strtable.add(str))
 
-//LocString *noloc(char const *s);
+// interpret the word into an associativity kind specification
+AssocKind whichKind(LocString * /*owner*/ kind);
+
+// add quotes to the given string
+LocString * /*owner*/ quotedLocString(LocString * /*owner*/ src,
+                                      StringTable &table);
 
 %}
 
@@ -73,6 +80,10 @@
 %token TOK_TOKEN "token"
 %token TOK_NONTERM "nonterm"
 %token TOK_VERBATIM "verbatim"
+%token TOK_PRECEDENCE "precedence"
+// left, right, nonassoc: they're not keywords, since "left" and "right"
+// are common names for RHS elements; instead, we parse them as names
+// and interpret them after lexing
 
 
 /* ===================== types ============================ */
@@ -86,6 +97,7 @@
   TermDecl *termDecl;
   ASTList<TermType> *termTypes;
   TermType *termType;
+  ASTList<PrecSpec> *precSpecs;
 
   ASTList<SpecFunc> *specFuncs;
   SpecFunc *specFunc;
@@ -107,6 +119,9 @@
 %type <termDecl> TerminalDecl
 %type <termTypes> TermTypes
 %type <termType> TermType
+%type <precSpecs> Precedence PrecSpecs
+%type <stringList> NameOrStringList
+%type <str> NameOrString
 
 %type <specFuncs> SpecFuncs
 %type <specFunc> SpecFunc
@@ -150,7 +165,8 @@ Verbatim: /* empty */                    { $$ = noloc(""); }
  * all of the terminals that will appear in the rules
  */
 /* yields: Terminals */
-Terminals: "terminals" "{" TermDecls TermTypes "}" { $$ = new Terminals($3, $4); }
+Terminals: "terminals" "{" TermDecls TermTypes Precedence "}" 
+             { $$ = new Terminals($3, $4, $5); }
          ;
 
 /* yields: ASTList<TermDecl> */
@@ -184,6 +200,28 @@ TermType: "token" Type TOK_NAME ";"
         | "token" Type TOK_NAME "{" SpecFuncs "}"
             { $$ = new TermType($3, $2, $5); }
         ;
+
+/* yields: ASTList<PrecSpec> */
+Precedence: /* empty */                      { $$ = new ASTList<PrecSpec>; }
+          | "precedence" "{" PrecSpecs "}"   { $$ = $3; }
+          ;
+          
+/* yields: ASTList<PrecSpec> */
+PrecSpecs: /* empty */                     
+             { $$ = new ASTList<PrecSpec>; }
+         | PrecSpecs TOK_NAME NameOrStringList ";"
+             { ($$=$1)->append(new PrecSpec(whichKind($2), $3)); }
+         ;
+
+/* yields: ASTList<LocString> */
+NameOrStringList: /* empty */                     { $$ = new ASTList<LocString>; }
+                | NameOrStringList NameOrString   { ($$=$1)->append($2); }
+                ;
+
+/* yields: LocString */
+NameOrString: TOK_NAME       { $$ = $1; }
+            | TOK_STRING     { $$ = quotedLocString($1, PARAM->lexer.strtable); }
+            ;
 
 
 /* ------ specification functions ------ */
@@ -255,6 +293,35 @@ RHSElt: TOK_NAME                { $$ = new RH_name($1); }
           /* mnemonic terminal */
       | TOK_NAME ":" TOK_STRING { $$ = new RH_taggedString($1, $3); }
           /* tagged terminal */
+      | TOK_PRECEDENCE "(" NameOrString ")"
+                                { $$ = new RH_prec($3); }
       ;
 
 %%
+/* ------------------ extra C code ------------------ */
+AssocKind whichKind(LocString * /*owner*/ kind)
+{ 
+  // delete 'kind' however we exit
+  Owner<LocString> killer(kind);
+
+  if (kind->equals("left")) {
+    return AK_LEFT;
+  }
+  if (kind->equals("right")) {
+    return AK_RIGHT;
+  }
+  if (kind->equals("nonassoc")) {
+    return AK_NONASSOC;
+  }
+
+  xfailure(stringc << kind->locString()
+                   << ": invalid associativity kind: " << *kind);
+}
+
+
+LocString * /*owner*/ quotedLocString(LocString * /*owner*/ src, 
+                                      StringTable &table)
+{
+  src->str = table.add(quoted(src->str));
+  return src;
+}

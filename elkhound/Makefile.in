@@ -50,7 +50,7 @@ include ${SMBASE}/Makefile.base.mk
 
 # sets of related object files
 # files needed to represent a grammar in memory
-grammar-set = grammar.o locstr.o
+grammar-set = grammar.o locstr.o asockind.o
 
 # in addition to grammar-set, files needed to parse a grammar description
 grampar-set = grampar.tab.o gramlex.yy.o grampar.o gramlex.o \

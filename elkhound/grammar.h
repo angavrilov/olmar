@@ -30,6 +30,7 @@
 #include "locstr.h"      // LocString, StringRef
 #include "strobjdict.h"  // StringObjDict
 #include "owner.h"       // Owner
+#include "asockind.h"    // AssocKind
 
 class StrtokParse;       // strtokp.h
 
@@ -147,11 +148,8 @@ string symbolSequenceToString(SymbolList const &list);
 // for several different tokens to be classified into the same
 // terminal class (e.g. "foo" and "bar" are both identifiers)
 class Terminal : public Symbol {
-// ------ annotation ------
+// -------- representation ---------
 public:     // data
-  // terminal class index - this terminal's id; -1 means unassigned
-  int termIndex;
-
   // whereas 'name' is the canonical name for the terminal class,
   // this field is an alias; for example, if the canonical name is
   // L2_EQUALEQUAL, the alias might be "==" (i.e. the alias
@@ -159,11 +157,29 @@ public:     // data
   // if the alias is "", there is no alias
   string alias;
 
+  // parsgen-time conflict resolution: if a shift/reduce conflict
+  // occurs between a production and a symbol, both with specified
+  // precedence (not 0), then the one with the numerically higher
+  // precedence will be used
+  int precedence;
+
+  // if, in the above scenario, the precedence values are the same,
+  // then the associativity kind will be used to decide which to use
+  AssocKind associativity;
+
+// ------ annotation ------
+public:     // data
+  // terminal class index - this terminal's id; -1 means unassigned
+  int termIndex;
+
 public:     // funcs
   Terminal(char const *name)        // canonical name for terminal class
     : Symbol(name, true /*terminal*/),
-      termIndex(-1),
-      alias() {}
+      alias(),
+      precedence(0),
+      associativity(AK_NONASSOC),
+      termIndex(-1)
+  {}
 
   Terminal(Flatten &flat);
   void xfer(Flatten &flat);
@@ -301,6 +317,7 @@ public:	    // data
   Nonterminal * const left;     // (serf) left hand side; must be nonterminal
   string leftTag;      	       	// tag for LHS symbol
   ObjList<RHSElt> right;        // right hand side; terminals & nonterminals
+  int precedence;               // precedence level for disambiguation
 
   // user-supplied reduction action code
   LocString action;
