@@ -541,7 +541,7 @@ bool E_gnuMinMax::extHasUnparenthesizedGT()
 void TS_typeof::print(PrintEnv &env)
 {
   xassert(0);                   // I'll bet this is never called.
-//    olayer ol("TS_typeof_expr");
+//    TreeWalkDebug treeDebug("TS_typeof_expr");
 }
 
 
@@ -567,14 +567,14 @@ void ASTTypeof::addAmbiguity(ASTTypeof *alt)
 
 void S_function::iprint(PrintEnv &env)
 {
-  olayer ol("S_function::iprint");
+  TreeWalkDebug treeDebug("S_function::iprint");
   f->print(env);
 }
 
 
 void S_rangeCase::iprint(PrintEnv &env)
 {                    
-  olayer ol("S_rangeCase::iprint");
+  TreeWalkDebug treeDebug("S_rangeCase::iprint");
   env << "case";
   exprLo->print(env);
   env << "...";
@@ -586,7 +586,7 @@ void S_rangeCase::iprint(PrintEnv &env)
 
 void S_computedGoto::iprint(PrintEnv &env)
 {
-  olayer ol("S_computedGoto::iprint");
+  TreeWalkDebug treeDebug("S_computedGoto::iprint");
   env << "goto *";
   target->print(env);
   env << ";\n";
@@ -595,9 +595,9 @@ void S_computedGoto::iprint(PrintEnv &env)
 
 void E_compoundLit::iprint(PrintEnv &env)
 {
-  olayer ol("E_compoundLit::iprint");
+  TreeWalkDebug treeDebug("E_compoundLit::iprint");
   {
-    codeout co(env, "", "(", ")");
+    PairDelim pair(env, "", "(", ")");
     stype->print(env);
   }
   init->print(env);
@@ -605,15 +605,15 @@ void E_compoundLit::iprint(PrintEnv &env)
 
 void E___builtin_constant_p::iprint(PrintEnv &env)
 {
-  olayer ol("E___builtin_constant_p::iprint");
-  codeout co(env, "__builtin_constant_p", "(", ")");
+  TreeWalkDebug treeDebug("E___builtin_constant_p::iprint");
+  PairDelim pair(env, "__builtin_constant_p", "(", ")");
   expr->print(env);
 }
 
 void E___builtin_va_arg::iprint(PrintEnv &env)
 {
-  olayer ol("E___builtin_va_arg::iprint");
-  codeout co(env, "__builtin_va_arg", "(", ")");
+  TreeWalkDebug treeDebug("E___builtin_va_arg::iprint");
+  PairDelim pair(env, "__builtin_va_arg", "(", ")");
   expr->print(env);
   env << ", ";
   atype->print(env);
@@ -621,22 +621,22 @@ void E___builtin_va_arg::iprint(PrintEnv &env)
 
 void E_alignofType::iprint(PrintEnv &env)
 {
-  olayer ol("E_alignofType::iprint");
-  codeout co(env, "__alignof__", "(", ")");
+  TreeWalkDebug treeDebug("E_alignofType::iprint");
+  PairDelim pair(env, "__alignof__", "(", ")");
   atype->print(env);
 }
 
 void E_statement::iprint(PrintEnv &env)
 {
-  olayer ol("E_statement::iprint");
-  codeout co(env, "", "(", ")");
+  TreeWalkDebug treeDebug("E_statement::iprint");
+  PairDelim pair(env, "", "(", ")");
   s->iprint(env);
 }
 
 void E_gnuCond::iprint(PrintEnv &env)
 {
-  olayer ol("E_gnuCond::iprint");
-  codeout co(env, "", "(", ")");
+  TreeWalkDebug treeDebug("E_gnuCond::iprint");
+  PairDelim pair(env, "", "(", ")");
   cond->print(env);
   env << " ?: ";
   el->print(env);
@@ -644,8 +644,8 @@ void E_gnuCond::iprint(PrintEnv &env)
 
 void E_gnuMinMax::iprint(PrintEnv &env)
 {
-  olayer ol("E_gnuMinMax::iprint");
-  codeout co(env, "", "(", ")");
+  TreeWalkDebug treeDebug("E_gnuMinMax::iprint");
+  PairDelim pair(env, "", "(", ")");
   e1->print(env);
   env << (isMin? " <? " : " >? ");
   e2->print(env);
@@ -653,7 +653,7 @@ void E_gnuMinMax::iprint(PrintEnv &env)
 
 void E_addrOfLabel::iprint(PrintEnv &env)
 {
-  olayer ol("E_addrOfLabel::iprint");
+  TreeWalkDebug treeDebug("E_addrOfLabel::iprint");
   env << "&&" << labelName;
 }
 
@@ -676,16 +676,16 @@ void IN_designated::print(PrintEnv &env)
 
 void FieldDesignator::print(PrintEnv &env)
 {
-  olayer ol("FieldDesignator");
+  TreeWalkDebug treeDebug("FieldDesignator");
   xassert(id);
   env << "." << id;
 }
 
 void SubscriptDesignator::print(PrintEnv &env)
 {
-  olayer ol("SubscriptDesignator");
+  TreeWalkDebug treeDebug("SubscriptDesignator");
   xassert(idx_expr);
-  codeout co(env, "", "[", "]");
+  PairDelim pair(env, "", "[", "]");
   idx_expr->print(env);
   if (idx_expr2) {
     env << " ... ";

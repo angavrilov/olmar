@@ -10,10 +10,8 @@
 
 #include <iostream.h>           // ostream
 
-string make_indentation(int n);
-string indent_message(int n, rostring s);
-
-class code_output_stream {
+// indents the source code sent to it
+class CodeOutputStream {
   ostream *out;
   stringBuilder *sb;
 
@@ -25,10 +23,10 @@ class code_output_stream {
   // number of buffered trailing newlines
   int buffered_newlines;
 
-public:
-  code_output_stream(ostream &out);
-  code_output_stream(stringBuilder &sb);
-  ~code_output_stream();
+  public:
+  CodeOutputStream(ostream &out);
+  CodeOutputStream(stringBuilder &sb);
+  ~CodeOutputStream();
 
   void finish();
   void up();
@@ -36,7 +34,7 @@ public:
   void flush();
 
   #define MAKE_INSERTER(type)                          \
-    code_output_stream & operator << (type message) {  \
+    CodeOutputStream & operator << (type message) {  \
       if (using_sb) *sb << message;                    \
       else *out << message;                            \
       flush();                                         \
@@ -52,68 +50,75 @@ public:
 
   #undef MAKE_INSERTER
 
+  static string make_indentation(int n);
+  static string indent_message(int n, rostring s);
+
   void raw_print_and_indent(string s);
 
-  code_output_stream & operator << (char const *message);
-  code_output_stream & operator << (ostream& (*manipfunc)(ostream& outs));
-  code_output_stream & operator << (rostring message);
+  CodeOutputStream & operator << (char const *message);
+  CodeOutputStream & operator << (ostream& (*manipfunc)(ostream& outs));
+  CodeOutputStream & operator << (rostring message);
   // provide access to the built string
   stringBuilder const &getString() const;
 };
 
-// allow a block to have the equivalent of a finally block; the
-// "close" argument to the constructor is printed in the destructor.
-class codeout {
+// print paired delimiters, the second one is delayed until the end of
+// the stack frame; that is, it is printed in the destructor.
+class PairDelim {
   char const *close;
-  code_output_stream &out;
+  CodeOutputStream &out;
   public:
-  codeout(code_output_stream &out, rostring message, rostring open, char const *close = "");
-  codeout(code_output_stream &out, rostring message);
-  ~codeout();
+  PairDelim(CodeOutputStream &out, rostring message, rostring open, char const *close = "");
+  PairDelim(CodeOutputStream &out, rostring message);
+  ~PairDelim();
 };
 
-class twalk_output_stream {
+// an output stream for printing comments that will indent them
+// according to the level of the tree walk
+class TreeWalkOutputStream {
   ostream &out;
-//    FILE *out
   bool on;
   int depth;
 
   public:
-  twalk_output_stream(ostream &out, bool on = true);
+  TreeWalkOutputStream(ostream &out, bool on = true);
 
   private:
   void indent();
 
   public:
   void flush();
-  twalk_output_stream & operator << (char *message);
-  twalk_output_stream & operator << (ostream& (*manipfunc)(ostream& outs));
+  TreeWalkOutputStream & operator << (char *message);
+  TreeWalkOutputStream & operator << (ostream& (*manipfunc)(ostream& outs));
   void down();
   void up();
 };
 
-extern twalk_output_stream twalk_layer_out;
+extern TreeWalkOutputStream treeWalkOut;
 
-class olayer {
-  twalk_output_stream &out;
+// a class to make on the stack at ever frame of the tree walk that
+// will automatically manage the indentation level of the
+// TreeWalkOutputStream given
+class TreeWalkDebug {
+  TreeWalkOutputStream &out;
   public:
-  olayer(char *message, twalk_output_stream &out = twalk_layer_out);
-  ~olayer() {out.up();}
+  TreeWalkDebug(char *message, TreeWalkOutputStream &out = treeWalkOut);
+  ~TreeWalkDebug();
 };
 
 
 // global context for a pretty-print
-class PrintEnv : public code_output_stream {
+class PrintEnv : public CodeOutputStream {
 public:
   SourceLoc current_loc;
   
 public:
   PrintEnv(ostream &out)
-    : code_output_stream(out)
+    : CodeOutputStream(out)
   {}
 
   PrintEnv(stringBuilder &sb)
-    : code_output_stream(sb)
+    : CodeOutputStream(sb)
   {}
 };
 
