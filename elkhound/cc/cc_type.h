@@ -636,7 +636,8 @@ public:
   //     or neither.
   //   - Variable is used by Type and vice-versa.. they could have
   //     both been defined in cc_type.h
-  virtual Variable *makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)=0;
+  virtual Variable *makeVariable(SourceLoc L, StringRef n,
+                                 Type *t, DeclFlags f)=0;
   virtual Variable *cloneVariable(Variable *src)=0;
 
 
