@@ -140,7 +140,8 @@ public:      // funcs
 
   // set/get variable values
   void set(Variable const *var, AbsValue *value);
-  AbsValue *get(Variable const *var);
+  AbsValue *get(Variable const *var);    // makes up a variable if no binding
+  bool hasBinding(Variable const *var) const;
 
   // set lvalues
   void setLval(AVlval const *lval, AbsValue *value);

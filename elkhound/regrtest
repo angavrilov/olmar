@@ -257,6 +257,7 @@ vcgentb swap1.c
 vcgentb array.c
 vcgen ptrptr.c
 vcgen simple.c
+vcgen fact1.c
 
 # fails because I can't seem to capture the notion of
 # a string in my new sel/upd model

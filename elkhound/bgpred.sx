@@ -730,4 +730,15 @@
 ;       (treeNode mem addr)
 ;     )
 ;   )
+
+  ; --------------- factorial --------------
+  (EQ (factorial 0) 1)
+  
+  (FORALL (n)
+    (IMPLIES
+      (> n 0)
+      (EQ 
+        (factorial n)
+        (* n (factorial (- n 1)))
+      )))
 ))

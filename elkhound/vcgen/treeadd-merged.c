@@ -139,29 +139,6 @@ int dealwithargs(int argc, char **argv)
 
 
 // ======================= par-alloc.c ======================
-// HACK: my vcgen has a bug if I call the same procedure I'm in,
-// and this prototype is enough separation to work around it
-tree_t *TreeAlloc (int level)
-  thmprv_pre(int pre_mem=mem;
-    level >= 0
-  )
-  thmprv_post(
-    // the returned pointer is a toplevel address only
-    result == sub(firstIndexOf(result), 0 /*whole*/) &&
-    // and that address can be called a tree node
-    treeNode(mem, firstIndexOf(result)) &&
-    // if we don't return NULL..
-    (result != (tree_t*)0 ==> (
-      // pointer points to new object
-      freshObj(firstIndexOf(result), mem) &&
-      // at least as big as a tree_t
-      okSelOffsetRange(mem, appendIndex(result, 0), sizeof(tree_t))
-    )) &&
-    // and does not modify anything reachable from pre_mem
-    pre_mem == mem
-  )
-;
-
 tree_t *TreeAlloc (int level)
   thmprv_pre(int pre_mem=mem;
     level >= 0
@@ -208,17 +185,6 @@ tree_t *TreeAlloc (int level)
 
 
 // ======================== node.c =======================
-int TreeAdd (tree_t *t)
-  thmprv_pre(
-    int pre_mem = mem; 
-    treeNode(mem, firstIndexOf(t)) &&
-    t == sub(firstIndexOf(t), 0 /*whole*/)
-  )
-  thmprv_post(
-    mem == pre_mem
-  )
-;
-
 int TreeAdd (tree_t *t)
   thmprv_pre(
     int pre_mem = mem;
@@ -269,7 +235,7 @@ int main (int argc, char **argv)
     root = TreeAlloc (level);
     printf("About to enter TreeAdd\n");
 
-    for (i = 0; i < iters; i++)
+    for (i = 0; i < iters; i=i+1)
       {
         thmprv_invariant(
           treeNode(mem, firstIndexOf(root)) &&

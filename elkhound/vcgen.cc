@@ -10,6 +10,8 @@
 #include "strutil.h"            // quoted, plural
 #include "paths.h"              // countExprPaths
 #include "predicate.ast.gen.h"  // Predicate ast, incl. P_equal, etc.
+#include "objstack.h"           // ObjStack
+#include "owner.h"              // Owner
 
 #include <stdlib.h>             // getenv
 
@@ -731,18 +733,28 @@ AbsValue *E_funCall::vcgen(AEnv &env, int path) const
   }
 
   // -------------- modify environment for pre/post ----------------
+  // if we are calling the same function we're in (recursively), then
+  // the parameter bindings will clobber the caller params; so save
+  // them before setting, and restore at the end (use of AbsVariable
+  // is just because it happens to be a <Variable,AbsValue> pair)
+  ObjStack<AbsVariable> prevValues;
+
   // the pre- and postconditions get evaluated to an abstract value in
   // an environment augmented to include parameters (and in the case
-  // of the postcondition, 'result'); I do *not* create another
-  // environment, because I can't possibly get confused by variable
-  // names, since every variable in the program has a unique name
+  // of the postcondition, 'result')
   SObjListMutator<AbsValue> argExpIter(argExps);
   FOREACH_OBJLIST(FunctionType::Param, ft.params, paramIter) {
+    Variable const *param = paramIter.data()->decl;
+    AbsValue *value = argExpIter.data();
+
+    if (env.hasBinding(param)) {
+      // conflict between callee and caller param; remember the old value
+      prevValues.push(new AbsVariable(param, env.get(param),
+                                      false /*memvar; not used*/));
+    }
+
     // bind the names to the expressions that are passed
-    // BUG: if the function being called is the same one we're
-    // analyzing, this changes the local variables' bindings!
-    env.set(paramIter.data()->decl,
-            argExpIter.data());
+    env.set(param, value);
 
     argExpIter.adv();
   }
@@ -792,6 +804,12 @@ AbsValue *E_funCall::vcgen(AEnv &env, int path) const
 
     // assume it
     env.addFact(predicate, stringc << "postcondition from call: " << toString());
+  }
+
+  // restore local parameter values
+  while (prevValues.isNotEmpty()) {
+    Owner<AbsVariable> av(prevValues.pop());
+    env.set(av->decl, av->value);
   }
 
   // result of calling this function is the result variable

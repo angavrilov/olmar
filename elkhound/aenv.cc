@@ -172,10 +172,19 @@ void AEnv::setLval(Variable const *var, AbsValue *offset, AbsValue *value)
 }
 
 
+bool AEnv::hasBinding(Variable const *var) const
+{
+  return !!bindings.get(var);
+}
+
+
 AbsValue *AEnv::get(Variable const *var)
 {
   AbsVariable *avar = bindings.get(var);
   if (avar) {
+    // verify that our bindings list never stores lvalues
+    xassert(!avar->value->isAVlval());
+
     return avar->value;
   }
   
