@@ -370,6 +370,8 @@ public:
   virtual string leftString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
+
+  bool isConst() const;
 };
 
 
@@ -398,6 +400,8 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
+
+  bool isConst() const;
 };
 
 

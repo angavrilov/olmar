@@ -593,6 +593,12 @@ bool CVAtomicType::anyCtorSatisfies(TypePred pred) const
 }
 
 
+bool CVAtomicType::isConst() const
+{
+  return cv & CV_CONST;
+}
+
+
 // ------------------- PointerType ---------------
 PointerType::PointerType(PtrOper o, CVFlags c, Type *a)
   : op(o), cv(c), atType(a)
@@ -651,6 +657,12 @@ bool PointerType::anyCtorSatisfies(TypePred pred) const
 {
   return pred(this) ||
          atType->anyCtorSatisfies(pred);
+}
+
+
+bool PointerType::isConst() const
+{
+  return cv & CV_CONST;
 }
 
 
