@@ -6,6 +6,7 @@ static int adj(Direction d, ChildType ct)
   
   switch (d) 
     {
+    default:    // silence warning
     case north:
       return ((ct==northeast) || (ct==northwest));
     case south:
@@ -17,12 +18,12 @@ static int adj(Direction d, ChildType ct)
     }
 }
 
-static ChildType reflect(Direction d, ChildType ct) 
+static ChildType reflect(Direction d, ChildType ct)
 {
-  
-  if ((d==west) || (d==east)) 
+
+  if ((d==west) || (d==east))
     {
-      switch(ct) 
+      switch(ct)
 	{
 	case northwest:
 	  return northeast;
@@ -34,8 +35,9 @@ static ChildType reflect(Direction d, ChildType ct)
 	  return southeast;
 	}
     }
-  switch(ct) 
+  switch(ct)
     {
+    default:    // silence warning
     case northwest:
       return southwest;
     case northeast:
@@ -47,11 +49,11 @@ static ChildType reflect(Direction d, ChildType ct)
     }
 }
 
-int CountTree(QuadTree tree) 
+int CountTree(QuadTree tree)
 {
   QuadTree nw,ne,sw,se;
 
-  
+
   nw = tree->nw; ne = tree->ne; sw = tree->sw; se = tree->se;
   if (nw==NULL && ne==NULL && sw==NULL && se==NULL)
     return 1;
@@ -62,9 +64,10 @@ int CountTree(QuadTree tree)
 
 static QuadTree child(QuadTree tree, ChildType ct)
 {
-  
-  switch(ct) 
+
+  switch(ct)
     {
+    default:    // silence warning
     case northeast:
       return tree->ne;
     case northwest:

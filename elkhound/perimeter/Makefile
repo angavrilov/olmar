@@ -5,7 +5,7 @@ SRCS     = main.c maketree.c
 
 CPP         = gcc -E 
 CPPFLAGS    = 
-CFLAGS      = $(CPPFLAGS)
+CFLAGS      = $(CPPFLAGS) -Wall
 OBJS        = maketree.o main.o
 
 all: perimeter
