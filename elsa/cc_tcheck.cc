@@ -528,8 +528,9 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
                    << " field `" << var->name
                    << "' of type `" << var->type->toString()
                    << "' to " << enclosingClass->keywordAndName() << endl;
-      enclosingClass->addField(var->name, env.scope()->curAccess, var->type, var);
+      var->access = access;
       var->setFlag(DF_MEMBER);
+      enclosingClass->addField(var);
     }
   }
 
@@ -1140,7 +1141,7 @@ Type const *E_fieldAcc::itcheck(Env &env)
   }
 
   // look for the named field
-  CompoundType::Field const *field = ct->getNamedField(fieldName->getName());
+  Variable const *field = ct->getNamedFieldC(fieldName->getName());
   if (!field) {
     return env.error(stringc
       << "there is no field called `" << fieldName->getName()

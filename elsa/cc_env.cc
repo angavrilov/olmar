@@ -150,15 +150,17 @@ Variable *Env::lookupPQVariable(PQName const *name) const
     }
 
     // look inside that class for 'name->name'
-    CompoundType::Field const *field = ct->getNamedField(firstQ->getName());
+    Variable const *field = ct->getNamedFieldC(firstQ->getName());
     if (!field) {
       //error(stringc
       //  << ct->keywordAndName() << " has no member called `"
       //  << name->name << "'");
       return NULL;
     }
-
-    return field->decl;
+                                       
+    // TODO: why do I have a constness clash here?  is this return
+    // value ever modified to do more than add an overload set?
+    return const_cast<Variable*>(field);
   }
 
   return lookupVariable(name->getName(), false /*innerOnly*/);

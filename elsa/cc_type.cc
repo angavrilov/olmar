@@ -218,7 +218,8 @@ string SimpleType::uniqueName() const
 // ------------------ NamedAtomicType --------------------
 NamedAtomicType::NamedAtomicType(StringRef n)
   : name(n),
-    typedefVar(NULL)
+    typedefVar(NULL),
+    access(AK_PUBLIC)
 {}
 
 NamedAtomicType::~NamedAtomicType()
@@ -264,12 +265,12 @@ MLValue NamedAtomicType::toMLValue(int depth, CVFlags cv) const
 // ------------------ CompoundType -----------------
 CompoundType::CompoundType(Keyword k, StringRef n)
   : NamedAtomicType(n),
-    fields(),
-    fieldIndex(),
-    fieldCounter(0),
+    Scope(0 /*changeCount*/, SourceLocation() /*dummy loc*/),
     forward(true),
     keyword(k)
-{}
+{
+  curCompound = this;
+}
 
 CompoundType::~CompoundType()
 {}
@@ -303,6 +304,7 @@ string CompoundType::toCString() const
 }
 
 
+#if 0
 // watch out for circular pointers (recursive types) here!
 // (already bitten once ..)
 string CompoundType::toStringWithFields() const
@@ -322,6 +324,7 @@ string CompoundType::toStringWithFields() const
   }
   return sb;
 }
+#endif // 0
 
 
 string CompoundType::toCilString(int depth) const
@@ -393,6 +396,9 @@ MLValue CompoundType::toMLContentsValue(int depth, CVFlags cv) const
 
 int CompoundType::reprSize() const
 {
+  return 0;    // unimplemented
+
+  #if 0
   int total = 0;
   FOREACH_OBJLIST(Field, fields, iter) {
     int membSize = iter.data()->type->reprSize();
@@ -406,43 +412,32 @@ int CompoundType::reprSize() const
     }
   }
   return total;
+  #endif // 0
 }
 
 
 int CompoundType::numFields() const
-{
-  return fields.count();
-}
-
-
-CompoundType::Field const *CompoundType::getNthField(int index) const
-{
-  return fields.nthC(index);
-}
-
-
-CompoundType::Field const *CompoundType::getNamedField(StringRef name) const
-{
-  Field *f;
-  if (fieldIndex.query(name, f)) {
-    return f;
+{                                                
+  int ct = 0;
+  for (StringSObjDict<Variable>::Iter iter(variables);
+       !iter.isDone(); iter.next()) {
+    Variable *v = iter.value();
+           
+    // count nonstatic data members
+    if (!v->type->isFunctionType() &&
+        !v->hasFlag(DF_TYPEDEF) &&
+        !v->hasFlag(DF_STATIC)) {
+      ct++;                        
+    }
   }
-  else {
-    return NULL;
-  }
+
+  return ct;
 }
 
 
-CompoundType::Field *CompoundType::
-  addField(StringRef name, AccessKeyword acc, Type const *type, Variable *decl)
+void CompoundType::addField(Variable *v)
 {
-  xassert(!fieldIndex.isMapped(name));
-
-  Field *f = new Field(name, acc, fieldCounter++, type, this, decl);
-  fields.append(f);
-  fieldIndex.add(name, f);
-
-  return f;
+  variables.add(v->name, v);
 }
 
 
