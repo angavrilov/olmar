@@ -36,6 +36,8 @@ Lexer2TokenTypeDesc const l2TokTypes[] = {
 
   // name
   { N(L2_NAME),                 "NAME", false },
+  { N(L2_TYPE_NAME),            "TYPE_NAME", false },
+  { N(L2_VARIABLE_NAME),        "VARIABLE_NAME", false },
 
   // literals
   { N(L2_INT_LITERAL),          "INT_LITERAL", false },

@@ -400,12 +400,16 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
       << " -------"
       << endl;
 
+    // token reclassification
+    int classifiedType = userAct->reclassifyToken(currentToken->type,
+                                                  currentToken->sval);
+
     // convert the token to a symbol
-    xassert(currentToken->type < numTerms);
-    currentTokenClass = indexedTerms[currentToken->type];
+    xassert((unsigned)classifiedType < (unsigned)numTerms);
+    currentTokenClass = indexedTerms[classifiedType];
     currentTokenColumn = tokenNumber;
     currentTokenValue = currentToken->sval;
-    
+
     // ([GLR] called the code from here to the end of
     // the loop 'parseword')
 

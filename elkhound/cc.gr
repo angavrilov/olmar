@@ -135,13 +135,13 @@ nonterm PQVarName {
 
   -> OperatorFunctionId ;
   -> ConversionFunctionId ;
-  -> "~" ClassName ;
+  -> "~" TypeName ;
   -> q:Qualifier rhs:PQVarName ;
 }
 
 nonterm Qualifier {
   -> "::" ;
-  -> ClassName "::" ;
+  -> TypeName "::" ;
 }
 
 
@@ -938,7 +938,7 @@ nonterm AccessSpecifierOpt {
 }
 
 nonterm PQClassName {
-  -> ClassName ;
+  -> TypeName ;
   -> Qualifier PQClassName ;
 }
 
@@ -970,8 +970,28 @@ nonterm Operator {
   -> "delete" ;
   -> "new" "[" "]" ;
   -> "delete" "[" "]" ;
-  -> BinaryOperator      /* filter out ".*" later */     ;
-  -> AssignmentOperator                                  ;
+
+  -> "*"  ;
+  -> "/"  ;
+  -> "%"  ;
+  -> "+"  ;
+  -> "-"  ;
+  -> "<<" ;
+  -> ">>" ;
+  -> "<"  ;
+  -> ">"  ;
+  -> "<=" ;
+  -> ">=" ;
+  -> "==" ;
+  -> "!=" ;
+  -> "&"  ;
+  -> "^"  ;
+  -> "|"  ;
+  -> "&&" ;
+  -> "||" ;
+
+  -> AssignmentOperator   ;
+
   -> "!" ;
   -> "~" ;
   -> "," ;
@@ -991,8 +1011,8 @@ nonterm Operator {
 
 
 nonterm TemplateId {
-  -> TemplateName "<" TemplateArgumentList ">" ;
-  -> TemplateName "<" ">" ;
+  -> TypeName "<" TemplateArgumentList ">" ;
+  -> TypeName "<" ">" ;
 }
 
 nonterm TemplateArgumentList {

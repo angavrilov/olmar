@@ -2962,7 +2962,7 @@ void emitDupDelMerge(Grammar const &g, EmitCode &out, EmitCode &dcl);
 void emitFuncDecl(Grammar const &g, EmitCode &out, EmitCode &dcl,
                   char const *rettype, char const *params);
 void emitDDMInlines(Grammar const &g, EmitCode &out, EmitCode &dcl,
-                    Symbol const &sym, bool mergeOk);
+                    Symbol const &sym);
 void emitSwitchCode(Grammar const &g, EmitCode &out,
                     char const *signature, char const *switchVar,
                     ObjList<Symbol> const &syms, int whichFunc,
@@ -3155,7 +3155,7 @@ void emitDupDelMerge(Grammar const &g, EmitCode &out, EmitCode &dcl)
   out << "// ---------------- dup/del/merge/keep nonterminals ---------------\n";
   // emit inlines for dup/del/merge of nonterminals
   FOREACH_OBJLIST(Nonterminal, g.nonterminals, ntIter) {
-    emitDDMInlines(g, out, dcl, *(ntIter.data()), true /*mergeOk*/);
+    emitDDMInlines(g, out, dcl, *(ntIter.data()));
   }
 
   // emit dup-nonterm
@@ -3165,7 +3165,7 @@ void emitDupDelMerge(Grammar const &g, EmitCode &out, EmitCode &dcl)
     (ObjList<Symbol> const&)g.nonterminals,
     0 /*dupCode*/,
     "      return (SemanticValue)dup_$symName(($symType)sval);\n",
-    "duplicate nonterm");
+    NULL);
 
   // emit del-nonterm
   emitSwitchCode(g, out,
@@ -3186,7 +3186,6 @@ void emitDupDelMerge(Grammar const &g, EmitCode &out, EmitCode &dcl)
     2 /*mergeCode*/,
     "      return (SemanticValue)merge_$symName(($symType)left, ($symType)right);\n",
     "merge nonterm");
-  out << "\n";
 
   // emit keep-nonterm
   emitSwitchCode(g, out,
@@ -3195,13 +3194,14 @@ void emitDupDelMerge(Grammar const &g, EmitCode &out, EmitCode &dcl)
     (ObjList<Symbol> const&)g.nonterminals,
     3 /*keepCode*/,
     "      return keep_$symName(($symType)sval);\n",
-    "keep nonterm");    // last param not used; keep-specific code used instead
+    NULL);
 
 
-  out << "// ---------------- dup/del terminals ---------------\n";
+  out << "\n";
+  out << "// ---------------- dup/del/classify terminals ---------------\n";
   // emit inlines for dup/del of terminals
   FOREACH_OBJLIST(Terminal, g.terminals, termIter) {
-    emitDDMInlines(g, out, dcl, *(termIter.data()), false /*mergeOk*/);
+    emitDDMInlines(g, out, dcl, *(termIter.data()));
   }
 
   // emit dup-term
@@ -3211,7 +3211,7 @@ void emitDupDelMerge(Grammar const &g, EmitCode &out, EmitCode &dcl)
     (ObjList<Symbol> const&)g.terminals,
     0 /*dupCode*/,
     "      return (SemanticValue)dup_$symName(($symType)sval);\n",
-    "duplicate terminal");
+    NULL);
 
   // emit del-term
   emitSwitchCode(g, out,
@@ -3222,6 +3222,15 @@ void emitDupDelMerge(Grammar const &g, EmitCode &out, EmitCode &dcl)
     "      del_$symName(($symType)sval);\n"
     "      return;\n",
     "deallocate terminal");
+
+  // emit classify-term
+  emitSwitchCode(g, out,
+    "int $acn::reclassifyToken(int oldTokenType, SemanticValue sval)",
+    "oldTokenType",
+    (ObjList<Symbol> const&)g.terminals,
+    4 /*classifyCode*/,
+    "      return classify_$symName(($symType)sval);\n",
+    NULL);
 }
 
 
@@ -3238,36 +3247,46 @@ void emitFuncDecl(Grammar const &g, EmitCode &out, EmitCode &dcl,
 
 
 void emitDDMInlines(Grammar const &g, EmitCode &out, EmitCode &dcl,
-                    Symbol const &sym, bool mergeOk)
+                    Symbol const &sym)
 {
-  if (sym.ddm.dupCode) {
+  Terminal const *term = sym.ifTerminalC();
+  Nonterminal const *nonterm = sym.ifNonterminalC();
+
+  if (sym.dupCode) {
     emitFuncDecl(g, out, dcl, sym.type,
       stringc << "dup_" << sym.name
-              << "(" << sym.type << " " << sym.ddm.dupParam << ") ");
-    emitUserCode(out, sym.ddm.dupCode);
+              << "(" << sym.type << " " << sym.dupParam << ") ");
+    emitUserCode(out, sym.dupCode);
   }
 
-  if (sym.ddm.delCode) {
+  if (sym.delCode) {
     emitFuncDecl(g, out, dcl, "void",
       stringc << "del_" << sym.name
               << "(" << sym.type << " "
-              << (sym.ddm.delParam? sym.ddm.delParam : "") << ") ");
-    emitUserCode(out, sym.ddm.delCode);
+              << (sym.delParam? sym.delParam : "") << ") ");
+    emitUserCode(out, sym.delCode);
   }
 
-  if (mergeOk && sym.ddm.mergeCode) {
+  if (nonterm && nonterm->mergeCode) {
     emitFuncDecl(g, out, dcl, sym.type,
       stringc << "merge_" << sym.name
-              << "(" << sym.type << " " << sym.ddm.mergeParam1
-              << ", " << sym.type << " " << sym.ddm.mergeParam2 << ") ");
-    emitUserCode(out, sym.ddm.mergeCode);
+              << "(" << sym.type << " " << nonterm->mergeParam1
+              << ", " << sym.type << " " << nonterm->mergeParam2 << ") ");
+    emitUserCode(out, nonterm->mergeCode);
   }
 
-  if (mergeOk && sym.ddm.keepCode) {
+  if (nonterm && nonterm->keepCode) {
     emitFuncDecl(g, out, dcl, "bool",
       stringc << "keep_" << sym.name
-              << "(" << sym.type << " " << sym.ddm.keepParam << ") ");
-    emitUserCode(out, sym.ddm.keepCode);
+              << "(" << sym.type << " " << nonterm->keepParam << ") ");
+    emitUserCode(out, nonterm->keepCode);
+  }
+
+  if (term && term->classifyCode) {
+    emitFuncDecl(g, out, dcl, "int",
+      stringc << "classify_" << sym.name
+              << "(" << sym.type << " " << term->classifyParam << ") ");
+    emitUserCode(out, term->classifyCode);
   }
 }
 
@@ -3283,10 +3302,11 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
   FOREACH_OBJLIST(Symbol, syms, symIter) {
     Symbol const &sym = *(symIter.data());
 
-    if (whichFunc==0 && sym.ddm.dupCode ||
-        whichFunc==1 && sym.ddm.delCode ||
-        whichFunc==2 && sym.ddm.mergeCode ||
-        whichFunc==3 && sym.ddm.keepCode) {
+    if (whichFunc==0 && sym.dupCode ||
+        whichFunc==1 && sym.delCode ||
+        whichFunc==2 && sym.asNonterminalC().mergeCode ||
+        whichFunc==3 && sym.asNonterminalC().keepCode ||
+        whichFunc==4 && sym.asTerminalC().classifyCode) {
       out << "    case " << sym.getTermOrNontermIndex() << ":\n";
       out << replace(replace(templateCode,
                "$symName", sym.name),
@@ -3299,9 +3319,13 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
     // unspecified dup: return NULL
     out << "      return (SemanticValue)0;\n";
   }
-  if (whichFunc == 3) {
+  else if (whichFunc == 3) {
     // unspecified keep functions default to keep
     out << "      return true;\n";
+  }
+  else if (whichFunc == 4) {
+    // default classifier keeps existing classification
+    out << "      return oldTokenType;\n";
   }
   else {
     out << "      cout << \"there is no action to " << actUpon << " id \"\n"

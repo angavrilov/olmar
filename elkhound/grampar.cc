@@ -67,8 +67,8 @@ XASTParse::~XASTParse()
 // fwd-decl of parsing fns
 void astParseGrammar(Grammar &g, GrammarAST const *treeTop);
 void astParseTerminals(Environment &env, Terminals const &terms);
-void astParseDDM(Environment &env, ConflictHandlers &ddm,
-                 ASTList<SpecFunc> const &funcs, bool mergeOk);
+void astParseDDM(Environment &env, Symbol *sym,
+                 ASTList<SpecFunc> const &funcs);
 void astParseNonterm(Environment &env, NontermDecl const *nt);
 void astParseProduction(Environment &env, Nonterminal *nonterm,
                         ProdDecl const *prod);
@@ -84,6 +84,13 @@ void astParseError(char const *msg)
 {
   LocString ls;   // no location info
   THROW(XASTParse(ls, msg));
+}
+                      
+// print the same message, but keep going anyway
+void astParseErrorCont(LocString const &failToken, char const *msg)
+{
+  XASTParse x(failToken, msg);
+  cout << x.why() << endl;
 }
 
 
@@ -115,11 +122,30 @@ void astParseGrammar(Grammar &g, GrammarAST const *treeTop)
   // process token declarations
   astParseTerminals(env, *(treeTop->terms));
 
-  // process nonterminals
-  FOREACH_ASTLIST(NontermDecl, treeTop->nonterms, iter) {
-    NontermDecl const *nt = iter.data();
+  // process all nonterminal declarations first, so while we're
+  // looking at their bodies we can tell if one isn't declared
+  {
+    FOREACH_ASTLIST(NontermDecl, treeTop->nonterms, iter) {
+      NontermDecl const *nt = iter.data();
 
-    {
+      // check for already declared
+      if (env.nontermDecls.isMapped(nt->name)) {
+        astParseError(nt->name, "nonterminal already declared");
+      }
+
+      // make the Grammar object to represent the new nonterminal
+      env.g.getOrMakeNonterminal(nt->name);
+
+      // add this decl to our running list (in the original environment)
+      env.nontermDecls.add(nt->name, const_cast<NontermDecl*>(nt));
+    }
+  }
+
+  // process nonterminal bodies
+  {
+    FOREACH_ASTLIST(NontermDecl, treeTop->nonterms, iter) {
+      NontermDecl const *nt = iter.data();
+
       // new environment since it can contain a grouping construct
       // (at this very moment it actually can't because there is no syntax..)
       Environment newEnv(env);
@@ -127,9 +153,6 @@ void astParseGrammar(Grammar &g, GrammarAST const *treeTop)
       // parse it
       astParseNonterm(newEnv, nt);
     }
-
-    // add this decl to our running list (in the original environment)
-    env.nontermDecls.add(nt->name, const_cast<NontermDecl*>(nt));
   }
 }
 
@@ -180,7 +203,7 @@ void astParseTerminals(Environment &env, Terminals const &terms)
       t->type = type.type;
 
       // parse the dup/del/merge spec
-      astParseDDM(env, t->ddm, type.funcs, false /*mergeOk*/);
+      astParseDDM(env, t, type.funcs);
     }
   }
 
@@ -212,9 +235,12 @@ void astParseTerminals(Environment &env, Terminals const &terms)
 }
 
 
-void astParseDDM(Environment &env, ConflictHandlers &ddm,
-                 ASTList<SpecFunc> const &funcs, bool mergeOk)
+void astParseDDM(Environment &env, Symbol *sym,
+                 ASTList<SpecFunc> const &funcs)
 {
+  Terminal *term = sym->ifTerminal();
+  Nonterminal *nonterm = sym->ifNonterminal();
+
   FOREACH_ASTLIST(SpecFunc, funcs, iter) {
     SpecFunc const &func = *(iter.data());
     int numFormals = func.formals.count();
@@ -223,33 +249,33 @@ void astParseDDM(Environment &env, ConflictHandlers &ddm,
       if (numFormals != 1) {
         astParseError(func.name, "'dup' function must have one formal parameter");
       }
-      ddm.dupParam = func.nthFormal(0);
-      ddm.dupCode = func.code;
+      sym->dupParam = func.nthFormal(0);
+      sym->dupCode = func.code;
     }
 
     else if (func.name.equals("del")) {
       if (numFormals == 0) {
         // not specified is ok, since it means the 'del' function
         // doesn't use its parameter
-        ddm.delParam = NULL;
+        sym->delParam = NULL;
       }
       else if (numFormals == 1) {
-        ddm.delParam = func.nthFormal(0);
+        sym->delParam = func.nthFormal(0);
       }
       else {
         astParseError(func.name, "'del' function must have either zero or one formal parameters");
       }
-      ddm.delCode = func.code;
+      sym->delCode = func.code;
     }
 
     else if (func.name.equals("merge")) {
-      if (mergeOk) {
+      if (nonterm) {
         if (numFormals != 2) {
           astParseError(func.name, "'merge' function must have two formal parameters");
         }
-        ddm.mergeParam1 = func.nthFormal(0);
-        ddm.mergeParam2 = func.nthFormal(1);
-        ddm.mergeCode = func.code;
+        nonterm->mergeParam1 = func.nthFormal(0);
+        nonterm->mergeParam2 = func.nthFormal(1);
+        nonterm->mergeCode = func.code;
       }
       else {
         astParseError(func.name, "'merge' can only be applied to nonterminals");
@@ -257,15 +283,28 @@ void astParseDDM(Environment &env, ConflictHandlers &ddm,
     }
 
     else if (func.name.equals("keep")) {
-      if (mergeOk) {
+      if (nonterm) {
         if (numFormals != 1) {
           astParseError(func.name, "'keep' function must have one formal parameter");
         }
-        ddm.keepParam = func.nthFormal(0);
-        ddm.keepCode = func.code;
+        nonterm->keepParam = func.nthFormal(0);
+        nonterm->keepCode = func.code;
       }
       else {
         astParseError(func.name, "'keep' can only be applied to nonterminals");
+      }
+    }
+
+    else if (func.name.equals("classify")) {
+      if (term) {
+        if (numFormals != 1) {
+          astParseError(func.name, "'classify' function must have one formal parameter");
+        }
+        term->classifyParam = func.nthFormal(0);
+        term->classifyCode = func.code;
+      }
+      else {
+        astParseError(func.name, "'classify' can only be applied to terminals");
       }
     }
 
@@ -281,13 +320,10 @@ void astParseNonterm(Environment &env, NontermDecl const *nt)
 {
   LocString const &name = nt->name;
 
-  // check for already declared
-  if (env.nontermDecls.isMapped(name)) {
-    astParseError(name, "nonterminal already declared");
-  }
+  // get the Grammar object that represents the nonterminal
+  Nonterminal *nonterm = env.g.findNonterminal(name);
+  xassert(nonterm);
 
-  // make the Grammar object to represent the new nonterminal
-  Nonterminal *nonterm = env.g.getOrMakeNonterminal(name);
   nonterm->type = nt->type;
 
   // iterate over the productions
@@ -296,7 +332,7 @@ void astParseNonterm(Environment &env, NontermDecl const *nt)
   }
 
   // parse dup/del/merge
-  astParseDDM(env, nonterm->ddm, nt->funcs, true /*mergeOk*/);
+  astParseDDM(env, nonterm, nt->funcs);
 }
 
 
@@ -360,6 +396,13 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
     if (isString  &&  !term) {
       astParseError(symName, "terminals must be declared");
     }
+    
+    if (!term && !nonterm) {
+      astParseErrorCont(symName, "undeclared symbol");
+      
+      // synthesize one anyway so we can find more errors
+      nonterm = env.g.getOrMakeNonterminal(symName);
+    }
 
     // whenever we see a terminal, copy its precedence spec to
     // the production; thus, the last symbol appearing in the
@@ -373,13 +416,8 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
     if (nonterm) {
       s = nonterm;            // could do these two with a bitwise OR
     }                         // if I were feeling extra clever today
-    else if (term) {
-      s = term;
-    }
     else {
-      // not declared as either; I require all tokens to be
-      // declared, so this must be a new nonterminal
-      s = env.g.getOrMakeNonterminal(symName);
+      s = term;
     }
 
     if (s->isEmptyString) {

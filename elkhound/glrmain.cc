@@ -2,6 +2,8 @@
 // simple 'main' to parse a file
 
 #include <iostream.h>     // cout
+#include <stdlib.h>       // exit
+
 #include "trace.h"        // traceAddSys
 #include "parssppt.h"     // ParseTreeAndTokens, treeMain
 #include "ckheap.h"       // malloc_stats
@@ -20,7 +22,10 @@ void doit(int argc, char **argv)
   ParseTreeAndTokens tree(treeTop);
   UserActions *user = makeUserActions(tree.lexer2.idTable);
   tree.userAct = user;
-  treeMain(tree, argc, argv);
+  if (!treeMain(tree, argc, argv)) {
+    // parse error
+    exit(2);
+  }
 
   cout << "final parse result: " << treeTop << endl;
 

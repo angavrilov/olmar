@@ -83,29 +83,35 @@ public:
   // does return false, then 'sval' is an owner pointer (the parser engine
   // will drop the value on the floor)
   virtual bool keepNontermValue(int nontermId, SemanticValue sval)=0;
+  
+  // every time a token is pulled from the lexer, this reclassifier is
+  // used to give the user a chance to reinterpret the token, before it
+  // is used for reduction lookahead comparisons
+  virtual int reclassifyToken(int oldTokenType, SemanticValue sval)=0;
 };
 
 
 // for derived classes, the list of functions to be declared
 // (this macro used by the generated code)
-#define USER_ACTION_FUNCTIONS                                \
-  virtual SemanticValue doReductionAction(                   \
-    int productionId, SemanticValue *svals);                 \
-                                                             \
-  virtual SemanticValue duplicateTerminalValue(              \
-    int termId, SemanticValue sval);                         \
-  virtual SemanticValue duplicateNontermValue(               \
-    int nontermId, SemanticValue sval);                      \
-                                                             \
-  virtual void deallocateTerminalValue(                      \
-    int termId, SemanticValue sval);                         \
-  virtual void deallocateNontermValue(                       \
-    int nontermId, SemanticValue sval);                      \
-                                                             \
-  virtual SemanticValue mergeAlternativeParses(              \
-    int ntIndex, SemanticValue left, SemanticValue right);   \
-                                                             \
-  virtual bool keepNontermValue(int nontermId, SemanticValue sval);
-
+#define USER_ACTION_FUNCTIONS                                          \
+  virtual SemanticValue doReductionAction(                             \
+    int productionId, SemanticValue *svals);                           \
+                                                                       \
+  virtual SemanticValue duplicateTerminalValue(                        \
+    int termId, SemanticValue sval);                                   \
+  virtual SemanticValue duplicateNontermValue(                         \
+    int nontermId, SemanticValue sval);                                \
+                                                                       \
+  virtual void deallocateTerminalValue(                                \
+    int termId, SemanticValue sval);                                   \
+  virtual void deallocateNontermValue(                                 \
+    int nontermId, SemanticValue sval);                                \
+                                                                       \
+  virtual SemanticValue mergeAlternativeParses(                        \
+    int ntIndex, SemanticValue left, SemanticValue right);             \
+                                                                       \
+  virtual bool keepNontermValue(int nontermId, SemanticValue sval);    \
+                                                                       \
+  virtual int reclassifyToken(int oldTokenType, SemanticValue sval);
 
 #endif // USERACT_H

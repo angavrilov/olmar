@@ -23,74 +23,16 @@
 StringTable grammarStringTable;
 
 
-// ----------------- ConflictHandlers -----------------
-ConflictHandlers::ConflictHandlers()
-  : dupParam(NULL),
-    delParam(NULL),
-    mergeParam1(NULL),
-    mergeParam2(NULL),
-    keepParam(NULL)
-{}
-
-ConflictHandlers::~ConflictHandlers()
-{}
-
-ConflictHandlers::ConflictHandlers(Flatten&)
-  : dupParam(NULL),
-    delParam(NULL),
-    mergeParam1(NULL),
-    mergeParam2(NULL),
-    keepParam(NULL)
-{}
-
-void ConflictHandlers::xfer(Flatten &flat)
-{
-  flattenStrTable->xfer(flat, dupParam);
-  dupCode.xfer(flat);
-
-  flattenStrTable->xfer(flat, delParam);
-  delCode.xfer(flat);
-
-  flattenStrTable->xfer(flat, mergeParam1);
-  flattenStrTable->xfer(flat, mergeParam2);
-  mergeCode.xfer(flat);
-
-  flattenStrTable->xfer(flat, keepParam);
-  keepCode.xfer(flat);
-}
-
-
-bool ConflictHandlers::anyNonNull() const
-{
-  return dupCode.isNonNull() ||
-         delCode.isNonNull() ||
-         mergeCode.isNonNull() ||
-         keepCode.isNonNull();
-}
-
-
-void ConflictHandlers::print(ostream &os) const
-{
-  if (dupCode.isNonNull()) {
-    os << "    dup(" << dupParam << ") [" << dupCode << "]\n";
-  }
-
-  if (delCode.isNonNull()) {
-    os << "    del(" << (delParam? delParam : "") << ") [" << delCode << "]\n";
-  }
-
-  if (mergeCode.isNonNull()) {
-    os << "    merge(" << mergeParam1 << ", " << mergeParam2
-       << ") [" << mergeCode << "]\n";
-  }
-
-  if (keepCode.isNonNull()) {
-    os << "    keep(" << keepParam << ") [" << keepCode << "]\n";
-  }
-}
-
-
 // ---------------------- Symbol --------------------
+Symbol::Symbol(LocString const &n, bool t, bool e = false)
+  : name(n),
+    isTerm(t),
+    isEmptyString(e),
+    type(NULL),
+    dupParam(NULL),
+    delParam(NULL)
+{}
+
 Symbol::~Symbol()
 {}
 
@@ -100,7 +42,8 @@ Symbol::Symbol(Flatten &flat)
     isTerm(false),
     isEmptyString(false),
     type(NULL),
-    ddm()
+    dupParam(NULL),
+    delParam(NULL)
 {}
 
 void Symbol::xfer(Flatten &flat)
@@ -111,7 +54,12 @@ void Symbol::xfer(Flatten &flat)
   flat.xferBool(const_cast<bool&>(isEmptyString));
 
   flattenStrTable->xfer(flat, type);
-  ddm.xfer(flat);
+  
+  flattenStrTable->xfer(flat, dupParam);
+  dupCode.xfer(flat);
+
+  flattenStrTable->xfer(flat, delParam);
+  delCode.xfer(flat);
 }
 
 
@@ -140,7 +88,7 @@ void Symbol::print(ostream &os) const
 void Symbol::printDDM(ostream &os) const
 {
   // don't print anything if no handlers
-  if (!ddm.anyNonNull()) return;
+  if (!anyDDM()) return;
 
   // print with roughly the same syntax as input
   os << "  " << (isTerminal()? "token" : "nonterm");
@@ -149,41 +97,76 @@ void Symbol::printDDM(ostream &os) const
   }
   os << " " << name << " {\n";
 
-  ddm.print(os);
+  internalPrintDDM(os);
 
   os << "  }\n";
+}
+
+
+void Symbol::internalPrintDDM(ostream &os) const
+{
+  if (dupCode.isNonNull()) {
+    os << "    dup(" << dupParam << ") [" << dupCode << "]\n";
+  }
+
+  if (delCode.isNonNull()) {
+    os << "    del(" << (delParam? delParam : "") << ") [" << delCode << "]\n";
+  }
+}
+
+
+bool Symbol::anyDDM() const
+{
+  return dupCode.isNonNull() ||
+         delCode.isNonNull();
 }
 
 
 Terminal const &Symbol::asTerminalC() const
 {
   xassert(isTerminal());
-  return (Terminal&)(*this);
+  return (Terminal const &)(*this);
 }
 
 Nonterminal const &Symbol::asNonterminalC() const
 {
   xassert(isNonterminal());
-  return (Nonterminal&)(*this);
+  return (Nonterminal const &)(*this);
 }
+
+
+Terminal const *Symbol::ifTerminalC() const
+{
+  return isTerminal()? (Terminal const *)this : NULL;
+}
+
+Nonterminal const *Symbol::ifNonterminalC() const
+{
+  return isNonterminal()? (Nonterminal const *)this : NULL;
+}
+
 
 
 // -------------------- Terminal ------------------------
 Terminal::Terminal(Flatten &flat)
   : Symbol(flat),
-    alias(flat)
+    alias(flat),
+    classifyParam(NULL)
 {}
 
 void Terminal::xfer(Flatten &flat)
 {
   Symbol::xfer(flat);
 
-  alias.xfer(flat);        
+  alias.xfer(flat);
 
   flat.xferInt(precedence);
   flat.xferInt((int&)associativity);
 
   flat.xferInt(termIndex);
+
+  flattenStrTable->xfer(flat, classifyParam);
+  classifyCode.xfer(flat);
 }
 
 
@@ -195,6 +178,23 @@ void Terminal::print(ostream &os) const
   }
   os << " ";
   Symbol::print(os);
+}
+
+
+void Terminal::internalPrintDDM(ostream &os) const
+{
+  Symbol::internalPrintDDM(os);
+
+  if (classifyCode.isNonNull()) {
+    os << "    classify(" << classifyParam << ") [" << classifyCode << "]\n";
+  }
+}
+
+
+bool Terminal::anyDDM() const
+{
+  return Symbol::anyDDM() ||
+         classifyCode.isNonNull();
 }
 
 
@@ -212,6 +212,9 @@ string Terminal::toString() const
 // ----------------- Nonterminal ------------------------
 Nonterminal::Nonterminal(LocString const &name, bool isEmpty)
   : Symbol(name, false /*terminal*/, isEmpty),
+    mergeParam1(NULL),
+    mergeParam2(NULL),
+    keepParam(NULL),
     ntIndex(-1),
     cyclic(false),
     first(),
@@ -223,12 +226,22 @@ Nonterminal::~Nonterminal()
 
 
 Nonterminal::Nonterminal(Flatten &flat)
-  : Symbol(flat)
+  : Symbol(flat),
+    mergeParam1(NULL),
+    mergeParam2(NULL),
+    keepParam(NULL)
 {}
 
 void Nonterminal::xfer(Flatten &flat)
 {
   Symbol::xfer(flat);
+
+  flattenStrTable->xfer(flat, mergeParam1);
+  flattenStrTable->xfer(flat, mergeParam2);
+  mergeCode.xfer(flat);
+
+  flattenStrTable->xfer(flat, keepParam);
+  keepCode.xfer(flat);
 }
 
 void Nonterminal::xferSerfs(Flatten &flat, Grammar &g)
@@ -272,6 +285,29 @@ void Nonterminal::print(ostream &os) const
   // follow
   os << " follow=";
   printTerminalSet(os, follow);
+}
+
+
+void Nonterminal::internalPrintDDM(ostream &os) const
+{
+  Symbol::internalPrintDDM(os);
+  
+  if (mergeCode.isNonNull()) {
+    os << "    merge(" << mergeParam1 << ", " << mergeParam2
+       << ") [" << mergeCode << "]\n";
+  }
+
+  if (keepCode.isNonNull()) {
+    os << "    keep(" << keepParam << ") [" << keepCode << "]\n";
+  }
+}
+
+
+bool Nonterminal::anyDDM() const
+{
+  return Symbol::anyDDM() ||
+         mergeCode.isNonNull() ||
+         keepCode.isNonNull();
 }
 
 

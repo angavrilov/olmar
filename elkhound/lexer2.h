@@ -22,6 +22,10 @@ enum Lexer2TokenType {
   // non-keyword name
   L2_NAME,
 
+  // classified name (for e.g. cdecl2)
+  L2_TYPE_NAME,
+  L2_VARIABLE_NAME,
+
   // literals
   L2_INT_LITERAL,
   L2_FLOAT_LITERAL,

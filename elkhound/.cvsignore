@@ -71,3 +71,6 @@ cexp3ast.gen.*
 cdecl.gen.*
 cdecl.bin
 cdecl
+cdecl2.gen.*
+cdecl2.bin
+cdecl2

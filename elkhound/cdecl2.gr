@@ -1,6 +1,6 @@
-// cdecl.gr
+// cdecl2.gr
 // demonstration of resolving C ident/type ambiguity
-// cdecl solves it using reduction cancellation (cf. cdecl2)
+// cdecl2 solves the problem using token reclassification (cf. cdecl)
 
 verbatim ParseEnv [
 
@@ -33,7 +33,7 @@ public:
 
   // declarations for the generated code
   USER_ACTION_FUNCTIONS
-  #include "cdecl.gen.h"
+  #include "cdecl2.gen.h"
 };
 
 
@@ -91,31 +91,6 @@ bool ParseEnv::isType(StringRef name)
   return false;
 }
 
-
-#if 0
-void doit(int argc, char **argv)
-{
-  traceAddSys("progress");
-  //traceAddSys("parse-tree");
-
-  SemanticValue treeTop;
-  ParseTreeAndTokens tree(treeTop);
-  ParseEnv env(tree);
-  treeMain(tree, argc, argv);
-
-  cout << "final parse result: " << treeTop << endl;
-}
-
-int main(int argc, char **argv)
-{
-  doit(argc, argv);
-
-  //malloc_stats();
-
-  return 0;
-}
-#endif // 0
-
 ] // end verbatim
 
 
@@ -124,21 +99,45 @@ terminals {
   include("cc.tok")
 
   token[StringRef] L2_NAME {
-    dup(s) [ return s; ]
-    del()  []
+    // every time I pull an L2_NAME from the lexer, this code is
+    // run to possibly reclassify the token kind; the semantic
+    // value is passed (and ParseEnv is available as context), but
+    // the same semantic value will be used
+    classify(s) [
+      if (isType(s)) {
+        return L2_TYPE_NAME;
+      }
+      else {
+        return L2_VARIABLE_NAME;
+      }
+    ]
   }
+
+  token[StringRef] L2_TYPE_NAME;
+  token[StringRef] L2_VARIABLE_NAME;
 }
 
 
-nonterm[int] Start -> Stmts L2_EOF  [
-  D("exiting scope");
+nonterm Start -> Toplevel L2_EOF ;
+
+nonterm Toplevel -> EnterScope Stmts LeaveScope ;
+
+// these are placed at strategic points to get scoping right
+nonterm EnterScope -> empty    [
+  D("entering scope"); 
+  enterScope(); 
+  R0;
+]
+
+nonterm LeaveScope -> empty     [
+  D("exiting scope"); 
   leaveScope();
   R0;
 ]
 
-nonterm[int] Stmts {
-  -> empty         [ D("entering scope"); enterScope(); R0; ]
-  -> Stmts Stmt    [ R0; ]
+nonterm Stmts {
+  -> empty         ;
+  -> Stmts Stmt    ;
 }
 
 nonterm[int] Stmt {
@@ -150,31 +149,40 @@ nonterm[int] Stmt {
        D("call of " << f << " with arg " << a); R0;
      ]
 
-  -> "typedef" t:TypeName n:L2_NAME ";" [    // typedef: introduce type name
+  -> Typedef ";" ;
+
+  -> "{" EnterScope Stmts LeaveScope "}" ;    // scope
+}
+
+// this has to be pulled out so its reduction occurs before we
+// finish with the terminating semicolon, so the interaction order
+// is correct (if the token that follows the semicolon is a name,
+// it might be the name in this typedef, so we need to update the
+// environment before attempting to classify it)
+nonterm Typedef
+  -> "typedef" t:TypeName n:Name      [    // typedef: introduce type name
        D("typedef of " << n << " as type " << t);
        addType(n);
        R0;
      ]
 
-  -> "{" Stmts "}"                      [    // scope
-       D("exiting scope"); leaveScope(); R0;
-     ]
-}
-
 nonterm[StringRef] VarName {
-  keep(n)          [ return !isType(n); ]
-
-  -> n:L2_NAME     [ return n; ]
+  -> n:L2_VARIABLE_NAME     [ return n; ]
 }
 
 nonterm[StringRef] TypeName {
-  keep(n)          [ return isType(n); ]
-
-  -> n:L2_NAME     [ return n; ]
+  -> n:L2_TYPE_NAME         [ return n; ]
 
   // this is a little bit of a hack, but in some sense it's valid
   // to regard the global strings as another stringtable.. of course,
   // equality won't work, but I don't need it for the moment
-  -> L2_INT        [ return intType; ]
+  -> L2_INT                 [ return intType; ]
 }
 
+// having classified these apart, there are some situations where
+// the name is being defined, so it doesn't matter what kind of
+// thing it might have been before
+nonterm[StringRef] Name {
+  -> n:L2_VARIABLE_NAME     [ return n; ]
+  -> n:L2_TYPE_NAME         [ return n; ]
+}

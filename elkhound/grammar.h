@@ -52,42 +52,6 @@ typedef LocString LiteralCode;
 extern StringTable grammarStringTable;
 
 
-// --------------- ConflictHandlers --------------
-// this packages user's code that handles runtime ambiguity
-class ConflictHandlers {
-public:
-  StringRef dupParam;       // name of parameter to 'dup'
-  LocString dupCode;        // code to duplicate a semantic value
-  
-  StringRef delParam;       // param name; may be NULL to indicate not used
-  LocString delCode;        // code
-
-  StringRef mergeParam1;    // param name for first alternative
-  StringRef mergeParam2;    // and 2nd alt
-  LocString mergeCode;      // code to resolve then
-  
-  StringRef keepParam;      // name of parameter to 'keep'
-  LocString keepCode;       // code to decide whether to keep a reduction
-
-public:
-  ConflictHandlers();
-  ~ConflictHandlers();
-
-  ConflictHandlers(Flatten&);
-  void xfer(Flatten &flat);
-  
-  // true if any of the code is not null
-  bool anyNonNull() const;
-                                
-  // print as
-  //   dup(..) [...]
-  //   del...
-  //   merge...
-  // (with newlines)
-  void print(ostream &os) const;
-};
-
-
 // ---------------- Symbol --------------------
 // either a nonterminal or terminal symbol
 class Symbol {
@@ -99,11 +63,18 @@ public:
   bool const isEmptyString; // true only for the emptyString nonterminal
 
   StringRef type;           // C type of semantic value
-  ConflictHandlers ddm;     // dup/del/merge handlers
 
-public:
-  Symbol(LocString const &n, bool t, bool e = false)
-    : name(n), isTerm(t), isEmptyString(e), type(NULL), ddm() {}
+  StringRef dupParam;       // name of parameter to 'dup'
+  LocString dupCode;        // code to duplicate a semantic value
+
+  StringRef delParam;       // param name; may be NULL to indicate not used
+  LocString delCode;        // code
+
+protected:  // funcs  
+  virtual void internalPrintDDM(ostream &os) const;
+
+public:      // funcs
+  Symbol(LocString const &n, bool t, bool e = false);
   virtual ~Symbol();
 
   Symbol(Flatten&);
@@ -126,6 +97,15 @@ public:
   Nonterminal &asNonterminal()
     { return const_cast<Nonterminal&>(asNonterminalC()); }
 
+  // cast or NULL
+  Terminal const *ifTerminalC() const;
+  Terminal *ifTerminal()
+    { return const_cast<Terminal*>(ifTerminalC()); }
+
+  Nonterminal const *ifNonterminalC() const;
+  Nonterminal *ifNonterminal() 
+    { return const_cast<Nonterminal*>(ifNonterminalC()); }
+
   // debugging
   // print as '$name: isTerminal=$isTerminal' (no newline)
   virtual void print(ostream &os) const;
@@ -133,6 +113,9 @@ public:
 
   // print 'token[type] name { dup.. del.. merge.. }' (with newlines)
   void printDDM(ostream &os) const;
+
+  // true if any of the handlers were specified
+  virtual bool anyDDM() const;
 
   virtual string toString() const { return string(name); }
 };
@@ -177,10 +160,16 @@ public:     // data
   // then the associativity kind will be used to decide which to use
   AssocKind associativity;
 
+  StringRef classifyParam;      // name of parameter to 'classify'
+  LocString classifyCode;       // code to reclassify a token type
+
 // ------ annotation ------
 public:     // data
   // terminal class index - this terminal's id; -1 means unassigned
   int termIndex;
+
+protected:  // funcs  
+  virtual void internalPrintDDM(ostream &os) const;
 
 public:     // funcs
   Terminal(LocString const &name)        // canonical name for terminal class
@@ -188,6 +177,7 @@ public:     // funcs
       alias(),
       precedence(0),
       associativity(AK_NONASSOC),
+      classifyParam(NULL),
       termIndex(-1)
   {}
 
@@ -196,6 +186,8 @@ public:     // funcs
 
   virtual void print(ostream &os) const;
   OSTREAM_OPERATOR(Terminal)
+
+  virtual bool anyDDM() const;
 
   // return alias if defined, name otherwise
   virtual string toString() const;
@@ -221,6 +213,18 @@ string terminalSequenceToString(TerminalList const &list);
 // something that can appear on the left-hand side of a production
 // (or, emptyString, since we classify that as a nonterminal also)
 class Nonterminal : public Symbol {
+// ---------- representation --------
+public:
+  StringRef mergeParam1;    // param name for first alternative
+  StringRef mergeParam2;    // and 2nd alt
+  LocString mergeCode;      // code to resolve then
+
+  StringRef keepParam;      // name of parameter to 'keep'
+  LocString keepCode;       // code to decide whether to keep a reduction
+
+protected:  // funcs  
+  virtual void internalPrintDDM(ostream &os) const;
+
 public:     // funcs
   Nonterminal(LocString const &name, bool isEmptyString=false);
   virtual ~Nonterminal();
@@ -231,6 +235,8 @@ public:     // funcs
 
   virtual void print(ostream &os) const;
   OSTREAM_OPERATOR(Nonterminal)
+
+  virtual bool anyDDM() const;
 
 // ------ annotation ------
 public:     // data
