@@ -180,6 +180,46 @@ void astParseOptions(Grammar &g, GrammarAST *ast)
         // overwrite the context class name, and append to
         // its body verbatim list
         g.actionClassName = extractActionClassName(c->body);
+
+        // 11/13/04: There is a subtle problem with keeping the body
+        // from the base specification, when the following conditions
+        // hold:
+        //   - the base spec is compiled on its own (w/o the extension)
+        //   - some translation unit "A" sees the resulting .gr.gen.h file
+        //   - the extension spec is compiled
+        //   - some translation unit "B" sees the resulting .gr.gen.h file
+        //   - A and B are linked together in one executable
+        // In that case, the context_class from the base will have an
+        // inconsistent definition in A and B, since in A it will be
+        // whatever the user wrote plus, the declarations for the
+        // action functions, whereas in B it will be just what the
+        // user wrote, since the action functions end up in the
+        // extension context_class.
+        //
+        // What is even more subtle is the *manifestation* of this
+        // problem, which is linking problems with vtables.  C++
+        // compilers do not explicitly check that classes declared in
+        // multiple translation units have identical declarations
+        // (token for token), but they *do* of course rely on them
+        // being so.  That reliance shows up in the decisions
+        // regarding which module has the vtable, among other places.
+        // So this problem did not show up immediately, and was only
+        // revealed as initially mysterious portability problems
+        // (since my development toolchain happend to be fairly
+        // lenient w.r.t. vtable placement).
+        //
+        // Therefore the new policy is that context_classes from the
+        // base are *not* emitted, and consequently it is impossible
+        // to inherit from them in subsequent context_classes.  The
+        // user must put data/functions that are meant to be shared
+        // into a common base class that is *not* the context_class
+        // of any grammar or extension.
+        //
+        // old:
+        //g.actionClasses.append(new LocString(c->body));
+        //
+        // new:
+        g.actionClasses.deleteAll();
         g.actionClasses.append(new LocString(c->body));
       }
 

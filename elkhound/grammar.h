@@ -467,7 +467,8 @@ public:	    // data
   LocString actionClassName;
 
   // verbatim action class declaration, and additional codes from
-  // extension modules to append to it
+  // extension modules to append to it (but see note of 11/13/04
+  // in grampar.cc)
   ObjList<LocString> actionClasses;
 
   // code emitted into the implementation file at the end
