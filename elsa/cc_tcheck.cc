@@ -1318,7 +1318,7 @@ CompoundType *checkClasskeyAndName(
     }
 
     // do it
-    ct = env.lookupPQCompound(name, dflags, lflags);
+    ct = env.lookupPQCompound(name, lflags);
 
     // failed lookup is cause for immediate abort in a couple of cases
     if (!ct &&
@@ -1530,7 +1530,6 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
   dflags |= DF_DEFINITION;
-  dflags |= DF_TYPEDEF;
 
   // if we're on the second pass, then skip almost everything
   if (env.secondPassTcheck) {

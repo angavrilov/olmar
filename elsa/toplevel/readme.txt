@@ -7,8 +7,8 @@ Elkhound is a parser generator.
 Elsa is a C/C++ parser that uses Elkhound.
 
 See additional documentation in index.html in the various 
-subdirectories.  You'll need to say "make doc" (after ./configure)
-for some of the links to work.
+subdirectories.  You'll need to say "make doc" (after "./configure"
+and "make") for some of the links to work.
 
 Alternatively, see the Documentation section of
 http://www.cs.berkeley.edu/~smcpeak/elkhound/ .

@@ -244,11 +244,18 @@ gendoc/3.4.5.dot: ccparse in/std/3.4.5.cc
 	./ccparse -tr printHierarchies in/std/3.4.5.cc | \
 	perl ./chop_out "--- E ---" "--- F ---" >$@
 
+# because of the above dependency on ccparse, if someone does 'make doc'
+# without first building Elsa, they get an error about libsmbase.a; so
+# this is an attempt to deal with that more gracefully
+$(SMBASE)/libsmbase.a:
+	@echo "You have to build smbase, ast and elkhound first."
+	@exit 2
+
 # check to see if they have dot
 .PHONY: dot
 dot:
 	@if ! which dot >/dev/null; then \
-	  echo "You don't have the 'dot' tool.  You can get it at:"; \
+	  echo "You don't have the 'dot' tool.  It is part of graphviz, available at:"; \
 	  echo "http://www.research.att.com/sw/tools/graphviz/"; \
 	  exit 2; \
 	fi
