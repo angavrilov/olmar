@@ -3,88 +3,122 @@
                                         (* An intermediate language for 
                                          * analyzing C programs  *)
 
+type linecol =
+    { line: int;
+      col: int;
+      file: string }
+
+type varinfo =
+    { vid: int;
+      vname: string;
+      vglob: bool;
+      vtyp: typeinfo;
+      vdecl: linecol;
+    }
+
+and fieldinfo =
+    { fname: string;
+      name: string;
+      t: typ;
+    }
+
+and typ =
+    TInt
+  | TFloat
+  | TDouble
+  | TChar
+  | Typedef of string * typ ref
+  | TPtr of typ  (* cv? *)
+  | TArray of typ  (* len *)
+  | TStruct of string * fieldinfo list
+  | TUnion of string * fieldinfo list
+
+
 type constant =
     Int of int
-  | Str of identifier
-  | Chr of identifier
-  | Real of identifier
-  
-                                        (* Unary operators *)
-type unop = 
-    Neg                                 (* unary - *)
-  | Not                                 (* ! *)
-  | BitNot                              (* ~ *)
+  | Str of string
+  | Chr of char
+  | Real of float
 
-                                        (* Commutative binary operators *)
-type combinop = 
-    Plus
-  | Mult
-  | And
-  | Ior                                 (* inclusive-or *)
-  | Xor                                 (* exclusive-or *)
+                                        (* Unary operators *)
+type unop =
+    Neg                                 (* unary - *)
+  | BNot                                (* ~ *)
+  | LNot                                (* ! *)
+
 
                                         (* Other binary operations *)
-and binop = 
-    Minus
+and binop =
+    Plus
+  | Minus
+  | Mult
   | Div
-  | Udiv                                (* unsigned division *)
   | Mod
-  | Umod                                (* unsigned modulo *)
 
-  | Ashift
-  | Lshiftrt
-  | Ashiftrt
-  | Rotate
-  | Rotatert
+  | BAnd
+  | BOr                                 (* inclusive-or *)
+  | BXor                                 (* exclusive-or *)
+
+  | Shiftlt                             (* shift left *)
+  | Shiftrt
+
+  | LAnd    (* don't need these it turns out *)
+  | LOr
                                         (* Comparison operations *)
   | Eq
   | Ne
   | Gt
-  | Gtu
   | Lt
-  | Ltu
   | Ge
-  | Geu
   | Le
-  | Leu
 
 
                                         (* Expressions. No side-effects ! *)
 type exp =
-    Const      of constant
+    Const      of constant * linecol
   | Lval       of lval                  (* l-values *)
-  | UnOp       of unop * exp
-  | BinOp      of binop * exp * exp
-  | ComBinOp   of combinop * exp * exp
-  | CastE      of typeinfo * exp
-  | AddrOf     of lval                  (* & e *)
+  | UnOp       of unop * exp * linecol
+  | BinOp      of binop * exp * exp * linecol
+  | CastE      of typeinfo * exp * linecol
+  | AddrOf     of lval * linecol
 
                                         (* L-values *)
 and lval =
-    Global     of string
-  | Local      of int * varinfo         (* an indentifier and some other info*)
-  | Deref      of exp                   (* *e *)
-  | Field      of exp * fieldinfo       (* e.f *)
-  | CastL      of typeinfo * lval
+  | Var        of varinfo * linecol     (* an identifier and some other info*)
+  | Deref      of exp * linecol          (* *e *)
+  | Field      of lval * fieldinfo * linecol(* e.f *)
+  | CastL      of typeinfo * exp * linecol
   | ArrayElt   of exp * exp             (* array, index *)
 
                                         (* Instructions. Can have side-effects
                                          * but no control flow *)
-and instr = 
-    Set        of lval * exp            (* An assignment *)
-                                        (* result, function address, argument 
+and instr =
+    Set        of lval * exp * linecol  (* An assignment *)
+                                        (* result, function address, argument
                                          * list *)
-  | Call       of lval * exp * exp list
-                  (* Represents one output of an ASM. The template, the 
-                   * output operand constraint, the index of the output 
-                   * operand and the inputs *)
-  | Asm        of string * string * (exp * string) list
-  
-and 'a bblock = 
-    { id:      int;                     (* An identifier *)
-      ins:     instr list;
-      succ:    'a successor;
-      info:    'a;                      (* Some custom information *)
-    } 
+  | Call       of lval * exp * exp list * linecol
 
-    
+  | Asm        of string
+
+and successor =
+    Return of exp * linecol
+  | If of exp * bblock * bblock * bool(*loop hint*) * linecol
+  | Switch of exp * (constant * bblock) list * bblock(*default*) * linecol
+  | Jump of bblock ref * linecol    (*leaving?*)
+
+
+and bblock =
+    {          id:     int;            (* An identifier. Starts at 0 and
+                                         * grows breadth-first through If and
+                                         * Switch  *)
+              ins:     instr list;
+              succ:    successor;
+      mutable nrpred:  int
+    }
+
+and program =
+   list of top_level_declations
+
+top_level_declarations =
+   Function of string * typeinfo * bblock * (locals list, push local initializers into body)
+ | Global of string * typeinfo * whatever * initializer * ...
