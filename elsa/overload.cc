@@ -447,8 +447,16 @@ int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *
   for (int i=0; i < args.size(); i++) {
     // get parameter types; they can be NULL if we walk off into the ellipsis
     // of a variable-argument function
-    Type const *leftDest = leftParam.isDone()? NULL : leftParam.data()->type;
-    Type const *rightDest = rightParam.isDone()? NULL : rightParam.data()->type;
+    Type const *leftDest = NULL;
+    if (!leftParam.isDone()) {
+      leftDest = leftParam.data()->type;
+      leftParam.adv();
+    }
+    Type const *rightDest = NULL;
+    if (!rightParam.isDone()) {
+      rightDest = rightParam.data()->type;
+      rightParam.adv();
+    }
 
     int choice = compareConversions(args[i], left->conversions[i], leftDest,
                                              right->conversions[i], rightDest);

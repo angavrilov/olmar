@@ -420,6 +420,9 @@ testparse d0036.cc
 testparse d0037.cc
 testparse d0038.cc
 testparse d0039.cc
+# break
+testparse d0048.cc
+testparse d0048elab.cc
 
 # examples from C++ standard
 #
@@ -516,13 +519,11 @@ failnsparse() {
   failTest "$2" ./ccparse -tr $TR_FLAGS "$1"
 }
 
-# FIX: these tests are all failing for the same reason, which is
-# isolated in d0048*.cc
-# testnsparse in/big/nsAtomTable.i
-# testnsparse in/big/nsSOAPPropertyBag.i
+testnsparse in/big/nsAtomTable.i
+testnsparse in/big/nsSOAPPropertyBag.i
 testnsparse in/big/nsCLiveconnectFactory.i
-# testnsparse in/big/nsHTMLEditRules.i
-# testnsparse in/big/nsMsgServiceProvider.i
+testnsparse in/big/nsHTMLEditRules.i
+testnsparse in/big/nsMsgServiceProvider.i
 testnsparse in/big/nsUnicodeToTeXCMRt1.i
 
 testnsparse in/big/nonport.i
