@@ -16,6 +16,7 @@
 #define __GLRTREE_H
 
 #include "grammar.h"     // Symbol, Production, etc.
+#include "attr.h"        // Attributes
 
 
 // forward decls for things declared below
@@ -33,10 +34,13 @@ public:	    // data
   enum NodeType { TERMINAL, NONTERMINAL };
   NodeType const type;
 
+  // attributes associated with the node
+  Attributes attr;
+
 public:	    // funcs
   TreeNode(NodeType t) : type(t) {}
   virtual ~TreeNode();
-				   
+
   // returns the representative symbol (terminal or nonterminal)
   virtual Symbol const *getSymbolC() const = 0;
 
@@ -89,10 +93,6 @@ public:     // data
   // they are built, but otherwise ignored, during parsing.
   ObjList<Reduction> reductions;               // this is a set
 
-  // for a variety of reasons, I store the nonterminal itself
-  // also, even though I can get it from the reductions
-  Nonterminal const * const nonterminal;
-
 public:
   // it must be given the first reduction at creation time
   NonterminalNode(Reduction *red);             // (transfer owner)
@@ -101,6 +101,9 @@ public:
   // add a new reduction; use this instead of adding directly
   // (other issues constrain me from making 'reductions' private)
   void addReduction(Reduction *red);           // (transfer owner)
+
+  // get the symbol that is the LHS of all reductions here
+  Nonterminal const *getLHS() const;
 
   // TreeNode stuff
   virtual Symbol const *getSymbolC() const;
@@ -125,7 +128,33 @@ public:
   Reduction(Production const *prod);
   ~Reduction();
 
-  void printParseTree(ostream &os, int indent) const;
+  void printParseTree(Attributes const &attr, ostream &os, int indent) const;
+};
+
+
+// during attribution, a context for evaluation is provided by a
+// list of children (a Reduction) and the attributes for the parent;
+// this structure is created at that time to carry around that
+// context, though it is not stored anywhere in the tree
+class AttrContext {
+  Attributes &att;
+  Reduction *red;      	   // (owner)
+
+public:
+  AttrContext(Attributes &a, Reduction *r)
+    : att(a), red(r) {}
+  ~AttrContext();
+
+  // access without modification
+  Reduction const &reductionC() const { return *red; }
+  Attributes const &parentAttrC() const { return att; }
+
+  // access with modification
+  Reduction &reduction() { return *red; }       	
+  Attributes &parentAttr() { return att; }
+  
+  // transfer of ownership (nullifies 'red')
+  Reduction *grabReduction();
 };
 
 

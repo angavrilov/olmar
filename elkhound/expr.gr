@@ -1,6 +1,19 @@
 # expr.gr
-# simple ambiguous-expression grammar
+# simple ambiguous expression grammar
 
 S  ->  E  $
-E  ->  x  |  E Op E
-Op ->  +  |  *
+
+E  ->  x
+  %action { E.prec = 10 }
+
+E.result  ->  E.left Op E.right
+  %action { E.result.prec = Op.prec }
+  %condition { (<= E.result.prec E.left.prec) }
+  %condition { (< E.result.prec E.right.prec) }
+    # left-associative within equal precedence
+
+Op ->  +
+  %action { Op.prec = 4 }
+
+Op ->  *
+  %action { Op.prec = 5 }

@@ -316,17 +316,6 @@ void GLR::postponeShift(StackNode *parser,
 }
 
 
-// experiment: given (a reference to), an owner pointer, yield the pointer
-// value after nullifying the given pointer
-template <class T>
-T *ownershipTransfer(T *&ptr)
-{
-  T *ret = ptr;
-  ptr = NULL;
-  return ret;
-}
-
-
 // mustUseLink: if non-NULL, then we only want to consider
 // reductions that use that link
 void GLR::doAllPossibleReductions(StackNode *parser,
@@ -389,7 +378,7 @@ void GLR::doAllPossibleReductions(StackNode *parser,
   	<< endl;
 
       // this is like shifting the reduction's LHS onto 'finalParser'
-      glrShiftNonterminal(rpath->finalState, ownershipTransfer(rpath->reduction));
+      glrShiftNonterminal(rpath->finalState, transferOwnership(rpath->reduction));
     }
   }
 }
@@ -444,7 +433,7 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     // and just collect this reduction, and the final state, in our
     // running list
     pcs.paths.append(new PathCollectionState::
-      ReductionPath(currentNode, ownershipTransfer(rn)));
+      ReductionPath(currentNode, transferOwnership(rn)));
   }
 
   else {
@@ -478,14 +467,26 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
 void GLR::glrShiftNonterminal(StackNode *leftSibling,
                               Reduction * /*(owner)*/ reduction)
 {
+  // package some things up
+  Attributes parentAttr;       // attributes for parent of reduction's children
+  Production const *prod = reduction->production;
+  AttrContext actx(parentAttr, transferOwnership(reduction));
+
+  // apply the actions and conditions for this production
+  prod->actions.fire(actx);
+  if (!prod->conditions.test(actx)) {
+    // failed to satisfy conditions
+    return;
+  }
+
   // this is like a shift -- we need to know where to go
   ItemSet const *rightSiblingState =
-    leftSibling->state->transitionC(reduction->production->left);
+    leftSibling->state->transitionC(prod->left);
 
   // debugging
   trace("parse")
     << "from state " << leftSibling->state->id
-    << ", shifting production " << *(reduction->production)
+    << ", shifting production " << *(prod)
     << ", transitioning to state " << rightSiblingState->id
     << endl;
 
@@ -497,12 +498,11 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling,
     if (sibLink != NULL) {
       // yes; don't need to add a sibling link
 
-      // however, I do need to add a new reduction node to the link
-      sibLink->treeNode->asNonterm().addReduction(reduction);
-
-      // NOTE: it is here that we are bringing the tops of two
-      // alternative parses together; thus, it is a place
-      // disambiguation might be applied
+      // +--------------------------------------------------+
+      // | it is here that we are bringing the tops of two  |
+      // | alternative parses together 	       	       	    |
+      // +--------------------------------------------------+
+      mergeAlternativeParses(sibLink->treeNode->asNonterm(), actx);
 
       // and since we didn't add a link, there is no potential for new
       // paths
@@ -512,7 +512,7 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling,
       // no, so add the link (and keep the ptr for below)
       sibLink =
         rightSibling->addSiblingLink(leftSibling,
-                                     makeNonterminalNode(reduction));
+                                     makeNonterminalNode(actx));
 
       // adding a new sibling link may have introduced additional
       // opportunties to do reductions from parsers we thought
@@ -549,7 +549,7 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling,
 
     // add the sibling link (and keep ptr for tree stuff)
     rightSibling->addSiblingLink(leftSibling,
-                                 makeNonterminalNode(reduction));
+                                 makeNonterminalNode(actx));
 
     // since this is a new parser top, it needs to become a
     // member of the frontier
@@ -560,6 +560,33 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling,
     // just created rightSibling, so no new opportunities
     // for reduction could have arisen
   }
+}
+
+
+void GLR::mergeAlternativeParses(NonterminalNode &node, AttrContext &actx)
+{
+  // we only get here if the single-tree tests have passed, but we
+  // haven't applied the multi-tree comparisons; so do that now
+  // TODO: figure out interface and specification for multi-tree
+  // comparisons
+
+  // at this point, we still have multiple trees; we require of
+  // the parser that the parent attributes MUST match exactly
+  if (actx.parentAttr() != node.attr) {
+    // there is a bug in the parser
+    cout << "PARSER GRAMMAR BUG: alternative parses have different attributes\n";
+    cout << "  existing parse(s) and attributes:\n";
+    node.printParseTree(cout, 4 /*indent*/);
+
+    cout << "  new parse and attributes:\n";
+    actx.reduction().printParseTree(actx.parentAttr(), cout, 4 /*indent*/);
+
+    xfailure("parser bug: alternative parses with different attributes");
+  }
+
+  // ok, they match; just add the reduction to the existing node
+  // (and let 'parentAttr' drop on the floor since it was the same anyway)
+  node.addReduction(actx.grabReduction());
 }
 
 
@@ -630,9 +657,10 @@ TerminalNode *GLR::makeTerminalNode(Terminal const *t)
   return ret;
 }
 
-NonterminalNode *GLR::makeNonterminalNode(Reduction *red)
+NonterminalNode *GLR::makeNonterminalNode(AttrContext &actx)
 {
-  NonterminalNode *ret = new NonterminalNode(red);
+  NonterminalNode *ret = new NonterminalNode(actx.grabReduction());
+  ret->attr.destructiveEquals(actx.parentAttr());   // effect: ret->attr = parentAttr
   treeNodes.prepend(ret);
   return ret;
 }
@@ -849,18 +877,10 @@ void GLR::glrTest(char const *grammarFname, char const *inputFname,
 
   #if 1
     // take the grammar and input from files
-    string grammar = readFileIntoString(grammarFname);
+    readFile(grammarFname);
     string input = readFileIntoString(inputFname);
 
-    // parse grammar
-    {
-      StrtokParse tok(grammar, "\n");
-      INTLOOP(i, 0, tok) {
-	parseLine(tok[i]);
-      }
-    }
-
-    // spit it out as something bison might be able to parse
+    // spit grammar out as something bison might be able to parse
     {
       ofstream bisonOut("bisongr.y");
       printAsBison(bisonOut);

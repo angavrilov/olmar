@@ -233,13 +233,14 @@ private:    // funcs
   void collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
                              StackNode *currentNode, SiblingLink *mustUseLink);
   void glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction);
+  void mergeAlternativeParses(NonterminalNode &node, AttrContext &actx);
   void glrShiftTerminals(ObjList<PendingShift> &pendingShifts);
   StackNode *findActiveParser(ItemSet const *state);
   StackNode *makeStackNode(ItemSet const *state);
   void writeParseGraph(char const *input) const;
   void clearAllStackNodes();
   TerminalNode *makeTerminalNode(Terminal const *t);
-  NonterminalNode *makeNonterminalNode(Reduction *red);
+  NonterminalNode *makeNonterminalNode(AttrContext &actx);
 
 
 public:     // funcs

@@ -13,7 +13,8 @@ tracing strings:
   progress:      poor-man's profiler (prints at each major phase)
   profiling:     slightly more detailed profiling info
   conflict:      SLR conflict printout
-  
-  
+  debug:         general temporary-printf kinds of things, meant to be removed shortly
+
+
 
 

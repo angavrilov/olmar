@@ -4,6 +4,7 @@
 #include "grammar.h"   // this module
 #include "syserr.h"    // xsyserror
 #include "strtokp.h"   // StrtokParse
+#include "trace.h"     // trace
 
 #include <stdarg.h>    // variable-args stuff
 #include <stdio.h>     // FILE, etc.
@@ -93,8 +94,13 @@ void Nonterminal::print(ostream &os) const
 
 
 // -------------------- Production -------------------------
-Production::Production(Nonterminal *L)
+Production::Production(Nonterminal *L, char const *Ltag)
   : left(L),
+    right(),
+    leftTag(Ltag),
+    rightTags(),
+    conditions(),
+    actions(),
     numDotPlaces(-1),    // so the check in getDProd will fail
     dprods(NULL)
 {}
@@ -132,15 +138,19 @@ int Production::numRHSNonterminals() const
 }
 
 
-void Production::append(Symbol *sym)
+void Production::append(Symbol *sym, char const *tag)
 {
   right.append(sym);
+  rightTags.append(new string(tag));
 }
 
 
 void Production::finished()
 {
   xassert(dprods == NULL);    // otherwise we leak
+					      
+  // invariant check
+  xassert(right.count() == rightTags.count());
 
   // compute 'dprods'
   numDotPlaces = rhsLength()+1;
@@ -166,6 +176,78 @@ void Production::finished()
   // Second, should there ever arise the desire to store additional
   // info with each dotted production, that option is easy to support.
   // (So I guess this is the real reason.)
+} 
+
+	     
+// in my infinite wisdom, I have to representations of the empty
+// string...
+bool tagEqual(char const *tag1, char const *tag2)
+{
+  if ((tag1==NULL || tag1[0]==0) &&
+      (tag2==NULL || tag2[0]==0)) {
+    return true;     // both are some form of empty string
+  }
+  
+  if (tag1==NULL || tag2==NULL) {
+    return false;    // one is empty and other isn't (and I can't call strcmp)
+  }
+  		  
+  // neither is NULL, can use strcmp
+  return 0==strcmp(tag1, tag2);
+}
+
+
+int Production::findTaggedSymbol(char const *name, char const *tag) const
+{
+  // check LHS
+  if (left->name.equals(name) &&
+      tagEqual(leftTag, tag)) {
+    return 0;
+  }
+
+  // walk RHS list looking for a match
+  ObjListIter<string> tagIter(rightTags);
+  SymbolListIter symIter(right);
+  int index=1;
+  for(; !symIter.isDone() && !tagIter.isDone();
+        symIter.adv(), tagIter.adv(), index++) {
+    if (symIter.data()->name.equals(name) &&
+        tagEqual(*(tagIter.data()), tag)) {
+      return index;
+    }
+  }
+
+  // verify same length
+  xassert(symIter.isDone() && tagIter.isDone());
+
+  // not found
+  return -1;
+}
+
+
+// assemble a possibly tagged name for printing
+string taggedName(char const *name, char const *tag)
+{
+  if (tag == NULL || tag[0] == 0) {
+    return string(name);
+  }
+  else {
+    return stringb(name << "." << tag);
+  }
+}
+
+
+string Production::taggedSymbolName(int index) const
+{
+  // check LHS
+  if (index == 0) {
+    return taggedName(left->name, leftTag);
+  }
+
+  // find index in RHS list
+  index--;
+  return taggedName(right.nthC(index)->name,
+                    *(rightTags.nthC(index)));
 }
 
 
@@ -186,12 +268,29 @@ string Production::toString() const
 {
   stringBuilder sb;
 
-  sb << left->name << " ->";
+  sb << taggedName(left->name, leftTag) << " ->";
 
-  for (SymbolListIter iter(right); !iter.isDone(); iter.adv()) {
-    sb << " " << iter.data()->name;
+  ObjListIter<string> tagIter(rightTags);
+  SymbolListIter symIter(right);
+  for(; !symIter.isDone() && !tagIter.isDone();
+        symIter.adv(), tagIter.adv()) {
+    sb << " " << taggedName(symIter.data()->name, *(tagIter.data()));
   }
 
+  // verify both lists were same length
+  xassert(symIter.isDone() && tagIter.isDone());
+
+  return sb;
+}
+
+
+string Production::toStringWithActions() const
+{
+  stringBuilder sb;
+  sb << toString() << "\n"
+     << actions.toString(this) 
+     << conditions.toString(this)
+     ;
   return sb;
 }
 
@@ -498,9 +597,7 @@ void Grammar::printProductions(ostream &os) const
   os << "Grammar productions:\n";
   for (ObjListIter<Production> iter(productions);
        !iter.isDone(); iter.adv()) {
-    os << "  ";
-    iter.data()->print(os);
-    os << endl;
+    os << " " << iter.data()->toStringWithActions();
   }
 }
 
@@ -511,15 +608,15 @@ void Grammar::addProduction(Nonterminal *lhs, Symbol *firstRhs, ...)
   Symbol *arg;
   va_start(argptr, firstRhs);       // initialize 'argptr'
 
-  Production *prod = new Production(lhs);
-  prod->right.append(firstRhs);
+  Production *prod = new Production(lhs, NULL /*tag*/);
+  prod->append(firstRhs, NULL /*tag*/);
   for(;;) {
     arg = va_arg(argptr, Symbol*);  // get next argument
     if (arg == NULL) {
       break;    // end of list
     }
 
-    prod->right.append(arg);
+    prod->append(arg, NULL /*tag*/);
   }
 
   addProduction(prod);
@@ -532,7 +629,7 @@ void Grammar::addProduction(Production *prod)
   // support that as syntax for deriving emptyString, by
   // adding that explicitly here
   if (prod->right.count() == 0) {
-    prod->append(&emptyString);
+    prod->append(&emptyString, NULL /*tag*/);
   }
 
   productions.append(prod);
@@ -546,6 +643,11 @@ void Grammar::addProduction(Production *prod)
 }
 
 
+// the present syntax defined for grammars is not ideal, and the code
+// to parse it shouldn't be in this file; I'll fix these problems at
+// some point..
+
+
 void Grammar::readFile(char const *fname)
 {
   FILE *fp = fopen(fname, "r");
@@ -553,13 +655,17 @@ void Grammar::readFile(char const *fname)
     xsyserror("fopen", stringb("opening " << fname));
   }
 
+  // state between lines
+  Production *lastProduction = NULL;      // the last one we created
+
   char buf[256];
   int line = 0;
   while (fgets(buf, 256, fp)) {
-    line++;   
-    
-    if (!parseLine(buf)) {
+    line++;
+
+    if (!parseLine(buf, lastProduction)) {
       cerr << "error parsing line " << line << endl;
+      break;    // stop after first error
     }
   }
 
@@ -568,59 +674,145 @@ void Grammar::readFile(char const *fname)
   }
 }
 
-// returns false on parse error
-bool Grammar::parseLine(char const *preLine)
+
+// parse a possibly-tagged symbol name into 'name' and 'tag'
+void parseTaggedName(string &name, string &tag, char const *tagged)
 {
-  // strip comments
-  string line(preLine);
-  {
-    char *p = strchr(line, '#');
-    if (p != NULL) {
-      *p = 0;    // truncate line there
-    }
+  StrtokParse tok(tagged, ".");
+  if (tok < 1) {
+    xfailure("tagged name consisting only of dots!");
+  }
+  if (tok > 2) {
+    xfailure("tagged name with too many tags");
   }
 
-  // parse on whitespace
-  StrtokParse tok(line, " \t\n\r");
-  if (tok == 0) {
-    // blank line or comment
+  name = tok[0];
+  if (tok == 2) {
+    tag = tok[1];
+  }
+  else {
+    tag = NULL;
+  }
+}
+
+
+bool Grammar::parseLine(char const *preLine)
+{
+  Production *dummy = NULL;
+  return parseLine(preLine, dummy);
+}
+
+
+// returns false on parse error
+bool Grammar::parseLine(char const *preLine, Production *&lastProduction)
+{
+  // wrap it all in a try so we catch all parsing errors
+  try {
+    // strip comments
+    string line(preLine);
+    {
+      char *p = strchr(line, '#');
+      if (p != NULL) {
+	*p = 0;    // truncate line there
+      }
+    }
+
+    // parse on whitespace
+    StrtokParse tok(line, " \t\n\r");
+    if (tok == 0) {
+      // blank line or comment
+      return true;
+    }
+
+    // action or condition?
+    if (tok[0][0] == '%') {
+      if (lastProduction == NULL) {
+	cout << "action or condition must be preceeded by a production\n";
+	return false;
+      }
+
+      // for now, I'm being a bit redundant in my syntax
+      if (!(  0==strcmp(tok[1], "{")     &&
+	      0==strcmp(tok[tok-1], "}")    )) {
+	cout << "action or condition must be surrounded by braces\n";
+	return false;
+      }
+
+      try {
+	return parseAnAction(tok[0], tok.reassemble(2, tok-2, line), lastProduction);
+      }
+      catch (xBase &x) {
+	cout << x << endl;
+	return false;
+      }
+    }
+
+    // check that the 2nd token is the "rewrites-as" symbol
+    if (0!=strcmp(tok[1], "->")) {
+      cout << "2nd token of production must be `->'\n";
+      return false;
+    }
+
+    // get LHS token
+    string name, tag;
+    parseTaggedName(name, tag, tok[0]);
+    string leftTag = tag;     // need to remember it in case we see '|'
+    Nonterminal *LHS = getOrMakeNonterminal(name);
+
+    // make a production
+    Production *prod = new Production(LHS, leftTag);
+
+    // process RHS symbols
+    for (int i=2; i<tok; i++) {
+      // alternatives -- syntactic sugar
+      if (0==strcmp(tok[i], "|")) {
+	// finish the current production
+	addProduction(prod);
+
+	// start another
+	prod = new Production(LHS, leftTag);
+      }
+
+      else {
+	// normal symbol
+	parseTaggedName(name, tag, tok[i]);
+	Symbol *sym = getOrMakeSymbol(name);
+	prod->append(sym, tag);
+      }
+    }
+
+    // done, so add the production
+    addProduction(prod);
+    lastProduction = prod;
+
+    // ok
+    return true;
+  }
+  
+  catch (xBase &x) {
+    cout << "parse error: " << x << endl;
+    return false;
+  }
+}
+
+
+bool Grammar::parseAnAction(char const *keyword, char const *insideBraces,
+                            Production *lastProduction)
+{
+  if (0==strcmp(keyword, "%action")) {
+    lastProduction->actions.parse(lastProduction, insideBraces);
     return true;
   }
 
-  // check that the 2nd token is the "rewrites-as" symbol
-  if (0!=strcmp(tok[1], "->")) {
+  else if (0==strcmp(keyword, "%condition")) {
+    lastProduction->conditions.parse(lastProduction, insideBraces);
+    return true;
+  }
+
+  else {
+    cout << "unknown action or condition keyword: " << keyword << endl;
     return false;
   }
-
-  // get LHS token
-  Nonterminal *LHS = getOrMakeNonterminal(tok[0]);
-
-  // make a production
-  Production *prod = new Production(LHS);
-
-  // process RHS symbols
-  for (int i=2; i<tok; i++) {
-    // alternatives -- syntactic sugar
-    if (0==strcmp(tok[i], "|")) {
-      // finish the current production
-      addProduction(prod);
-
-      // start another
-      prod = new Production(LHS);
-    }
-
-    else {
-      // normal symbol
-      Symbol *sym = getOrMakeSymbol(tok[i]);
-      prod->append(sym);
-    }
-  }
-
-  // done, so add the production
-  addProduction(prod);
-
-  // ok
-  return true;
 }
 
 
@@ -715,12 +907,12 @@ void Grammar::printAsBison(ostream &os) const
 Nonterminal const *Grammar::findNonterminalC(char const *name) const
 {
   // check for empty first, since it's not in the list
-  if (emptyString.name == name) {
+  if (emptyString.name.equals(name)) {
     return &emptyString;
   }
 
   FOREACH_NONTERMINAL(nonterminals, iter) {
-    if (iter.data()->name == name) {
+    if (iter.data()->name.equals(name)) {
       return iter.data();
     }
   }
@@ -731,7 +923,7 @@ Nonterminal const *Grammar::findNonterminalC(char const *name) const
 Terminal const *Grammar::findTerminalC(char const *name) const
 {
   FOREACH_TERMINAL(terminals, iter) {
-    if (iter.data()->name == name) {
+    if (iter.data()->name.equals(name)) {
       return iter.data();
     }
   }

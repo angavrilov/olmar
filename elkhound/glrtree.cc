@@ -65,8 +65,7 @@ void TerminalNode::printParseTree(ostream &os, int indent) const
 
 // ------------------ NonterminalNode -----------------------
 NonterminalNode::NonterminalNode(Reduction *red)
-  : TreeNode(NONTERMINAL),
-    nonterminal(red->production->left)
+  : TreeNode(NONTERMINAL)
 {
   // add the first reduction
   addReduction(red);
@@ -80,15 +79,23 @@ NonterminalNode::~NonterminalNode()
 void NonterminalNode::addReduction(Reduction *red)
 {
   // verify this one is consistent with others
-  xassert(red->production->left == nonterminal);
+  if (reductions.isNotEmpty()) {
+    xassert(red->production->left == getLHS());
+  }
 
   reductions.append(red);
 }
 
 
+Nonterminal const *NonterminalNode::getLHS() const
+{
+  return reductions.firstC()->production->left;
+}
+
+
 Symbol const *NonterminalNode::getSymbolC() const
 {
-  return nonterminal;
+  return getLHS();
 }
 
 
@@ -97,20 +104,20 @@ void NonterminalNode::printParseTree(ostream &os, int indent) const
   int parses = reductions.count();
   if (parses == 1) {
     // I am unambiguous
-    reductions.nthC(0)->printParseTree(os, indent);
+    reductions.firstC()->printParseTree(attr, os, indent);
   }
 
   else {
     // I am ambiguous
     IND << parses << " ALTERNATIVE PARSES for nonterminal "
-        << nonterminal->name << ":\n";
+        << getLHS()->name << ":\n";
     indent += 2;
-	     
+
     int ct=0;
     FOREACH_OBJLIST(Reduction, reductions, red) {
       ct++;
       IND << "---- alternative " << ct << " ----\n";
-      red.data()->printParseTree(os, indent);
+      red.data()->printParseTree(attr, os, indent);
     }
   }
 }
@@ -126,11 +133,13 @@ Reduction::~Reduction()
 {}
 
 
-void Reduction::printParseTree(ostream &os, int indent) const
+void Reduction::printParseTree(Attributes const &attr,
+                               ostream &os, int indent) const
 {
   // print the production that was used to reduce
   // debugging: print address too, as a clumsy uniqueness identifier
   IND << *(production)
+      << "   %attr " << attr
       //<< " [" << (void*)production << "]"
       << endl;
 
@@ -139,4 +148,22 @@ void Reduction::printParseTree(ostream &os, int indent) const
   SFOREACH_OBJLIST(TreeNode, children, child) {
     child.data()->printParseTree(os, indent);
   }
+}
+
+
+// --------------------- AttrContext -------------------
+AttrContext::~AttrContext()
+{		  
+  // common case is that red is, in fact, NULL at this point
+  if (red != NULL) {
+    delete red;
+  }
+}
+
+
+Reduction *AttrContext::grabReduction()
+{
+  Reduction *ret = red;
+  red = NULL;
+  return ret;
 }

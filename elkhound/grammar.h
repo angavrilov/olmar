@@ -26,6 +26,11 @@
 #include "str.h"       // string
 #include "objlist.h"   // ObjList
 #include "sobjlist.h"  // SObjList
+#include "util.h"      // OSTREAM_OPERATOR, INTLOOP
+#include "action.h"    // Actions
+#include "cond.h"      // Conditions
+
+class StrtokParse;     // strtokp.h
 
 // fwds defined below
 class Symbol;
@@ -34,15 +39,6 @@ class Nonterminal;
 class Production;
 class DottedProduction;
 class Grammar;
-
-// this really should be in a more general place..
-#define OSTREAM_OPERATOR(MyClass)                                \
-  friend ostream &operator << (ostream &os, MyClass const &ths)  \
-    { ths.print(os); return os; }
-
-// this too
-#define INTLOOP(var, start, maxPlusOne) \
-  for (int var = start; var < maxPlusOne; var++)
 
 
 // ---------------- Symbol --------------------
@@ -163,41 +159,73 @@ inline ObjList<Symbol> const &toObjList(ObjList<Nonterminal> const &list)
 class Production {
 // ------ representation ------
 public:	    // data
-  Nonterminal *left;            // (serf) left hand side; must be nonterminal
+  // fundamental context-free grammar (CFG) component
+  Nonterminal * const left;     // (serf) left hand side; must be nonterminal
   SymbolList right;             // (serf) right hand side; terminals & nonterminals
 
-public:	    // data
-  Production(Nonterminal *L);   // you have to call append manually
+  // tags applied to the symbols for purposes of unambiguous naming in
+  // actions, and for self-commenting value as role indicators; an
+  // empty tag (NULL or "") is allowed and means there is no tag
+  string leftTag;      	       	// tag for LHS symbol
+  ObjList<string> rightTags;    // tag for each RHS symbol, in order
+
+  // NOTE: 'right' and 'rightTags' should always have the same number of
+  // elements.  they are public to avoid syntactic (and possible runtime,
+  // if repr. changes) overhead of access via member fn.  use 'append' to
+  // add new elements.
+
+  // extras
+  Conditions conditions;       	// every condition must be satisfied for a rule to be used
+  Actions actions;              // when used, a rule has these effects
+
+public:	    // funcs
+  Production(Nonterminal *left, char const *leftTag);
   ~Production();
 
   // length *not* including emptySymbol, if present
   int rhsLength() const;
-  
-  // number of nonterminals on RHS, *not* counting emptyString
+
+  // number of nonterminals on RHS, *not* counting emptyString (as yet
+  // I don't have a position on whether rules should or should not
+  // explicitly name emptyString on the RHS, which is a deficiency in
+  // my design)
   int numRHSNonterminals() const;
 
   // append a RHS symbol
-  void append(Symbol *sym);
+  void append(Symbol *sym, char const *tag);
 
   // call this when production is built, so it can compute dprods
   void finished();
 
+  // find a symbol by name and tag (tag can be NULL); returns 0 to
+  // identify LHS symbol, 1 for first RHS symbol, 2 for second, etc.;
+  // returns -1 if the name/tag doesn't match anything
+  int findTaggedSymbol(char const *name, char const *tag) const;
 
-// ------ annotation ------
-private:    // data
-  int numDotPlaces;             // after finished(): equals rhsLength()+1
-  DottedProduction *dprods;     // (owner) array of dotted productions
+  // given an index as returned by 'findTaggedSymbol', translate that
+  // back into a string consisting of name and optional tag
+  string taggedSymbolName(int symbolIndex) const;
 
-public:     // funcs
   // retrieve an item
   DottedProduction const *getDProdC(int dotPlace) const;
   DottedProduction *getDProd(int dotPlace)
     { return const_cast<DottedProduction*>(getDProdC(dotPlace)); }
 
-  // print to cout as 'A -> B c D' (no newline)
+  // print 'A -> B c D' (no newline)
   string toString() const;
   void print(ostream &os) const;
   OSTREAM_OPERATOR(Production)
+
+  // print entire input syntax, with newlines, e.g.
+  //   A -> B c D
+  //     %action { A.x = B.x }
+  //     %condition { B.y > D.y }
+  string toStringWithActions() const;
+
+// ------ annotation ------
+private:    // data
+  int numDotPlaces;             // after finished(): equals rhsLength()+1
+  DottedProduction *dprods;     // (owner) array of dotted productions
 };
 
 typedef SObjList<Production> ProductionList;
@@ -358,10 +386,17 @@ public:	    // data
   ObjList<Production> productions;      // (owner list)
   Nonterminal *startSymbol;             // (serf) a particular nonterminal
 
-  // the special terminal for the empty string; does not appear in
-  // the list of nonterminals or terminals for a grammar, but can
-  // be referenced by productions, etc.
+  // the special terminal for the empty string; does not appear in the
+  // list of nonterminals or terminals for a grammar, but can be
+  // referenced by productions, etc.; the decision to explicitly have
+  // such a symbol, instead of letting it always be implicit, is
+  // motivated by things like the derivability relation, where it's
+  // nice to treat empty like any other symbol
   Nonterminal emptyString;
+
+private:    // funcs
+  bool parseAnAction(char const *keyword, char const *insideBraces,
+                     Production *lastProduction);
 
 public:     // funcs
   Grammar();                            // set everything manually
@@ -397,6 +432,7 @@ public:     // funcs
 
   // parse a line like "LHS -> R1 R2 R3", return false on parse error
   bool parseLine(char const *grammarLine);
+  bool parseLine(char const *grammarLine, Production *&lastProduction);
 
 
   // ---- symbol access ----

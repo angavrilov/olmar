@@ -19,8 +19,9 @@ grammar: grammar.h grammar.cc gramanl.h gramanl.cc
 	${link} -o grammar -DGRAMANL_MAIN grammar.cc gramanl.cc ${linkend}
 
 # GLR parser built on top of SLR(1) parser
-glr-dep = grammar.o gramanl.o glr.cc glrtree.o trace.o
-glr: ${glr-dep}	glr.h
+glr-dep = grammar.o gramanl.o glr.cc glrtree.o trace.o attr.o cond.o \
+          attrexpr.o action.o
+glr: ${glr-dep}	glr.h ${SMBASE}/libsmbase.a
 	${link} -o glr -DGLR_MAIN ${glr-dep} ${linkend}
 
 clean:
