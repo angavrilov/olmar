@@ -2,8 +2,8 @@
 // extension to cc.gr for GNU C/C++ language extensions
 
 // expected statistics
-option shift_reduce_conflicts 125;
-option reduce_reduce_conflicts 70;
+option shift_reduce_conflicts 132;
+option reduce_reduce_conflicts 72;
 
 
 verbatim {
