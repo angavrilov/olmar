@@ -3,7 +3,7 @@
 
 class A {};
 
-class B {
+class B : public A {
 public:
   void operator+(A &a);             // 8
 };

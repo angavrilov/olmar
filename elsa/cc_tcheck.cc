@@ -3599,7 +3599,7 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
   if (env.doOverload &&
       op == BIN_PLUS &&
       (lhsType->isCompoundType() || rhsType->isCompoundType())) {
-    TRACE("opovl", "found overloadable BIN_PLUS instance");
+    TRACE("overload", "found overloadable BIN_PLUS instance");
 
     // collect argument information
     GrowArray<ArgumentInfo> args(2);
@@ -3617,7 +3617,7 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
       Variable *member = lhsType->asCompoundType()->
         lookupVariable(env.operatorPlusName, env);
       if (member) {
-        TRACE("opovl", member->overloadSetSize() << " member candidates");
+        //TRACE("opovl", member->overloadSetSize() << " member candidates");
         resolver.processPossiblyOverloadedVar(member);
       }
     }
@@ -3625,7 +3625,7 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
     // non-member candidates; this lookup ignores member functions
     Variable *nonmember = env.lookupVariable(env.operatorPlusName, LF_SKIP_CLASSES);
     if (nonmember) {
-      TRACE("opovl", nonmember->overloadSetSize() << " non-member candidates");
+      //TRACE("opovl", nonmember->overloadSetSize() << " non-member candidates");
       resolver.processPossiblyOverloadedVar(nonmember);
     }
 
@@ -3636,7 +3636,7 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
     // pick one
     Variable *winner = resolver.resolve();
     if (winner) {
-      TRACE("opovl", "chose candidate at " << toString(winner->loc));
+      TRACE("overload", "chose candidate at " << toString(winner->loc));
 
       PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_binary(BIN_PLUS), 
                                          env.operatorPlusName);

@@ -28,7 +28,8 @@ string Candidate::conversionDescriptions(char const *indent) const
   stringBuilder sb;
 
   for (int i=0; i < conversions.size(); i++) {
-    sb << "\n%%% overload:   " << indent << toString(conversions[i]);
+    sb << "%%% overload:   " << indent << i << ": "
+       << toString(conversions[i]) << "\n";
   }
   
   return sb;
@@ -64,6 +65,18 @@ Variable *resolveOverload(
   GrowArray<ArgumentInfo> &args)
 {
   OverloadResolver r(env, loc, errors, flags, args, varList.count());
+                    
+  IFDEBUG(
+    if (tracingSys("overload")) {
+      cout << "%%% overload:   arguments:\n";
+      for (int i=0; i < args.size(); i++) {
+        cout << "%%% overload:     " << i << ": "
+             << toString(args[i].special) << ", "
+             << args[i].type->toString() << "\n";
+      }
+    }
+  )
+
   r.processCandidates(varList);
   return r.resolve();
 }
@@ -85,18 +98,26 @@ void OverloadResolver::processCandidate(Variable *v)
   // for debug printing
   IFDEBUG( char const *indent = (flags & OF_NO_USER)? "    " : "  "; )
 
+  TRACE("overload", indent << "candidate: " << v->toString() <<
+                    " at " << toString(v->loc));
+
   if ((flags & OF_NO_EXPLICIT) && v->hasFlag(DF_EXPLICIT)) {
     // not a candidate, we're ignoring explicit constructors
-    return;
+  }
+  else {
+    Candidate *c = makeCandidate(v);
+    if (c) {
+      IFDEBUG(
+        if (tracingSys("overload")) {
+          cout << c->conversionDescriptions(indent);
+        }
+      )
+      candidates.push(c);
+      return;
+    }
   }
 
-  Candidate *c = makeCandidate(v);
-  if (c) {
-    TRACE("overload", indent << "candidate: " << c->var->toString() <<
-                      " at " << toString(c->var->loc) <<
-                      c->conversionDescriptions(indent));
-    candidates.push(c);
-  }
+  TRACE("overload", indent << "  (not viable)");
 }
 
 

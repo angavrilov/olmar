@@ -44,7 +44,7 @@ struct A {
 };
 
 struct B {
-  B(A&);               // line 47
+  B(A const &);               // line 47
 };
 
 struct C : A {
@@ -102,7 +102,7 @@ void f()
   // elementary conversions
   __getImplicitConversion((int)0, (int)0,
                           IC_STANDARD, SC_IDENTITY, 0, 0);
-  __getImplicitConversion((int)0, (int &)0,
+  __getImplicitConversion((int)0, (int const &)0,
                           IC_STANDARD, SC_IDENTITY,0,0);
 
   // constructor conversions

@@ -308,6 +308,8 @@ public:      // funcs
     { return countBaseClassSubobjects(ct)==1; }
   bool hasBaseClass(CompoundType const *ct) const
     { return countBaseClassSubobjects(ct)>=1; }
+  bool hasStrictBaseClass(CompoundType const *ct) const
+    { return this != ct && hasBaseClass(ct); }
 };
 
 string toString(CompoundType::Keyword k);
