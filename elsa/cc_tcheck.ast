@@ -322,6 +322,12 @@ class Expression {
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
 
+  // interpretations of literals
+  -> E_intLit      { public unsigned long i;  ctor i=0; }
+  -> E_floatLit    { public double d;         ctor d=0; }
+  -> E_stringLit   { /* TODO: put a DataBlock here */ }
+  -> E_charLit     { public unsigned int c;   ctor c=0; }
+
   -> E_variable {
        public Variable *var;      // (serf) binding introduction of this name
        ctor var=NULL;

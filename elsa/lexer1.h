@@ -2,6 +2,8 @@
 // Lexer 1: tokenize a single file, no translations
 // see lexer1.txt
 
+#error I am obsolete; use lexer.h instead
+
 #ifndef __LEXER1_H
 #define __LEXER1_H
 

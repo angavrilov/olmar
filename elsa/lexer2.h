@@ -1,6 +1,8 @@
 // lexer2.h            see license.txt for copyright and terms of use
 // 2nd phase lexical analyzer; see lexer2.txt
 
+#error I am obsolete; use lexer.h instead
+
 #ifndef __LEXER2_H
 #define __LEXER2_H
 

@@ -74,7 +74,9 @@ public:
 
   MAKE_INSERTER(bool)
   MAKE_INSERTER(int)
+  MAKE_INSERTER(unsigned int)
   MAKE_INSERTER(long)
+  MAKE_INSERTER(unsigned long)
   MAKE_INSERTER(double)
 
   #undef MAKE_INSERTER

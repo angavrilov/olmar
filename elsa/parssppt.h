@@ -6,10 +6,13 @@
 // but has been pressed into service for a few other uses too;
 // new grammars and parsers should probably not use this
 
+// TODO: this is a stupid module.  it either needs to be rewritten,
+// or its functionality spread to other modules
+
 #ifndef __PARSSPPT_H
 #define __PARSSPPT_H
 
-#include "lexer2.h"       // Lexer2
+#include "lexer.h"        // Lexer
 #include "useract.h"      // SemanticValue, UserAction
 
 class ParseTables;
@@ -22,8 +25,8 @@ public:
   // reference to place to store final semantic value
   SemanticValue &treeTop;
 
-  // we need a place to put the ground tokens
-  Lexer2 lexer2;
+  // just replacing Lexer2 with Lexer for now..
+  Lexer lexer;
 
   // parse parameter
   UserActions *userAct;            // (serf)
@@ -32,8 +35,8 @@ public:
   ParseTables *tables;             // (serf)
 
 public:
-  ParseTreeAndTokens(CCLang &lang, SemanticValue &top);
-  ParseTreeAndTokens(CCLang &lang, SemanticValue &top, StringTable &extTable);
+  ParseTreeAndTokens(CCLang &lang, SemanticValue &top, StringTable &extTable,
+                     char const *inputFname);
   ~ParseTreeAndTokens();
 };
 

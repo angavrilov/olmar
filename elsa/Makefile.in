@@ -1,10 +1,10 @@
 # Makefile.in
 # this is the Makefile for Elsa, the Elkhound-based C++ Parser
 
-#tmp: cc_type.o
+#tmp: lexer.o lexer.yy.o
 
 # main target: a C++ parser
-all: ccparse
+all: ccparse quicktest
 
 # directories of other software
 SMBASE   := @SMBASE@
@@ -46,27 +46,18 @@ LDFLAGS := -g -Wall $(libraries)
 	@$(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) >$*.d
 
 
-# ----------------------- lexer2 -------------------
-# run flex on the lexer description
-lexer1yy.cc: lexer1.lex lexer1.h
-	flex lexer1.lex
-
-
-# modules needed for lexer2 stand-alone
-LEXER2_OBJS := \
-  lexer1.o \
-  lexer1yy.o \
-  cc_lang.o
-
-# lexer2 stand-alone binary
-lexer2: lexer2.cc lexer2.h $(LEXER2_OBJS)
-	$(CXX) -o $@ -DTEST_LEXER2 $(CCFLAGS) lexer2.cc $(LEXER2_OBJS) $(LDFLAGS)
-
-
 # ------------------------- ccparse ---------------------
-# run lexer2 stand-alone to generate token list
-cc.tok: lexer2
-	./lexer2 -myparser >$@
+# run flex on the lexer description
+lexer.yy.cc: lexer.lex lexer.h
+	flex lexer.lex
+
+# generate token lists
+TOK_FILES := cc_tokens.h cc_tokens.cc cc_tokens.ids
+$(TOK_FILES): cc_tokens.tok $(ELKHOUND)/make-token-files
+	rm -f $(TOK_FILES)
+	$(ELKHOUND)/make-token-files cc_tokens.tok
+	chmod a-w $(TOK_FILES)
+
 
 # run astgen to generate the AST implementation
 CC_AST_MODS := cc.ast cc_tcheck.ast cc_print.ast
@@ -75,7 +66,7 @@ cc.ast.gen.h cc.ast.gen.cc: $(CC_AST_MODS) $(AST)/astgen
 
 
 # run elkhound to generate the parser
-cc.gr.gen.h cc.gr.gen.cc: cc.gr cc.tok $(ELKHOUND)/elkhound
+cc.gr.gen.h cc.gr.gen.cc: cc.gr cc_tokens.ids $(ELKHOUND)/elkhound
 	$(ELKHOUND)/elkhound -v -o cc.gr.gen cc.gr
 
 
@@ -84,9 +75,9 @@ CCPARSE_OBJS := \
   cc.ast.gen.o \
   cc.gr.gen.o \
   cc_lang.o \
-  lexer1.o \
-  lexer1yy.o \
-  lexer2.o \
+  lexer.o \
+  lexer.yy.o \
+  cc_tokens.o \
   parssppt.o \
   cc_env.o \
   cc_scope.o \
@@ -106,6 +97,13 @@ ccparse: $(CCPARSE_OBJS)
 	$(CXX) -o $@ $(CCPARSE_OBJS) $(LDFLAGS)
 
 
+# run the binary
+.PHONY: quicktest
+quicktest: ccparse
+	./ccparse in/t0001.cc
+	@echo BUILD FINISHED
+
+
 # ---------------------- misc ---------------------
 # rule to decompress one of the big examples
 in/big/%.i: in/big/gz/%.i.gz
@@ -120,9 +118,9 @@ in/big: $(patsubst in/big/gz/%.i.gz,in/big/%.i,$(wildcard in/big/gz/*.gz))
 # -------------------- clean, etc. -------------------
 clean:
 	rm -f *.o *.d *.gen.* *.tab.* *.output a.out core
-	rm -f lexer1yy.cc cc.tok
+	rm -f lexer.yy.cc cc_tokens.{h,cc,ids}
 	rm -f outdir/[a-z]*
-	rm -f lexer2 ccparse
+	rm -f ccparse
 
 distclean: clean
 	rm -f Makefile config.status config.summary

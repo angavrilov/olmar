@@ -422,7 +422,24 @@ void Expression::printExtras(ostream &os, int indent) const
 
   // print type-specific extras
   ASTSWITCHC(Expression, this) {
-    ASTCASEC(E_variable, v)
+    ASTCASEC(E_intLit, i) {
+      ind(os, indent) << "i: " << i->i << "\n";
+    }
+
+    ASTNEXTC(E_floatLit, f) {
+      ind(os, indent) << "f: " << f->d << "\n";
+    }
+
+    ASTNEXTC(E_stringLit, s) {
+      // nothing extra to print since there's no interpretation yet
+      PRETEND_USED(s);
+    }
+
+    ASTNEXTC(E_charLit, c) {
+      ind(os, indent) << "c: " << c->c << "\n";    // prints as an integer
+    }
+
+    ASTNEXTC(E_variable, v)
       if (v->var) {
         ind(os, indent) << "var: refers to " << toString(v->var->loc) << "\n";
       }

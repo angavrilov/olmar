@@ -14,6 +14,9 @@
 #include "cc_env.h"         // Env
 #include "trace.h"          // trace
 #include "cc_print.h"       // PrintEnv
+#include "strutil.h"        // decodeEscapes
+
+#include <stdlib.h>         // strtoul, strtod
 
 // D(): debug code
 #ifdef NDEBUG
@@ -2743,12 +2746,14 @@ Type *E_boolLit::itcheck(Env &env)
 Type *E_intLit::itcheck(Env &env)
 {
   // TODO: this is wrong; see cppstd 2.13.1 para 2
+  i = strtoul(text, NULL /*endp*/, 0 /*radix*/);
   return env.getSimpleType(SL_UNKNOWN, ST_INT);
 }
 
 Type *E_floatLit::itcheck(Env &env)
 {
   // TODO: wrong; see cppstd 2.13.3 para 1
+  d = strtod(text, NULL /*endp*/);
   return env.getSimpleType(SL_UNKNOWN, ST_FLOAT);
 }
 
@@ -2758,14 +2763,45 @@ Type *E_stringLit::itcheck(Env &env)
   // TODO: wide character strings
 
   // TODO: this is wrong because I'm not properly tracking the string
-  // size if it has embedded NULs
+  // size if it has escape sequences
+  int len = 0;
+  E_stringLit *p = this;
+  while (p) {
+    len += strlen(p->text) - 2;   // don't include surrounding quotes
+    p = p->continuation;
+  }
+
   Type *charConst = env.getSimpleType(SL_UNKNOWN, ST_CHAR, CV_CONST);
-  return env.makeArrayType(SL_UNKNOWN, charConst, strlen(s)+1);
+  return env.makeArrayType(SL_UNKNOWN, charConst, len+1);    // +1 for implicit final NUL
+}
+
+
+void quotedUnescape(string &dest, int &destLen, char const *src,
+                    char delim, bool allowNewlines)
+{
+  // strip quotes or ticks
+  decodeEscapes(dest, destLen, string(src+1, strlen(src)-2),
+                delim, allowNewlines);
 }
 
 Type *E_charLit::itcheck(Env &env)
 {
   // TODO: wrong; cppstd 2.13.2 paras 1 and 2
+
+  int tempLen;
+  string temp;
+
+  char const *srcText = text;
+  if (*srcText == 'L') srcText++;
+
+  quotedUnescape(temp, tempLen, srcText, '\'',
+                 false /*allowNewlines*/);
+  if (tempLen != 1) {
+    xformat("character literal must have 1 char");
+  }
+
+  c = (unsigned int)temp[0];
+  
   return env.getSimpleType(SL_UNKNOWN, ST_CHAR);
 }
 

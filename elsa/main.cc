@@ -19,10 +19,6 @@
 #include "nonport.h"      // getMilliseconds
 
 
-// no bison-parser present, so need to define this
-Lexer2Token const *yylval = NULL;
-
-
 void if_malloc_stats()
 {
   if (tracingSys("malloc_stats")) {
@@ -56,17 +52,7 @@ void doit(int argc, char **argv)
   // --------------- parse --------------
   TranslationUnit *unit;
   {
-    SemanticValue treeTop;
-    ParseTreeAndTokens tree(lang, treeTop, strTable);
-
-    CCParse *parseContext = new CCParse(strTable, lang);
-    tree.userAct = parseContext;
-
-    traceProgress() << "building parse tables from internal data\n";
-    ParseTables *tables = parseContext->makeTables();
-    tree.tables = tables;
-
-    char const *positionalArg = processArgs
+    char const *inputFname = processArgs
       (argc, argv,
        "  additional flags for ccgr:\n"
        "    malloc_stats       print malloc stats every so often\n"
@@ -76,14 +62,25 @@ void doit(int argc, char **argv)
        "    printTypedAST      print AST with type info\n"
        "    tcheck             print typechecking info\n"
        "");
+
+    SemanticValue treeTop;
+    ParseTreeAndTokens tree(lang, treeTop, strTable, inputFname);
+
+    CCParse *parseContext = new CCParse(strTable, lang);
+    tree.userAct = parseContext;
+
+    traceProgress() << "building parse tables from internal data\n";
+    ParseTables *tables = parseContext->makeTables();
+    tree.tables = tables;
+
     maybeUseTrivialActions(tree);
 
-    if (!toplevelParse(tree, positionalArg)) {
+    if (!toplevelParse(tree, inputFname)) {
       exit(2); // parse error
     }
 
     // check for parse errors detected by the context class
-    if (parseContext->errors) {
+    if (parseContext->errors || tree.lexer.errors) {
       exit(2);
     }
 

@@ -10,17 +10,10 @@
 
 
 // ---------------------- ParseTree --------------------
-ParseTreeAndTokens::ParseTreeAndTokens(CCLang &L, SemanticValue &top)
-  : treeTop(top),
-    lexer2(L),
-    userAct(NULL),
-    tables(NULL)
-{}
-
 ParseTreeAndTokens::ParseTreeAndTokens(CCLang &L, SemanticValue &top,
-                                       StringTable &extTable)
+                                       StringTable &extTable, char const *fname)
   : treeTop(top),
-    lexer2(L, extTable),
+    lexer(extTable, L, fname),
     userAct(NULL),
     tables(NULL)
 {}
@@ -31,9 +24,10 @@ ParseTreeAndTokens::~ParseTreeAndTokens()
 
 // ---------------------- other support funcs ------------------
 // process the input file, and yield a parse graph
-bool glrParseNamedFile(GLR &glr, Lexer2 &lexer2, SemanticValue &treeTop,
+bool glrParseNamedFile(GLR &glr, Lexer &lexer, SemanticValue &treeTop,
                        char const *inputFname)
 {
+  #if 0    // old
   // do first phase lexer
   traceProgress() << "lexical analysis...\n";
   traceProgress(2) << "lexical analysis stage 1...\n";
@@ -60,6 +54,10 @@ bool glrParseNamedFile(GLR &glr, Lexer2 &lexer2, SemanticValue &treeTop,
   // parsing itself
   lexer2.beginReading();
   return glr.glrParse(lexer2, treeTop);
+  #endif // 0
+
+  PRETEND_USED(inputFname);     // stupid module..
+  return glr.glrParse(lexer, treeTop);
 }
 
 
@@ -72,7 +70,7 @@ bool toplevelParse(ParseTreeAndTokens &ptree, char const *inputFname)
   GLR glr(ptree.userAct, ptree.tables);
 
   // parse input
-  return glrParseNamedFile(glr, ptree.lexer2, ptree.treeTop, inputFname);
+  return glrParseNamedFile(glr, ptree.lexer, ptree.treeTop, inputFname);
 }
 
 
@@ -98,8 +96,8 @@ UserActions::ReclassifyFunc SimpleActions::getReclassifier()
 
 STATICDEF int SimpleActions::reclassifyToken(UserActions *, int type, SemanticValue)
 {
-  if (type == L2_NAME) {
-    return L2_VARIABLE_NAME;
+  if (type == TOK_NAME) {
+    return TOK_VARIABLE_NAME;
   }
   else {
     return type;

@@ -440,10 +440,17 @@ class Expression {
 
 
   -> E_boolLit(bool b);
-  -> E_intLit(int i);
-  -> E_floatLit(float f);
-  -> E_stringLit(StringRef s);    // not quite right b/c can't handle embedded nuls
-  -> E_charLit(char c);
+  
+  // most of the literals are handled by simply storing the textual
+  // representation the user typed in, including delimiters like
+  // quotes; the tcheck pass could interpret those if desired (and
+  // does in some cases); concatenation of string literals is handled
+  // by making a continuation list
+  -> E_intLit(StringRef text);
+  -> E_floatLit(StringRef text);
+  -> E_stringLit(StringRef text, E_stringLit continuation = NULL);
+  -> E_charLit(StringRef text);
+
   //-> E_structLit(ASTTypeId stype, ASTList<Initializer> init);
 
   // variable reference; 'name' might be "this"

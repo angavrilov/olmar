@@ -176,7 +176,7 @@ void TF_template::print(PrintEnv &env)
 void TF_linkage::print(PrintEnv &env)
 {         
   env.current_loc = loc;
-  env << "extern \"" << linkageType << "\"";
+  env << "extern " << linkageType;
   codeout co(env, "", " {\n", "}\n");
   forms->print(env);
 }
@@ -185,7 +185,7 @@ void TF_one_linkage::print(PrintEnv &env)
 {
   olayer ol("TF_linkage");
   env.current_loc = loc;
-  env << "extern \"" << linkageType << "\" ";
+  env << "extern " << linkageType << " ";
   form->print(env);
 }
 
@@ -699,19 +699,27 @@ void E_intLit::iprint(PrintEnv &env)
 void E_floatLit::iprint(PrintEnv &env)
 {                                
   olayer ol("E_floatLit::iprint");
-  env << f;
+  env << d;
 }
 
 void E_stringLit::iprint(PrintEnv &env)
 {                                                                     
   olayer ol("E_stringLit::iprint");
-  env << "\"" << encodeWithEscapes(s) << "\"";
+  
+  E_stringLit *p = this;
+  while (p) {
+    env << p->text;
+    p = p->continuation;
+    if (p) {
+      env << " ";
+    }
+  }
 }
 
 void E_charLit::iprint(PrintEnv &env)
 {                               
   olayer ol("E_charLit::iprint");
-  env << "'" << encodeWithEscapes(&c, 1) << "'";
+  env << text;
 }
 
 void E_variable::iprint(PrintEnv &env)

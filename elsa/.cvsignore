@@ -20,3 +20,11 @@ gmon.out
 Makefile
 config.status
 config.summary
+.gdbinit
+cc_tokens.h
+cc_tokens.cc
+cc_tokens.ids
+diffs
+lexer.yy.cc
+tmp
+tmp.in
