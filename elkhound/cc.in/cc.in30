@@ -88,7 +88,12 @@ typedef ios::seek_dir _seek_dir;
 
 
 class streammarker {
+    streammarker(int *sb);
+    ~streammarker();
+
     // doesn't think 'streammarker' is a type name here?
+    // I see, it was getting confused by the constructor name
+    // hiding the type name itself.  now that's fixed.
     int delta(streammarker&);
     int delta();
 };

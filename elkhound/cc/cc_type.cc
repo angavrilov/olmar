@@ -741,6 +741,12 @@ bool Type::isTemplateClass() const
          ifCompoundType()->isTemplate();
 }
 
+bool Type::isCDtorFunction() const
+{
+  return isFunctionType() &&
+         asFunctionTypeC().retType->isSimple(ST_CDTOR);
+}
+
 
 // ----------------- CVAtomicType ----------------
 CVAtomicType const CVAtomicType::fixed[NUM_SIMPLE_TYPES] = {

@@ -160,13 +160,11 @@ CompoundType *Function::verifyIsCtor(Env &env, char const *context)
     return NULL;
   }
 
-  // make sure this function is a constructor
-  if (nameParams->var->name != enclosing->name) {
+  // make sure this function is a constructor; should already have
+  // been mapped to the special name
+  if (nameParams->var->name != env.constructorSpecialName) {
     env.error(stringc
-      << context << " are only valid for constructors; "
-      << "the name of the enclosing class is `" << enclosing->name
-      << "' but the function name is `" << nameParams->var->name
-      << "', and these are not the same",
+      << context << " are only valid for constructors",
       true /*disambiguating*/);
     return NULL;
   }
@@ -788,6 +786,10 @@ void D_name_itcheck(Env &env, DeclaratorTcheck &dt,
   // name; I moved it up top so my error subroutines can use it
   Variable *prior = NULL;
 
+  // the unqualified part of 'name', mapped if necessary for
+  // constructor names
+  StringRef unqualifiedName = name? name->getName() : NULL;
+
   goto realStart;
 
   // This code has a number of places where very different logic paths
@@ -803,7 +805,7 @@ void D_name_itcheck(Env &env, DeclaratorTcheck &dt,
     // object, so we can continue making progress diagnosing errors
     // in the program; this won't be entered in the environment, even
     // though the 'name' is not NULL
-    dt.var = new Variable(loc, name->getName(), dt.type, dt.dflags);
+    dt.var = new Variable(loc, unqualifiedName, dt.type, dt.dflags);
 
     // a bit of error recovery: if we clashed with a prior declaration,
     // and that one was in a named scope, then make our fake variable
@@ -847,6 +849,46 @@ realStart:
       env, name->getUnqualifiedName()->asPQ_operatorC()->o, dt.type);
   }
 
+  else if (dt.type->isCDtorFunction()) {
+    // the return type claim's it's a constructor or destructor;
+    // validate that
+    CompoundType *ct = env.scope()->curCompound;
+    if (!ct) {
+      env.error("cannot have ctors or dtors outside of a class",
+                true /*disambiguates*/);
+      goto makeDummyVar;
+    }
+      
+    // get the claimed class name so we can compare to the name
+    // of the class whose scope we're in
+    char const *className = unqualifiedName;
+    char const *fnKind = "constructor";
+    if (className[0] == '~') {          // dtor
+      className++;
+      fnKind = "destructor";
+    }
+
+    // can't rely on string table for comparison because 'className'
+    // might be pointing into the middle of one the table's strings
+    if (0!=strcmp(ct->name, className)) {
+      env.error(stringc
+        << fnKind << " `" << *name << "' not match the name `"
+        << ct->name << "', the class in whose scope it appears",
+        true /*disambiguates*/);
+      goto makeDummyVar;
+    }
+
+    if (unqualifiedName[0] != '~') {    // ctor
+      // ok, last bit of housekeeping: if I just use the class name
+      // as the name of the constructor, then that will hide the
+      // class's name as a type, which messes everything up.  so,
+      // I'll kludge together another name for constructors (one
+      // which the C++ programmer can't type) and just make sure I
+      // always look up constructors under that name
+      unqualifiedName = env.constructorSpecialName;
+    }
+  }
+
   // are we in a class member list?  we can't be in a member
   // list if the name is qualified (and if it's qualified then
   // a class scope has been pushed, so we'd be fooled)
@@ -870,7 +912,7 @@ realStart:
     // somewhere; now, Declarator::tcheck will have already pushed the
     // qualified scope, so we just look up the name in the now-current
     // environment, which will include that scope
-    prior = env.lookupVariable(name->getName(), true /*innerOnly*/);
+    prior = env.lookupVariable(unqualifiedName, true /*innerOnly*/);
     if (!prior) {
       env.error(stringc
         << "undeclared identifier `" << *name << "'");
@@ -914,7 +956,7 @@ realStart:
   }
   else {
     // has this name already been declared in the innermost scope?
-    prior = env.lookupVariable(name->getName(), true /*innerOnly*/);
+    prior = env.lookupVariable(unqualifiedName, true /*innerOnly*/);
   }
 
   // check for overloading
@@ -932,7 +974,7 @@ realStart:
     // but it's close)
     if (
          // always allow the overloading for conversion operators
-         (name->getName() != env.conversionOperatorName) &&
+         (unqualifiedName != env.conversionOperatorName) &&
 
          // make sure the parameter lists are not the same
          (priorFt->equalParameterLists(specFt))
@@ -1032,7 +1074,7 @@ noPriorDeclaration:
   // no prior declaration, make a new variable and put it
   // into the environment (see comments in Declarator::tcheck
   // regarding point of declaration)
-  dt.var = new Variable(loc, name->getName(), dt.type, dt.dflags);
+  dt.var = new Variable(loc, unqualifiedName, dt.type, dt.dflags);
   if (overloadSet) {
     // don't add it to the environment (another overloaded version
     // is already in the environment), instead add it to the overload set
