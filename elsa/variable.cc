@@ -2,7 +2,7 @@
 // code for variable.h
 
 #include "variable.h"      // this module
-#include "cc_type.h"       // Type  
+#include "cc_type.h"       // Type
 
 
 // ---------------------- Variable --------------------

@@ -195,9 +195,6 @@ void Function::tcheck(Env &env, bool checkBody)
     }
   }
 
-//    // elaborate the parameters's Declarators
-//    nameAndParams->decl->getD_func()->elaborateParameterCDtors(env);
-
   // is this a nonstatic member function?
   if (funcType->isMethod()) {
     this->thisVar = funcType->getThis();
@@ -1844,7 +1841,8 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // definition of, and therefore any references to implicit members
   // of that class don't exist yet.
   bool isE_new = (dt.context == Tcheck::CTX_E_NEW);
-  if (!inClassBody &&
+  if (env.doElaboration &&
+      !inClassBody &&
 //        !isParameter &&
       !isE_new) {
     elaborateCDtors(env);

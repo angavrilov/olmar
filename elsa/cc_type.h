@@ -574,9 +574,6 @@ public:     // funcs
   bool isTemplateFunction() const;
   bool isTemplateClass() const;
 
-//    // convert the type back into an ASTTypeId
-//    ASTTypeId *toASTTypeId();
-
   // this is true if any of the type *constructors* on this type
   // refer to ST_ERROR; we don't dig down inside e.g. members of
   // referred-to classes
@@ -728,10 +725,12 @@ public:     // data
   // The implied parameter for the reference to the return value for
   // implementing return by value.  Should always be of reference type
   // as we think of it as an lvalue to which the function is
-  // assigning.  FIX: I suppose the type of this should always be a
-  // reference to the type of retType, unless it is a reference, in
-  // which case it is the same.  dsw: FIX: should be serf?
-  Variable *retVal;
+  // assigning.
+  //
+  // We don't need this for the base Elsa parser.  If an analysis
+  // would like to have a Variable here, it's free to add it in its
+  // derived version of FunctionType.
+  //Variable *retVal;
 
   // list of function parameters; if (flags & FF_METHOD) then the
   // first parameter is 'this'
