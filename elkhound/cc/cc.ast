@@ -136,7 +136,7 @@ class PQName {
   pure_virtual StringRef getName() const;
 
   // get the PQName at the bottom of any qualifiers
-  pure_virtual PQName const *getUnqualifiedName() const;
+  public PQName const *getUnqualifiedName() const;
 
   // outer qualifier applied to some inner PQName
   -> PQ_qualifier(StringRef qualifier, PQName rest);
@@ -149,6 +149,10 @@ class PQName {
   // "operator" names; 'o' has the full info, while 'fakeName' is
   // for getName(), which is sometimes used for string maps
   -> PQ_operator(OperatorName o, StringRef fakeName);
+  
+  // template instances: a template function or class name, plus
+  // some template arguments 
+  -> PQ_template(StringRef name, FakeList<TemplateArgument> *args);
 }
 
 
@@ -626,6 +630,17 @@ class TemplateParameter (SourceLocation loc) {
              ASTTypeId /*nullable*/ defaultType);
 
   // TODO: add non-type paramters
+}
+
+
+// one of the arguments to a template instantiation
+class TemplateArgument {
+  public TemplateArgument *next;  ctor next=NULL;   // FakeList link
+
+  // type argument, corresponds to a TP_type parameter
+  -> TA_type(ASTTypeId type);
+
+  // TODO: add non-type arguments
 }
 
 

@@ -246,6 +246,8 @@ Scope *Env::lookupQualifiedScope(PQName const *name)
 
 Variable *Env::lookupPQVariable(PQName const *name)
 {
+  Variable *var;
+
   if (name->hasQualifiers()) {
     // look up the scope named by the qualifiers
     Scope *scope = lookupQualifiedScope(name);
@@ -255,19 +257,41 @@ Variable *Env::lookupPQVariable(PQName const *name)
     }
 
     // look inside the final scope for the final name
-    Variable *field =
-      scope->lookupVariable(name->getName(), false /*innerOnly*/, *this);
-    if (!field) {
+    var = scope->lookupVariable(name->getName(), false /*innerOnly*/, *this);
+    if (!var) {
       error(stringc
         << name->qualifierString() << " has no member called `"
         << name->getName() << "'");
       return NULL;
     }
-
-    return field;
   }
 
-  return lookupVariable(name->getName(), false /*innerOnly*/);
+  else {
+    var = lookupVariable(name->getName(), false /*innerOnly*/);
+  }
+
+  if (var &&
+      name->getUnqualifiedName()->isPQ_template()) {
+    // make sure the name in question is a template
+    if (var->type->isTemplateFunction()) {
+      // ok
+    }
+    // TODO: add case for classes
+    else {
+      // I'm not sure if I really need to make this disambiguating
+      // (i.e. I don't know if there is a syntax example which is
+      // ambiguous without this error), but since I should always
+      // know when something is or is not a template (even when
+      // processing template code itself) this shouldn't introduce any
+      // problems.
+      error(stringc
+        << "`" << *name << "' does not refer to a template",
+        true /*disambiguates*/);
+      return NULL;
+    }
+  }
+
+  return var;
 }
 
 Variable *Env::lookupVariable(StringRef name, bool innerOnly)
@@ -287,9 +311,21 @@ Variable *Env::lookupVariable(StringRef name, bool innerOnly)
 }
 
 CompoundType *Env::lookupPQCompound(PQName const *name)
-{
+{   
+  // same logic as for lookupPQVariable
   if (name->hasQualifiers()) {
-    cout << "warning: ignoring qualifiers\n";
+    Scope *scope = lookupQualifiedScope(name);
+    if (!scope) return NULL;
+
+    CompoundType *ret = scope->lookupCompound(name->getName(), false /*innerOnly*/);
+    if (!ret) {
+      error(stringc
+        << name->qualifierString() << " has no class/struct/union called `"
+        << name->getName() << "'");
+      return NULL;
+    }
+
+    return ret;
   }
 
   return lookupCompound(name->getName(), false /*innerOnly*/);
@@ -313,13 +349,34 @@ CompoundType *Env::lookupCompound(StringRef name, bool innerOnly)
 
 EnumType *Env::lookupPQEnum(PQName const *name)
 {
+  // same logic as for lookupPQVariable
   if (name->hasQualifiers()) {
-    cout << "warning: ignoring qualifiers\n";
+    Scope *scope = lookupQualifiedScope(name);
+    if (!scope) return NULL;
+
+    EnumType *ret = scope->lookupEnum(name->getName(), false /*innerOnly*/);
+    if (!ret) {
+      error(stringc
+        << name->qualifierString() << " has no enum called `"
+        << name->getName() << "'");
+      return NULL;
+    }
+
+    return ret;
+  }
+
+  return lookupEnum(name->getName(), false /*innerOnly*/);
+}
+
+EnumType *Env::lookupEnum(StringRef name, bool innerOnly)
+{
+  if (innerOnly) {
+    return scope()->lookupEnum(name, innerOnly);
   }
 
   // look in all the scopes
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
-    EnumType *et = iter.data()->lookupEnum(name->getName(), false /*innerOnly*/);
+    EnumType *et = iter.data()->lookupEnum(name, false /*innerOnly*/);
     if (et) {
       return et;
     }

@@ -63,20 +63,19 @@ StringRef PQ_operator::getName() const
   return fakeName;
 }
 
-
-PQName const *PQ_qualifier::getUnqualifiedName() const
-{                                                     
-  return rest->getUnqualifiedName();
+StringRef PQ_template::getName() const
+{
+  return name;
 }
 
-PQName const *PQ_name::getUnqualifiedName() const
-{
-  return this;
-}
 
-PQName const *PQ_operator::getUnqualifiedName() const
-{
-  return this;
+PQName const *PQName::getUnqualifiedName() const
+{                   
+  PQName const *p = this;
+  while (p->isPQ_qualifier()) {
+    p = p->asPQ_qualifierC()->rest;
+  }
+  return p;
 }
 
 

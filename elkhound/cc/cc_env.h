@@ -101,6 +101,7 @@ public:      // function
   CompoundType *lookupPQCompound(PQName const *name);
   CompoundType *lookupCompound(StringRef name, bool innerOnly);
   EnumType *lookupPQEnum(PQName const *name);
+  EnumType *lookupEnum(StringRef name, bool innerOnly);
 
   // look up a particular scope; the 'name' part of the PQName
   // will be ignored; if we can't find this scope, return NULL
