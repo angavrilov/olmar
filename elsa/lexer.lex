@@ -147,6 +147,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "goto"             return tok(TOK_GOTO);
 "if"               return tok(TOK_IF);
 "inline"           return tok(TOK_INLINE);
+  /*  "__inline"         return tok(TOK_INLINE); */
 "__inline__"       return tok(TOK_INLINE);
 "int"              return tok(TOK_INT);
 "long"             return tok(TOK_LONG);
@@ -237,11 +238,12 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "{"                return tok(TOK_LBRACE);
 "}"                return tok(TOK_RBRACE);
 
+"__attribute"          return tok(TOK___ATTRIBUTE__);
 "__attribute__"        return tok(TOK___ATTRIBUTE__);
 "__FUNCTION__"         return tok(TOK___FUNCTION__);
 "__label__"            return tok(TOK___LABEL__);
 "__PRETTY_FUNCTION__"  return tok(TOK___PRETTY_FUNCTION__);
- /* Perhaps we should have "typeof" as well? */
+  /*  "typeof"               return tok(TOK___TYPEOF__); */
 "__typeof__"           return tok(TOK___TYPEOF__);
 
 "thmprv_assert"        return tok(TOK_THMPRV_ASSERT);

@@ -858,7 +858,9 @@ nonterm(Declaration*) SimpleDeclaration {
   //     }
 
   // gnu; specifically for linux printk declaration
-  //-> GNUAttribute decl:SimpleDeclaration ;
+  // dsw: thanks, that's exactly the function that I couldn't parse.
+  -> attrspec:AttributeSpecifier decl:SimpleDeclaration
+       { return decl; }
 }
 
 
@@ -928,7 +930,8 @@ nonterm(TypeSpecifier*) ElaboratedOrSpecifier {
   fun dup(n) { return NULL; }              // prevent multi-yield
 
   -> s:ElaboratedTypeSpecifier { return s; }
-  -> s:ClassSpecifier          { return s; }
+  -> s:ClassSpecifier attrspec:AttributeSpecifierListOpt
+                               { return s; }
   -> s:EnumSpecifier           { return s; }
 }
 
@@ -1274,13 +1277,13 @@ nonterm(IN_compound*) InitializerList {
 //
 // regex for this nonterm: (PtrOperator)* DirectDeclarator
 nonterm(IDeclarator*) Declarator {
-  -> "*" cv:CVQualifierSeqOpt d:Declarator
+  -> "*" attrspec:AttributeSpecifierListOpt cv:CVQualifierSeqOpt d:Declarator
        { return new D_pointer(loc, true /*isPtr*/, cv, d); }
   -> "&" d:Declarator
        { return new D_pointer(loc, false /*isPtr*/, CV_NONE, d); }
   -> n:PtrToMemberName "*" cv:CVQualifierSeqOpt d:Declarator
        { return new D_ptrToMember(loc, n, cv, d); }
-  -> d:DirectDeclarator
+  -> d:DirectDeclarator attrspec:AttributeSpecifierListOpt
        { return d; }
 }
 
@@ -1309,7 +1312,7 @@ nonterm(IDeclarator*) DirectDeclarator {
        { return new D_array(loc, d, sz); }
 
   // precedence grouping; must be recorded in the AST for disambiguation
-  -> "(" d:Declarator ")"
+  -> "(" attrspec:AttributeSpecifierListOpt d:Declarator ")"
        { return new D_grouping(loc, d); }
 }
 
@@ -1401,7 +1404,8 @@ nonterm(ASTTypeId*) TypeId {
        { return new ASTTypeId(spec, new Declarator(decl, NULL)); }
 
   // gnu extension
-  //-> "__typeof__" "(" e:Expression ")" ;
+//    -> "__typeof__" "(" e:Expression ")"
+//         { return new TypeofTypeID(e); }
 }
 
 nonterm(IDeclarator*) AbstractDeclaratorOpt {
@@ -1411,13 +1415,13 @@ nonterm(IDeclarator*) AbstractDeclaratorOpt {
 
 // an abstract declarator (not opt) must have *some* ground syntax in it
 nonterm(IDeclarator*) AbstractDeclarator {
-  -> "*" cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
+  -> "*" attrspec:AttributeSpecifierListOpt cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
        { return new D_pointer(loc, true /*isPtr*/, cv, d); }
   -> "&" d:AbstractDeclaratorOpt
        { return new D_pointer(loc, false /*isPtr*/, CV_NONE, d); }
   -> n:PtrToMemberName "*" cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
        { return new D_ptrToMember(loc, n, cv, d); }
-  -> d:DirectAbstractDeclarator
+  -> d:DirectAbstractDeclarator attrspec:AttributeSpecifierListOpt
        { return d; }
 }
 
@@ -1451,7 +1455,7 @@ nonterm(IDeclarator*) DirectAbstractDeclarator {
 
   // precedence grouping; shouldn't need to record this in AST, but
   // I will for consistency with Declarator
-  -> "(" d:AbstractDeclarator ")"
+  -> "(" attrspec:AttributeSpecifierListOpt d:AbstractDeclarator ")"
        { return new D_grouping(loc, d); }
 }
 
@@ -1623,6 +1627,8 @@ nonterm(FakeList<MemberInit>*) CtorInitializerOpt {
 // ------ A.8 Classes ------
 nonterm(TS_classSpec*) ClassSpecifier {
   -> k:ClassKey n:ClassHeadNameOpt b:BaseClauseOpt "{" memb:MemberDeclarationSeqOpt "}"
+         // dsw: Should this work?  It causes a the popClassName() to pop an empty stack
+//           attrspec:AttributeSpecifierListOpt
        { popClassName(); return new TS_classSpec(loc, k, n, b, memb); }
 }
 
