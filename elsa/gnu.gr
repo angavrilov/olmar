@@ -300,6 +300,23 @@ nonterm(Designator*) Designator {
     { return new SubscriptDesignator(loc, idx_expr, idx_expr2); }
 }
 
+// ------ implicit int for cast expressions ------
+
+nonterm(Expression*) CastExpression {
+  -> "(" t:ImplicitIntTypeId ")" e:CastExpression
+       { return new E_cast(t, e); }
+}
+
+nonterm(TypeSpecifier*) ImplicitIntTypeSpecifier {
+  -> m:UberCVQualifierSeq
+       { UberModifiers k = uberCombine(loc, UM_INT, m);
+         return new_TS_simple(loc, uberCVFlags(m), uberSimpleType(loc, k)); }
+}
+
+nonterm(ASTTypeId*) ImplicitIntTypeId {
+  -> spec:ImplicitIntTypeSpecifier
+       { return new ASTTypeId(spec, new Declarator(new D_name(loc, NULL), NULL)); }
+}
 
 // ------ attributes ------
 // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Attribute-Syntax.html#Attribute%20Syntax
