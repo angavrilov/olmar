@@ -1,17 +1,51 @@
 #!/usr/bin/perl -w
-# scan some C++ source files for their module dependencies,
-# output a description in the Dot format
+# scan some C/C++ source files for their module dependencies,
+# output a description in the Dot graph format
+# author: smcpeak@cs.berkeley.edu
+
+# info on Dot: http://www.research.att.com/sw/tools/graphviz/
+
+# this scanner assumes that dependencies are expressed in one
+# of three ways:
+#   1. direct #inclusion, using quotes to delimit the filename
+#      (assuption is that angle brackets are used to refer to
+#      system headers, and we don't want to see those dependencies)
+#   2. implicit link dependency of foo.h on foo.{c,cc,cpp},
+#      whichever exists, if any
+#   3. explicit link dependency expressed as a comment of the form
+#      // linkdepend: <filename>
+
+# The scanner does *not* run the preprocessor or otherwise use any
+# smarts to decode #ifdefs, #defines, tricky #inclusion sequences,
+# etc.  It also does not analyze anything produced by the compiler,
+# so it can easily miss link-time dependencies if your coding
+# conventions differ from mine.  Caveat emptor.
+
+# The scanner also assumes that file names are unique across all
+# directories under consideration.  My own projects conform to this
+# constraint since it helps avoid confusion, and using this assumption
+# means avoiding the clutter of qualifying names with directories.
 
 # NOTE: throughout, when file names are passed or stored, they
 # are stored *without* path qualification; all files are in
 # either the current directory or one of the directories 
 # specified with -I (and hence in @incdirs)
 
-# list of directories to search for #include files in
+
+# -------------------- global variables ---------------------
+# list of directories to search for #include files in; the user
+# adds things to this list with -I
 @incdirs = ();
 
-# hashtable (value 1 when inserted) of files to exclude
+# hashtable of files to exclude; actually, each entry is a number,
+# and when that number is positive it says how many more incoming
+# links we'll allow; when it is zero then no more links are allowed;
+# user adds to this with -X
 %excluded = ();
+
+# table of files whose outgoing edges should not be explored;
+# the data is always a 1; user adds to this with -S
+%subsystem = ();
 
 # when I print the info for a node, I put a 1 in this hashtable
 %nodes = ();
@@ -20,7 +54,9 @@
 %explored = ();
 $recursive = 0;
 
-# list of files to explore
+# list of files to explore; initially it's whatever is passed on the
+# command line, but as new files are discovered (when $recursive is
+# true) they get added here too
 @toExplore = ();
 
 # true to print debug messages
@@ -28,8 +64,12 @@ $debug = 0;
 
 # true to suppress warning messages
 $quiet = 0;
+                     
+# list of extensions to try when looking for implicit link dependencies
+@extensions = (".cc", ".cpp", ".c");
 
 
+# ---------------------- subroutines ----------------------
 sub usage {
   print(<<"EOF");
 usage: $0 [options] sourcefile [sourcefile ...]
@@ -44,18 +84,83 @@ Options:
               looking for \#included files (files which are included
               but not found are not printed as dependencies).
 
-  -X<name>    Exclude module <name> from the graph.
+  -X<name>    Exclude module <name> from the graph.  If a number is
+  -X<name>=n  specified, at most that many incoming links will be shown.
 
-  -r          Recursively follows dependencies for files we find.
+  -S<name>    Do not process any outgoing edges from module <name>.  This
+              is useful when <name> is the entry point to a subsystem
+              whose dependencies are charted separately.
 
+  -r          Recursively follow dependencies for files encountered.
   -q          Suppress warnings.
-  
   -d          Enable debug messages.
-
-  -help       Print this usage string.
+  -h,-help    Print this usage string.
 
 EOF
   exit(0);
+}
+
+
+# read command-line arguments, looking for options as documented above
+sub processArguments {
+  while (@ARGV >= 1 &&
+         ($ARGV[0] =~ m/^-/)) {
+    my $option = $ARGV[0];
+    shift @ARGV;
+
+    my ($arg) = ($option =~ m/^-I(.*)$/);
+    if (defined($arg)) {
+      @incdirs = (@incdirs, $arg);
+      next;
+    }
+
+    my $count;
+    ($arg, $count) = ($option =~ m/^-X(.*)=(\d+)$/);
+    if (defined($arg)) {
+      $excluded{$arg} = $count;
+      next;
+    }
+
+    ($arg) = ($option =~ m/^-X(.*)$/);
+    if (defined($arg)) {
+      $excluded{$arg} = 0;    # no count implies 0 incoming links allowed
+      next;
+    }
+
+    ($arg) = ($option =~ m/^-S(.*)$/);
+    if (defined($arg)) {
+      $subsystem{$arg} = 1;
+      next;
+    }
+
+    if ($option eq "-r") {
+      $recursive = 1;
+      next;
+    }
+
+    if ($option eq "-q") {
+      $quiet = 1;
+      next;
+    }
+
+    if ($option eq "-d") {
+      $debug = 1;
+      next;
+    }
+
+    if ($option eq "-h" ||
+        $option eq "-help" ||
+        $option eq "--help") {
+      usage();
+    }
+
+    error("unknown option: $option\n" .
+          "try \"$0 -help\" for usage info");
+  }
+
+  if (@ARGV == 0) {
+    usage();
+  }
 }
 
 
@@ -80,7 +185,6 @@ sub diagnostic {
 }
 
 
-
 # return true if the argument file exists in the current directory
 # or any of the directories in @incdirs; return value is the name
 # under which the file was found, if it was
@@ -102,6 +206,11 @@ sub fileExists {
 }
 
 
+# true if the filename meets my definition of a 'header', which has
+# two implications:
+#   - headers are printed without a circle around their name
+#   - headers have implicit link-time dependencies on their
+#     correspondingly-named .cc files
 sub isHeader {
   my ($filename) = @_;
   return ($filename =~ m/\.h$/);
@@ -114,11 +223,24 @@ sub addNode {
   my ($filename) = @_;
 
   if (!defined($nodes{$filename})) {
-    # print info for this node
+    # print info for this node; note that the default label is the
+    # same as the name of the node, so I normally don't also have
+    # an explicit 'label' attribute
     $nodes{$filename} = 1;
     print("  \"$filename\" [\n");
 
-    if (isHeader($filename)) {
+    if (defined($subsystem{$filename})) {
+      # indicate that this module's dependencies weren't explored, hence
+      # the module actually stands for a subgraph of hidden dependencies
+      print("    label = \"$filename\\n(subsystem)\"\n",
+            "    shape = box\n",
+            "    style = dashed\n");
+    }
+
+    elsif (isHeader($filename)) {
+      # I prefer headers to not have any delimiting shape; since I
+      # don't see a way to turn off the shape altogether, I make
+      # it white so it's effectively invisible
       print("    color = white\n");
     }
 
@@ -164,9 +286,17 @@ sub prefix {
 sub addEdge {
   my ($src, $dest, $isLinkTime) = @_;
 
-  if (defined($excluded{$dest})) {
-    diagnostic("skipping $dest because it is excluded");
-    return;
+  # is the link excluded?
+  my $allowed = $excluded{$dest};
+  if (defined($allowed)) {
+    die if $allowed < 0;
+    if ($allowed == 0) {
+      diagnostic("skipping $dest because it is excluded");
+      return;
+    }                      
+    $allowed--;
+    diagnostic("$allowed more links will be allowed for $dest");
+    $excluded{$dest} = $allowed;
   }
 
   if ($recursive) {
@@ -197,6 +327,9 @@ sub addEdge {
 # without path
 sub exploreFile {
   my ($filename) = @_;
+  
+  # since we expect a filename without path, qualify it now
+  # so we can open the file
   my $withPath = fileExists($filename);
   if (!$withPath) {
     warning("does not exist: $filename");
@@ -204,42 +337,44 @@ sub exploreFile {
   }
 
   if (defined($explored{$filename})) {
-    return;
+    return;    # already explored this node
   }
   $explored{$filename} = 1;
 
+  # if the file has no outgoing or incoming edges (the user must have
+  # explicitly specified its name on the command line), this will
+  # ensure the node at least shows up (floating off disconnected, of
+  # course)
   addNode($filename);
+
+  if (defined($subsystem{$filename})) {
+    return;    # don't explore outgoing edges
+  }
 
   # if it's a header, and the corresponding .cc file exists,
   # then add a link-time dependency edge
   if (isHeader($filename)) {
-    my $corresp = $filename;
-    $corresp =~ s/\.h$/\.cc/;
-    $corresp = basename($corresp);
-    if (fileExists($corresp)) {
-      addEdge($filename, $corresp, 1);
-    }
-    else {
-      # try .cpp too
-      $corresp = $filename;
-      $corresp =~ s/\.h$/\.cpp/;
+    foreach my $ext (@extensions) {
+      my $corresp = $filename;
+      $corresp =~ s/\.h$/$ext/;
       $corresp = basename($corresp);
       if (fileExists($corresp)) {
         addEdge($filename, $corresp, 1);
+        last;     # stop looking after first match
       }
     }
   }
 
-  # scan the file for its edges
   if (!open(IN, "<$withPath")) {
     warning("cannot read $withPath: $!");
     next;    # skip it
   }
 
+  # scan the file for its edges
   my $line;
   while (defined($line = <IN>)) {
     # is this an #include line?
-    my ($target) = ($line =~ m/^\#include \"([^\"]*)\"/);
+    my ($target) = ($line =~ m/^\s*\#include\s+\"([^\"]*)\"/);
     if (defined($target)) {
       $target = basename($target);
       if (fileExists($target)) {
@@ -269,50 +404,7 @@ sub exploreFile {
 
 
 # ---------------------- main ------------------------
-# process arguments
-while (@ARGV >= 1 &&
-       ($ARGV[0] =~ m/^-/)) {
-  my $option = $ARGV[0];
-  shift @ARGV;
-
-  my ($arg) = ($option =~ m/-I(.*)/);
-  if (defined($arg)) {
-    @incdirs = (@incdirs, $arg);
-    next;
-  }
-
-  ($arg) = ($option =~ m/-X(.*)/);
-  if (defined($arg)) {
-    $excluded{$arg} = 1;
-    next;
-  }
-
-  if ($option eq "-r") {
-    $recursive = 1;
-    next;
-  }
-
-  if ($option eq "-q") {
-    $quiet = 1;
-    next;
-  }
-
-  if ($option eq "-d") {
-    $debug = 1;
-    next;
-  }
-
-  if ($option eq "-help") {
-    usage();
-  }
-
-  error("unknown option: $option");
-}
-
-if (@ARGV == 0) {
-  usage();
-}
-
+processArguments();
 
 # graph preamble
 print(<<"EOF");
@@ -321,7 +413,8 @@ print(<<"EOF");
 digraph "Dependencies" {
 EOF
 
-# nodes and edges
+# process all the files, in the process adding nodes and edges to the
+# graph
 @toExplore = @ARGV;
 while (@toExplore != 0) {
   my $filename = $toExplore[0];
