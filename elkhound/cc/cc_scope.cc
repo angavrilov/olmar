@@ -12,6 +12,7 @@ Scope::Scope(int cc, SourceLocation const &initLoc)
     compounds(),
     enums(),
     changeCount(cc),
+    canAcceptNames(true),
     curCompound(NULL),
     curFunction(NULL),
     curLoc(initLoc)
@@ -39,6 +40,8 @@ bool insertUnique(StringSObjDict<T> &table, char const *key, T *value,
 
 bool Scope::addVariable(Variable *v)
 {
+  xassert(canAcceptNames);
+
   // classify the variable for debugging purposes
   char const *classification =
     v->hasFlag(DF_TYPEDEF)? "typedef" :
@@ -71,6 +74,8 @@ bool Scope::addVariable(Variable *v)
 
 bool Scope::addCompound(CompoundType *ct)
 {
+  xassert(canAcceptNames);
+
   trace("env") << "added " << toString(ct->keyword) << " " << ct->name << endl;
 
   ct->access = curAccess;
@@ -80,6 +85,8 @@ bool Scope::addCompound(CompoundType *ct)
 
 bool Scope::addEnum(EnumType *et)
 {
+  xassert(canAcceptNames);
+
   trace("env") << "added enum " << et->name << endl;
 
   et->access = curAccess;

@@ -51,10 +51,15 @@ class TranslationUnit (ASTList<TopForm> topForms) {
 // a toplevel form
 class TopForm (SourceLocation loc) {
   pure_virtual void tcheck(Env &env);
+                                       
+  // includes function prototypes
+  -> TF_decl(Declaration decl);
+                                       
+  // functions with bodies
+  -> TF_func(Function f);
 
-  -> TF_decl(Declaration decl);        // includes function prototypes
-
-  -> TF_func(Function f);              // functions with bodies
+  // template functions or template classes
+  -> TF_template(TemplateDeclaration td);
 }
 
 
@@ -593,6 +598,34 @@ class InitLabel {
   -> IL_range(Expression low, Expression high);   // inclusive
   -> IL_field(StringRef name);
   -> IL_elementField(Expression index, StringRef name);
+}
+
+
+// ------------------- templates -------------------
+// wrap some template parameters on a declaration or function
+class TemplateDeclaration (
+  FakeList<TemplateParameter> *params
+) {
+  public void tcheck(Env &env);
+  pure_virtual void itcheck(Env &env);
+
+  // declare a template function
+  -> TD_func(Function f);
+}
+
+// one of the parameters to a template declaration
+class TemplateParameter (SourceLocation loc) {
+  public TemplateParameter *next;  ctor next=NULL;   // FakeList link
+
+  pure_virtual void tcheck(Env &env);
+
+  // type parameter; when present, 'name' is what the template code
+  // will use to refer to the actual argument type; when present,
+  // 'defaultType' provides a default argument
+  -> TP_type(StringRef /*nullable*/ name,
+             ASTTypeId /*nullable*/ defaultType);
+
+  // TODO: add non-type paramters
 }
 
 
