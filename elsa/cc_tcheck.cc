@@ -10,6 +10,12 @@
 #include "trace.h"          // trace
 #include "cc_print.h"       // PrintEnv
 
+// D(): debug code
+#ifdef NDEBUG
+  #define D(stuff)
+#else
+  #define D(stuff) stuff
+#endif
 
 // ------------- generic ambiguity resolution -------------
 // return true if the list contains no disambiguating errors
@@ -1503,12 +1509,32 @@ void Declarator::mid_tcheck(Env &env, DeclaratorTcheck &dt)
 
     // TODO: in the case of class member functions, delay checking
     // the initializer until the entire class body has been scanned
+    // UPDATE: what?  what the hell was I thinking about?
 
     init->tcheck(env);
 
     // remember the initializing value, for const values
     if (init->isIN_expr()) {
       var->value = init->asIN_exprC()->e;
+    }
+    
+    // use the initializer size to refine array types
+    if (var->type->isArrayType() &&
+        init->isIN_compound()) {
+      ArrayType const &at = var->type->asArrayTypeC();
+      IN_compound const *cpd = init->asIN_compoundC();
+      if (!at.hasSize) {
+        // replace the computed type with another that has
+        // the size specified
+        var->type = new ArrayType(at.eltType, cpd->inits.count());
+      }
+      else {
+        // TODO: cppstd wants me to check that there aren't more
+        // initializers than the array's specified size, but I
+        // don't want to do that check since I might have an error
+        // in my const-eval logic which could break a Mozilla parse
+        // if my count is short
+      }
     }
   }
 
@@ -2875,7 +2901,9 @@ Type const *E_sizeof::itcheck(Env &env)
 
   // TODO: this will fail an assertion if someone asks for the
   // size of a variable of template-type-parameter type..
-  size = expr->type->reprSize();
+  size = expr->type->asRval()->reprSize();
+  D( trace("sizeof") << "sizeof(" << expr->exprToString() 
+                     << ") is " << size << endl; )
 
   // TODO: is this right?
   return expr->type->isError()? 
@@ -2957,7 +2985,12 @@ Type const *E_deref::itcheck(Env &env)
     // dereferencing yields an lvalue
     return makeLvalType(pt.atType);
   }
-     
+
+  // implicit coercion of array to pointer for dereferencing
+  if (rt->isArrayType()) {
+    return makeLvalType(rt->asArrayTypeC().eltType);
+  }
+
   // check for "operator*" (and "operator[]" since I unfortunately
   // currently map [] into * and +)
   if (rt->ifCompoundType()) {
