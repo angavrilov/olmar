@@ -649,7 +649,6 @@ class Expression {
   // gets automatically stored in the 'type' field; the return
   // value specifies which of possibly ambiguous alternatives
   // was selected for retention
-  //public /*no_ignore*/ Expression *tcheck(Env &env);
   public void tcheck(Expression *&ptr, Env &env);
   public void mid_tcheck(Env &env, int &);
 

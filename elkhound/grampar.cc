@@ -118,15 +118,42 @@ void astParseGrammar(Grammar &g, GrammarAST const *treeTop)
   // process options
   {
     FOREACH_ASTLIST(Option, treeTop->options, iter) {
-      LocString const &name = iter.data()->name;
-      if (name.equals("useGCDefaults")) {
-        g.useGCDefaults = true;
-      }
-      else if (name.equals("defaultMergeAborts")) {
-        g.defaultMergeAborts = true;
-      }
-      else {
-        astParseError(name, "unknown option name");
+      Option const *op = iter.data();
+      ASTSWITCHC(Option, op) {
+        ASTCASEC(OP_name, n)
+          LocString const &name = n->name;
+          if (name.equals("useGCDefaults")) {
+            g.useGCDefaults = true;
+          }
+          else if (name.equals("defaultMergeAborts")) {
+            g.defaultMergeAborts = true;
+          }
+          else {
+            astParseError(name, "unknown option name");
+          }
+
+        ASTNEXTC(OP_expect, e)
+          LocString const &name = e->name;
+          if (name.equals("shift_reduce_conflicts")) {
+            g.expectedSR = e->value;
+          }
+          else if (name.equals("reduce_reduce_conflicts")) {
+            g.expectedRR = e->value;
+          }
+          else if (name.equals("unreachable_nonterminals")) {
+            g.expectedUNRNonterms = e->value;
+          }
+          else if (name.equals("unreachable_terminals")) {
+            g.expectedUNRTerms = e->value;
+          }
+          else {
+            astParseError(name, "unknown expect name");
+          }
+
+        ASTDEFAULTC
+          astParseError("what?");
+
+        ASTENDCASEC
       }
     }
   }

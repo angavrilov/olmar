@@ -83,6 +83,7 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 %token TOK_VERBATIM "verbatim"
 %token TOK_PRECEDENCE "precedence"
 %token TOK_OPTION "option"
+%token TOK_EXPECT "expect"
 // left, right, nonassoc: they're not keywords, since "left" and "right"
 // are common names for RHS elements; instead, we parse them as names
 // and interpret them after lexing
@@ -166,8 +167,9 @@ Options: /* empty */            { $$ = new ASTList<Option>; }
        | Options Option         { ($$=$1)->append($2); }
        ;
 
-/* yields: Option */       
-Option: "option" TOK_NAME ";"   { $$ = new Option($2); }           
+/* yields: Option */
+Option: "option" TOK_NAME ";"              { $$ = new OP_name($2); }
+      | "expect" TOK_NAME TOK_INTEGER ";"  { $$ = new OP_expect($2, $3); }
       ;
 
 

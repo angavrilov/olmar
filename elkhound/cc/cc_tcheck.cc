@@ -54,6 +54,24 @@ string ambiguousNodeName(ASTTypeId const *n)
 }
 
 
+// after a node has failed to typecheck, I may need to mark it
+// as "never been typechecked", so that if it's a shared subtree
+// in an ambiguous region we'll attempt to check it in each
+// context (since that's what's needed to put errors into the
+// environment); in the common case I don't need anything
+//
+// update: this doesn't work, because the problem may be one
+// level down from the top node..
+//  template <class NODE>
+//  inline void markAsFailed(NODE *n) {}
+
+//  // but for Expressions I need to nullify the 'type' field
+//  inline void markAsFailed(Expression *n)
+//  {
+//    n->type = NULL;
+//  }
+
+
 // Generic ambiguity resolution:  We check all the alternatives, and
 // select the one which typechecks without errors.  Complain if the
 // number of successful alternatives is not 1.
@@ -142,6 +160,9 @@ NODE *resolveAmbiguity(
       // if this NODE failed to check, then it had better not
       // have modified the environment
       xassert(beforeChange == env.getChangeCount());
+      
+      // make sure we don't consider this subtree to be finished
+      //markAsFailed(alt);
     }
   }
 
@@ -2512,8 +2533,6 @@ void HR_default::tcheck(Env &env)
 
 
 // ------------------- Expression tcheck -----------------------
-//Expression *Expression::tcheck(Env &env)
-
 // experiment: pass ref to ptr so I can't forget to do ambig. assign
 void Expression::tcheck(Expression *&ptr, Env &env)
 {
@@ -2529,7 +2548,7 @@ void Expression::tcheck(Expression *&ptr, Env &env)
 
 
 void Expression::mid_tcheck(Env &env, int &)
-{                              
+{
   if (type && !type->isError()) {
     // this expression has already been checked
     //
@@ -2537,6 +2556,15 @@ void Expression::mid_tcheck(Env &env, int &)
     // error was disambiguating then we need to check it again to
     // insert the disambiguating message into the environment again;
     // see cc.in/cc.in59
+    //
+    // update: I've modified the ambiguity resolution engine to
+    // fix this itself, by nullifying the 'type' field of any
+    // failing subtree
+    //
+    // update update: but that doesn't work (see markAsFailed, above)
+    // so now I'm back to presuming that every node marks itself
+    // as ST_ERROR if it should be re-checked in additional
+    // contexts (which is almost everywhere)
     return;
   }
 
@@ -2756,13 +2784,14 @@ Type const *E_fieldAcc::itcheck(Env &env)
 Type const *E_sizeof::itcheck(Env &env)
 {
   expr->tcheck(expr, env);
-  
+
   // TODO: this will fail an assertion if someone asks for the
   // size of a variable of template-type-parameter type..
   size = expr->type->reprSize();
 
   // TODO: is this right?
-  return getSimpleType(ST_UNSIGNED_INT);
+  return expr->type->isError()? 
+           expr->type : getSimpleType(ST_UNSIGNED_INT);
 }
 
 
@@ -2900,9 +2929,10 @@ Type const *E_comma::itcheck(Env &env)
 Type const *E_sizeofType::itcheck(Env &env)
 {
   atype = atype->tcheck(env, NULL /*sizeExpr*/);
-  size = atype->getType()->reprSize();
+  Type const *t = atype->getType();
+  size = t->reprSize();
 
-  return getSimpleType(ST_UNSIGNED_INT);
+  return t->isError()? t : getSimpleType(ST_UNSIGNED_INT);
 }
 
 

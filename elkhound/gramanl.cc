@@ -3026,6 +3026,19 @@ void GrammarAnalysis::resolveConflicts(
 }
 
 
+void reportUnexpected(int value, int expectedValue, char const *desc)
+{
+  if ((expectedValue==-1 && value>0) ||
+      (expectedValue != value)) {
+    cout << value << " " << desc;
+    if (expectedValue != -1) {
+      cout << " (expected " << expectedValue << ")";
+    }
+    cout << endl;
+  }
+}
+
+
 void GrammarAnalysis::computeParseTables(bool allowAmbig)
 {
   tables = new ParseTables(numTerms, numNonterms, itemSets.count(), numProds,
@@ -3131,10 +3144,8 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
   }
 
   // report on conflict counts
-  if (sr + rr > 0) {
-    cout << sr << " shift/reduce conflicts and "
-         << rr << " reduce/reduce conflicts\n";
-  }
+  reportUnexpected(sr, expectedSR, "shift/reduce conflicts");
+  reportUnexpected(rr, expectedRR, "reduce/reduce conflicts");
 
   // report on cyclicity
   for (int nontermId=0; nontermId<numNonterms; nontermId++) {
@@ -3781,12 +3792,11 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
       }
     }
 
-    if (ct > 0) {
-      cout << "grammar contains " << ct << " unreachable nonterminals\n";
-      // bison also reports the number of productions under all the
-      // unreachable nonterminals, but that doesn't seem especially
-      // useful to me
-    }
+    reportUnexpected(ct, expectedUNRNonterms, "unreachable nonterminals");
+
+    // bison also reports the number of productions under all the
+    // unreachable nonterminals, but that doesn't seem especially
+    // useful to me
 
     if (setsOutput) {
       *setsOutput << "unreachable terminals:\n";
@@ -3802,9 +3812,7 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
       }
     }
 
-    if (ct > 0) {
-      cout << "grammar contains " << ct << " unreachable terminals\n";
-    }
+    reportUnexpected(ct, expectedUNRTerms, "unreachable terminals");
   }
 
   // print the item sets

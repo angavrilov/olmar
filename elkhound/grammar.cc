@@ -781,7 +781,11 @@ Grammar::Grammar()
     emptyString(LocString(SourceLocation(), "empty"),    // no location
                 true /*isEmptyString*/),
     useGCDefaults(false),
-    defaultMergeAborts(false)
+    defaultMergeAborts(false),
+    expectedSR(-1),
+    expectedRR(-1),
+    expectedUNRNonterms(-1),
+    expectedUNRTerms(-1)
 {}
 
 
@@ -803,6 +807,12 @@ void Grammar::xfer(Flatten &flat)
   verbatim.xfer(flat);
 
   flat.xferBool(useGCDefaults);
+  flat.xferBool(defaultMergeAborts);
+
+  flat.xferInt(expectedSR);
+  flat.xferInt(expectedRR);
+  flat.xferInt(expectedUNRNonterms);
+  flat.xferInt(expectedUNRTerms);
 
   // serfs
   flat.checkpoint(0x8580AAD2);
