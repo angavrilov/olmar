@@ -29,7 +29,8 @@ BaseLexer::BaseLexer(StringTable &s, char const *fname)
     curLine(1),
 
     strtable(s),
-    errors(0)
+    errors(0),
+    warnings(0)
 {
   srcFile = sourceLocManager->getInternalFile(fname);
 
@@ -88,6 +89,13 @@ void BaseLexer::err(char const *msg)
 {
   errors++;
   cerr << toString(loc) << ": error: " << msg << endl;
+}
+
+
+void BaseLexer::warning(char const *msg)
+{
+  warnings++;
+  cerr << toString(loc) << ": warning: " << msg << endl;
 }
 
 

@@ -294,6 +294,9 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
   /* string literal missing final quote */
 "L"?{QUOTE}({STRCHAR}|{ESCAPE})*{EOL}   {
   if (lang.allowNewlinesInStringLits) {
+    warning("string literal contains (unescaped) newline character; "
+            "this is allowed for gcc-2 bug compatibility only "
+            "(maybe the final `\"' is missing?)");
     BEGIN(BUGGY_STRING_LIT);
     return svalTok(TOK_STRING_LITERAL);
   }
@@ -318,7 +321,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
    * newlines, to support a gcc-2 bug.  The strategy is to emit a
    * sequence of TOK_STRING_LITERALs, as if the string had been
    * properly broken into multiple literals.  However, these literals
-   * aren't surrounded by quotes... */
+   * aren't consistently surrounded by quotes... */
 <BUGGY_STRING_LIT>{
   ({STRCHAR}|{ESCAPE})*{QUOTE} {
     // found the end

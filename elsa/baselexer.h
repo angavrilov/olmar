@@ -29,6 +29,7 @@ protected:  // data
 public:     // data
   StringTable &strtable;           // string table
   int errors;                      // count of errors encountered
+  int warnings;                    // same for warnings
 
 private:    // funcs
   BaseLexer(BaseLexer&);           // disallowed
@@ -43,7 +44,7 @@ protected:  // funcs
   // adds a string with only the specified # of chars; writes (but
   // then restores) a null terminator if necessary, so 'str' isn't const
   StringRef addString(char *str, int len);
-                         
+
   // updLoc(), then for every newline found in
   // [yytext,yytext+yyleng-1], increment 'curLine'
   void whitespace();
@@ -55,6 +56,7 @@ protected:  // funcs
 
   // report an error
   void err(char const *msg);
+  void warning(char const *msg);
 
   // part of the constructor
   istream *openFile(char const *fname);

@@ -689,7 +689,12 @@ failparse d0111.cc "templatized member type not accessible?"
 failparse d0112.cc "some template dependent name problem"
 testparse d0113.cc
 failparse d0114.cc "overloading bug"
+
+# sm: this is invalid input, and *should* be rejected; I am leaving
+# it here for now as a reminder that whatever it came from needs to
+# be re-minimized
 failparse d0115.cc "gcc-2 bug: cannot find standard namespace"
+
 testparse d0116.cc
 testparse d0117.cc
 testparse d0118.cc

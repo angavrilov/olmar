@@ -195,6 +195,7 @@ void doit(int argc, char **argv)
 
   // --------------- parse --------------
   TranslationUnit *unit;
+  int lexerWarnings = 0;
   {
     SemanticValue treeTop;
     ParseTreeAndTokens tree(lang, treeTop, strTable, inputFname);
@@ -233,6 +234,7 @@ void doit(int argc, char **argv)
     if (parseContext->errors || lexer->errors) {
       exit(2);
     }
+    lexerWarnings = lexer->warnings;
 
     traceProgress(2) << "final parse result: " << treeTop << endl;
 
@@ -299,7 +301,7 @@ void doit(int argc, char **argv)
 
       // I changed from using exit(4) here to using abort() because
       // that way the multitest.pl script can distinguish them; the
-      // former is reserved for orderly exits, and signals (like
+      // former is reserved for orderly exits, whereas signals (like
       // SIGABRT) mean that something went really wrong
       abort();
     }
@@ -308,7 +310,7 @@ void doit(int argc, char **argv)
                     << " ms)\n";
 
     int numErrors = env.errors.numErrors();
-    int numWarnings = env.errors.numWarnings();
+    int numWarnings = env.errors.numWarnings() + lexerWarnings;
 
     // do this now so that 'printTypedAST' will include CFG info
     #ifdef CFG_EXTENSION
