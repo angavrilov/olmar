@@ -12,6 +12,7 @@
 #include <assert.h>         // assert
 
 #include "xassert.h"        // xassert
+#include "ckheap.h"         // checkHeapNode
 
 
 // ----------------------- string ---------------------
@@ -129,6 +130,14 @@ void string::readdelim(istream &is, char const *delim)
 void string::write(ostream &os) const
 {
   os << s;     // standard char* writing routine
+}
+
+
+void string::selfCheck() const
+{ 
+  if (s != empty) {
+    checkHeapNode(s);
+  }
 }
 
 

@@ -8,7 +8,7 @@ all: gensrc ${THISLIBRARY}
 #ccflags = -pg
 
 # optimizer...
-ccflags = -O2
+#ccflags = -O2
 
 # pull in basic stuff
 include Makefile.base.mk
@@ -38,11 +38,15 @@ objlist.h: xobjlist.h
 	chmod a-w objlist.h
 
 # -------------- main target --------------
+# testing a malloc with debug info
+malloc.o: malloc.c
+	gcc -c -g -DDEBUG malloc.c
+
 # library itself
 library-objs = \
   breaker.o crc.o datablok.o exc.o missing.o nonport.o str.o \
   syserr.o voidlist.o warn.o bit2d.o point.o growbuf.o strtokp.o \
-  strutil.o strdict.o svdict.o strhash.o hashtbl.o
+  strutil.o strdict.o svdict.o strhash.o hashtbl.o malloc.o
 ${THISLIBRARY}: ${library-objs}
 	${makelib} libsmbase.a ${library-objs}
 	${ranlib} libsmbase.a

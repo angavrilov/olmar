@@ -104,8 +104,12 @@ public:
   bool equalAsPointerSets(ObjList const &otherList) const
     { return list.equalAsPointerSets(otherList.list); }
 
-  // debugging
-  bool invariant() const                { return list.invariant(); }
+  // debugging: two additional invariants
+  void selfCheck() const { 
+    list.selfCheck();
+    list.checkHeapDataPtrs();
+    list.checkUniqueDataPtrs();
+  }
 };
 
 
@@ -170,7 +174,7 @@ public:
     // same as remove(), except item is deleted also
 
   // debugging
-  bool invariant() const                { return mut.invariant(); }
+  void selfCheck() const                { return mut.selfCheck(); }
 };
 
 #define MUTATE_EACH_OBJLIST(T, list, iter) \

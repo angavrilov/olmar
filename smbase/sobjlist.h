@@ -103,8 +103,12 @@ public:
   bool equalAsPointerSets(SObjList const &otherList) const
     { return list.equalAsPointerSets(otherList.list); }
 
-  // debugging
-  bool invariant() const                { return list.invariant(); }
+  // debugging: no invariants beyond VoidList
+  void selfCheck() const                { list.selfCheck(); }
+  
+  // but export the additional checks for cases where they apply anyway
+  void checkHeapDataPtrs() const        { list.checkHeapDataPtrs(); }
+  void checkUniqueDataPtrs() const      { list.checkUniqueDataPtrs(); }
 };
 
 
@@ -157,7 +161,7 @@ public:
     // next becomes the new 'current'
 
   // debugging
-  bool invariant() const                { return mut.invariant(); }
+  void selfCheck() const                { return mut.selfCheck(); }
 };
 
 #define SMUTATE_EACH_OBJLIST(T, list, iter) \

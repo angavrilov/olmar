@@ -140,8 +140,21 @@ outputCond([[[m4_dnl    // sobjlist
   bool equalAsPointerSets(className const &otherList) const
     { return list.equalAsPointerSets(otherList.list); }
 
-  // debugging
-  bool invariant() const                { return list.invariant(); }
+outputCond([[[m4_dnl    // sobjlist
+  // debugging: no invariants beyond VoidList
+  void selfCheck() const                { list.selfCheck(); }
+  
+  // but export the additional checks for cases where they apply anyway
+  void checkHeapDataPtrs() const        { list.checkHeapDataPtrs(); }
+  void checkUniqueDataPtrs() const      { list.checkUniqueDataPtrs(); }
+]]], [[[m4_dnl          // objlist
+  // debugging: two additional invariants
+  void selfCheck() const { 
+    list.selfCheck();
+    list.checkHeapDataPtrs();
+    list.checkUniqueDataPtrs();
+  }
+]]])m4_dnl
 };
 
 
@@ -210,7 +223,7 @@ outputCond(, [[[m4_dnl    // sobjlist
 
 ]]])m4_dnl
   // debugging
-  bool invariant() const                { return mut.invariant(); }
+  void selfCheck() const                { return mut.selfCheck(); }
 };
 
 #define makeName(MUTATE_EACH_OBJLIST)(T, list, iter) \

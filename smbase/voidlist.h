@@ -112,8 +112,10 @@ public:
     { return equalAsSets(otherList, pointerAddressDiff); }
 
   // debugging
-  bool invariant() const;            // test this list; return false if malformed
+  void selfCheck() const;            // test this list; fail assertion if malformed
   void debugPrint() const;           // print list contents to stdout
+  void checkHeapDataPtrs() const;    // fail assertion if any 'data' ptr isn't valid heap ptr
+  void checkUniqueDataPtrs() const;  // fail assertion if any 'data' ptr matches any other in this list
 };
 
 
@@ -168,9 +170,9 @@ public:
     // next becomes the new 'current'
 
   // debugging
-  bool invariant() const
-    { return (prev->next == current  &&  current != list.top) ||
-             (prev==NULL && current==list.top); }
+  void selfCheck() const
+    { xassert((prev->next == current  &&  current != list.top) ||
+              (prev==NULL && current==list.top)); }
 };
 
 

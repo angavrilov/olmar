@@ -105,6 +105,10 @@ public:	       // funcs
 
   void write(ostream &os) const;
     // writes all stored characters (but not '\0')
+    
+  // debugging
+  void selfCheck() const;
+    // fail an assertion if there is a problem
 };
 
 

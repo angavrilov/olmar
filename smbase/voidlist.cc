@@ -4,6 +4,7 @@
 #include "voidlist.h"   // this module
 #include "breaker.h"    // breaker
 #include "str.h"        // stringc
+#include "ckheap.h"     // checkHeap
 
 #include <stdlib.h>     // rand()
 #include <stdio.h>      // printf()
@@ -37,11 +38,11 @@ void *VoidList::nth(int which) const
 }
 
 
-// return false if list fails integrity check
-bool VoidList::invariant() const
+// fail assertion if list fails integrity check
+void VoidList::selfCheck() const
 {
   if (!top) {
-    return true;
+    return;
   }
 
   // The technique here is the fast/slow list traversal to find loops (which
@@ -52,18 +53,44 @@ bool VoidList::invariant() const
 
   VoidNode *slow=top, *fast=top->next;
   while (fast && fast != slow) {
+    // check heap properties
+    checkHeapNode(fast);
+
     slow = slow->next;
     fast = fast->next;
     if (fast) {
+      checkHeapNode(fast);
       fast = fast->next;      // usually, fast jumps 2 spots per slow's 1
     }
   }
 
   if (fast == slow) {
-    return false;        // loop
+    xfailure("linked list has a cycle");
   }
   else {
-    return true;         // no loop
+    return;         // no loop
+  }
+}
+
+
+void VoidList::checkHeapDataPtrs() const
+{
+  for (VoidNode *p=top; p!=NULL; p=p->next) {
+    checkHeapNode(p->data);
+  }
+}
+
+
+void VoidList::checkUniqueDataPtrs() const
+{
+  for (VoidNode *p=top; p!=NULL; p=p->next) {
+    // run 'q' from 'top' to 'p', looking for any
+    // collisions with 'p->data'
+    for (VoidNode *q=top; q!=p; q=q->next) {
+      if (q->data == p->data) {
+        xfailure("linked list with duplicate element");
+      }
+    }
   }
 }
 
@@ -665,7 +692,8 @@ void testSorting()
     //PRINT(list1);
 
     // verify structure
-    xassert(list1.invariant() && list2.invariant());
+    list1.selfCheck();
+    list2.selfCheck();
 
     // verify length
     xassert(list1.count() == numItems && list2.count() == numItems);
@@ -711,10 +739,10 @@ void entry()
              list.indexOf(a) == 0 &&
              list.indexOf(b) == 1 &&
              list.indexOf(c) == -1 &&
-             list.indexOf(d) == 2 &&
-             list.invariant()
+             list.indexOf(d) == 2
            );
-           
+    list.selfCheck();
+
     // test mutator s
     {
       VoidListMutator mut(list);

@@ -92,7 +92,8 @@ void testSorting()
     //PRINT(list1);
 
     // verify structure
-    xassert(list1.invariant() && list2.invariant());
+    list1.selfCheck();
+    list2.selfCheck();
 
     // verify length
     xassert(list1.count() == items && list2.count() == items);
@@ -138,11 +139,62 @@ void entry()
              !list.isEmpty() &&
              list.nth(0) == a &&
              list.nth(1) == b &&
-             list.nth(2) == d &&
-             list.invariant()     );
+             list.nth(2) == d
+           );
+    list.selfCheck();
              
     // 'list' will delete the integers
   }
+
+  // test that we can detect accidental duplication
+  {
+    Integer *x = new Integer(1);
+    ObjList<Integer> list;
+    list.prepend(x);
+    bool bad = false;
+    try {
+      // unspecified at interface level which of the
+      // following two will detect the problem
+      list.prepend(x);
+      list.selfCheck();
+      bad = true;
+    }
+    catch (...) {
+      printf("successfully detected duplicate insertion\n");
+
+      // repair list otherwise it will die during dtor!
+      list.removeAt(0);
+    }
+
+    if (bad) {
+      xfailure("FAILED to detect duplicate insertion\n");
+    }
+  }
+
+  #if 0     // the problem is dlmalloc uses regular assert, not xassert..
+  // test that we can detect insertion of bad ptrs
+  {
+    Integer *x = new Integer(1);
+    ObjList<Integer> list;
+    list.prepend(x);
+    bool bad = false;
+    try {
+      delete x;             // creates dangling reference
+      list.selfCheck();     // should detect it here
+      bad = true;
+    }
+    catch (...) {
+      printf("successfully detected bad-ptr insertion\n");
+
+      // repair list otherwise it will die during dtor!
+      list.removeAt(0);
+    }
+
+    if (bad) {
+      xfailure("FAILED to detect bad-ptr insertion\n");
+    }
+  }
+  #endif // 0
 
   printf("Integer ctorcount=%d dtorcount=%d\n",
          Integer::ctorcount, Integer::dtorcount);
