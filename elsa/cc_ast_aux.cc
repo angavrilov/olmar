@@ -391,7 +391,23 @@ string Statement::kindLocString() const
 }
 
 
-// Condition
+// ----------------------- Condition ----------------------
+void Condition::printAmbiguities(ostream &os, int indent) const
+{
+  genericPrintAmbiguities(this, "Condition", os, indent);
+}
+
+
+void Condition::addAmbiguity(Condition *alt)
+{
+  // this does not call 'genericAddAmbiguity' because Conditions
+  // do not have 'next' fields
+
+  // prepend 'alt' to my list
+  const_cast<Condition*&>(alt->ambiguity) = ambiguity;
+  const_cast<Condition*&>(ambiguity) = alt;
+}
+
 
 // ----------------------- Handler ----------------------
 bool Handler::isEllipsis() const

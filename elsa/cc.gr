@@ -779,6 +779,10 @@ nonterm(S_compound*) CompoundStmtSeq {
 
 // the guard of e.g. an 'if' statement
 nonterm(Condition*) Condition {
+  // see in/d0052.cc for why this ambiguity resolution mechanism was
+  // necessary
+  fun merge(L,R) { L->addAmbiguity(R); return L; }
+
   -> e:Expression
        { return new CN_expr(new FullExpression(e)); }
 

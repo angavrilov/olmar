@@ -433,6 +433,7 @@ testparse d0050.cc
 testparse d0050elab.cc
 testparse d0051.cc
 testparse d0051elab.cc
+testparse d0052.cc
 
 # examples from C++ standard
 #

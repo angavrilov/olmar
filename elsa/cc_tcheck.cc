@@ -3264,7 +3264,7 @@ void S_if::itcheck(Env &env)
   implicitLocalScope(thenBranch);
   implicitLocalScope(elseBranch);
 
-  cond->tcheck(env);
+  cond = cond->tcheck(env);
   thenBranch = thenBranch->tcheck(env);
   elseBranch = elseBranch->tcheck(env);
 
@@ -3279,7 +3279,7 @@ void S_switch::itcheck(Env &env)
   // 6.4 para 1
   implicitLocalScope(branches);
 
-  cond->tcheck(env);
+  cond = cond->tcheck(env);
   branches = branches->tcheck(env);
 
   env.exitScope(scope);
@@ -3293,7 +3293,7 @@ void S_while::itcheck(Env &env)
   // 6.5 para 2
   implicitLocalScope(body);
 
-  cond->tcheck(env);
+  cond = cond->tcheck(env);
   body = body->tcheck(env);
 
   env.exitScope(scope);
@@ -3320,7 +3320,7 @@ void S_for::itcheck(Env &env)
   implicitLocalScope(body);
 
   init = init->tcheck(env);
-  cond->tcheck(env);
+  cond = cond->tcheck(env);
   after->tcheck(env);
   body = body->tcheck(env);
 
@@ -3397,7 +3397,20 @@ void S_namespaceDecl::itcheck(Env &env)
 
 
 // ------------------- Condition --------------------
-void CN_expr::tcheck(Env &env)
+Condition *Condition::tcheck(Env &env)
+{
+  int dummy;
+  if (!ambiguity) {
+    // easy case
+    mid_tcheck(env, dummy);
+    return this;
+  }
+
+  // generic resolution: whatever tchecks is selected
+  return resolveAmbiguity(this, env, "Condition", false /*priority*/, dummy);
+}
+
+void CN_expr::itcheck(Env &env)
 {
   expr->tcheck(env);
 
@@ -3405,7 +3418,7 @@ void CN_expr::tcheck(Env &env)
 }
 
 
-void CN_decl::tcheck(Env &env)
+void CN_decl::itcheck(Env &env)
 {
   ASTTypeId::Tcheck tc;
   typeId = typeId->tcheck(env, tc);

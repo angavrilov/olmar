@@ -407,6 +407,20 @@ class Statement (SourceLoc loc) {
 // to declare a variable that will hold the condition's value for
 // the duration of the substatement(s)
 class Condition {
+  // ambiguity representation
+  public Condition *ambiguity; ctor ambiguity=NULL;
+  public void addAmbiguity(Condition *alternative);
+  custom traverse { if (ambiguity) ambiguity->traverse(vis); }
+
+  // print ambiguities
+  public void printAmbiguities(ostream &os, int indent) const;
+  custom preemptDebugPrint {
+    if (ambiguity) {
+      printAmbiguities(os, indent);
+      return;     // skip the normal, unambiguous-node print code
+    }
+  }
+
   -> CN_expr(FullExpression expr);  // simple expression
   -> CN_decl(ASTTypeId typeId);     // type, name, & initializer (must all be present)
 }

@@ -349,7 +349,11 @@ class Statement {
 
 
 class Condition {
-  pure_virtual void tcheck(Env &env);
+  // typecheck, and return which Condition is selected from among
+  // syntactically ambiguous choices
+  public /*no_ignore*/ Condition *tcheck(Env &env);
+  public void mid_tcheck(Env &env, int &) { itcheck(env); };
+  pure_virtual void itcheck(Env &env);
 }
 
 
