@@ -1,0 +1,65 @@
+// cexp2.gr
+// subgrammar for C expressions; experimental syntax
+
+// ------ tokens -------
+// this list generated automatically by the lexer
+terminals {
+  // form:
+  //   <code> ":" <alias> [<alias> ...] ";"
+  0:   L2_EOF                 ;
+  1:   L2_NAME                ;
+   ...
+  6:   L2_ASM    "asm"        ;
+  7:   L2_AUTO   "auto"       ;
+   ...
+  113: L2_RBRACE "}"          ;
+}
+// ------ end of tokens ------
+
+
+nonterm Input -> Expr L2_EOF;
+
+
+// primary expressions
+nonterm Expr {
+  attr prec;              // precedence of binding (topmost) operator in expression
+
+  -> L2_NAME {
+    action  prec := 100;
+  }
+
+  -> left:Expr op:Binop right:Expr {
+    action  prec := op.prec;
+
+    condition  result.prec <= left.prec;             // precedence
+    condition  result.prec <= right.prec;            // more precedence
+    condition  op.leftAssoc == 1 ?
+                 result.prec < right.prec :          // left associative
+                 result.prec < left.prec;            // right associative
+  }
+}
+
+
+// an operator in a binary expression
+nonterm Binop {
+  attr prec;             // precedence of operator; higher value binds more tightly
+  attr leftAssoc;        // 1 means left-associative, 0 means right-associative
+
+  formGroup {
+    action  prec := sequence(60 /*start value*/, -4 /*increment*/);
+    action  leftAssoc := 1;
+
+    // highest precedence
+    -> "*" | "/" | "%"             ;
+    -> "+" | "-"                   ;
+    -> "<<" | ">>"                 ;
+    -> "<" | ">" | "<=" | ">="     ;
+    -> "==" | "!="                 ;
+    -> "&"                         ;
+    -> "^"                         ;
+    -> "|"                         ;
+    -> "&&"                        ;
+    -> "||"                        ;
+    // lowest precedence
+  }
+}
