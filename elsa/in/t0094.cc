@@ -8,7 +8,13 @@
 // place that mozilla #includes iomanip.h, since I don't
 // appear to actually need it to parse their file.
 
+// 2005-02-20: Now elsa accepts this!  (After adding a couple of
+// needed forward declarations.)  Maybe I was wrong about the grammar?
+// icc and gcc-3 both like it too.
+
 class ios;
+class istream;
+class ostream;
 
 
 template<class TP> class smanip;

@@ -7,4 +7,9 @@ template<class T> struct B {
   S find(T*);
 };
 
-template<class T> B<T>::S B<T>::find(T*, int) {}
+// this is invalid code, because 'typename' is required;
+// gcc rejects, icc accepts
+//ERROR(1): template<class T> B<T>::S B<T>::find(T*, int) {}
+
+// this is valid
+template<class T> typename B<T>::S B<T>::find(T*, int) {}

@@ -314,7 +314,7 @@ testparse t0090.cc
 testparse t0091.cc
 testparse t0092.cc
 testparse t0093.cc
-failparse t0094.cc "weird g++ iomanip.h <> syntax"
+testparse t0094.cc
 testparse t0095.cc
 testparse t0096.cc
 testparse t0097.cc
@@ -347,7 +347,7 @@ testparse t0122.cc
 testparse t0123.cc
 testparse t0124.cc
 testparse t0125.cc
-testparse t0126.cc  # work in progress, so it's ok if it starts failing
+testparse t0126.cc
 testparse t0127.cc
 testparse t0128.cc
 testparse t0129.cc
@@ -610,6 +610,7 @@ testparse t0374.cc
 testparse t0375.cc
 testparse t0376.cc
 testparse t0377.cc
+failparse t0378.cc "buggy qualified lookup"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -705,30 +706,24 @@ testparse d0103.cc
 testparse d0104.cc
 testparse d0105.cc
 failparse d0106.cc "gcc-2 bug: missing template <>"
-testparse d0107.cc # "assertion failure in MatchTypes"
+testparse d0107.cc
 testparse d0108.cc
 testparse d0109.cc # "duplicate 'using' declaration"
 failparse d0110.cc "class specialization without 'template' prefix?"
 testparse d0111.cc # "failure to use 'typename' when defining static member"
-failparse d0112.cc "some template dependent name problem"
+failparse d0112.cc "template dependent name problem"
 testparse d0113.cc
-failparse d0114.cc "overloading bug"
-
-# sm: this is invalid input, and *should* be rejected; I am leaving
-# it here for now as a reminder that whatever it came from needs to
-# be re-minimized
-failparse d0115.cc "gcc-2 bug: cannot find standard namespace"
-
+failparse d0114.cc "dependent return type prevents associating defn with decl"
+# sm: this is invalid input
+#failparse d0115.cc "gcc-2 bug: cannot find standard namespace"
 testparse d0116.cc
 testparse d0117.cc
 testparse d0118.cc
 testparse d0119.cc
 testparse d0120.cc
 testparse d0121.cc
-
-# sm: this is invalid C++ and is rejected by g++; why is it here?
+# sm: this is invalid C++
 #failparse d0123.cc "from the kernel; works in C mode but in C++ mode can't convert void* to function pointer"
-
 testparse d0124.cc
 # ---- END: lots of tests ----
 

@@ -1,0 +1,16 @@
+#!/bin/sh
+# run elsa, gcc, icc
+
+if [ "$1" = "" ]; then
+  echo "usage: $0 input.cc"
+  exit 0
+fi
+
+echo "------------- icc -------------"
+./run-icc "$@"
+
+echo "------------- gcc -------------"
+./run-g++ "$@"
+
+echo "------------- elsa -------------"
+./ccparse "$@"
