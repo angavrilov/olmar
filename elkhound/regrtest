@@ -187,6 +187,7 @@ vcgen simple.c
 vcgentb str.c
 vcgentb struct.c
 vcgen loop1.c
+vcgen corrcond.c
 
 
 # final arithmetic to report result
