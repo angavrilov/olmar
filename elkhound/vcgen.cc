@@ -7,6 +7,7 @@
 #include "cc_type.h"            // FunctionType, etc.
 #include "sobjlist.h"           // SObjList
 #include "trace.h"              // tracingSys
+#include "strutil.h"            // quoted
 
 #define IN_PREDICATE(env) Restorer<bool> restorer(env.inPredicate, true)
 
@@ -71,7 +72,7 @@ void TF_func::vcgen(AEnv &env) const
   // add 'result' to the environment so we can record what value
   // is actually returned
   if (!ft.retType->isVoid()) {
-    env.set(env.str("result"), env.freshVariable("return value"));
+    env.set(env.str("result"), env.freshVariable("ret", "return value"));
   }
 
   // now interpret the function body
@@ -250,7 +251,24 @@ AbsValue *E_intLit::vcgen(AEnv &env) const
 }
 
 AbsValue *E_floatLit::vcgen(AEnv &env) const { return avTodo(); }
-AbsValue *E_stringLit::vcgen(AEnv &env) const { return avTodo(); }
+AbsValue *E_stringLit::vcgen(AEnv &env) const 
+{ 
+  // make a new variable to stand for this string's object (address)
+  AbsValue *object = env.freshVariable("str", stringc << "address of " << quoted(s));
+  env.addDistinct(object);
+
+  // assert the length of this object is the length of the string (w/ null)
+  env.addFact(new AVbinary(env.avLength(object), BIN_EQUAL,
+              new AVint(strlen(s)+1)));
+              
+  // assert that the first zero is (currently?) at the end
+  env.addFact(new AVbinary(env.avFirstZero(env.getMem(), object), BIN_EQUAL,
+              new AVint(strlen(s)+1)));
+         
+  // the result of this expression is a pointer to the string's start
+  return env.avPointer(object, new AVint(0));
+}
+
 
 AbsValue *E_charLit::vcgen(AEnv &env) const
 {
@@ -296,8 +314,8 @@ AbsValue *E_arrayAcc::vcgen(AEnv &env) const
   else {
     cout << "unhandled array access\n";
 
-    return env.freshVariable(stringc
-             << "array access: " << toString());
+    return env.freshVariable("arrayAcc", 
+             stringc << "array access: " << toString());
   }
 }
 #endif // 0
@@ -371,7 +389,7 @@ AbsValue *E_funCall::vcgen(AEnv &env) const
 
     // prove this predicate; the assumptions from the *old* environment
     // are relevant
-    env.prove(predicate, "precondition of call");
+    env.prove(predicate, stringc << "precondition of call: " << toString());
 
     // no longer needed
     newEnv.discard(predicate);
@@ -381,8 +399,8 @@ AbsValue *E_funCall::vcgen(AEnv &env) const
   // make a new variable to stand for the value returned
   AbsValue *result = NULL;
   if (!ft.retType->isVoid()) {
-    result = env.freshVariable(stringc
-               << "function call result: " << toString());
+    result = env.freshVariable("result", 
+               stringc << "function call result: " << toString());
 
     // add this to the mini environment so if the programmer talks
     // about the result, it will state something about the result variable
@@ -390,7 +408,7 @@ AbsValue *E_funCall::vcgen(AEnv &env) const
   }
 
   // make up new variable to represent final contents of memory
-  env.setMem(env.freshVariable("contents of memory after call"));
+  env.setMem(env.freshVariable("mem", "contents of memory after call"));
   newEnv.setMem(env.getMem());
 
   // NOTE: by keeping the environment from before, we are interpreting
@@ -413,8 +431,8 @@ AbsValue *E_funCall::vcgen(AEnv &env) const
 AbsValue *E_fieldAcc::vcgen(AEnv &env) const
 {
   // good results here would require abstract values for structures
-  return env.freshVariable(stringc
-           << "structure field access: " << toString());
+  return env.freshVariable("field", 
+           stringc << "structure field access: " << toString());
 }
 
 

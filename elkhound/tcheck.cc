@@ -352,6 +352,8 @@ Type const *D_func::itcheck(Env &env, Type const *rettype, DeclFlags dflags, Dec
   FOREACH_ASTLIST_NC(FuncAnnotation, ann, iter) {
     ASTSWITCH(FuncAnnotation, iter.data()) {
       ASTCASE(FA_precondition, pre) {
+        IN_PREDICATE(env);
+
         // typecheck the precondition
         FOREACH_ASTLIST_NC(Declaration, pre->decls, iter) {
           iter.data()->tcheck(env);
@@ -367,6 +369,8 @@ Type const *D_func::itcheck(Env &env, Type const *rettype, DeclFlags dflags, Dec
       }
 
       ASTNEXT(FA_postcondition, post) {
+        IN_PREDICATE(env);
+
         // typecheck the postcondition
         post->expr->tcheck(env);
 
@@ -822,7 +826,7 @@ Type const *E_assign::itcheck(Env &env)
   // TODO: check that 'ttype' is an lvalue
 
   if (env.inPredicate) {
-    env.err("cannot have side effects in predicates");
+    env.err(stringc << "cannot have side effects in predicates: " << toString());
   }
 
   env.checkCoercible(stype, ttype);

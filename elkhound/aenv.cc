@@ -53,6 +53,7 @@ AEnv::AEnv(StringTable &table)
   : bindings(),
     facts(new P_and(NULL)),
     memVars(),
+    distinct(),
     counter(1),
     inPredicate(false),
     stringTable(table),
@@ -72,9 +73,10 @@ void AEnv::clear()
   bindings.empty();
   facts->conjuncts.deleteAll();
   memVars.empty();
+  distinct.removeAll();
   
   // initialize the environment with a fresh variable for memory
-  set(str("mem"), freshVariable("initial contents of memory"));
+  set(str("mem"), freshVariable("mem", "initial contents of memory"));
 }
 
 
@@ -96,9 +98,9 @@ AbsValue *AEnv::get(StringRef name)
 }
 
 
-AbsValue *AEnv::freshVariable(char const *why)
+AbsValue *AEnv::freshVariable(char const *prefix, char const *why)
 {
-  StringRef name = stringTable.add(stringc << "v" << counter++);
+  StringRef name = stringTable.add(stringc << prefix << counter++);
   return new AVvar(name, why);
 }
 
@@ -122,6 +124,12 @@ AbsValue *AEnv::getMemVarAddr(StringRef name)
 bool AEnv::isMemVar(StringRef name) const
 {
   return memVars.isMapped(name);
+}
+
+
+void AEnv::addDistinct(AbsValue *obj)
+{
+  distinct.append(obj);
 }
 
 
@@ -160,7 +168,19 @@ Predicate *exprToPred(AbsValue const *expr)
       }
 
       if (b->op == BIN_AND) {
-        return P_and2(exprToPred(b->v1), exprToPred(b->v2));
+        Predicate *p1 = exprToPred(b->v1);
+        Predicate *p2 = exprToPred(b->v2);
+        if (p1->isP_and()) {
+          p1->asP_and()->conjuncts.append(p2);
+          return p1;
+        }
+        else if (p2->isP_and()) {
+          p2->asP_and()->conjuncts.prepend(p1);
+          return p2;
+        }
+        else {
+          return P_and2(p1, p2);
+        }
       }
 
       if (b->op == BIN_OR) {
@@ -210,6 +230,9 @@ void AEnv::prove(AbsValue const *expr, char const *context)
   for (StringSObjDict<AbsValue>::Iter iter(memVars);
        !iter.isDone(); iter.next()) {
     addrs->terms.append(iter.value());
+  }
+  SMUTATE_EACH_OBJLIST(AbsValue, distinct, iter2) {
+    addrs->terms.append(iter2.data());
   }
   facts->conjuncts.prepend(addrs);
 
@@ -274,14 +297,10 @@ bool AEnv::innerProve(Predicate * /*serf*/ goal,
     if (print) {
       VariablePrinter vp;
       cout << print << ": " << context << endl;
-
-      FOREACH_ASTLIST(Predicate, facts->conjuncts, iter) {
-        cout << "  fact: " << iter.data()->toSexpString() << "\n";
-        walkValuePredicate(vp, iter.data());
-      }
+      printFact(vp, facts);
       cout << "  goal: " << goal->toSexpString() << "\n";
       walkValuePredicate(vp, goal);
-      
+
       // print out variable map
       vp.dump();
     }
@@ -299,6 +318,20 @@ bool AEnv::innerProve(Predicate * /*serf*/ goal,
   }
 }
 
+// print a fact, breaking apart conjunctions
+void AEnv::printFact(VariablePrinter &vp, Predicate const *fact)
+{
+  if (fact->isP_and()) {
+    FOREACH_ASTLIST(Predicate, fact->asP_andC()->conjuncts, iter) {
+      printFact(vp, iter.data());
+    }
+  }
+  else {
+    cout << "  fact: " << fact->toSexpString() << "\n";
+    walkValuePredicate(vp, fact);
+  }
+}
+      
 
 AbsValue *AEnv::grab(AbsValue *v) { return v; }
 void AEnv::discard(AbsValue *)    {}

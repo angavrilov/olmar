@@ -64,4 +64,32 @@
         (select mem obj2 ofs2)
       )))
 
+  ; you can read past a 'changed' marker, but only if you're
+  ; reading from a different object
+  (FORALL (mem obj1 obj2 ofs2)
+    (IMPLIES
+      (NEQ obj1 obj2)
+      (EQ
+        (select (changed mem obj1) obj2 ofs2)
+        (select mem obj2 ofs2)
+      )
+    ))
+
+  ; reading first zero from a memory where last changed obj is diff't
+  (FORALL (mem obj1 obj2 ofs1 value)
+    (IMPLIES
+      (NEQ obj1 obj2)
+      (EQ
+        (firstZero (update mem obj1 ofs1 value) obj2)
+        (firstZero mem obj2)
+      )
+    ))
+  (FORALL (mem obj1 obj2)
+    (IMPLIES
+      (NEQ obj1 obj2)
+      (EQ
+        (firstZero (changed mem obj1) obj2)
+        (firstZero mem obj2)
+      )
+    ))
 ))

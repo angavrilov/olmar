@@ -6,10 +6,12 @@
 
 #include "strsobjdict.h"   // StringSObjDict
 #include "strtable.h"      // StringRef
+#include "sobjlist.h"      // SObjList
 
 class AbsValue;            // absval.ast
 class P_and;               // predicate.ast
 class Predicate;           // predicate.ast
+class VariablePrinter;     // aenv.cc
 
 class AEnv {
 private:     // data
@@ -21,6 +23,11 @@ private:     // data
 
   // map of address-taken variables to their addresses
   StringSObjDict<AbsValue> memVars;
+
+  // list of objects addresses known to be distinct, in addition to
+  // those that appear in 'memVars'; the two lists are concatenated
+  // into one list of things all assumed to be mutually distinct
+  SObjList<AbsValue> distinct;
 
   // monotonic integer for making new names
   int counter;
@@ -41,6 +48,7 @@ private:     // funcs
                   char const *printFalse,
                   char const *printTrue,
                   char const *context);
+  void printFact(VariablePrinter &vp, Predicate const *fact);
 
 public:      // funcs
   AEnv(StringTable &table);
@@ -55,8 +63,8 @@ public:      // funcs
 
   // make and return a fresh variable reference; the string
   // is attached to indicate what this variable stands for,
-  // or why it was created
-  AbsValue *freshVariable(char const *why);
+  // or why it was created; the prefix becomes part of the variable name
+  AbsValue *freshVariable(char const *prefix, char const *why);
 
   // make up a name for the address of the named variable, and add
   // it to the list of known address-taken variables; retuns the
@@ -67,6 +75,9 @@ public:      // funcs
   // retrieve the associated address
   bool isMemVar(StringRef name) const;
   AbsValue *getMemVarAddr(StringRef name);
+
+  // add an address to those considered mutually distinct
+  void addDistinct(AbsValue *obj);
 
   // set/get the current abstract value of memory
   AbsValue *getMem() { return get(str("mem")); }
@@ -99,6 +110,8 @@ public:      // funcs
     { return avFunc1("offset", ptr); }
   AbsValue *avLength(AbsValue *obj)
     { return avFunc1("length", obj); }
+  AbsValue *avFirstZero(AbsValue *mem, AbsValue *obj)
+    { return avFunc2("firstZero", mem, obj); }
 
   AbsValue *avFunc1(char const *func, AbsValue *v1);
   AbsValue *avFunc2(char const *func, AbsValue *v1, AbsValue *v2);
