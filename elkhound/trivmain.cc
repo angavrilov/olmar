@@ -14,6 +14,8 @@
 #include "trace.h"     // TRACE_ARGS
 #include "glr.h"       // GLR
 #include "useract.h"   // UserActions
+#include "ptreenode.h" // PTreeNode
+
 
 // defined in the grammar file
 UserActions *makeUserActions();
@@ -24,9 +26,17 @@ int entry(int argc, char *argv[])
   TRACE_ARGS();
 
   if (argc < 2) {
-    printf("usage: %s input-file\n", progName);
+    printf("usage: %s [-tr flags] [-count] input-file\n", progName);
     return 0;
   }
+                                     
+  bool count = false;
+  if (0==strcmp(argv[1], "-count")) {
+    count = true;
+    argv++;    // shift
+    argc--;
+  }
+
   char const *inputFname = argv[1];
 
   // lex input
@@ -44,9 +54,15 @@ int entry(int argc, char *argv[])
     // glrParse prints the error itself
     return 2;
   }
-  else {
-    return 0;
+
+  // count # of parses
+  if (count) {
+    PTreeNode *top = (PTreeNode*)treeTop;
+    TreeCount numParses = top->countTrees();
+    cout << "num parses: " << numParses << endl;
   }
+
+  return 0;
 }
 
 

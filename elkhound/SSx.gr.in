@@ -4,12 +4,10 @@
 // S -> S S x | x
 
 terminals {
-  88 : x   ;
+  x
 }
 
 nonterm S {
-  merge(p1, p2) [ cout << "merging nonterminal S\n"; return p1; ]
-
-  -> S S x;
+  -> a:S b:S x;
   -> x;
 }

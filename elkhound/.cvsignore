@@ -119,6 +119,6 @@ sexp.ast.gen.*
 SSx.bin
 SSx.gr
 SSx.gr.gen.*
-SSx.tree.bin
-SSx.tree.gr.gen.*
+SSx.tree.*
 gss.*.g
+ssx.in

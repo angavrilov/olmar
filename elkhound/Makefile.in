@@ -1,7 +1,7 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-temporary: sexp ccgr bccgr aSEb.gr.exe
+temporary: sexp ccgr bccgr aSEb.gr.exe ssxmain.exe ssx.in
 
 # main targets
 all: ccgr
@@ -384,20 +384,37 @@ bccgr: bccgr.cc bccgr.tab.o lexer1.o lexer1yy.o lexer2.o $(AST)/fileloc.o \
 	./bccgr c.in1
 
 # run the trivial-grammar helper
-.PRECIOUS: %.gr
+.PRECIOUS: %.gr %.tree.gr
 %.gr: %.gr.in make-trivparser.pl
 	rm -f $@
 	./make-trivparser.pl $* <$*.gr.in >$@
 	chmod a-w $@
 
+%.tree.gr: %.gr.in make-trivparser.pl
+	rm -f $@
+	./make-trivparser.pl -ptree $* <$*.gr.in >$@
+	chmod a-w $@
+
 # make a parser for testing some grammar, using trivial lexer
-trivparse-deps = trivmain.cc trivlex.o lexer2.o libglr.a
+trivparse-deps = trivmain.cc ptreenode.o trivlex.o lexer2.o libglr.a
 %.gr.exe: %.gr.gen.o $(trivparse-deps)
 	g++ -o $@ $(ccflags) $(includes) -DGRAMMAR_NAME=\"$*.bin\" \
 	  $^ $(linkend)
 
-ssxmain.exe: SSx.tree.gr.gen.o ssxmain.o trivlex.o lexer2.o libglr.a
+# parser for S -> S S x | x
+ssxmain.exe: SSx.tree.gr.gen.o ptreenode.o ssxmain.o trivlex.o lexer2.o libglr.a
 	g++ -o $@ $(ccflags) $^ $(linkend)
+
+# input for ssxmain
+ssx.in:
+	mkdir ssx.in
+	perl -e 'for($$n=1; $$n <= 99; $$n += 2) {           \
+	           open(OUT, ">ssx.in/$$n.in") or die $!;    \
+	           for($$i=0; $$i < $$n; $$i++) {            \
+	             print OUT ("X");                        \
+	           }                                         \
+	           close(OUT);                               \
+	         }'
 
 # test program for 'sexp' module
 sexp: sexp.ast.gen.o sexp.cc $(AST)/fileloc.o $(AST)/asthelp.o
@@ -410,7 +427,8 @@ clean:
 	rm -f cc.gr.ps
 	rm -f *.gen.*
 	rm -f cdecl.bin cdecl cexp3.bin cexp3
-	rm -f *.d
+	rm -f *.d *.exe
+	rm -rf ssx.in
 
 # regression tests
 check-cexp2: cexp2
