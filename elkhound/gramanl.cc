@@ -3234,6 +3234,7 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
     tables->mergeActionColumns();
     tables->mergeActionRows();
     tables->mergeGotoColumns();
+    tables->mergeGotoRows();
   }
 }
 

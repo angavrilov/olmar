@@ -249,8 +249,12 @@ protected:  // data
   int actionRows;                        // rows in actionTable[]
   ActionEntry **actionRowPointers;       // (nullable owner ptr to serfs)
   //
-  // similar maps for the goto table
+  // index map for the goto table
   NtIndex *gotoIndexMap;                 // (nullable owner*)
+  //
+  // row map for the goto table
+  int gotoRows;
+  GotoEntry **gotoRowPointers;           // (nullable owner ptr to serfs)
 
 public:     // data
   // These are public because if they weren't, I'd just have a stupid
@@ -276,7 +280,7 @@ private:    // funcs
   GotoEntry &gotoEntry(StateId stateId, int nontermId)
     { return gotoTable[stateId*gotoCols + nontermId]; }
   int gotoTableSize() const
-    { return numStates * gotoCols; }
+    { return gotoRows * gotoCols; }
 
   void appendAmbig(ArrayStack<ActionEntry> const &set);
   bool compareAmbig(ArrayStack<ActionEntry> const &set, int startIndex);
@@ -361,6 +365,7 @@ public:     // funcs
   void mergeActionColumns();
   void mergeActionRows();
   void mergeGotoColumns();
+  void mergeGotoRows();
 
 
   // -------------------- table queries ---------------------------
@@ -440,7 +445,7 @@ public:     // funcs
   // decode gotos
   GotoEntry getGotoEntry(StateId stateId, int nontermId) {
     #if ENABLE_GCS_COMPRESSION
-      return gotoTable[stateId*gotoCols + gotoIndexMap[nontermId]];
+      return gotoRowPointers[stateId][gotoIndexMap[nontermId]];
     #else
       return gotoEntry(stateId, nontermId);
     #endif

@@ -58,6 +58,7 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
   actionRows = numStates;
 
   gotoCols = numNonterms;
+  gotoRows = numStates;
 
   allocZeroArray(actionTable, actionTableSize());
 
@@ -115,6 +116,7 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
   actionRowPointers = NULL;
 
   gotoIndexMap = NULL;
+  gotoRowPointers = NULL;
 }
 
 
@@ -170,6 +172,9 @@ ParseTables::~ParseTables()
   }
   if (actionRowPointers) {
     delete[] actionRowPointers;
+  }
+  if (gotoRowPointers) {
+    delete[] gotoRowPointers;
   }
 }
 
@@ -709,10 +714,10 @@ void ParseTables::mergeActionRows()
           goto next_s;
         }
       }
-      
+
       // all same
       ct++;
-      
+
     next_s:
       ;
     }
@@ -721,6 +726,8 @@ void ParseTables::mergeActionRows()
 }
 
 
+// created by copying 'mergeGotoRows' and replacing 'action'
+// with 'goto', etc.
 void ParseTables::mergeGotoColumns()
 {
   traceProgress() << "merging goto columns\n";
@@ -804,6 +811,113 @@ void ParseTables::mergeGotoColumns()
   delete[] gotoTable;
   gotoTable = newTable;
   gotoCols = numColors;
+}
+
+
+// created by copying 'mergeActionRows' and replacing 'action'
+// with 'goto', etc.
+void ParseTables::mergeGotoRows()
+{
+  traceProgress() << "merging goto rows\n";
+
+  // can only do this if we've already pulled out the errors
+  xassert(errorBits);
+
+  // I should already have a column map
+  xassert(gotoIndexMap);
+
+  // for now I assume we don't have a map yet
+  xassert(!gotoRowPointers);
+
+  // compute graph of conflicting 'goto' rows
+  Bit2d graph(point(numStates, numStates));
+  graph.setall(0);
+
+  // fill it in
+  for (int s1=0; s1 < numStates; s1++) {
+    for (int s2=0; s2 < s1; s2++) {
+      // does row 's1' conflict with row 's2'?
+      for (int nt=0; nt < gotoCols; nt++) {    // nt is an equivalence class of nonterminals
+        GotoEntry g1 = gotoTable[s1*gotoCols + nt];
+        GotoEntry g2 = gotoTable[s2*gotoCols + nt];
+
+        if (isErrorGoto(g1) ||
+            isErrorGoto(g2) ||
+            g1 == g2) {
+          // no problem
+        }
+        else {
+          // conflict!
+          graph.set(point(s1, s2));
+          graph.set(point(s2, s1));
+          break;
+        }
+      }
+    }
+  }
+
+  // color the graph
+  Array<int> color(numStates);      // state -> color (equivalence class)
+  int numColors = colorTheGraph(color, graph);
+
+  // build a new, compressed goto table
+  GotoEntry *newTable;
+  allocInitArray(newTable, numColors * gotoCols, encodeGotoError());
+
+  // merge rows in 'gotoTable' into those in 'newTable'
+  // according to the 'color' map
+
+  // gotoTable[]:
+  //
+  //             t0    t1    t2    t3      // nonterminal equivalence classes
+  //   s0
+  //   s1
+  //   s2
+  //    ...
+  //   /*states*/
+
+  // newTable[]:
+  //
+  //             t0    t1    t2    t3      // nonterminal equivalence classes
+  //   c0
+  //   c1
+  //   c2    < e.g., union of state1 and state4 (color[1]==color[4]==2) >
+  //    ...
+  //   /*state equivalence classes (colors)*/
+
+  gotoRowPointers = new GotoEntry* [numStates];
+  for (int s=0; s<numStates; s++) {
+    int c = color[s];
+
+    // merge gotoTable row 's' into newTable row 'c'
+    for (int nt=0; nt<gotoCols; nt++) {
+      GotoEntry &dest = newTable[c*gotoCols + nt];
+
+      GotoEntry src = gotoTable[s*gotoCols + nt];
+      if (!isErrorGoto(src)) {
+        // make sure there's no conflict (otherwise the graph
+        // coloring algorithm screwed up)
+        xassert(isErrorGoto(dest) ||
+                dest == src);
+
+        // merge the entry
+        dest = src;
+      }
+    }
+
+    // fill in the row pointer map
+    gotoRowPointers[s] = newTable + c*gotoCols;
+  }
+
+  trace("compression")
+    << "goto table: from " << (numStates * gotoCols * sizeof(GotoEntry))
+    << " down to " << (numColors * gotoCols * sizeof(GotoEntry))
+    << " bytes\n";
+
+  // replace the existing table with the compressed one
+  delete[] gotoTable;
+  gotoTable = newTable;
+  gotoRows = numColors;
 }
 
 
@@ -1117,6 +1231,7 @@ void ParseTables::emitConstructionCode(EmitCode &out,
   SET_VAR(actionCols);
   SET_VAR(actionRows);
   SET_VAR(gotoCols);
+  SET_VAR(gotoRows);
   SET_VAR(ambigTableSize);
   out << "  startState = (StateId)" << (int)startState << ";\n";
   SET_VAR(finalProductionIndex);
@@ -1165,6 +1280,10 @@ void ParseTables::emitConstructionCode(EmitCode &out,
   // gotoIndexMap
   emitTable2(out, gotoIndexMap, numNonterms, 16,
              "NtIndex", "gotoIndexMap");
+
+  // gotoRowPointers
+  emitOffsetTable(out, gotoRowPointers, gotoTable, numStates,
+                  "GotoEntry*", "gotoRowPointers", "gotoTable");
 
   if (ENABLE_CRS_COMPRESSION) {
     emitTable2(out, firstWithTerminal, numTerms, 16,
