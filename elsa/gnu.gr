@@ -2,15 +2,15 @@
 // extension to cc.gr for GNU C/C++ language extensions
 
 // NOTE: Though the name of this module is "gnu.gr", in fact we also
-// put our C99 support here, with "C99" comments.  For the moment, it
-// isn't worth it to split out C99 from GNU, because our usage model
-// is that either you want to parse ANSI C++, or you want to parse
-// whatever gcc/g++ accepts.  The "gnu" extensions (try to) provide
-// the latter.  (Also, there are a few extensions like "long long"
-// that are provided by both, so the split wouldn't be 100% clean.)
+// put our C99 support here.  For the moment, it isn't worth it to
+// split out C99 from GNU, because our usage model is that either you
+// want to parse ANSI C++, or you want to parse whatever gcc/g++
+// accepts.  The "gnu" extensions (try to) provide the latter.  (Also,
+// there are a few extensions like "long long" that are provided by
+// both, so the split wouldn't be 100% clean.)
 //
 // 9/27/04: The current concept is that gnu.gr contains the syntactic
-// extensions that comprise the modern, extended C++ language,
+// extensions included in the modern, extended C++ language,
 // especially as used on linux.  It does *not* include old K&R syntax,
 // which will be put in kandr.gr.
 //
@@ -52,7 +52,6 @@ nonterm(Expression*) PrimaryExpression {
 
 
 // ----------- gcc compound literals -----------
-// GNU extension: "Compound Literal"
 // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Compound-Literals.html
 // (notation for literal struct values)
 // e.g.:
@@ -137,8 +136,10 @@ nonterm(TopForm*) ExplicitInstantiation {
 
 
 // ----------- gcc dangling labels -----------
-// gcc allows a compound statement to end with a label, whereas
-// the C++ grammar requires a statement after every label
+// gcc allows a compound statement to end with a label, whereas the C
+// and C++ grammars require a statement after every label; I can't
+// find any place in the gcc docs that specifically addresses this
+// extension; linux uses it heavily
 
 nonterm(S_compound*) CompoundStatement {
   // special case for a block that ends in a label; Warning: no don't
@@ -312,6 +313,8 @@ nonterm(IDeclarator*) Declarator {
   // Asm Labels after declarators; see in/gnu/asm01.c
   -> d:DirectDeclarator "asm" "(" StringLiteral ")"
        { return d; }
+       
+  // asm label + attributes ...
   -> d:DirectDeclarator "asm" "(" StringLiteral ")" AttributeSpecifierList
        { return d; }
 }
