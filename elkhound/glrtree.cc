@@ -3,6 +3,19 @@
 
 #include "glrtree.h"     // this module
 
+#ifdef WES_OCAML_LINKAGE
+  struct wes_ast_node {
+    const char *name;
+    int num_children;
+    int line, col;
+    struct wes_ast_node ** children;
+  };
+
+  #include "cc_tree.h"    // TODO: why did we need this?
+  #include <string.h>     // strdup
+#endif
+
+
 
 // convenient indented output
 ostream &doIndent(ostream &os, int i)
@@ -150,6 +163,21 @@ void TerminalNode::setAttrValue(AttrName name, AttrValue value)
 {
   xfailure("setAttrValue: terminals do not have attributes");
 }
+
+
+#ifdef WES_OCAML_LINKAGE
+struct wes_ast_node * TerminalNode::camlAST() const
+{
+    // I am a leaf
+    struct wes_ast_node * retval = new struct wes_ast_node;
+    retval->name = strdup(token->toString(true).pchar());
+    retval->num_children = 0;
+    retval->line = token->loc.line;
+    retval->col = token->loc.col;
+    retval->children = NULL;
+    return retval;
+}
+#endif
 
 
 void TerminalNode::printParseTree(ostream &os, int indent,  
@@ -310,6 +338,25 @@ TreeNode const *NonterminalNode::walkTree(WalkFn func, void *extra) const
 }
 
 
+#ifdef WES_OCAML_LINKAGE
+struct wes_ast_node * NonterminalNode::camlAST(void) const
+{
+    struct wes_ast_node * retval;
+    retval = reductions.firstC()->camlAST();
+    {
+	CCTreeNode * c = (CCTreeNode *) this;
+	if (c->isJustInt) {
+	    // memory leak
+	    retval->name = strdup( stringc << "L2_INT_LITERAL " << c->theInt );
+	    retval->children = NULL;
+	    retval->num_children = 0;
+	}
+    }
+    return retval;
+}
+#endif
+
+
 void NonterminalNode::printParseTree(ostream &os, int indent, bool asSexp) const
 {
   int parses = reductions.count();
@@ -462,6 +509,44 @@ TreeNode const *Reduction::walkTree(TreeNode::WalkFn func, void *extra) const
   }
   return NULL;
 }
+
+
+#ifdef WES_OCAML_LINKAGE
+struct wes_ast_node * Reduction::camlAST() const
+{
+    int nbr = children.count();
+    if (nbr == 1) { // simplify things
+	return children.firstC()->camlAST();
+    } else if (nbr == 0) {
+	struct wes_ast_node * retval = new struct wes_ast_node;
+	retval->name = strdup(production->left->name.pcharc());
+	retval->num_children = 0;
+	retval->children = NULL;
+	retval->line = -1;
+	retval->col = -1;
+	return retval;
+    } else { // >= 2 children
+	int i;
+	struct wes_ast_node * retval = new struct wes_ast_node;
+
+	retval->name = strdup(production->left->name.pcharc());
+	if (!strcmp(retval->name,"L2_SIZEOF")) {
+
+	}
+	retval->num_children = nbr;
+	retval->children = new (struct wes_ast_node *) [nbr];
+	i = 0;
+	SFOREACH_OBJLIST(TreeNode, children, child) {
+	    retval->children[i] = child.data()->camlAST();
+	    i++;
+	}
+	retval->line = retval->children[0]->line;
+	retval->col = retval->children[0]->col;
+
+	return retval;
+    }
+}
+#endif
 
 
 void Reduction::printParseTree(ostream &os, int indent, bool asSexp) const
@@ -629,3 +714,10 @@ XAmbiguity::XAmbiguity(XAmbiguity const &obj)
 XAmbiguity::~XAmbiguity()
 {}
 
+                         
+// stubs to let us compile in non-ocaml mode
+#ifndef WES_OCAML_LINKAGE
+struct wes_ast_node * TerminalNode::camlAST() const { return NULL; }
+struct wes_ast_node * NonterminalNode::camlAST() const { return NULL; }
+struct wes_ast_node * Reduction::camlAST() const { return NULL; }
+#endif // !WES_OCAML_LINKAGE

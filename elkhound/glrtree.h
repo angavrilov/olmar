@@ -22,6 +22,18 @@
 #include "exc.h"         // xBase
 #include "trdelete.h"    // TRASHINGDELETE
 
+#ifdef WES_OCAML_LINKAGE
+  extern "C" {
+  #include "caml/mlvalues.h"
+  #include "caml/alloc.h"
+  #include "caml/memory.h"
+  }
+#else
+  // provide a dummy decl so the fn prototypes don't
+  // need to be protected by ugly #ifdefs
+  struct wes_ast_node { int x; };
+#endif
+
 
 // forward decls for things declared below
 class TreeNode;          // abstract parse tree (graph) node
@@ -95,7 +107,10 @@ public:     // funcs
   virtual void printParseTree(ostream &os, int indent,
                               bool asSexp) const = 0;
   static void printAllocStats();
-  
+
+  // tree walk and gather an ast to export to ocaml
+  virtual struct wes_ast_node * camlAST() const = 0;  // wes
+
   // selfOnly: check this node's internal invariants
   // !selfOnly: also check this node and its children for a valid tree
   virtual void selfCheck(bool selfOnly) const = 0;
@@ -130,6 +145,7 @@ public:     // funcs
   virtual void getGroundTerms(SObjList<TerminalNode> &dest) const;
   virtual int numGroundTerms() const;
   virtual void printParseTree(ostream &os, int indent, bool asSexp) const;
+  virtual struct wes_ast_node * camlAST() const;  // wes
   virtual void selfCheck(bool selfOnly) const;
 };
 
@@ -180,6 +196,7 @@ public:
   virtual void getGroundTerms(SObjList<TerminalNode> &dest) const;
   virtual int numGroundTerms() const;
   virtual void printParseTree(ostream &os, int indent, bool asSexp) const;
+  virtual struct wes_ast_node * camlAST() const;  // wes
   virtual void selfCheck(bool selfOnly) const;
 };
 
@@ -213,6 +230,7 @@ public:      // funcs
     { return attr == obj.attr; }
 
   void printParseTree(ostream &os, int indent, bool asSexp) const;
+  struct wes_ast_node * camlAST() const;  // wes
   TreeNode const *walkTree(TreeNode::WalkFn func, void *extra=NULL) const;
   void ambiguityReport(ostream &os) const;
 

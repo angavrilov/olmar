@@ -28,7 +28,28 @@ literalCode "prologue" {
   // this is for places where there is no value
   // for a construct
   inline CilExpr *noCilValue() { return NULL; }
+  
+
+  // stuff related to exporting data to ocaml
+  #ifdef WES_OCAML_LINKAGE
+    #include "caml/mlvalues.h"
+    #include "caml/alloc.h"
+    #include "caml/memory.h"
+    struct wes_ast_node {
+        const char *name;
+        int num_children;
+        int line, col;
+        struct wes_ast_node ** children;
+    };
+    struct wes_list {
+        struct wes_ast_node * hd;
+        struct wes_list * tl;
+    };
+    struct wes_list * wes_result_list = NULL;
+  #endif /* WES_OCAML_LINKAGE */
 }
+
+// use a custom base class
 treeNodeBase "CCTreeNode";
 
 
@@ -103,13 +124,32 @@ nonterm TranslationUnit : Checkable {
   // simple indirection so I can print just the d's
   fundecl void printTree();
   fun printTree {}      // NOP; never called
-
-  -> empty;
   
+  // entry point to gather an ocaml ast; this *overrides*
+  // the camlAST declared in glrtree.h; can't say 'virtual',
+  // however, because this decl text is also emitted for
+  // the fn definition
+  fundecl /*virtual*/ struct wes_ast_node *camlAST();
+
+  -> empty {
+    fun camlAST { // return our ocaml AST
+      #ifdef WES_OCAML_LINKAGE
+        struct wes_ast_node * retval = new struct wes_ast_node;
+        retval->name = "empty parse tree";
+        retval->num_children = 0;
+        retval->children = NULL;
+        retval->line = retval->col = 0;
+        return retval;
+      #else /* WES_OCAML_LINKAGE */
+        return NULL;
+      #endif /* WES_OCAML_LINKAGE */
+    }
+  }
+
   -> t:TranslationUnit d:Declaration {
     fun typeCheck {
       delete t.typeCheck(env, inst);
-       
+
       try {
         delete d.typeCheck(env, inst);
       }
@@ -118,7 +158,7 @@ nonterm TranslationUnit : Checkable {
         env->report(x.err);
       }
       env->flushLocalErrors(cout);
-      
+
       return noCilValue();
     }
 
@@ -134,12 +174,24 @@ nonterm TranslationUnit : Checkable {
         d.printParseTree(cout, 2 /*indent*/, false /*asSexp*/);
       }
     }
+
+    fun camlAST {
+      return d.camlAST();
+    }
   }
 
   // allow assembly at toplevel for gnu compatibility
   -> t:TranslationUnit a:GNUAsmStatement {
     fun typeCheck {
       return t.typeCheck(env, inst);
+    }
+    
+    fun camlAST {
+      // sm: I'm suspicious of this .. if I wasn't doing analysis
+      // on each function before processing the next, this would
+      // prevent camlAST from visiting anything before the last
+      // toplevel ASM ..
+      return a.camlAST();
     }
   }
 
@@ -156,13 +208,26 @@ nonterm TranslationUnit : Checkable {
     // clear the existing dataflow environment (effect is we
     // don't analyze globals ....)
     env->getDenv().reset();
-    
+
     // debugging..
     trace("typeCheck") << locString() << endl;
 
     // run the analysis on this piece of the tree
     CilCompound *cil = newCompound();
     delete typeCheck(env, *cil);
+
+    #ifdef WES_OCAML_LINKAGE
+      // this is a hideous hack, but I cannot actually pass return values
+      // around through scott's code
+      // sm: yeah, we're in a C++ constructor here so return
+      // values are tricky ...
+      {
+        struct wes_list * new_cell = new struct wes_list;
+        new_cell->hd = camlAST();
+        new_cell->tl = wes_result_list;
+        wes_result_list = new_cell;
+      }
+    #endif /* WES_OCAML_LINKAGE */
 
     // this is, more or less, the product of the analysis
     printTree();
@@ -2268,8 +2333,7 @@ nonterm DirectDeclarator : DeclaratorBase {
   fundecl int getSize(Env *env);      // get declared size
   fun getSize { internalError("can't call getSize"); }
 
-  -> //n:PQVarName GNUAttribute |       // GNU extension
-     n:PQVarName {
+  -> n:PQVarName {
     action isFunction := 0;
     action isName := 1;
 
@@ -2387,7 +2451,6 @@ nonterm CVQualifier : HasTypeName, HasCVFlags {
   -> "const"            { fun getCVFlags = CV_CONST; }
   -> "volatile"         { fun getCVFlags = CV_VOLATILE; }
   -> "owner"            { fun getCVFlags = CV_OWNER; }
-  //-> GNUAttribute       { fun getCVFlags = CV_NONE; }     // GNU extension
 }
 
 
@@ -3075,10 +3138,94 @@ int fakemain(int argc, char *argv[])
 }
 
 
+// toplevel entries to the parser for the ocaml code
+#ifdef WES_OCAML_LINKAGE
+extern "C" {
+
+value c_to_ocaml(struct wes_ast_node *n, char *filename)
+{
+    CAMLparam0();
+    CAMLlocal4(result,str,arr,child);
+    int i;
+
+    result = alloc(5,0);
+    str = copy_string(n->name);
+    Store_field(result, 0, str);
+    Store_field(result, 2, Val_int(n->line));
+    Store_field(result, 3, Val_int(n->col));
+    Store_field(result, 4, (int)(filename));
+    if (n->num_children == 0) {
+	Store_field(result, 1, Atom(0));
+	CAMLreturn(result);
+    } else {
+	arr = alloc(n->num_children, 0);
+	for (i=0;i<n->num_children;i++) {
+	    child = c_to_ocaml(n->children[i],filename);
+	    modify(&Field(arr,i), child);
+	}
+	Store_field(result, 1, arr);
+	CAMLreturn(result);
+    }
+}
+
+void wes_print(struct wes_ast_node * n)
+{
+    int i;
+    printf("(%s",n->name);
+    for (i=0;i<n->num_children;i++)
+	wes_print(n->children[i]);
+    printf(")");
+}
+
+value wes_main(char *filename) {
+    CAMLparam0();
+    CAMLlocal2(retval, c);
+    char *argv[5] = {
+	"cc.gr",
+	"-tr",
+	"parse-tree,sizeof",
+	"cc.gr",
+	filename};
+    int argc = 5;
+    int res;
+    struct wes_list * l;
+
+    res = fakemain(argc, argv);
+    // examine wes_result_list
+
+#if 0
+    for (l = wes_result_list; l != NULL; l = l->tl) {
+	struct wes_ast_node * n = l->hd;
+	wes_print(n);
+    }
+    printf("\n\n");
+#endif
+
+    // convert it over to OCAML
+    c = Val_int(0);
+    for (l = wes_result_list; l != NULL; l = l->tl) {
+	struct wes_ast_node * n = l->hd;
+	retval = alloc(2,0);
+	Store_field(retval, 0, c_to_ocaml(n,filename));
+	Store_field(retval, 1, c);
+	c = retval;
+    }
+    wes_result_list = NULL; // memory leak!
+    CAMLreturn(c);
+}
+
+} // extern "C"
+
+#else /* !WES_OCAML_LINKAGE */
+
+// 'main' for a standalone executable
 int main(int argc, char *argv[])
 {
   //fakemain(argc, argv);
   return fakemain(argc, argv);
 }
+
+#endif /* !WES_OCAML_LINKAGE */
+
 
 } // epilogue
