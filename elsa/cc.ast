@@ -520,6 +520,7 @@ class Expression {
   // dig down past any E_grouping nodes; this is sometimes necessary
   // when a node needs to examine the syntax of subexpressions
   public Expression *skipGroups();
+  public Expression const *skipGroupsC() const;
 
   -> E_boolLit(bool b);
   

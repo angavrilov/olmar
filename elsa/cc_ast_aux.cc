@@ -722,9 +722,14 @@ bool Expression::isBinary(BinaryOp op) const
 // not an E_grouping and return that
 Expression *Expression::skipGroups()
 {
-  Expression *ret = this;
+  return const_cast<Expression*>(skipGroupsC());
+}
+
+Expression const *Expression::skipGroupsC() const
+{
+  Expression const *ret = this;
   while (ret->isE_grouping()) {
-    ret = ret->asE_grouping()->expr;
+    ret = ret->asE_groupingC()->expr;
   }
   return ret;
 }
