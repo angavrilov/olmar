@@ -352,8 +352,8 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
    * then we accept the rest of the line; 'parseHashLine' will finish
    * parsing the directive */
 "#"("line"?){SPTAB}.*{NL} {
-  whitespace();
   parseHashLine(yytext, yyleng);
+  whitespace();       // don't increment line count until after parseHashLine()
 }
 
   /* other preprocessing: ignore it */
