@@ -1026,9 +1026,25 @@ bool BaseType::isDependent() const
 
 bool BaseType::isGeneralizedDependent() const
 {
-  return isSimple(ST_DEPENDENT) ||
-         isTypeVariable() ||
-         isPseudoInstantiation();
+  if (isSimple(ST_DEPENDENT) ||
+      isTypeVariable() ||
+      isPseudoInstantiation()) {
+    return true;
+  }
+  
+  if (isCompoundType()) {
+    // 10/09/04: (in/d0113.c) I want to regard A<T>::B, where B is an
+    // inner class of template class A, as being dependent.  For that
+    // matter, A itself should be regarded as dependent.  So if 'ct'
+    // has template parameters (including inherited), say it is
+    // dependent.
+    TemplateInfo *ti = asCompoundTypeC()->templateInfo();
+    if (ti && ti->hasMainOrInheritedParameters()) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 static bool cGD_helper(Type const *t)

@@ -3813,7 +3813,9 @@ bool Env::doOverload() const
 
   if (!lang.allowOverloading) { return false; }
 
-  if (disambiguateOnly) { return false; }
+  // 10/09/04: *Do* overload resolution even in template bodies, as
+  // long as the arguments are not dependent (checked elsewhere).
+  //if (disambiguateOnly) { return false; }
 
   return true;
 }
@@ -3825,7 +3827,9 @@ bool Env::doOperatorOverload() const
 
   if (!lang.allowOverloading) { return false; }
 
-  if (disambiguateOnly) { return false; }
+  // 10/09/04: *Do* overload resolution even in template bodies, as
+  // long as the arguments are not dependent (checked elsewhere).
+  //if (disambiguateOnly) { return false; }
 
   return true;
 }

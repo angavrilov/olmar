@@ -4718,6 +4718,14 @@ static Variable *outerResolveOverload(Env &env,
     }
   }
 
+  // 10/09/04: (in/t0270.cc) bail if any arguments are dependent
+  for (int i=0; i < argInfo.size(); i++) {
+    if (argInfo[i].type && 
+        argInfo[i].type->isGeneralizedDependent()) {
+      return NULL;
+    }
+  }
+
   // resolve overloading
   bool wasAmbig;     // ignored, since error will be reported
   return resolveOverload(env, loc, &env.errors,
