@@ -47,7 +47,7 @@ Variable_Q::~Variable_Q()
 }
 
 
-Type_Q const *Variable_Q::qtypeC() const
+Type_Q const *Variable_Q::typeC() const
 {
-  return asType_QC(type);
+  return asTypeC_Q(Variable::type);
 }

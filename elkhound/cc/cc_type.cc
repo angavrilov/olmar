@@ -862,16 +862,17 @@ string FunctionType::rightStringUpToQualifiers(bool innerParen) const
   #if BEFORE
   sb << ::toString(q);
   #endif
-  if (cv) {
-    sb << " " << ::toString(cv);
-  }
-  
+
   return sb;
 }
 
 string FunctionType::rightStringAfterQualifiers() const
-{           
+{
   stringBuilder sb;
+
+  if (cv) {
+    sb << " " << ::toString(cv);
+  }
 
   // exception specs
   if (exnSpec) {
@@ -1057,8 +1058,8 @@ Type *TypeFactory::cloneType(Type *src)
 }
 
 
-Type *TypeFactory::applyCVToType(CVFlags cv, Type *baseType, 
-                                 TypeSpecifier *)
+Type *TypeFactory::applyQualifiersToType(CVFlags cv, Type *baseType,
+                                         TypeSpecifier *)
 {
   if (baseType->isError()) {
     return baseType;

@@ -140,10 +140,10 @@ void doit(int argc, char **argv)
 
 
   // ---------------- typecheck -----------------
+  TypeFactory_Q tfac;     // need to access it later
   {
     // should work with either factory
     //BasicTypeFactory tfac;
-    TypeFactory_Q tfac;
 
     traceProgress() << "type checking...\n";
     Env env(strTable, lang, tfac);

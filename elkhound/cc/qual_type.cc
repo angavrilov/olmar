@@ -32,7 +32,12 @@ DOWNCAST_IMPL(Type_Q, ArrayType_Q)
 string CVAtomicType_Q::leftString(bool innerParen) const
 {
   // sm: we can come back and optimize the placement of spaces later
-  return stringc << CVAtomicType::leftString(innerParen) << ::toString(q) << " ";
+  stringBuilder sb;
+  sb << CVAtomicType::leftString(innerParen);
+  if (q) { 
+    sb << ::toString(q) << " ";
+  }
+  return sb;
 }
 
 
@@ -186,10 +191,10 @@ Type_Q *TypeFactory_Q::cloneType_Q(Type_Q *src)
 }
 
 
-// This is an attempt to imitate applyCVToType() for our general
+// This is an attempt to imitate applyQualifiersToType() for our general
 // qualifiers.  Yes, there is a lot of commented-out code so the
-// context of applyCVToType() is present.
-Type *TypeFactory_Q::applyCVToType(
+// context of applyQualifiersToType() is present.
+Type *TypeFactory_Q::applyQualifiersToType(
   CVFlags cv, Type *baseType, TypeSpecifier *syntax)
 {
   if (baseType->isError()) {
@@ -197,7 +202,7 @@ Type *TypeFactory_Q::applyCVToType(
   }
 
   // apply 'cv' the same way the default factory does
-  baseType = TypeFactory::applyCVToType(cv, baseType, syntax);
+  baseType = TypeFactory::applyQualifiersToType(cv, baseType, syntax);
   Type_Q *qbaseType = asType_Q(baseType);
 
   // extract qualifier literals from syntax
@@ -376,7 +381,7 @@ Variable_Q *TypeFactory_Q::cloneVariable_Q(Variable_Q *src)
 {
   Variable_Q *ret = new Variable_Q(src->loc
                                    ,src->name // don't see a reason to clone the name
-                                   ,cloneType_Q(src->qtype())
+                                   ,cloneType_Q(src->type())
                                    ,src->flags // an enum, so nothing to clone
                                    );
   // ret->overload left as NULL as set by the ctor; not cloned

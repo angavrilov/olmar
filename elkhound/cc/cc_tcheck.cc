@@ -707,7 +707,7 @@ void PQ_template::tcheck(Env &env)
 Type *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
 {
   Type *t = itcheck(env, dflags);
-  Type *ret = env.tfac.applyCVToType(cv, t, this);
+  Type *ret = env.tfac.applyQualifiersToType(cv, t, this);
   if (!ret) {
     return env.error(t, stringc
       << "cannot apply const/volatile to type `" << t->toString() << "'");
