@@ -280,6 +280,11 @@ public:     // funcs
   // size of representation
   virtual int reprSize() const = 0;
 
+  // this is true if any of the type *constructors* on this type
+  // refer to ST_ERROR; we don't dig down inside e.g. members of
+  // referred-to classes
+  virtual bool containsErrors() const=0;
+
   // some common queries
   bool isSimpleType() const;
   SimpleType const &asSimpleTypeC() const;
@@ -293,7 +298,7 @@ public:     // funcs
   bool shouldSuppressClashes() const { return isError() || isTypeVariable(); }
   CompoundType const *ifCompoundType() const;     // NULL or corresp. compound
   bool isOwnerPtr() const;
-  
+
   // pointer/reference stuff
   bool isPointer() const;                // as opposed to reference or non-pointer
   bool isReference() const;
@@ -303,10 +308,10 @@ public:     // funcs
   bool isCVAtomicType(AtomicType::Tag tag) const;
   bool isTypeVariable() const { return isCVAtomicType(AtomicType::T_TYPEVAR); }
   bool isCompoundType() const { return isCVAtomicType(AtomicType::T_COMPOUND); }
-  
+
   bool isTemplateFunction() const;
   bool isTemplateClass() const;
-  
+
   bool isCDtorFunction() const;
 
   ALLOC_STATS_DECLARE
@@ -334,10 +339,12 @@ public:     // funcs
 
   bool innerEquals(CVAtomicType const *obj) const;
 
+  // Type interface
   virtual Tag getTag() const { return T_ATOMIC; }
   virtual string leftString() const;
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
+  virtual bool containsErrors() const;
 };
 
 
@@ -360,11 +367,13 @@ public:
 
   bool innerEquals(PointerType const *obj) const;
 
+  // Type interface
   virtual Tag getTag() const { return T_POINTER; }
   virtual string leftString() const;
   virtual string rightString() const;
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
+  virtual bool containsErrors() const;
 };
 
 
@@ -379,6 +388,8 @@ public:     // types
   public:
     ExnSpec() {}
     ~ExnSpec();
+    
+    bool containsErrors() const;
   };
 
 public:     // data
@@ -404,11 +415,13 @@ public:     // funcs
 
   bool isTemplate() const { return templateParams!=NULL; }
 
+  // Type interface
   virtual Tag getTag() const { return T_FUNCTION; }
   virtual string leftString() const;
   virtual string rightString() const;
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
+  virtual bool containsErrors() const;
 };
 
 
@@ -437,9 +450,10 @@ public:
 public:
   TemplateParams() {}
   ~TemplateParams();
-  
+
   string toString() const;
   bool equalTypes(TemplateParams const *obj) const;
+  bool containsErrors() const;
 };
 
 
@@ -458,11 +472,13 @@ public:
 
   bool innerEquals(ArrayType const *obj) const;
 
+  // Type interface
   virtual Tag getTag() const { return T_ARRAY; }
   virtual string leftString() const;
   virtual string rightString() const;
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
+  virtual bool containsErrors() const;
 };
 
 
@@ -494,6 +510,17 @@ inline Type const *makeRefType(Type const *type)
 // map a simple type into its CVAtomicType (with no const or
 // volatile) representative
 CVAtomicType const *getSimpleType(SimpleTypeId st);
+
+
+// ------ for debugging ------
+// The idea here is you say "print type_toString(x)" in gdb, where 'x'
+// is a pointer to some type.  Then type_toString() will render a
+// description into 'type_toString_buf', and return 1 (for gdb to
+// "print").  Finally, you "print type_toString_buf" to see the
+// rendered name.
+extern char type_toString_buf[80];
+int type_toString(Type const *t);
+
 
 
 #endif // CC_TYPE_H

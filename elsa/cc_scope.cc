@@ -62,24 +62,39 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
     v->type->isFunctionType()? "function" :
                                "variable" ;
 
+  // does the type contain any error-recovery types?  if so,
+  // then we don't want to add the variable because we could
+  // be trying to disambiguate a declarator, and this would
+  // be the erroneous interpretation which is not supposed to
+  // modify the environment
+  bool containsErrors = v->type->containsErrors();
+  char const *prefix = "";
+  if (containsErrors) {
+    prefix = "[cancel/error] ";
+  }
+
   if (!curCompound) {
     // variable outside a class
-    trace("env") << "added " << classification 
+    trace("env") << prefix << "added " << classification
                  << " `" << v->name
                  << "' of type `" << v->type->toString()
-                 << "' at " << v->loc.toString() 
+                 << "' at " << v->loc.toString()
                  << endl;
   }
   else {
     // class member
     v->access = curAccess;
-    trace("env") << "added " << toString(v->access)
+    trace("env") << prefix << "added " << toString(v->access)
                  << " member " << classification
                  << " `" << v->name
                  << "' of type `" << v->type->toString()
                  << "' at " << v->loc.toString()
                  << " to " << curCompound->keywordAndName()
                  << endl;
+  }
+
+  if (containsErrors) {
+    return true;     // pretend it worked; don't further rock the boat
   }
 
   return insertUnique(variables, v->name, v, changeCount, forceReplace);
