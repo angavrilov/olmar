@@ -4,9 +4,11 @@
 use strict 'subs';
 
 # defaults
-$BASE_FLAGS = "-g -Wall -Wno-deprecated -D__UNIX__";
+$BASE_FLAGS = "-Wall -Wno-deprecated -D__UNIX__";
 $CCFLAGS = ();
 $debug = 0;
+$use_dash_g = 1;
+$allow_dash_O2 = 1;
 $SMBASE = "../../smbase";
 $AST = "../../ast";
 $ELKHOUND = "..";
@@ -18,6 +20,8 @@ usage: ./configure [options]
 options:
   -h:                print this message
   -debug,-nodebug:   enable/disable debugging options [disabled]
+  -no-dash-g         disable -g
+  -no-dash-O2        disable -O2
   -prof              enable profiling
   -devel             add options useful while developing
   <op>:              add a given option to the gcc command line,
@@ -58,10 +62,17 @@ while (@ARGV) {
   elsif ($arg eq "-nodebug") {
     $debug = 0;
   }
+  elsif ($arg eq "-no-dash-g") {
+    $use_dash_g = 0;
+  }
+  elsif ($arg eq "-no-dash-O2") {
+    $allow_dash_O2 = 0;
+  }
 
   elsif ($arg eq "-prof") {
     push @CCFLAGS, "-pg";
   }
+
 
   elsif ($arg eq "-devel") {
     push @CCFLAGS, "-Werror";
@@ -83,8 +94,14 @@ while (@ARGV) {
 }
 
 if (!$debug) {
-  push @CCFLAGS, "-O2";
+  if ($allow_dash_O2) {
+    push @CCFLAGS, "-O2";
+  }
   push @CCFLAGS, "-DNDEBUG";
+}
+
+if ($use_dash_g) {
+  push @CCFLAGS, "-g";
 }
 
 $os = `uname -s`;

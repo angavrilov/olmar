@@ -6,7 +6,11 @@ use strict 'subs';
 $| = 1;     # autoflush
 
 # defaults
-$BASE_FLAGS = "-g -Wall -D__UNIX__";
+$BASE_FLAGS = "-Wall -D__UNIX__";
+# dsw: yes, I didn't use your %flags thing 
+$use_dash_g = 1;
+$allow_dash_O2 = 1;
+
 $CCFLAGS = ();
 %flags = (
   "debug" => 0,
@@ -55,6 +59,8 @@ usage: ./configure [options]
 options:
   -h:                print this message
   -debug=y/n:        enable/disable debugging options [disabled]
+  -no-dash-g         disable -g
+  -no-dash-O2        disable -O2
   -prof              enable profiling
   -devel             add options useful while developing
   -loc=y/n:          enable/disable source location tracking [enabled]
@@ -110,6 +116,13 @@ while (@ARGV) {
   elsif ($arg eq "-nodebug") {
     $flags{debug} = 0;
     push @c_args, $arg;
+  }
+
+  elsif ($arg eq "-no-dash-g") {
+    $use_dash_g = 0;
+  }
+  elsif ($arg eq "-no-dash-O2") {
+    $allow_dash_O2 = 0;
   }
 
   elsif ($arg eq "-prof") {
@@ -193,7 +206,14 @@ while (@ARGV) {
 copyFlagsToGlobals();
 
 if (!$debug) {
-  push @CCFLAGS, ("-O2", "-DNDEBUG");
+  if ($allow_dash_O2) {
+    push @CCFLAGS, "-O2";
+  }
+  push @CCFLAGS, "-DNDEBUG";
+}
+
+if ($use_dash_g) {
+  push @CCFLAGS, "-g";
 }
 
 $os = `uname -s`;
