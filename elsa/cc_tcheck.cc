@@ -6221,6 +6221,20 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
   Type *thRval = th->type->asRval();
   Type *elRval = el->type->asRval();
 
+  if (!env.lang.isCplusplus) {
+    // ANSI C99 mostly requires that the types be the same, but gcc
+    // doesn't seem to enforce anything, so I won't either; and if
+    // they are different, it isn't clear what the type should be ...
+    
+    // for in/gnu/d0095.c
+    if (thRval->isPointerType() &&
+        thRval->asPointerType()->atType->isVoid()) {
+      return elRval;
+    }
+
+    return thRval;
+  }
+
   // para 2: if one or the other has type 'void'
   {
     bool thVoid = thRval->isSimple(ST_VOID);
@@ -6228,13 +6242,6 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
     if (thVoid || elVoid) {
       if (thVoid && elVoid) {
         return thRval;         // result has type 'void'
-      }
-
-      if (!env.lang.isCplusplus) {
-        // ANSI C99 requires that if either argument is void, then
-        // both are (6.5.15); however, gcc in C mode accepts code
-        // (like in/c/t0009.c) where only one is, so I will too
-        return thVoid? thRval : elRval;
       }
 
       // the void-typed expression must be a 'throw' (can it be
