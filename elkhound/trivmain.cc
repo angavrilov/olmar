@@ -150,10 +150,10 @@ int entry(int argc, char *argv[])
     cout << "num parses: " << numParses << endl;
 
     TreeCount should = 0;    // meaning unknown
-    if (0==strcmp(GRAMMAR_NAME, "SSx.tree.bin")) {
+    if (0==strcmp(GRAMMAR_NAME, "triv/SSx.tree.bin")) {
       should = ssxCount((inputLen-1) / 2);
     }
-    if (0==strcmp(GRAMMAR_NAME, "SSSx.tree.bin")) {
+    if (0==strcmp(GRAMMAR_NAME, "triv/SSSx.tree.bin")) {
       should = sssxCount(inputLen);
     }
     

@@ -98,17 +98,4 @@ gdb.log
 ndebug
 sexp
 sexp.ast.gen.*
-SSx.bin
-SSx.gr
-SSx.gr.gen.*
-SSx.tree.*
 gss.*.g
-ssx.in
-EEb.tree.*
-SSSx.tree.*
-eeb.in
-sssx.in
-EFa.gr
-EFa.tree.*
-efa.in
-EFa.notree.*
