@@ -13,6 +13,15 @@
 #include "cc_env.h"       // Env
 #include "aenv.h"         // AEnv
 
+
+void if_malloc_stats()
+{
+  if (tracingSys("malloc_stats")) {
+    malloc_stats();
+  }
+}
+
+
 // defined by the user somewhere
 UserActions *makeUserActions(StringTable &table);
 
@@ -21,7 +30,7 @@ void doit(int argc, char **argv)
   traceAddSys("progress");
   //traceAddSys("parse-tree");
 
-  malloc_stats();
+  if_malloc_stats();
 
   // string table for storing parse tree identifiers
   StringTable strTable;
@@ -34,12 +43,20 @@ void doit(int argc, char **argv)
     ParseTreeAndTokens tree(treeTop, strTable);
     UserActions *user = makeUserActions(tree.lexer2.idTable);
     tree.userAct = user;
-    if (!treeMain(tree, argc, argv)) {
+    if (!treeMain(tree, argc, argv,
+          "  additional flags for ccgr:\n"
+          "    malloc_stats       print malloc stats every so often\n"
+          "    stopAfterParse     stop after parsing\n"
+          "    printAST           print AST after parsing\n"
+          "    stopAfterTCheck    stop after typechecking\n"
+          "    printTypedAST      print AST with type info\n"
+          "    stopAfterVCGen     stop after vcgen\n"
+          "")) {
       // parse error
       exit(2);
     }
 
-    cout << "final parse result: " << treeTop << endl;
+    traceProgress() << "final parse result: " << treeTop << endl;
     unit = (TranslationUnit*)treeTop;
 
     //unit->debugPrint(cout, 0);
@@ -51,29 +68,45 @@ void doit(int argc, char **argv)
   checkHeap();
 
   // print abstract syntax tree
-  unit->debugPrint(cout, 0);
+  if (tracingSys("printAST")) {
+    unit->debugPrint(cout, 0);
+  }
+
+  if (tracingSys("stopAfterParse")) {
+    return;
+  }
 
 
   // ---------------- typecheck -----------------
   {
-    cout << "type checking...\n";
+    traceProgress() << "type checking...\n";
     Env env;
     unit->tcheck(env);
-    cout << "done type checking\n";
+    traceProgress() << "done type checking\n";
 
     // print abstract syntax tree annotated with types
-    unit->debugPrint(cout, 0);
+    if (tracingSys("printTypedAST")) {
+      unit->debugPrint(cout, 0);
+    }
+
+    if (tracingSys("stopAfterTCheck")) {
+      return;
+    }
   }
 
 
   // --------------- abstract interp ------------
   {
-    cout << "abstract interpretation...\n";
+    traceProgress() << "abstract interpretation...\n";
     AEnv env(strTable);
 
     unit->vcgen(env);
 
-    cout << "done with abs interp\n";
+    traceProgress() << "done with abs interp\n";
+
+    if (tracingSys("stopAfterVCGen")) {
+      return;
+    }
   }
 
 

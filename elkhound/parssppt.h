@@ -35,7 +35,8 @@ bool toplevelParse(ParseTreeAndTokens &ptree, char const *grammarFname,
                    char const *inputFname, char const *symOfInterestName);
 
 // useful for simple treewalkers; false on error
-bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv);
+bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv,
+              char const *additionalInfo = NULL);
 
 
 #endif // __PARSSPPT_H

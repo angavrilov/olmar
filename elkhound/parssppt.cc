@@ -38,7 +38,8 @@ bool toplevelParse(ParseTreeAndTokens &ptree, char const *grammarFname,
 
 
 // useful for simple treewalkers
-bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv)
+bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv,
+              char const *additionalInfo)
 {
   // remember program name
   char const *progName = argv[0];
@@ -73,7 +74,7 @@ bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv)
             "    conflict        SLR(1) shift/reduce conflicts (fork points)\n"
             "    itemsets        print the sets-of-items DFA\n"
             "    ... the complete list is in parsgen.txt ...\n"
-            ;
+         << additionalInfo? additionalInfo : "";
     exit(0);
   }
 
