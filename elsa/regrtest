@@ -914,6 +914,7 @@ failparse k0041.cc "inner struct defined inline in an inner struct not defined i
 failparse k0042.cc "computed array size expression as an assignment"
 failparse k0043.cc "voiding the result of a member call"
 failparse k0044.cc "template super class member variable"
+failparse k0045.cc "'operator delete' redeclared without throw()"
 
 ### </quarl-testcases-c++>
 
