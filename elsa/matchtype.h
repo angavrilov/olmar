@@ -121,7 +121,9 @@ public:                         // types
   // there are two matching modes that govern how variables (not only,
   // but usually type variables) are treated
   enum MatchMode {
-    MM_NONE,
+    // simply compare for equality; do not regard either side
+    // as having unification variables
+    MM_EXACT,
 
     // Create Bindings; Vars on the right: if unbound, bind to the
     // left, and if bound are replaced with their binding and matching
@@ -151,7 +153,7 @@ public:                         // types
 private:                        // data
   TypeFactory &tfac;
 
-  MatchMode const mode;
+  MatchMode mode;
 
   // sm: Respect the same kinds of comparison modifiers as
   // Type::equals.
@@ -189,6 +191,9 @@ private:                        // funcs
   // return true if the answer is positive, that is acv is a superset
   // of bcv; false otherwise
   bool subtractFlags(CVFlags acv, CVFlags bcv, CVFlags &finalFlags);
+                                                         
+  // bindings.getVar
+  STemplateArgument const *getBindingVar(StringRef name);
 
   bool bindValToVar(Type *a, Type *b, int matchDepth);
   bool match_rightTypeVar(Type *a, Type *b, int matchDepth);

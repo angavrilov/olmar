@@ -7,6 +7,7 @@
 #include "trace.h"           // tracingSys
 #include "template.h"        // STemplateArgument, etc.
 #include "cc_ast.h"          // Expression, etc.
+#include "macros.h"          // Restorer
 
 
 // FIX: I'll bet the matchDepth here isn't right; not sure what should
@@ -985,10 +986,16 @@ bool MatchTypes::match0(Type *a, Type *b, int matchDepth)
 
 
 // -------------- matching expressions ----------------
+STemplateArgument const *MatchTypes::getBindingVar(StringRef name)
+{
+  return bindings.getVar(name);
+}
+
 bool MatchTypes::matchExpr(Expression const *a, Expression const *b)
 {
   // var on right?
-  if (b->isE_variable() &&
+  if (mode != MM_EXACT &&
+      b->isE_variable() &&
       b->asE_variableC()->var->isTemplateParam()) {
     if (mode == MM_WILD) {
       return true;      // var on right matches anything
@@ -996,7 +1003,7 @@ bool MatchTypes::matchExpr(Expression const *a, Expression const *b)
 
     // bound?
     Variable *bVar = b->asE_variableC()->var;
-    STemplateArgument const *bValue = bindings.getVar(bVar->name);
+    STemplateArgument const *bValue = getBindingVar(bVar->name);
     if (bValue) {
       switch (bValue->kind) {
         default:
@@ -1012,8 +1019,15 @@ bool MatchTypes::matchExpr(Expression const *a, Expression const *b)
         case STemplateArgument::STA_TYPE:
           return false;      // expr vs. type: no match
 
-        case STemplateArgument::STA_DEPEXPR:
+        case STemplateArgument::STA_DEPEXPR: {
+          // HACK: for 14.5.4.2p1-2.cc, we get into a matching loop;
+          // what I want to do is have parameters on the 'match'
+          // functions that accept a mode, but I will just do this
+          // instead
+          Restorer<MatchMode> restorer(mode, MM_EXACT);
+
           return matchExpr(a, bValue->getDepExpr());
+        }
       }
     }
 
@@ -1090,7 +1104,6 @@ bool MatchTypes::matchExpr(Expression const *a, Expression const *b)
 MatchTypes::MatchTypes(TypeFactory &tfac0, MatchMode mode0, Type::EqFlags eflags0)
   : tfac(tfac0), mode(mode0), eflags(eflags0), recursionDepth(0)
 {
-  xassert(mode!=MM_NONE);
   if (tracingSys("shortMTRecDepthLimit")) {
     recursionDepthLimit = 10;   // make test for this feature go a lot faster
   }
@@ -1142,7 +1155,7 @@ bool MatchTypes::match_Lists
 char const *toString(MatchTypes::MatchMode m)
 {
   static char const * const map[] = {
-    "MM_NONE",
+    "MM_EXACT",
     "MM_BIND",
     "MM_BIND_UNIQUE",
     "MM_WILD",
