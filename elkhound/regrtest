@@ -212,8 +212,12 @@ runTest cc/cparse -tr printAnalysisPath tcheck/morepaths.c
 
 
 # ---------- test C++ parser using my grammar ------------
-for n in 1 2 3 4 5 6 7; do
+for n in 1 2 3 4 5 6 7 8 9 10; do
   runTest cc/ccparse cc.in/cc.in$n
+done
+
+for n in 1 2 3 4 5 6 7 8 9 10 11 12; do
+  runTest cc/ccparse c.in/c.in$n
 done
 
 # --------- test C++ parser using standard grammar ------------
@@ -236,7 +240,7 @@ runTest cc/bccgr c.in/c.in4d
 runTest cc/cparse -tr trivialActions,stopAfterParse c.in/c.in4d
 
 # and similar for C++
-runTest cc/ccparse -tr trivialActions,identityReclassify c.in/c.in4c
+runTest cc/ccparse -tr trivialActions,identityReclassify,stopAfterParse c.in/c.in4c
 
 
 # final arithmetic to report result

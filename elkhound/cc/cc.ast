@@ -572,6 +572,8 @@ class Initializer {
   // using ASTList for performance; some files have initializers
   // with thousands of elements
   -> IN_compound(ASTList<Initializer> inits);
+  
+  pure_virtual void tcheck(Env &env);
 }
 
 // gnu extension to attach particular elements of an initializer list

@@ -71,10 +71,6 @@ terminals {
   // are declared here.
   token[int] TOK_NUMBER;       // numbers have associated int-typed values
 
-  token TOK_PLUS {
-    merge(l,r) [ return l; ]
-  } 
-
   // syntax: Precedence and associativity come next.
   // NOTE: The precedence order is from "high" to "low", which is the
   // *opposite* from how Bison writes them.
