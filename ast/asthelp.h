@@ -5,9 +5,11 @@
 #define ASTHELP_H
 
 #include "astlist.h"     // ASTList
+#include "str.h"         // string
 
 #include <iostream.h>    // ostream
 
+// ----------------- downcasts --------------------
 // the 'if' variants return NULL if the type isn't what's expected;
 // the 'as' variants throw an exception in that case
 #define DECL_AST_DOWNCASTS(type)                 \
@@ -37,8 +39,74 @@
   }
 
 
+// ------------------- typecase --------------------
+#define ASTSWITCHC(supertype, nodeptr)           \
+{                                                \
+  supertype const *switch_nodeptr = (nodeptr);   \
+  switch (switch_nodeptr->kind())
+
+#define ASTCASEC(type, var)                           \
+  case type::TYPE_TAG: {                              \
+    type const *var = switch_nodeptr->as##type##C();
+
+#define ASTNEXTC(type, var)                           \
+    break;                                            \
+  } /* end previous case */                           \
+  case type::TYPE_TAG: {                              \
+    type const *var = switch_nodeptr->as##type##C();
+
+#define ASTENDCASEC                                   \
+    break;                                            \
+  } /* end final case */                              \
+  default: ;    /* silence warning */                 \
+} /* end scope started before switch */
 
 
+// ------------------- debug print helpers -----------------
+ostream &ind(ostream &os, int indent);
+
+#define PRINT_HEADER(clsname)         \
+  ind(os, indent) << #clsname ":\n";  \
+  indent += 2   /* user ; */
+
+
+#define PRINT_STRING(var) \
+  debugPrintStr(var, #var, os, indent)    /* user ; */
+
+void debugPrintStr(string const &s, char const *name,
+                   ostream &os, int indent);
+
+
+#define PRINT_LIST(T, list) \
+  debugPrintList(list, #list, os, indent)     /* user ; */
+
+template <class T>
+void debugPrintList(ASTList<T> const &list, char const *name,
+                    ostream &os, int indent)
+{
+  ind(os, indent) << name << ":\n";
+  {
+    FOREACH_ASTLIST(T, list, iter) {
+      iter.data()->debugPrint(os, indent+2);
+    }
+  }
+}
+
+// provide explicit specialization for strings
+void debugPrintList(ASTList<string> const &list, char const *name,
+                    ostream &os, int indent);
+
+
+#define PRINT_SUBTREE(tree) \
+  (tree)->debugPrint(os, indent)  /* user ; */
+
+
+#define PRINT_GENERIC(var) \
+  ind(os, indent) << #var << " = " << toString(var) << "\n"   /* user ; */
+
+
+#define PRINT_BOOL(var) \
+  ind(os, indent) << #var << " = " << (var? "true" : "false") << "\n"   /* user ; */
 
 
 
