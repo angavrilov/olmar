@@ -2377,7 +2377,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // get the type from the IDeclarator
   decl->tcheck(env, dt);
 
-  // declarators usually require complete types (are there exceptions?)
+  // declarators usually require complete types; but are there exceptions
   //
   // TODO: According to 15.4 para 1, not only must the type in
   // DC_EXCEPTIONSPEC be complete (which this code enforces), but if
@@ -2399,10 +2399,23 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // I'm not sure where the exception for 'extern' is specified, but
     // it clearly exists.... (t0170.cc)
   }
+  else if (dt.type->isArrayType() && init) {
+    // The array type might be incomplete now, but the initializer
+    // will take care of it.  (If I instead moved this entire block
+    // below where the init is tchecked, I think I would run into
+    // problems when tchecking the initializer wants a ctor to exist.)
+    // (t0077.cc)
+  }
+  else if (dt.context == DC_MR_DECL && 
+           dt.type->isArrayType() &&
+           !env.lang.strictArraySizeRequirements) {
+    // Allow incomplete array types, so-called "open arrays".
+  }
   else if (!env.ensureCompleteType(
               // context-specific action text
               dt.context==DC_EXCEPTIONSPEC? "name in exception spec" :
-                     /* catch-all */        "create an object of" /*...*/,
+              dt.context==DC_E_CAST?        "cast to" :
+                     /* catch-all */        "create an object of",
               dt.type)) {
     dt.type = env.errorType();        // recovery
   }
@@ -2509,7 +2522,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       // this is a new template decl; attach it to the Variable
       var->setTemplateInfo(templateInfo);
 
-      // 
+      // (what was I about to do here?)
 
     }
     else {
@@ -2609,21 +2622,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
     tcheck_init(env);
   }
-
-  // not sure what's the best place to test this, nor what the
-  // exact rule is; let's try this...
-  //
-  // UPDATE: dsw: the problem is that gcc allows it
-  #warning this should be a CCLang flag, not an ifdef
-  #ifndef GNU_EXTENSION
-  if (isVariableDC(dt.context) &&
-      !dt.hasFlag(DF_EXTERN) &&
-      type->isArrayType() &&
-      type->asArrayType()->size == ArrayType::NO_SIZE) {
-    env.error("array must have a size in variable declaration");
-  }
-  #endif // GNU_EXTENSION
-
+            
   // pull the scope back out of the stack; if this is a
   // declarator attached to a function definition, then
   // Function::tcheck will re-extend it for analyzing

@@ -82,13 +82,15 @@ void f()
   __getStandardConversion((int &)0, (int &)0, SC_IDENTITY);
 
   // array to pointer
+  extern int intArr[];
+  extern int const intArrC[];
   __getStandardConversion((int [3])0, (int*)0, SC_ARRAY_TO_PTR);
-  __getStandardConversion((int [])0, (int*)0, SC_ARRAY_TO_PTR);
+  __getStandardConversion(intArr, (int*)0, SC_ARRAY_TO_PTR);
   __getStandardConversion("abc", (char const*)0, SC_ARRAY_TO_PTR);
   __getStandardConversion(L"abc", (wchar_t const*)0, SC_ARRAY_TO_PTR);
   __getStandardConversion("abc", (char*)0, SC_ARRAY_TO_PTR|SC_QUAL_CONV);
 
-  __getStandardConversion((int const [])0, (int*)0, SC_ERROR);
+  __getStandardConversion(intArrC, (int*)0, SC_ERROR);
   __getStandardConversion((int (&)[])0, (int*)0, SC_ARRAY_TO_PTR);
 
   // function to pointer
