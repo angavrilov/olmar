@@ -3,6 +3,8 @@
 
 open Lexerint      (* tLexerInterface *)
 open Lrparse       (* parse *)
+open Glr           (* tGLR, makeGLR, glrParse *)
+open Useract       (* tSemanticValue *)
 
 (* ------------------ lexer ------------------- *)
 class tLexer =
@@ -85,9 +87,24 @@ begin
   let lex:tLexerInterface = ((new tLexer) :> tLexerInterface) in
   (*(printTokens lex);*)
 
-  let sval:int = (parse lex) in
-  (Printf.printf "parse result: %d\n" sval);
-
+  if ((Array.length Sys.argv) = 1) then (
+    (* no arguments, use LR *)
+    let sval:int = (parse lex) in
+    (Printf.printf "LR parse result: %d\n" sval);
+  )
+  else (
+    (* some arguments, use GLR *)
+    let glr:tGLR = (makeGLR()) in
+    let treeTop: tSemanticValue ref = ref cNULL_SVAL in
+    
+    if (glrParse glr lex treeTop) then (
+      let sval:int = (Obj.obj !treeTop : int) in
+      (Printf.printf "GLR parse results: %d\n" sval);
+    )
+    else (
+      (Printf.printf "GLR parse error\n");
+    )
+  );
 end
 ;;
 

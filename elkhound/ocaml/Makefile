@@ -4,6 +4,8 @@
 
 all: tobjpool main glr.cmo
 
+# using dependency strategy from 
+# http://www.cs.berkeley.edu/~smcpeak/autodepend/autodepend.html
 %.cmo: %.ml
 	ocamlc -c -g $*.ml
 	@ocamldep $*.ml > $*.d
@@ -23,15 +25,17 @@ MAIN_MODULES = \
   lexerint.cmo \
   parsetables.cmo \
   lrparse.cmo \
+  arraystack.cmo \
+  objpool.cmo \
+  glr.cmo \
   main.cmo
 main: $(MAIN_MODULES)
 	ocamlc -o $@ -g $^
 
 # dependencies
 ALL_MODULES = \
-  $(TOBJPOOL_MODULES) \
   $(MAIN_MODULES) \
-  glr.cmo
+  tobjpool.cmo
 -include $(ALL_MODULES:.cmo=.d)
 
 clean:
