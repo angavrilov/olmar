@@ -226,6 +226,7 @@ public:      // funcs
   bool addVariable(Variable *v, bool forceReplace=false);
   bool addCompound(CompoundType *ct);
   bool addEnum(EnumType *et);
+  bool addTypeTag(Variable *tag);
 
   // mark 'v' as being a member of this scope, by setting its 'scope'
   // and 'scopeKind' members (this is not done by 'addVariable')

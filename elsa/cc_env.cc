@@ -1504,6 +1504,19 @@ bool Env::addEnum(EnumType *et)
 }
 
 
+bool Env::addTypeTag(Variable *tag)
+{
+  // like above
+  if (disambErrorsSuppressChanges()) {
+    TRACE("env",    "not adding type tag `" << tag->name
+                 << "' because there are disambiguating errors");
+    return true;
+  }
+
+  return typeAcceptingScope()->addTypeTag(tag);
+}
+
+
 Type *Env::declareEnum(SourceLoc loc /*...*/, EnumType *et)
 {
   Type *ret = makeType(loc, et);

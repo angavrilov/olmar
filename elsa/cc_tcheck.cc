@@ -8165,43 +8165,38 @@ void ND_usingDecl::tcheck(Env &env)
     return;
   }
 
-  // lookup the qualifiers in the name
-  name->tcheck(env);
+  // lookup the template arguments in the name
+  name->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   // find what we're referring to; if this is a template, then it
   // names the template primary, not any instantiated version
-  Variable *origVar = env.lookupPQVariable(name, LF_TEMPL_PRIMARY);
-  if (!origVar) {
-    env.error(stringc
-      << "undeclared identifier: `" << *name << "'");
+  LookupSet set;      
+  env.lookupPQ(set, name, LF_TEMPL_PRIMARY);
+  if (set.isEmpty()) {
+    env.error(stringc << "undeclared identifier: `" << *name << "'");
     return;
   }
 
-  if (!origVar->overload) {
-    env.makeUsingAliasFor(name->loc, origVar);
-  }
-  else {
-    SFOREACH_OBJLIST_NC(Variable, origVar->overload->set, iter) {
-      env.makeUsingAliasFor(name->loc, iter.data());
-    }
+  // make aliases for everything in 'set'
+  SFOREACH_OBJLIST_NC(Variable, set, iter) {
+    env.makeUsingAliasFor(name->loc, iter.data());
   }
 
-  // the eighth example in 7.3.3 implies that the structure and enum
+  // the example in 7.3.3p10 implies that the structure and enum
   // tags come along for the ride too
-  {
-    Scope *origScope = origVar->scope? origVar->scope : env.globalScope();
+  //
+  // for a long time this code has been written to only look at the
+  // first element of 'set', and so far I have been unable to write
+  // a test that shows any problem with that
+  Variable *origVar = set.first();
+  Scope *origScope = origVar->scope? origVar->scope : env.globalScope();
 
-    CompoundType *origCt = origScope->lookupCompound(origVar->name, env, LF_SUPPRESS_ERROR);
-    if (origCt) {
-      // alias the structure tag
-      env.addCompound(origCt);
-    }
-
-    EnumType *origEnum = origScope->lookupEnum(origVar->name, env, LF_SUPPRESS_ERROR);
-    if (origEnum) {
-      // alias the enum tag
-      env.addEnum(origEnum);
-    }
+  // see if there is a name in the tag space of the same scope
+  // where 'origVar' was found
+  Variable *tag = origScope->lookup_one(origVar->name, env,
+                                        LF_SUPPRESS_ERROR | LF_QUERY_TAGS);
+  if (tag) {
+    env.addTypeTag(tag);
   }
 }
 

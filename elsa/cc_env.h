@@ -368,6 +368,7 @@ public:      // funcs
   bool addVariable(Variable *v, bool forceReplace=false);
   bool addCompound(CompoundType *ct);
   bool addEnum(EnumType *et);
+  bool addTypeTag(Variable *tag);
 
   // like 'addVariable' in that the 'scope' field gets set, but
   // nothing is added to the maps

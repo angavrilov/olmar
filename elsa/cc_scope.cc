@@ -216,7 +216,7 @@ bool Scope::addCompound(CompoundType *ct)
   TRACE("env", "added " << toString(ct->keyword) << " " << ct->name);
 
   ct->access = curAccess;
-  return insertUnique(typeTags, ct->name, ct->typedefVar, changeCount, false /*forceReplace*/);
+  return addTypeTag(ct->typedefVar);
 }
 
 
@@ -228,7 +228,14 @@ bool Scope::addEnum(EnumType *et)
   TRACE("env", "added enum " << et->name);
 
   et->access = curAccess;
-  return insertUnique(typeTags, et->name, et->typedefVar, changeCount, false /*forceReplace*/);
+  return addTypeTag(et->typedefVar);
+}
+
+
+bool Scope::addTypeTag(Variable *tag)
+{
+  tag->access = curAccess;
+  return insertUnique(typeTags, tag->name, tag, changeCount, false /*forceReplace*/);
 }
 
 
