@@ -379,7 +379,7 @@ enum OverloadableOp {
   OP_MOD,          // %
   OP_LSHIFT,       // <<
   OP_RSHIFT,       // >>
-  OP_BITAND,       // &
+  OP_BITAND,       // &  dsw: this can also be operator address-of
   OP_BITXOR,       // ^
   OP_BITOR,        // |
 
