@@ -13,11 +13,12 @@ open Smutil          (* getSome, etc. *)
 (* Relative to C++ implementation, what is not done:
  *   - Token reclassification
  *   - Table compression
+ *   - Heavy testing of the mini-LR core
  *)
 
 
 (* when true, print parse actions *)
-let traceParse:bool = true
+let traceParse:bool = false
 
 (* when true, keep some statistics useful for performance evaluation *)
 let accounting:bool = true
