@@ -249,6 +249,14 @@ public:
   // on this token
   SObjList<StackNode> parserWorklist;       // (refct list)
 
+  // ---- debugging trace ----
+  // these are computed during GLR::GLR since the profiler reports
+  // there is significant expense to computing the debug strings
+  // (that are then usually not printed)
+  bool trParse;                             // tracingSys("parse")
+  ostream &trsParse;                        // trace("parse")
+  bool trSval;                              // tracingSys("sval")
+  ostream &trsSval;                         // trace("sval")
 
 private:    // funcs
   // comments in glr.cc

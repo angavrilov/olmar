@@ -134,7 +134,8 @@
 #include <stdio.h>       // FILE
 #include <fstream.h>     // ofstream
 
-#if 1
+// D(..) is code to execute for extra debugging info
+#ifdef EXTRA_CHECKS
   #define D(stmt) stmt
 #else
   #define D(stmt) ((void)0)
@@ -202,7 +203,7 @@ StackNode::~StackNode()
   // associated symbol, which the SiblinkLinks don't know)
   while (leftSiblings.isNotEmpty()) {
     Owner<SiblingLink> sib(leftSiblings.removeAt(0));
-    D(trace("sval") << "deleting sval " << sib->sval << endl);
+    D(trsSval << "deleting sval " << sib->sval << endl);
     deallocateSemanticValue(getSymbolC(), userAct, sib->sval);
   }
 }
@@ -308,7 +309,11 @@ GLR::GLR(UserActions *user)
     currentTokenColumn(0),
     currentTokenClass(NULL),
     currentTokenValue(NULL),
-    parserWorklist()
+    parserWorklist(),
+    trParse(tracingSys("parse")),
+    trsParse(trace("parse")),
+    trSval(tracingSys("sval")),
+    trsSval(trace("sval"))
   // some fields (re-)initialized by 'clearAllStackNodes'
 {}
 
@@ -369,8 +374,8 @@ SemanticValue GLR::grabTopSval(StackNode *node)
   SemanticValue ret = sib->sval;
   sib->sval = duplicateSemanticValue(node->getSymbolC(), sib->sval);
 
-  trace("sval") << "dup'd " << ret << " for top sval, yielded "
-                << sib->sval << endl;
+  trsSval << "dup'd " << ret << " for top sval, yielded "
+          << sib->sval << endl;
 
   return ret;
 }
@@ -394,12 +399,14 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     Lexer2Token const *currentToken = tokIter.data();
 
     // debugging
-    trace("parse")
-      << "------- "
-      << "processing token " << currentToken->toString()
-      << ", " << activeParsers.count() << " active parsers"
-      << " -------"
-      << endl;
+    if (trParse) {
+      trsParse
+        << "------- "
+        << "processing token " << currentToken->toString()
+        << ", " << activeParsers.count() << " active parsers"
+        << " -------"
+        << endl;
+    }
 
     // token reclassification
     int classifiedType = userAct->reclassifyToken(currentToken->type,
@@ -442,13 +449,17 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
                       parsersBefore;
 
       if (actions == 0) {
-        trace("parse") << "parser in state " << parser->state->id
-                       << " died\n";
+        if (trParse) {
+          trsParse << "parser in state " << parser->state->id
+                   << " died\n";
+        }
         lastToDie = parser;          // for reporting the error later if necessary
       }
       else if (actions > 1) {
-        trace("parse") << "parser in state " << parser->state->id
-                       << " split into " << actions << " parsers\n";
+        if (trParse) {
+          trsParse << "parser in state " << parser->state->id
+                   << " split into " << actions << " parsers\n";
+        }
       }
     }
 
@@ -480,7 +491,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   }
 
   traceProgress() << "done parsing\n";
-  trace("parse") << "Parse succeeded!\n";
+  trsParse << "Parse succeeded!\n";
 
 
   // finish the parse by reducing to start symbol
@@ -499,8 +510,8 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   arr[1] = grabTopSval(last);         // eof's sval
 
   // reduce
-  trace("sval") << "handing toplevel svals " << arr[0]
-                << " and " << arr[1] << " top start's reducer\n";
+  trsSval << "handing toplevel svals " << arr[0]
+          << " and " << arr[1] << " top start's reducer\n";
   treeTop = userAct->doReductionAction(
               last->state->getFirstReduction()->prodIndex, arr,
               last->leftSiblings.firstC()->loc);
@@ -685,9 +696,8 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
       return;
     }
 
-    if (tracingSys("parse")) {
-      // profiling reported this used significant time even when not tracing
-      trace("parse")
+    if (trParse) {
+      trsParse
         << "state " << pcs.startStateId
         << ", reducing by " << pcs.production->toString(false /*printType*/)
         << ", back to state " << currentNode->state->id
@@ -718,8 +728,8 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
       // be this replacement
       sib->sval = duplicateSemanticValue(pcs.symbols[i], sib->sval);
 
-      D(trace("sval") << "dup'd " << toPass[i] << " to pass, yielding "
-                      << sib->sval << " to store" << endl);
+      D(trsSval << "dup'd " << toPass[i] << " to pass, yielding "
+                << sib->sval << " to store" << endl);
     }
 
     // we've popped the required number of symbols; call the
@@ -727,13 +737,13 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     // (TREEBUILD)
     SemanticValue sval = userAct->doReductionAction(
                            pcs.production->prodIndex, toPass, leftEdge);
-    D(trace("sval") << "reduced " << pcs.production->toString()
-                    << ", yielding " << sval << endl);
+    D(trsSval << "reduced " << pcs.production->toString()
+              << ", yielding " << sval << endl);
     delete[] toPass;
 
     // see if the user wants to keep this reduction
     if (!userAct->keepNontermValue(pcs.production->left->ntIndex, sval)) {
-      D(trace("sval") << "but the user decided not to keep it" << endl);
+      D(trsSval << "but the user decided not to keep it" << endl);
       return;
     }
 
@@ -795,8 +805,8 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, Production const *prod,
     leftSibling->state->transitionC(prod->left);
 
   // debugging
-  if (tracingSys("parse")) {
-    trace("parse")
+  if (trParse) {
+    trsParse
       << "state " << leftSibling->state->id
       << ", shift prductn " << prod->toString(false /*printType*/)
       << ", to state " << rightSiblingState->id
@@ -823,8 +833,8 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, Production const *prod,
         D(SemanticValue old = sibLink->sval);
         sibLink->sval = userAct->mergeAlternativeParses(prod->left->ntIndex,
                                                         sibLink->sval, sval);
-        D(trace("sval") << "merged " << old << " and " << sval
-                        << ", yielding " << sibLink->sval << endl);
+        D(trsSval << "merged " << old << " and " << sval
+                  << ", yielding " << sibLink->sval << endl);
 
         // ok, done
         return;
@@ -900,11 +910,13 @@ void GLR::glrShiftTerminals(ObjList<PendingShift> &pendingShifts)
     ItemSet const *newState = pshift.data()->shiftDest;
 
     // debugging
-    trace("parse")
-      << "state " << leftSibling->state->id
-      << ", shift token " << currentTokenClass->name
-      << ", to state " << newState->id
-      << endl;
+    if (trParse) {
+      trsParse
+        << "state " << leftSibling->state->id
+        << ", shift token " << currentTokenClass->name
+        << ", to state " << newState->id
+        << endl;
+    }
 
     // if there's already a parser with this state
     StackNode *rightSibling = findActiveParser(newState);
@@ -922,7 +934,7 @@ void GLR::glrShiftTerminals(ObjList<PendingShift> &pendingShifts)
     }
 
     // either way, add the sibling link now
-    D(trace("sval") << "grabbed token sval " << currentTokenValue << endl);
+    D(trsSval << "grabbed token sval " << currentTokenValue << endl);
     rightSibling->addSiblingLink(leftSibling, currentTokenValue, 
                                  currentTokenLoc);
   }
