@@ -869,6 +869,7 @@ testCparse c/t0014.c
 testCparse c/t0015.c
 testCparse c/t0016.c
 testCparse gnu/d0096.c
+failCparse c/dC0011.c "((size_t) &((struct scsi_cmnd *)0)->q) doesn't const eval"
 testCparse c/dC0012.c
 failCparse c/dC0013.c "in C, a member with the same name as a type doesn't shadow the type"
 
