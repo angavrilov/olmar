@@ -3,6 +3,9 @@
 
 #include "hashline.h"      // this module
 
+#include <string.h>        // memcpy
+
+
 HashLineMap::HashLineMap(char const *pf)
   : ppFname(pf),
     filenames(),     // empty

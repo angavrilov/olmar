@@ -216,8 +216,8 @@ check: $(TESTS)
 	./tobjpool
 	./cycles
 	./tsobjlist
-	./srcloc
 	./hashline
+	./srcloc
 	@echo
 	@echo "make check: all the tests PASSED"
 
