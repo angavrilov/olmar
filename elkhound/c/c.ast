@@ -80,7 +80,7 @@ impl_verbatim {
 // --------------- types and declarators ---------------
 // variable declaration or definition, or function declaration
 class Declaration (
-  enum DeclFlags dflags,               // typedef, virtual, extern, etc.
+  DeclFlags dflags,                    // typedef, virtual, extern, etc.
   TypeSpecifier spec,                  // e.g. "int"
   ASTList<Declarator> decllist         // e.g. "x=3, y"
 ) {
