@@ -624,7 +624,7 @@ void CompoundType::addLocalConversionOp(Variable *op)
 }
 
 
-PQ_qualifier *CompoundType::PQ_fullyQualifiedName(SourceLoc loc, PQName *name0)
+PQName *CompoundType::PQ_fullyQualifiedName(SourceLoc loc, PQName *name0)
 {
   xassert(curCompound);
   if (name0) {
@@ -643,8 +643,13 @@ PQ_qualifier *CompoundType::PQ_fullyQualifiedName(SourceLoc loc, PQName *name0)
     }
   }
   if (parentScope) {
+    xassert(parentScope->curCompound);
     return parentScope->curCompound->PQ_fullyQualifiedName(loc, name0);
   } else {
+    xassert(scopeKind == SK_CLASS);
+    // FIX: This is actually only right for CompoundTypes that are
+    // global; it will be wrong for those that are defined in a local
+    // block; can they be defined in a parameter list?
     return new PQ_qualifier(loc, NULL,
                             FakeList<TemplateArgument>::emptyList(),
                             name0);
@@ -652,7 +657,7 @@ PQ_qualifier *CompoundType::PQ_fullyQualifiedName(SourceLoc loc, PQName *name0)
 }
 
 // dsw: FIX: The result of this should probably be cached and reused.
-PQ_qualifier *CompoundType::PQ_fullyQualifiedName(SourceLoc loc)
+PQName *CompoundType::PQ_fullyQualifiedName(SourceLoc loc)
 {
   return PQ_fullyQualifiedName(loc, NULL);
 }
@@ -664,7 +669,7 @@ PQ_qualifier *CompoundType::PQ_fullyQualifiedName(SourceLoc loc)
 // FIX: the dtor can probably be templatized, but that is so rare I'm
 // going to ignore it for now.
 // dsw: FIX: The result of this should probably be cached and reused.
-PQ_qualifier *CompoundType::PQ_fullyQualifiedDtorName(SourceLoc loc)
+PQName *CompoundType::PQ_fullyQualifiedDtorName(SourceLoc loc)
 {
   // FIX: replace strdup with env.str() ?
   return PQ_fullyQualifiedName(loc, new PQ_name(loc, strdup(stringc << "~" << name)));

@@ -334,14 +334,14 @@ public:      // funcs
   // the class scope
   virtual void finishedClassDefinition(StringRef specialName);
 
-  PQ_qualifier *PQ_fullyQualifiedName(SourceLoc loc, PQName *name0);
+  PQName *PQ_fullyQualifiedName(SourceLoc loc, PQName *name0);
   // dsw: Maybe this should go into NamedAtomicType, except that
   // NamedAtomicType does not have a scope field and I need one.
-  PQ_qualifier *PQ_fullyQualifiedName(SourceLoc loc);
+  PQName *PQ_fullyQualifiedName(SourceLoc loc);
   // NOTE: there is an asymmetry with the above function that just
   // returns the type name, not the ctor name, and hence the asymmetry
   // in the names of these functions.
-  PQ_qualifier *PQ_fullyQualifiedDtorName(SourceLoc loc);
+  PQName *PQ_fullyQualifiedDtorName(SourceLoc loc);
 };
 
 string toString(CompoundType::Keyword k);

@@ -312,7 +312,8 @@ CompoundType *Function::verifyIsCtor(Env &env, char const *context)
 
 
 // this is a prototype for a function down near E_funCall::itcheck
-void tcheckFakeExprList(FakeList<Expression> *list, Env &env);
+//  void tcheckFakeExprList(FakeList<Expression> *list, Env &env);
+FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env);
 
 // cppstd 12.6.2 covers member initializers
 void Function::tcheck_memberInits(Env &env)
@@ -353,7 +354,7 @@ void Function::tcheck_memberInits(Env &env)
         iter->member = v;
 
         // typecheck the arguments
-        tcheckFakeExprList(iter->args, env);
+        iter->args = tcheckFakeExprList(iter->args, env);
         
         // decide which of v's possible constructors is being used
         Variable *ctor = outerResolveOverload_ctor(env, env.loc(), v->type, iter->args,
@@ -439,7 +440,7 @@ void Function::tcheck_memberInits(Env &env)
     // base class list
 
     // typecheck the arguments
-    tcheckFakeExprList(iter->args, env);
+    iter->args = tcheckFakeExprList(iter->args, env);
     
     // determine which constructor is being called
     Variable *ctor = outerResolveOverload_ctor(env, env.loc(),
@@ -1124,12 +1125,12 @@ void TS_classSpec::tcheckIntoCompound(
   // let the CompoundType build additional indexes if it wants
   ct->finishedClassDefinition(env.conversionOperatorName);
 
-  cout << "**** ct->name " << ct->name << ": ";
+//    cout << "**** ct->name " << ct->name << ": ";
   if (!innerClass) {
-    cout << "This is the second pass; checking function bodies" << endl;
+//      cout << "This is the second pass; checking function bodies" << endl;
     tcheckFunctionBodies(env);
   } else {
-    cout << "This is the first pass; NOT checking function bodies" << endl;
+//      cout << "This is the first pass; NOT checking function bodies" << endl;
   }
 
   // now retract the class scope from the stack of scopes; do
@@ -3758,7 +3759,7 @@ void Expression::tcheck(Env &env, Expression *&replacement)
 
   if (!ambiguity) {
     mid_tcheck(env, replacement);
-    return;
+    goto fixReplacementNext;    // redundant because Expression::mid_tcheck() also does it
   }
 
   // There is one very common ambiguity, between E_funCall and
@@ -3803,7 +3804,7 @@ void Expression::tcheck(Env &env, Expression *&replacement)
       call->type = call->inner2_itcheck(env);
       call->ambiguity = NULL;
       replacement = call;
-      return;
+      goto fixReplacementNext;
     }
 
     // grab the errors from trying E_funCall
@@ -3817,12 +3818,14 @@ void Expression::tcheck(Env &env, Expression *&replacement)
       // ok, finish up
       TRACE("disamb", toString(loc) << ": selected E_constructor");
       env.errors.prependMessages(existing);
-      // Moved this here so that can pass it down into
-      // E_constructor::inner2_itcheck()
-      replacement = ctor;
-      ctor->type = ctor->inner2_itcheck(env, replacement);
-      ctor->ambiguity = NULL;
-      return;
+      Expression *ctor2 = ctor;
+      // NOTE: ctor2 is passed down by reference and may be modified.
+      Type *type0 = ctor->inner2_itcheck(env, ctor2);
+      // DO NOT merge this with the line above.
+      ctor2->type = type0;
+      ctor2->ambiguity = NULL;
+      replacement = ctor2;
+      goto fixReplacementNext;
     }
 
     // both failed.. just leave the errors from the function call
@@ -3833,13 +3836,27 @@ void Expression::tcheck(Env &env, Expression *&replacement)
 
     // finish up
     replacement = this;     // redundant but harmless
-    return;
+    goto fixReplacementNext;
   }
 
   // some other ambiguity, use the generic mechanism; the return value
   // is ignored, because the selected alternative will be stored in
   // 'replacement'
   resolveAmbiguity(this, env, "Expression", false /*priority*/, replacement);
+
+fixReplacementNext:
+  // Fix the fact that if replacement has been modified by introducing
+  // artificial AST nodes, rather than simply choosing among the
+  // ambiguity lists of existing AST nodes, then the new nodes will
+  // not have their _next_ pointer set correctly.  NOTE! Do NOT skip
+  // over this with a return if replacement can have been modified.
+  if (replacement!=this) {
+    if (replacement->next) {
+      xassert(replacement->next == this->next);
+    } else {
+      replacement->next = this->next;
+    }
+  }
 }
 
 
@@ -3873,7 +3890,7 @@ void Expression::mid_tcheck(Env &env, Expression *&replacement)
   replacement = this;
 
   // check it, and store the result
-  Type *t = itcheck(env, replacement);
+  Type *t = itcheck_x(env, replacement);
   
   // elaborate the AST by storing the computed type, *unless*
   // we're only disambiguating (because in that case many of
@@ -3889,30 +3906,43 @@ void Expression::mid_tcheck(Env &env, Expression *&replacement)
   // template bodies after arguments are presented
 
   type = t;
+
+  // Fix the fact that if replacement has been modified by introducing
+  // artificial AST nodes, rather than simply choosing among the
+  // ambiguity lists of existing AST nodes, then the new nodes will
+  // not have their _next_ pointer set correctly.  NOTE! Do NOT skip
+  // over this with a return if replacement can have been modified.
+  if (replacement!=this) {
+    if (replacement->next) {
+      xassert(replacement->next == this->next);
+    } else {
+      replacement->next = this->next;
+    }
+  }
 }
 
 
-Type *E_boolLit::itcheck(Env &env, Expression *&replacement)
+Type *E_boolLit::itcheck_x(Env &env, Expression *&replacement)
 {
   // cppstd 2.13.5 para 1
   return env.getSimpleType(SL_UNKNOWN, ST_BOOL);
 }
 
-Type *E_intLit::itcheck(Env &env, Expression *&replacement)
+Type *E_intLit::itcheck_x(Env &env, Expression *&replacement)
 {
   // TODO: this is wrong; see cppstd 2.13.1 para 2
   i = strtoul(text, NULL /*endp*/, 0 /*radix*/);
   return env.getSimpleType(SL_UNKNOWN, ST_INT);
 }
 
-Type *E_floatLit::itcheck(Env &env, Expression *&replacement)
+Type *E_floatLit::itcheck_x(Env &env, Expression *&replacement)
 {
   // TODO: wrong; see cppstd 2.13.3 para 1
   d = strtod(text, NULL /*endp*/);
   return env.getSimpleType(SL_UNKNOWN, ST_FLOAT);
 }
 
-Type *E_stringLit::itcheck(Env &env, Expression *&replacement)
+Type *E_stringLit::itcheck_x(Env &env, Expression *&replacement)
 {
   // cppstd 2.13.4 para 1
 
@@ -3942,7 +3972,7 @@ void quotedUnescape(string &dest, int &destLen, char const *src,
                 delim, allowNewlines);
 }
 
-Type *E_charLit::itcheck(Env &env, Expression *&replacement)
+Type *E_charLit::itcheck_x(Env &env, Expression *&replacement)
 {
   // TODO: wrong; cppstd 2.13.2 paras 1 and 2
 
@@ -3991,7 +4021,7 @@ Type *makeLvalType(Env &env, Type *underlying)
 }
 
 
-Type *E_variable::itcheck(Env &env, Expression *&replacement)
+Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
 {
   name->tcheck(env);
   var = env.lookupPQVariable(name);
@@ -4083,9 +4113,10 @@ static bool allNonTemplateFunctions(SObjList<Variable> &set)
 // temporary
 static bool allNonTemplates(FakeList<Expression> *args)
 {
-//    cout << "argument types:" << endl;
+//    cout << "arguments:" << endl;
   FAKELIST_FOREACH_NC(Expression, args, iter) {
-//      cout << "\titer->expr->type " << iter->expr->type->toCString() << endl;
+//      cout << "\titer->expr->exprToString " << iter->exprToString() <<
+//        "iter->expr->type " << iter->type->toCString() << endl;
     if (areYouOrHaveYouEverBeenATemplate(iter->getType())) return false;
   }
   return true;
@@ -4228,10 +4259,13 @@ static bool reallyDoOverload(Env &env, FakeList<Expression> *args) {
 // ------------- END: outerResolveOverload ------------------
 
 
+
+// **** ARG!  This is what you have to tell me about when you tell me to get rid of ICExpressions!!!
+
 // this is the old code, and served as the prototypical way to tcheck
 // a FakeList of potentially ambiguous elements; but now FakeList<Expression>
 // is not used, so this function has become much simpler
-#if 0
+//  #if 0
 FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env)
 {
   if (!list) {
@@ -4256,15 +4290,15 @@ FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env)
 
   return ret;
 }
-#endif // 0
+//  #endif // 0
 
-// here's the new code that serves the same role as the old
-void tcheckFakeExprList(FakeList<Expression> *list, Env &env)
-{
-  FAKELIST_FOREACH_NC(Expression, list, iter) {
-    iter->tcheck(env, iter);
-  }
-}
+//  // here's the new code that serves the same role as the old
+//  void tcheckFakeExprList(FakeList<Expression> *list, Env &env)
+//  {
+//    FAKELIST_FOREACH_NC(Expression, list, iter) {
+//      iter->tcheck(env, iter);
+//    }
+//  }
 
 
 static bool hasNamedFunction(Expression *e)
@@ -4298,7 +4332,7 @@ static bool hasNoopDtor(Type *t)
   return !t->isCompoundType();
 }
 
-Type *E_funCall::itcheck(Env &env, Expression *&replacement)
+Type *E_funCall::itcheck_x(Env &env, Expression *&replacement)
 {
   inner1_itcheck(env);
 
@@ -4471,7 +4505,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
   }
 
   // check the argument list
-  tcheckFakeExprList(args, env);
+  args = tcheckFakeExprList(args, env);
 
   // the type of the function that is being invoked
   Type *t = func->type->asRval();
@@ -4683,7 +4717,7 @@ static Type *internalTestingHooks
 }
 
 
-Type *E_constructor::itcheck(Env &env, Expression *&replacement)
+Type *E_constructor::itcheck_x(Env &env, Expression *&replacement)
 {
   inner1_itcheck(env);
 
@@ -4698,7 +4732,10 @@ void E_constructor::inner1_itcheck(Env &env)
 Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
 {
   xassert(replacement == this);
-  if (type->isError()) return type;
+  if (type->isError()) {
+    xassert(type);
+    return type;
+  }
 
   if (!type->isCompoundType() && !type->isDependent()) {
     // you can make a temporary for an int like this (from
@@ -4750,10 +4787,11 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
        args->first());
     replacement->tcheck(env, replacement);
     xassert(type->equals(replacement->type));
+    xassert(type);
     return type;
   }
 
-  tcheckFakeExprList(args, env);
+  args = tcheckFakeExprList(args, env);
 
   // dsw: I will assume for now that if overloading succeeds, that the
   // checking that it implies subsumes the below concern:
@@ -4787,12 +4825,13 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
     retObj = wrapVarWithE_variable(env, var);
   }
 
+  xassert(type);
   return type;
 }
 
 
 // cppstd sections: 5.2.5 and 3.4.5
-Type *E_fieldAcc::itcheck(Env &env, Expression *&replacement)
+Type *E_fieldAcc::itcheck_x(Env &env, Expression *&replacement)
 {
   obj->tcheck(env, obj);
   fieldName->tcheck(env);   // shouldn't have template arguments, but won't hurt
@@ -4855,7 +4894,7 @@ Type *E_fieldAcc::itcheck(Env &env, Expression *&replacement)
   }
 }
 
-Type *E_arrow::itcheck(Env &env, Expression *&replacement)
+Type *E_arrow::itcheck_x(Env &env, Expression *&replacement)
 {
   // TODO: do overloading here; for now, just replace ourselves with a
   // '*' and a '.'
@@ -4865,7 +4904,7 @@ Type *E_arrow::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_sizeof::itcheck(Env &env, Expression *&replacement)
+Type *E_sizeof::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
@@ -5058,7 +5097,7 @@ Type *resolveOverloadedBinaryOperator(
 }
 
 
-Type *E_unary::itcheck(Env &env, Expression *&replacement)
+Type *E_unary::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
@@ -5075,7 +5114,7 @@ Type *E_unary::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_effect::itcheck(Env &env, Expression *&replacement)
+Type *E_effect::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
@@ -5095,7 +5134,7 @@ Type *E_effect::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_binary::itcheck(Env &env, Expression *&replacement)
+Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
 {
   e1->tcheck(env, e1);
   e2->tcheck(env, e2);
@@ -5290,7 +5329,7 @@ static Type *makePTMType(Env &env, E_variable *e_var)
            env.tfac.cloneType(e_var->type->asRval()));
 }
 
-Type *E_addrOf::itcheck(Env &env, Expression *&replacement)
+Type *E_addrOf::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
@@ -5352,7 +5391,7 @@ Type *E_addrOf::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_deref::itcheck(Env &env, Expression *&replacement)
+Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
 {
   ptr->tcheck(env, ptr);
   
@@ -5425,7 +5464,7 @@ Type *E_deref::itcheck(Env &env, Expression *&replacement)
   }
 }
 
-Type *E_cast::itcheck(Env &env, Expression *&replacement)
+Type *E_cast::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   ctype = ctype->tcheck(env, tc);
@@ -5437,7 +5476,7 @@ Type *E_cast::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_cond::itcheck(Env &env, Expression *&replacement)
+Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
 {
   cond->tcheck(env, cond);
   th->tcheck(env, th);
@@ -5457,7 +5496,7 @@ Type *E_cond::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_sizeofType::itcheck(Env &env, Expression *&replacement)
+Type *E_sizeofType::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   atype = atype->tcheck(env, tc);
@@ -5476,7 +5515,7 @@ Type *E_sizeofType::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_assign::itcheck(Env &env, Expression *&replacement)
+Type *E_assign::itcheck_x(Env &env, Expression *&replacement)
 {
   target->tcheck(env, target);
   src->tcheck(env, src);
@@ -5497,9 +5536,9 @@ Type *E_assign::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_new::itcheck(Env &env, Expression *&replacement)
+Type *E_new::itcheck_x(Env &env, Expression *&replacement)
 {
-  tcheckFakeExprList(placementArgs, env);
+  placementArgs = tcheckFakeExprList(placementArgs, env);
 
   // TODO: check the environment for declaration of an operator 'new'
   // which accepts the given placement args
@@ -5532,7 +5571,7 @@ Type *E_new::itcheck(Env &env, Expression *&replacement)
   }
 
   if (ctorArgs) {
-    tcheckFakeExprList(ctorArgs->list, env);
+    ctorArgs->list = tcheckFakeExprList(ctorArgs->list, env);
     Variable *ctor = outerResolveOverload_ctor(env, env.loc(), t, ctorArgs->list,
                                                reallyDoOverload(env, ctorArgs->list));
     if (ctor) {
@@ -5547,7 +5586,7 @@ Type *E_new::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_delete::itcheck(Env &env, Expression *&replacement)
+Type *E_delete::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
@@ -5561,7 +5600,7 @@ Type *E_delete::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_throw::itcheck(Env &env, Expression *&replacement)
+Type *E_throw::itcheck_x(Env &env, Expression *&replacement)
 {
   if (expr) {
     expr->tcheck(env, expr);
@@ -5573,7 +5612,7 @@ Type *E_throw::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_keywordCast::itcheck(Env &env, Expression *&replacement)
+Type *E_keywordCast::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   ctype = ctype->tcheck(env, tc);
@@ -5586,14 +5625,14 @@ Type *E_keywordCast::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_typeidExpr::itcheck(Env &env, Expression *&replacement)
+Type *E_typeidExpr::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
   return env.type_info_const_ref;
 }
 
 
-Type *E_typeidType::itcheck(Env &env, Expression *&replacement)
+Type *E_typeidType::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   ttype = ttype->tcheck(env, tc);
@@ -5601,7 +5640,7 @@ Type *E_typeidType::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_grouping::itcheck(Env &env, Expression *&replacement)
+Type *E_grouping::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
   return expr->type;
@@ -5880,7 +5919,7 @@ void IN_compound::tcheck(Env &env, Type* type)
 void IN_ctor::tcheck(Env &env, Type *type)
 {
   FullExpressionAnnot_StackBracket fea0(env, annot);
-  tcheckFakeExprList(args, env);
+  args = tcheckFakeExprList(args, env);
   Variable *ctor = outerResolveOverload_ctor(env, loc, type, args, reallyDoOverload(env, args));
   if (ctor) {
     ctorVar = ctor;

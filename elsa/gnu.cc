@@ -53,7 +53,7 @@ Type *TS_typeof::itcheck(Env &env, DeclFlags dflags)
 }
 
 
-Type *E_compoundLit::itcheck(Env &env, Expression *&replacement)
+Type *E_compoundLit::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   stype = stype->tcheck(env, tc);
@@ -64,7 +64,7 @@ Type *E_compoundLit::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E___builtin_constant_p::itcheck(Env &env, Expression *&replacement)
+Type *E___builtin_constant_p::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
@@ -84,7 +84,7 @@ Type *E___builtin_constant_p::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_alignofType::itcheck(Env &env, Expression *&replacement)
+Type *E_alignofType::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   atype = atype->tcheck(env, tc);
@@ -97,7 +97,7 @@ Type *E_alignofType::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_statement::itcheck(Env &env, Expression *&replacement)
+Type *E_statement::itcheck_x(Env &env, Expression *&replacement)
 {
   s = s->tcheck(env)->asS_compound();
   if (s->stmts.count() < 1) {

@@ -381,7 +381,7 @@ class Expression {
   // the new Expression into 'replacement' and the parent AST node
   // will be updated accordingly; the caller should always put the
   // receiver object pointer into 'replacement' initially
-  pure_virtual Type *itcheck(Env &env, Expression *&replacement);
+  pure_virtual Type *itcheck_x(Env &env, Expression *&replacement);
 
   // type computed for this expression; might be a SimpleType for
   // ST_ERROR, in which case a subsequent attempt to typecheck the
