@@ -1657,50 +1657,12 @@ void possiblyConsumeFunctionType(Env &env, Declarator::Tcheck &dt)
 }
 
 
-// wrapper around similarly-named TypeFactory function
-Type *getNormalizedSignature(Env &env, Type *orig)
-{
-  // first, check for the case when no stripping is required; this
-  // will be by far the most common situation
-  if (!env.tfac.hasDifferentSignature(orig)) {
-    return orig;    // nothing must be stripped
-  }
-
-  //cout << "warning: normalizing...\n";
-
-  TRACE("normalizeSignature", "before: " << orig->toString());
-
-  Type *ret = env.tfac.normalizeSignature(orig);
-
-  TRACE("normalizeSignature", "after:  " << ret->toString());
-
-  return ret;
-}
-
-
 // true if two function types have equivalent signatures, meaning
 // if their names are the same then they refer to the same function,
 // not two overloaded instances
 bool equivalentSignatures(FunctionType const *ft1, FunctionType const *ft2)
-{          
+{
   return ft1->innerEquals(ft2, Type::EF_SIGNATURE);
-
-  #if 0  // old
-  // NOTE: equivalence of 'f(int)' and 'f(int const)' is handled
-  // above, by 'normalizeSignature'
-
-  if (ft1->isMember() == ft2->isMember()) {
-    // if both are nonstatic members, or neither is, then we
-    // simply compare all parameters
-    return ft1->equalParameterLists(ft2);
-  }
-  else {
-    // if one is a nonstatic member and the other is a static member,
-    // then comparison ignores the 'this' param on the nonstatic one
-    // [cppstd 13.1 para 2]
-    return ft1->equalParameterLists(ft2, true /*skipThis*/);
-  }
-  #endif // 0
 }
 
 
@@ -1727,8 +1689,8 @@ bool almostEqualTypes(Type const *t1, Type const *t2)
     }
   }
 
-  // no exception: strict equality
-  return t1->equals(t2);
+  // no exception: strict equality (well, signature equality)a
+  return t1->equals(t2, Type::EF_SIGNATURE);
 }
 
 
@@ -1808,11 +1770,6 @@ static void D_name_tcheck(
   }
 
 realStart:
-  if (dt.type->isFunctionType()) {
-    // normalize the types that appear in the environment
-    dt.type = getNormalizedSignature(env, dt.type->asFunctionType());
-  }
-
   if (!name) {
     // no name, nothing to enter into environment
     possiblyConsumeFunctionType(env, dt);

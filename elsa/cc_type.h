@@ -877,11 +877,6 @@ public:
   virtual FunctionType *makeSimilarFunctionType(SourceLoc loc,
     Type *retType, FunctionType *similar);
 
-  // function signature normalization; see comments above the
-  // default implementation in cc_type.cc
-  bool hasDifferentSignature(Type const *type);
-  Type *normalizeSignature(Type *type, CVFlags cvmask = CV_ALL);
-
   // ---- similar functions for Variable ----
   // Why not make a separate factory?
   //   - It's inconvenient to have two.
