@@ -1659,9 +1659,9 @@ nonterm(MemberList*) MemberDeclarationSeqOpt {
   -> empty
        { return new MemberList(NULL); }
 
-  // Gcc allows multiple semi-colons in a row in a member declaration
+  // gcc allows multiple semicolons in a row in a member declaration
   // list.  This also takes care of the optional semi-colon at the end
-  // of an inline function member definition
+  // of an inline function member definition that is required by cppstd.
   -> list:MemberDeclarationSeqOpt ";"
        { return list; }
 

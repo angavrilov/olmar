@@ -538,40 +538,15 @@ public:      // funcs
   Variable *findInOverloadSet(OverloadSet *oset,
                               FunctionType *ft);   // use ft->getReceiverCV()
 
-  // --- begin: syntax -> PQName ---
-  // return a PQName that will typecheck in the current environment to
-  // find (the typedef for) the 'name0' member of the 's' scope, or
-  // 's' itself if 'name0 is NULL; the return value is maximally
-  // qualified
-  PQName *make_PQ_fullyQualifiedName(Scope *s, PQName *name0 = NULL);
-
-  // do as above, but don't make fully qualified; just prepend to
-  // 'name0' information about 's'
-  PQName *make_PQ_qualifiedName(Scope *s, PQName *name0 = NULL);
-
-  PQName *make_PQ_possiblyTemplatizedName
-    (SourceLoc loc, StringRef name, ASTList<TemplateArgument> *targs);
-
-  // construct the list of template arguments
-  ASTList<TemplateArgument> *make_PQ_templateArgs(Scope *s);
-
-  // go from "A" to "A::~A"
-  PQName *make_PQ_fullyQualifiedDtorName(CompoundType *ct);
-  // --- end: syntax -> PQName ---
-
-  // given a type, return an ASTTypeId AST node that denotes that
-  // type in the current environment
-  //
-  // 7/27/04: This no longer works reliably; please avoid.  I'll
-  // remove it at some point.
-  ASTTypeId *buildASTTypeId(Type *type);
-  ASTTypeId *inner_buildASTTypeId     // effectively private to buildASTTypeId
-    (Type *type, IDeclarator *surrounding);
-
-  // look among the typedef aliases of 'type' for one that maps to
-  // 'type' in the current environment, and wrap that name in a
-  // TS_name; or, return NULL if it has no such aliases
-  TS_name *buildTypedefSpecifier(Type *type);
+  // 7/27/04: removed:
+  //   make_PQ_fullyQualifiedName
+  //   make_PQ_qualifiedName
+  //   make_PQ_possiblyTemplatizedName
+  //   make_PQ_templateArgs
+  //   make_PQ_fullyQualifiedDtorName
+  //   buildASTTypeId
+  //   inner_buildASTTypeId
+  //   buildTypedefSpecifier
 
   // make an AST node for an integer literal expression
   E_intLit *buildIntegerLiteralExp(int i);
