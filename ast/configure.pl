@@ -22,8 +22,7 @@ options:
   -debug,-nodebug:   enable/disable debugging options [disabled]
   -prof              enable profiling
   -devel             add options useful while developing
-  <op>:              add a given option to the gcc command line,
-                       including forms: -W*, -pg, -D*, -O*
+  -ccflag <arg>      add <arg> to gcc command line
   -smbase=<dir>:     specify where the smbase library is [$SMBASE]
 EOF
 }
@@ -49,6 +48,10 @@ while (@ARGV) {
   # be added to CCFLAGS
   elsif ($arg =~ m/^(-W|-pg$|-D|-O)/) {
     push @CCFLAGS, $arg;
+  }
+  elsif ($arg eq "-ccflag") {
+    push @CCFLAGS, $ARGV[0];
+    shift @ARGV;
   }
 
   elsif ($arg eq "-d" ||
