@@ -82,6 +82,8 @@ private:     // data
   EmbeddedLang *embedded;          // (owner) the processor
   isEmbedTok embedTokTest;         // for printing diagnostics
 
+  int prevState;                   // so /**/ doesn't change start state
+
 public:      // data
   // todo: can eliminate commentStartLine in favor of tokenStartLoc?
   //int commentStartLine;            // for reporting unterminated C comments

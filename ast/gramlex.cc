@@ -68,7 +68,7 @@ GrammarLexer::GrammarLexer(isEmbedTok test, StringTable &strtbl,
     embedMode(0),
     embedded(new CCSubstrate(altReporter)),
     embedTokTest(test),
-    //commentStartLine(0),
+    prevState(0),       // same as INITIAL, but this value isn't used
     integerLiteral(0),
     stringLiteral(""),
     includeFileName(""),
