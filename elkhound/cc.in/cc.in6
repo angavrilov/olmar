@@ -1,6 +1,9 @@
 // cc.in6
 // one example of each statement (no ambiguity)
 
+int something, a, whatever, something_else, x;
+typedef int X;
+
 int main()
 {
   3+4;

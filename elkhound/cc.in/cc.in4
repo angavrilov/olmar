@@ -1,6 +1,10 @@
 // cc.in4
 // testcase for some sharing
 
+typedef int x;
+int z;
+typedef int t;
+
 int main()
 {
   x *y = (t*)z;

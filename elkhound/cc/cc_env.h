@@ -26,7 +26,7 @@ class CCLang;             // cc_lang.h
 class ErrorMsg {
 public:
   string msg;
-  SourceLocation const &loc;
+  SourceLocation loc;
 
 public:
   ErrorMsg(char const *m, SourceLocation const &L) 

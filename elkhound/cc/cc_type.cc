@@ -444,7 +444,7 @@ EnumType::~EnumType()
 
 string EnumType::toCString() const
 {
-  return stringc << "enum " << (name? name : "(anonymous)");
+  return stringc << "enum " << (name? name : "/*anonymous*/");
 }
 
 
