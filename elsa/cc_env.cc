@@ -3615,6 +3615,11 @@ Type *Env::errorType()
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }
 
+Type *Env::dependentType()
+{
+  return getSimpleType(SL_UNKNOWN, ST_DEPENDENT);
+}
+
 Type *Env::error(char const *msg, ErrorFlags eflags)
 {
   return error(loc(), msg, eflags);

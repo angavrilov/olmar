@@ -4315,6 +4315,11 @@ Type *E_this::itcheck_x(Env &env, Expression *&replacement)
     return env.error("can only use 'this' in a nonstatic method");
   }
 
+  // 14.6.2.2 para 2
+  if (receiver->type->containsGeneralizedDependent()) {
+    return env.dependentType();
+  }
+
   // compute type: *pointer* to the thing 'receiverVar' is
   // a *reference* to
   //
@@ -4816,10 +4821,19 @@ Type *E_funCall::inner2_itcheck(Env &env)
   }
   else if (func->skipGroups()->isE_fieldAcc()) {
     E_fieldAcc *eacc = func->skipGroups()->asE_fieldAcc();
+    if (eacc->type->isGeneralizedDependent()) {
+      return env.dependentType();
+    }
+
     if (!argumentDependentReLookup(env, eacc->field, eacc->fieldName, eacc->type,
                                    eacc->obj, args)) {
       return eacc->type;    // is ST_ERROR
     }
+  }
+
+  // 14.6.2 para 1, 14.6.2.2 para 1
+  if (dependentArgs) {
+    return env.dependentType();
   }
 
   // the type of the function that is being invoked
@@ -5336,6 +5350,20 @@ Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
   // Note: must delay tchecking 'fieldName' until we decide
   // what scope to do its qualifier lookups in
 
+  bool isPseudoDestructor = fieldName->getName()[0] == '~';
+
+  // dependent?
+  if (obj->type->containsGeneralizedDependent()) {
+    if (isPseudoDestructor) {
+      // 14.6.2.2 para 4
+      return env.getSimpleType(SL_UNKNOWN, ST_VOID);
+    }
+    else {
+      // 14.6.2.2 para 1
+      return env.dependentType();
+    }
+  }
+
   // get the type of 'obj', and make sure it's a compound
   Type *rt = obj->type->asRval();
   CompoundType *ct = rt->ifCompoundType();
@@ -5352,7 +5380,7 @@ Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
       return field->type;
     }
 
-    if (fieldName->getName()[0] == '~') {
+    if (isPseudoDestructor) {
       // invoking destructor explicitly, which is allowed for all
       // types; most of the time, the rewrite in E_funCall::itcheck
       // will replace this, but in the case of a type which is an
@@ -5474,7 +5502,9 @@ Type *E_arrow::itcheck_x(Env &env, Expression *&replacement)
   obj->tcheck(env, obj);
 
   // overloaded?  if so, replace 'obj'
-  while (resolveOverloadedUnaryOperator(env, obj, obj, OP_ARROW)) {
+  Type *t = obj->type;
+  while (t && !t->isDependent()) {
+    t = resolveOverloadedUnaryOperator(env, obj, obj, OP_ARROW);
     // keep sticking in 'operator->' until the LHS is not a class
   }
   
@@ -5535,11 +5565,17 @@ Type *resolveOverloadedUnaryOperator(
   Expression *expr,          // the subexpression of 'this' (already type-checked)
   OverloadableOp op          // which operator this node is
 ) {
-  // consider the possibility of operator overloading
-  if (env.doOperatorOverload() &&
-      !expr->type->containsGeneralizedDependent() &&
-      (expr->type->asRval()->isCompoundType() ||
-       expr->type->asRval()->isEnumType())) {
+  // 14.6.2.2 para 1
+  if (expr->type->containsGeneralizedDependent()) {
+    return env.dependentType();
+  }
+
+  if (!env.doOperatorOverload()) {
+    return NULL;
+  }
+
+  if (expr->type->asRval()->isCompoundType() ||
+      expr->type->asRval()->isEnumType()) {
     OVERLOADINDTRACE("found overloadable unary " << toString(op) <<
                      " near " << env.locStr());
     StringRef opName = env.operatorName[op];
@@ -5624,13 +5660,13 @@ Type *resolveOverloadedBinaryOperator(
   Expression *e2,            // right subexpression, or NULL for postfix inc/dec
   OverloadableOp op          // which operator this node is
 ) {
-  if (!env.doOperatorOverload()) {
-    return NULL;
-  }
-
-  // don't do this if it has dependent args
+  // 14.6.2.2 para 1
   if (e1->type->containsGeneralizedDependent() ||
       e2 && e2->type->containsGeneralizedDependent()) {
+    return env.dependentType();
+  }
+
+  if (!env.doOperatorOverload()) {
     return NULL;
   }
 
@@ -5992,6 +6028,11 @@ Type *E_addrOf::itcheck_x(Env &env, Expression *&replacement)
     // a NULL 'var' field
     return expr->type;
   }
+    
+  // 14.6.2.2 para 1
+  if (expr->type->isGeneralizedDependent()) {
+    return env.dependentType();
+  }
 
   // NOTE: do *not* unwrap any layers of parens:
   // cppstd 5.3.1 para 3: "A pointer to member is only formed when
@@ -6250,9 +6291,10 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
   cond->tcheck(env, cond);
 
   // para 1: 'cond' converted to bool
-  if (!getImplicitConversion(env, cond->getSpecial(env.lang), cond->type,
+  if (!cond->type->isGeneralizedDependent() &&
+      !getImplicitConversion(env, cond->getSpecial(env.lang), cond->type,
                              env.getSimpleType(SL_UNKNOWN, ST_BOOL))) {
-    env.error(stringc
+    env.error(cond->type, stringc
       << "cannot convert `" << cond->type->toString() 
       << "' to bool for conditional of ?:");
   }
@@ -6260,6 +6302,18 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
 
   th->tcheck(env, th);
   el->tcheck(env, el);
+
+  // 14.6.2.2 para 1
+  //
+  // Note that I'm interpreting 14.6.2.2 literally, to the point of
+  // regarding the entire ?: dependent if the condition is, even
+  // though the type of the condition cannot affect the type of the ?:
+  // expression.
+  if (cond->type->isGeneralizedDependent() ||
+      th->type->isGeneralizedDependent() ||
+      el->type->isGeneralizedDependent()) {
+    return env.dependentType();
+  }
 
   // pull out the types; during the processing below, we might change
   // these to implement "converted operand used in place of ..."
@@ -6446,31 +6500,6 @@ incompatible:
   return env.error(stringc
     << "incompatible ?: argument types `" << thRval->toString()
     << "' and `" << elRval->toString() << "'");
-
-  #if 0      // old, delete me
-  // TODO: verify 'th' and 'el' return the same type
-
-  // dsw: shouldn't the type of the expression should be the least
-  // upper bound (lub) of the types?
-  //
-  // sm: sort of.. the rules are spelled out in cppstd 5.16.  there's
-  // no provision for computing the least common ancestor in the class
-  // hierarchy, but the rules *are* nonetheless complex
-
-  // dsw: if one of them is NULL, use the other one; see in/gnu/d0095.c;
-  // actually gcc only allows this if it is not just void* but also 0,
-  // so this is too lenient
-  //
-  // sm: This is similar to one of the provisions in cppstd 5.16
-  // (para 6 bullet 3), so I'm just going to make it the normal behavior
-  // (rather than conditionalizing it upon GNU_EXTENSION).
-  if (th->type->isPointerType() &&
-      th->type->asPointerType()->atType->isVoid()) {
-    return el->type;
-  }
-
-  return th->type;
-  #endif // 0
 }
 
 
@@ -6486,9 +6515,6 @@ Type *E_sizeofType::itcheck_x(Env &env, Expression *&replacement)
     t = env.error(e.why());
   }
 
-  // dsw: I think under some gnu extensions perhaps sizeof's aren't
-  // const (like with local arrays that use a variable to determine
-  // their size at runtime).  Therefore, not making const.
   return t->isError()? t : env.getSimpleType(SL_UNKNOWN, ST_UNSIGNED_INT);
 }
 
@@ -6624,6 +6650,11 @@ Type *E_grouping::itcheck_x(Env &env, Expression *&replacement)
 
 
 // --------------------- Expression constEval ------------------
+// TODO: Currently I do not implement the notion of "value-dependent
+// expression" (cppstd 14.6.2.3).  But, I believe a good way to do
+// that is to extend 'constEval' so it can return a code indicating
+// that the expression *is* constant, but is also value-dependent.
+
 bool Expression::constEval(Env &env, int &result) const
 {
   string msg;

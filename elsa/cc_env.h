@@ -480,6 +480,9 @@ public:      // funcs
 
   // just return ST_ERROR
   Type *errorType();
+  
+  // similarly for ST_DEPENDENT
+  Type *dependentType();
 
   // set 'disambiguateOnly' to 'val', returning prior value
   bool setDisambiguateOnly(bool val);
