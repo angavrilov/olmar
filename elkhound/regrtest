@@ -229,6 +229,7 @@ runTest c/cparse -tr trivialActions,stopAfterParse,glrConfig,yieldVariableName \
   c.in/c.in4b
 
 # bison performance test
+runTest make c.in/c.in4d
 runTest c/bcparse c.in/c.in4d
 
 # this one is my main performance tester for comparison to bison

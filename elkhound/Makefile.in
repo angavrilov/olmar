@@ -251,6 +251,18 @@ cc2/cc2t.exe: $(cc2t-deps) $(libraries)
 c: elkhound libelkhound.a
 	$(MAKE) -C c
 
+c.in/c.in4c: c.in/c.in4b
+	rm -f $@
+	for n in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18; do \
+	  cat $< >>$@; \
+	done
+
+c.in/c.in4d: c.in/c.in4c
+	rm -f $@
+	for n in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18; do \
+	  cat $< >>$@; \
+	done
+
 # stuff in examples directory
 .PHONY: examples
 examples: all
@@ -501,6 +513,7 @@ distclean: clean
 	cd triv; rm -rf sssx.in ssx.in eeb.in
 	$(MAKE) -C c distclean
 	rm -rf gendoc
+	rm -f c.in/c.in4{c,d}
 
 check: all
 	./regrtest
