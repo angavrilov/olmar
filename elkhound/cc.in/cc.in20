@@ -32,11 +32,10 @@ public:
   int f(int);
 };
 
-// DOES NOT WORK
-//Foo Foo::operator- (Foo &f)
-//{
-//  return f;
-//}
+Foo Foo::operator- (Foo &f)
+{
+  return f;
+}
 
 // static would look like
 //Foo Foo::operator/ (Foo &f1, Foo &f2) {}
