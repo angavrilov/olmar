@@ -1,5 +1,5 @@
 // ccgrmain.cc            see license.txt for copyright and terms of use
-// toplevel driver for ccgr
+// toplevel driver for the C parser
 
 #include <iostream.h>     // cout
 #include <stdlib.h>       // exit
@@ -15,14 +15,11 @@
 #include "cc_lang.h"      // CCLang
 #include "treeout.h"      // treeOut
 #include "parsetables.h"  // ParseTables
+#include "c.gr.gen.h"     // CParse
 
 
 // no bison-parser present, so need to define this
 Lexer2Token const *yylval = NULL;
-
-// how to get the parse tables
-// linkdepend: cc.gr.gen.cc
-ParseTables *make_CCGr_tables();
 
 
 void if_malloc_stats()
@@ -59,15 +56,15 @@ void doit(int argc, char **argv)
     SemanticValue treeTop;
     ParseTreeAndTokens tree(lang, treeTop, strTable);
 
-    UserActions *user = makeUserActions(tree.lexer2.idTable, lang);
+    CParse *user = new CParse(strTable, lang);
     tree.userAct = user;
 
     traceProgress() << "building parse tables from internal data\n";
-    ParseTables *tables = make_CCGr_tables();
+    ParseTables *tables = user->makeTables();
     tree.tables = tables;
 
     if (!treeMain(tree, argc, argv,
-          "  additional flags for ccgr:\n"
+          "  additional flags for cparse:\n"
           "    malloc_stats       print malloc stats every so often\n"
           "    stopAfterParse     stop after parsing\n"
           "    printAST           print AST after parsing\n"

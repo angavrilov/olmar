@@ -7,27 +7,41 @@ verbatim {
 }
 
 // the entire grammar spec
-class GrammarAST (ASTList<Option> options,
-                  LocString className,
-                  LocString verbatimCode,
-                  Terminals terms,
-                  ASTList<NontermDecl> nonterms);
-
-
-// declarative options
-class Option {
-  // boolean option
-  -> OP_name (LocString name);
-
-  // numeric expectation
-  -> OP_expect (LocString name, int value);
+class GrammarAST (ASTList<TopForm> forms) {
+  // annotations, filled in during initial checking, pointing
+  // to some things that are supposed to exist and be unique
+  public TF_context *context;
+  public TF_terminals *terms;
+  public TF_nonterm *firstNT;    // textually first nonterminal
+  
+  ctor { context=NULL; terms=NULL; firstNT=NULL; };
 }
 
 
-// definition of tokens
-class Terminals (ASTList<TermDecl> decls,     // ids and aliases
-                 ASTList<TermType> types,     // type annotations
-                 ASTList<PrecSpec> prec);     // precedence and associativity
+// toplevel form
+class TopForm {
+  // definition of the parser context class
+  -> TF_context(LocString name, LocString body);
+  
+  // arbitrary verbatim section, emitted into either the interface
+  // (isImpl=false) or implementation (isImpl=true) file
+  -> TF_verbatim(bool isImpl, LocString code);
+
+  // declarative option; semantics vary based on 'name'
+  -> TF_option(LocString name, int value);
+
+  // definition of tokens
+  -> TF_terminals(ASTList<TermDecl> decls,     // ids and aliases
+                  ASTList<TermType> types,     // type annotations
+                  ASTList<PrecSpec> prec);     // precedence and associativity
+
+  // a nonterminal, with its name and semantic value type, and list
+  // of productions (right-hand side alternatives)
+  -> TF_nonterm(LocString name, LocString type, ASTList<SpecFunc> funcs,
+                ASTList<ProdDecl> productions);
+}
+
+
 
 // token with lexer code 'code' and grammar name 'name', with grammar
 // alias 'alias'
@@ -36,10 +50,11 @@ class TermDecl (int code, LocString name, LocString alias);
 // declaration that token with grammar name 'name' has semantic
 // values with C type 'type'
 class TermType (LocString name, LocString type, ASTList<SpecFunc> funcs);
-                
+
 // a set of equal-precedence tokens (named either by name or by alias),
-// and the 'kind' which tells how they associate
-class PrecSpec (AssocKind kind, ASTList<LocString> tokens);
+// and the 'kind' which tells how they associate; 'prec' is interpreted
+// such that larger values have higher precedence
+class PrecSpec (AssocKind kind, int prec, ASTList<LocString> tokens);
 
 
 // specification function: formals + code

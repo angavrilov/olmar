@@ -68,11 +68,11 @@ XASTParse::~XASTParse()
 
 // -------------------- AST parser support ---------------------
 // fwd-decl of parsing fns
-void astParseGrammar(Grammar &g, GrammarAST const *treeTop);
-void astParseTerminals(Environment &env, Terminals const &terms);
+void astParseGrammar(Grammar &g, GrammarAST *treeTop);
+void astParseTerminals(Environment &env, TF_terminals const &terms);
 void astParseDDM(Environment &env, Symbol *sym,
                  ASTList<SpecFunc> const &funcs);
-void astParseNonterm(Environment &env, NontermDecl const *nt);
+void astParseNonterm(Environment &env, TF_nonterm const *nt);
 void astParseProduction(Environment &env, Nonterminal *nonterm,
                         ProdDecl const *prod);
 
@@ -112,67 +112,115 @@ void astParseErrorCont(LocString const &failToken, char const *msg)
 
 
 // ---------------------- AST "parser" --------------------------
-// map the grammar definition AST into a Grammar data structure
-void astParseGrammar(Grammar &g, GrammarAST const *treeTop)
+// set the annotation pointers
+void setAnnotations(GrammarAST *ast)
 {
-  // process options
-  {
-    FOREACH_ASTLIST(Option, treeTop->options, iter) {
-      Option const *op = iter.data();
-      ASTSWITCHC(Option, op) {
-        ASTCASEC(OP_name, n)
-          LocString const &name = n->name;
-          if (name.equals("useGCDefaults")) {
-            g.useGCDefaults = true;
-          }
-          else if (name.equals("defaultMergeAborts")) {
-            g.defaultMergeAborts = true;
-          }
-          else {
-            astParseError(name, "unknown option name");
-          }
-
-        ASTNEXTC(OP_expect, e)
-          LocString const &name = e->name;
-          if (name.equals("shift_reduce_conflicts")) {
-            g.expectedSR = e->value;
-          }
-          else if (name.equals("reduce_reduce_conflicts")) {
-            g.expectedRR = e->value;
-          }
-          else if (name.equals("unreachable_nonterminals")) {
-            g.expectedUNRNonterms = e->value;
-          }
-          else if (name.equals("unreachable_terminals")) {
-            g.expectedUNRTerms = e->value;
-          }
-          else {
-            astParseError(name, "unknown expect name");
-          }
-
-        ASTDEFAULTC
-          astParseError("what?");
-
-        ASTENDCASEC
+  // work through the toplevel forms
+  FOREACH_ASTLIST_NC(TopForm, ast->forms, iter) {
+    ASTSWITCH(TopForm, iter.data()) {
+      ASTCASE(TF_context, c) {
+        if (!ast->context) {
+          ast->context = c;
+        }
+        else {
+          astParseError(c->name, "there is more than one context class definition");
+        }
       }
+
+      ASTNEXT(TF_terminals, t) {
+        if (!ast->terms) {
+          ast->terms = t;
+        }
+        else {
+          astParseError("there is more than one 'Terminals' section");
+        }
+      }
+
+      ASTNEXT(TF_nonterm, nt) {
+        if (!ast->firstNT) {
+          ast->firstNT = nt;
+        }
+      }
+
+      ASTENDCASED
     }
   }
 
+  if (!ast->terms) {
+    astParseError("'Terminals' specification is missing");
+  }
+  if (!ast->context) {
+    astParseError("'context_class' specification is missing");
+  }
+  if (!ast->firstNT) {
+    astParseError("you have to have at least one nonterminal");
+  }
+}
+
+
+// map the grammar definition AST into a Grammar data structure
+void astParseGrammar(Grammar &g, GrammarAST *ast)
+{
   // default, empty environment
   Environment env(g);
 
-  // stash verbatim code
-  g.actionClassName = treeTop->className;
-  g.verbatim = treeTop->verbatimCode;
+  // handle TF_context
+  g.actionClassName = ast->context->name;
+  g.actionClassBody = ast->context->body;
 
-  // process token declarations
-  astParseTerminals(env, *(treeTop->terms));
+  // handle TF_terminals
+  astParseTerminals(env, *(ast->terms));
+
+  // handle TF_verbatim and TF_option
+  FOREACH_ASTLIST_NC(TopForm, ast->forms, iter) {
+    ASTSWITCH(TopForm, iter.data()) {
+      ASTCASE(TF_verbatim, v) {
+        if (v->isImpl) {
+          g.implVerbatim.append(new LocString(v->code));
+        }
+        else {
+          g.verbatim.append(new LocString(v->code));
+        }
+      }
+
+      ASTNEXT(TF_option, op) {
+        LocString const &name = op->name;
+        int value = op->value;
+        bool boolVal = !!value;
+
+        if (name.equals("useGCDefaults")) {
+          g.useGCDefaults = boolVal;
+        }
+        else if (name.equals("defaultMergeAborts")) {
+          g.defaultMergeAborts = boolVal;
+        }
+        else if (name.equals("shift_reduce_conflicts")) {
+          g.expectedSR = value;
+        }
+        else if (name.equals("reduce_reduce_conflicts")) {
+          g.expectedRR = value;
+        }
+        else if (name.equals("unreachable_nonterminals")) {
+          g.expectedUNRNonterms = value;
+        }
+        else if (name.equals("unreachable_terminals")) {
+          g.expectedUNRTerms = value;
+        }
+        else {
+          astParseError(name, "unknown option name");
+        }
+      }
+
+      ASTENDCASED
+    }
+  }
 
   // process all nonterminal declarations first, so while we're
   // looking at their bodies we can tell if one isn't declared
   {
-    FOREACH_ASTLIST(NontermDecl, treeTop->nonterms, iter) {
-      NontermDecl const *nt = iter.data();
+    FOREACH_ASTLIST(TopForm, ast->forms, iter) {
+      if (!iter.data()->isTF_nonterm()) continue;
+      TF_nonterm const *nt = iter.data()->asTF_nontermC();
 
       // check for already declared
       if (env.nontermDecls.isMapped(nt->name)) {
@@ -183,14 +231,15 @@ void astParseGrammar(Grammar &g, GrammarAST const *treeTop)
       env.g.getOrMakeNonterminal(nt->name);
 
       // add this decl to our running list (in the original environment)
-      env.nontermDecls.add(nt->name, const_cast<NontermDecl*>(nt));
+      env.nontermDecls.add(nt->name, const_cast<TF_nonterm*>(nt));
     }
   }
 
   // process nonterminal bodies
   {
-    FOREACH_ASTLIST(NontermDecl, treeTop->nonterms, iter) {
-      NontermDecl const *nt = iter.data();
+    FOREACH_ASTLIST(TopForm, ast->forms, iter) {
+      if (!iter.data()->isTF_nonterm()) continue;
+      TF_nonterm const *nt = iter.data()->asTF_nontermC();
 
       // new environment since it can contain a grouping construct
       // (at this very moment it actually can't because there is no syntax..)
@@ -224,7 +273,7 @@ public:
 };
 
 
-void astParseTerminals(Environment &env, Terminals const &terms)
+void astParseTerminals(Environment &env, TF_terminals const &terms)
 {
   // basic declarations
   {
@@ -285,15 +334,13 @@ void astParseTerminals(Environment &env, Terminals const &terms)
 
   // precedence specifications
   {
-    int level = terms.prec.count()+1;   // from 'count' down to 1
     FOREACH_ASTLIST(PrecSpec, terms.prec, iter) {
       PrecSpec const &spec = *(iter.data());
-      level--;
 
       FOREACH_ASTLIST(LocString, spec.tokens, tokIter) {
         LocString const &tokName = *(tokIter.data());
         trace("grampar") << "prec: " << toString(spec.kind)
-                         << " " << tokName;
+                         << " " << spec.prec << " " << tokName;
 
         // look up the token
         Terminal *t = astParseToken(env, tokName);
@@ -302,8 +349,15 @@ void astParseTerminals(Environment &env, Terminals const &terms)
             stringc << tokName << " already has a specified precedence");
         }
 
+        if (spec.prec == 0) {
+          // 0 means precedence isn't specified
+          astParseError(tokName,
+            "you can't use 0 as a precedence level, because that value "
+            "is used internally to mean something else");
+        }
+
         // apply spec
-        t->precedence = level;
+        t->precedence = spec.prec;
         t->associativity = spec.kind;
       }
     }
@@ -397,10 +451,7 @@ void astParseDDM(Environment &env, Symbol *sym,
 void synthesizeStartRule(GrammarAST *ast)
 {
   // get the first nonterminal; this is the user's start symbol
-  if (ast->nonterms.isEmpty()) {
-    astParseError("you have to have at least one nonterminal");
-  }
-  NontermDecl *firstNT = ast->nonterms.first();
+  TF_nonterm *firstNT = ast->firstNT;
 
   // find the name of the user's EOF token
   TermDecl const *eof = NULL;
@@ -423,8 +474,8 @@ void synthesizeStartRule(GrammarAST *ast)
   ProdDecl *startProd = new ProdDecl(rhs, LIT_STR(" return top; ").clone());
 
   // build an even earlier start symbol
-  NontermDecl *earlyStartNT
-    = new NontermDecl(
+  TF_nonterm *earlyStartNT
+    = new TF_nonterm(
         LIT_STR("__EarlyStartSymbol").clone(),   // name
         firstNT->type.clone(),                   // type
         NULL,                                    // empty list of functions
@@ -432,11 +483,11 @@ void synthesizeStartRule(GrammarAST *ast)
       );
 
   // put it into the AST
-  ast->nonterms.prepend(earlyStartNT);
+  ast->forms.prepend(earlyStartNT);
 }
 
 
-void astParseNonterm(Environment &env, NontermDecl const *nt)
+void astParseNonterm(Environment &env, TF_nonterm const *nt)
 {
   LocString const &name = nt->name;
 
@@ -610,7 +661,7 @@ int grampar_yylex(YYSTYPE *lvalp, void *parseParam)
   catch (xBase &x) {
     // e.g. malformed fundecl
     cout << lexer.curLocStr() << ": " << x << endl;
-    
+
     // optimistically try just skipping the bad token
     return grampar_yylex(lvalp, parseParam);
   }
@@ -626,10 +677,245 @@ void grampar_yyerror(char const *message, void *parseParam)
 }
 
 
+// ---------------------- merging -----------------------
+void mergeContext(GrammarAST *base, TF_context * /*owner*/ ext)
+{
+  // find 'base' context
+  TF_context *baseContext = NULL;
+  FOREACH_ASTLIST_NC(TopForm, base->forms, iter) {
+    if (iter.data()->isTF_context()) {
+      baseContext = iter.data()->asTF_context();
+      break;
+    }
+  }
+  
+  if (!baseContext) {
+    // base does not have a context class, so 'ext' becomes it
+    base->forms.append(ext);
+  }
+
+  else if (baseContext->name.str == ext->name.str) {
+    // same name; I'd like to append the code to what's already
+    // there, but that's tricky because the location won't
+    // be right..
+    astParseError(ext->name, "context append not implemented");
+  }
+  
+  else {
+    // different name, replace the old
+    base->forms.removeItem(baseContext);
+    delete baseContext;
+    base->forms.append(ext);
+  }
+}
+
+
+void mergeOption(GrammarAST *base, TF_option * /*owner*/ ext)
+{                    
+  // find option with the same name
+  FOREACH_ASTLIST_NC(TopForm, base->forms, iter) {
+    if (!iter.data()->isTF_option()) continue;
+    TF_option *op = iter.data()->asTF_option();
+    
+    if (op->name.str == ext->name.str) {
+      // replace the old value
+      op->value = ext->value;
+      delete ext;
+      return;
+    }
+  }
+
+  // otherwise, just add the new option
+  base->forms.append(ext);
+}
+
+
+void mergeTerminals(GrammarAST *base, TF_terminals * /*owner*/ ext)
+{
+  FOREACH_ASTLIST_NC(TopForm, base->forms, iter) {
+    if (iter.data()->isTF_terminals()) {
+      TF_terminals *t = iter.data()->asTF_terminals();
+      
+      // there's no point to changing codes, so all the
+      // TermDecls just get added (collisions are detected
+      // later, during AST parsing)
+      t->decls.concat(ext->decls);
+      
+      // in fact, I'll do the same for the others, even though
+      // it might make sense to do some replacement; my immediate
+      // needs don't include replacement at this level
+      t->types.concat(ext->types);
+      t->prec.concat(ext->prec);
+      
+      delete ext;
+      return;
+    }
+  }
+  
+  // no TF_terminals in 'base'.. unusual, but easy to handle
+  base->forms.append(ext);
+}
+
+
+void mergeSpecFunc(TF_nonterm *base, SpecFunc * /*owner*/ ext)
+{
+  // find an existing spec func with the same name
+  FOREACH_ASTLIST_NC(SpecFunc, base->funcs, iter) {
+    SpecFunc *f = iter.data();
+    if (f->name.str == ext->name) {
+      // replace the old code with the extension code
+      base->funcs.removeItem(f);
+      delete f;
+      break;
+    }
+  }
+
+  // just add it
+  base->funcs.append(ext);
+}
+
+
+bool equalRHSElt(RHSElt const *elt1, RHSElt const *elt2)
+{
+  if (elt1->kind() != elt2->kind()) {
+    return false;
+  }
+
+  // if the RHS names a terminal, this isn't perfect because one might
+  // use an alias.. but I don't have the necessary information to detect
+  // that, since I haven't yet computed the associated Symbols
+  if (elt1->isRH_name()) {
+    return elt1->asRH_nameC()->name.str == elt2->asRH_nameC()->name.str;
+  }
+  if (elt1->isRH_string()) {
+    return elt1->asRH_stringC()->str.str == elt2->asRH_stringC()->str.str;
+  }
+  if (elt1->isRH_prec()) {
+    // this means you can't change the precedence..
+    return elt1->asRH_precC()->tokName.str == elt2->asRH_precC()->tokName.str;
+  }
+
+  xfailure("unknown RHSElt kind");
+  return false;     // silence warning
+}
+
+
+bool equalRHS(ProdDecl const *prod1, ProdDecl const *prod2)
+{
+  if (prod1->rhs.count() != prod2->rhs.count()) {
+    return false;
+  }
+
+  for (ASTListIter<RHSElt> iter1(prod1->rhs), iter2(prod2->rhs);
+       !iter1.isDone(); iter1.adv(), iter2.adv()) {
+    if (!equalRHSElt(iter1.data(), iter2.data())) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+void mergeProduction(TF_nonterm *base, ProdDecl *ext)
+{
+  // look for a production with an identical RHS
+  FOREACH_ASTLIST_NC(ProdDecl, base->productions, iter) {
+    ProdDecl *prod = iter.data();
+
+    // check RHSs for equality
+    if (equalRHS(prod, ext)) {
+      // replace old with new
+      base->productions.removeItem(prod);
+      delete prod;
+      break;
+    }
+  }
+
+  // add the production
+  base->productions.append(ext);
+}
+
+
+void mergeNonterminal(GrammarAST *base, TF_nonterm * /*owner*/ ext)
+{
+  // find an existing nonterminal with the same name
+  TF_nonterm *exist = NULL;
+  FOREACH_ASTLIST_NC(TopForm, base->forms, iter) {
+    if (iter.data()->isTF_nonterm() &&
+        iter.data()->asTF_nonterm()->name.str == ext->name) {
+      exist = iter.data()->asTF_nonterm();
+    }
+  }
+
+  if (!exist) {
+    // no pre-existing, just append it
+    base->forms.append(ext);
+    return;
+  }
+
+  // make sure the types agree
+  if (exist->type.str != ext->type) {
+    astParseError(ext->type, "cannot redefine the type of a nonterminal");
+  }
+
+  // merge the spec funcs
+  while (ext->funcs.isNotEmpty()) {
+    mergeSpecFunc(exist, ext->funcs.removeFirst());
+  }
+
+  // merge the productions
+  while (ext->productions.isNotEmpty()) {
+    mergeProduction(exist, ext->productions.removeFirst());
+  }
+
+  delete ext;
+}
+
+
+void mergeGrammar(GrammarAST *base, GrammarAST *ext)
+{
+  // work through all the forms in 'ext', removing each
+  // one; it will then either be added to 'base', or
+  // discarded entirely
+  while (ext->forms.isNotEmpty()) {
+    TopForm *form = ext->forms.removeFirst();
+
+    ASTSWITCH(TopForm, form) {
+      ASTCASE(TF_context, c) {
+        mergeContext(base, c);
+      }
+
+      ASTNEXT(TF_verbatim, v) {
+        // verbatims simply accumulate
+        base->forms.append(v);
+      }
+
+      ASTNEXT(TF_option, op) {
+        mergeOption(base, op);
+      }
+
+      ASTNEXT(TF_terminals, t) {
+        mergeTerminals(base, t);
+      }
+
+      ASTNEXT(TF_nonterm, n) {
+        mergeNonterminal(base, n);
+      }
+      
+      ASTDEFAULT {
+        xfailure("doh");
+      }
+      
+      ASTENDCASE
+    }
+  }
+}
+
+
 // ---------------- external interface -------------------
 bool isGramlexEmbed(int code);     // defined in gramlex.lex
 
-void readGrammarFile(Grammar &g, char const *fname)
+GrammarAST *parseGrammarFile(char const *fname)
 {
   #ifndef NDEBUG
   if (tracingSys("yydebug")) {
@@ -654,40 +940,57 @@ void readGrammarFile(Grammar &g, char const *fname)
 
   ParseParams params(*lexer);
 
-  traceProgress() << "parsing grammar source..\n";
+  traceProgress() << "parsing grammar source: " << fname << endl;
   int retval = grampar_yyparse(&params);
   if (retval == 0) {
-    // make sure the tree gets deleted
-    Owner<GrammarAST> treeTop(params.treeTop);
+    GrammarAST *ret = params.treeTop;
 
-    if (tracingSys("ast")) {
+    if (tracingSys("printGrammarAST")) {
       // print AST
       cout << "AST:\n";
-      treeTop->debugPrint(cout, 2);
+      ret->debugPrint(cout, 2);
     }
 
-    // synthesize a rule "TrueStart -> Start EOF"
-    synthesizeStartRule(treeTop);
-
-    // parse the AST into a Grammar
-    traceProgress() << "parsing grammar AST..\n";
-    astParseGrammar(g, treeTop);
-
-    // then check grammar properties; throws exception
-    // on failure
-    traceProgress() << "beginning grammar analysis..\n";
-    g.checkWellFormed();
-
-    treeTop.del();
-
-    // hmm.. I'd like to restore this functionality...
-    //if (ASTNode::nodeCount > 0) {
-    //  cout << "leaked " << ASTNode::nodeCount << " AST nodes\n";
-    //}
+    return ret;
   }
   else {
     xbase("parsing finished with an error");
+    return NULL;     // silence warning
   }
+}
+
+
+void parseGrammarAST(Grammar &g, GrammarAST *treeTop)
+{
+  setAnnotations(treeTop);
+
+  // synthesize a rule "TrueStart -> Start EOF"
+  synthesizeStartRule(treeTop);
+
+  // parse the AST into a Grammar
+  traceProgress() << "parsing grammar AST..\n";
+  astParseGrammar(g, treeTop);
+
+  // then check grammar properties; throws exception
+  // on failure
+  traceProgress() << "beginning grammar analysis..\n";
+  g.checkWellFormed();
+}
+
+
+void readGrammarFile(Grammar &g, char const *fname)
+{
+  // make sure the tree gets deleted
+  Owner<GrammarAST> treeTop(parseGrammarFile(fname));
+
+  parseGrammarAST(g, treeTop);
+
+  treeTop.del();
+
+  // hmm.. I'd like to restore this functionality...
+  //if (ASTNode::nodeCount > 0) {
+  //  cout << "leaked " << ASTNode::nodeCount << " AST nodes\n";
+  //}
 }
 
 

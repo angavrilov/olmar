@@ -13,11 +13,10 @@
 // linkdepend: grampar.tab.cc
 
 // fwd decl
-class GrammarAST;
-class GrammarLexer;
-class NontermDecl;
-class FormBodyElt;
-class StringTable;
+class GrammarAST;         // gramast.ast
+class TF_nonterm;         // gramast.ast
+class GrammarLexer;       // ../ast/gramlex.h
+class StringTable;        // strtable.h
 
 
 // -------- rest of the program's view of parser ------------
@@ -80,7 +79,7 @@ public:      // data
 
   // maps from a nonterminal name to its declaration, if that
   // nonterminal has in fact been declared already
-  StringSObjDict<NontermDecl /*const*/> nontermDecls;
+  StringSObjDict<TF_nonterm /*const*/> nontermDecls;
 
 public:
   Environment(Grammar &G);             // new env
@@ -93,6 +92,16 @@ public:
 // parse grammar file 'fname' into grammar 'g', throwing exceptions
 // if there are problems
 void readGrammarFile(Grammar &g, char const *fname);
+
+// just do the parsing stage
+GrammarAST *parseGrammarFile(char const *fname);
+
+// merge two grammar descriptions; neither argument is consumed,
+// but subtrees of the 2nd argument get moved into the first tree
+void mergeGrammar(GrammarAST *base, GrammarAST *ext);
+
+// GrammarAST -> Grammar
+void parseGrammarAST(Grammar &g, GrammarAST *treeTop);
 
 
 // thrown when there is an error parsing the AST

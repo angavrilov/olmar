@@ -127,15 +127,17 @@ int entry(int argc, char *argv[])
   lexer.beginReading();
 
   // set up parser
-  UserActions *user;
+  UserActions *user = makeUserActions();
+  ParseTables *tables = user->makeTables();
+  
+  // possibly replace actions with trivial ones
   if (tracingSys("trivialActions")) {
     user = new TrivialUserActions();
     count = false;   // cannot count with trivial actions, because no tree is made
   }
-  else {
-    user = makeUserActions();
-  }
-  GLR glr(user, readParseTablesFile(GRAMMAR_NAME));
+  
+  // make the parser object
+  GLR glr(user, tables);
 
   // parse input
   SemanticValue treeTop;

@@ -2,7 +2,7 @@
 // demonstration of resolving C ident/type ambiguity
 // cdecl solves it using reduction cancellation (cf. cdecl2)
 
-verbatim ParseEnv [
+verbatim [
 
 #include <iostream.h>      // cout
 #include "trace.h"         // trace
@@ -15,9 +15,10 @@ verbatim ParseEnv [
   trace("cdecl") << msg << endl
 #define R0 return 0
 
+]
 
 // parsing action state
-class ParseEnv : public UserActions {
+context_class ParseEnv : public UserActions {
 public:
   StringRef intType;              // "int"
   ObjList<StringHash> types;      // stack of hashes which identify names of types
@@ -30,22 +31,26 @@ public:
   void leaveScope();
   void addType(StringRef type);
   bool isType(StringRef name);
-
-  // declarations for the generated code
-  #include "cdecl.gr.gen.h"
 };
 
+
+impl_verbatim [
+
+// bit of a hack..
+ParseTables *tables;
 
 class CCLang;
 UserActions *makeUserActions(StringTable &table, CCLang &lang)
 {
-  return new ParseEnv(table);
+  ParseEnv *ret = new ParseEnv(table);
+  tables = ret->makeTables();
+  return ret;
 }
 
 ParseTables *make_ParseEnv_tables();
 ParseTables *makeParseTables()
 {
-  return make_ParseEnv_tables();
+  return tables;
 }
 
 
@@ -123,7 +128,7 @@ int main(int argc, char **argv)
 }
 #endif // 0
 
-] // end verbatim
+] // end impl_verbatim
 
 
 terminals {

@@ -29,7 +29,7 @@ LDFLAGS := $(LIBELKHOUND) $(SMBASE)/libsmbase.a
 # -------- generic rules --------
 # invoke the parser generator
 %.gr.gen.cc %.gr.gen.h: %.gr
-	$(ELKHOUND) $*
+	$(ELKHOUND) -v -o $*.gr.gen $*.gr
 
 # invoke the AST generator
 %.ast.gen.cc %.ast.gen.h: %.ast

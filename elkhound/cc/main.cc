@@ -16,15 +16,11 @@
 #include "parsetables.h"  // ParseTables
 #include "cc_print.h"     // PrintEnv
 //  #include "cc_flatten.h"   // FlattenEnv
-#include "ccparse.h"      // ParseEnv
+#include "cc.gr.gen.h"    // CCParse
 
 
 // no bison-parser present, so need to define this
 Lexer2Token const *yylval = NULL;
-
-// how to get the parse tables
-// linkdepend: cc.gr.gen.cc
-ParseTables *make_CCGr_tables();
 
 
 void if_malloc_stats()
@@ -61,15 +57,15 @@ void doit(int argc, char **argv)
     SemanticValue treeTop;
     ParseTreeAndTokens tree(lang, treeTop, strTable);
 
-    UserActions *user = makeUserActions(tree.lexer2.idTable, lang);
-    tree.userAct = user;
+    CCParse *parseContext = new CCParse(strTable, lang);
+    tree.userAct = parseContext;
 
     traceProgress() << "building parse tables from internal data\n";
-    ParseTables *tables = make_CCGr_tables();
+    ParseTables *tables = parseContext->makeTables();
     tree.tables = tables;
 
     char const *positionalArg = processArgs
-      (argc, argv, 
+      (argc, argv,
        "  additional flags for ccgr:\n"
        "    malloc_stats       print malloc stats every so often\n"
        "    stopAfterParse     stop after parsing\n"
@@ -85,7 +81,7 @@ void doit(int argc, char **argv)
     }
 
     // check for parse errors detected by the context class
-    if (globalParseEnv->errors) {    // HACK!!
+    if (parseContext->errors) {
       exit(2);
     }
 
@@ -94,7 +90,7 @@ void doit(int argc, char **argv)
 
     //unit->debugPrint(cout, 0);
 
-    delete user;
+    delete parseContext;
     delete tables;
   }
 

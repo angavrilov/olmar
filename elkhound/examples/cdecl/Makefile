@@ -42,7 +42,7 @@ extras := \
 
 # invoke the parser generator
 cdecl.gr.gen.cc cdecl.gr.gen.h: cdecl.gr
-	$(ELKHOUND) cdecl
+	$(ELKHOUND) -v -o cdecl.gr.gen cdecl.gr
 
 # compile a C++ source file
 %.o: %.c

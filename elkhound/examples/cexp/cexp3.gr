@@ -1,7 +1,7 @@
 // cexp3.gr
 // another go at C expressions, with user-supplied actions
 
-verbatim Cexp3 [
+verbatim [
   #include <iostream.h>            // cout
   #include "cexp3ast.ast.gen.h"    // Exp
   #include "trace.h"               // trace
@@ -9,12 +9,13 @@ verbatim Cexp3 [
 
   #define D(msg) \
     trace("exptree") << msg << endl
+]
 
-  class Cexp3 : public UserActions {
-    #include "cexp3.gr.gen.h"
-  };
+context_class Cexp3 : public UserActions {
+};
 
-  class CCLang;  
+impl_verbatim [
+  class CCLang;
   UserActions *makeUserActions(StringTable &, CCLang &)
   {
     return new Cexp3;
@@ -23,7 +24,7 @@ verbatim Cexp3 [
   ParseTables *make_Cexp3_tables();
   ParseTables *makeParseTables()
   {
-    return make_Cexp3_tables();
+    return (new Cexp3 /*leaked..*/)->makeTables();
   }
 ]
 
@@ -59,8 +60,8 @@ terminals {
   // which disambiguates using 'merge'
   precedence {
     // high precedence
-    left "*";                  // PREC
-    left "+";                  // PREC
+    left 20 "*";                  // PREC
+    left 10 "+";                  // PREC
     // low precedence
   }
 }

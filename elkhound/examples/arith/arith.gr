@@ -6,31 +6,15 @@
 // (whereas other examples typically won't)
 
 
-// syntax: The first section is always a 'verbatim' section.  By
-// "verbatim", I mean the code that appears here will be copied as-is
-// into the top of arith.gr.gen.cc.  
-//
-// The name "Arith" tells the parser generator which class the
-// generated action functions should be members of.
-verbatim Arith [
-
-  // this class contains all the action code
-  class Arith : public UserActions {
-  private:
-    // syntax: Here, we're pulling in a file that Elkhound made.
-    // It declares all of the grammar actions, such as the per-
-    // production reduction actions.
-    #include "arith.gr.gen.h"
-  };
-
-  // this function is used by the driver code to create an instance
-  // of the Arith class
-  UserActions *makeUserActions()
-  {
-    return new Arith;
-  }
-
-]
+// "context_class" is a required section that tells the parser
+// generator which class the generated action functions should be
+// members of.  All context classes implement the UserActions
+// interface, so they inherit it.  Syntactically, the body is a
+// C++ class definition.
+context_class Arith : public UserActions {
+public:
+  // there's nothing to put in the context for this example
+};
 
 
 // syntax: The second section is a list of tokens (terminals) that the
@@ -71,13 +55,14 @@ terminals {
   // are declared here.
   token[int] TOK_NUMBER;       // numbers have associated int-typed values
 
-  // syntax: Precedence and associativity come next.
-  // NOTE: The precedence order is from "high" to "low", which is the
-  // *opposite* from how Bison writes them.
+  // syntax: Precedence and associativity come next.  Precedence levels
+  // are specified by explicit integers, instead of by their relative
+  // order, to make it possible for grammar extension modules to insert
+  // new tokens anywhere in the precedence ladder.
   precedence {
     // high precedence
-    left "*" "/";
-    left "+" "-";
+    left 20 "*" "/";
+    left 10 "+" "-";
     // low precedence
   }
 }

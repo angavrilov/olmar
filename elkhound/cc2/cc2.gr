@@ -4,24 +4,16 @@
 
 option useGCDefaults;
 
-verbatim CC2 [
+verbatim [
 
 #include "ptreenode.h"    // PTreeNode
 
-class CC2 : public UserActions {
-public:    // funcs
-  CC2() {}
-
-private:
-  #include "cc2.gr.gen.h"
-};
-
-UserActions *makeUserActions()
-{
-  return new CC2();
-}
-
 ]
+
+context_class CC2 : public UserActions {
+public:
+  CC2() {}
+};
 
 
 terminals {

@@ -803,8 +803,12 @@ void Grammar::xfer(Flatten &flat)
 
   // emptyString is const
 
+  xferObjList(flat, verbatim);
+
   actionClassName.xfer(flat);
-  verbatim.xfer(flat);
+  actionClassBody.xfer(flat);
+
+  xferObjList(flat, implVerbatim);
 
   flat.xferBool(useGCDefaults);
   flat.xferBool(defaultMergeAborts);

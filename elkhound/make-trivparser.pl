@@ -42,19 +42,22 @@ sub preamble {
 
   print(<<"EOF");
 
-    verbatim $name [
+    verbatim [
       #include <iostream.h>     // cout
       $addlIncl
 
-      class $name : public UserActions {
-        #include "${name}${addlExt}.gr.gen.h"
-      };
+      extern int count;
+    ]
 
+    context_class $name : public UserActions {
+    };
+
+    impl_verbatim [
       UserActions *makeUserActions()
       {
         return new $name;
       }
-      
+
       int count = 0;
     ]
 

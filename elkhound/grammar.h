@@ -454,11 +454,18 @@ public:	    // data
   // nice to treat empty like any other symbol
   Nonterminal emptyString;
 
+  // sections of verbatim code emitted into the interface file, before
+  // the parser context class body
+  ObjList<LocString> verbatim;
+
   // name of the class into which the action functions are placed
   LocString actionClassName;
 
-  // extra verbatim code to be inserted at top of impl file
-  LocString verbatim;
+  // verbatim action class declaration
+  LocString actionClassBody;
+
+  // code emitted into the implementation file at the end
+  ObjList<LocString> implVerbatim;
 
   // ---- declarative options ----
   // when true, the default dup/del is what's expected for a

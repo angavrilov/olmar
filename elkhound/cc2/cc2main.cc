@@ -9,15 +9,12 @@
 #include "cc_lang.h"      // CCLang
 #include "ptreenode.h"    // PTreeNode
 #include "parsetables.h"  // ParseTables
+#include "cc2.gr.gen.h"   // CC2
 
 
 // no bison-parser present, so need to define this
 Lexer2Token const *yylval = NULL;
 
-// defined in cc2.gr, thus
-// linkdepend: cc2.gr.gen.cc
-UserActions *makeUserActions();
-ParseTables *make_CC2_tables();
 
 void doit(int argc, char **argv)
 {
@@ -33,8 +30,8 @@ void doit(int argc, char **argv)
   {
     SemanticValue treeTop;
     ParseTreeAndTokens tree(lang, treeTop);
-    UserActions *user = makeUserActions();
-    ParseTables *tables = make_CC2_tables();
+    UserActions *user = new CC2;
+    ParseTables *tables = user->makeTables();
     tree.userAct = user;
     tree.tables = tables;
     if (!treeMain(tree, argc, argv,

@@ -3,6 +3,7 @@
          
 #include "arith.h"     // this module
 #include "glr.h"       // GLR parser
+
 #include <assert.h>    // assert
 
 
@@ -52,7 +53,8 @@ int main()
   lexer.nextToken(&lexer);
   
   // create parser; actions and tables not dealloc'd but who cares
-  GLR glr(makeUserActions(), make_Arith_tables());
+  Arith *arith = new Arith;
+  GLR glr(arith, arith->makeTables());
   
   // start parsing         
   SemanticValue result;

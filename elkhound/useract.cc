@@ -3,10 +3,18 @@
 
 #include "useract.h"     // this module
 #include "typ.h"         // STATICDEF
+#include "xassert.h"     // xfailure
 
 
 UserActions::~UserActions()
 {}
+
+
+ParseTables *UserActions::makeTables()
+{
+  xfailure("this object does not have any tables");
+  return NULL;   // silence warning
+}
 
 
 // ----------------- TrivialUserActions --------------------
@@ -60,3 +68,4 @@ string TrivialUserActions::terminalDescription(int, SemanticValue)
 
 string TrivialUserActions::nonterminalDescription(int, SemanticValue)
   { return string(""); }
+

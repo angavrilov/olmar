@@ -5,6 +5,7 @@
 #define ARITH_H
 
 #include "lexerint.h"        // LexerInterface
+#include "arith.gr.gen.h"    // Arith, the parser context class
 
 class ParseTables;           // parsetables.h
 class UserActions;           // useract.h

@@ -47,6 +47,7 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
 {
   out << "// this makes a ParseTables from some literal data;\n"
       << "// the code is written by ParseTables::emitConstructionCode()\n"
+      << "// in " << __FILE__ << "\n"
       << "ParseTables *" << funcName << "()\n"
       << "{\n";
 

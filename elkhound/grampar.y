@@ -81,9 +81,12 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 %token TOK_TOKEN "token"
 %token TOK_NONTERM "nonterm"
 %token TOK_VERBATIM "verbatim"
+%token TOK_IMPL_VERBATIM "impl_verbatim"
 %token TOK_PRECEDENCE "precedence"
 %token TOK_OPTION "option"
 %token TOK_EXPECT "expect"
+%token TOK_CONTEXT_CLASS "context_class"
+
 // left, right, nonassoc: they're not keywords, since "left" and "right"
 // are common names for RHS elements; instead, we parse them as names
 // and interpret them after lexing
@@ -95,9 +98,9 @@ AssocKind whichKind(LocString * /*owner*/ kind);
   int num;
   LocString *str;
 
-  Option *option;
-  ASTList<Option> *options;
-  Terminals *terminals;
+  ASTList<TopForm> *topFormList;
+  TopForm *topForm;
+
   ASTList<TermDecl> *termDecls;
   TermDecl *termDecl;
   ASTList<TermType> *termTypes;
@@ -108,8 +111,6 @@ AssocKind whichKind(LocString * /*owner*/ kind);
   SpecFunc *specFunc;
   ASTList<LocString> *stringList;
 
-  ASTList<NontermDecl> *nonterms;
-  NontermDecl *nonterm;
   ASTList<ProdDecl> *prodDecls;
   ProdDecl *prodDecl;
   ASTList<RHSElt> *rhsList;
@@ -119,9 +120,9 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 %type <num> StartSymbol
 %type <str> Type Action
 
-%type <options> Options
-%type <option> Option
-%type <terminals> Terminals
+%type <topFormList> TopFormList
+%type <topForm> TopForm ContextClass Verbatim Option Terminals Nonterminal
+
 %type <termDecls> TermDecls
 %type <termDecl> TerminalDecl
 %type <termTypes> TermTypes
@@ -134,8 +135,6 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 %type <specFunc> SpecFunc
 %type <stringList> FormalsOpt Formals
 
-%type <nonterms> Nonterminals
-%type <nonterm> Nonterminal
 %type <prodDecls> Productions
 %type <prodDecl> Production
 %type <rhsList> RHS
@@ -151,25 +150,37 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 
 /* start symbol */
 /* yields: int (dummy value) */
-StartSymbol: Options "verbatim" TOK_NAME TOK_LIT_CODE Terminals Nonterminals
-               {
-                 // return the AST tree top to the caller
-                 ((ParseParams*)parseParam)->treeTop =
-                   new GrammarAST($1, $3, $4, $5, $6);
-                 $$ = 0;
-               }
+StartSymbol: TopFormList     
+               { ((ParseParams*)parseParam)->treeTop = new GrammarAST($1); $$=0; }
            ;
 
+/* yields: ASTList<TopForm> */
+TopFormList: /*empty*/              { $$ = new ASTList<TopForm>; }
+           | TopFormList TopForm    { ($$=$1)->append($2); }
+           ;
            
-/* ------ options ------ */
-/* yields: ASTList<Option> */
-Options: /* empty */            { $$ = new ASTList<Option>; }
-       | Options Option         { ($$=$1)->append($2); }
+/* yields: TopForm */
+TopForm: ContextClass               { $$ = $1; }
+       | Verbatim                   { $$ = $1; }
+       | Option                     { $$ = $1; }
+       | Terminals                  { $$ = $1; }
+       | Nonterminal                { $$ = $1; }
        ;
 
-/* yields: Option */
-Option: "option" TOK_NAME ";"              { $$ = new OP_name($2); }
-      | "expect" TOK_NAME TOK_INTEGER ";"  { $$ = new OP_expect($2, $3); }
+/* yields: TopForm (always TF_context) */
+ContextClass: "context_class" TOK_NAME TOK_LIT_CODE ";" 
+                { $$ = new TF_context($2, $3); }
+            ;
+
+/* yields: TopForm (always TF_verbatim) */
+Verbatim: "verbatim" TOK_LIT_CODE          { $$ = new TF_verbatim(false, $2); }
+        | "impl_verbatim" TOK_LIT_CODE     { $$ = new TF_verbatim(true, $2); }
+        ;
+
+/* yields: TopForm (always TF_option) */
+/* options without specified values default to a value of 1 */
+Option: "option" TOK_NAME ";"              { $$ = new TF_option($2, 1); }
+      | "option" TOK_NAME TOK_INTEGER ";"  { $$ = new TF_option($2, $3); }
       ;
 
 
@@ -179,9 +190,9 @@ Option: "option" TOK_NAME ";"              { $$ = new OP_name($2); }
  * forms; they are the output of the lexer; the Terminals list declares
  * all of the terminals that will appear in the rules
  */
-/* yields: Terminals */
+/* yields: TopForm (always TF_terminals) */
 Terminals: "terminals" "{" TermDecls TermTypes Precedence "}"
-             { $$ = new Terminals($3, $4, $5); }
+             { $$ = new TF_terminals($3, $4, $5); }
          ;
 
 /* yields: ASTList<TermDecl> */
@@ -221,12 +232,12 @@ TermType: "token" Type TOK_NAME ";"
 Precedence: /* empty */                      { $$ = new ASTList<PrecSpec>; }
           | "precedence" "{" PrecSpecs "}"   { $$ = $3; }
           ;
-          
+
 /* yields: ASTList<PrecSpec> */
-PrecSpecs: /* empty */                     
+PrecSpecs: /* empty */
              { $$ = new ASTList<PrecSpec>; }
-         | PrecSpecs TOK_NAME NameOrStringList ";"
-             { ($$=$1)->append(new PrecSpec(whichKind($2), $3)); }
+         | PrecSpecs TOK_NAME TOK_INTEGER NameOrStringList ";"
+             { ($$=$1)->append(new PrecSpec(whichKind($2), $3, $4)); }
          ;
 
 /* yields: ASTList<LocString> */
@@ -268,17 +279,12 @@ Formals: TOK_NAME                     { $$ = new ASTList<LocString>($1); }
  * the body of the Nonterminal declaration specifies the the RHS forms,
  * attribute info, etc.
  */
-/* yields: ASTList<NontermDecl> */
-Nonterminals: /* empty */                  { $$ = new ASTList<NontermDecl>; }
-            | Nonterminals Nonterminal     { ($$=$1)->append($2); }
-            ;
-
-/* yields: NontermDecl */
+/* yields: TopForm (always TF_nonterm) */
 Nonterminal: "nonterm" Type TOK_NAME Production
-               { $$ = new NontermDecl($3, $2, new ASTList<SpecFunc>,
-                                      new ASTList<ProdDecl>($4)); }
+               { $$ = new TF_nonterm($3, $2, new ASTList<SpecFunc>,
+                                     new ASTList<ProdDecl>($4)); }
            | "nonterm" Type TOK_NAME "{" SpecFuncs Productions "}"
-               { $$ = new NontermDecl($3, $2, $5, $6); }
+               { $$ = new TF_nonterm($3, $2, $5, $6); }
            ;
 
 /* yields: ASTList<ProdDecl> */

@@ -1,13 +1,18 @@
 # Makefile.in            see license.txt for copyright and terms of use
 # source for Makefile for parser generator project
 
+#tmp: cc/cc.gr.gen.h
+
 # the astgen-generated files need to come first because otherwise
 # the build doesn't go through properly.. I investigated a better
 # fix at one point but don't now remember what the problem was..
 all: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/c.ast.gen.h \
-     workingFiles glrmain.o cc/cparse cc2/cc2.exe cc2/cc2t.exe cc/bccgr \
-     cc/cc.ast.gen.h cc/ccparse cc/ccparset
+     workingFiles glrmain.o cc/cparse cc2/cc2.exe cc/bccgr \
+     cc/cc.ast.gen.h cc/ccparse
 	@echo BUILD FINISHED
+
+# TODO: put these back, ideally in the same executable as the non-t versions
+# cc2/cc2t.exe cc/ccparset
 
 # these are files I'm working on now, so I want them compiled first;
 # it should be the case that setting this to the empty list of targets
@@ -247,7 +252,7 @@ gramlex.yy.cc: gramlex.lex
 # grammar lexer test program
 gramlex-dep := gramlex.yy.cc gramlex.cc $(AST)/fileloc.o $(AST)/ccsstr.o \
                $(AST)/embedded.o $(libraries)
-gramlex: gramlex.h $(gramlex-dep)
+gramlex: ../ast/gramlex.h $(gramlex-dep)
 	$(link) -o gramlex -DTEST_GRAMLEX $(gramlex-dep)
 
 # grammar parser
@@ -275,6 +280,12 @@ cyctimer: cyctimer.cc cyctimer.h
 cc/cc.tok: cc/lexer2
 	cc/lexer2 myparser >$@
 
+# copy it to the parsgen/ directory for now so I can change
+# the "include" line in cc.gr to not say "cc/"
+cc.tok: cc/cc.tok
+	cp -f $^ $@
+	chmod a-w $@
+
 # glr parsing engine
 libelkhound.a: $(glr-set)
 	rm -f libelkhound.a
@@ -285,9 +296,9 @@ libelkhound.a: $(glr-set)
 # TRGRAMANL: extra trace flags specified by user; starts with "," if defined
 # ('chmod a-w' is so I don't accidentally edit it)
 .PRECIOUS: %.gr.gen.cc %.gr.gen.h
-%.gr.gen.cc %.gr.gen.h %.gr.gen.y: %.gr cc/cc.tok elkhound
+%.gr.gen.cc %.gr.gen.h %.gr.gen.y: %.gr cc.tok elkhound
 	rm -f $*.gr.gen.*
-	./elkhound -tr bison,NOconflict$(TRGRAMANL) $*
+	./elkhound -v -tr bison,NOconflict$(TRGRAMANL) -o $*.gr.gen $*.gr
 	chmod a-w $*.gr.gen.h $*.gr.gen.cc
 
 # intermediate files for an ast spec
@@ -307,6 +318,9 @@ cc/cc.ast.gen.cc cc/cc.ast.gen.h: cc/cc.ast $(CC_AST_MODS) $(AST)/astgen
 # don't delete these because error messages often point into them
 .PRECIOUS: cc.gr.gen.h cc.gr.gen.cc
 
+# some extra dependencies..
+cc/ccgrmain.o: cc/c.gr.gen.h
+
 # stand-alone executable for parsing C
 cc/cparse: cc/ccgrmain.o cc/c.gr.gen.o $(c-set) libelkhound.a $(SMBASE)/libsmbase.a
 	$(link) -o $@ $^
@@ -319,16 +333,13 @@ CQUAL_DEPS :=
 cc/ccparse: cc/main.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a $(CQUAL_DEPS)
 	$(link) -o $@ $^
 	./$@ c.in/c.in1
-# dsw: Note on the above: I need to be able to build it without
-# running it, due to the directory where I have to build it.  This
-# will be fixed when I can pass in the lattice configuration file on
-# the command-line.
 
 # same grammar, but building entire parse tree instead
-cc/cct.gr.gen.cc cc/cct.gr.gen.h cc/cct.gr.gen.y: cc/cc.gr cc/cc.tok elkhound
+# TODO: this won't work because I moved the #inclusion of cc.gr.gen.h
+cc/cct.gr.gen.cc cc/cct.gr.gen.h cc/cct.gr.gen.y: cc/cc.gr cc.tok elkhound
 	rm -f cc/cct.gr*
 	sed 's/cc\.gr\.gen\.h/cct.gr.gen.h/' <cc/cc.gr >cc/cct.gr
-	./elkhound -tr treebuild$(TRGRAMANL) cc/cct
+	./elkhound -v -tr treebuild$(TRGRAMANL) -o cc/cct.gr.gen cc/cct.gr
 	chmod a-w cc/cct.gr*
 
 cc/ccparset: cc/ccparset.o cc/cct.gr.gen.o $(cc-set) ptreenode.o \
@@ -402,15 +413,17 @@ trivparse-deps := trivmain.cc ptreenode.o trivlex.o $(support-set) \
              libelkhound.a
 	g++ -o $@ $(ccflags) $(includes) $^ $(linkend)
 
+cc2/cc2main.o: cc2/cc2.gr.gen.h
+
 # new C++ parser
 cc2/cc2.exe: cc2/cc2main.o $(cc-set) cc2/cc2.gr.gen.o ptreenode.o libelkhound.a $(SMBASE)/libsmbase.a $(CQUAL_DEPS)
 	g++ -o $@ $(ccflags) $^
 
 # new C++ grammar with treebuilding actions
-cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr cc/cc.tok elkhound $(CQUAL_DEPS)
+cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr cc.tok elkhound $(CQUAL_DEPS)
 	rm -f cc2/cc2t*
 	sed 's/cc2\.gr\.gen\.h/cc2t.gr.gen.h/' <cc2/cc2.gr >cc2/cc2t.gr
-	./elkhound -tr treebuild$(TRGRAMANL) cc2/cc2t
+	./elkhound -v -tr treebuild$(TRGRAMANL) -o cc2/cc2t.gr.gen cc2/cc2t.gr
 	chmod a-w cc2/cc2t.gr*
 
 # new C++ parser with treebuilding
@@ -647,7 +660,7 @@ clean:
 	rm -f cc/cc.bin cc/ccgr cc/cparse cc/ccparse cc/ccparset
 	rm -f cc/libccgr.a libelkhound.a
 	rm -f cc/bccgr
-	rm -f cc/bccgr.y cc/cc.tok grampar.codes.h
+	rm -f cc/bccgr.y cc/cc.tok cc.tok grampar.codes.h
 	rm -f gdb.log gprof.out gmon.out test-bad-tmp.c
 	cd cc; rm -f $(CLEAN_PATTERNS)
 	cd cc2; rm -f $(CLEAN_PATTERNS)

@@ -30,9 +30,13 @@ LDFLAGS := $(LIBELKHOUND) $(SMBASE)/libsmbase.a
 # main target
 all: arith
 
+# tell 'make' that it cannot compile arith.cc until after
+# it has generated arith.gr.gen.h
+arith.o: arith.gr.gen.h
+
 # invoke the parser generator
 arith.gr.gen.cc arith.gr.gen.h: arith.gr
-	$(ELKHOUND) arith
+	$(ELKHOUND) -v -o arith.gr.gen arith.gr
 
 # invoke the lexer generator
 arithyy.cc: arith.lex

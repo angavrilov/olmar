@@ -58,6 +58,9 @@ DQUOTE    "\""
  * leave open that possibility, so for now backslashes are illegal) */
 STRCHR    [^\n\\\"]
 
+/* horizontal whitespace */
+HWHITE     [ \t\f\v]
+
 /* whitespace that doesn't cross line a boundary */
 SLWHITE   [ \t]
 
@@ -67,18 +70,23 @@ SLWHITE   [ \t]
 %x INCLUDE
 %x EAT_TO_NEWLINE
 %x LITCODE
+%x GET_CLASS_NAME
 
 
 /* ---------------------- rules ----------------------- */
 %%
 
   /* -------- whitespace ------ */
-"\n" {
-  newLine();
-}
+  /* this means I eat whitespace in the same way in the normal
+   * "INITIAL" state, and when looking for a class name */
+<INITIAL,GET_CLASS_NAME>{
+  "\n" {
+    newLine();
+  }
 
-[ \t\f\v]+ {
-  UPD_COL;
+  {HWHITE}+ {
+    UPD_COL;
+  }
 }
 
   /* -------- comments -------- */
@@ -135,6 +143,7 @@ SLWHITE   [ \t]
 "token"            TOK_UPD_COL;  return TOK_TOKEN;
 "nonterm"          TOK_UPD_COL;  return TOK_NONTERM;
 "verbatim"         TOK_UPD_COL;  return TOK_VERBATIM;
+"impl_verbatim"    TOK_UPD_COL;  return TOK_IMPL_VERBATIM;
 "precedence"       TOK_UPD_COL;  return TOK_PRECEDENCE;
 "option"           TOK_UPD_COL;  return TOK_OPTION;
 "expect"           TOK_UPD_COL;  return TOK_EXPECT;
@@ -151,7 +160,7 @@ SLWHITE   [ \t]
   /* no TOKEN_START here; we'll use the tokenStartLoc that
    * was computed in the opening punctuation */
 <LITCODE>{
-  [^\]\n]+ {
+  [^\]\}\n]+ {
     UPD_COL;
     embedded->handle(yytext, yyleng, embedFinish);
   }
@@ -161,15 +170,20 @@ SLWHITE   [ \t]
     embedded->handle(yytext, yyleng, embedFinish);
   }
 
-  "]" {
+  ("]"|"}") {
     UPD_COL;
     if (embedded->zeroNesting()) {
       // done
       BEGIN(INITIAL);
 
+      // check for balanced delimiter
+      if (embedFinish != yytext[0]) {
+        err("unbalanced literal code delimiter");
+      }
+
       // don't add "return" or ";"
       embedded->exprOnly = false;
-      
+
       // can't extract anything
       embedded->isDeclaration = false;
 
@@ -180,6 +194,44 @@ SLWHITE   [ \t]
       // delimeter paired within the embedded code, mostly ignore it
       embedded->handle(yytext, yyleng, embedFinish);
     }
+  }
+
+  <<EOF>> {
+    err(stringc << "hit end of file while looking for final `"
+                << embedFinish << "'");
+    yyterminate();
+  }
+}
+
+
+  /* embedded *type* description, somewhat interpreted */
+"context_class" {
+  TOK_UPD_COL;
+  BEGIN(GET_CLASS_NAME);
+  return TOK_CONTEXT_CLASS;
+}
+
+<GET_CLASS_NAME>{
+  {LETTER}({LETTER}|{DIGIT})* {
+    /* caller will get text from yytext and yyleng */
+    TOK_UPD_COL;
+
+    /* once I see the name, I drop into literal-code processing */
+    BEGIN(LITCODE);   
+    
+    /* I reset the initial nesting to -1 so that the '{' at the
+     * beginning of the class body sets nesting to 0, thus when
+     * I see the final '}' I'll see that at level 0 and stop */
+    embedded->reset(-1);
+    embedFinish = '}';
+    embedMode = TOK_LIT_CODE;
+
+    return TOK_NAME;
+  }
+
+  {ANY} {
+    TOK_UPD_COL;
+    errorIllegalCharacter(yytext[0]);
   }
 }
 

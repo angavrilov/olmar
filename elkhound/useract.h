@@ -15,6 +15,7 @@
 #include "str.h"           // string
 
 class SourceLocation;      // fileloc.h
+class ParseTables;         // parsetables.h
 
 // user-supplied semantic values:
 //  - Semantic values are an arbitrary word, that the user can then
@@ -118,11 +119,15 @@ public:
 
   // get the reclassifier
   virtual ReclassifyFunc getReclassifier()=0;
-  
+
   // descriptions of symbols with their semantic values; this is useful
   // for the ACTION_TRACE function of the parser
   virtual string terminalDescription(int termId, SemanticValue sval)=0;
   virtual string nonterminalDescription(int nontermId, SemanticValue sval)=0;
+  
+  // get the parse tables for this grammar; the default action
+  // complains that no tables are defined
+  virtual ParseTables *makeTables();
 };
 
 

@@ -167,7 +167,7 @@ grepBoth() {
 testTrivGrammar() {
   name="$1"
   shift
-  runTest make "triv/${name}.gr.exe" TRGRAMANL=,lrtable,binaryGrammar
+  runTest make "triv/${name}.gr.exe" TRGRAMANL=,lrtable
 
   while [ "$1" != "" ]; do
     suffix="$1"
