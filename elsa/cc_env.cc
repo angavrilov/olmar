@@ -189,6 +189,21 @@ void Env::setupOperatorOverloading()
     tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC, CV_VOLATILE)),
     getSimpleType(SL_INIT, ST_INT));
 
+  // ---- 13.6 para 4 ----
+  // VQ T& operator-- (VQ T&);
+  addBuiltinUnaryOp(OP_MINUSMINUS,
+    tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC_NON_BOOL)));
+  addBuiltinUnaryOp(OP_MINUSMINUS,
+    tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC_NON_BOOL, CV_VOLATILE)));
+
+  // T operator-- (VQ T&, int);
+  addBuiltinBinaryOp(OP_MINUSMINUS,
+    tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC_NON_BOOL)),
+    getSimpleType(SL_INIT, ST_INT));
+  addBuiltinBinaryOp(OP_MINUSMINUS,
+    tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC_NON_BOOL, CV_VOLATILE)),
+    getSimpleType(SL_INIT, ST_INT));
+
   // ---- 13.6 para 6,7 ----
   // T& operator* (T*);
   addBuiltinUnaryOp(OP_STAR,

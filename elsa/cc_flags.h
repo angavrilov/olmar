@@ -164,7 +164,8 @@ enum SimpleTypeId {
   // for polymorphic built-in operators (cppstd 13.6)
   ST_PROMOTED_INTEGRAL,      // int,uint,long,ulong
   ST_PROMOTED_ARITHMETIC,    // promoted integral + float,double,longdouble
-  ST_ARITHMETIC,             // every simple type except bool & void
+  ST_ARITHMETIC,             // every simple type except void
+  ST_ARITHMETIC_NON_BOOL,    // every simple type except void & bool
   ST_ANY_OBJ_TYPE,           // any object (non-function, non-void) type
   ST_ANY_NON_VOID,           // any type except void
   ST_ANY_TYPE,               // any type, including functions and void

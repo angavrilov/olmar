@@ -29,6 +29,10 @@ struct F {
   void operator++ (int);        // line 29
 };
 
+struct G {
+  operator bool& ();        
+};
+
 void f1()
 {
   A a;
@@ -37,12 +41,14 @@ void f1()
   D d;
   E e;
   F f;
+  G g;
 
   ++a;                          // A::operator int& ()
   __testOverload(++b, 13);      // B::operator ++ ()
   ++c;                          // C::operator volatile int& ()
   //ERROR(1): ++d;              // not an lvalue
   //ERROR(2): ++e;              // can't unify with VQ T&
+  ++g;                          // deprecated but legal
 
   __testOverload(f++, 29);      // F::operator ++ (int)
   a++;
