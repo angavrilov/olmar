@@ -541,6 +541,19 @@ StandardConversion getStandardConversion
         if (conv.stripPtrCtor(scv, dcv))
           { return conv.ret; }
 
+        // 10/08/04: (t0344.cc) For ptr-to-member where the member is
+        // a function, we need to ignore the receiver parameter.  So
+        // what follows is basically the T_FUNCTION case, above, but
+        // with a different EqFlags passed.
+        if (src->isFunctionType() && dest->isFunctionType()) {
+          if (src->equals(dest, Type::EF_IGNORE_IMPLICIT)) {
+            return conv.ret;
+          }
+          else {
+            return conv.error("unequal function types");
+          }
+        }
+
         break;
       }
     }
@@ -552,7 +565,7 @@ StandardConversion getStandardConversion
   // no, looks ok; I'm going to try folding polymorphic
   // checking into equality itself...
   // 
-  // appears to work!  I'll tag the old stuf with "delete me"
+  // appears to work!  I'll tag the old stuff with "delete me"
   // for the moment
   if (src->equals(dest, Type::EF_POLYMORPHIC)) {
     return conv.ret;    // identical now

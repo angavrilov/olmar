@@ -1,0 +1,15 @@
+#!/bin/sh
+# use test-parse-buildlog to test Elsa's ability to parse several
+# large packages
+
+# This script really only will work on my machine ....
+
+echo "Qt 2.3.2"
+./test-parse-buildlog /opt/qt-2.3.2/make.out >qt.parse.out
+
+echo "DDD 3.3.1"
+./test-parse-buildlog $HOME/bld/ddd-3.3.1/make.out >ddd.parse.out
+
+echo "Mozilla 1.0"
+./test-parse-buildlog $HOME/bld/mozilla-1.0/make.out >moz.parse.out
+

@@ -33,7 +33,7 @@ tmp.in
 quicktest
 tlexer
 gprof.out
-moz.parse.out
+*.parse.out
 moz.gcc.out
 parse.log
 regrtest.log

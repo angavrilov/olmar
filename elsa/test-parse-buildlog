@@ -2,6 +2,19 @@
 # read in the output of a 'make' command, and use that to
 # drive the Elsa C/C++ parser
 
+# The intended usage is to run this script with stdout redirected to a
+# file (to save error messages, etc.) but stderr going to a console,
+# where there will be one character printed for each file that we
+# attempt to parse:
+#
+#   p    preprocessing (with gcc -E) failed
+#   e    parsing (with Elsa) failed
+#   .    success
+#
+# Finally, on stderr the sum of all failures will be printed.
+#                                              
+# Then, the saved log can be examined for lines that begin with
+# "failing" to find the details on what failed.
 
 $SIG{INT} = \&bail;
 
@@ -145,15 +158,18 @@ while (defined($line = <IN>)) {
     # run the gcc/g++ command to preprocess the input
     if (!run($line)) {
       $ppfail{$s}++;
+      print STDERR ("g");      # gcc failed
     }
     else {
       # run Elsa to parse it
       my $op = (($s eq "gcc")? "-tr gnu_kandr_c_lang " : "");
       if (run("$ccparse ${op}tmp.i")) {
         $parseok{$s}++;
+        print STDERR (".");
       }
       else {
         $parsefail{$s}++;
+        print STDERR ("e");    # elsa failed
       }
     }
     next;
@@ -178,6 +194,11 @@ sub bail {
          $ppfail{'gcc'}+$parsefail{'gcc'}+$parseok{'gcc'},
          $ppfail{'g++'}+$parsefail{'g++'}+$parseok{'g++'});
   timeStamp();
+
+  my $failures = $ppfail{'gcc'} + $ppfail{'g++'} + 
+                 $parsefail{'gcc'} + $parsefail{'g++'};
+  print STDERR ("($failures failures)\n");
+
   exit(0);
 }
 
@@ -198,7 +219,7 @@ sub run {
     # don't run
   }
   else {
-    $code = system($cmd);
+    $code = system($cmd . " 2>&1");    # all output to stdout
   }
 
   if ($code != 0) {
