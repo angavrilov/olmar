@@ -11,8 +11,8 @@
 
 // see also:
 //   http://cedar.intel.com/software/idap/media/pdf/rdtscpm1.pdf
-//     html: http://www.google.com/search?q=cache:N43gwOb7_PUC:cedar.intel.com/software/idap/media/pdf/rdtscpm1.pdf+rdtsc&hl=en
 //   http://www.x86-64.org/lists/bugs/msg00621.html
+//   http://www.dc.uba.ar/people/materias/oc2/LaboLinux/docs/intel/RDTSC.pdf
 
 
 #ifdef RDTSC_SOURCE
@@ -113,6 +113,17 @@ int main()
     unsigned low, high;
     getCycles(&low, &high);
     printf("getCycles high=%u, low=%u\n", high, low);
+  }
+
+  // test whether the instruction causes a privileged instruction
+  // fault; on my machine I get 33 cycles per call, which clearly
+  // is too few for it to be trapping on each one
+  {
+    unsigned low1, low2, low3, high;
+    getCycles(&low1, &high);
+    getCycles(&low2, &high);
+    getCycles(&low3, &high);
+    printf("three lows in a row: %u, %u, %u\n", low1, low2, low3);
   }
 
   return 0;

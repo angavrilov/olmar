@@ -85,7 +85,7 @@ library-objs := \
   syserr.o voidlist.o warn.o bit2d.o point.o growbuf.o strtokp.o \
   strutil.o strdict.o svdict.o strhash.o hashtbl.o malloc.o \
   trdelete.o flatten.o bflatten.o mysig.o trace.o vdtllist.o \
-  stringset.o mypopen.o unixutil.o cycles.o
+  stringset.o mypopen.o unixutil.o cycles.o bitarray.o
 -include $(library-objs:.o=.d)
 
 $(THISLIBRARY): $(library-objs)

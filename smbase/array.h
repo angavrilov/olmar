@@ -58,6 +58,12 @@ public:      // funcs
   // set an element, using the doubler if necessary
   void setIndexDoubler(int index, T const &value)
     { ensureIndexDoubler(index); arr[index] = value; }
+    
+  // swap my data with the data in another GrowArray object
+  void swapWith(GrowArray<T> &obj) {
+    T *tmp1 = obj.arr; obj.arr = this->arr; this->arr = tmp1;
+    int tmp2 = obj.sz; obj.sz = this->sz; this->sz = tmp2;
+  }
 };
 
 
@@ -178,6 +184,12 @@ public:
     { len -= ct; xassert(len >= 0); }
   void empty()
     { len = 0; }
+    
+  // swap
+  void swapWith(ArrayStack<T> &obj) {
+    GrowArray<T>::swapWith(obj);
+    int tmp = obj.len; obj.len = this->len; this->len = tmp;
+  }
 };
 
 template <class T>

@@ -1,12 +1,12 @@
 // bitarray.h            see license.txt for copyright and terms of use
 // one-dimensional array of bits
 
-// NOT TESTED, but should be complete
-
 #ifndef BITARRAY_H
 #define BITARRAY_H
 
-class Flatten;      // flatten.h
+#include "xassert.h"      // xassert
+
+class Flatten;            // flatten.h
 
 class BitArray {
 private:    // data
@@ -18,7 +18,7 @@ private:    // disallowed for now
   void operator=(BitArray&);
 
 private:    // funcs
-  void bc(int i) { xassert((unsigned)i < numBits); }
+  void bc(int i) const { xassert((unsigned)i < (unsigned)numBits); }
   int allocdBytes() const { return (numBits+7) / 8; }
 
 public:     // funcs
