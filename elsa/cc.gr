@@ -522,6 +522,9 @@ nonterm[Expression*] AssignmentExpression {
 
   -> e1:BinaryExpression op:AssignmentOperator e2:AssignmentExpression
        [ return new E_assign(e1, op, e2); ]
+       
+  -> e:ThrowExpression
+       [ return e; ]
 }
 
 nonterm[enum BinaryOp] AssignmentOperator {
@@ -576,15 +579,11 @@ nonterm[Statement*] Statement {
   // or a BlockDeclaration (declare variable y, of type x)
   merge(L,R) [ L->addAmbiguity(R); return L; ]
 
-  -> n:L2_VARIABLE_NAME ":" s:Statement 
+  -> n:AnyName ":" s:Statement 
        [ return new S_label(loc, n, s); ]
 
   -> "case" e:ConstantExpression ":" s:Statement
        [ return new S_case(loc, e, s); ]
-
-  // gnu extension
-  -> "case" low:ConstantExpression "..." high:ConstantExpression ":"
-       [ return new S_caseRange(loc, low, high, new S_skip(loc)); ]
 
   -> "default" ":" s:Statement
        [ return new S_default(loc, s); ]
@@ -629,7 +628,7 @@ nonterm[Statement*] Statement {
 
   -> "return" ";"                       [ return new S_return(loc, NULL); ]
 
-  -> "goto" n:L2_VARIABLE_NAME ";"      [ return new S_goto(loc, n); ]
+  -> "goto" n:AnyName ";"               [ return new S_goto(loc, n); ]
 
   // declaration-statement
   -> d:BlockDeclaration                 [ return new S_decl(loc, d); ]
@@ -708,6 +707,7 @@ nonterm[Declaration*] BlockDeclaration {
 // is the DeclSpecifierSeq optional for implicit-int??
 //   no, it's for constructors, destructors, and conversion operators,
 //   all of which are C++ only, so the DeclSpecifierSeq is now mandatory
+//   (I've moved those guys into more specialized contexts)
 // ok, why is the InitDeclaratorList optional?
 //   for declaring classes and enums
 nonterm[Declaration*] SimpleDeclaration {

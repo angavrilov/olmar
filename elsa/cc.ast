@@ -80,12 +80,12 @@ class Function (
   FakeList<Handler> *handlers   // handlers for ctor "try" block
 ) {
   //public void tcheck(Env &env);
-  public StringRef name() const;
+  //public StringRef name() const;
 }
 
 impl_verbatim {
   // not inline because Declarator isn't defined yet
-  StringRef Function::name() const { return nameParams->var->name; }
+  //StringRef Function::name() const { return nameParams->var->name; }
 }
 
 class MemberInit (
@@ -117,8 +117,8 @@ class ASTTypeId (
 
   //public Type const *tcheck(Env &env);
 
-  public Type const *type;   // result of first tcheck
-  ctor { type=NULL; };
+  //public Type const *type;   // result of first tcheck
+  //ctor { type=NULL; };
 }
 
 // a name with optional class qualifiers (PQ: "possibly qualified");
@@ -136,6 +136,9 @@ class PQName (
   // clients should use this interface to (conceptually) prepend
   // a qualifier
   public void prependQualifier(StringRef q) { qualifiers.prepend(q); };
+
+  public void printExtras(ostream &os, int indent) const;
+  custom debugPrint { printExtras(os, indent); }
 }
 
 
@@ -147,6 +150,9 @@ class PQName (
 class TypeSpecifier {
   public enum CVFlags cv;
   ctor { cv=CV_NONE; };
+
+  public void printExtras(ostream &os, int indent) const;
+  custom debugPrint { printExtras(os, indent); }
 
   // yield the type named by the specifier; this type may of course
   // get refined when the declarator is considered
@@ -208,9 +214,9 @@ class Enumerator (
 ) {
   public Enumerator *next;  ctor next=NULL;     // FakeList link
 
-  public Variable *var;                 // (owner) introduction record
-  ctor var=NULL;
-  dtor delete var;
+  //public Variable *var;                 // (owner) introduction record
+  //ctor var=NULL;
+  //dtor delete var;
 }
 
 
@@ -222,6 +228,7 @@ class Declarator (
   IDeclarator decl,                    // syntax of type designation
   Initializer init                     // (nullable) optional data initializer
 ) {
+  // not commented-out because something in cc_env.cc refers to it..
   public Variable *var;                // (owner) computed information: name, type, etc.
   ctor var=NULL;
   dtor delete var;
@@ -242,7 +249,7 @@ class Declarator (
 class IDeclarator {
   public FakeList<PtrOperator> *stars;   // pointer constructors, left to right
   ctor stars=NULL;
-                                              
+
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
 

@@ -74,7 +74,7 @@ string bitmapString(int bitmap, char const * const *names, int numflags)
 
 string toString(CVFlags cv)
 {
-  return bitmapString(cv, cvFlagNames, NUM_CVFLAGS);
+  return bitmapString(cv >> CV_SHIFT_AMOUNT, cvFlagNames, NUM_CVFLAGS);
 }
 
 
@@ -139,8 +139,8 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "double",              8,    false   },
   { "long double",         10,   false   },
   { "void",                1,    false   },    // gnu: sizeof(void) is 1
-  { "<cdtor>",             0,    false   },
   { "...",                 0,    false   },
+  { "<cdtor>",             0,    false   },
   { "<error>",             0,    false   },
 };
 

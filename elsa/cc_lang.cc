@@ -9,10 +9,12 @@
 void CCLang::ANSI_C()
 {
   tagsAreTypes = false;
+  recognizeCppKeywords = false;
 }
 
 void CCLang::ANSI_Cplusplus()
 {
   tagsAreTypes = true;
+  recognizeCppKeywords = true;
 }
 
