@@ -280,10 +280,7 @@ bool CompoundType::hasVirtualFns() const
 {
   // TODO: this fails to consider members inherited from base classes ...
 
-  for (PtrMap<const char, Variable>::Iter
-         // dsw: ultimately there is no IterC on class PtrMap, so I
-         // just use a const_cast for now.
-         iter(const_cast<CompoundType*>(this)->getVariableIter());
+  for (StringRefMap<Variable>::Iter iter(getVariableIter());
        !iter.isDone(); iter.adv()) {
     Variable *var0 = iter.value();
     if (var0->hasFlag(DF_VIRTUAL)) {
@@ -331,8 +328,7 @@ string CompoundType::toCString() const
 int CompoundType::reprSize() const
 {
   int total = 0;
-  for (PtrMap<const char, Variable>::Iter iter
-         (const_cast<CompoundType*>(this)->getVariableIter());
+  for (StringRefMap<Variable>::Iter iter(getVariableIter());
        !iter.isDone(); iter.adv()) {
     Variable *v = iter.value();
     // count nonstatic data members
@@ -366,8 +362,7 @@ int CompoundType::reprSize() const
 int CompoundType::numFields() const
 {                                                
   int ct = 0;
-  for (PtrMap<const char, Variable>::Iter iter
-         (const_cast<CompoundType*>(this)->getVariableIter());
+  for (StringRefMap<Variable>::Iter iter(getVariableIter());
        !iter.isDone(); iter.adv()) {
     Variable *v = iter.value();
            

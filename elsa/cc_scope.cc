@@ -59,7 +59,7 @@ bool Scope::isPermanentScope() const
 
 // -------- insertion --------
 template <class T>
-bool insertUnique(PtrMap<const char, T> &table, char const *key, T *value,
+bool insertUnique(StringRefMap<T> &table, char const *key, T *value,
                   int &changeCount, bool forceReplace)
 {
   if (!forceReplace && table.get(key)) {

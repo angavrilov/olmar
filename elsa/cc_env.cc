@@ -1119,7 +1119,7 @@ void Env::debugPrintScopes()
   for (int i=0; i<scopes.count(); ++i) {
     Scope *s = scopes.nth(i);
     cout << "scope " << i << ", " << s->desc() << endl;
-    for (PtrMap<const char, Variable>::Iter iter = s->getVariableIter();
+    for (StringRefMap<Variable>::Iter iter = s->getVariableIter();
          !iter.isDone();
          iter.adv()) {
       Variable *value = iter.value();

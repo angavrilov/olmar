@@ -11,7 +11,7 @@
 #include "sobjlist.h"     // SObjList
 #include "array.h"        // ArrayStack
 #include "serialno.h"     // INHERIT_SERIAL_BASE
-#include "ptrmap.h"       // PtrMap
+#include "strmap.h"       // StringRefMap
 
 // NOTE: We cannot #include cc_type.h b/c cc_type.h #includes cc_scope.h.
 
@@ -49,10 +49,6 @@ enum LookupFlags {
 ENUM_BITWISE_OPS(LookupFlags, LF_ALL_FLAGS)     // smbase/macros.h
 
 
-// map from StringRef to StringRef
-typedef PtrMap<char const, char const> StringRefMap;
-
-
 // information about a single scope: the names defined in it,
 // any "current" things being built (class, function, etc.)
 class Scope INHERIT_SERIAL_BASE {
@@ -77,13 +73,13 @@ private:     // data
   // variables: name -> Variable
   // note: this includes typedefs (DF_TYPEDEF is set), and it also
   // includes enumerators (DF_ENUMERATOR is set)
-  PtrMap<char const, Variable> variables;
+  StringRefMap<Variable> variables;
 
   // compounds: map name -> CompoundType
-  PtrMap<char const, CompoundType> compounds;
+  StringRefMap<CompoundType> compounds;
 
   // enums: map name -> EnumType
-  PtrMap<char const, EnumType> enums;
+  StringRefMap<EnumType> enums;
 
   // per-scope change count
   int changeCount;
@@ -257,25 +253,17 @@ public:      // funcs
     { return const_cast<Variable*>(lookupPQVariableC(name, env, f)); }
 
   // for iterating over the variables
-  PtrMap<char const, Variable>::Iter getVariableIter()
-    { return PtrMap<char const, Variable>::Iter(variables); }
+  StringRefMap<Variable>::Iter getVariableIter() const
+    { return StringRefMap<Variable>::Iter(variables); }
 
   // and the inner classes
-  PtrMap<char const, CompoundType>::Iter getCompoundIter()
-    { return PtrMap<char const, CompoundType>::Iter(compounds); }
+  StringRefMap<CompoundType>::Iter getCompoundIter() const
+    { return StringRefMap<CompoundType>::Iter(compounds); }
 
   // lookup within the 'variables' map, without consulting base
   // classes, etc.; returns NULL if not found
   Variable *rawLookupVariable(char const *name)
-    {
-      return variables.get(name);
-    }
-
-  // dsw: this seems to be only for debugging and there is no
-  // corresponding member in the PtrMap dict, so I've just turned it
-  // off.
-//    int private_compoundTop() const
-//      { return compounds.private_getTopAddr(); }
+    { return variables.get(name); }
 
   // if this scope has a name, return the typedef variable that
   // names it; otherwise, return NULL
