@@ -872,10 +872,14 @@ void IN_ctor::print(PrintEnv &env)
 
 // -------------------- TemplateDeclaration ---------------
 void TemplateDeclaration::print(PrintEnv &env)
-{
-  FAKELIST_FOREACH_NC(TemplateParameter, params, iter) {
-    iter->print(env);
-  }
+{ 
+  // sm: the declared variable knows it is a template, and
+  // knows what its parameters are, so it will print that
+  // stuff (e.g. "template <...>")
+  //FAKELIST_FOREACH_NC(TemplateParameter, params, iter) {
+  //  iter->print(env);
+  //}
+
   iprint(env);
 }
 
@@ -885,14 +889,18 @@ void TD_func::iprint(PrintEnv &env)
 }
 
 void TD_class::iprint(PrintEnv &env)
-{ 
+{
   type->print(env);
 }
 
 // ------------------- TemplateParameter ------------------
+// sm: this isn't used..
 void TP_type::print(PrintEnv &env)
 {
+  env << "class " << name;
+                          
   if (defaultType) {
+    env << " = ";
     defaultType->print(env);
   }
 }
