@@ -24,3 +24,12 @@ int foo();
 
 
 //ERROR2: int foo() { return 4; }
+
+
+int foo2(int q);
+
+// definition uses different param name than prototype
+int foo2(int z)
+{
+  return z;
+}

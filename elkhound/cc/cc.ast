@@ -239,6 +239,36 @@ class Enumerator (
 }
 
 
+verbatim {              
+  // this class contains the data passed into and out of the
+  // declarator checking functions
+  struct DeclaratorTcheck {
+    // the bottom-most IDeclarator (D_name or D_bitfield) creates
+    // or looks up a Variable, and sets this to point at it
+    Variable *var;
+
+    // on the way in, this is the type computed so far; initially
+    // it's just the type specifier but additional declarators will
+    // layer additional type constructors on top of it and replace
+    // the pointer here with a pointer to the constructed type; at
+    // the end it is the fully-constructed type
+    //
+    // however, it need not be the same type as var->type at the
+    // end, because var->type might be a function type from a
+    // prototype (with the prototype's parameter names) while this
+    // field will be the constructed type with its names
+    Type const *type;
+
+    // these are the declflags attached to the outer declaration
+    DeclFlags dflags;
+    
+  public:
+    DeclaratorTcheck(Type const *t, DeclFlags d)
+      : var(NULL), type(t), dflags(d) {}
+  };
+}
+
+
 // Syntactically, a Declarator is a thing which introduces a name of a
 // declared thing, and also optionally adds type constructors to the
 // base type of the specifier.  It may have an initializing
@@ -256,13 +286,13 @@ class Declarator (
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
 
-  // determine the type denoted by the combination of 'spec' and the
-  // type constructors in this declarator, then make a Variable which
-  // has that type and store it in 'var'; if this declarator refers to
-  // something that is *already* declared (like a function with a 
-  // prior prototype), the 'var' field will be shared among the
+  // determine the type denoted by the combination of 'dt.type' and
+  // the type constructors in this declarator, then make a Variable
+  // which has that type and store it in 'dt.var'; if this declarator
+  // refers to something that is *already* declared (like a function
+  // with a prior prototype), the 'var' field will be shared among the
   // various declarations; if not, put it into the environment
-  public void tcheck(Env &env, Type const *spec, DeclFlags dflags);
+  public void tcheck(Env &env, DeclaratorTcheck &dt);
 }
 
 
@@ -280,13 +310,11 @@ class IDeclarator {
 
   // external interface; adds 'stars' before calling 'itcheck';
   // add the type constructor represented by this IDeclarator to
-  // 'spec' and then make a Variable to represent it; put the
+  // 'dt.type' and then make a Variable to represent it; put the
   // variable into the environment if appropriate
-  public Variable * /*owner*/
-    tcheck(Env &env, Type const *spec, DeclFlags dflags);
+  public void tcheck(Env &env, DeclaratorTcheck &dt);
 
-  pure_virtual Variable * /*owner*/
-    itcheck(Env &env, Type const *spec, DeclFlags dflags);
+  pure_virtual void itcheck(Env &env, DeclaratorTcheck &dt);
 
   // dig down and find the name being declared; may return NULL
   pure_virtual PQName const *getDeclaratorId() const;
