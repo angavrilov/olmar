@@ -27,7 +27,7 @@ void Env::addGNUBuiltins()
   Type *t_voidptr = makePtrType(SL_INIT, t_void);
 
   Type *t_int = getSimpleType(SL_INIT, ST_INT);
-  //Type *t_unsigned_int = getSimpleType(SL_INIT, ST_UNSIGNED_INT);
+  Type *t_unsigned_int = getSimpleType(SL_INIT, ST_UNSIGNED_INT);
   Type *t_char = getSimpleType(SL_INIT, ST_CHAR);
   Type *t_charconst = getSimpleType(SL_INIT, ST_CHAR, CV_CONST);
   Type *t_charptr = makePtrType(SL_INIT, t_char);
@@ -54,9 +54,9 @@ void Env::addGNUBuiltins()
   declareFunction1arg(t_void, "__builtin_va_end",
                       var__builtin_va_list->type, "__list");
 
-  // void *__builtin_alloca(int __len);
+  // void *__builtin_alloca(unsigned int __len);
   declareFunction1arg(t_voidptr, "__builtin_alloca",
-                      t_int, "__len");
+                      t_unsigned_int, "__len");
 
   // char *__builtin_strchr(char const *str, int ch);
   declareFunction2arg(t_charptr, "__builtin_strchr",
