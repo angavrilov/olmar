@@ -166,6 +166,10 @@ void doit(int argc, char **argv)
       lang.GNU_C();
     }
 
+    if (tracingSys("kandr_c_lang")) {
+      lang.GNU_KandR_C();
+    }
+
     SemanticValue treeTop;
     ParseTreeAndTokens tree(lang, treeTop, strTable, inputFname);
     
