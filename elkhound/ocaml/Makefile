@@ -3,7 +3,7 @@
 # directories
 ELKHOUND := ..
 
-#tmp: glr.cmo
+#tmp: smutil.cmo ptreenode.cmo ptreeact.cmo
 
 all: tobjpool main
 
@@ -22,6 +22,7 @@ all: tobjpool main
 # NOTE: Module order is important!  OCaml module dependencies cannot
 # be cyclic, and the order presented must respect the dependency order.
 
+# test program for objpool module
 TOBJPOOL_MODULES = \
   arraystack.cmo \
   objpool.cmo \
@@ -29,16 +30,26 @@ TOBJPOOL_MODULES = \
 tobjpool: $(TOBJPOOL_MODULES)
 	ocamlc -o $@ -g $^
 
-MAIN_MODULES = \
+# these are the minimal set of modules needed for an elkhound parser
+MINIMAL_MODULES = \
+  smutil.cmo \
   useract.cmo \
   lexerint.cmo \
   parsetables.cmo \
-  lrparse.cmo \
   arraystack.cmo \
   objpool.cmo \
-  glr.cmo \
+  glr.cmo
+
+# these are modules for the test program; they include some specific 
+# grammar tables/actions, a deterministic LR parser, the
+# parse-tree-printing stuff (ptreenode, ptreeact), and a main() function
+MAIN_MODULES = \
+  $(MINIMAL_MODULES) \
   arith.cmo \
   een.cmo \
+  lrparse.cmo \
+  ptreenode.cmo \
+  ptreeact.cmo \
   main.cmo
 main: $(MAIN_MODULES)
 	ocamlc -o $@ -g $^
@@ -49,5 +60,12 @@ ALL_MODULES = \
   tobjpool.cmo
 -include $(ALL_MODULES:.cmo=.d)
 
+# run it a bunch of ways
+check:
+	echo "2+3" | ./main arith lr
+	echo "2+3" | ./main arith glr
+	echo "2+3" | ./main een glr
+	echo "2+3+4" | ./main een glr ptree
+
 clean:
-	rm -f *.cmo *.cmi arith.ml* main tobjpool
+	rm -f *.cmo *.cmi arith.ml* een.ml* main tobjpool

@@ -51,7 +51,8 @@ begin
   (!stateStack).(!stackLen - 1)
 end
 
-let parse (lex:tLexerInterface) (tables:tParseTables) (actions:tUserActions) : int =
+let parse (lex:tLexerInterface) (tables:tParseTables) (actions:tUserActions) 
+  : tSemanticValue =
 begin
   (* initial state *)
   (pushStateSval 0 (Obj.repr 0));
@@ -144,8 +145,7 @@ begin
   (* return value: sval of top element *)
   let topSval:Obj.t = (!svalStack).(!stackLen - 1) in
 
-  (* assume is int for now *)
-  (Obj.obj topSval : int)
+  topSval
 end
 
 

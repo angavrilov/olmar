@@ -9,17 +9,19 @@ open Parsetables   (* tParseTables *)
 open Useract       (* tUserActions *)
 open Arith         (* arithParseTables, arithUserActions *)
 open Een           (* eenParseTables, eenUserActions *)
+open Ptreeact      (* tParseTreeLexer, makeParseTreeActions *)
+open Ptreenode     (* tPTreeNode, printTree *)
 
 
 (* ------------------ lexer ------------------- *)
-let useHardcoded:bool = false
+let useHardcoded:bool = false     (* set to true for testing with ocamldebug *)
 
 class tLexer =
 object (self)
   inherit tLexerInterface
 
   (* hardcoded input *)
-  val mutable input: string = "2+3+4";
+  val mutable input: string = "2+3";
 
   method getToken() : unit =
   begin
@@ -114,6 +116,7 @@ begin
   let useGLR: bool ref = ref true in
   let useArith: bool ref = ref true in
   let justTokens: bool ref = ref false in
+  let usePTree: bool ref = ref false in
 
   (* process arguments *)
   for i=1 to ((Array.length Sys.argv) - 1) do
@@ -123,6 +126,7 @@ begin
     | "arith" ->      useArith := true
     | "een" ->        useArith := false
     | "tokens" ->     justTokens := true
+    | "ptree" ->      usePTree := true
     | op -> (
         (Printf.printf "unknown option: %s\n" op);
         (flush stdout);
@@ -152,30 +156,57 @@ begin
     )
   in
 
-  if (not !useGLR) then (
-    (* use LR *)
-    let sval:int = (parse lex tables actions) in
-    (Printf.printf "LR parse result: %d\n" sval);
-  )
-  else (
-    (* use GLR *)
-    let glr:tGLR = (makeGLR tables actions) in
-    let treeTop: tSemanticValue ref = ref cNULL_SVAL in
-    
-    if (glrParse glr lex treeTop) then (
-      let sval:int = (Obj.obj !treeTop : int) in
-      (Printf.printf "GLR parse results: %d\n" sval);
+  (* substitute tree-building actions? *)
+  let (lex':tLexerInterface), (actions':tUserActions) =
+    if (!usePTree) then (
+      ((new tParseTreeLexer lex actions),      (* tree lexer *)
+       (makeParseTreeActions actions tables))  (* tree actions *)
     )
     else (
-      (Printf.printf "GLR parse error\n");
-    );
+      (lex, actions)                           (* unchanged *)
+    )
+  in
+  
+  (* parse the input *)
+  let sval:tSemanticValue =
+    if (not !useGLR) then (
+      (* use LR *)
+      (parse lex' tables actions')
+    )
+    else (
+      (* use GLR *)
+      let glr:tGLR = (makeGLR tables actions') in
+      let treeTop: tSemanticValue ref = ref cNULL_SVAL in
 
-    (* print accounting statistics from glr.ml *)    
-    (Printf.printf "stack nodes: num=%d max=%d\n"
-                   !numStackNodesAllocd
-                   !maxStackNodesAllocd);
-    (flush stdout);
+      if (not (glrParse glr lex' treeTop)) then (
+        (failwith "GLR parse error")
+      );
+
+      (* print accounting statistics from glr.ml *)
+      (Printf.printf "stack nodes: num=%d max=%d\n"
+                     !numStackNodesAllocd
+                     !maxStackNodesAllocd);
+      (flush stdout);
+      
+      !treeTop
+    )
+  in
+
+  (* interpret the result *)
+  if (not !usePTree) then (
+    (* assume it's an int *)
+    let s:int = ((Obj.obj sval) : int) in
+    (Printf.printf "%s parse result: %d\n"
+                   (if (!useGLR) then "GLR" else "LR")
+                   s);
+  )
+  else (
+    (* it's a tree *)
+    let t:tPTreeNode = ((Obj.obj sval) : tPTreeNode) in
+    (printTree t stdout true(*expand*));
   );
+  (flush stdout);
+
 end
 ;;
 
