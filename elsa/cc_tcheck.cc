@@ -3212,7 +3212,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
 
     // overload resolution
     if (doOverload && funcEVar->var->overload) {
-      TRACE("overload", ::toString(funcEVar->loc)
+      TRACE("overload", ::toString(funcEVar->name->loc)
         << ": overloaded(" << funcEVar->var->overload->set.count() 
         << ") call to " << funcName);
 
@@ -3233,7 +3233,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
         // error has already been reported
       }
       else {
-        TRACE("overload", ::toString(funcEVar->loc)
+        TRACE("overload", ::toString(funcEVar->name->loc)
           << ": selected instance at " << ::toString(chosen->loc));
 
         // modify the function node's 'var' field to point at the
