@@ -1696,9 +1696,6 @@ void FunctionType::addReceiver(Variable *param)
   flags |= FF_METHOD;
 }
 
-void FunctionType::doneParams()
-{}
-
 
 void FunctionType::registerRetVal(Variable *retVal)
 {}
@@ -2412,11 +2409,6 @@ FunctionType *TypeFactory::makeSimilarFunctionType(SourceLoc loc,
 }
 
 
-FunctionType *TypeFactory::finishDeclareFunctionNargs(FunctionType *ft) {
-  return ft;
-}
-
-
 CVAtomicType *TypeFactory::getSimpleType(SourceLoc loc, 
   SimpleTypeId st, CVFlags cv)
 {
@@ -2514,6 +2506,9 @@ FunctionType *BasicTypeFactory::makeFunctionType(SourceLoc,
 {
   return new FunctionType(retType);
 }
+
+void BasicTypeFactory::doneParams(FunctionType *)
+{}
 
 
 ArrayType *BasicTypeFactory::makeArrayType(SourceLoc,

@@ -160,7 +160,7 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
     // order to be symmetric with what is going on with the dtor
     // below.
     FunctionType *ft = env.beginConstructorFunctionType(loc, ct);
-    ft->doneParams();
+    env.doneParams(ft);
     Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft,
                   DF_MEMBER | DF_IMPLICIT);
     // NOTE: we don't use env.addVariableWithOload() because this is
@@ -204,7 +204,7 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
                          env.makeCVAtomicType(loc, ct, CV_CONST)),
                        DF_PARAMETER);
     ft->addParam(refToSelfParam);
-    ft->doneParams();
+    env.doneParams(ft);
     Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft,
                                    DF_MEMBER | DF_IMPLICIT);
     env.addVariableWithOload(ctor0, v);     // always overloaded; ctor0!=NULL
@@ -258,7 +258,7 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
                                   env.tfac.cloneType(refToConstSelfType),
                                   DF_PARAMETER));
 
-    ft->doneParams();
+    env.doneParams(ft);
 
     Variable *v = env.makeVariable(loc, env.operatorName[OP_ASSIGN], ft,
                                    DF_MEMBER | DF_IMPLICIT);
@@ -948,10 +948,7 @@ Variable *Env::declareFunctionNargs(
     }
   }
 
-  // dsw: hook for Oink; there is probably a better way
-  ft = tfac.finishDeclareFunctionNargs(ft);
-
-  ft->doneParams();
+  doneParams(ft);
 
   Variable *var = makeVariable(SL_INIT, str(funcName), ft, DF_NONE);
   if (flags & FF_BUILTINOP) {
@@ -1031,7 +1028,7 @@ FunctionType *Env::makeImplicitDeclFuncType()
   Type *ftRet = tfac.getSimpleType(loc(), ST_INT, CV_NONE);
   FunctionType *ft = makeFunctionType(loc(), ftRet);
   ft->flags |= FF_NO_PARAM_INFO;
-  ft->doneParams();
+  doneParams(ft);
   return ft;
 }
 
@@ -1051,7 +1048,7 @@ FunctionType *Env::beginConstructorFunctionType(SourceLoc loc, CompoundType *ct)
   FunctionType *ft = makeFunctionType(loc, makeType(loc, ct));
   ft->flags |= FF_CTOR;
   // asymmetry with makeDestructorFunctionType(): this must be done by the client
-//    ft->doneParams();
+//    doneParams(ft);
   return ft;
 }
 
@@ -1070,7 +1067,7 @@ FunctionType *Env::makeDestructorFunctionType(SourceLoc loc, CompoundType *ct)
   }
 
   ft->flags |= FF_DTOR;
-  ft->doneParams();
+  doneParams(ft);
   return ft;
 }
 
@@ -2825,7 +2822,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
       for (; !iter.isDone(); iter.adv()) {
         newFt->addParam(iter.data());    // share parameter objects
       }
-      newFt->doneParams();
+      doneParams(newFt);
 
       // treat this new type as the one to declare from here out
       type = newFt;

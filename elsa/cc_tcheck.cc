@@ -2043,7 +2043,7 @@ void possiblyConsumeFunctionType(Env &env, Declarator::Tcheck &dt,
     dt.funcSyntax = NULL;
 
     // close the parameter list
-    dt.type->asFunctionType()->doneParams();
+    env.doneParams(dt.type->asFunctionType());
   }
 }
 
@@ -2067,7 +2067,7 @@ void makeMemberFunctionType(Env &env, Declarator::Tcheck &dt,
 
   // close it
   dt.funcSyntax = NULL;
-  ft->doneParams();
+  env.doneParams(ft);
 }
 
 
@@ -3439,7 +3439,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
   }
 
   // call this after attaching the exception spec, if any
-  //ft->doneParams();
+  //env.doneParams(ft);
   // update: doneParams() is done by 'possiblyConsumeFunctionType'
   // or 'declareNewVariable', depending on what declarator is next in
   // the chain

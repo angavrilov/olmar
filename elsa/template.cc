@@ -2993,7 +2993,7 @@ Type *Env::applyArgumentMapToType(STemplateArgumentCMap &map, Type *origSrc)
 
         rft->addParam(rp);
       }
-      rft->doneParams();
+      doneParams(rft);
 
       rft->flags = sft->flags;
 

@@ -526,6 +526,8 @@ public:      // funcs
     { return tfac.makeReferenceType(loc, atType); }
   FunctionType *makeFunctionType(SourceLoc loc, Type *retType)
     { return tfac.makeFunctionType(loc, retType); }
+  void doneParams(FunctionType *ft)
+    { tfac.doneParams(ft); }
   ArrayType *makeArrayType(SourceLoc loc, Type *eltType, int size = ArrayType::NO_SIZE)
     { return tfac.makeArrayType(loc, eltType, size); }
 

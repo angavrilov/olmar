@@ -904,10 +904,9 @@ public:
   // add the implicit '__receiver' param; sets 'isMember()' to true
   void addReceiver(Variable *param);
 
-  // called when we're done adding parameters to this function
-  // type, thus any Type annotation system can assume the
-  // function type is now completely described
-  virtual void doneParams();
+  // Note: After calling 'addParam', etc., the client must call
+  // TypeFactory::doneParams so that the factory has a chance to
+  // do any final adjustments.
 
   // During elaboration, functions that return CompoundTypes are
   // changed to behave as if they instead accepted a reference to an
@@ -1087,13 +1086,17 @@ public:
   virtual FunctionType *makeFunctionType(SourceLoc loc,
     Type *retType)=0;
 
+  // this must be called after 'makeFunctionType', once all of the
+  // parameters have been added
+  virtual void doneParams(FunctionType *ft)=0;
+
   virtual ArrayType *makeArrayType(SourceLoc loc,
     Type *eltType, int size = ArrayType::NO_SIZE)=0;
 
   virtual PointerToMemberType *makePointerToMemberType(SourceLoc loc,
     NamedAtomicType *inClassNAT, CVFlags cv, Type *atType)=0;
 
-    
+
   // NOTE: I very much want to get rid of this 'loc' business in the
   // type constructors, however there is a client analysis (ccqual)
   // that currently needs them.  Once ccqual is modified to not
@@ -1173,8 +1176,6 @@ public:
   virtual FunctionType *makeSimilarFunctionType(SourceLoc loc,
     Type *retType, FunctionType *similar);
 
-  virtual FunctionType *finishDeclareFunctionNargs(FunctionType *ft);
-
   // ---- similar functions for Variable ----
   // Why not make a separate factory?
   //   - It's inconvenient to have two.
@@ -1234,6 +1235,7 @@ public:    // funcs
     Type *atType);
   virtual FunctionType *makeFunctionType(SourceLoc loc,
     Type *retType);
+  virtual void doneParams(FunctionType *ft);
   virtual ArrayType *makeArrayType(SourceLoc loc,
     Type *eltType, int size);
   virtual PointerToMemberType *makePointerToMemberType(SourceLoc loc,
