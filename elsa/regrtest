@@ -912,6 +912,7 @@ failparse k0039.cc "funky namespace resolution after 'using namespace'"
 failparse k0040.cc "instantiating a template with unnamed template parameter"
 failparse k0041.cc "inner struct defined inline in an inner struct not defined inline"
 failparse k0042.cc "computed array size expression as an assignment"
+failparse k0043.cc "voiding the result of a member call"
 
 ### </quarl-testcases-c++>
 
