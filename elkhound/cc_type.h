@@ -44,9 +44,20 @@ enum SimpleTypeId {
   NUM_SIMPLE_TYPES
 };
 
-bool isValid(SimpleTypeId id);                     // bounds check
-char const *simpleTypeName(SimpleTypeId id);       // e.g. "unsigned char"
-int simpleTypeReprSize(SimpleTypeId id);           // size of representation
+// info about each simple type
+struct SimpleTypeInfo {       
+  char const *name;       // e.g. "unsigned char"
+  int reprSize;           // # of bytes to store
+  bool isInteger;         // ST_INT, etc., but not e.g. ST_FLOAT
+};
+
+bool isValid(SimpleTypeId id);                          // bounds check
+SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id);
+
+inline char const *simpleTypeName(SimpleTypeId id)
+  { return simpleTypeInfo(id).name; }
+inline int simpleTypeReprSize(SimpleTypeId id)
+  { return simpleTypeInfo(id).reprSize; }
 
 
 // interface to types that are atomic in the sense that no
@@ -134,18 +145,30 @@ public:     // funcs
 
 // represent an enumerated type
 class EnumType : public AtomicType {
-public:
+public:     // data
   string name;          // name of this enum
+  int nextValue;        // next value to assign to elements automatically
 
-  // todo: represent enumerated elements
-
-public:
-  EnumType(char const *n) : name(n) {}
+public:     // funcs
+  EnumType(char const *n) : name(n), nextValue(0) {}
   ~EnumType();
 
   virtual Tag getTag() const { return T_ENUM; }
   virtual string toString() const;
   virtual int reprSize() const;
+};
+
+
+// represent a single value in an enum
+class EnumValue {
+public:
+  string name;              // the thing whose name is being defined
+  EnumType const *type;     // enum in which it was declared
+  int value;                // value it's assigned to
+
+public:
+  EnumValue(char const *n, EnumType const *t, int v);
+  ~EnumValue();
 };
 
 
@@ -184,6 +207,12 @@ public:     // funcs
   
   // size of representation
   virtual int reprSize() const = 0;
+  
+  // some common queries
+  bool isSimpleType() const;
+  SimpleType const &asSimpleTypeC() const;
+  bool isSimple(SimpleTypeId id) const;
+  bool isIntegerType() const;            // any of the simple integer types
 };
 
 

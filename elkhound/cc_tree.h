@@ -54,6 +54,9 @@ public:      // funcs
   // throw an internal error
   void internalError(char const *msg) const NORETURN;
 
+  // if the value is null, complain about void rvalue
+  void validateRvalue(CilExpr *expr, CCTreeNode const &exprSyntax) const;
+
   // set the "just an int" value
   void setTheInt(int val) { isJustInt=true; theInt=val; }
 

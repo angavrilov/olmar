@@ -2216,7 +2216,7 @@ void GrammarAnalysis::runAnalyses()
 
   // experiment: do I need the itemSet items during parsing?
   #if 1
-  cout << "throwing away items\n";
+  //cout << "throwing away items\n";
   MUTATE_EACH_OBJLIST(ItemSet, itemSets, iter) {
     iter.data()->throwAwayItems();
   }    

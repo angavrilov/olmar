@@ -25,7 +25,8 @@ enum DeclFlags {
   DF_REGISTER    = 0x0040,
   DF_STATIC      = 0x0080,
   DF_EXTERN      = 0x0100,
-  ALL_DECLFLAGS  = 0x01FF,
+  DF_ENUMVAL     = 0x0200,    // not really a decl flag, but a Variable flag..
+  ALL_DECLFLAGS  = 0x03FF,
 };
 
 
@@ -36,12 +37,19 @@ public:     // data
   string name;               // declared name
   DeclFlags declFlags;       // inline, etc.
   Type const *type;          // type of this variable
+  int enumValue;             // if isEnumValue(), its numerical value
 
 public:     // funcs
   Variable(char const *n, DeclFlags d, Type const *t)
-    : name(n), declFlags(d), type(t) {}
-    
+    : name(n), declFlags(d), type(t), enumValue(0) {}
+
   string toString() const;
+
+  // when true:
+  //   - 'name' is the name of an enum constant value
+  //   - 'type' points to the enum itself
+  //   - 'enumValue' gives the constant value
+  bool isEnumValue() const { return declFlags & DF_ENUMVAL; }
 };
 
 
@@ -154,6 +162,10 @@ public:     // funcs
   // create a new enum type
   EnumType *makeEnumType(char const *name);
 
+  // add an enum value
+  void addEnumValue(CCTreeNode const *node, char const *name, 
+                    EnumType const *type, int value);
+
   // map a simple type into its CVAtomicType (with no const or
   // volatile) representative
   static CVAtomicType const *getSimpleType(SimpleTypeId st);
@@ -163,17 +175,25 @@ public:     // funcs
   Type const *lookupType(char const *name);
 
   // install a new name->type binding in the environment;
-  // throw an XSemanticError exception if there is a problem
-  void declareVariable(CCTreeNode const *node, char const *name, 
-                       DeclFlags flags, Type const *type);
+  // throw an XSemanticError exception if there is a problem;
+  // if ok, return the Variable created (or already existant,
+  // if it's allowed); returns NULL for typedefs
+  Variable *declareVariable(CCTreeNode const *node, char const *name,
+                            DeclFlags flags, Type const *type);
 
   // return true if the named variable is declared as something
   bool isLocalDeclaredVar(char const *name);
   bool isDeclaredVar(char const *name);
 
+  // some enum junk
+  bool isEnumValue(char const *name);
+
   // return the associated Variable structure for a variable;
   // throws an exception if it doesn't exist
   Variable *getVariable(char const *name);
+                                            
+  // same, but return NULL on failure instead
+  Variable *getVariableIf(char const *name);
 
   // report an error
   void report(SemanticError const &err);

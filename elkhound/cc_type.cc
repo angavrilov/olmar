@@ -10,54 +10,35 @@ bool isValid(SimpleTypeId id)
   return 0 <= id && id <= NUM_SIMPLE_TYPES;
 }
 
-char const *simpleTypeName(SimpleTypeId id)
-{
-  static char const * const arr[] = {
-    "char",
-    "unsigned char",
-    "signed char",
-    "bool",
-    "int",
-    "unsigned int",
-    "long int",
-    "unsigned long int",
-    "long long",
-    "unsigned long long",
-    "short int",
-    "unsigned short int",
-    "wchar_t",
-    "float",
-    "double",
-    "long double",
-    "void"
-  };
-  STATIC_ASSERT(TABLESIZE(arr) == NUM_SIMPLE_TYPES);
 
+static SimpleTypeInfo const simpleTypeInfoArray[] = {
+  //name                   size  int?
+  { "char",                1,    true    },
+  { "unsigned char",       1,    true    },
+  { "signed char",         1,    true    },
+  { "bool",                4,    true    },
+  { "int",                 4,    true    },
+  { "unsigned int",        4,    true    },
+  { "long int",            4,    true    },
+  { "unsigned long int",   4,    true    },
+  { "long long",           8,    true    },
+  { "unsigned long long",  8,    true    },
+  { "short int",           2,    true    },
+  { "unsigned short int",  2,    true    },
+  { "wchar_t",             2,    true    },
+  { "float",               4,    false   },
+  { "double",              8,    false   },
+  { "long double",         10,   false   },
+  { "void",                0,    false   },
+};
+
+SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id)
+{
+  STATIC_ASSERT(TABLESIZE(simpleTypeInfoArray) == NUM_SIMPLE_TYPES);
   xassert(isValid(id));
-  return arr[id];
+  return simpleTypeInfoArray[id];
 }
 
-
-int simpleTypeReprSize(SimpleTypeId id)
-{
-  int const arr[] = {
-    1, 1, 1,              // char
-    4,                    // bool
-    4, 4,                 // int
-    4, 4,                 // long
-    8, 8,                 // long long
-    2, 2,                 // short
-    2,                    // wchar
-    4,                    // float
-    8,                    // double
-    10,                   // long double
-    0                     // void
-  };
-  STATIC_ASSERT(TABLESIZE(arr) == NUM_SIMPLE_TYPES);
-  
-  xassert(isValid(id));
-  return arr[id];
-}
 
 
 // ------------------ AtomicType -----------------
@@ -183,6 +164,15 @@ int EnumType::reprSize() const
 }
 
 
+// ---------------- EnumValue --------------
+EnumValue::EnumValue(char const *n, EnumType const *t, int v)
+  : name(n), type(t), value(v)
+{}
+
+EnumValue::~EnumValue()
+{}
+
+
 // --------------- Type ---------------
 Type::~Type()
 {}
@@ -225,6 +215,35 @@ string Type::toString(char const *name) const
 string Type::rightString() const
 {
   return "";
+}
+
+
+bool Type::isSimpleType() const
+{
+  if (isCVAtomicType()) {
+    AtomicType const *at = asCVAtomicTypeC().atomic;
+    return at->isSimpleType();
+  }
+  else {
+    return false;
+  }
+}
+
+SimpleType const &Type::asSimpleTypeC() const
+{
+  return asCVAtomicTypeC().atomic->asSimpleTypeC();
+}
+
+bool Type::isSimple(SimpleTypeId id) const
+{
+  return isSimpleType() &&
+         asSimpleTypeC().type == id;
+}
+
+bool Type::isIntegerType() const
+{
+  return isSimpleType() &&
+         simpleTypeInfo(asSimpleTypeC().type).isInteger;
 }
 
 

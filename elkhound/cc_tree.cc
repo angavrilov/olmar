@@ -47,6 +47,17 @@ void CCTreeNode::internalError(char const *msg) const
 }
 
 
+void CCTreeNode::validateRvalue(CilExpr *expr, 
+                                CCTreeNode const &exprSyntax) const
+{
+  if (!expr) {
+    throwError(stringc
+      << "`" << exprSyntax.unparseString() << "' has void type, "
+      << " so you can't use its value");
+  }
+}
+
+
 CilExpr *CCTreeNode::disambiguate(Env *passedEnv, CilInstructions &inst, 
                                   DisambFn func)
 {

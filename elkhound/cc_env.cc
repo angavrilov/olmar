@@ -26,6 +26,8 @@ Env::Env(DataflowEnv *d)
     nameCounter(1),
     compounds(),
     enums(),
+    typedefs(),
+    variables(),
     intermediates(),
     errors(),
     trialBalloon(false),
@@ -52,9 +54,10 @@ Env::Env(DataflowEnv *d)
         getSimpleType(ST_INT),                          // return type
         CV_NONE,
         getSimpleType(ST_INT), "potentialConstant"));   // arg type
-        
-    declareVariable(NULL, "__end_of_fixed_addresses", DF_NONE,
-      getSimpleType(ST_INT));
+
+    // I'm not sure what this is.. let's try not defining it here..
+    //declareVariable(NULL, "__end_of_fixed_addresses", DF_NONE,
+    //  getSimpleType(ST_INT));
   }
 
   trace("refct") << "created toplevel Env at " << this << "\n";
@@ -379,6 +382,15 @@ EnumType *Env::makeEnumType(char const *name)
 }
 
 
+void Env::addEnumValue(CCTreeNode const *node, char const *name, 
+                       EnumType const *type, int value)
+{
+  Variable *val = declareVariable(node, name, DF_ENUMVAL, makeType(type));
+  xassert(val->isEnumValue());
+  val->enumValue = value;
+}
+
+
 STATICDEF CVAtomicType const *Env::getSimpleType(SimpleTypeId st)
 {                     
   xassert(isValid(st));
@@ -435,14 +447,15 @@ ostream &Env::indent(ostream &os) const
 }
 
 
-void Env::declareVariable(CCTreeNode const *node, char const *name, 
-                          DeclFlags flags, Type const *type)
+Variable *Env::declareVariable(CCTreeNode const *node, char const *name,
+                               DeclFlags flags, Type const *type)
 {
+  Variable *ret = NULL;
   if (!( flags & DF_TYPEDEF )) {
     // declare a variable
     if (variables.isMapped(name)) {
       // duplicate name
-      Variable const *prev = getVariable(name);
+      Variable *prev = getVariable(name);
 
       // no way we allow it if the types don't match
       if (!type->equals(prev->type)) {
@@ -458,6 +471,7 @@ void Env::declareVariable(CCTreeNode const *node, char const *name,
       if (type->isFunctionType() ||
           ((flags & DF_EXTERN) && (prev->declFlags & DF_EXTERN))) {
         // ok
+        ret = prev;
       }
       else {
         SemanticError err(node, SE_DUPLICATE_VAR_DECL);
@@ -467,7 +481,7 @@ void Env::declareVariable(CCTreeNode const *node, char const *name,
     }
 
     else /*not already mapped*/ {
-      addVariable(name, flags, type);
+      ret = addVariable(name, flags, type);
     }
   }
 
@@ -487,6 +501,8 @@ void Env::declareVariable(CCTreeNode const *node, char const *name,
     cout << ((flags&DF_TYPEDEF) ? "typedef: " : "variable: ");
     cout << type->toString(name) << endl;
   }
+  
+  return ret;
 }
 
 
@@ -514,30 +530,47 @@ bool Env::isDeclaredVar(char const *name)
   if (isLocalDeclaredVar(name)) {
     return true;
   }
-  
-  // if there's a local type, it shadows the variable
-  if (lookupType(name)) {
+
+  // if there's a local type, it shadows variables
+  // in any enclosing scopes (TODO3: is this right?)
+  if (lookupLocalType(name)) {
     return false;
   }
-        
+
   // look in enclosing scopes
   return parent && parent->isDeclaredVar(name);
 }
 
 
-Variable *Env::getVariable(char const *name)
+bool Env::isEnumValue(char const *name)
+{
+  Variable *var = getVariableIf(name);
+  return var && var->isEnumValue();
+}
+
+
+Variable *Env::getVariableIf(char const *name)
 {
   if (variables.isMapped(name)) {
     return variables.queryf(name);
   }
-  
-  if (!parent) {
-    xfailure(stringc << "getVariable: undeclared variable `" << name << "'");
-  }
 
-  return parent->getVariable(name);
+  if (parent) {
+    return parent->getVariableIf(name);
+  }
+  else {
+    return NULL;
+  }
 }
 
+Variable *Env::getVariable(char const *name)
+{
+  Variable *var = getVariableIf(name);
+  if (!var) {
+    xfailure(stringc << "getVariable: undeclared variable `" << name << "'");
+  }
+  return var;
+}
 
 
 void Env::report(SemanticError const &err)

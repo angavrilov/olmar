@@ -364,10 +364,26 @@ string CilLval::toString() const
 
 CilLval *newVarRef(Variable *var)
 {
+  // must be an lvalue
+  xassert(!var->isEnumValue());
+
   CilLval *ret = new CilLval(CilLval::T_VARREF);
   ret->varref.var = var;
   return ret;
 }
+
+CilExpr *newVarRefExpr(Variable *var)
+{
+  if (var->isEnumValue()) {
+    // since Cil doesn't have enums, instead generate a literal
+    return newIntLit(var->enumValue);
+  }
+  else {
+    // usual case
+    return newVarRef(var);
+  }
+}
+
 
 CilLval *newDeref(CilExpr *ptr)
 {
@@ -433,6 +449,9 @@ CilInst::CilInst(ITag tag)
 CilInst::~CilInst()
 {
   switch (itag) {
+    case T_VARDECL:
+      break;
+
     case T_FUNDECL:
       delete fundecl.body;
       break;
@@ -486,7 +505,19 @@ CilInst::~CilInst()
       }
       break;
 
-    INCL_SWITCH
+    case T_SWITCH:
+      delete switchInst.expr;
+      delete switchInst.body;
+      break;
+
+    case T_CASE:
+      break;
+
+    case T_DEFAULT:
+      break;
+
+    case NUM_ITAGS:
+      xfailure("bad tag");
   }
 
   numAllocd--;
@@ -507,7 +538,7 @@ STATICDEF void CilInst::printAllocStats()
 }
 
 
-CilExpr *nullableClone(CilExpr *expr)
+CilExpr *nullableCloneExpr(CilExpr *expr)
 {
   return expr? expr->clone() : NULL;
 }
@@ -518,8 +549,9 @@ CilInst *CilInst::clone() const
   // note: every owner pointer must be cloned, not
   // merely copied!
   switch (itag) {
-    default: xfailure("bad tag");
-
+    case NUM_ITAGS:
+      xfailure("bad tag");
+      
     case T_VARDECL:
       return newVarDecl(vardecl.var);
 
@@ -550,8 +582,20 @@ CilInst *CilInst::clone() const
       return newGoto(*(jump.dest));
 
     case T_RET:
-      return newReturn(nullableClone(ret.expr));
+      return newReturn(nullableCloneExpr(ret.expr));
+
+    case T_SWITCH:
+      return newSwitch(switchInst.expr->clone(),
+                       switchInst.body->clone());
+                       
+    case T_CASE:
+      return newCase(caseInst.value);
+      
+    case T_DEFAULT:
+      return newDefault();
   }
+                                    
+  xfailure("bad tag");
 }
 
 
@@ -578,6 +622,10 @@ void CilInst::printTree(int ind, ostream &os) const
   indent(ind, os);
 
   switch (itag) {
+    case T_COMPOUND:
+    case T_CALL:
+      // handled above already
+
     case T_VARDECL:
       os << "vardecl " << vardecl.var->name
          << " : " << vardecl.var->type->toString() << " ;\n";
@@ -601,7 +649,7 @@ void CilInst::printTree(int ind, ostream &os) const
       loop.body->printTree(ind+2, os);
       indent(ind, os) << "}\n";
       break;
-      
+
     case T_IFTHENELSE:
       os << "if ( " << ifthenelse.cond->toString() << ") {\n";
       ifthenelse.thenBr->printTree(ind+2, os);
@@ -614,26 +662,42 @@ void CilInst::printTree(int ind, ostream &os) const
     case T_LABEL:
       os << "label " << *(label.name) << " :\n";
       break;
-      
+
     case T_JUMP:
       os << "goto " << *(jump.dest) << " ;\n";
       break;
-      
+
     case T_RET:
       os << "return";
       if (ret.expr) {
         os << " " << ret.expr->toString();
       }
-      os << " ;\n";  
+      os << " ;\n";
+      break;
+
+    case T_SWITCH:
+      os << "switch (" << switchInst.expr->toString() << ") {\n";
+      switchInst.body->printTree(ind+2, os);
+      indent(ind, os) << "}\n";
       break;
       
-    INCL_SWITCH
+    case T_CASE:
+      os << "case " << caseInst.value << ":\n";
+      break;
+
+    case T_DEFAULT:
+      os << "default:\n";
+      break;
+
+    case NUM_ITAGS:
+      xfailure("bad tag");
   }
 }
 
 
 CilInst *newVarDecl(Variable *var)
 {
+  xassert(var);
   CilInst *ret = new CilInst(CilInst::T_VARDECL);
   ret->vardecl.var = var;
   return ret;
@@ -641,6 +705,7 @@ CilInst *newVarDecl(Variable *var)
 
 CilInst *newFunDecl(Variable *func, CilInst *body)
 {
+  xassert(func && body);
   CilInst *ret = new CilInst(CilInst::T_FUNDECL);
   ret->fundecl.func = func;
   ret->fundecl.body = body;
@@ -649,6 +714,7 @@ CilInst *newFunDecl(Variable *func, CilInst *body)
 
 CilInst *newAssign(CilLval *lval, CilExpr *expr)
 {
+  xassert(lval && expr);
   CilInst *ret = new CilInst(CilInst::T_ASSIGN);
   xassert(lval->isLval());    // stab in the dark ..
   ret->assign.lval = lval;
@@ -658,6 +724,7 @@ CilInst *newAssign(CilLval *lval, CilExpr *expr)
 
 CilInst *newWhileLoop(CilExpr *expr, CilInst *body)
 {
+  xassert(expr && body);
   CilInst *ret = new CilInst(CilInst::T_LOOP);
   ret->loop.cond = expr;
   ret->loop.body = body;
@@ -666,6 +733,7 @@ CilInst *newWhileLoop(CilExpr *expr, CilInst *body)
 
 CilInst *newIfThenElse(CilExpr *cond, CilInst *thenBranch, CilInst *elseBranch)
 {
+  xassert(cond && thenBranch && elseBranch);
   CilInst *ret = new CilInst(CilInst::T_IFTHENELSE);
   ret->ifthenelse.cond = cond;
   ret->ifthenelse.thenBr = thenBranch;
@@ -694,6 +762,28 @@ CilInst *newReturn(CilExpr *expr /*nullable*/)
   return ret;
 }
 
+CilInst *newSwitch(CilExpr *expr, CilInst *body)
+{
+  xassert(expr && body);
+  CilInst *ret = new CilInst(CilInst::T_SWITCH);
+  ret->switchInst.expr = expr;
+  ret->switchInst.body = body;
+  return ret;
+}
+
+CilInst *newCase(int val)
+{
+  CilInst *ret = new CilInst(CilInst::T_CASE);
+  ret->caseInst.value = val;
+  return ret;
+}
+
+CilInst *newDefault()
+{
+  CilInst *ret = new CilInst(CilInst::T_DEFAULT);
+  return ret;
+}
+
 
 // -------------------- CilFnCall -------------------
 CilFnCall::CilFnCall(CilLval *r, CilExpr *f)
@@ -706,16 +796,30 @@ CilFnCall::CilFnCall(CilLval *r, CilExpr *f)
 CilFnCall::~CilFnCall()
 {
   call = NULL;          // prevent infinite recursion
-  
-  delete result;
+
+  if (result) {
+    delete result;
+  }
   delete func;
   // args automatically deleted
 }
 
 
+CilLval *nullableCloneLval(CilLval *src)
+{
+  if (src) {
+    return src->clone();
+  }
+  else {
+    return NULL;
+  }
+}
+
+
 CilFnCall *CilFnCall::clone() const
 {
-  CilFnCall *ret = new CilFnCall(result->clone(), func->clone());
+  CilFnCall *ret = new CilFnCall(nullableCloneLval(result), 
+                                 func->clone());
 
   FOREACH_OBJLIST(CilExpr, args, iter) {
     ret->args.append(iter.data()->clone());
@@ -728,8 +832,11 @@ CilFnCall *CilFnCall::clone() const
 void CilFnCall::printTree(int ind, ostream &os) const
 {
   indent(ind, os);
-  os << "call " << result->toString()
-     << " := " << func->toString()
+  os << "call ";
+  if (result) {
+    os << result->toString() << " ";
+  }
+  os << ":= " << func->toString()
      << " withargs";
 
   int ct=0;

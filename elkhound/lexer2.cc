@@ -174,10 +174,36 @@ struct GNUKeywordMap {
   { "__signed__", L2_SIGNED },
   { "__volatile__", L2_VOLATILE },
   
-  // hack to make some things not appear to be keywords
+  // hack to make C++ keywords not appear to be keywords;
+  // need to make this dependent on some flag somewhere ..
+  { "bool", L2_NAME },
+  { "catch", L2_NAME },
   { "class", L2_NAME },
-  { "this", L2_NAME },
+  { "complex", L2_NAME },
+  { "const_cast", L2_NAME },
+  { "dynamic_cast", L2_NAME },
+  { "explicit", L2_NAME },
+  { "export", L2_NAME },
+  { "friend", L2_NAME },
+  { "mutable", L2_NAME },
+  { "namespace", L2_NAME },
   { "new", L2_NAME },
+  { "operator", L2_NAME },
+  { "private", L2_NAME },
+  { "protected", L2_NAME },
+  { "public", L2_NAME },
+  { "reinterpret_cast", L2_NAME },
+  { "static_cast", L2_NAME },
+  { "template", L2_NAME },
+  { "this", L2_NAME },
+  { "throw", L2_NAME },
+  { "try", L2_NAME },
+  { "typename", L2_NAME },
+  { "using", L2_NAME },
+  { "virtual", L2_NAME },
+
+  // ones that GNU c has
+  //{ "inline", L2_NAME },
 };
 
 

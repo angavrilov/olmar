@@ -19,6 +19,7 @@ literalCode "prologue" {
   #include "dataflow.h"  // DataflowEnv
   #include "cil.h"       // CilXXX stuff (C Intermediate Language)
   #include "ckheap.h"    // checkHeap
+  #include "mysig.h"     // signal handling
 
   // provide easy-to-grep-for (and easy-to-put-a-breakpt) names for
   // places I haven't implemented the Cil translation
@@ -29,8 +30,9 @@ literalCode "prologue" {
   // for a construct
   inline CilExpr *noCilValue() { return NULL; }
 
-  //void annoyingBreaker()
-  //  { breaker(); }
+  // little debugging hack: so I can print this when I die
+  // due to unhandled exception
+  static int lastLineChecked = -1;
 
   // stuff related to exporting data to ocaml
   #ifdef WES_OCAML_LINKAGE
@@ -212,6 +214,7 @@ nonterm TranslationUnit : Checkable {
 
     // debugging..
     trace("typeCheck") << locString() << endl;
+    lastLineChecked = loc()->line;
 
     // run the analysis on this piece of the tree
     CilCompound *cil = newCompound();
@@ -349,7 +352,17 @@ nonterm PrimaryExpression : ExprBase {
     }
 
     -> e:PQVarName {
-      fun typeCheck = newVarRef(e.typeCheck(env));
+      fun typeCheck = newVarRefExpr(e.typeCheck(env));
+      fun intEval {
+        Variable *var = e.typeCheck(env);
+        if (var->isEnumValue()) {
+          return var->enumValue;
+        }
+        else {
+          throwError(stringc
+            << "`" << var->name << "' is not a constant integer");
+        }
+      }
     }
   }
 
@@ -366,7 +379,18 @@ nonterm Literal : ExprBase {
     fun intEval = i.intValue;
     fun getType = env->getSimpleType(ST_INT);
   }
-  -> L2_FLOAT_LITERAL | L2_STRING_LITERAL | L2_CHAR_LITERAL ;
+  -> L2_FLOAT_LITERAL {
+    fun getType = env->getSimpleType(ST_FLOAT);
+  }
+  -> L2_STRING_LITERAL {
+    // gnu c treats char literals as char const*, so I will too
+    fun getType = env->makePtrOperType(PO_POINTER, CV_CONST,
+                                       env->getSimpleType(ST_CHAR));
+  }
+  -> c:L2_CHAR_LITERAL {
+    fun intEval = c.charValue;
+    fun getType = env->getSimpleType(ST_CHAR);
+  }
 }
 
 
@@ -521,12 +545,19 @@ nonterm PostfixExpression : ExprBase {
       Type const *retType = fnType->asFunctionTypeC().retType;
 
       // need a temprary for the result
-      Variable *result = env->newTmpVar(retType);
-      inst.append(newVarDecl(result));
+      Variable *result;
+      if (retType->isSimple(ST_VOID)) {
+        result = NULL;      // no result for void
+      }
+      else {
+        result = env->newTmpVar(retType);
+        inst.append(newVarDecl(result));
+      }
 
       // make a CIL object to hold the call
-      Owner<CilFnCall> call; 
-      call = newFnCall(newVarRef(result), fn.xfr());
+      Owner<CilFnCall> call;
+      call = newFnCall(result? newVarRef(result) : NULL, 
+                       fn.xfr());
 
       // check the arglist, adding the arguments to the
       // 'call' object
@@ -548,7 +579,7 @@ nonterm PostfixExpression : ExprBase {
 
       // anything that uses this call can get the value
       // from the temporary I created
-      return newVarRef(result);
+      return result? newVarRefExpr(result) : noCilValue();
     }
   }
 
@@ -617,7 +648,7 @@ nonterm PostfixExpression : ExprBase {
       inst.append(newAssign(lhs.xfr(), newBinExpr(bop, lval.xfr(), newIntLit(1))));
 
       // return a reference to the old value
-      return newVarRef(tmp);
+      return newVarRefExpr(tmp);
     }
   }
 
@@ -940,6 +971,18 @@ nonterm BinaryExpression : ExprBase {
       fun typeCheck {
         Owner<CilExpr> L; L = left.typeCheck(env, inst);
         Owner<CilExpr> R; R = right.typeCheck(env, inst);
+            
+        validateRvalue(L, left);
+        validateRvalue(R, right);
+
+        // something of a hack: my Cil type-checking code only looks
+        // at left operands, but int+pointer has type pointer; so let's
+        // detect that, and swap the operand order in the expression node
+        if (typeOf(L, env)->isIntegerType() &&
+            typeOf(R, env)->isPointerType()) {
+          swap(L, R);
+        }
+
         BinOp bop = op.getOp();
         return newBinExpr(bop, L.xfr(), R.xfr());
       }
@@ -988,7 +1031,7 @@ nonterm BinaryExpression : ExprBase {
         }
 
         // finally, the result of all this is the new temporary
-        return newVarRef(result);
+        return newVarRefExpr(result);
       }
     }
   }
@@ -1115,15 +1158,32 @@ nonterm ConditionalExpression : ExprBase {
       Owner<CilExpr> elseExpr;
                      elseExpr = el.typeCheck(env, *elseInsts);
 
+      // check that both expressions yield values
+      if (thenExpr && elseExpr) {
+        // ok
+      }
+      else if (!thenExpr && !elseExpr) {
+        // also ok
+      }
+      else {
+        cout << locString() << " warning: one half of ?: yields "
+             << "a value, and the other doesn't; pretending "
+             << "neither did\n";
+        thenExpr.del();
+        elseExpr.del();
+      }
+
       // store result of evaluation in a temporary
       // TODO: check that the expression types match
-      Variable *tmp = env->newTmpVar(typeOf(thenExpr, env));
-      inst.append(newVarDecl(tmp));
+      Variable *tmp = thenExpr? env->newTmpVar(typeOf(thenExpr, env)) : NULL;
+      if (tmp) {
+        inst.append(newVarDecl(tmp));
 
-      // append to each sequence an assignment from the
-      // computed expression to the temporary
-      thenInsts->append(newAssign(newVarRef(tmp), thenExpr.xfr()));
-      elseInsts->append(newAssign(newVarRef(tmp), elseExpr.xfr()));
+        // append to each sequence an assignment from the
+        // computed expression to the temporary
+        thenInsts->append(newAssign(newVarRef(tmp), thenExpr.xfr()));
+        elseInsts->append(newAssign(newVarRef(tmp), elseExpr.xfr()));
+      }
 
       // finally, append an if-then-else instruction
       inst.append(newIfThenElse(
@@ -1131,7 +1191,7 @@ nonterm ConditionalExpression : ExprBase {
 
       // return a ref to the temporary, which can be used
       // as the value of the ?: expression
-      return newVarRef(tmp);
+      return tmp? newVarRefExpr(tmp) : noCilValue();
     }
 
     fun getType {
@@ -1193,9 +1253,19 @@ nonterm AssignmentExpression : ExprBase {
 
     -> e1:BinaryExpression "=" e2:AssignmentExpression {
       fun typeCheck {
-        // evaluation order?
-        Owner<CilLval> lval; lval = asLval(e1.typeCheck(env, inst));
+        Owner<CilExpr> lhs; lhs = e1.typeCheck(env, inst);
         Owner<CilExpr> expr; expr = e2.typeCheck(env, inst);
+
+        // lhs must be an lval
+        if (!lhs->isLval()) {
+          throwError(stringc
+            << "assignment to `" << lhs->toString()
+            << "' is not allowed because it is not an lvalue");
+        }
+        Owner<CilLval> lval; lval = asLval(lhs.xfr());
+
+        // rhs must not be void
+        validateRvalue(expr, e2);
 
         if (!env->isTrialBalloon() &&
             e2.unparseString().equals("malloc ( )")) {
@@ -1208,8 +1278,8 @@ nonterm AssignmentExpression : ExprBase {
           }
         }
 
-        Owner<CilLval> lhs; lhs = lval->clone();
-        inst.append(newAssign(lhs.xfr(), expr.xfr()));
+        Owner<CilLval> lval2; lval2 = lval->clone();
+        inst.append(newAssign(lval2.xfr(), expr.xfr()));
         return lval.xfr();
       }
 
@@ -1281,11 +1351,18 @@ nonterm ExpressionOpt : Checkable {
 }
 
 // this is an expression with the additional requirement that
-// it be entirely evaluable at compile time
+// it be entirely evaluable to an int at compile time
 // (which is essentially a type property)
 nonterm ConstantExpression : ExprBase -> e:ConditionalExpression {
-  fun intEval = e.intEval(env);
-  fun typeCheck = e.typeCheck(env, inst);
+  fun intEval {
+    int val = e.intEval(env);
+    setTheInt(val);      
+    return val;
+  }
+  fun typeCheck {
+    // collapse it down to a single integer
+    return newIntLit(intEval(env));
+  }
 }
 
 // ------ A.5 Statements ------
@@ -1329,7 +1406,11 @@ nonterm Statement : Checkable, HasCFG {
   // TODO: revise grammar syntax so I can have both, and simply
   // prefer the one with a statement..
   -> "case" e:ConstantExpression ":" /*s:Statement*/ {
-    fun typeCheck = NULL;    // TODO: typeCheck
+    fun typeCheck {
+      int val = e.intEval(env);
+      inst.append(newCase(val));
+      return noCilValue();
+    }
     fun getCFG {
       // just associate the expression with the edge, and return
       cfg.addCaseLabel(&e, edge);
@@ -1338,7 +1419,10 @@ nonterm Statement : Checkable, HasCFG {
   }
 
   -> "default" ":" s:Statement {
-    // TODO: typeCheck
+    fun typeCheck {
+      inst.append(newDefault());
+      return s.typeCheck(env, inst);
+    }
     fun getCFG {
       cfg.addDefaultLabel(edge);
       return s.getCFG(cfg, edge);
@@ -1464,7 +1548,15 @@ nonterm Statement : Checkable, HasCFG {
     }
 
     -> "switch" "(" e:Condition ")" s:Statement {
-      // TODO: typeCheck
+      fun typeCheck {
+        Owner<CilExpr> expr; expr = e.typeCheck(env, inst);
+
+        Owner<CilCompound> body; body = newCompound();
+        delete s.typeCheck(env, *body);
+        
+        inst.append(newSwitch(expr.xfr(), body.xfr()));
+        return noCilValue();
+      }
 
       fun getCFG {
         // make a switch node where a 'break' statement will go to a
@@ -2194,7 +2286,8 @@ nonterm EnumSpecifier : HasType {
       xassert(type);
     }
 
-    // TODO: add the enum's elements to its definition
+    // get elements
+    list.collectEnumValues(env, type);
 
     return env->makeType(type);
   }
@@ -2204,15 +2297,62 @@ nonterm EnumSpecifier : HasType {
   -> "enum" n:EnumName "{" list:EnumeratorListOpt "}"
     { fun getEnumName = n.getName(); }
 }
-                         
 
-nonterm EnumeratorList -> EnumeratorDefinition |
-                          EnumeratorList "," EnumeratorDefinition ;
-nonterm EnumeratorListOpt -> empty | EnumeratorList |
-                             EnumeratorList "," ;     // GNU extension (??)
 
-nonterm EnumeratorDefinition -> EnumValueName |
-                                EnumValueName "=" ConstantExpression ;
+nonterm EnumeratorBase {
+  fundecl void collectEnumValues(Env *passedEnv, EnumType *type);
+  fun collectEnumValues {}
+  literalCode "prefix" collectEnumValues {
+    env = passedEnv;
+  }
+}
+
+nonterm EnumeratorList : EnumeratorBase {
+  -> def:EnumeratorDefinition {
+    fun collectEnumValues {
+      def.collectEnumValues(env, type);
+    }
+  }
+
+  -> list:EnumeratorList "," def:EnumeratorDefinition {
+    fun collectEnumValues {
+      list.collectEnumValues(env, type);
+      def.collectEnumValues(env, type);
+    }
+  }
+}
+
+nonterm EnumeratorListOpt : EnumeratorBase {
+  -> empty ;
+
+  -> list:EnumeratorList
+   | list:EnumeratorList "," {     // GNU extension (??)
+    fun collectEnumValues { list.collectEnumValues(env, type); }
+  }
+}
+
+
+nonterm EnumeratorDefinition : EnumeratorBase {
+  -> name:EnumValueName {
+    fun collectEnumValues {
+      env->addEnumValue(this, name.getName(), type, type->nextValue++);
+    }
+  }
+
+  -> name:EnumValueName "=" expr:ConstantExpression {
+    fun collectEnumValues {
+      // get the expression value
+      try {
+        type->nextValue = expr.intEval(env);
+        env->addEnumValue(this, name.getName(), type, type->nextValue++);
+      }
+      catch (XSemanticError &x) {
+        cout << x.err.whyStr() << endl;
+      }
+    }
+  }
+}
+
 
 nonterm AsmDefinition -> "asm" "(" L2_STRING_LITERAL ")" ";" ;
 
@@ -3158,47 +3298,57 @@ int fakemain(int argc, char *argv[])
   while (traceProcessArg(argc, argv))
     {}
 
-  try {
-    // this program's exception-handling structure is mature
-    // enough that printing all thrown exceptions has crossed
-    // the line from helpful to annoying
-    xBase::logExceptions = false;
-    if (tracingSys("eh")) {
-      xBase::logExceptions = true;     // sometimes I want them .. :)
-    }
-
-    // place to store the tree
-    ParseTreeAndTokens tree;
-
-    // dataflow environment ...
-    DataflowEnv denv;
-
-    // toplevel environment, in which each toplevel form
-    // will be evaluated, just before that form is thrown
-    // away
-    //traceAddSys("env-declare");
-    Env env(&denv);
-
-    // carry this context in the tree, since it is an argument
-    // to node constructors
-    tree.extra = &env;
-
-    // use another try to catch ambiguities so we can
-    // report them before the tree is destroyed
+  if (setjmp(sane_state) == 0) {    // C's version of "try"
+    setHandler(SIGSEGV, jmpHandler);
     try {
-      // this sets everything in motion, including analysis of
-      // tree, etc; it returns when the entire tree has been
-      // processed
-      treeMain(tree, argc, argv);
+      // this program's exception-handling structure is mature
+      // enough that printing all thrown exceptions has crossed
+      // the line from helpful to annoying
+      xBase::logExceptions = false;
+      if (tracingSys("eh")) {
+        xBase::logExceptions = true;     // sometimes I want them .. :)
+      }
+
+      // place to store the tree
+      ParseTreeAndTokens tree;
+
+      // dataflow environment ...
+      DataflowEnv denv;
+
+      // toplevel environment, in which each toplevel form
+      // will be evaluated, just before that form is thrown
+      // away
+      //traceAddSys("env-declare");
+      Env env(&denv);
+
+      // carry this context in the tree, since it is an argument
+      // to node constructors
+      tree.extra = &env;
+
+      // use another try to catch ambiguities so we can
+      // report them before the tree is destroyed
+      try {
+        // this sets everything in motion, including analysis of
+        // tree, etc; it returns when the entire tree has been
+        // processed
+        treeMain(tree, argc, argv);
+      }
+      catch (XAmbiguity &x) {
+        cout << x << endl;
+        cout << "last line checked: " << lastLineChecked << endl;
+        return 4;
+      }
     }
-    catch (XAmbiguity &x) {
-      cout << x << endl;
-      return 4;
+    catch (xBase &x) {
+      cout << "died on exception: " << x << endl;
+      cout << "last line checked: " << lastLineChecked << endl;
+      return 6;
     }
   }
-  catch (xBase &x) {
-    cout << "died on exception: " << x << endl;
-    return 6;
+  else {       // caught a signal
+    cout << "exiting due to signal\n";
+    cout << "last line checked: " << lastLineChecked << endl;
+    return 7;
   }
 
   // since this is outside all the scopes that create interesting

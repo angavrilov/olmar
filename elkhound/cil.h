@@ -196,6 +196,10 @@ CilLval *newFieldRef(CilExpr *record, Variable *field);
 CilLval *newCastLval(Type const *type, CilLval *lval);
 CilLval *newArrayAccess(CilExpr *array, CilExpr *index);
 
+// lile 'newVarRef', except it's allowed to replace
+// references to constants with the associated literal
+CilExpr *newVarRefExpr(Variable *var);
+
 
 // ---------------------- CilInst ----------------
 // an instruction is a runtime state transformer: by
@@ -216,6 +220,7 @@ public:      // types
 
     // control flow constructs ("loop"="while", "jump"="goto")
     T_COMPOUND, T_LOOP, T_IFTHENELSE, T_LABEL, T_JUMP, T_RET,
+    T_SWITCH, T_CASE, T_DEFAULT,
 
     NUM_ITAGS
   };
@@ -278,6 +283,21 @@ public:      // data
     struct {
       CilExpr *expr;        // (owner, nullable) expr to return
     } ret;
+
+    // T_SWITCH
+    struct {
+      CilExpr *expr;        // (owner) switch expression
+      CilInst *body;        // (owner) instruction block with case/default labels
+    } switchInst;
+
+    // T_CASE
+    struct {
+      int value;            // case expr value
+    } caseInst;
+
+    // T_DEFAULT
+    struct {                // no fields
+    } defaultInst;
   };
 
   // count and high-water allocated nodes
@@ -305,11 +325,15 @@ CilInst *newIfThenElse(CilExpr *cond, CilInst *thenBranch, CilInst *elseBranch);
 CilInst *newLabel(LabelName label);
 CilInst *newGoto(LabelName label);
 CilInst *newReturn(CilExpr *expr /*nullable*/);
+CilInst *newSwitch(CilExpr *expr, CilInst *body);
+CilInst *newCase(int val);
+CilInst *newDefault();
 
 
 class CilFnCall : public CilInst {
 public:     // data
-  CilLval *result;         // (owner) place to put the result
+  CilLval *result;         // (owner, nullable) place to put the result
+                           // NULL if fn return value ignored
   CilExpr *func;           // (owner) expr to compute the fn to call
   ObjList<CilExpr> args;   // list of arguments
 

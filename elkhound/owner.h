@@ -52,7 +52,21 @@ public:     // funcs
   // escape hatch for when operators flake out on us
   T *get() { DBG("get"); return ptr; }
   T const *getC() const { DBG("getC"); return ptr; }
+  
+  // swaps are interesting because they don't require checking
+  void swapWith(Owner<T> &obj) {
+    T *tmp = ptr;
+    ptr = obj.ptr;
+    obj.ptr = tmp;
+  }
 };
+   
+
+template <class T>
+void swap(Owner<T> &obj1, Owner<T> &obj2)
+{
+  obj1.swapWith(obj2);
+}
 
 
 #endif // __OWNER_H
