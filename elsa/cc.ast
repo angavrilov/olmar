@@ -508,6 +508,7 @@ class Expression {
   -> E_fieldAcc(Expression obj, PQName fieldName);
 
   -> E_sizeof(Expression expr);
+  -> E___builtin_constant_p(Expression expr);
 
   -> E_unary(UnaryOp op, Expression expr);
   -> E_effect(EffectOp op, Expression expr);

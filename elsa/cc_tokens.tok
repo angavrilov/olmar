@@ -73,6 +73,7 @@ TOK_RETURN,              "return",                    :    n
 TOK_SHORT,               "short",                     :    n
 TOK_SIGNED,              "signed",                    :    n
 TOK_SIZEOF,              "sizeof",                    :    n
+TOK_BUILTIN_CONSTANT_P,   "__builtin_constant_p",     :    n
 TOK_STATIC,              "static",                    :    n
 TOK_STATIC_CAST,         "static_cast",               :    n  p
 TOK_STRUCT,              "struct",                    :    n

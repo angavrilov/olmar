@@ -828,6 +828,13 @@ void E_sizeof::iprint(PrintEnv &env)
   expr->print(env);           // putting parens in here so we are safe wrt precedence
 }
 
+void E___builtin_constant_p::iprint(PrintEnv &env)
+{
+  olayer ol("E___builtin_constant_p::iprint");
+  codeout co(env, "__builtin_constant_p", "(", ")");
+  expr->print(env);
+}
+
 // dsw: unary expression?
 void E_unary::iprint(PrintEnv &env)
 {

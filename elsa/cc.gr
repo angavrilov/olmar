@@ -461,6 +461,11 @@ nonterm(Expression*) UnaryExpression {
   // size of expression
   -> "sizeof" e:UnaryExpression  { return new E_sizeof(e); }
 
+  // GNU extension; dsw: Since the argument is an expression, I know
+  // of no way to handle this other than putting it into the grammar
+  // directly.
+  -> "__builtin_constant_p" "(" e:Expression ")" { return new E___builtin_constant_p(e); }
+
   -> e:DeleteExpression          { return e; }
 
   // dereference, addrof

@@ -166,6 +166,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "signed"           return tok(TOK_SIGNED);
 "__signed__"       return tok(TOK_SIGNED);
 "sizeof"           return tok(TOK_SIZEOF);
+"__builtin_constant_p" return tok(TOK_BUILTIN_CONSTANT_P);
 "static"           return tok(TOK_STATIC);
 "static_cast"      return tok(TOK_STATIC_CAST);
 "struct"           return tok(TOK_STRUCT);

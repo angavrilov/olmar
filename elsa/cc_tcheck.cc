@@ -3595,6 +3595,24 @@ Type *E_sizeof::itcheck(Env &env)
 }
 
 
+Type *E___builtin_constant_p::itcheck(Env &env)
+{
+  expr->tcheck(expr, env);
+
+//    // TODO: this will fail an assertion if someone asks for the
+//    // size of a variable of template-type-parameter type..
+//    size = expr->type->asRval()->reprSize();
+//    TRACE("sizeof", "sizeof(" << expr->exprToString() <<
+//                    ") is " << size);
+
+  // dsw: the type of a __builtin_constant_p is an int:
+  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Other-Builtins.html#Other%20Builtins
+  // TODO: is this right?
+  return expr->type->isError()?
+           expr->type : env.getSimpleType(SL_UNKNOWN, ST_UNSIGNED_INT);
+}
+
+
 Type *E_unary::itcheck(Env &env)
 {
   expr->tcheck(expr, env);
