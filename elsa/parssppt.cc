@@ -13,18 +13,20 @@
 ParseTreeAndTokens::ParseTreeAndTokens(CCLang &L, SemanticValue &top,
                                        StringTable &extTable, char const *fname)
   : treeTop(top),
-    lexer(extTable, L, fname),
+    lexer(new Lexer(extTable, L, fname)),
     userAct(NULL),
     tables(NULL)
 {}
 
 ParseTreeAndTokens::~ParseTreeAndTokens()
-{}
+{
+  delete lexer;
+}
 
 
 // ---------------------- other support funcs ------------------
 // process the input file, and yield a parse graph
-bool glrParseNamedFile(GLR &glr, Lexer &lexer, SemanticValue &treeTop,
+bool glrParseNamedFile(GLR &glr, LexerInterface &lexer, SemanticValue &treeTop,
                        char const *inputFname)
 {
   #if 0    // old
@@ -70,7 +72,7 @@ bool toplevelParse(ParseTreeAndTokens &ptree, char const *inputFname)
   GLR glr(ptree.userAct, ptree.tables);
 
   // parse input
-  return glrParseNamedFile(glr, ptree.lexer, ptree.treeTop, inputFname);
+  return glrParseNamedFile(glr, *ptree.lexer, ptree.treeTop, inputFname);
 }
 
 

@@ -17,6 +17,8 @@
 #include "cc_print.h"     // PrintEnv
 #include "cc.gr.gen.h"    // CCParse
 #include "nonport.h"      // getMilliseconds
+#include "ptreenode.h"    // PTreeNode
+#include "ptreeact.h"     // ParseTreeLexer, ParseTreeActions
 
 
 void if_malloc_stats()
@@ -56,6 +58,7 @@ void doit(int argc, char **argv)
       (argc, argv,
        "  additional flags for ccgr:\n"
        "    malloc_stats       print malloc stats every so often\n"
+       "    parseTree          make a parse tree and print that, only\n"
        "    stopAfterParse     stop after parsing\n"
        "    printAST           print AST after parsing\n"
        "    stopAfterTCheck    stop after typechecking\n"
@@ -65,6 +68,11 @@ void doit(int argc, char **argv)
 
     SemanticValue treeTop;
     ParseTreeAndTokens tree(lang, treeTop, strTable, inputFname);
+    
+    // grab the lexer so we can check it for errors (damn this
+    // 'tree' thing is stupid..)
+    Lexer *lexer = dynamic_cast<Lexer*>(tree.lexer);
+    xassert(lexer);
 
     CCParse *parseContext = new CCParse(strTable, lang);
     tree.userAct = parseContext;
@@ -75,16 +83,38 @@ void doit(int argc, char **argv)
 
     maybeUseTrivialActions(tree);
 
+    if (tracingSys("parseTree")) {
+      // make some helpful aliases
+      LexerInterface *underLexer = tree.lexer;
+      UserActions *underAct = parseContext;
+
+      // replace the lexer and parser with parse-tree-building versions
+      tree.lexer = new ParseTreeLexer(underLexer, underAct);
+      tree.userAct = new ParseTreeActions(underAct, tables);
+
+      // 'underLexer' and 'tree.userAct' will be leaked.. oh well
+    }
+
     if (!toplevelParse(tree, inputFname)) {
       exit(2); // parse error
     }
 
     // check for parse errors detected by the context class
-    if (parseContext->errors || tree.lexer.errors) {
+    if (parseContext->errors || lexer->errors) {
       exit(2);
     }
 
     traceProgress(2) << "final parse result: " << treeTop << endl;
+
+    if (tracingSys("parseTree")) {
+      // the 'treeTop' is actually a PTreeNode pointer; print the
+      // tree and bail
+      PTreeNode *ptn = (PTreeNode*)treeTop;
+      ptn->printTree(cout, PTreeNode::PF_EXPAND);
+      return;
+    }
+
+    // treeTop is a TranslationUnit pointer
     unit = (TranslationUnit*)treeTop;
 
     //unit->debugPrint(cout, 0);

@@ -26,7 +26,7 @@ public:
   SemanticValue &treeTop;
 
   // just replacing Lexer2 with Lexer for now..
-  Lexer lexer;
+  LexerInterface *lexer;           // (owner)
 
   // parse parameter
   UserActions *userAct;            // (serf)
