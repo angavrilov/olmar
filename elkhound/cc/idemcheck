@@ -15,7 +15,7 @@ my %outfile2command = ();
 my $outdir;
 
 my $usage=<<END
-Usage: check_idempotency -d <outputdir> <inputlist>...
+Usage: idemcheck -d <outputdir> <inputlist>...
 END
     ;
 

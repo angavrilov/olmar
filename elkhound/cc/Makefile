@@ -29,7 +29,7 @@ clean: idem/clean idem/clean2
 # ****************
 
 # Check in the things I work on.
-DSW_STUFF := Makefile cc_twalk.cc cc.ast check_idempotency chop_out
+DSW_STUFF := Makefile cc_twalk.cc cc.ast idemcheck chop_out
 
 .PHONY: commit
 commit:
@@ -120,7 +120,7 @@ TOCHECK += cc.in43
 
 .PHONY: idem/check
 idem/check: idem/clean
-	./check_idempotency -d outdir $(addprefix ../cc.in/,$(TOCHECK))
+	./idemcheck -d outdir $(addprefix ../cc.in/,$(TOCHECK))
 
 TEST_SUFFIXES_TO_CLEAN := 0cppout.cc 1rawout.cc 2out.cc 3rawout.cc 4out.cc 5diff
 TEST_PATTERNS_TO_CLEAN := $(patsubst %,-o -name '*.%',$(TEST_SUFFIXES_TO_CLEAN))
@@ -408,9 +408,8 @@ TOCHECK2 += ch14/test4.cc
 # TOCHECK2 += estl/00-1.cc
 # TOCHECK2 += estl/02-1.cc
 
-#[L1] Error at line 17098, col 2: illegal token: `
-'
-# TOCHECK2 += estl/02-2.cc
+#WARNING: there is no action to merge nonterm Expression
+#TOCHECK2 += estl/02-2.cc
 
 #TOCHECK2 += estl/02-3.cc
 #TOCHECK2 += estl/02-4.cc
@@ -444,7 +443,7 @@ TOCHECK2 += laundering/test2.cc
 
 TESTDIR2 := ../../cure_cpp/cc_examples/
 idem/check2: idem/clean2
-	./check_idempotency -d outdir $(addprefix $(TESTDIR2),$(TOCHECK2))
+	./idemcheck -d outdir $(addprefix $(TESTDIR2),$(TOCHECK2))
 
 # Both do the same now.
 .PHONY: idem/clean2
