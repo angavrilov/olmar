@@ -493,6 +493,7 @@ public:     // funcs
 
 
 // formal parameter to a function or function type
+// TODO: replace all uses of Parameter with Variable
 class Parameter {
 public:
   StringRef name;              // can be NULL to mean unnamed
@@ -500,7 +501,7 @@ public:
 
   // syntactic introduction
   Variable *decl;              // (serf)
-  
+
   // 'defaultArgument' has been moved into decl->value
 
 public:

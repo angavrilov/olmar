@@ -346,7 +346,16 @@ void D_func::qualTcheck(Declarator *dtor, Type_Q *typeSoFar)
 
   // iterate over parameters, adding them to 'ft' (in reverse)
   FAKELIST_FOREACH_NC(ASTTypeId, params, iter) {
-    ft->params.prepend(iter->decl->var->q);
+    Variable *v = iter->decl->var;
+    if (v->type->isSimple(ST_VOID)) {
+      // 'void' parameter actually means there are no parameters, so
+      // don't add it; the tcheck pass ensures that if there are any
+      // 'void' parameters, there's exactly one and it's the only
+      // parameter, so we don't have to check that again here
+    }
+    else {
+      ft->params.prepend(iter->decl->var->q);
+    }
   }
   ft->params.reverse();
 

@@ -181,18 +181,25 @@ FunctionType_Q *FunctionType_Q::deepClone() const
 
 
 void FunctionType_Q::checkHomomorphism() const
-{
+{                         
+  // check return types
   xassert(retType->type()->equals(type()->retType));
   retType->checkHomomorphism();
 
-  // not clear if we have to check this for parameters since they
-  // are Variable_Qs and it's possible an outer iteration of
-  // checkHomomorphism will get them, but I'll do it anyway
-  //
-  // update: since Variable_Q now has its own checkHomomorphism,
-  // I think it's clear we *should* be doing this check here
-  SFOREACH_OBJLIST(Variable_Q, params, iter) {
-    iter.data()->checkHomomorphism();
+  // check that the parameters agree with across the homomorphism
+  xassert(params.count() == type()->params.count());
+  SObjListIter<Variable_Q> iter1(params);
+  ObjListIter<Parameter> iter2(type()->params);
+  for (; !iter1.isDone(); iter1.adv(), iter2.adv()) {
+    Type const *t1 = iter1.data()->qtype->type();
+    Type const *t2 = iter2.data()->decl->type;
+      // if I say "t2 = iter2.data()->type" then I get a mismatch
+      // whenever t2 is involved in type normalization [cppstd 8.3.5 para 3]
+    xassert(t1->equals(t2));
+
+    // also check that the parameters are themselves internally
+    // homomorphic
+    iter1.data()->checkHomomorphism();
   }
 }
 
