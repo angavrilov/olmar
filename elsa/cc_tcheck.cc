@@ -1144,6 +1144,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     if (!ct->lookupVariable(dtorName, env, LF_INNER_ONLY)) {
       // add a dtor declaration: ~Class();
       FunctionType *ft = env.makeFunctionType(loc, env.getSimpleType(loc, ST_CDTOR), CV_NONE);
+      ft->doneParams();
       Variable *v = env.makeVariable(loc, dtorName, ft, DF_NONE);
       env.addVariable(v);
       
