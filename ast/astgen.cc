@@ -751,7 +751,7 @@ void CGen::emitCloneCtorArg(CtorArg const *arg, int &ct)
   }
   else if (isTreeNode(arg->type)) {
     // clone a tree node
-    out << arg->name << "->clone()";
+    out << arg->name << "? " << arg->name << "->clone() : NULL";
   }
   else if (0==strcmp(arg->type, "LocString")) {
     // clone a LocString; we store objects, but pass pointers
