@@ -3,39 +3,22 @@
 // working from ISO/IEC 14882:1998(E)
 
 
-verbatim CCGr [
-
-#include "strtable.h"     // StringRef
-#include "cc_type.h"      // type identifiers like ST_CHAR
-#include "lexer2.h"       // lexer2's token ids for classify()
-#include "cparse.h"       // ParseEnv
-#include "trace.h"        // trace
-#include "c.ast.gen.h"    // C abstract syntax
-#include "cc_lang.h"      // CCLang
+verbatim CC2 [
 
 #define D(msg) \
   trace("cc") << msg << endl
 
-class CCGr : public UserActions, public ParseEnv {
-public:    // data
-  StringRef strRefAttr;         // "attr"
-  CCLang &lang;
-
+class CC2 : public UserActions {
 public:    // funcs
-  CCGr(StringTable &table, CCLang &alang)
-    : ParseEnv(table),
-      strRefAttr(table.add("attr")),
-      lang(alang) {}
+  CC2() {}
 
 private:
   #include "cc2.gr.gen.h"
-
-  void declareClassTag(StringRef tagName);
 };
 
-UserActions *makeUserActions(StringTable &table, CCLang &lang)
+UserActions *makeUserActions()
 {
-  return new CCGr(table, lang);
+  return new CC2();
 }
 
 ]

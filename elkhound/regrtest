@@ -12,7 +12,6 @@ success=0
 failure=0
 unexSuccess=0
 unexFailure=0
-vcgenOnly=false
 runOneTest=false
 
 usage() {
@@ -23,7 +22,6 @@ usage: $0 [options]
   -big         run the big, timeconsuming tests
   -contin      keep going even after a test fails (or succeeds) unexpectedly
   -help        print this message
-  -vcgen       only run the vcgen tests
 EOF
 }
 
@@ -52,10 +50,6 @@ while [ "$1" != "" ]; do
     -help)
       usage
       exit 0
-      ;;
-
-    -vcgen)
-      vcgenOnly=true
       ;;
 
     *)
@@ -204,22 +198,25 @@ testTrivGrammar CAdB 1
 
 
 # ------------ test the C grammar and parser -------------
-if ! $vcgenOnly; then
-  for n in 1 2 3 4 5 6 7 8 9 10 11 12; do
-    runTest ./ccgr -tr stopAfterTCheck cc.bin c.in/c.in$n
-  done
+for n in 1 2 3 4 5 6 7 8 9 10 11 12; do
+  runTest ./ccgr -tr stopAfterTCheck cc.bin c.in/c.in$n
+done
 
 
-  tcheck() {
-    runTest ./test-bad tcheck/$1 -tr stopAfterTCheck cc.bin
-  }
+tcheck() {
+  runTest ./test-bad tcheck/$1 -tr stopAfterTCheck cc.bin
+}
 
-  tcheck init.c
-  tcheck addrglob.c
-  tcheck loops.c
-  tcheck exprpath.c
-  runTest ./ccgr -tr printAnalysisPath cc.bin tcheck/morepaths.c
-fi
+tcheck init.c
+tcheck addrglob.c
+tcheck loops.c
+tcheck exprpath.c
+runTest ./ccgr -tr printAnalysisPath cc.bin tcheck/morepaths.c
+
+
+# --------------- test C++ parser -----------------
+runTest ./cc2.exe cc2/cc2.bin c.in/c.in1
+
 
 
 # this one is my main performance tester

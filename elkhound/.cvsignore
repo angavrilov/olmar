@@ -99,3 +99,4 @@ ndebug
 sexp
 sexp.ast.gen.*
 gss.*.g
+.gdbinit

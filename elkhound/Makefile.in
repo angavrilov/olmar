@@ -1,7 +1,7 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-all: ccgr
+all: ccgr cc2.exe
 
 temporary: ccgr bccgr triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
            triv/EEb.tree.gr.exe triv/eeb.in triv/SSSx.tree.gr.exe triv/sssx.in \
@@ -52,7 +52,7 @@ endif
 #ccflags += -pg
 
 # optimizer...
-ccflags += -O2 -DNDEBUG
+#ccflags += -O2 -DNDEBUG
 
 # uncomment to turn off source location info
 #ccflags += -DNO_GLR_SOURCELOC
@@ -60,6 +60,9 @@ ccflags += -O2 -DNDEBUG
 # turn on to enable bison's debugging features
 #YYDEBUG := -DYYDEBUG=1
 #ccflags += $(YYDEBUG)
+
+# generate debug table every time
+TRGRAMANL := ,lrtable
 
 
 # flags on command line
@@ -424,6 +427,11 @@ trivparse-deps = trivmain.cc ptreenode.o trivlex.o lexer2.o libglr.a
 %.bison.exe: %.tab.o trivbison.o trivlex.o lexer2.o ptreenode.o \
              libglr.a
 	g++ -o $@ $(ccflags) $(includes) $^ $(linkend)
+
+# new C++ parser
+cc2.exe: cc2main.o cc2/cc2.gr.gen.o libglr.a
+	g++ -o $@ $^ $(linkend)
+
 
 
 # ----------------------------- EFa -----------------------

@@ -4443,8 +4443,9 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
     out << "      cout << \"WARNING: there is no action to " << actUpon << " id \"\n"
            "           << " << switchVar << " << endl;\n";
     if (whichFunc == 2) {    
-      // merge
-      out << "      abort();\n";
+      // merge; arbitrarily choose to keep first one
+      //out << "      abort();\n";
+      out << "      return left;\n";
     }
     else {
       // for 'del', just drop it on the floor (with a warning)
