@@ -4252,7 +4252,7 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
     out << "// GLR source location information is enabled\n";
   #endif
   out << "\n";
-  out << "#include \"" << hFname << "\"     // " << g.actionClassName << "\n";
+  out << "#include \"" << sm_basename(hFname) << "\"     // " << g.actionClassName << "\n";
   out << "#include \"parsetables.h\" // ParseTables\n";
   out << "#include \"srcloc.h\"      // SourceLoc\n";
   out << "\n";
