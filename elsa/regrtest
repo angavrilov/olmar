@@ -600,7 +600,7 @@ testparse t0364.cc
 testparse t0365.cc
 testparse t0366.cc
 failparse t0367.cc "recursion depth"
-failparse t0368.cc "some template problem"
+testparse t0368.cc
 testparse t0369.cc
 
 # another set of tests, generally isolated by Daniel

@@ -1118,14 +1118,73 @@ bool Env::inferTemplArgsFromFuncArgs
       if (!argListIter.isDone()) {
         Type *curArgType = argListIter.data();
         bool argUnifies = match.match_Type(curArgType, param->type);
+
         if (!argUnifies) {
-          if (iflags & IA_REPORT_ERRORS) {
-            error(stringc << "during function template argument deduction: "
-                  << "argument " << i << " `" << curArgType->toString() << "'"
-                  << " is incompatible with parameter, `"
-                  << param->type->toString() << "'");
+          // cppstd 14.8.2.1 para 3 bullet 3: if 'param->type' is a
+          // template-id, then 'curArgType' can be derived from
+          // 'param->type'; assume that 'containsVariables' is
+          // sufficient evidence that 'param->type' is a template-id
+          
+          // for this comparison, push past any referenceness on
+          // either argument or parameter (14.8.2.1 para 2 says so for
+          // the parameter, less clear about the argument but I think
+          // it falls under the general category of lvalue handling);
+          // in any case if I get this wrong (too liberal) it should
+          // be caught later once the deduced type is compared to the
+          // argument types in the usual way
+          curArgType = curArgType->asRval();
+          Type *paramType = param->type->asRval();
+          
+          // push past one level of pointerness too (part of bullet 3)
+          if (curArgType->isPointer() && paramType->isPointer()) {
+            curArgType = curArgType->getAtType();
+            paramType = paramType->getAtType();
           }
-          return false;             // FIX: return a variable of type error?
+
+          if (curArgType->isCompoundType()) {
+            // get all the base classes
+            CompoundType *ct = curArgType->asCompoundType();
+            SObjList<BaseClassSubobj const> bases;
+            ct->getSubobjects(bases);
+            SFOREACH_OBJLIST(BaseClassSubobj const, bases, iter) {
+              BaseClassSubobj const *sub = iter.data();
+              if (sub->ct == ct) { continue; }      // already tried 'ct'
+
+              // attempt to match 'sub->ct' with 'param->type'
+              //
+              // TODO: There are two bugs here, due to allowing the
+              // effect of one match attempt to contaminate the next.
+              // First, if there are two base classes and the first
+              // does not match but the second does, when the first
+              // fails to match it may change the bindings in 'match'
+              // in such a way as to cause the second match to
+              // spuriously fail.  Second, cppstd says that we must
+              // report an error if more than one base class matches,
+              // but we will not be able to, since one successful
+              // match will (in all likelihood) modify the bindings so
+              // as to prevent the second match.  The solution is to
+              // save the current bindings before attempting a match,
+              // but MatchTypes does not currently support the needed
+              // push and pop of bindings.  Therefore I will just note
+              // the bugs and ignore them for now.
+              Type *t = env.makeType(SL_UNKNOWN, sub->ct);    // leaked
+              if (match.match_Type(t, paramType)) {
+                argUnifies = true;
+                break;
+              }
+            }
+          }
+
+          // did we find a match in the second attempt?
+          if (!argUnifies) {
+            if (iflags & IA_REPORT_ERRORS) {
+              error(stringc << "during function template argument deduction: "
+                    << "argument " << i << " `" << curArgType->toString() << "'"
+                    << " is incompatible with parameter, `"
+                    << param->type->toString() << "'");
+            }
+            return false;             // FIX: return a variable of type error?
+          }
         }
       }
       else {

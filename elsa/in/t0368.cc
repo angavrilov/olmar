@@ -21,3 +21,17 @@ void g()
   B b;
   f(b); // <== KO
 }
+
+
+template <class T>
+void f2(A<T> &);
+
+template <class T>
+void f3(A<T> *);
+
+void h()
+{
+  B b;
+  f2(b);
+  f3(&b);
+}
