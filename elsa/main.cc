@@ -167,11 +167,6 @@ void doit(int argc, char **argv)
     cout << "ambiguous nodes: " << numAmbiguousNodes(unit) << endl;
   }
 
-  // dsw:print abstract syntax tree as XML
-  if (tracingSys("xmlPrintAST")) {
-    unit->xmlPrint(cout, 0);
-  }
-
   if (tracingSys("stopAfterParse")) {
     return;
   }

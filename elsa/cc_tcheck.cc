@@ -146,7 +146,6 @@ void Function::tcheck(Env &env, bool checkBody)
   // parameter names for this definition
   Declarator::Tcheck dt(retTypeSpec,
                         (DeclFlags)(dflags | (checkBody? DF_DEFINITION : 0)));
-  if (env.scope()->curCompound) { dt.setMember(); }
   nameAndParams = nameAndParams->tcheck(env, dt);
 
   if (! dt.type->isFunctionType() ) {
@@ -479,7 +478,6 @@ void Declaration::tcheck(Env &env, bool isMember)
   if (decllist) {
     // check first declarator
     Declarator::Tcheck dt1(specType, dflags);
-    if (isMember) dt1.setMember();
     decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
 
     // check subsequent declarators
@@ -490,7 +488,6 @@ void Declaration::tcheck(Env &env, bool isMember)
       Type *dupType = env.tfac.cloneType(specType);
 
       Declarator::Tcheck dt2(dupType, dflags);
-      if (isMember) dt2.setMember();
       prev->next = prev->next->tcheck(env, dt2);
 
       prev = prev->next;
@@ -2562,7 +2559,6 @@ void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt)
 
   // turn off CTX_GROUPING
   dt.clearInGrouping();
-  dt.clearMember();
 
   // recurse
   base->tcheck(env, dt);
@@ -2908,7 +2904,6 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
   // having added this D_array's contribution to the type, pass
   // that on to the next declarator
   dt.type = at;
-  dt.clearMember();
   this->type = dt.type;       // annotation
   base->tcheck(env, dt);
 }
@@ -2993,7 +2988,6 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
 
   // turn off CTX_GROUPING
   dt.clearInGrouping();
-  dt.clearMember();
 
   // recurse
   base->tcheck(env, dt);
