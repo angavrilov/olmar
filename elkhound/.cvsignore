@@ -60,3 +60,4 @@ acquirewdt.cpp
 bw-qcam.cpp
 cyclades.cpp
 ip2main.cpp
+gprof.out

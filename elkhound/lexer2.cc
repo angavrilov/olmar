@@ -181,6 +181,7 @@ struct GNUKeywordMap {
   { "class", L2_NAME },
   { "complex", L2_NAME },
   { "const_cast", L2_NAME },
+  { "delete", L2_NAME },
   { "dynamic_cast", L2_NAME },
   { "explicit", L2_NAME },
   { "export", L2_NAME },

@@ -244,9 +244,7 @@ nonterm TranslationUnit : Checkable {
     if (tracingSys("cil-tree")) {
       cil->printTreeNoBraces(0 /*indent*/, cout);
     }
-    checkHeap();     // TODO1: remove when bug is fixed
     delete cil;
-    checkHeap();
 
     // ---- throw away most of the tree now ----
     // grab a pointer to the left child reduction, which should be
