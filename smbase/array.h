@@ -15,7 +15,7 @@ private:     // data
   int sz;                 // # allocated entries in 'arr'
 
 private:     // funcs
-  void bc(int i);         // bounds-check an index
+  void bc(int i) const;   // bounds-check an index
 
 public:      // funcs
   GrowArray(int initSz);
@@ -73,7 +73,7 @@ GrowArray<T>::~GrowArray()
 
 
 template <class T>
-void GrowArray<T>::bc(int i)
+void GrowArray<T>::bc(int i) const
 {
   xassert((unsigned)i < (unsigned)sz);
 }
@@ -143,10 +143,12 @@ public:
     {}
   ~ArrayStack();
 
-  void push(T &val)
+  void push(T const &val)
     { setIndexDoubler(len++, val); }
   T pop()
     { return operator[](--len); }
+  T top() const
+    { return operator[](len-1); }
 
   int length() const
     { return len; }
@@ -154,11 +156,46 @@ public:
     { return len==0; }
   bool isNotEmpty() const
     { return !isEmpty(); }
+
+  void popMany(int ct)
+    { len -= ct; xassert(len >= 0); }
 };
 
 template <class T>
 ArrayStack<T>::~ArrayStack()
 {}
+
+
+#if 0      // in progress
+// ------------------- ObjArrayStack -----------------
+// an ArrayStack of owner pointers
+template <class T>
+class ObjArrayStack {
+private:    // data
+  ArrayStack<T*> arr;
+
+public:     // funcs
+  ObjArrayStack(int initArraySize = 10)
+    : arr(initArraySize)
+    {}
+  ~ObjArrayStack() { deleteTopSeveral(length()); }
+
+  void push(T *ptr)          { arr.push(ptr); }
+  T *pop()                   { return arr.pop(); }
+  T const *top() const       { return arr.top(); }
+
+  int length() const         { return arr.length(); }
+  bool isEmpty() const       { return arr.isEmpty(); }
+  bool isNotEmpty() const    { return !isEmpty(); }
+  #error in progress
+};
+
+
+template <class T>
+void ObjArrayStack::deleteAll()
+{
+#endif // 0
+
 
 
 #endif // ARRAY_H
