@@ -50,49 +50,49 @@ protected:        // data
   ASTSpecFile const &file;          // AST specification
 
 public:           // funcs
-  Gen(char const *srcFname, ObjList<string> const &modules,
-      char const *destFname, ASTSpecFile const &file);
+  Gen(rostring srcFname, ObjList<string> const &modules,
+      rostring destFname, ASTSpecFile const &file);
   ~Gen();
 
   // type queries
-  TreeNodeKind getTreeNodeKind(char const *type);
-  TreeNodeKind getTreeNodePtrKind(char const *type);
+  TreeNodeKind getTreeNodeKind(rostring type);
+  TreeNodeKind getTreeNodePtrKind(rostring type);
 
-  bool isTreeNode(char const *type)
+  bool isTreeNode(rostring type)
     { return getTreeNodeKind(type) != TKN_NONE; }
-  bool isTreeNodePtr(char const *type)
+  bool isTreeNodePtr(rostring type)
     { return getTreeNodePtrKind(type) != TKN_NONE; }
-  bool isSuperclassTreeNode(char const *type)
+  bool isSuperclassTreeNode(rostring type)
     { return getTreeNodeKind(type) == TKN_SUPERCLASS; }
-  bool isSuperclassTreeNodePtr(char const *type)
+  bool isSuperclassTreeNodePtr(rostring type)
     { return getTreeNodePtrKind(type) == TKN_SUPERCLASS; }
-  bool isSubclassTreeNode(char const *type)
+  bool isSubclassTreeNode(rostring type)
     { return getTreeNodeKind(type) == TKN_SUBCLASS; }
-  bool isSubclassTreeNodePtr(char const *type)
+  bool isSubclassTreeNodePtr(rostring type)
     { return getTreeNodePtrKind(type) == TKN_SUBCLASS; }
 
-  string extractNodeType(char const *type);
-  string getSuperTypeOf(char const *sub);
+  string extractNodeType(rostring type);
+  string getSuperTypeOf(rostring sub);
 
-  bool isListType(char const *type);
-  bool isFakeListType(char const *type);
-  bool isTreeListType(char const *type);
-  string extractListType(char const *type);
+  bool isListType(rostring type);
+  bool isFakeListType(rostring type);
+  bool isTreeListType(rostring type);
+  string extractListType(rostring type);
 
   // shared output sequences
   void headerComments();
   void doNotEdit();
   void emitFiltered(ASTList<Annotation> const &decls, AccessCtl mode,
-                    char const *indent);
+                    rostring indent);
 };
 
 
-Gen::Gen(char const *srcfn, ObjList<string> const &mods,
-         char const *destfn, ASTSpecFile const &f)
+Gen::Gen(rostring srcfn, ObjList<string> const &mods,
+         rostring destfn, ASTSpecFile const &f)
   : srcFname(srcfn),
     modules(mods),
     destFname(destfn),
-    out(destfn),
+    out(toCStr(destfn)),
     file(f)
 {
   if (!out) {
@@ -104,11 +104,11 @@ Gen::~Gen()
 {}
 
 
-Gen::TreeNodeKind Gen::getTreeNodePtrKind(char const *type)
+Gen::TreeNodeKind Gen::getTreeNodePtrKind(rostring type)
 {
   if (type[strlen(type)-1] == '*') {
     // is pointer type; get base type
-    string base = trimWhitespace(string(type, strlen(type)-1));
+    string base = trimWhitespace(substring(type, strlen(type)-1));
 
     return getTreeNodeKind(base);
   }
@@ -118,7 +118,7 @@ Gen::TreeNodeKind Gen::getTreeNodePtrKind(char const *type)
 }
 
 
-Gen::TreeNodeKind Gen::getTreeNodeKind(char const *base)
+Gen::TreeNodeKind Gen::getTreeNodeKind(rostring base)
 {
   // search among defined classes for this name
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
@@ -142,7 +142,7 @@ Gen::TreeNodeKind Gen::getTreeNodeKind(char const *base)
 }
 
 
-string Gen::getSuperTypeOf(char const *sub)
+string Gen::getSuperTypeOf(rostring sub)
 {
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
@@ -162,34 +162,34 @@ string Gen::getSuperTypeOf(char const *sub)
 
 
 // get just the first alphanumeric word
-string Gen::extractNodeType(char const *type)
+string Gen::extractNodeType(rostring type)
 {
-  char const *end = type;
+  char const *end = toCStr(type);
   while (isalnum(*end) || *end=='_') {
     end++;
   }
-  return string(type, end-type);
+  return substring(type, end-toCStr(type));
 }
 
 
 // is this type a use of my ASTList template?
-bool Gen::isListType(char const *type)
+bool Gen::isListType(rostring type)
 {
   // do a fairly coarse analysis.. (the space before "<" is
   // there because the type string is actually parsed by the
   // grammar, and as it assembles it back into a string it
   // inserts a space after every name-like token)
-  return 0==strncmp(type, "ASTList <", 9);
+  return prefixEquals(type, "ASTList <");
 }
 
 // similar for FakeList
-bool Gen::isFakeListType(char const *type)
+bool Gen::isFakeListType(rostring type)
 {
-  return 0==strncmp(type, "FakeList <", 9);
+  return prefixEquals(type, "FakeList <");
 }
 
 // is it a list type, with the elements being tree nodes?
-bool Gen::isTreeListType(char const *type)
+bool Gen::isTreeListType(rostring type)
 {
   return isListType(type) && isTreeNode(extractListType(type));
 }
@@ -198,13 +198,13 @@ bool Gen::isTreeListType(char const *type)
 // the type in the template argument angle brackets; this is used
 // to get the name of the type so we can pass it to the macros
 // which print list contents
-string Gen::extractListType(char const *type)
+string Gen::extractListType(rostring type)
 {
   xassert(isListType(type) || isFakeListType(type));
-  char const *langle = strchr(type, '<');
-  char const *rangle = strchr(type, '>');
+  char const *langle = strchr(toCStr(type), '<');
+  char const *rangle = strchr(toCStr(type), '>');
   xassert(langle && rangle);
-  return trimWhitespace(string(langle+1, rangle-langle-1));
+  return trimWhitespace(substring(langle+1, rangle-langle-1));
 }
 
 
@@ -212,7 +212,7 @@ string Gen::extractListType(char const *type)
 // of a class, extract the type and the name; this assumes that,
 // syntactically, they separate cleanly (without the name in the
 // middle of the type syntax)
-void parseFieldDecl(string &type, string &name, char const *decl)
+void parseFieldDecl(string &type, string &name, rostring decl)
 {
   // it's not trivial to extract the name of the field from
   // its declaration.. so let's use a simple heuristic: it's
@@ -223,18 +223,18 @@ void parseFieldDecl(string &type, string &name, char const *decl)
   int ofs = tok.offset(tok.tokc()-1);
   
   // extract the parts
-  type = trimWhitespace(string(decl, ofs));
-  name = trimWhitespace(decl+ofs);
+  type = trimWhitespace(substring(decl, ofs));
+  name = trimWhitespace(toCStr(decl)+ofs);
 }
 
-string extractFieldType(char const *decl)
+string extractFieldType(rostring decl)
 {
   string t, n;
   parseFieldDecl(t, n, decl);
   return t;
 }
 
-string extractFieldName(char const *decl)
+string extractFieldName(rostring decl)
 {
   string t, n;
   parseFieldDecl(t, n, decl);
@@ -275,7 +275,7 @@ void Gen::headerComments()
 
 
 void Gen::emitFiltered(ASTList<Annotation> const &decls, AccessCtl mode,
-                       char const *indent)
+                       rostring indent)
 {
   FOREACH_ASTLIST(Annotation, decls, iter) {
     if (iter.data()->kind() == Annotation::USERDECL) {
@@ -299,15 +299,15 @@ private:        // funcs
   void emitCtorFields(ASTList<CtorArg> const &args);
   void emitCtorFormal(int &ct, CtorArg const *arg);
   void emitCtorDefn(ASTClass const &cls, ASTClass const *parent);
-  void emitCommonFuncs(char const *virt);
+  void emitCommonFuncs(rostring virt);
   void emitUserDecls(ASTList<Annotation> const &decls);
   void emitCtor(ASTClass const &ctor, ASTClass const &parent);
   void emitVisitorInterface();
   void emitMVisitorInterface();
 
 public:         // funcs
-  HGen(char const *srcFname, ObjList<string> const &modules,
-       char const *destFname, ASTSpecFile const &file)
+  HGen(rostring srcFname, ObjList<string> const &modules,
+       rostring destFname, ASTSpecFile const &file)
     : Gen(srcFname, modules, destFname, file)
   {}
   void emitFile();
@@ -546,11 +546,11 @@ void HGen::emitCtorFormal(int &ct, CtorArg const *arg)
     out << ", ";
   }
 
-  char const *type = arg->type;
+  string const &type = arg->type;
   out << type << " ";
   if (isListType(type) ||
       isTreeNode(type) ||
-      0==strcmp(type, "LocString")) {
+      type.equals("LocString")) {
     // lists and subtrees and LocStrings are constructed by passing pointers
     trace("putStar") << "putting star for " << type << endl;
     out << "*";
@@ -652,7 +652,7 @@ void HGen::emitCtorDefn(ASTClass const &cls, ASTClass const *parent)
 }
 
 // emit functions that are declared in every tree node
-void HGen::emitCommonFuncs(char const *virt)
+void HGen::emitCommonFuncs(rostring virt)
 {
   // declare the functions they all have
   out << "  " << virt << "void debugPrint(ostream &os, int indent, char const *subtreeName = \"tree\") const;\n";
@@ -761,9 +761,9 @@ public:
   string hdrFname;      // name of associated .h file
 
 public:
-  CGen(char const *srcFname, ObjList<string> const &modules,
-       char const *destFname, ASTSpecFile const &file,
-       char const *hdr)
+  CGen(rostring srcFname, ObjList<string> const &modules,
+       rostring destFname, ASTSpecFile const &file,
+       rostring hdr)
     : Gen(srcFname, modules, destFname, file),
       hdrFname(hdr)
   {}
@@ -771,14 +771,14 @@ public:
   void emitFile();
   void emitTFClass(TF_class const &cls);
   void emitDestructor(ASTClass const &cls);
-  void emitDestroyField(bool isOwner, char const *type, char const *name);
+  void emitDestroyField(bool isOwner, rostring type, rostring name);
   void emitPrintCtorArgs(ASTList<CtorArg> const &args);
   void emitPrintFields(ASTList<Annotation> const &decls);
-  void emitPrintField(char const *print,
-                      bool isOwner, char const *type, char const *name);
+  void emitPrintField(rostring print,
+                      bool isOwner, rostring type, rostring name);
 
   void emitXmlPrintCtorArgs(ASTList<CtorArg> const &args);
-  void emitCustomCode(ASTList<Annotation> const &list, char const *tag);
+  void emitCustomCode(ASTList<Annotation> const &list, rostring tag);
 
   void emitCloneCtorArg(CtorArg const *arg, int &ct);
   void emitCloneCode(ASTClass const *super, ASTClass const *sub);
@@ -788,8 +788,8 @@ public:
                     bool hasChildren);
 
   void emitMVisitorImplementation();
-  void emitMTraverse(ASTClass const *c, char const *obj, char const *ident);
-  void emitMTraverseCall(char const *i, char const *eltType, char const *argVar);
+  void emitMTraverse(ASTClass const *c, rostring obj, rostring ident);
+  void emitMTraverseCall(rostring i, rostring eltType, rostring argVar);
 };
 
 
@@ -1007,7 +1007,7 @@ void CGen::emitTFClass(TF_class const &cls)
 }
 
 
-void CGen::emitCustomCode(ASTList<Annotation> const &list, char const *tag)
+void CGen::emitCustomCode(ASTList<Annotation> const &list, rostring tag)
 {
   FOREACH_ASTLIST(Annotation, list, iter) {
     CustomCode const *cc = iter.data()->ifCustomCodeC();
@@ -1050,7 +1050,7 @@ void CGen::emitDestructor(ASTClass const &cls)
   out << "\n";
 }
 
-void CGen::emitDestroyField(bool isOwner, char const *type, char const *name)
+void CGen::emitDestroyField(bool isOwner, rostring type, rostring name)
 {
   if (isTreeListType(type)) {
     // explicitly destroy list elements, because it's easy to do, and
@@ -1111,8 +1111,8 @@ void CGen::emitPrintFields(ASTList<Annotation> const &decls)
   }
 }
 
-void CGen::emitPrintField(char const *print,
-                          bool isOwner, char const *type, char const *name)
+void CGen::emitPrintField(rostring print,
+                          bool isOwner, rostring type, rostring name)
 {
   if (0==strcmp(type, "string")) {
     out << "  " << print << "_STRING(" << name << ");\n";
@@ -1195,7 +1195,7 @@ void CGen::emitCloneCtorArg(CtorArg const *arg, int &ct)
 
 void CGen::emitCloneCode(ASTClass const *super, ASTClass const *sub)
 {
-  char const *name = sub? sub->name : super->name;
+  string const &name = sub? sub->name : super->name;
   out << name << " *" << name << "::clone() const\n"
       << "{\n"
       << "  " << name << " *ret = new " << name << "(";
@@ -1445,7 +1445,7 @@ void CGen::emitMVisitorImplementation()
 
 
 // emit mtraverse calls for the fields
-void CGen::emitMTraverse(ASTClass const *c, char const *obj, char const *i)
+void CGen::emitMTraverse(ASTClass const *c, rostring obj, rostring i)
 {
   // traverse into the ctor arguments
   FOREACH_ASTLIST(CtorArg, c->args, iter) {
@@ -1495,7 +1495,7 @@ void CGen::emitMTraverse(ASTClass const *c, char const *obj, char const *i)
 }
 
 
-void CGen::emitMTraverseCall(char const *i, char const *eltType, char const *argVar)
+void CGen::emitMTraverseCall(rostring i, rostring eltType, rostring argVar)
 {
   if (isSuperclassTreeNode(eltType)) {
     // easy case
@@ -1550,7 +1550,7 @@ void mergeEnum(TF_enum *base, TF_enum *ext)
 }
 
 
-ASTClass *findClass(TF_class *base, char const *name)
+ASTClass *findClass(TF_class *base, rostring name)
 {
   FOREACH_ASTLIST_NC(ASTClass, base->ctors, iter) {
     if (iter.data()->name.equals(name)) {
@@ -1587,7 +1587,7 @@ void mergeSuperclass(TF_class *base, TF_class *ext)
 }
 
 
-TF_class *findSuperclass(ASTSpecFile *base, char const *name)
+TF_class *findSuperclass(ASTSpecFile *base, rostring name)
 {
   // I can *not* simply iterate over 'allClasses', because that
   // list is created *after* merging!
@@ -1601,7 +1601,7 @@ TF_class *findSuperclass(ASTSpecFile *base, char const *name)
   return NULL;    // not found
 }
 
-TF_enum *findEnum(ASTSpecFile *base, char const *name)
+TF_enum *findEnum(ASTSpecFile *base, rostring name)
 {
   FOREACH_ASTLIST_NC(ToplevelForm, base->forms, iter) {
     ToplevelForm *tf = iter.data();
@@ -1707,7 +1707,7 @@ void checkUnusedCustoms(ASTClass const *c)
 }
 
         
-void grabVisitorName(char const *visop, string &visname, TF_option const *op)
+void grabVisitorName(rostring visop, string &visname, TF_option const *op)
 {
   if (op->args.count() != 1) {
     cout << "'" << visop << "' option requires one argument\n";

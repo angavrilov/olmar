@@ -51,8 +51,8 @@ public:      // types
   public:
     AltReportError(GrammarLexer &L) : lexer(L) {}
 
-    virtual void reportError(char const *msg);
-    virtual void reportWarning(char const *msg);
+    virtual void reportError(rostring msg);
+    virtual void reportWarning(rostring msg);
   };
   friend class AltReportError;
   
@@ -68,7 +68,7 @@ private:     // data
     yy_buffer_state *bufstate;     // (owner?) flex's internal buffer state
 
   public:
-    FileState(char const *filename, istream *source);
+    FileState(rostring filename, istream *source);
     ~FileState();
 
     FileState(FileState const &obj);
@@ -176,22 +176,22 @@ public:      // funcs
   string curLocStr() const;    // string with file/line/col
 
   // error reporting; called by the lexer code
-  void err(char const *msg) { reportError(msg); }     // msg should not include a newline
+  void err(rostring msg) { reportError(msg); }     // msg should not include a newline
   void errorUnterminatedComment();
   void errorMalformedInclude();
   void errorIllegalCharacter(char ch);
 
-  void printError(SourceLoc loc, char const *msg);
-  void printWarning(SourceLoc loc, char const *msg);
+  void printError(SourceLoc loc, rostring msg);
+  void printWarning(SourceLoc loc, rostring msg);
 
   // for processing includes
-  void recursivelyProcess(char const *fname, istream * /*owner*/ source);
+  void recursivelyProcess(rostring fname, istream * /*owner*/ source);
   void popRecursiveFile();
   bool hasPendingFiles() const;
   
   // ReportError funcs
-  virtual void reportError(char const *msg);
-  virtual void reportWarning(char const *msg);
+  virtual void reportError(rostring msg);
+  virtual void reportWarning(rostring msg);
 };
 
 

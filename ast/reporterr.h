@@ -4,21 +4,23 @@
 #ifndef REPORTERR_H
 #define REPORTERR_H
 
+#include "str.h"        // rostring
+
 class ReportError {
 public:                                     
   // report an error; 'str' should not have a newline
-  virtual void reportError(char const *str)=0;
+  virtual void reportError(rostring str)=0;
 
   // report a warning
-  virtual void reportWarning(char const *str)=0;
+  virtual void reportWarning(rostring str)=0;
 };
 
 
 // print messages to stdout with "error: " or "warning: " prepended
 class SimpleReportError : public ReportError {
 public:
-  virtual void reportError(char const *str);
-  virtual void reportWarning(char const *str);
+  virtual void reportError(rostring str);
+  virtual void reportWarning(rostring str);
 };
 
 extern SimpleReportError simpleReportError;
@@ -27,8 +29,8 @@ extern SimpleReportError simpleReportError;
 // throw away messages
 class SilentReportError : public ReportError {
 public:
-  virtual void reportError(char const *str);
-  virtual void reportWarning(char const *str);
+  virtual void reportError(rostring str);
+  virtual void reportWarning(rostring str);
 };
 
 extern SilentReportError silentReportError;

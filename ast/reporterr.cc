@@ -7,12 +7,12 @@
 
 
 // --------------------- SimpleReportError -------------------------
-void SimpleReportError::reportError(char const *str)
+void SimpleReportError::reportError(rostring str)
 {
   cout << "error: " << str << endl;
 }
 
-void SimpleReportError::reportWarning(char const *str)
+void SimpleReportError::reportWarning(rostring str)
 {
   cout << "warning: " << str << endl;
 }
@@ -21,10 +21,10 @@ SimpleReportError simpleReportError;
 
 
 // --------------------- SilentReportError -------------------------
-void SilentReportError::reportError(char const *str)
+void SilentReportError::reportError(rostring str)
 {}
 
-void SilentReportError::reportWarning(char const *str)
+void SilentReportError::reportWarning(rostring str)
 {}
 
 SilentReportError silentReportError;

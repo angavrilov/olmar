@@ -23,20 +23,20 @@
 
 
 // ----------------- GrammarLexer::AltReportError ---------------
-void GrammarLexer::AltReportError::reportError(char const *msg)
+void GrammarLexer::AltReportError::reportError(rostring msg)
 {
   lexer.printError(lexer.fileState.loc, msg);
 }
 
-void GrammarLexer::AltReportError::reportWarning(char const *msg)
+void GrammarLexer::AltReportError::reportWarning(rostring msg)
 {
   lexer.printWarning(lexer.fileState.loc, msg);
 }
 
 
 // ----------------- GrammarLexer::FileState --------------------
-GrammarLexer::FileState::FileState(char const *filename, istream *src)
-  : loc(sourceLocManager->encodeBegin(filename)),
+GrammarLexer::FileState::FileState(rostring filename, istream *src)
+  : loc(sourceLocManager->encodeBegin(toCStr(filename))),
     source(src),
     bufstate(NULL)
 {}
@@ -144,7 +144,7 @@ int GrammarLexer::yylexInc()
     string fname = includeFileName;
 
     // 'in' will be deleted in ~GrammarLexer
-    ifstream *in = new ifstream(fname);
+    ifstream *in = new ifstream(fname.c_str());
     if (!*in) {
       err(stringc << "unable to open include file `" << fname << "'");
     }
@@ -210,13 +210,13 @@ bool GrammarLexer::embedFinishMatches(char ch) const
 
 StringRef GrammarLexer::curFuncBody() const
 {
-  return strtable.add(embedded->getFuncBody());
+  return strtable.add(embedded->getFuncBody().c_str());
 }
 
 
 StringRef GrammarLexer::curDeclName() const
 {
-  return strtable.add(embedded->getDeclName());
+  return strtable.add(embedded->getDeclName().c_str());
 }
 
 
@@ -226,24 +226,24 @@ string GrammarLexer::curLocStr() const
 }
 
 
-void GrammarLexer::reportError(char const *msg)
+void GrammarLexer::reportError(rostring msg)
 {
   printError(curLoc(), msg);
 }
 
-void GrammarLexer::printError(SourceLoc loc, char const *msg)
+void GrammarLexer::printError(SourceLoc loc, rostring msg)
 {
   errors++;
   cerr << toString(loc) << ": error: " << msg << endl;
 }
 
 
-void GrammarLexer::reportWarning(char const *msg)
+void GrammarLexer::reportWarning(rostring msg)
 {
   printWarning(curLoc(), msg);
 }
 
-void GrammarLexer::printWarning(SourceLoc loc, char const *msg)
+void GrammarLexer::printWarning(SourceLoc loc, rostring msg)
 {
   cerr << toString(loc) << ": warning: " << msg << endl;
 }
@@ -266,7 +266,7 @@ void GrammarLexer::errorIllegalCharacter(char ch)
 }
 
 
-void GrammarLexer::recursivelyProcess(char const *fname, istream *source)
+void GrammarLexer::recursivelyProcess(rostring fname, istream *source)
 {
   trace("lex") << "recursively processing " << fname << endl;
                        

@@ -5,6 +5,7 @@
 #define AGRAMPAR_H
 
 #include "ast.hand.h"       // AST node class declarations
+#include "str.h"            // string
 
 class GrammarLexer;
 
@@ -48,7 +49,7 @@ string *box(char const *s);
 string *appendStr(string *left, string *right);
 
 // parse a string into components
-CtorArg *parseCtorArg(char const *str);
+CtorArg *parseCtorArg(rostring str);
 
 // error routine
 void agrampar_yyerror(char const *msg, void *parseParam);

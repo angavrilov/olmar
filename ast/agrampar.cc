@@ -36,7 +36,7 @@ string *appendStr(string *left, string *right)
 }
 
 
-CtorArg *parseCtorArg(char const *origStr)
+CtorArg *parseCtorArg(rostring origStr)
 {
   CtorArg *ret = new CtorArg(false, "", "", "");
 
@@ -44,24 +44,24 @@ CtorArg *parseCtorArg(char const *origStr)
   string str = trimWhitespace(origStr);
 
   // check for owner flag
-  if (0==strncmp(str, "owner", 5)) {
+  if (str.equals("owner")) {
     ret->isOwner = true;
     str = str.substring(6, str.length() - 6);    // skip "owner "
   }
 
   // check for an initial value
-  char const *equals = strchr(str, '=');
+  char const *equals = strchr(str.c_str(), '=');
   if (equals) {
     ret->defaultValue = equals+1;
-    str = trimWhitespace(str.substring(0, equals-str.pcharc()));
-    trace("defaultValue") << "split into `" << str 
+    str = trimWhitespace(str.substring(0, equals-str.c_str()));
+    trace("defaultValue") << "split into `" << str
                           << "' and `" << ret->defaultValue << "'\n";
   }
 
   // work from the right adge, collecting alphanumerics into the name;
   // this restricts the kinds of C type syntaxes we allow, but you can use
   // typedefs to express any type within these restrictions
-  char const *start = str.pcharc();
+  char const *start = str.c_str();
   char const *p = start + str.length() - 1;
   while ((isalnum(*p) || *p == '_') && p > start) {
     p--;
@@ -71,7 +71,7 @@ CtorArg *parseCtorArg(char const *origStr)
   }
   p++;
 
-  ret->type = trimWhitespace(string(start, p-start));
+  ret->type = trimWhitespace(substring(start, p-start));
   ret->name = trimWhitespace(string(p));
 
   return ret;

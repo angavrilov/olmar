@@ -160,7 +160,7 @@ string CCSubstrate::getDeclName() const
 {
   // go with the rather inelegant heuristic that the word
   // just before the first '(' is the function's name
-  char const *start = text.pcharc();
+  char const *start = text.c_str();
   char const *p = start;
   
   // find first '('
@@ -187,7 +187,7 @@ string CCSubstrate::getDeclName() const
   p++;    // move back to most recent legal char
   
   // done
-  return string(p, nameEnd-p);
+  return substring(p, nameEnd-p);
 }
 
 
@@ -201,22 +201,24 @@ string CCSubstrate::getDeclName() const
 // can grant it access to private fields
 class Test {
 public:
-  void feed(CC &cc, char const *src);
-  void test(char const *src, CC::State state, int nesting, bool flag);
-  void normal(char const *src, int nesting);
-  void str(char const *src, int nesting, bool bs);
-  void yes(char const *src);
-  void no(char const *src);
-  void name(char const *body, char const *n);
-  void badname(char const *body);
+  void feed(CC &cc, rostring src);
+  void test(rostring src, CC::State state, int nesting, bool flag);
+  void normal(rostring src, int nesting);
+  void str(rostring src, int nesting, bool bs);
+  void yes(rostring src);
+  void no(rostring src);
+  void name(rostring body, rostring n);
+  void badname(rostring body);
   int main();
 };
 
 
 #define min(a,b) ((a)<(b)?(a):(b))
 
-void Test::feed(CC &cc, char const *src)
+void Test::feed(CC &cc, rostring origSrc)
 {
+  char const *src = toCStr(origSrc);
+
   //cout << "trying: " << src << endl;
   while (*src) {
     // feed it in 10 char increments, to test split processing too
@@ -227,7 +229,7 @@ void Test::feed(CC &cc, char const *src)
 }
 
 
-void Test::test(char const *src, CC::State state, int nesting, bool flag)
+void Test::test(rostring src, CC::State state, int nesting, bool flag)
 {
   CC cc(&silentReportError);
   feed(cc, src);
@@ -241,12 +243,12 @@ void Test::test(char const *src, CC::State state, int nesting, bool flag)
 }
 
 
-void Test::normal(char const *src, int nesting)
+void Test::normal(rostring src, int nesting)
 {
   test(src, CC::ST_NORMAL, nesting, false);
 }
 
-void Test::str(char const *src, int nesting, bool bs)
+void Test::str(rostring src, int nesting, bool bs)
 {
   test(src, CC::ST_STRING, nesting, bs);
 
@@ -256,7 +258,7 @@ void Test::str(char const *src, int nesting, bool bs)
 }
 
 
-void Test::yes(char const *src)
+void Test::yes(rostring src)
 {
   CC cc(&silentReportError);
   feed(cc, src);
@@ -264,7 +266,7 @@ void Test::yes(char const *src)
   xassert(cc.zeroNesting());
 }
 
-void Test::no(char const *src)
+void Test::no(rostring src)
 {
   CC cc(&silentReportError);
   feed(cc, src);
@@ -272,14 +274,14 @@ void Test::no(char const *src)
   xassert(!cc.zeroNesting());
 }
 
-void Test::name(char const *body, char const *n)
+void Test::name(rostring body, rostring n)
 {
   CC cc(&silentReportError);
   feed(cc, body);
   xassert(cc.getDeclName().equals(n));
 }
 
-void Test::badname(char const *body)
+void Test::badname(rostring body)
 {
   CC cc(&silentReportError);
   feed(cc, body);

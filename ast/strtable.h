@@ -5,6 +5,7 @@
 #define STRTABLE_H
 
 #include "strhash.h"     // StringHash
+#include "str.h"         // rostring
 
 // fwd
 class Flatten;
@@ -85,9 +86,11 @@ public:     // funcs
   // unique representative, such that multiple calls to 'add' with
   // the same string contents will always yield the same value
   StringRef add(char const *src);
+  StringRef add(rostring src) { return add(src.c_str()); }
 
   // some syntactic sugar
   StringRef operator() (char const *src) { return add(src); }
+  StringRef operator() (rostring src) { return add(src); }
 
   // if 'src' is in the table, return its representative; if not,
   // return NULL
