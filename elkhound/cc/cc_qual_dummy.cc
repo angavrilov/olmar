@@ -6,7 +6,6 @@
 // cc_qual_dummy.h and cc.ast.  Adapted from cc_tcheck.cc by Daniel
 // Wilkerson dsw@cs.berkeley.edu
 
-#include "qualifiers.h"         // this module
 #include "cc.ast.gen.h"         // C++ AST; this module
 
 void init_cc_qual(char *config_file) {

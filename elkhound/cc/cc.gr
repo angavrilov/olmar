@@ -68,6 +68,11 @@ verbatim CCGr [
 #include "trace.h"        // trace
 #include "cc.ast.gen.h"   // C++ abstract syntax
 #include "cc_lang.h"      // CCLang
+#ifdef CC_QUAL
+  #include "cc_qual/cc_qualifiers.h"
+#else
+  #include "cc_qualifiers_dummy.h"
+#endif
 
 #define D(msg) \
   trace("cc") << msg << endl
@@ -475,6 +480,7 @@ nonterm[IDeclarator*] NewDeclaratorOpt {
   -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:NewDeclaratorOpt
        [ D_pointer *p = new D_pointer(true /*isPtr*/, cv, d);
          p->q->appendQualifierLiterals(ql);
+         p->q->loc = loc;
          return p;
        ]
 
@@ -1144,10 +1150,14 @@ nonterm[IDeclarator*] Declarator {
   -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:Declarator
        [ D_pointer *p = new D_pointer(true /*isPtr*/, cv, d);
          p->q->appendQualifierLiterals(ql);
+         p->q->loc = loc;
          return p;
        ]
   -> "&" d:Declarator
-       [ return new D_pointer(false /*isPtr*/, CV_NONE, d); ]
+       [ D_pointer *p = new D_pointer(false /*isPtr*/, CV_NONE, d);
+         p->q->loc = loc;
+         return p;
+       ]
 
   -> d:DirectDeclarator
        [ return d; ]
@@ -1174,6 +1184,7 @@ nonterm[IDeclarator*] DirectDeclarator {
      e:ExceptionSpecificationOpt               // optional "throw" clause
        [ D_func *f = new D_func(loc, d, params, cv, e);
          f->q->appendQualifierLiterals(ql);
+         f->q->loc = loc;
          return f;
        ]
 
@@ -1278,10 +1289,14 @@ nonterm[IDeclarator*] AbstractDeclarator {
   -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
        [ D_pointer *p = new D_pointer(true /*isPtr*/, cv, d);
          p->q->appendQualifierLiterals(ql);
+         p->q->loc = loc;
          return p;
        ]
   -> "&" d:AbstractDeclaratorOpt
-       [ return new D_pointer(false /*isPtr*/, CV_NONE, d); ]
+       [ D_pointer *p = new D_pointer(false /*isPtr*/, CV_NONE, d);
+         p->q->loc = loc;
+         return p;
+       ]
 
   -> d:DirectAbstractDeclarator
        [ return d; ]
@@ -1315,6 +1330,7 @@ nonterm[IDeclarator*] DirectAbstractDeclarator {
      e:ExceptionSpecificationOpt
        [ D_func *f = new D_func(loc, d, args, cv, e);
          f->q->appendQualifierLiterals(ql);
+         f->q->loc = loc;
          return f;
        ]
 
@@ -1751,10 +1767,14 @@ nonterm[IDeclarator*] ConversionDeclaratorOpt {
   -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:ConversionDeclaratorOpt
        [ D_pointer *p = new D_pointer(true /*isPtr*/, cv, d);
          p->q->appendQualifierLiterals(ql);
+         p->q->loc = loc;
          return p;
        ]
   -> "&" d:ConversionDeclaratorOpt
-       [ return new D_pointer(false /*isPtr*/, CV_NONE, d); ]
+       [ D_pointer *p = new D_pointer(false /*isPtr*/, CV_NONE, d);
+         p->q->loc = loc;
+         return p;
+       ]
 }
 
 

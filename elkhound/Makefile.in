@@ -202,14 +202,17 @@ cc-set := \
   cc/cc_print.o \
   cc/cc_ast_aux.o \
   cc/treeout.o \
-  cc/variable.o \
-  cc/qualifiers.o
+  cc/variable.o
+
 ifdef CC_QUAL
+  cc-set += cc/cc_qual/cc_qualifiers.o
   cc-set += cc/cc_qual/cc_qual.o
   cc-set += cc/cc_qual/cqual_iface.o
 else
+  cc-set += cc/cc_qualifiers_dummy.o
   cc-set += cc/cc_qual_dummy.o
 endif
+
 -include $(filter-out $(AST)/%, $(cc-set:.o=.d))
 
 # dsw: to be included above when turned on

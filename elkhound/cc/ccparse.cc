@@ -20,7 +20,6 @@
   #include "cc_qual/cc_qual.h"
   #include "cc_qual/cqual_iface.h"
 #else
-  #include "qualifiers.h"
   #include "cc_qual_dummy.h"
 #endif
 //  #include "cc_flatten.h"   // FlattenEnv
@@ -177,6 +176,7 @@ void doit(int argc, char **argv)
     // done above
     //        init_cc_qual("cc_qual/cqual/config/lattice");
     QualEnv env;
+    Qualifiers::insertInstancesIntoGraph();
     unit->qual(env);
     finish_cc_qual();
     traceProgress() << "dsw cc_qual... done\n";
