@@ -10,6 +10,8 @@
 #ifndef ARRAYMAP_H
 #define ARRAYMAP_H
 
+#include "xassert.h"     // xassert
+
 // map: int -> T
 template <class T>
 class ArrayMap {
@@ -53,7 +55,7 @@ void ArrayMap<T>::make()
 template <class T>
 void ArrayMap<T>::del()
 {
-  loopi(nextId) {
+  for (int i=0; i<nextId; i++) {
     delete map[i];
   }
   delete[] map;
@@ -68,7 +70,7 @@ int ArrayMap<T>::insert(T *t)
     T **newMap = new T* [newMapSize];
 
     // copy the old contents to the new map
-    loopi(mapSize) {
+    for (int i=0; i<mapSize; i++) {
       newMap[i] = map[i];
     }
     mapSize = newMapSize;
