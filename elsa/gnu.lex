@@ -14,6 +14,7 @@
 "__restrict"           return tok(TOK___RESTRICT__);
 "__restrict__"         return tok(TOK___RESTRICT__);
 "__builtin_expect"     return tok(TOK___BUILTIN_EXPECT);
+"__builtin_va_arg"     return tok(TOK___BUILTIN_VA_ARG);
 
   /* behavior of these depends on CCLang settings */
 "__FUNCTION__"|"__PRETTY_FUNCTION__" {

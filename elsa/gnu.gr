@@ -68,6 +68,10 @@ nonterm(Expression*) UnaryExpression {
   // though.
   -> "__builtin_expect" "(" e:Expression "," /*prediction*/Expression ")"
        { return new E_grouping(e); }
+
+  // dsw: just want to parse this for now
+  -> "__builtin_va_arg" "(" e:Expression "," t:TypeId ")"
+       { return new E___builtin_va_arg(loc, e, t); }
 }
 
 // dsw: had to break this out for location recording reasons

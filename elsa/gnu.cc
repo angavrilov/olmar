@@ -84,6 +84,15 @@ Type *E___builtin_constant_p::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
+Type *E___builtin_va_arg::itcheck_x(Env &env, Expression *&replacement)
+{
+  ASTTypeId::Tcheck tc(DF_NONE, DC_E_BUILTIN_VA_ARG);
+  expr->tcheck(env, expr);
+  atype = atype->tcheck(env, tc);
+  return atype->getType();
+}
+
+
 Type *E_alignofType::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc(DF_NONE, DC_E_ALIGNOFTYPE);
@@ -187,6 +196,15 @@ void E___builtin_constant_p::iprint(PrintEnv &env)
   olayer ol("E___builtin_constant_p::iprint");
   codeout co(env, "__builtin_constant_p", "(", ")");
   expr->print(env);
+}
+
+void E___builtin_va_arg::iprint(PrintEnv &env)
+{
+  olayer ol("E___builtin_va_arg::iprint");
+  codeout co(env, "__builtin_va_arg", "(", ")");
+  expr->print(env);
+  env << ", ";
+  atype->print(env);
 }
 
 void E_alignofType::iprint(PrintEnv &env)

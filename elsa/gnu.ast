@@ -58,6 +58,7 @@ enum DeclaratorContext {
   DC_TS_TYPEOF_TYPE,      //   TS_typeof_type::atype
   DC_E_COMPOUNDLIT,       //   E_compoundLit::stype
   DC_E_ALIGNOFTYPE,       //   E_alignofType::atype
+  DC_E_BUILTIN_VA_ARG,    //   E___builtin_va_arg::atype
 }
 
 
@@ -65,6 +66,8 @@ class Expression {
   -> E_compoundLit(ASTTypeId stype, IN_compound init);
 
   -> E___builtin_constant_p(SourceLoc loc, Expression expr);
+
+  -> E___builtin_va_arg(SourceLoc loc, Expression expr, ASTTypeId atype);
 
   -> E_alignofType(ASTTypeId atype);
 
