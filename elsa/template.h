@@ -253,25 +253,6 @@ public:      // funcs
   ObjList<STemplateArgument> &getArgumentsToPrimary();
 
 
-  // TODO: The following block of functions has several that accept
-  // TypeFactory arguments because they need to call into the
-  // MatchTypes module.  Either MatchTypes should be changed so it
-  // doesn't use the factory (preferable), or these methods should be
-  // moved into Env to reflect their dependence on the TypeFactory.
-  #if 0     // catch call sites
-  // add to the instantiation list; supress duplicates by assigning to
-  // the reference 'inst0' only if suppressDup is true
-  Variable *addInstantiation(TypeFactory &tfac, Variable *inst0,
-                             bool suppressDup=false);
-  // only use this for iteration, not appending!  Don't know a good
-  // way to enforce that
-  SObjList<Variable> &getInstantiations();
-  // get the instantiation that matches 'var' in type (types are
-  // MM_ISO) and in template arguments; handy for finding the previous
-  // declaration of a function to hook up the definition to
-  Variable *getInstantiationOfVar(TypeFactory &tfac, Variable *var);
-  #endif // 0
-
   // true if 'list' contains equivalent semantic arguments
   bool equalArguments(TypeFactory &tfac, SObjList<STemplateArgument> const &list) const;
 

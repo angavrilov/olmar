@@ -2667,11 +2667,6 @@ bool multipleDefinitionsOK(Env &env, Variable *prior, DeclFlags dflags)
 // now trivial
 bool sameScopes(Scope *s1, Scope *s2)
 {
-  #if 0      // old
-  if (s1 && s1->scopeKind == SK_GLOBAL) { s1 = NULL; }
-  if (s2 && s2->scopeKind == SK_GLOBAL) { s2 = NULL; }
-  #endif // 0
-
   return s1 == s2;
 }
 

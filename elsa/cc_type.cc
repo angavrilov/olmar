@@ -1148,18 +1148,6 @@ bool BaseType::isMethod() const
          asFunctionTypeC()->isMethod();
 }
 
-#if 0     // obsolete, delete me
-bool BaseType::isPointer() const
-{
-  return isPointerType() && asPointerTypeC()->op == PO_POINTER;
-}
-
-bool BaseType::isReference() const
-{
-  return isPointerType() && asPointerTypeC()->op == PO_REFERENCE;
-}
-#endif // 0
-
 bool BaseType::isReferenceToConst() const {
   return isReferenceType() && asReferenceTypeC()->atType->isConst();
 }

@@ -341,23 +341,12 @@ void Function::tcheckBody(Env &env)
       // should be the same one in which the variable was
       // declared (could this be triggered by user code?)
       if (encloses && qualifierScopes.isNotEmpty()) {
+        // sm: 8/11/04: At one point this assertion was weakened to a
+        // condition involving matching types.  That was wrong; the
+        // innermost scope must be *exactly* the declaration scope of
+        // the function, otherwise we'll be looking in the wrong scope
+        // for members, etc.
         xassert(s == qualifierScopes.top());
-        
-        #if 0      // wrong
-        // I had to weaken this assertion to deal with the difference
-        // between the template scope and its instantiation which
-        // occurs when a function member of a class template is
-        // instantiated and typechecked
-//          xassert(s == qualifierScopes.top());
-        if (s != qualifierScopes.top()) {
-          MatchTypes match(env.tfac, MatchTypes::MM_WILD);
-          CompoundType *sCpd = s->curCompound;
-          xassert(sCpd);
-          CompoundType *qCpd = qualifierScopes.top()->curCompound;
-          xassert(qCpd);
-          xassert(match.match_Atomic(sCpd, qCpd, 0 /*matchDepth*/));
-        }
-        #endif // 0
       }
     }
   }
@@ -5926,45 +5915,6 @@ void TD_tmember::itcheck(Env &env)
   // new take{C,F}TemplateInfo functions know how to get parameters
   // out of multiple layers of nested template scopes
   d->tcheck(env);
-
-  #if 0    // old, doesn't really work
-  // The params from 'this' object have already been set up; but I need
-  // to dig down into 'd' and get its params too, since otherwise its
-  // default 'tcheck' would obliterate the ones from 'this'.
-  //
-  // Note that the effect of this code is to make
-  //   template <class S>
-  //   template <class T>
-  // indistinguishable from
-  //   template <class S, class T>
-  // but the spec clearly regards them as different.  One possible solution
-  // is to have separate slots in Scope for class-params and member-params.
-  // Another might be to change the way declarations gather extant parameters,
-  // and have them look at the enclosing *two* scopes for template params
-  // instead of just the innermost enclosing scope.  For now I merely note
-  // these possibilities and move on.
-  //
-  // What follows is a specialized version of TemplateDeclaration::tcheck (above).
-
-  // get the scope made by my caller
-  Scope *paramScope = env.scope();
-  xassert(paramScope->isTemplateParamScope() &&
-          !paramScope->canAcceptNames);
-
-  // temporarily allow it to accept more names
-  paramScope->canAcceptNames = true;
-
-  // check each of d's parameters
-  FAKELIST_FOREACH_NC(TemplateParameter, d->params, iter) {
-    iter->tcheck(env, paramScope->templateParams);
-  }
-
-  // revert acceptance
-  paramScope->canAcceptNames = false;
-
-  // check what is inside 'd', past its template parameters
-  d->itcheck(env);
-  #endif // 0
 }
 
 

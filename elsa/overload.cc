@@ -1137,27 +1137,6 @@ bool isProperSubpath(CompoundType const *LS, CompoundType const *LD,
 
 
 // --------------------- ConversionResolver -----------------------
-#if 0   // 8/13/03: delete me
-void getConversionOperators(SObjList<Variable> &dest, Env &env,
-                            CompoundType *ct)
-{
-  // for now, consider only conversion operators defined in the class
-  // itself; later, I'll implement a scheme to collect the list of
-  // conversions inherited, plus those in the class itself
-
-  Variable *v = ct->lookupVariable(env.conversionOperatorName, env);
-  if (v) {
-    if (v->overload) {
-      dest.appendAll(v->overload->set);
-    }
-    else {
-      dest.prepend(v);
-    }
-  }
-}
-#endif // 0
-
-
 ImplicitConversion getConversionOperator(
   Env &env,
   SourceLoc loc,
