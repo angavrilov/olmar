@@ -60,7 +60,7 @@ class Function {
 
   // if 'checkBody' is false, we treat this like it was just
   // a prototype for the function
-  public void tcheck(Env &env, bool checkBody);
+  public void tcheck(Env &env, bool isMember, bool checkBody);
 
   private CompoundType *verifyIsCtor(Env &env, char const *context);
   private void tcheck_memberInits(Env &env);
@@ -239,6 +239,9 @@ class Declarator {
     // the cv flags of the implicit 'this' parameter of member functions
     D_func *funcSyntax;
 
+    // is this a declarator for a member?
+    bool isMember;
+
     // is this a declarator for a temporary?
     bool isTemporary;
 
@@ -252,14 +255,16 @@ class Declarator {
     } context;
 
   public:
-    Tcheck(Type *t, DeclFlags d, bool isTemporary0)
+    Tcheck(Type *t, DeclFlags d, bool isMember0, bool isTemporary0)
       : var(NULL), type(t), dflags(d),
         size_E_new(NULL), funcSyntax(NULL),
+        isMember(isMember0),
         isTemporary(isTemporary0),
         context(CTX_ORDINARY) {}
     Tcheck(Tcheck const &obj)
       : var(obj.var), type(obj.type), dflags(obj.dflags),
         size_E_new(obj.size_E_new), funcSyntax(obj.funcSyntax),
+        isMember(obj.isMember),
         isTemporary(obj.isTemporary),
         context(obj.context) {}
 
@@ -270,6 +275,7 @@ class Declarator {
       size_E_new  = obj.size_E_new;
       context     = obj.context;
       funcSyntax  = obj.funcSyntax;
+      isMember    = obj.isMember;
       isTemporary = obj.isTemporary;
       return *this;
     }

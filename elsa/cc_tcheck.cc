@@ -105,7 +105,7 @@ void TF_decl::tcheck(Env &env)
 void TF_func::tcheck(Env &env)
 {
   env.setLoc(loc);
-  f->tcheck(env, true /*checkBody*/);
+  f->tcheck(env, false /*isMember*/, true /*checkBody*/);
 }
 
 void TF_template::tcheck(Env &env)
@@ -148,7 +148,7 @@ void TF_asm::tcheck(Env &)
 
 
 // --------------------- Function -----------------
-void Function::tcheck(Env &env, bool checkBody)
+void Function::tcheck(Env &env, bool isMember, bool checkBody)
 {
   // are we in a template function?
   bool inTemplate = env.scope()->curTemplateParams != NULL;
@@ -166,6 +166,7 @@ void Function::tcheck(Env &env, bool checkBody)
   // parameter names for this definition
   Declarator::Tcheck dt(retTypeSpec,
                         (DeclFlags)(dflags | (checkBody? DF_DEFINITION : 0)),
+                        isMember,
                         false);
   nameAndParams = nameAndParams->tcheck(env, dt);
 
@@ -504,7 +505,7 @@ void Declaration::tcheck(Env &env, bool isMember, bool isTemporary)
   // each declarator..)
   if (decllist) {
     // check first declarator
-    Declarator::Tcheck dt1(specType, dflags, isTemporary);
+    Declarator::Tcheck dt1(specType, dflags, isMember, isTemporary);
     decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
 
     // check subsequent declarators
@@ -515,7 +516,7 @@ void Declaration::tcheck(Env &env, bool isMember, bool isTemporary)
       Type *dupType = env.tfac.cloneType(specType);
 
       xassert(!isTemporary);
-      Declarator::Tcheck dt2(dupType, dflags, isTemporary);
+      Declarator::Tcheck dt2(dupType, dflags, isMember, isTemporary);
       prev->next = prev->next->tcheck(env, dt2);
 
       prev = prev->next;
@@ -553,7 +554,10 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
   Type *specType = spec->tcheck(env, DF_NONE);
                          
   // pass contextual info to declarator
-  Declarator::Tcheck dt(specType, tc.dflags, false);
+  Declarator::Tcheck dt(specType, tc.dflags,
+                        false,  // isMember
+                        false   // isTemporary
+                        );
   dt.context = tc.newSizeExpr? Declarator::Tcheck::CTX_E_NEW :
                tc.isParameter? Declarator::Tcheck::CTX_PARAM :
                                Declarator::Tcheck::CTX_ORDINARY;
@@ -1113,12 +1117,12 @@ void TS_classSpec::tcheckIntoCompound(
 
   // second pass: check function bodies
   bool innerClass = !!containingClass;
-//    cout << "ct->name " << ct->name << ": ";
+  cout << "**** ct->name " << ct->name << ": ";
   if (!innerClass) {
-//      cout << "This is the second pass; checking function bodies" << endl;
+    cout << "This is the second pass; checking function bodies" << endl;
     tcheckFunctionBodies(env);
   } else {
-//      cout << "This is the first pass; NOT checking function bodies" << endl;
+    cout << "This is the first pass; NOT checking function bodies" << endl;
   }
 
   // now retract the class scope from the stack of scopes; do
@@ -1153,7 +1157,7 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
       // tcheck of an inline member function
       f->dflags = (DeclFlags)(f->dflags | DF_INLINE_DEFN);
 
-      f->tcheck(env, true /*checkBody*/);
+      f->tcheck(env, true /*isMember*/, true /*checkBody*/);
 
       // remove DF_INLINE_DEFN so if I clone this later I can play the
       // same trick again (TODO: what if we decide to clone while down
@@ -1546,7 +1550,7 @@ void MR_func::tcheck(Env &env)
   // members have been added to the class, so that the potential
   // scope of all class members includes all function bodies
   // [cppstd sec. 3.3.6]
-  f->tcheck(env, false /*checkBody*/);
+  f->tcheck(env, true /*isMember*/, false /*checkBody*/);
 
   checkMemberFlags(env, f->dflags);
 }
@@ -1793,6 +1797,11 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
   xassert(!ctorStatement);
   if (init) {
+    if (dt.isMember) {
+      env.error(env.loc(), "initializer not allowed for a member declaration");
+      goto ifInitEnd;
+    }
+
     // TODO: check the initializer for compatibility with
     // the declared type
 
@@ -1804,45 +1813,49 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       // dsw: FIX: should the return value get stored somewhere?
       // FIX: the loc is probably wrong
       env.error(env.loc(), "initializer not allowed for a typedef");
-    } else {
-      // dsw: Arg, do I have to deal with this?
-      // TODO: in the case of class data members, delay checking the
-      // initializer until the entire class body has been scanned
+      goto ifInitEnd;
+    }
 
-      init->tcheck(env, type);
+    // dsw: Arg, do I have to deal with this?
+    // TODO: in the case of class data members, delay checking the
+    // initializer until the entire class body has been scanned
 
-      // remember the initializing value, for const values
-      if (init->isIN_expr()) {
-        var->value = init->asIN_exprC()->e;
-      }
+    init->tcheck(env, type);
 
-      // use the initializer size to refine array types
+    // remember the initializing value, for const values
+    if (init->isIN_expr()) {
+      var->value = init->asIN_exprC()->e;
+    }
 
+    // use the initializer size to refine array types
     // array initializer case
-      var->type = computeArraySizeFromCompoundInit(env, var->loc, var->type, type, init);
-      // array compound literal initializer case
-      var->type = computeArraySizeFromLiteral(env, var->type, init);
+    var->type = computeArraySizeFromCompoundInit(env, var->loc, var->type, type, init);
+    // array compound literal initializer case
+    var->type = computeArraySizeFromLiteral(env, var->type, init);
 
-      xassert(!dt.isTemporary);
-      // make the call to the ctor; FIX: Are there other things to check
-      // in the if clause, like whether this is a typedef?
-      if (type->isCompoundType() &&
-          (init->isIN_expr() || init->isIN_compound())
-          ) {
-        xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
-        // just call the no-arg ctor; FIX: this is questionable; we
-        // haven't decided what should really happen for an IN_expr
-        // and it is undefined what should happen for an IN_compound
-        // since it is a C99-ism.
-        ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
-      } else if (init->isIN_ctor()) {
-        xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
-        // FIX: What should we do for non-CompoundTypes?
-        if (type->isCompoundType()) {
-          ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
-        }
+    xassert(!dt.isTemporary);
+    // make the call to the ctor; FIX: Are there other things to check
+    // in the if clause, like whether this is a typedef?
+    if (type->isCompoundType() &&
+        (init->isIN_expr() || init->isIN_compound())
+        ) {
+      xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
+      // just call the no-arg ctor; FIX: this is questionable; we
+      // haven't decided what should really happen for an IN_expr
+      // and it is undefined what should happen for an IN_compound
+      // since it is a C99-ism.
+      ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
+    } else if (init->isIN_ctor()) {
+      xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
+      // FIX: What should we do for non-CompoundTypes?
+      if (type->isCompoundType()) {
+        ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
       }
     }
+
+    // jump here if we find an error in the init code above and report
+    // it but want to keep going
+  ifInitEnd: ;                  // must have a statement here
   }
   else /* init is NULL */
     if (type->isCompoundType() &&
@@ -5701,7 +5714,7 @@ void TD_func::itcheck(Env &env)
 {
   // check the function definition; internally this will get
   // the template parameters attached to the function type
-  f->tcheck(env, true /*checkBody*/);
+  f->tcheck(env, false /*isMember*/, true /*checkBody*/);
 }
 
 
