@@ -316,6 +316,137 @@ bool Nonterminal::anyDDM() const
 }
 
 
+// -------------------- TerminalSet ------------------------
+STATICDEF Terminal const *TerminalSet::suppressExcept = NULL;
+
+TerminalSet::TerminalSet(int numTerms)
+{
+  init(numTerms);
+}
+
+TerminalSet::TerminalSet(TerminalSet const &obj)
+{
+  init(obj.bitmapLen * 8);    // close enough; same # of bytes at least
+  copy(obj);
+}
+
+void TerminalSet::init(int numTerms)
+{
+  // allocate enough space for one bit per terminal; I assume
+  // 8 bits per byte
+  bitmapLen = (numTerms + 7) / 8;
+  bitmap = new unsigned char[bitmapLen];
+
+  // initially the set will be empty
+  memset(bitmap, 0, bitmapLen);
+}
+
+
+TerminalSet::~TerminalSet()
+{
+  delete[] bitmap;
+}
+
+
+TerminalSet::TerminalSet(Flatten&)
+  : bitmap(NULL)
+{}
+
+void TerminalSet::xfer(Flatten &flat)
+{
+  flat.xferInt(bitmapLen);
+
+  if (flat.reading()) {
+    bitmap = new unsigned char[bitmapLen];
+  }
+  flat.xferSimple(bitmap, bitmapLen);
+}
+
+
+unsigned char *TerminalSet::getByte(int id) const
+{
+  int offset = (unsigned)id / 8;
+  xassert(offset < bitmapLen);
+
+  return bitmap + offset;
+}
+
+
+bool TerminalSet::contains(int id) const
+{
+  unsigned char *p = getByte(id);
+  return (*p >> getBit(id)) & 1 == 1;
+}
+
+
+bool TerminalSet::isEqual(TerminalSet const &obj) const
+{
+  xassert(obj.bitmapLen == bitmapLen);
+  return 0==memcmp(bitmap, obj.bitmap, bitmapLen);
+}
+
+
+void TerminalSet::add(int id)
+{
+  unsigned char *p = getByte(id);
+  *p |= (unsigned char)(1 << getBit(id));
+}
+
+
+void TerminalSet::remove(int id)
+{                             
+  unsigned char *p = getByte(id);
+  *p &= (unsigned char)(~(1 << getBit(id)));
+}
+
+
+void TerminalSet::copy(TerminalSet const &obj)
+{
+  xassert(obj.bitmapLen == bitmapLen);
+  memcpy(bitmap, obj.bitmap, bitmapLen);
+}
+
+
+bool TerminalSet::merge(TerminalSet const &obj)
+{
+  bool changed = false;
+  for (int i=0; i<bitmapLen; i++) {
+    unsigned before = bitmap[i];
+    unsigned after = before | obj.bitmap[i];
+    if (after != before) {
+      changed = true;
+      bitmap[i] = after;
+    }
+  }
+  return changed;
+}
+
+
+void TerminalSet::print(ostream &os, Grammar const &g) const
+{
+  int ct=0;
+  FOREACH_TERMINAL(g.terminals, iter) {
+    Terminal const *t = iter.data();
+    if (!contains(t->termIndex)) continue;
+
+    if (suppressExcept &&                  // suppressing..
+        suppressExcept != t) continue;     // and this isn't the exception
+
+    if (ct++ == 0) {
+      // by waiting until now to print this, if the set has no symbols
+      // (e.g. we're in SLR(1) mode), then the comma won't be printed
+      // either
+      os << ", ";
+    }
+    else {
+      os << "/";
+    }
+
+    os << t->toString();
+  }
+}
+
+
 // -------------------- Production::RHSElt -------------------------
 Production::RHSElt::~RHSElt()
 {}
@@ -1032,5 +1163,3 @@ void Grammar::emitSelfCC(ostream &os) const
   // todo: more
 }
 #endif // 0
-
-

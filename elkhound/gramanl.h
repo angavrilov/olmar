@@ -40,10 +40,7 @@ class DottedProduction {
 private:    // data
   Production *prod;              // (serf) the base production
   int dot;                       // 0 means it's before all RHS symbols, 1 means after first, etc.
-
-  unsigned char *lookahead;      // bitmap of lookahead, indexed by terminal id
-                                 // lsb of byte 0 is index 0
-  int lookaheadLen;              // # of bytes in 'lookahead'
+  TerminalSet lookahead;         // lookahead symbols
 
 // -------- annotation ----------
 private:
@@ -51,16 +48,8 @@ private:
   // to the symbol right after the dot
   Symbol *afterDot;
 
-public:     // data
-  // printing customization: when non-NULL only print lookahead if
-  // it includes this token, and then *only* print this one
-  static Terminal const *lookaheadSuppressExcept;
-
 private:    // funcs
-  void init(int numTerms);
-  unsigned char *laGetByte(int terminalId) const;
-  int laGetBit(int terminalId) const
-    { return ((unsigned)terminalId % 8); }
+  void init();
 
 public:	    // funcs
   DottedProduction(DottedProduction const &obj);
@@ -82,12 +71,18 @@ public:	    // funcs
   bool isDotAtEnd() const { return afterDot==NULL; }
 
   // manipulate the lookahead set
-  bool laContains(int terminalId) const;
-  void laAdd(int terminalId);
-  void laRemove(int terminalId);
-  void laCopy(DottedProduction const &obj);
-  bool laMerge(DottedProduction const &obj);     // returns true if merging changed lookahead
-  bool laIsEqual(DottedProduction const &obj) const;
+  bool laContains(int terminalId) const
+    { return lookahead.contains(terminalId); }
+  void laAdd(int terminalId)
+    { lookahead.add(terminalId); }
+  void laRemove(int terminalId)
+    { lookahead.remove(terminalId); }
+  void laCopy(DottedProduction const &obj)
+    { lookahead.copy(obj.lookahead); }
+  bool laMerge(DottedProduction const &obj)     // returns true if merging changed lookahead
+    { return lookahead.merge(obj.lookahead); }
+  bool laIsEqual(DottedProduction const &obj) const
+    { return lookahead.isEqual(obj.lookahead); }
 
   // comparison, equality (ignores lookahead set for purposes of comparison)
   static int diff(DottedProduction const *a, DottedProduction const *b, void*);

@@ -263,6 +263,50 @@ inline ObjList<Symbol> const &toObjList(ObjList<Nonterminal> const &list)
   { return reinterpret_cast< ObjList<Symbol>const& >(list); }
 
 
+// ----------------- TerminalSet -------------------
+// used for the lookahead sets of LR items, and for the First()
+// sets of production RHSs
+class TerminalSet {
+private:    // data
+  unsigned char *bitmap;      // (owner) bitmap of terminals, indexed by
+                              // terminal id; lsb of byte 0 is index 0
+  int bitmapLen;              // # of bytes in 'bitmap'
+
+public:     // data
+  // printing customization: when non-NULL only print tokens if
+  // it includes this token, and then *only* print this one
+  static Terminal const *suppressExcept;
+
+private:    // funcs
+  void init(int numTerms);
+  unsigned char *getByte(int terminalId) const;
+  int getBit(int terminalId) const
+    { return ((unsigned)terminalId % 8); }
+
+public:     // funcs
+  TerminalSet(int numTerms);                   // allocate new set, initially empty
+  TerminalSet(TerminalSet const &obj);
+  ~TerminalSet();
+
+  TerminalSet(Flatten&);
+  void xfer(Flatten &flat);
+
+  bool contains(int terminalId) const;
+  
+  // NOTE: can only compare dotted productions which have the
+  // same number of symbols (assertion fail otherwise)
+  bool isEqual(TerminalSet const &obj) const;
+
+  void add(int terminalId);
+  void remove(int terminalId);
+
+  void copy(TerminalSet const &obj);      // lengths must be the same
+  bool merge(TerminalSet const &obj);     // union; returns true if merging changed set
+
+  void print(ostream &os, Grammar const &g) const;
+};
+
+
 // ---------------- Production --------------------
 // a rewrite rule
 class Production {

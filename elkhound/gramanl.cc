@@ -40,130 +40,59 @@ static bool const LALR1 = true;
 
 
 // ----------------- DottedProduction ------------------
-STATICDEF Terminal const *DottedProduction::lookaheadSuppressExcept = NULL;
-
 DottedProduction::DottedProduction(DottedProduction const &obj)
+  : lookahead(obj.lookahead)
 {
-  init(obj.lookaheadLen * 8);    // close enough
-
   prod = obj.prod;
   dot = obj.dot;
   afterDot = obj.afterDot;
-
-  laCopy(obj);
 }
 
 
 DottedProduction::DottedProduction(GrammarAnalysis const &g)
+  : lookahead(g.numTerminals())
 {
-  init(g.numTerminals());
+  init();
 }
 
-void DottedProduction::init(int numTerms)
+void DottedProduction::init()
 {
   prod = NULL;
   dot = -1;
   afterDot = NULL;
-
-  // allocate enough space for one bit per terminal; I assume
-  // 8 bits per byte
-  lookaheadLen = (numTerms + 7) / 8;
-  lookahead = new unsigned char[lookaheadLen];
-
-  // initially the lookahead set will be empty
-  memset(lookahead, 0, lookaheadLen);
 }
 
 
 DottedProduction::DottedProduction(GrammarAnalysis const &g, Production *p, int d)
+  : lookahead(g.numTerminals())
 {
-  init(g.numTerminals());
+  init();
   setProdAndDot(p, d);
 }
 
 
 DottedProduction::~DottedProduction()
-{
-  delete[] lookahead;
-}
+{}
 
 
 DottedProduction::DottedProduction(Flatten &flat)
   : prod(NULL),
-    lookahead(NULL)
+    lookahead(flat)
 {}
 
 void DottedProduction::xfer(Flatten &flat)
 {
   flat.xferInt(dot);
-
-  flat.xferInt(lookaheadLen);
-
-  if (flat.reading()) {
-    lookahead = new unsigned char[lookaheadLen];
-  }
-  flat.xferSimple(lookahead, lookaheadLen);
+  lookahead.xfer(flat);
 }
 
 
 void DottedProduction::xferSerfs(Flatten &flat, GrammarAnalysis &g)
 {
   xferSerfPtrToList(flat, prod, g.productions);
-                           
+
   // set 'afterDot'
   setProdAndDot(prod, dot);
-}
-
-
-unsigned char *DottedProduction::laGetByte(int id) const
-{
-  int offset = (unsigned)id / 8;
-  xassert(offset < lookaheadLen);
-
-  return lookahead + offset;
-}
-
-bool DottedProduction::laContains(int id) const
-{
-  unsigned char *p = laGetByte(id);
-  return (*p >> laGetBit(id)) & 1 == 1;
-}
-
-void DottedProduction::laAdd(int id)
-{
-  unsigned char *p = laGetByte(id);
-  *p |= (unsigned char)(1 << laGetBit(id));
-}
-
-void DottedProduction::laRemove(int id)
-{
-  unsigned char *p = laGetByte(id);
-  *p &= (unsigned char)(~(1 << laGetBit(id)));
-}
-
-void DottedProduction::laCopy(DottedProduction const &obj)
-{
-  memcpy(lookahead, obj.lookahead, lookaheadLen);
-}
-
-bool DottedProduction::laMerge(DottedProduction const &obj)
-{   
-  bool changed = false;
-  for (int i=0; i<lookaheadLen; i++) {
-    unsigned before = lookahead[i];
-    unsigned after = before | obj.lookahead[i];
-    if (after != before) {
-      changed = true;
-      lookahead[i] = after;
-    }
-  }
-  return changed;
-}
-
-bool DottedProduction::laIsEqual(DottedProduction const &obj) const
-{
-  xassert(obj.lookaheadLen == lookaheadLen);
-  return 0==memcmp(lookahead, obj.lookahead, lookaheadLen);
 }
 
 
@@ -289,28 +218,8 @@ void DottedProduction::print(ostream &os, GrammarAnalysis const &g) const
   if (position == dot) {
     os << " .";
   }
-                                       
-  int numTerms = g.numTerminals();
-  int ct=0;
-  for (int id=0; id < numTerms; id++) {
-    if (!laContains(id)) continue;
 
-    if (lookaheadSuppressExcept &&                      // suppressing..
-        lookaheadSuppressExcept->termIndex != id) continue;    // and this isn't exception
-
-    Terminal const *t = g.getTerminal(id);
-    if (ct++ == 0) {
-      // by waiting until now to print this, if the production has
-      // no lookahead symbols (e.g. we're in SLR(1) mode), then
-      // the comma won't be printed either
-      os << ", ";
-    }
-    else {
-      os << "/";
-    }
-
-    os << t->toString();
-  }
+  lookahead.print(os, g);
 }
 
 
