@@ -169,6 +169,13 @@ cexp2-dep = cexp2.o ${grammar-set} ${common} ${grampar-set} \
 cexp2: ${cexp2-dep} cexp2.h
 	${link} -o cexp2 ${cexp2-dep} ${linkend}
 
+# glr parsing engine
+libglr-dep = ${grammar-set} ${common} ${grampar-set} ${glr-set}
+libglr.a: ${libglr-dep}
+	rm -f libglr.a
+	ar -r libglr.a ${libglr-dep}
+	ranlib libglr.a
+
 # intermediate files for cexp3 (disambiguates using prec/assoc)
 # ('chmod a-w' is so I don't accidentally edit it)
 cexp3.gen.cc cexp3.gen.h: cexp3.gr cc.tok gramanl
@@ -183,8 +190,7 @@ cexp3ast.gen.cc cexp3ast.gen.h: cexp3ast.ast ../ast/astgen
 	../ast/astgen cexp3ast.ast
 
 # parser and semantic analyzer for cexp3.gr
-cexp3-dep = cexp3.gen.o ${grammar-set} ${common} ${grampar-set} \
-            ${glr-set} glrmain.o cexp3mrg.o cexp3ast.gen.o
+cexp3-dep = cexp3.gen.o glrmain.o cexp3mrg.o cexp3ast.gen.o libglr.a
 cexp3: ${cexp3-dep} ${libraries}
 	${link} -o cexp3 ${cexp3-dep} ${linkend}
 	./cexp3 cexp3.bin cexp3.in1
@@ -207,8 +213,7 @@ cexp3b.gr: cexp3.gr
 	chmod a-w cexp3b.gr
 
 # parser and semantic analyzer for cexp3b.gr
-cexp3b-dep = cexp3b.gen.o ${grammar-set} ${common} ${grampar-set} \
-            ${glr-set} glrmain.o cexp3mrg.o cexp3ast.gen.o
+cexp3b-dep = cexp3b.gen.o glrmain.o cexp3mrg.o cexp3ast.gen.o libglr.a
 cexp3b: ${cexp3b-dep} ${libraries}
 	${link} -o cexp3b ${cexp3b-dep} ${linkend}
 	./cexp3b cexp3b.bin cexp3.in1
@@ -220,8 +225,7 @@ cdecl.gen.cc cdecl.gen.h: cdecl.gr cc.tok gramanl
 	chmod a-w cdecl.gen.{h,cc}
 
 # parser and semantic analyzer for cdecl.gr
-cdecl-dep = cdecl.gen.o ${grammar-set} ${common} ${grampar-set} \
-            ${glr-set} glrmain.o
+cdecl-dep = cdecl.gen.o glrmain.o libglr.a
 cdecl: ${cdecl-dep} ${libraries}
 	${link} -o cdecl ${cdecl-dep} ${linkend}
 	./cdecl cdecl.bin cdecl.in1
@@ -235,8 +239,7 @@ cdecl2.gen.cc cdecl2.gen.h: cdecl2.gr cc.tok gramanl
 	chmod a-w cdecl2.gen.{h,cc}
 
 # parser and semantic analyzer for cdecl2.gr
-cdecl2-dep = cdecl2.gen.o ${grammar-set} ${common} ${grampar-set} \
-            ${glr-set} glrmain.o
+cdecl2-dep = cdecl2.gen.o glrmain.o libglr.a
 cdecl2: ${cdecl2-dep} ${libraries}
 	${link} -o cdecl2 ${cdecl2-dep} ${linkend}
 	./cdecl2 cdecl2.bin cdecl.in1
@@ -258,15 +261,14 @@ cc.gen.o: cparse.h
 # (called the target 'ccgr' instead of 'cc' to avoid name collision)
 # tried moving cc.o to end so the most expensive part would get
 # done last, but that breaks a dependency with cc_tree.cc and cc.h ..)
-ccgr-dep = cc.gen.o ${grammar-set} ${common} ${grampar-set} \
-           ${glr-set} ${cc-set}
+ccgr-dep = cc.gen.o ${cc-set}
 
 # parser and semantic analyzer for cc.gr, rolled up as a library for
 # easier importing into ocaml
 # turns out if you don't remove the library, there's a possibility
 # of old object files staying in it .. !
-libccgr.a: ${ccgr-dep}
-	rm -f libccgr.a
+libccgr.a: ${ccgr-dep} libglr.a
+	cp -f libglr.a libccgr.a
 	ar -r libccgr.a ${ccgr-dep}
 	ranlib libccgr.a
 
