@@ -147,7 +147,10 @@ void doit(int argc, char **argv)
       cout << endl;
       traceProgress() << "dsw tree walk...\n";
       Env env(strTable, lang);
+      cout << "---- TranslationUnit START ----" << endl;
+      cout << "// -*-c++-*-" << endl;
       unit->twalk(env);
+      cout << "---- TranslationUnit STOP ----" << endl;
       traceProgress() << "dsw tree walk... done\n";
       cout << endl;
   }

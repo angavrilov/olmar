@@ -30,36 +30,74 @@ TOCHECK += cc.in5
 TOCHECK += cc.in6
 TOCHECK += cc.in7
 TOCHECK += cc.in8
-
-# This one segfaults at the point where it tries to access the field
-# of an E_fieldAcc.  field is NULL.
-# void E_fieldAcc::itwalk(Env &env)
-# . . .
-#     global_code_out << field->name;  <-------- here
-
-# Not printing structs.
 TOCHECK += cc.in9
-
-#TOCHECK += cc.in10
+TOCHECK += cc.in10
 
 # "extern" qualifiers are not printed
 # TOCHECK += cc.in11
 
-#TOCHECK += cc.in12
+TOCHECK += cc.in12
+TOCHECK += cc.in13
 
-# segfault on field again.
-#TOCHECK += cc.in13
-
-# Also doesn't work.
+# Segfault at:
+#  traceRemoveAll();
 #TOCHECK += cc.in14
 
 # this is getting printed before constructors and destructors: <cdtor>
-# TOCHECK += cc.in15
+#TOCHECK += cc.in15
 
-#TOCHECK += cc.in16
+TOCHECK += cc.in16
 
 # constructor again
 # TOCHECK += cc.in17
+
+TOCHECK += cc.in18
+# constructor again
+# TOCHECK += cc.in19
+
+# "converstion-operator" being printed for converstion operators.
+# operator char ();
+# char ( conversion-operator)();
+#TOCHECK += cc.in20
+
+TOCHECK += cc.in21
+
+# Bitfields not being printed correctly:
+# int x : 2; ->
+# int x;
+# TOCHECK += cc.in22
+
+TOCHECK += cc.in23
+TOCHECK += cc.in24
+
+# Scope operator not being printed.
+# int A::func(B &b) ->
+# int ( func)(class B & b) {
+# TOCHECK += cc.in25
+
+# Templates not being printed.
+#TOCHECK += cc.in26
+#TOCHECK += cc.in27
+#TOCHECK += cc.in28
+
+TOCHECK += cc.in29
+
+# default arguments not being printed
+#   inline Foo(int *x); ->
+# inline <cdtor> ( constructor-special)(int * x);
+# TOCHECK += cc.in30
+
+# ( (operator-delete) ( (x)));
+# TOCHECK += cc.in31
+
+# Anonymous unions printed incorrectly
+# union (null) {
+# TOCHECK += cc.in32
+
+# <cdtor> thing again
+#TOCHECK += cc.in33
+
+# Stopping here as there are too many errors.
 
 .PHONY: check_idem
 check_idem: clean_idem
