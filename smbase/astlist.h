@@ -145,4 +145,17 @@ public:
   for(ASTListIterNC<T> iter(list); !iter.isDone(); iter.adv())
 
 
+// this function is somewhat at odds with the nominal purpose
+// of ASTLists, but I need it in a weird situation so ...
+template <class T>
+ASTList<T> *shallowCopy(ASTList<T> *src)
+{
+  ASTList<T> *ret = new ASTList<T>;
+  FOREACH_ASTLIST_NC(T, *src, iter) {
+    ret->append(iter.data());
+  }
+  return ret;
+}
+
+
 #endif // ASTLIST_H
