@@ -256,7 +256,25 @@ SiblingLink::~SiblingLink()
 
 // ------------------ PendingShift ------------------
 PendingShift::~PendingShift()
-{}
+{
+  deinit();
+}          
+
+PendingShift& PendingShift::operator=(PendingShift const &obj)
+{
+  if (this != &obj) {
+    parser = obj.parser;
+    shiftDest = obj.shiftDest;
+  }
+  return *this;
+}
+
+
+void PendingShift::deinit()
+{
+  parser = NULL;     // decrement reference count
+  shiftDest = STATE_INVALID;
+}
 
 
 // ------------------ PathCollectionState -----------------
@@ -455,7 +473,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 
   // we will queue up shifts and process them all at the end (pulled
   // out of loop so I don't deallocate the array between tokens)
-  ObjArrayStack<PendingShift> pendingShifts;                  // starts empty
+  ArrayStack<PendingShift> pendingShifts;                  // starts empty
 
   // for each input symbol
   int tokenNumber = 0;
@@ -626,13 +644,13 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 // to 'pendingShifts'; returns number of actions performed
 // ([GLR] called this 'actor')
 int GLR::glrParseAction(StackNode *parser, ActionEntry action,
-                        ObjArrayStack<PendingShift> &pendingShifts)
+                        ArrayStack<PendingShift> &pendingShifts)
 {
   if (tables->isShiftAction(action)) {
     // shift
     StateId destState = tables->decodeShift(action);
     // add (parser, shiftDest) to pending-shifts
-    pendingShifts.push(new PendingShift(parser, destState));
+    pendingShifts.pushAlt().init(parser, destState);
 
     // debugging
     //trace("parse")
@@ -1045,7 +1063,7 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
 }
 
 
-void GLR::glrShiftTerminals(ObjArrayStack<PendingShift> &pendingShifts)
+void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
 {
   // clear the active-parsers list; we rebuild it in this fn
   decParserList(activeParsers);
@@ -1053,9 +1071,9 @@ void GLR::glrShiftTerminals(ObjArrayStack<PendingShift> &pendingShifts)
 
   // foreach (leftSibling, newState) in pendingShifts
   while (pendingShifts.isNotEmpty()) {
-    Owner<PendingShift> pshift(pendingShifts.pop());
-    StackNode *leftSibling = pshift->parser;
-    StateId newState = pshift->shiftDest;
+    RCPtr<StackNode> leftSibling = pendingShifts.top().parser;
+    StateId newState = pendingShifts.top().shiftDest;
+    pendingShifts.popAlt();
 
     // debugging
     if (trParse) {

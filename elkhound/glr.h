@@ -160,9 +160,21 @@ public:
   StateId shiftDest;
 
 public:
-  PendingShift(StackNode *p, StateId s)
-    : parser(p), shiftDest(s) {}
+  PendingShift()
+    : parser(NULL), shiftDest(STATE_INVALID) {}
   ~PendingShift();
+
+  PendingShift& operator=(PendingShift const &obj);
+
+  // start using this
+  void init(StackNode *p, StateId s)
+  {
+    parser = p;
+    shiftDest = s;
+  }
+
+  // stop using this
+  void deinit();
 };
 
 
@@ -305,7 +317,7 @@ private:    // funcs
   SemanticValue grabTopSval(StackNode *node);
 
   int glrParseAction(StackNode *parser, ActionEntry action,
-                     ObjArrayStack<PendingShift> &pendingShifts);
+                     ArrayStack<PendingShift> &pendingShifts);
   void doAllPossibleReductions(StackNode *parser, ActionEntry action,
                                SiblingLink *sibLink);
   void doReduction(StackNode *parser,
@@ -315,7 +327,7 @@ private:    // funcs
                              StackNode *currentNode, SiblingLink *mustUseLink);
   void glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
                            SemanticValue sval, SourceLocation const &loc);
-  void glrShiftTerminals(ObjArrayStack<PendingShift> &pendingShifts);
+  void glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts);
   StackNode *findActiveParser(StateId state);
   StackNode *makeStackNode(StateId state);
   void writeParseGraph(char const *input) const;
