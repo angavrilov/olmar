@@ -12,6 +12,14 @@ string Sexp::toString() const
 }
 
 
+void Sexp::pprint(int ind, stringBuilder &out, int pageWidth) const
+{
+  int parens = 0;
+  ipprint(ind, parens, out, pageWidth);
+  xassert(parens == 0);
+}
+
+
 // ----------------------- S_leaf -------------------
 void S_leaf::toStringBld(stringBuilder &sb) const
 {
@@ -23,7 +31,7 @@ int S_leaf::toStringLen() const
   return strlen(name);
 }
 
-void S_leaf::pprint(int ind, int &pending, stringBuilder &out, int width) const
+void S_leaf::ipprint(int ind, int &pending, stringBuilder &out, int width) const
 {
   toStringBld(out);
 }
@@ -57,7 +65,7 @@ static void indent(stringBuilder &sb, int ind)
 }
 
 // see comment in sexp.ast
-void S_func::pprint(
+void S_func::ipprint(
   int ind,              // current # of spaces from left edge
   int &pendingParens,   // # of close-parens ready to print
   stringBuilder &out,   // output stream
@@ -86,32 +94,68 @@ void S_func::pprint(
   if (argsToPrint == 0) {
     // the line won't fit anyway; just finish it and continue
     out << ")";
-    return;
+    goto eatPending;
   }
 
-  FOREACH_ASTLIST(Sexp, args, iter) {
-    // get ready to print it
+  // special handling of EQ/NEQ
+  if ((0==strcmp(name, "EQ") || 0==strcmp(name, "NEQ")) &&
+      argsToPrint==2) {
+    // start first argument on same line, then start
+    // second argument so it lines up with first, finally
+    // putting close-paren on same line as end of 2nd arg
+    out << " ";
+
+    // first arg
+    args.nthC(0)->pprint(ind+4, out, pageWidth);
+
+    // second arg
     out << "\n";
-    indent(out, ind+2);
-                            
-    // see if we're at the last argument
-    argsToPrint--;
-    if (argsToPrint == 0) {
-      // about to print last argument; could fold my close-paren
-      // (plus any accumulated) into its close-paren line
-      pendingParens++;
-      iter.data()->pprint(ind+2, pendingParens, out, pageWidth);
-    }                           
-    else {
-      // not at the last argument; can't print mine, nor any
-      // inherited
-      int parens = 0;
-      iter.data()->pprint(ind+2, parens, out, pageWidth);
+    indent(out, ind+4);
+    args.nthC(1)->ipprint(ind+4, pendingParens, out, pageWidth);
+
+    // finish this form, and we're done
+    out << ")";
+    goto eatPending;
+  }
+  
+  // scope to hide 'argCt' from the goto label...
+  {
+    int argCt=0;
+    FOREACH_ASTLIST(Sexp, args, iter) {
+      argsToPrint--;
+      if (argCt++ == 0) {
+        // special handling of quantifiers
+        if (0==strcmp(name, "FORALL") ||
+            0==strcmp(name, "EXISTS")) {
+          // always print the first argument to forall/exists on the
+          // same line as the quantifier itself
+          out << " " << iter.data()->toString();
+          continue;
+        }
+      }
+
+      // get ready to print it
+      out << "\n";
+      indent(out, ind+2);
+
+      // see if we're at the last argument
+      if (argsToPrint == 0) {
+        // about to print last argument; could fold my close-paren
+        // (plus any accumulated) into its close-paren line
+        pendingParens++;
+        iter.data()->ipprint(ind+2, pendingParens, out, pageWidth);
+      }
+      else {
+        // not at the last argument; can't print mine, nor any
+        // inherited
+        iter.data()->pprint(ind+2, out, pageWidth);
+      }
     }
   }
 
   // if we're going to print at least one close-paren on its own
   // line, collapse all close-parens that could also be printed here
+eatPending:
   if (pendingParens) {
     out << "\n";
     indent(out, ind);
@@ -139,6 +183,7 @@ S_func *mkSfunc(char const *name, Sexp *arg, ...)
 }
 
 
+
 // --------------------- test code ---------------------
 #ifdef TEST_SEXP
 
@@ -148,8 +193,7 @@ void printSexp(Sexp *s, int width)
 {
   cout << "------ width = " << width << " ---------\n";
   stringBuilder sb;
-  int parens = 0;
-  s->pprint(0, parens, sb, width);
+  s->pprint(0, sb, width);
   cout << sb << endl;
 }
 

@@ -8,6 +8,7 @@ verbatim {
   #include "strtable.h"     // StringRef
   #include "cc_flags.h"     // UnaryOp, BinaryOp
   #include "variable.h"     // Variable
+  #include "sexp.ast.gen.h" // Sexp
 
   class stringBuilder;      // str.h
 }
@@ -17,11 +18,11 @@ class AbsValue {
 
   // simple linear printing
   public string toString() const;          // calls toSexp
-  pure_virtual void toSexp(stringBuilder &sb) const;
-  pure_virtual int toSexpLen() const;      // length of toSexp string
+  pure_virtual void toSexpSb(stringBuilder &sb) const;
+  //pure_virtual int toSexpLen() const;      // length of toSexp string
 
-  // pretty-printing with intentation, etc.
-  
+  // print to a data structure
+  pure_virtual Sexp *toSexp() const;
 
 
   // ---------------- general-purpose ----------------

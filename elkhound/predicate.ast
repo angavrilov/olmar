@@ -5,6 +5,7 @@
 verbatim {
   #include "cc_flags.h"         // BinaryOp
   #include "absval.ast.gen.h"   // AbsValue, AbsValueVisitor
+  #include "sexp.ast.gen.h"     // Sexp
 
   class stringBuilder;          // str.h
 
@@ -69,7 +70,8 @@ impl_verbatim {
 class Predicate {                    
   // build an s-exp (symbolic expression) out of this predicate
   public string toSexpString() const;
-  pure_virtual void toSexp(stringBuilder &sb) const;
+  pure_virtual void toSexpSb(stringBuilder &sb) const;
+  pure_virtual Sexp *toSexp() const;
 
   // --------------- "literals" --------------
   // true or false
@@ -222,12 +224,12 @@ impl_verbatim {
   string Predicate::toSexpString() const
   {
     stringBuilder sb;
-    toSexp(sb);
+    toSexpSb(sb);
     return sb;
   }
 
-  // -------------------- toSexp -------------------------
-  void P_lit::toSexp(stringBuilder &sb) const
+  // -------------------- toSexpSb -------------------------
+  void P_lit::toSexpSb(stringBuilder &sb) const
   {
     if (b) {
       sb << "TRUE";
@@ -237,72 +239,73 @@ impl_verbatim {
     }
   }
 
-  void P_relation::toSexp(stringBuilder &sb) const
-  {
-    static char const * const names[] = {
-      "EQ", "NEQ", "<", ">", "<=", ">="
-    };
-    STATIC_ASSERT(TABLESIZE(names) == NUM_RELATIONOPS);
+  static char const * const relOpNames[] = {
+    "EQ", "NEQ", "<", ">", "<=", ">="
+  };
 
-    sb << "(" << names[op] << " ";
-    e1->toSexp(sb);
+  void P_relation::toSexpSb(stringBuilder &sb) const
+  {
+    STATIC_ASSERT(TABLESIZE(relOpNames) == NUM_RELATIONOPS);
+
+    sb << "(" << relOpNames[op] << " ";
+    e1->toSexpSb(sb);
     sb << " ";
-    e2->toSexp(sb);
+    e2->toSexpSb(sb);
     sb << ")";
   }
 
-  void P_distinct::toSexp(stringBuilder &sb) const
+  void P_distinct::toSexpSb(stringBuilder &sb) const
   {
     sb << "(DISTINCT";
     FOREACH_ASTLIST(AbsValue, terms, iter) {
       sb << " ";
-      iter.data()->toSexp(sb);
+      iter.data()->toSexpSb(sb);
     }
     sb << ")";
   }
 
-  void P_not::toSexp(stringBuilder &sb) const
+  void P_not::toSexpSb(stringBuilder &sb) const
   {
     sb << "(NOT ";
-    p->toSexp(sb);
+    p->toSexpSb(sb);
     sb << ")";
   }
 
-  void P_and::toSexp(stringBuilder &sb) const
+  void P_and::toSexpSb(stringBuilder &sb) const
   {
     sb << "(AND";
     FOREACH_ASTLIST(Predicate, conjuncts, iter) {
       sb << " ";
-      iter.data()->toSexp(sb);
+      iter.data()->toSexpSb(sb);
     }
     sb << ")";
   }
 
-  void P_or::toSexp(stringBuilder &sb) const
+  void P_or::toSexpSb(stringBuilder &sb) const
   {
     sb << "(OR";
     FOREACH_ASTLIST(Predicate, disjuncts, iter) {
       sb << " ";
-      iter.data()->toSexp(sb);
+      iter.data()->toSexpSb(sb);
     }
     sb << ")";
   }
 
-  void P_impl::toSexp(stringBuilder &sb) const
+  void P_impl::toSexpSb(stringBuilder &sb) const
   {
     sb << "(IMPLIES ";
-    premise->toSexp(sb);
+    premise->toSexpSb(sb);
     sb << " ";
-    conclusion->toSexp(sb);
+    conclusion->toSexpSb(sb);
     sb << ")";
   }
 
-  void P_iff::toSexp(stringBuilder &sb) const
+  void P_iff::toSexpSb(stringBuilder &sb) const
   {
     sb << "(IFF ";
-    p1->toSexp(sb);
+    p1->toSexpSb(sb);
     sb << " ";
-    p2->toSexp(sb);
+    p2->toSexpSb(sb);
     sb << ")";
   }
 
@@ -314,23 +317,108 @@ impl_verbatim {
       sb << iter.data()->name << " ";
     }
     sb << ") ";
-    body->toSexp(sb);
+    body->toSexpSb(sb);
     sb << ")";
   }
 
-  void P_quantifier::toSexp(stringBuilder &sb) const
+  void P_quantifier::toSexpSb(stringBuilder &sb) const
   {
     quantifiedToSexp(sb, forall? "FORALL" : "EXISTS", variables, body);
   }
 
-  void P_named::toSexp(stringBuilder &sb) const
+  void P_named::toSexpSb(stringBuilder &sb) const
   {
     sb << "(" << name;
     FOREACH_ASTLIST(AbsValue, args, iter) {
       sb << " ";
-      iter.data()->toSexp(sb);
+      iter.data()->toSexpSb(sb);
     }
     sb << ")";
+  }
+
+  
+  // ------------------- toSexp ------------------
+  Sexp *P_lit::toSexp() const
+  {
+    return b? new S_leaf("TRUE") : new S_leaf("FALSE");
+  }
+
+  Sexp *P_relation::toSexp() const
+  {
+    STATIC_ASSERT(TABLESIZE(relOpNames) == NUM_RELATIONOPS);
+    return mkSfunc(relOpNames[op], e1->toSexp(), e2->toSexp(), NULL);
+  }
+
+  Sexp *P_distinct::toSexp() const
+  {
+    S_func *ret = new S_func("DISTINCT", NULL);
+    FOREACH_ASTLIST(AbsValue, terms, iter) {
+      ret->args.append(iter.data()->toSexp());
+    }
+    return ret;
+  }
+
+  Sexp *P_not::toSexp() const
+  {
+    return mkSfunc("NOT", p->toSexp(), NULL);
+  }
+
+  Sexp *P_and::toSexp() const
+  {
+    S_func *ret = new S_func("AND", NULL);
+    FOREACH_ASTLIST(Predicate, conjuncts, iter) {
+      ret->args.append(iter.data()->toSexp());
+    }
+    return ret;
+  }
+
+  Sexp *P_or::toSexp() const
+  {
+    S_func *ret = new S_func("OR", NULL);
+    FOREACH_ASTLIST(Predicate, disjuncts, iter) {
+      ret->args.append(iter.data()->toSexp());
+    }
+    return ret;
+  }
+
+  Sexp *P_impl::toSexp() const
+  {
+    return mkSfunc("IMPLIES", premise->toSexp(), conclusion->toSexp(), NULL);
+  }
+
+  Sexp *P_iff::toSexp() const
+  {
+    return mkSfunc("IFF", p1->toSexp(), p2->toSexp(), NULL);
+  }
+
+  Sexp *P_quantifier::toSexp() const
+  {
+    S_func *ret = new S_func(forall? "FORALL" : "EXISTS", NULL);
+
+    S_func *vars = NULL;
+    int varCt = 0;
+    FOREACH_ASTLIST(AVvar, variables, iter) {
+      if (varCt++ == 0) {
+        vars = new S_func(iter.data()->name, NULL);
+      }
+      else {
+        vars->args.append(new S_leaf(iter.data()->name));
+      }
+    }
+    ret->args.append(vars);
+    
+    ret->args.append(body->toSexp());
+    
+    return ret;
+  }
+
+  Sexp *P_named::toSexp() const
+  {
+    S_func *ret = new S_func(name, NULL);
+    FOREACH_ASTLIST(AbsValue, args, iter) {
+      ret->args.append(iter.data()->toSexp());
+    }
+    return ret;
   }
 
 

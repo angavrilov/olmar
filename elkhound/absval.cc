@@ -8,188 +8,258 @@
 string AbsValue::toString() const
 {
   stringBuilder sb;
-  toSexp(sb);
+  toSexpSb(sb);
   return sb;
 }
 
 
-void AVvar::toSexp(stringBuilder &sb) const
+// ------------------------- toSexpSb ----------------------
+void AVvar::toSexpSb(stringBuilder &sb) const
 {
   sb << (char const*)name;
 }
 
-int AVvar::toSexpLen() const
-{
-  return strlen(name);
-}
+//  int AVvar::toSexpLen() const
+//  {
+//    return strlen(name);
+//  }
 
 
-void AVint::toSexp(stringBuilder &sb) const
+void AVint::toSexpSb(stringBuilder &sb) const
 {
   sb << i;
 }
 
-int AVint::toSexpLen()
-{ 
-  int ret = 0;
-  if (i < 0) {
-    ret++;
-    i = -i;
-  }
+//  int AVint::toSexpLen()
+//  {
+//    int ret = 0;
+//    if (i < 0) {
+//      ret++;
+//      i = -i;
+//    }
 
-  while (i >= 10) {
-    ret++;
-    i = i/10;
-  }
-  ret++;     // final digit, less than 10
+//    while (i >= 10) {
+//      ret++;
+//      i = i/10;
+//    }
+//    ret++;     // final digit, less than 10
 
-  return ret;
-}
+//    return ret;
+//  }
 
 
-void AVunary::toSexp(stringBuilder &sb) const
+static char const * const unOpNames[] = {
+  "uPlus",
+  "uMinus",
+  "uNot",
+  "uBitNot"
+};
+
+void AVunary::toSexpSb(stringBuilder &sb) const
 {
-  static char const * const names[] = {
-    "uPlus",
-    "uMinus",
-    "uNot",
-    "uBitNot"
-  };
-  STATIC_ASSERT(TABLESIZE(names) == NUM_UNARYOPS);
+  STATIC_ASSERT(TABLESIZE(unOpNames) == NUM_UNARYOPS);
 
   if (op < UNY_PLUS) {
     cout << "warning: emitting sexp for " << unaryOpNames[op] << endl;
   }
 
-  sb << "(" << names[op] << " ";
-  val->toSexp(sb);
+  sb << "(" << unOpNames[op] << " ";
+  val->toSexpSb(sb);
   sb << ")";
 }
 
-int AVunary::toSexpLen() const
+//  int AVunary::toSexpLen() const
+//  {
+//    return 3 + strlen(names[op]) + val->toSexpLen();
+//  }
+
+
+static char const * const binOpNames[] = {
+  "bEqual",
+  "bNotEqual",
+  "bLess",
+  "bGreater",
+  "bLessEq",
+  "bGreaterEq",
+
+  "*",       // "*", "+", and "-" are interpreted by Simplify
+  "bDiv",
+  "bMod",
+  "+",
+  "-",
+  "bLShift",
+  "bRShift",
+  "bBitAnd",
+  "bBitXor",
+  "bBitOr",
+  "bAnd",
+  "bOr",
+
+  "!!!BIN_ASSIGN!!!",    // shouldn't be sent to Simplify
+
+  "bImplies"
+};
+
+void AVbinary::toSexpSb(stringBuilder &sb) const
 {
-  return 3 + strlen(names[op]) + val->toSexpLen();
-}
-
-
-void AVbinary::toSexp(stringBuilder &sb) const
-{
-  static char const * const names[] = {
-    "bEqual",
-    "bNotEqual",
-    "bLess",
-    "bGreater",
-    "bLessEq",
-    "bGreaterEq",
-
-    "*",       // the three interpreted symbols are special
-    "bDiv",
-    "bMod",
-    "+",
-    "-",
-    "bLShift",
-    "bRShift",
-    "bBitAnd",
-    "bBitXor",
-    "bBitOr",
-    "bAnd",
-    "bOr",
-
-    "!!!BIN_ASSIGN!!!",    // shouldn't be sent to Simplify
-
-    "bImplies"
-  };
-  STATIC_ASSERT(TABLESIZE(names) == NUM_BINARYOPS);
+  STATIC_ASSERT(TABLESIZE(binOpNames) == NUM_BINARYOPS);
   xassert(op != BIN_ASSIGN);
 
-  sb << "(" << names[op] << " ";
-  v1->toSexp(sb);
+  sb << "(" << binOpNames[op] << " ";
+  v1->toSexpSb(sb);
   sb << " ";
-  v2->toSexp(sb);
+  v2->toSexpSb(sb);
   sb << ")";
 }
 
-int AVbinary::toSexpLen() const
-{
-  return 4 + strlen(names[op]) + v1->toSexpLen() + v2->toSexpLen();
-}
+//  int AVbinary::toSexpLen() const
+//  {
+//    return 4 + strlen(names[op]) + v1->toSexpLen() + v2->toSexpLen();
+//  }
 
 
-void AVcond::toSexp(stringBuilder &sb) const
+void AVcond::toSexpSb(stringBuilder &sb) const
 {
   sb << "(ifThenElse ";
-  cond->toSexp(sb);
+  cond->toSexpSb(sb);
   sb << " ";
-  th->toSexp(sb);
+  th->toSexpSb(sb);
   sb << " ";
-  el->toSexp(sb);
+  el->toSexpSb(sb);
   sb << ")";
 }
 
-int AVcond::toSexpLen() const
-{
-  return 15 + cond->toSexpLen() + th->toSexpLen() + el->toSexpLen();
-}
+//  int AVcond::toSexpLen() const
+//  {
+//    return 15 + cond->toSexpLen() + th->toSexpLen() + el->toSexpLen();
+//  }
 
 
-void AVfunc::toSexp(stringBuilder &sb) const
+void AVfunc::toSexpSb(stringBuilder &sb) const
 {
   sb << "(" << func;
   FOREACH_ASTLIST(AbsValue, args, iter) {
     sb << " ";
-    iter.data()->toSexp(sb);
+    iter.data()->toSexpSb(sb);
   }
   sb << ")";
 }
 
-int AVfunc::toSexpLen() const
+//  int AVfunc::toSexpLen() const
+//  {
+//    int ret = 2 + strlen(func);
+//    FOREACH_ASTLIST(AbsValue, args, iter) {
+//      ret += 1 + iter.data()->toSexpLen();
+//    }
+//    return ret;
+//  }
+
+
+void AVlval::toSexpSb(stringBuilder &sb) const
 {
-  int ret = 2 + strlen(func);
+  // this should not be passed to simplify; but if it does, I want
+  // to see the information ("!" is to make Simplify choke)
+  sb << "(!AVlval " << progVar->name << " ";
+  offset->toSexpSb(sb);
+  sb << ")";
+}
+
+//  int AVlval::toSexpLen() const
+//  {
+//    return 11 + strlen(progVar->name) + offset->toSexpLen();
+//  }
+
+
+void AVsub::toSexpSb(stringBuilder &sb) const
+{
+  sb << "(sub ";
+  index->toSexpSb(sb);
+  sb << " ";
+  offset->toSexpSb(sb);
+  sb << ")";
+}
+
+//  int AVsub::toSexpLen() const
+//  {
+//    return 7 + index->toSexpLen() + offset->toSexpLen();
+//  }
+
+
+void AVwhole::toSexpSb(stringBuilder &sb) const
+{
+  sb << "whole";
+}
+
+//  int AVwhole::toSexpLen() const
+//  {
+//    return 5;
+//  }
+
+
+// ----------------------- toSexp --------------------------
+Sexp *AVvar::toSexp() const
+{
+  return new S_leaf(name);
+}
+
+Sexp *AVint::toSexp() const
+{
+  return new S_leaf(stringc << i);
+}
+
+Sexp *AVunary::toSexp() const
+{
+  STATIC_ASSERT(TABLESIZE(unOpNames) == NUM_UNARYOPS);
+  if (op < UNY_PLUS) {
+    cout << "warning: emitting sexp for " << unaryOpNames[op] << endl;
+  }
+
+  xassert(0 <= op && op < TABLESIZE(unOpNames));
+  return mkSfunc(unOpNames[op], val->toSexp(), NULL);
+}
+
+
+Sexp *AVbinary::toSexp() const
+{
+  STATIC_ASSERT(TABLESIZE(binOpNames) == NUM_BINARYOPS);
+  xassert(op != BIN_ASSIGN);
+
+  return mkSfunc(binOpNames[op], v1->toSexp(), v2->toSexp(), NULL);
+}
+
+
+Sexp *AVcond::toSexp() const
+{
+  return mkSfunc("ifThenElse", cond->toSexp(), th->toSexp(), el->toSexp(), NULL);
+}
+
+
+Sexp *AVfunc::toSexp() const
+{
+  S_func *ret = new S_func(func, NULL);
   FOREACH_ASTLIST(AbsValue, args, iter) {
-    ret += 1 + iter.data()->toSexpLen();
+    ret->args.append(iter.data()->toSexp());
   }
   return ret;
 }
 
 
-void AVlval::toSexp(stringBuilder &sb) const
+Sexp *AVlval::toSexp() const
 {
-  // this should not be passed to simplify; but if it does, I want
-  // to see the information ("!" is to make Simplify choke)
-  sb << "(!AVlval " << progVar->name << " ";
-  offset->toSexp(sb);
-  sb << ")";
+  // shouldn't try to render this as an s-exp...
+  return mkSfunc("!AVlval", new S_leaf(progVar->name), offset->toSexp(), NULL);
 }
+        
 
-int AVlval::toSexpLen() const
+Sexp *AVsub::toSexp() const
 {
-  return 11 + strlen(progVar->name) + offset->toSexpLen();
-}
-
-
-void AVsub::toSexp(stringBuilder &sb) const
-{
-  sb << "(sub ";
-  index->toSexp(sb);
-  sb << " ";
-  offset->toSexp(sb);
-  sb << ")";
-}
-
-int AVsub::toSexpLen() const
-{
-  return 7 + index->toSexpLen() + offset->toSexpLen();
+  return mkSfunc("sub", index->toSexp(), offset->toSexp(), NULL);
 }
 
 
-void AVwhole::toSexp(stringBuilder &sb) const
+Sexp *AVwhole::toSexp() const
 {
-  sb << "whole";
-}
-
-int AVwhole::toSexpLen() const
-{
-  return 5;
+  return new S_leaf("whole");
 }
 
 

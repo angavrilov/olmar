@@ -1,8 +1,7 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-temporary: sexp
-#temporary: ccgr bccgr aSEb.gr.exe
+temporary: sexp ccgr bccgr aSEb.gr.exe
 
 # main targets
 all: ccgr
@@ -321,9 +320,10 @@ cc.gr.gen.o: c.ast.gen.h
 # tried moving cc.o to end so the most expensive part would get
 # done last, but that breaks a dependency with cc_tree.cc and cc.h ..)
 ccgr-dep := cc.gr.gen.o c.ast.gen.o cc_flags.o tcheck.o variable.o \
-            absval.ast.gen.o vcgen.o aenv.o prover.o \
+            absval.ast.gen.o absval.o vcgen.o aenv.o prover.o \
             predicate.ast.gen.o paths.o $(cc-set) postorder.o \
-            factflow.o exprvisit.o exprequal.o cc_lang.o treeout.o
+            factflow.o exprvisit.o exprequal.o cc_lang.o treeout.o \
+            sexp.ast.gen.o sexp.o
 # don't generate dependencies for *.gen.o, since it makes 'make' think
 # it needs to rebuild a bunch of stuff just to calculate dependencies
 #-include $(filter-out %.gen.d, $(ccgr-dep:.o=.d))

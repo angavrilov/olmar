@@ -903,6 +903,16 @@ void addFactsToConjunction(ObjList<Predicate> const &source, P_and &dest)
 }
 
 
+// pretty-print a predicate
+void printPredicate(Predicate const *pred)
+{
+  Owner<Sexp> sexp(pred->toSexp());
+  stringBuilder sb;
+  sexp->pprint(4, sb, 80);
+  cout << "    " << sb << "\n";
+}
+
+
 // try to prove 'pred', and return true or false
 bool AEnv::innerProve(Predicate * /*serf*/ goal,
                       char const *printFalse,
@@ -934,10 +944,10 @@ bool AEnv::innerProve(Predicate * /*serf*/ goal,
     }
 
     // map this to a Simplify input string
-    string implSexp = implication.toSexpString();
+    Owner<Sexp> implSexp(implication.toSexp());
 
     char const *print = printFalse;
-    if (runProver(implSexp)) {
+    if (runProver(implSexp->toString())) {
       ret = true;
       print = printTrue;
     }
@@ -950,9 +960,9 @@ bool AEnv::innerProve(Predicate * /*serf*/ goal,
       cout << "  bg_push (\n";
       printFact(vp, &allFacts);
       cout << "  )\n"
-           << "  valid \"goal\" (\n"
-           << "    " << goal->toSexpString() << "\n"
-           << "  )\n";
+           << "  valid \"goal\" (\n";
+      printPredicate(goal);
+      cout << "  )\n";
       walkValuePredicate(vp, goal);
 
       // print out variable map
@@ -988,11 +998,11 @@ void AEnv::printFact(VariablePrinter &vp, Predicate const *fact)
     }
   }
   else {
-    cout << "    " << fact->toSexpString() << "\n";
+    printPredicate(fact);
     walkValuePredicate(vp, fact);
   }
 }
-      
+
 
 AbsValue *AEnv::grab(AbsValue *v) { return v; }
 void AEnv::discard(AbsValue *)    {}
@@ -1000,7 +1010,7 @@ AbsValue *AEnv::dup(AbsValue *v)  { return v; }
 
 
 AbsValue *AEnv::avSelOffset(AbsValue *obj, AbsValue *offset)
-{  
+{
   // do just a little simplification here..
   if (offset->isAVwhole()) {
     return obj;
