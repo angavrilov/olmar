@@ -10,7 +10,7 @@
 // that are provided by both, so the split wouldn't be 100% clean.)
 
 // expected statistics
-option shift_reduce_conflicts 147;
+option shift_reduce_conflicts 149;
 option reduce_reduce_conflicts 125;
 
 

@@ -234,6 +234,8 @@ string targsToString(ASTList<TemplateArgument> const &list)
   sb << "<";
   int ct=0;
   FOREACH_ASTLIST(TemplateArgument, list, iter) {
+    if (iter.data()->isTA_templateUsed()) continue;
+
     if (ct++ > 0) {
       sb << ", ";
     }
@@ -323,6 +325,24 @@ PQName const *PQName::getUnqualifiedNameC() const
     p = p->asPQ_qualifierC()->rest;
   }
   return p;
+}
+
+
+bool PQName::templateUsed() const
+{
+  if (isPQ_qualifier() &&
+      asPQ_qualifierC()->targs.isNotEmpty() &&
+      asPQ_qualifierC()->targs.firstC()->isTA_templateUsed()) {
+    return true;
+  }
+
+  if (isPQ_template() &&
+      asPQ_templateC()->args.isNotEmpty() &&
+      asPQ_templateC()->args.firstC()->isTA_templateUsed()) {
+    return true;
+  }
+
+  return false;
 }
 
 
@@ -719,7 +739,15 @@ string TA_nontype::argString() const
     return sarg.toString();       // hope to get concrete value like "3"
   }
   return expr->exprToString();
-}   
+}
+
+string TA_templateUsed::argString() const
+{
+  // this should not show up in, e.g., error messages, because
+  // it's just a communication device between the parser and
+  // the tchecker
+  return "(templateUsed)";
+}
 
 
 void TemplateArgument::printExtras(ostream &os, int indent) const

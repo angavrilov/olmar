@@ -179,10 +179,12 @@ class PQName(SourceLoc loc) {
   public PQName *getUnqualifiedName()
     { return const_cast<PQName*>(getUnqualifiedNameC()); };
 
+  // true if the 'template' keyword was used in this part of the name
+  public bool templateUsed() const;
 
   // outer qualifier applied to some inner PQName, plus an optional
   // list of template arguments to the qualifier
-  -> PQ_qualifier(StringRef /*nullable*/qualifier, 
+  -> PQ_qualifier(StringRef /*nullable*/qualifier,
                   ASTList<TemplateArgument> targs,
                   PQName rest);
 
@@ -718,6 +720,14 @@ class TemplateArgument {
 
   // non-type arguments, corresponds to a TP_nontype parameter
   -> TA_nontype(Expression expr);
+  
+  // This is a special element that, when found in the template
+  // argument list of a PQ_qualifier or PQ_template, signals that
+  // those names were prefixed by the "template" keyword (14.2 para
+  // 4).  Doing it this way, instead of adding a boolean to the PQ_*
+  // classes, saves a little space in the common case, and avoids
+  // cluttering creation sites with "false /*templateUsed*/".
+  -> TA_templateUsed();
 }
 
 verbatim {

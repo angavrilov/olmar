@@ -42,8 +42,9 @@ enum LookupFlags {
   LF_IMPL_DECL_FUNC  = 0x100,   // K&R implicitly declare functions that are not found
   LF_DECLARATOR      = 0x200,   // context is a declarator name lookup; for templates, this means to pick the primary or a specialization, but don't instantiate
   LF_SELFNAME        = 0x400,   // the DF_SELFNAME is visible
+  LF_DEPENDENT       = 0x800,   // the lookup is in a dependent context
 
-  LF_ALL_FLAGS       = 0x7FF,   // bitwise OR of all flags
+  LF_ALL_FLAGS       = 0xFFF,   // bitwise OR of all flags
 };
 
 ENUM_BITWISE_OPS(LookupFlags, LF_ALL_FLAGS)     // smbase/macros.h

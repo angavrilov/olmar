@@ -59,7 +59,7 @@ option useGCDefaults;
 option defaultMergeAborts;
 
 // expected statistics
-option shift_reduce_conflicts 58;
+option shift_reduce_conflicts 60;
 option reduce_reduce_conflicts 100;
 option unreachable_nonterminals 0;
 option unreachable_terminals 6;
@@ -308,10 +308,14 @@ nonterm(PQName*) PQualifiedId {
   // I just ignore the keyword (is that right?)
   // NOTE: the pattern here is repeated FIVE times!  argh...
   // marking all as TEMPLATE_QUALIFIER_HACK
-  -> "template" n:Identifier "::" id:PQualifiedId
-       { return new PQ_qualifier(loc, n, NULL /*targs*/, id); }
+  //
+  // here, as below, I now realize that the first alternative (using
+  // "template" but not supplying template arguments) is illegal
+  //-> "template" n:Identifier "::" id:PQualifiedId
+  //     { return new PQ_qualifier(loc, n, NULL /*targs*/, id); }
   -> "template" n:Identifier "<" targs:TemplateArgumentList ">" "::" id:PQualifiedId
-       { return new PQ_qualifier(loc, n, targs, id); }
+       { targs->prepend(new TA_templateUsed());
+         return new PQ_qualifier(loc, n, targs, id); }
 }
 
 // variant of IdExpression which doesn't allow leading "::"; this is
@@ -1147,10 +1151,11 @@ nonterm(PQName*) PQTypeName_ncc {
        { return new PQ_qualifier(loc, q, targs, n); }
 
   // TEMPLATE_QUALIFIER_HACK
-  -> "template" q:Identifier "::" n:PQTypeName_ncc
-       { return new PQ_qualifier(loc, q, NULL /*targs*/, n); }
+  //-> "template" q:Identifier "::" n:PQTypeName_ncc
+  //     { return new PQ_qualifier(loc, q, NULL /*targs*/, n); }
   -> "template" q:Identifier "<" targs:TemplateArgumentList ">" "::" n:PQTypeName_ncc
-       { return new PQ_qualifier(loc, q, targs, n); }
+       { targs->prepend(new TA_templateUsed());
+         return new PQ_qualifier(loc, q, targs, n); }
 }
 
 
@@ -1372,10 +1377,11 @@ nonterm(PQName*) PQDtorName {
        { return new PQ_qualifier(loc, q, targs, rhs); }
 
   // TEMPLATE_QUALIFIER_HACK
-  -> "template" q:Identifier "::" rhs:PQDtorName
-       { return new PQ_qualifier(loc, q, NULL /*targs*/, rhs); }
+  //-> "template" q:Identifier "::" rhs:PQDtorName
+  //     { return new PQ_qualifier(loc, q, NULL /*targs*/, rhs); }
   -> "template" q:Identifier "<" targs:TemplateArgumentList ">" "::" rhs:PQDtorName
-       { return new PQ_qualifier(loc, q, targs, rhs); }
+       { targs->prepend(new TA_templateUsed());
+         return new PQ_qualifier(loc, q, targs, rhs); }
 
   // this rule from cppstd is partially subsumed by the "template" hack
   //-> ColonColonOpt NestedNameSpecifier "template" TemplateId "::" "~" TypeName;
@@ -1666,10 +1672,11 @@ nonterm(PQName*) ClassHeadName {
        { return new PQ_qualifier(loc, n, targs, rest); }
 
   // TEMPLATE_QUALIFIER_HACK
-  -> "template" n:Identifier "::" rest:ClassHeadName
-       { return new PQ_qualifier(loc, n, NULL /*targs*/, rest); }
+  //-> "template" n:Identifier "::" rest:ClassHeadName
+  //     { return new PQ_qualifier(loc, n, NULL /*targs*/, rest); }
   -> "template" n:Identifier "<" targs:TemplateArgumentList ">" "::" rest:ClassHeadName
-       { return new PQ_qualifier(loc, n, targs, rest); }
+       { targs->prepend(new TA_templateUsed());
+         return new PQ_qualifier(loc, n, targs, rest); }
 }
 
 nonterm(enum TypeIntr) ClassKey {
@@ -1979,10 +1986,11 @@ nonterm(PQName*) MemInitializerId {
        { return new PQ_qualifier(loc, n, targs, id); }
 
   // TEMPLATE_QUALIFIER_HACK
-  -> "template" n:Identifier "::" id:MemInitializerId
-       { return new PQ_qualifier(loc, n, NULL /*targs*/, id); }
+  //-> "template" n:Identifier "::" id:MemInitializerId
+  //     { return new PQ_qualifier(loc, n, NULL /*targs*/, id); }
   -> "template" n:Identifier "<" targs:TemplateArgumentList ">" "::" id:MemInitializerId
-       { return new PQ_qualifier(loc, n, targs, id); }
+       { targs->prepend(new TA_templateUsed());
+         return new PQ_qualifier(loc, n, targs, id); }
 }
 
 
@@ -2063,10 +2071,11 @@ nonterm(OperatorName*) Operator {
 
 // ------ A.12 Templates ------
 // I recognize this syntax, but ignore it
-nonterm ExportOpt {
-  -> empty;
-  -> "export";
-}
+// 8/15/04: it is now folded inline where it occurs
+//nonterm ExportOpt {
+//  -> empty;
+//  -> "export";
+//}
 
 nonterm(TemplateDeclaration*) TemplateDeclaration {
   // these are the std's rules for template declarations and specializations:
@@ -2115,12 +2124,23 @@ nonterm(TemplateDeclaration*) TemplateDeclaration {
 
 // the "template <...>" stuff
 nonterm(FakeList<TemplateParameter>*) TemplatePreamble {
+  // 8/15/04: substituted 'ExportOpt' inline since it gives rise to
+  // easily-removed S/R conflicts (continuing to ignore it though)
+  // 
+  // actually, it seems to *add* two S/R conflicts!  oh well, it is
+  // still the right thing to do b/c the explicit specialization
+  // syntax doesn't have "export" ...
+
   // template declaration
-  -> ExportOpt "template" "<" plist:TemplateParameterList ">"
+  -> "template" "<" plist:TemplateParameterList ">"
+       { return plist; }
+  -> "export" "template" "<" plist:TemplateParameterList ">"
        { return plist; }
 
   // explicit specialization
-  -> ExportOpt "template" "<" ">"
+  -> "template" "<" ">"
+       { return FakeList<TemplateParameter>::emptyList(); }
+  -> "export" "template" "<" ">"
        { return FakeList<TemplateParameter>::emptyList(); }
 }
 
@@ -2177,9 +2197,10 @@ nonterm(PQName*) TemplateId {
   -> n:Identifier "<" list:TemplateArgumentListOpt ">"
        { return new PQ_template(loc, n, list); }
 
-  // I think I should also have here a version with the word
-  // "template" in front, i.e.
-  // -> "template" n:Identifier "<" list:TemplateArgumentListOpt ">"
+  // version with the word "template" in front, i.e.
+  -> "template" n:Identifier "<" list:TemplateArgumentListOpt ">"
+       { list->prepend(new TA_templateUsed());
+         return new PQ_template(loc, n, list); }
 }
 
 nonterm(ASTList<TemplateArgument>*) TemplateArgumentList {

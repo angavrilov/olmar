@@ -336,6 +336,7 @@ void printTemplateArgumentList(PrintEnv &env, ASTList<TemplateArgument> &args)
 {
   int ct=0;
   FOREACH_ASTLIST_NC(TemplateArgument, args, iter) {
+    if (iter.data()->isTA_templateUsed()) continue;
     if (ct++ > 0) {
       env << ", ";
     }
@@ -345,6 +346,10 @@ void printTemplateArgumentList(PrintEnv &env, ASTList<TemplateArgument> &args)
 
 void PQ_qualifier::print(PrintEnv &env)
 {
+  if (templateUsed()) {
+    env << "template ";
+  }
+
   env << qualifier;
   if (targs.isNotEmpty()) {
     env << "<";
@@ -367,6 +372,10 @@ void PQ_operator::print(PrintEnv &env)
 
 void PQ_template::print(PrintEnv &env)
 {
+  if (templateUsed()) {
+    env << "template ";
+  }
+
   env << name << "<";
   printTemplateArgumentList(env, args);
   env << ">";
@@ -1343,6 +1352,13 @@ void TA_type::print(PrintEnv &env)
 void TA_nontype::print(PrintEnv &env)
 {
   expr->print(env);
+}
+
+void TA_templateUsed::print(PrintEnv &env)
+{
+  // the caller should have recognized the presence of TA_templateUsed,
+  // adjusted its printing accordingly, and then skipped this element
+  xfailure("do not print TA_templateUsed");
 }
 
 

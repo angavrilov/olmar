@@ -951,6 +951,8 @@ void Env::initArgumentsFromASTTemplArgs
   xassert(tinfo->arguments.count() == 0); // don't use this if there are already arguments
   FOREACH_ASTLIST(TemplateArgument, templateArgs, iter) {
     TemplateArgument const *targ = iter.data();
+    if (targ->isTA_templateUsed()) continue;
+
     xassert(targ->sarg.hasValue());
     tinfo->arguments.append(new STemplateArgument(targ->sarg));
   }
@@ -963,8 +965,12 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument>
   xassert(var->templateInfo());
   xassert(var->templateInfo()->isPrimary());
 
-  SObjListIterNC<Variable> paramIter(var->templateInfo()->params);
   ASTListIter<TemplateArgument> argIter(args);
+  if (!argIter.isDone() && argIter.data()->isTA_templateUsed()) {
+    argIter.adv();      // skip TA_templateUsed
+  }
+
+  SObjListIterNC<Variable> paramIter(var->templateInfo()->params);
   while (!paramIter.isDone() && !argIter.isDone()) {
     Variable *param = paramIter.data();
 
@@ -1527,7 +1533,7 @@ void Env::mapPrimaryArgsToSpecArgs_oneParamList(
 }
 
 
-// go over the list of arguments, and make a list of semantic
+// go over the list of arguments, and extract a list of semantic
 // arguments
 bool Env::templArgsASTtoSTA
   (ASTList<TemplateArgument> const &arguments,
@@ -1539,6 +1545,12 @@ bool Env::templArgsASTtoSTA
     // since that's what the interface to 'equalArguments' expects..
     // this is a problem with const-polymorphism again
     TemplateArgument *ta = const_cast<TemplateArgument*>(iter.data());
+    
+    if (ta->isTA_templateUsed()) {
+      // skip this, it is not a real argument
+      continue;
+    }
+
     if (!ta->sarg.hasValue()) {
       // sm: 7/24/04: This used to be a user error, but I think it should
       // be an assertion because it is referring to internal implementation

@@ -869,12 +869,26 @@ void tcheckTemplateArgumentList(ASTList<TemplateArgument> &list, Env &env)
 
 void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
 {
+  if (lflags & LF_DEPENDENT) {
+    // the previous qualifier was dependent; do truncated processing here
+    if (!templateUsed()) {
+      // without the "template" keyword, the dependent context may give
+      // rise to ambiguity, so reject it
+      env.error("dependent template scope name requires 'template' keyword",
+                EF_DISAMBIGUATES);
+    }
+    tcheckTemplateArgumentList(targs, env);
+    denotedScopeVar = env.dependentVar;
+    rest->tcheck(env, scope, lflags);
+    return;
+  }
+
   // begin by looking up the bare name, igoring template arguments
   Variable *bareQualifierVar = env.lookupOneQualifier_bareName(scope, this, lflags);
 
   // now check the arguments
   tcheckTemplateArgumentList(targs, env);
-  
+
   // pull them out into a list
   SObjList<STemplateArgument> sargs;
   if (!env.templArgsASTtoSTA(targs, sargs)) {
@@ -935,6 +949,7 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
   if (!denotedScope) {
     if (dependent) {
       denotedScopeVar = env.dependentVar;
+      lflags |= LF_DEPENDENT;
     }
     else {
       // error; recovery: just keep going (error already reported)
@@ -969,8 +984,14 @@ void PQ_operator::tcheck(Env &env, Scope *, LookupFlags)
   o->tcheck(env);
 }
 
-void PQ_template::tcheck(Env &env, Scope *, LookupFlags)
-{
+void PQ_template::tcheck(Env &env, Scope *, LookupFlags lflags)
+{                             
+  // like above in PQ_qualifier::tcheck
+  if ((lflags & LF_DEPENDENT) && !templateUsed()) {
+    env.error("dependent template name requires 'template' keyword",
+              EF_DISAMBIGUATES);
+  }
+
   tcheckTemplateArgumentList(args, env);
 }
 
@@ -6399,6 +6420,13 @@ void TA_nontype::itcheck(Env &env)
 {
   expr->tcheck(env, expr);
   setSTemplArgFromExpr(env, sarg, expr, 0 /*recursionCount*/);
+}
+
+
+void TA_templateUsed::itcheck(Env &env)
+{
+  // nothing to do; 'sarg' is already STA_NONE, and the plan is
+  // that no one will ever look at it anyway
 }
 
 
