@@ -6,6 +6,7 @@ verbatim {
 #include "cc_flags.h"      // CVFlags, DeclFlags, etc.
 
 class Env;                 // cc_env.h
+class Type;                // cc_type.h
 
 } // end verbatim
 
@@ -47,21 +48,52 @@ class Declaration (
 class ASTTypeId (
   TypeSpecifier spec,      // "int"
   Declarator decl          // this will be abstract sometimes
-);
+) {
+  public Type const *tcheck(Env &env);
+}
 
 // a name of an "atomic" type -- one to which type constructors
 // (e.g. '*') can be applied, but which itself is not built with type
 // constructors
+// that's not quite right -- typedef'd types need not be atomic
 class TypeSpecifier {
   public enum CVFlags cv;
   ctor { cv=CV_NONE; };
-  
-  -> TS_name(StringRef name);                           // a typedef'd name
-  -> TS_simple(SimpleTypeId id);                        // int or char or float or ..
-  -> TS_elaborated(TypeIntr keyword, StringRef name);   // "class Foo"
-  -> TS_classSpec(ClassSpecifier spec);                 // "class { ... }"
-  -> TS_enumSpec(EnumSpecifier spec);                   // "enum { ... }"
+
+  // yield the type named by the specifier; this type may of course
+  // get refined when the declarator is considered
+  pure_virtual Type const *tcheck(Env &env);
+
+  // apply the 'cv' information
+  protected Type const *applyCV(Env &env, Type const *base);
+
+  -> TS_name(StringRef name);              // a typedef'd name
+
+  -> TS_simple(SimpleTypeId id);           // int or char or float or ..
+
+  -> TS_elaborated(                        // "class Foo"
+       TypeIntr keyword,
+       StringRef name
+     );
+
+  -> TS_classSpec(                         // "class { ... }"
+       TypeIntr keyword,                     // "class", "struct", "union"
+       StringRef /*nullable*/ name,          // user-provided name, if any
+       ASTList<Declaration> members          // the fields of the struct
+     );
+
+  -> TS_enumSpec(                          // "enum { ... }"
+       StringRef /*nullable*/ name,          // name of enum, if any
+       ASTList<Enumerator> elts              // elements of the enumeration
+     );
 }
+
+// a binding of a name to a constant value
+class Enumerator (
+  StringRef name,                       // name of this constant
+  Expression /*nullable*/ expr          // constant expr, or NULL for "next"
+);
+
 
 // a thing which introduces a name of a declared thing, and also
 // optionally adds type constructors to the base type of the specifier;
@@ -71,8 +103,14 @@ class Declarator {
   public ASTList<PtrOperator> stars;   // pointer constructors, right to left
   public Initializer *init;            // (nullable) optional data initializer
   ctor { init=NULL; };
+    
+  // returns the type denoted by the combination of 'base' and the
+  // type constructors in this declarator (recursively)
+  pure_virtual Type const *
+    tcheck(Env &env, Type const *base, DeclFlags dflags);
 
-  pure_virtual void tcheck(Env &env);
+  // dig down and find the name being declared; may return NULL
+  pure_virtual StringRef getName() const;
 
   -> D_name(StringRef /*nullable*/ name);                      // "x" (NULL means abstract declarator or anonymous parameter)
   -> D_func(Declarator base, ASTList<ASTTypeId> params);       // "f(int)"
@@ -83,26 +121,6 @@ class Declarator {
 // each star is associated with one of these; it's here so I can expand
 // it to include C++'s '&'
 class PtrOperator (CVFlags cv);
-
-// a class declaration body
-class ClassSpecifier (
-  TypeIntr keyword,                     // "class", "struct", "union"
-  StringRef /*nullable*/ name,          // user-provided name, if any
-  ASTList<Declaration> members          // the fields of the struct
-);
-
-// an enum declaration
-class EnumSpecifier (
-  StringRef /*nullable*/ name,          // name of enum, if any
-  ASTList<Enumerator> elts              // elements of the enumeration
-);
-                
-// a binding of a name to a constant value
-class Enumerator (
-  StringRef name,                       // name of this constant
-  Expression /*nullable*/ expr          // constant expr, or NULL for "next"
-);
-
 
 // ------------------- statements -----------------
 class Statement {
@@ -119,8 +137,8 @@ class Statement {
   -> S_switch(Expression expr, Statement branches);
   -> S_while(Expression cond, Statement body);
   -> S_doWhile(Statement body, Expression cond);
-  -> S_for(Statement init, Expression /*nullable*/ cond,
-           Expression /*nullable*/ after, Statement body);
+  -> S_for(Statement init, Expression cond,
+           Expression after, Statement body);
   -> S_break();
   -> S_continue();
   -> S_return(Expression /*nullable*/ expr);
@@ -132,11 +150,29 @@ class Statement {
 // ----------------- expressions -----------------
 // general C expressions
 class Expression {
+  // type check and yield the type of the expression; this type
+  // gets automatically stored in the 'type' field
+  public Type const *tcheck(Env &env);
+  public Type const *type;
+  ctor type=NULL;
+
+  // inner typechecker which does not have to store its result
+  // in 'type'
+  pure_virtual Type const *itcheck(Env &env);
+
+  // try to evaluate the expression as a constant integer;
+  // this can *only* be done after the expression has been tcheck'd
+  pure_virtual int constEval(Env &env) const;
+  protected int xnonconst() const;       // throws XNonConst
+
+  // unparse the expression
+  pure_virtual string toString() const;
+
   -> E_intLit(int i);
   -> E_floatLit(float f);
   -> E_stringLit(StringRef s);    // not quite right b/c can't handle embedded nuls
   -> E_charLit(char c);
-  -> E_structLit(ASTTypeId type, ASTList<Initializer> init);
+  -> E_structLit(ASTTypeId stype, ASTList<Initializer> init);
 
   -> E_variable(StringRef name);
   -> E_arrayAcc(Expression arr, Expression index);
@@ -150,11 +186,11 @@ class Expression {
   -> E_addrOf(Expression expr);
   -> E_deref(Expression ptr);
 
-  -> E_cast(ASTTypeId type, Expression expr);
+  -> E_cast(ASTTypeId ctype, Expression expr);
   -> E_cond(Expression cond, Expression th, Expression el);
   -> E_gnuCond(Expression cond, Expression el);
   -> E_comma(Expression e1, Expression e2);
-  -> E_sizeofType(ASTTypeId type);
+  -> E_sizeofType(ASTTypeId atype);
 
   // these are not ordinary binary because they too are special
   -> E_assign(Expression target, Expression src);

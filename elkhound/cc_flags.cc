@@ -141,17 +141,6 @@ SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id)
 }
 
 
-string makeIdComment(int id)
-{
-  if (tracingSys("type-ids")) {
-    return stringc << "/""*" << id << "*/";
-  }
-  else {
-    return "";
-  }
-}
-
-
 // ------------------------ UnaryOp -----------------------------
 char const * const unaryOpNames[NUM_UNARYOPS] = {
   "++/*postfix*/",

@@ -3,10 +3,6 @@
 
 #ifndef CC_ENV_H
 #define CC_ENV_H
-              
-class Env {};
-
-#if 0   // old
 
 #include "cc_type.h"      // Type, AtomicType, etc.
 #include "cc_err.h"       // SemanticError
@@ -40,7 +36,7 @@ public:     // data
   DeclFlags declFlags;       // inline, etc.
   Type const *type;          // type of this variable
   int enumValue;             // if isEnumValue(), its numerical value
-  Owner<CilExpr> initVal;    // for global variables, the initial value
+  //Owner<CilExpr> initVal;    // for global variables, the initial value
   int fieldNum;              // orders fields in structs
 
 public:     // funcs
@@ -49,9 +45,9 @@ public:     // funcs
 
   // some ad-hoc thing
   string toString() const;
-  
+
   // ML eval() format
-  MLValue toMLValue() const;
+  //MLValue toMLValue() const;
 
   // when true:
   //   - 'name' is the name of an enum constant value
@@ -83,7 +79,7 @@ private:    // data
   // counter for synthesizing names; only the counter in the toplevel
   // environment is used
   int nameCounter;
-  
+
   // user-defined compounds
   StringSObjDict<CompoundType> compounds;
 
@@ -118,7 +114,7 @@ private:    // funcs
 
   Env(Env&);               // not allowed
 
-public:     // funcs                         
+public:     // funcs
   // empty toplevel environment
   Env(DataflowEnv *denv, TypeEnv *typeEnv, VariableEnv *varEnv);
 
@@ -127,10 +123,28 @@ public:     // funcs
 
   ~Env();
 
+
+  // added or changed during most recent rewrite
+  void err(char const *str);
+  void errIf(bool condition, char const *str);
+  Type const *lookupTypedef(StringRef name);
+  EnumType *lookupOrMakeEnum(StringRef name);
+  void pushStruct(CompoundType *ct);
+  void popStruct();
+  void addEnumerator(StringRef name, EnumType *et, int value);
+  void addTypedef(StringRef name, Type const *type);
+  Variable *declareVariable(StringRef name,
+                            DeclFlags flags, Type const *type);
+  Type const *getCurrentRetType();
+  void checkCoercible(Type const *src, Type const *dest);
+  Type const *promoteTypes(Type const *t1, Type const *t2);
+
+
+
   // create a new environment based on the current one, purely for
   // scoping purposes
   Env *newScope();
-  
+
   // create a nested environment with a different
   // place for storing variable declarations
   Env *newVariableScope(VariableEnv *venv);
@@ -153,6 +167,10 @@ public:     // funcs
   // with no const or volatile qualifiers
   CVAtomicType *makeType(AtomicType const *atomic);
 
+  // given an AtomicType, wrap it in a CVAtomicType
+  // with specified const or volatile qualifiers
+  CVAtomicType *makeCVType(AtomicType const *atomic, CVFlags cv);
+
   // given a type, qualify it with 'cv'; return NULL
   // if the base type cannot be so qualified
   Type const *applyCVToType(CVFlags cv, Type const *baseType);
@@ -166,7 +184,7 @@ public:     // funcs
 
   // make a function type; initially, its parameter list is
   // empty, but can be built up by modifying the returned object
-  FunctionType *makeFunctionType(Type const *retType, CVFlags cv);
+  FunctionType *makeFunctionType(Type const *retType/*, CVFlags cv*/);
   
   // sometimes it's handy to specify all args at once
   FunctionType *makeFunctionType_1arg(
@@ -180,7 +198,7 @@ public:     // funcs
   // lookup a compound type; if it doesn't exist, declare a new
   // incomplete type, using 'keyword'; if it does, but the keyword
   // is different from its existing declaration, return NULL
-  CompoundType *lookupOrMakeCompound(char const *name, CompoundType::Keyword keyword);
+  CompoundType *lookupOrMakeCompound(StringRef name, CompoundType::Keyword keyword);
 
   // just do lookup, and return NULL if doesn't exist or is
   // declared as something other than a compound
@@ -233,7 +251,7 @@ public:     // funcs
   // get errors accumulated, including parent environments
   int numErrors() const;
   void printErrors(ostream &os) const;
-  
+
   // just deal with errors in this environment
   int numLocalErrors() const { return errors.count(); }
   void printLocalErrors(ostream &os) const;
@@ -241,7 +259,7 @@ public:     // funcs
 
   // print local errors and then throw them away
   void flushLocalErrors(ostream &os);
-  
+
   // trial balloon flag
   void setTrialBalloon(bool val) { trialBalloon = val; }
   bool isTrialBalloon() const;
@@ -272,6 +290,7 @@ public:     // funcs
 };
 
 
+#if 0
 // --------------------- TypeEnv ------------------
 // toplevel environment that owns all the types
 class TypeEnv {
@@ -282,7 +301,7 @@ private:     // data
 public:
   TypeEnv();
   ~TypeEnv();
-                                                      
+
   int numTypes() const { return types.count(); }
   TypeId grab(Type *type);
   Type *lookup(TypeId id) { return types.lookup(id); }
@@ -323,6 +342,7 @@ public:
 #define FOREACH_VARIABLE(env, var) \
   FOREACH_ARRAYMAP(Variable, (env).getVars(), var)
 
-#endif // 0 
+#endif // 0
+
 
 #endif // CC_ENV_H

@@ -4,7 +4,7 @@
 OCAMLINCL mode = --ocaml
 NOCAMLINCL mode = --nocaml
 
-temporary: check-makefiles c.ast.gen.o cc.gen.o ccgr
+temporary: check-makefiles c.ast.gen.o cc.gen.o ccgr cc_type.o
 
 # main targets
 all: check-makefiles ccgr

@@ -426,7 +426,8 @@ nonterm[Expression*] Expression {
 }
 
 nonterm[Expression*] ExpressionOpt {
-  -> empty         [ return NULL; ]
+  // empty expression is a nop
+  -> empty         [ return new E_intLit(1); ]
   -> e:Expression  [ return e; ]
 }
 
@@ -549,9 +550,8 @@ nonterm[Expression*] Condition {
 }
 
 nonterm[Expression*] ConditionOpt {
-  // an empty condition in a for loop is interpreted as true
-  -> empty             [ return NULL; ]
-
+  // an empty condition (e.g. in a for loop) is interpreted as true
+  -> empty             [ return new E_intLit(1); ]
   -> c:Condition       [ return c; ]
 }
 
@@ -668,9 +668,9 @@ nonterm[TypeSpecifier*] TypeSpecifier {
        [ return s; ]
 
   -> s:ClassSpecifier                 // class { ... }
-       [ return new TS_classSpec(s); ]
+       [ return s; ]
   -> s:EnumSpecifier                  // enum { ... }
-       [ return new TS_enumSpec(s); ]
+       [ return s; ]
 
   // the following 3 rules create an ambiguity because they don't
   // say how to parse things like "const int const"; so assign
@@ -778,11 +778,11 @@ nonterm[int] SimpleCVTypeSpecifier {
 }
 
 
-nonterm[EnumSpecifier*] EnumSpecifier {
-  -> "enum" "{" list:EnumeratorListOpt "}" 
-       [ return new EnumSpecifier(NULL /*name*/, list); ]
-  -> "enum" n:AnyName "{" list:EnumeratorListOpt "}" 
-       [ return new EnumSpecifier(n, list); ]
+nonterm[TS_enumSpec*] EnumSpecifier {
+  -> "enum" "{" list:EnumeratorListOpt "}"
+       [ return new TS_enumSpec(NULL /*name*/, list); ]
+  -> "enum" n:AnyName "{" list:EnumeratorListOpt "}"
+       [ return new TS_enumSpec(n, list); ]
 }
 
 
@@ -1145,11 +1145,11 @@ nonterm ExplicitOpt {
 // ------ A.8 Classes ------
 // I'm going to use the "class" terminology throughout, even though
 // C only has "struct" and "union"
-nonterm[ClassSpecifier*] ClassSpecifier ->
+nonterm[TS_classSpec*] ClassSpecifier ->
   k:ClassKeyword n:ClassNameOpt /*base:BaseClauseOpt*/
     "{" memb:MemberDeclarationSeqOpt "}"
   [
-    return new ClassSpecifier(k, n, memb);
+    return new TS_classSpec(k, n, memb);
   ]
 
 nonterm[StringRef] ClassNameOpt {

@@ -2,11 +2,13 @@
 // code for cc_type.h
 
 #include "cc_type.h"    // this module
-#include "cc_env.h"     // Env
+//#include "cc_env.h"     // Env
 #include "trace.h"      // tracingSys
-#include "cil.h"        // CilExpr
+//#include "cil.h"        // CilExpr
+#include <assert.h>     // assert
 
 
+#if 0
 MLValue mlStorage(DeclFlags df)
 {
   // storage = NoStorage | Static | Register | Extern
@@ -25,14 +27,27 @@ MLValue mlStorage(DeclFlags df)
   }
   return mlTuple0(storage_NoStorage);
 }
+#endif // 0
+
+
+string makeIdComment(int id)
+{
+  if (tracingSys("type-ids")) {
+    return stringc << "/""*" << id << "*/";
+                     // ^^ this is to work around an Emacs highlighting bug
+  }
+  else {
+    return "";
+  }
+}
 
 
 // ------------------ AtomicType -----------------
 ALLOC_STATS_DEFINE(AtomicType)
 
 AtomicType::AtomicType()
-  : id(NULL_ATOMICTYPEID)
-{                        
+  //: id(NULL_ATOMICTYPEID)
+{
   ALLOC_STATS_IN_CTOR
 }
 
@@ -63,12 +78,12 @@ string recurseCilString(T const *type, int depth)
   xassert(depth >= 0);     // otherwise we started < 1
   if (depth == 0) {
     // just print the id
-    return stringc << "id " << type->id;
+    return stringc << "id " << type->getId();
   }
   else {
     // print id in a comment but go on to print the
     // type one level deeper
-    return stringc << makeIdComment(type->id) << " "
+    return stringc << makeIdComment(type->getId()) << " "
                    << type->toCilString(depth);
   }
 }
@@ -82,6 +97,27 @@ string AtomicType::toString(int depth) const
 
 
 // ------------------ SimpleType -----------------
+SimpleType const SimpleType::fixed[NUM_SIMPLE_TYPES] = {
+  SimpleType(ST_CHAR),
+  SimpleType(ST_UNSIGNED_CHAR),
+  SimpleType(ST_SIGNED_CHAR),
+  SimpleType(ST_BOOL),
+  SimpleType(ST_INT),
+  SimpleType(ST_UNSIGNED_INT),
+  SimpleType(ST_LONG_INT),
+  SimpleType(ST_UNSIGNED_LONG_INT),
+  SimpleType(ST_LONG_LONG),
+  SimpleType(ST_UNSIGNED_LONG_LONG),
+  SimpleType(ST_SHORT_INT),
+  SimpleType(ST_UNSIGNED_SHORT_INT),
+  SimpleType(ST_WCHAR_T),
+  SimpleType(ST_FLOAT),
+  SimpleType(ST_DOUBLE),
+  SimpleType(ST_LONG_DOUBLE),
+  SimpleType(ST_VOID),
+  SimpleType(ST_ELLIPSIS),
+};
+
 string SimpleType::toCString() const
 {
   return simpleTypeName(type);
@@ -100,6 +136,7 @@ int SimpleType::reprSize() const
 }
 
 
+#if 0
 #define MKTAG(n,t) MAKE_ML_TAG(typ, n, t)
 MKTAG(0, TVoid)
 MKTAG(1, TInt)
@@ -167,6 +204,7 @@ MLValue SimpleType::toMLValue(int, CVFlags cv) const
   }
   #undef TUP
 }
+#endif // 0
 
 
 string SimpleType::uniqueName() const
@@ -176,7 +214,7 @@ string SimpleType::uniqueName() const
 
 
 // ------------------ NamedAtomicType --------------------
-NamedAtomicType::NamedAtomicType(char const *n)
+NamedAtomicType::NamedAtomicType(StringRef n)
   : name(n)
 {}
 
@@ -187,10 +225,11 @@ NamedAtomicType::~NamedAtomicType()
 string NamedAtomicType::uniqueName() const
 {
   // 'a' for atomic
-  return stringc << "a" << id << "_" << name;
+  return stringc << "a" << (int)this /*id*/ << "_" << name;
 }
 
 
+#if 0
 MLValue NamedAtomicType::toMLValue(int depth, CVFlags cv) const
 {
   // we break the circularity at the entry to named atomics;
@@ -211,30 +250,30 @@ MLValue NamedAtomicType::toMLValue(int depth, CVFlags cv) const
     // full info
     return toMLContentsValue(depth, cv);
   }
-}
+}    
+#endif // 0
 
 
 // ------------------ CompoundType -----------------
-CompoundType::CompoundType(Keyword k, char const *n)
+CompoundType::CompoundType(Keyword k, StringRef n)
   : NamedAtomicType(n),
-    env(NULL),
+    fields(),
+    forward(true),
     keyword(k)
 {}
 
 CompoundType::~CompoundType()
-{
-  if (env) {
-    delete env;
-  }
-}
+{}
 
 
+#if 0
 void CompoundType::makeComplete(Env *parentEnv, TypeEnv *te,
                                 VariableEnv *ve)
 {
   xassert(!env);     // shouldn't have already made one yet
   env = new Env(parentEnv, te, ve);
-}
+}    
+#endif // 0
 
 
 STATICDEF char const *CompoundType::keywordName(Keyword k)
@@ -261,7 +300,12 @@ string CompoundType::toStringWithFields() const
   stringBuilder sb;
   sb << toCString();
   if (isComplete()) {
-    sb << " { " << env->toString() << "};";
+    sb << " { ";
+    FOREACH_OBJLIST(Field, fields, iter) {
+      Field const *f = iter.data();
+      sb << f->type->toCString(f->name) << "; ";
+    }
+    sb << "};";
   }
   else {
     sb << ";";
@@ -272,6 +316,9 @@ string CompoundType::toStringWithFields() const
 
 string CompoundType::toCilString(int depth) const
 {
+  return "(todo)";
+
+  #if 0
   if (!isComplete()) {
     // this is a problem for my current type-printing
     // strategy, since I'm likely to print this even
@@ -294,9 +341,11 @@ string CompoundType::toCilString(int depth) const
 
   sb << "}";
   return sb;
+  #endif // 0
 }
 
 
+#if 0
 MLValue CompoundType::toMLContentsValue(int depth, CVFlags cv) const
 {
   // TStruct of string * fieldinfo list * int * attribute list
@@ -328,15 +377,15 @@ MLValue CompoundType::toMLContentsValue(int depth, CVFlags cv) const
                   fields,
                   mlInt(id),
                   att);
-}
+}    
+#endif // 0
 
 
 int CompoundType::reprSize() const
 {
   int total = 0;
-  StringSObjDict<Variable>::Iter iter(env->getVariables());
-  for (; !iter.isDone(); iter.next()) {
-    int membSize = iter.value()->type->reprSize();
+  FOREACH_OBJLIST(Field, fields, iter) {
+    int membSize = iter.data()->type->reprSize();
     if (keyword == K_UNION) {
       // representation size is max over field sizes
       total = max(total, membSize);
@@ -352,12 +401,12 @@ int CompoundType::reprSize() const
 
 int CompoundType::numFields() const
 {
-  return env->getNumVariables();
+  return fields.count();
 }
 
-Variable *CompoundType::getNthField(int index) const
+CompoundType::Field const *CompoundType::getNthField(int index) const
 {
-  return env->getNthVariable(index);
+  return fields.nthC(index);
 }
 
 
@@ -373,12 +422,13 @@ string EnumType::toCString() const
 
 
 string EnumType::toCilString(int depth) const
-{       
+{
   // TODO2: get fields
   return toCString();
 }
 
 
+#if 0
 MLValue EnumType::toMLContentsValue(int, CVFlags cv) const
 {
   // TEnum of string * (string * int) list * int * attribute list
@@ -389,6 +439,7 @@ MLValue EnumType::toMLContentsValue(int, CVFlags cv) const
                   mlInt(id),
                   cvToMLAttrs(cv));
 }
+#endif // 0
 
 
 int EnumType::reprSize() const
@@ -398,12 +449,12 @@ int EnumType::reprSize() const
 }
 
 
-// ---------------- EnumValue --------------
-EnumValue::EnumValue(char const *n, EnumType const *t, int v)
+// ---------------- EnumType::Value --------------
+EnumType::Value::Value(StringRef n, EnumType const *t, int v)
   : name(n), type(t), value(v)
 {}
 
-EnumValue::~EnumValue()
+EnumType::Value::~Value()
 {}
 
 
@@ -411,7 +462,7 @@ EnumValue::~EnumValue()
 ALLOC_STATS_DEFINE(Type)
 
 Type::Type()
-  : id(NULL_TYPEID)
+  //: id(NULL_TYPEID)
 {
   ALLOC_STATS_IN_CTOR
 }
@@ -449,7 +500,7 @@ bool Type::equals(Type const *obj) const
 
 string Type::idComment() const
 {
-  return makeIdComment(id);
+  return makeIdComment(getId());
 }
 
 
@@ -522,32 +573,49 @@ bool Type::isUnionType() const
 
 
 // ----------------- CVAtomicType ----------------
+CVAtomicType const CVAtomicType::fixed[NUM_SIMPLE_TYPES] = {
+  CVAtomicType(&SimpleType::fixed[ST_CHAR],               CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_UNSIGNED_CHAR],      CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_SIGNED_CHAR],        CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_BOOL],               CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_INT],                CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_UNSIGNED_INT],       CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_LONG_INT],           CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_UNSIGNED_LONG_INT],  CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_LONG_LONG],          CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_UNSIGNED_LONG_LONG], CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_SHORT_INT],          CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_UNSIGNED_SHORT_INT], CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_WCHAR_T],            CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_FLOAT],              CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_DOUBLE],             CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_LONG_DOUBLE],        CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_VOID],               CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_ELLIPSIS],           CV_NONE),
+};
+
+
 bool CVAtomicType::innerEquals(CVAtomicType const *obj) const
 {
   return atomic->equals(obj->atomic) &&
          cv == obj->cv;
-}         
+}
 
 
 string cvToString(CVFlags cv)
 {
-  stringBuilder sb;
-  if (cv & CV_CONST) {
-    sb << " const";
+  if (cv != CV_NONE) {
+    return stringc << " " << toString(cv);
   }
-  if (cv & CV_VOLATILE) {
-    sb << " volatile";
+  else {
+    return string("");
   }
-  if (cv & CV_OWNER) {
-    sb << " owner";
-  }
-  return sb;
 }
 
 
 string CVAtomicType::atomicIdComment() const
 {
-  return makeIdComment(atomic->id);
+  return makeIdComment(atomic->getId());
 }
 
 
@@ -565,10 +633,12 @@ string CVAtomicType::toCilString(int depth) const
 }
 
 
+#if 0
 MLValue CVAtomicType::toMLValue(int depth) const
 {
   return atomic->toMLValue(depth, cv);
-}
+}    
+#endif // 0
 
 
 int CVAtomicType::reprSize() const
@@ -607,6 +677,7 @@ string PointerType::toCilString(int depth) const
 }
 
 
+#if 0
 MLValue PointerType::toMLValue(int depth) const
 {
   // TPtr of typ * attribute list
@@ -615,6 +686,7 @@ MLValue PointerType::toMLValue(int depth) const
                   atType->toMLValue(depth),
                   cvToMLAttrs(cv));
 }
+#endif // 0
 
 
 int PointerType::reprSize() const
@@ -624,21 +696,21 @@ int PointerType::reprSize() const
 }
 
 
-// -------------------- Parameter -----------------
-Parameter::~Parameter()
+// -------------------- FunctionType::Param -----------------
+FunctionType::Param::~Param()
 {}
 
 
-string Parameter::toString() const
+string FunctionType::Param::toString() const
 {
   return type->toCString(name);
 }
 
 
 // -------------------- FunctionType -----------------
-FunctionType::FunctionType(Type const *r, CVFlags c)
+FunctionType::FunctionType(Type const *r/*, CVFlags c*/)
   : retType(r),
-    cv(c),
+    //cv(c),
     params(),
     acceptsVarargs(false)
 {}
@@ -651,13 +723,13 @@ FunctionType::~FunctionType()
 bool FunctionType::innerEquals(FunctionType const *obj) const
 {
   if (retType->equals(obj->retType) &&
-      cv == obj->cv &&
+      //cv == obj->cv &&
       acceptsVarargs == obj->acceptsVarargs) {
     // so far so good, try the parameters
-    ObjListIter<Parameter> iter1(params);
-    ObjListIter<Parameter> iter2(obj->params);
+    ObjListIter<Param> iter1(params);
+    ObjListIter<Param> iter2(obj->params);
     for (; !iter1.isDone() && !iter2.isDone();
-         iter1.adv(), iter2.adv()) { 
+         iter1.adv(), iter2.adv()) {
       // parameter names do not have to match, but
       // the types do
       if (iter1.data()->type->equals(iter2.data()->type)) {
@@ -667,7 +739,7 @@ bool FunctionType::innerEquals(FunctionType const *obj) const
         return false;
       }
     }
-    
+
     return iter1.isDone() == iter2.isDone();
   }
   else {
@@ -676,7 +748,7 @@ bool FunctionType::innerEquals(FunctionType const *obj) const
 }
 
 
-void FunctionType::addParam(Parameter *param)
+void FunctionType::addParam(Param *param)
 {
   params.append(param);
 }
@@ -697,13 +769,13 @@ string FunctionType::rightString() const
   // arguments
   sb << "(";
   int ct=0;
-  FOREACH_OBJLIST(Parameter, params, iter) {
+  FOREACH_OBJLIST(Param, params, iter) {
     if (ct++ > 0) {
       sb << ", ";
     }
     sb << iter.data()->toString();
   }
-  
+
   if (acceptsVarargs) {
     if (ct++ > 0) {
       sb << ", ";
@@ -714,7 +786,7 @@ string FunctionType::rightString() const
   sb << ")";
 
   // qualifiers
-  sb << cvToString(cv);
+  //sb << cvToString(cv);
 
   // finish up the return type
   sb << retType->rightString();
@@ -726,14 +798,14 @@ string FunctionType::rightString() const
 string FunctionType::toCilString(int depth) const
 {
   stringBuilder sb;
-  sb << "func " << cvToString(cv) << " ";
+  sb << "func " /*<< cvToString(cv) << " "*/;
   if (acceptsVarargs) {
     sb << "varargs ";
   }
   sb << "(";
 
   int ct=0;
-  FOREACH_OBJLIST(Parameter, params, iter) {
+  FOREACH_OBJLIST(Param, params, iter) {
     if (++ct > 1) {
       sb << ", ";
     }
@@ -747,6 +819,7 @@ string FunctionType::toCilString(int depth) const
 }
 
 
+#if 0
 MLValue FunctionType::toMLValue(int depth) const
 {
   // TFunc of typ * typ list * bool * attribute list
@@ -764,6 +837,7 @@ MLValue FunctionType::toMLValue(int depth) const
                   mlBool(acceptsVarargs),
                   cvToMLAttrs(cv));
 }
+#endif // 0
 
 
 int FunctionType::reprSize() const
@@ -781,7 +855,7 @@ bool ArrayType::innerEquals(ArrayType const *obj) const
          hasSize == obj->hasSize )) {
     return false;
   }
-  
+
   if (hasSize) {
     return size == obj->size;
   }
@@ -825,6 +899,7 @@ string ArrayType::toCilString(int depth) const
 }
 
 
+#if 0
 MLValue ArrayType::toMLValue(int depth) const
 {
   // TArray of typ * exp option * attribute list
@@ -848,6 +923,7 @@ MLValue ArrayType::toMLValue(int depth) const
                   mlSize,
                   mlNil());    // no attrs for arrays
 }
+#endif // 0
 
 
 int ArrayType::reprSize() const
@@ -859,5 +935,21 @@ int ArrayType::reprSize() const
     // or should I throw an exception ..?
     cout << "warning: reprSize of a sizeless array\n";
     return 0;
+  }
+}
+
+
+// ------------------ test -----------------
+void cc_type_checker()
+{                                    
+  // verify the fixed[] arrays
+  // it turns out this is probably redundant, since the compiler will
+  // complain if I leave out an entry, now that the classes do not have
+  // default constructors! yes!
+  for (int i=0; i<NUM_SIMPLE_TYPES; i++) {
+    assert(SimpleType::fixed[i].type == i);
+    
+    SimpleType const *st = (SimpleType const*)(CVAtomicType::fixed[i].atomic);
+    assert(st && st->type == i);
   }
 }
