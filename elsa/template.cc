@@ -1991,10 +1991,10 @@ Variable *Env::findMostSpecific
 // makeEatScope: first step towards removing SK_EAT_TEMPL_SCOPE
 // altogether
 Scope *Env::prepArgScopeForTemlCloneTcheck
-  (ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes, Scope *foundScope,
-   bool makeEatScope)
+  (ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes, Scope *foundScope)
 {
   xassert(foundScope);
+
   // pop scope scopes
   while (!scopes.first()->enclosesOrEq(foundScope)) {
     poppedScopes.prepend(scopes.removeFirst());
@@ -2032,14 +2032,6 @@ Scope *Env::prepArgScopeForTemlCloneTcheck
     scopes.prepend(iter.data());
   }
 
-  if (makeEatScope) {
-    // the variable created by tchecking the instantiation would
-    // normally be inserted into the current scope, but instantiations
-    // are found in their own list, not via environment lookup; so
-    // this scope will just catch the instantiation so we can discard it
-    enterScope(SK_EAT_TEMPL_INST, "dummy scope to eat the template instantiation");
-  }
-
   // make a new scope for the template arguments
   Scope *argScope = enterScope(SK_TEMPLATE_ARGS, "template argument bindings");
 
@@ -2048,8 +2040,7 @@ Scope *Env::prepArgScopeForTemlCloneTcheck
 
 
 void Env::unPrepArgScopeForTemlCloneTcheck
-  (Scope *argScope, ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes,
-   bool makeEatScope)
+  (Scope *argScope, ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes)
 {
   // bit of a hack: we might have put an unknown number of inherited
   // parameter argument scopes on after 'argScope'...
@@ -2061,13 +2052,6 @@ void Env::unPrepArgScopeForTemlCloneTcheck
 
   // remove the argument scope
   exitScope(argScope);
-
-  if (makeEatScope) {
-    // pull off the dummy, and check it's what we expect
-    Scope *dummy = scopes.first();
-    xassert(dummy->scopeKind == SK_EAT_TEMPL_INST);
-    exitScope(dummy);
-  }
 
   // restore the original scope structure
   pushedScopes.reverse();
@@ -2259,12 +2243,7 @@ void Env::instantiateClassBody(Variable *inst)
   ObjList<Scope> poppedScopes;
   SObjList<Scope> pushedScopes;
   Scope *argScope = prepArgScopeForTemlCloneTcheck
-    (poppedScopes, pushedScopes, defnScope,
-     // I want to remove SK_EAT_TEMPL_SCOPE altogether, since the
-     // 'instV' argument to Function::tcheck obviates it, but it's
-     // currently being used for class instantiation, so for now
-     // I just set makeEatScope=false to disable it locally.
-     false /*makeEatScope*/);
+    (poppedScopes, pushedScopes, defnScope);
 
   // bind the template arguments in scopes so that when we tcheck the
   // body, lookup will find them
@@ -2295,8 +2274,7 @@ void Env::instantiateClassBody(Variable *inst)
 
   // restore the scopes
   if (argScope) {
-    unPrepArgScopeForTemlCloneTcheck
-      (argScope, poppedScopes, pushedScopes, false /*makeEatScope*/);
+    unPrepArgScopeForTemlCloneTcheck(argScope, poppedScopes, pushedScopes);
   }
   xassert(poppedScopes.isEmpty() && pushedScopes.isEmpty());
 }
@@ -2401,43 +2379,6 @@ static bool doSTemplArgsContainVars(SObjList<STemplateArgument> &sargs)
     if (iter.data()->containsVariables()) return true;
   }
   return false;
-}
-#endif // 0
-
-
-#if 0
-// sm: tcheck the declarator portion of 'func', ensuring that it uses
-// 'var' as its declarator Variable.  This used to be done by passing
-// 'priorTemplInst' into Function::tcheck and Declarator::tcheck, but
-// I'm trying to avoid contaminating that code with so much knowledge
-// about templates.  So, I'd rather do this hacky little dance from
-// the outside than muck up the non-template core.
-static void tcheckFunctionInstanceDecl_setVar
-  (Env &env, Function *func, Variable *var)
-{
-  if (!var) {
-    // not trying to set anything; just let it tcheck normally
-    func->tcheck(env, false /*checkBody*/);
-    return;
-  }
-
-  // this only works because 'checkBody' is false; if it were true,
-  // then we'd be contaminating the lookups that happen while checking
-  // the body ...
-
-  Scope *s = env.acceptingScope();
-  xassert(s->scopeKind == SK_EAT_TEMPL_INST);
-
-  s->addSoleVariableToEatScope(var);
-
-  // temporarily adjust the var's scope to circumvent a check
-  // down in Env::createDeclaration ...
-  Restorer<Scope*> restore(var->scope, s);
-
-  func->tcheck(env, false /*checkBody*/);
-  xassert(func->nameAndParams->var == var);
-  
-  s->removeSoleVariableFromEatScope();
 }
 #endif // 0
 
@@ -3362,12 +3303,7 @@ void Env::instantiateFunctionBody(Variable *instV)
   ObjList<Scope> poppedScopes;
   SObjList<Scope> pushedScopes;
   Scope *argScope = prepArgScopeForTemlCloneTcheck
-    (poppedScopes, pushedScopes, defnScope,
-     // I want to remove SK_EAT_TEMPL_SCOPE altogether, since the
-     // 'instV' argument to Function::tcheck obviates it, but it's
-     // currently being used for class instantiation, so for now
-     // I just set makeEatScope=false to disable it locally.
-     false /*makeEatScope*/);
+    (poppedScopes, pushedScopes, defnScope);
 
   // bind the template arguments in scopes so that when we tcheck the
   // body, lookup will find them
@@ -3389,8 +3325,7 @@ void Env::instantiateFunctionBody(Variable *instV)
   }
 
   if (argScope) {
-    unPrepArgScopeForTemlCloneTcheck
-      (argScope, poppedScopes, pushedScopes, false /*makeEatScope*/);
+    unPrepArgScopeForTemlCloneTcheck(argScope, poppedScopes, pushedScopes);
   }
   xassert(poppedScopes.isEmpty() && pushedScopes.isEmpty());
 }

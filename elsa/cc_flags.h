@@ -134,7 +134,6 @@ enum ScopeKind {
   SK_CLASS,                       // class member scope
   SK_TEMPLATE_PARAMS,             // template paramter list (inside the '<' and '>')
   SK_TEMPLATE_ARGS,               // bound template arguments, during instantiation
-  SK_EAT_TEMPL_INST,              // dummy scope to eat a template instantiation variable
   SK_NAMESPACE,                   // namespace
   NUM_SCOPEKINDS
 };

@@ -304,10 +304,6 @@ public:      // funcs
   string fullyQualifiedCName()
     { return fullyQualifiedName(false /*mangle*/); }
 
-  // support a hack...
-  void addSoleVariableToEatScope(Variable *v);
-  void removeSoleVariableFromEatScope();
-
   // set 'parameterizedPrimary', checking a few things in the process
   void setParameterizedPrimary(Variable *primary);
        

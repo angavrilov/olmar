@@ -1337,8 +1337,7 @@ Scope *Env::nonTemplateScope()
 {
   ObjListIterNC<Scope> iter(scopes);
   while (iter.data()->scopeKind == SK_TEMPLATE_PARAMS ||
-         iter.data()->scopeKind == SK_TEMPLATE_ARGS ||
-         iter.data()->scopeKind == SK_EAT_TEMPL_INST) {
+         iter.data()->scopeKind == SK_TEMPLATE_ARGS) {
     iter.adv();
   }
 
@@ -2233,8 +2232,7 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo()
     // scopes (this is a little bit of a hack as I try to guess the
     // right rules)
     if (!( s->scopeKind == SK_CLASS ||
-           s->scopeKind == SK_TEMPLATE_PARAMS ||
-           s->scopeKind == SK_EAT_TEMPL_INST )) {
+           s->scopeKind == SK_TEMPLATE_PARAMS )) {
       break;
     }
 

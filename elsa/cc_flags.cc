@@ -116,7 +116,6 @@ char const *toString(ScopeKind sk)
     "class",
     "template_params",
     "template_args",
-    "eat_templ_inst",
     "namespace",
   };
   STATIC_ASSERT(TABLESIZE(arr) == NUM_SCOPEKINDS);

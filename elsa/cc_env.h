@@ -300,7 +300,7 @@ public:      // funcs
   bool inTemplate()
     { return !!enclosingKindScope(SK_TEMPLATE_PARAMS); }
 
-  // innermost scope that is neither SK_TEMPLATE_PARAMS nor SK_EAT_TEMPL_INST
+  // innermost scope that is neither SK_TEMPLATE_PARAMS nor SK_TEMPLATE_ARGS
   Scope *nonTemplateScope();
 
   // if we are in a template scope, go up one and then call
@@ -754,13 +754,11 @@ public:      // template funcs
   // cloned AST for effecting the instantiation of the template;
   // Please see Scott's extensive comments at the implementation.
   Scope *prepArgScopeForTemlCloneTcheck
-    (ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes, Scope *foundScope,
-     bool makeEatScope = true);
+    (ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes, Scope *foundScope);
 
   // Undo prepArgScopeForTemlCloneTcheck().
   void unPrepArgScopeForTemlCloneTcheck
-    (Scope *argScope, ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes,
-     bool makeEatScopes = true);
+    (Scope *argScope, ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes);
 
   #if 0
   // instantate 'base' with arguments 'sargs', and return the implicit

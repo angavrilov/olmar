@@ -100,19 +100,6 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
 {
   xassert(canAcceptNames);
 
-  if (scopeKind == SK_EAT_TEMPL_INST) {
-    // flaw in my plan... since the dummy scope remains on the
-    // scope stack, it will interfere with lookups that occur
-    // while the instantiation is being tchecked.. so just drop
-    // this on the floor altogether
-    
-    // paranoia: make sure I'm only suppressing template instantiations
-    //   xassert(v->templInfo);
-    // except it doesn't have the templInfo yet, oh well
-
-    return true;
-  }
-
   if (!v->isNamespace()) {
     // classify the variable for debugging purposes
     #if DO_TRACE
@@ -900,23 +887,6 @@ string Scope::fullyQualifiedName(bool mangle)
   }
 
   return sb;
-}
-
-
-void Scope::addSoleVariableToEatScope(Variable *v)
-{
-  xassert(scopeKind == SK_EAT_TEMPL_INST);
-  xassert(variables.isEmpty());
-
-  scopeKind = SK_UNKNOWN;        // hack: allow the insertion
-  addVariable(v);
-  scopeKind = SK_EAT_TEMPL_INST; 
-}
-
-void Scope::removeSoleVariableFromEatScope()
-{
-  xassert(variables.size() == 1);
-  variables.empty();
 }
 
 
