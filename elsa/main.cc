@@ -164,8 +164,12 @@ void doit(int argc, char **argv)
     lang.GNU_C();
   }
 
-  if (tracingSys("kandr_c_lang")) {
+  if (tracingSys("gnu_kandr_c_lang")) {
     lang.GNU_KandR_C();
+  }
+
+  if (tracingSys("gnu2_kandr_c_lang")) {
+    lang.GNU2_KandR_C();
   }
 
   if (tracingSys("templateDebug")) {

@@ -81,6 +81,13 @@ void CCLang::GNU_KandR_C()
   isC99 = true;
 }
 
+void CCLang::GNU2_KandR_C()
+{
+  GNU_KandR_C();
+  // seems to not be true for gcc 2.96 at least
+  isC99 = false;
+}
+
 
 void CCLang::ANSI_Cplusplus()
 {

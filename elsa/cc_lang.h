@@ -128,7 +128,8 @@ public:
   void ANSI_C();            // settings for ANSI C89
   void ANSI_C99();          // settings for ANSI C99
   void GNU_C();             // settings for GNU C
-  void GNU_KandR_C();       // GNU C + K&R compatibility
+  void GNU_KandR_C();       // GNU 3.xx C + K&R compatibility
+  void GNU2_KandR_C();      // GNU 2.xx C + K&R compatibility
 
   void ANSI_Cplusplus();    // settings for ANSI C++ 89
   void GNU_Cplusplus();     // settings for GNU C++

@@ -205,7 +205,7 @@ testparse_strict() {
   runTest perl ./multitest.pl ./ccparse -tr strict,doOperatorOverload,$TR_FLAGS in/$1
 }
 testparse_KandR() {
-  runTest perl ./multitest.pl ./ccparse -tr kandr_c_lang,doOperatorOverload,$TR_FLAGS in/$1
+  runTest perl ./multitest.pl ./ccparse -tr gnu_kandr_c_lang,doOperatorOverload,$TR_FLAGS in/$1
 }
 failparse() {
   if [ "$2" = "" ]; then
