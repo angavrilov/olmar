@@ -97,4 +97,11 @@ void f1()
   // one pair goes wrong way in inheritance hierarchy, the other is
   // not related all
   //ERROR(6): ap->*cdpm;
+
+  // repeat all the good ones, to exercise my instantiation cache
+  ap->*apm;
+  bp->*bpm;
+  bp->*apm;
+  cp->*apm;
+  adp->*apm;
 }

@@ -7,23 +7,6 @@
 #include "overload.h"      // getConversionOperators, OverloadResolver
 
 
-// ----------------- InstCandidate -----------------
-STATICDEF Type const *InstCandidate::getKeyFn(InstCandidate *ic)
-{
-  return ic->type;
-}
-
-STATICDEF unsigned InstCandidate::hashFn(Type const *t)
-{
-  return 6;//t->hashValue();
-}
-
-STATICDEF bool InstCandidate::equalFn(Type const *t1, Type const *t2)
-{
-  return t1->equals(t2);
-}
-
-
 // ------------------ CandidateSet -----------------
 CandidateSet::~CandidateSet()
 {}
@@ -43,10 +26,29 @@ void PolymorphicCandidateSet::instantiateBinary(Env &env,
 
 
 // ------------------ PredicateCandidateSet -----------------
+STATICDEF Type const *PredicateCandidateSet::Inst::getKeyFn(Inst *ic)
+{
+  return ic->type;
+}
+
+STATICDEF unsigned PredicateCandidateSet::Inst::hashFn(Type const *t)
+{
+  return 6;     // cool hash fn, eh?
+
+  // TODO: implement this!
+  //t->hashValue();
+}
+
+STATICDEF bool PredicateCandidateSet::Inst::equalFn(Type const *t1, Type const *t2)
+{
+  return t1->equals(t2);
+}
+
+
 PredicateCandidateSet::PredicateCandidateSet(PreFilter r, PostFilter o)
-  : instantiations(&InstCandidate::getKeyFn,
-                   &InstCandidate::hashFn,
-                   &InstCandidate::equalFn),
+  : instantiations(&Inst::getKeyFn,
+                   &Inst::hashFn,
+                   &Inst::equalFn),
     ambigInst(NULL),
     pre(r),
     post(o),
@@ -55,6 +57,7 @@ PredicateCandidateSet::PredicateCandidateSet(PreFilter r, PostFilter o)
 
 PredicateCandidateSet::~PredicateCandidateSet()
 {}
+
 
 
 // get the set of types that 't' can be converted to via a
@@ -150,7 +153,7 @@ void PredicateCandidateSet::instantiateCandidate(Env &env,
   OverloadResolver &resolver, OverloadableOp op, Type *T)
 {
   // have we already built an instantiated candidate?
-  InstCandidate *ic = instantiations.get(T);
+  Inst *ic = instantiations.get(T);
   if (ic) {
     // did we already give it to this resolver?
     if (ic->generation == generation) {
@@ -164,7 +167,7 @@ void PredicateCandidateSet::instantiateCandidate(Env &env,
 
   else {
     // need to make a new instantiaton
-    ic = new InstCandidate(T, makeNewCandidate(env, op, T));
+    ic = new Inst(T, makeNewCandidate(env, op, T));
     instantiations.add(T, ic);
 
     OVERLOADTRACE("cset: made new instantiation: " << T->toString());
@@ -255,7 +258,33 @@ Variable *AssignmentCandidateSet::makeNewCandidate(Env &env,
 
 
 // ------------------ ArrowStarCandidateSet -----------------
+STATICDEF ArrowStarCandidateSet::TypePair const *
+  ArrowStarCandidateSet::Inst::getKeyFn(Inst *ic)
+{
+  return &(ic->types);
+}
+
+STATICDEF unsigned ArrowStarCandidateSet::Inst::hashFn(TypePair const *p)
+{
+  return 6;
+
+  // TODO: implement this!
+  //t->hashValue();
+}
+
+STATICDEF bool ArrowStarCandidateSet::Inst::equalFn
+  (TypePair const *p1, TypePair const *p2)
+{
+  return p1->lhsType->equals(p2->lhsType) &&
+         p1->rhsType->equals(p2->rhsType);
+}
+
+
 ArrowStarCandidateSet::ArrowStarCandidateSet()
+  : instantiations(&Inst::getKeyFn,
+                   &Inst::hashFn,
+                   &Inst::equalFn),
+    generation(0)
 {}
 
 ArrowStarCandidateSet::~ArrowStarCandidateSet()
@@ -265,10 +294,11 @@ ArrowStarCandidateSet::~ArrowStarCandidateSet()
 // goal: instantiate pattern
 //   CV12 T& operator->* (CV1 C1 *, CV2 T C2::*);
 // by finding instantiation pairs (C1,C2)
-void ArrowStarCandidateSet::instantiateBinary(Env &env, 
+void ArrowStarCandidateSet::instantiateBinary(Env &env,
   OverloadResolver &resolver, OverloadableOp op, Type *lhsType, Type *rhsType)
 {
   xassert(op == OP_ARROW_STAR);
+  generation++;
 
   // these arrays record all pairs of types used to instantiate
   // the pattern, so that we ensure that no pair is instantiated
@@ -313,7 +343,7 @@ void ArrowStarCandidateSet::instantiateBinary(Env &env,
       // and C2 towards V.  Hence the only instantiation necessary
       // for the (U,V) pair is (U,V) itself; and that's only if U and
       // V are related by inheritance.
-      
+
       if (!U->hasBaseClass(V)) {
         // necessary relationship between U and V doesn't hold
         continue;
@@ -325,27 +355,50 @@ void ArrowStarCandidateSet::instantiateBinary(Env &env,
       Type *lhsParam = env.tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, lhsRet, NULL /*syntax*/);
       Type *rhsParam = env.tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, rhsRet, NULL /*syntax*/);
 
-      // have we instantiated this pair already?
-      for (int i=0; i < lhsInst.length(); i++) {
-        if (lhsInst[i]->equals(lhsParam) &&
-            rhsInst[i]->equals(rhsParam)) {
-          // this pair has already been instantiated
-          goto after_instantiation;
-        }
-      }
-      
-      // instantiate the operator
-      resolver.processCandidate(
-        env.createBuiltinBinaryOp(OP_ARROW_STAR, lhsParam, rhsParam));
-
-      // remember that this pair was instantiated
-      lhsInst.push(lhsParam);
-      rhsInst.push(rhsParam);
-
-    after_instantiation:
-      ;
+      instantiateCandidate(env, resolver, lhsParam, rhsParam);
     }
   }
+}
+
+
+string ArrowStarCandidateSet::TypePair::asString() const
+{
+  return stringc << "(" << lhsType->toString()
+                 << ", " << rhsType->toString() << ")";
+}
+
+// based on PredicateCandidateSet::instantiateCandidate
+void ArrowStarCandidateSet::instantiateCandidate(Env &env,
+  OverloadResolver &resolver, Type *lhsType, Type *rhsType)
+{
+  TypePair pair(lhsType, rhsType);
+
+  // have we already built an instantiated candidate?
+  Inst *ic = instantiations.get(&pair);
+  if (ic) {
+    // did we already give it to this resolver?
+    if (ic->generation == generation) {
+      // yes, don't do so again
+      OVERLOADTRACE("->*set: already given to resolver: " << pair.asString());
+      return;
+    }
+
+    OVERLOADTRACE("->*set: already instantiated: " << pair.asString());
+  }
+
+  else {
+    // need to make a new instantiaton
+    ic = new Inst(pair,
+      env.createBuiltinBinaryOp(OP_ARROW_STAR, lhsType, rhsType));
+
+    instantiations.add(&(ic->types), ic);
+
+    OVERLOADTRACE("->*set: made new instantiation: " << pair.asString());
+  }
+
+  // give it to the resolver
+  ic->generation = generation;
+  resolver.processCandidate(ic->inst);
 }
 
 
@@ -385,7 +438,7 @@ Type *para19_20filter(Type *t, bool)
   if (t->isConst()) {
     return NULL;
   }
-  
+
   if (t->isPointerType() ||
       t->isEnumType() ||
       t->isPointerToMemberType()) {

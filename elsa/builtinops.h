@@ -5,40 +5,12 @@
 #define BUILTINOPS_H
 
 #include "cc_flags.h"      // BinaryOp
-#include "thashtbl.h"      // THashTable
+#include "okhashtbl.h"     // OwnerKHashTable
 
 class Type;                // cc_type.h
 class Variable;            // variable.h
 class Env;                 // cc_env.h
 class OverloadResolver;    // overload.h
-
-
-// a single instantiated candidate; this structure allows us to
-// re-use instantiations
-class InstCandidate {
-public:      // data
-  Type *type;       // the type with which the pattern was instantiated
-  Variable *inst;   // the instantiation itself
-  
-  // clever hack: to ensure that each instantiated candidate is only
-  // given to the overload resolution procedure once, I keep track
-  // of how many times a given candidate set has requested 
-  // instantiation, and update the instances with the latest time
-  // they were instantiated
-  unsigned generation;
-
-public:      // funcs
-  InstCandidate(Type *t, Variable *i)
-    : type(t),
-      inst(i),
-      generation(0)
-  {}
-
-  // hashtable accessor functions
-  static Type const *getKeyFn(InstCandidate *ic);
-  static unsigned hashFn(Type const *t);
-  static bool equalFn(Type const *t1, Type const *t2);
-};
 
 
 // a set of candidates, usually one line of 13.6; since many of the
@@ -72,6 +44,34 @@ public:      // funcs
 
 // describes a set with predicates over a pairwise analysis
 class PredicateCandidateSet : public CandidateSet {
+private:     // types
+  // a single instantiated candidate; this structure allows us to
+  // re-use instantiations
+  class Inst {
+  public:      // data
+    Type *type;       // the type with which the pattern was instantiated
+    Variable *inst;   // the instantiation itself
+
+    // clever hack: to ensure that each instantiated candidate is only
+    // given to the overload resolution procedure once, I keep track
+    // of how many times a given candidate set has requested
+    // instantiation, and update the instances with the latest time
+    // they were instantiated
+    unsigned generation;
+
+  public:      // funcs
+    Inst(Type *t, Variable *i)
+      : type(t),
+        inst(i),
+        generation(0)
+    {}
+
+    // hashtable accessor functions
+    static Type const *getKeyFn(Inst *ic);
+    static unsigned hashFn(Type const *t);
+    static bool equalFn(Type const *t1, Type const *t2);
+  };
+
 public:      // types
   // each potential argument type is passed through this filter before
   // being evaluated as part of a pair; it can return a different
@@ -89,7 +89,7 @@ public:      // types
 
 protected:   // data
   // instantiations that already exist, so we can re-use them
-  THashTable<Type, InstCandidate> instantiations;
+  OwnerKHashTable<Inst, Type> instantiations;
 
   // instantiation of the ambiguous candidate
   Variable *ambigInst;
@@ -134,8 +134,54 @@ public:      // funcs
 
 // predicate set for the ->* operator
 class ArrowStarCandidateSet : public CandidateSet {
+private:    // types
+  // pair of types, with hashing and equality
+  class TypePair {
+  public:
+    Type *lhsType, *rhsType;    // types for instantiation
+    
+  public:
+    TypePair(Type *L, Type *R)
+      : lhsType(L),
+        rhsType(R)
+    {}
+    TypePair(TypePair const &obj)
+      : DMEMB(lhsType),
+        DMEMB(rhsType)
+    {}
+    
+    string asString() const;
+  };
+
+  // similar to above, for caching candidates
+  class Inst {
+  public:      // data
+    TypePair types;     // types with which the pattern was instantiated
+    Variable *inst;     // the instantiation itself
+
+    unsigned generation;
+
+  public:      // funcs
+    Inst(TypePair const &t, Variable *i)
+      : types(t),
+        inst(i),
+        generation(0)
+    {}
+
+    // hashtable accessor functions
+    static TypePair const *getKeyFn(Inst *ic);
+    static unsigned hashFn(TypePair const *p);
+    static bool equalFn(TypePair const *p1, TypePair const *p2);
+  };
+
 private:    // data
-  // TODO: instantiation caching
+  OwnerKHashTable<Inst, TypePair> instantiations;
+  
+  unsigned generation;
+
+private:    // funcs
+  void instantiateCandidate(Env &env,
+    OverloadResolver &resolver, Type *lhsType, Type *rhsType);
 
 public:     // funcs
   ArrowStarCandidateSet();
