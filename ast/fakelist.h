@@ -25,6 +25,8 @@
 
 // for now, the list is non-owning (unless you call 'deallocNodes')
 
+class Some_undefined_class;
+
 template <class T>
 class FakeList {
 private:
@@ -33,7 +35,7 @@ private:
   ~FakeList();
 
   // silence a silly egcs-1.1.2 warning (this function isn't defined)
-  friend void i_have_LOTS_of_friends();
+  friend Some_undefined_class;
 
   // this class has *no* data--an object of this type is
   // never actually created!  instead we play with pointers
