@@ -2868,6 +2868,7 @@ void GrammarAnalysis::resolveConflicts(
           << sym->name << ", removed production " << *(mut.data())
           << " because " << p << "<" << highestPrec << endl;
         mut.remove();
+        actions--;
       }
       else {
         mut.adv();
