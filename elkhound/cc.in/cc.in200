@@ -1,0 +1,17 @@
+// test parsing of UserQualifiers
+
+int const $tainted $wagaaa x;
+int $gronk q;
+
+int $Btainted * $tainted y;
+
+char $Atainted * $tainted gronk($tainted int x, $tainted char) $tainted;
+
+void foo() {
+  char $untainted * $tainted $gronk $foo * $blort x;
+}
+
+typedef $waga int foo2;
+
+// FIX: causes double-annotation
+$barf $oink foo2 z;
