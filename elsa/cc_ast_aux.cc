@@ -48,14 +48,35 @@ string PQName::toString() const
 }
 
 
+StringRef PQ_qualifier::getName() const
+{
+  return rest->getName();
+}
+
 StringRef PQ_name::getName() const
 {
   return name;
 }
 
-StringRef PQ_qualifier::getName() const
+StringRef PQ_operator::getName() const
 {
-  return rest->getName();
+  return fakeName;
+}
+
+
+PQName const *PQ_qualifier::getUnqualifiedName() const
+{                                                     
+  return rest->getUnqualifiedName();
+}
+
+PQName const *PQ_name::getUnqualifiedName() const
+{
+  return this;
+}
+
+PQName const *PQ_operator::getUnqualifiedName() const
+{
+  return this;
 }
 
 
