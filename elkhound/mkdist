@@ -1,0 +1,30 @@
+#!/bin/sh
+# make a tarball for distribution
+
+# tarball dist name
+distname=parsgen.`date +%D | sed s,/,-,g`
+echo $distname
+
+mkdir $distname || exit
+cd $distname || exit
+
+# main stuff
+cvs export -D now plat || exit
+cvs export -D now smbase || exit
+cvs export -D now parsgen || exit
+
+# scripts
+cp parsgen/configure . || exit
+cp parsgen/build . || exit
+
+cd ..
+
+targz $distname || exit
+
+mv ${distname}.tar.gz rel/ || exit
+
+rm -rf $distname
+
+
+
+

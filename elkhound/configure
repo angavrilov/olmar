@@ -1,0 +1,13 @@
+#!/bin/sh
+# setup a tarball to build on linux
+
+# assume linux
+cd plat || exit
+ln -s Makefile.linux Makefile. || exit
+cd ..
+
+# fill in correct PLAT line in smbase Makefile
+apply 'sed s,PLAT\ =.\*,PLAT\ =\ '`pwd`/plat, smbase/Makefile.base.mk || exit
+
+# and correct SMBASE line in parsgen Makefile
+apply 'sed s,SMBASE\ =.\*,SMBASE\ =\ '`pwd`/smbase, parsgen/Makefile || exit
