@@ -188,7 +188,10 @@ quicktest: ccparse
 TODISTCLEAN += in/big/*.i
 in/big/%.i: in/big/gz/%.i.gz
 	gunzip -c <$^ >$@
-	perl -i -lpe 's|^\w*(#.*)$$|//$$1|' $@
+# comment out line directives
+	perl -i -lpe 's|^\W*(#.*)$$|//$$1|' $@
+# this line is illegal C++ and for now we just comment it out
+	perl -i -lpe 's|^(\W*)(char ip_opts\[40\];)\W*$$|$$1//$$2|' $@
 
 # decompress all of them which haven't already been decompressed
 .PHONY: in/big
