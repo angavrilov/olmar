@@ -1048,6 +1048,7 @@ Variable *Env::instantiateClassTemplate
     // 1/21/03: I had been using 'instName' as the class name, but that
     // causes problems when trying to recognize constructors
     inst = new CompoundType(base->keyword, base->name);
+    inst->instName = instName;     // stash it here instead
     inst->forward = base->forward;
 
     // copy over the template arguments so we can recognize this

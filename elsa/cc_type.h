@@ -206,6 +206,11 @@ public:      // data
   // and a list of already-instantiated versions
   ClassTemplateInfo *templateInfo;    // (owner)
 
+  // if this class is a template instantiation, 'instName' is
+  // the class name plus a rendering of the arguments; otherwise
+  // it's the same as 'name'; this is for debugging
+  StringRef instName;
+
   // AST node that describes this class; used for implementing
   // templates (AST pointer)
   TS_classSpec *syntax;               // (serf)

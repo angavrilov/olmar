@@ -2311,11 +2311,8 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
     }
   }
 
-  // build the function type
-  FunctionType *ft = env.tfac.syntaxFunctionType(loc, dt.type, this);
-  ft->flags = specialFunc;
-  dt.funcSyntax = this;
-  ft->templateParams = env.takeTemplateParams();
+  // grab the template parameters before entering the parameter scope
+  TemplateParams *templateParams = env.takeTemplateParams();
 
   // make a new scope for the parameter list
   Scope *paramScope = env.enterScope("D_func parameter list scope");
@@ -2323,6 +2320,14 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 
   // typecheck the parameters; this disambiguates any ambiguous type-ids
   params = tcheckFakeASTTypeIdList(params, env, true /*isParameter*/);
+
+  // build the function type; I do this after type checking the parameters
+  // because it's convenient if 'syntaxFunctionType' can use the results
+  // of checking them
+  FunctionType *ft = env.tfac.syntaxFunctionType(loc, dt.type, this);
+  ft->flags = specialFunc;
+  dt.funcSyntax = this;
+  ft->templateParams = templateParams;
 
   // add them, now that the list has been disambiguated
   int ct=0;

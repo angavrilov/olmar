@@ -154,6 +154,7 @@ CompoundType::CompoundType(Keyword k, StringRef n)
     virtualBases(),
     subobj(BaseClass(this, AK_PUBLIC, false /*isVirtual*/)),
     templateInfo(NULL),
+    instName(n),
     syntax(NULL)
 {
   curCompound = this;
@@ -1272,8 +1273,11 @@ bool STemplateArgument::equals(STemplateArgument const *obj) const
     return false;
   }
 
-  // take advantage of representation uniformity
-  return value.i == obj->value.i;
+  switch (kind) {
+    case STA_TYPE:     return value.t->equals(obj->value.t);
+    case STA_INT:      return value.i == obj->value.i;
+    default:           return value.v == obj->value.v;
+  }
 }
 
 
