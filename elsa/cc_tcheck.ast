@@ -423,7 +423,7 @@ class Expression {
      }
   -> E_constructor {
        public void inner1_itcheck(Env &env);
-       public Type *inner2_itcheck(Env &env);
+       public Type *inner2_itcheck(Env &env, Expression *&replacement);
 
        // the constructor function being called
        public Variable *ctorVar = NULL;

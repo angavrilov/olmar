@@ -392,6 +392,10 @@ public:     // funcs
 class BaseType {    // note: clients should refer to Type, not BaseType
 public:     // types
   enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY, T_POINTERTOMEMBER };
+
+  // if it came from a typedef, what is it?  NULL if not from a
+  // typedef.  DO NOT CLONE.
+  Variable *typedefName;        // not to be confused with typedefVar
   
   // moved this declaration into Type, along with the declaration of
   // 'anyCtorSatisfies', so as not to leak the name "BaseType"
@@ -569,6 +573,9 @@ public:     // funcs
 
   bool isTemplateFunction() const;
   bool isTemplateClass() const;
+
+//    // convert the type back into an ASTTypeId
+//    ASTTypeId *toASTTypeId();
 
   // this is true if any of the type *constructors* on this type
   // refer to ST_ERROR; we don't dig down inside e.g. members of

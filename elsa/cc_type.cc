@@ -754,6 +754,7 @@ int TypeVariable::reprSize() const
 ALLOC_STATS_DEFINE(BaseType)
 
 BaseType::BaseType()
+  : typedefName(NULL)
 {
   ALLOC_STATS_IN_CTOR
 }
@@ -1026,6 +1027,61 @@ bool BaseType::isTemplateClass() const
   return isCompoundType() &&
          asCompoundTypeC()->isTemplate();
 }
+
+
+//  void BaseType::makeSpecAndIDecl(SourceLoc loc, TypeSpecifier &*ts, IDeclarator &*idecl)
+//  {
+//    IDeclarator *idecl2 = NULL;
+//    switch(getTag()) {
+//    default: xfailure("Illegal tag"); break;
+//    case T_ATOMIC:
+//      AtomicType *a0 = asAtomicType();
+//      ts = a0->atomic->makeSpec(loc); **** write this
+//      idecl = new D_name(loc, NULL);
+//      break;
+//    case T_POINTER:
+//      PointerType *a0 = asPointerType();
+//      a0->atType->makeSpecAndIDecl(loc, ts, idecl2);
+//      idecl = new D_pointer(a0->op==PO_POINTER, a0->cv, idecl2);
+//      break;
+//    case T_FUNCTION:
+//      **************** not done
+//      FunctionType *a0 = asFunctionType();
+//      a0->eltType->makeSpecAndIDecl(loc, ts, idecl2);
+//      idecl = new D_function(idecl2);
+//      break;
+//    case T_ARRAY:
+//      ArrayType *a0 = asArrayType();
+//      a0->eltType->makeSpecAndIDecl(loc, ts, idecl2);
+//      idecl = new D_array(idecl2, a0->size);
+//      break;
+//    case T_POINTERTOMEMBER:
+//      PointerToMemberType *a0 = asPointerToMemberType();
+//      a0->atType->makeSpecAndIDecl(loc, ts, idecl2);
+//      idecl = new D_ptrToMember(inClass->PQ_fullyQualifiedName(loc), a0->cv, idecl2);
+//      break;
+//    }
+
+//    // What gives?  This is missing.
+//  //    -> D_bitfield(PQName /*nullable*/ name, FullExpression bits);
+
+//    // This might be relevant for pointers to members
+//  //    // declarator grouping operator: it's semantically irrelevant
+//  //    // (i.e. equivalent to just 'base' alone), but plays a role in
+//  //    // disambiguation
+//  //    -> D_grouping(IDeclarator base);
+//  }
+
+
+//  ASTTypeId *BaseType::toASTTypeId()
+//  {
+//    TypeSpecifier *ts = NULL;
+//    IDeclarator *idecl = NULL;
+//    makeSpecAndIDecl(ts, idecl);
+//    xassert(ts);
+//    xassert(idecl);
+//    return new ASTTypeId(ts, new Declarator(idecl, NULL));
+//  }
 
 
 bool typeIsError(Type const *t)

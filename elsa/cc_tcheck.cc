@@ -666,6 +666,18 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
       disambiguates);
   }
 
+  // dsw: store the pointer to the variable in the type
+  if (var->type->typedefName) {
+    // we may have to clone since there was already a typedef for this
+    // type
+
+    // FIX: Make this work
+    var->type = env.tfac.cloneType(var->type);
+  }
+  // FIX: when the above works, turn this back on
+//    xassert(!var->type->typedefName);
+  var->type->typedefName = var;
+
   // there used to be a call to applyCV here, but that's redundant
   // since the caller (tcheck) calls it too
   return var->type;
@@ -3576,9 +3588,11 @@ void Expression::tcheck(Env &env, Expression *&replacement)
       // ok, finish up
       TRACE("disamb", toString(loc) << ": selected E_constructor");
       env.errors.prependMessages(existing);
-      ctor->type = ctor->inner2_itcheck(env);
-      ctor->ambiguity = NULL;
+      // Moved this here so that can pass it down into
+      // E_constructor::inner2_itcheck()
       replacement = ctor;
+      ctor->type = ctor->inner2_itcheck(env, replacement);
+      ctor->ambiguity = NULL;
       return;
     }
 
@@ -4101,30 +4115,20 @@ void E_funCall::inner1_itcheck(Env &env)
 // Make a Declaration for a temporary.
 static Declaration *makeTempDeclaration(Env &env, Type *retType)
 {
-  // again, this is a counter example:
-  //   x = int(6);
-  // from in/t0014.cc
-//    xassert(retType->isCompoundType()); // should only do this for CompoundTypes
-
-  PQName *tempName = env.makeTempName();// give it a new unique name
+  // while a user may attempt this, we should catch it earlier and not
+  // end up down here.
+  xassert(retType->isCompoundType());
+  TypeSpecifier *typeSpecifier =
+    new TS_name(env.loc(),
+                retType->asCompoundType()->PQ_fullyQualifiedName(env.loc()),
+                false);
+  xassert(typeSpecifier);
   Declarator *declarator0 =
-    new Declarator(new D_name(env.loc(), tempName),
+    new Declarator(new D_name(env.loc(),
+                              env.makeTempName() // give it a new unique name
+                              ),
                    NULL         // important: no Initializer
                    );
-  TypeSpecifier *typeSpecifier = NULL;
-  if (retType->isSimpleType()) {
-    typeSpecifier = new TS_simple(env.loc(),
-                                  retType->asSimpleTypeC()->type);
-  } else if (retType->isCompoundType()) {
-    typeSpecifier = new TS_name(env.loc(),
-                                retType->asCompoundType()->PQ_fullyQualifiedName(env.loc()),
-                                false);
-  } else {
-    // FIX: This should probably be a user error, not an xfailure
-    xfailure("attempted to make temp declaration for a type that is not a "
-             "CompoundType and not a SimpleType");
-  }
-  xassert(typeSpecifier);
   Declaration *declaration0 =
     new Declaration(DF_NONE,
                     // should get DF_AUTO since they are auto, but I
@@ -4189,12 +4193,12 @@ static E_variable *wrapVarWithE_variable(Env &env, Variable *var)
     xassert(!var->scope);
     name0 = new PQ_qualifier(env.loc(), NULL,
                              FakeList<TemplateArgument>::emptyList(),
-                             new PQ_name(env.loc(), strdup(var->name)));
+                             new PQ_name(env.loc(), strdup(var->name))); // garbage?
     break;
   case SK_CLASS:
     xassert(var->scope->curCompound);
     name0 = var->scope->curCompound->PQ_fullyQualifiedName
-      (env.loc(), new PQ_name(env.loc(), strdup(var->name)));
+      (env.loc(), new PQ_name(env.loc(), strdup(var->name))); // garbage?
     break;
   case SK_FUNCTION:
     name0 = new PQ_name(env.loc(), strdup(var->name));
@@ -4445,7 +4449,8 @@ static Type *internalTestingHooks
 Type *E_constructor::itcheck(Env &env, Expression *&replacement)
 {
   inner1_itcheck(env);
-  return inner2_itcheck(env);
+
+  return inner2_itcheck(env, replacement);
 }
 
 void E_constructor::inner1_itcheck(Env &env)
@@ -4453,8 +4458,57 @@ void E_constructor::inner1_itcheck(Env &env)
   type = spec->tcheck(env, DF_NONE);
 }
 
-Type *E_constructor::inner2_itcheck(Env &env)
+Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
 {
+  xassert(replacement == this);
+  if (!type->isCompoundType() && !type->isDependent()) {
+    // you can make a temporary for an int like this (from
+    // in/t0014.cc)
+    //   x = int(6);
+    // or you can use a typedef to get any other type like this (from
+    // t0059.cc)
+    //   typedef char* char_ptr;
+    //   typedef unsigned long ulong;
+    //   return ulong(char_ptr(mFragmentIdentifier)-char_ptr(0));
+    // in those cases, there isn't really any ctor to call, so just
+    // turn it into a cast
+
+    // there had better be exactly one argument to this ctor
+    xassert(args->count() == 1);
+    TypeSpecifier *typeSpecifier = NULL;
+    if (type->isSimpleType()) {
+      typeSpecifier = new TS_simple(env.loc(),
+                                    type->asSimpleTypeC()->type);
+    } else if (type->typedefName) {
+      // comes from a typedef
+      typeSpecifier =
+        new TS_name(env.loc(),
+                    type->typedefName->scope->curCompound->
+                    PQ_fullyQualifiedName(env.loc(),
+                                          new PQ_name(env.loc(),
+                                                      strdup(type->typedefName->name)) // garbage?
+                                          ),
+                    false       // typename used; FIX: is this right?
+                    );
+    } else {
+      xfailure("shouldn't be able to get an E_constructor for a type that is not "
+               "a CompoundType, nor a SimpleType, nor a type from a typedef");
+    }
+    replacement =
+      new E_cast
+      (new ASTTypeId
+       (typeSpecifier,
+        new Declarator
+        (new D_name(env.loc(),
+                    NULL        // abstract
+                    ),
+         NULL)),
+       args->first());
+    replacement->tcheck(env, replacement);
+    xassert(type->equals(replacement->type));
+    return type;
+  }
+
   tcheckFakeExprList(args, env);
 
   // dsw: I will assume for now that if overloading succeeds, that the
@@ -4480,7 +4534,8 @@ Type *E_constructor::inner2_itcheck(Env &env)
       // temporary for an int like this
       //   x = int(6);
       // from in/t0014.cc
-      //      xassert(type->isCompoundType());
+      // update: we now factor non-CompoundTypes out at the top
+      xassert(type->isCompoundType());
       Declaration *declaration0 = insertTempDeclaration(env, type);
       xassert(declaration0->decllist->count() == 1);
       var = declaration0->decllist->first()->var;

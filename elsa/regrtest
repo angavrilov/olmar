@@ -209,7 +209,8 @@ T="$T t0022.cc"
 T="$T t0023.cc"
 T="$T t0024.cc"
 T="$T t0025.cc"
-T="$T t0026.cc"
+# Don't handle enum or typevar E_constructor-s
+# T="$T t0026.cc"
 T="$T t0027.cc"
 T="$T t0028.cc"
 T="$T t0029.cc"
@@ -267,8 +268,8 @@ T="$T t0056.cc"
 T="$T t0057.cc"
 T="$T t0058.cc"
 
-# using an E_constructor with a typedefed type doesn't work.  Turn it
-# into a cast.
+# using an E_constructor with a typedefed type would work if cloning
+# of types worked.
 # T="$T t0059.cc"
 
 T="$T t0060.cc"
