@@ -280,7 +280,8 @@ bool Conversion::stripPtrCtor(CVFlags scv, CVFlags dcv, bool isReference)
 // without allocating, and if I can then that avoids interaction
 // problems with Type annotation systems
 StandardConversion getStandardConversion
-  (string *errorMsg, SpecialExpr srcSpecial, Type const *src, Type const *dest)
+  (string *errorMsg, SpecialExpr srcSpecial, Type const *src, Type const *dest,
+   bool destIsReceiver)
 {
   Conversion conv(errorMsg, src, dest);
 
@@ -298,19 +299,21 @@ StandardConversion getStandardConversion
         src->asCompoundTypeC()->forward) {
       return conv.error("type must be complete to strip '&'");
     }
-    
+
     // am I supposed to check cv flags?
   }
   else if (!src->isReference() && dest->isReference()) {
     // binding an (rvalue) object to a reference
 
-    // are we trying to bind to a non-const reference?  if so,
-    // then we can't do it (cppstd 13.3.3.1.4 para 3); I haven't
-    // implemented the exception for the 'this' argument yet
-    PointerType const *destPT = dest->asPointerTypeC();
-    if (!destPT->atType->isConst()) {
-      // can't form the conversion
-      return conv.error("attempt to bind an rvalue to a non-const reference");
+    if (!destIsReceiver) {
+      // are we trying to bind to a non-const reference?  if so,
+      // then we can't do it (cppstd 13.3.3.1.4 para 3); I haven't
+      // implemented the exception for the 'this' argument yet
+      PointerType const *destPT = dest->asPointerTypeC();
+      if (!destPT->atType->isConst()) {
+        // can't form the conversion
+        return conv.error("attempt to bind an rvalue to a non-const reference");
+      }
     }
 
     // strip off the destination reference
@@ -730,3 +733,51 @@ void test_getStandardConversion(
       << toString(actual));
   }
 }
+
+
+// ------------------- reference-relatedness ------------------
+bool isReferenceRelatedTo(Type *t1, Type *t2)
+{
+  // ignoring toplevel cv-qualification, either t1 and t2 must be
+  // the same type, or they must be classes and t1 must be a base
+  // class of t2
+
+  if (t1->equals(t2, Type::EF_IGNORE_TOP_CV)) {
+    return true;
+  }
+  
+  // this implicitly skips toplevel cv
+  if (t1->isCompoundType() &&
+      t2->isCompoundType() &&
+      t2->asCompoundType()->hasBaseClass(t1->asCompoundType())) {
+    return true;
+  }
+
+  return false;
+}
+
+
+int referenceCompatibility(Type *t1, Type *t2)
+{
+  if (!isReferenceRelatedTo(t1, t2)) {
+    return 0;      // not even related
+  }
+
+  // get the toplevel cv flags
+  CVFlags cv1 = t1->getCVFlags();
+  CVFlags cv2 = t2->getCVFlags();
+
+  if (cv1 == cv2) {
+    return 2;      // exact match
+  }
+  
+  if (cv1 & cv2 == cv2) {
+    // cv1 is a superset
+    return 1;      // "compatible with added qualification"
+  }
+  
+  return 0;        // not compatible
+}
+
+
+// EOF

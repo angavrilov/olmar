@@ -93,7 +93,12 @@ StandardConversion getStandardConversion(
   string *errorMsg,    // if non-null, failed conversion sets error message
   SpecialExpr special, // properties of the source expression
   Type const *src,     // source type
-  Type const *dest     // destination type
+  Type const *dest,    // destination type
+  
+  // when the dest type is a method receiver ('this') parameter,
+  // it's allowable to bind an rvalue to a non-const reference
+  // (13.3.1 para 5 bullet 3)
+  bool destIsReceiver = false
 );
 
 
@@ -102,6 +107,24 @@ void test_getStandardConversion(
   Env &env, SpecialExpr special, Type const *src, Type const *dest,
   int expected     // expected return value
 );
+
+
+// reference-relatedness (8.5.3 para 4)
+
+// "is t1 reference-related to t2?"  (both types have already had their
+// references stripped)  NOTE: this relation is *not* symmetric!
+bool isReferenceRelatedTo(Type *t1, Type *t2);
+
+// determine which of three reference-compatilibity conditions exist:
+//   0: not compatible
+//   1: compatible with added qualification
+//   2: compatible exactly
+int referenceCompatibility(Type *t1, Type *t2);
+
+// "is t1 reference-compatible (possibly with added qual) with t2?"
+inline bool isReferenceCompatibleWith(Type *t1, Type *t2)
+  { return referenceCompatibility(t1, t2) != 0; }
+
 
 
 #endif // STDCONV_H

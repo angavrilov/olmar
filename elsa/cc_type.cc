@@ -1075,7 +1075,7 @@ void FunctionType::addThisParam(Variable *param)
   xassert(param->hasFlag(DF_PARAMETER));
   xassert(!isMember());
   params.prepend(param);
-  flags |= FF_MEMBER;
+  flags |= FF_METHOD;
 }
 
 void FunctionType::doneParams()
@@ -1153,9 +1153,9 @@ string FunctionType::rightStringUpToQualifiers(bool innerParen) const
   SFOREACH_OBJLIST(Variable, params, iter) {
     ct++;
     if (isMember() && ct==1) {
-      // don't actually print the first parameter
+      // don't actually print the first parameter;
       // the 'm' stands for nonstatic member function
-      sb << "/*m*/ ";
+      sb << "/""*m: " << iter.data()->type->toString() << " *""/ ";
       continue;
     }
     if (ct >= 3 || (!isMember() && ct>=2)) {
@@ -1661,7 +1661,7 @@ FunctionType *TypeFactory::makeSimilarFunctionType(SourceLoc loc,
 {
   FunctionType *ret = 
     makeFunctionType(loc, retType);
-  ret->flags = similar->flags & ~FF_MEMBER;     // isMember is like a parameter
+  ret->flags = similar->flags & ~FF_METHOD;     // isMethod is like a parameter
   if (similar->exnSpec) {
     ret->exnSpec = new FunctionType::ExnSpec(*similar->exnSpec);
   }

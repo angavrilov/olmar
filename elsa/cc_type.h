@@ -584,7 +584,7 @@ public:
 // some flags that can be associated with function types
 enum FunctionFlags {
   FF_NONE        = 0x00,       // nothing special
-  FF_MEMBER      = 0x01,       // function is a nonstatic member
+  FF_METHOD      = 0x01,       // function is a nonstatic method
   FF_VARARGS     = 0x02,       // accepts variable # of arguments
   FF_CONVERSION  = 0x04,       // conversion operator function
   FF_CTOR        = 0x08,       // constructor
@@ -617,7 +617,7 @@ public:     // data
   // type of return value
   Type *retType;                     // (serf)
 
-  // list of function parameters; if (flags & FF_MEMBER) then the
+  // list of function parameters; if (flags & FF_METHOD) then the
   // first parameter is 'this'
   SObjList<Variable> params;
 
@@ -636,11 +636,14 @@ public:
   virtual ~FunctionType();
 
   // interpretations of flags
-  bool isMember() const               { return !!(flags & FF_MEMBER); }
+  bool isMethod() const               { return !!(flags & FF_METHOD); }
   bool acceptsVarargs() const         { return !!(flags & FF_VARARGS); }
   bool isConversionOperator() const   { return !!(flags & FF_CONVERSION); }
   bool isConstructor() const          { return !!(flags & FF_CTOR); }
   bool isDestructor() const           { return !!(flags & FF_DTOR); }
+
+  // this is the old name; use 'isMethod' instead (more descriptive)
+  bool isMember() const               { return !!(flags & FF_METHOD); }
 
   bool innerEquals(FunctionType const *obj, EqFlags flags = EF_EXACT) const;
   bool equalParameterLists(FunctionType const *obj, EqFlags flags = EF_EXACT) const;

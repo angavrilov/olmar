@@ -123,11 +123,16 @@ ImplicitConversion getImplicitConversion
         GrowArray<ArgumentInfo> argTypes(1);
         argTypes[0] = ArgumentInfo(special, src);
         TRACE("overload", "  overloaded call to constructor " << ct->name);
-        ctor = resolveOverload(env, SL_UNKNOWN, NULL /*errors*/,
+        bool wasAmbig;
+        ctor = resolveOverload(env, env.loc(), NULL /*errors*/,
                                OF_NO_USER | OF_NO_EXPLICIT,
-                               ctor->overload->set, argTypes);
+                               ctor->overload->set, argTypes, wasAmbig);
         if (ctor) {
           TRACE("overload", "  selected constructor at " << toString(ctor->loc));
+        }
+        else if (wasAmbig) {
+          TRACE("overload", "  ambiguity while selecting constructor");
+          ret.addAmbig();
         }
         else {
           TRACE("overload", "  no constructor matches");
@@ -147,16 +152,14 @@ ImplicitConversion getImplicitConversion
 
   // check for a conversion function
   if (src->asRval()->isCompoundType()) {
-    CompoundType *srcCt = src->asRval()->asCompoundType();
-
     ImplicitConversion conv = getConversionOperator(
-      env, SL_UNKNOWN, NULL /*errors*/,
-      srcCt, dest);
+      env, env.loc(), NULL /*errors*/,
+      src, dest);
     if (conv) {
       if (ret) {
         // there's already a constructor-based conversion, so this
         // sequence is ambiguous
-        ret.kind = ImplicitConversion::IC_AMBIGUOUS;
+        ret.addAmbig();
       }
       else {
         ret = conv;

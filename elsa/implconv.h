@@ -40,12 +40,15 @@ public:    // funcs
   // for determining whether the conversion attempt succeeded
   operator bool () const { return kind != IC_NONE; }
 
+  bool isAmbiguous() const { return kind == IC_AMBIGUOUS; }
+
   // add specific conversion possibilities; automatically kicks
   // over to IC_AMBIGUOUS if there's already a conversion
   void addStdConv(StandardConversion scs);
-  void addUserConv(StandardConversion first, Variable const *user, 
+  void addUserConv(StandardConversion first, Variable const *user,
                    StandardConversion second);
   void addEllipsisConv();
+  void addAmbig() { kind = IC_AMBIGUOUS; }
   
   // debugging
   // experiment: member function is called 'debugString', and

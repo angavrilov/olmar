@@ -3343,8 +3343,9 @@ Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
   }
 
   // resolve overloading
+  bool wasAmbig;     // ignored, since error will be reported
   return resolveOverload(env, loc, &env.errors,
-                         OF_NONE, var->overload->set, argInfo);
+                         OF_NONE, var->overload->set, argInfo, wasAmbig);
 }
 // ------------- END: outerResolveOverload ------------------
 

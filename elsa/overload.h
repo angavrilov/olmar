@@ -76,10 +76,14 @@ public:      // data
   SourceLoc loc;
   ErrorList * /*nullable*/ errors;
   OverloadFlags flags;
-  // no list of candidates here
   GrowArray<ArgumentInfo> &args;
+  
+  // when non-NULL, this indicates the type of the expression
+  // that is being copy-initialized, and plays a role in selecting
+  // the best function (13.3.3, final bullet)
+  Type *finalDestType;
 
-  // these are the "viable functions" of the standard
+  // these are the "viable candidate functions" of the standard
   ObjArrayStack<Candidate> candidates;
 
 private:     // funcs
@@ -89,12 +93,13 @@ private:     // funcs
 public:      // funcs
   OverloadResolver(Env &en, SourceLoc L, ErrorList *er,
                    OverloadFlags f, GrowArray<ArgumentInfo> &a,
-                   int numCand /*estimate of # of candidates*/)
+                   int numCand = 10 /*estimate of # of candidates*/)
     : env(en),
       loc(L),
       errors(er),
       flags(f),
       args(a),
+      finalDestType(NULL),
 
       // this estimate does not have to be perfect; if it's high,
       // then more space will be allocated than necessary; if it's
@@ -120,7 +125,8 @@ public:      // funcs
 
   // run the tournament to decide among the candidates; returns
   // NULL if there is no clear winner
-  Variable *resolve();
+  Variable *resolve(bool &wasAmbig);
+  Variable *resolve();     // ignore ambiguity info
 };
 
 
@@ -133,54 +139,23 @@ Variable *resolveOverload(
   ErrorList * /*nullable*/ errors, // where to insert errors; if NULL, don't
   OverloadFlags flags,             // various options
   SObjList<Variable> &list,        // list of overloaded possibilities
-  GrowArray<ArgumentInfo> &args);  // list of argument types at the call site
-
+  GrowArray<ArgumentInfo> &args,   // list of argument types at the call site
+  bool &wasAmbig                   // returns as true if error due to ambiguity
+);
 
                            
 // given an object of type 'srcClass', find a conversion operator
 // that will yield 'destType' (perhaps with an additional standard
-// conversion)
+// conversion); for now, this function assumes the conversion
+// context is as in 13.3.1.{4,5,6}: copy-initialization by conversion
+// (NOTE: this does *not* try "converting constructors" of 'destType')
 ImplicitConversion getConversionOperator(
   Env &env,
   SourceLoc loc,
   ErrorList * /*nullable*/ errors,
-  CompoundType *srcClass,          // ignore cv-qualification of receiver
+  Type *srcClassType,      // must be a compound (or reference to one)
   Type *destType
 );
-
-
-// helper/implementation class for 'getConversionOperator'
-class ConversionResolver {
-public:      // data
-  // same meaning as corresponding arguments to 'resolveOverload'
-  Env &env;
-  SourceLoc loc;
-  ErrorList * /*nullable*/ errors;
-  Type *destType;
-
-  // set of candidate conversion operator functions
-  ArrayStack<Variable*> candidates;
-
-private:     // funcs
-  StandardConversion getSC(Variable *v);
-
-public:      // funcs
-  ConversionResolver(Env &en, SourceLoc L, ErrorList *er, Type *d)
-    : env(en), loc(L), errors(er), destType(d) {}
-  ~ConversionResolver();
-
-  // public for 'tournament'
-  int compareCandidates(Variable *left, Variable *right);
-
-  void potentialCandidate(Variable *v);
-  ImplicitConversion resolve();
-};
-
-
-// given the Variable of a conversion operator function, yield
-// the ImplicitConversion that represents its use to make
-// a value of type 'dest'
-//ImplicitConversion makeConversionOperatorIC(Variable *v, Type *dest);
 
 
 #endif // OVERLOAD_H

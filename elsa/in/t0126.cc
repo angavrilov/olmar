@@ -8,6 +8,10 @@ struct A {
 
 void func()
 {
+
+  // TODO: extend __testOverload to test these; they do appear
+  // to work
+
   A a;
   a.f();
   a.f(3);

@@ -62,11 +62,12 @@ Variable *resolveOverload(
   ErrorList * /*nullable*/ errors,
   OverloadFlags flags,
   SObjList<Variable> &varList,
-  GrowArray<ArgumentInfo> &args)
+  GrowArray<ArgumentInfo> &args,
+  bool &wasAmbig)
 {
   OverloadResolver r(env, loc, errors, flags, args, varList.count());
   r.processCandidates(varList);
-  return r.resolve();
+  return r.resolve(wasAmbig);
 }
 
 
@@ -195,8 +196,10 @@ CANDIDATE *selectBestCandidate(RESOLVER &resolver, CANDIDATE *dummy)
 }
 
 
-Variable *OverloadResolver::resolve()
+Variable *OverloadResolver::resolve(bool &wasAmbig)
 {
+  wasAmbig = false;
+
   if (candidates.isEmpty()) {
     if (errors) {
       // TODO: expand this message greatly: explain which functions
@@ -207,13 +210,22 @@ Variable *OverloadResolver::resolve()
     return NULL;
   }
 
+  if (finalDestType) {
+    // include this in the diagnostic output so that I can tell
+    // when it will play a role in candidate comparison
+    TRACE("overload", "  finalDestType: " << finalDestType->toString());
+  }
+
   // use a tournament to select a candidate that is not worse
   // than any of those it faced
   Candidate const *winner = selectBestCandidate(*this, (Candidate const*)NULL);
   if (!winner) {
     // TODO: expand this message
-    errors->addError(new ErrorMsg(
-      loc, "ambiguous overload, no function is better than all others", EF_NONE));
+    if (errors) {
+      errors->addError(new ErrorMsg(
+        loc, "ambiguous overload, no function is better than all others", EF_NONE));
+    }
+    wasAmbig = true;
     return NULL;
   }
 
@@ -221,6 +233,13 @@ Variable *OverloadResolver::resolve()
         << ": selected instance at " << toString(winner->var->loc));
 
   return winner->var;
+}
+
+
+Variable *OverloadResolver::resolve()
+{
+  bool dummy;
+  return resolve(dummy);
 }
 
 
@@ -245,7 +264,8 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate(Variable *var)
       StandardConversion scs =
         getStandardConversion(NULL /*errorMsg*/, 
                               args[argIndex].special, args[argIndex].type,
-                              paramIter.data()->type);
+                              paramIter.data()->type,
+                              argIndex==0 && ft->isMethod() /*destIsReceiver*/);
       if (scs != SC_ERROR) {
         ImplicitConversion ics;
         ics.addStdConv(scs);
@@ -367,12 +387,24 @@ int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *
   
   // TODO: next rule talks about comparing templates to find out
   // which is more specialized
-  
-  // TODO: last rule talks about selecting from among several possible
-  // user-defined conversion functions, but I haven't implemented that
-  // part of conversion selection yet so I don't know how that context
-  // will be identified
-  
+
+  // if we're doing "initialization by user-defined conversion", then
+  // look at the conversion sequences to the final destination type
+  if (finalDestType) {
+    StandardConversion leftSC = getStandardConversion(
+      NULL /*errorMsg*/, SE_NONE, leftFunc->retType, finalDestType);
+    StandardConversion rightSC = getStandardConversion(
+      NULL /*errorMsg*/, SE_NONE, rightFunc->retType, finalDestType);
+
+    ret = compareStandardConversions(
+      ArgumentInfo(SE_NONE, leftFunc->retType), leftSC, finalDestType,
+      ArgumentInfo(SE_NONE, rightFunc->retType), rightSC, finalDestType
+    );
+    if (ret != 0) {
+      return ret;
+    }
+  }
+
   // no more rules remain, candidates are indistinguishable
   return 0;
 }
@@ -764,118 +796,155 @@ bool isProperSubpath(CompoundType const *LS, CompoundType const *LD,
 
 
 // --------------------- ConversionResolver -----------------------
-ImplicitConversion getConversionOperator(
-  Env &env,
-  SourceLoc loc,
-  ErrorList * /*nullable*/ errors,
-  CompoundType *srcClass,          // ignore cv-qualification of receiver
-  Type *destType
-) {
-  ConversionResolver resolver(env, loc, errors, destType);
-
+void getConversionOperators(SObjList<Variable> &dest, Env &env,
+                            CompoundType *ct)
+{
   // for now, consider only conversion operators defined in the class
   // itself; later, I'll implement a scheme to collect the list of
   // conversions inherited, plus those in the class itself
 
-  // look up any conversion operators
-  Variable *set = srcClass->lookupVariable(env.conversionOperatorName, env);
-  if (set) {
-    if (set->overload) {
-      SFOREACH_OBJLIST_NC(Variable, set->overload->set, iter) {
-        Variable *v = iter.data();
-        resolver.potentialCandidate(v);
-      }
+  Variable *v = ct->lookupVariable(env.conversionOperatorName, env);
+  if (v) {
+    if (v->overload) {
+      dest.appendAll(v->overload->set);
     }
     else {
-      resolver.potentialCandidate(set);
+      dest.prepend(v);
+    }
+  }
+}
+
+
+ImplicitConversion getConversionOperator(
+  Env &env,
+  SourceLoc loc,
+  ErrorList * /*nullable*/ errors,
+  Type *srcClassType,
+  Type *destType
+) {
+  CompoundType *srcClass = srcClassType->asRval()->asCompoundType();
+
+  // in all cases, there is effectively one argument, the receiver
+  // object of type 'srcClass'
+  GrowArray<ArgumentInfo> args(1);
+  args[0] = ArgumentInfo(SE_NONE, srcClassType);
+
+  // set up the resolver; since the only argument is the receiver
+  // object, user-defined conversions should never enter the picture,
+  // but I'll supply OF_NO_USER just to be sure
+  OverloadResolver resolver(env, loc, errors, OF_NO_USER, args);
+
+  // get the conversion operators for the source class
+  SObjList<Variable> ops;
+  getConversionOperators(ops, env, srcClass);
+
+  // 13.3.1.4?
+  if (destType->isCompoundType()) {
+    CompoundType *destCT = destType->asCompoundType();
+
+    // Where T is the destination class, "... [conversion operators
+    // that] yield a type whose cv-unqualified type is the same as T
+    // or is a derived class thereof are candidate functions.
+    // Conversion functions that return 'reference to T' return
+    // lvalues of type T and are therefore considered to yield T for
+    // this process of selecting candidate functions."
+    SFOREACH_OBJLIST_NC(Variable, ops, iter) {
+      Variable *v = iter.data();
+      Type *retType = v->type->asFunctionType()->retType->asRval();
+      if (retType->isCompoundType() &&
+          retType->asCompoundType()->hasBaseClass(destCT)) {
+        // it's a candidate
+        resolver.processCandidate(v);
+      }
     }
   }
 
-  return resolver.resolve();
-}
+  // 13.3.1.5?
+  else if (!destType->isReference()) {
+    // candidates added in this case are subject to an additional
+    // ranking criteria, namely that the ultimate destination type
+    // is significant (13.3.3 para 1 final bullet)
+    resolver.finalDestType = destType;
 
+    // Where T is the cv-unqualified destination type,
+    // "... [conversion operators that] yield type T or a type that
+    // can be converted to type T via a standard conversion sequence
+    // (13.3.3.1.1) are candidate functions.  Conversion functions
+    // that return a cv-qualified type are considered to yield the
+    // cv-unqualified version of that type for this process of
+    // selecting candidate functions.  Conversion functions that
+    // return 'reference to T' return lvalues of type T and are
+    // therefore considered to yield T for this process of selecting
+    // candidate functions."
+    SFOREACH_OBJLIST_NC(Variable, ops, iter) {
+      Variable *v = iter.data();
+      Type *retType = v->type->asFunctionType()->retType->asRval();
+      if (SC_ERROR!=getStandardConversion(NULL /*errorMsg*/,
+            SE_NONE, retType, destType)) {
+        // it's a candidate
+        resolver.processCandidate(v);
+      }
+    }
+  }
 
-ConversionResolver::~ConversionResolver()
-{}
+  // must be 13.3.1.6
+  else {
+    // strip the reference
+    Type *underDestType = destType->asRval();
 
+    // Where the destination type is 'cv1 T &', "... [conversion
+    // operators that] yield type 'cv2 T2 &', where 'cv1 T' is
+    // reference-compatible (8.5.3) with 'cv2 T2', are
+    // candidate functions."
+    SFOREACH_OBJLIST_NC(Variable, ops, iter) {
+      Variable *v = iter.data();
+      Type *retType = v->type->asFunctionType()->retType;
+      if (retType->isReference()) {
+        retType = retType->asRval();     // strip the reference
+        if (isReferenceCompatibleWith(underDestType, retType)) {
+          // it's a candidate
+          resolver.processCandidate(v);
+        }
+      }
+    }
+  }
 
-StandardConversion ConversionResolver::getSC(Variable *v)
-{
+  // pick the winner
+  bool wasAmbig;
+  Variable *winner = resolver.resolve(wasAmbig);
+  
+  // return an IC with that winner
+  ImplicitConversion ic;
+  if (!winner) {
+    if (!wasAmbig) {
+      return ic;        // is IC_NONE
+    }
+    else {
+      ic.addAmbig();
+      return ic;
+    }
+  }
+
   // compute the standard conversion that obtains the destination
   // type, starting from what the conversion function yields
-  ArgumentInfo srcInfo(SE_NONE, v->type->asFunctionType()->retType);
-  return getStandardConversion(
+  StandardConversion sc = getStandardConversion(
     NULL /*errorMsg*/,
-    srcInfo.special, srcInfo.type,      // conversion source
-    destType                            // conversion dest
+    SE_NONE, winner->type->asFunctionType()->retType,   // conversion source
+    destType                                            // conversion dest
   );
+
+  ic.addUserConv(SC_IDENTITY, winner, sc);
+  return ic;
 }
 
 
+#if 0   // old; delete me
 int ConversionResolver::compareCandidates(Variable *left, Variable *right)
 {
   return compareStandardConversions(
     ArgumentInfo(SE_NONE, left->type->asFunctionType()->retType), getSC(left), destType,
     ArgumentInfo(SE_NONE, right->type->asFunctionType()->retType), getSC(right), destType
   );
-}
-
-
-void ConversionResolver::potentialCandidate(Variable *v)
-{
-  if (getSC(v) != SC_ERROR) {
-    // add this to the set of candidates
-    TRACE("overload", "  conversion candidate: " << v->toString() <<
-                      " at " << toString(v->loc));
-    candidates.push(v);
-  }
-}
-
-
-ImplicitConversion ConversionResolver::resolve()
-{
-  ImplicitConversion ic;
-  if (candidates.isEmpty()) {
-    // no candidates
-    return ic;
-  }
-
-  Variable *winner = selectBestCandidate(*this, (Variable*)NULL);
-  if (!winner) {
-    // ambiguous
-    ic.kind = ImplicitConversion::IC_AMBIGUOUS;
-  }
-  else {
-    ic.addUserConv(SC_IDENTITY, winner, getSC(winner));
-  }
-  return ic;
-}
-
-
-#if 0   // old
-ImplicitConversion makeConversionOperatorIC(Variable *v, Type *dest)
-{
-  ImplicitConversion ic;
-
-  // compute the standard conversion that obtains the destination
-  // type, starting from what the conversion function yields
-  ArgumentInfo srcInfo(SE_NONE, v->type->asFunctionType()->retType);
-  StandardConversion sc = getStandardConversion(
-    NULL /*errorMsg*/,
-    srcInfo.special, srcInfo.type,      // conversion source
-    dest                                // conversion dest
-  );
-
-  if (sc == SC_ERROR) {
-    // 'ic' is already the error IC
-  }
-  else {
-    ic.addUserConv(SC_IDENTITY,    // conversion to make receiver object
-                   v,              // conversion operator function itself
-                   sc);            // convert operator return to final type
-  }
-
-  return ic;
 }
 #endif // 0
 

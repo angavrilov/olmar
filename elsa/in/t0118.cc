@@ -87,6 +87,35 @@ class H {
   operator B* ();                 // line 87
 };
 
+class I {
+  operator int ();                // line 91
+  operator int& ();               // line 92
+}; 
+
+class J {
+  J(int);                         // line 96
+  J(long);                        // line 97
+};
+
+class L;
+class K {
+  K(L const &);                   // line 102
+};
+
+class L {
+  operator K ();                  // line 106
+};
+
+class L2;
+class K2 {
+  K2(L2 const &);                 // line 111
+};
+
+class L2 {
+  operator K2 ();                 // line 115
+  operator K2& ();                // line 116
+};
+
 // __getImplicitConversion(
 //   <expression with source type>,
 //   <expression with destination type>,
@@ -120,13 +149,13 @@ void f()
 
   // operator conversions
   D d;
-  __getImplicitConversion((D)d, (int)0,
+  __getImplicitConversion(d, (int)0,
                           IC_USER_DEFINED, SC_IDENTITY, 55, SC_IDENTITY);
-  __getImplicitConversion((D)d, (float)0,
+  __getImplicitConversion(d, (float)0,
                           IC_USER_DEFINED, SC_IDENTITY, 56, SC_IDENTITY);
 
   // int->char and float->char are both conversions, therefore it's ambiguous
-  __getImplicitConversion((D)d, (char)0,
+  __getImplicitConversion(d, (char)0,
                           IC_AMBIGUOUS, 0,0,0);
 
   E e;
@@ -161,6 +190,31 @@ void f()
   __getImplicitConversion(h, (B*)0,
                           IC_USER_DEFINED, SC_IDENTITY, 87, SC_IDENTITY);
   __getImplicitConversion(h, (void*)0,
+                          IC_AMBIGUOUS, 0,0,0);
+
+  I i;
+  int anInt;
+  __getImplicitConversion(i, anInt /*int&*/,
+                          IC_USER_DEFINED, SC_IDENTITY, 92, SC_IDENTITY);
+
+  J j;
+  __getImplicitConversion((int)0, (J)j,
+                          IC_USER_DEFINED, SC_IDENTITY, 96, SC_IDENTITY);
+  __getImplicitConversion((long)0, (J)j,
+                          IC_USER_DEFINED, SC_IDENTITY, 97, SC_IDENTITY);
+  __getImplicitConversion((float)0, (J)j,
+                          IC_AMBIGUOUS, 0,0,0);
+
+  // ambiguity between conversion operator and conversion constructor
+  L ell;
+  K k;
+  __getImplicitConversion(ell, (K)k,
+                          IC_AMBIGUOUS, 0,0,0);
+
+  // ambiguity among 3: ambiguous conversion operator, and conversion constructor
+  L2 ell2;
+  K2 k2;
+  __getImplicitConversion(ell2, (K2)k2,
                           IC_AMBIGUOUS, 0,0,0);
 
 }

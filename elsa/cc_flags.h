@@ -1,5 +1,18 @@
 // cc_flags.h            see license.txt for copyright and terms of use
-// enumerated flags for parsing C
+// enumerated flags for parsing C, C++
+
+// Basically, this module is a set of enums that are used by at
+// least two different modules in the C/C++ front end (if they
+// were only used by one module, they'd be declared in that
+// module instead).
+//
+// Each enum has a 'toString' that yields a printable representation.
+// If it yields 'char const *', then it's guaranteed to be a valid
+// pointer with unchanging contents throughout execution.
+//
+// Those that are OR-able together have the necessary operators
+// declared (ENUM_BITWISE_OPS), and their 'toString' uses bitwise-OR
+// syntax.
 
 #ifndef CC_FLAGS_H
 #define CC_FLAGS_H
@@ -49,6 +62,11 @@ ENUM_BITWISE_OPS(CVFlags, CV_ALL)
 // these modifiers apply to variable names;
 // they're now also being used for Variable (variable.h) flags;
 // values in common with UberModifiers must line up
+//
+// TODO: These should be split up into two sets: flags that
+// exactly reflect the original syntax, and those that reflect
+// a semantic interpretation.  At the moment, the boundary is
+// a little blurrly in a few cases.
 enum DeclFlags {
   DF_NONE        = 0x00000000,
 
@@ -65,7 +83,7 @@ enum DeclFlags {
   DF_TYPEDEF     = 0x00000200,
   DF_SOURCEFLAGS = 0x000003FF,    // all flags that come from keywords in the source
 
-  // flags on Variables
+  // semantic flags on Variables
   DF_ENUMERATOR  = 0x00000400,    // true for values in an 'enum' (enumerators in the terminology of the C++ standard)
   DF_GLOBAL      = 0x00000800,    // set for globals, unset for locals
   DF_INITIALIZED = 0x00001000,    // true if has been declared with an initializer (or, for functions, with code)
@@ -300,7 +318,7 @@ char const *toString(OverloadableOp op);
 
 
 // -------------------- uber modifiers -----------------
-// the uber modifiers are a superset of all the keywords which
+// the uber modifiers are a superset of all the keywords that
 // can appear in a type specifier; see cc.gr, nonterm DeclSpecifier
 enum UberModifiers {
   UM_NONE         = 0,
