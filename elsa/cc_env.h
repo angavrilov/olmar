@@ -86,10 +86,6 @@ public:      // data
   // name of the operator()() functions
   StringRef functionOperatorName;
   
-  // "this", a local variable of methods that points at the
-  // receiver object
-  StringRef thisName;
-
   // "__receiver", a reference to the receiver object; it's a
   // parameter of methods
   StringRef receiverName;

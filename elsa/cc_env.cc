@@ -42,7 +42,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     conversionOperatorName(str("conversion-operator")),
     constructorSpecialName(str("constructor-special")),
     functionOperatorName(str("operator()")),
-    thisName(str("this")),
     receiverName(str("__receiver")),
     otherName(str("__other")),
     quote_C_quote(str("\"C\"")),
