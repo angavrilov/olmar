@@ -4,28 +4,28 @@
 
 template <class T>
 struct A {
-  int foo(T::Inner::template S<int> x);
-  int foo(T::Inner::template S<float> x);
-  int foo(T::Inner2::template S<float> x);
+  int foo(typename T::Inner::template S<int> x);
+  int foo(typename T::Inner::template S<float> x);
+  int foo(typename T::Inner2::template S<float> x);
 };
 
 
 template <class T>
-int A<T>::foo(T::Inner::template S<int> x)
+int A<T>::foo(typename T::Inner::template S<int> x)
 {
   return 1;
 }
 
 
 template <class T>
-int A<T>::foo(T::Inner::template S<float> x)
+int A<T>::foo(typename T::Inner::template S<float> x)
 {
   return 2;
 }
 
 
 template <class T>
-int A<T>::foo(T::Inner2::template S<float> x)
+int A<T>::foo(typename T::Inner2::template S<float> x)
 {
   return 3;
 }

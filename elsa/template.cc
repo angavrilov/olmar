@@ -41,6 +41,21 @@ void copyTemplateArgs(ObjList<STemplateArgument> &dest,
 }
 
 
+void copyTemplateArgs(ObjList<STemplateArgument> &dest,
+                      ASTList<TemplateArgument> const &src)
+{
+  xassert(dest.isEmpty());    // for prepend/reverse
+  FOREACH_ASTLIST(TemplateArgument, src, iter) {
+    TemplateArgument const *targ = iter.data();
+    if (targ->isTA_templateUsed()) { continue; }
+
+    xassert(targ->sarg.hasValue());
+    dest.prepend(new STemplateArgument(targ->sarg));
+  }
+  dest.reverse();
+}
+
+
 // ------------------ TypeVariable ----------------
 TypeVariable::~TypeVariable()
 {}
@@ -1092,14 +1107,7 @@ void Env::initArgumentsFromASTTemplArgs
    ASTList<TemplateArgument> const &templateArgs)
 {
   xassert(tinfo);
-  xassert(tinfo->arguments.count() == 0); // don't use this if there are already arguments
-  FOREACH_ASTLIST(TemplateArgument, templateArgs, iter) {
-    TemplateArgument const *targ = iter.data();
-    if (targ->isTA_templateUsed()) continue;
-
-    xassert(targ->sarg.hasValue());
-    tinfo->arguments.append(new STemplateArgument(targ->sarg));
-  }
+  copyTemplateArgs(tinfo->arguments, templateArgs);
 }
 
 

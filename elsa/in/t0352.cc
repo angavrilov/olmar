@@ -5,20 +5,20 @@
 
 template <class T>
 struct A {
-  int foo(T::template S<int> x);
-  int foo(T::template S<float> x);
+  int foo(typename T::template S<int> x);
+  int foo(typename T::template S<float> x);
 };
 
 
 template <class T>
-int A<T>::foo(T::template S<int> x)
+int A<T>::foo(typename T::template S<int> x)
 {
   return 1;
 }
 
 
 template <class T>
-int A<T>::foo(T::template S<float> x)
+int A<T>::foo(typename T::template S<float> x)
 {
   return 2;
 }

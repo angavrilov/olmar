@@ -452,6 +452,11 @@ string sargsToString(ASTList<TemplateArgument> const &list);
 bool containsTypeVariables(SObjList<STemplateArgument> const &args);
 bool hasDependentArgs(SObjList<STemplateArgument> const &args);
 
+void copyTemplateArgs(ObjList<STemplateArgument> &dest,
+                      SObjList<STemplateArgument> const &src);
+void copyTemplateArgs(ObjList<STemplateArgument> &dest,
+                      ASTList<TemplateArgument> const &src);
+
 
 // holder for the CompoundType template candidates
 class TemplCandidates {

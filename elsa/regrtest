@@ -585,8 +585,8 @@ testparse t0348.cc
 testparse t0349.cc
 testparse t0350.cc
 testparse t0351.cc
-failparse t0352.cc "cannot parse; nasty example; gcc-3 cannot handle either"
-failparse t0353.cc "cannot parse; even nastier example"
+testparse t0352.cc
+testparse t0353.cc
 testparse t0354.cc
 testparse t0355.cc
 testparse t0356.cc

@@ -266,12 +266,8 @@ private:     // funcs
     (LookupSet &candidates, PQName const *name, LookupFlags flags,
      Scope *&scope);
 
-  //PseudoInstantiation *createPseudoInstantiation
-  //  (CompoundType *ct, SObjList<STemplateArgument> const &args);
   PseudoInstantiation *createPseudoInstantiation
     (CompoundType *ct, ASTList<TemplateArgument> const &args);
-  void copyPITemplateArgs(ObjList<STemplateArgument> &dest,
-                          ASTList<TemplateArgument> const &args);
 
   bool equivalentSignatures(FunctionType *ft1, FunctionType *ft2);
   bool equivalentTypes(Type *t1, Type *t2, Type::EqFlags eflags = Type::EF_EXACT);

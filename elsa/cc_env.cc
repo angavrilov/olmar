@@ -1566,6 +1566,8 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
 bool containsVariables(ASTList<TemplateArgument> const &args)
 {
   FOREACH_ASTLIST(TemplateArgument, args, iter) {
+    if (iter.data()->isTA_templateUsed()) continue;
+
     if (iter.data()->sarg.containsVariables()) {
       return true;
     }
@@ -3623,7 +3625,7 @@ PseudoInstantiation *Env::createPseudoInstantiation
   PseudoInstantiation *pi = new PseudoInstantiation(ct);
 
   // attach the template arguments
-  copyPITemplateArgs(pi->args, args);
+  copyTemplateArgs(pi->args, args);
 
   // make the typedef var; do *not* add it to the environment
   pi->typedefVar = makeVariable(loc(), ct->name, makeType(loc(), pi),
@@ -3631,18 +3633,6 @@ PseudoInstantiation *Env::createPseudoInstantiation
 
   return pi;
 }
-
-// does this code exist somewhere else?
-void Env::copyPITemplateArgs(ObjList<STemplateArgument> &dest,
-                             ASTList<TemplateArgument> const &args)
-{ 
-  xassert(dest.isEmpty());
-  FOREACH_ASTLIST(TemplateArgument, args, iter) {
-    dest.prepend(new STemplateArgument(iter.data()->sarg));
-  }
-  dest.reverse();
-}
-
 
 
 // Push onto the scope stack the scopes that contain the declaration
@@ -4406,7 +4396,7 @@ void Env::finishDependentQType(LookupSet &set, DependentQType * /*nullable*/ dqt
       // an abuse.  (No CompoundType, no typedefVar.)
       PseudoInstantiation *pi = new PseudoInstantiation(NULL /*ct*/);
       pi->name = qual->qualifier;
-      copyPITemplateArgs(pi->args, qual->targs);
+      copyTemplateArgs(pi->args, qual->targs);
       dqt->rest.append(pi);
     }
 
@@ -4421,7 +4411,7 @@ void Env::finishDependentQType(LookupSet &set, DependentQType * /*nullable*/ dqt
     PseudoInstantiation *pi = new PseudoInstantiation(NULL /*ct*/);
     pi->name = finalName;
     if (name->isPQ_template()) {
-      copyPITemplateArgs(pi->args, name->asPQ_template()->args);
+      copyTemplateArgs(pi->args, name->asPQ_template()->args);
     }
     dqt->rest.append(pi);
 
