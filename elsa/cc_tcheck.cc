@@ -1088,19 +1088,16 @@ Type *TS_simple::itcheck(Env &env, DeclFlags dflags)
 //
 // Note that the first and third cases are fairly parallel, one being
 // a declaration and the other a definition.  The second case is the
-// odd one out, and is in fact quite rare, as such uses are almost
-// always written without the "class" keyword.
+// odd one out, though it is more like case 1 than case 3.  It is also
+// quite rare, as such uses are almost always written without the
+// "class" keyword.
 CompoundType *checkClasskeyAndName(
   Env &env,
   SourceLoc loc,             // location of type specifier
   DeclFlags dflags,          // syntactic and semantic declaration modifiers
   TypeIntr keyword,          // keyword used
-  PQName *name,              // name, with qualifiers and template args (if any)
-  bool &previouslyDeclared)  // OUT: true if name was previously declared
+  PQName *name)              // name, with qualifiers and template args (if any)
 {
-  // initialize the OUT parameter
-  previouslyDeclared = false;
-
   // context flags
   bool forward = (dflags & DF_FORWARD);
   bool definition = (dflags & DF_DEFINITION);
@@ -1202,8 +1199,6 @@ CompoundType *checkClasskeyAndName(
 
   // if already declared, compare to that decl
   if (ct) {
-    previouslyDeclared = true;
-
     // check that the keywords match
     if ((int)ct->keyword != (int)keyword) {
       // it's ok for classes and structs to be confused (7.1.5.3 para 3)
@@ -1360,9 +1355,8 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     return env.makeType(loc, et);
   }
                                      
-  bool dummy;
-  CompoundType *ct = 
-    checkClasskeyAndName(env, loc, dflags, keyword, name, dummy);
+  CompoundType *ct =
+    checkClasskeyAndName(env, loc, dflags, keyword, name);
   if (!ct) {
     return env.errorType();
   }
@@ -1384,9 +1378,8 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   }
 
   // figure out which class the (keyword, name) pair refers to
-  bool defnOfPrevDecl;
-  CompoundType *ct = 
-    checkClasskeyAndName(env, loc, dflags, keyword, name, defnOfPrevDecl);
+  CompoundType *ct =
+    checkClasskeyAndName(env, loc, dflags, keyword, name);
   if (!ct) {
     return env.errorType();   // error already reported
   }
@@ -1396,16 +1389,10 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   // check the body of the definition
   tcheckIntoCompound(env, dflags, ct, true /*checkMethodBodies*/);
 
-  if (defnOfPrevDecl && ct->isTemplate()) {
-    // we might have had forward declarations of template
-    // instances that now can be made non-forward by tchecking
-    // this syntax
-    //
-    // 8/14/04: er... ahh.. what?  if we needed it before this we
-    // would have already emitted an error!  nothing is accomplished
-    // by this...
-    //env.instantiateForwardClasses(ct->typedefVar);
-  }
+  // 8/14/04: er... ahh.. what?  if we needed it before this we
+  // would have already emitted an error!  nothing is accomplished
+  // by this...
+  //env.instantiateForwardClasses(ct->typedefVar);
 
   return ct->typedefVar->type;
 }
