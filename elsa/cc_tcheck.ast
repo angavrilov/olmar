@@ -426,7 +426,7 @@ class Expression {
        public Expression /*nullable serf*/ *arraySize = NULL;
 
        // constructor being called to initialize the storage
-       public Variable *ctorVar = NULL;
+       public(field) Variable *ctorVar = NULL;
        custom clone { ret->ctorVar = ctorVar; }
      }
 }

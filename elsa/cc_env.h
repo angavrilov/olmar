@@ -302,10 +302,11 @@ public:      // funcs
   int numErrors() const { return errors.count(); }
 
   // makes a function type that returns ST_CDTOR and accepts no params
-  // dsw: flagged as a FF_CTOR
-  FunctionType *makeConstructorFunctionType(SourceLoc loc);
-  // dsw: flagged as a FF_DTOR
   FunctionType *makeDestructorFunctionType(SourceLoc loc);
+
+  // similar to above, except its flagged with FF_CTOR, and the caller
+  // must call 'doneParams' when it has finished adding parameters
+  FunctionType *beginConstructorFunctionType(SourceLoc loc);
 
   // TypeFactory funcs; all of these simply delegate to 'tfac'
   CVAtomicType *makeCVAtomicType(SourceLoc loc, AtomicType *atomic, CVFlags cv)

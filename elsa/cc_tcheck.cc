@@ -1318,7 +1318,7 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
     // add the variable to the scope and don't construct the AST, in
     // order to be symmetric with what is going on with the dtor
     // below.
-    FunctionType *ft = env.makeConstructorFunctionType(loc);
+    FunctionType *ft = env.beginConstructorFunctionType(loc);
     ft->doneParams();
     Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_MEMBER);
     // NOTE: we don't use env.addVariableWithOload() because this is
@@ -1366,7 +1366,7 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
     // TODO: do it right.
 
     // add a copy ctor declaration: Class(Class const &);
-    FunctionType *ft = env.makeConstructorFunctionType(loc);
+    FunctionType *ft = env.beginConstructorFunctionType(loc);
     Variable *refToSelfParam =
       env.makeVariable(loc,
                        NULL,     // no parameter name
@@ -4867,6 +4867,24 @@ Type *E_new::itcheck(Env &env, Expression *&replacement)
 
   // grab the type of the objects to allocate
   Type *t = atype->getType();
+      
+  // cannot allocate incomplete types
+  if (t->isCompoundType() &&
+      !t->asCompoundType()->isComplete()) {
+    env.error(stringc << "cannot create an object of incomplete type `"
+                      << t->toString() << "'");
+    return env.makePtrType(SL_UNKNOWN, t);     // error recovery
+  }
+
+  // The AST has the capability of recording whether argument parens
+  // (the 'new-initializer' in the terminology of cppstd)
+  // syntactically appeared, and this does matter for static
+  // semantics; see cppstd 5.3.4 para 15.  However, for our purposes,
+  // it will likely suffice to simply pretend that anytime 't' refers
+  // to a class type, missing parens were actually present.
+  if (t->isCompoundType() && !ctorArgs) {
+    ctorArgs = new ICExpressionListOpt(NULL /*list*/);
+  }
 
   if (ctorArgs) {
     tcheckFakeExprList(ctorArgs->list, env);
@@ -4879,7 +4897,7 @@ Type *E_new::itcheck(Env &env, Expression *&replacement)
 
   // TODO: check for a constructor in 't' which accepts these args
   // (partially subsumed by overload resolution, above)
-  
+
   return env.makePtrType(SL_UNKNOWN, t);
 }
 

@@ -46,6 +46,13 @@ bool Variable::isTemplateClass() const
 
 string Variable::toString() const
 {
+  // as an experiment, I'm saying public(field) in the .ast file
+  // in a place where the Variable* might be NULL, so I will
+  // tolerate a NULL 'this'
+  if (this == NULL) {
+    return "NULL";
+  }
+
   // The purpose of this method is to print the name and type
   // of this Variable object, in a debugging context.  It is
   // not necessarily intended to print them in a way consistent

@@ -202,7 +202,10 @@ bool CompoundType::isTemplate() const
 
 bool CompoundType::hasVirtualFns() const
 {
-  for(StringSObjDict<Variable>::IterC iter(getVariableIter()); !iter.isDone(); iter.next()) {
+  // TODO: this fails to consider members inherited from base classes
+
+  for (StringSObjDict<Variable>::IterC iter(getVariableIter());
+       !iter.isDone(); iter.next()) {
     Variable *var0 = iter.value();
     if (var0->hasFlag(DF_VIRTUAL)) {
       xassert(var0->getType()->asRval()->isFunctionType());
