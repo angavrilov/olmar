@@ -28,16 +28,16 @@ digraph "Elsa Lexer Build Process" {
 
   // ------- right half: produce cc_tokens.* -------
 
-  "cc_tokens.tok" -> "../elkhound/make-token-files";
-  "gnu_ext.tok" -> "../elkhound/make-token-files";
+  "cc_tokens.tok" -> "make-token-files";
+  "gnu_ext.tok" -> "make-token-files";
 
-  "../elkhound/make-token-files" [
+  "make-token-files" [
     shape = rectangle
   ];
 
-  "../elkhound/make-token-files" -> "cc_tokens.h";
-  "../elkhound/make-token-files" -> "cc_tokens.cc";
-  "../elkhound/make-token-files" -> "cc_tokens.ids";
+  "make-token-files" -> "cc_tokens.h";
+  "make-token-files" -> "cc_tokens.cc";
+  "make-token-files" -> "cc_tokens.ids";
 
 
   // ------- extra --------

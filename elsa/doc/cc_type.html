@@ -14,9 +14,9 @@ cc_type: Type Representation
 </h2></center>
 
 <p>
-This page documents <a href="cc_type.h">cc_type.h</a> and
-<a href="cc_type.cc">cc_type.cc</a>, the files which make up the type
-representation module in <a href="../elsa/index.html">Elsa</a>.  You
+This page documents <a href="../cc_type.h">cc_type.h</a> and
+<a href="../cc_type.cc">cc_type.cc</a>, the files which make up the type
+representation module in <a href="../index.html">Elsa</a>.  You
 should look at cc_type.h as you read this file.
 
 <h2>1. Introduction</h2>
@@ -91,14 +91,16 @@ course exactly what happens from the compiler's point of
 view, and the basis for the terminology.
 
 <h2>2. Atomic Types</h2>
-      
+
+<center><img src="atomic_types.png" alt="Atomic Type Hierarchy"></center>
+
 <p>
 <b>AtomicType</b> is the root of the atomic type hierarchy.  It just
 contains methods to figure out what kind of type it actually is.
 
 <p>
 <b>SimpleType</b> is represents simple types built-in to C/C++, like
-"int".  <a href="cc_flags.h">cc_flags.h</a> contains the definition of
+"int".  <a href="../cc_flags.h">cc_flags.h</a> contains the definition of
 SimpleTypeId.  Note that there is no attempt to break down primitive
 types along dimensions like "signed" or "long", since the set of types
 is not orthogonal w.r.t. those dimensions (e.g. there is no "signed
@@ -120,7 +122,7 @@ the type checker implementation.
 <p>
 <b>CompoundType</b> is certainly the most complex of all the type classes.
 It represents a class, struct, or union.  Storage of class members is
-done by inheriting a Scope (<a href="cc_scope.h">cc_scope.h</a>).
+done by inheriting a Scope (<a href="../cc_scope.h">cc_scope.h</a>).
 Thus, CompoundType itself is mostly concerned with representing
 the inheritance hierarchy.
 
@@ -138,16 +140,18 @@ the final object's layout.
 CompoundType knows how to print out its DAG to
 <a href="http://www.research.att.com/sw/tools/graphviz/">Dot</a> format;
 see CompoundType::renderSubobjHierarchy.
-For example, <a href="in/std/3.4.5.cc">in/std/3.4.5.cc</a> yields
-<a href="gendoc/3.4.5.png">3.4.5.png</a>.
+For example, <a href="../in/std/3.4.5.cc">in/std/3.4.5.cc</a> yields
+<a href="../gendoc/3.4.5.png">3.4.5.png</a>.
 
 <p>
 <b>EnumType</b> represents an enum.  It has a list of enumerator
 values, which are also added to the Env 
-(<a href="cc_env.h">cc_env.h</a>) during type checking.
+(<a href="../cc_env.h">cc_env.h</a>) during type checking.
 
 
 <h2>3. Constructed Types</h2>
+
+<center><img src="constructed_types.png" alt="Constructed Type Hierarchy"></center>
 
 <p>
 <b>Type</b> is the root of the constructed type hierarchy.  Like
@@ -178,7 +182,7 @@ and references uniformly if you want, by using
 <p>
 <b>FunctionType</b> represents a function type.  The parameters
 are represented as a list of Variable
-(<a href="variable.h">variable.h</a>) objects.  Nonstatic
+(<a href="../variable.h">variable.h</a>) objects.  Nonstatic
 member functions have the <tt>isMember</tt> flag set, in which
 case their first parameter is called "this" and has type
 "C <i>cv</i> &", where "C" is the name of the class of which the
@@ -247,7 +251,7 @@ template instantiations.  It's not used right now.
     
 <p>
 When the type checker 
-(<a href="cc_tcheck.cc">cc_tcheck.cc</a>)
+(<a href="../cc_tcheck.cc">cc_tcheck.cc</a>)
 constructs types, it actually does so via the
 <b>TypeFactory</b> interface.  This is to make it possible for someone
 to build annotations on top of my Types, instead of going in and
@@ -315,7 +319,7 @@ then <code>TypePred</code> would expose the BaseType name.
 
 <p>
   <a href="http://validator.w3.org/check/referer"><img border="0"
-      src="http://www.w3.org/Icons/valid-html401"
+      src="valid-html401.png"
       alt="Valid HTML 4.01!" height="31" width="88"></a>
 </p>
 

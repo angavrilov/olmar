@@ -1,0 +1,744 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+<head>
+  <title>Elsa Design</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+  <style type="text/css">
+    H1 { font-size: 150% }
+    H2 { font-size: 125% }
+    H3 { font-size: 100% }
+    P.title { font-size: 175%; font-weight: bold }
+    P.remark { font-size: 125%; color: red }
+    SPAN.todo { font-weight: bold }
+    SPAN.program { font-family: monospace }
+    SPAN.variable { font-family: monospace }
+  </style>
+</head>
+<body>
+
+<center>
+<p class="title">Elsa Design</p>
+<p class="remark">Work in Progress</p>
+<p>By Daniel Wilkerson and Scott McPeak
+</center>
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<h1>Introduction</h1>
+
+<p>This file is an attempt to articulate the design of
+<a href="../index.html">Elsa</a>
+to someone who would like to work on it.
+
+<p>Elsa attempts to parse C and C++:
+<ul>
+
+<li>C++ is defined by the C++98 spec, more officially known as "ISO/IEC
+14882:1998: Programming languages -- C++."  You will see it refereed to
+as "cppstd" in comments throughout the code.  The standard can be
+purchased from <a href="http://www.ansi.org/">ANSI</a> (among other
+places), and drafts
+of the standard can be found on
+<a href="http://www.csci.csusb.edu/dick/c++std/">Dick Botting's page</a>.
+
+<li>C is defined by the C89 and C99 specs.
+<span class="todo">Give official spec names</span>
+
+<li>Elsa also supports the older C syntax described in
+    Kernighan and Ritchie's
+    <a href="http://cm.bell-labs.com/cm/cs/cbook/">"The C Programming Language"</a>
+    ("K&amp;R").
+
+<li>GCC has numerous extensions to C and C++, mostly documented in the
+    <a href="http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/">GCC Manual</a>; Elsa
+    parses most of these.
+
+</ul>
+
+<p>Note that Elsa does not try to reject all invalid programs.  The
+checking that Elsa does is primarily for the purpose of ensuring that
+its interpretation of the code is correct.  For example, Elsa <em>does</em>
+check that argument types match parameter types (which helps to catch bugs
+in Elsa's type computation logic), but <em>does not</em> enforce the
+access control rules ("public", "private", etc.) of C++.
+
+<p>Elsa is extensible; that is one may add additional syntactic
+features to the language being parsed, <em>without</em> directly
+modifying the files that define the base language.  This
+"base-and-extension design pattern" occurs frequently in the design of
+Elsa, and in fact is used to support for C99 and GNU extensions to
+C++ (consequently, it is easy to remove such support).
+
+<p><center><img src="block_diagram.png" alt="Elsa Block Diagram"></center>
+
+<p>Processing of an input file proceeds in the following three stages.
+<ol>
+<li><a href="#lexing">Lexing</a>
+<li><a href="#parsing">Parsing</a>
+<li><a href="#typechecking">Type Checking</a>
+<li><a href="#elaboration_cdtors">Elaboration</a> (of constructors and destructors)
+</ol>
+
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<a name="lexing"></a>
+<h1>1. Lexing</h1>
+
+<p>Lexing (a.k.a. scanning) is the process of partitioning a flat sequence
+of characters into a sequence of <em>tokens</em>.  In addition to being a
+partition, the tokens represent <em>classifications</em> of the partitions:
+the character sequence "123" might be called an "integer literal", and the
+sequence "abc" an "identifier".  The Lexer discards comments and whitespace
+(rather than passing them on to the parser).
+
+<h2>1.1 Lexer Build Process</h2>
+
+<p>As mentioned above, much of the Elsa design involves extension mechanisms,
+and the Lexer is no exception.  A base description is combined with one or
+more extension descriptions to arrive at the full lexical language:
+
+<p><center><img src="lexer_build.png" alt="Elsa Lexer Build Process"></center>
+
+<p>
+Above, solid lines indicate direct flow, and dashed lines indicate where
+one file is <tt>#included</tt> by another (i.e. both directly flow into
+a program further down but not shown).  Files are shown in ellipses and
+programs are shown in rectangles.
+
+<p><a href="../cc.lex">cc.lex</a> is the base lexer description.  It
+is written in the <a href="http://www.gnu.org/software/flex/manual/html_chapter/flex_toc.html">Flex</a>
+language.  <a href="../gnu.lex">gnu.lex</a> is an extension lexer description;
+it contains definitions for GNU and C99-specific lexical elements.  These two
+descriptions are combined with <a href="../merge-lexer-exts.pl">merge-lexer-exts.pl</a>
+to produce <a href="../lexer.lex">lexer.lex</a>.
+lexer.lex is subsequently read by Flex to generate
+<a href="../lexer.yy.cc">lexer.yy.cc</a>, a C++ module that does the
+actual scanning.
+
+<p><b>Build process invariant:</b> Any time a script or tool produces a
+text file, the build process marks it read-only.  This makes it harder to
+accidentally edit a file that is automatically generated.  Thus, all the
+files in the diagram above that are the output of a rectangle are marked
+read-only.
+
+<p>Unlike <a href="http://www.gnu.org/software/bison/manual/html_node/index.html">Bison</a>,
+<a href="../../elkhound/index.html">Elkhound</a>
+does not automatically choose the mapping from lexer token codes
+(like "4") to conceptual lexical elements (like "integer literal").  So the
+Elsa build process uses a script called
+<a href="../make-token-files">make-token-files</a> to assign the mapping.
+It uses the token descriptions supplied by
+<a href="../cc_tokens.tok">cc_tokens.tok</a> and
+<a href="../gnu_ext.tok">gnu_ext.tok</a>.
+
+
+<h2>1.2 Lexer Design</h2>
+
+<p>
+<a href="../lexer.lex">lexer.lex</a> specifies how to partition the input
+characters into tokens.  Most of the actions are straightforward.  One
+tricky point is the notion of "separating tokens" and "nonseparation tokens",
+which is explained at the top of <a href="../lexer.cc">lexer.cc</a>.
+Another is that "<tt>#line</tt>" directives are handled by recording them
+with the <a href="../../smbase/hashline.h">hashline</a> module, which
+can then be used to map a raw input source location to a the location designed
+by the <tt>#line</tt> directives.
+
+<p>
+The <a href="../baselexer.h">baselexer</a> module is responsible for
+coordinating the activity of a Flex lexer and an Elkhound parser.  It
+inherits from LexerInterface (<a
+href="../../elkhound/lexerint.h">lexerint.h</a>), which defines three
+fields (<span class="variable">type</span>, <span
+class="variable">sval</span>, and <span class="variable">loc</span>) that the Elkhound
+parser reads.  BaseLexer updates these fields during lexing according
+to what the lexer actions do.
+
+<p>
+BaseLexer is extended by the <a href="../lexer.h">lexer</a> module,
+which defines the Lexer class, which contains the methods that the
+lexer actions invoke.
+
+<p>
+If you would like to see the results of just lexing an input file, the
+<span class="program">tlexer</span> program (<a href="../tlexer.cc">tlexer.cc</a>) will
+read in a preprocessed C/C++ source file and print out the sequence of
+tokens that would be yielded to the parser.
+
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<a name="parsing"></a>
+<h1>2. Parsing</h1>
+
+<p>
+Parsing is the process of converting a token stream into an Abstract
+Syntax Tree (AST).  In Elsa, the AST produced by the parser is not
+necessarily a tree at all, but a Directed Acyclic Graph (DAG) in
+general, because of ambiguities.  However, we still call it an AST.
+
+
+<h2>2.1 Parser Build Process</h2>
+
+<p>
+The parser is written in a mixture of <a
+href="../../elkhound/index.html">Elkhound</a> and C++; the Elkhound
+language defines how terminals, nonterminals and productions are
+defined, while the reduction actions associated with the productions
+are written in C++.  The parser description is a combination of three
+files:
+<ul>
+<li><a href="../cc_tokens.ids">cc_tokens.ids</a>: assigns token codes
+    (automatically produced, as described above)
+<li><a href="../cc.gr">cc.gr</a>: base C++ grammar
+<li><a href="../gnu.gr">gnu.gr</a>: extensions for gcc and C99
+</ul>
+
+<p>
+<center><img src="parser_build.png" alt="Elsa Parser Build Process"></center>
+
+<p>
+There are three output files from Elkhound:
+<ul>
+<li><a href="../cc.gr.gen.h">cc.gr.gen.h</a>: declares the CCParse class,
+    which has the parser entry point, among other things
+<li><a href="../cc.gr.gen.cc">cc.gr.gen.cc</a>: contains definitions of
+    CCParse methods, including all of the reduction actions
+<li><a href="../cc.gr.gen.out">cc.gr.gen.out</a>: exhaustive description of
+    the parsing DFA; mostly of use when debugging shift/reduce conflicts
+    (not necessary with Elkhound, but sometimes can improve performance)
+</ul>
+
+
+<h2>2.2 AST Build Process</h2>
+
+<p>
+The AST is described by a language that is input to the
+<a href="../../ast/index.html">astgen</a> tool.  The description is
+comprised of several files:
+<ul>
+<li><a href="../cc.ast">cc.ast</a>: base C++ language AST
+<li><a href="../cc_tcheck.ast">cc_tcheck.ast</a>: declares AST node methods
+    and annotation fields for use by the type checker
+<li><a href="../cc_print.ast">cc_print.ast</a>: methods for pretty printing
+<li><a href="../cc_elaborate.ast">cc_elaborate.ast</a>: elaboration methods
+<li><a href="../gnu.ast">gnu.ast</a>: gcc and C99 extensions to the language AST
+<li><a href="../cfg.ast">cfg.ast</a>: methods for computing a control flow graph
+    at the statement granularity (<a href="../cfg.h">cfg</a> module)
+</ul>
+
+<p>
+<center><img src="ast_build.png" alt="Elsa AST Build Process"></center>
+
+<p>
+The output files are:
+<ul>
+<li><a href="../cc.ast.gen.h">cc.ast.gen.h</a>: contains C++ class declarations
+    for all of the AST nodes
+<li><a href="../cc.ast.gen.cc">cc.ast.gen.cc</a>: definitions of the methods of
+    the AST node classes
+</ul>
+
+
+<h2>2.3 Parser Actions</h2>
+
+<p>
+Most of the parser actions are straightfoward: combine the AST elements
+that comprise the production right-hand side (RHS) into a single AST
+element that represents the left-hand side (LHS).
+
+<p>
+Two issues are explained at the top of <a href="../cc.gr">cc.gr</a> are
+the various source of names, and handling of destructive actions.
+
+<p>
+Most instances of syntactic ambiguity are handled by using the <span
+class="variable">ambiguity</span> fields of certain AST nodes to
+explicitly represent the different alternatives.  The type checker
+then has the responsibility for picking one alternative.  For example,
+the ambiguous syntax "<tt>return (x)(y);</tt>" would be represented as
+shown in the following diagram, where the cast interpretation
+"<tt>return (x)y;</tt>" is shown in green, and the function call
+interpretation "<tt>return x(y);</tt>" is shown in purple.  Note that
+the nodes for "<tt>x</tt>" and "<tt>y</tt>" are shared by both
+interpretations.
+
+<center><img src="ambiguous_ast.png" alt="Ambiguous AST Example"></center>
+
+<p>
+A few instances of ambiguity are handled at parse time, rather than
+deferring to the type checker as in the diagram above.  This is done
+by writing <span class="variable">keep</span> functions that cancel a
+reduction if it can be determined that the syntax giving rise to the
+reduction has another (better) interpretation.  For example, there is
+an ambiguity in template parameters because "&lt;class T&gt;" could be
+a type parameter called "T", or it could be a non-type parameter of
+(existing) type "class T" but with no parameter name.  As the Standard
+specifies that this is always a type parameter, the reduction for
+non-type parameters cancels itself if the type is like "class T" (see
+the <tt>TemplateParameter -&gt; ParameterDeclaration</tt> reduction
+and the associated <span class="variable">keep</span> function).
+
+<p>The tracing flag "printAST" to <span class="program">ccparse</span>
+will print the (possibly ambiguous) AST as it exists before type
+checking.
+
+<p>The tracing flag "parseTree" will print the full parse tree.  The
+parse tree shows the structure of reduction action calls by replacing
+every reduction action with one that builds a generic parse tree node
+out of its subtrees.  This is useful for debugging ambiguities, since
+it shows exactly what happens in the parser, without interference from
+the actual reduction actions.
+
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<a name="typechecking"></a>
+<h1>3. Type Checking</h1>
+
+<p>The type checker (<a href="../cc_tcheck.cc">cc_tcheck.cc</a>) does
+five major jobs:
+<ul>
+<li>AST disambiguation</li>
+<li>Variable lookup (including overload resolution)</li>
+<li>Type annotation</li>
+<li>Insertion of implicit user-defined conversions</li>
+<li>Template instantiation</li>
+</ul>
+
+<p>The fundamental data structure on which the type checker does its
+work is the AST, documented in <a href="cc.ast.html">cc.ast.html</a>.
+
+<p>The tracing flag "printTypedAST" will print the AST after type
+checking.
+
+<h2>3.1 AST disambiguation</h2>
+
+<p>
+AST disambiguation means choosing a single interpretation for AST
+nodes that have more than one (i.e. a non-NULL <span
+class="variable">ambiguity</span> field).  Then, the surrounding AST
+nodes are modified to reflect the chosen choice and forget about the
+others.  The tracing flag "disamb" will report disambiguation
+activity.
+
+<p>
+Most disambiguation is done by the generic ambiguity resolver,
+in <a href="../generic_amb.h">generic_amb.h</a>.  The
+<span class="variable">resolveAmbiguity</span> function simply
+invokes the type checker recursively on each alternative by
+invoking the <span class="variable">mid_tcheck</span> method.
+If exactly one alternative successfully type-checks (i.e. does not
+report any errors), then that alternative is selected.  The
+<span class="variable">ambiguity</span> link for the selected
+node is nullified, and the selected node returned so the caller
+can update its AST pointer accordingly.  It is an error if more
+or less than one alternative type-checks.
+
+<p>
+As recursive type checking can sometimes involve doing computations
+unrelated to the disambiguation, such as template instantiation,
+at certain points the type checker uses the
+<span class="variable">InstantiationContextIsolator</span> class
+(<a href="../cc_env.h">cc_env.h</a>) to isolate those computations.
+They will only be done once (regardless of how many times they
+occur in ambiguous alternatives), and any errors generated are
+<em>not</em> considered by the ambiguity resolver.
+
+<p>
+Not every ambiguous situation will be resolved by the generic
+resolver.  In particular, there is a very common ambiguity between
+<span class="variable">E_funCall</span> and <span
+class="variable">E_constructor</span>, since the parser can almost
+never tell when the "<tt>f</tt>" in "<tt>f(1,2,3)</tt>" is a type or a
+function.  If the generic procedure were used, this would lead to
+exponential type checking time for expressions like
+"<tt>f1(f2(f3(...(fN())...)))</tt>".  Since this disambiguation choice
+depends only on the function/type and not the arguments, <span
+class="variable">Expression::tcheck</span> explicitly checks for this
+case and then just checks the first component by invoking the <span
+class="variable">inner1_tcheck</span> method.  Once the selection is
+made, <span class="variable">inner2_tcheck</span> is invoked to finish
+checking th argument list.
+
+<p>
+There are a few other ad-hoc disambiguation strategies here and 
+there, such as for deciding between statements and declarations, and
+resolving uses of implicit int (when K&amp;R support is enabled).
+
+
+<h2>3.2 Variable lookup</h2>
+
+<p>
+Declared entities are represented by Variable objects
+(<a href="../variable.h">variable.h</a>).  In general, lookup is
+the process of mapping a name (which is a string of characters)
+and a context (scopes, etc.) to a Variable.  AST nodes that
+contain names subject to lookup, such as
+<span class="variable">E_variable</span> or 
+<span class="variable">E_fieldAcc</span>, contain
+a <span class="variable">var</span> field.  The
+<span class="variable">var</span> field is initially NULL, and
+the type checker sets it to some non-NULL value once it figures
+out which Variable the name refers to.
+
+<h3>3.2.1 Variables</h3>
+
+<p>
+There are many kinds of entities represented by Variables, as shown in
+this diagram:
+
+<center><img src="variables.png" alt="Kinds of Variables"></center>
+
+<p>
+On the left half of the diagram are names corresponding to types, and
+on the right half are non-type entities.  Types are introduced by a
+<tt>typedef</tt> or by a class declaration.  Non-types are introduced
+by a variable declaration, or a function prototype or definition.  A
+few oddballs, such as enumerators and namespaces, round out the set.
+The neighborhoods of the class and function template boxes are
+expanded in a later diagram, below.
+
+<p>                                            
+Every Variable has a name (but it might be NULL), a type (only NULL
+for namespaces), and some flags.  The name is how the entity is found
+by lookup.  The type is either the denoted type (for type entities) or
+the type of the variable (for non-types).  The flags say what kind of
+entity a given Variable is; by interrogating the flags, one can
+determine (for any given Variable object) to which box in the diagram
+it belongs.
+
+<p>
+It may seem odd that so many kinds of entities are represented with
+the same Variable class.  The reason is that all of these entities are
+<em>looked up</em> in the same way, and all of these entities' names
+hide each other (when scopes are nested), so the Variable is the
+fundamental element of a Scope (<a
+href="../cc_scope.h">cc_scope.h</a>).  The word "name" in quotes
+suggests this connection, as all of these entities correspond to what
+the C++ Standard simply calls a "name".
+
+<h3>3.2.2 Overload Resolution</h3>
+
+<p>
+In C++, function names and operators can be <em>overloaded</em>,
+meaning there is more than one entity with a given name.  The name is
+mapped to an entity by considering the context in which it is used:
+for a function call, the argument types determine the overloaded
+entity; when taking the address of a function, the type of the
+variable receiving the address determines which entity has its address
+taken; etc.
+
+<p>
+Elsa represents overload sets by having a single representative
+Variable contain a linked list, the contents of which are the overload
+set (including the representative itself).  Initially, typechecking an <span
+class="variable">E_variable</span> or <span
+class="variable">E_fieldAcc</span> that refers to an overloaded name
+will set the node's <span class="variable">var</span> field to point
+at the set representative.  Later, it uses the
+call site arguments to pick the correct entity.  Then, the
+<span class="variable">E_variable</span> or
+<span class="variable">E_fieldAcc</span> node's
+<span class="variable">var</span> field is modified so that it
+points directly at the chosen element.  
+
+<p>
+At the moment, there is no way to distinguish between a Variable
+object denoting an overloaded set, and a Variable object denoting just
+the specific entity that happens to be the set representative, so this
+distinction must be inferred by context (i.e. before overload
+resolution has occurred, or after it).  This design might be changed
+at some point.
+
+<p>
+When Elsa finds that an operator is overloaded, it again uses the
+arguments to select the proper operator.  If the selected operator
+is a built-in operator, the (say) <span class="variable">E_binary</span>
+node is left alone.  But if a user-defined operator is chosen, then
+the node is changed into an <span class="variable">E_funCall</span> to
+reflect that, semantically, a function call occurs at that point.
+One way to observe this change is to pretty-print the AST (see
+<a href="#prettyprint">pretty printing</a>).
+
+
+<h2>3.3 Type Annotation</h2>
+
+<p>
+Expressions (and a few other nodes) have a type associated with them.
+The type checker computes this type, and stores it in the
+<span class="variable">type</span> field of the node.
+
+<p>
+Types themselves have internal structure, which is explained in
+<a href="cc_type.html">cc_type.html</a>.
+
+
+<h2>3.4 Insertion of Implicit Conversions</h2>
+
+<p>
+When an object is (say) passed as an argument to a function, depending
+on the types of the argument and parameter, an <em>implicit
+conversion</em> may be required to make the argument compatible with
+the parameter.  This determination is made by the <a
+href="../implconv.h">implconv</a> module.  Among the kinds of implicit
+conversions there are <em>user-defined conversions</em>, conversions
+accomplished by calling a user-defined function.  When Elsa finds that
+user-defined conversion is required, it modifies the AST to reflect
+the use of the conversion function, as if it had been written
+explicitly.
+
+<p>
+<b>Bug</b>: While Elsa currently (10/12/04) does all the necessary
+computation to determine if a user-defined conversion is needed, in
+some cases it fails to rewrite the AST accordingly.  This will be
+fixed at some point (hopefully soon).
+
+
+<h2>3.5 Template Instantiation</h2>
+
+<p>
+Elsa does template instantiation for two reasons.  First,
+instantiation of template classes declarations is required in order to
+do annotation such as for expression types, since the type of an
+expression involving a member of a template class is dependent on that
+template class' definition.  Second, instantiation of function
+templates (including members of class templates) lets analyses ignore
+the template (polymorphic) definitions and concentrate on the
+(monomorphic) instantiations, which are usually easier to analyze.
+
+<h3>3.5.1 Template Representation</h3>
+
+<p>
+Function templates are represented with a Variable (<a
+href="../variable.h">variable.h</a>) to stand for the function
+template, and an associated TemplateInfo (<a
+href="../template.h">template.h</a>) structure to remember the
+template parameters (including default arguments), and any
+instantiations that have been created:
+
+<center><img src="function_templates.png" alt="Function Template Representation"></center>
+
+<p>
+Class templates are also represented by a Variable/TemplateInfo
+pair.  The wrinkle is that template classes can have
+<em>explicit specializations</em>, user-provided classes for use
+when certain template arguments are supplied (for example, a generic
+<tt>Vector</tt> template might have an explicit specialization for
+<tt>Vector&lt;char&gt;</tt> that uses a more efficient representation):
+
+<center><img src="class_templates.png" alt="Class Template Representation"></center>
+
+<h3>3.5.2 Template Instantiation</h3>
+
+<p>
+Function templates are instantiated as soon as a definition and a use
+(the use supplying the template arguments) have been seen.  This is
+done by calling <span
+class="variable">Env::instantiateFunctionTemplate</span>
+(<a href="../template.cc">template.cc</a>), which
+returns a Variable/TemplateInfo pair that represents the
+instantiation.  If the instantiation has already been made, the
+existing one is returned.  If not, the template definition AST is
+<em>cloned</em> (deeply copied), the template parameters are bound to
+their arguments, and the entire definition re-type-checked.
+
+<p>
+Class template are instantiated as soon as a use is seen; a program
+is ill-formed if a definition has not been seen by the time of first
+use.  Instantiation is done by calling
+<span class="variable">Env::instantiateClassTemplate</span>
+(<a href="../template.cc">template.cc</a>).  As above, if the
+instantiation already exists it is re-used, otherwise the template
+definition is cloned and re-type-checked.
+
+<p>
+Function members of class templates are <em>not</em> instantiated
+until a use of the member is seen.  For members whose definition appears
+"inline" in the class body, the 
+<span class="variable">MR_func::f</span> field points at the
+<em>uninstantiated</em> template body.  The body will be cloned
+and type-checked only when it is instantiated.  One consequence of this
+design is that analyses (usually) need to avoid looking at such uninstantiated
+members; one way to do this is by using 
+<span class="variable">ASTTemplVisitor</span> 
+(<a href="../cc_ast_aux.h">cc_ast_aux</a>) to do the traversal, as it
+automatically skips such methods.
+
+<h3>3.5.3 Dependent Types and Names</h3>
+
+<p>
+The C++ Standard has fairly elaborate rules for deciding when a type
+or a name in a template definition is <em>dependent</em> on the
+template parameters.  Furthermore, it specifies that names and types
+that are <em>not</em> dependent <em>must</em> be looked up in the
+context of the original template definition, <em>not</em> the
+instantiation context (as is the case for dependent names).
+
+<p>
+To implement this (and to disambiguate template definition ASTs), Elsa
+type-checks function template definitions in advance of any instantiation.
+A dependent type is represented by the
+<span class="variable">ST_DEPENDENT</span> pseudo-type
+(see <span class="variable">enum SimpleTypeId</span> in
+<a href="../cc_flags.h">cc_flags.h</a>).
+
+<p>
+Furthermore, while type checking the template definition, if a name
+lookup is determined to not be dependent, the
+<span class="variable">nondependentVar</span> field is set to the
+same thing as the
+<span class="variable">var</span> field (both are fields of AST nodes
+that have names subject to lookup).  Later, when an instantiation
+is created, the <span class="variable">nondependentVar</span>
+value is preserved by cloning, and used instead of doing a new lookup,
+if it is not NULL.
+
+<p>
+When a class template instantiation is requested but one or more
+arguments is dependent, a
+<span class="variable">PseudoInstantiation</span> type
+(<a href="template.h">template.h</a>) is created.  This is more
+precise than simply yielding
+<span class="variable">ST_DEPENDENT</span>, and that precision is
+necessary in some cases, and much cleaner than doing a full
+"instantiation" with incomplete information.
+
+<p>
+Similarly, when type checking a template definition, the template
+type parameters are bound to (unique) instances of
+<span class="variable">TypeVariable</span>
+(<a href="template.h">template.h</a>) objects.
+
+<p>
+<b>Bug:</b> There are additional cases where Elsa needs to use
+something more precise than <span class="variable">ST_DEPENDENT</span>,
+but does not do so currently.  An example of code that fails because
+of this bug is <a href="../in/t0290.cc">in/t0290.cc</a>.
+
+
+    
+<p>
+(sm: 10/12/04: stopped here)
+<hr>
+
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<a name="elaboration_cdtors"></a>
+<h1>4. Elaboration of constructors and destructors</h1>
+
+Constructors and destructors: 
+<ul>
+
+<li> A struct/class with no ctor gets a no arg ctor that calls the no
+arg ctor of its members and superclasses.
+
+<li> A struct/class with no copy ctor gets a one arg copy ctor that
+calls the copy ctor for its members and superclasses.
+
+<li> A struct/class with no copy assignment operator gets a one arg
+copy assignment operator that calls the copy assignment operator for
+its members and superclasses.
+
+<li> A struct/class with no dtor gets a dtor that calls the dtor for
+its members and superclasses.
+
+</ul>
+
+
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<h1>Post-processing</h1>
+
+<p>Elsa will perform various post-processing on request.
+
+<p> Tracing flag "printHierarchies" will print inheritance
+hierarchies in Dot format. Interesting in that virtual inheritance is
+represented properly; for example <a href="in/std/3.4.5.cc">in/std/3.4.5.cc</a>
+yields <a href="gendoc/3.4.5.png">3.4.5.png</a>.
+
+<a name="prettyprint"></a>
+<p> Tracing flag "prettyPrint" will print out the AST as C++. This is
+still somewhat incomplete.  <b> Maybe say something here about how
+this can be used an an extension to do source to source translation
+the way oink/cc_qual infers dataflow annotations and then prints them
+out again; this is worth mentioning as it is a requested feature</b>
+
+<p><b>Maybe I should point out that in oink you can print out the
+control flow graph as a dot file as well; oink will also soon contain
+a way to print the data flow graph at both the expression and the
+type-component granularities.</b>
+
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<h1>Extending</h1>
+
+<p><b>Say something here about how to extend Elsa.</b>
+
+<p>Elsa was designed to be extended with various backends, such as
+program analysis tools; One might easily extend it to be a compiler.
+<b>Not to self-advertise, but it might be helpful to mention Oink here
+and any other extensions you know about</b>
+
+
+<!-- the following exists to make sure the document has lots of space
+     at the end, so that clicking on a link that points into the document
+     will always put the referred-to section at the top of the browser
+     window; without this, sections near the end don't work -->
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+
+
+
+</body>
+</html>

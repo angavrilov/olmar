@@ -72,7 +72,7 @@ of how many casts are found.  We also override
 encounters an <tt>Expression</tt> AST node.  The implementation of
 this method simply increments <tt>count</tt> whenever the expression
 is an <tt>E_cast</tt>.  (The rest of the AST is defined in
-<a href="cc.ast">cc.ast</a> and documented in 
+<a href="../cc.ast">cc.ast</a> and documented in 
 <a href="cc.ast.html">cc.ast.html</a>.)
 
 <p>Now, go to the bottom of the <tt>doit()</tt> function, and just
@@ -117,7 +117,7 @@ Here are some other files to try:
 
 <p>
 One interesting aspect of 
-<a href="in/t0014.cc"><tt>in/t0014.cc</tt></a> is that the "cast" on
+<a href="../in/t0014.cc"><tt>in/t0014.cc</tt></a> is that the "cast" on
 line 11 is actually parsed as an <tt>E_constructor</tt> (constructor
 call), but because the type it constructs is not a class, the
 type checker <em>replaces</em> it with an <tt>E_cast</tt>.  This
@@ -175,7 +175,7 @@ implementation with the following:
 
 <p>
 Source locations have type <tt>SourceLoc</tt>, which is defined
-in <a href="../smbase/srcloc.h">srcloc.h</a>.  Not all AST nodes
+in <a href="../../smbase/srcloc.h">srcloc.h</a>.  Not all AST nodes
 have locations, because I was concerned about wasting space.
 As in this example, there's usually a location "nearby" that will
 suffice.  The <tt>locOfType</tt> function goes and gets it.
@@ -222,14 +222,14 @@ Build and run this program:
 One annoyance with the output above is the leading space that
 gets printed before the expressions.  That comes from the
 pretty printer module, <tt>cc_print</tt> 
-(<a href="cc_print.ast">cc_print.ast</a>,
-<a href="cc_print.h">cc_print.h</a> and
-<a href="cc_print.cc">cc_print.cc</a>), because it is trying
+(<a href="../cc_print.ast">cc_print.ast</a>,
+<a href="../cc_print.h">cc_print.h</a> and
+<a href="../cc_print.cc">cc_print.cc</a>), because it is trying
 to avoid problems with printing things too close together.
 Eventually, the pretty printer will be fixed to not do that.
 A simple short-term fix, if you're inclined, is to pass
 the expression text through <tt>trimWhitespace()</tt> like this
-(be sure to #include <a href="../smbase/strutil.h">strutil.h</a>):
+(be sure to #include <a href="../../smbase/strutil.h">strutil.h</a>):
 <pre>
   &lt;&lt; ": C cast of `" &lt;&lt; trimWhitespace(cast-&gt;expr-&gt;exprToString())
 </pre>
@@ -245,9 +245,9 @@ tool that will report all uses of a given variable.
 
 <p>
 Rather than have you type in the code for the grepper, it is a
-part of the distribution tarball, in <a href="semgrep.cc"><tt>semgrep.cc</tt></a>.
+part of the distribution tarball, in <a href="../semgrep.cc"><tt>semgrep.cc</tt></a>.
 The targets for building it are already in the
-<A Href="Makefile.in"><tt>Makefile</tt></A>, so let's build and
+<A href="../Makefile.in"><tt>Makefile</tt></A>, so let's build and
 use it right away:
 <pre>
   elsa$ make semgrep
@@ -268,7 +268,7 @@ convenient and unambiguous.  The usage is then
 Try a few more examples.
 
 <p>
-Now let's look at how <a href="semgrep.cc"><tt>semgrep.cc</tt></a> works.
+Now let's look at how <a href="../semgrep.cc"><tt>semgrep.cc</tt></a> works.
 Near the top is <tt>GrepVisitor</tt>, the visitor that looks for
 uses of a variable.  It visits <tt>E_variable</tt> and <tt>E_fieldAcc</tt>
 nodes to find uses in expressions.  It also looks in <tt>Declarators</tt>,
@@ -278,13 +278,13 @@ to try to find the definition (of, say, a function).
 Both kinds of expressions are annotated by the type checker with
 a field "<tt>var</tt>", which points at the <tt>Variable</tt> object
 that represents the variable referred-to.  The <tt>var</tt> field
-is declared in <a href="cc_tcheck.ast"><tt>cc_tcheck.ast</tt></a>,
-an extension module to <a href="cc.ast"><tt>cc.ast</tt></a> that
+is declared in <a href="../cc_tcheck.ast"><tt>cc_tcheck.ast</tt></a>,
+an extension module to <a href="../cc.ast"><tt>cc.ast</tt></a> that
 specifies what annotations the type checker adds.
 
 <p>
 <tt>Variable</tt> objects are used for quite a few things, including functions; see
-<a href="variable.h"><tt>variable.h</tt></a> for more details.
+<a href="../variable.h"><tt>variable.h</tt></a> for more details.
 Each variable has an associated location, and that is what the grep
 checks.  When a hit is found, the location of the <em>reference</em>
 to that variable is printed.
@@ -298,7 +298,7 @@ refers.
 One problem with this grepper is that <tt>Variable</tt> only has
 one location, but a variable can be declared in multiple places,
 and it's not always obvious which location will be stored there
-(look in <a href="variable.h"><tt>variable.h</tt></a> for details).
+(look in <a href="../variable.h"><tt>variable.h</tt></a> for details).
 A better grepper would use one traversal to robustly find the 
 <tt>Variable</tt> of interest using any of a variety of identification
 criteria, and then another traversal to identify uses.  I leave
