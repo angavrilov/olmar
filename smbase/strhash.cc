@@ -42,6 +42,8 @@ STATICDEF bool StringHash::keyCompare(char const *key1, char const *key2)
 
 #include <iostream.h>    // cout
 #include <stdlib.h>      // rand
+#include "trace.h"       // traceProgress
+#include "crc.h"         // crc32
 
 char const *id(void *p)
 {
@@ -60,6 +62,8 @@ char *randomString()
 
 int main()
 {
+  traceAddSys("progress");
+
   {
     // fill a table with random strings
     char **table = new char*[300];
@@ -112,6 +116,17 @@ int main()
     }}
     hash.selfCheck();
     xassert(hash.getNumEntries() == 0);
+
+    // test performance of the hash function
+    traceProgress() << "start of hashes\n";
+    loopj(1000) {
+      loopi(300) {
+        StringHash::coreHash(table[i]);
+        //crc32((unsigned char*)table[i], strlen(table[i]));
+        //crc32((unsigned char*)table[i], 10);
+      }
+    }
+    traceProgress() << "end of hashes\n";
 
     // dealloc the test strings
     {loopi(300) {

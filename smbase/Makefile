@@ -41,7 +41,7 @@ objlist.h: xobjlist.h
 # testing a new malloc
 # add the -DDEBUG flag to turn on additional checks
 malloc.o: malloc.c
-	gcc -c -g -DDEBUG malloc.c
+	gcc -c -g malloc.c
 
 # mysig needs some flags to *not* be set ....
 mysig.o: mysig.cc
@@ -52,7 +52,7 @@ library-objs = \
   breaker.o crc.o datablok.o exc.o missing.o nonport.o str.o \
   syserr.o voidlist.o warn.o bit2d.o point.o growbuf.o strtokp.o \
   strutil.o strdict.o svdict.o strhash.o hashtbl.o malloc.o \
-  trdelete.o flatten.o bflatten.o mysig.o
+  trdelete.o flatten.o bflatten.o mysig.o trace.o
 ${THISLIBRARY}: ${library-objs}
 	${makelib} libsmbase.a ${library-objs}
 	${ranlib} libsmbase.a
