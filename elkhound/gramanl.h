@@ -40,6 +40,8 @@ class DottedProduction {
 private:    // data
   Production *prod;              // (serf) the base production
   int dot;                       // 0 means it's before all RHS symbols, 1 means after first, etc.
+  
+public:     // data
   TerminalSet lookahead;         // lookahead symbols
 
 // -------- annotation ----------
@@ -338,6 +340,7 @@ private:    // funcs
   void computeProductionsByLHS();
   void computeReachable();
   void computeReachableDFS(Nonterminal *nt);
+  void resetFirstFollow();
 
   // ---- derivability ----
   // iteratively compute every pair A,B such that A can derive B
@@ -355,13 +358,13 @@ private:    // funcs
 
   // ---- First ----
   void computeFirst();
-  bool addFirst(Nonterminal *NT, Terminal *term);
-  void firstOfSequence(TerminalList &destList, RHSEltList const &sequence);
-  void firstOfIterSeq(TerminalList &destList, RHSEltListIter sym);
+  //bool addFirst(Nonterminal *NT, Terminal *term);
+  void firstOfSequence(TerminalSet &destList, RHSEltList const &sequence);
+  void firstOfIterSeq(TerminalSet &destList, RHSEltListIter sym);
 
   // ---- Follow ----
   void computeFollow();
-  bool addFollow(Nonterminal *NT, Terminal *term);
+  //bool addFollow(Nonterminal *NT, Terminal *term);
 
   // ---- LR item sets ----
   ItemSet *makeItemSet();

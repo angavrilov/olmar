@@ -606,7 +606,7 @@ void ItemSet::getPossibleReductions(ProductionList &reductions,
     }
     else if (SLR1) {
       // the follow of its LHS must include 'lookahead'
-      if (!item->getProd()->left->follow.contains(lookahead)) {    // (constness)
+      if (!item->getProd()->left->follow.contains(lookahead->termIndex)) {    // (constness)
         if (parsing && tracingSys("parse")) {
           trace("parse") << "state " << id
                          << ", not reducing by " 
@@ -946,6 +946,8 @@ void GrammarAnalysis::xfer(Flatten &flat)
   // only used for debugging
 
   // now do the easily-computable stuff
+  // NOTE: these functions are also called by initializeAuxData,
+  // so they need to serve both callers correctly
   computeIndexedNonterms();
   computeIndexedTerms();
   computeProductionsByLHS();
@@ -1093,9 +1095,10 @@ bool GrammarAnalysis::iterSeqCanDeriveEmpty(RHSEltListIter iter) const
 
 bool GrammarAnalysis::firstIncludes(Nonterminal const *NT, Terminal const *term) const
 {
-  return NT->first.contains(term);
+  return NT->first.contains(term->termIndex);
 }
 
+#if 0
 bool GrammarAnalysis::addFirst(Nonterminal *NT, Terminal *term)
 {
   return NT->first.prependUnique(term);
@@ -1109,21 +1112,25 @@ bool GrammarAnalysis::addFirst(Nonterminal *NT, Terminal *term)
   // modification of the pointed-to data.. but it's not clear I'd
   // be better of using it here even if I had it)
 }
+#endif // 0
 
 
 bool GrammarAnalysis::followIncludes(Nonterminal const *NT, Terminal const *term) const
 {
-  return NT->follow.contains(term);
+  return NT->follow.contains(term->termIndex);
 }
-
+ 
+#if 0
 // returns true if Follow(NT) is changed by adding 'term' to it
 bool GrammarAnalysis::addFollow(Nonterminal *NT, Terminal *term)
 {
   return NT->follow.prependUnique(term);
-}
+}    
+#endif // 0
 
 
 // ----------------- Grammar algorithms --------------------------
+// create and initialize 'indexedNonterms'
 void GrammarAnalysis::computeIndexedNonterms()
 {
   // map: ntIndex -> Nonterminal*
@@ -1143,6 +1150,7 @@ void GrammarAnalysis::computeIndexedNonterms()
 }
 
 
+// create and initialize 'indexedTerms'
 void GrammarAnalysis::computeIndexedTerms()
 {
   // map: termIndex -> Terminal*
@@ -1164,6 +1172,17 @@ void GrammarAnalysis::computeIndexedTerms()
 }
 
 
+// set the first/follow of all nonterminals to the correct size
+void GrammarAnalysis::resetFirstFollow()
+{
+  MUTATE_EACH_NONTERMINAL(nonterminals, sym) {
+    sym.data()->first.reset(numTerminals());
+    sym.data()->follow.reset(numTerminals());
+  }
+}
+
+
+// create and initialize 'productionsByLHS'
 void GrammarAnalysis::computeProductionsByLHS()
 {
   // map: nonterminal -> productions with that nonterm on LHS
@@ -1179,6 +1198,9 @@ void GrammarAnalysis::computeProductionsByLHS()
 }
 
 
+// NOTE: the sequence of initialization actions in this function
+// and the functions it calls must interact properly with the
+// sequence in GrammarAnalysis::xfer
 void GrammarAnalysis::initializeAuxData()
 {
   // at the moment, calling this twice leaks memory
@@ -1186,6 +1208,7 @@ void GrammarAnalysis::initializeAuxData()
 
   computeIndexedNonterms();
   computeIndexedTerms();
+  resetFirstFollow();
 
   computeProductionsByLHS();
   computeReachable();
@@ -1195,7 +1218,7 @@ void GrammarAnalysis::initializeAuxData()
 
   // dotted productions
   MUTATE_EACH_PRODUCTION(productions, prod) {
-    prod.data()->finished();
+    prod.data()->finished(numTerminals());
   }
 
   // mark the grammar as initialized
@@ -1363,6 +1386,7 @@ void GrammarAnalysis::computeWhatCanDeriveWhat()
 void GrammarAnalysis::computeFirst()
 {
   bool tr = tracingSys("first");
+  int numTerms = numTerminals();
 
   // iterate, looking for new First members, until no changes
   int changes = 1;   // so the loop begins
@@ -1375,34 +1399,35 @@ void GrammarAnalysis::computeFirst()
       // convenient aliases
       Production *prod = prodIter.data();
       Nonterminal *LHS = prod->left;
-        // the list iter is mutating because I modify LHS's First list
+        // the list iter is mutating because I modify LHS's First set
 
       // compute First(RHS-sequence)
-      TerminalList firstOfRHS;
+      TerminalSet firstOfRHS(numTerms);
       firstOfSequence(firstOfRHS, prod->right);
 
+      // store this back into 'prod'
+      prod->firstSet.merge(firstOfRHS);
+
       // add everything in First(RHS-sequence) to First(LHS)
-      SMUTATE_EACH_TERMINAL(firstOfRHS, iter) {
-        if (addFirst(LHS, iter.data())) {
-          changes++;
-          if (tr) {
-            trace("first") << "added " << iter.data()->toString()
-                           << " to " << LHS->name << " because of "
-                           << prod->toString() << endl;
-          }
+      if (LHS->first.merge(firstOfRHS)) {
+        changes++;
+        if (tr) {
+          ostream &trs = trace("first");
+          trs << "added ";
+          firstOfRHS.print(trs, *this);
+          trs << " to " << LHS->name << " because of "
+              << prod->toString() << endl;
         }
       }
     } // for (productions)
   } // while (changes)
 
-  if (tracingSys("first")) {
+  if (tr) {
     FOREACH_NONTERMINAL(nonterminals, iter) {
       Nonterminal const &nt = *(iter.data());
 
-      ostream &trs = trace("first") << " " << nt.name << ":";
-      SFOREACH_TERMINAL(nt.first, t) {
-        trs << " " << t.data()->toString();
-      }
+      ostream &trs = trace("first") << " " << nt.name << ": ";
+      nt.first.print(trs, *this);
       trs << endl;
     }
   }
@@ -1413,7 +1438,7 @@ void GrammarAnalysis::computeFirst()
 // the 'destList', which isn't const; similarly for 'this'
 // (what I'd like here is to say that 'sequence' and 'this' are const
 // if 'destList' can't modify the things it contains)
-void GrammarAnalysis::firstOfSequence(TerminalList &destList, 
+void GrammarAnalysis::firstOfSequence(TerminalSet &destList,
                                       RHSEltList const &sequence)
 {
   RHSEltListIter iter(sequence);
@@ -1421,17 +1446,17 @@ void GrammarAnalysis::firstOfSequence(TerminalList &destList,
 }
 
 // similar to above, 'sym' needs to be a mutator
-void GrammarAnalysis::firstOfIterSeq(TerminalList &destList,
+void GrammarAnalysis::firstOfIterSeq(TerminalSet &destList,
                                      RHSEltListIter sym)
 {
-  int numTerms = numTerminals();     // loop invariant
+  //int numTerms = numTerminals();
 
   // for each sequence member such that all
   // preceeding members can derive emptyString
   for (; !sym.isDone(); sym.adv()) {
     // LHS -> x alpha   means x is in First(LHS)
     if (sym.data()->sym->isTerminal()) {
-      destList.append(&( sym.data()->sym->asTerminal() ));
+      destList.add(sym.data()->sym->asTerminal().termIndex);
       break;    // stop considering RHS members since a terminal
                 // effectively "hides" all further symbols from First
     }
@@ -1439,13 +1464,8 @@ void GrammarAnalysis::firstOfIterSeq(TerminalList &destList,
     // sym must be a nonterminal
     Nonterminal const &nt = sym.data()->sym->asNonterminalC();
 
-    // anything already in nt's First should be added to destList:
-    // for each element in First(nt)
-    for (int t=0; t<numTerms; t++) {
-      if (firstIncludes(&nt, indexedTerms[t])) {
-        destList.append(indexedTerms[t]);
-      }
-    }
+    // anything already in nt's First should be added to destList
+    destList.merge(nt.first);
 
     // if nt can't derive emptyString, then it blocks further
     // consideration of right-hand side members
@@ -1458,7 +1478,7 @@ void GrammarAnalysis::firstOfIterSeq(TerminalList &destList,
 
 void GrammarAnalysis::computeFollow()
 {
-  int numTerms = numTerminals();     // loop invariant
+  int numTerms = numTerminals();
 
   // loop until no changes
   int changes = 1;
@@ -1495,44 +1515,39 @@ void GrammarAnalysis::computeFollow()
         // everything in First(beta) is in Follow(B)
         {
           // compute First(beta)
-          TerminalList firstOfBeta;
+          TerminalSet firstOfBeta(numTerms);
           firstOfIterSeq(firstOfBeta, afterRightSym);
 
           // put those into Follow(rightNT)
-          SMUTATE_EACH_TERMINAL(firstOfBeta, term) {
-            if (addFollow(&rightNT, term.data())) {
-              changes++;
-              if (&rightNT == symOfInterest) {
-                trace("follow-sym")
-                  << "Follow(" << rightNT.name
-                  << "): adding " << term.data()->name
-                  << " by first(RHS-tail) of " << *prod
+          if (rightNT.follow.merge(firstOfBeta)) {
+            changes++;
+            if (&rightNT == symOfInterest) {
+              ostream &trs = trace("follow-sym");
+              trs << "Follow(" << rightNT.name
+                  << "): adding ";
+              firstOfBeta.print(trs, *this);
+              trs << " by first(RHS-tail) of " << *prod
                   << endl;
-              }
             }
           }
         }
 
         // rule 2:
         // if there is a production A -> alpha B, or a
-        // production A -> alpha B beta where beta ->* empty,
-        // then everything in Follow(A) is in Follow(B)
+        // production A -> alpha B beta where beta ->* empty ...
         if (iterSeqCanDeriveEmpty(afterRightSym)) {
-          // for each element in Follow(LHS)
-          for (int t=0; t<numTerms; t++) {
-            if (followIncludes(prod->left, indexedTerms[t])) {
-              if (addFollow(&rightNT, indexedTerms[t])) {
-                changes++;
-                if (&rightNT == symOfInterest) {
-                  trace("follow-sym")
-                    << "Follow(" << rightNT.name
-                    << "): adding " << indexedTerms[t]->name
-                    << " by follow(LHS) of " << *prod
-                    << endl;
-                }
-              }
+          // ... then everything in Follow(A) is in Follow(B)
+          if (rightNT.follow.merge(prod->left->follow)) {
+            changes++;
+            if (&rightNT == symOfInterest) {
+              ostream &trs = trace("follow-sym");
+              trs << "Follow(" << rightNT.name
+                  << "): adding ";
+              prod->left->follow.print(trs, *this);
+              trs << " by follow(LHS) of " << *prod
+                  << endl;
             }
-          } // for each in Follow(LHS)
+          }
         }
 
       } // for each RHS nonterminal member
@@ -1557,21 +1572,23 @@ void GrammarAnalysis::computePredictiveParsingTable()
     Production *prod = prodIter.data();
 
     // for each terminal 'term' in First(RHS)
-    TerminalList firsts;
+    TerminalSet firsts(numTerms);
     firstOfSequence(firsts, prod->right);
-    SFOREACH_TERMINAL(firsts, term) {
+    for (int termIndex=0; termIndex<numTerms; termIndex++) {
+      if (!firsts.contains(termIndex)) continue;
+
       // add 'prod' to table[LHS,term]
-      TABLE(prod->left->ntIndex,
-            term.data()->termIndex).prependUnique(prod);
+      TABLE(prod->left->ntIndex, termIndex).prependUnique(prod);
     }
 
     // if RHS ->* emptyString, ...
     if (sequenceCanDeriveEmpty(prod->right)) {
       // ... then for each terminal 'term' in Follow(LHS), ...
-      SFOREACH_TERMINAL(prod->left->follow, term) {
+      for (int termIndex=0; termIndex<numTerms; termIndex++) {
+        if (!firsts.contains(termIndex)) continue;
+
         // ... add 'prod' to table[LHS,term]
-        TABLE(prod->left->ntIndex,
-              term.data()->termIndex).prependUnique(prod);
+        TABLE(prod->left->ntIndex, termIndex).prependUnique(prod);
       }
     }
   }
@@ -1771,17 +1788,15 @@ void GrammarAnalysis::
       RHSEltListIter beta(item->getProd()->right, item->getDot() + 1);
 
       // get First(beta)
-      TerminalList firstBeta;
+      TerminalSet firstBeta(numTerminals());
       firstOfIterSeq(firstBeta, beta);
 
       // add those elements to dp's lookahead
-      SFOREACH_TERMINAL(firstBeta, fb) {
-        dp->laAdd(fb.data()->termIndex);
-      }
+      dp->lookahead.merge(firstBeta);
 
       // if beta ->* epsilon, add LA
       if (iterSeqCanDeriveEmpty(beta)) {
-        dp->laMerge(*item);
+        dp->lookahead.merge(item->lookahead);
       }
 
       if (tr) {
@@ -1940,13 +1955,11 @@ void GrammarAnalysis::
       RHSEltListIter beta(item->getProd()->right, item->getDot() + 1);
 
       // get First(beta)
-      TerminalList firstBeta;
+      TerminalSet firstBeta;
       firstOfIterSeq(firstBeta, beta);
 
       // add those elements to dp's lookahead
-      SFOREACH_TERMINAL(firstBeta, fb) {
-        dp->laAdd(fb.data()->termIndex);
-      }
+      dp->lookahead.merge(firstBeta);
 
       // if beta ->* epsilon, add LA
       if (iterSeqCanDeriveEmpty(beta)) {

@@ -213,56 +213,6 @@ inline ObjList<Symbol> const &toObjList(ObjList<Terminal> const &list)
 string terminalSequenceToString(TerminalList const &list);
 
 
-// ---------------- Nonterminal --------------------
-// something that can appear on the left-hand side of a production
-// (or, emptyString, since we classify that as a nonterminal also)
-class Nonterminal : public Symbol {
-// ---------- representation --------
-public:
-  StringRef mergeParam1;    // param name for first alternative
-  StringRef mergeParam2;    // and 2nd alt
-  LocString mergeCode;      // code to resolve then
-
-  StringRef keepParam;      // name of parameter to 'keep'
-  LocString keepCode;       // code to decide whether to keep a reduction
-
-protected:  // funcs  
-  virtual void internalPrintDDM(ostream &os) const;
-
-public:     // funcs
-  Nonterminal(LocString const &name, bool isEmptyString=false);
-  virtual ~Nonterminal();
-
-  Nonterminal(Flatten &flat);
-  void xfer(Flatten &flat);
-  void xferSerfs(Flatten &flat, Grammar &g);
-
-  virtual void print(ostream &os) const;
-  OSTREAM_OPERATOR(Nonterminal)
-
-  virtual bool anyDDM() const;
-
-// ------ annotation ------
-public:     // data
-  int ntIndex;           // nonterminal index; see Grammar::computeWhatCanDeriveWhat
-  bool cyclic;           // true if this can derive itself in 1 or more steps
-  TerminalList first;    // set of terminals that can be start of a string derived from 'this'
-  TerminalList follow;   // set of terminals that can follow a string derived from 'this'
-};
-
-typedef SObjList<Nonterminal> NonterminalList;
-typedef SObjListIter<Nonterminal> NonterminalListIter;
-
-#define FOREACH_NONTERMINAL(list, iter) FOREACH_OBJLIST(Nonterminal, list, iter)
-#define MUTATE_EACH_NONTERMINAL(list, iter) MUTATE_EACH_OBJLIST(Nonterminal, list, iter)
-#define SFOREACH_NONTERMINAL(list, iter) SFOREACH_OBJLIST(Nonterminal, list, iter)
-#define SMUTATE_EACH_NONTERMINAL(list, iter) SMUTATE_EACH_OBJLIST(Nonterminal, list, iter)
-
-// casting aggregates
-inline ObjList<Symbol> const &toObjList(ObjList<Nonterminal> const &list)
-  { return reinterpret_cast< ObjList<Symbol>const& >(list); }
-
-
 // ----------------- TerminalSet -------------------
 // used for the lookahead sets of LR items, and for the First()
 // sets of production RHSs
@@ -291,6 +241,12 @@ public:     // funcs
   TerminalSet(Flatten&);
   void xfer(Flatten &flat);
 
+  // call this to re-allocate at a new size; set is emptied
+  void reset(int numTerms);
+                                               
+  // true when the # of symbols is 0; an unfinished state
+  bool nullMap() const { return bitmap==NULL; }
+
   bool contains(int terminalId) const;
   
   // NOTE: can only compare dotted productions which have the
@@ -305,6 +261,56 @@ public:     // funcs
 
   void print(ostream &os, Grammar const &g) const;
 };
+
+
+// ---------------- Nonterminal --------------------
+// something that can appear on the left-hand side of a production
+// (or, emptyString, since we classify that as a nonterminal also)
+class Nonterminal : public Symbol {
+// ---------- representation --------
+public:
+  StringRef mergeParam1;    // param name for first alternative
+  StringRef mergeParam2;    // and 2nd alt
+  LocString mergeCode;      // code to resolve then
+
+  StringRef keepParam;      // name of parameter to 'keep'
+  LocString keepCode;       // code to decide whether to keep a reduction
+
+protected:  // funcs
+  virtual void internalPrintDDM(ostream &os) const;
+
+public:     // funcs
+  Nonterminal(LocString const &name, bool isEmptyString=false);
+  virtual ~Nonterminal();
+
+  Nonterminal(Flatten &flat);
+  void xfer(Flatten &flat);
+  void xferSerfs(Flatten &flat, Grammar &g);
+
+  virtual void print(ostream &os, Grammar const *grammer = NULL) const;
+  OSTREAM_OPERATOR(Nonterminal)
+
+  virtual bool anyDDM() const;
+
+// ------ annotation ------
+public:     // data
+  int ntIndex;           // nonterminal index; see Grammar::computeWhatCanDeriveWhat
+  bool cyclic;           // true if this can derive itself in 1 or more steps
+  TerminalSet first;     // set of terminals that can be start of a string derived from 'this'
+  TerminalSet follow;    // set of terminals that can follow a string derived from 'this'
+};
+
+typedef SObjList<Nonterminal> NonterminalList;
+typedef SObjListIter<Nonterminal> NonterminalListIter;
+
+#define FOREACH_NONTERMINAL(list, iter) FOREACH_OBJLIST(Nonterminal, list, iter)
+#define MUTATE_EACH_NONTERMINAL(list, iter) MUTATE_EACH_OBJLIST(Nonterminal, list, iter)
+#define SFOREACH_NONTERMINAL(list, iter) SFOREACH_OBJLIST(Nonterminal, list, iter)
+#define SMUTATE_EACH_NONTERMINAL(list, iter) SMUTATE_EACH_OBJLIST(Nonterminal, list, iter)
+
+// casting aggregates
+inline ObjList<Symbol> const &toObjList(ObjList<Nonterminal> const &list)
+  { return reinterpret_cast< ObjList<Symbol>const& >(list); }
 
 
 // ---------------- Production --------------------
@@ -339,6 +345,9 @@ public:	    // data
   // user-supplied reduction action code
   LocString action;
 
+private:    // funcs
+  void computeDerived();
+
 public:	    // funcs
   Production(Nonterminal *left, char const *leftTag);
   ~Production();
@@ -366,7 +375,7 @@ public:	    // funcs
   // call this when production is built, so it can compute annotations
   // (this is called by GrammarAnalysis::initializeAuxData, from
   // inside runAnalyses)
-  void finished();
+  void finished(int numTerms);
 
   // find a symbol by tag; returns 1 for first RHS symbol, 2 for
   // second, etc.; returns -1 if the tag doesn't match anything
@@ -404,6 +413,7 @@ private:    // data
 
 public:     // data
   int prodIndex;                // unique production id
+  TerminalSet firstSet;         // First(RHS); computed by GrammarAnalysis::computeFirst
 };
 
 typedef SObjList<Production> ProductionList;

@@ -222,8 +222,8 @@ Nonterminal::Nonterminal(LocString const &name, bool isEmpty)
     keepParam(NULL),
     ntIndex(-1),
     cyclic(false),
-    first(),
-    follow()
+    first(0),
+    follow(0)
 {}
 
 Nonterminal::~Nonterminal()
@@ -234,7 +234,9 @@ Nonterminal::Nonterminal(Flatten &flat)
   : Symbol(flat),
     mergeParam1(NULL),
     mergeParam2(NULL),
-    keepParam(NULL)
+    keepParam(NULL),
+    first(flat),
+    follow(flat)
 {}
 
 void Nonterminal::xfer(Flatten &flat)
@@ -254,26 +256,12 @@ void Nonterminal::xferSerfs(Flatten &flat, Grammar &g)
   // annotation
   flat.xferInt(ntIndex);
   flat.xferBool(cyclic);
-  xferSObjList(flat, first, g.terminals);
-  xferSObjList(flat, follow, g.terminals);
+  first.xfer(flat);
+  follow.xfer(flat);
 }
 
 
-void printTerminalSet(ostream &os, TerminalList const &list)
-{
-  os << "{";
-  int ct = 0;
-  for (TerminalListIter term(list); !term.isDone(); term.adv(), ct++) {
-    if (ct > 0) {
-      os << ", ";
-    }
-    os << term.data()->name;
-  }
-  os << "}";
-}
-
-
-void Nonterminal::print(ostream &os) const
+void Nonterminal::print(ostream &os, Grammar const *grammar) const
 {
   os << "[" << ntIndex << "] ";
   Symbol::print(os);
@@ -283,13 +271,17 @@ void Nonterminal::print(ostream &os) const
     os << " (cyclic!)";
   }
 
-  // first
-  os << " first=";
-  printTerminalSet(os, first);
+  if (grammar) {
+    // first
+    os << " first={";
+    first.print(os, *grammar);
+    os << "}";
 
-  // follow
-  os << " follow=";
-  printTerminalSet(os, follow);
+    // follow
+    os << " follow=";
+    follow.print(os, *grammar);
+    os << "}";
+  }
 }
 
 
@@ -332,19 +324,29 @@ TerminalSet::TerminalSet(TerminalSet const &obj)
 
 void TerminalSet::init(int numTerms)
 {
-  // allocate enough space for one bit per terminal; I assume
-  // 8 bits per byte
-  bitmapLen = (numTerms + 7) / 8;
-  bitmap = new unsigned char[bitmapLen];
+  if (numTerms != 0) {
+    // allocate enough space for one bit per terminal; I assume
+    // 8 bits per byte
+    bitmapLen = (numTerms + 7) / 8;
+    bitmap = new unsigned char[bitmapLen];
 
-  // initially the set will be empty
-  memset(bitmap, 0, bitmapLen);
+    // initially the set will be empty
+    memset(bitmap, 0, bitmapLen);
+  }
+  else {
+    // intended for situations where reset() will be called later
+    // to allocate some space
+    bitmapLen = 0;
+    bitmap = NULL;
+  }
 }
 
 
 TerminalSet::~TerminalSet()
 {
-  delete[] bitmap;
+  if (bitmap) {
+    delete[] bitmap;
+  }
 }
 
 
@@ -356,10 +358,21 @@ void TerminalSet::xfer(Flatten &flat)
 {
   flat.xferInt(bitmapLen);
 
-  if (flat.reading()) {
-    bitmap = new unsigned char[bitmapLen];
+  if (bitmapLen > 0) {
+    if (flat.reading()) {
+      bitmap = new unsigned char[bitmapLen];
+    }
+    flat.xferSimple(bitmap, bitmapLen);
   }
-  flat.xferSimple(bitmap, bitmapLen);
+}
+
+
+void TerminalSet::reset(int numTerms)
+{
+  if (bitmap) {
+    delete[] bitmap;
+  }
+  init(numTerms);
 }
 
 
@@ -475,7 +488,8 @@ Production::Production(Nonterminal *L, char const *Ltag)
     right(),
     precedence(0),
     rhsLen(-1),
-    prodIndex(-1)
+    prodIndex(-1),
+    firstSet(0)       // don't allocate bitmap yet
 {}
 
 Production::~Production()
@@ -484,7 +498,8 @@ Production::~Production()
 
 Production::Production(Flatten &flat)
   : left(NULL),
-    action(flat)
+    action(flat),
+    firstSet(flat)
 {}
 
 void Production::xfer(Flatten &flat)
@@ -493,8 +508,9 @@ void Production::xfer(Flatten &flat)
   action.xfer(flat);
   flat.xferInt(precedence);
 
-  flat.xferInt(prodIndex);
   flat.xferInt(rhsLen);
+  flat.xferInt(prodIndex);
+  firstSet.xfer(flat);
 }
 
 void Production::xferSerfs(Flatten &flat, Grammar &g)
@@ -511,7 +527,7 @@ void Production::xferSerfs(Flatten &flat, Grammar &g)
 
   // compute derived data
   if (flat.reading()) {
-    finished();
+    computeDerived();
   }
 }
 
@@ -581,7 +597,13 @@ void Production::append(Symbol *sym, LocString const &tag)
 }
 
 
-void Production::finished()
+void Production::finished(int numTerms)
+{
+  computeDerived();
+  firstSet.reset(numTerms);
+}
+
+void Production::computeDerived()
 {
   rhsLen = right.count();
 }
