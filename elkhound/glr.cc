@@ -1672,7 +1672,10 @@ void ReductionPathQueue::deletePath(Path *p)
 
 // process the reduction worklist
 void GLR::rwlProcessWorklist()
-{
+{                   
+  // location of this token
+  SOURCELOC( SourceLoc tokenLoc = lexerPtr->loc; )
+
   while (pathQueue.isNotEmpty()) {
     // process the enabled reductions in priority order
     ReductionPathQueue::Path *path = pathQueue.dequeue();
@@ -1688,9 +1691,8 @@ void GLR::rwlProcessWorklist()
 
     ACCOUNTING( nondetReduce++; )
 
-    // record location of left edge; defaults to no location (used for
-    // epsilon rules)
-    SOURCELOC( SourceLoc leftEdge = SL_UNKNOWN; )
+    // record location of left edge
+    SOURCELOC( SourceLoc leftEdge = tokenLoc; )
 
     // build description of rhs for tracing
     ACTION(

@@ -305,6 +305,8 @@ nonterm ShiftExpression {
 }
 
 nonterm RelationalExpression {
+  fun merge(l,r) { return l; }
+
   -> ShiftExpression;
   -> RelationalExpression "<" ShiftExpression;
   -> RelationalExpression ">" ShiftExpression;
@@ -1020,6 +1022,8 @@ nonterm MemInitializer {
 }
 
 nonterm MemInitializerId {
+  fun merge(l,r) { return l; }
+
   -> ColonColonOpt NestedNameSpecifierOpt ClassName;
   -> Identifier;
 }
@@ -1094,6 +1098,8 @@ nonterm TemplateParameterList {
 }
 
 nonterm TemplateParameter {
+  fun merge(l,r) { return l; }
+
   -> TypeParameter;
   -> ParameterDeclaration;
 }
