@@ -38,7 +38,7 @@ public:
   // right, 0 if they are equivalent, and >0 if right should come before
   // left.  For example, if we are sorting numbers into ascending order,
   // then 'diff' would simply be subtraction.
-  typedef int (*Diff)(T *left, T *right, void *extra);
+  typedef int (*Diff)(T const *left, T const *right, void *extra);
 
   // selectors
   int count() const                     { return list.count(); }
@@ -46,11 +46,17 @@ public:
   bool isNotEmpty() const               { return list.isNotEmpty(); }
   T *nth(int which)                     { return (T*)list.nth(which); }
   T const *nthC(int which) const        { return (T const*)list.nth(which); }
+  T *first()                            { return (T*)list.first(); }
+  T const *firstC() const               { return (T const*)list.first(); }
+  T *last()                             { return (T*)list.last(); }
+  T const *lastC() const                { return (T const*)list.last(); }
 
   // insertion
   void prepend(T *newitem)              { list.prepend(newitem); }
   void append(T *newitem)               { list.append(newitem); }
   void insertAt(T *newitem, int index)  { list.insertAt(newitem, index); }
+  void insertSorted(T *newitem, Diff diff, void *extra=NULL)
+    { list.insertSorted(newitem, (VoidDiff)diff, extra); }
 
   // removal
   T *removeAt(int index)                { return (T*)list.removeAt(index); }
@@ -64,17 +70,38 @@ public:
   // list-as-set: mutators
   bool prependUnique(T *newitem)        { return list.prependUnique(newitem); }
   bool appendUnique(T *newitem)         { return list.appendUnique(newitem); }
-  void removeItem(T const *item)        { list.removeItem((void*)newitem); }    // whether the arg should be const is debatable..
-  bool removeIfPresent(T const *item)   { return list.removeIfPresent((void*)newitem); }
+  void removeItem(T const *item)        { list.removeItem((void*)item); }    // whether the arg should be const is debatable..
+  bool removeIfPresent(T const *item)   { return list.removeIfPresent((void*)item); }
 
   // complex modifiers
   void reverse()                                    { list.reverse(); }
   void insertionSort(Diff diff, void *extra=NULL)   { list.insertionSort((VoidDiff)diff, extra); }
   void mergeSort(Diff diff, void *extra=NULL)       { list.mergeSort((VoidDiff)diff, extra); }
 
+  // and a related test
+  bool isSorted(Diff diff, void *extra=NULL) const  { return list.isSorted((VoidDiff)diff, extra); }
+
   // multiple lists
-  void concat(ObjList &tail)            { list.concat((VoidList&)tail); }
-  // (we do *not* have operator= here, since these are supposed to be owner lists)
+  void concat(ObjList &tail)                        { list.concat((VoidList&)tail); }
+  // (we do *not* have operator= here, nor appendAll, since these are supposed to be owner lists)
+
+  // equal items in equal positions
+  bool equalAsLists(ObjList const &otherList, Diff diff, void *extra=NULL) const
+    { return list.equalAsLists(otherList.list, (VoidDiff)diff, extra); }
+
+  // last-as-set: comparisons (NOT efficient)
+  bool equalAsSets(ObjList const &otherList, Diff diff, void *extra=NULL) const
+    { return list.equalAsSets(otherList.list, (VoidDiff)diff, extra); }
+  bool isSubsetOf(ObjList const &otherList, Diff diff, void *extra=NULL) const
+    { return list.isSubsetOf(otherList.list, (VoidDiff)diff, extra); }
+  bool containsByDiff(T const *item, Diff diff, void *extra=NULL) const
+    { return list.containsByDiff((void*)item, (VoidDiff)diff, extra); }
+
+  // treating the pointer values themselves as the basis for comparison
+  bool equalAsPointerLists(ObjList const &otherList) const
+    { return list.equalAsPointerLists(otherList.list); }
+  bool equalAsPointerSets(ObjList const &otherList) const
+    { return list.equalAsPointerSets(otherList.list); }
 
   // debugging
   bool invariant() const                { return list.invariant(); }

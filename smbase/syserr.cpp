@@ -18,8 +18,9 @@ char const * const xSysError::reasonStrings[] = {
   "The object already exists",
   "Resource is temporarily unavailable",
   "Resource is busy",
+  "File name is invalid (too long, or bad chars, or ...)",
   "Unknown or unrecognized error",
-  "(invalid reason code)"        // corresponds to NUM_REASONS
+  "(bug -- invalid reason code)"        // corresponds to NUM_REASONS
 };
 
 
@@ -44,27 +45,46 @@ STATICDEF char const * const xSysError::
 }
 
 
-xSysError::xSysError(xSysError::Reason r, char const *syscall, char const *ctx)
-  : xBase(constructWhyString(r, syscall, ctx)),
+xSysError::xSysError(xSysError::Reason r, int sysCode, char const *sysReason,
+                     char const *syscall, char const *ctx)
+  : xBase(constructWhyString(r, sysReason, syscall, ctx)),
     reason(r),
     reasonString(getReasonString(r)),
-    sysErrorCode(0),
+    sysErrorCode(sysCode),
+    sysReasonString(sysReason),
     syscallName(syscall),
     context(ctx)
 {}
 
 
 STATICDEF string xSysError::
-  constructWhyString(xSysError::Reason r, char const *syscall, char const *ctx)
+  constructWhyString(xSysError::Reason r, char const *sysReason,
+                     char const *syscall, char const *ctx)
 {
   xassert(syscall);
-  if (ctx != NULL) {
-    return stringb(syscall << ": " << getReasonString(r)
-                           << ", " << ctx);
+
+  // build string; start with syscall that failed
+  stringBuilder sb;
+  sb << syscall << ": ";
+
+  // now a failure reason string
+  if (r != R_UNKNOWN) {
+    sb << getReasonString(r);
+  }
+  else if ((sysReason != NULL) && (sysReason[0] != 0)) {
+    sb << sysReason;
   }
   else {
-    return stringb(syscall << ": " << getReasonString(r));
+    // no useful info, use the R_UNKNOWN string
+    sb << getReasonString(r);
   }
+
+  // finally, the context
+  if (ctx != NULL) {
+    sb << ", " << ctx;
+  }
+  
+  return sb;
 }
 
 
@@ -73,6 +93,7 @@ xSysError::xSysError(xSysError const &obj)
     reason(obj.reason),
     reasonString(obj.reasonString),
     sysErrorCode(obj.sysErrorCode),
+    sysReasonString(obj.sysReasonString),
     syscallName(obj.syscallName),
     context(obj.context)
 {}
@@ -89,11 +110,11 @@ STATICDEF void xSysError::
   int code = getSystemErrorCode();
 
   // translate it into one of ours
-  Reason r = portablize(code);
+  string sysMsg;
+  Reason r = portablize(code, sysMsg);
 
   // construct an object to throw
-  xSysError obj(r, syscallName, context);
-  obj.sysErrorCode = code;
+  xSysError obj(r, code, sysMsg, syscallName, context);
 
   // toss it
   THROW(obj);
@@ -103,8 +124,10 @@ STATICDEF void xSysError::
 string sysErrorCodeString(int systemErrorCode, char const *syscallName,
                                                char const *context)
 {
+  string sysMsg;
+  xSysError::Reason r = xSysError::portablize(systemErrorCode, sysMsg);
   return xSysError::constructWhyString(
-           xSysError::portablize(systemErrorCode),
+           r, sysMsg,
            syscallName, context);
 }
 
@@ -151,11 +174,16 @@ STATICDEF int xSysError::getSystemErrorCode()
 }
 
 
-STATICDEF xSysError::Reason xSysError::portablize(int sysErrorCode)
+STATICDEF xSysError::Reason xSysError::portablize(int sysErrorCode, string &sysMsg)
 {
   // I'd like to put this into a static class member, but then
   // the table would have to prepend R_ constants with xSysError::,
   // which is a pain.
+
+  // Q: how to get a string from win32?
+  if (sysMsg != NULL) {
+    sysMsg = NULL;
+  }
 
   static struct S {
     int code;
@@ -192,6 +220,7 @@ STATICDEF xSysError::Reason xSysError::portablize(int sysErrorCode)
 #else      // unix
 
 #include <errno.h>       // errno
+#include <string.h>      // strerror
 
 // mappings to a set of error codes I can use below
 // (I am sure I've already done this somewhere else, but I
@@ -219,11 +248,10 @@ STATICDEF int xSysError::getSystemErrorCode()
 }
 
 
-STATICDEF xSysError::Reason xSysError::portablize(int sysErrorCode)
+STATICDEF xSysError::Reason xSysError::portablize(int sysErrorCode, string &sysMsg)
 {
-  // I'd like to put this into a static class member, but then
-  // the table would have to prepend R_ constants with xSysError::,
-  // which is a pain.
+  sysMsg = strerror(sysErrorCode);
+    // operator= copies to local storage
 
   static struct S {
     int code;
@@ -241,6 +269,7 @@ STATICDEF xSysError::Reason xSysError::portablize(int sysErrorCode)
     { EEXIST,       R_ALREADY_EXISTS    },
     { EAGAIN,       R_AGAIN             },
     { EBUSY,        R_BUSY              },
+    { ENAMETOOLONG, R_INVALID_FILENAME  },
   };
 
   loopi(TABLESIZE(arr)) {

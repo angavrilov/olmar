@@ -3,6 +3,7 @@
 
 #include "voidlist.h"   // this module
 #include "breaker.h"    // breaker
+#include "str.h"        // stringc
 
 #include <stdlib.h>     // rand()
 #include <stdio.h>      // printf()
@@ -23,11 +24,15 @@ int VoidList::count() const
 void *VoidList::nth(int which) const
 {
   VoidNode *p;
-  for(p = top; which; which--) {
+  for (p = top; which > 0; which--) {
     xassert(p);
     p = p->next;
   }
-  xassert(p);
+  if (p == NULL) {
+    xfailure(stringc << "asked for list element "
+                     << (count()+which) << " (0-based) but list only has "
+                     << count() << " elements");
+  }
   return p->data;
 }
 
@@ -114,6 +119,29 @@ void VoidList::insertAt(void *newitem, int index)
     n->next = p->next;
     p->next = n;
   }
+}
+
+
+void VoidList::insertSorted(void *newitem, VoidDiff diff, void *extra)
+{
+  // put it first?
+  if (!top ||
+      diff(newitem, top->data, extra) <= 0) {                // newitem <= top
+    prepend(newitem);
+    return;
+  }
+
+  // we will be considering adding 'newitem' *after* cursor, as we go
+  VoidNode *cursor = top;
+  while (cursor->next != NULL &&
+         diff(cursor->next->data, newitem, extra) < 0) {     // cursor->next < newitem
+    cursor = cursor->next;
+  }
+  
+  // insert 'newitem' after 'cursor'
+  VoidNode *newNode = new VoidNode(newitem);
+  newNode->next = cursor->next;
+  cursor->next = newNode;
 }
 
 
@@ -378,6 +406,32 @@ void VoidList::mergeSort(VoidDiff diff, void *extra)
 }
 
 
+bool VoidList::isSorted(VoidDiff diff, void *extra) const
+{
+  if (isEmpty()) {
+    return true;
+  }
+
+  void *prev = top->data;
+  VoidListIter iter(*this);
+  iter.adv();
+  for (; !iter.isDone(); iter.adv()) {
+    void *current = iter.data();
+
+    if (diff(prev, current, extra) <= 0) {
+      // ok: prev <= current
+    }
+    else {
+      return false;
+    }
+
+    prev = current;
+  }
+  
+  return true;
+}
+
+
 // attach tail's nodes to this, empty tail
 void VoidList::concat(VoidList &tail)
 {
@@ -395,19 +449,89 @@ void VoidList::concat(VoidList &tail)
 }
 
 
+void VoidList::appendAll(VoidList const &tail)
+{ 
+  // make a dest iter and move it to the end
+  VoidListMutator destIter(*this);
+  while (!destIter.isDone()) {
+    destIter.adv();
+  }
+
+  VoidListIter srcIter(tail);
+  for (; !srcIter.isDone(); srcIter.adv()) {
+    destIter.append(srcIter.data());
+  }
+}
+
+
 VoidList& VoidList::operator= (VoidList const &src)
 {
   if (this != &src) {
     removeAll();
-    
-    VoidListIter srcIter(src);
-    VoidListMutator destIter(*this);
-    
-    for (; !srcIter.isDone(); srcIter.adv()) {
-      destIter.append(srcIter.data());
-    }
+    appendAll(src);
   }
   return *this;
+}
+
+
+bool VoidList::equalAsLists(VoidList const &otherList, VoidDiff diff, void *extra) const
+{
+  VoidListIter mine(*this);
+  VoidListIter his(otherList);
+  
+  while (!mine.isDone() && !his.isDone()) {
+    if (0==diff(mine.data(), his.data(), extra)) {
+      // they are equal; keep going
+    }
+    else {
+      // unequal
+      return false;
+    }
+
+    mine.adv();
+    his.adv();
+  }
+
+  if (!mine.isDone() || !his.isDone()) {
+    return false;     // unequal lengths
+  }
+
+  return true;        // everything matches
+}
+
+
+bool VoidList::equalAsSets(VoidList const &otherList, VoidDiff diff, void *extra) const
+{
+  return this->isSubsetOf(otherList, diff, extra) &&
+         otherList.isSubsetOf(*this, diff, extra);
+}
+
+
+bool VoidList::isSubsetOf(VoidList const &otherList, VoidDiff diff, void *extra) const
+{
+  for (VoidListIter iter(*this); !iter.isDone(); iter.adv()) {
+    if (!otherList.containsByDiff(iter.data(), diff, extra)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+bool VoidList::containsByDiff(void *item, VoidDiff diff, void *extra) const
+{
+  for (VoidListIter iter(*this); !iter.isDone(); iter.adv()) {
+    if (0==diff(item, iter.data(), extra)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+STATICDEF int VoidList::pointerAddressDiff(void *left, void *right, void*)
+{
+  return (int)left - (int)right;
 }
 
 
@@ -422,14 +546,14 @@ void VoidList::debugPrint() const
 
 
 // --------------- VoidListMutator ------------------
-VoidListMutator& 
+VoidListMutator&
   VoidListMutator::operator=(VoidListMutator const &obj)
 {			      
   // we require that the underlying lists be the same
   // because we can't reset the 'list' reference if they
   // aren't
   xassert(&list == &obj.list);
-  
+
   prev = obj.prev;
   current = obj.current;
 
@@ -488,13 +612,9 @@ void *VoidListMutator::remove()
 #ifdef TEST_VOIDLIST
 #include "test.h"     // USUAL_MAIN
 
-int ptrvaldiff(void *left, void *right, void*)
-{
-  return (int)left - (int)right;
-}
-
-
-// assumes we're using ptrvaldiff as the comparison fn
+// assumes we're using pointerAddressDiff as the comparison fn
+// (I don't use isSorted because this fn will throw at the disequality,
+// whereas isSorted would forget that info)
 void verifySorted(VoidList const &list)
 {
   int prev = 0;
@@ -507,50 +627,62 @@ void verifySorted(VoidList const &list)
 }
 
 
-#define PRINT(lst) lst.debugPrint(); printf("\n") /* user ; */
+#define PRINT(lst) printf("%s: ", #lst); lst.debugPrint(); printf("\n") /* user ; */
 
 void testSorting()
 {
   enum { ITERS=100, ITEMS=20 };
 
   loopi(ITERS) {
-    // construct a list
+    // construct a list (and do it again if it ends up already sorted)
     VoidList list1;
-    int items = rand()%ITEMS;
-    loopj(items) {
-      list1.prepend((void*)( (rand()%ITEMS) * 4 ));
-    }
-    //PRINT(list1);
+    VoidList list3;     // this one will be constructed sorted one at a time
+    int numItems;
+    do {
+      list1.removeAll();    // clear them in case we have to build it more than once
+      list3.removeAll();
+      numItems = rand()%ITEMS;
+      loopj(numItems) {
+        void *toInsert = (void*)( (rand()%ITEMS) * 4 );
+	list1.prepend(toInsert);
+        list3.insertSorted(toInsert, VoidList::pointerAddressDiff);
+      }
+    } while (list1.isSorted(VoidList::pointerAddressDiff));
+
+    // list3 should be sorted already
+    //PRINT(list3);
+    verifySorted(list3);
 
     // duplicate it for use with other algorithm
     VoidList list2;
     list2 = list1;
 
     // sort them
-    list1.insertionSort(ptrvaldiff);
-    list2.mergeSort(ptrvaldiff);
+    list1.insertionSort(VoidList::pointerAddressDiff);
+    xassert(list1.equalAsPointerSets(list2));      // verify intermediate equality
+    xassert(!list1.equalAsPointerLists(list2));    // but not elementwise
+    list2.mergeSort(VoidList::pointerAddressDiff);
     //PRINT(list1);
 
     // verify structure
     xassert(list1.invariant() && list2.invariant());
 
     // verify length
-    xassert(list1.count() == items && list2.count() == items);
+    xassert(list1.count() == numItems && list2.count() == numItems);
 
     // verify sortedness
     verifySorted(list1);
     verifySorted(list2);
 
     // verify equality
-    VoidListIter iter1(list1);
-    VoidListIter iter2(list2);
-    for (; !iter1.isDone(); iter1.adv(), iter2.adv()) {
-      xassert(iter1.data() == iter2.data());
-    }
-    xassert(iter2.isDone());    // another length check
+    xassert(list1.equalAsPointerLists(list2));
+    xassert(list1.equalAsPointerLists(list3));
 
-    // it's still conceivable the lists are not correct,
-    // but highly unlikely, in my judgment
+    // to test as-sets equality
+    void *first = list1.first();
+    while (list1.removeIfPresent(first))
+      {}     // remove all occurrances of 'first'
+    xassert(!list1.equalAsPointerSets(list2));
   }
 }
 
@@ -621,14 +753,14 @@ void entry()
       // now it is (b c d)
     verifySorted(list);
     PRINT(list);
-    
+
     // test reverse
-    list.reverse();    	 
+    list.reverse();
       // list is now (d c b)
     xassert(list.indexOf(d) == 0 &&
             list.indexOf(c) == 1 &&
             list.indexOf(b) == 2);
-    PRINT(list);	
+    PRINT(list);
   }
 
   // this hits most of the remaining code

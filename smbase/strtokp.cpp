@@ -1,6 +1,6 @@
 // strtokp.cc
 // code for strtokp.h
-// Scott McPeak, 1997, 1999  This file is public domain.
+// Scott McPeak, 1997, 1999, 2000  This file is public domain.
 
 #include "strtokp.h"    // this module
 #include "exc.h"        // xassert
@@ -72,8 +72,17 @@ char const *StrtokParse::tokv(int which) const
 }
 
 
+string StrtokParse::
+  reassemble(int firstTok, int lastTok, char const *original) const
+{
+  int left = offset(firstTok);
+  int right = offset(lastTok) + strlen(tokv(lastTok));
+
+  return string(original + left, right-left);
+}
+
+
 int StrtokParse::offset(int which) const
 {
   return tokv(which) - (char const*)buf;
 }
-

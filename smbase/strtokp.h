@@ -32,6 +32,12 @@ public:
   char const* operator[] (int which) const { return tokv(which); }
     // access to tokens; must make local copies to modify
 
+  string reassemble(int firstTok, int lastTok, char const *originalString) const;
+    // return the substring of the original string spanned by the
+    // given range of tokens; if firstTok==lastTok, only that token is
+    // returned (without any separators); must be that firstTok <=
+    // lastTok
+
   int offset(int which) const;
     // return a value that, when added to the original 'str' parameter,
     // yields a pointer to where tokv(which) is, as a substring, in that string
@@ -42,9 +48,10 @@ public:
     // a delimiter character, or 0)
 
   char **spawn_tokv_array() { return _tokv; }
-    // this is defined because it makes it convenient to generate spawn
-    // arguments, and should only be used for that purpose (because it exposes
-    // internal representation which is in principle subject to change)
+    // this is defined because it makes it convenient to generate
+    // spawn arguments, and should be limited to use for that purpose
+    // (because it exposes internal representation which is in
+    // principle subject to change)
 };
 
 #endif // __STRTOKP_H

@@ -32,16 +32,20 @@ public:     // data
     R_ALREADY_EXISTS,
     R_AGAIN,             // resource temporarily unavailable
     R_BUSY,              // resource busy
+    R_INVALID_FILENAME,  // too long, bad chars, etc.
     R_UNKNOWN,           // OS-specific, can't find out, just don't know, etc.
     NUM_REASONS          // (must be last item in list)
   } reason;
 
-  // portable failure reason string
+  // reason string that corresponds to 'reason'
   char const * const reasonString;
 
   // nonportable error code (errno on Unix, GetLastError() on Windows)
   // (value is 0 when we don't have this information)
   int sysErrorCode;
+
+  // reason string given by the OS, if any (might be NULL)
+  string sysReasonString;
 
   // name of syscall or API function name
   string syscallName;
@@ -50,7 +54,8 @@ public:     // data
   string context;
 
 public:    // funcs
-  xSysError(Reason r, char const *syscall, char const *ctx);
+  xSysError(Reason r, int sysCode, char const *sysReason,
+            char const *syscall, char const *ctx);
   xSysError(xSysError const &obj);
   ~xSysError();
 
@@ -59,17 +64,18 @@ public:    // funcs
     // retrieve the error code used by local convention
     // [nonportable implementation]
 
-  static Reason portablize(int sysErrorCode);
-    // return a portable equivalent of a system error code
-    // (returns R_UNKNOWN if the code is esoteric or invalid)
+  static Reason portablize(int sysErrorCode, string &sysReason);
+    // return a portable equivalent of a system error code;
+    // returns R_UNKNOWN if the code is esoteric or invalid;
+    // sets 'sysmsg' to the system's message string, if possible
     // [nonportable implementation]
 
   static char const * const getReasonString(Reason r);
     // translate a Reason into a string (if r is invalid, a string
     // saying to will be returned)
 
-  static string constructWhyString(Reason r, char const *syscall,
-                                   char const *ctx);
+  static string constructWhyString(Reason r, char const *sysReason,
+                                   char const *syscall, char const *ctx);
     // construct the string we throw as the 'why' of xBase; if ctx is NULL,
     // the string doesn't include it
 

@@ -38,7 +38,7 @@ Integer::~Integer()
 
 
 // ----------- testing ObjList -----------
-int intDiff(Integer *left, Integer *right, void*)
+int intDiff(Integer const *left, Integer const *right, void*)
 {
   return left->i - right->i;
 }

@@ -28,12 +28,13 @@ class VoidListMutator;
 // The difference function should return <0 if left should come before
 // right, 0 if they are equivalent, and >0 if right should come before
 // left.  For example, if we are sorting numbers into ascending order,
-// then 'diff' would simply be subtraction.
+// then 'diff' could simply be subtraction.
 typedef int (*VoidDiff)(void *left, void *right, void *extra);
 
 
 // list of void*; at this level, the void* are completely opaque;
 // the list won't attempt to delete(), compare them, or anything else
+// (well, some comparison has creeped in now... but only via VoidDiff)
 class VoidList {
 private:
   friend VoidListIter;
@@ -54,12 +55,16 @@ public:
   bool isEmpty() const               { return top == NULL; }
   bool isNotEmpty() const            { return top != NULL; }
   void *nth(int which) const;        // get particular item, 0 is first (item must exist)
+  void *first() const { return nth(0); }
+  void *last() const { return nth(count()-1); }
 
   // insertion
   void prepend(void *newitem);       // insert at front
   void append(void *newitem);        // insert at rear
   void insertAt(void *newitem, int index);
     // new item is inserted such that its index becomdes 'index'
+  void insertSorted(void *newitem, VoidDiff diff, void *extra=NULL);
+    // insert into an already-sorted list so that the list is sorted afterwards
 
   // removal
   void *removeAt(int index);         // remove from list (must exist), and return removed item
@@ -76,14 +81,35 @@ public:
   void removeItem(void *item);       // remove first occurrance -- must exist
   bool removeIfPresent(void *item);  // remove first occurrance; return true if changed
 
-  // complex modifiers				  
+  // complex modifiers
   void reverse();
   void insertionSort(VoidDiff diff, void *extra=NULL);
   void mergeSort(VoidDiff diff, void *extra=NULL);
 
+  // and a related test
+  bool isSorted(VoidDiff diff, void *extra=NULL) const;
+
   // multiple lists
-  void concat(VoidList &tail);       // tail is emptied, nodes appended to this
+  void concat(VoidList &tail);           // tail is emptied, nodes appended to this
+  void appendAll(VoidList const &tail);	 // tail is untouched.. but its contents are now exposed to non-constness... ug... oh well
   VoidList& operator= (VoidList const &src);
+
+  // equal items in equal positions
+  bool equalAsLists(VoidList const &otherList, VoidDiff diff, void *extra=NULL) const;
+
+  // last-as-set: comparisons (NOT efficient)
+  bool equalAsSets(VoidList const &otherList, VoidDiff diff, void *extra=NULL) const;
+    // A subset of B, and vice-versa
+  bool isSubsetOf(VoidList const &otherList, VoidDiff diff, void *extra=NULL) const;
+    // uses slow elementwise containment
+  bool containsByDiff(void *item, VoidDiff diff, void *extra=NULL) const;
+
+  // treating the pointer values themselves as the basis for comparison
+  static int pointerAddressDiff(void *left, void *right, void*);
+  bool equalAsPointerLists(VoidList const &otherList) const
+    { return equalAsLists(otherList, pointerAddressDiff); }
+  bool equalAsPointerSets(VoidList const &otherList) const
+    { return equalAsSets(otherList, pointerAddressDiff); }
 
   // debugging
   bool invariant() const;            // test this list; return false if malformed

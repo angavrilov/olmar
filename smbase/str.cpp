@@ -1,6 +1,6 @@
 // str.cpp
 // code for str.h
-// Scott McPeak, 1995-1999  This file is public domain.
+// Scott McPeak, 1995-2000  This file is public domain.
 
 #include "str.h"            // this module
 
@@ -9,6 +9,7 @@
 #include <ctype.h>          // isspace
 #include <string.h>         // strcmp
 #include <iostream.h>       // ostream << char*
+#include <assert.h>         // assert
 
 #include "xassert.h"        // xassert
 
@@ -17,9 +18,9 @@
 string::string(char const *src, int length)
 {
   s=0;
-  setlength(length+1);
+  setlength(length);       // setlength already has the +1
   memcpy(s, src, length);
-  s[length] = 0;
+  //s[length] = 0;     	   // this was redundant, no?
 }
 
 
@@ -29,7 +30,7 @@ void string::dup(char const *src)
     s = 0;
   }
   else {
-    s = new char[ strlen(src) + 1];
+    s = new char[ strlen(src) + 1 ];
     xassert(s);
     strcpy(s, src);
   }
@@ -48,10 +49,20 @@ int string::length() const
   return s? strlen(s) : 0;
 }
 
-int string::contains(char c) const
+bool string::contains(char c) const
 {
   xassert(s);
   return !!strchr(s, c);
+}
+
+
+string string::substring(int startIndex, int len) const
+{
+  xassert(startIndex >= 0 &&
+          len >= 0 &&
+          startIndex + len <= length());
+
+  return string(s+startIndex, len);
 }
 
 
@@ -103,36 +114,14 @@ void string::readdelim(istream &is, char const *delim)
 
 void string::write(ostream &os) const
 {
-  os << s;     // standard char* writing routine
-}
-
-
-// replace all instances of oldstr in src with newstr, return result
-string replace(char const *src, char const *oldstr, char const *newstr)
-{
-  stringBuilder ret("");
-
-  while (*src) {
-    char const *next = strstr(src, oldstr);
-    if (!next) {
-      ret &= string(src);
-      break;
-    }
-
-    // make a substring out of the characters between src and next
-    string upto(src, next-src);
-
-    // add it to running string
-    ret &= upto;
-
-    // add the replace-with string
-    ret &= string(newstr);
-
-    // move src to beyond replaced substring
-    src += (next-src) + strlen(oldstr);
+  if (s != NULL) {
+    os << s;     // standard char* writing routine
   }
-
-  return ret;
+  else {
+    // I still debate the decision to allow s to be NULL,
+    // but if I am going to, I should support it behaving
+    // like "", I think.. (so I do nothing here)
+  }
 }
 
 
@@ -144,7 +133,7 @@ stringBuilder::stringBuilder(int len)
 
 void stringBuilder::init(int initSize)
 {
-  size = initSize + EXTRA_SPACE;
+  size = initSize + EXTRA_SPACE + 1;     // +1 to be like string::setlength
   s = new char[size];
   end = s;
   end[initSize] = 0;
@@ -192,6 +181,14 @@ stringBuilder& stringBuilder::setlength(int newlen)
 }
 
 
+void stringBuilder::adjustend(char* newend) 
+{
+  xassert(s <= newend  &&  newend < s + size);
+
+  end = newend;
+}
+
+
 stringBuilder& stringBuilder::operator&= (char const *tail)
 {
   int len = strlen(tail);
@@ -203,29 +200,30 @@ stringBuilder& stringBuilder::operator&= (char const *tail)
 }
 
 
-void stringBuilder::grow(int newsize)
+void stringBuilder::grow(int newMinLength)
 {
   // I want at least EXTRA_SPACE extra
-  newsize += EXTRA_SPACE;
+  int newMinSize = newMinLength + EXTRA_SPACE + 1;         // compute resulting allocated size
 
   // I want to grow at the rate of at least 50% each time
   int suggest = size * 3 / 2;
 
   // see which is bigger
-  newsize = max(newsize, suggest);
+  newMinSize = max(newMinSize, suggest);
 
-  // write this down
+  // remember old length..
   int len = length();
 
-  // realloc s to be newsize bytes
-  char *temp = new char[newsize];
-  memcpy(temp, s, len+1);   // copy null too
+  // realloc s to be newMinSize bytes
+  char *temp = new char[newMinSize];
+  xassert(len+1 <= newMinSize);    // prevent overrun
+  memcpy(temp, s, len+1);          // copy null too
   delete[] s;
   s = temp;
 
   // adjust other variables
   end = s + len;
-  size = newsize;
+  size = newMinSize;
 }
 
 
@@ -242,7 +240,8 @@ stringBuilder& stringBuilder::operator<< (char c)
   stringBuilder& stringBuilder::operator<< (Argtype arg) \
   {                                                      \
     char buf[60];      /* big enough for all types */    \
-    sprintf(buf, fmt, arg);                              \
+    int len = sprintf(buf, fmt, arg);                    \
+    assert(len < 60);					 \
     return *this << buf;                                 \
   }
 
@@ -257,9 +256,15 @@ MAKE_LSHIFT(void*, "%p")
 stringBuilder& stringBuilder::operator<< (
   stringBuilder::Hex const &h)
 {
-  char buf[20];    // should only need 17 for 64-bit word..
-  sprintf(buf, "0x%lX", h.value);
+  char buf[32];        // should only need 19 for 64-bit word..
+  int len = sprintf(buf, "0x%lX", h.value);
+  assert(len < 20);
   return *this << buf;
+
+  // the length check above isn't perfect because we only find out there is
+  // a problem *after* trashing the environment.  it is for this reason I
+  // use 'assert' instead of 'xassert' -- the former calls abort(), while the
+  // latter throws an exception in anticipation of recoverability
 }
 
 

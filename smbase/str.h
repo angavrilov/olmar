@@ -2,28 +2,27 @@
 // a string class
 // the representation uses just one char*, so that a smart compiler
 //   can pass the entire object as a single word
-// Scott McPeak, 1995-1999  This file is public domain.
+// Scott McPeak, 1995-2000  This file is public domain.
 
 #ifndef __STR_H
 #define __STR_H
 
-#include "typ.h"       // bool
-
-// forward-declare the stream types
-class istream;
-class ostream;
+#include "typ.h"         // bool
+#include <iostream.h>	 // istream, ostream
 
 // certain unfortunate implementation decisions by some compilers
 // necessitate avoiding the name 'string'
 #define string mystring
 
 class string {
-protected:
-  char *s;
+protected:     // data
+  char *s;     	       	       	       // string contents; allowed to be NULL
+
+protected:     // funcs
   void dup(char const *source);        // copies, doesn't dealloc first
   void kill();                         // dealloc if str != 0
 
-public:
+public:	       // funcs
   string(string const &src) { dup(src.s); }
   string(char const *src) { dup(src); }
   string(char const *src, int length);    // grab a substring
@@ -33,13 +32,16 @@ public:
   ~string() { kill(); }
 
   // simple queries
-  int length() const;
-  int isempty() const { return !s || s[0]==0; }
-  int contains(char c) const;
+  int length() const;  	       	// returns number of non-null chars in the string; length of "" is 0
+  bool isempty() const { return !s || s[0]==0; }
+  bool contains(char c) const;
 
   // array-like access
   char& operator[] (int i) { return s[i]; }
   char operator[] (int i) const { return s[i]; }
+
+  // substring
+  string substring(int startIndex, int length) const;
 
   // conversions
   //operator char* () { return s; }      // ambiguities...
@@ -53,15 +55,21 @@ public:
   string& operator=(char const *src)
     { if (src != s) { kill(); dup(src); } return *this; }
 
-  string& setlength(int newlen);       // uninitialized, except for null
+  // allocate 'newlen' + 1 bytes (for null); initial contents is ""
+  string& setlength(int newlen);
 
-  // comparison; same semantics as strcmp
+  // comparison; return value has same meaning as strcmp's return value:
+  //   <0   if   *this < src
+  //   0    if   *this == src
+  //   >0   if   *this > src
   int compareTo(string const &src) const;
   int compareTo(char const *src) const;
+  bool equals(char const *src) const { return compareTo(src) == 0; }
 
-  #define MAKEOP(op)							       	\
-    bool operator op (string const &src) const { return compareTo(src) op 0; }	\
-    bool operator op (const char *src) const { return compareTo(src) op 0; }
+  #define MAKEOP(op)							       	 \
+    bool operator op (string const &src) const { return compareTo(src) op 0; }	 \
+    /*bool operator op (const char *src) const { return compareTo(src) op 0; }*/ \
+    /* killed stuff with char* because compilers are too flaky; use compareTo */
   MAKEOP(==)  MAKEOP(!=)
   MAKEOP(>=)  MAKEOP(>)
   MAKEOP(<=)  MAKEOP(<)
@@ -77,6 +85,9 @@ public:
     { obj.readline(is); return is; }
   friend ostream& operator<< (ostream &os, string const &obj)
     { obj.write(os); return os; }
+
+  // note: the read* functions are currently implemented in a fairly
+  // inefficient manner (one char at a time)
 
   void readdelim(istream &is, char const *delim);
     // read from is until any character in delim is encountered; consumes that
@@ -95,9 +106,7 @@ public:
 };
 
 
-string replace(char const *src, char const *oldstr, char const *newstr);
-  // direct string replacement, replacing instances of oldstr with newstr
-  // (newstr may be "")
+// replace() and trimWhiteSpace() have been moved to strutil.h
 
 
 // this class is specifically for appending lots of things
@@ -105,7 +114,7 @@ class stringBuilder : public string {
 protected:
   enum { EXTRA_SPACE = 30 };    // extra space allocated in some situations
   char *end;          // current end of the string (points to the null)
-  int size;           // amount of space allocated starting at 's'
+  int size;           // amount of space (in bytes) allocated starting at 's'
 
 protected:
   void init(int initSize);
@@ -124,12 +133,20 @@ public:
   stringBuilder& operator= (stringBuilder const &s) { return operator= ((char const*)s); }
 
   int length() const { return end-s; }
-  int isempty() const { return length()==0; }
+  bool isempty() const { return length()==0; }
 
   stringBuilder& setlength(int newlen);    // change length, forget current data
 
-  void ensure(int someLength) { if (someLength >= size) { grow(someLength+1); } }
-  void grow(int newMinLength);   // retain data, growing capacity to at least new size
+  // make sure we can store 'someLength' non-null chars; grow if necessary
+  void ensure(int someLength) { if (someLength >= size) { grow(someLength); } }
+
+  // grow the string's length (retaining data); make sure it can hold at least
+  // 'newMinLength' non-null chars
+  void grow(int newMinLength);
+
+  // this can be useful if you modify the string contents directly..
+  // it's not really the intent of this class, though
+  void adjustend(char* newend);
 
   // concatenation, which is the purpose of this class
   stringBuilder& operator&= (char const *tail);
@@ -151,10 +168,6 @@ public:
   void readline(istream &is) { readdelim(is, "\n"); }
 
   void readdelim(istream &is, char const *delim);
-  
-  // Dan added this, probably because he's modifying string contents directly,
-  // which I hadn't really intended, but the interface does allow..
-  void adjustend(char* newend) {end = newend;}
 
   // an experiment: hex formatting (something I've sometimes done by resorting
   // to sprintf in the past)
@@ -174,6 +187,11 @@ public:
 // using the same syntax as C++ iostreams.  e.g.:
 //   puts(stringb("x=" << x << ", y=" << y));
 #define stringb(expr) (stringBuilder() << expr)
+
+// experimenting with dropping the () in favor of <<
+// (the "c" can be interpreted as "constructor", or maybe just
+// the successor to "b" above)
+#define stringc stringBuilder()
 
 
 #endif // __STR_H
