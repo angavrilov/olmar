@@ -86,5 +86,8 @@ char *copyToStaticBuffer(char const *src);
 // true if the first part of 'str' matches 'prefix'
 bool prefixEquals(char const *str, char const *prefix);
 
+// and similar for last part
+bool suffixEquals(char const *str, char const *suffix);
+
 
 #endif // STRUTIL_H

@@ -400,6 +400,14 @@ bool prefixEquals(char const *str, char const *prefix)
          0==memcmp(str, prefix, plen);
 }
 
+bool suffixEquals(char const *str, char const *suffix)
+{
+  int slen = strlen(str);
+  int ulen = strlen(suffix);    // sUffix
+  return slen >= ulen &&
+         0==memcmp(str+slen-ulen, suffix, ulen);
+}
+
 
 // ----------------------- test code -----------------------------
 #ifdef TEST_STRUTIL
