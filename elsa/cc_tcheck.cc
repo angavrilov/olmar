@@ -359,8 +359,15 @@ void Function::tcheck_memberInits(Env &env)
         // decide which of v's possible constructors is being used
         Variable *ctor = outerResolveOverload_ctor(env, env.loc(), v->type, iter->args,
                                                    reallyDoOverload(env, iter->args));
-        if (ctor) {
+        if (v->type->isCompoundType() || v->type->asRval()->isCompoundType()) {
+          // I think with the implicit ctors added now, this should
+          // always succeed
+          xassert(ctor);
           iter->ctorVar = ctor;
+          // FIX: do this; we need a variable for when it is a base class
+//            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
+        } else {
+          xassert(!ctor);
         }
 
         // TODO: check that the passed arguments are consistent
@@ -447,8 +454,15 @@ void Function::tcheck_memberInits(Env &env)
                                                baseVar->type,
                                                iter->args,
                                                reallyDoOverload(env, iter->args));
-    if (ctor) {
+    if (baseVar->type->isCompoundType() || baseVar->type->asRval()->isCompoundType()) {
+      // I think with the implicit ctors added now, this should always
+      // succeed
+      xassert(ctor);
       iter->ctorVar = ctor;
+      // FIX: do this; we need a variable for when it is a base class
+//            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
+    } else {
+      xassert(!ctor);
     }
 
     // TODO: check that the passed arguments are consistent

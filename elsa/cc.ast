@@ -104,6 +104,9 @@ class MemberInit (
   // A single MemberInit seems very much like a single expression to
   // me, since it is a ctor call and an IN_ctor is also
   public FullExpressionAnnot annot;
+
+  // a MemberInit calls a ctor
+  public Statement *ctorStatement; ctor ctorStatement=NULL;
 }
 
 
