@@ -58,29 +58,34 @@ while (@ARGV) {
   # be added to CCFLAGS
   elsif ($arg =~ m/^(-W|-pg$|-D|-O)/) {
     push @CCFLAGS, $arg;
+    push @c_args, $arg;
   }
 
   elsif ($arg eq "-d" ||
          $arg eq "-debug") {
     $debug = 1;
+    push @c_args, $arg;
   }
   elsif ($arg eq "-nodebug") {
     $debug = 0;
+    push @c_args, $arg;
   }
 
   elsif ($arg eq "-prof") {
     push @CCFLAGS, "-pg";
+    push @c_args, $arg;
   }
 
   elsif ($arg eq "-devel") {
     push @CCFLAGS, "-Werror";
+    push @c_args, $arg;
   }
 
   elsif ($arg eq "-loc") {
     $loc = 1;
   }
   elsif ($arg eq "-noloc") {
-    loc = 0;
+    $loc = 0;
   }
 
   elsif ($arg eq "-action") {
@@ -102,7 +107,6 @@ while (@ARGV) {
        "-DNDEBUG_NO_ASSERTIONS",    # disable all xassert() calls
        "-DDO_ACCOUNTING=0",         # don't count stack nodes, etc.
        "-DENABLE_YIELD_COUNT=0");   # don't check for yield-then-merge at runtime
-    next;
   }
 
   elsif ($arg eq "-nosub") {
@@ -113,24 +117,18 @@ while (@ARGV) {
     $SMBASE = $tmp;
     if ($tmp !~ m|^/|) {
       push @c_args, "-smbase=../$tmp";   # modify relative path
-      next;
     }
   }
   elsif (($tmp) = ($arg =~ m/^-ast=(.*)$/)) {
     $AST = $tmp;
     if ($tmp !~ m|^/|) {
       push @c_args, "-ast=../$tmp";
-      next;
     }
   }
 
   else {
     die "unknown option: $arg\n";
   }
-
-  # falling through to here has the semantics that the argument
-  # will be passed, unchanged, to c/configure
-  push @c_args, $arg;
 }
 
 if (!$debug) {
@@ -263,7 +261,9 @@ chmod 0755, "config.status";
 # invoke sub-configures
 if ($subconfigure) {
   chdir("c") or die;
-  system("./configure", @c_args);
+  my $tmp = join(' ', ("./configure", @c_args));
+  print("Invoking $tmp in 'c' directory..\n");
+  run("./configure", @c_args);
   chdir("..") or die;
 }
 
