@@ -1,7 +1,7 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-temporary: sexp ccgr bccgr aSEb.gr.exe SSx.tree.gr.exe ssx.in \
+temporary: sexp ccgr bccgr triv/aSEb.gr.exe SSx.tree.gr.exe ssx.in \
            EEb.tree.gr.exe eeb.in SSSx.tree.gr.exe sssx.in \
            EFa.tree.gr.exe efa.in \
 	   EFa.notree.bison.exe EFa.tree.bison.exe
@@ -363,7 +363,7 @@ libccgr.a: $(ccgr-dep) libglr.a
 ifeq ($(ocaml), no)
 ccgr: libccgr.a ccgrmain.o $(SMBASE)/libsmbase.a
 	$(link) -o ccgr ccgrmain.o libccgr.a $(linkend)
-	./ccgr cc.bin c.in1
+	./ccgr cc.bin c.in/c.in1
 else
 ccgr:
 	@echo "we don't build ccgr in ocaml mode"
@@ -397,18 +397,18 @@ bccgr.tab.o: bccgr.h
 bccgr: bccgr.cc bccgr.tab.o lexer1.o lexer1yy.o lexer2.o $(AST)/fileloc.o \
        $(AST)/strtable.o $(SMBASE)/libsmbase.a
 	g++ -o bccgr $(ccflags) $(includes) $(YYDEBUG) $^
-	./bccgr c.in1
+	./bccgr c.in/c.in1
 
 # run the trivial-grammar helper
 .PRECIOUS: %.gr %.tree.gr
 %.gr: %.gr.in make-trivparser.pl
 	rm -f $@
-	./make-trivparser.pl $* <$*.gr.in >$@
+	./make-trivparser.pl $(notdir $*) <$*.gr.in >$@
 	chmod a-w $@
 
 %.tree.gr: %.gr.in make-trivparser.pl
 	rm -f $@
-	./make-trivparser.pl -ptree $* <$*.gr.in >$@
+	./make-trivparser.pl -ptree $(notdir $*) <$*.gr.in >$@
 	chmod a-w $@
 
 # make a parser for testing some grammar, using trivial lexer
@@ -587,6 +587,7 @@ clean:
 	rm -f *.gen.*
 	rm -f cdecl.bin cdecl cexp3.bin cexp3
 	rm -f *.d *.exe
+	cd triv; rm -f *.exe *.bin *.gen.*
 	rm -rf ssx.in sssx.in eeb.in
 
 # regression tests
@@ -595,8 +596,8 @@ check-cexp2: cexp2
 
 check: check-cexp2 ccgr gramanl
 	./gramanl --testRW ffollow
-	./ccgr cc.bin c.in1
-	@echo ./ccgr cc.bin c.in4 DOES NOT WORK
+	./ccgr cc.bin c.in/c.in1
+	@echo ./ccgr cc.bin c.in/c.in4 DOES NOT WORK
 	./ccgr cc.bin qpmouse.cpp
 	@echo ""
 	@echo "Regression tests passed."

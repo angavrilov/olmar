@@ -97,7 +97,7 @@ runTestInternal() {
   else
     # print a visually distinct banner
     echo "------------ [$curtest] $* ------------"
-    "$@"
+    ("$@")
     result=$?
     if [ $result -ne 0 ]; then
       unexFailure=$[ $unexFailure + 1 ]
@@ -176,13 +176,13 @@ runTest make cexp3b
 testTrivGrammar() {
   name="$1"
   shift
-  runTest make "$name.gr.exe" TRGRAMANL=,lrtable
-  
+  runTest make "triv/${name}.gr.exe" TRGRAMANL=,lrtable
+
   while [ "$1" != "" ]; do
     suffix="$1"
     shift
 
-    runTest "./$name.gr.exe" "$name.in$suffix"
+    runTest "triv/${name}.gr.exe" "triv/${name}.in${suffix}"
   done
 }
 
@@ -206,7 +206,7 @@ testTrivGrammar CAdB 1
 # ------------ test the C grammar and parser -------------
 if ! $vcgenOnly; then
   for n in 1 2 3 4 5 6 7 8 9 10 11 12; do
-    runTest ./ccgr -tr stopAfterTCheck cc.bin c.in$n
+    runTest ./ccgr -tr stopAfterTCheck cc.bin c.in/c.in$n
   done
 
 
@@ -285,7 +285,7 @@ vcgen owner1.i
 runTest ./ccgr -tr disableFactFlow cc.bin vcgen/owner2.i
 
 # this one is my main performance tester
-runTest ./ccgr -tr trivialActions,stopAfterParse cc.bin c.in4d
+runTest ./ccgr -tr trivialActions,stopAfterParse cc.bin c.in/c.in4d
 
 
 # final arithmetic to report result

@@ -1,15 +1,14 @@
 
-10/13/00
-Overview docs for this parser generator
----------------------------------------
+8/07/02 14:36
+Overview documentation for Elkhound parser generator
+----------------------------------------------------
 
 
 Deliverables
 ------------
-This parser generator takes as input a language grammar written in
-essentially BNF (Backus-Naur Form), and outputs a C++ parser for that
-language.  The executable that does this is called 'gramanl' (grammar
-analyzer).
+Elkhound takes as input a language grammar written in essentially BNF
+(Backus-Naur Form), and outputs a C++ parser for that language.  The
+executable that does this is called 'gramanl' (grammar analyzer).
 
 Additionally, the 'cc.gr' grammar is a grammar for C and C++.  By running
 the parser generator on cc.gr, you get a parser for C/C++.  The Makefile
@@ -21,8 +20,6 @@ Limitations
 The present design is geared towards parsing C++.  Thus, for example,
 the generated parser always assumes it is using the C++ lexical analyzer.
 
-It is slow and uses a lot of memory.
-
 
 Phases of parsing
 -----------------
@@ -33,28 +30,14 @@ The generated parser has several phases:
   Semantics: Compute some semantics info, primarily to fully
              disambiguate the parse tree.
 
-The lexers aren't very interesting.  There is currently no preprocessor,
-so usually it is necessary to run the input through one first.  Gcc's
-'-E' flag will do this.
+The lexers are slow.  They are part of an aborted attempt to design
+a better preprocessing scheme for C.  They in fact do *no* preprocessing
+now, so 'gcc -E' is required.
 
 The parser uses the GLR (Generalized LR) parsing algorithm, which permits
 both temporary and permanent ambiguity.  This is very convenient for
 writing grammars, but it means later stages must resolve any ambiguity
 that remains after parsing.
-
-The grammar writer may use synthesized attributes to do some disambiguation
-during parsing and tree-building.  These are 'action' and 'condition'
-clauses in the grammar input file.
-
-The semantics stage is usually one or more top-down tree traversals.
-These traversals are entirely at the direction of the semantic functions
-in the grammar input file, denoted by 'fun'.  The semantic functions
-may call semantic functions of right-hand-side nonterminals.
-
-Disambiguation in the semantic phase is currently somewhat primitive.
-It relies on a special semantic function marked as 'disamb' (instead
-of 'fun').  The special function takes responsibility for identifying
-which subtrees to eliminate, and then doing the elimination.
 
 
 Module sets
@@ -162,4 +145,16 @@ There are a few other documentation files lying around:
   grammar.txt   Describes the format of grammar files like cc.gr.
 
   parsgen.txt   Some of the trace flags defined.  Currently incomplete.
+
+
+  
+Directories
+----------------------------
+
+  c.in          C sample input.
+  
+  triv          Various "trivial" grammars, mostly for performance testing
+                or verifying that particular corner cases are handled
+                correctly.
+
   
