@@ -1,0 +1,85 @@
+lookup.txt
+
+This is my attempt to document what the lookup rules of C++ are (in a
+more digested, concise form than the standard itself, but with liberal
+references to the standard), and how Elsa implements them.  Initially
+the document just covers a few special cases that I have investigated
+carefully, but ideally it will grow to cover all the cases of name
+lookup in C++.
+
+The main difference between the account here and that in the standard
+is that this document will attempt to provide a complete narrative
+from start to finish (i.e., temporally coherent) of how lookup happens
+for a given syntax/context, whereas the standard is organized by
+language feature and so often scatters relevant details in many
+places.
+
+
+-----------------------------------------------------------
+How does name lookup for function all syntax (E_funCall) work?
+2005-02-18 03:55
+
+Note that context-specific name lookup only occurs if the 'func' is an
+E_variable or an E_fieldAcc.  Both contain a PQName, here called 'name'.
+
+At an E_funCall, we have the following information:
+  - func
+    - receiver object expression (if is E_fieldAcc)
+    - qualifiers (optional)
+    - StringRef name (name->getName())
+    - template arguments (optional), 'targs'
+  - function (expression) arguments, 'eargs'
+
+Lookup is split across E_funCall::inner1_tcheck and
+E_funCall::inner2_tcheck.  This split is for performance reasons, and
+forces a certain partition of the work (see comments in
+Expression::tcheck for more details).
+
+inner1's main job is to map the 'name' to a Variable object pointer.
+The latter can denote an overload set if necessary, or an empty
+set via a NULL pointer.  It does these steps:
+
+  * Do an ordinary (as opposed to argument dependent) lookup of the
+    name, using the receiver object type, the qualifiers, and the
+    StringRef name.  Lookup is as specified in 10.2 if E_fieldAcc, or
+    3.4 if E_variable.
+
+  * If template arguments are present but the lookup did not find any
+    template functions, issue an error.
+
+(Note that this design has a bug.  This initial lookup should take
+namespace 'using' directives into account, but if doing so yields
+a set that is not exactly the overload set of some name, then it
+cannot be represented with a single Variable pointer.  For now, my
+implementation just does the wrong thing in such cases.)
+
+inner2's job is to pick up where inner1 left off, and use the
+remaining information in the E_funCall to pick exactly the right
+Variable for the function call site, doing template instantiation and
+overload resolution as necessary.  It does these steps:
+
+  * It regards the Variable computed by inner1 (and stored in
+    E_variable::var or E_fieldAcc::field) as denoting an initial
+    candidate set (possibly empty, if the pointer is NULL).
+
+  * If no receiver object and no qualifiers are present, augment the 
+    lookup set by using argument dependent lookup (3.4.2).
+
+  * Refine/filter the candidate set; for each candidate:
+
+    - If template arguments are explicitly present, but the candidate
+      is not a template, remove it.
+
+    - If the candidate is a template, bind the 'targs' (if present) to
+      template parameters (14.8.1), and then do template argument
+      deduction (using the 'eargs') to determine the remaining template
+      parameters (14.8.2, 14.8.2.1).  If any incompatibility is found,
+      or not all template arguments have been determined, remove the
+      candidate.  Otherwise, replace the candidate with its (fully 
+      concrete) instantiation Variable.
+
+  * Use 'eargs' to do overload resolution (13.3) to select the best
+    candidate from the refined candidate set.
+
+
+EOF
