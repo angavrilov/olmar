@@ -255,6 +255,7 @@ public:     // funcs
 
   void add(int terminalId);
   void remove(int terminalId);
+  void clear();
 
   void copy(TerminalSet const &obj);      // lengths must be the same
   bool merge(TerminalSet const &obj);     // union; returns true if merging changed set

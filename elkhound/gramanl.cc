@@ -1928,6 +1928,12 @@ void GrammarAnalysis::
     return;
   }
   int nontermIndex = B->asNonterminalC().ntIndex;
+  
+  // could pull this out of even this fn, to the caller, but I don't
+  // see any difference in time when I make it static (which simulates
+  // the effect, though static itself is a bad idea because it makes
+  // the size constant through a whole run)
+  TerminalSet newItemLA(numTerminals());
 
   // for each production "B -> gamma"
   SMUTATE_EACH_PRODUCTION(productionsByLHS[nontermIndex], prodIter) {    // (constness)
@@ -1948,7 +1954,7 @@ void GrammarAnalysis::
     RHSEltListIter beta(item->getProd()->right, item->getDot() + 1);
 
     // get First(beta) -> new item's lookahead
-    TerminalSet newItemLA(numTerminals());
+    newItemLA.clear();
     firstOfIterSeq(newItemLA, beta);
 
     // if beta ->* epsilon, add LA

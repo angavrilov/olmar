@@ -413,6 +413,12 @@ void TerminalSet::remove(int id)
 }
 
 
+void TerminalSet::clear()
+{
+  memset(bitmap, 0, bitmapLen);
+}
+
+
 void TerminalSet::copy(TerminalSet const &obj)
 {
   xassert(obj.bitmapLen == bitmapLen);

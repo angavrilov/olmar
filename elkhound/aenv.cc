@@ -159,8 +159,10 @@ AbsValue *AEnv::get(Variable const *var)
   StringRef name = var->name;
   xassert(name);    // otherwise how did it get referred-to?
   Type const *type = var->type;
-
-  AbsValue *value;
+                        
+  // the way the conditionals work below this actually always gets
+  // set to something else, but gcc doesn't know that
+  AbsValue *value = NULL;
 
   // first reference to a quantified variable
   if (var->hasFlag(DF_LOGIC)) {
