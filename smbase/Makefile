@@ -16,10 +16,10 @@ ranlib      := ranlib
 ccflags += -Werror
 
 # when uncommented, we get profiling info
-ccflags += -pg -O2
+#ccflags += -pg -O2
 
 # optimizer...
-#ccflags += -O2
+ccflags += -O2
 
 compile := g++ -c $(ccflags) $(includes)
 link    := g++ $(ccflags) $(includes)
