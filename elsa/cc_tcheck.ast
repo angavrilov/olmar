@@ -282,7 +282,6 @@ class Declarator {
   public /*no_ignore*/ Declarator *tcheck(Env &env, Tcheck &dt);
   public void mid_tcheck(Env &env, Tcheck &dt);
   public void tcheck_init(Env &env);
-  public void elaborateCDtors(Env &env);
 }
 
 
@@ -304,9 +303,6 @@ class IDeclarator {
        // functions.. so I set this to true in MR_decl::tcheck and
        // MR_func::tcheck
        public bool isMember = false;
-
-//         // elaborate the parameters
-//         public void elaborateParameterCDtors(Env &env);
      }
 
   -> D_array {
@@ -411,14 +407,6 @@ class Expression {
        // the constructor function being called
        public Variable *ctorVar = NULL;
        custom clone { ret->ctorVar = ctorVar; }
-
-       // The variable being ctored; NULL means it is for a temporary
-       // and a Declaration for that temporary should be created
-       // during typechecking.
-       // dsw: this comment copied from E_variable; is it still
-       // relevant??: (serf) binding introduction of this name
-       public Variable *var = NULL;
-       custom clone { ret->var = var; } // dsw: do I need this?
      }
 
   -> E_fieldAcc {
@@ -444,24 +432,10 @@ class Expression {
        // if this is non-NULL, it's the number of elements to allocate via new[]
        public Expression /*nullable serf*/ *arraySize = NULL;
 
-       // I need a place to put the variable being ctored because
-       // E_constructor needs to point at a variable; copied comment
-       // from Declarator::var:
-       // (serf) computed information: name, type, etc.
-       public Variable *var = NULL;
-
        // constructor being called to initialize the storage
        public(field) Variable *ctorVar = NULL;
        custom clone { ret->ctorVar = ctorVar; }
      }
-
-  -> E_throw {
-       // the global that the throw argument is copy-ctored into, if
-       // thrown by value; copied comment from Declarator::var: (serf)
-       // computed information: name, type, etc.
-       public Variable *globalVar = NULL;
-       public Statement *ctorStatement; ctor ctorStatement=NULL;
-    }
 }
 
 
@@ -501,29 +475,6 @@ class Initializer {
   // check that the initializer is well-typed, given the type of
   // the thing it initializes
   pure_virtual void tcheck(Env &env, Type *type);
-
-  // [cppstd 1.9 para 12 and 13] "A full-expression is an expression
-  // that is not a subexpression of another expression.  If a language
-  // construct is defined to produce an implicit call of a function, a
-  // use of the language construct is considered to be an expression
-  // for the purposes of this definition.
-
-  // [Note: certain contexts in C++ cause the evaluation of a
-  // full-expression that results from a syntactic construct other
-  // than expression (5.18).  For example, in 8.5, another syntax for
-  // initializer is '( expression-list )' but the resulting construct
-  // is a function call upon a constructor function with
-  // expression-list as an argument list; such a function call is a
-  // full-expression.  For example, in 8.5, another syntax for
-  // initializer is '= initializer-clause' but again the resulting
-  // construct might be a function call upon a constructor function
-  // with one assignment-expression as an argument; again, the
-  // function call is a full-expression. ]
-
-  // Therefore, the arguments to IN_ctor and IN_expr are *not*
-  // FullExpressions because the whole of Initializer is.  I think the
-  // FullExpressionAnnot is redundant in the case of IN_compound, but
-  // I like sharing it in Initializer and an extra layer doesn't hurt.
 
   -> IN_ctor() {
        public Variable *ctorVar = NULL;      // constructor function being called

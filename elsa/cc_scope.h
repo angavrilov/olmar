@@ -21,6 +21,7 @@ class TemplateParams;     // cc_type.h
 class PQName;             // cc.ast
 class TranslationUnit;    // cc.ast.gen.h
 
+
 // variable lookup sometimes has complicated exceptions or
 // special cases, so I'm folding lookup options into one value
 enum LookupFlags {
