@@ -18,6 +18,7 @@
 #include "exc.h"       // throw_XOpen
 
 #include <string.h>    // strcmp
+#include <stdlib.h>    // exit
 
 // no bison-parser present, so need to define this
 Lexer2Token const *yylval = NULL;
