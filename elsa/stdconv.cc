@@ -488,6 +488,12 @@ StandardConversion getStandardConversion
 
   // ---------------- group 2 --------------
 
+  if (dest->isSimple(ST_ANY_OBJ_TYPE) &&
+      !src->isFunctionType()) {
+    // polymorphic match
+    return conv.ret;    
+  }
+
   // if both types have not arrived at CVAtomic, then they
   // are not convertible
   if (!src->isCVAtomicType() ||

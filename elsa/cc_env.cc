@@ -49,6 +49,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     var__builtin_constant_p(NULL),
 
     operatorPlusVar(NULL),
+    operatorPlusVar2(NULL),
 
     tunit(tunit0),
 
@@ -147,11 +148,23 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   // the Variables without deleting them)
   Scope *dummyScope = enterScope(SK_GLOBAL /*close enough*/, 
     "dummy scope for built-in operator functions");
+  
+  // this has to match the typedef in include/stddef.h
+  Type *t_ptrdiff_t = getSimpleType(SL_INIT, ST_INT);
 
+  // 13.6 para 12
   operatorPlusVar = declareFunction2arg(
     t_void /*irrelevant*/, "operator +",
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC), "x",
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC), "y");
+  operatorPlusVar->setFlag(DF_BUILTIN);
+
+  // 13.6 para 13
+  operatorPlusVar2 = declareFunction2arg(
+    t_void, "operator +",
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)), "x",
+    t_ptrdiff_t, "y");
+  operatorPlusVar2->setFlag(DF_BUILTIN);
 
   exitScope(dummyScope);
 

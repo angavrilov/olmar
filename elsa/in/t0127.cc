@@ -21,12 +21,18 @@ public:
   operator int ();                  // 21
 };
 
+class D {
+public:
+  operator int* ();                 // 26
+};
 
 void f()
 {
   A a1,a2;
   B b1,b2;
   C c;
+  D d;
+
 
   // turn on overload resolution
   __testOverload(some_random_crap(), 14);
@@ -39,4 +45,6 @@ void f()
 
   __testOverload(c+1, BUILTIN);
   __testOverload(c+(char)1, BUILTIN);
+
+  __testOverload(d+1, BUILTIN);
 }

@@ -96,8 +96,9 @@ public:      // data
   // dsw: Can't think of a better way to do this, sorry.
   Variable *var__builtin_constant_p;
 
-  // polymorphic built-in operator functions
-  Variable *operatorPlusVar;            // (serf)
+  // polymorphic built-in operator functions (all serfs)
+  Variable *operatorPlusVar;
+  Variable *operatorPlusVar2;
 
   TranslationUnit *tunit;
   

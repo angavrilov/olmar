@@ -3639,13 +3639,14 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
 
     // built-in candidates
     resolver.processCandidate(env.operatorPlusVar);
+    resolver.processCandidate(env.operatorPlusVar2);
 
     // pick one
     Variable *winner = resolver.resolve();
     if (winner) {
       TRACE("overload", "chose candidate at " << toString(winner->loc));
 
-      if (winner != env.operatorPlusVar) {
+      if (!winner->hasFlag(DF_BUILTIN)) {
         PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_binary(BIN_PLUS), 
                                            env.operatorPlusName);
         if (winner->hasFlag(DF_MEMBER)) {
@@ -3673,6 +3674,13 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
         // for now, just re-check the whole thing
         replacement->tcheck(env, replacement);
         return replacement->type;
+      }
+
+      else {
+        // chose a built-in operator
+
+        // TODO: need to replace the arguments according to their
+        // conversions (if any)
       }
     }
   }
