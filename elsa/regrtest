@@ -700,7 +700,7 @@ testparse d0117.cc
 testparse d0118.cc
 testparse d0119.cc
 testparse d0120.cc
-failparse d0121.cc "(invalid C++) segfaults but I don't know why"
+testparse d0121.cc
 # ---- END: lots of tests ----
 
 

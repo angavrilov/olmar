@@ -5,11 +5,14 @@ template < class charT > struct basic_string {
 typedef basic_string <char> string;
 
 struct Geometry {
-  Geometry (std::string geometry_);
+  //ERROR(1): Geometry (std::string geometry_);
   void f();
 };
 
 void Geometry::f() {
   const char *geometry;
-  *this = std::string (geometry);
+  
+  // this line used to cause a segfault; now it properly
+  // causes an error message
+  //ERROR(2): *this = std::string (geometry);
 }

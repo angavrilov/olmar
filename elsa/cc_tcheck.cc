@@ -4193,6 +4193,9 @@ void Expression::tcheck(Env &env, Expression *&replacement)
     env.errors.takeMessages(existing);
     env.errors.takeMessages(funCallErrors);
 
+    // 10/20/04: Need to give a type anyway.
+    this->type = env.errorType();
+
     // finish up
     replacement = this;     // redundant but harmless
     return;
