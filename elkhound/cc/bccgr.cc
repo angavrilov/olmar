@@ -11,6 +11,7 @@
 
 #include <stdio.h>      // printf
 #include <iostream.h>   // cout, etc.
+#include <string.h>
 
 // global list of L2 tokens for yielding to Bison
 CCLang cclang;
