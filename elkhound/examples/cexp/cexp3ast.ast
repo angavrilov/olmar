@@ -18,10 +18,10 @@ class Exp {
   ctor { refCt=0; incRefCt(); };
 
   // number of nodes in this subtree, including myself
-  public virtual int numNodes() const = 0;
+  public(func) virtual int numNodes() const = 0;
 
   // evaluate the arithmetic value of the subtree
-  public virtual int eval() const = 0;
+  public(func) virtual int eval() const = 0;
 
   // merge alternative interpretations
   public static Exp *mergeAlts(Exp *p1, Exp *p2);
