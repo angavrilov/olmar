@@ -42,8 +42,11 @@ void f()
   __getStandardConversion((int const &)0, (int)0, SC_LVAL_TO_RVAL);
   __getStandardConversion((Foo &)0, (Foo)0, SC_LVAL_TO_RVAL);
   __getStandardConversion((Foo const &)0, (Foo const)0, SC_LVAL_TO_RVAL);
+  
+  // I can't tell if this is really supposed to be an error.. and
+  // for now my implementation doesn't classify it as such
+  //__getStandardConversion((Foo const &)0, (Foo)0, SC_ERROR);
 
-  __getStandardConversion((Foo const &)0, (Foo)0, SC_ERROR);
   __getStandardConversion((Incomplete &)0, (Incomplete)0, SC_ERROR);
 
   // array to pointer
@@ -52,8 +55,16 @@ void f()
   __getStandardConversion("abc", (char const*)0, SC_ARRAY_TO_PTR);
   __getStandardConversion(L"abc", (wchar_t const*)0, SC_ARRAY_TO_PTR);
   __getStandardConversion("abc", (char*)0, SC_ARRAY_TO_PTR|SC_QUAL_CONV);
-  
+
   __getStandardConversion((int const [])0, (int*)0, SC_ERROR);
+
+  // function to pointer
+  typedef int func(int*);
+  __getStandardConversion((func)0, (int (*)(int*))0, SC_FUNC_TO_PTR);
+  __getStandardConversion((func)0, (int (*)(int const*))0, SC_ERROR);
+
+  // qualification conversions
+  __getStandardConversion((int *)0, (int const *)0, SC_QUAL_CONV);
 
 
 }

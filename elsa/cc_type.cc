@@ -634,6 +634,12 @@ string Type::rightString(bool /*innerParen*/) const
 }
 
 
+CVFlags Type::getCVFlags() const
+{
+  return CV_NONE;
+}
+
+
 bool Type::isSimpleType() const
 {
   if (isCVAtomicType()) {
@@ -810,6 +816,12 @@ bool CVAtomicType::anyCtorSatisfies(TypePred pred) const
 }
 
 
+CVFlags CVAtomicType::getCVFlags() const
+{
+  return cv;
+}
+
+
 // ------------------- PointerType ---------------
 PointerType::PointerType(PtrOper o, CVFlags c, Type *a)
   : op(o), cv(c), atType(a)
@@ -871,6 +883,12 @@ bool PointerType::anyCtorSatisfies(TypePred pred) const
 {
   return pred(this) ||
          atType->anyCtorSatisfies(pred);
+}
+
+
+CVFlags PointerType::getCVFlags() const
+{
+  return cv;
 }
 
 
@@ -1398,6 +1416,11 @@ bool PointerToMemberType::anyCtorSatisfies(TypePred pred) const
          atType->anyCtorSatisfies(pred);
 }
 
+
+CVFlags PointerToMemberType::getCVFlags() const
+{
+  return cv;
+}
 
 
 // ---------------------- TypeFactory ---------------------

@@ -382,6 +382,10 @@ public:     // funcs
   // true if any constructor satisfies 'pred'
   virtual bool anyCtorSatisfies(TypePred pred) const=0;
 
+  // return the cv flags that apply to this type, if any;
+  // default returns CV_NONE
+  virtual CVFlags getCVFlags() const;
+
   // some common queries
   bool isSimpleType() const;
   SimpleType const *asSimpleTypeC() const;
@@ -454,6 +458,7 @@ public:
   virtual string leftString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
+  virtual CVFlags getCVFlags() const;
 };
 
 
@@ -484,6 +489,7 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
+  virtual CVFlags getCVFlags() const;
 };
 
 
@@ -615,6 +621,7 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
+  virtual CVFlags getCVFlags() const;
 };
 
 

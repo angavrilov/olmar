@@ -197,6 +197,7 @@ StandardConversion getStandardConversion
   // --------------- group 1 ----------------
   if (src->isReference() && !dest->isReference()) {
     conv.ret |= SC_LVAL_TO_RVAL;
+
     src = src->asPointerTypeC()->atType;
 
     // the src type must be complete for this conversion
@@ -204,25 +205,40 @@ StandardConversion getStandardConversion
         src->asCompoundTypeC()->forward) {
       return conv.error("type must be complete to strip '&'");
     }
+    
+    // am I supposed to check cv flags?
   }
   else if (src->isArrayType() && dest->isPointer()) {
     conv.ret |= SC_ARRAY_TO_PTR;
 
-    // do one level of qualification conversion checking
-    PointerType const *d = dest->asPointerTypeC();
-    if (conv.stripPtrCtor(CV_NONE, d->cv)) { return conv.ret; }
-
     src = src->asArrayTypeC()->eltType;
-    dest = d->atType;
+    dest = dest->asPointerTypeC()->atType;
+
+    // do one level of qualification conversion checking
+    CVFlags scv = src->getCVFlags();
+    CVFlags dcv = dest->getCVFlags();
+
+    if (srcSpecial == SE_STRINGLIT &&
+        scv == CV_CONST &&
+        dcv == CV_NONE) {
+      // special exception of 4.2 para 2: string literals can be
+      // converted to 'char*' (w/o 'const'); we'll already have
+      // converted 'char const []' to 'char const *', so this just
+      // adds the qualification conversion
+      conv.ret |= SC_QUAL_CONV;
+      scv = CV_NONE;   // avoid error in stripPtrCtor, below
+    }
+
+    if (conv.stripPtrCtor(scv, dcv))
+      { return conv.ret; }
   }
   else if (src->isFunctionType() && dest->isPointerType()) {
     conv.ret |= SC_FUNC_TO_PTR;
 
-    // do one level of qualification conversion checking
-    PointerType const *d = dest->asPointerTypeC();
-    if (conv.stripPtrCtor(CV_NONE, d->cv)) { return conv.ret; }
-
     dest = dest->asPointerTypeC()->atType;
+
+    if (conv.stripPtrCtor(src->getCVFlags(), dest->getCVFlags()))
+      { return conv.ret; }
   }
 
   // At this point, if the types are to be convertible, their
@@ -254,15 +270,21 @@ StandardConversion getStandardConversion
           // cannot be stacked
           xassert(s->op != PO_REFERENCE);
           xassert(d->op == PO_REFERENCE);
-          
+
           // thus, we're trying to convert to an lvalue
           return conv.error("cannot convert rvalue to lvalue");
         }
 
-        if (conv.stripPtrCtor(s->cv, d->cv)) { return conv.ret; }
-
         src = s->atType;
         dest = d->atType;
+
+        // we look at the cv flags one level down because all of the
+        // rules in cppstd talk about things like "pointer to cv T",
+        // i.e. pairing the * with the cv one level down in their
+        // descriptive patterns
+        if (conv.stripPtrCtor(src->getCVFlags(), dest->getCVFlags()))
+          { return conv.ret; }
+
         break;
       }
 
@@ -277,7 +299,7 @@ StandardConversion getStandardConversion
         if (src->equals(dest)) {
           return conv.ret;
         }
-        else {                          
+        else {
           return conv.error("unequal function types");
         }
       }
@@ -302,8 +324,16 @@ StandardConversion getStandardConversion
 
         if (s->inClass != d->inClass) {
           if (conv.ptrCtorsStripped == 0) {
-            // as the first ptr ctor, we allow Derived -> Base
-            if (s->inClass->hasUnambiguousBaseClass(d->inClass)) {
+            // opposite to first ptr ctor, we allow Base -> Derived
+            if (!d->inClass->hasUnambiguousBaseClass(s->inClass)) {
+              return conv.error("src member's class is not an unambiguous "
+                                "base of dest member's class");
+            }
+            else if (d->inClass->hasVirtualBase(s->inClass)) {
+              return conv.error("src member's class is a virtual base of "
+                                "dest member's class");
+            }
+            else {
               // ok, if the subsequent types are identical
               if (s->atType->equals(d->atType)) {
                 // this is actually a group 2 conversion
@@ -313,10 +343,6 @@ StandardConversion getStandardConversion
                 return conv.error("unequal member types in ptr-to-member");
               }
             }
-            else {
-              return conv.error("dest member's class is not an unambiguous "
-                                "base of source member's class");
-            }
           }
           else {
             // after the first ctor, variance is not allowed
@@ -325,10 +351,12 @@ StandardConversion getStandardConversion
           }
         }
 
-        if (conv.stripPtrCtor(s->cv, d->cv)) { return conv.ret; }
-
         src = s->atType;
         dest = d->atType;
+
+        if (conv.stripPtrCtor(src->getCVFlags(), dest->getCVFlags()))
+          { return conv.ret; }
+
         break;
       }
     }
@@ -353,7 +381,7 @@ StandardConversion getStandardConversion
       }
       if (dest->isPointerToMemberType()) {
         return conv.ret | SC_PTR_MEMB_CONV;
-      }    
+      }
     }
 
     if (env) {
@@ -361,8 +389,8 @@ StandardConversion getStandardConversion
       // this to be a relatively common error and I'd like to provide
       // as much information as will be useful
       return conv.error(stringc
-        << "different type constructors, " 
-        << ctorName(src->getTag()) << " vs. " 
+        << "different type constructors, "
+        << ctorName(src->getTag()) << " vs. "
         << ctorName(dest->getTag()));
     }
     else {
@@ -370,19 +398,14 @@ StandardConversion getStandardConversion
     }
   }
 
-  // now we're down to atomics; if we're now below any pointer
-  // type constructors, we continue checking cv flags and then
-  // expect equality
+  // now we're down to atomics; we expect equality, but ignoring cv
+  // flags because they've already been handled
 
   CVAtomicType const *s = src->asCVAtomicTypeC();
   CVAtomicType const *d = dest->asCVAtomicTypeC();
 
-  CVFlags scv = s->cv;
-  CVFlags dcv = d->cv;
-
   if (conv.ptrCtorsStripped > 0) {
-    if (conv.ptrCtorsStripped == 1 &&
-        scv == dcv) {
+    if (conv.ptrCtorsStripped == 1) {
       if (dest->isSimple(ST_VOID)) {
         return conv.ret | SC_PTR_CONV;      // converting T* to void*
       }
@@ -394,23 +417,6 @@ StandardConversion getStandardConversion
         return conv.ret | SC_PTR_CONV;      // converting Derived* to Base*
       }
     }
-
-    if (conv.ptrCtorsStripped == 1 &&
-        srcSpecial == SE_STRINGLIT &&
-        scv == CV_CONST &&
-        dcv == CV_NONE) {
-      // special exception of 4.2 para 2: string literals can be
-      // converted to 'char*' (w/o 'const'); we'll already have
-      // converted 'char const[]' to 'char const *', so this just
-      // adds the qualification conversion
-      return conv.ret | SC_QUAL_CONV;
-    }
-
-    // now treat the remaining cv flag like consuming one more
-    // ptr type ctor.. it's a little odd because the cppstd
-    // talks about "pointer to cv T", i.e. it associates the cv
-    // with the pointer, not the thing pointed-at..
-    if (conv.stripPtrCtor(scv, dcv)) { return conv.ret; }
 
     // since we stripped ptrs, final type must be equal
     if (s->atomic->equals(d->atomic)) {
@@ -430,6 +436,7 @@ StandardConversion getStandardConversion
     }
   }
   else {
+    #if 0    // need anything?
     // I'm not perfectly clear on the checking I should do for
     // the cv flags here.  lval-to-rval says that 'int const &'
     // becomes 'int' whereas 'Foo const &' becomes 'Foo const'
@@ -441,7 +448,8 @@ StandardConversion getStandardConversion
 
     if (scv != dcv) {
       return conv.error("different cv flags (is this right?)");
-    }
+    }                         
+    #endif // 0
   }
 
   if (s->atomic->equals(d->atomic)) {
