@@ -14,6 +14,7 @@
 "__typeof"             return tok(TOK___TYPEOF__);
 "__typeof__"           return tok(TOK___TYPEOF__);
 "__restrict__"         return tok(TOK___RESTRICT__);
+"__builtin_expect"     return tok(TOK___BUILTIN_EXPECT);
 
 "__extension__" {
   /* treat this like a token, in that nonseparating checks are done,

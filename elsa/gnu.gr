@@ -49,10 +49,25 @@ nonterm(Expression*) UnaryExpression {
   // of no way to handle this other than putting it into the grammar
   // directly.
   -> "__builtin_constant_p" pe:ParenthesizedExpression
-    { return new E___builtin_constant_p(loc, pe); }
+       { return new E___builtin_constant_p(loc, pe); }
 
   // dsw: some undocumented gcc extension
-  -> "__alignof__" "(" t:TypeId ")" { return new E_alignofType(t); }
+  -> "__alignof__" "(" t:TypeId ")"
+       { return new E_alignofType(t); }
+       
+  // sm: __builtin_expect is for static branch prediction, but none of
+  // the analyses I forsee for this parser care about such things, so
+  // I will simply pretend I never even saw it (though, this is a
+  // small problem for source to source ...); the alternative is to make
+  // a new AST node for it, or else squeeze it into E_funCall, neither of
+  // which is very attractive
+  //
+  // A third possibility is a new "semantically transparent but
+  // annotated in some way" AST node, of which __builtin_expect could
+  // be one kind.  I'm not sure what other kinds there would be,
+  // though.
+  -> "__builtin_expect" "(" e:Expression "," /*prediction*/Expression ")"
+       { return new E_grouping(e); }
 }
 
 // dsw: had to break this out for location recording reasons
@@ -74,7 +89,7 @@ nonterm(S_compound*) CompoundStatement {
   //   if (0) gronk: printf("hello\n");
   // The then branch would only contain the gronk label, whereas, at
   // least in gcc, it also includes the printf() call.
-  -> EnterScope seq:CompoundStmtSeq lesl:LabeledEmptyStatementList LeaveScope "}"
+  -> seq:CompoundStmtHelper lesl:LabeledEmptyStatementList "}"
        { seq->stmts.append(lesl); return seq; }
 }
 

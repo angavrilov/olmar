@@ -160,19 +160,11 @@ terminals {
 }
 
 
-nonterm(TranslationUnit*) File -> EnterScope t:TranslationUnit LeaveScope
+nonterm(TranslationUnit*) File -> t:TranslationUnit
   { return t; }
 
-// scoping
-nonterm EnterScope -> empty    {
-  D("entering scope");
-  //enterScope();
-}
 
-nonterm LeaveScope -> empty     {
-  D("exiting scope");
-  //leaveScope();
-}
+// 4/20/04: Removed long-since defunct EnterScope and LeaveScope  
 
 
 // ------------- identifiers -------------------
@@ -499,10 +491,10 @@ nonterm(ASTTypeId*) NewTypeId {
 //   (PtrOperator)*  ("[" Expression "]"  ("[" ConstExpression "]")* )?
 // where PtrOperator is
 //   "*" CVQualifierSeqOpt, or
-//   "&"
-// though I cannot find any explanation in the spec of whether "&" is
-// in fact allowed (it doesn't make sense to me) so I do not allow it
-// (so I'll see the counterexample syntax if it exists)
+//   "&"    
+// however, I cannot find any explanation in the spec of whether "&"
+// is in fact allowed (it doesn't make sense to me) so I do not allow
+// it (so I'll see the counterexample syntax if it exists)
 nonterm(IDeclarator*) NewDeclaratorOpt {
   -> empty
        { return new D_name(loc, NULL); }
@@ -789,21 +781,18 @@ nonterm(Statement*) ExpressionStatement {
 }
 
 nonterm(S_compound*) CompoundStatement {
-  // I must enter scope immediately upon seeing the open-brace, so
-  // that if the first token of the first statement changes or queries
-  // the scope, it's in the new one
-  -> EnterScope seq:CompoundStmtSeq LeaveScope "}"
+  -> seq:CompoundStmtHelper "}"
        { return seq; }
 }
 
-nonterm(S_compound*) CompoundStmtSeq {
+nonterm(S_compound*) CompoundStmtHelper {
   // I pushed "{" into this nonterminal so the 'loc' would reflect
   // its location, instead of the location of the first statement inside
   // (and in fact since 'empty' has no location, I wouldn't even have
   // been able to get that..)
   -> "{" empty
        { return new S_compound(loc, NULL); }
-  -> c:CompoundStmtSeq s:Statement
+  -> c:CompoundStmtHelper s:Statement
        { c->stmts.append(s); return c; }
 }
 
