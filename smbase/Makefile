@@ -7,6 +7,9 @@ all: gensrc ${THISLIBRARY}
 # when uncommented, the program emits profiling info
 #ccflags = -pg
 
+# optimizer...
+ccflags = -O2
+
 # pull in basic stuff
 include Makefile.base.mk
 

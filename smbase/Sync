@@ -1,0 +1,8 @@
+#!/bin/sh
+# synchronize these files
+
+fsync -l scott -rh madrone.cs \
+      -rr /usr/scott/wrk/smbase \
+      -r `pwd` \
+      -n "$@" \
+      `ls -F ~/cvsroot/smbase | grep -v / | sed s/,v//`
