@@ -180,7 +180,7 @@ doc: gendoc gendoc/configure.txt gendoc/dependencies.png gendoc/3.4.5.png
 clean:
 	rm -f *.o *.d *.gen.* *.tab.* *.output a.out core
 	rm -f lexer.yy.cc
-	rm -f outdir/[a-z]*
+	find outdir -type f | xargs -l1 rm -f
 	rm -f ccparse tlexer
 
 distclean: clean
