@@ -11,3 +11,6 @@ bccgr
 *.tab.*
 bccgr.y
 ccparse
+ccparset
+cct.bin
+cct.gr

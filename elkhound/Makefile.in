@@ -1,7 +1,7 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-temp: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/ccparse
+temp: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/ccparse cc/ccparset
 
 all: cc/c.ast.gen.h glr.o cc/ccgr cc2/cc2.exe cc2/cc2t.exe cc/bccgr
 
@@ -286,6 +286,17 @@ cc/cparse: cc/ccgrmain.o cc/c.gr.gen.o $(c-set) libglr.a $(SMBASE)/libsmbase.a
 cc/ccparse: cc/ccparse.o cc/cc.gr.gen.o $(cc-set) libglr.a $(SMBASE)/libsmbase.a
 	$(link) -o $@ $^
 	./$@ c.in/c.in1
+
+# same grammar, but building entire parse tree instead
+cc/cct.gr.gen.cc cc/cct.gr.gen.h cc/cct.gr.gen.y: cc/cc.gr cc/cc.tok gramanl
+	rm -f cc/cct.gr*
+	sed 's/cc\.gr\.gen\.h/cct.gr.gen.h/' <cc/cc.gr >cc/cct.gr
+	./gramanl -tr treebuild$(TRGRAMANL) cc/cct
+	chmod a-w cc/cct.gr*
+
+cc/ccparset: cc/ccparset.o cc/cct.gr.gen.o $(cc-set) ptreenode.o \
+             libglr.a $(SMBASE)/libsmbase.a
+	g++ -o $@ $(ccflags) $^
 
 # bison parser from the same grammar; the 'sed' is because Bison
 # already interpretes 0 as EOF, and if my rule names it explicitly

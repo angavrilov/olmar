@@ -34,8 +34,7 @@ void doit(int argc, char **argv)
     UserActions *user = makeUserActions();
     tree.userAct = user;
     if (!treeMain(tree, argc, argv,
-          "  additional flags for cc2 (none of these work right now):\n"
-          "    stopAfterParse     stop after parsing\n"
+          "  additional flags for cc2:\n"
           "    printTree          print tree after parsing (if avail.)\n"
           "")) {
       // parse error

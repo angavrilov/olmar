@@ -3549,6 +3549,12 @@ void GrammarAnalysis::addTreebuildingActions()
 {
   #define STR(s) LITERAL_LOCSTRING(grammarStringTable.add(s))
 
+  // prepend an #include to the verbatim (but keeping it otherwise)
+  {
+    string full = stringc << "\n#include \"ptreenode.h\"\n" << verbatim;
+    verbatim.str = grammarStringTable.add(full);
+  }
+
   // get handles to the strings we want to emit
   LocString param = STR("n");
   LocString dupCode = STR("return n;");    // dup is identity
