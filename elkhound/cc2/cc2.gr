@@ -111,8 +111,7 @@ nonterm Literal {
 // -------------------- A.3 Basic concepts --------------------
 
 nonterm TranslationUnit {
-  -> empty;
-  -> DeclarationSeq;
+  -> DeclarationSeqOpt;
 }
 
 
@@ -744,7 +743,7 @@ nonterm DirectDeclarator {
 nonterm PtrOperator {
   -> "*" CvQualifierSeqOpt;
   -> "&";
-  -> ColonColonOpt NestedNameSpecifier "*" CvQualifierSeqOpt;
+  -> ColonColonOpt NestedNameSpecifier "*" CvQualifierSeqOpt;     // what the heck is this?
 }
 
 nonterm CvQualifierSeq {
@@ -939,9 +938,9 @@ nonterm ConstantInitializerOpt {
 nonterm MemberDeclarator {
   merge(l,r) [ return l; ]
 
-  -> Declarator PureSpecifierOpt;
-  -> Declarator ConstantInitializerOpt;
-  -> IdentifierOpt ":" ConstantExpression;
+  -> Declarator PureSpecifierOpt;           // for when declarator is a function type
+  -> Declarator ConstantInitializerOpt;     // for when it is any other type
+  -> IdentifierOpt ":" ConstantExpression;  // bitfield with optional name
 }
 
 nonterm PureSpecifier {
@@ -965,6 +964,7 @@ nonterm BaseSpecifierList {
 }
  
 // Q: is there a nonterminal called "virtual"?
+// A: no.  the standard uses the wrong font for "virtual" in the base-specifier rules
 nonterm VirtualOpt {
   -> empty;
   -> "virtual";
@@ -978,7 +978,7 @@ nonterm AccessSpecifierOpt {
 nonterm BaseSpecifier {
   -> ColonColonOpt NestedNameSpecifierOpt ClassName;
   -> "virtual" AccessSpecifierOpt ColonColonOpt NestedNameSpecifierOpt ClassName;
-  -> AccessSpecifierOpt VirtualOpt ColonColonOpt NestedNameSpecifierOpt ClassName;
+  -> AccessSpecifier VirtualOpt   ColonColonOpt NestedNameSpecifierOpt ClassName;
 }
 
 nonterm AccessSpecifier {
@@ -1016,6 +1016,7 @@ nonterm MemInitializerList {
   -> MemInitializer "," MemInitializerList;
 }                                          
 
+// Q: what is a mem-initializer?
 nonterm MemInitializer {
   -> MemInitializerId "(" ExpressionListOpt ")";
 }
@@ -1159,6 +1160,8 @@ nonterm HandlerSeqOpt {
   -> HandlerSeq;
 }
 
+// Q: why did they choose to use right recursion for this one?  all of
+// the other sequences use left recursion..
 nonterm HandlerSeq {
   -> Handler HandlerSeqOpt;
 }
