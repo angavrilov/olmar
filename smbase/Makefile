@@ -164,7 +164,7 @@ crc: crc.cpp
 	g++ -Wall -g -o crc -DTEST_CRC crc.cpp
 
 srcloc: srcloc.cc $(THISLIBRARY)
-	g++ -Wall -g -o srcloc -DTEST_SRCLOC srcloc.cc $(THISLIBRARY)
+	g++ -Wall -g $(ccflags) -o srcloc -DTEST_SRCLOC srcloc.cc $(THISLIBRARY)
 
 check: $(tests-files)
 	./nonport

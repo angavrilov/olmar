@@ -80,6 +80,11 @@ private:     // types
     // number of lines in the file
     int numLines;
 
+    // average number of chars per line; this is used for estimating
+    // whether the index should be consulted for some lookups (and
+    // it's stored instead of computed to save a division)
+    int avgCharsPerLine;
+
     // an array of line lengths; to handle lines longer than 255
     // chars, we use runs of '255' chars to (in unary) encode
     // multiples of 254 (one less than 255) chars, plus the final
@@ -96,17 +101,11 @@ private:     // types
     Marker marker;
     int markerCol;      // 1-based column; it's usually 1
 
-
-    #if 0  // not yet
-    // an index built on top of 'lineLengths' for faster random
-    // access; each element indexes approximately 1000 entries in the
-    // former array, thus the size of 'index' is approximately 1% of
-    // the size of 'lineLengths'
+    // an index built on top of 'lineLengths' for faster random access
     Marker *index;                   // (owner)
 
     // # of elements in 'index'
     int indexSize;
-    #endif // 0
 
   private:   // funcs
     File(File&);                     // disallowed
