@@ -1040,13 +1040,21 @@ void E_grouping::iprint(PrintEnv &env)
 
 // ----------------------- Initializer --------------------
 
+// prints designators in the new C99 style, not the obsolescent ":"
+// style
+static void print_DesignatorList(PrintEnv &env, FakeList<Designator> *dl) {
+  xassert(dl);
+  FAKELIST_FOREACH_NC(Designator, dl, d) d->print(env);
+  env << "=";
+}
+
 // this is under a declaration
 // int x = 3;
 //         ^ only
 void IN_expr::print(PrintEnv &env)
 {
   olayer ol("IN_expr");
-  if (designator) env << designator << ":";
+  if (designator_list) print_DesignatorList(env, designator_list);
   e->print(env);
 }
 
@@ -1055,12 +1063,12 @@ void IN_expr::print(PrintEnv &env)
 void IN_compound::print(PrintEnv &env)
 {
   olayer ol("IN_compound");
-  if (designator) env << designator << ":";
-  codeout co(env, "", "{", "}");
+  if (designator_list) print_DesignatorList(env, designator_list);
+  codeout co(env, "", "{\n", "\n}");
   bool first_time = true;
   FOREACH_ASTLIST_NC(Initializer, inits, iter) {
     if (first_time) first_time = false;
-    else env << ",";
+    else env << ",\n";
     iter.data()->print(env);
   }
 }
@@ -1068,10 +1076,26 @@ void IN_compound::print(PrintEnv &env)
 void IN_ctor::print(PrintEnv &env)
 {
   olayer ol("IN_ctor");
-  if (designator) env << designator << ":";
+  if (designator_list) print_DesignatorList(env, designator_list);
   printFakeExprList(args, env);
 }
 
+// -------------------- Designator ---------------
+
+void FieldDesignator::print(PrintEnv &env)
+{
+  olayer ol("FieldDesignator");
+  xassert(id);
+  env << "." << id;
+}
+
+void SubscriptDesignator::print(PrintEnv &env)
+{
+  olayer ol("SubscriptDesignator");
+  xassert(idx_expr);
+  codeout co(env, "", "[", "]");
+  idx_expr->print(env);
+}
 
 // InitLabel
 

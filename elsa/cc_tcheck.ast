@@ -416,6 +416,12 @@ class Initializer {
   pure_virtual void tcheck(Env &env);
 }
 
+class Designator {
+  -> SubscriptDesignator {
+    public int idx_computed; ctor idx_computed = INT_MIN; // size computed at compile time
+  }
+}
+
 
 class TemplateDeclaration {
   public void tcheck(Env &env);

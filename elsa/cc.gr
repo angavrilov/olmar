@@ -1345,11 +1345,34 @@ nonterm(Initializer*) SimpleInitializerClause {
 
 nonterm(Initializer*) InitializerClause {
   -> init:SimpleInitializerClause
-       { return init; }
+    { return init; }
+
   // Designated Initializers
+  // obsolescent form
   // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Designated-Inits.html#Designated%20Inits
-  -> desig:Identifier ":" init:SimpleInitializerClause
-       { init->designator = desig; return init; }
+  -> d:Identifier ":" init:SimpleInitializerClause
+    { init->designator_list = FakeList<Designator>::makeList(new FieldDesignator(d));
+      return init; }
+  // C99 official form; C99 standard p.125
+  -> dl:DesignatorList "=" init:SimpleInitializerClause
+    { init->designator_list = dl; return init; }
+}
+
+// C99 standard p.125
+nonterm(FakeList<Designator>*) DesignatorList {
+  -> d:Designator
+    { return FakeList<Designator>::makeList(d); }
+  -> d:Designator dl:DesignatorList
+    { d->setNext(dl->first());
+    return FakeList<Designator>::makeList(d); }
+}
+
+// C99 standard p.125
+nonterm(Designator*) Designator {
+  -> "." id:Identifier
+    { return new FieldDesignator(id); }
+  -> "[" idx_expr:ConstantExpressionOpt "]"
+    { return new SubscriptDesignator(idx_expr); }
 }
 
 nonterm(IN_compound*) CompoundInitializer {

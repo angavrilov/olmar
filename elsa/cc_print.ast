@@ -111,6 +111,9 @@ class Initializer {
   pure_virtual void print(PrintEnv &env);
 }
 
+class Designator {
+  pure_virtual void print(PrintEnv &env);
+}
 
 class TemplateDeclaration {
   public void print(PrintEnv &env);

@@ -4266,9 +4266,24 @@ SpecialExpr Expression::getSpecial() const
 // TODO: all the initializers need to be checked for compatibility
 // with the types they initialize
 
+static void check_designator_list(Env &env, FakeList<Designator> *dl)
+{
+  xassert(dl);
+  FAKELIST_FOREACH_NC(Designator, dl, d) {
+    if (SubscriptDesignator *sd = dynamic_cast<SubscriptDesignator*>(d)) {
+      sd->idx_expr->tcheck(sd->idx_expr, env);
+      if (!sd->idx_expr->constEval(env, sd->idx_computed)) {
+        env.error("compile-time computation of designator array index fails");
+      }
+    }
+    // nothing to do for FieldDesignator-s
+  }
+}
+
 void IN_expr::tcheck(Env &env)
 {
   e->tcheck(e, env);
+  if (designator_list) check_designator_list(env, designator_list);
 }
 
 
@@ -4277,12 +4292,14 @@ void IN_compound::tcheck(Env &env)
   FOREACH_ASTLIST_NC(Initializer, inits, iter) {
     iter.data()->tcheck(env);
   }
+  if (designator_list) check_designator_list(env, designator_list);
 }
 
 
 void IN_ctor::tcheck(Env &env)
 {
   args = tcheckFakeExprList(args, env);
+  if (designator_list) check_designator_list(env, designator_list);
 }
 
 

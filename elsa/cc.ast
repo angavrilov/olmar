@@ -27,6 +27,7 @@
 // included in generated header
 verbatim {
   #include "cc_flags.h"         // CVFlags, DeclFlags, etc. (r)
+  #include <limits.h>           // INT_MIN
 }
 
 // use a new astgen feature: make a visitor!
@@ -565,7 +566,7 @@ class ExpressionListOpt (
 
 // animals which appear after declarations to assign initial values
 class Initializer {
-  public StringRef designator;  ctor designator=NULL;
+  public FakeList<Designator> *designator_list;  ctor designator_list=NULL;
   public Initializer *next;  ctor next=NULL;       // FakeList link
 
   // simple initializer, like "int x = 3"
@@ -578,6 +579,33 @@ class Initializer {
 
   // constructor initializer, like "int x(3);"
   -> IN_ctor(FakeList<Expression> *args);
+}
+
+class Designator {
+  // FakeList link; use setNext
+  public Designator *next;  ctor next=NULL;
+  public void setNext(Designator *newNext);
+
+  // dsw: I seem to need all of this ambiguity stuff in order to use
+  // genericSetNext
+
+  // ambiguity representation
+  public Designator *ambiguity; ctor ambiguity=NULL;
+  public void addAmbiguity(Designator *alternative);
+  custom traverse { if (ambiguity) ambiguity->traverse(vis); }
+
+  // print ambiguities
+  public void printAmbiguities(ostream &os, int indent) const;
+  custom preemptDebugPrint {
+    if (ambiguity) {
+      printAmbiguities(os, indent);
+      return;     // skip the normal, unambiguous-node print code
+    }
+  }
+
+  -> FieldDesignator(StringRef id);
+  -> SubscriptDesignator(Expression /*nullable*/ idx_expr // taken from D_array
+                         );
 }
 
 // gnu extension to attach particular elements of an initializer list
