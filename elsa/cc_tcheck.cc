@@ -3641,7 +3641,7 @@ static Type *makePTMType(Env &env, Expression *expr)
     return env.error(var0->loc, "attempted to make a pointer to member to a reference");
   }
 
-  CompoundType *inClass0 = dynamic_cast<CompoundType*>(var0->scope);
+  CompoundType *inClass0 = var0->scope->curCompound;
   xassert(inClass0);
 
   if (expr->type->asRval()->isFunctionType()) {
@@ -3655,65 +3655,42 @@ Type *E_addrOf::itcheck(Env &env)
   expr->tcheck(expr, env);
   if (expr->type->isError()) return expr->type;
 
-  // dsw: I think you can only make a pointer to member by taking the
-  // address of 0 or more E_grouping-s wrapped around an E_variable.
-  bool making_ptr_to_member = false;
-  if (E_variable *e_var0 = expr->belowE_grouping()->ifE_variable()) {
+  // NOTE: do *not* unwrap any layers of parens:
+  //  Spec 5.3.1 para 3: [Note: that is, the expression
+  //  &(qualified-id), where the qualified-id is enclosed in
+  //  parentheses, does not form an expression of type "pointer to
+  //  member."
+  if (E_variable *e_var0 = expr->ifE_variable()) {
     xassert(e_var0->var);
     if (e_var0->var->hasFlag(DF_MEMBER) &&
         (!e_var0->var->hasFlag(DF_STATIC)) &&
-        // dsw: This is a must.  Consider the following situation:
-//          struct A {
-//            int x;
-//            void f() {
-//              // How do you know you aren't making a pointer to member
-//              // here?  Only because the name isn't fully qualified.
-//              int *y = &x;
-//            }
-//          };
         // Spec 5.3.1 para 3: Nor is &unqualified-id a pointer to
         // member, even within the scope of the unqualified-id's
         // class.
+        // dsw: Consider the following situation: How do you know you
+        // &x isn't making a pointer to member?  Only because the name
+        // isn't fully qualified.
+//          struct A {
+//            int x;
+//            void f() {int *y = &x;}
+//          };
         e_var0->name->hasQualifiers() ) {
-//        cout << "type belowE_grouping: " << typeid(*(e_var0)).name() << endl;
-      making_ptr_to_member = true;
-      if (!expr->/*belowE_grouping()->*/isE_variable()) {
-        // that is, 1) we do want to make a pointer to member, but 2)
-        // there is at least one layer of parens around the argument
-        // of the "&".  This is an error, or perhaps just a normal
-        // pointer.  I'll call it an error.
-
-        //  Spec 5.3.1 para 3: [Note: that is, the expression
-        //  &(qualified-id), where the qualified-id is enclosed in
-        //  parentheses, does not form an expression of type "pointer
-        //  to member."
-        return env.error
-          (e_var0->var->loc,
-           "attempted to make a pointer to member to a qualified-id that is in parentheses."
-           "  You must remove the parentheses.");
-      }
-
-      // Continuing, the same paragraph points out that we are correct
-      // in creating a pointer to member only when the address-of
-      // operator ("&") is explicit:
-
-      //  Spec 5.3.1 para 3: Neither does qualified-id, because there
-      //  is no implicit conversion from a qualified-id for a
-      //  nonstatic member function the the type"pointer to member
-      //  function" as there is form an lvalue of a function type to
-      //  the type "pointer to function" (4.3).
+      return makePTMType(env, expr);
     }
   }
+  // Continuing, the same paragraph points out that we are correct in
+  // creating a pointer to member only when the address-of operator
+  // ("&") is explicit:
+  // Spec 5.3.1 para 3: Neither does qualified-id, because there is no
+  // implicit conversion from a qualified-id for a nonstatic member
+  // function the the type"pointer to member function" as there is
+  // form an lvalue of a function type to the type "pointer to
+  // function" (4.3).
 
-  // ok to take addr of function; special-case it so as
-  // not to weaken what 'isLval' means
+  // ok to take addr of function; special-case it so as not to weaken
+  // what 'isLval' means
   if (expr->type->isFunctionType()) {
-    if (making_ptr_to_member) {
-      xassert(expr->type->asFunctionType()->isMember());
-      return makePTMType(env, expr);
-    } else {
-      return env.makePtrType(SL_UNKNOWN, expr->type);
-    }
+    return env.makePtrType(SL_UNKNOWN, expr->type);
   }
 
   if (!expr->type->isLval()) {
@@ -3721,14 +3698,10 @@ Type *E_addrOf::itcheck(Env &env)
       << "cannot take address of non-lvalue `" 
       << expr->type->toString() << "'");
   }
-  if (making_ptr_to_member) {
-    return makePTMType(env, expr);
-  } else {
-    PointerType *pt = expr->type->asPointerType();
-    xassert(pt->op == PO_REFERENCE); // that's what isLval checks
-    // change the "&" into a "*"
-    return env.makePtrType(SL_UNKNOWN, pt->atType);
-  }
+  PointerType *pt = expr->type->asPointerType();
+  xassert(pt->op == PO_REFERENCE); // that's what isLval checks
+  // change the "&" into a "*"
+  return env.makePtrType(SL_UNKNOWN, pt->atType);
 }
 
 
