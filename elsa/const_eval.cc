@@ -3,10 +3,12 @@
 
 #include "const_eval.h"     // this module
 #include "cc_ast.h"         // C++ AST
+#include "cc_env.h"         // Env
 
 
-ConstEval::ConstEval()
-  : msg(),
+ConstEval::ConstEval(Env &e)
+  : ccenv(e),
+    msg(),
     dependent(false)
 {}
 
@@ -80,6 +82,12 @@ bool Expression::iconstEval(ConstEval &env, int &result) const
       }
 
       if (v->var->isTemplateParam()) {
+        return env.setDependent(result);
+      }
+      
+      if (v->var == env.ccenv.dependentVar) {
+        // value-dependent expression (Q: is it always guaranteed to
+        // be exactly 'dependentVar'?)
         return env.setDependent(result);
       }
 

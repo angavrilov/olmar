@@ -3688,7 +3688,7 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
     if (size) {
       // try to evaluate the size to a constant
       int sz;
-      ConstEval cenv;
+      ConstEval cenv(env);
       if (!size->constEval(cenv, sz)) {
         // size didn't evaluate to a constant
         sz = ArrayType::NO_SIZE;
@@ -7725,7 +7725,7 @@ bool Expression::constEval(Env &env, int &result, bool &dependent) const
 {
   dependent = false;
 
-  ConstEval cenv;
+  ConstEval cenv(env);
   if (constEval(cenv, result)) {
     dependent = cenv.dependent;
     return true;

@@ -2860,7 +2860,7 @@ STemplateArgument *Env::makeDefaultTemplateArgument
 }
 
 
-// 2005-03-05: 'recursionCount' should be removed, or at least renamed
+// TODO: 'recursionCount' should be removed, or at least renamed
 void Env::setSTemplArgFromExpr
   (STemplateArgument &sarg, Expression *expr, int recursionCount)
 {
@@ -2870,7 +2870,7 @@ void Env::setSTemplArgFromExpr
       expr->type->isBool() ||
       expr->type->isEnumType()) {
     int i;
-    ConstEval cenv;
+    ConstEval cenv(env);
     if (expr->constEval(cenv, i)) {
       if (cenv.dependent) {
         sarg.setDepExpr(expr);

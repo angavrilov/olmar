@@ -670,7 +670,7 @@ testparse t0424.cc
 testparse t0425.cc
 testparse t0426.cc
 testparse t0427.cc
-testparse t0428.cc
+testparse_strict t0428.cc
 testparse t0429.cc
 testparse t0430.cc
 testparse t0431.cc

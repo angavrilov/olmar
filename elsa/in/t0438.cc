@@ -2,10 +2,10 @@
 // DQT type specifier resolution
 
 // dimensions to test:
-//   - various levels of qualification
+//   * various levels of qualification
 //   - stopping at another DQT vs. full resolution
 //   - partial specs vs primaries vs complete specs
-//   - nested templates
+//   * nested templates
 //   - type parameters vs. non-type parameters
 //   - variations like arguments in the wrong order, wrong #, etc.
 //   - default args? (no, subsequent tests...)
