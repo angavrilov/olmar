@@ -81,11 +81,14 @@ void doit(int argc, char **argv)
 
 
   // ---------------- typecheck -----------------
+  Variable *mem;
   {
     traceProgress() << "type checking...\n";
     Env env(strTable);
     unit->tcheck(env);
     traceProgress(2) << "done type checking\n";
+
+    mem = env.getVariable(strTable.add("mem"));
 
     // print abstract syntax tree annotated with types
     if (tracingSys("printTypedAST")) {
@@ -106,7 +109,7 @@ void doit(int argc, char **argv)
   // --------------- abstract interp ------------
   {
     traceProgress() << "verification condition generation...\n";
-    AEnv env(strTable);
+    AEnv env(strTable, mem);
 
     unit->vcgen(env);
 

@@ -13,6 +13,7 @@
 #include "objstack.h"     // ObjStack
 #include "sobjstack.h"    // SObjStack
 #include "c.ast.gen.h"    // C ast components
+#include "variable.h"     // Variable
 
 class StringTable;        // strtable.h
 
@@ -25,17 +26,20 @@ public:
 };
 
 
+#if 0
 // mapping from name to type, for purpose of storage instantiation
 class Variable {
 public:     // data
-  StringRef name;            // declared name
   DeclFlags declFlags;       // inline, etc.
-  Type const *type;          // type of this variable
-  Declarator *declarator;    // (serf) AST declarator node that introduced this name
+  Declarator *declarator;    // (serf, non-null) AST declarator node that introduced this name
 
 public:     // funcs
-  Variable(StringRef n, DeclFlags d, Type const *t);
+  Variable(DeclFlags d, Declarator *decl);
   ~Variable();
+
+  // pull name or type out of the declarator
+  StringRef getType() const { return declarator->name; }
+  Type const *getType() const { return declarator->type; }
 
   // some ad-hoc thing
   string toString() const;
@@ -47,6 +51,7 @@ public:     // funcs
   //bool isInitialized() const { return declFlags & DF_INITIALIZED; }
   //void sayItsInitialized() { declFlags = (DeclFlags)(declFlags | DF_INITIALIZED); }
 };
+#endif // 0
 
 
 // elements of the environment necessary for constructing the CFG
@@ -107,7 +112,7 @@ public:     // funcs
 class ScopedEnv {
 public:
   // variables: map name -> Type
-  StringObjDict<Variable> variables;
+  StringSObjDict<Variable> variables;
 
 public:
   ScopedEnv();
@@ -142,8 +147,8 @@ private:    // data
   // stack of compounds being constructed
   SObjList<CompoundType> compoundStack;
 
-  // current function's return type
-  Type const *currentRetType;
+  // current function
+  TF_func *currentFunction;
 
   // stack of source locations considered 'current'
   SObjStack<SourceLocation /*const*/> locationStack;
@@ -170,10 +175,15 @@ public:     // funcs
   void enterScope();
   void leaveScope();
 
+  // misc
+  StringRef str(char const *s) const { return strTable.add(s); }
+  
   // ------------- variables -------------
   // add a new variable to the innermost scope; it is an error
-  // if a variable by this name already exists
-  Variable *addVariable(StringRef name, DeclFlags flags, Type const *type);
+  // if a variable by this name already exists; 'decl' actually
+  // has the name too, but I leave the 'name' parameter since
+  // conceptually we're binding the name
+  void addVariable(StringRef name, Variable *decl);
 
   // return the associated Variable structure for a variable;
   // return NULL if no such variable; if 'innerOnly' is set, we
@@ -182,8 +192,8 @@ public:     // funcs
 
   // ----------- typedefs -------------
   // add a new typedef; error to collide
-  void addTypedef(StringRef name, Type const *type);
-  
+  void addTypedef(StringRef name, Variable *decl);
+
   // return named type or NULL if no mapping
   Type const *getTypedef(StringRef name);
 
@@ -192,7 +202,7 @@ public:     // funcs
   CompoundType *addCompound(StringRef name, CompoundType::Keyword keyword);
 
   // add a new field to an existing compound; error to collide
-  void addCompoundField(CompoundType *ct, StringRef name, Type const *type);
+  void addCompoundField(CompoundType *ct, Variable *decl);
 
   // lookup, and return NULL if doesn't exist
   CompoundType *getCompound(StringRef name);
@@ -213,7 +223,8 @@ public:     // funcs
 
   // ------------------ enumerators -------------------
   // add an enum value
-  EnumType::Value *addEnumerator(StringRef name, EnumType *et, int value);
+  EnumType::Value *addEnumerator(StringRef name, EnumType *et, 
+                                 int value, Variable *decl);
 
   // lookup; return NULL if no such variable
   EnumType::Value *getEnumerator(StringRef name);
@@ -242,8 +253,9 @@ public:     // funcs
   void pushStruct(CompoundType *ct)     { compoundStack.prepend(ct); }
   void popStruct()                      { compoundStack.removeAt(0); }
 
-  void setCurrentRetType(Type const *t) { currentRetType = t; }
-  Type const *getCurrentRetType()       { return currentRetType; }
+  void setCurrentFunction(TF_func *f)   { currentFunction = f; }
+  TF_func *getCurrentFunction()         { return currentFunction; }
+  Type const *getCurrentRetType();
 
   bool isGlobalEnv() const              { return scopes.count() <= 1; }
 

@@ -116,6 +116,7 @@ SimpleType const SimpleType::fixed[NUM_SIMPLE_TYPES] = {
   SimpleType(ST_LONG_DOUBLE),
   SimpleType(ST_VOID),
   SimpleType(ST_ELLIPSIS),
+  SimpleType(ST_ERROR),
 };
 
 string SimpleType::toCString() const
@@ -423,11 +424,12 @@ CompoundType::Field const *CompoundType::getNamedField(StringRef name) const
 }
 
 
-CompoundType::Field *CompoundType::addField(StringRef name, Type const *type)
+CompoundType::Field *CompoundType::
+  addField(StringRef name, Type const *type, Variable *decl)
 {
   xassert(!fieldIndex.isMapped(name));
-  
-  Field *f = new Field(name, type);
+
+  Field *f = new Field(name, type, decl);
   fields.append(f);
   fieldIndex.add(name, f);
 
@@ -474,11 +476,11 @@ int EnumType::reprSize() const
 }
 
 
-EnumType::Value *EnumType::addValue(StringRef name, int value)
+EnumType::Value *EnumType::addValue(StringRef name, int value, Variable *decl)
 {
   xassert(!valueIndex.isMapped(name));
-  
-  Value *v = new Value(name, this, value);
+
+  Value *v = new Value(name, this, value, decl);
   values.append(v);
   valueIndex.add(name, v);
   
@@ -499,8 +501,8 @@ EnumType::Value const *EnumType::getValue(StringRef name) const
 
 
 // ---------------- EnumType::Value --------------
-EnumType::Value::Value(StringRef n, EnumType const *t, int v)
-  : name(n), type(t), value(v)
+EnumType::Value::Value(StringRef n, EnumType const *t, int v, Variable *d)
+  : name(n), type(t), value(v), decl(d)
 {}
 
 EnumType::Value::~Value()
@@ -643,6 +645,7 @@ CVAtomicType const CVAtomicType::fixed[NUM_SIMPLE_TYPES] = {
   CVAtomicType(&SimpleType::fixed[ST_LONG_DOUBLE],        CV_NONE),
   CVAtomicType(&SimpleType::fixed[ST_VOID],               CV_NONE),
   CVAtomicType(&SimpleType::fixed[ST_ELLIPSIS],           CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_ERROR],              CV_NONE),
 };
 
 
@@ -765,7 +768,8 @@ FunctionType::FunctionType(Type const *r/*, CVFlags c*/)
     params(),
     acceptsVarargs(false),
     precondition(NULL),
-    postcondition(NULL)
+    postcondition(NULL),
+    result(NULL)
 {}
 
 

@@ -39,12 +39,15 @@ void TF_decl::vcgen(AEnv &env) const
 void TF_func::vcgen(AEnv &env) const
 {
   FunctionType const &ft = *(ftype());
-              
+
   {
     char const *paths = (numPaths==1? " path" : " paths");
     traceProgress() << "analyzing " << name()
                     << " (" << numPaths << paths << ") ...\n";
   }
+
+  // synthesized logic variable for return value
+  env.result = nameParams->decl->asD_func()->result;
 
   // for now, only run paths from the function start
   for (int path=0; path < body->numPaths; path++) {
@@ -54,18 +57,19 @@ void TF_func::vcgen(AEnv &env) const
     env.clear();
 
     // add the function parameters to the environment
-    FOREACH_OBJLIST(FunctionType::Param, ft.params, iter) {
-      FunctionType::Param const *p = iter.data();
+    SFOREACH_OBJLIST(Variable, params, iter) {
+      Variable const *v = iter.data();
 
-      if (p->name) {
+      if (v->name) {
         // the function parameter's initial value is represented
         // by a logic variable of the same name
-        env.set(p->name, new AVvar(p->name,
-          stringc << "initial value of parameter " << p->name));
+        env.set(v, new AVvar(v->name,
+          stringc << "initial value of parameter " << v->name));
       }
     }
 
     // let pre_mem be the name of memory now
+    // update: the user can bind this herself
     //env.set(env.str("pre_mem"), env.getMem());
 
     // add the precondition as an assumption
@@ -81,9 +85,9 @@ void TF_func::vcgen(AEnv &env) const
     }
 
     // add 'result' to the environment so we can record what value
-    // is actually returned
+    // is actually returned; initially it has no defined value
     if (!ft.retType->isVoid()) {
-      env.set(env.str("result"), env.freshVariable("ret", "return value"));
+      env.set(env.result, env.freshVariable("ret", "UNDEFINED return value"));
     }
 
     // now interpret the function body
@@ -103,6 +107,8 @@ void TF_func::vcgen(AEnv &env) const
       env.prove(ft.postcondition->expr->vcgen(env,0), "postcondition");
     }
   }
+
+  env.result = NULL;
 }
 
 
@@ -113,7 +119,7 @@ void Declaration::vcgen(AEnv &env) const
 {
   FOREACH_ASTLIST(Declarator, decllist, iter) {
     Declarator const *d = iter.data();
-    d->vcgen(env, d->init->vcgen(env, d->type, 0));
+    d->vcgen(env, d->init->vcgen(env, d->var->type, 0));
   }
 }
 
@@ -158,15 +164,18 @@ void Declarator::vcgen(AEnv &env, AbsValue *value) const
     }
   }
   #endif // 0
-
+                             
+  // convenience
+  StringRef name = var->name;
+  Type const *type = var->type;
 
   if (name) {
     xassert(value != NULL);
 
-    if (addrTaken || type->isArrayType()) {
+    if (var->hasAddrTaken() || type->isArrayType()) {
       // model this variable as a location in memory; make up a name
       // for its address
-      AbsValue *addr = env.addMemVar(name);
+      AbsValue *addr = env.addMemVar(var);
 
       if (!type->isArrayType()) {
         // state that, right now, that memory location contains 'value'
@@ -195,7 +204,7 @@ void Declarator::vcgen(AEnv &env, AbsValue *value) const
 
     else {
       // model the variable as a simple, named, unaliasable variable
-      env.set(name, value);
+      env.set(var, value);
     }
   }
 }
@@ -401,7 +410,7 @@ void S_return::vcgen(STMT_VCGEN_PARAMS) const
   xassert(next == NULL);
   if (expr) {
     // model as an assignment to 'result'
-    env.set(env.str("result"), expr->vcgen(env, path));
+    env.set(env.result, expr->vcgen(env, path));
   }
   else {
     xassert(path == 0);
@@ -424,15 +433,15 @@ void S_decl::vcgen(STMT_VCGEN_PARAMS) const
 
       // evaluate 'init' to an abstract value; the initializer
       // will need to know which type it's constructing
-      initVal = d->init->vcgen(env, d->type, path % subexpPaths);
+      initVal = d->init->vcgen(env, d->var->type, path % subexpPaths);
 
       path = path / subexpPaths;
     }
     else {
       // make up a new name for the uninitialized value
       // (if it's global we get to assume it's 0... not implemented..)
-      initVal = new AVvar(d->name, stringc << "UNINITialized value of var "
-                                           << d->name);
+      initVal = new AVvar(d->var->name, stringc << "UNINITialized value of var "
+                                                << d->var->name);
     }
 
     // add a binding for the variable
@@ -521,19 +530,19 @@ AbsValue *E_variable::vcgen(AEnv &env, int path) const
 {
   xassert(path==0);
 
-  if (!env.isMemVar(name)) {
+  if (!env.isMemVar(var)) {
     // ordinary variable: look up the current abstract value for this
     // variable, and simply return that
-    return env.get(name);
+    return env.get(var);
   }
   else if (type->isArrayType()) {
     // is name of an array, in which case we return the name given
     // to the array's location (it's like an immutable pointer)
-    return env.avPointer(env.getMemVarAddr(name), new AVint(0));
+    return env.avPointer(env.getMemVarAddr(var), new AVint(0));
   }
   else {
     // memory variable: return an expression which will read it out of memory
-    return env.avSelect(env.getMem(), env.getMemVarAddr(name), new AVint(0));
+    return env.avSelect(env.getMem(), env.getMemVarAddr(var), new AVint(0));
   }
 }
 
@@ -578,18 +587,15 @@ AbsValue *E_funCall::vcgen(AEnv &env, int path) const
   // postcondition, 'result); eventually it should also contain
   // globals, but right now I don't have globals in the abstract
   // environment..
-  AEnv newEnv(env.stringTable);
+  AEnv newEnv(env.stringTable, env.mem);
   newEnv.inPredicate = true;       // will only be used to eval pre/post
 
   // bind the parameters in the new environment
   SObjListMutator<AbsValue> argExpIter(argExps);
   FOREACH_OBJLIST(FunctionType::Param, ft.params, paramIter) {
-    // bind the names to the expressions that are passed; only
-    // bind if the expression is not NULL
-    if (argExpIter.data()) {
-      newEnv.set(paramIter.data()->name,
-                 argExpIter.data());
-    }
+    // bind the names to the expressions that are passed
+    newEnv.set(paramIter.data()->decl,
+               argExpIter.data());
 
     // I claim that putting the arg exp into the new environment
     // counts as "using" it, so discarding it is not necessary
@@ -626,14 +632,14 @@ AbsValue *E_funCall::vcgen(AEnv &env, int path) const
 
   // ----------------- assume postcondition ---------------
   // make a new variable to stand for the value returned
-  AbsValue *result = NULL;
+  AbsValue *resultVal = NULL;
   if (!ft.retType->isVoid()) {
-    result = env.freshVariable("result", 
-               stringc << "function call result: " << toString());
+    resultVal = env.freshVariable("result",
+                  stringc << "function call result: " << toString());
 
     // add this to the mini environment so if the programmer talks
     // about the result, it will state something about the result variable
-    newEnv.set(env.stringTable.add("result"), result);
+    newEnv.set(ft.result, resultVal);
   }
 
   // make up new variable to represent final contents of memory
@@ -654,7 +660,7 @@ AbsValue *E_funCall::vcgen(AEnv &env, int path) const
   }
 
   // result of calling this function is the result variable
-  return result;
+  return resultVal;
 }
 
 
@@ -725,8 +731,8 @@ AbsValue *E_addrOf::vcgen(AEnv &env, int path) const
   xassert(path==0);
 
   if (expr->isE_variable()) {
-    return env.avPointer(env.getMemVarAddr(expr->asE_variable()->name), // obj
-                         new AVint(0));                                 // offset
+    return env.avPointer(env.getMemVarAddr(expr->asE_variable()->var), // obj
+                         new AVint(0));                                // offset
   }
   else {
     cout << "TODO: unhandled addrof: " << toString() << endl;
@@ -823,10 +829,10 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
 
   if (target->isE_variable()) {
     xassert(path==0);
-    StringRef name = target->asE_variable()->name;
+    Variable const *var = target->asE_variable()->var;
 
     // properly handles memvars vs regular vars
-    env.updateVar(name, v);
+    env.updateVar(var, v);
   }
   else if (target->isE_deref()) {
     // get an abstract value for the address being modified
@@ -870,16 +876,16 @@ AbsValue *E_arithAssign::vcgen(AEnv &env, int path) const
   // again, only support variables
   if (target->isE_variable()) {
     xassert(path==0);
-    StringRef name = target->asE_variable()->name;
+    Variable *var = target->asE_variable()->var;
 
     // extract old value
-    AbsValue *old = env.get(name);
+    AbsValue *old = env.get(var);
 
     // combine it
     v = env.grab(new AVbinary(old, op, v));
 
     // replace in environment
-    env.set(name, v);
+    env.set(var, v);
 
     return env.dup(v);
   }

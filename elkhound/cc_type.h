@@ -7,7 +7,6 @@
 
 #include "str.h"          // string
 #include "objlist.h"      // ObjList
-//#include "mlvalue.h"      // MLValue
 #include "cc_flags.h"     // CVFlags, DeclFlags, SimpleTypeId
 #include "strtable.h"     // StringRef
 #include "strsobjdict.h"  // StrSObjDict
@@ -17,7 +16,9 @@
 // these opaquely; it is important to prevent the type language from
 // depending on the AST language
 class FA_precondition;    // c.ast
-class FA_postcondition;
+class FA_postcondition;   // c.ast
+
+class Variable;           // variable.h
 
 // fwd in this file
 class SimpleType;
@@ -29,31 +30,20 @@ class FunctionType;
 class ArrayType;
 class Type;
 
-//MLValue mlStorage(DeclFlags df);
-
 // static data consistency checker
 void cc_type_checker();
 
 // --------------------- atomic types --------------------------
-// ids for atomic types
-//typedef int AtomicTypeId;
-//enum { NULL_ATOMICTYPEID = -1 };
-
-
 // interface to types that are atomic in the sense that no
 // modifiers can be stripped away; see types.txt
 class AtomicType {
 public:     // types
   enum Tag { T_SIMPLE, T_COMPOUND, T_ENUM, NUM_TAGS };
 
-public:     // data
-  // id unique across all atomic types
-  //AtomicTypeId id;
-
 public:     // funcs
   AtomicType();
   virtual ~AtomicType();
-                    
+
   // stand-in if I'm not really using ids..
   int getId() const { return (int)this; }
 
@@ -81,11 +71,6 @@ public:     // funcs
   // print in Cil with C notation in comments
   string toString(int depth=1) const;
 
-  // return ML data structure; depth is the desired depth for chasing
-  // named references (1 is a good choice, usually); cv is flags
-  // applied from context, to be represented in the returned type
-  //virtual MLValue toMLValue(int depth, CVFlags cv) const = 0;
-
   // name of this type for references in Cil output
   virtual string uniqueName() const = 0;
 
@@ -108,13 +93,9 @@ public:     // data
 public:     // funcs
   SimpleType(SimpleTypeId t) : type(t) {}
 
-  // also a default ctor because I make these in an array
-  //SimpleType() : type(NUM_SIMPLE_TYPES /*invalid*/) {}
-
   virtual Tag getTag() const { return T_SIMPLE; }
   virtual string toCString() const;
   virtual string toCilString(int depth) const;
-  //virtual MLValue toMLValue(int depth, CVFlags cv) const;
   virtual string uniqueName() const;
   virtual int reprSize() const;
 };
@@ -131,13 +112,6 @@ public:
 
   // globally unique name derived from 'name' and 'id'
   virtual string uniqueName() const;
-
-  // the basic implementation
-  //virtual MLValue toMLValue(int depth, CVFlags cv) const;
-
-  // the hook for the derived type to provide the complete info,
-  // for use in a typedef
-  //virtual MLValue toMLContentsValue(int depth, CVFlags cv) const = 0;
 };
 
 
@@ -159,10 +133,17 @@ public:      // types
   class Field {
   public:
     StringRef name;
-    Type const *type;
+    Type const *type;         
+    
+    // I include a pointer to the introduction; since I want
+    // to keep the type language independent of the AST language, I
+    // will continue to store redundant info, regarding 'decl' as
+    // something which might go away at some point
+    Variable *decl;                  // (nullable serf)
 
   public:
-    Field(StringRef n, Type const *t) : name(n), type(t) {}
+    Field(StringRef n, Type const *t, Variable *d)
+      : name(n), type(t), decl(d) {}
   };
 
 private:     // data
@@ -178,9 +159,6 @@ public:      // funcs
   CompoundType(Keyword keyword, StringRef name);
   ~CompoundType();
 
-  // make it complete
-  //void makeComplete(Env *parentEnv, TypeEnv *te, VariableEnv *ve);
-
   bool isComplete() const { return !forward; }
 
   static char const *keywordName(Keyword k);
@@ -188,22 +166,17 @@ public:      // funcs
   virtual Tag getTag() const { return T_COMPOUND; }
   virtual string toCString() const;
   virtual string toCilString(int depth) const;
-  //virtual MLValue toMLContentsValue(int depth, CVFlags cv) const;
   virtual int reprSize() const;
 
   string toStringWithFields() const;
   string keywordAndName() const { return toCString(); }
 
-  // the environment should only be directly accessed during
-  // typeChecking, to avoid spreading dependency on this
-  // implementation detail
-  //Env *getEnv() const { return env; }
-
   int numFields() const;
   Field const *getNthField(int index) const;
   Field const *getNamedField(StringRef name) const;
-  
-  Field *addField(StringRef name, Type const *type);
+
+  Field *addField(StringRef name, Type const *type, 
+                  /*nullable*/ Variable *d);
 };
 
 
@@ -217,8 +190,11 @@ public:     // types
     EnumType const *type;     // enum in which it was declared
     int value;                // value it's assigned to
 
+    // similar to fields, I keep a record of where this came from
+    Variable *decl;           // (nullable serf)
+
   public:
-    Value(StringRef n, EnumType const *t, int v);
+    Value(StringRef n, EnumType const *t, int v, Variable *d);
     ~Value();
   };
 
@@ -234,28 +210,18 @@ public:     // funcs
   virtual Tag getTag() const { return T_ENUM; }
   virtual string toCString() const;
   virtual string toCilString(int depth) const;
-  //virtual MLValue toMLContentsValue(int depth, CVFlags cv) const;
   virtual int reprSize() const;
-  
-  Value *addValue(StringRef name, int value);
+
+  Value *addValue(StringRef name, int value, /*nullable*/ Variable *d);
   Value const *getValue(StringRef name) const;
 };
 
 
 // ------------------- constructed types -------------------------
-// ids for types
-//typedef int TypeId;
-//enum { NULL_TYPEID = -1 };
-
 // generic constructed type
 class Type {
 public:     // types
   enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY };
-
-public:     // data
-  // this id doesn't mean all that much; in particular, there is
-  // *no* guarantee that equal types have the same id
-  //TypeId id;
 
 private:    // funcs
   string idComment() const;
@@ -295,7 +261,6 @@ public:     // funcs
   // same alternate syntaxes as AtomicType
   virtual string toCilString(int depth=1) const = 0;
   string toString(int depth=1) const;
-  //virtual MLValue toMLValue(int depth=1) const = 0;
 
   // size of representation
   virtual int reprSize() const = 0;
@@ -318,7 +283,7 @@ class CVAtomicType : public Type {
 public:     // data
   AtomicType const *atomic;    // (serf) underlying type
   CVFlags cv;                  // const/volatile
-                    
+
   // global read-only array of non-const, non-volatile built-ins
   static CVAtomicType const fixed[NUM_SIMPLE_TYPES];
 
@@ -331,15 +296,11 @@ public:     // funcs
   CVAtomicType(CVAtomicType const &obj)
     : DMEMB(atomic), DMEMB(cv) {}
 
-  // just so I can make one static array of built-ins w/o const/volatile
-  //CVAtomicType() : atomic(NULL), cv(CV_NONE) {}
-
   bool innerEquals(CVAtomicType const *obj) const;
 
   virtual Tag getTag() const { return T_ATOMIC; }
   virtual string leftString() const;
   virtual string toCilString(int depth) const;
-  //virtual MLValue toMLValue(int depth=1) const;
   virtual int reprSize() const;
 };
 
@@ -368,7 +329,6 @@ public:
   virtual string leftString() const;
   virtual string rightString() const;
   virtual string toCilString(int depth) const;
-  //virtual MLValue toMLValue(int depth=1) const;
   virtual int reprSize() const;
 };
 
@@ -382,9 +342,13 @@ public:     // types
     StringRef name;              // can be NULL to mean unnamed
     Type const *type;            // (serf) type of the parameter
 
+    // I can't interpret the precondition or postcondition
+    // unless I know the Variable that gave rise to each parameter
+    Variable *decl;              // (serf)
+
   public:
-    Param(StringRef n, Type const *t)
-      : name(n), type(t) {}
+    Param(StringRef n, Type const *t, Variable *d)
+      : name(n), type(t), decl(d) {}
     ~Param();
 
     string toString() const;
@@ -395,10 +359,11 @@ public:     // data
   //CVFlags cv;                  // const/volatile for class member fns
   ObjList<Param> params;       // list of function parameters
   bool acceptsVarargs;         // true if add'l args are allowed
-  
+
   // thmprv extensions
   FA_precondition *precondition;     // (serf) precondition predicate
   FA_postcondition *postcondition;   // (serf) postcondition predicate
+  Variable *result;                  // required to interpret postcondition
 
 public:     // funcs
   FunctionType(Type const *retType/*, CVFlags cv*/);
@@ -413,7 +378,6 @@ public:     // funcs
   virtual string leftString() const;
   virtual string rightString() const;
   virtual string toCilString(int depth) const;
-  //virtual MLValue toMLValue(int depth=1) const;
   virtual int reprSize() const;
 };
 
@@ -437,7 +401,6 @@ public:
   virtual string leftString() const;
   virtual string rightString() const;
   virtual string toCilString(int depth) const;
-  //virtual MLValue toMLValue(int depth=1) const;
   virtual int reprSize() const;
 };
 

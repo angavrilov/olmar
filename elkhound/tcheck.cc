@@ -56,14 +56,25 @@ void TF_func::itcheck(Env &env)
   Type const *f = nameParams->tcheck(env, r, dflags);
   xassert(f->isFunctionType());
 
-  // write down the expected return type
-  env.setCurrentRetType(r);
+  // we're the current function
+  env.setCurrentFunction(this);
 
   // put parameters into the environment
   env.enterScope();
-  FOREACH_OBJLIST(FunctionType::Param, ftype()->params, iter) {
-    FunctionType::Param const *p = iter.data();
-    env.addVariable(p->name, DF_NONE, p->type);
+  {
+    // dig inside the 'nameParams' to find the parameters
+    // (the downcast will succeed because isFunctionType succeeded, above)
+    D_func *fdecl = nameParams->decl->asD_func();
+
+    FOREACH_ASTLIST(ASTTypeId, fdecl->params, iter) {
+      Variable *var = iter.data()->decl->var;
+      if (var->name) {
+        env.addVariable(var->name, var);
+      }
+      
+      params.prepend(var);
+    }
+    params.reverse();
   }
 
   // (TODO) verify the pre/post don't have side effects, and
@@ -86,11 +97,17 @@ void TF_func::itcheck(Env &env)
     // and the postcondition
     FA_postcondition *post = ftype()->postcondition;
     if (post) {
+      env.enterScope();
+
+      // example of egcs' failure to disambiguate C++ ctor/prototype:
+      //Variable result(SourceLocation(), env.strTable.add("result"),
+      //                r, DF_LOGIC);
+
       // the postcondition has 'result' available, as the type
       // of the return value
-      env.enterScope();
+      Variable *result = nameParams->decl->asD_func()->result;
       if (! ftype()->retType->isVoid()) {
-        env.addVariable(env.strTable.add("result"), DF_NONE, r);
+        env.addVariable(result->name, result);
       }
 
       checkBoolean(env, post->expr->tcheck(env), post->expr);
@@ -98,27 +115,57 @@ void TF_func::itcheck(Env &env)
       env.leaveScope();
     }
   }
-  
+
   // may as well check that things are as I expect *before* I muck with them
   env.verifyFunctionEnd();
 
   // check the body in the new environment
   body->tcheck(env);
 
+  // when the environment adds locals, it prepends
+  locals.reverse();
+
   // clean up
   env.resolveGotos();
   env.resolveNexts(NULL /*target*/, false /*isContinue*/);
-  env.leaveScope(); 
-  
+  env.leaveScope();
+
   // let the environment verify everything got cleaned up properly
   env.verifyFunctionEnd();
 
-  // instrument AST with path information  
+  // instrument AST with path information
   countPaths(env, this);
-  
+
   if (tracingSys("printPaths")) {
     printPaths(this);
   }
+
+  // ensure segfault if some later access occurs
+  env.setCurrentFunction(NULL);
+}
+
+
+template <class T, class Y>      // Y is type of thing printed
+void printSObjList(ostream &os, int indent, char const *label,
+                   SObjList<T> const &list, Y (*map)(T const *t))
+{
+  ind(os, indent) << label << ":";
+  SFOREACH_OBJLIST(T, list, iter) {
+    os << " " << map(iter.data());
+  }
+  os << "\n";
+}
+
+StringRef varName(Variable const *v)
+  { return v->name; }
+int stmtLine(Statement const *s)
+  { return s->loc.line; }
+
+void TF_func::printExtras(ostream &os, int indent) const
+{
+  printSObjList(os, indent, "params", params, varName);
+  printSObjList(os, indent, "locals", locals, varName);
+  printSObjList(os, indent, "roots", roots, stmtLine);
 }
 
 
@@ -136,6 +183,11 @@ void Declaration::tcheck(Env &env)
   else {
     env.err(stringc << "unsupported dflags: " << toString(dflags));
     dflags = DF_NONE;
+  }
+
+  // distinguish declarations of logic variables
+  if (env.inPredicate) {
+    dflags = (DeclFlags)(dflags | DF_LOGIC);
   }
 
   // compute the base type
@@ -262,10 +314,16 @@ Type const *TS_enumSpec::tcheck(Env &env)
     if (e->expr) {
       nextValue = constEval(env, e->expr);
     }
+    
+    // make a record of the name introduction
+    Variable *var = new Variable(e->loc, name,
+                                 new CVAtomicType(et, CV_NONE), DF_NONE);
+    xassert(e->var == NULL);
+    e->var = var;
 
     // add the value to the type, and put this enumerator into the
     // environment so subsequent enumerators can refer to its value
-    env.addEnumerator(e->name, et, nextValue);
+    env.addEnumerator(e->name, et, nextValue, var);
 
     // if the next enumerator doesn't specify a value, use +1
     nextValue++;
@@ -278,25 +336,24 @@ Type const *TS_enumSpec::tcheck(Env &env)
 // -------------------- Declarator -------------------
 Type const *Declarator::tcheck(Env &env, Type const *base, DeclFlags dflags)
 {
-  if (env.inPredicate) {
-    dflags = (DeclFlags)(dflags | DF_THMPRV);
-  }
-
-  type = decl->tcheck(env, base, dflags, this);
-  name = decl->getName();
+  // check the internal structure, eventually also setting 'var'
+  xassert(var == NULL);
+  decl->tcheck(env, base, dflags, this);
+  xassert(var != NULL);
 
   if (init) {
     // verify the initializer is well-typed, given the type
     // of the variable it initializes
     // TODO: make the variable not visible in the init?
-    init->tcheck(env, type);
+    init->tcheck(env, var->type);
   }
 
-  return type;
+  return var->type;
 }
 
 
-Type const *IDeclarator::tcheck(Env &env, Type const *base, DeclFlags dflags, Declarator *declarator)
+void /*Type const * */IDeclarator::tcheck(Env &env, Type const *base,
+                                          DeclFlags dflags, Declarator *declarator)
 {
   FOREACH_ASTLIST(PtrOperator, stars, iter) {
     // the list is left-to-right, so the first one we encounter is
@@ -308,46 +365,49 @@ Type const *IDeclarator::tcheck(Env &env, Type const *base, DeclFlags dflags, De
   }
 
   // call inner function
-  return itcheck(env, base, dflags, declarator);
+  /*return*/ itcheck(env, base, dflags, declarator);
 }
 
 
-Type const *D_name::itcheck(Env &env, Type const *base, DeclFlags dflags, Declarator *declarator)
+void /*Type const * */D_name::itcheck(Env &env, Type const *base,
+                                      DeclFlags dflags, Declarator *declarator)
 {
   trace("tcheck")
     << "found declarator name: " << (name? name : "(null)")
     << ", type is " << base->toCString() << endl;
+
+  // construct a Variable: this is a binding introduction
+  Variable *var = new Variable(loc, name, base, dflags);
+
+  // annotate the declarator
+  xassert(declarator->var == NULL);     // otherwise leak
+  declarator->var = var;
 
   // one way this happens is in prototypes with unnamed arguments
   if (!name) {
     // skip the following
   }
   else {
-    // ignoring initial values... what I want is to create an element
-    // of the abstract domain and insert that here
     if (dflags & DF_TYPEDEF) {
-      env.addTypedef(name, base);
+      env.addTypedef(name, var);
     }
     else {
-      Variable *v = env.addVariable(name, dflags, base);
-      if (v) {
-        v->declarator = declarator;
-      }
-      else {
-        // currently, the only condition for addVariable returning null
-        // is when we've added a field to a struct, for which a Variable
-        // structure isn't created.. so I guess we just do nothing
-      }
+      env.addVariable(name, var);
     }
   }
 
-  return base;
+  //return base;
 }
 
 
-Type const *D_func::itcheck(Env &env, Type const *rettype, DeclFlags dflags, Declarator *declarator)
+void /*Type const * */D_func::itcheck(Env &env, Type const *rettype, 
+                                      DeclFlags dflags, Declarator *declarator)
 {
+  // make the result variable
+  result = new Variable(loc, env.str("result"), rettype, DF_LOGIC);
+
   FunctionType *ft = env.makeFunctionType(rettype);
+  ft->result = result;
 
   // push a scope so the argument names aren't seen as colliding
   // with names already around
@@ -368,11 +428,11 @@ Type const *D_func::itcheck(Env &env, Type const *rettype, DeclFlags dflags, Dec
     Type const *paramType = ti->tcheck(env);
 
     // extract the name too
-    StringRef /*nullable*/ paramName = ti->decl->name;
+    StringRef /*nullable*/ paramName = ti->decl->var->name;
 
     // add it to the type description
     FunctionType::Param *param =
-      new FunctionType::Param(paramName, paramType);
+      new FunctionType::Param(paramName, paramType, ti->decl->var);
     ft->params.prepend(param);    // build in wrong order initially..
   }
 
@@ -421,11 +481,12 @@ Type const *D_func::itcheck(Env &env, Type const *rettype, DeclFlags dflags, Dec
 
   // pass the constructed function type to base's tcheck so it can
   // further build upon the type
-  return base->tcheck(env, ft, dflags, declarator);
+  /*return*/ base->tcheck(env, ft, dflags, declarator);
 }
 
 
-Type const *D_array::itcheck(Env &env, Type const *elttype, DeclFlags dflags, Declarator *declarator)
+void /*Type const * */D_array::itcheck(Env &env, Type const *elttype,  
+                                       DeclFlags dflags, Declarator *declarator)
 {
   ArrayType *at;
   if (size) {
@@ -435,17 +496,18 @@ Type const *D_array::itcheck(Env &env, Type const *elttype, DeclFlags dflags, De
     at = env.makeArrayType(elttype);
   }
 
-  return base->tcheck(env, at, dflags, declarator);
+  /*return*/ base->tcheck(env, at, dflags, declarator);
 }
 
 
-Type const *D_bitfield::itcheck(Env &env, Type const *base, DeclFlags dflags, Declarator *declarator)
+void /*Type const * */D_bitfield::itcheck(Env &env, Type const *base, 
+                                          DeclFlags dflags, Declarator *declarator)
 {
   trace("tcheck")
     << "found bitfield declarator name: "
     << (name? name : "(null)") << endl;
   xfailure("bitfields not supported yet");
-  return NULL;    // silence warning
+  //return NULL;    // silence warning
 }
 
 
@@ -822,7 +884,8 @@ Type const *E_charLit::itcheck(Env &env)
 
 Type const *E_structLit::itcheck(Env &env)
 {
-  // ignore the initializer..
+  // the initializer itself is ignored
+  cout << "TODO: handle structure initializers\n";
   return stype->tcheck(env);
 }
 
@@ -830,9 +893,15 @@ Type const *E_structLit::itcheck(Env &env)
 Type const *E_variable::itcheck(Env &env)
 {
   Variable *v = env.getVariable(name);
-  env.errIf(!v, stringc << "undeclared variable " << name);
-  
-  if ((v->declFlags & DF_THMPRV) &&
+  if (!v) {
+    env.err(stringc << "undeclared variable: " << name);
+    return fixed(ST_ERROR);
+  }
+
+  // connect this name reference to its binding introduction
+  var = v;
+
+  if ((v->flags & DF_LOGIC) &&
       !env.inPredicate) {
     env.err(stringc << name << " cannot be referenced outside a predicate");
   }
@@ -969,7 +1038,7 @@ Type const *E_addrOf::itcheck(Env &env)
   if (expr->isE_variable()) {
     // mark the variable as having its address taken
     Variable *v = env.getVariable(expr->asE_variable()->name);
-    v->declarator->addrTaken = true;
+    v->flags = (DeclFlags)(v->flags | DF_ADDRTAKEN);
   }
 
   return env.makePtrOperType(PO_POINTER, CV_NONE, t);

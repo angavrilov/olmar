@@ -39,7 +39,8 @@ string toString(CVFlags cv);
 
 
 // ----------------------- DeclFlags ----------------------
-// set of declaration modifiers present
+// set of declaration modifiers present;
+// these modifiers apply to variable names
 enum DeclFlags {
   DF_NONE        = 0x0000,
 
@@ -59,10 +60,11 @@ enum DeclFlags {
   DF_GLOBAL      = 0x0400,    // set for globals, unset for locals
   DF_INITIALIZED = 0x0800,    // true if has been declared with an initializer (or, for functions, with code)
   DF_BUILTIN     = 0x1000,    // true for e.g. __builtin_constant_p -- don't emit later
-  DF_THMPRV      = 0x2000,    // true for variables purely for predicate use
+  DF_LOGIC       = 0x2000,    // true for logic variables
+  DF_ADDRTAKEN   = 0x4000,    // true if it's address has been (or can be) taken
 
-  ALL_DECLFLAGS  = 0x3FFF,
-  NUM_DECLFLAGS  = 14 
+  ALL_DECLFLAGS  = 0x7FFF,
+  NUM_DECLFLAGS  = 15         // # bits set to 1 in ALL_DECLFLAGS
 };
 
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..
@@ -90,6 +92,7 @@ enum SimpleTypeId {
   ST_LONG_DOUBLE,
   ST_VOID,
   ST_ELLIPSIS,                       // used to encode vararg functions
+  ST_ERROR,                          // this type is returned for typechecking errors
   NUM_SIMPLE_TYPES,
   ST_BITMASK = 0xFF                  // for extraction for OR with CVFlags
 };

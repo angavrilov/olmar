@@ -263,7 +263,7 @@ cc.gen.o: cparse.h
 # (called the target 'ccgr' instead of 'cc' to avoid name collision)
 # tried moving cc.o to end so the most expensive part would get
 # done last, but that breaks a dependency with cc_tree.cc and cc.h ..)
-ccgr-dep = cc.gen.o c.ast.gen.o cc_flags.o tcheck.o \
+ccgr-dep = cc.gen.o c.ast.gen.o cc_flags.o tcheck.o variable.o \
            absval.ast.gen.o vcgen.o aenv.o prover.o \
            predicate.ast.gen.o paths.o ${cc-set}
 

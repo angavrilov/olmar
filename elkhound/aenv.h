@@ -8,35 +8,63 @@
 #include "strtable.h"      // StringRef
 #include "sobjlist.h"      // SObjList
 #include "stringset.h"     // StringSet
+#include "ohashtbl.h"      // OwnerHashTable
 
 class AbsValue;            // absval.ast
 class P_and;               // predicate.ast
 class Predicate;           // predicate.ast
 class VariablePrinter;     // aenv.cc
+class Variable;            // variable.h
 
+
+// abstract variable: info maintained about program variables
+class AbsVariable {
+public:
+  Variable const *decl;    // (serf) AST node which introduced the name
+  AbsValue *value;         // (region?) abstract value bound to the variable
+
+  // when this is false, the variable is modeled as an unaliasable name,
+  // and 'value' is its abstract value; when this is true, the variable
+  // is considered aliasable, and 'value' is the abstract value of its
+  // *address* in memory
+  bool memvar;
+
+public:
+  AbsVariable(Variable const *d, AbsValue *v, bool m)
+    : decl(d), value(v), memvar(m) {}
+
+  // function for storing these in a hash table keyed by Declarator*
+  static void const* getAbsVariableKey(AbsVariable *av);
+};
+
+
+// abstract store (environment)
 class AEnv {
 private:     // data
-  // environment maps program variable names to abstract domain values
-  StringSObjDict<AbsValue> bindings;
+  // environment maps program variable declarators to abstract domain values
+  OwnerHashTable<AbsVariable> bindings;
 
   // (owner) set of known facts, as a big conjunction
   P_and *facts;
 
-  // map of address-taken variables to their addresses
-  StringSObjDict<AbsValue> memVars;
-
   // list of objects addresses known to be distinct, in addition to
-  // those that appear in 'memVars'; the two lists are concatenated
+  // those for which 'memvar' is true; the two lists are concatenated
   // into one list of things all assumed to be mutually distinct
   SObjList<AbsValue> distinct;
 
   // monotonic integer for making new names
   int counter;
-  
+
   // accessor functions for types
   P_and *typeFacts;
 
 public:      // data
+  // name of the memory variable
+  Variable const *mem;
+
+  // name of the result variable
+  Variable const *result;
+
   // list of types we've codified with accessor functions
   StringSet seenStructs;
 
@@ -58,15 +86,15 @@ private:     // funcs
   void printFact(VariablePrinter &vp, Predicate const *fact);
 
 public:      // funcs
-  AEnv(StringTable &table);
+  AEnv(StringTable &table, Variable const *mem);
   ~AEnv();
 
   // forget everything
   void clear();
 
-  // set/get variable values (not for memvars)
-  void set(StringRef name, AbsValue *value);
-  AbsValue *get(StringRef name);
+  // set/get variable values
+  void set(Variable const *var, AbsValue *value);
+  AbsValue *get(Variable const *var);
 
   // make and return a fresh variable reference; the string
   // is attached to indicate what this variable stands for,
@@ -76,23 +104,23 @@ public:      // funcs
   // make up a name for the address of the named variable, and add
   // it to the list of known address-taken variables; retuns the
   // AVvar used to represent the address
-  AbsValue *addMemVar(StringRef name);
+  AbsValue *addMemVar(Variable const *var);
 
   // query whether something is a memory variable, and if so
   // retrieve the associated address
-  bool isMemVar(StringRef name) const;
-  AbsValue *getMemVarAddr(StringRef name);
-  
+  bool isMemVar(Variable const *var) const;
+  AbsValue *getMemVarAddr(Variable const *var);
+
   // change a variable's value; sensitive to whether it is
   // a memvar or not (returns 'newValue')
-  AbsValue *updateVar(StringRef name, AbsValue *newValue);
+  AbsValue *updateVar(Variable const *var, AbsValue *newValue);
 
   // add an address to those considered mutually distinct
   void addDistinct(AbsValue *obj);
 
   // set/get the current abstract value of memory
-  AbsValue *getMem() { return get(str("mem")); }
-  void setMem(AbsValue *newMem) { set(str("mem"), newMem); }
+  AbsValue *getMem() { return get(mem); }
+  void setMem(AbsValue *newMem) { set(mem, newMem); }
 
   // proof assumption
   void addFact(AbsValue *expr);

@@ -132,6 +132,7 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   // gnu: sizeof(void) is 1
   { "void",                1,    false   },
   { "...",                 0,    false   },
+  { "<error>",             0,    false   },
 };
 
 SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id)

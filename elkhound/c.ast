@@ -5,11 +5,11 @@
 verbatim {
   #include "cc_flags.h"      // CVFlags, DeclFlags, etc.
   #include "sobjlist.h"      // SObjList
+  #include "variable.h"      // Variable
 
   class Env;                 // cc_env.h
   class Type;                // cc_type.h
-  class FunctionType;
-
+  class FunctionType;        // cc_type.h
   class AEnv;                // aenv.h
   class AbsValue;            // absval.ast
 } // end verbatim
@@ -47,21 +47,28 @@ class TopForm (SourceLocation loc) {
              S_compound body) {        // body of function
        public FunctionType const *ftype() const;
        public StringRef name() const;
-       
+
+       // list of all parameters, and then all locals
+       public SObjList<Variable> params;
+       public SObjList<Variable> locals;
+
        // list of all the path starting points
        public SObjList<Statement> roots;
 
        // total # of paths from all roots
        public int numPaths;
        ctor numPaths=0;
+                                               
+       public void printExtras(ostream &os, int indent) const;   // tcheck.cc
+       custom debugPrint { printExtras(os, indent); }
      }
 }
 
 impl_verbatim {
   // pulled these out of line because Declaration appears lower in .h file
   FunctionType const *TF_func::ftype() const 
-    { return &( nameParams->type->asFunctionTypeC() ); }
-  StringRef TF_func::name() const { return nameParams->name; }
+    { return &( nameParams->var->type->asFunctionTypeC() ); }
+  StringRef TF_func::name() const { return nameParams->var->name; }
 }
 
 
@@ -124,22 +131,27 @@ class TypeSpecifier {
 
 // a binding of a name to a constant value
 class Enumerator (
+  SourceLocation loc,                   // location
   StringRef name,                       // name of this constant
   Expression /*nullable*/ expr          // constant expr, or NULL for "next"
-);
+) {
+  public Variable *var;                 // (owner) introduction record
+  ctor var=NULL;
+  dtor delete var;
+}
 
 
-// a thing which introduces a name of a declared thing, and also
-// optionally adds type constructors to the base type of the specifier;
-// may have an initializing expression, depending on the context
+// Syntactically, a Declarator is a thing which introduces a name of a
+// declared thing, and also optionally adds type constructors to the
+// base type of the specifier.  It may have an initializing
+// expression, depending on the context.
 class Declarator (
   IDeclarator decl,                    // syntax of type designation
   Initializer init                     // (nullable) optional data initializer
 ) {
-  public Type const *type;             // computed type for this declarator
-  public StringRef name;               // name of thing being introduced
-  public bool addrTaken;               // true if '&' is applied to this variable
-  ctor { type=NULL; name=NULL; addrTaken=false; };
+  public Variable *var;                // (owner) computed information: name, type, etc.
+  ctor var=NULL;
+  dtor delete var;
 
   // returns the type denoted by the combination of 'base' and the
   // type constructors in this declarator
@@ -159,21 +171,28 @@ class IDeclarator {
   public ASTList<PtrOperator> stars;   // pointer constructors, left to right
 
   // external interface; adds 'stars' before calling 'itcheck'; the
-  // toplevel 'declarator' is passed along for annotation purposes
-  public Type const *tcheck(Env &env, Type const *base, DeclFlags dflags,
-                            Declarator *declarator);
+  // toplevel 'declarator' is passed along so we can reflect the meaning
+  // back into the 'var' field
+  public void tcheck(Env &env, Type const *base,
+                     DeclFlags dflags, Declarator *declarator);
 
-  // returns the type denoted by the combination of 'base' and the
-  // type constructors in this declarator (recursively)
-  pure_virtual Type const *
-    itcheck(Env &env, Type const *base, DeclFlags dflags, Declarator *declarator);
+  // ultimate type attached to 'declarator' is the type denoted by the
+  // combination of 'base' and the type constructors in this
+  // declarator (recursively)
+  pure_virtual void itcheck(Env &env, Type const *base,
+                            DeclFlags dflags, Declarator *declarator);
 
   // dig down and find the name being declared; may return NULL
   pure_virtual StringRef getName() const;
 
-  -> D_name(StringRef /*nullable*/ name);                       // "x" (NULL means abstract declarator or anonymous parameter)
-  -> D_func(IDeclarator base, ASTList<ASTTypeId> params,        // "f(int)"
-            ASTList<FuncAnnotation> ann);
+  -> D_name(SourceLocation loc, StringRef /*nullable*/ name);   // "x" (NULL means abstract declarator or anonymous parameter)
+  -> D_func(SourceLocation loc, IDeclarator base, 
+            ASTList<ASTTypeId> params, ASTList<FuncAnnotation> ann) {        // "f(int)"
+       // variable synthesized to give a name to the return value
+       public Variable *result;        // (owner)
+       ctor result=NULL;
+       dtor delete result;
+     }
   -> D_array(IDeclarator base, Expression /*nullable*/ size);   // "a[5]" or "b[]"
   -> D_bitfield(StringRef /*nullable*/ name, Expression bits);  // "c : 2"
 }
@@ -333,7 +352,10 @@ class Expression {
   -> E_charLit(char c);
   -> E_structLit(ASTTypeId stype, ASTList<Initializer> init);
 
-  -> E_variable(StringRef name);
+  -> E_variable(StringRef name) {
+       public Variable *var;      // (serf) binding introduction of this name
+       ctor var=NULL;
+     }
   //-> E_arrayAcc(Expression arr, Expression index);
   -> E_funCall(Expression func, ASTList<Expression> args);
   -> E_fieldAcc(Expression obj, StringRef field);

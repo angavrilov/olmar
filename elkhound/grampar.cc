@@ -383,7 +383,7 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
         isPrec = true;
       }
 
-      ASTENDCASEC
+      ASTENDCASECD
     }
 
     if (isPrec) {

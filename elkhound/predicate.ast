@@ -285,14 +285,14 @@ impl_verbatim {
         walkPredicate(vis, ex->body);
       }
 
-      ASTENDCASEC
+      ASTENDCASECD
     }
   }
 
 
   class VPVisitThunk : public PredicateVisitor {
     ValuePredicateVisitor &innerVis;
-  public:                   
+  public:
     VPVisitThunk(ValuePredicateVisitor &i) : innerVis(i) {}
     virtual bool visitPredicate(Predicate const *pred);
   };
@@ -313,7 +313,7 @@ impl_verbatim {
           walkAbsValue(innerVis, iter.data());
         }
       }
-      ASTENDCASEC
+      ASTENDCASECD
     }
 
     return true;

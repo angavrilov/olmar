@@ -50,14 +50,28 @@ void VariablePrinter::dump()
 }
 
 
+// ------------------- AbsVariable ----------------
+STATICDEF void const* AbsVariable::getAbsVariableKey(AbsVariable *av)
+{
+  // the need to return this one of the main reasons we even store
+  // the 'decl' in AbsVariable: the hash table does not independently
+  // store keys, instead relying on the user to be able to map from
+  // data to key
+  return av->decl;
+}
+
+
 // ------------------- AEnv -----------------
-AEnv::AEnv(StringTable &table)
-  : bindings(),
+AEnv::AEnv(StringTable &table, Variable const *m)
+  : bindings(&AbsVariable::getAbsVariableKey,
+             &HashTable::lcprngHashFn,
+             &HashTable::pointerEqualKeyFn),
     facts(new P_and(NULL)),
-    memVars(),
     distinct(),
     counter(1),
     typeFacts(new P_and(NULL)),
+    mem(m),
+    result(NULL),
     seenStructs(),
     inPredicate(false),
     stringTable(table),
@@ -76,31 +90,34 @@ void AEnv::clear()
 {
   bindings.empty();
   facts->conjuncts.deleteAll();
-  memVars.empty();
   distinct.removeAll();
 
   // initialize the environment with a fresh variable for memory
-  set(str("mem"), freshVariable("mem", "initial contents of memory"));
+  set(mem, freshVariable("mem", "initial contents of memory"));
   
   // part of the deal with type facts is I don't clear them..
 }
 
 
-void AEnv::set(StringRef name, AbsValue *value)
+void AEnv::set(Variable const *var, AbsValue *value)
 {
-  if (bindings.isMapped(name)) {
-    bindings.remove(name);
+  AbsVariable *avar = bindings.get(var);
+  if (!avar) {
+    avar = new AbsVariable(var, value, false /*memvar*/);
+    bindings.add(var, avar);
   }
-  bindings.add(name, value);
+
+  avar->value = value;
 }
 
 
-AbsValue *AEnv::get(StringRef name)
+AbsValue *AEnv::get(Variable const *var)
 {
-  if (!bindings.isMapped(name)) {
-    THROW(xBase(stringc << "failed to lookup " << name));
+  AbsVariable *avar = bindings.get(var);
+  if (!avar) {
+    THROW(xBase(stringc << "failed to lookup " << var->name));
   }
-  return bindings.queryf(name);
+  return avar->value;
 }
 
 
@@ -111,36 +128,38 @@ AbsValue *AEnv::freshVariable(char const *prefix, char const *why)
 }
 
 
-AbsValue *AEnv::addMemVar(StringRef name)
+AbsValue *AEnv::addMemVar(Variable const *var)
 {
-  StringRef addrName = str(stringc << "addr_" << name);
-  AbsValue *addr = new AVvar(addrName, stringc << "address of " << name);
+  StringRef addrName = str(stringc << "addr_" << var->name);
+  AbsValue *addr = new AVvar(addrName, stringc << "address of " << var->name);
 
-  memVars.add(name, addr);
+  AbsVariable *avar = new AbsVariable(var, addr, true /*memvar*/);
+  bindings.add(var, avar);
 
   return addr;
 }
 
 
-AbsValue *AEnv::getMemVarAddr(StringRef name)
+AbsValue *AEnv::getMemVarAddr(Variable const *var)
 {
-  return memVars.queryf(name);
+  return get(var);
 }
 
-bool AEnv::isMemVar(StringRef name) const
+bool AEnv::isMemVar(Variable const *var) const
 {
-  return memVars.isMapped(name);
+  AbsVariable *avar = bindings.get(var);
+  return avar && avar->memvar;
 }
 
-AbsValue *AEnv::updateVar(StringRef name, AbsValue *newValue)
+AbsValue *AEnv::updateVar(Variable const *var, AbsValue *newValue)
 {
-  if (!isMemVar(name)) {
+  if (!isMemVar(var)) {
     // ordinary variable: replace the mapping
-    set(name, newValue);
+    set(var, newValue);
   }
   else {
     // memory variable: memory changes
-    setMem(avUpdate(getMem(), getMemVarAddr(name),
+    setMem(avUpdate(getMem(), getMemVarAddr(var),
                     new AVint(0) /*offset*/, newValue));
   }
   
@@ -258,9 +277,12 @@ void AEnv::prove(AbsValue const *expr, char const *context)
 
   // add the fact that all known local variable addresses are distinct
   P_distinct *addrs = new P_distinct(NULL);
-  for (StringSObjDict<AbsValue>::Iter iter(memVars);
-       !iter.isDone(); iter.next()) {
-    addrs->terms.append(iter.value());
+  for (OwnerHashTableIter<AbsVariable> iter(bindings);
+       !iter.isDone(); iter.adv()) {
+    AbsVariable const *avar = iter.data();
+    if (avar->memvar) {
+      addrs->terms.append(avar->value);
+    }
   }
   SMUTATE_EACH_OBJLIST(AbsValue, distinct, iter2) {
     addrs->terms.append(iter2.data());
@@ -405,21 +427,16 @@ AbsValue *AEnv::avFunc1(char const *func, AbsValue *v1)
 
 void AEnv::print()
 {
-  for (StringSObjDict<AbsValue>::Iter iter(bindings);
-       !iter.isDone(); iter.next()) {
-    string const &name = iter.key();
-    AbsValue const *value = iter.value();
+  for (OwnerHashTableIter<AbsVariable> iter(bindings);
+       !iter.isDone(); iter.adv()) {
+    AbsVariable const *avar = iter.data();
 
-    cout << "  " << name << ":\n";
-    if (value) {
-      value->debugPrint(cout, 4);
+    cout << "  " << avar->decl->name << ":\n";
+    if (avar->value) {
+      avar->value->debugPrint(cout, 4);
     }
     else {
       cout << "    null\n";
     }
   }
 }
-
-
-
-

@@ -35,7 +35,7 @@ UserActions *makeUserActions(StringTable &table)
 ASTTypeId *ellipsisTypeId()
 {
   return new ASTTypeId(new TS_simple(ST_ELLIPSIS),
-                       new Declarator(new D_name(NULL), NULL));
+                       new Declarator(new D_name(SourceLocation(), NULL), NULL));
 }
 
 ]
@@ -818,9 +818,9 @@ nonterm[ASTList<Enumerator>*] EnumeratorListOpt {
 
 nonterm[Enumerator*] EnumeratorDefinition {
   -> name:AnyName 
-       [ return new Enumerator(name, NULL /*expr*/); ]
-  -> name:AnyName "=" expr:ConstantExpression 
-       [ return new Enumerator(name, expr); ]
+       [ return new Enumerator(loc, name, NULL /*expr*/); ]
+  -> name:AnyName "=" expr:ConstantExpression
+       [ return new Enumerator(loc, name, expr); ]
 }
 
 
@@ -946,14 +946,14 @@ nonterm[IDeclarator*] DirectDeclarator {
   // it doesn't matter how this was classified before, because
   // a declarator binds a new name, so it shadows any prior definitions
   -> n:AnyName
-       [ return new D_name(n); ]
+       [ return new D_name(loc, n); ]
 
   // function declarator; the return type comes from the type
   // specifier that preceeds this
   -> d:DirectDeclarator "(" args:ParameterDeclarationClause ")" /*q:CVQualifierSeqOpt*/
   // ^^^ name of fn ^^^     ^^^^^^^^^^ arguments ^^^^^^^^^^     ^^^^^ const? ^^^^^^
                                                ann:FuncAnnotationsOpt
-       [ return new D_func(d, args, ann); ]
+       [ return new D_func(loc, d, args, ann); ]
 
   // array of specified size
   -> d:DirectDeclarator "[" sz:ConstantExpression "]"
@@ -1015,12 +1015,12 @@ nonterm[IDeclarator*] DirectTypedefDeclarator {
        // TYPE/NAME
        D("defined new typedef name " << n);
        addType(n);
-       return new D_name(n);
+       return new D_name(loc, n);
      ]
 
   -> d:DirectTypedefDeclarator "(" args:ParameterDeclarationClause ")" //CVQualifierSeqOpt
                                                ann:FuncAnnotationsOpt
-       [ return new D_func(d, args, ann); ]
+       [ return new D_func(loc, d, args, ann); ]
   -> d:DirectTypedefDeclarator "[" sz:ConstantExpression "]" 
        [ return new D_array(d, sz); ]
   -> d:DirectTypedefDeclarator "[" "]" 
@@ -1042,7 +1042,7 @@ nonterm[ASTTypeId*] TypeId {
 }
 
 nonterm[IDeclarator*] AbstractDeclaratorOpt {
-  -> empty                 [ return new D_name(NULL); ]
+  -> empty                 [ return new D_name(loc, NULL); ]
   -> d:AbstractDeclarator  [ return d; ]
 }
 
@@ -1056,7 +1056,7 @@ nonterm[IDeclarator*] AbstractDeclarator {
 }
 
 nonterm[IDeclarator*] DirectAbstractDeclaratorOpt {
-  -> empty                       [ return new D_name(NULL); ]
+  -> empty                       [ return new D_name(loc, NULL); ]
   -> d:DirectAbstractDeclarator  [ return d; ]
 }
 
@@ -1071,7 +1071,7 @@ nonterm[IDeclarator*] DirectAbstractDeclarator {
   // function
   -> d:DirectAbstractDeclarator "(" args:ParameterDeclarationClause ")" //q:CVQualifierSeqOpt
                                                ann:FuncAnnotationsOpt
-       [ return new D_func(d, args, ann); ]
+       [ return new D_func(loc, d, args, ann); ]
 
   // grammar hack: support missing function name part at this level, rather
   // than using DirectAbstractDeclaratorOpt, to effect one extra token

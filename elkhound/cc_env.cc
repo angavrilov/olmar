@@ -7,58 +7,6 @@
 #include "strtable.h"    // StringTable
 
 
-// ----------------------- Variable ---------------------------
-Variable::Variable(StringRef n, DeclFlags d, Type const *t)
-  : name(n),
-    declFlags(d),
-    type(t),
-    declarator(NULL)
-{
-  xassert(type);        // (just a stab in the dark debugging effort)
-}
-
-Variable::~Variable()
-{}
-
-
-string Variable::toString() const
-{
-  // don't care about printing the declflags right now
-  return type->toCString(name);
-}
-
-
-#if 0
-MAKE_ML_TAG(storage, 0, NoStorage)
-MAKE_ML_TAG(storage, 1, Static)
-MAKE_ML_TAG(storage, 2, Register)
-MAKE_ML_TAG(storage, 3, Extern)
-
-extern MLValue unknownMLLoc();     // cil.cc
-
-MLValue Variable::toMLValue() const
-{
-  //  type varinfo = {
-  //      vid: int;		(* unique integer indentifier, one per decl *)
-  //      vname: string;
-  //      vglob: bool;	(* is this a global variable? *)
-  //      vtype: typ;
-  //      mutable vdecl: location;	(* where was this variable declared? *)
-  //      mutable vattr: attribute list;
-  //      mutable vstorage: storage;
-  //  }
-
-  return mlRecord7("vid", mlInt(id),
-                   "vname", mlString(name),
-                   "vglob", mlBool(isGlobal()),
-                   "vtype", type->toMLValue(),
-                   "vdecl", unknownMLLoc(),
-                   "vattr", mlNil(),
-                   "vstorage", mlStorage(declFlags));
-}
-#endif // 0
-
-
 // --------------------- CFGEnv -----------------------
 CFGEnv::CFGEnv()
 {
@@ -224,7 +172,7 @@ Env::Env(StringTable &table)
     errors(0),
     warnings(0),
     compoundStack(),
-    currentRetType(NULL),
+    currentFunction(NULL),
     locationStack(),
     inPredicate(false),
     strTable(table)
@@ -271,16 +219,19 @@ void Env::leaveScope()
 
 
 // ---------------------------- variables ---------------------------
-Variable *Env::
-  addVariable(StringRef name, DeclFlags flags, Type const *type)
+void Env::addVariable(StringRef name, Variable *decl)
 {
+  // convenience
+  Type const *type = decl->type;
+  DeclFlags flags = decl->flags;
+
   // shouldn't be using this interface to add typedefs
   xassert(!(flags & DF_TYPEDEF));
 
   // special case for adding compound type members
   if (compoundStack.isNotEmpty()) {
-    addCompoundField(compoundStack.first(), name, type);
-    return NULL;     // ..hmm..
+    addCompoundField(compoundStack.first(), decl);
+    return;
   }
 
   Variable *prev = getVariable(name, true /*inner*/);
@@ -312,34 +263,35 @@ Variable *Env::
     // and/or both were extern or static (TODO: what are the
     // real rules??); and, there can be at most one initializer
     if ( ( type->isFunctionType() ||
-           ((flags & DF_EXTERN) && (prev->declFlags & DF_EXTERN)) ||
-           ((flags & DF_STATIC) && (prev->declFlags & DF_STATIC))
+           ((flags & DF_EXTERN) && (prev->flags & DF_EXTERN)) ||
+           ((flags & DF_STATIC) && (prev->flags & DF_STATIC))
          )
          //&& (!prev->isInitialized() || !initialized)
        ) {
       // ok
-      return prev;
     }
     else {
-      errThrow(stringc << "duplicate variable decl: " << name);
-      return NULL;    // silence warning
+      err(stringc << "duplicate variable decl: " << name);
     }
   }
 
   else /*not already mapped*/ {
     if (isGlobalEnv()) {
-      flags = (DeclFlags)(flags | DF_GLOBAL);
+      decl->flags = (DeclFlags)(decl->flags | DF_GLOBAL);
+    }
+    else {
+      currentFunction->locals.prepend(decl);
     }
 
-    Variable *ret = new Variable(name, flags, type);
-    scopes.first()->variables.add(name, ret);
-    return ret;
+    scopes.first()->variables.add(name, decl);
   }
 }
 
 
 Variable *Env::getVariable(StringRef name, bool innerOnly)
 {
+  // TODO: add enums to what we search
+
   MUTATE_EACH_OBJLIST(ScopedEnv, scopes, iter) {
     Variable *v;
     if (iter.data()->variables.query(name, v)) {
@@ -350,19 +302,21 @@ Variable *Env::getVariable(StringRef name, bool innerOnly)
       return NULL;    // don't look beyond the first
     }
   }
-  
+
   return NULL;
 }
 
 
 // ------------------- typedef -------------------------
-void Env::addTypedef(StringRef name, Type const *type)
+void Env::addTypedef(StringRef name, Variable *decl)
 {
+  xassert(decl->flags & DF_TYPEDEF);
+
   if (getTypedef(name)) {
     errThrow(stringc
       << "duplicate typedef for `" << name << "'");
   }
-  typedefs.add(name, const_cast<Type*>(type));
+  typedefs.add(name, const_cast<Type*>(decl->type));
 }
 
 
@@ -395,13 +349,13 @@ CompoundType *Env::addCompound(StringRef name, CompoundType::Keyword keyword)
 }
 
 
-void Env::addCompoundField(CompoundType *ct, StringRef name, Type const *type)
+void Env::addCompoundField(CompoundType *ct, Variable *decl)
 {
-  if (ct->getNamedField(name)) {
-    errThrow(stringc << "field already declared: " << name);
+  if (ct->getNamedField(decl->name)) {
+    errThrow(stringc << "field already declared: " << decl->name);
   }
 
-  ct->addField(name, type);
+  ct->addField(decl->name, decl->type, decl);
 }
 
 
@@ -472,13 +426,14 @@ EnumType *Env::getOrAddEnum(StringRef name)
 
 
 // ------------------ enumerators ---------------------
-EnumType::Value *Env::addEnumerator(StringRef name, EnumType *et, int value)
+EnumType::Value *Env::addEnumerator(StringRef name, EnumType *et, int value,
+                                    Variable *decl)
 {
   if (enumerators.isMapped(name)) {
     errThrow(stringc << "duplicate enumerator: " << name);
   }
 
-  EnumType::Value *ret = et->addValue(name, value);
+  EnumType::Value *ret = et->addValue(name, value, decl);
   enumerators.add(name, ret);
   return ret;
 }
@@ -688,6 +643,12 @@ void Env::errIf(bool condition, char const *str)
 
 
 // ------------------- translation context -------------------
+Type const *Env::getCurrentRetType()
+{
+  return currentFunction->nameParams->var->type;
+}
+
+
 void Env::pushLocation(SourceLocation const *loc)
 { 
   locationStack.push(const_cast<SourceLocation*>(loc));
@@ -712,7 +673,7 @@ string Env::toString() const
 
   // for now, just the variables
   FOREACH_OBJLIST(ScopedEnv, scopes, sc) {
-    StringObjDict<Variable>::Iter iter(sc.data()->variables);
+    StringSObjDict<Variable>::Iter iter(sc.data()->variables);
     for (; !iter.isDone(); iter.next()) {
       sb << iter.value()->toString() << " ";
     }
