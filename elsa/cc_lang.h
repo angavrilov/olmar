@@ -1,6 +1,11 @@
 // cc_lang.h            see license.txt for copyright and terms of use
 // language options that the parser (etc.) is sensitive to
 
+// a useful reference:
+//   Incompatibilities Between ISO C and ISO C++
+//   David R. Tribble
+//   http://david.tribble.com/text/cdiffs.htm
+
 #ifndef CCLANG_H
 #define CCLANG_H
 

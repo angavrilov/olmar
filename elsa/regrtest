@@ -614,6 +614,7 @@ if $use_gnu; then
   testparse gnu/g0010.cc
   failparse gnu/g0011.cc "parse error"
   failparse gnu/g0012.cc "parse error"
+  testparse gnu/g0013.cc
 
   testparse gnu/t0124.cc
   testparse gnu/t0125.cc

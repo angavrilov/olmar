@@ -790,11 +790,14 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
   #ifdef GNU_EXTENSION
   if (tc.context == DC_E_COMPOUNDLIT
       && spec->isTS_classSpec()
-      // dsw: I really only need this for unions, but I think I'll do
-      // the more general thing just for simplicity
       && spec->asTS_classSpec()->keyword == TI_UNION
       && !spec->asTS_classSpec()->name) {
-    spec->asTS_classSpec()->tcheckAsIfNamed = true;
+    // in an E_compoundLit, gcc does not do anonymous union scope
+    // promotion, even in C++ mode; so make up a name for the union
+    StringRef fakeName = env.getAnonName(TI_UNION);
+    spec->asTS_classSpec()->name = new PQ_name(env.loc(), fakeName);
+    TRACE("gnu", "substituted name " << fakeName << 
+                 " in anon union at " << decl->getLoc());
   }
   #endif // GNU_EXTENSION
 
@@ -2079,9 +2082,7 @@ realStart:
   // member of an anonymous union that is not in an E_compoundLit ?
   if (scope->curCompound &&
       scope->curCompound->keyword == CompoundType::K_UNION &&
-      scope->curCompound->name == NULL &&
-      !scope->curCompound->syntax->tcheckAsIfNamed
-     ) {
+      scope->curCompound->name == NULL) {
     // we're declaring a field of an anonymous union, which actually
     // goes in the enclosing scope
     scope = env.enclosingScope();
@@ -5430,7 +5431,7 @@ Type *E_addrOf::itcheck_x(Env &env, Expression *&replacement)
 Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
 {
   ptr->tcheck(env, ptr);
-  
+
   // check for overloading
   {
     Type *ovlRet = resolveOverloadedUnaryOperator(
