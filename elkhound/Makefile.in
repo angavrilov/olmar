@@ -40,7 +40,7 @@ endif
 ccflags += -Werror
 
 # when uncommented, we get profiling info
-ccflags += -pg
+#ccflags += -pg
 
 # optimizer...
 ccflags += -O2 -DNDEBUG
@@ -352,7 +352,7 @@ endif
 # bison parser from the same grammar; the 'sed' is because Bison
 # already interpretes 0 as EOF, and if my rule names it explicitly
 # then it gets mad
-bccgr.tab.o: cc.gr.gen.cc bccgr.h
+bccgr.tab.o: cc.gr.gen.cc bccgr.h bccgr.y
 	echo "%{" > bccgr.y
 	echo "#include \"bccgr.h\"" >> bccgr.y
 	echo "%}" >> bccgr.y

@@ -657,8 +657,15 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     )
 
     // token reclassification
-    int classifiedType = userAct->reclassifyToken(currentToken->type,
-                                                  currentToken->sval);
+    #if 1     // reclassification enabled
+      int classifiedType = userAct->reclassifyToken(currentToken->type,
+                                                    currentToken->sval);
+    #else     // this is what bccgr does
+      int classifiedType = currentToken->type;
+      if (classifiedType == L2_NAME) {
+        classifiedType = L2_VARIABLE_NAME;
+      }
+    #endif
 
     // convert the token to a symbol
     xassert((unsigned)classifiedType < (unsigned)numTerms);
@@ -769,10 +776,11 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
             // expand "parser->decRefCt();"           // deinit 'parser', dealloc 'sib'
             {
               parser->decrementAllocCounter();
-              if (parser->firstSib.sval != NULL) {
-                // this is uncommon (in fact, usually an error in input or grammar)
-                parser->deallocSemanticValues();
-              }
+              
+              // I previously had a test for "parser->firstSib.sval != NULL",
+              // but that can't happen because I set it to NULL above!
+              // (as the alias sib.sval)
+
               // cancelled(1) effect: next->decRefCt();
               parser->firstSib.sib.setWithoutUpdateRefct(NULL);
 
@@ -790,8 +798,12 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 
           // call the user's action function (TREEBUILD)
           SemanticValue sval =
+          #if 1    // user actions enabled
             userAct->doReductionAction(prodIndex, toPass.getArray()
                                        SOURCELOCARG( leftEdge ) );
+          #else
+            NULL;
+          #endif
           D(trsSval << "reduced via production " << pcs.prodIndex
                     << ", yielding " << sval << endl);
 
