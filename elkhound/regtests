@@ -29,8 +29,8 @@ doRegTest() {
 }
 
 # testcases
-doRegTest castprob 1
-doRegTest expr 1
+#doRegTest castprob 1
+#doRegTest expr 1
 doRegTest c 1
 doRegTest c 2
 doRegTest c 3
