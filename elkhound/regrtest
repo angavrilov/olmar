@@ -190,8 +190,8 @@ vcgen loop1.c
 vcgen corrcond.c
 vcgentb npktsmall.c
 vcgen cutpt.c
-
 runTest ./ccgr -tr printAnalysisPath cc.bin vcgen/nestwhile.c
+vcgen memswap.c
 
 
 # final arithmetic to report result

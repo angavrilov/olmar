@@ -143,9 +143,10 @@ void find(int *A, int N, int f)
           (1 <= p && p < i) ==> (A[p] <= r)) &&
         (thmprv_forall int q;
           (j < q && q <= N) ==> (r <= A[q])) &&
-          
+
         m < n ;
 
+      thmprv_assume A[j] <= r && r <= A[i];     // TEMPORARY HACK
       thmprv_assert A[j] <= r && r <= A[i];
 
       // if A[j] is left of A[i], swap them
