@@ -2499,6 +2499,7 @@ realStart:
         !isConstructor &&               // ctors don't have a 'this' param
         !(dt.dflags & DF_STATIC) &&
         (!name->hasQualifiers() ||
+         !prior->type->isFunctionType() ||
          prior->type->asFunctionTypeC()->isMethod())) {
       TRACE("memberFunc", "nonstatic member function: " << *name);
 
