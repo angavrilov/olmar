@@ -32,3 +32,4 @@ dependencies.png
 tsobjlist
 *.i
 srcloc
+gprof.out

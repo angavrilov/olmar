@@ -32,11 +32,11 @@ linkend := $(libraries)
 # compile .cc to .o
 %.o : %.cc
 	$(compile) $< -o $@
-	@./depend.sh $(ccflags) $(includes) $< > $*.d
+	@./depend.pl $(ccflags) $(includes) $< > $*.d
 
 %.o : %.cpp
 	$(compile) $< -o $@
-	@./depend.sh $(ccflags) $(includes) $< > $*.d
+	@./depend.pl $(ccflags) $(includes) $< > $*.d
 
 %.o : %.c
 	gcc -c $(ccflags) $(includes) $< -o $@
