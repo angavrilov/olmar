@@ -8,7 +8,7 @@
 
 // Bison parser calls this to get a token
 GrammarLexer lexer;
-int yylex()
+int yylex(ASTNode **lvalp)
 {
   int code = lexer.yylex();
   trace("yylex") << "yielding token (" << code << ") "
@@ -18,19 +18,19 @@ int yylex()
   // yield semantic values for some things
   switch (code) {
     case TOK_INTEGER:
-      yylval = new ASTIntLeaf(lexer.integerLiteral);
+      *lvalp = new ASTIntLeaf(lexer.integerLiteral);
       break;
 
     case TOK_STRING:
-      yylval = new ASTStringLeaf(lexer.stringLiteral);
+      *lvalp = new ASTStringLeaf(lexer.stringLiteral);
       break;
 
     case TOK_NAME:
-      yylval = new ASTNameLeaf(lexer.curToken());
+      *lvalp = new ASTNameLeaf(lexer.curToken());
       break;
 
     default:
-      yylval = NULL;
+      *lvalp = NULL;
   }
 
   return code;
@@ -53,8 +53,15 @@ int main(int argc, char **argv)
 
   cout << "go!\n";
 
-  if (yyparse() == 0) {
+  ParseParams params;
+  if (yyparse(&params) == 0) {
     cout << "parsing finished successfully.\n";
+                                        
+    cout << "AST:\n";
+    params.treeTop->debugPrint(cout, 2);
+    delete params.treeTop;
+
+    cout << "leaked " << ASTNode::nodeCount << " AST nodes\n";
     return 0;
   }
   else {

@@ -31,6 +31,10 @@ public:     // data
   // generated the node
   int type;
 
+  // it's easy to leak AST nodes when working with Bison,
+  // so let's check that at runtime
+  static int nodeCount;
+
   // global type-to-string mapper.. since there could be several
   // kinds of ASTs running around, this isn't entirely ideal, but
   // it solves my present problem
@@ -38,7 +42,7 @@ public:     // data
   static TypeToStringFn typeToString;       // initially NULL
 
 public:     // funcs
-  ASTNode(int t) : type(t) {}
+  ASTNode(int t);
   virtual ~ASTNode();
 
   // true when this can safely be cast (with asInternal())

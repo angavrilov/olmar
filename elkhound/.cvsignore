@@ -25,5 +25,5 @@ lex.yy.c
 a.out
 gramlex
 gramlex.yy.cc
-grampar.tab.?
+grampar.tab.*
 grampar

@@ -7,10 +7,20 @@
 
 // --------------------- ASTNode -------------------
 ASTNode::TypeToStringFn ASTNode::typeToString = NULL;
+int ASTNode::nodeCount = 0;
 
+
+ASTNode::ASTNode(int t)
+  : type(t)
+{
+  nodeCount++;
+}
 
 ASTNode::~ASTNode()
-{}
+{
+  nodeCount--;
+}
+
 
 ASTInternal const &ASTNode::asInternalC() const
 {

@@ -45,11 +45,12 @@ gramlex: gramlex.yy.cc gramlex.cc gramlex.h
 	${link} -o gramlex -DTEST_GRAMLEX gramlex.yy.cc gramlex.cc ${linkend}
 
 # grammar parser
-grampar.tab.c grampar.tab.h: grampar.y
+grampar.tab.cc grampar.tab.h: grampar.y
 	bison -d $^
+	mv -f grampar.tab.c grampar.tab.cc
 
 # grammar parser test program
-grampar: gramlex.yy.o grampar.tab.c gramlex.o grampar.cc trace.o ast.o gramast.o
+grampar: gramlex.yy.o grampar.tab.o gramlex.o grampar.cc trace.o ast.o gramast.o
 	${link} -o grampar -DTEST_GRAMPAR $^ ${linkend}
 
 clean:

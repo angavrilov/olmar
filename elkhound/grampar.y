@@ -14,6 +14,11 @@
 %}
 
 
+/* ================== bison declarations =================== */
+// don't use globals
+%pure_parser
+
+
 /* ===================== tokens ============================ */
 /* tokens that have many lexical spellings */
 %token TOK_INTEGER
@@ -79,10 +84,9 @@
 
 /* start symbol */
 StartSymbol: Input
-               {                         
-                 cout << "AST:\n";
-                 $1->debugPrint(cout, 2);
-                 delete $1;
+               {
+                 // return the AST tree top to the caller
+                 ((ParseParams*)parseParam)->treeTop = $1;
                }
            ;
 
