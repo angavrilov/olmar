@@ -353,6 +353,10 @@ class Expression {
   // expression is not a constant (and also return false); can only
   // call this after tchecking
   public bool constEval(Env &env, int &result) const;
+  
+  // version that puts the message, if any, in 'msg'; note that it
+  // might not actually put anything in 'msg' even for a false return
+  public bool constEval(string &msg, int &result) const;
 
   // return true if this expression has any greater-than operators
   // that are not buried under an E_grouping

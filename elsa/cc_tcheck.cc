@@ -3397,6 +3397,7 @@ Type *E_binary::itcheck(Env &env)
     case BIN_AND:                 // &&
     case BIN_OR:                  // ||
     case BIN_IMPLIES:             // ==>
+    case BIN_EQUIVALENT:          // <==>
       return env.getSimpleType(SL_UNKNOWN, ST_BOOL);
 
     case BIN_PLUS:                // +
@@ -3723,6 +3724,20 @@ Type *E_grouping::itcheck(Env &env)
 // --------------------- Expression constEval ------------------
 bool Expression::constEval(Env &env, int &result) const
 {
+  string msg;
+  if (constEval(msg, result)) {
+    return true;
+  }
+  
+  if (msg.length() > 0) {
+    env.error(msg);
+  }
+  return false;
+}
+
+
+bool Expression::constEval(string &msg, int &result) const
+{
   xassert(!ambiguity);
 
   if (type->isError()) {
@@ -3758,22 +3773,21 @@ bool Expression::constEval(Env &env, int &result) const
       if (v->var->type->isCVAtomicType() &&
           (v->var->type->asCVAtomicTypeC()->cv & CV_CONST) &&
           v->var->value) {
-        // const variable 
-        return v->var->value->constEval(env, result);
+        // const variable
+        return v->var->value->constEval(msg, result);
       }
 
-      env.error(stringc
-        << "can't const-eval non-const variable `" << v->var->name << "'",
-        false /*disambiguates*/);
+      msg = stringc
+        << "can't const-eval non-const variable `" << v->var->name << "'";
       return false;
 
     ASTNEXTC(E_constructor, c)
       if (type->isIntegerType()) {
         // allow it; should only be 1 arg, and that will be value
-        return c->args->first()->constEval(env, result);
+        return c->args->first()->constEval(msg, result);
       }
       else {
-        env.error("can only const-eval E_constructors for integer types");
+        msg = "can only const-eval E_constructors for integer types";
         return false;
       }
 
@@ -3782,7 +3796,7 @@ bool Expression::constEval(Env &env, int &result) const
       return true;
 
     ASTNEXTC(E_unary, u)
-      if (!u->expr->constEval(env, result)) return false;
+      if (!u->expr->constEval(msg, result)) return false;
       switch (u->op) {
         default: xfailure("bad code");
         case UNY_PLUS:   result = +result;  return true;
@@ -3793,12 +3807,11 @@ bool Expression::constEval(Env &env, int &result) const
 
     ASTNEXTC(E_binary, b)
       int v1, v2;
-      if (!b->e1->constEval(env, v1) ||
-          !b->e2->constEval(env, v2)) return false;
+      if (!b->e1->constEval(msg, v1) ||
+          !b->e2->constEval(msg, v2)) return false;
 
       if (v2==0 && (b->op == BIN_DIV || b->op == BIN_MOD)) {
-        env.error("division by zero in constant expression",
-                  false /*disambiguates*/);
+        msg = "division by zero in constant expression";
         return false;
       }
 
@@ -3827,7 +3840,7 @@ bool Expression::constEval(Env &env, int &result) const
       }
 
     ASTNEXTC(E_cast, c)
-      if (!c->expr->constEval(env, result)) return false;
+      if (!c->expr->constEval(msg, result)) return false;
 
       Type *t = c->ctype->getType();
       if (t->isIntegerType()) {
@@ -3835,36 +3848,34 @@ bool Expression::constEval(Env &env, int &result) const
       }
       else {
         // TODO: this is probably not the right rule..
-        env.error(stringc
+        msg = stringc
           << "in constant expression, can only cast to integer types, not `"
-          << t->toString() << "'");
+          << t->toString() << "'";
         return false;
       }
 
     ASTNEXTC(E_cond, c)
-      if (!c->cond->constEval(env, result)) return false;
+      if (!c->cond->constEval(msg, result)) return false;
 
       if (result) {
-        return c->th->constEval(env, result);
+        return c->th->constEval(msg, result);
       }
       else {
-        return c->el->constEval(env, result);
+        return c->el->constEval(msg, result);
       }
 
     ASTNEXTC(E_comma, c)
-      return c->e2->constEval(env, result);
+      return c->e2->constEval(msg, result);
 
     ASTNEXTC(E_sizeofType, s)
       result = s->size;
       return true;
 
     ASTNEXTC(E_grouping, e)
-      return e->expr->constEval(env, result);
+      return e->expr->constEval(msg, result);
 
     ASTDEFAULTC
-      env.error(stringc <<
-        kindName() << " is not constEval'able",
-        false /*disambiguates*/);
+      msg = stringc << kindName() << " is not constEval'able";
       return false;
 
     ASTENDCASEC
