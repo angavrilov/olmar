@@ -94,8 +94,10 @@ public:     // funcs
   Lexer(StringTable &strtable, CCLang &lang, char const *fname);
   ~Lexer();
 
-  // LexerInterface funcs
   static void tokenFunc(LexerInterface *lex);
+  static void c_tokenFunc(LexerInterface *lex);
+
+  // LexerInterface funcs
   virtual NextTokenFunc getTokenFunc() const;
   virtual string tokenDesc() const;
 };

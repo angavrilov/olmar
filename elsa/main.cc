@@ -65,6 +65,10 @@ void doit(int argc, char **argv)
       sourceLocManager->useHashLines = false;
     }
 
+    if (tracingSys("c_lang")) {
+      lang.ANSI_C();
+    }
+
     SemanticValue treeTop;
     ParseTreeAndTokens tree(lang, treeTop, strTable, inputFname);
     

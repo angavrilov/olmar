@@ -3,19 +3,26 @@
 # can parse it and leave no ambiguities
                
 if [ "$1" = "" ]; then
-  echo "usage: $0 file.i [file2.i [...]]"
+  echo "usage: $0 [-tr flag] file.i [file2.i [...]]"
   exit 0
+fi
+
+extra=""
+if [ "$1" = "-tr" ]; then
+  extra="-tr $2"
+  shift
+  shift
 fi
 
 while [ "$1" != "" ]; do
   fname="$1"
   shift
-  
+
   echo "--------- $fname --------"
 
   # see if the parser thinks it worked
   echo "./ccparse $fname"
-  if ./ccparse -tr mustBeUnambiguous,nohashline "$fname"; then
+  if ./ccparse -tr mustBeUnambiguous,nohashline $extra "$fname"; then
     # ok
     true
   else

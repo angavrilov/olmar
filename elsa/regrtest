@@ -188,7 +188,6 @@ for fn in                                                                 \
   runTest ./ccparse in/$fn
 done
 
-# 3.4.5.cc has some stuff commented-out that I can't handle..
 for fn in in/std/*.cc; do
   runTest ./ccparse "$fn"
 done
@@ -212,15 +211,21 @@ list=`echo " \
   " | fmt -1 | sed 's|^ *|in/|'`
 runTest ./idemcheck -d outdir $list
 
+
+# test the parser in C mode
+for fn in                                                                   \
+  t0001.c                                                                   \
+    ; do
+  runTest ./ccparse -tr c_lang in/c/$fn
+done
+
+
+# final parser checks against the big files, since they've now become
+# my performance measurement files
 make in/big
 for fn in in/big/*.i; do
   runTest ./ccparse "$fn"
 done
-
-
-# --------- test C++ pretty-printer ---------
-# test files in cc.in
-#runTest make -C cc idem/cc.in
 
 
 # final arithmetic to report result

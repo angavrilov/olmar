@@ -265,16 +265,42 @@ void Lexer::err(char const *msg)
 STATICDEF void Lexer::tokenFunc(LexerInterface *lex)
 {
   Lexer *ths = static_cast<Lexer*>(lex);
-  
+
   // call into the flex lexer; this updates 'loc' and sets
   // 'sval' as appropriate
   ths->type = ths->yylex();
 }
 
 
+STATICDEF void Lexer::c_tokenFunc(LexerInterface *lex)
+{
+  // as above
+  Lexer *ths = static_cast<Lexer*>(lex);
+  ths->type = ths->yylex();
+
+  // map C++ keywords into identifiers
+  TokenType tt = (TokenType)(ths->type);
+  if (tokenFlags(tt) & TF_CPLUSPLUS) {
+    // create the lexeme corresponding to the token's spelling
+    StringRef str = ths->strtable.add(toString(tt));
+    
+    // set the LexerInterface fields to yield the new token
+    ths->type = TOK_NAME;
+    ths->sval = (SemanticValue)str;
+  }
+}
+
+
 Lexer::NextTokenFunc Lexer::getTokenFunc() const
 {
-  return &Lexer::tokenFunc;
+  if (lang.recognizeCppKeywords) {
+    // expected case, yield the normal tokenizer
+    return &Lexer::tokenFunc;                   
+  }
+  else {
+    // yield the tokenizer that maps C++ keywords into C keywords
+    return &Lexer::c_tokenFunc;
+  }
 }
 
 string Lexer::tokenDesc() const
