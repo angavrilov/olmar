@@ -24,7 +24,7 @@
 
 #include "srcloc.h"            // SourceLoc
 #include "strtable.h"          // StringRef
-#include "cc_flags.h"          // DeclFlags
+#include "cc_flags.h"          // DeclFlags, ScopeKind
 #include "sobjlist.h"          // SObjList
 
 class Type;                    // cc_type.h
@@ -73,6 +73,10 @@ public:    // data
   // if the scope has a name, i.e. it continues to be available for
   // use even after it's lexically closed
   Scope *scope;           // (nullable serf)
+
+  // kind of scope in which the name is declared; initially this
+  // is SK_UNKNOWN
+  ScopeKind scopeKind;
 
 protected:    // funcs
   friend class BasicTypeFactory;

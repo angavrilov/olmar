@@ -119,6 +119,25 @@ string toString(DeclFlags df)
 }
 
 
+// ----------------------- ScopeKind ----------------------------
+char const *toString(ScopeKind sk)
+{
+  static char const * const arr[] = {
+    "unknown",
+    "global",
+    "parameter",
+    "function",
+    "class",
+    "template",
+    //"namespace",
+  };
+  STATIC_ASSERT(TABLESIZE(arr) == NUM_SCOPEKINDS);
+
+  xassert((unsigned)sk < NUM_SCOPEKINDS);
+  return arr[sk];
+}
+
+
 // ---------------------- SimpleTypeId --------------------------
 bool isValid(SimpleTypeId id)
 {

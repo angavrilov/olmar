@@ -56,11 +56,11 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
   // create first scope
   SourceLoc emptyLoc = SL_UNKNOWN;
   {
-    Scope *s = new Scope(0 /*changeCount*/, emptyLoc);
+    Scope *s = new Scope(SK_GLOBAL, 0 /*changeCount*/, emptyLoc);
     scopes.prepend(s);
 
     // cause Variables inserted into this scope to acquire DF_GLOBAL
-    s->isGlobalScope = true;
+    //s->isGlobalScope = true;
   }
 
   // create the typeid type
@@ -267,13 +267,13 @@ FunctionType *Env::makeDestructorFunctionType(SourceLoc loc)
 }
 
 
-Scope *Env::enterScope(char const *forWhat)
+Scope *Env::enterScope(ScopeKind sk, char const *forWhat)
 {
   trace("env") << locStr() << ": entered scope for " << forWhat << "\n";
 
   // propagate the 'curFunction' field
   Function *f = scopes.first()->curFunction;
-  Scope *newScope = new Scope(getChangeCount(), loc());
+  Scope *newScope = new Scope(sk, getChangeCount(), loc());
   scopes.prepend(newScope);
   newScope->curFunction = f;
 
@@ -375,9 +375,11 @@ Scope *Env::outerScope()
 {
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
     Scope *s = iter.data();
-    if (!s->canAcceptNames) continue;        // skip template scopes
-    if (s->curCompound) continue;            // skip class scopes
-    if (s->isParameterListScope ) continue;  // skip parameter list scopes
+    if (s->isTemplateScope() ||              // skip template scopes
+        s->isClassScope() ||                 // skip class scopes
+        s->isParameterScope()) {             // skip parameter list scopes
+      continue;
+    }
     
     return s;
   }
@@ -946,6 +948,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
   Variable *tv = makeVariable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
   ct->typedefVar = tv;
   if (name && scope) {
+    scope->registerVariable(tv);
     if (!scope->addVariable(tv)) {
       // this isn't really an error, because in C it would have
       // been allowed, so C++ does too [ref?]
@@ -1015,7 +1018,7 @@ Variable *Env::instantiateClassTemplate
     }
 
     // make a new scope for the template arguments
-    argScope = enterScope("template argument bindings");
+    argScope = enterScope(SK_TEMPLATE, "template argument bindings");
 
     // simultaneously iterate over the parameters and arguments,
     // creating bindings from params to args

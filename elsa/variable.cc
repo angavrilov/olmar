@@ -14,7 +14,8 @@ Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
     funcDefn(NULL),
     overload(NULL),
     access(AK_PUBLIC),
-    scope(NULL)
+    scope(NULL),
+    scopeKind(SK_UNKNOWN)
 {
   xassert(type);        // (just a stab in the dark debugging effort)
 }

@@ -94,6 +94,22 @@ string toString(DeclFlags df);
 ENUM_BITWISE_OPS(DeclFlags, ALL_DECLFLAGS)
 
 
+// -------------------------- ScopeKind ------------------------------
+// What kind of (innermost) scope does a variable declaration appear in?
+enum ScopeKind {
+  SK_UNKNOWN,                     // hasn't been registered in a scope yet
+  SK_GLOBAL,                      // toplevel names
+  SK_PARAMETER,                   // parameter list
+  SK_FUNCTION,                    // includes local variables
+  SK_CLASS,                       // class member scope
+  SK_TEMPLATE,                    // template paramter list (inside the '<' and '>')
+  //SK_NAMESPACE,                 // todo: is this the right way to handle namespaces?
+  NUM_SCOPEKINDS
+};
+
+char const *toString(ScopeKind sk);
+
+
 // ------------------------- SimpleTypeId ----------------------------
 // C's built-in scalar types; the representation deliberately does
 // *not* imply any orthogonality of properties (like long vs signed);

@@ -113,7 +113,7 @@ public:      // funcs
   int getChangeCount() const { return scopeC()->getChangeCount(); }
 
   // scopes
-  Scope *enterScope(char const *forWhat);   // returns new Scope
+  Scope *enterScope(ScopeKind sk, char const *forWhat);   // returns new Scope
   void exitScope(Scope *s);       // paired with enterScope()
   void extendScope(Scope *s);     // push onto stack, but don't own
   void retractScope(Scope *s);    // paired with extendScope()

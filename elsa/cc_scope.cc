@@ -7,7 +7,7 @@
 #include "cc_type.h"      // CompoundType
 #include "cc_env.h"       // doh.  Env::error
 
-Scope::Scope(int cc, SourceLoc initLoc)
+Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
   : variables(),
     compounds(),
     enums(),
@@ -15,13 +15,16 @@ Scope::Scope(int cc, SourceLoc initLoc)
     canAcceptNames(true),
     innerClasses(),
     parentScope(),
-    isParameterListScope(false),
-    isGlobalScope(false),
+    scopeKind(sk),
+    //isParameterListScope(false),
+    //isGlobalScope(false),
     curCompound(NULL),
     curFunction(NULL),
     curTemplateParams(NULL),
     curLoc(initLoc)
-{}
+{
+  xassert(sk != SK_UNKNOWN);
+}
 
 Scope::~Scope()
 {
@@ -83,6 +86,7 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
                  << " `" << v->name
                  << "' of type `" << v->type->toString()
                  << "' at " << toString(v->loc)
+                 << " (" << toString(v->scopeKind) << " scope)"
                  << endl;
   }
   else {
@@ -101,7 +105,7 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
     return true;     // pretend it worked; don't further rock the boat
   }
 
-  if (isGlobalScope) {
+  if (isGlobalScope()) {
     v->setFlag(DF_GLOBAL);
   }
 
@@ -149,6 +153,18 @@ bool Scope::addEnum(EnumType *et)
 
 void Scope::registerVariable(Variable *v)
 {
+  if (v->scopeKind == SK_UNKNOWN) {
+    v->scopeKind = scopeKind;
+  }
+  else {
+    // this happens to parameters at function definitions: the
+    // variable is created and first entered into the parameter scope,
+    // but then the they are also inserted into the function scope
+    // (because the parameter scope ends at the closing-paren); so
+    // leave the scope kind alone, even though now the variable has
+    // been added to a function scope
+  }
+
   if (curCompound && curCompound->name) {
     // since the scope has a name, let the variable point at it
     v->scope = this;

@@ -70,8 +70,8 @@ private:     // data
 public:      // data
   // when this is set to false, the environment knows it should not
   // put new names into this scope, but rather go further down into
-  // the scope stack to insert the name (used for environments of
-  // template parameters)
+  // the scope stack to insert the name (used for scopes of template
+  // parameters, after the names have been added)
   bool canAcceptNames;
 
   // doh.. I need a list of compounds so I can check the inner
@@ -88,12 +88,15 @@ public:      // data
   // class for the first time
   Scope *parentScope;
 
+  // what kind of scope is this?
+  ScopeKind scopeKind;
+
   // true for function parameter list scopes; the C++ standard
   // has places where they are treated differently, e.g. 3.3.1 para 5
-  bool isParameterListScope;
+  //bool isParameterListScope;
 
   // if this is true, then inserted Variables get the DF_GLOBAL flag
-  bool isGlobalScope;
+  //bool isGlobalScope;
 
   // ------------- "current" entities -------------------
   // these are set to allow the typechecking code to know about
@@ -103,18 +106,25 @@ public:      // data
   Function *curFunction;              // (serf) Function we're analyzing
   TemplateParams *curTemplateParams;  // (owner) params to attach to next function or class
   SourceLoc curLoc;                   // latest AST location marker seen
-                                    
+
 private:     // funcs
   void Scope::lookupPQVariableC_considerBase
     (PQName const *name, Env &env, LookupFlags flags,
-     Variable const *&v1, CompoundType const *&v1Base, 
+     Variable const *&v1, CompoundType const *&v1Base,
      BaseClassSubobj const *v2Subobj) const;
 
 public:      // funcs
-  Scope(int changeCount, SourceLoc initLoc);
+  Scope(ScopeKind sk, int changeCount, SourceLoc initLoc);
   ~Scope();
 
   int getChangeCount() const { return changeCount; }
+
+  // some syntactic sugar on the scope kind
+  bool isGlobalScope() const        { return scopeKind == SK_GLOBAL; }
+  bool isParameterScope() const     { return scopeKind == SK_PARAMETER; }
+  bool isFunctionScope() const      { return scopeKind == SK_TEMPLATE; }
+  bool isClassScope() const         { return scopeKind == SK_CLASS; }
+  bool isTemplateScope() const      { return scopeKind == SK_TEMPLATE; }
 
   // dsw: I need to lookup variables and I don't have an Env to pass
   // in; additionally, I'm not so sure that lookupVariable() really
@@ -133,6 +143,8 @@ public:      // funcs
   bool addCompound(CompoundType *ct);
   bool addEnum(EnumType *et);
 
+  // mark 'v' as being a member of this scope, by setting its 'scope'
+  // and 'scopeKind' members (this is not done by 'addVariable')
   void registerVariable(Variable *v);
 
   // lookup; these return NULL if the name isn't found; 'env' is

@@ -391,7 +391,7 @@ void Function::tcheck(Env &env, bool checkBody)
   // the parameters will have been entered into the parameter
   // scope, but that's gone now; make a new scope for the
   // function body and enter the parameters into that
-  Scope *bodyScope = env.enterScope("function parameter bindings");
+  Scope *bodyScope = env.enterScope(SK_PARAMETER, "function parameter bindings");
   bodyScope->curFunction = this;
   SFOREACH_OBJLIST_NC(Variable, funcType->params, iter) {
     Variable *v = iter.data();
@@ -2397,8 +2397,8 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
   TemplateParams *templateParams = env.takeTemplateParams();
 
   // make a new scope for the parameter list
-  Scope *paramScope = env.enterScope("D_func parameter list scope");
-  paramScope->isParameterListScope = true;
+  Scope *paramScope = env.enterScope(SK_PARAMETER, "D_func parameter list scope");
+  //paramScope->isParameterListScope = true;
 
   // typecheck the parameters; this disambiguates any ambiguous type-ids
   params = tcheckFakeASTTypeIdList(params, env, true /*isParameter*/);
@@ -2888,7 +2888,7 @@ void S_expr::itcheck(Env &env)
 
 void S_compound::itcheck(Env &env)
 { 
-  Scope *scope = env.enterScope("compound statement");
+  Scope *scope = env.enterScope(SK_FUNCTION, "compound statement");
 
   FOREACH_ASTLIST_NC(Statement, stmts, iter) {
     // have to potentially change the list nodes themselves
@@ -2903,7 +2903,7 @@ void S_if::itcheck(Env &env)
 {
   // if 'cond' declares a variable, its scope is the
   // body of the "if"
-  Scope *scope = env.enterScope("condition in an 'if' statement");
+  Scope *scope = env.enterScope(SK_FUNCTION, "condition in an 'if' statement");
 
   cond->tcheck(env);
   thenBranch = thenBranch->tcheck(env);
@@ -2915,7 +2915,7 @@ void S_if::itcheck(Env &env)
 
 void S_switch::itcheck(Env &env)
 {
-  Scope *scope = env.enterScope("condition in a 'switch' statement");
+  Scope *scope = env.enterScope(SK_FUNCTION, "condition in a 'switch' statement");
 
   cond->tcheck(env);
   branches = branches->tcheck(env);
@@ -2926,7 +2926,7 @@ void S_switch::itcheck(Env &env)
 
 void S_while::itcheck(Env &env)
 {
-  Scope *scope = env.enterScope("condition in a 'while' statement");
+  Scope *scope = env.enterScope(SK_FUNCTION, "condition in a 'while' statement");
 
   cond->tcheck(env);
   body = body->tcheck(env);
@@ -2946,7 +2946,7 @@ void S_doWhile::itcheck(Env &env)
 
 void S_for::itcheck(Env &env)
 {
-  Scope *scope = env.enterScope("condition in a 'for' statement");
+  Scope *scope = env.enterScope(SK_FUNCTION, "condition in a 'for' statement");
 
   init = init->tcheck(env);
   cond->tcheck(env);
@@ -3037,7 +3037,7 @@ void CN_decl::tcheck(Env &env)
 // ------------------- Handler ----------------------
 void HR_type::tcheck(Env &env)
 {           
-  Scope *scope = env.enterScope("exception handler");
+  Scope *scope = env.enterScope(SK_FUNCTION, "exception handler");
 
   ASTTypeId::Tcheck tc;
   typeId = typeId->tcheck(env, tc);
@@ -4336,8 +4336,8 @@ void IN_ctor::tcheck(Env &env)
 void TemplateDeclaration::tcheck(Env &env)
 {
   // make a new scope to hold the template parameters
-  Scope *paramScope = env.enterScope("template declaration parameters");
-    
+  Scope *paramScope = env.enterScope(SK_TEMPLATE, "template declaration parameters");
+
   // make a list of template parameters
   TemplateParams *tparams = new TemplateParams;
 
