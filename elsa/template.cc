@@ -272,14 +272,14 @@ bool TemplateInfo::isPartialSpec() const
 bool TemplateInfo::isCompleteSpec() const
 {
   return isSpecialization() &&
-         !hasParameters();
+         !hasMainOrInheritedParameters();
 }
 
 
 bool TemplateInfo::isCompleteSpecOrInstantiation() const
 {
   return isNotPrimary() &&
-         !hasParameters();
+         !hasMainOrInheritedParameters();
 }
 
 
@@ -432,6 +432,13 @@ bool TemplateInfo::hasMainOrInheritedParameters() const
                
   // no parameters at any level
   return false;                
+}
+
+bool TemplateInfo::hasParametersEx(bool considerInherited) const
+{
+  return considerInherited?
+           hasMainOrInheritedParameters() :
+           hasParameters();
 }
 
 
@@ -3184,6 +3191,57 @@ Variable *Env::makeSpecializationVariable
   xassert(ti->isSpecialization());
 
   return spec;
+}
+
+
+void Env::explicitlyInstantiate(Variable *var)
+{
+  TemplateInfo *tinfo = var->templateInfo();
+  xassert(tinfo);
+
+  // 8/12/04: This code has not been tested very much ...
+
+  // function instantiation?
+  if (var->type->isFunctionType()) {
+    // It's ok if we haven't seen the definition yet, however, the
+    // presence of this explicit instantation request means that the
+    // definition must be somewhere in the translation unit (14.7.2
+    // para 4).  However, I do not enforce this.
+    ensureFuncBodyTChecked(var);
+    return;
+  }
+
+  // class instantiation
+  xassert(var->type->isCompoundType());
+  CompoundType *ct = var->type->asCompoundType();
+  if (!ensureCompleteType("instantiate", var->type)) {
+    return;    // recovery
+  }
+
+  // 14.7.2 para 7: instantiate all members, too
+
+  // base classes
+  FOREACH_OBJLIST(BaseClass, ct->bases, baseIter) {
+    explicitlyInstantiate(baseIter.data()->ct->typedefVar);
+  }
+
+  // member variables, functions
+  for (StringSObjDict<Variable>::IterC membIter(ct->getVariableIter());
+       !membIter.isDone(); membIter.next()) {
+    Variable *memb = membIter.value();
+
+    if (memb->templateInfo()) {
+      explicitlyInstantiate(memb);
+    }
+  }
+
+  // inner classes
+  for (StringSObjDict<CompoundType>::IterC innerIter(ct->getCompoundIter());
+       !innerIter.isDone(); innerIter.next()) {
+    CompoundType *inner = innerIter.value();
+
+    explicitlyInstantiate(inner->typedefVar);
+  }
 }
 
 

@@ -1978,102 +1978,116 @@ Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
     var = lookupVariable(name->getName(), flags, scope);
   }
 
-  if (var) {
-    // reference to a class in whose scope I am?
-    if (var->hasFlag(DF_SELFNAME)) {
-      xassert(!final->isPQ_template());    // otherwise how'd LF_SELFNAME get set?
+  // apply template arguments in 'name'
+  return applyPQNameTemplateArguments(var, final, flags);
+}
 
-      // cppstd 14.6.1 para 1: if the name refers to a template
-      // in whose scope we are, then it need not have arguments
-      TRACE("template", "found bare reference to enclosing template: " << var->name);
+// given something like "C<T>", where "C" has been looked up to yield
+// 'var' and "<T>" is still attached to 'final', combine them
+Variable *Env::applyPQNameTemplateArguments
+  (Variable *var,         // (nullable) may or may not name a template primary
+   PQName const *final,   // final part of name, may or may not have template arguments
+   LookupFlags flags)
+{
+  if (!var) {
+    // caller already had an error and reported it; just propagate
+    return NULL;
+  }
+
+  // reference to a class in whose scope I am?
+  if (var->hasFlag(DF_SELFNAME)) {
+    xassert(!final->isPQ_template());    // otherwise how'd LF_SELFNAME get set?
+
+    // cppstd 14.6.1 para 1: if the name refers to a template
+    // in whose scope we are, then it need not have arguments
+    TRACE("template", "found bare reference to enclosing template: " << var->name);
+    return var;
+  }
+
+  // compare the name's template status to whether template
+  // arguments were supplied; note that you're only *required*
+  // to pass arguments for template classes, since template
+  // functions can infer their arguments
+  if (var->isTemplate(false /*considerInherited*/)) {
+    // dsw: I need a way to get the template without instantiating
+    // it.
+    if (flags & LF_TEMPL_PRIMARY) {
       return var;
     }
 
-    // compare the name's template status to whether template
-    // arguments were supplied; note that you're only *required*
-    // to pass arguments for template classes, since template
-    // functions can infer their arguments
-    if (var->isTemplate()) {
-      // dsw: I need a way to get the template without instantiating
-      // it.
-      if (flags & LF_TEMPL_PRIMARY) {
-        return var;
-      }
-
-      if (!final->isPQ_template()
-          && var->isTemplateClass() // can be inferred for template functions, so we duck
-          ) {
-        // this disambiguates
-        //   new Foo< 3 > +4 > +5;
-        // which could absorb the '3' as a template argument or not,
-        // depending on whether Foo is a template
-        error(stringc
-          << "`" << var->name << "' is a class template, but template "
-          << "arguments were not supplied",
-          EF_DISAMBIGUATES);
-        return NULL;
-      }
-
-      if (var->isTemplateClass()) {
-        // apply the template arguments to yield a new type based
-        // on the template
-
-        // obtain a list of semantic arguments
-        PQ_template const *tqual = final->asPQ_templateC();
-        SObjList<STemplateArgument> sargs;
-        if (!templArgsASTtoSTA(tqual->args, sargs)) {
-          return NULL;       // error already reported
-        }
-
-        // if any of the arguments are dependent, then the whole
-        // instantiation is dependent
-        if (hasDependentArgs(sargs)) {
-          return dependentTypeVar;
-        }
-
-        // if the template arguments are not concrete, then create
-        // a PsuedoInstantiation
-        if (containsTypeVariables(sargs)) {
-          PseudoInstantiation *pi =
-            createPseudoInstantiation(var->type->asCompoundType(), sargs);
-          xassert(pi->typedefVar);
-          return pi->typedefVar;
-        }
-
-        return instantiateClassTemplate(loc(), var, sargs);
-      }
-      else {                    // template function
-        xassert(var->isTemplateFunction());
-
-        // it's quite likely that this code is not right...
-
-        if (!final->isPQ_template()) {
-          // no template arguments supplied... just return the primary
-          return var;
-        }
-        else {
-          // hope that all of the arguments have been supplied
-          xassert(var->templateInfo()->isPrimary());
-                                                         
-          // make a list of semantic template args
-          SObjList<STemplateArgument> sargs;
-          if (!templArgsASTtoSTA(final->asPQ_templateC()->args, sargs)) {
-            return NULL;      // error already reporeted
-          }
-
-          return instantiateFunctionTemplate(loc(), var, sargs);
-        }
-      }
-    }
-    else if (!var->isTemplate() &&
-             final->isPQ_template()) {
-      // disambiguates the same example as above, but selects
-      // the opposite interpretation
+    if (!final->isPQ_template()
+        && var->isTemplateClass() // can be inferred for template functions, so we duck
+        ) {
+      // this disambiguates
+      //   new Foo< 3 > +4 > +5;
+      // which could absorb the '3' as a template argument or not,
+      // depending on whether Foo is a template
       error(stringc
-        << "`" << var->name << "' is not a template, but template arguments were supplied",
+        << "`" << var->name << "' is a class template, but template "
+        << "arguments were not supplied",
         EF_DISAMBIGUATES);
       return NULL;
     }
+
+    if (var->isTemplateClass()) {
+      // apply the template arguments to yield a new type based
+      // on the template
+
+      // obtain a list of semantic arguments
+      PQ_template const *tqual = final->asPQ_templateC();
+      SObjList<STemplateArgument> sargs;
+      if (!templArgsASTtoSTA(tqual->args, sargs)) {
+        return NULL;       // error already reported
+      }
+
+      // if any of the arguments are dependent, then the whole
+      // instantiation is dependent
+      if (hasDependentArgs(sargs)) {
+        return dependentTypeVar;
+      }
+
+      // if the template arguments are not concrete, then create
+      // a PsuedoInstantiation
+      if (containsTypeVariables(sargs)) {
+        PseudoInstantiation *pi =
+          createPseudoInstantiation(var->type->asCompoundType(), sargs);
+        xassert(pi->typedefVar);
+        return pi->typedefVar;
+      }
+
+      return instantiateClassTemplate(loc(), var, sargs);
+    }
+    else {                    // template function
+      xassert(var->isTemplateFunction());
+
+      // it's quite likely that this code is not right...
+
+      if (!final->isPQ_template()) {
+        // no template arguments supplied... just return the primary
+        return var;
+      }
+      else {
+        // hope that all of the arguments have been supplied
+        xassert(var->templateInfo()->isPrimary());
+
+        // make a list of semantic template args
+        SObjList<STemplateArgument> sargs;
+        if (!templArgsASTtoSTA(final->asPQ_templateC()->args, sargs)) {
+          return NULL;      // error already reporeted
+        }
+
+        return instantiateFunctionTemplate(loc(), var, sargs);
+      }
+    }
+  }
+  else if (!var->isTemplate() &&
+           final->isPQ_template()) {
+    // disambiguates the same example as above, but selects
+    // the opposite interpretation
+    error(stringc
+      << "`" << var->name << "' is not a template, but template arguments were supplied",
+      EF_DISAMBIGUATES);
+    return NULL;
   }
 
   return var;
@@ -2136,12 +2150,12 @@ Variable *Env::lookupVariable(StringRef name, LookupFlags flags,
 
 CompoundType *Env::lookupPQCompound(PQName const *name, LookupFlags flags)
 {
-  // same logic as for lookupPQVariable
+  CompoundType *ret;
   if (name->hasQualifiers()) {
     Scope *scope = lookupQualifiedScope(name);
     if (!scope) return NULL;
 
-    CompoundType *ret = scope->lookupCompound(name->getName(), flags);
+    ret = scope->lookupCompound(name->getName(), flags);
     if (!ret) {
       error(stringc
         << name->qualifierString() << " has no class/struct/union called `"
@@ -2152,8 +2166,19 @@ CompoundType *Env::lookupPQCompound(PQName const *name, LookupFlags flags)
 
     return ret;
   }
+  else {
+    ret = lookupCompound(name->getName(), flags);
+  }
 
-  return lookupCompound(name->getName(), flags);
+  // apply template arguments if any
+  if (ret) {
+    Variable *var = applyPQNameTemplateArguments(ret->typedefVar, name, flags);
+    if (var && var->type->isCompoundType()) {
+      ret = var->type->asCompoundType();
+    }
+  }
+
+  return ret;
 }
 
 CompoundType *Env::lookupCompound(StringRef name, LookupFlags flags)

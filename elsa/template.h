@@ -268,9 +268,12 @@ public:      // funcs
 
   // true if there are parameters (at this level; not inherited)
   bool hasParameters() const;
-                                            
+
   // inherited or main
   bool hasMainOrInheritedParameters() const;
+
+  // either
+  bool hasParametersEx(bool considerInherited) const;
 
   // if one of my explicit specializations has arguments that
   // exactly match 'sargs' (which is a list of concrete arguments),

@@ -105,25 +105,25 @@ bool Variable::isUninstTemplateMember() const
 }
 
 
-bool Variable::isTemplate() const 
-{ 
+bool Variable::isTemplate(bool considerInherited) const
+{
   return templateInfo() &&
-         templateInfo()->hasParameters();  // not just an instantiation 
+         templateInfo()->hasParametersEx(considerInherited);
 }
 
-bool Variable::isTemplateFunction() const
+bool Variable::isTemplateFunction(bool considerInherited) const
 {
   return type &&
          type->isFunctionType() &&
-         isTemplate() &&
+         isTemplate(considerInherited) &&
          !hasFlag(DF_TYPEDEF);
 }
 
-bool Variable::isTemplateClass() const
+bool Variable::isTemplateClass(bool considerInherited) const
 {
   return hasFlag(DF_TYPEDEF) &&
          type->isCompoundType() &&
-         isTemplate();
+         isTemplate(considerInherited);
 }
 
 

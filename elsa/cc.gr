@@ -846,7 +846,7 @@ nonterm(TopForm*) Declaration {
   -> d:BlockDeclaration        { return new TF_decl(loc, d); }
   -> f:FunctionDefinition      { return new TF_func(loc, f); }
   -> t:TemplateDeclaration     { return new TF_template(loc, t); }
-  -> d:ExplicitInstantiation   { return new TF_explicitInst(loc, d); }
+  -> d:ExplicitInstantiation   { return d; }
   //-> ExplicitSpecialization  // folded into TemplateDeclaration
   -> s:LinkageSpecification    { return s; }
 
@@ -2220,7 +2220,7 @@ nonterm(TemplateArgument*) TemplateArgument {
 }
 
 nonterm(TopForm*) ExplicitInstantiation {
-  -> "template" d:Declaration { return d; }
+  -> "template" d:BlockDeclaration           { return new TF_explicitInst(loc, d); }
 }
 
 // ------ A.13 Exception handling ------

@@ -371,6 +371,10 @@ public:      // funcs
   EnumType *lookupPQEnum(PQName const *name, LookupFlags f=LF_NONE);
   EnumType *lookupEnum  (StringRef name,     LookupFlags f=LF_NONE);
 
+  // name + template args = inst
+  Variable *applyPQNameTemplateArguments
+    (Variable *var, PQName const *name, LookupFlags flags);
+
   // look up a particular scope; the 'name' part of the PQName
   // will be ignored; if we can't find this scope, return NULL
   // *and* report it as an error; there must be at least one
@@ -699,7 +703,8 @@ public:      // template funcs
      bool &haveAllArgs,
      //ObjListIter<STemplateArgument> &piArgIter,
      SObjList<Variable> const &paramList);
-     
+
+  // name + template args + function call args = inst     
   Variable *lookupPQVariable_applyArgsTemplInst
     (Variable *primary, PQName const *name, FakeList<ArgExpression> *funcArgs);
 
@@ -763,6 +768,10 @@ public:      // template funcs
   // given a template class that was just made non-forward,
   // instantiate all of its forward-declared instances
   void instantiateForwardClasses(Variable *baseV);
+
+  // given a class or function template instantiation, process
+  // an "explicit instantiation" (14.7.2) request for it
+  void explicitlyInstantiate(Variable *inst);
 
   // match via MM_ISO ..
   bool isomorphicTypes(Type *a, Type *b);

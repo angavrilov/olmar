@@ -138,9 +138,12 @@ public:
 
   // true if this name refers to a template function, or is
   // the typedef-name of a template class (or partial specialization)
-  bool isTemplate() const;
-  bool isTemplateFunction() const;
-  bool isTemplateClass() const;
+  //
+  // if 'considerInherited' is false, then the template-ness
+  // is only as w.r.t. its containing class
+  bool isTemplate(bool considerInherited = true) const;
+  bool isTemplateFunction(bool considerInherited = true) const;
+  bool isTemplateClass(bool considerInherited = true) const;
 
   // true if this is an instantiation of a template
   bool isInstantiation() const;

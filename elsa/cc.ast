@@ -54,7 +54,7 @@ class TopForm (SourceLoc loc) {
   -> TF_template(TemplateDeclaration td);
 
   // explicit instantiation request
-  -> TF_explicitInst(TopForm d);
+  -> TF_explicitInst(Declaration d);
 
   // linkage specification enclosing a bunch of forms, e.g.
   // extern "C" { /*...*/ }

@@ -109,9 +109,51 @@ void TF_template::tcheck(Env &env)
 void TF_explicitInst::tcheck(Env &env)
 {
   env.setLoc(loc);
-  d->tcheck(env);
   
-  #warning this is not right
+  // one might argue I should create DC_TF_EXPLICITINST ...
+  d->tcheck(env, DC_TF_DECL);
+  
+  // class instantiation?
+  if (d->decllist->isEmpty()) {
+    if (d->spec->isTS_elaborated()) {
+      NamedAtomicType *nat = d->spec->asTS_elaborated()->atype;
+      if (!nat) return;    // error recovery
+
+      if (nat->isCompoundType() &&
+          nat->asCompoundType()->isInstantiation()) {
+        env.explicitlyInstantiate(nat->asCompoundType()->typedefVar);
+      }
+      else {
+        // catch "template class C;"
+        env.error("explicit instantiation (without declarator) is only for class instantiations");
+      }
+    }
+    else {
+      // catch "template C<int>;"
+      env.error("explicit instantiation (without declarator) requires \"class ...\"");
+    }
+  }
+
+  // function instantiation?
+  else if (d->decllist->count() == 1) {
+    Variable *var = d->decllist->first()->var;
+    if (!var) return;         // error recovery
+    
+    if (var->templateInfo() &&
+        var->templateInfo()->isInstantiation()) {
+      env.explicitlyInstantiate(var);
+    }
+    else {
+      env.error("explicit instantiation is only for template function instantiations");
+    }
+  }
+  
+  else {
+    // other template declarations are limited to one declarator, so I
+    // am simply assuming the same is true of explicit instantiations,
+    // even though 14.7.2 doesn't say so explicitly...
+    env.error("too many declarators in explicit instantiation");
+  }
 }
 
 void TF_linkage::tcheck(Env &env)
@@ -1003,7 +1045,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     return env.makeType(loc, et);
   }
 
-  CompoundType *ct = NULL;
+  CompoundType *ct = NULL /*value not used*/;
   if (!name->hasQualifiers() &&
       (dflags & DF_FORWARD) &&
       !(dflags & DF_FRIEND)) {
@@ -1012,7 +1054,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     //      class-key identifier ;
     //    the elaborated-type-specifier declares the identifier to be a
     //    class-name in the scope that contains the declaration"
-    ct = env.lookupCompound(name->getName(), LF_INNER_ONLY);
+    ct = env.lookupPQCompound(name, LF_INNER_ONLY);
     if (!ct) {
       // make a forward declaration
       Type *ret =
@@ -1142,7 +1184,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 
   // see if the environment already has this name
   CompoundType *ct =
-    stringName? env.lookupPQCompound(name, LF_INNER_ONLY) : NULL;
+    stringName? env.lookupPQCompound(name, LF_INNER_ONLY | LF_TEMPL_PRIMARY) : NULL;
   Type *ret;
   if (ct && !templateArgs) {
     // check that the keywords match
