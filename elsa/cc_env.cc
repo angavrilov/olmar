@@ -1934,6 +1934,17 @@ void Env::retractScopeSeq(ScopeSeq const &scopes)
 }
 
 
+bool hadTcheckErrors(ObjList<STemplateArgument> const &args)
+{
+  FOREACH_OBJLIST(STemplateArgument, args, iter) {
+    if (iter.data()->kind == STemplateArgument::STA_NONE) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
 Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
 {
   Scope *dummy = NULL;     // paranoia; 'scope' is an OUT parameter
@@ -2110,7 +2121,15 @@ Variable *Env::applyPQNameTemplateArguments
       else {
         // hope that all of the arguments have been supplied
         xassert(var->templateInfo()->isPrimary());
-        return instantiateFunctionTemplate(loc(), var, final->asPQ_templateC()->sargs);
+        
+        PQ_template const *pqt = final->asPQ_templateC();
+        if (hadTcheckErrors(pqt->sargs)) {
+          // do not try to instantiate if there were errors; return the
+          // primary as recovery action (in/k0038.cc)
+          return var;
+        }
+
+        return instantiateFunctionTemplate(loc(), var, pqt->sargs);
       }
     }
   }
