@@ -8,5 +8,6 @@
 
 Type *computeArraySizeFromCompoundInit(Env &env, SourceLoc tgt_loc, Type *tgt_type,
                                        Type *src_type, Initializer *init);
+bool areYouOrHaveYouEverBeenATemplate(Type const *t);
 
 #endif // CC_TCHECK_H

@@ -37,6 +37,26 @@ static Variable *outerResolveOverload_ctor
 static bool reallyDoOverload(Env &env, FakeList<Expression> *args);
 
 
+// Why is there not a "finally" in C++!?!  I cannot figure out how to
+// get this into cc.ast or cc_tcheck.ast so I'm putting it here.
+// Would be nice if I knew how to make this a member class of
+// FullExpressionAnnot.
+class FullExpressionAnnot_StackBracket {
+  Env &env;
+  FullExpressionAnnot &fea;
+  Scope *s;
+  public:
+  explicit FullExpressionAnnot_StackBracket(Env &env0, FullExpressionAnnot &fea0)
+    : env(env0)
+    , fea(fea0)
+    , s(fea.tcheck_preorder(env))
+  {}
+  ~FullExpressionAnnot_StackBracket() {
+    fea.tcheck_postorder(env, s);
+  }
+};
+
+
 // return true if the list contains no disambiguating errors
 bool noDisambErrors(ErrorList const &list)
 {
@@ -304,7 +324,8 @@ void Function::tcheck_memberInits(Env &env)
   // ok, so far so good; now go through and check the member
   // inits themselves
   FAKELIST_FOREACH_NC(MemberInit, inits, iter) {
-    Scope *scope = iter->annot.tcheck_preorder(env);
+    FullExpressionAnnot_StackBracket fea0(env, iter->annot);
+//      Scope *scope = iter->annot.tcheck_preorder(env);
 
     PQName *name = iter->name;
 
@@ -432,7 +453,7 @@ void Function::tcheck_memberInits(Env &env)
     // TODO: check that the passed arguments are consistent
     // with at least one constructor in the base class
 
-    iter->annot.tcheck_postorder(env, scope);
+//      iter->annot.tcheck_postorder(env, scope);
   }
 }
 
@@ -1799,19 +1820,23 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       if (type->isCompoundType() &&
           (init->isIN_expr() || init->isIN_compound())
           ) {
+        xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
         // just call the no-arg ctor; FIX: this is questionable; we
         // haven't decided what should really happen for an IN_expr and
         // it is undefined what should happen for an IN_compound since
         // it is a C99-ism.
         ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
       } else if (init->isIN_ctor()) {
+        xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
         ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
       }
     }
   }
-  else /* init is NULL */ if (type->isCompoundType() &&
-                              !var->hasFlag(DF_TYPEDEF) &&
-                              !dt.isTemporary) {
+  else /* init is NULL */
+    if (type->isCompoundType() &&
+        !var->hasFlag(DF_TYPEDEF) &&
+        !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
+        !dt.isTemporary) {
     // call the no-arg ctor; for temporaries do nothing since this is
     // a temporary, it will be initialized later
     ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
@@ -1820,10 +1845,18 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // if dt.isTemporary we don't want to make a ctor since by
   // definition the temporary will be initialized later
   if (dt.isTemporary) xassert(!ctorStatement);
-  else if (type->isCompoundType() && !var->hasFlag(DF_TYPEDEF)) xassert(ctorStatement);
+  else if (type->isCompoundType() &&
+           !var->hasFlag(DF_TYPEDEF) &&
+           !(decl->isD_name() && !decl->asD_name()->name) // that is, not an abstract decl
+           ) {
+    xassert(ctorStatement);
+  }
 
   // make the dtorStatement
-  if (type->isCompoundType() && !var->hasFlag(DF_TYPEDEF)) {
+  if (type->isCompoundType() &&
+      !var->hasFlag(DF_TYPEDEF) &&
+      !(decl->isD_name() && !decl->asD_name()->name) // that is, not an abstract decl
+      ) {
     dtorStatement = makeDtorStatement(env, type);
   } else {
     xassert(!dtorStatement);
@@ -3426,9 +3459,10 @@ void FullExpression::tcheck(Env &env,
                             FullExpression *& // ignored; see cc_tcheck.ast
                             )
 {
-  Scope *scope = annot.tcheck_preorder(env);
+  FullExpressionAnnot_StackBracket fea0(env, annot);
+//    Scope *scope = annot.tcheck_preorder(env);
   expr->tcheck(env, expr);
-  annot.tcheck_postorder(env, scope);
+//    annot.tcheck_postorder(env, scope);
 }
 
 Type *FullExpression::getType()
@@ -3779,7 +3813,7 @@ static bool areYou_helper(Type const *t)
 // true if 't' is a template, an instantiated template, or contains
 // any type that is either (not including digging into the fields of
 // compound types)
-static bool areYouOrHaveYouEverBeenATemplate(Type const *t)
+bool areYouOrHaveYouEverBeenATemplate(Type const *t)
 {
   return t->anyCtorSatisfies(areYou_helper);
 }
@@ -4076,6 +4110,20 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
     new Declarator(new D_name(env.loc(), tempName),
                    NULL         // important: no Initializer
                    );
+  TypeSpecifier *typeSpecifier = NULL;
+  if (retType->isSimpleType()) {
+    typeSpecifier = new TS_simple(env.loc(),
+                                  retType->asSimpleTypeC()->type);
+  } else if (retType->isCompoundType()) {
+    typeSpecifier = new TS_name(env.loc(),
+                                retType->asCompoundType()->PQ_fullyQualifiedName(env.loc()),
+                                false);
+  } else {
+    // FIX: This should probably be a user error, not an xfailure
+    xfailure("attempted to make temp declaration for a type that is not a "
+             "CompoundType and not a SimpleType");
+  }
+  xassert(typeSpecifier);
   Declaration *declaration0 =
     new Declaration(DF_NONE,
                     // should get DF_AUTO since they are auto, but I
@@ -4083,14 +4131,7 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
                     // that for variables that are explicitly marked
                     // auto; will get DF_DEFINITION as soon as
                     // typechecked, I hope
-                    new TS_name(env.loc(),
-
-                                // NOTE: failing here when retType is
-                                // not a CompoundType, such as:
-                                //   x = int(6);
-
-                                retType->asCompoundType()->PQ_fullyQualifiedName(env.loc()),
-                                false),
+                    typeSpecifier,
                     FakeList<Declarator>::makeList(declarator0)
                     );
 
@@ -4418,21 +4459,25 @@ Type *E_constructor::inner2_itcheck(Env &env)
     ctorVar = ctor;
   }
 
-  // If the type is a temporary CompoundType, then make a temporary
-  // and point the retObj at it.  NOTE: We have to be careful here to
-  // not accidentally make a temporary for ctor for a non-temporary
-  // object.
-  if (!var) {                   // we are making a temporary
-    // dsw: don't know what I was thinking here; you can make a
-    // temporary for an int like this
-    //   x = int(6);
-    // from in/t0014.cc
-//      xassert(type->isCompoundType());
-    Declaration *declaration0 = insertTempDeclaration(env, type);
-    xassert(declaration0->decllist->count() == 1);
-    var = declaration0->decllist->first()->var;
+  // FIX: skip this whole thing if we are dealing with a templatized
+  // class
+  if (!areYouOrHaveYouEverBeenATemplate(type)) {
+    // If the type is a temporary CompoundType, then make a temporary
+    // and point the retObj at it.  NOTE: We have to be careful here
+    // to not accidentally make a temporary for ctor for a
+    // non-temporary object.
+    if (!var) {                   // we are making a temporary
+      // dsw: don't know what I was thinking here; you can make a
+      // temporary for an int like this
+      //   x = int(6);
+      // from in/t0014.cc
+      //      xassert(type->isCompoundType());
+      Declaration *declaration0 = insertTempDeclaration(env, type);
+      xassert(declaration0->decllist->count() == 1);
+      var = declaration0->decllist->first()->var;
+    }
+    retObj = wrapVarWithE_variable(env, var);
   }
-  retObj = wrapVarWithE_variable(env, var);
 
   return type;
 }
@@ -5506,9 +5551,10 @@ SpecialExpr Expression::getSpecial() const
 
 void IN_expr::tcheck(Env &env, Type *)
 {
-  Scope *scope = annot.tcheck_preorder(env);
+  FullExpressionAnnot_StackBracket fea0(env, annot);
+//    Scope *scope = annot.tcheck_preorder(env);
   e->tcheck(env, e);
-  annot.tcheck_postorder(env, scope);
+//    annot.tcheck_postorder(env, scope);
 }
 
 
@@ -5527,13 +5573,14 @@ void IN_compound::tcheck(Env &env, Type* type)
 
 void IN_ctor::tcheck(Env &env, Type *type)
 {
-  Scope *scope = annot.tcheck_preorder(env);
+  FullExpressionAnnot_StackBracket fea0(env, annot);
+//    Scope *scope = annot.tcheck_preorder(env);
   tcheckFakeExprList(args, env);
   Variable *ctor = outerResolveOverload_ctor(env, loc, type, args, reallyDoOverload(env, args));
   if (ctor) {
     ctorVar = ctor;
   }
-  annot.tcheck_postorder(env, scope);
+//    annot.tcheck_postorder(env, scope);
 }
 
 
