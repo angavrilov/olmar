@@ -867,7 +867,7 @@ failparse k0008.cc "(add reason here)"
 failparse k0009.cc "(add reason here)"
 failparse k0010.cc "(add reason here)"
 testparse k0011.cc
-failparse k0012.cc "(add reason here)"
+testparse k0012.cc
 failparse k0013.cc "(add reason here)"
 
 # ---- END: lots of tests ----

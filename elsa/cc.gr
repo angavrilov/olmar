@@ -736,7 +736,10 @@ nonterm(Expression*) BinaryExpression {
 
 
 nonterm(Expression*) ConditionalExpression {
-  -> e:BinaryExpression 
+  // in/k0012.cc
+  fun merge(L,R) { L->addAmbiguity(R); return L; }
+
+  -> e:BinaryExpression
        { return e; }
 
   -> cond:BinaryExpression "?" th:Expression ":" el:AssignmentExpression 
