@@ -2587,7 +2587,9 @@ int main(int argc, char **argv)
 
   if (argc != 2) {
     cout << "usage: " << progName << " [-tr traceFlags] [--testRW] prefix\n"
-            "  processes prefix.gr to make prefix.{h,cc,bin}\n";
+            "  processes prefix.gr to make prefix.{h,cc,bin}\n"
+            "  useful tracing flags:\n"
+            "    conflict    : print SLR(1) conflicts\n";
     return 0;
   }
   string prefix = argv[1];
