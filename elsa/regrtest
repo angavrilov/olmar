@@ -1036,7 +1036,7 @@ if $use_gnu; then
   testparse gnu/k0002.cc #"__builtin_va_*"
   testparse gnu/k0003.cc #"gcc 3.4 __builtin_* math functions"
   testparse gnu/k0004.cc #"operator <?"
-  failparse gnu/k0005.cc "comparing long long to enum value"
+  testparse gnu/k0005.cc #"comparing long long to enum value"
 
 else # tests that only pass when not in gnu mode
   testparse t0228b.cc
