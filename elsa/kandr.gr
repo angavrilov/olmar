@@ -199,6 +199,10 @@ nonterm(IDeclarator*) KandRDirectDeclarator {
          );
     }
 
+  // sm: for in/c/k0009.c
+  -> d:KandRDirectDeclarator "[" sz:ConstantExpressionOpt "]"
+       { return new_D_array(loc, d, sz); }
+
   // precedence grouping; must be recorded in the AST for disambiguation
   -> "(" d:KandRDeclarator ")"
        { return new D_grouping(loc, d); }

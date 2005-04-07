@@ -5,7 +5,7 @@
 // a.i:4:1: Parse error (state 312) at int
 
 long (*func(var))[42]
-int var;
+    int var;
 {
     return 0;
 }
