@@ -7,3 +7,5 @@
 // ERR-MATCH: duplicate modifier:
 
 const const int x;
+
+//ERROR(1): signed signed int y;
