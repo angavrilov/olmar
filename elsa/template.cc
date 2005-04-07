@@ -1244,7 +1244,7 @@ bool Env::inferTemplArgsFromFuncArgs
             // get all the base classes
             CompoundType *ct = argType->asCompoundType();
             SObjList<BaseClassSubobj const> bases;
-            ct->getSubobjects(bases);
+            getSubobjects(bases, ct);
             SFOREACH_OBJLIST(BaseClassSubobj const, bases, iter) {
               BaseClassSubobj const *sub = iter.data();
               if (sub->ct == ct) { continue; }      // already tried 'ct'

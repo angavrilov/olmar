@@ -4023,7 +4023,7 @@ void Env::getAssociatedScopes(SObjList<Scope> &associated, Type *type)
 
               // class + bases
               SObjList<BaseClassSubobj const> bases;
-              ct->getSubobjects(bases);
+              getSubobjects(bases, ct);
 
               // put them into 'associated'
               SFOREACH_OBJLIST(BaseClassSubobj const, bases, iter) {
@@ -4897,6 +4897,19 @@ Scope *Env::createNamespace(SourceLoc loc, StringRef name)
   }
   
   return s;
+}
+
+
+// This is used in contexts where we need the set of subobjects,
+// and therefore might need to instantiate the class to get them,
+// but the language spec does not appear to actually *require*
+// that the type be complete, just that if it is, then we should
+// use its base-class info.
+void Env::getSubobjects(SObjList<BaseClassSubobj const> &dest,
+                        CompoundType *ct)
+{
+  ensureClassBodyInstantiated(ct);
+  ct->getSubobjects(dest);
 }
 
 

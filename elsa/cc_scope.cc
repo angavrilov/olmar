@@ -787,7 +787,9 @@ void Scope::lookup(LookupSet &set, StringRef name, Env &env, LookupFlags flags)
     return;
   }
   
-  // get all the subobjects
+  // get all the subobjects (I believe we do not have to call
+  // ensureClassBodyInstantiated since every context will already
+  // require that 'curCompound' be complete.)
   SObjList<BaseClassSubobj const> subobjs;
   curCompound->getSubobjects(subobjs);
   

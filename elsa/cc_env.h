@@ -691,6 +691,10 @@ public:      // funcs
 
   Scope *createNamespace(SourceLoc loc, StringRef name);
 
+  // ensureClassBodyInstantiated, then CompoundType::getSubobjects
+  void getSubobjects(SObjList<BaseClassSubobj const> &dest,
+                     CompoundType *ct);
+
   // ------------ new lookup mechanism ---------------
 private:     // funcs
   void unqualifiedLookup(LookupSet &set, Scope * /*nullable*/ scope,
