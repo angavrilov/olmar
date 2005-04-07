@@ -1034,7 +1034,7 @@ if $use_gnu; then
 
   testparse gnu/k0001.cc #"({...}) cannot be empty"
   testparse gnu/k0002.cc #"__builtin_va_*"
-  failparse gnu/k0003.cc "gcc 3.4 __builtin_* math functions"
+  testparse gnu/k0003.cc #"gcc 3.4 __builtin_* math functions"
   failparse gnu/k0004.cc "operator <?"
   failparse gnu/k0005.cc "comparing long long to enum value"
 

@@ -1,5 +1,8 @@
 // gcc 3.4 __builtin_* math functions
 
+// http://gcc.gnu.org/onlinedocs/gcc-3.4.3/gcc/Other-Builtins.html
+// though that page does not document "modff" ...
+
 // ERR-MATCH: __builtin_f
 
 inline double

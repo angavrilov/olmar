@@ -540,8 +540,7 @@ void doit(int argc, char **argv)
     }
   }
   
-  cout << "times:"
-       << " parse=" << parseTime << "ms"
+  cout << "parse=" << parseTime << "ms"
        << " tcheck=" << tcheckTime << "ms"
        << " integ=" << integrityTime << "ms"
        << " elab=" << elaborationTime << "ms"

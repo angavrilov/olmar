@@ -21,7 +21,8 @@
 // sometimes specific to a particular *version* of gcc).  This
 // function is part of that effort.
 //
-// See http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Other-Builtins.html
+// See  http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Other-Builtins.html
+// also http://gcc.gnu.org/onlinedocs/gcc-3.4.3/gcc/Other-Builtins.html
 void Env::addGNUBuiltins()
 {
   Type *t_void = getSimpleType(SL_INIT, ST_VOID);
@@ -106,8 +107,11 @@ void Env::addGNUBuiltins()
   // as the type; the set below all get this generic type
 
   static char const * const arr[] = {
-    // group 1: ?
-    //"alloca",
+    // ------------------------------------------------
+    // group 1: "Outside strict ISO C mode ..."
+
+    // this set is from the 3.1 list
+    //"alloca",              // prototyped above
     "bcmp",
     "bzero",
     "index",
@@ -117,7 +121,71 @@ void Env::addGNUBuiltins()
     "printf_unlocked",
     "fprintf_unlocked",
 
-    // group 2: C99
+    // this set is from the 3.4.3 list; the commented lines are
+    // either prototyped above or in the 3.1 list
+    "_exit",
+    //"alloca",
+    //"bcmp",
+    //"bzero",
+    "dcgettext",
+    "dgettext",
+    "dremf",
+    "dreml",
+    "drem",
+    "exp10f",
+    "exp10l",
+    "exp10",
+    "ffsll",
+    "ffsl",
+    //"ffs",
+    //"fprintf_unlocked",
+    //"fputs_unlocked",
+    "gammaf",
+    "gammal",
+    "gamma",
+    "gettext",
+    //"index",
+    "j0f",
+    "j0l",
+    "j0",
+    "j1f",
+    "j1l",
+    "j1",
+    "jnf",
+    "jnl",
+    "jn",
+    "mempcpy",
+    "pow10f",
+    "pow10l",
+    "pow10",
+    //"printf_unlocked",
+    //"rindex",
+    "scalbf",
+    "scalbl",
+    "scalb",
+    "significandf",
+    "significandl",
+    "significand",
+    "sincosf",
+    "sincosl",
+    "sincos",
+    "stpcpy",
+    "strdup",
+    "strfmon",
+    "y0f",
+    "y0l",
+    "y0",
+    "y1f",
+    "y1l",
+    "y1",
+    "ynf",
+    "ynl",
+    "yn",
+
+    // ------------------------------------------------
+    // group 2: "The ISO C99 functions ..."
+
+    // this is the 3.1 list
     "conj",
     "conjf",
     "conjl",
@@ -130,7 +198,185 @@ void Env::addGNUBuiltins()
     "llabs",
     "imaxabs",
 
-    // group 3: C99 / reserved C89
+    // this is the 3.4.3 list, with those from 3.1 commented
+    "_Exit",
+    "acoshf",
+    "acoshl",
+    "acosh",
+    "asinhf",
+    "asinhl",
+    "asinh",
+    "atanhf",
+    "atanhl",
+    "atanh",
+    "cabsf",
+    "cabsl",
+    "cabs",
+    "cacosf",
+    "cacoshf",
+    "cacoshl",
+    "cacosh",
+    "cacosl",
+    "cacos",
+    "cargf",
+    "cargl",
+    "carg",
+    "casinf",
+    "casinhf",
+    "casinhl",
+    "casinh",
+    "casinl",
+    "casin",
+    "catanf",
+    "catanhf",
+    "catanhl",
+    "catanh",
+    "catanl",
+    "catan",
+    "cbrtf",
+    "cbrtl",
+    "cbrt",
+    "ccosf",
+    "ccoshf",
+    "ccoshl",
+    "ccosh",
+    "ccosl",
+    "ccos",
+    "cexpf",
+    "cexpl",
+    "cexp",
+    //"cimagf",
+    //"cimagl",
+    //"cimag",
+    //"conjf",
+    //"conjl",
+    //"conj",
+    "copysignf",
+    "copysignl",
+    "copysign",
+    "cpowf",
+    "cpowl",
+    "cpow",
+    "cprojf",
+    "cprojl",
+    "cproj",
+    //"crealf",
+    //"creall",
+    //"creal",
+    "csinf",
+    "csinhf",
+    "csinhl",
+    "csinh",
+    "csinl",
+    "csin",
+    "csqrtf",
+    "csqrtl",
+    "csqrt",
+    "ctanf",
+    "ctanhf",
+    "ctanhl",
+    "ctanh",
+    "ctanl",
+    "ctan",
+    "erfcf",
+    "erfcl",
+    "erfc",
+    "erff",
+    "erfl",
+    "erf",
+    "exp2f",
+    "exp2l",
+    "exp2",
+    "expm1f",
+    "expm1l",
+    "expm1",
+    "fdimf",
+    "fdiml",
+    "fdim",
+    "fmaf",
+    "fmal",
+    "fmaxf",
+    "fmaxl",
+    "fmax",
+    "fma",
+    "fminf",
+    "fminl",
+    "fmin",
+    "hypotf",
+    "hypotl",
+    "hypot",
+    "ilogbf",
+    "ilogbl",
+    "ilogb",
+    //"imaxabs",
+    "lgammaf",
+    "lgammal",
+    "lgamma",
+    //"llabs",
+    "llrintf",
+    "llrintl",
+    "llrint",
+    "llroundf",
+    "llroundl",
+    "llround",
+    "log1pf",
+    "log1pl",
+    "log1p",
+    "log2f",
+    "log2l",
+    "log2",
+    "logbf",
+    "logbl",
+    "logb",
+    "lrintf",
+    "lrintl",
+    "lrint",
+    "lroundf",
+    "lroundl",
+    "lround",
+    "nearbyintf",
+    "nearbyintl",
+    "nearbyint",
+    "nextafterf",
+    "nextafterl",
+    "nextafter",
+    "nexttowardf",
+    "nexttowardl",
+    "nexttoward",
+    "remainderf",
+    "remainderl",
+    "remainder",
+    "remquof",
+    "remquol",
+    "remquo",
+    "rintf",
+    "rintl",
+    "rint",
+    "roundf",
+    "roundl",
+    "round",
+    "scalblnf",
+    "scalblnl",
+    "scalbln",
+    "scalbnf",
+    "scalbnl",
+    "scalbn",
+    "snprintf",
+    "tgammaf",
+    "tgammal",
+    "tgamma",
+    "truncf",
+    "truncl",
+    "trunc",
+    "vfscanf",
+    "vscanf",
+    "vsnprintf",
+    "vsscanf",
+
+    // ------------------------------------------------
+    // group 3: "There are also built-in versions of the ISO C99 functions ..."
+    
+    // 3.1 list
     "cosf",
     "cosl",
     "fabsf",
@@ -140,7 +386,59 @@ void Env::addGNUBuiltins()
     "sqrtf",
     "sqrtl",
 
-    // group 4: C89
+    // 3.4.3 list with 3.1 elements commented
+    "acosf",
+    "acosl",
+    "asinf",
+    "asinl",
+    "atan2f",
+    "atan2l",
+    "atanf",
+    "atanl",
+    "ceilf",
+    "ceill",
+    //"cosf",
+    "coshf",
+    "coshl",
+    //"cosl",
+    "expf",
+    "expl",
+    //"fabsf",
+    //"fabsl",
+    "floorf",
+    "floorl",
+    "fmodf",
+    "fmodl",
+    "frexpf",
+    "frexpl",
+    "ldexpf",
+    "ldexpl",
+    "log10f",
+    "log10l",
+    "logf",
+    "logl",
+    "modfl",
+    "modf",
+    "powf",
+    "powl",
+    //"sinf",
+    "sinhf",
+    "sinhl",
+    //"sinl",
+    //"sqrtf",
+    //"sqrtl",
+    "tanf",
+    "tanhf",
+    "tanhl",
+    "tanl",
+    
+    // gcc-3.4.3 seems to have this, though it is not documented
+    "modff",
+
+    // ------------------------------------------------
+    // group 4: "The ISO C90 functions ..."
+    
+    // this is the 3.1 list, with things prototyped above commented
     "abs",
     "cos",
     "fabs",
@@ -167,18 +465,134 @@ void Env::addGNUBuiltins()
     "strspn",
     //"strstr",
 
-    // group 5: C99 floating point comparison macros
+    // this is the 3.4.3 list, with things either prototyped above or
+    // in the 3.1 list commented
+    "abort",
+    //"abs",
+    "acos",
+    "asin",
+    "atan2",
+    "atan",
+    "calloc",
+    "ceil",
+    "cosh",
+    //"cos",
+    "exit",
+    "exp",
+    //"fabs",
+    "floor",
+    "fmod",
+    //"fprintf",
+    //"fputs",
+    "frexp",
+    "fscanf",
+    //"labs",
+    "ldexp",
+    "log10",
+    "log",
+    "malloc",
+    //"memcmp",
+    //"memcpy",
+    //"memset",
+    "modf",
+    "pow",
+    //"printf",
+    "putchar",
+    "puts",
+    "scanf",
+    "sinh",
+    //"sin",
+    "snprintf",
+    "sprintf",
+    //"sqrt",
+    "sscanf",
+    //"strcat",
+    //"strchr",
+    //"strcmp",
+    //"strcpy",
+    //"strcspn",
+    //"strlen",
+    //"strncat",
+    //"strncmp",
+    //"strncpy",
+    //"strpbrk",
+    //"strrchr",
+    //"strspn",
+    //"strstr",
+    "tanh",
+    "tan",
+    "vfprintf",
+    "vprintf",
+    "vsprintf",
+
+    // ------------------------------------------------
+    // group 5: "... ISO C99 floating point comparison macros ..."
+
+    // this is the 3.1 list, which is identical to the 3.4.3 list
     "isgreater",
     "isgreaterequal",
     "isless",
     "islessequal",
     "islessgreater",
     "isunordered",
-    
-    // one more for good measure
+
+    // ------------------------------------------------
+    // group 6: miscellaneous compiler interrogations/hints
+
+    // types_compatible_p: not yet implemented in Elsa
+    // choose_expr: not yet implemented in Elsa
+    // constant_p: implemented elsewhere
+    // expect: implemented elsewhere
     "prefetch",
+
+    // ------------------------------------------------
+    // group 7: low-level arithmetic stuff
+
+    // full prototypes:
+    //   float __builtin_nanf (const char *str);
+    //   long double __builtin_nanl (const char *str);
+    //   double __builtin_nans (const char *str);
+    //   float __builtin_nansf (const char *str);
+    //   long double __builtin_nansl (const char *str);
+    //   int __builtin_ffs (unsigned int x);
+    //   int __builtin_clz (unsigned int x);
+    //   int __builtin_ctz (unsigned int x);
+    //   int __builtin_popcount (unsigned int x);
+    //   int __builtin_parity (unsigned int x);
+    //   int __builtin_ffsl (unsigned long);
+    //   int __builtin_clzl (unsigned long);
+    //   int __builtin_ctzl (unsigned long);
+    //   int __builtin_popcountl (unsigned long);
+    //   int __builtin_parityl (unsigned long);
+    //   int __builtin_ffsll (unsigned long long);
+    //   int __builtin_clzll (unsigned long long);
+    //   int __builtin_ctzll (unsigned long long);
+    //   int __builtin_popcountll (unsigned long long);
+    //   int __builtin_parityll (unsigned long long);
+
+    // just the names, but those that appear above are commented
+    "nanf",
+    "nanl",
+    "nans",
+    "nansf",
+    "nansl",
+    //"ffs",
+    "clz",
+    "ctz",
+    "popcount",
+    "parity",
+    //"ffsl",
+    "clzl",
+    "ctzl",
+    "popcountl",
+    "parityl",
+    //"ffsll",
+    "clzll",
+    "ctzll",
+    "popcountll",
+    "parityll",
   };
-  
+
   for (int i=0; i < TABLESIZE(arr); i++) {
     makeImplicitDeclFuncVar(str(stringc << "__builtin_" << arr[i]));
   }
