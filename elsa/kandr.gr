@@ -7,8 +7,8 @@
 
 
 // expected statistics
-option shift_reduce_conflicts 133;
-option reduce_reduce_conflicts 110;
+option shift_reduce_conflicts 132;
+option reduce_reduce_conflicts 173;
 
 
 // this verbatim section is appended to the one in cc.gr
@@ -57,11 +57,13 @@ nonterm(Function*) KandRFunctionDefinition_implInt {
       return makeKandRdefn(loc, rds, id, ds, b);
     }
 
-  // one more, for "static"
-  -> "static" id:KandRDeclarator ds:KandRSimpleDeclarationSeq b:FunctionBody
+  // one more, for "static" (etc.)
+  -> m:UberModifierSeq id:KandRDeclarator ds:KandRSimpleDeclarationSeq b:FunctionBody
     {
       xassert(lang.allowImplicitInt);
-      Declaration *rds = new Declaration(DF_STATIC, new TS_simple(loc, ST_IMPLINT), NULL);
+      DeclFlags df = uberDeclFlags(m);
+      CVFlags cv = uberCVFlags(m);
+      Declaration *rds = new Declaration(df, new_TS_simple(loc, cv, ST_IMPLINT), NULL);
       return makeKandRdefn(loc, rds, id, ds, b);
     }
 }
@@ -229,23 +231,87 @@ nonterm(PQ_name*) KandRIdentifier {
 }
 
 // implicit-int ****************
+                            
+// modifiers that can precede a function decl/defn in C; note
+// that the only intersection with CDtorModifier is "inline"
+nonterm(UberModifiers) CFuncModifier_no_inline {
+  -> "static"                              { return UM_STATIC; }
+  -> "extern"                              { return UM_EXTERN; }
+  -> "const"                               { return UM_CONST; }
+  -> "volatile"                            { return UM_VOLATILE; }
+}
 
-// most instances of implicit-int in function definitions are 
+nonterm(UberModifiers) CFuncModifier {
+  -> m:CFuncModifier_no_inline             { return m; }
+  -> "inline"                              { return UM_INLINE; }
+}
+
+nonterm(UberModifiers) CFuncModifierSeq {
+  -> m:CFuncModifier                       { return m; }
+  -> s:CFuncModifierSeq m:CFuncModifier    { return uberCombine(loc, s, m); }
+}
+
+nonterm(UberModifiers) CFuncModifierSeqOpt {
+  -> empty                                 { return UM_NONE; }
+  -> m:CFuncModifier                       { return m; }
+}
+
+
+// most instances of implicit-int in function definitions are
 // covered by the existing syntax for constructors; but if the
 // 'static' keyword is used, that isn't legal for ctors, so we
 // need a special rule
 nonterm(Function*) ImplIntFunctionDefinition {
   // make it look like the existing ctor AST, since those get
   // converted into implicit-int
-  -> "static" d:Declarator b:FunctionBody
+  -> m:CFuncModifier_no_inline d:Declarator b:FunctionBody
        {
+         DeclFlags df = uberDeclFlags(m);
+         CVFlags cv = uberCVFlags(m);
          return new Function(
-           DF_STATIC,                     // decl flags
-           new TS_simple(loc, ST_CDTOR),  // type specifier: ctor or dtor
-           new Declarator(d, NULL),       // declarator with fn name, params
-           NULL,                          // ctor member inits
-           b,                             // function body statement
-           NULL                           // exception handlers
+           df,                                // decl flags
+           new_TS_simple(loc, cv, ST_CDTOR),  // type specifier: ctor or dtor
+           new Declarator(d, NULL),           // declarator with fn name, params
+           NULL,                              // ctor member inits
+           b,                                 // function body statement
+           NULL                               // exception handlers
+         );
+       }
+
+  // in/k0006.c: need some more variants; I spell them out to avoid
+  // introducing too many conflicts
+  -> m1:CFuncModifier_no_inline m2:CFuncModifierSeq d:Declarator b:FunctionBody
+       {                              
+         UberModifiers m = uberCombine(loc, m1, m2);
+         DeclFlags df = uberDeclFlags(m);
+         CVFlags cv = uberCVFlags(m);
+         return new Function(
+           df,                                // decl flags
+           new_TS_simple(loc, cv, ST_CDTOR),  // type specifier: ctor or dtor
+           new Declarator(d, NULL),           // declarator with fn name, params
+           NULL,                              // ctor member inits
+           b,                                 // function body statement
+           NULL                               // exception handlers
+         );
+       }
+
+  // "inline" is the common prefix with CDtorModifierSeq; so a defn
+  // that begins with it will not cause a parser split until the next
+  // modifier is seen; if no modifier follows "inline", it will be
+  // parsed as a constructor, and later changed into implicit-int
+  -> "inline" m1:CFuncModifier_no_inline m2:CFuncModifierSeqOpt
+     d:Declarator b:FunctionBody
+       {
+         UberModifiers m = uberCombine(loc, m1, m2);
+         DeclFlags df = uberDeclFlags(m) | DF_INLINE;
+         CVFlags cv = uberCVFlags(m);
+         return new Function(
+           df,                                // decl flags
+           new_TS_simple(loc, cv, ST_CDTOR),  // type specifier: ctor or dtor
+           new Declarator(d, NULL),           // declarator with fn name, params
+           NULL,                              // ctor member inits
+           b,                                 // function body statement
+           NULL                               // exception handlers
          );
        }
 }

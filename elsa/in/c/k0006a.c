@@ -17,3 +17,21 @@ inline func2(param)
 {
     return param;
 }
+
+static inline func3(param)
+    int param;
+{
+    return param;
+}
+
+inline static func4(param)
+    int param;
+{
+    return param;
+}
+
+const inline func5(param)
+    int param;
+{
+    return param;
+}

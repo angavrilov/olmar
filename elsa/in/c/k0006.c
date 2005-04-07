@@ -11,6 +11,16 @@ static inline foo()
     return 0;
 }
 
+inline static bar()
+{
+    return 0;
+}
+
+const inline static f1()
+{
+    return 0;
+}
+
 int main()
 {
     return foo();
