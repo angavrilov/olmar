@@ -108,6 +108,22 @@ void if_malloc_stats()
 }
 
 
+class SectionTimer {
+  long start;
+  long &elapsed;
+  
+public:
+  SectionTimer(long &e) 
+    : start(getMilliseconds()),
+      elapsed(e)
+  {}
+  ~SectionTimer()
+  {
+    elapsed += getMilliseconds() - start;
+  }
+};
+
+
 void doit(int argc, char **argv)
 {
   // I think this is more noise than signal at this point
@@ -219,7 +235,9 @@ void doit(int argc, char **argv)
   // --------------- parse --------------
   TranslationUnit *unit;
   int parseWarnings = 0;
+  long parseTime = 0;
   {
+    SectionTimer timer(parseTime);
     SemanticValue treeTop;
     ParseTreeAndTokens tree(lang, treeTop, strTable, inputFname);
     
@@ -259,8 +277,6 @@ void doit(int argc, char **argv)
     }
     parseWarnings = lexer->warnings + parseContext->warnings;
 
-    traceProgress(2) << "final parse result: " << treeTop << endl;
-
     if (tracingSys("parseTree")) {
       // the 'treeTop' is actually a PTreeNode pointer; print the
       // tree and bail
@@ -296,10 +312,9 @@ void doit(int argc, char **argv)
 
   // ---------------- typecheck -----------------
   BasicTypeFactory tfac;
-  {
-
-    traceProgress(2) << "type checking...\n";
-    long tcheckStart = getMilliseconds();
+  long tcheckTime = 0;
+  {                   
+    SectionTimer timer(tcheckTime);
     Env env(strTable, lang, tfac, unit);
     try {
       unit->tcheck(env);
@@ -333,9 +348,6 @@ void doit(int argc, char **argv)
       // SIGABRT) mean that something went really wrong
       abort();
     }
-    traceProgress() << "done type checking ("
-                    << (getMilliseconds() - tcheckStart)
-                    << " ms)\n";
 
     int numErrors = env.errors.numErrors();
     int numWarnings = env.errors.numWarnings() + parseWarnings;
@@ -384,6 +396,32 @@ void doit(int argc, char **argv)
       exit(4);
     }
 
+    // lookup diagnostic
+    if (env.collectLookupResults.length()) {
+      // scan AST
+      NameChecker nc;
+      nc.sb << "collectLookupResults";
+      unit->traverse(nc);
+
+      // compare to given text
+      if (0==strcmp(env.collectLookupResults, nc.sb)) {
+        // ok
+      }
+      else {
+        cout << "collectLookupResults do not match:\n"
+             << "  source: " << env.collectLookupResults << "\n"
+             << "  tcheck: " << nc.sb << "\n"
+             ;
+        exit(4);
+      }
+    }
+  }
+
+  // ---------------- integrity checking ----------------
+  long integrityTime = 0;
+  {
+    SectionTimer timer(integrityTime);
+
     // verify the tree now has no ambiguities
     if (numAmbiguousNodes(unit) != 0) {
       cout << "UNEXPECTED: ambiguities remain after type checking!\n";
@@ -411,43 +449,15 @@ void doit(int argc, char **argv)
       cout << "instances of type != var->type: " << vis.instances << endl;
     }
 
-    // lookup diagnostic
-    if (env.collectLookupResults.length()) {
-      // scan AST
-      NameChecker nc;
-      nc.sb << "collectLookupResults";
-      unit->traverse(nc);
-
-      // compare to given text
-      if (0==strcmp(env.collectLookupResults, nc.sb)) {
-        // ok
-      }
-      else {
-        cout << "collectLookupResults do not match:\n"
-             << "  source: " << env.collectLookupResults << "\n"
-             << "  tcheck: " << nc.sb << "\n"
-             ;
-        exit(4);
-      }
-    }
-
-
-//      if (tracingSys("flattenTemplates")) {
-//        traceProgress() << "dsw flatten...\n";
-//        FlattenEnv env(cout);
-//        unit->flatten(env);
-//        traceProgress() << "dsw flatten... done\n";
-//        cout << endl;
-//      }
-
     if (tracingSys("stopAfterTCheck")) {
       return;
     }
   }
 
-  // semantic elaboration
+  // ----------------- elaboration ------------------
+  long elaborationTime = 0;
   if (lang.isCplusplus) {
-    long start = getMilliseconds();
+    SectionTimer timer(elaborationTime);
 
     // do elaboration
     ElabVisitor vis(strTable, tfac, unit);
@@ -458,9 +468,19 @@ void doit(int argc, char **argv)
     }
 
     unit->traverse(vis.loweredVisitor);
-    traceProgress() << "done elaborating ("
-                    << (getMilliseconds() - start)
-                    << " ms)\n";
+
+    // print abstract syntax tree annotated with types
+    if (tracingSys("printElabAST")) {
+      unit->debugPrint(cout, 0);
+    }
+    if (tracingSys("stopAfterElab")) {
+      return;
+    }
+  }
+
+  // more integrity checking
+  {
+    SectionTimer timer(integrityTime);
 
     // check that the AST is a tree *and* that the lowered AST is a
     // tree (do this *after* elaboration!)
@@ -471,14 +491,6 @@ void doit(int argc, char **argv)
       traceProgress() << "done with tree check 2 ("
                       << (getMilliseconds() - start)
                       << " ms)\n";
-    }
-
-    // print abstract syntax tree annotated with types
-    if (tracingSys("printElabAST")) {
-      unit->debugPrint(cout, 0);
-    }
-    if (tracingSys("stopAfterElab")) {
-      return;
     }
   }
 
@@ -527,7 +539,14 @@ void doit(int argc, char **argv)
       }
     }
   }
-
+  
+  cout << "times:"
+       << " parse=" << parseTime << "ms"
+       << " tcheck=" << tcheckTime << "ms"
+       << " integ=" << integrityTime << "ms"
+       << " elab=" << elaborationTime << "ms"
+       << "\n"
+       ;
 
   //traceProgress() << "cleaning up...\n";
 
