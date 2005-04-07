@@ -704,7 +704,7 @@ Type *E_compoundLit::itcheck_x(Env &env, Expression *&replacement)
     tcheckedType = true;
   }
 
-  init->tcheck(env, NULL);
+  init->tcheck(env, stype->getType());
 
   // dsw: Scott says: "The gcc manual says nothing about whether a
   // compound literal is an lvalue.  But, compound literals are now

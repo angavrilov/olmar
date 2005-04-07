@@ -7883,24 +7883,88 @@ void FullExpression::tcheck(Env &env)
 // ExpressionListOpt
 
 // ----------------------- Initializer --------------------
-// TODO: all the initializers need to be checked for compatibility
-// with the types they initialize
-
 void IN_expr::tcheck(Env &env, Type *target)
 {
+  // TODO: check the initializer for compatibility with 'target'
+
+  // limited form of checking: use 'target' to resolve 'e' if it
+  // names an overloaded function
   tcheckExpression_possibleAddrOfOverload(env, e, target);
 }
 
 
-void IN_compound::tcheck(Env &env, Type* type)
+// initialize 'type' with expressions drawn from 'initIter'
+void initializeAggregate(Env &env, Type *type,
+                         ASTListIterNC<Initializer> &initIter)
+{
+  if (initIter.isDone()) {
+    return;
+  }
+
+  if (initIter.data()->isIN_compound()) {
+    // match this entire bracketing with 'type'
+    initIter.data()->tcheck(env, type);
+    initIter.adv();
+    return;
+  }
+
+  if (type->isArrayType()) {
+    // initialize the array element type with successive initializers
+    ArrayType *at = type->asArrayType();
+
+    int limit = (at->hasSize()? at->size : -1);
+    while (limit != 0 && !initIter.isDone()) {
+      initializeAggregate(env, at->eltType, initIter);
+      limit--;
+    }
+  }
+
+  else if (type->isCompoundType()) {
+    // TODO (recognition): 8.5.1p1: it is only legal to initialize
+    // compound types that don't use C++ features like constructors or
+    // access control
+
+    // initialize successive data fields with successive initializers
+    CompoundType *ct = type->asCompoundType();
+
+    SObjListIter<Variable> memberIter(ct->dataMembers);
+    while (!memberIter.isDone() && !initIter.isDone()) {
+      initializeAggregate(env, memberIter.data()->type, initIter);
+      memberIter.adv();
+    }
+  }
+
+  else {
+    // down to an element type
+    initIter.data()->tcheck(env, type);
+    initIter.adv();
+  }
+}
+
+
+void IN_compound::tcheck(Env &env, Type *type)
 {
   // NOTE: I ignore the FullExpressionAnnot *annot
-  FOREACH_ASTLIST_NC(Initializer, inits, iter) {
-    // TODO: This passes the wrong type; 'type' should be e.g. a class,
-    // and this code ought to dig into the class and pass the types of
-    // successive fields.  It doesn't matter right now, however, since
-    // the type is eventually ignored anyway.
-    iter.data()->tcheck(env, type);
+
+  // kick off a recursion for this list of initializers
+  ASTListIterNC<Initializer> initIter(inits);
+  initializeAggregate(env, type, initIter);
+
+  // we should have consumed them all
+  if (!initIter.isDone()) {   
+    // This is a weak error because of designated initializers,
+    // e.g., in/gnu/t0130.cc and in/c99/t0133.cc.  Once we get
+    // the compound_init stuff folded into Elsa I should be able
+    // to turn this into a real error.
+    env.weakError(loc, stringc
+      << "too many initializers (" << inits.count()
+      << ") supplied for `" << type->toString() << "'");
+
+    // tcheck the extra exprs anyway
+    while (!initIter.isDone()) {
+      initIter.data()->tcheck(env, type /*wrong but whatever*/);
+      initIter.adv();
+    }
   }
 }
 

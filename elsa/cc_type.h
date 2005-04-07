@@ -255,8 +255,6 @@ public:      // data
   // of the class definition; note that this is partially redundant
   // with the Scope's 'variables' map, and hence should not be changed
   // without also updating that map
-  //
-  // TODO: change this to an array for performance
   SObjList<Variable> dataMembers;
 
   // classes from which this one inherits; 'const' so you have to

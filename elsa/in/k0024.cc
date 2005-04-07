@@ -18,6 +18,21 @@ void foo(int x, long y);
 
 funcType array1[] = {foo};
 
-struct {
+struct S {
     funcType f;
-} array2[] = { {foo} };
+    //ERROR(1): int x;     // would assign 'foo' to 'int', not ok
+    funcType g;
+} array2[] = { {foo, foo} };
+
+// these provoke errors because of the failure to resolve 'foo',
+// rather than because of having too many initializers, because
+// the latter is just a weak error right now
+//ERROR(2): funcType array3[2] = {foo, foo, foo};
+//ERROR(3): S s = {foo, foo, foo};
+
+S array4[2] = {
+  foo,foo,
+  foo,foo,
+};
+
+

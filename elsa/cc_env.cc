@@ -5219,6 +5219,13 @@ void Env::diagnose3(Bool3 b, SourceLoc L, rostring msg, ErrorFlags eflags)
 }
 
 
+void Env::weakError(SourceLoc L, rostring msg)
+{
+  warning(L, stringc << msg <<
+    " (this will be an error when the implementation matures)");
+}
+
+
 // I want this function to always be last in this file, so I can easily
 // find it to put a breakpoint in it.
 Type *Env::error(SourceLoc L, rostring msg, ErrorFlags eflags)

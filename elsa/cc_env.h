@@ -471,6 +471,11 @@ public:      // funcs
   Type *unimp(rostring msg);
   void diagnose3(Bool3 b, SourceLoc L, rostring msg, ErrorFlags eflags = EF_NONE);
 
+  // this is used when something is nominally an error, but I think
+  // or know that the code that detects the error is itself not yet
+  // trustworthy, so I want to just accept the input with a warning
+  void weakError(SourceLoc L, rostring msg);
+
   // diagnostics involving type clashes; will be suppressed
   // if the type is ST_ERROR
   Type *error(Type *t, rostring msg);
