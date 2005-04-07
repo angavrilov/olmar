@@ -807,38 +807,11 @@ Type *E_gnuCond::itcheck_x(Env &env, Expression *&replacement)
 {
   cond->tcheck(env, cond);
   el->tcheck(env, el);
-  
+
   // presumably the correct result type is some sort of intersection
   // of the 'cond' and 'el' types?
 
   return el->type;
-}
-
-
-// cc_tcheck.cc
-bool isArithmeticOrEnumType(Type *t);
-
-Type *E_gnuMinMax::itcheck_x(Env &env, Expression *&replacement)
-{
-  e1->tcheck(env, e1);
-  e2->tcheck(env, e2);
-
-  // I do not know what the correct type is, but I've only seen this
-  // done for arithmetic types, so behave like ?: would when both
-  // arguments are arithmetic
-  Type *t1 = e1->type->asRval();
-  Type *t2 = e2->type->asRval();
-  if (isArithmeticOrEnumType(t1) && isArithmeticOrEnumType(t2)) {
-    return usualArithmeticConversions(env.tfac, t1, t2);
-  }
-  else {
-    char const *op = isMin? "<?" : ">?";
-    Type *bad = isArithmeticOrEnumType(t1)? t2 : t1;
-    char const *side = (bad==t1)? "left" : "right";
-    return env.error(bad, stringc
-      << "expected " << side << " argument to " << op
-      << " to be of arithmetic type, not `" << bad->toString() << "'");
-  }
 }
 
 
@@ -907,47 +880,6 @@ bool E_gnuCond::extHasUnparenthesizedGT()
 {
   return hasUnparenthesizedGT(cond) ||
          hasUnparenthesizedGT(el);
-}
-
-
-CValue E_gnuMinMax::extConstEval(ConstEval &env) const
-{
-  CValue v1 = e1->constEval(env);
-  CValue v2 = e2->constEval(env);
-  if (v1.isSticky()) {
-    return v1;
-  }
-  if (v2.isSticky()) {
-    return v2;
-  }
-  
-  // this is a guess
-  v1.applyUsualArithmeticConversions(v2);
-
-  if (isMin) {
-    switch (v1.kind()) {
-      default: // silence warning
-      case CValue::K_SIGNED:     v1.si = ((v1.si < v2.si) ? v1.si : v2.si);   break;
-      case CValue::K_UNSIGNED:   v1.ui = ((v1.ui < v2.ui) ? v1.ui : v2.ui);   break;
-      case CValue::K_FLOAT:      v1.f = ((v1.f < v2.f) ? v1.f : v2.f);        break;
-    }
-  }
-  else {
-    switch (v1.kind()) {
-      default: // silence warning
-      case CValue::K_SIGNED:     v1.si = ((v1.si > v2.si) ? v1.si : v2.si);   break;
-      case CValue::K_UNSIGNED:   v1.ui = ((v1.ui > v2.ui) ? v1.ui : v2.ui);   break;
-      case CValue::K_FLOAT:      v1.f = ((v1.f > v2.f) ? v1.f : v2.f);        break;
-    }
-  }
-  
-  return v1;
-}
-
-bool E_gnuMinMax::extHasUnparenthesizedGT()
-{
-  return hasUnparenthesizedGT(e1) ||
-         hasUnparenthesizedGT(e2);
 }
 
 
@@ -1054,15 +986,6 @@ void E_gnuCond::iprint(PrintEnv &env, CodeOutStream &out)
   cond->print(env, out);
   out << " ?: ";
   el->print(env, out);
-}
-
-void E_gnuMinMax::iprint(PrintEnv &env, CodeOutStream &out)
-{
-  TreeWalkDebug treeDebug("E_gnuMinMax::iprint");
-  PairDelim pair(out, "", "(", ")");
-  e1->print(env, out);
-  out << (isMin? " <? " : " >? ");
-  e2->print(env, out);
 }
 
 void E_addrOfLabel::iprint(PrintEnv &env, CodeOutStream &out)

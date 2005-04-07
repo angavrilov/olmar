@@ -240,6 +240,9 @@ char const * const binaryOpNames[NUM_BINARYOPS] = {
   "||",
   ",",
 
+  "<?",
+  ">?",
+
   "[]",
 
   "=",
@@ -248,7 +251,7 @@ char const * const binaryOpNames[NUM_BINARYOPS] = {
   "->*",
 
   "==>",
-  "<==>"
+  "<==>",
 };
 
 MAKE_TOSTRING(BinaryOp, NUM_BINARYOPS, binaryOpNames)
@@ -346,6 +349,9 @@ char const * const overloadableOpNames[NUM_OVERLOADABLE_OPS] = {
   "()",
   ",",
   "?:",
+  
+  "<?",
+  ">?",
 };
 
 MAKE_TOSTRING(OverloadableOp, NUM_OVERLOADABLE_OPS, overloadableOpNames)
@@ -399,6 +405,9 @@ char const * const operatorFunctionNames[NUM_OVERLOADABLE_OPS] = {
   "operator()",
   "operator,",
   "operator?",
+  
+  "operator<?",
+  "operator>?",
 };
 
 
@@ -458,6 +467,9 @@ OverloadableOp toOverloadableOp(BinaryOp op, bool isAssignment)
       OP_AND,
       OP_OR,
       OP_COMMA,
+      
+      OP_MINIMUM,
+      OP_MAXIMUM,
 
       OP_BRACKETS,
 
@@ -493,6 +505,9 @@ OverloadableOp toOverloadableOp(BinaryOp op, bool isAssignment)
       OP_BITXOREQ,
       OP_BITOREQ,
       BAD_ENTRY,
+      BAD_ENTRY,
+      BAD_ENTRY,
+
       BAD_ENTRY,
       BAD_ENTRY,
 

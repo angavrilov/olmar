@@ -648,6 +648,10 @@ void Env::setupOperatorOverloading()
       OP_DIV,          // LR operator/ (L, R);
       OP_PLUS,         // LR operator+ (L, R);
       OP_MINUS,        // LR operator- (L, R);
+      
+      // these two are a guess
+      OP_MINIMUM,      // LR operator<? (L, R);
+      OP_MAXIMUM,      // LR operator>? (L, R);
     };
     FOREACH_OPERATOR(op1, ops1) {
       addBuiltinBinaryOp(ST_PRET_ARITH_CONV, op1, L, R);

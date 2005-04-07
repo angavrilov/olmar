@@ -305,6 +305,10 @@ enum BinaryOp {
   BIN_OR,        // ||
   BIN_COMMA,     // ,
 
+  // gcc extensions
+  BIN_MINIMUM,   // <?
+  BIN_MAXIMUM,   // >?
+
   // this exists only between parsing and typechecking
   BIN_BRACKETS,  // []
 
@@ -428,6 +432,10 @@ enum OverloadableOp {
   OP_PARENS,       // ()
   OP_COMMA,        // ,
   OP_QUESTION,     // ?:  (not overloadable, but resolution used nonetheless)
+  
+  // gcc extensions
+  OP_MINIMUM,      // <?
+  OP_MAXIMUM,      // >?
 
   NUM_OVERLOADABLE_OPS
 };

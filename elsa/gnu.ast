@@ -131,13 +131,10 @@ class TypeSpecifier {
 
 
 // ----------- gcc C++ min and max operators -----------
-class Expression {
-  // isMin: true for '<?', false for '>?'
-  -> E_gnuMinMax(Expression e1, bool isMin, Expression e2) {
-       public virtual CValue extConstEval(ConstEval &env) const;
-       public virtual bool extHasUnparenthesizedGT();
-     }
-}
+// (2005-04-07: there used to be a special E_gnuMinMax, but because
+// those operators are overloadable, they become intertwined with much
+// more of the tchecker structure, and therefore I folded them into
+// BinaryOp)
 
 
 // ----------- gcc asm -----------

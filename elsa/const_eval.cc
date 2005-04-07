@@ -312,6 +312,29 @@ void CValue::applyBinary(BinaryOp op, CValue other)
       }
       break;
 
+    // ---- gcc <? and >? ----
+    // guessing that <? and >? behave approximately like '+' in
+    // terms of the types
+    case BIN_MINIMUM:
+      applyUsualArithmeticConversions(other);
+      switch (kind()) {
+        default: // silence warning
+        case CValue::K_SIGNED:     si = ((si < other.si) ? si : other.si);   break;
+        case CValue::K_UNSIGNED:   ui = ((ui < other.ui) ? ui : other.ui);   break;
+        case CValue::K_FLOAT:      f = ((f < other.f) ? f : other.f);        break;
+      }
+      break;
+
+    case BIN_MAXIMUM:
+      applyUsualArithmeticConversions(other);
+      switch (kind()) {
+        default: // silence warning
+        case CValue::K_SIGNED:     si = ((si > other.si) ? si : other.si);   break;
+        case CValue::K_UNSIGNED:   ui = ((ui > other.ui) ? ui : other.ui);   break;
+        case CValue::K_FLOAT:      f = ((f > other.f) ? f : other.f);        break;
+      }
+      break;
+
     // ---- 5.8 ----
     case BIN_LSHIFT:
     case BIN_RSHIFT: {

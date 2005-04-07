@@ -258,9 +258,15 @@ nonterm(ASTTypeId*) TypeofType {
 // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Min-and-Max.html
 nonterm(Expression*) BinExp_mid {
   -> left:BinExp_mid "<?" right:BinExp_high
-       { return new E_gnuMinMax(left, true /*isMin*/, right); }
+       { return new E_binary(left, BIN_MINIMUM, right); }
   -> left:BinExp_mid ">?" right:BinExp_high
-       { return new E_gnuMinMax(left, false /*isMin*/, right); }
+       { return new E_binary(left, BIN_MAXIMUM, right); }
+}
+
+// it turns out gcc lets users overload them too (in/gnu/k0004.cc)
+nonterm(OperatorName*) Operator {
+  -> "<?"    { return new ON_operator(OP_MINIMUM); }
+  -> ">?"    { return new ON_operator(OP_MAXIMUM); }
 }
 
 

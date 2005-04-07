@@ -2364,6 +2364,10 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
         NONMEMBER | TWOPARAMS,                      // OP_COMMA
         
         OD_NONE,                                    // OP_QUESTION (not used)
+        
+        // I am guessing that <? and >? overload similar to OP_PLUS
+        NONMEMBER | ONEPARAM | TWOPARAMS,           // OP_MINUMUM
+        NONMEMBER | ONEPARAM | TWOPARAMS,           // OP_MAXIMUM
       };
       ASSERT_TABLESIZE(map, NUM_OVERLOADABLE_OPS);
       xassert(validCode(o->op));      
@@ -6932,6 +6936,8 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
     case BIN_BITAND:              // &
     case BIN_BITXOR:              // ^
     case BIN_BITOR:               // |
+    case BIN_MINIMUM:             // <?
+    case BIN_MAXIMUM:             // >?
       // default behavior of returning the left side is close enough for now.
       break;
 

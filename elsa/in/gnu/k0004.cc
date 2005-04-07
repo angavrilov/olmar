@@ -17,3 +17,13 @@ struct S1 {
 S1 operator >? (const S1& x, const S1& y) {
     return x;
 }
+
+int main()
+{
+  S1 a,b;
+  
+  a <? b;
+  a >? b;
+  
+  return 0;
+}
