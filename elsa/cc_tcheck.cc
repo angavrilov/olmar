@@ -1364,7 +1364,20 @@ Type *TS_simple::itcheck(Env &env, DeclFlags dflags)
   // uses implicit int, change it to ST_INT so that analyses don't
   // have to know about any of this parsing nonsense.
   if (id == ST_IMPLINT) {
-    id = ST_INT;
+    // 2005-04-07: I had been doing the following:
+    //   id = ST_INT;      
+    // but the problem with that is that there are cases (e.g.,
+    // in/c/k0008.c) where a single TS_simple will appear in more than
+    // one context.  If the first context's tcheck changes 'id' as
+    // above, and the second context is ambiguous, the second context
+    // won't know that it was ST_IMPLINT and will therefore fail to
+    // resolve it properly.
+    //
+    // So my new solution is to *only* put ST_INT into the 'type',
+    // leaving ST_IMPLINT in the 'id' field so later tchecks can see
+    // that it was using implicit-int.  Client analyses should be
+    // unaffected, since they should be looking at 'type', not 'id'.
+    return env.getSimpleType(loc, ST_INT, cv);
   }
 
   return env.getSimpleType(loc, id, cv);

@@ -24,9 +24,8 @@ string ambiguousNodeName(NODE const *n)
   return n->kindName();
 }
 
-// specializations in cc_tcheck.cc
+// definition in cc_tcheck.cc
 string ambiguousNodeName(Declarator const *n);
-string ambiguousNodeName(ASTTypeId const *n);
 
 
 // after a node has failed to typecheck, I may need to mark it
