@@ -2130,9 +2130,10 @@ void ArrayType::traverse(TypeVisitor &vis)
 PointerToMemberType::PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c, Type *a)
   : inClassNAT(inClassNAT0), cv(c), atType(a)
 {
-  // 'inClassNAT' should always be a compound or a type variable
-  xassert(inClassNAT->isCompoundType() ||
-          inClassNAT->isTypeVariable());
+  // 'inClassNAT' should always be a compound or something dependent
+  // on a type variable; basically, it should just not be an enum,
+  // given that it is a named atomic type
+  xassert(!inClassNAT->isEnumType());
 
   // cannot have pointer to reference type
   xassert(!a->isReference());
