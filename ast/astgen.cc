@@ -41,6 +41,16 @@ bool wantXMLPrint = false;
 // true if the user wants the gdb() functions
 bool wantGDB = false;
 
+// true if we should use a hack to work around the absence of
+// support for covariant return types in MSVC; see
+//   http://support.microsoft.com/kb/240862/EN-US/
+// The approach is to use
+//   virtual Super *nocvr_clone() const;
+//   Sub *clone() const { return static_cast<Sub*>(nocvr_clone()); }
+// in place of
+//   virtual Sub *clone() const;
+bool nocvr = false;
+
 
 // ------------------ shared gen functions ----------------------
 class Gen {
@@ -504,9 +514,18 @@ void HGen::emitTFClass(TF_class const &cls)
 
   // declare clone function
   if (cls.hasChildren()) {
-    out << "  virtual " << cls.super->name << " *clone() const=0;\n";
+    if (!nocvr) {
+      // normal case
+      out << "  virtual " << cls.super->name << "* clone() const=0;\n";
+    }
+    else {
+      // msvc hack case
+      out << "  virtual " << cls.super->name << "* nocvr_clone() const=0;\n";
+      out << "  " << cls.super->name << "* clone() const { return nocvr_clone(); }\n";
+    }
   }
   else {
+    // not pure or virtual
     out << "  " << cls.super->name << " *clone() const;\n";
   }
   out << "\n";
@@ -783,9 +802,18 @@ void HGen::emitCtor(ASTClass const &ctor, ASTClass const &parent)
   emitCommonFuncs("virtual ");
 
   // clone function (take advantage of covariant return types)
-  out << "  virtual " << ctor.name << " *clone() const;\n"
-      << "\n";
+  if (!nocvr) {
+    // normal case
+    out << "  virtual " << ctor.name << " *clone() const;\n";
+  }
+  else {
+    // msvc hack case
+    out << "  virtual " << parent.name << "* nocvr_clone() const;\n";
+    out << "  " << ctor.name << "* clone() const\n"
+        << "    { return static_cast<" << ctor.name << "*>(nocvr_clone()); }\n";
+  }
 
+  out << "\n";
   emitUserDecls(ctor.decls);
 
   // emit implementation declarations for parent's pure virtuals
@@ -1284,9 +1312,16 @@ void CGen::emitCloneCode(ASTClass const *super, ASTClass const *sub)
 {
   ASTClass const *myClass = sub? sub : super;
   string const &name = myClass->name;
-  out << name << " *" << name << "::clone() const\n"
-      << "{\n"
-      ;
+
+  if (!nocvr || !sub) {
+    // normal case, or childless superclass case
+    out << name << " *" << name << "::clone() const\n";
+  }
+  else {
+    // msvc hack case
+    out << super->name << " *" << name << "::nocvr_clone() const\n";
+  }
+  out << "{\n";
 
   if (!emitCustomCode(myClass->decls, "substituteClone")) {
     out << "  " << name << " *ret = new " << name << "(";
@@ -1931,6 +1966,7 @@ void entry(int argc, char **argv)
          << "    -o<name>   output filenames are name.{h,cc}\n"
          << "               (default is \"file\" for \"file.ast\")\n"
          << "    -v         verbose operation, particularly for merging\n"
+         << "    -nocvr     do not use covariant return types in clone()\n"
          ;
 
     return;
@@ -1954,6 +1990,9 @@ void entry(int argc, char **argv)
     }
     else if (argv[0][1] == 'v') {
       traceAddSys("merge");
+    }
+    else if (0==strcmp(argv[0], "-nocvr")) {
+      nocvr = true;
     }
     else {
       xfatal("unknown option: " << argv[0]);
