@@ -103,12 +103,12 @@ for my $name(@names) {
         # I made that printing conditional upon the tracing flag
         my $flags = "-tr prettyPrint";
 #          my $cppflags = "-lang-c++";      # This doesn't work!
-        run_command "cpp -D__cplusplus -D__LINUX__ -D__UNIX__ -DNDEBUG $name",
-        "$outname.0cppout.cc";
+        my $cpp = "cpp -D__cplusplus -D__LINUX__ -D__UNIX__ -DNDEBUG";
+        run_command "$cpp $name", "$outname.0cppout.cc";
         run_command "$parser $flags $outname.0cppout.cc", "$outname.1rawout.cc";
-        run_only "perl ./chop_out < $outname.1rawout.cc", "$outname.2out.cc";
+        run_only "cpp < $outname.1rawout.cc | perl ./chop_out", "$outname.2out.cc";
         run_command "$parser $flags $outname.2out.cc", "$outname.3rawout.cc";
-        run_only "perl ./chop_out < $outname.3rawout.cc", "$outname.4out.cc";
+        run_only "$cpp < $outname.3rawout.cc | perl ./chop_out", "$outname.4out.cc";
     };
     if ($@) {
         dump_outfiles();

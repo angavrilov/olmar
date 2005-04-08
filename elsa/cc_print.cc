@@ -12,6 +12,9 @@
 
 #include <stdlib.h>             // getenv
 
+// forward in this file
+void printSTemplateArgument(PrintEnv &env, CodeOutStream &out, STemplateArgument const *sta);
+
 // where code output goes
 // sm: I've replaced uses of this with 'env' instead
 //CodeOutStream global_code_out(cout);
@@ -160,17 +163,460 @@ TreeWalkDebug::~TreeWalkDebug()
   out.up();
 }
 
-// **** class TypePrinter
+// **** class TypePrinterC
 
-void TypePrinter::print(OutStream &out, Type const *type, char const *name)
+void TypePrinterC::print(OutStream &out, Type const *type, char const *name)
 {
-  out << type->toCString(name);
+  // temporarily suspend the Type::toCString, Variable::toCString(),
+  // etc. methods
+  Restorer<bool> res0(global_mayUseTypeAndVarToCString, false);
+  out << print(type, name);
+  // old way
+//    out << type->toCString(name);
+}
+
+
+// **************** AtomicType
+
+string TypePrinterC::print(AtomicType const *atomic)
+{
+  // roll our own virtual dispatch
+  switch(atomic->getTag()) {
+  default: xfailure("bad tag");
+  case AtomicType::T_SIMPLE:              return print(atomic->asSimpleTypeC());
+  case AtomicType::T_COMPOUND:            return print(atomic->asCompoundTypeC());
+  case AtomicType::T_ENUM:                return print(atomic->asEnumTypeC());
+  case AtomicType::T_TYPEVAR:             return print(atomic->asTypeVariableC());
+  case AtomicType::T_PSEUDOINSTANTIATION: return print(atomic->asPseudoInstantiationC());
+  case AtomicType::T_DEPENDENTQTYPE:      return print(atomic->asDependentQTypeC());
+  }
+}
+
+string TypePrinterC::print(SimpleType const *simpleType)
+{
+  return simpleTypeName(simpleType->type);
+}
+
+string TypePrinterC::print(CompoundType const *cpdType)
+{
+  stringBuilder sb;
+
+  TemplateInfo *tinfo = cpdType->templateInfo();
+  bool hasParams = tinfo && tinfo->params.isNotEmpty();
+  if (hasParams) {
+    sb << tinfo->paramsToCString() << " ";
+  }
+
+  if (!tinfo || hasParams) {   
+    // only say 'class' if this is like a class definition, or
+    // if we're not a template, since template instantiations
+    // usually don't include the keyword 'class' (this isn't perfect..
+    // I think I need more context)
+    sb << CompoundType::keywordName(cpdType->keyword) << " ";
+  }
+
+  sb << (cpdType->instName? cpdType->instName : "/*anonymous*/");
+
+  // template arguments are now in the name
+  // 4/22/04: they were removed from the name a long time ago;
+  //          but I'm just now uncommenting this code
+  // 8/03/04: restored the original purpose of 'instName', so
+  //          once again that is name+args, so this code is not needed
+  //if (tinfo && tinfo->arguments.isNotEmpty()) {
+  //  sb << sargsToString(tinfo->arguments);
+  //}
+
+  return sb;
+}
+
+string TypePrinterC::print(EnumType const *enumType)
+{
+  return stringc << "enum " << (enumType->name? enumType->name : "/*anonymous*/");
+}
+
+string TypePrinterC::print(TypeVariable const *typeVar)
+{
+  // use the "typename" syntax instead of "class", to distinguish
+  // this from an ordinary class, and because it's syntax which
+  // more properly suggests the ability to take on *any* type,
+  // not just those of classes
+  //
+  // but, the 'typename' syntax can only be used in some specialized
+  // circumstances.. so I'll suppress it in the general case and add
+  // it explicitly when printing the few constructs that allow it
+  //
+  // 8/09/04: sm: truncated down to just the name, since the extra
+  // clutter was annoying and not that helpful
+  return stringc //<< "/""*typevar"
+//                   << "typedefVar->serialNumber:"
+//                   << (typedefVar ? typedefVar->serialNumber : -1)
+                 //<< "*/"
+                 << typeVar->name;
+}
+
+string TypePrinterC::print(PseudoInstantiation const *pseudoInst)
+{
+  stringBuilder sb0;
+  StringBuilderOutStream out0(sb0);
+  CodeOutStream codeOut(out0);
+  PrintEnv env(*this);          // Yuck!
+  // FIX: what about the env.loc?
+
+  codeOut << pseudoInst->name;
+
+  // NOTE: This was inlined from sargsToString; it would read as
+  // follows:
+//    codeOut << sargsToString(pseudoInst->args);
+  codeOut << "<";
+  int ct=0;
+  FOREACH_OBJLIST(STemplateArgument, pseudoInst->args, iter) {
+    if (ct++ > 0) {
+      codeOut << ", ";
+    }
+    printSTemplateArgument(env, codeOut, iter.data());
+  }
+  codeOut << ">";
+
+  codeOut.finish();
+  return sb0;
+}
+
+string TypePrinterC::print(DependentQType const *depType)
+{
+  stringBuilder sb0;
+  StringBuilderOutStream out0(sb0);
+  CodeOutStream codeOut(out0);
+  PrintEnv env(*this);          // Yuck!
+  // FIX: what about the env.loc?
+
+  codeOut << print(depType->first) << "::";
+  depType->rest->print(env, codeOut);
+
+  codeOut.finish();
+  return sb0;
+}
+
+
+// **************** [Compound]Type
+
+string TypePrinterC::print(Type const *type)
+{
+  if (type->isCVAtomicType()) {
+    // special case a single atomic type, so as to avoid
+    // printing an extra space
+    CVAtomicType const *cvatomic = type->asCVAtomicTypeC();
+    return stringc
+      << print(cvatomic->atomic)
+      << cvToString(cvatomic->cv);
+  }
+  else {
+    return stringc
+      << printLeft(type)
+      << printRight(type);
+  }
+}
+
+string TypePrinterC::print(Type const *type, char const *name)
+{
+  // print the inner parentheses if the name is omitted
+  bool innerParen = (name && name[0])? false : true;
+
+  #if 0    // wrong
+  // except, if this type is a pointer, then omit the parens anyway;
+  // we only need parens when the type is a function or array and
+  // the name is missing
+  if (isPointerType()) {
+    innerParen = false;
+  }
+  #endif // 0
+
+  stringBuilder s;
+  s << printLeft(type, innerParen);
+  s << (name? name : "/*anon*/");
+  s << printRight(type, innerParen);
+  return s;
+}
+
+string TypePrinterC::printRight(Type const *type, bool innerParen)
+{
+  // roll our own virtual dispatch
+  switch(type->getTag()) {
+  default: xfailure("illegal tag");
+  case Type::T_ATOMIC:          return printRight(type->asCVAtomicTypeC(), innerParen);
+  case Type::T_POINTER:         return printRight(type->asPointerTypeC(), innerParen);
+  case Type::T_REFERENCE:       return printRight(type->asReferenceTypeC(), innerParen);
+  case Type::T_FUNCTION:        return printRight(type->asFunctionTypeC(), innerParen);
+  case Type::T_ARRAY:           return printRight(type->asArrayTypeC(), innerParen);
+  case Type::T_POINTERTOMEMBER: return printRight(type->asPointerToMemberTypeC(), innerParen);
+  }
+}
+
+string TypePrinterC::printLeft(Type const *type, bool innerParen)
+{
+  // roll our own virtual dispatch
+  switch(type->getTag()) {
+  default: xfailure("illegal tag");
+  case Type::T_ATOMIC:          return printLeft(type->asCVAtomicTypeC(), innerParen);
+  case Type::T_POINTER:         return printLeft(type->asPointerTypeC(), innerParen);
+  case Type::T_REFERENCE:       return printLeft(type->asReferenceTypeC(), innerParen);
+  case Type::T_FUNCTION:        return printLeft(type->asFunctionTypeC(), innerParen);
+  case Type::T_ARRAY:           return printLeft(type->asArrayTypeC(), innerParen);
+  case Type::T_POINTERTOMEMBER: return printLeft(type->asPointerToMemberTypeC(), innerParen);
+  }
+}
+
+string TypePrinterC::printLeft(CVAtomicType const *type, bool /*innerParen*/)
+{
+  stringBuilder s;
+  s << print(type->atomic);
+  s << cvToString(type->cv);
+
+  // this is the only mandatory space in the entire syntax
+  // for declarations; it separates the type specifier from
+  // the declarator(s)
+  s << " ";
+
+  return s;
+}
+
+string TypePrinterC::printRight(CVAtomicType const *type, bool /*innerParen*/)
+{
+  return "";
+}
+
+string TypePrinterC::printLeft(PointerType const *type, bool /*innerParen*/)
+{
+  stringBuilder s;
+  s << printLeft(type->atType, false /*innerParen*/);
+  if (type->atType->isFunctionType() ||
+      type->atType->isArrayType()) {
+    s << "(";
+  }
+  s << "*";
+  if (type->cv) {
+    // 1/03/03: added this space so "Foo * const arf" prints right (t0012.cc)
+    s << cvToString(type->cv) << " ";
+  }
+  return s;
+}
+
+string TypePrinterC::printRight(PointerType const *type, bool /*innerParen*/)
+{
+  stringBuilder s;
+  if (type->atType->isFunctionType() ||
+      type->atType->isArrayType()) {
+    s << ")";
+  }
+  s << printRight(type->atType, false /*innerParen*/);
+  return s;
+}
+
+string TypePrinterC::printLeft(ReferenceType const *type, bool /*innerParen*/)
+{
+  stringBuilder s;
+  s << printLeft(type->atType, false /*innerParen*/);
+  if (type->atType->isFunctionType() ||
+      type->atType->isArrayType()) {
+    s << "(";
+  }
+  s << "&";
+  return s;
+}
+
+string TypePrinterC::printRight(ReferenceType const *type, bool /*innerParen*/)
+{
+  stringBuilder s;
+  if (type->atType->isFunctionType() ||
+      type->atType->isArrayType()) {
+    s << ")";
+  }
+  s << printRight(type->atType, false /*innerParen*/);
+  return s;
+}
+
+string TypePrinterC::printLeft(FunctionType const *type, bool innerParen)
+{
+  stringBuilder sb;
+
+  // FIX: FUNC TEMPLATE LOSS
+  // template parameters
+//    if (templateInfo) {
+//      sb << templateInfo->paramsToCString() << " ";
+//    }
+
+  // return type and start of enclosing type's description
+  if (type->flags & (/*FF_CONVERSION |*/ FF_CTOR | FF_DTOR)) {
+    // don't print the return type, it's implicit
+
+    // 7/18/03: changed so we print ret type for FF_CONVERSION,
+    // since otherwise I can't tell what it converts to!
+  }
+  else {
+    sb << printLeft(type->retType);
+  }
+
+  // NOTE: we do *not* propagate 'innerParen'!
+  if (innerParen) {
+    sb << "(";
+  }
+
+  return sb;
+}
+
+string TypePrinterC::printRight(FunctionType const *type, bool innerParen)
+{
+  // I split this into two pieces because the Cqual++ concrete
+  // syntax puts $tainted into the middle of my rightString,
+  // since it's following the placement of 'const' and 'volatile'
+  return stringc
+    << printRightUpToQualifiers(type, innerParen)
+    << printRightQualifiers(type, type->getReceiverCV())
+    << printRightAfterQualifiers(type);
+}
+
+string TypePrinterC::printRightUpToQualifiers(FunctionType const *type, bool innerParen)
+{
+  // finish enclosing type
+  stringBuilder sb;
+  if (innerParen) {
+    sb << ")";
+  }
+
+  // arguments
+  sb << "(";
+  int ct=0;
+  SFOREACH_OBJLIST(Variable, type->params, iter) {
+    ct++;
+    if (type->isMethod() && ct==1) {
+      // don't actually print the first parameter;
+      // the 'm' stands for nonstatic member function
+      sb << "/""*m: " << print(iter.data()->type) << " *""/ ";
+      continue;
+    }
+    if (ct >= 3 || (!type->isMethod() && ct>=2)) {
+      sb << ", ";
+    }
+    sb << printAsParameter(iter.data());
+  }
+
+  if (type->acceptsVarargs()) {
+    if (ct++ > 0) {
+      sb << ", ";
+    }
+    sb << "...";
+  }
+
+  sb << ")";
+
+  return sb;
+}
+
+string TypePrinterC::printRightQualifiers(FunctionType const *type, CVFlags cv)
+{
+  if (cv) {
+    return stringc << " " << ::toString(cv);
+  }
+  else {
+    return "";
+  }
+}
+
+string TypePrinterC::printRightAfterQualifiers(FunctionType const *type)
+{
+  stringBuilder sb;
+
+  // exception specs
+  if (type->exnSpec) {
+    sb << " throw(";
+    int ct=0;
+    SFOREACH_OBJLIST(Type, type->exnSpec->types, iter) {
+      if (ct++ > 0) {
+        sb << ", ";
+      }
+      sb << print(iter.data());
+    }
+    sb << ")";
+  }
+
+  // hook for verifier syntax
+  printExtraRightmostSyntax(type, sb);
+
+  // finish up the return type
+  sb << printRight(type->retType);
+
+  return sb;
+}
+
+void TypePrinterC::printExtraRightmostSyntax(FunctionType const *type, stringBuilder &)
+{}
+
+string TypePrinterC::printLeft(ArrayType const *type, bool /*innerParen*/)
+{
+  return printLeft(type->eltType);
+}
+
+string TypePrinterC::printRight(ArrayType const *type, bool /*innerParen*/)
+{
+  stringBuilder sb;
+
+  if (type->hasSize()) {
+    sb << "[" << type->size << "]";
+  }
+  else {
+    sb << "[]";
+  }
+
+  sb << printRight(type->eltType);
+
+  return sb;
+}
+
+string TypePrinterC::printLeft(PointerToMemberType const *type, bool /*innerParen*/)
+{
+  stringBuilder s;
+  s << printLeft(type->atType, false /*innerParen*/);
+  s << " ";
+  if (type->atType->isFunctionType() ||
+      type->atType->isArrayType()) {
+    s << "(";
+  }
+  s << type->inClassNAT->name << "::*";
+  s << cvToString(type->cv);
+  return s;
+}
+
+string TypePrinterC::printRight(PointerToMemberType const *type, bool /*innerParen*/)
+{
+  stringBuilder s;
+  if (type->atType->isFunctionType() ||
+      type->atType->isArrayType()) {
+    s << ")";
+  }
+  s << printRight(type->atType, false /*innerParen*/);
+  return s;
+}
+
+string TypePrinterC::printAsParameter(Variable const *var)
+{
+  stringBuilder sb;
+  if (var->type->isTypeVariable()) {
+    // type variable's name, then the parameter's name (if any)
+    sb << var->type->asTypeVariable()->name;
+    if (var->name) {
+      sb << " " << var->name;
+    }
+  }
+  else {
+    sb << print(var->type, var->name);
+  }
+
+  if (var->value) {
+    sb << renderExpressionAsString(" = ", var->value);
+  }
+  return sb;
 }
 
 // ****************
-
-// forward in this file
-void printSTemplateArgument(PrintEnv &env, CodeOutStream &out, STemplateArgument const *sta);
 
 // function for printing declarations (without the final semicolon);
 // handles a variety of declarations such as:
@@ -917,7 +1363,7 @@ string Expression::exprToString() const
   stringBuilder sb;
   StringBuilderOutStream out0(sb);
   CodeOutStream codeOut(out0);
-  TypePrinter typePrinter;
+  TypePrinterC typePrinter;
   PrintEnv env(typePrinter);
   
   // sm: I think all the 'print' methods should be 'const', but
@@ -1522,7 +1968,7 @@ void TA_type::print(PrintEnv &env, CodeOutStream &out)
 {
   // dig down to prevent printing "/*anon*/" since template
   // type arguments are always anonymous so it's just clutter
-  out << type->decl->var->type->toCString();
+  env.typePrinter.print(out, type->decl->var->type);
 }
 
 void TA_nontype::print(PrintEnv &env, CodeOutStream &out)

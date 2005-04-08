@@ -287,6 +287,7 @@ string Variable::toQualifiedString() const
 
 string Variable::toCStringAsParameter() const
 {
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
   stringBuilder sb;
   if (type->isTypeVariable()) {
     // type variable's name, then the parameter's name (if any)

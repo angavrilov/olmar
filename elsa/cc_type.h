@@ -72,6 +72,10 @@ class BasicTypeFactory;
 class TypePred;
 
 
+// FIX: is a debugging aid; remove
+extern bool global_mayUseTypeAndVarToCString;
+
+
 // --------------------- type visitor -----------------------        
 // Visitor that digs down into template arguments, among other things.
 // Like the AST visitors, the 'visit' functions return true to
@@ -768,6 +772,7 @@ public:     // funcs
 
 ENUM_BITWISE_OPS(BaseType::EqFlags, BaseType::EF_ALL)
 
+string cvToString(CVFlags cv);
 
 #ifdef TYPE_CLASS_FILE
   // pull in the definition of Type, which may have additional
@@ -985,8 +990,8 @@ public:
   NamedAtomicType *getNATOfMember();
 
   // more specialized printing, for Cqual++ syntax
-  virtual string rightStringUpToQualifiers(bool innerParen) const;
   static string rightStringQualifiers(CVFlags cv);
+  virtual string rightStringUpToQualifiers(bool innerParen) const;
   virtual string rightStringAfterQualifiers() const;
 
   // print the function type, but use these cv-flags as the

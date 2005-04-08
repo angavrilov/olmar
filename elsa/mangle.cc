@@ -422,7 +422,7 @@ void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &ar
       sb << "DEPEXPR-";
       StringBuilderOutStream out0(sb);
       CodeOutStream codeOut(out0);
-      TypePrinter typePrinter;
+      TypePrinterC typePrinter;
       PrintEnv penv(typePrinter);
       iter.data()->value.e->print(penv, codeOut);
       break;

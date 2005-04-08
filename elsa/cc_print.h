@@ -224,20 +224,67 @@ class TreeWalkDebug {
   ~TreeWalkDebug();
 };
 
-// This class knows how to print out Types
-class TypePrinter {
+// This class knows how to print out Types; Note: the point is to
+// duplicate this class and hack on it, not to insert a bunch of hooks
+// an inherit from it.  FIX: Therefore eventually, all the methods
+// should be private and non-virtual and the dtor private so you can't
+// inherit from it.
+class TypePrinterC {
+  // FIX: make this class not vtabled: remove the 'virtual' from the
+  // methods; also, there is no longer a need for a dtor; make the
+  // methods private.
   public:
-  virtual ~TypePrinter() {}
-  virtual void print(OutStream &out, Type const *type, char const *name = NULL);
+  virtual ~TypePrinterC() {}
+
+  public:
+  void print(OutStream &out, Type const *type, char const *name = NULL);
+
+  protected:
+  // **** AtomicType
+  virtual string print(AtomicType const *atomic);
+
+  virtual string print(SimpleType const *);
+  virtual string print(CompoundType const *);
+  virtual string print(EnumType const *);
+  virtual string print(TypeVariable const *);
+  virtual string print(PseudoInstantiation const *);
+  virtual string print(DependentQType const *);
+
+  // **** [Compound]Type
+  virtual string print(Type const *type);
+  virtual string print(Type const *type, char const *name);
+  virtual string printRight(Type const *type, bool innerParen = true);
+  virtual string printLeft(Type const *type, bool innerParen = true);
+
+  virtual string printLeft(CVAtomicType const *type, bool innerParen = true);
+  virtual string printRight(CVAtomicType const *type, bool innerParen = true);
+  virtual string printLeft(PointerType const *type, bool innerParen = true);
+  virtual string printRight(PointerType const *type, bool innerParen = true);
+  virtual string printLeft(ReferenceType const *type, bool innerParen = true);
+  virtual string printRight(ReferenceType const *type, bool innerParen = true);
+  virtual string printLeft(FunctionType const *type, bool innerParen = true);
+  virtual string printRight(FunctionType const *type, bool innerParen = true);
+  virtual string printRightUpToQualifiers(FunctionType const *type, bool innerParen);
+  virtual string printRightQualifiers(FunctionType const *type, CVFlags cv);
+  virtual string printRightAfterQualifiers(FunctionType const *type);
+  virtual void   printExtraRightmostSyntax(FunctionType const *type, stringBuilder &);
+  virtual string printLeft(ArrayType const *type, bool innerParen = true);
+  virtual string printRight(ArrayType const *type, bool innerParen = true);
+  virtual string printLeft(PointerToMemberType const *type, bool innerParen = true);
+  virtual string printRight(PointerToMemberType const *type, bool innerParen = true);
+
+  // **** Variable
+  virtual string printAsParameter(Variable const *var);
 };
 
 // global context for a pretty-print
-struct PrintEnv {
-  TypePrinter &typePrinter;
+class PrintEnv {
+  public:
+  TypePrinterC &typePrinter;
   SourceLoc loc;
   
   public:
-  PrintEnv(TypePrinter &typePrinter0)
+  PrintEnv(TypePrinterC &typePrinter0)
     : typePrinter(typePrinter0)
     , loc(SL_UNKNOWN)
   {}

@@ -499,7 +499,7 @@ void doit(int argc, char **argv)
     traceProgress() << "dsw pretty print...\n";
     OStreamOutStream out0(cout);
     CodeOutStream codeOut(out0);
-    TypePrinter typePrinter;
+    TypePrinterC typePrinter;
     PrintEnv env(typePrinter);
     cout << "---- START ----" << endl;
     cout << "// -*-c++-*-" << endl;
@@ -531,7 +531,7 @@ void doit(int argc, char **argv)
       if (tracingSys("clonePrint")) {
         OStreamOutStream out0(cout);
         CodeOutStream codeOut(out0);
-        TypePrinter typePrinter;
+        TypePrinterC typePrinter;
         PrintEnv penv(typePrinter);
         cout << "---- cloned pretty print ----" << endl;
         u2->print(penv, codeOut);

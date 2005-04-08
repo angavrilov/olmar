@@ -37,6 +37,7 @@ TypeVariable::~TypeVariable()
 
 string TypeVariable::toCString() const
 {
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
   // use the "typename" syntax instead of "class", to distinguish
   // this from an ordinary class, and because it's syntax which
   // more properly suggests the ability to take on *any* type,
@@ -90,6 +91,7 @@ PseudoInstantiation::~PseudoInstantiation()
 
 string PseudoInstantiation::toCString() const
 {
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
   return stringc << name << sargsToString(args);
 }
 
@@ -128,6 +130,7 @@ DependentQType::~DependentQType()
 
 string DependentQType::toCString() const
 {
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
   return stringc << first->toCString() << "::" << rest->toString();
 }
 
