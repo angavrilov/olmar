@@ -175,7 +175,7 @@ class Designator (SourceLoc loc) {
     }
   }
 
-  pure_virtual void print(PrintEnv &env, CodeOutStream &out);
+  pure_virtual void print(PrintEnv &env);
 
   -> FieldDesignator(StringRef id);
 

@@ -500,10 +500,10 @@ void doit(int argc, char **argv)
     OStreamOutStream out0(cout);
     CodeOutStream codeOut(out0);
     TypePrinterC typePrinter;
-    PrintEnv env(typePrinter);
+    PrintEnv env(typePrinter, &codeOut);
     cout << "---- START ----" << endl;
     cout << "// -*-c++-*-" << endl;
-    unit->print(env, codeOut);
+    unit->print(env);
     codeOut.finish();
     cout << "---- STOP ----" << endl;
     traceProgress() << "dsw pretty print... done\n";
@@ -532,9 +532,9 @@ void doit(int argc, char **argv)
         OStreamOutStream out0(cout);
         CodeOutStream codeOut(out0);
         TypePrinterC typePrinter;
-        PrintEnv penv(typePrinter);
+        PrintEnv penv(typePrinter, &codeOut);
         cout << "---- cloned pretty print ----" << endl;
-        u2->print(penv, codeOut);
+        u2->print(penv);
         codeOut.finish();
       }
     }

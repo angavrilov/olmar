@@ -281,11 +281,13 @@ class TypePrinterC {
 class PrintEnv {
   public:
   TypePrinterC &typePrinter;
+  CodeOutStream *out;
   SourceLoc loc;
   
   public:
-  PrintEnv(TypePrinterC &typePrinter0)
+  PrintEnv(TypePrinterC &typePrinter0, CodeOutStream *out0)
     : typePrinter(typePrinter0)
+    , out(out0)
     , loc(SL_UNKNOWN)
   {}
 };

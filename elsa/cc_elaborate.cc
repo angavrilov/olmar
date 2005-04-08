@@ -2006,7 +2006,7 @@ Type *TS_type::itcheck(Env &env, DeclFlags dflags)
   return type;
 }
 
-void TS_type::print(PrintEnv &env, CodeOutStream &out)
+void TS_type::print(PrintEnv &env)
 {
   xfailure("I think this is not called because TS_simple::print isn't either");
 }
@@ -2028,11 +2028,11 @@ void PQ_variable::tcheck_pq(Env &env, Scope*, LookupFlags)
   // nothing to check
 }
 
-void PQ_variable::print(PrintEnv &env, CodeOutStream &out)
+void PQ_variable::print(PrintEnv &env)
 {
   // this is unlikely to tcheck correctly, but that's true of
   // lots of cc_print functions..
-  out << var->name;
+  *env.out << var->name;
 }
 
 

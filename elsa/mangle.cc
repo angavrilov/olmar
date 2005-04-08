@@ -423,8 +423,8 @@ void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &ar
       StringBuilderOutStream out0(sb);
       CodeOutStream codeOut(out0);
       TypePrinterC typePrinter;
-      PrintEnv penv(typePrinter);
-      iter.data()->value.e->print(penv, codeOut);
+      PrintEnv penv(typePrinter, &codeOut);
+      iter.data()->value.e->print(penv);
       break;
     }
 
