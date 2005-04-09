@@ -12,9 +12,6 @@
 
 #include <stdlib.h>             // getenv
 
-// forward in this file
-void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta);
-
 // set this environment variable to see the twalk_layer debugging
 // output
 OStreamOutStream treeWalkOut0(cout);
