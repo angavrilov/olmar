@@ -15,10 +15,6 @@
 // forward in this file
 void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta);
 
-// where code output goes
-// sm: I've replaced uses of this with 'env' instead
-//CodeOutStream global_code_out(cout);
-
 // set this environment variable to see the twalk_layer debugging
 // output
 OStreamOutStream treeWalkOut0(cout);
