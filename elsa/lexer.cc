@@ -183,6 +183,7 @@ void Lexer::parseHashLine(char *directive, int len)
   if (*directive == '\n') {
     // no filename: use previous
     srcFile->addHashLine(curLine, lineNum, prevHashLineFile);
+    return;
   }
 
   if (*directive != '\"') {
