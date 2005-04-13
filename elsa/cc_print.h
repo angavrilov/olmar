@@ -282,14 +282,49 @@ class PrintEnv {
   TypePrinter &typePrinter;
   CodeOutStream *out;
   SourceLoc loc;
-  
+
   public:
   PrintEnv(TypePrinter &typePrinter0, CodeOutStream *out0)
     : typePrinter(typePrinter0)
     , out(out0)
     , loc(SL_UNKNOWN)
   {}
+
+  void finish() { out->finish(); }
+
+  #define MAKE_INSERTER(type)                    \
+    PrintEnv& operator << (type message) {       \
+      *out << message;                           \
+      return *this;                              \
+    }
+  MAKE_INSERTER(char const *)
+  MAKE_INSERTER(char)
+  MAKE_INSERTER(bool)
+  MAKE_INSERTER(int)
+  MAKE_INSERTER(unsigned int)
+  MAKE_INSERTER(long)
+  MAKE_INSERTER(unsigned long)
+  MAKE_INSERTER(double)
+  MAKE_INSERTER(rostring)
+  #undef MAKE_INSERTER
 };
+
+// version of PrintEnv that prints to a string in the default syntax
+class StringPrintEnv : public PrintEnv {
+public:      // data
+  StringBuilderOutStream sbos;
+  CodeOutStream cos;
+  TypePrinterC tpc;
+
+public:      // code
+  StringPrintEnv(stringBuilder &sb)
+    : PrintEnv(tpc, &cos),
+      sbos(sb),
+      cos(sbos),
+      tpc()
+  {}
+};
+
 
 void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta);
 
