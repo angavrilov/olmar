@@ -1,6 +1,18 @@
 // cc.ast            see license.txt for copyright and terms of use
 // C++ abstract syntax
-// see also cc.ast.html
+
+// The main documentation is in cc.ast.html.
+
+
+// Note that the description in this file is not the whole AST, just
+// the base level of it.  Other files, such as cc_tcheck.ast and
+// gnu.ast, extend the description here by adding additional fields,
+// methods and even AST node types.  The astgen tool (driven by a
+// Makefile rule) combines the various descriptions into one before
+// generating cc.ast.gen.h and cc.ast.gen.cc.  The purpose of this
+// organization is to keep related concepts together, and allow the
+// user to mix+match features by selecting which extensions are used.
+
 
 // note: wherever ASTList or FakeList is used, its elements are listed
 // in the order they appear lexically in the input file, i.e. left to
@@ -16,7 +28,7 @@
 // only places I cannot accept this growth are places where it is
 // relatively common for the list to have >100 elements.  Those
 // places are:
-//   - toplevel forms (and namespace toplevels, when I add them)
+//   - toplevel forms (including namespace members)
 //   - statement lists in compound statements
 //   - class/struct members
 //   - compound initializers
@@ -24,7 +36,8 @@
 // In these places where I use ASTList, I encapsulate it in another
 // class if necessary to avoid yielding it as a semantic value.
 
-// included in generated header
+
+// emitted verbatim into generated header (cc.ast.gen.h)
 verbatim {
   #include "cc_flags.h"         // CVFlags, DeclFlags, etc. (r)
   
