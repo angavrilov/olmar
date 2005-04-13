@@ -5,12 +5,13 @@
 
 #include "cc_ast.h"       // AST
 #include "trace.h"        // trace
+#include "array.h"        // Array
 
 
 // Mutate 'params' filtering out any alternatives of the first param
 // (if there is one) that are of type implicit-int.  Return true if
 // we should really construct a D_func that the grammar rule wants
-// to construct.  NOTE: this function is defined in implint.cc
+// to construct.
 bool filterOutImplIntFirstParam
   (SourceLoc loc,
    IDeclarator *base,
@@ -43,7 +44,7 @@ bool filterOutImplIntFirstParam
   }
 
   // make a temporary array
-  ASTTypeId *tempList[numAlt];
+  Array<ASTTypeId*> tempList(numAlt);
 
   // put them in there
   int i = 0;
