@@ -25,13 +25,15 @@ typedef char const *StringRef;
 
 
 class StringTable {
-private:    // types
+  // types
+public: // must be public for MSVC++
   // constants
   enum {
     rackSize = 16000,      // size of one rack
     longThreshold = 1000,  // minimum length of a "long" string
   };
 
+private:
   // some of the strings stored in the table
   struct Rack {
     Rack *next;            // (owner) next rack, if any; for deallocation
