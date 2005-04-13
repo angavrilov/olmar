@@ -230,7 +230,14 @@ void doit(int argc, char **argv)
     traceAddSys("prettyPrint");
     traceAddSys("topform");
   }
-
+  
+  if (tracingSys("only_works_on_32bit") &&
+      sizeof(int) != 4) {
+    // we are running a regression test, and the testcase is known to
+    // fail due to dependence on architecture parameters, so skip it
+    cout << "skipping test b/c this is not a 32-bit architecture\n";
+    exit(0);
+  }
 
   // --------------- parse --------------
   TranslationUnit *unit;
