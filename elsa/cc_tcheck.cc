@@ -5750,6 +5750,19 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
     }
 
     if (receiverType) {
+      // 12.4p2: it is legal to invoke a destructor on an object that
+      // is const or volatile, and dtors never have such qualifiers,
+      // so if we are invoking a dtor then remove the qualifiers
+      if (ft->isDestructor() &&
+          receiverType->asRval()->getCVFlags() != CV_NONE) {
+        bool wasRef = receiverType->isReference();
+        receiverType = receiverType->asRval();
+        receiverType = env.tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, receiverType, NULL /*syntax*/);
+        if (wasRef) {
+          receiverType = env.tfac.makeReferenceType(SL_UNKNOWN, receiverType);
+        }
+      }
+
       // check that the receiver object matches the receiver parameter
       if (!getImplicitConversion(env,
              SE_NONE,

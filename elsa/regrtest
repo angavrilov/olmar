@@ -947,7 +947,7 @@ failparse k0058.cc "converting to types from parameter templates"
 ### </quarl-testcases-c++>
 
 # Simon sfg@cs
-failparse sg0001.cc "cannot convert argument type class A const & to receiver parameter type class A &"
+testparse sg0001.cc # invoke dtor on const object
 
 # ---- END: lots of tests ----
 
