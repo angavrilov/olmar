@@ -815,6 +815,22 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
     }
   }
 
+  // give warning for anonymous struct
+  if (decllist->isEmpty() &&
+      spec->isTS_classSpec() &&
+      spec->asTS_classSpec()->name == NULL &&
+      spec->asTS_classSpec()->keyword != TI_UNION) {
+    if (env.lang.allowAnonymousStructs == B3_WARN) {
+      env.warning(spec->loc, "anonymous structs are not legal in C++ "
+                             "(gcc/msvc bug/extension allows it)");
+    }
+    else if (env.lang.allowAnonymousStructs == B3_FALSE) {
+      // it's actually not an error yet, it is just useless, because
+      // it cannot be used
+      env.warning(spec->loc, "useless declaration");
+    }
+  }
+
   // check the specifier in the prevailing environment
   Type *specType = spec->tcheck(env, dflags);
 
@@ -2452,6 +2468,20 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
 }
 
 
+bool forAnonymous_isUnion(Env &env, CompoundType::Keyword k)
+{
+  if (k == CompoundType::K_UNION) {
+    return true;
+  }
+
+  if (env.lang.allowAnonymousStructs) {
+    return true;
+  }
+
+  return false;
+}
+
+
 // This function is perhaps the most complicated in this entire
 // module.  It has the responsibility of adding a variable called
 // 'name' to the environment.  But to do this it has to implement the
@@ -2592,10 +2622,11 @@ realStart:
     }
   }
 
-  // member of an anonymous union that is not in an E_compoundLit ?
+  // member of an anonymous union?  (note that if the union had
+  // declarators, then it would have been given a name by now)
   if (scope->curCompound &&
-      scope->curCompound->keyword == CompoundType::K_UNION &&
-      scope->curCompound->name == NULL) {
+      scope->curCompound->name == NULL &&
+      forAnonymous_isUnion(env, scope->curCompound->keyword)) {
     // we're declaring a field of an anonymous union, which actually
     // goes in the enclosing scope
     scope = env.enclosingScope();

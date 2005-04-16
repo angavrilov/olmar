@@ -13,4 +13,10 @@ union U1 {
     };
 };
 
+void f()
+{
+  U1 u;
+  u.foo1;
+}
+
 int x =  ((int) &((U1 *)0)->foo2);

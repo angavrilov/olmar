@@ -19,6 +19,7 @@ void CCLang::enableAllWarnings()
   enableWarning(allowImplicitIntForOperators);
   enableWarning(allowQualifiedMemberDeclarations);
   enableWarning(allowModifiersWithTypedefNames);
+  enableWarning(allowAnonymousStructs);
 }
 
 
@@ -62,6 +63,7 @@ void CCLang::ANSI_C89()
   allowImplicitIntForOperators = B3_FALSE;
   allowQualifiedMemberDeclarations = B3_FALSE;
   allowModifiersWithTypedefNames = B3_FALSE;
+  allowAnonymousStructs = B3_FALSE;
 }
 
 void CCLang::KandR_C()
@@ -107,6 +109,7 @@ void CCLang::GNU_C_extensions()
   allowIncompleteEnums = true;
 
   allowModifiersWithTypedefNames = B3_TRUE;
+  allowAnonymousStructs = B3_TRUE;
 }
 
 void CCLang::GNU_C()
@@ -179,6 +182,7 @@ void CCLang::ANSI_Cplusplus()
   allowImplicitIntForOperators = B3_FALSE;
   allowQualifiedMemberDeclarations = B3_FALSE;
   allowModifiersWithTypedefNames = B3_FALSE;
+  allowAnonymousStructs = B3_FALSE;
 }
 
 void CCLang::GNU_Cplusplus()
@@ -198,6 +202,7 @@ void CCLang::GNU_Cplusplus()
   declareGNUBuiltins = true;
 
   allowQualifiedMemberDeclarations = B3_TRUE;
+  allowAnonymousStructs = B3_TRUE;
 }
 
 
@@ -205,6 +210,7 @@ void CCLang::GNU_Cplusplus()
 void CCLang::MSVC_bug_compatibility()
 {
   allowImplicitIntForOperators = B3_TRUE;
+  allowAnonymousStructs = B3_TRUE;
 }
 
 

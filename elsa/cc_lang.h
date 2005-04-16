@@ -172,6 +172,10 @@ public:
   // good to delete this, since it involves some extra grammar
   // productions
   Bool3 allowModifiersWithTypedefNames;
+  
+  // gcc/msvc bug/extension compatibility: allow anonymous structs;
+  // see doc/anon-structs.txt
+  Bool3 allowAnonymousStructs;
 
 public:
   CCLang() { ANSI_C89(); }
