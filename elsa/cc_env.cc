@@ -2937,6 +2937,10 @@ Variable *Env::findInOverloadSet(OverloadSet *oset,
 
     // check the parameters other than '__receiver'
     Type::EqFlags eflags = Type::EF_STAT_EQ_NONSTAT | Type::EF_IGNORE_IMPLICIT;
+                    
+    // 2005-04-16: in/k0050.cc: 8.3.5p3: cv-qualifier on a parameter
+    // is not a part of function type
+    eflags |= Type::EF_IGNORE_PARAM_CV;
 
     if (inUninstTemplate()) {
       // do not check the return types; we can diagnose a mismatch

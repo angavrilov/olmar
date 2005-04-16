@@ -12,3 +12,12 @@ S1(int number);
 
 S1::S1(int const number) {
 }
+
+
+struct S2 {
+  void f(int number);
+  void f();
+};
+
+void S2::f(int const number) {
+}
