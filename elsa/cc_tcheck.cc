@@ -2228,12 +2228,26 @@ void makeMemberFunctionType(Env &env, Declarator::Tcheck &dt,
                             NamedAtomicType *inClassNAT, SourceLoc loc)
 {
   // make the implicit 'this' parameter
-  xassert(dt.funcSyntax);
-  CVFlags thisCV = dt.funcSyntax->cv;
+  CVFlags thisCV = dt.funcSyntax? dt.funcSyntax->cv : CV_NONE;
   Variable *receiver = env.receiverParameter(loc, inClassNAT, thisCV, dt.funcSyntax);
 
-  // add it to the function type
+  // actually (in/k0031.cc), there is not necessarily a D_func, if a
+  // typedef was used; in that case, the function cannot be 'const' or
+  // 'volatile', and we need to make a copy of the function type so
+  // that we can add the 'this' parameter
   FunctionType *ft = dt.type->asFunctionType();
+  if (!dt.funcSyntax) {
+    FunctionType *copyFt =
+      env.tfac.makeSimilarFunctionType(SL_UNKNOWN, ft->retType, ft);
+
+    // copy the parameters; it should be ok to share them (shallow copy)
+    copyFt->params = ft->params;
+
+    // use 'copyFt' from here on
+    ft = copyFt;
+  }
+
+  // add the receiver to the function type
   ft->addReceiver(receiver);
 
   // close it
