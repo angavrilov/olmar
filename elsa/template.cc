@@ -38,6 +38,11 @@ TypeVariable::~TypeVariable()
 string TypeVariable::toCString() const
 {
   if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  
+  if (!name) {
+    return "/""*anon*/";
+  }
+
   // use the "typename" syntax instead of "class", to distinguish
   // this from an ordinary class, and because it's syntax which
   // more properly suggests the ability to take on *any* type,
@@ -200,11 +205,17 @@ string paramsToCString(SObjList<Variable> const &params)
     }
 
     if (p->type->isTypeVariable()) {
-      sb << "class " << p->name;
-      if (p->type->asTypeVariable()->name != p->name) {
-        // this should never happen, but if it does then I just want
-        // it to be visible, not (directly) cause a crash
-        sb << " /""* but type name is " << p->type->asTypeVariable()->name << "! */";
+      if (p->name) {
+        sb << "class " << p->name;
+        StringRef tvName = p->type->asTypeVariable()->name;
+        if (tvName && tvName != p->name) {
+          // this should never happen, but if it does then I just want
+          // it to be visible, not (directly) cause a crash
+          sb << " /""* but type name is " << tvName << "! */";
+        }
+      }
+      else {
+        sb << "class /""*anon*/";
       }
     }
     else {
@@ -2694,7 +2705,9 @@ bool Env::supplyDefaultTemplateArguments
 
     // save this argument
     dest.append(arg);
-    map.add(param->name, arg);
+    if (param->name) {
+      map.add(param->name, arg);
+    }
 
     paramIter.adv();
   }
