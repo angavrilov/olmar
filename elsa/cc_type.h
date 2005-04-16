@@ -1159,7 +1159,7 @@ public:
   virtual void doneParams(FunctionType *ft)=0;
 
   virtual ArrayType *makeArrayType(SourceLoc loc,
-    Type *eltType, int size = ArrayType::NO_SIZE)=0;
+    Type *eltType, int size)=0;
 
   virtual PointerToMemberType *makePointerToMemberType(SourceLoc loc,
     NamedAtomicType *inClassNAT, CVFlags cv, Type *atType)=0;

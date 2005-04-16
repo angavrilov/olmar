@@ -2544,7 +2544,8 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
   else if (baseType->isArrayType()) {
     // 8.3.4 para 1: apply cv to the element type
     ArrayType *at = baseType->asArrayType();
-    return makeArrayType(loc, applyCVToType(loc, cv, at->eltType, NULL /*syntax*/));
+    return makeArrayType(loc, applyCVToType(loc, cv, at->eltType, NULL /*syntax*/),
+                         at->size);
   }
   else {
     // change to the union; setCVQualifiers will take care of catching
