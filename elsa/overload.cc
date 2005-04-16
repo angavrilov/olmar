@@ -1278,8 +1278,12 @@ int compareStandardConversions
     // one is sufficient), then the comparison of this section requires
     // that the conversions *differ* in group 3, otherwise they are
     // indistinguishable
+    //
+    // 2005-04-15: (in/k0029.cc) it seems I want to regard them as
+    // indistinguishable if *neither* involved a qualification conversion
     if (L->isPointerType() || R->isPointerType()) {
-      if ((left & SC_GROUP_3_MASK) == (right & SC_GROUP_3_MASK)) {
+      if (!(left & SC_GROUP_3_MASK) &&
+          !(right & SC_GROUP_3_MASK)) {
         return 0;
       }
     }
