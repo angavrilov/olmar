@@ -12,5 +12,12 @@ template <class T> struct S1 {
 
 template <class T> S1<T>::operator T*()
 {
-    return T();
+    T *p = new T;
+    return p;
+}
+
+void f()
+{
+  S1<int> s;
+  s.operator int*();
 }

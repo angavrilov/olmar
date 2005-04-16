@@ -936,7 +936,7 @@ testparse k0045.cc #"'operator delete' redeclared without throw()"
 testparse k0046.cc #"anonymous inline struct fields"
 testparse k0046a.cc #"anonymous struct fields in a union"
 testparse_special ansi k0046b.cc
-failparse k0047.cc "template<T> operator T*"
+testparse k0047.cc #"template<T> operator T*"
 testparse k0048.cc #"re-declaration of template base-class member"
 testparse k0049.cc #"'restrict' as name"
 failparse k0050.cc "definition of a function without 'const' on a basic type"

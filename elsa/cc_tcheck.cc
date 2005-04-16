@@ -1145,8 +1145,10 @@ void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
         // an out-of-line ctor definition like A<T>::A<T>(...){}.  So
         // detect this, and as a hack, check the last bit of the name
         // *before* setting up the delegation.
-        if (rest->isPQ_template() &&
-            rest->asPQ_template()->name == this->qualifier) {
+        //
+        // 2005-04-16: in/k0047.cc: generalize by doing this whenever
+        // we're at the next-to-last component of the name
+        if (!rest->isPQ_qualifier()) {
           tcheckPQName(rest, env, denotedScope, lflags);
         }
 
@@ -1156,10 +1158,9 @@ void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
         TRACE("templateParams",
           "associated " << hasParamsForMe->desc() <<
           " with " << denotedScope->curCompound->instName);
-          
+
         // if we already tcheck'd the final component above, bail now
-        if (rest->isPQ_template() &&
-            rest->asPQ_template()->name == this->qualifier) {
+        if (!rest->isPQ_qualifier()) {
           return;
         }
       }
