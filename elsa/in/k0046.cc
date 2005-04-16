@@ -7,5 +7,14 @@
 // ERR-MATCH: is not a class member
 
 int main () {
-    int x = (int) &((struct {int dummy1; int dummy2;} *) 0)->dummy2;
+    // invalid, rejected by gcc-3.4.3
+    //ERROR(1): int x = (int) &((struct {int dummy1; int dummy2;} *) 0)->dummy2;
+    
+    
+    // all these are invalid
+    //ERROR(2): (struct { int x; }*)0;
+    //ERROR(3): const_cast<struct { int x; }*>(0);
+    //ERROR(4): static_cast<struct { int x; }*>(0);
+    //ERROR(5): dynamic_cast<struct { int x; }*>(0);
+    //ERROR(6): reinterpret_cast<struct { int x; }*>(0);
 }

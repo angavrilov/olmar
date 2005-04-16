@@ -7206,8 +7206,19 @@ Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
+bool hasTypeDefn(ASTTypeId *atype)
+{
+  return atype->spec->isTS_classSpec() ||
+         atype->spec->isTS_enumSpec();
+}
+
 Type *E_cast::itcheck_x(Env &env, Expression *&replacement)
 {
+  if (hasTypeDefn(ctype)) {
+    // 5.4p3: not allowed
+    return env.error(ctype->spec->loc, "cannot define types in a cast");
+  }
+
   ASTTypeId::Tcheck tc(DF_NONE, DC_E_CAST);
   ctype = ctype->tcheck(env, tc);
   expr->tcheck(env, expr);
@@ -7548,8 +7559,7 @@ incompatible:
 
 Type *E_sizeofType::itcheck_x(Env &env, Expression *&replacement)
 {
-  if (atype->spec->isTS_classSpec() ||
-      atype->spec->isTS_enumSpec()) {
+  if (hasTypeDefn(atype)) {
     // 5.3.3p5: cannot define types in 'sizeof'; the reason Elsa
     // enforces this rule is that if we allow type definitions then
     // there can be bad interactions with disambiguation (in/k0035.cc)
@@ -7686,6 +7696,15 @@ Type *E_throw::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_keywordCast::itcheck_x(Env &env, Expression *&replacement)
 {
+  if (hasTypeDefn(ctype)) {
+    // 5.2.7p1: not allowed in dynamic_cast
+    // 5.2.9p1: not allowed in static_cast
+    // 5.2.10p1: not allowed in reinterpret_cast
+    // 5.2.11p1: not allowed in const_cast
+    return env.error(ctype->spec->loc, stringc 
+      << "cannot define types in a " << toString(key));
+  }
+
   ASTTypeId::Tcheck tc(DF_NONE, DC_E_KEYWORDCAST);
   ctype = ctype->tcheck(env, tc);
   expr->tcheck(env, expr);
