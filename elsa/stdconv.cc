@@ -548,7 +548,13 @@ StandardConversion getStandardConversion
         // where
         //   int (*)(Derived*)
         // is expected, but I don't see such a provision in cppstd
-        if (src->equals(dest)) {
+        //
+        // 2005-04-15: Actually, 13.4p7 address this directly, and
+        // explains that it is indeed illegal.
+        //
+        // Also, 8.3.5p4 says that exception specs are irrelevant here,
+        // even though (again) there is a sound subtyping lattice.
+        if (src->equals(dest, Type::EF_IGNORE_EXN_SPEC)) {
           return conv.ret;
         }
         else {
