@@ -4698,7 +4698,14 @@ Type *E_stringLit::itcheck_x(Env &env, Expression *&replacement)
   Type *arrayType = env.makeArrayType(SL_UNKNOWN, charConst, len+1);    // +1 for implicit final NUL
 
   // C++ 5.1p2, C99 6.5.1p4: string literals are lvalues (in/k0036.cc)
-  return makeLvalType(env, arrayType);
+  Type *ret = makeLvalType(env, arrayType);
+  
+  // apply the same type to the continuations, for visitors' benefit
+  for (p = continuation; p; p = p->continuation) {
+    p->type = ret;
+  }
+  
+  return ret;
 }
 
 
