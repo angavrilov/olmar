@@ -7,5 +7,12 @@
 // ERR-MATCH: Parse error.*at \[$
 
 int main() {
-    int ** pointer_array = new (int*)[42];
+    // correct syntax #1: new of array of pointers to int
+    int ** pointer_array = new (int *[42]);
+
+    // correct syntax #2: new[] of pointers to int
+    int ** pointer_array2 = new int *[42];
+
+    // invalid, rejected by gcc-3.4.3
+    //ERROR(1): int ** pointer_array3 = new (int*)[42];
 }

@@ -917,9 +917,9 @@ testparse k0033.cc #"casting function pointer with throw() to/from no throw"
 # sm: invalid, strange gcc bug (not worth supporting, icc does not)
 #failparse k0034.cc "undefined instanceless unions repeating members"
 
-failparse k0035.cc "ambiguous int+sizeof(struct{})"
+testparse k0035.cc #"ambiguous int+sizeof(struct{})"
 testparse k0036.cc #"taking the address of a string (?!)"
-failparse k0037.cc "new array of pointers"
+testparse k0037.cc #"new array of pointers"
 testparse k0038.cc #"templatized struct as template parameter to function"
 testparse k0039.cc #"funky namespace resolution after 'using namespace'"
 failparse k0040.cc "instantiating a template with unnamed template parameter"

@@ -7548,6 +7548,15 @@ incompatible:
 
 Type *E_sizeofType::itcheck_x(Env &env, Expression *&replacement)
 {
+  if (atype->spec->isTS_classSpec() ||
+      atype->spec->isTS_enumSpec()) {
+    // 5.3.3p5: cannot define types in 'sizeof'; the reason Elsa
+    // enforces this rule is that if we allow type definitions then
+    // there can be bad interactions with disambiguation (in/k0035.cc)
+    return env.error(atype->spec->loc,
+                     "cannot define types in a 'sizeof' expression");
+  }
+
   ASTTypeId::Tcheck tc(DF_NONE, DC_E_SIZEOFTYPE);
   atype = atype->tcheck(env, tc);
 
