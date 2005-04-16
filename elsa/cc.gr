@@ -808,7 +808,12 @@ nonterm(Expression*) ExpressionOpt {
 // (the name exists simply to help document that fact; the grammar
 // cannot enforce it)
 nonterm(Expression*) ConstantExpression {
-  -> e:ConditionalExpression { return e; }
+  // cppstd says 'ConditionalExpression', but gcc allows assignments
+  // here too, for its dynamically-sized arrays extension; if that
+  // extension is *not* enabled, we will still reject an assignment
+  // expression here, but because it is not const-eval'able, rather
+  // than due to grammar violation (in/k0042.cc)
+  -> e:AssignmentExpression { return e; }
 }
 
 nonterm(Expression*) ConstantExpressionOpt {
