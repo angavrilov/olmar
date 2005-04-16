@@ -1854,7 +1854,7 @@ void TemplateDeclaration::print(PrintEnv &env)
 
   *env.out << "template <";
   int ct=0;
-  FAKELIST_FOREACH_NC(TemplateParameter, params, iter) {
+  for (TemplateParameter *iter = params; iter; iter = iter->next) {
     if (ct++ > 0) {
       *env.out << ", ";
     }

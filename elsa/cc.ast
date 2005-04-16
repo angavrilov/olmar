@@ -712,9 +712,7 @@ class Initializer (SourceLoc loc) {
 
 // ------------------- templates -------------------
 // wrap some template parameters on a declaration or function
-class TemplateDeclaration (
-  FakeList<TemplateParameter> *params
-) {
+class TemplateDeclaration (/*fakelist*/TemplateParameter params) {
   // define a template function
   -> TD_func(Function f);
 
@@ -728,8 +726,23 @@ class TemplateDeclaration (
 }
 
 // one of the parameters to a template declaration
-class TemplateParameter (SourceLoc loc) {
-  public TemplateParameter *next = NULL;   // FakeList link
+class TemplateParameter (SourceLoc loc)(TemplateParameter /*nullable*/ next) {
+  // true if this parameter has a default arg
+  pure_virtual bool hasDefaultArg() const;
+
+  // ambiguity link
+  public TemplateParameter *ambiguity = NULL;
+  public void addAmbiguity(TemplateParameter *alternative);
+  custom traverse { if (ambiguity) ambiguity->traverse(vis); }
+
+  // print ambiguities
+  public void printAmbiguities(ostream &os, int indent) const;
+  custom preemptDebugPrint {
+    if (ambiguity) {
+      printAmbiguities(os, indent);
+      return;     // skip the normal, unambiguous-node print code
+    }
+  }
 
   // type parameter; when present, 'name' is what the template code
   // will use to refer to the actual argument type; when present,
@@ -739,6 +752,11 @@ class TemplateParameter (SourceLoc loc) {
 
   // non-type paramters
   -> TP_nontype(ASTTypeId param);
+}
+
+verbatim {
+  // true if any of the parameters have default values
+  bool anyHaveDefaultArgs(TemplateParameter const *list);
 }
 
 

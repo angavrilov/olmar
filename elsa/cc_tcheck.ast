@@ -665,13 +665,12 @@ class TemplateDeclaration {
 
 
 class TemplateParameter {
-  pure_virtual void tcheck(Env &env, SObjList<Variable> &tparams);
-  
-  -> TP_type {
-       // stand-in for the type used when checking the body; it's
-       // always a CVAtomic wrapped around a TypeVariable
-       public CVAtomicType *type = NULL;
-     }
+  public /*no_ignore*/ TemplateParameter *tcheck(Env &env);
+  public void mid_tcheck(Env &env, int &dummy);
+  pure_virtual void itcheck(Env &env, int &dummy);
+
+  // parameter Variable
+  public Variable *var = NULL;
 }
 
 

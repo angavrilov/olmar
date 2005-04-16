@@ -224,7 +224,14 @@ string TemplateParams::paramsLikeArgsToString() const
   int ct=0;
   SFOREACH_OBJLIST(Variable, params, iter) {
     if (ct++) { sb << ", "; }
-    sb << iter.data()->name;
+    StringRef n = iter.data()->name;
+    
+    if (n) {
+      sb << n;
+    }
+    else {
+      sb << "/""*anon*/";
+    }
   }
   sb << ">";
   return sb;

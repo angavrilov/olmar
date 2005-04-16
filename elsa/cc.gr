@@ -2264,7 +2264,17 @@ nonterm(TemplateDeclaration*) TemplateDeclaration {
 
   // template function definition
   -> plist:TemplatePreamble def:FunctionDefinition
-       { return new TD_func(plist, def); }
+       { 
+         if (anyHaveDefaultArgs(plist)) {
+           // Function templates and definitions of members of class
+           // templates cannot have default arguments (14.1p9).
+           // Reject here because failure to do so can lead to an
+           // unhandled ambiguity (t0463.cc).
+           TRACE("cancel", loc << ": template function defn with default args");
+           return NULL;
+         }
+         return new TD_func(plist, def); 
+       }
 
   // template function definition, or template class or data member decl/defn
   -> plist:TemplatePreamble d:SimpleDeclaration
@@ -2282,7 +2292,7 @@ nonterm(TemplateDeclaration*) TemplateDeclaration {
 }
 
 // the "template <...>" stuff
-nonterm(FakeList<TemplateParameter>*) TemplatePreamble {
+nonterm(/*fakelist*/TemplateParameter*) TemplatePreamble {
   // 8/15/04: substituted 'ExportOpt' inline since it gives rise to
   // easily-removed S/R conflicts (continuing to ignore it though)
 
@@ -2294,26 +2304,26 @@ nonterm(FakeList<TemplateParameter>*) TemplatePreamble {
 
   // explicit specialization
   -> "template" "<" ">"
-       { return FakeList<TemplateParameter>::emptyList(); }
+       { return NULL; }
   -> "export" "template" "<" ">"
-       { return FakeList<TemplateParameter>::emptyList(); }
+       { return NULL; }
 }
 
-nonterm(FakeList<TemplateParameter>*) TemplateParameterList {
-  -> p:TemplateParameter
-       { return FakeList<TemplateParameter>::makeList(p); }
-  -> p:TemplateParameter "," list:TemplateParameterList
-       { return list->prepend(p); }
-}
+nonterm(/*fakelist*/TemplateParameter*) TemplateParameterList {
+  fun keep(x) { return x!=NULL; }
+  
+  // unfortunately, while we can record an ambiguous template parameter
+  // list, we do not currently disambiguate it properly; see in/t0465.cc
+  fun merge(L,R) { L->addAmbiguity(R); return L; }
 
+  -> ClassOrTypename i:IdentifierOpt t:DefaultTypeOpt
+     { return new TP_type(loc, i, t, NULL /*next*/); }
 
-nonterm(TemplateParameter*) TemplateParameter {
-  fun keep(n) { return n!=NULL; }
+  -> ClassOrTypename i:IdentifierOpt t:DefaultTypeOpt "," next:TemplateParameterList
+     { return new TP_type(loc, i, t, next); }
 
-  -> p:TemplateTypeParameter  { return p; }
-
-  // non-type template parameter
-  -> p:ParameterDeclaration   {
+  -> p:ParameterDeclaration
+     {
        // if the specifier is a TS_elaborated, then it could be a type
        // parameter; cppstd 14.1 para 3 seems to say that in that case it
        // always *is* a type parameter
@@ -2322,22 +2332,32 @@ nonterm(TemplateParameter*) TemplateParameter {
          return NULL;   // don't keep this, it's really a TP_type
        }
        else {
-         return new TP_nontype(loc, p); 
+         return new TP_nontype(loc, p, NULL /*next*/);
+       }
+     }
+
+  -> p:ParameterDeclaration "," next:TemplateParameterList
+     {
+       if (p->spec->canBeTypeParam()) {
+         TRACE("cancel", loc << ": template parameter can be type param");
+         return NULL;
+       }
+       else {
+         return new TP_nontype(loc, p, next);
        }
      }
 }
 
-// called "TypeParameter" in std
-nonterm(TP_type*) TemplateTypeParameter {
-  // for now, only allow some of these forms
-  -> "class" i:IdentifierOpt                  { return new TP_type(loc, i, NULL /*default*/); }
-  -> "class" i:IdentifierOpt "=" t:TypeId     { return new TP_type(loc, i, t); }
-  -> "typename" i:IdentifierOpt               { return new TP_type(loc, i, NULL /*default*/); }
-  -> "typename" i:IdentifierOpt "=" t:TypeId  { return new TP_type(loc, i, t); }
-
-  //-> "template" "<" TemplateParameterList ">" "class" IdentifierOpt;
-  //-> "template" "<" TemplateParameterList ">" "class" IdentifierOpt "=" IdExpression;
+nonterm ClassOrTypename {
+  -> "class";
+  -> "typename";
 }
+
+nonterm(ASTTypeId*) DefaultTypeOpt {
+  -> empty                    { return NULL; }
+  -> "=" t:TypeId             { return t; }
+}
+
 
 nonterm(/*fakelist*/TemplateArgument*) TemplateArgumentListOpt {
   -> empty                       { return NULL; }

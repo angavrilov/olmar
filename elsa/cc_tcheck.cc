@@ -8000,6 +8000,39 @@ void IN_ctor::tcheck(Env &env, Type *type)
 
 
 // -------------------- TemplateDeclaration ---------------
+void tcheckTemplateParameterList(Env &env, TemplateParameter *&src,
+                                 SObjList<Variable> &tparams)
+{
+  xassert(tparams.isEmpty());
+  int paramCt = 0;
+
+  // keep track of the previous node in the list, so we can string
+  // together the final disambiguated sequence
+  TemplateParameter **prev = &src;
+
+  TemplateParameter *tp = *prev;
+  while (tp) {
+    // disambiguate and check 'tp'
+    tp = tp->tcheck(env);
+
+    // string up the chosen one
+    xassert(tp->ambiguity == NULL);     // these links should all be cut now
+    *prev = tp;
+
+    // add it to 'tparams' (reverse order)
+    tparams.prepend(tp->var);
+    tp->var->setParameterOrdinal(paramCt++);
+
+    // follow the 'next' link in 'tp', as it was the chosen one
+    prev = &(tp->next);
+    tp = *prev;
+  }
+
+  // fix 'tparams'
+  tparams.reverse();
+}
+
+
 void TemplateDeclaration::tcheck(Env &env)
 {
   // disallow templates inside functions
@@ -8013,9 +8046,7 @@ void TemplateDeclaration::tcheck(Env &env)
 
   // check each of the parameters, i.e. enter them into the scope
   // and its 'templateParams' list
-  FAKELIST_FOREACH_NC(TemplateParameter, params, iter) {
-    iter->tcheck(env, paramScope->templateParams);
-  }
+  tcheckTemplateParameterList(env, params, paramScope->templateParams);
 
   // mark the new scope as unable to accept new names, so
   // that the function or class being declared will be entered
@@ -8091,12 +8122,34 @@ void TD_tmember::itcheck(Env &env)
 
 
 // ------------------- TemplateParameter ------------------
-void TP_type::tcheck(Env &env, SObjList<Variable> &tparams)
+TemplateParameter *TemplateParameter::tcheck(Env &env)
 {
-  // cppstd 14.1 is a little unclear about whether the type
-  // name is visible to its own default argument; but that
-  // would make no sense, so I'm going to check the
-  // default type first
+  int dummy = 0;
+  if (!ambiguity) {
+    mid_tcheck(env, dummy);
+    return this;
+  }
+
+  return resolveAmbiguity(this, env, "TemplateParameter", false /*priority*/, dummy);
+}
+
+
+void TemplateParameter::mid_tcheck(Env &env, int &dummy)
+{
+  itcheck(env, dummy);
+}
+
+
+void TP_type::itcheck(Env &env, int&)
+{
+  // cppstd 14.1 is a little unclear about whether the type name is
+  // visible to its own default argument; but that would make no
+  // sense, so I'm going to check the default type first
+  //
+  // 2005-04-08: No, the usual point of declaration rules (3.3.1p1)
+  // apply, so it is visible in its default arg.  However, 14.1p14
+  // then says it is illegal to use a template param in its own
+  // default arg.  I'm not sure what I want to do about this...
   if (defaultType) {
     ASTTypeId::Tcheck tc(DF_NONE, DC_TP_TYPE);
     defaultType = defaultType->tcheck(env, tc);
@@ -8116,11 +8169,18 @@ void TP_type::tcheck(Env &env, SObjList<Variable> &tparams)
   CVAtomicType *fullType = env.makeType(loc, tvar);
 
   // make a typedef variable for this type
-  Variable *var = env.makeVariable(loc, name, fullType, 
-                                   DF_TYPEDEF | DF_TEMPL_PARAM);
+  this->var = env.makeVariable(loc, name, fullType,
+                               DF_TYPEDEF | DF_TEMPL_PARAM);
   tvar->typedefVar = var;
   if (defaultType) {
     var->defaultParamType = defaultType->getType();
+  }
+
+  // if the default argument had an error, then do not add anything to
+  // the environment, because the error could be due to an ambiguity
+  // that is going to be resolved as *not* the current interpretation
+  if (defaultType && defaultType->getType()->isError()) {
+    return;
   }
 
   if (name) {
@@ -8131,29 +8191,18 @@ void TP_type::tcheck(Env &env, SObjList<Variable> &tparams)
         EF_NONE);
     }
   }
-
-  // annotate this AST node with the type
-  this->type = fullType;
-
-  // add this parameter to the list of them, marking its position
-  var->setParameterOrdinal(tparams.count());
-  tparams.append(var);
 }
 
 
-void TP_nontype::tcheck(Env &env, SObjList<Variable> &tparams)
+void TP_nontype::itcheck(Env &env, int&)
 {
   // TODO: I believe I want to remove DF_PARAMETER.
   ASTTypeId::Tcheck tc(DF_PARAMETER | DF_TEMPL_PARAM, DC_TP_NONTYPE);
 
-  // check the parameter; this actually adds it to the
-  // environment too, so we don't need to do so here
+  // check the parameter; this actually adds it to the environment
+  // too, so we don't need to do so here
   param = param->tcheck(env, tc);
-  Variable *var = param->decl->var;
-
-  // add to the parameter list
-  var->setParameterOrdinal(tparams.count());
-  tparams.append(var);
+  this->var = param->decl->var;
 }
 
 

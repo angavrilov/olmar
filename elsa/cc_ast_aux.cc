@@ -1153,7 +1153,43 @@ void ArgExpression::printAmbiguities(ostream &os, int indent) const
 // Initializer
 // InitLabel
 // TemplateDeclaration
-// TemplateParameter
+
+// -------------------- TemplateParameter ---------------------
+bool anyHaveDefaultArgs(TemplateParameter const *list)
+{ 
+  for (TemplateParameter const *iter = list; iter; iter = iter->next) {
+    if (iter->hasDefaultArg()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+bool TP_type::hasDefaultArg() const
+{
+  return !!defaultType;
+}
+
+bool TP_nontype::hasDefaultArg() const
+{
+  return !!param->decl->init;
+}
+
+
+void TemplateParameter::printAmbiguities(ostream &os, int indent) const
+{
+  genericPrintAmbiguities(this, "TemplateParameter", os, indent);
+}
+
+
+void TemplateParameter::addAmbiguity(TemplateParameter *alt)
+{
+  xassert(alt->ambiguity == NULL);
+  alt->ambiguity = this->ambiguity;
+  this->ambiguity = alt;
+}
+
 
 // -------------------- TemplateArgument ---------------------
 void TemplateArgument::printAmbiguities(ostream &os, int indent) const

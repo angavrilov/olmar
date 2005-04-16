@@ -753,6 +753,10 @@ testparse t0459.cc
 testparse t0460.cc
 testparse t0461.cc
 testparse t0462.cc
+testparse t0463.cc
+failparse t0464.cc "ambiguous ExpressionList not disambiguated"
+failparse t0465.cc "ambiguous TemplateParameter, problem disambiguation declarations"
+failparse t0466.cc "ambiguous declaration"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -898,7 +902,7 @@ testparse k0022.cc #"explicit instantiation of template loses original template 
 testparse k0023.cc #"typedef pointer to member function in template"
 testparse k0024.cc #"overloaded function resolution in an array"
 testparse k0025.cc #"fully-namespace-qualified base class initialization"
-failparse k0026.cc "template argument default value from another template class"
+testparse k0026.cc #"template argument default value from another template class"
 failparse k0027.cc "reprSize of a sizeless array"
 
 # invalid

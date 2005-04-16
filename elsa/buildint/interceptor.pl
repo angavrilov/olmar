@@ -217,38 +217,81 @@ sub gcc_wrapper {
   # so that it will not collide with a spec copy of another installed
   # compiler.
   $copyOfSpecDir = $outputDir . "/specdirs" . $gccSpecDir;
-  if (-d $copyOfSpecDir) {
-    # the directory already exists; assume it is good to go
+  if (-f "$copyOfSpecDir/cc1") {
+    # the directory and link already exists; assume it is good to go
   }
   else {
     # create it, etc.
     diagnostic("creating $copyOfSpecDir");
+
+    # link the existing contents
     my $cmd = <<"EOF";
+rm -rf '$copyOfSpecDir'       &&
 mkdir -p '$copyOfSpecDir'     &&
 cd '$copyOfSpecDir'           &&
-ln -s '$gccSpecDir'/* .       &&
-mv cc1 cc1-real               &&
-mv cc1plus cc1plus-real       &&
-ln -s '$scriptDir'/cc1 .      &&
-ln -s '$scriptDir'/cc1plus .
+ln -s '$gccSpecDir'/* .
 EOF
     if (0!=system($cmd)) {
       die("failed to make $copyOfSpecDir\n");
     }
+
+    # did we get cc1?
+    if (-f "$copyOfSpecDir/cc1") {
+      $cmd = <<"EOF";
+cd '$copyOfSpecDir'           &&
+mv cc1 cc1-real               &&
+mv cc1plus cc1plus-real
+EOF
+      if (0!=system($cmd)) {
+        die("failed to move cc1\n");
+      }
+    }
+    elsif ($gccSpecDir =~ m|^(.*)/\.\./lib/gcc/(.*)$|) {
+      # in gcc >=3.4, cc1 does not live in the spec directory,
+      # and I do not know the proper way to find it, but this
+      # seems to work
+      #
+      # example spec dir:
+      #   /slack8/home/scott/opt/gcc-3.4.0/bin/../lib/gcc/i686-pc-linux-gnu/3.4.0
+      # example corresponding libexec dir:
+      #   /slack8/home/scott/opt/gcc-3.4.0/bin/../libexec/gcc/i686-pc-linux-gnu/3.4.0/cc1
+      my $gccLibexecDir = "$1/../libexec/gcc/$2";
+      if (-f "$gccLibexecDir/cc1") {
+        $cmd = <<"EOF";
+cd '$copyOfSpecDir'                          &&
+ln -s '$gccLibexecDir/cc1' cc1-real          &&
+ln -s '$gccLibexecDir/cc1plus' cc1plus-real
+EOF
+        if (0!=system($cmd)) {
+          die("failed to symlink cc1[plus] from $gccLibexecDir\n");
+        }
+      }
+      else {
+        die("could not find cc1 in $copyOfSpecDir or $gccLibexecDir\n");
+      }
+    }
+    else {
+      die("could not find cc1 in $copyOfSpecDir\n");
+    }
+
+    # finally, put links to the script directory, pointing
+    # at links to this script
+    $cmd = <<"EOF";
+cd '$copyOfSpecDir'           &&
+ln -s '$scriptDir'/cc1 .      &&
+ln -s '$scriptDir'/cc1plus .
+EOF
+    if (0!=system($cmd)) {
+      die("failed to symlink cc1 from $scriptDir\n");
+    }
   }
 
   # point gcc at the new spec directory
-  if ($major <= 2) {
-    # what the *fuck*?  the gcc manual goes on and on about how gcc
-    # does not add a slash after GCC_EXEC_PREFIX... and it turns out
-    # (thank $DEITY for strace) what it actually does is *remove* a
-    # trailing slash!  so I have to add two!
-    $ENV{"GCC_EXEC_PREFIX"} = $copyOfSpecDir . "//";
-  }
-  else {
-    # gcc-3 seems to actually do the advertised thing...
-    $ENV{"GCC_EXEC_PREFIX"} = $copyOfSpecDir . "/";
-  }
+  #
+  # I had been using GCC_EXEC_PREFIX, but for some reason I can't get
+  # it to work with gcc-3.4; gcc just seems to ignore the value when
+  # it is searching for subprocess executables.  So, use -B instead.
+  unshift(@av, "-B${copyOfSpecDir}/");
 
   # tell gcc to do preprocessing separately
   if ($major >= 3) {
@@ -378,10 +421,12 @@ sub cc1_wrapper {
     if (0!=system("cp '$inputFname' '$interceptFname'")) {
       die("cp failed");
     }
+    diagnostic("saved input file to $interceptFname");
   }
   else {
     # read the input from stdin, save it in the intercepted file, and
     # then we will give that filename explicitly to cc1
+    diagnostic("saving stdin to $interceptFname");
     open (INTER, ">$interceptFname") or die("cannot write $interceptFname: $!\n");
     my $line;
     while (defined($line = <STDIN>)) {
