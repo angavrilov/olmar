@@ -7990,9 +7990,11 @@ void IN_compound::tcheck(Env &env, Type *type)
     // e.g., in/gnu/t0130.cc and in/c99/t0133.cc.  Once we get
     // the compound_init stuff folded into Elsa I should be able
     // to turn this into a real error.
-    env.weakError(loc, stringc
-      << "too many initializers (" << inits.count()
-      << ") supplied for `" << type->toString() << "'");
+    //
+    // 2005-04-15: for the moment it is more annoying than helpful...
+    //env.weakError(loc, stringc
+    //  << "too many initializers (" << inits.count()
+    //  << ") supplied for `" << type->toString() << "'");
 
     // tcheck the extra exprs anyway
     while (!initIter.isDone()) {
