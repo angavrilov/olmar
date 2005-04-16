@@ -911,7 +911,7 @@ testparse k0027.cc #"reprSize of a sizeless array"
 testparse k0029.cc #'ambiguous overload "char* const*" vs "char const* const*"'
 testparse k0030.cc #'"and" and "or" keywords'
 testparse k0031.cc #"typedef used to declare a member function"
-failparse k0032.cc "converting <integral>& to integral"
+testparse k0032.cc #"converting <integral>& to integral"
 failparse k0033.cc "casting function pointer with throw() to/from no throw"
 
 # sm: invalid, strange gcc bug (not worth supporting, icc does not)

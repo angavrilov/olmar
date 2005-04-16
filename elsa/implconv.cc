@@ -72,6 +72,31 @@ Type *ImplicitConversion::getConcreteDestType
     sconv = scs2;
   }
 
+  // 2005-04-15: in/k0032.cc: if both src and dest are reference
+  // types, skip that
+  if (srcType->isReference() &&
+      destType->isReference()) {
+    Type *destAt = destType->getAtType();
+    Type *srcAt = srcType->getAtType();
+
+    Type *concrete = inner_getConcreteDestType(tfac, srcAt, destAt, sconv);
+    if (concrete == destAt) {
+      return destType;        // was concrete already
+    }
+    else {
+      // must re-construct the reference part of the type
+      return tfac.makeReferenceType(SL_UNKNOWN, concrete);
+    }
+  }
+
+  return inner_getConcreteDestType(tfac, srcType, destType, sconv);
+}
+
+// this function exists just so that the reference/reference case
+// can use it as a subroutine ...
+Type *ImplicitConversion::inner_getConcreteDestType
+  (TypeFactory &tfac, Type *srcType, Type *destType, StandardConversion sconv) const
+{
   if (destType->isPointer()) {
     // hmm.. operator+ has '<any obj> *'
 
@@ -84,7 +109,7 @@ Type *ImplicitConversion::getConcreteDestType
     if (isConcreteSimpleType(id)) {
       return destType;      // also easy
     }
-    
+
     // if 'destType' is a reference to a polymorphic type,
     // then this wouldn't be right ....
     srcType = srcType->asRval();

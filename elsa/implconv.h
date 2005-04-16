@@ -34,6 +34,10 @@ public:    // data
   Variable const *user;         // the ctor or conversion operator function
   StandardConversion scs2;      // second conversion sequence (convert return value of 'user' to param type)
 
+private:   // funcs
+  Type *inner_getConcreteDestType(TypeFactory &tfac, Type *srcType, 
+                                  Type *destType, StandardConversion sconv) const;
+
 public:    // funcs
   ImplicitConversion()
     : kind(IC_NONE), scs(SC_IDENTITY), user(NULL), scs2(SC_IDENTITY) {}
