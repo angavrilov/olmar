@@ -832,27 +832,6 @@ SourceLoc Declarator::getLoc() const
 }
 
 
-bool Declarator::bottomIsDfunc() const
-{
-  IDeclarator *d = decl;
-  IDeclarator *prev = d;     // last non-D_name, non-D_grouping declarator seen
-
-  for (;;) {
-    IDeclarator *next = d->getBase();
-    if (!next) {
-      break;
-    }
-
-    if (!d->isD_grouping()) {
-      prev = d;
-    }
-    d = next;
-  }
-
-  return prev->isD_func();
-}
-
-
 void Declarator::printExtras(ostream &os, int indent) const
 {
   if (var) {
@@ -867,7 +846,7 @@ void Declarator::printExtras(ostream &os, int indent) const
 
     os << "\n";
   }
-  
+
   ind(os, indent) << "context = " << toString(context) << "\n";
 }
 
@@ -915,7 +894,7 @@ PQName const *D_grouping::getDeclaratorIdC() const
   return base->getDeclaratorIdC();
 }
 
-           
+
 IDeclarator *IDeclarator::skipGroups()
 {
   if (isD_grouping()) {
@@ -924,6 +903,27 @@ IDeclarator *IDeclarator::skipGroups()
   else {
     return this;
   }
+}
+
+
+bool IDeclarator::bottomIsDfunc() const
+{
+  IDeclarator const *d = this;
+  IDeclarator const *prev = d;     // last non-D_name, non-D_grouping declarator seen
+
+  for (;;) {
+    IDeclarator const *next = d->getBaseC();
+    if (!next) {
+      break;
+    }
+
+    if (!d->isD_grouping()) {
+      prev = d;
+    }
+    d = next;
+  }
+
+  return prev->isD_func();
 }
 
 

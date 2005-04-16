@@ -87,6 +87,7 @@ bool filterOutImplIntFirstParam
 
 // implemented at end of file
 bool isGlobalScopeQualified(PQName const *pq);
+bool endsWithIdentifier(TypeSpecifier const *ts);
 bool keepDeclaration(Declaration const *d);
 
 
@@ -1704,11 +1705,12 @@ nonterm(Function*) FunctionDefinition {
   // declarator doesn't have a D_func at the bottom.
   fun keep(f)
   {
-    if (!f->nameAndParams->bottomIsDfunc()) {
+    if (!f->nameAndParams->decl->bottomIsDfunc()) {
+      xfailure("should not happen anymore due to use of FDDeclarator");
       TRACE("cancel", "rejecting FunctionDefinition w/o D_func at bottom");
       return false;
     }
-    else if (f->retspec->isTS_name() &&
+    else if (endsWithIdentifier(f->retspec) &&
              isGlobalScopeQualified(f->nameAndParams->decl->getDeclaratorIdC())) {
       TRACE("cancel", "rejecting TYPENAME ::NAME");     // e.g. in/t0015.cc
       return false;
@@ -1722,7 +1724,7 @@ nonterm(Function*) FunctionDefinition {
 
   // ordinary function:
   // return type      name/params   body
-  -> r:DeclSpecifier  d:Declarator  b:FunctionBody
+  -> r:DeclSpecifier  d:FDDeclarator  b:FunctionBody
        {
          Function *ret = new Function(
            r->dflags,                // decl flags (static, extern, etc.)
@@ -1738,8 +1740,8 @@ nonterm(Function*) FunctionDefinition {
        }
 
   // 2005-03-09: I didn't even realize this was possible for non-ctors
-  // return type      name/params          body            handlers
-  -> r:DeclSpecifier  d:Declarator  "try"  b:FunctionBody  h:HandlerSeq
+  // return type      name/params            body            handlers
+  -> r:DeclSpecifier  d:FDDeclarator  "try"  b:FunctionBody  h:HandlerSeq
        {
          Function *ret = new Function(
            r->dflags,                // decl flags (static, extern, etc.)
@@ -1759,8 +1761,8 @@ nonterm(Function*) FunctionDefinition {
   // the most harmful to performance)
 
   // constructor, destructor or conversion operator
-  // "explicit"?         name/params   member inits          body
-  -> m:CDtorModifierSeq  d:Declarator  c:CtorInitializerOpt  b:FunctionBody
+  // "explicit"?         name/params     member inits          body
+  -> m:CDtorModifierSeq  d:FDDeclarator  c:CtorInitializerOpt  b:FunctionBody
        {
          return new Function(
            m,                             // decl flags: explicit, virtual, or none
@@ -1771,7 +1773,7 @@ nonterm(Function*) FunctionDefinition {
            NULL                           // exception handlers
          );
        }
-  -> /*no modifier*/     d:Declarator  c:CtorInitializerOpt  b:FunctionBody
+  -> /*no modifier*/     d:FDDeclarator  c:CtorInitializerOpt  b:FunctionBody
        {
          return new Function(
            DF_NONE,
@@ -1784,8 +1786,8 @@ nonterm(Function*) FunctionDefinition {
        }
 
   // ctor with a try block
-  // "explicit"?         name/params        member inits         body           handlers
-  -> e:CDtorModifierSeq  d:Declarator "try" c:CtorInitializerOpt b:FunctionBody h:HandlerSeq
+  // "explicit"?         name/params          member inits         body           handlers
+  -> e:CDtorModifierSeq  d:FDDeclarator "try" c:CtorInitializerOpt b:FunctionBody h:HandlerSeq
        {
          return new Function(
            e,                        // decl flags: explicit is only possibility
@@ -1796,7 +1798,7 @@ nonterm(Function*) FunctionDefinition {
            h                         // exception handlers
          );
        }
-  -> /*no modifier*/     d:Declarator "try" c:CtorInitializerOpt b:FunctionBody h:HandlerSeq
+  -> /*no modifier*/     d:FDDeclarator "try" c:CtorInitializerOpt b:FunctionBody h:HandlerSeq
        {
          return new Function(
            DF_NONE,
@@ -1807,6 +1809,24 @@ nonterm(Function*) FunctionDefinition {
            h
          );
        }
+}
+
+// function definition declarator; must have D_func at the
+// bottom; moved this down from FunctionDefinition itself
+// to get earlier parse filtering for in/k0041.cc
+nonterm(IDeclarator*) FDDeclarator {
+  fun keep(d)
+  {
+    if (!d->bottomIsDfunc()) {
+      TRACE("cancel", "rejecting FDDeclarator w/o D_func at bottom");
+      return false;
+    }
+    else {
+      return true;
+    }
+  }
+
+  -> d:Declarator    { return d; }
 }
 
 nonterm(S_compound*) FunctionBody -> s:CompoundStatement
@@ -2551,6 +2571,12 @@ impl_verbatim {
            pq->asPQ_qualifierC()->qualifier == NULL;
   }
 
+  bool endsWithIdentifier(TypeSpecifier const *ts)
+  {
+    return ts->isTS_name() ||
+           ts->isTS_elaborated();
+  }
+
   // Filter out declarations of the form "TYPENAME ::NAME", since
   // other front-ends would regard the TYPENAME as a qualifier.
   //
@@ -2562,8 +2588,7 @@ impl_verbatim {
   // resort to runtime filtering.
   bool keepDeclaration(Declaration const *d)
   {
-    if ((d->spec->isTS_name() ||
-         d->spec->isTS_elaborated()) &&      // in/t0274.cc
+    if (endsWithIdentifier(d->spec) &&
         d->decllist->isNotEmpty()) {
       IDeclarator const *id = d->decllist->firstC()->decl;
       while (!id->isD_name()) {

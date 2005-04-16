@@ -3,11 +3,35 @@
 
 #include "ccparse.h"      // this module
 #include "cc_ast.h"       // ASTVisitor
+#include "trace.h"        // TRACE
 
 #include <iostream.h>     // cout
 
 
 // ----------------------- ParseEnv -----------------------
+char const *maybeNull(StringRef n)
+{
+  if (n) {
+    return n;
+  }
+  else {
+    return "(null)";
+  }
+}
+
+void ParseEnv::pushClassName(StringRef n)
+{
+  TRACE("className", "pushing " << maybeNull(n));
+  classNameStack.push(n);
+}
+
+void ParseEnv::popClassName()
+{
+  StringRef n = classNameStack.pop();
+  TRACE("className", "popping " << maybeNull(n));
+}
+
+
 SimpleTypeId ParseEnv::uberSimpleType(SourceLoc loc, UberModifiers m)
 {
   m = (UberModifiers)(m & UM_TYPEKEYS);

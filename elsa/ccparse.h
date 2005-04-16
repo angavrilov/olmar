@@ -40,8 +40,8 @@ public:
   // this is *not* the general class context, merely the innermost
   // syntactically-occurring "class { ... }" declaration syntax, and
   // it is used only to recognize declarations of constructors
-  void pushClassName(StringRef n)  { classNameStack.push(n); }
-  void popClassName()              { classNameStack.pop(); }
+  void pushClassName(StringRef n);
+  void popClassName();
   StringRef curClassName() const   { return classNameStack.top(); }
 
   // manipulate UberModifiers

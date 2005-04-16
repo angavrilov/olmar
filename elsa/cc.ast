@@ -363,11 +363,6 @@ class Declarator (
     { return const_cast<PQName*>(getDeclaratorIdC()); };
 
   public SourceLoc getLoc() const;
-  
-  // true if this declarator is "obviously" declaring a function type,
-  // i.e. the innermost non-D_name, non-D_grouping constructor is
-  // D_func
-  public bool bottomIsDfunc() const;
 }
 
 
@@ -388,6 +383,11 @@ class IDeclarator(SourceLoc loc) {
 
   // skip any toplevel grouping operators
   public IDeclarator *skipGroups();
+
+  // true if this declarator is "obviously" declaring a function type,
+  // i.e. the innermost non-D_name, non-D_grouping constructor is
+  // D_func
+  public bool bottomIsDfunc() const;
 
   // "x" (NULL means abstract declarator or anonymous parameter);
   // this is used for ctors and dtors as well as ordinary names
