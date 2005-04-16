@@ -1821,7 +1821,7 @@ void FunctionType::addReceiver(Variable *param)
   xassert(!isConstructor());    // ctors don't get a __receiver param
   xassert(!isMethod());         // this is about to change below
   params.prepend(param);
-  flags |= FF_METHOD;
+  setFlag(FF_METHOD);
 }
 
 

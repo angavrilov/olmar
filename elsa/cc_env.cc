@@ -419,22 +419,22 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   // void* operator new(std::size_t sz) throw(std::bad_alloc);
   declareFunction1arg(t_voidptr, "operator new",
                       t_size_t, "sz",
-                      FF_NONE, t_bad_alloc);
+                      FF_DEFAULT_ALLOC, t_bad_alloc);
 
   // void* operator new[](std::size_t sz) throw(std::bad_alloc);
   declareFunction1arg(t_voidptr, "operator new[]",
                       t_size_t, "sz",
-                      FF_NONE, t_bad_alloc);
+                      FF_DEFAULT_ALLOC, t_bad_alloc);
 
   // void operator delete (void *p) throw();
   declareFunction1arg(t_void, "operator delete",
                       t_voidptr, "p",
-                      FF_NONE, t_void);
+                      FF_DEFAULT_ALLOC, t_void);
 
   // void operator delete[] (void *p) throw();
   declareFunction1arg(t_void, "operator delete[]",
                       t_voidptr, "p",
-                      FF_NONE, t_void);
+                      FF_DEFAULT_ALLOC, t_void);
 
   // 5/04/04: sm: I moved this out of the GNU_EXTENSION section because
   // the mozilla tests use it, and I won't want to make them only
@@ -3254,29 +3254,47 @@ Variable *Env::createDeclaration(
       }
     }
 
+    // are we redeclaring a 3.7.3p2 default?
+    if (prior->type->isFunctionType() &&
+        prior->type->asFunctionType()->hasFlag(FF_DEFAULT_ALLOC)) {
+      // replace it
+      TRACE("env", "replacing default declaration `" << prior->toString()
+                << "' with `" << type->toString() << "'");
+      forceReplace = true;
+      goto noPriorDeclaration;
+    }
+
     // check that the types match, and either both are typedefs
     // or neither is a typedef
-    if (almostEqualTypes(prior->type, type) &&
-        (prior->flags & DF_TYPEDEF) == (dflags & DF_TYPEDEF)) {
+    if ((prior->flags & DF_TYPEDEF) != (dflags & DF_TYPEDEF)) {
+      if (prior->isImplicitTypedef()) {
+        // if the previous guy was an implicit typedef, then as a
+        // special case allow it, and arrange for the environment
+        // to replace the implicit typedef with the variable being
+        // declared here
+        //
+        // 2005-03-01: this is only legal if the new declaration
+        // is for a non-type (7.1.3p3)
+        xassert(!(dflags & DF_TYPEDEF));   // implied by preceding conditionals
+
+        TRACE("env",    "replacing implicit typedef of " << prior->name
+                     << " at " << prior->loc << " with new decl at "
+                     << loc);
+        forceReplace = true;
+
+        goto noPriorDeclaration;
+      }
+
+      error(loc, stringc
+        << "prior declaration of " << prior->name << ", at " << prior->loc
+        << ", was " << (prior->flags&DF_TYPEDEF? "a" : "not a")
+        << " type, but this one " << (dflags&DF_TYPEDEF? "is" : "is not")
+        << " a type");
+      goto makeDummyVar;
+    }
+    else if (almostEqualTypes(prior->type, type)) {
       // same types, same typedef disposition, so they refer
       // to the same thing
-    }
-    else if (prior->isImplicitTypedef() &&
-             !(dflags & DF_TYPEDEF)) {
-      // if the previous guy was an implicit typedef, then as a
-      // special case allow it, and arrange for the environment
-      // to replace the implicit typedef with the variable being
-      // declared here                
-      //
-      // 2005-03-01: this is only legal if the new declaration
-      // is for a non-type (7.1.3p3)
-
-      TRACE("env",    "replacing implicit typedef of " << prior->name
-                   << " at " << prior->loc << " with new decl at "
-                   << loc);
-      forceReplace = true;
-
-      goto noPriorDeclaration;
     }
     else if (lang.allowExternCThrowMismatch &&
              prior->hasFlag(DF_EXTERN_C) &&

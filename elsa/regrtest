@@ -932,7 +932,7 @@ testparse k0043.cc #"voiding the result of a member call"
 # in case we decide to support it at some point?
 #failparse k0044.cc "template super class member variable"
 
-failparse k0045.cc "'operator delete' redeclared without throw()"
+testparse k0045.cc #"'operator delete' redeclared without throw()"
 failparse k0046.cc "anonymous inline struct fields"
 failparse k0046a.cc "anonymous struct fields in a union"
 failparse k0047.cc "template<T> operator T*"

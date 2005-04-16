@@ -896,7 +896,8 @@ enum FunctionFlags {
   FF_DTOR          = 0x0010,  // destructor
   FF_BUILTINOP     = 0x0020,  // built-in operator function (cppstd 13.6)
   FF_NO_PARAM_INFO = 0x0040,  // C parameter list "()" (C99 6.7.5.3 para 14)
-  FF_ALL           = 0x007F,  // all flags set to 1
+  FF_DEFAULT_ALLOC = 0x0080,  // is a default [de]alloc function from 3.7.3p2
+  FF_ALL           = 0x00FF,  // all flags set to 1
 };
 ENUM_BITWISE_OPS(FunctionFlags, FF_ALL);
 
@@ -940,11 +941,15 @@ public:
   virtual ~FunctionType();
 
   // interpretations of flags
-  bool isMethod() const               { return !!(flags & FF_METHOD); }
-  bool acceptsVarargs() const         { return !!(flags & FF_VARARGS); }
-  bool isConversionOperator() const   { return !!(flags & FF_CONVERSION); }
-  bool isConstructor() const          { return !!(flags & FF_CTOR); }
-  bool isDestructor() const           { return !!(flags & FF_DTOR); }
+  bool hasFlag(FunctionFlags f) const { return !!(flags & f); }
+  bool isMethod() const               { return hasFlag(FF_METHOD); }
+  bool acceptsVarargs() const         { return hasFlag(FF_VARARGS); }
+  bool isConversionOperator() const   { return hasFlag(FF_CONVERSION); }
+  bool isConstructor() const          { return hasFlag(FF_CTOR); }
+  bool isDestructor() const           { return hasFlag(FF_DTOR); }
+  
+  void setFlag(FunctionFlags f)       { flags |= f; }
+  void clearFlag(FunctionFlags f)     { flags &= ~f; }
 
   bool innerEquals(FunctionType const *obj, EqFlags flags = EF_EXACT) const;
   bool equalParameterLists(FunctionType const *obj, EqFlags flags = EF_EXACT) const;

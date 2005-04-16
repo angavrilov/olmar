@@ -7,6 +7,20 @@
 // */*anon*/)'
 
 // ERR-MATCH: prior declaration of `operator delete'
+  
+// this would make both gcc and icc reject
+//ERROR(1): void operator delete(void *) throw();
 
 void operator delete(void *) {
 }
+
+
+// something else
+extern int x;
+//ERROR(2): typedef int x;
+
+typedef int y;
+//ERROR(3): extern int y;
+
+
+// EOF
