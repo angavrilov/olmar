@@ -925,7 +925,7 @@ testparse k0039.cc #"funky namespace resolution after 'using namespace'"
 testparse k0040.cc #"instantiating a template with unnamed template parameter"
 testparse k0041.cc #"inner struct defined inline in an inner struct not defined inline"
 testparse k0042.cc #"computed array size expression as an assignment"
-failparse k0043.cc "voiding the result of a member call"
+testparse k0043.cc #"voiding the result of a member call"
 
 # sm: this is not valid C++; perhaps we should keep a separate
 # set of tests of "legacy" C++ that worked in older gcc, just

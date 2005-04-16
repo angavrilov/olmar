@@ -8,7 +8,7 @@
 
 // expected statistics
 option shift_reduce_conflicts 131;
-option reduce_reduce_conflicts 171;
+option reduce_reduce_conflicts 172;
 
 
 // this verbatim section is appended to the one in cc.gr

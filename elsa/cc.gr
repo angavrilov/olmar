@@ -452,7 +452,9 @@ nonterm(TypeSpecifier*) CtorExpressionType {
   -> "double"            { return new TS_simple(loc, ST_DOUBLE); }
 
   // std has this, but I don't think it makes sense
-  //-> "void"
+  //
+  // 2005-04-16: but it is used in real code, e.g., in/k0043.cc
+  -> "void"              { return new TS_simple(loc, ST_VOID); } 
 }
 
 nonterm(CastKeyword) CastKeyword {
