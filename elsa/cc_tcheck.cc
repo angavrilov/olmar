@@ -2903,75 +2903,77 @@ bool isVariableDC(DeclaratorContext dc)
          dc==DC_CN_DECL;      // local in a Condition
 }
 
-// determine if a complete type is required, and if so, check that it is
-void checkCompleteTypeRules(Env &env, Declarator::Tcheck &dt, Initializer *init)
+// determine if a complete type is required, and if so, check that it
+// is; return false if a complete type is needed but 'type' is not
+bool checkCompleteTypeRules(Env &env, DeclFlags dflags, DeclaratorContext context,
+                            Type *type, Initializer *init)
 {
   // TODO: According to 15.4 para 1, not only must the type in
   // DC_EXCEPTIONSPEC be complete (which this code enforces), but if
   // it is a pointer or reference type, the pointed-to thing must be
   // complete too!
 
-  if (dt.context == DC_D_FUNC) {
+  if (context == DC_D_FUNC) {
     // 8.3.5 para 6: ok to be incomplete unless this is a definition;
     // I'll just allow it (here) in all cases (t0048.cc)
-    return;
+    return true;
   }
 
-  if (dt.context == DC_TA_TYPE) {
+  if (context == DC_TA_TYPE) {
     // mere appearance of a type in an argument list is not enough to
     // require that it be complete; maybe the function definition will
     // need it, but that is detected later
-    return;
+    return true;
   }
 
-  if (dt.dflags & (DF_TYPEDEF | DF_EXTERN)) {
+  if (dflags & (DF_TYPEDEF | DF_EXTERN)) {
     // 7.1.3 does not say that the type named by a typedef must be
     // complete, so I will allow it to be incomplete (t0079.cc)
     //
     // I'm not sure where the exception for 'extern' is specified, but
     // it clearly exists.... (t0170.cc)
-    return;
+    return true;
   }        
 
-  if (dt.context == DC_MR_DECL &&
-      (dt.dflags & DF_STATIC)) {
+  if (context == DC_MR_DECL &&
+      (dflags & DF_STATIC)) {
     // static members don't have to be complete types
-    return;
+    return true;
   }
 
-  if (dt.context == DC_TF_DECL &&
+  if (context == DC_TF_DECL &&
       env.lang.uninitializedGlobalDataIsCommon &&
       !init) {
     // tentative global definition, type does not need to be complete;
     // c99 6.9.2p3 implies this is only allowed if 'static' is not
     // specified, but gcc does not enforce that so I won't either
-    return;
+    return true;
   }
 
-  if (dt.type->isArrayType()) {
+  if (type->isArrayType()) {
     if (init) {
       // The array type might be incomplete now, but the initializer
       // will take care of it.  (If I instead moved this entire block
       // below where the init is tchecked, I think I would run into
       // problems when tchecking the initializer wants a ctor to exist.)
       // (t0077.cc)
-      return;
+      return true;
     }
                                        
-    if (dt.context == DC_MR_DECL &&
+    if (context == DC_MR_DECL &&
         !env.lang.strictArraySizeRequirements) {
       // Allow incomplete array types, so-called "open arrays".
       // Usually, such things only go at the *end* of a structure, but
       // we do not check that.
-      return;
+      return true;
     }
 
     #ifdef GNU_EXTENSION
-    if (dt.context == DC_E_COMPOUNDLIT) {
+    if (context == DC_E_COMPOUNDLIT) {
       // dsw: arrays in ASTTypeId's of compound literals are
       // allowed to not have a size and not have an initializer:
       // (gnu/g0014.cc)
-      return;
+      return true;
     }
     #endif // GNU_EXTENSION
   }
@@ -2979,7 +2981,7 @@ void checkCompleteTypeRules(Env &env, Declarator::Tcheck &dt, Initializer *init)
   // ok, we're not in an exceptional circumstance, so the type
   // must be complete; if we have an error, what will we say?
   char const *action = 0;
-  switch (dt.context) {                           
+  switch (context) {                           
     default /*catch-all*/:     action = "create an object of"; break;
     case DC_EXCEPTIONSPEC:     action = "name in exception spec"; break;
     case DC_E_KEYWORDCAST:     // fallthru
@@ -2988,9 +2990,7 @@ void checkCompleteTypeRules(Env &env, Declarator::Tcheck &dt, Initializer *init)
   }
 
   // check it
-  if (!env.ensureCompleteType(action, dt.type)) {
-    dt.type = env.errorType();        // recovery
-  }
+  return env.ensureCompleteType(action, type);
 }
 
 void Declarator::mid_tcheck(Env &env, Tcheck &dt)
@@ -3063,9 +3063,6 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
   // get the type from the IDeclarator
   decl->tcheck(env, dt);
-
-  // declarators usually require complete types
-  checkCompleteTypeRules(env, dt, init);
 
   // this this a specialization?
   if (templatizableContext &&                      // e.g. toplevel
@@ -3145,6 +3142,16 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
   type = env.tfac.cloneType(dt.type);
   context = dt.context;
+
+  // declarators usually require complete types
+  //
+  // 2005-04-16: moved this down below the call to
+  // 'declareNewVariable' to handle k0051.cc, where we need to match a
+  // definition with a prior declaration to get a complete type
+  if (!checkCompleteTypeRules(env, dt.dflags, context, var->type, init)) {
+    // need to tell the calling context there is a problem
+    type = dt.type = var->type = env.errorType();
+  }
 
   // handle function template declarations ....
   TemplateInfo *templateInfo = NULL;
