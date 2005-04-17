@@ -751,7 +751,7 @@ void ElabVisitor::elaborateFunctionStart(Function *f)
     // We simulate return-by-value for class-valued objects by
     // passing a hidden additional parameter of type C& for a
     // return value of type C.  For static semantics, that means
-    // adding an environment entry for a special name, "<retVal>".
+    // adding an environment entry for a special name, "<retVar>".
     // For dynamic semantics, clients looking at the declaration
     // must simply know (by its name) that this variable is bound
     // to the reference passed as the 'retObj' at the call site.
@@ -759,9 +759,9 @@ void ElabVisitor::elaborateFunctionStart(Function *f)
     SourceLoc loc = f->nameAndParams->decl->loc;
     Type *retValType =
       env.tfac.makeReferenceType(loc, env.tfac.cloneType(ft->retType));
-    StringRef retValName = env.str("<retVal>");
-    f->retVal = env.makeVariable(loc, retValName, retValType, DF_NONE);
-    ft->registerRetVal(f->retVal);
+    StringRef retValName = env.str("<retVar>");
+    f->retVar = env.makeVariable(loc, retValName, retValType, DF_NONE);
+    ft->registerRetVar(f->retVar);
 
     // sm: This seemed like a good idea, because an analysis would get
     // to see the declaration and not just the magical appearance of a
@@ -770,7 +770,7 @@ void ElabVisitor::elaborateFunctionStart(Function *f)
     // I'm now not as convinced that an analysis really wants to see
     // it.  So I'm commenting it out.
     #if 0
-    Declaration *declaration = makeDeclaration(loc, f->retVal);
+    Declaration *declaration = makeDeclaration(loc, f->retVar);
     f->body->stmts.prepend(new S_decl(loc, declaration));
     #endif // 0
   }
@@ -1600,7 +1600,7 @@ bool S_return::elaborate(ElabVisitor &env)
       // We accomplish this by calling the copy ctor.
 
       // get the target of the constructor function
-      E_variable *retVal = env.makeE_variable(loc, env.functionStack.top()->retVal);
+      E_variable *retVar = env.makeE_variable(loc, env.functionStack.top()->retVar);
 
       // since the S_return itself will be visited before the subexpr,
       // we know the expr here has not yet been elaborated, so will not
@@ -1616,7 +1616,7 @@ bool S_return::elaborate(ElabVisitor &env)
 
       // make the constructor function
       env.push(expr->annot);             // e.g. in/d0049.cc breaks w/o this
-      ctorStatement = env.makeCtorStatement(loc, retVal, ft->retType,
+      ctorStatement = env.makeCtorStatement(loc, retVar, ft->retType,
                                             env.getCopyCtor(retTypeCt), args0);
       env.pop(expr->annot);
 

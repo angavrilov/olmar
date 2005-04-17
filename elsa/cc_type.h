@@ -982,7 +982,7 @@ public:
   // The base tcheck module does not need to store this, so the
   // default implementation does nothing, but other analyses may want
   // to.
-  virtual void registerRetVal(Variable *retVal);
+  virtual void registerRetVar(Variable *retVar);
 
   Variable const *getReceiverC() const;  // 'isMember' must be true
   Variable *getReceiver() { return const_cast<Variable*>(getReceiverC()); }

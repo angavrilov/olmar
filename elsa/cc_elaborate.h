@@ -38,10 +38,10 @@ enum ElabActivities {
   //     is created, and passed to the function as an additional
   //     argument.  Here, "passed" means the E_funCall or E_constructor
   //     has a 'retObj' pointer to the expression denoting the temporary.
-  //   - In the callee, a special "<retVal>" variable is created; it is
+  //   - In the callee, a special "<retVar>" variable is created; it is
   //     implicit that it gets its value from the passed temporary.  All
   //     S_returns are then rewritten to return nothing, but instead
-  //     construct the <retVal> in their 'ctorStatement'.
+  //     construct the <retVar> in their 'ctorStatement'.
   EA_ELIM_RETURN_BY_VALUE  = 0x0001,
 
   // At the end of a destructor, create a 'dtorStatement' which is the

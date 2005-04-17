@@ -23,9 +23,9 @@ class Function {
   //
   // NOTE!: If this function is a ctor, then the semantics is as if we
   // have this line in the code before the MemberInit-s:
-  //   this = &retVal;
-  public Variable *retVal = NULL;
-  custom debugPrint { ind(os,indent) << "retVal: " << refersTo(retVal) << "\n"; }
+  //   this = &retVar;
+  public Variable *retVar = NULL;
+  custom debugPrint { ind(os,indent) << "retVar: " << refersTo(retVar) << "\n"; }
 
   // to be called when the function exits; should only be non-NULL for
   // dtor Functions: it is the superclass and member dtors that are
@@ -89,7 +89,7 @@ class Statement {
   -> S_return() {
     // This is for the copy ctor that is needed when you do a return
     // by value of a CompoundType.  It always will copy into the
-    // *FunctionType::retVal for the function that it is in.
+    // *FunctionType::retVar for the function that it is in.
     public(field,owner) Statement *ctorStatement = NULL;
 
     // this function sets 'ctorStatement', and returns a visitor boolean

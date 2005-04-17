@@ -1825,7 +1825,7 @@ void FunctionType::addReceiver(Variable *param)
 }
 
 
-void FunctionType::registerRetVal(Variable *retVal)
+void FunctionType::registerRetVar(Variable *retVar)
 {}
 
 
@@ -2373,9 +2373,9 @@ string FunctionType::toMLString() const
   sb << "(";
 
   sb << "retType: " << retType->toMLString();
-  // arg, you can't do this due to the way Scott handles retVal
-//    if (retVal) {
-//      sb << ", " << retVal->toMLString();
+  // arg, you can't do this due to the way Scott handles retVar
+//    if (retVar) {
+//      sb << ", " << retVar->toMLString();
 //    }
 
   int ct=0;
