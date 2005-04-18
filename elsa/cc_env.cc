@@ -733,7 +733,7 @@ void Env::setupOperatorOverloading()
 
     static OverloadableOp const ops[] = {
       OP_MOD,          // LR operator% (L,R);
-      OP_BITAND,       // LR operator& (L,R);
+      OP_AMPERSAND,    // LR operator& (L,R);
       OP_BITXOR,       // LR operator^ (L,R);
       OP_BITOR,        // LR operator| (L,R);
     };

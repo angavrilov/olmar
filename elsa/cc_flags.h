@@ -388,13 +388,13 @@ enum OverloadableOp {
   OP_PLUS,         // +
   OP_MINUS,        // -
   OP_STAR,         // *
+  OP_AMPERSAND,    // &
 
   // arithmetic
   OP_DIV,          // /
   OP_MOD,          // %
   OP_LSHIFT,       // <<
   OP_RSHIFT,       // >>
-  OP_BITAND,       // &  dsw: this can also be operator address-of (13.5 para 2)
   OP_BITXOR,       // ^
   OP_BITOR,        // |
 

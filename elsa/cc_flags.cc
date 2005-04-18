@@ -311,12 +311,12 @@ char const * const overloadableOpNames[NUM_OVERLOADABLE_OPS] = {
   "+",
   "-",
   "*",
+  "&",
 
   "/",
   "%",
   "<<",
   ">>",
-  "&",
   "^",
   "|",
 
@@ -367,12 +367,12 @@ char const * const operatorFunctionNames[NUM_OVERLOADABLE_OPS] = {
   "operator+",
   "operator-",
   "operator*",
+  "operator&",
 
   "operator/",
   "operator%",
   "operator<<",
   "operator>>",
-  "operator&",
   "operator^",
   "operator|",
 
@@ -461,7 +461,7 @@ OverloadableOp toOverloadableOp(BinaryOp op, bool isAssignment)
       OP_MINUS,
       OP_LSHIFT,
       OP_RSHIFT,
-      OP_BITAND,
+      OP_AMPERSAND,
       OP_BITXOR,
       OP_BITOR,
       OP_AND,

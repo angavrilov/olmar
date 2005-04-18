@@ -2342,13 +2342,13 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
         NONMEMBER | ONEPARAM | TWOPARAMS,           // OP_PLUS
         NONMEMBER | ONEPARAM | TWOPARAMS,           // OP_MINUS
         NONMEMBER | ONEPARAM | TWOPARAMS,           // OP_STAR
+        NONMEMBER | ONEPARAM | TWOPARAMS,           // OP_AMPERSAND
 
         // 13.5.2
         NONMEMBER | TWOPARAMS,                      // OP_DIV
         NONMEMBER | TWOPARAMS,                      // OP_MOD
         NONMEMBER | TWOPARAMS,                      // OP_LSHIFT
         NONMEMBER | TWOPARAMS,                      // OP_RSHIFT
-        NONMEMBER | TWOPARAMS | ONEPARAM/*13.5p2*/, // OP_BITAND
         NONMEMBER | TWOPARAMS,                      // OP_BITXOR
         NONMEMBER | TWOPARAMS,                      // OP_BITOR
 
@@ -6625,6 +6625,11 @@ Type *resolveOverloadedUnaryOperator(
                               NULL, // I assume operators can't have explicit template arguments
                               args);
 
+    if (op == OP_AMPERSAND) {
+      // 13.3.1.2 para 9: no viable -> use built-in
+      resolver.emptyCandidatesIsOk = true;
+    }
+
     // user-defined candidates
     resolver.addUserOperatorCandidates(expr->type, NULL /*rhsType*/, opName);
 
@@ -7193,6 +7198,13 @@ Type *E_addrOf::itcheck_addrOf_set(Env &env, Expression *&replacement,
   // what 'isLval' means
   if (expr->type->isFunctionType()) {
     return env.makePtrType(SL_UNKNOWN, expr->type);
+  }
+
+  // consider the possibility of operator overloading
+  Type *ovlRet = resolveOverloadedUnaryOperator(
+    env, replacement, /*this,*/ expr, OP_AMPERSAND);
+  if (ovlRet) {
+    return ovlRet;
   }
 
   if (!expr->type->isLval()) {

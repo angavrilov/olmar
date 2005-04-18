@@ -2230,7 +2230,7 @@ nonterm(OperatorName*) Operator {
   -> "%"     { return new ON_operator(OP_MOD); }
   -> "<<"    { return new ON_operator(OP_LSHIFT); }
   -> ">>"    { return new ON_operator(OP_RSHIFT); }
-  -> "&"     { return new ON_operator(OP_BITAND); }
+  -> "&"     { return new ON_operator(OP_AMPERSAND); }
   -> "^"     { return new ON_operator(OP_BITXOR); }
   -> "|"     { return new ON_operator(OP_BITOR); }
 
