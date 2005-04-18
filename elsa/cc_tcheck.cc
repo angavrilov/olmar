@@ -689,7 +689,12 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
   // since the base class initializer can use any name which
   // denotes the base class [para 2], first look up the name
   // in the environment generally
-  Variable *baseVar = env.lookupPQ_one(name, LF_NONE);
+  //
+  // 2005-04-17: in/k0054.cc: need LF_SELFNAME here
+  //
+  // TODO: get rid of LF_SELFNAME, or at least invert the sense,
+  // so it is the default behavior
+  Variable *baseVar = env.lookupPQ_one(name, LF_SELFNAME);
   if (baseVar &&
       baseVar->isType() &&
       baseVar->type->isCompoundType()) {

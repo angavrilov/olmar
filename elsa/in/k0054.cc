@@ -6,12 +6,12 @@
 
 // ERR-MATCH: `.*?' does not denote any class
 
-namespace NS1 {
-    struct S1 {
+namespace NS {
+    struct B {
     };
 }
 
-struct S2 : NS1::S1 {
-    S2() : S1() {
+struct D : NS::B {
+    D() : B() {
     }
 };

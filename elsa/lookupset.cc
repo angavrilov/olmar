@@ -3,6 +3,7 @@
 
 #include "lookupset.h"        // this module
 #include "variable.h"         // Variable, sameEntity
+#include "template.h"         // TemplateInfo
 
 
 // vfilter: variable filter
@@ -135,12 +136,32 @@ void LookupSet::removeNonTemplates()
 {
   SObjListMutator<Variable> mut(*this);
   while (!mut.isDone()) {
-    if (mut.data()->isTemplate()) {
+    Variable *v = mut.data();
+
+    if (v->isTemplate()) {
       mut.adv();     // keep it
+      continue;
     }
-    else {
-      mut.remove();  // filter it out
+    
+    // 2005-04-17: in/t0055.cc:  The context is a lookup that has
+    // template arguments.  It might be that we found a selfname in
+    // the scope of a template class instantiation; but if template
+    // args are used, then the user is intending to apply args to the
+    // original template.  (The code here is an approximation of what
+    // is specified in 14.6p2b.)
+    if (v->hasFlag(DF_SELFNAME)) {
+      // argh.. my selfnames do not have proper template info, so
+      // I have to go through the type (TODO: fix this)
+      CompoundType *ct = v->type->asCompoundType();
+      if (ct->isInstantiation()) {
+        // replace 'v' with a pointer to the template primary
+        mut.dataRef() = ct->templateInfo()->getPrimary()->var;
+        mut.adv();
+        continue;
+      }
     }
+
+    mut.remove();    // filter it out
   }
 }
 
