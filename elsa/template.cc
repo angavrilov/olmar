@@ -2634,7 +2634,22 @@ void Env::instantiateClassBody(Variable *inst)
 void Env::ensureClassBodyInstantiated(CompoundType *ct)
 {
   if (!ct->isComplete() && ct->isInstantiation()) {
-    instantiateClassBody(ct->typedefVar);
+    Variable *inst = ct->typedefVar;
+
+    // 2005-04-17: in/k0053.cc: we would like to instantiate this
+    // template, but if there has not yet been a definition, then skip
+    // it (without error)
+    TemplateInfo *instTI = inst->templateInfo();
+    Variable *spec = instTI->instantiationOf;
+    CompoundType *specCT = spec->type->asCompoundType();
+    if (specCT->forward) {
+      TRACE("template", "would like to instantiate body of " <<
+                        instTI->templateName() <<
+                        ", but no template defn available");
+      return;
+    }
+
+    instantiateClassBody(inst);
   }
 }
 
