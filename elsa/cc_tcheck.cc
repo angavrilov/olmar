@@ -1534,7 +1534,7 @@ CompoundType *checkClasskeyAndName(
         if (tag->type->isCompoundType()) {
           if (env.lang.isCplusplus && !tag->hasFlag(DF_IMPLICIT)) {
             // found a user-introduced (not implicit) typedef, which
-            // is illegal (3.4.4p2,3)
+            // is illegal (3.4.4p2,3; 7.1.5.3p2)
             env.error(stringc << "`" << *name << "' is a typedef-name, "
                               << "so cannot be used after '" 
                               << toString(keyword) << "'");
@@ -8263,6 +8263,9 @@ void TP_type::itcheck(Env &env, int&)
   // my approach of making a TypeVariable, instead of calling
   // it a CompoundType with a flag for 'is type variable', rules
   // out the subsequent use of "class T" ...
+  //
+  // 2005-04-17: I noticed that in fact 7.1.5.3p2 addresses this, and
+  // agrees it is not legal.
 
   // make a type variable for this thing
   TypeVariable *tvar = new TypeVariable(name);
