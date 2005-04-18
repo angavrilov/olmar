@@ -21,13 +21,13 @@ template<class T> struct V {
 
 template<class T> struct S2 {
     int foo() {
-        var1;
-        var2;
+        //ERROR(1): var1;
+        //ERROR(2): var2;
         var3;
         return 42;
     }
-    struct V<T>::foo_t var1;
-    class V<T>::foo_t var2;
+    //ERROR(1): struct V<T>::foo_t var1;
+    //ERROR(2): class V<T>::foo_t var2;
     typename V<T>::foo_t var3;
 };
 

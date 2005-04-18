@@ -944,7 +944,10 @@ testparse k0051.cc #"defining static-member array without array size"
 testparse k0052.cc #"operator& returning other pointer type"
 testparse k0053.cc #"calling a function with a pointer to an undefined template class"
 testparse k0054.cc #"constructor member initialization without namespace qualifier"
-failparse k0055.cc "using 'class' instead of 'typename' for template-class typedefs"
+
+# original was invalid; I have inverted the test's sense
+testparse k0055.cc #"using 'class' instead of 'typename' for template-class typedefs"
+
 failparse k0056.cc "template friend function"
 failparse k0057.cc "template friend function (2)"
 failparse k0058.cc "converting to types from parameter templates"
