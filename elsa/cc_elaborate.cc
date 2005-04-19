@@ -760,7 +760,7 @@ void ElabVisitor::elaborateFunctionStart(Function *f)
     Type *retValType =
       env.tfac.makeReferenceType(loc, env.tfac.cloneType(ft->retType));
     StringRef retValName = env.str("<retVar>");
-    f->retVar = env.makeVariable(loc, retValName, retValType, DF_NONE);
+    f->retVar = env.makeVariable(loc, retValName, retValType, DF_PARAMETER);
     ft->registerRetVar(f->retVar);
 
     // sm: This seemed like a good idea, because an analysis would get
