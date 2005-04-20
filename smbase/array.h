@@ -344,6 +344,10 @@ public:     // funcs
   void deleteTopSeveral(int ct);
   void deleteAll()           { deleteTopSeveral(length()); }
   
+  // remove an element from the middle, shifting others down to
+  // maintain the original order
+  T *removeIntermediate(int toRemove);
+
   // will not delete any items
   void consolidate()         { arr.consolidate(); }
 
@@ -357,6 +361,23 @@ void ObjArrayStack<T>::deleteTopSeveral(int ct)
   while (ct--) {
     delete pop();
   }
+}
+
+
+template <class T>
+T *ObjArrayStack<T>::removeIntermediate(int toRemove)
+{
+  T *ret = arr[toRemove];
+  
+  // shift remaining elements down
+  for (int i=toRemove+1; i < length(); i++) {
+    arr[i-1] = arr[i];
+  }
+
+  // remove and throw away the final (now redundant) pointer
+  pop();
+  
+  return ret;
 }
 
 
