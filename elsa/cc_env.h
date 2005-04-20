@@ -65,8 +65,10 @@ protected:   // data
   // parameters
   bool disambiguateOnly;
 
-  // counter for constructing names for anonymous types
-  int anonTypeCounter;
+  // counter for constructing names for anonymous types; UPDATE: if we
+  // make more than one Env, we do NOT want this counter to start over
+  // again, therefore it is static and is not initialized in the ctor.
+  static int anonTypeCounter;
 
   // initially false, this becomes true once Env::Env has finished;
   // this is used to distinguish entities introduced automatically
