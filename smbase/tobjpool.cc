@@ -3,7 +3,7 @@
 
 #include "objpool.h"     // ObjectPool
 
-#include <stdlib.h>      // random
+#include <stdlib.h>      // rand
 #include <iostream.h>    // cout
 
 
@@ -55,7 +55,7 @@ int main()
   // start allocating at random
   cout << "allocating/deallocating " << ITERS << " times..\n";
   for (i=0; i<ITERS; i++) {
-    int index = random()%BIG;
+    int index = rand()%BIG;
     Foo *&f = allocated[index];
 
     if (f) {

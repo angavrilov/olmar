@@ -28,6 +28,11 @@
 // So I will just stick with string.h until I see a problem with it.
 #include <string.h>     // bzero via FD_ZERO on OS X
 
+#ifdef __MINGW32__
+  // on mingw32, fd_set lives in winsock.h
+  #include <winsock.h>
+#endif
+
 
 int writeAll(int fd, void const *buf, int len)
 {

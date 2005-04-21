@@ -5,13 +5,13 @@
 
 void checkHeap() {}
 
-void checkHeapNode(void *node) {}
-
-void malloc_stats() {}
-
 unsigned numMallocCalls() { return 0; }
 unsigned numFreeCalls() { return 0; }
 
+#ifndef __WIN32__
+void malloc_stats() {}
+void checkHeapNode(void *node) {}
 void walkMallocHeap(HeapWalkFn func) {}
+#endif
 
 // EOF

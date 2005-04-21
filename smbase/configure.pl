@@ -23,6 +23,8 @@ options:
   -ccflag <arg>      add <arg> to gcc command line
   -CC <cmd>          use <cmd> as the C compiler
   -CXX <cmd>         use <cmd> as the C++ compiler
+  -cross <target>    cross compilation target, e.g. "mingw32"
+  -exe <suffix>      suffix for exectuables [""]
 EOF
 # this option is obscure, so I won't print it in the usage string
 # -icc               turn on options for Intel's compiler
@@ -32,8 +34,10 @@ EOF
 $| = 1;
 
 # defaults
-$CC = "gcc";
-$CXX = "g++";
+$CC = $ENV{"CC"};
+if (!defined($CC)) { $CC = "gcc"; }
+$CXX = $ENV{"CXX"};
+if (!defined($CXX)) { $CXX = "g++"; }
 $BASE_FLAGS = "-Wall -Wno-deprecated -D__UNIX__";
 $CCFLAGS = ();
 $DEBUG_HEAP = 0;
@@ -41,6 +45,8 @@ $TRACE_HEAP = 0;
 $debug = 0;
 $use_dash_g = 1;
 $allow_dash_O2 = 1;
+$cross = 0;
+$exe = "";
               
 
 # get an argument to an option
@@ -113,7 +119,7 @@ while (@ARGV) {
     $TRACE_HEAP = 1;
   }
 
-  # 9/19/04: I spent some time getting smbase to build under 
+  # 9/19/04: I spent some time getting smbase to build under
   # the Intel C++ 8.1 compiler; these are the options I used.
   elsif ($arg eq "-icc") {
     # compiler executables
@@ -131,6 +137,20 @@ while (@ARGV) {
     #  327: NULL reference is not allowed
     #  1419: external declaration in primary source file
     push @CCFLAGS, "-wd444,1418,810,271,981,279,383,327,1419";
+  }
+  
+  elsif ($arg eq "-cross") {
+    $cross = getNextArg();
+    if ($cross eq "mingw32") {
+      $exe = ".exe";
+    }
+    else {
+      die("at the moment, only the 'mingw32' cross target is supported\n");
+    }
+  }
+
+  elsif ($arg eq "-exe") {
+    $exe = getNextArg();
   }
 
   else {
@@ -164,13 +184,14 @@ $CCFLAGS = join(' ', @CCFLAGS);
 $wd = `pwd`;
 chomp($wd);
 
+$testcout = "testcout" . $exe;
 print("Testing C++ compiler ...\n");
-$cmd = "$CXX -o testcout $BASE_FLAGS $CCFLAGS testcout.cc";
+$cmd = "$CXX -o $testcout $BASE_FLAGS $CCFLAGS testcout.cc";
 if (system($cmd)) {
   # maybe problem is -Wno-deprecated?
   printf("Trying without -Wno-deprecated ...\n");
   $BASE_FLAGS =~ s| -Wno-deprecated||;
-  $cmd = "$CXX -o testcout $BASE_FLAGS $CCFLAGS testcout.cc";
+  $cmd = "$CXX -o $testcout $BASE_FLAGS $CCFLAGS testcout.cc";
   if (system($cmd)) {
     print(<<"EOF");
 
@@ -187,15 +208,16 @@ EOF
   }
 }
 
-if (system("./testcout")) {
-  print(<<"EOF");
+if (!$cross) {
+  if (system("./$testcout")) {
+    print(<<"EOF");
 
 I was able to compile testcout.cc, but it did not run.  I tried:
   cd $wd
   $cmd
 
 and then
-  ./testcout      (this one failed)
+  ./$testcout      (this one failed)
 
 A frequent cause for this error is a misconfiguration of the language
 runtime libraries.
@@ -209,10 +231,15 @@ with a different --prefix argument to its configuration script.
 Until this is fixed, smbase (and any software that depends on it) will
 certainly not run either.
 EOF
-  exit(2);
-}
+    exit(2);
+  }
 
-print("C++ compiler seems to work\n\n");
+  print("C++ compiler seems to work\n\n");
+}
+else {
+  print("because we are in cross mode, I will not try running '$testcout'\n",
+        "but it might be a good idea to try that yourself\n");
+}
 
 
 # etags: see elsa/configure.pl
@@ -229,13 +256,26 @@ echo "smbase configuration summary:"
 echo "  debug:       $debug"
 echo ""
 echo "Compile flags:"
-echo "  Compilers:   $CC, $CXX"
+echo "  CC:          $CC"
+echo "  CXX:         $CXX"
 echo "  BASE_FLAGS:  $BASE_FLAGS"
 echo "  CCFLAGS:     $CCFLAGS"
-echo "  DEBUG_HEAP:  $DEBUG_HEAP"
-echo "  TRACE_HEAP:  $TRACE_HEAP"
-echo ""
 EOF
+
+if ($DEBUG_HEAP) {
+  print OUT ("echo \"  DEBUG_HEAP:  $DEBUG_HEAP\"\n");
+}
+if ($TRACE_HEAP) {
+  print OUT ("echo \"  TRACE_HEAP:  $TRACE_HEAP\"\n");
+}
+if ($cross) {
+  print OUT ("echo \"  CROSSTARGET: $cross\"\n");
+}
+if ($exe) {
+  print OUT ("echo \"  EXE:         $exe\"\n");
+}
+
+print OUT ("echo \"\"\n");
 
 close(OUT) or die;
 chmod 0755, "config.summary";
@@ -279,6 +319,8 @@ sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
     -e "s|\@TRACE_HEAP\@|$TRACE_HEAP|g" \\
     -e "s|\@CC\@|$CC|g" \\
     -e "s|\@CXX\@|$CXX|g" \\
+    -e "s|\@CROSSTARGET\@|$cross|g" \\
+    -e "s|\@EXE\@|$exe|g" \\
   <Makefile.in >>Makefile
 
 # discourage editing ..

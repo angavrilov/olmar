@@ -13,7 +13,6 @@
 #    include <windows.h>  // api
 #  endif
 
-#  include <strstrea.h>   // ostrstream
 #  include <conio.h>      // getch or _getch
 #  include <dos.h>        // sleep
 #  include <io.h>         // chmod
@@ -444,7 +443,7 @@ bool ensurePath(char const *filename, bool isDirectory)
 // underlying test
 bool hsrcHelper()
 {
-  #ifdef __UNIX__
+  #if !defined(__WIN32__)     // unix
     // see if /dev/random exists and is readable
     int fd = open("/dev/random", O_RDONLY);
     if (fd < 0) {
@@ -486,7 +485,7 @@ bool hasSystemCryptoRandom()
 // of things hasSystemCryptoRandom checks)
 unsigned getSystemCryptoRandom()
 {
-  #ifdef __UNIX__
+  #if !defined(__WIN32__)     // unix
     // open /dev/random
     int fd = open("/dev/random", O_RDONLY);
     if (!fd) {
@@ -531,11 +530,11 @@ unsigned getSystemCryptoRandom()
 
 int getProcessId()
 {
-  #ifdef __UNIX__
-    return getpid();
-
-  #else // windows
+  #ifdef __WIN32__
     return GetCurrentProcessId();
+
+  #else  // unix
+    return getpid();
 
   #endif
 }
