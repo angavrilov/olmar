@@ -145,7 +145,7 @@ OBJS := \
 -include $(OBJS:.o=.d)
 
 # some modules do not build on mingw32; for the moment I do not need them
-ifeq ($(strip $(CROSSTARGET)),mingw32)
+ifeq ($(strip $(CROSSTARGET)),i386-mingw32msvc)
   OBJS := $(filter-out mypopen.o mysig.o smregexp.o,$(OBJS))
 endif
 
@@ -165,7 +165,7 @@ TESTS := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen \
          bitarray
 
 # some programs do not build on mingw32
-ifeq ($(strip $(CROSSTARGET)),mingw32)
+ifeq ($(strip $(CROSSTARGET)),i386-mingw32msvc)
   TESTS := $(filter-out testmalloc mypopen mysig smregexp,$(TESTS))
 endif
 
