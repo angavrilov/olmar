@@ -6,50 +6,95 @@ use strict 'subs';
 require sm_config;
 
 $dummy = get_sm_config_version();
-print("sm_config version: $dummy\n");
-
-@originalArgs = @ARGV;
+print("dummy: $dummy\n");
 
 sub usage {
-  standardUsage();
-
   print(<<"EOF");
-package options:
+usage: ./configure [options]
+options:
+  -h:                print this message
+  -debug,-nodebug:   enable/disable debugging options [disabled]
   -no-dash-g         disable -g
   -no-dash-O2        disable -O2
   -prof              enable profiling
   -devel             add options useful while developing smbase
   -debugheap         turn on heap usage debugging
   -traceheap         print messages on each malloc and free
+  -ccflag <arg>      add <arg> to gcc command line
+  -CC <cmd>          use <cmd> as the C compiler
+  -CXX <cmd>         use <cmd> as the C++ compiler
+  -cross <target>    cross compilation target, e.g. "mingw32"
+  -exe <suffix>      suffix for exectuables [""]
 EOF
 # this option is obscure, so I won't print it in the usage string
 # -icc               turn on options for Intel's compiler
 }
 
-# defaults (also see sm_config.pm)
+# autoflush so progress reports work
+$| = 1;
+
+# defaults
+$CC = $ENV{"CC"};
+if (!defined($CC)) { $CC = "gcc"; }
+$CXX = $ENV{"CXX"};
+if (!defined($CXX)) { $CXX = "g++"; }
+$BASE_FLAGS = "-Wall -Wno-deprecated -D__UNIX__";
+$CCFLAGS = ();
 $DEBUG_HEAP = 0;
 $TRACE_HEAP = 0;
+$debug = 0;
 $use_dash_g = 1;
 $allow_dash_O2 = 1;
-$debug = $debug;   # silence warning
+$cross = 0;
+$exe = "";
+              
 
-
-# global variables holding information about the current command-line
-# option being processed
-$option = "";
-$value = "";
+# get an argument to an option
+sub getNextArg {              
+  if (@ARGV == 0) {
+    die("option requies an argument\n");
+  }
+  my $ret = $ARGV[0];
+  shift @ARGV;
+  return $ret;
+}
 
 # process command-line arguments
-foreach $optionAndValue (@ARGV) {
-  # ignore leading '-' characters, and split at first '=' (if any)
-  ($option, $value) =
-    ($optionAndValue =~ m/^-*([^-][^=]*)=?(.*)$/);
-                      #      option     = value
-                      
-  my $arg = $option;
+while (@ARGV) {
+  my $arg = $ARGV[0];
+  shift @ARGV;
 
-  if (handleStandardOption()) {
-    # handled by sm_config.pm
+  # treat leading "--" uniformly with leading "-"
+  $arg =~ s/^--/-/;
+
+  if ($arg eq "-h" ||
+      $arg eq "-help") {
+    usage();
+    exit(0);
+  }
+
+  # things that look like options to gcc should just
+  # be added to CCFLAGS
+  elsif ($arg =~ m/^(-W|-pg$|-D|-O)/) {
+    push @CCFLAGS, $arg;
+  }
+  elsif ($arg eq "-ccflag") {
+    push @CCFLAGS, getNextArg();
+  }
+
+  elsif ($arg eq "-CC") {
+    $CC = getNextArg();
+  }
+  elsif ($arg eq "-CXX") {
+    $CXX = getNextArg();
+  }
+
+  elsif ($arg eq "-d" ||
+         $arg eq "-debug") {
+    $debug = 1;
+  }
+  elsif ($arg eq "-nodebug") {
+    $debug = 0;
   }
 
   elsif ($arg eq "-no-dash-g") {
@@ -94,6 +139,20 @@ foreach $optionAndValue (@ARGV) {
     push @CCFLAGS, "-wd444,1418,810,271,981,279,383,327,1419";
   }
   
+  elsif ($arg eq "-cross") {
+    $cross = getNextArg();
+    if ($cross eq "mingw32") {
+      $exe = ".exe";
+    }
+    else {
+      die("at the moment, only the 'mingw32' cross target is supported\n");
+    }
+  }
+
+  elsif ($arg eq "-exe") {
+    $exe = getNextArg();
+  }
+
   else {
     print STDERR ("unknown option: $arg\n");
     exit(2);
@@ -111,7 +170,14 @@ if ($use_dash_g) {
   push @CCFLAGS, "-g";
 }
 
-finishedOptionProcessing();
+$os = `uname -s`;
+chomp($os);
+if ($os eq "Linux") {
+  push @CCFLAGS, "-D__LINUX__";
+}
+
+# smash the list together to make a string
+$CCFLAGS = join(' ', @CCFLAGS);
 
 
 # -------------- does the C++ compiler work? --------------
@@ -120,12 +186,12 @@ chomp($wd);
 
 $testcout = "testcout" . $exe;
 print("Testing C++ compiler ...\n");
-$cmd = "$CXX -o $testcout @CCFLAGS testcout.cc";
+$cmd = "$CXX -o $testcout $BASE_FLAGS $CCFLAGS testcout.cc";
 if (system($cmd)) {
   # maybe problem is -Wno-deprecated?
   printf("Trying without -Wno-deprecated ...\n");
-  @CCFLAGS = grep { $_ ne "-Wno-deprecated" } @CCFLAGS;
-  $cmd = "$CXX -o $testcout @CCFLAGS testcout.cc";
+  $BASE_FLAGS =~ s| -Wno-deprecated||;
+  $cmd = "$CXX -o $testcout $BASE_FLAGS $CCFLAGS testcout.cc";
   if (system($cmd)) {
     print(<<"EOF");
 
@@ -142,7 +208,7 @@ EOF
   }
 }
 
-if (!$target) {
+if (!$cross) {
   if (system("./$testcout")) {
     print(<<"EOF");
 
@@ -168,14 +234,13 @@ EOF
     exit(2);
   }
 
-  print("C++ compiler seems to work\n");
+  print("C++ compiler seems to work\n\n");
 }
 else {
   print("because we are in cross mode, I will not try running '$testcout'\n",
         "but it might be a good idea to try that yourself\n");
 }
 
-print("\n");
 
 # etags: see elsa/configure.pl
 
@@ -188,12 +253,13 @@ print OUT (<<"EOF");
 # config.summary
 
 echo "smbase configuration summary:"
-echo "  command:     $0 @originalArgs"
+echo "  debug:       $debug"
 echo ""
 echo "Compile flags:"
 echo "  CC:          $CC"
 echo "  CXX:         $CXX"
-echo "  CCFLAGS:     @CCFLAGS"
+echo "  BASE_FLAGS:  $BASE_FLAGS"
+echo "  CCFLAGS:     $CCFLAGS"
 EOF
 
 if ($DEBUG_HEAP) {
@@ -202,8 +268,8 @@ if ($DEBUG_HEAP) {
 if ($TRACE_HEAP) {
   print OUT ("echo \"  TRACE_HEAP:  $TRACE_HEAP\"\n");
 }
-if ($target) {
-  print OUT ("echo \"  CROSSTARGET: $target\"\n");
+if ($cross) {
+  print OUT ("echo \"  CROSSTARGET: $cross\"\n");
 }
 if ($exe) {
   print OUT ("echo \"  EXE:         $exe\"\n");
@@ -216,8 +282,12 @@ chmod 0755, "config.summary";
 
 
 # ------------------- config.status ------------------
+# from here on, combine BASE_FLAGS and CCFLAGS
+$CCFLAGS = "$BASE_FLAGS $CCFLAGS";
+
 # make a variant, CFLAGS, that doesn't include -Wno-deprecated
-@CFLAGS = grep { $_ ne "-Wno-deprecated" } @CCFLAGS;
+$CFLAGS = $CCFLAGS;
+$CFLAGS =~ s| -Wno-deprecated||;
 
 # create a program which will create the Makefile
 open(OUT, ">config.status") or die("can't make config.status");
@@ -243,13 +313,13 @@ EOF
 
 
 # substitute the CCFLAGS
-sed -e "s|\@CCFLAGS\@|@CCFLAGS|g" \\
-    -e "s|\@CFLAGS\@|@CFLAGS|g" \\
+sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
+    -e "s|\@CFLAGS\@|$CFLAGS|g" \\
     -e "s|\@DEBUG_HEAP\@|$DEBUG_HEAP|g" \\
     -e "s|\@TRACE_HEAP\@|$TRACE_HEAP|g" \\
     -e "s|\@CC\@|$CC|g" \\
     -e "s|\@CXX\@|$CXX|g" \\
-    -e "s|\@CROSSTARGET\@|$target|g" \\
+    -e "s|\@CROSSTARGET\@|$cross|g" \\
     -e "s|\@EXE\@|$exe|g" \\
   <Makefile.in >>Makefile
 
@@ -272,37 +342,22 @@ print("\nYou can now run make, usually called 'make' or 'gmake'.\n");
 exit(0);
 
 
-# the code below is never executed as part of smbase/configure.pl;
-# it is here so it can be easily found to copy into the client
-# configuration scripts
+# ---------------- subroutines -------------
+sub run {
+  my $code = system(@_);
+  checkExitCode($code);
+}
 
-# -------------- BEGIN common block ---------------
-# do an initial argument scan to find if smbase is somewhere else
-for (my $i=0; $i < @ARGV; $i++) {
-  my ($d) = ($ARGV[$i] =~ m/-*smbase=(.*)/);
-  if (defined($d)) {
-    $SMBASE = $d;
+sub checkExitCode {
+  my ($code) = @_;
+  if ($code != 0) {
+    # hopefully the command has already printed a message,
+    # I'll just relay the status code
+    if ($code >> 8) {
+      exit($code >> 8);
+    }
+    else {
+      exit($code & 127);
+    }
   }
 }
-
-# try to load the sm_config module
-eval {
-  push @INC, ($SMBASE);
-  require sm_config;
-};
-if ($@) {
-  die("$@" .     # ends with newline, usually
-      "\n" .
-      "I looked for smbase in \"$SMBASE\".\n" .
-      "\n" .
-      "You can explicitly specify the location of smbase with the -smbase=<dir>\n" .
-      "command-line argument.\n");
-}
-
-# check version number
-$smcv = get_sm_config_version();
-if ($smcv < $req_smcv) {
-  die("This package requires version $req_smcv of sm_config, but found\n" .
-      "only version $smcv.\n");
-}
-# -------------- END common block ---------------

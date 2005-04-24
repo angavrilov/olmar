@@ -8,108 +8,9 @@
 # autoflush so progress reports work
 $| = 1;
 
-# smbase config version number; also serves as an
-# initialization routine
+# smbase config version number
 sub get_sm_config_version {
-  $main::CC = getEnvOrDefault("CC", "cc");
-  $main::CXX = getEnvOrDefault("CXX", "c++");
-  @main::CCFLAGS = ("-Wall", "-Wno-deprecated", "-D__UNIX__");
-  $main::debug = 0;
-  $main::target = 0;
-  $main::SMBASE = "../smbase";
-  $main::exe = "";
-
-  return 1.03;         
-
-  # 1.01: first version
-  #
-  # 1.02: added the PERLIO=crlf stuff
-  #
-  # 1.03: 2005-04-23: moved a bunch of argument processing into sm_config
-}
-
-# standard prefix of the usage string
-sub standardUsage {
-  print(<<"EOF");
-usage: ./configure [options]
-
-influential environment variables:
-  CC                 C compiler [$main::CC]
-  CXX                C++ compiler [$main::CXX]
-
-standard (sm_config) options:
-  -h:                print this message
-  -debug[=0/1]:      enable/disable debugging options [$main::debug]
-  -target=<target>:  cross compilation target, e.g., "i386-mingw32msvc"
-  -smbase=<dir>:     specify where the smbase library is [$main::SMBASE]
-
-EOF
-}
-
-
-# process standard command-line options; the option name is
-# in $main::option, and its argument (if any) in $main::value;
-# this returns true if it handles the argument
-sub handleStandardOption {
-  my $arg = $main::option;
-  my $val = $main::value;
-
-  if ($arg eq "h" ||
-      $arg eq "help") {
-    main::usage();
-    exit(0);
-  }
-
-  elsif ($arg eq "debug") {
-    $main::debug = getBoolArg();
-    return 1;
-  }
-
-  elsif ($arg eq "target") {
-    $main::target = getOptArg();
-    if ($target eq "i386-mingw32msvc") {
-      $main::exe = ".exe";
-      @main::CCFLAGS = grep { $_ ne "-D__UNIX__" } @main::CCFLAGS;
-      push @main::CCFLAGS, "-D__WIN32__";
-      return 1;
-    }
-    else {
-      die("at the moment, only the 'i386-mingw32msvc' cross target is supported\n");
-    }
-  }
-
-  elsif ($arg eq "smbase") {
-    $main::SMBASE = getOptArg();
-  }
-
-  else {
-    return 0;
-  }
-}
-
-
-# run after all options have been processed
-sub finishedOptionProcessing {
-  if (!$main::target) {
-    my $os = `uname -s`;
-    chomp($os);
-    if ($os eq "Linux") {
-      push @main::CCFLAGS, "-D__LINUX__";
-    }
-  }
-}
-
-
-# get a value from the environment, or use a supplied default
-sub getEnvOrDefault {
-  my ($var, $def) = @_;
-
-  my $ret = $ENV{$var};
-  if (!defined($ret)) {
-    $ret = $def;
-  }
-
-  return $ret;
+  return 1.02;
 }
 
 # use smbase's $BASE_FLAGS if I can find them
@@ -120,64 +21,6 @@ sub get_smbase_BASE_FLAGS {
     chomp($main::BASE_FLAGS);
   }
 }
-
-
-# get smbase's compile flags, as a starting point
-sub get_smbase_compile_flags {
-  my $cfgsum = "$main::SMBASE/config.summary";
-  if (! -x $cfgsum) {
-    die("$cfgsum is not executable.\n" .
-        "smbase should be configured first.\n");
-  }
-  my @lines = `$main::SMBASE/config.summary 2>/dev/null`;
-  foreach my $line (@lines) {
-    my ($name, $value) = ($line =~ m/^\s*(\S+)\s*:\s*(\S.*)$/);
-                                 #       name    :   value
-    if (!defined($value)) { next; }
-    
-    if ($name eq "CC") {
-      $main::CC = $value;
-    }
-    elsif ($name eq "CXX") {
-      $main::CXX = $value;
-    }
-    elsif ($name eq "CCFLAGS") {
-      @main::CCFLAGS = split(' ', $value);
-    }
-    elsif ($name eq "CROSSTARGET") {
-      $main::target = $value;
-    }
-    elsif ($name eq "EXE") {
-      $main::exe = $value;
-    }
-  }
-}
-
-
-# get an argument to an option
-sub getOptArg {
-  if (!$value) {
-    die("option $option requires an argument\n");
-  }
-  return $value;
-}
-
-# for a boolean option:
-#   -foo       -> true
-#   -foo=1     -> true
-#   -foo=0     -> false
-sub getBoolArg {
-  if (!$value || $value eq "1") {
-    return 1;
-  }
-  elsif ($value eq "0") {
-    return 0;
-  }
-  else {
-    die("option $option expects either no argument, or arg 0 or 1\n");
-  }
-}
-
 
 # detect whether we need PERLIO=crlf
 sub getPerlEnvPrefix {
@@ -245,26 +88,6 @@ sub get_PERL_variable {
 
   print($ret . "\n");
   return $ret;
-}
-
-
-sub run {
-  my $code = system(@_);
-  checkExitCode($code);
-}
-
-sub checkExitCode {
-  my ($code) = @_;
-  if ($code != 0) {
-    # hopefully the command has already printed a message,
-    # I'll just relay the status code
-    if ($code >> 8) {
-      exit($code >> 8);
-    }
-    else {
-      exit($code & 127);
-    }
-  }
 }
 
                       
