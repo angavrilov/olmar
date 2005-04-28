@@ -2205,9 +2205,6 @@ Variable *Env::instantiateFunctionTemplate
   // the templatized type
   Type *instType = applyArgumentMapToType(map, primary->type);
   
-  // pacify Oink...
-  instType = tfac.cloneType(instType);
-
   // create the representative Variable
   inst = makeInstantiationVariable(primary, instType);
 

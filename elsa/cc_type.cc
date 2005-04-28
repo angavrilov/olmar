@@ -2468,20 +2468,6 @@ CompoundType *TypeFactory::makeCompoundType
 }
 
 
-Type *TypeFactory::cloneType(Type *src)
-{
-  switch (src->getTag()) {
-    default: xfailure("bad type tag");
-    case Type::T_ATOMIC:    return cloneCVAtomicType(src->asCVAtomicType());
-    case Type::T_POINTER:   return clonePointerType(src->asPointerType());
-    case Type::T_REFERENCE: return cloneReferenceType(src->asReferenceType());
-    case Type::T_FUNCTION:  return cloneFunctionType(src->asFunctionType());
-    case Type::T_ARRAY:     return cloneArrayType(src->asArrayType());
-    case Type::T_POINTERTOMEMBER: return clonePointerToMemberType(src->asPointerToMemberType());
-  }
-}
-
-
 Type *TypeFactory::setCVQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
                                    TypeSpecifier *)
 {
@@ -2720,21 +2706,6 @@ PointerToMemberType *BasicTypeFactory::makePointerToMemberType(SourceLoc,
 }
 
 
-// Types are immutable, so cloning is pointless
-CVAtomicType *BasicTypeFactory::cloneCVAtomicType(CVAtomicType *src)
-  { return src; }
-PointerType *BasicTypeFactory::clonePointerType(PointerType *src)
-  { return src; }
-ReferenceType *BasicTypeFactory::cloneReferenceType(ReferenceType *src)
-  { return src; }
-FunctionType *BasicTypeFactory::cloneFunctionType(FunctionType *src)
-  { return src; }
-ArrayType *BasicTypeFactory::cloneArrayType(ArrayType *src)
-  { return src; }
-PointerToMemberType *BasicTypeFactory::clonePointerToMemberType(PointerToMemberType *src)
-  { return src; }
-
-
 Variable *BasicTypeFactory::makeVariable(
   SourceLoc L, StringRef n, Type *t, DeclFlags f, TranslationUnit *)
 {
@@ -2742,12 +2713,6 @@ Variable *BasicTypeFactory::makeVariable(
   // only for the possible benefit of an extension analysis
   Variable *var = new Variable(L, n, t, f);
   return var;
-}
-
-Variable *BasicTypeFactory::cloneVariable(Variable *src)
-{
-  // immutable => don't clone
-  return src;
 }
 
 

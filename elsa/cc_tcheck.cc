@@ -853,7 +853,7 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
     while (prev->next) {
       // some analyses don't want the type re-used, so let
       // the factory clone it if it wants to
-      Type *dupType = env.tfac.cloneType(specType);
+      Type *dupType = specType;
 
       Declarator::Tcheck dt2(dupType, dflags, context);
       prev->next = prev->next->tcheck(env, dt2);
@@ -2186,7 +2186,7 @@ void MR_template::tcheck(Env &env)
 // -------------------- Enumerator --------------------
 void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
 {
-  var = env.makeVariable(loc, name, env.tfac.cloneType(parentType), DF_ENUMERATOR);
+  var = env.makeVariable(loc, name, parentType, DF_ENUMERATOR);
 
   enumValue = parentEnum->nextValue;
   if (expr) {
@@ -2892,7 +2892,6 @@ Type *computeArraySizeFromLiteral(Env &env, Type *tgt_type, Initializer *init)
       init->asIN_expr()->e->type->asRval()->isArrayType() &&
       init->asIN_expr()->e->type->asRval()->asArrayType()->hasSize()
       ) {
-    tgt_type = env.tfac.cloneType(tgt_type);
     tgt_type->asArrayType()->size =
       init->asIN_expr()->e->type->asRval()->asArrayType()->size;
     xassert(tgt_type->asArrayType()->hasSize());
@@ -3145,7 +3144,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   }
   xassert(var);
 
-  type = env.tfac.cloneType(dt.type);
+  type = dt.type;
   context = dt.context;
 
   // declarators usually require complete types
@@ -4468,7 +4467,7 @@ void Expression::tcheck(Env &env, Expression *&replacement)
       // interpretation would fail if we tried it
       TRACE("disamb", toString(loc) << ": selected E_funCall");
       env.errors.prependMessages(existing);
-      call->type = env.tfac.cloneType(call->inner2_itcheck(env, candidates));
+      call->type = call->inner2_itcheck(env, candidates);
       call->ambiguity = NULL;
       replacement = call;
       return;
@@ -4491,7 +4490,7 @@ void Expression::tcheck(Env &env, Expression *&replacement)
       replacement = ctor;
       Type *t = ctor->inner2_itcheck(env, replacement);
 
-      replacement->type = env.tfac.cloneType(t);
+      replacement->type = t;
       replacement->ambiguity = NULL;
       return;
     }
@@ -4558,7 +4557,7 @@ void Expression::mid_tcheck(Env &env, Expression *&replacement)
   // "return makeLvalType(env.tfac.cloneType(t))" and get rid of the
   // clone here; but that would be error prone and labor-intensive, so
   // I don't do it.
-  replacement->type = env.tfac.cloneType(t);
+  replacement->type = t;
 }
 
 
@@ -4871,7 +4870,7 @@ E_fieldAcc *wrapWithImplicitThis(Env &env, Variable *var, PQName *name)
   // E_fieldAcc::itcheck_fieldAcc() does something a little more
   // complicated, but we don't need that since the situation is
   // more constrained here
-  efieldAcc->type = makeLvalType(env, env.tfac.cloneType(var->type));
+  efieldAcc->type = makeLvalType(env, var->type);
 
   return efieldAcc;
 }
@@ -5215,7 +5214,7 @@ void tcheckExpression_set(Env &env, Expression *&expr,
 
   // must explicitly set 'expr->type' since we did not call
   // into Expression::tcheck
-  expr->type = env.tfac.cloneType(t);
+  expr->type = t;
 }
 
 
@@ -5696,7 +5695,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
         // TODO: I'm pretty sure I need nondependent names for E_fieldAcc too
         //maybeNondependent(env, pqname->loc, feacc->nondependentVar, chosen);
       }
-      func->type = env.tfac.cloneType(chosen->type);
+      func->type = chosen->type;
     }
     else {
       return env.errorType();
@@ -5725,7 +5724,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
         E_fieldAcc *fa = new E_fieldAcc(object,
           new PQ_operator(SL_UNKNOWN, new ON_operator(OP_PARENS), env.functionOperatorName));
         fa->field = funcVar;
-        fa->type = env.tfac.cloneType(funcVar->type);
+        fa->type = funcVar->type;
         func = fa;
 
         return funcVar->type->asFunctionType()->retType;

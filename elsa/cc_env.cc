@@ -249,13 +249,13 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
 
     // receiver object
     ft->addReceiver(env.makeVariable(loc, env.receiverName,
-                                     env.tfac.cloneType(refToSelfType),
+                                     refToSelfType,
                                      DF_PARAMETER));
 
     // source object parameter
     ft->addParam(env.makeVariable(loc,
                                   env.otherName,
-                                  env.tfac.cloneType(refToConstSelfType),
+                                  refToConstSelfType,
                                   DF_PARAMETER));
 
     env.doneParams(ft);
@@ -945,12 +945,11 @@ Variable *Env::declareFunctionNargs(
   FunctionFlags flags,
   Type * /*nullable*/ exnType)
 {
-  FunctionType *ft = makeFunctionType(SL_INIT, tfac.cloneType(retType));
+  FunctionType *ft = makeFunctionType(SL_INIT, retType);
   ft->flags |= flags;
 
   for (int i=0; i < numArgs; i++) {
-    Variable *p = makeVariable(SL_INIT, str(argNames[i]),
-                               tfac.cloneType(argTypes[i]), DF_PARAMETER);
+    Variable *p = makeVariable(SL_INIT, str(argNames[i]), argTypes[i], DF_PARAMETER);
     ft->addParam(p);
   }
 
@@ -959,7 +958,7 @@ Variable *Env::declareFunctionNargs(
 
     // slightly clever hack: say "throw()" by saying "throw(void)"
     if (!exnType->isSimple(ST_VOID)) {
-      ft->exnSpec->types.append(tfac.cloneType(exnType));
+      ft->exnSpec->types.append(exnType);
     }
   }
 
@@ -2523,7 +2522,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
     }
     else {
       // just the class' type
-      ct->selfType = tfac.cloneType(ret);
+      ct->selfType = ret;
     }
     Variable *selfVar = makeVariable(loc, name, ct->selfType,
                                      DF_TYPEDEF | DF_SELFNAME);
@@ -3894,7 +3893,7 @@ void Env::setOverloadedFunctionVar(Expression *e, Variable *selVar)
   if (e->isE_grouping()) {
     E_grouping *g = e->asE_grouping();
     setOverloadedFunctionVar(g->expr, selVar);
-    g->type = tfac.cloneType(g->expr->type);
+    g->type = g->expr->type;
     return;
   }
 

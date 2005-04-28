@@ -294,28 +294,4 @@ public:
 };
 
 
-// This visitor is used when we clone an AST node (and its children)
-// that contains Expressions that need to have their types
-// subsequently cloned.  By doing this, we avoid mentioning the type
-// factory in the Expression custom clone method.
-// Intended to be used with LoweredASTVisitor
-class CloneExprTypesVisitor : private ASTVisitor {
-  public:
-  LoweredASTVisitor loweredVisitor; // use this as the argument for traverse()
-
-  TypeFactory &tfac;
-  explicit CloneExprTypesVisitor(TypeFactory &tfac0)
-    : loweredVisitor(this)
-    , tfac(tfac0)
-  {}
-  virtual ~CloneExprTypesVisitor() {}
-  private:                      // prohibit
-  explicit CloneExprTypesVisitor(CloneExprTypesVisitor &other);
-
-  public:
-  // ASTVisitor funcs
-  bool visitExpression(Expression *e);
-};
-
-
 #endif // CC_ELABORATE_H

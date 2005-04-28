@@ -1179,16 +1179,6 @@ public:
   // here, do not write code that relies on them!)
 
 
-  // ---- clone types ----
-  // when types are cloned, their location is expected to be copied too
-  virtual CVAtomicType *cloneCVAtomicType(CVAtomicType *src)=0;
-  virtual PointerType *clonePointerType(PointerType *src)=0;
-  virtual ReferenceType *cloneReferenceType(ReferenceType *src)=0;
-  virtual FunctionType *cloneFunctionType(FunctionType *src)=0;
-  virtual ArrayType *cloneArrayType(ArrayType *src)=0;
-  virtual PointerToMemberType *clonePointerToMemberType(PointerToMemberType *src)=0;
-  Type *cloneType(Type *src);       // switch, clone, return
-
   // NOTE: all 'syntax' pointers are nullable, since there are contexts
   // where I don't have an AST node to pass
 
@@ -1254,7 +1244,6 @@ public:
   //     both been defined in cc_type.h
   virtual Variable *makeVariable(SourceLoc L, StringRef n,
                                  Type *t, DeclFlags f, TranslationUnit *tunit)=0;
-  virtual Variable *cloneVariable(Variable *src)=0;
 
 
   // ---- convenience functions ----
@@ -1310,16 +1299,8 @@ public:    // funcs
   virtual PointerToMemberType *makePointerToMemberType(SourceLoc loc,
     NamedAtomicType *inClassNAT, CVFlags cv, Type *atType);
 
-  virtual CVAtomicType *cloneCVAtomicType(CVAtomicType *src);
-  virtual PointerType *clonePointerType(PointerType *src);
-  virtual ReferenceType *cloneReferenceType(ReferenceType *src);
-  virtual FunctionType *cloneFunctionType(FunctionType *src);
-  virtual ArrayType *cloneArrayType(ArrayType *src);
-  virtual PointerToMemberType *clonePointerToMemberType(PointerToMemberType *src);
-
   virtual Variable *makeVariable(SourceLoc L, StringRef n,
                                  Type *t, DeclFlags f, TranslationUnit *tunit);
-  virtual Variable *cloneVariable(Variable *src);
 };
 
 

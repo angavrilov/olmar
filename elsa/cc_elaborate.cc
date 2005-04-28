@@ -129,7 +129,7 @@ Declarator *ElabVisitor::makeDeclarator(SourceLoc loc, Variable *var)
 
   Declarator *decl = new Declarator(idecl, NULL /*init*/);
   decl->var = var;
-  decl->type = env.tfac.cloneType(var->type);
+  decl->type = var->type;
 
   return decl;
 }
@@ -162,7 +162,7 @@ Declarator *ElabVisitor::makeFuncDeclarator(SourceLoc loc, Variable *var)
     for (; !iter.isDone(); iter.adv()) {
       Variable *param = iter.data();
 
-      ASTTypeId *typeId = new ASTTypeId(new TS_type(loc, env.tfac.cloneType(param->type)),
+      ASTTypeId *typeId = new ASTTypeId(new TS_type(loc, param->type),
                                         makeDeclarator(loc, param));
       params = params->prepend(typeId);
     }
@@ -178,7 +178,7 @@ Declarator *ElabVisitor::makeFuncDeclarator(SourceLoc loc, Variable *var)
 
   Declarator *funcDecl = new Declarator(funcIDecl, NULL /*init*/);
   funcDecl->var = var;
-  funcDecl->type = env.tfac.cloneType(var->type);
+  funcDecl->type = var->type;
 
   return funcDecl;
 }
@@ -196,13 +196,13 @@ Function *ElabVisitor::makeFunction(SourceLoc loc, Variable *var,
   Function *f = new Function(
     var->flags        // this is too many (I only want syntactic); but won't hurt
       | DF_INLINE,    // pacify pretty-printing idempotency
-    new TS_type(loc, env.tfac.cloneType(ft->retType)),
+    new TS_type(loc, ft->retType),
     funcDecl,
     inits,
     body,
     NULL /*handlers*/
   );
-  f->funcType = env.tfac.cloneType(var->type)->asFunctionType();
+  f->funcType = var->type->asFunctionType();
 
   if (ft->isMethod()) {
     // f's receiver should match that of its funcType
@@ -223,7 +223,7 @@ Function *ElabVisitor::makeFunction(SourceLoc loc, Variable *var,
 E_variable *ElabVisitor::makeE_variable(SourceLoc loc, Variable *var)
 {
   E_variable *evar = new E_variable(new PQ_variable(loc, var));
-  evar->type = makeLvalType(tfac, tfac.cloneType(var->type));
+  evar->type = makeLvalType(tfac, var->type);
   evar->var = var;
   return evar;
 }
@@ -232,7 +232,7 @@ E_fieldAcc *ElabVisitor::makeE_fieldAcc
   (SourceLoc loc, Expression *obj, Variable *field)
 {
   E_fieldAcc *efieldacc = new E_fieldAcc(obj, new PQ_variable(loc, field));
-  efieldacc->type = makeLvalType(tfac, tfac.cloneType(field->type));
+  efieldacc->type = makeLvalType(tfac, field->type);
   efieldacc->field = field;
   return efieldacc;
 }
@@ -246,7 +246,7 @@ E_funCall *ElabVisitor::makeMemberCall
 
   // "a.f(<args>)"
   E_funCall *funcall = new E_funCall(efieldacc, args);
-  funcall->type = tfac.cloneType(func->type->asFunctionType()->retType);
+  funcall->type = func->type->asFunctionType()->retType;
 
   return funcall;
 }
@@ -265,12 +265,11 @@ Expression *ElabVisitor::makeThisRef(SourceLoc loc)
   // "this"
   E_this *ths = new E_this;
   ths->receiver = receiver;
-  ths->type = tfac.makePointerType(loc, CV_CONST,
-                                   env.tfac.cloneType(receiver->type->asRval()));
+  ths->type = tfac.makePointerType(loc, CV_CONST, receiver->type->asRval());
 
   // "*this"
   E_deref *deref = new E_deref(ths);
-  deref->type = env.tfac.cloneType(receiver->type);
+  deref->type = receiver->type;
 
   return deref;
 }
@@ -307,7 +306,7 @@ E_constructor *ElabVisitor::makeCtorExpr(
   xassert(target->type->isReference());
 
   E_constructor *ector0 = new E_constructor(new TS_type(loc, type), args);
-  ector0->type = tfac.cloneType(type);
+  ector0->type = type;
   ector0->ctorVar = ctor;
   ector0->artificial = true;
   ector0->retObj = target;
@@ -368,9 +367,6 @@ FakeList<ArgExpression> *ElabVisitor::cloneExprList(FakeList<ArgExpression> *arg
     FAKELIST_FOREACH(ArgExpression, args0, iter) {
       // clone the AST node
       ArgExpression *argExpr0 = iter->clone();
-      // clone the types of any expressions
-      CloneExprTypesVisitor ctv(tfac);
-      argExpr0->traverse(ctv.loweredVisitor);
       // use the clone
       ret = ret->prepend(argExpr0);
     }
@@ -388,9 +384,6 @@ Expression *ElabVisitor::cloneExpr(Expression *e)
   if (cloneDefunctChildren) {
     // clone the AST node
     Expression *expr0 = e->clone();
-    // clone the types of any expressions
-    CloneExprTypesVisitor ctv(tfac);
-    expr0->traverse(ctv.loweredVisitor);
     // use the clone
     return expr0;
   }
@@ -639,14 +632,14 @@ Expression *ElabVisitor::elaborateCallByValue
   CompoundType *paramCt = paramType->asCompoundType();
 
   // E_variable that points to the temporary
-  Variable *tempVar = insertTempDeclaration(loc, tfac.cloneType(paramType));
+  Variable *tempVar = insertTempDeclaration(loc, paramType);
 
   // E_constructor for the temporary that calls the copy ctor for the
   // temporary taking the real argument as the copy ctor argument.
   // NOTE: we do NOT clone argExpr here, as the client to this
   // function is expected to do it
   E_constructor *ector =
-    env.makeCtorExpr(loc, makeE_variable(loc, tempVar), tfac.cloneType(paramType),
+    env.makeCtorExpr(loc, makeE_variable(loc, tempVar), paramType,
                      getCopyCtor(paramCt), makeExprList1(argExpr));
 
   // combine into a comma expression so we do both but return the
@@ -656,7 +649,7 @@ Expression *ElabVisitor::elaborateCallByValue
   // since I trust the former more
   Expression *byValueArg = makeE_variable(loc, tempVar);
   Expression *ret = new E_binary(ector, BIN_COMMA, byValueArg);
-  ret->type = tfac.cloneType(byValueArg->type);
+  ret->type = byValueArg->type;
   xassert(byValueArg->getType()->isReference()); // the whole point
   return ret;
 }
@@ -683,7 +676,7 @@ Expression *ElabVisitor::elaborateCallSite(
     if (ft->retType->isCompoundType() &&
         (!ft->isConstructor() || !artificalCtor)   // sm: the isConstructor() test is redundant
         ) {
-      Variable *var0 = insertTempDeclaration(loc, env.tfac.cloneType(ft->retType));
+      Variable *var0 = insertTempDeclaration(loc, ft->retType);
       retObj = makeE_variable(loc, var0);
     }
   }
@@ -758,7 +751,7 @@ void ElabVisitor::elaborateFunctionStart(Function *f)
 
     SourceLoc loc = f->nameAndParams->decl->loc;
     Type *retValType =
-      env.tfac.makeReferenceType(loc, env.tfac.cloneType(ft->retType));
+      env.tfac.makeReferenceType(loc, ft->retType);
     StringRef retValName = env.str("<retVar>");
     f->retVar = env.makeVariable(loc, retValName, retValType, DF_PARAMETER);
     ft->registerRetVar(f->retVar);
@@ -1112,7 +1105,7 @@ S_expr *ElabVisitor::make_S_expr_memberCopyAssign
     action = new E_assign(makeE_fieldAcc(loc, makeThisRef(loc), member),
                           BIN_ASSIGN,
                           otherDotY);
-    action->type = tfac.cloneType(otherDotY->type);
+    action->type = otherDotY->type;
   }
 
   // wrap up as a statement
@@ -1416,7 +1409,7 @@ void Handler::elaborate(ElabVisitor &env)
   if (typeIdType->asRval()->isCompoundType()) {
     if (!globalVar) {
       globalVar = env.makeVariable(loc, env.makeCatchClauseVarName(),
-                                   env.tfac.cloneType(typeIdType->asRval()),
+                                   typeIdType->asRval(),
                                    DF_STATIC // I think it is a static global
                                    | DF_GLOBAL);
 
@@ -1479,7 +1472,7 @@ bool E_throw::elaborate(ElabVisitor &env)
   if (exprType->isCompoundType()) {
     if (!globalVar) {
       globalVar = env.makeVariable(loc, env.makeThrowClauseVarName(),
-                                   env.tfac.cloneType(exprType),
+                                   exprType,
                                    DF_STATIC // I think it is a static global
                                    | DF_GLOBAL);
 
@@ -1519,8 +1512,7 @@ bool E_new::elaborate(ElabVisitor &env)
   Type *t = atype->getType();
 
   if (t->isCompoundType()) {
-    heapVar = env.makeVariable(loc, env.makeE_newVarName(),
-                               env.tfac.cloneType(t), DF_NONE);
+    heapVar = env.makeVariable(loc, env.makeE_newVarName(), t, DF_NONE);
 
     FakeList<ArgExpression> *args0 = env.emptyArgs();
     if (ctorArgs) {
@@ -1566,7 +1558,7 @@ bool E_delete::elaborate(ElabVisitor &env)
     expr = env.cloneExpr(expr);
 
     E_deref *deref = new E_deref(origExpr);
-    deref->type = env.tfac.makeReferenceType(loc, env.tfac.cloneType(to->atType));
+    deref->type = env.tfac.makeReferenceType(loc, to->atType);
 
     dtorStatement = env.makeDtorStatement
       (loc,
@@ -1988,14 +1980,6 @@ void ElabVisitor::postvisitInitializer(Initializer *in)
   if (in->isIN_expr() || in->isIN_ctor()) {
     pop(in->annot);
   }
-}
-
-
-// ------------------------ CloneExprTypesVisitor --------------
-
-bool CloneExprTypesVisitor::visitExpression(Expression *e) {
-  e->type = tfac.cloneType(e->type);
-  return true;
 }
 
 
