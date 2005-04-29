@@ -531,28 +531,28 @@ public:      // funcs
   FunctionType *beginConstructorFunctionType(SourceLoc loc, CompoundType *ct);
 
   // TypeFactory funcs; all of these simply delegate to 'tfac'
-  CVAtomicType *makeCVAtomicType(SourceLoc loc, AtomicType *atomic, CVFlags cv)
-    { return tfac.makeCVAtomicType(loc, atomic, cv); }
-  PointerType *makePointerType(SourceLoc loc, CVFlags cv, Type *atType)
-    { return tfac.makePointerType(loc, cv, atType); }
-  Type *makeReferenceType(SourceLoc loc, Type *atType)
-    { return tfac.makeReferenceType(loc, atType); }
-  FunctionType *makeFunctionType(SourceLoc loc, Type *retType)
-    { return tfac.makeFunctionType(loc, retType); }
+  CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv)
+    { return tfac.makeCVAtomicType(atomic, cv); }
+  PointerType *makePointerType(CVFlags cv, Type *atType)
+    { return tfac.makePointerType(cv, atType); }
+  Type *makeReferenceType(Type *atType)
+    { return tfac.makeReferenceType(atType); }
+  FunctionType *makeFunctionType(Type *retType)
+    { return tfac.makeFunctionType(retType); }
   void doneParams(FunctionType *ft)
     { tfac.doneParams(ft); }
-  ArrayType *makeArrayType(SourceLoc loc, Type *eltType, int size = ArrayType::NO_SIZE)
-    { return tfac.makeArrayType(loc, eltType, size); }
+  ArrayType *makeArrayType(Type *eltType, int size = ArrayType::NO_SIZE)
+    { return tfac.makeArrayType(eltType, size); }
 
   // (this does the work of the old 'makeMadeUpVariable')
   Variable *makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f);
 
-  CVAtomicType *getSimpleType(SourceLoc loc, SimpleTypeId st, CVFlags cv = CV_NONE)
-    { return tfac.getSimpleType(loc, st, cv); }
-  CVAtomicType *makeType(SourceLoc loc, AtomicType *atomic)
-    { return tfac.makeType(loc, atomic); }
-  Type *makePtrType(SourceLoc loc, Type *type)
-    { return tfac.makePtrType(loc, type); }
+  CVAtomicType *getSimpleType(SimpleTypeId st, CVFlags cv = CV_NONE)
+    { return tfac.getSimpleType(st, cv); }
+  CVAtomicType *makeType(AtomicType *atomic)
+    { return tfac.makeType(atomic); }
+  Type *makePtrType(Type *type)
+    { return tfac.makePtrType(type); }
 
   // others are more obscure, so I'll just call into 'tfac' directly
   // in the places I call them

@@ -492,8 +492,8 @@ void Function::tcheckBody(Env &env)
       env.lang.gccFuncBehavior == CCLang::GFB_variable) {
     // static char const __func__[] = "function-name";
     SourceLoc loc = body->loc;
-    Type *charConst = env.getSimpleType(loc, ST_CHAR, CV_CONST);
-    Type *charConstArr = env.makeArrayType(loc, charConst);
+    Type *charConst = env.getSimpleType(ST_CHAR, CV_CONST);
+    Type *charConstArr = env.makeArrayType(charConst);
 
     if (env.lang.implicitFuncVariable) {
       Variable *funcVar = env.makeVariable(loc, env.string__func__,
@@ -1399,10 +1399,10 @@ Type *TS_simple::itcheck(Env &env, DeclFlags dflags)
     // leaving ST_IMPLINT in the 'id' field so later tchecks can see
     // that it was using implicit-int.  Client analyses should be
     // unaffected, since they should be looking at 'type', not 'id'.
-    return env.getSimpleType(loc, ST_INT, cv);
+    return env.getSimpleType(ST_INT, cv);
   }
 
-  return env.getSimpleType(loc, id, cv);
+  return env.getSimpleType(id, cv);
 }
 
 
@@ -1757,7 +1757,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     EnumType *et = tag->type->asCVAtomicType()->atomic->asEnumType();
 
     this->atype = et;          // annotation
-    return env.makeType(loc, et);
+    return env.makeType(et);
   }
                                      
   CompoundType *ct =
@@ -2063,7 +2063,7 @@ Type *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
     // is this referring to an existing forward-declared enum?
     et = env.lookupEnum(name, LF_INNER_ONLY);
     if (et) {
-      ret = env.makeType(loc, et);
+      ret = env.makeType(et);
       if (!et->valueIndex.isEmpty()) {
         // if it has values, it's definitely been defined already
         env.error(stringc << "multiply defined enum `" << name << "'");
@@ -2874,7 +2874,7 @@ Type *Env::computeArraySizeFromCompoundInit(SourceLoc tgt_loc, Type *tgt_type,
       // if my count is short
     }
   }
-  return tgt_type_isRef ? makeReferenceType(SL_UNKNOWN, tgt_type): tgt_type;
+  return tgt_type_isRef ? makeReferenceType(tgt_type): tgt_type;
 }
 
 // provide a well-defined size for the array from the size of the
@@ -2896,7 +2896,7 @@ Type *computeArraySizeFromLiteral(Env &env, Type *tgt_type, Initializer *init)
       init->asIN_expr()->e->type->asRval()->asArrayType()->size;
     xassert(tgt_type->asArrayType()->hasSize());
   }
-  return tgt_type_isRef ? env.makeReferenceType(SL_UNKNOWN, tgt_type): tgt_type;
+  return tgt_type_isRef ? env.makeReferenceType(tgt_type): tgt_type;
 }
 
 // true if the declarator corresponds to a local/global variable declaration
@@ -3502,10 +3502,10 @@ FakeList<ASTTypeId> *tcheckFakeASTTypeIdList(
 static Type *normalizeParameterType(Env &env, SourceLoc loc, Type *t)
 {
   if (t->isArrayType()) {
-    return env.makePtrType(loc, t->asArrayType()->eltType);
+    return env.makePtrType(t->asArrayType()->eltType);
   }
   if (t->isFunctionType()) {
-    return env.makePtrType(loc, t);
+    return env.makePtrType(t);
   }
   return t;
 }
@@ -3552,7 +3552,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
           env.diagnose3(env.lang.allowImplicitIntForOperators, name->loc,
                         stringc << "cannot declare `" << name->toString() 
                                 << "' with no return type (MSVC bug accepts it)");
-          dt.type = env.getSimpleType(SL_UNKNOWN, ST_INT);     // recovery
+          dt.type = env.getSimpleType(ST_INT);     // recovery
         }
       }
 
@@ -3573,7 +3573,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
           }
 
           // return type is 'void'
-          dt.type = env.getSimpleType(dname->loc, ST_VOID);
+          dt.type = env.getSimpleType(ST_VOID);
           specialFunc = FF_DTOR;
         }
 
@@ -3587,7 +3587,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
               env.warning("obsolete use of implicit int in declaration of main()");
 
               // change type to 'int'
-              dt.type = env.getSimpleType(loc, ST_INT);
+              dt.type = env.getSimpleType(ST_INT);
             }
             else {
               env.error("constructors must be class members (and implicit int is not supported)");
@@ -3611,7 +3611,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
             }
 
             // return type is same as class type
-            dt.type = env.makeType(dname->loc, inClass);
+            dt.type = env.makeType(inClass);
             specialFunc = FF_CTOR;
           }
         }
@@ -3624,7 +3624,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
         // all declarations, not just those that appear in function
         // definitions... I think the rest of the implementation is
         // in Oink?
-        dt.type = env.getSimpleType(loc, ST_INT);
+        dt.type = env.getSimpleType(ST_INT);
       }
       else {
         env.error("support for omitted return type is currently off");
@@ -3768,7 +3768,7 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
     // we're in a new[] (E_new) type-id
     if (!size) {
       env.error("new[] must have an array size specified");
-      at = env.makeArrayType(loc, dt.type);    // error recovery
+      at = env.makeArrayType(dt.type);    // error recovery
     }
     else {
       if (base->isD_name()) {
@@ -3791,14 +3791,14 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
         int sz;
         if (!size->constEval(env, sz)) {
           // error has already been reported; this is for error recovery
-          at = env.makeArrayType(loc, dt.type);
+          at = env.makeArrayType(dt.type);
         }
         else {
           // TODO: If 'sz' is dependent, then we need to construct some
           // kind of ArrayType whose size is an arbitrary expression.
 
           // constuct the type
-          at = env.makeArrayType(loc, dt.type, sz);
+          at = env.makeArrayType(dt.type, sz);
         }
       }
     }
@@ -3852,11 +3852,11 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
         env.error(loc, "array size must have integral type");
       }
 
-      at = env.makeArrayType(loc, dt.type, sz);
+      at = env.makeArrayType(dt.type, sz);
     }
     else {
       // no size
-      at = env.makeArrayType(loc, dt.type);
+      at = env.makeArrayType(dt.type);
     }
   }
 
@@ -4386,7 +4386,7 @@ Type *makeLvalType(TypeFactory &tfac, Type *underlying)
     //   int (&a)[];
   }
   else {
-    return tfac.makeReferenceType(SL_UNKNOWN, underlying);
+    return tfac.makeReferenceType(underlying);
   }
 }
 
@@ -4564,7 +4564,7 @@ void Expression::mid_tcheck(Env &env, Expression *&replacement)
 Type *E_boolLit::itcheck_x(Env &env, Expression *&replacement)
 {
   // cppstd 2.13.5 para 1
-  return env.getSimpleType(SL_UNKNOWN, ST_BOOL);
+  return env.getSimpleType(ST_BOOL);
 }
 
 
@@ -4718,7 +4718,7 @@ Type *E_intLit::itcheck_x(Env &env, Expression *&replacement)
     id = *seq;
   }
 
-  return env.getSimpleType(SL_UNKNOWN, id);
+  return env.getSimpleType(id);
 }
 
 
@@ -4726,7 +4726,7 @@ Type *E_floatLit::itcheck_x(Env &env, Expression *&replacement)
 {
   // TODO: wrong; see cppstd 2.13.3 para 1
   d = strtod(text, NULL /*endp*/);
-  return env.getSimpleType(SL_UNKNOWN, ST_FLOAT);
+  return env.getSimpleType(ST_FLOAT);
 }
 
 
@@ -4751,8 +4751,8 @@ Type *E_stringLit::itcheck_x(Env &env, Expression *&replacement)
   if (env.lang.stringLitCharsAreConst) {
     stringLitCharCVFlags = CV_CONST;
   }
-  Type *charConst = env.getSimpleType(SL_UNKNOWN, id, stringLitCharCVFlags);
-  Type *arrayType = env.makeArrayType(SL_UNKNOWN, charConst, len+1);    // +1 for implicit final NUL
+  Type *charConst = env.getSimpleType(id, stringLitCharCVFlags);
+  Type *arrayType = env.makeArrayType(charConst, len+1);    // +1 for implicit final NUL
 
   // C++ 5.1p2, C99 6.5.1p4: string literals are lvalues (in/k0036.cc)
   Type *ret = makeLvalType(env, arrayType);
@@ -4825,7 +4825,7 @@ Type *E_charLit::itcheck_x(Env &env, Expression *&replacement)
     }
   }
 
-  return env.getSimpleType(SL_UNKNOWN, id);
+  return env.getSimpleType(id);
 }
 
 
@@ -4847,8 +4847,7 @@ Type *E_this::itcheck_x(Env &env, Expression *&replacement)
   //
   // (sm: it seems to me that type cloning should be unnecessary since
   // this is intended to be the *same* object as __receiver)
-  return env.makePointerType(env.loc(), CV_NONE,
-                             receiver->type->asRval());
+  return env.makePointerType(CV_NONE, receiver->type->asRval());
 }
 
 
@@ -4952,7 +4951,7 @@ Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
           // resolve, either by making it a real error or (by using
           // argument dependent lookup) fix; ST_NOTFOUND shoult never
           // appear in the output of type checking
-          return env.getSimpleType(name->loc, ST_NOTFOUND);
+          return env.getSimpleType(ST_NOTFOUND);
         }
         else {
           // 10/23/02: I've now changed this to non-disambiguating,
@@ -5823,7 +5822,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
         receiverType = receiverType->asRval();
         receiverType = env.tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, receiverType, NULL /*syntax*/);
         if (wasRef) {
-          receiverType = env.tfac.makeReferenceType(SL_UNKNOWN, receiverType);
+          receiverType = env.tfac.makeReferenceType(receiverType);
         }
       }
 
@@ -6175,7 +6174,7 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
   if (obj->type->containsGeneralizedDependent()) {
     if (isDestructor) {
       // 14.6.2.2 para 4
-      return env.getSimpleType(SL_UNKNOWN, ST_VOID);
+      return env.getSimpleType(ST_VOID);
     }
     else {
       // 14.6.2.2 para 1
@@ -6583,7 +6582,7 @@ Type *sizeofType(Env &env, Type *t, int &size, Expression * /*nullable*/ expr)
   // 5.3.3p6: result is of type 'size_t'; most systems (including my
   // elsa/include/stddef.h header) make that the same as 'unsigned';
   // in any case, it must be an unsigned integer type (c99, 7.17p2)
-  return t->isError()? t : env.getSimpleType(SL_UNKNOWN, ST_UNSIGNED_INT);
+  return t->isError()? t : env.getSimpleType(ST_UNSIGNED_INT);
 }
 
 Type *E_sizeof::itcheck_x(Env &env, Expression *&replacement)
@@ -6724,7 +6723,7 @@ Type *resolveOverloadedBinaryOperator(
 
     // for postfix inc/dec, the second parameter is 'int'
     if (!e2) {
-      argInfo[1] = ArgumentInfo(SE_NONE, env.getSimpleType(SL_UNKNOWN, ST_INT));
+      argInfo[1] = ArgumentInfo(SE_NONE, env.getSimpleType(ST_INT));
     }
 
     // prepare the overload resolver
@@ -6848,7 +6847,7 @@ Type *E_unary::itcheck_x(Env &env, Expression *&replacement)
     case UNY_PLUS:
       // 5.3.1 para 6
       if (isArithmeticOrEnumType(t)) {
-        return env.getSimpleType(SL_UNKNOWN, applyIntegralPromotions(t));
+        return env.getSimpleType(applyIntegralPromotions(t));
       }
       if (t->isPointerType()) {
         return t;
@@ -6860,7 +6859,7 @@ Type *E_unary::itcheck_x(Env &env, Expression *&replacement)
     case UNY_MINUS:
       // 5.3.1 para 7
       if (isArithmeticOrEnumType(t)) {
-        return env.getSimpleType(SL_UNKNOWN, applyIntegralPromotions(t));
+        return env.getSimpleType(applyIntegralPromotions(t));
       }
       return env.error(t, stringc
         << "argument to unary - must be of arithmetic or enumeration type, not `"
@@ -6868,7 +6867,7 @@ Type *E_unary::itcheck_x(Env &env, Expression *&replacement)
 
     case UNY_NOT: {
       // 5.3.1 para 8
-      Type *t_bool = env.getSimpleType(SL_UNKNOWN, ST_BOOL);
+      Type *t_bool = env.getSimpleType(ST_BOOL);
       if (!getImplicitConversion(env, expr->getSpecial(env.lang), t, t_bool)) {
         env.error(t, stringc
           << "argument to unary ! must be convertible to bool; `"
@@ -6880,7 +6879,7 @@ Type *E_unary::itcheck_x(Env &env, Expression *&replacement)
     case UNY_BITNOT:
       // 5.3.1 para 9
       if (t->isIntegerType() || t->isEnumType()) {
-        return env.getSimpleType(SL_UNKNOWN, applyIntegralPromotions(t));
+        return env.getSimpleType(applyIntegralPromotions(t));
       }
       return env.error(t, stringc
         << "argument to unary ~ must be of integer or enumeration type, not `"
@@ -6923,7 +6922,7 @@ Type *E_effect::itcheck_x(Env &env, Expression *&replacement)
   // The value ... is an lvalue."
   Type *ret = expr->type->asRval();
   if (op == EFF_PREINC || op == EFF_PREDEC) {
-    ret = env.makeReferenceType(env.loc(), ret);
+    ret = env.makeReferenceType(ret);
   }
   return ret;
 }
@@ -6985,7 +6984,7 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
     case BIN_OR:                  // ||
     case BIN_IMPLIES:             // ==>
     case BIN_EQUIVALENT:          // <==>
-      return env.getSimpleType(SL_UNKNOWN, ST_BOOL);
+      return env.getSimpleType(ST_BOOL);
 
     case BIN_COMMA:
       // dsw: I changed this to allow the following: &(3, a);
@@ -7005,7 +7004,7 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
       // dsw: deal with pointer arithmetic correctly; this is the case
       // p1 - p2
       if (lhsType->isPointerType() && rhsType->isPointerType() ) {
-        return env.getSimpleType(SL_UNKNOWN, ST_INT);
+        return env.getSimpleType(ST_INT);
       }
       // default behavior of returning the left side is close enough for now.
       break;
@@ -7125,7 +7124,7 @@ static Type *makePTMType(Env &env, Variable *var, SourceLoc loc)
   xassert(inClass0);
 
   return env.tfac.makePointerToMemberType
-    (SL_UNKNOWN, inClass0, CV_NONE, var->type);
+    (inClass0, CV_NONE, var->type);
 }
 
 Type *E_addrOf::itcheck_x(Env &env, Expression *&replacement)
@@ -7201,7 +7200,7 @@ Type *E_addrOf::itcheck_addrOf_set(Env &env, Expression *&replacement,
   // ok to take addr of function; special-case it so as not to weaken
   // what 'isLval' means
   if (expr->type->isFunctionType()) {
-    return env.makePtrType(SL_UNKNOWN, expr->type);
+    return env.makePtrType(expr->type);
   }
 
   // consider the possibility of operator overloading
@@ -7219,7 +7218,7 @@ Type *E_addrOf::itcheck_addrOf_set(Env &env, Expression *&replacement,
   ReferenceType *rt = expr->type->asReferenceType();
 
   // change the "&" into a "*"
-  return env.makePtrType(SL_UNKNOWN, rt->atType);
+  return env.makePtrType(rt->atType);
 }
 
 
@@ -7289,7 +7288,7 @@ Type *E_cast::itcheck_x(Env &env, Expression *&replacement)
   // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Lvalues.html
   if (env.lang.lvalueFlowsThroughCast) {
     if (expr->getType()->isReference() && !ret->isReference()) {
-      ret = env.makeReferenceType(env.loc(), ret);
+      ret = env.makeReferenceType(ret);
     }
   }
 
@@ -7348,10 +7347,10 @@ Type *attemptCondConversion(Env &env, ImplicitConversion &ic /*OUT*/,
 Type *arrAndFuncToPtr(Env &env, Type *t)
 {
   if (t->isArrayType()) {
-    return env.makePtrType(SL_UNKNOWN, t->asArrayType()->eltType);
+    return env.makePtrType(t->asArrayType()->eltType);
   }
   if (t->isFunctionType()) {
-    return env.makePtrType(SL_UNKNOWN, t);
+    return env.makePtrType(t);
   }
   return t;
 }
@@ -7373,8 +7372,8 @@ Type *compositePointerType
       return t2;
     }
 
-    return env.tfac.makePointerType(SL_UNKNOWN, CV_NONE,
-      env.tfac.getSimpleType(SL_UNKNOWN, ST_VOID, cv));
+    return env.tfac.makePointerType(CV_NONE,
+      env.tfac.getSimpleType(ST_VOID, cv));
   }
 
   // types must be similar... aw hell.  I don't understand what the
@@ -7402,7 +7401,7 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
 
   // para 1: 'cond' converted to bool
   if (!getImplicitConversion(env, cond->getSpecial(env.lang), cond->type,
-                             env.getSimpleType(SL_UNKNOWN, ST_BOOL))) {
+                             env.getSimpleType(ST_BOOL))) {
     env.error(cond->type, stringc
       << "cannot convert `" << cond->type->toString() 
       << "' to bool for conditional of ?:");
@@ -7714,7 +7713,7 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
     compareCtorArgsToParams(env, ctor0, ctorArgs->list, argInfo);
   }
 
-  return env.makePtrType(SL_UNKNOWN, t);
+  return env.makePtrType(t);
 }
 
 
@@ -7732,7 +7731,7 @@ Type *E_delete::itcheck_x(Env &env, Expression *&replacement)
       << "can only delete pointers, not `" << t->toString() << "'");
   }
   
-  return env.getSimpleType(SL_UNKNOWN, ST_VOID);
+  return env.getSimpleType(ST_VOID);
 }
 
 
@@ -7745,7 +7744,7 @@ Type *E_throw::itcheck_x(Env &env, Expression *&replacement)
     // TODO: make sure that we're inside a 'catch' clause
   }
 
-  return env.getSimpleType(SL_UNKNOWN, ST_VOID);
+  return env.getSimpleType(ST_VOID);
 }
 
 
@@ -8268,7 +8267,7 @@ void TP_type::itcheck(Env &env, int&)
 
   // make a type variable for this thing
   TypeVariable *tvar = new TypeVariable(name);
-  CVAtomicType *fullType = env.makeType(loc, tvar);
+  CVAtomicType *fullType = env.makeType(tvar);
 
   // make a typedef variable for this type
   this->var = env.makeVariable(loc, name, fullType,

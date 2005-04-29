@@ -265,7 +265,7 @@ Expression *ElabVisitor::makeThisRef(SourceLoc loc)
   // "this"
   E_this *ths = new E_this;
   ths->receiver = receiver;
-  ths->type = tfac.makePointerType(loc, CV_CONST, receiver->type->asRval());
+  ths->type = tfac.makePointerType(CV_CONST, receiver->type->asRval());
 
   // "*this"
   E_deref *deref = new E_deref(ths);
@@ -751,7 +751,7 @@ void ElabVisitor::elaborateFunctionStart(Function *f)
 
     SourceLoc loc = f->nameAndParams->decl->loc;
     Type *retValType =
-      env.tfac.makeReferenceType(loc, ft->retType);
+      env.tfac.makeReferenceType(ft->retType);
     StringRef retValName = env.str("<retVar>");
     f->retVar = env.makeVariable(loc, retValName, retValType, DF_PARAMETER);
     ft->registerRetVar(f->retVar);
@@ -1558,7 +1558,7 @@ bool E_delete::elaborate(ElabVisitor &env)
     expr = env.cloneExpr(expr);
 
     E_deref *deref = new E_deref(origExpr);
-    deref->type = env.tfac.makeReferenceType(loc, to->atType);
+    deref->type = env.tfac.makeReferenceType(to->atType);
 
     dtorStatement = env.makeDtorStatement
       (loc,
@@ -1713,7 +1713,7 @@ bool ElabVisitor::visitMemberInit(MemberInit *mi)
       // initializing a base class subobject
 
       // need a Type for the eventual E_constructor...
-      Type *type = tfac.makeCVAtomicType(loc, mi->base, CV_NONE);
+      Type *type = tfac.makeCVAtomicType(mi->base, CV_NONE);
 
       mi->ctorStatement = makeCtorStatement
         (loc, makeE_variable(loc, func->receiver), type,

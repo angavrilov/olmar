@@ -1145,29 +1145,24 @@ public:
   // ---- constructors for the constructed types ----
   // the 'loc' being passed is the start of the syntactic construct
   // which causes the type to be created or needed (but see below)
-  virtual CVAtomicType *makeCVAtomicType(SourceLoc loc,
-    AtomicType *atomic, CVFlags cv)=0;
+  virtual CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv)=0;
 
-  virtual PointerType *makePointerType(SourceLoc loc,
-    CVFlags cv, Type *atType)=0;
+  virtual PointerType *makePointerType(CVFlags cv, Type *atType)=0;
 
   // this returns a Type* instead of a ReferenceType because I need to
   // be able to return an error type
-  virtual Type *makeReferenceType(SourceLoc loc,
-    Type *atType)=0;
+  virtual Type *makeReferenceType(Type *atType)=0;
 
-  virtual FunctionType *makeFunctionType(SourceLoc loc,
-    Type *retType)=0;
+  virtual FunctionType *makeFunctionType(Type *retType)=0;
 
   // this must be called after 'makeFunctionType', once all of the
   // parameters have been added
   virtual void doneParams(FunctionType *ft)=0;
 
-  virtual ArrayType *makeArrayType(SourceLoc loc,
-    Type *eltType, int size)=0;
+  virtual ArrayType *makeArrayType(Type *eltType, int size)=0;
 
-  virtual PointerToMemberType *makePointerToMemberType(SourceLoc loc,
-    NamedAtomicType *inClassNAT, CVFlags cv, Type *atType)=0;
+  virtual PointerToMemberType *makePointerToMemberType
+    (NamedAtomicType *inClassNAT, CVFlags cv, Type *atType)=0;
 
 
   // NOTE: I very much want to get rid of this 'loc' business in the
@@ -1252,16 +1247,16 @@ public:
 
   // given an AtomicType, wrap it in a CVAtomicType
   // with no const or volatile qualifiers
-  CVAtomicType *makeType(SourceLoc loc, AtomicType *atomic)
-    { return makeCVAtomicType(loc, atomic, CV_NONE); }
+  CVAtomicType *makeType(AtomicType *atomic)
+    { return makeCVAtomicType(atomic, CV_NONE); }
 
   // make a ptr-to-'type' type; returns generic Type instead of
   // PointerType because sometimes I return ST_ERROR
-  inline Type *makePtrType(SourceLoc loc, Type *type)
-    { return type->isError()? type : makePointerType(loc, CV_NONE, type); }
+  inline Type *makePtrType(Type *type)
+    { return type->isError()? type : makePointerType(CV_NONE, type); }
 
   // map a simple type into its CVAtomicType representative
-  CVAtomicType *getSimpleType(SourceLoc loc, SimpleTypeId st, CVFlags cv = CV_NONE);
+  CVAtomicType *getSimpleType(SimpleTypeId st, CVFlags cv = CV_NONE);
 
   // given an array type with no size, return one that is
   // the same except its size is as specified
@@ -1285,19 +1280,15 @@ private:   // data
 
 public:    // funcs
   // TypeFactory funcs
-  virtual CVAtomicType *makeCVAtomicType(SourceLoc loc, 
-    AtomicType *atomic, CVFlags cv);
-  virtual PointerType *makePointerType(SourceLoc loc,
-    CVFlags cv, Type *atType);
-  virtual Type *makeReferenceType(SourceLoc loc,
-    Type *atType);
-  virtual FunctionType *makeFunctionType(SourceLoc loc,
-    Type *retType);
+  virtual CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv);
+  virtual PointerType *makePointerType(CVFlags cv, Type *atType);
+  virtual Type *makeReferenceType(Type *atType);
+  virtual FunctionType *makeFunctionType(Type *retType);
   virtual void doneParams(FunctionType *ft);
-  virtual ArrayType *makeArrayType(SourceLoc loc,
-    Type *eltType, int size);
-  virtual PointerToMemberType *makePointerToMemberType(SourceLoc loc,
-    NamedAtomicType *inClassNAT, CVFlags cv, Type *atType);
+
+  virtual ArrayType *makeArrayType(Type *eltType, int size);
+  virtual PointerToMemberType *makePointerToMemberType
+    (NamedAtomicType *inClassNAT, CVFlags cv, Type *atType);
 
   virtual Variable *makeVariable(SourceLoc L, StringRef n,
                                  Type *t, DeclFlags f, TranslationUnit *tunit);

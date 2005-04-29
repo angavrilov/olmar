@@ -200,8 +200,8 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
     Variable *refToSelfParam =
       env.makeVariable(loc,
                        env.otherName,
-                       env.makeReferenceType(loc,
-                         env.makeCVAtomicType(loc, ct, CV_CONST)),
+                       env.makeReferenceType(
+                         env.makeCVAtomicType(ct, CV_CONST)),
                        DF_PARAMETER);
     ft->addParam(refToSelfParam);
     env.doneParams(ft);
@@ -241,11 +241,11 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
 
     // add a copy assignment op declaration: Class& operator=(Class const &);
     Type *refToSelfType =
-      env.makeReferenceType(loc, env.makeCVAtomicType(loc, ct, CV_NONE));
+      env.makeReferenceType(env.makeCVAtomicType(ct, CV_NONE));
     Type *refToConstSelfType =
-      env.makeReferenceType(loc, env.makeCVAtomicType(loc, ct, CV_CONST));
+      env.makeReferenceType(env.makeCVAtomicType(ct, CV_CONST));
 
-    FunctionType *ft = env.makeFunctionType(loc, refToSelfType);
+    FunctionType *ft = env.makeFunctionType(refToSelfType);
 
     // receiver object
     ft->addReceiver(env.makeVariable(loc, env.receiverName,
@@ -384,30 +384,30 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   }
 
   dependentTypeVar = makeVariable(SL_INIT, str("<dependentTypeVar>"),
-                                  getSimpleType(SL_INIT, ST_DEPENDENT), DF_TYPEDEF);
+                                  getSimpleType(ST_DEPENDENT), DF_TYPEDEF);
 
   dependentVar = makeVariable(SL_INIT, str("<dependentVar>"),
-                              getSimpleType(SL_INIT, ST_DEPENDENT), DF_NONE);
+                              getSimpleType(ST_DEPENDENT), DF_NONE);
 
   errorTypeVar = makeVariable(SL_INIT, str("<errorTypeVar>"),
-                              getSimpleType(SL_INIT, ST_ERROR), DF_TYPEDEF);
+                              getSimpleType(ST_ERROR), DF_TYPEDEF);
 
   // this is *not* a typedef, because I use it in places that I
   // want something to be treated as a variable, not a type
   errorVar = makeVariable(SL_INIT, str("<errorVar>"),
-                          getSimpleType(SL_INIT, ST_ERROR), DF_NONE);
+                          getSimpleType(ST_ERROR), DF_NONE);
 
   errorCompoundType = tfac.makeCompoundType(CompoundType::K_CLASS, str("<errorCompoundType>"));
   errorCompoundType->typedefVar = errorTypeVar;
 
   // create declarations for some built-in operators
   // [cppstd 3.7.3 para 2]
-  Type *t_void = getSimpleType(SL_INIT, ST_VOID);
-  Type *t_voidptr = makePtrType(SL_INIT, t_void);
+  Type *t_void = getSimpleType(ST_VOID);
+  Type *t_voidptr = makePtrType(t_void);
 
   // note: my stddef.h typedef's size_t to be 'int', so I just use
   // 'int' directly here instead of size_t
-  Type *t_size_t = getSimpleType(SL_INIT, ST_INT);
+  Type *t_size_t = getSimpleType(ST_INT);
 
   // but I do need a class called 'bad_alloc'..
   //   class bad_alloc;
@@ -449,7 +449,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   // for GNU compatibility
   // void *__builtin_next_arg(void const *p);
   declareFunction1arg(t_voidptr, "__builtin_next_arg",
-                      getSimpleType(SL_INIT, ST_ANY_TYPE), "p");
+                      getSimpleType(ST_ANY_TYPE), "p");
 
   if (lang.predefined_Bool) {
     // sm: I found this; it's a C99 feature: 6.2.5, para 2.  It's
@@ -457,7 +457,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // leave it alone for now.
     //
     // typedef bool _Bool;
-    Type *t_bool = getSimpleType(SL_INIT, ST_BOOL);
+    Type *t_bool = getSimpleType(ST_BOOL);
     addVariable(makeVariable(SL_INIT, str("_Bool"),
                              t_bool, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL));
   }
@@ -526,11 +526,11 @@ void Env::setupOperatorOverloading()
 
   // this has to match the typedef in include/stddef.h
   SimpleTypeId ptrdiff_t_id = ST_INT;
-  Type *t_ptrdiff_t = getSimpleType(SL_INIT, ptrdiff_t_id);
+  Type *t_ptrdiff_t = getSimpleType(ptrdiff_t_id);
 
   // some other useful types
-  Type *t_int = getSimpleType(SL_INIT, ST_INT);
-  Type *t_bool = getSimpleType(SL_INIT, ST_BOOL);
+  Type *t_int = getSimpleType(ST_INT);
+  Type *t_bool = getSimpleType(ST_BOOL);
 
   // Below, whenever the standard calls for 'VQ' (volatile or
   // nothing), I use two copies of the rule, one with volatile and one
@@ -541,11 +541,11 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 3 ------------
   {
-    Type *T = getSimpleType(SL_INIT, ST_ARITHMETIC);
-    Type *Tv = getSimpleType(SL_INIT, ST_ARITHMETIC, CV_VOLATILE);
+    Type *T = getSimpleType(ST_ARITHMETIC);
+    Type *Tv = getSimpleType(ST_ARITHMETIC, CV_VOLATILE);
 
-    Type *Tr = tfac.makeReferenceType(SL_INIT, T);
-    Type *Tvr = tfac.makeReferenceType(SL_INIT, Tv);
+    Type *Tr = tfac.makeReferenceType(T);
+    Type *Tvr = tfac.makeReferenceType(Tv);
 
     // VQ T& operator++ (VQ T&);
     addBuiltinUnaryOp(ST_PRET_FIRST, OP_PLUSPLUS, Tr);
@@ -558,11 +558,11 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 4 ------------
   {
-    Type *T = getSimpleType(SL_INIT, ST_ARITHMETIC_NON_BOOL);
-    Type *Tv = getSimpleType(SL_INIT, ST_ARITHMETIC_NON_BOOL, CV_VOLATILE);
+    Type *T = getSimpleType(ST_ARITHMETIC_NON_BOOL);
+    Type *Tv = getSimpleType(ST_ARITHMETIC_NON_BOOL, CV_VOLATILE);
 
-    Type *Tr = tfac.makeReferenceType(SL_INIT, T);
-    Type *Tvr = tfac.makeReferenceType(SL_INIT, Tv);
+    Type *Tr = tfac.makeReferenceType(T);
+    Type *Tvr = tfac.makeReferenceType(Tv);
 
     // VQ T& operator-- (VQ T&);
     addBuiltinUnaryOp(ST_PRET_FIRST, OP_MINUSMINUS, Tr);
@@ -575,13 +575,13 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 5 ------------
   {
-    Type *T = getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE);
+    Type *T = getSimpleType(ST_ANY_OBJ_TYPE);
 
-    Type *Tp = tfac.makePointerType(SL_INIT, CV_NONE, T);
-    Type *Tpv = tfac.makePointerType(SL_INIT, CV_VOLATILE, T);
+    Type *Tp = tfac.makePointerType(CV_NONE, T);
+    Type *Tpv = tfac.makePointerType(CV_VOLATILE, T);
 
-    Type *Tpr = tfac.makeReferenceType(SL_INIT, Tp);
-    Type *Tpvr = tfac.makeReferenceType(SL_INIT, Tpv);
+    Type *Tpr = tfac.makeReferenceType(Tp);
+    Type *Tpvr = tfac.makeReferenceType(Tpv);
 
     // T* VQ & operator++ (T* VQ &);
     addBuiltinUnaryOp(ST_PRET_FIRST, OP_PLUSPLUS, Tpr);
@@ -602,8 +602,8 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 paras 6 and 7 ------------
   {
-    Type *T = getSimpleType(SL_INIT, ST_ANY_NON_VOID);
-    Type *Tp = makePtrType(SL_INIT, T);
+    Type *T = getSimpleType(ST_ANY_NON_VOID);
+    Type *Tp = makePtrType(T);
 
     // T& operator* (T*);
     addBuiltinUnaryOp(ST_PRET_FIRST_PTR2REF, OP_STAR, Tp);
@@ -611,8 +611,8 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 8 ------------
   {
-    Type *T = getSimpleType(SL_INIT, ST_ANY_TYPE);
-    Type *Tp = makePtrType(SL_INIT, T);
+    Type *T = getSimpleType(ST_ANY_TYPE);
+    Type *Tp = makePtrType(T);
 
     // T* operator+ (T*);
     addBuiltinUnaryOp(ST_PRET_FIRST, OP_PLUS, Tp);
@@ -620,7 +620,7 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 9 ------------
   {
-    Type *T = getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC);
+    Type *T = getSimpleType(ST_PROMOTED_ARITHMETIC);
 
     // T operator+ (T);
     addBuiltinUnaryOp(ST_PRET_FIRST, OP_PLUS, T);
@@ -631,7 +631,7 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 10 ------------
   {
-    Type *T = getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL);
+    Type *T = getSimpleType(ST_PROMOTED_INTEGRAL);
 
     // T operator~ (T);
     addBuiltinUnaryOp(ST_PRET_FIRST, OP_BITNOT, T);
@@ -643,8 +643,8 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 12 ------------
   {
-    Type *L = getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC);
-    Type *R = getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC);
+    Type *L = getSimpleType(ST_PROMOTED_ARITHMETIC);
+    Type *R = getSimpleType(ST_PROMOTED_ARITHMETIC);
 
     static OverloadableOp const ops1[] = {
       OP_STAR,         // LR operator* (L, R);
@@ -675,8 +675,8 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 13 ------------
   {
-    Type *T = getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE);
-    Type *Tp = makePtrType(SL_INIT, T);
+    Type *T = getSimpleType(ST_ANY_OBJ_TYPE);
+    Type *Tp = makePtrType(T);
 
     // T* operator+ (T*, ptrdiff_t);
     addBuiltinBinaryOp(ST_PRET_FIRST, OP_PLUS, Tp, t_ptrdiff_t);
@@ -731,8 +731,8 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 17 ------------
   {
-    Type *L = getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL);
-    Type *R = getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL);
+    Type *L = getSimpleType(ST_PROMOTED_INTEGRAL);
+    Type *R = getSimpleType(ST_PROMOTED_INTEGRAL);
 
     static OverloadableOp const ops[] = {
       OP_MOD,          // LR operator% (L,R);
@@ -754,13 +754,13 @@ void Env::setupOperatorOverloading()
   // ------------ 13.6 para 18 ------------
   // assignment/arith to arithmetic types
   {
-    Type *L = getSimpleType(SL_INIT, ST_ARITHMETIC);
-    Type *Lv = getSimpleType(SL_INIT, ST_ARITHMETIC, CV_VOLATILE);
+    Type *L = getSimpleType(ST_ARITHMETIC);
+    Type *Lv = getSimpleType(ST_ARITHMETIC, CV_VOLATILE);
 
-    Type *Lr = tfac.makeReferenceType(SL_INIT, L);
-    Type *Lvr = tfac.makeReferenceType(SL_INIT, Lv);
+    Type *Lr = tfac.makeReferenceType(L);
+    Type *Lvr = tfac.makeReferenceType(Lv);
 
-    Type *R = getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC);
+    Type *R = getSimpleType(ST_PROMOTED_ARITHMETIC);
 
     static OverloadableOp const ops[] = {
       OP_ASSIGN,       // VQ L& operator= (VQ L&, R);
@@ -808,13 +808,13 @@ void Env::setupOperatorOverloading()
   // ------------ 13.6 para 21 ------------
   // 21: +=, -= for pointer type
   {
-    Type *T = getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE);
+    Type *T = getSimpleType(ST_ANY_OBJ_TYPE);
 
-    Type *Tp = tfac.makePointerType(SL_INIT, CV_NONE, T);
-    Type *Tpv = tfac.makePointerType(SL_INIT, CV_VOLATILE, T);
+    Type *Tp = tfac.makePointerType(CV_NONE, T);
+    Type *Tpv = tfac.makePointerType(CV_VOLATILE, T);
 
-    Type *Tpr = tfac.makeReferenceType(SL_INIT, Tp);
-    Type *Tpvr = tfac.makeReferenceType(SL_INIT, Tpv);
+    Type *Tpr = tfac.makeReferenceType(Tp);
+    Type *Tpvr = tfac.makeReferenceType(Tpv);
 
     // T* VQ & operator+= (T* VQ &, ptrdiff_t);
     addBuiltinBinaryOp(ST_PRET_FIRST, OP_PLUSEQ, Tpr, t_ptrdiff_t);
@@ -828,13 +828,13 @@ void Env::setupOperatorOverloading()
   // ------------ 13.6 para 22 ------------
   // 22: assignment/arith to integral type
   {
-    Type *L = getSimpleType(SL_INIT, ST_INTEGRAL, CV_NONE);
-    Type *Lv = getSimpleType(SL_INIT, ST_INTEGRAL, CV_VOLATILE);
+    Type *L = getSimpleType(ST_INTEGRAL, CV_NONE);
+    Type *Lv = getSimpleType(ST_INTEGRAL, CV_VOLATILE);
 
-    Type *Lr = tfac.makeReferenceType(SL_INIT, L);
-    Type *Lvr = tfac.makeReferenceType(SL_INIT, Lv);
+    Type *Lr = tfac.makeReferenceType(L);
+    Type *Lvr = tfac.makeReferenceType(Lv);
     
-    Type *R = getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL);
+    Type *R = getSimpleType(ST_PROMOTED_INTEGRAL);
 
     static OverloadableOp const ops[] = {
       OP_MODEQ,        // VQ L& operator%= (VQ L&, R);
@@ -863,8 +863,8 @@ void Env::setupOperatorOverloading()
   // ------------ 13.6 para 24 ------------
   // 24: ?: on arithmetic types
   {
-    Type *L = getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC);
-    Type *R = getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC);
+    Type *L = getSimpleType(ST_PROMOTED_ARITHMETIC);
+    Type *R = getSimpleType(ST_PROMOTED_ARITHMETIC);
 
     // NOTE: For the '?:' operator, I pretend it is binary because the
     // first argument plays no role in overload resolution, and the
@@ -945,7 +945,7 @@ Variable *Env::declareFunctionNargs(
   FunctionFlags flags,
   Type * /*nullable*/ exnType)
 {
-  FunctionType *ft = makeFunctionType(SL_INIT, retType);
+  FunctionType *ft = makeFunctionType(retType);
   ft->flags |= flags;
 
   for (int i=0; i < numArgs; i++) {
@@ -980,7 +980,7 @@ Variable *Env::declareFunctionNargs(
 // returns 'int'; this is for Elsa's internal testing hook functions
 Variable *Env::declareSpecialFunction(char const *name)
 {
-  return declareFunction0arg(getSimpleType(SL_INIT, ST_INT), name, FF_VARARGS);
+  return declareFunction0arg(getSimpleType(ST_INT), name, FF_VARARGS);
 }
 
 
@@ -1039,8 +1039,8 @@ FunctionType *Env::makeImplicitDeclFuncType()
 {
   // don't need a clone type here as getSimpleType() calls
   // makeCVAtomicType() which in oink calls new.
-  Type *ftRet = tfac.getSimpleType(loc(), ST_INT, CV_NONE);
-  FunctionType *ft = makeFunctionType(loc(), ftRet);
+  Type *ftRet = tfac.getSimpleType(ST_INT, CV_NONE);
+  FunctionType *ft = makeFunctionType(ftRet);
   ft->flags |= FF_NO_PARAM_INFO;
   doneParams(ft);
   return ft;
@@ -1059,7 +1059,7 @@ Variable *Env::makeImplicitDeclFuncVar(StringRef name)
 
 FunctionType *Env::beginConstructorFunctionType(SourceLoc loc, CompoundType *ct)
 {
-  FunctionType *ft = makeFunctionType(loc, makeType(loc, ct));
+  FunctionType *ft = makeFunctionType(makeType(ct));
   ft->flags |= FF_CTOR;
   // asymmetry with makeDestructorFunctionType(): this must be done by the client
 //    doneParams(ft);
@@ -1069,7 +1069,7 @@ FunctionType *Env::beginConstructorFunctionType(SourceLoc loc, CompoundType *ct)
 
 FunctionType *Env::makeDestructorFunctionType(SourceLoc loc, CompoundType *ct)
 {
-  FunctionType *ft = makeFunctionType(loc, getSimpleType(loc, ST_VOID));
+  FunctionType *ft = makeFunctionType(getSimpleType(ST_VOID));
 
   if (!ct) {
     // there's a weird case in E_fieldAcc::itcheck_x where we're making
@@ -1529,7 +1529,7 @@ bool Env::addTypeTag(Variable *tag)
 
 Type *Env::declareEnum(SourceLoc loc /*...*/, EnumType *et)
 {
-  Type *ret = makeType(loc, et);
+  Type *ret = makeType(et);
   if (et->name) {
     // make the implicit typedef
     Variable *tv = makeVariable(loc, et->name, ret, DF_TYPEDEF | DF_IMPLICIT);
@@ -2443,7 +2443,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
   }
 
   // make the implicit typedef
-  Type *ret = makeType(loc, ct);
+  Type *ret = makeType(ct);
   Variable *tv = makeVariable(loc, name, ret, DF_TYPEDEF | DF_IMPLICIT);
   ct->typedefVar = tv;
 
@@ -2575,7 +2575,7 @@ Variable *Env::receiverParameter(SourceLoc loc, NamedAtomicType *nat, CVFlags cv
     selfType = tfac.applyCVToType(SL_UNKNOWN, cv, selfType, NULL /*syntax*/);
 
     // build a reference
-    recType = makeReferenceType(loc, selfType);
+    recType = makeReferenceType(selfType);
   }
   else {
     // this doesn't use 'implicitReceiverType' because of the warnings above
@@ -2599,12 +2599,12 @@ Type *Env::operandRval(Type *t)
   
   // 4.2: array to pointer
   if (t->isArrayType()) {
-    t = makePointerType(SL_UNKNOWN, CV_NONE, t->getAtType());
+    t = makePointerType(CV_NONE, t->getAtType());
   }
 
   // 4.2: function to pointer
   if (t->isFunctionType()) {
-    t = makePointerType(SL_UNKNOWN, CV_NONE, t);
+    t = makePointerType(CV_NONE, t);
   }
 
   return t;
@@ -2628,7 +2628,7 @@ Type *Env::type_info_const_ref()
   Variable *ti = scope->lookupVariable(str("type_info"), *this, LF_ONLY_TYPES);
   if (ti && ti->hasFlag(DF_TYPEDEF)) {
     // make a const reference
-    return makeReferenceType(loc(),
+    return makeReferenceType(
              tfac.applyCVToType(loc(), CV_CONST, ti->type, NULL /*syntax*/));
   }
   else {
@@ -2639,7 +2639,7 @@ Type *Env::type_info_const_ref()
 
 void Env::addBuiltinUnaryOp(SimpleTypeId retId, OverloadableOp op, Type *x)
 {
-  Type *retType = getSimpleType(SL_INIT, retId);
+  Type *retType = getSimpleType(retId);
   builtinUnaryOperator[op].push(createBuiltinUnaryOp(retType, op, x));
 }
 
@@ -2658,7 +2658,7 @@ Variable *Env::createBuiltinUnaryOp(Type *retType, OverloadableOp op, Type *x)
 void Env::addBuiltinBinaryOp(SimpleTypeId retId, OverloadableOp op,
                              Type *x, Type *y)
 {
-  Type *retType = getSimpleType(SL_INIT, retId);
+  Type *retType = getSimpleType(retId);
   addBuiltinBinaryOp(op, new PolymorphicCandidateSet(
     createBuiltinBinaryOp(retType, op, x, y)));
 }
@@ -3700,7 +3700,7 @@ PseudoInstantiation *Env::createPseudoInstantiation
   pi->args.reverse();
 
   // make the typedef var; do *not* add it to the environment
-  pi->typedefVar = makeVariable(loc(), ct->name, makeType(loc(), pi),
+  pi->typedefVar = makeVariable(loc(), ct->name, makeType(pi),
                                 DF_TYPEDEF | DF_IMPLICIT);
 
   return pi;
@@ -3906,7 +3906,7 @@ void Env::setOverloadedFunctionVar(Expression *e, Variable *selVar)
 
     E_addrOf *a = e->asE_addrOf();
     setOverloadedFunctionVar(a->expr, selVar);
-    a->type = makePointerType(loc(), CV_NONE, a->expr->type);
+    a->type = makePointerType(CV_NONE, a->expr->type);
     return;
   }
 
@@ -4245,7 +4245,7 @@ Type *Env::resolveDQTs(SourceLoc loc, Type *t)
       PointerType *pt = t->asPointerType();
       Type *resolved = resolveDQTs(loc, pt->atType);
       if (resolved) {
-        return tfac.makePointerType(loc, pt->cv, resolved);
+        return tfac.makePointerType(pt->cv, resolved);
       }
       return NULL;
     }
@@ -4254,7 +4254,7 @@ Type *Env::resolveDQTs(SourceLoc loc, Type *t)
       ReferenceType *rt = t->asReferenceType();
       Type *resolved = resolveDQTs(loc, rt->atType);
       if (resolved) {
-        return tfac.makeReferenceType(loc, resolved);
+        return tfac.makeReferenceType(resolved);
       }
       return NULL;
     }
@@ -4268,7 +4268,7 @@ Type *Env::resolveDQTs(SourceLoc loc, Type *t)
         tfac.doneParams(ft);
 
         // return a new unfinished function type
-        return tfac.makeFunctionType(loc, resolved);
+        return tfac.makeFunctionType(resolved);
       }
       return NULL;
     }
@@ -4277,7 +4277,7 @@ Type *Env::resolveDQTs(SourceLoc loc, Type *t)
       ArrayType *at = t->asArrayType();
       Type *resolved = resolveDQTs(loc, at->eltType);
       if (resolved) {
-        return tfac.makeArrayType(loc, resolved, at->size);
+        return tfac.makeArrayType(resolved, at->size);
       }
       return NULL;
     }
@@ -4312,7 +4312,7 @@ Type *Env::resolveDQTs(SourceLoc loc, Type *t)
           // class in the right circumstances
         }
 
-        return tfac.makePointerToMemberType(loc, nat, ptm->cv, resolvedAtType);
+        return tfac.makePointerToMemberType(nat, ptm->cv, resolvedAtType);
       }
       return NULL;
     }
@@ -4803,7 +4803,7 @@ void Env::finishDependentQType(LookupSet &set, DependentQType * /*nullable*/ dqt
     // slap a typedefVar on 'dqt' so we can put it into 'set'
     dqt->name = name->getName();
     dqt->typedefVar = makeVariable(name->loc, dqt->name,
-                                   makeType(name->loc, dqt),
+                                   makeType(dqt),
                                    DF_TYPEDEF | DF_IMPLICIT);
     set.add(dqt->typedefVar);
   }
@@ -5125,12 +5125,12 @@ DisambiguationErrorTrapper::~DisambiguationErrorTrapper()
 // -------- diagnostics --------
 Type *Env::errorType()
 {
-  return getSimpleType(SL_UNKNOWN, ST_ERROR);
+  return getSimpleType(ST_ERROR);
 }
 
 Type *Env::dependentType()
 {
-  return getSimpleType(SL_UNKNOWN, ST_DEPENDENT);
+  return getSimpleType(ST_DEPENDENT);
 }
 
 Type *Env::error(rostring msg, ErrorFlags eflags)
@@ -5149,7 +5149,7 @@ Type *Env::warning(SourceLoc loc, rostring msg)
   string instLoc = instLocStackString();
   TRACE("error", "warning: " << msg << instLoc);
   errors.addError(new ErrorMsg(loc, msg, EF_WARNING, instLoc));
-  return getSimpleType(SL_UNKNOWN, ST_ERROR);
+  return getSimpleType(ST_ERROR);
 }
 
 
@@ -5164,7 +5164,7 @@ Type *Env::unimp(rostring msg)
   breaker();
   errors.addError(new ErrorMsg(
     loc(), stringc << "unimplemented: " << msg, EF_NONE, instLoc));
-  return getSimpleType(SL_UNKNOWN, ST_ERROR);
+  return getSimpleType(ST_ERROR);
 }
 
 
@@ -5178,7 +5178,7 @@ Type *Env::error(Type *t, SourceLoc loc, rostring msg)
   if (t->containsErrors() ||
       (!doReportTemplateErrors && t->containsTypeVariables())) {
     // no report
-    return getSimpleType(SL_UNKNOWN, ST_ERROR);
+    return getSimpleType(ST_ERROR);
   }
   else {
     // report; clashes never disambiguate

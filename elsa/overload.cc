@@ -104,7 +104,7 @@ Type *OverloadResolver::getReturnType(Candidate const *winner) const
     // e.g. T& operator* (T*)
     case ST_PRET_FIRST_PTR2REF: {
       Type *T = concreteParamTypes[0]->getAtType();
-      return env.tfac.makeReferenceType(SL_UNKNOWN, T);
+      return env.tfac.makeReferenceType(T);
     }
 
     // see E_binary::itcheck_x and resolveOverloadedBinaryOperator
@@ -1658,7 +1658,7 @@ Type *similarLUB(Env &env, Type *t1, Type *t2, bool &cvdiffers, bool toplevel=fa
       CVAtomicType *at1 = t1->asCVAtomicType();
       CVAtomicType *at2 = t2->asCVAtomicType();
       CVFlags cvu = unionCV(at1->cv, at2->cv, cvdiffers, toplevel);
-      return env.tfac.makeCVAtomicType(SL_UNKNOWN, at1->atomic, cvu);
+      return env.tfac.makeCVAtomicType(at1->atomic, cvu);
     }
 
     case Type::T_POINTER: {
@@ -1666,14 +1666,14 @@ Type *similarLUB(Env &env, Type *t1, Type *t2, bool &cvdiffers, bool toplevel=fa
       PointerType *pt2 = t2->asPointerType();
       Type *under = similarLUB(env, pt1->atType, pt2->atType, cvdiffers);
       CVFlags cvu = unionCV(pt1->cv, pt2->cv, cvdiffers, toplevel);
-      return env.tfac.makePointerType(SL_UNKNOWN, cvu, under);
+      return env.tfac.makePointerType(cvu, under);
     }
 
     case Type::T_REFERENCE: {
       ReferenceType *rt1 = t1->asReferenceType();
       ReferenceType *rt2 = t2->asReferenceType();
       Type *under = similarLUB(env, rt1->atType, rt2->atType, cvdiffers);
-      return env.tfac.makeReferenceType(SL_UNKNOWN, under);
+      return env.tfac.makeReferenceType(under);
     }
 
     case Type::T_FUNCTION:
@@ -1686,7 +1686,7 @@ Type *similarLUB(Env &env, Type *t1, Type *t2, bool &cvdiffers, bool toplevel=fa
       PointerToMemberType *pmt2 = t2->asPointerToMemberType();
       Type *under = similarLUB(env, pmt1->atType, pmt2->atType, cvdiffers);
       CVFlags cvu = unionCV(pmt1->cv, pmt2->cv, cvdiffers, toplevel);
-      return env.tfac.makePointerToMemberType(SL_UNKNOWN, pmt1->inClassNAT, cvu, under);
+      return env.tfac.makePointerToMemberType(pmt1->inClassNAT, cvu, under);
     }
   }
 }
@@ -1735,7 +1735,7 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
         }
         else {
           // no class is the LUB, so use 'void'
-          lubCtType = env.tfac.getSimpleType(SL_UNKNOWN, ST_VOID, cvu);
+          lubCtType = env.tfac.getSimpleType(ST_VOID, cvu);
         }
       }
       else {
@@ -1749,10 +1749,10 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
         if (ct2==lubCt && cv2==cvu && t2->getCVFlags()==CV_NONE) return t2;
 
         // make a type from the class
-        lubCtType = env.tfac.makeCVAtomicType(SL_UNKNOWN, lubCt, cvu);
+        lubCtType = env.tfac.makeCVAtomicType(lubCt, cvu);
       }
 
-      return env.tfac.makePointerType(SL_UNKNOWN, CV_NONE, lubCtType);
+      return env.tfac.makePointerType(CV_NONE, lubCtType);
     }
   }
 
@@ -1762,8 +1762,8 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
     // since qualifier conversions can only add qualifiers, the LUB type
     // must be a ptr-to-void with the union of the atType cv flags
     CVFlags cv = t1->getAtType()->getCVFlags() | t2->getAtType()->getCVFlags();
-    return env.tfac.makePointerType(SL_UNKNOWN, CV_NONE,
-      env.tfac.getSimpleType(SL_UNKNOWN, ST_VOID, cv));
+    return env.tfac.makePointerType(CV_NONE,
+      env.tfac.getSimpleType(ST_VOID, cv));
   }
 
   // TODO: I should check for pointer-to-members that are compatible

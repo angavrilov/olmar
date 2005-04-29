@@ -734,8 +734,8 @@ bool MatchTypes::match_Atomic(AtomicType *a, AtomicType *b, int matchDepth)
   // DO NOT MAKE THESE ON THE STACK as one might be a type variable
   // and the other then would get unified into permanent existence
   // on the heap
-  CVAtomicType *aCv = tfac.makeCVAtomicType(SL_UNKNOWN, a, CV_NONE);
-  CVAtomicType *bCv = tfac.makeCVAtomicType(SL_UNKNOWN, b, CV_NONE);
+  CVAtomicType *aCv = tfac.makeCVAtomicType(a, CV_NONE);
+  CVAtomicType *bCv = tfac.makeCVAtomicType(b, CV_NONE);
   return match0(aCv, bCv, matchDepth);
 }
 

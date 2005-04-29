@@ -85,7 +85,7 @@ Type *ImplicitConversion::getConcreteDestType
     }
     else {
       // must re-construct the reference part of the type
-      return tfac.makeReferenceType(SL_UNKNOWN, concrete);
+      return tfac.makeReferenceType(concrete);
     }
   }
 
@@ -116,7 +116,7 @@ Type *ImplicitConversion::inner_getConcreteDestType
 
     // apply the conversion
     if (sconv == SC_ARRAY_TO_PTR) {
-      srcType = tfac.makePointerType(SL_UNKNOWN, CV_NONE,
+      srcType = tfac.makePointerType(CV_NONE,
         srcType->asArrayType()->eltType);
     }
 

@@ -861,7 +861,7 @@ bool isIntegerPromotion(AtomicType const *src, AtomicType const *dest)
 
 Type *makeSimpleType(TypeFactory &tfac, SimpleTypeId id)
 {
-  return tfac.getSimpleType(SL_UNKNOWN, id);
+  return tfac.getSimpleType(id);
 }
 
 Type *getConcreteDestType(TypeFactory &tfac, Type *srcType,

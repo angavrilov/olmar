@@ -25,17 +25,17 @@
 // also http://gcc.gnu.org/onlinedocs/gcc-3.4.3/gcc/Other-Builtins.html
 void Env::addGNUBuiltins()
 {
-  Type *t_void = getSimpleType(SL_INIT, ST_VOID);
+  Type *t_void = getSimpleType(ST_VOID);
 //    Type *t_voidconst = getSimpleType(SL_INIT, ST_VOID, CV_CONST);
-  Type *t_voidptr = makePtrType(SL_INIT, t_void);
+  Type *t_voidptr = makePtrType(t_void);
 //    Type *t_voidconstptr = makePtrType(SL_INIT, t_voidconst);
 
-  Type *t_int = getSimpleType(SL_INIT, ST_INT);
-  Type *t_unsigned_int = getSimpleType(SL_INIT, ST_UNSIGNED_INT);
-  Type *t_char = getSimpleType(SL_INIT, ST_CHAR);
-  Type *t_charconst = getSimpleType(SL_INIT, ST_CHAR, CV_CONST);
-  Type *t_charptr = makePtrType(SL_INIT, t_char);
-  Type *t_charconstptr = makePtrType(SL_INIT, t_charconst);
+  Type *t_int = getSimpleType(ST_INT);
+  Type *t_unsigned_int = getSimpleType(ST_UNSIGNED_INT);
+  Type *t_char = getSimpleType(ST_CHAR);
+  Type *t_charconst = getSimpleType(ST_CHAR, CV_CONST);
+  Type *t_charptr = makePtrType(t_char);
+  Type *t_charconstptr = makePtrType(t_charconst);
 
   // dsw: This is a form, not a function, since it takes an expression
   // AST node as an argument; however, I need a function that takes no
@@ -712,7 +712,7 @@ Type *E_compoundLit::itcheck_x(Env &env, Expression *&replacement)
   // says nothing about being const)."
   Type *t0 = stype->getType();
   Type *t1 = env.computeArraySizeFromCompoundInit(env.loc(), t0, t0, init);
-  return env.makeReferenceType(SL_UNKNOWN, t1);
+  return env.makeReferenceType(t1);
   // TODO: check that the cast (literal) makes sense
 }
 
@@ -733,7 +733,7 @@ Type *E___builtin_constant_p::itcheck_x(Env &env, Expression *&replacement)
   // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Other-Builtins.html#Other%20Builtins
   // TODO: is this right?
   return expr->type->isError()?
-           expr->type : env.getSimpleType(SL_UNKNOWN, ST_UNSIGNED_INT);
+           expr->type : env.getSimpleType(ST_UNSIGNED_INT);
 }
 
 
@@ -765,7 +765,7 @@ Type *E_alignofType::itcheck_x(Env &env, Expression *&replacement)
     return env.error(e.why());
   }
 
-  return t->isError()? t : env.getSimpleType(SL_UNKNOWN, ST_UNSIGNED_INT);
+  return t->isError()? t : env.getSimpleType(ST_UNSIGNED_INT);
 }
 
 
@@ -799,7 +799,7 @@ Type *E_statement::itcheck_x(Env &env, Expression *&replacement)
     }
   }
 
-  return env.getSimpleType(env.loc(), ST_VOID, CV_NONE);
+  return env.getSimpleType(ST_VOID, CV_NONE);
 }
 
 
@@ -820,7 +820,7 @@ Type *E_addrOfLabel::itcheck_x(Env &env, Expression *&replacement)
   // TODO: check that the label exists in the function
   
   // type is void*
-  return env.makePtrType(SL_UNKNOWN, env.getSimpleType(SL_UNKNOWN, ST_VOID));
+  return env.makePtrType(env.getSimpleType(ST_VOID));
 }
 
 

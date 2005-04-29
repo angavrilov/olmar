@@ -2494,17 +2494,17 @@ Type *TypeFactory::setCVQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
 
       // make a new CVAtomicType with the same AtomicType as 'baseType',
       // but with the new flags
-      return makeCVAtomicType(loc, atomic->atomic, cv);
+      return makeCVAtomicType(atomic->atomic, cv);
     }
 
     case Type::T_POINTER: {
       PointerType *ptr = baseType->asPointerType();
-      return makePointerType(loc, cv, ptr->atType);
+      return makePointerType(cv, ptr->atType);
     }
 
     case Type::T_POINTERTOMEMBER: {
       PointerToMemberType *ptm = baseType->asPointerToMemberType();
-      return makePointerToMemberType(loc, ptm->inClassNAT, cv, ptm->atType);
+      return makePointerToMemberType(ptm->inClassNAT, cv, ptm->atType);
     }
 
     default:    // silence warning
@@ -2530,7 +2530,7 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
   else if (baseType->isArrayType()) {
     // 8.3.4 para 1: apply cv to the element type
     ArrayType *at = baseType->asArrayType();
-    return makeArrayType(loc, applyCVToType(loc, cv, at->eltType, NULL /*syntax*/),
+    return makeArrayType(applyCVToType(loc, cv, at->eltType, NULL /*syntax*/),
                          at->size);
   }
   else {
@@ -2544,35 +2544,35 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
 Type *TypeFactory::syntaxPointerType(SourceLoc loc,
   CVFlags cv, Type *type, D_pointer *)
 {
-  return makePointerType(loc, cv, type);
+  return makePointerType(cv, type);
 }
 
 Type *TypeFactory::syntaxReferenceType(SourceLoc loc,
   Type *type, D_reference *)
 {
-  return makeReferenceType(loc, type);
+  return makeReferenceType(type);
 }
 
 
 FunctionType *TypeFactory::syntaxFunctionType(SourceLoc loc,
   Type *retType, D_func *syntax, TranslationUnit *tunit)
 {
-  return makeFunctionType(loc, retType);
+  return makeFunctionType(retType);
 }
 
 
 PointerToMemberType *TypeFactory::syntaxPointerToMemberType(SourceLoc loc,
   NamedAtomicType *inClassNAT, CVFlags cv, Type *atType, D_ptrToMember *syntax)
 {
-  return makePointerToMemberType(loc, inClassNAT, cv, atType);
+  return makePointerToMemberType(inClassNAT, cv, atType);
 }
 
 
 Type *TypeFactory::makeTypeOf_receiver(SourceLoc loc,
   NamedAtomicType *classType, CVFlags cv, D_func *syntax)
 {
-  CVAtomicType *at = makeCVAtomicType(loc, classType, cv);
-  return makeReferenceType(loc, at);
+  CVAtomicType *at = makeCVAtomicType(classType, cv);
+  return makeReferenceType(at);
 }
 
 
@@ -2580,7 +2580,7 @@ FunctionType *TypeFactory::makeSimilarFunctionType(SourceLoc loc,
   Type *retType, FunctionType *similar)
 {
   FunctionType *ret = 
-    makeFunctionType(loc, retType);
+    makeFunctionType(retType);
   ret->flags = similar->flags & ~FF_METHOD;     // isMethod is like a parameter
   if (similar->exnSpec) {
     ret->exnSpec = new FunctionType::ExnSpec(*similar->exnSpec);
@@ -2589,17 +2589,16 @@ FunctionType *TypeFactory::makeSimilarFunctionType(SourceLoc loc,
 }
 
 
-CVAtomicType *TypeFactory::getSimpleType(SourceLoc loc, 
-  SimpleTypeId st, CVFlags cv)
+CVAtomicType *TypeFactory::getSimpleType(SimpleTypeId st, CVFlags cv)
 {
   xassert((unsigned)st < (unsigned)NUM_SIMPLE_TYPES);
-  return makeCVAtomicType(loc, &SimpleType::fixed[st], cv);
+  return makeCVAtomicType(&SimpleType::fixed[st], cv);
 }
 
 
 ArrayType *TypeFactory::setArraySize(SourceLoc loc, ArrayType *type, int size)
 {
-  return makeArrayType(loc, type->eltType, size);
+  return makeArrayType(type->eltType, size);
 }
 
 
@@ -2653,8 +2652,7 @@ CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
 };
 
 
-CVAtomicType *BasicTypeFactory::makeCVAtomicType(SourceLoc,
-  AtomicType *atomic, CVFlags cv)
+CVAtomicType *BasicTypeFactory::makeCVAtomicType(AtomicType *atomic, CVFlags cv)
 {
   if (cv==CV_NONE && atomic->isSimpleType()) {
     // since these are very common, and ordinary Types are immutable,
@@ -2668,22 +2666,19 @@ CVAtomicType *BasicTypeFactory::makeCVAtomicType(SourceLoc,
 }
 
 
-PointerType *BasicTypeFactory::makePointerType(SourceLoc,
-  CVFlags cv, Type *atType)
+PointerType *BasicTypeFactory::makePointerType(CVFlags cv, Type *atType)
 {
   return new PointerType(cv, atType);
 }
 
 
-Type *BasicTypeFactory::makeReferenceType(SourceLoc,
-  Type *atType)
+Type *BasicTypeFactory::makeReferenceType(Type *atType)
 {
   return new ReferenceType(atType);
 }
 
 
-FunctionType *BasicTypeFactory::makeFunctionType(SourceLoc,
-  Type *retType)
+FunctionType *BasicTypeFactory::makeFunctionType(Type *retType)
 {
   return new FunctionType(retType);
 }
@@ -2692,15 +2687,14 @@ void BasicTypeFactory::doneParams(FunctionType *)
 {}
 
 
-ArrayType *BasicTypeFactory::makeArrayType(SourceLoc,
-  Type *eltType, int size)
+ArrayType *BasicTypeFactory::makeArrayType(Type *eltType, int size)
 {
   return new ArrayType(eltType, size);
 }
 
 
-PointerToMemberType *BasicTypeFactory::makePointerToMemberType(SourceLoc,
-  NamedAtomicType *inClassNAT, CVFlags cv, Type *atType)
+PointerToMemberType *BasicTypeFactory::makePointerToMemberType
+  (NamedAtomicType *inClassNAT, CVFlags cv, Type *atType)
 {
   return new PointerToMemberType(inClassNAT, cv, atType);
 }

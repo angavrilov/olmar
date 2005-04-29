@@ -1229,11 +1229,11 @@ bool Env::inferTemplArgsFromFuncArgs
           if (argType->isArrayType()) {
             // synthesize a pointer type to be used instead
             ArrayType *at = argType->asArrayType();
-            argType = tfac.makePointerType(SL_UNKNOWN, CV_NONE, at->eltType);
+            argType = tfac.makePointerType(CV_NONE, at->eltType);
           }
           else if (argType->isFunctionType()) {
             // use pointer type instead
-            argType = tfac.makePointerType(SL_UNKNOWN, CV_NONE, argType);
+            argType = tfac.makePointerType(CV_NONE, argType);
           }
           else {
             // final bullet says to ignore cv qualifications, but I think
@@ -1287,7 +1287,7 @@ bool Env::inferTemplArgsFromFuncArgs
               // but MatchTypes does not currently support the needed
               // push and pop of bindings.  Therefore I will just note
               // the bugs and ignore them for now.
-              Type *t = env.makeType(SL_UNKNOWN, sub->ct);    // leaked
+              Type *t = env.makeType(sub->ct);    // leaked
               if (match.match_Type(t, paramType)) {
                 argUnifies = true;
                 break;
@@ -1606,7 +1606,7 @@ bool Env::insertTemplateArgBindings_oneParamList
       else if (sarg->kind == STemplateArgument::STA_INT) {
         E_intLit *value0 = buildIntegerLiteralExp(sarg->getInt());
         // FIX: I'm sure we can do better than SL_UNKNOWN here
-        value0->type = tfac.getSimpleType(SL_UNKNOWN, ST_INT, CV_CONST);
+        value0->type = tfac.getSimpleType(ST_INT, CV_CONST);
         binding->value = value0;
       }
       else if (sarg->kind == STemplateArgument::STA_DEPEXPR) {
@@ -2486,7 +2486,7 @@ Variable *Env::instantiateClassTemplate
   instCT->parentScope = specCT->parentScope;
 
   // wrap the compound in a regular type
-  Type *instType = makeType(loc, instCT);
+  Type *instType = makeType(instCT);
 
   // create the representative Variable
   inst = makeInstantiationVariable(spec, instType);
@@ -3390,20 +3390,18 @@ Type *Env::applyArgumentMapToType(STemplateArgumentCMap &map, Type *origSrc)
 
     case Type::T_POINTER: {
       PointerType const *spt = src->asPointerTypeC();
-      return tfac.makePointerType(SL_UNKNOWN, spt->cv,
+      return tfac.makePointerType(spt->cv,
         applyArgumentMapToType(map, spt->atType));
     }
 
     case Type::T_REFERENCE: {
       ReferenceType const *srt = src->asReferenceTypeC();
-      return tfac.makeReferenceType(SL_UNKNOWN,
-        applyArgumentMapToType(map, srt->atType));
+      return tfac.makeReferenceType(applyArgumentMapToType(map, srt->atType));
     }
 
     case Type::T_FUNCTION: {
       FunctionType const *sft = src->asFunctionTypeC();
-      FunctionType *rft = tfac.makeFunctionType(SL_UNKNOWN,
-        applyArgumentMapToType(map, sft->retType));
+      FunctionType *rft = tfac.makeFunctionType(applyArgumentMapToType(map, sft->retType));
 
       // copy parameters
       SFOREACH_OBJLIST(Variable, sft->params, iter) {
@@ -3435,8 +3433,7 @@ Type *Env::applyArgumentMapToType(STemplateArgumentCMap &map, Type *origSrc)
 
     case Type::T_ARRAY: {
       ArrayType const *sat = src->asArrayTypeC();
-      return tfac.makeArrayType(SL_UNKNOWN,
-        applyArgumentMapToType(map, sat->eltType), sat->size);
+      return tfac.makeArrayType(applyArgumentMapToType(map, sat->eltType), sat->size);
     }
 
     case Type::T_POINTERTOMEMBER: {
@@ -3448,10 +3445,10 @@ Type *Env::applyArgumentMapToType(STemplateArgumentCMap &map, Type *origSrc)
         applyArgumentMapToAtomicType(map, spmt->inClassNAT, CV_NONE);
       if (!retInClassNAT) {
         // use original 'spmt->inClassNAT'
-        return tfac.makePointerToMemberType(SL_UNKNOWN,
-          spmt->inClassNAT,
-          spmt->cv,
-          applyArgumentMapToType(map, spmt->atType));
+        return tfac.makePointerToMemberType
+          (spmt->inClassNAT,
+           spmt->cv,
+           applyArgumentMapToType(map, spmt->atType));
       }
       else if (!retInClassNAT->isNamedAtomicType()) {
         return error(stringc << "during template instantiation: type `" <<
@@ -3459,10 +3456,10 @@ Type *Env::applyArgumentMapToType(STemplateArgumentCMap &map, Type *origSrc)
                                 "' is not suitable as the class in a pointer-to-member");
       }
       else {
-        return tfac.makePointerToMemberType(SL_UNKNOWN,
-          retInClassNAT->asNamedAtomicType(),
-          spmt->cv,
-          applyArgumentMapToType(map, spmt->atType));
+        return tfac.makePointerToMemberType
+          (retInClassNAT->asNamedAtomicType(),
+           spmt->cv,
+           applyArgumentMapToType(map, spmt->atType));
       }
     }
   }
@@ -3700,7 +3697,7 @@ Type *Env::pseudoSelfInstantiation(CompoundType *ct, CVFlags cv)
     copyTemplateArgs(pi->args, objToSObjListC(tinfo->arguments));
   }
 
-  return makeCVAtomicType(ct->typedefVar->loc, pi, cv);
+  return makeCVAtomicType(pi, cv);
 }
 
 

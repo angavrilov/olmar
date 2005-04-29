@@ -209,7 +209,7 @@ Variable *PredicateCandidateSet::makeNewCandidate(Env &env,
 {
   Type *retType;
   if (isConcreteSimpleType(retAlgorithm)) {
-    retType = env.getSimpleType(SL_INIT, retAlgorithm);
+    retType = env.getSimpleType(retAlgorithm);
   }
   else {
     // only non-concrete predicate set is for '?:'
@@ -239,7 +239,7 @@ void PredicateCandidateSet::addAmbigCandidate(Env &env, OverloadResolver &resolv
   // because it's already ambiguous
 
   if (!ambigInst) {
-    Type *t_void = env.getSimpleType(SL_INIT, ST_VOID);
+    Type *t_void = env.getSimpleType(ST_VOID);
     ambigInst = env.createBuiltinBinaryOp(t_void, op, t_void, t_void);
   }
   resolver.addAmbiguousBinaryCandidate(ambigInst);
@@ -290,7 +290,7 @@ Variable *AssignmentCandidateSet::makeNewCandidate(Env &env,
 
   xassert(retAlgorithm == ST_PRET_FIRST);
 
-  Type *Tref = env.tfac.makeReferenceType(SL_INIT, T);
+  Type *Tref = env.tfac.makeReferenceType(T);
   return env.createBuiltinBinaryOp(Tref, op, Tref, T);
 }
 
@@ -436,7 +436,7 @@ void ArrowStarCandidateSet::instantiateCandidate(Env &env,
     Type *retType = rhsType->getAtType();                         // CV2 T
     retType = env.tfac.applyCVToType(SL_UNKNOWN, lhsType->getAtType()->getCVFlags(),
                                      retType, NULL /*syntax*/);   // CV12 T
-    retType = env.makeReferenceType(SL_UNKNOWN, retType);         // CV12 T&
+    retType = env.makeReferenceType(retType);         // CV12 T&
 
     // need to make a new instantiaton
     ic = new Inst(pair,
