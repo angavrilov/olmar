@@ -107,7 +107,7 @@ sub failed {
 
 
 # read the input file
-open(IN, "<", $fname) or die("can't open $fname: $!\n");
+open(IN, "<$fname") or die("can't open $fname: $!\n");
 @lines = <IN>;
 close(IN) or die;
 
