@@ -11,8 +11,8 @@ $| = 1;
 # smbase config version number; also serves as an
 # initialization routine
 sub get_sm_config_version {
-  $main::CC = getEnvOrDefault("CC", "cc");
-  $main::CXX = getEnvOrDefault("CXX", "c++");
+  $main::CC = getEnvOrDefault("CC", "gcc");
+  $main::CXX = getEnvOrDefault("CXX", "g++");
   @main::CCFLAGS = ("-g", "-Wall", "-Wno-deprecated", "-D__UNIX__");
   $main::debug = 0;
   $main::target = 0;
@@ -384,7 +384,7 @@ EOF
 sub writeConfigSummary {
   my ($summary) = @_;
   
-  open (OUT, ">", "config.summary") or die("cannot write config.summary: $!\n");
+  open (OUT, ">config.summary") or die("cannot write config.summary: $!\n");
 
   print OUT ($summary);
   print OUT ("echo \"\"\n");
