@@ -9,7 +9,8 @@ LIBELKHOUND := $(ELKHOUND)/libelkhound.a
 LIBSMBASE   := $(SMBASE)/libsmbase.a
 
 # compilation flags
-CCFLAGS := -g -Wall -I$(ELKHOUND) -I$(SMBASE)
+CCFLAGS := $(shell $(SMBASE)/config.summary | grep CCFLAGS | sed 's/^.*: *//')
+CCFLAGS += -I$(ELKHOUND) -I$(SMBASE)
 LDFLAGS := -g -Wall $(LIBELKHOUND) $(LIBSMBASE)
 
 # default make targets

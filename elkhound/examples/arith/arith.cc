@@ -36,8 +36,7 @@ char const *toString(ArithTokenCodes code)
     ")",
   };
 
-  unsigned tableSize = sizeof(names) / sizeof(names[0]);
-  assert((unsigned)code < tableSize);
+  assert((unsigned)code < sizeof(names) / sizeof(names[0]));
   return names[code];
 }
 

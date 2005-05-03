@@ -273,7 +273,7 @@ writeConfigStatus("PERL" => "$PERL",
                   "AST" => "$AST");
 
 # extend config.status
-open(OUT, ">>", "config.status") or die("could not append to config.status: $!\n");
+open(OUT, ">>config.status") or die("could not append to config.status: $!\n");
 print OUT (<<"OUTER_EOF");
 
 cat >glrconfig.h.tmp <<EOF

@@ -11,7 +11,8 @@ LIBAST      := $(AST)/libast.a
 LIBSMBASE   := $(SMBASE)/libsmbase.a
 
 # compilation flags
-CCFLAGS := -g -Wall -I$(ELKHOUND) -I$(AST) -I$(SMBASE)
+CCFLAGS := $(shell $(SMBASE)/config.summary | grep CCFLAGS | sed 's/^.*: *//')
+CCFLAGS += -I$(ELKHOUND) -I$(AST) -I$(SMBASE)
 LDFLAGS := -g -Wall $(LIBELKHOUND) $(LIBAST) $(LIBSMBASE)
 
 # default make targets

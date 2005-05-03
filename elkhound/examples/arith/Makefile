@@ -18,7 +18,7 @@ CPPFLAGS := -I$(ELKHOUND) -I$(AST) -I$(SMBASE)
 # C++ compilation flags; hijack from $(SMBASE) to find out
 # whether I should supply -Wno-deprecatead
 #CCFLAGS := -g -Wall -Wno-deprecated
-CCFLAGS := $(shell $(SMBASE)/config.summary | grep BASE_FLAGS | sed 's/^.*: *//')
+CCFLAGS := $(shell $(SMBASE)/config.summary | grep CCFLAGS | sed 's/^.*: *//')
 
 # linking flags
 LDFLAGS := $(LIBELKHOUND) $(SMBASE)/libsmbase.a
