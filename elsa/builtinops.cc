@@ -436,7 +436,7 @@ void ArrowStarCandidateSet::instantiateCandidate(Env &env,
     Type *retType = rhsType->getAtType();                         // CV2 T
     retType = env.tfac.applyCVToType(SL_UNKNOWN, lhsType->getAtType()->getCVFlags(),
                                      retType, NULL /*syntax*/);   // CV12 T
-    retType = env.makeReferenceType(retType);         // CV12 T&
+    retType = env.makeReferenceType(retType);                     // CV12 T&
 
     // need to make a new instantiaton
     ic = new Inst(pair,

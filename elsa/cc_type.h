@@ -1143,8 +1143,6 @@ public:
     (CompoundType::Keyword keyword, StringRef name);
 
   // ---- constructors for the constructed types ----
-  // the 'loc' being passed is the start of the syntactic construct
-  // which causes the type to be created or needed (but see below)
   virtual CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv)=0;
 
   virtual PointerType *makePointerType(CVFlags cv, Type *atType)=0;
@@ -1165,19 +1163,10 @@ public:
     (NamedAtomicType *inClassNAT, CVFlags cv, Type *atType)=0;
 
 
-  // NOTE: I very much want to get rid of this 'loc' business in the
-  // type constructors, however there is a client analysis (ccqual)
-  // that currently needs them.  Once ccqual is modified to not
-  // require this information, the 'loc' arguments are going to go
-  // away.  Until then, it's fine to just say SL_UNKNOWN every time
-  // you need to make a type.  (And in the meantime while they're
-  // here, do not write code that relies on them!)
-
-
+  // ---- create a type based on another one ----
   // NOTE: all 'syntax' pointers are nullable, since there are contexts
   // where I don't have an AST node to pass
 
-  // ---- create a type based on another one ----
   // NOTE: The functions in this section do *not* modify their argument
   // Types, rather they return a new object if the desired Type is different
   // from the one passed-in.  (That is, they behave functionally.)

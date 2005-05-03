@@ -5,7 +5,8 @@ use strict 'subs';
 
 # default location of smbase relative to this package
 $SMBASE = "../smbase";
-$req_smcv = 1.02;            # required sm_config version number
+$req_smcv = 1.03;            # required sm_config version number
+$thisPackage = "elsa";
 
 # -------------- BEGIN common block ---------------
 # do an initial argument scan to find if smbase is somewhere else
@@ -39,34 +40,24 @@ if ($smcv < $req_smcv) {
 # -------------- END common block ---------------
 
 # defaults
-$BASE_FLAGS = "-Wall -Wno-deprecated -D__UNIX__";
-@CCFLAGS = ();
-@LDFLAGS = ("-Wall");
-$debug = 0;
-$use_dash_g = 1;
-$allow_dash_O2 = 1;
+@LDFLAGS = ("-g -Wall");
 $AST = "../ast";
 $ELKHOUND = "../elkhound";
-$USE_GNU = "yes";
-$USE_KANDR = "yes";
+$USE_GNU = "1";
+$USE_KANDR = "1";
 $GCOV_MODS = "";
 
 
 sub usage {
+  standardUsage();
+
   print(<<"EOF");
-usage: ./configure [options]
-options:
-  -h:                print this message
-  -debug,-nodebug:   enable/disable debugging options [disabled]
-  -no-dash-g         disable -g
-  -no-dash-O2        disable -O2
+package options:
   -prof              enable profiling
-  -gcov=<mods>       enable coverage testing modules <mods>
+  -gcov=<mods>       enable coverage testing for modules <mods>
   -devel             add options useful while developing (-Werror)
-  -gnu=yes/no        enable GNU extensions? [$USE_GNU]
-  -kandr=yes/no      enable K&R extensions? [$USE_KANDR]
-  -ccflag <arg>:     add <arg> to gcc command line
-  -smbase=<dir>:     specify where the smbase library is [$SMBASE]
+  -gnu=[0/1]         enable GNU extensions? [$USE_GNU]
+  -kandr=[0/1]       enable K&R extensions? [$USE_KANDR]
   -ast=<dir>:        specify where the ast system is [$AST]
   -elkhound=<dir>:   specify where the elkhound system is [$ELKHOUND]
   -useSerialNumbers: give serial numbers to some objects for debugging
@@ -74,91 +65,54 @@ EOF
 }
 
 
-sub equalsYesNo {
-  my ($optName, $arg) = @_;
-  if ($arg eq "=yes") {
-    return "yes";
-  }
-  elsif ($arg eq "=no") {
-    return "no";
-  }
-  else {
-    die "-$optName option must be followed by =yes or =no\n";
-  }
-}
-
+# -------------- BEGIN common block 2 -------------
+# global variables holding information about the current command-line
+# option being processed
+$option = "";
+$value = "";
 
 # process command-line arguments
-$originalArgs = join(' ', @ARGV);
-while (@ARGV) {
-  my $tmp;
-  my $arg = $ARGV[0];
-  shift @ARGV;
+foreach $optionAndValue (@ARGV) {
+  # ignore leading '-' characters, and split at first '=' (if any)
+  ($option, $value) =
+    ($optionAndValue =~ m/^-*([^-][^=]*)=?(.*)$/);
+                      #      option     = value
 
-  # treat leading "--" uniformly with leading "-"
-  $arg =~ s/^--/-/;
+  my $arg = $option;
 
-  if ($arg eq "-h" ||
-      $arg eq "-help") {
-    usage();
-    exit(0);
+  if (handleStandardOption()) {
+    # handled by sm_config.pm
   }
+  # -------------- END common block 2 -------------
 
-  # things that look like options to gcc should just
-  # be added to CCFLAGS
-  elsif ($arg =~ m/^(-W|-D|-O)/) {
-    push @CCFLAGS, $arg;
-  }
-  elsif ($arg eq "-ccflag") {
-    push @CCFLAGS, $ARGV[0];
-    shift @ARGV;
-  }
-
-  elsif ($arg eq "-d" ||
-         $arg eq "-debug") {
-    $debug = 1;
-  }
-  elsif ($arg eq "-nodebug") {
-    $debug = 0;
-  }
-  elsif ($arg eq "-no-dash-g") {
-    $use_dash_g = 0;
-  }
-  elsif ($arg eq "-no-dash-O2") {
-    $allow_dash_O2 = 0;
-  }
-
-  elsif ($arg eq "-prof") {
+  elsif ($arg eq "prof") {
     push @CCFLAGS, "-pg";
     push @LDFLAGS, "-pg";
   }
-  
-  elsif ($arg =~ m/^-gcov=(.*)$/) {
-    $GCOV_MODS = $1;
+
+  elsif ($arg eq "gcov") {
+    $GCOV_MODS = getOptArg();
   }
 
-  elsif ($arg eq "-devel") {
+  elsif ($arg eq "devel") {
     push @CCFLAGS, "-Werror";
   }
 
-  elsif (($tmp) = ($arg =~ m/^-smbase=(.*)$/)) {
-    $SMBASE = $tmp;
+  elsif ($arg eq "ast") {
+    $AST = getOptArg();
   }
-  elsif (($tmp) = ($arg =~ m/^-ast=(.*)$/)) {
-    $AST = $tmp;
-  }
-  elsif (($tmp) = ($arg =~ m/^-elkhound=(.*)$/)) {
-    $ELKHOUND = $tmp;
+  elsif ($arg eq "elkhound") {
+    $ELKHOUND = getOptArg();
   }
 
-  elsif (($tmp) = ($arg =~ m/^-gnu(.*)$/)) {
-    $USE_GNU = equalsYesNo("gnu", $tmp);
+  elsif ($arg eq "gnu") {
+    $USE_GNU = getBoolArg();
   }
-  elsif (($tmp) = ($arg =~ m/^-kandr(.*)$/)) {
-    $USE_KANDR = equalsYesNo("kandr", $tmp);
+  elsif ($arg eq "kandr") {
+    $USE_KANDR = getBoolArg();
   }
 
-  elsif ($arg eq "-useSerialNumbers") {
+  elsif ($arg eq "useSerialNumbers") {
     push @CCFLAGS, "-DUSE_SERIAL_NUMBERS=1";
   }
 
@@ -167,36 +121,13 @@ while (@ARGV) {
   }
 }
 
-if (!$debug) {
-  if ($allow_dash_O2) {
-    push @CCFLAGS, "-O2";
-  }
-  push @CCFLAGS, "-DNDEBUG";
-}
-
-if ($use_dash_g) {
-  unshift @CCFLAGS, "-g";
-  unshift @LDFLAGS, "-g";
-}
-
-$os = `uname -s`;
-chomp($os);
-if ($os eq "Linux") {
-  push @CCFLAGS, "-D__LINUX__";
-}
-
-# smash the list together to make a string
-$CCFLAGS = join(' ', @CCFLAGS);
-$LDFLAGS = join(' ', @LDFLAGS);
+finishedOptionProcessing();
 
 
 # ------------------ check for needed components ----------------
-# smbase
-if (! -f "$SMBASE/nonport.h") {
-  die "I cannot find nonport.h in `$SMBASE'.\n" .
-      "The smbase library is required for elsa.\n" .
-      "If it's in a different location, use the -smbase=<dir> option.\n";
-}
+test_smbase_presence();
+
+test_CXX_compiler();
 
 # ast
 if (! -f "$AST/asthelp.h") {
@@ -212,141 +143,49 @@ if (! -f "$ELKHOUND/glr.h") {
       "If it's in a different location, use the -elkhound=<dir> option.\n";
 }
 
-# use smbase's $BASE_FLAGS if I can find them
-$smbase_flags = `$SMBASE/config.summary 2>/dev/null | grep BASE_FLAGS`;
-if (defined($smbase_flags)) {
-  ($BASE_FLAGS = $smbase_flags) =~ s|^.*: *||;
-  chomp($BASE_FLAGS);
-}
-
-
-# ---------------------- etags? ---------------------
-# 7/19/04: sm: I've now disabled this since it's becoming too much of
-# a hassle; someone reported that there is an etags that knows about
-# --members but not --typedefs.  If you want etags, please run it
-# yourself.
-if (0) {
-  print("checking for etags... ");
-  if (system("type etags >/dev/null 2>&1")) {
-    # doesn't have etags; cygwin is an example of such a system
-    print("not found\n");
-    $ETAGS = "true";       # 'true' is a no-op
-  }
-  elsif (system("etags --help | grep -- --members >/dev/null")) {
-    # has it, but it does not know about the --members option
-    print("etags\n");
-    $ETAGS = "etags";
-  }
-  else {
-    # assume if it knows about --members it knows about --typedefs too
-    print("etags --members --typedefs\n");
-    $ETAGS = "etags --members --typedefs";
-  }
-}
-
-
-# ---------------- misc -----------------
 $PERL = get_PERL_variable();
 
 
 # ------------------ config.summary -----------------
-# create a program to summarize the configuration
-open(OUT, ">config.summary") or die("can't make config.summary");
-print OUT (<<"OUTER_EOF");
-#!/bin/sh
-# config.summary
+$summary = getStandardConfigSummary();
 
+$summary .= <<"OUTER_EOF";
 cat <<EOF
-./configure command:
-  $0 $originalArgs
-
-Elsa configuration summary:
-  debug:       $debug
-
-Compile flags:
-  BASE_FLAGS:  $BASE_FLAGS
-  CCFLAGS:     $CCFLAGS
-  LDFLAGS:     $LDFLAGS
+  LDFLAGS:     @LDFLAGS
   SMBASE:      $SMBASE
   AST:         $AST
   ELKHOUND:    $ELKHOUND
   USE_GNU:     $USE_GNU
   USE_KANDR:   $USE_KANDR
-  GCOV_MODS:   $GCOV_MODS
-
 EOF
-
 OUTER_EOF
 
-close(OUT) or die;
-chmod 0755, "config.summary";
+if ($GCOV_MODS) {
+  $summary .= "echo \"  GCOV_MODS:   $GCOV_MODS\"\n";
+}
+
+writeConfigSummary($summary);
 
 
 # ------------------- config.status ------------------
-# from here on, combine BASE_FLAGS and CCFLAGS
-$CCFLAGS = "$BASE_FLAGS $CCFLAGS";
-
-# create a program which will create the Makefile
-open(OUT, ">config.status") or die("can't make config.status");
-print OUT (<<"OUTER_EOF");
-#!/bin/sh
-# config.status
-
-# this file was created by ./configure
-
-# report on configuration
-./config.summary
-
-
-echo "creating Makefile ..."
-
-# overcome my chmod below
-rm -f Makefile
-
-cat >Makefile <<EOF
-# Makefile for elsa
-# NOTE: do not edit; generated by:
-#   $0 $originalArgs
-
-EOF
-
-# substitute variables
-sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
-    -e "s|\@LDFLAGS\@|$LDFLAGS|g" \\
-    -e "s|\@SMBASE\@|$SMBASE|g" \\
-    -e "s|\@AST\@|$AST|g" \\
-    -e "s|\@ELKHOUND\@|$ELKHOUND|g" \\
-    -e "s|\@PERL\@|$PERL|g" \\
-    -e "s|\@USE_GNU\@|$USE_GNU|g" \\
-    -e "s|\@USE_KANDR\@|$USE_KANDR|g" \\
-    -e "s|\@GCOV_MODS\@|$GCOV_MODS|g" \\
-  <Makefile.in >>Makefile || exit
-
-# discourage editing
-chmod a-w Makefile
-
-
-OUTER_EOF
-
-close(OUT) or die;
-chmod 0755, "config.status";
+writeConfigStatus("LDFLAGS" => "@LDFLAGS",
+                  "SMBASE" => "$SMBASE",
+                  "AST" => "$AST",
+                  "ELKHOUND" => "$ELKHOUND",
+                  "PERL" => "$PERL",
+                  "USE_GNU" => "$USE_GNU",
+                  "USE_KANDR" => "$USE_KANDR",
+                  "GCOV_MODS" => "$GCOV_MODS");
 
 
 # ----------------- final actions -----------------
 # run the output file generator
-my $code = system("./config.status");
-if ($code != 0) {
-  # hopefully ./config.status has already printed a message,
-  # I'll just relay the status code
-  if ($code >> 8) {                
-    exit($code >> 8);
-  }
-  else {
-    exit($code & 127);
-  }
-}
-
+run("./config.status");
 
 print("\nYou can now run make, usually called 'make' or 'gmake'.\n");
 
 exit(0);
+
+
+# silence warnings
+pretendUsed($thisPackage);

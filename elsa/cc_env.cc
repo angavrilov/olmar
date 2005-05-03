@@ -288,6 +288,7 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
 // --------------------- Env -----------------
 
 int throwClauseSerialNumber = 0; // don't make this a member of Env
+
 int Env::anonTypeCounter = 1;
 
 Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
@@ -296,9 +297,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     env(*this),
     scopes(),
     disambiguateOnly(false),
-    // NOTE: this is now a global initialized above; see comment at
-    // member declaration
-    //    anonTypeCounter(1),
     ctorFinished(false),
 
     disambiguationNestingLevel(0),

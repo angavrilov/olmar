@@ -29,7 +29,7 @@ void ParseEnv::popClassName()
 {
   StringRef n = classNameStack.pop();
   TRACE("className", "popping " << maybeNull(n));
-  n = NULL;                     // silence gcc "warning: unused variable 'n'"
+  PRETEND_USED(n);
 }
 
 

@@ -67,7 +67,7 @@ CC_AST_MODS += cc_elaborate.ast
 
 # optional: GNU language extension
 USE_GNU := @USE_GNU@
-ifeq ($(USE_GNU),yes)
+ifeq ($(USE_GNU),1)
   LEXER_MODS  += gnu.lex
   TOK_MODS    += gnu_ext.tok
   CC_AST_MODS += gnu.ast
@@ -78,7 +78,7 @@ endif
 
 # optional: K&R language extension
 USE_KANDR := @USE_KANDR@
-ifeq ($(USE_KANDR),yes)
+ifeq ($(USE_KANDR),1)
   CC_AST_MODS += kandr.ast
   CC_GR_MODS  += kandr.gr
   EXT_OBJS    += kandr.o
