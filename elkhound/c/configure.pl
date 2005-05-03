@@ -3,88 +3,83 @@
 
 use strict 'subs';
 
-# defaults
-$BASE_FLAGS = "-Wall -Wno-deprecated -D__UNIX__";
-$CCFLAGS = ();
-$debug = 0;
-$use_dash_g = 1;
-$allow_dash_O2 = 1;
+# default location of smbase relative to this package
 $SMBASE = "../../smbase";
+$req_smcv = 1.03;            # required sm_config version number
+$thisPackage = "elkhound/c";
+
+# -------------- BEGIN common block ---------------
+# do an initial argument scan to find if smbase is somewhere else
+for (my $i=0; $i < @ARGV; $i++) {
+  my ($d) = ($ARGV[$i] =~ m/-*smbase=(.*)/);
+  if (defined($d)) {
+    $SMBASE = $d;
+  }
+}
+
+# try to load the sm_config module
+eval {
+  push @INC, ($SMBASE);
+  require sm_config;
+};
+if ($@) {
+  die("$@" .     # ends with newline, usually
+      "\n" .
+      "I looked for smbase in \"$SMBASE\".\n" .
+      "\n" .
+      "You can explicitly specify the location of smbase with the -smbase=<dir>\n" .
+      "command-line argument.\n");
+}
+
+# check version number
+$smcv = get_sm_config_version();
+if ($smcv < $req_smcv) {
+  die("This package requires version $req_smcv of sm_config, but found\n" .
+      "only version $smcv.\n");
+}
+# -------------- END common block ---------------
+
+
+# defaults
 $AST = "../../ast";
 $ELKHOUND = "..";
 
 
 sub usage {
+  standardUsage();
+
   print(<<"EOF");
-usage: ./configure [options]
-options:
-  -h:                print this message
-  -debug,-nodebug:   enable/disable debugging options [disabled]
-  -no-dash-g         disable -g
-  -no-dash-O2        disable -O2
-  -prof              enable profiling
-  -devel             add options useful while developing
-  <op>:              add a given option to the gcc command line,
-                       including forms: -W*, -pg, -D*, -O*
-  -smbase=<dir>:     specify where the smbase library is [$SMBASE]
+package options:
   -ast=<dir>:        specify where the ast system is [$AST]
   -elkhound=<dir>:   specify where the elkhound system is [$ELKHOUND]
 EOF
 }
 
 
+# -------------- BEGIN common block 2 -------------
+# global variables holding information about the current command-line
+# option being processed
+$option = "";
+$value = "";
+
 # process command-line arguments
-$originalArgs = join(' ', @ARGV);
-while (@ARGV) {
-  my $tmp;
-  my $arg = $ARGV[0];
-  shift @ARGV;
+foreach $optionAndValue (@ARGV) {
+  # ignore leading '-' characters, and split at first '=' (if any)
+  ($option, $value) =
+    ($optionAndValue =~ m/^-*([^-][^=]*)=?(.*)$/);
+                      #      option     = value
 
-  # treat leading "--" uniformly with leading "-"
-  $arg =~ s/^--/-/;
+  my $arg = $option;
 
-  if ($arg eq "-h" ||
-      $arg eq "-help") {
-    usage();
-    exit(0);
+  if (handleStandardOption()) {
+    # handled by sm_config.pm
   }
+  # -------------- END common block 2 -------------
 
-  # things that look like options to gcc should just
-  # be added to CCFLAGS
-  elsif ($arg =~ m/^(-W|-pg$|-D|-O)/) {
-    push @CCFLAGS, $arg;
-  }
-
-  elsif ($arg eq "-d" ||
-         $arg eq "-debug") {
-    $debug = 1;
-  }
-  elsif ($arg eq "-nodebug") {
-    $debug = 0;
-  }
-  elsif ($arg eq "-no-dash-g") {
-    $use_dash_g = 0;
-  }
-  elsif ($arg eq "-no-dash-O2") {
-    $allow_dash_O2 = 0;
-  }
-
-  elsif ($arg eq "-prof") {
-    push @CCFLAGS, "-pg";
-  }
-
-
-  elsif ($arg eq "-devel") {
-    push @CCFLAGS, "-Werror";
-  }
-
-  elsif (($tmp) = ($arg =~ m/^-smbase=(.*)$/)) {
-    $SMBASE = $tmp;
-  }
-  elsif (($tmp) = ($arg =~ m/^-ast=(.*)$/)) {
+  elsif ($arg eq "ast") {
     $AST = $tmp;
   }
-  elsif (($tmp) = ($arg =~ m/^-elkhound=(.*)$/)) {
+  elsif ($arg eq "elkhound") {
     $ELKHOUND = $tmp;
   }
 
@@ -93,34 +88,13 @@ while (@ARGV) {
   }
 }
 
-if (!$debug) {
-  if ($allow_dash_O2) {
-    push @CCFLAGS, "-O2";
-  }
-  push @CCFLAGS, "-DNDEBUG";
-}
-
-if ($use_dash_g) {
-  push @CCFLAGS, "-g";
-}
-
-$os = `uname -s`;
-chomp($os);
-if ($os eq "Linux") {
-  push @CCFLAGS, "-D__LINUX__";
-}
-
-# smash the list together to make a string
-$CCFLAGS = join(' ', @CCFLAGS);
+finishedOptionProcessing();
 
 
 # ------------------ check for needed components ----------------
-# smbase
-if (! -f "$SMBASE/nonport.h") {
-  die "I cannot find nonport.h in `$SMBASE'.\n" .
-      "The smbase library is required for elsa.\n" .
-      "If it's in a different location, use the -smbase=<dir> option.\n";
-}
+test_smbase_presence();
+
+test_CXX_compiler();
 
 # ast
 if (! -f "$AST/asthelp.h") {
@@ -136,103 +110,33 @@ if (! -f "$ELKHOUND/glr.h") {
       "If it's in a different location, use the -elkhound=<dir> option.\n";
 }
 
-# use smbase's $BASE_FLAGS if I can find them
-$smbase_flags = `$SMBASE/config.summary 2>/dev/null | grep BASE_FLAGS`;
-if (defined($smbase_flags)) {
-  ($BASE_FLAGS = $smbase_flags) =~ s|^.*: *||;
-  chomp($BASE_FLAGS);
-}
-
 
 # ------------------ config.summary -----------------
-# create a program to summarize the configuration
-open(OUT, ">config.summary") or die("can't make config.summary");
-print OUT (<<"OUTER_EOF");
-#!/bin/sh
-# config.summary
+$summary = getStandardConfigSummary();
 
+$summary .= <<"OUTER_EOF";
 cat <<EOF
-./configure command:
-  $0 $originalArgs
-
-C parser configuration summary:
-  debug:       $debug
-
-Compile flags:
-  BASE_FLAGS:  $BASE_FLAGS
-  CCFLAGS:     $CCFLAGS
-  SMBASE:      $SMBASE
   AST:         $AST
   ELKHOUND:    $ELKHOUND
-
 EOF
-
 OUTER_EOF
 
-close(OUT) or die;
-chmod 0755, "config.summary";
+writeConfigSummary($summary);
 
 
 # ------------------- config.status ------------------
-# from here on, combine BASE_FLAGS and CCFLAGS
-$CCFLAGS = "$BASE_FLAGS $CCFLAGS";
-
-# create a program which will create the Makefile
-open(OUT, ">config.status") or die("can't make config.status");
-print OUT (<<"OUTER_EOF");
-#!/bin/sh
-# config.status
-
-# this file was created by ./configure
-
-# report on configuration
-./config.summary
-
-
-echo "creating Makefile ..."
-
-# overcome my chmod below
-rm -f Makefile
-
-cat >Makefile <<EOF
-# Makefile for elsa
-# NOTE: do not edit; generated by:
-#   $0 $originalArgs
-
-EOF
-
-# substitute variables
-sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
-    -e "s|\@SMBASE\@|$SMBASE|g" \\
-    -e "s|\@AST\@|$AST|g" \\
-    -e "s|\@ELKHOUND\@|$ELKHOUND|g" \\
-  <Makefile.in >>Makefile || exit
-
-# discourage editing
-chmod a-w Makefile
-
-
-OUTER_EOF
-
-close(OUT) or die;
-chmod 0755, "config.status";
+writeConfigStatus("AST" => "$AST",
+                  "ELKHOUND" => "$ELKHOUND");
 
 
 # ----------------- final actions -----------------
 # run the output file generator
-my $code = system("./config.status");
-if ($code != 0) {
-  # hopefully ./config.status has already printed a message,
-  # I'll just relay the status code
-  if ($code >> 8) {                
-    exit($code >> 8);
-  }
-  else {
-    exit($code & 127);
-  }
-}
-
+run("./config.status");
 
 print("\nYou can now run make, usually called 'make' or 'gmake'.\n");
 
 exit(0);
+
+
+# silence warnings
+pretendUsed($thisPackage);
