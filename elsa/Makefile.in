@@ -247,6 +247,7 @@ gendoc/configure.txt: configure
 gendoc/dependencies.dot:
 	$(PERL) $(SMBASE)/scan-depends.pl -r \
 	  -Xcc_env.h=1 -Xcc_type.h=1 -Xcc_flags.h=1 -Xcc_ast.h=1 -Xvariable.h=1 \
+          -Xcc_print.h -Xsprint.h \
 	  main.cc cc_tcheck.cc >$@
 
 gendoc/3.4.5.dot: ccparse in/std/3.4.5.cc
@@ -274,11 +275,11 @@ dot:
 	dot -Tps <$*.dot >$@
 
 # use 'convert' to make a PNG image with resolution not to exceed
-# 1000 in X or 700 in Y ('convert' will preserve aspect ratio); this
+# 1200 in X or 1000 in Y ('convert' will preserve aspect ratio); this
 # also antialiases, so it looks very nice (it's hard to reproduce
 # this using 'gs' alone)
 %.png: %.ps
-	convert -geometry 1000x700 $^ $@
+	convert -geometry 1200x1000 $^ $@
 
 # 3.4.5 is smaller
 gendoc/3.4.5.png: gendoc/3.4.5.ps

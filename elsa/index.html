@@ -118,8 +118,8 @@ Representation of built-in operators, for use during operator
 overload resolution.
 
 <li><a href="cc.ast">cc.ast</a>:
-C/C++ Abstract Syntax Tree.  This file is the most important
-one in the parser, since it defines the interface between
+C/C++ Abstract Syntax Tree.  This is the most important
+file in the parser, since it defines the interface between
 the parser and everything else that comes after it.  It is
 documented separately in <a href="doc/cc.ast.html">cc.ast.html</a>.
 
@@ -174,10 +174,9 @@ cc_print is a module to pretty-print the AST using C++ syntax.  It
 extends the AST with entry points for printing.
 
 <li><a href="cc_scope.h">cc_scope.h</a>,
-    <a href="cc_scope.cc">cc_scope.cc</a>:
-A Scope is three maps: variables, compounds, and enums.  The
-environment (<a href="cc_env.h">cc_env.h</a>) consists of a stack
-of them.
+    <a href="cc_scope.cc">cc_scope.cc</a>: 
+A Scope is two maps: variables and types.  The environment (<a
+href="cc_env.h">cc_env.h</a>) consists of a stack of them.
 
 <li><a href="cc_tcheck.ast">cc_tcheck.ast</a>,
     <a href="cc_tcheck.cc">cc_tcheck.cc</a>:
@@ -189,7 +188,7 @@ part of the parser.
 <li><a href="cc_tokens.tok">cc_tokens.tok</a>:
 This file lists all of the kinds of tokens the lexer recognizes.  It's
 designed to be extended simply by appending.  The script
-<a href="../elkhound/make-token-files">elkhound/make-token-files</a>
+<a href="make-token-files">make-token-files</a>
 takes this as input, and generates
 <a href="cc_tokens.h">cc_tokens.h</a>,
 <a href="cc_tokens.cc">cc_tokens.cc</a> and
@@ -215,11 +214,20 @@ minimally with parsing.
 This is type-checking extension that computes a statement-level
 control flow graph for each function.
 
+<li><a href="const_eval.h">const_eval.h</a>,
+    <a href="const_eval.cc">const_eval.cc</a>:
+Constant-expression evaluator.  Tries to predict the effect of
+coercing data among different representation sizes, among other things.
+
 <li><a href="generic_amb.h">generic_amb.h</a>:
 This is the generic ambiguity resolution procedure.  It typechecks
 all of the alternatives, and selects the one that passes.  Note that
 there are other ambiguity resolution procedures in use, but this is
 the one used in the absence of a specialized procedure.
+
+<li><a href="generic_aux.h">generic_aux.h</a>:
+Some routines for printing and modifying AST nodes that have
+<tt>ambiguity</tt> pointers.
 
 <li><a href="gnu.lex">gnu.lex</a>,
     <a href="gnu_ext.tok">gnu_ext.tok</a>,
@@ -243,7 +251,7 @@ K&amp;R extension.
 <li><a href="kandr.gr">kandr.gr</a>,
     <a href="kandr.ast">kandr.ast</a>,
     <a href="kandr.cc">kandr.cc</a>:
-K&amp;R extensions, particular K&amp;R function definitions and the
+K&amp;R extensions, in particular K&amp;R function definitions and the
 implicit-int rule.  Daniel Wilkerson implemented most of this.
 
 <li><a href="cc.lex">cc.lex</a>,
@@ -253,10 +261,15 @@ This module chops up a given C++ source file into tokens.  It does
 not do any preprocessing, so one must use an external preprocessor
 first.
 
+<li><a href="lookupset.h">lookupset.h</a>,
+    <a href="lookupset.cc">lookupset.cc</a>:
+Class to store the result set of a lookup.
+
 <li><a href="main.cc">main.cc</a>:
 This module contains the main() function of the parser.  It's a simple
-driver around the other modules, and can be extended to invoke
-other tasks that come after parsing.
+driver around the other modules.  The nominal intent is that people who
+want to use parts of Elsa in their own projects users will copy and modify 
+this file as necessary.
 
 <li><a href="mangle.h">mangle.h</a>,
     <a href="mangle.cc">mangle.cc</a>:
@@ -300,6 +313,9 @@ while debugging.
 Represents and computes standard conversions, as defined in section 
 4 of the C++ standard.  See also
 <a href="convertibility.txt">convertibility.txt</a>.
+
+<li><a href="strmap.h">strmap.h</a>:
+Hashtable-based map from StringRef to some pointer.
 
 <li><a href="template.h">template.h</a>,
     <a href="template.cc">template.cc</a>:
