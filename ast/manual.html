@@ -196,6 +196,15 @@ a "pure virtual" function.
   public(virtual) int bar() = 0;   // 'bar' pure in superclass
 </pre>
 
+<p>
+The declaration of <tt>bar</tt> above could also be written
+<pre>
+  pure_virtual int bar();
+</pre>
+as <tt>pure_virtual</tt> is syntactic sugar for a public, virtual
+(automatic declarations in subclasses) field that is pure in the
+superclass.
+
 
 <h4>1.3.3 Custom Code</h4>
 
