@@ -5237,10 +5237,18 @@ FakeList<ArgExpression> *tcheckArgExprList(FakeList<ArgExpression> *list, Env &e
   ArgExpression **cur = &first;
   int i = 1;
   for (; *cur; cur = &((*cur)->next), i++) {
+    argInfo.ensureIndexDoubler(i);
     ArgumentInfo &info = argInfo[i];
 
     *cur = (*cur)->tcheck(env, info);
   }
+
+  // Initially, 'argInfo' had a size that was set by the caller, but
+  // it does not always know the right size since the expression list
+  // can be ambiguous (e.g., in/t0467.cc).  So, this code takes the
+  // initial size as essentially a hint, but ensures when the expr
+  // list is fully disambiguated, the size is set properly.
+  argInfo.setSize(i);
 
   return FakeList<ArgExpression>::makeList(first);
 }
