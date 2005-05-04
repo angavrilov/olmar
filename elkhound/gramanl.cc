@@ -22,7 +22,7 @@
 #include <stdio.h>       // printf
 
 // for ParseTables::emitConstructionCode:
-//   linkdepend: emittables.cc
+//   linkdepend: parsetables.cc
 
 
 // for now, we'll just have these be global variables; if I later

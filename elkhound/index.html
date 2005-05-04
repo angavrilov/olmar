@@ -75,6 +75,11 @@ main contribution is knowledge of how to insert #line directives.
 A few utilities on top of the Flatten interface
 (<a href="../smbase/flatten.h">smbase/flatten.h</a>).
 
+<li><a href="genml.h">genml.h</a>, 
+    <a href="genml.cc">genml.cc</a>:
+This module generates parse tables as ML syntax, for when Elkhound is
+running in ML mode.
+
 <li><a href="glr.h">glr.h</a>,
     <a href="glr.cc">glr.cc</a>:
 Core module for the Elkhound parser (the on-line component, not the
@@ -116,6 +121,10 @@ Grammar parser module.
 <li><a href="lexerint.h">lexerint.h</a>:
 LexerInterface, the interface the parser uses to access the
 lexical analyzer.
+
+<li><a href="mlsstr.h">mlsstr.h</a>,
+    <a href="mlsstr.cc">mlsstr.cc</a>:
+Module for parsing embedded fragments of ML in reduction actions.
 
 <li><a href="parsetables.h">parsetables.h</a>,
     <a href="parsetables.cc">parsetables.cc</a>,
@@ -182,11 +191,15 @@ Miscellanous files:
 This script finds dependencies among automatically-generated
 source files.  Output is <a href="extradep.mk">extradep.mk</a>.
 
-<li><a href="make-token-files">make-token-files</a>:
-Given a token description file such as
-<a href="../elsa/cc_tokens.tok">elsa/cc_tokens.tok</a> (if you
-have the Elsa C++ parser), it produces C++ implementation
-files for those tokens.
+<a href="make-lrtable-graph">make-lrtable-graph</a>:
+Given the <tt>.out</tt> file from a run of Elkhound with the
+<tt>-tr lrtable</tt> option, produce a Dot-format graph of the
+parsing automaton.
+
+<li><a href="make-tok">make-tok</a>:
+Read a C++ header file containing a token code enumeration
+declaration, and produce a corresponding <tt>.tok</tt> file for 
+Elkhound.
 
 <li><a href="make-trivparser.pl">make-trivparser.pl</a>:
 This script makes an Elkhound .gr file from a more-compact
