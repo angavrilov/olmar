@@ -50,10 +50,13 @@ look at the <a href="Makefile.in">Makefile</a>.
 <ul>
 
 <li><a href="array.h">array.h</a>:
-GrowArray, a growable array; plus ArrayStack.
+Several array-like template classes, including growable arrays.
 
 <li><a href="arraymap.h">arraymap.h</a>:
 ArrayMap, a map from integers to object pointers.
+
+<li><a href="arrayqueue.h">arrayqueue.h</a>:
+ArrayQueue, a template class implementing a queue with an array.
 
 <li><a href="astlist.h">astlist.h</a>:
 ASTList, a list class for use in abstract syntax trees.
@@ -75,6 +78,13 @@ Two-dimensional array of bits.
 <li><a href="bitarray.h">bitarray.h</a>
     <a href="bitarray.cc">bitarray.cc</a>:
 One-dimensional array of bits.
+
+<li><a href="boxprint.h">boxprint.h</a>
+    <a href="boxprint.cc">boxprint.cc</a>:
+BoxPrint functions as an output stream (sort of like <tt>cout</tt>)
+with operations to indicate structure within the emitted text, so that
+it can break lines intelligently.  It's used as part of a source-code
+pretty-printer.
 
 <li><a href="breaker.h">breaker.h</a>
     <a href="breaker.cpp">breaker.cpp</a>:
@@ -112,6 +122,10 @@ granularity you want).
 Generic interface for serializing in-memory data structures to files.
 Similar to Java's Serializable, but independently conceived, and has
 superior version control facilities.
+
+<li><a href="gprintf.h">gprintf.h</a>,
+    <a href="gprintf.c">gprintf.c</a>:
+General printf; calls a function to emit each piece.
 
 <li><a href="growbuf.h">growbuf.h</a>,
     <a href="growbuf.cc">growbuf.cc</a>:
@@ -161,6 +175,9 @@ ObjList, a general linked list of objects.  ObjList considers itself
 to "own" (be responsible for deallocating) the things on its list.
 See also <a href="sobjlist.h">sobjlist.h</a>.
 
+<li><a href="objmap.h">objmap.h</a>:
+Variant of PtrMap (<a href="ptrmap.h">ptrmap.h</a>) that owns the values.
+
 <li><a href="objpool.h">objpool.h</a>:
 ObjPool, a custom allocator for fixed-size objects with embedded
 'next' links.
@@ -186,6 +203,13 @@ Similar to auto_ptr in the C++ Standard.
     <a href="point.cc">point.cc</a>:
 Point, a pair of integers.
 
+<li><a href="ptrmap.h">ptrmap.h</a>:
+Template class built on top of VoidPtrMap (<a href="vptrmap.h">vptrmap.h</a>).
+
+<li><a href="smregexp.h">smregexp.h</a>, 
+    <a href="smregexp.cc">smregexp.cc</a>:
+Regular expression matching.
+
 <li><a href="sobjlist.h">sobjlist.h</a>:
 SObjList, a general linked list of objects.  SObjList does <em>not</em>
 consider itself the owner of the list elements.  The "s" in the
@@ -198,7 +222,7 @@ SObjSet, a non-owning set of objects implemented with a hashtable.
 <li><a href="sobjstack.h">sobjstack.h</a>:
 SObjStack, a stack of non-owned objects.  Built with a linked list.
 
-<li><a href="srcloc.h">srcloc.h</a>
+<li><a href="srcloc.h">srcloc.h</a>,
     <a href="srcloc.cc">srcloc.cc</a>:                         
 This module maintains a one-word data type called SourceLoc.
 SourceLoc is a location within some file, e.g. line/col or character
@@ -212,6 +236,7 @@ appropriate index structures.
 <li><a href="str.h">str.h</a>,
     <a href="str.cpp">str.cpp</a>:
 A string class, predating the C++ standard's version.
+See also <a href="string.txt">string.txt</a>.
 
 <li><a href="strdict.h">strdict.h</a>,
     <a href="strdict.cc">strdict.cc</a>:
@@ -261,6 +286,12 @@ Intended to be a portable encapsulation of system-dependent error
 facilities like UNIX's errno and Win32's GetLastError().  It's not
 very complete right now.
 
+<li><a href="taillist.h">taillist.h</a>:
+Template class built on top of VoidTailList (<a href="vdtllist.h">vdtllist.h</a>).
+
+<li><a href="thashtbl.h">thashtbl.h</a>:
+Template class built on top of HashTable (<a href="hashtbl.h">hashtbl.h</a>).
+
 <li><a href="test.h">test.h</a>:
 A few test-harness macros.
 
@@ -286,17 +317,22 @@ Some utilities on top of unix functions: writeAll(), readString().
 <li><a href="vdtllist.h">vdtllist.h</a>,
     <a href="vdtllist.cc">vdtllist.cc</a>:
 VoidTailList, the core of a linked list implementation which maintains
-a pointer to the last node for O(1) appends.  
-Used by <a href="astlist.h">astlist.h</a>.
+a pointer to the last node for O(1) appends.
+Used by <a href="astlist.h">astlist.h</a> and <a href="taillist.h">taillist.h</a>.
 
 <li><a href="voidlist.h">voidlist.h</a>,
     <a href="voidlist.cc">voidlist.cc</a>:
 The core of the linked list implementation used by
 <a href="objlist.h">objlist.h</a> and <a href="sobjlist.h">sobjlist.h</a>.
 
+<li><a href="vptrmap.h">vptrmap.h</a>,
+    <a href="vptrmap.cc">vptrmap.cc</a>:
+Hashtable-based map from void* to void*.
+Used by <a href="ptrmap.h">ptrmap.h</a> and <a href="objmap.h">objmap.h</a>.
+
 <li><a href="warn.h">warn.h</a>,
     <a href="warn.cpp">warn.cpp</a>:
-Intended to provide a general interface for user-level warnings, the
+Intended to provide a general interface for user-level warnings; the
 design never really worked well.
 
 <li><a href="xassert.h">xassert.h</a>:
@@ -321,6 +357,15 @@ A program to test the interface exposed by <a href="ckheap.h">ckheap.h</a>.
 <li><a href="tmalloc.c">tmalloc.c</a>:
 Test my debugging enhancements to <a href="malloc.c">malloc.c</a>.
 
+<li><a href="tarrayqueue.cc">tarrayqueue.cc</a>:
+Test driver for <a href="arrayqueue.h">arrayqueue.h</a>.
+
+<li><a href="testarray.cc">testarray.cc</a>:
+Test driver for <a href="array.h">array.h</a>.
+
+<li><a href="testcout.cc">testcout.cc</a>:
+This is a little test program for use by <a href="configure.pl">configure.pl</a>.
+
 <li><a href="tobjlist.cc">tobjlist.cc</a>:
 Test driver for <a href="objlist.h">objlist.h</a>.
 
@@ -331,6 +376,22 @@ Test driver for <a href="objpool.h">objpool.h</a>.
 Test driver for <a href="sobjlist.h">sobjlist.h</a>.
 
 </ul>
+
+<p>
+Utility scripts.
+
+<ul>
+
+<li><a href="run-flex.pl">run-flex.pl</a>:
+Perl script to run flex and massage its output for portability.
+
+<li><a href="sm_config.pm">sm_config.pm</a>:
+This is a Perl module, intended to be used by configure scripts.
+It is mostly a library of useful routines, but also reads and writes
+some of the main script's global variables.
+
+</ul>
+
 
 <h1>Module Dependencies</h1>
 
