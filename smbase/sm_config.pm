@@ -16,15 +16,19 @@ sub get_sm_config_version {
   @main::CCFLAGS = ("-g", "-Wall", "-Wno-deprecated", "-D__UNIX__");
   $main::debug = 0;
   $main::target = 0;
+  $main::no_dash_g = 0;
+  $main::no_dash_O2 = 0;
   $main::exe = "";
 
-  return 1.03;         
+  return 1.04;
 
   # 1.01: first version
   #
   # 1.02: added the PERLIO=crlf stuff
   #
   # 1.03: 2005-04-23: moved a bunch of argument processing into sm_config
+  #
+  # 1.04: 2005-05-04: re-added -no-dash-g and -no-dash-O2
 }
 
 # standard prefix of the usage string
@@ -40,6 +44,8 @@ standard (sm_config) options:
   -h:                print this message
   -debug[=0/1]:      enable debugging options [$main::debug]
   -target=<target>:  cross compilation target, e.g., "i386-mingw32msvc"
+  -no-dash-g:        disable -g
+  -no-dash-O2:       disable -O2
 EOF
 
   if ($main::thisPackage ne "smbase") {
@@ -83,6 +89,14 @@ sub handleStandardOption {
   elsif ($arg eq "smbase") {
     $main::SMBASE = getOptArg();
   }
+  
+  elsif ($arg eq "no-dash-g") {
+    $main::no_dash_g = 1;
+  }
+  
+  elsif ($arg eq "no-dash-O2") {
+    $main::no_dash_O2 = 1;
+  }
 
   else {
     return 0;
@@ -102,6 +116,14 @@ sub finishedOptionProcessing {
     if ($os eq "Linux") {
       push @main::CCFLAGS, "-D__LINUX__";
     }
+  }
+  
+  if ($main::no_dash_g) {
+    @main::CCFLAGS = grep { $_ ne "-g" } @main::CCFLAGS;
+  }
+
+  if ($main::no_dash_O2) {
+    @main::CCFLAGS = grep { $_ ne "-O2" } @main::CCFLAGS;
   }
 }
 
