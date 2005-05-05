@@ -12,6 +12,11 @@
 
 #include <stdlib.h>             // getenv
 
+#ifdef OINK
+  #include "oink_print.h"
+  #include "oink_var.h"
+#endif
+
 // set this environment variable to see the twalk_layer debugging
 // output
 OStreamOutStream treeWalkOut0(cout);
@@ -158,11 +163,14 @@ TreeWalkDebug::~TreeWalkDebug()
 
 // **************** class TypePrinterC
 
+bool TypePrinterC::enabled = true;
+
 void TypePrinterC::print(OutStream &out, Type const *type, char const *name)
 {
   // temporarily suspend the Type::toCString, Variable::toCString(),
   // etc. methods
   Restorer<bool> res0(global_mayUseTypeAndVarToCString, false);
+  xassert(enabled);
   out << print(type, name);
   // old way
 //    out << type->toCString(name);
@@ -609,6 +617,14 @@ string TypePrinterC::printAsParameter(Variable const *var)
   return sb;
 }
 
+// **************** class PrintEnv
+
+#ifdef OINK
+bool PrintEnv::isValuePrinter() {
+  return dynamic_cast<TypePrinterCO*>(&(typePrinter));
+}
+#endif
+
 // ****************
 
 // WARNING: if you are inclined to inline this function back into its
@@ -729,7 +745,15 @@ void printDeclaration
 void printVar(PrintEnv &env, Variable *var, PQName const * /*nullable*/ pqname)
 {
   TreeWalkDebug treeDebug("printVar");
-  printDeclaration(env, var->flags, var->type, pqname, var);
+
+  Type *type0 = var->type;
+#ifdef OINK
+  if (env.isValuePrinter()) {
+    type0 = asVariable_O(var)->abstrValue();
+  }
+#endif
+
+  printDeclaration(env, var->flags, type0, pqname, var);
 }
 
 
@@ -825,7 +849,19 @@ void Function::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("Function");
 
-  printDeclaration(env, dflags, funcType,
+  Type *type0 = funcType;
+#ifdef OINK
+  // NOTE: Templatized functions do not have an abstract value so
+  // sometimes we need to use the type instead.
+  bool isRealType = true;
+  if (abstrValue && env.isValuePrinter()) {
+    type0 = abstrValue;
+    isRealType = false;
+  }
+  Restorer<bool> res0(TypePrinterC::enabled, isRealType);
+#endif
+
+  printDeclaration(env, dflags, type0,
                    nameAndParams->getDeclaratorId(),
                    nameAndParams->var);
 
@@ -906,7 +942,15 @@ void Declaration::print(PrintEnv &env)
 void ASTTypeId::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("ASTTypeId");
-  env.typePrinter.print(*env.out, getType());
+
+  Type *type0 = getType();
+#ifdef OINK
+  if (env.isValuePrinter()) {
+    type0 = asVariable_O(decl->var)->abstrValue();
+  }
+#endif
+
+  env.typePrinter.print(*env.out, type0);
   if (decl->getDeclaratorId()) {
     *env.out << " ";
     decl->getDeclaratorId()->print(env);
@@ -1374,6 +1418,9 @@ string Expression::exprToString() const
   StringBuilderOutStream out0(sb);
   CodeOutStream codeOut(out0);
   TypePrinterC typePrinter;
+#ifdef OINK
+  Restorer<bool> res0(TypePrinterC::enabled, true);
+#endif
   PrintEnv env(typePrinter, &codeOut);
   
   // sm: I think all the 'print' methods should be 'const', but
@@ -1464,7 +1511,16 @@ void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta)
       *env.out << string("STA_NONE");
       break;
     case STemplateArgument::STA_TYPE:
+      {
+#ifdef OINK
+      // FIX: not sure if this is a bug but there is no abstract value
+      // lying around to be printed here so we just print what we
+      // have; enable the normal type printer temporarily in order to
+      // do this
+      Restorer<bool> res0(TypePrinterC::enabled, true);
+#endif
       env.typePrinter.print(*env.out, sta->value.t); // assume 'type' if no comment
+      }
       break;
     case STemplateArgument::STA_INT:
       *env.out << stringc << "/*int*/ " << sta->value.i;
@@ -1564,7 +1620,19 @@ void E_funCall::iprint(PrintEnv &env)
 void E_constructor::iprint(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("E_constructor::iprint");
-  env.typePrinter.print(*env.out, type);
+
+  Type *type0 = type;
+#ifdef OINK
+  // NOTE: I templatizs we not have an abstract value so sometimes we
+  // need to use the type instead.
+  bool isRealType = true;
+  if (abstrValue && env.isValuePrinter()) {
+    type0 = abstrValue;
+    isRealType = false;
+  }
+  Restorer<bool> res0(TypePrinterC::enabled, isRealType);
+#endif
+  env.typePrinter.print(*env.out, type0);
   PairDelim pair(*env.out, "", "(", ")");
   printArgExprList(env, args);
 }
@@ -1890,7 +1958,14 @@ void TD_func::iprint(PrintEnv &env)
       !var->templateInfo()->isPartialInstantiation()) {     // nor partial inst
     *env.out << "#if 0    // instantiations of ";
     // NOTE: inlined from Variable::toCString()
-    env.typePrinter.print(*env.out, var->type, (var->name? var->name : "/*anon*/"));
+
+    Type *type0 = var->type;
+#ifdef OINK
+    if (env.isValuePrinter()) {
+      type0 = asVariable_O(var)->abstrValue();
+    }
+#endif
+    env.typePrinter.print(*env.out, type0, (var->name? var->name : "/*anon*/"));
     *env.out << var->namePrintSuffix() << "\n";
     printFuncInstantiations(env, var);
 
@@ -1927,7 +2002,13 @@ void TD_decl::iprint(PrintEnv &env)
         Variable const *instV = iter.data();
 
         *env.out << "// ";
-        env.typePrinter.print(*env.out, instV->type);
+        Type *type0 = instV->type;
+#ifdef OINK
+        if (env.isValuePrinter()) {
+          type0 = asVariable_O(instV)->abstrValue();
+        }
+#endif
+        env.typePrinter.print(*env.out, type0);
         CompoundType *instCT = instV->type->asCompoundType();
         if (instCT->syntax) {
           *env.out << "\n";
@@ -1978,6 +2059,9 @@ void TA_type::print(PrintEnv &env)
 {
   // dig down to prevent printing "/*anon*/" since template
   // type arguments are always anonymous so it's just clutter
+#ifdef OINK
+  Restorer<bool> res0(TypePrinterC::enabled, true);
+#endif
   env.typePrinter.print(*env.out, type->decl->var->type);
 }
 
