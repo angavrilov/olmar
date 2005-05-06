@@ -718,6 +718,8 @@ public:     // funcs
 
   // allow some degree of unified handling of PointerType and ReferenceType
   bool isPtrOrRef() const { return isPointer() || isReference(); }
+  bool isPointerOrArrayRValueType() const;
+
   // dsw: this is virtual because in Oink an int can act as a pointer
   // so I need a way to do that
   virtual Type *getAtType() const;

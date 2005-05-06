@@ -1200,6 +1200,10 @@ bool BaseType::isReferenceToConst() const {
   return isReferenceType() && asReferenceTypeC()->atType->isConst();
 }
 
+bool BaseType::isPointerOrArrayRValueType() const {
+  return asRvalC()->isPointerType() || asRvalC()->isArrayType();
+}
+
 Type *BaseType::getAtType() const
 {
   if (isPointerType()) {
