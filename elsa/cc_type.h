@@ -677,10 +677,6 @@ public:     // funcs
   // return the cv flags that apply to this type, if any;
   // default returns CV_NONE
   virtual CVFlags getCVFlags() const;
-  // have to allow these for types with no cv qualifiers as you can
-  // make them with a tyepdef
-  virtual void setCVFlag(CVFlags cv0) {}
-  virtual void addCVFlag(CVFlags cv0) {}
   bool isConst() const { return !!(getCVFlags() & CV_CONST); }
 
   // invoke 'vis.visitType(this)', and then traverse subtrees
@@ -825,8 +821,6 @@ public:
   bool isConst() const { return !!(cv & CV_CONST); }
   bool isVolatile() const { return !!(cv & CV_VOLATILE); }
 
-  Variable *getDataMemberByName(StringRef name);
-
   // Type interface
   virtual Tag getTag() const { return T_ATOMIC; }
   unsigned innerHashValue() const;
@@ -835,8 +829,6 @@ public:
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
-  virtual void setCVFlag(CVFlags cv0) { cv = cv0; }
-  virtual void addCVFlag(CVFlags cv0) { cv |= cv0; }
   virtual void traverse(TypeVisitor &vis);
 };
 
@@ -865,8 +857,6 @@ public:
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
-  virtual void setCVFlag(CVFlags cv0) { cv = cv0; }
-  virtual void addCVFlag(CVFlags cv0) { cv |= cv0; }
   virtual void traverse(TypeVisitor &vis);
 };
 
@@ -1097,8 +1087,6 @@ public:
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
-  virtual void setCVFlag(CVFlags cv0) { cv = cv0; }
-  virtual void addCVFlag(CVFlags cv0) { cv |= cv0; }
   virtual void traverse(TypeVisitor &vis);
 };
 

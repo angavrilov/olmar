@@ -1334,11 +1334,6 @@ string toString(Type *t)
 
 
 // ----------------- CVAtomicType ----------------
-Variable *CVAtomicType::getDataMemberByName(StringRef name) {
-  return atomic->asCompoundType()->rawLookupVariable(name);
-}
-
-
 bool CVAtomicType::innerEquals(CVAtomicType const *obj, EqFlags flags) const
 {
   return atomic->equals(obj->atomic) &&
