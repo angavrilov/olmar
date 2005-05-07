@@ -3651,6 +3651,9 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
   // of checking them
   FunctionType *ft = env.tfac.syntaxFunctionType(loc, dt.type, this, env.tunit);
   ft->flags = specialFunc;
+  if (kAndR_params) {
+    ft->setFlag(FF_KANDR_DEFN);
+  }
   dt.funcSyntax = this;
   // moved below where dt.var exists
 //    ft->templateInfo = templateInfo;
