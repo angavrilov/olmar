@@ -85,6 +85,9 @@ public:     // funcs
   // add 'src' to the table, if it isn't already there; return a
   // unique representative, such that multiple calls to 'add' with
   // the same string contents will always yield the same value
+  //
+  // note that this module does not retain a pointer or reference
+  // to the original 'src' (it makes a copy if needed)
   StringRef add(char const *src);
   StringRef add(rostring src) { return add(src.c_str()); }
 
