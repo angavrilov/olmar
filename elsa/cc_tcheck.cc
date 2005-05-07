@@ -8430,7 +8430,16 @@ void ND_usingDecl::tcheck(Env &env)
 
   Variable *origVar = set.first();
   if (origVar == env.dependentVar) {
-    return;       // do nothing if the lookup was dependent (k0048.cc)
+    // if the lookup was dependent, add the name with dependent type
+    // (k0048.cc, t0468.cc)
+    Variable *v = env.makeVariable(name->loc, name->getName(), origVar->type, DF_NONE);
+    
+    // add with replacement; if the name already exists, then presumably
+    // we are trying to make an overload set, but without a real function
+    // type it all just degenerates to a dependent-typed set
+    env.addVariable(v, true /*forceReplace*/);
+
+    return;
   }
 
   // make aliases for everything in 'set'

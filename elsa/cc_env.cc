@@ -3202,6 +3202,13 @@ Variable *Env::createDeclaration(
         return ret;
       }
 
+      // (t0468.cc) if the previous version has dependent type, then
+      // just ignore this decl, as we effectively already have a
+      // dependent-typed overload set
+      if (prior->type->isSimple(ST_DEPENDENT)) {
+        goto makeDummyVar;
+      }
+
       // check for violation of rule disallowing multiple
       // declarations of the same class member; cppstd sec. 9.2:
       //   "A member shall not be declared twice in the
