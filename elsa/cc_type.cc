@@ -1114,9 +1114,14 @@ bool BaseType::isGeneralizedDependent() const
       isDependentQType()) {
     return true;
   }
-  
+
+  // 2005-05-06: I removed the following because I think it is wrong.
+  // The name 'A' (if found in, say, the global scope) is not dependent,
+  // though 'A<T>' might be (if T is an uninst template param).  I think
+  // in/d0113.cc was just invalid, and I fixed it.
+  #if 0     // removed
   if (isCompoundType()) {
-    // 10/09/04: (in/d0113.c) I want to regard A<T>::B, where B is an
+    // 10/09/04: (in/d0113.cc) I want to regard A<T>::B, where B is an
     // inner class of template class A, as being dependent.  For that
     // matter, A itself should be regarded as dependent.  So if 'ct'
     // has template parameters (including inherited), say it is
@@ -1126,6 +1131,7 @@ bool BaseType::isGeneralizedDependent() const
       return true;
     }
   }
+  #endif // 0
 
   return false;
 }

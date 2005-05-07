@@ -19,7 +19,12 @@ template<bool t, int i> struct D {} ;
 
 template<class C, class tr = S<C> >
 struct B {
-  struct Rep {};
+  struct Rep {               
+    // sm: 2005-05-06: I added the following.  I do not know
+    // why gcc and icc do not want it, since "(*p)[pos]" does
+    // not seem to be dependent.
+    int operator[](int);
+  };
   template<class I> B &f (I j1);
 };
 
@@ -31,6 +36,7 @@ template<class C, class tr>
   int pos;
 
   Rep *p;
+  (*p)[pos];
   tr::a((*p)[pos], *j1);
   // if I replace this with the below elsa seems to also like it but
   // what the heck is going on?

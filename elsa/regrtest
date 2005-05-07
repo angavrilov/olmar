@@ -759,6 +759,7 @@ failparse t0465.cc "ambiguous TemplateParameter, problem disambiguation declarat
 failparse t0466.cc "ambiguous declaration"
 testparse t0467.cc
 testparse t0468.cc
+testparse t0469.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

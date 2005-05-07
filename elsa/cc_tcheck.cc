@@ -6310,6 +6310,13 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
     return env.errorType();
   }
 
+  // I'm just going to say that any field access that involves
+  // a dependent type is itself of dependent type
+  #define HANDLE_DEPENDENT(v)                                     \
+    if (v && v->type && v->type->isGeneralizedDependent()) {      \
+      return env.dependentType();                                 \
+    }
+
   // case analysis on the presence/kind of qualifiers
   if (fieldName->isPQ_qualifier() &&
       fieldName->asPQ_qualifier()->qualifier == NULL) {
@@ -6324,6 +6331,7 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
     // unqualified lookup of firstQ
     Variable *firstQVar1 =
       env.unqualifiedLookup_one(firstQ->qualifier, LF_QUALIFIER_LOOKUP);
+    HANDLE_DEPENDENT(firstQVar1);
     if (firstQVar1 &&
         !firstQVar1->isNamespace() &&
         !firstQVar1->isClass()) {
@@ -6339,6 +6347,7 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
     // lookup of firstQ in scope of LHS class
     Variable *firstQVar2 =
       ct->lookup_one(firstQ->qualifier, env, LF_QUALIFIER_LOOKUP);
+    HANDLE_DEPENDENT(firstQVar2);
     if (firstQVar2 &&
         !firstQVar2->isClass()) {
       return env.error(firstQ->loc, stringc
@@ -6383,6 +6392,7 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
 
       // unqualified lookup
       Variable *var1 = env.unqualifiedLookup_one(rhsFinalTypeName, flags);
+      HANDLE_DEPENDENT(var1);
       if (var1 && !var1->isClass()) {
         return env.error(fieldName->loc, stringc
           << "in " << this->asString() << ", when " << rhsFinalTypeName
@@ -6392,10 +6402,11 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
 
       // lookup in class of LHS
       Variable *var2 = ct->lookup_one(rhsFinalTypeName, env, flags);
+      HANDLE_DEPENDENT(var2);
       if (var2 && !var2->isClass()) {
         return env.error(fieldName->loc, stringc
           << "in " << this->asString() << ", when " << rhsFinalTypeName
-          << " is found in the class of " << obj->asString() 
+          << " is found in the class of " << obj->asString()
           << ", it must be a class, not " << kindAndType(var2));
       }
 
@@ -6433,6 +6444,8 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
       env.unqualifiedFinalNameLookup(candidates, ct, fieldName, flags);
     }
   }
+  
+  #undef HANDLE_DEPENDENT
   
   // investigate what lookup yielded
   if (candidates.isEmpty()) {
