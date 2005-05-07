@@ -1204,6 +1204,7 @@ bool BaseType::isPointerOrArrayRValueType() const {
   return asRvalC()->isPointerType() || asRvalC()->isArrayType();
 }
 
+// FIX: this is silly; it should be made into a virtual dispatch
 Type *BaseType::getAtType() const
 {
   if (isPointerType()) {
@@ -1327,6 +1328,11 @@ string toString(Type *t)
 
 
 // ----------------- CVAtomicType ----------------
+Variable *CVAtomicType::getDataMemberByName(StringRef name) {
+  return atomic->asCompoundType()->rawLookupVariable(name);
+}
+
+
 bool CVAtomicType::innerEquals(CVAtomicType const *obj, EqFlags flags) const
 {
   return atomic->equals(obj->atomic) &&

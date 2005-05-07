@@ -825,6 +825,8 @@ public:
   bool isConst() const { return !!(cv & CV_CONST); }
   bool isVolatile() const { return !!(cv & CV_VOLATILE); }
 
+  Variable *getDataMemberByName(StringRef name);
+
   // Type interface
   virtual Tag getTag() const { return T_ATOMIC; }
   unsigned innerHashValue() const;
@@ -1045,6 +1047,7 @@ protected:
 public:
   bool innerEquals(ArrayType const *obj, EqFlags flags) const;
 
+  int getSize() const { return size; }
   bool hasSize() const { return size >= 0; }
 
   // Type interface
