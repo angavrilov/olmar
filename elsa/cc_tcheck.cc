@@ -3109,6 +3109,9 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     dt.existingVar = env.explicitFunctionInstantiation(name, dt.type);
   }
 
+  // DF_FRIEND gets turned off by 'declareNewVariable' ...
+  bool isFriend = !!(dt.dflags & DF_FRIEND);
+
   bool callerPassedInstV = false;
   if (!dt.existingVar) {
     // make a Variable, add it to the environment
@@ -3164,7 +3167,15 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   }
   else if (templatizableContext) {
     if (dt.type->isFunctionType()) {
-      templateInfo = env.takeFTemplateInfo();
+      bool allowInherited = true;
+      if (isFriend) {
+        // (k0057.cc) we are processing the declaration of a
+        // templatized friend; since the friend is not actually a
+        // member of the current class, it should not be regarded as
+        // parameterized by the current class's parameters (if any)
+        allowInherited = false;
+      }
+      templateInfo = env.takeFTemplateInfo(allowInherited);
     }
     else {
       // non-templatizable entity

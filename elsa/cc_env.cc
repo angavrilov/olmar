@@ -2340,16 +2340,16 @@ StringRef Env::getAnonName(TypeIntr keyword)
 }
 
 
-TemplateInfo * /*owner*/ Env::takeFTemplateInfo()
+TemplateInfo * /*owner*/ Env::takeFTemplateInfo(bool allowInherited)
 {
   // for now, difference is that function TemplateInfos have
-  // NULL baseNames        
+  // NULL baseNames
   //
   // and in fact that difference is now gone too...
-  return takeCTemplateInfo();
+  return takeCTemplateInfo(allowInherited);
 }
 
-TemplateInfo * /*owner*/ Env::takeCTemplateInfo()
+TemplateInfo * /*owner*/ Env::takeCTemplateInfo(bool allowInherited)
 {
   // delay building a TemplateInfo until it is sure to be needed
   TemplateInfo *ret = NULL;
@@ -2392,6 +2392,10 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo()
 
           TRACE("templateParams", "main params: " << ret->paramsToCString());
         }
+      }
+
+      else if (!allowInherited) {
+        // ignore these inherited parameters
       }
 
       else {

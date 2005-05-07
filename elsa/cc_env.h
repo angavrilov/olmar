@@ -445,10 +445,10 @@ public:      // funcs
   // if the innermost scope has some template parameters, take
   // them out and return them; otherwise return NULL; this is for
   // use by template *functions*
-  TemplateInfo * /*owner*/ takeFTemplateInfo();
+  TemplateInfo * /*owner*/ takeFTemplateInfo(bool allowInherited = true);
 
   // like the above, but for template *classes*
-  TemplateInfo * /*owner*/ takeCTemplateInfo();
+  TemplateInfo * /*owner*/ takeCTemplateInfo(bool allowInherited = true);
 
   // return a new name for an anonymous type; 'keyword' says
   // which kind of type we're naming
