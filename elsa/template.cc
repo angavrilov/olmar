@@ -2959,6 +2959,14 @@ void Env::transferTemplateMemberInfo
             srcSpec, source->ctype,
             destTDecl->asTD_decl()->d->spec, sargs);
         }
+        else if (srcTDecl->asTD_decl()->d->dflags & DF_FRIEND) {
+          // (k0056.cc) source declaration is a friend... I *think* I
+          // just want to ignore it here... if I don't, then the
+          // member transfer logic gets confused by the fact that the
+          // presence and checkedness of the definition is independent
+          // of this template class's state (because the friend is not
+          // actually a memebr)
+        }
         else {
           // old TD_proto behavior
           Variable *srcVar = srcTDecl->asTD_decl()->d->decllist->first()->var;
