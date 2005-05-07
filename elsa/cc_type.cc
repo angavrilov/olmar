@@ -1829,10 +1829,6 @@ void FunctionType::addReceiver(Variable *param)
 }
 
 
-void FunctionType::registerRetVar(Variable *retVar)
-{}
-
-
 Variable const *FunctionType::getReceiverC() const
 {
   xassert(isMethod());

@@ -754,7 +754,6 @@ void ElabVisitor::elaborateFunctionStart(Function *f)
       env.tfac.makeReferenceType(ft->retType);
     StringRef retValName = env.str("<retVar>");
     f->retVar = env.makeVariable(loc, retValName, retValType, DF_PARAMETER);
-    ft->registerRetVar(f->retVar);
 
     // sm: This seemed like a good idea, because an analysis would get
     // to see the declaration and not just the magical appearance of a

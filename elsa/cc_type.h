@@ -984,16 +984,6 @@ public:
   // TypeFactory::doneParams so that the factory has a chance to
   // do any final adjustments.
 
-  // During elaboration, functions that return CompoundTypes are
-  // changed to behave as if they instead accepted a reference to an
-  // object in which the return value is constructed.  At that time,
-  // this function is called, and passed the Variable that is to be
-  // bound to that passed object (sort of like a hidden parameter).
-  // The base tcheck module does not need to store this, so the
-  // default implementation does nothing, but other analyses may want
-  // to.
-  virtual void registerRetVar(Variable *retVar);
-
   Variable const *getReceiverC() const;  // 'isMember' must be true
   Variable *getReceiver() { return const_cast<Variable*>(getReceiverC()); }
 
