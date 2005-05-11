@@ -108,13 +108,13 @@ class OStreamOutStream : public OutStream {
 
 // indents the source code sent to it
 class CodeOutStream : public OutStream {
-  OutStream &out;           // output to here
+  OutStream &out;               // output to here
   int depth;                    // depth of indentation
-  int buffered_newlines;        // number of buffered trailing newlines
+  int bufferedNewlines;         // number of buffered trailing newlines
 
   public:
   CodeOutStream(OutStream &out0)
-    : out(out0), depth(0), buffered_newlines(0)
+    : out(out0), depth(0), bufferedNewlines(0)
   {}
   virtual ~CodeOutStream();
 
@@ -224,10 +224,21 @@ class TreeWalkDebug {
   ~TreeWalkDebug();
 };
 
+#ifndef OINK
+// In Oink, TypeLike is a superclass of Type but here we will just
+// make it synonymous with Type.
+typedef Type TypeLike;
+#endif
+
 // Interface for classes that know how to print out types
 class TypePrinter {
   public:
-  virtual void print(OutStream &out, Type const *type, char const *name = NULL) = 0;
+  // dsw: type has to be a void* because in the Oink TypePrinter it is
+  // a Value which isn't a type; I don't know of a good way to fix
+  // this other than to invent some abstract interface generalization
+  // called TypeLike that both Type and Value inherit from.  I think
+  // this is too much generality for OO to handle well
+  virtual void print(OutStream &out, TypeLike const *type, char const *name = NULL) = 0;
 };
 
 // This class knows how to print out Types in C syntax
@@ -243,7 +254,7 @@ class TypePrinterC : public TypePrinter {
   virtual ~TypePrinterC() {}
 
   // satisfy the interface to TypePrinter
-  virtual void print(OutStream &out, Type const *type, char const *name = NULL);
+  virtual void print(OutStream &out, TypeLike const *type, char const *name = NULL);
 
   protected:
   // **** AtomicType

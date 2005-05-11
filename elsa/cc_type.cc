@@ -2475,27 +2475,23 @@ CompoundType *TypeFactory::makeCompoundType
 }
 
 
-Type *TypeFactory::setCVQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
-                                   TypeSpecifier *)
+// the idea is we're trying to apply 'cv' to 'baseType'; for
+// example, we could have gotten baseType like
+//   typedef unsigned char byte;     // baseType == unsigned char
+// and want to apply const:
+//   byte const b;                   // cv = CV_CONST
+// yielding final type
+//   unsigned char const             // return value from this fn
+//
+// dsw: I need to force this to happen, which setCVQualifiers()
+// doesn't let me do
+Type *TypeFactory::shallowCloneWithCV(SourceLoc loc, CVFlags cv, Type *baseType)
 {
-  if (baseType->isError()) {
-    return baseType;
-  }
-
-  if (cv == baseType->getCVFlags()) {
-    // keep what we've got
-    return baseType;
-  }
-
-  // the idea is we're trying to apply 'cv' to 'baseType'; for
-  // example, we could have gotten baseType like
-  //   typedef unsigned char byte;     // baseType == unsigned char
-  // and want to apply const:
-  //   byte const b;                   // cv = CV_CONST
-  // yielding final type
-  //   unsigned char const             // return value from this fn
-
   switch (baseType->getTag()) {
+    default:
+      xfailure("bad tag");
+      break;
+
     case Type::T_ATOMIC: {
       CVAtomicType *atomic = baseType->asCVAtomicType();
 
@@ -2514,7 +2510,30 @@ Type *TypeFactory::setCVQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
       return makePointerToMemberType(ptm->inClassNAT, cv, ptm->atType);
     }
 
-    default:    // silence warning
+#ifdef OINK
+    // I need these to be shallow-cloned anyway
+    case Type::T_ARRAY: {
+      ArrayType *arr = baseType->asArrayType();
+      return makeArrayType(arr->eltType, arr->size);
+    }
+
+    case Type::T_REFERENCE: {
+      ReferenceType *ref = baseType->asReferenceType();
+      return makeReferenceType(ref->atType);
+    }
+
+    case Type::T_FUNCTION: {
+      FunctionType *ft = baseType->asFunctionType();
+      FunctionType *ret = makeFunctionType(ft->retType);
+      ret->flags = ft->flags;
+      SFOREACH_OBJLIST_NC(Variable, ft->params, paramiter) {
+        ret->params.append(paramiter.data());
+      }
+      ret->exnSpec = ft->exnSpec;
+      return ret;
+    }
+
+#else
     case Type::T_ARRAY:
     case Type::T_REFERENCE:
     case Type::T_FUNCTION:
@@ -2522,7 +2541,24 @@ Type *TypeFactory::setCVQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
       // original cv flags must have been CV_NONE, then 'cv' must
       // not be CV_NONE
       return NULL;
+#endif
   }
+}
+
+
+Type *TypeFactory::setCVQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
+                                   TypeSpecifier *)
+{
+  if (baseType->isError()) {
+    return baseType;
+  }
+
+  if (cv == baseType->getCVFlags()) {
+    // keep what we've got
+    return baseType;
+  }
+
+  return shallowCloneWithCV(loc, cv, baseType);
 }
 
 
@@ -2661,6 +2697,8 @@ CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
 
 CVAtomicType *BasicTypeFactory::makeCVAtomicType(AtomicType *atomic, CVFlags cv)
 {
+#ifndef OINK
+  // FIX: We need to avoid doing this in Oink
   if (cv==CV_NONE && atomic->isSimpleType()) {
     // since these are very common, and ordinary Types are immutable,
     // share them
@@ -2668,6 +2706,7 @@ CVAtomicType *BasicTypeFactory::makeCVAtomicType(AtomicType *atomic, CVFlags cv)
     xassert((unsigned)(st->type) < (unsigned)NUM_SIMPLE_TYPES);
     return &(unqualifiedSimple[st->type]);
   }
+#endif
 
   return new CVAtomicType(atomic, cv);
 }

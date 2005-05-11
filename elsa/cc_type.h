@@ -495,12 +495,21 @@ public:
 class BaseType INHERIT_SERIAL_BASE {
 public:     // types
   enum Tag {
-    T_ATOMIC,             // int const, class Foo, etc.
-    T_POINTER,            // int *
-    T_REFERENCE,          // int &
-    T_FUNCTION,           // int ()(int, float)
-    T_ARRAY,              // int [3]
-    T_POINTERTOMEMBER     // int C::*
+    // dsw: I want these to not be picked arbitrarily by the compiler,
+    // so I start it at something specific; I like 0 to be meaningless
+    // so that nothing meaningfull happens by default, a la pointers.
+    T_ATOMIC = 1,               // int const, class Foo, etc.
+    T_POINTER,                  // int *
+    T_REFERENCE,                // int &
+    T_FUNCTION,                 // int ()(int, float)
+    T_ARRAY,                    // int [3]
+    T_POINTERTOMEMBER,          // int C::*
+
+    T_LAST_TYPE_TAG,
+    // IMPORTANT: it is important that T_LAST_TYPE_TAG be the last one
+    // so I can make a disjoint set in Oink by starting my enum at
+    // T_LAST_TYPE_TAG+1.  Therefore if you add anything, add it
+    // before T_LAST_TYPE_TAG.
   };
 
 public:     // data
@@ -1164,6 +1173,11 @@ public:
   // NOTE: The functions in this section do *not* modify their argument
   // Types, rather they return a new object if the desired Type is different
   // from the one passed-in.  (That is, they behave functionally.)
+
+  // a version of setCVQualifiers() that forces the shallow clone
+  // instead of optimizing for when the qualifiers are remaining the
+  // same
+  virtual Type *shallowCloneWithCV(SourceLoc loc, CVFlags cv, Type *baseType);
 
   // given a type, set its cv-qualifiers to 'cv'; return NULL if the
   // base type cannot be so qualified; I pass the syntax from which

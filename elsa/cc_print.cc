@@ -24,15 +24,15 @@ TreeWalkOutStream treeWalkOut(treeWalkOut0, getenv("TWALK_VERBOSE"));
 
 // This is a dummy global so that this file will compile both in
 // default mode and in qualifiers mode.
-class dummy_type;               // This does nothing.
-dummy_type *ql;
-string toString(class dummy_type*) {return "";}
+class dummyType;                // This does nothing.
+dummyType *ql;
+string toString(class dummyType*) {return "";}
 
 // **** class CodeOutStream
 
 CodeOutStream::~CodeOutStream()
 {
-  if (buffered_newlines) {
+  if (bufferedNewlines) {
     cout << "**************** ERROR.  "
          << "You called my destructor before making sure all the buffered newlines\n"
          << "were flushed (by, say, calling finish())\n";
@@ -57,13 +57,13 @@ void CodeOutStream::printWhileInsertingIndentation(int n, rostring message) {
 void CodeOutStream::finish()
 {
   // NOTE: it is probably an error if depth is ever > 0 at this point.
-  //      printf("BUFFERED NEWLINES: %d\n", buffered_newlines);
+  //      printf("BUFFERED NEWLINES: %d\n", bufferedNewlines);
   stringBuilder s;
-  for(;buffered_newlines>1;buffered_newlines--) s << "\n";
+  for(;bufferedNewlines>1;bufferedNewlines--) s << "\n";
   printWhileInsertingIndentation(depth,s);
-  xassert(buffered_newlines == 1 || buffered_newlines == 0);
-  if (buffered_newlines) {
-    buffered_newlines--;
+  xassert(bufferedNewlines == 1 || bufferedNewlines == 0);
+  if (bufferedNewlines) {
+    bufferedNewlines--;
     out << "\n";                // don't indent after last one
   }
   flush();
@@ -74,10 +74,10 @@ CodeOutStream & CodeOutStream::operator << (ostream& (*manipfunc)(ostream& outs)
   // sm: just assume it's "endl"; the only better thing I could
   // imagine doing is pointer comparisons with some other well-known
   // omanips, since we certainly can't execute it...
-  if (buffered_newlines) {
+  if (bufferedNewlines) {
     out << endl;
     printIndentation(depth);
-  } else buffered_newlines++;
+  } else bufferedNewlines++;
   out.flush();
   return *this;
 }
@@ -88,19 +88,19 @@ CodeOutStream & CodeOutStream::operator << (char const *message)
   if (len<1) return *this;
   string message1 = message;
 
-  int pending_buffered_newlines = 0;
+  int pending_bufferedNewlines = 0;
   if (message1[len-1] == '\n') {
     message1[len-1] = '\0';    // whack it
-    pending_buffered_newlines++;
+    pending_bufferedNewlines++;
   }
 
   stringBuilder message2;
-  if (buffered_newlines) {
+  if (bufferedNewlines) {
     message2 << "\n";
-    buffered_newlines--;
+    bufferedNewlines--;
   }
   message2 << message1;
-  buffered_newlines += pending_buffered_newlines;
+  bufferedNewlines += pending_bufferedNewlines;
 
   printWhileInsertingIndentation(depth, message2);
   return *this;
@@ -165,13 +165,15 @@ TreeWalkDebug::~TreeWalkDebug()
 
 bool TypePrinterC::enabled = true;
 
-void TypePrinterC::print(OutStream &out, Type const *type, char const *name)
+void TypePrinterC::print(OutStream &out, TypeLike const *type, char const *name)
 {
   // temporarily suspend the Type::toCString, Variable::toCString(),
   // etc. methods
   Restorer<bool> res0(global_mayUseTypeAndVarToCString, false);
   xassert(enabled);
-  out << print(type, name);
+  // see the note at the interface TypePrinter::print()
+  Type const *type0 = static_cast<Type const *>(type);
+  out << print(type0, name);
   // old way
 //    out << type->toCString(name);
 }
@@ -691,7 +693,7 @@ void printDeclaration
   // type of the variable; not same as 'var->type' because the latter
   // can come from a prototype and hence have different parameter
   // names
-  Type const *type,
+  TypeLike const *type,
 
   // original name in the source; for now this is redundant with
   // 'var->name', but we plan to print the qualifiers by looking
@@ -720,7 +722,20 @@ void printDeclaration
     *env.out << "operator ";
 
     // then the return type and the function designator
-    env.typePrinter.print(*env.out, type->asFunctionTypeC()->retType);
+    TypeLike *retThing = NULL;
+#ifdef OINK
+    // compute the retType/Value
+    TypeLike *valueOrType = const_cast<TypeLike*>(static_cast<TypeLike const*>(type));
+    if (valueOrType->isActuallyAValue()) {
+      retThing = valueOrType->asValue()->asFunctionValue()->retValue;
+    } else {
+      retThing = valueOrType->asType()->asFunctionType()->retType;
+    }
+#else
+    retThing = static_cast<Type const*>(type)->asFunctionTypeC()->retType;
+#endif
+    env.typePrinter.print(*env.out, retThing);
+
     *env.out << " ()";
   }
 
@@ -732,7 +747,19 @@ void printDeclaration
 
   else {
     if (finalName) {
-      string name = printDeclaration_makeName(env, type, pqname, var, finalName);
+      Type const *type0 = NULL;
+#ifdef OINK
+      // compute the retType/Value
+      TypeLike *valueOrType = const_cast<TypeLike*>(static_cast<TypeLike const*>(type));
+      if (valueOrType->isActuallyAValue()) {
+        type0 = valueOrType->asValue()->t();
+      } else {
+        type0 = valueOrType->asType();
+      }
+#else
+      type0 = static_cast<Type const*>(type);
+#endif
+      string name = printDeclaration_makeName(env, type0, pqname, var, finalName);
       env.typePrinter.print(*env.out, type, name.c_str());
     } else {
       env.typePrinter.print(*env.out, type, finalName);
@@ -746,14 +773,15 @@ void printVar(PrintEnv &env, Variable *var, PQName const * /*nullable*/ pqname)
 {
   TreeWalkDebug treeDebug("printVar");
 
-  Type *type0 = var->type;
+  TypeLike const *type0 = var->type;
 #ifdef OINK
   if (env.isValuePrinter()) {
     type0 = asVariable_O(var)->abstrValue();
   }
 #endif
 
-  printDeclaration(env, var->flags, type0, pqname, var);
+  printDeclaration(env, var->flags,
+                   type0, pqname, var);
 }
 
 
@@ -848,8 +876,10 @@ void TF_namespaceDecl::print(PrintEnv &env)
 void Function::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("Function");
+  static int count0 = 0;
+  ++count0;
 
-  Type *type0 = funcType;
+  TypeLike const *type0 = funcType;
 #ifdef OINK
   // NOTE: Templatized functions do not have an abstract value so
   // sometimes we need to use the type instead.
@@ -861,7 +891,8 @@ void Function::print(PrintEnv &env)
   Restorer<bool> res0(TypePrinterC::enabled, isRealType);
 #endif
 
-  printDeclaration(env, dflags, type0,
+  printDeclaration(env, dflags,
+                   type0,
                    nameAndParams->getDeclaratorId(),
                    nameAndParams->var);
 
@@ -943,7 +974,7 @@ void ASTTypeId::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("ASTTypeId");
 
-  Type *type0 = getType();
+  TypeLike const *type0 = getType();
 #ifdef OINK
   if (env.isValuePrinter()) {
     type0 = asVariable_O(decl->var)->abstrValue();
@@ -1022,7 +1053,7 @@ void TS_name::print(PrintEnv &env)
 {
   xassert(0);                   // I'll bet this is never called.
 //    TreeWalkDebug treeDebug("TS_name");
-//    *env.out << toString(ql);          // see string toString(class dummy_type*) above
+//    *env.out << toString(ql);          // see string toString(class dummyType*) above
 //    name->print(env);
 }
 
@@ -1030,14 +1061,14 @@ void TS_simple::print(PrintEnv &env)
 {
   xassert(0);                   // I'll bet this is never called.
 //    TreeWalkDebug treeDebug("TS_simple");
-//    *env.out << toString(ql);          // see string toString(class dummy_type*) above
+//    *env.out << toString(ql);          // see string toString(class dummyType*) above
 }
 
 void TS_elaborated::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("TS_elaborated");
   env.loc = loc;
-  *env.out << toString(ql);          // see string toString(class dummy_type*) above
+  *env.out << toString(ql);          // see string toString(class dummyType*) above
   *env.out << toString(keyword) << " ";
   name->print(env);
 }
@@ -1045,7 +1076,7 @@ void TS_elaborated::print(PrintEnv &env)
 void TS_classSpec::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("TS_classSpec");
-  *env.out << toString(ql);          // see string toString(class dummy_type*) above
+  *env.out << toString(ql);          // see string toString(class dummyType*) above
   *env.out << toString(cv);
   *env.out << toString(keyword) << " ";
   if (name) *env.out << name->toString();
@@ -1067,7 +1098,7 @@ void TS_classSpec::print(PrintEnv &env)
 void TS_enumSpec::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("TS_classSpec");
-  *env.out << toString(ql);          // see string toString(class dummy_type*) above
+  *env.out << toString(ql);          // see string toString(class dummyType*) above
   *env.out << toString(cv);
   *env.out << "enum ";
   if (name) *env.out << name;
@@ -1621,7 +1652,7 @@ void E_constructor::iprint(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("E_constructor::iprint");
 
-  Type *type0 = type;
+  TypeLike const *type0 = type;
 #ifdef OINK
   // NOTE: I templatizs we not have an abstract value so sometimes we
   // need to use the type instead.
@@ -1959,7 +1990,7 @@ void TD_func::iprint(PrintEnv &env)
     *env.out << "#if 0    // instantiations of ";
     // NOTE: inlined from Variable::toCString()
 
-    Type *type0 = var->type;
+    TypeLike const *type0 = var->type;
 #ifdef OINK
     if (env.isValuePrinter()) {
       type0 = asVariable_O(var)->abstrValue();
@@ -2002,7 +2033,7 @@ void TD_decl::iprint(PrintEnv &env)
         Variable const *instV = iter.data();
 
         *env.out << "// ";
-        Type *type0 = instV->type;
+        TypeLike const *type0 = instV->type;
 #ifdef OINK
         if (env.isValuePrinter()) {
           type0 = asVariable_O(instV)->abstrValue();
