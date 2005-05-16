@@ -163,6 +163,8 @@ void doit(int argc, char **argv)
      "    printTypedAST      print AST with type info\n"
      "    printElabAST       print AST after semantic elaboration\n"
      "    prettyPrint        echo input as pretty-printed (but sometimes invalid) C++\n"
+     "    xmlPrintAST        print AST as XML\n"
+     "    xmlPrintLoweredAST print AST as XML after lowering\n"
      "\n"
      "  debugging output:\n"
      "    malloc_stats       print malloc stats every so often\n"
@@ -228,6 +230,8 @@ void doit(int argc, char **argv)
     traceAddSys("templateParams");
     traceAddSys("templateXfer");
     traceAddSys("prettyPrint");
+    traceAddSys("xmlPrintAST");
+    traceAddSys("xmlPrintLoweredAST");
     traceAddSys("topform");
   }
   
@@ -470,7 +474,13 @@ void doit(int argc, char **argv)
     ElabVisitor vis(strTable, tfac, unit);
 
     // if we are going to pretty print, then we need to retain defunct children
-    if (tracingSys("prettyPrint")) {
+    if (tracingSys("prettyPrint")
+        // dsw: I don't know if this is right, but printing the xml
+        // AST kind of resembles pretty-printing the AST; fix this if
+        // it is wrong
+        || tracingSys("xmlPrintAST")
+        || tracingSys("xmlPrintLoweredAST")
+        ) {
       vis.cloneDefunctChildren = true;
     }
 
@@ -514,6 +524,25 @@ void doit(int argc, char **argv)
     codeOut.finish();
     cout << "---- STOP ----" << endl;
     traceProgress() << "dsw pretty print... done\n";
+  }
+
+  // dsw: xml printing
+  // this is a second try at XML printing, but also is still incomplete
+  if (tracingSys("xmlPrintAST")) {
+    traceProgress() << "dsw xml print...\n";
+//      OStreamOutStream out0(cout);
+//      CodeOutStream codeOut(out0);
+//      TypePrinterC typePrinter;
+//      PrintEnv env(typePrinter, &codeOut);
+    bool indent = tracingSys("xmlPrintAST-indent");
+    ToXmlASTVisitor xmlVis(cout, indent);
+    cout << "---- START ----" << endl;
+    cout << "// -*-c++-*-" << endl;
+    unit->traverse(xmlVis);
+    cout.flush();
+//      codeOut.finish();
+    cout << "---- STOP ----" << endl;
+    traceProgress() << "dsw xml print... done\n";
   }
 
   // test AST cloning
