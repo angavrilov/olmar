@@ -27,6 +27,11 @@ inline bool wantVisitor() { return visitorName.length() != 0; }
 string dvisitorName;
 inline bool wantDVisitor() { return dvisitorName.length() != 0; }
 
+// this is the name of the xml-visitor, or ""
+// if the user does not want a delegator-visitor
+string xmlVisitorName;
+inline bool wantXmlVisitor() { return xmlVisitorName.length() != 0; }
+
 // similar for the modification visitor ("mvisitor")
 string mvisitorName;
 inline bool wantMVisitor() { return mvisitorName.length() != 0; }
@@ -326,6 +331,7 @@ private:        // funcs
   void emitVisitorInterfacePrelude(rostring visitorName);
   void emitVisitorInterface();
   void emitDVisitorInterface();
+  void emitXmlVisitorInterface();
   void emitMVisitorInterface();
 
 public:         // funcs
@@ -379,6 +385,15 @@ void HGen::emitFile()
     }
     out << "// delegator-visitor interface class\n"
         << "class " << dvisitorName << ";\n\n";
+  }
+  if (wantXmlVisitor()) {
+    // dsw: this seems necessary and here seems as good a place as any
+    // to do it
+    if (!wantVisitor()) {
+      xfatal("If you specify the 'xmlVisitor' option, you must also specify the 'visitor' option");
+    }
+    out << "// xml-visitor interface class\n"
+        << "class " << xmlVisitorName << ";\n\n";
   }
   if (wantMVisitor()) {
     out << "class " << mvisitorName << ";\n\n";
@@ -434,6 +449,9 @@ void HGen::emitFile()
   }
   if (wantDVisitor()) {
     emitDVisitorInterface();
+  }
+  if (wantXmlVisitor()) {
+    emitXmlVisitorInterface();
   }
   if (wantMVisitor()) {
     emitMVisitorInterface();
@@ -867,6 +885,14 @@ public:
 
   void emitVisitorImplementation();
   void emitDVisitorImplementation();
+
+  private:
+  void emitXmlCtorArgs(ASTList<CtorArg> const &args, char const *baseName);
+  void emitXmlFields(ASTList<Annotation> const &decls, char const *baseName);
+  void emitXmlField(bool isOwner, rostring type, rostring name, char const *baseName);
+  public:
+  void emitXmlVisitorImplementation();
+
   void emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
                     bool hasChildren);
 
@@ -923,6 +949,9 @@ void CGen::emitFile()
   }
   if (wantDVisitor()) {
     emitDVisitorImplementation();
+  }
+  if (wantXmlVisitor()) {
+    emitXmlVisitorImplementation();
   }
   if (wantMVisitor()) {
     emitMVisitorImplementation();
@@ -1557,19 +1586,287 @@ void CGen::emitDVisitorImplementation()
   out << "// default no-op delegator-visitor\n";
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
+
     out << "bool " << dvisitorName << "::visit" << c->super->name
         << "(" << c->super->name << " *obj) {\n"
       // dsw: I changed this back to xassert() from xassertdb()
       // because NDEBUG just gets turned on more often than I like.
         << "  xassert(!wasVisitedAST(obj));\n"
         << "  return client ? client->visit" << c->super->name << "(obj) : true;\n"
-        << "}\n"
-        << "void " << dvisitorName << "::postvisit" << c->super->name
+        << "}\n";
+
+    out << "void " << dvisitorName << "::postvisit" << c->super->name
         << "(" << c->super->name << " *obj) {\n"
         << "  if (client) {\n"
         << "    client->postvisit" << c->super->name << "(obj);\n"
         << "  }\n"
         << "}\n";
+  }
+  out << "\n\n";
+}
+
+// ------------------- xml visitor --------------------
+
+// NOTE: dsw: this junk is just here so I can figure out what is going
+// on for now.
+
+//  #define PRINT_STRING(var) 
+//    debugPrintStr(var, #var, os, indent)    /* user ; */
+
+//  void debugPrintStr(string const &s, char const *name,
+//                     ostream &os, int indent);
+
+
+//  #define PRINT_LIST(T, list) 
+//    debugPrintList(list, #list, os, indent)     /* user ; */
+
+//  template <class T>
+//  void debugPrintList(ASTList<T> const &list, char const *name,
+//                      ostream &os, int indent)
+//  {
+//    ind(os, indent) << name << ":\n";
+//    int ct=0;
+//    {
+//      FOREACH_ASTLIST(T, list, iter) {
+//        iter.data()->debugPrint(os, indent+2,
+//          stringc << name << "[" << ct++ << "]");
+//      }
+//    }
+//  }
+
+//  // provide explicit specialization for strings
+//  void debugPrintList(ASTList<string> const &list, char const *name,
+//                      ostream &os, int indent);
+//  void debugPrintList(ASTList<LocString> const &list, char const *name,
+//                      ostream &os, int indent);
+
+
+//  #define PRINT_FAKE_LIST(T, list) 
+//    debugPrintFakeList(list, #list, os, indent)     /* user ; */
+
+//  template <class T>
+//  void debugPrintFakeList(FakeList<T> const *list, char const *name,
+//                          ostream &os, int indent)
+//  {
+//    ind(os, indent) << name << ":\n";
+//    int ct=0;
+//    {
+//      FAKELIST_FOREACH(T, list, iter) {
+//        iter->debugPrint(os, indent+2,
+//          stringc << name << "[" << ct++ << "]");
+//      }
+//    }
+//  }
+
+//  // note that we never make FakeLists of strings, since of course
+//  // strings do not have a 'next' pointer
+
+
+//  #define PRINT_SUBTREE(tree)                     
+//    if (tree) {                                   
+//      (tree)->debugPrint(os, indent, #tree);      
+//    }                                             
+//    else {                                        
+//      ind(os, indent) << #tree << " is null\n";   
+//    } /* user ; (optional) */
+
+
+//  #define PRINT_GENERIC(var) 
+//    ind(os, indent) << #var << " = " << ::toString(var) << "\n"   /* user ; */
+
+
+//  #define PRINT_BOOL(var) 
+//    ind(os, indent) << #var << " = " << (var? "true" : "false") << "\n"   /* user ; */
+
+void CGen::emitXmlCtorArgs(ASTList<CtorArg> const &args, char const *baseName)
+{
+  FOREACH_ASTLIST(CtorArg, args, argiter) {
+    CtorArg const &arg = *(argiter.data());
+
+    emitXmlField(arg.isOwner, arg.type, arg.name, baseName);
+  }
+}
+
+void CGen::emitXmlFields(ASTList<Annotation> const &decls, char const *baseName)
+{
+  FOREACH_ASTLIST(Annotation, decls, iter) {
+    if (!iter.data()->isUserDecl()) continue;
+    UserDecl const *ud = iter.data()->asUserDeclC();
+    if (!ud->amod->hasMod("field")) continue;
+
+    emitXmlField(ud->amod->hasMod("owner"),
+                 extractFieldType(ud->code),
+                 extractFieldName(ud->code),
+                 baseName);
+  }
+}
+
+void CGen::emitXmlField(bool isOwner, rostring type, rostring name, char const *baseName)
+{
+  if (0==strcmp(type, "string")) {
+//      out << "  " << print << "_STRING(" << name << ");\n";
+    out << "  out << \"\\n\";\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << quoted(" << baseName << "->" << name << ");\n";
+  }
+//    else if (isListType(type)) {
+//      // for now, I'll continue to assume that any class that appears
+//      // in ASTList<> is compatible with the printing regime here
+//  //      out << "  " << print << "_LIST(" << extractListType(type) << ", "
+//  //          << name << ");\n";
+//    }
+//    else if (isFakeListType(type)) {
+//      // similar printing approach for FakeLists
+//  //      out << "  " << print << "_FAKE_LIST(" << extractListType(type) << ", "
+//  //          << name << ");\n";
+//    }
+//    else if (isTreeNode(type) ||
+//             (isTreeNodePtr(type) && isOwner)) {
+//      // don't print subtrees that are possibly shared or circular
+//  //      out << "  " << print << "_SUBTREE(" << name << ");\n";
+//    }
+  else if (0==strcmp(type, "bool")) {
+//      out << "  " << print << "_BOOL(" << name << ");\n";
+    out << "  out << \"\\n\";\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << (" << baseName << "->" << name << "? \"true\" : \"false\");\n";
+  }
+//    else {
+//      // catch-all ..
+//  //      out << "  " << print << "_GENERIC(" << name << ");\n";
+//    }
+}
+
+void HGen::emitXmlVisitorInterface()
+{
+  out << "// the xml-visitor interface class\n"
+      << "class " << xmlVisitorName << " : public " << visitorName << " {\n";
+
+  out << "protected:   // data\n";
+  out << "  ostream &out;                       // output stream to print to\n";
+  out << "  bool indent;                        // should the xml be indented\n";
+  out << "  bool ensureOneVisit;                // check for visiting at most once?\n";
+  out << "  SObjSet<void*> wasVisitedASTNodes;  // set of visited nodes\n";
+  out << "  int depth;                          // current depth\n";
+  out << "\n";
+
+  out << "protected:   // funcs\n";
+  out << "  bool wasVisitedAST(void *ast);\n";
+  out << "  void printIndentation();\n";
+  out << "\n";
+
+  // ctor
+  out << "public:      // funcs\n";
+  out << "  explicit " << xmlVisitorName << "("
+      << "ostream &out0, "
+      << "bool indent0 = false, "
+      << "bool ensureOneVisit0 = true"
+      << ")\n";
+  out << "    : out(out0)\n";
+  out << "    , indent(indent0)\n";
+  out << "    , ensureOneVisit(ensureOneVisit0)\n";
+  out << "    , depth(0)\n";
+  out << "  {}\n";
+  out << "\n";
+
+  // visitor methods
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *c = iter.data();
+    out << "  virtual bool visit" << c->super->name << "("
+        <<   c->super->name << " *obj);\n"
+        << "  virtual void postvisit" << c->super->name << "("
+        <<   c->super->name << " *obj);\n";
+  }
+
+  // we are done
+  out << "};\n\n";
+}
+
+
+void CGen::emitXmlVisitorImplementation()
+{
+  out << "// ---------------------- " << xmlVisitorName << " ---------------------\n";
+
+  out << "bool " << xmlVisitorName << "::wasVisitedAST(void *ast)\n";
+  out << "{\n";
+  out << "  // do not bother to check if the user does not want us to\n";
+  out << "  if (!ensureOneVisit) {\n";
+  out << "    return false;\n";
+  out << "  }\n\n";
+  out << "  if (wasVisitedASTNodes.contains(ast)) {\n";
+  out << "    return true;\n";
+  out << "  } else {\n";
+  out << "    wasVisitedASTNodes.add(ast);\n";
+  out << "    return false;\n";
+  out << "  }\n";
+  out << "}\n\n";
+
+  out << "void " << xmlVisitorName << "::printIndentation()\n";
+  out << "{\n";
+  out << "  for(int i=0; i<depth; ++i) out << \" \";\n";
+  out << "}\n\n";
+
+  out << "// default xml-visitor\n";
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *c = iter.data();
+
+    out << "bool " << xmlVisitorName << "::visit" << c->super->name;
+    out << "(" << c->super->name << " *obj) {\n";
+    out << "  xassert(!wasVisitedAST(obj));\n";
+    // for now everything is a container tag
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"<\" << obj->kindName();\n";
+
+    // print the attributes of the superclass
+    out << "  ++depth;\n";      // indent them one level
+    emitXmlCtorArgs(c->super->args, "obj");
+    emitXmlFields(c->super->decls, "obj");
+
+    // print the attributes of the subclasses
+    if (c->hasChildren()) {
+      out << "  switch(obj->kind()) {\n";
+      out << "  default: xfailure(\"bad tag\"); break;\n";
+      FOREACH_ASTLIST(ASTClass, c->ctors, iter) {
+        ASTClass const *clazz = iter.data();
+        out << "  case " << c->super->name << "::" << clazz->classKindName() << ": {\n";
+        // prevent unused variable warning when compiling client code;
+        // FIX: turn on when take away the '= NULL' code below.
+//          if (clazz->args.isNotEmpty() || clazz->decls.isNotEmpty()) {
+        out << "    " << clazz->name << " *obj0 = obj->as" << clazz->name << "();\n";
+//          }
+        emitXmlCtorArgs(clazz->args, "obj0");
+        emitXmlFields(clazz->decls, "obj0");
+
+        // prevent unused variable warning when compiling client code;
+        // FIX: remove when all kinds of fields are printed
+        out << "    obj0 = NULL;\n";
+
+        out << "    break;\n";
+        out << "    }\n";
+      }
+      out << "  }\n";
+    }
+
+    // print the 'last' attributes of the superclass, which come after
+    // all subclass things
+    emitXmlCtorArgs(c->super->lastArgs, "obj");
+
+    out << "  --depth;\n";      // outdent temporarily so close bracket lines up with open
+    out << "  out << \"\\n\";\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \">\\n\";\n";
+    out << "  ++depth;\n";      // indent for nested children
+    out << "  return true;\n";
+    out << "}\n";;
+
+    out << "void " << xmlVisitorName << "::postvisit" << c->super->name;
+    out << "(" << c->super->name << " *obj) {\n";
+    out << "  --depth;\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"</\" << obj->kindName() << \">\\n\";\n";
+    out << "}\n";
   }
   out << "\n\n";
 }
@@ -2035,6 +2332,9 @@ void entry(int argc, char **argv)
         }
         else if (op->name.equals("dvisitor")) {
           grabVisitorName("dvisitor", dvisitorName, op);
+        }
+        else if (op->name.equals("xmlVisitor")) {
+          grabVisitorName("xmlVisitor", xmlVisitorName, op);
         }
         else if (op->name.equals("mvisitor")) {
           grabVisitorName("mvisitor", mvisitorName, op);
