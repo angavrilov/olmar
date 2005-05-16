@@ -326,6 +326,7 @@ string Variable::toMLString() const
 // than wasted time (because the latter is much easier to profile)
 string Variable::fullyQualifiedName() const
 {
+  xassert(name);
   stringBuilder tmp;
   if (scope && !scope->isGlobalScope()) {
     tmp << scope->fullyQualifiedCName();
