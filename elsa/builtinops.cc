@@ -393,8 +393,8 @@ void ArrowStarCandidateSet::instantiateBinary(Env &env,
       // build operator's parameter types; they're essentially just
       // lhsRet and rhsRet, except I want to strip toplevel cv flags
       // before making the instance
-      Type *lhsParam = env.tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, lhsRet, NULL /*syntax*/);
-      Type *rhsParam = env.tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, rhsRet, NULL /*syntax*/);
+      Type *lhsParam = env.tfac.setQualifiers(SL_UNKNOWN, CV_NONE, lhsRet, NULL /*syntax*/);
+      Type *rhsParam = env.tfac.setQualifiers(SL_UNKNOWN, CV_NONE, rhsRet, NULL /*syntax*/);
 
       instantiateCandidate(env, resolver, lhsParam, rhsParam);
     }

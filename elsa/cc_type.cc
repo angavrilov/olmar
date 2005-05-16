@@ -2475,17 +2475,7 @@ CompoundType *TypeFactory::makeCompoundType
 }
 
 
-// the idea is we're trying to apply 'cv' to 'baseType'; for
-// example, we could have gotten baseType like
-//   typedef unsigned char byte;     // baseType == unsigned char
-// and want to apply const:
-//   byte const b;                   // cv = CV_CONST
-// yielding final type
-//   unsigned char const             // return value from this fn
-//
-// dsw: I need to force this to happen, which setCVQualifiers()
-// doesn't let me do
-Type *TypeFactory::shallowCloneWithCV(SourceLoc loc, CVFlags cv, Type *baseType)
+Type *TypeFactory::shallowCloneType(Type *baseType)
 {
   switch (baseType->getTag()) {
     default:
@@ -2497,24 +2487,12 @@ Type *TypeFactory::shallowCloneWithCV(SourceLoc loc, CVFlags cv, Type *baseType)
 
       // make a new CVAtomicType with the same AtomicType as 'baseType',
       // but with the new flags
-      return makeCVAtomicType(atomic->atomic, cv);
+      return makeCVAtomicType(atomic->atomic, atomic->cv);
     }
 
     case Type::T_POINTER: {
       PointerType *ptr = baseType->asPointerType();
-      return makePointerType(cv, ptr->atType);
-    }
-
-    case Type::T_POINTERTOMEMBER: {
-      PointerToMemberType *ptm = baseType->asPointerToMemberType();
-      return makePointerToMemberType(ptm->inClassNAT, cv, ptm->atType);
-    }
-
-#ifdef OINK
-    // I need these to be shallow-cloned anyway
-    case Type::T_ARRAY: {
-      ArrayType *arr = baseType->asArrayType();
-      return makeArrayType(arr->eltType, arr->size);
+      return makePointerType(ptr->cv, ptr->atType);
     }
 
     case Type::T_REFERENCE: {
@@ -2533,21 +2511,28 @@ Type *TypeFactory::shallowCloneWithCV(SourceLoc loc, CVFlags cv, Type *baseType)
       return ret;
     }
 
-#else
-    case Type::T_ARRAY:
-    case Type::T_REFERENCE:
-    case Type::T_FUNCTION:
-      // can't apply CV arbitrarily to these, and since baseType's
-      // original cv flags must have been CV_NONE, then 'cv' must
-      // not be CV_NONE
-      return NULL;
-#endif
+    case Type::T_ARRAY: {
+      ArrayType *arr = baseType->asArrayType();
+      return makeArrayType(arr->eltType, arr->size);
+    }
+
+    case Type::T_POINTERTOMEMBER: {
+      PointerToMemberType *ptm = baseType->asPointerToMemberType();
+      return makePointerToMemberType(ptm->inClassNAT, ptm->cv, ptm->atType);
+    }
   }
 }
 
 
-Type *TypeFactory::setCVQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
-                                   TypeSpecifier *)
+// the idea is we're trying to apply 'cv' to 'baseType'; for
+// example, we could have gotten baseType like
+//   typedef unsigned char byte;     // baseType == unsigned char
+// and want to apply const:
+//   byte const b;                   // cv = CV_CONST
+// yielding final type
+//   unsigned char const             // return value from this fn
+Type *TypeFactory::setQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
+                                 TypeSpecifier *)
 {
   if (baseType->isError()) {
     return baseType;
@@ -2558,7 +2543,24 @@ Type *TypeFactory::setCVQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
     return baseType;
   }
 
-  return shallowCloneWithCV(loc, cv, baseType);
+  Type *ret = NULL;
+
+  if (baseType->isCVAtomicType()) {
+    ret = shallowCloneType(baseType);
+    ret->asCVAtomicType()->cv = cv;
+  } else if (baseType->isPointerType()) {
+    ret = shallowCloneType(baseType);
+    ret->asPointerType()->cv = cv;
+  } else if (baseType->isPointerToMemberType()) {
+    ret = shallowCloneType(baseType);
+    ret->asPointerToMemberType()->cv = cv;
+  } else {
+    // anything else cannot have a cv applied to it anyway; the NULL
+    // will result in an error message in the client
+    ret = NULL;
+  }
+
+  return ret;
 }
 
 
@@ -2577,9 +2579,9 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
                          at->size);
   }
   else {
-    // change to the union; setCVQualifiers will take care of catching
+    // change to the union; setQualifiers will take care of catching
     // inappropriate application (e.g. 'const' to a reference)
-    return setCVQualifiers(loc, now | cv, baseType, syntax);
+    return setQualifiers(loc, now | cv, baseType, syntax);
   }
 }
 
@@ -2697,16 +2699,19 @@ CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
 
 CVAtomicType *BasicTypeFactory::makeCVAtomicType(AtomicType *atomic, CVFlags cv)
 {
-#ifndef OINK
-  // FIX: We need to avoid doing this in Oink
-  if (cv==CV_NONE && atomic->isSimpleType()) {
-    // since these are very common, and ordinary Types are immutable,
-    // share them
-    SimpleType *st = atomic->asSimpleType();
-    xassert((unsigned)(st->type) < (unsigned)NUM_SIMPLE_TYPES);
-    return &(unqualifiedSimple[st->type]);
-  }
-#endif
+  // dsw: we now need to avoid this altogether since in
+  // setQualifiers() I mutate the cv value on a type after doing the
+  // shallowClone()
+//  #ifndef OINK
+//    // FIX: We need to avoid doing this in Oink
+//    if (cv==CV_NONE && atomic->isSimpleType()) {
+//      // since these are very common, and ordinary Types are immutable,
+//      // share them
+//      SimpleType *st = atomic->asSimpleType();
+//      xassert((unsigned)(st->type) < (unsigned)NUM_SIMPLE_TYPES);
+//      return &(unqualifiedSimple[st->type]);
+//    }
+//  #endif
 
   return new CVAtomicType(atomic, cv);
 }

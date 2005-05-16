@@ -188,7 +188,7 @@ bool MatchTypes::bindValToVar(Type *a, Type *b, int matchDepth)
     // if we are at the top level, remove all CV qualifers before
     // binding; ignore the qualifiers on the type variable as they are
     // irrelevant
-    a = tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, a, NULL /*syntax*/);
+    a = tfac.setQualifiers(SL_UNKNOWN, CV_NONE, a, NULL /*syntax*/);
   } else {
     // sm: 8/15/04: in MM_ISO mode, the cv flags on both must match (t0259.cc)
     if (mode == MM_ISO &&
@@ -219,7 +219,7 @@ bool MatchTypes::bindValToVar(Type *a, Type *b, int matchDepth)
 
     // if there's been a change, must (shallow) clone a and apply new
     // CV qualifiers
-    a = tfac.setCVQualifiers
+    a = tfac.setQualifiers
       (SL_UNKNOWN,
        finalFlags,
        a,

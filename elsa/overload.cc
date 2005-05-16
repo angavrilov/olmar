@@ -94,7 +94,7 @@ Type *OverloadResolver::getReturnType(Candidate const *winner) const
     // e.g.: T operator++ (VQ T&, int)
     case ST_PRET_STRIP_REF: {
       Type *vqT = concreteParamTypes[0]->getAtType();
-      return env.tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, vqT, NULL /*syntax*/);
+      return env.tfac.setQualifiers(SL_UNKNOWN, CV_NONE, vqT, NULL /*syntax*/);
     }
 
     // see ArrowStarCandidateSet::instantiateCandidate
@@ -1796,7 +1796,7 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
   // to yield out
   if (t1->equals(t2, Type::EF_IGNORE_TOP_CV)) {
     // use 't1', but make sure we're not returning a cv-qualified type
-    return env.tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, t1, NULL /*syntax*/);
+    return env.tfac.setQualifiers(SL_UNKNOWN, CV_NONE, t1, NULL /*syntax*/);
   }
   
   // not equal, but they *are* similar, so construct the lub type; for

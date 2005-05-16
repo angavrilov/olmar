@@ -1174,10 +1174,8 @@ public:
   // Types, rather they return a new object if the desired Type is different
   // from the one passed-in.  (That is, they behave functionally.)
 
-  // a version of setCVQualifiers() that forces the shallow clone
-  // instead of optimizing for when the qualifiers are remaining the
-  // same
-  virtual Type *shallowCloneWithCV(SourceLoc loc, CVFlags cv, Type *baseType);
+  // do a shallow clone
+  virtual Type *shallowCloneType(Type *baseType);
 
   // given a type, set its cv-qualifiers to 'cv'; return NULL if the
   // base type cannot be so qualified; I pass the syntax from which
@@ -1185,11 +1183,11 @@ public:
   // extension analyses
   //
   // NOTE: 'baseType' is *not* modified; a copy is returned if necessary
-  virtual Type *setCVQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
+  virtual Type *setQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
                                 TypeSpecifier * /*nullable*/ syntax);
 
   // add 'cv' to existing qualifiers; default implementation just
-  // calls setCVQualifiers
+  // calls setQualifiers
   virtual Type *applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
                               TypeSpecifier * /*nullable*/ syntax);
 

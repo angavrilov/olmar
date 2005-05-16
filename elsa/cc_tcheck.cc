@@ -5842,7 +5842,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
           receiverType->asRval()->getCVFlags() != CV_NONE) {
         bool wasRef = receiverType->isReference();
         receiverType = receiverType->asRval();
-        receiverType = env.tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, receiverType, NULL /*syntax*/);
+        receiverType = env.tfac.setQualifiers(SL_UNKNOWN, CV_NONE, receiverType, NULL /*syntax*/);
         if (wasRef) {
           receiverType = env.tfac.makeReferenceType(receiverType);
         }
