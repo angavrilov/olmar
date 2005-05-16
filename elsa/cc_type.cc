@@ -2701,7 +2701,8 @@ CVAtomicType *BasicTypeFactory::makeCVAtomicType(AtomicType *atomic, CVFlags cv)
 {
   // dsw: we now need to avoid this altogether since in
   // setQualifiers() I mutate the cv value on a type after doing the
-  // shallowClone()
+  // shallowClone(); NOTE: the #ifndef OINK is no longer needed as
+  // Oink no longer delegates to this method.
 //  #ifndef OINK
 //    // FIX: We need to avoid doing this in Oink
 //    if (cv==CV_NONE && atomic->isSimpleType()) {

@@ -818,6 +818,9 @@ public:     // data
 
 protected:
   friend class BasicTypeFactory;
+#ifdef OINK
+  friend class TypeFactory_O;
+#endif
   CVAtomicType(AtomicType *a, CVFlags c)
     : atomic(a), cv(c) {}
 
