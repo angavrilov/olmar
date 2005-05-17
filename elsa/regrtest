@@ -1153,6 +1153,16 @@ testCparse c/dC0017.c
 testCparse gnu/d0122.c
 testCparse c/d0124b.c
 
+# dsw: I replace backticks in error messages with normal tics because
+# otherwise strange things seem to happen.
+failCparse c/dC0018.c "cannot evaluate ' ( (0)|| (x1))' as a template integer argument: can't const-eval non-const variable 'x1'"
+failCparse c/dC0019.c "cannot define types in a 'sizeof' expression"
+failCparse c/dC0020.c "cannot define types in a cast"
+failCparse c/dC0021.c "can't const-eval non-const variable 'tracknum'"
+failCparse c/dC0022.c "reprSize of a sizeless array"
+failCparse c/dC0023.c "'xobject' is not a struct/class/union"
+failCparse c/dC0024.c "duplicate modifier: int"
+
 testparse_special ansi_c c/k0001.c #"typedef int fooint; typedef fooint long;"
 testCparse c/k0002.c #"attempt to create an object of incomplete class `S'"
 testCparse c/k0003.c #"old-style function decl with parentheses around func name"
