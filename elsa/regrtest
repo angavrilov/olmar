@@ -1163,6 +1163,12 @@ failCparse c/dC0022.c "reprSize of a sizeless array"
 failCparse c/dC0023.c "'xobject' is not a struct/class/union"
 failCparse c/dC0024.c "duplicate modifier: int"
 
+failCparse c/dC0025.c "prior declaration of main() at in.i:3:5 had 0 parameters, but this one has 2 parameters; we do allow the parameter lists of main() to vary, but only when the earliest declaration has the largest number of parameters"
+failCparse c/dC0026.c "Parse error (state 862) at ;"
+failCparse c/dC0027.c "Parse error (state 552) at restrict"
+failCparse c/dC0028.c "Assertion failed: env.disambiguationNestingLevel == 0, file cc_tcheck.cc line 1869"
+failCparse c/dC0029.c "Parse error (state 963) at ,"
+
 testparse_special ansi_c c/k0001.c #"typedef int fooint; typedef fooint long;"
 testCparse c/k0002.c #"attempt to create an object of incomplete class `S'"
 testCparse c/k0003.c #"old-style function decl with parentheses around func name"
