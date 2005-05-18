@@ -1163,7 +1163,7 @@ failCparse c/dC0021.c "can't const-eval non-const variable 'tracknum'"
 # dsw: perhaps we should change the implementation of reprSize()
 failCparse c/dC0022.c "gcc allows sizeof on a stack-allocated array the size of which is dynamic"
 
-failCparse c/dC0023.c "'xobject' is not a struct/class/union"
+failCparse c/dC0023.c "in gcc, in C mode, a foo and a struct foo are unrelated"
 failCparse c/dC0024.c "duplicate modifier: int"
 
 failCparse c/dC0025.c "prior declaration of main() at in.i:3:5 had 0 parameters, but this one has 2 parameters; we do allow the parameter lists of main() to vary, but only when the earliest declaration has the largest number of parameters"
