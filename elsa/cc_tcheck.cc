@@ -6612,6 +6612,9 @@ Type *sizeofType(Env &env, Type *t, int &size, Expression * /*nullable*/ expr)
         return env.error(e.why());  // jump out with an error
       }
     }
+    else {
+      return env.error(e.why());  // jump out with an error
+    }
   }
 
   // 5.3.3p6: result is of type 'size_t'; most systems (including my
