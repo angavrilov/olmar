@@ -1159,7 +1159,10 @@ failCparse c/dC0018.c "cannot evaluate ' ( (0)|| (x1))' as a template integer ar
 failCparse c/dC0019.c "cannot define types in a 'sizeof' expression"
 failCparse c/dC0020.c "cannot define types in a cast"
 failCparse c/dC0021.c "can't const-eval non-const variable 'tracknum'"
-failCparse c/dC0022.c "reprSize of a sizeless array"
+
+# dsw: 
+failCparse c/dC0022.c "gcc allows sizeof on a stack-allocated array the size of which is dynamic"
+
 failCparse c/dC0023.c "'xobject' is not a struct/class/union"
 failCparse c/dC0024.c "duplicate modifier: int"
 
