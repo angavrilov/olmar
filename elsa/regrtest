@@ -1158,7 +1158,7 @@ testCparse c/d0124b.c
 failCparse c/dC0018.c "cannot evaluate ' ( (0)|| (x1))' as a template integer argument: can't const-eval non-const variable 'x1'"
 failCparse c/dC0019.c "cannot define types in a 'sizeof' expression"
 failCparse c/dC0020.c "cannot define types in a cast"
-failCparse c/dC0021.c "can't const-eval non-const variable 'tracknum'"
+failCparse c/dC0021.c "gcc allows dynamic arrays even in parameters and where the dynamic size is another parameter"
 
 # dsw: perhaps we should change the implementation of reprSize()
 failCparse c/dC0022.c "gcc allows sizeof on a stack-allocated array the size of which is dynamic"
