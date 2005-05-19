@@ -1529,6 +1529,11 @@ CompoundType *checkClasskeyAndName(
     else {
       // this is a lookup of a use; see if the new mechanism can
       // handle it
+      if (!env.lang.isCplusplus) {
+        // in C mode, do not look for 'Foo' when you see 'struct Foo';
+        // they are distinct
+        lflags |= LF_QUERY_TAGS;
+      }
       Variable *tag = env.lookupPQ_one(name, lflags);
       if (tag) {
         if (tag->type->isCompoundType()) {
