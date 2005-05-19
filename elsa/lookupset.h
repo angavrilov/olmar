@@ -47,6 +47,10 @@ enum LookupFlags {
 ENUM_BITWISE_OPS(LookupFlags, LF_ALL_FLAGS)     // smbase/macros.h
 
 
+// render out as a human-readable string
+string toString_LF(LookupFlags flags);
+
+
 // filter a Variable w.r.t. a given set of flags, returning NULL
 // if the Variable does not pass through the filter  
 Variable *vfilter(Variable *v, LookupFlags flags);

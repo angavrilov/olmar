@@ -6,6 +6,46 @@
 #include "template.h"         // TemplateInfo
 
 
+string toString_LF(LookupFlags flags) {
+  stringBuilder sb;
+
+  // check for undefined flags
+  if (flags & ~LF_ALL_FLAGS) {
+    sb << "ILLEGAL FLAG";
+    return sb;
+  }
+
+#define CHECK_FLAG(FLAG) if (flags & FLAG) {sb << #FLAG; sb << " ";}
+
+  CHECK_FLAG(LF_INNER_ONLY)
+  CHECK_FLAG(LF_ONLY_TYPES)
+  CHECK_FLAG(LF_TYPENAME)
+  CHECK_FLAG(LF_SKIP_CLASSES)
+  CHECK_FLAG(LF_ONLY_NAMESPACES)
+  CHECK_FLAG(LF_TYPES_NAMESPACES)
+  CHECK_FLAG(LF_QUALIFIED)
+  CHECK_FLAG(LF_TEMPL_PRIMARY)
+  CHECK_FLAG(LF_FUNCTION_NAME)
+  CHECK_FLAG(LF_DECLARATOR)
+  CHECK_FLAG(LF_SELFNAME)
+  CHECK_FLAG(LF_DEPENDENT)
+  CHECK_FLAG(LF_TEMPL_PARAM)
+  CHECK_FLAG(LF_SUPPRESS_ERROR)
+  CHECK_FLAG(LF_SUPPRESS_NONEXIST)
+  CHECK_FLAG(LF_IGNORE_USING)
+  CHECK_FLAG(LF_NO_IMPL_THIS)
+  CHECK_FLAG(LF_LOOKUP_SET)
+  CHECK_FLAG(LF_QUERY_TAGS)
+  CHECK_FLAG(LF_NO_DENOTED_SCOPE)
+  CHECK_FLAG(LF_EXPECTING_TYPE)
+  CHECK_FLAG(LF_EXPLICIT_INST)
+
+#undef CHECK_FLAG
+
+  return sb;
+}
+
+
 // vfilter: variable filter
 // implements variable-filtering aspect of the flags; the idea
 // is you never query 'variables' without wrapping the call
