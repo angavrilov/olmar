@@ -1165,7 +1165,7 @@ failCparse c/dC0022.c "gcc allows sizeof on a stack-allocated array the size of 
 
 testCparse c/dC0023.c # "in gcc, in C mode, a foo and a struct foo are unrelated"
 
-failCparse c/dC0024.c "duplicate modifier: int"
+failCparse c/dC0024.c "gcc seems to allow a typedef of a type to itself"
 
 failCparse c/dC0025.c "prior declaration of main() at in.i:3:5 had 0 parameters, but this one has 2 parameters; we do allow the parameter lists of main() to vary, but only when the earliest declaration has the largest number of parameters"
 failCparse c/dC0026.c "Parse error (state 862) at ;"
