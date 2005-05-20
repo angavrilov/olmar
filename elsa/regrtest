@@ -1153,8 +1153,7 @@ testCparse c/dC0017.c
 testCparse gnu/d0122.c
 testCparse c/d0124b.c
 
-# dsw: I replace backticks in error messages with normal tics because
-# otherwise strange things seem to happen.
+# dsw: fix these
 failCparse c/dC0018.c "cannot evaluate ' ( (0)|| (x1))' as a template integer argument: can't const-eval non-const variable 'x1'"
 failCparse c/dC0019.c "cannot define types in a 'sizeof' expression"
 failCparse c/dC0020.c "cannot define types in a cast"
@@ -1165,7 +1164,7 @@ failCparse c/dC0022.c "gcc allows sizeof on a stack-allocated array the size of 
 
 testCparse c/dC0023.c # "in gcc, in C mode, a foo and a struct foo are unrelated"
 
-failCparse c/dC0024.c "gcc seems to allow a typedef of a type to itself"
+failCparse c/dC0024.c "bizzareness with redundant and useless typedefs"
 
 failCparse c/dC0025.c "prior declaration of main() at in.i:3:5 had 0 parameters, but this one has 2 parameters; we do allow the parameter lists of main() to vary, but only when the earliest declaration has the largest number of parameters"
 failCparse c/dC0026.c "Parse error (state 862) at ;"
