@@ -238,7 +238,7 @@ The AST above is <em>unambiguous</em>; the parser was able to completely
 determine the syntactic interpretation of the input file, without any
 help from the type checker.  This isn't always possible with C++, and
 since the Elsa type checker runs only <em>after</em> the parser, the
-parser sometimes produces am ambiguous AST.  A simple example is in
+parser sometimes produces an ambiguous AST.  A simple example is in
 <tt>in/t0008.cc</tt>:
 <pre>
   elsa$ ./ccparse -tr printAST in/t0008.cc

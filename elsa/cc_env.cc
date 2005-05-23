@@ -407,15 +407,26 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   // 'int' directly here instead of size_t
   Type *t_size_t = getSimpleType(ST_INT);
 
+  // must predefine this to be able to define bad_alloc
+  Scope *std_scope = createNamespace(SL_INIT, str("std"));
+
   // but I do need a class called 'bad_alloc'..
   //   class bad_alloc;
   //
   // 9/26/04: I had been *defining* bad_alloc here, but gcc defines
   // the class in new.h so I am following suit.
-  CompoundType *dummyCt;
+  //
+  // 2005-05-23: Define it in std scope, then optionally put an alias
+  // in the global scope too.
+  CompoundType *bad_alloc_ct;
   Type *t_bad_alloc =
-    makeNewCompound(dummyCt, scope(), str("bad_alloc"), SL_INIT,
+    makeNewCompound(bad_alloc_ct, std_scope, str("bad_alloc"), SL_INIT,
                     TI_CLASS, true /*forward*/);
+  if (lang.putSomeStdNamesInGlobal) {
+    // using std::bad_alloc;
+    makeUsingAliasFor(SL_INIT, bad_alloc_ct->typedefVar);
+    addTypeTag(bad_alloc_ct->typedefVar);
+  }
 
   // void* operator new(std::size_t sz) throw(std::bad_alloc);
   declareFunction1arg(t_voidptr, "operator new",
@@ -459,9 +470,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     addVariable(makeVariable(SL_INIT, str("_Bool"),
                              t_bool, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL));
   }
-
-  // both gcc and edg seem to predefine this (in/k0017.cc)
-  createNamespace(SL_INIT, str("std"));
 
   #ifdef GNU_EXTENSION
     if (lang.declareGNUBuiltins) {

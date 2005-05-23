@@ -64,6 +64,8 @@ void CCLang::ANSI_C89()
   allowQualifiedMemberDeclarations = B3_FALSE;
   allowModifiersWithTypedefNames = B3_FALSE;
   allowAnonymousStructs = B3_FALSE;
+  
+  putSomeStdNamesInGlobal = false;
 }
 
 void CCLang::KandR_C()
@@ -183,6 +185,8 @@ void CCLang::ANSI_Cplusplus()
   allowQualifiedMemberDeclarations = B3_FALSE;
   allowModifiersWithTypedefNames = B3_FALSE;
   allowAnonymousStructs = B3_FALSE;
+
+  putSomeStdNamesInGlobal = false;
 }
 
 void CCLang::GNU_Cplusplus()
@@ -203,6 +207,8 @@ void CCLang::GNU_Cplusplus()
 
   allowQualifiedMemberDeclarations = B3_TRUE;
   allowAnonymousStructs = B3_TRUE;
+
+  putSomeStdNamesInGlobal = true;
 }
 
 

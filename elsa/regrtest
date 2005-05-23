@@ -760,6 +760,10 @@ failparse t0466.cc "ambiguous declaration"
 testparse t0467.cc
 testparse t0468.cc
 testparse t0469.cc
+# work
+# in
+# progress
+testparse t0473.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -1020,6 +1024,7 @@ if $use_gnu; then
   # g0020.cc is documentation
   testparse gnu/g0021.cc
   testparse gnu/g0022.cc #"addresses of labels and computed goto"
+  testparse gnu/g0023.cc
 
   testparse gnu/t0124.cc
   testparse gnu/t0125.cc

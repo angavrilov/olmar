@@ -176,6 +176,12 @@ public:
   // gcc/msvc bug/extension compatibility: allow anonymous structs;
   // see doc/anon-structs.txt
   Bool3 allowAnonymousStructs;
+  
+  // gcc-2 bug compatibility: In gcc-2, namespace "std::" is actually
+  // an alias for the global scope.  However, this flag turns on just
+  // a few select hacks for compatibility with that bug, but does
+  // *not* replicate the full behavior.
+  bool putSomeStdNamesInGlobal;
 
 public:
   CCLang() { ANSI_C89(); }
