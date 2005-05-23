@@ -4837,10 +4837,20 @@ void Env::checkTemplateKeyword(PQName *name)
   // we only need to check for one kind of mismatch, because the
   // other kind is rejected by the parser
   if (!templateUsed && hasTemplArgs) {
-    // without the "template" keyword, the dependent context may give
-    // rise to ambiguity, so reject it
-    env.error("dependent template scope name requires 'template' keyword",
-              EF_DISAMBIGUATES | EF_STRONG);
+    // specific gcc-2 bug? (in/d0112.cc)
+    if (lang.allowGcc2HeaderSyntax &&
+        name->isPQ_qualifier() &&
+        name->asPQ_qualifier()->qualifier == env.str("rebind") &&
+        name->getName() == env.str("other")) {
+      env.diagnose3(lang.allowGcc2HeaderSyntax, name->loc,
+                    "dependent template scope name requires 'template' keyword (gcc-2 bug allows it)");
+    }
+    else {
+      // without the "template" keyword, the dependent context may give
+      // rise to ambiguity, so reject it
+      env.error("dependent template scope name requires 'template' keyword",
+                EF_DISAMBIGUATES | EF_STRONG);
+    }
   }
 }
 
