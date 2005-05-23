@@ -1,4 +1,4 @@
-// cc.in55
+// t0055.cc
 // member initializer where member is a templatized base class
       
 template <class T>
@@ -12,4 +12,18 @@ public:
 class B : A<int> {
 public:
   B() : A<int>(5) {}
+};
+
+
+// variant using an explicit specialization
+template <>
+class A<float> {};
+
+struct D : A<float> {
+  D() : A<float>() {}
+
+  void f()
+  {
+    A<float> a;
+  }
 };

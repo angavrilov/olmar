@@ -193,9 +193,11 @@ void LookupSet::removeNonTemplates()
       // argh.. my selfnames do not have proper template info, so
       // I have to go through the type (TODO: fix this)
       CompoundType *ct = v->type->asCompoundType();
-      if (ct->isInstantiation()) {
+      TemplateInfo *tinfo = ct->templateInfo();
+      if (tinfo != NULL &&
+          tinfo->isCompleteSpecOrInstantiation()) {
         // replace 'v' with a pointer to the template primary
-        mut.dataRef() = ct->templateInfo()->getPrimary()->var;
+        mut.dataRef() = tinfo->getPrimary()->var;
         mut.adv();
         continue;
       }
