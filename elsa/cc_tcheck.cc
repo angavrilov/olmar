@@ -2604,6 +2604,21 @@ realStart:
       possiblyConsumeFunctionType(env, dt, false /*reportErrors*/);
       return env.makeVariable(loc, unqualifiedName, dt.type, dt.dflags);
     }
+    else if (name->isPQ_template()) {
+      // (e.g., in/t0474.cc) We are befriending a template.  Friends
+      // and templates don't get along very well yet.  The most
+      // immediate problem is that I need to look at the set of types
+      // used in the friend declaration, and hypothesize a
+      // corresponding set of template parameters that will be
+      // associated with the friend, rather than being associated with
+      // the class that is granting friendship.  At it is, with the
+      // parameters associated with the class, I fail to realize that
+      // a prior declaration is referring to the same thing.
+      //
+      // However, for right now, I think I can get away with ignoring
+      // the friendship declaration altogether.
+      goto makeDummyVar;
+    }
     else {
       // the main effect of 'friend' in my implementation is to
       // declare the variable in the innermost non-class, non-

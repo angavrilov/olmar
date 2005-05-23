@@ -25,7 +25,8 @@
 # The "reason" string, ideally, should include (1) what response
 # ccparse gives (segfault, assertion failure, error message) and (2)
 # what kind of syntax characterizes the input (e.g., "template with
-# reference parameter").
+# reference parameter").  The purpose of this string is to help me
+# prioritize which tests to fix first.
 #
 # If the test includes deliberately invalid syntax that elsa is
 # supposed to detect and reject, then include lines in the test case
@@ -764,6 +765,7 @@ testparse t0469.cc
 # in
 # progress
 testparse t0473.cc
+testparse t0474.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
