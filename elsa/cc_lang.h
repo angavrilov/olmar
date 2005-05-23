@@ -182,6 +182,12 @@ public:
   // a few select hacks for compatibility with that bug, but does
   // *not* replicate the full behavior.
   bool putSomeStdNamesInGlobal;
+  
+  // more gcc-2 bug compat: The gcc-2 headers contain some invalid
+  // syntax.  Conceptually, this flag recognizes the invalid syntax
+  // and transforms it into valid syntax for Elsa.  Actually, it just
+  // enables some hacks that have similar effect.
+  Bool3 allowGcc2HeaderSyntax;
 
 public:
   CCLang() { ANSI_C89(); }

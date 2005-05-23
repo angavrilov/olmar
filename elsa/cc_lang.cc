@@ -20,6 +20,7 @@ void CCLang::enableAllWarnings()
   enableWarning(allowQualifiedMemberDeclarations);
   enableWarning(allowModifiersWithTypedefNames);
   enableWarning(allowAnonymousStructs);
+  enableWarning(allowGcc2HeaderSyntax);
 }
 
 
@@ -66,6 +67,7 @@ void CCLang::ANSI_C89()
   allowAnonymousStructs = B3_FALSE;
   
   putSomeStdNamesInGlobal = false;
+  allowGcc2HeaderSyntax = B3_FALSE;
 }
 
 void CCLang::KandR_C()
@@ -187,6 +189,7 @@ void CCLang::ANSI_Cplusplus()
   allowAnonymousStructs = B3_FALSE;
 
   putSomeStdNamesInGlobal = false;
+  allowGcc2HeaderSyntax = B3_FALSE;
 }
 
 void CCLang::GNU_Cplusplus()
@@ -209,6 +212,7 @@ void CCLang::GNU_Cplusplus()
   allowAnonymousStructs = B3_TRUE;
 
   putSomeStdNamesInGlobal = true;
+  allowGcc2HeaderSyntax = B3_TRUE;
 }
 
 

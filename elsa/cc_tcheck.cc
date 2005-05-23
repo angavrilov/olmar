@@ -1330,6 +1330,7 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
     lflags |= LF_SELFNAME;
   }
 
+do_lookup:
   v = env.lookupPQ_one(name, lflags);
   if (!v) {
     // a little diagnostic refinement: if the only problem is with the
@@ -1352,10 +1353,22 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
 
   if (!v->hasFlag(DF_TYPEDEF)) {
     if (v->type && v->type->isSimple(ST_DEPENDENT)) {
-      // more informative error message (in/d0111.cc, error 1)
-      return env.error(stringc
-        << "dependent name `" << *name
-        << "' used as a type, but the 'typename' keyword was not supplied", eflags);
+      // is this a gcc-2 header bug? (in/gnu/g0024.cc)
+      if (env.lang.allowGcc2HeaderSyntax &&
+          name->isPQ_qualifier() &&
+          name->asPQ_qualifier()->qualifier == env.str("__default_alloc_template") &&
+          name->getName() == env.str("_Obj")) {
+        env.diagnose3(env.lang.allowGcc2HeaderSyntax, name->loc,
+                      "dependent type name _Obj requires 'typename' keyword (gcc-2 bug allows it)");
+        lflags |= LF_TYPENAME;
+        goto do_lookup;
+      }
+      else {
+        // more informative error message (in/d0111.cc, error 1)
+        return env.error(stringc
+          << "dependent name `" << *name
+          << "' used as a type, but the 'typename' keyword was not supplied", eflags);
+      }
     }
     else {
       return env.error(stringc

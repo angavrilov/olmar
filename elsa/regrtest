@@ -1027,6 +1027,7 @@ if $use_gnu; then
   testparse gnu/g0021.cc
   testparse gnu/g0022.cc #"addresses of labels and computed goto"
   testparse gnu/g0023.cc
+  testparse gnu/g0024.cc
 
   testparse gnu/t0124.cc
   testparse gnu/t0125.cc
