@@ -437,6 +437,23 @@ void TemplateInfo::addPartialInstantiation(Variable *pinst)
 }
 
 
+void TemplateInfo::changeToExplicitSpec()
+{
+  xassert(isInstantiation());
+  
+  TemplateInfo *primary = getPrimary();
+  
+  // remove myself from the primary's list of instantiations
+  primary->instantiations.removeItem(this->var);
+  const_cast<Variable*&>(instantiationOf) = NULL;
+
+  // add myself to the primary's list of explicit specs
+  primary->addSpecialization(this->var);
+  
+  xassert(isCompleteSpec());
+}
+
+
 ObjList<STemplateArgument> &TemplateInfo::getArgumentsToPrimary()
 {
   if (isInstOfPartialSpec()) {

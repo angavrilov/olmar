@@ -292,6 +292,10 @@ public:      // funcs
   void addInstantiation(Variable *inst);
   void addSpecialization(Variable *spec);
   void addPartialInstantiation(Variable *pinst);
+  
+  // change this TemplateInfo, which currently represents an implicit
+  // instantiation, into an explicit specialization
+  void changeToExplicitSpec();
 
   // return the arguments that get to this instantiation from the
   // primary; this is different from 'args' if this is an

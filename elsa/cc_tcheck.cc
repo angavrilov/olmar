@@ -2814,9 +2814,10 @@ realStart:
     checkOperatorOverload(env, dt, loc, name, scope);
   }
 
-  // check for overloading
+  // check for overloading; but if there are qualifiers, then we already
+  // did overload resolution above
   OverloadSet *overloadSet =
-    name->hasQualifiers() ? NULL /* I don't think this is right! */ :
+    name->hasQualifiers() ? NULL /* already did it */ :
     env.getOverloadForDeclaration(prior, dt.type);
 
   // 8/11/04: Big block of template code obviated by
@@ -3101,7 +3102,8 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // get the type from the IDeclarator
   decl->tcheck(env, dt);
 
-  // this this a specialization?
+  // this this a specialization of a global template function,
+  // or a member template function?
   if (templatizableContext &&                      // e.g. toplevel
       enclosingScope->isTemplateParamScope() &&    // "template <...>" above
       !enclosingScope->parameterizedEntity) {      // that's mine, not my class' (need to wait until after name->tcheck to test this)
@@ -3133,7 +3135,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       //   class A<int> { ... }  /*declarator goes here*/  ;
       //
       // does not have (and cannot have) any declarators
-      env.error("can only specialize functions", EF_STRONG);
+      env.error("template class declaration must not have declarators", EF_STRONG);
     }
   }
 
@@ -3268,10 +3270,28 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
         // in/t0461.cc: template args on the name are simply naming the
         // type that this function constructs, so should not be copied
       }
+      else if (var->templateInfo()->isPrimary()) {           // k0019.cc error 1
+        // need to avoid attaching the arguments in this case, because
+        // that would create a malformed TemplateInfo object
+        env.error(getLoc(), "template primary cannot have template args");
+      }
       else {
         copyTemplateArgs(var->templateInfo()->arguments,
                          getDeclaratorId()->asPQ_templateC()->sargs);
       }
+    }
+  }
+  
+  else /* !templateInfo */ {
+    TemplateInfo *ti = var->templateInfo();
+    if (ti && ti->isInstantiation() &&               // var seems to be an instantiation
+        enclosingScope->isTemplateParamScope() &&    // "template <...>" above
+        enclosingScope->templateParams.isEmpty()) {  // just "template <>"
+      // (in/t0475.cc) This is an explicit specialization of a member
+      // of a class template.  The existing 'var->templateInfo' will
+      // claim this is an (implicit) instantiation, but the explicit
+      // specialization overrides that.
+      ti->changeToExplicitSpec();
     }
   }
 

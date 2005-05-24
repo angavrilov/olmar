@@ -9,7 +9,8 @@ usage() {
   echo "    - goes through gcc, and"
   echo "    - provokes an error from ccparse, where"
   echo "    - the error message matches the fragment regexp"
-  echo "  Use the special msg \"segfault\" to test for a segfault."
+  echo "  Use the special msg \"segfault\" to test for a segfault,"
+  echo "  and \"segfault\" to test for a SIGABRT."
 }
 
 # verbose operation?
@@ -71,6 +72,15 @@ if [ "$msg" = "segfault" ]; then
     exit 0
   else
     echo "did not get a segfault"
+    exit 4
+  fi
+elif [ "$msg" = "abort" ]; then
+  ./ccparse tmp.i >/dev/null 2>&1
+  if [ "$?" = "134" ]; then
+    echo "got the SIGABRT I am looking for"
+    exit 0
+  else
+    echo "did not get a SIGABRT"
     exit 4
   fi
 else
