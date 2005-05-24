@@ -1284,6 +1284,35 @@ Type *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
 }
 
 
+// This function recognizes a PQName that comes from a buggy gcc-2
+// header and in that context is intended to name a dependent type.
+//
+// forms recognized:
+//   g0024.cc: __default_alloc_template<__threads, __inst>::_Obj
+//   g0026.cc: basic_string <charT, traits, Allocator>::Rep
+bool isBuggyGcc2HeaderDQT(Env &env, PQName *name)
+{
+  if (!name->isPQ_qualifier()) {
+    return false;
+  }
+
+  StringRef q = name->asPQ_qualifier()->qualifier;
+  StringRef n = name->getName();
+
+  if (q == env.str("__default_alloc_template") &&
+      n == env.str("_Obj")) {
+    return true;
+  }
+
+  if (q == env.str("basic_string") &&
+      n == env.str("Rep")) {
+    return true;
+  }
+
+  return false;
+}
+
+
 // 7.1.5.2
 Type *TS_name::itcheck(Env &env, DeclFlags dflags)
 {
@@ -1355,11 +1384,10 @@ do_lookup:
     if (v->type && v->type->isSimple(ST_DEPENDENT)) {
       // is this a gcc-2 header bug? (in/gnu/g0024.cc)
       if (env.lang.allowGcc2HeaderSyntax &&
-          name->isPQ_qualifier() &&
-          name->asPQ_qualifier()->qualifier == env.str("__default_alloc_template") &&
-          name->getName() == env.str("_Obj")) {
+          isBuggyGcc2HeaderDQT(env, name)) {
         env.diagnose3(env.lang.allowGcc2HeaderSyntax, name->loc,
-                      "dependent type name _Obj requires 'typename' keyword (gcc-2 bug allows it)");
+                      stringc << "dependent type name `" << *name
+                              << "' requires 'typename' keyword (gcc-2 bug allows it)");
         lflags |= LF_TYPENAME;
         goto do_lookup;
       }
