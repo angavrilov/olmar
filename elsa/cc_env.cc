@@ -4491,35 +4491,42 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
       // lookup this qualifier in 'scope'
       Variable *svar = lookupScopeVar(scope, qual->qualifier, flags);
 
-      // 2005-03-04: referring to the self-name but passing args:
-      // regard the arguments as being applied to the primary
-      // (in/t0425.cc) (in/0428.cc)
-      if (svar &&
-          svar->hasFlag(DF_SELFNAME) &&
-          qual->sargs.isNotEmpty()) {
-        if (svar->type->isCompoundType()) {
-          // have to go via the CompoundType because the DF_SELFNAME
-          // may not have templateInfo
-          CompoundType *ct = svar->type->asCompoundType();
-          if (ct->templateInfo()) {
-            svar = ct->templateInfo()->getPrimary()->var;
+      if (svar && svar->hasFlag(DF_SELFNAME)) {
+        if (qual->sargs.isNotEmpty()) {
+          // 2005-03-04: referring to the self-name but passing args:
+          // regard the arguments as being applied to the primary
+          // (in/t0425.cc) (in/0428.cc)
+          if (svar->type->isCompoundType()) {
+            // have to go via the CompoundType because the DF_SELFNAME
+            // may not have templateInfo
+            CompoundType *ct = svar->type->asCompoundType();
+            if (ct->templateInfo()) {
+              svar = ct->templateInfo()->getPrimary()->var;
+            }
+          }
+          else if (svar->type->isPseudoInstantiation()) {
+            PseudoInstantiation *pi = svar->type->asPseudoInstantiation();
+
+            // (in/t0433.cc) if the template arguments match those of
+            // 'pi', then the qualifier is referring to a known
+            // template, not a generic dependent type; this is important
+            // because we may need to get a more precise type for
+            // decl-defn matching
+            if (sameArguments(qual->sargs, pi->args)) {
+              scope = svar->scope;    // selfname -> container
+              goto bottom_of_loop;    // ...
+            }
+
+            svar = svar->type->asCVAtomicType()->atomic->
+                     asPseudoInstantiation()->primary->typedefVar;
           }
         }
-        else if (svar->type->isPseudoInstantiation()) {
-          PseudoInstantiation *pi = svar->type->asPseudoInstantiation();
-          
-          // (in/t0433.cc) if the template arguments match those of
-          // 'pi', then the qualifier is referring to a known
-          // template, not a generic dependent type; this is important
-          // because we may need to get a more precise type for
-          // decl-defn matching
-          if (sameArguments(qual->sargs, pi->args)) {
-            scope = svar->scope;    // selfname -> container
-            goto bottom_of_loop;    // ...
-          }
 
-          svar = svar->type->asCVAtomicType()->atomic->
-                   asPseudoInstantiation()->primary->typedefVar;
+        else {
+          // 2005-05-24: (in/t0476.cc) self-name and not passing args:
+          // just like we were passing args that matched the primary
+          scope = svar->scope;        // selfname -> container
+          goto bottom_of_loop;        // like above
         }
       }
     
