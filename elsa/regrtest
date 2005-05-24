@@ -868,7 +868,7 @@ testparse d0106.cc
 testparse d0107.cc
 testparse d0108.cc
 testparse d0109.cc # "duplicate 'using' declaration"
-failparse d0110.cc "class specialization without 'template' prefix?"
+testparse d0110.cc # "class specialization without 'template' prefix?"
 testparse d0111.cc
 testparse d0112.cc # "gcc-2 bug"
 testparse d0113.cc
@@ -1028,6 +1028,7 @@ if $use_gnu; then
   testparse gnu/g0022.cc #"addresses of labels and computed goto"
   testparse gnu/g0023.cc
   testparse gnu/g0024.cc
+  testparse gnu/g0025.cc
 
   testparse gnu/t0124.cc
   testparse gnu/t0125.cc

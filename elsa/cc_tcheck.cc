@@ -1498,6 +1498,9 @@ CompoundType *checkClasskeyAndName(
     }
   }
 
+  // indicate when a particular gcc-2 hack is being used...
+  bool gcc2hack_explicitSpec = false;
+
   // reject illegal combinations
   if (!forward && !definition && templateParams) {
     // Actually, this requirement holds regardless of whether there is
@@ -1508,9 +1511,20 @@ CompoundType *checkClasskeyAndName(
     //return env.error("templatized class declarations cannot have declarators");
   }
   if (definition && !templateParams && templateArgs) {
-    env.error("class specifier name can have template arguments "
-              "only in a templatized definition");
-    return NULL;
+    if (env.lang.allowGcc2HeaderSyntax &&
+        name->getName() == env.str("string_char_traits")) {
+      env.diagnose3(env.lang.allowGcc2HeaderSyntax, name->loc,
+                    "explicit class specialization requires \"template <>\" (gcc-2 bug allows it)");
+      gcc2hack_explicitSpec = true;
+                    
+      // pretend we saw "template <>"
+      templateParams = new SObjList<Variable>;    // will be leaked
+    }
+    else {
+      env.error("class specifier name can have template arguments "
+                "only in a templatized definition");
+      return NULL;
+    }
   }
   if (templateParams && templateParams->isEmpty() && !templateArgs) {
     env.error("complete specialization (\"<>\") requires template args");
@@ -1690,6 +1704,11 @@ CompoundType *checkClasskeyAndName(
       env.makeNewCompound(ct, NULL /*scope*/, stringName, loc, keyword,
                           !definition /*forward*/);
 
+      if (gcc2hack_explicitSpec) {
+        // we need to fake a TemplateInfo
+        ct->setTemplateInfo(new TemplateInfo(loc));
+      }
+
       // dsw: need to register it at least, even if it isn't added to
       // the scope, otherwise I can't print out the name of the type
       // because at the top scope I don't know the scopeKind
@@ -1723,7 +1742,9 @@ CompoundType *checkClasskeyAndName(
       //
       // 8/09/04: moved this below 'makeNewCompound' so the params
       // aren't regarded as inherited
-      env.scope()->setParameterizedEntity(ct->typedefVar);
+      if (!gcc2hack_explicitSpec) {
+        env.scope()->setParameterizedEntity(ct->typedefVar);
+      }
 
       TRACE("template", (definition? "defn" : "decl") <<
                         " of specialization of template class" <<
