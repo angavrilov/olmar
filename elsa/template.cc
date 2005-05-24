@@ -2919,11 +2919,6 @@ void Env::transferTemplateMemberInfo
           // srcVar -> destVar
           transferTemplateMemberInfo_one(instLoc, srcVar, destVar, sargs);
         }
-
-        // TODO: what about nested classes?
-        else if (srcIter.data()->asMR_decl()->d->spec->isTS_classSpec()) {
-          unimp("nested class of a template class");
-        }
       }
       xassert(srcDeclarators->isEmpty() && destDeclarators->isEmpty());
     }
