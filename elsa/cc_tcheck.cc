@@ -1290,6 +1290,7 @@ Type *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
 // forms recognized:
 //   g0024.cc: __default_alloc_template<__threads, __inst>::_Obj
 //   g0026.cc: basic_string <charT, traits, Allocator>::Rep
+//   g0026.cc: basic_string <charT, traits, Allocator>::size_type
 bool isBuggyGcc2HeaderDQT(Env &env, PQName *name)
 {
   if (!name->isPQ_qualifier()) {
@@ -1305,7 +1306,7 @@ bool isBuggyGcc2HeaderDQT(Env &env, PQName *name)
   }
 
   if (q == env.str("basic_string") &&
-      n == env.str("Rep")) {
+      (n == env.str("Rep") || n == env.str("size_type"))) {
     return true;
   }
 
