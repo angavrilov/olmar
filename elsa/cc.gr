@@ -531,6 +531,9 @@ nonterm(bool) ColonColonOpt {
 }
 
 nonterm(E_new*) NewExpression {
+  // ambiguous (see in/t0482.cc)
+  fun merge(L,R) { L->addAmbiguity(R); return L; }
+
   -> c:ColonColonOpt "new" p:NewPlacementOpt t:NewTypeId i:NewInitializerOpt
        { return new E_new(c, p, t, i); }
   -> c:ColonColonOpt "new" p:NewPlacementOpt "(" t:TypeId ")" i:NewInitializerOpt

@@ -92,6 +92,31 @@ string ambiguousNodeName(Declarator const *n)
   }
 }
 
+string ambiguousNodeName(Expression const *e)
+{
+  if (e->isE_new()) {
+    E_new const *en = e->asE_newC();
+
+    // the ambiguity has to do with presence of placement args
+    // and/or ctor args, so report that info
+    stringBuilder sb;
+    sb << "E_new";
+    if (en->placementArgs && en->ctorArgs) {
+      sb << " with placement args and ctor args";
+    }
+    else if (en->placementArgs) {
+      sb << " with placement args";
+    }
+    else if (en->ctorArgs) {
+      sb << " with ctor args";
+    }
+    return sb;
+  }
+  else {
+    return e->kindName();
+  }
+}
+
 
 // ------------------- TranslationUnit --------------------
 void TranslationUnit::tcheck(Env &env)
