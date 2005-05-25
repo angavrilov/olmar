@@ -163,6 +163,12 @@ outputCond([[[m4_dnl    // sobjlist
     { return list.equalAsPointerSets(otherList.list); }
 
 outputCond([[[m4_dnl    // sobjlist
+  // removing duplicates
+  void removeDuplicatesAsMultiset(Diff diff, void *extra=NULL)
+    { list.removeDuplicatesAsMultiset((VoidDiff)diff, extra); }
+  void removeDuplicatesAsPointerMultiset()
+    { list.removeDuplicatesAsPointerMultiset(); }
+
   // debugging: no invariants beyond VoidList
   void selfCheck() const                { list.selfCheck(); }
   

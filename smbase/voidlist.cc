@@ -624,6 +624,33 @@ bool VoidList::containsByDiff(void *item, VoidDiff diff, void *extra) const
 }
 
 
+void VoidList::removeDuplicatesAsMultiset(VoidDiff diff, void *extra)
+{
+  if (isEmpty()) {
+    return;
+  }
+
+  mergeSort(diff, extra);
+
+  VoidListMutator mut(*this);
+
+  void *prevItem = mut.data();
+  mut.adv();
+
+  while (!mut.isDone()) {
+    if (0==diff(prevItem, mut.data(), extra)) {
+      // this element is identical to the previous one, so remove
+      // it from the list
+      mut.remove();
+    }
+    else {
+      prevItem = mut.data();
+      mut.adv();
+    }
+  }
+}
+
+
 STATICDEF int VoidList::pointerAddressDiff(void *left, void *right, void*)
 {
   return (int)left - (int)right;
@@ -898,6 +925,14 @@ void entry()
             list.nth(4) == b);
 
     xassert(thief.count() == 2);    // not modified
+
+    // test removeDuplicatesAsMultiset
+    list.removeDuplicatesAsPointerMultiset();     // list: (b c d)
+    PRINT(list);
+    xassert(list.count() == 3 &&
+            list.nth(0) == b &&
+            list.nth(1) == c &&
+            list.nth(2) == d);
   }
 
   // this hits most of the remaining code

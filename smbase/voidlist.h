@@ -120,12 +120,17 @@ public:
     // uses slow elementwise containment
   bool containsByDiff(void *item, VoidDiff diff, void *extra=NULL) const;
 
+  // use 'diff' to mergesort the list, then remove duplicate entries
+  void removeDuplicatesAsMultiset(VoidDiff diff, void *extra=NULL);
+
   // treating the pointer values themselves as the basis for comparison
   static int pointerAddressDiff(void *left, void *right, void*);
   bool equalAsPointerLists(VoidList const &otherList) const
     { return equalAsLists(otherList, pointerAddressDiff); }
   bool equalAsPointerSets(VoidList const &otherList) const
     { return equalAsSets(otherList, pointerAddressDiff); }
+  void removeDuplicatesAsPointerMultiset()
+    { removeDuplicatesAsMultiset(pointerAddressDiff); }
 
   // debugging
   void selfCheck() const;            // test this list; fail assertion if malformed
