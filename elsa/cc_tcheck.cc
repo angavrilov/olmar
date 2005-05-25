@@ -6263,6 +6263,33 @@ PQ_qualifier *getSecondToLast(PQ_qualifier *name)
   return name;
 }
 
+ 
+// do 'var1' and 'var2' refer to the same class type,
+// as required by 3.4.5p3?
+bool sameCompounds(Variable *var1, Variable *var2)
+{
+  CompoundType *ct1 = var1->type->asCompoundType();
+  CompoundType *ct2 = var2->type->asCompoundType();
+  if (ct1 == ct2) {
+    return true;      // easy case
+  }
+  
+  // in/t0481.cc contains an interesting variation where one of the
+  // variables refers to a template, and the other to an instantiation
+  // of that template, through no fault of the programmer.  Since both
+  // gcc and icc accept it, I will too, even though a strict reading
+  // of the standard seems to suggest the opposite.
+  TemplateInfo *ti1 = ct1->templateInfo();
+  TemplateInfo *ti2 = ct2->templateInfo();
+  if (ti1 && ti2 &&                                 // both are template things
+      (ti1->isPrimary() || ti2->isPrimary()) &&     // one is the primary
+      ti1->getPrimary() == ti2->getPrimary()) {     // other is specialization
+    return true;
+  }
+  
+  return false;
+}
+
 
 // cppstd sections: 5.2.4, 5.2.5 and 3.4.5
 Type *E_fieldAcc::itcheck_x(Env &env, Expression *&replacement)
@@ -6532,19 +6559,31 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
 
       // combine
       if (var1) {
-        if (var2 && 
-            var1->type->asCompoundType() != var2->type->asCompoundType()) {
-          return env.error(fieldName->loc, stringc
-            << "in " << this->asString() << ", " << rhsFinalTypeName
-            << " was found in the current scope as "
-            << kindAndType(var1) << ", and also in the class of "
-            << obj->asString() << " as "
-            << kindAndType(var2) << ", but they must be the same");
+        if (var2) {
+          if (!sameCompounds(var1, var2)) {
+            return env.error(fieldName->loc, stringc
+              << "in " << this->asString() << ", " << rhsFinalTypeName
+              << " was found in the current scope as "
+              << kindAndType(var1) << ", and also in the class of "
+              << obj->asString() << " as "
+              << kindAndType(var2) << ", but they must be the same");
+          }
+          // we will use 'var2' below
+        }
+        else {
+          // Use 'var2' the rest of the way.
+          //
+          // The reason to prefer 'var2' over 'var1' is a little
+          // subtle.  Normally, they are the same so it does not
+          // matter.  But in a case like in/t0481.cc, 'var2' is a
+          // template instantiation, whereas 'var1' is just a template
+          // primary.  So, use the more specific one.
+          var2 = var1;
         }
       }
       else {
         if (var2) {
-          var1 = var2;      // make 'var1' the only one
+          // we will use 'var2', so nothing needs to be done
         }
         else {
           return env.error(fieldName->loc, stringc
@@ -6553,7 +6592,8 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
       }
 
       // get the destructor of the named class
-      env.lookupClassDestructor(candidates, var1->type->asCompoundType(), flags);
+      env.lookupClassDestructor(candidates, var2->type->asCompoundType(), flags);
+        //             using 'var2' here    ^^^^
     }
 
     else {
