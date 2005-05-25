@@ -6298,8 +6298,11 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
   // dependent?
   if (obj->type->containsGeneralizedDependent()) {
     if (isDestructor) {
-      // 14.6.2.2 para 4
-      return env.getSimpleType(ST_VOID);
+      // 14.6.2.2 para 4; type is function accepting nothing and
+      // returning void
+      FunctionType *ft = env.tfac.makeFunctionType(env.getSimpleType(ST_VOID));
+      env.tfac.doneParams(ft);
+      return ft;
     }
     else {
       // 14.6.2.2 para 1
@@ -6650,6 +6653,34 @@ Type *E_arrow::itcheck_x(Env &env, Expression *&replacement)
   return itcheck_arrow_set(env, replacement, LF_NONE, dummy);
 }
 
+// Nominally, we rewrite
+//   a->b                 E_arrow(a,b)
+// as
+//   (*a).b               E_fieldAcc(E_deref(a), b)
+//
+// However, 'a' might be an object with operator-> defined, in which
+// case we rewrite the LHS, adding an explicit operator-> call:
+//   (a.operator->()).b   E_fieldAcc(E_funCall(E_fieldAcc(a,operator->), ()), b)
+//
+// Further complicating this is the possibility that we are in a
+// template, and don't know how much rewriting to do because of
+// dependence on template parameters.
+//
+// So, every a->b in the input AST has one of three fates:
+//   - If the type of 'a' does not depend on an template parameters,
+//     and is a pointer type, it is changed into (*a).b.
+//   - If 'a' is not dependent and has class type with operator->
+//     defined, it is changed into (a.operator->())->b.
+//   - If 'a' has dependent type, it is left as a->b, and only further
+//     refined when the instantiation is typechecked.
+//
+// Note that the middle case, rewriting as operator->, yields a form
+// that again contains -> and therefore may be recursively rewritten.
+// The recursion stops in case 1 or 3.  (Incidentally, the code below
+// does the expansion iteratively, not recursively.)
+//
+// Examples of various levels and timings of rewriting can be seen by
+// running ccparse with the prettyPrint tracing flag on in/t0480.cc
 Type *E_arrow::itcheck_arrow_set(Env &env, Expression *&replacement,
                                  LookupFlags flags, LookupSet &set)
 {
@@ -6665,7 +6696,15 @@ Type *E_arrow::itcheck_arrow_set(Env &env, Expression *&replacement,
 
   // now replace with '*' and '.' and proceed
   E_fieldAcc *eacc = new E_fieldAcc(new E_deref(obj), fieldName);
-  replacement = eacc;
+  if (t && t->isDependent()) {
+    // Do not actually do the rewriting, since the degree to which
+    // further rewriting via operator-> is done depends on template
+    // parameters.  We still go ahead and create 'eacc' and use it to
+    // compute the type of this node, though.  (in/t0478.cc)
+  }
+  else {
+    replacement = eacc;
+  }
   return eacc->itcheck_fieldAcc_set(env, flags, set);
 }
 
