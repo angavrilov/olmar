@@ -745,6 +745,11 @@ void CompoundType::finishedClassDefinition(StringRef specialName)
     conversionOperators.appendAll(iter.data()->ct->conversionOperators);
   }
 
+  // remove duplicates (in/t0483.cc); if there is an ambiguity because
+  // of inheriting something multiple times, it should be detected when
+  // we go to actually *use* the conversion operator
+  conversionOperators.removeDuplicatesAsPointerMultiset();
+
   // add those declared locally; they hide any that are inherited
   Variable *localOps = rawLookupVariable(specialName);
   if (!localOps) {
