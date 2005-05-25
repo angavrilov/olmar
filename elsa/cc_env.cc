@@ -422,7 +422,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   Type *t_bad_alloc =
     makeNewCompound(bad_alloc_ct, std_scope, str("bad_alloc"), SL_INIT,
                     TI_CLASS, true /*forward*/);
-  if (lang.putSomeStdNamesInGlobal) {
+  if (lang.gcc2StdEqualsGlobalHacks) {
     // using std::bad_alloc;
     makeUsingAliasFor(SL_INIT, bad_alloc_ct->typedefVar);
     addTypeTag(bad_alloc_ct->typedefVar);

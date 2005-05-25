@@ -66,7 +66,7 @@ void CCLang::ANSI_C89()
   allowModifiersWithTypedefNames = B3_FALSE;
   allowAnonymousStructs = B3_FALSE;
   
-  putSomeStdNamesInGlobal = false;
+  gcc2StdEqualsGlobalHacks = false;
   allowGcc2HeaderSyntax = B3_FALSE;
 }
 
@@ -188,7 +188,7 @@ void CCLang::ANSI_Cplusplus()
   allowModifiersWithTypedefNames = B3_FALSE;
   allowAnonymousStructs = B3_FALSE;
 
-  putSomeStdNamesInGlobal = false;
+  gcc2StdEqualsGlobalHacks = false;
   allowGcc2HeaderSyntax = B3_FALSE;
 }
 
@@ -211,7 +211,7 @@ void CCLang::GNU_Cplusplus()
   allowQualifiedMemberDeclarations = B3_TRUE;
   allowAnonymousStructs = B3_TRUE;
 
-  putSomeStdNamesInGlobal = true;
+  gcc2StdEqualsGlobalHacks = true;
   allowGcc2HeaderSyntax = B3_TRUE;
 }
 

@@ -1309,6 +1309,26 @@ Type *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
 }
 
 
+// does 'name' begin with 'qualifier' and end with 'name'?
+bool isTwoPartName(Env &env, PQName *name,
+                   char const *qualifier, char const *final)
+{
+  if (!name->isPQ_qualifier()) {
+    return false;
+  }
+
+  StringRef q = name->asPQ_qualifier()->qualifier;
+  StringRef f = name->getName();
+
+  if (q == env.str(qualifier) && f == env.str(final)) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
+
 // This function recognizes a PQName that comes from a buggy gcc-2
 // header and in that context is intended to name a dependent type.
 //
@@ -1318,20 +1338,9 @@ Type *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
 //   g0026.cc: basic_string <charT, traits, Allocator>::size_type
 bool isBuggyGcc2HeaderDQT(Env &env, PQName *name)
 {
-  if (!name->isPQ_qualifier()) {
-    return false;
-  }
-
-  StringRef q = name->asPQ_qualifier()->qualifier;
-  StringRef n = name->getName();
-
-  if (q == env.str("__default_alloc_template") &&
-      n == env.str("_Obj")) {
-    return true;
-  }
-
-  if (q == env.str("basic_string") &&
-      (n == env.str("Rep") || n == env.str("size_type"))) {
+  if (isTwoPartName(env, name, "__default_alloc_template", "_Obj") ||
+      isTwoPartName(env, name, "basic_string", "Rep") ||
+      isTwoPartName(env, name, "basic_string", "size_type")) {
     return true;
   }
 
@@ -1387,6 +1396,15 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
 
 do_lookup:
   v = env.lookupPQ_one(name, lflags);
+
+  // gcc-2 hack
+  if (!v &&
+      env.lang.gcc2StdEqualsGlobalHacks &&
+      isTwoPartName(env, name, "std", "string")) {
+    // try looking it up in global scope
+    v = env.lookupPQ_one(name->getUnqualifiedName(), lflags);
+  }
+
   if (!v) {
     // a little diagnostic refinement: if the only problem is with the
     // template arguments, but the name would be a type if the args
@@ -5047,6 +5065,14 @@ Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
     // do lookup normally
     env.lookupPQ(candidates, name, flags);
     
+    // gcc-2 hack
+    if (candidates.isEmpty() &&
+        env.lang.gcc2StdEqualsGlobalHacks &&
+        isTwoPartName(env, name, "std", "getline")) {
+      // try looking it up in global scope
+      env.lookupPQ(candidates, name->getUnqualifiedName(), flags);
+    }
+
     // compatibility with prior logic flow
     if (candidates.isNotEmpty()) {
       v = candidates.first();

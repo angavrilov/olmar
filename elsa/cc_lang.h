@@ -178,10 +178,9 @@ public:
   Bool3 allowAnonymousStructs;
   
   // gcc-2 bug compatibility: In gcc-2, namespace "std::" is actually
-  // an alias for the global scope.  However, this flag turns on just
-  // a few select hacks for compatibility with that bug, but does
-  // *not* replicate the full behavior.
-  bool putSomeStdNamesInGlobal;
+  // an alias for the global scope.  This flag turns on some hacks
+  // to accept some code preprocessed with gcc-2 headers.
+  bool gcc2StdEqualsGlobalHacks;
   
   // more gcc-2 bug compat: The gcc-2 headers contain some invalid
   // syntax.  Conceptually, this flag recognizes the invalid syntax

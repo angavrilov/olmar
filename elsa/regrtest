@@ -888,7 +888,7 @@ testparse d0117.cc
 testparse d0118.cc
 testparse d0119.cc
 testparse d0120.cc
-testparse d0121.cc
+testparse_special ansi d0121.cc
 # sm: this is invalid C++
 #failparse d0123.cc "from the kernel; works in C mode but in C++ mode can't convert void* to function pointer"
 testparse d0124.cc
@@ -1038,6 +1038,7 @@ if $use_gnu; then
   testparse gnu/g0024.cc
   testparse gnu/g0025.cc
   testparse gnu/g0026.cc
+  testparse gnu/g0027.cc
 
   testparse gnu/t0124.cc
   testparse gnu/t0125.cc
