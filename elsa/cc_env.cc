@@ -1545,6 +1545,9 @@ Type *Env::declareEnum(SourceLoc loc /*...*/, EnumType *et)
       error(stringc << "multiply defined enum `" << et->name << "'");
     }
 
+    // TODO: If the enum name is already the name of a typedef,
+    // then that is an error in C++.
+
     if (lang.tagsAreTypes && !addVariable(tv)) {
       // this isn't really an error, because in C it would have
       // been allowed, so C++ does too [ref?]

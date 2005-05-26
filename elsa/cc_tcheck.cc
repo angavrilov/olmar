@@ -1618,6 +1618,11 @@ CompoundType *checkClasskeyAndName(
     if (templateParams) {
       lflags |= LF_TEMPL_PRIMARY;
     }
+    if (!env.lang.isCplusplus) {
+      // in C mode, it is ok to have a typedef and a struct with the
+      // same name (in/c/dC0023.cc)
+      lflags |= LF_QUERY_TAGS;
+    }
 
     // do the lookup
     if (dflags & DF_DEFINITION) {
@@ -1628,11 +1633,6 @@ CompoundType *checkClasskeyAndName(
     else {
       // this is a lookup of a use; see if the new mechanism can
       // handle it
-      if (!env.lang.isCplusplus) {
-        // in C mode, do not look for 'Foo' when you see 'struct Foo';
-        // they are distinct
-        lflags |= LF_QUERY_TAGS;
-      }
       Variable *tag = env.lookupPQ_one(name, lflags);
       if (tag) {
         if (tag->type->isCompoundType()) {
