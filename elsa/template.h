@@ -20,6 +20,8 @@ public:
   TypeVariable(StringRef name) : NamedAtomicType(name) {}
   ~TypeVariable();
 
+  bool innerEquals(TypeVariable const *obj) const;
+
   // AtomicType interface
   virtual Tag getTag() const { return T_TYPEVAR; }
   virtual string toCString() const;
@@ -53,6 +55,8 @@ public:      // funcs
   PseudoInstantiation(CompoundType *p);
   ~PseudoInstantiation();
 
+  bool innerEquals(PseudoInstantiation const *obj) const;
+
   // AtomicType interface
   virtual Tag getTag() const { return T_PSEUDOINSTANTIATION; }
   virtual string toCString() const;
@@ -82,6 +86,8 @@ public:      // data
 public:      // data
   DependentQType(AtomicType *f);
   ~DependentQType();
+
+  bool innerEquals(DependentQType const *obj) const;
 
   // AtomicType interface
   virtual Tag getTag() const { return T_DEPENDENTQTYPE; }

@@ -117,16 +117,28 @@ bool AtomicType::equals(AtomicType const *obj) const
     return true;
   }
   
-  // 2005-03-03: Let's try saying that TypeVariables are equal if they
-  // are the same ordinal parameter of the same template.
-  if (this->isTypeVariable() && obj->isTypeVariable()) {
-    Variable *param1 = this->asTypeVariableC()->typedefVar;
-    Variable *param2 = obj->asTypeVariableC()->typedefVar;
-
-    return param1->sameTemplateParameter(param2);
+  if (getTag() != obj->getTag()) {
+    return false;
   }
   
-  return false;
+  // for the template-related types, we have a degree of structural
+  // equality; each type knows how to compare itself
+  switch (getTag()) {
+    default: xfailure("bad tag");
+
+    case T_SIMPLE:
+    case T_COMPOUND:
+    case T_ENUM:  
+      // non-template-related type, physical equality only
+      return false;
+
+    #define C(tag,type) \
+      case tag: return ((type const*)this)->innerEquals((type const*)obj);
+    C(T_TYPEVAR, TypeVariable)
+    C(T_PSEUDOINSTANTIATION, PseudoInstantiation)
+    C(T_DEPENDENTQTYPE, DependentQType)
+    #undef C
+  }
 }
 
 

@@ -35,6 +35,18 @@ void copyTemplateArgs(ObjList<STemplateArgument> &dest,
 TypeVariable::~TypeVariable()
 {}
 
+
+bool TypeVariable::innerEquals(TypeVariable const *obj) const
+{
+  // 2005-03-03: Let's try saying that TypeVariables are equal if they
+  // are the same ordinal parameter of the same template.
+  Variable *param1 = this->typedefVar;
+  Variable *param2 = obj->typedefVar;
+
+  return param1->sameTemplateParameter(param2);
+}
+
+
 string TypeVariable::toCString() const
 {
   if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
@@ -94,6 +106,35 @@ PseudoInstantiation::PseudoInstantiation(CompoundType *p)
 PseudoInstantiation::~PseudoInstantiation()
 {}
 
+
+bool PseudoInstantiation::innerEquals(PseudoInstantiation const *obj) const
+{
+  if (this->primary != obj->primary) {
+    return false; 
+  }
+
+  // ugh, can't use 'equalArgumentLists' because I do not have
+  // a TypeFactory, and I do not want the 'isomorphic' relaxation.
+  // Probably that function ought to be renamed, s/equal/isomorphic.
+
+  ObjListIter<STemplateArgument> iter1(this->args);
+  ObjListIter<STemplateArgument> iter2(obj->args);
+
+  while (!iter1.isDone() && !iter2.isDone()) {
+    STemplateArgument const *sta1 = iter1.data();
+    STemplateArgument const *sta2 = iter2.data();
+    if (!sta1->equals(sta2)) {
+      return false;
+    }
+
+    iter1.adv();
+    iter2.adv();
+  }
+
+  return iter1.isDone() && iter2.isDone();
+}
+
+
 string PseudoInstantiation::toCString() const
 {
   if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
@@ -132,6 +173,20 @@ DependentQType::DependentQType(AtomicType *f)
 
 DependentQType::~DependentQType()
 {}
+
+
+bool DependentQType::innerEquals(DependentQType const *obj) const
+{
+  // for now, only physical equality
+  //
+  // this is a bug; structural equality (along the lines of
+  // PseudoInstantiation::innerEquals) should be allowed; but I'm
+  // having trouble writing a testcase because of the more fundamental
+  // problem that I do not implement matching against parameter types
+  // that are DQTs (in/t0487.cc)
+  return this == obj;
+}
+
 
 string DependentQType::toCString() const
 {
