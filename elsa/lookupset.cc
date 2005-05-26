@@ -4,45 +4,47 @@
 #include "lookupset.h"        // this module
 #include "variable.h"         // Variable, sameEntity
 #include "template.h"         // TemplateInfo
+#include "cc_flags.h"         // bitmapString
 
 
-string toString_LF(LookupFlags flags) {
-  stringBuilder sb;
+char const * const lookupFlagNames[NUM_LOOKUPFLAGS] = {
+  "LF_INNER_ONLY",
+  "LF_ONLY_TYPES",
+  "LF_TYPENAME",
+  "LF_SKIP_CLASSES",
+  "LF_ONLY_NAMESPACES",
+  "LF_TYPES_NAMESPACES",
+  "LF_QUALIFIED",
+  "LF_TEMPL_PRIMARY",
+  "LF_FUNCTION_NAME",
+  "LF_DECLARATOR",
+  "LF_SELFNAME",
+  "LF_DEPENDENT",
+  "LF_TEMPL_PARAM",
+  "LF_SUPPRESS_ERROR",
+  "LF_SUPPRESS_NONEXIST",
+  "LF_IGNORE_USING",
+  "LF_NO_IMPL_THIS",
+  "LF_LOOKUP_SET",
+  "LF_QUERY_TAGS",
+  "LF_NO_DENOTED_SCOPE",
+  "LF_EXPECTING_TYPE",
+  "LF_EXPLICIT_INST",
+};
 
-  // check for undefined flags
-  if (flags & ~LF_ALL_FLAGS) {
-    sb << "ILLEGAL FLAG";
-    return sb;
-  }
 
-#define CHECK_FLAG(FLAG) if (flags & FLAG) {sb << #FLAG; sb << " ";}
+string toString(LookupFlags f)
+{
+  // make sure I haven't added a flag without adding a string for it
+  xassert(declFlagNames[NUM_LOOKUPFLAGS-1] != NULL);
 
-  CHECK_FLAG(LF_INNER_ONLY)
-  CHECK_FLAG(LF_ONLY_TYPES)
-  CHECK_FLAG(LF_TYPENAME)
-  CHECK_FLAG(LF_SKIP_CLASSES)
-  CHECK_FLAG(LF_ONLY_NAMESPACES)
-  CHECK_FLAG(LF_TYPES_NAMESPACES)
-  CHECK_FLAG(LF_QUALIFIED)
-  CHECK_FLAG(LF_TEMPL_PRIMARY)
-  CHECK_FLAG(LF_FUNCTION_NAME)
-  CHECK_FLAG(LF_DECLARATOR)
-  CHECK_FLAG(LF_SELFNAME)
-  CHECK_FLAG(LF_DEPENDENT)
-  CHECK_FLAG(LF_TEMPL_PARAM)
-  CHECK_FLAG(LF_SUPPRESS_ERROR)
-  CHECK_FLAG(LF_SUPPRESS_NONEXIST)
-  CHECK_FLAG(LF_IGNORE_USING)
-  CHECK_FLAG(LF_NO_IMPL_THIS)
-  CHECK_FLAG(LF_LOOKUP_SET)
-  CHECK_FLAG(LF_QUERY_TAGS)
-  CHECK_FLAG(LF_NO_DENOTED_SCOPE)
-  CHECK_FLAG(LF_EXPECTING_TYPE)
-  CHECK_FLAG(LF_EXPLICIT_INST)
-
-#undef CHECK_FLAG
-
-  return sb;
+  return bitmapString(f, lookupFlagNames, NUM_LOOKUPFLAGS);
+}
+                                 
+// this exists in case gdb's overload resolution is broken (?)
+string toString_LF(LookupFlags f)
+{
+  return toString(f);
 }
 
 

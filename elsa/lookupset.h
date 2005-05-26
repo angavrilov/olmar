@@ -42,13 +42,14 @@ enum LookupFlags {
   LF_QUALIFIER_LOOKUP  = LF_TYPES_NAMESPACES | LF_SELFNAME,
 
   LF_ALL_FLAGS         = 0x003FFFFF,   // bitwise OR of all flags
+  NUM_LOOKUPFLAGS      = 22            // # of bits set to 1 in LF_ALL_FLAGS
 };
 
-ENUM_BITWISE_OPS(LookupFlags, LF_ALL_FLAGS)     // smbase/macros.h
-
-
-// render out as a human-readable string
+extern char const * const lookupFlagNames[NUM_LOOKUPFLAGS];
+string toString(LookupFlags flags);
 string toString_LF(LookupFlags flags);
+
+ENUM_BITWISE_OPS(LookupFlags, LF_ALL_FLAGS)     // smbase/macros.h
 
 
 // filter a Variable w.r.t. a given set of flags, returning NULL
