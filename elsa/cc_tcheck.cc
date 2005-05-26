@@ -7531,6 +7531,9 @@ Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
+// This returns true if 'atype' is defining a type.  However,
+// this function is only called in C++ mode, because in C mode
+// it is legal to define a type in a cast.
 bool hasTypeDefn(ASTTypeId *atype)
 {
   return atype->spec->isTS_classSpec() ||
@@ -7539,7 +7542,7 @@ bool hasTypeDefn(ASTTypeId *atype)
 
 Type *E_cast::itcheck_x(Env &env, Expression *&replacement)
 {
-  if (hasTypeDefn(ctype)) {
+  if (env.lang.isCplusplus && hasTypeDefn(ctype)) {
     // 5.4p3: not allowed
     return env.error(ctype->spec->loc, "cannot define types in a cast");
   }
@@ -7885,15 +7888,34 @@ incompatible:
 Type *E_sizeofType::itcheck_x(Env &env, Expression *&replacement)
 {
   if (hasTypeDefn(atype)) {
-    // 5.3.3p5: cannot define types in 'sizeof'; the reason Elsa
-    // enforces this rule is that if we allow type definitions then
-    // there can be bad interactions with disambiguation (in/k0035.cc)
-    return env.error(atype->spec->loc,
-                     "cannot define types in a 'sizeof' expression");
+    if (env.lang.isCplusplus) {
+      // 5.3.3p5: cannot define types in 'sizeof'; the reason Elsa
+      // enforces this rule is that if we allow type definitions then
+      // there can be bad interactions with disambiguation (in/k0035.cc)
+      return env.error(atype->spec->loc,
+                       "cannot define types in a 'sizeof' expression");
+    }
+    else {
+      // In C mode, it is legal to define types in a 'sizeof'; but
+      // there are far fewer things that can go wrong during
+      // disambiguation, so use a simple idempotency trick
+      // (in/c/dC0019.c)
+      if (!tchecked) {
+        InstantiationContextIsolator isolate(env, env.loc());
+
+        ASTTypeId::Tcheck tc(DF_NONE, DC_E_SIZEOFTYPE);
+        atype = atype->tcheck(env, tc);
+
+        tchecked = true;
+      }
+    }
   }
 
-  ASTTypeId::Tcheck tc(DF_NONE, DC_E_SIZEOFTYPE);
-  atype = atype->tcheck(env, tc);
+  else {
+    // usual behavior
+    ASTTypeId::Tcheck tc(DF_NONE, DC_E_SIZEOFTYPE);
+    atype = atype->tcheck(env, tc);
+  }
 
   return sizeofType(env, atype->getType(), size, NULL /*expr*/);
 }
@@ -8021,7 +8043,7 @@ Type *E_throw::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_keywordCast::itcheck_x(Env &env, Expression *&replacement)
 {
-  if (hasTypeDefn(ctype)) {
+  if (env.lang.isCplusplus && hasTypeDefn(ctype)) {
     // 5.2.7p1: not allowed in dynamic_cast
     // 5.2.9p1: not allowed in static_cast
     // 5.2.10p1: not allowed in reinterpret_cast

@@ -576,6 +576,11 @@ class Expression {
   -> E_sizeofType {
        public int size = -1;     // size of the type
        custom clone { ret->size = size; }
+                                    
+       // This flag is used in some circumstances in C mode to ensure
+       // a given type expression is only tchecked one time, despite
+       // possible ambiguities.  (See the tcheck method.)
+       public bool tchecked = false;
      }
 
   // Q: should I manually clone all the annotation fields?  Do I

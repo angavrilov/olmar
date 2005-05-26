@@ -1179,7 +1179,7 @@ testCparse c/d0124b.c
 
 # dsw: fix these
 testCparse c/dC0018.c # const-eval ambiguous expr
-failCparse c/dC0019.c "cannot define types in a 'sizeof' expression"
+testCparse c/dC0019.c # define a type in a 'sizeof' expression
 failCparse c/dC0020.c "cannot define types in a cast"
 failCparse c/dC0021.c "gcc allows dynamic arrays even in parameters and where the dynamic size is another parameter"
 
