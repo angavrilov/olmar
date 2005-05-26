@@ -196,6 +196,12 @@ while (defined($line = <IN>)) {
         print STDERR ("e");    # elsa failed
       }
     }
+    
+    # remove tmp.i so as not to leave a bunch of them hanging
+    # around; in firefox, the accumulation of tmp.i files consumes
+    # more than 100MB of space
+    unlink("tmp.i");
+
     next;
   }
 
