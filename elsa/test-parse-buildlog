@@ -185,6 +185,15 @@ while (defined($line = <IN>)) {
       print STDERR ("g");      # gcc failed
     }
     else {
+      if (! -f "tmp.i") {
+        # the preprocessor did not report an error, and yet no tmp.i
+        # file was created; this happens under gcc-2 (at least) when
+        # the original command was simply intending to run the
+        # assembler; let's just assume that it's all good and skip it
+        print ("No tmp.i was generated; skipping.\n");
+        next;
+      }
+
       # run Elsa to parse it
       my $op = (($s eq "gcc")? "-tr gnu_kandr_c_lang " : "");
       if (run("$ccparse ${op}tmp.i")) {
@@ -196,7 +205,7 @@ while (defined($line = <IN>)) {
         print STDERR ("e");    # elsa failed
       }
     }
-    
+
     # remove tmp.i so as not to leave a bunch of them hanging
     # around; in firefox, the accumulation of tmp.i files consumes
     # more than 100MB of space
