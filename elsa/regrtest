@@ -776,6 +776,7 @@ testparse t0481.cc
 testparse t0482.cc
 testparse t0483.cc
 testparse t0484.cc
+testparse t0485.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

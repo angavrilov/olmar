@@ -3757,8 +3757,14 @@ Variable *Env::makeExplicitFunctionSpecialization
       continue;
     }
 
+    // 2005-05-26 (in/t0485.cc) if we're trying to associate a
+    // specialization with a member template, the specialization
+    // does not yet know whether it is a nonstatic member or not,
+    // so we must ignore the receiver argument when matching
+    Type::EqFlags eflags = Type::EF_IGNORE_IMPLICIT;
+
     // can this element specialize to 'ft'?
-    MatchTypes match(tfac, MatchTypes::MM_BIND);
+    MatchTypes match(tfac, MatchTypes::MM_BIND, eflags);
     if (match.match_Type(ft, primary->type)) {
       // yes; construct the argument list that specializes 'primary'
       TemplateInfo *primaryTI = primary->templateInfo();
@@ -3772,7 +3778,7 @@ Variable *Env::makeExplicitFunctionSpecialization
         //   - I want to compute right now the argument list that
         //     specializes primary, but then later I will want the
         //     full argument list for making the TemplateInfo
-        xfailure("unimplemented: specializing a member template");
+        xfailure("unimplemented: specializing a member template of a class template");
       }
 
       // simultanously iterate over the user's provided arguments,
