@@ -530,7 +530,17 @@ CValue Expression::constEval(ConstEval &env) const
 
 CValue Expression::iconstEval(ConstEval &env) const
 {
-  xassert(!ambiguity);
+  if (ambiguity) {
+    // 2005-05-26: This used to be cause for an assertion failure, but
+    // what can happen (in/c/dC0018.c) is that a user-error here or
+    // higher up causes the tcheck to prune, thereby leaving an
+    // ambiguity link.  What I will do is make this a user-error
+    // condition also, under the premise that (due to disambiguation
+    // selecting a different interpretation) the user will never see
+    // it; but by adding the error, I ensure this interpretation will
+    // not part of a successful parse.
+    return CValue("ambiguous expr being const-eval'd (user should not see this)");
+  }
 
   if (type->isError()) {
     // don't try to const-eval an expression that failed

@@ -1178,7 +1178,7 @@ testCparse gnu/d0122.c
 testCparse c/d0124b.c
 
 # dsw: fix these
-failCparse c/dC0018.c "cannot evaluate ' ( (0)|| (x1))' as a template integer argument: can't const-eval non-const variable 'x1'"
+testCparse c/dC0018.c # const-eval ambiguous expr
 failCparse c/dC0019.c "cannot define types in a 'sizeof' expression"
 failCparse c/dC0020.c "cannot define types in a cast"
 failCparse c/dC0021.c "gcc allows dynamic arrays even in parameters and where the dynamic size is another parameter"
