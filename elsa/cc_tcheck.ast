@@ -573,6 +573,11 @@ class Expression {
        custom clone { ret->size = size; }
      }
 
+  -> E_cast {                           
+       // idempotency for type definitions in casts
+       public bool tcheckedType = false;           
+     }
+
   -> E_sizeofType {
        public int size = -1;     // size of the type
        custom clone { ret->size = size; }

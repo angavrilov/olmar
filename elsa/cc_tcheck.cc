@@ -911,19 +911,15 @@ ASTTypeId *ASTTypeId::tcheck(Env &env, Tcheck &tc)
 
 void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
 {
-  #ifdef GNU_EXTENSION
-  if (tc.context == DC_E_COMPOUNDLIT
-      && spec->isTS_classSpec()
-      && spec->asTS_classSpec()->keyword == TI_UNION
-      && !spec->asTS_classSpec()->name) {
-    // in an E_compoundLit, gcc does not do anonymous union scope
-    // promotion, even in C++ mode; so make up a name for the union
-    StringRef fakeName = env.getAnonName(TI_UNION);
+  if (spec->isTS_classSpec() && !spec->asTS_classSpec()->name) {
+    // outside a declaration (that is, anyplace ASTTypeId occurs), gcc
+    // does not do anonymous union or struct scope promotion, even in
+    // C++ mode; so make up a name
+    StringRef fakeName = env.getAnonName(spec->asTS_classSpec()->keyword);
     spec->asTS_classSpec()->name = new PQ_name(env.loc(), fakeName);
-    TRACE("gnu", "substituted name " << fakeName << 
-                 " in anon union at " << decl->getLoc());
+    TRACE("env", "substituted name " << fakeName <<
+                 " in anon type at " << decl->getLoc());
   }
-  #endif // GNU_EXTENSION
 
   // check type specifier
   Type *specType = spec->tcheck(env, DF_NONE);
@@ -7542,13 +7538,31 @@ bool hasTypeDefn(ASTTypeId *atype)
 
 Type *E_cast::itcheck_x(Env &env, Expression *&replacement)
 {
-  if (env.lang.isCplusplus && hasTypeDefn(ctype)) {
-    // 5.4p3: not allowed
-    return env.error(ctype->spec->loc, "cannot define types in a cast");
+  // check the dest type
+  if (hasTypeDefn(ctype)) {
+    if (env.lang.isCplusplus) {
+      // 5.4p3: not allowed
+      return env.error(ctype->spec->loc, "cannot define types in a cast");
+    }
+    else {
+      // similar to the E_sizeofType case
+      if (!tcheckedType) {
+        InstantiationContextIsolator isolate(env, env.loc());
+        tcheckedType = true;
+
+        ASTTypeId::Tcheck tc(DF_NONE, DC_E_CAST);
+        ctype = ctype->tcheck(env, tc);
+      }
+    }
   }
 
-  ASTTypeId::Tcheck tc(DF_NONE, DC_E_CAST);
-  ctype = ctype->tcheck(env, tc);
+  else {
+    // usual behavior
+    ASTTypeId::Tcheck tc(DF_NONE, DC_E_CAST);
+    ctype = ctype->tcheck(env, tc);
+  }
+
+  // check the source expression
   expr->tcheck(env, expr);
   
   // TODO: check that the cast makes sense
@@ -7902,11 +7916,10 @@ Type *E_sizeofType::itcheck_x(Env &env, Expression *&replacement)
       // (in/c/dC0019.c)
       if (!tchecked) {
         InstantiationContextIsolator isolate(env, env.loc());
+        tchecked = true;
 
         ASTTypeId::Tcheck tc(DF_NONE, DC_E_SIZEOFTYPE);
         atype = atype->tcheck(env, tc);
-
-        tchecked = true;
       }
     }
   }
