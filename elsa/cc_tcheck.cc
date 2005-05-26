@@ -6895,7 +6895,7 @@ Type *resolveOverloadedUnaryOperator(
 
     // prepare resolver
     OverloadResolver resolver(env, env.loc(), &env.errors,
-                              OF_NONE,
+                              OF_OPERATOR,
                               NULL, // I assume operators can't have explicit template arguments
                               args);
 
@@ -6999,7 +6999,7 @@ Type *resolveOverloadedBinaryOperator(
 
     // prepare the overload resolver
     OverloadResolver resolver(env, env.loc(), &env.errors,
-                              OF_NONE,
+                              OF_OPERATOR,
                               NULL, // I assume operators can't have explicit template arguments
                               argInfo, 10 /*numCand*/);
     if (op == OP_COMMA) {

@@ -402,6 +402,14 @@ void OverloadResolver::processCandidate(Variable *v)
     if (flags & OF_METHODS) {
       iflags |= IA_RECEIVER;
     }
+    
+    // (in/t0484.cc) an operator invocation site's LHS argument is the
+    // receiver when we are considering operators that are methods;
+    // but if the operator is a global function, then the LHS is not
+    // a receiver, but just an ordinary argument
+    if ((flags & OF_OPERATOR) && (v->type->asFunctionType()->isMethod())) {
+      iflags |= IA_RECEIVER;
+    }
 
     // FIX: This is a bug!  If the args contain template parameters,
     // they will be the wrong template parameters.

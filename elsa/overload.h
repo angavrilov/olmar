@@ -127,8 +127,11 @@ enum OverloadFlags {
   // and nonstatic methods, and that resolution must explicitly
   // account for the non-uniformity
   OF_METHODS     = 0x04,
+  
+  // overload resolution is being done at an operator invocation site
+  OF_OPERATOR    = 0x08,
 
-  OF_ALL         = 0x07,           // all flags
+  OF_ALL         = 0x0F,           // all flags
 };
 
 ENUM_BITWISE_OPS(OverloadFlags, OF_ALL);
