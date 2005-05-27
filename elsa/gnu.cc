@@ -685,23 +685,13 @@ void S_computedGoto::itcheck(Env &env)
 Type *E_compoundLit::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc(DF_NONE, DC_E_COMPOUNDLIT);
-  
-  if (tcheckedType) {
-    // The 'stype' has already been tchecked, because this expression
-    // is in a context that involves multiple tcheck passes
-    // (e.g. gnu/g0013.cc); just skip subsequent tchecks of 'stype'
-    // b/c its interpretation won't be changing, and if it happens to
-    // define a type then on the second pass this avoids an error
-    // about redeclaration.
-    //
-    // Hmm... I'd been thinking this would help deal with ambiguous
-    // contexts too, but the ambiguity resolver doesn't want changes
-    // to the environment to take place ..... ?  Oh well...
-  }
-  else {                
-    // tcheck it normally
-    stype = stype->tcheck(env, tc);
+
+  // typechedk the type only once, and isolated from ambiguities
+  if (!tcheckedType) {
+    InstantiationContextIsolator isolate(env, env.loc());
     tcheckedType = true;
+
+    stype = stype->tcheck(env, tc);
   }
 
   init->tcheck(env, stype->getType());
