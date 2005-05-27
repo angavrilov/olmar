@@ -972,7 +972,7 @@ testparse k0055.cc #"using 'class' instead of 'typename' for template-class type
 
 testparse k0056.cc #"template friend function"
 testparse k0057.cc #"template friend function (2)"
-failparse k0058.cc "converting to types from parameter templates"
+testparse k0058.cc #"converting to types from parameter templates"
 
 ### </quarl-testcases-c++>
 

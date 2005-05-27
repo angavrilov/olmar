@@ -31,5 +31,6 @@ struct S1 {
 
 int main() {
     S1<SA> s1;
+    s1.func3(3);
     return s1.func2();
 }

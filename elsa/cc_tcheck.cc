@@ -5521,21 +5521,23 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
     env.possiblySetOverloadedFunctionVar(arg->expr, param->type,
                                          argInfo[paramIndex].overloadSet);
 
-    // try to convert the argument to the parameter
-    ImplicitConversion ic = getImplicitConversion(env,
-      arg->getSpecial(env.lang),
-      arg->getType(),
-      param->type,
-      false /*destIsReceiver*/);
-    if (!ic) {
-      env.error(arg->getType(), stringc
-        << "cannot convert argument type `" << arg->getType()->toString()
-        << "' to parameter " << paramIndex 
-        << " type `" << param->type->toString() << "'");
-    }
+    if (!param->type->isGeneralizedDependent()) {
+      // try to convert the argument to the parameter
+      ImplicitConversion ic = getImplicitConversion(env,
+        arg->getSpecial(env.lang),
+        arg->getType(),
+        param->type,
+        false /*destIsReceiver*/);
+      if (!ic) {
+        env.error(arg->getType(), stringc
+          << "cannot convert argument type `" << arg->getType()->toString()
+          << "' to parameter " << paramIndex 
+          << " type `" << param->type->toString() << "'");
+      }
 
-    // TODO (elaboration): if 'ic' involves a user-defined
-    // conversion, then modify the AST to make that explicit
+      // TODO (elaboration): if 'ic' involves a user-defined
+      // conversion, then modify the AST to make that explicit
+    }
   }
 
   if (argIter->isEmpty()) {
