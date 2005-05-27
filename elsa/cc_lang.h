@@ -187,6 +187,9 @@ public:
   // and transforms it into valid syntax for Elsa.  Actually, it just
   // enables some hacks that have similar effect.
   Bool3 allowGcc2HeaderSyntax;
+  
+  // when true, 'restrict' is a keyword
+  bool restrictIsAKeyword;
 
 public:
   CCLang() { ANSI_C89(); }

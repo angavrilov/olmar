@@ -94,12 +94,11 @@
 
   /* C99 stuff */
 "restrict" {
-  // (k0049.cc) for now, C++ does not have 'restrict'
-  if (lang.isCplusplus) {
-    return svalTok(TOK_NAME);
+  if (lang.restrictIsAKeyword) {
+    return tok(TOK_RESTRICT);
   }
   else {
-    return tok(TOK_RESTRICT);
+    return svalTok(TOK_NAME);
   }
 }
 

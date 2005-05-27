@@ -68,6 +68,7 @@ void CCLang::ANSI_C89()
   
   gcc2StdEqualsGlobalHacks = false;
   allowGcc2HeaderSyntax = B3_FALSE;
+  restrictIsAKeyword = false;
 }
 
 void CCLang::KandR_C()
@@ -81,6 +82,7 @@ void CCLang::ANSI_C99_extensions()
 {
   implicitFuncVariable = true;
   predefined_Bool = true;
+  restrictIsAKeyword = true;
 }
 
 void CCLang::ANSI_C99()
@@ -190,6 +192,7 @@ void CCLang::ANSI_Cplusplus()
 
   gcc2StdEqualsGlobalHacks = false;
   allowGcc2HeaderSyntax = B3_FALSE;
+  restrictIsAKeyword = false;
 }
 
 void CCLang::GNU_Cplusplus()

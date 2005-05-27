@@ -1135,6 +1135,9 @@ fi
 testCparse() {
   runTest perl ./multitest.pl ./ccparse -tr c_lang in/$1
 }
+testCparse_special() {
+  runTest perl ./multitest.pl ./ccparse -tr c_lang,$1,$TR_FLAGS in/$2
+}
 failCparse() {
   if [ "$2" = "" ]; then
     echo "failparse $1: failparse takes two arguments"
@@ -1194,9 +1197,9 @@ failCparse c/dC0024.c "bizarreness with redundant and useless typedefs"
 
 testCparse c/dC0025.c # no-info-prototype of main(), then defn
 testCparse c/dC0026.c # implicit int in K&R decl
-failCparse c/dC0027.c "Parse error (state 552) at restrict"
+testCparse_special gnu_c89 c/dC0027.c # "restrict in non-keyword role"
 failCparse c/dC0028.c "Assertion failed: env.disambiguationNestingLevel == 0, file cc_tcheck.cc line 1869"
-failCparse c/dC0029.c "Parse error (state 963) at ,"
+testCparse_special gnu_c89 c/dC0029.c # "restrict in non-keyword role"
 
 testparse_special ansi_c c/k0001.c #"typedef int fooint; typedef fooint long;"
 testCparse c/k0002.c #"attempt to create an object of incomplete class `S'"

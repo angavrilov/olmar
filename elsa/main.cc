@@ -198,6 +198,11 @@ void doit(int argc, char **argv)
   if (tracingSys("c_lang")) {
     lang.GNU_C();
   }
+  
+  if (tracingSys("gnu_c89")) {
+    lang.ANSI_C89();
+    lang.GNU_C_extensions();
+  }
 
   if (tracingSys("gnu_kandr_c_lang")) {
     lang.GNU_KandR_C();
