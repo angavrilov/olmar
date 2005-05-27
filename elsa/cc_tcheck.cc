@@ -1546,7 +1546,8 @@ CompoundType *checkClasskeyAndName(
   // that isn't quite right
   if (dflags & DF_FRIEND) {
     if (definition) {
-      env.error("no friend definitions, please");
+      // 11.4p2
+      env.error("you cannot define a class in a friend definitions");
       return NULL;
     }
     forward = false;
@@ -2696,13 +2697,22 @@ realStart:
     // TODO: somehow remember the access control implications
     // of the friend declaration
 
-    if (name->hasQualifiers()) {
+    // is the scope in which this declaration appears (that is,
+    // skipping any template<> that might be associated directly 
+    // with this declaration) itself a template?
+    bool insideTemplate = env.enclosingKindScopeAbove(SK_TEMPLATE_PARAMS, scope);
+
+    if (name->hasQualifiers() || insideTemplate) {
       // we're befriending something that either is already declared,
       // or will be declared before it is used; no need to contemplate
       // adding a declaration, so just make the required Variable
-      // and be done with it                                            
+      // and be done with it
       //
       // TODO: can't befriend cv members, e.g. in/t0333.cc
+      //
+      // 2005-05-07: if we're in an uninst template (class), then
+      // the friend declaration is ignored; it will be processed
+      // when the template is instantiated (11.4, 14.5.3, in/t0470.cc)
       possiblyConsumeFunctionType(env, dt, false /*reportErrors*/);
       return env.makeVariable(loc, unqualifiedName, dt.type, dt.dflags);
     }

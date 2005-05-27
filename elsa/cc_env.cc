@@ -1373,11 +1373,33 @@ Scope *Env::enclosingScope()
 
 Scope *Env::enclosingKindScope(ScopeKind k)
 {
+  return enclosingKindScopeAbove(k, NULL);
+}
+
+
+Scope *Env::enclosingKindScopeAbove(ScopeKind k, Scope *s)
+{
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
+    if (s) {
+      if (iter.data() == s) {
+        // found the scope we want to look above
+        s = NULL;
+      }
+      else {
+        // still looking for 's'
+      }
+      continue;
+    }
+
     if (iter.data()->scopeKind == k) {
       return iter.data();
     }
   }
+
+  if (s) {
+    xfailure("did not find scope above which we wanted to look");
+  }
+
   return NULL;    // not found
 }
 

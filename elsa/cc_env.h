@@ -305,6 +305,10 @@ public:      // funcs
 
   // essentially: enclosingKindScope(SK_CLASS)->curCompound;
   CompoundType *enclosingClassScope();
+   
+  // more flexible: don't begin looking for a scope with kind 'k'
+  // until we pass 's' going up on the scope stack
+  Scope *enclosingKindScopeAbove(ScopeKind k, Scope *s);
 
   bool inTemplate()
     { return !!enclosingKindScope(SK_TEMPLATE_PARAMS); }
