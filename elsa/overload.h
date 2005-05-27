@@ -289,4 +289,42 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig);
 void test_computeLUB(Env &env, Type *t1, Type *t2, Type *answer, int code);
 
 
+// When doing explicit instantiation of function templates, we collect
+// instantiation candidates and then select the most specific to
+// actually instantiate.
+class InstCandidate {
+public:
+  // the template to instantiate
+  Variable *primary;
+
+  // the arguments to apply to that template
+  ObjList<STemplateArgument> sargs;
+
+public:
+  InstCandidate(Variable *p);
+  ~InstCandidate();
+};
+
+// algorithm object to select the best from a set
+class InstCandidateResolver {
+public:
+  // for assisting in the comparisons
+  TypeFactory &tfac;
+
+  // set of candidates
+  ObjArrayStack<InstCandidate> candidates;
+
+public:
+  InstCandidateResolver(TypeFactory &tfac);
+  ~InstCandidateResolver();
+
+  // for internal use by the tournament
+  int compareCandidates(InstCandidate *left, InstCandidate *right);
+
+  // public use: choose from 'candidates', or return NULL if the
+  // choice is ambiguous
+  InstCandidate *selectBestCandidate();
+};
+
+
 #endif // OVERLOAD_H

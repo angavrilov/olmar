@@ -4034,8 +4034,8 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type)
     nameArgs = &( name->getUnqualifiedName()->asPQ_template()->sargs );
   }
 
-  // instantiation to eventually return
-  Variable *ret = NULL;
+  // collect candidates
+  InstCandidateResolver resolver(tfac);
 
   // examine all overloaded versions of the function
   SObjList<Variable> set;
@@ -4073,35 +4073,47 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type)
       }
     }
 
+    // build the candidate structure now, since it contains the
+    // 'sargs' to store the arguments
+    InstCandidate *cand = new InstCandidate(primary);
+
     // convert the bindings into a sequential argument list
     // (I am ignoring the inherited params b/c I'm not sure if it
     // is correct to use them here...)
-    ObjList<STemplateArgument> sargs;
     bool haveAllArgs = true;
-    getFuncTemplArgs_oneParamList(match, sargs, IA_NO_ERRORS,
+    getFuncTemplArgs_oneParamList(match, cand->sargs, IA_NO_ERRORS,
                                   haveAllArgs, primaryTI->params);
     if (!haveAllArgs) {
+      delete cand;
       continue;   // no match
     }
 
-    // at this point, the match is a success
-    if (ret) {
-      error("ambiguous function template instantiation");
-      return ret;        // stop looking
-    }
-
-    // apply the arguments to the primary
-    ret = instantiateFunctionTemplate(name->loc, primary, sargs);
-
-    // instantiate the body
-    explicitlyInstantiate(ret);
+    // at this point, the match is a success; store this candidate
+    resolver.candidates.push(cand);
   }
-
-  if (!ret) {
+  
+  // did we find any candidates?
+  if (resolver.candidates.isEmpty()) {
     error(stringc << "type `" << type->toString() 
                   << "' does not match any template function `" << *name << "'");
+    return NULL;
+  }
+  
+  // choose from among those we found
+  InstCandidate *best = resolver.selectBestCandidate();
+  if (!best) {
+    // TODO: make this error message more informative
+    error("ambiguous function template instantiation");
+    best = resolver.candidates[0];       // error recovery; pick arbitrarily
   }
 
+  // apply the arguments to the primary
+  Variable *ret = instantiateFunctionTemplate(name->loc, best->primary, best->sargs);
+
+  // instantiate the body
+  explicitlyInstantiate(ret);
+  
+  // done; 'resolver' and its candidates automatically deallocated
   return ret;
 }
 

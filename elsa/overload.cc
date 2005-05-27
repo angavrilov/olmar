@@ -1890,6 +1890,56 @@ void test_computeLUB(Env &env, Type *t1, Type *t2, Type *answer, int code)
 }
 
 
+// ------------------- InstCandidate ---------------
+InstCandidate::InstCandidate(Variable *p)
+  : primary(p),
+    sargs()
+{}
+
+InstCandidate::~InstCandidate()
+{}
+
+
+
+// ----------------- InstCandidateResolver ---------------
+InstCandidateResolver::InstCandidateResolver(TypeFactory &t)
+  : tfac(t),
+    candidates()
+{}
+
+InstCandidateResolver::~InstCandidateResolver()
+{}
+
+
+int InstCandidateResolver::compareCandidates(InstCandidate *left, InstCandidate *right)
+{                                                           
+  Type *leftType = left->primary->type;
+  Type *rightType = right->primary->type;
+
+  bool left_ALA = atLeastAsSpecializedAs(tfac, leftType, rightType);
+  bool right_ALA = atLeastAsSpecializedAs(tfac, rightType, leftType);
+  if (left_ALA && !right_ALA) {
+    // left is "more specialized"
+    return -1;
+  }
+  else if (!left_ALA && right_ALA) {
+    // right is "more specialized"
+    return +1;
+  }
+  else {
+    // no decision
+    return 0;
+  }
+}
+
+
+InstCandidate *InstCandidateResolver::selectBestCandidate()
+{
+  InstCandidate *dummy = 0;
+  return ::selectBestCandidate(*this, dummy);
+}
+
+
 // ----------------- debugging -------------------
 int overloadNesting = 0;
 
