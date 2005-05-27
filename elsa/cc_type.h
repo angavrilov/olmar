@@ -1297,13 +1297,23 @@ public:    // funcs
 // thrown when the reprSize() function cannot determine an
 // array size
 class XReprSize : public xBase {
+public:          
+  // This is set to true when the reason for failing to determine a
+  // size is that a dynamically-sized array was involved (this is a
+  // gnu extension).
+  //
+  // TODO: The better solution is to store the size expression with
+  // the array, so I can compute a symbolic expression that evaluates
+  // to the array's size.  But that involves changing a lot of stuff.
+  bool isDynamic;
+
 public:
-  XReprSize();
+  XReprSize(bool isDynamic = false);
   XReprSize(XReprSize const &obj);
   ~XReprSize();
 };
 
-void throw_XReprSize() NORETURN;
+void throw_XReprSize(bool isDynamic = false) NORETURN;
 
 
 // ------ for debugging ------

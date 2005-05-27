@@ -2151,7 +2151,7 @@ string ArrayType::rightString(bool /*innerParen*/) const
 int ArrayType::reprSize() const
 {
   if (!hasSize()) {
-    throw_XReprSize();
+    throw_XReprSize(size == DYN_SIZE /*isDynamic*/);
   }
 
   return eltType->reprSize() * size;
@@ -2780,21 +2780,24 @@ Variable *BasicTypeFactory::makeVariable(
 
 
 // -------------------- XReprSize -------------------
-XReprSize::XReprSize()
-  : xBase("reprSize of a sizeless array")
+XReprSize::XReprSize(bool d)
+  : xBase(stringc << "reprSize of a " << (d ? "dynamically-sized" : "sizeless")
+                  << " array"),
+    isDynamic(d)
 {}
 
 XReprSize::XReprSize(XReprSize const &obj)
-  : xBase(obj)
+  : xBase(obj),
+    isDynamic(obj.isDynamic)
 {}
 
 XReprSize::~XReprSize()
 {}
 
 
-void throw_XReprSize()
+void throw_XReprSize(bool d)
 {
-  XReprSize x;
+  XReprSize x(d);
   THROW(x);
 }
 

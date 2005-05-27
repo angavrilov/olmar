@@ -6818,36 +6818,40 @@ Type *sizeofType(Env &env, Type *t, int &size, Expression * /*nullable*/ expr)
                     ") is " << size);
   }
   catch (XReprSize &e) {
-    if (t->isArrayType()) {
-      ArrayType *at = t->asArrayType();
-      if (at->size == ArrayType::DYN_SIZE) {
-        // There are at least two reasonable approaches to handling
-        // dynamically-sized arrays.  One is to just make sure that
-        // an analysis can recognize them and handle them specially
-        // if necessary.  That is what Elsa is doing.  (An analysis
-        // can recognize ArrayType::DYN_SIZE.)
-        //
-        // The other approach would be to translate them away, using
-        // lower-level concepts.  However, this would (IMO) make more
-        // of a mess than is beneficial (using alloca, or perhaps even
-        // malloc), so we don't.
-        size = 0;
+    if (e.isDynamic) {
+      // There are at least two reasonable approaches to handling
+      // dynamically-sized arrays.  One is to just make sure that
+      // an analysis can recognize them and handle them specially
+      // if necessary.  That is what Elsa is doing.  (An analysis
+      // can recognize ArrayType::DYN_SIZE.)
+      //
+      // The other approach would be to translate them away, using
+      // lower-level concepts.  However, this would (IMO) make more
+      // of a mess than is beneficial (using alloca, or perhaps even
+      // malloc), so we don't.
+      //
+      // A third approach, mentioned near declaration of
+      // XReprSize::isDynamic, is for reprSize to possibly return a
+      // symbolic expression...
+      size = 0;
 
-        env.warning("taking the sizeof a dynamically-sized array");
-        TRACE("sizeof", "sizeof(" << expr->exprToString() <<
-                        ") is dynamic..");
-      }
-      else if (at->size == ArrayType::NO_SIZE &&
-               env.lang.assumeNoSizeArrayHasSizeOne) {
+      env.warning("taking the sizeof a dynamically-sized array");
+      TRACE("sizeof", "sizeof(" << expr->exprToString() <<
+                      ") is dynamic..");
+    }
+    else if (t->isArrayType()) {
+      ArrayType *at = t->asArrayType();
+      if (at->size == ArrayType::NO_SIZE &&
+          env.lang.assumeNoSizeArrayHasSizeOne) {
         // just hacking this for now
         return sizeofType(env, at->eltType, size, expr);
       }
       else {
-        return env.error(e.why());  // jump out with an error
+        return env.error(e.why());
       }
     }
     else {
-      return env.error(e.why());  // jump out with an error
+      return env.error(e.why());
     }
   }
 

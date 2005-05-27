@@ -1184,7 +1184,7 @@ testCparse c/dC0020.c # define a type in a cast
 testCparse c/dC0021.c # C99 dynamic parameter array
 
 # dsw: perhaps we should change the implementation of reprSize()
-failCparse c/dC0022.c "gcc allows sizeof on a stack-allocated array the size of which is dynamic"
+testCparse c/dC0022.c # sizeof dynamically-sized multidimensional array
 
 testCparse c/dC0023.c # "in gcc, in C mode, a foo and a struct foo are unrelated"
 
