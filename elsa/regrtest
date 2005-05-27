@@ -1044,6 +1044,7 @@ if $use_gnu; then
   testparse gnu/g0025.cc
   testparse gnu/g0026.cc
   testparse gnu/g0027.cc
+  testparse gnu/g0028.cc
 
   testparse gnu/t0124.cc
   testparse gnu/t0125.cc

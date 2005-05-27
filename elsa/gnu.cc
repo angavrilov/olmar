@@ -434,6 +434,11 @@ void Env::addGNUBuiltins()
     
     // gcc-3.4.3 seems to have this, though it is not documented
     "modff",
+    
+    // same for these
+    "huge_val",
+    "huge_valf",
+    "huge_vall",
 
     // ------------------------------------------------
     // group 4: "The ISO C90 functions ..."
