@@ -1203,6 +1203,8 @@ testCparse_special gnu_c89 c/dC0027.c # "restrict in non-keyword role"
 testCparse c/dC0028.c # compound lit in ambiguous context
 testCparse_special gnu_c89 c/dC0029.c # "restrict in non-keyword role"
 
+failCparse gnu/dC0017.c "__alignof__ arugments can be full expressions ??"
+
 testparse_special ansi_c c/k0001.c #"typedef int fooint; typedef fooint long;"
 testCparse c/k0002.c #"attempt to create an object of incomplete class `S'"
 testCparse c/k0003.c #"old-style function decl with parentheses around func name"
