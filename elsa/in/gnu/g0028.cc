@@ -9,3 +9,6 @@ static double infinity2() throw()
 
 static long double infinity3() throw()
 { return __builtin_huge_vall (); }
+
+static double quiet_NaN() throw()
+{ return __builtin_nan (""); }

@@ -439,6 +439,7 @@ void Env::addGNUBuiltins()
     "huge_val",
     "huge_valf",
     "huge_vall",
+    "nan",
 
     // ------------------------------------------------
     // group 4: "The ISO C90 functions ..."
