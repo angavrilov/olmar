@@ -762,9 +762,8 @@ testparse t0467.cc
 testparse t0468.cc
 testparse t0469.cc
 testparse t0470.cc
-# work
-# in
-# progress
+failparse t0471.cc "failure to reject invalid code: arg-dep finds static member"
+failparse t0472.cc "failure to reject invalid code: friend name injection"
 testparse t0473.cc
 testparse t0474.cc
 testparse t0475.cc
