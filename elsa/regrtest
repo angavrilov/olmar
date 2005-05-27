@@ -1167,6 +1167,7 @@ runTest perl ./multitest.pl ./ccparse -tr ansi_c99 in/c/t0020.c
 runTest perl ./multitest.pl ./ccparse -tr ansi_c,warnings in/c/t0021.c
 
 testCparse c/t0022.c
+failCparse c/t0023.c "unhandled KandRSimpleDeclaration ambiguity"
 
 testCparse gnu/d0096.c
 testCparse c/dC0010.c #"f(u8 register) doesn't parse"
@@ -1192,7 +1193,7 @@ testCparse c/dC0023.c # "in gcc, in C mode, a foo and a struct foo are unrelated
 failCparse c/dC0024.c "bizarreness with redundant and useless typedefs"
 
 testCparse c/dC0025.c # no-info-prototype of main(), then defn
-failCparse c/dC0026.c "Parse error (state 862) at ;"
+testCparse c/dC0026.c # implicit int in K&R decl
 failCparse c/dC0027.c "Parse error (state 552) at restrict"
 failCparse c/dC0028.c "Assertion failed: env.disambiguationNestingLevel == 0, file cc_tcheck.cc line 1869"
 failCparse c/dC0029.c "Parse error (state 963) at ,"

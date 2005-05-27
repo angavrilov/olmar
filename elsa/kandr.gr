@@ -7,7 +7,7 @@
 
 
 // expected statistics
-option shift_reduce_conflicts 131;
+option shift_reduce_conflicts 134;
 option reduce_reduce_conflicts 172;
 
 
@@ -340,6 +340,27 @@ nonterm(TopForm*) Declaration {
         (loc,
          new Declaration(uberDeclFlags(m1), new TS_simple(loc, ST_IMPLINT), list));
     }
+}
+
+
+nonterm(Declaration*) KandRSimpleDeclaration {
+  fun keep(x) { return x!=NULL; }
+
+  // I'm sure this production introduces an unhandled ambiguity,
+  // but I have not yet constructed an example...
+
+  // (in/c/dC0026.c)
+  -> "register" /*implicit-int*/ list:KandRInitDeclaratorList ";"
+     {
+       if (!lang.allowImplicitInt) {
+         trace("cancel") << loc
+           << ": implicit-int KandRSimpleDeclaration in non-implicit-int language\n";
+         return NULL;
+       }
+       return new Declaration(DF_REGISTER,
+                              new TS_simple(loc, ST_IMPLINT),
+                              list);
+     }
 }
 
 nonterm(Statement*) Statement {
