@@ -571,6 +571,11 @@ public:     // funcs
 
     // ignore the topmost cv qualifications of all parameters in
     // parameter lists throughout the type
+    //
+    // 2005-05-27: I now realize that *every* type comparison needs
+    // this flag, so have changed the site where it is tested to
+    // pretend it is always set.  Once this has been working for a
+    // while I will remove this flag altogether.
     EF_IGNORE_PARAM_CV = 0x0008,
 
     // ignore the topmost cv qualification of the two types compared

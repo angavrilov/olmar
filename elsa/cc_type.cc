@@ -1736,7 +1736,8 @@ bool FunctionType::equalParameterLists(FunctionType const *obj,
   // to suppress non-propagated flags after consumption
   flags &= EF_PROP;
 
-  if (flags & EF_IGNORE_PARAM_CV) {
+  // 2005-05-27: Pretend EF_IGNORE_PARAM_CV is always set.
+  if (true /*flags & EF_IGNORE_PARAM_CV*/) {
     // allow toplevel cv flags on parameters to differ
     flags |= EF_IGNORE_TOP_CV;
   }

@@ -3670,6 +3670,14 @@ static Type *normalizeParameterType(Env &env, SourceLoc loc, Type *t)
   if (t->isFunctionType()) {
     return env.makePtrType(t);
   }
+
+  // 2005-05-27: I started to implement stripping of 'cv' from the
+  // parameters, as the comment above suggests, but then realized that
+  // would mean that even inside the definition, parameters' cv is
+  // lost.  Therefore the new plan is to make EF_IGNORE_PARAM_CV
+  // effectively always true, as no function *type* is ever supposed
+  // to have cv on its parameters.
+
   return t;
 }
 
