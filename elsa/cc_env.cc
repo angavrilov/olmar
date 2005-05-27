@@ -3589,8 +3589,15 @@ void Env::handleTypeOfMain(SourceLoc loc, Variable *prior, Type *&type)
     return;    // presumably already reported
   }
 
-  // check that the types of the declared parameters agree
   FunctionType *priorFt = prior->type->asFunctionType();
+  if (priorFt->hasFlag(FF_NO_PARAM_INFO)) {
+    // (in/c/dC0025.c) punt: just let the prior defn be, and hope
+    // that the existing handling of no-param-info-prototypes
+    // is adequate
+    return;
+  }
+
+  // check that the types of the declared parameters agree
   FunctionType *typeFt = type->asFunctionType();
   SObjListIterNC<Variable> priorIter(priorFt->params);
   SObjListIterNC<Variable> typeIter(typeFt->params);

@@ -1188,9 +1188,10 @@ testCparse c/dC0022.c # sizeof dynamically-sized multidimensional array
 
 testCparse c/dC0023.c # "in gcc, in C mode, a foo and a struct foo are unrelated"
 
+# this is invalid code
 failCparse c/dC0024.c "bizarreness with redundant and useless typedefs"
 
-failCparse c/dC0025.c "prior declaration of main() at in.i:3:5 had 0 parameters, but this one has 2 parameters; we do allow the parameter lists of main() to vary, but only when the earliest declaration has the largest number of parameters"
+testCparse c/dC0025.c # no-info-prototype of main(), then defn
 failCparse c/dC0026.c "Parse error (state 862) at ;"
 failCparse c/dC0027.c "Parse error (state 552) at restrict"
 failCparse c/dC0028.c "Assertion failed: env.disambiguationNestingLevel == 0, file cc_tcheck.cc line 1869"
