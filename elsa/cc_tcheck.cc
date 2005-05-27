@@ -3975,7 +3975,12 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
         if ((dt.context == DC_S_DECL ||
              // dsw: if it is a struct declared local to a function,
              // then gcc in C mode allows it to have dynamic size
-             (dt.context == DC_MR_DECL && env.enclosingKindScope(SK_FUNCTION))) &&
+             (dt.context == DC_MR_DECL && env.enclosingKindScope(SK_FUNCTION)) ||
+             // 2005-05-26: C99 functions can have arrays with dynamic
+             // size; TODO: do a better job recording the semantics of
+             // such declarations, for the benefit of analyses (in/c/dC0021.c)
+             (dt.context == DC_D_FUNC && env.scope()->scopeKind == SK_PARAMETER)
+            ) &&
             env.lang.allowDynamicallySizedArrays) {
           // allow it anyway
           sz = ArrayType::DYN_SIZE;

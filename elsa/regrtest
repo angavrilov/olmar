@@ -1181,7 +1181,7 @@ testCparse c/d0124b.c
 testCparse c/dC0018.c # const-eval ambiguous expr
 testCparse c/dC0019.c # define a type in a 'sizeof' expression
 testCparse c/dC0020.c # define a type in a cast
-failCparse c/dC0021.c "gcc allows dynamic arrays even in parameters and where the dynamic size is another parameter"
+testCparse c/dC0021.c # C99 dynamic parameter array
 
 # dsw: perhaps we should change the implementation of reprSize()
 failCparse c/dC0022.c "gcc allows sizeof on a stack-allocated array the size of which is dynamic"
