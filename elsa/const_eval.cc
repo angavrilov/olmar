@@ -663,27 +663,16 @@ CValue Expression::iconstEval(ConstEval &env) const
       return v1;
 
     ASTNEXTC(E_cast, c)
-      CValue ret = c->expr->constEval(env);
-      if (ret.isSticky()) {
-        return ret;
-      }
-
-      Type *t = c->ctype->getType();
-      if (t->isSimpleType()) {
-        ret.convertToType(t->asSimpleTypeC()->type);
-      }
-      else if (t->isEnumType() ||
-               t->isPointer()) {        // for Linux kernel
-        ret.convertToType(ST_INT);
+      return constEvalCast(env, c->ctype, c->expr);
+      
+    ASTNEXTC(E_keywordCast, c)
+      if (c->key == CK_DYNAMIC) {
+        return CValue("cannot const-eval a keyword_cast");
       }
       else {
-        // TODO: this is probably not the right rule..
-        return CValue(stringc
-          << "in constant expression, can only cast to arithmetic or pointer types, not `"
-          << t->toString() << "'");
+        // assume the other three work like C casts
+        return constEvalCast(env, c->ctype, c->expr);
       }
-
-      return ret;
 
     ASTNEXTC(E_cond, c)
       CValue v = c->cond->constEval(env);
@@ -770,6 +759,33 @@ CValue Expression::constEvalAddr(ConstEval &env) const
 
     ASTENDCASEC
   }
+}
+
+
+CValue Expression::constEvalCast(ConstEval &env, ASTTypeId const *ctype,
+                                 Expression const *expr) const
+{
+  CValue ret = expr->constEval(env);
+  if (ret.isSticky()) {
+    return ret;
+  }
+
+  Type *t = ctype->getType();
+  if (t->isSimpleType()) {
+    ret.convertToType(t->asSimpleTypeC()->type);
+  }
+  else if (t->isEnumType() ||
+           t->isPointer()) {        // for Linux kernel
+    ret.convertToType(ST_INT);
+  }
+  else {
+    // TODO: this is probably not the right rule..
+    return CValue(stringc
+      << "in constant expression, can only cast to arithmetic or pointer types, not `"
+      << t->toString() << "'");
+  }
+
+  return ret;
 }
 
 

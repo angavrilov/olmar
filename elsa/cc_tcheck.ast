@@ -501,6 +501,10 @@ class Expression {
 
   // this attempts to evaluate the expression's address
   public CValue constEvalAddr(ConstEval &env) const;
+  
+  // shared by E_cast and E_keywordCast
+  public CValue constEvalCast(ConstEval &env, ASTTypeId const *ctype, 
+                              Expression const *expr) const;
 
   // return true if this expression has any greater-than operators
   // that are not buried under an E_grouping; this may modify 'expr'
