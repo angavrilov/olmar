@@ -289,7 +289,7 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
 
 int throwClauseSerialNumber = 0; // don't make this a member of Env
 
-int Env::anonTypeCounter = 1;
+int Env::anonCounter = 1;
 
 Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   : ErrorList(),
@@ -2362,20 +2362,18 @@ EnumType *Env::lookupEnum(StringRef name, LookupFlags flags)
 
 StringRef Env::getAnonName(TypeIntr keyword)
 {
-  // construct a name
-  string name = stringc << "Anon_" << toString(keyword) 
-                        << "_" << anonTypeCounter++;
-                     
-  // map to a stringref
-  StringRef sr = str(name);
+  return getAnonName(toString(keyword));
+}
 
-  // any chance this name already exists?
-  if (lookupVariable(sr)) {
-    return getAnonName(keyword);    // try again
-  }
-  else {
-    return sr;
-  }
+
+StringRef Env::getAnonName(char const *why)
+{
+  // construct a name
+  string name = stringc << "__anon_" << why
+                        << "_" << anonCounter++;
+
+  // map to a stringref
+  return str(name);
 }
 
 

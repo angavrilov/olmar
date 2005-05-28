@@ -826,6 +826,30 @@ PQName const *Declarator::getDeclaratorIdC() const
 }
 
 
+void Declarator::setDeclaratorId(PQName *n)
+{
+  IDeclarator *d = decl;
+  for(;;) {
+    IDeclarator *b = d->getBase();
+    if (!b) {
+      break;
+    }
+    d = b;
+  }
+
+  if (d->isD_name()) {
+    d->asD_name()->name = n;
+  }
+  else if (d->isD_bitfield()) {
+    d->asD_bitfield()->name = n;
+  }
+  else {                                                 
+    // getBase loop should only have stopped at D_name or D_bitfield
+    xfailure("setting name of unknown base IDeclarator");
+  }
+}
+
+
 SourceLoc Declarator::getLoc() const
 {
   return decl->loc;

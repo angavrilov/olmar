@@ -3183,6 +3183,12 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // (t0436.cc)
   ScopeSeq qualifierScopes;
   PQName *name = decl->getDeclaratorId();
+  if (!name && (dt.dflags & DF_TEMPL_PARAM)) {
+    // give names to all template params, because we need to refer
+    // to them in the self-name (in/t0493.cc)
+    name = new PQ_name(this->getLoc(), env.getAnonName("tparam"));
+    this->setDeclaratorId(name);
+  }
   if (name) {
     tcheckPQName(name, env, NULL /*scope*/, lflags);
   }

@@ -363,6 +363,7 @@ class Declarator (
   public PQName const *getDeclaratorIdC() const;
   public PQName *getDeclaratorId()
     { return const_cast<PQName*>(getDeclaratorIdC()); };
+  public void setDeclaratorId(PQName *n);
 
   public SourceLoc getLoc() const;
 }

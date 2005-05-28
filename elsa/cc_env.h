@@ -65,10 +65,10 @@ protected:   // data
   // parameters
   bool disambiguateOnly;
 
-  // counter for constructing names for anonymous types
+  // counter for constructing names
   //
   // dsw: 2005-04-18: made it static so multiple Envs won't collide
-  static int anonTypeCounter;
+  static int anonCounter;
 
   // initially false, this becomes true once Env::Env has finished;
   // this is used to distinguish entities introduced automatically
@@ -463,6 +463,9 @@ public:      // funcs
   // return a new name for an anonymous type; 'keyword' says
   // which kind of type we're naming
   StringRef getAnonName(TypeIntr keyword);
+  
+  // more general
+  StringRef getAnonName(char const *why);
 
   // introduce a new compound type name; return the constructed
   // CompoundType's pointer in 'ct', after inserting it into 'scope'
