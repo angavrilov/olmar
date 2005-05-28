@@ -793,6 +793,7 @@ testparse t0498.cc
 testparse t0499.cc
 failparse t0500.cc "template template parameter"
 testparse t0501.cc
+testparse t0502.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

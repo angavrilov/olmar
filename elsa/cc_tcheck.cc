@@ -6713,6 +6713,14 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
   
   // investigate what lookup yielded
   if (candidates.isEmpty()) {
+    TemplateInfo *ti = ct->templateInfo();
+    if (ti && ti->dependentBases.isNotEmpty()) {
+      // (in/t0502.cc) the member could be coming from a dependent
+      // base; do not issue an error (but return ST_ERROR to prevent
+      // the context from trying to do more)
+      return env.errorType();
+    }
+
     return env.error(lhsType, stringc
       << "there is no member called `" << *fieldName
       << "' in " << lhsType->toString());
