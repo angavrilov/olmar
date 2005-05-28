@@ -5191,6 +5191,11 @@ Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
       !var->isStatic()) {
     replacement = wrapWithImplicitThis(env, var, name);
   }
+                           
+  // 2005-05-28: enumerators are not lvalues
+  if (var->hasFlag(DF_ENUMERATOR)) {
+    return var->type;
+  }
 
   // return a reference because this is an lvalue
   return makeLvalType(env, var->type);
@@ -7923,7 +7928,7 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
     elRval = arrAndFuncToPtr(env, elRval);
     
     // bullet 1
-    if (thRval->equals(elRval)) {
+    if (thRval->equals(elRval, Type::EF_IGNORE_TOP_CV /*(in/t0499.cc)*/)) {
       return thRval;
     }
     
