@@ -4383,6 +4383,18 @@ Type *Env::resolveDQTs(SourceLoc loc, Type *t)
 
 Type *Env::resolveDQTs_atomic(SourceLoc loc, AtomicType *t)
 {
+  // (in/t0503.cc) might need to resolve DQTs inside template args
+  if (t->isPseudoInstantiation()) {
+    AtomicType *at = resolveDQTs_pi(loc, t->asPseudoInstantiation());
+    if (at) {
+      // build a new CVAtomicType on top of 'at'
+      return makeType(at);
+    }
+    else {
+      return NULL;
+    }
+  }
+
   if (!t->isDependentQType()) {
     return NULL;
   }
@@ -4439,6 +4451,48 @@ CompoundType *Env::getMatchingTemplateInScope
 
   // not found
   return NULL;
+}
+
+
+AtomicType *Env::resolveDQTs_pi(SourceLoc loc, PseudoInstantiation *pi)
+{
+  // work through the template arguments, attempting to resolve them
+  bool resolvedAny = false;
+  ObjList<STemplateArgument> resolvedArgs;
+  FOREACH_OBJLIST(STemplateArgument, pi->args, iter) {
+    STemplateArgument const *orig = iter.data();
+    if (orig->isType()) {
+      Type *t = resolveDQTs(loc, orig->getType());
+      if (t) {
+        // refined this type; add the refined type to 'resolvedArgs'
+        resolvedAny = true;
+        resolvedArgs.prepend(new STemplateArgument(t));
+        continue;
+      }
+    }
+
+    // not a type, or could not resolve it; keep original
+    resolvedArgs.prepend(orig->shallowClone());
+  }
+  
+  if (!resolvedAny) {
+    // no progress
+    return NULL;
+  }
+
+  // complete the prepend+reverse idiom
+  resolvedArgs.reverse();
+
+  // combine pi->primary with resolvedArgs
+  if (containsVariables(resolvedArgs)) {
+    // new PI, but with more precise arguments
+    return createPseudoInstantiation(pi->primary, resolvedArgs);
+  }
+  else {
+    // concrete type!
+    Variable *inst = instantiateClassTemplate(loc, pi->primary->typedefVar, resolvedArgs);
+    return inst->type->asCompoundType();
+  }
 }
 
 

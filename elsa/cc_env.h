@@ -754,6 +754,7 @@ public:      // funcs
   Type *resolveDQTs_atomic(SourceLoc loc, AtomicType *t);
   CompoundType *getMatchingTemplateInScope
     (CompoundType *primary, ObjList<STemplateArgument> const &sargs);
+  AtomicType *resolveDQTs_pi(SourceLoc loc, PseudoInstantiation *pi);
 
   // ------------ template instantiation stuff ------------
   // the following methods are implemented in template.cc
