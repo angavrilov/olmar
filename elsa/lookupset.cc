@@ -194,14 +194,28 @@ void LookupSet::removeNonTemplates()
     if (v->hasFlag(DF_SELFNAME)) {
       // argh.. my selfnames do not have proper template info, so
       // I have to go through the type (TODO: fix this)
-      CompoundType *ct = v->type->asCompoundType();
-      TemplateInfo *tinfo = ct->templateInfo();
-      if (tinfo != NULL &&
-          tinfo->isCompleteSpecOrInstantiation()) {
-        // replace 'v' with a pointer to the template primary
-        mut.dataRef() = tinfo->getPrimary()->var;
+      if (v->type->isCompoundType()) {
+        CompoundType *ct = v->type->asCompoundType();
+        TemplateInfo *tinfo = ct->templateInfo();
+        if (tinfo != NULL &&
+            tinfo->isCompleteSpecOrInstantiation()) {
+          // replace 'v' with a pointer to the template primary
+          mut.dataRef() = tinfo->getPrimary()->var;
+          mut.adv();
+          continue;
+        }
+      }
+
+      // (in/t0501.cc)
+      else if (v->type->isPseudoInstantiation()) {
+        PseudoInstantiation *pi = v->type->asPseudoInstantiation();
+        mut.dataRef() = pi->primary->typedefVar;
         mut.adv();
         continue;
+      }
+
+      else {
+        xfailure("unexpected DF_SELFNAME variable type");
       }
     }
 
