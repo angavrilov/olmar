@@ -3081,7 +3081,15 @@ bool Env::equivalentTypes(Type *a, Type *b, Type::EqFlags eflags)
     // the 'b' type refers to the new declaration we are trying to
     // match up, so its parameters have *not* been associated
     MatchTypes match(tfac, MatchTypes::MM_ISO, eflags | Type::EF_UNASSOC_TPARAMS);
-    return match.match_Type(a, b);
+    if (!match.match_Type(a, b)) {
+      return false;
+    }
+
+    // 2005-05-28: The following is a bit of a hack...
+    // (in/t0494.cc) check the symmetric condition too
+    // (in/t0184.cc) letting all tparams unify
+    MatchTypes match2(tfac, MatchTypes::MM_ISO, eflags);
+    return match2.match_Type(b, a);
   }
 }
 
