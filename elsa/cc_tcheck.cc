@@ -510,6 +510,7 @@ void Function::tcheckBody(Env &env)
 
   // have to check the member inits after adding the parameters
   // to the environment, because the initializing expressions
+  // can refer to the parameters
   tcheck_memberInits(env);
 
   // declare the __func__ variable
@@ -657,9 +658,16 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
   tcheckPQName(name, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   // typecheck the arguments
+  //
   // dsw: I do not want to typecheck the args twice, as it is giving
   // me problems, so I moved this
-//    args = tcheckArgExprList(args, env);
+  //
+  // 2005-05-28: (in/t0497.cc) Moved tchecking of arguments up above
+  // place where we might bail due to dependent base class type, so
+  // they will always be disambiguated.  This now invalidates dsw's
+  // comments so we'll see if it causes problems.
+  ArgumentInfoArray argInfo(args->count() + 1);
+  args = tcheckArgExprList(args, env, argInfo);
 
   // check for a member variable, since they have precedence over
   // base classes [para 2]; member inits cannot have qualifiers
@@ -679,8 +687,6 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
       // annotate the AST
       member = env.storeVar(v);
 
-      ArgumentInfoArray argInfo(args->count() + 1);
-      args = tcheckArgExprList(args, env, argInfo);
       if (!hasDependentActualArgs(args)) {     // in/t0270.cc
         // decide which of v's possible constructors is being used
         ctorVar = env.storeVar(
@@ -789,8 +795,6 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
   // TODO: check that the passed arguments are consistent
   // with the chosen constructor
 
-  ArgumentInfoArray argInfo(args->count() + 1);
-  args = tcheckArgExprList(args, env, argInfo);
   // determine which constructor is being called
   ctorVar = env.storeVar(
     outerResolveOverload_ctor(env, env.loc(),

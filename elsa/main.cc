@@ -439,12 +439,7 @@ void doit(int argc, char **argv)
     SectionTimer timer(integrityTime);
 
     // verify the tree now has no ambiguities
-    if (numAmbiguousNodes(unit) != 0) {
-      cout << "UNEXPECTED: ambiguities remain after type checking!\n";
-      if (tracingSys("mustBeUnambiguous")) {
-        exit(2);
-      }
-    }
+    rejectAmbiguousNodes(unit);
 
     // check that the AST is a tree *and* that the lowered AST is a
     // tree; only do this *after* confirming that tcheck finished

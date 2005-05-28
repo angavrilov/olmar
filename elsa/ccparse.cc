@@ -164,29 +164,45 @@ public:
 public:
   AmbiguityChecker() : ambiguousNodes(0) {}
 
+  virtual void foundAmbiguous(char const *kind, SourceLoc loc);
+
   // check each of the kinds of nodes that have ambiguity links
+  bool visitTopForm(TopForm *obj);
   bool visitASTTypeId(ASTTypeId *obj);
   bool visitDeclarator(Declarator *obj);
   bool visitStatement(Statement *obj);
+  bool visitCondition(Condition *obj);
   bool visitExpression(Expression *obj);
+  bool visitArgExpression(ArgExpression *obj);
+  bool visitTemplateParameter(TemplateParameter *obj);
   bool visitTemplateArgument(TemplateArgument *obj);
   bool visitPQName(PQName *obj);
 };
 
 
-#define VISIT(type)                             \
-  bool AmbiguityChecker::visit##type(type *obj) \
-  {                                             \
-    if (obj->ambiguity) {                       \
-      ambiguousNodes++;                         \
-    }                                           \
-    return true;                                \
+void AmbiguityChecker::foundAmbiguous(char const *kind, SourceLoc loc)
+{
+  ambiguousNodes++;
+}
+
+
+#define VISIT(type)                                         \
+  bool AmbiguityChecker::visit##type(type *obj)             \
+  {                                                         \
+    if (obj->ambiguity) {                                   \
+      foundAmbiguous(obj->kindName(), getASTNodeLoc(obj));  \
+    }                                                       \
+    return true;                                            \
   }
 
+VISIT(TopForm)
 VISIT(ASTTypeId)
 VISIT(Declarator)
 VISIT(Statement)
+VISIT(Condition)
 VISIT(Expression)
+VISIT(ArgExpression)
+VISIT(TemplateParameter)
 VISIT(TemplateArgument)
 
 #undef VISIT
@@ -221,6 +237,54 @@ int numAmbiguousNodes(Expression *e)
 
 int numAmbiguousNodes(ASTTypeId *t)
 { return numAmbiguousNodes_impl(t); }
+
+
+// ---------------- AmbiguityRejecter --------------------
+class AmbiguityRejecter : public AmbiguityChecker {
+public:
+  virtual void foundAmbiguous(char const *kind, SourceLoc loc);
+};
+
+void AmbiguityRejecter::foundAmbiguous(char const *kind, SourceLoc loc)
+{
+  xfatal(toString(loc) << ": internal error: found ambiguous " << kind);
+}
+
+void rejectAmbiguousNodes(TranslationUnit *unit)
+{
+  AmbiguityRejecter r;
+  unit->traverse(r);
+}
+
+
+// --------------------- LocationSearcher ------------------
+LocationSearcher::LocationSearcher()
+  : loc(SL_UNKNOWN)
+{}
+
+
+#define DEFN(type)                                \
+  bool LocationSearcher::visit##type(type *obj)   \
+  {                                               \
+    if (loc == SL_UNKNOWN) {                      \
+      loc = obj->loc;                             \
+    }                                             \
+                                                  \
+    /* examine children if location not found */  \
+    return loc == SL_UNKNOWN;                     \
+  }
+
+DEFN(TopForm)
+DEFN(PQName)
+DEFN(TypeSpecifier)
+DEFN(Enumerator)
+DEFN(Member)
+DEFN(IDeclarator)
+DEFN(Statement)
+DEFN(Initializer)
+DEFN(TemplateParameter)
+
+#undef DEFN
 
 
 // EOF

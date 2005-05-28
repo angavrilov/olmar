@@ -70,4 +70,43 @@ int numAmbiguousNodes(Expression *e);
 int numAmbiguousNodes(ASTTypeId *t);
 
 
+// fail if there are any ambiguous nodes
+void rejectAmbiguousNodes(TranslationUnit *unit);
+
+
+// search within an AST for a location
+class LocationSearcher : public ASTVisitor {
+public:
+  // location, or SL_UNKNOWN if not found yet
+  SourceLoc loc;
+
+public:
+  LocationSearcher();
+
+  // all nodes with locations
+  #define DECL(type) \
+    bool visit##type(type *obj) /*user ;*/
+  DECL(TopForm);
+  DECL(PQName);
+  DECL(TypeSpecifier);
+  DECL(Enumerator);
+  DECL(Member);
+  DECL(IDeclarator);
+  DECL(Statement);
+  DECL(Initializer);
+  DECL(TemplateParameter);
+  #undef DECL
+};
+
+// use the searcher to retrieve the location for an arbitrary
+// AST node (may return SL_UNKNOWN if it cannot find one)
+template <class T>
+SourceLoc getASTNodeLoc(T *obj)
+{
+  LocationSearcher searcher;
+  obj->traverse(searcher);
+  return searcher.loc;
+}
+
+
 #endif // CCPARSE_H
