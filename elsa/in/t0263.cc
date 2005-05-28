@@ -1,6 +1,10 @@
 // t0263.cc
 // inner union that is referenced twice inside the template
 
+struct C {
+  struct C *p;
+};
+
   template<bool __threads, int __inst>
     class __default_alloc_template
     {

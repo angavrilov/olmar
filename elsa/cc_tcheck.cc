@@ -1621,6 +1621,10 @@ CompoundType *checkClasskeyAndName(
       lflags |= LF_QUERY_TAGS;
     }
 
+    // I need this for in/t0492.cc; this brings me one step closer
+    // to making this flag be on by default
+    lflags |= LF_SELFNAME;
+
     // do the lookup
     if (dflags & DF_DEFINITION) {
       // this is a lookup of the declarator-like type tag of a class
@@ -1633,7 +1637,7 @@ CompoundType *checkClasskeyAndName(
       Variable *tag = env.lookupPQ_one(name, lflags);
       if (tag) {
         if (tag->type->isCompoundType()) {
-          if (env.lang.isCplusplus && !tag->hasFlag(DF_IMPLICIT)) {
+          if (env.lang.isCplusplus && !tag->hasAnyFlags(DF_IMPLICIT | DF_SELFNAME)) {
             // found a user-introduced (not implicit) typedef, which
             // is illegal (3.4.4p2,3; 7.1.5.3p2)
             env.error(stringc << "`" << *name << "' is a typedef-name, "

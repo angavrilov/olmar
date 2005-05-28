@@ -783,6 +783,7 @@ failparse t0488.cc "nasty DQT matching example that no known front-end can handl
 testparse t0489.cc
 testparse t0490.cc
 testparse t0491.cc
+testparse t0492.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
