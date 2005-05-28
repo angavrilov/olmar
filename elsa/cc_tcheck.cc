@@ -6257,7 +6257,7 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
   }
 
   // simplify some gratuitous uses of E_constructor
-  if (!type->isLikeCompoundType() && !type->isDependent()) {
+  if (!type->isLikeCompoundType() && !type->isGeneralizedDependent()) {
     // you can make a temporary for an int like this (from
     // in/t0014.cc)
     //   x = int(6);
@@ -6273,6 +6273,8 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
     //
     // oops.. actually there can be zero; "int()" is valid syntax,
     // yielding an integer with indeterminate value
+    //
+    // 2005-05-28: (in/t0495.cc) count the args *after* tchecking them
     if (args->count() > 1) {
       return env.error(stringc
         << "function-style cast to `" << type->toString()

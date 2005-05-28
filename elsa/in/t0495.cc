@@ -1,4 +1,4 @@
-// in/t0495.cc
+// t0495.cc
 // function-style cast with ambiguous argument list
 
 template <class T, class U>
