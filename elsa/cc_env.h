@@ -158,6 +158,12 @@ public:      // data
   StringRef special_checkCalleeDefnLine;
   // ---- END: special names ----
 
+  // gcc __complex__ support
+  StringRef string_realSelector;
+  StringRef string_imagSelector;
+  Variable *complexComponentFields[2 /*real=0, imag=1*/]
+                                  [3 /*float=0, double=1, longdouble=2*/];
+
   // special variables associated with particular types
   Scope *dependentScope;                // (owner)
   Variable *dependentTypeVar;           // (serf)

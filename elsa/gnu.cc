@@ -8,6 +8,10 @@
 #include "stdconv.h"          // usualArithmeticConversions
 
 
+// fwd in this file
+SimpleTypeId constructFloatingType(int prec, int axis);
+
+
 // --------------------------- Env ---------------------------------
 // Caveat: All of the uses of GNU builtin functions arise from
 // preprocessing with the gcc compiler's headers.  Strictly speaking,
@@ -602,6 +606,16 @@ void Env::addGNUBuiltins()
   for (int i=0; i < TABLESIZE(arr); i++) {
     makeImplicitDeclFuncVar(str(stringc << "__builtin_" << arr[i]));
   }
+
+  // initialize 'complexComponentFields'  
+  for (int axis=0; axis<=1; axis++) {
+    for (int prec=0; prec<=2; prec++) {                                 
+      StringRef n = axis==0? string_realSelector : string_imagSelector;
+      Type *t = env.getSimpleType(constructFloatingType(prec, axis));
+      Variable *v = makeVariable(SL_INIT, n, t, DF_BUILTIN | DF_MEMBER);
+      complexComponentFields[axis][prec] = v;
+    }
+  }
 }
 
 
@@ -817,6 +831,122 @@ Type *E_addrOfLabel::itcheck_x(Env &env, Expression *&replacement)
   
   // type is void*
   return env.makePtrType(env.getSimpleType(ST_VOID));
+}
+
+
+// decompose a real/imaginary/complex type:
+//   prec: 0=float, 1=double, 2=longdouble
+//   axis: 0=real, 1=imag, 2=complex
+// return false if not among the nine floating types
+bool dissectFloatingType(int &prec, int &axis, Type *t)
+{
+  t = t->asRval();
+
+  if (!t->isSimpleType()) {
+    return false;
+  }
+  SimpleTypeId id = t->asSimpleTypeC()->type;
+
+  switch (id) {
+    case ST_FLOAT:                  prec=0; axis=0; return true;
+    case ST_DOUBLE:                 prec=1; axis=0; return true;
+    case ST_LONG_DOUBLE:            prec=2; axis=0; return true;
+
+    case ST_FLOAT_IMAGINARY:        prec=0; axis=1; return true;
+    case ST_DOUBLE_IMAGINARY:       prec=1; axis=1; return true;
+    case ST_LONG_DOUBLE_IMAGINARY:  prec=2; axis=1; return true;
+
+    case ST_FLOAT_COMPLEX:          prec=0; axis=2; return true;
+    case ST_DOUBLE_COMPLEX:         prec=1; axis=2; return true;
+    case ST_LONG_DOUBLE_COMPLEX:    prec=2; axis=2; return true;
+
+    default: return false;
+  }
+}
+
+SimpleTypeId constructFloatingType(int prec, int axis)
+{
+  static SimpleTypeId const map[3/*axis*/][3/*prec*/] = {
+    { ST_FLOAT, ST_DOUBLE, ST_LONG_DOUBLE },
+    { ST_FLOAT_IMAGINARY, ST_DOUBLE_IMAGINARY, ST_LONG_DOUBLE_IMAGINARY },
+    { ST_FLOAT_COMPLEX, ST_DOUBLE_COMPLEX, ST_LONG_DOUBLE_COMPLEX }
+  };
+
+  xassert((unsigned)axis < 3);
+  xassert((unsigned)prec < 3);
+
+  return map[axis][prec];
+}
+
+
+Type *E_fieldAcc::itcheck_complex_selector(Env &env, LookupFlags flags,
+                                           LookupSet &candidates)
+{
+  int isImag = fieldName->getName()[2] == 'i';
+
+  int prec, axis;
+  if (!dissectFloatingType(prec, axis, obj->type) ||
+      axis != 2/*complex*/) {
+    return env.error(stringc << "can only apply " << fieldName->getName()
+                             << " to complex types, not `"
+                             << obj->type->toString() << "'");
+  }
+
+  field = env.complexComponentFields[isImag][prec];
+  return env.tfac.makeReferenceType(field->type);
+}
+
+
+Type *E_binary::itcheck_complex_arith(Env &env)
+{
+  int prec1, axis1;
+  int prec2, axis2;
+  if (!dissectFloatingType(prec1, axis1, e1->type) ||
+      !dissectFloatingType(prec2, axis2, e2->type)) {
+    return env.error(stringc << "invalid complex arithmetic operand types `"
+                             << e1->type->toString() << "' and `"
+                             << e2->type->toString() << "'");
+  }
+
+  // NOTE: The following computations have not been thoroughly tested.
+
+  // result precision: promote to larger
+  int prec = max(prec1, prec2);
+
+  // result axis
+  int axis;
+  switch (op) {
+    case BIN_PLUS:
+    case BIN_MINUS:
+      if (axis1 == axis2) {
+        axis = axis1;
+      }
+      else {
+        axis = 2/*complex*/;
+      }
+      break;
+
+    case BIN_MULT:
+    case BIN_DIV:
+      if (axis1 + axis2 == 0) {
+        axis = 0/*real*/;     // but then how'd we reach this code anyway?
+      }
+      else if (axis1 + axis2 == 1) {
+        axis = 1/*imag*/;
+      }
+      else {
+        axis = 2/*complex*/;
+      }
+      break;
+
+    default:
+      // who the heck knows
+      axis = 2/*complex*/;
+      break;
+  }
+  
+  // result id
+  return env.getSimpleType(constructFloatingType(prec, axis));
 }
 
 

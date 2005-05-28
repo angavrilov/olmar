@@ -6398,6 +6398,14 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
     rhsFinalTypeName = env.str(rhsFinalTypeName+1);    // skip '~'
   }
 
+  // component of a __complex__ type?
+  #ifdef GNU_EXTENSION
+  if (rhsFinalTypeName == env.string_realSelector ||
+      rhsFinalTypeName == env.string_imagSelector) {
+    return itcheck_complex_selector(env, flags, candidates);
+  }
+  #endif // GNU_EXTENSION
+
   // dependent?
   if (obj->type->containsGeneralizedDependent()) {
     if (isDestructor) {
@@ -7228,6 +7236,13 @@ Type *E_effect::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
+bool isComplexOrImaginary(Type *t)
+{       
+  t = t->asRval();
+  return t->isSimpleType() &&
+         isComplexOrImaginary(t->asSimpleTypeC()->type);
+}
+
 Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
 {
   ArgumentInfoArray argInfo(2);
@@ -7244,6 +7259,13 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
   if (op == BIN_LESS && e1->type->isFunctionType()) {
     return env.error("cannot apply '<' to a function", EF_DISAMBIGUATES);
   }
+
+  // gnu/c99 complex arithmetic?
+  #ifdef GNU_EXTENSION
+    if (isComplexOrImaginary(e1->type) || isComplexOrImaginary(e2->type)) {
+      return itcheck_complex_arith(env);
+    }
+  #endif // GNU_EXTENSION
 
   // check for operator overloading
   if (isOverloadable(op)) {

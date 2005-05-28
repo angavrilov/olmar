@@ -208,6 +208,21 @@ class Statement {
 }
 
 
+// ----------- gcc/C99 complex/imaginary ----------
+class Expression {
+  -> E_fieldAcc {
+       // tcheck a __real__ or __imag__
+       public Type *itcheck_complex_selector(Env &env, LookupFlags flags,
+                                             LookupSet &candidates);
+     }
+     
+  -> E_binary {
+       // tcheck arith involving complex or imaginary types
+       public Type *itcheck_complex_arith(Env &env);
+     }
+}
+
+
 // ----------- gcc __attribute__ -----------
 // (no AST extension b/c extra info dropped on floor)
 

@@ -337,6 +337,10 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     special_computeLUB(NULL),
     special_checkCalleeDefnLine(NULL),
 
+    string_realSelector(str("__real__")),
+    string_imagSelector(str("__imag__")),
+    // complexComponentFields init'd below
+
     dependentScope(new Scope(SK_GLOBAL, 0, SL_INIT)),
     dependentTypeVar(NULL),
     dependentVar(NULL),
@@ -470,6 +474,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     addVariable(makeVariable(SL_INIT, str("_Bool"),
                              t_bool, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL));
   }
+
+  memset(complexComponentFields, 0, sizeof(complexComponentFields));
 
   #ifdef GNU_EXTENSION
     if (lang.declareGNUBuiltins) {

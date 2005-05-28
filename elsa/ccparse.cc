@@ -73,6 +73,16 @@ SimpleTypeId ParseEnv::uberSimpleType(SourceLoc loc, UberModifiers m)
     case UM_SIGNED | UM_LONG_LONG:             return ST_LONG_LONG;
     case UM_LONG_LONG | UM_INT:                return ST_LONG_LONG;
     case UM_LONG_LONG:                         return ST_LONG_LONG;
+    
+    // C99/GNU complex types
+    case UM_FLOAT | UM_COMPLEX:                return ST_FLOAT_COMPLEX;
+    case UM_DOUBLE | UM_COMPLEX:               return ST_DOUBLE_COMPLEX;
+    case UM_LONG | UM_DOUBLE | UM_COMPLEX:     return ST_LONG_DOUBLE_COMPLEX;
+
+    // C99 imaginary types
+    case UM_FLOAT | UM_IMAGINARY:              return ST_FLOAT_IMAGINARY;
+    case UM_DOUBLE | UM_IMAGINARY:             return ST_DOUBLE_IMAGINARY;
+    case UM_LONG | UM_DOUBLE | UM_IMAGINARY:   return ST_LONG_DOUBLE_IMAGINARY;
 
     default:
       error(loc, stringc << "malformed type: " << toString(m));

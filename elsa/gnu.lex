@@ -88,6 +88,10 @@
 "__signed__"           return tok(TOK_SIGNED);
 "__volatile"           return tok(TOK_VOLATILE);
 "__volatile__"         return tok(TOK_VOLATILE);
+"__complex__"          return tok(TOK_COMPLEX);
+"__imaginary__"        return tok(TOK_IMAGINARY);
+"__real__"             return tok(TOK_REAL);
+"__imag__"             return tok(TOK_IMAG);
 
 "<?"                   return tok(TOK_MIN_OP);
 ">?"                   return tok(TOK_MAX_OP);
@@ -101,5 +105,8 @@
     return svalTok(TOK_NAME);
   }
 }
+
+"_Complex"             return tok(TOK_COMPLEX);
+"_Imaginary"           return tok(TOK_IMAGINARY);
 
   /* EOF */

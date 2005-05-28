@@ -152,6 +152,12 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "float",                  4,    S(STF_FLOAT)                },
   { "double",                 8,    S(STF_FLOAT | STF_PROM)     },
   { "long double",           10,    S(STF_FLOAT)                },
+  { "float _Complex",         8,    S(STF_FLOAT)                },
+  { "double _Complex",       16,    S(STF_FLOAT)                },
+  { "long double _Complex",  20,    S(STF_FLOAT)                },
+  { "float _Imaginary",       4,    S(STF_FLOAT)                },
+  { "double _Imaginary",      8,    S(STF_FLOAT)                },
+  { "long double _Imaginary",10,    S(STF_FLOAT)                },
   { "void",                   1,    S(STF_NONE)                 },    // gnu: sizeof(void) is 1
 
   // these should go away early on in typechecking
@@ -188,6 +194,12 @@ SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id)
   STATIC_ASSERT(TABLESIZE(simpleTypeInfoArray) == NUM_SIMPLE_TYPES);
   xassert(isValid(id));
   return simpleTypeInfoArray[id];
+}
+
+
+bool isComplexOrImaginary(SimpleTypeId id)
+{
+  return ST_FLOAT_COMPLEX <= id && id <= ST_DOUBLE_IMAGINARY;
 }
 
 
@@ -560,6 +572,8 @@ char const * const uberModifierNames[UM_NUM_FLAGS] = {
   "void",
   "long long",
   "char",            // 0x01000000
+  "complex",
+  "imaginary"
 };
 
 string toString(UberModifiers m)

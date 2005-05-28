@@ -176,6 +176,12 @@ enum SimpleTypeId {
   ST_FLOAT,
   ST_DOUBLE,
   ST_LONG_DOUBLE,
+  ST_FLOAT_COMPLEX,          // GNU/C99 (see doc/complex.txt)
+  ST_DOUBLE_COMPLEX,         // GNU/C99
+  ST_LONG_DOUBLE_COMPLEX,    // GNU/C99
+  ST_FLOAT_IMAGINARY,        // C99
+  ST_DOUBLE_IMAGINARY,       // C99
+  ST_LONG_DOUBLE_IMAGINARY,  // C99
   ST_VOID,                   // last concrete type (see 'isConcreteSimpleType')
 
   // codes I use as a kind of implementation hack
@@ -236,10 +242,12 @@ inline bool isFloatType(SimpleTypeId id)            { return !!(simpleTypeInfo(i
 
 inline bool isArithmeticType(SimpleTypeId id)    // 3.9.1 para 8
   { return !!(simpleTypeInfo(id).flags & (STF_FLOAT | STF_INTEGER)); }
-                                              
+
 // true if this is not one of the polymorphic types, impl. hacks, etc.
 inline bool isConcreteSimpleType(SimpleTypeId id)
   { return id <= ST_VOID; }
+
+bool isComplexOrImaginary(SimpleTypeId id);
 
 inline char const *toString(SimpleTypeId id)        { return simpleTypeName(id); }
 
@@ -498,11 +506,13 @@ enum UberModifiers {
   UM_VOID         = 0x00400000,
   UM_LONG_LONG    = 0x00800000,    // GNU extension
   UM_CHAR         = 0x01000000,    // large value b/c got bumped by UM_RESTRICT
+  UM_COMPLEX      = 0x02000000,    // C99/GNU
+  UM_IMAGINARY    = 0x04000000,    // C99
 
-  UM_TYPEKEYS     = 0x01FFE000,
+  UM_TYPEKEYS     = 0x07FFE000,
 
-  UM_ALL_FLAGS    = 0x01FFFFFF,
-  UM_NUM_FLAGS    = 25             // # bits set in UM_ALL_FLAGS
+  UM_ALL_FLAGS    = 0x07FFFFFF,
+  UM_NUM_FLAGS    = 27             // # bits set in UM_ALL_FLAGS
 };
 
 // string repr.

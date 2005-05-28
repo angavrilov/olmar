@@ -30,6 +30,7 @@
 //   - gcc __attribute__
 //   - gcc bug: typedef names + type modifiers: "u32 long"
 //   - gcc computed gotos
+//   - gcc/C99 complex/imaginary
 
 
 // expected statistics
@@ -467,13 +468,36 @@ nonterm BuggyGccTypeModifier {
 // ------------ gcc computed goto ----------
 // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Labels-as-Values.html
 nonterm(Expression*) UnaryExpression {
-  -> "&&" n:Identifier          
+  -> "&&" n:Identifier
        { return new E_addrOfLabel(n); }
 }
 
 nonterm(Statement*) Statement {
-  -> "goto" "*" e:Expression ";"   
+  -> "goto" "*" e:Expression ";"
        { return new S_computedGoto(loc, e); }
+}
+
+
+// ----------- gcc/C99 complex/imaginary ----------
+// http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Complex.html
+// C99 6.2.5p11, 6.7.2, Annex G
+nonterm(UberModifiers) UberTypeKeyword {
+  -> "_Complex"      { return UM_COMPLEX; }
+  -> "_Imaginary"    { return UM_IMAGINARY; }
+}
+
+// The gcc manual says the syntax is "__real__" Expression, but I'll
+// take a conservative approach for now and only allow primary
+// expressions, thus avoiding the need to specify precedence of these
+// keywords.
+//
+// I've chosen to create E_fieldAcc AST nodes because they are similar,
+// in that these are component accesses.
+nonterm(Expression*) PrimaryExpression {
+  -> "__real__" e:PrimaryExpression
+     { return new E_fieldAcc(e, new PQ_name(loc, str("__real__"))); }
+  -> "__imag__" e:PrimaryExpression
+     { return new E_fieldAcc(e, new PQ_name(loc, str("__imag__"))); }
 }
 
 
