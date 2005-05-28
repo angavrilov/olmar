@@ -5165,6 +5165,20 @@ bool DefaultArgumentChecker::visitIDeclarator(IDeclarator *obj)
 }
 
 
+bool DefaultArgumentChecker::visitTypeSpecifier(TypeSpecifier *obj)
+{
+  if (obj->isTS_classSpec()) {
+    // (in/t0498.cc) We do not want to dig down into a nested class
+    // definition, because if it is a template class then its template
+    // parameters will no longer be in scope.  The nested class will
+    // have already taken care of tchecking its default args.
+    return false;     // do not visit children
+  }
+  
+  return true;
+}
+
+
 // ----------------- DisambiguationErrorTrapper ---------------------
 DisambiguationErrorTrapper::DisambiguationErrorTrapper(Env &e)
   : env(e),

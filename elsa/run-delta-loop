@@ -18,6 +18,24 @@ fi
 
 $delta -level=0 ./test-for-error tmp.i || exit
 $delta -level=1 ./test-for-error tmp.i || exit
+
+$delta -level=0 ./test-for-error tmp.i || exit
+$delta -level=1 ./test-for-error tmp.i || exit
+$delta -level=2 ./test-for-error tmp.i || exit
+
+$delta -level=0 ./test-for-error tmp.i || exit
+$delta -level=1 ./test-for-error tmp.i || exit
+$delta -level=2 ./test-for-error tmp.i || exit
+$delta -level=3 ./test-for-error tmp.i || exit
+
+$delta -level=0 ./test-for-error tmp.i || exit
+$delta -level=1 ./test-for-error tmp.i || exit
+$delta -level=2 ./test-for-error tmp.i || exit
+$delta -level=3 ./test-for-error tmp.i || exit
+$delta -level=4 ./test-for-error tmp.i || exit
+
+$delta -level=0 ./test-for-error tmp.i || exit
+$delta -level=1 ./test-for-error tmp.i || exit
 $delta -level=2 ./test-for-error tmp.i || exit
 $delta -level=3 ./test-for-error tmp.i || exit
 $delta -level=4 ./test-for-error tmp.i || exit

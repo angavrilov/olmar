@@ -2099,7 +2099,10 @@ void TS_classSpec::tcheckIntoCompound(
   // default args affects whether (e.g.) a copy ctor exists.
   {
     DefaultArgumentChecker checker(env, ct->isInstantiation());
-    traverse(checker);
+    
+    // 2005-05-28: start with 'members' instead of 'this', to skip
+    // around the prune in visitTypeSpecifier
+    members->traverse(checker);
   }
 
   // default ctor, copy ctor, operator=; only do this for C++.

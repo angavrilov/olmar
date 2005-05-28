@@ -1043,6 +1043,7 @@ public:
     : env(e), isInstantiation(i) {}
 
   virtual bool visitIDeclarator(IDeclarator *obj);
+  virtual bool visitTypeSpecifier(TypeSpecifier *obj);
 };
 
 
