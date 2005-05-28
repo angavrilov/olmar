@@ -6248,6 +6248,14 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
     return type;
   }
 
+  // check arguments
+  ArgumentInfoArray argInfo(args->count() + 1);
+  args = tcheckArgExprList(args, env, argInfo);
+
+  if (!env.ensureCompleteType("construct", type)) {
+    return type;     // recovery: skip what follows
+  }
+
   // simplify some gratuitous uses of E_constructor
   if (!type->isLikeCompoundType() && !type->isDependent()) {
     // you can make a temporary for an int like this (from
@@ -6268,10 +6276,10 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
     if (args->count() > 1) {
       return env.error(stringc
         << "function-style cast to `" << type->toString()
-        << "' must have zere or one argument (not " 
+        << "' must have zere or one argument (not "
         << args->count() << ")");
     }
-    
+
     // change it into a cast; this code used to do some 'buildASTTypeId'
     // contortions, but that's silly since the E_constructor already
     // carries a perfectly good type specifier ('this->spec'), and so
@@ -6294,14 +6302,6 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
     }
     replacement->tcheck(env, replacement);
     return replacement->type;
-  }
-
-  // check arguments
-  ArgumentInfoArray argInfo(args->count() + 1);
-  args = tcheckArgExprList(args, env, argInfo);
-
-  if (!env.ensureCompleteType("construct", type)) {
-    return type;     // recovery: skip what follows
   }
 
   Variable *ctor = outerResolveOverload_ctor(env, env.loc(), type, argInfo);
