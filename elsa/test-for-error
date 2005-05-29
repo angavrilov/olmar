@@ -52,9 +52,18 @@ fi
 # limit resources; this is important because sometimes delta creates
 # inputs that cause gcc to go into infinite loops
 #   virtual memory: 500MB
-#   time: 20s
+#   time: 30s
 ulimit -v 500000
-ulimit -t 20
+ulimit -t 30
+
+if [ "$DELTA_REQUIRED_STRING" != "" ]; then
+  if grep "$DELTA_REQUIRED_STRING" tmp.i >/dev/null 2>&1; then
+    echo "required string ($DELTA_REQUIRED_STRING) is present"
+  else
+    echo "required string ($DELTA_REQUIRED_STRING) is missing"
+    exit 2
+  fi
+fi
 
 # integrity check
 if $GCC -o /dev/null -c tmp.i; then

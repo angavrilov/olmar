@@ -40,6 +40,9 @@ $delta -level=2 ./test-for-error tmp.i || exit
 $delta -level=3 ./test-for-error tmp.i || exit
 $delta -level=4 ./test-for-error tmp.i || exit
 
+# note: sometimes this breaks the input by changing "> >" into ">>" ...
+# I don't know a good solution at this point, so I just fix them by
+# hand when it happens
 indent tmp.i || exit
 
 #$delta -nf ./test-for-error tmp.i || exit
