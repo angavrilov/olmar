@@ -1,6 +1,27 @@
 #!/usr/bin/perl -w
 # merge a base flexer lexer description with zero or more extensions
 
+# TODO: I would like a feature where an extension can identify a
+# rule from the base that it would like to delete.  For example,
+# an extension might contain something like:
+#
+#   delete_rule "L"?{QUOTE}({STRCHAR}|{ESCAPE})*{QUOTE}
+#
+# and the effect would be to remove the entire rule+action:
+#
+#   "L"?{QUOTE}({STRCHAR}|{ESCAPE})*{QUOTE} {
+#     return svalTok(TOK_STRING_LITERAL);
+#   }
+#
+# by finding the pattern, then matching braces to find the action.
+#
+# It should be an error if the rule cannot be found, because in that
+# case it means the base specification has changed in a significant
+# way since the extension was written.
+
+
+use strict 'subs';
+
 if (@ARGV == 0) {
   print(<<"EOF");
 usage: $0 base.lex [extension.lex [...]] >merged.lex
