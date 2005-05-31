@@ -8170,6 +8170,8 @@ bool Expression::constEval(Env &env, int &result, bool &dependent) const
 bool Expression::hasUnparenthesizedGT(Expression *&expr)
 {
   if (expr->ambiguity) {
+    Expression *origExpr = expr;
+
     // We are asking whether an ambiguous expression has an
     // unparenthesized greater-than operator (UGTO), because the
     // parser wants to reject such things.  But this expression is
@@ -8194,6 +8196,14 @@ bool Expression::hasUnparenthesizedGT(Expression *&expr)
       return false;
     }
     else {
+      // (in/c/dC0030.c) Do not leave 'expr' nullified, since that can
+      // mess up other queries on this AST; instead, put back the
+      // first one and nullify its ambiguity link.  This
+      // interpretation should still be rejected, but this way it is a
+      // well-formed AST.
+      expr = origExpr;
+      expr->ambiguity = NULL;
+
       // all have UGTO
       return true;
     }
