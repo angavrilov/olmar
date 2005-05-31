@@ -4014,7 +4014,13 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
              // 2005-05-26: C99 functions can have arrays with dynamic
              // size; TODO: do a better job recording the semantics of
              // such declarations, for the benefit of analyses (in/c/dC0021.c)
-             (dt.context == DC_D_FUNC && env.scope()->scopeKind == SK_PARAMETER)
+             (dt.context == DC_D_FUNC && env.scope()->scopeKind == SK_PARAMETER) ||
+             // 2005-05-31: (in/c/dC0031.c) dynamically-sized arrays in
+             // sizeof and alignof
+             #ifdef GNU_EXTENSION
+               dt.context == DC_E_ALIGNOFTYPE ||
+             #endif
+             dt.context == DC_E_SIZEOFTYPE
             ) &&
             env.lang.allowDynamicallySizedArrays) {
           // allow it anyway

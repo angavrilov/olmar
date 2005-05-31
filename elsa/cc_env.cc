@@ -5104,8 +5104,8 @@ Type *Env::sizeofType(Type *t, int &size, Expression * /*nullable*/ expr)
       // symbolic expression...
       size = 0;
 
-      env.warning("taking the sizeof a dynamically-sized array");
-      TRACE("sizeof", "sizeof(" << expr->exprToString() <<
+      env.warning("sizeof dynamically-sized array not fully implemented, size assumed to be 0");
+      TRACE("sizeof", "sizeof(" << (expr? expr->exprToString() : t->toString()) <<
                       ") is dynamic..");
     }
     else if (t->isArrayType()) {
