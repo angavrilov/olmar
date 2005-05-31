@@ -715,6 +715,11 @@ public:      // funcs
   void getSubobjects(SObjList<BaseClassSubobj const> &dest,
                      CompoundType *ct);
 
+  // Evaluate a 'sizeof' applied to type 't', store the result in
+  // 'size', and return the type of the 'sizeof' expression itself.
+  // If 't' was derived from an expression, it is passed as 'expr'.
+  Type *sizeofType(Type *t, int &size, Expression * /*nullable*/ expr);
+
   // ------------ new lookup mechanism ---------------
 private:     // funcs
   void unqualifiedLookup(LookupSet &set, Scope * /*nullable*/ scope,

@@ -761,21 +761,21 @@ Type *E_alignofType::itcheck_x(Env &env, Expression *&replacement)
   ASTTypeId::Tcheck tc(DF_NONE, DC_E_ALIGNOFTYPE);
   atype = atype->tcheck(env, tc);
   Type *t = atype->getType();
-  
-  env.ensureCompleteType("compute size of", t);
 
-  try {
-    // just assume that the type's size is its alignment; this may
-    // be a little conservative for 'double', and will be wrong for
-    // large structs, but at the moment it does not seem worthwhile
-    // to delve into the details of accurately computing this
-    alignment = t->reprSize();
-  }
-  catch (XReprSize &e) {
-    return env.error(e.why());
-  }
+  // just assume that the type's size is its alignment; this may
+  // be a little conservative for 'double', and will be wrong for
+  // large structs, but at the moment it does not seem worthwhile
+  // to delve into the details of accurately computing this
+  return env.sizeofType(t, alignment, NULL /*expr*/);
+}
 
-  return t->isError()? t : env.getSimpleType(ST_UNSIGNED_INT);
+
+Type *E_alignofExpr::itcheck_x(Env &env, Expression *&replacement)
+{
+  expr->tcheck(env, expr);
+
+  // as above, assume size=alignment
+  return env.sizeofType(expr->type, alignment, expr);
 }
 
 
@@ -987,6 +987,14 @@ CValue E_alignofType::extConstEval(ConstEval &env) const
 }
 
 
+CValue E_alignofExpr::extConstEval(ConstEval &env) const
+{
+  CValue ret;
+  ret.setUnsigned(ST_UNSIGNED_INT, alignment);
+  return ret;
+}
+
+
 CValue E_gnuCond::extConstEval(ConstEval &env) const
 {
   CValue v = cond->constEval(env);
@@ -1096,6 +1104,13 @@ void E_alignofType::iprint(PrintEnv &env)
   TreeWalkDebug treeDebug("E_alignofType::iprint");
   PairDelim pair(*env.out, "__alignof__", "(", ")");
   atype->print(env);
+}
+
+void E_alignofExpr::iprint(PrintEnv &env)
+{
+  TreeWalkDebug treeDebug("E_alignofType::iprint");
+  PairDelim pair(*env.out, "__alignof__", "(", ")");
+  expr->print(env);
 }
 
 void E_statement::iprint(PrintEnv &env)

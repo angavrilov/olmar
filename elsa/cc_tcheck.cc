@@ -6861,71 +6861,11 @@ Type *E_arrow::itcheck_arrow_set(Env &env, Expression *&replacement,
 }
 
 
-// Evaluate a 'sizeof' applied to type 't', store the result in
-// 'size', and return the type of the 'sizeof' expression itself.
-// If 't' was derived from an expression, it is passed as 'expr'.
-Type *sizeofType(Env &env, Type *t, int &size, Expression * /*nullable*/ expr)
-{
-  // 5.3.3p2: want type underneath any reference
-  t = t->asRval();
-  
-  // 5.3.3p1: must be complete
-  env.ensureCompleteType("compute size of", t);
-
-  try {
-    size = t->reprSize();
-    TRACE("sizeof", "sizeof(" << (expr? expr->exprToString() : t->toString()) <<
-                    ") is " << size);
-  }
-  catch (XReprSize &e) {
-    if (e.isDynamic) {
-      // There are at least two reasonable approaches to handling
-      // dynamically-sized arrays.  One is to just make sure that
-      // an analysis can recognize them and handle them specially
-      // if necessary.  That is what Elsa is doing.  (An analysis
-      // can recognize ArrayType::DYN_SIZE.)
-      //
-      // The other approach would be to translate them away, using
-      // lower-level concepts.  However, this would (IMO) make more
-      // of a mess than is beneficial (using alloca, or perhaps even
-      // malloc), so we don't.
-      //
-      // A third approach, mentioned near declaration of
-      // XReprSize::isDynamic, is for reprSize to possibly return a
-      // symbolic expression...
-      size = 0;
-
-      env.warning("taking the sizeof a dynamically-sized array");
-      TRACE("sizeof", "sizeof(" << expr->exprToString() <<
-                      ") is dynamic..");
-    }
-    else if (t->isArrayType()) {
-      ArrayType *at = t->asArrayType();
-      if (at->size == ArrayType::NO_SIZE &&
-          env.lang.assumeNoSizeArrayHasSizeOne) {
-        // just hacking this for now
-        return sizeofType(env, at->eltType, size, expr);
-      }
-      else {
-        return env.error(e.why());
-      }
-    }
-    else {
-      return env.error(e.why());
-    }
-  }
-
-  // 5.3.3p6: result is of type 'size_t'; most systems (including my
-  // elsa/include/stddef.h header) make that the same as 'unsigned';
-  // in any case, it must be an unsigned integer type (c99, 7.17p2)
-  return t->isError()? t : env.getSimpleType(ST_UNSIGNED_INT);
-}
-
 Type *E_sizeof::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
-  return sizeofType(env, expr->type, size, expr);
+  return env.sizeofType(expr->type, size, expr);
 }
 
 
@@ -8013,7 +7953,7 @@ Type *E_sizeofType::itcheck_x(Env &env, Expression *&replacement)
     atype = atype->tcheck(env, tc);
   }
 
-  return sizeofType(env, atype->getType(), size, NULL /*expr*/);
+  return env.sizeofType(atype->getType(), size, NULL /*expr*/);
 }
 
   
