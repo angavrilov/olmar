@@ -8,6 +8,7 @@
 #include "ckheap.h"        // checkHeap
 #include "strutil.h"       // replace, translate, localTimeString
 #include "sobjlist.h"      // SObjList
+#include "stringset.h"     // StringSet
 #include "srcloc.h"        // SourceLocManager
 #include "strtokp.h"       // StrtokParse
 #include "exc.h"           // xfatal
@@ -39,6 +40,14 @@ inline bool wantMVisitor() { return mvisitorName.length() != 0; }
 // list of all TF_classes in the input, useful for certain
 // applications which don't care about other forms
 SObjList<TF_class> allClasses;
+
+// list of all FakeList "list classes"
+StringSet fakeListClassesSet;
+ASTList<char> fakeListClasses;
+
+// list of all ASTList "list classes"
+StringSet astListClassesSet;
+ASTList<char> astListClasses;
 
 // true if the user wants the xmlPrint stuff
 bool wantXMLPrint = false;
@@ -98,6 +107,10 @@ public:           // funcs
   bool isFakeListType(rostring type);
   bool isTreeListType(rostring type);
   string extractListType(rostring type);
+
+  void getListClasses(CtorArg const *arg);
+  void getListClasses(ASTClass const *c);
+  void getListClasses();
 
   // shared output sequences
   void headerComments();
@@ -1413,6 +1426,21 @@ void HGen::emitVisitorInterface()
         <<   c->super->name << " *obj);\n"
         ;
   }
+
+  out << "\n  // FakeList 'classes'\n";
+  FOREACH_ASTLIST(char, fakeListClasses, iter) {
+    char const *cls = iter.data();
+    out << "  virtual bool visitFakeList_" << cls << "(FakeList<" << cls << ">*);\n";
+    out << "  virtual void postvisitFakeList_" << cls << "(FakeList<" << cls << ">*);\n";
+  }
+
+  out << "\n  // ASTList 'classes'\n";
+  FOREACH_ASTLIST(char, astListClasses, iter) {
+    char const *cls = iter.data();
+    out << "  virtual bool visitASTList_" << cls << "(ASTList<" << cls << ">*);\n";
+    out << "  virtual void postvisitASTList_" << cls << "(ASTList<" << cls << ">*);\n";
+  }
+
   out << "};\n\n";
 }
 
@@ -1430,6 +1458,25 @@ void CGen::emitVisitorImplementation()
         << "void " << visitorName << "::postvisit" << c->super->name << "("
         <<   c->super->name << " *obj) {}\n";
   }
+
+  out << "\n// FakeList 'classes'\n";
+  FOREACH_ASTLIST(char, fakeListClasses, iter) {
+    char const *cls = iter.data();
+    out << "bool " << visitorName << "::visitFakeList_" << cls
+        << "(FakeList<" << cls << ">*) { return true; }\n";
+    out << "void " << visitorName << "::postvisitFakeList_" << cls
+        << "(FakeList<" << cls << ">*) {}\n";
+  }
+
+  out << "\n// ASTList 'classes'\n";
+  FOREACH_ASTLIST(char, astListClasses, iter) {
+    char const *cls = iter.data();
+    out << "bool " << visitorName << "::visitASTList_" << cls
+        << "(ASTList<" << cls << ">*) { return true; }\n";
+    out << "void " << visitorName << "::postvisitASTList_" << cls
+        << "(ASTList<" << cls << ">*) {}\n";
+  }
+
   out << "\n\n";
 
   // implementations of traversal functions
@@ -1493,18 +1540,31 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
       // list of tree nodes: iterate and traverse
       string eltType = extractListType(arg->type);
 
+      // could add an assertion here that the elt type is one of the
+      // list types extracted earlier during getListClasses()
+
       // compute list accessor names
       char const *iterMacroName = "FOREACH_ASTLIST_NC";
       char const *iterElt = ".data()";
+      char const *listName = "ASTList";
+      char const *argNamePrefix = "&";
       if (isFakeListType(arg->type)) {
         iterMacroName = "FAKELIST_FOREACH_NC";
         iterElt = "";
+        listName = "FakeList";
+        argNamePrefix = "";
       }
 
-      out << "  " << iterMacroName << "("
-          <<   eltType << ", " << arg->name << ", iter) {\n"
-          << "    iter" << iterElt << "->traverse(vis);\n"
-          << "  }\n";
+      // emit the pre-visit call to the fantasy "list class"
+      out << "  if (vis.visit" << listName << "_" << eltType << "(" << argNamePrefix << arg->name << ")) {\n";
+
+      out << "    " << iterMacroName << "(" << eltType << ", " << arg->name << ", iter) {\n"
+          << "      iter" << iterElt << "->traverse(vis);\n"
+          << "    }\n";
+
+      out << "    vis.postvisit" << listName << "_" << eltType << "(" << argNamePrefix << arg->name << ");\n";
+
+      out << "  }\n";
     }
   }
 
@@ -1534,10 +1594,14 @@ void HGen::emitDVisitorInterface()
   out << "  " << visitorName << " *client;      // visitor to delegate to\n";
   out << "  bool ensureOneVisit;                // check for visiting at most once?\n";
   out << "  SObjSet<void*> wasVisitedASTNodes;  // set of visited nodes\n";
+  out << "  SObjSet<void*> wasVisitedList_ASTListNodes; // set of visited ASTLists\n";
+  out << "  SObjSet<void*> wasVisitedList_FakeListNodes; // set of visited FakeLists\n";
   out << "\n";
 
   out << "protected:   // funcs\n";
   out << "  bool wasVisitedAST(void *ast);\n";
+  out << "  bool wasVisitedList_ASTList(void *ast);\n";
+  out << "  bool wasVisitedList_FakeList(void *ast);\n";
   out << "\n";
 
   // ctor
@@ -1558,6 +1622,20 @@ void HGen::emitDVisitorInterface()
         <<   c->super->name << " *obj);\n"
         << "  virtual void postvisit" << c->super->name << "("
         <<   c->super->name << " *obj);\n";
+  }
+
+  out << "\n  // FakeList 'classes'\n";
+  FOREACH_ASTLIST(char, fakeListClasses, iter) {
+    char const *cls = iter.data();
+    out << "  virtual bool visitFakeList_" << cls << "(FakeList<" << cls << ">*);\n";
+    out << "  virtual void postvisitFakeList_" << cls << "(FakeList<" << cls << ">*);\n";
+  }
+
+  out << "\n  // ASTList 'classes'\n";
+  FOREACH_ASTLIST(char, astListClasses, iter) {
+    char const *cls = iter.data();
+    out << "  virtual bool visitASTList_" << cls << "(ASTList<" << cls << ">*);\n";
+    out << "  virtual void postvisitASTList_" << cls << "(ASTList<" << cls << ">*);\n";
   }
 
   // we are done
@@ -1583,6 +1661,35 @@ void CGen::emitDVisitorImplementation()
   out << "  }\n";
   out << "}\n\n";
 
+  out << "bool " << dvisitorName << "::wasVisitedList_ASTList(void *list)\n";
+  out << "{\n";
+  out << "  // do not bother to check if the user does not want us to\n";
+  out << "  if (!ensureOneVisit) {\n";
+  out << "    return false;\n";
+  out << "  }\n\n";
+  out << "  if (wasVisitedList_ASTListNodes.contains(list)) {\n";
+  out << "    return true;\n";
+  out << "  } else {\n";
+  out << "    wasVisitedList_ASTListNodes.add(list);\n";
+  out << "    return false;\n";
+  out << "  }\n";
+  out << "}\n\n";
+
+  out << "bool " << dvisitorName << "::wasVisitedList_FakeList(void *list)\n";
+  out << "{\n";
+  out << "  // do not bother to check if the user does not want us to\n";
+  out << "  if (!ensureOneVisit) {\n";
+  out << "    return false;\n";
+  out << "  }\n\n";
+  out << "  if (!list) {return false;} // empty lists can't be checked\n";
+  out << "  if (wasVisitedList_FakeListNodes.contains(list)) {\n";
+  out << "    return true;\n";
+  out << "  } else {\n";
+  out << "    wasVisitedList_FakeListNodes.add(list);\n";
+  out << "    return false;\n";
+  out << "  }\n";
+  out << "}\n\n";
+
   out << "// default no-op delegator-visitor\n";
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
@@ -1602,6 +1709,35 @@ void CGen::emitDVisitorImplementation()
         << "  }\n"
         << "}\n";
   }
+
+  out << "\n// FakeList 'classes'\n";
+  FOREACH_ASTLIST(char, fakeListClasses, iter) {
+    char const *cls = iter.data();
+    out << "bool " << dvisitorName << "::visitFakeList_" << cls << "(FakeList<" << cls << ">* obj) {\n";
+    out << "  xassert(!wasVisitedList_FakeList(obj));\n";
+    out << "  return client ? client->visitFakeList_" << cls << "(obj) : true;\n";
+    out << "}\n";
+    out << "void " << dvisitorName << "::postvisitFakeList_" << cls << "(FakeList<" << cls << ">* obj) {\n";
+    out << "  if (client) {\n";
+    out << "    client->postvisitFakeList_" << cls << "(obj);\n";
+    out << "  }\n";
+    out << "}\n";
+  }
+
+  out << "\n// ASTList 'classes'\n";
+  FOREACH_ASTLIST(char, astListClasses, iter) {
+    char const *cls = iter.data();
+    out << "bool " << dvisitorName << "::visitASTList_" << cls << "(ASTList<" << cls << ">* obj) {\n";
+    out << "  xassert(!wasVisitedList_ASTList(obj));\n";
+    out << "  return client ? client->visitASTList_" << cls << "(obj) : true;\n";
+    out << "}\n";
+    out << "void " << dvisitorName << "::postvisitASTList_" << cls << "(ASTList<" << cls << ">* obj) {\n";
+    out << "  if (client) {\n";
+    out << "    client->postvisitASTList_" << cls << "(obj);\n";
+    out << "  }\n";
+    out << "}\n";
+  }
+
   out << "\n\n";
 }
 
@@ -1749,11 +1885,15 @@ void HGen::emitXmlVisitorInterface()
   out << "  bool indent;                        // should the xml be indented\n";
   out << "  bool ensureOneVisit;                // check for visiting at most once?\n";
   out << "  SObjSet<void*> wasVisitedASTNodes;  // set of visited nodes\n";
+  out << "  SObjSet<void*> wasVisitedList_ASTListNodes; // set of visited ASTLists\n";
+  out << "  SObjSet<void*> wasVisitedList_FakeListNodes; // set of visited FakeLists\n";
   out << "  int depth;                          // current depth\n";
   out << "\n";
 
   out << "protected:   // funcs\n";
   out << "  bool wasVisitedAST(void *ast);\n";
+  out << "  bool wasVisitedList_ASTList(void *ast);\n";
+  out << "  bool wasVisitedList_FakeList(void *ast);\n";
   out << "  void printIndentation();\n";
   out << "\n";
 
@@ -1780,6 +1920,20 @@ void HGen::emitXmlVisitorInterface()
         <<   c->super->name << " *obj);\n";
   }
 
+  out << "\n  // FakeList 'classes'\n";
+  FOREACH_ASTLIST(char, fakeListClasses, iter) {
+    char const *cls = iter.data();
+    out << "  virtual bool visitFakeList_" << cls << "(FakeList<" << cls << ">*);\n";
+    out << "  virtual void postvisitFakeList_" << cls << "(FakeList<" << cls << ">*);\n";
+  }
+
+  out << "\n  // ASTList 'classes'\n";
+  FOREACH_ASTLIST(char, astListClasses, iter) {
+    char const *cls = iter.data();
+    out << "  virtual bool visitASTList_" << cls << "(ASTList<" << cls << ">*);\n";
+    out << "  virtual void postvisitASTList_" << cls << "(ASTList<" << cls << ">*);\n";
+  }
+
   // we are done
   out << "};\n\n";
 }
@@ -1799,6 +1953,35 @@ void CGen::emitXmlVisitorImplementation()
   out << "    return true;\n";
   out << "  } else {\n";
   out << "    wasVisitedASTNodes.add(ast);\n";
+  out << "    return false;\n";
+  out << "  }\n";
+  out << "}\n\n";
+
+  out << "bool " << xmlVisitorName << "::wasVisitedList_ASTList(void *list)\n";
+  out << "{\n";
+  out << "  // do not bother to check if the user does not want us to\n";
+  out << "  if (!ensureOneVisit) {\n";
+  out << "    return false;\n";
+  out << "  }\n\n";
+  out << "  if (wasVisitedList_ASTListNodes.contains(list)) {\n";
+  out << "    return true;\n";
+  out << "  } else {\n";
+  out << "    wasVisitedList_ASTListNodes.add(list);\n";
+  out << "    return false;\n";
+  out << "  }\n";
+  out << "}\n\n";
+
+  out << "bool " << xmlVisitorName << "::wasVisitedList_FakeList(void *list)\n";
+  out << "{\n";
+  out << "  // do not bother to check if the user does not want us to\n";
+  out << "  if (!ensureOneVisit) {\n";
+  out << "    return false;\n";
+  out << "  }\n\n";
+  out << "  if (!list) {return false;} // empty lists can't be checked\n";
+  out << "  if (wasVisitedList_FakeListNodes.contains(list)) {\n";
+  out << "    return true;\n";
+  out << "  } else {\n";
+  out << "    wasVisitedList_FakeListNodes.add(list);\n";
   out << "    return false;\n";
   out << "  }\n";
   out << "}\n\n";
@@ -1868,6 +2051,41 @@ void CGen::emitXmlVisitorImplementation()
     out << "  out << \"</\" << obj->kindName() << \">\\n\";\n";
     out << "}\n";
   }
+
+  out << "\n// FakeList 'classes'\n";
+  FOREACH_ASTLIST(char, fakeListClasses, iter) {
+    char const *cls = iter.data();
+    out << "bool " << xmlVisitorName << "::visitFakeList_" << cls << "(FakeList<" << cls << ">* obj) {\n";
+    out << "  xassert(!wasVisitedList_FakeList(obj));\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"<FakeList_" << cls << ">\\n\";\n";
+    out << "  ++depth;\n";
+    out << "  return true;\n";
+    out << "}\n";
+    out << "void " << xmlVisitorName << "::postvisitFakeList_" << cls << "(FakeList<" << cls << ">* obj) {\n";
+    out << "  --depth;\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"</FakeList_" << cls << ">\\n\";\n";
+    out << "}\n";
+  }
+
+  out << "\n// ASTList 'classes'\n";
+  FOREACH_ASTLIST(char, astListClasses, iter) {
+    char const *cls = iter.data();
+    out << "bool " << xmlVisitorName << "::visitASTList_" << cls << "(ASTList<" << cls << ">* obj) {\n";
+    out << "  xassert(!wasVisitedList_ASTList(obj));\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"<ASTList_" << cls << ">\\n\";\n";
+    out << "  ++depth;\n";
+    out << "  return true;\n";
+    out << "}\n";
+    out << "void " << xmlVisitorName << "::postvisitASTList_" << cls << "(ASTList<" << cls << ">* obj) {\n";
+    out << "  --depth;\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"</ASTList_" << cls << ">\\n\";\n";
+    out << "}\n";
+  }
+
   out << "\n\n";
 }
 
@@ -2251,6 +2469,49 @@ void grabVisitorName(rostring visop, string &visname, TF_option const *op)
   visname = *( op->args.firstC() );
 }
 
+
+void Gen::getListClasses(CtorArg const *arg) {
+  // I would rather visit all the lists, but we don't seem to generate
+  // visit() traversals for non-tree nodes, so there is nothing to put
+  // inside the nesting
+  if (isListType(arg->type) && isTreeNode(extractListType(arg->type))) {
+    string listType = extractListType(arg->type);
+    string listName = stringc << "ASTList_" << listType;
+    if (!astListClassesSet.contains(listName)) {
+      astListClassesSet.add(listName);
+      astListClasses.append(strdup(listType.c_str()));
+    }
+  }
+  if (isFakeListType(arg->type) && isTreeNode(extractListType(arg->type))) {
+    string listType = extractListType(arg->type);
+    string listName = stringc << "FakeList_" << listType;
+    if (!fakeListClassesSet.contains(listName)) {
+      fakeListClassesSet.add(listName);
+      fakeListClasses.append(strdup(listType.c_str()));
+    }
+  }
+}
+
+void Gen::getListClasses(ASTClass const *c) {
+  FOREACH_ASTLIST(CtorArg, c->args, ctorIter) {
+    getListClasses(ctorIter.data());
+  }
+  FOREACH_ASTLIST(CtorArg, c->lastArgs, ctorIter) {
+    getListClasses(ctorIter.data());
+  }
+}
+
+void Gen::getListClasses() {
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *cls = iter.data();
+    getListClasses(cls->super);
+    FOREACH_ASTLIST(ASTClass, cls->ctors, ctorIter) {
+      getListClasses(ctorIter.data());
+    }
+  }
+}
+
+
 void entry(int argc, char **argv)
 {
   TRACE_ARGS();
@@ -2359,7 +2620,6 @@ void entry(int argc, char **argv)
   // I built it in reverse for O(n) performance
   allClasses.reverse();
 
-
   // generate the header
   string base = replace(srcFname, ".ast", "");
   if (basename) {
@@ -2369,6 +2629,7 @@ void entry(int argc, char **argv)
   string hdrFname = base & ".h";
   cout << "writing " << hdrFname << "...\n";
   HGen hg(srcFname, modules, hdrFname, *ast);
+  hg.getListClasses();          // get all of the list classes
   hg.emitFile();
 
   // generated the c++ code
