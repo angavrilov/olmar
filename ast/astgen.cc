@@ -1967,6 +1967,15 @@ void CGen::emitXmlVisitorImplementation()
 
     // print the attributes of the superclass
     out << "  ++depth;\n";      // indent them one level
+
+    // emit the id property
+    // put it on the same line as the tag
+//      out << "  out << \"\\n\";\n";
+//      out << "  if (indent) printIndentation();\n";
+    out << "  out << \" .id=\";\n";
+    out << "  out << static_cast<void const*>(obj);\n";
+
+    // emit other properties
     emitXmlCtorArgs(c->super->args, "obj");
     emitXmlFields(c->super->decls, "obj");
 
@@ -2000,8 +2009,11 @@ void CGen::emitXmlVisitorImplementation()
     emitXmlCtorArgs(c->super->lastArgs, "obj");
 
     out << "  --depth;\n";      // outdent temporarily so close bracket lines up with open
-    out << "  out << \"\\n\";\n";
-    out << "  if (indent) printIndentation();\n";
+    // commenting out these two lines puts the closing angle bracket
+    // on the same line as the last attribute, or if none, on the same
+    // line as the tag
+//      out << "  out << \"\\n\";\n";
+//      out << "  if (indent) printIndentation();\n";
     out << "  out << \">\\n\";\n";
     out << "  ++depth;\n";      // indent for nested children
     out << "  return true;\n";
@@ -2018,14 +2030,18 @@ void CGen::emitXmlVisitorImplementation()
   out << "\n// FakeList 'classes'\n";
   FOREACH_ASTLIST(char, fakeListClasses, iter) {
     char const *cls = iter.data();
-    out << "bool " << xmlVisitorName << "::visitFakeList_" << cls << "(FakeList<" << cls << ">* obj) {\n";
+    out << "bool " << xmlVisitorName << "::visitFakeList_" << cls
+        << "(FakeList<" << cls << ">* obj) {\n";
     out << "  xassert(!wasVisitedList_FakeList(obj));\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"<FakeList_" << cls << ">\\n\";\n";
+    out << "  out << \"<FakeList_" << cls << " .id=\";\n";
+    out << "  out << static_cast<void const*>(obj);\n";
+    out << "  out << \">\\n\";\n";
     out << "  ++depth;\n";
     out << "  return true;\n";
     out << "}\n";
-    out << "void " << xmlVisitorName << "::postvisitFakeList_" << cls << "(FakeList<" << cls << ">* obj) {\n";
+    out << "void " << xmlVisitorName << "::postvisitFakeList_" << cls
+        << "(FakeList<" << cls << ">* obj) {\n";
     out << "  --depth;\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"</FakeList_" << cls << ">\\n\";\n";
@@ -2035,14 +2051,18 @@ void CGen::emitXmlVisitorImplementation()
   out << "\n// ASTList 'classes'\n";
   FOREACH_ASTLIST(char, astListClasses, iter) {
     char const *cls = iter.data();
-    out << "bool " << xmlVisitorName << "::visitASTList_" << cls << "(ASTList<" << cls << ">* obj) {\n";
+    out << "bool " << xmlVisitorName << "::visitASTList_" << cls
+        << "(ASTList<" << cls << ">* obj) {\n";
     out << "  xassert(!wasVisitedList_ASTList(obj));\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"<ASTList_" << cls << ">\\n\";\n";
+    out << "  out << \"<ASTList_" << cls << " .id=\";\n";
+    out << "  out << static_cast<void const*>(obj);\n";
+    out << "  out << \">\\n\";\n";
     out << "  ++depth;\n";
     out << "  return true;\n";
     out << "}\n";
-    out << "void " << xmlVisitorName << "::postvisitASTList_" << cls << "(ASTList<" << cls << ">* obj) {\n";
+    out << "void " << xmlVisitorName << "::postvisitASTList_" << cls
+        << "(ASTList<" << cls << ">* obj) {\n";
     out << "  --depth;\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"</ASTList_" << cls << ">\\n\";\n";
