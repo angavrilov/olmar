@@ -1830,22 +1830,34 @@ void CGen::emitXmlField(bool isOwner, rostring type, rostring name, char const *
     out << "  out << \"" << name << "\" << \"=\";\n";
     out << "  out << quoted(" << baseName << "->" << name << ");\n";
   }
-//    else if (isListType(type)) {
-//      // for now, I'll continue to assume that any class that appears
-//      // in ASTList<> is compatible with the printing regime here
-//  //      out << "  " << print << "_LIST(" << extractListType(type) << ", "
-//  //          << name << ");\n";
-//    }
-//    else if (isFakeListType(type)) {
-//      // similar printing approach for FakeLists
-//  //      out << "  " << print << "_FAKE_LIST(" << extractListType(type) << ", "
-//  //          << name << ");\n";
-//    }
-//    else if (isTreeNode(type) ||
-//             (isTreeNodePtr(type) && isOwner)) {
-//      // don't print subtrees that are possibly shared or circular
-//  //      out << "  " << print << "_SUBTREE(" << name << ");\n";
-//    }
+  else if (isListType(type)) {
+    // for now, I'll continue to assume that any class that appears
+    // in ASTList<> is compatible with the printing regime here
+//      out << "  " << print << "_LIST(" << extractListType(type) << ", "
+//          << name << ");\n";
+    out << "  out << \"\\n\";\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << static_cast<void const*>(&(" << baseName << "->" << name << "));\n";
+  }
+  else if (isFakeListType(type)) {
+    // similar printing approach for FakeLists
+//      out << "  " << print << "_FAKE_LIST(" << extractListType(type) << ", "
+//          << name << ");\n";
+    out << "  out << \"\\n\";\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << static_cast<void const*>(" << baseName << "->" << name << ");\n";
+  }
+  else if (isTreeNode(type) ||
+           (isTreeNodePtr(type) && isOwner)) {
+    // don't print subtrees that are possibly shared or circular
+//      out << "  " << print << "_SUBTREE(" << name << ");\n";
+    out << "  out << \"\\n\";\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << static_cast<void const*>(" << baseName << "->" << name << ");\n";
+  }
   else if (0==strcmp(type, "bool")) {
 //      out << "  " << print << "_BOOL(" << name << ");\n";
     out << "  out << \"\\n\";\n";
@@ -2017,14 +2029,14 @@ void CGen::emitXmlVisitorImplementation()
     out << "  out << \">\\n\";\n";
     out << "  ++depth;\n";      // indent for nested children
     out << "  return true;\n";
-    out << "}\n";;
+    out << "}\n\n";;
 
     out << "void " << xmlVisitorName << "::postvisit" << c->super->name;
     out << "(" << c->super->name << " *obj) {\n";
     out << "  --depth;\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"</\" << obj->kindName() << \">\\n\";\n";
-    out << "}\n";
+    out << "}\n\n";
   }
 
   out << "\n// FakeList 'classes'\n";
@@ -2039,13 +2051,14 @@ void CGen::emitXmlVisitorImplementation()
     out << "  out << \">\\n\";\n";
     out << "  ++depth;\n";
     out << "  return true;\n";
-    out << "}\n";
+    out << "}\n\n";
+
     out << "void " << xmlVisitorName << "::postvisitFakeList_" << cls
         << "(FakeList<" << cls << ">* obj) {\n";
     out << "  --depth;\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"</FakeList_" << cls << ">\\n\";\n";
-    out << "}\n";
+    out << "}\n\n";
   }
 
   out << "\n// ASTList 'classes'\n";
@@ -2060,13 +2073,14 @@ void CGen::emitXmlVisitorImplementation()
     out << "  out << \">\\n\";\n";
     out << "  ++depth;\n";
     out << "  return true;\n";
-    out << "}\n";
+    out << "}\n\n";
+
     out << "void " << xmlVisitorName << "::postvisitASTList_" << cls
         << "(ASTList<" << cls << ">* obj) {\n";
     out << "  --depth;\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"</ASTList_" << cls << ">\\n\";\n";
-    out << "}\n";
+    out << "}\n\n";
   }
 
   out << "\n\n";
