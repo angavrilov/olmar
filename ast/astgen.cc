@@ -897,12 +897,17 @@ public:
   void emitCloneCode(ASTClass const *super, ASTClass const *sub);
 
   void emitVisitorImplementation();
+
+  private:
+  void emitDVisitorImplVisitedCheck(char const *name);
+  public:
   void emitDVisitorImplementation();
 
   private:
   void emitXmlCtorArgs(ASTList<CtorArg> const &args, char const *baseName);
   void emitXmlFields(ASTList<Annotation> const &decls, char const *baseName);
   void emitXmlField(bool isOwner, rostring type, rostring name, char const *baseName);
+  void emitXmlVisitorImplVisitedCheck(char const *name);
   public:
   void emitXmlVisitorImplementation();
 
@@ -1643,52 +1648,31 @@ void HGen::emitDVisitorInterface()
 }
 
 
+void CGen::emitDVisitorImplVisitedCheck(char const *name) {
+  out << "bool " << dvisitorName << "::" << name << "(void *ast)\n";
+  out << "{\n";
+  out << "  // do not bother to check if the user does not want us to\n";
+  out << "  if (!ensureOneVisit) {\n";
+  out << "    return false;\n";
+  out << "  }\n\n";
+  out << "  if (!ast) {return false;} // avoid NULL; actually happens for FakeLists\n";
+  out << "  if (" << name << "Nodes.contains(ast)) {\n";
+  out << "    return true;\n";
+  out << "  } else {\n";
+  out << "    " << name << "Nodes.add(ast);\n";
+  out << "    return false;\n";
+  out << "  }\n";
+  out << "}\n\n";
+}
+
+
 void CGen::emitDVisitorImplementation()
 {
   out << "// ---------------------- " << dvisitorName << " ---------------------\n";
 
-  out << "bool " << dvisitorName << "::wasVisitedAST(void *ast)\n";
-  out << "{\n";
-  out << "  // do not bother to check if the user does not want us to\n";
-  out << "  if (!ensureOneVisit) {\n";
-  out << "    return false;\n";
-  out << "  }\n\n";
-  out << "  if (wasVisitedASTNodes.contains(ast)) {\n";
-  out << "    return true;\n";
-  out << "  } else {\n";
-  out << "    wasVisitedASTNodes.add(ast);\n";
-  out << "    return false;\n";
-  out << "  }\n";
-  out << "}\n\n";
-
-  out << "bool " << dvisitorName << "::wasVisitedList_ASTList(void *list)\n";
-  out << "{\n";
-  out << "  // do not bother to check if the user does not want us to\n";
-  out << "  if (!ensureOneVisit) {\n";
-  out << "    return false;\n";
-  out << "  }\n\n";
-  out << "  if (wasVisitedList_ASTListNodes.contains(list)) {\n";
-  out << "    return true;\n";
-  out << "  } else {\n";
-  out << "    wasVisitedList_ASTListNodes.add(list);\n";
-  out << "    return false;\n";
-  out << "  }\n";
-  out << "}\n\n";
-
-  out << "bool " << dvisitorName << "::wasVisitedList_FakeList(void *list)\n";
-  out << "{\n";
-  out << "  // do not bother to check if the user does not want us to\n";
-  out << "  if (!ensureOneVisit) {\n";
-  out << "    return false;\n";
-  out << "  }\n\n";
-  out << "  if (!list) {return false;} // empty lists can't be checked\n";
-  out << "  if (wasVisitedList_FakeListNodes.contains(list)) {\n";
-  out << "    return true;\n";
-  out << "  } else {\n";
-  out << "    wasVisitedList_FakeListNodes.add(list);\n";
-  out << "    return false;\n";
-  out << "  }\n";
-  out << "}\n\n";
+  emitDVisitorImplVisitedCheck("wasVisitedAST");
+  emitDVisitorImplVisitedCheck("wasVisitedList_ASTList");
+  emitDVisitorImplVisitedCheck("wasVisitedList_FakeList");
 
   out << "// default no-op delegator-visitor\n";
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
@@ -1939,52 +1923,31 @@ void HGen::emitXmlVisitorInterface()
 }
 
 
+void CGen::emitXmlVisitorImplVisitedCheck(char const *name) {
+  out << "bool " << xmlVisitorName << "::" << name << "(void *ast)\n";
+  out << "{\n";
+  out << "  // do not bother to check if the user does not want us to\n";
+  out << "  if (!ensureOneVisit) {\n";
+  out << "    return false;\n";
+  out << "  }\n\n";
+  out << "  if (!ast) {return false;} // avoid NULL; actually happens for FakeLists\n";
+  out << "  if (" << name << "Nodes.contains(ast)) {\n";
+  out << "    return true;\n";
+  out << "  } else {\n";
+  out << "    " << name << "Nodes.add(ast);\n";
+  out << "    return false;\n";
+  out << "  }\n";
+  out << "}\n\n";
+}
+
+
 void CGen::emitXmlVisitorImplementation()
 {
   out << "// ---------------------- " << xmlVisitorName << " ---------------------\n";
 
-  out << "bool " << xmlVisitorName << "::wasVisitedAST(void *ast)\n";
-  out << "{\n";
-  out << "  // do not bother to check if the user does not want us to\n";
-  out << "  if (!ensureOneVisit) {\n";
-  out << "    return false;\n";
-  out << "  }\n\n";
-  out << "  if (wasVisitedASTNodes.contains(ast)) {\n";
-  out << "    return true;\n";
-  out << "  } else {\n";
-  out << "    wasVisitedASTNodes.add(ast);\n";
-  out << "    return false;\n";
-  out << "  }\n";
-  out << "}\n\n";
-
-  out << "bool " << xmlVisitorName << "::wasVisitedList_ASTList(void *list)\n";
-  out << "{\n";
-  out << "  // do not bother to check if the user does not want us to\n";
-  out << "  if (!ensureOneVisit) {\n";
-  out << "    return false;\n";
-  out << "  }\n\n";
-  out << "  if (wasVisitedList_ASTListNodes.contains(list)) {\n";
-  out << "    return true;\n";
-  out << "  } else {\n";
-  out << "    wasVisitedList_ASTListNodes.add(list);\n";
-  out << "    return false;\n";
-  out << "  }\n";
-  out << "}\n\n";
-
-  out << "bool " << xmlVisitorName << "::wasVisitedList_FakeList(void *list)\n";
-  out << "{\n";
-  out << "  // do not bother to check if the user does not want us to\n";
-  out << "  if (!ensureOneVisit) {\n";
-  out << "    return false;\n";
-  out << "  }\n\n";
-  out << "  if (!list) {return false;} // empty lists can't be checked\n";
-  out << "  if (wasVisitedList_FakeListNodes.contains(list)) {\n";
-  out << "    return true;\n";
-  out << "  } else {\n";
-  out << "    wasVisitedList_FakeListNodes.add(list);\n";
-  out << "    return false;\n";
-  out << "  }\n";
-  out << "}\n\n";
+  emitXmlVisitorImplVisitedCheck("wasVisitedAST");
+  emitXmlVisitorImplVisitedCheck("wasVisitedList_ASTList");
+  emitXmlVisitorImplVisitedCheck("wasVisitedList_FakeList");
 
   out << "void " << xmlVisitorName << "::printIndentation()\n";
   out << "{\n";
