@@ -526,21 +526,29 @@ void doit(int argc, char **argv)
     traceProgress() << "dsw pretty print... done\n";
   }
 
-  // dsw: xml printing
-  // this is a second try at XML printing, but also is still incomplete
+  // dsw: xml printing of the raw ast
   if (tracingSys("xmlPrintAST")) {
     traceProgress() << "dsw xml print...\n";
-//      OStreamOutStream out0(cout);
-//      CodeOutStream codeOut(out0);
-//      TypePrinterC typePrinter;
-//      PrintEnv env(typePrinter, &codeOut);
     bool indent = tracingSys("xmlPrintAST-indent");
     ToXmlASTVisitor xmlVis(cout, indent);
     cout << "---- START ----" << endl;
     cout << "// -*-c++-*-" << endl;
     unit->traverse(xmlVis);
     cout.flush();
-//      codeOut.finish();
+    cout << "---- STOP ----" << endl;
+    traceProgress() << "dsw xml print... done\n";
+  }
+
+  // dsw: xml printing of the lowered ast
+  if (tracingSys("xmlPrintLoweredAST")) {
+    traceProgress() << "dsw xml print...\n";
+    bool indent = tracingSys("xmlPrintLoweredAST-indent");
+    ToXmlASTVisitor xmlVis(cout, indent);
+    LoweredASTVisitor loweredXmlVis(&xmlVis);
+    cout << "---- START ----" << endl;
+    cout << "// -*-c++-*-" << endl;
+    unit->traverse(loweredXmlVis);
+    cout.flush();
     cout << "---- STOP ----" << endl;
     traceProgress() << "dsw xml print... done\n";
   }
