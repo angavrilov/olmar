@@ -785,7 +785,15 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
     // see which (if either) thing this name already is
     Terminal *term = env.g.findTerminal(symName);
     Nonterminal *nonterm = env.g.findNonterminal(symName);
-    xassert(!( term && nonterm ));     // better not be both!
+    if (term && nonterm) {
+      if (isString) {
+        astParseError(symName, "token alias has same name as a nonterminal");
+      }
+      else {
+        astParseError(symName, "token and nonterminal have same name");
+      }
+      nonterm = NULL;                // error recovery
+    }
 
     // syntax rules
     if (isString  &&  !term) {
