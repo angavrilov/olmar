@@ -97,6 +97,8 @@ if (!$outputFile) {
 # run flex
 print(join(' ', @flexArgs) . "\n");
 if (0!=system(@flexArgs)) {
+  print("flex failed, so removing output file $outputFile\n");
+  system("rm -f $outputFile");
   exit(2);
 }
 
@@ -104,6 +106,8 @@ if (0!=system(@flexArgs)) {
 if ($nobackup) {
   if (0==system("grep non-accepting lex.backup")) {
     print("(see lex.backup for details)\n");
+    print("removing output file $outputFile\n");
+    system("rm -f $outputFile");
     exit(2);
   }
   else {
