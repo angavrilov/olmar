@@ -32,6 +32,7 @@ terminals {
 
   // all literals are yielded as their syntax strings
   token(StringRef) XTOK_STRING_LITERAL ;
+  token(StringRef) XTOK_INT_LITERAL ;
 }
 
 nonterm(void*) Node_TranslationUnit {
@@ -87,5 +88,6 @@ nonterm(void*) Node_Foo {
 // a data literal
 nonterm(StringRef) Literal {
   -> s:XTOK_STRING_LITERAL                   { return s; }
+  -> x:XTOK_INT_LITERAL                      { return x; }
 }
 

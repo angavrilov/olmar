@@ -68,9 +68,11 @@ EOL           {NL}
 
 /* letter or underscore */
 LETTER        [A-Za-z_]
+LETTERDOT     [A-Za-z_\.]
 
 /* letter or underscore or digit */
 ALNUM         [A-Za-z_0-9]
+ALNUMDOT      [A-Za-z_0-9\.]
 
 /* decimal digit */
 DIGIT         [0-9]
@@ -121,16 +123,17 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "<"                return tok(XTOK_LESSTHAN);
 ">"                return tok(XTOK_GREATERTHAN);
 "/"                return tok(XTOK_SLASH);
+"="                return tok(XTOK_EQUAL);
 
 "TranslationUnit"  return tok(XTOK_TRANSLATION_UNIT);
 "Foo"              return tok(XTOK_FOO);
   /* This doesn't work!  Makes lexer jam?? */
-  /* ".id"              return tok(XTOK_DOT_ID); */
+".id"              return tok(XTOK_DOT_ID);
 "topForms"         return tok(XTOK_TOPFORMS);
 
 
   /* identifier: e.g. foo */
-{LETTER}{ALNUM}* {
+{LETTERDOT}{ALNUMDOT}* {
   return svalTok(XTOK_NAME);
 }
 
