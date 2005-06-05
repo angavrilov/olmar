@@ -1,0 +1,91 @@
+// astxml.gr        see License.txt for copyright and terms of use
+
+// this makes it so that, by default, dup() is the identity function,
+// and del() is a no-op
+option useGCDefaults;
+
+// if I don't specify a merge(), and we want to merge(),
+// then abort
+option defaultMergeAborts;
+
+verbatim {
+# include <stdio.h>             // printf
+# include "strtable.h"
+# include "astxml_tokens.h"        // lexer's token ids for classify()
+  class AstXmlParseShareable : public UserActions {
+    public:
+  };
+
+  struct Foo {};
+
+  struct TranslationUnit {
+    Foo *foo;
+  };
+}
+
+context_class AstXmlParse : public AstXmlParseShareable {
+};
+
+terminals {
+  // grab token list
+  include("astxml_tokens.ids")
+
+  // all literals are yielded as their syntax strings
+  token(StringRef) XTOK_STRING_LITERAL ;
+}
+
+nonterm(void*) Node_TranslationUnit {
+  -> v:Mid_TranslationUnit End_TranslationUnit {return v;}
+}
+
+nonterm(void*) StartOpen_TranslationUnit {
+  -> "<" "TranslationUnit" {return new TranslationUnit();}
+}
+
+nonterm(void*) MidOpen_TranslationUnit {
+  -> v:StartOpen_TranslationUnit {return v;}
+
+  -> v:MidOpen_TranslationUnit ".id" "=" x:Literal {
+    // file the translation unit
+    printf("file the translation unit under id %s\n", x);
+    return v;
+  }
+
+  -> v:MidOpen_TranslationUnit "topForms" "=" x:Literal {
+    // modify the object
+    printf("see a top-form %s\n", x);
+    return v;
+  }
+}
+
+nonterm(void*) Open_TranslationUnit {
+  -> v:MidOpen_TranslationUnit ">" {return v;}
+}
+
+nonterm(void*) Mid_TranslationUnit {
+  -> v:Open_TranslationUnit {return v;}
+
+  // add one for every tag that can occur in a TranslationUnit
+  -> v:Mid_TranslationUnit child:Node_Foo {
+    // add a Foo to a TranslationUnit
+    printf("add a Foo to a TranslationUnit\n");
+    static_cast<TranslationUnit*>(v)->foo = static_cast<Foo*>(child);
+    return v;
+  }
+}
+
+nonterm End_TranslationUnit {
+  -> "<" "/" "TranslationUnit" ">" {}
+}
+
+nonterm(void*) Node_Foo {
+  -> "<" "Foo" "/" ">" {
+    return new Foo();
+  }
+}
+
+// a data literal
+nonterm(StringRef) Literal {
+  -> s:XTOK_STRING_LITERAL                   { return s; }
+}
+

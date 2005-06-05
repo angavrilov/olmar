@@ -22,6 +22,7 @@
 #include "strtokp.h"      // StrtokParse
 #include "smregexp.h"     // regexpMatch
 #include "cc_elaborate.h" // ElabVisitor
+#include "main_astxmlparse.h"// astxmlparse
 
 
 // little check: is it true that only global declarators
@@ -252,7 +253,11 @@ void doit(int argc, char **argv)
   TranslationUnit *unit;
   int parseWarnings = 0;
   long parseTime = 0;
-  {
+  if (tracingSys("parseAstXml")) {
+    unit = astxmlparse(strTable, inputFname);
+    if (!unit) return;
+  }
+  else {
     SectionTimer timer(parseTime);
     SemanticValue treeTop;
     ParseTreeAndTokens tree(lang, treeTop, strTable, inputFname);

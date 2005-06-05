@@ -23,6 +23,8 @@
 #include "useract.h"      // SemanticValue, UserAction
 
 class ParseTables;
+class GLR;
+class LexerInterface;
 
 
 // ----------------- helpers for analysis drivers ---------------
@@ -47,6 +49,9 @@ public:
   ~ParseTreeAndTokens();
 };
 
+
+bool glrParseNamedFile(GLR &glr, LexerInterface &lexer, SemanticValue &treeTop,
+                       char const *inputFname);
 
 // dsw: what is this?
 //  // given grammar and input, yield a parse tree

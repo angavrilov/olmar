@@ -137,6 +137,23 @@ lexer.yy.cc: lexer.lex lexer.h
 	$(MYFLEX) -o$@ lexer.lex
 
 
+ASTXML_LEXER_OBJS := \
+  astxml_lexer.o \
+  astxml_lexer.yy.o
+-include $(ASTXML_LEXER_OBJS:.o=.d)
+
+# run flex on the lexer description for ast xml parser
+TOCLEAN += astxml_lexer.yy.cc
+astxml_lexer.yy.cc: astxml_lexer.lex astxml_lexer.h
+	$(MYFLEX) -o$@ astxml_lexer.lex
+
+# when building the ast xml lexer, delete the methods that would
+# otherwise conflict with methods in lexer.yy.cc; they have identical
+# implementations
+astxml_lexer.yy.o: astxml_lexer.yy.cc
+	$(CXX)                    -c -o $@ $< -DNO_YYFLEXLEXER_METHODS $(CCFLAGS)
+	@$(PERL) $(SMBASE)/depend.pl -o $@ $< -DNO_YYFLEXLEXER_METHODS $(CCFLAGS) >$*.d
+
 # generate token lists
 TOK_FILES := cc_tokens.h cc_tokens.cc cc_tokens.ids
 TOCLEAN += $(TOK_FILES)
@@ -146,6 +163,13 @@ $(TOK_FILES): $(TOK_MODS) make-token-files
 	chmod a-w $(TOK_FILES)
 
 
+# generate token lists for parsing ast xml
+TOCLEAN += astxml_tokens.ids
+astxml_tokens.ids: astxml_tokens.h
+	rm -f $@
+	$(ELKHOUND)/make-tok ASTXMLTokenType <astxml_tokens.h >$@
+	chmod a-w $@
+
 # run astgen to generate the AST implementation
 TOCLEAN += cc.ast.gen.h cc.ast.gen.cc
 cc.ast.gen.h cc.ast.gen.cc: $(CC_AST_MODS) $(AST)/astgen
@@ -153,9 +177,15 @@ cc.ast.gen.h cc.ast.gen.cc: $(CC_AST_MODS) $(AST)/astgen
 
 
 # run elkhound to generate the parser
-TOCLEAN += cc.gr.gen.h cc.gr.gen.cc
+TOCLEAN += cc.gr.gen.h cc.gr.gen.cc cc.gr.gen.out
 cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
 	$(ELKHOUND)/elkhound -v -tr lrtable -o cc.gr.gen $(CC_GR_MODS)
+
+
+# run elkhound to generate the ast xml parser
+TOCLEAN += astxml.gr.gen.h astxml.gr.gen.cc astxml.gr.gen.out
+astxml.gr.gen.h astxml.gr.gen.cc: astxml.gr astxml_tokens.ids $(ELKHOUND)/elkhound
+	$(ELKHOUND)/elkhound -v -tr lrtable -o astxml.gr.gen astxml.gr
 
 
 # list of modules needed for the parser; ideally they're in an order
@@ -173,6 +203,7 @@ CCPARSE_OBJS := \
   cc_elaborate.o \
   ast_build.o \
   $(LEXER_OBJS) \
+  $(ASTXML_LEXER_OBJS) \
   $(EXT_OBJS) \
   builtinops.o \
   cfg.o \
@@ -186,12 +217,14 @@ CCPARSE_OBJS := \
   typelistiter.o \
   cc.ast.gen.o \
   cc.gr.gen.o \
+  astxml.gr.gen.o \
   parssppt.o \
   cc_flags.o \
   cc_print.o \
   cc_ast_aux.o \
   variable.o \
   lookupset.o \
+  main_astxmlparse.o \
   ccparse.o
 -include $(CCPARSE_OBJS:.o=.d) main.d
 
