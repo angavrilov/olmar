@@ -137,6 +137,10 @@ lexer.yy.cc: lexer.lex lexer.h
 	$(MYFLEX) -o$@ lexer.lex
 
 
+TOCLEAN += astxml_lexer.lex
+astxml_lexer.lex:
+	cat astxml_lexer0_top.lex astxml_lexer0_mid.lex astxml_lexer1_bottom.lex > $@
+
 ASTXML_LEXER_OBJS := \
   astxml_lexer.o \
   astxml_lexer.yy.o
