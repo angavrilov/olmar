@@ -193,8 +193,7 @@ cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
 # generate the astxml.gr file
 TOCLEAN += astxml.gr
 astxml.gr:
-# FIX: astxml1_mid.gr will be generated
-	cat astxml0_top.gr astxml0_mid.gr astxml2_bottom.gr > $@
+	cat astxml0_top.gr astxml1_mid.gr astxml2_bottom.gr > $@
 
 # run elkhound to generate the ast xml parser; dsw: the 'if' is here
 # because elkhound doesn't delete the output upon error
