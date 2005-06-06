@@ -4857,6 +4857,10 @@ int inner_entry(int argc, char **argv)
 
   // true to use ML, false to use C
   bool useML = false;
+  
+  // when true, if there is an error, do not leave partially-written
+  // output files
+  bool leavePartialOutputs = false;
 
   while (argv[0] && argv[0][0] == '-') {
     char const *op = argv[0]+1;
@@ -4884,6 +4888,10 @@ int inner_entry(int argc, char **argv)
       SHIFT;
       useML = true;
     }
+    else if (0==strcmp(op, "leavePartial")) {
+      SHIFT;
+      leavePartialOutputs = true;
+    }
     else {
       cout << "unknown option: " << argv[0] << endl;
       exit(2);
@@ -4907,6 +4915,7 @@ int inner_entry(int argc, char **argv)
             "  -o <prefix>     : name outputs <prefix>.h and <prefix>.cc\n"
             "                    (default is filename.gen.h, filename.gen.cc)\n"
             "  -ocaml          : generate ocaml parser instead of C++ parser\n"
+            "  -leavePartial   : do not delete output files in case of error\n"
             ;
     return 0;
   }
@@ -4960,16 +4969,36 @@ int inner_entry(int argc, char **argv)
     traceProgress() << "emitting C++ code to " << ccFname
                     << " and " << hFname << " ...\n";
 
-    emitActionCode(g, hFname, ccFname, grammarFname);
+    try {
+      emitActionCode(g, hFname, ccFname, grammarFname);
+    }
+    catch (...) {
+      if (!leavePartialOutputs) {
+        cout << "(deleting output files due to error)\n";
+        remove(hFname.c_str());
+        remove(ccFname.c_str());
+      }
+      throw;
+    }
   }
   else {
     // emit some ML code
     string mliFname = stringc << prefix << ".mli";
     string mlFname = stringc << prefix << ".ml";
-    traceProgress() << "emitting OCaml code to " << mlFname 
+    traceProgress() << "emitting OCaml code to " << mlFname
                     << " and " << mliFname << " ...\n";
 
-    emitMLActionCode(g, mliFname, mlFname, grammarFname);
+    try {
+      emitMLActionCode(g, mliFname, mlFname, grammarFname);
+    }
+    catch (...) {
+      if (!leavePartialOutputs) {
+        cout << "(deleting output files due to error)\n";
+        remove(mliFname.c_str());
+        remove(mlFname.c_str());
+      }
+      throw;
+    }
   }
 
   // before using 'xfer' we have to tell it about the string table

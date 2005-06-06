@@ -14,7 +14,7 @@ This script reads a C/C++ header file as input, finds the named
 enumeration, and extracts token names and codes.  The output is
 a list of tokens suitable for inclusion in an Elkhound grammar.
 EOF
-  exit(0);
+  exit(2);
 }
 
 $enumName = $ARGV[0];
