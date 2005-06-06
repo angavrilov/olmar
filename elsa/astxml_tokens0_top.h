@@ -1,5 +1,6 @@
 // astxml_tokens.h            see license.txt for copyright and terms of use
-// token definitions for the ast xml lexer
+
+// top boilerlate for token definitions for the ast xml lexer
 
 #ifndef ASTXML_TOKENS_H
 #define ASTXML_TOKENS_H
@@ -21,18 +22,3 @@ enum ASTXMLTokenType {
   XTOK_GREATERTHAN,         // ">"
   XTOK_EQUAL,               // "="
   XTOK_SLASH,               // "/"
-
-  // AST nodes
-  XTOK_TRANSLATION_UNIT,    // "TranslationUnit"
-  XTOK_FOO,                 // "Foo"
-
-  // child attribute names
-  XTOK_DOT_ID,              // ".id"
-  XTOK_TOPFORMS,            // "topForms"
-
-  // dummy terminals
-  NUM_XML_TOKEN_TYPES,
-
-};  // enum TokenType
-
-#endif // ASTXML_TOKENS_H

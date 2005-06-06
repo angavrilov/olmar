@@ -30,6 +30,7 @@ lexer.yy.cc
 astxml.gr
 astxml_lexer.lex
 astxml_lexer.yy.cc
+astxml_tokens.h
 astxml_tokens.ids
 tmp
 tmp_*

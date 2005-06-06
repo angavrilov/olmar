@@ -167,6 +167,10 @@ $(TOK_FILES): $(TOK_MODS) make-token-files
 	chmod a-w $(TOK_FILES)
 
 
+TOCLEAN += astxml_tokens.h
+astxml_tokens.h:
+	cat astxml_tokens0_top.h astxml_tokens0_mid.h astxml_tokens1_bottom.h > $@
+
 # generate token lists for parsing ast xml
 TOCLEAN += astxml_tokens.ids
 astxml_tokens.ids: astxml_tokens.h
