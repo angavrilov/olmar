@@ -186,9 +186,7 @@ cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
 # because elkhound doesn't delete the output upon error
 TOCLEAN += astxml.gr.gen.h astxml.gr.gen.cc astxml.gr.gen.out
 astxml.gr.gen.h astxml.gr.gen.cc: astxml.gr astxml_tokens.ids $(ELKHOUND)/elkhound
-	if ! $(ELKHOUND)/elkhound -v -tr lrtable -o astxml.gr.gen astxml.gr; then \
-          rm -f astxml.gr.gen.*; exit 1; \
-        fi
+	$(ELKHOUND)/elkhound -v -tr lrtable -o astxml.gr.gen astxml.gr
 
 
 # list of modules needed for the parser; ideally they're in an order

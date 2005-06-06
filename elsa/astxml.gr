@@ -39,13 +39,26 @@ nonterm(void*) Node_TranslationUnit {
   -> v:Mid_TranslationUnit End_TranslationUnit {return v;}
 }
 
-nonterm(void*) StartOpen_TranslationUnit {
-  -> "<" "TranslationUnit" {return new TranslationUnit();}
+nonterm(void*) Mid_TranslationUnit {
+  -> v:Open_TranslationUnit {return v;}
+
+  // add one for every tag that can occur in a TranslationUnit
+  -> v:Mid_TranslationUnit child:Node_Foo {
+    // add a Foo to a TranslationUnit
+    printf("add a Foo to a TranslationUnit\n");
+    static_cast<TranslationUnit*>(v)->foo = static_cast<Foo*>(child);
+    return v;
+  }
+}
+
+nonterm(void*) Open_TranslationUnit {
+  -> v:MidOpen_TranslationUnit ">" {return v;}
 }
 
 nonterm(void*) MidOpen_TranslationUnit {
   -> v:StartOpen_TranslationUnit {return v;}
 
+  // add one for every attribute of a TranslationUnit
   -> v:MidOpen_TranslationUnit ".id" "=" x:Literal {
     // file the translation unit
     printf("file the translation unit under id %s\n", x);
@@ -59,20 +72,8 @@ nonterm(void*) MidOpen_TranslationUnit {
   }
 }
 
-nonterm(void*) Open_TranslationUnit {
-  -> v:MidOpen_TranslationUnit ">" {return v;}
-}
-
-nonterm(void*) Mid_TranslationUnit {
-  -> v:Open_TranslationUnit {return v;}
-
-  // add one for every tag that can occur in a TranslationUnit
-  -> v:Mid_TranslationUnit child:Node_Foo {
-    // add a Foo to a TranslationUnit
-    printf("add a Foo to a TranslationUnit\n");
-    static_cast<TranslationUnit*>(v)->foo = static_cast<Foo*>(child);
-    return v;
-  }
+nonterm(void*) StartOpen_TranslationUnit {
+  -> "<" "TranslationUnit" {return new TranslationUnit();}
 }
 
 nonterm End_TranslationUnit {
@@ -90,4 +91,3 @@ nonterm(StringRef) Literal {
   -> s:XTOK_STRING_LITERAL                   { return s; }
   -> x:XTOK_INT_LITERAL                      { return x; }
 }
-
