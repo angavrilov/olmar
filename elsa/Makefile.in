@@ -138,6 +138,7 @@ lexer.yy.cc: lexer.lex lexer.h
 
 
 TOCLEAN += astxml_lexer.lex
+astxml_lexer1_mid.lex: cc.ast.gen.h
 astxml_lexer.lex: astxml_lexer0_top.lex astxml_lexer1_mid.lex astxml_lexer2_bottom.lex
 	cat $^ > $@
 
@@ -168,6 +169,7 @@ $(TOK_FILES): $(TOK_MODS) make-token-files
 
 
 TOCLEAN += astxml_tokens.h
+astxml_tokens1_mid.h: cc.ast.gen.h
 astxml_tokens.h: astxml_tokens0_top.h astxml_tokens1_mid.h astxml_tokens2_bottom.h
 	cat $^ > $@
 
@@ -192,6 +194,7 @@ cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
 
 # generate the astxml.gr file
 TOCLEAN += astxml.gr
+astxml1_mid.gr: cc.ast.gen.h
 astxml.gr: astxml0_top.gr astxml1_mid.gr astxml2_bottom.gr
 	cat $^ > $@
 
