@@ -16,6 +16,12 @@ enum ASTXMLTokenType {
   XTOK_HEX_LITERAL,
   XTOK_STRING_LITERAL,
 
+  // punctuation
+  XTOK_LESSTHAN,            // "<"
+  XTOK_GREATERTHAN,         // ">"
+  XTOK_EQUAL,               // "="
+  XTOK_SLASH,               // "/"
+
   // AST nodes
   XTOK_TRANSLATION_UNIT,    // "TranslationUnit"
   XTOK_FOO,                 // "Foo"
@@ -23,13 +29,6 @@ enum ASTXMLTokenType {
   // child attribute names
   XTOK_DOT_ID,              // ".id"
   XTOK_TOPFORMS,            // "topForms"
-
-  // operators
-  XTOK_LESSTHAN,            // "<"
-  XTOK_GREATERTHAN,         // ">"
-
-  XTOK_EQUAL,               // "="
-  XTOK_SLASH,               // "/"
 
   // dummy terminals
   NUM_XML_TOKEN_TYPES,
