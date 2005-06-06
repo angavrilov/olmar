@@ -11,16 +11,15 @@ option defaultMergeAborts;
 verbatim {
 # include <stdio.h>             // printf
 # include "strtable.h"
-# include "astxml_tokens.h"        // lexer's token ids for classify()
+# include "astxml_tokens.h"     // lexer's token ids for classify()
+
+#include "cc.ast.gen.h"         // AST node classes
+
   class AstXmlParseShareable : public UserActions {
     public:
   };
 
-  struct Foo {};
-
-  struct TranslationUnit {
-    Foo *foo;
-  };
+  struct Foo {};                // Dummy; remove
 }
 
 context_class AstXmlParse : public AstXmlParseShareable {
@@ -46,7 +45,9 @@ nonterm(void*) Mid_TranslationUnit {
   -> v:Mid_TranslationUnit child:Node_Foo {
     // add a Foo to a TranslationUnit
     printf("add a Foo to a TranslationUnit\n");
-    static_cast<TranslationUnit*>(v)->foo = static_cast<Foo*>(child);
+    // this no longer works because we are using the real class
+    // TranslationUnit
+//      static_cast<TranslationUnit*>(v)->foo = static_cast<Foo*>(child);
     return v;
   }
 }
@@ -73,7 +74,7 @@ nonterm(void*) MidOpen_TranslationUnit {
 }
 
 nonterm(void*) StartOpen_TranslationUnit {
-  -> "<" "TranslationUnit" {return new TranslationUnit();}
+  -> "<" "TranslationUnit" {return new TranslationUnit(NULL);}
 }
 
 nonterm End_TranslationUnit {
