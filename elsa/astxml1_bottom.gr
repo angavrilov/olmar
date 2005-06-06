@@ -1,0 +1,10 @@
+// astxml1_bottom.gr        see License.txt for copyright and terms of use
+
+// This file is the bottom half of the boilerplate for the generated
+// astxml.gr file.
+
+// a data literal
+nonterm(StringRef) Literal {
+  -> s:XTOK_STRING_LITERAL                   { return s; }
+  -> x:XTOK_INT_LITERAL                      { return x; }
+}
