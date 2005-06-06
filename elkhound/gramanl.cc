@@ -4978,6 +4978,9 @@ int inner_entry(int argc, char **argv)
         remove(hFname.c_str());
         remove(ccFname.c_str());
       }
+      else {
+        cout << "(note: partial output files have not been deleted)\n";
+      }
       throw;
     }
   }
@@ -4996,6 +4999,9 @@ int inner_entry(int argc, char **argv)
         cout << "(deleting output files due to error)\n";
         remove(mliFname.c_str());
         remove(mlFname.c_str());
+      }
+      else {
+        cout << "(note: partial output files have not been deleted)\n";
       }
       throw;
     }
