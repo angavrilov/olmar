@@ -139,7 +139,7 @@ lexer.yy.cc: lexer.lex lexer.h
 
 TOCLEAN += astxml_lexer.lex
 astxml_lexer.lex:
-	cat astxml_lexer0_top.lex astxml_lexer0_mid.lex astxml_lexer1_bottom.lex > $@
+	cat astxml_lexer0_top.lex astxml_lexer1_mid.lex astxml_lexer2_bottom.lex > $@
 
 ASTXML_LEXER_OBJS := \
   astxml_lexer.o \
@@ -169,7 +169,7 @@ $(TOK_FILES): $(TOK_MODS) make-token-files
 
 TOCLEAN += astxml_tokens.h
 astxml_tokens.h:
-	cat astxml_tokens0_top.h astxml_tokens0_mid.h astxml_tokens1_bottom.h > $@
+	cat astxml_tokens0_top.h astxml_tokens1_mid.h astxml_tokens2_bottom.h > $@
 
 # generate token lists for parsing ast xml
 TOCLEAN += astxml_tokens.ids
@@ -193,8 +193,8 @@ cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
 # generate the astxml.gr file
 TOCLEAN += astxml.gr
 astxml.gr:
-# FIX: astxml0_mid.gr will be generated
-	cat astxml0_top.gr astxml0_mid.gr astxml1_bottom.gr > $@
+# FIX: astxml1_mid.gr will be generated
+	cat astxml0_top.gr astxml0_mid.gr astxml2_bottom.gr > $@
 
 # run elkhound to generate the ast xml parser; dsw: the 'if' is here
 # because elkhound doesn't delete the output upon error
