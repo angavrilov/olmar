@@ -27,6 +27,8 @@ cc_tokens.cc
 cc_tokens.ids
 diffs
 lexer.yy.cc
+astxml.gr
+astxml_lexer.lex
 astxml_lexer.yy.cc
 astxml_tokens.ids
 tmp
