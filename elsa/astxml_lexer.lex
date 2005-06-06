@@ -125,9 +125,11 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "/"                return tok(XTOK_SLASH);
 "="                return tok(XTOK_EQUAL);
 
+  /* make one of these for every AST node */
 "TranslationUnit"  return tok(XTOK_TRANSLATION_UNIT);
 "Foo"              return tok(XTOK_FOO);
-  /* This doesn't work!  Makes lexer jam?? */
+
+  /* make one of these for every child name */
 ".id"              return tok(XTOK_DOT_ID);
 "topForms"         return tok(XTOK_TOPFORMS);
 
