@@ -142,6 +142,10 @@ astxml_lexer1_mid.gen.lex: cc.ast.gen.h
 astxml_lexer.lex: astxml_lexer0_top.lex astxml_lexer1_mid.gen.lex astxml_lexer2_bottom.lex
 	cat $^ > $@
 
+# astxml_lexer.cc actually #include-s astxml_lexer1_mid.gen.cc
+astxml_lexer1_mid.gen.cc: cc.ast.gen.h
+astxml_lexer.o: astxml_lexer1_mid.gen.cc
+
 ASTXML_LEXER_OBJS := \
   astxml_lexer.o \
   astxml_lexer.yy.o

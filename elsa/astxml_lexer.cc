@@ -61,19 +61,21 @@ string AstXmlLexer::tokenDesc() const
 
 static char const * const tokenNames[] = {
   "XTOK_EOF",
+
   "XTOK_NAME",
+
   "XTOK_INT_LITERAL",
   "XTOK_FLOAT_LITERAL",
   "XTOK_HEX_LITERAL",
   "XTOK_STRING_LITERAL",
-  "XTOK_TRANSLATION_UNIT",
-  "XTOK_FOO",
-  "XTOK_DOT_ID",
-  "XTOK_TOPFORMS",
+
   "XTOK_LESSTHAN",
   "XTOK_GREATERTHAN",
   "XTOK_EQUAL",
   "XTOK_SLASH",
+
+#include "astxml_lexer1_mid.gen.cc"
+
   "NUM_XML_TOKEN_TYPES",
 };
 
