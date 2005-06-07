@@ -78,7 +78,7 @@ inline ostream& operator<< (ostream &os, StateId id)
 typedef unsigned char TermIndex;
 
 // name a nonterminal using an index
-typedef unsigned char NtIndex;
+typedef unsigned short NtIndex;
 
 // name a production using an index
 typedef unsigned short ProdIndex;
