@@ -5,3 +5,5 @@ hide*
 *.3rawout.cc
 *.4out.cc
 *.5diff
+*.A1.xml
+*.A2.out

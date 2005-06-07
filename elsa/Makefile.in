@@ -138,8 +138,8 @@ lexer.yy.cc: lexer.lex lexer.h
 
 
 TOCLEAN += astxml_lexer.lex
-astxml_lexer1_mid.lex: cc.ast.gen.h
-astxml_lexer.lex: astxml_lexer0_top.lex astxml_lexer1_mid.lex astxml_lexer2_bottom.lex
+astxml_lexer1_mid.gen.lex: cc.ast.gen.h
+astxml_lexer.lex: astxml_lexer0_top.lex astxml_lexer1_mid.gen.lex astxml_lexer2_bottom.lex
 	cat $^ > $@
 
 ASTXML_LEXER_OBJS := \
@@ -170,8 +170,8 @@ $(TOK_FILES): $(TOK_MODS) make-token-files
 astxml_lexer.o: astxml_tokens.h
 
 TOCLEAN += astxml_tokens.h
-astxml_tokens1_mid.h: cc.ast.gen.h
-astxml_tokens.h: astxml_tokens0_top.h astxml_tokens1_mid.h astxml_tokens2_bottom.h
+astxml_tokens1_mid.gen.h: cc.ast.gen.h
+astxml_tokens.h: astxml_tokens0_top.h astxml_tokens1_mid.gen.h astxml_tokens2_bottom.h
 	cat $^ > $@
 
 # generate token lists for parsing ast xml
@@ -195,8 +195,8 @@ cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
 
 # generate the astxml.gr file
 TOCLEAN += astxml.gr
-astxml1_mid.gr: cc.ast.gen.h
-astxml.gr: astxml0_top.gr astxml1_mid.gr astxml2_bottom.gr
+astxml1_mid.gen.gr: cc.ast.gen.h
+astxml.gr: astxml0_top.gr astxml1_mid.gen.gr astxml2_bottom.gr
 	cat $^ > $@
 
 # run elkhound to generate the ast xml parser; dsw: the 'if' is here

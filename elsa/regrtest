@@ -1130,6 +1130,13 @@ list=`echo " \
 
 runTest perl ./idemcheck -d outdir $list
 
+# FIX: t0002.cc causes ccparse to fail and print garbage
+astxml_list=`echo " \
+  t0001.cc \
+  " | fmt -1 | sed 's|^[ 	]*|in/|'`
+
+runTest perl ./astxml_check -d outdir $astxml_list
+
 if $use_gnu; then
   #   125: inline assembly not printed
   #   126: attributes not printed

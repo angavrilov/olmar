@@ -537,7 +537,6 @@ void doit(int argc, char **argv)
     bool indent = tracingSys("xmlPrintAST-indent");
     ToXmlASTVisitor xmlVis(cout, indent);
     cout << "---- START ----" << endl;
-    cout << "// -*-c++-*-" << endl;
     unit->traverse(xmlVis);
     cout.flush();
     cout << "---- STOP ----" << endl;
@@ -551,7 +550,6 @@ void doit(int argc, char **argv)
     ToXmlASTVisitor xmlVis(cout, indent);
     LoweredASTVisitor loweredXmlVis(&xmlVis);
     cout << "---- START ----" << endl;
-    cout << "// -*-c++-*-" << endl;
     unit->traverse(loweredXmlVis);
     cout.flush();
     cout << "---- STOP ----" << endl;
