@@ -167,6 +167,7 @@ $(TOK_FILES): $(TOK_MODS) make-token-files
 	$(PERL) ./make-token-files $(TOK_MODS)
 	chmod a-w $(TOK_FILES)
 
+astxml_lexer.o: astxml_tokens.h
 
 TOCLEAN += astxml_tokens.h
 astxml_tokens1_mid.h: cc.ast.gen.h
