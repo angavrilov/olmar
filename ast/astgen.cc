@@ -1875,7 +1875,8 @@ void CGen::emitXmlField(bool isOwner, rostring type, rostring name, char const *
     out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"" << name << "\" << \"=\";\n";
-    out << "  out << (" << baseName << "->" << name << "? \"true\" : \"false\");\n";
+    out << "  out << (" << baseName << "->"
+        << name << "? \"\\\"true\\\"\" : \"\\\"false\\\"\");\n";
   }
   else if (isListType(type)) {
     // for now, I'll continue to assume that any class that appears
@@ -2278,15 +2279,22 @@ void CGen::emitXmlField_AttributeParseRule
   (ostream &parserOut, bool isOwner, rostring type, rostring name, string &baseName)
 {
   if (0==strcmp(type, "string")) {
-    // a scalar; do nothing
+    parserOut << "  -> v:MidOpen_" << baseName << " \"" << name << "\" \"=\" "
+              << "x:XTOK_STRING_LITERAL {\n";
+// FIX: #warning file the object under its id
+    parserOut << "    return v;\n";
+    parserOut << "  }\n";
   }
   else if (0==strcmp(type, "bool")) {
-    // a scalar; do nothing
+    parserOut << "  -> v:MidOpen_" << baseName << " \"" << name << "\" \"=\" "
+              << "x:XTOK_STRING_LITERAL {\n";
+// FIX: #warning file the object under its id
+    parserOut << "    return v;\n";
+    parserOut << "  }\n";
   }
 
   else if (isListType(type)) {
     parserOut << "\n";
-    string templParamType = extractListType(type);
     parserOut << "  -> v:MidOpen_" << baseName << " \"" << name << "\" \"=\" "
       // we use an int literal, because we expect the id, not the
       // object itself
@@ -2297,7 +2305,6 @@ void CGen::emitXmlField_AttributeParseRule
   }
   else if (isFakeListType(type)) {
     parserOut << "\n";
-    string templParamType = extractListType(type);
     parserOut << "  -> v:MidOpen_" << baseName << " \"" << name << "\" \"=\" "
       // we use an int literal, because we expect the id, not the
       // object itself
