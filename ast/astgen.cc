@@ -2580,18 +2580,21 @@ void CGen::emitXmlParser_ASTList(ostream &parserOut, char const *type)
 
 void CGen::emitXmlParserImplementation()
 {
-  ofstream tokensOut(stringc << xmlParserName << "_tokens1_mid.gen.h");
+  ofstream tokensOutH(stringc << xmlParserName << "_tokens1_mid.gen.h");
+  ofstream tokensOutCC(stringc << xmlParserName << "_lexer1_mid.gen.cc");
   ofstream lexerOut(stringc << xmlParserName << "_lexer1_mid.gen.lex");
   ofstream parserOut(stringc << xmlParserName << "1_mid.gen.gr");
 
-  tokensOut << "  // AST nodes\n";
-  lexerOut  << "  /* AST nodes */\n";
-  parserOut << "// AST nodes\n";
+  tokensOutH  << "  // AST nodes\n";
+  tokensOutCC << "  // AST nodes\n";
+  lexerOut    << "  /* AST nodes */\n";
+  parserOut   << "// AST nodes\n";
 
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
 
-    tokensOut << "  XTOK_" << c->super->name << ", // \"" << c->super->name << "\"\n";
+    tokensOutH  << "  XTOK_" << c->super->name << ", // \"" << c->super->name << "\"\n";
+    tokensOutCC << "  \"XTOK_" << c->super->name << "\",\n";
     lexerOut  << "\"" << c->super->name << "\" return tok(XTOK_" << c->super->name << ");\n";
 
     collectXmlParserCtorArgs(c->super->args, "obj");
@@ -2602,7 +2605,8 @@ void CGen::emitXmlParserImplementation()
       FOREACH_ASTLIST(ASTClass, c->ctors, iter) {
         ASTClass const *clazz = iter.data();
 
-        tokensOut << "    XTOK_" << clazz->name << ", // \"" << clazz->name << "\"\n";
+        tokensOutH  << "    XTOK_" << clazz->name << ", // \"" << clazz->name << "\"\n";
+        tokensOutCC << "    \"XTOK_" << clazz->name << "\",\n";
         lexerOut  << "\"" << clazz->name << "\" return tok(XTOK_" << clazz->name << ");\n";
         collectXmlParserCtorArgs(clazz->args, "obj0");
         collectXmlParserFields(clazz->decls, "obj0");
@@ -2626,38 +2630,48 @@ void CGen::emitXmlParserImplementation()
     }
   }
 
-  tokensOut << "\n  // FakeList 'classes'\n";
+  tokensOutH  << "\n  // FakeList 'classes'\n";
+  tokensOutCC << "\n  // FakeList 'classes'\n";
   FOREACH_ASTLIST(char, fakeListClasses, iter) {
     char const *cls = iter.data();
-    tokensOut << "  XTOK_FakeList_" << cls << ", // \"FakeList_" << cls << "\"\n";
+    tokensOutH  << "  XTOK_FakeList_" << cls << ", // \"FakeList_" << cls << "\"\n";
+    tokensOutCC << "  \"XTOK_FakeList_" << cls << "\",\n";
     lexerOut  << "\"FakeList_" << cls << "\" return tok(XTOK_FakeList_" << cls << ");\n";
 // FIX: #warning emit fake list node parsing rules
     emitXmlParser_FakeList(parserOut, cls);
   }
 
-  tokensOut << "\n  // ASTList 'classes'\n";
+  tokensOutH  << "\n  // ASTList 'classes'\n";
+  tokensOutCC << "\n  // ASTList 'classes'\n";
   FOREACH_ASTLIST(char, astListClasses, iter) {
     char const *cls = iter.data();
-    tokensOut << "  XTOK_ASTList_" << cls << ", // \"ASTList_" << cls << "\"\n";
+    tokensOutH  << "  XTOK_ASTList_" << cls << ", // \"ASTList_" << cls << "\"\n";
+    tokensOutCC << "  \"XTOK_ASTList_" << cls << "\",\n";
     lexerOut  << "\"ASTList_" << cls << "\" return tok(XTOK_ASTList_" << cls << ");\n";
     emitXmlParser_ASTList(parserOut, cls);
   }
 
-  tokensOut << "\n";
-  tokensOut << "  // metadata attributes that do not occur in the AST itself\n";
-  tokensOut << "  XTOK_DOT_ID, // \".id\"\n";
+  tokensOutH  << "\n";
+  tokensOutH  << "  // metadata attributes that do not occur in the AST itself\n";
+  tokensOutH  << "  XTOK_DOT_ID, // \".id\"\n";
+  tokensOutCC << "\n";
+  tokensOutCC << "  // metadata attributes that do not occur in the AST itself\n";
+  tokensOutCC << "  \"XTOK_DOT_ID\", // \".id\"\n";
   lexerOut << "\n";
   lexerOut << "  /* metadata attributes that do not occur in the AST itself */\n";
   lexerOut << "\".id\" return tok(XTOK_DOT_ID);\n";
 
-  tokensOut << "\n";
-  tokensOut << "  // child attribute names\n";
+  tokensOutH  << "\n";
+  tokensOutH  << "  // child attribute names\n";
+  tokensOutCC << "\n";
+  tokensOutCC << "  // child attribute names\n";
   lexerOut << "\n";
   lexerOut << "  /* child attribute names */\n";
 
   FOREACH_STRINGSET(attributeNames, attrIter) {
     string const &attr = attrIter.data();
-    tokensOut << "  XTOK_" << attr << ", // \"" << attr << "\"\n";
+    tokensOutH  << "  XTOK_" << attr << ", // \"" << attr << "\"\n";
+    tokensOutCC << "  \"XTOK_" << attr << "\",\n";
     lexerOut  << "\"" << attr << "\" return tok(XTOK_" << attr << ");\n";
   }
 }
