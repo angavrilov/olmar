@@ -191,6 +191,10 @@ int strcmp(char const *s1, rostring s2);
 
 char const *strstr(rostring haystack, char const *needle);
 
+// there is no wrapper for 'strchr'; use string::contains
+
+int atoi(rostring s);
+
 // construct a string out of characters from 'p' up to 'p+n-1',
 // inclusive; resulting string length is 'n'
 string substring(char const *p, int n);

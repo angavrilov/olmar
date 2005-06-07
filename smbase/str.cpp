@@ -176,6 +176,11 @@ char const *strstr(rostring haystack, char const *needle)
 }
 
 
+int atoi(rostring s)
+{
+  return atoi(toCStr(s));
+}
+
 string substring(char const *p, int n)
 {
   return string(p, n, SMBASE_STRING_FUNC);
