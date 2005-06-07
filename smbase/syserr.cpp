@@ -194,10 +194,34 @@ STATICDEF xSysError::Reason xSysError::portablize(int sysErrorCode, string &sysM
   // the table would have to prepend R_ constants with xSysError::,
   // which is a pain.
 
-  // Q: how to get a string from win32?
-  //if (sysMsg != NULL) {
-    sysMsg = NULL;
-  //}
+  // method to translate an error code into a string on win32; this
+  // code is copied+modified from the win32 SDK docs for FormatMessage
+  {
+    // get the string
+    LPVOID lpMsgBuf;
+    FormatMessage(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER |
+        FORMAT_MESSAGE_FROM_SYSTEM |
+        FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL,
+        GetLastError(),
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language
+        (LPTSTR) &lpMsgBuf,
+        0,
+        NULL
+    );
+    
+    // now the SDK says: "Process any inserts in lpMsgBuf."
+    //
+    // I think this means that lpMsgBuf might have "%" escape
+    // sequences in it... oh well, I'm just going to keep them
+    
+    // make a copy of the string
+    sysMsg = (char*)lpMsgBuf;
+
+    // Free the buffer.
+    LocalFree( lpMsgBuf );
+  }
 
   static struct S {
     int code;
