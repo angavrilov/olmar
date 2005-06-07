@@ -3822,29 +3822,22 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 
   // make a new scope for the parameter list
   Scope *paramScope = env.enterScope(SK_PARAMETER, "D_func parameter list scope");
-//    cout << "D_func::tcheck env.locStr() " << env.locStr() << endl;
-//    if (templateInfo) templateInfo->debugPrint();
-//    env.gdbScopes();
 
   // typecheck the parameters; this disambiguates any ambiguous type-ids,
   // and adds them to the environment
   params = tcheckFakeASTTypeIdList(params, env, DF_PARAMETER, DC_D_FUNC);
-//    if (params->first()) {
-//      cout << "immediately after typechecking: params->first()->gdb()" << endl;
-//      params->first()->gdb();
-//    }
 
   // build the function type; I do this after type checking the parameters
   // because it's convenient if 'syntaxFunctionType' can use the results
   // of checking them
   FunctionType *ft = env.tfac.syntaxFunctionType(loc, dt.type, this, env.tunit);
   ft->flags = specialFunc;
-  if (kAndR_params) {
-    ft->setFlag(FF_KANDR_DEFN);
-  }
+  #ifdef KANDR_EXTENSION
+    if (kAndR_params) {
+      ft->setFlag(FF_KANDR_DEFN);
+    }
+  #endif
   dt.funcSyntax = this;
-  // moved below where dt.var exists
-//    ft->templateInfo = templateInfo;
 
   // add them, now that the list has been disambiguated
   int ct=0;
