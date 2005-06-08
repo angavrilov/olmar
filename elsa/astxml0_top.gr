@@ -16,13 +16,11 @@ verbatim {
 # include "strtable.h"
 # include "astxml_tokens.h"     // lexer's token ids for classify()
 
-#include "cc.ast.gen.h"         // AST node classes
+# include "cc.ast.gen.h"         // AST node classes
 
   class AstXmlParseShareable : public UserActions {
     public:
   };
-
-  struct Foo {};                // Dummy; remove
 }
 
 context_class AstXmlParse : public AstXmlParseShareable {
