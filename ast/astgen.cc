@@ -2279,14 +2279,14 @@ void CGen::emitXmlField_AttributeParseRule
   (ostream &parserOut, bool isOwner, rostring type, rostring name, string &baseName)
 {
   if (0==strcmp(type, "string")) {
-    parserOut << "  -> v:MidOpen_" << baseName << " \"" << name << "\" \"=\" "
+    parserOut << "  -> v:Open_" << baseName << " \"" << name << "\" \"=\" "
               << "x:XTOK_STRING_LITERAL {\n";
 // FIX: #warning file the object under its id
     parserOut << "    return v;\n";
     parserOut << "  }\n";
   }
   else if (0==strcmp(type, "bool")) {
-    parserOut << "  -> v:MidOpen_" << baseName << " \"" << name << "\" \"=\" "
+    parserOut << "  -> v:Open_" << baseName << " \"" << name << "\" \"=\" "
               << "x:XTOK_STRING_LITERAL {\n";
 // FIX: #warning file the object under its id
     parserOut << "    return v;\n";
@@ -2295,7 +2295,7 @@ void CGen::emitXmlField_AttributeParseRule
 
   else if (isListType(type)) {
     parserOut << "\n";
-    parserOut << "  -> v:MidOpen_" << baseName << " \"" << name << "\" \"=\" "
+    parserOut << "  -> v:Open_" << baseName << " \"" << name << "\" \"=\" "
       // we use an int literal, because we expect the id, not the
       // object itself
               << "x:XTOK_INT_LITERAL {\n";
@@ -2305,7 +2305,7 @@ void CGen::emitXmlField_AttributeParseRule
   }
   else if (isFakeListType(type)) {
     parserOut << "\n";
-    parserOut << "  -> v:MidOpen_" << baseName << " \"" << name << "\" \"=\" "
+    parserOut << "  -> v:Open_" << baseName << " \"" << name << "\" \"=\" "
       // we use an int literal, because we expect the id, not the
       // object itself
               << "x:XTOK_INT_LITERAL {\n";
@@ -2316,7 +2316,7 @@ void CGen::emitXmlField_AttributeParseRule
   else if (isTreeNode(type) ||
            (isTreeNodePtr(type) && isOwner)) {
     parserOut << "\n";
-    parserOut << "  -> v:MidOpen_" << baseName << " \"" << name << "\" \"=\" "
+    parserOut << "  -> v:Open_" << baseName << " \"" << name << "\" \"=\" "
       // we use an int literal, because we expect the id, not the
       // object itself
               << "x:XTOK_INT_LITERAL {\n";
@@ -2385,8 +2385,7 @@ void CGen::emitXmlParser_Node
   // Mid
   parserOut << "\n";
   parserOut << "nonterm(void*) Mid_" << name << " {\n";
-  // ->Open
-  parserOut << "  -> v:Open_" << name << " {return v;}\n";
+  parserOut << "  -> v:Open_" << name << " \">\" {return v;}\n";
 
   // for each child, emit a rule to parse it as a child of this tag
   // ->Mid
@@ -2404,12 +2403,6 @@ void CGen::emitXmlParser_Node
   // Open
   parserOut << "\n";
   parserOut << "nonterm(void*) Open_" << name << " {\n";
-  parserOut << "  -> v:MidOpen_" << name << " \">\" {return v;}\n";
-  parserOut << "}\n";
-
-  // MidOpen
-  parserOut << "\n";
-  parserOut << "nonterm(void*) MidOpen_" << name << " {\n";
 
   parserOut << "  -> \"<\" \"" << name << "\" {return new " << name << "(";
   // we need to supply however many NULL args here as there are ctor args.
@@ -2420,15 +2413,15 @@ void CGen::emitXmlParser_Node
   parserOut << ");}\n";
 
   // for each metadata attribute; there is only one for now: ".id"
-  // ->MidOpen attribute
+  // ->Open attribute
   parserOut << "\n";
-  parserOut << "  -> v:MidOpen_" << name << " \".id\" \"=\" x:Literal {\n";
+  parserOut << "  -> v:Open_" << name << " \".id\" \"=\" x:Literal {\n";
 // FIX: #warning file the object under its id
   parserOut << "    return v;\n";
   parserOut << "  }\n";
 
   // for each attribute, emit a rule to parse it as an attribute of this tag
-  // ->MidOpen
+  // ->Open
   emitXmlCtorArgs_AttributeParseRule(parserOut, *args, name);
   emitXmlFields_AttributeParseRule(parserOut, *decls, name);
   emitXmlCtorArgs_AttributeParseRule(parserOut, *lastArgs, name);
@@ -2457,8 +2450,7 @@ void CGen::emitXmlParser_FakeList(ostream &parserOut, char const *type)
   // Mid
   parserOut << "\n";
   parserOut << "nonterm(void*) Mid_" << name << " {\n";
-  // ->Open
-  parserOut << "  -> v:Open_" << name << " {return v;}\n";
+  parserOut << "  -> v:Open_" << name << " \">\" {return v;}\n";
 
   // only one rule as lists are homogeneous
   xassert(isTreeNode(type));
@@ -2475,12 +2467,6 @@ void CGen::emitXmlParser_FakeList(ostream &parserOut, char const *type)
   // Open
   parserOut << "\n";
   parserOut << "nonterm(void*) Open_" << name << " {\n";
-  parserOut << "  -> v:MidOpen_" << name << " \">\" {return v;}\n";
-  parserOut << "}\n";
-
-  // MidOpen
-  parserOut << "\n";
-  parserOut << "nonterm(void*) MidOpen_" << name << " {\n";
 
   parserOut << "  -> \"<\" \"" << name << "\" {";
 // FIX: #warning make a real list
@@ -2488,9 +2474,9 @@ void CGen::emitXmlParser_FakeList(ostream &parserOut, char const *type)
   parserOut << "}\n";
 
   // for each metadata attribute; there is only one for now: ".id"
-  // ->MidOpen attribute
+  // ->Open attribute
   parserOut << "\n";
-  parserOut << "  -> v:MidOpen_" << name << " \".id\" \"=\" x:Literal {\n";
+  parserOut << "  -> v:Open_" << name << " \".id\" \"=\" x:Literal {\n";
 // FIX: #warning file the object under its id
   parserOut << "    return v;\n";
   parserOut << "  }\n";
@@ -2514,8 +2500,7 @@ void CGen::emitXmlParser_ASTList(ostream &parserOut, char const *type)
   // Mid
   parserOut << "\n";
   parserOut << "nonterm(void*) Mid_" << name << " {\n";
-  // ->Open
-  parserOut << "  -> v:Open_" << name << " {return v;}\n";
+  parserOut << "  -> v:Open_" << name << " \">\" {return v;}\n";
 
   // only one rule as lists are homogeneous
   xassert(isTreeNode(type));
@@ -2532,12 +2517,6 @@ void CGen::emitXmlParser_ASTList(ostream &parserOut, char const *type)
   // Open
   parserOut << "\n";
   parserOut << "nonterm(void*) Open_" << name << " {\n";
-  parserOut << "  -> v:MidOpen_" << name << " \">\" {return v;}\n";
-  parserOut << "}\n";
-
-  // MidOpen
-  parserOut << "\n";
-  parserOut << "nonterm(void*) MidOpen_" << name << " {\n";
 
   parserOut << "  -> \"<\" \"" << name << "\" {";
 // FIX: #warning make a real list
@@ -2545,9 +2524,9 @@ void CGen::emitXmlParser_ASTList(ostream &parserOut, char const *type)
   parserOut << "}\n";
 
   // for each metadata attribute; there is only one for now: ".id"
-  // ->MidOpen attribute
+  // ->Open attribute
   parserOut << "\n";
-  parserOut << "  -> v:MidOpen_" << name << " \".id\" \"=\" x:Literal {\n";
+  parserOut << "  -> v:Open_" << name << " \".id\" \"=\" x:Literal {\n";
 // FIX: #warning file the object under its id
   parserOut << "    return v;\n";
   parserOut << "  }\n";
