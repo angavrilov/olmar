@@ -139,4 +139,4 @@ bool AccessMod::hasMod(char const *mod) const
   return false;      // not found
 }
 
-} // end verbatim_impl
+} // end impl_verbatim
