@@ -2377,7 +2377,9 @@ void CGen::emitXmlParser_Node
 
   // Node
   parserOut << "nonterm(void*) Node_" << name << " {\n";
-  parserOut << "  -> v:Mid_" << name << " End_" << name << " {return v;}\n";
+  parserOut << "  -> v:Mid_" << name
+            << " \"<\" \"/\" \"" << name << "\" \">\""
+            << " {return v;}\n";
   parserOut << "}\n";
 
   // Mid
@@ -2408,8 +2410,14 @@ void CGen::emitXmlParser_Node
   // MidOpen
   parserOut << "\n";
   parserOut << "nonterm(void*) MidOpen_" << name << " {\n";
-  // ->StartOpen
-  parserOut << "  -> v:StartOpen_" << name << " {return v;}\n";
+
+  parserOut << "  -> \"<\" \"" << name << "\" {return new " << name << "(";
+  // we need to supply however many NULL args here as there are ctor args.
+  bool firstTime = true;
+  if (args)      {emitXmlParser_objCtorArgs(parserOut, *args, firstTime);}
+  if (childArgs) {emitXmlParser_objCtorArgs(parserOut, *childArgs, firstTime);}
+  if (lastArgs)  {emitXmlParser_objCtorArgs(parserOut, *lastArgs, firstTime);}
+  parserOut << ");}\n";
 
   // for each metadata attribute; there is only one for now: ".id"
   // ->MidOpen attribute
@@ -2431,24 +2439,6 @@ void CGen::emitXmlParser_Node
   }
 
   parserOut << "}\n";
-
-  // StartOpen
-  parserOut << "\n";
-  parserOut << "nonterm(void*) StartOpen_" << name << " {\n";
-  parserOut << "  -> \"<\" \"" << name << "\" {return new " << name << "(";
-  // we need to supply however many NULL args here as there are ctor args.
-  bool firstTime = true;
-  if (args)      {emitXmlParser_objCtorArgs(parserOut, *args, firstTime);}
-  if (childArgs) {emitXmlParser_objCtorArgs(parserOut, *childArgs, firstTime);}
-  if (lastArgs)  {emitXmlParser_objCtorArgs(parserOut, *lastArgs, firstTime);}
-  parserOut << ");}\n";
-  parserOut << "}\n";
-
-  // End
-  parserOut << "\n";
-  parserOut << "nonterm End_" << name << " {\n";
-  parserOut << "  -> \"<\" \"/\" \"" << name << "\" \">\" {}\n";
-  parserOut << "}\n";
 }
 
 void CGen::emitXmlParser_FakeList(ostream &parserOut, char const *type)
@@ -2459,7 +2449,9 @@ void CGen::emitXmlParser_FakeList(ostream &parserOut, char const *type)
 
   // Node
   parserOut << "nonterm(void*) Node_" << name << " {\n";
-  parserOut << "  -> v:Mid_" << name << " End_" << name << " {return v;}\n";
+  parserOut << "  -> v:Mid_" << name
+            << " \"<\" \"/\" \"" << name << "\" \">\""
+            << " {return v;}\n";
   parserOut << "}\n";
 
   // Mid
@@ -2489,8 +2481,11 @@ void CGen::emitXmlParser_FakeList(ostream &parserOut, char const *type)
   // MidOpen
   parserOut << "\n";
   parserOut << "nonterm(void*) MidOpen_" << name << " {\n";
-  // ->StartOpen
-  parserOut << "  -> v:StartOpen_" << name << " {return v;}\n";
+
+  parserOut << "  -> \"<\" \"" << name << "\" {";
+// FIX: #warning make a real list
+  parserOut << "return NULL;";
+  parserOut << "}\n";
 
   // for each metadata attribute; there is only one for now: ".id"
   // ->MidOpen attribute
@@ -2500,21 +2495,6 @@ void CGen::emitXmlParser_FakeList(ostream &parserOut, char const *type)
   parserOut << "    return v;\n";
   parserOut << "  }\n";
 
-  parserOut << "}\n";
-
-  // StartOpen
-  parserOut << "\n";
-  parserOut << "nonterm(void*) StartOpen_" << name << " {\n";
-  parserOut << "  -> \"<\" \"" << name << "\" {";
-// FIX: #warning make a real list
-  parserOut << "return NULL;";
-  parserOut << ";}\n";
-  parserOut << "}\n";
-
-  // End
-  parserOut << "\n";
-  parserOut << "nonterm End_" << name << " {\n";
-  parserOut << "  -> \"<\" \"/\" \"" << name << "\" \">\" {}\n";
   parserOut << "}\n";
 }
 
@@ -2526,7 +2506,9 @@ void CGen::emitXmlParser_ASTList(ostream &parserOut, char const *type)
 
   // Node
   parserOut << "nonterm(void*) Node_" << name << " {\n";
-  parserOut << "  -> v:Mid_" << name << " End_" << name << " {return v;}\n";
+  parserOut << "  -> v:Mid_" << name
+            << " \"<\" \"/\" \"" << name << "\" \">\""
+            << " {return v;}\n";
   parserOut << "}\n";
 
   // Mid
@@ -2556,8 +2538,11 @@ void CGen::emitXmlParser_ASTList(ostream &parserOut, char const *type)
   // MidOpen
   parserOut << "\n";
   parserOut << "nonterm(void*) MidOpen_" << name << " {\n";
-  // ->StartOpen
-  parserOut << "  -> v:StartOpen_" << name << " {return v;}\n";
+
+  parserOut << "  -> \"<\" \"" << name << "\" {";
+// FIX: #warning make a real list
+  parserOut << "return NULL;";
+  parserOut << "}\n";
 
   // for each metadata attribute; there is only one for now: ".id"
   // ->MidOpen attribute
@@ -2567,21 +2552,6 @@ void CGen::emitXmlParser_ASTList(ostream &parserOut, char const *type)
   parserOut << "    return v;\n";
   parserOut << "  }\n";
 
-  parserOut << "}\n";
-
-  // StartOpen
-  parserOut << "\n";
-  parserOut << "nonterm(void*) StartOpen_" << name << " {\n";
-  parserOut << "  -> \"<\" \"" << name << "\" {";
-// FIX: #warning make a real list
-  parserOut << "return NULL;";
-  parserOut << ";}\n";
-  parserOut << "}\n";
-
-  // End
-  parserOut << "\n";
-  parserOut << "nonterm End_" << name << " {\n";
-  parserOut << "  -> \"<\" \"/\" \"" << name << "\" \">\" {}\n";
   parserOut << "}\n";
 }
 
