@@ -2266,14 +2266,14 @@ void CGen::emitXmlField_AttributeParseRule
   if (0==strcmp(type, "string")) {
     parserOut << "  -> v:Open_" << baseName << " \"" << name << "\" \"=\" "
               << "x:XTOK_STRING_LITERAL {\n";
-// FIX: #warning file the object under its id
+    parserOut << "    ((" << baseName << "*)v)->" << name << " = strdup(x);\n";
     parserOut << "    return v;\n";
     parserOut << "  }\n";
   }
   else if (0==strcmp(type, "bool")) {
     parserOut << "  -> v:Open_" << baseName << " \"" << name << "\" \"=\" "
               << "x:XTOK_STRING_LITERAL {\n";
-// FIX: #warning file the object under its id
+    parserOut << "    ((" << baseName << "*)v)->" << name << " = (strcmp(x, \"true\") == 0);\n";
     parserOut << "    return v;\n";
     parserOut << "  }\n";
   }
@@ -2461,10 +2461,7 @@ void CGen::emitXmlParser_FakeList(ostream &parserOut, char const *type)
   xassert(isTreeNode(type));
   parserOut << "\n";
   parserOut << "  -> v:Mid_" << name << " child:Node_" << type << " {\n";
-// FIX: #warning append to the list here
-  //      parserOut << "    static_cast<" << baseName << "*>(v)->foo = "
-  //                << "static_cast<" << type << "*>(child);\n";
-  parserOut << "    return v;\n";
+  parserOut << "    return ((FakeList<" << type << ">*)v)->prepend((" << type << "*)child);\n";
   parserOut << "  }\n";
 
   parserOut << "}\n";
@@ -2473,10 +2470,7 @@ void CGen::emitXmlParser_FakeList(ostream &parserOut, char const *type)
   parserOut << "\n";
   parserOut << "nonterm(void*) Open_" << name << " {\n";
 
-  parserOut << "  -> \"<\" \"" << name << "\" {";
-// FIX: #warning make a real list
-  parserOut << "return NULL;";
-  parserOut << "}\n";
+  parserOut << "  -> \"<\" \"" << name << "\" { return FakeList<" << type << ">::emptyList(); }\n";
 
   // for each metadata attribute; there is only one for now: ".id"
   // ->Open attribute
@@ -2511,9 +2505,7 @@ void CGen::emitXmlParser_ASTList(ostream &parserOut, char const *type)
   xassert(isTreeNode(type));
   parserOut << "\n";
   parserOut << "  -> v:Mid_" << name << " child:Node_" << type << " {\n";
-// FIX: #warning append to the list here
-  //      parserOut << "    static_cast<" << baseName << "*>(v)->foo = "
-  //                << "static_cast<" << type << "*>(child);\n";
+  parserOut << "    ((ASTList<" << type << ">*)v)->append((" << type << "*)child);\n";
   parserOut << "    return v;\n";
   parserOut << "  }\n";
 
@@ -2523,10 +2515,7 @@ void CGen::emitXmlParser_ASTList(ostream &parserOut, char const *type)
   parserOut << "\n";
   parserOut << "nonterm(void*) Open_" << name << " {\n";
 
-  parserOut << "  -> \"<\" \"" << name << "\" {";
-// FIX: #warning make a real list
-  parserOut << "return NULL;";
-  parserOut << "}\n";
+  parserOut << "  -> \"<\" \"" << name << "\" {return new ASTList<" << type << ">();}\n";
 
   // for each metadata attribute; there is only one for now: ".id"
   // ->Open attribute
@@ -2610,7 +2599,6 @@ void CGen::emitXmlParserImplementation()
     tokensOutH  << "  XTOK_FakeList_" << cls << ", // \"FakeList_" << cls << "\"\n";
     tokensOutCC << "  \"XTOK_FakeList_" << cls << "\",\n";
     lexerOut  << "\"FakeList_" << cls << "\" return tok(XTOK_FakeList_" << cls << ");\n";
-// FIX: #warning emit fake list node parsing rules
     emitXmlParser_FakeList(parserOut, cls);
   }
 
