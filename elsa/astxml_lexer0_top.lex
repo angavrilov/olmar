@@ -40,9 +40,6 @@
 /* and I will define the class (lexer.h) */
 %option yyclass="AstXmlLexer"
 
-/* start conditions */
-%x BUGGY_STRING_LIT
-
 /* ------------------- definitions -------------------- */
 /* newline */
 NL            "\n"

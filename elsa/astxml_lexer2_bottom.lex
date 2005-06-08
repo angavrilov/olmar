@@ -44,32 +44,6 @@
 }
 
 
-  /* This scanner reads in a string literal that contains unescaped
-   * newlines, to support a gcc-2 bug.  The strategy is to emit a
-   * sequence of XTOK_STRING_LITERALs, as if the string had been
-   * properly broken into multiple literals.  However, these literals
-   * aren't consistently surrounded by quotes... */
-<BUGGY_STRING_LIT>{
-  ({STRCHAR}|{ESCAPE})*{QUOTE} {
-    // found the end
-    BEGIN(INITIAL);
-    return svalTok(XTOK_STRING_LITERAL);
-  }
-  ({STRCHAR}|{ESCAPE})*{EOL} {
-    // another line
-    return svalTok(XTOK_STRING_LITERAL);
-  }
-  <<EOF>> |
-  ({STRCHAR}|{ESCAPE})*{BACKSL}? {
-    // unterminated (this only matches at EOF)
-    err("at EOF, unterminated string literal; support for newlines in string "
-        "literals is presently turned on, maybe the missing quote should have "
-        "been much earlier in the file?");
-    yyterminate();
-  }
-}
-
-
   /* whitespace */
   /* 10/20/02: added '\r' to accomodate files coming from Windows; this
    * could be seen as part of the mapping from physical source file
