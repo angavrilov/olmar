@@ -76,8 +76,6 @@ bool nocvr = false;
 enum TreeNodeKind { TKN_NONE, TKN_SUPERCLASS, TKN_SUBCLASS };
 
 class Gen {
-protected:        // types
-
 protected:        // data
   string srcFname;                  // name of source file
   ObjList<string> const &modules;   // extension modules
@@ -89,10 +87,6 @@ public:           // funcs
   Gen(rostring srcFname, ObjList<string> const &modules,
       rostring destFname, ASTSpecFile const &file);
   ~Gen();
-
-  void getListClasses(CtorArg const *arg);
-  void getListClasses(ASTClass const *c);
-  void getListClasses();
 
   // shared output sequences
   void headerComments();
@@ -965,7 +959,6 @@ class XmlParserGen {
   public:
   void emitXmlParserImplementation();
 };
-
 
 
 void CGen::emitFile()
@@ -2983,6 +2976,48 @@ void mergeExtension(ASTSpecFile *base, ASTSpecFile *ext)
 #undef allClasses
 
 
+void getListClasses(CtorArg const *arg) {
+  // I would rather visit all the lists, but we don't seem to generate
+  // visit() traversals for non-tree nodes, so there is nothing to put
+  // inside the nesting
+  if (isListType(arg->type) && isTreeNode(extractListType(arg->type))) {
+    string listType = extractListType(arg->type);
+    string listName = stringc << "ASTList_" << listType;
+    if (!astListClassesSet.contains(listName)) {
+      astListClassesSet.add(listName);
+      astListClasses.append(strdup(listType.c_str()));
+    }
+  }
+  if (isFakeListType(arg->type) && isTreeNode(extractListType(arg->type))) {
+    string listType = extractListType(arg->type);
+    string listName = stringc << "FakeList_" << listType;
+    if (!fakeListClassesSet.contains(listName)) {
+      fakeListClassesSet.add(listName);
+      fakeListClasses.append(strdup(listType.c_str()));
+    }
+  }
+}
+
+void getListClasses(ASTClass const *c) {
+  FOREACH_ASTLIST(CtorArg, c->args, ctorIter) {
+    getListClasses(ctorIter.data());
+  }
+  FOREACH_ASTLIST(CtorArg, c->lastArgs, ctorIter) {
+    getListClasses(ctorIter.data());
+  }
+}
+
+void getListClasses() {
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *cls = iter.data();
+    getListClasses(cls->super);
+    FOREACH_ASTLIST(ASTClass, cls->ctors, ctorIter) {
+      getListClasses(ctorIter.data());
+    }
+  }
+}
+
+
 // --------------------- toplevel control ----------------------
 void checkUnusedCustoms(ASTClass const *c)
 {
@@ -3018,48 +3053,6 @@ void grabOptionName(rostring opname, string &oparg, TF_option const *op)
 
   // name of the visitor interface class
   oparg = *( op->args.firstC() );
-}
-
-
-void Gen::getListClasses(CtorArg const *arg) {
-  // I would rather visit all the lists, but we don't seem to generate
-  // visit() traversals for non-tree nodes, so there is nothing to put
-  // inside the nesting
-  if (isListType(arg->type) && isTreeNode(extractListType(arg->type))) {
-    string listType = extractListType(arg->type);
-    string listName = stringc << "ASTList_" << listType;
-    if (!astListClassesSet.contains(listName)) {
-      astListClassesSet.add(listName);
-      astListClasses.append(strdup(listType.c_str()));
-    }
-  }
-  if (isFakeListType(arg->type) && isTreeNode(extractListType(arg->type))) {
-    string listType = extractListType(arg->type);
-    string listName = stringc << "FakeList_" << listType;
-    if (!fakeListClassesSet.contains(listName)) {
-      fakeListClassesSet.add(listName);
-      fakeListClasses.append(strdup(listType.c_str()));
-    }
-  }
-}
-
-void Gen::getListClasses(ASTClass const *c) {
-  FOREACH_ASTLIST(CtorArg, c->args, ctorIter) {
-    getListClasses(ctorIter.data());
-  }
-  FOREACH_ASTLIST(CtorArg, c->lastArgs, ctorIter) {
-    getListClasses(ctorIter.data());
-  }
-}
-
-void Gen::getListClasses() {
-  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
-    TF_class const *cls = iter.data();
-    getListClasses(cls->super);
-    FOREACH_ASTLIST(ASTClass, cls->ctors, ctorIter) {
-      getListClasses(ctorIter.data());
-    }
-  }
 }
 
 
@@ -3180,6 +3173,9 @@ void entry(int argc, char **argv)
     base = basename;
   }
 
+  // get all of the list classes
+  getListClasses();
+
   // dsw: I want a way to generate just the parser and nothing else;
   // this separation into two blocks suggests that parsing the ast
   // file and generating something from it should perhaps be separated
@@ -3187,7 +3183,6 @@ void entry(int argc, char **argv)
   if (!tracingSys("no_ast.gen")) {
     string hdrFname = base & ".h";
     HGen hg(srcFname, modules, hdrFname, *ast);
-    hg.getListClasses();          // get all of the list classes
     cout << "writing " << hdrFname << "...\n";
     hg.emitFile();
 
