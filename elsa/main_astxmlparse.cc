@@ -23,26 +23,28 @@ class ReadXml {
     , lastKind(0)
   {}
 
-  // INSERT per ast node
-  void registerAttr_TranslationUnit(TranslationUnit *obj, int attr, char const *strValue);
+#include "astxml_parse1_0rdecl.gen.cc"
+//    // INSERT per ast node
+//    void registerAttr_TranslationUnit(TranslationUnit *obj, int attr, char const *strValue);
 
   void userError(char *msg) NORETURN;
   void readAttributes();
   void go();
 };
 
-// INSERT per ast node
-void ReadXml::registerAttr_TranslationUnit(TranslationUnit *obj, int attr, char const *strValue)
-{
-  switch(attr) {
-  default:
-    userError("illegal attribute for a TranslationUnit");
-    break;
-  case XTOK_topForms:
-//      obj->topForms = strdup(strValue);
-    break;
-  }
-}
+#include "astxml_parse1_1rdefn.gen.cc"
+//  // INSERT per ast node
+//  void ReadXml::registerAttr_TranslationUnit(TranslationUnit *obj, int attr, char const *strValue)
+//  {
+//    switch(attr) {
+//    default:
+//      userError("illegal attribute for a TranslationUnit");
+//      break;
+//    case XTOK_topForms:
+//  //      obj->topForms = strdup(strValue);
+//      break;
+//    }
+//  }
 
 void ReadXml::userError(char *msg) {
   THROW(xBase(stringc << inputFname << ":" << lexer.linenumber << ":" << msg));
@@ -68,13 +70,11 @@ void ReadXml::go() {
     case 0: userError("unexpected file termination while looking for an open tag name");
     case XTOK_SLASH:
       goto close_tag;
-    // INSERT per ast node
-    case XTOK_TranslationUnit:
-      topTemp = new TranslationUnit(0);
-      break;
-    case XTOK_ASTList_TopForm:
-      topTemp = new int;        // FIX:
-      break;
+#include "astxml_parse1_2ccall.gen.cc"
+//      // INSERT per ast node
+//      case XTOK_TranslationUnit:
+//        topTemp = new TranslationUnit(0);
+//        break;
     }
     nodeStack.push(topTemp);
     kindStack.push(new int(tag));
@@ -113,11 +113,10 @@ void ReadXml::readAttributes() {
   while(1) {
     int attr = lexer.yylex();
     switch(attr) {
+    default: break;             // go on; assume it is a legal attribute tag
     case 0: userError("unexpected file termination while looking for an attribute name");
     case XTOK_GREATERTHAN:
       return;
-    default:
-      break;                    // go on; assume it is a legal attribute tag
     }
 
     int eq = lexer.yylex();
@@ -147,9 +146,11 @@ void ReadXml::readAttributes() {
       // FIX: file the object under its id
     } else {
       switch(*kindStack.top()) {
-      // INSERT per ast node
-      case XTOK_TranslationUnit:
-        registerAttr_TranslationUnit((TranslationUnit*)nodeStack.top(), attr, lexer.YYText());
+      default: xfailure("illegal kind");
+#include "astxml_parse1_3rcall.gen.cc"
+//        // INSERT per ast node
+//        case XTOK_TranslationUnit:
+//          registerAttr_TranslationUnit((TranslationUnit*)nodeStack.top(), attr, lexer.YYText());
       }
     }
   }

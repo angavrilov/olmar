@@ -35,15 +35,15 @@ string AstXmlLexer::tokenKindDesc(int kind) const
 }
 
 int AstXmlLexer::tok(ASTXMLTokenType kind) {
-  printf("%s\n", tokenKindDesc(kind).c_str());
-  fflush(stdout);
+//    printf("%s\n", tokenKindDesc(kind).c_str());
+//    fflush(stdout);
   return kind;
 }
 
 int AstXmlLexer::svalTok(ASTXMLTokenType kind)
 {
-  printf("%s '%s'\n", tokenKindDesc(kind).c_str(), yytext);
-  fflush(stdout);
+//    printf("%s '%s'\n", tokenKindDesc(kind).c_str(), yytext);
+//    fflush(stdout);
   return kind;
 }
 
