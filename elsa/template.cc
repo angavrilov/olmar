@@ -659,6 +659,20 @@ void TemplateInfo::copyArguments(SObjList<STemplateArgument> const &sargs)
 }
 
 
+void TemplateInfo::prependArguments(ObjList<STemplateArgument> const &sargs)
+{
+  // save the existing arguments (if any)
+  ObjList<STemplateArgument> existing;
+  existing.concat(arguments);
+  
+  // put the new ones in
+  copyTemplateArgs(arguments, objToSObjListC(sargs));
+  
+  // put the old ones at the end
+  arguments.concat(existing);
+}
+
+
 string TemplateInfo::templateName() const
 {
   if (isPrimary()) {
@@ -1539,6 +1553,19 @@ Variable *Env::lookupPQVariable_applyArgsTemplInst
 }
 
 
+// this could be a template...
+void removeElementRange(SObjList<STemplateArgument> &list, int start, int num)
+{
+  SObjListMutator<STemplateArgument> mut(list);
+  while (start--) {
+    mut.adv();
+  }
+  while (num--) {
+    mut.remove();
+  }
+}
+
+
 // insert bindings into SK_TEMPLATE_ARG scopes, from template
 // parameters to concrete template arguments
 void Env::insertTemplateArgBindings
@@ -1564,6 +1591,18 @@ void Env::insertTemplateArgBindings
       SObjList<STemplateArgument> const &piArgs =
         objToSObjListC(baseVTI->arguments);
       expandedSargs.prependAll(piArgs);
+
+      if (baseVTI->isPartialSpec()) {
+        // (in/t0504.cc) Oy, partial inst of partial spec.  I only
+        // want some of the args I just prepended, namely the ones
+        // that are *not* partial spec args.  So, remove the ones that
+        // are; they come after the partial inst args in 'piArgs'.
+        // (Disgusting hack.  It's a miracle it works at all.)
+        TemplateInfo *origTI = baseVTI->partialInstantiationOf->templateInfo();
+        int numPartialSpecArgs = origTI->arguments.count();
+        removeElementRange(expandedSargs, piArgs.count() - numPartialSpecArgs,
+                           numPartialSpecArgs);
+      }
 
       // finally, set 'baseVTI' to point at the original template,
       // since it has the parameter list for the definition
@@ -1768,11 +1807,18 @@ void Env::mapPrimaryArgsToSpecArgs(
   // TODO: add 'const' to matchtypes
   SObjList<STemplateArgument> &hackPrimaryArgs =
     const_cast<SObjList<STemplateArgument>&>(primaryArgs);
+  
+  // similar to Env::findMostSpecific, we need to match against the
+  // original's args if this is a partial instantiation (in/t0504.cc)
+  TemplateInfo *baseVTI = baseV->templateInfo();
+  TemplateInfo *matchTI = baseVTI;
+  if (baseVTI->isPartialInstantiation()) {
+    matchTI = baseVTI->partialInstantiationOf->templateInfo();
+  }
 
   // execute the match to derive the bindings; we should not have
   // gotten here if they do not unify (Q: why the matchDepth==2?)
-  TemplateInfo *baseVTI = baseV->templateInfo();
-  bool matches = match.match_Lists(hackPrimaryArgs, baseVTI->arguments, 2 /*matchDepth*/);
+  bool matches = match.match_Lists(hackPrimaryArgs, matchTI->arguments, 2 /*matchDepth*/);
   xassert(matches);
 
   // Now the arguments are bound in 'bindings', for example
@@ -1845,9 +1891,16 @@ Variable *Env::findMostSpecific
     SObjList<STemplateArgument> &hackSargs =
       const_cast<SObjList<STemplateArgument>&>(sargs);
 
+    // if 'specTI' is a partial instantiation, we want to match
+    // against the original argument list (in/t0504.cc)
+    TemplateInfo *matchTI = specTI;
+    if (specTI->isPartialInstantiation()) {
+      matchTI = specTI->partialInstantiationOf->templateInfo();
+    }
+
     // see if this candidate matches
     MatchTypes match(tfac, MatchTypes::MM_BIND);
-    if (match.match_Lists(hackSargs, specTI->arguments, 2 /*matchDepth (?)*/)) {
+    if (match.match_Lists(hackSargs, matchTI->arguments, 2 /*matchDepth (?)*/)) {
       templCandidates.add(spec);
     }
   }
@@ -3174,7 +3227,11 @@ void Env::transferTemplateMemberInfo_membert
     return;
   }
 
-  destTI->copyArguments(sargs);
+  // 2005-06-09: (in/t0504.cc) prepend instead of copy, because 'destTI'
+  // might be a partial instantiation (and therefore already has some
+  // arguments), and we want 'sargs' to be regarded as the arguments to
+  // its containing template
+  destTI->prependArguments(sargs);
 
   srcTI->addPartialInstantiation(destVar);
 

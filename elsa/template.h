@@ -342,9 +342,13 @@ public:      // funcs
   // TODO: what is this used for?
   bool hasSpecificParameter(Variable const *v) const;
 
-  // copy 'sargs' into 'arguments'
+  // copy 'sargs' into 'arguments'; the latter must be empty
+  // to begin with
   void copyArguments(ObjList<STemplateArgument> const &sargs);
   void copyArguments(SObjList<STemplateArgument> const &sargs);
+
+  // prepend 'sargs' onto 'arguments'
+  void prependArguments(ObjList<STemplateArgument> const &sargs);
 
   // debugging/error messages: print the fully qualified name,
   // plus arguments/parameters, to identify this template thing
