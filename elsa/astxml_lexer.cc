@@ -49,7 +49,7 @@ int AstXmlLexer::svalTok(ASTXMLTokenType kind)
 
 void AstXmlLexer::err(char const *msg)
 {
-  errors++;
+//    errors++;
   // FIX: do locations
 //    cerr << toString(loc) << ": error: " << msg << endl;
 }

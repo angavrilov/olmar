@@ -12,14 +12,10 @@
 
 class AstXmlLexer : public yyFlexLexer {
   public:
-  void *treeTop;
-  SemanticValue sval;
-  int errors;
+  int linenumber;
 
   AstXmlLexer()
-    : treeTop(NULL)
-    , sval(0)
-    , errors(0)
+    : linenumber(1)             // file line counting traditionally starts at 1
   {}
 
   int tok(ASTXMLTokenType kind);

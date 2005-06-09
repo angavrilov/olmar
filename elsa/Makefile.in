@@ -190,7 +190,8 @@ astxml_tokens.ids: astxml_tokens.h
 
 # run astgen to generate the AST implementation
 TOCLEAN += cc.ast.gen.h cc.ast.gen.cc
-cc.ast.gen.h cc.ast.gen.cc: $(CC_AST_MODS) $(AST)/astgen
+# cc.ast.gen.h cc.ast.gen.cc: $(CC_AST_MODS) $(AST)/astgen
+cc.ast.gen.h cc.ast.gen.cc: $(CC_AST_MODS)
 	$(AST)/astgen -occ.ast.gen $(CC_AST_MODS)
 
 

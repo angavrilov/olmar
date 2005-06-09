@@ -43,13 +43,16 @@
   yyterminate();
 }
 
+[\n]   {
+  ++linenumber;                 /* have to do this manually; see above */
+}
 
   /* whitespace */
   /* 10/20/02: added '\r' to accomodate files coming from Windows; this
    * could be seen as part of the mapping from physical source file
    * characters to the basic character set (cppstd 2.1 para 1 phase 1),
    * except that it doesn't happen for chars in string/char literals... */
-[ \t\n\f\v\r]+  {
+[ \t\f\v\r]+  {
   /*    whitespace(); */
 }
 

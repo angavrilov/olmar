@@ -37,6 +37,12 @@
 /* the scanner is never interactive */
 %option never-interactive
 
+/* I want to give good error messages and flex is way faster than a
+   parser so I think this is a good tradeoff; UPDATE: arg, Scott's
+   scheme seems to require %option full just to work at all and which
+   seems to contradict this option. */
+  /* %option yylineno */
+
 /* and I will define the class (lexer.h) */
 %option yyclass="AstXmlLexer"
 
