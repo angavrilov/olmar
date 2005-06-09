@@ -927,34 +927,49 @@ class XmlParserGen {
   StringSet attributeNames;     // names of attributes of AST nodes
   StringDict sub2superMap;      // map from subclass names to superclass names
 
+  ofstream tokensOutH;
+  ofstream tokensOutCC;
+  ofstream lexerOut;
+
+  ofstream parser0_registerDecls;
+  ofstream parser1_registerDefs;
+  ofstream parser2_ctorCalls;
+  ofstream parser3_registerCalls;
+
+  public:
+  XmlParserGen(string &xmlParserName)
+    : tokensOutH(stringc << xmlParserName << "_tokens1_mid.gen.h")
+    , tokensOutCC(stringc << xmlParserName << "_lexer1_mid.gen.cc")
+    , lexerOut(stringc << xmlParserName << "_lexer1_mid.gen.lex")
+
+    , parser0_registerDecls(stringc << xmlParserName << "_parse1_0rdecl.gen.cc")
+    , parser1_registerDefs (stringc << xmlParserName << "_parse1_1rdefn.gen.cc")
+    , parser2_ctorCalls    (stringc << xmlParserName << "_parse1_2ccall.gen.cc")
+    , parser3_registerCalls(stringc << xmlParserName << "_parse1_3rcall.gen.cc")
+  {}
+
   private:
   void collectXmlParserCtorArgs(ASTList<CtorArg> const &args, char const *baseName);
   void collectXmlParserFields(ASTList<Annotation> const &decls, char const *baseName);
   void collectXmlParserField(bool isOwner, rostring type, rostring name, char const *baseName);
-  void emitXmlCtorArgs_ChildParseRule
-    (StringSet &childNameSet, ASTList<CtorArg> const &args, string &baseName);
-  void emitXmlFields_ChildParseRule
-    (StringSet &childNameSet, ASTList<Annotation> const &decls, string &baseName);
-  void collectXmlField_ChildParseRule
-    (StringSet &childNameSet, bool isOwner, rostring type, rostring name, string &baseName);
-  void emitXmlCtorArgs_AttributeParseRule
-    (ostream &parserOut, ASTList<CtorArg> const &args, string &baseName);
-  void emitXmlFields_AttributeParseRule
-    (ostream &parserOut, ASTList<Annotation> const &decls, string &baseName);
+
+  void emitXmlCtorArgs_AttributeParseRule(ASTList<CtorArg> const &args, string &baseName);
+  void emitXmlFields_AttributeParseRule(ASTList<Annotation> const &decls, string &baseName);
   void emitXmlField_AttributeParseRule
-    (ostream &parserOut, bool isOwner, rostring type, rostring name, string &baseName);
+    (bool isOwner, rostring type, rostring name, string &baseName);
+
   void emitXmlParser_objCtorArgs
-    (ostream &parserOut, ASTList<CtorArg> const &args, bool &firstTime);
+    (ASTList<CtorArg> const &args, bool &firstTime);
+
   void emitXmlParser_Node
-    (ostream &parserOut,
-     ASTClass const *clazz,
+    (ASTClass const *clazz,
      ASTList<CtorArg> const *args,
      ASTList<Annotation> const *decls,
      ASTList<CtorArg> const *lastArgs,
      ASTList<CtorArg> const *childArgs = NULL,
      ASTList<Annotation> const *childDecls = NULL);
-  void emitXmlParser_ASTList(ostream &parserOut, char const *type);
-  void emitXmlParser_FakeList(ostream &parserOut, char const *type);
+  void emitXmlParser_ASTList(char const *type);
+  void emitXmlParser_FakeList(char const *type);
 
   public:
   void emitXmlParserImplementation();
@@ -2320,7 +2335,8 @@ void XmlParserGen::collectXmlParserFields(ASTList<Annotation> const &decls, char
   }
 }
 
-void XmlParserGen::collectXmlParserField(bool isOwner, rostring type, rostring name, char const *baseName)
+void XmlParserGen::collectXmlParserField
+  (bool isOwner, rostring type, rostring name, char const *baseName)
 {
   if (0==strcmp(type, "string")) {
     attributeNames.add(name);
@@ -2340,59 +2356,6 @@ void XmlParserGen::collectXmlParserField(bool isOwner, rostring type, rostring n
     attributeNames.add(name);
   }
 
-//    else {
-//      // catch-all ..
-//  //      out << "  " << print << "_GENERIC(" << name << ");\n";
-//    }
-}
-
-void XmlParserGen::emitXmlCtorArgs_ChildParseRule
-  (StringSet &childNameSet, ASTList<CtorArg> const &args, string &baseName)
-{
-  FOREACH_ASTLIST(CtorArg, args, argiter) {
-    CtorArg const &arg = *(argiter.data());
-    collectXmlField_ChildParseRule(childNameSet, arg.isOwner, arg.type, arg.name, baseName);
-  }
-}
-
-void XmlParserGen::emitXmlFields_ChildParseRule
-  (StringSet &childNameSet, ASTList<Annotation> const &decls, string &baseName)
-{
-  FOREACH_ASTLIST(Annotation, decls, iter) {
-    if (!iter.data()->isUserDecl()) continue;
-    UserDecl const *ud = iter.data()->asUserDeclC();
-    if (!ud->amod->hasMod("field")) continue;
-    collectXmlField_ChildParseRule(childNameSet,
-                                ud->amod->hasMod("owner"),
-                                extractFieldType(ud->code),
-                                extractFieldName(ud->code),
-                                baseName);
-  }
-}
-
-void XmlParserGen::collectXmlField_ChildParseRule
-  (StringSet &childNameSet, bool isOwner, rostring type, rostring name, string &baseName)
-{
-  if (0==strcmp(type, "string")) {
-    // a scalar; do nothing
-  }
-  else if (0==strcmp(type, "bool")) {
-    // a scalar; do nothing
-  }
-
-  else if (isListType(type)) {
-    string name = stringc << "ASTList_" << extractListType(type);
-    childNameSet.add(name);
-  }
-  else if (isFakeListType(type)) {
-    string name = stringc << "FakeList_" << extractListType(type);
-    childNameSet.add(name);
-  }
-  else if (isTreeNode(type) ||
-           (isTreeNodePtr(type) && isOwner)) {
-    string name = extractNodeType(type);
-    childNameSet.add(name);
-  }
 //    else {
 //      // catch-all ..
 //  //      out << "  " << print << "_GENERIC(" << name << ");\n";
@@ -2401,23 +2364,22 @@ void XmlParserGen::collectXmlField_ChildParseRule
 
 
 void XmlParserGen::emitXmlCtorArgs_AttributeParseRule
-  (ostream &parserOut, ASTList<CtorArg> const &args, string &baseName)
+  (ASTList<CtorArg> const &args, string &baseName)
 {
   FOREACH_ASTLIST(CtorArg, args, argiter) {
     CtorArg const &arg = *(argiter.data());
-    emitXmlField_AttributeParseRule(parserOut, arg.isOwner, arg.type, arg.name, baseName);
+    emitXmlField_AttributeParseRule(arg.isOwner, arg.type, arg.name, baseName);
   }
 }
 
 void XmlParserGen::emitXmlFields_AttributeParseRule
-  (ostream &parserOut, ASTList<Annotation> const &decls, string &baseName)
+  (ASTList<Annotation> const &decls, string &baseName)
 {
   FOREACH_ASTLIST(Annotation, decls, iter) {
     if (!iter.data()->isUserDecl()) continue;
     UserDecl const *ud = iter.data()->asUserDeclC();
     if (!ud->amod->hasMod("field")) continue;
-    emitXmlField_AttributeParseRule(parserOut,
-                                    ud->amod->hasMod("owner"),
+    emitXmlField_AttributeParseRule(ud->amod->hasMod("owner"),
                                     extractFieldType(ud->code),
                                     extractFieldName(ud->code),
                                     baseName);
@@ -2425,53 +2387,34 @@ void XmlParserGen::emitXmlFields_AttributeParseRule
 }
 
 void XmlParserGen::emitXmlField_AttributeParseRule
-  (ostream &parserOut, bool isOwner, rostring type, rostring name, string &baseName)
+  (bool isOwner, rostring type, rostring name, string &baseName)
 {
   if (0==strcmp(type, "string")) {
-    parserOut << "  -> v:Open_" << baseName << " \"" << name << "\" \"=\" "
-              << "x:XTOK_STRING_LITERAL {\n";
-    parserOut << "    ((" << baseName << "*)v)->" << name << " = strdup(x);\n";
-    parserOut << "    return v;\n";
-    parserOut << "  }\n";
+    parser1_registerDefs << "  case XTOK_" << name << ":\n";
+    parser1_registerDefs << "    obj->" << name << " = strdup(strValue);\n";
+    parser1_registerDefs << "    break;\n";
   }
   else if (0==strcmp(type, "bool")) {
-    parserOut << "  -> v:Open_" << baseName << " \"" << name << "\" \"=\" "
-              << "x:XTOK_STRING_LITERAL {\n";
-    parserOut << "    ((" << baseName << "*)v)->" << name << " = (strcmp(x, \"true\") == 0);\n";
-    parserOut << "    return v;\n";
-    parserOut << "  }\n";
+    parser1_registerDefs << "  case XTOK_" << name << ":\n";
+    parser1_registerDefs << "    obj->" << name << " = (strcmp(strValue, \"true\") == 0);\n";
+    parser1_registerDefs << "    break;\n";
   }
 
   else if (isListType(type)) {
-    parserOut << "\n";
-    parserOut << "  -> v:Open_" << baseName << " \"" << name << "\" \"=\" "
-      // we use an int literal, because we expect the id, not the
-      // object itself
-              << "x:XTOK_INT_LITERAL {\n";
-// FIX: #warning file the object under its id
-    parserOut << "    return v;\n";
-    parserOut << "  }\n";
+    parser1_registerDefs << "  case XTOK_" << name << ":\n";
+//      parser1_registerDefs << "    obj->" << name << " = (strcmp(strValue, \"true\") == 0);\n";
+    parser1_registerDefs << "    break;\n";
   }
   else if (isFakeListType(type)) {
-    parserOut << "\n";
-    parserOut << "  -> v:Open_" << baseName << " \"" << name << "\" \"=\" "
-      // we use an int literal, because we expect the id, not the
-      // object itself
-              << "x:XTOK_INT_LITERAL {\n";
-// FIX: #warning file the object under its id
-    parserOut << "    return v;\n";
-    parserOut << "  }\n";
+    parser1_registerDefs << "  case XTOK_" << name << ":\n";
+//      parser1_registerDefs << "    obj->" << name << " = (strcmp(strValue, \"true\") == 0);\n";
+    parser1_registerDefs << "    break;\n";
   }
   else if (isTreeNode(type) ||
            (isTreeNodePtr(type) && isOwner)) {
-    parserOut << "\n";
-    parserOut << "  -> v:Open_" << baseName << " \"" << name << "\" \"=\" "
-      // we use an int literal, because we expect the id, not the
-      // object itself
-              << "x:XTOK_INT_LITERAL {\n";
-// FIX: #warning file the object under its id
-    parserOut << "    return v;\n";
-    parserOut << "  }\n";
+    parser1_registerDefs << "  case XTOK_" << name << ":\n";
+//      parser1_registerDefs << "    obj->" << name << " = (strcmp(strValue, \"true\") == 0);\n";
+    parser1_registerDefs << "    break;\n";
   }
 //    else {
 //      // catch-all ..
@@ -2480,14 +2423,14 @@ void XmlParserGen::emitXmlField_AttributeParseRule
 }
 
 void XmlParserGen::emitXmlParser_objCtorArgs
-  (ostream &parserOut, ASTList<CtorArg> const &args, bool &firstTime)
+  (ASTList<CtorArg> const &args, bool &firstTime)
 {
   FOREACH_ASTLIST(CtorArg, args, argiter) {
     CtorArg const &arg = *(argiter.data());
     if (firstTime) { firstTime = false; }
-    else { parserOut << ", "; }
+    else { parser2_ctorCalls << ", "; }
     if (strlen(arg.defaultValue.c_str())>0) {
-      parserOut << arg.defaultValue;
+      parser2_ctorCalls << arg.defaultValue;
     } else {
       // dsw: this is Scott's idea of how to initialize a type that we
       // know nothing about with no information
@@ -2502,14 +2445,13 @@ void XmlParserGen::emitXmlParser_objCtorArgs
         // also for AST node types
         type = stringc << type << "*";
       }
-      parserOut << "(" << type << ")0";
+      parser2_ctorCalls << "(" << type << ")0";
     }
   }
 }
 
 void XmlParserGen::emitXmlParser_Node
-  (ostream &parserOut,
-   ASTClass const *clazz,
+  (ASTClass const *clazz,
 
    ASTList<CtorArg> const *args,
    ASTList<Annotation> const *decls,
@@ -2522,187 +2464,75 @@ void XmlParserGen::emitXmlParser_Node
 {
   string name = clazz->name;
 
-  parserOut << "\n";
+  parser0_registerDecls
+    << "    void registerAttr_" << name
+    << "(" << name << " *obj, int attr, char const *strValue);\n";
 
-  // Node
-  parserOut << "nonterm(void*) Node_" << name << " {\n";
-  parserOut << "  -> v:Mid_" << name
-            << " \"<\" \"/\" \"" << name << "\" \">\""
-            << " {return v;}\n";
-  parserOut << "}\n";
+  parser3_registerCalls
+    << "      case XTOK_" << name << ":\n"
+    << "        registerAttr_" << name
+    << "((" << name << "*)nodeStack.top(), attr, lexer.YYText());\n"
+    << "      break;\n";
 
-  // Mid
-  parserOut << "\n";
-  parserOut << "nonterm(void*) Mid_" << name << " {\n";
-  parserOut << "  -> v:Open_" << name << " \">\" {return v;}\n";
-
-  // ->Mid
-  // for each child, collect the set of child types
-  StringSet childNameSet;
-  emitXmlCtorArgs_ChildParseRule(childNameSet, *args, name);
-  emitXmlFields_ChildParseRule(childNameSet, *decls, name);
-  emitXmlCtorArgs_ChildParseRule(childNameSet, *lastArgs, name);
-  if (childArgs) {
-    xassert(childDecls);
-    emitXmlCtorArgs_ChildParseRule(childNameSet, *childArgs, name);
-    emitXmlFields_ChildParseRule(childNameSet, *childDecls, name);
-  }
-  // emit a rule to parse it as a child of this tag
-  FOREACH_STRINGSET(childNameSet, iter) {
-    string const childName = iter.data();
-    // prevent putting in a type and its superclass
-    string superclass;
-    bool mapped = sub2superMap.query(childName.c_str(), superclass);
-    if (mapped && childNameSet.contains(superclass)) {
-      // has a superclass that is in the childNameSet
-      continue;
-    }
-    
-    parserOut << "\n";
-    parserOut << "  -> v:Mid_" << name << " child:Node_" << childName << " {\n";
-//      parserOut << "    static_cast<" << name << "*>(v)->foo = "
-//                << "static_cast<" << childName << "*>(child);\n";
-// FIX: #warning add it here
-    parserOut << "    return v;\n";
-    parserOut << "  }\n";
-  }
-
-  parserOut << "}\n";
-
-  // Open
-  parserOut << "\n";
-  parserOut << "nonterm(void*) Open_" << name << " {\n";
-
-  parserOut << "  -> \"<\" \"" << name << "\" {return new " << name << "(";
-  // we need to supply however many NULL args here as there are ctor args.
-  bool firstTime = true;
-  if (args)      {emitXmlParser_objCtorArgs(parserOut, *args, firstTime);}
-  if (childArgs) {emitXmlParser_objCtorArgs(parserOut, *childArgs, firstTime);}
-  if (lastArgs)  {emitXmlParser_objCtorArgs(parserOut, *lastArgs, firstTime);}
-  parserOut << ");}\n";
-
-  // for each metadata attribute; there is only one for now: ".id"
-  // ->Open attribute
-  parserOut << "\n";
-  parserOut << "  -> v:Open_" << name << " \".id\" \"=\" x:Literal {\n";
-// FIX: #warning file the object under its id
-  parserOut << "    return v;\n";
-  parserOut << "  }\n";
+  parser1_registerDefs
+    << "    void ReadXml::registerAttr_" << name
+    << "(" << name << " *obj, int attr, char const *strValue) {\n";
+  parser1_registerDefs << "    switch(attr) {\n";
+  parser1_registerDefs << "    default:\n";
+  parser1_registerDefs << "      userError(\"illegal attribute for a " << name << "\");\n";
+  parser1_registerDefs << "      break;\n";
 
   // for each attribute, emit a rule to parse it as an attribute of this tag
-  // ->Open
-  emitXmlCtorArgs_AttributeParseRule(parserOut, *args, name);
-  emitXmlFields_AttributeParseRule(parserOut, *decls, name);
-  emitXmlCtorArgs_AttributeParseRule(parserOut, *lastArgs, name);
+  emitXmlCtorArgs_AttributeParseRule(*args, name);
+  emitXmlFields_AttributeParseRule(*decls, name);
+  emitXmlCtorArgs_AttributeParseRule(*lastArgs, name);
   if (childArgs) {
     xassert(childDecls);
-    emitXmlCtorArgs_AttributeParseRule(parserOut, *childArgs, name);
-    emitXmlFields_AttributeParseRule(parserOut, *childDecls, name);
+    emitXmlCtorArgs_AttributeParseRule(*childArgs, name);
+    emitXmlFields_AttributeParseRule(*childDecls, name);
   }
 
-  parserOut << "}\n";
+  parser1_registerDefs << "    }\n";
+  parser1_registerDefs << "  }\n";
+
+  // we need to supply however many NULL args here as there are ctor args.
+  parser2_ctorCalls << "    case XTOK_" << name << ":\n"
+                    << "      topTemp = new " << name << "(";
+  bool firstTime = true;
+  if (args)      {emitXmlParser_objCtorArgs(*args, firstTime);}
+  if (childArgs) {emitXmlParser_objCtorArgs(*childArgs, firstTime);}
+  if (lastArgs)  {emitXmlParser_objCtorArgs(*lastArgs, firstTime);}
+  parser2_ctorCalls << ");\n"
+                    << "      break;\n";
 }
 
-void XmlParserGen::emitXmlParser_FakeList(ostream &parserOut, char const *type)
+void XmlParserGen::emitXmlParser_FakeList(char const *type)
 {
   string name = stringc << "FakeList_" << type;
-
-  parserOut << "\n";
-
-  // Node
-  parserOut << "nonterm(void*) Node_" << name << " {\n";
-  parserOut << "  -> v:Mid_" << name
-            << " \"<\" \"/\" \"" << name << "\" \">\""
-            << " {return v;}\n";
-  parserOut << "}\n";
-
-  // Mid
-  parserOut << "\n";
-  parserOut << "nonterm(void*) Mid_" << name << " {\n";
-  parserOut << "  -> v:Open_" << name << " \">\" {return v;}\n";
-
   // only one rule as lists are homogeneous
   xassert(isTreeNode(type));
-  parserOut << "\n";
-  parserOut << "  -> v:Mid_" << name << " child:Node_" << type << " {\n";
-  parserOut << "    return ((FakeList<" << type << ">*)v)->prepend((" << type << "*)child);\n";
-  parserOut << "  }\n";
-
-  parserOut << "}\n";
-
-  // Open
-  parserOut << "\n";
-  parserOut << "nonterm(void*) Open_" << name << " {\n";
-
-  parserOut << "  -> \"<\" \"" << name << "\" { return FakeList<" << type << ">::emptyList(); }\n";
-
-  // for each metadata attribute; there is only one for now: ".id"
-  // ->Open attribute
-  parserOut << "\n";
-  parserOut << "  -> v:Open_" << name << " \".id\" \"=\" x:Literal {\n";
-// FIX: #warning file the object under its id
-  parserOut << "    return v;\n";
-  parserOut << "  }\n";
-
-  parserOut << "}\n";
+//    parserOut << "    return ((FakeList<" << type << ">*)v)->prepend((" << type << "*)child);\n";
+  parser2_ctorCalls << "    case XTOK_" << name << ":\n"
+                    << "      topTemp = FakeList<" << type << ">::emptyList();\n"
+                    << "      break;\n";
 }
 
-void XmlParserGen::emitXmlParser_ASTList(ostream &parserOut, char const *type)
+void XmlParserGen::emitXmlParser_ASTList(char const *type)
 {
   string name = stringc << "ASTList_" << type;
-
-  parserOut << "\n";
-
-  // Node
-  parserOut << "nonterm(void*) Node_" << name << " {\n";
-  parserOut << "  -> v:Mid_" << name
-            << " \"<\" \"/\" \"" << name << "\" \">\""
-            << " {return v;}\n";
-  parserOut << "}\n";
-
-  // Mid
-  parserOut << "\n";
-  parserOut << "nonterm(void*) Mid_" << name << " {\n";
-  parserOut << "  -> v:Open_" << name << " \">\" {return v;}\n";
-
   // only one rule as lists are homogeneous
   xassert(isTreeNode(type));
-  parserOut << "\n";
-  parserOut << "  -> v:Mid_" << name << " child:Node_" << type << " {\n";
-  parserOut << "    ((ASTList<" << type << ">*)v)->append((" << type << "*)child);\n";
-  parserOut << "    return v;\n";
-  parserOut << "  }\n";
-
-  parserOut << "}\n";
-
-  // Open
-  parserOut << "\n";
-  parserOut << "nonterm(void*) Open_" << name << " {\n";
-
-  parserOut << "  -> \"<\" \"" << name << "\" {return new ASTList<" << type << ">();}\n";
-
-  // for each metadata attribute; there is only one for now: ".id"
-  // ->Open attribute
-  parserOut << "\n";
-  parserOut << "  -> v:Open_" << name << " \".id\" \"=\" x:Literal {\n";
-// FIX: #warning file the object under its id
-  parserOut << "    return v;\n";
-  parserOut << "  }\n";
-
-  parserOut << "}\n";
+//    parserOut << "    ((ASTList<" << type << ">*)v)->append((" << type << "*)child);\n";
+  parser2_ctorCalls << "    case XTOK_" << name << ":\n"
+                    << "      topTemp = new ASTList<" << type << ">();\n"
+                    << "      break;\n";
 }
 
 void XmlParserGen::emitXmlParserImplementation()
 {
-  ofstream tokensOutH(stringc << xmlParserName << "_tokens1_mid.gen.h");
-  ofstream tokensOutCC(stringc << xmlParserName << "_lexer1_mid.gen.cc");
-  ofstream lexerOut(stringc << xmlParserName << "_lexer1_mid.gen.lex");
-//    ofstream parserOut(stringc << xmlParserName << "1_mid.gen.gr");
-
   tokensOutH  << "  // AST nodes\n";
   tokensOutCC << "  // AST nodes\n";
   lexerOut    << "  /* AST nodes */\n";
-//    parserOut   << "// AST nodes\n";
 
   // initialize sub2superMap
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
@@ -2736,23 +2566,13 @@ void XmlParserGen::emitXmlParserImplementation()
         lexerOut  << "\"" << clazz->name << "\" return tok(XTOK_" << clazz->name << ");\n";
         collectXmlParserCtorArgs(clazz->args, "obj0");
         collectXmlParserFields(clazz->decls, "obj0");
-//          emitXmlParser_Node(parserOut, clazz,
-//                             &c->super->args, &c->super->decls, &c->super->lastArgs,
-//                             &clazz->args, &clazz->decls);
+        emitXmlParser_Node(clazz,
+                           &c->super->args, &c->super->decls, &c->super->lastArgs,
+                           &clazz->args, &clazz->decls);
       }
-
-      // need to emit a rule for upcasting a subclass into its
-      // superclass
-//        parserOut << "\n// upcast rule for " << c->super->name << "\n";
-//        parserOut << "nonterm(void*) Node_" << c->super->name << " {\n";
-//        FOREACH_ASTLIST(ASTClass, c->ctors, iter) {
-//          ASTClass const *clazz = iter.data();
-//          parserOut << "  -> v:Node_" << clazz->name << " {return v;}\n";
-//        }
-//        parserOut << "}\n";
     } else {
-//        emitXmlParser_Node(parserOut, c->super,
-//                           &c->super->args, &c->super->decls, &c->super->lastArgs);
+      emitXmlParser_Node(c->super,
+                         &c->super->args, &c->super->decls, &c->super->lastArgs);
     }
   }
 
@@ -2763,7 +2583,7 @@ void XmlParserGen::emitXmlParserImplementation()
     tokensOutH  << "  XTOK_FakeList_" << cls << ", // \"FakeList_" << cls << "\"\n";
     tokensOutCC << "  \"XTOK_FakeList_" << cls << "\",\n";
     lexerOut  << "\"FakeList_" << cls << "\" return tok(XTOK_FakeList_" << cls << ");\n";
-//      emitXmlParser_FakeList(parserOut, cls);
+    emitXmlParser_FakeList(cls);
   }
 
   tokensOutH  << "\n  // ASTList 'classes'\n";
@@ -2773,7 +2593,7 @@ void XmlParserGen::emitXmlParserImplementation()
     tokensOutH  << "  XTOK_ASTList_" << cls << ", // \"ASTList_" << cls << "\"\n";
     tokensOutCC << "  \"XTOK_ASTList_" << cls << "\",\n";
     lexerOut  << "\"ASTList_" << cls << "\" return tok(XTOK_ASTList_" << cls << ");\n";
-//      emitXmlParser_ASTList(parserOut, cls);
+    emitXmlParser_ASTList(cls);
   }
 
   tokensOutH  << "\n";
@@ -3214,7 +3034,7 @@ void entry(int argc, char **argv)
   // dsw: this is really completely independent of the other generated
   // files
   if (tracingSys("xmlParser") && wantXmlParser()) {
-    XmlParserGen xgen;
+    XmlParserGen xgen(xmlParserName);
     xgen.emitXmlParserImplementation();
   }
 }
