@@ -925,7 +925,6 @@ public:
 // generation of xml parser
 class XmlParserGen {
   StringSet attributeNames;     // names of attributes of AST nodes
-  StringDict sub2superMap;      // map from subclass names to superclass names
 
   ofstream tokensOutH;
   ofstream tokensOutCC;
@@ -2394,31 +2393,34 @@ void XmlParserGen::emitXmlField_AttributeParseRule
   (bool isOwner, rostring type, rostring name, string &baseName)
 {
   if (0==strcmp(type, "string")) {
-    parser1_registerDefs << "  case XTOK_" << name << ":\n";
-    parser1_registerDefs << "    obj->" << name << " = strdup(strValue);\n";
-    parser1_registerDefs << "    break;\n";
+    parser1_registerDefs << "    case XTOK_" << name << ":\n";
+    parser1_registerDefs << "      obj->" << name << " = strdup(strValue);\n";
+    parser1_registerDefs << "      break;\n";
   }
   else if (0==strcmp(type, "bool")) {
-    parser1_registerDefs << "  case XTOK_" << name << ":\n";
-    parser1_registerDefs << "    obj->" << name << " = (strcmp(strValue, \"true\") == 0);\n";
-    parser1_registerDefs << "    break;\n";
+    parser1_registerDefs << "    case XTOK_" << name << ":\n";
+    parser1_registerDefs << "      obj->" << name << " = (strcmp(strValue, \"true\") == 0);\n";
+    parser1_registerDefs << "      break;\n";
   }
 
   else if (isListType(type)) {
-    parser1_registerDefs << "  case XTOK_" << name << ":\n";
-//      parser1_registerDefs << "    obj->" << name << " = (strcmp(strValue, \"true\") == 0);\n";
-    parser1_registerDefs << "    break;\n";
+    parser1_registerDefs << "    case XTOK_" << name << ":\n";
+    parser1_registerDefs << "      unsatLinks_ASTList.append(new unsatLink("
+                         << "(void*) &(obj->" << name << "), strValue));\n";
+    parser1_registerDefs << "      break;\n";
   }
   else if (isFakeListType(type)) {
-    parser1_registerDefs << "  case XTOK_" << name << ":\n";
-//      parser1_registerDefs << "    obj->" << name << " = (strcmp(strValue, \"true\") == 0);\n";
-    parser1_registerDefs << "    break;\n";
+    parser1_registerDefs << "    case XTOK_" << name << ":\n";
+    parser1_registerDefs << "      unsatLinks_FakeList.append(new unsatLink("
+                         << "(void*) &(obj->" << name << "), strValue));\n";
+    parser1_registerDefs << "      break;\n";
   }
   else if (isTreeNode(type) ||
            (isTreeNodePtr(type) && isOwner)) {
-    parser1_registerDefs << "  case XTOK_" << name << ":\n";
-//      parser1_registerDefs << "    obj->" << name << " = (strcmp(strValue, \"true\") == 0);\n";
-    parser1_registerDefs << "    break;\n";
+    parser1_registerDefs << "    case XTOK_" << name << ":\n";
+    parser1_registerDefs << "      unsatLinks.append(new unsatLink("
+                         << "(void*) &(obj->" << name << "), strValue));\n";
+    parser1_registerDefs << "      break;\n";
   }
 //    else {
 //      // catch-all ..
@@ -2537,18 +2539,6 @@ void XmlParserGen::emitXmlParserImplementation()
   tokensOutH  << "  // AST nodes\n";
   tokensOutCC << "  // AST nodes\n";
   lexerOut    << "  /* AST nodes */\n";
-
-  // initialize sub2superMap
-  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
-    TF_class const *c = iter.data();
-    if (c->hasChildren()) {
-      FOREACH_ASTLIST(ASTClass, c->ctors, iter) {
-        ASTClass const *clazz = iter.data();
-        sub2superMap.add(strdup(extractNodeType(clazz->name).c_str()),
-                         strdup(extractNodeType(c->super->name).c_str()));
-      }
-    }
-  }
 
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
