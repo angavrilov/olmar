@@ -138,14 +138,15 @@ lexer.yy.cc: lexer.lex lexer.h
 
 
 TOCLEAN += astxml_lexer.lex
-astxml_lexer1_mid.gen.lex: cc.ast.gen.h
 astxml_lexer.lex: astxml_lexer0_top.lex astxml_lexer1_mid.gen.lex astxml_lexer2_bottom.lex
+	rm -f $@
 	cat $^ > $@
 	chmod a-w $@
 
 # astxml_lexer.cc actually #include-s astxml_lexer1_mid.gen.cc
-astxml_lexer1_mid.gen.cc: cc.ast.gen.h
 astxml_lexer.o: astxml_lexer1_mid.gen.cc
+astxml_lexer1_mid.gen.cc astxml_lexer1_mid.gen.lex astxml_tokens1_mid.gen.h: $(CC_AST_MODS) $(AST)/astgen
+	$(AST)/astgen -tr no_ast.gen,xmlParser $(CC_AST_MODS)
 
 ASTXML_LEXER_OBJS := \
   astxml_lexer.o \
@@ -175,8 +176,8 @@ $(TOK_FILES): $(TOK_MODS) make-token-files
 astxml_lexer.o: astxml_tokens.h
 
 TOCLEAN += astxml_tokens.h
-astxml_tokens1_mid.gen.h: cc.ast.gen.h
 astxml_tokens.h: astxml_tokens0_top.h astxml_tokens1_mid.gen.h astxml_tokens2_bottom.h
+	rm -f $@
 	cat $^ > $@
 	chmod a-w $@
 
