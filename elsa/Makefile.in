@@ -141,6 +141,7 @@ TOCLEAN += astxml_lexer.lex
 astxml_lexer1_mid.gen.lex: cc.ast.gen.h
 astxml_lexer.lex: astxml_lexer0_top.lex astxml_lexer1_mid.gen.lex astxml_lexer2_bottom.lex
 	cat $^ > $@
+	chmod a-w $@
 
 # astxml_lexer.cc actually #include-s astxml_lexer1_mid.gen.cc
 astxml_lexer1_mid.gen.cc: cc.ast.gen.h
@@ -177,6 +178,7 @@ TOCLEAN += astxml_tokens.h
 astxml_tokens1_mid.gen.h: cc.ast.gen.h
 astxml_tokens.h: astxml_tokens0_top.h astxml_tokens1_mid.gen.h astxml_tokens2_bottom.h
 	cat $^ > $@
+	chmod a-w $@
 
 # generate token lists for parsing ast xml
 TOCLEAN += astxml_tokens.ids

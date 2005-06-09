@@ -50,13 +50,13 @@
    * characters to the basic character set (cppstd 2.1 para 1 phase 1),
    * except that it doesn't happen for chars in string/char literals... */
 [ \t\n\f\v\r]+  {
-  whitespace();
+  /*    whitespace(); */
 }
 
   /* C++ comment */
   /* we don't match the \n because that way this works at EOF */
 "//"{NOTNL}*    {
-  whitespace();
+  /*    whitespace(); */
 }
 
   /* illegal */
@@ -66,7 +66,7 @@
 }
 
 <<EOF>> {
-  srcFile->doneAdding();
+  /*    srcFile->doneAdding(); */
   yyterminate();
 }
 
