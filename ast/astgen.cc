@@ -2533,12 +2533,12 @@ void CGen::emitXmlParserImplementation()
   ofstream tokensOutH(stringc << xmlParserName << "_tokens1_mid.gen.h");
   ofstream tokensOutCC(stringc << xmlParserName << "_lexer1_mid.gen.cc");
   ofstream lexerOut(stringc << xmlParserName << "_lexer1_mid.gen.lex");
-  ofstream parserOut(stringc << xmlParserName << "1_mid.gen.gr");
+//    ofstream parserOut(stringc << xmlParserName << "1_mid.gen.gr");
 
   tokensOutH  << "  // AST nodes\n";
   tokensOutCC << "  // AST nodes\n";
   lexerOut    << "  /* AST nodes */\n";
-  parserOut   << "// AST nodes\n";
+//    parserOut   << "// AST nodes\n";
 
   // initialize sub2superMap
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
@@ -2572,23 +2572,23 @@ void CGen::emitXmlParserImplementation()
         lexerOut  << "\"" << clazz->name << "\" return tok(XTOK_" << clazz->name << ");\n";
         collectXmlParserCtorArgs(clazz->args, "obj0");
         collectXmlParserFields(clazz->decls, "obj0");
-        emitXmlParser_Node(parserOut, clazz,
-                           &c->super->args, &c->super->decls, &c->super->lastArgs,
-                           &clazz->args, &clazz->decls);
+//          emitXmlParser_Node(parserOut, clazz,
+//                             &c->super->args, &c->super->decls, &c->super->lastArgs,
+//                             &clazz->args, &clazz->decls);
       }
 
       // need to emit a rule for upcasting a subclass into its
       // superclass
-      parserOut << "\n// upcast rule for " << c->super->name << "\n";
-      parserOut << "nonterm(void*) Node_" << c->super->name << " {\n";
-      FOREACH_ASTLIST(ASTClass, c->ctors, iter) {
-        ASTClass const *clazz = iter.data();
-        parserOut << "  -> v:Node_" << clazz->name << " {return v;}\n";
-      }
-      parserOut << "}\n";
+//        parserOut << "\n// upcast rule for " << c->super->name << "\n";
+//        parserOut << "nonterm(void*) Node_" << c->super->name << " {\n";
+//        FOREACH_ASTLIST(ASTClass, c->ctors, iter) {
+//          ASTClass const *clazz = iter.data();
+//          parserOut << "  -> v:Node_" << clazz->name << " {return v;}\n";
+//        }
+//        parserOut << "}\n";
     } else {
-      emitXmlParser_Node(parserOut, c->super,
-                         &c->super->args, &c->super->decls, &c->super->lastArgs);
+//        emitXmlParser_Node(parserOut, c->super,
+//                           &c->super->args, &c->super->decls, &c->super->lastArgs);
     }
   }
 
@@ -2599,7 +2599,7 @@ void CGen::emitXmlParserImplementation()
     tokensOutH  << "  XTOK_FakeList_" << cls << ", // \"FakeList_" << cls << "\"\n";
     tokensOutCC << "  \"XTOK_FakeList_" << cls << "\",\n";
     lexerOut  << "\"FakeList_" << cls << "\" return tok(XTOK_FakeList_" << cls << ");\n";
-    emitXmlParser_FakeList(parserOut, cls);
+//      emitXmlParser_FakeList(parserOut, cls);
   }
 
   tokensOutH  << "\n  // ASTList 'classes'\n";
@@ -2609,7 +2609,7 @@ void CGen::emitXmlParserImplementation()
     tokensOutH  << "  XTOK_ASTList_" << cls << ", // \"ASTList_" << cls << "\"\n";
     tokensOutCC << "  \"XTOK_ASTList_" << cls << "\",\n";
     lexerOut  << "\"ASTList_" << cls << "\" return tok(XTOK_ASTList_" << cls << ");\n";
-    emitXmlParser_ASTList(parserOut, cls);
+//      emitXmlParser_ASTList(parserOut, cls);
   }
 
   tokensOutH  << "\n";
