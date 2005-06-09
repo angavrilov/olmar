@@ -23,7 +23,7 @@ class ReadXml {
     , lastKind(0)
   {}
 
-  // these will be generated per AST node
+  // INSERT per ast node
   void registerAttr_TranslationUnit(TranslationUnit *obj, int attr, char const *strValue);
 
   void userError(char *msg) NORETURN;
@@ -31,6 +31,7 @@ class ReadXml {
   void go();
 };
 
+// INSERT per ast node
 void ReadXml::registerAttr_TranslationUnit(TranslationUnit *obj, int attr, char const *strValue)
 {
   switch(attr) {
@@ -67,6 +68,7 @@ void ReadXml::go() {
     case 0: userError("unexpected file termination while looking for an open tag name");
     case XTOK_SLASH:
       goto close_tag;
+    // INSERT per ast node
     case XTOK_TranslationUnit:
       topTemp = new TranslationUnit(0);
       break;
@@ -145,6 +147,7 @@ void ReadXml::readAttributes() {
       // FIX: file the object under its id
     } else {
       switch(*kindStack.top()) {
+      // INSERT per ast node
       case XTOK_TranslationUnit:
         registerAttr_TranslationUnit((TranslationUnit*)nodeStack.top(), attr, lexer.YYText());
       }
