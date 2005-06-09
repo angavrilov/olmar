@@ -233,10 +233,7 @@ ActionEntry makeAE(ActionEntryKind k, int index)
     // ok
   }
   else {                     
-    // this is just so I can see the resulting truncated table;
-    // the parser will *not* work
-    cout << "error: index " << index << " truncated!\n";
-    index = AE_MAXINDEX;
+    xfailure(stringc << "index " << index << " truncated!");
   }
   
   if (k == AE_ERROR) {
