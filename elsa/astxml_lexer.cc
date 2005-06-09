@@ -2,6 +2,7 @@
 
 #include "astxml_lexer.h"
 #include "xassert.h"
+#include "exc.h"
 
 
 // ------------------------ AstXmlLexer -------------------
@@ -28,7 +29,6 @@ static char const * const tokenNames[] = {
 
 string AstXmlLexer::tokenKindDesc(int kind) const
 {
-  // hack
   xassert(0 <= kind && kind < NUM_XML_TOKEN_TYPES);
   xassert(tokenNames[kind]);     // make sure the tokenNames array grows with the enum
   return tokenNames[kind];
@@ -49,7 +49,5 @@ int AstXmlLexer::svalTok(ASTXMLTokenType kind)
 
 void AstXmlLexer::err(char const *msg)
 {
-//    errors++;
-  // FIX: do locations
-//    cerr << toString(loc) << ": error: " << msg << endl;
+  THROW(xBase(stringc << inputFname << ":" << linenumber << ":" << msg));
 }

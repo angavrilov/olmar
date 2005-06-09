@@ -159,7 +159,7 @@ void ReadXml::readAttributes() {
 TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
 {
   ifstream in(inputFname);
-  AstXmlLexer lexer;
+  AstXmlLexer lexer(inputFname);
   lexer.yyrestart(&in);
   ReadXml reader(inputFname, lexer);
   reader.go();

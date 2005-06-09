@@ -12,10 +12,12 @@
 
 class AstXmlLexer : public yyFlexLexer {
   public:
+  char const *inputFname;
   int linenumber;
 
-  AstXmlLexer()
-    : linenumber(1)             // file line counting traditionally starts at 1
+  AstXmlLexer(char const *inputFname0)
+    : inputFname(inputFname0)
+    , linenumber(1)             // file line counting traditionally starts at 1
   {}
 
   int tok(ASTXMLTokenType kind);

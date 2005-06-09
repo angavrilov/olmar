@@ -9,19 +9,6 @@
   return svalTok(XTOK_NAME);
 }
 
-  /* integer literal; dec, oct, or hex */
-[1-9][0-9]*{INT_SUFFIX}?           |
-[0][0-7]*{INT_SUFFIX}?             |
-[0][xX][0-9A-Fa-f]+{INT_SUFFIX}?   {
-  return svalTok(XTOK_INT_LITERAL);
-}
-
-  /* hex literal with nothing after the 'x' */
-[0][xX] {
-  err("hexadecimal literal with nothing after the 'x'");
-  return svalTok(XTOK_INT_LITERAL);
-}
-
   /* string literal */
 "L"?{QUOTE}({STRCHAR}|{ESCAPE})*{QUOTE} {
   return svalTok(XTOK_STRING_LITERAL);
@@ -53,12 +40,6 @@
    * characters to the basic character set (cppstd 2.1 para 1 phase 1),
    * except that it doesn't happen for chars in string/char literals... */
 [ \t\f\v\r]+  {
-  /*    whitespace(); */
-}
-
-  /* C++ comment */
-  /* we don't match the \n because that way this works at EOF */
-"//"{NOTNL}*    {
   /*    whitespace(); */
 }
 
