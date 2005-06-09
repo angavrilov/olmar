@@ -3,31 +3,30 @@
 #ifndef ASTXML_LEXER_H
 #define ASTXML_LEXER_H
 
-#include "baselexer.h"      // BaseLexer
+#include <stdio.h>
+
+#include "baselexer.h"          // FLEX_OUTPUT_METHOD_DECLS
+#include "sm_flexlexer.h"       // yyFlexLexer
+#include "str.h"                // string
 #include "astxml_tokens.h"
 
-class AstXmlLexer : public BaseLexer {
-  bool prevIsNonsep;               // true if last-yielded token was nonseparating
-
+class AstXmlLexer : public yyFlexLexer {
   public:
-  AstXmlLexer(StringTable &strtable0, char const *fname0);
-  AstXmlLexer(StringTable &strtable0, SourceLoc initLoc0, char const *buf0, int len0);
+  void *treeTop;
+  SemanticValue sval;
+  int errors;
 
-  protected:
-  // see comments at top of lexer.cc (er, this should probably be removed)
-  void checkForNonsep(ASTXMLTokenType t);
+  AstXmlLexer()
+    : treeTop(NULL)
+    , sval(0)
+    , errors(0)
+  {}
 
-  // consume whitespace
-  void whitespace();
-
-  // do everything for a single-spelling token
-  int tok(ASTXMLTokenType t);
-
-  // do everything for a multi-spelling token
+  int tok(ASTXMLTokenType kind);
   int svalTok(ASTXMLTokenType t);
-
-  virtual string tokenDesc() const;
-  virtual string tokenKindDesc(int kind) const;
+  void err(char const *msg);
+  
+  string tokenKindDesc(int kind) const;
 
   FLEX_OUTPUT_METHOD_DECLS
 };

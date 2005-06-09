@@ -1,64 +1,10 @@
 // astxml_lexer.cc         see License.txt for copyright and terms of use
 
 #include "astxml_lexer.h"
+#include "xassert.h"
 
 
 // ------------------------ AstXmlLexer -------------------
-AstXmlLexer::AstXmlLexer
-  (StringTable &strtable0, char const *fname0)
-  : BaseLexer(strtable0, fname0)
-  , prevIsNonsep(false)
-{}
-  
-AstXmlLexer::AstXmlLexer
-  (StringTable &strtable0, SourceLoc initLoc0, char const *buf0, int len0)
-  : BaseLexer(strtable0, initLoc0, buf0, len0)
-  , prevIsNonsep(false)
-{}
-
-
-void AstXmlLexer::checkForNonsep(ASTXMLTokenType t) 
-{
-  prevIsNonsep = false;   // degenerate; remove?
-}
-
-
-void AstXmlLexer::whitespace()
-{
-  BaseLexer::whitespace();
-
-  // various forms of whitespace can separate nonseparating tokens
-  prevIsNonsep = false;
-}
-
-
-// this, and 'svalTok', are out of line because I don't want the
-// yylex() function to be enormous; I want that to just have a bunch
-// of calls into these routines, which themselves can then have
-// plenty of things inlined into them
-int AstXmlLexer::tok(ASTXMLTokenType t)
-{
-  checkForNonsep(t);
-  updLoc();
-  sval = NULL_SVAL;     // catch mistaken uses of 'sval' for single-spelling tokens
-  return t;
-}
-
-
-int AstXmlLexer::svalTok(ASTXMLTokenType t)
-{
-  checkForNonsep(t);
-  updLoc();
-  sval = (SemanticValue)addString(yytext, yyleng);
-  return t;
-}
-
-string AstXmlLexer::tokenDesc() const
-{
-  return tokenKindDesc(type);
-}
-
-
 static char const * const tokenNames[] = {
   "XTOK_EOF",
 
@@ -88,3 +34,22 @@ string AstXmlLexer::tokenKindDesc(int kind) const
   return tokenNames[kind];
 }
 
+int AstXmlLexer::tok(ASTXMLTokenType kind) {
+  printf("%s\n", tokenKindDesc(kind).c_str());
+  fflush(stdout);
+  return kind;
+}
+
+int AstXmlLexer::svalTok(ASTXMLTokenType kind)
+{
+  printf("%s '%s'\n", tokenKindDesc(kind).c_str(), yytext);
+  fflush(stdout);
+  return kind;
+}
+
+void AstXmlLexer::err(char const *msg)
+{
+  errors++;
+  // FIX: do locations
+//    cerr << toString(loc) << ": error: " << msg << endl;
+}

@@ -197,19 +197,6 @@ cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
 	$(ELKHOUND)/elkhound -v -tr lrtable -o cc.gr.gen $(CC_GR_MODS)
 
 
-# generate the astxml.gr file
-TOCLEAN += astxml.gr
-astxml1_mid.gen.gr: cc.ast.gen.h
-astxml.gr: astxml0_top.gr astxml1_mid.gen.gr astxml2_bottom.gr
-	cat $^ > $@
-
-# run elkhound to generate the ast xml parser; dsw: the 'if' is here
-# because elkhound doesn't delete the output upon error
-TOCLEAN += astxml.gr.gen.h astxml.gr.gen.cc astxml.gr.gen.out
-astxml.gr.gen.h astxml.gr.gen.cc: astxml.gr astxml_tokens.ids $(ELKHOUND)/elkhound
-	$(ELKHOUND)/elkhound -v -tr lrtable -o astxml.gr.gen astxml.gr
-
-
 # list of modules needed for the parser; ideally they're in an order
 # that finds serious compilation problems earliest (it's ok to
 # rearrange as different parts of the code are in flux)
@@ -239,7 +226,6 @@ CCPARSE_OBJS := \
   typelistiter.o \
   cc.ast.gen.o \
   cc.gr.gen.o \
-  astxml.gr.gen.o \
   parssppt.o \
   cc_flags.o \
   cc_print.o \
@@ -249,6 +235,7 @@ CCPARSE_OBJS := \
   main_astxmlparse.o \
   ccparse.o
 -include $(CCPARSE_OBJS:.o=.d) main.d
+
 
 # parser binary
 TOCLEAN += ccparse

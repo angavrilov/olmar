@@ -1154,7 +1154,7 @@ t0093.cc t0094.cc t0095.cc t0096.cc t0097.cc
 t0098.cc t0099.cc t0100.cc \
   " | fmt -1 | sed 's|^[ 	]*|in/|'`
 
-runTest perl ./astxml_check -d outdir $astxml_list
+# runTest perl ./astxml_check -d outdir $astxml_list
 
 if $use_gnu; then
   #   125: inline assembly not printed
