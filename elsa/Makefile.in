@@ -28,8 +28,12 @@ TODISTCLEAN =
 
 # re-create the Makefile if Makefile.in has changed
 TODISTCLEAN += Makefile
-Makefile: Makefile.in
+Makefile: Makefile.in config.status
 	./config.status
+
+# reconfigure if the configure script has changed
+config.status: configure.pl $(SMBASE)/sm_config.pm
+	./config.status -reconfigure
 
 # dependencies upon automatically-generated files
 extradep.mk:
