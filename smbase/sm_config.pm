@@ -384,7 +384,7 @@ sub getStandardConfigSummary {
 # config.summary
 
 echo "$main::thisPackage configuration summary:"
-echo "  command:     $main::0 @main::ARGV"
+echo "  command:     ./configure @main::ARGV"
 echo ""
 echo "Compile flags:"
 echo "  CC:          $main::CC"
@@ -429,6 +429,11 @@ sub writeConfigStatus {
 # config.status
 
 # this file was created by ./configure
+
+if [ "\$1" = "-reconfigure" ]; then
+  # re-issue the ./configure command
+  exec ./configure @main::ARGV
+fi
 
 # report on configuration
 ./config.summary

@@ -43,8 +43,12 @@ RANLIB := ranlib
 
 
 # remake the generated Makefile if its inputs have changed
-Makefile: Makefile.in
+Makefile: Makefile.in config.status
 	./config.status
+
+# reconfigure if the configure script has changed
+config.status: configure.pl sm_config.pm
+	./config.status -reconfigure
 
 
 # -------- experimenting with m4 for related files -------
