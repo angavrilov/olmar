@@ -23,6 +23,7 @@ private:
   ArrayStack<char> delims; // stack of paren/bracket/brace delimiters
   int comNesting;          // depth of comment nesting; 0 means not in comment
   char prev;               // previous character
+  int ignoreDelimNest;     // how many open-delims to ignore?
 
   // NOTE: Because ocaml wants (**) to be usable to comment out
   // arbitrary code sequences, the comment-ness is mostly orthogonal

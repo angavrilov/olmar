@@ -24,6 +24,7 @@ void MLSubstrate::reset(int initNest)
   comNesting = 0;
   prev = 0;
   text.setlength(0);
+  ignoreDelimNest = initNest;
 }
 
 
@@ -44,14 +45,26 @@ void MLSubstrate::handle(char const *str, int len, char finalDelim)
           case '(':
           case '[':
             if (!inComment()) {
-              delims.push(*str);
+              if (ignoreDelimNest) {
+                ignoreDelimNest--;
+              }
+              else {
+                delims.push(*str);
+              }
             }
             break;
 
           case '}':
           case ')':
           case ']':
-            if (inComment()) {
+            if (ignoreDelimNest) {
+              // I made one simple attempt to trigger this, but the
+              // caused a parse error instead, so perhaps the user
+              // can't see this
+              err->reportError("found close-delim while attempting to skip some open-delims...");
+              ignoreDelimNest--;    // recovery...
+            }
+            else if (inComment()) {
               if (prev == '*' && *str == ')') {
                 comNesting--;
               }
