@@ -24,8 +24,12 @@ MYFLEX := $(PERL) $(SMBASE)/run-flex.pl
 
 
 # remake the generated Makefile if its inputs have changed
-Makefile: Makefile.in
+Makefile: Makefile.in config.status
 	./config.status
+
+# reconfigure if the configure script has changed
+config.status: configure.pl $(SMBASE)/sm_config.pm
+	./config.status -reconfigure
 
 
 # This variable is a parameter that can be passed on the 'make' command
