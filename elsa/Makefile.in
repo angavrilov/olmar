@@ -152,10 +152,10 @@ XML_PARSER_GEN :=
 XML_PARSER_GEN += astxml_lexer1_mid.gen.cc
 XML_PARSER_GEN += astxml_lexer1_mid.gen.lex
 XML_PARSER_GEN += astxml_tokens1_mid.gen.h
-XML_PARSER_GEN += astxml_parse1_0rdecl.gen.cc
-XML_PARSER_GEN += astxml_parse1_1rdefn.gen.cc
-XML_PARSER_GEN += astxml_parse1_2ccall.gen.cc
-XML_PARSER_GEN += astxml_parse1_3rcall.gen.cc
+XML_PARSER_GEN += astxml_parse1_0decl.gen.cc
+XML_PARSER_GEN += astxml_parse1_1defn.gen.cc
+XML_PARSER_GEN += astxml_parse1_2ctrc.gen.cc
+XML_PARSER_GEN += astxml_parse1_3regc.gen.cc
 
 # Note that astxml_lexer.cc actually #include-s
 # astxml_lexer1_mid.gen.cc
@@ -163,7 +163,7 @@ astxml_lexer.o: astxml_lexer1_mid.gen.cc
 
 # and main_astxmlparse.cc includes all four astxml_parse1*.gen.cc
 # files
-main_astxmlparse.o: astxml_parse1_0rdecl.gen.cc astxml_parse1_1rdefn.gen.cc astxml_parse1_2ccall.gen.cc astxml_parse1_3rcall.gen.cc
+main_astxmlparse.o: $(XML_PARSER_GEN)
 
 $(XML_PARSER_GEN): $(CC_AST_MODS) $(AST)/astgen
 	rm -f $(XML_PARSER_GEN)
