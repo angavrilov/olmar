@@ -950,7 +950,8 @@ class XmlParserGen {
   private:
   void collectXmlParserCtorArgs(ASTList<CtorArg> const &args, char const *baseName);
   void collectXmlParserFields(ASTList<Annotation> const &decls, char const *baseName);
-  void collectXmlParserField(bool isOwner, rostring type, rostring name, char const *baseName);
+  void collectXmlParserField
+    (bool isOwner, rostring type, rostring name, char const *baseName);
 
   void emitXmlCtorArgs_AttributeParseRule(ASTList<CtorArg> const &args, string &baseName);
   void emitXmlFields_AttributeParseRule(ASTList<Annotation> const &decls, string &baseName);
@@ -987,6 +988,7 @@ void CGen::emitFile()
   headerComments();
 
   out << "#include \"" << hdrFname << "\"      // this module\n";
+  out << "#include \"strutil.h\"      // this module\n";
   out << "\n";
   out << "\n";
 
@@ -1320,6 +1322,9 @@ void CGen::emitPrintField(rostring print,
                           bool isOwner, rostring type, rostring name)
 {
   if (0==strcmp(type, "string")) {
+    out << "  " << print << "_STRING(" << name << ");\n";
+  }
+  else if (0==strcmp(type, "StringRef")) {
     out << "  " << print << "_STRING(" << name << ");\n";
   }
   else if (0==strcmp(type, "bool")) {
@@ -1884,11 +1889,15 @@ void CGen::emitXmlFields(ASTList<Annotation> const &decls, char const *baseName)
 
 void CGen::emitXmlField(bool isOwner, rostring type, rostring name, char const *baseName)
 {
-  if (0==strcmp(type, "string")) {
+  if (0==strcmp(type, "string") || 0==strcmp(type, "StringRef")) {
     out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"" << name << "\" << \"=\";\n";
-    out << "  out << quoted(" << baseName << "->" << name << ");\n";
+    out << "  if (" << baseName << "->" << name << ") {\n";
+    out << "    out << quoted(" << baseName << "->" << name << ");\n";
+    out << "  } else {\n";
+    out << "    out << \"\\\"0\\\"\";\n";
+    out << "  }\n";
   }
   else if (0==strcmp(type, "bool")) {
     out << "  out << \"\\n\";\n";
@@ -2351,6 +2360,9 @@ void XmlParserGen::collectXmlParserField
   if (0==strcmp(type, "string")) {
     attributeNames.add(name);
   }
+  if (0==strcmp(type, "StringRef")) {
+    attributeNames.add(name);
+  }
   else if (0==strcmp(type, "bool")) {
     attributeNames.add(name);
   }
@@ -2404,6 +2416,11 @@ void XmlParserGen::emitXmlField_AttributeParseRule
     parser1_defs << "      obj->" << name << " = strdup(strValue);\n";
     parser1_defs << "      break;\n";
   }
+  if (0==strcmp(type, "StringRef")) {
+    parser1_defs << "    case XTOK_" << name << ":\n";
+    parser1_defs << "      obj->" << name << " = strTable(strValue);\n";
+    parser1_defs << "      break;\n";
+  }
   else if (0==strcmp(type, "bool")) {
     parser1_defs << "    case XTOK_" << name << ":\n";
     parser1_defs << "      obj->" << name << " = (strcmp(strValue, \"true\") == 0);\n";
@@ -2413,20 +2430,20 @@ void XmlParserGen::emitXmlField_AttributeParseRule
   else if (isListType(type)) {
     parser1_defs << "    case XTOK_" << name << ":\n";
     parser1_defs << "      unsatLinks_ASTList.append(new UnsatLink("
-                         << "(void**) &(obj->" << name << "), strValue));\n";
+                 << "(void**) &(obj->" << name << "), strValue));\n";
     parser1_defs << "      break;\n";
   }
   else if (isFakeListType(type)) {
     parser1_defs << "    case XTOK_" << name << ":\n";
     parser1_defs << "      unsatLinks_FakeList.append(new UnsatLink("
-                         << "(void**) &(obj->" << name << "), strValue));\n";
+                 << "(void**) &(obj->" << name << "), strValue));\n";
     parser1_defs << "      break;\n";
   }
   else if (isTreeNode(type) ||
            (isTreeNodePtr(type) && isOwner)) {
     parser1_defs << "    case XTOK_" << name << ":\n";
     parser1_defs << "      unsatLinks.append(new UnsatLink("
-                         << "(void**) &(obj->" << name << "), strValue));\n";
+                 << "(void**) &(obj->" << name << "), strValue));\n";
     parser1_defs << "      break;\n";
   }
 //    else {
