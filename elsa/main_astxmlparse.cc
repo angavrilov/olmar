@@ -18,6 +18,7 @@ class ReadXml {
   public:
   char const *inputFname;
   AstXmlLexer &lexer;
+  StringTable &strTable;
 
   // the node (and its kind) for the last closing tag we saw; useful
   // for extracting the top of the tree
@@ -54,9 +55,10 @@ class ReadXml {
   StringSObjDict<void> id2obj;
 
   public:
-  ReadXml(char const *inputFname0, AstXmlLexer &lexer0)
+  ReadXml(char const *inputFname0, AstXmlLexer &lexer0, StringTable &strTable0)
     : inputFname(inputFname0)
     , lexer(lexer0)
+    , strTable(strTable0)
     , lastNode(NULL)
     , lastKind(0)
     , lastFakeListId(NULL)
@@ -343,7 +345,7 @@ TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
   ifstream in(inputFname);
   AstXmlLexer lexer(inputFname);
   lexer.yyrestart(&in);
-  ReadXml reader(inputFname, lexer);
+  ReadXml reader(inputFname, lexer, strTable);
   reader.parse();
   reader.satisfyLinks();
   return (TranslationUnit*) reader.lastNode;
