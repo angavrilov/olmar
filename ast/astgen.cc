@@ -930,8 +930,8 @@ class XmlParserGen {
   ofstream tokensOutCC;
   ofstream lexerOut;
 
-  ofstream parser0_registerDecls;
-  ofstream parser1_registerDefs;
+  ofstream parser0_decls;
+  ofstream parser1_defs;
   ofstream parser2_ctorCalls;
   ofstream parser3_registerCalls;
 
@@ -941,10 +941,10 @@ class XmlParserGen {
     , tokensOutCC(stringc << xmlParserName << "_lexer1_mid.gen.cc")
     , lexerOut(stringc << xmlParserName << "_lexer1_mid.gen.lex")
 
-    , parser0_registerDecls(stringc << xmlParserName << "_parse1_0rdecl.gen.cc")
-    , parser1_registerDefs (stringc << xmlParserName << "_parse1_1rdefn.gen.cc")
-    , parser2_ctorCalls    (stringc << xmlParserName << "_parse1_2ccall.gen.cc")
-    , parser3_registerCalls(stringc << xmlParserName << "_parse1_3rcall.gen.cc")
+    , parser0_decls(stringc << xmlParserName << "_parse1_0decl.gen.cc")
+    , parser1_defs (stringc << xmlParserName << "_parse1_1defn.gen.cc")
+    , parser2_ctorCalls    (stringc << xmlParserName << "_parse1_2ctrc.gen.cc")
+    , parser3_registerCalls(stringc << xmlParserName << "_parse1_3regc.gen.cc")
   {}
 
   private:
@@ -961,6 +961,13 @@ class XmlParserGen {
     (ASTList<CtorArg> const &args, bool &firstTime);
 
   void emitXmlParser_Node
+    (ASTClass const *clazz,
+     ASTList<CtorArg> const *args,
+     ASTList<Annotation> const *decls,
+     ASTList<CtorArg> const *lastArgs,
+     ASTList<CtorArg> const *childArgs = NULL,
+     ASTList<Annotation> const *childDecls = NULL);
+  void emitXmlParser_Node_registerAttr
     (ASTClass const *clazz,
      ASTList<CtorArg> const *args,
      ASTList<Annotation> const *decls,
@@ -2393,34 +2400,34 @@ void XmlParserGen::emitXmlField_AttributeParseRule
   (bool isOwner, rostring type, rostring name, string &baseName)
 {
   if (0==strcmp(type, "string")) {
-    parser1_registerDefs << "    case XTOK_" << name << ":\n";
-    parser1_registerDefs << "      obj->" << name << " = strdup(strValue);\n";
-    parser1_registerDefs << "      break;\n";
+    parser1_defs << "    case XTOK_" << name << ":\n";
+    parser1_defs << "      obj->" << name << " = strdup(strValue);\n";
+    parser1_defs << "      break;\n";
   }
   else if (0==strcmp(type, "bool")) {
-    parser1_registerDefs << "    case XTOK_" << name << ":\n";
-    parser1_registerDefs << "      obj->" << name << " = (strcmp(strValue, \"true\") == 0);\n";
-    parser1_registerDefs << "      break;\n";
+    parser1_defs << "    case XTOK_" << name << ":\n";
+    parser1_defs << "      obj->" << name << " = (strcmp(strValue, \"true\") == 0);\n";
+    parser1_defs << "      break;\n";
   }
 
   else if (isListType(type)) {
-    parser1_registerDefs << "    case XTOK_" << name << ":\n";
-    parser1_registerDefs << "      unsatLinks_ASTList.append(new unsatLink("
-                         << "(void*) &(obj->" << name << "), strValue));\n";
-    parser1_registerDefs << "      break;\n";
+    parser1_defs << "    case XTOK_" << name << ":\n";
+    parser1_defs << "      unsatLinks_ASTList.append(new UnsatLink("
+                         << "(void**) &(obj->" << name << "), strValue));\n";
+    parser1_defs << "      break;\n";
   }
   else if (isFakeListType(type)) {
-    parser1_registerDefs << "    case XTOK_" << name << ":\n";
-    parser1_registerDefs << "      unsatLinks_FakeList.append(new unsatLink("
-                         << "(void*) &(obj->" << name << "), strValue));\n";
-    parser1_registerDefs << "      break;\n";
+    parser1_defs << "    case XTOK_" << name << ":\n";
+    parser1_defs << "      unsatLinks_FakeList.append(new UnsatLink("
+                         << "(void**) &(obj->" << name << "), strValue));\n";
+    parser1_defs << "      break;\n";
   }
   else if (isTreeNode(type) ||
            (isTreeNodePtr(type) && isOwner)) {
-    parser1_registerDefs << "    case XTOK_" << name << ":\n";
-    parser1_registerDefs << "      unsatLinks.append(new unsatLink("
-                         << "(void*) &(obj->" << name << "), strValue));\n";
-    parser1_registerDefs << "      break;\n";
+    parser1_defs << "    case XTOK_" << name << ":\n";
+    parser1_defs << "      unsatLinks.append(new UnsatLink("
+                         << "(void**) &(obj->" << name << "), strValue));\n";
+    parser1_defs << "      break;\n";
   }
 //    else {
 //      // catch-all ..
@@ -2470,7 +2477,7 @@ void XmlParserGen::emitXmlParser_Node
 {
   string name = clazz->name;
 
-  parser0_registerDecls
+  parser0_decls
     << "    void registerAttr_" << name
     << "(" << name << " *obj, int attr, char const *strValue);\n";
 
@@ -2480,13 +2487,38 @@ void XmlParserGen::emitXmlParser_Node
     << "((" << name << "*)nodeStack.top(), attr, lexer.YYText());\n"
     << "      break;\n";
 
-  parser1_registerDefs
+  // we need to supply however many NULL args here as there are ctor args.
+  parser2_ctorCalls << "    case XTOK_" << name << ":\n"
+                    << "      topTemp = new " << name << "(";
+  bool firstTime = true;
+  if (args)      {emitXmlParser_objCtorArgs(*args, firstTime);}
+  if (childArgs) {emitXmlParser_objCtorArgs(*childArgs, firstTime);}
+  if (lastArgs)  {emitXmlParser_objCtorArgs(*lastArgs, firstTime);}
+  parser2_ctorCalls << ");\n"
+                    << "      break;\n";
+}
+
+void XmlParserGen::emitXmlParser_Node_registerAttr
+  (ASTClass const *clazz,
+
+   ASTList<CtorArg> const *args,
+   ASTList<Annotation> const *decls,
+   ASTList<CtorArg> const *lastArgs,
+
+   // these two default to NULL, which is used in the case of a top
+   // level class with no subclasses
+   ASTList<CtorArg> const *childArgs,
+   ASTList<Annotation> const *childDecls)
+{
+  string name = clazz->name;
+
+  parser1_defs
     << "    void ReadXml::registerAttr_" << name
     << "(" << name << " *obj, int attr, char const *strValue) {\n";
-  parser1_registerDefs << "    switch(attr) {\n";
-  parser1_registerDefs << "    default:\n";
-  parser1_registerDefs << "      userError(\"illegal attribute for a " << name << "\");\n";
-  parser1_registerDefs << "      break;\n";
+  parser1_defs << "    switch(attr) {\n";
+  parser1_defs << "    default:\n";
+  parser1_defs << "      userError(\"illegal attribute for a " << name << "\");\n";
+  parser1_defs << "      break;\n";
 
   // for each attribute, emit a rule to parse it as an attribute of this tag
   emitXmlCtorArgs_AttributeParseRule(*args, name);
@@ -2498,18 +2530,8 @@ void XmlParserGen::emitXmlParser_Node
     emitXmlFields_AttributeParseRule(*childDecls, name);
   }
 
-  parser1_registerDefs << "    }\n";
-  parser1_registerDefs << "  }\n";
-
-  // we need to supply however many NULL args here as there are ctor args.
-  parser2_ctorCalls << "    case XTOK_" << name << ":\n"
-                    << "      topTemp = new " << name << "(";
-  bool firstTime = true;
-  if (args)      {emitXmlParser_objCtorArgs(*args, firstTime);}
-  if (childArgs) {emitXmlParser_objCtorArgs(*childArgs, firstTime);}
-  if (lastArgs)  {emitXmlParser_objCtorArgs(*lastArgs, firstTime);}
-  parser2_ctorCalls << ");\n"
-                    << "      break;\n";
+  parser1_defs << "    }\n";
+  parser1_defs << "  }\n";
 }
 
 void XmlParserGen::emitXmlParser_FakeList(char const *type)
@@ -2540,12 +2562,17 @@ void XmlParserGen::emitXmlParserImplementation()
   tokensOutCC << "  // AST nodes\n";
   lexerOut    << "  /* AST nodes */\n";
 
+  parser1_defs << "KindCategory ReadXml::kind2kindCat(int kind) {\n";
+  parser1_defs << "  switch(kind) {\n";
+  parser1_defs << "  default: xfailure(\"illegal token kind\");\n";
+
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
 
     tokensOutH  << "  XTOK_" << c->super->name << ", // \"" << c->super->name << "\"\n";
     tokensOutCC << "  \"XTOK_" << c->super->name << "\",\n";
     lexerOut  << "\"" << c->super->name << "\" return tok(XTOK_" << c->super->name << ");\n";
+    parser1_defs << "  case XTOK_" << c->super->name << ": return KC_Node;\n";
 
     collectXmlParserCtorArgs(c->super->args, "obj");
     collectXmlParserFields(c->super->decls, "obj");
@@ -2558,6 +2585,8 @@ void XmlParserGen::emitXmlParserImplementation()
         tokensOutH  << "    XTOK_" << clazz->name << ", // \"" << clazz->name << "\"\n";
         tokensOutCC << "    \"XTOK_" << clazz->name << "\",\n";
         lexerOut  << "\"" << clazz->name << "\" return tok(XTOK_" << clazz->name << ");\n";
+        parser1_defs << "  case XTOK_" << clazz->name << ": return KC_Node;\n";
+
         collectXmlParserCtorArgs(clazz->args, "obj0");
         collectXmlParserFields(clazz->decls, "obj0");
         emitXmlParser_Node(clazz,
@@ -2577,6 +2606,7 @@ void XmlParserGen::emitXmlParserImplementation()
     tokensOutH  << "  XTOK_FakeList_" << cls << ", // \"FakeList_" << cls << "\"\n";
     tokensOutCC << "  \"XTOK_FakeList_" << cls << "\",\n";
     lexerOut  << "\"FakeList_" << cls << "\" return tok(XTOK_FakeList_" << cls << ");\n";
+    parser1_defs << "  case XTOK_FakeList_" << cls << ": return KC_FakeList;\n";
     emitXmlParser_FakeList(cls);
   }
 
@@ -2587,8 +2617,77 @@ void XmlParserGen::emitXmlParserImplementation()
     tokensOutH  << "  XTOK_ASTList_" << cls << ", // \"ASTList_" << cls << "\"\n";
     tokensOutCC << "  \"XTOK_ASTList_" << cls << "\",\n";
     lexerOut  << "\"ASTList_" << cls << "\" return tok(XTOK_ASTList_" << cls << ");\n";
+    parser1_defs << "  case XTOK_ASTList_" << cls << ": return KC_ASTList;\n";
     emitXmlParser_ASTList(cls);
   }
+
+  parser1_defs << "  }\n";
+  parser1_defs << "}\n";
+
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *c = iter.data();
+    if (c->hasChildren()) {
+      FOREACH_ASTLIST(ASTClass, c->ctors, iter) {
+        ASTClass const *clazz = iter.data();
+        emitXmlParser_Node_registerAttr
+          (clazz,
+           &c->super->args, &c->super->decls, &c->super->lastArgs,
+           &clazz->args, &clazz->decls);
+      }
+    } else {
+      emitXmlParser_Node_registerAttr
+        (c->super,
+         &c->super->args, &c->super->decls, &c->super->lastArgs);
+    }
+  }
+
+  // generate generic FakeList prepend
+  parser1_defs << "void *ReadXml::prepend2FakeList(void *list, int listKind, "
+               << "void *datum, int datumKind) {\n";
+  parser1_defs << "  switch(listKind) {\n";
+  parser1_defs << "  default: xfailure(\"attempt to prepend to a non-FakeList token kind\");\n";
+  FOREACH_ASTLIST(char, fakeListClasses, iter) {
+    char const *cls = iter.data();
+    parser1_defs << "  case XTOK_FakeList_" << cls << ":\n";
+    parser1_defs << "    if (!datumKind == XTOK_" << cls << ") {\n";
+    parser1_defs << "      userError(\"can't put that onto a FakeList of " << cls << "\");\n";
+    parser1_defs << "    }\n";
+    parser1_defs << "    return ((FakeList<" << cls
+                 << ">*)list)->prepend((" << cls << "*)datum);\n";
+    parser1_defs << "    break;\n";
+  }
+  parser1_defs << "  }\n";
+  parser1_defs << "}\n";
+
+  // generate generic FakeList reverse
+  parser1_defs << "void *ReadXml::reverseFakeList(void *list, int listKind) {\n";
+  parser1_defs << "  switch(listKind) {\n";
+  parser1_defs << "  default: xfailure(\"attempt to reverse a non-FakeList token kind\");\n";
+  FOREACH_ASTLIST(char, fakeListClasses, iter) {
+    char const *cls = iter.data();
+    parser1_defs << "  case XTOK_FakeList_" << cls << ":\n";
+    parser1_defs << "    return ((FakeList<" << cls << ">*)list)->reverse();\n";
+    parser1_defs << "    break;\n";
+  }
+  parser1_defs << "  }\n";
+  parser1_defs << "}\n";
+
+  // generate generic ASTList append
+  parser1_defs << "void ReadXml::append2ASTList(void *list, int listKind, "
+               << "void *datum, int datumKind) {\n";
+  parser1_defs << "  switch(listKind) {\n";
+  parser1_defs << "  default: xfailure(\"attempt to append to a non-ASTList token kind\");\n";
+  FOREACH_ASTLIST(char, astListClasses, iter) {
+    char const *cls = iter.data();
+    parser1_defs << "  case XTOK_ASTList_" << cls << ":\n";
+    parser1_defs << "    if (!datumKind == XTOK_" << cls << ") {\n";
+    parser1_defs << "      userError(\"can't put that onto an ASTList of " << cls << "\");\n";
+    parser1_defs << "    }\n";
+    parser1_defs << "    ((ASTList<" << cls << ">*)list)->append((" << cls << "*)datum);\n";
+    parser1_defs << "    break;\n";
+  }
+  parser1_defs << "  }\n";
+  parser1_defs << "}\n";
 
   tokensOutH  << "\n";
   tokensOutH  << "  // metadata attributes that do not occur in the AST itself\n";
