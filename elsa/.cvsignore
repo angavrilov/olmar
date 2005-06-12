@@ -70,3 +70,10 @@ tmp.txt
 *.da
 *.gcov
 testcout
+*.str
+cipart
+cipart.yy.cc
+iptparse.yy.cc
+iptree
+smin
+smin.tmp

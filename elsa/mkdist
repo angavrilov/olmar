@@ -45,6 +45,9 @@ echo "building... (output in $distname/make.out)"
 make >>make.out 2>&1
 make check >>make.out 2>&1
 
+# make sure I can build the ocaml examples
+(cd elkhound/ocaml; make) 2>&1
+
 # check for having run flex or bison
 # UPDATE: have to run flex b/c it's how lexical extensions are added..
 if egrep '^bison' make.out; then

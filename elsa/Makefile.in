@@ -1,10 +1,10 @@
 # Makefile.in
 # this is the Makefile for Elsa, the Elkhound-based C++ Parser
 
-#temporary: all semgrep
+#temporary: 
 
 # main target: a C++ parser
-all: cc.ast.gen.h tlexer ccparse quicktest
+all: cc.ast.gen.h tlexer ccparse iptree smin cipart quicktest
 
 # directories of other software
 SMBASE   := @SMBASE@
@@ -281,6 +281,43 @@ quicktest: ccparse
 TOCLEAN += semgrep
 semgrep: $(CCPARSE_OBJS) semgrep.o $(libraries)
 	$(CXX) -o $@ $(CCPARSE_OBJS) semgrep.o $(LDFLAGS)
+
+
+# --------------------- iptree --------------------
+TOCLEAN += iptree
+iptree: iptree.cc $(LIBSMBASE)
+	$(CXX) -o $@ $(CCFLAGS) -DTEST_IPTREE iptree.cc $(LIBSMBASE)
+
+
+# ---------------------- smin ---------------------
+# lexer for interval partition tree specs
+TOCLEAN += iptparse.yy.cc
+iptparse.yy.cc: iptparse.lex
+	flex -o$@ iptparse.lex
+
+iptparse.yy.o: iptparse.h
+
+SMIN_OBJS := \
+  iptparse.o \
+  iptparse.yy.o \
+  iptree.o \
+  smin.o
+-include $(SMIN_OBJS:.o=.d)
+
+TOCLEAN += smin
+smin: $(SMIN_OBJS) $(LIBSMBASE)
+	$(CXX) -o $@ $(SMIN_OBJS) $(LDFLAGS)
+
+
+# --------------------- cipart --------------------
+TOCLEAN += cipart.yy.cc
+cipart.yy.cc: cipart.lex
+	flex -o$@ cipart.lex
+
+-include cipart.yy.d
+
+cipart: cipart.yy.o $(LIBSMBASE)
+	$(CXX) -o $@ cipart.yy.o $(LDFLAGS)
 
 
 # ---------------------- misc ---------------------
