@@ -12,7 +12,7 @@ Minimizer::Minimizer()
   : sourceFname(),
     testProg(),
     source(10 /*hint*/),
-    tree(),
+    tree(NULL),
     results(),
     passingTests(0),
     failingTests(0),
@@ -21,7 +21,11 @@ Minimizer::Minimizer()
 {}
 
 Minimizer::~Minimizer()
-{}
+{
+  if (tree) {
+    delete tree;
+  }
+}
 
 
 void setIrrelevant(IPTree &t, int offset)
@@ -57,18 +61,18 @@ VariantResult Minimizer::runTest()
 VariantCursor Minimizer::write(int &size)
 {
   VariantCursor cursor = results.getTop();
-  size = tree.write(sourceFname, source, cursor);
+  size = tree->write(sourceFname, source, cursor);
   return cursor;
 }
 
 
 void Minimizer::minimize()
 { 
-  if (!tree.getTop()) {
+  if (!tree->getTop()) {
     return;
   }
 
-  while (minimize(tree.getTop())) {
+  while (minimize(tree->getTop())) {
     // keep going as long as progress is being made
   }
 }
@@ -112,53 +116,54 @@ bool Minimizer::minimize(Node *n)
     n->rel = R_RELEVANT;
   }
 
+  if (!n->subintervals) {
+    // nothing more to try here, even on the next pass
+    return false;
+  }
+
   // for performance testing, would disable large-sections-first optimization
   //origRel = R_RELEVANT;
 
   if (origRel == R_UNKNOWN) {
     // this is the first time this node has been tested, so do not
     // test its children yet; instead wait for the next pass
-    if (n->children.isEmpty()) {
-      // nothing more to try here, even on the next pass
-      return false;
-    }
-    else {
-      // return 'true' to mean that we made progress in the sense of
-      // turning this node's 'rel' from R_UNKNOWN to R_RELEVANT, and
-      // consequently on the next pass we will investigate the
-      // children
-      return true;
-    }
+    //
+    // return 'true' to mean that we made progress in the sense of
+    // turning this node's 'rel' from R_UNKNOWN to R_RELEVANT, and
+    // consequently on the next pass we will investigate the
+    // children
+    return true;
   }
-  
+
   // this node was tested at least once before, so now try dropping
   // some of its children
   xassert(origRel == R_RELEVANT);
-  
-  ObjListIterNC<Node> iter(n->children);
-  return minimizeChildren(iter);
+
+  return minimizeChildren(n->subintervals);
 }
 
 
-bool Minimizer::minimizeChildren(ObjListIterNC<Node> &iter)
+bool Minimizer::minimizeChildren(Node *sub)
 {
-  if (iter.isDone()) {
-    // no (more) children to minimize, no progress made
-    return false;
-  }
-  
-  // remember this child
-  Node *n = iter.data();
+  bool ret = false;
   
   // try minimizing later children first, with the idea that the
   // static semantic dependencies are likely to go from later to
   // earlier, hence we'd like to start dropping things at the
   // end of the file first
-  iter.adv();
-  bool progress = minimizeChildren(iter);
-  
+  if (sub->right) {
+    ret = minimizeChildren(sub->right) || ret;
+  }
+
   // now try minimizing this child
-  return minimize(n) || progress;
+  ret = minimize(sub) || ret;
+
+  // and earlier children
+  if (sub->left) {
+    ret = minimizeChildren(sub->left) || ret;
+  }
+  
+  return ret;
 }
 
 
@@ -203,11 +208,12 @@ void entry(int argc, char *argv[])
   readFile(m.sourceFname, m.source);
 
   // build the interval partition tree
-  parseFile(m.tree, treeFname);
+  cout << "building interval partition tree\n";
+  m.tree = parseFile(treeFname);
 
   // check that its size does not exceed the source file
   {
-    int endpt = m.tree.getLargestFiniteEndpoint();
+    int endpt = m.tree->getLargestFiniteEndpoint();
     if (endpt >= m.source.size()) {
       xfatal("the interval tree ends at " << endpt <<
              ", but the file size is only " << m.source.size());
@@ -259,7 +265,7 @@ void entry(int argc, char *argv[])
     
   // debugging stuff (interesting, but noisy)   
   if (tracingSys("dumpfinal")) {
-    m.tree.gdb();
+    m.tree->gdb();
     printResults(m.results);
   }
 }

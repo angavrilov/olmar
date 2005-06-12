@@ -44,20 +44,73 @@ typedef VariantResults::Node *VariantCursor;
 void printResults(VariantResults &results);
 
 
+class Interval {
+public:      // data
+  // interval endpoints, inclusive; hi can be MAXINT
+  int lo, hi;
+
+public:      // funcs
+  Interval() : lo(0), hi(0) {}
+  Interval(int L, int H) : lo(L), hi(H) {}
+
+  Interval& operator= (Interval const &obj)
+    { lo=obj.lo; hi=obj.hi; return *this; }
+
+  // number of elements in the interval
+  int size() const
+    { return hi-lo+1; }
+
+  // interval comparison
+  bool contains(Interval const &obj) const
+    { return lo <= obj.lo && obj.hi <= hi; }
+  bool operator< (Interval const &obj) const
+    { return hi < obj.lo; }
+  bool operator> (Interval const &obj) const
+    { return lo > obj.hi; }
+
+  // integer comparison
+  bool contains(int n) const
+    { return lo <= n && n <= hi; }
+  bool operator< (int n) const
+    { return hi < n; }
+  bool operator> (int n) const
+    { return lo > n; }
+  friend bool operator< (int n, Interval const &obj)
+    { return n < obj.lo; }
+  friend bool operator> (int n, Interval const &obj)
+    { return n > obj.hi; }
+
+  // print the range as a string, like "[1, 2]"
+  string rangeString() const;
+};
+
+
 // node in the interval tree
 class Node {
 public:
-  // interval endpoints, inclusive; the root node has hi=MAXINT, to
-  // indicate an open upper endpoint
-  int lo, hi;
+  // interval
+  Interval ival;
 
-  // children (subintervals), in sorted order
-  ObjList<Node> children;
+  // binary search tree of siblings; this tree is not necessarily
+  // balanced, but the tree construction procedure has provisions to
+  // make balance reasonably likely (nullable owner)
+  Node *left, *right;
+
+  // subintervals contained within this one
+  Node *subintervals;
 
   // state of search for minimal element
   Relevance rel;
 
-public:
+  // # of times 'left' or 'right' is traversed during insert()
+  static long linkChases;
+
+private:     // funcs
+  int writeSubs(FILE *fp, GrowArray<char> const &source,
+                VariantCursor &cursor, int &curOffset);
+  void debugPrintSubs(ostream &os, int ind) const;
+
+public:      // funcs
   Node(int lo, int hi);
   ~Node();
 
@@ -81,7 +134,8 @@ public:
             VariantCursor &cursor) const;
 
   // print the range as a string, like "[1, 2]"
-  string rangeString() const;
+  string rangeString() const
+    { return ival.rangeString(); }
 
   // print this subtree to the given stream at the given level
   // of indentation
@@ -96,12 +150,13 @@ private:     // data
   Node *top;
 
 public:      // funcs
-  IPTree();
+  IPTree(int hi);      // hi is 'hi' of root
   ~IPTree();
 
   Node *getTop() { return top; }
 
-  // add a new interval; must nest properly w.r.t. the existing intervals
+  // add a new interval; must nest properly *inside* existing
+  // intervals (so must insert from largest to smallest)
   Node *insert(int lo, int hi);
 
   // find the smallest interval containing the given value, or NULL if

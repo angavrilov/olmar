@@ -126,8 +126,17 @@ NOTNL         .
   /* braces: partition at start/end of containing lines */
 "{" {
   finishBoundaries();
-  openBraceLines.push(lineStart);
-  openBraces.push(loc);
+  if (pendingBracePair.isNotEmpty()) {
+    // just let this open-brace cancel one of the close-braces
+    // on the same line 
+    int prev = pendingBracePair.pop();
+    openBraceLines.push(prev);
+    openBraces.push(prev /*approximate; will be fine*/);
+  }
+  else {
+    openBraceLines.push(lineStart);
+    openBraces.push(loc);
+  }
   updLoc();
 }
 

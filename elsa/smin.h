@@ -16,8 +16,9 @@ public:      // data
   // original contents of 'sourceFname;
   GrowArray<char> source;
   
-  // structural info about 'source'
-  IPTree tree;
+  // structural info about 'source'; must be set by client 
+  // (nullable owner)
+  IPTree *tree;
   
   // record of which variants have been tried
   VariantResults results;
@@ -32,7 +33,7 @@ public:      // data
 
 private:     // funcs    
   bool minimize(Node *n);
-  bool minimizeChildren(ObjListIterNC<Node> &iter);
+  bool minimizeChildren(Node *sub);
 
 public:      // funcs
   Minimizer();

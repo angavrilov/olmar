@@ -29,7 +29,7 @@ void yyrestart(FILE *input_file);
 TokenType getNextToken();
 
 // parse a file into a given tree
-void parseFile(IPTree &dest, rostring fname);
+IPTree *parseFile(rostring fname);
 
 
 #endif // IPTPARSE_H

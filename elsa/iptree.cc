@@ -79,85 +79,120 @@ void printResults(VariantResults &results)
 }
 
 
+// ---------------------- Interval ----------------------
+string Interval::rangeString() const
+{
+  if (hi < MAXINT) {
+    return stringc << "[" << lo << ", " << hi << "]";
+  }
+  else {
+    return stringc << "[" << lo << ", +inf)";
+  }
+}
+
+
 // ------------------------ Node ------------------------
-Node::Node(int lo_, int hi_)
-  : lo(lo_),
-    hi(hi_),
-    children(),
+long Node::linkChases = 0;
+
+Node::Node(int lo, int hi)
+  : ival(lo, hi),
+    left(NULL),
+    right(NULL),
+    subintervals(NULL),
     rel(R_UNKNOWN)
 {
   xassert(lo <= hi);
 }
 
 Node::~Node()
-{}
+{
+  if (left) {
+    delete left;
+  }
+  if (right) {
+    delete right;
+  }
+  if (subintervals) {
+    delete subintervals;
+  }
+}
 
 
 bool Node::contains(Node const *n) const
 {
-  return lo <= n->lo && n->hi <= hi;
+  return ival.contains(n->ival);
 }
 
 
 bool Node::contains(int n) const
 {
-  return lo <= n && n <= hi;
+  return ival.contains(n);
 }
 
 
 void Node::insert(Node *n)
 {
-  //TRACE("insert", "attempting to insert " << n->rangeString() <<
-  //                " into " << this->rangeString());
-
-  // 'n' must nest properly inside 'this'
-  if (!contains(n)) {
-    xfatal("attempting to insert " << n->rangeString() <<
-           " into " << this->rangeString());
+  if (n->ival < this->ival) {
+    // goes into left subtree
+    if (!left) {
+      left = n;
+    }
+    else {
+      linkChases++;
+      left->insert(n);
+    }
+    return;
   }
-  
-  // search for a child that contains 'n'
-  ObjListMutator<Node> mut(children);
-  while (!mut.isDone()) {
-    if (n->hi < mut.data()->lo) {
-      // 'n' goes in 'children' before 'mut'
-      mut.insertBefore(n);
-      return;
-    }
-    
-    if (mut.data()->contains(n)) {
-      // 'n' gets inserted inside 'mut'
-      mut.data()->insert(n);
-      return;
-    }
 
-    if (n->contains(mut.data())) {
-      // stick 'mut' into 'n'
-      n->insert(mut.remove());
-      continue;
+  if (n->ival > this->ival) {
+    // goes into right subtree
+    if (!right) {
+      right = n;
     }
-
-    // must be that 'n' goes after 'mut'
-    if (!( n->lo > mut.data()->hi )) {
-      xfatal(n->rangeString() << " doesn't come after " << mut.data()->rangeString());
+    else {
+      linkChases++;
+      right->insert(n);
     }
-    mut.adv();
+    return;
   }
-  
-  // put 'n' at the end of the child list
-  mut.insertBefore(n);
+
+  if (this->contains(n)) {
+    // goes into subintervals
+    if (!subintervals) {
+      subintervals = n;
+    }
+    else {
+      subintervals->insert(n);
+    }
+    return;
+  }
+
+  xfatal("improper overlap: " << n->rangeString() <<
+         " and " << this->rangeString());
 }
 
 
 Node const *Node::queryC(int n) const
 {
-  FOREACH_OBJLIST(Node, children, iter) {
-    if (iter.data()->contains(n)) {
-      return iter.data()->queryC(n);
+  xassert(contains(n));
+
+  // search among subintervals for containing node
+  Node const *sub = subintervals;
+  while (sub) {
+    if (sub->ival.contains(n)) {
+      return sub->queryC(n);
+    }
+    
+    if (n < sub->ival) {
+      sub = sub->left;
+    }
+    else {
+      xassert(n > sub->ival);
+      sub = sub->right;
     }
   }
 
-  xassert(contains(n));  
+  // no subinterval contains it
   return this;
 }
 
@@ -177,49 +212,59 @@ int writeSegment(FILE *fp, GrowArray<char> const &source,
 
 int Node::write(FILE *fp, GrowArray<char> const &source,
                 VariantCursor &cursor) const
-{
-  int curOffset = lo;
+{ 
+  int curOffset = ival.lo;
   int ret = 0;
 
-  FOREACH_OBJLIST(Node, children, iter) {
-    Node const *c = iter.data();
-
-    // write data preceding 'c'
-    ret += writeSegment(fp, source, curOffset, c->lo - curOffset);
-
-    // possibly write 'c'
-    if (c->rel) {
-      cursor = cursor->getOne();
-      ret += c->write(fp, source, cursor);
-    }
-    else {
-      cursor = cursor->getZero();
-    }
-    curOffset = c->hi+1;
+  // write data before and in subintervals
+  if (subintervals) {
+    ret += subintervals->writeSubs(fp, source, cursor, curOffset);
   }
-  
+
   // upper bound
-  int hi = this->hi;
+  int hi = ival.hi;
   if (hi >= source.size()) {
     hi = source.size()-1;
   }
 
   // write data after final child
   ret += writeSegment(fp, source, curOffset, hi+1-curOffset);
-  
+
   return ret;
 }
 
 
-string Node::rangeString() const
+// recursively explore the sibling tree
+int Node::writeSubs(FILE *fp, GrowArray<char> const &source,
+                    VariantCursor &cursor, int &curOffset)
 {
-  if (hi < MAXINT) {
-    return stringc << "[" << lo << ", " << hi << "]";
+  // write left siblings
+  int ret = 0;
+  if (left) {
+    ret += left->writeSubs(fp, source, cursor, curOffset);
+  }
+
+  // write data preceding me
+  ret += writeSegment(fp, source, curOffset, ival.lo - curOffset);
+
+  // possibly write me
+  if (rel) {
+    cursor = cursor->getOne();
+    ret += write(fp, source, cursor);
   }
   else {
-    return stringc << "[" << lo << ", +inf)";
+    cursor = cursor->getZero();
   }
+  curOffset = ival.hi+1;
+
+  // write right siblings
+  if (right) {
+    ret += right->writeSubs(fp, source, cursor, curOffset);
+  }
+  
+  return ret;
 }
+
 
 static void indent(ostream &os, int ind)
 {
@@ -232,18 +277,34 @@ void Node::debugPrint(ostream &os, int ind) const
 {
   indent(os, ind);
   cout << rangeString() << " \t" << toString(rel) << "\n";
+
+  if (subintervals) {
+    subintervals->debugPrintSubs(os, ind+2);
+  }
+}
+
+void Node::debugPrintSubs(ostream &os, int ind) const
+{
+  // left siblings
+  if (left) {
+    left->debugPrintSubs(os, ind);
+  }
+            
+  // myself
+  debugPrint(os, ind);
   
-  FOREACH_OBJLIST(Node, children, iter) {
-    iter.data()->debugPrint(os, ind+2);
+  // right siblings
+  if (right) {
+    right->debugPrintSubs(os, ind);
   }
 }
 
 
 // ------------------------ IPTree -----------------------
-IPTree::IPTree()
+IPTree::IPTree(int hi)
   : top(NULL)
 {
-  top = new Node(0, MAXINT);
+  top = new Node(0, hi);
 }
 
 IPTree::~IPTree()
@@ -290,15 +351,20 @@ int IPTree::write(rostring fname, GrowArray<char> const &source,
 
 int IPTree::getLargestFiniteEndpoint()
 {
-  if (top->hi < MAXINT) {
-    return top->hi;
+  if (top->ival.hi < MAXINT) {
+    return top->ival.hi;
+  }
+
+  Node *sub = top->subintervals;
+  if (!sub) {
+    return top->ival.lo;
   }
   
-  if (top->children.isEmpty()) {
-    return top->lo;
+  while (sub->right) {
+    sub = sub->right;
   }
-  
-  return top->children.last()->hi;
+
+  return sub->ival.hi;
 }
 
 
@@ -345,9 +411,7 @@ void readFile(rostring fname, GrowArray<char> &dest)
 
 void entry()
 {
-  IPTree t;
-
-  t.insert(0,115);       // whole file
+  IPTree t(115);         // whole file
 
   t.insert(0,9);         // prelude
   t.insert(10,16);       // int g;
