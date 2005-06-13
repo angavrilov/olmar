@@ -11,12 +11,13 @@
 
 #include <iostream.h>       // ostream
 #include <stdio.h>          // FILE
-#include <values.h>         // MAXINT
+#include <limits.h>         // INT_MAX
 
 
 // node relevance
 enum Relevance {
-  R_IRRELEVANT=0,           // was irrelevant at least once
+  R_IRRELEVANT_SIBS,        // my siblings and I are all irrelevant
+  R_IRRELEVANT,             // was irrelevant at least once
   R_UNKNOWN,                // never tested
   R_RELEVANT,               // has been relevant every time tested
   NUM_RELEVANCES
@@ -46,7 +47,7 @@ void printResults(VariantResults &results);
 
 class Interval {
 public:      // data
-  // interval endpoints, inclusive; hi can be MAXINT
+  // interval endpoints, inclusive; hi can be INT_MAX
   int lo, hi;
 
 public:      // funcs
@@ -120,6 +121,12 @@ public:      // funcs
   // true if 'this' contains the value 'n'
   bool contains(int n) const;
 
+  // follow 'left' to the end, and get 'lo' there
+  int getLeftEdge() const;
+
+  // follow 'right' to end and get 'hi'
+  int getRightEdge() const;
+
   // add 'n' somewhere in the subtree rooted at 'this'
   void insert(Node *n);
 
@@ -171,7 +178,7 @@ public:      // funcs
   int write(rostring fname, GrowArray<char> const &source,
             VariantCursor &cursor) const;
                                  
-  // what is the largest endpoint, other than MAXINT?
+  // what is the largest endpoint, other than INT_MAX?
   int getLargestFiniteEndpoint();
 
   // debugging: print the tree to stdout

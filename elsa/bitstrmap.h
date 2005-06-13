@@ -62,7 +62,7 @@ BitStrMap<T>::Node::~Node()
 
 
 template <class T>
-BitStrMap<T>::Node *BitStrMap<T>::Node::getZero()
+typename BitStrMap<T>::Node *BitStrMap<T>::Node::getZero()
 {
   if (!zero) {
     zero = new Node;
@@ -72,7 +72,7 @@ BitStrMap<T>::Node *BitStrMap<T>::Node::getZero()
 
 
 template <class T>
-BitStrMap<T>::Node *BitStrMap<T>::Node::getOne()
+typename BitStrMap<T>::Node *BitStrMap<T>::Node::getOne()
 {
   if (!one) {
     one = new Node;
@@ -92,7 +92,7 @@ BitStrMap<T>::~BitStrMap()
 
 
 template <class T>
-BitStrMap<T>::Node *BitStrMap<T>::getTop()
+typename BitStrMap<T>::Node *BitStrMap<T>::getTop()
 {
   if (!top) {
     top = new Node;

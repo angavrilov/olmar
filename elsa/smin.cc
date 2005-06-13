@@ -6,8 +6,24 @@
 #include "trace.h"          // TRACE_ARGS
 
 #include <stdlib.h>         // system
+#include <sys/types.h>      // ?
+#include <sys/wait.h>       // W* macros for interpreting exit status
 
 
+// ------------------ XCtrlC -------------------
+XCtrlC::XCtrlC()
+  : xBase("ctrl-c")
+{}
+
+XCtrlC::XCtrlC(XCtrlC const &obj)
+  : xBase(obj)
+{}
+
+XCtrlC::~XCtrlC()
+{}
+
+
+// ----------------- Minimizer -----------------
 Minimizer::Minimizer()
   : sourceFname(),
     testProg(),
@@ -45,15 +61,62 @@ int system(rostring s)
 
 VariantResult Minimizer::runTest()
 {
-  if (0==system(stringc << testProg << " \'" << sourceFname << "\'")) {
+  int code = system(stringc << testProg << " \'" << sourceFname << "\'");
+  if (WIFSIGNALED(code) && WTERMSIG(code) == SIGINT) {
+    XCtrlC x;
+    THROW(x);
+  }
+  
+  if (code == 0) {
     cout << "p";
+    flush(cout);
     passingTests++;
     return VR_PASSED;
   }
   else {
     cout << ".";
+    flush(cout);
     failingTests++;
     return VR_FAILED;
+  }
+}
+
+
+bool Minimizer::outerRunTest(int &size, Node *n, Relevance rel)
+{
+  // temporarily set n->rel
+  Relevance origRel = n->rel;
+  n->rel = rel;
+
+  VariantCursor cursor = write(size);
+  if (!cursor->data) {
+    // this variant has not already been tried, so test it
+    testInputSum += size;
+    try {
+      cursor->data = runTest();
+    }
+    catch (XCtrlC &) {
+      // restore the relevance guess
+      n->rel = origRel;
+      throw;
+    }
+  }
+  else {
+    cout << "c";
+    flush(cout);
+    cachedTests++;
+  }
+
+  if (cursor->data == VR_PASSED) {
+    return true;
+  }
+  else {
+    xassert(cursor->data == VR_FAILED);
+
+    // 'n' seems to be relevant
+    n->rel = R_RELEVANT;
+
+    return false;
   }
 }
 
@@ -67,7 +130,7 @@ VariantCursor Minimizer::write(int &size)
 
 
 void Minimizer::minimize()
-{ 
+{
   if (!tree->getTop()) {
     return;
   }
@@ -80,45 +143,33 @@ void Minimizer::minimize()
 
 bool Minimizer::minimize(Node *n)
 {
-  if (!n->rel) {
-    // this node is already known to be irrelevant
+  if (!n) {
+    // nothing to do
     return false;
   }
-  
-  Relevance origRel = n->rel;
-  
-  // see if we can drop this node
-  n->rel = R_IRRELEVANT;       
-  int size;
-  VariantCursor cursor = write(size);
-  if (!cursor->data) {
-    // this variant has not already been tried, so test it
-    testInputSum += size;
-    cursor->data = runTest();
-    flush(cout);
-  }
-  else {
-    cachedTests++;
-  }
-  
-  if (cursor->data == VR_PASSED) {
-    // the test passed despite dropping this node, so it is irrelevant;
-    // leave 'n->rel' as it is (currently set to R_IRRELEVANT)
 
+  if (n->rel == R_IRRELEVANT_SIBS) {
+    // this node and siblings are already known to be irrelevant
+    return false;
+  }
+
+  if (n->rel == R_IRRELEVANT) {
+    // the node itself is irrelevant, but siblings are still in play
+    bool ret = false;
+    ret = minimize(n->right) || ret;
+    ret = minimize(n->left) || ret;
+    return ret;
+  }
+
+  Relevance origRel = n->rel;
+
+  // see if we can drop this node and its siblings
+  int size;
+  if (outerRunTest(size, n, R_IRRELEVANT_SIBS)) {
     // we have made progress
-    cout << "\nred:  " << stringf("%10d", size) << " ";
+    cout << "\nred2: " << stringf("%10d", size) << " ";
     flush(cout);
     return true;
-  }
-
-  else {
-    // when we drop this node, the test fails, so it is probably relevant
-    n->rel = R_RELEVANT;
-  }
-
-  if (!n->subintervals) {
-    // nothing more to try here, even on the next pass
-    return false;
   }
 
   // for performance testing, would disable large-sections-first optimization
@@ -139,14 +190,36 @@ bool Minimizer::minimize(Node *n)
   // some of its children
   xassert(origRel == R_RELEVANT);
 
-  return minimizeChildren(n->subintervals);
+  // try children from right to left; here we are testing both
+  // siblings and subintervals, so as to leverage the existing tree
+  bool ret = false;
+  ret = minimize(n->right) || ret;
+
+  // try dropping my entire range, including the spaces outside
+  // any subintervals
+  if (outerRunTest(size, n, R_IRRELEVANT)) {
+    // we have made progress
+    cout << "\nred1: " << stringf("%10d", size) << " ";
+    flush(cout);
+    ret = true;
+  }
+  else {
+    // consider dropping subintervals
+    ret = minimize(n->subintervals) || ret;
+  }
+
+  ret = minimize(n->left) || ret;
+
+  return ret;
 }
 
 
 bool Minimizer::minimizeChildren(Node *sub)
 {
+  xfailure("not used right now");
+
   bool ret = false;
-  
+
   // try minimizing later children first, with the idea that the
   // static semantic dependencies are likely to go from later to
   // earlier, hence we'd like to start dropping things at the
@@ -237,33 +310,45 @@ void entry(int argc, char *argv[])
     xfatal("failed to accurately re-create original source file");
   }
 
-  // confirm it passes the test
-  m.testInputSum += size;
-  cursor->data = m.runTest();
-  if (cursor->data == VR_PASSED) {
-    // yes
+  try {
+    // confirm it passes the test
+    m.testInputSum += size;
+    cursor->data = m.runTest();
+    if (cursor->data == VR_PASSED) {
+      // yes
+    }
+    else {
+      // no
+      xfatal("original source file does not pass the test");
+    }
   }
-  else {
-    // no
-    xfatal("original source file does not pass the test");
+  catch (XCtrlC &) {
+    xfatal("exiting due to ctrl-c; input file is unchanged");
   }
 
   // begin trying lots of variants
-  m.minimize();
+  try {
+    m.minimize();
+
+    cout << "\ndone!  writing minimized version to " << m.sourceFname << "\n";
+  }
+  catch (XCtrlC &) {
+    cout << "\nuser pressed ctrl-c;\n";
+    cout << m.sourceFname << " will be left as the smallest variant that passed the test\n";
+  }
 
   // write the final minimized version
-  cout << "\ndone!  writing minimized version to " << m.sourceFname << "\n";
   cursor = m.write(size);
   xassert(cursor->data == VR_PASSED);
-  
+
   cout << "passing=" << m.passingTests
        << ", failing=" << m.failingTests
        << ", total=" << (m.passingTests+m.failingTests)
        << ", inputSum=" << m.testInputSum
        << " (cached=" << m.cachedTests << ")"
        << "\n";
-    
-  // debugging stuff (interesting, but noisy)   
+
+  // debugging stuff (interesting, but noisy)
   if (tracingSys("dumpfinal")) {
     m.tree->gdb();
     printResults(m.results);

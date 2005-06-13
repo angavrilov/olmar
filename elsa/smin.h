@@ -6,6 +6,18 @@
 
 #include "iptparse.h"       // parseFile
 #include "iptree.h"         // IPTree
+#include "exc.h"            // xBase
+
+
+// thrown when Ctrl-C pressed
+class XCtrlC : public xBase {
+public:
+  XCtrlC();
+  XCtrlC(XCtrlC const &obj);
+  ~XCtrlC();
+};
+
+
 
 class Minimizer {
 public:      // data
@@ -46,7 +58,11 @@ public:      // funcs
   // nodes' relevance, and return a cursor denoting the bitstring for
   // this variant; returns with 'size' set to size of written file
   VariantCursor write(int &size);
-  
+
+  // possibly use the cache; consider setting n->rel to 'ret';
+  // return true if the current variant passes
+  bool outerRunTest(int &size, Node *n, Relevance rel);
+
   // kick off the minimizer
   void minimize();
 };

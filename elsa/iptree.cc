@@ -11,6 +11,7 @@
 char const *toString(Relevance r)
 {
   char const * const map[] = {
+    "R_IRRELEVANT_SIBS",
     "R_IRRELEVANT",
     "R_UNKNOWN",
     "R_RELEVANT"
@@ -82,7 +83,7 @@ void printResults(VariantResults &results)
 // ---------------------- Interval ----------------------
 string Interval::rangeString() const
 {
-  if (hi < MAXINT) {
+  if (hi < INT_MAX) {
     return stringc << "[" << lo << ", " << hi << "]";
   }
   else {
@@ -127,6 +128,27 @@ bool Node::contains(Node const *n) const
 bool Node::contains(int n) const
 {
   return ival.contains(n);
+}
+
+
+int Node::getLeftEdge() const
+{
+  if (left) {
+    return left->getLeftEdge();
+  }
+  else {
+    return ival.lo;
+  }
+}
+
+int Node::getRightEdge() const
+{
+  if (right) {
+    return right->getRightEdge();
+  }
+  else {
+    return ival.hi;
+  }
 }
 
 
@@ -210,26 +232,98 @@ int writeSegment(FILE *fp, GrowArray<char> const &source,
 }
 
 
+
+
+// The following diagram depicts the situation when a node ("me") is
+// asked to print itself.  It is responsible for printing everything
+// from A (the left edge of the left sibling tree) to H (the right
+// edge of the right sibling tree).
+//                                                               .
+//                               me                              .
+//                        +---------------+                      .
+//                        |               |                      .
+//          left          |               |        right         .
+//        +--------+      |      sub      |     +---------+      .
+//        |        |      |     +--+      |     |         |      .
+//        |        |      |     |  |      |     |         |      .
+//       /|        |\     |    /|  |\     |    /|         |\     .
+//      / |        | \    |   / |  | \    |   / |         | \    .
+//      A            B    C   D      E    F   G             H    .
+//
+// This requires several steps:
+//   - A-B: ask 'left' to print itself
+//   - B-D: I do this
+//   - D-E: ask 'subintervals' to print itself
+//   - E-G: I do this
+//   - G-H: ask 'right' to print itself
+//
+// If 'rel' is R_IRRELEVANT_SIBS, print nothing.
+//
+// If 'left' is NULL, then A=B=C.
+// If 'right' is NULL, then F=G=H.
+//
+// If 'rel' is R_IRRELEVANT, omit C-F.
+//
+// If 'subintervals' is null, then I just print B-G.
 int Node::write(FILE *fp, GrowArray<char> const &source,
                 VariantCursor &cursor) const
-{ 
-  int curOffset = ival.lo;
+{
+  if (rel == R_IRRELEVANT_SIBS) {
+    // my entire range, from A to H, is cancelled
+    cursor = cursor->getZero();
+    return 0;
+  }
+  cursor = cursor->getOne();
+
+  // # of bytes printed so far
   int ret = 0;
 
-  // write data before and in subintervals
-  if (subintervals) {
-    ret += subintervals->writeSubs(fp, source, cursor, curOffset);
+  int B;
+  if (left) {
+    ret += left->write(fp, source, cursor);          // print A-B
+    B = left->getRightEdge();
+  }
+  else {
+    // so when I print B-D, I will actually print C-D
+    B = ival.lo-1;
   }
 
-  // upper bound
-  int hi = ival.hi;
-  if (hi >= source.size()) {
-    hi = source.size()-1;
+  int E;
+  if (rel > R_IRRELEVANT) {
+    cursor = cursor->getOne();
+    if (subintervals) {
+      int D = subintervals->getLeftEdge();
+      ret += writeSegment(fp, source, B+1, D-(B+1));   // print B-D
+      ret += subintervals->write(fp, source, cursor);  // print D-E
+      E = subintervals->getRightEdge();
+    }
+    else {
+      // so when I print E-G, I will actually print B-G
+      E = B;
+    }
+  }
+  else {
+    cursor = cursor->getZero();
+
+    // omit C-F
+    int C = ival.lo;
+    ret += writeSegment(fp, source, B+1, C-(B+1));   // print B-C
+    
+    // so when I print E-G, I will actually print F-G
+    E = ival.hi;
   }
 
-  // write data after final child
-  ret += writeSegment(fp, source, curOffset, hi+1-curOffset);
-
+  int G;
+  if (right) {
+    G = right->getLeftEdge();
+    ret += writeSegment(fp, source, E+1, G-(E+1));   // print E-G
+    ret += right->write(fp, source, cursor);         // print G-H
+  }
+  else {
+    G = ival.hi+1;
+    ret += writeSegment(fp, source, E+1, G-(E+1));   // print E-G
+  }
+  
   return ret;
 }
 
@@ -238,6 +332,8 @@ int Node::write(FILE *fp, GrowArray<char> const &source,
 int Node::writeSubs(FILE *fp, GrowArray<char> const &source,
                     VariantCursor &cursor, int &curOffset)
 {
+  xfailure("not used anymore");
+
   // write left siblings
   int ret = 0;
   if (left) {
@@ -248,7 +344,7 @@ int Node::writeSubs(FILE *fp, GrowArray<char> const &source,
   ret += writeSegment(fp, source, curOffset, ival.lo - curOffset);
 
   // possibly write me
-  if (rel) {
+  if (rel > R_IRRELEVANT) {
     cursor = cursor->getOne();
     ret += write(fp, source, cursor);
   }
@@ -351,7 +447,7 @@ int IPTree::write(rostring fname, GrowArray<char> const &source,
 
 int IPTree::getLargestFiniteEndpoint()
 {
-  if (top->ival.hi < MAXINT) {
+  if (top->ival.hi < INT_MAX) {
     return top->ival.hi;
   }
 
