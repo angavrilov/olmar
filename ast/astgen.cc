@@ -2413,12 +2413,12 @@ void XmlParserGen::emitXmlField_AttributeParseRule
 {
   if (0==strcmp(type, "string")) {
     parser1_defs << "    case XTOK_" << name << ":\n";
-    parser1_defs << "      obj->" << name << " = strdup(strValue);\n";
+    parser1_defs << "      obj->" << name << " = strdup(parseQuotedString(strValue));\n";
     parser1_defs << "      break;\n";
   }
   if (0==strcmp(type, "StringRef")) {
     parser1_defs << "    case XTOK_" << name << ":\n";
-    parser1_defs << "      obj->" << name << " = strTable(strValue);\n";
+    parser1_defs << "      obj->" << name << " = strTable(parseQuotedString(strValue));\n";
     parser1_defs << "      break;\n";
   }
   else if (0==strcmp(type, "bool")) {
