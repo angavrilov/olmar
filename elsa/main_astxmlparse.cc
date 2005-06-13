@@ -3,6 +3,7 @@
 #include "main_astxmlparse.h"   // this module
 #include "fstream.h"            // ifstream
 #include "strsobjdict.h"        // StringSObjDict
+#include "strutil.h"            // parseQuotedString
 #include "astxml_lexer.h"       // AstXmlLexer
 
 #include "cc.ast.gen.h"         // TranslationUnit, etc.
