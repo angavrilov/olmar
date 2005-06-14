@@ -906,9 +906,9 @@ public:
   void emitDVisitorImplementation();
 
   private:
-  void emitXmlCtorArgs(ASTList<CtorArg> const &args, char const *baseName);
-  void emitXmlFields(ASTList<Annotation> const &decls, char const *baseName);
-  void emitXmlField(bool isOwner, rostring type, rostring name, char const *baseName);
+  void emitXmlCtorArgs(ASTList<CtorArg> const &args, char const *baseName, string const &className);
+  void emitXmlFields(ASTList<Annotation> const &decls, char const *baseName, string const &className);
+  void emitXmlField(bool isOwner, rostring type, rostring name, char const *baseName, string const &className);
   void emitXmlVisitorImplVisitedCheck(char const *name);
   public:
   void emitXmlVisitorImplementation();
@@ -1864,16 +1864,16 @@ void CGen::emitDVisitorImplementation()
 //  #define PRINT_BOOL(var) 
 //    ind(os, indent) << #var << " = " << (var? "true" : "false") << "\n"   /* user ; */
 
-void CGen::emitXmlCtorArgs(ASTList<CtorArg> const &args, char const *baseName)
+void CGen::emitXmlCtorArgs(ASTList<CtorArg> const &args, char const *baseName, string const &className)
 {
   FOREACH_ASTLIST(CtorArg, args, argiter) {
     CtorArg const &arg = *(argiter.data());
 
-    emitXmlField(arg.isOwner, arg.type, arg.name, baseName);
+    emitXmlField(arg.isOwner, arg.type, arg.name, baseName, className);
   }
 }
 
-void CGen::emitXmlFields(ASTList<Annotation> const &decls, char const *baseName)
+void CGen::emitXmlFields(ASTList<Annotation> const &decls, char const *baseName, string const &className)
 {
   FOREACH_ASTLIST(Annotation, decls, iter) {
     if (!iter.data()->isUserDecl()) continue;
@@ -1883,11 +1883,12 @@ void CGen::emitXmlFields(ASTList<Annotation> const &decls, char const *baseName)
     emitXmlField(ud->amod->hasMod("owner"),
                  extractFieldType(ud->code),
                  extractFieldName(ud->code),
-                 baseName);
+                 baseName,
+                 className);
   }
 }
 
-void CGen::emitXmlField(bool isOwner, rostring type, rostring name, char const *baseName)
+void CGen::emitXmlField(bool isOwner, rostring type, rostring name, char const *baseName, string const &className)
 {
   if (0==strcmp(type, "string") || 0==strcmp(type, "StringRef")) {
     out << "  out << \"\\n\";\n";
@@ -1937,10 +1938,19 @@ void CGen::emitXmlField(bool isOwner, rostring type, rostring name, char const *
     out << "  out << \"ND\" << static_cast<void const*>(" << baseName << "->" << name << ");\n";
     out << "  out << \"\\\"\";\n";
   }
-//    else {
-//      // catch-all ..
-//  //      out << "  " << print << "_GENERIC(" << name << ");\n";
-//    }
+  else {
+    // catch-all ..
+//      out << "  " << print << "_GENERIC(" << name << ");\n";
+//      cout << "emitXmlField: no handler registered for this type '" << type
+//           << "' in this class->field '" << className << "->" << name << "'"
+//           << endl;
+    out << "  out << \"\\n\";\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"" << name << "\" << \"=\";\n";
+//      out << "  out << (" << baseName << "->"
+//          << name << "? \"\\\"true\\\"\" : \"\\\"false\\\"\");\n";
+    out << "  out << quoted(toXml(" << baseName << "->" << name << "));\n";
+  }
 }
 
 void HGen::emitXmlVisitorInterface()
@@ -2061,8 +2071,8 @@ void CGen::emitXmlVisitorImplementation()
     out << "  out << \"\\\"\";\n";
 
     // emit other properties
-    emitXmlCtorArgs(c->super->args, "obj");
-    emitXmlFields(c->super->decls, "obj");
+    emitXmlCtorArgs(c->super->args, "obj", c->super->name);
+    emitXmlFields(c->super->decls, "obj", c->super->name);
 
     // print the attributes of the subclasses
     if (c->hasChildren()) {
@@ -2076,8 +2086,8 @@ void CGen::emitXmlVisitorImplementation()
 //          if (clazz->args.isNotEmpty() || clazz->decls.isNotEmpty()) {
         out << "    " << clazz->name << " *obj0 = obj->as" << clazz->name << "();\n";
 //          }
-        emitXmlCtorArgs(clazz->args, "obj0");
-        emitXmlFields(clazz->decls, "obj0");
+        emitXmlCtorArgs(clazz->args, "obj0", clazz->name);
+        emitXmlFields(clazz->decls, "obj0", clazz->name);
 
         // prevent unused variable warning when compiling client code;
         // FIX: remove when all kinds of fields are printed
@@ -2091,7 +2101,7 @@ void CGen::emitXmlVisitorImplementation()
 
     // print the 'last' attributes of the superclass, which come after
     // all subclass things
-    emitXmlCtorArgs(c->super->lastArgs, "obj");
+    emitXmlCtorArgs(c->super->lastArgs, "obj", c->super->name);
 
     out << "  --depth;\n";      // outdent temporarily so close bracket lines up with open
     // commenting out these two lines puts the closing angle bracket
@@ -2354,13 +2364,15 @@ void XmlParserGen::collectXmlParserFields(ASTList<Annotation> const &decls, char
   }
 }
 
+// FIX: this is now very redundant, but we can still change it to
+// exclude some fields of some types, so lets keep it for now.
 void XmlParserGen::collectXmlParserField
   (bool isOwner, rostring type, rostring name, char const *baseName)
 {
   if (0==strcmp(type, "string")) {
     attributeNames.add(name);
   }
-  if (0==strcmp(type, "StringRef")) {
+  else if (0==strcmp(type, "StringRef")) {
     attributeNames.add(name);
   }
   else if (0==strcmp(type, "bool")) {
@@ -2378,10 +2390,11 @@ void XmlParserGen::collectXmlParserField
     attributeNames.add(name);
   }
 
-//    else {
-//      // catch-all ..
-//  //      out << "  " << print << "_GENERIC(" << name << ");\n";
-//    }
+  else {
+    // catch-all ..
+//      out << "  " << print << "_GENERIC(" << name << ");\n";
+    attributeNames.add(name);
+  }
 }
 
 
@@ -2416,40 +2429,46 @@ void XmlParserGen::emitXmlField_AttributeParseRule
     parser1_defs << "      obj->" << name << " = strdup(parseQuotedString(strValue));\n";
     parser1_defs << "      break;\n";
   }
-  if (0==strcmp(type, "StringRef")) {
+  else if (0==strcmp(type, "StringRef")) {
     parser1_defs << "    case XTOK_" << name << ":\n";
     parser1_defs << "      obj->" << name << " = strTable(parseQuotedString(strValue));\n";
     parser1_defs << "      break;\n";
   }
   else if (0==strcmp(type, "bool")) {
     parser1_defs << "    case XTOK_" << name << ":\n";
-    parser1_defs << "      obj->" << name << " = (strcmp(strValue, \"true\") == 0);\n";
+    parser1_defs << "      obj->" << name << " = (strcmp(parseQuotedString(strValue), \"true\") == 0);\n";
     parser1_defs << "      break;\n";
   }
 
   else if (isListType(type)) {
     parser1_defs << "    case XTOK_" << name << ":\n";
     parser1_defs << "      unsatLinks_ASTList.append(new UnsatLink("
-                 << "(void**) &(obj->" << name << "), strValue));\n";
+                 << "(void**) &(obj->" << name << "), parseQuotedString(strValue)));\n";
     parser1_defs << "      break;\n";
   }
   else if (isFakeListType(type)) {
     parser1_defs << "    case XTOK_" << name << ":\n";
     parser1_defs << "      unsatLinks_FakeList.append(new UnsatLink("
-                 << "(void**) &(obj->" << name << "), strValue));\n";
+                 << "(void**) &(obj->" << name << "), parseQuotedString(strValue)));\n";
     parser1_defs << "      break;\n";
   }
   else if (isTreeNode(type) ||
            (isTreeNodePtr(type) && isOwner)) {
     parser1_defs << "    case XTOK_" << name << ":\n";
     parser1_defs << "      unsatLinks.append(new UnsatLink("
-                 << "(void**) &(obj->" << name << "), strValue));\n";
+                 << "(void**) &(obj->" << name << "), parseQuotedString(strValue)));\n";
     parser1_defs << "      break;\n";
   }
-//    else {
-//      // catch-all ..
-//  //      out << "  " << print << "_GENERIC(" << name << ");\n";
-//    }
+  else {
+    // catch-all ..
+//      out << "  " << print << "_GENERIC(" << name << ");\n";
+//      cout << "AttributeParseRule: "
+//           << "no handler registered for this type '" << type
+//           << "' in this object->field '" << baseName << "->" << name << "'\n";
+    parser1_defs << "    case XTOK_" << name << ":\n";
+    parser1_defs << "      fromXml(obj->" << name << ", parseQuotedString(strValue));\n";
+    parser1_defs << "      break;\n";
+  }
 }
 
 void XmlParserGen::emitXmlParser_objCtorArgs
