@@ -691,6 +691,14 @@ string locToStr(SourceLoc sl)
   return sourceLocManager->getString(sl);
 }
 
+// this code simply defeats the xml serialization of SourceLoc-s
+string toXml(SourceLoc index) {
+  return "0";
+}
+
+void fromXml(SourceLoc &out, string str) {
+  out = SL_UNKNOWN;
+}
 
 // -------------------------- test code ----------------------
 #ifdef TEST_SRCLOC

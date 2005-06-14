@@ -328,5 +328,8 @@ inline SourceLoc advLine(SourceLoc base)
 inline SourceLoc advText(SourceLoc base, char const *text, int textLen)
   { return SourceLocManager::advText(base, text, textLen); }
 
+string toXml(SourceLoc index);
+void fromXml(SourceLoc &out, string str);
+
 
 #endif // SRCLOC_H
