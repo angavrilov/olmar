@@ -245,30 +245,34 @@ void ReadXml::readAttributes() {
     // special case the .id attribute
     if (attr == XTOK_DOT_ID) {
       // FIX: I really hope the map makes a copy of this string
-      if (strcmp(lexer.YYText(), "\"FL0\"") == 0
+      string id0 = parseQuotedString(lexer.YYText());
+      if (strcmp(id0.c_str(), "FL0") == 0
           // these should not be possible and the isMapped check below
           // would catch it if they occured:
-          //  || strcmp(lexer.YYText(), "0AL") == 0
-          //  || strcmp(lexer.YYText(), "0ND") == 0
+          //  || strcmp(id0.c_str(), "0AL") == 0
+          //  || strcmp(id0.c_str(), "0ND") == 0
           ) {
         // otherwise its null and there is nothing to record; UPDATE:
         // I no longer understand this code here
         if (nodeStack.top()) {
           userError("FakeList with FL0 id should be empty");
         }
-      } else if (strncmp(lexer.YYText(), "\"FL", 3) == 0) {
+      } else if (strncmp(id0.c_str(), "FL", 2) == 0) {
         xassert(!lastFakeListId);
-        lastFakeListId = strdup(lexer.YYText());
+        lastFakeListId = strdup(id0.c_str());
       } else {
-        if (id2obj.isMapped(lexer.YYText())) {
-          userError(stringc << "this id is taken " << lexer.YYText());
+        if (id2obj.isMapped(id0)) {
+          userError(stringc << "this id is taken " << id0);
         }
-//          cout << "id2obj.add(" << lexer.YYText()
+//          cout << "id2obj.add(" << id0
 //               << ", " << static_cast<void const*>(nodeStack.top())
 //               << ")\n";
-        id2obj.add(lexer.YYText(), nodeStack.top());
+        id2obj.add(id0, nodeStack.top());
       }
-    } else {
+    }
+
+    // attribute other than '.id'
+    else {
       switch(*kindStack.top()) {
       default: xfailure("illegal kind");
 //        // INSERT per ast node

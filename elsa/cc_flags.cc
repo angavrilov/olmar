@@ -7,14 +7,6 @@
 #include "trace.h"        // tracingSys
 
 
-// -------------------- TypeIntr -------------------------
-char const * const typeIntrNames[NUM_TYPEINTRS] = {
-  "struct",
-  "class",
-  "union",
-  "enum"
-};
-
 // the check for array[limit-1] is meant to ensure that there
 // are as many specified entries as there are total entries
 #define MAKE_TOSTRING(T, limit, array)        \
@@ -25,7 +17,36 @@ char const * const typeIntrNames[NUM_TYPEINTRS] = {
     return array[index];                      \
   }
 
+// for now we just serialize out enums as ints; it would be much more
+// useful to the end-user if they were serialized out in the same form
+// as toString, but we have to write a fromString() as well and that
+// gets a little non-trivial for the bitwise toString() functions;
+// FIX: this is pretty inefficient I think, but this code is just
+// temporary
+#define MAKE_TOXML_INT(T)                    \
+string toXml(T index)                        \
+{                                            \
+  return stringc << static_cast<int>(index); \
+}
+
+#define MAKE_FROMXML_INT(T)           \
+void fromXml(T &out, string str) \
+{                                     \
+  out = static_cast<T>(atoi(str));    \
+}
+
+
+// -------------------- TypeIntr -------------------------
+char const * const typeIntrNames[NUM_TYPEINTRS] = {
+  "struct",
+  "class",
+  "union",
+  "enum"
+};
+
 MAKE_TOSTRING(TypeIntr, NUM_TYPEINTRS, typeIntrNames)
+MAKE_TOXML_INT(TypeIntr)
+MAKE_FROMXML_INT(TypeIntr)
 
 
 // ---------------- CVFlags -------------
@@ -57,6 +78,8 @@ string toString(CVFlags cv)
 {
   return bitmapString(cv >> CV_SHIFT_AMOUNT, cvFlagNames, NUM_CVFLAGS);
 }
+MAKE_TOXML_INT(CVFlags)
+MAKE_FROMXML_INT(CVFlags)
 
 
 // ------------------- DeclFlags --------------
@@ -104,6 +127,8 @@ string toString(DeclFlags df)
 
   return bitmapString(df, declFlagNames, NUM_DECLFLAGS);
 }
+MAKE_TOXML_INT(DeclFlags)
+MAKE_FROMXML_INT(DeclFlags)
 
 
 // ----------------------- ScopeKind ----------------------------
@@ -202,6 +227,8 @@ bool isComplexOrImaginary(SimpleTypeId id)
   return ST_FLOAT_COMPLEX <= id && id <= ST_DOUBLE_IMAGINARY;
 }
 
+MAKE_TOXML_INT(SimpleTypeId)
+MAKE_FROMXML_INT(SimpleTypeId)
 
 // ------------------------ UnaryOp -----------------------------
 char const * const unaryOpNames[NUM_UNARYOPS] = {
@@ -212,6 +239,8 @@ char const * const unaryOpNames[NUM_UNARYOPS] = {
 };
 
 MAKE_TOSTRING(UnaryOp, NUM_UNARYOPS, unaryOpNames)
+MAKE_TOXML_INT(UnaryOp)
+MAKE_FROMXML_INT(UnaryOp)
 
 
 char const * const effectOpNames[NUM_EFFECTOPS] = {
@@ -222,6 +251,8 @@ char const * const effectOpNames[NUM_EFFECTOPS] = {
 };
 
 MAKE_TOSTRING(EffectOp, NUM_EFFECTOPS, effectOpNames)
+MAKE_TOXML_INT(EffectOp)
+MAKE_FROMXML_INT(EffectOp)
 
 bool isPostfix(EffectOp op)
 {
@@ -267,6 +298,8 @@ char const * const binaryOpNames[NUM_BINARYOPS] = {
 };
 
 MAKE_TOSTRING(BinaryOp, NUM_BINARYOPS, binaryOpNames)
+MAKE_TOXML_INT(BinaryOp)
+MAKE_FROMXML_INT(BinaryOp)
 
 bool isPredicateCombinator(BinaryOp op)
 {
@@ -299,6 +332,8 @@ char const * const accessKeywordNames[NUM_ACCESS_KEYWORDS] = {
 };
 
 MAKE_TOSTRING(AccessKeyword, NUM_ACCESS_KEYWORDS, accessKeywordNames)
+MAKE_TOXML_INT(AccessKeyword)
+MAKE_FROMXML_INT(AccessKeyword)
 
 
 // -------------------- CastKeyword --------------------
@@ -310,6 +345,8 @@ char const * const castKeywordNames[NUM_CAST_KEYWORDS] = {
 };
 
 MAKE_TOSTRING(CastKeyword, NUM_CAST_KEYWORDS, castKeywordNames)
+MAKE_TOXML_INT(CastKeyword)
+MAKE_FROMXML_INT(CastKeyword)
 
 
 // -------------------- OverloadableOp --------------------
@@ -367,6 +404,8 @@ char const * const overloadableOpNames[NUM_OVERLOADABLE_OPS] = {
 };
 
 MAKE_TOSTRING(OverloadableOp, NUM_OVERLOADABLE_OPS, overloadableOpNames)
+MAKE_TOXML_INT(OverloadableOp)
+MAKE_FROMXML_INT(OverloadableOp)
 
 
 char const * const operatorFunctionNames[NUM_OVERLOADABLE_OPS] = {
