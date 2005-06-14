@@ -472,7 +472,7 @@ void doit(int argc, char **argv)
 
   // ----------------- elaboration ------------------
   long elaborationTime = 0;
-  if (lang.isCplusplus) {
+  if (lang.isCplusplus && !tracingSys("no-elaboration")) {
     SectionTimer timer(elaborationTime);
 
     // do elaboration

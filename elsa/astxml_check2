@@ -2,7 +2,8 @@
 # -*-perl-*-
 use strict;
 
-# Test ast xml rendering and parsing.
+# Test ast xml rendering and parsing.  NOTE: do not elaborate as we do
+# not serialize out the elaborated stuff right yet.
 # 1) pretty print,
 # 2) render as xml, parse back in, pretty print,
 # 3) diff 1 and 2.
@@ -92,11 +93,11 @@ for my $name(@names) {
     push @outfiles, $name;
     $outfile2command{$name} = "ORIGINAL: $name";
     eval {
-        run_command("$parser -tr prettyPrint $name | ./chop_out",
+        run_command("$parser -tr no-elaboration,prettyPrint $name | ./chop_out",
                     "$outname.B0.cc");
-        run_command("$parser -tr xmlPrintAST,xmlPrintAST-indent $name | ./chop_out",
+        run_command("$parser -tr no-elaboration,xmlPrintAST,xmlPrintAST-indent $name | ./chop_out",
                     "$outname.B1.xml");
-        run_command("$parser -tr parseAstXml,prettyPrint $outname.B1.xml | ./chop_out",
+        run_command("$parser -tr no-elaboration,parseAstXml,prettyPrint $outname.B1.xml | ./chop_out",
                     "$outname.B2.xml.cc");
     };
     if ($@) {
