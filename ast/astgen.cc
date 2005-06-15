@@ -1890,14 +1890,20 @@ void CGen::emitXmlFields(ASTList<Annotation> const &decls, char const *baseName,
 
 void CGen::emitXmlField(bool isOwner, rostring type, rostring name, char const *baseName, string const &className)
 {
+  // FIX: there is a problem with coming up with a way to serialize a
+  // NULL string: 1) the value must be quoted, 2) any string you use
+  // to represent NULL is also a valid string value, 3) quoting twice
+  // is expensive; For now, I simply omit mention of it: it will
+  // default to NULL.
   if (0==strcmp(type, "string") || 0==strcmp(type, "StringRef")) {
-    out << "  out << \"\\n\";\n";
-    out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\";\n";
     out << "  if (" << baseName << "->" << name << ") {\n";
+    out << "    out << \"\\n\";\n";
+    out << "    if (indent) printIndentation();\n";
+    out << "    out << \"" << name << "\" << \"=\";\n";
     out << "    out << quoted(" << baseName << "->" << name << ");\n";
     out << "  } else {\n";
-    out << "    out << \"\\\"0\\\"\";\n";
+    // print nothing; the default value is NULL
+//      out << "    out << \"\\\"0\\\"\";\n";
     out << "  }\n";
   }
   else if (0==strcmp(type, "bool")) {
