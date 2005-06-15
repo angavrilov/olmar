@@ -2,6 +2,7 @@
 // code for locstr.h
 
 #include "locstr.h"     // this module
+#include "exc.h"        // LocString
 
 LocString::LocString()
   : loc(SL_UNKNOWN),
@@ -64,3 +65,18 @@ string toString(LocString const &s)
 {
   return string(s.str);
 }
+
+
+string toXml(LocString op)
+{
+  xunimp("XML serialization of LocString");
+  return "";
+}
+
+void fromXml(LocString &out, rostring str)
+{
+  xunimp("XML serialization of LocString");
+}
+
+
+// EOF

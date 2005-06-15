@@ -58,6 +58,10 @@ public:    // funcs
 // yields simply the string, no location info
 string toString(LocString const &s);
 
+// xml stuff...
+string toXml(LocString op);
+void fromXml(LocString &out, rostring str);
+
 
 // useful for constructing literal strings in source code
 #define LITERAL_LOCSTRING(str)                                   \
