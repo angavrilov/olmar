@@ -77,7 +77,7 @@ VoidPtrMap::Entry &VoidPtrMap::findEntry(void const *key) const
 
   // compute first hash function, which gives the starting index
   // for the probe sequence
-  unsigned index = hashFunc(CONST1, (unsigned)key);
+  unsigned index = hashFunc(CONST1, (unsigned)pointerToInteger(key));
 
   // analyze the first entry now, before computing the second
   // hash function (stride) value
@@ -93,7 +93,7 @@ VoidPtrMap::Entry &VoidPtrMap::findEntry(void const *key) const
   // compute stride; it has to be odd so that it is relatively
   // prime to the table size (which is a power of 2), so I just
   // turn on the least significant bit
-  unsigned stride = hashFunc(CONST2, (unsigned)key) | 1;
+  unsigned stride = hashFunc(CONST2, (unsigned)pointerToInteger(key)) | 1;
 
   // uncomment this to experiment with linear hashing; when ITERS2MAX
   // is 10000, I see a small increase in avgprobes when using linear

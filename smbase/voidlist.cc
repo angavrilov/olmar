@@ -653,7 +653,7 @@ void VoidList::removeDuplicatesAsMultiset(VoidDiff diff, void *extra)
 
 STATICDEF int VoidList::pointerAddressDiff(void *left, void *right, void*)
 {
-  return (int)left - (int)right;
+  return comparePointerAddresses(left, right);
 }
 
 

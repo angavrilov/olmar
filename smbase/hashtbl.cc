@@ -251,7 +251,7 @@ unsigned lcprngTwoSteps(unsigned v)
 
 STATICDEF unsigned HashTable::lcprngHashFn(void const *key)
 {
-  return lcprngTwoSteps((unsigned)key);
+  return lcprngTwoSteps((unsigned)pointerToInteger(key));
 }
 
 STATICDEF bool HashTable::
