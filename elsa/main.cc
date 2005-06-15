@@ -4,6 +4,7 @@
 #include <iostream.h>     // cout
 #include <stdlib.h>       // exit, getenv, abort
 
+//  #include "sobjset.h"      // SObjSet
 #include "trace.h"        // traceAddSys
 #include "parssppt.h"     // ParseTreeAndTokens, treeMain
 #include "srcloc.h"       // SourceLocManager
@@ -121,6 +122,74 @@ public:
   ~SectionTimer()
   {
     elapsed += getMilliseconds() - start;
+  }
+};
+
+
+// print out type annotations for ever ast node that has a type
+class ToXmlASTVisitor_Types : public ASTVisitor {
+  TypeVisitor &typeVisitor;
+  SObjSet<Type*> printedTypes;
+  SObjSet<AtomicType*> printedAtomicTypes;
+
+  public:
+  ToXmlASTVisitor_Types(TypeVisitor &typeVisitor0)
+    : typeVisitor(typeVisitor0)
+  {}
+
+  // visit everything that has a type
+  void printTypeIdem(Type *t) {
+    if (printedTypes.contains(t)) return;
+    t->traverse(typeVisitor);
+    printedTypes.add(t);
+  }
+  void printTypeIdem(AtomicType *t) {
+    if (printedAtomicTypes.contains(t)) return;
+    t->traverse(typeVisitor);
+    printedAtomicTypes.add(t);
+  }
+
+  bool visitTypeSpecifier(TypeSpecifier *ts) {
+    if (ts->isTS_type()) {
+      printTypeIdem(ts->asTS_type()->type);
+    } else if (ts->isTS_elaborated()) {
+      printTypeIdem(ts->asTS_elaborated()->atype);
+    } else if (ts->isTS_classSpec()) {
+      printTypeIdem(ts->asTS_classSpec()->ctype);
+    } else if (ts->isTS_enumSpec()) {
+      printTypeIdem(ts->asTS_enumSpec()->etype);
+    }
+    return true;
+  }
+
+  bool visitFunction(Function *function) {
+    printTypeIdem(function->funcType);
+    return true;
+  }
+
+  bool visitMemberInit(MemberInit *memberInit) {
+    printTypeIdem(memberInit->base);
+    return true;
+  }
+
+  bool visitBaseClassSpec(BaseClassSpec *bcs) {
+    printTypeIdem(bcs->type);
+    return true;
+  }
+
+  bool visitDeclarator(Declarator *d) {
+    printTypeIdem(d->type);
+    return true;
+  }
+
+  bool visitExpression(Expression *e) {
+    printTypeIdem(e->type);
+    return true;
+  }
+
+  bool visitASTTypeof(ASTTypeof *a) {
+    printTypeIdem(a->type);
+    return true;
   }
 };
 
@@ -536,9 +605,15 @@ void doit(int argc, char **argv)
     traceProgress() << "dsw xml print...\n";
     bool indent = tracingSys("xmlPrintAST-indent");
     ToXmlASTVisitor xmlVis(cout, indent);
+    ToXMLTypeVisitor xmlTypeVis(cout);
+    ToXmlASTVisitor_Types xmlVis_Types(xmlTypeVis);
     cout << "---- START ----" << endl;
     unit->traverse(xmlVis);
     cout.flush();
+    if (tracingSys("xmlPrintAST-types")) {
+      unit->traverse(xmlVis_Types);
+      cout.flush();
+    }
     cout << "---- STOP ----" << endl;
     traceProgress() << "dsw xml print... done\n";
   }
@@ -549,6 +624,7 @@ void doit(int argc, char **argv)
     bool indent = tracingSys("xmlPrintLoweredAST-indent");
     ToXmlASTVisitor xmlVis(cout, indent);
     LoweredASTVisitor loweredXmlVis(&xmlVis);
+    // FIX: do type visitor
     cout << "---- START ----" << endl;
     unit->traverse(loweredXmlVis);
     cout.flush();

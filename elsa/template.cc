@@ -903,7 +903,7 @@ void STemplateArgument::traverse(TypeVisitor &vis)
   switch (kind) {
     case STA_TYPE:
       value.t->traverse(vis);
-      return;
+      break;
 
     case STA_DEPEXPR:
       // TODO: at some point I will have to store actual expressions,
@@ -911,8 +911,10 @@ void STemplateArgument::traverse(TypeVisitor &vis)
       break;
 
     default:
-      return;
+      break;
   }
+
+  vis.postvisitSTemplateArgument(this);
 }
 
 

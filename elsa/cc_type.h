@@ -85,13 +85,19 @@ public:
   virtual ~TypeVisitor() {}     // silence warning
 
   virtual bool visitType(Type *obj);
+  virtual void postvisitType(Type *obj);
+
   virtual bool visitAtomicType(AtomicType *obj);
+  virtual void postvisitAtomicType(AtomicType *obj);
+
   virtual bool visitSTemplateArgument(STemplateArgument *obj);
+  virtual void postvisitSTemplateArgument(STemplateArgument *obj);
 
   // note that this call is always a leaf in the traversal; the type
   // visitor does *not* dig into Expressions (though of course you can
   // write a 'visitExpression' method that does)
   virtual bool visitExpression(Expression *obj);
+  virtual void postvisitExpression(Expression *obj);
 };
 
 
@@ -1319,6 +1325,68 @@ public:
 };
 
 void throw_XReprSize(bool isDynamic = false) NORETURN;
+
+
+// -------------------- ToXMLTypeVisitor -------------------
+
+// print the Type tree out as XML
+class ToXMLTypeVisitor : public TypeVisitor {
+  protected:
+  ostream &out;
+  int depth;
+  bool indent;
+
+  public:
+  ToXMLTypeVisitor(ostream &out0, bool indent0=true)
+    : out(out0)
+    , depth(0)
+    , indent(indent0)
+  {}
+  virtual ~ToXMLTypeVisitor() {}
+
+  private:
+  void printIndentation();
+
+  // **** TypeVisitor API methods
+  public:
+  // print open tag
+  virtual bool visitType(Type *obj);
+  // print close tag
+  virtual void postvisitType(Type *obj);
+
+  // print open tag
+  virtual bool visitAtomicType(AtomicType *obj) {
+    // FIX: implement this
+    ++depth;                    // at the start
+    return true;
+  }
+  // print close tag
+  virtual void postvisitAtomicType(AtomicType *obj) {
+    // FIX: implement this
+    --depth;                    // at the end
+  }
+
+  // fail in these for now
+  virtual bool visitSTemplateArgument(STemplateArgument *obj) {
+    xfailure("implement this");
+    ++depth;                    // at the start
+  }
+//    virtual void postvisitSTemplateArgument(STemplateArgument *obj);
+//      --depth;                    // at the end
+
+  virtual bool visitExpression(Expression *obj) {
+    xfailure("implement this");
+    ++depth;                    // at the start
+  }
+//    virtual void postvisitExpression(Expression *obj);
+//      --depth;                    // at the end
+
+  // same as for types; print the name also
+//    virtual bool preVisitVariable(Variable *var);
+//      ++depth;                    // at the start
+//    virtual void postVisitVariable(Variable *var);
+//      --depth;                    // at the end
+};
 
 
 // ------ for debugging ------
