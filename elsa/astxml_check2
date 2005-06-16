@@ -4,9 +4,9 @@ use strict;
 
 # Test ast xml rendering and parsing.  NOTE: do not elaborate as we do
 # not serialize out the elaborated stuff right yet.
-#   1) pretty print,
-#   2) render as xml, parse back in, pretty print,
-#   3) diff 1 and 2.
+#    1) pretty print,
+#    2) render as xml, parse back in, pretty print,
+#    3) diff 1 and 2.
 
 # Daniel S. Wilkerson dsw@cs.berkeley.edu
 
