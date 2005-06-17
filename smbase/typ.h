@@ -39,10 +39,11 @@ inline long pointerToInteger(void const *p)
 inline int comparePointerAddresses(void const *p, void const *q)
 {
   // John Skaller points out that comparing addresses directly is
-  // nonportable, and that std::less<> provides a solution.  But, I'm
-  // concerned about the portability of std::less more than I am about
-  // the portability of address comparison.  The existence of this
-  // function at least ensures I only have to change one place.
+  // nonportable, and that std::less<> provides a solution (cppstd
+  // 20.3.3p8).  But, I'm concerned about the portability of std::less
+  // more than I am about the portability of address comparison.  The
+  // existence of this function at least ensures I only have to change
+  // one place.
   return p==q?               0 :
          (long)p < (long)q? -1 :      // would use std::less<> here
                             +1 ;
