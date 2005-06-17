@@ -483,3 +483,5 @@ int main()
 }
 
 #endif // TEST_STR
+
+// bork!
