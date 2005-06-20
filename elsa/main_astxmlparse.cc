@@ -8,18 +8,53 @@
 
 #include "cc.ast.gen.h"         // TranslationUnit, etc.
 
-// there are 3 categories of kinds
+// there are 3 categories of kinds of Tags
 enum KindCategory {
   KC_Node,                      // a normal node
   KC_ASTList,                   // an ast list
   KC_FakeList,                  // a fake list
 };
 
-class ReadXml {
+// datastructures for dealing with unsatisified links; FIX: we can
+// do the in-place recording of a lot of these unsatisified links
+// (not the ast links)
+struct UnsatLink {
+  void **ptr;
+  string id;
+  UnsatLink(void **ptr0, string id0)
+    : ptr(ptr0), id(id0)
+  {};
+};
+
+// manages recording unsatisfied links and satisfying them later
+class LinkSatisfier {
   public:
-  char const *inputFname;
-  AstXmlLexer &lexer;
-  StringTable &strTable;
+  // Since AST nodes are embedded, we have to put this on to a
+  // different list than the ususal pointer unsatisfied links.  I have
+  // to separate ASTList unsatisfied links out, so I might as well
+  // just separate everything.
+  ASTList<UnsatLink> unsatLinks_ASTList;
+  ASTList<UnsatLink> unsatLinks_FakeList;
+  ASTList<UnsatLink> unsatLinks;
+
+  // map object ids to the actual object
+  StringSObjDict<void> id2obj;
+
+  public:
+  LinkSatisfier() {}
+
+  void satisfyLinks();
+};
+
+class ReadXml {
+  private:
+  // **** input state
+  char const *inputFname;       // just for error messages
+  AstXmlLexer &lexer;           // a lexer on a stream already opened from the file
+  StringTable &strTable;        // for canonicalizing the StringRef's in the input file
+
+  // **** internal state
+  LinkSatisfier &linkSat;
 
   // the node (and its kind) for the last closing tag we saw; useful
   // for extracting the top of the tree
@@ -34,36 +69,22 @@ class ReadXml {
   SObjStack<void> nodeStack;
   ObjStack<int> kindStack;
 
-  // datastructures for dealing with unsatisified links; FIX: we can
-  // do the in-place recording of a lot of these unsatisified links
-  // (not the ast links)
-  struct UnsatLink {
-    void **ptr;
-    string id;
-    UnsatLink(void **ptr0, string id0)
-      : ptr(ptr0), id(id0)
-    {};
-  };
-  // Since AST nodes are embedded, we have to put this on to a
-  // different list than the ususal pointer unsatisfied links.  I have
-  // to separate ASTList unsatisfied links out, so I might as well
-  // just separate everything.
-  ASTList<UnsatLink> unsatLinks_ASTList;
-  ASTList<UnsatLink> unsatLinks_FakeList;
-  ASTList<UnsatLink> unsatLinks;
-
-  // map object ids to the actual object
-  StringSObjDict<void> id2obj;
-
   public:
-  ReadXml(char const *inputFname0, AstXmlLexer &lexer0, StringTable &strTable0)
+  ReadXml(char const *inputFname0,
+          AstXmlLexer &lexer0,
+          StringTable &strTable0,
+          LinkSatisfier &linkSat0)
     : inputFname(inputFname0)
     , lexer(lexer0)
     , strTable(strTable0)
-    , lastNode(NULL)
-    , lastKind(0)
-    , lastFakeListId(NULL)
-  {}
+    , linkSat(linkSat0)
+    // done in reset()
+//      , lastNode(NULL)
+//      , lastKind(0)
+//      , lastFakeListId(NULL)
+  {
+    reset();
+  }
 
   private:
 //    // INSERT per ast node
@@ -80,8 +101,9 @@ class ReadXml {
   void readAttributes();
 
   public:
+  void reset();
   bool parse();
-  void satisfyLinks();
+  void *getLastNode() {return lastNode;}
 };
 
 //  // INSERT per ast node
@@ -102,12 +124,16 @@ void ReadXml::userError(char const *msg) {
   THROW(xBase(stringc << inputFname << ":" << lexer.linenumber << ":" << msg));
 }
 
-bool ReadXml::parse() {
+void ReadXml::reset() {
   lastNode = NULL;
   lastKind = 0;
   lastFakeListId = NULL;
   xassert(nodeStack.isEmpty());
   xassert(kindStack.isEmpty());
+}
+
+bool ReadXml::parse() {
+  reset();
   while(1) {
     // state: looking for a tag start
     int start = lexer.yylex();
@@ -143,13 +169,13 @@ bool ReadXml::parse() {
     // child, we finally know the FakeList address so we file that
     // under the id.
     if (lastFakeListId) {
-      if (id2obj.isMapped(lastFakeListId)) {
+      if (linkSat.id2obj.isMapped(lastFakeListId)) {
         userError(stringc << "this id is taken " << lastFakeListId);
       }
 //        cout << "(FakeList) id2obj.add(" << lastFakeListId
 //             << ", " << static_cast<void const*>(nodeStack.top())
 //             << ")\n";
-      id2obj.add(lastFakeListId, nodeStack.top());
+      linkSat.id2obj.add(lastFakeListId, nodeStack.top());
       delete lastFakeListId;
       lastFakeListId = NULL;
     }
@@ -270,13 +296,13 @@ void ReadXml::readAttributes() {
         xassert(!lastFakeListId);
         lastFakeListId = strdup(id0.c_str());
       } else {
-        if (id2obj.isMapped(id0)) {
+        if (linkSat.id2obj.isMapped(id0)) {
           userError(stringc << "this id is taken " << id0);
         }
 //          cout << "id2obj.add(" << id0
 //               << ", " << static_cast<void const*>(nodeStack.top())
 //               << ")\n";
-        id2obj.add(id0, nodeStack.top());
+        linkSat.id2obj.add(id0, nodeStack.top());
       }
     }
 
@@ -298,7 +324,7 @@ void ReadXml::readAttributes() {
   xassert(kindStack.isEmpty());
 }
 
-void ReadXml::satisfyLinks() {
+void LinkSatisfier::satisfyLinks() {
   // Nodes
   FOREACH_ASTLIST(UnsatLink, unsatLinks, iter) {
     UnsatLink const *ul = iter.data();
@@ -356,20 +382,24 @@ void ReadXml::satisfyLinks() {
 
 TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
 {
+  LinkSatisfier linkSatisifier;
+
   ifstream in(inputFname);
   AstXmlLexer lexer(inputFname);
   lexer.yyrestart(&in);
-  ReadXml reader(inputFname, lexer, strTable);
+  ReadXml reader(inputFname, lexer, strTable, linkSatisifier);
 
   // this is going to parse one top-level tag
   bool sawEof = reader.parse();
   xassert(!sawEof);
-  reader.satisfyLinks();
-  TranslationUnit *tunit = (TranslationUnit*) reader.lastNode;
+  TranslationUnit *tunit = (TranslationUnit*) reader.getLastNode();
 
   // look for the eof
   sawEof = reader.parse();
   xassert(sawEof);
+
+  // complete the link graph
+  linkSatisifier.satisfyLinks();
 
   return tunit;
 }
