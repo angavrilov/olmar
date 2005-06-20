@@ -53,9 +53,9 @@ class ReadXml {
   AstXmlLexer &lexer;           // a lexer on a stream already opened from the file
   StringTable &strTable;        // for canonicalizing the StringRef's in the input file
 
-  // **** internal state
   LinkSatisfier &linkSat;
 
+  // **** internal state
   // the node (and its kind) for the last closing tag we saw; useful
   // for extracting the top of the tree
   void *lastNode;
