@@ -2448,20 +2448,20 @@ void XmlParserGen::emitXmlField_AttributeParseRule
 
   else if (isListType(type)) {
     parser1_defs << "    case XTOK_" << name << ":\n";
-    parser1_defs << "      unsatLinks_ASTList.append(new UnsatLink("
+    parser1_defs << "      linkSat.unsatLinks_ASTList.append(new UnsatLink("
                  << "(void**) &(obj->" << name << "), parseQuotedString(strValue)));\n";
     parser1_defs << "      break;\n";
   }
   else if (isFakeListType(type)) {
     parser1_defs << "    case XTOK_" << name << ":\n";
-    parser1_defs << "      unsatLinks_FakeList.append(new UnsatLink("
+    parser1_defs << "      linkSat.unsatLinks_FakeList.append(new UnsatLink("
                  << "(void**) &(obj->" << name << "), parseQuotedString(strValue)));\n";
     parser1_defs << "      break;\n";
   }
   else if (isTreeNode(type) ||
            (isTreeNodePtr(type) && isOwner)) {
     parser1_defs << "    case XTOK_" << name << ":\n";
-    parser1_defs << "      unsatLinks.append(new UnsatLink("
+    parser1_defs << "      linkSat.unsatLinks.append(new UnsatLink("
                  << "(void**) &(obj->" << name << "), parseQuotedString(strValue)));\n";
     parser1_defs << "      break;\n";
   }
