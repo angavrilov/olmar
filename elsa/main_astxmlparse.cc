@@ -8,12 +8,8 @@
 
 #include "cc.ast.gen.h"         // TranslationUnit, etc.
 
-// there are 3 categories of kinds of Tags
-enum KindCategory {
-  KC_Node,                      // a normal node
-  KC_ASTList,                   // an ast list
-  KC_FakeList,                  // a fake list
-};
+
+// LinkSatisfier ****************
 
 // datastructures for dealing with unsatisified links; FIX: we can
 // do the in-place recording of a lot of these unsatisified links
@@ -46,16 +42,80 @@ class LinkSatisfier {
   void satisfyLinks();
 };
 
+void LinkSatisfier::satisfyLinks() {
+  // Nodes
+  FOREACH_ASTLIST(UnsatLink, unsatLinks, iter) {
+    UnsatLink const *ul = iter.data();
+    void *obj = id2obj.queryif(ul->id);
+    if (obj) {
+      *(ul->ptr) = obj;         // ahhhh!
+    } else {
+      // no satisfaction was provided for this link; for now we just
+      // skip it, but if you wanted to report that in some way, here
+      // is the place to do it
+//        cout << "unsatisfied node link: " << ul->id << endl;
+    }
+  }
+
+  // FakeLists
+  FOREACH_ASTLIST(UnsatLink, unsatLinks_FakeList, iter) {
+    UnsatLink const *ul = iter.data();
+    void *obj = id2obj.queryif(ul->id);
+    if (obj) {
+      *(ul->ptr) = obj;         // ahhhh!
+    } else {
+      // no satisfaction was provided for this link; for now we just
+      // skip it, but if you wanted to report that in some way, here
+      // is the place to do it
+//        cout << "unsatisfied FakeList link: " << ul->id << endl;
+    }
+  }
+
+  // ASTLists
+  FOREACH_ASTLIST(UnsatLink, unsatLinks_ASTList, iter) {
+    UnsatLink const *ul = iter.data();
+    // NOTE: I rely on the fact that all ASTLists just contain
+    // pointers; otherwise this cast would cause problems; Note that I
+    // have to use char instead of void because you can't delete a
+    // pointer to void; see the note in the if below.
+    ASTList<char> *obj = reinterpret_cast<ASTList<char>*>(id2obj.queryif(ul->id));
+    if (obj) {
+      ASTList<char> *ptr = reinterpret_cast<ASTList<char>*>(ul->ptr);
+      xassert(ptr->isEmpty());
+      // this is particularly tricky because the steal contains a
+      // delete, however there is nothing to delete, so we should be
+      // ok.  If there were something to delete, we would be in
+      // trouble because you can't call delete on a pointer to an
+      // object the size of which is different from the size you think
+      // it is due to a type you cast it too.
+      ptr->steal(obj);          // ahhhh!
+    } else {
+      // no satisfaction was provided for this link; for now we just
+      // skip it, but if you wanted to report that in some way, here
+      // is the place to do it
+//        cout << "unsatisfied ASTList link: " << ul->id << endl;
+    }
+  }
+}
+
+
+// ReadXml ****************
+
+// there are 3 categories of kinds of Tags
+enum KindCategory {
+  KC_Node,                      // a normal node
+  KC_ASTList,                   // an ast list
+  KC_FakeList,                  // a fake list
+};
+
 class ReadXml {
-  private:
-  // **** input state
+  protected:
   char const *inputFname;       // just for error messages
   AstXmlLexer &lexer;           // a lexer on a stream already opened from the file
   StringTable &strTable;        // for canonicalizing the StringRef's in the input file
-
   LinkSatisfier &linkSat;
 
-  // **** internal state
+  private:
   // the node (and its kind) for the last closing tag we saw; useful
   // for extracting the top of the tree
   void *lastNode;
@@ -85,44 +145,36 @@ class ReadXml {
   {
     reset();
   }
+  virtual ~ReadXml() {}
+
+  // reset the internal state
+  void reset();
+  // parse one top-level tag
+  bool parse();
+  // return the top of the stack: the one tag that was parsed
+  void *getLastNode() {return lastNode;}
 
   private:
-//    // INSERT per ast node
-//    void registerAttr_TranslationUnit(TranslationUnit *obj, int attr, char const *strValue);
-#include "astxml_parse1_0decl.gen.cc"
-  
-  // the implementation of these is generated
-  KindCategory kind2kindCat(int kind);// map a kind to its kind category
-  void *prepend2FakeList(void *list, int listKind, void *datum, int datumKind); // generic prepend
-  void *reverseFakeList(void *list, int listKind); // generic reverse
-  void append2ASTList(void *list, int listKind, void *datum, int datumKind); // generic append
-
-  void userError(char const *msg) NORETURN;
   void readAttributes();
 
-  public:
-  void reset();
-  bool parse();
-  void *getLastNode() {return lastNode;}
+  protected:
+  void userError(char const *msg) NORETURN;
+
+  // **** subclass fills these in
+
+  // map a kind to its kind category
+  virtual KindCategory kind2kindCat(int kind) = 0;
+  // generic prepend
+  virtual void *prepend2FakeList(void *list, int listKind, void *datum, int datumKind) = 0;
+  // generic reverse
+  virtual void *reverseFakeList(void *list, int listKind) = 0;
+  // generic append
+  virtual void append2ASTList(void *list, int listKind, void *datum, int datumKind) = 0;
+  // construct a node for a tag; returns true if it was a closeTag
+  virtual bool ctorNodeFromTag(int tag, void *&topTemp) = 0;
+  // register an attribute into the current node
+  virtual void registerAttribute(void *target, int kind, int attr, char const *yytext0) = 0;
 };
-
-//  // INSERT per ast node
-//  void ReadXml::registerAttr_TranslationUnit(TranslationUnit *obj, int attr, char const *strValue)
-//  {
-//    switch(attr) {
-//    default:
-//      userError("illegal attribute for a TranslationUnit");
-//      break;
-//    case XTOK_topForms:
-//  //      obj->topForms = strdup(strValue);
-//      break;
-//    }
-//  }
-#include "astxml_parse1_1defn.gen.cc"
-
-void ReadXml::userError(char const *msg) {
-  THROW(xBase(stringc << inputFname << ":" << lexer.linenumber << ":" << msg));
-}
 
 void ReadXml::reset() {
   lastNode = NULL;
@@ -130,6 +182,10 @@ void ReadXml::reset() {
   lastFakeListId = NULL;
   xassert(nodeStack.isEmpty());
   xassert(kindStack.isEmpty());
+}
+
+void ReadXml::userError(char const *msg) {
+  THROW(xBase(stringc << inputFname << ":" << lexer.linenumber << ":" << msg));
 }
 
 bool ReadXml::parse() {
@@ -148,17 +204,8 @@ bool ReadXml::parse() {
     // state: read a tag name
     int tag = lexer.yylex();
     void *topTemp;
-    switch(tag) {
-    default: userError("unexpected token while looking for an open tag name");
-    case 0: userError("unexpected file termination while looking for an open tag name");
-    case XTOK_SLASH:
-      goto close_tag;
-//      // INSERT per ast node
-//      case XTOK_TranslationUnit:
-//        topTemp = new TranslationUnit(0);
-//        break;
-#include "astxml_parse1_2ctrc.gen.cc"
-    }
+    bool sawCloseTag = ctorNodeFromTag(tag, topTemp);
+    if (sawCloseTag) goto close_tag;
     nodeStack.push(topTemp);
     kindStack.push(new int(tag));
 
@@ -308,13 +355,7 @@ void ReadXml::readAttributes() {
 
     // attribute other than '.id'
     else {
-      switch(*kindStack.top()) {
-      default: xfailure("illegal kind");
-//        // INSERT per ast node
-//        case XTOK_TranslationUnit:
-//          registerAttr_TranslationUnit((TranslationUnit*)nodeStack.top(), attr, lexer.YYText());
-#include "astxml_parse1_3regc.gen.cc"
-      }
+      registerAttribute(nodeStack.top(), *kindStack.top(), attr, lexer.YYText());
     }
   }
   if (!nodeStack.isEmpty()) {
@@ -324,61 +365,81 @@ void ReadXml::readAttributes() {
   xassert(kindStack.isEmpty());
 }
 
-void LinkSatisfier::satisfyLinks() {
-  // Nodes
-  FOREACH_ASTLIST(UnsatLink, unsatLinks, iter) {
-    UnsatLink const *ul = iter.data();
-    void *obj = id2obj.queryif(ul->id);
-    if (obj) {
-      *(ul->ptr) = obj;         // ahhhh!
-    } else {
-      // no satisfaction was provided for this link; for now we just
-      // skip it, but if you wanted to report that in some way, here
-      // is the place to do it
-//        cout << "unsatisfied node link: " << ul->id << endl;
-    }
-  }
 
-  // FakeLists
-  FOREACH_ASTLIST(UnsatLink, unsatLinks_FakeList, iter) {
-    UnsatLink const *ul = iter.data();
-    void *obj = id2obj.queryif(ul->id);
-    if (obj) {
-      *(ul->ptr) = obj;         // ahhhh!
-    } else {
-      // no satisfaction was provided for this link; for now we just
-      // skip it, but if you wanted to report that in some way, here
-      // is the place to do it
-//        cout << "unsatisfied FakeList link: " << ul->id << endl;
-    }
-  }
+// ReadXml_AST ****************
 
-  // ASTLists
-  FOREACH_ASTLIST(UnsatLink, unsatLinks_ASTList, iter) {
-    UnsatLink const *ul = iter.data();
-    // NOTE: I rely on the fact that all ASTLists just contain
-    // pointers; otherwise this cast would cause problems; Note that I
-    // have to use char instead of void because you can't delete a
-    // pointer to void; see the note in the if below.
-    ASTList<char> *obj = reinterpret_cast<ASTList<char>*>(id2obj.queryif(ul->id));
-    if (obj) {
-      ASTList<char> *ptr = reinterpret_cast<ASTList<char>*>(ul->ptr);
-      xassert(ptr->isEmpty());
-      // this is particularly tricky because the steal contains a
-      // delete, however there is nothing to delete, so we should be
-      // ok.  If there were something to delete, we would be in
-      // trouble because you can't call delete on a pointer to an
-      // object the size of which is different from the size you think
-      // it is due to a type you cast it too.
-      ptr->steal(obj);          // ahhhh!
-    } else {
-      // no satisfaction was provided for this link; for now we just
-      // skip it, but if you wanted to report that in some way, here
-      // is the place to do it
-//        cout << "unsatisfied ASTList link: " << ul->id << endl;
-    }
+// the implementation of this class is generated
+class ReadXml_AST : public ReadXml {
+  public:
+  ReadXml_AST(char const *inputFname0,
+              AstXmlLexer &lexer0,
+              StringTable &strTable0,
+              LinkSatisfier &linkSat0)
+    : ReadXml(inputFname0, lexer0, strTable0, linkSat0)
+  {}
+
+  private:
+  // map a kind to its kind category
+  KindCategory kind2kindCat(int kind);
+  // generic prepend
+  void *prepend2FakeList(void *list, int listKind, void *datum, int datumKind);
+  // generic reverse
+  void *reverseFakeList(void *list, int listKind);
+  // generic append
+  void append2ASTList(void *list, int listKind, void *datum, int datumKind);
+  // construct a node for a tag
+  bool ctorNodeFromTag(int tag, void *&topTemp);
+  // register an attribute into the current node
+  void registerAttribute(void *target, int kind, int attr, char const *yytext0);
+
+//    // INSERT per ast node
+//    void registerAttr_TranslationUnit(TranslationUnit *obj, int attr, char const *strValue);
+#include "astxml_parse1_0decl.gen.cc"
+};
+
+bool ReadXml_AST::ctorNodeFromTag(int tag, void *&topTemp) {
+  switch(tag) {
+  default: userError("unexpected token while looking for an open tag name");
+  case 0: userError("unexpected file termination while looking for an open tag name");
+  case XTOK_SLASH:
+    return true;
+    break;
+
+    //      // INSERT per ast node
+    //      case XTOK_TranslationUnit:
+    //        topTemp = new TranslationUnit(0);
+    //        break;
+#include "astxml_parse1_2ctrc.gen.cc"
+  }
+  return false;
+}
+
+void ReadXml_AST::registerAttribute(void *target, int kind, int attr, char const *yytext0) {
+  switch(kind) {
+  default: xfailure("illegal kind");
+//        // INSERT per ast node
+//        case XTOK_TranslationUnit:
+//          registerAttr_TranslationUnit((TranslationUnit*)nodeStack.top(), attr, lexer.YYText());
+#include "astxml_parse1_3regc.gen.cc"
   }
 }
+
+//  // INSERT per ast node
+//  void ReadXml::registerAttr_TranslationUnit(TranslationUnit *obj, int attr, char const *strValue)
+//  {
+//    switch(attr) {
+//    default:
+//      userError("illegal attribute for a TranslationUnit");
+//      break;
+//    case XTOK_topForms:
+//  //      obj->topForms = strdup(strValue);
+//      break;
+//    }
+//  }
+#include "astxml_parse1_1defn.gen.cc"
+
+
+// ****************************************************************
 
 TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
 {
@@ -387,7 +448,7 @@ TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
   ifstream in(inputFname);
   AstXmlLexer lexer(inputFname);
   lexer.yyrestart(&in);
-  ReadXml reader(inputFname, lexer, strTable, linkSatisifier);
+  ReadXml_AST reader(inputFname, lexer, strTable, linkSatisifier);
 
   // this is going to parse one top-level tag
   bool sawEof = reader.parse();
