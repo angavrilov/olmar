@@ -2526,7 +2526,7 @@ void XmlParserGen::emitXmlParser_Node
   parser3_registerCalls
     << "      case XTOK_" << name << ":\n"
     << "        registerAttr_" << name
-    << "((" << name << "*)nodeStack.top(), attr, lexer.YYText());\n"
+    << "((" << name << "*)target, attr, yytext0);\n"
     << "      break;\n";
 
   // we need to supply however many NULL args here as there are ctor args.
@@ -2555,7 +2555,7 @@ void XmlParserGen::emitXmlParser_Node_registerAttr
   string name = clazz->name;
 
   parser1_defs
-    << "    void ReadXml::registerAttr_" << name
+    << "    void ReadXml_AST::registerAttr_" << name
     << "(" << name << " *obj, int attr, char const *strValue) {\n";
   parser1_defs << "    switch(attr) {\n";
   parser1_defs << "    default:\n";
@@ -2604,7 +2604,7 @@ void XmlParserGen::emitXmlParserImplementation()
   tokensOutCC << "  // AST nodes\n";
   lexerOut    << "  /* AST nodes */\n";
 
-  parser1_defs << "KindCategory ReadXml::kind2kindCat(int kind) {\n";
+  parser1_defs << "KindCategory ReadXml_AST::kind2kindCat(int kind) {\n";
   parser1_defs << "  switch(kind) {\n";
   parser1_defs << "  default: xfailure(\"illegal token kind\");\n";
 
@@ -2684,7 +2684,7 @@ void XmlParserGen::emitXmlParserImplementation()
   }
 
   // generate generic FakeList prepend
-  parser1_defs << "void *ReadXml::prepend2FakeList(void *list, int listKind, "
+  parser1_defs << "void *ReadXml_AST::prepend2FakeList(void *list, int listKind, "
                << "void *datum, int datumKind) {\n";
   parser1_defs << "  switch(listKind) {\n";
   parser1_defs << "  default: xfailure(\"attempt to prepend to a non-FakeList token kind\");\n";
@@ -2702,7 +2702,7 @@ void XmlParserGen::emitXmlParserImplementation()
   parser1_defs << "}\n";
 
   // generate generic FakeList reverse
-  parser1_defs << "void *ReadXml::reverseFakeList(void *list, int listKind) {\n";
+  parser1_defs << "void *ReadXml_AST::reverseFakeList(void *list, int listKind) {\n";
   parser1_defs << "  switch(listKind) {\n";
   parser1_defs << "  default: xfailure(\"attempt to reverse a non-FakeList token kind\");\n";
   FOREACH_ASTLIST(char, fakeListClasses, iter) {
@@ -2715,7 +2715,7 @@ void XmlParserGen::emitXmlParserImplementation()
   parser1_defs << "}\n";
 
   // generate generic ASTList append
-  parser1_defs << "void ReadXml::append2ASTList(void *list, int listKind, "
+  parser1_defs << "void ReadXml_AST::append2ASTList(void *list, int listKind, "
                << "void *datum, int datumKind) {\n";
   parser1_defs << "  switch(listKind) {\n";
   parser1_defs << "  default: xfailure(\"attempt to append to a non-ASTList token kind\");\n";
