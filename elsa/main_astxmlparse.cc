@@ -439,6 +439,142 @@ void ReadXml_AST::registerAttribute(void *target, int kind, int attr, char const
 #include "astxml_parse1_1defn.gen.cc"
 
 
+// ReadXml_Type ****************
+
+// the implementation of this class is generated
+class ReadXml_Type : public ReadXml {
+  public:
+  ReadXml_Type(char const *inputFname0,
+               AstXmlLexer &lexer0,
+               StringTable &strTable0,
+               LinkSatisfier &linkSat0)
+    : ReadXml(inputFname0, lexer0, strTable0, linkSat0)
+  {}
+
+  private:
+  // map a kind to its kind category
+  KindCategory kind2kindCat(int kind);
+  // generic prepend
+  void *prepend2FakeList(void *list, int listKind, void *datum, int datumKind);
+  // generic reverse
+  void *reverseFakeList(void *list, int listKind);
+  // generic append
+  void append2ASTList(void *list, int listKind, void *datum, int datumKind);
+  // construct a node for a tag
+  bool ctorNodeFromTag(int tag, void *&topTemp);
+  // register an attribute into the current node
+  void registerAttribute(void *target, int kind, int attr, char const *yytext0);
+
+//    // INSERT per ast node
+//    void registerAttr_TranslationUnit(TranslationUnit *obj, int attr, char const *strValue);
+//  #include "astxml_parse1_0decl.gen.cc"
+  void registerAttr_CVAtomicType(CVAtomicType *obj, int attr, char const *strValue);
+//    void registerAttr_PointerType(PointerType *obj, int attr, char const *strValue);
+//    void registerAttr_ReferenceType(ReferenceType *obj, int attr, char const *strValue);
+//    void registerAttr_ArrayType(ArrayType *obj, int attr, char const *strValue);
+//    void registerAttr_PointerToMemberType(PointerToMemberType *obj, int attr, char const *strValue);
+};
+
+KindCategory kind2kindCat(int kind) {
+  switch(kind) {
+  default: xfailure("illegal token kind");
+//    case XTOK_TranslationUnit: return KC_Node;
+//    case XTOK_TopForm: return KC_Node;
+//    case XTOK_TF_decl: return KC_Node;
+//    case XTOK_TF_func: return KC_Node;
+//    case XTOK_TF_template: return KC_Node;
+//    case XTOK_TF_explicitInst: return KC_Node;
+//    case XTOK_TF_linkage: return KC_Node;
+//    case XTOK_TF_one_linkage: return KC_Node;
+//    case XTOK_TF_asm: return KC_Node;
+  }
+}
+
+void *prepend2FakeList(void *list, int listKind, void *datum, int datumKind) {
+  switch(listKind) {
+  default: xfailure("attempt to prepend to a non-FakeList token kind");
+//    case XTOK_FakeList_MemberInit:
+//      if (!datumKind == XTOK_MemberInit) {
+//        userError("can't put that onto a FakeList of MemberInit");
+//      }
+//      return ((FakeList<MemberInit>*)list)->prepend((MemberInit*)datum);
+//      break;
+  }
+}
+
+void *reverseFakeList(void *list, int listKind) {
+  switch(listKind) {
+  default: xfailure("attempt to reverse a non-FakeList token kind");
+//    case XTOK_FakeList_MemberInit:
+//      return ((FakeList<MemberInit>*)list)->reverse();
+//      break;
+  }
+}
+
+void append2ASTList(void *list, int listKind, void *datum, int datumKind) {
+  switch(listKind) {
+  default: xfailure("attempt to append to a non-ASTList token kind");
+//    case XTOK_ASTList_TopForm:
+//      if (!datumKind == XTOK_TopForm) {
+//        userError("can't put that onto an ASTList of TopForm");
+//      }
+//      ((ASTList<TopForm>*)list)->append((TopForm*)datum);
+//      break;
+  }
+}
+
+bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
+  switch(tag) {
+  default: userError("unexpected token while looking for an open tag name");
+  case 0: userError("unexpected file termination while looking for an open tag name");
+  case XTOK_SLASH:
+    return true;
+    break;
+
+//      case XTOK_TranslationUnit:
+//        topTemp = new TranslationUnit((ASTList <TopForm >*)0);
+//        break;
+
+//  #include "astxml_parse1_2ctrc.gen.cc"
+  }
+  return false;
+}
+
+void ReadXml_Type::registerAttribute(void *target, int kind, int attr, char const *yytext0) {
+  switch(kind) {
+  default: xfailure("illegal kind");
+//        case XTOK_TranslationUnit:
+//          registerAttr_TranslationUnit((TranslationUnit*)target, attr, yytext0);
+//        break;
+
+//  #include "astxml_parse1_3regc.gen.cc"
+  }
+}
+
+//  void registerAttr_CVAtomicType(TranslationUnit *obj, int attr, char const *strValue);
+//  void registerAttr_PointerType(TranslationUnit *obj, int attr, char const *strValue);
+//  void registerAttr_ReferenceType(TranslationUnit *obj, int attr, char const *strValue);
+//  void registerAttr_ArrayType(TranslationUnit *obj, int attr, char const *strValue);
+//  void registerAttr_PointerToMemberType(TranslationUnit *obj, int attr, char const *strValue);
+
+void ReadXml_Type::registerAttr_CVAtomicType
+  (CVAtomicType *obj, int attr, char const *strValue) {
+  switch(attr) {
+  default:
+    userError("illegal attribute for a CVAtomicType");
+    break;
+//    case XTOK_loc:
+//      fromXml(obj->loc, parseQuotedString(strValue));
+//      break;
+//    case XTOK_idx_expr:
+//      linkSat.unsatLinks.append(new UnsatLink((void**) &(obj->idx_expr), parseQuotedString(strValue)));
+//      break;
+//    case XTOK_idx_expr2:
+//      linkSat.unsatLinks.append(new UnsatLink((void**) &(obj->idx_expr2), parseQuotedString(strValue)));
+    break;
+  }
+}
+
 // ****************************************************************
 
 TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
