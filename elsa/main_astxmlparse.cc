@@ -368,7 +368,8 @@ void ReadXml::readAttributes() {
 
 // ReadXml_AST ****************
 
-// the implementation of this class is generated
+// parse AST serialized as XML; the implementation of this class is
+// generated
 class ReadXml_AST : public ReadXml {
   public:
   ReadXml_AST(char const *inputFname0,
@@ -441,7 +442,7 @@ void ReadXml_AST::registerAttribute(void *target, int kind, int attr, char const
 
 // ReadXml_Type ****************
 
-// the implementation of this class is generated
+// parse Types and Variables serialized as XML
 class ReadXml_Type : public ReadXml {
   public:
   ReadXml_Type(char const *inputFname0,
