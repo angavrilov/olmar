@@ -80,7 +80,7 @@ class ReadXml {
   void readAttributes();
 
   public:
-  void parse();
+  bool parse();
   void satisfyLinks();
 };
 
@@ -102,14 +102,19 @@ void ReadXml::userError(char const *msg) {
   THROW(xBase(stringc << inputFname << ":" << lexer.linenumber << ":" << msg));
 }
 
-void ReadXml::parse() {
+bool ReadXml::parse() {
+  lastNode = NULL;
+  lastKind = 0;
+  lastFakeListId = NULL;
+  xassert(nodeStack.isEmpty());
+  xassert(kindStack.isEmpty());
   while(1) {
     // state: looking for a tag start
     int start = lexer.yylex();
 //      printf("start:%s\n", lexer.tokenKindDesc(start).c_str());
     switch(start) {
     default: userError("unexpected token while looking for '<' of an open tag");
-    case 0: return;             // we are done
+    case 0: return true;        // we are done
     case XTOK_LESSTHAN:
       break;                    // go to next state
     }
@@ -190,7 +195,11 @@ void ReadXml::parse() {
 
     // if the node up the stack is a list, put this element onto that
     // list
-    if (nodeStack.isNotEmpty()) {
+    if (nodeStack.isEmpty()) {
+      // If the stack is empty, return
+      xassert(kindStack.isEmpty());
+      return false;
+    } else {
       int topKind = *kindStack.top();
       int topKindCat = kind2kindCat(topKind);
       if (topKindCat == KC_FakeList) {
@@ -351,7 +360,16 @@ TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
   AstXmlLexer lexer(inputFname);
   lexer.yyrestart(&in);
   ReadXml reader(inputFname, lexer, strTable);
-  reader.parse();
+
+  // this is going to parse one top-level tag
+  bool sawEof = reader.parse();
+  xassert(!sawEof);
   reader.satisfyLinks();
-  return (TranslationUnit*) reader.lastNode;
+  TranslationUnit *tunit = (TranslationUnit*) reader.lastNode;
+
+  // look for the eof
+  sawEof = reader.parse();
+  xassert(sawEof);
+
+  return tunit;
 }
