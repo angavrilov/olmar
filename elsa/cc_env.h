@@ -949,7 +949,7 @@ public:      // template funcs
     (SourceLoc loc, DeclFlags dflags, Variable *templ, Type *type,
      SObjList<STemplateArgument> const &args);
 
-  bool verifyCompatibleTemplateParameters(CompoundType *prior);
+  bool verifyCompatibleTemplateParameters(Scope *scope, CompoundType *prior);
 
   Variable *explicitFunctionInstantiation(PQName *name, Type *type);
 };

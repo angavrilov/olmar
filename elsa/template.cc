@@ -3289,21 +3289,28 @@ CompoundType *Env::findEnclosingTemplateCalled(StringRef name)
 //
 // return false if there is some problem, true if it's all ok
 // (however, this value is ignored at the moment)
-bool Env::verifyCompatibleTemplateParameters(CompoundType *prior)
+bool Env::verifyCompatibleTemplateParameters(Scope *scope, CompoundType *prior)
 {
-  Scope *scope = this->scope();
-  if (!scope->hasTemplateParams() && !prior->isTemplate()) {
+  bool hasParams = scope->hasTemplateParams();
+  if (hasParams && scope->parameterizedEntity) {
+    // (in/t0191.cc) already parameterized.. let's pretend we didn't
+    // see them (I suspect there is a deeper problem here, but maybe
+    // this hack will work for the moment)
+    hasParams = false;
+  }
+
+  if (!hasParams && !prior->isTemplate()) {
     // neither talks about templates, forget the whole thing
     return true;
   }
 
   // before going further, associate the scope's parameters
   // so that happens regardless of the decision here
-  if (scope->hasTemplateParams()) {
+  if (hasParams) {
     scope->setParameterizedEntity(prior->typedefVar);
   }
 
-  if (!scope->hasTemplateParams() && prior->isTemplate()) {
+  if (!hasParams && prior->isTemplate()) {
     error(stringc
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
@@ -3314,7 +3321,7 @@ bool Env::verifyCompatibleTemplateParameters(CompoundType *prior)
     return false;
   }
 
-  if (scope->hasTemplateParams() &&
+  if (hasParams &&
       scope->templateParams.isNotEmpty() &&      // t0252.cc
       !prior->isTemplate()) {
     error(stringc

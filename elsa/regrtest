@@ -732,6 +732,7 @@ testparse t0438a.cc
 testparse t0438.cc
 failparse t0439.cc "default args in explicit spec"
 failparse t0440.cc "default args in explicit spec + DQTs"
+testparse t0441a.cc
 failparse t0441.cc "out-of-line defn of a member template"
 failparse t0442.cc "triply-nested templates with out-of-line defns"
 testparse t0443.cc

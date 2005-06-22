@@ -1536,6 +1536,7 @@ Type *TS_simple::itcheck(Env &env, DeclFlags dflags)
 // "class" keyword.
 CompoundType *checkClasskeyAndName(
   Env &env,
+  Scope *scope,              // scope in which decl/defn appears
   SourceLoc loc,             // location of type specifier
   DeclFlags dflags,          // syntactic and semantic declaration modifiers
   TypeIntr keyword,          // keyword used
@@ -1559,7 +1560,7 @@ CompoundType *checkClasskeyAndName(
 
   // template params?
   SObjList<Variable> *templateParams =
-    env.scope()->hasTemplateParams()? &(env.scope()->templateParams) : NULL;
+    scope->hasTemplateParams()? &(scope->templateParams) : NULL;
 
   // template args?
   ObjList<STemplateArgument> *templateArgs = NULL;
@@ -1723,7 +1724,7 @@ CompoundType *checkClasskeyAndName(
     }
     else {
       // check correspondence between extant params and params on 'ct'
-      env.verifyCompatibleTemplateParameters(ct);
+      env.verifyCompatibleTemplateParameters(scope, ct);
     }
 
     // definition of something previously declared?
@@ -1820,7 +1821,7 @@ CompoundType *checkClasskeyAndName(
       // 8/09/04: moved this below 'makeNewCompound' so the params
       // aren't regarded as inherited
       if (!gcc2hack_explicitSpec) {
-        env.scope()->setParameterizedEntity(ct->typedefVar);
+        scope->setParameterizedEntity(ct->typedefVar);
       }
 
       TRACE("template", (definition? "defn" : "decl") <<
@@ -1877,7 +1878,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
   }
                                      
   CompoundType *ct =
-    checkClasskeyAndName(env, loc, dflags, keyword, name);
+    checkClasskeyAndName(env, env.scope(), loc, dflags, keyword, name);
   if (!ct) {
     ct = env.errorCompoundType;
   }
@@ -1902,9 +1903,13 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     return ctype->typedefVar->type;
   }
 
+  // scope in which decl appears; I save this now, before extending
+  // it with qualifier scopes, for cases like in/t0441a.cc
+  Scope *scope = env.scope();
+
   // lookup scopes in the name, if any
   ScopeSeq qualifierScopes;
-  if (name) {                                      
+  if (name) {
     // 2005-02-18: passing LF_DECLARATOR fixes in/t0191.cc
     tcheckPQName(name, env, NULL /*scope*/, LF_DECLARATOR);
   }
@@ -1913,7 +1918,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 
   // figure out which class the (keyword, name) pair refers to
   CompoundType *ct =
-    checkClasskeyAndName(env, loc, dflags, keyword, name);
+    checkClasskeyAndName(env, scope, loc, dflags, keyword, name);
   if (!ct) {
     // error already reported
     env.retractScopeSeq(qualifierScopes);

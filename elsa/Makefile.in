@@ -4,7 +4,10 @@
 #temporary: iptree iptparse cipart smin
 
 # main target: a C++ parser
-all: cc.ast.gen.h tlexer ccparse iptree smin cipart quicktest
+all: cc.ast.gen.h tlexer ccparse
+
+# work in progress..
+#iptree smin cipart quicktest
 
 # directories of other software
 SMBASE   := @SMBASE@
