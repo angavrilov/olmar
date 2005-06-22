@@ -345,6 +345,12 @@ void xmlPrintFakeList(FakeList<T> const *list, char const *name,
   ind(os, indent+2) << "<object type=bool val=\"" << (var? "true" : "false") << "\" />\n"; \
   ind(os, indent) << "</member>\n"   /* user ; */
 
+  
+// print a pointer address as an id, for example "FL0x12345678";
+// guaranteed to print (e.g.) "FL0" for NULL pointers; the
+// "FL" part is the label
+void xmlPrintPointer(ostream &os, char const *label, void const *p);
+
 
 // ---------------------- deep-copy ------------------
 // returns a new'd list because the AST node ctors want

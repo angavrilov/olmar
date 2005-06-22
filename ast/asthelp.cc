@@ -90,3 +90,23 @@ void xmlPrintList(ASTList<LocString> const &list, char const *name,
 {
   xmlPrintStringList(list, name, os, indent);
 }
+
+
+void xmlPrintPointer(ostream &os, char const *label, void const *p)
+{
+  if (!p) {
+    // sm: previously, the code for this function just inserted 'p'
+    // as a 'void const *', but that is nonportable, as gcc-3 inserts
+    // "0" while gcc-2 emits "(nil)"
+    os << label << "0";
+  }
+  else {
+    // sm: I question whether this is portable, but it may not matter
+    // since null pointers are the only ones that are treated
+    // specially (as far as I can tell)
+    os << label << p;
+  }
+}
+
+
+// EOF

@@ -1921,7 +1921,7 @@ void CGen::emitXmlField(bool isOwner, rostring type, rostring name, char const *
     out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"" << name << "\" << \"=\\\"\";\n";
-    out << "  out << \"AL\" << static_cast<void const*>(&(" << baseName << "->" << name << "));\n";
+    out << "  xmlPrintPointer(out, \"AL\", &(" << baseName << "->" << name << "));\n";
     out << "  out << \"\\\"\";\n";
   }
   else if (isFakeListType(type)) {
@@ -1931,7 +1931,7 @@ void CGen::emitXmlField(bool isOwner, rostring type, rostring name, char const *
     out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"" << name << "\" << \"=\\\"\";\n";
-    out << "  out << \"FL\" << static_cast<void const*>(" << baseName << "->" << name << ");\n";
+    out << "  xmlPrintPointer(out, \"FL\", " << baseName << "->" << name << ");\n";
     out << "  out << \"\\\"\";\n";
   }
   else if (isTreeNode(type) ||
@@ -1941,7 +1941,7 @@ void CGen::emitXmlField(bool isOwner, rostring type, rostring name, char const *
     out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"" << name << "\" << \"=\\\"\";\n";
-    out << "  out << \"ND\" << static_cast<void const*>(" << baseName << "->" << name << ");\n";
+    out << "  xmlPrintPointer(out, \"ND\", " << baseName << "->" << name << ");\n";
     out << "  out << \"\\\"\";\n";
   }
   else {
@@ -2073,7 +2073,7 @@ void CGen::emitXmlVisitorImplementation()
 //      out << "  out << \"\\n\";\n";
 //      out << "  if (indent) printIndentation();\n";
     out << "  out << \" .id=\\\"\";\n";
-    out << "  out << \"ND\" << static_cast<void const*>(obj);\n";
+    out << "  xmlPrintPointer(out, \"ND\", obj);\n";
     out << "  out << \"\\\"\";\n";
 
     // emit other properties
@@ -2136,7 +2136,7 @@ void CGen::emitXmlVisitorImplementation()
     out << "  xassert(!wasVisitedList_FakeList(obj));\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"<FakeList_" << cls << " .id=\\\"\";\n";
-    out << "  out << \"FL\" << static_cast<void const*>(obj);\n";
+    out << "  xmlPrintPointer(out, \"FL\", obj);\n";
     out << "  out << \"\\\">\\n\";\n";
     out << "  ++depth;\n";
     out << "  return true;\n";
@@ -2158,7 +2158,7 @@ void CGen::emitXmlVisitorImplementation()
     out << "  xassert(!wasVisitedList_ASTList(obj));\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"<ASTList_" << cls << " .id=\\\"\";\n";
-    out << "  out << \"AL\" << static_cast<void const*>(obj);\n";
+    out << "  xmlPrintPointer(out, \"AL\", obj);\n";
     out << "  out << \"\\\">\\n\";\n";
     out << "  ++depth;\n";
     out << "  return true;\n";
