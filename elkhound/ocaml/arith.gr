@@ -29,6 +29,10 @@ terminals {
 }
 
 
+impl_verbatim {
+  (* this is verbatim code that gets inserted into arith.ml *)
+}
+
 nonterm(int) Exp {
   -> e1:Exp "+" e2:Exp        { e1 + e2 }
 

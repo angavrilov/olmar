@@ -4261,12 +4261,20 @@ void emitActionCode(GrammarAnalysis const &g, rostring hFname,
   NOSOURCELOC(
     out << "// parser-originated location information is disabled by\n"
         << "// NO_GLR_SOURCELOC; any rule which refers to 'loc' will get this one\n"
-        << "static SourceLoc loc = SL_UNKNOWN;\n"
+        << "static SourceLoc const loc = SL_UNKNOWN;\n"
         << "\n\n";
   )
 
   emitDescriptions(g, out);
   // 'emitDescriptions' prints two newlines itself..
+
+  // impl_verbatim sections
+  //
+  // 2005-06-23: Moved these to near the top of the file so that
+  // the actions can easily refer to them.
+  FOREACH_OBJLIST(LocString, g.implVerbatim, iter) {
+    emitUserCode(out, *(iter.data()), false /*braces*/);
+  }
 
   emitActions(g, out, dcl);
   out << "\n";
@@ -4288,11 +4296,6 @@ void emitActionCode(GrammarAnalysis const &g, rostring hFname,
       << "\n"
       << "#endif // " << latchName << "\n"
       ;
-      
-  // finish the implementation file with the impl_verbatim sections
-  FOREACH_OBJLIST(LocString, g.implVerbatim, iter) {
-    emitUserCode(out, *(iter.data()), false /*braces*/);
-  }
 }
 
 

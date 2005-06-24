@@ -166,6 +166,15 @@ void emitMLActionCode(GrammarAnalysis const &g, rostring mliFname,
   emitMLDescriptions(g, out);
   // 'emitMLDescriptions' prints two newlines itself..
 
+  // impl_verbatim sections
+  //
+  // 2005-06-23: Moved these to near the top of the file so that
+  // the actions can refer to them.  This is especially important
+  // in OCaml since you can't forward-declare in OCaml (!).
+  FOREACH_OBJLIST(LocString, g.implVerbatim, iter) {
+    emitMLUserCode(out, *(iter.data()), false /*braces*/);
+  }
+
   emitMLActions(g, out, dcl);
   out << "\n";
   out << "\n";
@@ -209,11 +218,6 @@ void emitMLActionCode(GrammarAnalysis const &g, rostring mliFname,
         << "#endif // " << latchName << "\n"
         ;
   #endif // 0
-
-  // finish the implementation file with the impl_verbatim sections
-  FOREACH_OBJLIST(LocString, g.implVerbatim, iter) {
-    emitMLUserCode(out, *(iter.data()), false /*braces*/);
-  }
 }
 
 
