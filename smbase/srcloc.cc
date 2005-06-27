@@ -874,7 +874,8 @@ void testHashMap()
 {
   // run the preprocessor
   if (0!=system("cpp -DTEST_SRCLOC srcloc.test.cc >srcloc.tmp 2>/dev/null")) {
-    xbase("failed to preprocess srcloc.test.cc");
+    xbase("failed to preprocess srcloc.test.cc; the command that failed was:\n"
+          "  cpp -DTEST_SRCLOC srcloc.test.cc >srcloc.tmp");
   }
 
   SourceLocManager::File *pp = mgr.getInternalFile("srcloc.tmp");
@@ -953,6 +954,7 @@ void testHashMap2()
 
 void entry(int argc, char ** /*argv*/)
 {
+  xBase::logExceptions = false;
   traceAddSys("progress");
   traceProgress() << "begin" << endl;
 
