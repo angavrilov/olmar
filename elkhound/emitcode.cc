@@ -5,6 +5,7 @@
 #include "syserr.h"        // xsyserror
 #include "srcloc.h"        // SourceLoc
 #include "trace.h"         // tracingSys
+#include <string.h>        // memcpy
 
 EmitCode::EmitCode(rostring f)
   : stringBuilder(),
@@ -41,7 +42,35 @@ void EmitCode::flush()
     p++;
   }
 
-  os << *this;
+  #if 0
+    // this is the original code
+    os << *this;
+  #else
+    // 2005-06-28: There is a bug in the cygwin implementation of
+    // ofstream::operator<< that causes a stack overflow segfault
+    // when writing strings longer than about 2MB.  So, I will
+    // manually break up the string into little chunks to write it.
+
+    // how long is the string?
+    int len = p - c_str();
+
+    enum { SZ = 0x1000 };       // write in 4k chunks
+    p = c_str();
+
+    while (len >= SZ) {
+      char buf[SZ+1];
+      memcpy(buf, p, SZ);
+      buf[SZ] = 0;
+
+      os << buf;
+
+      p += SZ;
+      len -= SZ;
+    }
+
+    os << p;
+  #endif
+
   setlength(0);
 }
 
