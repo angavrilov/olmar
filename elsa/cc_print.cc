@@ -337,6 +337,12 @@ string TypePrinterC::print(Type const *type, char const *name)
   s << printLeft(type, innerParen);
   s << (name? name : "/*anon*/");
   s << printRight(type, innerParen);
+  
+  // get rid of extra space
+  while (s.length() >= 1 && s[s.length()-1] == ' ') {
+    s.truncate(s.length() - 1);
+  }
+
   return s;
 }
 
@@ -1550,7 +1556,7 @@ void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta)
       // do this
       Restorer<bool> res0(TypePrinterC::enabled, true);
 #endif
-      env.typePrinter.print(*env.out, sta->value.t); // assume 'type' if no comment
+      env.typePrinter.print(*env.out, sta->value.t, ""); // assume 'type' if no comment
       }
       break;
     case STemplateArgument::STA_INT:

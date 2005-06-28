@@ -228,6 +228,9 @@ public:
     { return hasAllFlags(DF_TEMPL_PARAM | DF_BOUND_TPARAM); }
   bool isTemplateParam() const
     { return hasFlag(DF_TEMPL_PARAM); }
+    
+  // true if this is a template type parameter (unbound/abstract)
+  bool isTemplateTypeParam() const;
 
   // generic print (C or ML depending on Type::printAsML)
   string toString() const;

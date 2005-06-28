@@ -259,7 +259,7 @@ string paramsToCString(SObjList<Variable> const &params)
       sb << ", ";
     }
 
-    if (p->type->isTypeVariable()) {
+    if (p->isTemplateTypeParam()) {
       if (p->name) {
         sb << "class " << p->name;
         StringRef tvName = p->type->asTypeVariable()->name;
@@ -1187,10 +1187,10 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ObjList<STemplateArgument
     // explicit function instantiation, when the type of the function
     // can be used to infer some/all of the template parameters
     STemplateArgument const *existing = NULL;
-    if (param->type->isTypeVariable()) {
+    if (param->isTemplateTypeParam()) {
       existing = match.bindings.getTypeVar(param->type->asTypeVariable());
     } else {
-      // for, say, int template parameters
+      // for non-type template parameters
       existing = match.bindings.getObjVar(param);
     }
 
@@ -1476,7 +1476,7 @@ void Env::getFuncTemplArgs_oneParamList
     Variable const *param = templPIter.data();
 
     STemplateArgument const *sta = NULL;
-    if (param->type->isTypeVariable()) {
+    if (param->isTemplateTypeParam()) {
       sta = match.bindings.getTypeVar(param->type->asTypeVariable());
     }
     else {

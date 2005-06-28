@@ -78,7 +78,7 @@ void MatchBindings::put0(Variable *key, STemplateArgument *val) {
 
 void MatchBindings::putObjVar(Variable *key, STemplateArgument *val) {
   xassert(key);
-  xassert(!key->type->isTypeVariable());
+  xassert(!key->isTemplateTypeParam());
   put0(key, val);
 }
 
@@ -99,7 +99,7 @@ STemplateArgument const *MatchBindings::getVar(StringRef name) {
 
 STemplateArgument const *MatchBindings::getObjVar(Variable const *key) {
   xassert(key);
-  xassert(!key->type->isTypeVariable());
+  xassert(!key->isTemplateTypeParam());
   return get0(key);
 }
 

@@ -467,7 +467,11 @@ rules in the standard are implemented in Elsa.
 
 <p>
 There are many kinds of entities represented by Variables, as shown in
-this diagram:
+the following diagram.  The rectangles and arrows represent a kind of 
+inheritance hierarchy; e.g., a Class is one of the type-denoting
+Variables (note that this is only conceptual inheritance; in the
+implementation, there is just one class called Variable).  The ellipses
+are data fields attached to Variables.
 
 <center><img src="variables.png" alt="Kinds of Variables"></center>
 
@@ -609,7 +613,18 @@ href="../variable.h">variable.h</a>) to stand for the function
 template, and an associated TemplateInfo (<a
 href="../template.h">template.h</a>) structure to remember the
 template parameters (including default arguments), and any
-instantiations that have been created:
+instantiations that have been created.
+
+<p>
+The TemplateInfo class acts as an extension of the Variable class;
+every TemplateInfo is associated with a unique Variable.  It would
+have been possible to make TemplateInfo actually inherit from
+Variable, and at some point the design may be changed to do just that.
+
+<p>
+In the following diagram, rectangles represent (separate) objects that
+exist at run-time, and arrows represent pointers among those objects.
+An ellipse overlapping several arrows represents a list of pointers.
 
 <center><img src="function_templates.png" alt="Function Template Representation"></center>
 
@@ -639,12 +654,12 @@ existing one is returned.  If not, the template definition AST is
 their arguments, and the entire definition re-type-checked.
 
 <p>
-Class template are instantiated as soon as a use is seen; a program
+Class templates are instantiated as soon as a use is seen; a program
 is ill-formed if a definition has not been seen by the time of first
 use.  Instantiation is done by calling
 <span class="variable">Env::instantiateClassTemplate</span>
 (<a href="../template.cc">template.cc</a>).  As above, if the
-instantiation already exists it is re-used, otherwise the template
+instantiation already exists, it is re-used; otherwise the template
 definition is cloned and re-type-checked.
 
 <p>
@@ -805,8 +820,8 @@ can write extensions with the following properties:
 </ul>
 
 <p>
-Not every extension has all of these properties.  I will point out
-which properties hold below.
+Unfortunately, not every extension mechanism used in Elsa has all of these
+properties.  I will point out which properties hold below.
 
 <a name="ext_lexer"></a>
 <h2>6.1 Lexer Extensions</h2>
@@ -1333,7 +1348,7 @@ documentation
 The intent of the external documentation is to serve as something
 of a roadmap to Elsa, to inform programmers of where things are
 implemented and the assumptions behind those implementations.
-By "external", I mean not in the source code.
+By "external", I mean "not in the source code".
 
 <p>
 Each of the four major components of Elsa

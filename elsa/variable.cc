@@ -391,6 +391,19 @@ bool Variable::isMemberOfTemplate() const
 }
 
 
+bool Variable::isTemplateTypeParam() const
+{
+  // The second part of this test is how we can distinguish type
+  // parameters from non-type parameters whose type happens to be a
+  // previous type parameter.  For example, in
+  //   template <class T, T i>      // in/t0505.cc
+  // 'T' is a type parameter, while 'i' is a non-type parameter but
+  // its type is a type parameter.
+  return hasFlag(DF_TYPEDEF) &&              // true only of 'T'
+         type->isTypeVariable();             // true of both 'T' and 'i'
+}
+
+
 Variable *Variable::getUsingAlias() const
 {
   if (!isTemplateParam()) {
