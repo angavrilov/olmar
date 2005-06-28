@@ -252,6 +252,13 @@ void stringBuilder::adjustend(char* newend)
 }
 
 
+void stringBuilder::truncate(int newLength)
+{
+  xassert(0 <= newLength && newLength <= length());
+  adjustend(s + newLength);
+}
+
+
 stringBuilder& stringBuilder::operator&= (char const *tail)
 {
   append(tail, strlen(tail));

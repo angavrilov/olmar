@@ -249,6 +249,10 @@ public:
   // it's not really the intent of this class, though
   void adjustend(char* newend);
 
+  // remove characters from the end of the string; 'newLength' must
+  // be at least 0, and less than or equal to current length
+  void truncate(int newLength);
+
   // make the string be the empty string, but don't change the
   // allocated space
   void clear() { adjustend(s); }
