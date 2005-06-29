@@ -2883,7 +2883,7 @@ STemplateArgument *Env::makeDefaultTemplateArgument
   else if (!param->hasFlag(DF_TYPEDEF) &&
            param->value) {
     STemplateArgument *ret = new STemplateArgument;
-    env.setSTemplArgFromExpr(*ret, param->value, 0 /*recursionCount*/);
+    env.setSTemplArgFromExpr(*ret, param->value);
     return ret;
   }
 
@@ -2891,9 +2891,7 @@ STemplateArgument *Env::makeDefaultTemplateArgument
 }
 
 
-// TODO: 'recursionCount' should be removed, or at least renamed
-void Env::setSTemplArgFromExpr
-  (STemplateArgument &sarg, Expression *expr, int recursionCount)
+void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr)
 {
   // see cppstd 14.3.2 para 1
 
@@ -2903,9 +2901,17 @@ void Env::setSTemplArgFromExpr
     return;
   }
 
-  if (expr->type->isIntegerType() ||
-      expr->type->isBool() ||
-      expr->type->isEnumType()) {
+  // TODO/BUG: I am basically saying that if a template argument can
+  // be const-eval'd, then it is an integer argument.  But it might be
+  // that the user is intending to pass a const-eval'able variable as
+  // a reference argument, in which case this code will do the wrong
+  // thing.
+
+  Type *rvalType = expr->type->asRval();
+  if (rvalType->isIntegerType() ||
+      rvalType->isBool() ||
+      rvalType->isEnumType()) {
+    // attempt to const-eval this expression
     ConstEval cenv(env.dependentVar);
     CValue val = expr->constEval(cenv);
     if (val.isDependent()) {
@@ -2915,10 +2921,15 @@ void Env::setSTemplArgFromExpr
       sarg.setInt(val.getIntegralValue());
     }
     else if (val.isError()) {
-      env.error(stringc
-        << "cannot evaluate `" << expr->exprToString()
-        << "' as a template integer argument: " << *val.getWhy());
-      delete val.getWhy();
+      if (expr->type->isReference()) {
+        goto handle_reference;         // second chance
+      }
+      else {
+        env.error(stringc
+          << "cannot evaluate `" << expr->exprToString()
+          << "' as a template integer argument: " << *val.getWhy());
+        delete val.getWhy();
+      }
     }
     else {
       xassert(val.isFloat());
@@ -2927,30 +2938,11 @@ void Env::setSTemplArgFromExpr
   }
 
   else if (expr->type->isReference()) {
+  handle_reference:
     if (expr->isE_variable()) {
-      // see if it has a value and replace it with that
-      if (recursionCount > 0) {
-        sarg.setReference(expr->asE_variable()->var);
-      }
-      else {
-        Variable *var0 = expr->asE_variable()->var;
-        if (!var0) {
-          return;     // the error will already have been reported
-        }
-        if (var0->isEnumerator()) {      // in/t0394.cc
-          sarg.setInt(var0->getEnumeratorValue());
-          return;
-        }
-        if (!var0->value) {
-          env.error(stringc
-                    << "`" << expr->exprToString() << "' must lookup to a variable with a value "
-                    << "for it to be a variable template reference argument");
-          return;
-        }
-        // FIX: I suppose we should check here that the type of
-        // var0->value is what we expect from the expr
-        setSTemplArgFromExpr(sarg, var0->value, 1 /*recursionCount*/);
-      }
+      // TODO: 14.3.2p1 says you can only use variables with
+      // external linkage
+      sarg.setReference(expr->asE_variable()->var);
     }
     else {
       env.error(stringc
@@ -2962,9 +2954,13 @@ void Env::setSTemplArgFromExpr
   else if (expr->type->isPointer()) {
     if (expr->isE_addrOf() &&
         expr->asE_addrOf()->expr->isE_variable()) {
+      // TODO: 14.3.2p1 says you can only use variables with
+      // external linkage
       sarg.setPointer(expr->asE_addrOf()->expr->asE_variable()->var);
     }
     else {
+      // TODO: This is wrong; the '&' is optional for function and
+      // array names.
       env.error(stringc
         << "`" << expr->exprToString() << " must be the address of a "
         << "simple variable for it to be a template pointer argument");
@@ -2985,14 +2981,11 @@ void Env::setSTemplArgFromExpr
     }
   }
 
-  // do I need an explicit exception for this?
-  //else if (expr->type->isTypeVariable()) {
-
   else {
     env.error(expr->type, stringc
       << "`" << expr->exprToString() << "' has type `"
       << expr->type->toString() << "' but that's not an allowable "
-      << "type for a template argument");
+      << "type for a non-type template argument");
   }
 }
 

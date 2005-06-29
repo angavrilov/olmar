@@ -8700,7 +8700,7 @@ void TA_type::itcheck(Env &env, STemplateArgument &sarg)
 void TA_nontype::itcheck(Env &env, STemplateArgument &sarg)
 {
   expr->tcheck(env, expr);
-  env.setSTemplArgFromExpr(sarg, expr, 0 /*recursionCount*/);
+  env.setSTemplArgFromExpr(sarg, expr);
 }
 
 

@@ -820,8 +820,7 @@ private:     // template funcs
     (Variable const *param, STemplateArgumentCMap &map);
 
 public:      // template funcs
-  void setSTemplArgFromExpr
-    (STemplateArgument &sarg, Expression *expr, int recursionCount);
+  void setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr);
   
   // load the bindings with any explicit template arguments; return true if successful
   bool loadBindingsWithExplTemplArgs(Variable *var, ObjList<STemplateArgument> const &args,
