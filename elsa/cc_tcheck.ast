@@ -214,6 +214,9 @@ class TypeSpecifier {
        public void tcheckIntoCompound(
          Env &env, DeclFlags dflags, CompoundType *ct);
        private void tcheckFunctionBodies(Env &env);
+
+       public void printExtras(ostream &os, int indent) const;
+       custom debugPrint { printExtras(os, indent); }
      }
 
   -> TS_enumSpec {

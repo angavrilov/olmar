@@ -187,7 +187,7 @@ astxml_lexer.yy.cc: astxml_lexer.lex astxml_lexer.h
 # otherwise conflict with methods in lexer.yy.cc; they have identical
 # implementations
 astxml_lexer.yy.o: astxml_lexer.yy.cc
-	$(CXX)                    -c -o $@ $< -DNO_YYFLEXLEXER_METHODS $(CCFLAGS)
+	$(CXX) -c -o $@ $< -DNO_YYFLEXLEXER_METHODS $(CCFLAGS)
 	@$(PERL) $(SMBASE)/depend.pl -o $@ $< -DNO_YYFLEXLEXER_METHODS $(CCFLAGS) >$*.d
 
 # generate token lists

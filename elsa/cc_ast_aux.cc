@@ -421,9 +421,30 @@ void TopForm::addAmbiguity(TopForm *alt)
 void Function::printExtras(ostream &os, int indent) const
 {
   if (funcType) {
-    ind(os, indent) << "funcType: " << funcType->toString() << "\n";
+    ind(os, indent) << "funcType = " << funcType->toString() << "\n";
   }
-  ind(os, indent) << "receiver: " << refersTo(receiver) << "\n";
+  ind(os, indent) << "receiver = " << refersTo(receiver) << "\n";
+
+  // template with instantiations to print?
+  if (nameAndParams->var) {
+    TemplateInfo *ti = nameAndParams->var->templateInfo();
+    if (ti && ti->isPrimary()) {
+      ind(os, indent) << "instantiations:\n";
+      int ct=0;
+      SFOREACH_OBJLIST(Variable, ti->instantiations, iter) {
+        string label = stringc << "instantiation[" << ct++ << "] ";
+
+        Variable const *inst = iter.data();
+        if (inst->funcDefn) {
+          label = stringc << label << "(defn)";
+          inst->funcDefn->debugPrint(os, indent+2, label.c_str());
+        }
+        else {
+          ind(os, indent+2) << label << "(decl) = " << inst->toString() << "\n";
+        }
+      }
+    }
+  }
 }
 
 
@@ -752,7 +773,7 @@ void setAmbiguity(PQName *n, PQName *newAmbig)
 //  ------------------- TypeSpecifier ---------------------
 void TypeSpecifier::printExtras(ostream &os, int indent) const
 {
-  PRINT_GENERIC(cv);
+  // used to do something, now just a placeholder (could be deleted)
 }
 
 
@@ -770,6 +791,31 @@ bool TypeSpecifier::canBeTypeParam() const
   }
 
   return false;
+}
+
+
+void TS_classSpec::printExtras(ostream &os, int indent) const
+{
+  // template with instantiations to print?
+  if (ctype) {
+    TemplateInfo *ti = ctype->templateInfo();
+    if (ti && (ti->isPrimary() || ti->isPartialSpec())) {
+      ind(os, indent) << "instantiations:\n";
+      int ct=0;
+      SFOREACH_OBJLIST(Variable, ti->instantiations, iter) {
+        string label = stringc << "instantiation[" << ct++ << "] ";
+
+        CompoundType *instCT = iter.data()->type->asCompoundType();
+        if (instCT->syntax) {
+          label = stringc << label << "(defn) " << instCT->instName;
+          instCT->syntax->debugPrint(os, indent+2, label.c_str());
+        }
+        else {
+          ind(os, indent+2) << label << "(decl) = " << instCT->instName << "\n";
+        }
+      }
+    }
+  }
 }
 
 

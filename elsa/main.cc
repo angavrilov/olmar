@@ -3,6 +3,7 @@
 
 #include <iostream.h>     // cout
 #include <stdlib.h>       // exit, getenv, abort
+#include <fstream.h>      // ofstream
 
 //  #include "sobjset.h"      // SObjSet
 #include "trace.h"        // traceAddSys
@@ -662,7 +663,14 @@ void doit(int argc, char **argv)
       }
     }
   }
-  
+
+  // test debugPrint but send the output to /dev/null (basically just
+  // make sure it doesn't segfault or abort)
+  if (tracingSys("testDebugPrint")) {
+    ofstream devnull("/dev/null");
+    unit->debugPrint(devnull, 0);
+  }
+
   cout << "parse=" << parseTime << "ms"
        << " tcheck=" << tcheckTime << "ms"
        << " integ=" << integrityTime << "ms"
