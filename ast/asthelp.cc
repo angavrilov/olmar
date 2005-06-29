@@ -21,6 +21,20 @@ void debugPrintStr(string const &s, char const *name,
 }
 
 
+void debugPrintCStr(char const *s, char const *name,
+                    ostream &os, int indent)
+{
+  ind(os, indent) << name << " = ";
+  if (s) {
+    os << quoted(s);
+  }
+  else {
+    os << "(null)";
+  }
+  os << "\n";
+}
+
+
 template <class STR>
 void debugPrintStringList(ASTList<STR> const &list, char const *name,
                           ostream &os, int indent)

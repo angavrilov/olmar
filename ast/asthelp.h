@@ -199,6 +199,13 @@ void debugPrintStr(string const &s, char const *name,
                    ostream &os, int indent);
 
 
+#define PRINT_CSTRING(var) \
+  debugPrintCStr(var, #var, os, indent)    /* user ; */
+
+void debugPrintCStr(char const *s, char const *name,
+                    ostream &os, int indent);
+
+
 #define PRINT_LIST(T, list) \
   debugPrintList(list, #list, os, indent)     /* user ; */
 

@@ -1325,7 +1325,7 @@ void CGen::emitPrintField(rostring print,
     out << "  " << print << "_STRING(" << name << ");\n";
   }
   else if (0==strcmp(type, "StringRef")) {
-    out << "  " << print << "_STRING(" << name << ");\n";
+    out << "  " << print << "_CSTRING(" << name << ");\n";
   }
   else if (0==strcmp(type, "bool")) {
     out << "  " << print << "_BOOL(" << name << ");\n";
