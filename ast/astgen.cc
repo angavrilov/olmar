@@ -1474,25 +1474,40 @@ void CGen::emitCloneCode(ASTClass const *super, ASTClass const *sub)
 
 
 // -------------------------- visitor ---------------------------
-void HGen::emitVisitorInterfacePrelude(rostring visitorName)
+void emitTF_custom(ofstream &out, rostring qualifierName, bool addNewline)
 {
-  // custom additions to this visitor
-  FOREACH_ASTLIST_NC(ToplevelForm, wholeAST->forms, iter2) {
-    if (iter2.data()->isTF_custom()) {
-      CustomCode *cc = iter2.data()->asTF_customC()->cust;
-      if (cc->qualifier.equals(visitorName)) {
-        out << cc->code << "\n";
+  FOREACH_ASTLIST_NC(ToplevelForm, wholeAST->forms, iter) {
+    if (iter.data()->isTF_custom()) {
+      CustomCode *cc = iter.data()->asTF_customC()->cust;
+      if (cc->qualifier == qualifierName) {
+        out << cc->code;
+        if (addNewline) {
+          out << "\n";
+        }
         cc->used = true;
       }
     }
   }
+}
+
+
+void HGen::emitVisitorInterfacePrelude(rostring visitorName)
+{
+  // custom additions to this visitor
+  emitTF_custom(out, visitorName, true /*addNewline*/);
 
   out << "private:     // disallowed, not implemented\n"
       << "  " << visitorName << "(" << visitorName << "&);\n"
       << "  void operator= (" << visitorName << "&);\n"
       << "\n"
       << "public:      // funcs\n"
-      << "  " << visitorName << "() {}\n"
+      << "  " << visitorName << "() {"
+      ;
+
+  // custom additions to the visitor's constructor
+  emitTF_custom(out, stringc << visitorName << "_ctor", false /*addNewline*/);
+
+  out << "}\n"
       << "  virtual ~" << visitorName << "();   // silence gcc warning...\n"
       << "\n"
       ;

@@ -16,6 +16,9 @@ public:
   int someVisitorField;
 }
 
+// initialize it...
+custom ExampleVisitor_ctor { someVisitorField = 0; }
+
 // emit the xmlPrint stuff too
 option xmlPrint;
 
