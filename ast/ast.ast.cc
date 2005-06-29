@@ -39,6 +39,7 @@ char const * const ToplevelForm::kindNames[ToplevelForm::NUM_KINDS] = {
   "TF_impl_verbatim",
   "TF_class",
   "TF_option",
+  "TF_custom",
   "TF_enum",
 };
 
@@ -143,6 +144,30 @@ TF_option *TF_option::clone() const
   TF_option *ret = new TF_option(
     name,
     shallowCloneASTList(args)
+  );
+  return ret;
+}
+
+DEFN_AST_DOWNCASTS(ToplevelForm, TF_custom, TF_CUSTOM)
+
+TF_custom::~TF_custom()
+{
+  delete cust;
+}
+
+void TF_custom::debugPrint(ostream &os, int indent, char const *subtreeName) const
+{
+  PRINT_HEADER(subtreeName, TF_custom);
+
+  ToplevelForm::debugPrint(os, indent, subtreeName);
+
+  PRINT_SUBTREE(cust);
+}
+
+TF_custom *TF_custom::clone() const
+{
+  TF_custom *ret = new TF_custom(
+    cust? cust->clone() : NULL
   );
   return ret;
 }

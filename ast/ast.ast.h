@@ -14,6 +14,7 @@ class TF_verbatim;
 class TF_impl_verbatim;
 class TF_class;
 class TF_option;
+class TF_custom;
 class TF_enum;
 class ASTClass;
 class AccessMod;
@@ -61,7 +62,7 @@ public:      // funcs
   }
   virtual ~ToplevelForm();
 
-  enum Kind { TF_VERBATIM, TF_IMPL_VERBATIM, TF_CLASS, TF_OPTION, TF_ENUM, NUM_KINDS };
+  enum Kind { TF_VERBATIM, TF_IMPL_VERBATIM, TF_CLASS, TF_OPTION, TF_CUSTOM, TF_ENUM, NUM_KINDS };
   virtual Kind kind() const = 0;
 
   static char const * const kindNames[NUM_KINDS];
@@ -71,9 +72,10 @@ public:      // funcs
   DECL_AST_DOWNCASTS(TF_impl_verbatim, TF_IMPL_VERBATIM)
   DECL_AST_DOWNCASTS(TF_class, TF_CLASS)
   DECL_AST_DOWNCASTS(TF_option, TF_OPTION)
+  DECL_AST_DOWNCASTS(TF_custom, TF_CUSTOM)
   DECL_AST_DOWNCASTS(TF_enum, TF_ENUM)
 
-  virtual ToplevelForm *clone() const=0;
+  virtual ToplevelForm* clone() const=0;
 
   virtual void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
 
@@ -151,6 +153,24 @@ public:      // funcs
   virtual void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
 
   virtual TF_option *clone() const;
+
+};
+
+class TF_custom : public ToplevelForm {
+public:      // data
+  CustomCode *cust;
+
+public:      // funcs
+  TF_custom(CustomCode *_cust) : ToplevelForm(), cust(_cust) {
+  }
+  virtual ~TF_custom();
+
+  virtual Kind kind() const { return TF_CUSTOM; }
+  enum { TYPE_TAG = TF_CUSTOM };
+
+  virtual void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
+
+  virtual TF_custom *clone() const;
 
 };
 
@@ -258,7 +278,7 @@ public:      // funcs
   DECL_AST_DOWNCASTS(UserDecl, USERDECL)
   DECL_AST_DOWNCASTS(CustomCode, CUSTOMCODE)
 
-  virtual Annotation *clone() const=0;
+  virtual Annotation* clone() const=0;
 
   virtual void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
 

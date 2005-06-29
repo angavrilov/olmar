@@ -43,6 +43,9 @@ inline bool wantXmlParser() { return xmlParserName.length() != 0; }
 string mvisitorName;
 inline bool wantMVisitor() { return mvisitorName.length() != 0; }
 
+// entire input
+ASTSpecFile *wholeAST = NULL;
+
 // list of all TF_classes in the input, useful for certain
 // applications which don't care about other forms
 SObjList<TF_class> allClasses;
@@ -988,7 +991,9 @@ void CGen::emitFile()
   headerComments();
 
   out << "#include \"" << hdrFname << "\"      // this module\n";
-  out << "#include \"strutil.h\"      // this module\n";
+  if (wantXmlVisitor()) {
+    out << "#include \"strutil.h\"      // quoted, parseQuotedString\n";
+  }
   out << "\n";
   out << "\n";
 
@@ -1471,6 +1476,17 @@ void CGen::emitCloneCode(ASTClass const *super, ASTClass const *sub)
 // -------------------------- visitor ---------------------------
 void HGen::emitVisitorInterfacePrelude(rostring visitorName)
 {
+  // custom additions to this visitor
+  FOREACH_ASTLIST_NC(ToplevelForm, wholeAST->forms, iter2) {
+    if (iter2.data()->isTF_custom()) {
+      CustomCode *cc = iter2.data()->asTF_customC()->cust;
+      if (cc->qualifier.equals(visitorName)) {
+        out << cc->code << "\n";
+        cc->used = true;
+      }
+    }
+  }
+
   out << "private:     // disallowed, not implemented\n"
       << "  " << visitorName << "(" << visitorName << "&);\n"
       << "  void operator= (" << visitorName << "&);\n"
@@ -1575,6 +1591,9 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
       <<   visitorName << " &vis)\n"
       << "{\n";
 
+  // do any initial traversal action specified by the user
+  emitCustomCode(c->decls, "preemptTraverse");
+
   // name of the 'visit' method that applies to this class;
   // these methods are always named according to the least-derived
   // class in the hierarchy
@@ -1639,7 +1658,7 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
     }
   }
 
-  // do any additional traversal action specified by the user
+  // do any final traversal action specified by the user
   emitCustomCode(c->decls, "traverse");
 
   if (!hasChildren) {
@@ -2978,7 +2997,7 @@ void checkUnusedCustoms(ASTClass const *c)
 {
   FOREACH_ASTLIST(Annotation, c->decls, iter) {
     Annotation const *a = iter.data();
-    
+
     if (a->isCustomCode()) {
       CustomCode const *cc = a->asCustomCodeC();
       if (cc->used == false) {
@@ -3066,6 +3085,7 @@ void entry(int argc, char **argv)
   // parse the grammar spec
   Owner<ASTSpecFile> ast;
   ast = readAbstractGrammar(srcFname);
+  wholeAST = ast;
 
   // parse and merge extension modules
   ObjList<string> modules;
@@ -3161,6 +3181,15 @@ void entry(int argc, char **argv)
       
         FOREACH_ASTLIST(ASTClass, c->ctors, subIter) {
           checkUnusedCustoms(subIter.data());
+        }
+      }
+      
+      FOREACH_ASTLIST(ToplevelForm, ast->forms, iter2) {
+        if (iter2.data()->isTF_custom()) {
+          CustomCode const *cc = iter2.data()->asTF_customC()->cust;
+          if (cc->used == false) {
+            cout << "warning: unused custom code `" << cc->qualifier << "'\n";
+          }
         }
       }
     }

@@ -83,6 +83,7 @@
   string *enumerator;
   ASTList<BaseClass> *baseClassList;
   BaseClass *baseClass;
+  CustomCode *customCode;
 }
 
 %type <file> StartSymbol
@@ -103,6 +104,7 @@
 %type <baseClassList> BaseClassesOpt BaseClassSeq
 %type <accessCtl> BaseAccess
 %type <baseClass> BaseClass
+%type <customCode> CustomCode;
 
 
 /* ===================== productions ======================= */
@@ -121,6 +123,7 @@ Input: /* empty */           { $$ = new ASTList<ToplevelForm>; }
      | Input Verbatim        { ($$=$1)->append($2); }
      | Input Option          { ($$=$1)->append($2); }
      | Input Enum            { ($$=$1)->append($2); }
+     | Input CustomCode      { ($$=$1)->append(new TF_custom($2)); }
      | Input ";"             { $$=$1; }     /* ignore extraneous semis */
      ;
 
@@ -238,7 +241,13 @@ Annotation
       { $$ = new UserDecl($1, unbox($2), ""); }
   | AccessMod TOK_EMBEDDED_CODE "=" TOK_EMBEDDED_CODE ";"
       { $$ = new UserDecl($1, unbox($2), unbox($4)); }
-  | "custom" TOK_NAME Embedded
+  | CustomCode
+      { $$ = $1; }
+  ;
+
+/* yields CustomCode */
+CustomCode
+  : "custom" TOK_NAME Embedded
       { $$ = new CustomCode(unbox($2), unbox($3)); }
   ;
 

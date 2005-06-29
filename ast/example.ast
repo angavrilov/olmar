@@ -10,6 +10,12 @@ option visitor ExampleVisitor;
 option mvisitor ExampleMVisitor;
 option dvisitor ExampleDVisitor;
 
+// add a field to the visitor
+custom ExampleVisitor {
+public:
+  int someVisitorField;
+}
+
 // emit the xmlPrint stuff too
 option xmlPrint;
 

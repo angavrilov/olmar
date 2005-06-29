@@ -28,6 +28,9 @@ class ToplevelForm {
   // a generic option: first word specifies the kind of option, and
   // additional words (if any) are arguments
   -> TF_option(string name, ASTList<string> args);
+  
+  // generic custom/verbatim code
+  -> TF_custom(CustomCode cust);
 
   // enumeration (at one point I had support for explicit enumerator
   // values, but decided that if the user wants that, they should put
