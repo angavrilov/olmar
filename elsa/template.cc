@@ -1699,8 +1699,10 @@ bool Env::insertTemplateArgBindings_oneParamList
       // can const-eval the expression whenever it participates in
       // type determination; the type must be made 'const' so that
       // E_variable::constEval will believe it can evaluate it
-      Type *bindType = tfac.applyCVToType(param->loc, CV_CONST,
-                                          param->type, NULL /*syntax*/);
+      Type *bindType = param->type->isReference()? 
+        param->type :                 // reference: no need/desire to apply 'const'
+        tfac.applyCVToType(param->loc, CV_CONST,    // non-reference: apply 'const'
+                           param->type, NULL /*syntax*/);
       Variable *binding = makeVariable(param->loc, param->name,
                                        bindType, DF_TEMPL_PARAM | DF_BOUND_TPARAM);
 
@@ -1716,20 +1718,65 @@ bool Env::insertTemplateArgBindings_oneParamList
         // applicable parts of cppstd
         xfailure("unimplemented: default non-type argument");
       }
-      else if (sarg->kind == STemplateArgument::STA_INT) {
-        E_intLit *value0 = buildIntegerLiteralExp(sarg->getInt());
-        // FIX: I'm sure we can do better than SL_UNKNOWN here
-        value0->type = tfac.getSimpleType(ST_INT, CV_CONST);
-        binding->value = value0;
-      }
-      else if (sarg->kind == STemplateArgument::STA_DEPEXPR) {
-        binding->value = sarg->getDepExpr();
-      }
-      else {
-        xunimp(stringc << "STemplateArgument objects that are of kind other than "
-               "STA_INT are not implemented: " << sarg->toString());
+      switch (sarg->kind) {
+        // The following cases get progressively more difficult for
+        // an analysis to "see" what the actual template argument is.
+        // For example, in the first case, it sees something like:
+        //   int const I = 3;
+        // and const-eval'ing variables like 'I' is pretty routine.
+        // But for a pointer to member, it sees:
+        //   int A::*p const = &A::foo;
+        // and such constructs are unusual in ordinary code.  At some
+        // point I may need to implement a more aggressive
+        // substitution transformation, rather than relying on the
+        // indirection through the 'binding' variable.
+
+        case STemplateArgument::STA_INT: {
+          binding->value = build_E_intLit(sarg->getInt());
+          break;
+        }
+        case STemplateArgument::STA_REFERENCE: {
+          binding->value = build_E_variable(sarg->getReference());
+          break;
+        }
+        case STemplateArgument::STA_POINTER: {
+          binding->value = build_E_addrOf(build_E_variable(sarg->getPointer()));
+          break;
+        }
+        case STemplateArgument::STA_MEMBER: {
+          binding->value = build_E_addrOf(build_E_variable(sarg->getMember()));
+          break;
+        }
+        case STemplateArgument::STA_DEPEXPR: {
+          binding->value = sarg->getDepExpr();
+          break;
+        }
+        default: {
+          xunimp("template template parameters");
+        }
       }
       xassert(binding->value);
+
+      if (param->type->containsGeneralizedDependent()) {
+        // (in/t0505.cc) the parameter type probably depends on 
+        // parameters that have been bound earlier in the parameter
+        // list; but refining 'param->type' appropriately is not
+        // very convenient, so I'm just going to forego the check
+        // (TODO: do it right)
+      }
+      else {
+        // check that this argument is compatible with the parameter
+        // (TODO: this isn't exactly what 14.3.2p5 says)
+        string errorMsg;
+        if (SC_ERROR == getStandardConversion(&errorMsg,
+                                              binding->value->getSpecial(lang),
+                                              binding->value->type,
+                                              param->type,
+                                              false /*destIsReceiver*/)) {
+          error(errorMsg);
+        }
+      }
+
       addVariableToScope(scope, binding);
     }
     else {
@@ -2905,7 +2952,7 @@ void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr)
   // be const-eval'd, then it is an integer argument.  But it might be
   // that the user is intending to pass a const-eval'able variable as
   // a reference argument, in which case this code will do the wrong
-  // thing.
+  // thing.  (in/t0509.cc)
 
   Type *rvalType = expr->type->asRval();
   if (rvalType->isIntegerType() ||
@@ -2972,7 +3019,7 @@ void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr)
     // the inferred type it checks for a different syntax
     if (expr->isE_addrOf() &&
         expr->asE_addrOf()->expr->isE_variable()) {
-      sarg.setMember(expr->asE_addrOf()->asE_variable()->var);
+      sarg.setMember(expr->asE_addrOf()->expr->asE_variable()->var);
     }
     else {
       env.error(stringc

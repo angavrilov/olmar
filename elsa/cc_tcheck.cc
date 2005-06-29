@@ -6336,7 +6336,7 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
       // very unlikely to cause a real problem, so my solution is to
       // pretend it's always the value 0.
       replacement =
-        new E_cast(typeSyntax, env.buildIntegerLiteralExp(0));
+        new E_cast(typeSyntax, env.build_E_intLit(0));
     }
     replacement->tcheck(env, replacement);
     return replacement->type;

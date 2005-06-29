@@ -3735,11 +3735,55 @@ void Env::addedNewVariable(Scope *, Variable *)
 {}
 
 
-E_intLit *Env::buildIntegerLiteralExp(int i)
+E_intLit *Env::build_E_intLit(int i)
 {
   StringRef text = str(stringc << i);
   E_intLit *ret = new E_intLit(text);
   ret->i = i;
+  ret->type = tfac.getSimpleType(ST_INT);
+  return ret;
+}
+
+                                                        
+// implemented in cc_tcheck.cc
+Type *makeLvalType(TypeFactory &tfac, Type *underlying);
+
+E_variable *Env::build_E_variable(Variable *var)
+{
+  E_variable *ret = new E_variable(new PQ_variable(SL_UNKNOWN, var));
+  ret->var = var;
+
+  // Wrap with ReferenceType?  (similar to E_variable::itcheck)
+  if (var->isTemplateParam() || var->hasFlag(DF_ENUMERATOR)) {
+    ret->type = var->type;                       // do not wrap it
+  }
+  else {
+    ret->type = makeLvalType(tfac, var->type);   // possibly wrap it
+  }
+  
+  return ret;
+}
+
+
+E_addrOf *Env::build_E_addrOf(Expression *underlying)
+{
+  E_addrOf *ret = new E_addrOf(underlying);
+
+  // are we building an address-of nonstatic member?
+  if (underlying->isE_variable()) {
+    Variable *underVar = underlying->asE_variable()->var;
+    if (underVar->hasFlag(DF_MEMBER) &&
+        !underVar->hasFlag(DF_STATIC)) {
+      CompoundType *inClassNAT = underVar->scope->curCompound;
+      xassert(inClassNAT);
+      ret->type = tfac.makePointerToMemberType(inClassNAT, CV_NONE,
+                                               underVar->type);
+      return ret;
+    }
+  }
+
+  // ordinary pointer
+  ret->type = tfac.makePointerType(CV_NONE, underlying->type->asRval());
   return ret;
 }
 
@@ -5204,7 +5248,7 @@ PQName *Env::makeQualifiedName(Scope *s, PQName *name)
 
         case STemplateArgument::STA_INT:
           // synthesize an AST node for the integer
-          e = buildIntegerLiteralExp(sarg->getInt());
+          e = build_E_intLit(sarg->getInt());
           break;
       }
 

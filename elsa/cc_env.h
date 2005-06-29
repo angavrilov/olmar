@@ -668,8 +668,10 @@ public:      // funcs
   /*fakelist*/TemplateArgument *makeTemplateArgs(TemplateInfo *ti);
   ASTTypeId *buildASTTypeId(Type *type);
 
-  // make an AST node for an integer literal expression
-  E_intLit *buildIntegerLiteralExp(int i);
+  // make AST nodes, as if they have been tcheck'd
+  E_intLit *build_E_intLit(int i);
+  E_variable *build_E_variable(Variable *var);
+  E_addrOf *build_E_addrOf(Expression *underlying);
 
   // make a function type for an implicitly declared function at its
   // call site: "int ()()"
