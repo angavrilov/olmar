@@ -2303,6 +2303,9 @@ Variable *Env::instantiateFunctionTemplate
   TemplateInfo *primaryTI = primary->templateInfo();
   xassert(primaryTI->isPrimary());
 
+  // the arguments should be concrete
+  xassert(!containsVariables(sargs));
+
   // look for a (complete) specialization that matches
   Variable *spec = findCompleteSpecialization(primaryTI, sargs);
   if (spec) {
@@ -2546,6 +2549,9 @@ Variable *Env::instantiateClassTemplate
 
   TemplateInfo *primaryTI = primary->templateInfo();
   xassert(primaryTI->isPrimary());
+
+  // the arguments should be concrete
+  xassert(!containsVariables(origPrimaryArgs));
 
   // Augment the supplied arguments with defaults from the primary
   // (note that defaults on a specialization are not used, and are
@@ -3643,47 +3649,7 @@ Type *Env::applyArgumentMapToAtomicType
 
     // build a concrete argument list, so we can make a real instantiation
     ObjList<STemplateArgument> args;
-    FOREACH_OBJLIST(STemplateArgument, spi->args, iter) {
-      STemplateArgument const *sta = iter.data();
-      if (sta->isType()) {
-        STemplateArgument *rta = new STemplateArgument;
-        rta->setType(applyArgumentMapToType(map, sta->getType()));
-        args.append(rta);
-      }
-      else if (sta->isDepExpr()) {
-        Expression *e = sta->getDepExpr();
-        if (!e->isE_variable()) {                                
-          // what would cause this?  a partial spec?
-          xunimp("applyArgumentMap: dep-expr is not E_variable");
-        }
-
-        StringRef varName = e->asE_variable()->var->name;
-        STemplateArgument const *replacement = map.get(varName);
-        if (!replacement) {
-          // TODO: I think these should be user errors ...
-          //
-          // TODO: it is possible this really is a concrete
-          // reference argument, instead of being an abstract
-          // parameter, but we have no way of telling the difference
-          // in the current (broken) design
-          xfailure(stringc << "applyArgumentMapToAtomicType: the non-type name `"
-                           << varName << "' is not bound");
-        }
-        else if (replacement->isType()) {
-          xfailure(stringc << "applyArgumentMapToAtomicType: the non-type name `"
-                           << varName << "' is bound to a type argument");
-        }
-
-        args.append(replacement->shallowClone());
-      }
-      else {
-        xunimp("applyArgumentMap: unexpected argument kind");
-         
-        // older code said:
-        // the argument is already concrete
-        args.append(sta->shallowClone());
-      }
-    }
+    applyArgumentMapToTemplateArgs(map, args, spi->args);
 
     // instantiate the class with our newly-created arguments
     Variable *instClass = 
@@ -3697,10 +3663,149 @@ Type *Env::applyArgumentMapToAtomicType
                               instClass->type, NULL /*syntax*/);
   }
 
+  else if (src->isDependentQType()) {     // e.g. in/t0506.cc
+    DependentQType const *sdqt = src->asDependentQTypeC();
+    
+    // resolve 'first' (this unfortunately wraps the result in an
+    // extraneous CVAtomicType)
+    AtomicType *retFirst = 
+      applyArgumentMapToAtomicType(map, sdqt->first, CV_NONE)->
+        asCVAtomicType()->atomic;
+    if (!retFirst->isCompoundType()) {
+      return error(stringc << "attempt to extract member `" << sdqt->rest->toString()
+                           << "' from non-class `" << retFirst->toString() << "'");
+    }
+          
+    // resolve 'first'::'rest'
+    return applyArgumentMapToQualifiedType(map, retFirst->asCompoundType(), 
+                                           sdqt->rest);
+  }
+
   else {
     // all others do not refer to type variables; returning NULL
     // here means to use the original unchanged
     return NULL;
+  }
+}
+
+
+void Env::applyArgumentMapToTemplateArgs
+  (STemplateArgumentCMap &map, ObjList<STemplateArgument> &dest,
+                               ObjList<STemplateArgument> const &srcArgs)
+{
+  xassert(dest.isEmpty());     // for prepend+reverse
+
+  FOREACH_OBJLIST(STemplateArgument, srcArgs, iter) {
+    STemplateArgument const *sta = iter.data();
+    if (sta->isType()) {
+      STemplateArgument *rta = new STemplateArgument;
+      rta->setType(applyArgumentMapToType(map, sta->getType()));
+      dest.prepend(rta);
+    }
+    else if (sta->isDepExpr()) {
+      Expression *e = sta->getDepExpr();
+      if (!e->isE_variable()) {
+        // what would cause this?  a partial spec?
+        xunimp("applyArgumentMap: dep-expr is not E_variable");
+      }
+
+      StringRef varName = e->asE_variable()->var->name;
+      STemplateArgument const *replacement = map.get(varName);
+      if (!replacement) {
+        // TODO: I think these should be user errors ...
+        //
+        // TODO: it is possible this really is a concrete
+        // reference argument, instead of being an abstract
+        // parameter, but we have no way of telling the difference
+        // in the current (broken) design
+        xfailure(stringc << "applyArgumentMapToAtomicType: the non-type name `"
+                         << varName << "' is not bound");
+      }
+      else if (replacement->isType()) {
+        xfailure(stringc << "applyArgumentMapToAtomicType: the non-type name `"
+                         << varName << "' is bound to a type argument");
+      }
+
+      dest.prepend(replacement->shallowClone());
+    }
+    else {
+      xunimp("applyArgumentMap: unexpected argument kind");
+    }
+  }
+  
+  dest.reverse();
+}
+
+
+// We are trying to resolve 'ct'::'name', but 'name' might refer to
+// type variables bound only in 'map'.
+//
+// This code is somewhat related to Env::resolveDQTs, but that
+// function looks for bindings in the environment, and is in general a
+// bit of a hack.  The code here is more principled, and does its work
+// without using the environment.
+Type *Env::applyArgumentMapToQualifiedType
+  (STemplateArgumentCMap &map, CompoundType *ct, PQName *name)
+{
+  if (!ensureCompleteCompound("access member of", ct)) {
+    return env.errorType();      // error already reported
+  }
+
+  if (name->isPQ_name() || name->isPQ_operator()) {
+    // ordinary lookup will suffice
+    Variable *var = ct->lookup_one(name->getName(), *this, LF_NONE);
+    if (!var || !var->isType()) {
+      return env.error(stringc << "no such type: " << ct->name
+                               << "::" << name->toString());
+    }
+    else {
+      return var->type;
+    }
+  }
+
+  // PQ_qualifier or PQ_template; get name and args
+  StringRef memberName;
+  ObjList<STemplateArgument> *srcArgs;
+  if (name->isPQ_template()) {
+    PQ_template *pqt = name->asPQ_template();
+    memberName = pqt->name;
+    srcArgs = &(pqt->sargs);
+  }
+  else {
+    PQ_qualifier *pqq = name->asPQ_qualifier();
+    memberName = pqq->qualifier;
+    srcArgs = &(pqq->sargs);
+  }
+  xassert(memberName);     // can't refer to anon member in DQT
+
+  // look up the name, should refer to a template class
+  Variable *primary = ct->lookup_one(memberName, *this, LF_TEMPL_PRIMARY);
+  if (!primary ||
+      !primary->isTemplateClass(false /*considerInherited*/)) {
+    return env.error(stringc << "no such template member class: " << ct->name
+                             << "::" << name->toString());
+  }
+
+  // resolve the template arguments using 'map'
+  ObjList<STemplateArgument> args;
+  applyArgumentMapToTemplateArgs(map, args, *srcArgs);
+
+  // instantiate the template the arguments
+  Variable *inst =
+    instantiateClassTemplate(loc(), primary, args);
+  if (!inst) {
+    return env.errorType();    // error already reported
+  }
+
+  if (name->isPQ_template()) {
+    // we're done; package up the answer
+    return tfac.applyCVToType(SL_UNKNOWN, CV_NONE,
+                              inst->type, NULL /*syntax*/);
+  }
+  else {
+    // recursively continue deconstructing 'name'
+    return applyArgumentMapToQualifiedType(map, inst->type->asCompoundType(),
+                                           name->asPQ_qualifier()->rest);
   }
 }
 

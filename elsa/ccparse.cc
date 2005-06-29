@@ -2,7 +2,7 @@
 // code for ccparse.h
 
 #include "ccparse.h"      // this module
-#include "cc_ast.h"       // ASTVisitor
+#include "astvisit.h"     // ASTVisitorEx
 #include "trace.h"        // TRACE
 
 #include <iostream.h>     // cout
@@ -152,75 +152,29 @@ void ParseEnv::diagnose3(Bool3 b, SourceLoc loc, char const *msg)
 }
 
 
-// ---------------------- AmbiguityChecker -----------------
+// ---------------------- AmbiguityCounter -----------------
 // check for ambiguities
-// (I don't want this inheriting from LoweredASTVisitor; I just want
-// to count ambiguities in the base AST.)
-// NOT Intended to be used with LoweredASTVisitor
-class AmbiguityChecker : public ASTVisitor {
+class AmbiguityCounter : public ASTVisitorEx {
 public:
   int ambiguousNodes;    // count of nodes with non-NULL ambiguity links
 
 public:
-  AmbiguityChecker() : ambiguousNodes(0) {}
+  AmbiguityCounter() : ambiguousNodes(0) {}
 
-  virtual void foundAmbiguous(char const *kind, SourceLoc loc);
-
-  // check each of the kinds of nodes that have ambiguity links
-  bool visitTopForm(TopForm *obj);
-  bool visitASTTypeId(ASTTypeId *obj);
-  bool visitDeclarator(Declarator *obj);
-  bool visitStatement(Statement *obj);
-  bool visitCondition(Condition *obj);
-  bool visitExpression(Expression *obj);
-  bool visitArgExpression(ArgExpression *obj);
-  bool visitTemplateParameter(TemplateParameter *obj);
-  bool visitTemplateArgument(TemplateArgument *obj);
-  bool visitPQName(PQName *obj);
+  virtual void foundAmbiguous(void *obj, char const *kind);
 };
 
 
-void AmbiguityChecker::foundAmbiguous(char const *kind, SourceLoc loc)
+void AmbiguityCounter::foundAmbiguous(void *obj, char const *kind)
 {
   ambiguousNodes++;
-}
-
-
-#define VISIT(type)                                         \
-  bool AmbiguityChecker::visit##type(type *obj)             \
-  {                                                         \
-    if (obj->ambiguity) {                                   \
-      foundAmbiguous(obj->kindName(), getASTNodeLoc(obj));  \
-    }                                                       \
-    return true;                                            \
-  }
-
-VISIT(TopForm)
-VISIT(ASTTypeId)
-VISIT(Declarator)
-VISIT(Statement)
-VISIT(Condition)
-VISIT(Expression)
-VISIT(ArgExpression)
-VISIT(TemplateParameter)
-VISIT(TemplateArgument)
-
-#undef VISIT
-
-bool AmbiguityChecker::visitPQName(PQName *obj)
-{
-  if (obj->isPQ_qualifier() &&
-      obj->asPQ_qualifier()->ambiguity) {
-    ambiguousNodes++;
-  }
-  return true;
 }
 
 
 template <class T>
 int numAmbiguousNodes_impl(T *t)
 {
-  AmbiguityChecker c;
+  AmbiguityCounter c;
   t->traverse(c);
   return c.ambiguousNodes;
 }
@@ -239,24 +193,7 @@ int numAmbiguousNodes(ASTTypeId *t)
 { return numAmbiguousNodes_impl(t); }
 
 
-// ---------------- AmbiguityRejecter --------------------
-class AmbiguityRejecter : public AmbiguityChecker {
-public:
-  virtual void foundAmbiguous(char const *kind, SourceLoc loc);
-};
-
-void AmbiguityRejecter::foundAmbiguous(char const *kind, SourceLoc loc)
-{
-  xfatal(toString(loc) << ": internal error: found ambiguous " << kind);
-}
-
-void rejectAmbiguousNodes(TranslationUnit *unit)
-{
-  AmbiguityRejecter r;
-  unit->traverse(r);
-}
-
-
+#if 0   // not needed
 // --------------------- LocationSearcher ------------------
 LocationSearcher::LocationSearcher()
   : loc(SL_UNKNOWN)
@@ -285,6 +222,8 @@ DEFN(Initializer)
 DEFN(TemplateParameter)
 
 #undef DEFN
+
+#endif // 0
 
 
 // EOF

@@ -426,22 +426,21 @@ void Function::printExtras(ostream &os, int indent) const
   ind(os, indent) << "receiver = " << refersTo(receiver) << "\n";
 
   // template with instantiations to print?
-  if (nameAndParams->var) {
+  if (isTemplate()) {
     TemplateInfo *ti = nameAndParams->var->templateInfo();
-    if (ti && ti->isPrimary()) {
-      ind(os, indent) << "instantiations:\n";
-      int ct=0;
-      SFOREACH_OBJLIST(Variable, ti->instantiations, iter) {
-        string label = stringc << "instantiation[" << ct++ << "] ";
+    int ct=0;
+    SFOREACH_OBJLIST(Variable, ti->instantiations, iter) {
+      Variable const *inst = iter.data();
 
-        Variable const *inst = iter.data();
-        if (inst->funcDefn) {
-          label = stringc << label << "(defn)";
-          inst->funcDefn->debugPrint(os, indent+2, label.c_str());
-        }
-        else {
-          ind(os, indent+2) << label << "(decl) = " << inst->toString() << "\n";
-        }
+      string label = stringc << "instantiation[" << ct++ << "]: "
+                             << inst->templateInfo()->templateName();
+
+      if (inst->funcDefn) {
+        label = stringc << label << " (defn)";
+        inst->funcDefn->debugPrint(os, indent+2, label.c_str());
+      }
+      else {
+        ind(os, indent+2) << label << " (decl) = " << inst->toString() << "\n";
       }
     }
   }
@@ -485,6 +484,18 @@ void Function::finishClone()
 
     cloneThunkSource = NULL;
   }
+}
+
+
+bool Function::isTemplate() const
+{
+  if (nameAndParams->var) {
+    TemplateInfo *ti = nameAndParams->var->templateInfo();
+    if (ti && ti->isPrimary()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 

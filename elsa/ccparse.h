@@ -70,6 +70,7 @@ int numAmbiguousNodes(Expression *e);
 int numAmbiguousNodes(ASTTypeId *t);
 
 
+#if 0   // not needed anymore
 // fail if there are any ambiguous nodes
 void rejectAmbiguousNodes(TranslationUnit *unit);
 
@@ -107,6 +108,7 @@ SourceLoc getASTNodeLoc(T *obj)
   obj->traverse(searcher);
   return searcher.loc;
 }
+#endif // 0
 
 
 #endif // CCPARSE_H

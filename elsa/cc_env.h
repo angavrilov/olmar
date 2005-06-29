@@ -941,6 +941,11 @@ public:      // template funcs
   Type *applyArgumentMapToType(STemplateArgumentCMap &map, Type *origSrc);
   Type *applyArgumentMapToAtomicType
     (STemplateArgumentCMap &map, AtomicType *origSrc, CVFlags srcCV);
+  void applyArgumentMapToTemplateArgs
+    (STemplateArgumentCMap &map, ObjList<STemplateArgument> &dest,
+                                 ObjList<STemplateArgument> const &srcArgs);
+  Type *applyArgumentMapToQualifiedType
+    (STemplateArgumentCMap &map, CompoundType *ct, PQName *name);
 
   // specialization support
   Variable *makeExplicitFunctionSpecialization

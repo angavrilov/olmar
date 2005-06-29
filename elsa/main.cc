@@ -24,6 +24,7 @@
 #include "strtokp.h"      // StrtokParse
 #include "smregexp.h"     // regexpMatch
 #include "cc_elaborate.h" // ElabVisitor
+#include "integrity.h"    // IntegrityVisitor
 #include "main_astxmlparse.h"// astxmlparse
 
 
@@ -513,8 +514,9 @@ void doit(int argc, char **argv)
   {
     SectionTimer timer(integrityTime);
 
-    // verify the tree now has no ambiguities
-    rejectAmbiguousNodes(unit);
+    // check AST integrity
+    IntegrityVisitor ivis;
+    unit->traverse(ivis);
 
     // check that the AST is a tree *and* that the lowered AST is a
     // tree; only do this *after* confirming that tcheck finished

@@ -569,7 +569,7 @@ void Function::tcheckBody(Env &env)
   // this is a function definition; add a pointer from the
   // associated Variable
   //
-  // WARNING: Due to the way function templates are instantiated it is
+  // dsw: WARNING: Due to the way function templates are instantiated it is
   // important to NOT move this line ABOVE this other line which is
   // above.
   //    if (!checkBody) {
@@ -5726,6 +5726,18 @@ void E_funCall::inner1_itcheck(Env &env, LookupSet &candidates)
 }
 
 
+bool hasDependentTemplateArgs(PQName *name)
+{
+  // I think I only want to look at the final component
+  name = name->getUnqualifiedName();
+  
+  if (name->isPQ_template()) {
+    return containsVariables(name->asPQ_template()->sargs);
+  }
+
+  return false;
+}
+
 void possiblyWrapWithImplicitThis(Env &env, Expression *&func,
                                   E_variable *&fevar, E_fieldAcc *&feacc)
 {
@@ -5760,6 +5772,14 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
 
   // do any of the arguments have types that are dependent on template params?
   bool dependentArgs = hasDependentActualArgs(args);
+
+  // what about explicitly-provided template args that are dependent?
+  if (fevar && hasDependentTemplateArgs(fevar->name)) {
+    dependentArgs = true;
+  }
+  if (feacc && hasDependentTemplateArgs(feacc->fieldName)) {
+    dependentArgs = true;
+  }
 
   // abbreviated processing for dependent lookups
   if (dependentArgs) {

@@ -14,10 +14,20 @@ verbatim {
   #include "cc_type.h"       // Type, FunctonType, CompoundType
   #include "template.h"      // STemplateArgument
   #include "const_eval.h"    // ConstEval
+  #include "macros.h"        // Restorer
 
   class Env;                 // cc_env.h
   class ArgumentInfo;        // overload.h
 }
+
+
+custom ASTVisitor {
+public:      // custom data extensions
+  // this is true when we are inside the body of a template function
+  // or class (uninstantiated)
+  bool inTemplate;
+}
+custom ASTVisitor_ctor { inTemplate=false; }
 
 
 class TranslationUnit {
@@ -88,6 +98,9 @@ class Function {
   // this returns true if this is an instantiation of a template 
   // function that has not yet been tcheck'd
   public bool instButNotTchecked() const;
+  
+  // true if this is a function template (uninstantiated)
+  public bool isTemplate() const;
 }
 
 
@@ -678,6 +691,29 @@ class Initializer {
 class TemplateDeclaration {
   public void tcheck(Env &env);
   pure_virtual void itcheck(Env &env);
+       
+  // oy, I wanted 'preemptTraverse' to affect all TemplateDeclarations
+  // at once, but that's a little difficult, so I have to copy it..
+
+  -> TD_func {
+       custom preemptTraverse {
+         // we are now in a template if we already were, or if this
+         // declaration is not a complete specialization
+         Restorer<bool> r(vis.inTemplate, vis.inTemplate || params!=NULL);
+       }
+     }
+
+  -> TD_decl {
+       custom preemptTraverse {
+         Restorer<bool> r(vis.inTemplate, vis.inTemplate || params!=NULL);
+       }
+     }
+
+  -> TD_tmember {
+       custom preemptTraverse {
+         Restorer<bool> r(vis.inTemplate, vis.inTemplate || params!=NULL);
+       }
+     }
 }
 
 
