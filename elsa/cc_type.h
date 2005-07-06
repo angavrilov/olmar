@@ -25,6 +25,7 @@
 #define CC_TYPE_H
 
 #include "str.h"          // string
+#include "sobjset.h"      // SObjSet
 #include "objlist.h"      // ObjList
 #include "sobjlist.h"     // SObjList
 #include "astlist.h"      // ASTList
@@ -426,7 +427,8 @@ public:      // funcs
 };
 
 string toString(CompoundType::Keyword k);
-
+string toXml(CompoundType::Keyword id);
+void fromXml(CompoundType::Keyword &out, string str);
 
 // represent an enumerated type
 class EnumType : public NamedAtomicType {
@@ -927,6 +929,9 @@ enum FunctionFlags {
 };
 ENUM_BITWISE_OPS(FunctionFlags, FF_ALL);
 
+string toXml(FunctionFlags id);
+void fromXml(FunctionFlags &out, string str);
+
 
 // type of a function
 class FunctionType : public Type {
@@ -1325,68 +1330,6 @@ public:
 };
 
 void throw_XReprSize(bool isDynamic = false) NORETURN;
-
-
-// -------------------- ToXMLTypeVisitor -------------------
-
-// print the Type tree out as XML
-class ToXMLTypeVisitor : public TypeVisitor {
-  protected:
-  ostream &out;
-  int depth;
-  bool indent;
-
-  public:
-  ToXMLTypeVisitor(ostream &out0, bool indent0=true)
-    : out(out0)
-    , depth(0)
-    , indent(indent0)
-  {}
-  virtual ~ToXMLTypeVisitor() {}
-
-  private:
-  void printIndentation();
-
-  // **** TypeVisitor API methods
-  public:
-  // print open tag
-  virtual bool visitType(Type *obj);
-  // print close tag
-  virtual void postvisitType(Type *obj);
-
-  // print open tag
-  virtual bool visitAtomicType(AtomicType *obj) {
-    // FIX: implement this
-    ++depth;                    // at the start
-    return true;
-  }
-  // print close tag
-  virtual void postvisitAtomicType(AtomicType *obj) {
-    // FIX: implement this
-    --depth;                    // at the end
-  }
-
-  // fail in these for now
-  virtual bool visitSTemplateArgument(STemplateArgument *obj) {
-    xfailure("implement this");
-    ++depth;                    // at the start
-  }
-//    virtual void postvisitSTemplateArgument(STemplateArgument *obj);
-//      --depth;                    // at the end
-
-  virtual bool visitExpression(Expression *obj) {
-    xfailure("implement this");
-    ++depth;                    // at the start
-  }
-//    virtual void postvisitExpression(Expression *obj);
-//      --depth;                    // at the end
-
-  // same as for types; print the name also
-//    virtual bool preVisitVariable(Variable *var);
-//      ++depth;                    // at the start
-//    virtual void postVisitVariable(Variable *var);
-//      --depth;                    // at the end
-};
 
 
 // ------ for debugging ------

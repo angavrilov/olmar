@@ -93,11 +93,11 @@ for my $name(@names) {
     push @outfiles, $name;
     $outfile2command{$name} = "ORIGINAL: $name";
     eval {
-        run_command("$parser -tr no-elaboration,prettyPrint $name | ./chop_out",
+        run_command("$parser -tr no-elaborate,prettyPrint $name | ./chop_out",
                     "$outname.B0.cc");
-        run_command("$parser -tr no-elaboration,xmlPrintAST,xmlPrintAST-indent $name | ./chop_out",
+        run_command("$parser -tr no-elaborate,xmlPrintAST,xmlPrintAST-indent $name | ./chop_out",
                     "$outname.B1.xml");
-        run_command("$parser -tr no-elaboration,parseAstXml,prettyPrint $outname.B1.xml | ./chop_out",
+        run_command("$parser -tr no-elaborate,parseAstXml,prettyPrint $outname.B1.xml | ./chop_out",
                     "$outname.B2.xml.cc");
     };
     if ($@) {

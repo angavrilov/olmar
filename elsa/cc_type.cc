@@ -692,6 +692,14 @@ string toString(CompoundType::Keyword k)
   return string(typeIntrNames[k]);    // see cc_type.h
 }
 
+string toXml(CompoundType::Keyword id) {
+  return stringc << static_cast<int>(id);
+}
+
+void fromXml(CompoundType::Keyword &out, string str) {
+  out = static_cast<CompoundType::Keyword>(atoi(str));
+}
+
 
 int CompoundType::countBaseClassSubobjects(CompoundType const *ct) const
 {
@@ -1446,9 +1454,14 @@ void CVAtomicType::traverse(TypeVisitor &vis)
 PointerType::PointerType(CVFlags c, Type *a)
   : cv(c), atType(a)
 {
-  // it makes no sense to stack reference operators underneath
-  // other indirections (i.e. no ptr-to-ref, nor ref-to-ref)
-  xassert(!a->isReference());
+  // dsw: I had to put the 'if' here because the xml deserialization
+  // code makes objects with NULL arguments and then fills them in
+  // later
+  if (a) {
+    // it makes no sense to stack reference operators underneath
+    // other indirections (i.e. no ptr-to-ref, nor ref-to-ref)
+    xassert(!a->isReference());
+  }
 }
 
 
@@ -1557,9 +1570,14 @@ void PointerType::traverse(TypeVisitor &vis)
 ReferenceType::ReferenceType(Type *a)
   : atType(a)
 {
-  // it makes no sense to stack reference operators underneath
-  // other indirections (i.e. no ptr-to-ref, nor ref-to-ref)
-  xassert(!a->isReference());
+  // dsw: I had to put the 'if' here because the xml deserialization
+  // code makes objects with NULL arguments and then fills them in
+  // later
+  if (a) {
+    // it makes no sense to stack reference operators underneath
+    // other indirections (i.e. no ptr-to-ref, nor ref-to-ref)
+    xassert(!a->isReference());
+  }
 }
 
 
@@ -2105,6 +2123,15 @@ void FunctionType::traverse(TypeVisitor &vis)
   // similarly, I don't want traversal into exception specs right now
 
   vis.postvisitType(this);
+}
+
+
+string toXml(FunctionFlags id) {
+  return stringc << static_cast<int>(id);
+}
+
+void fromXml(FunctionFlags &out, string str) {
+  out = static_cast<FunctionFlags>(atoi(str));
 }
 
 
@@ -2842,149 +2869,6 @@ void throw_XReprSize(bool d)
   XReprSize x(d);
   THROW(x);
 }
-
-
-// -------------------- ToXMLTypeVisitor -------------------
-
-void ToXMLTypeVisitor::printIndentation() {
-  if (indent) {
-    for (int i=0; i<depth; ++i) cout << " ";
-  }
-}
-
-bool ToXMLTypeVisitor::visitType(Type *obj) {
-  printIndentation();
-
-  switch(obj->getTag()) {
-  default: xfailure("illegal tag");
-  case Type::T_ATOMIC: {
-    CVAtomicType *atom = obj->asCVAtomicType();
-    out << "<AtomicType";
-    out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
-    ++depth;
-    printIndentation();
-    out << "cv=\"" << toXml(atom->cv) << "\">\n";
-    break;
-  }
-  case Type::T_POINTER: {
-    PointerType *ptr = obj->asPointerType();
-    out << "<PointerType";
-    out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
-    ++depth;
-    printIndentation();
-    out << "cv=\"" << toXml(ptr->cv) << "\"\n";
-    printIndentation();
-    out << "atType=\"TY" << static_cast<void const*>(ptr->atType) << "\">\n";
-    break;
-  }
-  case Type::T_REFERENCE: {
-    ReferenceType *ref = obj->asReferenceType();
-    out << "<ReferenceType";
-    out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
-    ++depth;
-    printIndentation();
-    out << "atType=\"TY" << static_cast<void const*>(ref->atType) << "\">\n";
-    break;
-  }
-  case Type::T_FUNCTION: {
-    FunctionType *func = obj->asFunctionType();
-    out << "<FunctionType";
-    out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
-    ++depth;
-    // FIX:
-//      printIndentation();
-//      out << "flags=\"" << toXml(func->flags) << "\"";
-    printIndentation();
-    out << "retType=\"TY" << static_cast<void const*>(func->retType) << "\"\n";
-    // FIX: skip this for now
-    // SObjList<Variable> params;
-    // FIX: skip this for now
-    // ExnSpec *exnSpec;                  // (nullable owner)
-
-    // FIX: remove this when we do the above attributes
-    printIndentation();
-    cout << ">\n";
-
-    break;
-  }
-  case Type::T_ARRAY: {
-    ArrayType *arr = obj->asArrayType();
-    out << "<ArrayType";
-    out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
-    ++depth;
-    printIndentation();
-    out << "eltType=\"TY" << static_cast<void const*>(arr->eltType) << "\"\n";
-    printIndentation();
-    out << "size=\"" << arr->size << "\">";
-    break;
-  }
-  case Type::T_POINTERTOMEMBER: {
-    PointerToMemberType *ptm = obj->asPointerToMemberType();
-    out << "<PointerToMemberType";
-    out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
-    ++depth;
-    printIndentation();
-    out << "inClassNAT=\"TY" << static_cast<void const*>(ptm->inClassNAT) << "\"\n";
-    printIndentation();
-    out << "cv=\"" << toXml(ptm->cv) << "\"\n";
-    printIndentation();
-    out << "atType=\"TY" << static_cast<void const*>(ptm->atType) << "\">";
-    break;
-  }
-  }
-
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitType(Type *obj) {
-  --depth;
-
-  printIndentation();
-
-  switch(obj->getTag()) {
-  default: xfailure("illegal tag");
-  case Type::T_ATOMIC:
-    out << "</AtomicType>\n";
-    break;
-  case Type::T_POINTER:
-    out << "</PointerType>\n";
-    break;
-  case Type::T_REFERENCE:
-    out << "</ReferenceType>\n";
-    break;
-  case Type::T_FUNCTION:
-    out << "</FunctionType>\n";
-    break;
-  case Type::T_ARRAY:
-    out << "</ArrayType>\n";
-    break;
-  case Type::T_POINTERTOMEMBER:
-    out << "</PointerToMemberType>\n";
-    break;
-  }
-}
-
-//  bool ToXMLTypeVisitor::preVisitVariable(Variable *var) {
-//    xassert(var);
-//    out << "<Variable";
-
-//    if (var->name) {
-//      // FIX: it is not clear that we want to ask for the fully
-//      // qualified name of variables that aren't linker visible, as it
-//      // is not well defined.
-//      out << " fqname='" << var->fullyQualifiedName() << "'";
-//    }
-//    // FIX: do I want the mangled name?
-
-//    out << ">";
-    
-//    return true;
-//  }
-
-//  void ToXMLTypeVisitor::postVisitVariable(Variable *var) {
-//    out << "</Variable>";
-
-//  }
 
 
 // --------------- debugging ---------------

@@ -145,7 +145,7 @@ lexer.yy.cc: lexer.lex lexer.h
 
 
 TOCLEAN += astxml_lexer.lex
-astxml_lexer.lex: astxml_lexer0_top.lex astxml_lexer1_mid.gen.lex astxml_lexer2_bottom.lex
+astxml_lexer.lex: astxml_lexer0_top.lex astxml_lexer1_mid.gen.lex astxml_lexer1_type.lex astxml_lexer2_bottom.lex
 	rm -f $@
 	cat $^ > $@
 	chmod a-w $@
@@ -201,7 +201,7 @@ $(TOK_FILES): $(TOK_MODS) make-token-files
 astxml_lexer.o: astxml_tokens.h
 
 TOCLEAN += astxml_tokens.h
-astxml_tokens.h: astxml_tokens0_top.h astxml_tokens1_mid.gen.h astxml_tokens2_bottom.h
+astxml_tokens.h: astxml_tokens0_top.h astxml_tokens1_mid.gen.h astxml_tokens1_type.h astxml_tokens2_bottom.h
 	rm -f $@
 	cat $^ > $@
 	chmod a-w $@
@@ -250,6 +250,7 @@ CCPARSE_OBJS := \
   mangle.o \
   cc_err.o \
   cc_type.o \
+  cc_type_xml.o \
   stdconv.o \
   implconv.o \
   overload.o \
@@ -262,6 +263,7 @@ CCPARSE_OBJS := \
   cc_ast_aux.o \
   variable.o \
   lookupset.o \
+  xml.o \
   main_astxmlparse.o \
   ccparse.o
 -include $(CCPARSE_OBJS:.o=.d) main.d

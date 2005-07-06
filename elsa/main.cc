@@ -5,7 +5,6 @@
 #include <stdlib.h>       // exit, getenv, abort
 #include <fstream.h>      // ofstream
 
-//  #include "sobjset.h"      // SObjSet
 #include "trace.h"        // traceAddSys
 #include "parssppt.h"     // ParseTreeAndTokens, treeMain
 #include "srcloc.h"       // SourceLocManager
@@ -26,6 +25,7 @@
 #include "cc_elaborate.h" // ElabVisitor
 #include "integrity.h"    // IntegrityVisitor
 #include "main_astxmlparse.h"// astxmlparse
+#include "cc_type_xml.h"  // ToXMLTypeVisitor
 
 
 // little check: is it true that only global declarators
@@ -131,66 +131,61 @@ public:
 // print out type annotations for ever ast node that has a type
 class ToXmlASTVisitor_Types : public ASTVisitor {
   TypeVisitor &typeVisitor;
-  SObjSet<Type*> printedTypes;
-  SObjSet<AtomicType*> printedAtomicTypes;
 
   public:
   ToXmlASTVisitor_Types(TypeVisitor &typeVisitor0)
     : typeVisitor(typeVisitor0)
   {}
 
-  // visit everything that has a type
-  void printTypeIdem(Type *t) {
-    if (printedTypes.contains(t)) return;
+  // visit everything that has a type; Note: idempotency is handled in
+  // ToXMLTypeVisitor
+  void printType(Type *t) {
     t->traverse(typeVisitor);
-    printedTypes.add(t);
   }
-  void printTypeIdem(AtomicType *t) {
-    if (printedAtomicTypes.contains(t)) return;
+  void printType(AtomicType *t) {
     t->traverse(typeVisitor);
-    printedAtomicTypes.add(t);
   }
 
   bool visitTypeSpecifier(TypeSpecifier *ts) {
     if (ts->isTS_type()) {
-      printTypeIdem(ts->asTS_type()->type);
+      printType(ts->asTS_type()->type);
     } else if (ts->isTS_elaborated()) {
-      printTypeIdem(ts->asTS_elaborated()->atype);
+      printType(ts->asTS_elaborated()->atype);
     } else if (ts->isTS_classSpec()) {
-      printTypeIdem(ts->asTS_classSpec()->ctype);
+      printType(ts->asTS_classSpec()->ctype);
     } else if (ts->isTS_enumSpec()) {
-      printTypeIdem(ts->asTS_enumSpec()->etype);
+      printType(ts->asTS_enumSpec()->etype);
     }
     return true;
   }
 
   bool visitFunction(Function *function) {
-    printTypeIdem(function->funcType);
+    printType(function->funcType);
     return true;
   }
 
   bool visitMemberInit(MemberInit *memberInit) {
-    printTypeIdem(memberInit->base);
+    printType(memberInit->base);
     return true;
   }
 
   bool visitBaseClassSpec(BaseClassSpec *bcs) {
-    printTypeIdem(bcs->type);
+    printType(bcs->type);
     return true;
   }
 
   bool visitDeclarator(Declarator *d) {
-    printTypeIdem(d->type);
+    printType(d->type);
     return true;
   }
 
   bool visitExpression(Expression *e) {
-    printTypeIdem(e->type);
+    printType(e->type);
     return true;
   }
 
   bool visitASTTypeof(ASTTypeof *a) {
-    printTypeIdem(a->type);
+    printType(a->type);
     return true;
   }
 };
@@ -405,7 +400,9 @@ void doit(int argc, char **argv)
   // ---------------- typecheck -----------------
   BasicTypeFactory tfac;
   long tcheckTime = 0;
-  {                   
+  if (tracingSys("no-typecheck")) {
+    cout << "no-typecheck" << endl;
+  } else {
     SectionTimer timer(tcheckTime);
     Env env(strTable, lang, tfac, unit);
     try {
@@ -544,7 +541,9 @@ void doit(int argc, char **argv)
 
   // ----------------- elaboration ------------------
   long elaborationTime = 0;
-  if (lang.isCplusplus && !tracingSys("no-elaboration")) {
+  if (!lang.isCplusplus || tracingSys("no-elaborate")) {
+    cout << "no-elaborate" << endl;
+  } else {
     SectionTimer timer(elaborationTime);
 
     // do elaboration
