@@ -193,9 +193,11 @@ ostream &ind(ostream &os, int indent);
 
 
 #define PRINT_STRING(var) \
-  debugPrintStr(var, #var, os, indent)    /* user ; */
+  debugPrintStr((var), #var, os, indent)    /* user ; */
 
 void debugPrintStr(string const &s, char const *name,
+                   ostream &os, int indent);
+void debugPrintStr(char const *s, char const *name,
                    ostream &os, int indent);
 
 

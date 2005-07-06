@@ -17,7 +17,14 @@ ostream &ind(ostream &os, int indent)
 void debugPrintStr(string const &s, char const *name,
                    ostream &os, int indent)
 {
-  ind(os, indent) << name << " = " << quoted(s) << "\n";
+  debugPrintStr(s.c_str(), name, os, indent);
+}
+
+void debugPrintStr(char const *s, char const *name,
+                   ostream &os, int indent)
+{
+  string s1((s) ? string(s) : string("NULL"));
+  ind(os, indent) << name << " = " << quoted(s1) << "\n";
 }
 
 
