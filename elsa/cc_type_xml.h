@@ -104,12 +104,19 @@ class ReadXml_Type : public ReadXml {
   private:
   // map a kind to its kind category
   KindCategory kind2kindCat(int kind);
-  // generic prepend
+
+  // operate on lists
   void *prepend2FakeList(void *list, int listKind, void *datum, int datumKind);
-  // generic reverse
   void *reverseFakeList(void *list, int listKind);
-  // generic append
+
   void append2ASTList(void *list, int listKind, void *datum, int datumKind);
+
+  void prepend2ObjList(void *list, int listKind, void *datum, int datumKind);
+  void reverseObjList(void *list, int listKind);
+
+  void prepend2SObjList(void *list, int listKind, void *datum, int datumKind);
+  void reverseSObjList(void *list, int listKind);
+
   // construct a node for a tag
   bool ctorNodeFromTag(int tag, void *&topTemp);
   // register an attribute into the current node

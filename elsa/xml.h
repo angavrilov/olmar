@@ -67,6 +67,8 @@ enum KindCategory {
   KC_Node,                      // a normal node
   KC_ASTList,                   // an ast list
   KC_FakeList,                  // a fake list
+  KC_ObjList,                   // an ObjList
+  KC_SObjList,                  // an SObjList
 };
 
 class ReadXml {
@@ -125,12 +127,19 @@ class ReadXml {
 
   // map a kind to its kind category
   virtual KindCategory kind2kindCat(int kind) = 0;
-  // generic prepend
+
+  // operate on kinds of lists
   virtual void *prepend2FakeList(void *list, int listKind, void *datum, int datumKind) = 0;
-  // generic reverse
   virtual void *reverseFakeList(void *list, int listKind) = 0;
-  // generic append
+
   virtual void append2ASTList(void *list, int listKind, void *datum, int datumKind) = 0;
+
+  virtual void prepend2ObjList(void *list, int listKind, void *datum, int datumKind) = 0;
+  virtual void reverseObjList(void *list, int listKind) = 0;
+
+  virtual void prepend2SObjList(void *list, int listKind, void *datum, int datumKind) = 0;
+  virtual void reverseSObjList(void *list, int listKind) = 0;
+
   // construct a node for a tag; returns true if it was a closeTag
   virtual bool ctorNodeFromTag(int tag, void *&topTemp) = 0;
   // register an attribute into the current node

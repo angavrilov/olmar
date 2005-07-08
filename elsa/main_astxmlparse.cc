@@ -25,12 +25,19 @@ class ReadXml_AST : public ReadXml {
   private:
   // map a kind to its kind category
   KindCategory kind2kindCat(int kind);
-  // generic prepend
+
+  // operate on kinds of lists
   void *prepend2FakeList(void *list, int listKind, void *datum, int datumKind);
-  // generic reverse
   void *reverseFakeList(void *list, int listKind);
-  // generic append
+
   void append2ASTList(void *list, int listKind, void *datum, int datumKind);
+
+  void prepend2ObjList(void *list, int listKind, void *datum, int datumKind);
+  void reverseObjList(void *list, int listKind);
+
+  void prepend2SObjList(void *list, int listKind, void *datum, int datumKind);
+  void reverseSObjList(void *list, int listKind);
+
   // construct a node for a tag
   bool ctorNodeFromTag(int tag, void *&topTemp);
   // register an attribute into the current node
@@ -80,6 +87,49 @@ void ReadXml_AST::registerAttribute(void *target, int kind, int attr, char const
 //      break;
 //    }
 //  }
+
+void ReadXml_AST::prepend2ObjList(void *list, int listKind, void *datum, int datumKind) {
+  switch(listKind) {
+  default: xfailure("attempt to prepend to a non-ObjList token kind");
+//    case XTOK_FakeList_MemberInit:
+//      if (!datumKind == XTOK_MemberInit) {
+//        userError("can't put that onto a FakeList of MemberInit");
+//      }
+//      return ((FakeList<MemberInit>*)list)->prepend((MemberInit*)datum);
+//      break;
+  }
+}
+
+void ReadXml_AST::reverseObjList(void *list, int listKind) {
+  switch(listKind) {
+  default: xfailure("attempt to reverse a non-ObjList token kind");
+//    case XTOK_FakeList_MemberInit:
+//      return ((FakeList<MemberInit>*)list)->reverse();
+//      break;
+  }
+}
+
+void ReadXml_AST::prepend2SObjList(void *list, int listKind, void *datum, int datumKind) {
+  switch(listKind) {
+  default: xfailure("attempt to prepend to a non-SObjList token kind");
+//    case XTOK_FakeList_MemberInit:
+//      if (!datumKind == XTOK_MemberInit) {
+//        userError("can't put that onto a FakeList of MemberInit");
+//      }
+//      return ((FakeList<MemberInit>*)list)->prepend((MemberInit*)datum);
+//      break;
+  }
+}
+
+void ReadXml_AST::reverseSObjList(void *list, int listKind) {
+  switch(listKind) {
+  default: xfailure("attempt to reverse a non-SObjList token kind");
+//    case XTOK_FakeList_MemberInit:
+//      return ((FakeList<MemberInit>*)list)->reverse();
+//      break;
+  }
+}
+
 #include "astxml_parse1_1defn.gen.cc"
 
 

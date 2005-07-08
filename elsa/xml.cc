@@ -72,6 +72,8 @@ void LinkSatisfier::satisfyLinks() {
 //        cout << "unsatisfied ASTList link: " << ul->id << endl;
     }
   }
+
+  // VoidLists
 }
 
 
@@ -157,7 +159,8 @@ bool ReadXml::parse() {
     lastKind = *kindStack.pop();
 
     // if the last kind was a fakelist, reverse it
-    if (kind2kindCat(lastKind) == KC_FakeList) {
+    int lastKindCat = kind2kindCat(lastKind);
+    if (lastKindCat == KC_FakeList) {
       reverseFakeList(lastNode, lastKind);
       // NOTE: it may seem rather bizarre, but we just throw away the
       // reversed list.  The first node in the list was the one that
@@ -165,6 +168,10 @@ bool ReadXml::parse() {
       // of the first element.  Therefore, whatever points to the
       // first element in the list will do so when the unsatisfied
       // links are filled in from the hashtable.
+    } else if (lastKindCat == KC_ObjList) {
+      reverseObjList(lastNode, lastKind);
+    } else if (lastKindCat == KC_SObjList) {
+      reverseSObjList(lastNode, lastKind);
     }
 
     // if the node up the stack is a list, put this element onto that
@@ -184,6 +191,10 @@ bool ReadXml::parse() {
         nodeStack.push(tmpNewTop);
       } else if (topKindCat == KC_ASTList) {
         append2ASTList(nodeStack.top(), topKind, lastNode, lastKind);
+      } else if (topKindCat == KC_SObjList) {
+        prepend2SObjList(nodeStack.top(), topKind, lastNode, lastKind);
+      } else if (topKindCat == KC_ObjList) {
+        prepend2ObjList(nodeStack.top(), topKind, lastNode, lastKind);
       }
     }
   }
