@@ -48,6 +48,9 @@ private:     // types
       { source=obj.source; target=obj.target; return *this; }
   };
 
+  // needed to allow serialization
+  friend class ToXMLTypeVisitor;
+
 private:     // data
   // variables: name -> Variable
   // note: this includes typedefs (DF_TYPEDEF is set), and it also

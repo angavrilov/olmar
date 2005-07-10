@@ -101,9 +101,11 @@ public:
   virtual void postvisitScope(Scope *obj);
 
   virtual bool visitScopeVariables(StringRefMap<Variable> &variables);
+  virtual void visitScopeVariables_entry(StringRef name, Variable *var);
   virtual void postvisitScopeVariables(StringRefMap<Variable> &variables);
 
   virtual bool visitScopeTypeTags(StringRefMap<Variable> &typeTags);
+  virtual void visitScopeTypeTags_entry(StringRef name, Variable *var);
   virtual void postvisitScopeTypeTags(StringRefMap<Variable> &typeTags);
 
   virtual bool visitBaseClass(BaseClass *bc);

@@ -362,7 +362,6 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     //    // invariant: subobj.ct == this
     //    BaseClassSubobj subobj;
     printIndentation();
-#warning "this doesn't work if the subobj could be the first member; use a different code"
     out << "subobj=\"TY" << static_cast<void const*>(&(cpd->subobj)) << "\"\n";
     cpd->subobj.traverse(*this);
 
@@ -506,33 +505,14 @@ void ToXMLTypeVisitor::postvisitAtomicType(AtomicType *obj) {
   }
 }
 
-//  bool ToXMLToXMLTypeVisitor::preVisitVariable(Variable *var) {
-//    xassert(var);
-//    out << "<Variable";
-
-//    if (var->name) {
-//      // FIX: it is not clear that we want to ask for the fully
-//      // qualified name of variables that aren't linker visible, as it
-//      // is not well defined.
-//      out << " fqname='" << var->fullyQualifiedName() << "'";
-//    }
-//    // FIX: do I want the mangled name?
-
-//    out << ">";
-    
-//    return true;
-//  }
-
-//  void ToXMLToXMLTypeVisitor::postVisitVariable(Variable *var) {
-//    out << "</Variable>";
-
-//  }
 
 bool ToXMLTypeVisitor::toXml_Scope(Scope *scope)
 {
-//    StringRefMap<Variable> variables;
+  printIndentation();
+  out << "variables=\"SM" << static_cast<void const*>(&(scope->variables)) << "\"\n";
 
-//    StringRefMap<Variable> typeTags;
+  printIndentation();
+  out << "typeTags=\"SM" << static_cast<void const*>(&(scope->typeTags)) << "\"\n";
 
   printIndentation();
   out << "canAcceptNames=\"" << toXml_bool(scope->canAcceptNames) << "\"\n";
@@ -575,22 +555,46 @@ void ToXMLTypeVisitor::postvisitScope(Scope *scope)
 
 bool ToXMLTypeVisitor::visitScopeVariables(StringRefMap<Variable> &variables)
 {
+  printIndentation();
+  out << "<ScopeVariables";
+  out << " .id=\"SM" << static_cast<void const*>(&variables) << "\">\n";
+  ++depth;
   return true;
-//  #error
+}
+void ToXMLTypeVisitor::visitScopeVariables_entry(StringRef name, Variable *var)
+{
+  printIndentation();
+  out << "<ScopeVariables_entry";
+  out << " name=\"" << quoted(name) << "\"";
+  out << " var=\"TY" << static_cast<void const*>(var) << "\">\n";
 }
 void ToXMLTypeVisitor::postvisitScopeVariables(StringRefMap<Variable> &variables)
 {
-//  #error
+  --depth;
+  printIndentation();
+  out << "</ScopeVariables>\n";
 }
 
 bool ToXMLTypeVisitor::visitScopeTypeTags(StringRefMap<Variable> &typeTags)
 {
+  printIndentation();
+  out << "<ScopeTypeTags";
+  out << " .id=\"SM" << static_cast<void const*>(&typeTags) << "\">\n";
+  ++depth;
   return true;
-//  #error
+}
+void ToXMLTypeVisitor::visitScopeTypeTags_entry(StringRef name, Variable *var)
+{
+  printIndentation();
+  out << "<ScopeTypeTags_entry";
+  out << " name=\"" << quoted(name) << "\"";
+  out << " var=\"TY" << static_cast<void const*>(var) << "\">\n";
 }
 void ToXMLTypeVisitor::postvisitScopeTypeTags(StringRefMap<Variable> &typeTags)
 {
-//  #error
+  --depth;
+  printIndentation();
+  out << "</ScopeTypeTags>\n";
 }
 
 bool ToXMLTypeVisitor::visitBaseClass(BaseClass *bc)

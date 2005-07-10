@@ -56,11 +56,15 @@ void TypeVisitor::postvisitScope(Scope *obj)
 
 bool TypeVisitor::visitScopeVariables(StringRefMap<Variable> &variables)
   { return true; }
+void TypeVisitor::visitScopeVariables_entry(StringRef name, Variable *var)
+  {  }
 void TypeVisitor::postvisitScopeVariables(StringRefMap<Variable> &variables)
   {  }
 
 bool TypeVisitor::visitScopeTypeTags(StringRefMap<Variable> &typeTags)
   { return true; }
+void TypeVisitor::visitScopeTypeTags_entry(StringRef name, Variable *var)
+  {  }
 void TypeVisitor::postvisitScopeTypeTags(StringRefMap<Variable> &typeTags)
   {  }
 

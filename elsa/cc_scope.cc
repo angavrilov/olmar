@@ -1339,7 +1339,9 @@ void Scope::traverse(TypeVisitor &vis)
     for(PtrMap<char const, Variable>::Iter iter(variables);
         !iter.isDone();
         iter.adv()) {
+      StringRef name = iter.key();
       Variable *var = iter.value();
+      vis.visitScopeVariables_entry(name, var);
       var->traverse(vis);
     }
     vis.postvisitScopeVariables(variables);
@@ -1349,7 +1351,9 @@ void Scope::traverse(TypeVisitor &vis)
     for(PtrMap<char const, Variable>::Iter iter(typeTags);
         !iter.isDone();
         iter.adv()) {
+      StringRef name = iter.key();
       Variable *var = iter.value();
+      vis.visitScopeTypeTags_entry(name, var);
       var->traverse(vis);
     }
     vis.postvisitScopeTypeTags(typeTags);
