@@ -259,7 +259,7 @@ void ToXMLTypeVisitor::postvisitVariable(Variable *var) {
   out << "</Variable>\n";
 }
 
-void ToXMLTypeVisitor::toXml_NamedAtomicType(NamedAtomicType *nat) {
+bool ToXMLTypeVisitor::toXml_NamedAtomicType(NamedAtomicType *nat) {
   printIndentation();
   out << "name=" << quoted(nat->name) << "\n";
 
@@ -271,6 +271,8 @@ void ToXMLTypeVisitor::toXml_NamedAtomicType(NamedAtomicType *nat) {
 
   printIndentation();
   out << "access=\"" << toXml(nat->access) << "\"\n";
+
+  return true;
 }
 
 bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
@@ -295,7 +297,11 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
 
-    toXml_NamedAtomicType(cpd);
+    // superclasses
+    bool ok = toXml_NamedAtomicType(cpd);
+    xassert(ok);
+    ok = toXml_Scope(cpd);
+    xassert(ok);
 
     printIndentation();
     out << "forward=\"" << toXml_bool(cpd->forward) << "\"\n";
@@ -415,7 +421,8 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     out << "<EnumType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
-    toXml_NamedAtomicType(e);
+    bool ok = toXml_NamedAtomicType(e);
+    xassert(ok);
 //      printIndentation();
     //    StringObjDict<Value> valueIndex;    // values in this enumeration
 
@@ -429,7 +436,8 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     out << "<TypeVariable";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
-    toXml_NamedAtomicType(tvar);
+    bool ok = toXml_NamedAtomicType(tvar);
+    xassert(ok);
     break;
   }
 
@@ -438,7 +446,8 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     out << "<PseudoInstantiation";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
-    toXml_NamedAtomicType(pseudo);
+    bool ok = toXml_NamedAtomicType(pseudo);
+    xassert(ok);
 
 //    CompoundType *primary;
 
@@ -452,7 +461,8 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     out << "<DependentQType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
-    toXml_NamedAtomicType(dep);
+    bool ok = toXml_NamedAtomicType(dep);
+    xassert(ok);
 
 //    AtomicType *first;            // (serf) TypeVariable or PseudoInstantiation
 
@@ -518,12 +528,8 @@ void ToXMLTypeVisitor::postvisitAtomicType(AtomicType *obj) {
 
 //  }
 
-bool ToXMLTypeVisitor::visitScope(Scope *scope)
+bool ToXMLTypeVisitor::toXml_Scope(Scope *scope)
 {
-  out << "<Scope";
-  out << " .id=\"TY" << static_cast<void const*>(scope) << "\"\n";
-  ++depth;
-
 //    StringRefMap<Variable> variables;
 
 //    StringRefMap<Variable> typeTags;
@@ -545,8 +551,19 @@ bool ToXMLTypeVisitor::visitScope(Scope *scope)
 //    out << "params=\"SO" << static_cast<void const*>(&(scope->templateParams)) << "\"\n";
 
   printIndentation();
-  out << "curCompound=\"TY" << static_cast<void const*>(scope->curCompound) << "\">\n";
+  out << "curCompound=\"TY" << static_cast<void const*>(scope->curCompound) << "\"\n";
 
+  return true;
+}
+
+bool ToXMLTypeVisitor::visitScope(Scope *scope)
+{
+  out << "<Scope";
+  out << " .id=\"TY" << static_cast<void const*>(scope) << "\"\n";
+  ++depth;
+  bool ok = toXml_Scope(scope);
+  xassert(ok);
+  out << ">\n";
   return true;
 }
 void ToXMLTypeVisitor::postvisitScope(Scope *scope)
