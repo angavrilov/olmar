@@ -160,7 +160,7 @@ void ToXMLTypeVisitor::postvisitType(Type *obj) {
 
 bool ToXMLTypeVisitor::visitFuncParamsList(SObjList<Variable> &params) {
   printIndentation();
-  out << "<FunctionType_ParamsList";
+  out << "<FunctionType_params_List";
   out << " .id=\"SO" << static_cast<void const*>(&params) << "\">\n";
   ++depth;
   return true;
@@ -169,7 +169,7 @@ bool ToXMLTypeVisitor::visitFuncParamsList(SObjList<Variable> &params) {
 void ToXMLTypeVisitor::postvisitFuncParamsList(SObjList<Variable> &params) {
   --depth;
   printIndentation();
-  out << "</FunctionType_ParamsList>\n";
+  out << "</FunctionType_params_List>\n";
 }
 
 bool ToXMLTypeVisitor::visitVariable(Variable *var) {
@@ -612,48 +612,48 @@ void ToXMLTypeVisitor::postvisitScope(Scope *scope)
   out << "</Scope>\n";
 }
 
-bool ToXMLTypeVisitor::visitScopeVariables(StringRefMap<Variable> &variables)
+bool ToXMLTypeVisitor::visitScope_variables_Map(StringRefMap<Variable> &variables)
 {
   printIndentation();
-  out << "<ScopeVariables";
+  out << "<Scope_variables_Map";
   out << " .id=\"SM" << static_cast<void const*>(&variables) << "\">\n";
   ++depth;
   return true;
 }
-void ToXMLTypeVisitor::visitScopeVariables_entry(StringRef name, Variable *var)
+void ToXMLTypeVisitor::visitScope_variables_Map_entry(StringRef name, Variable *var)
 {
   printIndentation();
-  out << "<ScopeVariables_entry";
+  out << "<__NameValuePair";
   out << " name=" << quoted(name) << "";
   out << " var=\"TY" << static_cast<void const*>(var) << "\">\n";
 }
-void ToXMLTypeVisitor::postvisitScopeVariables(StringRefMap<Variable> &variables)
+void ToXMLTypeVisitor::postvisitScope_variables_Map(StringRefMap<Variable> &variables)
 {
   --depth;
   printIndentation();
-  out << "</ScopeVariables>\n";
+  out << "</Scope_variables_Map>\n";
 }
 
-bool ToXMLTypeVisitor::visitScopeTypeTags(StringRefMap<Variable> &typeTags)
+bool ToXMLTypeVisitor::visitScope_typeTags_Map(StringRefMap<Variable> &typeTags)
 {
   printIndentation();
-  out << "<ScopeTypeTags";
+  out << "<Scope_typeTags_Map";
   out << " .id=\"SM" << static_cast<void const*>(&typeTags) << "\">\n";
   ++depth;
   return true;
 }
-void ToXMLTypeVisitor::visitScopeTypeTags_entry(StringRef name, Variable *var)
+void ToXMLTypeVisitor::visitScope_typeTags_Map_entry(StringRef name, Variable *var)
 {
   printIndentation();
-  out << "<ScopeTypeTags_entry";
+  out << "<__NameValuePair";
   out << " name=" << quoted(name) << "";
   out << " var=\"TY" << static_cast<void const*>(var) << "\">\n";
 }
-void ToXMLTypeVisitor::postvisitScopeTypeTags(StringRefMap<Variable> &typeTags)
+void ToXMLTypeVisitor::postvisitScope_typeTags_Map(StringRefMap<Variable> &typeTags)
 {
   --depth;
   printIndentation();
-  out << "</ScopeTypeTags>\n";
+  out << "</Scope_typeTags_Map>\n";
 }
 
 bool ToXMLTypeVisitor::visitBaseClass(BaseClass *bc)
@@ -732,6 +732,16 @@ KindCategory ReadXml_Type::kind2kindCat(int kind) {
   case XTOK_TypeVariable: return KC_Node;
   case XTOK_PseudoInstantiation: return KC_Node;
   case XTOK_DependentQType: return KC_Node;
+  // ObjList
+  case XTOK_CompoundType_bases_List: return KC_ObjList;
+  case XTOK_CompoundType_virtualBases_List: return KC_ObjList;
+  // SObjList
+  case XTOK_FunctionType_params_List: return KC_SObjList;
+  case XTOK_CompoundType_dataMembers_List: return KC_SObjList;
+  case XTOK_CompoundType_conversionOperators_List: return KC_SObjList;
+  // StringRefMap
+  case XTOK_Scope_variables_Map: return KC_StringRefMap;
+  case XTOK_Scope_typeTags_Map: return KC_StringRefMap;
   }
 }
 
@@ -867,6 +877,34 @@ bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
 
   case XTOK_DependentQType:
     topTemp = new DependentQType((AtomicType*)0);
+    break;
+
+  case XTOK_FunctionType_params_List:
+    topTemp = new SObjList<Variable>();
+    break;
+
+  case XTOK_CompoundType_dataMembers_List:
+    topTemp = new SObjList<Variable>();
+    break;
+
+  case XTOK_CompoundType_bases_List:
+    topTemp = new ObjList<BaseClass>();
+    break;
+
+  case XTOK_CompoundType_virtualBases_List:
+    topTemp = new ObjList<BaseClassSubobj>();
+    break;
+
+  case XTOK_CompoundType_conversionOperators_List:
+    topTemp = new SObjList<Variable>();
+    break;
+
+  case XTOK_Scope_variables_Map:
+    topTemp = new StringRefMap<Variable>();
+    break;
+
+  case XTOK_Scope_typeTags_Map:
+    topTemp = new StringRefMap<Variable>();
     break;
 
 //  #include "astxml_parse1_2ctrc.gen.cc"

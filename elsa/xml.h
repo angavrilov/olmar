@@ -69,6 +69,7 @@ enum KindCategory {
   KC_FakeList,                  // a fake list
   KC_ObjList,                   // an ObjList
   KC_SObjList,                  // an SObjList
+  KC_StringRefMap,              // a StringRefMap
 };
 
 class ReadXml {

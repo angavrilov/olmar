@@ -64,13 +64,13 @@ class ToXMLTypeVisitor : public TypeVisitor {
   virtual bool visitScope(Scope *obj);
   virtual void postvisitScope(Scope *obj);
 
-  virtual bool visitScopeVariables(StringRefMap<Variable> &variables);
-  virtual void visitScopeVariables_entry(StringRef name, Variable *var);
-  virtual void postvisitScopeVariables(StringRefMap<Variable> &variables);
+  virtual bool visitScope_variables_Map(StringRefMap<Variable> &variables);
+  virtual void visitScope_variables_Map_entry(StringRef name, Variable *var);
+  virtual void postvisitScope_variables_Map(StringRefMap<Variable> &variables);
 
-  virtual bool visitScopeTypeTags(StringRefMap<Variable> &typeTags);
-  virtual void visitScopeTypeTags_entry(StringRef name, Variable *var);
-  virtual void postvisitScopeTypeTags(StringRefMap<Variable> &typeTags);
+  virtual bool visitScope_typeTags_Map(StringRefMap<Variable> &typeTags);
+  virtual void visitScope_typeTags_Map_entry(StringRef name, Variable *var);
+  virtual void postvisitScope_typeTags_Map(StringRefMap<Variable> &typeTags);
 
 //    virtual bool visitScopeTemplateParams(SObjList<Variable> &templateParams);
 //    virtual void postvisitScopeTemplateParams(SObjList<Variable> &templateParams);

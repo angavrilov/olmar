@@ -42,3 +42,12 @@
   /*  "bases" return tok(XTOK_bases); */
   /*  "args" return tok(XTOK_args); */
   /*  "rest" return tok(XTOK_rest); */
+
+  /* Some containers; I no longer care about order */
+"CompoundType_bases_List" return tok(XTOK_CompoundType_bases_List);
+"CompoundType_virtualBases_List" return tok(XTOK_CompoundType_virtualBases_List);
+"FunctionType_params_List" return tok(XTOK_FunctionType_params_List);
+"CompoundType_dataMembers_List" return tok(XTOK_CompoundType_dataMembers_List);
+"CompoundType_conversionOperators_List" return tok(XTOK_CompoundType_conversionOperators_List);
+"Scope_variables_Map" return tok(XTOK_Scope_variables_Map);
+"Scope_typeTags_Map" return tok(XTOK_Scope_typeTags_Map);

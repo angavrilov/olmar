@@ -43,3 +43,12 @@
 //    XTOK_bases, // "bases"
 //    XTOK_args, // "args"
 //    XTOK_rest, // "rest"
+
+  /* Some containers; I no longer care about order */
+  XTOK_CompoundType_bases_List,
+  XTOK_CompoundType_virtualBases_List,
+  XTOK_FunctionType_params_List,
+  XTOK_CompoundType_dataMembers_List,
+  XTOK_CompoundType_conversionOperators_List,
+  XTOK_Scope_variables_Map,
+  XTOK_Scope_typeTags_Map,
