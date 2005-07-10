@@ -458,8 +458,6 @@ public:      // funcs
 };
 
 string toString(CompoundType::Keyword k);
-string toXml(CompoundType::Keyword id);
-void fromXml(CompoundType::Keyword &out, string str);
 
 // represent an enumerated type
 class EnumType : public NamedAtomicType {
@@ -959,9 +957,6 @@ enum FunctionFlags {
   FF_ALL           = 0x01FF,  // all flags set to 1
 };
 ENUM_BITWISE_OPS(FunctionFlags, FF_ALL);
-
-string toXml(FunctionFlags id);
-void fromXml(FunctionFlags &out, string str);
 
 
 // type of a function

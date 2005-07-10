@@ -764,14 +764,6 @@ string toString(CompoundType::Keyword k)
   return string(typeIntrNames[k]);    // see cc_type.h
 }
 
-string toXml(CompoundType::Keyword id) {
-  return stringc << static_cast<int>(id);
-}
-
-void fromXml(CompoundType::Keyword &out, string str) {
-  out = static_cast<CompoundType::Keyword>(atoi(str));
-}
-
 
 int CompoundType::countBaseClassSubobjects(CompoundType const *ct) const
 {
@@ -2203,15 +2195,6 @@ void FunctionType::traverse(TypeVisitor &vis)
   // similarly, I don't want traversal into exception specs right now
 
   vis.postvisitType(this);
-}
-
-
-string toXml(FunctionFlags id) {
-  return stringc << static_cast<int>(id);
-}
-
-void fromXml(FunctionFlags &out, string str) {
-  out = static_cast<FunctionFlags>(atoi(str));
 }
 
 

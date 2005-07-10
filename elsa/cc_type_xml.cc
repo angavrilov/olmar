@@ -8,6 +8,33 @@
 #include "astxml_lexer.h"       // AstXmlLexer
 
 
+
+string toXml(CompoundType::Keyword id) {
+  return stringc << static_cast<int>(id);
+}
+
+void fromXml(CompoundType::Keyword &out, string str) {
+  out = static_cast<CompoundType::Keyword>(atoi(str));
+}
+
+
+string toXml(FunctionFlags id) {
+  return stringc << static_cast<int>(id);
+}
+
+void fromXml(FunctionFlags &out, string str) {
+  out = static_cast<FunctionFlags>(atoi(str));
+}
+
+
+string toXml(ScopeKind id) {
+  return stringc << static_cast<int>(id);
+}
+
+void fromXml(ScopeKind &out, string str) {
+  out = static_cast<ScopeKind>(atoi(str));
+}
+
 // -------------------- ToXMLTypeVisitor -------------------
 
 void ToXMLTypeVisitor::printIndentation() {
@@ -491,14 +518,42 @@ void ToXMLTypeVisitor::postvisitAtomicType(AtomicType *obj) {
 
 //  }
 
-bool ToXMLTypeVisitor::visitScope(Scope *obj)
+bool ToXMLTypeVisitor::visitScope(Scope *scope)
 {
+  out << "<Scope";
+  out << " .id=\"TY" << static_cast<void const*>(scope) << "\"\n";
+  ++depth;
+
+//    StringRefMap<Variable> variables;
+
+//    StringRefMap<Variable> typeTags;
+
+  printIndentation();
+  out << "canAcceptNames=\"" << toXml_bool(scope->canAcceptNames) << "\"\n";
+
+  printIndentation();
+  out << "parentScope=\"TY" << static_cast<void const*>(scope->parentScope) << "\"\n";
+
+  printIndentation();
+  out << "scopeKind=\"" << toXml(scope->scopeKind) << "\"\n";
+
+  printIndentation();
+  out << "namespaceVar=\"TY" << static_cast<void const*>(scope->namespaceVar) << "\"\n";
+
+  // FIX: do this when we do templates
+//    printIndentation();
+//    out << "params=\"SO" << static_cast<void const*>(&(scope->templateParams)) << "\"\n";
+
+  printIndentation();
+  out << "curCompound=\"TY" << static_cast<void const*>(scope->curCompound) << "\">\n";
+
   return true;
-//  #error
 }
-void ToXMLTypeVisitor::postvisitScope(Scope *obj)
+void ToXMLTypeVisitor::postvisitScope(Scope *scope)
 {
-//  #error
+  --depth;
+  printIndentation();
+  out << "</Scope>\n";
 }
 
 bool ToXMLTypeVisitor::visitScopeVariables(StringRefMap<Variable> &variables)
@@ -523,32 +578,59 @@ void ToXMLTypeVisitor::postvisitScopeTypeTags(StringRefMap<Variable> &typeTags)
 
 bool ToXMLTypeVisitor::visitBaseClass(BaseClass *bc)
 {
+  out << "<BaseClass";
+  out << " .id=\"TY" << static_cast<void const*>(bc) << "\"\n";
+  ++depth;
+
+  printIndentation();
+  out << "ct=\"TY" << static_cast<void const*>(bc->ct) << "\"\n";
+
+  printIndentation();
+  out << "access=\"" << toXml(bc->access) << "\"\n";
+
+  printIndentation();
+  out << "isVirtual=\"" << toXml_bool(bc->isVirtual) << "\">\n";
+
   return true;
-//  #error
 }
 void ToXMLTypeVisitor::postvisitBaseClass(BaseClass *bc)
 {
-//  #error
+  --depth;
+  printIndentation();
+  out << "</BaseClass>\n";
 }
 
 bool ToXMLTypeVisitor::visitBaseClassSubobj(BaseClassSubobj *bc)
 {
+  out << "<BaseClassSubobj";
+  out << " .id=\"TY" << static_cast<void const*>(bc) << "\"\n";
+  ++depth;
+
+  printIndentation();
+  out << "parents=\"SO" << static_cast<void const*>(&(bc->parents)) << "\">\n";
+
   return true;
-//  #error
 }
 void ToXMLTypeVisitor::postvisitBaseClassSubobj(BaseClassSubobj *bc)
 {
-//  #error
+  --depth;
+  printIndentation();
+  out << "</BaseClassSubobj>\n";
 }
 
 bool ToXMLTypeVisitor::visitBaseClassSubobjParents(SObjList<BaseClassSubobj> &parents)
 {
+  printIndentation();
+  out << "<BaseClassSubobj_Parents";
+  out << " .id=\"SO" << static_cast<void const*>(&parents) << "\">\n";
+  ++depth;
   return true;
-//  #error
 }
 void ToXMLTypeVisitor::postvisitBaseClassSubobjParents(SObjList<BaseClassSubobj> &parents)
 {
-//  #error
+  --depth;
+  printIndentation();
+  out << "</BaseClassSubobj_Parents>\n";
 }
 
 // -------------------- ReadXml_Type -------------------

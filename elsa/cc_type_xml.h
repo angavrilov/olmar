@@ -15,6 +15,11 @@
 class LinkSatisfier;
 class AstXmlLexer;
 
+string toXml(CompoundType::Keyword id);
+void fromXml(CompoundType::Keyword &out, string str);
+
+string toXml(FunctionFlags id);
+void fromXml(FunctionFlags &out, string str);
 
 // -------------------- ToXMLTypeVisitor -------------------
 
