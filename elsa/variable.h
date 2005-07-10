@@ -39,6 +39,7 @@
 #include "serialno.h"          // INHERIT_SERIAL_BASE
 
 class Type;                    // cc_type.h
+class TypeVisitor;             // cc_type.h
 class FunctionType;            // cc_type.h
 class OverloadSet;             // below
 class Scope;                   // cc_scope.h
@@ -46,6 +47,15 @@ class Expression;              // cc.ast
 class Function;                // cc.ast
 class BasicTypeFactory;        // cc_type.h
 class TemplateInfo;            // cc_type.h
+
+
+string toXml(DeclFlags id);
+void fromXml(DeclFlags &out, string str);
+
+// FIX: this is temporary; I just want to get the int out and back in
+// again for now.
+string toXml_intData(unsigned id);
+void fromXml_intData(unsigned &out, string str);
 
 class Variable INHERIT_SERIAL_BASE {
 public:    // data
@@ -94,6 +104,9 @@ public:    // data
   Scope *scope;           // (nullable serf)
 
 private:      // data
+
+  friend class ToXMLTypeVisitor; // so serialization is possible
+
   // The next two fields are used to store conceptually different
   // things in a single word in order to save space.  I am concerned
   // about the space used by Variable because they are ubiquitous.  I
@@ -283,6 +296,10 @@ public:
   
   // this must be an enumerator; get the integer value it denotes
   int getEnumeratorValue() const;
+
+  // dsw: Variables are part of the type system at least for purposes
+  // of traversal
+  void traverse(TypeVisitor &vis);
 };
 
 inline string toString(Variable const *v) { return v->toString(); }

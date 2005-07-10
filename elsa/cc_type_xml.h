@@ -42,15 +42,38 @@ class ToXMLTypeVisitor : public TypeVisitor {
 
   // **** TypeVisitor API methods
   public:
-  // print open tag
   virtual bool visitType(Type *obj);
-  // print close tag
   virtual void postvisitType(Type *obj);
 
-  // print open tag
+  virtual bool visitFuncParamsList(SObjList<Variable> &params);
+  virtual void postvisitFuncParamsList(SObjList<Variable> &params);
+
+  virtual bool visitVariable(Variable *var);
+  virtual void postvisitVariable(Variable *var);
+
   virtual bool visitAtomicType(AtomicType *obj);
-  // print close tag
   virtual void postvisitAtomicType(AtomicType *obj);
+
+  virtual bool visitScope(Scope *obj);
+  virtual void postvisitScope(Scope *obj);
+
+  virtual bool visitScopeVariables(StringRefMap<Variable> &variables);
+  virtual void postvisitScopeVariables(StringRefMap<Variable> &variables);
+
+  virtual bool visitScopeTypeTags(StringRefMap<Variable> &typeTags);
+  virtual void postvisitScopeTypeTags(StringRefMap<Variable> &typeTags);
+
+//    virtual bool visitScopeTemplateParams(SObjList<Variable> &templateParams);
+//    virtual void postvisitScopeTemplateParams(SObjList<Variable> &templateParams);
+
+  virtual bool visitBaseClass(BaseClass *bc);
+  virtual void postvisitBaseClass(BaseClass *bc);
+
+  virtual bool visitBaseClassSubobj(BaseClassSubobj *bc);
+  virtual void postvisitBaseClassSubobj(BaseClassSubobj *bc);
+
+  virtual bool visitBaseClassSubobjParents(SObjList<BaseClassSubobj> &parents);
+  virtual void postvisitBaseClassSubobjParents(SObjList<BaseClassSubobj> &parents);
 
   // factor out the commonality of the atomic types that inherit from
   // NamedAtomicType

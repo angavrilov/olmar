@@ -1329,4 +1329,58 @@ void Scope::setParameterizedEntity(Variable *entity)
 }
 
 
+void Scope::traverse(TypeVisitor &vis)
+{
+  if (!vis.visitScope(this)) {
+    return;
+  }
+
+  if (vis.visitScopeVariables(variables)) {
+    for(PtrMap<char const, Variable>::Iter iter(variables);
+        !iter.isDone();
+        iter.adv()) {
+      Variable *var = iter.value();
+      var->traverse(vis);
+    }
+    vis.postvisitScopeVariables(variables);
+  }
+
+  if (vis.visitScopeTypeTags(typeTags)) {
+    for(PtrMap<char const, Variable>::Iter iter(typeTags);
+        !iter.isDone();
+        iter.adv()) {
+      Variable *var = iter.value();
+      var->traverse(vis);
+    }
+    vis.postvisitScopeTypeTags(typeTags);
+  }
+
+  parentScope->traverse(vis);
+  namespaceVar->traverse(vis);
+
+  // turn this on when we do templates
+//    if (vis.visitScopeTemplateParams(this)) {
+//      SFOREACH_OBJLIST_NC(Variable, templateParams, iter) {
+//        Variable *var = iter.data();
+//        var->traverse(vis);
+//      }
+//      vis.postvisitScopeTemplateParams(this);
+//    }
+
+  // I don't think I need this; see Scott's comments in the scope
+  // class
+//    Variable *parameterizedEntity;          // (nullable serf)
+
+  // --------------- for using-directives ----------------
+  // Scott says that I don't need these
+
+  // it is basically a bug that we need to serialize this but we do so
+  // there it is.
+//    CompoundType *curCompound;          // (serf) CompoundType we're building
+//    Should not be being used after typechecking, but in theory could omit.
+  curCompound->traverse(vis);
+
+  vis.postvisitScope(this);
+}
+
 // EOF

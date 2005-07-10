@@ -88,8 +88,32 @@ public:
   virtual bool visitType(Type *obj);
   virtual void postvisitType(Type *obj);
 
+  virtual bool visitFuncParamsList(SObjList<Variable> &params);
+  virtual void postvisitFuncParamsList(SObjList<Variable> &params);
+
+  virtual bool visitVariable(Variable *var);
+  virtual void postvisitVariable(Variable *var);
+
   virtual bool visitAtomicType(AtomicType *obj);
   virtual void postvisitAtomicType(AtomicType *obj);
+
+  virtual bool visitScope(Scope *obj);
+  virtual void postvisitScope(Scope *obj);
+
+  virtual bool visitScopeVariables(StringRefMap<Variable> &variables);
+  virtual void postvisitScopeVariables(StringRefMap<Variable> &variables);
+
+  virtual bool visitScopeTypeTags(StringRefMap<Variable> &typeTags);
+  virtual void postvisitScopeTypeTags(StringRefMap<Variable> &typeTags);
+
+  virtual bool visitBaseClass(BaseClass *bc);
+  virtual void postvisitBaseClass(BaseClass *bc);
+
+  virtual bool visitBaseClassSubobj(BaseClassSubobj *bc);
+  virtual void postvisitBaseClassSubobj(BaseClassSubobj *bc);
+
+  virtual bool visitBaseClassSubobjParents(SObjList<BaseClassSubobj> &parents);
+  virtual void postvisitBaseClassSubobjParents(SObjList<BaseClassSubobj> &parents);
 
   virtual bool visitSTemplateArgument(STemplateArgument *obj);
   virtual void postvisitSTemplateArgument(STemplateArgument *obj);
@@ -226,6 +250,11 @@ public:
     : DMEMB(ct), DMEMB(access), DMEMB(isVirtual) {}
   BaseClass(CompoundType *c, AccessKeyword a, bool v)
     : ct(c), access(a), isVirtual(v) {}
+  virtual ~BaseClass() {}
+
+  // dsw: I know this is the only virtual method but BaseClassSubobj
+  // inherits from me.
+  virtual void traverse(TypeVisitor &vis);
 };
 
 // represent an instance of a base class in a particular class'
@@ -245,10 +274,12 @@ public:
 
 public:
   BaseClassSubobj(BaseClass const &base);
-  ~BaseClassSubobj();
+  virtual ~BaseClassSubobj();
                            
   // name and virtual address to uniquely identify this object
   string canonName() const;
+
+  virtual void traverse(TypeVisitor &vis);
 };
 
 // represent a user-defined compound type; the members of the

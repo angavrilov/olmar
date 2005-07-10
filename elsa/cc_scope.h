@@ -18,6 +18,7 @@
 
 class Env;                // cc_env.h
 class Variable;           // variable.h
+class TypeVisitor;        // cc_type.h
 class CompoundType;       // cc_type.h
 class BaseClassSubobj;    // cc_type.h
 class EnumType;           // cc_type.h
@@ -322,7 +323,11 @@ public:      // funcs
 
   // set 'parameterizedEntity', checking a few things in the process
   void setParameterizedEntity(Variable *entity);
-       
+
+  // dsw: I know this is *almost* the only virtual method, but
+  // traverse() is virtual everywhere else; change it if you like
+  virtual void traverse(TypeVisitor &vis);
+
   // for debugging, a quick description of this scope
   string desc() const;
   void gdb() const;

@@ -6,6 +6,15 @@
 #include "trace.h"         // tracingSys
 
 
+string toXml_intData(unsigned id) {
+  return stringc << static_cast<int>(id);
+}
+
+void fromXml_intData(unsigned &out, string str) {
+  out = static_cast<DeclFlags>(atoi(str));
+}
+
+
 // ---------------------- SomeTypeVarNotInTemplParams_Pred --------------------
 
 // existential search for a type variable that is not in the template
@@ -588,6 +597,15 @@ Variable *OverloadSet::findByType(FunctionType const *ft, CVFlags receiverCV)
 Variable *OverloadSet::findByType(FunctionType const *ft) {
   return findByType(ft, ft->getReceiverCV());
 }
-#endif // 0
+#endif // obsolete; see Env::findInOverloadSet
+
+
+void Variable::traverse(TypeVisitor &vis) {
+  if (!vis.visitVariable(this)) {
+    return;
+  }
+  type->traverse(vis);
+  vis.postvisitVariable(this);
+}
 
 // EOF

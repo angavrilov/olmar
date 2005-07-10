@@ -33,14 +33,57 @@ bool TypeVisitor::visitType(Type *obj)
   { return true; }
 void TypeVisitor::postvisitType(Type *obj)
   {  }
+
+bool TypeVisitor::visitFuncParamsList(SObjList<Variable> &params)
+  { return true; }
+void TypeVisitor::postvisitFuncParamsList(SObjList<Variable> &params)
+  { }
+
+bool TypeVisitor::visitVariable(Variable *var)
+  { return true; }
+void TypeVisitor::postvisitVariable(Variable *var)
+  { }
+
 bool TypeVisitor::visitAtomicType(AtomicType *obj)
   { return true; }
 void TypeVisitor::postvisitAtomicType(AtomicType *obj)
   {  }
+
+bool TypeVisitor::visitScope(Scope *obj)
+  { return true; }
+void TypeVisitor::postvisitScope(Scope *obj)
+  {  }
+
+bool TypeVisitor::visitScopeVariables(StringRefMap<Variable> &variables)
+  { return true; }
+void TypeVisitor::postvisitScopeVariables(StringRefMap<Variable> &variables)
+  {  }
+
+bool TypeVisitor::visitScopeTypeTags(StringRefMap<Variable> &typeTags)
+  { return true; }
+void TypeVisitor::postvisitScopeTypeTags(StringRefMap<Variable> &typeTags)
+  {  }
+
+bool TypeVisitor::visitBaseClass(BaseClass *bc)
+  { return true; }
+void TypeVisitor::postvisitBaseClass(BaseClass *bc)
+  {  }
+
+bool TypeVisitor::visitBaseClassSubobj(BaseClassSubobj *bc)
+  { return true; }
+void TypeVisitor::postvisitBaseClassSubobj(BaseClassSubobj *bc)
+  {  }
+
+bool TypeVisitor::visitBaseClassSubobjParents(SObjList<BaseClassSubobj> &parents)
+  { return true; }
+void TypeVisitor::postvisitBaseClassSubobjParents(SObjList<BaseClassSubobj> &parents)
+  {  }
+
 bool TypeVisitor::visitSTemplateArgument(STemplateArgument *obj)
   { return true; }
 void TypeVisitor::postvisitSTemplateArgument(STemplateArgument *obj)
   {  }
+
 bool TypeVisitor::visitExpression(Expression *obj)
   {
     // if this ever fires, at the same location be sure to put a
@@ -248,6 +291,17 @@ bool NamedAtomicType::isNamedAtomicType() const
 
 
 // ---------------- BaseClassSubobj ----------------
+void BaseClass::traverse(TypeVisitor &vis)
+{
+  if (!vis.visitBaseClass(this)) {
+    return;
+  }
+  ct->traverse(vis);
+  vis.postvisitBaseClass(this);
+}
+
+
+// ---------------- BaseClassSubobj ----------------
 BaseClassSubobj::BaseClassSubobj(BaseClass const &base)
   : BaseClass(base),
     parents(),       // start with an empty list
@@ -275,6 +329,24 @@ BaseClassSubobj::~BaseClassSubobj()
 string BaseClassSubobj::canonName() const
 {
   return stringc << ct->name << " (" << (void*)this << ")";
+}
+
+
+void BaseClassSubobj::traverse(TypeVisitor &vis)
+{
+  if (!vis.visitBaseClassSubobj(this)) {
+    return;
+  }
+
+  if (vis.visitBaseClassSubobjParents(parents)) {
+    SFOREACH_OBJLIST_NC(BaseClassSubobj, parents, iter) {
+      BaseClassSubobj *parent = iter.data();
+      parent->traverse(vis);
+    }
+    vis.postvisitBaseClassSubobjParents(parents);
+  }
+
+  vis.postvisitBaseClassSubobj(this);
 }
 
 
@@ -2109,15 +2181,23 @@ void FunctionType::traverse(TypeVisitor &vis)
 
   retType->traverse(vis);
 
-  SFOREACH_OBJLIST(Variable, params, iter) {
-    // I am choosing not to traverse into any of the other fields of
-    // the parameters, including default args.  For the application I
-    // have in mind right now (matching definitions to declarations),
-    // I do not need or want anything other than the parameter type.
-    // So, if this code is later extended to traverse into default
-    // args, there should be a flag to control that, and it should
-    // default to off (or change the existing call sites).
-    iter.data()->type->traverse(vis);
+  // dsw: I need to know when the params list starts and stops
+  if (vis.visitFuncParamsList(params)) {
+    SFOREACH_OBJLIST_NC(Variable, params, iter) {
+      // I am choosing not to traverse into any of the other fields of
+      // the parameters, including default args.  For the application I
+      // have in mind right now (matching definitions to declarations),
+      // I do not need or want anything other than the parameter type.
+      // So, if this code is later extended to traverse into default
+      // args, there should be a flag to control that, and it should
+      // default to off (or change the existing call sites).
+      //
+//        iter.data()->type->traverse(vis);
+      // dsw: we now traverse the variable directly; the above comment
+      // should probably be moved into Variable::traverse()
+      iter.data()->traverse(vis);
+    }
+    vis.postvisitFuncParamsList(params);
   }
 
   // similarly, I don't want traversal into exception specs right now
