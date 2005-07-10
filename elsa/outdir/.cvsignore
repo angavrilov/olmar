@@ -12,3 +12,4 @@ hide*
 *.B1.xml
 *.B2.xml.cc
 *.B3.diff
+*.C1.xml

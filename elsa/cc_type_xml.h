@@ -59,7 +59,8 @@ class ToXMLTypeVisitor : public TypeVisitor {
   virtual bool visitAtomicType(AtomicType *obj);
   virtual void postvisitAtomicType(AtomicType *obj);
 
-  virtual bool toXml_Scope(Scope *scope);
+  virtual void toXml_Scope_properties(Scope *scope);
+  virtual void toXml_Scope_subtags(Scope *scope);
   virtual bool visitScope(Scope *obj);
   virtual void postvisitScope(Scope *obj);
 
@@ -85,7 +86,8 @@ class ToXMLTypeVisitor : public TypeVisitor {
 
   // factor out the commonality of the atomic types that inherit from
   // NamedAtomicType
-  virtual bool toXml_NamedAtomicType(NamedAtomicType *nat);
+  virtual void toXml_NamedAtomicType_properties(NamedAtomicType *nat);
+  virtual void toXml_NamedAtomicType_subtags(NamedAtomicType *nat);
 
 
   // fail in these for now

@@ -1,0 +1,145 @@
+#!/usr/bin/perl -w
+# -*-perl-*-
+use strict;
+
+# Test ast xml rendering and parsing.  NOTE: do not elaborate as we do
+# not serialize out the elaborated stuff right yet.
+#   1) pretty print,
+#   2) render as xml, parse back in, pretty print,
+#   3) diff 1 and 2.
+
+# Daniel S. Wilkerson dsw@cs.berkeley.edu
+
+my $parser = "./ccparse";
+die "No executable file: $parser\n" unless -x $parser;
+my @names = ();
+my @outfiles = ();
+my %outfile2command = ();
+
+my $outdir;
+
+my $usage=<<END
+Usage: $0 -d <outputdir> <inputlist>...
+END
+    ;
+
+if (+@ARGV==0) {
+    print $usage;
+    exit 0;
+}
+
+{
+    my $arg = shift @ARGV;
+    last unless defined $arg;
+    if ($arg=~/^-d/) {
+        $outdir = shift @ARGV;
+        die "No argument to -d\n" unless defined $outdir;
+        die "No such dir: $outdir\n" unless -d $outdir;
+    } else {
+        push @names, $arg;
+    }
+    redo;
+}
+die "You must specify an out directory with -d\n$usage" unless defined $outdir;
+
+sub run_only ($$) {
+    my ($command, $outfile) = @_;
+    my $realcommand = "$command >> $outfile";
+#    print "RUN: $realcommand\n";
+    unlink $outfile;
+    die if -f $outfile;
+    my $res = system "$realcommand";
+#    print "\t$res\n";
+    if ($res!=0) {
+        my $exit_value  = $res >> 8;
+        my $signal_num  = $res & 127;
+        my $dumped_core = $res & 128;
+        system "echo >> $outfile '**** abnormal exit: exit_value $exit_value, " .
+            "signal_num $signal_num, dumped_core $dumped_core'\n";
+        die "Command fails: $realcommand\n";
+    }
+}
+
+sub run_command ($$) {
+    my ($command, $outfile) = @_;
+    my $realcommand = "$command >> $outfile";
+    $outfile2command{$outfile} = $realcommand;
+    push @outfiles, $outfile;
+    run_only $command, $outfile;
+}
+
+sub dump_outfiles {
+    for my $outfile(@outfiles) {
+        print "STAGE ****************\n";
+        print "$outfile2command{$outfile}\n";
+        system "cat $outfile";
+    }
+}
+
+my $numinputs = 0;
+my $numpass = 0;
+my @failingFiles = ();
+for my $name(@names) {
+    print "$name\n";
+    die "No such file $name\n" unless -f "$name";
+    ++$numinputs;
+
+    my $outname = $name;
+    if ($outname=~m|/|) {$outname=~s|^.*/([^/]+)|$1|;}
+    die "Bad outname:$outname:\n" if $outname=~/^\s*$/;
+    $outname = "$outdir/$outname";
+
+    @outfiles = ();
+    push @outfiles, $name;
+    $outfile2command{$name} = "ORIGINAL: $name";
+    eval {
+#          run_command("$parser -tr no-elaborate,prettyPrint $name | ./chop_out",
+#                      "$outname.C0.cc");
+        run_command("$parser -tr no-elaborate,xmlPrintAST,xmlPrintAST-indent,xmlPrintAST-types $name | ./chop_out",
+                    "$outname.C1.xml");
+#          run_command("$parser -tr no-typecheck,no-elaborate,parseAstXml,prettyPrint $outname.C1.xml | ./chop_out",
+#                      "$outname.C2.xml.cc");
+    };
+    if ($@) {
+        dump_outfiles();
+        push @failingFiles, $name;
+        print "ERROR: $@\n";
+        next;
+    }
+
+    # sm: replaced -u with -c for portability
+    #
+    # sm: 2005-02-12: added -b (ignore blankspace differences)
+    # because on cygwin with DOS line endings in/c99/t0133.c has
+    # a CR vs CRLF difference that I don't want to track down...
+    my $diff_command = "diff -c -b $outname.C0.cc $outname.C2.xml.cc > $outname.C3.diff";
+    $outfile2command{"$outname.C3.diff"} = $diff_command;
+    push @outfiles, "$outname.C3.diff";
+#      my $diff_res = system $diff_command;
+#      if ($diff_res == 0) {
+        ++$numpass;
+#      } else {
+#          dump_outfiles();
+#          push @failingFiles, $name;
+#      }
+}
+
+print "";
+print "Num inputs $numinputs\n";
+print "Num pass   $numpass\n";
+if (@failingFiles) {
+    print ("Failing files: ", join(' ', @failingFiles), "\n");
+    print "FAIL\n";
+    exit 1;
+} else {
+    print "PASS\n";
+    exit 0;
+}
+
+if ($numinputs==$numpass) {
+    print "PASS\n";
+    exit 0;
+} else {
+    print "FAIL\n";
+    exit 1;
+}

@@ -55,7 +55,7 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
     printIndentation();
-    out << "atomic=\"" << static_cast<void const*>(atom->atomic) << "\"\n";
+    out << "atomic=\"TY" << static_cast<void const*>(atom->atomic) << "\"\n";
     printIndentation();
     out << "cv=\"" << toXml(atom->cv) << "\">\n";
     break;
@@ -183,14 +183,13 @@ bool ToXMLTypeVisitor::visitVariable(Variable *var) {
 //    as file:line:col when I serialize the internals of the Source Loc
 //    Manager.
 
-  printIndentation();
-  out << "name=" << quoted(var->name) << "\"\n";
+  if (var->name) {
+    printIndentation();
+    out << "name=" << quoted(var->name) << "\n";
+  }
 
   printIndentation();
   out << "type=\"TY" << static_cast<void const*>(var->type) << "\"\n";
-
-  printIndentation();
-  out << "type=\"TY" << static_cast<void const*>(var->type) << "\">\n";
   
   printIndentation();
   out << "flags=\"" << toXml(var->flags) << "\"\n";
@@ -198,16 +197,13 @@ bool ToXMLTypeVisitor::visitVariable(Variable *var) {
   printIndentation();
   out << "value=\"";
   xmlPrintPointer(out, "ND", var->value);
-  out << "\"";
+  out << "\"\n";
   // FIX: this is AST so we should make sure it gets printed out
 
   // this value is nullable
   if (var->defaultParamType) {
     printIndentation();
     out << "type=\"TY" << static_cast<void const*>(var->defaultParamType) << "\">\n";
-    // This is not visited by default by the type visitor, so we not
-    // only have to print the id we have to print the tree.
-    var->defaultParamType->traverse(*this);
   }
 
   if (var->funcDefn) {
@@ -239,9 +235,6 @@ bool ToXMLTypeVisitor::visitVariable(Variable *var) {
     printIndentation();
     out << "type=\"TY" << static_cast<void const*>(var->usingAlias_or_parameterizedEntity)
         << "\">\n";
-    // This is not visited by default by the type visitor, so we not
-    // only have to print the id we have to print the tree.
-    var->usingAlias_or_parameterizedEntity->traverse(*this);
   }
 
 //    TemplateInfo *templInfo;      // (owner)
@@ -250,6 +243,22 @@ bool ToXMLTypeVisitor::visitVariable(Variable *var) {
   // FIX: remove this when we do the above attributes
   printIndentation();
   cout << ">\n";
+
+  // **** subtags
+
+  // this value is nullable
+  if (var->defaultParamType) {
+    // This is not visited by default by the type visitor, so we not
+    // only have to print the id we have to print the tree.
+    var->defaultParamType->traverse(*this);
+  }
+
+  if (var->usingAlias_or_parameterizedEntity) {
+    // This is not visited by default by the type visitor, so we not
+    // only have to print the id we have to print the tree.
+    var->usingAlias_or_parameterizedEntity->traverse(*this);
+  }
+
   return true;
 }
 
@@ -259,20 +268,21 @@ void ToXMLTypeVisitor::postvisitVariable(Variable *var) {
   out << "</Variable>\n";
 }
 
-bool ToXMLTypeVisitor::toXml_NamedAtomicType(NamedAtomicType *nat) {
+void ToXMLTypeVisitor::toXml_NamedAtomicType_properties(NamedAtomicType *nat) {
   printIndentation();
   out << "name=" << quoted(nat->name) << "\n";
 
   printIndentation();
   out << "typedefVar=\"TY" << static_cast<void const*>(nat->typedefVar) << "\">\n";
-  // This is not visited by default by the type visitor, so we not
-  // only have to print the id we have to print the tree.
-  nat->typedefVar->traverse(*this);
 
   printIndentation();
   out << "access=\"" << toXml(nat->access) << "\"\n";
+}
 
-  return true;
+void ToXMLTypeVisitor::toXml_NamedAtomicType_subtags(NamedAtomicType *nat) {
+  // This is not visited by default by the type visitor, so we not
+  // only have to print the id we have to print the tree.
+  nat->typedefVar->traverse(*this);
 }
 
 bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
@@ -298,10 +308,8 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     ++depth;
 
     // superclasses
-    bool ok = toXml_NamedAtomicType(cpd);
-    xassert(ok);
-    ok = toXml_Scope(cpd);
-    xassert(ok);
+    toXml_NamedAtomicType_properties(cpd);
+    toXml_Scope_properties(cpd);
 
     printIndentation();
     out << "forward=\"" << toXml_bool(cpd->forward) << "\"\n";
@@ -310,77 +318,31 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     out << "keyword=\"" << toXml(cpd->keyword) << "\"\n";
 
     printIndentation();
-    out << "<CompoundType_dataMembers_List";
-    out << " .id=\"SO" << static_cast<void const*>(&(cpd->dataMembers)) << "\">\n";
-    ++depth;
-    SFOREACH_OBJLIST_NC(Variable, cpd->dataMembers, iter) {
-      Variable *var = iter.data();
-      // The usual traversal rountine will not go down into here, so
-      // we have to.
-      var->traverse(*this);
-    }
-    --depth;
-    printIndentation();
-    out << "</CompoundType_dataMembers_List>\n";
+    out << "dataMembers=\"TY" << static_cast<void const*>(&(cpd->dataMembers)) << "\"\n";
 
     //    // classes from which this one inherits; 'const' so you have to
     //    // use 'addBaseClass', but public to make traversal easy
     //    const ObjList<BaseClass> bases;
     printIndentation();
-    out << "<CompoundType_bases_List";
-    out << " .id=\"OJ" << static_cast<void const*>(&(cpd->bases)) << "\">\n";
-    ++depth;
-    FOREACH_OBJLIST_NC(BaseClass, const_cast<ObjList<BaseClass>&>(cpd->bases), iter) {
-      BaseClass *base = iter.data();
-      // The usual traversal rountine will not go down into here, so
-      // we have to.
-      base->traverse(*this);
-    }
-    --depth;
-    printIndentation();
-    out << "</CompoundType_bases_List>\n";
+    out << "bases=\"TY" << static_cast<void const*>(&(cpd->bases)) << "\"\n";
 
     //    // collected virtual base class subobjects
     //    ObjList<BaseClassSubobj> virtualBases;
     printIndentation();
-    out << "<CompoundType_virtualBases_List";
-    out << " .id=\"OJ" << static_cast<void const*>(&(cpd->virtualBases)) << "\">\n";
-    ++depth;
-    FOREACH_OBJLIST_NC(BaseClassSubobj,
-                       const_cast<ObjList<BaseClassSubobj>&>(cpd->virtualBases),
-                       iter) {
-      BaseClassSubobj *baseSubobj = iter.data();
-      // The usual traversal rountine will not go down into here, so
-      // we have to.
-      baseSubobj->traverse(*this);
-    }
-    --depth;
-    printIndentation();
-    out << "</CompoundType_virtualBases_List>\n";
+    out << "virtualBases=\"TY" << static_cast<void const*>(&(cpd->virtualBases)) << "\"\n";
 
     //    // this is the root of the subobject hierarchy diagram
     //    // invariant: subobj.ct == this
     //    BaseClassSubobj subobj;
     printIndentation();
     out << "subobj=\"TY" << static_cast<void const*>(&(cpd->subobj)) << "\"\n";
-    cpd->subobj.traverse(*this);
 
     //    // list of all conversion operators this class has, including
     //    // those that have been inherited but not then hidden
     //    SObjList<Variable> conversionOperators;
     printIndentation();
-    out << "<CompoundType_conversionOperators_List";
-    out << " .id=\"SO" << static_cast<void const*>(&(cpd->conversionOperators)) << "\">\n";
-    ++depth;
-    SFOREACH_OBJLIST_NC(Variable, cpd->conversionOperators, iter) {
-      Variable *var = iter.data();
-      // The usual traversal rountine will not go down into here, so
-      // we have to.
-      var->traverse(*this);
-    }
-    --depth;
-    printIndentation();
-    out << "</CompoundType_conversionOperators_List>\n";
+    out << "conversionOperators=\"TY" << static_cast<void const*>(&(cpd->conversionOperators))
+        << "\"\n";
 
     printIndentation();
     out << "instName=" << quoted(cpd->instName) << "\n";
@@ -406,12 +368,77 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
       printIndentation();
       out << "parameterizingScope=\"";
       xmlPrintPointer(out, "TY", cpd->parameterizingScope);
-      cpd->parameterizingScope->traverse(*this);
       out << "\"";
     }
 
     printIndentation();
     out << "selfType=\"TY" << static_cast<void const*>(cpd->selfType) << "\">\n";
+
+    // **** subtags
+
+    toXml_NamedAtomicType_subtags(cpd);
+    toXml_Scope_subtags(cpd);
+
+    out << "<CompoundType_dataMembers_List";
+    out << " .id=\"SO" << static_cast<void const*>(&(cpd->dataMembers)) << "\">\n";
+    ++depth;
+    SFOREACH_OBJLIST_NC(Variable, cpd->dataMembers, iter) {
+      Variable *var = iter.data();
+      // The usual traversal rountine will not go down into here, so
+      // we have to.
+      var->traverse(*this);
+    }
+    --depth;
+    printIndentation();
+    out << "</CompoundType_dataMembers_List>\n";
+
+    out << "<CompoundType_bases_List";
+    out << " .id=\"OJ" << static_cast<void const*>(&(cpd->bases)) << "\">\n";
+    ++depth;
+    FOREACH_OBJLIST_NC(BaseClass, const_cast<ObjList<BaseClass>&>(cpd->bases), iter) {
+      BaseClass *base = iter.data();
+      // The usual traversal rountine will not go down into here, so
+      // we have to.
+      base->traverse(*this);
+    }
+    --depth;
+    printIndentation();
+    out << "</CompoundType_bases_List>\n";
+
+    out << "<CompoundType_virtualBases_List";
+    out << " .id=\"OJ" << static_cast<void const*>(&(cpd->virtualBases)) << "\">\n";
+    ++depth;
+    FOREACH_OBJLIST_NC(BaseClassSubobj,
+                       const_cast<ObjList<BaseClassSubobj>&>(cpd->virtualBases),
+                       iter) {
+      BaseClassSubobj *baseSubobj = iter.data();
+      // The usual traversal rountine will not go down into here, so
+      // we have to.
+      baseSubobj->traverse(*this);
+    }
+    --depth;
+    printIndentation();
+    out << "</CompoundType_virtualBases_List>\n";
+
+    cpd->subobj.traverse(*this);
+
+    out << "<CompoundType_conversionOperators_List";
+    out << " .id=\"SO" << static_cast<void const*>(&(cpd->conversionOperators)) << "\">\n";
+    ++depth;
+    SFOREACH_OBJLIST_NC(Variable, cpd->conversionOperators, iter) {
+      Variable *var = iter.data();
+      // The usual traversal rountine will not go down into here, so
+      // we have to.
+      var->traverse(*this);
+    }
+    --depth;
+    printIndentation();
+    out << "</CompoundType_conversionOperators_List>\n";
+
+    if (cpd->parameterizingScope) {
+      cpd->parameterizingScope->traverse(*this);
+    }
+
     break;
   }
 
@@ -420,48 +447,68 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     out << "<EnumType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
-    bool ok = toXml_NamedAtomicType(e);
-    xassert(ok);
+    toXml_NamedAtomicType_properties(e);
 //      printIndentation();
     //    StringObjDict<Value> valueIndex;    // values in this enumeration
 
     printIndentation();
     out << "nextValue=\"" << e->nextValue << "\">";
+
+    // **** subtags
+
+    toXml_NamedAtomicType_subtags(e);
     break;
   }
 
   case AtomicType::T_TYPEVAR: {
     TypeVariable *tvar = obj->asTypeVariable();
+    printIndentation();
     out << "<TypeVariable";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
-    bool ok = toXml_NamedAtomicType(tvar);
-    xassert(ok);
+
+    toXml_NamedAtomicType_properties(tvar);
+
+    printIndentation();
+    out << ">\n";
+
+    // **** subtags
+
+    toXml_NamedAtomicType_subtags(tvar);
     break;
   }
 
   case AtomicType::T_PSEUDOINSTANTIATION: {
     PseudoInstantiation *pseudo = obj->asPseudoInstantiation();
+    printIndentation();
     out << "<PseudoInstantiation";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
-    bool ok = toXml_NamedAtomicType(pseudo);
-    xassert(ok);
+
+    toXml_NamedAtomicType_properties(pseudo);
 
 //    CompoundType *primary;
 
 //    // the arguments, some of which contain type variables
 //    ObjList<STemplateArgument> args;
+
+    printIndentation();
+    out << ">\n";
+
+    // **** subtags
+
+    toXml_NamedAtomicType_subtags(pseudo);
     break;
   }
 
   case AtomicType::T_DEPENDENTQTYPE: {
     DependentQType *dep = obj->asDependentQType();
+    printIndentation();
     out << "<DependentQType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
-    bool ok = toXml_NamedAtomicType(dep);
-    xassert(ok);
+
+    toXml_NamedAtomicType_properties(dep);
 
 //    AtomicType *first;            // (serf) TypeVariable or PseudoInstantiation
 
@@ -469,6 +516,13 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
 //    // in the original syntax.  All template arguments have been
 //    // tcheck'd.
 //    PQName *rest;
+
+    printIndentation();
+    out << ">\n";
+
+    // **** subtags
+
+    toXml_NamedAtomicType_subtags(dep);
     break;
   }
   }
@@ -506,7 +560,7 @@ void ToXMLTypeVisitor::postvisitAtomicType(AtomicType *obj) {
 }
 
 
-bool ToXMLTypeVisitor::toXml_Scope(Scope *scope)
+void ToXMLTypeVisitor::toXml_Scope_properties(Scope *scope)
 {
   printIndentation();
   out << "variables=\"SM" << static_cast<void const*>(&(scope->variables)) << "\"\n";
@@ -532,8 +586,10 @@ bool ToXMLTypeVisitor::toXml_Scope(Scope *scope)
 
   printIndentation();
   out << "curCompound=\"TY" << static_cast<void const*>(scope->curCompound) << "\"\n";
+}
 
-  return true;
+void ToXMLTypeVisitor::toXml_Scope_subtags(Scope *scope)
+{
 }
 
 bool ToXMLTypeVisitor::visitScope(Scope *scope)
@@ -541,9 +597,12 @@ bool ToXMLTypeVisitor::visitScope(Scope *scope)
   out << "<Scope";
   out << " .id=\"TY" << static_cast<void const*>(scope) << "\"\n";
   ++depth;
-  bool ok = toXml_Scope(scope);
-  xassert(ok);
+  toXml_Scope_properties(scope);
   out << ">\n";
+
+  // **** subtags
+
+  toXml_Scope_subtags(scope);
   return true;
 }
 void ToXMLTypeVisitor::postvisitScope(Scope *scope)
@@ -565,7 +624,7 @@ void ToXMLTypeVisitor::visitScopeVariables_entry(StringRef name, Variable *var)
 {
   printIndentation();
   out << "<ScopeVariables_entry";
-  out << " name=\"" << quoted(name) << "\"";
+  out << " name=" << quoted(name) << "";
   out << " var=\"TY" << static_cast<void const*>(var) << "\">\n";
 }
 void ToXMLTypeVisitor::postvisitScopeVariables(StringRefMap<Variable> &variables)
@@ -587,7 +646,7 @@ void ToXMLTypeVisitor::visitScopeTypeTags_entry(StringRef name, Variable *var)
 {
   printIndentation();
   out << "<ScopeTypeTags_entry";
-  out << " name=\"" << quoted(name) << "\"";
+  out << " name=" << quoted(name) << "";
   out << " var=\"TY" << static_cast<void const*>(var) << "\">\n";
 }
 void ToXMLTypeVisitor::postvisitScopeTypeTags(StringRefMap<Variable> &typeTags)

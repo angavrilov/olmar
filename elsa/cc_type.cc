@@ -268,7 +268,9 @@ int SimpleType::reprSize() const
 
 void SimpleType::traverse(TypeVisitor &vis)
 {
-  vis.visitAtomicType(this);
+  if (!vis.visitAtomicType(this)) {
+    return;
+  }
   vis.postvisitAtomicType(this);
 }
 
@@ -921,7 +923,9 @@ int EnumType::reprSize() const
 
 void EnumType::traverse(TypeVisitor &vis)
 {
-  vis.visitAtomicType(this);
+  if (!vis.visitAtomicType(this)) {
+    return;
+  }
   vis.postvisitAtomicType(this);
 }
 
