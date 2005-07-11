@@ -196,7 +196,7 @@ bool ToXMLTypeVisitor::visitVariable(Variable *var) {
 
   printIndentation();
   out << "value=\"";
-  xmlPrintPointer(out, "ND", var->value);
+  xmlPrintPointer(out, "AST", var->value);
   out << "\"\n";
   // FIX: this is AST so we should make sure it gets printed out
 
@@ -209,7 +209,7 @@ bool ToXMLTypeVisitor::visitVariable(Variable *var) {
   if (var->funcDefn) {
     printIndentation();
     out << "funcDefn=\"";
-    xmlPrintPointer(out, "ND", var->funcDefn);
+    xmlPrintPointer(out, "AST", var->funcDefn);
     out << "\"";
     // FIX: this is AST so we should make sure it gets printed out
   }
@@ -354,7 +354,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     if (cpd->syntax) {
       printIndentation();
       out << "syntax=\"";
-      xmlPrintPointer(out, "ND", cpd->syntax);
+      xmlPrintPointer(out, "AST", cpd->syntax);
       out << "\"";
       // FIX: this is AST so we should make sure it gets printed out
     }
