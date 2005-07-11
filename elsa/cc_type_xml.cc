@@ -879,6 +879,7 @@ bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
     topTemp = new DependentQType((AtomicType*)0);
     break;
 
+  // **** Container types
   case XTOK_FunctionType_params_List:
     topTemp = new SObjList<Variable>();
     break;
