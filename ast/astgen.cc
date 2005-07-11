@@ -1975,7 +1975,7 @@ void CGen::emitXmlField(bool isOwner, rostring type, rostring name, char const *
     out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"" << name << "\" << \"=\\\"\";\n";
-    out << "  xmlPrintPointer(out, \"ND\", " << baseName << "->" << name << ");\n";
+    out << "  xmlPrintPointer(out, \"AST\", " << baseName << "->" << name << ");\n";
     out << "  out << \"\\\"\";\n";
   }
   else {
@@ -2107,7 +2107,7 @@ void CGen::emitXmlVisitorImplementation()
 //      out << "  out << \"\\n\";\n";
 //      out << "  if (indent) printIndentation();\n";
     out << "  out << \" .id=\\\"\";\n";
-    out << "  xmlPrintPointer(out, \"ND\", obj);\n";
+    out << "  xmlPrintPointer(out, \"AST\", obj);\n";
     out << "  out << \"\\\"\";\n";
 
     // emit other properties
