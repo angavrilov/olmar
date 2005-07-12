@@ -715,58 +715,7 @@ void ToXMLTypeVisitor::postvisitBaseClassSubobjParents(SObjList<BaseClassSubobj>
 
 // -------------------- ReadXml_Type -------------------
 
-KindCategory ReadXml_Type::kind2kindCat(int kind) {
-  switch(kind) {
-  default: xfailure("illegal token kind");
-  // Types
-  case XTOK_CVAtomicType: return KC_Node;
-  case XTOK_PointerType: return KC_Node;
-  case XTOK_ReferenceType: return KC_Node;
-  case XTOK_FunctionType: return KC_Node;
-  case XTOK_ArrayType: return KC_Node;
-  case XTOK_PointerToMemberType: return KC_Node;
-  // AtomicTypes
-  case XTOK_SimpleType: return KC_Node;
-  case XTOK_CompoundType: return KC_Node;
-  case XTOK_EnumType: return KC_Node;
-  case XTOK_TypeVariable: return KC_Node;
-  case XTOK_PseudoInstantiation: return KC_Node;
-  case XTOK_DependentQType: return KC_Node;
-  // ObjList
-  case XTOK_CompoundType_bases_List: return KC_ObjList;
-  case XTOK_CompoundType_virtualBases_List: return KC_ObjList;
-  // SObjList
-  case XTOK_FunctionType_params_List: return KC_SObjList;
-  case XTOK_CompoundType_dataMembers_List: return KC_SObjList;
-  case XTOK_CompoundType_conversionOperators_List: return KC_SObjList;
-  // StringRefMap
-  case XTOK_Scope_variables_Map: return KC_StringRefMap;
-  case XTOK_Scope_typeTags_Map: return KC_StringRefMap;
-  }
-}
-
-void *ReadXml_Type::prepend2FakeList(void *list, int listKind, void *datum, int datumKind) {
-  switch(listKind) {
-  default: xfailure("attempt to prepend to a non-FakeList token kind");
-//    case XTOK_FakeList_MemberInit:
-//      if (!datumKind == XTOK_MemberInit) {
-//        userError("can't put that onto a FakeList of MemberInit");
-//      }
-//      return ((FakeList<MemberInit>*)list)->prepend((MemberInit*)datum);
-//      break;
-  }
-}
-
-void *ReadXml_Type::reverseFakeList(void *list, int listKind) {
-  switch(listKind) {
-  default: xfailure("attempt to reverse a non-FakeList token kind");
-//    case XTOK_FakeList_MemberInit:
-//      return ((FakeList<MemberInit>*)list)->reverse();
-//      break;
-  }
-}
-
-void ReadXml_Type::append2ASTList(void *list, int listKind, void *datum, int datumKind) {
+void ReadXml_Type::append2List(void *list, int listKind, void *datum, int datumKind) {
   switch(listKind) {
   default: xfailure("attempt to append to a non-ASTList token kind");
 //    case XTOK_ASTList_TopForm:
@@ -778,46 +727,49 @@ void ReadXml_Type::append2ASTList(void *list, int listKind, void *datum, int dat
   }
 }
 
-void ReadXml_Type::prepend2ObjList(void *list, int listKind, void *datum, int datumKind) {
-  switch(listKind) {
-  default: xfailure("attempt to prepend to a non-ObjList token kind");
-//    case XTOK_FakeList_MemberInit:
-//      if (!datumKind == XTOK_MemberInit) {
-//        userError("can't put that onto a FakeList of MemberInit");
-//      }
-//      return ((FakeList<MemberInit>*)list)->prepend((MemberInit*)datum);
-//      break;
+bool ReadXml_Type::kind2kindCat(int kind, KindCategory *kindCat) {
+  switch(kind) {
+  default: return false;        // we don't know this kind
+  // Types
+  case XTOK_CVAtomicType: *kindCat = KC_Node; break;
+  case XTOK_PointerType: *kindCat = KC_Node; break;
+  case XTOK_ReferenceType: *kindCat = KC_Node; break;
+  case XTOK_FunctionType: *kindCat = KC_Node; break;
+  case XTOK_ArrayType: *kindCat = KC_Node; break;
+  case XTOK_PointerToMemberType: *kindCat = KC_Node; break;
+  // AtomicTypes
+  case XTOK_SimpleType: *kindCat = KC_Node; break;
+  case XTOK_CompoundType: *kindCat = KC_Node; break;
+  case XTOK_EnumType: *kindCat = KC_Node; break;
+  case XTOK_TypeVariable: *kindCat = KC_Node; break;
+  case XTOK_PseudoInstantiation: *kindCat = KC_Node; break;
+  case XTOK_DependentQType: *kindCat = KC_Node; break;
+  // ObjList
+  case XTOK_CompoundType_bases_List: *kindCat = KC_ObjList; break;
+  case XTOK_CompoundType_virtualBases_List: *kindCat = KC_ObjList; break;
+  // SObjList
+  case XTOK_FunctionType_params_List: *kindCat = KC_SObjList; break;
+  case XTOK_CompoundType_dataMembers_List: *kindCat = KC_SObjList; break;
+  case XTOK_CompoundType_conversionOperators_List: *kindCat = KC_SObjList; break;
+  // StringRefMap
+  case XTOK_Scope_variables_Map: *kindCat = KC_StringRefMap; break;
+  case XTOK_Scope_typeTags_Map: *kindCat = KC_StringRefMap; break;
   }
+  return true;
 }
 
-void ReadXml_Type::reverseObjList(void *list, int listKind) {
-  switch(listKind) {
-  default: xfailure("attempt to reverse a non-ObjList token kind");
-//    case XTOK_FakeList_MemberInit:
-//      return ((FakeList<MemberInit>*)list)->reverse();
-//      break;
-  }
-}
-
-void ReadXml_Type::prepend2SObjList(void *list, int listKind, void *datum, int datumKind) {
-  switch(listKind) {
-  default: xfailure("attempt to prepend to a non-SObjList token kind");
-//    case XTOK_FakeList_MemberInit:
-//      if (!datumKind == XTOK_MemberInit) {
-//        userError("can't put that onto a FakeList of MemberInit");
-//      }
-//      return ((FakeList<MemberInit>*)list)->prepend((MemberInit*)datum);
-//      break;
-  }
-}
-
-void ReadXml_Type::reverseSObjList(void *list, int listKind) {
-  switch(listKind) {
-  default: xfailure("attempt to reverse a non-SObjList token kind");
-//    case XTOK_FakeList_MemberInit:
-//      return ((FakeList<MemberInit>*)list)->reverse();
-//      break;
-  }
+bool ReadXml_Type::convertList2FakeList(ASTList<char> *list, int listKind, void **target) {
+//    switch(listKind) {
+//    default: xfailure("attempt to prepend to a non-FakeList token kind");
+//  //    case XTOK_FakeList_MemberInit:
+//  //      if (!datumKind == XTOK_MemberInit) {
+//  //        userError("can't put that onto a FakeList of MemberInit");
+//  //      }
+//  //      return ((FakeList<MemberInit>*)list)->prepend((MemberInit*)datum);
+//  //      break;
+//    }
+  // FIX: change this to the switch default
+  return false;
 }
 
 bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
@@ -981,7 +933,10 @@ void ReadXml_Type::registerAttr_CVAtomicType
     fromXml(obj->cv, parseQuotedString(strValue));
     break;
   case XTOK_atomic:
-    linkSat.unsatLinks.append(new UnsatLink((void**) &(obj->atomic), parseQuotedString(strValue)));
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->atomic),
+                     parseQuotedString(strValue),
+                     XTOK_atomic));
     break;
   }
 }
@@ -996,7 +951,10 @@ void ReadXml_Type::registerAttr_PointerType
     fromXml(obj->cv, parseQuotedString(strValue));
     break;
   case XTOK_atType:
-    linkSat.unsatLinks.append(new UnsatLink((void**) &(obj->atType), parseQuotedString(strValue)));
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->atType),
+                     parseQuotedString(strValue),
+                     XTOK_atType));
     break;
   }
 }
@@ -1008,7 +966,10 @@ void ReadXml_Type::registerAttr_ReferenceType
     userError("illegal attribute for a ReferenceType");
     break;
   case XTOK_atType:
-    linkSat.unsatLinks.append(new UnsatLink((void**) &(obj->atType), parseQuotedString(strValue)));
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->atType),
+                     parseQuotedString(strValue),
+                     XTOK_atType));
     break;
   }
 }
@@ -1020,7 +981,10 @@ void ReadXml_Type::registerAttr_FunctionType
     userError("illegal attribute for a FunctionType");
     break;
   case XTOK_retType:
-    linkSat.unsatLinks.append(new UnsatLink((void**) &(obj->retType), parseQuotedString(strValue)));
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->retType),
+                     parseQuotedString(strValue),
+                     XTOK_retType));
     break;
   }
 }
@@ -1032,7 +996,10 @@ void ReadXml_Type::registerAttr_ArrayType
     userError("illegal attribute for a ArrayType");
     break;
   case XTOK_eltType:
-    linkSat.unsatLinks.append(new UnsatLink((void**) &(obj->eltType), parseQuotedString(strValue)));
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->eltType),
+                     parseQuotedString(strValue),
+                     XTOK_eltType));
     break;
   case XTOK_size:
     obj->size = atoi(parseQuotedString(strValue));
@@ -1050,10 +1017,16 @@ void ReadXml_Type::registerAttr_PointerToMemberType
     fromXml(obj->cv, parseQuotedString(strValue));
     break;
   case XTOK_atType:
-    linkSat.unsatLinks.append(new UnsatLink((void**) &(obj->atType), parseQuotedString(strValue)));
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->atType),
+                     parseQuotedString(strValue),
+                     XTOK_atType));
     break;
   case XTOK_inClassNAT:
-    linkSat.unsatLinks.append(new UnsatLink((void**) &(obj->inClassNAT), parseQuotedString(strValue)));
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->inClassNAT),
+                     parseQuotedString(strValue),
+                     XTOK_inClassNAT));
     break;
   }
 }
@@ -1104,7 +1077,10 @@ void ReadXml_Type::registerAttr_CompoundType
     obj->instName = strTable(parseQuotedString(strValue));
     break;
   case XTOK_selfType:
-    linkSat.unsatLinks.append(new UnsatLink((void**) &(obj->selfType), parseQuotedString(strValue)));
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->selfType),
+                     parseQuotedString(strValue),
+                     XTOK_selfType));
     break;
   }
 }

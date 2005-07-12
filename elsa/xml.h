@@ -13,6 +13,9 @@
 class AstXmlLexer;
 class StringTable;
 
+// forwards in this file
+class ReadXml;
+
 
 // I have manually mangled the name to include "_bool" as otherwise
 // what happens is that if a toXml() for some enum flag is missing
@@ -21,46 +24,6 @@ class StringTable;
 string toXml_bool(bool b);
 void fromXml_bool(bool &b, string str);
 
-
-
-// -------------------- LinkSatisfier -------------------
-
-// datastructures for dealing with unsatisified links; FIX: we can
-// do the in-place recording of a lot of these unsatisified links
-// (not the ast links)
-struct UnsatLink {
-  void **ptr;
-  string id;
-  UnsatLink(void **ptr0, string id0)
-    : ptr(ptr0), id(id0)
-  {};
-};
-
-// manages recording unsatisfied links and satisfying them later
-class LinkSatisfier {
-  public:
-  // Since AST nodes are embedded, we have to put this on to a
-  // different list than the ususal pointer unsatisfied links.  I have
-  // to separate ASTList unsatisfied links out, so I might as well
-  // just separate everything.
-  ASTList<UnsatLink> unsatLinks_ASTList;
-  ASTList<UnsatLink> unsatLinks_FakeList;
-  ASTList<UnsatLink> unsatLinks;
-
-  // map object ids to the actual object
-  StringSObjDict<void> id2obj;
-
-  public:
-  LinkSatisfier() {}
-
-  void satisfyLinks();
-};
-
-
-// -------------------- ReadXml -------------------
-
-// Framework for reading an XML file.  A subclass must fill in the
-// methods that need to know about individual tags.
 
 // there are 3 categories of kinds of Tags
 enum KindCategory {
@@ -71,6 +34,55 @@ enum KindCategory {
   KC_SObjList,                  // an SObjList
   KC_StringRefMap,              // a StringRefMap
 };
+
+
+// -------------------- LinkSatisfier -------------------
+
+// datastructures for dealing with unsatisified links; FIX: we can
+// do the in-place recording of a lot of these unsatisified links
+// (not the ast links)
+struct UnsatLink {
+  void **ptr;
+  string id;
+  int kind;
+  UnsatLink(void **ptr0, string id0, int kind0);
+};
+
+// manages recording unsatisfied links and satisfying them later
+class LinkSatisfier {
+  // I need this because it know how to get the FakeLists out of the
+  // generic (AST) lists.  This is a bit of a kludge.
+  ASTList<ReadXml> readers;
+
+  public:
+  // Since AST nodes are embedded, we have to put this on to a
+  // different list than the ususal pointer unsatisfied links.  I just
+  // separate out all lists.
+  ASTList<UnsatLink> unsatLinks_List;
+  ASTList<UnsatLink> unsatLinks;
+
+  // map object ids to the actual object
+  StringSObjDict<void> id2obj;
+
+  public:
+  LinkSatisfier() {}
+  ~LinkSatisfier() {
+    // FIX: don't delete these for now so that when we destruct we
+    // won't take them with us
+    readers.removeAll_dontDelete();
+  }
+
+  void registerReader(ReadXml *reader);
+  void *convertList2FakeList(ASTList<char> *list, int listKind);
+  bool kind2kindCat(int kind, KindCategory *kindCat);
+  void satisfyLinks();
+};
+
+
+// -------------------- ReadXml -------------------
+
+// Framework for reading an XML file.  A subclass must fill in the
+// methods that need to know about individual tags.
 
 class ReadXml {
   protected:
@@ -125,22 +137,13 @@ class ReadXml {
   void userError(char const *msg) NORETURN;
 
   // **** subclass fills these in
-
+  public:
+  // append a list element to a list
+  virtual void append2List(void *list, int listKind, void *datum, int datumKind) = 0;
   // map a kind to its kind category
-  virtual KindCategory kind2kindCat(int kind) = 0;
-
-  // operate on kinds of lists
-  virtual void *prepend2FakeList(void *list, int listKind, void *datum, int datumKind) = 0;
-  virtual void *reverseFakeList(void *list, int listKind) = 0;
-
-  virtual void append2ASTList(void *list, int listKind, void *datum, int datumKind) = 0;
-
-  virtual void prepend2ObjList(void *list, int listKind, void *datum, int datumKind) = 0;
-  virtual void reverseObjList(void *list, int listKind) = 0;
-
-  virtual void prepend2SObjList(void *list, int listKind, void *datum, int datumKind) = 0;
-  virtual void reverseSObjList(void *list, int listKind) = 0;
-
+  virtual bool kind2kindCat(int kind, KindCategory *ret) = 0;
+  // all lists are stored as ASTLists; this converts to FakeLists
+  virtual bool convertList2FakeList(ASTList<char> *list, int listKind, void **target) = 0;
   // construct a node for a tag; returns true if it was a closeTag
   virtual bool ctorNodeFromTag(int tag, void *&topTemp) = 0;
   // register an attribute into the current node

@@ -18,13 +18,44 @@ void fromXml_bool(bool &b, string str) {
 
 // -------------------- LinkSatisfier -------------------
 
+UnsatLink::UnsatLink(void **ptr0, string id0, int kind0)
+  : ptr(ptr0), id(id0), kind(kind0)
+{};
+
+void LinkSatisfier::registerReader(ReadXml *reader) {
+  xassert(reader);
+  readers.append(reader);
+}
+
+void *LinkSatisfier::convertList2FakeList(ASTList<char> *list, int listKind) {
+  FOREACH_ASTLIST_NC(ReadXml, readers, iter) {
+    ReadXml *reader = iter.data();
+    void *target;
+    if (reader->convertList2FakeList(list, listKind, &target)) {
+      return target;
+    }
+  }
+  THROW(xBase(stringc << "no converter for FakeList type"));
+}
+
+bool LinkSatisfier::kind2kindCat(int kind, KindCategory *kindCat) {
+  FOREACH_ASTLIST_NC(ReadXml, readers, iter) {
+    ReadXml *reader = iter.data();
+    if (reader->kind2kindCat(kind, kindCat)) {
+      return true;
+    }
+  }
+//    THROW(xBase(stringc << "no kind category registered for this kind"));
+  return false;
+}
+
 void LinkSatisfier::satisfyLinks() {
-  // Nodes
+  // AST
   FOREACH_ASTLIST(UnsatLink, unsatLinks, iter) {
     UnsatLink const *ul = iter.data();
     void *obj = id2obj.queryif(ul->id);
     if (obj) {
-      *(ul->ptr) = obj;         // ahhhh!
+      *(ul->ptr) = obj;
     } else {
       // no satisfaction was provided for this link; for now we just
       // skip it, but if you wanted to report that in some way, here
@@ -33,29 +64,38 @@ void LinkSatisfier::satisfyLinks() {
     }
   }
 
-  // FakeLists
-  FOREACH_ASTLIST(UnsatLink, unsatLinks_FakeList, iter) {
-    UnsatLink const *ul = iter.data();
-    void *obj = id2obj.queryif(ul->id);
-    if (obj) {
-      *(ul->ptr) = obj;         // ahhhh!
-    } else {
-      // no satisfaction was provided for this link; for now we just
-      // skip it, but if you wanted to report that in some way, here
-      // is the place to do it
-//        cout << "unsatisfied FakeList link: " << ul->id << endl;
-    }
-  }
-
-  // ASTLists
-  FOREACH_ASTLIST(UnsatLink, unsatLinks_ASTList, iter) {
+  // Lists
+  FOREACH_ASTLIST(UnsatLink, unsatLinks_List, iter) {
     UnsatLink const *ul = iter.data();
     // NOTE: I rely on the fact that all ASTLists just contain
     // pointers; otherwise this cast would cause problems; Note that I
     // have to use char instead of void because you can't delete a
     // pointer to void; see the note in the if below.
     ASTList<char> *obj = reinterpret_cast<ASTList<char>*>(id2obj.queryif(ul->id));
-    if (obj) {
+    if (!obj) {
+      // no satisfaction was provided for this link; for now we just
+      // skip it, but if you wanted to report that in some way, here
+      // is the place to do it
+      //        cout << "unsatisfied List link: " << ul->id << endl;
+      continue;
+    }
+
+    KindCategory kindCat;
+    bool foundIt = kind2kindCat(ul->kind, &kindCat);
+    if (!foundIt) {
+      THROW(xBase(stringc << "no kind category registered for this kind"));
+    }
+    switch (kindCat) {
+    default:
+      xfailure("illegal list kind");
+      break;
+
+    case KC_ASTList: {
+      // Recall that ASTLists are used in a class by embeding them.
+      // Therefore, a pointer to the field to be filled in is a
+      // pointer to an ASTList, not a pointer to a pointer to an
+      // ASTList, as one might expect for most other classes that were
+      // used in a host class by being pointed to.
       ASTList<char> *ptr = reinterpret_cast<ASTList<char>*>(ul->ptr);
       xassert(ptr->isEmpty());
       // this is particularly tricky because the steal contains a
@@ -64,16 +104,30 @@ void LinkSatisfier::satisfyLinks() {
       // trouble because you can't call delete on a pointer to an
       // object the size of which is different from the size you think
       // it is due to a type you cast it too.
-      ptr->steal(obj);          // ahhhh!
-    } else {
-      // no satisfaction was provided for this link; for now we just
-      // skip it, but if you wanted to report that in some way, here
-      // is the place to do it
-//        cout << "unsatisfied ASTList link: " << ul->id << endl;
+      ptr->steal(obj);
+      // it seems that I should not subsequently delete the list as
+      // the steal has deleted the voidlist of the ASTList and it
+      // seems to be a bug to try to then delete the ASTList that has
+      // been stolen from
+      break;
+    }
+
+    case KC_FakeList: {
+      // Convert the ASTList we used to store the FakeList into a real
+      // FakeList and hook in all of the pointers.  This is
+      // type-specific, so generated code must do it that can switch
+      // on the templatized type of the FakeList.
+      *(ul->ptr) = convertList2FakeList(obj, ul->kind);
+      // Make the list dis-own all of its contents so it doesn't delete
+      // them when we delete it.  Yes, I should have used a non-owning
+      // constant-time-append list.
+      obj->removeAll_dontDelete();
+      // delete the ASTList
+      delete obj;
+      break;
+    }
     }
   }
-
-  // VoidLists
 }
 
 
@@ -82,7 +136,6 @@ void LinkSatisfier::satisfyLinks() {
 void ReadXml::reset() {
   lastNode = NULL;
   lastKind = 0;
-  lastFakeListId = NULL;
   xassert(nodeStack.isEmpty());
   xassert(kindStack.isEmpty());
 }
@@ -93,7 +146,7 @@ void ReadXml::userError(char const *msg) {
 
 bool ReadXml::parse() {
   reset();
-  while(1) {
+  while(true) {
     // state: looking for a tag start
     int start = lexer.yylex();
 //      printf("start:%s\n", lexer.tokenKindDesc(start).c_str());
@@ -109,27 +162,9 @@ bool ReadXml::parse() {
     void *topTemp;
     bool sawCloseTag = ctorNodeFromTag(tag, topTemp);
     if (sawCloseTag) goto close_tag;
+    xassert(topTemp);
     nodeStack.push(topTemp);
     kindStack.push(new int(tag));
-
-    // This funnyness is due to the fact that when we see a FakeList
-    // tag, we make an empty FakeList, so there is nothing to put into
-    // in the id2obj map, so we don't put anything there.  Instead we
-    // store the id in lastFakeListId and then when we get the first
-    // child, we finally know the FakeList address so we file that
-    // under the id.
-    if (lastFakeListId) {
-      if (linkSat.id2obj.isMapped(lastFakeListId)) {
-        userError(stringc << "this id is taken " << lastFakeListId);
-      }
-//        cout << "(FakeList) id2obj.add(" << lastFakeListId
-//             << ", " << static_cast<void const*>(nodeStack.top())
-//             << ")\n";
-      linkSat.id2obj.add(lastFakeListId, nodeStack.top());
-      delete lastFakeListId;
-      lastFakeListId = NULL;
-    }
-
     readAttributes();
     continue;
 
@@ -157,23 +192,6 @@ bool ReadXml::parse() {
     lastNode = nodeStack.pop();
     // FIX: do I delete this int on the heap or does the stack do it?
     lastKind = *kindStack.pop();
-
-    // if the last kind was a fakelist, reverse it
-    int lastKindCat = kind2kindCat(lastKind);
-    if (lastKindCat == KC_FakeList) {
-      reverseFakeList(lastNode, lastKind);
-      // NOTE: it may seem rather bizarre, but we just throw away the
-      // reversed list.  The first node in the list was the one that
-      // we saw first and it was filed in the hashtable under the id
-      // of the first element.  Therefore, whatever points to the
-      // first element in the list will do so when the unsatisfied
-      // links are filled in from the hashtable.
-    } else if (lastKindCat == KC_ObjList) {
-      reverseObjList(lastNode, lastKind);
-    } else if (lastKindCat == KC_SObjList) {
-      reverseSObjList(lastNode, lastKind);
-    }
-
     // if the node up the stack is a list, put this element onto that
     // list
     if (nodeStack.isEmpty()) {
@@ -181,20 +199,21 @@ bool ReadXml::parse() {
       xassert(kindStack.isEmpty());
       return false;
     } else {
+      xassert(nodeStack.isNotEmpty());
+      xassert(kindStack.isNotEmpty());
       int topKind = *kindStack.top();
-      int topKindCat = kind2kindCat(topKind);
-      if (topKindCat == KC_FakeList) {
-        // there is no way to reset the top so I just pop and push again
-//          cout << "prepend2FakeList nodeStack.top(): " << static_cast<void const*>(nodeStack.top());
-        void *tmpNewTop = prepend2FakeList(nodeStack.pop(), topKind, lastNode, lastKind);
-//          cout << ", tmpNewTop: " << static_cast<void const*>(tmpNewTop) << endl;
-        nodeStack.push(tmpNewTop);
-      } else if (topKindCat == KC_ASTList) {
-        append2ASTList(nodeStack.top(), topKind, lastNode, lastKind);
-      } else if (topKindCat == KC_SObjList) {
-        prepend2SObjList(nodeStack.top(), topKind, lastNode, lastKind);
-      } else if (topKindCat == KC_ObjList) {
-        prepend2ObjList(nodeStack.top(), topKind, lastNode, lastKind);
+      KindCategory topKindCat;
+      bool found = kind2kindCat(topKind, &topKindCat);
+      // FIX: maybe this should be an assertion
+      if (!found) {
+        userError("no category found for this kind");
+      }
+      if (topKindCat == KC_FakeList ||
+          topKindCat == KC_ASTList  ||
+          topKindCat == KC_SObjList ||
+          topKindCat == KC_ObjList  ){
+        xassert(nodeStack.top());
+        append2List(nodeStack.top(), topKind, lastNode, lastKind);
       }
     }
   }
@@ -240,30 +259,10 @@ void ReadXml::readAttributes() {
     if (attr == XTOK_DOT_ID) {
       // FIX: I really hope the map makes a copy of this string
       string id0 = parseQuotedString(lexer.YYText());
-      if (strcmp(id0.c_str(), "FL0") == 0
-          // these should not be possible and the isMapped check below
-          // would catch it if they occured:
-          //  || strcmp(id0.c_str(), "0AL") == 0
-          //  || strcmp(id0.c_str(), "0ND") == 0
-          ) {
-//          // otherwise its null and there is nothing to record; UPDATE:
-//          // I no longer understand this code here
-//          if (nodeStack.top()) {
-//            userError("FakeList with FL0 id should be empty");
-//          }
-        xfailure("We should never get an empty fakelist");
-      } else if (strncmp(id0.c_str(), "FL", 2) == 0) {
-        xassert(!lastFakeListId);
-        lastFakeListId = strdup(id0.c_str());
-      } else {
-        if (linkSat.id2obj.isMapped(id0)) {
-          userError(stringc << "this id is taken " << id0);
-        }
-//          cout << "id2obj.add(" << id0
-//               << ", " << static_cast<void const*>(nodeStack.top())
-//               << ")\n";
-        linkSat.id2obj.add(id0, nodeStack.top());
+      if (linkSat.id2obj.isMapped(id0)) {
+        userError(stringc << "this id is taken " << id0);
       }
+      linkSat.id2obj.add(id0, nodeStack.top());
     }
 
     // attribute other than '.id'

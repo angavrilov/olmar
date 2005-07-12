@@ -23,24 +23,10 @@ class ReadXml_AST : public ReadXml {
   {}
 
   private:
-  // map a kind to its kind category
-  KindCategory kind2kindCat(int kind);
-
-  // operate on kinds of lists
-  void *prepend2FakeList(void *list, int listKind, void *datum, int datumKind);
-  void *reverseFakeList(void *list, int listKind);
-
-  void append2ASTList(void *list, int listKind, void *datum, int datumKind);
-
-  void prepend2ObjList(void *list, int listKind, void *datum, int datumKind);
-  void reverseObjList(void *list, int listKind);
-
-  void prepend2SObjList(void *list, int listKind, void *datum, int datumKind);
-  void reverseSObjList(void *list, int listKind);
-
-  // construct a node for a tag
+  void append2List(void *list, int listKind, void *datum, int datumKind);
+  bool kind2kindCat(int kind, KindCategory *ret);
+  bool convertList2FakeList(ASTList<char> *list, int listKind, void **target);
   bool ctorNodeFromTag(int tag, void *&topTemp);
-  // register an attribute into the current node
   void registerAttribute(void *target, int kind, int attr, char const *yytext0);
 
 //    // INSERT per ast node
@@ -75,61 +61,6 @@ void ReadXml_AST::registerAttribute(void *target, int kind, int attr, char const
   }
 }
 
-//  // INSERT per ast node
-//  void ReadXml::registerAttr_TranslationUnit(TranslationUnit *obj, int attr, char const *strValue)
-//  {
-//    switch(attr) {
-//    default:
-//      userError("illegal attribute for a TranslationUnit");
-//      break;
-//    case XTOK_topForms:
-//  //      obj->topForms = strdup(strValue);
-//      break;
-//    }
-//  }
-
-void ReadXml_AST::prepend2ObjList(void *list, int listKind, void *datum, int datumKind) {
-  switch(listKind) {
-  default: xfailure("attempt to prepend to a non-ObjList token kind");
-//    case XTOK_FakeList_MemberInit:
-//      if (!datumKind == XTOK_MemberInit) {
-//        userError("can't put that onto a FakeList of MemberInit");
-//      }
-//      return ((FakeList<MemberInit>*)list)->prepend((MemberInit*)datum);
-//      break;
-  }
-}
-
-void ReadXml_AST::reverseObjList(void *list, int listKind) {
-  switch(listKind) {
-  default: xfailure("attempt to reverse a non-ObjList token kind");
-//    case XTOK_FakeList_MemberInit:
-//      return ((FakeList<MemberInit>*)list)->reverse();
-//      break;
-  }
-}
-
-void ReadXml_AST::prepend2SObjList(void *list, int listKind, void *datum, int datumKind) {
-  switch(listKind) {
-  default: xfailure("attempt to prepend to a non-SObjList token kind");
-//    case XTOK_FakeList_MemberInit:
-//      if (!datumKind == XTOK_MemberInit) {
-//        userError("can't put that onto a FakeList of MemberInit");
-//      }
-//      return ((FakeList<MemberInit>*)list)->prepend((MemberInit*)datum);
-//      break;
-  }
-}
-
-void ReadXml_AST::reverseSObjList(void *list, int listKind) {
-  switch(listKind) {
-  default: xfailure("attempt to reverse a non-SObjList token kind");
-//    case XTOK_FakeList_MemberInit:
-//      return ((FakeList<MemberInit>*)list)->reverse();
-//      break;
-  }
-}
-
 #include "astxml_parse1_1defn.gen.cc"
 
 
@@ -145,6 +76,7 @@ TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
 
   // this is going to parse one top-level tag
   ReadXml_AST astReader(inputFname, lexer, strTable, linkSatisifier);
+  linkSatisifier.registerReader(&astReader);
   bool sawEof = astReader.parse();
   xassert(!sawEof);
   TranslationUnit *tunit = (TranslationUnit*) astReader.getLastNode();
@@ -153,6 +85,7 @@ TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
   // at EOF
   BasicTypeFactory tFac;
   ReadXml_Type typeReader(inputFname, lexer, strTable, linkSatisifier, tFac);
+  linkSatisifier.registerReader(&typeReader);
   while(1) {
     bool sawEof = typeReader.parse();
     if (sawEof) break;

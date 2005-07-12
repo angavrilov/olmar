@@ -134,27 +134,14 @@ class ReadXml_Type : public ReadXml {
     , tFac(tFac0)
   {}
 
-  private:
-  // map a kind to its kind category
-  KindCategory kind2kindCat(int kind);
-
-  // operate on lists
-  void *prepend2FakeList(void *list, int listKind, void *datum, int datumKind);
-  void *reverseFakeList(void *list, int listKind);
-
-  void append2ASTList(void *list, int listKind, void *datum, int datumKind);
-
-  void prepend2ObjList(void *list, int listKind, void *datum, int datumKind);
-  void reverseObjList(void *list, int listKind);
-
-  void prepend2SObjList(void *list, int listKind, void *datum, int datumKind);
-  void reverseSObjList(void *list, int listKind);
-
-  // construct a node for a tag
+  public:
+  void append2List(void *list, int listKind, void *datum, int datumKind);
+  bool kind2kindCat(int kind, KindCategory *kindCat);
+  bool convertList2FakeList(ASTList<char> *list, int listKind, void **target);
   bool ctorNodeFromTag(int tag, void *&topTemp);
-  // register an attribute into the current node
   void registerAttribute(void *target, int kind, int attr, char const *yytext0);
 
+  private:
   // Types
   void registerAttr_CVAtomicType       (CVAtomicType *obj,        int attr, char const *strValue);
   void registerAttr_PointerType        (PointerType *obj,         int attr, char const *strValue);
