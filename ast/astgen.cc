@@ -2168,19 +2168,23 @@ void CGen::emitXmlVisitorImplementation()
     out << "bool " << xmlVisitorName << "::visitFakeList_" << cls
         << "(FakeList<" << cls << ">* obj) {\n";
     out << "  xassert(!wasVisitedList_FakeList(obj));\n";
-    out << "  if (indent) printIndentation();\n";
-    out << "  out << \"<FakeList_" << cls << " .id=\\\"\";\n";
-    out << "  xmlPrintPointer(out, \"FL\", obj);\n";
-    out << "  out << \"\\\">\\n\";\n";
-    out << "  ++depth;\n";
+    out << "  if (obj) {\n";
+    out << "    if (indent) printIndentation();\n";
+    out << "    out << \"<FakeList_" << cls << " .id=\\\"\";\n";
+    out << "    xmlPrintPointer(out, \"FL\", obj);\n";
+    out << "    out << \"\\\">\\n\";\n";
+    out << "    ++depth;\n";
+    out << "  }\n";
     out << "  return true;\n";
     out << "}\n\n";
 
     out << "void " << xmlVisitorName << "::postvisitFakeList_" << cls
         << "(FakeList<" << cls << ">* obj) {\n";
-    out << "  --depth;\n";
-    out << "  if (indent) printIndentation();\n";
-    out << "  out << \"</FakeList_" << cls << ">\\n\";\n";
+    out << "  if (obj) {\n";
+    out << "    --depth;\n";
+    out << "    if (indent) printIndentation();\n";
+    out << "    out << \"</FakeList_" << cls << ">\\n\";\n";
+    out << "  }\n";
     out << "}\n\n";
   }
 
