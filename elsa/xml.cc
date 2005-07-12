@@ -246,11 +246,12 @@ void ReadXml::readAttributes() {
           //  || strcmp(id0.c_str(), "0AL") == 0
           //  || strcmp(id0.c_str(), "0ND") == 0
           ) {
-        // otherwise its null and there is nothing to record; UPDATE:
-        // I no longer understand this code here
-        if (nodeStack.top()) {
-          userError("FakeList with FL0 id should be empty");
-        }
+//          // otherwise its null and there is nothing to record; UPDATE:
+//          // I no longer understand this code here
+//          if (nodeStack.top()) {
+//            userError("FakeList with FL0 id should be empty");
+//          }
+        xfailure("We should never get an empty fakelist");
       } else if (strncmp(id0.c_str(), "FL", 2) == 0) {
         xassert(!lastFakeListId);
         lastFakeListId = strdup(id0.c_str());
