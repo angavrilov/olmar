@@ -882,9 +882,6 @@ void TF_namespaceDecl::print(PrintEnv &env)
 void Function::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("Function");
-  static int count0 = 0;
-  ++count0;
-
   TypeLike const *type0 = funcType;
 #ifdef OINK
   // NOTE: Templatized functions do not have an abstract value so
