@@ -2501,8 +2501,7 @@ void XmlParserGen::emitXmlField_AttributeParseRule
            (isTreeNodePtr(type) && isOwner)) {
     parser1_defs << "    case XTOK_" << name << ":\n";
     parser1_defs << "      linkSat.unsatLinks.append(new UnsatLink("
-                 << "(void**) &(obj->" << name << "), parseQuotedString(strValue), "
-                 << "XTOK_" << name << "));\n";
+                 << "(void**) &(obj->" << name << "), parseQuotedString(strValue)));\n";
     parser1_defs << "      break;\n";
   }
   else {
