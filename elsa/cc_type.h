@@ -97,6 +97,18 @@ public:
   virtual bool visitAtomicType(AtomicType *obj);
   virtual void postvisitAtomicType(AtomicType *obj);
 
+  // I don't know where to say this, so I'll say it here: there is no
+  // call in EnumType::traverse() that will take you here; visitors
+  // call it manually.  However, the existance of these methods allows
+  // you to organize your code in the same way as you would for the
+  // other classes.
+  //
+  // Also, please note that I cannot forward declare EnumType::Value,
+  // so unless I move this class until after class Enum, I have to
+  // make the argument type void!
+  virtual bool visitEnumType_Value(void /*EnumType::Value*/ *obj);
+  virtual void postvisitEnumType_Value(void /*EnumType::Value*/ *obj);
+
   virtual bool visitScope(Scope *obj);
   virtual void postvisitScope(Scope *obj);
 

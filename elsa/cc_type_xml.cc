@@ -482,8 +482,9 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     ++depth;
 
     toXml_NamedAtomicType_properties(e);
-//      printIndentation();
-    //    StringObjDict<Value> valueIndex;    // values in this enumeration
+
+    printIndentation();
+    out << "valueIndex=\"TY" << static_cast<void const*>(&(e->valueIndex)) << "\"\n";
 
     printIndentation();
     out << "nextValue=\"" << e->nextValue << "\">";
@@ -491,6 +492,27 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     // **** subtags
 
     toXml_NamedAtomicType_subtags(e);
+
+    out << "<EnumType_valueIndex";
+    out << " .id=\"SO" << static_cast<void const*>(&(e->valueIndex)) << "\">\n";
+    ++depth;
+    // FIX: put an interator here for an StringSObjDict.
+//      SFOREACH_OBJLIST_NC(EnumType::Value, cpd->valueIndex, iter) {
+//        EnumType::Value *eValue = iter.data();
+//        // The usual traversal rountine will not go down into here, so
+//        // we have to.
+    // NOTE: I omit putting a traverse method on EnumType::Value as it
+    // should be virtual to be parallel to the other traverse()
+    // methods which would add a vtable and I don't think it would
+    // ever be used anyway.  So I just inline it here.
+//        visitEnumType_Value(eValue);
+    // assert return is true;
+//        postvisitEnumType_Value(eValue);
+//      }
+    --depth;
+    printIndentation();
+    out << "</EnumType_valueIndex>\n";
+
     break;
   }
 
@@ -590,6 +612,50 @@ void ToXMLTypeVisitor::postvisitAtomicType(AtomicType *obj) {
     out << "</DependentQType>\n";
     break;
   }
+}
+
+
+bool ToXMLTypeVisitor::visitEnumType_Value(void /*EnumType::Value*/ *eValue0) {
+  EnumType::Value *eValue = static_cast<EnumType::Value*>(eValue0);
+  if (printedObjects.contains(eValue)) return false;
+  printedObjects.add(eValue);
+  printIndentation();
+  out << "<EnumType_Value";
+  out << " .id=\"TY" << static_cast<void const*>(eValue) << "\"\n";
+  ++depth;
+
+  printIndentation();
+  out << "name=" << quoted(eValue->name) << "\n";
+
+  printIndentation();
+  out << "type=\"TY" << static_cast<void const*>(&(eValue->type)) << "\"\n";
+
+  printIndentation();
+  out << "value=\"" << eValue->value << "\">";
+
+  if (eValue->decl) {
+    printIndentation();
+    out << "decl=\"TY" << static_cast<void const*>(&(eValue->decl)) << "\"\n";
+  }
+
+  // **** subtags
+  //
+  // NOTE: the hypothetical EnumType::Value::traverse() method would
+  // probably do this, so perhaps it should be inlined above where
+  // said hypothetical method would go, but instead I just put it here
+  // as it seems just as natural.
+
+  eValue->type->traverse(*this);
+  eValue->decl->traverse(*this);
+
+  return true;
+}
+
+void ToXMLTypeVisitor::postvisitEnumType_Value(void /*EnumType::Value*/ *eValue0) {
+//    EnumType::Value *eValue = static_cast<EnumType::Value*>(eValue0);
+  --depth;
+  printIndentation();
+  out << "</EnumType_Value>\n";
 }
 
 
@@ -1276,8 +1342,46 @@ void ReadXml_Type::registerAttr_EnumType
     userError("illegal attribute for a EnumType");
     break;
 
+  case XTOK_valueIndex:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->valueIndex),
+                     parseQuotedString(strValue)));
+    break;
+
   case XTOK_nextValue:
     obj->nextValue = atoi(parseQuotedString(strValue));
+    break;
+
+  }
+}
+
+void ReadXml_Type::registerAttr_EnumType_Value
+  (EnumType::Value *obj, int attr, char const *strValue) {
+
+  switch(attr) {
+  default:
+    userError("illegal attribute for a EnumType");
+    break;
+
+  case XTOK_name:
+    obj->name = strTable(parseQuotedString(strValue));
+    break;
+
+  case XTOK_type:
+    // NOTE: actually an atomic type
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->type),
+                     parseQuotedString(strValue)));
+    break;
+
+  case XTOK_value:
+    obj->value = atoi(parseQuotedString(strValue));
+    break;
+
+  case XTOK_decl:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->decl),
+                     parseQuotedString(strValue)));
     break;
 
   }

@@ -58,6 +58,9 @@ class ToXMLTypeVisitor : public TypeVisitor {
   virtual bool visitAtomicType(AtomicType *obj);
   virtual void postvisitAtomicType(AtomicType *obj);
 
+  virtual bool visitEnumType_Value(void /*EnumType::Value*/ *eValue0);
+  virtual void postvisitEnumType_Value(void /*EnumType::Value*/ *eValue0);
+
   virtual void toXml_Scope_properties(Scope *scope);
   virtual void toXml_Scope_subtags(Scope *scope);
   virtual bool visitScope(Scope *obj);
@@ -156,6 +159,7 @@ class ReadXml_Type : public ReadXml {
   void registerAttr_SimpleType         (SimpleType *obj,          int attr, char const *strValue);
   void registerAttr_CompoundType       (CompoundType *obj,        int attr, char const *strValue);
   void registerAttr_EnumType           (EnumType *obj,            int attr, char const *strValue);
+  void registerAttr_EnumType_Value     (EnumType::Value *obj,     int attr, char const *strValue);
   void registerAttr_TypeVariable       (TypeVariable *obj,        int attr, char const *strValue);
   void registerAttr_PseudoInstantiation(PseudoInstantiation *obj, int attr, char const *strValue);
   void registerAttr_DependentQType     (DependentQType *obj,      int attr, char const *strValue);
