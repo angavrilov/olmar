@@ -1359,8 +1359,12 @@ void Scope::traverse(TypeVisitor &vis)
     vis.postvisitScopeTypeTags(typeTags);
   }
 
-  parentScope->traverse(vis);
-  namespaceVar->traverse(vis);
+  if (parentScope) {
+    parentScope->traverse(vis);
+  }
+  if (namespaceVar) {
+    namespaceVar->traverse(vis);
+  }
 
   // turn this on when we do templates
 //    if (vis.visitScopeTemplateParams(this)) {
@@ -1382,7 +1386,9 @@ void Scope::traverse(TypeVisitor &vis)
   // there it is.
 //    CompoundType *curCompound;          // (serf) CompoundType we're building
 //    Should not be being used after typechecking, but in theory could omit.
-  curCompound->traverse(vis);
+  if (curCompound) {
+    curCompound->traverse(vis);
+  }
 
   vis.postvisitScope(this);
 }

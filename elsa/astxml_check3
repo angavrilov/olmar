@@ -17,6 +17,7 @@ my @outfiles = ();
 my %outfile2command = ();
 
 my $outdir;
+my $verbose = 0;
 
 my $usage=<<END
 Usage: $0 -d <outputdir> <inputlist>...
@@ -35,6 +36,8 @@ if (+@ARGV==0) {
         $outdir = shift @ARGV;
         die "No argument to -d\n" unless defined $outdir;
         die "No such dir: $outdir\n" unless -d $outdir;
+    } elsif ($arg=~/^-v/) {
+        $verbose++;
     } else {
         push @names, $arg;
     }
@@ -65,6 +68,7 @@ sub run_command ($$) {
     my $realcommand = "$command >> $outfile";
     $outfile2command{$outfile} = $realcommand;
     push @outfiles, $outfile;
+#    print "$command\n";
     run_only $command, $outfile;
 }
 
@@ -101,7 +105,7 @@ for my $name(@names) {
 #                      "$outname.C2.xml.cc");
     };
     if ($@) {
-        dump_outfiles();
+        dump_outfiles() if $verbose;
         push @failingFiles, $name;
         print "ERROR: $@\n";
         next;
@@ -119,7 +123,7 @@ for my $name(@names) {
 #      if ($diff_res == 0) {
         ++$numpass;
 #      } else {
-#          dump_outfiles();
+#          dump_outfiles() if $verbose;
 #          push @failingFiles, $name;
 #      }
 }

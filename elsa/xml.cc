@@ -39,6 +39,7 @@ void *LinkSatisfier::convertList2FakeList(ASTList<char> *list, int listKind) {
 }
 
 bool LinkSatisfier::kind2kindCat(int kind, KindCategory *kindCat) {
+  xassert(kind != -1);          // this means you shouldn't be asking
   FOREACH_ASTLIST_NC(ReadXml, readers, iter) {
     ReadXml *reader = iter.data();
     if (reader->kind2kindCat(kind, kindCat)) {
@@ -53,6 +54,7 @@ void LinkSatisfier::satisfyLinks() {
   // AST
   FOREACH_ASTLIST(UnsatLink, unsatLinks, iter) {
     UnsatLink const *ul = iter.data();
+    xassert(ul->kind == -1);
     void *obj = id2obj.queryif(ul->id);
     if (obj) {
       *(ul->ptr) = obj;

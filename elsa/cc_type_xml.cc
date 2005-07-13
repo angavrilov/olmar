@@ -2,6 +2,7 @@
 
 #include "cc_type_xml.h"        // this module
 #include "variable.h"           // Variable
+#include "cc_flags.h"           // fromXml(DeclFlags &out, string str)
 #include "asthelp.h"            // xmlPrintPointer
 
 #include "strutil.h"            // parseQuotedString
@@ -44,7 +45,9 @@ void ToXMLTypeVisitor::printIndentation() {
 }
 
 bool ToXMLTypeVisitor::visitType(Type *obj) {
-  if (printedTypes.contains(obj)) return false;
+  if (printedObjects.contains(obj)) return false;
+  printedObjects.add(obj);
+
   printIndentation();
 
   switch(obj->getTag()) {
@@ -54,10 +57,13 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     out << "<CVAtomicType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
+
     printIndentation();
     out << "atomic=\"TY" << static_cast<void const*>(atom->atomic) << "\"\n";
+
     printIndentation();
     out << "cv=\"" << toXml(atom->cv) << "\">\n";
+
     break;
   }
   case Type::T_POINTER: {
@@ -65,10 +71,13 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     out << "<PointerType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
+
     printIndentation();
     out << "cv=\"" << toXml(ptr->cv) << "\"\n";
+
     printIndentation();
     out << "atType=\"TY" << static_cast<void const*>(ptr->atType) << "\">\n";
+
     break;
   }
   case Type::T_REFERENCE: {
@@ -76,8 +85,10 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     out << "<ReferenceType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
+
     printIndentation();
     out << "atType=\"TY" << static_cast<void const*>(ref->atType) << "\">\n";
+
     break;
   }
   case Type::T_FUNCTION: {
@@ -85,12 +96,16 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     out << "<FunctionType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
+
     printIndentation();
     out << "flags=\"" << toXml(func->flags) << "\"\n";
+
     printIndentation();
     out << "retType=\"TY" << static_cast<void const*>(func->retType) << "\"\n";
+
     printIndentation();
     out << "params=\"SO" << static_cast<void const*>(&(func->params)) << "\"\n";
+
     // FIX: skip this for now
     // ExnSpec *exnSpec;                  // (nullable owner)
 
@@ -105,10 +120,13 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     out << "<ArrayType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
+
     printIndentation();
     out << "eltType=\"TY" << static_cast<void const*>(arr->eltType) << "\"\n";
+
     printIndentation();
     out << "size=\"" << arr->size << "\">";
+
     break;
   }
   case Type::T_POINTERTOMEMBER: {
@@ -116,17 +134,20 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     out << "<PointerToMemberType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
+
     printIndentation();
     out << "inClassNAT=\"TY" << static_cast<void const*>(ptm->inClassNAT) << "\"\n";
+
     printIndentation();
     out << "cv=\"" << toXml(ptm->cv) << "\"\n";
+
     printIndentation();
     out << "atType=\"TY" << static_cast<void const*>(ptm->atType) << "\">";
+
     break;
   }
   }
 
-  printedTypes.add(obj);
   return true;
 }
 
@@ -173,6 +194,9 @@ void ToXMLTypeVisitor::postvisitFuncParamsList(SObjList<Variable> &params) {
 }
 
 bool ToXMLTypeVisitor::visitVariable(Variable *var) {
+  if (printedObjects.contains(var)) return false;
+  printedObjects.add(var);
+
   printIndentation();
   out << "<Variable";
   out << " .id=\"TY" << static_cast<void const*>(var) << "\"\n";
@@ -200,17 +224,17 @@ bool ToXMLTypeVisitor::visitVariable(Variable *var) {
   out << "\"\n";
   // FIX: this is AST so we should make sure it gets printed out
 
-  // this value is nullable
+  // this is nullable
   if (var->defaultParamType) {
     printIndentation();
-    out << "type=\"TY" << static_cast<void const*>(var->defaultParamType) << "\">\n";
+    out << "defaultParamType=\"TY" << static_cast<void const*>(var->defaultParamType) << "\">\n";
   }
 
   if (var->funcDefn) {
     printIndentation();
     out << "funcDefn=\"";
     xmlPrintPointer(out, "AST", var->funcDefn);
-    out << "\"";
+    out << "\"\n";
     // FIX: this is AST so we should make sure it gets printed out
   }
 
@@ -219,8 +243,10 @@ bool ToXMLTypeVisitor::visitVariable(Variable *var) {
 //    overloading after typechecking.  Will have to eventually be done if
 //    an analysis wants to analyze uninstantiate templates.
 
-//    Scope *scope;           // (nullable serf)
-//    FIX: I think we do need this.
+  if (var->scope) {
+    printIndentation();
+    out << "scope=\"TY" << static_cast<void const*>(var->scope) << "\"\n";
+  }
 
 //    // bits 0-7: result of 'getAccess()'
 //    // bits 8-15: result of 'getScopeKind()'
@@ -229,12 +255,13 @@ bool ToXMLTypeVisitor::visitVariable(Variable *var) {
 //    Ugh.  Break into 3 parts eventually, but for now serialize as an int.
   printIndentation();
   // FIX: split this up into 3
-  out << "intData=\"" << toXml_intData(var->intData) << "\"\n";
+  out << "intData=\"" << toXml_Variable_intData(var->intData) << "\"\n";
 
   if (var->usingAlias_or_parameterizedEntity) {
     printIndentation();
-    out << "type=\"TY" << static_cast<void const*>(var->usingAlias_or_parameterizedEntity)
-        << "\">\n";
+    out << "usingAlias_or_parameterizedEntity=\"TY"
+        << static_cast<void const*>(var->usingAlias_or_parameterizedEntity)
+        << "\"\n";
   }
 
 //    TemplateInfo *templInfo;      // (owner)
@@ -246,17 +273,19 @@ bool ToXMLTypeVisitor::visitVariable(Variable *var) {
 
   // **** subtags
 
-  // this value is nullable
+  // These are not visited by default by the type visitor, so we not
+  // only have to print the id we have to print the tree.
+
   if (var->defaultParamType) {
-    // This is not visited by default by the type visitor, so we not
-    // only have to print the id we have to print the tree.
     var->defaultParamType->traverse(*this);
   }
 
   if (var->usingAlias_or_parameterizedEntity) {
-    // This is not visited by default by the type visitor, so we not
-    // only have to print the id we have to print the tree.
     var->usingAlias_or_parameterizedEntity->traverse(*this);
+  }
+
+  if (var->scope) {
+    var->scope->traverse(*this);
   }
 
   return true;
@@ -286,7 +315,9 @@ void ToXMLTypeVisitor::toXml_NamedAtomicType_subtags(NamedAtomicType *nat) {
 }
 
 bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
-  if (printedAtomicTypes.contains(obj)) return false;
+  if (printedObjects.contains(obj)) return false;
+  printedObjects.add(obj);
+
   printIndentation();
 
   switch(obj->getTag()) {
@@ -296,8 +327,10 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     out << "<SimpleType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
+
     printIndentation();
     out << "type=\"" << toXml(simple->type) << "\">\n";
+
     break;
   }
 
@@ -355,7 +388,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
       printIndentation();
       out << "syntax=\"";
       xmlPrintPointer(out, "AST", cpd->syntax);
-      out << "\"";
+      out << "\"\n";
       // FIX: this is AST so we should make sure it gets printed out
     }
 
@@ -368,7 +401,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
       printIndentation();
       out << "parameterizingScope=\"";
       xmlPrintPointer(out, "TY", cpd->parameterizingScope);
-      out << "\"";
+      out << "\"\n";
     }
 
     printIndentation();
@@ -447,6 +480,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     out << "<EnumType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
+
     toXml_NamedAtomicType_properties(e);
 //      printIndentation();
     //    StringObjDict<Value> valueIndex;    // values in this enumeration
@@ -527,7 +561,6 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
   }
   }
 
-  printedAtomicTypes.add(obj);
   return true;
 }
 
@@ -582,7 +615,7 @@ void ToXMLTypeVisitor::toXml_Scope_properties(Scope *scope)
 
   // FIX: do this when we do templates
 //    printIndentation();
-//    out << "params=\"SO" << static_cast<void const*>(&(scope->templateParams)) << "\"\n";
+//    out << "templateParams=\"SO" << static_cast<void const*>(&(scope->templateParams)) << "\"\n";
 
   printIndentation();
   out << "curCompound=\"TY" << static_cast<void const*>(scope->curCompound) << "\"\n";
@@ -594,6 +627,9 @@ void ToXMLTypeVisitor::toXml_Scope_subtags(Scope *scope)
 
 bool ToXMLTypeVisitor::visitScope(Scope *scope)
 {
+  if (printedObjects.contains(scope)) return false;
+  printedObjects.add(scope);
+
   out << "<Scope";
   out << " .id=\"TY" << static_cast<void const*>(scope) << "\"\n";
   ++depth;
@@ -603,6 +639,7 @@ bool ToXMLTypeVisitor::visitScope(Scope *scope)
   // **** subtags
 
   toXml_Scope_subtags(scope);
+
   return true;
 }
 void ToXMLTypeVisitor::postvisitScope(Scope *scope)
@@ -656,12 +693,8 @@ void ToXMLTypeVisitor::postvisitScope_typeTags_Map(StringRefMap<Variable> &typeT
   out << "</Scope_typeTags_Map>\n";
 }
 
-bool ToXMLTypeVisitor::visitBaseClass(BaseClass *bc)
+void ToXMLTypeVisitor::toXml_BaseClass_properties(BaseClass *bc)
 {
-  out << "<BaseClass";
-  out << " .id=\"TY" << static_cast<void const*>(bc) << "\"\n";
-  ++depth;
-
   printIndentation();
   out << "ct=\"TY" << static_cast<void const*>(bc->ct) << "\"\n";
 
@@ -670,6 +703,18 @@ bool ToXMLTypeVisitor::visitBaseClass(BaseClass *bc)
 
   printIndentation();
   out << "isVirtual=\"" << toXml_bool(bc->isVirtual) << "\">\n";
+}
+
+bool ToXMLTypeVisitor::visitBaseClass(BaseClass *bc)
+{
+  if (printedObjects.contains(bc)) return false;
+  printedObjects.add(bc);
+
+  out << "<BaseClass";
+  out << " .id=\"TY" << static_cast<void const*>(bc) << "\"\n";
+  ++depth;
+
+  toXml_BaseClass_properties(bc);
 
   return true;
 }
@@ -682,9 +727,14 @@ void ToXMLTypeVisitor::postvisitBaseClass(BaseClass *bc)
 
 bool ToXMLTypeVisitor::visitBaseClassSubobj(BaseClassSubobj *bc)
 {
+  if (printedObjects.contains(bc)) return false;
+  printedObjects.add(bc);
+
   out << "<BaseClassSubobj";
   out << " .id=\"TY" << static_cast<void const*>(bc) << "\"\n";
   ++depth;
+
+  toXml_BaseClass_properties(bc);
 
   printIndentation();
   out << "parents=\"SO" << static_cast<void const*>(&(bc->parents)) << "\">\n";
@@ -833,32 +883,32 @@ bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
 
   // **** Container types
   case XTOK_FunctionType_params_List:
-    topTemp = new SObjList<Variable>();
+    topTemp = new ASTList<Variable>();
     break;
 
   case XTOK_CompoundType_dataMembers_List:
-    topTemp = new SObjList<Variable>();
+    topTemp = new ASTList<Variable>();
     break;
 
   case XTOK_CompoundType_bases_List:
-    topTemp = new ObjList<BaseClass>();
+    topTemp = new ASTList<BaseClass>();
     break;
 
   case XTOK_CompoundType_virtualBases_List:
-    topTemp = new ObjList<BaseClassSubobj>();
+    topTemp = new ASTList<BaseClassSubobj>();
     break;
 
   case XTOK_CompoundType_conversionOperators_List:
-    topTemp = new SObjList<Variable>();
+    topTemp = new ASTList<Variable>();
     break;
 
-  case XTOK_Scope_variables_Map:
-    topTemp = new StringRefMap<Variable>();
-    break;
+//    case XTOK_Scope_variables_Map:
+//      topTemp = new StringRefMap<Variable>();
+//      break;
 
-  case XTOK_Scope_typeTags_Map:
-    topTemp = new StringRefMap<Variable>();
-    break;
+//    case XTOK_Scope_typeTags_Map:
+//      topTemp = new StringRefMap<Variable>();
+//      break;
 
 //  #include "astxml_parse1_2ctrc.gen.cc"
   }
@@ -919,6 +969,19 @@ void ReadXml_Type::registerAttribute(void *target, int kind, int attr, char cons
     registerAttr_DependentQType((DependentQType*)target, attr, yytext0);
     break;
 
+  // **** Other
+  case XTOK_Scope:
+    registerAttr_Scope((Scope*)target, attr, yytext0);
+    break;
+
+  case XTOK_BaseClass:
+    registerAttr_BaseClass((BaseClass*)target, attr, yytext0);
+    break;
+
+  case XTOK_BaseClassSubobj:
+    registerAttr_BaseClassSubobj((BaseClassSubobj*)target, attr, yytext0);
+    break;
+
 //  #include "astxml_parse1_3regc.gen.cc"
   }
 }
@@ -929,15 +992,17 @@ void ReadXml_Type::registerAttr_CVAtomicType
   default:
     userError("illegal attribute for a CVAtomicType");
     break;
+
   case XTOK_cv:
     fromXml(obj->cv, parseQuotedString(strValue));
     break;
+
   case XTOK_atomic:
     linkSat.unsatLinks.append
       (new UnsatLink((void**) &(obj->atomic),
-                     parseQuotedString(strValue),
-                     XTOK_atomic));
+                     parseQuotedString(strValue)));
     break;
+
   }
 }
 
@@ -947,15 +1012,17 @@ void ReadXml_Type::registerAttr_PointerType
   default:
     userError("illegal attribute for a PointerType");
     break;
+
   case XTOK_cv:
     fromXml(obj->cv, parseQuotedString(strValue));
     break;
+
   case XTOK_atType:
     linkSat.unsatLinks.append
       (new UnsatLink((void**) &(obj->atType),
-                     parseQuotedString(strValue),
-                     XTOK_atType));
+                     parseQuotedString(strValue)));
     break;
+
   }
 }
 
@@ -965,12 +1032,13 @@ void ReadXml_Type::registerAttr_ReferenceType
   default:
     userError("illegal attribute for a ReferenceType");
     break;
+
   case XTOK_atType:
     linkSat.unsatLinks.append
       (new UnsatLink((void**) &(obj->atType),
-                     parseQuotedString(strValue),
-                     XTOK_atType));
+                     parseQuotedString(strValue)));
     break;
+
   }
 }
 
@@ -980,12 +1048,19 @@ void ReadXml_Type::registerAttr_FunctionType
   default:
     userError("illegal attribute for a FunctionType");
     break;
+
+  case XTOK_flags:
+    fromXml(obj->flags, parseQuotedString(strValue));
+    break;
+
   case XTOK_retType:
     linkSat.unsatLinks.append
       (new UnsatLink((void**) &(obj->retType),
-                     parseQuotedString(strValue),
-                     XTOK_retType));
+                     parseQuotedString(strValue)));
     break;
+
+  // FIX: params list: make an unsat link
+
   }
 }
 
@@ -995,15 +1070,17 @@ void ReadXml_Type::registerAttr_ArrayType
   default:
     userError("illegal attribute for a ArrayType");
     break;
+
   case XTOK_eltType:
     linkSat.unsatLinks.append
       (new UnsatLink((void**) &(obj->eltType),
-                     parseQuotedString(strValue),
-                     XTOK_eltType));
+                     parseQuotedString(strValue)));
     break;
+
   case XTOK_size:
     obj->size = atoi(parseQuotedString(strValue));
     break;
+
   }
 }
 
@@ -1013,37 +1090,102 @@ void ReadXml_Type::registerAttr_PointerToMemberType
   default:
     userError("illegal attribute for a PointerToMemberType");
     break;
-  case XTOK_cv:
-    fromXml(obj->cv, parseQuotedString(strValue));
-    break;
-  case XTOK_atType:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->atType),
-                     parseQuotedString(strValue),
-                     XTOK_atType));
-    break;
+
   case XTOK_inClassNAT:
     linkSat.unsatLinks.append
       (new UnsatLink((void**) &(obj->inClassNAT),
-                     parseQuotedString(strValue),
-                     XTOK_inClassNAT));
+                     parseQuotedString(strValue)));
     break;
+
+  case XTOK_cv:
+    fromXml(obj->cv, parseQuotedString(strValue));
+    break;
+
+  case XTOK_atType:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->atType),
+                     parseQuotedString(strValue)));
+    break;
+
   }
 }
 
+void ReadXml_Type::registerAttr_Variable
+  (Variable *obj, int attr, char const *strValue) {
+  switch(attr) {
+  default:
+    userError("illegal attribute for a Variable");
+    break;
 
-bool ReadXml_Type::registerAttr_NamedAtomicType
+  // FIX: SourceLoc loc
+
+  case XTOK_name:
+    obj->name = strTable(parseQuotedString(strValue));
+    break;
+
+  case XTOK_type:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->type),
+                     parseQuotedString(strValue)));
+    break;
+
+  case XTOK_flags:
+    fromXml(const_cast<DeclFlags&>(obj->flags), parseQuotedString(strValue));
+    break;
+
+  case XTOK_value:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->value),
+                     parseQuotedString(strValue)));
+    break;
+
+  case XTOK_defaultParamType:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->defaultParamType),
+                     parseQuotedString(strValue)));
+    break;
+
+  case XTOK_funcDefn:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->funcDefn),
+                     parseQuotedString(strValue)));
+    break;
+
+  case XTOK_scope:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->scope),
+                     parseQuotedString(strValue)));
+    break;
+
+  case XTOK_intData:
+    fromXml_Variable_intData(obj->intData, parseQuotedString(strValue));
+    break;
+
+  // FIX: templInfo
+  }
+}
+
+bool ReadXml_Type::registerAttr_NamedAtomicType_super
   (NamedAtomicType *obj, int attr, char const *strValue) {
   switch(attr) {
   default:
     return false;               // we didn't find it
     break;
+
   case XTOK_name:
     obj->name = strTable(parseQuotedString(strValue));
     break;
+
+  case XTOK_typedefVar:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->typedefVar),
+                     parseQuotedString(strValue)));
+    break;
+
   case XTOK_access:
     fromXml(obj->access, parseQuotedString(strValue));
     break;
+
   }
   return true;                  // found it
 }
@@ -1054,76 +1196,241 @@ void ReadXml_Type::registerAttr_SimpleType
   default:
     userError("illegal attribute for a SimpleType");
     break;
+
   case XTOK_type:
+    // NOTE: this 'type' is not a type node, but basically an enum,
+    // and thus is handled more like a flag would be.
     fromXml(const_cast<SimpleTypeId&>(obj->type), parseQuotedString(strValue));
     break;
+
   }
 }
 
 void ReadXml_Type::registerAttr_CompoundType
   (CompoundType *obj, int attr, char const *strValue) {
-  if (registerAttr_NamedAtomicType(obj, attr, strValue)) return;
+
+  // superclasses
+  if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
+  if (registerAttr_Scope_super(obj, attr, strValue)) return;
+
   switch(attr) {
   default:
     userError("illegal attribute for a CompoundType");
     break;
+
   case XTOK_forward:
     fromXml_bool(obj->forward, parseQuotedString(strValue));
     break;
+
   case XTOK_keyword:
     fromXml(obj->keyword, parseQuotedString(strValue));
     break;
+
+    // FIX: dataMembers
+
+    // FIX: bases
+
+    // FIX: virtualBases
+
+  case XTOK_subobj:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->subobj),
+                     parseQuotedString(strValue)));
+    break;
+
+    // FIX: conversionOperators
+
   case XTOK_instName:
     obj->instName = strTable(parseQuotedString(strValue));
     break;
+
+  case XTOK_syntax:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->syntax),
+                     parseQuotedString(strValue)));
+    break;
+
+  case XTOK_parameterizingScope:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->parameterizingScope),
+                     parseQuotedString(strValue)));
+    break;
+
   case XTOK_selfType:
     linkSat.unsatLinks.append
       (new UnsatLink((void**) &(obj->selfType),
-                     parseQuotedString(strValue),
-                     XTOK_selfType));
+                     parseQuotedString(strValue)));
     break;
+
   }
 }
 
 void ReadXml_Type::registerAttr_EnumType
   (EnumType *obj, int attr, char const *strValue) {
-  if (registerAttr_NamedAtomicType(obj, attr, strValue)) return;
+
+  // superclass
+  if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
+
   switch(attr) {
   default:
     userError("illegal attribute for a EnumType");
     break;
+
   case XTOK_nextValue:
     obj->nextValue = atoi(parseQuotedString(strValue));
     break;
+
   }
 }
 
 void ReadXml_Type::registerAttr_TypeVariable
   (TypeVariable *obj, int attr, char const *strValue) {
-  if (registerAttr_NamedAtomicType(obj, attr, strValue)) return;
-  switch(attr) {
-  default:
-    userError("illegal attribute for a TypeVariable");
-    break;
-  }
+
+  // superclass
+  if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
+
+  // shouldn't get here
+  userError("illegal attribute for a TypeVariable");
 }
 
 void ReadXml_Type::registerAttr_PseudoInstantiation
   (PseudoInstantiation *obj, int attr, char const *strValue) {
-  if (registerAttr_NamedAtomicType(obj, attr, strValue)) return;
+
+  // superclass
+  if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
+
   switch(attr) {
   default:
     userError("illegal attribute for a PsuedoInstantiation");
     break;
+
+//    CompoundType *primary;
+
+//    // the arguments, some of which contain type variables
+//    ObjList<STemplateArgument> args;
+
   }
 }
 
 void ReadXml_Type::registerAttr_DependentQType
   (DependentQType *obj, int attr, char const *strValue) {
-  if (registerAttr_NamedAtomicType(obj, attr, strValue)) return;
+
+  // superclass
+  if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
+
   switch(attr) {
   default:
     userError("illegal attribute for a DependentQType");
     break;
+
+//    AtomicType *first;            // (serf) TypeVariable or PseudoInstantiation
+
+//    // After the first component comes whatever name components followed
+//    // in the original syntax.  All template arguments have been
+//    // tcheck'd.
+//    PQName *rest;
+
+  }
+}
+
+bool ReadXml_Type::registerAttr_Scope_super
+  (Scope *obj, int attr, char const *strValue) {
+  switch(attr) {
+  default:
+    return false;               // we didn't find it
+    break;
+
+  // variables
+
+  // typeTags
+
+  case XTOK_canAcceptNames:
+    fromXml_bool(obj->canAcceptNames, parseQuotedString(strValue));
+    break;
+
+  case XTOK_parentScope:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->parentScope),
+                     parseQuotedString(strValue)));
+    break;
+
+  case XTOK_scopeKind:
+    fromXml(obj->scopeKind, parseQuotedString(strValue));
+    break;
+
+  case XTOK_namespaceVar:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->namespaceVar),
+                     parseQuotedString(strValue)));
+    break;
+
+  // templateParams
+
+  case XTOK_curCompound:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->curCompound),
+                     parseQuotedString(strValue)));
+    break;
+
+  }
+  return true;                  // found it
+}
+
+void ReadXml_Type::registerAttr_Scope
+  (Scope *obj, int attr, char const *strValue) {
+
+  // "superclass": just re-use our own superclass code for ourself
+  if (registerAttr_Scope_super(obj, attr, strValue)) return;
+
+  // shouldn't get here
+  userError("illegal attribute for a Scope");
+}
+
+bool ReadXml_Type::registerAttr_BaseClass_super
+  (BaseClass *obj, int attr, char const *strValue) {
+  switch(attr) {
+  default:
+    return false;
+    break;
+
+  case XTOK_ct:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->ct),
+                     parseQuotedString(strValue)));
+    break;
+
+  case XTOK_access:
+    fromXml(obj->access, parseQuotedString(strValue));
+    break;
+
+  case XTOK_isVirtual:
+    fromXml_bool(obj->isVirtual, parseQuotedString(strValue));
+    break;
+  }
+  return true;
+}
+
+void ReadXml_Type::registerAttr_BaseClass
+  (BaseClass *obj, int attr, char const *strValue) {
+
+  // "superclass": just re-use our own superclass code for ourself
+  if (registerAttr_BaseClass_super(obj, attr, strValue)) return;
+
+  // shouldn't get here
+  userError("illegal attribute for a BaseClass");
+}
+
+void ReadXml_Type::registerAttr_BaseClassSubobj
+  (BaseClass *obj, int attr, char const *strValue) {
+
+  // "superclass": just re-use our own superclass code for ourself
+  if (registerAttr_BaseClass_super(obj, attr, strValue)) return;
+
+  switch(attr) {
+  default:
+    userError("illegal attribute for a BaseClassSubobj");
+    break;
+
+  // parents
   }
 }

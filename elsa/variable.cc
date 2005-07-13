@@ -6,11 +6,11 @@
 #include "trace.h"         // tracingSys
 
 
-string toXml_intData(unsigned id) {
+string toXml_Variable_intData(unsigned id) {
   return stringc << static_cast<int>(id);
 }
 
-void fromXml_intData(unsigned &out, string str) {
+void fromXml_Variable_intData(unsigned &out, string str) {
   out = static_cast<DeclFlags>(atoi(str));
 }
 
@@ -604,7 +604,9 @@ void Variable::traverse(TypeVisitor &vis) {
   if (!vis.visitVariable(this)) {
     return;
   }
-  type->traverse(vis);
+  if (type) {
+    type->traverse(vis);
+  }
   vis.postvisitVariable(this);
 }
 

@@ -54,8 +54,8 @@ void fromXml(DeclFlags &out, string str);
 
 // FIX: this is temporary; I just want to get the int out and back in
 // again for now.
-string toXml_intData(unsigned id);
-void fromXml_intData(unsigned &out, string str);
+string toXml_Variable_intData(unsigned id);
+void fromXml_Variable_intData(unsigned &out, string str);
 
 class Variable INHERIT_SERIAL_BASE {
 public:    // data
@@ -105,7 +105,9 @@ public:    // data
 
 private:      // data
 
-  friend class ToXMLTypeVisitor; // so serialization is possible
+  // so serialization/deserialization is possible
+  friend class ToXMLTypeVisitor;
+  friend class ReadXml_Type;
 
   // The next two fields are used to store conceptually different
   // things in a single word in order to save space.  I am concerned

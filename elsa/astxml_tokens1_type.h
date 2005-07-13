@@ -44,6 +44,23 @@
 //    XTOK_args, // "args"
 //    XTOK_rest, // "rest"
 
+    /* Other */
+    XTOK_Scope, // "Scope"
+    XTOK_BaseClass, // "BaseClass"
+    XTOK_BaseClassSubobj, // "BaseClassSubobj"
+    XTOK_flags, // "flags"
+    XTOK_value, // "value"
+    XTOK_defaultParamType, // "defaultParamType"
+    XTOK_funcDefn, // "funcDefn"
+    XTOK_scope, // "scope"
+    XTOK_intData, // "intData"
+    XTOK_canAcceptNames, // "canAcceptNames"
+    XTOK_parentScope, // "parentScope"
+    XTOK_scopeKind, // "scopeKind"
+    XTOK_namespaceVar, // "namespaceVar"
+    XTOK_curCompound, // "curCompound"
+    XTOK_ct, // "ct"
+
   /* Some containers; I no longer care about order */
   XTOK_CompoundType_bases_List,
   XTOK_CompoundType_virtualBases_List,

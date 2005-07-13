@@ -31,8 +31,7 @@ class ToXMLTypeVisitor : public TypeVisitor {
   bool indent;
 
   // printing of types is idempotent
-  SObjSet<Type*> printedTypes;
-  SObjSet<AtomicType*> printedAtomicTypes;
+  SObjSet<void*> printedObjects;
 
   public:
   ToXMLTypeVisitor(ostream &out0, bool indent0=true)
@@ -74,6 +73,8 @@ class ToXMLTypeVisitor : public TypeVisitor {
 
 //    virtual bool visitScopeTemplateParams(SObjList<Variable> &templateParams);
 //    virtual void postvisitScopeTemplateParams(SObjList<Variable> &templateParams);
+
+  virtual void toXml_BaseClass_properties(BaseClass *bc);
 
   virtual bool visitBaseClass(BaseClass *bc);
   virtual void postvisitBaseClass(BaseClass *bc);
@@ -151,15 +152,22 @@ class ReadXml_Type : public ReadXml {
   void registerAttr_PointerToMemberType(PointerToMemberType *obj, int attr, char const *strValue);
 
   // AtomicTypes
+  bool registerAttr_NamedAtomicType_super(NamedAtomicType *obj,   int attr, char const *strValue);
   void registerAttr_SimpleType         (SimpleType *obj,          int attr, char const *strValue);
   void registerAttr_CompoundType       (CompoundType *obj,        int attr, char const *strValue);
   void registerAttr_EnumType           (EnumType *obj,            int attr, char const *strValue);
   void registerAttr_TypeVariable       (TypeVariable *obj,        int attr, char const *strValue);
   void registerAttr_PseudoInstantiation(PseudoInstantiation *obj, int attr, char const *strValue);
   void registerAttr_DependentQType     (DependentQType *obj,      int attr, char const *strValue);
-  // attempt to parse the attributes in common for any NamedAtomicType
-  bool registerAttr_NamedAtomicType    (NamedAtomicType *obj,     int attr, char const *strValue);
-  
+
+  // other
+  void registerAttr_Variable           (Variable *obj,            int attr, char const *strValue);
+  bool registerAttr_Scope_super        (Scope *obj,               int attr, char const *strValue);
+  void registerAttr_Scope              (Scope *obj,               int attr, char const *strValue);
+  bool registerAttr_BaseClass_super    (BaseClass *obj,           int attr, char const *strValue);
+  void registerAttr_BaseClass          (BaseClass *obj,           int attr, char const *strValue);
+  void registerAttr_BaseClassSubobj    (BaseClass *obj,           int attr, char const *strValue);
+
 //  #include "astxml_parse1_0decl.gen.cc"
 };
 

@@ -45,7 +45,7 @@ struct UnsatLink {
   void **ptr;
   string id;
   int kind;
-  UnsatLink(void **ptr0, string id0, int kind0);
+  UnsatLink(void **ptr0, string id0, int kind0 = -1);
 };
 
 // manages recording unsatisfied links and satisfying them later
