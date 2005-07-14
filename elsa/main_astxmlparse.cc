@@ -77,8 +77,12 @@ TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
   // this is going to parse one top-level tag
   ReadXml_AST astReader(inputFname, lexer, strTable, linkSatisifier);
   linkSatisifier.registerReader(&astReader);
-  bool sawEof = astReader.parse();
+  astReader.reset();
+  bool sawEof = astReader.parseOneTopLevelTag();
   xassert(!sawEof);
+  if (astReader.getLastKind() != XTOK_TranslationUnit) {
+    astReader.userError("top tag is not a TranslationUnit");
+  }
   TranslationUnit *tunit = (TranslationUnit*) astReader.getLastNode();
 
   // this is going to parse a sequence of top-level Type tags; stops
@@ -86,8 +90,9 @@ TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
   BasicTypeFactory tFac;
   ReadXml_Type typeReader(inputFname, lexer, strTable, linkSatisifier, tFac);
   linkSatisifier.registerReader(&typeReader);
-  while(1) {
-    bool sawEof = typeReader.parse();
+  while(true) {
+    typeReader.reset();
+    bool sawEof = typeReader.parseOneTopLevelTag();
     if (sawEof) break;
     // should get entered into the linkSatisifier so no need to save
     // it here

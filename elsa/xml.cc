@@ -146,87 +146,113 @@ void ReadXml::userError(char const *msg) {
   THROW(xBase(stringc << inputFname << ":" << lexer.linenumber << ":" << msg));
 }
 
-bool ReadXml::parse() {
-  reset();
-  while(true) {
-    // state: looking for a tag start
-    int start = lexer.yylex();
-//      printf("start:%s\n", lexer.tokenKindDesc(start).c_str());
-    switch(start) {
-    default: userError("unexpected token while looking for '<' of an open tag");
-    case 0: return true;        // we are done
-    case XTOK_LESSTHAN:
-      break;                    // go to next state
-    }
+bool ReadXml::parseOneTopLevelTag() {
+  bool sawEof;
+  while(parseOneTag(sawEof)) {}
+  return sawEof;
+}
 
-    // state: read a tag name
-    int tag = lexer.yylex();
-    void *topTemp;
-    bool sawCloseTag = ctorNodeFromTag(tag, topTemp);
-    if (sawCloseTag) goto close_tag;
+bool ReadXml::parseOneTag(bool &sawEof) {
+  // state: looking for a tag start
+  int start = lexer.yylex();
+  //      printf("start:%s\n", lexer.tokenKindDesc(start).c_str());
+  switch(start) {
+  default:
+    userError("unexpected token while looking for '<' of an open tag");
+    break;
+  case 0:                     // eof
+    sawEof = true;            // done with this file
+    return false;             // done parsing this top-level tag
+    break;
+  case XTOK_LESSTHAN:
+    break;                    // continue parsing
+  }
+
+  // state: read a tag name
+  int tag = lexer.yylex();
+  void *topTemp;
+  bool sawCloseTag = ctorNodeFromTag(tag, topTemp);
+  if (!sawCloseTag) {
     xassert(topTemp);
     nodeStack.push(topTemp);
     kindStack.push(new int(tag));
     readAttributes();
-    continue;
-
-    // state: read a close tag name
-  close_tag:
-    int closeTag = lexer.yylex();
-    if (!closeTag) {
-      userError("unexpected file termination while looking for a close tag name");
-    }
-    if (nodeStack.isEmpty()) {
-      userError("too many close tags");
-    }
-    if (*kindStack.top() != closeTag) {
-      userError("close tag does not match open tag");
-    }
-
-    int closeGreaterThan = lexer.yylex();
-    switch(closeGreaterThan) {
-    default: userError("unexpected token while looking for '>' of a close tag");
-    case 0: userError("unexpected file termination while looking for '>' of a close tag");
-    case XTOK_GREATERTHAN:
-      break;
-    }
-
-    lastNode = nodeStack.pop();
-    // FIX: do I delete this int on the heap or does the stack do it?
-    lastKind = *kindStack.pop();
-    // if the node up the stack is a list, put this element onto that
-    // list
-    if (nodeStack.isEmpty()) {
-      // If the stack is empty, return
-      xassert(kindStack.isEmpty());
-      return false;
-    } else {
-      xassert(nodeStack.isNotEmpty());
-      xassert(kindStack.isNotEmpty());
-      int topKind = *kindStack.top();
-      KindCategory topKindCat;
-      bool found = kind2kindCat(topKind, &topKindCat);
-      // FIX: maybe this should be an assertion
-      if (!found) {
-        userError("no category found for this kind");
-      }
-      if (topKindCat == KC_FakeList ||
-          topKindCat == KC_ASTList  ||
-          topKindCat == KC_SObjList ||
-          topKindCat == KC_ObjList  ){
-        xassert(nodeStack.top());
-        append2List(nodeStack.top(), topKind, lastNode, lastKind);
-      } else if (topKindCat == KC_StringRefMap) {
-        xfailure("implement this");
-//  #error how does this work with the extra layer of indirection of a map element?
-//          xassert(nodeStack.top());
-//          append2NameMap(nodeStack.top(), topKind, lastNode, lastKind);
-      }
-    }
+    sawEof = false;           // not done with this file (makes return values well-defined)
+    return true;              // not even done with this top-level tag
   }
-  if (lastKind != XTOK_TranslationUnit) {
-    userError("top tag is not a TranslationUnit");
+
+  // state: read a close tag name
+  int closeTag = lexer.yylex();
+  if (!closeTag) {
+    userError("unexpected file termination while looking for a close tag name");
   }
+  if (nodeStack.isEmpty()) {
+    userError("too many close tags");
+  }
+  if (*kindStack.top() != closeTag) {
+    userError("close tag does not match open tag");
+  }
+
+  // state: read the '>' after a close tag
+  int closeGreaterThan = lexer.yylex();
+  switch(closeGreaterThan) {
+  default: userError("unexpected token while looking for '>' of a close tag");
+  case 0: userError("unexpected file termination while looking for '>' of a close tag");
+  case XTOK_GREATERTHAN:
+    break;
+  }
+
+  // state: figure out if we are done
+  lastNode = nodeStack.pop();
+  // FIX: do I delete this int on the heap or does the stack do it?
+  lastKind = *kindStack.pop();
+  if (nodeStack.isEmpty()) {
+    // If the stack is empty, return
+    xassert(kindStack.isEmpty());
+    sawEof = false;           // not done with this file
+    return false;             // done parsing this top-level tag
+  }
+
+  // state: if the node up the stack is a list, put this element
+  // onto that list
+  xassert(nodeStack.isNotEmpty());
+  xassert(kindStack.isNotEmpty());
+  int topKind = *kindStack.top();
+
+  // what kind of thing is on the top of the stack?
+  KindCategory topKindCat;
+  bool found = kind2kindCat(topKind, &topKindCat);
+  // FIX: maybe this should be an assertion
+  if (!found) {
+    userError("no category found for this kind");
+  }
+
+  // if the top of the stack is a container, put the last tag into
+  // that container; otherwise do nothing
+  if (topKindCat == KC_FakeList ||
+      topKindCat == KC_ASTList  ||
+      topKindCat == KC_SObjList ||
+      topKindCat == KC_ObjList  ){
+    // the top is a list
+    xassert(nodeStack.top());
+    append2List(nodeStack.top(), topKind, lastNode, lastKind);
+  } else if (topKindCat == KC_StringRefMap) {
+    // the top is a name map; there are two situations: we are
+    // putting in a map element or we are putting in the value
+    // mapped to by the map element
+    //  #error this is wrong
+    //        xassert(nodeStack.top());
+    //        append2NameMap(nodeStack.top(), topKind, lastNode, lastKind);
+  }
+  // FIX: in the future there should be an else clause here that
+  // files contained objects into their parents even if they are not
+  // containers; this would be done by storing the unsatisfied link
+  // in the parent object's pointer and also setting the low bit of
+  // the pointer to indicate that it is not a real pointer but an
+  // identifier to be satisified; look out for failures of number
+  // identifiers to be unique due to class embedding (which is why
+  // there are letter prefixes on the identifiers).
+  return true;
 }
 
 // state: read the attributes

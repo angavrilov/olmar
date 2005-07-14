@@ -127,16 +127,28 @@ class ReadXml {
 
   // reset the internal state
   void reset();
-  // parse one top-level tag
-  bool parse();
+
+  // FIX: this API is borked; really you should be able to push the
+  // EOF back onto the lexer so it can be read again in the client,
+  // rather than having to return it in this API.  Since flex doesn't
+  // let you do that, we should wrap flex in an object that does.
+  //
+  // parse one top-level tag; return true if we also reached the end
+  // of the file
+  bool parseOneTopLevelTag();
+  // parse one tag; return false if we reached the end of a top-level
+  // tag; sawEof set to true if we also reached the end of the file
+  bool parseOneTag(bool &sawEof);
+
+  // report an error to the user with source location information
+  void userError(char const *msg) NORETURN;
+
   // return the top of the stack: the one tag that was parsed
   void *getLastNode() {return lastNode;}
-
-  private:
-  void readAttributes();
+  int getLastKind() {return lastKind;}
 
   protected:
-  void userError(char const *msg) NORETURN;
+  void readAttributes();
 
   // **** subclass fills these in
   public:
