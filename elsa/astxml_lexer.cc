@@ -26,12 +26,12 @@ static char const * const tokenNames[] = {
   "NUM_XML_TOKEN_TYPES",
 };
 
-
-string AstXmlLexer::tokenKindDesc(int kind) const
-{
-  xassert(0 <= kind && kind < NUM_XML_TOKEN_TYPES);
-  xassert(tokenNames[kind]);     // make sure the tokenNames array grows with the enum
-  return tokenNames[kind];
+int AstXmlLexer::getToken() {
+  int token = this->yylex();
+  if (token==0) {
+    sawEof = true;
+  }
+  return token;
 }
 
 int AstXmlLexer::tok(ASTXMLTokenType kind) {
@@ -50,4 +50,11 @@ int AstXmlLexer::svalTok(ASTXMLTokenType kind)
 void AstXmlLexer::err(char const *msg)
 {
   THROW(xBase(stringc << inputFname << ":" << linenumber << ":" << msg));
+}
+
+string AstXmlLexer::tokenKindDesc(int kind) const
+{
+  xassert(0 <= kind && kind < NUM_XML_TOKEN_TYPES);
+  xassert(tokenNames[kind]);     // make sure the tokenNames array grows with the enum
+  return tokenNames[kind];
 }

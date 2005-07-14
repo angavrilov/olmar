@@ -146,30 +146,33 @@ void ReadXml::userError(char const *msg) {
   THROW(xBase(stringc << inputFname << ":" << lexer.linenumber << ":" << msg));
 }
 
-bool ReadXml::parseOneTopLevelTag() {
-  bool sawEof;
-  while(parseOneTag(sawEof)) {}
-  return sawEof;
+void ReadXml::parseOneTopLevelTag() {
+  // FIX: a do-while is always a bug
+  do parseOneTag();
+  while(!atTopLevel());
+  xassert(kindStack.isEmpty()); // the stacks are synchronized
 }
 
-bool ReadXml::parseOneTag(bool &sawEof) {
+void ReadXml::parseOneTag() {
   // state: looking for a tag start
-  int start = lexer.yylex();
+  if (lexer.haveSeenEof()) {
+    userError("unexpected EOF while looking for '<' of an open tag");
+  }
+  int start = lexer.getToken();
   //      printf("start:%s\n", lexer.tokenKindDesc(start).c_str());
   switch(start) {
   default:
     userError("unexpected token while looking for '<' of an open tag");
     break;
   case 0:                     // eof
-    sawEof = true;            // done with this file
-    return false;             // done parsing this top-level tag
+    return;
     break;
   case XTOK_LESSTHAN:
     break;                    // continue parsing
   }
 
   // state: read a tag name
-  int tag = lexer.yylex();
+  int tag = lexer.getToken();
   void *topTemp;
   bool sawCloseTag = ctorNodeFromTag(tag, topTemp);
   if (!sawCloseTag) {
@@ -177,12 +180,11 @@ bool ReadXml::parseOneTag(bool &sawEof) {
     nodeStack.push(topTemp);
     kindStack.push(new int(tag));
     readAttributes();
-    sawEof = false;           // not done with this file (makes return values well-defined)
-    return true;              // not even done with this top-level tag
+    return;
   }
 
   // state: read a close tag name
-  int closeTag = lexer.yylex();
+  int closeTag = lexer.getToken();
   if (!closeTag) {
     userError("unexpected file termination while looking for a close tag name");
   }
@@ -194,7 +196,7 @@ bool ReadXml::parseOneTag(bool &sawEof) {
   }
 
   // state: read the '>' after a close tag
-  int closeGreaterThan = lexer.yylex();
+  int closeGreaterThan = lexer.getToken();
   switch(closeGreaterThan) {
   default: userError("unexpected token while looking for '>' of a close tag");
   case 0: userError("unexpected file termination while looking for '>' of a close tag");
@@ -209,8 +211,7 @@ bool ReadXml::parseOneTag(bool &sawEof) {
   if (nodeStack.isEmpty()) {
     // If the stack is empty, return
     xassert(kindStack.isEmpty());
-    sawEof = false;           // not done with this file
-    return false;             // done parsing this top-level tag
+    return;
   }
 
   // state: if the node up the stack is a list, put this element
@@ -252,13 +253,12 @@ bool ReadXml::parseOneTag(bool &sawEof) {
   // identifier to be satisified; look out for failures of number
   // identifiers to be unique due to class embedding (which is why
   // there are letter prefixes on the identifiers).
-  return true;
 }
 
 // state: read the attributes
 void ReadXml::readAttributes() {
   while(1) {
-    int attr = lexer.yylex();
+    int attr = lexer.getToken();
     switch(attr) {
     default: break;             // go on; assume it is a legal attribute tag
     case 0: userError("unexpected file termination while looking for an attribute name");
@@ -266,7 +266,7 @@ void ReadXml::readAttributes() {
       return;
     }
 
-    int eq = lexer.yylex();
+    int eq = lexer.getToken();
     switch(eq) {
     default: userError("unexpected token while looking for an '='");
     case 0: userError("unexpected file termination while looking for an '='");
@@ -274,7 +274,7 @@ void ReadXml::readAttributes() {
       break;                    // go on
     }
 
-    int value = lexer.yylex();
+    int value = lexer.getToken();
     switch(value) {
     default: userError("unexpected token while looking for an attribute value");
     case 0: userError("unexpected file termination while looking for an attribute value");
@@ -291,7 +291,7 @@ void ReadXml::readAttributes() {
     // special case the .id attribute
     if (attr == XTOK_DOT_ID) {
       // FIX: I really hope the map makes a copy of this string
-      string id0 = parseQuotedString(lexer.YYText());
+      string id0 = parseQuotedString(lexer.currentText());
       if (linkSat.id2obj.isMapped(id0)) {
         userError(stringc << "this id is taken " << id0);
       }
@@ -300,7 +300,7 @@ void ReadXml::readAttributes() {
 
     // attribute other than '.id'
     else {
-      registerAttribute(nodeStack.top(), *kindStack.top(), attr, lexer.YYText());
+      registerAttribute(nodeStack.top(), *kindStack.top(), attr, lexer.currentText());
     }
   }
   if (!nodeStack.isEmpty()) {

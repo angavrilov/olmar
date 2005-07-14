@@ -72,14 +72,14 @@ TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
 
   ifstream in(inputFname);
   AstXmlLexer lexer(inputFname);
-  lexer.yyrestart(&in);
+  lexer.restart(&in);
 
   // this is going to parse one top-level tag
   ReadXml_AST astReader(inputFname, lexer, strTable, linkSatisifier);
   linkSatisifier.registerReader(&astReader);
-  astReader.reset();
-  bool sawEof = astReader.parseOneTopLevelTag();
-  xassert(!sawEof);
+  astReader.reset();            // actually done in ctor
+  astReader.parseOneTopLevelTag();
+  xassert(!lexer.haveSeenEof());
   if (astReader.getLastKind() != XTOK_TranslationUnit) {
     astReader.userError("top tag is not a TranslationUnit");
   }
@@ -90,13 +90,12 @@ TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
   BasicTypeFactory tFac;
   ReadXml_Type typeReader(inputFname, lexer, strTable, linkSatisifier, tFac);
   linkSatisifier.registerReader(&typeReader);
-  while(true) {
+  // FIX: a do-while loop is always a bug; we need to be able to see
+  // that the EOF is coming to turn this into a while loop
+  do {
     typeReader.reset();
-    bool sawEof = typeReader.parseOneTopLevelTag();
-    if (sawEof) break;
-    // should get entered into the linkSatisifier so no need to save
-    // it here
-  }
+    typeReader.parseOneTopLevelTag();
+  } while (!lexer.haveSeenEof());
 
   // complete the link graph
   linkSatisifier.satisfyLinks();

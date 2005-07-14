@@ -119,7 +119,6 @@ class ReadXml {
     // done in reset()
 //      , lastNode(NULL)
 //      , lastKind(0)
-//      , lastFakeListId(NULL)
   {
     reset();
   }
@@ -135,10 +134,13 @@ class ReadXml {
   //
   // parse one top-level tag; return true if we also reached the end
   // of the file
-  bool parseOneTopLevelTag();
+  void parseOneTopLevelTag();
   // parse one tag; return false if we reached the end of a top-level
   // tag; sawEof set to true if we also reached the end of the file
-  bool parseOneTag(bool &sawEof);
+  void parseOneTag();
+
+  // are we at the top level during parsing?
+  bool atTopLevel() {return nodeStack.isEmpty();}
 
   // report an error to the user with source location information
   void userError(char const *msg) NORETURN;
