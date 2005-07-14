@@ -216,6 +216,11 @@ bool ReadXml::parse() {
           topKindCat == KC_ObjList  ){
         xassert(nodeStack.top());
         append2List(nodeStack.top(), topKind, lastNode, lastKind);
+      } else if (topKindCat == KC_StringRefMap) {
+        xfailure("implement this");
+//  #error how does this work with the extra layer of indirection of a map element?
+//          xassert(nodeStack.top());
+//          append2NameMap(nodeStack.top(), topKind, lastNode, lastKind);
       }
     }
   }

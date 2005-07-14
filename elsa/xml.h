@@ -28,10 +28,12 @@ void fromXml_bool(bool &b, string str);
 // there are 3 categories of kinds of Tags
 enum KindCategory {
   KC_Node,                      // a normal node
+  // list
   KC_ASTList,                   // an ast list
   KC_FakeList,                  // a fake list
   KC_ObjList,                   // an ObjList
   KC_SObjList,                  // an SObjList
+  // name map
   KC_StringRefMap,              // a StringRefMap
 };
 

@@ -836,12 +836,40 @@ void ReadXml_Type::append2List(void *list, int listKind, void *datum, int datumK
   switch(listKind) {
   default: xfailure("attempt to append to a non-List token kind"); break;
 
-//    case XTOK_FakeList_BaseClassSpec:
-//      if (!datumKind == XTOK_BaseClassSpec) {
-//        userError("can't put that onto a List of BaseClassSpec");
-//      }
-//      ((ASTList<char>*)list)->append((char*)datum);
-//      break;
+  case XTOK_List_CompoundType_bases:
+    if (!datumKind == XTOK_BaseClass) {
+      userError("can't put that onto an List of BaseClass-es");
+    }
+    ((ASTList<char>*)list)->append((char*)datum);
+    break;
+
+  case XTOK_List_CompoundType_virtualBases:
+    if (!datumKind == XTOK_BaseClassSubobj) {
+      userError("can't put that onto an List of BaseClassSubobj-es");
+    }
+    ((ASTList<char>*)list)->append((char*)datum);
+    break;
+
+  case XTOK_List_FunctionType_params:
+    if (!datumKind == XTOK_Variable) {
+      userError("can't put that onto an List of Variable-es");
+    }
+    ((ASTList<char>*)list)->append((char*)datum);
+    break;
+
+  case XTOK_List_CompoundType_dataMembers:
+    if (!datumKind == XTOK_Variable) {
+      userError("can't put that onto an List of Variable");
+    }
+    ((ASTList<char>*)list)->append((char*)datum);
+    break;
+
+  case XTOK_List_CompoundType_conversionOperators:
+    if (!datumKind == XTOK_Variable) {
+      userError("can't put that onto an List of Variable");
+    }
+    ((ASTList<char>*)list)->append((char*)datum);
+    break;
 
   }
 }
