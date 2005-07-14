@@ -19,6 +19,7 @@
   XTOK_SimpleType, // "SimpleType"
   XTOK_CompoundType, // "CompoundType"
   XTOK_EnumType, // "EnumType"
+  XTOK_EnumType_Value, // "EnumType_Value"
   XTOK_TypeVariable, // "TypeVariable"
   XTOK_PseudoInstantiation, // "PseudoInstantiation"
   XTOK_DependentQType, // "DependentQType"
@@ -45,6 +46,7 @@
 //    XTOK_rest, // "rest"
 
     /* Other */
+    XTOK_Variable, // "Variable"
     XTOK_Scope, // "Scope"
     XTOK_BaseClass, // "BaseClass"
     XTOK_BaseClassSubobj, // "BaseClassSubobj"
@@ -62,10 +64,11 @@
     XTOK_ct, // "ct"
 
   /* Some containers; I no longer care about order */
-  XTOK_CompoundType_bases_List,
-  XTOK_CompoundType_virtualBases_List,
-  XTOK_FunctionType_params_List,
-  XTOK_CompoundType_dataMembers_List,
-  XTOK_CompoundType_conversionOperators_List,
-  XTOK_Scope_variables_Map,
-  XTOK_Scope_typeTags_Map,
+  XTOK_List_CompoundType_bases,
+  XTOK_List_CompoundType_virtualBases,
+  XTOK_List_FunctionType_params,
+  XTOK_List_CompoundType_dataMembers,
+  XTOK_List_CompoundType_conversionOperators,
+  XTOK_NameMap_Scope_variables,
+  XTOK_NameMap_Scope_typeTags,
+  XTOK_NameMap_EnumType_valueIndex,

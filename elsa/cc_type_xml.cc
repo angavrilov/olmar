@@ -715,48 +715,48 @@ void ToXMLTypeVisitor::postvisitScope(Scope *scope)
   out << "</Scope>\n";
 }
 
-bool ToXMLTypeVisitor::visitScope_variables_Map(StringRefMap<Variable> &variables)
+bool ToXMLTypeVisitor::visitScope_NameMap_variables(StringRefMap<Variable> &variables)
 {
   printIndentation();
-  out << "<Scope_variables_Map";
+  out << "<Scope_NameMap_variables";
   out << " .id=\"SM" << static_cast<void const*>(&variables) << "\">\n";
   ++depth;
   return true;
 }
-void ToXMLTypeVisitor::visitScope_variables_Map_entry(StringRef name, Variable *var)
+void ToXMLTypeVisitor::visitScope_NameMap_variables_entry(StringRef name, Variable *var)
 {
   printIndentation();
   out << "<__NameValuePair";
   out << " name=" << quoted(name) << "";
   out << " var=\"TY" << static_cast<void const*>(var) << "\">\n";
 }
-void ToXMLTypeVisitor::postvisitScope_variables_Map(StringRefMap<Variable> &variables)
+void ToXMLTypeVisitor::postvisitScope_NameMap_variables(StringRefMap<Variable> &variables)
 {
   --depth;
   printIndentation();
-  out << "</Scope_variables_Map>\n";
+  out << "</Scope_NameMap_variables>\n";
 }
 
-bool ToXMLTypeVisitor::visitScope_typeTags_Map(StringRefMap<Variable> &typeTags)
+bool ToXMLTypeVisitor::visitScope_NameMap_typeTags(StringRefMap<Variable> &typeTags)
 {
   printIndentation();
-  out << "<Scope_typeTags_Map";
+  out << "<Scope_NameMap_typeTags";
   out << " .id=\"SM" << static_cast<void const*>(&typeTags) << "\">\n";
   ++depth;
   return true;
 }
-void ToXMLTypeVisitor::visitScope_typeTags_Map_entry(StringRef name, Variable *var)
+void ToXMLTypeVisitor::visitScope_NameMap_typeTags_entry(StringRef name, Variable *var)
 {
   printIndentation();
   out << "<__NameValuePair";
   out << " name=" << quoted(name) << "";
   out << " var=\"TY" << static_cast<void const*>(var) << "\">\n";
 }
-void ToXMLTypeVisitor::postvisitScope_typeTags_Map(StringRefMap<Variable> &typeTags)
+void ToXMLTypeVisitor::postvisitScope_NameMap_typeTags(StringRefMap<Variable> &typeTags)
 {
   --depth;
   printIndentation();
-  out << "</Scope_typeTags_Map>\n";
+  out << "</Scope_NameMap_typeTags>\n";
 }
 
 void ToXMLTypeVisitor::toXml_BaseClass_properties(BaseClass *bc)
@@ -831,60 +831,60 @@ void ToXMLTypeVisitor::postvisitBaseClassSubobjParents(SObjList<BaseClassSubobj>
 
 // -------------------- ReadXml_Type -------------------
 
+//  #include "astxml_parse1_1defn.gen.cc"
 void ReadXml_Type::append2List(void *list, int listKind, void *datum, int datumKind) {
   switch(listKind) {
-  default: xfailure("attempt to append to a non-ASTList token kind");
-//    case XTOK_ASTList_TopForm:
-//      if (!datumKind == XTOK_TopForm) {
-//        userError("can't put that onto an ASTList of TopForm");
+  default: xfailure("attempt to append to a non-List token kind"); break;
+
+//    case XTOK_FakeList_BaseClassSpec:
+//      if (!datumKind == XTOK_BaseClassSpec) {
+//        userError("can't put that onto a List of BaseClassSpec");
 //      }
-//      ((ASTList<TopForm>*)list)->append((TopForm*)datum);
+//      ((ASTList<char>*)list)->append((char*)datum);
 //      break;
+
   }
 }
 
 bool ReadXml_Type::kind2kindCat(int kind, KindCategory *kindCat) {
   switch(kind) {
   default: return false;        // we don't know this kind
+
   // Types
-  case XTOK_CVAtomicType: *kindCat = KC_Node; break;
-  case XTOK_PointerType: *kindCat = KC_Node; break;
-  case XTOK_ReferenceType: *kindCat = KC_Node; break;
-  case XTOK_FunctionType: *kindCat = KC_Node; break;
-  case XTOK_ArrayType: *kindCat = KC_Node; break;
+  case XTOK_CVAtomicType:        *kindCat = KC_Node; break;
+  case XTOK_PointerType:         *kindCat = KC_Node; break;
+  case XTOK_ReferenceType:       *kindCat = KC_Node; break;
+  case XTOK_FunctionType:        *kindCat = KC_Node; break;
+  case XTOK_ArrayType:           *kindCat = KC_Node; break;
   case XTOK_PointerToMemberType: *kindCat = KC_Node; break;
+
   // AtomicTypes
-  case XTOK_SimpleType: *kindCat = KC_Node; break;
-  case XTOK_CompoundType: *kindCat = KC_Node; break;
-  case XTOK_EnumType: *kindCat = KC_Node; break;
-  case XTOK_TypeVariable: *kindCat = KC_Node; break;
+  case XTOK_SimpleType:          *kindCat = KC_Node; break;
+  case XTOK_CompoundType:        *kindCat = KC_Node; break;
+  case XTOK_EnumType:            *kindCat = KC_Node; break;
+  case XTOK_TypeVariable:        *kindCat = KC_Node; break;
   case XTOK_PseudoInstantiation: *kindCat = KC_Node; break;
-  case XTOK_DependentQType: *kindCat = KC_Node; break;
-  // ObjList
-  case XTOK_CompoundType_bases_List: *kindCat = KC_ObjList; break;
-  case XTOK_CompoundType_virtualBases_List: *kindCat = KC_ObjList; break;
-  // SObjList
-  case XTOK_FunctionType_params_List: *kindCat = KC_SObjList; break;
-  case XTOK_CompoundType_dataMembers_List: *kindCat = KC_SObjList; break;
-  case XTOK_CompoundType_conversionOperators_List: *kindCat = KC_SObjList; break;
-  // StringRefMap
-  case XTOK_Scope_variables_Map: *kindCat = KC_StringRefMap; break;
-  case XTOK_Scope_typeTags_Map: *kindCat = KC_StringRefMap; break;
+  case XTOK_DependentQType:      *kindCat = KC_Node; break;
+
+  // Containers
+  //   ObjList
+  case XTOK_List_CompoundType_bases:               *kindCat = KC_ObjList;       break;
+  case XTOK_List_CompoundType_virtualBases:        *kindCat = KC_ObjList;       break;
+  //   SObjList
+  case XTOK_List_FunctionType_params:              *kindCat = KC_SObjList;      break;
+  case XTOK_List_CompoundType_dataMembers:         *kindCat = KC_SObjList;      break;
+  case XTOK_List_CompoundType_conversionOperators: *kindCat = KC_SObjList;      break;
+  //   StringRefMap
+  case XTOK_NameMap_Scope_variables:               *kindCat = KC_StringRefMap;  break;
+  case XTOK_NameMap_Scope_typeTags:                *kindCat = KC_StringRefMap;  break;
+  case XTOK_NameMap_EnumType_valueIndex:           *kindCat = KC_StringRefMap;  break;
+
   }
   return true;
 }
 
 bool ReadXml_Type::convertList2FakeList(ASTList<char> *list, int listKind, void **target) {
-//    switch(listKind) {
-//    default: xfailure("attempt to prepend to a non-FakeList token kind");
-//  //    case XTOK_FakeList_MemberInit:
-//  //      if (!datumKind == XTOK_MemberInit) {
-//  //        userError("can't put that onto a FakeList of MemberInit");
-//  //      }
-//  //      return ((FakeList<MemberInit>*)list)->prepend((MemberInit*)datum);
-//  //      break;
-//    }
-  // FIX: change this to the switch default
+  xfailure("this should never be called as we don't use FakeLists in the type system");
   return false;
 }
 
@@ -947,34 +947,34 @@ bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
     topTemp = new DependentQType((AtomicType*)0);
     break;
 
-  // **** Container types
-  case XTOK_FunctionType_params_List:
-    topTemp = new ASTList<Variable>();
-    break;
-
-  case XTOK_CompoundType_dataMembers_List:
-    topTemp = new ASTList<Variable>();
-    break;
-
-  case XTOK_CompoundType_bases_List:
+  // **** Containers
+  // ObjList
+  case XTOK_List_CompoundType_bases:
     topTemp = new ASTList<BaseClass>();
     break;
-
-  case XTOK_CompoundType_virtualBases_List:
+  case XTOK_List_CompoundType_virtualBases:
     topTemp = new ASTList<BaseClassSubobj>();
     break;
-
-  case XTOK_CompoundType_conversionOperators_List:
+  // SObjList
+  case XTOK_List_FunctionType_params:
     topTemp = new ASTList<Variable>();
     break;
-
-//    case XTOK_Scope_variables_Map:
-//      topTemp = new StringRefMap<Variable>();
-//      break;
-
-//    case XTOK_Scope_typeTags_Map:
-//      topTemp = new StringRefMap<Variable>();
-//      break;
+  case XTOK_List_CompoundType_dataMembers:
+    topTemp = new ASTList<Variable>();
+    break;
+  case XTOK_List_CompoundType_conversionOperators:
+    topTemp = new ASTList<Variable>();
+    break;
+  // StringRefMap
+  case XTOK_NameMap_Scope_variables:
+    topTemp = new StringRefMap<Variable>();
+    break;
+  case XTOK_NameMap_Scope_typeTags:
+    topTemp = new StringRefMap<Variable>();
+    break;
+  case XTOK_NameMap_EnumType_valueIndex:
+    topTemp = new StringRefMap<EnumType::Value>();
+    break;
 
 //  #include "astxml_parse1_2ctrc.gen.cc"
   }
@@ -1023,6 +1023,10 @@ void ReadXml_Type::registerAttribute(void *target, int kind, int attr, char cons
     registerAttr_EnumType((EnumType*)target, attr, yytext0);
     break;
 
+  case XTOK_EnumType_Value:
+    registerAttr_EnumType_Value((EnumType::Value*)target, attr, yytext0);
+    break;
+
   case XTOK_TypeVariable:
     registerAttr_TypeVariable((TypeVariable*)target, attr, yytext0);
     break;
@@ -1036,6 +1040,10 @@ void ReadXml_Type::registerAttribute(void *target, int kind, int attr, char cons
     break;
 
   // **** Other
+  case XTOK_Variable:
+    registerAttr_Variable((Variable*)target, attr, yytext0);
+    break;
+
   case XTOK_Scope:
     registerAttr_Scope((Scope*)target, attr, yytext0);
     break;

@@ -18,6 +18,7 @@
 "SimpleType" return tok(XTOK_SimpleType);
 "CompoundType" return tok(XTOK_CompoundType);
 "EnumType" return tok(XTOK_EnumType);
+"EnumType_Value" return tok(XTOK_EnumType_Value);
 "TypeVariable" return tok(XTOK_TypeVariable);
 "PseudoInstantiation" return tok(XTOK_PseudoInstantiation);
 "DependentQType" return tok(XTOK_DependentQType);
@@ -44,10 +45,13 @@
   /*  "rest" return tok(XTOK_rest); */
 
   /* Some containers; I no longer care about order */
-"CompoundType_bases_List" return tok(XTOK_CompoundType_bases_List);
-"CompoundType_virtualBases_List" return tok(XTOK_CompoundType_virtualBases_List);
-"FunctionType_params_List" return tok(XTOK_FunctionType_params_List);
-"CompoundType_dataMembers_List" return tok(XTOK_CompoundType_dataMembers_List);
-"CompoundType_conversionOperators_List" return tok(XTOK_CompoundType_conversionOperators_List);
-"Scope_variables_Map" return tok(XTOK_Scope_variables_Map);
-"Scope_typeTags_Map" return tok(XTOK_Scope_typeTags_Map);
+"List_CompoundType_bases" return tok(XTOK_List_CompoundType_bases);
+"List_CompoundType_virtualBases" return tok(XTOK_List_CompoundType_virtualBases);
+
+"List_FunctionType_params" return tok(XTOK_List_FunctionType_params);
+"List_CompoundType_dataMembers" return tok(XTOK_List_CompoundType_dataMembers);
+"List_CompoundType_conversionOperators" return tok(XTOK_List_CompoundType_conversionOperators);
+
+"NameMap_Scope_variables" return tok(XTOK_NameMap_Scope_variables);
+"NameMap_Scope_typeTags" return tok(XTOK_NameMap_Scope_typeTags);
+"NameMap_EnumType_valueIndex" return tok(XTOK_NameMap_EnumType_valueIndex);
