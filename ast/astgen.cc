@@ -1532,15 +1532,15 @@ void HGen::emitVisitorInterface()
   out << "\n  // FakeList 'classes'\n";
   FOREACH_ASTLIST(char, fakeListClasses, iter) {
     char const *cls = iter.data();
-    out << "  virtual bool visitFakeList_" << cls << "(FakeList<" << cls << ">*);\n";
-    out << "  virtual void postvisitFakeList_" << cls << "(FakeList<" << cls << ">*);\n";
+    out << "  virtual bool visitList_" << cls << "(FakeList<" << cls << ">*);\n";
+    out << "  virtual void postvisitList_" << cls << "(FakeList<" << cls << ">*);\n";
   }
 
   out << "\n  // ASTList 'classes'\n";
   FOREACH_ASTLIST(char, astListClasses, iter) {
     char const *cls = iter.data();
-    out << "  virtual bool visitASTList_" << cls << "(ASTList<" << cls << ">*);\n";
-    out << "  virtual void postvisitASTList_" << cls << "(ASTList<" << cls << ">*);\n";
+    out << "  virtual bool visitList_" << cls << "(ASTList<" << cls << ">*);\n";
+    out << "  virtual void postvisitList_" << cls << "(ASTList<" << cls << ">*);\n";
   }
 
   out << "};\n\n";
@@ -1564,18 +1564,18 @@ void CGen::emitVisitorImplementation()
   out << "\n// FakeList 'classes'\n";
   FOREACH_ASTLIST(char, fakeListClasses, iter) {
     char const *cls = iter.data();
-    out << "bool " << visitorName << "::visitFakeList_" << cls
+    out << "bool " << visitorName << "::visitList_" << cls
         << "(FakeList<" << cls << ">*) { return true; }\n";
-    out << "void " << visitorName << "::postvisitFakeList_" << cls
+    out << "void " << visitorName << "::postvisitList_" << cls
         << "(FakeList<" << cls << ">*) {}\n";
   }
 
   out << "\n// ASTList 'classes'\n";
   FOREACH_ASTLIST(char, astListClasses, iter) {
     char const *cls = iter.data();
-    out << "bool " << visitorName << "::visitASTList_" << cls
+    out << "bool " << visitorName << "::visitList_" << cls
         << "(ASTList<" << cls << ">*) { return true; }\n";
-    out << "void " << visitorName << "::postvisitASTList_" << cls
+    out << "void " << visitorName << "::postvisitList_" << cls
         << "(ASTList<" << cls << ">*) {}\n";
   }
 
@@ -1651,23 +1651,21 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
       // compute list accessor names
       char const *iterMacroName = "FOREACH_ASTLIST_NC";
       char const *iterElt = ".data()";
-      char const *listName = "ASTList";
       char const *argNamePrefix = "&";
       if (isFakeListType(arg->type)) {
         iterMacroName = "FAKELIST_FOREACH_NC";
         iterElt = "";
-        listName = "FakeList";
         argNamePrefix = "";
       }
 
       // emit the pre-visit call to the fantasy "list class"
-      out << "  if (vis.visit" << listName << "_" << eltType << "(" << argNamePrefix << arg->name << ")) {\n";
+      out << "  if (vis.visitList_" << eltType << "(" << argNamePrefix << arg->name << ")) {\n";
 
       out << "    " << iterMacroName << "(" << eltType << ", " << arg->name << ", iter) {\n"
           << "      iter" << iterElt << "->traverse(vis);\n"
           << "    }\n";
 
-      out << "    vis.postvisit" << listName << "_" << eltType << "(" << argNamePrefix << arg->name << ");\n";
+      out << "    vis.postvisitList_" << eltType << "(" << argNamePrefix << arg->name << ");\n";
 
       out << "  }\n";
     }
@@ -1732,15 +1730,15 @@ void HGen::emitDVisitorInterface()
   out << "\n  // FakeList 'classes'\n";
   FOREACH_ASTLIST(char, fakeListClasses, iter) {
     char const *cls = iter.data();
-    out << "  virtual bool visitFakeList_" << cls << "(FakeList<" << cls << ">*);\n";
-    out << "  virtual void postvisitFakeList_" << cls << "(FakeList<" << cls << ">*);\n";
+    out << "  virtual bool visitList_" << cls << "(FakeList<" << cls << ">*);\n";
+    out << "  virtual void postvisitList_" << cls << "(FakeList<" << cls << ">*);\n";
   }
 
   out << "\n  // ASTList 'classes'\n";
   FOREACH_ASTLIST(char, astListClasses, iter) {
     char const *cls = iter.data();
-    out << "  virtual bool visitASTList_" << cls << "(ASTList<" << cls << ">*);\n";
-    out << "  virtual void postvisitASTList_" << cls << "(ASTList<" << cls << ">*);\n";
+    out << "  virtual bool visitList_" << cls << "(ASTList<" << cls << ">*);\n";
+    out << "  virtual void postvisitList_" << cls << "(ASTList<" << cls << ">*);\n";
   }
 
   // we are done
@@ -1797,13 +1795,13 @@ void CGen::emitDVisitorImplementation()
   out << "\n// FakeList 'classes'\n";
   FOREACH_ASTLIST(char, fakeListClasses, iter) {
     char const *cls = iter.data();
-    out << "bool " << dvisitorName << "::visitFakeList_" << cls << "(FakeList<" << cls << ">* obj) {\n";
+    out << "bool " << dvisitorName << "::visitList_" << cls << "(FakeList<" << cls << ">* obj) {\n";
     out << "  xassert(!wasVisitedList_FakeList(obj));\n";
-    out << "  return client ? client->visitFakeList_" << cls << "(obj) : true;\n";
+    out << "  return client ? client->visitList_" << cls << "(obj) : true;\n";
     out << "}\n";
-    out << "void " << dvisitorName << "::postvisitFakeList_" << cls << "(FakeList<" << cls << ">* obj) {\n";
+    out << "void " << dvisitorName << "::postvisitList_" << cls << "(FakeList<" << cls << ">* obj) {\n";
     out << "  if (client) {\n";
-    out << "    client->postvisitFakeList_" << cls << "(obj);\n";
+    out << "    client->postvisitList_" << cls << "(obj);\n";
     out << "  }\n";
     out << "}\n";
   }
@@ -1811,13 +1809,13 @@ void CGen::emitDVisitorImplementation()
   out << "\n// ASTList 'classes'\n";
   FOREACH_ASTLIST(char, astListClasses, iter) {
     char const *cls = iter.data();
-    out << "bool " << dvisitorName << "::visitASTList_" << cls << "(ASTList<" << cls << ">* obj) {\n";
+    out << "bool " << dvisitorName << "::visitList_" << cls << "(ASTList<" << cls << ">* obj) {\n";
     out << "  xassert(!wasVisitedList_ASTList(obj));\n";
-    out << "  return client ? client->visitASTList_" << cls << "(obj) : true;\n";
+    out << "  return client ? client->visitList_" << cls << "(obj) : true;\n";
     out << "}\n";
-    out << "void " << dvisitorName << "::postvisitASTList_" << cls << "(ASTList<" << cls << ">* obj) {\n";
+    out << "void " << dvisitorName << "::postvisitList_" << cls << "(ASTList<" << cls << ">* obj) {\n";
     out << "  if (client) {\n";
-    out << "    client->postvisitASTList_" << cls << "(obj);\n";
+    out << "    client->postvisitList_" << cls << "(obj);\n";
     out << "  }\n";
     out << "}\n";
   }
@@ -2041,15 +2039,15 @@ void HGen::emitXmlVisitorInterface()
   out << "\n  // FakeList 'classes'\n";
   FOREACH_ASTLIST(char, fakeListClasses, iter) {
     char const *cls = iter.data();
-    out << "  virtual bool visitFakeList_" << cls << "(FakeList<" << cls << ">*);\n";
-    out << "  virtual void postvisitFakeList_" << cls << "(FakeList<" << cls << ">*);\n";
+    out << "  virtual bool visitList_" << cls << "(FakeList<" << cls << ">*);\n";
+    out << "  virtual void postvisitList_" << cls << "(FakeList<" << cls << ">*);\n";
   }
 
   out << "\n  // ASTList 'classes'\n";
   FOREACH_ASTLIST(char, astListClasses, iter) {
     char const *cls = iter.data();
-    out << "  virtual bool visitASTList_" << cls << "(ASTList<" << cls << ">*);\n";
-    out << "  virtual void postvisitASTList_" << cls << "(ASTList<" << cls << ">*);\n";
+    out << "  virtual bool visitList_" << cls << "(ASTList<" << cls << ">*);\n";
+    out << "  virtual void postvisitList_" << cls << "(ASTList<" << cls << ">*);\n";
   }
 
   // we are done
@@ -2165,12 +2163,12 @@ void CGen::emitXmlVisitorImplementation()
   out << "\n// FakeList 'classes'\n";
   FOREACH_ASTLIST(char, fakeListClasses, iter) {
     char const *cls = iter.data();
-    out << "bool " << xmlVisitorName << "::visitFakeList_" << cls
+    out << "bool " << xmlVisitorName << "::visitList_" << cls
         << "(FakeList<" << cls << ">* obj) {\n";
     out << "  xassert(!wasVisitedList_FakeList(obj));\n";
     out << "  if (obj) {\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"<FakeList_" << cls << " .id=\\\"\";\n";
+    out << "    out << \"<List_" << cls << " .id=\\\"\";\n";
     out << "    xmlPrintPointer(out, \"FL\", obj);\n";
     out << "    out << \"\\\">\\n\";\n";
     out << "    ++depth;\n";
@@ -2178,12 +2176,12 @@ void CGen::emitXmlVisitorImplementation()
     out << "  return true;\n";
     out << "}\n\n";
 
-    out << "void " << xmlVisitorName << "::postvisitFakeList_" << cls
+    out << "void " << xmlVisitorName << "::postvisitList_" << cls
         << "(FakeList<" << cls << ">* obj) {\n";
     out << "  if (obj) {\n";
     out << "    --depth;\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"</FakeList_" << cls << ">\\n\";\n";
+    out << "    out << \"</List_" << cls << ">\\n\";\n";
     out << "  }\n";
     out << "}\n\n";
   }
@@ -2191,22 +2189,22 @@ void CGen::emitXmlVisitorImplementation()
   out << "\n// ASTList 'classes'\n";
   FOREACH_ASTLIST(char, astListClasses, iter) {
     char const *cls = iter.data();
-    out << "bool " << xmlVisitorName << "::visitASTList_" << cls
+    out << "bool " << xmlVisitorName << "::visitList_" << cls
         << "(ASTList<" << cls << ">* obj) {\n";
     out << "  xassert(!wasVisitedList_ASTList(obj));\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"<ASTList_" << cls << " .id=\\\"\";\n";
+    out << "  out << \"<List_" << cls << " .id=\\\"\";\n";
     out << "  xmlPrintPointer(out, \"AL\", obj);\n";
     out << "  out << \"\\\">\\n\";\n";
     out << "  ++depth;\n";
     out << "  return true;\n";
     out << "}\n\n";
 
-    out << "void " << xmlVisitorName << "::postvisitASTList_" << cls
+    out << "void " << xmlVisitorName << "::postvisitList_" << cls
         << "(ASTList<" << cls << ">* obj) {\n";
     out << "  --depth;\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"</ASTList_" << cls << ">\\n\";\n";
+    out << "  out << \"</List_" << cls << ">\\n\";\n";
     out << "}\n\n";
   }
 
@@ -2487,14 +2485,14 @@ void XmlParserGen::emitXmlField_AttributeParseRule
     parser1_defs << "    case XTOK_" << name << ":\n";
     parser1_defs << "      linkSat.unsatLinks_List.append(new UnsatLink("
                  << "(void**) &(obj->" << name << "), parseQuotedString(strValue), "
-                 << "XTOK_ASTList_" << extractListType(type) << "));\n";
+                 << "XTOK_List_" << extractListType(type) << "));\n";
     parser1_defs << "      break;\n";
   }
   else if (isFakeListType(type)) {
     parser1_defs << "    case XTOK_" << name << ":\n";
     parser1_defs << "      linkSat.unsatLinks_List.append(new UnsatLink("
                  << "(void**) &(obj->" << name << "), parseQuotedString(strValue), "
-                 << "XTOK_FakeList_" << extractListType(type) << "));\n";
+                 << "XTOK_List_" << extractListType(type) << "));\n";
     parser1_defs << "      break;\n";
   }
   else if (isTreeNode(type) ||
@@ -2617,7 +2615,7 @@ void XmlParserGen::emitXmlParser_Node_registerAttr
 
 void XmlParserGen::emitXmlParser_FakeList(char const *type)
 {
-  string name = stringc << "FakeList_" << type;
+  string name = stringc << "List_" << type;
   // only one rule as lists are homogeneous
   xassert(isTreeNode(type));
   parser2_ctorCalls << "    case XTOK_" << name << ":\n"
@@ -2627,7 +2625,7 @@ void XmlParserGen::emitXmlParser_FakeList(char const *type)
 
 void XmlParserGen::emitXmlParser_ASTList(char const *type)
 {
-  string name = stringc << "ASTList_" << type;
+  string name = stringc << "List_" << type;
   // only one rule as lists are homogeneous
   xassert(isTreeNode(type));
 //    parserOut << "    ((ASTList<" << type << ">*)v)->append((" << type << "*)child);\n";
@@ -2683,10 +2681,10 @@ void XmlParserGen::emitXmlParserImplementation()
   tokensOutCC << "\n  // FakeList 'classes'\n";
   FOREACH_ASTLIST(char, fakeListClasses, iter) {
     char const *cls = iter.data();
-    tokensOutH  << "  XTOK_FakeList_" << cls << ", // \"FakeList_" << cls << "\"\n";
-    tokensOutCC << "  \"XTOK_FakeList_" << cls << "\",\n";
-    lexerOut  << "\"FakeList_" << cls << "\" return tok(XTOK_FakeList_" << cls << ");\n";
-    parser1_defs << "  case XTOK_FakeList_" << cls << ": *kindCat = KC_FakeList; break;\n";
+    tokensOutH  << "  XTOK_List_" << cls << ", // \"List_" << cls << "\"\n";
+    tokensOutCC << "  \"XTOK_List_" << cls << "\",\n";
+    lexerOut  << "\"List_" << cls << "\" return tok(XTOK_List_" << cls << ");\n";
+    parser1_defs << "  case XTOK_List_" << cls << ": *kindCat = KC_FakeList; break;\n";
     emitXmlParser_FakeList(cls);
   }
 
@@ -2694,10 +2692,10 @@ void XmlParserGen::emitXmlParserImplementation()
   tokensOutCC << "\n  // ASTList 'classes'\n";
   FOREACH_ASTLIST(char, astListClasses, iter) {
     char const *cls = iter.data();
-    tokensOutH  << "  XTOK_ASTList_" << cls << ", // \"ASTList_" << cls << "\"\n";
-    tokensOutCC << "  \"XTOK_ASTList_" << cls << "\",\n";
-    lexerOut  << "\"ASTList_" << cls << "\" return tok(XTOK_ASTList_" << cls << ");\n";
-    parser1_defs << "  case XTOK_ASTList_" << cls << ": *kindCat = KC_ASTList; break;\n";
+    tokensOutH  << "  XTOK_List_" << cls << ", // \"List_" << cls << "\"\n";
+    tokensOutCC << "  \"XTOK_List_" << cls << "\",\n";
+    lexerOut  << "\"List_" << cls << "\" return tok(XTOK_List_" << cls << ");\n";
+    parser1_defs << "  case XTOK_List_" << cls << ": *kindCat = KC_ASTList; break;\n";
     emitXmlParser_ASTList(cls);
   }
 
@@ -2728,7 +2726,7 @@ void XmlParserGen::emitXmlParserImplementation()
   parser1_defs << "  default: return false; // we did not find a matching tag\n";
   FOREACH_ASTLIST(char, fakeListClasses, iter) {
     char const *cls = iter.data();
-    parser1_defs << "  case XTOK_FakeList_" << cls << ": {\n";
+    parser1_defs << "  case XTOK_List_" << cls << ": {\n";
     parser1_defs << "    xassert(list);\n";
     parser1_defs << "    FakeList<" << cls << "> *ret = NULL;\n";
     parser1_defs << "    FakeList<" << cls << "> *prev = NULL;\n";
@@ -2755,10 +2753,10 @@ void XmlParserGen::emitXmlParserImplementation()
   parser1_defs << "void ReadXml_AST::append2List(void *list, int listKind, "
                << "void *datum, int datumKind) {\n";
   parser1_defs << "  switch(listKind) {\n";
-  parser1_defs << "  default: xfailure(\"attempt to append to a non-ASTList token kind\");\n";
+  parser1_defs << "  default: xfailure(\"attempt to append to a non-List token kind\"); break;\n";
   FOREACH_ASTLIST(char, astListClasses, iter) {
     char const *cls = iter.data();
-    parser1_defs << "  case XTOK_ASTList_" << cls << ":\n";
+    parser1_defs << "  case XTOK_List_" << cls << ":\n";
     parser1_defs << "    if (!datumKind == XTOK_" << cls << ") {\n";
     parser1_defs << "      userError(\"can't put that onto an List of " << cls << "\");\n";
     parser1_defs << "    }\n";
@@ -2767,7 +2765,7 @@ void XmlParserGen::emitXmlParserImplementation()
   }
   FOREACH_ASTLIST(char, fakeListClasses, iter) {
     char const *cls = iter.data();
-    parser1_defs << "  case XTOK_FakeList_" << cls << ":\n";
+    parser1_defs << "  case XTOK_List_" << cls << ":\n";
     parser1_defs << "    if (!datumKind == XTOK_" << cls << ") {\n";
     parser1_defs << "      userError(\"can't put that onto a List of " << cls << "\");\n";
     parser1_defs << "    }\n";
@@ -2983,7 +2981,7 @@ void getListClasses(CtorArg const *arg) {
   // inside the nesting
   if (isListType(arg->type) && isTreeNode(extractListType(arg->type))) {
     string listType = extractListType(arg->type);
-    string listName = stringc << "ASTList_" << listType;
+    string listName = stringc << "List_" << listType;
     if (!astListClassesSet.contains(listName)) {
       astListClassesSet.add(listName);
       astListClasses.append(strdup(listType.c_str()));
@@ -2991,7 +2989,7 @@ void getListClasses(CtorArg const *arg) {
   }
   if (isFakeListType(arg->type) && isTreeNode(extractListType(arg->type))) {
     string listType = extractListType(arg->type);
-    string listName = stringc << "FakeList_" << listType;
+    string listName = stringc << "List_" << listType;
     if (!fakeListClassesSet.contains(listName)) {
       fakeListClassesSet.add(listName);
       fakeListClasses.append(strdup(listType.c_str()));
