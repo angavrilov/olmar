@@ -60,6 +60,29 @@ void *LinkSatisfier::convertList2ObjList(ASTList<char> *list, int listKind) {
   THROW(xBase(stringc << "no converter for ObjList type"));
 }
 
+void LinkSatisfier::convertNameMap2StringRefMap
+  (StringRefMap<char> *map, int mapKind, void *target) {
+  FOREACH_ASTLIST_NC(ReadXml, readers, iter) {
+    ReadXml *reader = iter.data();
+    if (reader->convertNameMap2StringRefMap(map, mapKind, target)) {
+      return;
+    }
+  }
+  THROW(xBase(stringc << "no converter for name map type"));
+}
+
+void LinkSatisfier::convertNameMap2StringSObjDict
+  (StringRefMap<char> *map, int mapKind, void *target) {
+  FOREACH_ASTLIST_NC(ReadXml, readers, iter) {
+    ReadXml *reader = iter.data();
+    if (reader->convertNameMap2StringSObjDict(map, mapKind, target)) {
+      return;
+    }
+  }
+  THROW(xBase(stringc << "no converter for name map type"));
+}
+
+
 bool LinkSatisfier::kind2kindCat(int kind, KindCategory *kindCat) {
   xassert(kind != -1);          // this means you shouldn't be asking
   FOREACH_ASTLIST_NC(ReadXml, readers, iter) {
@@ -115,10 +138,6 @@ void LinkSatisfier::satisfyLinks() {
       break;
 
     case KC_ASTList: {
-      // FIX: I suppose I don't need to do this steal: I can just cast
-      // it to the result
-#warning try just the cast here
-
       // Recall that ASTLists are used in a class by embeding them.
       // Therefore, a pointer to the field to be filled in is a
       // pointer to an ASTList, not a pointer to a pointer to an
@@ -184,6 +203,47 @@ void LinkSatisfier::satisfyLinks() {
       delete obj;
       break;
     }
+    }
+  }
+
+  // Maps
+  FOREACH_ASTLIST(UnsatLink, unsatLinks_NameMap, iter) {
+    UnsatLink const *ul = iter.data();
+    // NOTE: I rely on the fact that all StringRefMap-s just contain
+    // pointers; otherwise this cast would cause problems; Note that I
+    // have to use char instead of void because you can't delete a
+    // pointer to void; see the note in the if below.
+    StringRefMap<char> *obj = reinterpret_cast<StringRefMap<char>*>(id2obj.queryif(ul->id));
+    if (!obj) {
+      // no satisfaction was provided for this link; for now we just
+      // skip it, but if you wanted to report that in some way, here
+      // is the place to do it
+      //        cout << "unsatisfied List link: " << ul->id << endl;
+      continue;
+    }
+
+    KindCategory kindCat;
+    bool foundIt = kind2kindCat(ul->kind, &kindCat);
+    if (!foundIt) {
+      THROW(xBase(stringc << "no kind category registered for this kind"));
+    }
+    switch (kindCat) {
+    default:
+      xfailure("illegal name map kind");
+      break;
+
+    case KC_StringRefMap: {
+      // FIX: this would be way more efficient if there were a
+      // PtrMap::steal() method: I wouldn't need this convert call.
+      convertNameMap2StringRefMap(obj, ul->kind, ul->ptr);
+      break;
+    }
+
+    case KC_StringSObjDict: {
+      convertNameMap2StringSObjDict(obj, ul->kind, ul->ptr);
+      break;
+    }
+
     }
   }
 }

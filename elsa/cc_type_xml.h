@@ -147,6 +147,11 @@ class ReadXml_Type : public ReadXml {
   bool convertList2SObjList(ASTList<char> *list, int listKind, void **target);
   bool convertList2ObjList (ASTList<char> *list, int listKind, void **target);
 
+  bool convertNameMap2StringRefMap
+    (StringRefMap<char>   *map, int mapKind, void *target);
+  bool convertNameMap2StringSObjDict
+    (StringRefMap<char> *map, int mapKind, void *target);
+
   bool ctorNodeFromTag(int tag, void *&topTemp);
   void registerAttribute(void *target, int kind, int attr, char const *yytext0);
 

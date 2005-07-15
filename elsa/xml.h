@@ -10,6 +10,7 @@
 #include "objstack.h"           // ObjStack
 #include "astlist.h"            // ASTList
 #include "strtable.h"           // StringRef
+#include "strmap.h"             // StringRefMap
 
 class AstXmlLexer;
 class StringTable;
@@ -75,8 +76,9 @@ class LinkSatisfier {
   // Since AST nodes are embedded, we have to put this on to a
   // different list than the ususal pointer unsatisfied links.  I just
   // separate out all lists.
-  ASTList<UnsatLink> unsatLinks_List;
   ASTList<UnsatLink> unsatLinks;
+  ASTList<UnsatLink> unsatLinks_List;
+  ASTList<UnsatLink> unsatLinks_NameMap;
 
   // map object ids to the actual object
   StringSObjDict<void> id2obj;
@@ -94,6 +96,9 @@ class LinkSatisfier {
   void *convertList2FakeList(ASTList<char> *list, int listKind);
   void *convertList2SObjList(ASTList<char> *list, int listKind);
   void *convertList2ObjList (ASTList<char> *list, int listKind);
+
+  void convertNameMap2StringRefMap  (StringRefMap<char> *map, int listKind, void *target);
+  void convertNameMap2StringSObjDict(StringRefMap<char> *map, int listKind, void *target);
 
   bool kind2kindCat(int kind, KindCategory *kindCat);
   void satisfyLinks();
@@ -186,6 +191,12 @@ class ReadXml {
   virtual bool convertList2FakeList(ASTList<char> *list, int listKind, void **target) = 0;
   virtual bool convertList2SObjList(ASTList<char> *list, int listKind, void **target) = 0;
   virtual bool convertList2ObjList (ASTList<char> *list, int listKind, void **target) = 0;
+
+  // all name maps are stored as StringRefMaps; these convert to the real name maps
+  virtual bool convertNameMap2StringRefMap
+    (StringRefMap<char>   *map, int mapKind, void *target) = 0;
+  virtual bool convertNameMap2StringSObjDict
+    (StringRefMap<char> *map, int mapKind, void *target) = 0;
 
   // construct a node for a tag; returns true if it was a closeTag
   virtual bool ctorNodeFromTag(int tag, void *&topTemp) = 0;

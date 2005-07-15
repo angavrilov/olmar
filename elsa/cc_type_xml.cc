@@ -1019,6 +1019,57 @@ bool ReadXml_Type::convertList2ObjList (ASTList<char> *list, int listKind, void 
   return true;
 }
 
+bool ReadXml_Type::convertNameMap2StringRefMap
+  (StringRefMap<char> *map, int mapKind, void *target)
+{
+  xassert(map);
+
+  switch(mapKind) {
+  default: return false;        // we did not find a matching tag
+
+  case XTOK_NameMap_Scope_variables:
+  case XTOK_NameMap_Scope_typeTags:
+    {
+    StringRefMap<Variable> *ret = reinterpret_cast<StringRefMap<Variable>*>(target);
+    for(StringRefMap<Variable>::Iter iter(reinterpret_cast<StringRefMap<Variable>&>(*map));
+        !iter.isDone(); iter.adv()) {
+      StringRef name = iter.key();
+      Variable *value = iter.value();
+      ret->add(name, value);
+    }
+    break;
+  }
+
+  }
+  return true;
+}
+
+bool ReadXml_Type::convertNameMap2StringSObjDict
+  (StringRefMap<char> *map, int mapKind, void *target)
+{
+  xassert(map);
+
+  switch(mapKind) {
+  default: return false;        // we did not find a matching tag
+
+  case XTOK_NameMap_EnumType_valueIndex:
+    {
+    StringSObjDict<EnumType::Value> *ret =
+      reinterpret_cast<StringSObjDict<EnumType::Value>*>(target);
+    for(StringRefMap<EnumType::Value>::Iter
+          iter(reinterpret_cast<StringRefMap<EnumType::Value>&>(*map));
+        !iter.isDone(); iter.adv()) {
+      StringRef name = iter.key();
+      EnumType::Value *value = iter.value();
+      ret->add(name, value);
+    }
+    break;
+  }
+
+  }
+  return true;
+}
+
 bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
   switch(tag) {
   default: userError("unexpected token while looking for an open tag name");
@@ -1272,7 +1323,7 @@ void ReadXml_Type::registerAttr_FunctionType
     break;
 
   case XTOK_params:
-    linkSat.unsatLinks.append
+    linkSat.unsatLinks_List.append
       (new UnsatLink((void**) &(obj->params),
                      parseQuotedString(strValue),
                      XTOK_List_FunctionType_params));
@@ -1444,21 +1495,21 @@ void ReadXml_Type::registerAttr_CompoundType
     break;
 
   case XTOK_dataMembers:
-    linkSat.unsatLinks.append
+    linkSat.unsatLinks_List.append
       (new UnsatLink((void**) &(obj->dataMembers),
                      parseQuotedString(strValue),
                      XTOK_List_CompoundType_dataMembers));
     break;
 
   case XTOK_bases:
-    linkSat.unsatLinks.append
+    linkSat.unsatLinks_List.append
       (new UnsatLink((void**) &(obj->bases),
                      parseQuotedString(strValue),
                      XTOK_List_CompoundType_bases));
     break;
 
   case XTOK_virtualBases:
-    linkSat.unsatLinks.append
+    linkSat.unsatLinks_List.append
       (new UnsatLink((void**) &(obj->virtualBases),
                      parseQuotedString(strValue),
                      XTOK_List_CompoundType_virtualBases));
@@ -1471,7 +1522,7 @@ void ReadXml_Type::registerAttr_CompoundType
     break;
 
   case XTOK_conversionOperators:
-    linkSat.unsatLinks.append
+    linkSat.unsatLinks_List.append
       (new UnsatLink((void**) &(obj->conversionOperators),
                      parseQuotedString(strValue),
                      XTOK_List_CompoundType_conversionOperators));
@@ -1514,9 +1565,10 @@ void ReadXml_Type::registerAttr_EnumType
     break;
 
   case XTOK_valueIndex:
-    linkSat.unsatLinks.append
+    linkSat.unsatLinks_NameMap.append
       (new UnsatLink((void**) &(obj->valueIndex),
-                     parseQuotedString(strValue)));
+                     parseQuotedString(strValue),
+                     XTOK_NameMap_EnumType_valueIndex));
     break;
 
   case XTOK_nextValue:
@@ -1616,17 +1668,17 @@ bool ReadXml_Type::registerAttr_Scope_super
     break;
 
   case XTOK_variables:
-    linkSat.unsatLinks.append
+    linkSat.unsatLinks_NameMap.append
       (new UnsatLink((void**) &(obj->variables),
                      parseQuotedString(strValue),
-                     KC_StringRefMap));
+                     XTOK_NameMap_Scope_variables));
     break;
 
   case XTOK_typeTags:
-    linkSat.unsatLinks.append
+    linkSat.unsatLinks_NameMap.append
       (new UnsatLink((void**) &(obj->typeTags),
                      parseQuotedString(strValue),
-                     KC_StringRefMap));
+                     XTOK_NameMap_Scope_typeTags));
     break;
 
   case XTOK_canAcceptNames:
@@ -1717,7 +1769,7 @@ void ReadXml_Type::registerAttr_BaseClassSubobj
     break;
 
   case XTOK_parents:
-    linkSat.unsatLinks.append
+    linkSat.unsatLinks_List.append
       (new UnsatLink((void**) &(obj->parents),
                      parseQuotedString(strValue),
                      XTOK_List_BaseClassSubobj_parents));
