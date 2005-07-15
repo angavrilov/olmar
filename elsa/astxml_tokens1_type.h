@@ -62,13 +62,20 @@
     XTOK_namespaceVar, // "namespaceVar"
     XTOK_curCompound, // "curCompound"
     XTOK_ct, // "ct"
+    XTOK_variables, // "variables"
+    XTOK_typeTags, // "typeTags"
+    XTOK_parents, // "parents"
 
   /* Some containers; I no longer care about order */
   XTOK_List_CompoundType_bases,
   XTOK_List_CompoundType_virtualBases,
+
   XTOK_List_FunctionType_params,
   XTOK_List_CompoundType_dataMembers,
   XTOK_List_CompoundType_conversionOperators,
+  XTOK_List_BaseClassSubobj_parents,
+
   XTOK_NameMap_Scope_variables,
   XTOK_NameMap_Scope_typeTags,
   XTOK_NameMap_EnumType_valueIndex,
+  XTOK_Name, // "__Name"

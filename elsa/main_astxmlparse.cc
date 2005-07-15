@@ -24,8 +24,11 @@ class ReadXml_AST : public ReadXml {
 
   private:
   void append2List(void *list, int listKind, void *datum, int datumKind);
+  void insertIntoNameMap(void *map, int mapKind, StringRef name, void *datum, int datumKind);
   bool kind2kindCat(int kind, KindCategory *ret);
   bool convertList2FakeList(ASTList<char> *list, int listKind, void **target);
+  bool convertList2SObjList(ASTList<char> *list, int listKind, void **target);
+  bool convertList2ObjList (ASTList<char> *list, int listKind, void **target);
   bool ctorNodeFromTag(int tag, void *&topTemp);
   void registerAttribute(void *target, int kind, int attr, char const *yytext0);
 
@@ -33,6 +36,21 @@ class ReadXml_AST : public ReadXml {
 //    void registerAttr_TranslationUnit(TranslationUnit *obj, int attr, char const *strValue);
 #include "astxml_parse1_0decl.gen.cc"
 };
+
+void ReadXml_AST::insertIntoNameMap
+  (void *map, int mapKind, StringRef name, void *datum, int datumKind) {
+  xfailure("should not be called during AST parsing as there are no Maps in the AST");
+}
+
+bool ReadXml_AST::convertList2SObjList(ASTList<char> *list, int listKind, void **target) {
+  xfailure("should not be called during AST parsing as there are no SObjLists in the AST");
+  return false;
+}
+
+bool ReadXml_AST::convertList2ObjList (ASTList<char> *list, int listKind, void **target) {
+  xfailure("should not be called during AST parsing as there are no ObjLists in the AST");
+  return false;
+}
 
 bool ReadXml_AST::ctorNodeFromTag(int tag, void *&topTemp) {
   switch(tag) {

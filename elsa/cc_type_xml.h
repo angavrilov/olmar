@@ -140,8 +140,13 @@ class ReadXml_Type : public ReadXml {
 
   public:
   void append2List(void *list, int listKind, void *datum, int datumKind);
+  void insertIntoNameMap(void *map0, int mapKind, StringRef name, void *datum, int datumKind);
   bool kind2kindCat(int kind, KindCategory *kindCat);
+
   bool convertList2FakeList(ASTList<char> *list, int listKind, void **target);
+  bool convertList2SObjList(ASTList<char> *list, int listKind, void **target);
+  bool convertList2ObjList (ASTList<char> *list, int listKind, void **target);
+
   bool ctorNodeFromTag(int tag, void *&topTemp);
   void registerAttribute(void *target, int kind, int attr, char const *yytext0);
 
@@ -170,7 +175,7 @@ class ReadXml_Type : public ReadXml {
   void registerAttr_Scope              (Scope *obj,               int attr, char const *strValue);
   bool registerAttr_BaseClass_super    (BaseClass *obj,           int attr, char const *strValue);
   void registerAttr_BaseClass          (BaseClass *obj,           int attr, char const *strValue);
-  void registerAttr_BaseClassSubobj    (BaseClass *obj,           int attr, char const *strValue);
+  void registerAttr_BaseClassSubobj    (BaseClassSubobj *obj,     int attr, char const *strValue);
 
 //  #include "astxml_parse1_0decl.gen.cc"
 };

@@ -9,6 +9,7 @@
 #include "sobjstack.h"          // SObjStack
 #include "objstack.h"           // ObjStack
 #include "astlist.h"            // ASTList
+#include "strtable.h"           // StringRef
 
 class AstXmlLexer;
 class StringTable;
@@ -29,12 +30,26 @@ void fromXml_bool(bool &b, string str);
 enum KindCategory {
   KC_Node,                      // a normal node
   // list
-  KC_ASTList,                   // an ast list
-  KC_FakeList,                  // a fake list
-  KC_ObjList,                   // an ObjList
-  KC_SObjList,                  // an SObjList
+  KC_ASTList,
+  KC_FakeList,
+  KC_ObjList,
+  KC_SObjList,
   // name map
-  KC_StringRefMap,              // a StringRefMap
+  KC_StringRefMap,
+  KC_StringSObjDict,
+  // a name entry in a name map
+  KC_Name,
+};
+
+// the <__Name> </__Name> tag is parsed into this class to hold the
+// name while the value contained by it is being parsed.  Then it is
+// deleted.
+struct Name {
+  StringRef name;
+
+  Name() {}
+  Name(StringRef name0) : name(name0) {}
+  // FIX: do I destruct/free() the name when I destruct the object?
 };
 
 
@@ -75,7 +90,11 @@ class LinkSatisfier {
   }
 
   void registerReader(ReadXml *reader);
+
   void *convertList2FakeList(ASTList<char> *list, int listKind);
+  void *convertList2SObjList(ASTList<char> *list, int listKind);
+  void *convertList2ObjList (ASTList<char> *list, int listKind);
+
   bool kind2kindCat(int kind, KindCategory *kindCat);
   void satisfyLinks();
 };
@@ -154,12 +173,20 @@ class ReadXml {
 
   // **** subclass fills these in
   public:
-  // append a list element to a list
+
+  // insert elements into containers
   virtual void append2List(void *list, int listKind, void *datum, int datumKind) = 0;
+  virtual void insertIntoNameMap
+    (void *map, int mapKind, StringRef name, void *datum, int datumKind) = 0;
+
   // map a kind to its kind category
   virtual bool kind2kindCat(int kind, KindCategory *ret) = 0;
-  // all lists are stored as ASTLists; this converts to FakeLists
+
+  // all lists are stored as ASTLists; these convert to the real list
   virtual bool convertList2FakeList(ASTList<char> *list, int listKind, void **target) = 0;
+  virtual bool convertList2SObjList(ASTList<char> *list, int listKind, void **target) = 0;
+  virtual bool convertList2ObjList (ASTList<char> *list, int listKind, void **target) = 0;
+
   // construct a node for a tag; returns true if it was a closeTag
   virtual bool ctorNodeFromTag(int tag, void *&topTemp) = 0;
   // register an attribute into the current node

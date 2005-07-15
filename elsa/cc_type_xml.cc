@@ -9,7 +9,6 @@
 #include "astxml_lexer.h"       // AstXmlLexer
 
 
-
 string toXml(CompoundType::Keyword id) {
   return stringc << static_cast<int>(id);
 }
@@ -353,26 +352,15 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     printIndentation();
     out << "dataMembers=\"TY" << static_cast<void const*>(&(cpd->dataMembers)) << "\"\n";
 
-    //    // classes from which this one inherits; 'const' so you have to
-    //    // use 'addBaseClass', but public to make traversal easy
-    //    const ObjList<BaseClass> bases;
     printIndentation();
     out << "bases=\"TY" << static_cast<void const*>(&(cpd->bases)) << "\"\n";
 
-    //    // collected virtual base class subobjects
-    //    ObjList<BaseClassSubobj> virtualBases;
     printIndentation();
     out << "virtualBases=\"TY" << static_cast<void const*>(&(cpd->virtualBases)) << "\"\n";
 
-    //    // this is the root of the subobject hierarchy diagram
-    //    // invariant: subobj.ct == this
-    //    BaseClassSubobj subobj;
     printIndentation();
     out << "subobj=\"TY" << static_cast<void const*>(&(cpd->subobj)) << "\"\n";
 
-    //    // list of all conversion operators this class has, including
-    //    // those that have been inherited but not then hidden
-    //    SObjList<Variable> conversionOperators;
     printIndentation();
     out << "conversionOperators=\"TY" << static_cast<void const*>(&(cpd->conversionOperators))
         << "\"\n";
@@ -380,10 +368,6 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     printIndentation();
     out << "instName=" << quoted(cpd->instName) << "\n";
 
-    //    // AST node that describes this class; used for implementing
-    //    // templates (AST pointer)
-    //    // dsw: used for other purposes also
-    //    TS_classSpec *syntax;               // (nullable serf)
     if (cpd->syntax) {
       printIndentation();
       out << "syntax=\"";
@@ -392,11 +376,6 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
       // FIX: this is AST so we should make sure it gets printed out
     }
 
-    //    // template parameter scope that is consulted for lookups after
-    //    // this scope and its base classes; this changes over time as
-    //    // the class is added to and removed from the scope stack; it
-    //    // is NULL whenever it is not on the scope stack
-    //    Scope *parameterizingScope;         // (nullable serf)
     if (cpd->parameterizingScope) {
       printIndentation();
       out << "parameterizingScope=\"";
@@ -496,19 +475,26 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     out << "<EnumType_valueIndex";
     out << " .id=\"SO" << static_cast<void const*>(&(e->valueIndex)) << "\">\n";
     ++depth;
-    // FIX: put an interator here for an StringSObjDict.
-//      SFOREACH_OBJLIST_NC(EnumType::Value, cpd->valueIndex, iter) {
-//        EnumType::Value *eValue = iter.data();
-//        // The usual traversal rountine will not go down into here, so
-//        // we have to.
-    // NOTE: I omit putting a traverse method on EnumType::Value as it
-    // should be virtual to be parallel to the other traverse()
-    // methods which would add a vtable and I don't think it would
-    // ever be used anyway.  So I just inline it here.
-//        visitEnumType_Value(eValue);
-    // assert return is true;
-//        postvisitEnumType_Value(eValue);
-//      }
+    for(StringObjDict<EnumType::Value>::Iter iter(e->valueIndex);
+        !iter.isDone(); iter.next()) {
+      string const &name = iter.key();
+      // dsw: do you know how bad it gets if I don't put a const-cast
+      // here?
+      EnumType::Value *eValue = const_cast<EnumType::Value*>(iter.value());
+      // The usual traverse() rountine will not go down into here, so
+      // we have to.
+      //
+      // NOTE: I omit putting a traverse method on EnumType::Value as
+      // it should be virtual to be parallel to the other traverse()
+      // methods which would add a vtable and I don't think it would
+      // ever be used anyway.  So I just inline it here.
+      printIndentation();
+      out << "<__Name" << " name=" << quoted(name) << ">\n";
+      bool ret = visitEnumType_Value(eValue);
+      xassert(ret);
+      postvisitEnumType_Value(eValue);
+      out << "</__Name>\n";
+    }
     --depth;
     printIndentation();
     out << "</EnumType_valueIndex>\n";
@@ -616,7 +602,7 @@ void ToXMLTypeVisitor::postvisitAtomicType(AtomicType *obj) {
 
 
 bool ToXMLTypeVisitor::visitEnumType_Value(void /*EnumType::Value*/ *eValue0) {
-  EnumType::Value *eValue = static_cast<EnumType::Value*>(eValue0);
+  EnumType::Value *eValue = static_cast<EnumType::Value *>(eValue0);
   if (printedObjects.contains(eValue)) return false;
   printedObjects.add(eValue);
   printIndentation();
@@ -689,6 +675,7 @@ void ToXMLTypeVisitor::toXml_Scope_properties(Scope *scope)
 
 void ToXMLTypeVisitor::toXml_Scope_subtags(Scope *scope)
 {
+  // nothing to do as the traverse visits everything
 }
 
 bool ToXMLTypeVisitor::visitScope(Scope *scope)
@@ -726,9 +713,13 @@ bool ToXMLTypeVisitor::visitScope_NameMap_variables(StringRefMap<Variable> &vari
 void ToXMLTypeVisitor::visitScope_NameMap_variables_entry(StringRef name, Variable *var)
 {
   printIndentation();
-  out << "<__NameValuePair";
-  out << " name=" << quoted(name) << "";
-  out << " var=\"TY" << static_cast<void const*>(var) << "\">\n";
+  out << "<__Name" << " name=" << quoted(name) << ">\n";
+  ++depth;
+  bool ret = visitVariable(var);
+  xassert(ret);
+  postvisitVariable(var);
+  --depth;
+  out << "</__Name>\n";
 }
 void ToXMLTypeVisitor::postvisitScope_NameMap_variables(StringRefMap<Variable> &variables)
 {
@@ -748,9 +739,13 @@ bool ToXMLTypeVisitor::visitScope_NameMap_typeTags(StringRefMap<Variable> &typeT
 void ToXMLTypeVisitor::visitScope_NameMap_typeTags_entry(StringRef name, Variable *var)
 {
   printIndentation();
-  out << "<__NameValuePair";
-  out << " name=" << quoted(name) << "";
-  out << " var=\"TY" << static_cast<void const*>(var) << "\">\n";
+  out << "<__Name" << " name=" << quoted(name) << ">\n";
+  ++depth;
+  bool ret = visitVariable(var);
+  xassert(ret);
+  postvisitVariable(var);
+  --depth;
+  out << "</__Name>\n";
 }
 void ToXMLTypeVisitor::postvisitScope_NameMap_typeTags(StringRefMap<Variable> &typeTags)
 {
@@ -832,46 +827,83 @@ void ToXMLTypeVisitor::postvisitBaseClassSubobjParents(SObjList<BaseClassSubobj>
 // -------------------- ReadXml_Type -------------------
 
 //  #include "astxml_parse1_1defn.gen.cc"
-void ReadXml_Type::append2List(void *list, int listKind, void *datum, int datumKind) {
+void ReadXml_Type::append2List(void *list0, int listKind, void *datum0, int datumKind) {
+  xassert(list0);
+  ASTList<char> *list = static_cast<ASTList<char>*>(list0);
+  char *datum = (char*)datum0;
+
   switch(listKind) {
-  default: xfailure("attempt to append to a non-List token kind"); break;
+  default: xfailure("attempt to append to a non-List"); break;
 
   case XTOK_List_CompoundType_bases:
     if (!datumKind == XTOK_BaseClass) {
       userError("can't put that onto an List of BaseClass-es");
     }
-    ((ASTList<char>*)list)->append((char*)datum);
     break;
 
   case XTOK_List_CompoundType_virtualBases:
     if (!datumKind == XTOK_BaseClassSubobj) {
       userError("can't put that onto an List of BaseClassSubobj-es");
     }
-    ((ASTList<char>*)list)->append((char*)datum);
     break;
 
   case XTOK_List_FunctionType_params:
     if (!datumKind == XTOK_Variable) {
       userError("can't put that onto an List of Variable-es");
     }
-    ((ASTList<char>*)list)->append((char*)datum);
     break;
 
   case XTOK_List_CompoundType_dataMembers:
     if (!datumKind == XTOK_Variable) {
-      userError("can't put that onto an List of Variable");
+      userError("can't put that onto an List of Variable-es");
     }
-    ((ASTList<char>*)list)->append((char*)datum);
     break;
 
   case XTOK_List_CompoundType_conversionOperators:
     if (!datumKind == XTOK_Variable) {
-      userError("can't put that onto an List of Variable");
+      userError("can't put that onto an List of Variable-es");
     }
-    ((ASTList<char>*)list)->append((char*)datum);
+    break;
+  }
+
+  list->append(datum);
+}
+
+void ReadXml_Type::insertIntoNameMap
+  (void *map0, int mapKind, StringRef name, void *datum0, int datumKind) {
+
+  xassert(map0);
+  StringRefMap<char> *map = static_cast<StringRefMap<char>*>(map0);
+  char *datum = (char*)datum0;
+
+  if (map->get(name)) {
+    userError(stringc << "duplicate name " << name << " in map");
+  }
+
+  switch(mapKind) {
+  default: xfailure("attempt to insert into to a non-Map"); break;
+
+  case XTOK_NameMap_Scope_variables:
+    if (!datumKind == XTOK_Variable) {
+      userError("can't put that into a Map of Variable-s");
+    }
+    break;
+
+  case XTOK_NameMap_Scope_typeTags:
+    if (!datumKind == XTOK_Variable) {
+      userError("can't put that into a Map of Variable-s");
+    }
+    break;
+
+  case XTOK_NameMap_EnumType_valueIndex:
+    if (!datumKind == XTOK_EnumType_Value) {
+      userError("can't put that into a Map of EnumType::Value-s");
+    }
     break;
 
   }
+
+  map->add(name, datum);
 }
 
 bool ReadXml_Type::kind2kindCat(int kind, KindCategory *kindCat) {
@@ -902,6 +934,7 @@ bool ReadXml_Type::kind2kindCat(int kind, KindCategory *kindCat) {
   case XTOK_List_FunctionType_params:              *kindCat = KC_SObjList;      break;
   case XTOK_List_CompoundType_dataMembers:         *kindCat = KC_SObjList;      break;
   case XTOK_List_CompoundType_conversionOperators: *kindCat = KC_SObjList;      break;
+  case XTOK_List_BaseClassSubobj_parents:          *kindCat = KC_SObjList;      break;
   //   StringRefMap
   case XTOK_NameMap_Scope_variables:               *kindCat = KC_StringRefMap;  break;
   case XTOK_NameMap_Scope_typeTags:                *kindCat = KC_StringRefMap;  break;
@@ -912,8 +945,78 @@ bool ReadXml_Type::kind2kindCat(int kind, KindCategory *kindCat) {
 }
 
 bool ReadXml_Type::convertList2FakeList(ASTList<char> *list, int listKind, void **target) {
-  xfailure("this should never be called as we don't use FakeLists in the type system");
+  xfailure("should not be called during Type parsing there are no FakeLists in the Type System");
   return false;
+}
+
+bool ReadXml_Type::convertList2SObjList(ASTList<char> *list, int listKind, void **target) {
+  // NOTE: SObjList only has constant-time prepend, not constant-time
+  // append, hence the prepend() and reverse().
+  xassert(list);
+
+  switch(listKind) {
+  default: return false;        // we did not find a matching tag
+
+  case XTOK_List_FunctionType_params:
+  case XTOK_List_CompoundType_dataMembers:
+  case XTOK_List_CompoundType_conversionOperators: {
+    SObjList<Variable> *ret = new SObjList<Variable>();
+    FOREACH_ASTLIST_NC(Variable, reinterpret_cast<ASTList<Variable>&>(*list), iter) {
+      Variable *var = iter.data();
+      ret->prepend(var);
+    }
+    ret->reverse();
+    *target = ret;
+    break;
+  }
+
+  case XTOK_List_BaseClassSubobj_parents: {
+    SObjList<BaseClassSubobj> *ret = new SObjList<BaseClassSubobj>();
+    FOREACH_ASTLIST_NC(BaseClassSubobj, reinterpret_cast<ASTList<BaseClassSubobj>&>(*list), iter) {
+      BaseClassSubobj *bcs = iter.data();
+      ret->prepend(bcs);
+    }
+    ret->reverse();
+    *target = ret;
+    break;
+  }
+
+  }
+  return true;
+}
+
+bool ReadXml_Type::convertList2ObjList (ASTList<char> *list, int listKind, void **target) {
+  // NOTE: ObjList only has constant-time prepend, not constant-time
+  // append, hence the prepend() and reverse().
+  xassert(list);
+
+  switch(listKind) {
+  default: return false;        // we did not find a matching tag
+
+  case XTOK_List_CompoundType_bases: {
+    ObjList<BaseClass> *ret = new ObjList<BaseClass>();
+    FOREACH_ASTLIST_NC(BaseClass, reinterpret_cast<ASTList<BaseClass>&>(*list), iter) {
+      BaseClass *bcs = iter.data();
+      ret->prepend(bcs);
+    }
+    ret->reverse();
+    *target = ret;
+    break;
+  }
+
+  case XTOK_List_CompoundType_virtualBases: {
+    ObjList<BaseClassSubobj> *ret = new ObjList<BaseClassSubobj>();
+    FOREACH_ASTLIST_NC(BaseClassSubobj, reinterpret_cast<ASTList<BaseClassSubobj>&>(*list), iter) {
+      BaseClassSubobj *bcs = iter.data();
+      ret->prepend(bcs);
+    }
+    ret->reverse();
+    *target = ret;
+    break;
+  }
+
+  }
+  return true;
 }
 
 bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
@@ -1004,10 +1107,17 @@ bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
     topTemp = new StringRefMap<EnumType::Value>();
     break;
 
+  // Name: a map element
+  case XTOK_Name:
+    topTemp = new Name();
+    break;
+
 //  #include "astxml_parse1_2ctrc.gen.cc"
   }
   return false;
 }
+
+// **************** registerAttribute
 
 void ReadXml_Type::registerAttribute(void *target, int kind, int attr, char const *yytext0) {
   switch(kind) {
@@ -1161,7 +1271,12 @@ void ReadXml_Type::registerAttr_FunctionType
                      parseQuotedString(strValue)));
     break;
 
-  // FIX: params list: make an unsat link
+  case XTOK_params:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->params),
+                     parseQuotedString(strValue),
+                     XTOK_List_FunctionType_params));
+    break;
 
   }
 }
@@ -1328,11 +1443,26 @@ void ReadXml_Type::registerAttr_CompoundType
     fromXml(obj->keyword, parseQuotedString(strValue));
     break;
 
-    // FIX: dataMembers
+  case XTOK_dataMembers:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->dataMembers),
+                     parseQuotedString(strValue),
+                     XTOK_List_CompoundType_dataMembers));
+    break;
 
-    // FIX: bases
+  case XTOK_bases:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->bases),
+                     parseQuotedString(strValue),
+                     XTOK_List_CompoundType_bases));
+    break;
 
-    // FIX: virtualBases
+  case XTOK_virtualBases:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->virtualBases),
+                     parseQuotedString(strValue),
+                     XTOK_List_CompoundType_virtualBases));
+    break;
 
   case XTOK_subobj:
     linkSat.unsatLinks.append
@@ -1340,7 +1470,12 @@ void ReadXml_Type::registerAttr_CompoundType
                      parseQuotedString(strValue)));
     break;
 
-    // FIX: conversionOperators
+  case XTOK_conversionOperators:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->conversionOperators),
+                     parseQuotedString(strValue),
+                     XTOK_List_CompoundType_conversionOperators));
+    break;
 
   case XTOK_instName:
     obj->instName = strTable(parseQuotedString(strValue));
@@ -1404,7 +1539,7 @@ void ReadXml_Type::registerAttr_EnumType_Value
     break;
 
   case XTOK_type:
-    // NOTE: actually an atomic type
+    // NOTE: 'type' here is actually an atomic type
     linkSat.unsatLinks.append
       (new UnsatLink((void**) &(obj->type),
                      parseQuotedString(strValue)));
@@ -1480,9 +1615,19 @@ bool ReadXml_Type::registerAttr_Scope_super
     return false;               // we didn't find it
     break;
 
-  // variables
+  case XTOK_variables:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->variables),
+                     parseQuotedString(strValue),
+                     KC_StringRefMap));
+    break;
 
-  // typeTags
+  case XTOK_typeTags:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->typeTags),
+                     parseQuotedString(strValue),
+                     KC_StringRefMap));
+    break;
 
   case XTOK_canAcceptNames:
     fromXml_bool(obj->canAcceptNames, parseQuotedString(strValue));
@@ -1561,7 +1706,7 @@ void ReadXml_Type::registerAttr_BaseClass
 }
 
 void ReadXml_Type::registerAttr_BaseClassSubobj
-  (BaseClass *obj, int attr, char const *strValue) {
+  (BaseClassSubobj *obj, int attr, char const *strValue) {
 
   // "superclass": just re-use our own superclass code for ourself
   if (registerAttr_BaseClass_super(obj, attr, strValue)) return;
@@ -1571,6 +1716,12 @@ void ReadXml_Type::registerAttr_BaseClassSubobj
     userError("illegal attribute for a BaseClassSubobj");
     break;
 
-  // parents
+  case XTOK_parents:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->parents),
+                     parseQuotedString(strValue),
+                     XTOK_List_BaseClassSubobj_parents));
+    break;
+
   }
 }

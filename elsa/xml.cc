@@ -38,6 +38,28 @@ void *LinkSatisfier::convertList2FakeList(ASTList<char> *list, int listKind) {
   THROW(xBase(stringc << "no converter for FakeList type"));
 }
 
+void *LinkSatisfier::convertList2SObjList(ASTList<char> *list, int listKind) {
+  FOREACH_ASTLIST_NC(ReadXml, readers, iter) {
+    ReadXml *reader = iter.data();
+    void *target;
+    if (reader->convertList2SObjList(list, listKind, &target)) {
+      return target;
+    }
+  }
+  THROW(xBase(stringc << "no converter for SObjList type"));
+}
+
+void *LinkSatisfier::convertList2ObjList(ASTList<char> *list, int listKind) {
+  FOREACH_ASTLIST_NC(ReadXml, readers, iter) {
+    ReadXml *reader = iter.data();
+    void *target;
+    if (reader->convertList2ObjList(list, listKind, &target)) {
+      return target;
+    }
+  }
+  THROW(xBase(stringc << "no converter for ObjList type"));
+}
+
 bool LinkSatisfier::kind2kindCat(int kind, KindCategory *kindCat) {
   xassert(kind != -1);          // this means you shouldn't be asking
   FOREACH_ASTLIST_NC(ReadXml, readers, iter) {
@@ -93,6 +115,10 @@ void LinkSatisfier::satisfyLinks() {
       break;
 
     case KC_ASTList: {
+      // FIX: I suppose I don't need to do this steal: I can just cast
+      // it to the result
+#warning try just the cast here
+
       // Recall that ASTLists are used in a class by embeding them.
       // Therefore, a pointer to the field to be filled in is a
       // pointer to an ASTList, not a pointer to a pointer to an
@@ -120,6 +146,36 @@ void LinkSatisfier::satisfyLinks() {
       // type-specific, so generated code must do it that can switch
       // on the templatized type of the FakeList.
       *(ul->ptr) = convertList2FakeList(obj, ul->kind);
+      // Make the list dis-own all of its contents so it doesn't delete
+      // them when we delete it.  Yes, I should have used a non-owning
+      // constant-time-append list.
+      obj->removeAll_dontDelete();
+      // delete the ASTList
+      delete obj;
+      break;
+    }
+
+    case KC_SObjList: {
+      // Convert the ASTList we used to store the SObjList into a real
+      // SObjList and hook in all of the pointers.  This is
+      // type-specific, so generated code must do it that can switch
+      // on the templatized type of the SObjList.
+      *(ul->ptr) = convertList2SObjList(obj, ul->kind);
+      // Make the list dis-own all of its contents so it doesn't delete
+      // them when we delete it.  Yes, I should have used a non-owning
+      // constant-time-append list.
+      obj->removeAll_dontDelete();
+      // delete the ASTList
+      delete obj;
+      break;
+    }
+
+    case KC_ObjList: {
+      // Convert the ASTList we used to store the ObjList into a real
+      // ObjList and hook in all of the pointers.  This is
+      // type-specific, so generated code must do it that can switch
+      // on the templatized type of the ObjList.
+      *(ul->ptr) = convertList2ObjList(obj, ul->kind);
       // Make the list dis-own all of its contents so it doesn't delete
       // them when we delete it.  Yes, I should have used a non-owning
       // constant-time-append list.
@@ -228,6 +284,12 @@ void ReadXml::parseOneTag() {
     userError("no category found for this kind");
   }
 
+  if (lastKind == XTOK_Name) {
+    // we want to delete these name things after they have served
+    // their purpose
+    delete ((Name*)lastNode);
+  }
+
   // if the top of the stack is a container, put the last tag into
   // that container; otherwise do nothing
   if (topKindCat == KC_FakeList ||
@@ -237,13 +299,12 @@ void ReadXml::parseOneTag() {
     // the top is a list
     xassert(nodeStack.top());
     append2List(nodeStack.top(), topKind, lastNode, lastKind);
-  } else if (topKindCat == KC_StringRefMap) {
-    // the top is a name map; there are two situations: we are
-    // putting in a map element or we are putting in the value
-    // mapped to by the map element
-    //  #error this is wrong
-    //        xassert(nodeStack.top());
-    //        append2NameMap(nodeStack.top(), topKind, lastNode, lastKind);
+  } else if (topKindCat == KC_StringRefMap ||
+             topKindCat == KC_StringRefMap ){
+    // the top is a map; we had better be a __Name tag
+    if (lastKind != XTOK_Name) {
+      userError("element of a map that is not a name tag");
+    }
   }
   // FIX: in the future there should be an else clause here that
   // files contained objects into their parents even if they are not
@@ -253,6 +314,37 @@ void ReadXml::parseOneTag() {
   // identifier to be satisified; look out for failures of number
   // identifiers to be unique due to class embedding (which is why
   // there are letter prefixes on the identifiers).
+
+  // deal with map entries
+  if (topKindCat == KC_Name) {
+    // file the current object under the map which is one further away
+    // in the stack behind the name tag
+    //
+    // save the map tag
+    Name *nameNode = (Name*)nodeStack.pop();
+    int nameKind = *kindStack.pop();
+    xassert(nameKind == XTOK_Name);
+    // check a map is there
+    if (nodeStack.isEmpty()) {
+      userError("a __Name tag not immediately under a Map");
+    }
+    void *mapNode = nodeStack.top();
+    int mapKind = *kindStack.top();
+    if (!(mapNode && (mapKind == KC_StringRefMap || topKindCat == KC_StringSObjDict))) {
+      userError("a __Name tag not immediately under a Map");
+    }
+    // what kind of thing is next on the stack?
+    KindCategory mapKindCat;
+    bool foundMap = kind2kindCat(mapKind, &mapKindCat);
+    // FIX: maybe this should be an assertion
+    if (!foundMap) {
+      userError("no category found for this map kind");
+    }
+    insertIntoNameMap(mapNode, mapKind, nameNode->name, lastNode, lastKind);
+    // push the name back on the stack so we catch it later
+    nodeStack.push(nameNode);
+    kindStack.push(new int(nameKind));
+  }
 }
 
 // state: read the attributes
@@ -297,8 +389,15 @@ void ReadXml::readAttributes() {
       }
       linkSat.id2obj.add(id0, nodeStack.top());
     }
-
-    // attribute other than '.id'
+    // special case the Name node and its one attribute
+    else if (*kindStack.top() == XTOK_Name) {
+      if (attr != XTOK_name) {
+        userError("illegal attribute for Name");
+      }
+      static_cast<Name*>(nodeStack.top())->name =
+        strTable(parseQuotedString(lexer.currentText()));
+    }
+    // not a built-in attribute or tag
     else {
       registerAttribute(nodeStack.top(), *kindStack.top(), attr, lexer.currentText());
     }

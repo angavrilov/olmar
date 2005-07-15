@@ -1334,7 +1334,12 @@ void Scope::traverse(TypeVisitor &vis)
   if (!vis.visitScope(this)) {
     return;
   }
+  traverse_internal(vis);
+  vis.postvisitScope(this);
+}
 
+void Scope::traverse_internal(TypeVisitor &vis)
+{
   if (vis.visitScopeVariables(variables)) {
     for(PtrMap<char const, Variable>::Iter iter(variables);
         !iter.isDone();
@@ -1389,8 +1394,6 @@ void Scope::traverse(TypeVisitor &vis)
   if (curCompound) {
     curCompound->traverse(vis);
   }
-
-  vis.postvisitScope(this);
 }
 
 // EOF

@@ -51,7 +51,9 @@
 "List_FunctionType_params" return tok(XTOK_List_FunctionType_params);
 "List_CompoundType_dataMembers" return tok(XTOK_List_CompoundType_dataMembers);
 "List_CompoundType_conversionOperators" return tok(XTOK_List_CompoundType_conversionOperators);
+"List_BaseClassSubobj_parents" return tok(XTOK_List_BaseClassSubobj_parents);
 
 "NameMap_Scope_variables" return tok(XTOK_NameMap_Scope_variables);
 "NameMap_Scope_typeTags" return tok(XTOK_NameMap_Scope_typeTags);
 "NameMap_EnumType_valueIndex" return tok(XTOK_NameMap_EnumType_valueIndex);
+"__Name" return tok(XTOK_Name);

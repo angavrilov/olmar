@@ -539,6 +539,9 @@ void CompoundType::traverse(TypeVisitor &vis)
     return;
   }
 
+  // traverse the superclass
+  Scope::traverse_internal(vis);
+
   if (isTemplate()) {
     templateInfo()->traverseArguments(vis);
   }

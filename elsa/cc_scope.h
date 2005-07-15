@@ -48,8 +48,9 @@ private:     // types
       { source=obj.source; target=obj.target; return *this; }
   };
 
-  // needed to allow serialization
+  // needed to allow serialization and de-serialization
   friend class ToXMLTypeVisitor;
+  friend class ReadXml_Type;
 
 private:     // data
   // variables: name -> Variable
@@ -330,6 +331,8 @@ public:      // funcs
   // dsw: I know this is *almost* the only virtual method, but
   // traverse() is virtual everywhere else; change it if you like
   virtual void traverse(TypeVisitor &vis);
+  // this is factored out so that subclasses can call it
+  void traverse_internal(TypeVisitor &vis);
 
   // for debugging, a quick description of this scope
   string desc() const;
