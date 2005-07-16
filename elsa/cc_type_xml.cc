@@ -466,7 +466,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     out << "valueIndex=\"TY" << static_cast<void const*>(&(e->valueIndex)) << "\"\n";
 
     printIndentation();
-    out << "nextValue=\"" << e->nextValue << "\">";
+    out << "nextValue=\"" << e->nextValue << "\">\n";
 
     // **** subtags
 
@@ -490,9 +490,12 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
       // ever be used anyway.  So I just inline it here.
       printIndentation();
       out << "<__Name" << " name=" << quoted(name) << ">\n";
+      ++depth;
       bool ret = visitEnumType_Value(eValue);
       xassert(ret);
       postvisitEnumType_Value(eValue);
+      --depth;
+      printIndentation();
       out << "</__Name>\n";
     }
     --depth;
@@ -617,11 +620,11 @@ bool ToXMLTypeVisitor::visitEnumType_Value(void /*EnumType::Value*/ *eValue0) {
   out << "type=\"TY" << static_cast<void const*>(&(eValue->type)) << "\"\n";
 
   printIndentation();
-  out << "value=\"" << eValue->value << "\">";
+  out << "value=\"" << eValue->value << "\"";
 
   if (eValue->decl) {
     printIndentation();
-    out << "decl=\"TY" << static_cast<void const*>(&(eValue->decl)) << "\"\n";
+    out << "decl=\"TY" << static_cast<void const*>(&(eValue->decl)) << "\">\n";
   }
 
   // **** subtags
@@ -683,10 +686,14 @@ bool ToXMLTypeVisitor::visitScope(Scope *scope)
   if (printedObjects.contains(scope)) return false;
   printedObjects.add(scope);
 
+  printIndentation();
   out << "<Scope";
   out << " .id=\"TY" << static_cast<void const*>(scope) << "\"\n";
   ++depth;
+
   toXml_Scope_properties(scope);
+
+  printIndentation();
   out << ">\n";
 
   // **** subtags
