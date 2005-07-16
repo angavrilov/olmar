@@ -391,6 +391,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     toXml_NamedAtomicType_subtags(cpd);
     toXml_Scope_subtags(cpd);
 
+    printIndentation();
     out << "<CompoundType_dataMembers_List";
     out << " .id=\"SO" << static_cast<void const*>(&(cpd->dataMembers)) << "\">\n";
     ++depth;
@@ -404,6 +405,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     printIndentation();
     out << "</CompoundType_dataMembers_List>\n";
 
+    printIndentation();
     out << "<CompoundType_bases_List";
     out << " .id=\"OJ" << static_cast<void const*>(&(cpd->bases)) << "\">\n";
     ++depth;
@@ -417,6 +419,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     printIndentation();
     out << "</CompoundType_bases_List>\n";
 
+    printIndentation();
     out << "<CompoundType_virtualBases_List";
     out << " .id=\"OJ" << static_cast<void const*>(&(cpd->virtualBases)) << "\">\n";
     ++depth;
@@ -434,6 +437,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
 
     cpd->subobj.traverse(*this);
 
+    printIndentation();
     out << "<CompoundType_conversionOperators_List";
     out << " .id=\"SO" << static_cast<void const*>(&(cpd->conversionOperators)) << "\">\n";
     ++depth;
@@ -457,7 +461,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
   case AtomicType::T_ENUM: {
     EnumType *e = obj->asEnumType();
     out << "<EnumType";
-    out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
+    out << " .id=\"TY" << static_cast<void const*>(e) << "\"\n";
     ++depth;
 
     toXml_NamedAtomicType_properties(e);
@@ -472,6 +476,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
 
     toXml_NamedAtomicType_subtags(e);
 
+    printIndentation();
     out << "<EnumType_valueIndex";
     out << " .id=\"SO" << static_cast<void const*>(&(e->valueIndex)) << "\">\n";
     ++depth;
@@ -620,7 +625,7 @@ bool ToXMLTypeVisitor::visitEnumType_Value(void /*EnumType::Value*/ *eValue0) {
   out << "type=\"TY" << static_cast<void const*>(&(eValue->type)) << "\"\n";
 
   printIndentation();
-  out << "value=\"" << eValue->value << "\"";
+  out << "value=\"" << eValue->value << "\"\n";
 
   if (eValue->decl) {
     printIndentation();
@@ -798,6 +803,7 @@ bool ToXMLTypeVisitor::visitBaseClassSubobj(BaseClassSubobj *bc)
   if (printedObjects.contains(bc)) return false;
   printedObjects.add(bc);
 
+  printIndentation();
   out << "<BaseClassSubobj";
   out << " .id=\"TY" << static_cast<void const*>(bc) << "\"\n";
   ++depth;
