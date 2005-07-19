@@ -130,6 +130,7 @@ public:
 
 // print out type annotations for ever ast node that has a type
 class ToXmlASTVisitor_Types : public ASTVisitor {
+//    ostream &out;                 // for the <Link/> tags
   TypeVisitor &typeVisitor;
 
   public:
@@ -137,57 +138,112 @@ class ToXmlASTVisitor_Types : public ASTVisitor {
     : typeVisitor(typeVisitor0)
   {}
 
-  // visit everything that has a type; Note: idempotency is handled in
-  // ToXMLTypeVisitor
-  void printType(Type *t) {
-    t->traverse(typeVisitor);
-  }
-  void printType(AtomicType *t) {
-    t->traverse(typeVisitor);
-  }
+  // Note that idempotency is handled in ToXMLTypeVisitor
+  #define PRINT_ANNOT(A)                 \
+    if (A) {                             \
+      (A)->traverse(typeVisitor);        \
+    }
 
+  // this was part of the macro
+//    printASTBiLink((void**)&(A), (A));
+
+  // print the link between the ast node and the annotating node
+//    void printASTBiLink(void **astField, void *annotation) {
+//      out << "<__Link from=\"";
+//      // this is not from an ast *node* but from the *field* of one
+//      xmlPrintPointer(out, "FLD", astField);
+//      out << "\" to=\"";
+//      xmlPrintPointer(out, "TY", annotation);
+//      out << "\"/>\n";
+//    }
+
+  // **** visit methods
   bool visitTypeSpecifier(TypeSpecifier *ts) {
     if (ts->isTS_type()) {
-      printType(ts->asTS_type()->type);
+      PRINT_ANNOT(ts->asTS_type()->type);
+    } else if (ts->isTS_name()) {
+      PRINT_ANNOT(ts->asTS_name()->var);
+      PRINT_ANNOT(ts->asTS_name()->nondependentVar);
     } else if (ts->isTS_elaborated()) {
-      printType(ts->asTS_elaborated()->atype);
+      PRINT_ANNOT(ts->asTS_elaborated()->atype);
     } else if (ts->isTS_classSpec()) {
-      printType(ts->asTS_classSpec()->ctype);
+      PRINT_ANNOT(ts->asTS_classSpec()->ctype);
     } else if (ts->isTS_enumSpec()) {
-      printType(ts->asTS_enumSpec()->etype);
+      PRINT_ANNOT(ts->asTS_enumSpec()->etype);
     }
     return true;
   }
 
   bool visitFunction(Function *function) {
-    printType(function->funcType);
+    PRINT_ANNOT(function->funcType);
+    PRINT_ANNOT(function->receiver);
     return true;
   }
 
   bool visitMemberInit(MemberInit *memberInit) {
-    printType(memberInit->base);
+    PRINT_ANNOT(memberInit->member);
+    PRINT_ANNOT(memberInit->base);
+    PRINT_ANNOT(memberInit->ctorVar);
     return true;
   }
 
   bool visitBaseClassSpec(BaseClassSpec *bcs) {
-    printType(bcs->type);
+    PRINT_ANNOT(bcs->type);
     return true;
   }
 
   bool visitDeclarator(Declarator *d) {
-    printType(d->type);
+    PRINT_ANNOT(d->var);
+    PRINT_ANNOT(d->type);
     return true;
   }
 
   bool visitExpression(Expression *e) {
-    printType(e->type);
+    PRINT_ANNOT(e->type);
+    if (e->isE_this()) {
+      PRINT_ANNOT(e->asE_this()->receiver);
+    } else if (e->isE_variable()) {
+      PRINT_ANNOT(e->asE_variable()->var);
+      PRINT_ANNOT(e->asE_variable()->nondependentVar);
+    } else if (e->isE_constructor()) {
+      PRINT_ANNOT(e->asE_constructor()->ctorVar);
+    } else if (e->isE_fieldAcc()) {
+      PRINT_ANNOT(e->asE_fieldAcc()->field);
+    } else if (e->isE_new()) {
+      PRINT_ANNOT(e->asE_new()->ctorVar);
+    }
     return true;
   }
 
   bool visitASTTypeof(ASTTypeof *a) {
-    printType(a->type);
+    PRINT_ANNOT(a->type);
     return true;
   }
+
+  bool visitPQName(PQName *pqn) {
+    if (pqn->isPQ_qualifier()) {
+      PRINT_ANNOT(pqn->asPQ_qualifier()->denotedScopeVar);
+    } else if (pqn->isPQ_variable()) {
+      PRINT_ANNOT(pqn->asPQ_variable()->var);
+    }
+    return true;
+  }
+
+  bool visitEnumerator(Enumerator *e) {
+    PRINT_ANNOT(e->var);
+    return true;
+  }
+
+  bool visitInitializer(Initializer *e) {
+    if (e->isIN_ctor()) {
+      PRINT_ANNOT(e->asIN_ctor()->ctorVar);
+    }
+    return true;
+  }
+
+  // FIX: TemplateParameter
+
+  #undef PRINT_ANNOT
 };
 
 
@@ -319,7 +375,7 @@ void doit(int argc, char **argv)
   TranslationUnit *unit;
   int parseWarnings = 0;
   long parseTime = 0;
-  if (tracingSys("parseAstXml")) {
+  if (tracingSys("parseXml")) {
     unit = astxmlparse(strTable, inputFname);
     if (!unit) return;
   }
@@ -608,6 +664,7 @@ void doit(int argc, char **argv)
     bool indent = tracingSys("xmlPrintAST-indent");
     ToXmlASTVisitor xmlVis(cout, indent);
     ToXMLTypeVisitor xmlTypeVis(cout);
+//      ToXmlASTVisitor_Types xmlVis_Types(cout, xmlTypeVis);
     ToXmlASTVisitor_Types xmlVis_Types(xmlTypeVis);
     cout << "---- START ----" << endl;
     unit->traverse(xmlVis);

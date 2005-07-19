@@ -95,7 +95,7 @@ for my $name(@names) {
     eval {
         run_command("$parser -tr xmlPrintAST,xmlPrintAST-indent $name | ./chop_out",
                     "$outname.A1.xml");
-        run_command("$parser -tr parseAstXml,stopAfterParse $outname.A1.xml",
+        run_command("$parser -tr parseXml,stopAfterParse $outname.A1.xml",
                     "$outname.A2.out");
         die "File should be empty $outname.A2.out" if -s "$outname.A2.out" > 0;
     };

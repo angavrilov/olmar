@@ -180,7 +180,7 @@ void ToXMLTypeVisitor::postvisitType(Type *obj) {
 
 bool ToXMLTypeVisitor::visitFuncParamsList(SObjList<Variable> &params) {
   printIndentation();
-  out << "<FunctionType_params_List";
+  out << "<List_FunctionType_params";
   out << " .id=\"SO" << static_cast<void const*>(&params) << "\">\n";
   ++depth;
   return true;
@@ -189,7 +189,7 @@ bool ToXMLTypeVisitor::visitFuncParamsList(SObjList<Variable> &params) {
 void ToXMLTypeVisitor::postvisitFuncParamsList(SObjList<Variable> &params) {
   --depth;
   printIndentation();
-  out << "</FunctionType_params_List>\n";
+  out << "</List_FunctionType_params>\n";
 }
 
 bool ToXMLTypeVisitor::visitVariable(Variable *var) {
@@ -301,7 +301,7 @@ void ToXMLTypeVisitor::toXml_NamedAtomicType_properties(NamedAtomicType *nat) {
   out << "name=" << quoted(nat->name) << "\n";
 
   printIndentation();
-  out << "typedefVar=\"TY" << static_cast<void const*>(nat->typedefVar) << "\">\n";
+  out << "typedefVar=\"TY" << static_cast<void const*>(nat->typedefVar) << "\"\n";
 
   printIndentation();
   out << "access=\"" << toXml(nat->access) << "\"\n";
@@ -392,7 +392,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     toXml_Scope_subtags(cpd);
 
     printIndentation();
-    out << "<CompoundType_dataMembers_List";
+    out << "<List_CompoundType_dataMembers";
     out << " .id=\"SO" << static_cast<void const*>(&(cpd->dataMembers)) << "\">\n";
     ++depth;
     SFOREACH_OBJLIST_NC(Variable, cpd->dataMembers, iter) {
@@ -403,10 +403,10 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     }
     --depth;
     printIndentation();
-    out << "</CompoundType_dataMembers_List>\n";
+    out << "</List_CompoundType_dataMembers>\n";
 
     printIndentation();
-    out << "<CompoundType_bases_List";
+    out << "<List_CompoundType_bases";
     out << " .id=\"OJ" << static_cast<void const*>(&(cpd->bases)) << "\">\n";
     ++depth;
     FOREACH_OBJLIST_NC(BaseClass, const_cast<ObjList<BaseClass>&>(cpd->bases), iter) {
@@ -417,10 +417,10 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     }
     --depth;
     printIndentation();
-    out << "</CompoundType_bases_List>\n";
+    out << "</List_CompoundType_bases>\n";
 
     printIndentation();
-    out << "<CompoundType_virtualBases_List";
+    out << "<List_CompoundType_virtualBases";
     out << " .id=\"OJ" << static_cast<void const*>(&(cpd->virtualBases)) << "\">\n";
     ++depth;
     FOREACH_OBJLIST_NC(BaseClassSubobj,
@@ -433,12 +433,12 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     }
     --depth;
     printIndentation();
-    out << "</CompoundType_virtualBases_List>\n";
+    out << "</List_CompoundType_virtualBases>\n";
 
     cpd->subobj.traverse(*this);
 
     printIndentation();
-    out << "<CompoundType_conversionOperators_List";
+    out << "<List_CompoundType_conversionOperators";
     out << " .id=\"SO" << static_cast<void const*>(&(cpd->conversionOperators)) << "\">\n";
     ++depth;
     SFOREACH_OBJLIST_NC(Variable, cpd->conversionOperators, iter) {
@@ -449,7 +449,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     }
     --depth;
     printIndentation();
-    out << "</CompoundType_conversionOperators_List>\n";
+    out << "</List_CompoundType_conversionOperators>\n";
 
     if (cpd->parameterizingScope) {
       cpd->parameterizingScope->traverse(*this);
@@ -477,7 +477,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     toXml_NamedAtomicType_subtags(e);
 
     printIndentation();
-    out << "<EnumType_valueIndex";
+    out << "<NameMap_EnumType_valueIndex";
     out << " .id=\"SO" << static_cast<void const*>(&(e->valueIndex)) << "\">\n";
     ++depth;
     for(StringObjDict<EnumType::Value>::Iter iter(e->valueIndex);
@@ -505,7 +505,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     }
     --depth;
     printIndentation();
-    out << "</EnumType_valueIndex>\n";
+    out << "</NameMap_EnumType_valueIndex>\n";
 
     break;
   }
@@ -717,7 +717,7 @@ void ToXMLTypeVisitor::postvisitScope(Scope *scope)
 bool ToXMLTypeVisitor::visitScope_NameMap_variables(StringRefMap<Variable> &variables)
 {
   printIndentation();
-  out << "<Scope_NameMap_variables";
+  out << "<NameMap_Scope_variables";
   out << " .id=\"SM" << static_cast<void const*>(&variables) << "\">\n";
   ++depth;
   return true;
@@ -737,13 +737,13 @@ void ToXMLTypeVisitor::postvisitScope_NameMap_variables(StringRefMap<Variable> &
 {
   --depth;
   printIndentation();
-  out << "</Scope_NameMap_variables>\n";
+  out << "</NameMap_Scope_variables>\n";
 }
 
 bool ToXMLTypeVisitor::visitScope_NameMap_typeTags(StringRefMap<Variable> &typeTags)
 {
   printIndentation();
-  out << "<Scope_NameMap_typeTags";
+  out << "<NameMap_Scope_typeTags";
   out << " .id=\"SM" << static_cast<void const*>(&typeTags) << "\">\n";
   ++depth;
   return true;
@@ -763,7 +763,7 @@ void ToXMLTypeVisitor::postvisitScope_NameMap_typeTags(StringRefMap<Variable> &t
 {
   --depth;
   printIndentation();
-  out << "</Scope_NameMap_typeTags>\n";
+  out << "</NameMap_Scope_typeTags>\n";
 }
 
 void ToXMLTypeVisitor::toXml_BaseClass_properties(BaseClass *bc)
@@ -775,7 +775,7 @@ void ToXMLTypeVisitor::toXml_BaseClass_properties(BaseClass *bc)
   out << "access=\"" << toXml(bc->access) << "\"\n";
 
   printIndentation();
-  out << "isVirtual=\"" << toXml_bool(bc->isVirtual) << "\">\n";
+  out << "isVirtual=\"" << toXml_bool(bc->isVirtual) << "\"\n";
 }
 
 bool ToXMLTypeVisitor::visitBaseClass(BaseClass *bc)
@@ -825,7 +825,7 @@ void ToXMLTypeVisitor::postvisitBaseClassSubobj(BaseClassSubobj *bc)
 bool ToXMLTypeVisitor::visitBaseClassSubobjParents(SObjList<BaseClassSubobj> &parents)
 {
   printIndentation();
-  out << "<BaseClassSubobj_Parents";
+  out << "<List_BaseClassSubobj_parents";
   out << " .id=\"SO" << static_cast<void const*>(&parents) << "\">\n";
   ++depth;
   return true;
@@ -834,7 +834,7 @@ void ToXMLTypeVisitor::postvisitBaseClassSubobjParents(SObjList<BaseClassSubobj>
 {
   --depth;
   printIndentation();
-  out << "</BaseClassSubobj_Parents>\n";
+  out << "</List_BaseClassSubobj_parents>\n";
 }
 
 // -------------------- ReadXml_Type -------------------
@@ -938,6 +938,12 @@ bool ReadXml_Type::kind2kindCat(int kind, KindCategory *kindCat) {
   case XTOK_TypeVariable:        *kindCat = KC_Node; break;
   case XTOK_PseudoInstantiation: *kindCat = KC_Node; break;
   case XTOK_DependentQType:      *kindCat = KC_Node; break;
+
+  // Other
+  case XTOK_Variable:            *kindCat = KC_Node; break;
+  case XTOK_Scope:               *kindCat = KC_Node; break;
+  case XTOK_BaseClass:           *kindCat = KC_Node; break;
+  case XTOK_BaseClassSubobj:     *kindCat = KC_Node; break;
 
   // Containers
   //   ObjList
@@ -1091,6 +1097,11 @@ bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
     return true;
     break;
 
+//    // Special case the <__Link/> tag
+//    case XTOK___Link:
+//      topTemp = new UnsatBiLink();
+//      break;
+
   // **** Types
   case XTOK_CVAtomicType:
     topTemp = tFac.makeCVAtomicType((AtomicType*)0, (CVFlags)0);
@@ -1142,6 +1153,25 @@ bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
     topTemp = new DependentQType((AtomicType*)0);
     break;
 
+  // **** Other
+  case XTOK_Variable:
+    topTemp = new Variable((SourceLoc)0, (StringRef)0, (Type*)0, (DeclFlags)0);
+    break;
+  case XTOK_Scope:
+    topTemp = new Scope((ScopeKind)0, (int)0, (SourceLoc)0);
+    break;
+  case XTOK_BaseClass:
+    topTemp = new BaseClass((CompoundType*)0, (AccessKeyword)0, (bool)0);
+    break;
+  case XTOK_BaseClassSubobj:
+    // NOTE: special; FIX: should I make the BaseClass on the heap and
+    // then delete it?  I'm not sure if the compiler is going to be
+    // able to tell that even though it is passed by reference to the
+    // BaseClassSubobj that it is not kept there and therefore can be
+    // deleted at the end of the full expression.
+    topTemp = new BaseClassSubobj(BaseClass((CompoundType*)0, (AccessKeyword)0, (bool)0));
+    break;
+
   // **** Containers
   // ObjList
   case XTOK_List_CompoundType_bases:
@@ -1160,6 +1190,9 @@ bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
   case XTOK_List_CompoundType_conversionOperators:
     topTemp = new ASTList<Variable>();
     break;
+  case XTOK_List_BaseClassSubobj_parents:
+    topTemp = new ASTList<BaseClassSubobj>();
+    break;
   // StringRefMap
   case XTOK_NameMap_Scope_variables:
     topTemp = new StringRefMap<Variable>();
@@ -1172,7 +1205,7 @@ bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
     break;
 
   // Name: a map element
-  case XTOK_Name:
+  case XTOK___Name:
     topTemp = new Name();
     break;
 
@@ -1440,6 +1473,12 @@ void ReadXml_Type::registerAttr_Variable
 
   case XTOK_intData:
     fromXml_Variable_intData(obj->intData, parseQuotedString(strValue));
+    break;
+
+  case XTOK_usingAlias_or_parameterizedEntity:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->usingAlias_or_parameterizedEntity),
+                     parseQuotedString(strValue)));
     break;
 
   // FIX: templInfo

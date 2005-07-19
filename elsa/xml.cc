@@ -12,7 +12,7 @@ string toXml_bool(bool b) {
 }
 
 void fromXml_bool(bool &b, string str) {
-  b = (strcmp(parseQuotedString(str), "true") == 0);
+  b = (strcmp(str, "true") == 0);
 }
 
 
@@ -96,7 +96,13 @@ bool LinkSatisfier::kind2kindCat(int kind, KindCategory *kindCat) {
 }
 
 void LinkSatisfier::satisfyLinks() {
-  // AST
+  satisfyLinks_Nodes();
+  satisfyLinks_Lists();
+  satisfyLinks_Maps();
+//    satisfyLinks_Bidirectional();
+}
+
+void LinkSatisfier::satisfyLinks_Nodes() {
   FOREACH_ASTLIST(UnsatLink, unsatLinks, iter) {
     UnsatLink const *ul = iter.data();
     xassert(ul->kind == -1);
@@ -110,8 +116,9 @@ void LinkSatisfier::satisfyLinks() {
 //        cout << "unsatisfied node link: " << ul->id << endl;
     }
   }
+}
 
-  // Lists
+void LinkSatisfier::satisfyLinks_Lists() {
   FOREACH_ASTLIST(UnsatLink, unsatLinks_List, iter) {
     UnsatLink const *ul = iter.data();
     // NOTE: I rely on the fact that all ASTLists just contain
@@ -205,8 +212,9 @@ void LinkSatisfier::satisfyLinks() {
     }
     }
   }
+}
 
-  // Maps
+void LinkSatisfier::satisfyLinks_Maps() {
   FOREACH_ASTLIST(UnsatLink, unsatLinks_NameMap, iter) {
     UnsatLink const *ul = iter.data();
     // NOTE: I rely on the fact that all StringRefMap-s just contain
@@ -246,6 +254,27 @@ void LinkSatisfier::satisfyLinks() {
 
     }
   }
+}
+
+//  void LinkSatisfier::satisfyLinks_Bidirectional() {
+//    FOREACH_ASTLIST(UnsatBiLink, unsatBiLinks, iter) {
+//      UnsatBiLink const *ul = iter.data();
+//      void **from = (void**)id2obj.queryif(ul->from);
+//      // NOTE: these are different from unidirectional links: you really
+//      // shouldn't make one unless both parties can be found.
+//      if (!from) {
+//        userError("Unsatisfied bidirectional link: 'from' not found");
+//      }
+//      void *to = id2obj.queryif(ul->to);
+//      if (!to) {
+//        userError("Unsatisfied bidirectional link: 'to' not found");
+//      }
+//      *(from) = to;
+//    }
+//  }
+
+void LinkSatisfier::userError(char const *msg) {
+  THROW(xBase(msg));
 }
 
 
@@ -289,13 +318,45 @@ void ReadXml::parseOneTag() {
 
   // state: read a tag name
   int tag = lexer.getToken();
+  // construct the tag object on the stack
   void *topTemp;
   bool sawCloseTag = ctorNodeFromTag(tag, topTemp);
   if (!sawCloseTag) {
+    // state: did not see a close tag
+    //
+    // NOTE: even if it is a stand-alone tag that will not stay on the
+    // stack, we still have to put it here as readAttributes()
+    // attaches attributes to the node on the top of the stack (my
+    // parser is some sort of stack machine).
     xassert(topTemp);
     nodeStack.push(topTemp);
     kindStack.push(new int(tag));
-    readAttributes();
+
+    // read the attributes
+    bool sawContainerTag = readAttributes();
+
+    // if it is a container tag, we just leave it on the stack
+    if (sawContainerTag) {
+      // state: we saw a container tag
+      return;
+    }
+
+    // state: we saw a stand-alone tag.  FIX: I suppose I should
+    // generalize this, but for now there is only one stand-alone tag
+//      if (!tag == XTOK___Link) {
+    userError("illegal stand-alone tag");
+//      }
+//      UnsatBiLink *ul = (UnsatBiLink*) topTemp;
+//      if (!ul->from) {
+//        userError("missing 'from' field on __Link tag");
+//      }
+//      if (!ul->to) {
+//        userError("missing 'to' field on __Link tag");
+//      }
+//      linkSat.unsatBiLinks.append(ul);
+//      // we don't need it on the stack anymore
+//      nodeStack.pop();
+//      kindStack.pop();            // FIX: delete the return?
     return;
   }
 
@@ -322,8 +383,7 @@ void ReadXml::parseOneTag() {
 
   // state: figure out if we are done
   lastNode = nodeStack.pop();
-  // FIX: do I delete this int on the heap or does the stack do it?
-  lastKind = *kindStack.pop();
+  lastKind = *kindStack.pop();  // FIX: do I delete this int on the heap or does the stack do it?
   if (nodeStack.isEmpty()) {
     // If the stack is empty, return
     xassert(kindStack.isEmpty());
@@ -344,7 +404,7 @@ void ReadXml::parseOneTag() {
     userError("no category found for this kind");
   }
 
-  if (lastKind == XTOK_Name) {
+  if (lastKind == XTOK___Name) {
     // we want to delete these name things after they have served
     // their purpose
     delete ((Name*)lastNode);
@@ -362,7 +422,7 @@ void ReadXml::parseOneTag() {
   } else if (topKindCat == KC_StringRefMap ||
              topKindCat == KC_StringRefMap ){
     // the top is a map; we had better be a __Name tag
-    if (lastKind != XTOK_Name) {
+    if (lastKind != XTOK___Name) {
       userError("element of a map that is not a name tag");
     }
   }
@@ -383,7 +443,7 @@ void ReadXml::parseOneTag() {
     // save the map tag
     Name *nameNode = (Name*)nodeStack.pop();
     int nameKind = *kindStack.pop();
-    xassert(nameKind == XTOK_Name);
+    xassert(nameKind == XTOK___Name);
     // check a map is there
     if (nodeStack.isEmpty()) {
       userError("a __Name tag not immediately under a Map");
@@ -408,14 +468,20 @@ void ReadXml::parseOneTag() {
 }
 
 // state: read the attributes
-void ReadXml::readAttributes() {
+bool ReadXml::readAttributes() {
   while(1) {
     int attr = lexer.getToken();
     switch(attr) {
     default: break;             // go on; assume it is a legal attribute tag
     case 0: userError("unexpected file termination while looking for an attribute name");
     case XTOK_GREATERTHAN:
-      return;
+      return true;              // container tag
+    case XTOK_SLASH:
+      attr = lexer.getToken();  // eat the '>' token
+      if (attr!=XTOK_GREATERTHAN) {
+        userError("expected '>' after '/' that terminates a stand-alone tag");
+      }
+      return false;             // non-container tag
     }
 
     int eq = lexer.getToken();
@@ -449,14 +515,30 @@ void ReadXml::readAttributes() {
       }
       linkSat.id2obj.add(id0, nodeStack.top());
     }
-    // special case the Name node and its one attribute
-    else if (*kindStack.top() == XTOK_Name) {
+    // special case the __Name node and its one attribute
+    else if (*kindStack.top() == XTOK___Name) {
       if (attr != XTOK_name) {
-        userError("illegal attribute for Name");
+        userError("illegal attribute for __Name");
       }
       static_cast<Name*>(nodeStack.top())->name =
         strTable(parseQuotedString(lexer.currentText()));
     }
+//      // special case the __Link node and its attributes
+//      else if (*kindStack.top() == XTOK___Link) {
+//        switch(attr) {
+//        default:
+//          userError("illegal attribute for __Link");
+//          break;
+//        case XTOK_from:
+//          static_cast<UnsatBiLink*>(nodeStack.top())->from =
+//            strTable(parseQuotedString(lexer.currentText()));
+//          break;
+//        case XTOK_to:
+//          static_cast<UnsatBiLink*>(nodeStack.top())->to =
+//            strTable(parseQuotedString(lexer.currentText()));
+//          break;
+//        }
+//      }
     // not a built-in attribute or tag
     else {
       registerAttribute(nodeStack.top(), *kindStack.top(), attr, lexer.currentText());

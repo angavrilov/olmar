@@ -27,7 +27,11 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
     curFunction(NULL),
     curLoc(initLoc)
 {
-  xassert(sk != SK_UNKNOWN);
+  // FIX: XML_LOSS: dsw: I had to turn this off because otherwise
+  // there is no way to make a Scope during de-serialization.  The
+  // alternative is to just make a no-arg ctor that does nothing; feel
+  // free to do that if you prefer.
+//    xassert(sk != SK_UNKNOWN);
 }
 
 Scope::~Scope()

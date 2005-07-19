@@ -105,7 +105,11 @@ Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
   setParameterOrdinal(0);
 
   if (!isNamespace()) {
-    xassert(type);
+    // FIX: XML_LOSS: dsw: I had to turn this off because otherwise
+    // there is no way to make a Variable during de-serialization.
+    // The alternative is to just make a no-arg ctor that does
+    // nothing; feel free to do that if you prefer.
+//      xassert(type);
   }
 }
 

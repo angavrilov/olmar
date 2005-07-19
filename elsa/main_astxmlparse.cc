@@ -117,7 +117,9 @@ TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
   linkSatisifier.registerReader(&astReader);
   astReader.reset();            // actually done in ctor
   astReader.parseOneTopLevelTag();
-  xassert(!lexer.haveSeenEof());
+  if (lexer.haveSeenEof()) {
+    astReader.userError("unexpected EOF");
+  }
   if (astReader.getLastKind() != XTOK_TranslationUnit) {
     astReader.userError("top tag is not a TranslationUnit");
   }

@@ -101,7 +101,7 @@ for my $name(@names) {
                     "$outname.B0.cc");
         run_command("$parser -tr no-elaborate,xmlPrintAST,xmlPrintAST-indent $name | ./chop_out",
                     "$outname.B1.xml");
-        run_command("$parser -tr no-elaborate,parseAstXml,prettyPrint $outname.B1.xml | ./chop_out",
+        run_command("$parser -tr no-elaborate,parseXml,prettyPrint $outname.B1.xml | ./chop_out",
                     "$outname.B2.xml.cc");
     };
     if ($@) {

@@ -78,3 +78,6 @@ iptree
 smin
 smin.tmp
 iptparse
+astxml_lexer1_type.cc
+astxml_lexer1_type.lex
+astxml_tokens1_type.h

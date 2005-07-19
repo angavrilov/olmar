@@ -66,6 +66,14 @@ struct UnsatLink {
   UnsatLink(void **ptr0, string id0, int kind0 = -1);
 };
 
+// datastructures for dealing with unsatisified links where neither
+// party wants to know about the other
+struct UnsatBiLink {
+  char const *from;
+  char const *to;
+  UnsatBiLink() : from(NULL), to(NULL) {}
+};
+
 // manages recording unsatisfied links and satisfying them later
 class LinkSatisfier {
   // I need this because it know how to get the FakeLists out of the
@@ -79,6 +87,7 @@ class LinkSatisfier {
   ASTList<UnsatLink> unsatLinks;
   ASTList<UnsatLink> unsatLinks_List;
   ASTList<UnsatLink> unsatLinks_NameMap;
+  ASTList<UnsatBiLink> unsatBiLinks;
 
   // map object ids to the actual object
   StringSObjDict<void> id2obj;
@@ -101,7 +110,16 @@ class LinkSatisfier {
   void convertNameMap2StringSObjDict(StringRefMap<char> *map, int listKind, void *target);
 
   bool kind2kindCat(int kind, KindCategory *kindCat);
+
   void satisfyLinks();
+
+  private:
+  void satisfyLinks_Nodes();
+  void satisfyLinks_Lists();
+  void satisfyLinks_Maps();
+//    void satisfyLinks_Bidirectional();
+
+  void userError(char const *msg);
 };
 
 
@@ -174,7 +192,7 @@ class ReadXml {
   int getLastKind() {return lastKind;}
 
   protected:
-  void readAttributes();
+  bool readAttributes();
 
   // **** subclass fills these in
   public:
