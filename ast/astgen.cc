@@ -142,9 +142,16 @@ bool isTreeListType(rostring type);
 string extractListType(rostring type);
 
 
+// dsw: I just need to know if the thing is an object or not
+bool isPtrKind(rostring type)
+{
+  return type[strlen(type)-1] == '*';
+}
+
+
 TreeNodeKind getTreeNodePtrKind(rostring type)
 {
-  if (type[strlen(type)-1] == '*') {
+  if (isPtrKind(type)) {
     // is pointer type; get base type
     string base = trimWhitespace(substring(type, strlen(type)-1));
 
@@ -1910,7 +1917,7 @@ void CGen::emitXmlFields(ASTList<Annotation> const &decls, char const *baseName,
   FOREACH_ASTLIST(Annotation, decls, iter) {
     if (!iter.data()->isUserDecl()) continue;
     UserDecl const *ud = iter.data()->asUserDeclC();
-    if (!ud->amod->hasMod("field")) continue;
+    if (!ud->amod->hasMod("xml")) continue;
 
     emitXmlField(ud->amod->hasMod("owner"),
                  extractFieldType(ud->code),
@@ -1976,17 +1983,18 @@ void CGen::emitXmlField(bool isOwner, rostring type, rostring name, char const *
     out << "  xmlPrintPointer(out, \"AST\", " << baseName << "->" << name << ");\n";
     out << "  out << \"\\\"\";\n";
   }
-  else {
-    // catch-all ..
-//      out << "  " << print << "_GENERIC(" << name << ");\n";
-//      cout << "emitXmlField: no handler registered for this type '" << type
-//           << "' in this class->field '" << className << "->" << name << "'"
-//           << endl;
+  else if (isPtrKind(type)) {
+    // catch-all for objects
+    out << "  out << \"\\n\";\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"" << name << "\" << \"=\\\"\";\n";
+    out << "  xmlPrintPointer(out, \"TY\", " << baseName << "->" << name << ");\n";
+    out << "  out << \"\\\"\";\n";
+  } else {
+    // catch-all for non-objects
     out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"" << name << "\" << \"=\";\n";
-//      out << "  out << (" << baseName << "->"
-//          << name << "? \"\\\"true\\\"\" : \"\\\"false\\\"\");\n";
     out << "  out << quoted(toXml(" << baseName << "->" << name << "));\n";
   }
 }
@@ -2398,7 +2406,7 @@ void XmlParserGen::collectXmlParserFields(ASTList<Annotation> const &decls, char
   FOREACH_ASTLIST(Annotation, decls, iter) {
     if (!iter.data()->isUserDecl()) continue;
     UserDecl const *ud = iter.data()->asUserDeclC();
-    if (!ud->amod->hasMod("field")) continue;
+    if (!ud->amod->hasMod("xml")) continue;
     collectXmlParserField(ud->amod->hasMod("owner"),
                           extractFieldType(ud->code),
                           extractFieldName(ud->code),
@@ -2455,7 +2463,7 @@ void XmlParserGen::emitXmlFields_AttributeParseRule
   FOREACH_ASTLIST(Annotation, decls, iter) {
     if (!iter.data()->isUserDecl()) continue;
     UserDecl const *ud = iter.data()->asUserDeclC();
-    if (!ud->amod->hasMod("field")) continue;
+    if (!ud->amod->hasMod("xml")) continue;
     emitXmlField_AttributeParseRule(ud->amod->hasMod("owner"),
                                     extractFieldType(ud->code),
                                     extractFieldName(ud->code),
@@ -2502,12 +2510,14 @@ void XmlParserGen::emitXmlField_AttributeParseRule
                  << "(void**) &(obj->" << name << "), parseQuotedString(strValue)));\n";
     parser1_defs << "      break;\n";
   }
-  else {
-    // catch-all ..
-//      out << "  " << print << "_GENERIC(" << name << ");\n";
-//      cout << "AttributeParseRule: "
-//           << "no handler registered for this type '" << type
-//           << "' in this object->field '" << baseName << "->" << name << "'\n";
+  else if (isPtrKind(type)) {
+    // catch-all for objects
+    parser1_defs << "    case XTOK_" << name << ":\n";
+    parser1_defs << "      linkSat.unsatLinks.append(new UnsatLink("
+                 << "(void**) &(obj->" << name << "), parseQuotedString(strValue)));\n";
+    parser1_defs << "      break;\n";
+  } else {
+    // catch-all for non-objects
     parser1_defs << "    case XTOK_" << name << ":\n";
     parser1_defs << "      fromXml(obj->" << name << ", parseQuotedString(strValue));\n";
     parser1_defs << "      break;\n";
