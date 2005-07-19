@@ -8,6 +8,7 @@
 #define OBJMAP_H
 
 #include "ptrmap.h"           // PtrMap
+#include "xassert.h"          // xassert
 
 template <class KEY, class VALUE>
 class ObjMap {
