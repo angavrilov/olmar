@@ -103,8 +103,8 @@ class LinkSatisfier {
   void registerReader(ReadXml *reader);
 
   void *convertList2FakeList(ASTList<char> *list, int listKind);
-  void *convertList2SObjList(ASTList<char> *list, int listKind);
-  void *convertList2ObjList (ASTList<char> *list, int listKind);
+  void convertList2SObjList(ASTList<char> *list, int listKind, void **target);
+  void convertList2ObjList (ASTList<char> *list, int listKind, void **target);
 
   void convertNameMap2StringRefMap  (StringRefMap<char> *map, int listKind, void *target);
   void convertNameMap2StringSObjDict(StringRefMap<char> *map, int listKind, void *target);
@@ -212,7 +212,7 @@ class ReadXml {
 
   // all name maps are stored as StringRefMaps; these convert to the real name maps
   virtual bool convertNameMap2StringRefMap
-    (StringRefMap<char>   *map, int mapKind, void *target) = 0;
+    (StringRefMap<char> *map, int mapKind, void *target) = 0;
   virtual bool convertNameMap2StringSObjDict
     (StringRefMap<char> *map, int mapKind, void *target) = 0;
 

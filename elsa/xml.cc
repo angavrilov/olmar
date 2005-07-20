@@ -38,23 +38,21 @@ void *LinkSatisfier::convertList2FakeList(ASTList<char> *list, int listKind) {
   THROW(xBase(stringc << "no converter for FakeList type"));
 }
 
-void *LinkSatisfier::convertList2SObjList(ASTList<char> *list, int listKind) {
+void LinkSatisfier::convertList2SObjList(ASTList<char> *list, int listKind, void **target) {
   FOREACH_ASTLIST_NC(ReadXml, readers, iter) {
     ReadXml *reader = iter.data();
-    void *target;
-    if (reader->convertList2SObjList(list, listKind, &target)) {
-      return target;
+    if (reader->convertList2SObjList(list, listKind, target)) {
+      return;
     }
   }
   THROW(xBase(stringc << "no converter for SObjList type"));
 }
 
-void *LinkSatisfier::convertList2ObjList(ASTList<char> *list, int listKind) {
+void LinkSatisfier::convertList2ObjList(ASTList<char> *list, int listKind, void **target) {
   FOREACH_ASTLIST_NC(ReadXml, readers, iter) {
     ReadXml *reader = iter.data();
-    void *target;
-    if (reader->convertList2ObjList(list, listKind, &target)) {
-      return target;
+    if (reader->convertList2ObjList(list, listKind, target)) {
+      return;
     }
   }
   THROW(xBase(stringc << "no converter for ObjList type"));
@@ -160,7 +158,7 @@ void LinkSatisfier::satisfyLinks_Lists() {
       // it is due to a type you cast it too.
       ptr->steal(obj);
       // it seems that I should not subsequently delete the list as
-      // the steal has deleted the voidlist of the ASTList and it
+      // the steal() has deleted the voidlist of the ASTList and it
       // seems to be a bug to try to then delete the ASTList that has
       // been stolen from
       break;
@@ -186,7 +184,7 @@ void LinkSatisfier::satisfyLinks_Lists() {
       // SObjList and hook in all of the pointers.  This is
       // type-specific, so generated code must do it that can switch
       // on the templatized type of the SObjList.
-      *(ul->ptr) = convertList2SObjList(obj, ul->kind);
+      convertList2SObjList(obj, ul->kind, ul->ptr);
       // Make the list dis-own all of its contents so it doesn't delete
       // them when we delete it.  Yes, I should have used a non-owning
       // constant-time-append list.
@@ -201,7 +199,7 @@ void LinkSatisfier::satisfyLinks_Lists() {
       // ObjList and hook in all of the pointers.  This is
       // type-specific, so generated code must do it that can switch
       // on the templatized type of the ObjList.
-      *(ul->ptr) = convertList2ObjList(obj, ul->kind);
+      convertList2ObjList(obj, ul->kind, ul->ptr);
       // Make the list dis-own all of its contents so it doesn't delete
       // them when we delete it.  Yes, I should have used a non-owning
       // constant-time-append list.
@@ -437,30 +435,28 @@ void ReadXml::parseOneTag() {
 
   // deal with map entries
   if (topKindCat == KC_Name) {
-    // file the current object under the map which is one further away
-    // in the stack behind the name tag
-    //
-    // save the map tag
+    // save the name tag
     Name *nameNode = (Name*)nodeStack.pop();
     int nameKind = *kindStack.pop();
     xassert(nameKind == XTOK___Name);
-    // check a map is there
+
+    // what kind of thing is next on the stack?
     if (nodeStack.isEmpty()) {
       userError("a __Name tag not immediately under a Map");
     }
     void *mapNode = nodeStack.top();
     int mapKind = *kindStack.top();
-    if (!(mapNode && (mapKind == KC_StringRefMap || topKindCat == KC_StringSObjDict))) {
-      userError("a __Name tag not immediately under a Map");
-    }
-    // what kind of thing is next on the stack?
     KindCategory mapKindCat;
     bool foundMap = kind2kindCat(mapKind, &mapKindCat);
     // FIX: maybe this should be an assertion
     if (!foundMap) {
       userError("no category found for this map kind");
     }
+    if (!(mapNode && (mapKindCat == KC_StringRefMap || mapKindCat == KC_StringSObjDict))) {
+      userError("a __Name tag not immediately under a Map");
+    }
     insertIntoNameMap(mapNode, mapKind, nameNode->name, lastNode, lastKind);
+
     // push the name back on the stack so we catch it later
     nodeStack.push(nameNode);
     kindStack.push(new int(nameKind));

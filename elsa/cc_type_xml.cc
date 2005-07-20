@@ -124,7 +124,7 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     out << "eltType=\"TY" << static_cast<void const*>(arr->eltType) << "\"\n";
 
     printIndentation();
-    out << "size=\"" << arr->size << "\">";
+    out << "size=\"" << arr->size << "\">\n";
 
     break;
   }
@@ -959,6 +959,9 @@ bool ReadXml_Type::kind2kindCat(int kind, KindCategory *kindCat) {
   case XTOK_NameMap_Scope_typeTags:                *kindCat = KC_StringRefMap;  break;
   case XTOK_NameMap_EnumType_valueIndex:           *kindCat = KC_StringRefMap;  break;
 
+  // special map element __Name
+  case XTOK___Name: *kindCat = KC_Name; break;
+
   }
   return true;
 }
@@ -979,24 +982,24 @@ bool ReadXml_Type::convertList2SObjList(ASTList<char> *list, int listKind, void 
   case XTOK_List_FunctionType_params:
   case XTOK_List_CompoundType_dataMembers:
   case XTOK_List_CompoundType_conversionOperators: {
-    SObjList<Variable> *ret = new SObjList<Variable>();
+    SObjList<Variable> *ret = reinterpret_cast<SObjList<Variable>*>(target);
+    xassert(ret->isEmpty());
     FOREACH_ASTLIST_NC(Variable, reinterpret_cast<ASTList<Variable>&>(*list), iter) {
       Variable *var = iter.data();
       ret->prepend(var);
     }
     ret->reverse();
-    *target = ret;
     break;
   }
 
   case XTOK_List_BaseClassSubobj_parents: {
-    SObjList<BaseClassSubobj> *ret = new SObjList<BaseClassSubobj>();
+    SObjList<BaseClassSubobj> *ret = reinterpret_cast<SObjList<BaseClassSubobj>*>(target);
+    xassert(ret->isEmpty());
     FOREACH_ASTLIST_NC(BaseClassSubobj, reinterpret_cast<ASTList<BaseClassSubobj>&>(*list), iter) {
       BaseClassSubobj *bcs = iter.data();
       ret->prepend(bcs);
     }
     ret->reverse();
-    *target = ret;
     break;
   }
 
@@ -1013,24 +1016,24 @@ bool ReadXml_Type::convertList2ObjList (ASTList<char> *list, int listKind, void 
   default: return false;        // we did not find a matching tag
 
   case XTOK_List_CompoundType_bases: {
-    ObjList<BaseClass> *ret = new ObjList<BaseClass>();
+    ObjList<BaseClass> *ret = reinterpret_cast<ObjList<BaseClass>*>(target);
+    xassert(ret->isEmpty());
     FOREACH_ASTLIST_NC(BaseClass, reinterpret_cast<ASTList<BaseClass>&>(*list), iter) {
       BaseClass *bcs = iter.data();
       ret->prepend(bcs);
     }
     ret->reverse();
-    *target = ret;
     break;
   }
 
   case XTOK_List_CompoundType_virtualBases: {
-    ObjList<BaseClassSubobj> *ret = new ObjList<BaseClassSubobj>();
+    ObjList<BaseClassSubobj> *ret = reinterpret_cast<ObjList<BaseClassSubobj>*>(target);
+    xassert(ret->isEmpty());
     FOREACH_ASTLIST_NC(BaseClassSubobj, reinterpret_cast<ASTList<BaseClassSubobj>&>(*list), iter) {
       BaseClassSubobj *bcs = iter.data();
       ret->prepend(bcs);
     }
     ret->reverse();
-    *target = ret;
     break;
   }
 
@@ -1047,9 +1050,9 @@ bool ReadXml_Type::convertNameMap2StringRefMap
   default: return false;        // we did not find a matching tag
 
   case XTOK_NameMap_Scope_variables:
-  case XTOK_NameMap_Scope_typeTags:
-    {
+  case XTOK_NameMap_Scope_typeTags: {
     StringRefMap<Variable> *ret = reinterpret_cast<StringRefMap<Variable>*>(target);
+    xassert(ret->isEmpty());
     for(StringRefMap<Variable>::Iter iter(reinterpret_cast<StringRefMap<Variable>&>(*map));
         !iter.isDone(); iter.adv()) {
       StringRef name = iter.key();
@@ -1071,10 +1074,10 @@ bool ReadXml_Type::convertNameMap2StringSObjDict
   switch(mapKind) {
   default: return false;        // we did not find a matching tag
 
-  case XTOK_NameMap_EnumType_valueIndex:
-    {
+  case XTOK_NameMap_EnumType_valueIndex: {
     StringSObjDict<EnumType::Value> *ret =
       reinterpret_cast<StringSObjDict<EnumType::Value>*>(target);
+    xassert(ret->isEmpty());
     for(StringRefMap<EnumType::Value>::Iter
           iter(reinterpret_cast<StringRefMap<EnumType::Value>&>(*map));
         !iter.isDone(); iter.adv()) {
@@ -1139,6 +1142,10 @@ bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
 
   case XTOK_EnumType:
     topTemp = new EnumType((StringRef)0);
+    break;
+
+  case XTOK_EnumType_Value:
+    topTemp = new EnumType::Value((StringRef)0, (EnumType*)0, (int)0, (Variable*)0);
     break;
 
   case XTOK_TypeVariable:
