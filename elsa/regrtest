@@ -802,6 +802,7 @@ testparse t0506.cc
 testparse t0507.cc
 testparse t0508.cc
 failparse t0509.cc "const-eval'able variable is actually reference templ arg"
+testparse t0510.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

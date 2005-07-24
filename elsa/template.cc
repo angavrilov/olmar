@@ -3370,13 +3370,20 @@ bool Env::verifyCompatibleTemplateParameters(Scope *scope, CompoundType *prior)
   if (hasParams &&
       scope->templateParams.isNotEmpty() &&      // t0252.cc
       !prior->isTemplate()) {
-    error(stringc
-      << "prior declaration of " << prior->keywordAndName()
-      << " at " << prior->typedefVar->loc
-      << " was not templatized, but this one is, with parameters "
-      << paramsToCString(scope->templateParams),
-      EF_DISAMBIGUATES);
-    return false;
+    if (prior->isInstantiation()) {
+      // in/t0510.cc: 'prior' is an instantiation, so the parameters
+      // were referring to the template primary
+      prior = prior->templateInfo()->getPrimary()->var->type->asCompoundType();
+    }
+    else {
+      error(stringc
+        << "prior declaration of " << prior->keywordAndName()
+        << " at " << prior->typedefVar->loc
+        << " was not templatized, but this one is, with parameters "
+        << paramsToCString(scope->templateParams),
+        EF_DISAMBIGUATES);
+      return false;
+    }
   }
 
   // now we know both declarations have template parameters;
