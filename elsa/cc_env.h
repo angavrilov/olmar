@@ -156,6 +156,7 @@ public:      // data
   StringRef special_testOverload;
   StringRef special_computeLUB;
   StringRef special_checkCalleeDefnLine;
+  StringRef special_test_mtype;
   // ---- END: special names ----
 
   // gcc __complex__ support

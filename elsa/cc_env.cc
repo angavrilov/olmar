@@ -336,6 +336,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     special_testOverload(NULL),
     special_computeLUB(NULL),
     special_checkCalleeDefnLine(NULL),
+    special_test_mtype(NULL),
 
     string_realSelector(str("__real__")),
     string_imagSelector(str("__imag__")),
@@ -490,6 +491,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   special_testOverload = declareSpecialFunction("__testOverload")->name;
   special_computeLUB = declareSpecialFunction("__computeLUB")->name;
   special_checkCalleeDefnLine = declareSpecialFunction("__checkCalleeDefnLine")->name;
+  special_test_mtype = declareSpecialFunction("__test_mtype")->name;
 
   setupOperatorOverloading();
 

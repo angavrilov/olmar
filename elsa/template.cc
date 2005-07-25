@@ -934,6 +934,7 @@ string STemplateArgument::toString() const
       << "::" << value.v->name;
     case STA_DEPEXPR:   return getDepExpr()->exprToString();
     case STA_TEMPLATE:  return string("template (?)");
+    case STA_ATOMIC:    return value.at->toString();
   }
 }
 
@@ -1005,6 +1006,25 @@ bool hasDependentArgs(SObjList<STemplateArgument> const &args)
     }
   }
   return false;
+}
+
+
+char const *toString(STemplateArgument::Kind k)
+{
+  static char const * const map[] = {
+    "STA_NONE",
+    "STA_TYPE",
+    "STA_INT",
+    "STA_REFERENCE",
+    "STA_POINTER",
+    "STA_MEMBER",
+    "STA_DEPEXPR",
+    "STA_TEMPLATE",
+    "STA_ATOMIC",
+  };
+  STATIC_ASSERT(TABLESIZE(map) == STemplateArgument::NUM_STA_KINDS);
+  xassert((unsigned)k < (unsigned)STemplateArgument::NUM_STA_KINDS);
+  return map[k];
 }
 
 

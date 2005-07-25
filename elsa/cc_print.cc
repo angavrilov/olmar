@@ -1576,6 +1576,9 @@ void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta)
     case STemplateArgument::STA_TEMPLATE:
       *env.out << string("template (?)");
       break;
+    case STemplateArgument::STA_ATOMIC:    
+      *env.out << sta->value.at->toString();
+      break;
   }
 }
 

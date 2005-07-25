@@ -137,7 +137,7 @@ public:                         // types
 
     // Wildcard Typevars; Vars on the right: are just wildcards,
     // matching anything, but making no record of that match.  Vars on
-    // the left: cause the matching process to fail unless the match a
+    // the left: cause the matching process to fail unless they match a
     // wildcard on the right.
     MM_WILD,
 

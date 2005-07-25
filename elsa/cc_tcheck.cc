@@ -26,6 +26,8 @@
 #include "strutil.h"        // prefixEquals, pluraln
 #include "macros.h"         // Restorer
 #include "typelistiter.h"   // TypeListIter_FakeList
+#include "owner.h"          // Owner
+#include "mtype.h"          // MType
 
 #include <stdlib.h>         // strtoul, strtod
 #include <ctype.h>          // isdigit
@@ -5770,6 +5772,14 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
   ArgumentInfoArray argInfo(args->count() + 1);
   args = tcheckArgExprList(args, env, argInfo, receiverType);
 
+  // for internal testing
+  if (fevar) {
+    Type *ret = internalTestingHooks(env, fevar->name->getName(), args);
+    if (ret) {
+      return ret;
+    }
+  }
+
   // do any of the arguments have types that are dependent on template params?
   bool dependentArgs = hasDependentActualArgs(args);
 
@@ -5979,14 +5989,6 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
       return env.error(stringc
         << "object of type `" << t->toString() << "' used as a function, "
         << "but it has no operator() declared");
-    }
-  }
-
-  // for internal testing
-  if (fevar) {
-    Type *ret = internalTestingHooks(env, fevar->name->getName(), args);
-    if (ret) {
-      return ret;
     }
   }
 
@@ -6256,6 +6258,127 @@ static Type *internalTestingHooks
     else {
       env.error("invalid call to __checkCalleeDefnLine");
     }
+  }
+
+  
+  // syntax of calls to __test_mtype:
+  //
+  // Form 1: match is expected to succeed
+  //
+  //   __test_mtype((C)0, (P)0, FLAGS,
+  //                "A", (T1)0,           // form of type bindings
+  //                "n", 3,               // form of value bindings
+  //                ...                   // remaining binding pairs
+  //               );
+  //
+  //   where C is the concrete type, P is the pattern type, FLAGS
+  //   is a bitwise OR of MatchFlags, T1 is the proposed type binding
+  //   for variable "A", and 3 is the expected value of variable "n".
+  //
+  // Form 2: match is expected fo fail
+  //
+  //   __test_mtype((C)0, (P)0, FLAGS, false);     // four args total
+  //
+  if (funcName == env.special_test_mtype) {
+    int nArgs = args->count();
+    if (nArgs < 3) {
+      return env.error("__test_mtype requires at least three arguments");
+    }
+
+    Type *conc = args->nth(0)->getType();
+    Type *pat = args->nth(1)->getType();
+    int flags;
+    if (!args->nth(2)->constEval(env, flags)) {
+      return env.error("third argument to __test_mtype must be a constant expression");
+    }
+    if (flags & ~MF_ALL) {
+      return env.error("invalid flags value for __test_mtype");
+    }
+    bool expectSuccess = (nArgs != 4);
+    if (expectSuccess && (nArgs%2 != 1)) {
+      return env.error("__test_mtype requires either four or an odd number of arguments");
+    }
+
+    MType mtype(true /*nonConst*/);
+    if (mtype.matchNC(conc, pat, (MatchFlags)flags)) {
+      if (expectSuccess) {
+        // successed as expected; check the bindings
+        int i;
+        for (i=0; (i+1)*2+1 < nArgs; i++) {
+          Expression *name = args->nth((i+1)*2+1)->expr;
+          Expression *value = args->nth((i+1)*2+2)->expr;
+
+          // 'name' should be a string literal naming a variable in 'pat'
+          if (!name->isE_stringLit()) {
+            return env.error(stringc << "__test_mtype argument " << (i+1)*2+1+1
+                                     << " must be a string literal");
+          }
+          StringRef nameStr = env.str(parseQuotedString(name->asE_stringLit()->text));
+
+          // it should correspond to an existing binding in 'mtype'
+          STemplateArgument binding(mtype.getBoundValue(nameStr, env.tfac));
+          if (!binding.hasValue()) {
+            return env.error(stringc << "__test_mtype: " << nameStr << " is not bound");
+          }
+
+          // we interpret 'value' depending on what kind of thing is
+          // the 'binding', and hope this won't mask any problems
+          switch (binding.kind) {
+            default:
+              return env.error(stringc << "unexpected binding kind: "
+                                       << toString(binding.kind));
+
+            case STemplateArgument::STA_TYPE:
+              if (!binding.getType()->equals(value->getType())) {
+                return env.error(stringc << "__test_mtype: "
+                  << "expected " << nameStr
+                  << " to be bound to `" << value->getType()->toString()
+                  << "' but it was actually bound to `"
+                  << binding.getType()->toString() << "'");
+              }
+              break;
+
+            case STemplateArgument::STA_INT: {
+              int valueInt;
+              if (!value->constEval(env, valueInt)) {
+                return env.error(stringc << "__test_mtype: "
+                  << nameStr << " was bound to an int, but the provided "
+                  << "expression is not a constant");
+              }
+              if (valueInt != binding.getInt()) {
+                return env.error(stringc << "__test_mtype: "
+                  << "expected " << nameStr
+                  << " to be bound to " << valueInt
+                  << " but it was actually bound to "
+                  << binding.getInt());
+              }
+              break;
+            }
+          }
+        } // end of loop over supplied bindings
+        
+        // the user should have supplied as many bindings as there
+        // are bindings in 'mtype'
+        if (mtype.getNumBindings() != i) {
+          return env.error(stringc << "__test_mtype: "
+            << "call site supplied " << pluraln(i , "binding") 
+            << ", but match yielded " << mtype.getNumBindings());
+        }
+      }
+      else {
+        return env.error("mtype succeeded, but failure was expected");
+      }
+    }
+    else {
+      if (expectSuccess) {
+        return env.error("mtype failed, but success was expected");
+      }
+      else {
+        // failed as expected
+      }
+    }
+
+    return env.getSimpleType(ST_VOID);
   }
 
   // E_funCall::itcheck should continue, and tcheck this normally

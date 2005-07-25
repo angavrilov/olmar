@@ -382,6 +382,7 @@ public:
     STA_MEMBER,      // pointer to class member
     STA_DEPEXPR,     // value-dependent expression
     STA_TEMPLATE,    // template argument (not implemented)
+    STA_ATOMIC,      // private to mtype: bind var to AtomicType
     NUM_STA_KINDS
   } kind;
 
@@ -390,6 +391,7 @@ public:
     int i;           // for STA_INT
     Variable *v;     // (serf) for STA_REFERENCE, STA_POINTER, STA_MEMBER
     Expression *e;   // (serf) for STA_DEPEXPR
+    AtomicType const *at;  // (serf) for STA_ATOMIC
   } value;
 
 public:
@@ -422,6 +424,11 @@ public:
   bool isDepExpr() const         { return kind==STA_DEPEXPR;      }
 
   bool hasValue() const { return kind!=STA_NONE; }
+
+  // AtomicType stuff
+  AtomicType const *getAtomicType() const { xassert(kind==STA_ATOMIC); return value.at; }
+  void setAtomicType(AtomicType const *at) { kind=STA_ATOMIC; value.at=at; }
+  bool isAtomicType() const { return kind==STA_ATOMIC; }
 
   // true if it's '<dependent>'
   bool isDependent() const;
@@ -471,6 +478,8 @@ bool equalArgumentLists(TypeFactory &tfac,
 bool equalArgumentLists(TypeFactory &tfac,
                         ObjList<STemplateArgument> const &list1,
                         ObjList<STemplateArgument> const &list2);
+
+char const *toString(STemplateArgument::Kind k);
 
 
 // holder for the CompoundType template candidates
