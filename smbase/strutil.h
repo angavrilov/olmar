@@ -78,7 +78,7 @@ string plural(int n, rostring prefix);
 
 // same as 'plural', but with the stringized version of the number:
 //   pluraln(1, "egg") yields "1 egg", and
-//   pluraln(2, "eggs") yields "2 eggs"
+//   pluraln(2, "egg") yields "2 eggs"
 string pluraln(int n, rostring prefix);
 
 // prepend with an indefinite article:

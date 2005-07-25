@@ -6,6 +6,12 @@
 
 #include "typ.h"      // NULL
 
+// I'm tossing these in here so they are somewhere in smbase, even
+// though they don't have much to do with the Owner class.
+#define owner /*nothing*/
+#define serf /*nothing*/
+#define nullable /*nothing*/
+
 #ifdef DEBUG_OWNER
   #include <stdio.h>    // printf, temporary
   #define DBG(fn) printf("%s(%p)\n", fn, ptr)
