@@ -51,6 +51,7 @@ class Declaration;        // cc.ast
 class TypeVariable;       // template.h
 class PseudoInstantiation;// template.h
 class DependentQType;     // template.h
+class ReadXML;            // xml.h
 
 // fwd in this file
 class AtomicType;
@@ -369,6 +370,7 @@ protected:   // funcs
   // experiment: force creation of these to go through the factory too
   CompoundType(Keyword keyword, StringRef name);
   friend class TypeFactory;
+  friend class ReadXml_Type;
   
   // override no-op implementation in Scope
   virtual void afterAddVariable(Variable *v);
@@ -874,6 +876,7 @@ public:     // data
 
 protected:
   friend class BasicTypeFactory;
+  friend class ReadXml_Type;
 #ifdef OINK
   friend class TypeFactory_O;
 #endif
@@ -909,6 +912,7 @@ public:     // data
 
 protected:  // funcs
   friend class BasicTypeFactory;
+  friend class ReadXml_Type;
   PointerType(CVFlags c, Type *a);
 
 public:
@@ -936,6 +940,7 @@ public:     // data
 
 protected:  // funcs
   friend class BasicTypeFactory;
+  friend class ReadXml_Type;
   ReferenceType(Type *a);
 
 public:
@@ -1005,6 +1010,7 @@ public:     // data
 
 protected:  // funcs
   friend class BasicTypeFactory;
+  friend class ReadXml_Type;
 
   FunctionType(Type *retType);
 
@@ -1100,8 +1106,11 @@ private:      // funcs
 
 protected:
   friend class BasicTypeFactory;
+  friend class ReadXml_Type;
   ArrayType(Type *e, int s = NO_SIZE)
     : eltType(e), size(s) { checkWellFormedness(); }
+  ArrayType(ReadXML&)           // a ctor for de-serialization
+    : eltType(NULL), size(NO_SIZE) {}
 
 public:
   bool innerEquals(ArrayType const *obj, EqFlags flags) const;
@@ -1135,6 +1144,7 @@ public:
 
 protected:
   friend class BasicTypeFactory;
+  friend class ReadXml_Type;
   PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c, Type *a);
 
 public:

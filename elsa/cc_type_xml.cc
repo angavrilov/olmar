@@ -1108,27 +1108,27 @@ bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
 
   // **** Types
   case XTOK_CVAtomicType:
-    topTemp = tFac.makeCVAtomicType((AtomicType*)0, (CVFlags)0);
+    topTemp = new CVAtomicType((AtomicType*)0, (CVFlags)0);
     break;
 
   case XTOK_PointerType:
-    topTemp = tFac.makePointerType((CVFlags)0, (Type*)0);
+    topTemp = new PointerType((CVFlags)0, (Type*)0);
     break;
 
   case XTOK_ReferenceType:
-    topTemp = tFac.makeReferenceType((Type*)0);
+    topTemp = new ReferenceType((Type*)0);
     break;
 
   case XTOK_FunctionType:
-    topTemp = tFac.makeFunctionType((Type*)0);
+    topTemp = new FunctionType((Type*)0);
     break;
 
   case XTOK_ArrayType:
-    topTemp = tFac.makeArrayType((Type*)0, (int)0);
+    topTemp = new ArrayType((ReadXML&)*this); // call the special ctor
     break;
 
   case XTOK_PointerToMemberType:
-    topTemp = tFac.makePointerToMemberType((NamedAtomicType*)0, (CVFlags)0, (Type*)0);
+    topTemp = new PointerToMemberType((NamedAtomicType*)0, (CVFlags)0, (Type*)0);
     break;
 
   // **** Atomic Types
@@ -1138,7 +1138,7 @@ bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
     break;
 
   case XTOK_CompoundType:
-    topTemp = tFac.makeCompoundType((CompoundType::Keyword)0, (StringRef)0);
+    topTemp = new CompoundType((CompoundType::Keyword)0, (StringRef)0);
     break;
 
   case XTOK_EnumType:
@@ -1163,10 +1163,10 @@ bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
 
   // **** Other
   case XTOK_Variable:
-    topTemp = new Variable((SourceLoc)0, (StringRef)0, (Type*)0, (DeclFlags)0);
+    topTemp = new Variable((ReadXML&)*this); // call the special ctor
     break;
   case XTOK_Scope:
-    topTemp = new Scope((ScopeKind)0, (int)0, (SourceLoc)0);
+    topTemp = new Scope((ReadXML&)*this); // call the special ctor
     break;
   case XTOK_BaseClass:
     topTemp = new BaseClass((CompoundType*)0, (AccessKeyword)0, (bool)0);

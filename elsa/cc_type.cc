@@ -2217,14 +2217,8 @@ void FunctionType::traverse(TypeVisitor &vis)
 // -------------------- ArrayType ------------------
 void ArrayType::checkWellFormedness() const
 {
-  // FIX: XML_LOSS: dsw: I had to predicate this test on there being
-  // an eltType since otherwise it will fail during de-serialization
-  // as the argument to the ArrayType ctor is NULL.
-  //
-  // you can't have an array of references
-  if (eltType) {
-    xassert(!eltType->isReference());
-  }
+  xassert(eltType);
+  xassert(!eltType->isReference());
 }
 
 

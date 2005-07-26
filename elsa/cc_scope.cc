@@ -27,12 +27,28 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
     curFunction(NULL),
     curLoc(initLoc)
 {
-  // FIX: XML_LOSS: dsw: I had to turn this off because otherwise
-  // there is no way to make a Scope during de-serialization.  The
-  // alternative is to just make a no-arg ctor that does nothing; feel
-  // free to do that if you prefer.
-//    xassert(sk != SK_UNKNOWN);
+  xassert(sk != SK_UNKNOWN);
 }
+
+// a ctor for de-serialization
+Scope::Scope(ReadXML&)
+  : variables(),
+    typeTags(),
+    changeCount(0),
+    canAcceptNames(true),
+    parentScope(),
+    scopeKind(SK_UNKNOWN),
+    namespaceVar(NULL),
+    templateParams(),
+    parameterizedEntity(NULL),
+    usingEdges(0),            // the arrays start as NULL b/c in the
+    usingEdgesRefct(0),       // common case the sets are empty
+    activeUsingEdges(0),
+    outstandingActiveEdges(0),
+    curCompound(NULL),
+    curFunction(NULL),
+    curLoc(SL_UNKNOWN)
+{}
 
 Scope::~Scope()
 {
