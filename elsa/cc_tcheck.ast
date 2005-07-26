@@ -560,7 +560,7 @@ class Expression {
 
   // interpretations of literals
   -> E_intLit      { public(xml) unsigned long i = 0; }
-  -> E_floatLit    { public double d = 0; }
+  -> E_floatLit    { public(xml) double d = 0; }
   -> E_stringLit   { /* TODO: put a DataBlock here */ }
   -> E_charLit     { public(xml) unsigned int c = 0; }
 
