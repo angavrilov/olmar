@@ -9,25 +9,7 @@
 
 verbatim {
   class ElabVisitor;             // cc_elaborate.h
-
   string refersTo(Variable *v);  // cc_ast_aux.cc
-
-  // this code simply defeats the xml serialization
-  inline char const *toXml(Type *t) {
-    return "0";
-  }
-
-  inline void fromXml(Type *&out, string str) {
-    out = NULL;
-  }
-
-  inline char const *toXml(Variable *t) {
-    return "0";
-  }
-
-  inline void fromXml(Variable *&out, string str) {
-    out = NULL;
-  }
 }
 
 
