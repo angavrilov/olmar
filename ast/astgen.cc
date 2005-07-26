@@ -1013,7 +1013,7 @@ void CGen::emitFile()
   out << "#include \"" << hdrFname << "\"      // this module\n";
   if (wantXmlVisitor()) {
     out << "#include \"strutil.h\"      // quoted, parseQuotedString\n";
-    out << "#include \"xml.h\"          // to/fromXml_bool/int\n";
+    out << "#include \"xmlhelp.h\"      // to/fromXml_bool/int\n";
   }
   out << "\n";
   out << "\n";
