@@ -91,12 +91,12 @@ public:
     // this output format is designed to minimize the effect of
     // changes to unrelated details
     if (v
-        && 0!=strcmp("__testOverload", v->name)
-        && 0!=strcmp("dummy",          v->name)
-        && 0!=strcmp("__other",        v->name) // "__other": for inserted elaboration code
-        && 0!=strcmp("this",           v->name) // dsw: not sure why "this" is showing up
-        && 0!=strcmp("operator=",      v->name) // an implicitly defined member of every class
-        && v->name[0]!='~'                      // don't print dtors
+        && !streq("__testOverload", v->name)
+        && !streq("dummy",          v->name)
+        && !streq("__other",        v->name) // "__other": for inserted elaboration code
+        && !streq("this",           v->name) // dsw: not sure why "this" is showing up
+        && !streq("operator=",      v->name) // an implicitly defined member of every class
+        && v->name[0]!='~'                   // don't print dtors
         ) {
       sb << " " << v->name << "=" << sourceLocManager->getLine(v->loc);
     }
@@ -556,7 +556,7 @@ void doit(int argc, char **argv)
       unit->traverse(nc);
 
       // compare to given text
-      if (0==strcmp(env.collectLookupResults, nc.sb)) {
+      if (streq(env.collectLookupResults, nc.sb)) {
         // ok
       }
       else {

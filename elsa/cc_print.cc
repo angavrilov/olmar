@@ -723,7 +723,7 @@ void printDeclaration
   // a special function, we're getting the encoded version
   StringRef finalName = pqname? pqname->getName() : NULL;
 
-  if (finalName && 0==strcmp(finalName, "conversion-operator")) {
+  if (finalName && streq(finalName, "conversion-operator")) {
     // special syntax for conversion operators; first the keyword
     *env.out << "operator ";
 
@@ -745,7 +745,7 @@ void printDeclaration
     *env.out << " ()";
   }
 
-  else if (finalName && 0==strcmp(finalName, "constructor-special")) {
+  else if (finalName && streq(finalName, "constructor-special")) {
     // extract the class name, which can be found by looking up
     // the name of the scope which contains the associated variable
     env.typePrinter.print(*env.out, type, var->scope->curCompound->name);

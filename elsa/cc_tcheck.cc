@@ -3766,7 +3766,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
           if (!inClass) {
             env.error("destructors must be class members");
           }
-          else if (0!=strcmp(nameString+1, inClass->name)) {
+          else if (!streq(nameString+1, inClass->name)) {
             env.error(stringc
               << "destructor name `" << nameString
               << "' must match the class name `" << inClass->name << "'");

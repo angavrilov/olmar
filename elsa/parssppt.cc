@@ -117,7 +117,7 @@ char *processArgs(int argc, char **argv, char const *additionalInfo) {
       continue;
     }
 #if 0
-    else if (0==strcmp(argv[1], "-sym") && argc >= 3) {
+    else if (streq(argv[1], "-sym") && argc >= 3) {
       symOfInterestName = argv[2];
       argc -= 2;
       argv += 2;
