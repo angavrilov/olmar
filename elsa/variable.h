@@ -50,12 +50,12 @@ class TemplateInfo;            // cc_type.h
 
 
 string toXml(DeclFlags id);
-void fromXml(DeclFlags &out, string str);
+void fromXml(DeclFlags &out, rostring str);
 
 // FIX: this is temporary; I just want to get the int out and back in
 // again for now.
 string toXml_Variable_intData(unsigned id);
-void fromXml_Variable_intData(unsigned &out, string str);
+void fromXml_Variable_intData(unsigned &out, rostring str);
 
 class Variable INHERIT_SERIAL_BASE {
 public:    // data

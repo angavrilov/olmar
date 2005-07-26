@@ -10,7 +10,7 @@ string toXml_Variable_intData(unsigned id) {
   return stringc << static_cast<int>(id);
 }
 
-void fromXml_Variable_intData(unsigned &out, string str) {
+void fromXml_Variable_intData(unsigned &out, rostring str) {
   out = static_cast<DeclFlags>(atoi(str));
 }
 

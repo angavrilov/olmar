@@ -2,7 +2,7 @@
 
 #include "cc_type_xml.h"        // this module
 #include "variable.h"           // Variable
-#include "cc_flags.h"           // fromXml(DeclFlags &out, string str)
+#include "cc_flags.h"           // fromXml(DeclFlags &out, rostring str)
 #include "asthelp.h"            // xmlPrintPointer
 #include "xmlhelp.h"            // toXml_int() etc.
 
@@ -14,7 +14,7 @@ string toXml(CompoundType::Keyword id) {
   return stringc << static_cast<int>(id);
 }
 
-void fromXml(CompoundType::Keyword &out, string str) {
+void fromXml(CompoundType::Keyword &out, rostring str) {
   out = static_cast<CompoundType::Keyword>(atoi(str));
 }
 
@@ -23,7 +23,7 @@ string toXml(FunctionFlags id) {
   return stringc << static_cast<int>(id);
 }
 
-void fromXml(FunctionFlags &out, string str) {
+void fromXml(FunctionFlags &out, rostring str) {
   out = static_cast<FunctionFlags>(atoi(str));
 }
 
@@ -32,7 +32,7 @@ string toXml(ScopeKind id) {
   return stringc << static_cast<int>(id);
 }
 
-void fromXml(ScopeKind &out, string str) {
+void fromXml(ScopeKind &out, rostring str) {
   out = static_cast<ScopeKind>(atoi(str));
 }
 

@@ -35,7 +35,7 @@ enum TypeIntr {
 extern char const * const typeIntrNames[NUM_TYPEINTRS];    // "struct", ...
 char const *toString(TypeIntr tr);
 string toXml(TypeIntr tr);
-void fromXml(TypeIntr &out, string str);
+void fromXml(TypeIntr &out, rostring str);
 
 
 // --------------------- CVFlags ---------------------
@@ -58,7 +58,7 @@ enum CVFlags {
 extern char const * const cvFlagNames[NUM_CVFLAGS];      // 0="const", 1="volatile", 2="owner"
 string toString(CVFlags cv);
 string toXml(CVFlags cv);
-void fromXml(CVFlags &out, string str);
+void fromXml(CVFlags &out, rostring str);
 
 ENUM_BITWISE_OPS(CVFlags, CV_ALL)
 
@@ -130,7 +130,7 @@ enum DeclFlags {
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..
 string toString(DeclFlags df);
 string toXml(DeclFlags df);
-void fromXml(DeclFlags &out, string str);
+void fromXml(DeclFlags &out, rostring str);
 
 ENUM_BITWISE_OPS(DeclFlags, ALL_DECLFLAGS)
 
@@ -257,7 +257,7 @@ bool isComplexOrImaginary(SimpleTypeId id);
 
 inline char const *toString(SimpleTypeId id)        { return simpleTypeName(id); }
 string toXml(SimpleTypeId id);
-void fromXml(SimpleTypeId &out, string str);
+void fromXml(SimpleTypeId &out, rostring str);
 
 
 // ---------------------------- UnaryOp ---------------------------
@@ -275,7 +275,7 @@ inline bool validCode(UnaryOp op)
 extern char const * const unaryOpNames[NUM_UNARYOPS];     // "+", ...
 char const *toString(UnaryOp op);
 string toXml(UnaryOp op);
-void fromXml(UnaryOp &out, string str);
+void fromXml(UnaryOp &out, rostring str);
 
 
 // ------------------------- EffectOp -------------------------
@@ -294,7 +294,7 @@ inline bool validCode(EffectOp op)
 extern char const * const effectOpNames[NUM_EFFECTOPS];   // "++", ...
 char const *toString(EffectOp op);
 string toXml(EffectOp op);
-void fromXml(EffectOp &out, string str);
+void fromXml(EffectOp &out, rostring str);
 bool isPostfix(EffectOp op);
 inline bool isPrefix(EffectOp op) { return !isPostfix(op); }
 
@@ -351,7 +351,7 @@ inline bool validCode(BinaryOp op)
 extern char const * const binaryOpNames[NUM_BINARYOPS];   // "*", ..
 char const *toString(BinaryOp op);
 string toXml(BinaryOp op);
-void fromXml(BinaryOp &out, string str);
+void fromXml(BinaryOp &out, rostring str);
 
 bool isPredicateCombinator(BinaryOp op);     // &&, ||, ==>, <==>
 bool isRelational(BinaryOp op);              // == thru >=
@@ -374,7 +374,7 @@ enum AccessKeyword {
 extern char const * const accessKeywordNames[NUM_ACCESS_KEYWORDS];
 char const *toString(AccessKeyword key);
 string toXml(AccessKeyword key);
-void fromXml(AccessKeyword &out, string str);
+void fromXml(AccessKeyword &out, rostring str);
 
 // ---------------- cast keywords -------------
 enum CastKeyword {
@@ -389,7 +389,7 @@ enum CastKeyword {
 extern char const * const castKeywordNames[NUM_CAST_KEYWORDS];
 char const *toString(CastKeyword key);
 string toXml(CastKeyword key);
-void fromXml(CastKeyword &out, string str);
+void fromXml(CastKeyword &out, rostring str);
 
 
 // --------------- overloadable operators -------------            
@@ -472,7 +472,7 @@ inline bool validCode(OverloadableOp op)
 extern char const * const overloadableOpNames[NUM_OVERLOADABLE_OPS];    // "!", ...
 char const *toString(OverloadableOp op);
 string toXml(OverloadableOp op);
-void fromXml(OverloadableOp &out, string str);
+void fromXml(OverloadableOp &out, rostring str);
 
 // yields things like "operator+"
 extern char const * const operatorFunctionNames[NUM_OVERLOADABLE_OPS];

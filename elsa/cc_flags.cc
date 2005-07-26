@@ -30,7 +30,7 @@ string toXml(T index)                        \
 }
 
 #define MAKE_FROMXML_INT(T)           \
-void fromXml(T &out, string str) \
+void fromXml(T &out, rostring str) \
 {                                     \
   out = static_cast<T>(atoi(str));    \
 }
