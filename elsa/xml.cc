@@ -6,16 +6,6 @@
 #include "exc.h"                // xBase
 
 
-string toXml_bool(bool b) {
-  if (b) return "true";
-  else return "false";
-}
-
-void fromXml_bool(bool &b, string str) {
-  b = (strcmp(str, "true") == 0);
-}
-
-
 // -------------------- LinkSatisfier -------------------
 
 UnsatLink::UnsatLink(void **ptr0, string id0, int kind0)

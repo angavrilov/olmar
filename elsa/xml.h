@@ -1,6 +1,6 @@
 // xml.h            see license.txt for copyright and terms of use
 
-// Generic serialization and de-serialization support.
+// Serialization and de-serialization support.
 
 #ifndef XML_H
 #define XML_H
@@ -18,13 +18,6 @@ class StringTable;
 // forwards in this file
 class ReadXml;
 
-
-// I have manually mangled the name to include "_bool" as otherwise
-// what happens is that if a toXml() for some enum flag is missing
-// then the C++ compiler will just use the toXml(bool) instead, which
-// is a bug.
-string toXml_bool(bool b);
-void fromXml_bool(bool &b, string str);
 
 
 // there are 3 categories of kinds of Tags

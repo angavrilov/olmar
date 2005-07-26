@@ -24,8 +24,10 @@
 #include "smregexp.h"     // regexpMatch
 #include "cc_elaborate.h" // ElabVisitor
 #include "integrity.h"    // IntegrityVisitor
-#include "main_astxmlparse.h"// astxmlparse
-#include "cc_type_xml.h"  // ToXMLTypeVisitor
+#if XML
+  #include "main_astxmlparse.h"// astxmlparse
+  #include "cc_type_xml.h"  // ToXMLTypeVisitor
+#endif // XML
 
 
 // little check: is it true that only global declarators
@@ -376,8 +378,13 @@ void doit(int argc, char **argv)
   int parseWarnings = 0;
   long parseTime = 0;
   if (tracingSys("parseXml")) {
+#if XML
     unit = astxmlparse(strTable, inputFname);
     if (!unit) return;
+#else
+    cout << "XML features are not compiled in" << endl;
+    exit(1);
+#endif // XML
   }
   else {
     SectionTimer timer(parseTime);
@@ -660,6 +667,7 @@ void doit(int argc, char **argv)
 
   // dsw: xml printing of the raw ast
   if (tracingSys("xmlPrintAST")) {
+#if XML
     traceProgress() << "dsw xml print...\n";
     bool indent = tracingSys("xmlPrintAST-indent");
     ToXmlASTVisitor xmlVis(cout, indent);
@@ -675,10 +683,15 @@ void doit(int argc, char **argv)
     }
     cout << "---- STOP ----" << endl;
     traceProgress() << "dsw xml print... done\n";
+#else
+    cout << "XML features are not compiled in" << endl;
+    exit(1);
+#endif // XML
   }
 
   // dsw: xml printing of the lowered ast
   if (tracingSys("xmlPrintLoweredAST")) {
+#if XML
     traceProgress() << "dsw xml print...\n";
     bool indent = tracingSys("xmlPrintLoweredAST-indent");
     ToXmlASTVisitor xmlVis(cout, indent);
@@ -689,6 +702,10 @@ void doit(int argc, char **argv)
     cout.flush();
     cout << "---- STOP ----" << endl;
     traceProgress() << "dsw xml print... done\n";
+#else
+    cout << "XML features are not compiled in" << endl;
+    exit(1);
+#endif // XML
   }
 
   // test AST cloning

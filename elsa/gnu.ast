@@ -58,8 +58,8 @@ class Statement {
 
   // case ranges
   -> S_rangeCase(Expression exprLo, Expression exprHi, Statement s) {
-       public int labelValLo = 0;
-       public int labelValHi = 0;
+       public(xml) int labelValLo = 0;
+       public(xml) int labelValHi = 0;
   }
 }
 
@@ -74,12 +74,12 @@ class Expression {
   // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Alignment.html
   -> E_alignofType(ASTTypeId atype) {
        public virtual CValue extConstEval(ConstEval &env) const;
-       public int alignment = 0;     // set by tcheck
+       public(xml) int alignment = 0; // set by tcheck
      }
      
   -> E_alignofExpr(Expression expr) {
        public virtual CValue extConstEval(ConstEval &env) const;
-       public int alignment = 0;
+       public(xml) int alignment = 0;
      }
 
   // conditional with no middle operand
@@ -187,8 +187,8 @@ class Designator (SourceLoc loc) {
   -> SubscriptDesignator(Expression idx_expr, // taken from D_array
                          Expression /*nullable*/ idx_expr2)
   {
-    public int idx_computed  = INT_MIN; // index computed at compile time
-    public int idx_computed2 = INT_MIN; // index range end computed at compile time
+    public(xml) int idx_computed  = INT_MIN; // index computed at compile time
+    public(xml) int idx_computed2 = INT_MIN; // index range end computed at compile time
   }
 }
 

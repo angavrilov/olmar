@@ -19,6 +19,10 @@
 
 // moved FullExpressionAnnot into fullexp.h to reduce dependencies
 // in the #include graph
+//
+// dsw: made it into an AST class to simply serialization and because
+// it has always been a rather odd-man-out and it seems natural as an
+// AST class
 
 
 // counter for generating unique throw clause names; NOTE: FIX: they
@@ -91,9 +95,9 @@ enum ElabActivities {
 
   // Note that a number of the above activities create temporary
   // objects.  To support their deletion at the proper time,
-  // cc_elaborate.ast adds FullExpressionAnnot (fullexp.h) objects to
-  // some AST nodes, and elaboration registers the temporaries with
-  // them accordingly.  An analysis should pay attention to the
+  // cc_elaborate.ast adds FullExpressionAnnot objects to some AST
+  // nodes, and elaboration registers the temporaries with them
+  // accordingly.  An analysis should pay attention to the
   // FullExpressionAnnot objects so it can properly track temporary
   // object lifetimes.
 };
@@ -163,10 +167,10 @@ public:      // funcs
                          Type *type, DeclFlags dflags);
 
   // syntactic convenience
-  void push(FullExpressionAnnot &a) 
-    { fullExpressionAnnotStack.push(&a); }
-  void pop(FullExpressionAnnot &)
-    { fullExpressionAnnotStack.pop(); }
+  void push(FullExpressionAnnot *a) 
+    { fullExpressionAnnotStack.push(a); }
+  void pop(FullExpressionAnnot *a)
+    { FullExpressionAnnot *tmp = fullExpressionAnnotStack.pop(); xassert(a == tmp); }
 
 public:      // funcs
   // This section is organized like the .cc file, but all the comments

@@ -18,6 +18,15 @@ verbatim {
 
   class Env;                 // cc_env.h
   class ArgumentInfo;        // overload.h
+
+  inline string toXml(DeclaratorContext id) {
+    return stringc << static_cast<int>(id);
+  }
+
+  inline void fromXml(DeclaratorContext &out, string str) {
+    out = static_cast<DeclaratorContext>(atoi(str));
+  }
+
 }
 
 
@@ -73,7 +82,21 @@ class Function {
   // but we have not actually cloned the init/body/handlers, then
   // this is a pointer to the Function to eventually clone, acting
   // as a thunk; otherwise it is NULL
-  public Function const *cloneThunkSource = NULL;
+//    public(xml) Function const *cloneThunkSource = NULL;
+
+  // dsw: If this is const I have to add a const_cast in order to
+  // traverse it, but I have to be able to detect when I should do
+  // that which is currently pretty hard to do in astgen.  Therefore
+  // if you want this to work with const, you have to add an easy way
+  // to test for const in astgen.  It is a pain in the butt to do the
+  // manual string parsing that you have set up currently; to find the
+  // const would be rather non-trivial.  I think it is time you added
+  // parsing of the user strings to astgen so that this is possible
+  // and other weird things like comments don't mess up the system.
+  //
+  // If you fix that and change this back to const then you can get
+  // rid of the const_cast in Function::shallowClone().
+  public(xml) Function *cloneThunkSource = NULL;
 
   // return a copy of this Function, but with just a clone thunk
   public Function *shallowClone() const;
@@ -260,7 +283,7 @@ class Enumerator {
   // so I can see them in the AST printout; I only print this
   // value if 'var' is non-NULL (i.e. the enumerator has been
   // tcheck'd so the value has been determined)
-  public int enumValue;
+  public(xml) int enumValue;
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
@@ -317,7 +340,7 @@ class Declarator {
   public(xml) Type *type = NULL;
 
   // syntactic context; sometimes useful to visitors
-  public DeclaratorContext context = DC_UNKNOWN;
+  public(xml) DeclaratorContext context = DC_UNKNOWN;
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
@@ -418,14 +441,14 @@ class IDeclarator {
        // environment context since I get confused by pointers to
        // functions.. so I set this to true in MR_decl::tcheck and
        // MR_func::tcheck
-       public bool isMember = false;
+       public(xml) bool isMember = false;
      }
 
   -> D_array {
        // client analyses find it difficult to know whether this
        // D_array means "array" or "new[] size", so I'm going to
        // write down in cc_tcheck which one this is
-       public bool isNewSize = false;
+       public(xml) bool isNewSize = false;
      }
 }
 
@@ -450,7 +473,7 @@ class Statement {
 
   -> S_case {
        // the case label must be an integer; this its value
-       public int labelVal = 0;
+       public(xml) int labelVal = 0;
      }
 }
 
@@ -536,10 +559,10 @@ class Expression {
   custom debugPrint { printExtras(os, indent); }
 
   // interpretations of literals
-  -> E_intLit      { public unsigned long i = 0; }
+  -> E_intLit      { public(xml) unsigned long i = 0; }
   -> E_floatLit    { public double d = 0; }
   -> E_stringLit   { /* TODO: put a DataBlock here */ }
-  -> E_charLit     { public unsigned int c = 0; }
+  -> E_charLit     { public(xml) unsigned int c = 0; }
 
   -> E_this {                              
        // the receiver parameter to which this 'this' refers; NOTE
@@ -589,23 +612,23 @@ class Expression {
      }
 
   -> E_sizeof {
-       public int size = -1;     // size of the type of expr
+       public(xml) int size = -1;     // size of the type of expr
        custom clone { ret->size = size; }
      }
 
   -> E_cast {                           
        // idempotency for type definitions in casts
-       public bool tcheckedType = false;           
+       public(xml) bool tcheckedType = false;           
      }
 
   -> E_sizeofType {
-       public int size = -1;     // size of the type
+       public(xml) int size = -1;     // size of the type
        custom clone { ret->size = size; }
                                     
        // This flag is used in some circumstances in C mode to ensure
        // a given type expression is only tchecked one time, despite
        // possible ambiguities.  (See the tcheck method.)
-       public bool tchecked = false;
+       public(xml) bool tchecked = false;
      }
 
   // Q: should I manually clone all the annotation fields?  Do I
@@ -614,7 +637,7 @@ class Expression {
 
   -> E_new {
        // if this is non-NULL, it's the number of elements to allocate via new[]
-       public Expression /*nullable serf*/ *arraySize = NULL;
+       public(xml) Expression /*nullable serf*/ *arraySize = NULL;
 
        // constructor being called to initialize the storage
        public(xml) Variable *ctorVar = NULL;
@@ -723,7 +746,7 @@ class TemplateParameter {
   pure_virtual void itcheck(Env &env, int &dummy);
 
   // parameter Variable
-  public Variable *var = NULL;
+  public(xml) Variable *var = NULL;
 }
 
 

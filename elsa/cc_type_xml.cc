@@ -4,6 +4,7 @@
 #include "variable.h"           // Variable
 #include "cc_flags.h"           // fromXml(DeclFlags &out, string str)
 #include "asthelp.h"            // xmlPrintPointer
+#include "xmlhelp.h"            // toXml_int() etc.
 
 #include "strutil.h"            // parseQuotedString
 #include "astxml_lexer.h"       // AstXmlLexer

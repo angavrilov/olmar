@@ -45,14 +45,6 @@
 Type *makeLvalType(TypeFactory &tfac, Type *underlying);
 
 
-// ---------------------- FullExpressionAnnot ---------------------
-FullExpressionAnnot::FullExpressionAnnot()
-{}
-
-FullExpressionAnnot::~FullExpressionAnnot()
-{}
-
-
 // --------------------- ElabVisitor misc. ----------------------
 ElabVisitor::ElabVisitor(StringTable &s, TypeFactory &tf,
                          TranslationUnit *tu)
@@ -487,7 +479,7 @@ void Declarator::elaborateCDtors(ElabVisitor &env, DeclFlags dflags)
         args0 = inctor->args;
         inctor->args = env.cloneExprList(inctor->args);
 
-        fullexp = &inctor->annot;
+        fullexp = inctor->getAnnot();
         ctor = inctor->ctorVar;
       }
       ASTNEXT(IN_expr, inexpr) {
@@ -497,7 +489,7 @@ void Declarator::elaborateCDtors(ElabVisitor &env, DeclFlags dflags)
         args0 = makeExprList1(inexpr->e);
         inexpr->e = env.cloneExpr(inexpr->e);
 
-        fullexp = &inexpr->annot;
+        fullexp = inexpr->getAnnot();
         ctor = env.getCopyCtor(ct);
       }
       ASTNEXT(IN_compound, incpd) {
@@ -509,7 +501,7 @@ void Declarator::elaborateCDtors(ElabVisitor &env, DeclFlags dflags)
         // I still don't know how to handle it, though.
         args0 = env.emptyArgs();
 
-        fullexp = &incpd->annot;       // sm: not sure about this..
+        fullexp = incpd->getAnnot(); // sm: not sure about this..
         ctor = env.getDefaultCtor(ct);
         
         // NOTE: 'getDefaultCtor' can return NULL, corresponding to a class
@@ -522,10 +514,10 @@ void Declarator::elaborateCDtors(ElabVisitor &env, DeclFlags dflags)
       ASTENDCASED
     }
 
-    env.push(*fullexp);
+    env.push(fullexp);
     ctorStatement = env.makeCtorStatement(loc, env.makeE_variable(loc, var),
                                           type, ctor, args0);
-    env.pop(*fullexp);
+    env.pop(fullexp);
   }
 
   else /* init is NULL */ {
@@ -974,7 +966,7 @@ MemberInit *ElabVisitor::makeCopyCtorMemberInit(
 
   //       MemberInit:
   MemberInit *mi = new MemberInit(new PQ_variable(loc, target), args);
-  push(mi->annot);
+  push(mi->getAnnot());
   if (isMember) {
     mi->member = target;
   }
@@ -990,7 +982,7 @@ MemberInit *ElabVisitor::makeCopyCtorMemberInit(
        mi->ctorVar,
        mi->args);
   }
-  pop(mi->annot);
+  pop(mi->getAnnot());
   return mi;
 }
 
@@ -1596,7 +1588,7 @@ bool S_return::elaborate(ElabVisitor &env)
       // since the S_return itself will be visited before the subexpr,
       // we know the expr here has not yet been elaborated, so will not
       // yet have put any temporaries into the fullexp
-      xassert(expr->annot.noTemporaries());
+      xassert(expr->getAnnot()->noTemporaries());
 
       // get the arguments of the constructor function; NOTE: we dig
       // down below the FullExpression to the raw Expression
@@ -1606,10 +1598,10 @@ bool S_return::elaborate(ElabVisitor &env)
       xassert(args0->count() == 1);      // makeList always returns a singleton list
 
       // make the constructor function
-      env.push(expr->annot);             // e.g. in/d0049.cc breaks w/o this
+      env.push(expr->getAnnot());// e.g. in/d0049.cc breaks w/o this
       ctorStatement = env.makeCtorStatement(loc, retVar, ft->retType,
                                             env.getCopyCtor(retTypeCt), args0);
-      env.pop(expr->annot);
+      env.pop(expr->getAnnot());
 
       // make the original expression a clone
       expr->expr = env.cloneExpr(expr->expr);
@@ -1683,7 +1675,7 @@ void ElabVisitor::postvisitFunction(Function *)
 // ---------------------- MemberInit ---------------------------
 bool ElabVisitor::visitMemberInit(MemberInit *mi)
 {
-  push(mi->annot);
+  push(mi->getAnnot());
 
   Function *func = functionStack.top();
   SourceLoc loc = mi->name->loc;
@@ -1722,7 +1714,7 @@ bool ElabVisitor::visitMemberInit(MemberInit *mi)
     // elaborate the ctorStatement only (not the 'args')
     //mi->ctorStatement->traverse(this->loweredVisitor); // 'makeCtorStatement' does this internally
 
-    pop(mi->annot);     // b/c when I return false, postvisit isn't called
+    pop(mi->getAnnot());// b/c when I return false, postvisit isn't called
     return false;       // don't automatically traverse children, esp. 'args' (SES)
   }
 
@@ -1733,7 +1725,7 @@ bool ElabVisitor::visitMemberInit(MemberInit *mi)
 
 void ElabVisitor::postvisitMemberInit(MemberInit *mi)
 {
-  pop(mi->annot);
+  pop(mi->getAnnot());
 }
 
 
@@ -1851,7 +1843,7 @@ bool ElabVisitor::visitCondition(Condition *c)
 // ---------------------- Handler -------------------------
 bool ElabVisitor::visitHandler(Handler *h)
 {
-  push(h->annot);
+  push(h->getAnnot());
 
   if (doing(EA_GLOBAL_EXCEPTION)) {
     h->elaborate(*this);
@@ -1868,7 +1860,7 @@ bool ElabVisitor::visitHandler(Handler *h)
 
 void ElabVisitor::postvisitHandler(Handler *h)
 {  
-  pop(h->annot);
+  pop(h->getAnnot());
 }
 
 
@@ -1952,13 +1944,39 @@ bool ElabVisitor::visitExpression(Expression *e)
 // ----------------------- FullExpression ----------------------
 bool ElabVisitor::visitFullExpression(FullExpression *fe)
 {
-  push(fe->annot);
+  push(fe->getAnnot());
   return true;
 }
 
 void ElabVisitor::postvisitFullExpression(FullExpression *fe)
 {
-  pop(fe->annot);
+  pop(fe->getAnnot());
+}
+
+
+// ----------------------- getAnnot() ----------------------
+
+// I construct this lazily because you can't initialize with one
+// because you can't call new on a class that has only been forward
+// declared.
+FullExpressionAnnot *MemberInit::getAnnot() {
+  if (!annot) annot = new FullExpressionAnnot(new ASTList<Declaration>());
+  return annot;
+}
+
+FullExpressionAnnot *Handler::getAnnot() {
+  if (!annot) annot = new FullExpressionAnnot(new ASTList<Declaration>());
+  return annot;
+}
+
+FullExpressionAnnot *FullExpression::getAnnot() {
+  if (!annot) annot = new FullExpressionAnnot(new ASTList<Declaration>());
+  return annot;
+}
+
+FullExpressionAnnot *Initializer::getAnnot() {
+  if (!annot) annot = new FullExpressionAnnot(new ASTList<Declaration>());
+  return annot;
 }
 
 
@@ -1968,7 +1986,7 @@ bool ElabVisitor::visitInitializer(Initializer *in)
   // the fullexp annots kick in only for IN_expr and IN_ctor;
   // its presence in IN_compound is a false orthogonality
   if (in->isIN_expr() || in->isIN_ctor()) {
-    push(in->annot);
+    push(in->getAnnot());
   }
 
   return true;
@@ -1977,7 +1995,7 @@ bool ElabVisitor::visitInitializer(Initializer *in)
 void ElabVisitor::postvisitInitializer(Initializer *in)
 {
   if (in->isIN_expr() || in->isIN_ctor()) {
-    pop(in->annot);
+    pop(in->getAnnot());
   }
 }
 
@@ -2017,6 +2035,5 @@ void PQ_variable::print(PrintEnv &env)
   // lots of cc_print functions..
   *env.out << var->name;
 }
-
 
 // EOF

@@ -1,6 +1,7 @@
 // main_astxmlparse.cc          see license.txt for copyright and terms of use
 
 #include "main_astxmlparse.h"   // this module
+#include "xmlhelp.h"            // toXml_int etc.
 #include "xml.h"                // ReadXml
 #include "cc_type_xml.h"        // ReadXml_Type
 #include "fstream.h"            // ifstream

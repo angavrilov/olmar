@@ -241,7 +241,7 @@ bool LoweredASTVisitor::visitMemberInit(MemberInit *mInit)
   if (!DelegatorASTVisitor::visitMemberInit(mInit)) return false;
 
   if (visitElaboratedAST) {
-    FOREACH_ASTLIST(Declaration, mInit->annot.declarations, iter) {
+    FOREACH_ASTLIST(Declaration, mInit->getAnnot()->declarations, iter) {
       const_cast<Declaration*>(iter.data())->traverse(*this);
     }
     if (mInit->ctorStatement) {
@@ -306,7 +306,7 @@ bool LoweredASTVisitor::visitHandler(Handler *handler)
   if (!DelegatorASTVisitor::visitHandler(handler)) return false;
 
   if (visitElaboratedAST) {
-    FOREACH_ASTLIST(Declaration, handler->annot.declarations, iter) {
+    FOREACH_ASTLIST(Declaration, handler->getAnnot()->declarations, iter) {
       const_cast<Declaration*>(iter.data())->traverse(*this);
     }
     if (handler->localArg) {
@@ -325,7 +325,7 @@ bool LoweredASTVisitor::visitFullExpression(FullExpression *fexpr)
 {
   if (!DelegatorASTVisitor::visitFullExpression(fexpr)) return false;
 
-  FOREACH_ASTLIST(Declaration, fexpr->annot.declarations, iter) {
+  FOREACH_ASTLIST(Declaration, fexpr->getAnnot()->declarations, iter) {
     const_cast<Declaration*>(iter.data())->traverse(*this);
   }
 
@@ -337,7 +337,7 @@ bool LoweredASTVisitor::visitInitializer(Initializer *initializer)
 {
   if (!DelegatorASTVisitor::visitInitializer(initializer)) return false;
 
-  FOREACH_ASTLIST(Declaration, initializer->annot.declarations, iter) {
+  FOREACH_ASTLIST(Declaration, initializer->getAnnot()->declarations, iter) {
     const_cast<Declaration*>(iter.data())->traverse(*this);
   }
 
@@ -464,7 +464,9 @@ Function *Function::shallowClone() const
     NULL, NULL, NULL
   );
 
-  ret->cloneThunkSource = this;
+  // dsw: see the comment in cc_tcheck.ast at 'cloneThunkSource' for
+  // why I removed the const here.
+  ret->cloneThunkSource = const_cast<Function*>(this);
   
   return ret;
 }
