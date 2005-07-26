@@ -143,6 +143,13 @@ bool LoweredASTVisitorHelper::visitFunction(Function *func)
 
 // ---------------------- LoweredASTVisitor ----------------------
 
+bool LoweredASTVisitor::visitFullExpressionAnnot(FullExpressionAnnot *fea)
+{
+  if (!DelegatorASTVisitor::visitFullExpressionAnnot(fea)) return false;
+
+  return true;
+}
+
 // NOTE: I am trying to use visitDeclarator as a way to visit all
 // variables, but it doesn't quite get them all; see
 // visitTypeSpecifier below
@@ -241,8 +248,8 @@ bool LoweredASTVisitor::visitMemberInit(MemberInit *mInit)
   if (!DelegatorASTVisitor::visitMemberInit(mInit)) return false;
 
   if (visitElaboratedAST) {
-    FOREACH_ASTLIST(Declaration, mInit->getAnnot()->declarations, iter) {
-      const_cast<Declaration*>(iter.data())->traverse(*this);
+    if (mInit->hasAnnot()) {
+      mInit->getAnnot()->traverse(*this);
     }
     if (mInit->ctorStatement) {
       mInit->ctorStatement->traverse(*this);
@@ -306,8 +313,8 @@ bool LoweredASTVisitor::visitHandler(Handler *handler)
   if (!DelegatorASTVisitor::visitHandler(handler)) return false;
 
   if (visitElaboratedAST) {
-    FOREACH_ASTLIST(Declaration, handler->getAnnot()->declarations, iter) {
-      const_cast<Declaration*>(iter.data())->traverse(*this);
+    if (handler->hasAnnot()) {
+      handler->getAnnot()->traverse(*this);
     }
     if (handler->localArg) {
       handler->localArg->traverse(*this);
@@ -325,8 +332,8 @@ bool LoweredASTVisitor::visitFullExpression(FullExpression *fexpr)
 {
   if (!DelegatorASTVisitor::visitFullExpression(fexpr)) return false;
 
-  FOREACH_ASTLIST(Declaration, fexpr->getAnnot()->declarations, iter) {
-    const_cast<Declaration*>(iter.data())->traverse(*this);
+  if (fexpr->hasAnnot()) {
+    fexpr->getAnnot()->traverse(*this);
   }
 
   return true;
@@ -337,8 +344,8 @@ bool LoweredASTVisitor::visitInitializer(Initializer *initializer)
 {
   if (!DelegatorASTVisitor::visitInitializer(initializer)) return false;
 
-  FOREACH_ASTLIST(Declaration, initializer->getAnnot()->declarations, iter) {
-    const_cast<Declaration*>(iter.data())->traverse(*this);
+  if (initializer->hasAnnot()) {
+    initializer->getAnnot()->traverse(*this);
   }
 
   return true;

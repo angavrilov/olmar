@@ -97,6 +97,7 @@ public:      // funcs
   {}
   virtual ~LoweredASTVisitor() {}
 
+  virtual bool visitFullExpressionAnnot(FullExpressionAnnot *fea);
   virtual bool visitDeclarator(Declarator *decltor);
   virtual bool visitTypeSpecifier(TypeSpecifier *spec);
   virtual bool visitTemplateDeclaration(TemplateDeclaration *templDecl);

@@ -1959,6 +1959,22 @@ void ElabVisitor::postvisitFullExpression(FullExpression *fe)
 // I construct this lazily because you can't initialize with one
 // because you can't call new on a class that has only been forward
 // declared.
+bool MemberInit::hasAnnot() {
+  return annot;
+}
+
+bool Handler::hasAnnot() {
+  return annot;
+}
+
+bool FullExpression::hasAnnot() {
+  return annot;
+}
+
+bool Initializer::hasAnnot() {
+  return annot;
+}
+
 FullExpressionAnnot *MemberInit::getAnnot() {
   if (!annot) annot = new FullExpressionAnnot(new ASTList<Declaration>());
   return annot;

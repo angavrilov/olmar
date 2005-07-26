@@ -81,6 +81,7 @@ class MemberInit {
   // A single MemberInit seems very much like a single expression to
   // me, since it is a ctor call and an IN_ctor is also
   private(xml) FullExpressionAnnot *annot = NULL;
+  public bool hasAnnot();
   public FullExpressionAnnot *getAnnot();
 
   // a MemberInit calls a ctor
@@ -134,6 +135,7 @@ class Handler {
     // Handler has to have all the necessary components of an
     // E_funCall, as that's how it behaves
     private(xml) FullExpressionAnnot *annot = NULL;
+    public bool hasAnnot();
     public FullExpressionAnnot *getAnnot();
     // local temporary and ctor for it if we catch by value
     public(field,xml,owner) Expression *localArg=NULL;
@@ -146,6 +148,7 @@ class Handler {
 
 class FullExpression {
   private(xml) FullExpressionAnnot *annot = NULL;
+  public bool hasAnnot();
   public FullExpressionAnnot *getAnnot();
 }
 
@@ -251,6 +254,7 @@ class Initializer {
   // But I'll leave it for now.
 
   private(xml) FullExpressionAnnot *annot = NULL;
+  public bool hasAnnot();
   public FullExpressionAnnot *getAnnot();
 }
 
