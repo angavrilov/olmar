@@ -8,8 +8,7 @@
 
 #include "cc_type.h"            // Types, TypeVisitor
 #include "template.h"           // Template stuff is only forward-declared in cc_type.h
-//  #include "sobjstack.h"          // SObjStack
-//  #include "objstack.h"           // ObjStack
+#include "sobjset.h"            // SObjSet
 #include "xml.h"                // ReadXml
 
 class LinkSatisfier;

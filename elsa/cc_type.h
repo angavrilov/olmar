@@ -25,7 +25,6 @@
 #define CC_TYPE_H
 
 #include "str.h"          // string
-#include "sobjset.h"      // SObjSet
 #include "objlist.h"      // ObjList
 #include "sobjlist.h"     // SObjList
 #include "astlist.h"      // ASTList
