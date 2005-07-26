@@ -126,6 +126,27 @@ string trimWhitespace(rostring origStr)
 }
 
 
+string firstAlphanumToken(rostring origStr)
+{                                   
+  char const *str = toCStr(origStr);
+
+  // find the first alpha-numeric; NOTE: if we hit the NUL at the end,
+  // that should not be alpha-numeric and we should stop
+  while(!isalnum(*str)) {
+    str++;
+  }
+
+  // keep going until we are not at an alpha-numeric
+  char const *end = str;
+  while(isalnum(*end)) {
+    end++;
+  }
+
+  // return it
+  return substring(str, end-str);
+}
+
+
 // table of escape codes
 static struct Escape {
   char actual;      // actual character in string

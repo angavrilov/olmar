@@ -29,6 +29,8 @@ string stringToupper(rostring src);
 
 // remove any whitespace at the beginning or end of the string
 string trimWhitespace(rostring str);
+// dsw: get the first alphanum token in the string
+string firstAlphanumToken(rostring str);
 
 
 // encode a block of bytes as a string with C backslash escape
