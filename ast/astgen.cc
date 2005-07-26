@@ -936,7 +936,7 @@ public:
   void emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
                     bool hasChildren);
   private:
-  void emitOneTraverseCall(string name, string type, bool allowNonTree);
+  void emitOneTraverseCall(string name, string type);
 
   public:
   void emitMVisitorImplementation();
@@ -1620,7 +1620,7 @@ void CGen::emitVisitorImplementation()
 }
 
 
-void CGen::emitOneTraverseCall(string name, string type, bool allowNonTree)
+void CGen::emitOneTraverseCall(string name, string type)
 {
   if (isTreeNode(type) || isTreeNodePtr(type)) {
     // traverse it directly
@@ -1694,20 +1694,21 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
   // traverse into the ctor arguments
   FOREACH_ASTLIST(CtorArg, c->args, iter) {
     CtorArg const *arg = iter.data();
-    emitOneTraverseCall(arg->name, arg->type, false);
+    emitOneTraverseCall(arg->name, arg->type);
   }
 
   // dsw: I need a way to make fields traversable
-  FOREACH_ASTLIST(Annotation, c->decls, iter) {
-    if (!iter.data()->isUserDecl()) continue;
-    UserDecl const *ud = iter.data()->asUserDeclC();
-    // "xml" should always imply "traverse" but I'll make a way to
-    // generate a traverse() without making it serialized to xml
-    bool hasModXml = ud->amod->hasMod("xml");
-    bool hasModTraverse = ud->amod->hasMod("traverse");
-    if (! (hasModXml || hasModTraverse) ) continue;
-    emitOneTraverseCall(extractFieldName(ud->code), extractFieldType(ud->code), true);
-  }
+  //
+  // update: we want to emit pointers to these things, but we don't
+  // want to traverse them; that is done by the lowered visitor if you
+  // set visitElaboratedAST.
+  //
+//    FOREACH_ASTLIST(Annotation, c->decls, iter) {
+//      if (!iter.data()->isUserDecl()) continue;
+//      UserDecl const *ud = iter.data()->asUserDeclC();
+//      if (!ud->amod->hasMod("xml")) continue;
+//      emitOneTraverseCall(extractFieldName(ud->code), extractFieldType(ud->code));
+//    }
 
   // do any final traversal action specified by the user
   emitCustomCode(c->decls, "traverse");
