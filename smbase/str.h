@@ -189,6 +189,13 @@ int strcmp(char const *s1, rostring s2);
 // string.h, above, provides:
 // int strcmp(char const *s1, char const *s2);
 
+// dsw: this is what we are asking most of the time so let's special
+// case it
+inline bool streq(rostring s1, rostring s2)       {return strcmp(s1, s2) == 0;}
+inline bool streq(rostring s1, char const *s2)    {return strcmp(s1, s2) == 0;}
+inline bool streq(char const *s1, rostring s2)    {return strcmp(s1, s2) == 0;}
+inline bool streq(char const *s1, char const *s2) {return strcmp(s1, s2) == 0;}
+
 char const *strstr(rostring haystack, char const *needle);
 
 // there is no wrapper for 'strchr'; use string::contains
