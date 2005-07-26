@@ -57,7 +57,7 @@ bool LocString::equals(char const *other) const
     return !other;                            // equal if both null
   }
   else {
-    return other && 0==strcmp(str, other);    // or same contents
+    return other && streq(str, other); // or same contents
   }
 }
 

@@ -13,21 +13,21 @@
 // missing then the C++ compiler will just use the toXml(bool)
 // instead, which is a bug.
 string toXml_bool(bool b);
-void fromXml_bool(bool &b, string str);
+void fromXml_bool(bool &b, rostring str);
 
 string toXml_int(int i);
-void fromXml_int(int &i, string str);
+void fromXml_int(int &i, rostring str);
 
 string toXml_long(long i);
-void fromXml_long(long &i, string str);
+void fromXml_long(long &i, rostring str);
 
 string toXml_unsigned_int(unsigned int i);
-void fromXml_unsigned_int(unsigned int &i, string str);
+void fromXml_unsigned_int(unsigned int &i, rostring str);
 
 string toXml_unsigned_long(unsigned long i);
-void fromXml_unsigned_long(unsigned long &i, string str);
+void fromXml_unsigned_long(unsigned long &i, rostring str);
 
 string toXml_double(double x);
-void fromXml_double(double &x, string str);
+void fromXml_double(double &x, rostring str);
 
 #endif // XMLHELP_H

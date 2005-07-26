@@ -4,7 +4,7 @@
 #include "fileloc.h"       // this module
 #include "flatten.h"       // Flatten
 
-#include <string.h>        // strcmp
+#include <string.h>        // streq
 
 
 // -------------------- FileLocation -----------------------------
@@ -128,7 +128,7 @@ SourceFile *SourceFileList::open(char const *fname)
 {
   // check for an existing SourceFile
   MUTATE_EACH_OBJLIST(SourceFile, files, iter) {
-    if (0==strcmp(iter.data()->filename, fname)) {
+    if (streq(iter.data()->filename, fname)) {
       // found match
       return iter.data();
     }
