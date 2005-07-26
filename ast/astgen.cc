@@ -152,8 +152,11 @@ bool isPtrKind(rostring type)
 TreeNodeKind getTreeNodePtrKind(rostring type)
 {
   if (isPtrKind(type)) {
-    // is pointer type; get base type
-    string base = trimWhitespace(substring(type, strlen(type)-1));
+    // is pointer type; get base type; dsw: FIX: I think this is
+    // wrong; you might want to consider the same replacement in other
+    // places where trimWhitespace() is used.
+//      string base = trimWhitespace(substring(type, strlen(type)-1));
+    string base = firstAlphanumToken(substring(type, strlen(type)-1));
 
     return getTreeNodeKind(base);
   }
@@ -514,6 +517,13 @@ void HGen::emitTFClass(TF_class const &cls)
   out << "class " << cls.super->name;
   emitBaseClassDecls(*(cls.super), 0 /*ct*/);
   out << " {\n";
+
+  // the xml visitor needs to be able to see the internals of the
+  // classes
+  if (wantXmlVisitor()) {
+    out << "  friend class " << xmlVisitorName << ";\n";
+    out << "  friend class ReadXml_AST;\n";
+  }
 
   emitCtorFields(cls.super->args, cls.super->lastArgs);
   emitCtorDefn(*(cls.super), NULL /*parent*/);
@@ -925,7 +935,10 @@ public:
 
   void emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
                     bool hasChildren);
+  private:
+  void emitOneTraverseCall(string name, string type, bool allowNonTree);
 
+  public:
   void emitMVisitorImplementation();
   void emitMTraverse(ASTClass const *c, rostring obj, rostring ident);
   void emitMTraverseCall(rostring i, rostring eltType, rostring argVar);
@@ -1000,6 +1013,7 @@ void CGen::emitFile()
   out << "#include \"" << hdrFname << "\"      // this module\n";
   if (wantXmlVisitor()) {
     out << "#include \"strutil.h\"      // quoted, parseQuotedString\n";
+    out << "#include \"xml.h\"          // to/fromXml_bool/int\n";
   }
   out << "\n";
   out << "\n";
@@ -1606,6 +1620,45 @@ void CGen::emitVisitorImplementation()
 }
 
 
+void CGen::emitOneTraverseCall(string name, string type, bool allowNonTree)
+{
+  if (isTreeNode(type) || isTreeNodePtr(type)) {
+    // traverse it directly
+//      cout << "emitOneTraverseCall, name:" << name << ", type: " << type << endl;
+    out << "  if (" << name << ") { " << name << "->traverse(vis); }\n";
+  }
+
+  else if ((isListType(type) || isFakeListType(type)) &&
+           isTreeNode(extractListType(type))) {
+    // list of tree nodes: iterate and traverse
+    string eltType = extractListType(type);
+
+    // could add an assertion here that the elt type is one of the
+    // list types extracted earlier during getListClasses()
+
+    // compute list accessor names
+    char const *iterMacroName = "FOREACH_ASTLIST_NC";
+    char const *iterElt = ".data()";
+    char const *argNamePrefix = "&";
+    if (isFakeListType(type)) {
+      iterMacroName = "FAKELIST_FOREACH_NC";
+      iterElt = "";
+      argNamePrefix = "";
+    }
+
+    // emit the pre-visit call to the fantasy "list class"
+    out << "  if (vis.visitList_" << eltType << "(" << argNamePrefix << name << ")) {\n";
+
+    out << "    " << iterMacroName << "(" << eltType << ", " << name << ", iter) {\n"
+        << "      iter" << iterElt << "->traverse(vis);\n"
+        << "    }\n";
+
+    out << "    vis.postvisitList_" << eltType << "(" << argNamePrefix << name << ");\n";
+
+    out << "  }\n";
+  }
+}
+
 void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
                         bool hasChildren)
 {
@@ -1641,41 +1694,19 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
   // traverse into the ctor arguments
   FOREACH_ASTLIST(CtorArg, c->args, iter) {
     CtorArg const *arg = iter.data();
+    emitOneTraverseCall(arg->name, arg->type, false);
+  }
 
-    if (isTreeNode(arg->type) || isTreeNodePtr(arg->type)) {
-      // traverse it directly
-      out << "  if (" << arg->name << ") { " << arg->name << "->traverse(vis); }\n";
-    }
-
-    else if ((isListType(arg->type) || isFakeListType(arg->type)) &&
-             isTreeNode(extractListType(arg->type))) {
-      // list of tree nodes: iterate and traverse
-      string eltType = extractListType(arg->type);
-
-      // could add an assertion here that the elt type is one of the
-      // list types extracted earlier during getListClasses()
-
-      // compute list accessor names
-      char const *iterMacroName = "FOREACH_ASTLIST_NC";
-      char const *iterElt = ".data()";
-      char const *argNamePrefix = "&";
-      if (isFakeListType(arg->type)) {
-        iterMacroName = "FAKELIST_FOREACH_NC";
-        iterElt = "";
-        argNamePrefix = "";
-      }
-
-      // emit the pre-visit call to the fantasy "list class"
-      out << "  if (vis.visitList_" << eltType << "(" << argNamePrefix << arg->name << ")) {\n";
-
-      out << "    " << iterMacroName << "(" << eltType << ", " << arg->name << ", iter) {\n"
-          << "      iter" << iterElt << "->traverse(vis);\n"
-          << "    }\n";
-
-      out << "    vis.postvisitList_" << eltType << "(" << argNamePrefix << arg->name << ");\n";
-
-      out << "  }\n";
-    }
+  // dsw: I need a way to make fields traversable
+  FOREACH_ASTLIST(Annotation, c->decls, iter) {
+    if (!iter.data()->isUserDecl()) continue;
+    UserDecl const *ud = iter.data()->asUserDeclC();
+    // "xml" should always imply "traverse" but I'll make a way to
+    // generate a traverse() without making it serialized to xml
+    bool hasModXml = ud->amod->hasMod("xml");
+    bool hasModTraverse = ud->amod->hasMod("traverse");
+    if (! (hasModXml || hasModTraverse) ) continue;
+    emitOneTraverseCall(extractFieldName(ud->code), extractFieldType(ud->code), true);
   }
 
   // do any final traversal action specified by the user
@@ -1949,47 +1980,78 @@ void CGen::emitXmlField(bool isOwner, rostring type, rostring name, char const *
     out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"" << name << "\" << \"=\";\n";
-    out << "  out << (" << baseName << "->"
-        << name << "? \"\\\"true\\\"\" : \"\\\"false\\\"\");\n";
+    out << "  out << quoted(toXml_bool(" << baseName << "->" << name << "));\n";
+  }
+  else if (0==strcmp(type, "int")) {
+    out << "  out << \"\\n\";\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << quoted(toXml_int(" << baseName << "->" << name << "));\n";
+  }
+  else if (0==strcmp(type, "unsigned int")) {
+    out << "  out << \"\\n\";\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << quoted(toXml_unsigned_int(" << baseName << "->" << name << "));\n";
+  }
+  else if (0==strcmp(type, "long")) {
+    out << "  out << \"\\n\";\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << quoted(toXml_long(" << baseName << "->" << name << "));\n";
+  }
+  else if (0==strcmp(type, "unsigned long")) {
+    out << "  out << \"\\n\";\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << quoted(toXml_unsigned_long(" << baseName << "->" << name << "));\n";
   }
   else if (isListType(type)) {
     // for now, I'll continue to assume that any class that appears
     // in ASTList<> is compatible with the printing regime here
 //      out << "  " << print << "_LIST(" << extractListType(type) << ", "
 //          << name << ");\n";
-    out << "  out << \"\\n\";\n";
-    out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\\\"\";\n";
-    out << "  xmlPrintPointer(out, \"AL\", &(" << baseName << "->" << name << "));\n";
-    out << "  out << \"\\\"\";\n";
+    out << "  if (" << baseName << ") {\n";
+    out << "    out << \"\\n\";\n";
+    out << "    if (indent) printIndentation();\n";
+    out << "    out << \"" << name << "\" << \"=\\\"\";\n";
+    out << "    xmlPrintPointer(out, \"AL\", &(" << baseName << "->" << name << "));\n";
+    out << "    out << \"\\\"\";\n";
+    out << "  }\n";
   }
   else if (isFakeListType(type)) {
     // similar printing approach for FakeLists
 //      out << "  " << print << "_FAKE_LIST(" << extractListType(type) << ", "
 //          << name << ");\n";
-    out << "  out << \"\\n\";\n";
-    out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\\\"\";\n";
-    out << "  xmlPrintPointer(out, \"FL\", " << baseName << "->" << name << ");\n";
-    out << "  out << \"\\\"\";\n";
+    out << "  if (" << baseName << " && " << baseName << "->" << name << ") {\n";
+    out << "    out << \"\\n\";\n";
+    out << "    if (indent) printIndentation();\n";
+    out << "    out << \"" << name << "\" << \"=\\\"\";\n";
+    out << "    xmlPrintPointer(out, \"FL\", " << baseName << "->" << name << ");\n";
+    out << "    out << \"\\\"\";\n";
+    out << "  }\n";
   }
   else if (isTreeNode(type) ||
            (isTreeNodePtr(type) && isOwner)) {
     // don't print subtrees that are possibly shared or circular
 //      out << "  " << print << "_SUBTREE(" << name << ");\n";
-    out << "  out << \"\\n\";\n";
-    out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\\\"\";\n";
-    out << "  xmlPrintPointer(out, \"AST\", " << baseName << "->" << name << ");\n";
-    out << "  out << \"\\\"\";\n";
+    out << "  if (" << baseName << " && " << baseName << "->" << name << ") {\n";
+    out << "    out << \"\\n\";\n";
+    out << "    if (indent) printIndentation();\n";
+    out << "    out << \"" << name << "\" << \"=\\\"\";\n";
+    out << "    xmlPrintPointer(out, \"AST\", " << baseName << "->" << name << ");\n";
+    out << "    out << \"\\\"\";\n";
+    out << "  }\n";
   }
   else if (isPtrKind(type)) {
     // catch-all for objects
-    out << "  out << \"\\n\";\n";
-    out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\\\"\";\n";
-    out << "  xmlPrintPointer(out, \"TY\", " << baseName << "->" << name << ");\n";
-    out << "  out << \"\\\"\";\n";
+    out << "  if (" << baseName << " && " << baseName << "->" << name << ") {\n";
+    out << "    out << \"\\n\";\n";
+    out << "    if (indent) printIndentation();\n";
+    out << "    out << \"" << name << "\" << \"=\\\"\";\n";
+    out << "    xmlPrintPointer(out, \"TY\", " << baseName << "->" << name << ");\n";
+    out << "    out << \"\\\"\";\n";
+    out << "  }\n";
   } else {
     // catch-all for non-objects
     out << "  out << \"\\n\";\n";
@@ -2173,8 +2235,8 @@ void CGen::emitXmlVisitorImplementation()
     char const *cls = iter.data();
     out << "bool " << xmlVisitorName << "::visitList_" << cls
         << "(FakeList<" << cls << ">* obj) {\n";
-    out << "  xassert(!wasVisitedList_FakeList(obj));\n";
     out << "  if (obj) {\n";
+    out << "    xassert(!wasVisitedList_FakeList(obj));\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"<List_" << cls << " .id=\\\"\";\n";
     out << "    xmlPrintPointer(out, \"FL\", obj);\n";
@@ -2472,8 +2534,10 @@ void XmlParserGen::emitXmlFields_AttributeParseRule
 }
 
 void XmlParserGen::emitXmlField_AttributeParseRule
-  (bool isOwner, rostring type, rostring name, string &baseName)
+  (bool isOwner, rostring type0, rostring name, string &baseName)
 {
+  string type = trimWhitespace(type0);
+  //  cout << "emitXmlField_AttributeParseRule() name:" << name << ", type:" << type << endl;
   if (0==strcmp(type, "string")) {
     parser1_defs << "    case XTOK_" << name << ":\n";
     parser1_defs << "      obj->" << name << " = strdup(parseQuotedString(strValue));\n";
@@ -2486,7 +2550,29 @@ void XmlParserGen::emitXmlField_AttributeParseRule
   }
   else if (0==strcmp(type, "bool")) {
     parser1_defs << "    case XTOK_" << name << ":\n";
-    parser1_defs << "      obj->" << name << " = (strcmp(parseQuotedString(strValue), \"true\") == 0);\n";
+    parser1_defs << "      fromXml_bool(obj->" << name << ", parseQuotedString(strValue));\n";
+    parser1_defs << "      break;\n";
+  }
+  else if (0==strcmp(type, "int")) {
+    parser1_defs << "    case XTOK_" << name << ":\n";
+    parser1_defs << "      fromXml_int(obj->" << name << ", parseQuotedString(strValue));\n";
+    parser1_defs << "      break;\n";
+  }
+  else if (0==strcmp(type, "unsigned int")) {
+    parser1_defs << "    case XTOK_" << name << ":\n";
+    parser1_defs << "      fromXml_unsigned_int(obj->" << name
+                 << ", parseQuotedString(strValue));\n";
+    parser1_defs << "      break;\n";
+  }
+  else if (0==strcmp(type, "long")) {
+    parser1_defs << "    case XTOK_" << name << ":\n";
+    parser1_defs << "      fromXml_long(obj->" << name << ", parseQuotedString(strValue));\n";
+    parser1_defs << "      break;\n";
+  }
+  else if (0==strcmp(type, "unsigned long")) {
+    parser1_defs << "    case XTOK_" << name << ":\n";
+    parser1_defs << "      fromXml_unsigned_long(obj->" << name
+                 << ", parseQuotedString(strValue));\n";
     parser1_defs << "      break;\n";
   }
   else if (isListType(type)) {
