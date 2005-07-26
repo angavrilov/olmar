@@ -27,4 +27,7 @@ void fromXml_unsigned_int(unsigned int &i, string str);
 string toXml_unsigned_long(unsigned long i);
 void fromXml_unsigned_long(unsigned long &i, string str);
 
+string toXml_double(double x);
+void fromXml_double(double &x, string str);
+
 #endif // XMLHELP_H

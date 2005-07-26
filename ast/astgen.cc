@@ -2007,6 +2007,12 @@ void CGen::emitXmlField(bool isOwner, rostring type, rostring name, char const *
     out << "  out << \"" << name << "\" << \"=\";\n";
     out << "  out << quoted(toXml_unsigned_long(" << baseName << "->" << name << "));\n";
   }
+  else if (0==strcmp(type, "double")) {
+    out << "  out << \"\\n\";\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << quoted(toXml_double(" << baseName << "->" << name << "));\n";
+  }
   else if (isListType(type)) {
     // for now, I'll continue to assume that any class that appears
     // in ASTList<> is compatible with the printing regime here
@@ -2574,6 +2580,11 @@ void XmlParserGen::emitXmlField_AttributeParseRule
     parser1_defs << "    case XTOK_" << name << ":\n";
     parser1_defs << "      fromXml_unsigned_long(obj->" << name
                  << ", parseQuotedString(strValue));\n";
+    parser1_defs << "      break;\n";
+  }
+  else if (0==strcmp(type, "double")) {
+    parser1_defs << "    case XTOK_" << name << ":\n";
+    parser1_defs << "      fromXml_double(obj->" << name << ", parseQuotedString(strValue));\n";
     parser1_defs << "      break;\n";
   }
   else if (isListType(type)) {
