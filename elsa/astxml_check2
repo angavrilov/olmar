@@ -47,7 +47,7 @@ die "You must specify an out directory with -d\n$usage" unless defined $outdir;
 
 sub run_only ($$) {
     my ($command, $outfile) = @_;
-    my $realcommand = "$command >> $outfile";
+    my $realcommand = "$command > $outfile";
 #    print "RUN: $realcommand\n";
     unlink $outfile;
     die if -f $outfile;
@@ -65,7 +65,7 @@ sub run_only ($$) {
 
 sub run_command ($$) {
     my ($command, $outfile) = @_;
-    my $realcommand = "$command >> $outfile";
+    my $realcommand = "$command > $outfile";
     $outfile2command{$outfile} = $realcommand;
     push @outfiles, $outfile;
 #    print "$command\n";

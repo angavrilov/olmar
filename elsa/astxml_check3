@@ -65,7 +65,7 @@ sub run_only ($$) {
 
 sub run_command ($$) {
     my ($command, $outfile) = @_;
-    my $realcommand = "$command >> $outfile";
+    my $realcommand = "$command > $outfile";
     $outfile2command{$outfile} = $realcommand;
     push @outfiles, $outfile;
 #    print "$command\n";
