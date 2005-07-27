@@ -1222,7 +1222,9 @@ runTest perl ./astxml_check2 -d outdir $astxml_list2
 astxml_list3=`echo " \
 t0001.cc t0002.cc t0003.cc t0004.cc t0005.cc
 t0006.cc t0007.cc t0008.cc t0009.cc t0010.cc
-t0011.cc t0012.cc t0013.cc \
+t0011.cc t0012.cc t0013.cc t0014.cc t0014a.cc
+t0015.cc t0016.cc t0017.cc t0018.cc t0019.cc
+t0020.cc t0021.cc t0022.cc \
   " | fmt -1 | sed 's|^[ 	]*|in/|'`
 
 # Right now just print out the AST and the types; later we will try to
