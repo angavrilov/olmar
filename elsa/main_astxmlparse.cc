@@ -27,7 +27,7 @@ class ReadXml_AST : public ReadXml {
   void append2List(void *list, int listKind, void *datum, int datumKind);
   void insertIntoNameMap(void *map, int mapKind, StringRef name, void *datum, int datumKind);
 
-  bool kind2kindCat(int kind, KindCategory *ret);
+  bool kind2kindCat0(int kind, KindCategory *ret);
 
   bool convertList2FakeList(ASTList<char> *list, int listKind, void **target);
   bool convertList2SObjList(ASTList<char> *list, int listKind, void **target);
@@ -38,7 +38,7 @@ class ReadXml_AST : public ReadXml {
   bool convertNameMap2StringSObjDict
     (StringRefMap<char> *map, int mapKind, void *target);
 
-  bool ctorNodeFromTag(int tag, void *&topTemp);
+  void ctorNodeFromTag(int tag, void *&topTemp);
   void registerAttribute(void *target, int kind, int attr, char const *yytext0);
 
 //    // INSERT per ast node
@@ -73,26 +73,22 @@ bool ReadXml_AST::convertNameMap2StringSObjDict(StringRefMap<char> *map, int map
   return false;
 }
 
-bool ReadXml_AST::ctorNodeFromTag(int tag, void *&topTemp) {
+void ReadXml_AST::ctorNodeFromTag(int tag, void *&topTemp) {
   switch(tag) {
   default: userError("unexpected token while looking for an open tag name");
   case 0: userError("unexpected file termination while looking for an open tag name");
-  case XTOK_SLASH:
-    return true;
-    break;
-
     //      // INSERT per ast node
     //      case XTOK_TranslationUnit:
     //        topTemp = new TranslationUnit(0);
     //        break;
 #include "astxml_parse1_2ctrc.gen.cc"
   }
-  return false;
 }
 
 void ReadXml_AST::registerAttribute(void *target, int kind, int attr, char const *yytext0) {
   switch(kind) {
   default: xfailure("illegal kind");
+
 //        // INSERT per ast node
 //        case XTOK_TranslationUnit:
 //          registerAttr_TranslationUnit((TranslationUnit*)nodeStack.top(), attr, lexer.YYText());

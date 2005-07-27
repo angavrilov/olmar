@@ -42,6 +42,8 @@ class ToXMLTypeVisitor : public TypeVisitor {
 
   private:
   void printIndentation();
+  void startItem(rostring prefix, void const *ptr);
+  void stopItem();
 
   // **** TypeVisitor API methods
   public:
@@ -50,6 +52,8 @@ class ToXMLTypeVisitor : public TypeVisitor {
 
   virtual bool visitFuncParamsList(SObjList<Variable> &params);
   virtual void postvisitFuncParamsList(SObjList<Variable> &params);
+  virtual bool visitFuncParamsListItem(Variable *param);
+  virtual void postvisitFuncParamsListItem(Variable *param);
 
   virtual bool visitVariable(Variable *var);
   virtual void postvisitVariable(Variable *var);
@@ -84,8 +88,10 @@ class ToXMLTypeVisitor : public TypeVisitor {
   virtual bool visitBaseClassSubobj(BaseClassSubobj *bc);
   virtual void postvisitBaseClassSubobj(BaseClassSubobj *bc);
 
-  virtual bool visitBaseClassSubobjParents(SObjList<BaseClassSubobj> &parents);
-  virtual void postvisitBaseClassSubobjParents(SObjList<BaseClassSubobj> &parents);
+  virtual bool visitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents);
+  virtual void postvisitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents);
+  virtual bool visitBaseClassSubobjParentsListItem(BaseClassSubobj *parents);
+  virtual void postvisitBaseClassSubobjParentsListItem(BaseClassSubobj *parents);
 
   // factor out the commonality of the atomic types that inherit from
   // NamedAtomicType
@@ -140,7 +146,7 @@ class ReadXml_Type : public ReadXml {
   public:
   void append2List(void *list, int listKind, void *datum, int datumKind);
   void insertIntoNameMap(void *map0, int mapKind, StringRef name, void *datum, int datumKind);
-  bool kind2kindCat(int kind, KindCategory *kindCat);
+  bool kind2kindCat0(int kind, KindCategory *kindCat);
 
   bool convertList2FakeList(ASTList<char> *list, int listKind, void **target);
   bool convertList2SObjList(ASTList<char> *list, int listKind, void **target);
@@ -151,7 +157,7 @@ class ReadXml_Type : public ReadXml {
   bool convertNameMap2StringSObjDict
     (StringRefMap<char> *map, int mapKind, void *target);
 
-  bool ctorNodeFromTag(int tag, void *&topTemp);
+  void ctorNodeFromTag(int tag, void *&topTemp);
   void registerAttribute(void *target, int kind, int attr, char const *yytext0);
 
   private:
@@ -160,6 +166,8 @@ class ReadXml_Type : public ReadXml {
   void registerAttr_PointerType        (PointerType *obj,         int attr, char const *strValue);
   void registerAttr_ReferenceType      (ReferenceType *obj,       int attr, char const *strValue);
   void registerAttr_FunctionType       (FunctionType *obj,        int attr, char const *strValue);
+  void registerAttr_FunctionType_ExnSpec
+    (FunctionType::ExnSpec *obj, int attr, char const *strValue);
   void registerAttr_ArrayType          (ArrayType *obj,           int attr, char const *strValue);
   void registerAttr_PointerToMemberType(PointerToMemberType *obj, int attr, char const *strValue);
 

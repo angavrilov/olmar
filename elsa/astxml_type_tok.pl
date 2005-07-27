@@ -66,6 +66,7 @@ CVAtomicType
 PointerType
 ReferenceType
 FunctionType
+  FunctionType_ExnSpec
 ArrayType
 PointerToMemberType
 # fields
@@ -141,6 +142,11 @@ List_FunctionType_params
 List_CompoundType_dataMembers
 List_CompoundType_conversionOperators
 List_BaseClassSubobj_parents
+List_ExnSpec_types
+#   a list element; these are in the AST so I don't need them here
+#  __Item
+#  item
+
 #   StringRefMap
 NameMap_Scope_variables
 NameMap_Scope_typeTags

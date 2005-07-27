@@ -73,6 +73,7 @@ void LinkSatisfier::convertNameMap2StringSObjDict
 
 bool LinkSatisfier::kind2kindCat(int kind, KindCategory *kindCat) {
   xassert(kind != -1);          // this means you shouldn't be asking
+
   FOREACH_ASTLIST_NC(ReadXml, readers, iter) {
     ReadXml *reader = iter.data();
     if (reader->kind2kindCat(kind, kindCat)) {
@@ -308,7 +309,28 @@ void ReadXml::parseOneTag() {
   int tag = lexer.getToken();
   // construct the tag object on the stack
   void *topTemp;
-  bool sawCloseTag = ctorNodeFromTag(tag, topTemp);
+  bool sawCloseTag = false;
+  switch(tag) {
+  default:
+    ctorNodeFromTag(tag, topTemp);
+    break;
+  // Slash: start of a close tag
+  case XTOK_SLASH:
+    sawCloseTag = true;
+    break;
+  // Item: a list element
+  case XTOK___Item:
+    topTemp = new Item();
+    break;
+  // Name: a map element
+  case XTOK___Name:
+    topTemp = new Name();
+    break;
+//    // Special case the <__Link/> tag
+//    case XTOK___Link:
+//      topTemp = new UnsatBiLink();
+//      break;
+  }
   if (!sawCloseTag) {
     // state: did not see a close tag
     //
@@ -392,6 +414,11 @@ void ReadXml::parseOneTag() {
     userError("no category found for this kind");
   }
 
+  if (lastKind == XTOK___Item) {
+    // we want to delete these name things after they have served
+    // their purpose
+    delete ((Item*)lastNode);
+  }
   if (lastKind == XTOK___Name) {
     // we want to delete these name things after they have served
     // their purpose
@@ -404,14 +431,16 @@ void ReadXml::parseOneTag() {
       topKindCat == KC_ASTList  ||
       topKindCat == KC_SObjList ||
       topKindCat == KC_ObjList  ){
+    // the top is a list; we had better be an __Item tag
+    if (lastKind != XTOK___Item) {
+      userError("element of a list that is not an __Item tag");
+    }
     // the top is a list
-    xassert(nodeStack.top());
-    append2List(nodeStack.top(), topKind, lastNode, lastKind);
   } else if (topKindCat == KC_StringRefMap ||
              topKindCat == KC_StringRefMap ){
     // the top is a map; we had better be a __Name tag
     if (lastKind != XTOK___Name) {
-      userError("element of a map that is not a name tag");
+      userError("element of a map that is not a __Name tag");
     }
   }
   // FIX: in the future there should be an else clause here that
@@ -423,8 +452,41 @@ void ReadXml::parseOneTag() {
   // identifiers to be unique due to class embedding (which is why
   // there are letter prefixes on the identifiers).
 
+  // deal with list entries
+  if (topKindCat == KC_Item) {
+    // save the item tag
+    Item *itemNode = (Item*)nodeStack.pop();
+    int itemKind = *kindStack.pop();
+    xassert(itemKind == XTOK___Item);
+
+    // what kind of thing is next on the stack?
+    if (nodeStack.isEmpty()) {
+      userError("a __Item tag not immediately under a List");
+    }
+    void *listNode = nodeStack.top();
+    int listKind = *kindStack.top();
+    KindCategory listKindCat;
+    bool foundList = kind2kindCat(listKind, &listKindCat);
+    // FIX: maybe this should be an assertion
+    if (!foundList) {
+      userError("no category found for this list kind");
+    }
+    if (!(listNode &&
+          (listKindCat == KC_ASTList
+           || listKindCat == KC_FakeList
+           || listKindCat == KC_ObjList
+           || listKindCat == KC_SObjList)
+        )) {
+      userError("a __Item tag not immediately under a List");
+    }
+    append2List(listNode, listKind, lastNode, lastKind);
+
+    // push the item back on the stack so we catch it later
+    nodeStack.push(itemNode);
+    kindStack.push(new int(itemKind));
+  }
   // deal with map entries
-  if (topKindCat == KC_Name) {
+  else if (topKindCat == KC_Name) {
     // save the name tag
     Name *nameNode = (Name*)nodeStack.pop();
     int nameKind = *kindStack.pop();
@@ -509,6 +571,14 @@ bool ReadXml::readAttributes() {
       static_cast<Name*>(nodeStack.top())->name =
         strTable(parseQuotedString(lexer.currentText()));
     }
+    // special case the __Item node and its one attribute
+    else if (*kindStack.top() == XTOK___Item) {
+      if (attr != XTOK_item) {
+        userError("illegal attribute for __Item");
+      }
+      static_cast<Item*>(nodeStack.top())->item =
+        strTable(parseQuotedString(lexer.currentText()));
+    }
 //      // special case the __Link node and its attributes
 //      else if (*kindStack.top() == XTOK___Link) {
 //        switch(attr) {
@@ -535,4 +605,20 @@ bool ReadXml::readAttributes() {
   }
   // stacks should not be out of sync
   xassert(kindStack.isEmpty());
+}
+
+bool ReadXml::kind2kindCat(int kind, KindCategory *kindCat) {
+  xassert(kind != -1);          // this means you shouldn't be asking
+
+  switch(kind) {
+  // special list element __Item
+  case XTOK___Item: *kindCat = KC_Item; return true; break;
+  // special map element __Name
+  case XTOK___Name: *kindCat = KC_Name; return true; break;
+  default:
+    // fallthrough the switch
+    break;
+  }
+
+  return kind2kindCat0(kind, kindCat);
 }

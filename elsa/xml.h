@@ -23,16 +23,29 @@ class ReadXml;
 // there are 3 categories of kinds of Tags
 enum KindCategory {
   KC_Node,                      // a normal node
+
   // list
   KC_ASTList,
   KC_FakeList,
   KC_ObjList,
   KC_SObjList,
+  // an item entry in a list
+  KC_Item,
+
   // name map
   KC_StringRefMap,
   KC_StringSObjDict,
   // a name entry in a name map
   KC_Name,
+};
+
+// the <__Item> </__Item> tag is parsed into this class to hold the
+// name while the value contained by it is being parsed.  Then it is
+// deleted.
+struct Item {
+  StringRef item;
+
+  Item() : item(NULL) {}
 };
 
 // the <__Name> </__Name> tag is parsed into this class to hold the
@@ -41,7 +54,7 @@ enum KindCategory {
 struct Name {
   StringRef name;
 
-  Name() {}
+  Name() : name(NULL) {}
   Name(StringRef name0) : name(name0) {}
   // FIX: do I destruct/free() the name when I destruct the object?
 };
@@ -196,8 +209,12 @@ class ReadXml {
     (void *map, int mapKind, StringRef name, void *datum, int datumKind) = 0;
 
   // map a kind to its kind category
-  virtual bool kind2kindCat(int kind, KindCategory *ret) = 0;
+  /* NOT virtual */ bool kind2kindCat(int kind, KindCategory *ret);
+  protected:
+  // override this but don't call it, even within the reader
+  virtual bool kind2kindCat0(int kind, KindCategory *ret) = 0;
 
+  public:
   // all lists are stored as ASTLists; these convert to the real list
   virtual bool convertList2FakeList(ASTList<char> *list, int listKind, void **target) = 0;
   virtual bool convertList2SObjList(ASTList<char> *list, int listKind, void **target) = 0;
@@ -210,7 +227,7 @@ class ReadXml {
     (StringRefMap<char> *map, int mapKind, void *target) = 0;
 
   // construct a node for a tag; returns true if it was a closeTag
-  virtual bool ctorNodeFromTag(int tag, void *&topTemp) = 0;
+  virtual void ctorNodeFromTag(int tag, void *&topTemp) = 0;
   // register an attribute into the current node
   virtual void registerAttribute(void *target, int kind, int attr, char const *yytext0) = 0;
 };

@@ -38,6 +38,10 @@ bool TypeVisitor::visitFuncParamsList(SObjList<Variable> &params)
   { return true; }
 void TypeVisitor::postvisitFuncParamsList(SObjList<Variable> &params)
   { }
+bool TypeVisitor::visitFuncParamsListItem(Variable *param)
+  { return true; }
+void TypeVisitor::postvisitFuncParamsListItem(Variable *param)
+  { }
 
 bool TypeVisitor::visitVariable(Variable *var)
   { return true; }
@@ -83,9 +87,13 @@ bool TypeVisitor::visitBaseClassSubobj(BaseClassSubobj *bc)
 void TypeVisitor::postvisitBaseClassSubobj(BaseClassSubobj *bc)
   {  }
 
-bool TypeVisitor::visitBaseClassSubobjParents(SObjList<BaseClassSubobj> &parents)
+bool TypeVisitor::visitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents)
   { return true; }
-void TypeVisitor::postvisitBaseClassSubobjParents(SObjList<BaseClassSubobj> &parents)
+void TypeVisitor::postvisitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents)
+  {  }
+bool TypeVisitor::visitBaseClassSubobjParentsListItem(BaseClassSubobj *parent)
+  { return true; }
+void TypeVisitor::postvisitBaseClassSubobjParentsListItem(BaseClassSubobj *parent)
   {  }
 
 bool TypeVisitor::visitSTemplateArgument(STemplateArgument *obj)
@@ -349,12 +357,15 @@ void BaseClassSubobj::traverse(TypeVisitor &vis)
     return;
   }
 
-  if (vis.visitBaseClassSubobjParents(parents)) {
+  if (vis.visitBaseClassSubobjParentsList(parents)) {
     SFOREACH_OBJLIST_NC(BaseClassSubobj, parents, iter) {
       BaseClassSubobj *parent = iter.data();
-      parent->traverse(vis);
+      if (vis.visitBaseClassSubobjParentsListItem(parent)) {
+        parent->traverse(vis);
+        vis.postvisitBaseClassSubobjParentsListItem(parent);
+      }
     }
-    vis.postvisitBaseClassSubobjParents(parents);
+    vis.postvisitBaseClassSubobjParentsList(parents);
   }
 
   vis.postvisitBaseClassSubobj(this);
@@ -2203,12 +2214,18 @@ void FunctionType::traverse(TypeVisitor &vis)
 //        iter.data()->type->traverse(vis);
       // dsw: we now traverse the variable directly; the above comment
       // should probably be moved into Variable::traverse()
-      iter.data()->traverse(vis);
+      if (vis.visitFuncParamsListItem(iter.data())) {
+        iter.data()->traverse(vis);
+        vis.postvisitFuncParamsListItem(iter.data());
+      }
     }
     vis.postvisitFuncParamsList(params);
   }
 
   // similarly, I don't want traversal into exception specs right now
+  //
+  // dsw: if you ever put them in, we have to take them out of the xml
+  // rendering or they will get rendered twice
 
   vis.postvisitType(this);
 }

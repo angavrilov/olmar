@@ -90,6 +90,8 @@ public:
 
   virtual bool visitFuncParamsList(SObjList<Variable> &params);
   virtual void postvisitFuncParamsList(SObjList<Variable> &params);
+  virtual bool visitFuncParamsListItem(Variable *param);
+  virtual void postvisitFuncParamsListItem(Variable *param);
 
   virtual bool visitVariable(Variable *var);
   virtual void postvisitVariable(Variable *var);
@@ -126,8 +128,10 @@ public:
   virtual bool visitBaseClassSubobj(BaseClassSubobj *bc);
   virtual void postvisitBaseClassSubobj(BaseClassSubobj *bc);
 
-  virtual bool visitBaseClassSubobjParents(SObjList<BaseClassSubobj> &parents);
-  virtual void postvisitBaseClassSubobjParents(SObjList<BaseClassSubobj> &parents);
+  virtual bool visitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents);
+  virtual void postvisitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents);
+  virtual bool visitBaseClassSubobjParentsListItem(BaseClassSubobj *parent);
+  virtual void postvisitBaseClassSubobjParentsListItem(BaseClassSubobj *parent);
 
   virtual bool visitSTemplateArgument(STemplateArgument *obj);
   virtual void postvisitSTemplateArgument(STemplateArgument *obj);

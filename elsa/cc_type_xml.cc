@@ -36,12 +36,25 @@ void fromXml(ScopeKind &out, rostring str) {
   out = static_cast<ScopeKind>(atoi(str));
 }
 
+
 // -------------------- ToXMLTypeVisitor -------------------
 
 void ToXMLTypeVisitor::printIndentation() {
   if (indent) {
     for (int i=0; i<depth; ++i) cout << " ";
   }
+}
+
+void ToXMLTypeVisitor::startItem(rostring prefix, void const *ptr) {
+  printIndentation();
+  out << "<__Item item=\"" << prefix << static_cast<void const*>(ptr) << "\">\n";
+  ++depth;
+}
+
+void ToXMLTypeVisitor::stopItem() {
+  --depth;
+  printIndentation();
+  out << "</__Item>\n";
 }
 
 bool ToXMLTypeVisitor::visitType(Type *obj) {
@@ -106,12 +119,47 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     printIndentation();
     out << "params=\"SO" << static_cast<void const*>(&(func->params)) << "\"\n";
 
-    // FIX: skip this for now
-    // ExnSpec *exnSpec;                  // (nullable owner)
-
-    // FIX: remove this when we do the above attributes
     printIndentation();
-    cout << ">\n";
+    out << "exnSpec=\"TY" << static_cast<void const*>(&(func->exnSpec)) << "\">\n";
+
+    // **** subtags
+
+    // These are not visited by default by the type visitor, so we not
+    // only have to print the id we have to print the tree.
+    if (func->exnSpec) {
+      // I do not want to make a non-virtual traverse() method on
+      // FunctionType::ExnSpec and I don't want to make it virtual as
+      // it has no virtual methods yet, so I do this manually.
+      printIndentation();
+      out << "<FunctionType_ExnSpec";
+      out << " .id=\"TY" << static_cast<void const*>(&(func->exnSpec)) << "\"\n";
+      ++depth;
+
+      printIndentation();
+      out << "types=\"SO" << static_cast<void const*>(&(func->exnSpec->types)) << "\">\n";
+
+      // **** FunctionType::ExnSpec subtags
+
+      printIndentation();
+      out << "<List_ExnSpec_types";
+      out << " .id=\"SO" << static_cast<void const*>(&func->exnSpec->types) << "\">\n";
+      ++depth;
+
+      SFOREACH_OBJLIST_NC(Type, func->exnSpec->types, iter) {
+        Type *t = iter.data();
+        startItem("TY", t);
+        t->traverse(*this);
+        stopItem();
+      }
+
+      --depth;
+      printIndentation();
+      out << "</List_ExnSpec_types>\n";
+
+      --depth;
+      printIndentation();
+      out << "</FunctionType_ExnSpec>\n";
+    }
 
     break;
   }
@@ -191,6 +239,15 @@ void ToXMLTypeVisitor::postvisitFuncParamsList(SObjList<Variable> &params) {
   --depth;
   printIndentation();
   out << "</List_FunctionType_params>\n";
+}
+
+bool ToXMLTypeVisitor::visitFuncParamsListItem(Variable *param) {
+  startItem("TY", param);
+  return true;
+}
+
+void ToXMLTypeVisitor::postvisitFuncParamsListItem(Variable *param) {
+  stopItem();
 }
 
 bool ToXMLTypeVisitor::visitVariable(Variable *var) {
@@ -398,9 +455,11 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     ++depth;
     SFOREACH_OBJLIST_NC(Variable, cpd->dataMembers, iter) {
       Variable *var = iter.data();
+      startItem("TY", var);
       // The usual traversal rountine will not go down into here, so
       // we have to.
       var->traverse(*this);
+      stopItem();
     }
     --depth;
     printIndentation();
@@ -412,9 +471,11 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     ++depth;
     FOREACH_OBJLIST_NC(BaseClass, const_cast<ObjList<BaseClass>&>(cpd->bases), iter) {
       BaseClass *base = iter.data();
+      startItem("TY", base);
       // The usual traversal rountine will not go down into here, so
       // we have to.
       base->traverse(*this);
+      stopItem();
     }
     --depth;
     printIndentation();
@@ -428,9 +489,11 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
                        const_cast<ObjList<BaseClassSubobj>&>(cpd->virtualBases),
                        iter) {
       BaseClassSubobj *baseSubobj = iter.data();
+      startItem("TY", baseSubobj);
       // The usual traversal rountine will not go down into here, so
       // we have to.
       baseSubobj->traverse(*this);
+      stopItem();
     }
     --depth;
     printIndentation();
@@ -444,9 +507,11 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     ++depth;
     SFOREACH_OBJLIST_NC(Variable, cpd->conversionOperators, iter) {
       Variable *var = iter.data();
+      startItem("TY", var);
       // The usual traversal rountine will not go down into here, so
       // we have to.
       var->traverse(*this);
+      stopItem();
     }
     --depth;
     printIndentation();
@@ -833,7 +898,7 @@ void ToXMLTypeVisitor::postvisitBaseClassSubobj(BaseClassSubobj *bc)
   out << "</BaseClassSubobj>\n";
 }
 
-bool ToXMLTypeVisitor::visitBaseClassSubobjParents(SObjList<BaseClassSubobj> &parents)
+bool ToXMLTypeVisitor::visitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents)
 {
   printIndentation();
   out << "<List_BaseClassSubobj_parents";
@@ -841,11 +906,23 @@ bool ToXMLTypeVisitor::visitBaseClassSubobjParents(SObjList<BaseClassSubobj> &pa
   ++depth;
   return true;
 }
-void ToXMLTypeVisitor::postvisitBaseClassSubobjParents(SObjList<BaseClassSubobj> &parents)
+
+void ToXMLTypeVisitor::postvisitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents)
 {
   --depth;
   printIndentation();
   out << "</List_BaseClassSubobj_parents>\n";
+}
+
+bool ToXMLTypeVisitor::visitBaseClassSubobjParentsListItem(BaseClassSubobj *parent)
+{
+  startItem("TY", parent);
+  return true;
+}
+
+void ToXMLTypeVisitor::postvisitBaseClassSubobjParentsListItem(BaseClassSubobj *parent)
+{
+  stopItem();
 }
 
 // -------------------- ReadXml_Type -------------------
@@ -891,9 +968,24 @@ void ReadXml_Type::append2List(void *list0, int listKind, void *datum0, int datu
 
   case XTOK_List_BaseClassSubobj_parents:
     if (!datumKind == XTOK_BaseClassSubobj) {
-      userError("can't put that onto an List of Variable-es");
+      userError("can't put that onto an List of BaseClassSubobj-s");
     }
     break;
+
+  case XTOK_List_ExnSpec_types:
+    switch(datumKind) {
+    default:
+      userError("can't put that onto an List of Type-s");
+      break;
+    case XTOK_CVAtomicType:
+    case XTOK_PointerType:
+    case XTOK_ReferenceType:
+    case XTOK_FunctionType:
+    case XTOK_ArrayType:
+    case XTOK_PointerToMemberType:
+      // ok
+    break;
+  }
   }
 
   list->append(datum);
@@ -936,7 +1028,7 @@ void ReadXml_Type::insertIntoNameMap
   map->add(name, datum);
 }
 
-bool ReadXml_Type::kind2kindCat(int kind, KindCategory *kindCat) {
+bool ReadXml_Type::kind2kindCat0(int kind, KindCategory *kindCat) {
   switch(kind) {
   default: return false;        // we don't know this kind
 
@@ -945,6 +1037,7 @@ bool ReadXml_Type::kind2kindCat(int kind, KindCategory *kindCat) {
   case XTOK_PointerType:         *kindCat = KC_Node; break;
   case XTOK_ReferenceType:       *kindCat = KC_Node; break;
   case XTOK_FunctionType:        *kindCat = KC_Node; break;
+  case XTOK_FunctionType_ExnSpec:*kindCat = KC_Node; break; // special
   case XTOK_ArrayType:           *kindCat = KC_Node; break;
   case XTOK_PointerToMemberType: *kindCat = KC_Node; break;
 
@@ -971,14 +1064,12 @@ bool ReadXml_Type::kind2kindCat(int kind, KindCategory *kindCat) {
   case XTOK_List_CompoundType_dataMembers:         *kindCat = KC_SObjList;      break;
   case XTOK_List_CompoundType_conversionOperators: *kindCat = KC_SObjList;      break;
   case XTOK_List_BaseClassSubobj_parents:          *kindCat = KC_SObjList;      break;
+  case XTOK_List_ExnSpec_types:                    *kindCat = KC_SObjList;      break;
+
   //   StringRefMap
   case XTOK_NameMap_Scope_variables:               *kindCat = KC_StringRefMap;  break;
   case XTOK_NameMap_Scope_typeTags:                *kindCat = KC_StringRefMap;  break;
   case XTOK_NameMap_EnumType_valueIndex:           *kindCat = KC_StringRefMap;  break;
-
-  // special map element __Name
-  case XTOK___Name: *kindCat = KC_Name; break;
-
   }
   return true;
 }
@@ -1020,6 +1111,16 @@ bool ReadXml_Type::convertList2SObjList(ASTList<char> *list, int listKind, void 
     break;
   }
 
+  case XTOK_List_ExnSpec_types: {
+    SObjList<Type> *ret = reinterpret_cast<SObjList<Type>*>(target);
+    xassert(ret->isEmpty());
+    FOREACH_ASTLIST_NC(Type, reinterpret_cast<ASTList<Type>&>(*list), iter) {
+      Type *type = iter.data();
+      ret->prepend(type);
+    }
+    ret->reverse();
+    break;
+  }
   }
   return true;
 }
@@ -1109,18 +1210,10 @@ bool ReadXml_Type::convertNameMap2StringSObjDict
   return true;
 }
 
-bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
+void ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
   switch(tag) {
   default: userError("unexpected token while looking for an open tag name");
   case 0: userError("unexpected file termination while looking for an open tag name");
-  case XTOK_SLASH:
-    return true;
-    break;
-
-//    // Special case the <__Link/> tag
-//    case XTOK___Link:
-//      topTemp = new UnsatBiLink();
-//      break;
 
   // **** Types
   case XTOK_CVAtomicType:
@@ -1137,6 +1230,10 @@ bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
 
   case XTOK_FunctionType:
     topTemp = new FunctionType((Type*)0);
+    break;
+
+  case XTOK_FunctionType_ExnSpec:
+    topTemp = new FunctionType::ExnSpec();
     break;
 
   case XTOK_ArrayType:
@@ -1217,6 +1314,10 @@ bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
   case XTOK_List_BaseClassSubobj_parents:
     topTemp = new ASTList<BaseClassSubobj>();
     break;
+  case XTOK_List_ExnSpec_types:
+    topTemp = new ASTList<Type>();
+    break;
+
   // StringRefMap
   case XTOK_NameMap_Scope_variables:
     topTemp = new StringRefMap<Variable>();
@@ -1228,14 +1329,8 @@ bool ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
     topTemp = new StringRefMap<EnumType::Value>();
     break;
 
-  // Name: a map element
-  case XTOK___Name:
-    topTemp = new Name();
-    break;
-
 //  #include "astxml_parse1_2ctrc.gen.cc"
   }
-  return false;
 }
 
 // **************** registerAttribute
@@ -1259,6 +1354,10 @@ void ReadXml_Type::registerAttribute(void *target, int kind, int attr, char cons
 
   case XTOK_FunctionType:
     registerAttr_FunctionType((FunctionType*)target, attr, yytext0);
+    break;
+
+  case XTOK_FunctionType_ExnSpec:
+    registerAttr_FunctionType_ExnSpec((FunctionType::ExnSpec*)target, attr, yytext0);
     break;
 
   case XTOK_ArrayType:
@@ -1399,6 +1498,28 @@ void ReadXml_Type::registerAttr_FunctionType
                      XTOK_List_FunctionType_params));
     break;
 
+  case XTOK_exnSpec:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->exnSpec),
+                     parseQuotedString(strValue)));
+    break;
+
+  }
+}
+
+void ReadXml_Type::registerAttr_FunctionType_ExnSpec
+  (FunctionType::ExnSpec *obj, int attr, char const *strValue) {
+  switch(attr) {
+  default:
+    userError("illegal attribute for a FunctionType_ExnSpec");
+    break;
+
+  case XTOK_types:
+    linkSat.unsatLinks_List.append
+      (new UnsatLink((void**) &(obj->types),
+                     parseQuotedString(strValue),
+                     XTOK_List_ExnSpec_types));
+    break;
   }
 }
 
