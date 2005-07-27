@@ -784,11 +784,18 @@ bool ToXMLTypeVisitor::visitBaseClass(BaseClass *bc)
   if (printedObjects.contains(bc)) return false;
   printedObjects.add(bc);
 
+  printIndentation();
   out << "<BaseClass";
   out << " .id=\"TY" << static_cast<void const*>(bc) << "\"\n";
   ++depth;
 
   toXml_BaseClass_properties(bc);
+
+  printIndentation();
+  out << ">\n";
+
+  // **** subtags
+  // none
 
   return true;
 }
@@ -813,6 +820,9 @@ bool ToXMLTypeVisitor::visitBaseClassSubobj(BaseClassSubobj *bc)
 
   printIndentation();
   out << "parents=\"SO" << static_cast<void const*>(&(bc->parents)) << "\">\n";
+
+  // **** subtags
+  // none
 
   return true;
 }
@@ -875,6 +885,12 @@ void ReadXml_Type::append2List(void *list0, int listKind, void *datum0, int datu
 
   case XTOK_List_CompoundType_conversionOperators:
     if (!datumKind == XTOK_Variable) {
+      userError("can't put that onto an List of Variable-es");
+    }
+    break;
+
+  case XTOK_List_BaseClassSubobj_parents:
+    if (!datumKind == XTOK_BaseClassSubobj) {
       userError("can't put that onto an List of Variable-es");
     }
     break;

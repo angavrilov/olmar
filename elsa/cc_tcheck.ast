@@ -96,7 +96,7 @@ class Function {
   //
   // If you fix that and change this back to const then you can get
   // rid of the const_cast in Function::shallowClone().
-  public(xml) Function *cloneThunkSource = NULL;
+  public(xml,traverse) Function *cloneThunkSource = NULL;
 
   // return a copy of this Function, but with just a clone thunk
   public Function *shallowClone() const;
@@ -637,7 +637,7 @@ class Expression {
 
   -> E_new {
        // if this is non-NULL, it's the number of elements to allocate via new[]
-       public(xml) Expression /*nullable serf*/ *arraySize = NULL;
+       public(xml,traverse) Expression /*nullable serf*/ *arraySize = NULL;
 
        // constructor being called to initialize the storage
        public(xml) Variable *ctorVar = NULL;
