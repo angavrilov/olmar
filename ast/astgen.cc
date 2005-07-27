@@ -928,7 +928,7 @@ public:
   private:
   void emitXmlCtorArgs(ASTList<CtorArg> const &args, char const *baseName, string const &className);
   void emitXmlFields(ASTList<Annotation> const &decls, char const *baseName, string const &className);
-  void emitXmlField(bool isOwner, rostring type, rostring name, char const *baseName, string const &className);
+  void emitXmlField(rostring type, rostring name, char const *baseName, string const &className);
   void emitXmlVisitorImplVisitedCheck(char const *name);
   public:
   void emitXmlVisitorImplementation();
@@ -974,12 +974,12 @@ class XmlParserGen {
   void collectXmlParserCtorArgs(ASTList<CtorArg> const &args, char const *baseName);
   void collectXmlParserFields(ASTList<Annotation> const &decls, char const *baseName);
   void collectXmlParserField
-    (bool isOwner, rostring type, rostring name, char const *baseName);
+    (rostring type, rostring name, char const *baseName);
 
   void emitXmlCtorArgs_AttributeParseRule(ASTList<CtorArg> const &args, string &baseName);
   void emitXmlFields_AttributeParseRule(ASTList<Annotation> const &decls, string &baseName);
   void emitXmlField_AttributeParseRule
-    (bool isOwner, rostring type, rostring name, string &baseName);
+    (rostring type, rostring name, string &baseName);
 
   void emitXmlParser_objCtorArgs
     (ASTList<CtorArg> const &args, bool &firstTime);
@@ -1698,17 +1698,12 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
   }
 
   // dsw: I need a way to make fields traversable
-  //
-  // update: we want to emit pointers to these things, but we don't
-  // want to traverse them; that is done by the lowered visitor if you
-  // set visitElaboratedAST.
-  //
-//    FOREACH_ASTLIST(Annotation, c->decls, iter) {
-//      if (!iter.data()->isUserDecl()) continue;
-//      UserDecl const *ud = iter.data()->asUserDeclC();
-//      if (!ud->amod->hasMod("xml")) continue;
-//      emitOneTraverseCall(extractFieldName(ud->code), extractFieldType(ud->code));
-//    }
+  FOREACH_ASTLIST(Annotation, c->decls, iter) {
+    if (!iter.data()->isUserDecl()) continue;
+    UserDecl const *ud = iter.data()->asUserDeclC();
+    if (!ud->amod->hasMod("traverse")) continue;
+    emitOneTraverseCall(extractFieldName(ud->code), extractFieldType(ud->code));
+  }
 
   // do any final traversal action specified by the user
   emitCustomCode(c->decls, "traverse");
@@ -1940,7 +1935,7 @@ void CGen::emitXmlCtorArgs(ASTList<CtorArg> const &args, char const *baseName, s
   FOREACH_ASTLIST(CtorArg, args, argiter) {
     CtorArg const &arg = *(argiter.data());
 
-    emitXmlField(arg.isOwner, arg.type, arg.name, baseName, className);
+    emitXmlField(arg.type, arg.name, baseName, className);
   }
 }
 
@@ -1951,16 +1946,18 @@ void CGen::emitXmlFields(ASTList<Annotation> const &decls, char const *baseName,
     UserDecl const *ud = iter.data()->asUserDeclC();
     if (!ud->amod->hasMod("xml")) continue;
 
-    emitXmlField(ud->amod->hasMod("owner"),
-                 extractFieldType(ud->code),
+    emitXmlField(extractFieldType(ud->code),
                  extractFieldName(ud->code),
                  baseName,
                  className);
   }
 }
 
-void CGen::emitXmlField(bool isOwner, rostring type, rostring name, char const *baseName, string const &className)
+void CGen::emitXmlField(rostring type, rostring name, char const *baseName, string const &className)
 {
+  if (streq(name, "arraySize")) {
+    breaker();
+  }
   // FIX: there is a problem with coming up with a way to serialize a
   // NULL string: 1) the value must be quoted, 2) any string you use
   // to represent NULL is also a valid string value, 3) quoting twice
@@ -2038,8 +2035,7 @@ void CGen::emitXmlField(bool isOwner, rostring type, rostring name, char const *
     out << "    out << \"\\\"\";\n";
     out << "  }\n";
   }
-  else if (isTreeNode(type) ||
-           (isTreeNodePtr(type) && isOwner)) {
+  else if (isTreeNode(type) || (isTreeNodePtr(type))) {
     // don't print subtrees that are possibly shared or circular
 //      out << "  " << print << "_SUBTREE(" << name << ");\n";
     out << "  if (" << baseName << " && " << baseName << "->" << name << ") {\n";
@@ -2466,7 +2462,7 @@ void XmlParserGen::collectXmlParserCtorArgs(ASTList<CtorArg> const &args, char c
 {
   FOREACH_ASTLIST(CtorArg, args, argiter) {
     CtorArg const &arg = *(argiter.data());
-    collectXmlParserField(arg.isOwner, arg.type, arg.name, baseName);
+    collectXmlParserField(arg.type, arg.name, baseName);
   }
 }
 
@@ -2476,8 +2472,7 @@ void XmlParserGen::collectXmlParserFields(ASTList<Annotation> const &decls, char
     if (!iter.data()->isUserDecl()) continue;
     UserDecl const *ud = iter.data()->asUserDeclC();
     if (!ud->amod->hasMod("xml")) continue;
-    collectXmlParserField(ud->amod->hasMod("owner"),
-                          extractFieldType(ud->code),
+    collectXmlParserField(extractFieldType(ud->code),
                           extractFieldName(ud->code),
                           baseName);
   }
@@ -2486,7 +2481,7 @@ void XmlParserGen::collectXmlParserFields(ASTList<Annotation> const &decls, char
 // FIX: this is now very redundant, but we can still change it to
 // exclude some fields of some types, so lets keep it for now.
 void XmlParserGen::collectXmlParserField
-  (bool isOwner, rostring type, rostring name, char const *baseName)
+  (rostring type, rostring name, char const *baseName)
 {
   if (streq(type, "string")) {
     attributeNames.add(name);
@@ -2504,8 +2499,7 @@ void XmlParserGen::collectXmlParserField
   else if (isFakeListType(type)) {
     attributeNames.add(name);
   }
-  else if (isTreeNode(type) ||
-           (isTreeNodePtr(type) && isOwner)) {
+  else if (isTreeNode(type) || (isTreeNodePtr(type))) {
     attributeNames.add(name);
   }
 
@@ -2522,7 +2516,7 @@ void XmlParserGen::emitXmlCtorArgs_AttributeParseRule
 {
   FOREACH_ASTLIST(CtorArg, args, argiter) {
     CtorArg const &arg = *(argiter.data());
-    emitXmlField_AttributeParseRule(arg.isOwner, arg.type, arg.name, baseName);
+    emitXmlField_AttributeParseRule(arg.type, arg.name, baseName);
   }
 }
 
@@ -2533,15 +2527,14 @@ void XmlParserGen::emitXmlFields_AttributeParseRule
     if (!iter.data()->isUserDecl()) continue;
     UserDecl const *ud = iter.data()->asUserDeclC();
     if (!ud->amod->hasMod("xml")) continue;
-    emitXmlField_AttributeParseRule(ud->amod->hasMod("owner"),
-                                    extractFieldType(ud->code),
+    emitXmlField_AttributeParseRule(extractFieldType(ud->code),
                                     extractFieldName(ud->code),
                                     baseName);
   }
 }
 
 void XmlParserGen::emitXmlField_AttributeParseRule
-  (bool isOwner, rostring type0, rostring name, string &baseName)
+  (rostring type0, rostring name, string &baseName)
 {
   string type = trimWhitespace(type0);
   //  cout << "emitXmlField_AttributeParseRule() name:" << name << ", type:" << type << endl;
@@ -2601,8 +2594,7 @@ void XmlParserGen::emitXmlField_AttributeParseRule
                  << "XTOK_List_" << extractListType(type) << "));\n";
     parser1_defs << "      break;\n";
   }
-  else if (isTreeNode(type) ||
-           (isTreeNodePtr(type) && isOwner)) {
+  else if (isTreeNode(type) || (isTreeNodePtr(type))) {
     parser1_defs << "    case XTOK_" << name << ":\n";
     parser1_defs << "      linkSat.unsatLinks.append(new UnsatLink("
                  << "(void**) &(obj->" << name << "), parseQuotedString(strValue)));\n";
