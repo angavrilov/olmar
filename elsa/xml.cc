@@ -379,7 +379,8 @@ void ReadXml::parseOneTag() {
   lastNode = nodeStack.pop();
   lastKind = *kindStack.pop();
   if (lastKind != closeTag) {
-    userError("close tag does not match open tag");
+    userError(stringc << "close tag " << lexer.tokenKindDesc(closeTag)
+              << " does not match open tag " << lexer.tokenKindDesc(lastKind));
   }
 
   // state: read the '>' after a close tag
