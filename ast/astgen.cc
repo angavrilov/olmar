@@ -3010,24 +3010,24 @@ void XmlParserGen::emitXmlParserImplementation()
 
   // generate generic ASTList append
   parser1_defs << "void ReadXml_AST::append2List(void *list, int listKind, "
-               << "void *datum, int datumKind) {\n";
+               << "void *datum) {\n";
   parser1_defs << "  switch(listKind) {\n";
   parser1_defs << "  default: xfailure(\"attempt to append to a non-List token kind\"); break;\n";
   FOREACH_ASTLIST(char, astListClasses, iter) {
     char const *cls = iter.data();
     parser1_defs << "  case XTOK_List_" << cls << ":\n";
-    parser1_defs << "    if (!datumKind == XTOK_" << cls << ") {\n";
-    parser1_defs << "      userError(\"can't put that onto an List of " << cls << "\");\n";
-    parser1_defs << "    }\n";
+//      parser1_defs << "    if (!datumKind == XTOK_" << cls << ") {\n";
+//      parser1_defs << "      userError(\"can't put that onto an List of " << cls << "\");\n";
+//      parser1_defs << "    }\n";
     parser1_defs << "    ((ASTList<char>*)list)->append((char*)datum);\n";
     parser1_defs << "    break;\n";
   }
   FOREACH_ASTLIST(char, fakeListClasses, iter) {
     char const *cls = iter.data();
     parser1_defs << "  case XTOK_List_" << cls << ":\n";
-    parser1_defs << "    if (!datumKind == XTOK_" << cls << ") {\n";
-    parser1_defs << "      userError(\"can't put that onto a List of " << cls << "\");\n";
-    parser1_defs << "    }\n";
+//      parser1_defs << "    if (!datumKind == XTOK_" << cls << ") {\n";
+//      parser1_defs << "      userError(\"can't put that onto a List of " << cls << "\");\n";
+//      parser1_defs << "    }\n";
     parser1_defs << "    ((ASTList<char>*)list)->append((char*)datum);\n";
     parser1_defs << "    break;\n";
   }
