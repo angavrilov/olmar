@@ -86,7 +86,10 @@ int TypeVariable::reprSize() const
 
 void TypeVariable::traverse(TypeVisitor &vis)
 {
-  vis.visitAtomicType(this);
+  if (!vis.visitAtomicType(this)) {
+    return;
+  }
+  vis.postvisitAtomicType(this);
 }
 
 
@@ -161,6 +164,8 @@ void PseudoInstantiation::traverse(TypeVisitor &vis)
   FOREACH_OBJLIST_NC(STemplateArgument, args, iter) {
     iter.data()->traverse(vis);
   }
+
+  vis.postvisitAtomicType(this);
 }
 
 
@@ -231,6 +236,8 @@ void DependentQType::traverse(TypeVisitor &vis)
   if (name->isPQ_template()) {
     traverseTargs(vis, name->asPQ_template()->sargs);
   }
+
+  vis.postvisitAtomicType(this);
 }
 
 
