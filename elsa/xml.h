@@ -53,9 +53,9 @@ struct Item {
 // deleted.
 struct Name {
   StringRef name;
+  StringRef item;
 
-  Name() : name(NULL) {}
-  Name(StringRef name0) : name(name0) {}
+  Name() : name(NULL), item(NULL) {}
   // FIX: do I destruct/free() the name when I destruct the object?
 };
 
@@ -204,9 +204,9 @@ class ReadXml {
   public:
 
   // insert elements into containers
-  virtual void append2List(void *list, int listKind, void *datum, int datumKind) = 0;
+  virtual void append2List(void *list, int listKind, void *datum) = 0;
   virtual void insertIntoNameMap
-    (void *map, int mapKind, StringRef name, void *datum, int datumKind) = 0;
+    (void *map, int mapKind, StringRef name, void *datum) = 0;
 
   // map a kind to its kind category
   /* NOT virtual */ bool kind2kindCat(int kind, KindCategory *ret);

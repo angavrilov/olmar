@@ -144,8 +144,8 @@ class ReadXml_Type : public ReadXml {
   {}
 
   public:
-  void append2List(void *list, int listKind, void *datum, int datumKind);
-  void insertIntoNameMap(void *map0, int mapKind, StringRef name, void *datum, int datumKind);
+  void append2List(void *list, int listKind, void *datum);
+  void insertIntoNameMap(void *map0, int mapKind, StringRef name, void *datum);
   bool kind2kindCat0(int kind, KindCategory *kindCat);
 
   bool convertList2FakeList(ASTList<char> *list, int listKind, void **target);

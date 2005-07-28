@@ -560,7 +560,10 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
       // methods which would add a vtable and I don't think it would
       // ever be used anyway.  So I just inline it here.
       printIndentation();
-      out << "<__Name" << " name=" << quoted(name) << ">\n";
+      out << "<__Name"
+          << " name=" << quoted(name)
+          << " item=\"TY" << static_cast<void const*>(eValue)
+          << "\">\n";
       ++depth;
       bool ret = visitEnumType_Value(eValue);
       xassert(ret);
@@ -791,7 +794,10 @@ bool ToXMLTypeVisitor::visitScope_NameMap_variables(StringRefMap<Variable> &vari
 void ToXMLTypeVisitor::visitScope_NameMap_variables_entry(StringRef name, Variable *var)
 {
   printIndentation();
-  out << "<__Name" << " name=" << quoted(name) << ">\n";
+  out << "<__Name"
+      << " name=" << quoted(name)
+      << " item=\"TY" << static_cast<void const*>(var)
+      << "\">\n";
   ++depth;
   bool ret = visitVariable(var);
   xassert(ret);
@@ -817,7 +823,10 @@ bool ToXMLTypeVisitor::visitScope_NameMap_typeTags(StringRefMap<Variable> &typeT
 void ToXMLTypeVisitor::visitScope_NameMap_typeTags_entry(StringRef name, Variable *var)
 {
   printIndentation();
-  out << "<__Name" << " name=" << quoted(name) << ">\n";
+  out << "<__Name"
+      << " name=" << quoted(name)
+      << " item=\"TY" << static_cast<void const*>(var)
+      << "\">\n";
   ++depth;
   bool ret = visitVariable(var);
   xassert(ret);
@@ -928,71 +937,15 @@ void ToXMLTypeVisitor::postvisitBaseClassSubobjParentsListItem(BaseClassSubobj *
 // -------------------- ReadXml_Type -------------------
 
 //  #include "astxml_parse1_1defn.gen.cc"
-void ReadXml_Type::append2List(void *list0, int listKind, void *datum0, int datumKind) {
+void ReadXml_Type::append2List(void *list0, int listKind, void *datum0) {
   xassert(list0);
   ASTList<char> *list = static_cast<ASTList<char>*>(list0);
   char *datum = (char*)datum0;
-
-  switch(listKind) {
-  default: xfailure("attempt to append to a non-List"); break;
-
-  case XTOK_List_CompoundType_bases:
-    if (!datumKind == XTOK_BaseClass) {
-      userError("can't put that onto an List of BaseClass-es");
-    }
-    break;
-
-  case XTOK_List_CompoundType_virtualBases:
-    if (!datumKind == XTOK_BaseClassSubobj) {
-      userError("can't put that onto an List of BaseClassSubobj-es");
-    }
-    break;
-
-  case XTOK_List_FunctionType_params:
-    if (!datumKind == XTOK_Variable) {
-      userError("can't put that onto an List of Variable-es");
-    }
-    break;
-
-  case XTOK_List_CompoundType_dataMembers:
-    if (!datumKind == XTOK_Variable) {
-      userError("can't put that onto an List of Variable-es");
-    }
-    break;
-
-  case XTOK_List_CompoundType_conversionOperators:
-    if (!datumKind == XTOK_Variable) {
-      userError("can't put that onto an List of Variable-es");
-    }
-    break;
-
-  case XTOK_List_BaseClassSubobj_parents:
-    if (!datumKind == XTOK_BaseClassSubobj) {
-      userError("can't put that onto an List of BaseClassSubobj-s");
-    }
-    break;
-
-  case XTOK_List_ExnSpec_types:
-    switch(datumKind) {
-    default:
-      userError("can't put that onto an List of Type-s");
-      break;
-    case XTOK_CVAtomicType:
-    case XTOK_PointerType:
-    case XTOK_ReferenceType:
-    case XTOK_FunctionType:
-    case XTOK_ArrayType:
-    case XTOK_PointerToMemberType:
-      // ok
-    break;
-  }
-  }
-
   list->append(datum);
 }
 
 void ReadXml_Type::insertIntoNameMap
-  (void *map0, int mapKind, StringRef name, void *datum0, int datumKind) {
+  (void *map0, int mapKind, StringRef name, void *datum0) {
 
   xassert(map0);
   StringRefMap<char> *map = static_cast<StringRefMap<char>*>(map0);
@@ -1000,29 +953,6 @@ void ReadXml_Type::insertIntoNameMap
 
   if (map->get(name)) {
     userError(stringc << "duplicate name " << name << " in map");
-  }
-
-  switch(mapKind) {
-  default: xfailure("attempt to insert into to a non-Map"); break;
-
-  case XTOK_NameMap_Scope_variables:
-    if (!datumKind == XTOK_Variable) {
-      userError("can't put that into a Map of Variable-s");
-    }
-    break;
-
-  case XTOK_NameMap_Scope_typeTags:
-    if (!datumKind == XTOK_Variable) {
-      userError("can't put that into a Map of Variable-s");
-    }
-    break;
-
-  case XTOK_NameMap_EnumType_valueIndex:
-    if (!datumKind == XTOK_EnumType_Value) {
-      userError("can't put that into a Map of EnumType::Value-s");
-    }
-    break;
-
   }
 
   map->add(name, datum);

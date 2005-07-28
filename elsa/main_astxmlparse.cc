@@ -24,8 +24,8 @@ class ReadXml_AST : public ReadXml {
   {}
 
   private:
-  void append2List(void *list, int listKind, void *datum, int datumKind);
-  void insertIntoNameMap(void *map, int mapKind, StringRef name, void *datum, int datumKind);
+  void append2List(void *list, int listKind, void *datum);
+  void insertIntoNameMap(void *map, int mapKind, StringRef name, void *datum);
 
   bool kind2kindCat0(int kind, KindCategory *ret);
 
@@ -47,7 +47,7 @@ class ReadXml_AST : public ReadXml {
 };
 
 void ReadXml_AST::insertIntoNameMap
-  (void *map, int mapKind, StringRef name, void *datum, int datumKind) {
+  (void *map, int mapKind, StringRef name, void *datum) {
   xfailure("should not be called during AST parsing as there are no Maps in the AST");
 }
 
