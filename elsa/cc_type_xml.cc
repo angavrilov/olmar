@@ -61,12 +61,11 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
   if (printedObjects.contains(obj)) return false;
   printedObjects.add(obj);
 
-  printIndentation();
-
   switch(obj->getTag()) {
   default: xfailure("illegal tag");
   case Type::T_ATOMIC: {
     CVAtomicType *atom = obj->asCVAtomicType();
+    printIndentation();
     out << "<CVAtomicType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
@@ -81,6 +80,7 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
   }
   case Type::T_POINTER: {
     PointerType *ptr = obj->asPointerType();
+    printIndentation();
     out << "<PointerType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
@@ -95,6 +95,7 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
   }
   case Type::T_REFERENCE: {
     ReferenceType *ref = obj->asReferenceType();
+    printIndentation();
     out << "<ReferenceType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
@@ -106,6 +107,7 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
   }
   case Type::T_FUNCTION: {
     FunctionType *func = obj->asFunctionType();
+    printIndentation();
     out << "<FunctionType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
@@ -165,6 +167,7 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
   }
   case Type::T_ARRAY: {
     ArrayType *arr = obj->asArrayType();
+    printIndentation();
     out << "<ArrayType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
@@ -179,6 +182,7 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
   }
   case Type::T_POINTERTOMEMBER: {
     PointerToMemberType *ptm = obj->asPointerToMemberType();
+    printIndentation();
     out << "<PointerToMemberType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
@@ -375,12 +379,11 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
   if (printedObjects.contains(obj)) return false;
   printedObjects.add(obj);
 
-  printIndentation();
-
   switch(obj->getTag()) {
   default: xfailure("illegal tag");
   case AtomicType::T_SIMPLE: {
     SimpleType *simple = obj->asSimpleType();
+    printIndentation();
     out << "<SimpleType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
@@ -393,6 +396,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
 
   case AtomicType::T_COMPOUND: {
     CompoundType *cpd = obj->asCompoundType();
+    printIndentation();
     out << "<CompoundType";
     out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
     ++depth;
@@ -526,6 +530,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
 
   case AtomicType::T_ENUM: {
     EnumType *e = obj->asEnumType();
+    printIndentation();
     out << "<EnumType";
     out << " .id=\"TY" << static_cast<void const*>(e) << "\"\n";
     ++depth;
