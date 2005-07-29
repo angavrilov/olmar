@@ -1086,15 +1086,34 @@ void ToXMLTypeVisitor::postvisitSTemplateArgument(STemplateArgument *obj)
   out << "</STemplateArgument>\n";
 }
 
-// FIX: implement this
-//  bool ToXMLTypeVisitor::visitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args)
-//    { return true; }
-//  void ToXMLTypeVisitor::postvisitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args)
-//    {  }
-//  bool ToXMLTypeVisitor::visitPseudoInstantiationArgsList_item(STemplateArgument *arg)
-//    { return true; }
-//  void ToXMLTypeVisitor::postvisitPseudoInstantiationArgsList_item(STemplateArgument *arg)
-//    {  }
+
+bool ToXMLTypeVisitor::visitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args)
+{
+  printIndentation();
+  out << "<List_PseudoInstantiation_args";
+  out << " .id=\"SO" << static_cast<void const*>(&args) << "\">\n";
+  ++depth;
+  return true;
+}
+
+void ToXMLTypeVisitor::postvisitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args)
+{
+  --depth;
+  printIndentation();
+  out << "</List_PseudoInstantiation_args>\n";
+}
+
+bool ToXMLTypeVisitor::visitPseudoInstantiationArgsList_item(STemplateArgument *arg)
+{
+  startItem("TY", arg);
+  return true;
+}
+
+void ToXMLTypeVisitor::postvisitPseudoInstantiationArgsList_item(STemplateArgument *arg)
+{
+  stopItem();
+}
+
 
 // -------------------- ReadXml_Type -------------------
 

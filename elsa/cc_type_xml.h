@@ -104,6 +104,11 @@ class ToXMLTypeVisitor : public TypeVisitor {
 
   virtual bool visitSTemplateArgument(STemplateArgument *obj);
   virtual void postvisitSTemplateArgument(STemplateArgument *obj);
+
+  virtual bool visitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args);
+  virtual void postvisitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args);
+  virtual bool visitPseudoInstantiationArgsList_item(STemplateArgument *arg);
+  virtual void postvisitPseudoInstantiationArgsList_item(STemplateArgument *arg);
 };
 
 
