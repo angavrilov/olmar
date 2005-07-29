@@ -373,7 +373,6 @@ bool ToXMLTypeVisitor::visitVariable(Variable *var) {
     var->usingAlias_or_parameterizedEntity->traverse(*this);
   }
 
-  // FIX: turn this on
 //    if (var->templInfo) {
 //      var->templInfo->traverse(*this);
 //    }
@@ -878,20 +877,28 @@ void ToXMLTypeVisitor::postvisitScopeTypeTags_entry(StringRef name, Variable *va
   out << "</__Name>\n";
 }
 
-// FIX: implement these four
 bool ToXMLTypeVisitor::visitScopeTemplateParams(SObjList<Variable> &templateParams)
 {
+  printIndentation();
+  out << "<List_Scope_templateParams";
+  out << " .id=\"SO" << static_cast<void const*>(&templateParams) << "\">\n";
+  ++depth;
   return true;
 }
 void ToXMLTypeVisitor::postvisitScopeTemplateParams(SObjList<Variable> &templateParams)
 {
+  --depth;
+  printIndentation();
+  out << "</List_Scope_templateParams>\n";
 }
 bool ToXMLTypeVisitor::visitScopeTemplateParams_item(Variable *var)
 {
+  startItem("TY", var);
   return true;
 }
 void ToXMLTypeVisitor::postvisitScopeTemplateParams_item(Variable *var)
 {
+  stopItem();
 }
 
 void ToXMLTypeVisitor::toXml_BaseClass_properties(BaseClass *bc)
@@ -1427,6 +1434,9 @@ void ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
     break;
   case XTOK_List_ExnSpec_types:
     topTemp = new ASTList<Type>();
+    break;
+  case XTOK_List_Scope_templateParams:
+    topTemp = new ASTList<Variable>();
     break;
 
   // StringRefMap
