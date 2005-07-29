@@ -468,3 +468,8 @@ check: semgrep all
 	MAKE=$(MAKE) ./regrtest
 	@echo ""
 	@echo "Regression tests passed."
+
+# run the xml commutative diagram tests
+.PHONY: checkxml
+checkxml:
+	./checkxml.pl
