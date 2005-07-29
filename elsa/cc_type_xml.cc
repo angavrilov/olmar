@@ -133,6 +133,23 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     printIndentation();
     out << "exnSpec=\"TY" << static_cast<void const*>(&(func->exnSpec)) << "\">\n";
 
+
+    #if 0    // refinement possibilities ...
+      #define address(x) static_cast<void const*>(&(x))
+
+      string ref(FunctionType::ExnSpec &spec)
+      {
+        return stringc << "\"TY" << address(&spec) << "\"";
+      }
+
+      template <class T>
+      string ref(SObjList<T> &list)
+      {
+        return stringc << "\"SO" << address(&list) << "\"";
+      }
+    #endif // 0
+
+
     // **** subtags
 
     // These are not visited by default by the type visitor, so we not

@@ -583,10 +583,14 @@ void CompoundType::traverse(TypeVisitor &vis)
 
   // traverse the superclass
   Scope::traverse_internal(vis);
-
-  if (isTemplate()) {
-    templateInfo()->traverseArguments(vis);
-  }
+    
+  // 2005-07-28: Disabled because (1) I don't remember why I wanted
+  // it and it is a little weird (why not traverse the params too?), 
+  // and (2) it would interfere with XML serialization.
+  //
+  //if (isTemplate()) {
+  //  templateInfo()->traverseArguments(vis);
+  //}
 
   vis.postvisitAtomicType(this);
 }

@@ -230,6 +230,7 @@ public:    // data
   Variable * const partialInstantiationOf;      // (serf)
   SObjList<Variable> partialInstantiations;
 
+
   // bit of a hack: during type matching, I need the arguments that
   // apply to the primary (not to a partial spec); I can compute them,
   // but that requires an Env b/c it means constructing new types;
@@ -247,10 +248,11 @@ public:    // data
   // if different from the declaration
   TemplateInfo *definitionTemplateInfo;         // (nullable owner)
 
+
   // true if we have seen syntax that demands an instantiation
   // of the body, not just the declaration
   bool instantiateBody;
-  
+
   // for a template function, number of default arguments that have
   // not yet been instantiated
   int uninstantiatedDefaultArgs;
