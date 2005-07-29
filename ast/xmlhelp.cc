@@ -1,4 +1,5 @@
 #include "xmlhelp.h"            // this module
+#include <stdlib.h>             // atof, atoi
 
 string toXml_bool(bool b) {
   if (b) return "true";
