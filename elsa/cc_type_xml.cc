@@ -37,6 +37,15 @@ void fromXml(ScopeKind &out, rostring str) {
 }
 
 
+string toXml(STemplateArgument::Kind id) {
+  return stringc << static_cast<int>(id);
+}
+
+void fromXml(STemplateArgument::Kind &out, rostring str) {
+  out = static_cast<STemplateArgument::Kind>(atoi(str));
+}
+
+
 // -------------------- ToXMLTypeVisitor -------------------
 
 void ToXMLTypeVisitor::printIndentation() {
@@ -978,11 +987,104 @@ void ToXMLTypeVisitor::postvisitBaseClassSubobjParentsList_item(BaseClassSubobj 
   stopItem();
 }
 
-// FIX: implement this; it is inlined
-//  bool ToXMLTypeVisitor::visitSTemplateArgument(STemplateArgument *obj)
-//    { return true; }
-//  void ToXMLTypeVisitor::postvisitSTemplateArgument(STemplateArgument *obj)
-//    {  }
+bool ToXMLTypeVisitor::visitSTemplateArgument(STemplateArgument *obj)
+{
+  printIndentation();
+  out << "<STemplateArgument";
+  out << " .id=\"TY" << static_cast<void const*>(obj) << "\"\n";
+  ++depth;
+
+  printIndentation();
+  out << "kind=\"" << toXml(obj->kind) << "\"\n";
+
+  switch(obj->kind) {
+  default:
+    xfailure("illegal STemplateArgument kind");
+    break;
+  case STemplateArgument::STA_TYPE:
+//      Type *t;         // (serf) for STA_TYPE
+    out << "t=\"";
+    xmlPrintPointer(out, "TY", obj->value.t);
+    out << "\"\n";
+    break;
+  case STemplateArgument::STA_INT:
+//      int i;           // for STA_INT
+    printIndentation();
+    out << "i=\"" << toXml_int(obj->value.i) << "\"\n";
+    break;
+  case STemplateArgument::STA_REFERENCE:
+  case STemplateArgument::STA_POINTER:
+  case STemplateArgument::STA_MEMBER:
+//      Variable *v;     // (serf) for STA_REFERENCE, STA_POINTER, STA_MEMBER
+    out << "v=\"";
+    xmlPrintPointer(out, "TY", obj->value.v);
+    out << "\"\n";
+    break;
+  case STemplateArgument::STA_DEPEXPR:
+//      Expression *e;   // (serf) for STA_DEPEXPR
+    out << "e=\"";
+    xmlPrintPointer(out, "AST", obj->value.e);
+    out << "\"\n";
+    break;
+  case STemplateArgument::STA_TEMPLATE:
+    xfailure("template template arguments not implemented");
+    break;
+  case STemplateArgument::STA_ATOMIC:
+//      AtomicType const *at;  // (serf) for STA_ATOMIC
+    out << "at=\"";
+    xmlPrintPointer(out, "TY", obj->value.at);
+    out << "\"\n";
+    break;
+  }
+
+  printIndentation();
+  out << ">\n";
+
+  // **** subtags
+
+  // WARNING: some of these are covered in the traverse method and
+  // some are not.
+  switch(obj->kind) {
+  default:
+    xfailure("illegal STemplateArgument kind");
+    break;
+  case STemplateArgument::STA_TYPE:
+//      Type *t;         // (serf) for STA_TYPE
+    // NOTE: this is covered in the traverse method
+    break;
+  case STemplateArgument::STA_INT:
+//      int i;           // for STA_INT
+    // nothing to do
+    break;
+  case STemplateArgument::STA_REFERENCE:
+  case STemplateArgument::STA_POINTER:
+  case STemplateArgument::STA_MEMBER:
+//      Variable *v;     // (serf) for STA_REFERENCE, STA_POINTER, STA_MEMBER
+    obj->value.v->traverse(*this);
+    break;
+  case STemplateArgument::STA_DEPEXPR:
+//      Expression *e;   // (serf) for STA_DEPEXPR
+    // what the hell should we do?  the same remark is made in the
+    // traverse() method code at this point
+    break;
+  case STemplateArgument::STA_TEMPLATE:
+    xfailure("template template arguments not implemented");
+    break;
+  case STemplateArgument::STA_ATOMIC:
+//      AtomicType const *at;  // (serf) for STA_ATOMIC
+    const_cast<AtomicType*>(obj->value.at)->traverse(*this);
+    break;
+  }
+
+  return true;
+}
+
+void ToXMLTypeVisitor::postvisitSTemplateArgument(STemplateArgument *obj)
+{
+  --depth;
+  printIndentation();
+  out << "</STemplateArgument>\n";
+}
 
 // FIX: implement this
 //  bool ToXMLTypeVisitor::visitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args)

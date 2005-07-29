@@ -102,30 +102,8 @@ class ToXMLTypeVisitor : public TypeVisitor {
   virtual void toXml_NamedAtomicType_properties(NamedAtomicType *nat);
   virtual void toXml_NamedAtomicType_subtags(NamedAtomicType *nat);
 
-
-  // fail in these for now
-  virtual bool visitSTemplateArgument(STemplateArgument *obj) {
-    xfailure("implement this");
-    // FIX: make this idempotent
-    ++depth;                    // at the start
-  }
-//    virtual void postvisitSTemplateArgument(STemplateArgument *obj);
-//      --depth;                    // at the end
-
-  // FIX: why is this here at all?
-//    virtual bool visitExpression(Expression *obj) {
-//      xfailure("implement this");
-//      // FIX: make this idempotent
-//      ++depth;                    // at the start
-//    }
-//    virtual void postvisitExpression(Expression *obj);
-//      --depth;                    // at the end
-
-  // same as for types; print the name also
-//    virtual bool preVisitVariable(Variable *var);
-//      ++depth;                    // at the start
-//    virtual void postVisitVariable(Variable *var);
-//      --depth;                    // at the end
+  virtual bool visitSTemplateArgument(STemplateArgument *obj);
+  virtual void postvisitSTemplateArgument(STemplateArgument *obj);
 };
 
 
