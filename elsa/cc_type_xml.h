@@ -52,8 +52,8 @@ class ToXMLTypeVisitor : public TypeVisitor {
 
   virtual bool visitFuncParamsList(SObjList<Variable> &params);
   virtual void postvisitFuncParamsList(SObjList<Variable> &params);
-  virtual bool visitFuncParamsListItem(Variable *param);
-  virtual void postvisitFuncParamsListItem(Variable *param);
+  virtual bool visitFuncParamsList_item(Variable *param);
+  virtual void postvisitFuncParamsList_item(Variable *param);
 
   virtual bool visitVariable(Variable *var);
   virtual void postvisitVariable(Variable *var);
@@ -69,16 +69,20 @@ class ToXMLTypeVisitor : public TypeVisitor {
   virtual bool visitScope(Scope *obj);
   virtual void postvisitScope(Scope *obj);
 
-  virtual bool visitScope_NameMap_variables(StringRefMap<Variable> &variables);
-  virtual void visitScope_NameMap_variables_entry(StringRef name, Variable *var);
-  virtual void postvisitScope_NameMap_variables(StringRefMap<Variable> &variables);
+  virtual bool visitScopeVariables(StringRefMap<Variable> &variables);
+  virtual void postvisitScopeVariables(StringRefMap<Variable> &variables);
+  virtual bool visitScopeVariables_entry(StringRef name, Variable *var);
+  virtual void postvisitScopeVariables_entry(StringRef name, Variable *var);
 
-  virtual bool visitScope_NameMap_typeTags(StringRefMap<Variable> &typeTags);
-  virtual void visitScope_NameMap_typeTags_entry(StringRef name, Variable *var);
-  virtual void postvisitScope_NameMap_typeTags(StringRefMap<Variable> &typeTags);
+  virtual bool visitScopeTypeTags(StringRefMap<Variable> &typeTags);
+  virtual void postvisitScopeTypeTags(StringRefMap<Variable> &typeTags);
+  virtual bool visitScopeTypeTags_entry(StringRef name, Variable *var);
+  virtual void postvisitScopeTypeTags_entry(StringRef name, Variable *var);
 
-//    virtual bool visitScopeTemplateParams(SObjList<Variable> &templateParams);
-//    virtual void postvisitScopeTemplateParams(SObjList<Variable> &templateParams);
+  virtual bool visitScopeTemplateParams(SObjList<Variable> &templateParams);
+  virtual void postvisitScopeTemplateParams(SObjList<Variable> &templateParams);
+  virtual bool visitScopeTemplateParams_item(Variable *var);
+  virtual void postvisitScopeTemplateParams_item(Variable *var);
 
   virtual void toXml_BaseClass_properties(BaseClass *bc);
 
@@ -90,8 +94,8 @@ class ToXMLTypeVisitor : public TypeVisitor {
 
   virtual bool visitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents);
   virtual void postvisitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents);
-  virtual bool visitBaseClassSubobjParentsListItem(BaseClassSubobj *parents);
-  virtual void postvisitBaseClassSubobjParentsListItem(BaseClassSubobj *parents);
+  virtual bool visitBaseClassSubobjParentsList_item(BaseClassSubobj *parents);
+  virtual void postvisitBaseClassSubobjParentsList_item(BaseClassSubobj *parents);
 
   // factor out the commonality of the atomic types that inherit from
   // NamedAtomicType
@@ -108,11 +112,12 @@ class ToXMLTypeVisitor : public TypeVisitor {
 //    virtual void postvisitSTemplateArgument(STemplateArgument *obj);
 //      --depth;                    // at the end
 
-  virtual bool visitExpression(Expression *obj) {
-    xfailure("implement this");
-    // FIX: make this idempotent
-    ++depth;                    // at the start
-  }
+  // FIX: why is this here at all?
+//    virtual bool visitExpression(Expression *obj) {
+//      xfailure("implement this");
+//      // FIX: make this idempotent
+//      ++depth;                    // at the start
+//    }
 //    virtual void postvisitExpression(Expression *obj);
 //      --depth;                    // at the end
 

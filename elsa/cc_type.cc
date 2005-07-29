@@ -38,9 +38,9 @@ bool TypeVisitor::visitFuncParamsList(SObjList<Variable> &params)
   { return true; }
 void TypeVisitor::postvisitFuncParamsList(SObjList<Variable> &params)
   { }
-bool TypeVisitor::visitFuncParamsListItem(Variable *param)
+bool TypeVisitor::visitFuncParamsList_item(Variable *param)
   { return true; }
-void TypeVisitor::postvisitFuncParamsListItem(Variable *param)
+void TypeVisitor::postvisitFuncParamsList_item(Variable *param)
   { }
 
 bool TypeVisitor::visitVariable(Variable *var)
@@ -65,16 +65,29 @@ void TypeVisitor::postvisitScope(Scope *obj)
 
 bool TypeVisitor::visitScopeVariables(StringRefMap<Variable> &variables)
   { return true; }
-void TypeVisitor::visitScopeVariables_entry(StringRef name, Variable *var)
-  {  }
 void TypeVisitor::postvisitScopeVariables(StringRefMap<Variable> &variables)
+  {  }
+bool TypeVisitor::visitScopeVariables_entry(StringRef name, Variable *var)
+  { return true; }
+void TypeVisitor::postvisitScopeVariables_entry(StringRef name, Variable *var)
   {  }
 
 bool TypeVisitor::visitScopeTypeTags(StringRefMap<Variable> &typeTags)
   { return true; }
-void TypeVisitor::visitScopeTypeTags_entry(StringRef name, Variable *var)
-  {  }
 void TypeVisitor::postvisitScopeTypeTags(StringRefMap<Variable> &typeTags)
+  {  }
+bool TypeVisitor::visitScopeTypeTags_entry(StringRef name, Variable *var)
+  { return true; }
+void TypeVisitor::postvisitScopeTypeTags_entry(StringRef name, Variable *var)
+  {  }
+
+bool TypeVisitor::visitScopeTemplateParams(SObjList<Variable> &templateParams)
+  { return true; }
+void TypeVisitor::postvisitScopeTemplateParams(SObjList<Variable> &templateParams)
+  {  }
+bool TypeVisitor::visitScopeTemplateParams_item(Variable *var)
+  { return true; }
+void TypeVisitor::postvisitScopeTemplateParams_item(Variable *var)
   {  }
 
 bool TypeVisitor::visitBaseClass(BaseClass *bc)
@@ -91,14 +104,32 @@ bool TypeVisitor::visitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &par
   { return true; }
 void TypeVisitor::postvisitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents)
   {  }
-bool TypeVisitor::visitBaseClassSubobjParentsListItem(BaseClassSubobj *parent)
+bool TypeVisitor::visitBaseClassSubobjParentsList_item(BaseClassSubobj *parent)
   { return true; }
-void TypeVisitor::postvisitBaseClassSubobjParentsListItem(BaseClassSubobj *parent)
+void TypeVisitor::postvisitBaseClassSubobjParentsList_item(BaseClassSubobj *parent)
   {  }
 
 bool TypeVisitor::visitSTemplateArgument(STemplateArgument *obj)
   { return true; }
 void TypeVisitor::postvisitSTemplateArgument(STemplateArgument *obj)
+  {  }
+
+bool TypeVisitor::visitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args)
+  { return true; }
+void TypeVisitor::postvisitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args)
+  {  }
+bool TypeVisitor::visitPseudoInstantiationArgsList_item(STemplateArgument *arg)
+  { return true; }
+void TypeVisitor::postvisitPseudoInstantiationArgsList_item(STemplateArgument *arg)
+  {  }
+
+bool TypeVisitor::visitDependentQTypePQTArgsList(ObjList<STemplateArgument> &list)
+  { return true; }
+void TypeVisitor::postvisitDependentQTypePQTArgsList(ObjList<STemplateArgument> &list)
+  {  }
+bool TypeVisitor::visitDependentQTypePQTArgsList_item(STemplateArgument *sta)
+  { return true; }
+void TypeVisitor::postvisitDependentQTypePQTArgsList_item(STemplateArgument *sta)
   {  }
 
 bool TypeVisitor::visitExpression(Expression *obj)
@@ -360,9 +391,9 @@ void BaseClassSubobj::traverse(TypeVisitor &vis)
   if (vis.visitBaseClassSubobjParentsList(parents)) {
     SFOREACH_OBJLIST_NC(BaseClassSubobj, parents, iter) {
       BaseClassSubobj *parent = iter.data();
-      if (vis.visitBaseClassSubobjParentsListItem(parent)) {
+      if (vis.visitBaseClassSubobjParentsList_item(parent)) {
         parent->traverse(vis);
-        vis.postvisitBaseClassSubobjParentsListItem(parent);
+        vis.postvisitBaseClassSubobjParentsList_item(parent);
       }
     }
     vis.postvisitBaseClassSubobjParentsList(parents);
@@ -2214,9 +2245,9 @@ void FunctionType::traverse(TypeVisitor &vis)
 //        iter.data()->type->traverse(vis);
       // dsw: we now traverse the variable directly; the above comment
       // should probably be moved into Variable::traverse()
-      if (vis.visitFuncParamsListItem(iter.data())) {
+      if (vis.visitFuncParamsList_item(iter.data())) {
         iter.data()->traverse(vis);
-        vis.postvisitFuncParamsListItem(iter.data());
+        vis.postvisitFuncParamsList_item(iter.data());
       }
     }
     vis.postvisitFuncParamsList(params);

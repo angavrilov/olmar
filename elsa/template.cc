@@ -161,8 +161,15 @@ void PseudoInstantiation::traverse(TypeVisitor &vis)
 
   primary->traverse(vis);
   
-  FOREACH_OBJLIST_NC(STemplateArgument, args, iter) {
-    iter.data()->traverse(vis);
+  if (vis.visitPseudoInstantiationArgsList(args)) {
+    FOREACH_OBJLIST_NC(STemplateArgument, args, iter) {
+      STemplateArgument *arg = iter.data();
+      if (vis.visitPseudoInstantiationArgsList_item(arg)) {
+        arg->traverse(vis);
+        vis.postvisitPseudoInstantiationArgsList_item(arg);
+      }
+    }
+    vis.postvisitPseudoInstantiationArgsList(args);
   }
 
   vis.postvisitAtomicType(this);
@@ -212,8 +219,15 @@ int DependentQType::reprSize() const
   
 void traverseTargs(TypeVisitor &vis, ObjList<STemplateArgument> &list)
 {
-  FOREACH_OBJLIST_NC(STemplateArgument, list, iter) {
-    iter.data()->traverse(vis);
+  if (vis.visitDependentQTypePQTArgsList(list)) {
+    FOREACH_OBJLIST_NC(STemplateArgument, list, iter) {
+      STemplateArgument *sta = iter.data();
+      if (vis.visitDependentQTypePQTArgsList_item(sta)) {
+        sta->traverse(vis);
+        vis.postvisitDependentQTypePQTArgsList_item(sta);
+      }
+    }
+    vis.postvisitDependentQTypePQTArgsList(list);
   }
 }
 

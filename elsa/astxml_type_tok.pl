@@ -132,6 +132,7 @@ ct
 variables
 typeTags
 parents
+templateParams
 
 # Some containers; I no longer care about order
 #   ObjList

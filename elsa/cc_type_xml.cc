@@ -245,12 +245,12 @@ void ToXMLTypeVisitor::postvisitFuncParamsList(SObjList<Variable> &params) {
   out << "</List_FunctionType_params>\n";
 }
 
-bool ToXMLTypeVisitor::visitFuncParamsListItem(Variable *param) {
+bool ToXMLTypeVisitor::visitFuncParamsList_item(Variable *param) {
   startItem("TY", param);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitFuncParamsListItem(Variable *param) {
+void ToXMLTypeVisitor::postvisitFuncParamsList_item(Variable *param) {
   stopItem();
 }
 
@@ -325,8 +325,10 @@ bool ToXMLTypeVisitor::visitVariable(Variable *var) {
         << "\"\n";
   }
 
-//    TemplateInfo *templInfo;      // (owner)
-//    FIX: Ugh.
+  if (var->templInfo) {
+    printIndentation();
+    out << "templInfo=\"TY" << static_cast<void const*>(var->templInfo) << "\"\n";
+  }
 
   // FIX: remove this when we do the above attributes
   printIndentation();
@@ -335,19 +337,37 @@ bool ToXMLTypeVisitor::visitVariable(Variable *var) {
   // **** subtags
 
   // These are not visited by default by the type visitor, so we not
-  // only have to print the id we have to print the tree.
+  // only have to print the id we have to print the tree.  NOTE:
+  // 'type' is done by the visitor.
+
+  // this is AST so I assume it was traversed already
+//    if (var->value) {
+//      var->value->traverse(*this);
+//    }
 
   if (var->defaultParamType) {
     var->defaultParamType->traverse(*this);
+  }
+
+  // this is AST so I assume it was traversed already
+//    if (var->funcDefn) {
+//      var->funcDefn->traverse(*this);
+//    }
+
+  // skipping 'overload'; see above
+
+  if (var->scope) {
+    var->scope->traverse(*this);
   }
 
   if (var->usingAlias_or_parameterizedEntity) {
     var->usingAlias_or_parameterizedEntity->traverse(*this);
   }
 
-  if (var->scope) {
-    var->scope->traverse(*this);
-  }
+  // FIX: turn this on
+//    if (var->templInfo) {
+//      var->templInfo->traverse(*this);
+//    }
 
   return true;
 }
@@ -747,9 +767,8 @@ void ToXMLTypeVisitor::toXml_Scope_properties(Scope *scope)
   printIndentation();
   out << "namespaceVar=\"TY" << static_cast<void const*>(scope->namespaceVar) << "\"\n";
 
-  // FIX: do this when we do templates
-//    printIndentation();
-//    out << "templateParams=\"SO" << static_cast<void const*>(&(scope->templateParams)) << "\"\n";
+  printIndentation();
+  out << "templateParams=\"SO" << static_cast<void const*>(&(scope->templateParams)) << "\"\n";
 
   printIndentation();
   out << "curCompound=\"TY" << static_cast<void const*>(scope->curCompound) << "\"\n";
@@ -788,7 +807,7 @@ void ToXMLTypeVisitor::postvisitScope(Scope *scope)
   out << "</Scope>\n";
 }
 
-bool ToXMLTypeVisitor::visitScope_NameMap_variables(StringRefMap<Variable> &variables)
+bool ToXMLTypeVisitor::visitScopeVariables(StringRefMap<Variable> &variables)
 {
   printIndentation();
   out << "<NameMap_Scope_variables";
@@ -796,7 +815,13 @@ bool ToXMLTypeVisitor::visitScope_NameMap_variables(StringRefMap<Variable> &vari
   ++depth;
   return true;
 }
-void ToXMLTypeVisitor::visitScope_NameMap_variables_entry(StringRef name, Variable *var)
+void ToXMLTypeVisitor::postvisitScopeVariables(StringRefMap<Variable> &variables)
+{
+  --depth;
+  printIndentation();
+  out << "</NameMap_Scope_variables>\n";
+}
+bool ToXMLTypeVisitor::visitScopeVariables_entry(StringRef name, Variable *var)
 {
   printIndentation();
   out << "<__Name"
@@ -804,20 +829,16 @@ void ToXMLTypeVisitor::visitScope_NameMap_variables_entry(StringRef name, Variab
       << " item=\"TY" << static_cast<void const*>(var)
       << "\">\n";
   ++depth;
-  bool ret = visitVariable(var);
-  xassert(ret);
-  postvisitVariable(var);
-  --depth;
-  out << "</__Name>\n";
+  return true;
 }
-void ToXMLTypeVisitor::postvisitScope_NameMap_variables(StringRefMap<Variable> &variables)
+void ToXMLTypeVisitor::postvisitScopeVariables_entry(StringRef name, Variable *var)
 {
   --depth;
   printIndentation();
-  out << "</NameMap_Scope_variables>\n";
+  out << "</__Name>\n";
 }
 
-bool ToXMLTypeVisitor::visitScope_NameMap_typeTags(StringRefMap<Variable> &typeTags)
+bool ToXMLTypeVisitor::visitScopeTypeTags(StringRefMap<Variable> &typeTags)
 {
   printIndentation();
   out << "<NameMap_Scope_typeTags";
@@ -825,7 +846,13 @@ bool ToXMLTypeVisitor::visitScope_NameMap_typeTags(StringRefMap<Variable> &typeT
   ++depth;
   return true;
 }
-void ToXMLTypeVisitor::visitScope_NameMap_typeTags_entry(StringRef name, Variable *var)
+void ToXMLTypeVisitor::postvisitScopeTypeTags(StringRefMap<Variable> &typeTags)
+{
+  --depth;
+  printIndentation();
+  out << "</NameMap_Scope_typeTags>\n";
+}
+bool ToXMLTypeVisitor::visitScopeTypeTags_entry(StringRef name, Variable *var)
 {
   printIndentation();
   out << "<__Name"
@@ -833,17 +860,29 @@ void ToXMLTypeVisitor::visitScope_NameMap_typeTags_entry(StringRef name, Variabl
       << " item=\"TY" << static_cast<void const*>(var)
       << "\">\n";
   ++depth;
-  bool ret = visitVariable(var);
-  xassert(ret);
-  postvisitVariable(var);
-  --depth;
-  out << "</__Name>\n";
+  return true;
 }
-void ToXMLTypeVisitor::postvisitScope_NameMap_typeTags(StringRefMap<Variable> &typeTags)
+void ToXMLTypeVisitor::postvisitScopeTypeTags_entry(StringRef name, Variable *var)
 {
   --depth;
   printIndentation();
-  out << "</NameMap_Scope_typeTags>\n";
+  out << "</__Name>\n";
+}
+
+// FIX: implement these four
+bool ToXMLTypeVisitor::visitScopeTemplateParams(SObjList<Variable> &templateParams)
+{
+  return true;
+}
+void ToXMLTypeVisitor::postvisitScopeTemplateParams(SObjList<Variable> &templateParams)
+{
+}
+bool ToXMLTypeVisitor::visitScopeTemplateParams_item(Variable *var)
+{
+  return true;
+}
+void ToXMLTypeVisitor::postvisitScopeTemplateParams_item(Variable *var)
+{
 }
 
 void ToXMLTypeVisitor::toXml_BaseClass_properties(BaseClass *bc)
@@ -928,16 +967,32 @@ void ToXMLTypeVisitor::postvisitBaseClassSubobjParentsList(SObjList<BaseClassSub
   out << "</List_BaseClassSubobj_parents>\n";
 }
 
-bool ToXMLTypeVisitor::visitBaseClassSubobjParentsListItem(BaseClassSubobj *parent)
+bool ToXMLTypeVisitor::visitBaseClassSubobjParentsList_item(BaseClassSubobj *parent)
 {
   startItem("TY", parent);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitBaseClassSubobjParentsListItem(BaseClassSubobj *parent)
+void ToXMLTypeVisitor::postvisitBaseClassSubobjParentsList_item(BaseClassSubobj *parent)
 {
   stopItem();
 }
+
+// FIX: implement this; it is inlined
+//  bool ToXMLTypeVisitor::visitSTemplateArgument(STemplateArgument *obj)
+//    { return true; }
+//  void ToXMLTypeVisitor::postvisitSTemplateArgument(STemplateArgument *obj)
+//    {  }
+
+// FIX: implement this
+//  bool ToXMLTypeVisitor::visitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args)
+//    { return true; }
+//  void ToXMLTypeVisitor::postvisitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args)
+//    {  }
+//  bool ToXMLTypeVisitor::visitPseudoInstantiationArgsList_item(STemplateArgument *arg)
+//    { return true; }
+//  void ToXMLTypeVisitor::postvisitPseudoInstantiationArgsList_item(STemplateArgument *arg)
+//    {  }
 
 // -------------------- ReadXml_Type -------------------
 
@@ -1833,7 +1888,11 @@ bool ReadXml_Type::registerAttr_Scope_super
                      parseQuotedString(strValue)));
     break;
 
-  // templateParams
+  case XTOK_templateParams:
+    linkSat.unsatLinks.append
+      (new UnsatLink((void**) &(obj->templateParams),
+                     parseQuotedString(strValue)));
+    break;
 
   case XTOK_curCompound:
     linkSat.unsatLinks.append

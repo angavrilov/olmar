@@ -1366,8 +1366,10 @@ void Scope::traverse_internal(TypeVisitor &vis)
         iter.adv()) {
       StringRef name = iter.key();
       Variable *var = iter.value();
-      vis.visitScopeVariables_entry(name, var);
-      var->traverse(vis);
+      if (vis.visitScopeVariables_entry(name, var)) {
+        var->traverse(vis);
+        vis.postvisitScopeVariables_entry(name, var);
+      }
     }
     vis.postvisitScopeVariables(variables);
   }
@@ -1378,8 +1380,10 @@ void Scope::traverse_internal(TypeVisitor &vis)
         iter.adv()) {
       StringRef name = iter.key();
       Variable *var = iter.value();
-      vis.visitScopeTypeTags_entry(name, var);
-      var->traverse(vis);
+      if (vis.visitScopeTypeTags_entry(name, var)) {
+        var->traverse(vis);
+        vis.postvisitScopeTypeTags_entry(name, var);
+      }
     }
     vis.postvisitScopeTypeTags(typeTags);
   }
@@ -1391,14 +1395,16 @@ void Scope::traverse_internal(TypeVisitor &vis)
     namespaceVar->traverse(vis);
   }
 
-  // turn this on when we do templates
-//    if (vis.visitScopeTemplateParams(this)) {
-//      SFOREACH_OBJLIST_NC(Variable, templateParams, iter) {
-//        Variable *var = iter.data();
-//        var->traverse(vis);
-//      }
-//      vis.postvisitScopeTemplateParams(this);
-//    }
+  if (vis.visitScopeTemplateParams(templateParams)) {
+    SFOREACH_OBJLIST_NC(Variable, templateParams, iter) {
+      Variable *var = iter.data();
+      if (vis.visitScopeTemplateParams_item(var)) {
+        var->traverse(vis);
+        vis.postvisitScopeTemplateParams_item(var);
+      }
+    }
+    vis.postvisitScopeTemplateParams(templateParams);
+  }
 
   // I don't think I need this; see Scott's comments in the scope
   // class

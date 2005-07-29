@@ -90,8 +90,8 @@ public:
 
   virtual bool visitFuncParamsList(SObjList<Variable> &params);
   virtual void postvisitFuncParamsList(SObjList<Variable> &params);
-  virtual bool visitFuncParamsListItem(Variable *param);
-  virtual void postvisitFuncParamsListItem(Variable *param);
+  virtual bool visitFuncParamsList_item(Variable *param);
+  virtual void postvisitFuncParamsList_item(Variable *param);
 
   virtual bool visitVariable(Variable *var);
   virtual void postvisitVariable(Variable *var);
@@ -115,12 +115,19 @@ public:
   virtual void postvisitScope(Scope *obj);
 
   virtual bool visitScopeVariables(StringRefMap<Variable> &variables);
-  virtual void visitScopeVariables_entry(StringRef name, Variable *var);
   virtual void postvisitScopeVariables(StringRefMap<Variable> &variables);
+  virtual bool visitScopeVariables_entry(StringRef name, Variable *var);
+  virtual void postvisitScopeVariables_entry(StringRef name, Variable *var);
 
   virtual bool visitScopeTypeTags(StringRefMap<Variable> &typeTags);
-  virtual void visitScopeTypeTags_entry(StringRef name, Variable *var);
   virtual void postvisitScopeTypeTags(StringRefMap<Variable> &typeTags);
+  virtual bool visitScopeTypeTags_entry(StringRef name, Variable *var);
+  virtual void postvisitScopeTypeTags_entry(StringRef name, Variable *var);
+
+  virtual bool visitScopeTemplateParams(SObjList<Variable> &templateParams);
+  virtual void postvisitScopeTemplateParams(SObjList<Variable> &templateParams);
+  virtual bool visitScopeTemplateParams_item(Variable *var);
+  virtual void postvisitScopeTemplateParams_item(Variable *var);
 
   virtual bool visitBaseClass(BaseClass *bc);
   virtual void postvisitBaseClass(BaseClass *bc);
@@ -130,11 +137,21 @@ public:
 
   virtual bool visitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents);
   virtual void postvisitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents);
-  virtual bool visitBaseClassSubobjParentsListItem(BaseClassSubobj *parent);
-  virtual void postvisitBaseClassSubobjParentsListItem(BaseClassSubobj *parent);
+  virtual bool visitBaseClassSubobjParentsList_item(BaseClassSubobj *parent);
+  virtual void postvisitBaseClassSubobjParentsList_item(BaseClassSubobj *parent);
 
   virtual bool visitSTemplateArgument(STemplateArgument *obj);
   virtual void postvisitSTemplateArgument(STemplateArgument *obj);
+
+  virtual bool visitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args);
+  virtual void postvisitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args);
+  virtual bool visitPseudoInstantiationArgsList_item(STemplateArgument *arg);
+  virtual void postvisitPseudoInstantiationArgsList_item(STemplateArgument *arg);
+
+  virtual bool visitDependentQTypePQTArgsList(ObjList<STemplateArgument> &list);
+  virtual void postvisitDependentQTypePQTArgsList(ObjList<STemplateArgument> &list);
+  virtual bool visitDependentQTypePQTArgsList_item(STemplateArgument *sta);
+  virtual void postvisitDependentQTypePQTArgsList_item(STemplateArgument *sta);
 
   // note that this call is always a leaf in the traversal; the type
   // visitor does *not* dig into Expressions (though of course you can
