@@ -99,10 +99,14 @@ for my $name(@names) {
     eval {
         run_command("$parser -tr no-elaborate,prettyPrint $name | ./chop_out",
                     "$outname.B0.cc");
+#          run_command("$parser -tr no-elaborate,printAST $name | ./filter_loc.pl",
+#                      "$outname.B0.cc");
         run_command("$parser -tr no-elaborate,xmlPrintAST,xmlPrintAST-indent $name | ./chop_out",
                     "$outname.B1.xml");
         run_command("$parser -tr no-elaborate,parseXml,prettyPrint $outname.B1.xml | ./chop_out",
                     "$outname.B2.xml.cc");
+#          run_command("$parser -tr no-elaborate,parseXml,printAST $outname.B1.xml | ./filter_loc.pl",
+#                      "$outname.B2.xml.cc");
     };
     if ($@) {
         dump_outfiles() if $verbose;
