@@ -227,7 +227,7 @@ class ReadXml {
     (StringRefMap<char> *map, int mapKind, void *target) = 0;
 
   // construct a node for a tag; returns true if it was a closeTag
-  virtual void ctorNodeFromTag(int tag, void *&topTemp) = 0;
+  virtual void *ctorNodeFromTag(int tag) = 0;
   // register an attribute into the current node
   virtual void registerAttribute(void *target, int kind, int attr, char const *yytext0) = 0;
 };

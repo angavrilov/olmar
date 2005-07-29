@@ -312,7 +312,7 @@ void ReadXml::parseOneTag() {
   bool sawOpenTag = true;
   switch(tag) {
   default:
-    ctorNodeFromTag(tag, topTemp);
+    topTemp = ctorNodeFromTag(tag);
     break;
   // Slash: start of a close tag
   case XTOK_SLASH:

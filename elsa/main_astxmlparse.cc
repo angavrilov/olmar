@@ -38,7 +38,7 @@ class ReadXml_AST : public ReadXml {
   bool convertNameMap2StringSObjDict
     (StringRefMap<char> *map, int mapKind, void *target);
 
-  void ctorNodeFromTag(int tag, void *&topTemp);
+  void *ctorNodeFromTag(int tag);
   void registerAttribute(void *target, int kind, int attr, char const *yytext0);
 
 //    // INSERT per ast node
@@ -73,7 +73,7 @@ bool ReadXml_AST::convertNameMap2StringSObjDict(StringRefMap<char> *map, int map
   return false;
 }
 
-void ReadXml_AST::ctorNodeFromTag(int tag, void *&topTemp) {
+void *ReadXml_AST::ctorNodeFromTag(int tag) {
   switch(tag) {
   default: userError("unexpected token while looking for an open tag name");
   case 0: userError("unexpected file termination while looking for an open tag name");

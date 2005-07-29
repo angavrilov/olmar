@@ -145,7 +145,7 @@ class ReadXml_Type : public ReadXml {
   bool convertNameMap2StringSObjDict
     (StringRefMap<char> *map, int mapKind, void *target);
 
-  void ctorNodeFromTag(int tag, void *&topTemp);
+  void *ctorNodeFromTag(int tag);
   void registerAttribute(void *target, int kind, int attr, char const *yytext0);
 
   private:

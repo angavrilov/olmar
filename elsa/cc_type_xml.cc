@@ -1047,127 +1047,61 @@ bool ReadXml_Type::convertNameMap2StringSObjDict
   return true;
 }
 
-void ReadXml_Type::ctorNodeFromTag(int tag, void *&topTemp) {
+void *ReadXml_Type::ctorNodeFromTag(int tag) {
   switch(tag) {
   default: userError("unexpected token while looking for an open tag name");
   case 0: userError("unexpected file termination while looking for an open tag name");
 
   // **** Types
-  case XTOK_CVAtomicType:
-    topTemp = new CVAtomicType((AtomicType*)0, (CVFlags)0);
-    break;
-
-  case XTOK_PointerType:
-    topTemp = new PointerType((CVFlags)0, (Type*)0);
-    break;
-
-  case XTOK_ReferenceType:
-    topTemp = new ReferenceType((Type*)0);
-    break;
-
-  case XTOK_FunctionType:
-    topTemp = new FunctionType((Type*)0);
-    break;
-
-  case XTOK_FunctionType_ExnSpec:
-    topTemp = new FunctionType::ExnSpec();
-    break;
-
-  case XTOK_ArrayType:
-    topTemp = new ArrayType((ReadXML&)*this); // call the special ctor
-    break;
-
+  case XTOK_CVAtomicType: return new CVAtomicType((AtomicType*)0, (CVFlags)0);
+  case XTOK_PointerType: return new PointerType((CVFlags)0, (Type*)0);
+  case XTOK_ReferenceType: return new ReferenceType((Type*)0);
+  case XTOK_FunctionType: return new FunctionType((Type*)0);
+  case XTOK_FunctionType_ExnSpec: return new FunctionType::ExnSpec();
+  case XTOK_ArrayType: return new ArrayType((ReadXML&)*this); // call the special ctor
   case XTOK_PointerToMemberType:
-    topTemp = new PointerToMemberType((NamedAtomicType*)0, (CVFlags)0, (Type*)0);
-    break;
+    return new PointerToMemberType((NamedAtomicType*)0, (CVFlags)0, (Type*)0);
 
   // **** Atomic Types
-  case XTOK_SimpleType:
-    // NOTE: this really should go through the SimpleTyp::fixed array
-    topTemp = new SimpleType((SimpleTypeId)0);
-    break;
-
-  case XTOK_CompoundType:
-    topTemp = new CompoundType((CompoundType::Keyword)0, (StringRef)0);
-    break;
-
-  case XTOK_EnumType:
-    topTemp = new EnumType((StringRef)0);
-    break;
-
+  // NOTE: this really should go through the SimpleTyp::fixed array
+  case XTOK_SimpleType: return new SimpleType((SimpleTypeId)0);
+  case XTOK_CompoundType: return new CompoundType((CompoundType::Keyword)0, (StringRef)0);
+  case XTOK_EnumType: return new EnumType((StringRef)0);
   case XTOK_EnumType_Value:
-    topTemp = new EnumType::Value((StringRef)0, (EnumType*)0, (int)0, (Variable*)0);
-    break;
-
-  case XTOK_TypeVariable:
-    topTemp = new TypeVariable((StringRef)0);
-    break;
-
-  case XTOK_PseudoInstantiation:
-    topTemp = new PseudoInstantiation((CompoundType*)0);
-    break;
-
-  case XTOK_DependentQType:
-    topTemp = new DependentQType((AtomicType*)0);
-    break;
+    return new EnumType::Value((StringRef)0, (EnumType*)0, (int)0, (Variable*)0);
+  case XTOK_TypeVariable: return new TypeVariable((StringRef)0);
+  case XTOK_PseudoInstantiation: return new PseudoInstantiation((CompoundType*)0);
+  case XTOK_DependentQType: return new DependentQType((AtomicType*)0);
 
   // **** Other
-  case XTOK_Variable:
-    topTemp = new Variable((ReadXML&)*this); // call the special ctor
-    break;
-  case XTOK_Scope:
-    topTemp = new Scope((ReadXML&)*this); // call the special ctor
-    break;
-  case XTOK_BaseClass:
-    topTemp = new BaseClass((CompoundType*)0, (AccessKeyword)0, (bool)0);
-    break;
+  case XTOK_Variable: return new Variable((ReadXML&)*this);// call the special ctor
+  case XTOK_Scope: return new Scope((ReadXML&)*this); // call the special ctor
+  case XTOK_BaseClass: return new BaseClass((CompoundType*)0, (AccessKeyword)0, (bool)0);
   case XTOK_BaseClassSubobj:
     // NOTE: special; FIX: should I make the BaseClass on the heap and
     // then delete it?  I'm not sure if the compiler is going to be
     // able to tell that even though it is passed by reference to the
     // BaseClassSubobj that it is not kept there and therefore can be
     // deleted at the end of the full expression.
-    topTemp = new BaseClassSubobj(BaseClass((CompoundType*)0, (AccessKeyword)0, (bool)0));
-    break;
+    return new BaseClassSubobj(BaseClass((CompoundType*)0, (AccessKeyword)0, (bool)0));
 
   // **** Containers
   // ObjList
-  case XTOK_List_CompoundType_bases:
-    topTemp = new ASTList<BaseClass>();
-    break;
-  case XTOK_List_CompoundType_virtualBases:
-    topTemp = new ASTList<BaseClassSubobj>();
-    break;
+  case XTOK_List_CompoundType_bases: return new ASTList<BaseClass>();
+  case XTOK_List_CompoundType_virtualBases: return new ASTList<BaseClassSubobj>();
+
   // SObjList
-  case XTOK_List_FunctionType_params:
-    topTemp = new ASTList<Variable>();
-    break;
-  case XTOK_List_CompoundType_dataMembers:
-    topTemp = new ASTList<Variable>();
-    break;
-  case XTOK_List_CompoundType_conversionOperators:
-    topTemp = new ASTList<Variable>();
-    break;
-  case XTOK_List_BaseClassSubobj_parents:
-    topTemp = new ASTList<BaseClassSubobj>();
-    break;
-  case XTOK_List_ExnSpec_types:
-    topTemp = new ASTList<Type>();
-    break;
-  case XTOK_List_Scope_templateParams:
-    topTemp = new ASTList<Variable>();
-    break;
+  case XTOK_List_FunctionType_params: return new ASTList<Variable>();
+  case XTOK_List_CompoundType_dataMembers: return new ASTList<Variable>();
+  case XTOK_List_CompoundType_conversionOperators: return new ASTList<Variable>();
+  case XTOK_List_BaseClassSubobj_parents: return new ASTList<BaseClassSubobj>();
+  case XTOK_List_ExnSpec_types: return new ASTList<Type>();
+  case XTOK_List_Scope_templateParams: return new ASTList<Variable>();
 
   // StringRefMap
-  case XTOK_NameMap_Scope_variables:
-    topTemp = new StringRefMap<Variable>();
-    break;
-  case XTOK_NameMap_Scope_typeTags:
-    topTemp = new StringRefMap<Variable>();
-    break;
-  case XTOK_NameMap_EnumType_valueIndex:
-    topTemp = new StringRefMap<EnumType::Value>();
-    break;
+  case XTOK_NameMap_Scope_variables: return new StringRefMap<Variable>();
+  case XTOK_NameMap_Scope_typeTags: return new StringRefMap<Variable>();
+  case XTOK_NameMap_EnumType_valueIndex: return new StringRefMap<EnumType::Value>();
 
 //  #include "astxml_parse1_2ctrc.gen.cc"
   }
