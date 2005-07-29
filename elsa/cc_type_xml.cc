@@ -60,6 +60,13 @@ do { \
 #define openTag(NAME, PREFIX, OBJ) openTag0(NAME, PREFIX, OBJ, "")
 #define openTagWhole(NAME, PREFIX, OBJ) openTag0(NAME, PREFIX, OBJ, ">")
 
+#define closeTag(NAME) \
+do { \
+  --depth; \
+  printIndentation(); \
+  out << "</" #NAME ">\n"; \
+} while(0)
+
 #define trav(TARGET) \
 do { \
   if (TARGET) { \
@@ -87,34 +94,27 @@ do { \
 string toXml(CompoundType::Keyword id) {
   return stringc << static_cast<int>(id);
 }
-
 void fromXml(CompoundType::Keyword &out, rostring str) {
   out = static_cast<CompoundType::Keyword>(atoi(str));
 }
 
-
 string toXml(FunctionFlags id) {
   return stringc << static_cast<int>(id);
 }
-
 void fromXml(FunctionFlags &out, rostring str) {
   out = static_cast<FunctionFlags>(atoi(str));
 }
 
-
 string toXml(ScopeKind id) {
   return stringc << static_cast<int>(id);
 }
-
 void fromXml(ScopeKind &out, rostring str) {
   out = static_cast<ScopeKind>(atoi(str));
 }
 
-
 string toXml(STemplateArgument::Kind id) {
   return stringc << static_cast<int>(id);
 }
-
 void fromXml(STemplateArgument::Kind &out, rostring str) {
   out = static_cast<STemplateArgument::Kind>(atoi(str));
 }
@@ -133,11 +133,8 @@ void ToXMLTypeVisitor::startItem(rostring prefix, void const *ptr) {
   out << "<__Item item=\"" << prefix << addr(ptr) << "\">\n";
   ++depth;
 }
-
 void ToXMLTypeVisitor::stopItem() {
-  --depth;
-  printIndentation();
-  out << "</__Item>\n";
+  closeTag(__Item);
 }
 
 bool ToXMLTypeVisitor::visitType(Type *obj) {
@@ -146,6 +143,7 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
 
   switch(obj->getTag()) {
   default: xfailure("illegal tag");
+
   case Type::T_ATOMIC: {
     CVAtomicType *atom = obj->asCVAtomicType();
     openTag(CVAtomicType, "TY", obj);
@@ -153,6 +151,7 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     printXmlDone(cv, atom->cv);
     break;
   }
+
   case Type::T_POINTER: {
     PointerType *ptr = obj->asPointerType();
     openTag(PointerType, "TY", obj);
@@ -160,12 +159,14 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     printPtrDone(atType, ptr->atType, "TY");
     break;
   }
+
   case Type::T_REFERENCE: {
     ReferenceType *ref = obj->asReferenceType();
     openTag(ReferenceType, "TY", obj);
     printPtrDone(atType, ref->atType, "TY");
     break;
   }
+
   case Type::T_FUNCTION: {
     FunctionType *func = obj->asFunctionType();
     openTag(FunctionType, "TY", obj);
@@ -173,9 +174,7 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     printPtr(retType, func->retType, "TY");
     printPtr(params, &(func->params), "SO");
     printPtrDone(exnSpec, &(func->exnSpec), "TY");
-
     // **** subtags
-
     // These are not visited by default by the type visitor, so we not
     // only have to print the id we have to print the tree.
     if (func->exnSpec) {
@@ -184,37 +183,29 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
       // it has no virtual methods yet, so I do this manually.
       openTag(FunctionType_ExnSpec, "TY", (&(func->exnSpec)));
       printPtrDone(types, &(func->exnSpec->types), "SO");
-
       // **** FunctionType::ExnSpec subtags
       openTagWhole(List_ExnSpec_types, "SO", &func->exnSpec->types);
-
       SFOREACH_OBJLIST_NC(Type, func->exnSpec->types, iter) {
         Type *t = iter.data();
         startItem("TY", t);
         trav(t);
         stopItem();
       }
-
-      --depth;
-      printIndentation();
-      out << "</List_ExnSpec_types>\n";
-
-      --depth;
-      printIndentation();
-      out << "</FunctionType_ExnSpec>\n";
+      closeTag(List_ExnSpec_types);
+      closeTag(FunctionType_ExnSpec);
     }
-
     break;
   }
+
   case Type::T_ARRAY: {
     ArrayType *arr = obj->asArrayType();
     openTag(ArrayType, "TY", obj);
     printPtr(eltType, arr->eltType, "TY");
     printIndentation();
     out << "size=\"" << arr->size << "\">\n";
-
     break;
   }
+
   case Type::T_POINTERTOMEMBER: {
     PointerToMemberType *ptm = obj->asPointerToMemberType();
     openTag(PointerToMemberType, "TY", obj);
@@ -223,36 +214,20 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     printPtrDone(atType, ptm->atType, "TY");
     break;
   }
-  }
 
+  }
   return true;
 }
 
 void ToXMLTypeVisitor::postvisitType(Type *obj) {
-  --depth;
-
-  printIndentation();
-
   switch(obj->getTag()) {
   default: xfailure("illegal tag");
-  case Type::T_ATOMIC:
-    out << "</CVAtomicType>\n";
-    break;
-  case Type::T_POINTER:
-    out << "</PointerType>\n";
-    break;
-  case Type::T_REFERENCE:
-    out << "</ReferenceType>\n";
-    break;
-  case Type::T_FUNCTION:
-    out << "</FunctionType>\n";
-    break;
-  case Type::T_ARRAY:
-    out << "</ArrayType>\n";
-    break;
-  case Type::T_POINTERTOMEMBER:
-    out << "</PointerToMemberType>\n";
-    break;
+  case Type::T_ATOMIC:          closeTag(CVAtomicType);        break;
+  case Type::T_POINTER:         closeTag(PointerType);         break;
+  case Type::T_REFERENCE:       closeTag(ReferenceType);       break;
+  case Type::T_FUNCTION:        closeTag(FunctionType);        break;
+  case Type::T_ARRAY:           closeTag(ArrayType);           break;
+  case Type::T_POINTERTOMEMBER: closeTag(PointerToMemberType); break;
   }
 }
 
@@ -262,9 +237,7 @@ bool ToXMLTypeVisitor::visitFuncParamsList(SObjList<Variable> &params) {
 }
 
 void ToXMLTypeVisitor::postvisitFuncParamsList(SObjList<Variable> &params) {
-  --depth;
-  printIndentation();
-  out << "</List_FunctionType_params>\n";
+  closeTag(List_FunctionType_params);
 }
 
 bool ToXMLTypeVisitor::visitFuncParamsList_item(Variable *param) {
@@ -334,9 +307,7 @@ bool ToXMLTypeVisitor::visitVariable(Variable *var) {
 }
 
 void ToXMLTypeVisitor::postvisitVariable(Variable *var) {
-  --depth;
-  printIndentation();
-  out << "</Variable>\n";
+  closeTag(Variable);
 }
 
 void ToXMLTypeVisitor::toXml_NamedAtomicType_properties(NamedAtomicType *nat) {
@@ -358,18 +329,17 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
 
   switch(obj->getTag()) {
   default: xfailure("illegal tag");
+
   case AtomicType::T_SIMPLE: {
     SimpleType *simple = obj->asSimpleType();
     openTag(SimpleType, "TY", obj);
     printXmlDone(type, simple->type);
-
     break;
   }
 
   case AtomicType::T_COMPOUND: {
     CompoundType *cpd = obj->asCompoundType();
     openTag(CompoundType, "TY", obj);
-
     // superclasses
     toXml_NamedAtomicType_properties(cpd);
     toXml_Scope_properties(cpd);
@@ -405,9 +375,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
       trav(var);
       stopItem();
     }
-    --depth;
-    printIndentation();
-    out << "</List_CompoundType_dataMembers>\n";
+    closeTag(List_CompoundType_dataMembers);
 
     openTagWhole(List_CompoundType_bases, "OJ", &(cpd->bases));
     FOREACH_OBJLIST_NC(BaseClass, const_cast<ObjList<BaseClass>&>(cpd->bases), iter) {
@@ -418,9 +386,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
       trav(base);
       stopItem();
     }
-    --depth;
-    printIndentation();
-    out << "</List_CompoundType_bases>\n";
+    closeTag(List_CompoundType_bases);
 
     openTagWhole(List_CompoundType_virtualBases, "OJ", &(cpd->virtualBases));
     FOREACH_OBJLIST_NC(BaseClassSubobj,
@@ -433,9 +399,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
       trav(baseSubobj);
       stopItem();
     }
-    --depth;
-    printIndentation();
-    out << "</List_CompoundType_virtualBases>\n";
+    closeTag(List_CompoundType_virtualBases);
 
     cpd->subobj.traverse(*this);
 
@@ -448,12 +412,9 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
       trav(var);
       stopItem();
     }
-    --depth;
-    printIndentation();
-    out << "</List_CompoundType_conversionOperators>\n";
+    closeTag(List_CompoundType_conversionOperators);
 
     trav(cpd->parameterizingScope);
-
     break;
   }
 
@@ -466,7 +427,6 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     out << "nextValue=\"" << e->nextValue << "\">\n";
 
     // **** subtags
-
     toXml_NamedAtomicType_subtags(e);
 
     openTagWhole(NameMap_EnumType_valueIndex, "SO", &(e->valueIndex));
@@ -496,10 +456,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
       printIndentation();
       out << "</__Name>\n";
     }
-    --depth;
-    printIndentation();
-    out << "</NameMap_EnumType_valueIndex>\n";
-
+    closeTag(NameMap_EnumType_valueIndex);
     break;
   }
 
@@ -509,9 +466,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     toXml_NamedAtomicType_properties(tvar);
     printIndentation();
     out << ">\n";
-
     // **** subtags
-
     toXml_NamedAtomicType_subtags(tvar);
     break;
   }
@@ -530,7 +485,6 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     out << ">\n";
 
     // **** subtags
-
     toXml_NamedAtomicType_subtags(pseudo);
     break;
   }
@@ -549,42 +503,24 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
 
     printIndentation();
     out << ">\n";
-
     // **** subtags
-
     toXml_NamedAtomicType_subtags(dep);
     break;
   }
-  }
 
+  }
   return true;
 }
 
 void ToXMLTypeVisitor::postvisitAtomicType(AtomicType *obj) {
-  --depth;
-
-  printIndentation();
-
   switch(obj->getTag()) {
   default: xfailure("illegal tag");
-  case AtomicType::T_SIMPLE:
-    out << "</SimpleType>\n";
-    break;
-  case AtomicType::T_COMPOUND:
-    out << "</CompoundType>\n";
-    break;
-  case AtomicType::T_ENUM:
-    out << "</EnumType>\n";
-    break;
-  case AtomicType::T_TYPEVAR:
-    out << "</TypeVariable>\n";
-    break;
-  case AtomicType::T_PSEUDOINSTANTIATION:
-    out << "</PseudoInstantiation>\n";
-    break;
-  case AtomicType::T_DEPENDENTQTYPE:
-    out << "</DependentQType>\n";
-    break;
+  case AtomicType::T_SIMPLE:              closeTag(SimpleType);          break;
+  case AtomicType::T_COMPOUND:            closeTag(CompoundType);        break;
+  case AtomicType::T_ENUM:                closeTag(EnumType);            break;
+  case AtomicType::T_TYPEVAR:             closeTag(TypeVariable);        break;
+  case AtomicType::T_PSEUDOINSTANTIATION: closeTag(PseudoInstantiation); break;
+  case AtomicType::T_DEPENDENTQTYPE:      closeTag(DependentQType);      break;
   }
 }
 
@@ -611,7 +547,6 @@ bool ToXMLTypeVisitor::visitEnumType_Value(void /*EnumType::Value*/ *eValue0) {
   // probably do this, so perhaps it should be inlined above where
   // said hypothetical method would go, but instead I just put it here
   // as it seems just as natural.
-
   trav(eValue->type);
   trav(eValue->decl);
 
@@ -620,9 +555,7 @@ bool ToXMLTypeVisitor::visitEnumType_Value(void /*EnumType::Value*/ *eValue0) {
 
 void ToXMLTypeVisitor::postvisitEnumType_Value(void /*EnumType::Value*/ *eValue0) {
 //    EnumType::Value *eValue = static_cast<EnumType::Value*>(eValue0);
-  --depth;
-  printIndentation();
-  out << "</EnumType_Value>\n";
+  closeTag(EnumType_Value);
 }
 
 
@@ -635,10 +568,7 @@ void ToXMLTypeVisitor::toXml_Scope_properties(Scope *scope)
   out << "canAcceptNames=\"" << toXml_bool(scope->canAcceptNames) << "\"\n";
 
   printPtr(parentScope, scope, "TY");
-
-  printIndentation();
-  out << "scopeKind=\"" << toXml(scope->scopeKind) << "\"\n";
-
+  printXml(scopeKind, scope->scopeKind);
   printPtr(namespaceVar, scope->namespaceVar, "TY");
   printPtr(templateParams, &(scope->templateParams), "SO");
   printPtr(curCompound, scope->curCompound, "TY");
@@ -660,16 +590,13 @@ bool ToXMLTypeVisitor::visitScope(Scope *scope)
   out << ">\n";
 
   // **** subtags
-
   toXml_Scope_subtags(scope);
 
   return true;
 }
 void ToXMLTypeVisitor::postvisitScope(Scope *scope)
 {
-  --depth;
-  printIndentation();
-  out << "</Scope>\n";
+  closeTag(Scope);
 }
 
 bool ToXMLTypeVisitor::visitScopeVariables(StringRefMap<Variable> &variables)
@@ -679,9 +606,7 @@ bool ToXMLTypeVisitor::visitScopeVariables(StringRefMap<Variable> &variables)
 }
 void ToXMLTypeVisitor::postvisitScopeVariables(StringRefMap<Variable> &variables)
 {
-  --depth;
-  printIndentation();
-  out << "</NameMap_Scope_variables>\n";
+  closeTag(NameMap_Scope_variables);
 }
 bool ToXMLTypeVisitor::visitScopeVariables_entry(StringRef name, Variable *var)
 {
@@ -695,9 +620,7 @@ bool ToXMLTypeVisitor::visitScopeVariables_entry(StringRef name, Variable *var)
 }
 void ToXMLTypeVisitor::postvisitScopeVariables_entry(StringRef name, Variable *var)
 {
-  --depth;
-  printIndentation();
-  out << "</__Name>\n";
+  closeTag(__Name);
 }
 
 bool ToXMLTypeVisitor::visitScopeTypeTags(StringRefMap<Variable> &typeTags)
@@ -707,9 +630,7 @@ bool ToXMLTypeVisitor::visitScopeTypeTags(StringRefMap<Variable> &typeTags)
 }
 void ToXMLTypeVisitor::postvisitScopeTypeTags(StringRefMap<Variable> &typeTags)
 {
-  --depth;
-  printIndentation();
-  out << "</NameMap_Scope_typeTags>\n";
+  closeTag(NameMap_Scope_typeTags);
 }
 bool ToXMLTypeVisitor::visitScopeTypeTags_entry(StringRef name, Variable *var)
 {
@@ -723,9 +644,7 @@ bool ToXMLTypeVisitor::visitScopeTypeTags_entry(StringRef name, Variable *var)
 }
 void ToXMLTypeVisitor::postvisitScopeTypeTags_entry(StringRef name, Variable *var)
 {
-  --depth;
-  printIndentation();
-  out << "</__Name>\n";
+  closeTag(__Name);
 }
 
 bool ToXMLTypeVisitor::visitScopeTemplateParams(SObjList<Variable> &templateParams)
@@ -735,9 +654,7 @@ bool ToXMLTypeVisitor::visitScopeTemplateParams(SObjList<Variable> &templatePara
 }
 void ToXMLTypeVisitor::postvisitScopeTemplateParams(SObjList<Variable> &templateParams)
 {
-  --depth;
-  printIndentation();
-  out << "</List_Scope_templateParams>\n";
+  closeTag(List_Scope_templateParams);
 }
 bool ToXMLTypeVisitor::visitScopeTemplateParams_item(Variable *var)
 {
@@ -753,7 +670,6 @@ void ToXMLTypeVisitor::toXml_BaseClass_properties(BaseClass *bc)
 {
   printPtr(ct, bc->ct, "TY");
   printXml(access, bc->access);
-
   printIndentation();
   out << "isVirtual=\"" << toXml_bool(bc->isVirtual) << "\"\n";
 }
@@ -775,9 +691,7 @@ bool ToXMLTypeVisitor::visitBaseClass(BaseClass *bc)
 }
 void ToXMLTypeVisitor::postvisitBaseClass(BaseClass *bc)
 {
-  --depth;
-  printIndentation();
-  out << "</BaseClass>\n";
+  closeTag(BaseClass);
 }
 
 bool ToXMLTypeVisitor::visitBaseClassSubobj(BaseClassSubobj *bc)
@@ -796,9 +710,7 @@ bool ToXMLTypeVisitor::visitBaseClassSubobj(BaseClassSubobj *bc)
 }
 void ToXMLTypeVisitor::postvisitBaseClassSubobj(BaseClassSubobj *bc)
 {
-  --depth;
-  printIndentation();
-  out << "</BaseClassSubobj>\n";
+  closeTag(BaseClassSubobj);
 }
 
 bool ToXMLTypeVisitor::visitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents)
@@ -809,9 +721,7 @@ bool ToXMLTypeVisitor::visitBaseClassSubobjParentsList(SObjList<BaseClassSubobj>
 
 void ToXMLTypeVisitor::postvisitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents)
 {
-  --depth;
-  printIndentation();
-  out << "</List_BaseClassSubobj_parents>\n";
+  closeTag(List_BaseClassSubobj_parents);
 }
 
 bool ToXMLTypeVisitor::visitBaseClassSubobjParentsList_item(BaseClassSubobj *parent)
@@ -831,27 +741,31 @@ bool ToXMLTypeVisitor::visitSTemplateArgument(STemplateArgument *obj)
   printXml(kind, obj->kind);
 
   switch(obj->kind) {
-  default:
-    xfailure("illegal STemplateArgument kind");
-    break;
+  default: xfailure("illegal STemplateArgument kind"); break;
+
   case STemplateArgument::STA_TYPE:
     printPtr(t, obj->value.t, "TY");
     break;
+
   case STemplateArgument::STA_INT:
     printIndentation();
     out << "i=\"" << toXml_int(obj->value.i) << "\"\n";
     break;
+
   case STemplateArgument::STA_REFERENCE:
   case STemplateArgument::STA_POINTER:
   case STemplateArgument::STA_MEMBER:
     printPtr(v, obj->value.v, "TY");
     break;
+
   case STemplateArgument::STA_DEPEXPR:
     printPtr(e, obj->value.e, "AST");
     break;
+
   case STemplateArgument::STA_TEMPLATE:
     xfailure("template template arguments not implemented");
     break;
+
   case STemplateArgument::STA_ATOMIC:
     printPtr(at, obj->value.at, "TY");
     break;
@@ -865,27 +779,31 @@ bool ToXMLTypeVisitor::visitSTemplateArgument(STemplateArgument *obj)
   // WARNING: some of these are covered in the traverse method and
   // some are not.
   switch(obj->kind) {
-  default:
-    xfailure("illegal STemplateArgument kind");
-    break;
+  default: xfailure("illegal STemplateArgument kind"); break;
+
   case STemplateArgument::STA_TYPE:
     // NOTE: this is covered in the traverse method
     break;
+
   case STemplateArgument::STA_INT:
     // nothing to do
     break;
+
   case STemplateArgument::STA_REFERENCE:
   case STemplateArgument::STA_POINTER:
   case STemplateArgument::STA_MEMBER:
     obj->value.v->traverse(*this);
     break;
+
   case STemplateArgument::STA_DEPEXPR:
     // what the hell should we do?  the same remark is made in the
     // traverse() method code at this point
     break;
+
   case STemplateArgument::STA_TEMPLATE:
     xfailure("template template arguments not implemented");
     break;
+
   case STemplateArgument::STA_ATOMIC:
     trav(const_cast<AtomicType*>(obj->value.at));
     break;
@@ -896,9 +814,7 @@ bool ToXMLTypeVisitor::visitSTemplateArgument(STemplateArgument *obj)
 
 void ToXMLTypeVisitor::postvisitSTemplateArgument(STemplateArgument *obj)
 {
-  --depth;
-  printIndentation();
-  out << "</STemplateArgument>\n";
+  closeTag(STemplateArgument);
 }
 
 
@@ -910,9 +826,7 @@ bool ToXMLTypeVisitor::visitPseudoInstantiationArgsList(ObjList<STemplateArgumen
 
 void ToXMLTypeVisitor::postvisitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args)
 {
-  --depth;
-  printIndentation();
-  out << "</List_PseudoInstantiation_args>\n";
+  closeTag(List_PseudoInstantiation_args);
 }
 
 bool ToXMLTypeVisitor::visitPseudoInstantiationArgsList_item(STemplateArgument *arg)
