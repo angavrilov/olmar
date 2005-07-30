@@ -41,6 +41,7 @@ do { \
 
 #define printPtr(NAME, VALUE, PREFIX) printThing(NAME, VALUE, PREFIX, addr)
 #define printPtrDone(NAME, VALUE, PREFIX) printThingDone(NAME, VALUE, PREFIX, addr)
+
 #define printXml(NAME, VALUE) \
   printIndentation(); \
   printThing0(NAME, VALUE, "", "", toXml)
@@ -48,6 +49,27 @@ do { \
   printIndentation(); \
   printThing0(NAME, VALUE, "", ">", toXml)
 
+#define printXml_bool(NAME, VALUE) \
+  printIndentation(); \
+  printThing0(NAME, VALUE, "", "", toXml_bool)
+#define printXmlDone_bool(NAME, VALUE) \
+  printIndentation(); \
+  printThing0(NAME, VALUE, "", ">", toXml_bool)
+
+#define printXml_int(NAME, VALUE) \
+  printIndentation(); \
+  printThing0(NAME, VALUE, "", "", toXml_int)
+#define printXmlDone_int(NAME, VALUE) \
+  printIndentation(); \
+  printThing0(NAME, VALUE, "", ">", toXml_int)
+
+#define printStrRef(FIELD, TARGET) \
+do { \
+  if (TARGET) { \
+    printIndentation(); \
+    out << #FIELD "=" << quoted(TARGET) << "\n"; \
+  } \
+} while(0)
 
 #define openTag0(NAME, PREFIX, OBJ, SUFFIX) \
 do { \
@@ -59,6 +81,22 @@ do { \
 
 #define openTag(NAME, PREFIX, OBJ) openTag0(NAME, PREFIX, OBJ, "")
 #define openTagWhole(NAME, PREFIX, OBJ) openTag0(NAME, PREFIX, OBJ, ">")
+
+#define openTag__Name(NAME, TARGET) \
+do { \
+  printIndentation(); \
+  out << "<__Name" \
+      << " name=" << quoted(NAME) \
+      << " item=\"TY" << addr(TARGET) \
+      << "\">\n"; \
+  ++depth; \
+} while(0)
+
+#define tagEnd \
+do { \
+  printIndentation(); \
+  out << ">\n"; \
+} while(0)
 
 #define closeTag(NAME) \
 do { \
@@ -72,6 +110,13 @@ do { \
   if (TARGET) { \
     TARGET->traverse(*this); \
   } \
+} while(0)
+
+#define travItem(PREFIX, TARGET) \
+do { \
+  startItem(PREFIX, TARGET); \
+  trav(TARGET); \
+  stopItem(); \
 } while(0)
 
 #define ul(FIELD) \
@@ -199,10 +244,7 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
       // **** FunctionType::ExnSpec subtags
       openTagWhole(List_ExnSpec_types, "SO", &func->exnSpec->types);
       SFOREACH_OBJLIST_NC(Type, func->exnSpec->types, iter) {
-        Type *t = iter.data();
-        startItem("TY", t);
-        trav(t);
-        stopItem();
+        travItem("TY", iter.data());
       }
       closeTag(List_ExnSpec_types);
       closeTag(FunctionType_ExnSpec);
@@ -273,11 +315,7 @@ bool ToXMLTypeVisitor::visitVariable(Variable *var) {
 //    as file:line:col when I serialize the internals of the Source Loc
 //    Manager.
 
-  if (var->name) {
-    printIndentation();
-    out << "name=" << quoted(var->name) << "\n";
-  }
-
+  printStrRef(name, var->name);
   printPtr(type, var->type, "TY");
   printXml(flags, var->flags);
   printPtr(value, var->value, "AST"); // FIX: this is AST make sure gets serialized
@@ -324,8 +362,7 @@ void ToXMLTypeVisitor::postvisitVariable(Variable *var) {
 }
 
 void ToXMLTypeVisitor::toXml_NamedAtomicType_properties(NamedAtomicType *nat) {
-  printIndentation();
-  out << "name=" << quoted(nat->name) << "\n";
+  printStrRef(name, nat->name);
   printPtr(typedefVar, nat->typedefVar, "TY");
   printXml(access, nat->access);
 }
@@ -356,20 +393,14 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     // superclasses
     toXml_NamedAtomicType_properties(cpd);
     toXml_Scope_properties(cpd);
-
-    printIndentation();
-    out << "forward=\"" << toXml_bool(cpd->forward) << "\"\n";
-
+    printXml_bool(forward, cpd->forward);
     printXml(keyword, cpd->keyword);
     printPtr(dataMembers, &(cpd->dataMembers), "TY");
     printPtr(bases, &(cpd->bases), "TY");
     printPtr(virtualBases, &(cpd->virtualBases), "TY");
     printPtr(subobj, &(cpd->subobj), "TY");
     printPtr(conversionOperators, &(cpd->conversionOperators), "TY");
-
-    printIndentation();
-    out << "instName=" << quoted(cpd->instName) << "\n";
-
+    printStrRef(instName, cpd->instName);
     printPtr(syntax, cpd->syntax, "AST"); // FIX: AST so make sure is serialized
     printPtr(parameterizingScope, cpd->parameterizingScope, "TY");
     printPtrDone(selfType, cpd->selfType, "TY");
@@ -381,23 +412,13 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
 
     openTagWhole(List_CompoundType_dataMembers, "SO", &(cpd->dataMembers));
     SFOREACH_OBJLIST_NC(Variable, cpd->dataMembers, iter) {
-      Variable *var = iter.data();
-      startItem("TY", var);
-      // The usual traversal rountine will not go down into here, so
-      // we have to.
-      trav(var);
-      stopItem();
+      travItem("TY", iter.data());
     }
     closeTag(List_CompoundType_dataMembers);
 
     openTagWhole(List_CompoundType_bases, "OJ", &(cpd->bases));
     FOREACH_OBJLIST_NC(BaseClass, const_cast<ObjList<BaseClass>&>(cpd->bases), iter) {
-      BaseClass *base = iter.data();
-      startItem("TY", base);
-      // The usual traversal rountine will not go down into here, so
-      // we have to.
-      trav(base);
-      stopItem();
+      travItem("TY", iter.data());
     }
     closeTag(List_CompoundType_bases);
 
@@ -405,12 +426,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     FOREACH_OBJLIST_NC(BaseClassSubobj,
                        const_cast<ObjList<BaseClassSubobj>&>(cpd->virtualBases),
                        iter) {
-      BaseClassSubobj *baseSubobj = iter.data();
-      startItem("TY", baseSubobj);
-      // The usual traversal rountine will not go down into here, so
-      // we have to.
-      trav(baseSubobj);
-      stopItem();
+      travItem("TY", iter.data());
     }
     closeTag(List_CompoundType_virtualBases);
 
@@ -418,12 +434,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
 
     openTagWhole(List_CompoundType_conversionOperators, "SO", &(cpd->conversionOperators));
     SFOREACH_OBJLIST_NC(Variable, cpd->conversionOperators, iter) {
-      Variable *var = iter.data();
-      startItem("TY", var);
-      // The usual traversal rountine will not go down into here, so
-      // we have to.
-      trav(var);
-      stopItem();
+      travItem("TY", iter.data());
     }
     closeTag(List_CompoundType_conversionOperators);
 
@@ -436,8 +447,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     openTag(EnumType, "TY", e);
     toXml_NamedAtomicType_properties(e);
     printPtr(valueIndex, &(e->valueIndex), "TY");
-    printIndentation();
-    out << "nextValue=\"" << e->nextValue << "\">\n";
+    printXmlDone_int(nextValue, e->nextValue);
 
     // **** subtags
     toXml_NamedAtomicType_subtags(e);
@@ -456,18 +466,11 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
       // it should be virtual to be parallel to the other traverse()
       // methods which would add a vtable and I don't think it would
       // ever be used anyway.  So I just inline it here.
-      printIndentation();
-      out << "<__Name"
-          << " name=" << quoted(name)
-          << " item=\"TY" << addr(eValue)
-          << "\">\n";
-      ++depth;
+      openTag__Name(name, eValue);
       bool ret = visitEnumType_Value(eValue);
       xassert(ret);
       postvisitEnumType_Value(eValue);
-      --depth;
-      printIndentation();
-      out << "</__Name>\n";
+      closeTag(__Name);
     }
     closeTag(NameMap_EnumType_valueIndex);
     break;
@@ -477,8 +480,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     TypeVariable *tvar = obj->asTypeVariable();
     openTag(TypeVariable, "TY", obj);
     toXml_NamedAtomicType_properties(tvar);
-    printIndentation();
-    out << ">\n";
+    tagEnd;
     // **** subtags
     toXml_NamedAtomicType_subtags(tvar);
     break;
@@ -488,14 +490,10 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     PseudoInstantiation *pseudo = obj->asPseudoInstantiation();
     openTag(PseudoInstantiation, "TY", obj);
     toXml_NamedAtomicType_properties(pseudo);
-
 //    CompoundType *primary;
-
 //    // the arguments, some of which contain type variables
 //    ObjList<STemplateArgument> args;
-
-    printIndentation();
-    out << ">\n";
+    tagEnd;
 
     // **** subtags
     toXml_NamedAtomicType_subtags(pseudo);
@@ -506,16 +504,13 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     DependentQType *dep = obj->asDependentQType();
     openTag(DependentQType, "TY", obj);
     toXml_NamedAtomicType_properties(dep);
-
 //    AtomicType *first;            // (serf) TypeVariable or PseudoInstantiation
-
 //    // After the first component comes whatever name components followed
 //    // in the original syntax.  All template arguments have been
 //    // tcheck'd.
 //    PQName *rest;
+    tagEnd;
 
-    printIndentation();
-    out << ">\n";
     // **** subtags
     toXml_NamedAtomicType_subtags(dep);
     break;
@@ -543,15 +538,9 @@ bool ToXMLTypeVisitor::visitEnumType_Value(void /*EnumType::Value*/ *eValue0) {
   if (printedObjects.contains(eValue)) return false;
   printedObjects.add(eValue);
   openTag(EnumType_Value, "TY", eValue);
-
-  printIndentation();
-  out << "name=" << quoted(eValue->name) << "\n";
-
+  printStrRef(name, eValue->name);
   printPtr(type, &(eValue->type), "TY");
-
-  printIndentation();
-  out << "value=\"" << eValue->value << "\"\n";
-
+  printXml_int(value, eValue->value);
   printPtrDone(decl, &(eValue->decl), "TY");
 
   // **** subtags
@@ -576,10 +565,7 @@ void ToXMLTypeVisitor::toXml_Scope_properties(Scope *scope)
 {
   printPtr(variables, &(scope->variables), "SM");
   printPtr(typeTags, &(scope->typeTags), "SM");
-
-  printIndentation();
-  out << "canAcceptNames=\"" << toXml_bool(scope->canAcceptNames) << "\"\n";
-
+  printXml_bool(canAcceptNames, scope->canAcceptNames);
   printPtr(parentScope, scope, "TY");
   printXml(scopeKind, scope->scopeKind);
   printPtr(namespaceVar, scope->namespaceVar, "TY");
@@ -599,12 +585,10 @@ bool ToXMLTypeVisitor::visitScope(Scope *scope)
 
   openTag(Scope, "TY", scope);
   toXml_Scope_properties(scope);
-  printIndentation();
-  out << ">\n";
+  tagEnd;
 
   // **** subtags
   toXml_Scope_subtags(scope);
-
   return true;
 }
 void ToXMLTypeVisitor::postvisitScope(Scope *scope)
@@ -623,12 +607,7 @@ void ToXMLTypeVisitor::postvisitScopeVariables(StringRefMap<Variable> &variables
 }
 bool ToXMLTypeVisitor::visitScopeVariables_entry(StringRef name, Variable *var)
 {
-  printIndentation();
-  out << "<__Name"
-      << " name=" << quoted(name)
-      << " item=\"TY" << addr(var)
-      << "\">\n";
-  ++depth;
+  openTag__Name(name, var);
   return true;
 }
 void ToXMLTypeVisitor::postvisitScopeVariables_entry(StringRef name, Variable *var)
@@ -647,12 +626,7 @@ void ToXMLTypeVisitor::postvisitScopeTypeTags(StringRefMap<Variable> &typeTags)
 }
 bool ToXMLTypeVisitor::visitScopeTypeTags_entry(StringRef name, Variable *var)
 {
-  printIndentation();
-  out << "<__Name"
-      << " name=" << quoted(name)
-      << " item=\"TY" << addr(var)
-      << "\">\n";
-  ++depth;
+  openTag__Name(name, var);
   return true;
 }
 void ToXMLTypeVisitor::postvisitScopeTypeTags_entry(StringRef name, Variable *var)
@@ -683,8 +657,7 @@ void ToXMLTypeVisitor::toXml_BaseClass_properties(BaseClass *bc)
 {
   printPtr(ct, bc->ct, "TY");
   printXml(access, bc->access);
-  printIndentation();
-  out << "isVirtual=\"" << toXml_bool(bc->isVirtual) << "\"\n";
+  printXml_bool(isVirtual, bc->isVirtual);
 }
 
 bool ToXMLTypeVisitor::visitBaseClass(BaseClass *bc)
@@ -694,12 +667,10 @@ bool ToXMLTypeVisitor::visitBaseClass(BaseClass *bc)
 
   openTag(BaseClass, "TY", bc);
   toXml_BaseClass_properties(bc);
-  printIndentation();
-  out << ">\n";
+  tagEnd;
 
   // **** subtags
   // none
-
   return true;
 }
 void ToXMLTypeVisitor::postvisitBaseClass(BaseClass *bc)
@@ -718,7 +689,6 @@ bool ToXMLTypeVisitor::visitBaseClassSubobj(BaseClassSubobj *bc)
 
   // **** subtags
   // none
-
   return true;
 }
 void ToXMLTypeVisitor::postvisitBaseClassSubobj(BaseClassSubobj *bc)
@@ -783,9 +753,7 @@ bool ToXMLTypeVisitor::visitSTemplateArgument(STemplateArgument *obj)
     printPtr(at, obj->value.at, "TY");
     break;
   }
-
-  printIndentation();
-  out << ">\n";
+  tagEnd;
 
   // **** subtags
 
@@ -864,18 +832,13 @@ void ReadXml_Type::append2List(void *list0, int listKind, void *datum0) {
   list->append(datum);
 }
 
-void ReadXml_Type::insertIntoNameMap
-  (void *map0, int mapKind, StringRef name, void *datum0) {
-
+void ReadXml_Type::insertIntoNameMap(void *map0, int mapKind, StringRef name, void *datum) {
   xassert(map0);
   StringRefMap<char> *map = static_cast<StringRefMap<char>*>(map0);
-  char *datum = (char*)datum0;
-
   if (map->get(name)) {
     userError(stringc << "duplicate name " << name << " in map");
   }
-
-  map->add(name, datum);
+  map->add(name, (char*)datum);
 }
 
 bool ReadXml_Type::kind2kindCat0(int kind, KindCategory *kindCat) {
@@ -943,8 +906,7 @@ bool ReadXml_Type::convertList2SObjList(ASTList<char> *list, int listKind, void 
     SObjList<Variable> *ret = reinterpret_cast<SObjList<Variable>*>(target);
     xassert(ret->isEmpty());
     FOREACH_ASTLIST_NC(Variable, reinterpret_cast<ASTList<Variable>&>(*list), iter) {
-      Variable *var = iter.data();
-      ret->prepend(var);
+      ret->prepend(iter.data());
     }
     ret->reverse();
     break;
@@ -954,8 +916,7 @@ bool ReadXml_Type::convertList2SObjList(ASTList<char> *list, int listKind, void 
     SObjList<BaseClassSubobj> *ret = reinterpret_cast<SObjList<BaseClassSubobj>*>(target);
     xassert(ret->isEmpty());
     FOREACH_ASTLIST_NC(BaseClassSubobj, reinterpret_cast<ASTList<BaseClassSubobj>&>(*list), iter) {
-      BaseClassSubobj *bcs = iter.data();
-      ret->prepend(bcs);
+      ret->prepend(iter.data());
     }
     ret->reverse();
     break;
@@ -965,8 +926,7 @@ bool ReadXml_Type::convertList2SObjList(ASTList<char> *list, int listKind, void 
     SObjList<Type> *ret = reinterpret_cast<SObjList<Type>*>(target);
     xassert(ret->isEmpty());
     FOREACH_ASTLIST_NC(Type, reinterpret_cast<ASTList<Type>&>(*list), iter) {
-      Type *type = iter.data();
-      ret->prepend(type);
+      ret->prepend(iter.data());
     }
     ret->reverse();
     break;
@@ -987,8 +947,7 @@ bool ReadXml_Type::convertList2ObjList (ASTList<char> *list, int listKind, void 
     ObjList<BaseClass> *ret = reinterpret_cast<ObjList<BaseClass>*>(target);
     xassert(ret->isEmpty());
     FOREACH_ASTLIST_NC(BaseClass, reinterpret_cast<ASTList<BaseClass>&>(*list), iter) {
-      BaseClass *bcs = iter.data();
-      ret->prepend(bcs);
+      ret->prepend(iter.data());
     }
     ret->reverse();
     break;
@@ -998,8 +957,7 @@ bool ReadXml_Type::convertList2ObjList (ASTList<char> *list, int listKind, void 
     ObjList<BaseClassSubobj> *ret = reinterpret_cast<ObjList<BaseClassSubobj>*>(target);
     xassert(ret->isEmpty());
     FOREACH_ASTLIST_NC(BaseClassSubobj, reinterpret_cast<ASTList<BaseClassSubobj>&>(*list), iter) {
-      BaseClassSubobj *bcs = iter.data();
-      ret->prepend(bcs);
+      ret->prepend(iter.data());
     }
     ret->reverse();
     break;
@@ -1023,9 +981,7 @@ bool ReadXml_Type::convertNameMap2StringRefMap
     xassert(ret->isEmpty());
     for(StringRefMap<Variable>::Iter iter(reinterpret_cast<StringRefMap<Variable>&>(*map));
         !iter.isDone(); iter.adv()) {
-      StringRef name = iter.key();
-      Variable *value = iter.value();
-      ret->add(name, value);
+      ret->add(iter.key(), iter.value());
     }
     break;
   }
@@ -1049,9 +1005,7 @@ bool ReadXml_Type::convertNameMap2StringSObjDict
     for(StringRefMap<EnumType::Value>::Iter
           iter(reinterpret_cast<StringRefMap<EnumType::Value>&>(*map));
         !iter.isDone(); iter.adv()) {
-      StringRef name = iter.key();
-      EnumType::Value *value = iter.value();
-      ret->add(name, value);
+      ret->add(iter.key(), iter.value());
     }
     break;
   }
@@ -1156,8 +1110,7 @@ void ReadXml_Type::registerAttribute(void *target, int kind, int attr, char cons
   }
 }
 
-void ReadXml_Type::registerAttr_CVAtomicType
-  (CVAtomicType *obj, int attr, char const *strValue) {
+void ReadXml_Type::registerAttr_CVAtomicType(CVAtomicType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a CVAtomicType"); break;
   case XTOK_cv: fromXml(obj->cv, parseQuotedString(strValue)); break;
@@ -1165,8 +1118,7 @@ void ReadXml_Type::registerAttr_CVAtomicType
   }
 }
 
-void ReadXml_Type::registerAttr_PointerType
-  (PointerType *obj, int attr, char const *strValue) {
+void ReadXml_Type::registerAttr_PointerType(PointerType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a PointerType"); break; 
   case XTOK_cv: fromXml(obj->cv, parseQuotedString(strValue)); break; 
@@ -1174,16 +1126,14 @@ void ReadXml_Type::registerAttr_PointerType
   }
 }
 
-void ReadXml_Type::registerAttr_ReferenceType
-  (ReferenceType *obj, int attr, char const *strValue) {
+void ReadXml_Type::registerAttr_ReferenceType(ReferenceType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a ReferenceType"); break; 
   case XTOK_atType: ul(atType); break; 
   }
 }
 
-void ReadXml_Type::registerAttr_FunctionType
-  (FunctionType *obj, int attr, char const *strValue) {
+void ReadXml_Type::registerAttr_FunctionType(FunctionType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a FunctionType"); break;
   case XTOK_flags: fromXml(obj->flags, parseQuotedString(strValue)); break;
@@ -1201,8 +1151,7 @@ void ReadXml_Type::registerAttr_FunctionType_ExnSpec
   }
 }
 
-void ReadXml_Type::registerAttr_ArrayType
-  (ArrayType *obj, int attr, char const *strValue) {
+void ReadXml_Type::registerAttr_ArrayType(ArrayType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a ArrayType"); break; 
   case XTOK_eltType: ul(eltType); break; 
@@ -1220,8 +1169,7 @@ void ReadXml_Type::registerAttr_PointerToMemberType
   }
 }
 
-void ReadXml_Type::registerAttr_Variable
-  (Variable *obj, int attr, char const *strValue) {
+void ReadXml_Type::registerAttr_Variable(Variable *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a Variable"); break;
   // FIX: SourceLoc loc
@@ -1250,8 +1198,7 @@ bool ReadXml_Type::registerAttr_NamedAtomicType_super
   return true;                  // found it
 }
 
-void ReadXml_Type::registerAttr_SimpleType
-  (SimpleType *obj, int attr, char const *strValue) {
+void ReadXml_Type::registerAttr_SimpleType(SimpleType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a SimpleType"); break; 
   case XTOK_type:
@@ -1262,8 +1209,7 @@ void ReadXml_Type::registerAttr_SimpleType
   }
 }
 
-void ReadXml_Type::registerAttr_CompoundType
-  (CompoundType *obj, int attr, char const *strValue) {
+void ReadXml_Type::registerAttr_CompoundType(CompoundType *obj, int attr, char const *strValue) {
   // superclasses
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
   if (registerAttr_Scope_super(obj, attr, strValue)) return;
@@ -1285,8 +1231,7 @@ void ReadXml_Type::registerAttr_CompoundType
   }
 }
 
-void ReadXml_Type::registerAttr_EnumType
-  (EnumType *obj, int attr, char const *strValue) {
+void ReadXml_Type::registerAttr_EnumType(EnumType *obj, int attr, char const *strValue) {
   // superclass
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
 
@@ -1308,8 +1253,7 @@ void ReadXml_Type::registerAttr_EnumType_Value
   }
 }
 
-void ReadXml_Type::registerAttr_TypeVariable
-  (TypeVariable *obj, int attr, char const *strValue) {
+void ReadXml_Type::registerAttr_TypeVariable(TypeVariable *obj, int attr, char const *strValue) {
   // superclass
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
   // shouldn't get here
