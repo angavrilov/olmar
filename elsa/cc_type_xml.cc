@@ -74,6 +74,19 @@ do { \
   } \
 } while(0)
 
+#define ul(FIELD) \
+  linkSat.unsatLinks.append \
+    (new UnsatLink((void**) &(obj->FIELD), \
+                   parseQuotedString(strValue)))
+
+#define ulList(LIST, FIELD, KIND) \
+  linkSat.unsatLinks##LIST.append \
+    (new UnsatLink((void**) &(obj->FIELD), \
+                   parseQuotedString(strValue), \
+                   KIND))
+
+#define regAttr(TYPE) \
+  registerAttr_##TYPE((TYPE*)target, attr, yytext0)
 
 //  #if 0                           // refinement possibilities ...
 //  #define address(x) static_cast<void const*>(&(x))
@@ -1114,79 +1127,30 @@ void ReadXml_Type::registerAttribute(void *target, int kind, int attr, char cons
   default: xfailure("illegal kind");
 
   // **** Types
-  case XTOK_CVAtomicType:
-    registerAttr_CVAtomicType((CVAtomicType*)target, attr, yytext0);
-    break;
-
-  case XTOK_PointerType:
-    registerAttr_PointerType((PointerType*)target, attr, yytext0);
-    break;
-
-  case XTOK_ReferenceType:
-    registerAttr_ReferenceType((ReferenceType*)target, attr, yytext0);
-    break;
-
-  case XTOK_FunctionType:
-    registerAttr_FunctionType((FunctionType*)target, attr, yytext0);
-    break;
-
+  case XTOK_CVAtomicType: regAttr(CVAtomicType); break; 
+  case XTOK_PointerType: regAttr(PointerType); break; 
+  case XTOK_ReferenceType: regAttr(ReferenceType); break; 
+  case XTOK_FunctionType: regAttr(FunctionType); break; 
   case XTOK_FunctionType_ExnSpec:
-    registerAttr_FunctionType_ExnSpec((FunctionType::ExnSpec*)target, attr, yytext0);
-    break;
-
-  case XTOK_ArrayType:
-    registerAttr_ArrayType((ArrayType*)target, attr, yytext0);
-    break;
-
-  case XTOK_PointerToMemberType:
-    registerAttr_PointerToMemberType((PointerToMemberType*)target, attr, yytext0);
-    break;
+    registerAttr_FunctionType_ExnSpec((FunctionType::ExnSpec*)target, attr, yytext0); break;
+  case XTOK_ArrayType: regAttr(ArrayType); break; 
+  case XTOK_PointerToMemberType: regAttr(PointerToMemberType); break; 
 
   // **** Atomic Types
-  case XTOK_SimpleType:
-    registerAttr_SimpleType((SimpleType*)target, attr, yytext0);
-    break;
-
-  case XTOK_CompoundType:
-    registerAttr_CompoundType((CompoundType*)target, attr, yytext0);
-    break;
-
-  case XTOK_EnumType:
-    registerAttr_EnumType((EnumType*)target, attr, yytext0);
-    break;
-
+  case XTOK_SimpleType: regAttr(SimpleType); break; 
+  case XTOK_CompoundType: regAttr(CompoundType); break; 
+  case XTOK_EnumType: regAttr(EnumType); break; 
   case XTOK_EnumType_Value:
-    registerAttr_EnumType_Value((EnumType::Value*)target, attr, yytext0);
-    break;
-
-  case XTOK_TypeVariable:
-    registerAttr_TypeVariable((TypeVariable*)target, attr, yytext0);
-    break;
-
-  case XTOK_PseudoInstantiation:
-    registerAttr_PseudoInstantiation((PseudoInstantiation*)target, attr, yytext0);
-    break;
-
-  case XTOK_DependentQType:
-    registerAttr_DependentQType((DependentQType*)target, attr, yytext0);
-    break;
+    registerAttr_EnumType_Value((EnumType::Value*)target, attr, yytext0); break;
+  case XTOK_TypeVariable: regAttr(TypeVariable); break; 
+  case XTOK_PseudoInstantiation: regAttr(PseudoInstantiation); break; 
+  case XTOK_DependentQType: regAttr(DependentQType); break; 
 
   // **** Other
-  case XTOK_Variable:
-    registerAttr_Variable((Variable*)target, attr, yytext0);
-    break;
-
-  case XTOK_Scope:
-    registerAttr_Scope((Scope*)target, attr, yytext0);
-    break;
-
-  case XTOK_BaseClass:
-    registerAttr_BaseClass((BaseClass*)target, attr, yytext0);
-    break;
-
-  case XTOK_BaseClassSubobj:
-    registerAttr_BaseClassSubobj((BaseClassSubobj*)target, attr, yytext0);
-    break;
+  case XTOK_Variable: regAttr(Variable); break; 
+  case XTOK_Scope: regAttr(Scope); break; 
+  case XTOK_BaseClass: regAttr(BaseClass); break; 
+  case XTOK_BaseClassSubobj: regAttr(BaseClassSubobj); break; 
 
 //  #include "astxml_parse1_3regc.gen.cc"
   }
@@ -1195,211 +1159,82 @@ void ReadXml_Type::registerAttribute(void *target, int kind, int attr, char cons
 void ReadXml_Type::registerAttr_CVAtomicType
   (CVAtomicType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default:
-    userError("illegal attribute for a CVAtomicType");
-    break;
-
-  case XTOK_cv:
-    fromXml(obj->cv, parseQuotedString(strValue));
-    break;
-
-  case XTOK_atomic:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->atomic),
-                     parseQuotedString(strValue)));
-    break;
-
+  default: userError("illegal attribute for a CVAtomicType"); break;
+  case XTOK_cv: fromXml(obj->cv, parseQuotedString(strValue)); break;
+  case XTOK_atomic: ul(atomic); break; 
   }
 }
 
 void ReadXml_Type::registerAttr_PointerType
   (PointerType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default:
-    userError("illegal attribute for a PointerType");
-    break;
-
-  case XTOK_cv:
-    fromXml(obj->cv, parseQuotedString(strValue));
-    break;
-
-  case XTOK_atType:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->atType),
-                     parseQuotedString(strValue)));
-    break;
-
+  default: userError("illegal attribute for a PointerType"); break; 
+  case XTOK_cv: fromXml(obj->cv, parseQuotedString(strValue)); break; 
+  case XTOK_atType: ul(atType); break; 
   }
 }
 
 void ReadXml_Type::registerAttr_ReferenceType
   (ReferenceType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default:
-    userError("illegal attribute for a ReferenceType");
-    break;
-
-  case XTOK_atType:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->atType),
-                     parseQuotedString(strValue)));
-    break;
-
+  default: userError("illegal attribute for a ReferenceType"); break; 
+  case XTOK_atType: ul(atType); break; 
   }
 }
 
 void ReadXml_Type::registerAttr_FunctionType
   (FunctionType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default:
-    userError("illegal attribute for a FunctionType");
-    break;
-
-  case XTOK_flags:
-    fromXml(obj->flags, parseQuotedString(strValue));
-    break;
-
-  case XTOK_retType:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->retType),
-                     parseQuotedString(strValue)));
-    break;
-
-  case XTOK_params:
-    linkSat.unsatLinks_List.append
-      (new UnsatLink((void**) &(obj->params),
-                     parseQuotedString(strValue),
-                     XTOK_List_FunctionType_params));
-    break;
-
-  case XTOK_exnSpec:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->exnSpec),
-                     parseQuotedString(strValue)));
-    break;
-
+  default: userError("illegal attribute for a FunctionType"); break;
+  case XTOK_flags: fromXml(obj->flags, parseQuotedString(strValue)); break;
+  case XTOK_retType: ul(retType); break;
+  case XTOK_params: ulList(_List, params, XTOK_List_FunctionType_params); break;
+  case XTOK_exnSpec: ul(exnSpec); break;
   }
 }
 
 void ReadXml_Type::registerAttr_FunctionType_ExnSpec
   (FunctionType::ExnSpec *obj, int attr, char const *strValue) {
   switch(attr) {
-  default:
-    userError("illegal attribute for a FunctionType_ExnSpec");
-    break;
-
-  case XTOK_types:
-    linkSat.unsatLinks_List.append
-      (new UnsatLink((void**) &(obj->types),
-                     parseQuotedString(strValue),
-                     XTOK_List_ExnSpec_types));
-    break;
+  default: userError("illegal attribute for a FunctionType_ExnSpec"); break;
+  case XTOK_types: ulList(_List, types, XTOK_List_ExnSpec_types); break;
   }
 }
 
 void ReadXml_Type::registerAttr_ArrayType
   (ArrayType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default:
-    userError("illegal attribute for a ArrayType");
-    break;
-
-  case XTOK_eltType:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->eltType),
-                     parseQuotedString(strValue)));
-    break;
-
-  case XTOK_size:
-    obj->size = atoi(parseQuotedString(strValue));
-    break;
-
+  default: userError("illegal attribute for a ArrayType"); break; 
+  case XTOK_eltType: ul(eltType); break; 
+  case XTOK_size: obj->size = atoi(parseQuotedString(strValue)); break; 
   }
 }
 
 void ReadXml_Type::registerAttr_PointerToMemberType
   (PointerToMemberType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default:
-    userError("illegal attribute for a PointerToMemberType");
-    break;
-
-  case XTOK_inClassNAT:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->inClassNAT),
-                     parseQuotedString(strValue)));
-    break;
-
-  case XTOK_cv:
-    fromXml(obj->cv, parseQuotedString(strValue));
-    break;
-
-  case XTOK_atType:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->atType),
-                     parseQuotedString(strValue)));
-    break;
-
+  default: userError("illegal attribute for a PointerToMemberType"); break; 
+  case XTOK_inClassNAT: ul(inClassNAT); break; 
+  case XTOK_cv: fromXml(obj->cv, parseQuotedString(strValue)); break; 
+  case XTOK_atType: ul(atType); break; 
   }
 }
 
 void ReadXml_Type::registerAttr_Variable
   (Variable *obj, int attr, char const *strValue) {
   switch(attr) {
-  default:
-    userError("illegal attribute for a Variable");
-    break;
-
+  default: userError("illegal attribute for a Variable"); break;
   // FIX: SourceLoc loc
-
-  case XTOK_name:
-    obj->name = strTable(parseQuotedString(strValue));
-    break;
-
-  case XTOK_type:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->type),
-                     parseQuotedString(strValue)));
-    break;
-
+  case XTOK_name: obj->name = strTable(parseQuotedString(strValue)); break; 
+  case XTOK_type: ul(type); break; 
   case XTOK_flags:
-    fromXml(const_cast<DeclFlags&>(obj->flags), parseQuotedString(strValue));
-    break;
-
-  case XTOK_value:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->value),
-                     parseQuotedString(strValue)));
-    break;
-
-  case XTOK_defaultParamType:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->defaultParamType),
-                     parseQuotedString(strValue)));
-    break;
-
-  case XTOK_funcDefn:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->funcDefn),
-                     parseQuotedString(strValue)));
-    break;
-
-  case XTOK_scope:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->scope),
-                     parseQuotedString(strValue)));
-    break;
-
-  case XTOK_intData:
-    fromXml_Variable_intData(obj->intData, parseQuotedString(strValue));
-    break;
-
-  case XTOK_usingAlias_or_parameterizedEntity:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->usingAlias_or_parameterizedEntity),
-                     parseQuotedString(strValue)));
-    break;
-
+    fromXml(const_cast<DeclFlags&>(obj->flags), parseQuotedString(strValue)); break; 
+  case XTOK_value: ul(value); break; 
+  case XTOK_defaultParamType: ul(defaultParamType); break; 
+  case XTOK_funcDefn: ul(funcDefn); break; 
+  case XTOK_scope: ul(scope); break; 
+  case XTOK_intData: fromXml_Variable_intData(obj->intData, parseQuotedString(strValue)); break; 
+  case XTOK_usingAlias_or_parameterizedEntity: ul(usingAlias_or_parameterizedEntity); break; 
   // FIX: templInfo
   }
 }
@@ -1407,24 +1242,10 @@ void ReadXml_Type::registerAttr_Variable
 bool ReadXml_Type::registerAttr_NamedAtomicType_super
   (NamedAtomicType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default:
-    return false;               // we didn't find it
-    break;
-
-  case XTOK_name:
-    obj->name = strTable(parseQuotedString(strValue));
-    break;
-
-  case XTOK_typedefVar:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->typedefVar),
-                     parseQuotedString(strValue)));
-    break;
-
-  case XTOK_access:
-    fromXml(obj->access, parseQuotedString(strValue));
-    break;
-
+  default: return false;        // we didn't find it
+  case XTOK_name: obj->name = strTable(parseQuotedString(strValue)); break; 
+  case XTOK_typedefVar: ul(typedefVar); break; 
+  case XTOK_access: fromXml(obj->access, parseQuotedString(strValue)); break; 
   }
   return true;                  // found it
 }
@@ -1432,323 +1253,144 @@ bool ReadXml_Type::registerAttr_NamedAtomicType_super
 void ReadXml_Type::registerAttr_SimpleType
   (SimpleType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default:
-    userError("illegal attribute for a SimpleType");
-    break;
-
+  default: userError("illegal attribute for a SimpleType"); break; 
   case XTOK_type:
     // NOTE: this 'type' is not a type node, but basically an enum,
     // and thus is handled more like a flag would be.
     fromXml(const_cast<SimpleTypeId&>(obj->type), parseQuotedString(strValue));
     break;
-
   }
 }
 
 void ReadXml_Type::registerAttr_CompoundType
   (CompoundType *obj, int attr, char const *strValue) {
-
   // superclasses
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
   if (registerAttr_Scope_super(obj, attr, strValue)) return;
 
   switch(attr) {
-  default:
-    userError("illegal attribute for a CompoundType");
-    break;
-
-  case XTOK_forward:
-    fromXml_bool(obj->forward, parseQuotedString(strValue));
-    break;
-
-  case XTOK_keyword:
-    fromXml(obj->keyword, parseQuotedString(strValue));
-    break;
-
-  case XTOK_dataMembers:
-    linkSat.unsatLinks_List.append
-      (new UnsatLink((void**) &(obj->dataMembers),
-                     parseQuotedString(strValue),
-                     XTOK_List_CompoundType_dataMembers));
-    break;
-
-  case XTOK_bases:
-    linkSat.unsatLinks_List.append
-      (new UnsatLink((void**) &(obj->bases),
-                     parseQuotedString(strValue),
-                     XTOK_List_CompoundType_bases));
-    break;
-
-  case XTOK_virtualBases:
-    linkSat.unsatLinks_List.append
-      (new UnsatLink((void**) &(obj->virtualBases),
-                     parseQuotedString(strValue),
-                     XTOK_List_CompoundType_virtualBases));
-    break;
-
-  case XTOK_subobj:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->subobj),
-                     parseQuotedString(strValue)));
-    break;
-
+  default: userError("illegal attribute for a CompoundType"); break; 
+  case XTOK_forward: fromXml_bool(obj->forward, parseQuotedString(strValue)); break; 
+  case XTOK_keyword: fromXml(obj->keyword, parseQuotedString(strValue)); break; 
+  case XTOK_dataMembers: ulList(_List, dataMembers, XTOK_List_CompoundType_dataMembers); break; 
+  case XTOK_bases: ulList(_List, bases, XTOK_List_CompoundType_bases); break; 
+  case XTOK_virtualBases: ulList(_List, virtualBases, XTOK_List_CompoundType_virtualBases); break; 
+  case XTOK_subobj: ul(subobj); break; 
   case XTOK_conversionOperators:
-    linkSat.unsatLinks_List.append
-      (new UnsatLink((void**) &(obj->conversionOperators),
-                     parseQuotedString(strValue),
-                     XTOK_List_CompoundType_conversionOperators));
-    break;
-
-  case XTOK_instName:
-    obj->instName = strTable(parseQuotedString(strValue));
-    break;
-
-  case XTOK_syntax:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->syntax),
-                     parseQuotedString(strValue)));
-    break;
-
-  case XTOK_parameterizingScope:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->parameterizingScope),
-                     parseQuotedString(strValue)));
-    break;
-
-  case XTOK_selfType:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->selfType),
-                     parseQuotedString(strValue)));
-    break;
-
+    ulList(_List, conversionOperators, XTOK_List_CompoundType_conversionOperators); break; 
+  case XTOK_instName: obj->instName = strTable(parseQuotedString(strValue)); break; 
+  case XTOK_syntax: ul(syntax); break; 
+  case XTOK_parameterizingScope: ul(parameterizingScope); break; 
+  case XTOK_selfType: ul(selfType); break; 
   }
 }
 
 void ReadXml_Type::registerAttr_EnumType
   (EnumType *obj, int attr, char const *strValue) {
-
   // superclass
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
 
   switch(attr) {
-  default:
-    userError("illegal attribute for a EnumType");
-    break;
-
-  case XTOK_valueIndex:
-    linkSat.unsatLinks_NameMap.append
-      (new UnsatLink((void**) &(obj->valueIndex),
-                     parseQuotedString(strValue),
-                     XTOK_NameMap_EnumType_valueIndex));
-    break;
-
-  case XTOK_nextValue:
-    obj->nextValue = atoi(parseQuotedString(strValue));
-    break;
-
+  default: userError("illegal attribute for a EnumType"); break; 
+  case XTOK_valueIndex: ulList(_NameMap, valueIndex, XTOK_NameMap_EnumType_valueIndex); break; 
+  case XTOK_nextValue: obj->nextValue = atoi(parseQuotedString(strValue)); break; 
   }
 }
 
 void ReadXml_Type::registerAttr_EnumType_Value
   (EnumType::Value *obj, int attr, char const *strValue) {
-
   switch(attr) {
-  default:
-    userError("illegal attribute for a EnumType");
-    break;
-
-  case XTOK_name:
-    obj->name = strTable(parseQuotedString(strValue));
-    break;
-
-  case XTOK_type:
-    // NOTE: 'type' here is actually an atomic type
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->type),
-                     parseQuotedString(strValue)));
-    break;
-
-  case XTOK_value:
-    obj->value = atoi(parseQuotedString(strValue));
-    break;
-
-  case XTOK_decl:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->decl),
-                     parseQuotedString(strValue)));
-    break;
-
+  default: userError("illegal attribute for a EnumType"); break; 
+  case XTOK_name: obj->name = strTable(parseQuotedString(strValue)); break; 
+  case XTOK_type: ul(type); break; // NOTE: 'type' here is actually an atomic type
+  case XTOK_value: obj->value = atoi(parseQuotedString(strValue)); break; 
+  case XTOK_decl: ul(decl); break; 
   }
 }
 
 void ReadXml_Type::registerAttr_TypeVariable
   (TypeVariable *obj, int attr, char const *strValue) {
-
   // superclass
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
-
   // shouldn't get here
   userError("illegal attribute for a TypeVariable");
 }
 
 void ReadXml_Type::registerAttr_PseudoInstantiation
   (PseudoInstantiation *obj, int attr, char const *strValue) {
-
   // superclass
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
 
   switch(attr) {
-  default:
-    userError("illegal attribute for a PsuedoInstantiation");
-    break;
-
+  default: userError("illegal attribute for a PsuedoInstantiation"); break; 
 //    CompoundType *primary;
-
 //    // the arguments, some of which contain type variables
 //    ObjList<STemplateArgument> args;
-
   }
 }
 
 void ReadXml_Type::registerAttr_DependentQType
   (DependentQType *obj, int attr, char const *strValue) {
-
   // superclass
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
 
   switch(attr) {
-  default:
-    userError("illegal attribute for a DependentQType");
-    break;
-
+  default: userError("illegal attribute for a DependentQType"); break; 
 //    AtomicType *first;            // (serf) TypeVariable or PseudoInstantiation
-
 //    // After the first component comes whatever name components followed
 //    // in the original syntax.  All template arguments have been
 //    // tcheck'd.
 //    PQName *rest;
-
   }
 }
 
-bool ReadXml_Type::registerAttr_Scope_super
-  (Scope *obj, int attr, char const *strValue) {
+bool ReadXml_Type::registerAttr_Scope_super(Scope *obj, int attr, char const *strValue) {
   switch(attr) {
-  default:
-    return false;               // we didn't find it
-    break;
-
-  case XTOK_variables:
-    linkSat.unsatLinks_NameMap.append
-      (new UnsatLink((void**) &(obj->variables),
-                     parseQuotedString(strValue),
-                     XTOK_NameMap_Scope_variables));
-    break;
-
-  case XTOK_typeTags:
-    linkSat.unsatLinks_NameMap.append
-      (new UnsatLink((void**) &(obj->typeTags),
-                     parseQuotedString(strValue),
-                     XTOK_NameMap_Scope_typeTags));
-    break;
-
-  case XTOK_canAcceptNames:
-    fromXml_bool(obj->canAcceptNames, parseQuotedString(strValue));
-    break;
-
-  case XTOK_parentScope:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->parentScope),
-                     parseQuotedString(strValue)));
-    break;
-
-  case XTOK_scopeKind:
-    fromXml(obj->scopeKind, parseQuotedString(strValue));
-    break;
-
-  case XTOK_namespaceVar:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->namespaceVar),
-                     parseQuotedString(strValue)));
-    break;
-
-  case XTOK_templateParams:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->templateParams),
-                     parseQuotedString(strValue)));
-    break;
-
-  case XTOK_curCompound:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->curCompound),
-                     parseQuotedString(strValue)));
-    break;
-
+  default: return false;        // we didn't find it break; 
+  case XTOK_variables: ulList(_NameMap, variables, XTOK_NameMap_Scope_variables); break; 
+  case XTOK_typeTags: ulList(_NameMap, typeTags, XTOK_NameMap_Scope_typeTags); break; 
+  case XTOK_canAcceptNames: fromXml_bool(obj->canAcceptNames, parseQuotedString(strValue)); break; 
+  case XTOK_parentScope: ul(parentScope); break; 
+  case XTOK_scopeKind: fromXml(obj->scopeKind, parseQuotedString(strValue)); break; 
+  case XTOK_namespaceVar: ul(namespaceVar); break; 
+  case XTOK_templateParams: ul(templateParams); break; 
+  case XTOK_curCompound: ul(curCompound); break; 
   }
   return true;                  // found it
 }
 
-void ReadXml_Type::registerAttr_Scope
-  (Scope *obj, int attr, char const *strValue) {
-
+void ReadXml_Type::registerAttr_Scope(Scope *obj, int attr, char const *strValue) {
   // "superclass": just re-use our own superclass code for ourself
   if (registerAttr_Scope_super(obj, attr, strValue)) return;
-
   // shouldn't get here
   userError("illegal attribute for a Scope");
 }
 
-bool ReadXml_Type::registerAttr_BaseClass_super
-  (BaseClass *obj, int attr, char const *strValue) {
+bool ReadXml_Type::registerAttr_BaseClass_super(BaseClass *obj, int attr, char const *strValue) {
   switch(attr) {
-  default:
-    return false;
-    break;
-
-  case XTOK_ct:
-    linkSat.unsatLinks.append
-      (new UnsatLink((void**) &(obj->ct),
-                     parseQuotedString(strValue)));
-    break;
-
-  case XTOK_access:
-    fromXml(obj->access, parseQuotedString(strValue));
-    break;
-
-  case XTOK_isVirtual:
-    fromXml_bool(obj->isVirtual, parseQuotedString(strValue));
-    break;
+  default: return false; break; 
+  case XTOK_ct: ul(ct); break; 
+  case XTOK_access: fromXml(obj->access, parseQuotedString(strValue)); break; 
+  case XTOK_isVirtual: fromXml_bool(obj->isVirtual, parseQuotedString(strValue)); break; 
   }
   return true;
 }
 
 void ReadXml_Type::registerAttr_BaseClass
   (BaseClass *obj, int attr, char const *strValue) {
-
   // "superclass": just re-use our own superclass code for ourself
   if (registerAttr_BaseClass_super(obj, attr, strValue)) return;
-
   // shouldn't get here
   userError("illegal attribute for a BaseClass");
 }
 
 void ReadXml_Type::registerAttr_BaseClassSubobj
   (BaseClassSubobj *obj, int attr, char const *strValue) {
-
   // "superclass": just re-use our own superclass code for ourself
   if (registerAttr_BaseClass_super(obj, attr, strValue)) return;
 
   switch(attr) {
-  default:
-    userError("illegal attribute for a BaseClassSubobj");
-    break;
-
-  case XTOK_parents:
-    linkSat.unsatLinks_List.append
-      (new UnsatLink((void**) &(obj->parents),
-                     parseQuotedString(strValue),
-                     XTOK_List_BaseClassSubobj_parents));
-    break;
-
+  default: userError("illegal attribute for a BaseClassSubobj"); break; 
+  case XTOK_parents: ulList(_List, parents, XTOK_List_BaseClassSubobj_parents); break; 
   }
 }
