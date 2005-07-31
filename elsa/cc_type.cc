@@ -2260,7 +2260,9 @@ void FunctionType::traverse(TypeVisitor &vis)
   // similarly, I don't want traversal into exception specs right now
   //
   // dsw: if you ever put them in, we have to take them out of the xml
-  // rendering or they will get rendered twice
+  // rendering or they will get rendered twice; in
+  // ToXMLTypeVisitor::visitType() see this case statement
+  //   case Type::T_FUNCTION:
 
   vis.postvisitType(this);
 }
