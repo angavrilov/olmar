@@ -83,7 +83,7 @@ inClassNAT
 SimpleType
 CompoundType
 EnumType
-EnumType_Value
+  EnumType_Value
 TypeVariable
 PseudoInstantiation
 DependentQType
