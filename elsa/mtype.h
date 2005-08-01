@@ -170,18 +170,25 @@ private:      // funcs
   bool matchTypeVariable(TypeVariable const *conc, TypeVariable const *pat, MatchFlags flags);
   bool matchPseudoInstantiation(PseudoInstantiation const *conc,
                                        PseudoInstantiation const *pat, MatchFlags flags);
+  bool matchSTemplateArguments(ObjList<STemplateArgument> const &conc,
+                               ObjList<STemplateArgument> const &pat,
+                               MatchFlags flags);
   bool matchSTemplateArgument(STemplateArgument const *conc,
                                      STemplateArgument const *pat, MatchFlags flags);
   bool matchNontypeWithVariable(STemplateArgument const *conc,
                                        E_variable *pat, MatchFlags flags);
   bool matchDependentQType(DependentQType const *conc,
                                   DependentQType const *pat, MatchFlags flags);
+  bool matchPQName(PQName const *conc, PQName const *pat, MatchFlags flags);
   bool matchType(Type const *conc, Type const *pat, MatchFlags flags);
   bool matchTypeWithVariable(Type const *conc, TypeVariable const *pat,
                                     CVFlags tvCV, MatchFlags flags);
   bool equalWithAppliedCV(Type const *conc, Binding *binding, CVFlags cv, MatchFlags flags);
   bool addTypeBindingWithoutCV(StringRef tvName, Type const *conc, CVFlags tvcv);
   bool matchTypeWithPolymorphic(Type const *conc, SimpleTypeId polyId, MatchFlags flags);
+  bool matchAtomicTypeWithVariable(AtomicType const *conc,
+                                   TypeVariable const *pat,
+                                   MatchFlags flags);
   bool matchCVAtomicType(CVAtomicType const *conc, CVAtomicType const *pat, MatchFlags flags);
   bool matchPointerType(PointerType const *conc, PointerType const *pat, MatchFlags flags);
   bool matchReferenceType(ReferenceType const *conc, ReferenceType const *pat, MatchFlags flags);

@@ -159,7 +159,32 @@ bool MType::matchAtomicType(AtomicType const *conc, AtomicType const *pat, Match
     return true;
   }
 
+  if ((flags & MF_MATCH) &&
+      pat->isTypeVariable()) {
+    return matchAtomicTypeWithVariable(conc, pat->asTypeVariableC(), flags);
+  }
+
   if (conc->getTag() != pat->getTag()) {
+    // match an instantiation with a PseudoInstantiation
+    if ((flags & MF_MATCH) &&
+        pat->isPseudoInstantiation() &&
+        conc->isCompoundType() &&
+        conc->asCompoundTypeC()->typedefVar->templateInfo() &&
+        conc->asCompoundTypeC()->typedefVar->templateInfo()->isCompleteSpecOrInstantiation()) {
+      TemplateInfo *concTI = conc->asCompoundTypeC()->typedefVar->templateInfo();
+      PseudoInstantiation const *patPI = pat->asPseudoInstantiationC();
+      
+      // these must be instantiations of the same primary
+      if (concTI->getPrimary() != patPI->primary->templateInfo()->getPrimary()) {
+        return false;
+      }
+      
+      // compare arguments; use the args to the primary, not the args to
+      // the partial spec (if any)
+      return matchSTemplateArguments(concTI->getArgumentsToPrimary(),
+                                     patPI->args, flags);
+    }
+
     return false;
   }
 
@@ -201,8 +226,16 @@ bool MType::matchPseudoInstantiation(PseudoInstantiation const *conc,
     return false;
   }
 
-  ObjListIter<STemplateArgument> concIter(conc->args);
-  ObjListIter<STemplateArgument> patIter(pat->args);
+  return matchSTemplateArguments(conc->args, pat->args, flags);
+}
+
+
+bool MType::matchSTemplateArguments(ObjList<STemplateArgument> const &conc,
+                                    ObjList<STemplateArgument> const &pat,
+                                    MatchFlags flags)
+{
+  ObjListIter<STemplateArgument> concIter(conc);
+  ObjListIter<STemplateArgument> patIter(pat);
 
   while (!concIter.isDone() && !patIter.isDone()) {
     STemplateArgument const *csta = concIter.data();
@@ -294,15 +327,64 @@ bool MType::matchNontypeWithVariable(STemplateArgument const *conc,
 
 bool MType::matchDependentQType(DependentQType const *conc, 
                                 DependentQType const *pat, MatchFlags flags)
+{ 
+  // compare first components
+  if (!matchAtomicType(conc->first, pat->first, flags)) {
+    return false;
+  }
+
+  // compare sequences of names as just that, names, since their
+  // interpretation depends on what type 'first' ends up being;
+  // I think this behavior is underspecified in the standard, but
+  // it is what gcc and icc seem to do
+  return matchPQName(conc->rest, pat->rest, flags);
+}
+
+bool MType::matchPQName(PQName const *conc, PQName const *pat, MatchFlags flags)
 {
-  // for now, only physical equality
-  //
-  // this is a bug; structural equality (along the lines of
-  // PseudoInstantiation::innerEquals) should be allowed; but I'm
-  // having trouble writing a testcase because of the more fundamental
-  // problem that I do not implement matching against parameter types
-  // that are DQTs (in/t0487.cc)
-  return conc == pat;
+  if (conc->kind() != pat->kind()) {
+    return false;
+  }
+
+  ASTSWITCH2C(PQName, conc, pat) {
+    // recursive case
+    ASTCASE2C(PQ_qualifier, cq, pq) {
+      // compare as names (i.e., syntactically)
+      if (cq->qualifier != pq->qualifier) {
+        return false;
+      }
+
+      // the template arguments can be compared semantically because
+      // the standard does specify that they are looked up in a
+      // context that is effectively independent of what appears to
+      // the left in the qualified name (cppstd 3.4.3.1p1b3)
+      if (!matchSTemplateArguments(cq->sargs, pq->sargs, flags)) {
+        return false;
+      }
+
+      // continue down the chain
+      return matchPQName(cq->rest, pq->rest, flags);
+    }
+
+    // base cases
+    ASTNEXT2C(PQ_name, cn, pn) {
+      // compare as names
+      return cn->name == pn->name;
+    }
+    ASTNEXT2C(PQ_operator, co, po) {
+      return co->o == po->o;
+    }
+    ASTNEXT2C(PQ_template, ct, pt) {
+      // like for PQ_qualifier, except there is no 'rest'
+      return ct->name == pt->name &&
+             matchSTemplateArguments(ct->sargs, pt->sargs, flags);
+    }
+
+    ASTDEFAULT2C {
+      xfailure("bad kind");
+    }
+    ASTENDCASE2C
+  }
 }
 
 
@@ -346,7 +428,7 @@ bool MType::matchType(Type const *conc, Type const *pat, MatchFlags flags)
 }
 
 
-bool MType::matchTypeWithVariable(Type const *conc, TypeVariable const *pat, 
+bool MType::matchTypeWithVariable(Type const *conc, TypeVariable const *pat,
                                   CVFlags tvCV, MatchFlags flags)
 {
   StringRef tvName = pat->name;
@@ -372,8 +454,14 @@ bool MType::matchTypeWithVariable(Type const *conc, TypeVariable const *pat,
 }
 
 
+// Typical scenario:
+//   conc is 'int const'
+//   binding is 'int'
+//   cv is 'const'
+// We want to compare the type denoted by 'conc' with the type denoted
+// by 'binding' with the qualifiers in 'cv' added to it at toplevel.
 bool MType::equalWithAppliedCV(Type const *conc, Binding *binding, CVFlags cv, MatchFlags flags)
-{                    
+{
   // turn off type variable binding/substitution
   flags &= ~MF_MATCH;
 
@@ -381,8 +469,8 @@ bool MType::equalWithAppliedCV(Type const *conc, Binding *binding, CVFlags cv, M
     Type const *t = binding->getType();
 
     if (!( flags & MF_OK_DIFFERENT_CV )) {
-      // cv-flags for the bound type are ignored, replaced by the
-      // cv-flags stored in the 'binding' object
+      // cv-flags for 't' are ignored, replaced by the cv-flags stored
+      // in the 'binding' object
       cv |= binding->cv;
 
       // compare cv-flags
@@ -394,29 +482,62 @@ bool MType::equalWithAppliedCV(Type const *conc, Binding *binding, CVFlags cv, M
     // compare underlying types, ignoring first level of cv
     return matchType(conc, t, flags | MF_IGNORE_TOP_CV);
   }
-  
+
   if (binding->sarg.isAtomicType()) {
     if (!conc->isCVAtomicType()) {
       return false;
     }
 
-    if (!( flags & MF_OK_DIFFERENT_CV )) {
-      // compare cv-flags
-      if (cv != conc->getCVFlags()) {
-        return false;
-      }
+    // compare the atomics
+    if (!matchAtomicType(conc->asCVAtomicTypeC()->atomic,
+                         binding->sarg.getAtomicType(), flags)) {
+      return false;
     }
 
-    // compare the atomics
-    return matchAtomicType(conc->asCVAtomicTypeC()->atomic, 
-                           binding->sarg.getAtomicType(), flags);
+    // When a name is bound directly to an atomic type, it is compatible
+    // with any binding to a CVAtomicType for the same atomic; that is,
+    // it is compatible with any cv-qualified variant.  So, if we
+    // are paying attention to cv-flags at all, simply replace the
+    // original (AtomicType) binding with 'conc' (a CVAtomicType) and
+    // appropriate cv-flags.
+    if (!( flags & MF_OK_DIFFERENT_CV )) {
+      // The 'cv' flags supplied are subtracted from those in 'conc'.
+      CVFlags concCV = conc->getCVFlags();
+      if (concCV >= cv) {
+        // example:
+        //   conc = 'struct B volatile const'
+        //   binding = 'struct B'
+        //   cv = 'const'
+        // Since 'const' was supplied (e.g., "T const") with the type
+        // variable, we want to remove it from what we bind to, so here
+        // we will bind to 'struct B volatile' ('concCV' = 'volatile').
+        concCV = (concCV & ~cv);
+      }
+      else {
+        // example:
+        //   conc = 'struct B volatile'
+        //   binding = 'struct B'
+        //   cv = 'const'
+        // This means we are effectively comparing 'struct B volatile' to
+        // 'struct B volatile const' (the latter volatile arising because
+        // being directly bound to an atomic means we can add qualifiers),
+        // and these are not equal.
+        return false;
+      }
+
+      binding->setType(conc);
+      binding->cv = concCV;
+      return true;
+    }
+
   }
-                                                                          
-  // I *think* that the language rules preventing same-named template
-  // params from nesting will prevent this code from being reached,
-  // but if it turns out I am wrong, it should be safe to simply remove
-  // the assertion and return false.
+
+  // I *think* that the language rules that prevent same-named
+  // template params from nesting will have the effect of preventing
+  // this code from being reached, but if it turns out I am wrong, it
+  // should be safe to simply remove the assertion and return false.
   xfailure("attempt to match a type with a variable bound to a non-type");
+
   return false;
 }
 
@@ -440,7 +561,7 @@ bool MType::addTypeBindingWithoutCV(StringRef tvName, Type const *conc, CVFlags 
   // 'tvcv'; this will be the cv-flags of the type to which 'tvName'
   // is bound
   binding->cv = (ccv & ~tvcv);
-  
+
   // add the binding
   bindings.add(tvName, binding);
   return true;
@@ -448,7 +569,7 @@ bool MType::addTypeBindingWithoutCV(StringRef tvName, Type const *conc, CVFlags 
 
 
 // check if 'conc' matches the "polymorphic" type family 'polyId'
-bool MType::matchTypeWithPolymorphic(Type const *conc, SimpleTypeId polyId, 
+bool MType::matchTypeWithPolymorphic(Type const *conc, SimpleTypeId polyId,
                                      MatchFlags flags)
 {
   // check those that can match any type constructor
@@ -499,8 +620,49 @@ bool MType::matchTypeWithPolymorphic(Type const *conc, SimpleTypeId polyId,
 }
 
 
+bool MType::matchAtomicTypeWithVariable(AtomicType const *conc,
+                                        TypeVariable const *pat,
+                                        MatchFlags flags)
+{
+  StringRef tvName = pat->name;
+  Binding *binding = bindings.get(tvName);
+  if (binding) {
+    // 'tvName' is already bound; it should be bound to the same
+    // atomic as 'conc', possibly with some (extra, ignored) cv flags
+    if (binding->sarg.isType()) {
+      Type const *t = binding->getType();
+      if (t->isCVAtomicType()) {
+        return matchAtomicType(conc, t->asCVAtomicTypeC()->atomic, flags & ~MF_MATCH);
+      }
+      else {
+        return false;
+      }
+    }
+    else if (binding->sarg.isAtomicType()) {
+      return matchAtomicType(conc, binding->sarg.getAtomicType(), flags & ~MF_MATCH);
+    }
+    else {
+      return false;
+    }
+  }
+  else {
+    if (flags & MF_NO_NEW_BINDINGS) {
+      // new bindings are disallowed, so unbound variables in 'pat'
+      // cause failure
+      return false;
+    }
 
-bool MType::matchCVAtomicType(CVAtomicType const *conc, CVAtomicType const *pat, 
+    // bind 'tvName' to 'conc'
+    binding = new Binding;
+    binding->sarg.setAtomicType(conc);
+    bindings.add(tvName, binding);
+    return true;
+  }
+}
+
+
+
+bool MType::matchCVAtomicType(CVAtomicType const *conc, CVAtomicType const *pat,
                               MatchFlags flags)
 {
   return matchAtomicType(conc->atomic, pat->atomic, flags) &&

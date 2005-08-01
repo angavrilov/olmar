@@ -105,12 +105,151 @@ enum MatchFlags {
 };
 
 
-template <class T>
+struct B {
+  int x;
+};
+
+
+template <class U, class V>
+struct Pair {
+  U u;
+  V v;
+};
+
+template <class U, class V>
+struct Pair2 {
+  U u;
+  V v;
+};
+
+
+template <int m>
+struct Num {};
+
+
+template <class S, class T, int n>
 struct A {
   void f()
   {
+    // very simple
     __test_mtype((int*)0, (T*)0, MF_MATCH,
                  "T", (int)0);
     __test_mtype((int*)0, (float*)0, MF_MATCH, false);
+
+
+    // CVAtomicType
+    __test_mtype((int const volatile)0, (T const)0, MF_MATCH,
+                 "T", (int volatile)0);
+
+    // PointerType
+    __test_mtype((int const * const)0, (T * const)0, MF_MATCH,
+                 "T", (int const)0);
+    __test_mtype((int const * const)0, (T *)0, MF_MATCH,
+                 false);
+
+    // ReferenceType
+    __test_mtype((int &)0, (T &)0, MF_MATCH,
+                 "T", (int)0);
+
+    // FunctionType
+    __test_mtype((int (*)())0, (T (*)())0, MF_MATCH,
+                 "T", (int)0);
+
+
+    // testing binding of variables directly to atomics
+    __test_mtype((int B::*)0, (int T::*)0, MF_MATCH,
+                 "T", (B)0);
+
+    __test_mtype((int (*)(B const *, int B::*))0,
+                 (int (*)(T       *, int T::*))0, MF_MATCH,
+                 "T", (B const)0);
+
+    __test_mtype((int (*)(B const *, int B::*, B const *))0,
+                 (int (*)(T       *, int T::*, T       *))0, MF_MATCH,
+                 "T", (B const)0);
+
+    __test_mtype((int (*)(int B::*, B const *))0,
+                 (int (*)(int T::*, T       *))0, MF_MATCH,
+                 "T", (B const)0);
+
+    __test_mtype((int (*)(int B::*, B const *, int B::*))0,
+                 (int (*)(int T::*, T       *, int T::*))0, MF_MATCH,
+                 "T", (B const)0);
+
+    __test_mtype((int (*)(int B::*, B const *, B const volatile *))0,
+                 (int (*)(int T::*, T       *, T       volatile *))0, MF_MATCH,
+                 "T", (B const)0);
+
+    __test_mtype((int (*)(int B::*, B const          *))0,
+                 (int (*)(int T::*, T       volatile *))0, MF_MATCH,
+                 false);
+
+    __test_mtype((int (*)(int B::*, B const *, B const          *))0,
+                 (int (*)(int T::*, T       *, T       volatile *))0, MF_MATCH,
+                 false);
+
+
+    // multiple occurrences of variables in patterns
+    __test_mtype((int (*)(int,int))0,
+                 (int (*)(T,T))0, MF_MATCH,
+                 "T", (int)0);
+
+    __test_mtype((int (*)(int,float))0,
+                 (int (*)(T,T))0, MF_MATCH,
+                 false);
+
+
+    // match instantiation with PseudoInstantiation
+    __test_mtype((Pair<int,int>*)0,
+                 (Pair<T,T>*)0, MF_MATCH,
+                 "T", (int)0);
+    __test_mtype((Pair<int,int>*)0,
+                 (Pair2<T,T>*)0, MF_MATCH,
+                 false);
+
+
+    // match template param with itself
+    __test_mtype((T*)0,
+                 (T*)0, MF_EXACT);
+    __test_mtype((T*)0,
+                 (S*)0, MF_EXACT, false);
+
+    // Q: should this yield a binding?  for now it does...
+    __test_mtype((T*)0,
+                 (T*)0, MF_MATCH,
+                 "T", (T)0);
+
+    // PseudoInstantiation
+    __test_mtype((Pair<T,int>*)0,
+                 (Pair<T,int>*)0, MF_EXACT);
+    __test_mtype((Pair<T,int>*)0,
+                 (Pair<T,int const>*)0, MF_EXACT, false);
+    __test_mtype((Pair<T,int>*)0,
+                 (Pair2<T,int>*)0, MF_EXACT, false);
+
+    // DependentQType
+    __test_mtype((typename T::Foo*)0,
+                 (typename T::Foo*)0, MF_EXACT);
+    __test_mtype((typename T::Foo::Bar*)0,
+                 (typename T::Foo::Bar*)0, MF_EXACT);
+    __test_mtype((typename T::Foo::template Baz<3>*)0,
+                 (typename T::Foo::template Baz<3>*)0, MF_EXACT);
+    __test_mtype((typename T::Foo::template Baz<3>*)0,
+                 (typename T::Foo::template Baz<4>*)0, MF_EXACT, false);
+
+
+    // match with an integer
+    __test_mtype((Num<3>*)0,
+                 (Num<n>*)0, MF_MATCH,
+                 "n", 3);
+
+    // ask the infrastructure for an unbound value
+    //ERROR(1): __test_mtype((Num<3>*)0,
+    //ERROR(1):              (Num<n>*)0, MF_MATCH,
+    //ERROR(1):              "nn", 3);
+
+    // attempt to compare different kinds of atomics
+    __test_mtype((B*)0, (int*)0, MF_EXACT, false);
+
   }
 };
