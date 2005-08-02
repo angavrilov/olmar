@@ -41,7 +41,7 @@ class ToXMLTypeVisitor : public TypeVisitor {
   virtual ~ToXMLTypeVisitor() {}
 
   private:
-  void printIndentation();
+  void newline();
   void startItem(rostring prefix, void const *ptr);
   void stopItem();
 

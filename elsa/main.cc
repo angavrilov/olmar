@@ -676,10 +676,10 @@ void doit(int argc, char **argv)
     ToXmlASTVisitor_Types xmlVis_Types(xmlTypeVis);
     cout << "---- START ----" << endl;
     unit->traverse(xmlVis);
-    cout.flush();
+    cout << endl;
     if (tracingSys("xmlPrintAST-types")) {
       unit->traverse(xmlVis_Types);
-      cout.flush();
+      cout << endl;
     }
     cout << "---- STOP ----" << endl;
     traceProgress() << "dsw xml print... done\n";
@@ -699,7 +699,7 @@ void doit(int argc, char **argv)
     // FIX: do type visitor
     cout << "---- START ----" << endl;
     unit->traverse(loweredXmlVis);
-    cout.flush();
+    cout << endl;
     cout << "---- STOP ----" << endl;
     traceProgress() << "dsw xml print... done\n";
 #else

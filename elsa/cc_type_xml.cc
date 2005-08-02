@@ -18,64 +18,44 @@ inline void const *addr(void const *x) {
 
 #define printThing0(NAME, VALUE, PREFIX, SUFFIX, FUNC) \
 do { \
-  out << #NAME "=\"" PREFIX << FUNC(VALUE) << "\"" SUFFIX "\n"; \
+  out << #NAME "=\"" PREFIX << FUNC(VALUE) << "\"" SUFFIX; \
 } while(0)
 
 #define printThing(NAME, VALUE, PREFIX, FUNC) \
 do { \
   if (VALUE) { \
-    printIndentation(); \
+    newline(); \
     printThing0(NAME, VALUE, PREFIX, "", FUNC); \
   } \
 } while(0)
 
-#define printThingDone(NAME, VALUE, PREFIX, FUNC) \
-do { \
-  printIndentation(); \
-  if (VALUE) { \
-    printThing0(NAME, VALUE, PREFIX, ">", FUNC); \
-  } else { \
-    out << ">\n"; \
-  } \
-} while(0)
-
 #define printPtr(NAME, VALUE, PREFIX) printThing(NAME, VALUE, PREFIX, addr)
-#define printPtrDone(NAME, VALUE, PREFIX) printThingDone(NAME, VALUE, PREFIX, addr)
 
 #define printXml(NAME, VALUE) \
-  printIndentation(); \
+  newline(); \
   printThing0(NAME, VALUE, "", "", toXml)
-#define printXmlDone(NAME, VALUE) \
-  printIndentation(); \
-  printThing0(NAME, VALUE, "", ">", toXml)
 
 #define printXml_bool(NAME, VALUE) \
-  printIndentation(); \
+  newline(); \
   printThing0(NAME, VALUE, "", "", toXml_bool)
-#define printXmlDone_bool(NAME, VALUE) \
-  printIndentation(); \
-  printThing0(NAME, VALUE, "", ">", toXml_bool)
 
 #define printXml_int(NAME, VALUE) \
-  printIndentation(); \
+  newline(); \
   printThing0(NAME, VALUE, "", "", toXml_int)
-#define printXmlDone_int(NAME, VALUE) \
-  printIndentation(); \
-  printThing0(NAME, VALUE, "", ">", toXml_int)
 
 #define printStrRef(FIELD, TARGET) \
 do { \
   if (TARGET) { \
-    printIndentation(); \
-    out << #FIELD "=" << quoted(TARGET) << "\n"; \
+    newline(); \
+    out << #FIELD "=" << quoted(TARGET); \
   } \
 } while(0)
 
 #define openTag0(NAME, PREFIX, OBJ, SUFFIX) \
 do { \
-  printIndentation(); \
+  newline(); \
   out << "<" #NAME; \
-  out << " _id=\"" PREFIX << addr(OBJ) << "\"" SUFFIX "\n"; \
+  out << " _id=\"" PREFIX << addr(OBJ) << "\"" SUFFIX; \
   ++depth; \
 } while(0)
 
@@ -84,25 +64,24 @@ do { \
 
 #define openTag_NameMap_Item(NAME, TARGET) \
 do { \
-  printIndentation(); \
+  newline(); \
   out << "<_NameMap_Item" \
       << " name=" << quoted(NAME) \
       << " item=\"TY" << addr(TARGET) \
-      << "\">\n"; \
+      << "\">"; \
   ++depth; \
 } while(0)
 
 #define tagEnd \
 do { \
-  printIndentation(); \
-  out << ">\n"; \
+  out << ">"; \
 } while(0)
 
 #define closeTag(NAME) \
 do { \
   --depth; \
-  printIndentation(); \
-  out << "</" #NAME ">\n"; \
+  newline(); \
+  out << "</" #NAME ">"; \
 } while(0)
 
 #define trav(TARGET) \
@@ -180,15 +159,16 @@ void fromXml(STemplateArgument::Kind &out, rostring str) {
 
 // -------------------- ToXMLTypeVisitor -------------------
 
-void ToXMLTypeVisitor::printIndentation() {
+void ToXMLTypeVisitor::newline() {
+  out << "\n";
   if (indent) {
     for (int i=0; i<depth; ++i) cout << " ";
   }
 }
 
 void ToXMLTypeVisitor::startItem(rostring prefix, void const *ptr) {
-  printIndentation();
-  out << "<_List_Item item=\"" << prefix << addr(ptr) << "\">\n";
+  newline();
+  out << "<_List_Item item=\"" << prefix << addr(ptr) << "\">";
   ++depth;
 }
 void ToXMLTypeVisitor::stopItem() {
@@ -206,7 +186,8 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     CVAtomicType *atom = obj->asCVAtomicType();
     openTag(CVAtomicType, "TY", obj);
     printPtr(atomic, atom->atomic, "TY");
-    printXmlDone(cv, atom->cv);
+    printXml(cv, atom->cv);
+    tagEnd;
     break;
   }
 
@@ -214,14 +195,16 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     PointerType *ptr = obj->asPointerType();
     openTag(PointerType, "TY", obj);
     printXml(cv, ptr->cv);
-    printPtrDone(atType, ptr->atType, "TY");
+    printPtr(atType, ptr->atType, "TY");
+    tagEnd;
     break;
   }
 
   case Type::T_REFERENCE: {
     ReferenceType *ref = obj->asReferenceType();
     openTag(ReferenceType, "TY", obj);
-    printPtrDone(atType, ref->atType, "TY");
+    printPtr(atType, ref->atType, "TY");
+    tagEnd;
     break;
   }
 
@@ -231,7 +214,8 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     printXml(flags, func->flags);
     printPtr(retType, func->retType, "TY");
     printPtr(params, &(func->params), "OL");
-    printPtrDone(exnSpec, &(func->exnSpec), "TY");
+    printPtr(exnSpec, &(func->exnSpec), "TY");
+    tagEnd;
     // **** subtags
     // These are not visited by default by the type visitor, so we not
     // only have to print the id we have to print the tree.
@@ -246,7 +230,8 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
         // FunctionType::ExnSpec and I don't want to make it virtual as
         // it has no virtual methods yet, so I do this manually.
         openTag(FunctionType_ExnSpec, "TY", (&(func->exnSpec)));
-        printPtrDone(types, &(func->exnSpec->types), "OL");
+        printPtr(types, &(func->exnSpec->types), "OL");
+        tagEnd;
         // **** FunctionType::ExnSpec subtags
         openTagWhole(List_ExnSpec_types, "OL", &func->exnSpec->types);
         SFOREACH_OBJLIST_NC(Type, func->exnSpec->types, iter) {
@@ -263,8 +248,9 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     ArrayType *arr = obj->asArrayType();
     openTag(ArrayType, "TY", obj);
     printPtr(eltType, arr->eltType, "TY");
-    printIndentation();
-    out << "size=\"" << arr->size << "\">\n";
+    newline();
+    out << "size=\"" << arr->size << "\"";
+    tagEnd;
     break;
   }
 
@@ -273,7 +259,8 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     openTag(PointerToMemberType, "TY", obj);
     printPtr(inClassNAT, ptm->inClassNAT, "TY");
     printXml(cv, ptm->cv);
-    printPtrDone(atType, ptm->atType, "TY");
+    printPtr(atType, ptm->atType, "TY");
+    tagEnd;
     break;
   }
 
@@ -341,11 +328,12 @@ bool ToXMLTypeVisitor::visitVariable(Variable *var) {
 //    // bits 16-31: result of 'getParameterOrdinal()'
 //    unsigned intData;
 //    Ugh.  Break into 3 parts eventually, but for now serialize as an int.
-  printIndentation();
-  out << "intData=\"" << toXml_Variable_intData(var->intData) << "\"\n";
+  newline();
+  out << "intData=\"" << toXml_Variable_intData(var->intData) << "\"";
 
   printPtr(usingAlias_or_parameterizedEntity, var->usingAlias_or_parameterizedEntity, "TY");
-  printPtrDone(templInfo, var->templInfo, "TY");
+  printPtr(templInfo, var->templInfo, "TY");
+  tagEnd;
 
   // **** subtags
 
@@ -390,7 +378,8 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
   case AtomicType::T_SIMPLE: {
     SimpleType *simple = obj->asSimpleType();
     openTag(SimpleType, "TY", obj);
-    printXmlDone(type, simple->type);
+    printXml(type, simple->type);
+    tagEnd;
     break;
   }
 
@@ -410,7 +399,8 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     printStrRef(instName, cpd->instName);
     printPtr(syntax, cpd->syntax, "AST"); // FIX: AST so make sure is serialized
     printPtr(parameterizingScope, cpd->parameterizingScope, "TY");
-    printPtrDone(selfType, cpd->selfType, "TY");
+    printPtr(selfType, cpd->selfType, "TY");
+    tagEnd;
 
     // **** subtags
 
@@ -454,7 +444,8 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     openTag(EnumType, "TY", e);
     toXml_NamedAtomicType_properties(e);
     printPtr(valueIndex, &(e->valueIndex), "TY");
-    printXmlDone_int(nextValue, e->nextValue);
+    printXml_int(nextValue, e->nextValue);
+    tagEnd;
 
     // **** subtags
     toXml_NamedAtomicType_subtags(e);
@@ -549,7 +540,8 @@ bool ToXMLTypeVisitor::visitEnumType_Value(void /*EnumType::Value*/ *eValue0) {
   printStrRef(name, eValue->name);
   printPtr(type, &(eValue->type), "TY");
   printXml_int(value, eValue->value);
-  printPtrDone(decl, &(eValue->decl), "TY");
+  printPtr(decl, &(eValue->decl), "TY");
+  tagEnd;
 
   // **** subtags
   //
@@ -684,7 +676,8 @@ bool ToXMLTypeVisitor::visitBaseClassSubobj(BaseClassSubobj *bc) {
 
   openTag(BaseClassSubobj, "TY", bc);
   toXml_BaseClass_properties(bc);
-  printPtrDone(parents, &(bc->parents), "OL");
+  printPtr(parents, &(bc->parents), "OL");
+  tagEnd;
 
   // **** subtags
   // none
@@ -725,8 +718,8 @@ bool ToXMLTypeVisitor::visitSTemplateArgument(STemplateArgument *obj) {
     break;
 
   case STemplateArgument::STA_INT:
-    printIndentation();
-    out << "i=\"" << toXml_int(obj->value.i) << "\"\n";
+    newline();
+    out << "i=\"" << toXml_int(obj->value.i) << "\"";
     break;
 
   case STemplateArgument::STA_REFERENCE:
