@@ -318,13 +318,13 @@ void ReadXml::parseOneTag() {
   case XTOK_SLASH:
     sawOpenTag = false;
     break;
-  // Item: a list element
-  case XTOK___Item:
-    topTemp = new Item();
+  // ListItem: a list element
+  case XTOK__List_Item:
+    topTemp = new ListItem();
     break;
-  // Name: a map element
-  case XTOK___Name:
-    topTemp = new Name();
+  // NameMapItem: a map element
+  case XTOK__NameMap_Item:
+    topTemp = new NameMapItem();
     break;
 //    // Special case the <__Link/> tag
 //    case XTOK___Link:
@@ -393,15 +393,15 @@ void ReadXml::parseOneTag() {
   }
 
   // deal with list entries
-  if (closeTag == XTOK___Item) {
+  if (closeTag == XTOK__List_Item) {
     // save the item tag
-    Item *itemNode = (Item*)lastNode;
+    ListItem *itemNode = (ListItem*)lastNode;
     int itemKind = lastKind;
-    xassert(itemKind == XTOK___Item);
+    xassert(itemKind == XTOK__List_Item);
 
     // what kind of thing is next on the stack?
     if (nodeStack.isEmpty()) {
-      userError("a __Item tag not immediately under a List");
+      userError("a _List_Item tag not immediately under a List");
     }
     void *listNode = nodeStack.top();
     int listKind = *kindStack.top();
@@ -417,31 +417,31 @@ void ReadXml::parseOneTag() {
            || listKindCat == KC_ObjList
            || listKindCat == KC_SObjList)
         )) {
-      userError("a __Item tag not immediately under a List");
+      userError("a _List_Item tag not immediately under a List");
     }
 
     // find the Node pointed to by the item; it should have been seen
     // by now
-    if (!itemNode->item) {
-      userError("no 'item' field for this __Item tag");
+    if (!itemNode->to) {
+      userError("no 'to' field for this _List_Item tag");
     }
-    void *pointedToItem = linkSat.id2obj.queryif(itemNode->item);
+    void *pointedToItem = linkSat.id2obj.queryif(itemNode->to);
     if (!pointedToItem) {
-      userError("no Node pointed to by Item");
+      userError("no Node pointed to by _List_Item");
     }
     append2List(listNode, listKind, pointedToItem);
   }
 
   // deal with map entries
-  else if (closeTag == XTOK___Name) {
+  else if (closeTag == XTOK__NameMap_Item) {
     // save the name tag
-    Name *nameNode = (Name*)lastNode;
+    NameMapItem *nameNode = (NameMapItem*)lastNode;
     int nameKind = lastKind;
-    xassert(nameKind == XTOK___Name);
+    xassert(nameKind == XTOK__NameMap_Item);
 
     // what kind of thing is next on the stack?
     if (nodeStack.isEmpty()) {
-      userError("a __Name tag not immediately under a Map");
+      userError("a _NameMap_Item tag not immediately under a Map");
     }
     void *mapNode = nodeStack.top();
     int mapKind = *kindStack.top();
@@ -452,16 +452,16 @@ void ReadXml::parseOneTag() {
       userError("no category found for this map kind");
     }
     if (!(mapNode && (mapKindCat == KC_StringRefMap || mapKindCat == KC_StringSObjDict))) {
-      userError("a __Name tag not immediately under a Map");
+      userError("a _NameMap_Item tag not immediately under a Map");
     }
 
     // find the Node pointed to by the item; it should have been seen
     // by now
-    void *pointedToItem = linkSat.id2obj.queryif(nameNode->item);
+    void *pointedToItem = linkSat.id2obj.queryif(nameNode->to);
     if (!pointedToItem) {
-      userError("no Node pointed to by Name");
+      userError("no Node pointed to by _NameMap_Item");
     }
-    insertIntoNameMap(mapNode, mapKind, nameNode->name, pointedToItem);
+    insertIntoNameMap(mapNode, mapKind, nameNode->from, pointedToItem);
   }
 
   // otherwise we are a normal node; just pop it off; no further
@@ -509,39 +509,39 @@ bool ReadXml::readAttributes() {
 
     // register the attribute
     xassert(nodeStack.isNotEmpty());
-    // special case the .id attribute
+    // special case the '_id' attribute
     if (attr == XTOK_DOT_ID) {
       // FIX: I really hope the map makes a copy of this string
       string id0 = parseQuotedString(lexer.currentText());
       if (linkSat.id2obj.isMapped(id0)) {
-        userError(stringc << "this id is taken " << id0);
+        userError(stringc << "this _id is taken " << id0);
       }
       linkSat.id2obj.add(id0, nodeStack.top());
     }
-    // special case the __Name node and its one attribute
-    else if (*kindStack.top() == XTOK___Name) {
+    // special case the _NameMap_Item node and its one attribute
+    else if (*kindStack.top() == XTOK__NameMap_Item) {
       switch(attr) {
       default:
-        userError("illegal attribute for __Name");
+        userError("illegal attribute for _NameMap_Item");
         break;
       case XTOK_name:
-        static_cast<Name*>(nodeStack.top())->name =
+        static_cast<NameMapItem*>(nodeStack.top())->from =
           strTable(parseQuotedString(lexer.currentText()));
         break;
       case XTOK_item:
-        static_cast<Name*>(nodeStack.top())->item =
+        static_cast<NameMapItem*>(nodeStack.top())->to =
           strTable(parseQuotedString(lexer.currentText()));
         break;
       }
     }
-    // special case the __Item node and its one attribute
-    else if (*kindStack.top() == XTOK___Item) {
+    // special case the _List_Item node and its one attribute
+    else if (*kindStack.top() == XTOK__List_Item) {
       switch(attr) {
       default:
-        userError("illegal attribute for __Item");
+        userError("illegal attribute for _List_Item");
         break;
       case XTOK_item:
-        static_cast<Item*>(nodeStack.top())->item =
+        static_cast<ListItem*>(nodeStack.top())->to =
           strTable(parseQuotedString(lexer.currentText()));
         break;
       }
@@ -578,10 +578,10 @@ bool ReadXml::kind2kindCat(int kind, KindCategory *kindCat) {
   xassert(kind != -1);          // this means you shouldn't be asking
 
   switch(kind) {
-  // special list element __Item
-  case XTOK___Item: *kindCat = KC_Item; return true; break;
-  // special map element __Name
-  case XTOK___Name: *kindCat = KC_Name; return true; break;
+  // special list element _List_Item
+  case XTOK__List_Item: *kindCat = KC_Item; return true; break;
+  // special map element _NameMap_Item
+  case XTOK__NameMap_Item: *kindCat = KC_Name; return true; break;
   default:
     // fallthrough the switch
     break;

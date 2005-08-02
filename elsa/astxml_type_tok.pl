@@ -146,18 +146,18 @@ List_BaseClassSubobj_parents
 List_ExnSpec_types
 List_Scope_templateParams
 #   a list element; these are in the AST so I don't need them here
-#  __Item
-#  item
+#  _Item
+#  to
 
 #   StringRefMap
 NameMap_Scope_variables
 NameMap_Scope_typeTags
 NameMap_EnumType_valueIndex
 #   a map element
-__Name
+_NameMap_Item
 
 # NOTE: off for now
 # an bidirectional unsatisfied link
-#  __Link
+#  _Map_Item
 #  from
 #  to

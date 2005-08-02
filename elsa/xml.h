@@ -39,23 +39,23 @@ enum KindCategory {
   KC_Name,
 };
 
-// the <__Item> </__Item> tag is parsed into this class to hold the
-// name while the value contained by it is being parsed.  Then it is
-// deleted.
-struct Item {
-  StringRef item;
+// the <_List_Item> </_List_Item> tag is parsed into this class to
+// hold the name while the value contained by it is being parsed.
+// Then it is deleted.
+struct ListItem {
+  StringRef to;
 
-  Item() : item(NULL) {}
+  ListItem() : to(NULL) {}
 };
 
-// the <__Name> </__Name> tag is parsed into this class to hold the
-// name while the value contained by it is being parsed.  Then it is
-// deleted.
-struct Name {
-  StringRef name;
-  StringRef item;
+// the <_NameMap_Item> </_NameMap_Item> tag is parsed into this class
+// to hold the name while the value contained by it is being parsed.
+// Then it is deleted.
+struct NameMapItem {
+  StringRef from;
+  StringRef to;
 
-  Name() : name(NULL), item(NULL) {}
+  NameMapItem() : from(NULL), to(NULL) {}
   // FIX: do I destruct/free() the name when I destruct the object?
 };
 

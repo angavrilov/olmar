@@ -75,17 +75,17 @@ do { \
 do { \
   printIndentation(); \
   out << "<" #NAME; \
-  out << " .id=\"" PREFIX << addr(OBJ) << "\"" SUFFIX "\n"; \
+  out << " _id=\"" PREFIX << addr(OBJ) << "\"" SUFFIX "\n"; \
   ++depth; \
 } while(0)
 
 #define openTag(NAME, PREFIX, OBJ) openTag0(NAME, PREFIX, OBJ, "")
 #define openTagWhole(NAME, PREFIX, OBJ) openTag0(NAME, PREFIX, OBJ, ">")
 
-#define openTag__Name(NAME, TARGET) \
+#define openTag_NameMap_Item(NAME, TARGET) \
 do { \
   printIndentation(); \
-  out << "<__Name" \
+  out << "<_NameMap_Item" \
       << " name=" << quoted(NAME) \
       << " item=\"TY" << addr(TARGET) \
       << "\">\n"; \
@@ -188,11 +188,11 @@ void ToXMLTypeVisitor::printIndentation() {
 
 void ToXMLTypeVisitor::startItem(rostring prefix, void const *ptr) {
   printIndentation();
-  out << "<__Item item=\"" << prefix << addr(ptr) << "\">\n";
+  out << "<_List_Item item=\"" << prefix << addr(ptr) << "\">\n";
   ++depth;
 }
 void ToXMLTypeVisitor::stopItem() {
-  closeTag(__Item);
+  closeTag(_List_Item);
 }
 
 bool ToXMLTypeVisitor::visitType(Type *obj) {
@@ -473,11 +473,11 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
       // it should be virtual to be parallel to the other traverse()
       // methods which would add a vtable and I don't think it would
       // ever be used anyway.  So I just inline it here.
-      openTag__Name(name, eValue);
+      openTag_NameMap_Item(name, eValue);
       bool ret = visitEnumType_Value(eValue);
       xassert(ret);
       postvisitEnumType_Value(eValue);
-      closeTag(__Name);
+      closeTag(_NameMap_Item);
     }
     closeTag(NameMap_EnumType_valueIndex);
     break;
@@ -611,12 +611,12 @@ void ToXMLTypeVisitor::postvisitScopeVariables(StringRefMap<Variable> &variables
 }
 
 bool ToXMLTypeVisitor::visitScopeVariables_entry(StringRef name, Variable *var) {
-  openTag__Name(name, var);
+  openTag_NameMap_Item(name, var);
   return true;
 }
 
 void ToXMLTypeVisitor::postvisitScopeVariables_entry(StringRef name, Variable *var) {
-  closeTag(__Name);
+  closeTag(_NameMap_Item);
 }
 
 bool ToXMLTypeVisitor::visitScopeTypeTags(StringRefMap<Variable> &typeTags) {
@@ -629,12 +629,12 @@ void ToXMLTypeVisitor::postvisitScopeTypeTags(StringRefMap<Variable> &typeTags) 
 }
 
 bool ToXMLTypeVisitor::visitScopeTypeTags_entry(StringRef name, Variable *var) {
-  openTag__Name(name, var);
+  openTag_NameMap_Item(name, var);
   return true;
 }
 
 void ToXMLTypeVisitor::postvisitScopeTypeTags_entry(StringRef name, Variable *var) {
-  closeTag(__Name);
+  closeTag(_NameMap_Item);
 }
 
 bool ToXMLTypeVisitor::visitScopeTemplateParams(SObjList<Variable> &templateParams) {
