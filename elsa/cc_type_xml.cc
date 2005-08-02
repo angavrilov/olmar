@@ -235,19 +235,26 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     // **** subtags
     // These are not visited by default by the type visitor, so we not
     // only have to print the id we have to print the tree.
+    //
+    // NOTE: if the TypeVisitor ever visits FunctionType:ExnSpec-s
+    // then be sure to pull this out into its own visit methods
     if (func->exnSpec) {
-      // I do not want to make a non-virtual traverse() method on
-      // FunctionType::ExnSpec and I don't want to make it virtual as
-      // it has no virtual methods yet, so I do this manually.
-      openTag(FunctionType_ExnSpec, "TY", (&(func->exnSpec)));
-      printPtrDone(types, &(func->exnSpec->types), "SO");
-      // **** FunctionType::ExnSpec subtags
-      openTagWhole(List_ExnSpec_types, "SO", &func->exnSpec->types);
-      SFOREACH_OBJLIST_NC(Type, func->exnSpec->types, iter) {
-        travItem("TY", iter.data());
+      if (!printedObjects.contains(func->exnSpec)) {
+        printedObjects.add(func->exnSpec);
+
+        // I do not want to make a non-virtual traverse() method on
+        // FunctionType::ExnSpec and I don't want to make it virtual as
+        // it has no virtual methods yet, so I do this manually.
+        openTag(FunctionType_ExnSpec, "TY", (&(func->exnSpec)));
+        printPtrDone(types, &(func->exnSpec->types), "SO");
+        // **** FunctionType::ExnSpec subtags
+        openTagWhole(List_ExnSpec_types, "SO", &func->exnSpec->types);
+        SFOREACH_OBJLIST_NC(Type, func->exnSpec->types, iter) {
+          travItem("TY", iter.data());
+        }
+        closeTag(List_ExnSpec_types);
+        closeTag(FunctionType_ExnSpec);
       }
-      closeTag(List_ExnSpec_types);
-      closeTag(FunctionType_ExnSpec);
     }
     break;
   }
@@ -537,6 +544,7 @@ bool ToXMLTypeVisitor::visitEnumType_Value(void /*EnumType::Value*/ *eValue0) {
   EnumType::Value *eValue = static_cast<EnumType::Value *>(eValue0);
   if (printedObjects.contains(eValue)) return false;
   printedObjects.add(eValue);
+
   openTag(EnumType_Value, "TY", eValue);
   printStrRef(name, eValue->name);
   printPtr(type, &(eValue->type), "TY");
@@ -561,8 +569,7 @@ void ToXMLTypeVisitor::postvisitEnumType_Value(void /*EnumType::Value*/ *eValue0
 }
 
 
-void ToXMLTypeVisitor::toXml_Scope_properties(Scope *scope)
-{
+void ToXMLTypeVisitor::toXml_Scope_properties(Scope *scope) {
   printPtr(variables, &(scope->variables), "SM");
   printPtr(typeTags, &(scope->typeTags), "SM");
   printXml_bool(canAcceptNames, scope->canAcceptNames);
@@ -573,13 +580,11 @@ void ToXMLTypeVisitor::toXml_Scope_properties(Scope *scope)
   printPtr(curCompound, scope->curCompound, "TY");
 }
 
-void ToXMLTypeVisitor::toXml_Scope_subtags(Scope *scope)
-{
+void ToXMLTypeVisitor::toXml_Scope_subtags(Scope *scope) {
   // nothing to do as the traverse visits everything
 }
 
-bool ToXMLTypeVisitor::visitScope(Scope *scope)
-{
+bool ToXMLTypeVisitor::visitScope(Scope *scope) {
   if (printedObjects.contains(scope)) return false;
   printedObjects.add(scope);
 
@@ -591,77 +596,72 @@ bool ToXMLTypeVisitor::visitScope(Scope *scope)
   toXml_Scope_subtags(scope);
   return true;
 }
-void ToXMLTypeVisitor::postvisitScope(Scope *scope)
-{
+
+void ToXMLTypeVisitor::postvisitScope(Scope *scope) {
   closeTag(Scope);
 }
 
-bool ToXMLTypeVisitor::visitScopeVariables(StringRefMap<Variable> &variables)
-{
+bool ToXMLTypeVisitor::visitScopeVariables(StringRefMap<Variable> &variables) {
   openTagWhole(NameMap_Scope_variables, "SM", &variables);
   return true;
 }
-void ToXMLTypeVisitor::postvisitScopeVariables(StringRefMap<Variable> &variables)
-{
+
+void ToXMLTypeVisitor::postvisitScopeVariables(StringRefMap<Variable> &variables) {
   closeTag(NameMap_Scope_variables);
 }
-bool ToXMLTypeVisitor::visitScopeVariables_entry(StringRef name, Variable *var)
-{
+
+bool ToXMLTypeVisitor::visitScopeVariables_entry(StringRef name, Variable *var) {
   openTag__Name(name, var);
   return true;
 }
-void ToXMLTypeVisitor::postvisitScopeVariables_entry(StringRef name, Variable *var)
-{
+
+void ToXMLTypeVisitor::postvisitScopeVariables_entry(StringRef name, Variable *var) {
   closeTag(__Name);
 }
 
-bool ToXMLTypeVisitor::visitScopeTypeTags(StringRefMap<Variable> &typeTags)
-{
+bool ToXMLTypeVisitor::visitScopeTypeTags(StringRefMap<Variable> &typeTags) {
   openTagWhole(NameMap_Scope_typeTags, "SM", &typeTags);
   return true;
 }
-void ToXMLTypeVisitor::postvisitScopeTypeTags(StringRefMap<Variable> &typeTags)
-{
+
+void ToXMLTypeVisitor::postvisitScopeTypeTags(StringRefMap<Variable> &typeTags) {
   closeTag(NameMap_Scope_typeTags);
 }
-bool ToXMLTypeVisitor::visitScopeTypeTags_entry(StringRef name, Variable *var)
-{
+
+bool ToXMLTypeVisitor::visitScopeTypeTags_entry(StringRef name, Variable *var) {
   openTag__Name(name, var);
   return true;
 }
-void ToXMLTypeVisitor::postvisitScopeTypeTags_entry(StringRef name, Variable *var)
-{
+
+void ToXMLTypeVisitor::postvisitScopeTypeTags_entry(StringRef name, Variable *var) {
   closeTag(__Name);
 }
 
-bool ToXMLTypeVisitor::visitScopeTemplateParams(SObjList<Variable> &templateParams)
-{
+bool ToXMLTypeVisitor::visitScopeTemplateParams(SObjList<Variable> &templateParams) {
   openTagWhole(List_Scope_templateParams, "SO", &templateParams);
   return true;
 }
-void ToXMLTypeVisitor::postvisitScopeTemplateParams(SObjList<Variable> &templateParams)
-{
+
+void ToXMLTypeVisitor::postvisitScopeTemplateParams(SObjList<Variable> &templateParams) {
   closeTag(List_Scope_templateParams);
 }
-bool ToXMLTypeVisitor::visitScopeTemplateParams_item(Variable *var)
-{
+
+bool ToXMLTypeVisitor::visitScopeTemplateParams_item(Variable *var) {
   startItem("TY", var);
   return true;
 }
-void ToXMLTypeVisitor::postvisitScopeTemplateParams_item(Variable *var)
-{
+
+void ToXMLTypeVisitor::postvisitScopeTemplateParams_item(Variable *var) {
   stopItem();
 }
 
-void ToXMLTypeVisitor::toXml_BaseClass_properties(BaseClass *bc)
-{
+void ToXMLTypeVisitor::toXml_BaseClass_properties(BaseClass *bc) {
   printPtr(ct, bc->ct, "TY");
   printXml(access, bc->access);
   printXml_bool(isVirtual, bc->isVirtual);
 }
 
-bool ToXMLTypeVisitor::visitBaseClass(BaseClass *bc)
-{
+bool ToXMLTypeVisitor::visitBaseClass(BaseClass *bc) {
   if (printedObjects.contains(bc)) return false;
   printedObjects.add(bc);
 
@@ -673,13 +673,12 @@ bool ToXMLTypeVisitor::visitBaseClass(BaseClass *bc)
   // none
   return true;
 }
-void ToXMLTypeVisitor::postvisitBaseClass(BaseClass *bc)
-{
+
+void ToXMLTypeVisitor::postvisitBaseClass(BaseClass *bc) {
   closeTag(BaseClass);
 }
 
-bool ToXMLTypeVisitor::visitBaseClassSubobj(BaseClassSubobj *bc)
-{
+bool ToXMLTypeVisitor::visitBaseClassSubobj(BaseClassSubobj *bc) {
   if (printedObjects.contains(bc)) return false;
   printedObjects.add(bc);
 
@@ -691,35 +690,30 @@ bool ToXMLTypeVisitor::visitBaseClassSubobj(BaseClassSubobj *bc)
   // none
   return true;
 }
-void ToXMLTypeVisitor::postvisitBaseClassSubobj(BaseClassSubobj *bc)
-{
+
+void ToXMLTypeVisitor::postvisitBaseClassSubobj(BaseClassSubobj *bc) {
   closeTag(BaseClassSubobj);
 }
 
-bool ToXMLTypeVisitor::visitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents)
-{
+bool ToXMLTypeVisitor::visitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents) {
   openTagWhole(List_BaseClassSubobj_parents, "SO", &parents);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents)
-{
+void ToXMLTypeVisitor::postvisitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents) {
   closeTag(List_BaseClassSubobj_parents);
 }
 
-bool ToXMLTypeVisitor::visitBaseClassSubobjParentsList_item(BaseClassSubobj *parent)
-{
+bool ToXMLTypeVisitor::visitBaseClassSubobjParentsList_item(BaseClassSubobj *parent) {
   startItem("TY", parent);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitBaseClassSubobjParentsList_item(BaseClassSubobj *parent)
-{
+void ToXMLTypeVisitor::postvisitBaseClassSubobjParentsList_item(BaseClassSubobj *parent) {
   stopItem();
 }
 
-bool ToXMLTypeVisitor::visitSTemplateArgument(STemplateArgument *obj)
-{
+bool ToXMLTypeVisitor::visitSTemplateArgument(STemplateArgument *obj) {
   openTag(STemplateArgument, "TY", obj);
   printXml(kind, obj->kind);
 
@@ -793,31 +787,25 @@ bool ToXMLTypeVisitor::visitSTemplateArgument(STemplateArgument *obj)
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitSTemplateArgument(STemplateArgument *obj)
-{
+void ToXMLTypeVisitor::postvisitSTemplateArgument(STemplateArgument *obj) {
   closeTag(STemplateArgument);
 }
 
-
-bool ToXMLTypeVisitor::visitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args)
-{
+bool ToXMLTypeVisitor::visitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args) {
   openTagWhole(List_PseudoInstantiation_args, "SO", &args);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args)
-{
+void ToXMLTypeVisitor::postvisitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args) {
   closeTag(List_PseudoInstantiation_args);
 }
 
-bool ToXMLTypeVisitor::visitPseudoInstantiationArgsList_item(STemplateArgument *arg)
-{
+bool ToXMLTypeVisitor::visitPseudoInstantiationArgsList_item(STemplateArgument *arg) {
   startItem("TY", arg);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitPseudoInstantiationArgsList_item(STemplateArgument *arg)
-{
+void ToXMLTypeVisitor::postvisitPseudoInstantiationArgsList_item(STemplateArgument *arg) {
   stopItem();
 }
 
@@ -968,10 +956,8 @@ bool ReadXml_Type::convertList2ObjList (ASTList<char> *list, int listKind, void 
 }
 
 bool ReadXml_Type::convertNameMap2StringRefMap
-  (StringRefMap<char> *map, int mapKind, void *target)
-{
+  (StringRefMap<char> *map, int mapKind, void *target) {
   xassert(map);
-
   switch(mapKind) {
   default: return false;        // we did not find a matching tag
 
@@ -991,10 +977,8 @@ bool ReadXml_Type::convertNameMap2StringRefMap
 }
 
 bool ReadXml_Type::convertNameMap2StringSObjDict
-  (StringRefMap<char> *map, int mapKind, void *target)
-{
+  (StringRefMap<char> *map, int mapKind, void *target) {
   xassert(map);
-
   switch(mapKind) {
   default: return false;        // we did not find a matching tag
 
@@ -1320,8 +1304,7 @@ bool ReadXml_Type::registerAttr_BaseClass_super(BaseClass *obj, int attr, char c
   return true;
 }
 
-void ReadXml_Type::registerAttr_BaseClass
-  (BaseClass *obj, int attr, char const *strValue) {
+void ReadXml_Type::registerAttr_BaseClass(BaseClass *obj, int attr, char const *strValue) {
   // "superclass": just re-use our own superclass code for ourself
   if (registerAttr_BaseClass_super(obj, attr, strValue)) return;
   // shouldn't get here
