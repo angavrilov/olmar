@@ -146,7 +146,7 @@ List_BaseClassSubobj_parents
 List_ExnSpec_types
 List_Scope_templateParams
 #   a list element; these are in the AST so I don't need them here
-#  _Item
+#  _List_Item
 #  to
 
 #   StringRefMap
