@@ -2290,7 +2290,7 @@ void CGen::emitXmlVisitorImplementation()
     // put it on the same line as the tag
 //      out << "  out << \"\\n\";\n";
 //      out << "  if (indent) printIndentation();\n";
-    out << "  out << \" .id=\\\"\";\n";
+    out << "  out << \" _id=\\\"\";\n";
     out << "  xmlPrintPointer(out, \"AST\", obj);\n";
     out << "  out << \"\\\"\";\n";
 
@@ -2355,7 +2355,7 @@ void CGen::emitXmlVisitorImplementation()
     out << "  if (obj) {\n";
     out << "    xassert(!wasVisitedList_FakeList(obj));\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"<List_" << cls << " .id=\\\"\";\n";
+    out << "    out << \"<List_" << cls << " _id=\\\"\";\n";
     out << "    xmlPrintPointer(out, \"FL\", obj);\n";
     out << "    out << \"\\\">\\n\";\n";
     out << "    ++depth;\n";
@@ -2378,7 +2378,7 @@ void CGen::emitXmlVisitorImplementation()
         << "(" << cls << " *obj) {\n";
     out << "  xassert(obj);\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"<__Item\" << \" item=\\\"\";\n";
+    out << "  out << \"<_List_Item\" << \" item=\\\"\";\n";
     out << "  xmlPrintPointer(out, \"AST\", obj);\n";
     out << "  out << \"\\\">\\n\";\n";
     out << "  ++depth;\n";
@@ -2391,7 +2391,7 @@ void CGen::emitXmlVisitorImplementation()
     out << "  xassert(obj);\n";
     out << "  --depth;\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"</__Item>\\n\";\n";
+    out << "  out << \"</_List_Item>\\n\";\n";
     out << "}\n\n";
   }
 
@@ -2403,7 +2403,7 @@ void CGen::emitXmlVisitorImplementation()
         << "(ASTList<" << cls << ">* obj) {\n";
     out << "  xassert(!wasVisitedList_ASTList(obj));\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"<List_" << cls << " .id=\\\"\";\n";
+    out << "  out << \"<List_" << cls << " _id=\\\"\";\n";
     out << "  xmlPrintPointer(out, \"AL\", obj);\n";
     out << "  out << \"\\\">\\n\";\n";
     out << "  ++depth;\n";
@@ -2423,7 +2423,7 @@ void CGen::emitXmlVisitorImplementation()
         << "(" << cls << " *obj) {\n";
     out << "  xassert(obj);\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"<__Item\" << \" item=\\\"\";\n";
+    out << "  out << \"<_List_Item\" << \" item=\\\"\";\n";
     out << "  xmlPrintPointer(out, \"AST\", obj);\n";
     out << "  out << \"\\\">\\n\";\n";
     out << "  ++depth;\n";
@@ -2436,7 +2436,7 @@ void CGen::emitXmlVisitorImplementation()
     out << "  xassert(obj);\n";
     out << "  --depth;\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"</__Item>\\n\";\n";
+    out << "  out << \"</_List_Item>\\n\";\n";
     out << "}\n\n";
   }
 
@@ -3036,24 +3036,24 @@ void XmlParserGen::emitXmlParserImplementation()
 
   tokensOutH  << "\n";
   tokensOutH  << "  // metadata tags that do not occur in the AST itself\n";
-  tokensOutH  << "  XTOK___Item, // \"__Item\"\n";
+  tokensOutH  << "  XTOK__List_Item, // \"_List_Item\"\n";
   tokensOutH  << "  // metadata attributes that do not occur in the AST itself\n";
-  tokensOutH  << "  XTOK_DOT_ID, // \".id\"\n";
+  tokensOutH  << "  XTOK_DOT_ID, // \"_id\"\n";
   tokensOutH  << "  XTOK_item, // \"item\"\n";
 
   tokensOutCC << "\n";
   tokensOutCC << "  // metadata tags that do not occur in the AST itself\n";
-  tokensOutCC << "  \"XTOK___Item\", // \"__Item\"\n";
+  tokensOutCC << "  \"XTOK__List_Item\", // \"_List_Item\"\n";
   tokensOutCC << "  // metadata attributes that do not occur in the AST itself\n";
   tokensOutCC << "  \"XTOK_item\", // \"item\"\n";
-  tokensOutCC << "  \"XTOK_DOT_ID\", // \".id\"\n";
+  tokensOutCC << "  \"XTOK_DOT_ID\", // \"_id\"\n";
 
   lexerOut << "\n";
   lexerOut << "  /* metadata tags that do not occur in the AST itself */\n";
-  lexerOut << "\"__Item\" return tok(XTOK___Item);\n";
+  lexerOut << "\"_List_Item\" return tok(XTOK__List_Item);\n";
   lexerOut << "  /* metadata attributes that do not occur in the AST itself */\n";
   lexerOut << "\"item\" return tok(XTOK_item);\n";
-  lexerOut << "\".id\" return tok(XTOK_DOT_ID);\n";
+  lexerOut << "\"_id\" return tok(XTOK_DOT_ID);\n";
 
   tokensOutH  << "\n";
   tokensOutH  << "  // child attribute names\n";
