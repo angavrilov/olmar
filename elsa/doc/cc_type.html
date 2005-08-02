@@ -88,7 +88,16 @@ CompoundType is an AtomicType, think of the "struct { ... }"
 syntax as wrapping the members in an opaque container, thus
 forming an indivisble unit (i.e. an "atom").  This is of 
 course exactly what happens from the compiler's point of
-view, and the basis for the terminology.
+view, and the basis for the terminology.  Quoting from
+Dennis Ritchie's
+<a href="http://cm.bell-labs.com/cm/cs/who/dmr/chist.html">The
+Development of the C Language</a>, section "Embryonic C":
+<blockquote>
+  The central notion I captured from Algol was a type structure based
+  on atomic types (including structures), composed into arrays,
+  pointers (references), and functions (procedures).
+</blockquote>
+
 
 <h2>2. Atomic Types</h2>
 
