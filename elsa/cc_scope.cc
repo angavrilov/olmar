@@ -1360,32 +1360,32 @@ void Scope::traverse(TypeVisitor &vis)
 
 void Scope::traverse_internal(TypeVisitor &vis)
 {
-  if (vis.visitScopeVariables(variables)) {
+  if (vis.visitScope_variables(variables)) {
     for(PtrMap<char const, Variable>::Iter iter(variables);
         !iter.isDone();
         iter.adv()) {
       StringRef name = iter.key();
       Variable *var = iter.value();
-      if (vis.visitScopeVariables_entry(name, var)) {
+      if (vis.visitScope_variables_entry(name, var)) {
         var->traverse(vis);
-        vis.postvisitScopeVariables_entry(name, var);
+        vis.postvisitScope_variables_entry(name, var);
       }
     }
-    vis.postvisitScopeVariables(variables);
+    vis.postvisitScope_variables(variables);
   }
 
-  if (vis.visitScopeTypeTags(typeTags)) {
+  if (vis.visitScope_typeTags(typeTags)) {
     for(PtrMap<char const, Variable>::Iter iter(typeTags);
         !iter.isDone();
         iter.adv()) {
       StringRef name = iter.key();
       Variable *var = iter.value();
-      if (vis.visitScopeTypeTags_entry(name, var)) {
+      if (vis.visitScope_typeTags_entry(name, var)) {
         var->traverse(vis);
-        vis.postvisitScopeTypeTags_entry(name, var);
+        vis.postvisitScope_typeTags_entry(name, var);
       }
     }
-    vis.postvisitScopeTypeTags(typeTags);
+    vis.postvisitScope_typeTags(typeTags);
   }
 
   if (parentScope) {
@@ -1395,15 +1395,15 @@ void Scope::traverse_internal(TypeVisitor &vis)
     namespaceVar->traverse(vis);
   }
 
-  if (vis.visitScopeTemplateParams(templateParams)) {
+  if (vis.visitScope_templateParams(templateParams)) {
     SFOREACH_OBJLIST_NC(Variable, templateParams, iter) {
       Variable *var = iter.data();
-      if (vis.visitScopeTemplateParams_item(var)) {
+      if (vis.visitScope_templateParams_item(var)) {
         var->traverse(vis);
-        vis.postvisitScopeTemplateParams_item(var);
+        vis.postvisitScope_templateParams_item(var);
       }
     }
-    vis.postvisitScopeTemplateParams(templateParams);
+    vis.postvisitScope_templateParams(templateParams);
   }
 
   // I don't think I need this; see Scott's comments in the scope

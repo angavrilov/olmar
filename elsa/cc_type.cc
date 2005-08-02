@@ -34,13 +34,13 @@ bool TypeVisitor::visitType(Type *obj)
 void TypeVisitor::postvisitType(Type *obj)
   {  }
 
-bool TypeVisitor::visitFuncParamsList(SObjList<Variable> &params)
+bool TypeVisitor::visitFunctionType_params(SObjList<Variable> &params)
   { return true; }
-void TypeVisitor::postvisitFuncParamsList(SObjList<Variable> &params)
+void TypeVisitor::postvisitFunctionType_params(SObjList<Variable> &params)
   { }
-bool TypeVisitor::visitFuncParamsList_item(Variable *param)
+bool TypeVisitor::visitFunctionType_params_item(Variable *param)
   { return true; }
-void TypeVisitor::postvisitFuncParamsList_item(Variable *param)
+void TypeVisitor::postvisitFunctionType_params_item(Variable *param)
   { }
 
 bool TypeVisitor::visitVariable(Variable *var)
@@ -63,31 +63,31 @@ bool TypeVisitor::visitScope(Scope *obj)
 void TypeVisitor::postvisitScope(Scope *obj)
   {  }
 
-bool TypeVisitor::visitScopeVariables(StringRefMap<Variable> &variables)
+bool TypeVisitor::visitScope_variables(StringRefMap<Variable> &variables)
   { return true; }
-void TypeVisitor::postvisitScopeVariables(StringRefMap<Variable> &variables)
+void TypeVisitor::postvisitScope_variables(StringRefMap<Variable> &variables)
   {  }
-bool TypeVisitor::visitScopeVariables_entry(StringRef name, Variable *var)
+bool TypeVisitor::visitScope_variables_entry(StringRef name, Variable *var)
   { return true; }
-void TypeVisitor::postvisitScopeVariables_entry(StringRef name, Variable *var)
-  {  }
-
-bool TypeVisitor::visitScopeTypeTags(StringRefMap<Variable> &typeTags)
-  { return true; }
-void TypeVisitor::postvisitScopeTypeTags(StringRefMap<Variable> &typeTags)
-  {  }
-bool TypeVisitor::visitScopeTypeTags_entry(StringRef name, Variable *var)
-  { return true; }
-void TypeVisitor::postvisitScopeTypeTags_entry(StringRef name, Variable *var)
+void TypeVisitor::postvisitScope_variables_entry(StringRef name, Variable *var)
   {  }
 
-bool TypeVisitor::visitScopeTemplateParams(SObjList<Variable> &templateParams)
+bool TypeVisitor::visitScope_typeTags(StringRefMap<Variable> &typeTags)
   { return true; }
-void TypeVisitor::postvisitScopeTemplateParams(SObjList<Variable> &templateParams)
+void TypeVisitor::postvisitScope_typeTags(StringRefMap<Variable> &typeTags)
   {  }
-bool TypeVisitor::visitScopeTemplateParams_item(Variable *var)
+bool TypeVisitor::visitScope_typeTags_entry(StringRef name, Variable *var)
   { return true; }
-void TypeVisitor::postvisitScopeTemplateParams_item(Variable *var)
+void TypeVisitor::postvisitScope_typeTags_entry(StringRef name, Variable *var)
+  {  }
+
+bool TypeVisitor::visitScope_templateParams(SObjList<Variable> &templateParams)
+  { return true; }
+void TypeVisitor::postvisitScope_templateParams(SObjList<Variable> &templateParams)
+  {  }
+bool TypeVisitor::visitScope_templateParams_item(Variable *var)
+  { return true; }
+void TypeVisitor::postvisitScope_templateParams_item(Variable *var)
   {  }
 
 bool TypeVisitor::visitBaseClass(BaseClass *bc)
@@ -100,13 +100,13 @@ bool TypeVisitor::visitBaseClassSubobj(BaseClassSubobj *bc)
 void TypeVisitor::postvisitBaseClassSubobj(BaseClassSubobj *bc)
   {  }
 
-bool TypeVisitor::visitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents)
+bool TypeVisitor::visitBaseClassSubobj_parents(SObjList<BaseClassSubobj> &parents)
   { return true; }
-void TypeVisitor::postvisitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents)
+void TypeVisitor::postvisitBaseClassSubobj_parents(SObjList<BaseClassSubobj> &parents)
   {  }
-bool TypeVisitor::visitBaseClassSubobjParentsList_item(BaseClassSubobj *parent)
+bool TypeVisitor::visitBaseClassSubobj_parents_item(BaseClassSubobj *parent)
   { return true; }
-void TypeVisitor::postvisitBaseClassSubobjParentsList_item(BaseClassSubobj *parent)
+void TypeVisitor::postvisitBaseClassSubobj_parents_item(BaseClassSubobj *parent)
   {  }
 
 bool TypeVisitor::visitSTemplateArgument(STemplateArgument *obj)
@@ -114,13 +114,13 @@ bool TypeVisitor::visitSTemplateArgument(STemplateArgument *obj)
 void TypeVisitor::postvisitSTemplateArgument(STemplateArgument *obj)
   {  }
 
-bool TypeVisitor::visitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args)
+bool TypeVisitor::visitPseudoInstantiation_args(ObjList<STemplateArgument> &args)
   { return true; }
-void TypeVisitor::postvisitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args)
+void TypeVisitor::postvisitPseudoInstantiation_args(ObjList<STemplateArgument> &args)
   {  }
-bool TypeVisitor::visitPseudoInstantiationArgsList_item(STemplateArgument *arg)
+bool TypeVisitor::visitPseudoInstantiation_args_item(STemplateArgument *arg)
   { return true; }
-void TypeVisitor::postvisitPseudoInstantiationArgsList_item(STemplateArgument *arg)
+void TypeVisitor::postvisitPseudoInstantiation_args_item(STemplateArgument *arg)
   {  }
 
 bool TypeVisitor::visitDependentQTypePQTArgsList(ObjList<STemplateArgument> &list)
@@ -388,15 +388,15 @@ void BaseClassSubobj::traverse(TypeVisitor &vis)
     return;
   }
 
-  if (vis.visitBaseClassSubobjParentsList(parents)) {
+  if (vis.visitBaseClassSubobj_parents(parents)) {
     SFOREACH_OBJLIST_NC(BaseClassSubobj, parents, iter) {
       BaseClassSubobj *parent = iter.data();
-      if (vis.visitBaseClassSubobjParentsList_item(parent)) {
+      if (vis.visitBaseClassSubobj_parents_item(parent)) {
         parent->traverse(vis);
-        vis.postvisitBaseClassSubobjParentsList_item(parent);
+        vis.postvisitBaseClassSubobj_parents_item(parent);
       }
     }
-    vis.postvisitBaseClassSubobjParentsList(parents);
+    vis.postvisitBaseClassSubobj_parents(parents);
   }
 
   vis.postvisitBaseClassSubobj(this);
@@ -2236,7 +2236,7 @@ void FunctionType::traverse(TypeVisitor &vis)
   retType->traverse(vis);
 
   // dsw: I need to know when the params list starts and stops
-  if (vis.visitFuncParamsList(params)) {
+  if (vis.visitFunctionType_params(params)) {
     SFOREACH_OBJLIST_NC(Variable, params, iter) {
       // I am choosing not to traverse into any of the other fields of
       // the parameters, including default args.  For the application I
@@ -2249,12 +2249,12 @@ void FunctionType::traverse(TypeVisitor &vis)
 //        iter.data()->type->traverse(vis);
       // dsw: we now traverse the variable directly; the above comment
       // should probably be moved into Variable::traverse()
-      if (vis.visitFuncParamsList_item(iter.data())) {
+      if (vis.visitFunctionType_params_item(iter.data())) {
         iter.data()->traverse(vis);
-        vis.postvisitFuncParamsList_item(iter.data());
+        vis.postvisitFunctionType_params_item(iter.data());
       }
     }
-    vis.postvisitFuncParamsList(params);
+    vis.postvisitFunctionType_params(params);
   }
 
   // similarly, I don't want traversal into exception specs right now

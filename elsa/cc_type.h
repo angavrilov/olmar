@@ -88,10 +88,10 @@ public:
   virtual bool visitType(Type *obj);
   virtual void postvisitType(Type *obj);
 
-  virtual bool visitFuncParamsList(SObjList<Variable> &params);
-  virtual void postvisitFuncParamsList(SObjList<Variable> &params);
-  virtual bool visitFuncParamsList_item(Variable *param);
-  virtual void postvisitFuncParamsList_item(Variable *param);
+  virtual bool visitFunctionType_params(SObjList<Variable> &params);
+  virtual void postvisitFunctionType_params(SObjList<Variable> &params);
+  virtual bool visitFunctionType_params_item(Variable *param);
+  virtual void postvisitFunctionType_params_item(Variable *param);
 
   virtual bool visitVariable(Variable *var);
   virtual void postvisitVariable(Variable *var);
@@ -114,20 +114,20 @@ public:
   virtual bool visitScope(Scope *obj);
   virtual void postvisitScope(Scope *obj);
 
-  virtual bool visitScopeVariables(StringRefMap<Variable> &variables);
-  virtual void postvisitScopeVariables(StringRefMap<Variable> &variables);
-  virtual bool visitScopeVariables_entry(StringRef name, Variable *var);
-  virtual void postvisitScopeVariables_entry(StringRef name, Variable *var);
+  virtual bool visitScope_variables(StringRefMap<Variable> &variables);
+  virtual void postvisitScope_variables(StringRefMap<Variable> &variables);
+  virtual bool visitScope_variables_entry(StringRef name, Variable *var);
+  virtual void postvisitScope_variables_entry(StringRef name, Variable *var);
 
-  virtual bool visitScopeTypeTags(StringRefMap<Variable> &typeTags);
-  virtual void postvisitScopeTypeTags(StringRefMap<Variable> &typeTags);
-  virtual bool visitScopeTypeTags_entry(StringRef name, Variable *var);
-  virtual void postvisitScopeTypeTags_entry(StringRef name, Variable *var);
+  virtual bool visitScope_typeTags(StringRefMap<Variable> &typeTags);
+  virtual void postvisitScope_typeTags(StringRefMap<Variable> &typeTags);
+  virtual bool visitScope_typeTags_entry(StringRef name, Variable *var);
+  virtual void postvisitScope_typeTags_entry(StringRef name, Variable *var);
 
-  virtual bool visitScopeTemplateParams(SObjList<Variable> &templateParams);
-  virtual void postvisitScopeTemplateParams(SObjList<Variable> &templateParams);
-  virtual bool visitScopeTemplateParams_item(Variable *var);
-  virtual void postvisitScopeTemplateParams_item(Variable *var);
+  virtual bool visitScope_templateParams(SObjList<Variable> &templateParams);
+  virtual void postvisitScope_templateParams(SObjList<Variable> &templateParams);
+  virtual bool visitScope_templateParams_item(Variable *var);
+  virtual void postvisitScope_templateParams_item(Variable *var);
 
   virtual bool visitBaseClass(BaseClass *bc);
   virtual void postvisitBaseClass(BaseClass *bc);
@@ -135,18 +135,18 @@ public:
   virtual bool visitBaseClassSubobj(BaseClassSubobj *bc);
   virtual void postvisitBaseClassSubobj(BaseClassSubobj *bc);
 
-  virtual bool visitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents);
-  virtual void postvisitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents);
-  virtual bool visitBaseClassSubobjParentsList_item(BaseClassSubobj *parent);
-  virtual void postvisitBaseClassSubobjParentsList_item(BaseClassSubobj *parent);
+  virtual bool visitBaseClassSubobj_parents(SObjList<BaseClassSubobj> &parents);
+  virtual void postvisitBaseClassSubobj_parents(SObjList<BaseClassSubobj> &parents);
+  virtual bool visitBaseClassSubobj_parents_item(BaseClassSubobj *parent);
+  virtual void postvisitBaseClassSubobj_parents_item(BaseClassSubobj *parent);
 
   virtual bool visitSTemplateArgument(STemplateArgument *obj);
   virtual void postvisitSTemplateArgument(STemplateArgument *obj);
 
-  virtual bool visitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args);
-  virtual void postvisitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args);
-  virtual bool visitPseudoInstantiationArgsList_item(STemplateArgument *arg);
-  virtual void postvisitPseudoInstantiationArgsList_item(STemplateArgument *arg);
+  virtual bool visitPseudoInstantiation_args(ObjList<STemplateArgument> &args);
+  virtual void postvisitPseudoInstantiation_args(ObjList<STemplateArgument> &args);
+  virtual bool visitPseudoInstantiation_args_item(STemplateArgument *arg);
+  virtual void postvisitPseudoInstantiation_args_item(STemplateArgument *arg);
 
   virtual bool visitDependentQTypePQTArgsList(ObjList<STemplateArgument> &list);
   virtual void postvisitDependentQTypePQTArgsList(ObjList<STemplateArgument> &list);

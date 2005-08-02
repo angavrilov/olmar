@@ -161,15 +161,15 @@ void PseudoInstantiation::traverse(TypeVisitor &vis)
 
   primary->traverse(vis);
   
-  if (vis.visitPseudoInstantiationArgsList(args)) {
+  if (vis.visitPseudoInstantiation_args(args)) {
     FOREACH_OBJLIST_NC(STemplateArgument, args, iter) {
       STemplateArgument *arg = iter.data();
-      if (vis.visitPseudoInstantiationArgsList_item(arg)) {
+      if (vis.visitPseudoInstantiation_args_item(arg)) {
         arg->traverse(vis);
-        vis.postvisitPseudoInstantiationArgsList_item(arg);
+        vis.postvisitPseudoInstantiation_args_item(arg);
       }
     }
-    vis.postvisitPseudoInstantiationArgsList(args);
+    vis.postvisitPseudoInstantiation_args(args);
   }
 
   vis.postvisitAtomicType(this);

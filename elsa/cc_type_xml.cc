@@ -293,21 +293,21 @@ void ToXMLTypeVisitor::postvisitType(Type *obj) {
   }
 }
 
-bool ToXMLTypeVisitor::visitFuncParamsList(SObjList<Variable> &params) {
+bool ToXMLTypeVisitor::visitFunctionType_params(SObjList<Variable> &params) {
   openTagWhole(List_FunctionType_params, "OL", &params);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitFuncParamsList(SObjList<Variable> &params) {
+void ToXMLTypeVisitor::postvisitFunctionType_params(SObjList<Variable> &params) {
   closeTag(List_FunctionType_params);
 }
 
-bool ToXMLTypeVisitor::visitFuncParamsList_item(Variable *param) {
+bool ToXMLTypeVisitor::visitFunctionType_params_item(Variable *param) {
   startItem("TY", param);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitFuncParamsList_item(Variable *param) {
+void ToXMLTypeVisitor::postvisitFunctionType_params_item(Variable *param) {
   stopItem();
 }
 
@@ -601,57 +601,57 @@ void ToXMLTypeVisitor::postvisitScope(Scope *scope) {
   closeTag(Scope);
 }
 
-bool ToXMLTypeVisitor::visitScopeVariables(StringRefMap<Variable> &variables) {
+bool ToXMLTypeVisitor::visitScope_variables(StringRefMap<Variable> &variables) {
   openTagWhole(NameMap_Scope_variables, "SM", &variables);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitScopeVariables(StringRefMap<Variable> &variables) {
+void ToXMLTypeVisitor::postvisitScope_variables(StringRefMap<Variable> &variables) {
   closeTag(NameMap_Scope_variables);
 }
 
-bool ToXMLTypeVisitor::visitScopeVariables_entry(StringRef name, Variable *var) {
+bool ToXMLTypeVisitor::visitScope_variables_entry(StringRef name, Variable *var) {
   openTag_NameMap_Item(name, var);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitScopeVariables_entry(StringRef name, Variable *var) {
+void ToXMLTypeVisitor::postvisitScope_variables_entry(StringRef name, Variable *var) {
   closeTag(_NameMap_Item);
 }
 
-bool ToXMLTypeVisitor::visitScopeTypeTags(StringRefMap<Variable> &typeTags) {
+bool ToXMLTypeVisitor::visitScope_typeTags(StringRefMap<Variable> &typeTags) {
   openTagWhole(NameMap_Scope_typeTags, "SM", &typeTags);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitScopeTypeTags(StringRefMap<Variable> &typeTags) {
+void ToXMLTypeVisitor::postvisitScope_typeTags(StringRefMap<Variable> &typeTags) {
   closeTag(NameMap_Scope_typeTags);
 }
 
-bool ToXMLTypeVisitor::visitScopeTypeTags_entry(StringRef name, Variable *var) {
+bool ToXMLTypeVisitor::visitScope_typeTags_entry(StringRef name, Variable *var) {
   openTag_NameMap_Item(name, var);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitScopeTypeTags_entry(StringRef name, Variable *var) {
+void ToXMLTypeVisitor::postvisitScope_typeTags_entry(StringRef name, Variable *var) {
   closeTag(_NameMap_Item);
 }
 
-bool ToXMLTypeVisitor::visitScopeTemplateParams(SObjList<Variable> &templateParams) {
+bool ToXMLTypeVisitor::visitScope_templateParams(SObjList<Variable> &templateParams) {
   openTagWhole(List_Scope_templateParams, "OL", &templateParams);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitScopeTemplateParams(SObjList<Variable> &templateParams) {
+void ToXMLTypeVisitor::postvisitScope_templateParams(SObjList<Variable> &templateParams) {
   closeTag(List_Scope_templateParams);
 }
 
-bool ToXMLTypeVisitor::visitScopeTemplateParams_item(Variable *var) {
+bool ToXMLTypeVisitor::visitScope_templateParams_item(Variable *var) {
   startItem("TY", var);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitScopeTemplateParams_item(Variable *var) {
+void ToXMLTypeVisitor::postvisitScope_templateParams_item(Variable *var) {
   stopItem();
 }
 
@@ -695,21 +695,21 @@ void ToXMLTypeVisitor::postvisitBaseClassSubobj(BaseClassSubobj *bc) {
   closeTag(BaseClassSubobj);
 }
 
-bool ToXMLTypeVisitor::visitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents) {
+bool ToXMLTypeVisitor::visitBaseClassSubobj_parents(SObjList<BaseClassSubobj> &parents) {
   openTagWhole(List_BaseClassSubobj_parents, "OL", &parents);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents) {
+void ToXMLTypeVisitor::postvisitBaseClassSubobj_parents(SObjList<BaseClassSubobj> &parents) {
   closeTag(List_BaseClassSubobj_parents);
 }
 
-bool ToXMLTypeVisitor::visitBaseClassSubobjParentsList_item(BaseClassSubobj *parent) {
+bool ToXMLTypeVisitor::visitBaseClassSubobj_parents_item(BaseClassSubobj *parent) {
   startItem("TY", parent);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitBaseClassSubobjParentsList_item(BaseClassSubobj *parent) {
+void ToXMLTypeVisitor::postvisitBaseClassSubobj_parents_item(BaseClassSubobj *parent) {
   stopItem();
 }
 
@@ -791,21 +791,21 @@ void ToXMLTypeVisitor::postvisitSTemplateArgument(STemplateArgument *obj) {
   closeTag(STemplateArgument);
 }
 
-bool ToXMLTypeVisitor::visitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args) {
+bool ToXMLTypeVisitor::visitPseudoInstantiation_args(ObjList<STemplateArgument> &args) {
   openTagWhole(List_PseudoInstantiation_args, "OL", &args);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args) {
+void ToXMLTypeVisitor::postvisitPseudoInstantiation_args(ObjList<STemplateArgument> &args) {
   closeTag(List_PseudoInstantiation_args);
 }
 
-bool ToXMLTypeVisitor::visitPseudoInstantiationArgsList_item(STemplateArgument *arg) {
+bool ToXMLTypeVisitor::visitPseudoInstantiation_args_item(STemplateArgument *arg) {
   startItem("TY", arg);
   return true;
 }
 
-void ToXMLTypeVisitor::postvisitPseudoInstantiationArgsList_item(STemplateArgument *arg) {
+void ToXMLTypeVisitor::postvisitPseudoInstantiation_args_item(STemplateArgument *arg) {
   stopItem();
 }
 
