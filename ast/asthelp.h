@@ -120,8 +120,6 @@
 
 
 // ------------------- const parallel typecase --------------------
-// (candidate for adding to ast/asthelp.h)
-
 // nodeptr1 and nodeptr2 should already be known to have the same kind
 #define ASTSWITCH2C(supertype, nodeptr1, nodeptr2)      \
 {                                                       \
