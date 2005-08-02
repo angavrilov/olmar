@@ -144,7 +144,7 @@ do { \
 //  template <class T>
 //    string ref(SObjList<T> &list)
 //  {
-//    return stringc << "\"SO" << address(&list) << "\"";
+//    return stringc << "\"OL" << address(&list) << "\"";
 //  }
 //  #endif // 0
 
@@ -230,7 +230,7 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     openTag(FunctionType, "TY", obj);
     printXml(flags, func->flags);
     printPtr(retType, func->retType, "TY");
-    printPtr(params, &(func->params), "SO");
+    printPtr(params, &(func->params), "OL");
     printPtrDone(exnSpec, &(func->exnSpec), "TY");
     // **** subtags
     // These are not visited by default by the type visitor, so we not
@@ -246,9 +246,9 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
         // FunctionType::ExnSpec and I don't want to make it virtual as
         // it has no virtual methods yet, so I do this manually.
         openTag(FunctionType_ExnSpec, "TY", (&(func->exnSpec)));
-        printPtrDone(types, &(func->exnSpec->types), "SO");
+        printPtrDone(types, &(func->exnSpec->types), "OL");
         // **** FunctionType::ExnSpec subtags
-        openTagWhole(List_ExnSpec_types, "SO", &func->exnSpec->types);
+        openTagWhole(List_ExnSpec_types, "OL", &func->exnSpec->types);
         SFOREACH_OBJLIST_NC(Type, func->exnSpec->types, iter) {
           travItem("TY", iter.data());
         }
@@ -294,7 +294,7 @@ void ToXMLTypeVisitor::postvisitType(Type *obj) {
 }
 
 bool ToXMLTypeVisitor::visitFuncParamsList(SObjList<Variable> &params) {
-  openTagWhole(List_FunctionType_params, "SO", &params);
+  openTagWhole(List_FunctionType_params, "OL", &params);
   return true;
 }
 
@@ -417,19 +417,19 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     toXml_NamedAtomicType_subtags(cpd);
     toXml_Scope_subtags(cpd);
 
-    openTagWhole(List_CompoundType_dataMembers, "SO", &(cpd->dataMembers));
+    openTagWhole(List_CompoundType_dataMembers, "OL", &(cpd->dataMembers));
     SFOREACH_OBJLIST_NC(Variable, cpd->dataMembers, iter) {
       travItem("TY", iter.data());
     }
     closeTag(List_CompoundType_dataMembers);
 
-    openTagWhole(List_CompoundType_bases, "OJ", &(cpd->bases));
+    openTagWhole(List_CompoundType_bases, "OL", &(cpd->bases));
     FOREACH_OBJLIST_NC(BaseClass, const_cast<ObjList<BaseClass>&>(cpd->bases), iter) {
       travItem("TY", iter.data());
     }
     closeTag(List_CompoundType_bases);
 
-    openTagWhole(List_CompoundType_virtualBases, "OJ", &(cpd->virtualBases));
+    openTagWhole(List_CompoundType_virtualBases, "OL", &(cpd->virtualBases));
     FOREACH_OBJLIST_NC(BaseClassSubobj,
                        const_cast<ObjList<BaseClassSubobj>&>(cpd->virtualBases),
                        iter) {
@@ -439,7 +439,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
 
     cpd->subobj.traverse(*this);
 
-    openTagWhole(List_CompoundType_conversionOperators, "SO", &(cpd->conversionOperators));
+    openTagWhole(List_CompoundType_conversionOperators, "OL", &(cpd->conversionOperators));
     SFOREACH_OBJLIST_NC(Variable, cpd->conversionOperators, iter) {
       travItem("TY", iter.data());
     }
@@ -459,7 +459,7 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     // **** subtags
     toXml_NamedAtomicType_subtags(e);
 
-    openTagWhole(NameMap_EnumType_valueIndex, "SO", &(e->valueIndex));
+    openTagWhole(NameMap_EnumType_valueIndex, "OL", &(e->valueIndex));
     for(StringObjDict<EnumType::Value>::Iter iter(e->valueIndex);
         !iter.isDone(); iter.next()) {
       string const &name = iter.key();
@@ -576,7 +576,7 @@ void ToXMLTypeVisitor::toXml_Scope_properties(Scope *scope) {
   printPtr(parentScope, scope, "TY");
   printXml(scopeKind, scope->scopeKind);
   printPtr(namespaceVar, scope->namespaceVar, "TY");
-  printPtr(templateParams, &(scope->templateParams), "SO");
+  printPtr(templateParams, &(scope->templateParams), "OL");
   printPtr(curCompound, scope->curCompound, "TY");
 }
 
@@ -638,7 +638,7 @@ void ToXMLTypeVisitor::postvisitScopeTypeTags_entry(StringRef name, Variable *va
 }
 
 bool ToXMLTypeVisitor::visitScopeTemplateParams(SObjList<Variable> &templateParams) {
-  openTagWhole(List_Scope_templateParams, "SO", &templateParams);
+  openTagWhole(List_Scope_templateParams, "OL", &templateParams);
   return true;
 }
 
@@ -684,7 +684,7 @@ bool ToXMLTypeVisitor::visitBaseClassSubobj(BaseClassSubobj *bc) {
 
   openTag(BaseClassSubobj, "TY", bc);
   toXml_BaseClass_properties(bc);
-  printPtrDone(parents, &(bc->parents), "SO");
+  printPtrDone(parents, &(bc->parents), "OL");
 
   // **** subtags
   // none
@@ -696,7 +696,7 @@ void ToXMLTypeVisitor::postvisitBaseClassSubobj(BaseClassSubobj *bc) {
 }
 
 bool ToXMLTypeVisitor::visitBaseClassSubobjParentsList(SObjList<BaseClassSubobj> &parents) {
-  openTagWhole(List_BaseClassSubobj_parents, "SO", &parents);
+  openTagWhole(List_BaseClassSubobj_parents, "OL", &parents);
   return true;
 }
 
@@ -792,7 +792,7 @@ void ToXMLTypeVisitor::postvisitSTemplateArgument(STemplateArgument *obj) {
 }
 
 bool ToXMLTypeVisitor::visitPseudoInstantiationArgsList(ObjList<STemplateArgument> &args) {
-  openTagWhole(List_PseudoInstantiation_args, "SO", &args);
+  openTagWhole(List_PseudoInstantiation_args, "OL", &args);
   return true;
 }
 
