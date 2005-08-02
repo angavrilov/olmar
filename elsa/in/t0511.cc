@@ -1,6 +1,11 @@
 // t0511.cc
 // testing mtype module
 
+// 2005-08-02: The tests in this file alone are able to drive mtype to
+// 100% statement coverage except for the MF_POLYMORPHIC stuff.  The
+// tests in this file were mostly constructed specifically (and only)
+// to obtain that coverage level.
+
 
 // copied from mtype.h
 enum MatchFlags {
@@ -107,6 +112,19 @@ enum MatchFlags {
 
 struct B {
   int x;
+  
+  static int f_stat();
+  int f_nonstat();
+};
+
+struct B2 {
+  int x;
+};
+
+
+template <class T>
+struct C {
+  T t;
 };
 
 
@@ -125,9 +143,35 @@ struct Pair2 {
 
 template <int m>
 struct Num {};
+             
+
+int const global_const1 = 1;
+int const global_const2 = 2;
 
 
-template <class S, class T, int n>
+int f_nonvararg(int);
+int f_vararg(int, ...);
+
+int f_throws_int(int) throw(int);
+int f_throws_float(int) throw(float);
+
+
+
+int global_n;
+int global_m;
+
+template <class T, int &intref>
+struct TakesIntRef {};
+
+template <class T, int *intptr>
+struct TakesIntPtr {};
+                   
+
+template <class T, int B::*ptm>
+struct TakesPTM {};
+
+
+template <class S, class T, int n, int n2>
 struct A {
   void f()
   {
@@ -154,6 +198,17 @@ struct A {
     // FunctionType
     __test_mtype((int (*)())0, (T (*)())0, MF_MATCH,
                  "T", (int)0);
+
+    // ArrayType
+    __test_mtype((int (*)[3])0,
+                 (T   (*)[3])0, MF_MATCH,
+                 "T", (int)0);
+    __test_mtype((int (*)[])0,
+                 (T   (*)[])0, MF_MATCH,
+                 "T", (int)0);
+    __test_mtype((int (*)[3])0,
+                 (T   (*)[4])0, MF_MATCH,
+                 false);
 
 
     // testing binding of variables directly to atomics
@@ -187,6 +242,36 @@ struct A {
     __test_mtype((int (*)(int B::*, B const *, B const          *))0,
                  (int (*)(int T::*, T       *, T       volatile *))0, MF_MATCH,
                  false);
+
+    // second binding is not to an atomic
+    __test_mtype((int (*)(int B::*, B const * *))0,
+                 (int (*)(int T::*, T         *))0, MF_MATCH,
+                 false);
+
+    // wrong atomic
+    __test_mtype((int (*)(int B::*, B2 const *))0,
+                 (int (*)(int T::*, T        *))0, MF_MATCH,
+                 false);
+
+    // first binding is not an atomic
+    __test_mtype((int (*)(B const * *, int B::*))0,
+                 (int (*)(T         *, int T::*))0, MF_MATCH,
+                 false);
+
+    // wrong atomic
+    __test_mtype((int (*)(B2 const *, int B::*))0,
+                 (int (*)(T        *, int T::*))0, MF_MATCH,
+                 false);
+
+    // wrong AtomicType
+    __test_mtype((int (*)(int B2::*, int B::*))0,
+                 (int (*)(int T ::*, int T::*))0, MF_MATCH,
+                 false);
+
+    // not a type (causes an early error diagnosis)
+    //__test_mtype((int (*)(Num<3>, int B::*))0,
+    //             (int (*)(Num<n>, int n::*))0, MF_MATCH,
+    //             false);
 
 
     // multiple occurrences of variables in patterns
@@ -250,6 +335,156 @@ struct A {
 
     // attempt to compare different kinds of atomics
     __test_mtype((B*)0, (int*)0, MF_EXACT, false);
+    
+    // Mix different binding kinds together.
+    //
+    // These are currently triggering match failures in mtype.cc, as
+    // intended (to improve coverage), but it is possible that a
+    // future change to the tcheck code might diagnose them as syntax
+    // errors.  If that happens, these can just be commented out I
+    // suppose.  
+    __test_mtype((Pair<int, Num<3> >*)0,
+                 (Pair<T,   Num<T> >*)0, MF_MATCH, false);
 
+    __test_mtype((Pair<Num<3>, int>*)0,
+                 (Pair<Num<T>, T  >*)0, MF_MATCH, false);
+
+    __test_mtype((Pair<int, Num<3> >*)0,
+                 (Pair<n,   Num<n> >*)0, MF_MATCH, false);
+
+    __test_mtype((Pair<Num<3>, int>*)0,
+                 (Pair<Num<n>, n  >*)0, MF_MATCH, false);
+
+    // nontype bound to 3 then 4
+    __test_mtype((Pair<Num<3>, Num<4> >*)0,
+                 (Pair<Num<n>, Num<n> >*)0, MF_MATCH, false);
+
+    // cover a specific line in mtype.cc ...
+    __test_mtype((Num<3>*)0,
+                 (Num<n>*)0, MF_MATCH|MF_NO_NEW_BINDINGS, false);
+    __test_mtype((int*)0,
+                 (T*)0, MF_MATCH|MF_NO_NEW_BINDINGS, false);
+    __test_mtype((int B::*)0,
+                 (int T::*)0, MF_MATCH|MF_NO_NEW_BINDINGS, false);
+
+    // DQTs with mismatching leading atomics
+    __test_mtype((typename C<T>::Foo*)0,
+                 (typename Pair<T,T>::Foo*)0, MF_EXACT, false);
+                 
+    // and mismatching PQName kinds
+    __test_mtype((typename C<T>::template Foo<3>*)0,
+                 (typename C<T>::Foo*)0, MF_EXACT, false);
+
+    // differing PQ_qualifier names
+    __test_mtype((typename C<T>::Foo::Baz*)0,
+                 (typename C<T>::Bar::Baz*)0, MF_EXACT, false);
+
+    // differing template arguments to PQ_qualifier
+    __test_mtype((typename C<T>::template Foo<1>::Baz*)0,
+                 (typename C<T>::template Foo<2>::Baz*)0, MF_EXACT, false);
+
+
+    // different Type kinds
+    __test_mtype((int)0,
+                 (int*)0, MF_EXACT, false);
+                 
+    // cv-flags in the pattern aren't present in concrete
+    __test_mtype((int const)0,
+                 (T volatile)0, MF_MATCH, false);
+    __test_mtype((int const)0,
+                 (T const)0, MF_MATCH,
+                 "T", (int)0);
+                 
+    // FunctionType with differing return type
+    __test_mtype((int (*)())0,
+                 (float (*)())0, MF_EXACT, false);
+                 
+    // static vs. non-static
+    __test_mtype(B::f_stat,
+                 B::f_nonstat, MF_EXACT, false);
+    __test_mtype(B::f_stat,
+                 B::f_nonstat, MF_STAT_EQ_NONSTAT);
+    __test_mtype(B::f_nonstat,
+                 B::f_stat, MF_STAT_EQ_NONSTAT);
+
+    // vararg vs. non-vararg
+    __test_mtype(f_vararg, f_nonvararg, MF_EXACT, false);
+    
+    // throw vs. non-throw
+    __test_mtype(f_nonvararg, f_throws_int, MF_EXACT, false);
+
+    // differing exception specs
+    __test_mtype(f_throws_float, f_throws_int, MF_EXACT, false);
+    __test_mtype(f_throws_int, f_throws_int, MF_EXACT);
+    
+    // ArrayTypes and MF_IGNORE_ELT_CV
+    //
+    // I am abusing the cast syntax here because MF_IGNORE_ELT_CV does
+    // not propagate below type constructors... at some point Elsa
+    // might be modified to reject these invalid casts altogether, in
+    // which case these tests can just be commented out.
+    __test_mtype((int const [2])0,
+                 (int       [2])0, MF_EXACT, false);
+    __test_mtype((int const [2])0,
+                 (int       [2])0, MF_IGNORE_ELT_CV);
+    __test_mtype((int const [2][3])0,
+                 (int       [2][3])0, MF_IGNORE_ELT_CV);
+                 
+    // expression comparison
+    __test_mtype((Num<n+3>*)0,
+                 (Num<n+3>*)0, MF_EXACT);
+
+    __test_mtype((Num<(n+3)>*)0,
+                 (Num< n+3 >*)0, MF_EXACT);
+
+    __test_mtype((Num< n+3 >*)0,
+                 (Num<(n+3)>*)0, MF_EXACT);
+
+    __test_mtype((Num<(n+3)>*)0,
+                 (Num<(n+3)>*)0, MF_EXACT);
+
+    __test_mtype((Num<-n>*)0,
+                 (Num<-n>*)0, MF_EXACT);
+
+    __test_mtype((Num<n+3>*)0,
+                 (Num<-n>*)0, MF_EXACT, false);
+
+    __test_mtype((Num<n+(int)true>*)0,
+                 (Num<n+(int)true>*)0, MF_EXACT);
+
+    __test_mtype((Num<n+static_cast<int>(true)>*)0,
+                 (Num<n+static_cast<int>(true)>*)0, MF_EXACT);
+
+    __test_mtype((Num<n+'a'>*)0,
+                 (Num<n+'a'>*)0, MF_EXACT);
+
+    __test_mtype((Num<n >*)0,
+                 (Num<n2>*)0, MF_EXACT, false);
+
+    __test_mtype((Num<n+global_const1>*)0,
+                 (Num<n+global_const2>*)0, MF_EXACT, false);
+
+    __test_mtype((Num<n+sizeof(int)>*)0,
+                 (Num<n+sizeof(int)>*)0, MF_EXACT);
+
+    __test_mtype((Num<n+sizeof(n)>*)0,
+                 (Num<n+sizeof(n)>*)0, MF_EXACT);
+
+    __test_mtype((Num< n? 1 : 2 >*)0,
+                 (Num< n? 1 : 2 >*)0, MF_EXACT);
+    __test_mtype((Num< n? 1 : 2 >*)0,
+                 (Num< n? 1 : 3 >*)0, MF_EXACT, false);
+                 
+    __test_mtype((TakesIntRef<T, global_n>*)0,
+                 (TakesIntRef<T, global_n>*)0, MF_EXACT);
+
+    __test_mtype((TakesIntRef<T, global_n>*)0,
+                 (TakesIntRef<T, global_m>*)0, MF_EXACT, false);
+
+    __test_mtype((TakesIntPtr<T, &global_n>*)0,
+                 (TakesIntPtr<T, &global_n>*)0, MF_EXACT);
+
+    __test_mtype((TakesPTM<T, &B::x>*)0,
+                 (TakesPTM<T, &B::x>*)0, MF_EXACT);
   }
 };

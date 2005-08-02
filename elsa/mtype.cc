@@ -1,6 +1,15 @@
 // mtype.cc
 // code for mtype.h
 
+// 2005-08-02: This code is now exercised to 100% statement coverage,
+// except for the code that deals with MF_POLMORPHIC and the places
+// annotated with gcov-ignore or gcov-begin/end-ignore, by
+// in/t0511.cc.
+//
+// My plan is to re-do the coverage analysis using the entire test
+// suite once mtype is hooked up to the rest of the program as the
+// module to use for type comparison and matching.
+
 #include "mtype.h"       // this module
 #include "trace.h"       // tracingSys
 
@@ -65,6 +74,7 @@ MType::~MType()
 {}
 
 
+// gcov-begin-ignore
 bool MType::match(Type const *conc, Type const *pat, MatchFlags flags)
 {
   // I can only uphold the promise of not modifying 'conc' and 'pat'
@@ -73,6 +83,7 @@ bool MType::match(Type const *conc, Type const *pat, MatchFlags flags)
 
   return imatch(conc, pat, flags);
 }
+// gcov-end-ignore
 
 
 bool MType::matchNC(Type *conc, Type *pat, MatchFlags flags)
@@ -266,7 +277,8 @@ bool MType::matchSTemplateArgument(STemplateArgument const *conc,
   }
 
   switch (conc->kind) {
-    default: xfailure("bad or unimplemented STemplateArgument kind");
+    default: 
+      xfailure("bad or unimplemented STemplateArgument kind");
 
     case STemplateArgument::STA_TYPE: {
       // For convenience I have passed 'STemplateArgument' directly,
@@ -372,7 +384,7 @@ bool MType::matchPQName(PQName const *conc, PQName const *pat, MatchFlags flags)
       return cn->name == pn->name;
     }
     ASTNEXT2C(PQ_operator, co, po) {
-      return co->o == po->o;
+      return co->o == po->o;      // gcov-ignore: can only match on types, and operators are not types
     }
     ASTNEXT2C(PQ_template, ct, pt) {
       // like for PQ_qualifier, except there is no 'rest'
@@ -393,7 +405,7 @@ bool MType::matchType(Type const *conc, Type const *pat, MatchFlags flags)
 {
   if ((flags & MF_MATCH) &&
       pat->isTypeVariable()) {
-    return matchTypeWithVariable(conc, pat->asTypeVariableC(), 
+    return matchTypeWithVariable(conc, pat->asTypeVariableC(),
                                  pat->getCVFlags(), flags);
   }
 
@@ -538,7 +550,7 @@ bool MType::equalWithAppliedCV(Type const *conc, Binding *binding, CVFlags cv, M
   // should be safe to simply remove the assertion and return false.
   xfailure("attempt to match a type with a variable bound to a non-type");
 
-  return false;
+  return false;      // gcov-ignore
 }
 
 
@@ -641,8 +653,8 @@ bool MType::matchAtomicTypeWithVariable(AtomicType const *conc,
     else if (binding->sarg.isAtomicType()) {
       return matchAtomicType(conc, binding->sarg.getAtomicType(), flags & ~MF_MATCH);
     }
-    else {
-      return false;
+    else {              // gcov-ignore: cannot be triggered, the error is
+      return false;     // gcov-ignore: diagnosed before mtype is entered 
     }
   }
   else {
@@ -703,7 +715,7 @@ bool MType::matchFunctionType(FunctionType const *conc, FunctionType const *pat,
   if ((conc->flags | pat->flags) & FF_NO_PARAM_INFO) {
     // at least one of the types does not have parameter info,
     // so no further comparison is possible
-    return true;
+    return true;            // gcov-ignore: cannot trigger in C++ mode
   }
 
   if (!(flags & MF_STAT_EQ_NONSTAT)) {
@@ -863,15 +875,15 @@ bool MType::matchPointerToMemberType(PointerToMemberType const *conc,
 // is mostly just comparison for equality.
 bool MType::matchExpression(Expression const *conc, Expression const *pat, MatchFlags flags)
 {
-  if (conc->kind() != pat->kind()) {
-    return false;
-  }
-
   if (conc->isE_grouping()) {
     return matchExpression(conc->asE_groupingC()->expr, pat, flags);
   }
   if (pat->isE_grouping()) {
     return matchExpression(conc, pat->asE_groupingC()->expr, flags);
+  }
+
+  if (conc->kind() != pat->kind()) {
+    return false;
   }
 
   // turn off variable matching for this part because expression
@@ -883,7 +895,8 @@ bool MType::matchExpression(Expression const *conc, Expression const *pat, Match
     // have side effects are allowed within type constructors, so that
     // is all we deconstruct here
     //
-    // TODO: should 65 and 'A' be regarded as equal here?
+    // TODO: should 65 and 'A' be regarded as equal here?  For now, I
+    // do not regard them as equivalent...
     ASTCASE2C(E_boolLit, c, p) {
       return c->b == p->b;
     }
@@ -935,7 +948,14 @@ bool MType::matchExpression(Expression const *conc, Expression const *pat, Match
              matchExpression(c->expr, p->expr, flags);
     }
     ASTDEFAULT2C {
-      return false;
+      // For expressions that are *not* const-eval'able, we can't get
+      // here because tcheck reports an error and bails before we get
+      // a chance.  So, the only way to trigger this code is to extend
+      // the constant-expression evaluator to handle a new form, and
+      // then fail to update the comparison code here to compare such
+      // forms with each other.
+      xfailure("some kind of expression is const-eval'able but mtype "
+               "does not know how to compare it");
     }
     ASTENDCASE2C
   }
