@@ -64,6 +64,8 @@ class TypeToXml {
   void toXml(Variable *var);
 
   private:
+  void toXml_FunctionType_ExnSpec(void /*FunctionType::ExnSpec*/ *exnSpec);
+
   void toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0);
   void toXml_NamedAtomicType_properties(NamedAtomicType *nat);
   void toXml_NamedAtomicType_subtags(NamedAtomicType *nat);

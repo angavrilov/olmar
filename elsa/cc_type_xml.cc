@@ -240,8 +240,8 @@ void TypeToXml::toXml(Type *obj) {
     openTag(FunctionType, "TY", obj);
     printXml(flags, func->flags);
     printPtr(retType, func->retType, "TY");
-    printPtr(params, &(func->params), "OL");
-    printPtr(exnSpec, &(func->exnSpec), "TY");
+    printPtr(params, &func->params, "OL");
+    printPtr(exnSpec, func->exnSpec, "TY");
     tagEnd;
     // **** subtags
     trav(func->retType);
@@ -255,23 +255,7 @@ void TypeToXml::toXml(Type *obj) {
     }
     // exnSpec
     if (func->exnSpec) {
-      // toXml(Function::ExnSpec*);
-      // idempotency
-      if (!printedType(func->exnSpec)) {
-        // **** attributes
-        openTag(FunctionType_ExnSpec, "TY", (&(func->exnSpec)));
-        printPtr(types, &func->exnSpec->types, "OL");
-        tagEnd;
-        // **** FunctionType::ExnSpec subtags
-        if (!printedOL(&func->exnSpec->types)) {
-          openTagWhole(List_ExnSpec_types, "OL", &func->exnSpec->types);
-          SFOREACH_OBJLIST_NC(Type, func->exnSpec->types, iter) {
-            travListItem("TY", iter.data());
-          }
-          closeTag(List_ExnSpec_types);
-        }
-        closeTag(FunctionType_ExnSpec);
-      }
+      toXml_FunctionType_ExnSpec(func->exnSpec);
     }
     closeTag(FunctionType);
     break;
@@ -335,11 +319,11 @@ void TypeToXml::toXml(AtomicType *obj) {
     toXml_Scope_properties(cpd);
     printXml_bool(forward, cpd->forward);
     printXml(keyword, cpd->keyword);
-    printPtr(dataMembers, &(cpd->dataMembers), "TY");
-    printPtr(bases, &(cpd->bases), "TY");
-    printPtr(virtualBases, &(cpd->virtualBases), "TY");
-    printPtr(subobj, &(cpd->subobj), "TY");
-    printPtr(conversionOperators, &(cpd->conversionOperators), "TY");
+    printPtr(dataMembers, &cpd->dataMembers, "TY");
+    printPtr(bases, &cpd->bases, "TY");
+    printPtr(virtualBases, &cpd->virtualBases, "TY");
+    printPtr(subobj, &cpd->subobj, "TY");
+    printPtr(conversionOperators, &cpd->conversionOperators, "TY");
     printStrRef(instName, cpd->instName);
     printPtr(syntax, cpd->syntax, "AST"); // FIX: AST so make sure is serialized
     printPtr(parameterizingScope, cpd->parameterizingScope, "TY");
@@ -395,7 +379,7 @@ void TypeToXml::toXml(AtomicType *obj) {
     // **** attributes
     openTag(EnumType, "TY", e);
     toXml_NamedAtomicType_properties(e);
-    printPtr(valueIndex, &(e->valueIndex), "TY");
+    printPtr(valueIndex, &e->valueIndex, "TY");
     printXml_int(nextValue, e->nextValue);
     tagEnd;
     // **** subtags
@@ -406,16 +390,9 @@ void TypeToXml::toXml(AtomicType *obj) {
       for(StringObjDict<EnumType::Value>::Iter iter(e->valueIndex);
           !iter.isDone(); iter.next()) {
         string const &name = iter.key();
-        // dsw: do you know how bad it gets if I don't put a const-cast
-        // here?
+        // dsw: do you know how bad it gets if I don't put a
+        // const-cast here?
         EnumType::Value *eValue = const_cast<EnumType::Value*>(iter.value());
-        // The usual traverse() rountine will not go down into here, so
-        // we have to.
-        //
-        // NOTE: I omit putting a traverse method on EnumType::Value as
-        // it should be virtual to be parallel to the other traverse()
-        // methods which would add a vtable and I don't think it would
-        // ever be used anyway.  So I just inline it here.
         openTag_NameMap_Item(name, eValue);
         toXml_EnumType_Value(eValue);
         closeTag(_NameMap_Item);
@@ -523,6 +500,25 @@ void TypeToXml::toXml(Variable *var) {
   closeTag(Variable);
 }
 
+void TypeToXml::toXml_FunctionType_ExnSpec(void /*FunctionType::ExnSpec*/ *exnSpec0) {
+  FunctionType::ExnSpec *exnSpec = static_cast<FunctionType::ExnSpec *>(exnSpec0);
+  // idempotency
+  if (printedType(exnSpec)) return;
+  // **** attributes
+  openTag(FunctionType_ExnSpec, "TY", exnSpec);
+  printPtr(types, &exnSpec->types, "OL");
+  tagEnd;
+  // **** FunctionType::ExnSpec subtags
+  if (!printedOL(&exnSpec->types)) {
+    openTagWhole(List_ExnSpec_types, "OL", &exnSpec->types);
+    SFOREACH_OBJLIST_NC(Type, exnSpec->types, iter) {
+      travListItem("TY", iter.data());
+    }
+    closeTag(List_ExnSpec_types);
+  }
+  closeTag(FunctionType_ExnSpec);
+}
+
 void TypeToXml::toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0) {
   EnumType::Value *eValue = static_cast<EnumType::Value *>(eValue0);
   // idempotency
@@ -530,9 +526,9 @@ void TypeToXml::toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0) {
   // **** attributes
   openTag(EnumType_Value, "TY", eValue);
   printStrRef(name, eValue->name);
-  printPtr(type, &(eValue->type), "TY");
+  printPtr(type, &eValue->type, "TY");
   printXml_int(value, eValue->value);
-  printPtr(decl, &(eValue->decl), "TY");
+  printPtr(decl, &eValue->decl, "TY");
   tagEnd;
   // **** subtags
   trav(eValue->type);
@@ -575,7 +571,7 @@ void TypeToXml::toXml(BaseClassSubobj *bc) {
   // **** attributes
   openTag(BaseClassSubobj, "TY", bc);
   toXml_BaseClass_properties(bc);
-  printPtr(parents, &(bc->parents), "OL");
+  printPtr(parents, &bc->parents, "OL");
   tagEnd;
   // **** subtags
   if (!printedOL(&bc->parents)) {
@@ -601,13 +597,13 @@ void TypeToXml::toXml(Scope *scope) {
 }
 
 void TypeToXml::toXml_Scope_properties(Scope *scope) {
-  printPtr(variables, &(scope->variables), "SM");
-  printPtr(typeTags, &(scope->typeTags), "SM");
+  printPtr(variables, &scope->variables, "SM");
+  printPtr(typeTags, &scope->typeTags, "SM");
   printXml_bool(canAcceptNames, scope->canAcceptNames);
   printPtr(parentScope, scope, "TY");
   printXml(scopeKind, scope->scopeKind);
   printPtr(namespaceVar, scope->namespaceVar, "TY");
-  printPtr(templateParams, &(scope->templateParams), "OL");
+  printPtr(templateParams, &scope->templateParams, "OL");
   printPtr(curCompound, scope->curCompound, "TY");
 }
 
@@ -1033,7 +1029,7 @@ void ReadXml_Type::registerAttribute(void *target, int kind, int attr, char cons
   linkSat.unsatLinks##LIST.append \
     (new UnsatLink((void**) &(obj->FIELD), \
                    parseQuotedString(strValue), \
-                   KIND))
+                   (KIND)))
 
 void ReadXml_Type::registerAttr_CVAtomicType(CVAtomicType *obj, int attr, char const *strValue) {
   switch(attr) {
