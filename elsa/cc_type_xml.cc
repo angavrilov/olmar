@@ -417,7 +417,7 @@ void TypeToXml::toXml(AtomicType *obj) {
         // methods which would add a vtable and I don't think it would
         // ever be used anyway.  So I just inline it here.
         openTag_NameMap_Item(name, eValue);
-        visitEnumType_Value(eValue);
+        toXml_EnumType_Value(eValue);
         closeTag(_NameMap_Item);
       }
       closeTag(NameMap_EnumType_valueIndex);
@@ -523,7 +523,7 @@ void TypeToXml::toXml(Variable *var) {
   closeTag(Variable);
 }
 
-void TypeToXml::visitEnumType_Value(void /*EnumType::Value*/ *eValue0) {
+void TypeToXml::toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0) {
   EnumType::Value *eValue = static_cast<EnumType::Value *>(eValue0);
   // idempotency
   if (printedType(eValue)) return;

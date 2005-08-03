@@ -64,7 +64,7 @@ class TypeToXml {
   void toXml(Variable *var);
 
   private:
-  void visitEnumType_Value(void /*EnumType::Value*/ *eValue0);
+  void toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0);
   void toXml_NamedAtomicType_properties(NamedAtomicType *nat);
   void toXml_NamedAtomicType_subtags(NamedAtomicType *nat);
 
