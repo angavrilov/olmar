@@ -50,7 +50,7 @@ private:     // types
   };
 
   // needed to allow serialization and de-serialization
-  friend class ToXMLTypeVisitor;
+  friend class TypeToXml;
   friend class ReadXml_Type;
 
 private:     // data

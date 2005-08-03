@@ -20,95 +20,63 @@ void fromXml(CompoundType::Keyword &out, rostring str);
 string toXml(FunctionFlags id);
 void fromXml(FunctionFlags &out, rostring str);
 
-// -------------------- ToXMLTypeVisitor -------------------
+// -------------------- TypeToXml -------------------
 
 // print the Type tree out as XML
-class ToXMLTypeVisitor : public TypeVisitor {
+class TypeToXml {
   protected:
   ostream &out;
   int depth;
   bool indent;
 
   // printing of types is idempotent
-  SObjSet<void*> printedObjects;
+  SObjSet<void const *> printedTypes;
+  SObjSet<void const *> printedScopes;
+  SObjSet<void const *> printedVariables;
+  SObjSet<void const *> printedOLs;
+  SObjSet<void const *> printedSMs;
 
   public:
-  ToXMLTypeVisitor(ostream &out0, bool indent0=true)
+  TypeToXml(ostream &out0, bool indent0=true)
     : out(out0)
     , depth(0)
     , indent(indent0)
   {}
-  virtual ~ToXMLTypeVisitor() {}
+  virtual ~TypeToXml() {}
 
   private:
+  // print a newline and indent if the user wants indentation; NOTE:
+  // the convention is that you don't print a newline until you are
+  // *sure* you have something to print that goes onto the next line;
+  // that is, most lines do *not* end in a newline
   void newline();
-  void startItem(rostring prefix, void const *ptr);
-  void stopItem();
 
-  // **** TypeVisitor API methods
+  // register the object and check if it has been printed
+  bool printedType(void const *obj);
+  bool printedScope(void const *obj);
+  bool printedVariable(void const *obj);
+  bool printedOL(void const *obj);
+  bool printedSM(void const *obj);
+
   public:
-  virtual bool visitType(Type *obj);
-  virtual void postvisitType(Type *obj);
+  void toXml(Type *obj);
+  void toXml(AtomicType *obj);
+  void toXml(Variable *var);
 
-  virtual bool visitFunctionType_params(SObjList<Variable> &params);
-  virtual void postvisitFunctionType_params(SObjList<Variable> &params);
-  virtual bool visitFunctionType_params_item(Variable *param);
-  virtual void postvisitFunctionType_params_item(Variable *param);
+  private:
+  void visitEnumType_Value(void /*EnumType::Value*/ *eValue0);
+  void toXml_NamedAtomicType_properties(NamedAtomicType *nat);
+  void toXml_NamedAtomicType_subtags(NamedAtomicType *nat);
 
-  virtual bool visitVariable(Variable *var);
-  virtual void postvisitVariable(Variable *var);
+  void toXml(BaseClass *bc);
+  void toXml_BaseClass_properties(BaseClass *bc);
+  void toXml(BaseClassSubobj *bc);
 
-  virtual bool visitAtomicType(AtomicType *obj);
-  virtual void postvisitAtomicType(AtomicType *obj);
+  void toXml(Scope *obj);
+  void toXml_Scope_properties(Scope *scope);
+  void toXml_Scope_subtags(Scope *scope);
 
-  virtual bool visitEnumType_Value(void /*EnumType::Value*/ *eValue0);
-  virtual void postvisitEnumType_Value(void /*EnumType::Value*/ *eValue0);
-
-  virtual void toXml_Scope_properties(Scope *scope);
-  virtual void toXml_Scope_subtags(Scope *scope);
-  virtual bool visitScope(Scope *obj);
-  virtual void postvisitScope(Scope *obj);
-
-  virtual bool visitScope_variables(StringRefMap<Variable> &variables);
-  virtual void postvisitScope_variables(StringRefMap<Variable> &variables);
-  virtual bool visitScope_variables_entry(StringRef name, Variable *var);
-  virtual void postvisitScope_variables_entry(StringRef name, Variable *var);
-
-  virtual bool visitScope_typeTags(StringRefMap<Variable> &typeTags);
-  virtual void postvisitScope_typeTags(StringRefMap<Variable> &typeTags);
-  virtual bool visitScope_typeTags_entry(StringRef name, Variable *var);
-  virtual void postvisitScope_typeTags_entry(StringRef name, Variable *var);
-
-  virtual bool visitScope_templateParams(SObjList<Variable> &templateParams);
-  virtual void postvisitScope_templateParams(SObjList<Variable> &templateParams);
-  virtual bool visitScope_templateParams_item(Variable *var);
-  virtual void postvisitScope_templateParams_item(Variable *var);
-
-  virtual void toXml_BaseClass_properties(BaseClass *bc);
-
-  virtual bool visitBaseClass(BaseClass *bc);
-  virtual void postvisitBaseClass(BaseClass *bc);
-
-  virtual bool visitBaseClassSubobj(BaseClassSubobj *bc);
-  virtual void postvisitBaseClassSubobj(BaseClassSubobj *bc);
-
-  virtual bool visitBaseClassSubobj_parents(SObjList<BaseClassSubobj> &parents);
-  virtual void postvisitBaseClassSubobj_parents(SObjList<BaseClassSubobj> &parents);
-  virtual bool visitBaseClassSubobj_parents_item(BaseClassSubobj *parents);
-  virtual void postvisitBaseClassSubobj_parents_item(BaseClassSubobj *parents);
-
-  // factor out the commonality of the atomic types that inherit from
-  // NamedAtomicType
-  virtual void toXml_NamedAtomicType_properties(NamedAtomicType *nat);
-  virtual void toXml_NamedAtomicType_subtags(NamedAtomicType *nat);
-
-  virtual bool visitSTemplateArgument(STemplateArgument *obj);
-  virtual void postvisitSTemplateArgument(STemplateArgument *obj);
-
-  virtual bool visitPseudoInstantiation_args(ObjList<STemplateArgument> &args);
-  virtual void postvisitPseudoInstantiation_args(ObjList<STemplateArgument> &args);
-  virtual bool visitPseudoInstantiation_args_item(STemplateArgument *arg);
-  virtual void postvisitPseudoInstantiation_args_item(STemplateArgument *arg);
+  void toXml(STemplateArgument *obj);
 };
 
 

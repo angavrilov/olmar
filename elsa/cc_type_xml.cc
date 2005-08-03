@@ -33,15 +33,15 @@ do { \
 
 #define printXml(NAME, VALUE) \
   newline(); \
-  printThing0(NAME, VALUE, "", "", toXml)
+  printThing0(NAME, VALUE, "", "", ::toXml)
 
 #define printXml_bool(NAME, VALUE) \
   newline(); \
-  printThing0(NAME, VALUE, "", "", toXml_bool)
+  printThing0(NAME, VALUE, "", "", ::toXml_bool)
 
 #define printXml_int(NAME, VALUE) \
   newline(); \
-  printThing0(NAME, VALUE, "", "", toXml_int)
+  printThing0(NAME, VALUE, "", "", ::toXml_int)
 
 #define printStrRef(FIELD, TARGET) \
 do { \
@@ -87,30 +87,19 @@ do { \
 #define trav(TARGET) \
 do { \
   if (TARGET) { \
-    TARGET->traverse(*this); \
+    toXml(TARGET); \
   } \
 } while(0)
 
-#define travItem(PREFIX, TARGET) \
+#define travListItem(PREFIX, TARGET) \
 do { \
-  startItem(PREFIX, TARGET); \
+  newline(); \
+  out << "<_List_Item item=\"" << PREFIX << addr(TARGET) << "\">"; \
+  ++depth; \
   trav(TARGET); \
-  stopItem(); \
+  closeTag(_List_Item); \
 } while(0)
 
-#define ul(FIELD) \
-  linkSat.unsatLinks.append \
-    (new UnsatLink((void**) &(obj->FIELD), \
-                   parseQuotedString(strValue)))
-
-#define ulList(LIST, FIELD, KIND) \
-  linkSat.unsatLinks##LIST.append \
-    (new UnsatLink((void**) &(obj->FIELD), \
-                   parseQuotedString(strValue), \
-                   KIND))
-
-#define regAttr(TYPE) \
-  registerAttr_##TYPE((TYPE*)target, attr, yytext0)
 
 //  #if 0                           // refinement possibilities ...
 //  #define address(x) static_cast<void const*>(&(x))
@@ -157,59 +146,97 @@ void fromXml(STemplateArgument::Kind &out, rostring str) {
 }
 
 
-// -------------------- ToXMLTypeVisitor -------------------
+// -------------------- TypeToXml -------------------
 
-void ToXMLTypeVisitor::newline() {
+void TypeToXml::newline() {
   out << "\n";
   if (indent) {
     for (int i=0; i<depth; ++i) cout << " ";
   }
 }
 
-void ToXMLTypeVisitor::startItem(rostring prefix, void const *ptr) {
-  newline();
-  out << "<_List_Item item=\"" << prefix << addr(ptr) << "\">";
-  ++depth;
-}
-void ToXMLTypeVisitor::stopItem() {
-  closeTag(_List_Item);
+// ****************
+
+bool TypeToXml::printedType(void const *obj) {
+  if (printedTypes.contains(obj)) return true;
+  printedTypes.add(obj);
+  return false;
 }
 
-bool ToXMLTypeVisitor::visitType(Type *obj) {
-  if (printedObjects.contains(obj)) return false;
-  printedObjects.add(obj);
+bool TypeToXml::printedScope(void const *obj) {
+  if (printedScopes.contains(obj)) return true;
+  printedScopes.add(obj);
+  return false;
+}
+
+bool TypeToXml::printedVariable(void const *obj) {
+  if (printedVariables.contains(obj)) return true;
+  printedVariables.add(obj);
+  return false;
+}
+
+bool TypeToXml::printedOL(void const *obj) {
+  if (printedOLs.contains(obj)) return true;
+  printedOLs.add(obj);
+  return false;
+}
+
+bool TypeToXml::printedSM(void const *obj) {
+  if (printedSMs.contains(obj)) return true;
+  printedSMs.add(obj);
+  return false;
+}
+
+// ****************
+
+void TypeToXml::toXml(Type *obj) {
+  // idempotency
+  if (printedType(obj)) return;
 
   switch(obj->getTag()) {
   default: xfailure("illegal tag");
 
   case Type::T_ATOMIC: {
     CVAtomicType *atom = obj->asCVAtomicType();
+    // **** attributes
     openTag(CVAtomicType, "TY", obj);
     printPtr(atomic, atom->atomic, "TY");
     printXml(cv, atom->cv);
     tagEnd;
+    // **** subtags
+    trav(atom->atomic);
+    closeTag(CVAtomicType);
     break;
   }
 
   case Type::T_POINTER: {
     PointerType *ptr = obj->asPointerType();
+    // **** attributes
     openTag(PointerType, "TY", obj);
     printXml(cv, ptr->cv);
     printPtr(atType, ptr->atType, "TY");
     tagEnd;
+    // **** subtags
+    trav(ptr->atType);
+    closeTag(PointerType);
     break;
   }
 
   case Type::T_REFERENCE: {
     ReferenceType *ref = obj->asReferenceType();
+    // **** attributes
     openTag(ReferenceType, "TY", obj);
     printPtr(atType, ref->atType, "TY");
     tagEnd;
+    // **** subtags
+    trav(ref->atType);
+    closeTag(ReferenceType);
     break;
   }
 
   case Type::T_FUNCTION: {
     FunctionType *func = obj->asFunctionType();
+    // **** attributes
     openTag(FunctionType, "TY", obj);
     printXml(flags, func->flags);
     printPtr(retType, func->retType, "TY");
@@ -217,174 +244,91 @@ bool ToXMLTypeVisitor::visitType(Type *obj) {
     printPtr(exnSpec, &(func->exnSpec), "TY");
     tagEnd;
     // **** subtags
-    // These are not visited by default by the type visitor, so we not
-    // only have to print the id we have to print the tree.
-    //
-    // NOTE: if the TypeVisitor ever visits FunctionType:ExnSpec-s
-    // then be sure to pull this out into its own visit methods
+    trav(func->retType);
+    // params
+    if (!printedOL(&func->params)) {
+      openTagWhole(List_FunctionType_params, "OL", &func->params);
+      SFOREACH_OBJLIST_NC(Variable, func->params, iter) {
+        travListItem("TY", iter.data());
+      }
+      closeTag(List_FunctionType_params);
+    }
+    // exnSpec
     if (func->exnSpec) {
-      if (!printedObjects.contains(func->exnSpec)) {
-        printedObjects.add(func->exnSpec);
-
-        // I do not want to make a non-virtual traverse() method on
-        // FunctionType::ExnSpec and I don't want to make it virtual as
-        // it has no virtual methods yet, so I do this manually.
+      // toXml(Function::ExnSpec*);
+      // idempotency
+      if (!printedType(func->exnSpec)) {
+        // **** attributes
         openTag(FunctionType_ExnSpec, "TY", (&(func->exnSpec)));
-        printPtr(types, &(func->exnSpec->types), "OL");
+        printPtr(types, &func->exnSpec->types, "OL");
         tagEnd;
         // **** FunctionType::ExnSpec subtags
-        openTagWhole(List_ExnSpec_types, "OL", &func->exnSpec->types);
-        SFOREACH_OBJLIST_NC(Type, func->exnSpec->types, iter) {
-          travItem("TY", iter.data());
+        if (!printedOL(&func->exnSpec->types)) {
+          openTagWhole(List_ExnSpec_types, "OL", &func->exnSpec->types);
+          SFOREACH_OBJLIST_NC(Type, func->exnSpec->types, iter) {
+            travListItem("TY", iter.data());
+          }
+          closeTag(List_ExnSpec_types);
         }
-        closeTag(List_ExnSpec_types);
         closeTag(FunctionType_ExnSpec);
       }
     }
+    closeTag(FunctionType);
     break;
   }
 
   case Type::T_ARRAY: {
     ArrayType *arr = obj->asArrayType();
+    // **** attributes
     openTag(ArrayType, "TY", obj);
     printPtr(eltType, arr->eltType, "TY");
     newline();
     out << "size=\"" << arr->size << "\"";
     tagEnd;
+    // **** subtags
+    trav(arr->eltType);
+    closeTag(ArrayType);
     break;
   }
 
   case Type::T_POINTERTOMEMBER: {
     PointerToMemberType *ptm = obj->asPointerToMemberType();
+    // **** attributes
     openTag(PointerToMemberType, "TY", obj);
     printPtr(inClassNAT, ptm->inClassNAT, "TY");
     printXml(cv, ptm->cv);
     printPtr(atType, ptm->atType, "TY");
     tagEnd;
+    // **** subtags
+    trav(ptm->inClassNAT);
+    trav(ptm->atType);
+    closeTag(PointerToMemberType);
     break;
   }
 
   }
-  return true;
 }
 
-void ToXMLTypeVisitor::postvisitType(Type *obj) {
-  switch(obj->getTag()) {
-  default: xfailure("illegal tag");
-  case Type::T_ATOMIC:          closeTag(CVAtomicType);        break;
-  case Type::T_POINTER:         closeTag(PointerType);         break;
-  case Type::T_REFERENCE:       closeTag(ReferenceType);       break;
-  case Type::T_FUNCTION:        closeTag(FunctionType);        break;
-  case Type::T_ARRAY:           closeTag(ArrayType);           break;
-  case Type::T_POINTERTOMEMBER: closeTag(PointerToMemberType); break;
-  }
-}
-
-bool ToXMLTypeVisitor::visitFunctionType_params(SObjList<Variable> &params) {
-  openTagWhole(List_FunctionType_params, "OL", &params);
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitFunctionType_params(SObjList<Variable> &params) {
-  closeTag(List_FunctionType_params);
-}
-
-bool ToXMLTypeVisitor::visitFunctionType_params_item(Variable *param) {
-  startItem("TY", param);
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitFunctionType_params_item(Variable *param) {
-  stopItem();
-}
-
-bool ToXMLTypeVisitor::visitVariable(Variable *var) {
-  if (printedObjects.contains(var)) return false;
-  printedObjects.add(var);
-
-  openTag(Variable, "TY", var);
-
-//    SourceLoc loc;
-//    I'm skipping these for now, but source locations will be serialized
-//    as file:line:col when I serialize the internals of the Source Loc
-//    Manager.
-
-  printStrRef(name, var->name);
-  printPtr(type, var->type, "TY");
-  printXml(flags, var->flags);
-  printPtr(value, var->value, "AST"); // FIX: this is AST make sure gets serialized
-  printPtr(defaultParamType, var->defaultParamType, "TY");
-  printPtr(funcDefn, var->funcDefn, "AST"); // FIX: this is AST make sure gets serialized
-
-//    OverloadSet *overload;  // (nullable serf)
-//    I don't think we need to serialize this because we are done with
-//    overloading after typechecking.  Will have to eventually be done if
-//    an analysis wants to analyze uninstantiate templates.
-
-  printPtr(scope, var->scope, "TY");
-
-//    // bits 0-7: result of 'getAccess()'
-//    // bits 8-15: result of 'getScopeKind()'
-//    // bits 16-31: result of 'getParameterOrdinal()'
-//    unsigned intData;
-//    Ugh.  Break into 3 parts eventually, but for now serialize as an int.
-  newline();
-  out << "intData=\"" << toXml_Variable_intData(var->intData) << "\"";
-
-  printPtr(usingAlias_or_parameterizedEntity, var->usingAlias_or_parameterizedEntity, "TY");
-  printPtr(templInfo, var->templInfo, "TY");
-  tagEnd;
-
-  // **** subtags
-
-  // These are not visited by default by the type visitor, so we not
-  // only have to print the id we have to print the tree.  NOTE:
-  // 'type' is done by the visitor.
-
-//    trav(var->value);             // FIX: AST so make sure is serialized
-  trav(var->defaultParamType);
-//    trav(var->funcDefn);          // FIX: AST so make sure is serialized
-  // skipping 'overload'; see above
-  trav(var->scope);
-  trav(var->usingAlias_or_parameterizedEntity);
-//    trav(var->templInfo);
-
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitVariable(Variable *var) {
-  closeTag(Variable);
-}
-
-void ToXMLTypeVisitor::toXml_NamedAtomicType_properties(NamedAtomicType *nat) {
-  printStrRef(name, nat->name);
-  printPtr(typedefVar, nat->typedefVar, "TY");
-  printXml(access, nat->access);
-}
-
-void ToXMLTypeVisitor::toXml_NamedAtomicType_subtags(NamedAtomicType *nat) {
-  // This is not visited by default by the type visitor, so we not
-  // only have to print the id we have to print the tree.
-  trav(nat->typedefVar);
-}
-
-bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
-  if (printedObjects.contains(obj)) return false;
-  printedObjects.add(obj);
+void TypeToXml::toXml(AtomicType *obj) {
+  // idempotency
+  if (printedType(obj)) return;
 
   switch(obj->getTag()) {
   default: xfailure("illegal tag");
 
   case AtomicType::T_SIMPLE: {
     SimpleType *simple = obj->asSimpleType();
+    // **** attributes
     openTag(SimpleType, "TY", obj);
     printXml(type, simple->type);
     tagEnd;
+    closeTag(SimpleType);
     break;
   }
 
   case AtomicType::T_COMPOUND: {
     CompoundType *cpd = obj->asCompoundType();
+    // **** attributes
     openTag(CompoundType, "TY", obj);
     // superclasses
     toXml_NamedAtomicType_properties(cpd);
@@ -401,167 +345,262 @@ bool ToXMLTypeVisitor::visitAtomicType(AtomicType *obj) {
     printPtr(parameterizingScope, cpd->parameterizingScope, "TY");
     printPtr(selfType, cpd->selfType, "TY");
     tagEnd;
-
     // **** subtags
-
     toXml_NamedAtomicType_subtags(cpd);
     toXml_Scope_subtags(cpd);
-
-    openTagWhole(List_CompoundType_dataMembers, "OL", &(cpd->dataMembers));
-    SFOREACH_OBJLIST_NC(Variable, cpd->dataMembers, iter) {
-      travItem("TY", iter.data());
+    // data members
+    if (!printedOL(&cpd->dataMembers)) {
+      openTagWhole(List_CompoundType_dataMembers, "OL", &cpd->dataMembers);
+      SFOREACH_OBJLIST_NC(Variable, cpd->dataMembers, iter) {
+        travListItem("TY", iter.data());
+      }
+      closeTag(List_CompoundType_dataMembers);
     }
-    closeTag(List_CompoundType_dataMembers);
-
-    openTagWhole(List_CompoundType_bases, "OL", &(cpd->bases));
-    FOREACH_OBJLIST_NC(BaseClass, const_cast<ObjList<BaseClass>&>(cpd->bases), iter) {
-      travItem("TY", iter.data());
+    // bases
+    if (!printedOL(&cpd->bases)) {
+      openTagWhole(List_CompoundType_bases, "OL", &cpd->bases);
+      FOREACH_OBJLIST_NC(BaseClass, const_cast<ObjList<BaseClass>&>(cpd->bases), iter) {
+        travListItem("TY", iter.data());
+      }
+      closeTag(List_CompoundType_bases);
     }
-    closeTag(List_CompoundType_bases);
-
-    openTagWhole(List_CompoundType_virtualBases, "OL", &(cpd->virtualBases));
-    FOREACH_OBJLIST_NC(BaseClassSubobj,
-                       const_cast<ObjList<BaseClassSubobj>&>(cpd->virtualBases),
-                       iter) {
-      travItem("TY", iter.data());
+    // virtual bases
+    if (!printedOL(&cpd->virtualBases)) {
+      openTagWhole(List_CompoundType_virtualBases, "OL", &cpd->virtualBases);
+      FOREACH_OBJLIST_NC(BaseClassSubobj,
+                         const_cast<ObjList<BaseClassSubobj>&>(cpd->virtualBases),
+                         iter) {
+        travListItem("TY", iter.data());
+      }
+      closeTag(List_CompoundType_virtualBases);
     }
-    closeTag(List_CompoundType_virtualBases);
-
-    cpd->subobj.traverse(*this);
-
-    openTagWhole(List_CompoundType_conversionOperators, "OL", &(cpd->conversionOperators));
-    SFOREACH_OBJLIST_NC(Variable, cpd->conversionOperators, iter) {
-      travItem("TY", iter.data());
+    // subobj
+    trav(&cpd->subobj);
+    // conversionOperators
+    if (!printedOL(&cpd->conversionOperators)) {
+      openTagWhole(List_CompoundType_conversionOperators, "OL", &cpd->conversionOperators);
+      SFOREACH_OBJLIST_NC(Variable, cpd->conversionOperators, iter) {
+        travListItem("TY", iter.data());
+      }
+      closeTag(List_CompoundType_conversionOperators);
     }
-    closeTag(List_CompoundType_conversionOperators);
-
+    // parameterizingScope
     trav(cpd->parameterizingScope);
+    closeTag(CompoundType);
     break;
   }
 
   case AtomicType::T_ENUM: {
     EnumType *e = obj->asEnumType();
+    // **** attributes
     openTag(EnumType, "TY", e);
     toXml_NamedAtomicType_properties(e);
     printPtr(valueIndex, &(e->valueIndex), "TY");
     printXml_int(nextValue, e->nextValue);
     tagEnd;
-
     // **** subtags
     toXml_NamedAtomicType_subtags(e);
-
-    openTagWhole(NameMap_EnumType_valueIndex, "OL", &(e->valueIndex));
-    for(StringObjDict<EnumType::Value>::Iter iter(e->valueIndex);
-        !iter.isDone(); iter.next()) {
-      string const &name = iter.key();
-      // dsw: do you know how bad it gets if I don't put a const-cast
-      // here?
-      EnumType::Value *eValue = const_cast<EnumType::Value*>(iter.value());
-      // The usual traverse() rountine will not go down into here, so
-      // we have to.
-      //
-      // NOTE: I omit putting a traverse method on EnumType::Value as
-      // it should be virtual to be parallel to the other traverse()
-      // methods which would add a vtable and I don't think it would
-      // ever be used anyway.  So I just inline it here.
-      openTag_NameMap_Item(name, eValue);
-      bool ret = visitEnumType_Value(eValue);
-      xassert(ret);
-      postvisitEnumType_Value(eValue);
-      closeTag(_NameMap_Item);
+    // valueIndex
+    if (!printedOL(&e->valueIndex)) {
+      openTagWhole(NameMap_EnumType_valueIndex, "OL", &e->valueIndex);
+      for(StringObjDict<EnumType::Value>::Iter iter(e->valueIndex);
+          !iter.isDone(); iter.next()) {
+        string const &name = iter.key();
+        // dsw: do you know how bad it gets if I don't put a const-cast
+        // here?
+        EnumType::Value *eValue = const_cast<EnumType::Value*>(iter.value());
+        // The usual traverse() rountine will not go down into here, so
+        // we have to.
+        //
+        // NOTE: I omit putting a traverse method on EnumType::Value as
+        // it should be virtual to be parallel to the other traverse()
+        // methods which would add a vtable and I don't think it would
+        // ever be used anyway.  So I just inline it here.
+        openTag_NameMap_Item(name, eValue);
+        visitEnumType_Value(eValue);
+        closeTag(_NameMap_Item);
+      }
+      closeTag(NameMap_EnumType_valueIndex);
     }
-    closeTag(NameMap_EnumType_valueIndex);
+    closeTag(EnumType);
     break;
   }
 
   case AtomicType::T_TYPEVAR: {
     TypeVariable *tvar = obj->asTypeVariable();
+    // **** attributes
     openTag(TypeVariable, "TY", obj);
     toXml_NamedAtomicType_properties(tvar);
     tagEnd;
     // **** subtags
     toXml_NamedAtomicType_subtags(tvar);
+    closeTag(TypeVariable);
     break;
   }
 
   case AtomicType::T_PSEUDOINSTANTIATION: {
     PseudoInstantiation *pseudo = obj->asPseudoInstantiation();
+    // **** attributes
     openTag(PseudoInstantiation, "TY", obj);
     toXml_NamedAtomicType_properties(pseudo);
-//    CompoundType *primary;
-//    // the arguments, some of which contain type variables
-//    ObjList<STemplateArgument> args;
+    printPtr(primary, pseudo->primary, "TY");
+    printPtr(args, &pseudo->args, "OL");
     tagEnd;
-
     // **** subtags
     toXml_NamedAtomicType_subtags(pseudo);
+    // NOTE: without the cast, the overloading is ambiguous
+    trav(static_cast<AtomicType*>(pseudo->primary));
+    if (!printedOL(&pseudo->args)) {
+      openTagWhole(List_PseudoInstantiation_args, "OL", &pseudo->args);
+      FOREACH_OBJLIST_NC(STemplateArgument, pseudo->args, iter) {
+        travListItem("TY", iter.data());
+      }
+      closeTag(List_PseudoInstantiation_args);
+    }
+    closeTag(PseudoInstantiation);
     break;
   }
 
   case AtomicType::T_DEPENDENTQTYPE: {
     DependentQType *dep = obj->asDependentQType();
+    // **** attributes
     openTag(DependentQType, "TY", obj);
     toXml_NamedAtomicType_properties(dep);
-//    AtomicType *first;            // (serf) TypeVariable or PseudoInstantiation
-//    // After the first component comes whatever name components followed
-//    // in the original syntax.  All template arguments have been
-//    // tcheck'd.
-//    PQName *rest;
+    printPtr(first, dep->first, "TY");
+    printPtr(rest, dep->rest, "AST");
     tagEnd;
-
     // **** subtags
     toXml_NamedAtomicType_subtags(dep);
+    trav(dep->first);
+    // FIX: traverse this AST
+//    PQName *rest;
+    closeTag(DependentQType);
     break;
   }
 
   }
-  return true;
 }
 
-void ToXMLTypeVisitor::postvisitAtomicType(AtomicType *obj) {
-  switch(obj->getTag()) {
-  default: xfailure("illegal tag");
-  case AtomicType::T_SIMPLE:              closeTag(SimpleType);          break;
-  case AtomicType::T_COMPOUND:            closeTag(CompoundType);        break;
-  case AtomicType::T_ENUM:                closeTag(EnumType);            break;
-  case AtomicType::T_TYPEVAR:             closeTag(TypeVariable);        break;
-  case AtomicType::T_PSEUDOINSTANTIATION: closeTag(PseudoInstantiation); break;
-  case AtomicType::T_DEPENDENTQTYPE:      closeTag(DependentQType);      break;
-  }
+void TypeToXml::toXml(Variable *var) {
+  // idempotency
+  if (printedVariable(var)) return;
+  // **** attributes
+  openTag(Variable, "TY", var);
+//    SourceLoc loc;
+//    I'm skipping these for now, but source locations will be serialized
+//    as file:line:col when I serialize the internals of the Source Loc
+//    Manager.
+  printStrRef(name, var->name);
+  printPtr(type, var->type, "TY");
+  printXml(flags, var->flags);
+  printPtr(value, var->value, "AST"); // FIX: this is AST make sure gets serialized
+  printPtr(defaultParamType, var->defaultParamType, "TY");
+  printPtr(funcDefn, var->funcDefn, "AST"); // FIX: this is AST make sure gets serialized
+//    OverloadSet *overload;  // (nullable serf)
+//    I don't think we need to serialize this because we are done with
+//    overloading after typechecking.  Will have to eventually be done if
+//    an analysis wants to analyze uninstantiate templates.
+  printPtr(scope, var->scope, "TY");
+//    // bits 0-7: result of 'getAccess()'
+//    // bits 8-15: result of 'getScopeKind()'
+//    // bits 16-31: result of 'getParameterOrdinal()'
+//    unsigned intData;
+//    Ugh.  Break into 3 parts eventually, but for now serialize as an int.
+  newline();
+  out << "intData=\"" << toXml_Variable_intData(var->intData) << "\"";
+  printPtr(usingAlias_or_parameterizedEntity, var->usingAlias_or_parameterizedEntity, "TY");
+  printPtr(templInfo, var->templInfo, "TY");
+  tagEnd;
+  // **** subtags
+  trav(var->type);
+//    trav(var->value);             // FIX: AST so make sure is serialized
+  trav(var->defaultParamType);
+//    trav(var->funcDefn);          // FIX: AST so make sure is serialized
+  // skipping 'overload'; see above
+  trav(var->scope);
+  trav(var->usingAlias_or_parameterizedEntity);
+//    trav(var->templInfo);
+  closeTag(Variable);
 }
 
-
-bool ToXMLTypeVisitor::visitEnumType_Value(void /*EnumType::Value*/ *eValue0) {
+void TypeToXml::visitEnumType_Value(void /*EnumType::Value*/ *eValue0) {
   EnumType::Value *eValue = static_cast<EnumType::Value *>(eValue0);
-  if (printedObjects.contains(eValue)) return false;
-  printedObjects.add(eValue);
-
+  // idempotency
+  if (printedType(eValue)) return;
+  // **** attributes
   openTag(EnumType_Value, "TY", eValue);
   printStrRef(name, eValue->name);
   printPtr(type, &(eValue->type), "TY");
   printXml_int(value, eValue->value);
   printPtr(decl, &(eValue->decl), "TY");
   tagEnd;
-
   // **** subtags
-  //
-  // NOTE: the hypothetical EnumType::Value::traverse() method would
-  // probably do this, so perhaps it should be inlined above where
-  // said hypothetical method would go, but instead I just put it here
-  // as it seems just as natural.
   trav(eValue->type);
   trav(eValue->decl);
-
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitEnumType_Value(void /*EnumType::Value*/ *eValue0) {
-//    EnumType::Value *eValue = static_cast<EnumType::Value*>(eValue0);
   closeTag(EnumType_Value);
 }
 
+void TypeToXml::toXml_NamedAtomicType_properties(NamedAtomicType *nat) {
+  printStrRef(name, nat->name);
+  printPtr(typedefVar, nat->typedefVar, "TY");
+  printXml(access, nat->access);
+}
 
-void ToXMLTypeVisitor::toXml_Scope_properties(Scope *scope) {
+void TypeToXml::toXml_NamedAtomicType_subtags(NamedAtomicType *nat) {
+  trav(nat->typedefVar);
+}
+
+void TypeToXml::toXml(BaseClass *bc) {
+  // idempotency
+  if (printedType(bc)) return;
+  // **** attributes
+  openTag(BaseClass, "TY", bc);
+  toXml_BaseClass_properties(bc);
+  tagEnd;
+  // **** subtags
+  // NOTE: without the cast, the overloading is ambiguous
+  trav(static_cast<AtomicType*>(bc->ct));
+  closeTag(BaseClass);
+}
+
+void TypeToXml::toXml_BaseClass_properties(BaseClass *bc) {
+  printPtr(ct, bc->ct, "TY");
+  printXml(access, bc->access);
+  printXml_bool(isVirtual, bc->isVirtual);
+}
+
+void TypeToXml::toXml(BaseClassSubobj *bc) {
+  // idempotency
+  if (printedType(bc)) return;
+  // **** attributes
+  openTag(BaseClassSubobj, "TY", bc);
+  toXml_BaseClass_properties(bc);
+  printPtr(parents, &(bc->parents), "OL");
+  tagEnd;
+  // **** subtags
+  if (!printedOL(&bc->parents)) {
+    openTagWhole(List_BaseClassSubobj_parents, "OL", &bc->parents);
+    SFOREACH_OBJLIST_NC(BaseClassSubobj, bc->parents, iter) {
+      travListItem("TY", iter.data());
+    }
+    closeTag(List_BaseClassSubobj_parents);
+  }
+  closeTag(BaseClassSubobj);
+}
+
+void TypeToXml::toXml(Scope *scope) {
+  // idempotency
+  if (printedScope(scope)) return;
+  // **** attributes
+  openTag(Scope, "TY", scope);
+  toXml_Scope_properties(scope);
+  tagEnd;
+  // **** subtags
+  toXml_Scope_subtags(scope);
+  closeTag(Scope);
+}
+
+void TypeToXml::toXml_Scope_properties(Scope *scope) {
   printPtr(variables, &(scope->variables), "SM");
   printPtr(typeTags, &(scope->typeTags), "SM");
   printXml_bool(canAcceptNames, scope->canAcceptNames);
@@ -572,144 +611,70 @@ void ToXMLTypeVisitor::toXml_Scope_properties(Scope *scope) {
   printPtr(curCompound, scope->curCompound, "TY");
 }
 
-void ToXMLTypeVisitor::toXml_Scope_subtags(Scope *scope) {
-  // nothing to do as the traverse visits everything
+void TypeToXml::toXml_Scope_subtags(Scope *scope) {
+  // variables
+  if (!printedSM(&scope->variables)) {
+    openTagWhole(NameMap_Scope_variables, "SM", &scope->variables);
+    for(PtrMap<char const, Variable>::Iter iter(scope->variables);
+        !iter.isDone();
+        iter.adv()) {
+      StringRef name = iter.key();
+      Variable *var = iter.value();
+      openTag_NameMap_Item(name, var);
+      trav(var);
+      closeTag(_NameMap_Item);
+    }
+    closeTag(NameMap_Scope_variables);
+  }
+  // typeTags
+  if (!printedSM(&scope->typeTags)) {
+    openTagWhole(NameMap_Scope_typeTags, "SM", &scope->typeTags);
+    for(PtrMap<char const, Variable>::Iter iter(scope->typeTags);
+        !iter.isDone();
+        iter.adv()) {
+      StringRef name = iter.key();
+      Variable *var = iter.value();
+      openTag_NameMap_Item(name, var);
+      trav(var);
+      closeTag(_NameMap_Item);
+    }
+    closeTag(NameMap_Scope_typeTags);
+  }
+  // parentScope
+  trav(scope->parentScope);
+  // namespaceVar
+  trav(scope->namespaceVar);
+  // templateParams
+  if (!printedOL(&scope->templateParams)) {
+    openTagWhole(List_Scope_templateParams, "OL", &scope->templateParams);
+    SFOREACH_OBJLIST_NC(Variable, scope->templateParams, iter) {
+      travListItem("TY", iter.data());
+    }
+    closeTag(List_Scope_templateParams);
+  }
+  // I don't think I need this; see Scott's comments in the scope
+  // class
+//    Variable *parameterizedEntity;          // (nullable serf)
+  // --------------- for using-directives ----------------
+  // Scott says that I don't need these
+  //
+  // it is basically a bug that we need to serialize this but we do so
+  // there it is.
+//    CompoundType *curCompound;          // (serf) CompoundType we're building
+//    Should not be being used after typechecking, but in theory could omit.
+//    if (curCompound) {
+//      curCompound->traverse(vis);
+//    }
+
+  // NOTE: without the cast, the overloading is ambiguous
+  trav(static_cast<AtomicType*>(scope->curCompound));
 }
 
-bool ToXMLTypeVisitor::visitScope(Scope *scope) {
-  if (printedObjects.contains(scope)) return false;
-  printedObjects.add(scope);
-
-  openTag(Scope, "TY", scope);
-  toXml_Scope_properties(scope);
-  tagEnd;
-
-  // **** subtags
-  toXml_Scope_subtags(scope);
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitScope(Scope *scope) {
-  closeTag(Scope);
-}
-
-bool ToXMLTypeVisitor::visitScope_variables(StringRefMap<Variable> &variables) {
-  openTagWhole(NameMap_Scope_variables, "SM", &variables);
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitScope_variables(StringRefMap<Variable> &variables) {
-  closeTag(NameMap_Scope_variables);
-}
-
-bool ToXMLTypeVisitor::visitScope_variables_entry(StringRef name, Variable *var) {
-  openTag_NameMap_Item(name, var);
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitScope_variables_entry(StringRef name, Variable *var) {
-  closeTag(_NameMap_Item);
-}
-
-bool ToXMLTypeVisitor::visitScope_typeTags(StringRefMap<Variable> &typeTags) {
-  openTagWhole(NameMap_Scope_typeTags, "SM", &typeTags);
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitScope_typeTags(StringRefMap<Variable> &typeTags) {
-  closeTag(NameMap_Scope_typeTags);
-}
-
-bool ToXMLTypeVisitor::visitScope_typeTags_entry(StringRef name, Variable *var) {
-  openTag_NameMap_Item(name, var);
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitScope_typeTags_entry(StringRef name, Variable *var) {
-  closeTag(_NameMap_Item);
-}
-
-bool ToXMLTypeVisitor::visitScope_templateParams(SObjList<Variable> &templateParams) {
-  openTagWhole(List_Scope_templateParams, "OL", &templateParams);
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitScope_templateParams(SObjList<Variable> &templateParams) {
-  closeTag(List_Scope_templateParams);
-}
-
-bool ToXMLTypeVisitor::visitScope_templateParams_item(Variable *var) {
-  startItem("TY", var);
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitScope_templateParams_item(Variable *var) {
-  stopItem();
-}
-
-void ToXMLTypeVisitor::toXml_BaseClass_properties(BaseClass *bc) {
-  printPtr(ct, bc->ct, "TY");
-  printXml(access, bc->access);
-  printXml_bool(isVirtual, bc->isVirtual);
-}
-
-bool ToXMLTypeVisitor::visitBaseClass(BaseClass *bc) {
-  if (printedObjects.contains(bc)) return false;
-  printedObjects.add(bc);
-
-  openTag(BaseClass, "TY", bc);
-  toXml_BaseClass_properties(bc);
-  tagEnd;
-
-  // **** subtags
-  // none
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitBaseClass(BaseClass *bc) {
-  closeTag(BaseClass);
-}
-
-bool ToXMLTypeVisitor::visitBaseClassSubobj(BaseClassSubobj *bc) {
-  if (printedObjects.contains(bc)) return false;
-  printedObjects.add(bc);
-
-  openTag(BaseClassSubobj, "TY", bc);
-  toXml_BaseClass_properties(bc);
-  printPtr(parents, &(bc->parents), "OL");
-  tagEnd;
-
-  // **** subtags
-  // none
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitBaseClassSubobj(BaseClassSubobj *bc) {
-  closeTag(BaseClassSubobj);
-}
-
-bool ToXMLTypeVisitor::visitBaseClassSubobj_parents(SObjList<BaseClassSubobj> &parents) {
-  openTagWhole(List_BaseClassSubobj_parents, "OL", &parents);
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitBaseClassSubobj_parents(SObjList<BaseClassSubobj> &parents) {
-  closeTag(List_BaseClassSubobj_parents);
-}
-
-bool ToXMLTypeVisitor::visitBaseClassSubobj_parents_item(BaseClassSubobj *parent) {
-  startItem("TY", parent);
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitBaseClassSubobj_parents_item(BaseClassSubobj *parent) {
-  stopItem();
-}
-
-bool ToXMLTypeVisitor::visitSTemplateArgument(STemplateArgument *obj) {
+void TypeToXml::toXml(STemplateArgument *obj) {
   openTag(STemplateArgument, "TY", obj);
   printXml(kind, obj->kind);
 
+  // **** attributes
   switch(obj->kind) {
   default: xfailure("illegal STemplateArgument kind"); break;
 
@@ -743,14 +708,11 @@ bool ToXMLTypeVisitor::visitSTemplateArgument(STemplateArgument *obj) {
   tagEnd;
 
   // **** subtags
-
-  // WARNING: some of these are covered in the traverse method and
-  // some are not.
   switch(obj->kind) {
   default: xfailure("illegal STemplateArgument kind"); break;
 
   case STemplateArgument::STA_TYPE:
-    // NOTE: this is covered in the traverse method
+    toXml(obj->value.t);
     break;
 
   case STemplateArgument::STA_INT:
@@ -760,12 +722,12 @@ bool ToXMLTypeVisitor::visitSTemplateArgument(STemplateArgument *obj) {
   case STemplateArgument::STA_REFERENCE:
   case STemplateArgument::STA_POINTER:
   case STemplateArgument::STA_MEMBER:
-    obj->value.v->traverse(*this);
+    toXml(obj->value.v);
     break;
 
   case STemplateArgument::STA_DEPEXPR:
-    // what the hell should we do?  the same remark is made in the
-    // traverse() method code at this point
+    // FIX: what the hell should we do?  the same remark is made in
+    // the traverse() method code at this point
     break;
 
   case STemplateArgument::STA_TEMPLATE:
@@ -777,35 +739,11 @@ bool ToXMLTypeVisitor::visitSTemplateArgument(STemplateArgument *obj) {
     break;
   }
 
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitSTemplateArgument(STemplateArgument *obj) {
   closeTag(STemplateArgument);
 }
 
-bool ToXMLTypeVisitor::visitPseudoInstantiation_args(ObjList<STemplateArgument> &args) {
-  openTagWhole(List_PseudoInstantiation_args, "OL", &args);
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitPseudoInstantiation_args(ObjList<STemplateArgument> &args) {
-  closeTag(List_PseudoInstantiation_args);
-}
-
-bool ToXMLTypeVisitor::visitPseudoInstantiation_args_item(STemplateArgument *arg) {
-  startItem("TY", arg);
-  return true;
-}
-
-void ToXMLTypeVisitor::postvisitPseudoInstantiation_args_item(STemplateArgument *arg) {
-  stopItem();
-}
-
-
 // -------------------- ReadXml_Type -------------------
 
-//  #include "astxml_parse1_1defn.gen.cc"
 void ReadXml_Type::append2List(void *list0, int listKind, void *datum0) {
   xassert(list0);
   ASTList<char> *list = static_cast<ASTList<char>*>(list0);
@@ -1046,12 +984,13 @@ void *ReadXml_Type::ctorNodeFromTag(int tag) {
   case XTOK_NameMap_Scope_variables: return new StringRefMap<Variable>();
   case XTOK_NameMap_Scope_typeTags: return new StringRefMap<Variable>();
   case XTOK_NameMap_EnumType_valueIndex: return new StringRefMap<EnumType::Value>();
-
-//  #include "astxml_parse1_2ctrc.gen.cc"
   }
 }
 
 // **************** registerAttribute
+
+#define regAttr(TYPE) \
+  registerAttr_##TYPE((TYPE*)target, attr, yytext0)
 
 void ReadXml_Type::registerAttribute(void *target, int kind, int attr, char const *yytext0) {
   switch(kind) {
@@ -1082,10 +1021,19 @@ void ReadXml_Type::registerAttribute(void *target, int kind, int attr, char cons
   case XTOK_Scope: regAttr(Scope); break; 
   case XTOK_BaseClass: regAttr(BaseClass); break; 
   case XTOK_BaseClassSubobj: regAttr(BaseClassSubobj); break; 
-
-//  #include "astxml_parse1_3regc.gen.cc"
   }
 }
+
+#define ul(FIELD) \
+  linkSat.unsatLinks.append \
+    (new UnsatLink((void**) &(obj->FIELD), \
+                   parseQuotedString(strValue)))
+
+#define ulList(LIST, FIELD, KIND) \
+  linkSat.unsatLinks##LIST.append \
+    (new UnsatLink((void**) &(obj->FIELD), \
+                   parseQuotedString(strValue), \
+                   KIND))
 
 void ReadXml_Type::registerAttr_CVAtomicType(CVAtomicType *obj, int attr, char const *strValue) {
   switch(attr) {

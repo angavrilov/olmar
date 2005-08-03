@@ -52,24 +52,19 @@ void ReadXml_AST::insertIntoNameMap
 }
 
 bool ReadXml_AST::convertList2SObjList(ASTList<char> *list, int listKind, void **target) {
-//    xfailure("should not be called during AST parsing as there are no SObjLists in the AST");
   return false;
 }
 
 bool ReadXml_AST::convertList2ObjList (ASTList<char> *list, int listKind, void **target) {
-//    xfailure("should not be called during AST parsing as there are no ObjLists in the AST");
   return false;
 }
 
-bool ReadXml_AST::convertNameMap2StringRefMap(StringRefMap<char> *map, int mapKind, void *target)
-{
-//    xfailure("should not be called during AST parsing as there are no NameMap-s the AST");
+bool ReadXml_AST::convertNameMap2StringRefMap(StringRefMap<char> *map, int mapKind, void *target) {
   return false;
 }
 
 bool ReadXml_AST::convertNameMap2StringSObjDict(StringRefMap<char> *map, int mapKind, void *target)
 {
-//    xfailure("should not be called during AST parsing as there are no NameMap-s in the AST");
   return false;
 }
 

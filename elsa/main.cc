@@ -26,9 +26,11 @@
 #include "integrity.h"    // IntegrityVisitor
 #if XML
   #include "main_astxmlparse.h"// astxmlparse
-  #include "cc_type_xml.h"  // ToXMLTypeVisitor
+  #include "cc_type_xml.h"  // TypeToXml
 #endif // XML
 
+// don't know why I need this
+//  class TypeToXml;
 
 // little check: is it true that only global declarators
 // ever have Declarator::type != Declarator::var->type?
@@ -129,21 +131,20 @@ public:
   }
 };
 
-
 // print out type annotations for ever ast node that has a type
 class ToXmlASTVisitor_Types : public ASTVisitor {
 //    ostream &out;                 // for the <Link/> tags
-  TypeVisitor &typeVisitor;
+  TypeToXml &ttx;
 
   public:
-  ToXmlASTVisitor_Types(TypeVisitor &typeVisitor0)
-    : typeVisitor(typeVisitor0)
+  ToXmlASTVisitor_Types(TypeToXml &ttx0)
+    : ttx(ttx0)
   {}
 
-  // Note that idempotency is handled in ToXMLTypeVisitor
-  #define PRINT_ANNOT(A)                 \
-    if (A) {                             \
-      (A)->traverse(typeVisitor);        \
+  // Note that idempotency is handled in TypeToXml
+  #define PRINT_ANNOT(A)   \
+    if (A) {               \
+      ttx.toXml(A); \
     }
 
   // this was part of the macro
@@ -169,7 +170,7 @@ class ToXmlASTVisitor_Types : public ASTVisitor {
     } else if (ts->isTS_elaborated()) {
       PRINT_ANNOT(ts->asTS_elaborated()->atype);
     } else if (ts->isTS_classSpec()) {
-      PRINT_ANNOT(ts->asTS_classSpec()->ctype);
+      PRINT_ANNOT(static_cast<AtomicType*>(ts->asTS_classSpec()->ctype));
     } else if (ts->isTS_enumSpec()) {
       PRINT_ANNOT(ts->asTS_enumSpec()->etype);
     }
@@ -184,13 +185,13 @@ class ToXmlASTVisitor_Types : public ASTVisitor {
 
   bool visitMemberInit(MemberInit *memberInit) {
     PRINT_ANNOT(memberInit->member);
-    PRINT_ANNOT(memberInit->base);
+    PRINT_ANNOT(static_cast<AtomicType*>(memberInit->base));
     PRINT_ANNOT(memberInit->ctorVar);
     return true;
   }
 
   bool visitBaseClassSpec(BaseClassSpec *bcs) {
-    PRINT_ANNOT(bcs->type);
+    PRINT_ANNOT(static_cast<AtomicType*>(bcs->type));
     return true;
   }
 
@@ -671,8 +672,7 @@ void doit(int argc, char **argv)
     traceProgress() << "dsw xml print...\n";
     bool indent = tracingSys("xmlPrintAST-indent");
     ToXmlASTVisitor xmlVis(cout, indent);
-    ToXMLTypeVisitor xmlTypeVis(cout);
-//      ToXmlASTVisitor_Types xmlVis_Types(cout, xmlTypeVis);
+    TypeToXml xmlTypeVis(cout);
     ToXmlASTVisitor_Types xmlVis_Types(xmlTypeVis);
     cout << "---- START ----" << endl;
     unit->traverse(xmlVis);

@@ -106,7 +106,7 @@ public:    // data
 private:      // data
 
   // so serialization/deserialization is possible
-  friend class ToXMLTypeVisitor;
+  friend class TypeToXml;
   friend class ReadXml_Type;
 
   // The next two fields are used to store conceptually different
