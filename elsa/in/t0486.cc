@@ -49,6 +49,9 @@ namespace Whatever {
   // t0487.cc shows the problem.  Once t0487.cc is fixed then
   // this should *stop* working, because I have not implemented
   // structural equality in DependentQType::innerEquals.
+  //
+  // 2005-08-03: This now appears to be fixed, in part by using
+  // the new mtype module.
   template <class T>
   typename T::INT f(T*, typename T::INT);
          

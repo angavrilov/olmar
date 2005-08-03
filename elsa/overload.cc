@@ -13,6 +13,8 @@
 #include "trace.h"         // TRACE
 #include "typelistiter.h"  // TypeListIter
 #include "strtokp.h"       // StrtokParse
+#include "mtype.h"         // MType
+#include "matchtype.h"     // MatchTypes
 
 
 // ------------------- Candidate -------------------------
@@ -416,7 +418,7 @@ void OverloadResolver::processCandidate(Variable *v)
     GrowArray<ArgumentInfo> &args0 = this->args;
     // FIX: check there are no dependent types in the arguments
     TypeListIter_GrowArray argListIter(args0);
-    MatchTypes match(env.tfac, MatchTypes::MM_BIND, Type::EF_DEDUCTION);
+    MType match(true /*allowNonConst*/);
     if (!env.getFuncTemplArgs(match, sargs, finalName, v, argListIter, iflags)) {
       // something doesn't work about processing the template arguments
       OVERLOADTRACE("(not viable because args to not match template params)");

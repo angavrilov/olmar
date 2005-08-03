@@ -1,6 +1,9 @@
 // t0288.cc
 // "ambiguous function template instantiation"
 
+// 2005-08-03: This appears to be fixed by the switch to
+// the new mtype module.
+
 namespace std
 {
   template < class _CharT > struct char_traits;

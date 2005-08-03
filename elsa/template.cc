@@ -9,9 +9,10 @@
 #include "cc_lang.h"       // CCLang
 #include "strutil.h"       // pluraln
 #include "overload.h"      // selectBestCandidate_templCompoundType
-#include "matchtype.h"     // MatchType, STemplateArgumentCMap
 #include "typelistiter.h"  // TypeListIter
 #include "cc_ast_aux.h"    // LoweredASTVisitor
+#include "mtype.h"         // MType
+#include "matchtype.h"     // MatchTypes
 
 
 void copyTemplateArgs(ObjList<STemplateArgument> &dest,
@@ -171,14 +172,16 @@ DependentQType::~DependentQType()
 
 bool DependentQType::innerEquals(DependentQType const *obj) const
 {
-  // for now, only physical equality
-  //
-  // this is a bug; structural equality (along the lines of
-  // PseudoInstantiation::innerEquals) should be allowed; but I'm
-  // having trouble writing a testcase because of the more fundamental
-  // problem that I do not implement matching against parameter types
-  // that are DQTs (in/t0487.cc)
-  return this == obj;
+  // physical equality?
+  if (this == obj) {
+    return true;
+  }
+  
+  // structural equality?  for now, kick over to MType; in the
+  // future, remove 'innerEquals' altogether and kick over to
+  // MType at the top of Type::equals
+  MType mtype;
+  return mtype.matchDependentQType(this, obj, MF_EXACT);
 }
 
 
@@ -1223,11 +1226,10 @@ int TemplCandidates::compareCandidates(Variable const *left, Variable const *rig
 
 
 bool Env::loadBindingsWithExplTemplArgs(Variable *var, ObjList<STemplateArgument> const &args,
-                                        MatchTypes &match, InferArgFlags iflags)
+                                        MType &match, InferArgFlags iflags)
 {
   xassert(var->templateInfo());
   xassert(var->templateInfo()->isPrimary());
-  xassert(match.getMode() == MatchTypes::MM_BIND);
 
   ObjListIter<STemplateArgument> argIter(args);
   SObjListIterNC<Variable> paramIter(var->templateInfo()->params);
@@ -1239,20 +1241,14 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ObjList<STemplateArgument
     // is the parameter already bound?  this happens e.g. during
     // explicit function instantiation, when the type of the function
     // can be used to infer some/all of the template parameters
-    STemplateArgument const *existing = NULL;
-    if (param->isTemplateTypeParam()) {
-      existing = match.bindings.getTypeVar(param->type->asTypeVariable());
-    } else {
-      // for non-type template parameters
-      existing = match.bindings.getObjVar(param);
-    }
+    STemplateArgument existing = match.getBoundValue(param->name, tfac);
 
     // if so, it should agree with the explicitly provided argument
-    if (existing) {
-      if (!existing->equals(*arg)) {
+    if (existing.hasValue()) {
+      if (!existing.equals(*arg)) {
         if (iflags & IA_REPORT_ERRORS) {
           error(stringc << "for parameter `" << param->name
-                        << "', inferred argument `" << existing->toString()
+                        << "', inferred argument `" << existing.toString()
                         << "' does not match supplied argument `" << arg->toString()
                         << "'");
         }
@@ -1265,35 +1261,7 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ObjList<STemplateArgument
       }
     }
 
-    // FIX: when it is possible to make a TA_template, add
-    // check for it here.
-    //              xfailure("Template template parameters are not implemented");
-
-    if (param->hasFlag(DF_TYPEDEF) && arg->isType()) {
-      STemplateArgument *bound = new STemplateArgument(*arg);
-      match.bindings.putTypeVar(param->type->asTypeVariable(), bound);
-    }
-    else if (!param->hasFlag(DF_TYPEDEF) && arg->isObject()) {
-      STemplateArgument *bound = new STemplateArgument(*arg);
-      match.bindings.putObjVar(param, bound);
-    }
-    else {
-      // mismatch between argument kind and parameter kind
-      char const *paramKind = param->hasFlag(DF_TYPEDEF)? "type" : "non-type";
-      char const *argKind = arg->isType()? "type" : "non-type";
-      // FIX: make a provision for template template parameters here
-
-      // NOTE: condition this upon a boolean flag reportErrors if it
-      // starts to fail while filtering functions for overload
-      // resolution; see Env::inferTemplArgsFromFuncArgs() for an
-      // example
-      error(stringc
-            << "`" << param->name << "' is a " << paramKind
-            << " parameter, but `" << arg->toString() << "' is a "
-            << argKind << " argument",
-            EF_STRONG);
-      return false;
-    }
+    match.setBoundValue(param->name, *arg);
   }
   return true;
 }
@@ -1302,16 +1270,14 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ObjList<STemplateArgument
 bool Env::inferTemplArgsFromFuncArgs
   (Variable *var,
    TypeListIter &argListIter,
-   MatchTypes &match,
+   MType &match,
    InferArgFlags iflags)
 {
   xassert(var->templateInfo());
   xassert(var->templateInfo()->isPrimary());
-  
-  // I am expecting the caller to have configured 'match' in
-  // a specific way.
-  xassert(match.hasEFlag(Type::EF_DEDUCTION));
-  xassert(match.getMode() == MatchTypes::MM_BIND);
+
+  // matching flags for this routine
+  MatchFlags mflags = MF_DEDUCTION | MF_MATCH;
 
   TRACE("template", "deducing template arguments from function arguments");
 
@@ -1388,7 +1354,7 @@ bool Env::inferTemplArgsFromFuncArgs
 
         // "find template argument values that will make the deduced
         // [parameter type] identical to ['argType']"
-        bool argUnifies = match.match_Type(argType, paramType);
+        bool argUnifies = match.matchNC(argType, paramType, mflags);
 
         if (!argUnifies) {
           // cppstd 14.8.2.1 para 3 bullet 3: if 'paramType' is a
@@ -1429,7 +1395,7 @@ bool Env::inferTemplArgsFromFuncArgs
               // push and pop of bindings.  Therefore I will just note
               // the bugs and ignore them for now.
               Type *t = env.makeType(sub->ct);    // leaked
-              if (match.match_Type(t, paramType)) {
+              if (match.matchNC(t, paramType, mflags)) {
                 argUnifies = true;
                 break;
               }
@@ -1462,14 +1428,14 @@ bool Env::inferTemplArgsFromFuncArgs
   
   // sm: 9/26/04: similarly, there used to be code that complained if there
   // were too many args; that is also checked elsewhere (t0026.cc ensures
-  // that both conditions are caught)
+  // that both conditions are diagnosed)
 
   return true;
 }
 
 
 bool Env::getFuncTemplArgs
-  (MatchTypes &match,
+  (MType &match,
    ObjList<STemplateArgument> &sargs,
    PQName const *final,
    Variable *var,
@@ -1495,7 +1461,7 @@ bool Env::getFuncTemplArgs
 }
 
 bool Env::getArgumentsFromMatch
-  (MatchTypes &match, ObjList<STemplateArgument> &sargs,
+  (MType &match, ObjList<STemplateArgument> &sargs,
    InferArgFlags iflags, Variable *primary)
 {
   TemplateInfo *ti = primary->templateInfo();
@@ -1518,7 +1484,7 @@ bool Env::getArgumentsFromMatch
 }
 
 void Env::getFuncTemplArgs_oneParamList
-  (MatchTypes &match,
+  (MType &match,
    ObjList<STemplateArgument> &sargs,
    InferArgFlags iflags,
    bool &haveAllArgs,
@@ -1528,15 +1494,9 @@ void Env::getFuncTemplArgs_oneParamList
   SFOREACH_OBJLIST(Variable, paramList, templPIter) {
     Variable const *param = templPIter.data();
 
-    STemplateArgument const *sta = NULL;
-    if (param->isTemplateTypeParam()) {
-      sta = match.bindings.getTypeVar(param->type->asTypeVariable());
-    }
-    else {
-      sta = match.bindings.getObjVar(param);
-    }
+    STemplateArgument sta = match.getBoundValue(param->name, tfac);
 
-    if (!sta) {
+    if (!sta.hasValue()) {
       if (iflags & IA_REPORT_ERRORS) {
         error(stringc << "arguments do not bind template parameter `"
                       << templPIter.data()->name << "'");
@@ -1546,14 +1506,14 @@ void Env::getFuncTemplArgs_oneParamList
     else {
       // the 'sta' we have is owned by 'match' and will go away when
       // it does; make a copy that 'sargs' can own
-      sargs.append(new STemplateArgument(*sta));
+      sargs.append(new STemplateArgument(sta));
     }
   }
 }
 
 
 Variable *Env::instantiateFunctionTemplate
-  (SourceLoc loc, Variable *primary, MatchTypes &match)
+  (SourceLoc loc, Variable *primary, MType &match)
 {
   // map 'match' to a list of semantic arguments
   ObjList<STemplateArgument> sargs;
@@ -1593,8 +1553,8 @@ Variable *Env::lookupPQVariable_applyArgsTemplInst
   ObjList<STemplateArgument> sargs;
   {
     TypeListIter_FakeList argListIter(funcArgs);
-    MatchTypes match(tfac, MatchTypes::MM_BIND, Type::EF_DEDUCTION);
-    if (!getFuncTemplArgs(match, sargs, final, primary, 
+    MType match(true /*allowNonConst*/);
+    if (!getFuncTemplArgs(match, sargs, final, primary,
                           argListIter, IA_REPORT_ERRORS)) {
       return NULL;
     }
@@ -1897,19 +1857,13 @@ void Env::deleteTemplateArgBindings(Scope *limit)
 // it once.  For now I'll let that be...
 void Env::mapPrimaryArgsToSpecArgs(
   Variable *baseV,         // partial specialization
-  MatchTypes &match,       // carries 'bindings', which will own new arguments
-  SObjList<STemplateArgument> &partialSpecArgs,      // dest. list
+  ObjList<STemplateArgument> &partialSpecArgs,       // dest. list
   SObjList<STemplateArgument> const &primaryArgs)    // source list
 {
-  // though the caller created this, it is really this function that
-  // is responsible for deciding what arguments are used; so make sure
-  // the caller did the right thing
-  xassert(match.getMode() == MatchTypes::MM_BIND);
+  // ...
+  ObjList<STemplateArgument> const &hackPrimaryArgs =
+    reinterpret_cast<ObjList<STemplateArgument> const &>(primaryArgs);
 
-  // TODO: add 'const' to matchtypes
-  SObjList<STemplateArgument> &hackPrimaryArgs =
-    const_cast<SObjList<STemplateArgument>&>(primaryArgs);
-  
   // similar to Env::findMostSpecific, we need to match against the
   // original's args if this is a partial instantiation (in/t0504.cc)
   TemplateInfo *baseVTI = baseV->templateInfo();
@@ -1919,8 +1873,10 @@ void Env::mapPrimaryArgsToSpecArgs(
   }
 
   // execute the match to derive the bindings; we should not have
-  // gotten here if they do not unify (Q: why the matchDepth==2?)
-  bool matches = match.match_Lists(hackPrimaryArgs, matchTI->arguments, 2 /*matchDepth*/);
+  // gotten here if they do not unify
+  MType match(true /*allowNonConst*/);
+  bool matches = match.matchSTemplateArguments(hackPrimaryArgs, matchTI->arguments,
+                                               MF_MATCH);
   xassert(matches);
 
   // Now the arguments are bound in 'bindings', for example
@@ -1942,33 +1898,21 @@ void Env::mapPrimaryArgsToSpecArgs(
 
 void Env::mapPrimaryArgsToSpecArgs_oneParamList(
   SObjList<Variable> const &params,     // one arg per parameter
-  MatchTypes &match,                    // carries bindingsto use
-  SObjList<STemplateArgument> &partialSpecArgs)      // dest. list
+  MType &match,                         // carries bindingsto use
+  ObjList<STemplateArgument> &partialSpecArgs)      // dest. list
 {
   SFOREACH_OBJLIST(Variable, params, iter) {
     Variable const *param = iter.data();
 
-    STemplateArgument const *arg = NULL;
-    if (param->type->isTypeVariable()) {
-      arg = match.bindings.getTypeVar(param->type->asTypeVariable());
-    }
-    else {
-      arg = match.bindings.getObjVar(param);
-    }
-    if (!arg) {
+    STemplateArgument arg = match.getBoundValue(param->name, tfac);
+    if (!arg.hasValue()) {
       error(stringc
             << "during partial specialization parameter `" << param->name
             << "' not bound in inferred bindings", EF_STRONG);
       return;
     }
 
-    // Cast away constness... the reason it's const to begin with is
-    // that 'bindings' doesn't want me to change it, and as a reminder
-    // that 'bindings' owns it so it will go away when 'bindings'
-    // does.  Since passing 'arg' to 'insertTemplateArgBindings' will
-    // not change it, and since I understand the lifetime
-    // relationships, this should be safe.
-    partialSpecArgs.append(const_cast<STemplateArgument*>(arg));
+    partialSpecArgs.append(new STemplateArgument(arg));
   }
 }
 
@@ -2683,12 +2627,15 @@ Variable *Env::instantiateClassTemplate
   // if this is a partial specialization, we need the arguments
   // to be relative to the partial spec before we can look for
   // the instantiation
-  MatchTypes match(tfac, MatchTypes::MM_BIND);
-  SObjList<STemplateArgument> partialSpecArgs;
+  ObjList<STemplateArgument> owningPartialSpecArgs;
   if (spec != primary) {
     xassertdb(specTI->isPartialSpec());
-    mapPrimaryArgsToSpecArgs(spec, match, partialSpecArgs, primaryArgs);
+    mapPrimaryArgsToSpecArgs(spec, owningPartialSpecArgs, primaryArgs);
   }
+
+  // non-owning version of this too..
+  SObjList<STemplateArgument> const &partialSpecArgs =
+    objToSObjListC(owningPartialSpecArgs);
 
   // look for an existing instantiation that has the right arguments
   Variable *inst = spec==primary?
@@ -4331,14 +4278,14 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type)
     TemplateInfo *primaryTI = primary->templateInfo();
 
     // does the type we have match the type of this template?
-    MatchTypes match(tfac, MatchTypes::MM_BIND);
-    if (!match.match_Type(type, primary->type)) {
+    MType match(true /*allowNonConst*/);
+    if (!match.matchNC(type, primary->type, MF_MATCH)) {
       continue;   // no match
     }
 
     // use user's arguments (if any) to fill in missing bindings
     if (nameArgs) {
-      if (!loadBindingsWithExplTemplArgs(primary, *nameArgs, match, 
+      if (!loadBindingsWithExplTemplArgs(primary, *nameArgs, match,
                                          IA_NO_ERRORS)) {
         continue;      // no match
       }

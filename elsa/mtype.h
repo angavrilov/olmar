@@ -129,7 +129,11 @@ enum MatchFlags {
   ),
 
   // these flags are propagated below ptr and ptr-to-member
-  MF_PTR_PROP        = (MF_PROP | MF_SIMILAR)
+  MF_PTR_PROP = (
+    MF_PROP            |
+    MF_SIMILAR         |
+    MF_DEDUCTION
+  )
 };
 
 ENUM_BITWISE_OPS(MatchFlags, MF_ALL)
@@ -181,27 +185,33 @@ private:      // funcs
   bool matchTypeVariable(TypeVariable const *conc, TypeVariable const *pat, MatchFlags flags);
   bool matchPseudoInstantiation(PseudoInstantiation const *conc,
                                        PseudoInstantiation const *pat, MatchFlags flags);
+public://maybe temporary
   bool matchSTemplateArguments(ObjList<STemplateArgument> const &conc,
                                ObjList<STemplateArgument> const &pat,
                                MatchFlags flags);
+private://maybe temporary
   bool matchSTemplateArgument(STemplateArgument const *conc,
                                      STemplateArgument const *pat, MatchFlags flags);
   bool matchNontypeWithVariable(STemplateArgument const *conc,
                                        E_variable *pat, MatchFlags flags);
+public://temporary
   bool matchDependentQType(DependentQType const *conc,
                                   DependentQType const *pat, MatchFlags flags);
+private://temporary
   bool matchPQName(PQName const *conc, PQName const *pat, MatchFlags flags);
   bool matchType(Type const *conc, Type const *pat, MatchFlags flags);
   bool matchTypeWithVariable(Type const *conc, TypeVariable const *pat,
                                     CVFlags tvCV, MatchFlags flags);
   bool equalWithAppliedCV(Type const *conc, Binding *binding, CVFlags cv, MatchFlags flags);
   bool matchTypeWithSpecifiedCV(Type const *conc, Type const *pat, CVFlags cv, MatchFlags flags);
-  bool addTypeBindingWithoutCV(StringRef tvName, Type const *conc, CVFlags tvcv);
+  bool addTypeBindingWithoutCV(StringRef tvName, Type const *conc, 
+                               CVFlags tvcv, MatchFlags flags);
   bool matchTypeWithPolymorphic(Type const *conc, SimpleTypeId polyId, MatchFlags flags);
   bool matchAtomicTypeWithVariable(AtomicType const *conc,
                                    TypeVariable const *pat,
                                    MatchFlags flags);
   bool matchCVAtomicType(CVAtomicType const *conc, CVAtomicType const *pat, MatchFlags flags);
+  bool matchCVFlags(CVFlags conc, CVFlags pat, MatchFlags flags);
   bool matchPointerType(PointerType const *conc, PointerType const *pat, MatchFlags flags);
   bool matchReferenceType(ReferenceType const *conc, ReferenceType const *pat, MatchFlags flags);
   bool matchFunctionType(FunctionType const *conc, FunctionType const *pat, MatchFlags flags);
@@ -222,8 +232,8 @@ private:      // funcs
                                    ObjList<STemplateArgument> const &sargs);
 
 public:       // funcs
-  // only when 'nonConst' is true can 'matchNC' be invoked
-  MType(bool nonConst = false);
+  // only when 'allowNonConst' is true can 'matchNC' be invoked
+  MType(bool allowNonConst = false);
   ~MType();
 
   // return true if 'conc' is an instance of 'pat', in which case this
@@ -239,6 +249,9 @@ public:       // funcs
   
   // get the binding for 'name', or return STA_NONE if none
   STemplateArgument getBoundValue(StringRef name, TypeFactory &tfac);
+  
+  // set a binding; 'value' must not be STA_NONE
+  void setBoundValue(StringRef name, STemplateArgument const &value);
 };
 
 

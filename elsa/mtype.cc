@@ -16,10 +16,6 @@
 
 string toString(MatchFlags flags)
 {
-  if (flags == MF_EXACT) {
-    return "MF_EXACT";
-  }
-
   static char const * const map[] = {
     "MF_IGNORE_RETURN",
     "MF_STAT_EQ_NONSTAT",
@@ -93,9 +89,14 @@ bool MType::matchNC(Type *conc, Type *pat, MatchFlags flags)
 }
 
 
-// This internal layer exists just to have a place for the debugging code.
 bool MType::imatch(Type const *conc, Type const *pat, MatchFlags flags)
 {
+  // 14.8.2.1p2b3
+  if ((flags & MF_DEDUCTION) &&
+      !pat->isReferenceType()) {
+    flags |= MF_IGNORE_TOP_CV;
+  }
+
   bool result = matchType(conc, pat, flags);
 
   #ifndef NDEBUG
@@ -104,8 +105,8 @@ bool MType::imatch(Type const *conc, Type const *pat, MatchFlags flags)
       ostream &os = trace("mtype");
       os << "conc=`" << conc->toString()
          << "' pat=`" << pat->toString()
-         << "' flags=" << toString(flags)
-         << "; match=" << (result? "true" : "false")
+         << "' flags={" << toString(flags)
+         << "}; match=" << (result? "true" : "false")
          ;
 
       if (result) {
@@ -161,6 +162,20 @@ STemplateArgument MType::getBoundValue(StringRef name, TypeFactory &tfac)
 
   // other cases are already in the public format
   return b->sarg;
+}
+
+
+void MType::setBoundValue(StringRef name, STemplateArgument const &value)
+{
+  xassert(value.hasValue());
+  
+  Binding *b = new Binding;
+  b->sarg = value;
+  if (value.isType()) {
+    b->cv = value.getType()->getCVFlags();
+  }
+
+  bindings.addReplace(name, b);
 }
 
 
@@ -489,7 +504,7 @@ bool MType::matchTypeWithVariable(Type const *conc, TypeVariable const *pat,
     // that are a superset of those in 'tvCV', and the
     // type to which 'tvName' is bound should have the cv-flags
     // in the difference between 'conc' and 'tvCV'
-    return addTypeBindingWithoutCV(tvName, conc, tvCV);
+    return addTypeBindingWithoutCV(tvName, conc, tvCV, flags);
   }
 }
 
@@ -575,26 +590,32 @@ bool MType::equalWithAppliedCV(Type const *conc, Binding *binding, CVFlags cv, M
 
 bool MType::matchTypeWithSpecifiedCV(Type const *conc, Type const *pat, CVFlags cv, MatchFlags flags)
 {
-  if (!( flags & MF_OK_DIFFERENT_CV )) {
-    // compare cv-flags
-    if (cv != conc->getCVFlags()) {
-      return false;
-    }
-  }
-
   // compare underlying types, ignoring first level of cv
-  return matchType(conc, pat, flags | MF_IGNORE_TOP_CV);
+  return matchCVFlags(conc->getCVFlags(), cv, flags) &&
+         matchType(conc, pat, flags | MF_IGNORE_TOP_CV);
 }
 
 
-bool MType::addTypeBindingWithoutCV(StringRef tvName, Type const *conc, CVFlags tvcv)
+bool MType::addTypeBindingWithoutCV(StringRef tvName, Type const *conc, 
+                                    CVFlags tvcv, MatchFlags flags)
 {
   CVFlags ccv = conc->getCVFlags();
+
+  if ((flags & MF_DEDUCTION) && (flags & MF_IGNORE_TOP_CV)) {
+    // trying to implement 14.8.2.1p2b3
+    ccv = CV_NONE;
+  }
+
   if (tvcv & ~ccv) {
     // the type variable was something like 'T const' but the concrete
     // type does not have all of the cv-flags (e.g., just 'int', no
     // 'const'); this means the match is a failure
-    return false;
+    if (flags & MF_DEDUCTION) {
+      // let it go anyway, as part of my poor approximationg of 14.8.2.1
+    }
+    else {
+      return false;
+    }
   }
 
   // 'tvName' will be bound to 'conc', except we will ignore the
@@ -757,8 +778,36 @@ bool MType::matchCVAtomicType(CVAtomicType const *conc, CVAtomicType const *pat,
     }
   }
 
-  return matchAtomicType(conc->atomic, pat->atomic, flags) &&
-         ((flags & MF_OK_DIFFERENT_CV) || (conc->cv == pat->cv));
+  // compare cv-flags
+  return matchCVFlags(conc->cv, pat->cv, flags) &&
+         matchAtomicType(conc->atomic, pat->atomic, flags);
+}
+
+  
+bool MType::matchCVFlags(CVFlags conc, CVFlags pat, MatchFlags flags)
+{
+  if (flags & MF_OK_DIFFERENT_CV) {
+    // anything goes
+    return true;
+  }
+  else if (flags & MF_DEDUCTION) {
+    // merely require that the pattern flags be a superset of
+    // the concrete flags (in/t0315.cc, in/t0348.cc)
+    //
+    // TODO: this is wrong, as it does not correctly implement
+    // 14.8.2.1; I am only implementing this because it emulates
+    // what matchtype does right now
+    if (pat >= conc) {
+      return true;
+    }
+    else {
+      return false;
+    }
+  }
+  else {
+    // require equality
+    return conc == pat;
+  }
 }
 
 
@@ -955,13 +1004,24 @@ bool MType::matchPointerType(PointerType const *conc, PointerType const *pat, Ma
   // but it's immediately suppressed once we go one level down; this
   // behavior is repeated in all 'match' methods
 
-  return ((flags & MF_OK_DIFFERENT_CV) || (conc->cv == pat->cv)) &&
+  return matchCVFlags(conc->cv, pat->cv, flags) &&
          matchType(conc->atType, pat->atType, flags & MF_PTR_PROP);
 }
 
 
 bool MType::matchReferenceType(ReferenceType const *conc, ReferenceType const *pat, MatchFlags flags)
 {
+  if (flags & MF_DEDUCTION) {
+    // (in/t0114.cc, in/d0072.cc) allow pattern to be more cv-qualified;
+    // this only approximates 14.8.2.1, but emulates current matchtype
+    // behavior (actually, it emulates only the intended matchtype
+    // behavior; see comment added 2005-08-03 to MatchTypes::match_ref)
+    if (pat->atType->getCVFlags() >= conc->atType->getCVFlags()) {
+      // disable further comparison of these cv-flags
+      flags |= MF_IGNORE_TOP_CV;
+    }
+  }
+
   return matchType(conc->atType, pat->atType, flags & MF_PTR_PROP);
 }
 
@@ -1132,7 +1192,7 @@ bool MType::matchPointerToMemberType(PointerToMemberType const *conc,
                                      PointerToMemberType const *pat, MatchFlags flags)
 {
   return matchAtomicType(conc->inClassNAT, pat->inClassNAT, flags) &&
-         ((flags & MF_OK_DIFFERENT_CV) || (conc->cv == pat->cv)) &&
+         matchCVFlags(conc->cv, pat->cv, flags) &&
          matchType(conc->atType, pat->atType, flags & MF_PTR_PROP);
 }
 

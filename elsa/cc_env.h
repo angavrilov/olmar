@@ -17,13 +17,18 @@
 #include "cc_err.h"       // ErrorList
 #include "array.h"        // ArrayStack, ArrayStackEmbed
 #include "builtinops.h"   // CandidateSet
-#include "matchtype.h"    // MatchType, STemplateArgumentCMap
 #include "cc_lang.h"      // Bool3
+#include "ptrmap.h"       // PtrMap
 
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
 class TypeListIter;       // typelistiter.h
 class SavedScopePair;     // fwd in this file
+class MType;              // mtype.h
+
+
+// moved from matchtype.h
+typedef PtrMap<char const /*StringRef*/, STemplateArgument const> STemplateArgumentCMap;
 
 
 // type of collection to hold a sequence of scopes
@@ -793,13 +798,12 @@ private:     // template funcs
 
   void mapPrimaryArgsToSpecArgs(
     Variable *baseV,
-    MatchTypes &match,
-    SObjList<STemplateArgument> &partialSpecArgs,
+    ObjList<STemplateArgument> &partialSpecArgs,
     SObjList<STemplateArgument> const &primaryArgs);
   void mapPrimaryArgsToSpecArgs_oneParamList(
     SObjList<Variable> const &params,
-    MatchTypes &match,
-    SObjList<STemplateArgument> &partialSpecArgs);
+    MType &match,
+    ObjList<STemplateArgument> &partialSpecArgs);
 
   Variable *findInstantiation(TemplateInfo *tinfo,
                               SObjList<STemplateArgument> const &sargs);
@@ -824,33 +828,33 @@ private:     // template funcs
 
 public:      // template funcs
   void setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr);
-  
+
   // load the bindings with any explicit template arguments; return true if successful
   bool loadBindingsWithExplTemplArgs(Variable *var, ObjList<STemplateArgument> const &args,
-                                     MatchTypes &match, InferArgFlags iflags);
+                                     MType &match, InferArgFlags iflags);
   // infer template arguments from the function arguments; return true if successful
   bool inferTemplArgsFromFuncArgs(Variable *var,
                                   TypeListIter &argsListIter,
 //                                    FakeList<ArgExpression> *funcArgs,
-                                  MatchTypes &match,
+                                  MType &match,
                                   InferArgFlags iflags);
   // get both the explicit and implicit function template arguments
   bool getFuncTemplArgs
-    (MatchTypes &match,
+    (MType &match,
      ObjList<STemplateArgument> &sargs,
      PQName const *final,
      Variable *var,
      TypeListIter &argListIter,
      InferArgFlags iflags);
   void getFuncTemplArgs_oneParamList
-    (MatchTypes &match,
+    (MType &match,
      ObjList<STemplateArgument> &sargs,
      InferArgFlags iflags,
      bool &haveAllArgs,
      //ObjListIter<STemplateArgument> &piArgIter,
      SObjList<Variable> const &paramList);
   bool getArgumentsFromMatch
-    (MatchTypes &match, ObjList<STemplateArgument> &sargs,
+    (MType &match, ObjList<STemplateArgument> &sargs,
      InferArgFlags iflags, Variable *primary);
 
   // name + template args + function call args = inst     
@@ -884,7 +888,7 @@ public:      // template funcs
      Variable *primary,
      ObjList<STemplateArgument> const &sargs);
   Variable *instantiateFunctionTemplate
-    (SourceLoc loc, Variable *primary, MatchTypes &match);
+    (SourceLoc loc, Variable *primary, MType &match);
   void ensureFuncBodyTChecked(Variable *instV);    // try inst defn
   void instantiateFunctionBody(Variable *instV);   // inst defn
 
@@ -961,7 +965,7 @@ public:      // template funcs
   Variable *explicitFunctionInstantiation(PQName *name, Type *type);
 };
 
-                    
+
 // when prepArgScopeForTemplCloneTcheck saves and restores scopes,
 // it needs to remember the delegation pointers ....
 class SavedScopePair {

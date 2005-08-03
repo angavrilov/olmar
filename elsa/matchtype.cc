@@ -563,7 +563,7 @@ bool MatchTypes::match_ref(ReferenceType *a, Type *b, int matchDepth)
   int matchDepth0 = 1;
   if (b->isReference()) {
     b = b->getAtType();
-    if (b->isConst() && !a->isConst()) {
+    if (b->isConst() && !a->isConst()/*BUG*/) {
       // I think this is a special circumstance under which we remove
       // the const on b.  FIX: this seems quite ad-hoc to me.  It
       // seems to be what is required to get in/big/nsAtomTable.i to
@@ -580,6 +580,13 @@ bool MatchTypes::match_ref(ReferenceType *a, Type *b, int matchDepth)
       // this behavior is desired, and it corresponds to function
       // template argument deduction.  The actual rules are spelled
       // out in 14.8.2.1, but for now I'll just put this back.
+      //
+      // 2005-08-03: I am in the process of replacing this module with
+      // the mtype module, but notice two bugs here, even beyond
+      // general failure to adhere to 14.8.2.1 properly:
+      //   * "a->isConst()" is always false, because 'a' is a
+      //     ReferenceType.  It should be "a->atType->isConst()".
+      //   * No attention is paid to 'volatile'.
       if (eflags & Type::EF_DEDUCTION) {
         matchDepth0 = 0;
       }

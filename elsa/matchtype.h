@@ -50,9 +50,6 @@
 // get cloned and re-tchecked, creating new Variables
 typedef PtrMap<char const /*StringRef*/, STemplateArgument> STemplateArgumentMap;
 
-// version for a map that hold const ptrs to the values
-typedef PtrMap<char const /*StringRef*/, STemplateArgument const> STemplateArgumentCMap;
-
 
 class MatchBindings {
 private:     // data

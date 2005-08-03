@@ -7,7 +7,6 @@
 #include "strutil.h"    // copyToStaticBuffer
 #include "sobjset.h"    // SObjSet
 #include "hashtbl.h"    // lcprngTwoSteps
-#include "matchtype.h"  // MatchTypes
 #include "asthelp.h"    // ind
 
 // TemplateInfo, etc... it would be sort of nice if this module didn't

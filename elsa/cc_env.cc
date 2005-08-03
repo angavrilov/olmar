@@ -8,6 +8,7 @@
 #include "cc_lang.h"       // CCLang
 #include "strutil.h"       // suffixEquals, prefixEquals
 #include "overload.h"      // OVERLOADTRACE
+#include "matchtype.h"     // MatchTypes
 
 
 void gdbScopeSeq(ScopeSeq &ss)

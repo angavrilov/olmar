@@ -5883,7 +5883,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
       // instantiate templates
       if (v->isTemplate(considerInherited)) {
         // initialize the bindings with those explicitly provided
-        MatchTypes match(env.tfac, MatchTypes::MM_BIND, Type::EF_DEDUCTION);
+        MType match(true /*allowNonConst*/);
         if (targs) {
           if (!env.loadBindingsWithExplTemplArgs(v, targs->sargs, match, iflags)) {
             mut.remove();

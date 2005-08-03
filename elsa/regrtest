@@ -572,7 +572,7 @@ testparse t0284.cc
 testparse t0285.cc
 testparse t0286.cc
 testparse t0287.cc
-failparse t0288.cc "ambiguous function template instantiation (not minimized)"
+testparse t0288.cc
 testparse t0289.cc # "repeated using declarations"
 testparse t0290.cc
 testparse t0290a.cc
@@ -779,7 +779,8 @@ testparse t0483.cc
 testparse t0484.cc
 testparse t0485.cc
 testparse t0486.cc
-failparse t0487.cc "failure to match against DQTs"
+testparse t0487.cc
+testparse t0487b.cc
 failparse t0488.cc "nasty DQT matching example that no known front-end can handle"
 testparse t0489.cc
 testparse t0490.cc

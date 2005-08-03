@@ -117,6 +117,7 @@ struct B {
   int f_nonstat();
   
   typedef int INT;
+  typedef int const INTC;
 };
 
 struct B2 {
@@ -573,5 +574,33 @@ struct A {
     //__test_mtype((void (*)(D *, int                             , int))0,
     //             (void (*)(T *, typename T::template E<int>::INT, int))0, MF_MATCH,
     //             "T", (D)0);
+    
+    // from t0487b.cc
+    __test_mtype((void (*)(B *, int const *       , int))0,
+                 (void (*)(T *, typename T::INTC *, int))0, MF_MATCH,
+                 "T", (B)0);
+
+    __test_mtype((void (*)(B *, int       *       , int))0,
+                 (void (*)(T *, typename T::INTC *, int))0, MF_MATCH,
+                 false);
+
+    __test_mtype((void (*)(B *, int const *       , int))0,
+                 (void (*)(T *, typename T::INT  *, int))0, MF_MATCH,
+                 false);
+                 
+    // from in/t0315.cc
+    __test_mtype((int     *)0,
+                 (T const *)0, MF_MATCH|MF_DEDUCTION,
+                 "T", (int)0);
+                 
+    // from in/t0462.cc; the 'const' is *not* deduced for T
+    __test_mtype((int const)0,
+                 (T        )0, MF_MATCH|MF_DEDUCTION,
+                 "T", (int)0);
+                 
+    // from in/t0486.cc
+    __test_mtype((typename T::INT (*)(typename T::INT))0,
+                 (S               (*)(S              ))0, MF_MATCH,
+                 "S", (typename T::INT)0);
   }
 };
