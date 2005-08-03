@@ -115,6 +115,8 @@ struct B {
   
   static int f_stat();
   int f_nonstat();
+  
+  typedef int INT;
 };
 
 struct B2 {
@@ -169,6 +171,28 @@ struct TakesIntPtr {};
 
 template <class T, int B::*ptm>
 struct TakesPTM {};
+
+
+struct D {
+  template <class T>
+  struct E {
+    typedef int INT;
+  };
+
+  // partial spec
+  template <class T>
+  struct E<T*> {};
+
+  // explicit full spec
+  template <>
+  struct E<float*> {};
+  
+  struct F {
+    typedef int INT;
+  };
+  
+  typedef int INT;
+};
 
 
 template <class S, class T, int n, int n2>
@@ -486,5 +510,68 @@ struct A {
 
     __test_mtype((TakesPTM<T, &B::x>*)0,
                  (TakesPTM<T, &B::x>*)0, MF_EXACT);
+
+
+    // testing resolution of DQTs (see also in/t0487.cc)
+    __test_mtype((void (*)(B *, int            , int))0,
+                 (void (*)(T *, typename T::INT, int))0, MF_MATCH,
+                 "T", (B)0);
+
+    // bind directly to AtomicType rather than CVAtomicType
+    __test_mtype((void (*)(int B::*, int            , int))0,
+                 (void (*)(int T::*, typename T::INT, int))0, MF_MATCH,
+                 "T", (B)0);
+
+    // failure because the initial binding doesn't work
+    __test_mtype((void (*)(B2 *, int            , int))0,
+                 (void (*)(T  *, typename T::INT, int))0, MF_MATCH,
+                 false);
+
+    // final name component is PQ_template
+    __test_mtype((void (*)(D *, D::E<int>                  , int))0,
+                 (void (*)(T *, typename T::template E<int>, int))0, MF_MATCH,
+                 "T", (D)0);
+
+    // mismatching variant
+    __test_mtype((void (*)(D *, D::E<int>                    , int))0,
+                 (void (*)(T *, typename T::template E<float>, int))0, MF_MATCH,
+                 false);
+
+    // PQ_template, but the name doesn't name a template
+    __test_mtype((void (*)(D *, D::E<int>                    , int))0,
+                 (void (*)(T *, typename T::template INT<int>, int))0, MF_MATCH,
+                 false);
+
+    // exercise the partial specialization
+    __test_mtype((void (*)(D *, D::E<int*>                  , int))0,
+                 (void (*)(T *, typename T::template E<int*>, int))0, MF_MATCH,
+                 "T", (D)0);
+
+    // exercise the full specialization
+    __test_mtype((void (*)(D *, D::E<float*>                  , int))0,
+                 (void (*)(T *, typename T::template E<float*>, int))0, MF_MATCH,
+                 "T", (D)0);
+
+    // PQ_qualifier without template args
+    __test_mtype((void (*)(D *, int               , int))0,
+                 (void (*)(T *, typename T::F::INT, int))0, MF_MATCH,
+                 "T", (D)0);
+
+    // bad PQ_qualifier
+    __test_mtype((void (*)(D *, int                      , int))0,
+                 (void (*)(T *, typename T::NONEXIST::INT, int))0, MF_MATCH,
+                 false);
+
+    // does not name a CompoundType
+    __test_mtype((void (*)(B *, int                 , int))0,
+                 (void (*)(T *, typename T::INT::INT, int))0, MF_MATCH,
+                 false);
+
+    // PQ_qualifier *with* template args
+    //
+    // this does not work, see notes near the xunimp it triggers
+    //__test_mtype((void (*)(D *, int                             , int))0,
+    //             (void (*)(T *, typename T::template E<int>::INT, int))0, MF_MATCH,
+    //             "T", (D)0);
   }
 };

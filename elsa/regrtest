@@ -1032,7 +1032,7 @@ fi
 
 # is the gnu extension built?
 use_gnu=false
-if egrep "USE_GNU: +yes" config.summary >/dev/null; then
+if egrep "USE_GNU: +1" config.summary >/dev/null; then
   use_gnu=true
   echo "gnu extensions are enabled"
 else
@@ -1249,7 +1249,7 @@ testCparse c/k0010.c #"'and' keyword"
 
 # is K&R built?
 use_kandr=false
-if egrep "USE_KANDR: +yes" config.summary >/dev/null; then
+if egrep "USE_KANDR: +1" config.summary >/dev/null; then
   use_kandr=true
   echo "K&R extensions are enabled"
 else

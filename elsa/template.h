@@ -312,7 +312,14 @@ public:      // funcs
 
 
   // true if 'list' contains equivalent semantic arguments
-  bool equalArguments(TypeFactory &tfac, SObjList<STemplateArgument> const &list) const;
+  //
+  // 2005-08-03: I renamed this from 'equal' to 'isomorphic', because
+  // I am now introducing a variant called 'equal' that does not
+  // require the TypeFactory parameter.
+  bool isomorphicArguments(TypeFactory &tfac, SObjList<STemplateArgument> const &list) const;
+
+  // and here it is
+  bool equalArguments(ObjList<STemplateArgument> const &list) const;
 
   // true if the arguments contain type variables
   //
@@ -474,11 +481,14 @@ void copyTemplateArgs(ObjList<STemplateArgument> &dest,
 void copyTemplateArgs(ObjList<STemplateArgument> &dest,
                       SObjList<STemplateArgument> const &src);
 
-bool equalArgumentLists(TypeFactory &tfac,
-                        SObjList<STemplateArgument> const &list1,
-                        SObjList<STemplateArgument> const &list2);
-bool equalArgumentLists(TypeFactory &tfac,
-                        ObjList<STemplateArgument> const &list1,
+bool isomorphicArgumentLists(TypeFactory &tfac,
+                             SObjList<STemplateArgument> const &list1,
+                             SObjList<STemplateArgument> const &list2);
+bool isomorphicArgumentLists(TypeFactory &tfac,
+                             ObjList<STemplateArgument> const &list1,
+                             ObjList<STemplateArgument> const &list2);
+
+bool equalArgumentLists(ObjList<STemplateArgument> const &list1,
                         ObjList<STemplateArgument> const &list2);
 
 char const *toString(STemplateArgument::Kind k);

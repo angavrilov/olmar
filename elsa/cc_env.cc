@@ -1653,7 +1653,7 @@ Variable *Env::getPrimaryOrSpecialization
   // specialization?
   SFOREACH_OBJLIST_NC(Variable, tinfo->specializations, iter) {
     Variable *spec = iter.data();
-    if (spec->templateInfo()->equalArguments(tfac, objToSObjListC(sargs))) {
+    if (spec->templateInfo()->isomorphicArguments(tfac, objToSObjListC(sargs))) {
       return spec;
     }
   }

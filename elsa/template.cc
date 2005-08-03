@@ -116,25 +116,7 @@ bool PseudoInstantiation::innerEquals(PseudoInstantiation const *obj) const
     return false; 
   }
 
-  // ugh, can't use 'equalArgumentLists' because I do not have
-  // a TypeFactory, and I do not want the 'isomorphic' relaxation.
-  // Probably that function ought to be renamed, s/equal/isomorphic.
-
-  ObjListIter<STemplateArgument> iter1(this->args);
-  ObjListIter<STemplateArgument> iter2(obj->args);
-
-  while (!iter1.isDone() && !iter2.isDone()) {
-    STemplateArgument const *sta1 = iter1.data();
-    STemplateArgument const *sta2 = iter2.data();
-    if (!sta1->equals(sta2)) {
-      return false;
-    }
-
-    iter1.adv();
-    iter2.adv();
-  }
-
-  return iter1.isDone() && iter2.isDone();
+  return equalArgumentLists(this->args, obj->args);
 }
 
 
@@ -541,9 +523,9 @@ ObjList<STemplateArgument> &TemplateInfo::getArgumentsToPrimary()
 }
 
 
-bool equalArgumentLists(TypeFactory &tfac,
-                        SObjList<STemplateArgument> const &list1,
-                        SObjList<STemplateArgument> const &list2)
+bool isomorphicArgumentLists(TypeFactory &tfac,
+                             SObjList<STemplateArgument> const &list1,
+                             SObjList<STemplateArgument> const &list2)
 {
   SObjListIter<STemplateArgument> iter1(list1);
   SObjListIter<STemplateArgument> iter2(list2);
@@ -562,19 +544,45 @@ bool equalArgumentLists(TypeFactory &tfac,
   return iter1.isDone() && iter2.isDone();
 }
 
-bool equalArgumentLists(TypeFactory &tfac,
-                        ObjList<STemplateArgument> const &list1,
-                        ObjList<STemplateArgument> const &list2)
+bool isomorphicArgumentLists(TypeFactory &tfac,
+                             ObjList<STemplateArgument> const &list1,
+                             ObjList<STemplateArgument> const &list2)
 {
-  return equalArgumentLists(tfac,
+  return isomorphicArgumentLists(tfac,
            reinterpret_cast<SObjList<STemplateArgument>const&>(list1),
            reinterpret_cast<SObjList<STemplateArgument>const&>(list2));
 }
 
-bool TemplateInfo::equalArguments
+bool TemplateInfo::isomorphicArguments
   (TypeFactory &tfac, SObjList<STemplateArgument> const &list) const
 {
-  return equalArgumentLists(tfac, objToSObjListC(arguments), list);
+  return isomorphicArgumentLists(tfac, objToSObjListC(arguments), list);
+}
+
+
+bool equalArgumentLists(ObjList<STemplateArgument> const &list1,
+                        ObjList<STemplateArgument> const &list2)
+{
+  ObjListIter<STemplateArgument> iter1(list1);
+  ObjListIter<STemplateArgument> iter2(list2);
+
+  while (!iter1.isDone() && !iter2.isDone()) {
+    STemplateArgument const *sta1 = iter1.data();
+    STemplateArgument const *sta2 = iter2.data();
+    if (!sta1->equals(sta2)) {
+      return false;
+    }
+
+    iter1.adv();
+    iter2.adv();
+  }
+
+  return iter1.isDone() && iter2.isDone();
+}
+
+bool TemplateInfo::equalArguments(ObjList<STemplateArgument> const &list) const
+{
+  return equalArgumentLists(arguments, list);
 }
 
 
@@ -645,7 +653,7 @@ Variable *TemplateInfo::getSpecialization(
   SObjList<STemplateArgument> const &sargs)
 {
   SFOREACH_OBJLIST_NC(Variable, specializations, iter) {
-    if (iter.data()->templateInfo()->equalArguments(tfac, sargs)) {
+    if (iter.data()->templateInfo()->isomorphicArguments(tfac, sargs)) {
       return iter.data();
     }
   }
@@ -3907,7 +3915,7 @@ Variable *Env::findCompleteSpecialization(TemplateInfo *tinfo,
 {
   SFOREACH_OBJLIST_NC(Variable, tinfo->specializations, iter) {
     TemplateInfo *instTI = iter.data()->templateInfo();
-    if (instTI->equalArguments(tfac /*why needed?*/, sargs)) {
+    if (instTI->isomorphicArguments(tfac /*why needed?*/, sargs)) {
       return iter.data();      // found it
     }
   }
@@ -3919,13 +3927,13 @@ Variable *Env::findInstantiation(TemplateInfo *tinfo,
                                  SObjList<STemplateArgument> const &sargs)
 {
   if (tinfo->isCompleteSpec()) {
-    xassertdb(tinfo->equalArguments(tfac /*?*/, sargs));
+    xassertdb(tinfo->isomorphicArguments(tfac /*?*/, sargs));
     return tinfo->var;
   }
 
   SFOREACH_OBJLIST_NC(Variable, tinfo->instantiations, iter) {
     TemplateInfo *instTI = iter.data()->templateInfo();
-    if (instTI->equalArguments(tfac /*why needed?*/, sargs)) {
+    if (instTI->isomorphicArguments(tfac /*why needed?*/, sargs)) {
       return iter.data();      // found it
     }
   }
@@ -4450,7 +4458,7 @@ bool TemplateInfo::matchesPI(TypeFactory &tfac, CompoundType *otherPrimary,
 
   // not a primary; we are a specialization; check against arguments
   // to primary
-  return equalArgumentLists(tfac, argumentsToPrimary, otherArgs);
+  return isomorphicArgumentLists(tfac, argumentsToPrimary, otherArgs);
 }
   
      

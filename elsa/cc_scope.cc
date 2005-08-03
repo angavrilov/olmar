@@ -761,6 +761,11 @@ Variable *Scope::lookupSingleVariable(StringRef name, LookupFlags flags)
 
 void Scope::lookup(LookupSet &set, StringRef name, Env &env, LookupFlags flags)
 {
+  lookup(set, name, &env, flags);
+}
+
+void Scope::lookup(LookupSet &set, StringRef name, Env *env, LookupFlags flags)
+{
   // this is so legacy calls will honor 'set' (I plan to eventually
   // get rid of LF_LOOKUP_SET entirely)
   flags |= LF_LOOKUP_SET;
@@ -779,18 +784,20 @@ void Scope::lookup(LookupSet &set, StringRef name, Env &env, LookupFlags flags)
 
   // consider 'using' directive edges
   if (!(flags & LF_IGNORE_USING)) {
+    xassert(env);    // must pass an 'env' if you want 'using' edge traversal
+
     if (!(flags & LF_QUALIFIED)) {
       // 7.3.4 para 1: "active using" edges are a source of additional
       // declarations that can satisfy an unqualified lookup
       if (activeUsingEdges.isNotEmpty()) {
-        v = searchActiveUsingEdges(set, name, env, flags, v);
+        v = searchActiveUsingEdges(set, name, *env, flags, v);
       }
     }
     else {
       // 3.4.3.2 para 2: do a DFS on the "using" edge graph, but only
       // if we haven't already found the name
       if (!v && usingEdges.isNotEmpty()) {
-        v = searchUsingEdges(set, name, env, flags);
+        v = searchUsingEdges(set, name, *env, flags);
       }
     }
   }
@@ -844,12 +851,20 @@ void Scope::lookup(LookupSet &set, StringRef name, Env &env, LookupFlags flags)
         }
         else {
           // ambiguity
-          env.error(stringc
-            << "reference to `" << name << "' is ambiguous, because "
-            << "it could either refer to "
-            << vObj->ct->name << "::" << name << " or "
-            << v2Obj->ct->name << "::" << name);
-          break;
+          if (env) {
+            env->error(stringc
+              << "reference to `" << name << "' is ambiguous, because "
+              << "it could either refer to "
+              << vObj->ct->name << "::" << name << " or "
+              << v2Obj->ct->name << "::" << name);
+            break;
+          }
+          else {
+            // since not reporting errors, must communicate the problem
+            // via the result set
+            set.removeAll();
+            return;
+          }
         }
       }
 
@@ -867,6 +882,11 @@ void Scope::lookup(LookupSet &set, StringRef name, Env &env, LookupFlags flags)
 
 
 Variable *Scope::lookup_one(StringRef name, Env &env, LookupFlags flags)
+{
+  return lookup_one(name, &env, flags);
+}
+
+Variable *Scope::lookup_one(StringRef name, Env *env, LookupFlags flags)
 {
   LookupSet set;
   lookup(set, name, env, flags);

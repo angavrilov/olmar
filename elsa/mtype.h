@@ -88,13 +88,18 @@ enum MatchFlags {
   // do not allow new bindings to be created; but existing bindings
   // can continue to be used
   MF_NO_NEW_BINDINGS = 0x1000,
+  
+  // when combined with MF_MATCH, it means we can bind variables in
+  // the pattern only to other variables in the "concrete" type; this
+  // is used to compare two templatized signatures for equivalence
+  MF_ISOMORPHIC      = 0x2000,
 
   // ----- combined behaviors -----
   // all flags set to 1
-  MF_ALL             = 0x1FFF,
-  
+  MF_ALL             = 0x3FFF,
+
   // number of 1 bits in MF_ALL
-  MF_NUM_FLAGS       = 13,
+  MF_NUM_FLAGS       = 14,
 
   // signature equivalence for the purpose of detecting whether
   // two declarations refer to the same entity (as opposed to two
@@ -106,7 +111,7 @@ enum MatchFlags {
     MF_IGNORE_EXN_SPEC       // can't overload on exn spec
   ),
 
-  // ----- combinations used by the equality implementation -----
+  // ----- combinations used by the mtype implementation -----
   // this is the set of flags that allow CV variance within the
   // current type constructor
   MF_OK_DIFFERENT_CV = (MF_IGNORE_TOP_CV | MF_SIMILAR),
@@ -114,8 +119,14 @@ enum MatchFlags {
   // this is the set of flags that automatically propagate down
   // the type tree equality checker; others are suppressed once
   // the first type constructor looks at them
-  MF_PROP            = (MF_IGNORE_PARAM_CV | MF_POLYMORPHIC | MF_UNASSOC_TPARAMS | 
-                        MF_MATCH | MF_NO_NEW_BINDINGS),
+  MF_PROP = (
+    MF_IGNORE_PARAM_CV  |
+    MF_POLYMORPHIC      |
+    MF_UNASSOC_TPARAMS  |
+    MF_MATCH            |
+    MF_NO_NEW_BINDINGS  |
+    MF_ISOMORPHIC
+  ),
 
   // these flags are propagated below ptr and ptr-to-member
   MF_PTR_PROP        = (MF_PROP | MF_SIMILAR)
@@ -184,6 +195,7 @@ private:      // funcs
   bool matchTypeWithVariable(Type const *conc, TypeVariable const *pat,
                                     CVFlags tvCV, MatchFlags flags);
   bool equalWithAppliedCV(Type const *conc, Binding *binding, CVFlags cv, MatchFlags flags);
+  bool matchTypeWithSpecifiedCV(Type const *conc, Type const *pat, CVFlags cv, MatchFlags flags);
   bool addTypeBindingWithoutCV(StringRef tvName, Type const *conc, CVFlags tvcv);
   bool matchTypeWithPolymorphic(Type const *conc, SimpleTypeId polyId, MatchFlags flags);
   bool matchAtomicTypeWithVariable(AtomicType const *conc,
@@ -200,8 +212,17 @@ private:      // funcs
   bool matchPointerToMemberType(PointerToMemberType const *conc,
                                        PointerToMemberType const *pat, MatchFlags flags);
   bool matchExpression(Expression const *conc, Expression const *pat, MatchFlags flags);
+  
+  // stuff for DQT resolution
+  Type *lookupPQInScope(Scope const *scope, PQName const *name);
+  Variable *lookupNameInScope(Scope const *scope0, StringRef name);
+  Variable *applyTemplateArgs(Variable *primary,
+                              ObjList<STemplateArgument> const &sargs);
+  Variable *searchForInstantiation(TemplateInfo *ti,
+                                   ObjList<STemplateArgument> const &sargs);
 
 public:       // funcs
+  // only when 'nonConst' is true can 'matchNC' be invoked
   MType(bool nonConst = false);
   ~MType();
 
