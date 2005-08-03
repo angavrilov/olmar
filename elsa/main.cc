@@ -170,7 +170,7 @@ class ToXmlASTVisitor_Types : public ASTVisitor {
     } else if (ts->isTS_elaborated()) {
       PRINT_ANNOT(ts->asTS_elaborated()->atype);
     } else if (ts->isTS_classSpec()) {
-      PRINT_ANNOT(static_cast<AtomicType*>(ts->asTS_classSpec()->ctype));
+      PRINT_ANNOT(ts->asTS_classSpec()->ctype);
     } else if (ts->isTS_enumSpec()) {
       PRINT_ANNOT(ts->asTS_enumSpec()->etype);
     }
@@ -185,13 +185,13 @@ class ToXmlASTVisitor_Types : public ASTVisitor {
 
   bool visitMemberInit(MemberInit *memberInit) {
     PRINT_ANNOT(memberInit->member);
-    PRINT_ANNOT(static_cast<AtomicType*>(memberInit->base));
+    PRINT_ANNOT(memberInit->base);
     PRINT_ANNOT(memberInit->ctorVar);
     return true;
   }
 
   bool visitBaseClassSpec(BaseClassSpec *bcs) {
-    PRINT_ANNOT(static_cast<AtomicType*>(bcs->type));
+    PRINT_ANNOT(bcs->type);
     return true;
   }
 

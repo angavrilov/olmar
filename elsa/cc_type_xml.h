@@ -62,6 +62,7 @@ class TypeToXml {
   public:
   void toXml(Type *obj);
   void toXml(AtomicType *obj);
+  void toXml(CompoundType *obj); // disambiguates the overloading
   void toXml(Variable *var);
 
   private:

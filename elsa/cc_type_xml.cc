@@ -441,8 +441,7 @@ void TypeToXml::toXml(AtomicType *obj) {
     tagEnd;
     // **** subtags
     toXml_NamedAtomicType_subtags(pseudo);
-    // NOTE: without the cast, the overloading is ambiguous
-    trav(static_cast<AtomicType*>(pseudo->primary));
+    trav(pseudo->primary);
     if (!printedOL(&pseudo->args)) {
       openTagWhole(List_PseudoInstantiation_args, &pseudo->args);
       FOREACH_OBJLIST_NC(STemplateArgument, pseudo->args, iter) {
@@ -469,6 +468,10 @@ void TypeToXml::toXml(AtomicType *obj) {
   }
 
   }
+}
+
+void TypeToXml::toXml(CompoundType *obj) {
+  toXml(static_cast<AtomicType*>(obj)); // disambiguate the overloading
 }
 
 void TypeToXml::toXml(Variable *var) {
@@ -563,8 +566,7 @@ void TypeToXml::toXml(BaseClass *bc) {
   toXml_BaseClass_properties(bc);
   tagEnd;
   // **** subtags
-  // NOTE: without the cast, the overloading is ambiguous
-  trav(static_cast<AtomicType*>(bc->ct));
+  trav(bc->ct);
 }
 
 void TypeToXml::toXml_BaseClass_properties(BaseClass *bc) {
@@ -661,9 +663,7 @@ void TypeToXml::toXml_Scope_subtags(Scope *scope) {
 //    if (curCompound) {
 //      curCompound->traverse(vis);
 //    }
-
-  // NOTE: without the cast, the overloading is ambiguous
-  trav(static_cast<AtomicType*>(scope->curCompound));
+  trav(scope->curCompound);
 }
 
 void TypeToXml::toXml(STemplateArgument *obj) {
