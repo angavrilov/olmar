@@ -53,11 +53,11 @@ class TypeToXml {
   friend class TypeToXml_CloseTagPrinter;
 
   // register the object and check if it has been printed
-  bool printedType(void const *obj);
-  bool printedScope(void const *obj);
-  bool printedVariable(void const *obj);
-  bool printedOL(void const *obj);
-  bool printedSM(void const *obj);
+  bool printedType(void const * const obj);
+  bool printedScope(Scope const * const obj);
+  bool printedVariable(Variable const * const obj);
+  bool printedOL(void const * const obj);
+  bool printedSM(void const * const obj);
 
   public:
   void toXml(Type *obj);

@@ -189,7 +189,7 @@ void TypeToXml::newline() {
   }
 }
 
-// ****************
+// **** printing idepotency
 
 bool TypeToXml::printedType(void const * const obj) {
   if (printedTypes.contains(obj)) return true;
@@ -197,13 +197,13 @@ bool TypeToXml::printedType(void const * const obj) {
   return false;
 }
 
-bool TypeToXml::printedScope(void const * const obj) {
+bool TypeToXml::printedScope(Scope const * const obj) {
   if (printedScopes.contains(obj)) return true;
   printedScopes.add(obj);
   return false;
 }
 
-bool TypeToXml::printedVariable(void const * const obj) {
+bool TypeToXml::printedVariable(Variable const * const obj) {
   if (printedVariables.contains(obj)) return true;
   printedVariables.add(obj);
   return false;
@@ -221,7 +221,7 @@ bool TypeToXml::printedSM(void const * const obj) {
   return false;
 }
 
-// ****************
+// **** printing routines for each type system annotation
 
 void TypeToXml::toXml(Type *obj) {
   // idempotency
@@ -232,8 +232,8 @@ void TypeToXml::toXml(Type *obj) {
 
   case Type::T_ATOMIC: {
     CVAtomicType *atom = obj->asCVAtomicType();
+    openTag(CVAtomicType, atom);
     // **** attributes
-    openTag(CVAtomicType, obj);
     printPtr(atomic, atom->atomic);
     printXml(cv, atom->cv);
     tagEnd;
@@ -244,8 +244,8 @@ void TypeToXml::toXml(Type *obj) {
 
   case Type::T_POINTER: {
     PointerType *ptr = obj->asPointerType();
+    openTag(PointerType, ptr);
     // **** attributes
-    openTag(PointerType, obj);
     printXml(cv, ptr->cv);
     printPtr(atType, ptr->atType);
     tagEnd;
@@ -256,8 +256,8 @@ void TypeToXml::toXml(Type *obj) {
 
   case Type::T_REFERENCE: {
     ReferenceType *ref = obj->asReferenceType();
+    openTag(ReferenceType, ref);
     // **** attributes
-    openTag(ReferenceType, obj);
     printPtr(atType, ref->atType);
     tagEnd;
     // **** subtags
@@ -267,8 +267,8 @@ void TypeToXml::toXml(Type *obj) {
 
   case Type::T_FUNCTION: {
     FunctionType *func = obj->asFunctionType();
+    openTag(FunctionType, func);
     // **** attributes
-    openTag(FunctionType, obj);
     printXml(flags, func->flags);
     printPtr(retType, func->retType);
     printPtr(params, &func->params);
@@ -292,8 +292,8 @@ void TypeToXml::toXml(Type *obj) {
 
   case Type::T_ARRAY: {
     ArrayType *arr = obj->asArrayType();
+    openTag(ArrayType, arr);
     // **** attributes
-    openTag(ArrayType, obj);
     printPtr(eltType, arr->eltType);
     printXml_int(size, arr->size);
     tagEnd;
@@ -304,8 +304,8 @@ void TypeToXml::toXml(Type *obj) {
 
   case Type::T_POINTERTOMEMBER: {
     PointerToMemberType *ptm = obj->asPointerToMemberType();
+    openTag(PointerToMemberType, ptm);
     // **** attributes
-    openTag(PointerToMemberType, obj);
     printPtr(inClassNAT, ptm->inClassNAT);
     printXml(cv, ptm->cv);
     printPtr(atType, ptm->atType);
@@ -328,8 +328,8 @@ void TypeToXml::toXml(AtomicType *obj) {
 
   case AtomicType::T_SIMPLE: {
     SimpleType *simple = obj->asSimpleType();
+    openTag(SimpleType, simple);
     // **** attributes
-    openTag(SimpleType, obj);
     printXml(type, simple->type);
     tagEnd;
     break;
@@ -337,11 +337,12 @@ void TypeToXml::toXml(AtomicType *obj) {
 
   case AtomicType::T_COMPOUND: {
     CompoundType *cpd = obj->asCompoundType();
+    openTag(CompoundType, cpd);
     // **** attributes
-    openTag(CompoundType, obj);
-    // superclasses
+    // * superclasses
     toXml_NamedAtomicType_properties(cpd);
     toXml_Scope_properties(cpd);
+    // * members
     printXml_bool(forward, cpd->forward);
     printXml(keyword, cpd->keyword);
     printPtr(dataMembers, &cpd->dataMembers);
@@ -355,9 +356,11 @@ void TypeToXml::toXml(AtomicType *obj) {
     printPtr(selfType, cpd->selfType);
     tagEnd;
     // **** subtags
+    // * superclasses
     toXml_NamedAtomicType_subtags(cpd);
     toXml_Scope_subtags(cpd);
-    // data members
+    // * members
+    // dataMembers
     if (!printedOL(&cpd->dataMembers)) {
       openTagWhole(List_CompoundType_dataMembers, &cpd->dataMembers);
       SFOREACH_OBJLIST_NC(Variable, cpd->dataMembers, iter) {
@@ -396,14 +399,18 @@ void TypeToXml::toXml(AtomicType *obj) {
 
   case AtomicType::T_ENUM: {
     EnumType *e = obj->asEnumType();
-    // **** attributes
     openTag(EnumType, e);
+    // **** attributes
+    // * superclasses
     toXml_NamedAtomicType_properties(e);
+    // * members
     printPtr(valueIndex, &e->valueIndex);
     printXml_int(nextValue, e->nextValue);
     tagEnd;
     // **** subtags
+    // * superclasses
     toXml_NamedAtomicType_subtags(e);
+    // * members
     // valueIndex
     if (!printedOL(&e->valueIndex)) {
       openTagWhole(NameMap_EnumType_valueIndex, &e->valueIndex);
@@ -422,25 +429,31 @@ void TypeToXml::toXml(AtomicType *obj) {
 
   case AtomicType::T_TYPEVAR: {
     TypeVariable *tvar = obj->asTypeVariable();
+    openTag(TypeVariable, tvar);
     // **** attributes
-    openTag(TypeVariable, obj);
+    // * superclasses
     toXml_NamedAtomicType_properties(tvar);
     tagEnd;
     // **** subtags
+    // * superclasses
     toXml_NamedAtomicType_subtags(tvar);
     break;
   }
 
   case AtomicType::T_PSEUDOINSTANTIATION: {
     PseudoInstantiation *pseudo = obj->asPseudoInstantiation();
+    openTag(PseudoInstantiation, pseudo);
     // **** attributes
-    openTag(PseudoInstantiation, obj);
+    // * superclasses
     toXml_NamedAtomicType_properties(pseudo);
+    // * members
     printPtr(primary, pseudo->primary);
     printPtr(args, &pseudo->args);
     tagEnd;
     // **** subtags
+    // * superclasses
     toXml_NamedAtomicType_subtags(pseudo);
+    // * members
     trav(pseudo->primary);
     if (!printedOL(&pseudo->args)) {
       openTagWhole(List_PseudoInstantiation_args, &pseudo->args);
@@ -453,14 +466,18 @@ void TypeToXml::toXml(AtomicType *obj) {
 
   case AtomicType::T_DEPENDENTQTYPE: {
     DependentQType *dep = obj->asDependentQType();
+    openTag(DependentQType, dep);
     // **** attributes
-    openTag(DependentQType, obj);
+    // * superclasses
     toXml_NamedAtomicType_properties(dep);
+    // * members
     printPtr(first, dep->first);
     printPtrAST(rest, dep->rest);
     tagEnd;
     // **** subtags
+    // * superclasses
     toXml_NamedAtomicType_subtags(dep);
+    // * members
     trav(dep->first);
     // FIX: traverse this AST
 //    PQName *rest;
@@ -471,14 +488,14 @@ void TypeToXml::toXml(AtomicType *obj) {
 }
 
 void TypeToXml::toXml(CompoundType *obj) {
-  toXml(static_cast<AtomicType*>(obj)); // disambiguate the overloading
+  toXml(static_cast<AtomicType*>(obj)); // just disambiguate the overloading
 }
 
 void TypeToXml::toXml(Variable *var) {
   // idempotency
   if (printedVariable(var)) return;
-  // **** attributes
   openTag(Variable, var);
+  // **** attributes
 //    SourceLoc loc;
 //    I'm skipping these for now, but source locations will be serialized
 //    as file:line:col when I serialize the internals of the Source Loc
@@ -519,11 +536,11 @@ void TypeToXml::toXml_FunctionType_ExnSpec(void /*FunctionType::ExnSpec*/ *exnSp
   FunctionType::ExnSpec *exnSpec = static_cast<FunctionType::ExnSpec *>(exnSpec0);
   // idempotency
   if (printedType(exnSpec)) return;
-  // **** attributes
   openTag(FunctionType_ExnSpec, exnSpec);
+  // **** attributes
   printPtr(types, &exnSpec->types);
   tagEnd;
-  // **** FunctionType::ExnSpec subtags
+  // **** subtags
   if (!printedOL(&exnSpec->types)) {
     openTagWhole(List_ExnSpec_types, &exnSpec->types);
     SFOREACH_OBJLIST_NC(Type, exnSpec->types, iter) {
@@ -536,8 +553,8 @@ void TypeToXml::toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0) {
   EnumType::Value *eValue = static_cast<EnumType::Value *>(eValue0);
   // idempotency
   if (printedType(eValue)) return;
-  // **** attributes
   openTag(EnumType_Value, eValue);
+  // **** attributes
   printStrRef(name, eValue->name);
   printPtr(type, eValue->type);
   printXml_int(value, eValue->value);
@@ -561,8 +578,8 @@ void TypeToXml::toXml_NamedAtomicType_subtags(NamedAtomicType *nat) {
 void TypeToXml::toXml(BaseClass *bc) {
   // idempotency
   if (printedType(bc)) return;
-  // **** attributes
   openTag(BaseClass, bc);
+  // **** attributes
   toXml_BaseClass_properties(bc);
   tagEnd;
   // **** subtags
@@ -578,8 +595,8 @@ void TypeToXml::toXml_BaseClass_properties(BaseClass *bc) {
 void TypeToXml::toXml(BaseClassSubobj *bc) {
   // idempotency
   if (printedType(bc)) return;
-  // **** attributes
   openTag(BaseClassSubobj, bc);
+  // **** attributes
   toXml_BaseClass_properties(bc);
   printPtr(parents, &bc->parents);
   tagEnd;
@@ -595,8 +612,8 @@ void TypeToXml::toXml(BaseClassSubobj *bc) {
 void TypeToXml::toXml(Scope *scope) {
   // idempotency
   if (printedScope(scope)) return;
-  // **** attributes
   openTag(Scope, scope);
+  // **** attributes
   toXml_Scope_properties(scope);
   tagEnd;
   // **** subtags
@@ -650,6 +667,7 @@ void TypeToXml::toXml_Scope_subtags(Scope *scope) {
       travListItem(iter.data());
     }
   }
+
   // I don't think I need this; see Scott's comments in the scope
   // class
 //    Variable *parameterizedEntity;          // (nullable serf)
@@ -663,14 +681,18 @@ void TypeToXml::toXml_Scope_subtags(Scope *scope) {
 //    if (curCompound) {
 //      curCompound->traverse(vis);
 //    }
+
+  // curCompound
   trav(scope->curCompound);
 }
 
 void TypeToXml::toXml(STemplateArgument *obj) {
+  // idempotency
+  if (printedType(obj)) return;
   openTag(STemplateArgument, obj);
-  printXml(kind, obj->kind);
 
   // **** attributes
+  printXml(kind, obj->kind);
   switch(obj->kind) {
   default: xfailure("illegal STemplateArgument kind"); break;
 
