@@ -10,38 +10,94 @@
 #include "astxml_lexer.h"       // AstXmlLexer
 
 
-//  #define addr(x) (static_cast<void const*>(x))
+// this bizarre function is actually useful for something
 inline void const *addr(void const *x) {
   return x;
 }
 
+// ast
+string idPrefixAST(void const * const) {return "AST";}
 
-#define printThing0(NAME, VALUE, PREFIX, SUFFIX, FUNC) \
+// type annotations
+string idPrefix(Type const * const)                  {return "TY";}
+string idPrefix(AtomicType const * const)            {return "TY";}
+string idPrefix(CompoundType const * const)          {return "TY";}
+string idPrefix(FunctionType::ExnSpec const * const) {return "TY";}
+string idPrefix(EnumType::Value const * const)       {return "TY";}
+string idPrefix(BaseClass const * const)             {return "TY";}
+string idPrefix(Scope const * const)                 {return "TY";}
+string idPrefix(Variable const * const)              {return "TY";}
+string idPrefix(STemplateArgument const * const)     {return "TY";}
+string idPrefix(TemplateInfo const * const)          {return "TY";}
+
+// containers
+template <class T> string idPrefix(ObjList<T> const * const)       {return "OL";}
+template <class T> string idPrefix(SObjList<T> const * const)      {return "OL";}
+template <class T> string idPrefix(StringRefMap<T> const * const)  {return "NM";}
+template <class T> string idPrefix(StringObjDict<T> const * const) {return "NM";}
+
+// manage indentation depth
+class IncDec {
+  int &x;
+  public:
+  explicit IncDec(int &x0) : x(x0) {++x;}
+  private:
+  explicit IncDec(const IncDec&); // prohibit
+  public:
+  ~IncDec() {--x;}
+};
+
+// indent and print something when exiting the scope
+class TypeToXml_CloseTagPrinter {
+  string s;                     // NOTE: don't make into a string ref; it must make a copy
+  TypeToXml &ttx;
+  public:
+  explicit TypeToXml_CloseTagPrinter(string s0, TypeToXml &ttx0)
+    : s(s0), ttx(ttx0)
+  {}
+  private:
+  explicit TypeToXml_CloseTagPrinter(TypeToXml_CloseTagPrinter &); // prohibit
+  public:
+  ~TypeToXml_CloseTagPrinter() {
+    ttx.newline();
+    ttx.out << "</" << s << ">";
+  }
+};
+
+
+#define printThing0(NAME, PREFIX, VALUE, FUNC) \
 do { \
-  out << #NAME "=\"" PREFIX << FUNC(VALUE) << "\"" SUFFIX; \
+  out << #NAME "=\"" << PREFIX << FUNC(VALUE) << "\""; \
 } while(0)
 
-#define printThing(NAME, VALUE, PREFIX, FUNC) \
+#define printThing(NAME, PREFIX, VALUE, FUNC) \
 do { \
   if (VALUE) { \
     newline(); \
-    printThing0(NAME, VALUE, PREFIX, "", FUNC); \
+    printThing0(NAME, PREFIX, VALUE, FUNC); \
   } \
 } while(0)
 
-#define printPtr(NAME, VALUE, PREFIX) printThing(NAME, VALUE, PREFIX, addr)
+#define printPtr(NAME, VALUE)    printThing(NAME, idPrefix(VALUE),    VALUE, addr)
+#define printPtrAST(NAME, VALUE) printThing(NAME, idPrefixAST(VALUE), VALUE, addr)
 
 #define printXml(NAME, VALUE) \
+do { \
   newline(); \
-  printThing0(NAME, VALUE, "", "", ::toXml)
+  printThing0(NAME, "", VALUE, ::toXml); \
+} while(0)
 
 #define printXml_bool(NAME, VALUE) \
+do { \
   newline(); \
-  printThing0(NAME, VALUE, "", "", ::toXml_bool)
+  printThing0(NAME, "", VALUE, ::toXml_bool); \
+} while(0)
 
 #define printXml_int(NAME, VALUE) \
+do { \
   newline(); \
-  printThing0(NAME, VALUE, "", "", ::toXml_int)
+  printThing0(NAME, "", VALUE, ::toXml_int); \
+} while(0)
 
 #define printStrRef(FIELD, TARGET) \
 do { \
@@ -51,37 +107,31 @@ do { \
   } \
 } while(0)
 
-#define openTag0(NAME, PREFIX, OBJ, SUFFIX) \
-do { \
+// NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
+// for the TypeToXml_CloseTagPrinter fires too early.
+#define openTag0(NAME, OBJ, SUFFIX) \
   newline(); \
-  out << "<" #NAME; \
-  out << " _id=\"" PREFIX << addr(OBJ) << "\"" SUFFIX; \
-  ++depth; \
-} while(0)
+  out << "<" #NAME << " _id=\"" << idPrefix(OBJ) << addr(OBJ) << "\"" SUFFIX; \
+  TypeToXml_CloseTagPrinter tagCloser(#NAME, *this); \
+  IncDec depthManager(this->depth)
 
-#define openTag(NAME, PREFIX, OBJ) openTag0(NAME, PREFIX, OBJ, "")
-#define openTagWhole(NAME, PREFIX, OBJ) openTag0(NAME, PREFIX, OBJ, ">")
+#define openTag(NAME, OBJ)      openTag0(NAME, OBJ, "")
+#define openTagWhole(NAME, OBJ) openTag0(NAME, OBJ, ">")
 
+// NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
+// for the TypeToXml_CloseTagPrinter fires too early.
 #define openTag_NameMap_Item(NAME, TARGET) \
-do { \
   newline(); \
   out << "<_NameMap_Item" \
       << " name=" << quoted(NAME) \
-      << " item=\"TY" << addr(TARGET) \
+      << " item=\"" << idPrefix(TARGET) << addr(TARGET) \
       << "\">"; \
-  ++depth; \
-} while(0)
+  TypeToXml_CloseTagPrinter tagCloser("_NameMap_Item", *this); \
+  IncDec depthManager(this->depth)
 
 #define tagEnd \
 do { \
   out << ">"; \
-} while(0)
-
-#define closeTag(NAME) \
-do { \
-  --depth; \
-  newline(); \
-  out << "</" #NAME ">"; \
 } while(0)
 
 #define trav(TARGET) \
@@ -91,30 +141,14 @@ do { \
   } \
 } while(0)
 
-#define travListItem(PREFIX, TARGET) \
-do { \
+// NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
+// for the TypeToXml_CloseTagPrinter fires too early.
+#define travListItem(TARGET) \
   newline(); \
-  out << "<_List_Item item=\"" << PREFIX << addr(TARGET) << "\">"; \
-  ++depth; \
-  trav(TARGET); \
-  closeTag(_List_Item); \
-} while(0)
-
-
-//  #if 0                           // refinement possibilities ...
-//  #define address(x) static_cast<void const*>(&(x))
-
-//  string ref(FunctionType::ExnSpec &spec)
-//  {
-//    return stringc << "\"TY" << address(&spec) << "\"";
-//  }
-
-//  template <class T>
-//    string ref(SObjList<T> &list)
-//  {
-//    return stringc << "\"OL" << address(&list) << "\"";
-//  }
-//  #endif // 0
+  out << "<_List_Item item=\"" << idPrefix(TARGET) << addr(TARGET) << "\">"; \
+  TypeToXml_CloseTagPrinter tagCloser("_List_Item", *this); \
+  IncDec depthManager(this->depth); \
+  trav(TARGET)
 
 
 string toXml(CompoundType::Keyword id) {
@@ -157,31 +191,31 @@ void TypeToXml::newline() {
 
 // ****************
 
-bool TypeToXml::printedType(void const *obj) {
+bool TypeToXml::printedType(void const * const obj) {
   if (printedTypes.contains(obj)) return true;
   printedTypes.add(obj);
   return false;
 }
 
-bool TypeToXml::printedScope(void const *obj) {
+bool TypeToXml::printedScope(void const * const obj) {
   if (printedScopes.contains(obj)) return true;
   printedScopes.add(obj);
   return false;
 }
 
-bool TypeToXml::printedVariable(void const *obj) {
+bool TypeToXml::printedVariable(void const * const obj) {
   if (printedVariables.contains(obj)) return true;
   printedVariables.add(obj);
   return false;
 }
 
-bool TypeToXml::printedOL(void const *obj) {
+bool TypeToXml::printedOL(void const * const obj) {
   if (printedOLs.contains(obj)) return true;
   printedOLs.add(obj);
   return false;
 }
 
-bool TypeToXml::printedSM(void const *obj) {
+bool TypeToXml::printedSM(void const * const obj) {
   if (printedSMs.contains(obj)) return true;
   printedSMs.add(obj);
   return false;
@@ -199,94 +233,86 @@ void TypeToXml::toXml(Type *obj) {
   case Type::T_ATOMIC: {
     CVAtomicType *atom = obj->asCVAtomicType();
     // **** attributes
-    openTag(CVAtomicType, "TY", obj);
-    printPtr(atomic, atom->atomic, "TY");
+    openTag(CVAtomicType, obj);
+    printPtr(atomic, atom->atomic);
     printXml(cv, atom->cv);
     tagEnd;
     // **** subtags
     trav(atom->atomic);
-    closeTag(CVAtomicType);
     break;
   }
 
   case Type::T_POINTER: {
     PointerType *ptr = obj->asPointerType();
     // **** attributes
-    openTag(PointerType, "TY", obj);
+    openTag(PointerType, obj);
     printXml(cv, ptr->cv);
-    printPtr(atType, ptr->atType, "TY");
+    printPtr(atType, ptr->atType);
     tagEnd;
     // **** subtags
     trav(ptr->atType);
-    closeTag(PointerType);
     break;
   }
 
   case Type::T_REFERENCE: {
     ReferenceType *ref = obj->asReferenceType();
     // **** attributes
-    openTag(ReferenceType, "TY", obj);
-    printPtr(atType, ref->atType, "TY");
+    openTag(ReferenceType, obj);
+    printPtr(atType, ref->atType);
     tagEnd;
     // **** subtags
     trav(ref->atType);
-    closeTag(ReferenceType);
     break;
   }
 
   case Type::T_FUNCTION: {
     FunctionType *func = obj->asFunctionType();
     // **** attributes
-    openTag(FunctionType, "TY", obj);
+    openTag(FunctionType, obj);
     printXml(flags, func->flags);
-    printPtr(retType, func->retType, "TY");
-    printPtr(params, &func->params, "OL");
-    printPtr(exnSpec, func->exnSpec, "TY");
+    printPtr(retType, func->retType);
+    printPtr(params, &func->params);
+    printPtr(exnSpec, func->exnSpec);
     tagEnd;
     // **** subtags
     trav(func->retType);
     // params
     if (!printedOL(&func->params)) {
-      openTagWhole(List_FunctionType_params, "OL", &func->params);
+      openTagWhole(List_FunctionType_params,  &func->params);
       SFOREACH_OBJLIST_NC(Variable, func->params, iter) {
-        travListItem("TY", iter.data());
+        travListItem(iter.data());
       }
-      closeTag(List_FunctionType_params);
     }
     // exnSpec
     if (func->exnSpec) {
       toXml_FunctionType_ExnSpec(func->exnSpec);
     }
-    closeTag(FunctionType);
     break;
   }
 
   case Type::T_ARRAY: {
     ArrayType *arr = obj->asArrayType();
     // **** attributes
-    openTag(ArrayType, "TY", obj);
-    printPtr(eltType, arr->eltType, "TY");
-    newline();
-    out << "size=\"" << arr->size << "\"";
+    openTag(ArrayType, obj);
+    printPtr(eltType, arr->eltType);
+    printXml_int(size, arr->size);
     tagEnd;
     // **** subtags
     trav(arr->eltType);
-    closeTag(ArrayType);
     break;
   }
 
   case Type::T_POINTERTOMEMBER: {
     PointerToMemberType *ptm = obj->asPointerToMemberType();
     // **** attributes
-    openTag(PointerToMemberType, "TY", obj);
-    printPtr(inClassNAT, ptm->inClassNAT, "TY");
+    openTag(PointerToMemberType, obj);
+    printPtr(inClassNAT, ptm->inClassNAT);
     printXml(cv, ptm->cv);
-    printPtr(atType, ptm->atType, "TY");
+    printPtr(atType, ptm->atType);
     tagEnd;
     // **** subtags
     trav(ptm->inClassNAT);
     trav(ptm->atType);
-    closeTag(PointerToMemberType);
     break;
   }
 
@@ -303,90 +329,84 @@ void TypeToXml::toXml(AtomicType *obj) {
   case AtomicType::T_SIMPLE: {
     SimpleType *simple = obj->asSimpleType();
     // **** attributes
-    openTag(SimpleType, "TY", obj);
+    openTag(SimpleType, obj);
     printXml(type, simple->type);
     tagEnd;
-    closeTag(SimpleType);
     break;
   }
 
   case AtomicType::T_COMPOUND: {
     CompoundType *cpd = obj->asCompoundType();
     // **** attributes
-    openTag(CompoundType, "TY", obj);
+    openTag(CompoundType, obj);
     // superclasses
     toXml_NamedAtomicType_properties(cpd);
     toXml_Scope_properties(cpd);
     printXml_bool(forward, cpd->forward);
     printXml(keyword, cpd->keyword);
-    printPtr(dataMembers, &cpd->dataMembers, "TY");
-    printPtr(bases, &cpd->bases, "TY");
-    printPtr(virtualBases, &cpd->virtualBases, "TY");
-    printPtr(subobj, &cpd->subobj, "TY");
-    printPtr(conversionOperators, &cpd->conversionOperators, "TY");
+    printPtr(dataMembers, &cpd->dataMembers);
+    printPtr(bases, &cpd->bases);
+    printPtr(virtualBases, &cpd->virtualBases);
+    printPtr(subobj, &cpd->subobj);
+    printPtr(conversionOperators, &cpd->conversionOperators);
     printStrRef(instName, cpd->instName);
-    printPtr(syntax, cpd->syntax, "AST"); // FIX: AST so make sure is serialized
-    printPtr(parameterizingScope, cpd->parameterizingScope, "TY");
-    printPtr(selfType, cpd->selfType, "TY");
+    printPtrAST(syntax, cpd->syntax);
+    printPtr(parameterizingScope, cpd->parameterizingScope);
+    printPtr(selfType, cpd->selfType);
     tagEnd;
     // **** subtags
     toXml_NamedAtomicType_subtags(cpd);
     toXml_Scope_subtags(cpd);
     // data members
     if (!printedOL(&cpd->dataMembers)) {
-      openTagWhole(List_CompoundType_dataMembers, "OL", &cpd->dataMembers);
+      openTagWhole(List_CompoundType_dataMembers, &cpd->dataMembers);
       SFOREACH_OBJLIST_NC(Variable, cpd->dataMembers, iter) {
-        travListItem("TY", iter.data());
+        travListItem(iter.data());
       }
-      closeTag(List_CompoundType_dataMembers);
     }
     // bases
     if (!printedOL(&cpd->bases)) {
-      openTagWhole(List_CompoundType_bases, "OL", &cpd->bases);
+      openTagWhole(List_CompoundType_bases, &cpd->bases);
       FOREACH_OBJLIST_NC(BaseClass, const_cast<ObjList<BaseClass>&>(cpd->bases), iter) {
-        travListItem("TY", iter.data());
+        travListItem(iter.data());
       }
-      closeTag(List_CompoundType_bases);
     }
     // virtual bases
     if (!printedOL(&cpd->virtualBases)) {
-      openTagWhole(List_CompoundType_virtualBases, "OL", &cpd->virtualBases);
+      openTagWhole(List_CompoundType_virtualBases, &cpd->virtualBases);
       FOREACH_OBJLIST_NC(BaseClassSubobj,
                          const_cast<ObjList<BaseClassSubobj>&>(cpd->virtualBases),
                          iter) {
-        travListItem("TY", iter.data());
+        travListItem(iter.data());
       }
-      closeTag(List_CompoundType_virtualBases);
     }
     // subobj
     trav(&cpd->subobj);
     // conversionOperators
     if (!printedOL(&cpd->conversionOperators)) {
-      openTagWhole(List_CompoundType_conversionOperators, "OL", &cpd->conversionOperators);
+      openTagWhole(List_CompoundType_conversionOperators, &cpd->conversionOperators);
       SFOREACH_OBJLIST_NC(Variable, cpd->conversionOperators, iter) {
-        travListItem("TY", iter.data());
+        travListItem(iter.data());
       }
-      closeTag(List_CompoundType_conversionOperators);
     }
     // parameterizingScope
     trav(cpd->parameterizingScope);
-    closeTag(CompoundType);
     break;
   }
 
   case AtomicType::T_ENUM: {
     EnumType *e = obj->asEnumType();
     // **** attributes
-    openTag(EnumType, "TY", e);
+    openTag(EnumType, e);
     toXml_NamedAtomicType_properties(e);
-    printPtr(valueIndex, &e->valueIndex, "TY");
+    printPtr(valueIndex, &e->valueIndex);
     printXml_int(nextValue, e->nextValue);
     tagEnd;
     // **** subtags
     toXml_NamedAtomicType_subtags(e);
     // valueIndex
     if (!printedOL(&e->valueIndex)) {
-      openTagWhole(NameMap_EnumType_valueIndex, "OL", &e->valueIndex);
+      openTagWhole(NameMap_EnumType_valueIndex, &e->valueIndex);
       for(StringObjDict<EnumType::Value>::Iter iter(e->valueIndex);
           !iter.isDone(); iter.next()) {
         string const &name = iter.key();
@@ -395,63 +415,56 @@ void TypeToXml::toXml(AtomicType *obj) {
         EnumType::Value *eValue = const_cast<EnumType::Value*>(iter.value());
         openTag_NameMap_Item(name, eValue);
         toXml_EnumType_Value(eValue);
-        closeTag(_NameMap_Item);
       }
-      closeTag(NameMap_EnumType_valueIndex);
     }
-    closeTag(EnumType);
     break;
   }
 
   case AtomicType::T_TYPEVAR: {
     TypeVariable *tvar = obj->asTypeVariable();
     // **** attributes
-    openTag(TypeVariable, "TY", obj);
+    openTag(TypeVariable, obj);
     toXml_NamedAtomicType_properties(tvar);
     tagEnd;
     // **** subtags
     toXml_NamedAtomicType_subtags(tvar);
-    closeTag(TypeVariable);
     break;
   }
 
   case AtomicType::T_PSEUDOINSTANTIATION: {
     PseudoInstantiation *pseudo = obj->asPseudoInstantiation();
     // **** attributes
-    openTag(PseudoInstantiation, "TY", obj);
+    openTag(PseudoInstantiation, obj);
     toXml_NamedAtomicType_properties(pseudo);
-    printPtr(primary, pseudo->primary, "TY");
-    printPtr(args, &pseudo->args, "OL");
+    printPtr(primary, pseudo->primary);
+    printPtr(args, &pseudo->args);
     tagEnd;
     // **** subtags
     toXml_NamedAtomicType_subtags(pseudo);
     // NOTE: without the cast, the overloading is ambiguous
     trav(static_cast<AtomicType*>(pseudo->primary));
     if (!printedOL(&pseudo->args)) {
-      openTagWhole(List_PseudoInstantiation_args, "OL", &pseudo->args);
+      openTagWhole(List_PseudoInstantiation_args, &pseudo->args);
       FOREACH_OBJLIST_NC(STemplateArgument, pseudo->args, iter) {
-        travListItem("TY", iter.data());
+        travListItem(iter.data());
       }
-      closeTag(List_PseudoInstantiation_args);
     }
-    closeTag(PseudoInstantiation);
     break;
   }
 
   case AtomicType::T_DEPENDENTQTYPE: {
     DependentQType *dep = obj->asDependentQType();
     // **** attributes
-    openTag(DependentQType, "TY", obj);
+    openTag(DependentQType, obj);
     toXml_NamedAtomicType_properties(dep);
-    printPtr(first, dep->first, "TY");
-    printPtr(rest, dep->rest, "AST");
+    printPtr(first, dep->first);
+    printPtrAST(rest, dep->rest);
     tagEnd;
     // **** subtags
     toXml_NamedAtomicType_subtags(dep);
     trav(dep->first);
     // FIX: traverse this AST
 //    PQName *rest;
-    closeTag(DependentQType);
     break;
   }
 
@@ -462,22 +475,22 @@ void TypeToXml::toXml(Variable *var) {
   // idempotency
   if (printedVariable(var)) return;
   // **** attributes
-  openTag(Variable, "TY", var);
+  openTag(Variable, var);
 //    SourceLoc loc;
 //    I'm skipping these for now, but source locations will be serialized
 //    as file:line:col when I serialize the internals of the Source Loc
 //    Manager.
   printStrRef(name, var->name);
-  printPtr(type, var->type, "TY");
+  printPtr(type, var->type);
   printXml(flags, var->flags);
-  printPtr(value, var->value, "AST"); // FIX: this is AST make sure gets serialized
-  printPtr(defaultParamType, var->defaultParamType, "TY");
-  printPtr(funcDefn, var->funcDefn, "AST"); // FIX: this is AST make sure gets serialized
+  printPtrAST(value, var->value);
+  printPtr(defaultParamType, var->defaultParamType);
+  printPtrAST(funcDefn, var->funcDefn);
 //    OverloadSet *overload;  // (nullable serf)
 //    I don't think we need to serialize this because we are done with
 //    overloading after typechecking.  Will have to eventually be done if
 //    an analysis wants to analyze uninstantiate templates.
-  printPtr(scope, var->scope, "TY");
+  printPtr(scope, var->scope);
 //    // bits 0-7: result of 'getAccess()'
 //    // bits 8-15: result of 'getScopeKind()'
 //    // bits 16-31: result of 'getParameterOrdinal()'
@@ -485,8 +498,8 @@ void TypeToXml::toXml(Variable *var) {
 //    Ugh.  Break into 3 parts eventually, but for now serialize as an int.
   newline();
   out << "intData=\"" << toXml_Variable_intData(var->intData) << "\"";
-  printPtr(usingAlias_or_parameterizedEntity, var->usingAlias_or_parameterizedEntity, "TY");
-  printPtr(templInfo, var->templInfo, "TY");
+  printPtr(usingAlias_or_parameterizedEntity, var->usingAlias_or_parameterizedEntity);
+  printPtr(templInfo, var->templInfo);
   tagEnd;
   // **** subtags
   trav(var->type);
@@ -497,7 +510,6 @@ void TypeToXml::toXml(Variable *var) {
   trav(var->scope);
   trav(var->usingAlias_or_parameterizedEntity);
 //    trav(var->templInfo);
-  closeTag(Variable);
 }
 
 void TypeToXml::toXml_FunctionType_ExnSpec(void /*FunctionType::ExnSpec*/ *exnSpec0) {
@@ -505,18 +517,16 @@ void TypeToXml::toXml_FunctionType_ExnSpec(void /*FunctionType::ExnSpec*/ *exnSp
   // idempotency
   if (printedType(exnSpec)) return;
   // **** attributes
-  openTag(FunctionType_ExnSpec, "TY", exnSpec);
-  printPtr(types, &exnSpec->types, "OL");
+  openTag(FunctionType_ExnSpec, exnSpec);
+  printPtr(types, &exnSpec->types);
   tagEnd;
   // **** FunctionType::ExnSpec subtags
   if (!printedOL(&exnSpec->types)) {
-    openTagWhole(List_ExnSpec_types, "OL", &exnSpec->types);
+    openTagWhole(List_ExnSpec_types, &exnSpec->types);
     SFOREACH_OBJLIST_NC(Type, exnSpec->types, iter) {
-      travListItem("TY", iter.data());
+      travListItem(iter.data());
     }
-    closeTag(List_ExnSpec_types);
   }
-  closeTag(FunctionType_ExnSpec);
 }
 
 void TypeToXml::toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0) {
@@ -524,21 +534,20 @@ void TypeToXml::toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0) {
   // idempotency
   if (printedType(eValue)) return;
   // **** attributes
-  openTag(EnumType_Value, "TY", eValue);
+  openTag(EnumType_Value, eValue);
   printStrRef(name, eValue->name);
-  printPtr(type, &eValue->type, "TY");
+  printPtr(type, eValue->type);
   printXml_int(value, eValue->value);
-  printPtr(decl, &eValue->decl, "TY");
+  printPtr(decl, eValue->decl);
   tagEnd;
   // **** subtags
   trav(eValue->type);
   trav(eValue->decl);
-  closeTag(EnumType_Value);
 }
 
 void TypeToXml::toXml_NamedAtomicType_properties(NamedAtomicType *nat) {
   printStrRef(name, nat->name);
-  printPtr(typedefVar, nat->typedefVar, "TY");
+  printPtr(typedefVar, nat->typedefVar);
   printXml(access, nat->access);
 }
 
@@ -550,17 +559,16 @@ void TypeToXml::toXml(BaseClass *bc) {
   // idempotency
   if (printedType(bc)) return;
   // **** attributes
-  openTag(BaseClass, "TY", bc);
+  openTag(BaseClass, bc);
   toXml_BaseClass_properties(bc);
   tagEnd;
   // **** subtags
   // NOTE: without the cast, the overloading is ambiguous
   trav(static_cast<AtomicType*>(bc->ct));
-  closeTag(BaseClass);
 }
 
 void TypeToXml::toXml_BaseClass_properties(BaseClass *bc) {
-  printPtr(ct, bc->ct, "TY");
+  printPtr(ct, bc->ct);
   printXml(access, bc->access);
   printXml_bool(isVirtual, bc->isVirtual);
 }
@@ -569,48 +577,45 @@ void TypeToXml::toXml(BaseClassSubobj *bc) {
   // idempotency
   if (printedType(bc)) return;
   // **** attributes
-  openTag(BaseClassSubobj, "TY", bc);
+  openTag(BaseClassSubobj, bc);
   toXml_BaseClass_properties(bc);
-  printPtr(parents, &bc->parents, "OL");
+  printPtr(parents, &bc->parents);
   tagEnd;
   // **** subtags
   if (!printedOL(&bc->parents)) {
-    openTagWhole(List_BaseClassSubobj_parents, "OL", &bc->parents);
+    openTagWhole(List_BaseClassSubobj_parents, &bc->parents);
     SFOREACH_OBJLIST_NC(BaseClassSubobj, bc->parents, iter) {
-      travListItem("TY", iter.data());
+      travListItem(iter.data());
     }
-    closeTag(List_BaseClassSubobj_parents);
   }
-  closeTag(BaseClassSubobj);
 }
 
 void TypeToXml::toXml(Scope *scope) {
   // idempotency
   if (printedScope(scope)) return;
   // **** attributes
-  openTag(Scope, "TY", scope);
+  openTag(Scope, scope);
   toXml_Scope_properties(scope);
   tagEnd;
   // **** subtags
   toXml_Scope_subtags(scope);
-  closeTag(Scope);
 }
 
 void TypeToXml::toXml_Scope_properties(Scope *scope) {
-  printPtr(variables, &scope->variables, "SM");
-  printPtr(typeTags, &scope->typeTags, "SM");
+  printPtr(variables, &scope->variables);
+  printPtr(typeTags, &scope->typeTags);
   printXml_bool(canAcceptNames, scope->canAcceptNames);
-  printPtr(parentScope, scope, "TY");
+  printPtr(parentScope, scope);
   printXml(scopeKind, scope->scopeKind);
-  printPtr(namespaceVar, scope->namespaceVar, "TY");
-  printPtr(templateParams, &scope->templateParams, "OL");
-  printPtr(curCompound, scope->curCompound, "TY");
+  printPtr(namespaceVar, scope->namespaceVar);
+  printPtr(templateParams, &scope->templateParams);
+  printPtr(curCompound, scope->curCompound);
 }
 
 void TypeToXml::toXml_Scope_subtags(Scope *scope) {
   // variables
   if (!printedSM(&scope->variables)) {
-    openTagWhole(NameMap_Scope_variables, "SM", &scope->variables);
+    openTagWhole(NameMap_Scope_variables, &scope->variables);
     for(PtrMap<char const, Variable>::Iter iter(scope->variables);
         !iter.isDone();
         iter.adv()) {
@@ -618,13 +623,11 @@ void TypeToXml::toXml_Scope_subtags(Scope *scope) {
       Variable *var = iter.value();
       openTag_NameMap_Item(name, var);
       trav(var);
-      closeTag(_NameMap_Item);
     }
-    closeTag(NameMap_Scope_variables);
   }
   // typeTags
   if (!printedSM(&scope->typeTags)) {
-    openTagWhole(NameMap_Scope_typeTags, "SM", &scope->typeTags);
+    openTagWhole(NameMap_Scope_typeTags, &scope->typeTags);
     for(PtrMap<char const, Variable>::Iter iter(scope->typeTags);
         !iter.isDone();
         iter.adv()) {
@@ -632,9 +635,7 @@ void TypeToXml::toXml_Scope_subtags(Scope *scope) {
       Variable *var = iter.value();
       openTag_NameMap_Item(name, var);
       trav(var);
-      closeTag(_NameMap_Item);
     }
-    closeTag(NameMap_Scope_typeTags);
   }
   // parentScope
   trav(scope->parentScope);
@@ -642,11 +643,10 @@ void TypeToXml::toXml_Scope_subtags(Scope *scope) {
   trav(scope->namespaceVar);
   // templateParams
   if (!printedOL(&scope->templateParams)) {
-    openTagWhole(List_Scope_templateParams, "OL", &scope->templateParams);
+    openTagWhole(List_Scope_templateParams, &scope->templateParams);
     SFOREACH_OBJLIST_NC(Variable, scope->templateParams, iter) {
-      travListItem("TY", iter.data());
+      travListItem(iter.data());
     }
-    closeTag(List_Scope_templateParams);
   }
   // I don't think I need this; see Scott's comments in the scope
   // class
@@ -667,7 +667,7 @@ void TypeToXml::toXml_Scope_subtags(Scope *scope) {
 }
 
 void TypeToXml::toXml(STemplateArgument *obj) {
-  openTag(STemplateArgument, "TY", obj);
+  openTag(STemplateArgument, obj);
   printXml(kind, obj->kind);
 
   // **** attributes
@@ -675,22 +675,21 @@ void TypeToXml::toXml(STemplateArgument *obj) {
   default: xfailure("illegal STemplateArgument kind"); break;
 
   case STemplateArgument::STA_TYPE:
-    printPtr(t, obj->value.t, "TY");
+    printPtr(t, obj->value.t);
     break;
 
   case STemplateArgument::STA_INT:
-    newline();
-    out << "i=\"" << toXml_int(obj->value.i) << "\"";
+    printXml_int(i, obj->value.i);
     break;
 
   case STemplateArgument::STA_REFERENCE:
   case STemplateArgument::STA_POINTER:
   case STemplateArgument::STA_MEMBER:
-    printPtr(v, obj->value.v, "TY");
+    printPtr(v, obj->value.v);
     break;
 
   case STemplateArgument::STA_DEPEXPR:
-    printPtr(e, obj->value.e, "AST");
+    printPtrAST(e, obj->value.e);
     break;
 
   case STemplateArgument::STA_TEMPLATE:
@@ -698,7 +697,7 @@ void TypeToXml::toXml(STemplateArgument *obj) {
     break;
 
   case STemplateArgument::STA_ATOMIC:
-    printPtr(at, obj->value.at, "TY");
+    printPtr(at, obj->value.at);
     break;
   }
   tagEnd;
@@ -734,8 +733,6 @@ void TypeToXml::toXml(STemplateArgument *obj) {
     trav(const_cast<AtomicType*>(obj->value.at));
     break;
   }
-
-  closeTag(STemplateArgument);
 }
 
 // -------------------- ReadXml_Type -------------------
@@ -797,7 +794,7 @@ bool ReadXml_Type::kind2kindCat0(int kind, KindCategory *kindCat) {
   //   StringRefMap
   case XTOK_NameMap_Scope_variables:               *kindCat = KC_StringRefMap;  break;
   case XTOK_NameMap_Scope_typeTags:                *kindCat = KC_StringRefMap;  break;
-  case XTOK_NameMap_EnumType_valueIndex:           *kindCat = KC_StringRefMap;  break;
+  case XTOK_NameMap_EnumType_valueIndex:           *kindCat = KC_StringSObjDict;break;
   }
   return true;
 }

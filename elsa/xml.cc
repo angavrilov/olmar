@@ -50,6 +50,8 @@ void LinkSatisfier::convertList2ObjList(ASTList<char> *list, int listKind, void 
 
 void LinkSatisfier::convertNameMap2StringRefMap
   (StringRefMap<char> *map, int mapKind, void *target) {
+  static int count = 0;
+  ++count;
   FOREACH_ASTLIST_NC(ReadXml, readers, iter) {
     ReadXml *reader = iter.data();
     if (reader->convertNameMap2StringRefMap(map, mapKind, target)) {

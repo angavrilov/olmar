@@ -50,6 +50,7 @@ class TypeToXml {
   // *sure* you have something to print that goes onto the next line;
   // that is, most lines do *not* end in a newline
   void newline();
+  friend class TypeToXml_CloseTagPrinter;
 
   // register the object and check if it has been printed
   bool printedType(void const *obj);
