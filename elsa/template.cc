@@ -1380,7 +1380,7 @@ bool Env::inferTemplArgsFromFuncArgs
               // match will (in all likelihood) modify the bindings so
               // as to prevent the second match.  The solution is to
               // save the current bindings before attempting a match,
-              // but MatchTypes does not currently support the needed
+              // but MType does not currently support the needed
               // push and pop of bindings.  Therefore I will just note
               // the bugs and ignore them for now.
               Type *t = env.makeType(sub->ct);    // leaked
@@ -1908,7 +1908,7 @@ void Env::mapPrimaryArgsToSpecArgs_oneParamList(
 
 // find most specific specialization that matches the given arguments
 Variable *Env::findMostSpecific
-  (Variable *baseV, SObjList<STemplateArgument> const &sargs)
+  (Variable *baseV, ObjList<STemplateArgument> const &sargs)
 {
   // baseV should be a template primary
   TemplateInfo *baseVTI = baseV->templateInfo();
@@ -1922,10 +1922,6 @@ Variable *Env::findMostSpecific
     TemplateInfo *specTI = spec->templateInfo();
     xassert(specTI);        // should have templateness
 
-    // TODO: add 'const' to matchtype
-    SObjList<STemplateArgument> &hackSargs =
-      const_cast<SObjList<STemplateArgument>&>(sargs);
-
     // if 'specTI' is a partial instantiation, we want to match
     // against the original argument list (in/t0504.cc)
     TemplateInfo *matchTI = specTI;
@@ -1934,8 +1930,8 @@ Variable *Env::findMostSpecific
     }
 
     // see if this candidate matches
-    MatchTypes match(tfac, MatchTypes::MM_BIND);
-    if (match.match_Lists(hackSargs, matchTI->arguments, 2 /*matchDepth (?)*/)) {
+    MType match;
+    if (match.matchSTemplateArguments(sargs, matchTI->arguments, MF_MATCH)) {
       templCandidates.add(spec);
     }
   }
@@ -2598,20 +2594,20 @@ Variable *Env::instantiateClassTemplate
     return NULL;
   }
 
+  // find the specialization that should be used (might turn
+  // out to be the primary; that's fine)
+  Variable *spec = findMostSpecific(primary, owningPrimaryArgs);
+  TemplateInfo *specTI = spec->templateInfo();
+  if (specTI->isCompleteSpec()) {
+    return spec;      // complete spec; good to go
+  }
+
   // The code below wants to use SObjLists, and since they are happy
   // accepting const versions, this is safe.  An alternative fix would
   // be to push owningness down into those interfaces, but I'm getting
   // tired of doing that ...
   SObjList<STemplateArgument> const &primaryArgs =     // non-owning
     objToSObjListC(owningPrimaryArgs);
-
-  // find the specialization that should be used (might turn
-  // out to be the primary; that's fine)
-  Variable *spec = findMostSpecific(primary, primaryArgs);
-  TemplateInfo *specTI = spec->templateInfo();
-  if (specTI->isCompleteSpec()) {
-    return spec;      // complete spec; good to go
-  }
 
   // if this is a partial specialization, we need the arguments
   // to be relative to the partial spec before we can look for

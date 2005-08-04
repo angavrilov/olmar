@@ -867,7 +867,7 @@ public:      // template funcs
   // given template arguments 'sargs'; for full generality we allow
   // the primary itself as a "trivial specialization" and may return
   // that.
-  Variable *findMostSpecific(Variable *baseV, SObjList<STemplateArgument> const &sargs);
+  Variable *findMostSpecific(Variable *baseV, ObjList<STemplateArgument> const &sargs);
 
   // Prepare the argument scope for the present typechecking of the
   // cloned AST for effecting the instantiation of the template;
