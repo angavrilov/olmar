@@ -7,6 +7,7 @@
 #define XMLHELP_H
 
 #include "str.h"         // string
+#include "srcloc.h"      // SourceLoc
 
 // I have manually mangled the name to include "_bool" or "_int" as
 // otherwise what happens is that if a toXml() for some enum flag is
@@ -29,5 +30,8 @@ void fromXml_unsigned_long(unsigned long &i, rostring str);
 
 string toXml_double(double x);
 void fromXml_double(double &x, rostring str);
+
+string toXml_SourceLoc(SourceLoc loc);
+void fromXml_SourceLoc(SourceLoc &loc, rostring str);
 
 #endif // XMLHELP_H

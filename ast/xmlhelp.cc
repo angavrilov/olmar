@@ -54,3 +54,12 @@ string toXml_double(double x) {
 void fromXml_double(double &x, rostring str) {
   x = atof(str.c_str());
 }
+
+
+string toXml_SourceLoc(SourceLoc loc) {
+  return sourceLocManager->getString(loc);
+}
+
+void fromXml_SourceLoc(SourceLoc &loc, rostring str) {
+  xfailure("not implemented");
+}
