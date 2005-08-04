@@ -952,8 +952,7 @@ int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *
     // built-in candidate have the same signature, then the built-in
     // candidate is hidden; I implement this by saying that the
     // user-written candidate always wins
-    if (left->var->type->equals(right->var->type, 
-          MF_IGNORE_RETURN | MF_IGNORE_PARAM_CV)) {
+    if (left->var->type->equals(right->var->type, MF_IGNORE_RETURN)) {
       // same signatures; who wins?
       if (left->var->hasFlag(DF_BUILTIN)) {
         return +1;     // right is user-written, it wins

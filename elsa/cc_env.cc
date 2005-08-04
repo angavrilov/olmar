@@ -2773,9 +2773,7 @@ bool Env::almostEqualTypes(Type const *t1, Type const *t2,
     }
   }
 
-  // strict equality (well, toplevel param cv can differ)
-  mflags |= MF_IGNORE_PARAM_CV;
-
+  // strict equality
   return equivalentTypes(t1, t2, mflags);
 }
 
@@ -2984,10 +2982,6 @@ Variable *Env::findInOverloadSet(OverloadSet *oset,
 
     // check the parameters other than '__receiver'
     MatchFlags mflags = MF_STAT_EQ_NONSTAT | MF_IGNORE_IMPLICIT;
-
-    // 2005-04-16: in/k0050.cc: 8.3.5p3: cv-qualifier on a parameter
-    // is not a part of function type
-    mflags |= MF_IGNORE_PARAM_CV;
 
     if (inUninstTemplate()) {
       // do not check the return types; we can diagnose a mismatch

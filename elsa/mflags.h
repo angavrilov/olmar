@@ -31,14 +31,11 @@ enum MatchFlags {
   // MF_STAT_EQ_NONSTAT
   MF_IGNORE_IMPLICIT = 0x0004,
 
-  // ignore the topmost cv qualifications of all parameters in
-  // parameter lists throughout the type
-  //
-  // 2005-05-27: I now realize that *every* type comparison needs
-  // this flag, so have changed the site where it is tested to
-  // pretend it is always set.  Once this has been working for a
-  // while I will remove this flag altogether.
-  MF_IGNORE_PARAM_CV = 0x0008,
+  // In the C++ type system, cv qualifiers on parameters are not part
+  // of the type [8.3.5p3], so by default mtype ignores them.  If you
+  // set this flag, then they will *not* be ignored.  It is provided
+  // only for completeness; Elsa does not use it.
+  MF_RESPECT_PARAM_CV= 0x0008,
 
   // ignore the topmost cv qualification of the two types compared
   MF_IGNORE_TOP_CV   = 0x0010,
@@ -97,7 +94,6 @@ enum MatchFlags {
   // overloaded entities)
   MF_SIGNATURE       = (
     MF_IGNORE_RETURN |       // can't overload on return type
-    MF_IGNORE_PARAM_CV |     // param cv doesn't matter
     MF_STAT_EQ_NONSTAT |     // can't overload on static vs. nonstatic
     MF_IGNORE_EXN_SPEC       // can't overload on exn spec
   ),
@@ -111,7 +107,7 @@ enum MatchFlags {
   // the type tree equality checker; others are suppressed once
   // the first type constructor looks at them
   MF_PROP = (
-    MF_IGNORE_PARAM_CV  |
+    MF_RESPECT_PARAM_CV |
     MF_POLYMORPHIC      |
     MF_UNASSOC_TPARAMS  |
     MF_MATCH            |

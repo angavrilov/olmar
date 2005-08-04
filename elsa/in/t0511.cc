@@ -7,7 +7,7 @@
 // to obtain that coverage level.
 
 
-// copied from mtype.h
+// copied from mflags.h
 enum MatchFlags {
   // complete equality; this is the default; note that we are
   // checking for *type* equality, rather than equality of the
@@ -31,14 +31,11 @@ enum MatchFlags {
   // MF_STAT_EQ_NONSTAT
   MF_IGNORE_IMPLICIT = 0x0004,
 
-  // ignore the topmost cv qualifications of all parameters in
-  // parameter lists throughout the type
-  //
-  // 2005-05-27: I now realize that *every* type comparison needs
-  // this flag, so have changed the site where it is tested to
-  // pretend it is always set.  Once this has been working for a
-  // while I will remove this flag altogether.
-  MF_IGNORE_PARAM_CV = 0x0008,
+  // In the C++ type system, cv qualifiers on parameters are not part
+  // of the type [8.3.5p3], so by default mtype ignores them.  If you
+  // set this flag, then they will *not* be ignored.  It is provided
+  // only for completeness; Elsa does not use it.
+  MF_RESPECT_PARAM_CV= 0x0008,
 
   // ignore the topmost cv qualification of the two types compared
   MF_IGNORE_TOP_CV   = 0x0010,
@@ -79,22 +76,29 @@ enum MatchFlags {
   // do not allow new bindings to be created; but existing bindings
   // can continue to be used
   MF_NO_NEW_BINDINGS = 0x1000,
+  
+  // when combined with MF_MATCH, it means we can bind variables in
+  // the pattern only to other variables in the "concrete" type; this
+  // is used to compare two templatized signatures for equivalence
+  MF_ISOMORPHIC      = 0x2000,
 
   // ----- combined behaviors -----
   // all flags set to 1
-  MF_ALL             = 0x1FFF,
+  MF_ALL             = 0x3FFF,
+
+  // number of 1 bits in MF_ALL
+  MF_NUM_FLAGS       = 14,
 
   // signature equivalence for the purpose of detecting whether
   // two declarations refer to the same entity (as opposed to two
   // overloaded entities)
   MF_SIGNATURE       = (
     MF_IGNORE_RETURN |       // can't overload on return type
-    MF_IGNORE_PARAM_CV |     // param cv doesn't matter
     MF_STAT_EQ_NONSTAT |     // can't overload on static vs. nonstatic
     MF_IGNORE_EXN_SPEC       // can't overload on exn spec
   ),
 
-  // ----- combinations used by the equality implementation -----
+  // ----- combinations used by the mtype implementation -----
   // this is the set of flags that allow CV variance within the
   // current type constructor
   MF_OK_DIFFERENT_CV = (MF_IGNORE_TOP_CV | MF_SIMILAR),
@@ -102,11 +106,21 @@ enum MatchFlags {
   // this is the set of flags that automatically propagate down
   // the type tree equality checker; others are suppressed once
   // the first type constructor looks at them
-  MF_PROP            = (MF_IGNORE_PARAM_CV | MF_POLYMORPHIC | MF_UNASSOC_TPARAMS | 
-                        MF_MATCH | MF_NO_NEW_BINDINGS),
+  MF_PROP = (
+    MF_RESPECT_PARAM_CV |
+    MF_POLYMORPHIC      |
+    MF_UNASSOC_TPARAMS  |
+    MF_MATCH            |
+    MF_NO_NEW_BINDINGS  |
+    MF_ISOMORPHIC
+  ),
 
   // these flags are propagated below ptr and ptr-to-member
-  MF_PTR_PROP        = (MF_PROP | MF_SIMILAR)
+  MF_PTR_PROP = (
+    MF_PROP            |
+    MF_SIMILAR         |
+    MF_DEDUCTION
+  )
 };
 
 

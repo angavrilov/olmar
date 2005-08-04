@@ -20,7 +20,7 @@ string toString(MatchFlags flags)
     "MF_IGNORE_RETURN",
     "MF_STAT_EQ_NONSTAT",
     "MF_IGNORE_IMPLICIT",
-    "MF_IGNORE_PARAM_CV",
+    "MF_RESPECT_PARAM_CV",
     "MF_IGNORE_TOP_CV",
     "MF_IGNORE_EXN_SPEC",
     "MF_SIMILAR",
@@ -1177,7 +1177,9 @@ bool MType::matchParameterLists(FunctionType const *conc, FunctionType const *pa
   flags &= MF_PROP;
 
   // allow toplevel cv flags on parameters to differ
-  flags |= MF_IGNORE_TOP_CV;
+  if (!( flags & MF_RESPECT_PARAM_CV )) {
+    flags |= MF_IGNORE_TOP_CV;
+  }
 
   for (; !concIter.isDone() && !patIter.isDone();
        concIter.adv(), patIter.adv()) {
