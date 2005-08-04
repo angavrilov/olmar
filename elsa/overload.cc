@@ -14,7 +14,6 @@
 #include "typelistiter.h"  // TypeListIter
 #include "strtokp.h"       // StrtokParse
 #include "mtype.h"         // MType
-#include "matchtype.h"     // MatchTypes
 
 
 // ------------------- Candidate -------------------------
@@ -923,7 +922,7 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate
 
   
 // 14.5.5.2 paras 3 and 4
-bool atLeastAsSpecializedAs(TypeFactory &tfac, Type *concrete, Type *pattern)
+bool atLeastAsSpecializedAs(Type *concrete, Type *pattern)
 {
   // TODO: this isn't quite right:
   //   - I use the return type regardless of whether this is
@@ -931,8 +930,8 @@ bool atLeastAsSpecializedAs(TypeFactory &tfac, Type *concrete, Type *pattern)
   //   - I don't do "argument deduction", I just match.  Maybe
   //     that is equivalent?
 
-  MatchTypes match(tfac, MatchTypes::MM_BIND_UNIQUE);
-  return match.match_Type(concrete, pattern);
+  MType match;
+  return match.match(concrete, pattern, MF_MATCH);
 }
 
 
@@ -1049,8 +1048,8 @@ int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *
     Type *rightType = right->instFrom->type;
 
     // who is "at least as specialized" as who?
-    bool left_ALA = atLeastAsSpecializedAs(env.tfac, leftType, rightType);
-    bool right_ALA = atLeastAsSpecializedAs(env.tfac, rightType, leftType);
+    bool left_ALA = atLeastAsSpecializedAs(leftType, rightType);
+    bool right_ALA = atLeastAsSpecializedAs(rightType, leftType);
     if (left_ALA && !right_ALA) {
       // left is "more specialized"
       return -1;
@@ -1919,8 +1918,8 @@ int InstCandidateResolver::compareCandidates(InstCandidate *left, InstCandidate 
   Type *leftType = left->primary->type;
   Type *rightType = right->primary->type;
 
-  bool left_ALA = atLeastAsSpecializedAs(tfac, leftType, rightType);
-  bool right_ALA = atLeastAsSpecializedAs(tfac, rightType, leftType);
+  bool left_ALA = atLeastAsSpecializedAs(leftType, rightType);
+  bool right_ALA = atLeastAsSpecializedAs(rightType, leftType);
   if (left_ALA && !right_ALA) {
     // left is "more specialized"
     return -1;
