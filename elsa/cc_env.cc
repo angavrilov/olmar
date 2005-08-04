@@ -9,6 +9,7 @@
 #include "strutil.h"       // suffixEquals, prefixEquals
 #include "overload.h"      // OVERLOADTRACE
 #include "matchtype.h"     // MatchTypes
+#include "mtype.h"         // MType
 
 
 void gdbScopeSeq(ScopeSeq &ss)
@@ -3097,30 +3098,10 @@ bool Env::equivalentTypes(Type *a, Type *b, Type::EqFlags eflags)
 }
 
 
-// if the types are concrete, compare for equality; if at least one
-// is not, compare for isomorphism
-//
-// The parameters here should be const, but MatchTypes doesn't
-// make claims about constness so I just dropped const from here ...
-bool equalOrIsomorphic(TypeFactory &tfac, Type *a, Type *b, Type::EqFlags eflags)
+bool equalOrIsomorphic(Type const *a, Type const *b)
 {
-  bool aVars = a->containsVariables();
-  bool bVars = b->containsVariables();
-
-  if (!aVars && !bVars) {
-    // normal case: concrete signature comparison
-    return a->equals(b, eflags);
-  }
-  else {
-    // non-concrete comparison
-    //
-    // 8/07/04: I had been saying that if aVars!=bVars then the
-    // types aren't equivalent, but that is wrong if we are skipping
-    // the receiver parameter and that's the place that one has
-    // a type var and the other does not.  (t0028.cc)
-    MatchTypes match(tfac, MatchTypes::MM_ISO, eflags);
-    return match.match_Type(a, b);
-  }
+  MType match;
+  return match.match(a, b, MF_ISOMORPHIC|MF_MATCH);
 }
 
 

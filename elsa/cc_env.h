@@ -926,9 +926,6 @@ public:      // template funcs
   // an "explicit instantiation" (14.7.2) request for it
   void explicitlyInstantiate(Variable *inst);
 
-  // match via MM_ISO ..
-  bool isomorphicTypes(Type *a, Type *b);
-                                                             
   // find template scope corresp. to this var
   Scope *findParameterizingScope(Variable *bareQualifierVar);
        
@@ -1081,11 +1078,7 @@ public:      // funcs
 bool isCopyConstructor(Variable const *funcVar, CompoundType *ct);
 bool isCopyAssignOp(Variable const *funcVar, CompoundType *ct);
 void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
-
-// made this global since it only needs 'tfac', not an entire 'env',
-// and I want to call this in places where I only have the former
-bool equalOrIsomorphic(TypeFactory &tfac, Type *a, Type *b,
-                       Type::EqFlags eflags = Type::EF_EXACT);
+bool equalOrIsomorphic(Type const *a, Type const *b);
 
 
 // this one should be completely safe
