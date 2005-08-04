@@ -2754,27 +2754,30 @@ Variable *Env::createBuiltinBinaryOp(Type *retType, OverloadableOp op,
 // note that this is *not* the same rule that allows array types in
 // function parameters to vary similarly, see
 // 'normalizeParameterType()'
-//
-// Like 'equalOrIsomorphic', I've weakened constness ...
-bool Env::almostEqualTypes(Type /*const*/ *t1, Type /*const*/ *t2,
-                           Type::EqFlags eqFlags)
+bool Env::almostEqualTypes(Type const *t1, Type const *t2,
+                           MatchFlags mflags)
 {
   if (t1->isArrayType() &&
       t2->isArrayType()) {
-    ArrayType /*const*/ *at1 = t1->asArrayType();
-    ArrayType /*const*/ *at2 = t2->asArrayType();
+    ArrayType const *at1 = t1->asArrayTypeC();
+    ArrayType const *at2 = t2->asArrayTypeC();
 
     if ((at1->hasSize() && !at2->hasSize()) ||
         (at2->hasSize() && !at1->hasSize())) {
       // the exception kicks in
-      return at1->eltType->equals(at2->eltType);
+      return at1->eltType->equals(at2->eltType /*BUG?*/);
+
+      // TODO: I think the above call is a bug because it should be
+      // passing the 'mflags', but for now I leave it as-is because
+      // that's how the code has worked in the past, and for the
+      // moment I can't easily translate MatchFlags into EqFlags.
     }
   }
 
   // strict equality (well, toplevel param cv can differ)
-  eqFlags |= Type::EF_IGNORE_PARAM_CV;
-    
-  return equivalentTypes(t1, t2, eqFlags);
+  mflags |= MF_IGNORE_PARAM_CV;
+
+  return equivalentTypes(t1, t2, mflags);
 }
 
 
@@ -2981,20 +2984,20 @@ Variable *Env::findInOverloadSet(OverloadSet *oset,
     FunctionType *iterft = iter.data()->type->asFunctionType();
 
     // check the parameters other than '__receiver'
-    Type::EqFlags eflags = Type::EF_STAT_EQ_NONSTAT | Type::EF_IGNORE_IMPLICIT;
-                    
+    MatchFlags mflags = MF_STAT_EQ_NONSTAT | MF_IGNORE_IMPLICIT;
+
     // 2005-04-16: in/k0050.cc: 8.3.5p3: cv-qualifier on a parameter
     // is not a part of function type
-    eflags |= Type::EF_IGNORE_PARAM_CV;
+    mflags |= MF_IGNORE_PARAM_CV;
 
     if (inUninstTemplate()) {
       // do not check the return types; we can diagnose a mismatch
       // when the template is instantiated, and it is sometimes
       // hard to tell when they match (in/t0290.cc)
-      eflags |= Type::EF_IGNORE_RETURN;
+      mflags |= MF_IGNORE_RETURN;
     }
 
-    if (!equivalentTypes(iterft, ft, eflags)) {
+    if (!equivalentTypes(iterft, ft, mflags)) {
       continue;    // not the one we want
     }
 
@@ -3018,7 +3021,7 @@ Variable *Env::findInOverloadSet(OverloadSet *oset, FunctionType *ft)
 // not two overloaded instances  
 bool Env::equivalentSignatures(FunctionType *ft1, FunctionType *ft2)
 {   
-  return equivalentTypes(ft1, ft2, Type::EF_SIGNATURE);
+  return equivalentTypes(ft1, ft2, MF_SIGNATURE);
 }
 
 
@@ -3058,43 +3061,22 @@ bool containsUnassociatedTemplateParams(Type *t)
 // have been associated are essentially regarded as concrete, while
 // those that have not are regarded as arbitrary type variables, and
 // therefore subject to unification by MatchTypes.
-bool Env::equivalentTypes(Type *a, Type *b, Type::EqFlags eflags)
-{        
-  // In the future, I may be able to restrict using MatchTypes to just
-  // those cases that have unassociated tparams; but right now, in
-  // addition to doing matching per se, MatchTypes is implementing
-  // somewhat more liberal equality rules (particularly for
-  // ST_DEPENDENT), which I need (e.g., for in/t0268.cc).  Therefore I
-  // will continue to use it whenever there are any tparams,
-  // regardless of whether they are associated or not.
-  #if 0
-    bool aVars = containsUnassociatedTemplateParams(a);
-    bool bVars = containsUnassociatedTemplateParams(b);
-  #else
-    bool aVars = a->containsVariables();
-    bool bVars = b->containsVariables();
-  #endif
-
-  if (!aVars && !bVars) {
-    // normal case
-    return a->equals(b, eflags);
+bool Env::equivalentTypes(Type const *a, Type const *b, MatchFlags mflags)
+{
+  // the 'a' type refers to the already-existing function template
+  // declaration, wherein the parameters *have* been associated, and
+  // the 'b' type refers to the new declaration we are trying to
+  // match up, so its parameters have *not* been associated
+  MType match;
+  if (!match.match(a, b, mflags | MF_MATCH | MF_ISOMORPHIC | MF_UNASSOC_TPARAMS)) {
+    return false;
   }
-  else {
-    // the 'a' type refers to the already-existing function template
-    // declaration, wherein the parameters *have* been associated, and
-    // the 'b' type refers to the new declaration we are trying to
-    // match up, so its parameters have *not* been associated
-    MatchTypes match(tfac, MatchTypes::MM_ISO, eflags | Type::EF_UNASSOC_TPARAMS);
-    if (!match.match_Type(a, b)) {
-      return false;
-    }
 
-    // 2005-05-28: The following is a bit of a hack...
-    // (in/t0494.cc) check the symmetric condition too
-    // (in/t0184.cc) letting all tparams unify
-    MatchTypes match2(tfac, MatchTypes::MM_ISO, eflags);
-    return match2.match_Type(b, a);
-  }
+  // 2005-05-28: The following is a bit of a hack...
+  // (in/t0494.cc) check the symmetric condition too
+  // (in/t0184.cc) letting all tparams unify
+  MType match2;
+  return match2.match(b, a, mflags | MF_MATCH | MF_ISOMORPHIC);
 }
 
 
@@ -3344,7 +3326,7 @@ Variable *Env::createDeclaration(
              prior->hasFlag(DF_EXTERN_C) &&
              (prior->flags & DF_TYPEDEF) == (dflags & DF_TYPEDEF) &&
              prior->type->isFunctionType() &&
-             almostEqualTypes(prior->type, type, Type::EF_IGNORE_EXN_SPEC)) {
+             almostEqualTypes(prior->type, type, MF_IGNORE_EXN_SPEC)) {
       // 10/01/04: allow the nonstandard variation in exception specs
       // for extern-C decls (since they usually don't throw exceptions
       // at all)

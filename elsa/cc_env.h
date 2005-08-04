@@ -19,6 +19,7 @@
 #include "builtinops.h"   // CandidateSet
 #include "cc_lang.h"      // Bool3
 #include "ptrmap.h"       // PtrMap
+#include "mflags.h"       // MatchFlags
 
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
@@ -268,7 +269,8 @@ private:     // funcs
     (CompoundType *ct, ObjList<STemplateArgument> const &args);
 
   bool equivalentSignatures(FunctionType *ft1, FunctionType *ft2);
-  bool equivalentTypes(Type *t1, Type *t2, Type::EqFlags eflags = Type::EF_EXACT);
+  bool equivalentTypes(Type const *t1, Type const *t2, 
+                       MatchFlags mflags = MF_EXACT);
 
   Variable *getPrimaryOrSpecialization
     (TemplateInfo *tinfo, ObjList<STemplateArgument> const &sargs);
@@ -613,8 +615,8 @@ public:      // funcs
 
   // compare types for equality; see extensive comment at
   // implementation
-  bool almostEqualTypes(Type /*const*/ *t1, Type /*const*/ *t2,
-                        Type::EqFlags eqFlags = Type::EF_EXACT);
+  bool almostEqualTypes(Type const *t1, Type const *t2,
+                        MatchFlags mflags = MF_EXACT);
 
   // create a "using declaration" alias
   void makeUsingAliasFor(SourceLoc loc, Variable *origVar);

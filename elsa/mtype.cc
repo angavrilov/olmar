@@ -180,14 +180,37 @@ void MType::setBoundValue(StringRef name, STemplateArgument const &value)
 
 
 // ------------------ AtomicType and subclasses ---------------
+STATICDEF bool MType::canUseAsVariable(Variable *var, MatchFlags flags)
+{
+  xassert(var);
+
+  if (!( flags & MF_MATCH )) {
+    // we're not using anything as a variable
+    return false;
+  }
+
+  if ((flags & MF_UNASSOC_TPARAMS) &&
+      var->getParameterizedEntity() != NULL) {
+    // we cannot use 'var' as a variable because, even though it is a
+    // template parameter, it is associated with a specific template
+    // and MF_UNASSOC_TPARAMS means we can only use *unassociated*
+    // variables as such
+    return false;
+  }
+
+  // no problem
+  return true;
+}
+
+
 bool MType::matchAtomicType(AtomicType const *conc, AtomicType const *pat, MatchFlags flags)
 {
   if (conc == pat) {
     return true;
   }
 
-  if ((flags & MF_MATCH) &&
-      pat->isTypeVariable()) {
+  if (pat->isTypeVariable() &&
+      canUseAsVariable(pat->asTypeVariableC()->typedefVar, flags)) {
     return matchAtomicTypeWithVariable(conc, pat->asTypeVariableC(), flags);
   }
 
@@ -282,9 +305,9 @@ bool MType::matchSTemplateArguments(ObjList<STemplateArgument> const &conc,
 bool MType::matchSTemplateArgument(STemplateArgument const *conc, 
                                    STemplateArgument const *pat, MatchFlags flags)
 {
-  if ((flags & MF_MATCH) &&
-      pat->kind == STemplateArgument::STA_DEPEXPR &&
-      pat->getDepExpr()->isE_variable()) {
+  if (pat->kind == STemplateArgument::STA_DEPEXPR &&
+      pat->getDepExpr()->isE_variable() &&
+      canUseAsVariable(pat->getDepExpr()->asE_variable()->var, flags)) {
     return matchNontypeWithVariable(conc, pat->getDepExpr()->asE_variable(), flags);
   }
 
@@ -441,8 +464,8 @@ bool MType::matchPQName(PQName const *conc, PQName const *pat, MatchFlags flags)
 // ----------------- Type and subclasses -----------------
 bool MType::matchType(Type const *conc, Type const *pat, MatchFlags flags)
 {
-  if ((flags & MF_MATCH) &&
-      pat->isTypeVariable()) {
+  if (pat->isTypeVariable() &&
+      canUseAsVariable(pat->asTypeVariableC()->typedefVar, flags)) {
     return matchTypeWithVariable(conc, pat->asTypeVariableC(),
                                  pat->getCVFlags(), flags);
   }
