@@ -13,6 +13,7 @@
 
 class LinkSatisfier;
 class AstXmlLexer;
+class OverloadSet;
 
 string toXml(CompoundType::Keyword id);
 void fromXml(CompoundType::Keyword &out, rostring str);
@@ -72,6 +73,8 @@ class TypeToXml {
   void toXml_NamedAtomicType_properties(NamedAtomicType *nat);
   void toXml_NamedAtomicType_subtags(NamedAtomicType *nat);
 
+  void toXml(OverloadSet *oload);
+
   void toXml(BaseClass *bc);
   void toXml_BaseClass_properties(BaseClass *bc);
   void toXml_BaseClass_subtags(BaseClass *bc);
@@ -127,34 +130,37 @@ class ReadXml_Type : public ReadXml {
 
   private:
   // Types
-  void registerAttr_CVAtomicType       (CVAtomicType *obj,        int attr, char const *strValue);
-  void registerAttr_PointerType        (PointerType *obj,         int attr, char const *strValue);
-  void registerAttr_ReferenceType      (ReferenceType *obj,       int attr, char const *strValue);
-  void registerAttr_FunctionType       (FunctionType *obj,        int attr, char const *strValue);
+  void registerAttr_CVAtomicType       (CVAtomicType *,        int attr, char const *strValue);
+  void registerAttr_PointerType        (PointerType *,         int attr, char const *strValue);
+  void registerAttr_ReferenceType      (ReferenceType *,       int attr, char const *strValue);
+  void registerAttr_FunctionType       (FunctionType *,        int attr, char const *strValue);
   void registerAttr_FunctionType_ExnSpec
-    (FunctionType::ExnSpec *obj, int attr, char const *strValue);
-  void registerAttr_ArrayType          (ArrayType *obj,           int attr, char const *strValue);
-  void registerAttr_PointerToMemberType(PointerToMemberType *obj, int attr, char const *strValue);
+    (FunctionType::ExnSpec *, int attr, char const *strValue);
+  void registerAttr_ArrayType          (ArrayType *,           int attr, char const *strValue);
+  void registerAttr_PointerToMemberType(PointerToMemberType *, int attr, char const *strValue);
 
   // AtomicTypes
-  bool registerAttr_NamedAtomicType_super(NamedAtomicType *obj,   int attr, char const *strValue);
-  void registerAttr_SimpleType         (SimpleType *obj,          int attr, char const *strValue);
-  void registerAttr_CompoundType       (CompoundType *obj,        int attr, char const *strValue);
-  void registerAttr_EnumType           (EnumType *obj,            int attr, char const *strValue);
-  void registerAttr_EnumType_Value     (EnumType::Value *obj,     int attr, char const *strValue);
-  void registerAttr_TypeVariable       (TypeVariable *obj,        int attr, char const *strValue);
-  void registerAttr_PseudoInstantiation(PseudoInstantiation *obj, int attr, char const *strValue);
-  void registerAttr_DependentQType     (DependentQType *obj,      int attr, char const *strValue);
+  bool registerAttr_NamedAtomicType_super(NamedAtomicType *,   int attr, char const *strValue);
+  void registerAttr_SimpleType         (SimpleType *,          int attr, char const *strValue);
+  void registerAttr_CompoundType       (CompoundType *,        int attr, char const *strValue);
+  void registerAttr_EnumType           (EnumType *,            int attr, char const *strValue);
+  void registerAttr_EnumType_Value     (EnumType::Value *,     int attr, char const *strValue);
+  void registerAttr_TypeVariable       (TypeVariable *,        int attr, char const *strValue);
+  void registerAttr_PseudoInstantiation(PseudoInstantiation *, int attr, char const *strValue);
+  void registerAttr_DependentQType     (DependentQType *,      int attr, char const *strValue);
 
   // other
-  void registerAttr_Variable           (Variable *obj,            int attr, char const *strValue);
-  bool registerAttr_Scope_super        (Scope *obj,               int attr, char const *strValue);
-  void registerAttr_Scope              (Scope *obj,               int attr, char const *strValue);
-  bool registerAttr_BaseClass_super    (BaseClass *obj,           int attr, char const *strValue);
-  void registerAttr_BaseClass          (BaseClass *obj,           int attr, char const *strValue);
-  void registerAttr_BaseClassSubobj    (BaseClassSubobj *obj,     int attr, char const *strValue);
-
-//  #include "astxml_parse1_0decl.gen.cc"
+  void registerAttr_Variable           (Variable *,            int attr, char const *strValue);
+  bool registerAttr_Scope_super        (Scope *,               int attr, char const *strValue);
+  void registerAttr_Scope              (Scope *,               int attr, char const *strValue);
+  bool registerAttr_BaseClass_super    (BaseClass *,           int attr, char const *strValue);
+  void registerAttr_BaseClass          (BaseClass *,           int attr, char const *strValue);
+  void registerAttr_BaseClassSubobj    (BaseClassSubobj *,     int attr, char const *strValue);
+  void registerAttr_OverloadSet        (OverloadSet *,         int attr, char const *strValue);
+  void registerAttr_STemplateArgument  (STemplateArgument *,   int attr, char const *strValue);
+  void registerAttr_TemplateInfo       (TemplateInfo *,        int attr, char const *strValue);
+  void registerAttr_InheritedTemplateParams(InheritedTemplateParams*,
+                                                               int attr, char const *strValue);
 };
 
 #endif // CC_TYPE_XML_H

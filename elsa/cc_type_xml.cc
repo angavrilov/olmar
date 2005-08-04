@@ -365,7 +365,7 @@ void TypeToXml::toXml(AtomicType *atom) {
     printPtr(dataMembers, &cpd->dataMembers);
     printPtr(bases, &cpd->bases);
     printPtr(virtualBases, &cpd->virtualBases);
-    printPtr(subobj, &cpd->subobj); // embedded object, not a container
+    printPtr(subobj, &cpd->subobj); // FIX: embedded object, not a container
     printPtr(conversionOperators, &cpd->conversionOperators);
     printStrRef(instName, cpd->instName);
     printPtrAST(syntax, cpd->syntax);
@@ -380,7 +380,7 @@ void TypeToXml::toXml(AtomicType *atom) {
     travObjList_S(cpd, CompoundType, dataMembers, Variable);
     travObjList(cpd, CompoundType, bases, BaseClass);
     travObjList(cpd, CompoundType, virtualBases, BaseClassSubobj);
-    trav(&cpd->subobj);
+    trav(&cpd->subobj);         // FIX: embedded object
     travObjList_S(cpd, CompoundType, conversionOperators, Variable);
     trav(cpd->parameterizingScope);
     trav(cpd->selfType);
@@ -505,7 +505,7 @@ void TypeToXml::toXml(Variable *var) {
 //    trav(var->value);             // FIX: AST so make sure is serialized
   trav(var->defaultParamType);
 //    trav(var->funcDefn);          // FIX: AST so make sure is serialized
-  // skipping 'overload'; see above
+  trav(var->overload);
   trav(var->scope);
   trav(var->usingAlias_or_parameterizedEntity);
   trav(var->templInfo);
@@ -547,6 +547,17 @@ void TypeToXml::toXml_NamedAtomicType_properties(NamedAtomicType *nat) {
 
 void TypeToXml::toXml_NamedAtomicType_subtags(NamedAtomicType *nat) {
   trav(nat->typedefVar);
+}
+
+void TypeToXml::toXml(OverloadSet *oload) {
+  // idempotency
+  if (printedType(oload)) return;
+  openTag(OverloadSet, oload);
+  // **** attributes
+  printPtr(set, &oload->set);
+  tagEnd;
+  // **** subtags
+  travObjList_S(oload, OverloadSet, set, Variable);
 }
 
 void TypeToXml::toXml(BaseClass *bc) {
@@ -803,43 +814,68 @@ bool ReadXml_Type::kind2kindCat0(int kind, KindCategory *kindCat) {
   default: return false;        // we don't know this kind
 
   // Types
-  case XTOK_CVAtomicType:        *kindCat = KC_Node; break;
-  case XTOK_PointerType:         *kindCat = KC_Node; break;
-  case XTOK_ReferenceType:       *kindCat = KC_Node; break;
-  case XTOK_FunctionType:        *kindCat = KC_Node; break;
-  case XTOK_FunctionType_ExnSpec:*kindCat = KC_Node; break; // special
-  case XTOK_ArrayType:           *kindCat = KC_Node; break;
-  case XTOK_PointerToMemberType: *kindCat = KC_Node; break;
-
+  case XTOK_CVAtomicType:
+  case XTOK_PointerType:
+  case XTOK_ReferenceType:
+  case XTOK_FunctionType:
+  case XTOK_FunctionType_ExnSpec:
+  case XTOK_ArrayType:
+  case XTOK_PointerToMemberType:
   // AtomicTypes
-  case XTOK_SimpleType:          *kindCat = KC_Node; break;
-  case XTOK_CompoundType:        *kindCat = KC_Node; break;
-  case XTOK_EnumType:            *kindCat = KC_Node; break;
-  case XTOK_TypeVariable:        *kindCat = KC_Node; break;
-  case XTOK_PseudoInstantiation: *kindCat = KC_Node; break;
-  case XTOK_DependentQType:      *kindCat = KC_Node; break;
-
+  case XTOK_SimpleType:
+  case XTOK_CompoundType:
+  case XTOK_EnumType:
+  case XTOK_TypeVariable:
+  case XTOK_PseudoInstantiation:
+  case XTOK_DependentQType:
   // Other
-  case XTOK_Variable:            *kindCat = KC_Node; break;
-  case XTOK_Scope:               *kindCat = KC_Node; break;
-  case XTOK_BaseClass:           *kindCat = KC_Node; break;
-  case XTOK_BaseClassSubobj:     *kindCat = KC_Node; break;
+  case XTOK_Variable:
+  case XTOK_Scope:
+  case XTOK_BaseClass:
+  case XTOK_BaseClassSubobj:
+  case XTOK_OverloadSet:
+  case XTOK_STemplateArgument:
+  case XTOK_TemplateInfo:
+  case XTOK_InheritedTemplateParams:
+    *kindCat = KC_Node;
+    break;
 
-  // Containers
+  // **** Containers
+
   //   ObjList
-  case XTOK_List_CompoundType_bases:               *kindCat = KC_ObjList;       break;
-  case XTOK_List_CompoundType_virtualBases:        *kindCat = KC_ObjList;       break;
+  case XTOK_List_CompoundType_bases:
+  case XTOK_List_CompoundType_virtualBases:
+  case XTOK_List_TemplateInfo_inheritedParams:
+  case XTOK_List_TemplateInfo_arguments:
+  case XTOK_List_TemplateInfo_argumentsToPrimary:
+    *kindCat = KC_ObjList;
+    break;
+
   //   SObjList
-  case XTOK_List_FunctionType_params:              *kindCat = KC_SObjList;      break;
-  case XTOK_List_CompoundType_dataMembers:         *kindCat = KC_SObjList;      break;
-  case XTOK_List_CompoundType_conversionOperators: *kindCat = KC_SObjList;      break;
-  case XTOK_List_BaseClassSubobj_parents:          *kindCat = KC_SObjList;      break;
-  case XTOK_List_ExnSpec_types:                    *kindCat = KC_SObjList;      break;
+  case XTOK_List_FunctionType_params:
+  case XTOK_List_CompoundType_dataMembers:
+  case XTOK_List_CompoundType_conversionOperators:
+  case XTOK_List_BaseClassSubobj_parents:
+  case XTOK_List_ExnSpec_types:
+  case XTOK_List_Scope_templateParams:
+  case XTOK_List_OverloadSet_set:
+  case XTOK_List_TemplateInfo_instantiations:
+  case XTOK_List_TemplateInfo_specializations:
+  case XTOK_List_TemplateInfo_partialInstantiations:
+  case XTOK_List_TemplateParams_params:
+    *kindCat = KC_SObjList;
+    break;
 
   //   StringRefMap
-  case XTOK_NameMap_Scope_variables:               *kindCat = KC_StringRefMap;  break;
-  case XTOK_NameMap_Scope_typeTags:                *kindCat = KC_StringRefMap;  break;
-  case XTOK_NameMap_EnumType_valueIndex:           *kindCat = KC_StringSObjDict;break;
+  case XTOK_NameMap_Scope_variables:
+  case XTOK_NameMap_Scope_typeTags:
+    *kindCat = KC_StringRefMap;
+    break;
+
+  //   StringSObjDict
+  case XTOK_NameMap_EnumType_valueIndex:
+    *kindCat = KC_StringSObjDict;
+    break;
   }
   return true;
 }
@@ -859,7 +895,13 @@ bool ReadXml_Type::convertList2SObjList(ASTList<char> *list, int listKind, void 
 
   case XTOK_List_FunctionType_params:
   case XTOK_List_CompoundType_dataMembers:
-  case XTOK_List_CompoundType_conversionOperators: {
+  case XTOK_List_CompoundType_conversionOperators:
+  case XTOK_List_Scope_templateParams:
+  case XTOK_List_OverloadSet_set:
+  case XTOK_List_TemplateInfo_instantiations:
+  case XTOK_List_TemplateInfo_specializations:
+  case XTOK_List_TemplateInfo_partialInstantiations:
+  case XTOK_List_TemplateParams_params: {
     SObjList<Variable> *ret = reinterpret_cast<SObjList<Variable>*>(target);
     xassert(ret->isEmpty());
     FOREACH_ASTLIST_NC(Variable, reinterpret_cast<ASTList<Variable>&>(*list), iter) {
@@ -888,11 +930,12 @@ bool ReadXml_Type::convertList2SObjList(ASTList<char> *list, int listKind, void 
     ret->reverse();
     break;
   }
+
   }
   return true;
 }
 
-bool ReadXml_Type::convertList2ObjList (ASTList<char> *list, int listKind, void **target) {
+bool ReadXml_Type::convertList2ObjList(ASTList<char> *list, int listKind, void **target) {
   // NOTE: ObjList only has constant-time prepend, not constant-time
   // append, hence the prepend() and reverse().
   xassert(list);
@@ -914,6 +957,31 @@ bool ReadXml_Type::convertList2ObjList (ASTList<char> *list, int listKind, void 
     ObjList<BaseClassSubobj> *ret = reinterpret_cast<ObjList<BaseClassSubobj>*>(target);
     xassert(ret->isEmpty());
     FOREACH_ASTLIST_NC(BaseClassSubobj, reinterpret_cast<ASTList<BaseClassSubobj>&>(*list), iter) {
+      ret->prepend(iter.data());
+    }
+    ret->reverse();
+    break;
+  }
+
+  case XTOK_List_TemplateInfo_inheritedParams: {
+    ObjList<InheritedTemplateParams> *ret =
+      reinterpret_cast<ObjList<InheritedTemplateParams>*>(target);
+    xassert(ret->isEmpty());
+    FOREACH_ASTLIST_NC(InheritedTemplateParams,
+                       reinterpret_cast<ASTList<InheritedTemplateParams>&>(*list), iter) {
+      ret->prepend(iter.data());
+    }
+    ret->reverse();
+    break;
+  }
+
+  case XTOK_List_TemplateInfo_arguments:
+  case XTOK_List_TemplateInfo_argumentsToPrimary: {
+    ObjList<STemplateArgument> *ret =
+      reinterpret_cast<ObjList<STemplateArgument>*>(target);
+    xassert(ret->isEmpty());
+    FOREACH_ASTLIST_NC(STemplateArgument,
+                       reinterpret_cast<ASTList<STemplateArgument>&>(*list), iter) {
       ret->prepend(iter.data());
     }
     ret->reverse();
@@ -1004,24 +1072,45 @@ void *ReadXml_Type::ctorNodeFromTag(int tag) {
     // BaseClassSubobj that it is not kept there and therefore can be
     // deleted at the end of the full expression.
     return new BaseClassSubobj(BaseClass((CompoundType*)0, (AccessKeyword)0, (bool)0));
+  case XTOK_OverloadSet: return new OverloadSet();
+  case XTOK_STemplateArgument: return new STemplateArgument();
+  case XTOK_TemplateInfo: return new TemplateInfo((SourceLoc)0);
+  case XTOK_InheritedTemplateParams: return new InheritedTemplateParams((CompoundType*)0);
 
   // **** Containers
   // ObjList
-  case XTOK_List_CompoundType_bases: return new ASTList<BaseClass>();
-  case XTOK_List_CompoundType_virtualBases: return new ASTList<BaseClassSubobj>();
+  case XTOK_List_CompoundType_bases:
+    return new ASTList<BaseClass>();
+  case XTOK_List_CompoundType_virtualBases:
+    return new ASTList<BaseClassSubobj>();
+  case XTOK_List_TemplateInfo_inheritedParams:
+    return new ObjList<InheritedTemplateParams>();
+  case XTOK_List_TemplateInfo_arguments:
+  case XTOK_List_TemplateInfo_argumentsToPrimary:
+    return new ObjList<STemplateArgument>();
 
   // SObjList
-  case XTOK_List_FunctionType_params: return new ASTList<Variable>();
-  case XTOK_List_CompoundType_dataMembers: return new ASTList<Variable>();
-  case XTOK_List_CompoundType_conversionOperators: return new ASTList<Variable>();
-  case XTOK_List_BaseClassSubobj_parents: return new ASTList<BaseClassSubobj>();
-  case XTOK_List_ExnSpec_types: return new ASTList<Type>();
-  case XTOK_List_Scope_templateParams: return new ASTList<Variable>();
+  case XTOK_List_BaseClassSubobj_parents:
+    return new ASTList<BaseClassSubobj>();
+  case XTOK_List_ExnSpec_types:
+    return new ASTList<Type>();
+  case XTOK_List_FunctionType_params:
+  case XTOK_List_CompoundType_dataMembers:
+  case XTOK_List_CompoundType_conversionOperators:
+  case XTOK_List_Scope_templateParams:
+  case XTOK_List_OverloadSet_set:
+  case XTOK_List_TemplateInfo_instantiations:
+  case XTOK_List_TemplateInfo_specializations:
+  case XTOK_List_TemplateInfo_partialInstantiations:
+  case XTOK_List_TemplateParams_params:
+    return new ASTList<Variable>();
 
   // StringRefMap
-  case XTOK_NameMap_Scope_variables: return new StringRefMap<Variable>();
-  case XTOK_NameMap_Scope_typeTags: return new StringRefMap<Variable>();
-  case XTOK_NameMap_EnumType_valueIndex: return new StringRefMap<EnumType::Value>();
+  case XTOK_NameMap_Scope_variables:
+  case XTOK_NameMap_Scope_typeTags:
+    return new StringRefMap<Variable>();
+  case XTOK_NameMap_EnumType_valueIndex:
+    return new StringRefMap<EnumType::Value>();
   }
 }
 
@@ -1035,30 +1124,37 @@ void ReadXml_Type::registerAttribute(void *target, int kind, int attr, char cons
   default: xfailure("illegal kind");
 
   // **** Types
-  case XTOK_CVAtomicType: regAttr(CVAtomicType); break; 
-  case XTOK_PointerType: regAttr(PointerType); break; 
-  case XTOK_ReferenceType: regAttr(ReferenceType); break; 
-  case XTOK_FunctionType: regAttr(FunctionType); break; 
+  case XTOK_CVAtomicType: regAttr(CVAtomicType);               break;
+  case XTOK_PointerType: regAttr(PointerType);                 break;
+  case XTOK_ReferenceType: regAttr(ReferenceType);             break;
+  case XTOK_FunctionType: regAttr(FunctionType);               break;
+  case XTOK_ArrayType: regAttr(ArrayType);                     break;
+  case XTOK_PointerToMemberType: regAttr(PointerToMemberType); break;
   case XTOK_FunctionType_ExnSpec:
-    registerAttr_FunctionType_ExnSpec((FunctionType::ExnSpec*)target, attr, yytext0); break;
-  case XTOK_ArrayType: regAttr(ArrayType); break; 
-  case XTOK_PointerToMemberType: regAttr(PointerToMemberType); break; 
+    registerAttr_FunctionType_ExnSpec
+      ((FunctionType::ExnSpec*)target, attr, yytext0);         break;
 
   // **** Atomic Types
-  case XTOK_SimpleType: regAttr(SimpleType); break; 
-  case XTOK_CompoundType: regAttr(CompoundType); break; 
-  case XTOK_EnumType: regAttr(EnumType); break; 
+  case XTOK_SimpleType: regAttr(SimpleType);                   break;
+  case XTOK_CompoundType: regAttr(CompoundType);               break;
+  case XTOK_EnumType: regAttr(EnumType);                       break;
+  case XTOK_TypeVariable: regAttr(TypeVariable);               break;
+  case XTOK_PseudoInstantiation: regAttr(PseudoInstantiation); break;
+  case XTOK_DependentQType: regAttr(DependentQType);           break;
   case XTOK_EnumType_Value:
-    registerAttr_EnumType_Value((EnumType::Value*)target, attr, yytext0); break;
-  case XTOK_TypeVariable: regAttr(TypeVariable); break; 
-  case XTOK_PseudoInstantiation: regAttr(PseudoInstantiation); break; 
-  case XTOK_DependentQType: regAttr(DependentQType); break; 
+    registerAttr_EnumType_Value
+      ((EnumType::Value*)target, attr, yytext0);               break;
 
   // **** Other
-  case XTOK_Variable: regAttr(Variable); break; 
-  case XTOK_Scope: regAttr(Scope); break; 
-  case XTOK_BaseClass: regAttr(BaseClass); break; 
-  case XTOK_BaseClassSubobj: regAttr(BaseClassSubobj); break; 
+  case XTOK_Variable: regAttr(Variable);                       break;
+  case XTOK_Scope: regAttr(Scope);                             break;
+  case XTOK_BaseClass: regAttr(BaseClass);                     break;
+  case XTOK_BaseClassSubobj: regAttr(BaseClassSubobj);         break;
+  case XTOK_OverloadSet: regAttr(OverloadSet);                 break;
+  case XTOK_STemplateArgument: regAttr(STemplateArgument);     break;
+  case XTOK_TemplateInfo: regAttr(TemplateInfo);               break;
+  case XTOK_InheritedTemplateParams:
+    regAttr(InheritedTemplateParams);                          break;
   }
 }
 
@@ -1118,7 +1214,7 @@ void ReadXml_Type::registerAttr_ArrayType(ArrayType *obj, int attr, char const *
   switch(attr) {
   default: userError("illegal attribute for a ArrayType"); break; 
   case XTOK_eltType: ul(eltType); break; 
-  case XTOK_size: obj->size = atoi(parseQuotedString(strValue)); break; 
+  case XTOK_size: fromXml_int(obj->size, parseQuotedString(strValue)); break; 
   }
 }
 
@@ -1148,7 +1244,7 @@ void ReadXml_Type::registerAttr_Variable(Variable *obj, int attr, char const *st
   case XTOK_scope: ul(scope); break; 
   case XTOK_intData: fromXml_Variable_intData(obj->intData, parseQuotedString(strValue)); break; 
   case XTOK_usingAlias_or_parameterizedEntity: ul(usingAlias_or_parameterizedEntity); break; 
-  // FIX: templInfo
+  case XTOK_templInfo: ul(templInfo); break; 
   }
 }
 
@@ -1203,7 +1299,7 @@ void ReadXml_Type::registerAttr_EnumType(EnumType *obj, int attr, char const *st
   switch(attr) {
   default: userError("illegal attribute for a EnumType"); break; 
   case XTOK_valueIndex: ulList(_NameMap, valueIndex, XTOK_NameMap_EnumType_valueIndex); break; 
-  case XTOK_nextValue: obj->nextValue = atoi(parseQuotedString(strValue)); break; 
+  case XTOK_nextValue: fromXml_int(obj->nextValue, parseQuotedString(strValue)); break; 
   }
 }
 
@@ -1213,7 +1309,7 @@ void ReadXml_Type::registerAttr_EnumType_Value
   default: userError("illegal attribute for a EnumType"); break; 
   case XTOK_name: obj->name = strTable(parseQuotedString(strValue)); break; 
   case XTOK_type: ul(type); break; // NOTE: 'type' here is actually an atomic type
-  case XTOK_value: obj->value = atoi(parseQuotedString(strValue)); break; 
+  case XTOK_value: fromXml_int(obj->value, parseQuotedString(strValue)); break; 
   case XTOK_decl: ul(decl); break; 
   }
 }
@@ -1302,5 +1398,69 @@ void ReadXml_Type::registerAttr_BaseClassSubobj
   switch(attr) {
   default: userError("illegal attribute for a BaseClassSubobj"); break; 
   case XTOK_parents: ulList(_List, parents, XTOK_List_BaseClassSubobj_parents); break; 
+  }
+}
+
+void ReadXml_Type::registerAttr_OverloadSet(OverloadSet *obj, int attr, char const *strValue) {
+  switch(attr) {
+  default: userError("illegal attribute for a OverloadSet"); break; 
+  case XTOK_set: ulList(_List, set, XTOK_List_OverloadSet_set); break; 
+  }
+}
+
+void ReadXml_Type::registerAttr_STemplateArgument
+  (STemplateArgument *obj, int attr, char const *strValue) {
+  switch(attr) {
+  default: userError("illegal attribute for a STemplateArgument"); break; 
+  case XTOK_kind:
+  case XTOK_t: ul(value.t); break;
+  case XTOK_i: fromXml_int(obj->value.i, parseQuotedString(strValue)); break; 
+  case XTOK_v: ul(value.v); break;
+  case XTOK_e: ul(value.e); break;
+  case XTOK_at: ul(value.at); break;
+  }
+}
+
+void ReadXml_Type::registerAttr_TemplateInfo(TemplateInfo *obj, int attr, char const *strValue) {
+  switch(attr) {
+  default: userError("illegal attribute for a TemplateInfo"); break; 
+  case XTOK_var: ul(var); break;
+  case XTOK_inheritedParams:
+    ulList(_List, inheritedParams, XTOK_List_TemplateInfo_inheritedParams); break;
+  case XTOK_instantiationOf:
+    ul(instantiationOf); break;
+  case XTOK_instantiations:
+    ulList(_List, instantiations, XTOK_List_TemplateInfo_instantiations); break;
+  case XTOK_specializationOf:
+    ul(specializationOf); break;
+  case XTOK_specializations:
+    ulList(_List, specializations, XTOK_List_TemplateInfo_specializations); break;
+  case XTOK_arguments:
+    ulList(_List, arguments, XTOK_List_TemplateInfo_arguments); break;
+  case XTOK_instLoc:            // throw it away for now; FIX: parse it
+    break;
+  case XTOK_partialInstantiationOf:
+    ul(partialInstantiationOf); break;
+  case XTOK_partialInstantiations:
+    ulList(_List, partialInstantiations, XTOK_List_TemplateInfo_partialInstantiations); break;
+  case XTOK_argumentsToPrimary:
+    ulList(_List, argumentsToPrimary, XTOK_List_TemplateInfo_argumentsToPrimary); break;
+  case XTOK_defnScope:
+    ul(defnScope); break;
+  case XTOK_definitionTemplateInfo:
+    ul(definitionTemplateInfo); break;
+  case XTOK_params:
+    ulList(_List, params, XTOK_List_TemplateParams_params); break;
+  }
+}
+
+void ReadXml_Type::registerAttr_InheritedTemplateParams
+  (InheritedTemplateParams *obj, int attr, char const *strValue) {
+  switch(attr) {
+  default: userError("illegal attribute for a InheritedTemplateParams"); break; 
+  case XTOK_params:
+    ulList(_List, params, XTOK_List_TemplateParams_params); break;
+  case XTOK_enclosing:
+    ul(enclosing); break;
   }
 }

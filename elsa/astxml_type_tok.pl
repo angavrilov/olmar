@@ -119,6 +119,10 @@ Variable
 Scope
 BaseClass
 BaseClassSubobj
+OverloadSet
+STemplateArgument
+TemplateInfo
+InheritedTemplateParams
 # yet more fields
 flags
 value
@@ -127,6 +131,7 @@ funcDefn
 scope
 intData
 usingAlias_or_parameterizedEntity
+templInfo
 canAcceptNames
 parentScope
 scopeKind
@@ -138,6 +143,27 @@ typeTags
 parents
 templateParams
 overload
+set
+inheritedParams
+instantiationOf
+instantiations
+specializationOf
+specializations
+arguments
+partialInstantiationOf
+partialInstantiations
+argumentsToPrimary
+defnScope
+definitionTemplateInfo
+enclosing
+instLoc
+# params
+kind
+t
+# i
+v
+# e
+at
 
 # Some containers; I no longer care about order
 #   ObjList
@@ -150,6 +176,14 @@ List_CompoundType_conversionOperators
 List_BaseClassSubobj_parents
 List_ExnSpec_types
 List_Scope_templateParams
+List_OverloadSet_set
+List_TemplateInfo_inheritedParams
+List_TemplateInfo_instantiations
+List_TemplateInfo_specializations
+List_TemplateInfo_arguments
+List_TemplateInfo_partialInstantiations
+List_TemplateInfo_argumentsToPrimary
+List_TemplateParams_params
 #   a list element; these are in the AST so I don't need them here
 #  _List_Item
 #  to
