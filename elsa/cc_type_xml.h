@@ -74,6 +74,7 @@ class TypeToXml {
 
   void toXml(BaseClass *bc);
   void toXml_BaseClass_properties(BaseClass *bc);
+  void toXml_BaseClass_subtags(BaseClass *bc);
   void toXml(BaseClassSubobj *bc);
 
   void toXml(Scope *obj);

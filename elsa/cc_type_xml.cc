@@ -348,7 +348,7 @@ void TypeToXml::toXml(AtomicType *obj) {
     printPtr(dataMembers, &cpd->dataMembers);
     printPtr(bases, &cpd->bases);
     printPtr(virtualBases, &cpd->virtualBases);
-    printPtr(subobj, &cpd->subobj);
+    printPtr(subobj, &cpd->subobj); // embedded object, not a container
     printPtr(conversionOperators, &cpd->conversionOperators);
     printStrRef(instName, cpd->instName);
     printPtrAST(syntax, cpd->syntax);
@@ -394,6 +394,8 @@ void TypeToXml::toXml(AtomicType *obj) {
     }
     // parameterizingScope
     trav(cpd->parameterizingScope);
+    // selfType
+    trav(cpd->selfType);
     break;
   }
 
@@ -583,7 +585,7 @@ void TypeToXml::toXml(BaseClass *bc) {
   toXml_BaseClass_properties(bc);
   tagEnd;
   // **** subtags
-  trav(bc->ct);
+  toXml_BaseClass_subtags(bc);
 }
 
 void TypeToXml::toXml_BaseClass_properties(BaseClass *bc) {
@@ -592,15 +594,24 @@ void TypeToXml::toXml_BaseClass_properties(BaseClass *bc) {
   printXml_bool(isVirtual, bc->isVirtual);
 }
 
+void TypeToXml::toXml_BaseClass_subtags(BaseClass *bc) {
+  trav(bc->ct);
+}
+
 void TypeToXml::toXml(BaseClassSubobj *bc) {
   // idempotency
   if (printedType(bc)) return;
   openTag(BaseClassSubobj, bc);
   // **** attributes
+  // * superclass
   toXml_BaseClass_properties(bc);
+  // * members
   printPtr(parents, &bc->parents);
   tagEnd;
   // **** subtags
+  // * superclass
+  toXml_BaseClass_subtags(bc);
+  // * members
   if (!printedOL(&bc->parents)) {
     openTagWhole(List_BaseClassSubobj_parents, &bc->parents);
     SFOREACH_OBJLIST_NC(BaseClassSubobj, bc->parents, iter) {
@@ -725,9 +736,12 @@ void TypeToXml::toXml(STemplateArgument *obj) {
   tagEnd;
 
   // **** subtags
+
+  // NOTE: I don't use the trav() macro here because it would be weird
+  // to test the member of a union for being NULL; it should have a
+  // well-defined value if it is the selected type of the tag.
   switch(obj->kind) {
   default: xfailure("illegal STemplateArgument kind"); break;
-
   case STemplateArgument::STA_TYPE:
     toXml(obj->value.t);
     break;
@@ -752,7 +766,7 @@ void TypeToXml::toXml(STemplateArgument *obj) {
     break;
 
   case STemplateArgument::STA_ATOMIC:
-    trav(const_cast<AtomicType*>(obj->value.at));
+    toXml(const_cast<AtomicType*>(obj->value.at));
     break;
   }
 }
