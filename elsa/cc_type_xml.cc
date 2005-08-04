@@ -19,17 +19,18 @@ inline void const *addr(void const *x) {
 string idPrefixAST(void const * const) {return "AST";}
 
 // type annotations
-string idPrefix(Type const * const)                  {return "TY";}
-string idPrefix(AtomicType const * const)            {return "TY";}
-string idPrefix(CompoundType const * const)          {return "TY";}
-string idPrefix(FunctionType::ExnSpec const * const) {return "TY";}
-string idPrefix(EnumType::Value const * const)       {return "TY";}
-string idPrefix(BaseClass const * const)             {return "TY";}
-string idPrefix(Scope const * const)                 {return "TY";}
-string idPrefix(Variable const * const)              {return "TY";}
-string idPrefix(OverloadSet const * const)           {return "TY";}
-string idPrefix(STemplateArgument const * const)     {return "TY";}
-string idPrefix(TemplateInfo const * const)          {return "TY";}
+string idPrefix(Type const * const)                    {return "TY";}
+string idPrefix(AtomicType const * const)              {return "TY";}
+string idPrefix(CompoundType const * const)            {return "TY";}
+string idPrefix(FunctionType::ExnSpec const * const)   {return "TY";}
+string idPrefix(EnumType::Value const * const)         {return "TY";}
+string idPrefix(BaseClass const * const)               {return "TY";}
+string idPrefix(Scope const * const)                   {return "TY";}
+string idPrefix(Variable const * const)                {return "TY";}
+string idPrefix(OverloadSet const * const)             {return "TY";}
+string idPrefix(STemplateArgument const * const)       {return "TY";}
+string idPrefix(TemplateInfo const * const)            {return "TY";}
+string idPrefix(InheritedTemplateParams const * const) {return "TY";}
 
 // containers
 template <class T> string idPrefix(ObjList<T> const * const)       {return "OL";}
@@ -532,7 +533,7 @@ void TypeToXml::toXml(Variable *var) {
   // skipping 'overload'; see above
   trav(var->scope);
   trav(var->usingAlias_or_parameterizedEntity);
-//    trav(var->templInfo);
+  trav(var->templInfo);
 }
 
 void TypeToXml::toXml_FunctionType_ExnSpec(void /*FunctionType::ExnSpec*/ *exnSpec0) {
@@ -636,7 +637,7 @@ void TypeToXml::toXml_Scope_properties(Scope *scope) {
   printPtr(variables, &scope->variables);
   printPtr(typeTags, &scope->typeTags);
   printXml_bool(canAcceptNames, scope->canAcceptNames);
-  printPtr(parentScope, scope);
+  printPtr(parentScope, scope->parentScope);
   printXml(scopeKind, scope->scopeKind);
   printPtr(namespaceVar, scope->namespaceVar);
   printPtr(templateParams, &scope->templateParams);
@@ -772,6 +773,118 @@ void TypeToXml::toXml(STemplateArgument *obj) {
     break;
   }
 }
+
+void TypeToXml::toXml(TemplateInfo *ti) {
+  // idempotency
+  if (printedType(ti)) return;
+  openTag(TemplateInfo, ti);
+  // **** attributes
+  // * superclass
+  toXml_TemplateParams_properties(ti);
+  // * members
+  printPtr(var, ti->var);
+  printPtr(inheritedParams, &ti->inheritedParams);
+  printPtr(instantiationOf, ti->instantiationOf);
+  printPtr(instantiations, &ti->instantiations);
+  printPtr(specializationOf, ti->specializationOf);
+  printPtr(specializations, &ti->specializations);
+  printPtr(arguments, &ti->arguments);
+  printXml_SourceLoc(instLoc, ti->instLoc);
+  printPtr(partialInstantiationOf, ti->partialInstantiationOf);
+  printPtr(partialInstantiations, &ti->partialInstantiations);
+  printPtr(argumentsToPrimary, &ti->argumentsToPrimary);
+  printPtr(defnScope, ti->defnScope);
+  printPtr(definitionTemplateInfo, ti->definitionTemplateInfo);
+  tagEnd;
+  // **** subtags
+  // * superclass
+  toXml_TemplateParams_subtags(ti);
+  // * members
+  // var
+  trav(ti->var);
+  // inheritedParams
+  if (!printedOL(&ti->inheritedParams)) {
+    openTagWhole(List_TemplateInfo_inheritedParams, &ti->inheritedParams);
+    FOREACH_OBJLIST_NC(InheritedTemplateParams, ti->inheritedParams, iter) {
+      travListItem(iter.data());
+    }
+  }
+  // instantiationOf
+  trav(ti->instantiationOf);
+  // instantiations
+  if (!printedOL(&ti->instantiations)) {
+    openTagWhole(List_TemplateInfo_instantiations, &ti->instantiations);
+    SFOREACH_OBJLIST_NC(Variable, ti->instantiations, iter) {
+      travListItem(iter.data());
+    }
+  }
+  // specializationOf
+  trav(ti->specializationOf);
+  // specializations
+  if (!printedOL(&ti->specializations)) {
+    openTagWhole(List_TemplateInfo_specializations, &ti->specializations);
+    SFOREACH_OBJLIST_NC(Variable, ti->specializations, iter) {
+      travListItem(iter.data());
+    }
+  }
+  // arguments
+  if (!printedOL(&ti->arguments)) {
+    openTagWhole(List_TemplateInfo_arguments, &ti->arguments);
+    FOREACH_OBJLIST_NC(STemplateArgument, ti->arguments, iter) {
+      travListItem(iter.data());
+    }
+  }
+  // partialInstantiationOf
+  trav(ti->partialInstantiationOf);
+  // partialInstantiations
+  if (!printedOL(&ti->partialInstantiations)) {
+    openTagWhole(List_TemplateInfo_partialInstantiations, &ti->partialInstantiations);
+    SFOREACH_OBJLIST_NC(Variable, ti->partialInstantiations, iter) {
+      travListItem(iter.data());
+    }
+  }
+  // argumentsToPrimary
+  if (!printedOL(&ti->argumentsToPrimary)) {
+    openTagWhole(List_TemplateInfo_argumentsToPrimary, &ti->argumentsToPrimary);
+    FOREACH_OBJLIST_NC(STemplateArgument, ti->argumentsToPrimary, iter) {
+      travListItem(iter.data());
+    }
+  }
+  // defnScope
+  trav(ti->defnScope);
+  // definitionTemplateInfo
+  trav(ti->definitionTemplateInfo);
+}
+
+void TypeToXml::toXml(InheritedTemplateParams *itp) {
+  // idempotency
+  if (printedType(itp)) return;
+  openTag(TemplateInfo, itp);
+  // **** attributes
+  // * superclass
+  toXml_TemplateParams_properties(itp);
+  // * members
+  printPtr(enclosing, itp->enclosing);
+  // **** subtags
+  // * superclass
+  toXml_TemplateParams_subtags(itp);
+  // * members
+  trav(itp->enclosing);
+}
+
+void TypeToXml::toXml_TemplateParams_properties(TemplateParams *tp) {
+  printPtr(params, &tp->params);
+}
+
+void TypeToXml::toXml_TemplateParams_subtags(TemplateParams *tp) {
+  if (!printedOL(&tp->params)) {
+    openTagWhole(List_TemplateParams_params, &tp->params);
+    SFOREACH_OBJLIST_NC(Variable, tp->params, iter) {
+      travListItem(iter.data());
+    }
+  }
+}
+
 
 // -------------------- ReadXml_Type -------------------
 

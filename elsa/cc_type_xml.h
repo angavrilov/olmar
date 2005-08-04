@@ -82,6 +82,10 @@ class TypeToXml {
   void toXml_Scope_subtags(Scope *scope);
 
   void toXml(STemplateArgument *obj);
+  void toXml(TemplateInfo *ti);
+  void toXml(InheritedTemplateParams *itp);
+  void toXml_TemplateParams_properties(TemplateParams *tp);
+  void toXml_TemplateParams_subtags(TemplateParams *tp);
 };
 
 
