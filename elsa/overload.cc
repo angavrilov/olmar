@@ -433,9 +433,10 @@ void OverloadResolver::processCandidate(Variable *v)
     Variable *var0 = iter.data();
     TemplateInfo *templInfo0 = var0->templateInfo();
     xassert(templInfo0);      // should have templateness
+    
     // see if this candidate matches
-    MatchTypes match(env.tfac, MatchTypes::MM_BIND);
-    if (!match.match_Lists(sargs, templInfo0->arguments, 2 /*matchDepth*/)) {
+    MType match;
+    if (!match.matchSTArgList(sargs, templInfo0->arguments, MF_MATCH)) {
       // if not, skip it
       continue;
     }

@@ -62,32 +62,28 @@ string MType::Binding::asString() const
 
 
 // -------------------------- MType --------------------------
-MType::MType(bool nonConst_)
+MType::MType(bool allowNonConst_)
   : bindings(),
-    nonConst(nonConst_)
+    allowNonConst(allowNonConst_)
 {}
 
 MType::~MType()
 {}
 
 
-// gcov-begin-ignore: at the moment, only the non-const interface is used
 bool MType::match(Type const *conc, Type const *pat, MatchFlags flags)
 {
   // I can only uphold the promise of not modifying 'conc' and 'pat'
   // if asked to when I was created.
-  xassert(!nonConst);
+  xassert(!allowNonConst);
 
   return imatch(conc, pat, flags);
 }
-// gcov-end-ignore
-
 
 bool MType::matchNC(Type *conc, Type *pat, MatchFlags flags)
 {
   return imatch(conc, pat, flags);
 }
-
 
 bool MType::imatch(Type const *conc, Type const *pat, MatchFlags flags)
 {
@@ -110,11 +106,63 @@ bool MType::imatch(Type const *conc, Type const *pat, MatchFlags flags)
          ;
 
       if (result) {
-        // extract bindings
-        os << "; bindings:";
-        for (BindingMap::Iter iter(bindings); !iter.isDone(); iter.adv()) {
-          os << " \"" << iter.key() << "\"=`" << iter.value()->asString() << "'";
-        }
+        os << bindingsToString();
+      }
+
+      os << endl;
+    }
+  #endif // NDEBUG
+
+  return result;
+}
+
+
+string MType::bindingsToString() const
+{
+  // extract bindings
+  stringBuilder sb;
+  sb << "; bindings:";
+  for (BindingMap::IterC iter(bindings); !iter.isDone(); iter.adv()) {
+    sb << " \"" << iter.key() << "\"=`" << iter.value()->asString() << "'";
+  }
+  return sb;
+}
+
+
+bool MType::matchSTArgList(ObjList<STemplateArgument> const &conc,
+                           ObjList<STemplateArgument> const &pat,
+                           MatchFlags flags)
+{
+  xassert(!allowNonConst);
+
+  return imatchSTArgList(conc, pat, flags);
+}
+
+bool MType::matchSTArgListNC(ObjList<STemplateArgument> &conc,
+                             ObjList<STemplateArgument> &pat,
+                             MatchFlags flags)
+{
+  return imatchSTArgList(conc, pat, flags);
+}
+
+bool MType::imatchSTArgList(ObjList<STemplateArgument> const &conc,
+                            ObjList<STemplateArgument> const &pat,
+                            MatchFlags flags)
+{
+  bool result = matchSTemplateArguments(conc, pat, flags);
+
+  #ifndef NDEBUG
+    static bool doTrace = tracingSys("mtype");
+    if (doTrace) {
+      ostream &os = trace("mtype");
+      os << "conc=" << sargsToString(conc)
+         << " pat=" << sargsToString(pat)
+         << " flags={" << toString(flags)
+         << "}; match=" << (result? "true" : "false")
+         ;
+
+      if (result) {
+        os << bindingsToString();
       }
 
       os << endl;
@@ -136,7 +184,7 @@ STemplateArgument MType::getBoundValue(StringRef name, TypeFactory &tfac)
   // you can't do this with the matcher that promises to
   // only work with const pointers; this assertion provides
   // the justification for the const_casts below
-  xassert(nonConst);
+  xassert(allowNonConst);
 
   Binding *b = bindings.get(name);
   if (!b) {

@@ -1846,12 +1846,8 @@ void Env::deleteTemplateArgBindings(Scope *limit)
 void Env::mapPrimaryArgsToSpecArgs(
   Variable *baseV,         // partial specialization
   ObjList<STemplateArgument> &partialSpecArgs,       // dest. list
-  SObjList<STemplateArgument> const &primaryArgs)    // source list
+  ObjList<STemplateArgument> &primaryArgs)           // source list
 {
-  // ...
-  ObjList<STemplateArgument> const &hackPrimaryArgs =
-    reinterpret_cast<ObjList<STemplateArgument> const &>(primaryArgs);
-
   // similar to Env::findMostSpecific, we need to match against the
   // original's args if this is a partial instantiation (in/t0504.cc)
   TemplateInfo *baseVTI = baseV->templateInfo();
@@ -1863,8 +1859,7 @@ void Env::mapPrimaryArgsToSpecArgs(
   // execute the match to derive the bindings; we should not have
   // gotten here if they do not unify
   MType match(true /*allowNonConst*/);
-  bool matches = match.matchSTemplateArguments(hackPrimaryArgs, matchTI->arguments,
-                                               MF_MATCH);
+  bool matches = match.matchSTArgListNC(primaryArgs, matchTI->arguments, MF_MATCH);
   xassert(matches);
 
   // Now the arguments are bound in 'bindings', for example
@@ -1930,7 +1925,7 @@ Variable *Env::findMostSpecific
 
     // see if this candidate matches
     MType match;
-    if (match.matchSTemplateArguments(sargs, matchTI->arguments, MF_MATCH)) {
+    if (match.matchSTArgList(sargs, matchTI->arguments, MF_MATCH)) {
       templCandidates.add(spec);
     }
   }
@@ -2601,21 +2596,21 @@ Variable *Env::instantiateClassTemplate
     return spec;      // complete spec; good to go
   }
 
-  // The code below wants to use SObjLists, and since they are happy
-  // accepting const versions, this is safe.  An alternative fix would
-  // be to push owningness down into those interfaces, but I'm getting
-  // tired of doing that ...
-  SObjList<STemplateArgument> const &primaryArgs =     // non-owning
-    objToSObjListC(owningPrimaryArgs);
-
   // if this is a partial specialization, we need the arguments
   // to be relative to the partial spec before we can look for
   // the instantiation
   ObjList<STemplateArgument> owningPartialSpecArgs;
   if (spec != primary) {
     xassertdb(specTI->isPartialSpec());
-    mapPrimaryArgsToSpecArgs(spec, owningPartialSpecArgs, primaryArgs);
+    mapPrimaryArgsToSpecArgs(spec, owningPartialSpecArgs, owningPrimaryArgs);
   }
+
+  // The code below wants to use SObjLists, and since they are happy
+  // accepting const versions, this is safe.  An alternative fix would
+  // be to push owningness down into those interfaces, but I'm getting
+  // tired of doing that ...
+  SObjList<STemplateArgument> const &primaryArgs =     // non-owning
+    objToSObjListC(owningPrimaryArgs);
 
   // non-owning version of this too..
   SObjList<STemplateArgument> const &partialSpecArgs =

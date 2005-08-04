@@ -54,26 +54,54 @@ private:      // data
   typedef ObjMap<char const /*StringRef*/, Binding> BindingMap;
   BindingMap bindings;
   
-  // true if the client is using the non-const interface
-  bool nonConst;
+  // This flag is true if the client is using the non-const interface.
+  //
+  // The idea is this module can support one of two modes
+  // w.r.t. constness:
+  //   1) The module promises not to modify any of its arguments.  The
+  //      client can use 'match', but cannot retrieve bindings (because
+  //      the bindings expose non-const access).
+  //      -> A possible future extension is to provide a binding query
+  //         interface that only exposes const access, but as that is
+  //         not needed right now, it is not provided.
+  //   2) The module makes no promises about modification.  The client
+  //      must use 'matchNC', and can query bindings freely.
+  // The private functions act as if the module is always in 'const' mode,
+  // that is, they promise to never modify the arguments; query is the
+  // one exception.
+  //
+  // The rationale for such deliberate treatment of 'const' is that I
+  // want to be able to use this module both for Type equality, which
+  // ought to be queryable with a const interface, and Type matching,
+  // which needs binding queries, which are at best inconvenient to
+  // provide with a const interface.
+  bool const allowNonConst;
 
 private:      // funcs
+  string bindingsToString() const;
+
+  // ******************************************************************
+  // * NOTE: Do *not* simply make these entry points public.  If you  *
+  // * need to call one of these, make a public wrapper that consults *
+  // * 'allowNonConst' and uses TRACE("mtype") appropriately.         *
+  // ******************************************************************
   bool imatch(Type const *conc, Type const *pat, MatchFlags flags);
   static bool canUseAsVariable(Variable *var, MatchFlags flags);
   bool matchAtomicType(AtomicType const *conc, AtomicType const *pat, MatchFlags flags);
   bool matchTypeVariable(TypeVariable const *conc, TypeVariable const *pat, MatchFlags flags);
   bool matchPseudoInstantiation(PseudoInstantiation const *conc,
                                        PseudoInstantiation const *pat, MatchFlags flags);
-public://maybe temporary
+  bool imatchSTArgList(ObjList<STemplateArgument> const &conc,
+                       ObjList<STemplateArgument> const &pat,
+                       MatchFlags flags);
   bool matchSTemplateArguments(ObjList<STemplateArgument> const &conc,
                                ObjList<STemplateArgument> const &pat,
                                MatchFlags flags);
-private://maybe temporary
   bool matchSTemplateArgument(STemplateArgument const *conc,
                                      STemplateArgument const *pat, MatchFlags flags);
   bool matchNontypeWithVariable(STemplateArgument const *conc,
                                        E_variable *pat, MatchFlags flags);
-public://temporary
+public://temporary; called in just one place, where exposure is benign
   bool matchDependentQType(DependentQType const *conc,
                                   DependentQType const *pat, MatchFlags flags);
 private://temporary
@@ -116,6 +144,7 @@ public:       // funcs
   MType(bool allowNonConst = false);
   ~MType();
 
+  // ---- match ----
   // return true if 'conc' is an instance of 'pat', in which case this
   // object will have a record of the instantiation bindings; the
   // const version can only be called when 'nonConst' is false
@@ -124,6 +153,18 @@ public:       // funcs
   // non-const version
   bool matchNC(Type *conc, Type *pat, MatchFlags flags);
 
+  // match lists of STemplateArguments; this can only be called
+  // when 'allowNonConst' is false
+  bool matchSTArgList(ObjList<STemplateArgument> const &conc,
+                      ObjList<STemplateArgument> const &pat,
+                      MatchFlags flags);
+
+  // non-const version
+  bool matchSTArgListNC(ObjList<STemplateArgument> &conc,
+                        ObjList<STemplateArgument> &pat,
+                        MatchFlags flags);
+
+  // ---- query ----
   // how many bindings are currently active?
   int getNumBindings() const;
   

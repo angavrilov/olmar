@@ -801,7 +801,7 @@ private:     // template funcs
   void mapPrimaryArgsToSpecArgs(
     Variable *baseV,
     ObjList<STemplateArgument> &partialSpecArgs,
-    SObjList<STemplateArgument> const &primaryArgs);
+    ObjList<STemplateArgument> &primaryArgs);
   void mapPrimaryArgsToSpecArgs_oneParamList(
     SObjList<Variable> const &params,
     MType &match,
