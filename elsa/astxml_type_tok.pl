@@ -61,6 +61,10 @@ close(ENUM) or die $!;
 
 __DATA__
 
+# location attributes
+# loc
+curLoc
+
 # Type nodes
 CVAtomicType
 PointerType

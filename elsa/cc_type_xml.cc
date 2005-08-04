@@ -99,6 +99,12 @@ do { \
   printThing0(NAME, "", VALUE, ::toXml_int); \
 } while(0)
 
+#define printXml_SourceLoc(NAME, VALUE) \
+do { \
+  newline(); \
+  printThing0(NAME, "", VALUE, ::toXml_SourceLoc); \
+} while(0)
+
 #define printStrRef(FIELD, TARGET) \
 do { \
   if (TARGET) { \
@@ -498,10 +504,7 @@ void TypeToXml::toXml(Variable *var) {
   if (printedVariable(var)) return;
   openTag(Variable, var);
   // **** attributes
-//    SourceLoc loc;
-//    I'm skipping these for now, but source locations will be serialized
-//    as file:line:col when I serialize the internals of the Source Loc
-//    Manager.
+  printXml_SourceLoc(loc, var->loc);
   printStrRef(name, var->name);
   printPtr(type, var->type);
   printXml(flags, var->flags);
@@ -640,6 +643,7 @@ void TypeToXml::toXml_Scope_properties(Scope *scope) {
   printPtr(namespaceVar, scope->namespaceVar);
   printPtr(templateParams, &scope->templateParams);
   printPtr(curCompound, scope->curCompound);
+  printXml_SourceLoc(curLoc, scope->curLoc);
 }
 
 void TypeToXml::toXml_Scope_subtags(Scope *scope) {
@@ -1126,7 +1130,8 @@ void ReadXml_Type::registerAttr_PointerToMemberType
 void ReadXml_Type::registerAttr_Variable(Variable *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a Variable"); break;
-  // FIX: SourceLoc loc
+  case XTOK_loc:                // throw it away for now; FIX: parse it
+    break;
   case XTOK_name: obj->name = strTable(parseQuotedString(strValue)); break; 
   case XTOK_type: ul(type); break; 
   case XTOK_flags:
@@ -1253,6 +1258,8 @@ bool ReadXml_Type::registerAttr_Scope_super(Scope *obj, int attr, char const *st
   case XTOK_namespaceVar: ul(namespaceVar); break; 
   case XTOK_templateParams: ul(templateParams); break; 
   case XTOK_curCompound: ul(curCompound); break; 
+  case XTOK_curLoc:             // throw it away for now; FIX: parse it
+    break;
   }
   return true;                  // found it
 }
