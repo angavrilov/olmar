@@ -115,6 +115,21 @@ do { \
   } \
 } while(0)
 
+#define travObjList0(BASE, BASETYPE, FIELD, FIELDTYPE, ITER_MACRO, LISTKIND) \
+do { \
+  if (!printedOL(&BASE->FIELD)) { \
+    openTagWhole(List_ ##BASETYPE ##_ ##FIELD, &BASE->FIELD); \
+    ITER_MACRO(FIELDTYPE, const_cast<LISTKIND<FIELDTYPE>&>(BASE->FIELD), iter) { \
+      travListItem(iter.data()); \
+    } \
+  } \
+} while(0)
+
+#define travObjList_S(BASE, BASETYPE, FIELD, FIELDTYPE) \
+travObjList0(BASE, BASETYPE, FIELD, FIELDTYPE, SFOREACH_OBJLIST_NC, SObjList)
+#define travObjList(BASE, BASETYPE, FIELD, FIELDTYPE) \
+travObjList0(BASE, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
+
 // NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
 // for the TypeToXml_CloseTagPrinter fires too early.
 #define openTag0(NAME, OBJ, SUFFIX) \
@@ -284,13 +299,7 @@ void TypeToXml::toXml(Type *obj) {
     tagEnd;
     // **** subtags
     trav(func->retType);
-    // params
-    if (!printedOL(&func->params)) {
-      openTagWhole(List_FunctionType_params,  &func->params);
-      SFOREACH_OBJLIST_NC(Variable, func->params, iter) {
-        travListItem(iter.data());
-      }
-    }
+    travObjList_S(func, FunctionType, params, Variable);
     // exnSpec
     if (func->exnSpec) {
       toXml_FunctionType_ExnSpec(func->exnSpec);
@@ -368,41 +377,12 @@ void TypeToXml::toXml(AtomicType *obj) {
     toXml_NamedAtomicType_subtags(cpd);
     toXml_Scope_subtags(cpd);
     // * members
-    // dataMembers
-    if (!printedOL(&cpd->dataMembers)) {
-      openTagWhole(List_CompoundType_dataMembers, &cpd->dataMembers);
-      SFOREACH_OBJLIST_NC(Variable, cpd->dataMembers, iter) {
-        travListItem(iter.data());
-      }
-    }
-    // bases
-    if (!printedOL(&cpd->bases)) {
-      openTagWhole(List_CompoundType_bases, &cpd->bases);
-      FOREACH_OBJLIST_NC(BaseClass, const_cast<ObjList<BaseClass>&>(cpd->bases), iter) {
-        travListItem(iter.data());
-      }
-    }
-    // virtual bases
-    if (!printedOL(&cpd->virtualBases)) {
-      openTagWhole(List_CompoundType_virtualBases, &cpd->virtualBases);
-      FOREACH_OBJLIST_NC(BaseClassSubobj,
-                         const_cast<ObjList<BaseClassSubobj>&>(cpd->virtualBases),
-                         iter) {
-        travListItem(iter.data());
-      }
-    }
-    // subobj
+    travObjList_S(cpd, CompoundType, dataMembers, Variable);
+    travObjList(cpd, CompoundType, bases, BaseClass);
+    travObjList(cpd, CompoundType, virtualBases, BaseClassSubobj);
     trav(&cpd->subobj);
-    // conversionOperators
-    if (!printedOL(&cpd->conversionOperators)) {
-      openTagWhole(List_CompoundType_conversionOperators, &cpd->conversionOperators);
-      SFOREACH_OBJLIST_NC(Variable, cpd->conversionOperators, iter) {
-        travListItem(iter.data());
-      }
-    }
-    // parameterizingScope
+    travObjList_S(cpd, CompoundType, conversionOperators, Variable);
     trav(cpd->parameterizingScope);
-    // selfType
     trav(cpd->selfType);
     break;
   }
@@ -465,12 +445,7 @@ void TypeToXml::toXml(AtomicType *obj) {
     toXml_NamedAtomicType_subtags(pseudo);
     // * members
     trav(pseudo->primary);
-    if (!printedOL(&pseudo->args)) {
-      openTagWhole(List_PseudoInstantiation_args, &pseudo->args);
-      FOREACH_OBJLIST_NC(STemplateArgument, pseudo->args, iter) {
-        travListItem(iter.data());
-      }
-    }
+    travObjList(pseudo, PseudoInstantiation, args, STemplateArgument);
     break;
   }
 
@@ -545,12 +520,7 @@ void TypeToXml::toXml_FunctionType_ExnSpec(void /*FunctionType::ExnSpec*/ *exnSp
   printPtr(types, &exnSpec->types);
   tagEnd;
   // **** subtags
-  if (!printedOL(&exnSpec->types)) {
-    openTagWhole(List_ExnSpec_types, &exnSpec->types);
-    SFOREACH_OBJLIST_NC(Type, exnSpec->types, iter) {
-      travListItem(iter.data());
-    }
-  }
+  travObjList_S(exnSpec, ExnSpec, types, Type);
 }
 
 void TypeToXml::toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0) {
@@ -614,12 +584,7 @@ void TypeToXml::toXml(BaseClassSubobj *bc) {
   // * superclass
   toXml_BaseClass_subtags(bc);
   // * members
-  if (!printedOL(&bc->parents)) {
-    openTagWhole(List_BaseClassSubobj_parents, &bc->parents);
-    SFOREACH_OBJLIST_NC(BaseClassSubobj, bc->parents, iter) {
-      travListItem(iter.data());
-    }
-  }
+  travObjList_S(bc, BaseClassSubobj, parents, BaseClassSubobj);
 }
 
 void TypeToXml::toXml(Scope *scope) {
@@ -670,33 +635,9 @@ void TypeToXml::toXml_Scope_subtags(Scope *scope) {
       trav(var);
     }
   }
-  // parentScope
   trav(scope->parentScope);
-  // namespaceVar
   trav(scope->namespaceVar);
-  // templateParams
-  if (!printedOL(&scope->templateParams)) {
-    openTagWhole(List_Scope_templateParams, &scope->templateParams);
-    SFOREACH_OBJLIST_NC(Variable, scope->templateParams, iter) {
-      travListItem(iter.data());
-    }
-  }
-
-  // I don't think I need this; see Scott's comments in the scope
-  // class
-//    Variable *parameterizedEntity;          // (nullable serf)
-  // --------------- for using-directives ----------------
-  // Scott says that I don't need these
-  //
-  // it is basically a bug that we need to serialize this but we do so
-  // there it is.
-//    CompoundType *curCompound;          // (serf) CompoundType we're building
-//    Should not be being used after typechecking, but in theory could omit.
-//    if (curCompound) {
-//      curCompound->traverse(vis);
-//    }
-
-  // curCompound
+  travObjList_S(scope, Scope, templateParams, Variable);
   trav(scope->curCompound);
 }
 
@@ -800,59 +741,17 @@ void TypeToXml::toXml(TemplateInfo *ti) {
   // * superclass
   toXml_TemplateParams_subtags(ti);
   // * members
-  // var
   trav(ti->var);
-  // inheritedParams
-  if (!printedOL(&ti->inheritedParams)) {
-    openTagWhole(List_TemplateInfo_inheritedParams, &ti->inheritedParams);
-    FOREACH_OBJLIST_NC(InheritedTemplateParams, ti->inheritedParams, iter) {
-      travListItem(iter.data());
-    }
-  }
-  // instantiationOf
+  travObjList(ti, TemplateInfo, inheritedParams, InheritedTemplateParams);
   trav(ti->instantiationOf);
-  // instantiations
-  if (!printedOL(&ti->instantiations)) {
-    openTagWhole(List_TemplateInfo_instantiations, &ti->instantiations);
-    SFOREACH_OBJLIST_NC(Variable, ti->instantiations, iter) {
-      travListItem(iter.data());
-    }
-  }
-  // specializationOf
+  travObjList_S(ti, TemplateInfo, instantiations, Variable);
   trav(ti->specializationOf);
-  // specializations
-  if (!printedOL(&ti->specializations)) {
-    openTagWhole(List_TemplateInfo_specializations, &ti->specializations);
-    SFOREACH_OBJLIST_NC(Variable, ti->specializations, iter) {
-      travListItem(iter.data());
-    }
-  }
-  // arguments
-  if (!printedOL(&ti->arguments)) {
-    openTagWhole(List_TemplateInfo_arguments, &ti->arguments);
-    FOREACH_OBJLIST_NC(STemplateArgument, ti->arguments, iter) {
-      travListItem(iter.data());
-    }
-  }
-  // partialInstantiationOf
+  travObjList_S(ti, TemplateInfo, specializations, Variable);
+  travObjList(ti, TemplateInfo, arguments, STemplateArgument);
   trav(ti->partialInstantiationOf);
-  // partialInstantiations
-  if (!printedOL(&ti->partialInstantiations)) {
-    openTagWhole(List_TemplateInfo_partialInstantiations, &ti->partialInstantiations);
-    SFOREACH_OBJLIST_NC(Variable, ti->partialInstantiations, iter) {
-      travListItem(iter.data());
-    }
-  }
-  // argumentsToPrimary
-  if (!printedOL(&ti->argumentsToPrimary)) {
-    openTagWhole(List_TemplateInfo_argumentsToPrimary, &ti->argumentsToPrimary);
-    FOREACH_OBJLIST_NC(STemplateArgument, ti->argumentsToPrimary, iter) {
-      travListItem(iter.data());
-    }
-  }
-  // defnScope
+  travObjList_S(ti, TemplateInfo, partialInstantiations, Variable);
+  travObjList(ti, TemplateInfo, argumentsToPrimary, STemplateArgument);
   trav(ti->defnScope);
-  // definitionTemplateInfo
   trav(ti->definitionTemplateInfo);
 }
 
@@ -877,12 +776,7 @@ void TypeToXml::toXml_TemplateParams_properties(TemplateParams *tp) {
 }
 
 void TypeToXml::toXml_TemplateParams_subtags(TemplateParams *tp) {
-  if (!printedOL(&tp->params)) {
-    openTagWhole(List_TemplateParams_params, &tp->params);
-    SFOREACH_OBJLIST_NC(Variable, tp->params, iter) {
-      travListItem(iter.data());
-    }
-  }
+  travObjList_S(tp, TemplateParams, params, Variable);
 }
 
 
