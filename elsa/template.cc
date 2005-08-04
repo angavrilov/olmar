@@ -36,17 +36,6 @@ TypeVariable::~TypeVariable()
 {}
 
 
-bool TypeVariable::innerEquals(TypeVariable const *obj) const
-{
-  // 2005-03-03: Let's try saying that TypeVariables are equal if they
-  // are the same ordinal parameter of the same template.
-  Variable *param1 = this->typedefVar;
-  Variable *param2 = obj->typedefVar;
-
-  return param1->sameTemplateParameter(param2);
-}
-
-
 string TypeVariable::toCString() const
 {
   if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
@@ -110,16 +99,6 @@ PseudoInstantiation::~PseudoInstantiation()
 {}
 
 
-bool PseudoInstantiation::innerEquals(PseudoInstantiation const *obj) const
-{
-  if (this->primary != obj->primary) {
-    return false; 
-  }
-
-  return equalArgumentLists(this->args, obj->args);
-}
-
-
 string PseudoInstantiation::toCString() const
 {
   if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
@@ -167,21 +146,6 @@ DependentQType::DependentQType(AtomicType *f)
 
 DependentQType::~DependentQType()
 {}
-
-
-bool DependentQType::innerEquals(DependentQType const *obj) const
-{
-  // physical equality?
-  if (this == obj) {
-    return true;
-  }
-  
-  // structural equality?  for now, kick over to MType; in the
-  // future, remove 'innerEquals' altogether and kick over to
-  // MType at the top of Type::equals
-  MType mtype;
-  return mtype.matchDependentQType(this, obj, MF_EXACT);
-}
 
 
 string DependentQType::toCString() const
@@ -4232,8 +4196,8 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type)
 
     if (!nameArgs &&                      // no arguments attached to final name
         primary->isInstantiation() &&     // member of an instantiated template
-        type->equals(primary->type, Type::EF_IGNORE_IMPLICIT |     // right type
-                                    Type::EF_STAT_EQ_NONSTAT)) {
+        type->equals(primary->type, MF_IGNORE_IMPLICIT |     // right type
+                                    MF_STAT_EQ_NONSTAT)) {
       // an instantiation request like (in/k0016.cc)
       //   template
       //   void S<int>::foo();

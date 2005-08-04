@@ -101,10 +101,8 @@ private:      // funcs
                                      STemplateArgument const *pat, MatchFlags flags);
   bool matchNontypeWithVariable(STemplateArgument const *conc,
                                        E_variable *pat, MatchFlags flags);
-public://temporary; called in just one place, where exposure is benign
   bool matchDependentQType(DependentQType const *conc,
                                   DependentQType const *pat, MatchFlags flags);
-private://temporary
   bool matchPQName(PQName const *conc, PQName const *pat, MatchFlags flags);
   bool matchType(Type const *conc, Type const *pat, MatchFlags flags);
   bool matchTypeWithVariable(Type const *conc, TypeVariable const *pat,
@@ -163,6 +161,10 @@ public:       // funcs
   bool matchSTArgListNC(ObjList<STemplateArgument> &conc,
                         ObjList<STemplateArgument> &pat,
                         MatchFlags flags);
+
+  // match AtomicTypes; only a const version for now
+  bool matchAtomic(AtomicType const *conc, AtomicType const *pat,
+                   MatchFlags flags);
 
   // ---- query ----
   // how many bindings are currently active?

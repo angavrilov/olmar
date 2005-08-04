@@ -173,6 +173,14 @@ bool MType::imatchSTArgList(ObjList<STemplateArgument> const &conc,
 }
 
 
+bool MType::matchAtomic(AtomicType const *conc, AtomicType const *pat,
+                        MatchFlags flags)
+{
+  xassert(!allowNonConst);
+  return matchAtomicType(conc, pat, flags);
+}
+
+                   
 int MType::getNumBindings() const
 {
   return bindings.getNumEntries();

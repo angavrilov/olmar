@@ -554,7 +554,7 @@ StandardConversion getStandardConversion
         //
         // Also, 8.3.5p4 says that exception specs are irrelevant here,
         // even though (again) there is a sound subtyping lattice.
-        if (src->equals(dest, Type::EF_IGNORE_EXN_SPEC)) {
+        if (src->equals(dest, MF_IGNORE_EXN_SPEC)) {
           return conv.ret;
         }
         else {
@@ -572,7 +572,7 @@ StandardConversion getStandardConversion
         // ARR_QUAL_CONV: A qualification conversion is possible.  The
         // element qualifier will already have been processed, so ignore
         // it during equality checking.
-        if (src->equals(dest, Type::EF_IGNORE_ELT_CV)) {
+        if (src->equals(dest, MF_IGNORE_ELT_CV)) {
           return conv.ret;
         }
         else {
@@ -624,7 +624,7 @@ StandardConversion getStandardConversion
         // what follows is basically the T_FUNCTION case, above, but
         // with a different EqFlags passed.
         if (src->isFunctionType() && dest->isFunctionType()) {
-          if (src->equals(dest, Type::EF_IGNORE_IMPLICIT)) {
+          if (src->equals(dest, MF_IGNORE_IMPLICIT)) {
             return conv.ret;
           }
           else {
@@ -645,7 +645,7 @@ StandardConversion getStandardConversion
   // 
   // appears to work!  I'll tag the old stuff with "delete me"
   // for the moment
-  if (src->equals(dest, Type::EF_POLYMORPHIC)) {
+  if (src->equals(dest, MF_POLYMORPHIC)) {
     return conv.ret;    // identical now
   }
 
@@ -1123,7 +1123,7 @@ bool isReferenceRelatedTo(Type *t1, Type *t2)
   // class of t2
 
   // this sometimes ends up with t2 being polymorphic, so it goes first
-  if (t2->equals(t1, Type::EF_IGNORE_TOP_CV | Type::EF_POLYMORPHIC)) {
+  if (t2->equals(t1, MF_IGNORE_TOP_CV | MF_POLYMORPHIC)) {
     return true;
   }
   

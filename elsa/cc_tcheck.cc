@@ -6689,7 +6689,7 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
       rhsType = v->type;
     }
 
-    if (!lhsType->equals(rhsType, Type::EF_IGNORE_TOP_CV)) {
+    if (!lhsType->equals(rhsType, MF_IGNORE_TOP_CV)) {
       return env.error(fieldName->loc, stringc
         << "in . or -> expression, when LHS is non-class type, its type "
         << "must be the same (modulo cv qualifiers) as the RHS; but the "
@@ -8028,7 +8028,7 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
     elRval = arrAndFuncToPtr(env, elRval);
     
     // bullet 1
-    if (thRval->equals(elRval, Type::EF_IGNORE_TOP_CV /*(in/t0499.cc)*/)) {
+    if (thRval->equals(elRval, MF_IGNORE_TOP_CV /*(in/t0499.cc)*/)) {
       return thRval;
     }
     

@@ -3601,8 +3601,8 @@ void Env::handleTypeOfMain(SourceLoc loc, Variable *prior, Type *&type)
   SObjListIterNC<Variable> priorIter(priorFt->params);
   SObjListIterNC<Variable> typeIter(typeFt->params);
   while (!priorIter.isDone() && !typeIter.isDone()) {
-    Type::EqFlags eqFlags = Type::EF_IGNORE_TOP_CV;
-    if (!priorIter.data()->type->equals(typeIter.data()->type, eqFlags)) {
+    MatchFlags mflags = MF_IGNORE_TOP_CV;
+    if (!priorIter.data()->type->equals(typeIter.data()->type, mflags)) {
       env.error(loc, stringc
         << "prior declaration of main() at " << prior->loc
         << " had type `" << prior->type->toString()

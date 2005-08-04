@@ -35,6 +35,7 @@
 #include "srcloc.h"       // SourceLoc
 #include "exc.h"          // xBase
 #include "serialno.h"     // INHERIT_SERIAL_BASE
+#include "mflags.h"       // MatchFlags
 
 class Variable;           // variable.h
 class Env;                // cc_env.h
@@ -594,10 +595,11 @@ public:     // data
 private:    // disallowed
   BaseType(BaseType&);
 
-protected:  // funcs
-  // the constructor of BaseType is protected because I want to force
-  // all object creation to go through the factory (below)
+private:    // funcs
+  // the constructor of BaseType is private so the only subclass
+  // is Type, an assumption relied upon in BaseType::equals
   BaseType();
+  friend class Type;
 
 public:     // funcs
   virtual ~BaseType();
@@ -617,105 +619,10 @@ public:     // funcs
   DOWNCAST_FN(ArrayType)
   DOWNCAST_FN(PointerToMemberType)
 
-  // flags to control how "equal" the types must be; also see
-  // note above FunctionType::innerEquals
-  enum EqFlags {                   
-    // complete equality; this is the default; note that we are
-    // checking for *type* equality, rather than equality of the
-    // syntax used to denote it, so we do *not* compare:
-    //   - function parameter names
-    //   - typedef usage
-    EF_EXACT           = 0x0000,
-
-    // ----- basic behaviors -----
-    // when comparing function types, do not check whether the
-    // return types are equal
-    EF_IGNORE_RETURN   = 0x0001,
-
-    // when comparing function types, if one is a nonstatic member
-    // function and the other is not, then do not (necessarily)
-    // call them unequal
-    EF_STAT_EQ_NONSTAT = 0x0002,    // static can equal nonstatic
-
-    // when comparing function types, only compare the explicit
-    // (non-receiver) parameters; this does *not* imply
-    // EF_STAT_EQ_NONSTAT
-    EF_IGNORE_IMPLICIT = 0x0004,
-
-    // ignore the topmost cv qualifications of all parameters in
-    // parameter lists throughout the type
-    //
-    // 2005-05-27: I now realize that *every* type comparison needs
-    // this flag, so have changed the site where it is tested to
-    // pretend it is always set.  Once this has been working for a
-    // while I will remove this flag altogether.
-    EF_IGNORE_PARAM_CV = 0x0008,
-
-    // ignore the topmost cv qualification of the two types compared
-    EF_IGNORE_TOP_CV   = 0x0010,
-
-    // when comparing function types, ignore the exception specs
-    EF_IGNORE_EXN_SPEC = 0x0020,
-
-    // allow the cv qualifications to differ up to the first type
-    // constructor that is not a pointer or pointer-to-member; this
-    // is cppstd 4.4 para 4 "similar"; implies EF_IGNORE_TOP_CV
-    EF_SIMILAR         = 0x0040,
-
-    // when the second type in the comparison is polymorphic (for
-    // built-in operators; this is not for templates), and the first
-    // type is in the set of types described, say they're equal;
-    // note that polymorhism-enabled comparisons therefore are not
-    // symmetric in their arguments
-    EF_POLYMORPHIC     = 0x0080,
-
-    // for use by the matchtype module: this flag means we are trying
-    // to deduce function template arguments, so the variations
-    // allowed in 14.8.2.1 are in effect (for the moment I don't know
-    // what propagation properties this flag should have)
-    EF_DEDUCTION       = 0x0100,
-
-    // this is another flag for MatchTypes, and it means that template
-    // parameters should be regarded as unification variables only if
-    // they are *not* associated with a specific template
-    EF_UNASSOC_TPARAMS = 0x0200,
-    
-    // ignore the cv qualification on the array element, if the
-    // types being compared are arrays
-    EF_IGNORE_ELT_CV   = 0x0400,
-
-    // ----- combined behaviors -----
-    // all flags set to 1
-    EF_ALL             = 0x07FF,
-
-    // signature equivalence for the purpose of detecting whether
-    // two declarations refer to the same entity (as opposed to two
-    // overloaded entities)
-    EF_SIGNATURE       = (
-      EF_IGNORE_RETURN |       // can't overload on return type
-      EF_IGNORE_PARAM_CV |     // param cv doesn't matter
-      EF_STAT_EQ_NONSTAT |     // can't overload on static vs. nonstatic
-      EF_IGNORE_EXN_SPEC       // can't overload on exn spec
-    ),
-
-    // ----- combinations used by the equality implementation -----
-    // this is the set of flags that allow CV variance within the
-    // current type constructor
-    EF_OK_DIFFERENT_CV = (EF_IGNORE_TOP_CV | EF_SIMILAR),
-
-    // this is the set of flags that automatically propagate down
-    // the type tree equality checker; others are suppressed once
-    // the first type constructor looks at them
-    EF_PROP            = (EF_IGNORE_PARAM_CV | EF_POLYMORPHIC | EF_UNASSOC_TPARAMS),
-
-    // these flags are propagated below ptr and ptr-to-member
-    EF_PTR_PROP        = (EF_PROP | EF_SIMILAR)
-  };
-
   // like above, this is (structural) equality, not coercibility;
   // internally, this calls the innerEquals() method on the two
   // objects, once their tags have been established to be equal
-  bool equals(BaseType const *obj, EqFlags flags = EF_EXACT) const;
+  bool equals(BaseType const *obj, MatchFlags flags = MF_EXACT) const;
 
   // compute a hash value: equal types (EF_EXACT) have the same hash
   // value, and unequal types are likely to have different values
@@ -859,8 +766,6 @@ public:     // funcs
   ALLOC_STATS_DECLARE
 };
 
-ENUM_BITWISE_OPS(BaseType::EqFlags, BaseType::EF_ALL)
-
 string cvToString(CVFlags cv);
 
 #ifdef TYPE_CLASS_FILE
@@ -908,7 +813,6 @@ protected:
     : atomic(obj.atomic), cv(obj.cv) {}
 
 public:
-  bool innerEquals(CVAtomicType const *obj, EqFlags flags) const;
   bool isConst() const { return !!(cv & CV_CONST); }
   bool isVolatile() const { return !!(cv & CV_VOLATILE); }
 
@@ -936,7 +840,6 @@ protected:  // funcs
   PointerType(CVFlags c, Type *a);
 
 public:
-  bool innerEquals(PointerType const *obj, EqFlags flags) const;
   bool isConst() const { return !!(cv & CV_CONST); }
   bool isVolatile() const { return !!(cv & CV_VOLATILE); }
 
@@ -964,7 +867,6 @@ protected:  // funcs
   ReferenceType(Type *a);
 
 public:
-  bool innerEquals(ReferenceType const *obj, EqFlags flags) const;
   bool isConst() const { return false; }
   bool isVolatile() const { return false; }
 
@@ -1048,14 +950,10 @@ public:
   void setFlag(FunctionFlags f)       { flags |= f; }
   void clearFlag(FunctionFlags f)     { flags &= ~f; }
 
-  bool innerEquals(FunctionType const *obj, EqFlags flags = EF_EXACT) const;
-  bool equalParameterLists(FunctionType const *obj, EqFlags flags = EF_EXACT) const;
-  bool equalExceptionSpecs(FunctionType const *obj) const;
-
   // if the '__receiver' parameter (if any) is ignored in both
   // function types, am I equal to 'obj'?
   bool equalOmittingReceiver(FunctionType const *obj) const
-    { return innerEquals(obj, EF_STAT_EQ_NONSTAT | EF_IGNORE_IMPLICIT); }
+    { return equals(obj, MF_STAT_EQ_NONSTAT | MF_IGNORE_IMPLICIT); }
                                              
   // true if all parameters after 'startParam' (0 is first) have
   // default values      
@@ -1133,8 +1031,6 @@ protected:
     : eltType(NULL), size(NO_SIZE) {}
 
 public:
-  bool innerEquals(ArrayType const *obj, EqFlags flags) const;
-
   int getSize() const { return size; }
   bool hasSize() const { return size >= 0; }
 
@@ -1168,7 +1064,6 @@ protected:
   PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c, Type *a);
 
 public:
-  bool innerEquals(PointerToMemberType const *obj, EqFlags flags) const;
   bool isConst() const { return !!(cv & CV_CONST); }
 
   // use this in contexts where the 'inClass' is known to be

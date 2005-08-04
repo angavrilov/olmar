@@ -15,6 +15,13 @@
 // for now I just live with it.
 #include "template.h"
 
+// This dependency is to support using MType for equality checking.
+// It causes a transitive dependency on cc.ast, but I rationalize that
+// an MType variant could be created, if necessary, that cut that
+// dependency, especially as none of the call sites in this file
+// explicitly supply MF_MATCH.
+#include "mtype.h"      // MType
+
 // Do *not* add a dependency on cc.ast or cc_env.  cc_type is about
 // the intrinsic properties of types, independent of any particular
 // syntax for denoting them.  (toString() uses C's syntax, but that's
@@ -193,55 +200,8 @@ bool AtomicType::isNamedAtomicType() const
 
 bool AtomicType::equals(AtomicType const *obj) const
 {
-  // The design of this type system is such that this function is
-  // supposed to be simple.  If you are inclined to add any special
-  // cases, you're probably misusing the interface.
-  //
-  // For example, if you want to weaken the check for template-related
-  // reason, consider using MatchTypes instead.
-
-  // experiment: Disallow non-concrete types
-  //
-  // This is mostly a good idea, and I think I found and fixed several
-  // real problems by turning this on.  However, there's a call to
-  // 'equals' in CompoundType::addLocalConversionOp where a
-  // non-concrete type can appear as an argument (t0225.cc), but it's
-  // not clear that isomorphic matching is right.  I'm not really sure
-  // how things are supposed to work with conversion operator return
-  // types, etc.  So I'm just going to turn this check off, and let
-  // the dogs sleep for now.
-  #if 0
-  if (!( this->isConcrete() && obj->isConcrete() )) {
-    xfailure("AtomicType::equals called with a non-concrete argument");
-  }
-  #endif // 0
-
-  if (this == obj) {
-    return true;
-  }
-  
-  if (getTag() != obj->getTag()) {
-    return false;
-  }
-  
-  // for the template-related types, we have a degree of structural
-  // equality; each type knows how to compare itself
-  switch (getTag()) {
-    default: xfailure("bad tag");
-
-    case T_SIMPLE:
-    case T_COMPOUND:
-    case T_ENUM:  
-      // non-template-related type, physical equality only
-      return false;
-
-    #define C(tag,type) \
-      case tag: return ((type const*)this)->innerEquals((type const*)obj);
-    C(T_TYPEVAR, TypeVariable)
-    C(T_PSEUDOINSTANTIATION, PseudoInstantiation)
-    C(T_DEPENDENTQTYPE, DependentQType)
-    #undef C
-  }
+  MType match;
+  return match.matchAtomic(this, obj, MF_EXACT);
 }
 
 
@@ -1052,81 +1012,15 @@ DOWNCAST_IMPL(BaseType, ArrayType)
 DOWNCAST_IMPL(BaseType, PointerToMemberType)
 
 
-bool BaseType::equals(BaseType const *obj, EqFlags flags) const
+bool BaseType::equals(BaseType const *obj, MatchFlags flags) const
 {
-  if (flags & EF_POLYMORPHIC) {
-    // check for polymorphic match
-    if (obj->isSimpleType()) {
-      SimpleTypeId objId = obj->asSimpleTypeC()->type;
-      if (!(ST_PROMOTED_INTEGRAL <= objId && objId <= ST_ANY_TYPE)) {
-        goto not_polymorphic;
-      }
-
-      // check those that can match any type constructor
-      if (objId == ST_ANY_TYPE) {
-        return true;
-      }
-
-      if (objId == ST_ANY_NON_VOID) {
-        return !this->isVoid();
-      }
-
-      if (objId == ST_ANY_OBJ_TYPE) {
-        return !this->isFunctionType() &&
-               !this->isVoid();
-      }
-
-      // check those that only match atomics
-      if (this->isSimpleType()) {
-        SimpleTypeId thisId = this->asSimpleTypeC()->type;
-        SimpleTypeFlags flags = simpleTypeInfo(thisId).flags;
-
-        // see cppstd 13.6 para 2
-        if (objId == ST_PROMOTED_INTEGRAL) {
-          return (flags & (STF_INTEGER | STF_PROM)) == (STF_INTEGER | STF_PROM);
-        }
-
-        if (objId == ST_PROMOTED_ARITHMETIC) {
-          return (flags & (STF_INTEGER | STF_PROM)) == (STF_INTEGER | STF_PROM) ||
-                 (flags & STF_FLOAT);      // need not be promoted!
-        }
-
-        if (objId == ST_INTEGRAL) {
-          return (flags & STF_INTEGER) != 0;
-        }
-
-        if (objId == ST_ARITHMETIC) {
-          return (flags & (STF_INTEGER | STF_FLOAT)) != 0;
-        }
-
-        if (objId == ST_ARITHMETIC_NON_BOOL) {
-          return thisId != ST_BOOL &&
-                 (flags & (STF_INTEGER | STF_FLOAT)) != 0;
-        }
-      }
-
-      // polymorphic type failed to match
-      return false;
-    }
-  }
-
-not_polymorphic:
-  if (getTag() != obj->getTag()) {
-    return false;
-  }
-
-  switch (getTag()) {
-    default: xfailure("bad tag");
-    #define C(tag,type) \
-      case tag: return ((type const*)this)->innerEquals((type const*)obj, flags);
-    C(T_ATOMIC, CVAtomicType)
-    C(T_POINTER, PointerType)
-    C(T_REFERENCE, ReferenceType)
-    C(T_FUNCTION, FunctionType)
-    C(T_ARRAY, ArrayType)
-    C(T_POINTERTOMEMBER, PointerToMemberType)
-    #undef C
-  }
+  MType mtype;
+  
+  // oy.. I think it's a fair assumption that the only direct subclass
+  // of BaseType is Type ...; in fact, I just made BaseType's ctor
+  // private to ensure this
+  return mtype.match(static_cast<Type const*>(this), 
+                     static_cast<Type const*>(obj), flags);
 }
 
 
@@ -1507,13 +1401,6 @@ string toString(Type *t)
 
 
 // ----------------- CVAtomicType ----------------
-bool CVAtomicType::innerEquals(CVAtomicType const *obj, EqFlags flags) const
-{
-  return atomic->equals(obj->atomic) &&
-         ((flags & EF_OK_DIFFERENT_CV) || (cv == obj->cv));
-}
-
-
 // map cv down to {0,1,2,3}
 inline unsigned cvHash(CVFlags cv)
 {
@@ -1587,17 +1474,6 @@ PointerType::PointerType(CVFlags c, Type *a)
     // other indirections (i.e. no ptr-to-ref, nor ref-to-ref)
     xassert(!a->isReference());
   }
-}
-
-
-bool PointerType::innerEquals(PointerType const *obj, EqFlags flags) const
-{
-  // note how EF_IGNORE_TOP_CV allows *this* type's cv flags to differ,
-  // but it's immediately suppressed once we go one level down; this
-  // behavior repeated in all 'innerEquals' methods
-
-  return ((flags & EF_OK_DIFFERENT_CV) || (cv == obj->cv)) &&
-         atType->equals(obj->atType, flags & EF_PTR_PROP);
 }
 
 
@@ -1703,12 +1579,6 @@ ReferenceType::ReferenceType(Type *a)
     // other indirections (i.e. no ptr-to-ref, nor ref-to-ref)
     xassert(!a->isReference());
   }
-}
-
-
-bool ReferenceType::innerEquals(ReferenceType const *obj, EqFlags flags) const
-{
-  return atType->equals(obj->atType, flags & EF_PTR_PROP);
 }
 
 
@@ -1820,140 +1690,6 @@ FunctionType::~FunctionType()
 // sm: I moved 'isCopyConstructorFor' and 'isCopyAssignOpFor' out into
 // cc_tcheck.cc since the rules are fairly specific to the analysis
 // being performed there
-
-
-// NOTE:  This function (and the parameter comparison function that
-// follows) is at the core of the overloadability analysis; it's
-// complicated.  The set of EqFlags has been carefully chosen to try
-// to make it as transparent as possible, but there is still
-// significant subtlety.
-//
-// If you modify what goes on here, be sure to
-//   (a) add your own regression test (or modify an existing one) to 
-//       check your intended functionality, for the benefit of future
-//       maintenance efforts, and
-//   (b) make sure the existing tests still pass!
-//
-// Of course, this advice holds for almost any code, but this one is
-// sufficiently central to warrant a reminder.
-
-bool FunctionType::innerEquals(FunctionType const *obj, EqFlags flags) const
-{
-  // I do not compare 'FunctionType::flags' explicitly since their
-  // meaning is generally a summary of other information, or of the
-  // name (which is irrelevant to the type)
-
-  if (!(flags & EF_IGNORE_RETURN)) {
-    // check return type
-    if (!retType->equals(obj->retType, flags & EF_PROP)) {
-      return false;
-    }
-  }
-
-  if ((this->flags | obj->flags) & FF_NO_PARAM_INFO) {
-    // at least one of the types does not have parameter info,
-    // so no further comparison is possible
-    return true;
-  }
-
-  if (!(flags & EF_STAT_EQ_NONSTAT)) {
-    // check that either both are nonstatic methods, or both are not
-    if (isMethod() != obj->isMethod()) {
-      return false;
-    }
-  }
-
-  // check that both are variable-arg, or both are not
-  if (acceptsVarargs() != obj->acceptsVarargs()) {
-    return false;
-  }
-
-  // check the parameter lists
-  if (!equalParameterLists(obj, flags)) {
-    return false;
-  }
-  
-  if (!(flags & EF_IGNORE_EXN_SPEC)) {
-    // check the exception specs
-    if (!equalExceptionSpecs(obj)) {
-      return false;
-    }
-  }
-  
-  return true;
-}
-
-bool FunctionType::equalParameterLists(FunctionType const *obj,
-                                       EqFlags flags) const
-{
-  SObjListIter<Variable> iter1(this->params);
-  SObjListIter<Variable> iter2(obj->params);
-
-  // skip the 'this' parameter(s) if desired, or if one has it
-  // but the other does not (can arise if EF_STAT_EQ_NONSTAT has
-  // been specified)
-  {
-    bool m1 = this->isMethod();
-    bool m2 = obj->isMethod();
-    bool ignore = flags & EF_IGNORE_IMPLICIT;
-    if (m1 && (!m2 || ignore)) {
-      iter1.adv();
-    }
-    if (m2 && (!m1 || ignore)) {
-      iter2.adv();
-    }
-  }
-
-  // this takes care of FunctionType::innerEquals' obligation
-  // to suppress non-propagated flags after consumption
-  flags &= EF_PROP;
-
-  // 2005-05-27: Pretend EF_IGNORE_PARAM_CV is always set.
-  if (true /*flags & EF_IGNORE_PARAM_CV*/) {
-    // allow toplevel cv flags on parameters to differ
-    flags |= EF_IGNORE_TOP_CV;
-  }
-
-  for (; !iter1.isDone() && !iter2.isDone();
-       iter1.adv(), iter2.adv()) {
-    // parameter names do not have to match, but
-    // the types do
-    if (iter1.data()->type->equals(iter2.data()->type, flags)) {
-      // ok
-    }
-    else {
-      return false;
-    }
-  }
-
-  return iter1.isDone() == iter2.isDone();
-}
-
-
-// almost identical code to the above.. list comparison is
-// always a pain..
-bool FunctionType::equalExceptionSpecs(FunctionType const *obj) const
-{
-  if (exnSpec==NULL && obj->exnSpec==NULL)  return true;
-  if (exnSpec==NULL || obj->exnSpec==NULL)  return false;
-
-  // hmm.. this is going to end up requiring that exception specs
-  // be listed in the same order, whereas I think the semantics
-  // imply they're more like a set.. oh well
-  SObjListIter<Type> iter1(exnSpec->types);
-  SObjListIter<Type> iter2(obj->exnSpec->types);
-  for (; !iter1.isDone() && !iter2.isDone();
-       iter1.adv(), iter2.adv()) {
-    if (iter1.data()->equals(iter2.data())) {
-      // ok
-    }
-    else {
-      return false;
-    }
-  }
-
-  return iter1.isDone() == iter2.isDone();
-}
 
 
 bool FunctionType::paramsHaveDefaultsPast(int startParam) const
@@ -2275,37 +2011,6 @@ void ArrayType::checkWellFormedness() const
 }
 
 
-bool ArrayType::innerEquals(ArrayType const *obj, EqFlags flags) const
-{       
-  // what flags to propagate?
-  EqFlags propFlags = (flags & EF_PROP);
-
-  if (flags & EF_IGNORE_ELT_CV) {
-    if (eltType->isArrayType()) {
-      // propagate the ignore-elt down through as many ArrayTypes
-      // as there are
-      propFlags |= EF_IGNORE_ELT_CV;
-    }
-    else {
-      // the next guy is the element type, ignore *his* cv only
-      propFlags |= EF_IGNORE_TOP_CV;
-    }
-  }
-
-  if (!( eltType->equals(obj->eltType, propFlags) &&
-         hasSize() == obj->hasSize() )) {
-    return false;
-  }
-
-  if (hasSize()) {
-    return size == obj->size;
-  }
-  else {
-    return true;
-  }
-}
-
-
 unsigned ArrayType::innerHashValue() const
 {
   // similar to PointerType
@@ -2383,14 +2088,6 @@ PointerToMemberType::PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c
   
   // there are some other semantic restrictions, but I let the
   // type checker enforce them
-}
-
-
-bool PointerToMemberType::innerEquals(PointerToMemberType const *obj, EqFlags flags) const
-{
-  return inClassNAT == obj->inClassNAT &&
-         ((flags & EF_OK_DIFFERENT_CV) || (cv == obj->cv)) &&
-         atType->equals(obj->atType, flags & EF_PTR_PROP);
 }
 
 

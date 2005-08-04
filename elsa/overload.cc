@@ -953,7 +953,7 @@ int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *
     // candidate is hidden; I implement this by saying that the
     // user-written candidate always wins
     if (left->var->type->equals(right->var->type, 
-          Type::EF_IGNORE_RETURN | Type::EF_IGNORE_PARAM_CV)) {
+          MF_IGNORE_RETURN | MF_IGNORE_PARAM_CV)) {
       // same signatures; who wins?
       if (left->var->hasFlag(DF_BUILTIN)) {
         return +1;     // right is user-written, it wins
@@ -1795,7 +1795,7 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
 
   // ok, inheritance is irrelevant; I need to see if types
   // are "similar" (4.4 para 4)
-  if (!t1->equals(t2, Type::EF_SIMILAR)) {
+  if (!t1->equals(t2, MF_SIMILAR)) {
     // not similar to each other, so there's no type that is similar
     // to both (similarity is an equivalence relation)
     return NULL;
@@ -1804,7 +1804,7 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
   // ok, well, are they equal?  if so, then I don't have to make
   // a new type object; NOTE: this allows identical enum arguments
   // to yield out
-  if (t1->equals(t2, Type::EF_IGNORE_TOP_CV)) {
+  if (t1->equals(t2, MF_IGNORE_TOP_CV)) {
     // use 't1', but make sure we're not returning a cv-qualified type
     return env.tfac.setQualifiers(SL_UNKNOWN, CV_NONE, t1, NULL /*syntax*/);
   }
