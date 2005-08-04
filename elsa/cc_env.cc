@@ -8,7 +8,6 @@
 #include "cc_lang.h"       // CCLang
 #include "strutil.h"       // suffixEquals, prefixEquals
 #include "overload.h"      // OVERLOADTRACE
-#include "matchtype.h"     // MatchTypes
 #include "mtype.h"         // MType
 
 
@@ -3060,7 +3059,7 @@ bool containsUnassociatedTemplateParams(Type *t)
 // by whether they have been associated with a template: those that
 // have been associated are essentially regarded as concrete, while
 // those that have not are regarded as arbitrary type variables, and
-// therefore subject to unification by MatchTypes.
+// therefore subject to unification by MType.
 bool Env::equivalentTypes(Type const *a, Type const *b, MatchFlags mflags)
 {
   // the 'a' type refers to the already-existing function template
