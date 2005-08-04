@@ -60,9 +60,9 @@ class TypeToXml {
   bool printedSM(void const * const obj);
 
   public:
-  void toXml(Type *obj);
-  void toXml(AtomicType *obj);
-  void toXml(CompoundType *obj); // disambiguates the overloading
+  void toXml(Type *t);
+  void toXml(AtomicType *atom);
+  void toXml(CompoundType *ct); // disambiguates the overloading
   void toXml(Variable *var);
 
   private:
@@ -77,11 +77,11 @@ class TypeToXml {
   void toXml_BaseClass_subtags(BaseClass *bc);
   void toXml(BaseClassSubobj *bc);
 
-  void toXml(Scope *obj);
+  void toXml(Scope *scope);
   void toXml_Scope_properties(Scope *scope);
   void toXml_Scope_subtags(Scope *scope);
 
-  void toXml(STemplateArgument *obj);
+  void toXml(STemplateArgument *sta);
   void toXml(TemplateInfo *ti);
   void toXml(InheritedTemplateParams *itp);
   void toXml_TemplateParams_properties(TemplateParams *tp);

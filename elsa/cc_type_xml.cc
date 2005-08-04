@@ -246,15 +246,15 @@ bool TypeToXml::printedSM(void const * const obj) {
 
 // **** printing routines for each type system annotation
 
-void TypeToXml::toXml(Type *obj) {
+void TypeToXml::toXml(Type *t) {
   // idempotency
-  if (printedType(obj)) return;
+  if (printedType(t)) return;
 
-  switch(obj->getTag()) {
+  switch(t->getTag()) {
   default: xfailure("illegal tag");
 
   case Type::T_ATOMIC: {
-    CVAtomicType *atom = obj->asCVAtomicType();
+    CVAtomicType *atom = t->asCVAtomicType();
     openTag(CVAtomicType, atom);
     // **** attributes
     printPtr(atomic, atom->atomic);
@@ -266,7 +266,7 @@ void TypeToXml::toXml(Type *obj) {
   }
 
   case Type::T_POINTER: {
-    PointerType *ptr = obj->asPointerType();
+    PointerType *ptr = t->asPointerType();
     openTag(PointerType, ptr);
     // **** attributes
     printXml(cv, ptr->cv);
@@ -278,7 +278,7 @@ void TypeToXml::toXml(Type *obj) {
   }
 
   case Type::T_REFERENCE: {
-    ReferenceType *ref = obj->asReferenceType();
+    ReferenceType *ref = t->asReferenceType();
     openTag(ReferenceType, ref);
     // **** attributes
     printPtr(atType, ref->atType);
@@ -289,7 +289,7 @@ void TypeToXml::toXml(Type *obj) {
   }
 
   case Type::T_FUNCTION: {
-    FunctionType *func = obj->asFunctionType();
+    FunctionType *func = t->asFunctionType();
     openTag(FunctionType, func);
     // **** attributes
     printXml(flags, func->flags);
@@ -308,7 +308,7 @@ void TypeToXml::toXml(Type *obj) {
   }
 
   case Type::T_ARRAY: {
-    ArrayType *arr = obj->asArrayType();
+    ArrayType *arr = t->asArrayType();
     openTag(ArrayType, arr);
     // **** attributes
     printPtr(eltType, arr->eltType);
@@ -320,7 +320,7 @@ void TypeToXml::toXml(Type *obj) {
   }
 
   case Type::T_POINTERTOMEMBER: {
-    PointerToMemberType *ptm = obj->asPointerToMemberType();
+    PointerToMemberType *ptm = t->asPointerToMemberType();
     openTag(PointerToMemberType, ptm);
     // **** attributes
     printPtr(inClassNAT, ptm->inClassNAT);
@@ -336,15 +336,15 @@ void TypeToXml::toXml(Type *obj) {
   }
 }
 
-void TypeToXml::toXml(AtomicType *obj) {
+void TypeToXml::toXml(AtomicType *atom) {
   // idempotency
-  if (printedType(obj)) return;
+  if (printedType(atom)) return;
 
-  switch(obj->getTag()) {
+  switch(atom->getTag()) {
   default: xfailure("illegal tag");
 
   case AtomicType::T_SIMPLE: {
-    SimpleType *simple = obj->asSimpleType();
+    SimpleType *simple = atom->asSimpleType();
     openTag(SimpleType, simple);
     // **** attributes
     printXml(type, simple->type);
@@ -353,7 +353,7 @@ void TypeToXml::toXml(AtomicType *obj) {
   }
 
   case AtomicType::T_COMPOUND: {
-    CompoundType *cpd = obj->asCompoundType();
+    CompoundType *cpd = atom->asCompoundType();
     openTag(CompoundType, cpd);
     // **** attributes
     // * superclasses
@@ -388,7 +388,7 @@ void TypeToXml::toXml(AtomicType *obj) {
   }
 
   case AtomicType::T_ENUM: {
-    EnumType *e = obj->asEnumType();
+    EnumType *e = atom->asEnumType();
     openTag(EnumType, e);
     // **** attributes
     // * superclasses
@@ -418,7 +418,7 @@ void TypeToXml::toXml(AtomicType *obj) {
   }
 
   case AtomicType::T_TYPEVAR: {
-    TypeVariable *tvar = obj->asTypeVariable();
+    TypeVariable *tvar = atom->asTypeVariable();
     openTag(TypeVariable, tvar);
     // **** attributes
     // * superclasses
@@ -431,7 +431,7 @@ void TypeToXml::toXml(AtomicType *obj) {
   }
 
   case AtomicType::T_PSEUDOINSTANTIATION: {
-    PseudoInstantiation *pseudo = obj->asPseudoInstantiation();
+    PseudoInstantiation *pseudo = atom->asPseudoInstantiation();
     openTag(PseudoInstantiation, pseudo);
     // **** attributes
     // * superclasses
@@ -450,7 +450,7 @@ void TypeToXml::toXml(AtomicType *obj) {
   }
 
   case AtomicType::T_DEPENDENTQTYPE: {
-    DependentQType *dep = obj->asDependentQType();
+    DependentQType *dep = atom->asDependentQType();
     openTag(DependentQType, dep);
     // **** attributes
     // * superclasses
@@ -472,8 +472,8 @@ void TypeToXml::toXml(AtomicType *obj) {
   }
 }
 
-void TypeToXml::toXml(CompoundType *obj) {
-  toXml(static_cast<AtomicType*>(obj)); // just disambiguate the overloading
+void TypeToXml::toXml(CompoundType *ct) {
+  toXml(static_cast<AtomicType*>(ct)); // just disambiguate the overloading
 }
 
 void TypeToXml::toXml(Variable *var) {
@@ -641,32 +641,32 @@ void TypeToXml::toXml_Scope_subtags(Scope *scope) {
   trav(scope->curCompound);
 }
 
-void TypeToXml::toXml(STemplateArgument *obj) {
+void TypeToXml::toXml(STemplateArgument *sta) {
   // idempotency
-  if (printedType(obj)) return;
-  openTag(STemplateArgument, obj);
+  if (printedType(sta)) return;
+  openTag(STemplateArgument, sta);
 
   // **** attributes
-  printXml(kind, obj->kind);
-  switch(obj->kind) {
+  printXml(kind, sta->kind);
+  switch(sta->kind) {
   default: xfailure("illegal STemplateArgument kind"); break;
 
   case STemplateArgument::STA_TYPE:
-    printPtr(t, obj->value.t);
+    printPtr(t, sta->value.t);
     break;
 
   case STemplateArgument::STA_INT:
-    printXml_int(i, obj->value.i);
+    printXml_int(i, sta->value.i);
     break;
 
   case STemplateArgument::STA_REFERENCE:
   case STemplateArgument::STA_POINTER:
   case STemplateArgument::STA_MEMBER:
-    printPtr(v, obj->value.v);
+    printPtr(v, sta->value.v);
     break;
 
   case STemplateArgument::STA_DEPEXPR:
-    printPtrAST(e, obj->value.e);
+    printPtrAST(e, sta->value.e);
     break;
 
   case STemplateArgument::STA_TEMPLATE:
@@ -674,7 +674,7 @@ void TypeToXml::toXml(STemplateArgument *obj) {
     break;
 
   case STemplateArgument::STA_ATOMIC:
-    printPtr(at, obj->value.at);
+    printPtr(at, sta->value.at);
     break;
   }
   tagEnd;
@@ -684,10 +684,10 @@ void TypeToXml::toXml(STemplateArgument *obj) {
   // NOTE: I don't use the trav() macro here because it would be weird
   // to test the member of a union for being NULL; it should have a
   // well-defined value if it is the selected type of the tag.
-  switch(obj->kind) {
+  switch(sta->kind) {
   default: xfailure("illegal STemplateArgument kind"); break;
   case STemplateArgument::STA_TYPE:
-    toXml(obj->value.t);
+    toXml(sta->value.t);
     break;
 
   case STemplateArgument::STA_INT:
@@ -697,7 +697,7 @@ void TypeToXml::toXml(STemplateArgument *obj) {
   case STemplateArgument::STA_REFERENCE:
   case STemplateArgument::STA_POINTER:
   case STemplateArgument::STA_MEMBER:
-    toXml(obj->value.v);
+    toXml(sta->value.v);
     break;
 
   case STemplateArgument::STA_DEPEXPR:
@@ -710,7 +710,7 @@ void TypeToXml::toXml(STemplateArgument *obj) {
     break;
 
   case STemplateArgument::STA_ATOMIC:
-    toXml(const_cast<AtomicType*>(obj->value.at));
+    toXml(const_cast<AtomicType*>(sta->value.at));
     break;
   }
 }
