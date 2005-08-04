@@ -12,7 +12,6 @@
 #include "typelistiter.h"  // TypeListIter
 #include "cc_ast_aux.h"    // LoweredASTVisitor
 #include "mtype.h"         // MType
-#include "matchtype.h"     // MatchTypes
 
 
 void copyTemplateArgs(ObjList<STemplateArgument> &dest,
@@ -3972,7 +3971,7 @@ Variable *Env::makeExplicitFunctionSpecialization
   // find the overload set
   Variable *ovlVar = lookupPQVariable(name, LF_TEMPL_PRIMARY);
   if (!ovlVar) {
-    error(stringc << "cannot find primary `" << name->toString() 
+    error(stringc << "cannot find primary `" << name->toString()
                   << "' to specialize");
     return NULL;
   }
@@ -4002,18 +4001,18 @@ Variable *Env::makeExplicitFunctionSpecialization
       continue;
     }
 
-    // 2005-05-26 (in/t0485.cc) if we're trying to associate a
+    // 2005-05-26 (in/t0485.cc): if we're trying to associate a
     // specialization with a member template, the specialization
     // does not yet know whether it is a nonstatic member or not,
     // so we must ignore the receiver argument when matching
-    Type::EqFlags eflags = Type::EF_IGNORE_IMPLICIT;
+    MatchFlags mflags = MF_IGNORE_IMPLICIT | MF_MATCH | MF_STAT_EQ_NONSTAT;
 
     // can this element specialize to 'ft'?
-    MatchTypes match(tfac, MatchTypes::MM_BIND, eflags);
-    if (match.match_Type(ft, primary->type)) {
+    MType match(true /*allowNonConst*/);
+    if (match.matchNC(ft, primary->type, mflags)) {
       // yes; construct the argument list that specializes 'primary'
       TemplateInfo *primaryTI = primary->templateInfo();
-      SObjList<STemplateArgument> specArgs;
+      ObjList<STemplateArgument> specArgs;
 
       if (primaryTI->inheritedParams.isNotEmpty()) {
         // two difficulties:
@@ -4023,7 +4022,7 @@ Variable *Env::makeExplicitFunctionSpecialization
         //   - I want to compute right now the argument list that
         //     specializes primary, but then later I will want the
         //     full argument list for making the TemplateInfo
-        xfailure("unimplemented: specializing a member template of a class template");
+        xunimp("specializing a member template of a class template");
       }
 
       // simultanously iterate over the user's provided arguments,
@@ -4036,13 +4035,13 @@ Variable *Env::makeExplicitFunctionSpecialization
         Variable *param = paramIter.data();
 
         // get the binding
-        STemplateArgument const *binding = match.bindings.getVar(param->name);
-        if (!binding) {
+        STemplateArgument binding = match.getBoundValue(param->name, tfac);
+        if (!binding.hasValue()) {
           // inference didn't pin this down; did the user give me
           // arguments to use instead?
           if (!nameArgsIter.isDone()) {
             // yes, use the user's argument instead
-            binding = nameArgsIter.data();
+            binding = *nameArgsIter.data();
           }
           else {
             // no, so this candidate can't match
@@ -4053,14 +4052,14 @@ Variable *Env::makeExplicitFunctionSpecialization
           // does the inferred argument match what the user has?
           if (pqtemplate &&                               // user gave me arguments
               (nameArgsIter.isDone() ||                           // but not enough
-               !binding->isomorphic(tfac, nameArgsIter.data()))) {   // or no match
+               !binding.isomorphic(tfac, nameArgsIter.data()))) {    // or no match
             // no match, this candidate can't match
             goto continue_outer_loop;
           }
         }
 
-        // remember the argument (I promise not to modify it...)
-        specArgs.append(const_cast<STemplateArgument*>(binding));
+        // remember the argument
+        specArgs.append(new STemplateArgument(binding));
 
         if (!nameArgsIter.isDone()) {
           nameArgsIter.adv();
@@ -4088,19 +4087,22 @@ Variable *Env::makeExplicitFunctionSpecialization
       }
       best = primary;
 
+      // make SObjList version of specArgs
+      SObjList<STemplateArgument> const &serfSpecArgs = objToSObjListC(specArgs);
+
       // do we already have a specialization like this?
-      ret = primary->templateInfo()->getSpecialization(tfac, specArgs);
+      ret = primary->templateInfo()->getSpecialization(tfac, serfSpecArgs);
       if (ret) {
         TRACE("template", "re-declaration of function specialization of " <<
                           primary->type->toCString(primary->fullyQualifiedName()) <<
-                          ": " << ret->name << sargsToString(specArgs));
+                          ": " << ret->name << sargsToString(serfSpecArgs));
       }
       else {
         // build a Variable to represent the specialization
-        ret = makeSpecializationVariable(loc, dflags, primary, ft, specArgs);
+        ret = makeSpecializationVariable(loc, dflags, primary, ft, serfSpecArgs);
         TRACE("template", "complete function specialization of " <<
                           primary->type->toCString(primary->fullyQualifiedName()) <<
-                          ": " << ret->name << sargsToString(specArgs));
+                          ": " << ret->name << sargsToString(serfSpecArgs));
       }
     } // initial candidate match check
   } // candidate loop

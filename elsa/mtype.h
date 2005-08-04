@@ -111,7 +111,8 @@ private://temporary
                                    ObjList<STemplateArgument> const &sargs);
 
 public:       // funcs
-  // only when 'allowNonConst' is true can 'matchNC' be invoked
+  // only when 'allowNonConst' is true can 'matchNC' and
+  // 'getBoundValue' be invoked
   MType(bool allowNonConst = false);
   ~MType();
 
