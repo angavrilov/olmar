@@ -2108,6 +2108,12 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName, stri
     out << "  out << \"" << name << "\" << \"=\";\n";
     out << "  out << quoted(toXml_double(" << baseName << "->" << name << "));\n";
   }
+  else if (streq(type, "SourceLoc")) {
+    out << "  out << \"\\n\";\n";
+    out << "  if (indent) printIndentation();\n";
+    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << quoted(toXml_SourceLoc(" << baseName << "->" << name << "));\n";
+  }
   else if (isListType(type)) {
     // for now, I'll continue to assume that any class that appears
     // in ASTList<> is compatible with the printing regime here
@@ -2737,6 +2743,12 @@ void XmlParserGen::emitXmlField_AttributeParseRule
   else if (streq(type, "double")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    fromXml_double(obj->" << name << ", parseQuotedString(strValue));\n";
+    parser1_defs << "    break;\n";
+  }
+  else if (streq(type, "SourceLoc")) {
+    parser1_defs << "  case XTOK_" << name << ":\n";
+    // FIX: we don't parse SourceLoc-s yet
+    parser1_defs << "    // fromXml_SourceLoc(obj->" << name << ", parseQuotedString(strValue));\n";
     parser1_defs << "    break;\n";
   }
   else if (isListType(type)) {
