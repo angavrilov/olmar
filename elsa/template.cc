@@ -1070,11 +1070,7 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
 
   switch(larg->kind) {
   default:
-    xfailure("illegal TemplateArgument kind");
-    break;
-
-  case STemplateArgument::STA_NONE: // not yet resolved into a valid template argument
-    xfailure("STA_NONE TemplateArgument kind");
+    xfailure("bad/unexpected/unimplemented TemplateArgument kind");
     break;
 
   case STemplateArgument::STA_TYPE: // type argument
@@ -1082,8 +1078,8 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
     // check if left is at least as specific as right
     bool leftAtLeastAsSpec;
     {
-      MatchTypes match(tfac, MatchTypes::MM_WILD);
-      if (match.match_Type(larg->value.t, rarg->value.t)) {
+      MType match;
+      if (match.match(larg->value.t, rarg->value.t, MF_MATCH)) {
         leftAtLeastAsSpec = true;
       } else {
         leftAtLeastAsSpec = false;
@@ -1092,8 +1088,8 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
     // check if right is at least as specific as left
     bool rightAtLeastAsSpec;
     {
-      MatchTypes match(tfac, MatchTypes::MM_WILD);
-      if (match.match_Type(rarg->value.t, larg->value.t)) {
+      MType match;
+      if (match.match(rarg->value.t, larg->value.t, MF_MATCH)) {
         rightAtLeastAsSpec = true;
       } else {
         rightAtLeastAsSpec = false;
@@ -1132,10 +1128,6 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
       return STAC_EQUAL;
     }
     return STAC_INCOMPARABLE;
-    break;
-
-  case STemplateArgument::STA_TEMPLATE: // template argument (not implemented)
-    xfailure("STA_TEMPLATE TemplateArgument kind; not implemented");
     break;
   }
 }
