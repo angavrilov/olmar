@@ -137,6 +137,7 @@ variables
 typeTags
 parents
 templateParams
+overload
 
 # Some containers; I no longer care about order
 #   ObjList

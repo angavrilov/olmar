@@ -27,6 +27,7 @@ string idPrefix(EnumType::Value const * const)       {return "TY";}
 string idPrefix(BaseClass const * const)             {return "TY";}
 string idPrefix(Scope const * const)                 {return "TY";}
 string idPrefix(Variable const * const)              {return "TY";}
+string idPrefix(OverloadSet const * const)           {return "TY";}
 string idPrefix(STemplateArgument const * const)     {return "TY";}
 string idPrefix(TemplateInfo const * const)          {return "TY";}
 
@@ -511,10 +512,7 @@ void TypeToXml::toXml(Variable *var) {
   printPtrAST(value, var->value);
   printPtr(defaultParamType, var->defaultParamType);
   printPtrAST(funcDefn, var->funcDefn);
-//    OverloadSet *overload;  // (nullable serf)
-//    I don't think we need to serialize this because we are done with
-//    overloading after typechecking.  Will have to eventually be done if
-//    an analysis wants to analyze uninstantiate templates.
+  printPtr(overload, var->overload);
   printPtr(scope, var->scope);
 //    // bits 0-7: result of 'getAccess()'
 //    // bits 8-15: result of 'getScopeKind()'
@@ -1139,6 +1137,7 @@ void ReadXml_Type::registerAttr_Variable(Variable *obj, int attr, char const *st
   case XTOK_value: ul(value); break; 
   case XTOK_defaultParamType: ul(defaultParamType); break; 
   case XTOK_funcDefn: ul(funcDefn); break; 
+  case XTOK_overload: ul(overload); break; 
   case XTOK_scope: ul(scope); break; 
   case XTOK_intData: fromXml_Variable_intData(obj->intData, parseQuotedString(strValue)); break; 
   case XTOK_usingAlias_or_parameterizedEntity: ul(usingAlias_or_parameterizedEntity); break; 
