@@ -9,8 +9,8 @@ usage() {
   echo "    - goes through gcc, and"
   echo "    - provokes an error from ccparse, where"
   echo "    - the error message matches the fragment regexp"
-  echo "  Use the special msg \"segfault\" to test for a segfault,"
-  echo "  and \"segfault\" to test for a SIGABRT."
+  echo "  Use the special msg \"segfault\" to test for a segfault (SIGSEGV),"
+  echo "  and \"abort\" to test for a SIGABRT."
 }
 
 # verbose operation?
@@ -22,7 +22,7 @@ fi
 
 # gcc to use
 if [ "$GCC" = "" ]; then
-  GCC=$HOME/opt/gcc-3.4.0/bin/g++
+  GCC=$HOME/opt/gcc-3.4.3/bin/g++
 fi
 
 # input file
