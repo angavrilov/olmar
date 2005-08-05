@@ -3159,6 +3159,22 @@ bool checkCompleteTypeRules(Env &env, DeclFlags dflags, DeclaratorContext contex
   // check it
   return env.ensureCompleteType(action, type);
 }
+ 
+// Is 't' an object type built in to the language, such that it
+// could not possibly have a user-defined constructor?  It needs
+// to not be a class of course, but also not a dependent type that
+// could be instantiated with a class.
+bool isPrimitiveObjectType(Type const *t)
+{
+  if (t->isCVAtomicType()) {
+    AtomicType const *at = t->asCVAtomicTypeC()->atomic;
+    return at->isSimpleType() || at->isEnumType();
+  }
+
+  return t->isPointerType() ||
+         t->isReferenceType() ||
+         t->isPointerToMemberType();
+}
 
 void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 {
@@ -3446,32 +3462,62 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   if (env.lang.isCplusplus &&
       !dt.hasFlag(DF_EXTERN) &&                 // not an extern decl
       !dt.hasFlag(DF_TYPEDEF) &&                // not a typedef
-      isVariableDC(dt.context) &&               // local/global variable
-      var->type->isCompoundType()) {            // class-valued
-    if (!init) {
-      // cppstd 8.5 paras 7,8,9: treat
-      //   C c;
-      // like
-      //   C c();
-      // except that the latter is not actually allowed since it would
-      // be interpreted as a declaration of a function
-      init = new IN_ctor(decl->loc, NULL /*args*/);
+      isVariableDC(dt.context)) {               // local/global variable
+    // 2005-08-05: I now question the wisdom of doing these
+    // transformations, because if the type's constructor is entirely
+    // compiler-supplied, then using an IN_ctor misleadingly suggests
+    // that arbitrary computation could be happening...
+    if (var->type->isCompoundType()) {            // class-valued
+      if (!init) {
+        // cppstd 8.5 paras 7,8,9: treat
+        //   C c;
+        // like
+        //   C c();
+        // except that the latter is not actually allowed since it would
+        // be interpreted as a declaration of a function
+        init = new IN_ctor(decl->loc, NULL /*args*/);
+      }
+      else if (init->isIN_expr()) {
+        // cppstd reference? treat
+        //   C c = 5;
+        // like
+        //   C c(5);
+        // except the latter isn't always syntactically allowed (e.g. CN_decl)
+
+        // take out the IN_expr
+        IN_expr *inexpr = init->asIN_expr();
+        Expression *e = inexpr->e;
+        inexpr->e = NULL;
+        delete inexpr;
+
+        // put in an IN_ctor
+        init = new IN_ctor(decl->loc, makeExprList1(e));
+      }
     }
-    else if (init->isIN_expr()) {
-      // cppstd reference? treat
-      //   C c = 5;
-      // like
-      //   C c(5);
-      // except the latter isn't always syntactically allowed (e.g. CN_decl)
-
-      // take out the IN_expr
-      IN_expr *inexpr = init->asIN_expr();
-      Expression *e = inexpr->e;
-      inexpr->e = NULL;
-      delete inexpr;
-
-      // put in an IN_ctor
-      init = new IN_ctor(decl->loc, makeExprList1(e));
+    
+    // for non-class types, normalize IN_ctor into IN_expr, as this
+    // makes it clear that no function call is occurring, and is how
+    // constant-value variables are recognized (in/t0512.cc)
+    else if (init &&
+             isPrimitiveObjectType(var->type) &&
+             init->isIN_ctor()) {
+      IN_ctor *inc = init->asIN_ctor();
+      if (inc->args->count() != 1) {
+        env.error(getLoc(), stringc
+          << "expected constructor-style initializer of `"
+          << var->type->toString() << "' to have 1 argument, not "
+          << inc->args->count());
+      }
+      else {
+        // substitute IN_expr
+        init = new IN_expr(getLoc(), inc->args->first()->expr);
+        
+        // Above, I dispose of the replaced initializer, but that is
+        // only valid if I am sure that no other AST node is pointing
+        // at it, and I am not.  So, just leave 'inc' alone.  (The
+        // code above may or may not be wrong, but since it has not
+        // been observed to fail I won't mess with it.)
+      }
     }
   }
 
