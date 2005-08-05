@@ -1236,6 +1236,7 @@ testCparse_special gnu_c89 c/dC0029.c # "restrict in non-keyword role"
 testCparse gnu/dC0017.c # "__alignof__ arguments can be full expressions ??"
 testCparse c/dC0030.c # "template disambiguation code??"
 testCparse c/dC0031.c # "can't const-eval size of type that is an array with a dynamic size"
+failCparse c/dC0032.c, "open arrays not handled right"
 
 testparse_special ansi_c c/k0001.c #"typedef int fooint; typedef fooint long;"
 testCparse c/k0002.c #"attempt to create an object of incomplete class `S'"
