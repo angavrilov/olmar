@@ -386,7 +386,7 @@ void TypeToXml::toXml(AtomicType *atom) {
       openTagWhole(NameMap_EnumType_valueIndex, &e->valueIndex);
       for(StringObjDict<EnumType::Value>::Iter iter(e->valueIndex);
           !iter.isDone(); iter.next()) {
-        string const &name = iter.key();
+        rostring name = iter.key();
         // dsw: do you know how bad it gets if I don't put a
         // const-cast here?
         EnumType::Value *eValue = const_cast<EnumType::Value*>(iter.value());
