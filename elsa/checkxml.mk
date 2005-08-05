@@ -1,4 +1,4 @@
-#!/usr/bin/make checkxml
+.SUFFIX:
 
 # DIFF := diff -u
 DIFF := diff -c -b
