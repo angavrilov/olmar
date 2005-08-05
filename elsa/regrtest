@@ -1302,6 +1302,9 @@ if $use_gnu; then
   # asm tests
   testCparse gnu/asm01.c
 
+  # gcc C-mode bugs
+  testCparse gnu/bugs/gb0001.c
+
   # tests (primarily for __attribute__) from CIL
   testcil() {
     runTest ./ccparse -tr c_lang in/gnu/cil/$1

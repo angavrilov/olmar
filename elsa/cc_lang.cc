@@ -22,6 +22,7 @@ void CCLang::enableAllWarnings()
   enableWarning(allowAnonymousStructs);
   enableWarning(allowGcc2HeaderSyntax);
   enableWarning(allowRepeatedTypeSpecifierKeywords);
+  enableWarning(allowCVAppliedToFunctionTypes);
 }
 
 
@@ -72,6 +73,7 @@ void CCLang::ANSI_C89()
   gcc2StdEqualsGlobalHacks = false;
   allowGcc2HeaderSyntax = B3_FALSE;
   allowRepeatedTypeSpecifierKeywords = B3_FALSE;
+  allowCVAppliedToFunctionTypes = B3_FALSE;
 }
 
 void CCLang::KandR_C()
@@ -121,6 +123,7 @@ void CCLang::GNU_C_extensions()
   allowModifiersWithTypedefNames = B3_TRUE;
   allowAnonymousStructs = B3_TRUE;
   allowRepeatedTypeSpecifierKeywords = B3_TRUE;
+  allowCVAppliedToFunctionTypes = B3_TRUE;
 }
 
 void CCLang::GNU_C()
@@ -200,6 +203,7 @@ void CCLang::ANSI_Cplusplus()
   gcc2StdEqualsGlobalHacks = false;
   allowGcc2HeaderSyntax = B3_FALSE;
   allowRepeatedTypeSpecifierKeywords = B3_FALSE;
+  allowCVAppliedToFunctionTypes = B3_FALSE;
 }
 
 void CCLang::GNU_Cplusplus()

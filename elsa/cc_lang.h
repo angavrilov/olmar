@@ -195,6 +195,10 @@ public:
   // gcc C-mode bug compat: accept duplicate type specifier keywords
   // like 'int int'
   Bool3 allowRepeatedTypeSpecifierKeywords;
+  
+  // gcc C-mode bug compat: silently allow const/volatile to be
+  // applied to function types via typedefs; it's meaningless
+  Bool3 allowCVAppliedToFunctionTypes;
 
 public:
   CCLang() { ANSI_C89(); }

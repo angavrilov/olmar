@@ -250,6 +250,40 @@ class ToXmlASTVisitor_Types : public ASTVisitor {
 };
 
 
+// this is a dumb way to organize argument processing...
+char *myProcessArgs(int argc, char **argv, char const *additionalInfo)
+{
+  // remember program name
+  char const *progName = argv[0];
+
+  // process args
+  while (argc >= 2) {
+    if (traceProcessArg(argc, argv)) {
+      continue;
+    }
+    else if (0==strcmp(argv[1], "-xc")) {
+      // treat this as a synonym for "-tr c_lang"
+      traceAddSys("c_lang");
+      argv++;
+      argc--;
+    }
+    else {
+      break;     // didn't find any more options
+    }
+  }
+
+  if (argc != 2) {
+    cout << "usage: " << progName << " [options] input-file\n"
+            "  options:\n"
+            "    -tr <flags>:       turn on given tracing flags (comma-separated)\n"
+         << (additionalInfo? additionalInfo : "");
+    exit(argc==1? 0 : 2);    // error if any args supplied
+  }
+
+  return argv[1];
+}
+
+
 void doit(int argc, char **argv)
 {
   // I think this is more noise than signal at this point
@@ -271,7 +305,7 @@ void doit(int argc, char **argv)
 
 
   // ------------- process command-line arguments ---------
-  char const *inputFname = processArgs
+  char const *inputFname = myProcessArgs
     (argc, argv,
      "\n"
      "  general behavior flags:\n"

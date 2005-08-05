@@ -1309,8 +1309,15 @@ Type *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
   Type *t = itcheck(env, dflags);
   Type *ret = env.tfac.applyCVToType(loc, cv, t, this);
   if (!ret) {
-    return env.error(t, stringc
-      << "cannot apply const/volatile to type `" << t->toString() << "'");
+    if (t->isFunctionType() && env.lang.allowCVAppliedToFunctionTypes) {
+      env.diagnose3(env.lang.allowCVAppliedToFunctionTypes, loc,
+                    "cannot apply const/volatile to function types (gcc bug allows it)");
+      return t;    // ignore the cv-flags
+    }
+    else {
+      return env.error(t, stringc
+        << "cannot apply const/volatile to type `" << t->toString() << "'");
+    }
   }
   return ret;
 }
