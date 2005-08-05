@@ -218,21 +218,11 @@ grepBoth() {
 
 # ---------- test C++ parser ------------
 
-# flags to pass; $TR_EXTRA is here so I can put additional tracing
-# flags into this command from the command line, to test them across
-# all my test inputs; by default it expands to "", and hence has no
-# effect
-TR_FLAGS=mustBeUnambiguous$TR_EXTRA
-
-# NOTE: I've recently changed the 'trace' module to additionally be
-# sensitive to the "TRACE" environment variable, so that's another
-# (and more general) way to add flags globally.
-
 # by using shell functions we can make it easy to comment-out
 # or change to 'fail' status those tests that are not working at
 # some given time
 testparse() {
-  runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS in/$1
+  runTest perl ./multitest.pl ./ccparse in/$1
 }
 testparse_strict() {
   # this is for tests that include things that should be diagnosed
@@ -248,12 +238,12 @@ testparse_strict() {
   # 2005-03-09: The flag that "strict" used to control is now on
   # by default, though it can be disabled with "-tr permissive".
   # I will leave "testparse_strict", but not use it anymore.
-  runTest perl ./multitest.pl ./ccparse -tr strict,$TR_FLAGS in/$1
+  runTest perl ./multitest.pl ./ccparse -tr strict in/$1
 }
 
 # run the parser with some specific tracing flag(s) added
 testparse_special() {
-  runTest perl ./multitest.pl ./ccparse -tr $1,$TR_FLAGS in/$2
+  runTest perl ./multitest.pl ./ccparse -tr $1 in/$2
 }
 
 failparse() {
@@ -261,10 +251,10 @@ failparse() {
     echo "failparse $1: failparse takes two arguments"
     exit 4
   fi
-  failTest "$2" perl ./multitest.pl ./ccparse -tr shortMTRecDepthLimit,$TR_FLAGS in/$1
+  failTest "$2" perl ./multitest.pl ./ccparse in/$1
 }
 failparse_strict() {
-  failTest "$2" perl ./multitest.pl ./ccparse -tr strict,$TR_FLAGS in/$1
+  failTest "$2" perl ./multitest.pl ./ccparse -tr strict in/$1
 }
 
 # ---- BEGIN: lots of tests ----
@@ -1022,7 +1012,7 @@ runTest perl ./multitest.pl ./five-errors in/t0151.cc
 #   (plus more from before I started maintaining this list ...)
 rm -f in/std/*.error*.cc
 for fn in in/std/*.cc; do
-  runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS "$fn"
+  runTest perl ./multitest.pl ./ccparse "$fn"
 done
 
 # for the benefit of gcov
@@ -1096,7 +1086,7 @@ if $use_gnu; then
 
   # test c99 extensions
   for fn in in/c99/*.c; do
-    runTest ./ccparse -tr c_lang,$TR_FLAGS "$fn"
+    runTest ./ccparse -tr c_lang "$fn"
   done
 
   testparse gnu/k0001.cc #"({...}) cannot be empty"
@@ -1165,14 +1155,14 @@ testCparse() {
   runTest perl ./multitest.pl ./ccparse -tr c_lang in/$1
 }
 testCparse_special() {
-  runTest perl ./multitest.pl ./ccparse -tr c_lang,$1,$TR_FLAGS in/$2
+  runTest perl ./multitest.pl ./ccparse -tr c_lang,$1 in/$2
 }
 failCparse() {
   if [ "$2" = "" ]; then
     echo "failparse $1: failparse takes two arguments"
     exit 4
   fi
-  failTest "$2" perl ./multitest.pl ./ccparse -tr c_lang,shortMTRecDepthLimit,$TR_FLAGS in/$1
+  failTest "$2" perl ./multitest.pl ./ccparse -tr c_lang in/$1
 }
 testCparse c/t0001.c
 testCparse c/t0002.c
@@ -1353,10 +1343,10 @@ runTest ./ccparse -tr msvcBugs in/msvc/m0001.cc
 if $MAKE in/big; then
 
 testnsparse() {
-  runTest ./ccparse -tr $TR_FLAGS "$1"
+  runTest ./ccparse "$1"
 }
 failnsparse() {
-  failTest "$2" ./ccparse -tr $TR_FLAGS "$1"
+  failTest "$2" ./ccparse "$1"
 }
 
 if [ "$DISABLE_BIG_TESTS" = "" ]; then
