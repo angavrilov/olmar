@@ -145,10 +145,6 @@ public:
   // keywords is treated like a prototype
   bool treatExternInlineAsPrototype;
 
-  // gcc-2 bug compatibility: permit string literals to contain
-  // (unescaped) newline characters in them
-  bool allowNewlinesInStringLits;
-
   // dsw: C99 std 6.4.5p5: "For character string literals, the array
   // elements have type char...."; Cppstd 2.13.4p1: "An ordinary
   // string literal has type "array of const char" and static storage
@@ -159,10 +155,18 @@ public:
   // if the argument to a cast is an lvalue, make the cast expression
   // have lvalue type
   bool lvalueFlowsThroughCast;
-  
+
+  // when true, 'restrict' is a keyword
+  bool restrictIsAKeyword;
+
+  // ---- bug compatibility flags ----
+  // gcc-2 bug compatibility: permit string literals to contain
+  // (unescaped) newline characters in them
+  bool allowNewlinesInStringLits;
+
   // MSVC bug compatibility: allow implicit int for operator functions
   Bool3 allowImplicitIntForOperators;
-  
+
   // gcc bug compatibility: allow qualified member declarations
   Bool3 allowQualifiedMemberDeclarations;
 
@@ -172,24 +176,25 @@ public:
   // good to delete this, since it involves some extra grammar
   // productions
   Bool3 allowModifiersWithTypedefNames;
-  
+
   // gcc/msvc bug/extension compatibility: allow anonymous structs;
   // see doc/anon-structs.txt
   Bool3 allowAnonymousStructs;
-  
+
   // gcc-2 bug compatibility: In gcc-2, namespace "std::" is actually
   // an alias for the global scope.  This flag turns on some hacks
   // to accept some code preprocessed with gcc-2 headers.
   bool gcc2StdEqualsGlobalHacks;
-  
+
   // more gcc-2 bug compat: The gcc-2 headers contain some invalid
   // syntax.  Conceptually, this flag recognizes the invalid syntax
   // and transforms it into valid syntax for Elsa.  Actually, it just
   // enables some hacks that have similar effect.
   Bool3 allowGcc2HeaderSyntax;
   
-  // when true, 'restrict' is a keyword
-  bool restrictIsAKeyword;
+  // gcc C-mode bug compat: accept duplicate type specifier keywords
+  // like 'int int'
+  Bool3 allowRepeatedTypeSpecifierKeywords;
 
 public:
   CCLang() { ANSI_C89(); }

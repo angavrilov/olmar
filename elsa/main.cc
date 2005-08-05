@@ -607,7 +607,8 @@ void doit(int argc, char **argv)
   long elaborationTime = 0;
   if (!lang.isCplusplus || tracingSys("no-elaborate")) {
     cout << "no-elaborate" << endl;
-  } else {
+  } 
+  else {
     SectionTimer timer(elaborationTime);
 
     // do elaboration

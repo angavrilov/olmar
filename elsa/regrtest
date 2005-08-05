@@ -1219,8 +1219,11 @@ testCparse c/dC0022.c # sizeof dynamically-sized multidimensional array
 
 testCparse c/dC0023.c # "in gcc, in C mode, a foo and a struct foo are unrelated"
 
-# this is invalid code
-#failCparse c/dC0024.c "bizarreness with redundant and useless typedefs"
+# this is invalid code                                              
+#
+# 2005-08-04: but if people keep feeding me this bug, I guess I will
+# shut up and accept it
+testCparse c/dC0024.c # "bizarreness with redundant and useless typedefs"
 
 testCparse c/dC0025.c # no-info-prototype of main(), then defn
 testCparse c/dC0026.c # implicit int in K&R decl

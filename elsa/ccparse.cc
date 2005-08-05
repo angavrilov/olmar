@@ -113,8 +113,15 @@ UberModifiers ParseEnv
     dups = (UberModifiers)(dups & ~UM_CVFLAGS);
   }
   if (dups) {
-    // C++ 7.1.5p1
-    error(loc, stringc << "duplicate modifier: " << toString(dups));
+    if (dups == UM_INT && lang.allowRepeatedTypeSpecifierKeywords) {
+      // in/c/dC0024.c
+      diagnose3(lang.allowRepeatedTypeSpecifierKeywords, loc, 
+                "repeated 'int' type specifier (gcc bug allows it)");
+    }
+    else {
+      // C++ 7.1.5p1
+      error(loc, stringc << "duplicate modifier: " << toString(dups));
+    }
   }
 
   return (UberModifiers)(m1 | m2);
