@@ -138,6 +138,21 @@ travObjList0(BASE, BASETYPE, FIELD, FIELDTYPE, SFOREACH_OBJLIST_NC, SObjList)
 #define travObjList(BASE, BASETYPE, FIELD, FIELDTYPE) \
 travObjList0(BASE, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
 
+#define travPtrMap(BASE, BASETYPE, FIELD, FIELDTYPE) \
+do { \
+  if (!printedSM(&BASE->FIELD)) { \
+    openTagWhole(NameMap_ ##BASETYPE ##_ ##FIELD, &BASE->FIELD); \
+    for(PtrMap<char const, FIELDTYPE>::Iter iter(BASE->FIELD); \
+        !iter.isDone(); \
+        iter.adv()) { \
+      StringRef name = iter.key(); \
+      FIELDTYPE *var = iter.value(); \
+      openTag_NameMap_Item(name, var); \
+      trav(var); \
+    } \
+  } \
+} while(0)
+
 // NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
 // for the TypeToXml_CloseTagPrinter fires too early.
 #define openTag0(NAME, OBJ, SUFFIX) \
@@ -630,30 +645,8 @@ void TypeToXml::toXml_Scope_properties(Scope *scope) {
 }
 
 void TypeToXml::toXml_Scope_subtags(Scope *scope) {
-  // variables
-  if (!printedSM(&scope->variables)) {
-    openTagWhole(NameMap_Scope_variables, &scope->variables);
-    for(PtrMap<char const, Variable>::Iter iter(scope->variables);
-        !iter.isDone();
-        iter.adv()) {
-      StringRef name = iter.key();
-      Variable *var = iter.value();
-      openTag_NameMap_Item(name, var);
-      trav(var);
-    }
-  }
-  // typeTags
-  if (!printedSM(&scope->typeTags)) {
-    openTagWhole(NameMap_Scope_typeTags, &scope->typeTags);
-    for(PtrMap<char const, Variable>::Iter iter(scope->typeTags);
-        !iter.isDone();
-        iter.adv()) {
-      StringRef name = iter.key();
-      Variable *var = iter.value();
-      openTag_NameMap_Item(name, var);
-      trav(var);
-    }
-  }
+  travPtrMap(scope, Scope, variables, Variable);
+  travPtrMap(scope, Scope, typeTags, Variable);
   trav(scope->parentScope);
   trav(scope->namespaceVar);
   travObjList_S(scope, Scope, templateParams, Variable);
