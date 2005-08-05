@@ -471,4 +471,4 @@ check: semgrep all
 # run the xml commutative diagram tests
 .PHONY: checkxml
 checkxml:
-	./checkxml.pl
+	$(MAKE) -f checkxml.mk
