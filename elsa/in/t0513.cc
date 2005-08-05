@@ -22,6 +22,10 @@ int arr2[sizeof(S2)==8? +1 : -1];
 
 // this is from a header file somewhere, it shows up in quite a 
 // few of the Debian build failures
+//
+// actually, it's gcc's implementation of __real__, and then a
+// check regarding its size (because gcc must emit machine code
+// to manipulate it), and this appears in both gcc and mingw32
 struct real_value {
   unsigned int canonical : 1;                       // 1
   signed int exp : (32 - 5);                        // 27
