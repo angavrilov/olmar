@@ -31,11 +31,9 @@ class TypeToXml {
   bool indent;
 
   // printing of types is idempotent
-  SObjSet<void const *> printedTypes;
-  SObjSet<void const *> printedScopes;
-  SObjSet<void const *> printedVariables;
-  SObjSet<void const *> printedOLs;
-  SObjSet<void const *> printedSMs;
+  SObjSet<void const *> printedSetTY;
+  SObjSet<void const *> printedSetOL;
+  SObjSet<void const *> printedSetNM;
 
   public:
   TypeToXml(ostream &out0, bool indent0=true)
@@ -53,12 +51,30 @@ class TypeToXml {
   void newline();
   friend class TypeToXml_CloseTagPrinter;
 
-  // register the object and check if it has been printed
-  bool printedType(void const * const obj);
-  bool printedScope(Scope const * const obj);
-  bool printedVariable(Variable const * const obj);
-  bool printedOL(void const * const obj);
-  bool printedSM(void const * const obj);
+#define identity0(NAME, TEMPL) TEMPL bool printed(NAME const * const obj)
+#define identity(NAME) identity0(NAME, )
+#define identityTempl(NAME) identity0(NAME, template<class T>)
+
+  identity(Type);
+  identity(AtomicType);
+  identity(CompoundType);
+  identity(FunctionType::ExnSpec);
+  identity(EnumType::Value);
+  identity(BaseClass);
+  identity(Scope);
+  identity(Variable);
+  identity(OverloadSet);
+  identity(STemplateArgument);
+  identity(TemplateInfo);
+  identity(InheritedTemplateParams);
+  identityTempl(ObjList<T>);
+  identityTempl(SObjList<T>);
+  identityTempl(StringRefMap<T>);
+  identityTempl(StringObjDict<T>);
+
+#undef identity0
+#undef identity
+#undef identityTempl
 
   public:
   void toXml(Type *t);

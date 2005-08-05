@@ -10,33 +10,71 @@
 #include "astxml_lexer.h"       // AstXmlLexer
 
 
-// this bizarre function is actually useful for something
-inline void const *addr(void const *x) {
-  return x;
+// to/from Xml for enums
+string toXml(CompoundType::Keyword id) {
+  return stringc << static_cast<int>(id);
+}
+void fromXml(CompoundType::Keyword &out, rostring str) {
+  out = static_cast<CompoundType::Keyword>(atoi(str));
 }
 
-// ast
+string toXml(FunctionFlags id) {
+  return stringc << static_cast<int>(id);
+}
+void fromXml(FunctionFlags &out, rostring str) {
+  out = static_cast<FunctionFlags>(atoi(str));
+}
+
+string toXml(ScopeKind id) {
+  return stringc << static_cast<int>(id);
+}
+void fromXml(ScopeKind &out, rostring str) {
+  out = static_cast<ScopeKind>(atoi(str));
+}
+
+string toXml(STemplateArgument::Kind id) {
+  return stringc << static_cast<int>(id);
+}
+void fromXml(STemplateArgument::Kind &out, rostring str) {
+  out = static_cast<STemplateArgument::Kind>(atoi(str));
+}
+
+
+// **** macros and functions to assist in serializing Type System
+// annotations
+
 string idPrefixAST(void const * const) {return "AST";}
 
-// type annotations
-string idPrefix(Type const * const)                    {return "TY";}
-string idPrefix(AtomicType const * const)              {return "TY";}
-string idPrefix(CompoundType const * const)            {return "TY";}
-string idPrefix(FunctionType::ExnSpec const * const)   {return "TY";}
-string idPrefix(EnumType::Value const * const)         {return "TY";}
-string idPrefix(BaseClass const * const)               {return "TY";}
-string idPrefix(Scope const * const)                   {return "TY";}
-string idPrefix(Variable const * const)                {return "TY";}
-string idPrefix(OverloadSet const * const)             {return "TY";}
-string idPrefix(STemplateArgument const * const)       {return "TY";}
-string idPrefix(TemplateInfo const * const)            {return "TY";}
-string idPrefix(InheritedTemplateParams const * const) {return "TY";}
+#define identity0(PREFIX, NAME, TEMPL) \
+TEMPL char const *idPrefix(NAME const * const) {return #PREFIX;} \
+TEMPL bool TypeToXml::printed(NAME const * const obj) { \
+  if (printedSet ##PREFIX.contains(obj)) return true; \
+  printedSet ##PREFIX.add(obj); \
+  return false; \
+}
+#define identity(PREFIX, NAME) identity0(PREFIX, NAME, )
+#define identityTempl(PREFIX, NAME) identity0(PREFIX, NAME, template<class T>)
 
-// containers
-template <class T> string idPrefix(ObjList<T> const * const)       {return "OL";}
-template <class T> string idPrefix(SObjList<T> const * const)      {return "OL";}
-template <class T> string idPrefix(StringRefMap<T> const * const)  {return "NM";}
-template <class T> string idPrefix(StringObjDict<T> const * const) {return "NM";}
+identity(TY, Type)
+identity(TY, AtomicType)
+identity(TY, CompoundType)
+identity(TY, FunctionType::ExnSpec)
+identity(TY, EnumType::Value)
+identity(TY, BaseClass)
+identity(TY, Scope)
+identity(TY, Variable)
+identity(TY, OverloadSet)
+identity(TY, STemplateArgument)
+identity(TY, TemplateInfo)
+identity(TY, InheritedTemplateParams)
+identityTempl(OL, ObjList<T>)
+identityTempl(OL, SObjList<T>)
+identityTempl(NM, StringRefMap<T>)
+identityTempl(NM, StringObjDict<T>)
+
+#undef identity0
+#undef identity
+#undef identityTempl
 
 // manage indentation depth
 class IncDec {
@@ -66,6 +104,11 @@ class TypeToXml_CloseTagPrinter {
   }
 };
 
+
+// this bizarre function is actually useful for something
+inline void const *addr(void const *x) {
+  return x;
+}
 
 #define printThing0(NAME, PREFIX, VALUE, FUNC) \
 do { \
@@ -125,7 +168,7 @@ do { \
 
 #define travObjList0(BASE, BASETYPE, FIELD, FIELDTYPE, ITER_MACRO, LISTKIND) \
 do { \
-  if (!printedOL(&BASE->FIELD)) { \
+  if (!printed(&BASE->FIELD)) { \
     openTagWhole(List_ ##BASETYPE ##_ ##FIELD, &BASE->FIELD); \
     ITER_MACRO(FIELDTYPE, const_cast<LISTKIND<FIELDTYPE>&>(BASE->FIELD), iter) { \
       travListItem(iter.data()); \
@@ -140,7 +183,7 @@ travObjList0(BASE, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
 
 #define travPtrMap(BASE, BASETYPE, FIELD, FIELDTYPE) \
 do { \
-  if (!printedSM(&BASE->FIELD)) { \
+  if (!printed(&BASE->FIELD)) { \
     openTagWhole(NameMap_ ##BASETYPE ##_ ##FIELD, &BASE->FIELD); \
     for(PtrMap<char const, FIELDTYPE>::Iter iter(BASE->FIELD); \
         !iter.isDone(); \
@@ -197,35 +240,6 @@ do { \
   trav(TARGET)
 
 
-string toXml(CompoundType::Keyword id) {
-  return stringc << static_cast<int>(id);
-}
-void fromXml(CompoundType::Keyword &out, rostring str) {
-  out = static_cast<CompoundType::Keyword>(atoi(str));
-}
-
-string toXml(FunctionFlags id) {
-  return stringc << static_cast<int>(id);
-}
-void fromXml(FunctionFlags &out, rostring str) {
-  out = static_cast<FunctionFlags>(atoi(str));
-}
-
-string toXml(ScopeKind id) {
-  return stringc << static_cast<int>(id);
-}
-void fromXml(ScopeKind &out, rostring str) {
-  out = static_cast<ScopeKind>(atoi(str));
-}
-
-string toXml(STemplateArgument::Kind id) {
-  return stringc << static_cast<int>(id);
-}
-void fromXml(STemplateArgument::Kind &out, rostring str) {
-  out = static_cast<STemplateArgument::Kind>(atoi(str));
-}
-
-
 // -------------------- TypeToXml -------------------
 
 void TypeToXml::newline() {
@@ -235,43 +249,9 @@ void TypeToXml::newline() {
   }
 }
 
-// **** printing idepotency
-
-bool TypeToXml::printedType(void const * const obj) {
-  if (printedTypes.contains(obj)) return true;
-  printedTypes.add(obj);
-  return false;
-}
-
-bool TypeToXml::printedScope(Scope const * const obj) {
-  if (printedScopes.contains(obj)) return true;
-  printedScopes.add(obj);
-  return false;
-}
-
-bool TypeToXml::printedVariable(Variable const * const obj) {
-  if (printedVariables.contains(obj)) return true;
-  printedVariables.add(obj);
-  return false;
-}
-
-bool TypeToXml::printedOL(void const * const obj) {
-  if (printedOLs.contains(obj)) return true;
-  printedOLs.add(obj);
-  return false;
-}
-
-bool TypeToXml::printedSM(void const * const obj) {
-  if (printedSMs.contains(obj)) return true;
-  printedSMs.add(obj);
-  return false;
-}
-
-// **** printing routines for each type system annotation
-
 void TypeToXml::toXml(Type *t) {
   // idempotency
-  if (printedType(t)) return;
+  if (printed(t)) return;
 
   switch(t->getTag()) {
   default: xfailure("illegal tag");
@@ -360,13 +340,14 @@ void TypeToXml::toXml(Type *t) {
 }
 
 void TypeToXml::toXml(AtomicType *atom) {
-  // idempotency
-  if (printedType(atom)) return;
-
+  // idempotency done in each sub-type as it is not done for
+  // CompoundType here.
   switch(atom->getTag()) {
   default: xfailure("illegal tag");
 
   case AtomicType::T_SIMPLE: {
+    // idempotency
+    if (printed(atom)) return;
     SimpleType *simple = atom->asSimpleType();
     openTag(SimpleType, simple);
     // **** attributes
@@ -376,41 +357,17 @@ void TypeToXml::toXml(AtomicType *atom) {
   }
 
   case AtomicType::T_COMPOUND: {
+    // NO!  Do NOT do this here:
+//      // idempotency
+//      if (printed(atom)) return;
     CompoundType *cpd = atom->asCompoundType();
-    openTag(CompoundType, cpd);
-    // **** attributes
-    // * superclasses
-    toXml_NamedAtomicType_properties(cpd);
-    toXml_Scope_properties(cpd);
-    // * members
-    printXml_bool(forward, cpd->forward);
-    printXml(keyword, cpd->keyword);
-    printEmbed(cpd, dataMembers);
-    printEmbed(cpd, bases);
-    printEmbed(cpd, virtualBases);
-    printEmbed(cpd, subobj); // FIX: embedded object, not a container
-    printEmbed(cpd, conversionOperators);
-    printStrRef(instName, cpd->instName);
-    printPtrAST(cpd, syntax);
-    printPtr(cpd, parameterizingScope);
-    printPtr(cpd, selfType);
-    tagEnd;
-    // **** subtags
-    // * superclasses
-    toXml_NamedAtomicType_subtags(cpd);
-    toXml_Scope_subtags(cpd);
-    // * members
-    travObjList_S(cpd, CompoundType, dataMembers, Variable);
-    travObjList(cpd, CompoundType, bases, BaseClass);
-    travObjList(cpd, CompoundType, virtualBases, BaseClassSubobj);
-    trav(&cpd->subobj);         // FIX: embedded object
-    travObjList_S(cpd, CompoundType, conversionOperators, Variable);
-    trav(cpd->parameterizingScope);
-    trav(cpd->selfType);
+    toXml(cpd);
     break;
   }
 
   case AtomicType::T_ENUM: {
+    // idempotency
+    if (printed(atom)) return;
     EnumType *e = atom->asEnumType();
     openTag(EnumType, e);
     // **** attributes
@@ -425,7 +382,7 @@ void TypeToXml::toXml(AtomicType *atom) {
     toXml_NamedAtomicType_subtags(e);
     // * members
     // valueIndex
-    if (!printedOL(&e->valueIndex)) {
+    if (!printed(&e->valueIndex)) {
       openTagWhole(NameMap_EnumType_valueIndex, &e->valueIndex);
       for(StringObjDict<EnumType::Value>::Iter iter(e->valueIndex);
           !iter.isDone(); iter.next()) {
@@ -441,6 +398,8 @@ void TypeToXml::toXml(AtomicType *atom) {
   }
 
   case AtomicType::T_TYPEVAR: {
+    // idempotency
+    if (printed(atom)) return;
     TypeVariable *tvar = atom->asTypeVariable();
     openTag(TypeVariable, tvar);
     // **** attributes
@@ -454,6 +413,8 @@ void TypeToXml::toXml(AtomicType *atom) {
   }
 
   case AtomicType::T_PSEUDOINSTANTIATION: {
+    // idempotency
+    if (printed(atom)) return;
     PseudoInstantiation *pseudo = atom->asPseudoInstantiation();
     openTag(PseudoInstantiation, pseudo);
     // **** attributes
@@ -473,6 +434,8 @@ void TypeToXml::toXml(AtomicType *atom) {
   }
 
   case AtomicType::T_DEPENDENTQTYPE: {
+    // idempotency
+    if (printed(atom)) return;
     DependentQType *dep = atom->asDependentQType();
     openTag(DependentQType, dep);
     // **** attributes
@@ -495,13 +458,44 @@ void TypeToXml::toXml(AtomicType *atom) {
   }
 }
 
-void TypeToXml::toXml(CompoundType *ct) {
-  toXml(static_cast<AtomicType*>(ct)); // just disambiguate the overloading
+void TypeToXml::toXml(CompoundType *cpd) {
+  // idempotency
+  if (printed(cpd)) return;
+  openTag(CompoundType, cpd);
+  // **** attributes
+  // * superclasses
+  toXml_NamedAtomicType_properties(cpd);
+  toXml_Scope_properties(cpd);
+  // * members
+  printXml_bool(forward, cpd->forward);
+  printXml(keyword, cpd->keyword);
+  printEmbed(cpd, dataMembers);
+  printEmbed(cpd, bases);
+  printEmbed(cpd, virtualBases);
+  printEmbed(cpd, subobj); // FIX: embedded object, not a container
+  printEmbed(cpd, conversionOperators);
+  printStrRef(instName, cpd->instName);
+  printPtrAST(cpd, syntax);
+  printPtr(cpd, parameterizingScope);
+  printPtr(cpd, selfType);
+  tagEnd;
+  // **** subtags
+  // * superclasses
+  toXml_NamedAtomicType_subtags(cpd);
+  toXml_Scope_subtags(cpd);
+  // * members
+  travObjList_S(cpd, CompoundType, dataMembers, Variable);
+  travObjList(cpd, CompoundType, bases, BaseClass);
+  travObjList(cpd, CompoundType, virtualBases, BaseClassSubobj);
+  trav(&cpd->subobj);         // FIX: embedded object
+  travObjList_S(cpd, CompoundType, conversionOperators, Variable);
+  trav(cpd->parameterizingScope);
+  trav(cpd->selfType);
 }
 
 void TypeToXml::toXml(Variable *var) {
   // idempotency
-  if (printedVariable(var)) return;
+  if (printed(var)) return;
   openTag(Variable, var);
   // **** attributes
   printXml_SourceLoc(loc, var->loc);
@@ -537,7 +531,7 @@ void TypeToXml::toXml(Variable *var) {
 void TypeToXml::toXml_FunctionType_ExnSpec(void /*FunctionType::ExnSpec*/ *exnSpec0) {
   FunctionType::ExnSpec *exnSpec = static_cast<FunctionType::ExnSpec *>(exnSpec0);
   // idempotency
-  if (printedType(exnSpec)) return;
+  if (printed(exnSpec)) return;
   openTag(FunctionType_ExnSpec, exnSpec);
   // **** attributes
   printEmbed(exnSpec, types);
@@ -549,7 +543,7 @@ void TypeToXml::toXml_FunctionType_ExnSpec(void /*FunctionType::ExnSpec*/ *exnSp
 void TypeToXml::toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0) {
   EnumType::Value *eValue = static_cast<EnumType::Value *>(eValue0);
   // idempotency
-  if (printedType(eValue)) return;
+  if (printed(eValue)) return;
   openTag(EnumType_Value, eValue);
   // **** attributes
   printStrRef(name, eValue->name);
@@ -574,7 +568,7 @@ void TypeToXml::toXml_NamedAtomicType_subtags(NamedAtomicType *nat) {
 
 void TypeToXml::toXml(OverloadSet *oload) {
   // idempotency
-  if (printedType(oload)) return;
+  if (printed(oload)) return;
   openTag(OverloadSet, oload);
   // **** attributes
   printEmbed(oload, set);
@@ -584,8 +578,13 @@ void TypeToXml::toXml(OverloadSet *oload) {
 }
 
 void TypeToXml::toXml(BaseClass *bc) {
+  // are we really a BaseClassSubobj?
+  if (BaseClassSubobj *bcs = dynamic_cast<BaseClassSubobj*>(bc)) {
+    toXml(bcs);
+    return;
+  }
   // idempotency
-  if (printedType(bc)) return;
+  if (printed(bc)) return;
   openTag(BaseClass, bc);
   // **** attributes
   toXml_BaseClass_properties(bc);
@@ -606,7 +605,7 @@ void TypeToXml::toXml_BaseClass_subtags(BaseClass *bc) {
 
 void TypeToXml::toXml(BaseClassSubobj *bc) {
   // idempotency
-  if (printedType(bc)) return;
+  if (printed(bc)) return;
   openTag(BaseClassSubobj, bc);
   // **** attributes
   // * superclass
@@ -622,8 +621,13 @@ void TypeToXml::toXml(BaseClassSubobj *bc) {
 }
 
 void TypeToXml::toXml(Scope *scope) {
+  // are we really a CompoundType?
+  if (CompoundType *cpd = dynamic_cast<CompoundType*>(scope)) {
+    toXml(cpd);
+    return;
+  }
   // idempotency
-  if (printedScope(scope)) return;
+  if (printed(scope)) return;
   openTag(Scope, scope);
   // **** attributes
   toXml_Scope_properties(scope);
@@ -655,7 +659,7 @@ void TypeToXml::toXml_Scope_subtags(Scope *scope) {
 
 void TypeToXml::toXml(STemplateArgument *sta) {
   // idempotency
-  if (printedType(sta)) return;
+  if (printed(sta)) return;
   openTag(STemplateArgument, sta);
 
   // **** attributes
@@ -729,7 +733,7 @@ void TypeToXml::toXml(STemplateArgument *sta) {
 
 void TypeToXml::toXml(TemplateInfo *ti) {
   // idempotency
-  if (printedType(ti)) return;
+  if (printed(ti)) return;
   openTag(TemplateInfo, ti);
   // **** attributes
   // * superclass
@@ -769,7 +773,7 @@ void TypeToXml::toXml(TemplateInfo *ti) {
 
 void TypeToXml::toXml(InheritedTemplateParams *itp) {
   // idempotency
-  if (printedType(itp)) return;
+  if (printed(itp)) return;
   openTag(TemplateInfo, itp);
   // **** attributes
   // * superclass
