@@ -216,6 +216,10 @@ ImplicitConversion getImplicitConversion
       (dest->asRval()->isCompoundType() &&
        dest->asRval()->isConst())) {
     CompoundType *ct = dest->asRval()->asCompoundType();
+    
+    // (in/t0514.cc) conversion to a template class specialization
+    // requires that the specialization be instantiated
+    env.ensureClassBodyInstantiated(ct);
 
     // get the overload set of constructors
     Variable *ctor = ct->getNamedField(env.constructorSpecialName, env);
