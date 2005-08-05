@@ -450,6 +450,11 @@ class IDeclarator {
        // write down in cc_tcheck which one this is
        public(xml) bool isNewSize = false;
      }
+     
+  -> D_bitfield {
+       // type checker stashes the bitfield size in bits here
+       public(xml) int numBits = 0;
+     }
 }
 
 

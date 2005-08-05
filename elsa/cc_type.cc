@@ -503,33 +503,109 @@ string CompoundType::toCString() const
 int CompoundType::reprSize() const
 {
   int total = 0;
-  for (StringRefMap<Variable>::Iter iter(getVariableIter());
-       !iter.isDone(); iter.adv()) {
-    Variable *v = iter.value();
-    // count nonstatic data members
-    if (!v->type->isFunctionType() &&
-        !v->hasFlag(DF_TYPEDEF) &&
-        !v->hasFlag(DF_STATIC)) {
-      int membSize = 0;
-      if (v->type->isArrayType() &&
-          v->type->asArrayType()->size == ArrayType::NO_SIZE) {
-        // if the type checker let this in, we must be in a mode that
-        // allows "open arrays", in which case the computed size will
-        // be zero
+
+  // base classes
+  {
+    SObjList<BaseClassSubobj const> subobjs;
+    getSubobjects(subobjs);
+    SFOREACH_OBJLIST(BaseClassSubobj const, subobjs, iter) {
+      if (iter.data()->ct == this) {
+        // skip my own subobject, as that will be accounted for below
       }
       else {
-        membSize = v->type->reprSize();
-      }
-      if (keyword == K_UNION) {
-        // representation size is max over field sizes
-        total = max(total, membSize);
-      }
-      else {
-        // representation size is sum over field sizes
-        total += membSize;
+        total += iter.data()->ct->reprSize();
       }
     }
   }
+
+  // This algorithm is a very crude approximation of the packing and
+  // alignment behavior of some nominal compiler.  Ideally, we'd have
+  // a layout algorithm for each compiler we want to emulate, or
+  // perhaps even a generic algorithm with sufficient
+  // parameterization, but for now it's just a best effort driven by
+  // specific pieces of code that know how big their own structures
+  // are supposed to be.
+  //        
+  // Were I to try to do a better job, a good starting point would be
+  // to research any published ABIs I could find for C and C++, as
+  // they would have to specify a layout algorithm.  Presumably, if I
+  // can emulate any published ABI then I will have the flexibility to
+  // emulate any compiler also.
+  //
+  // One test is in/t0513.cc.
+
+  // Maintain information about accumulated members that do not occupy
+  // a complete word.
+  int bits = 0;        // bitfield bits
+  int bytes = 0;       // unaligned bytes
+  int align = 1;       // prevailing alignment in bytes
+
+  // data members
+  SFOREACH_OBJLIST(Variable, dataMembers, iter) {
+    Variable const *v = iter.data();
+
+    if (keyword == K_UNION) {
+      // representation size is max over field sizes
+      total = max(total, v->type->reprSize());
+      continue;
+    }
+
+    if (v->isBitfield()) {
+      // consolidate bytes as bits
+      bits += bytes*8;
+      bytes = 0;
+
+      int membBits = v->getBitfieldSize();
+      bits += membBits;
+      
+      // increase alignment to accomodate this member
+      while (membBits > align*8 && align < 4) {
+        align *= 2;
+      }
+
+      continue;
+    }
+
+    // 'v' is not a bitfield, so pack the bits seen so far into
+    // 'align' units
+    if (bits > 0) {
+      total += ((bits + (align*8-1)) / (align*8)) * align;
+      bits = 0;
+    }
+
+    int membSize = v->type->reprSize();
+
+    if (membSize >= align) {
+      // increase alignment if necessary, up to 4 bytes;
+      // this is wrong because you can't tell the alignment
+      // of a structure just from its size
+      while (membSize > align && align < 4) {
+        align *= 2;
+      }
+
+      // consolidate any remaining bytes into 'align' units
+      if (bytes > 0) {
+        total += ((bytes + align-1) / align) * align;
+        bytes = 0;
+      }
+
+      // add 'membSize'
+      total += (membSize / align) * align;
+      bytes += membSize % align;
+    }
+    else {
+      // less than one alignment, just stuff it into 'bytes'; this
+      // is wrong because it doesn't take account of alignment
+      // less than 'align', e.g. 2-byte alignment of a 16-bit qty..
+      // oh well
+      bytes += membSize;
+    }
+  }
+
+  // pad out to the next 'align' boundary
+  bits += bytes*8;
+  total += ((bits + (align*8-1)) / (align*8)) * align;
+
   return total;
 }
 

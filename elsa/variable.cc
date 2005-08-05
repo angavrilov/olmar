@@ -566,6 +566,21 @@ int Variable::getEnumeratorValue() const
 }
 
 
+void Variable::setBitfieldSize(int bits)
+{
+  xassert(isBitfield());
+
+  setParameterOrdinal(bits);
+}
+
+int Variable::getBitfieldSize() const
+{
+  xassert(isBitfield());
+
+  return getParameterOrdinal();
+}
+
+
 // --------------------- OverloadSet -------------------
 OverloadSet::OverloadSet()
   : set()

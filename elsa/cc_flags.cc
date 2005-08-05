@@ -117,6 +117,7 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "<selfname>",
   "<templ param>",  // 29
   "<using alias>",
+  "<bitfield>",
 };
 
 

@@ -3336,6 +3336,10 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   type = dt.type;
   context = dt.context;
 
+  if (decl->isD_bitfield()) {
+    var->setBitfieldSize(decl->asD_bitfield()->numBits);
+  }
+
   // declarators usually require complete types
   //
   // 2005-04-16: moved this down below the call to
@@ -4137,22 +4141,19 @@ void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt)
     tcheckPQName(name, env);
   }
 
-  // fix: I hadn't been type-checking this...
   bits->tcheck(env, bits);
 
   // check that the expression is a compile-time constant
   int n;
   if (!bits->constEval(env, n)) {
-    env.error("bitfield size must be a constant",
-              EF_NONE);
+    env.error("bitfield size must be a constant", EF_NONE);
   }
-
-  // TODO: record the size of the bit field somewhere; but
-  // that size doesn't influence type checking very much, so
-  // fixing this will be a low priority for some time.  I think
-  // the way to do it is to make another kind of Type which
-  // stacks a bitfield size on top of another Type, and
-  // construct such an animal here.
+  else {
+    // remember the size of the bit field
+    this->numBits = n;
+  }
+  
+  dt.dflags |= DF_BITFIELD;
 }
 
 

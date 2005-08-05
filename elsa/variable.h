@@ -119,7 +119,7 @@ private:      // data
 
   // bits 0-7: result of 'getAccess()'
   // bits 8-15: result of 'getScopeKind()'
-  // bits 16-31: result of 'getParameterOrdinal()'
+  // bits 16-31: result of 'getParameterOrdinal()' or 'getBitfieldSize()'
   unsigned intData;
 
   // for most kinds of Variables, this is 'getUsingAlias()'; for
@@ -299,6 +299,11 @@ public:
   
   // this must be an enumerator; get the integer value it denotes
   int getEnumeratorValue() const;
+
+  // bitfield access
+  bool isBitfield() const { return hasFlag(DF_BITFIELD); }
+  void setBitfieldSize(int bits);      // must be bitfield
+  int getBitfieldSize() const;         // must be bitfield
 
   // dsw: Variables are part of the type system at least for purposes
   // of traversal

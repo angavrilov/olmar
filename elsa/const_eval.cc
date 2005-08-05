@@ -521,6 +521,7 @@ CValue Expression::constEval(ConstEval &env) const
   #if 1       // production
     return iconstEval(env);
   #else       // debugging
+    #warning debugging code is enabled
     CValue ret = iconstEval(env);
     cout << "const-eval of `" << exprToString() << "' is " << ret.asString() << endl;
     return ret;
