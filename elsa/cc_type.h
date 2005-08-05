@@ -802,9 +802,6 @@ public:     // data
 protected:
   friend class BasicTypeFactory;
   friend class ReadXml_Type;
-#ifdef OINK
-  friend class TypeFactory_O;
-#endif
   CVAtomicType(AtomicType *a, CVFlags c)
     : atomic(a), cv(c) {}
 

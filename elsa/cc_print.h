@@ -224,11 +224,10 @@ class TreeWalkDebug {
   ~TreeWalkDebug();
 };
 
-#ifndef OINK
 // In Oink, TypeLike is a superclass of Type but here we will just
-// make it synonymous with Type.
+// make it synonymous with Type.  oink/cc_print.h.cpatch comments-out
+// this declaration.
 typedef Type TypeLike;
-#endif
 
 // Interface for classes that know how to print out types
 class TypePrinter {
@@ -239,6 +238,16 @@ class TypePrinter {
   // called TypeLike that both Type and Value inherit from.  I think
   // this is too much generality for OO to handle well
   virtual void print(OutStream &out, TypeLike const *type, char const *name = NULL) = 0;
+  
+  // retrieve the TypeLike to print for a Variable; in Elsa, this
+  // just gets Variable::type, but Oink does something else
+  virtual TypeLike const *getTypeLike(Variable const *var);
+  
+  // retrieve for a Function, nominally Function::funcType
+  virtual TypeLike const *getFunctionTypeLike(Function const *func);
+  
+  // and for an E_constructor, nominally Expression::type
+  virtual TypeLike const *getE_constructorTypeLike(E_constructor const *c);
 };
 
 // This class knows how to print out Types in C syntax
@@ -308,10 +317,8 @@ class PrintEnv {
     , loc(SL_UNKNOWN)
   {}
 
-#ifdef OINK
-  // is this type printer really one for abstract values?
-  bool isValuePrinter();
-#endif
+  TypeLike const *getTypeLike(Variable const *var)
+    { return typePrinter.getTypeLike(var); }
 
   void finish() { out->finish(); }
 

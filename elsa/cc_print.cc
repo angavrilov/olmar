@@ -11,11 +11,7 @@
 #include "strutil.h"            // string utilities
 
 #include <stdlib.h>             // getenv
-
-#ifdef OINK
-  #include "oink_print.h"
-  #include "oink_var.h"
-#endif
+  
 
 // set this environment variable to see the twalk_layer debugging
 // output
@@ -159,6 +155,23 @@ TreeWalkDebug::TreeWalkDebug(char *message, TreeWalkOutStream &out)
 TreeWalkDebug::~TreeWalkDebug()
 {
   out.up();
+}
+
+// **************** class TypePrinter
+
+TypeLike const *TypePrinter::getTypeLike(Variable const *var)
+{
+  return var->type;
+}
+
+TypeLike const *TypePrinter::getFunctionTypeLike(Function const *func)
+{
+  return func->funcType;
+}
+
+TypeLike const *TypePrinter::getE_constructorTypeLike(E_constructor const *c)
+{
+  return c->type;
 }
 
 // **************** class TypePrinterC
@@ -627,11 +640,7 @@ string TypePrinterC::printAsParameter(Variable const *var)
 
 // **************** class PrintEnv
 
-#ifdef OINK
-bool PrintEnv::isValuePrinter() {
-  return dynamic_cast<TypePrinterCO*>(&(typePrinter));
-}
-#endif
+// (none; placeholder)
 
 // ****************
 
@@ -681,6 +690,25 @@ string printDeclaration_makeName
   return sb0;
 }
 
+// hooks for Oink
+//
+// sm: My intuition is that these hooks and ought to be parallel
+// (i.e., just one hook function), but they are not, either in type
+// signature or in runtime behavior, so I suspect there is a bug here.
+TypeLike const *getDeclarationRetTypeLike(TypeLike const *type);
+Type const *getDeclarationTypeLike(TypeLike const *type);
+
+// Elsa implementations
+TypeLike const *getDeclarationRetTypeLike(TypeLike const *type)
+{
+  return type->asFunctionTypeC()->retType;
+}
+
+Type const *getDeclarationTypeLike(TypeLike const *type)
+{
+  return type;
+}
+
 // function for printing declarations (without the final semicolon);
 // handles a variety of declarations such as:
 //   int x
@@ -728,18 +756,7 @@ void printDeclaration
     *env.out << "operator ";
 
     // then the return type and the function designator
-    TypeLike *retThing = NULL;
-#ifdef OINK
-    // compute the retType/Value
-    TypeLike *valueOrType = const_cast<TypeLike*>(static_cast<TypeLike const*>(type));
-    if (valueOrType->isActuallyAValue()) {
-      retThing = valueOrType->asValue()->asFunctionValue()->retValue;
-    } else {
-      retThing = valueOrType->asType()->asFunctionType()->retType;
-    }
-#else
-    retThing = static_cast<Type const*>(type)->asFunctionTypeC()->retType;
-#endif
+    TypeLike const *retThing = getDeclarationRetTypeLike(type);
     env.typePrinter.print(*env.out, retThing);
 
     *env.out << " ()";
@@ -753,18 +770,7 @@ void printDeclaration
 
   else {
     if (finalName) {
-      Type const *type0 = NULL;
-#ifdef OINK
-      // compute the retType/Value
-      TypeLike *valueOrType = const_cast<TypeLike*>(static_cast<TypeLike const*>(type));
-      if (valueOrType->isActuallyAValue()) {
-        type0 = valueOrType->asValue()->t();
-      } else {
-        type0 = valueOrType->asType();
-      }
-#else
-      type0 = static_cast<Type const*>(type);
-#endif
+      Type const *type0 = getDeclarationTypeLike(type);
       string name = printDeclaration_makeName(env, type0, pqname, var, finalName);
       env.typePrinter.print(*env.out, type, name.c_str());
     } else {
@@ -779,12 +785,7 @@ void printVar(PrintEnv &env, Variable *var, PQName const * /*nullable*/ pqname)
 {
   TreeWalkDebug treeDebug("printVar");
 
-  TypeLike const *type0 = var->type;
-#ifdef OINK
-  if (env.isValuePrinter()) {
-    type0 = asVariable_O(var)->abstrValue();
-  }
-#endif
+  TypeLike const *type0 = env.getTypeLike(var);
 
   printDeclaration(env, var->flags,
                    type0, pqname, var);
@@ -882,17 +883,8 @@ void TF_namespaceDecl::print(PrintEnv &env)
 void Function::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("Function");
-  TypeLike const *type0 = funcType;
-#ifdef OINK
-  // NOTE: Templatized functions do not have an abstract value so
-  // sometimes we need to use the type instead.
-  bool isRealType = true;
-  if (abstrValue && env.isValuePrinter()) {
-    type0 = abstrValue;
-    isRealType = false;
-  }
-  Restorer<bool> res0(TypePrinterC::enabled, isRealType);
-#endif
+  TypeLike const *type0 = env.typePrinter.getFunctionTypeLike(this);
+  Restorer<bool> res0(TypePrinterC::enabled, type0 == funcType);
 
   printDeclaration(env, dflags,
                    type0,
@@ -977,12 +969,7 @@ void ASTTypeId::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("ASTTypeId");
 
-  TypeLike const *type0 = getType();
-#ifdef OINK
-  if (env.isValuePrinter()) {
-    type0 = asVariable_O(decl->var)->abstrValue();
-  }
-#endif
+  TypeLike const *type0 = env.getTypeLike(decl->var);
 
   env.typePrinter.print(*env.out, type0);
   if (decl->getDeclaratorId()) {
@@ -1455,9 +1442,7 @@ string Expression::exprToString() const
   StringBuilderOutStream out0(sb);
   CodeOutStream codeOut(out0);
   TypePrinterC typePrinter;
-#ifdef OINK
   Restorer<bool> res0(TypePrinterC::enabled, true);
-#endif
   PrintEnv env(typePrinter, &codeOut);
   
   // sm: I think all the 'print' methods should be 'const', but
@@ -1549,13 +1534,11 @@ void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta)
       break;
     case STemplateArgument::STA_TYPE:
       {
-#ifdef OINK
       // FIX: not sure if this is a bug but there is no abstract value
       // lying around to be printed here so we just print what we
       // have; enable the normal type printer temporarily in order to
       // do this
       Restorer<bool> res0(TypePrinterC::enabled, true);
-#endif
       env.typePrinter.print(*env.out, sta->value.t, ""); // assume 'type' if no comment
       }
       break;
@@ -1661,17 +1644,9 @@ void E_constructor::iprint(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("E_constructor::iprint");
 
-  TypeLike const *type0 = type;
-#ifdef OINK
-  // NOTE: I templatizs we not have an abstract value so sometimes we
-  // need to use the type instead.
-  bool isRealType = true;
-  if (abstrValue && env.isValuePrinter()) {
-    type0 = abstrValue;
-    isRealType = false;
-  }
-  Restorer<bool> res0(TypePrinterC::enabled, isRealType);
-#endif
+  TypeLike const *type0 = env.typePrinter.getE_constructorTypeLike(this);
+  Restorer<bool> res0(TypePrinterC::enabled, type == type0);
+
   env.typePrinter.print(*env.out, type0);
   PairDelim pair(*env.out, "", "(", ")");
   printArgExprList(env, args);
@@ -1999,12 +1974,7 @@ void TD_func::iprint(PrintEnv &env)
     *env.out << "#if 0    // instantiations of ";
     // NOTE: inlined from Variable::toCString()
 
-    TypeLike const *type0 = var->type;
-#ifdef OINK
-    if (env.isValuePrinter()) {
-      type0 = asVariable_O(var)->abstrValue();
-    }
-#endif
+    TypeLike const *type0 = env.getTypeLike(var);
     env.typePrinter.print(*env.out, type0, (var->name? var->name : "/*anon*/"));
     *env.out << var->namePrintSuffix() << "\n";
     printFuncInstantiations(env, var);
@@ -2042,12 +2012,7 @@ void TD_decl::iprint(PrintEnv &env)
         Variable const *instV = iter.data();
 
         *env.out << "// ";
-        TypeLike const *type0 = instV->type;
-#ifdef OINK
-        if (env.isValuePrinter()) {
-          type0 = asVariable_O(instV)->abstrValue();
-        }
-#endif
+        TypeLike const *type0 = env.getTypeLike(instV);
         env.typePrinter.print(*env.out, type0);
         CompoundType *instCT = instV->type->asCompoundType();
         if (instCT->syntax) {
@@ -2098,9 +2063,7 @@ void TA_type::print(PrintEnv &env)
 {
   // dig down to prevent printing "/*anon*/" since template
   // type arguments are always anonymous so it's just clutter
-#ifdef OINK
   Restorer<bool> res0(TypePrinterC::enabled, true);
-#endif
   env.typePrinter.print(*env.out, type->decl->var->type);
 }
 
