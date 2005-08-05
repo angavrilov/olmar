@@ -573,6 +573,15 @@ int CompoundType::reprSize() const
       bits = 0;
     }
 
+    if (v->type->isArrayType() &&
+        !v->type->asArrayTypeC()->hasSize()) {
+      // "open array"; there are checks elsewhere that control whether
+      // Elsa allows this, this at point in the code I can just assume
+      // that they are allowed; they are treated as having size 0, so
+      // just skip it (in/c/dC0032.c)
+      continue;
+    }
+
     int membSize = v->type->reprSize();
 
     if (membSize >= align) {

@@ -267,6 +267,12 @@ char *myProcessArgs(int argc, char **argv, char const *additionalInfo)
       argv++;
       argc--;
     }
+    else if (0==strcmp(argv[1], "-w")) {
+      // synonym for -tr nowarnings
+      traceAddSys("nowarnings");
+      argv++;
+      argc--;
+    }
     else {
       break;     // didn't find any more options
     }
