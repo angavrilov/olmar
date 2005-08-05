@@ -7423,14 +7423,24 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
   tcheckArgumentExpression(env, e2, argInfo[1]);
 
   // help disambiguate t0182.cc
-  //
-  // This is not exactly the right test.  The right thing to do is
-  // check for 'e1' being a name which refers to a template function,
-  // and then reject.  However, that is slightly more complicated
-  // (must consider both E_variable and E_fieldAcc), and I can't think
-  // of any test that would reveal the difference.
   if (op == BIN_LESS && e1->type->isFunctionType()) {
-    return env.error("cannot apply '<' to a function", EF_DISAMBIGUATES);
+    // For C++, this rule is implied by 5.9, which does not permit
+    // conversions for function-typed operands.
+    //
+    // For C, this is implied by 6.5.8, which not only fails to
+    // provide conversions for function-typed operands, but doesn't
+    // even allow relational comparison of pointer-to-function-typed
+    // operands!  Of course, the latter is a ubiquitous extension so
+    // I will continue to allow it.
+    //
+    // Note that both GCC and ICC allow this.  However, I have only
+    // seen it happen in real code twice, and *both* times the real
+    // code actually contained a bug (the programmer intended to
+    // *call* the function, not compare its address), so I do not
+    // intend to replicate their bugs in this case.
+    // (in/gnu/bugs/gb0003.cc)
+    return env.error("cannot apply '<' to a function; instead, call it "
+                     "or explicitly take its address", EF_DISAMBIGUATES);
   }
 
   // gnu/c99 complex arithmetic?
