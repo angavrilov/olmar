@@ -1019,13 +1019,16 @@ void PQ_qualifier::print(PrintEnv &env)
     *env.out << "template ";
   }
 
-  *env.out << qualifier;
-  if (templArgs/*isNotEmpty*/) {
-    *env.out << "<";
-    printTemplateArgumentList(env, templArgs);
-    *env.out << ">";
+  if (qualifier) {
+    *env.out << qualifier;
+    if (templArgs/*isNotEmpty*/) {
+      *env.out << "<";
+      printTemplateArgumentList(env, templArgs);
+      *env.out << ">";
+    }
   }
   *env.out << "::";
+
   rest->print(env);
 }
 
@@ -2072,11 +2075,10 @@ void TD_tmember::iprint(PrintEnv &env)
 
 
 // ------------------- TemplateParameter ------------------
-// sm: this isn't used..
 void TP_type::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("TP_type");
-  *env.out << "class " << name;
+  *env.out << "class " << (name? name : "/*anon*/");
                           
   if (defaultType) {
     *env.out << " = ";
