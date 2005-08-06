@@ -309,6 +309,9 @@ public:
   mutable bool visited;
 
 public:
+  BaseClassSubobj(CompoundType *c, AccessKeyword a, bool v)
+    : BaseClass(c, a, v)
+  {}
   BaseClassSubobj(BaseClass const &base);
   virtual ~BaseClassSubobj();
                            
@@ -344,7 +347,11 @@ public:      // data
 
   // this is the root of the subobject hierarchy diagram
   // invariant: subobj.ct == this
-  BaseClassSubobj subobj;
+  //
+  // dsw: this is really an exceptional situation: subobj was the only
+  // embedded object that is not a container; this is a problem for
+  // the XML serialization, so I changed it
+  BaseClassSubobj *subobj;
 
   // list of all conversion operators this class has, including
   // those that have been inherited but not then hidden

@@ -472,7 +472,7 @@ void TypeToXml::toXml(CompoundType *cpd) {
   printEmbed(cpd, dataMembers);
   printEmbed(cpd, bases);
   printEmbed(cpd, virtualBases);
-  printEmbed(cpd, subobj); // FIX: embedded object, not a container
+  printPtr(cpd, subobj);
   printEmbed(cpd, conversionOperators);
   printStrRef(instName, cpd->instName);
   printPtrAST(cpd, syntax);
@@ -487,7 +487,7 @@ void TypeToXml::toXml(CompoundType *cpd) {
   travObjList_S(cpd, CompoundType, dataMembers, Variable);
   travObjList(cpd, CompoundType, bases, BaseClass);
   travObjList(cpd, CompoundType, virtualBases, BaseClassSubobj);
-  trav(&cpd->subobj);         // FIX: embedded object
+  trav(cpd->subobj);
   travObjList_S(cpd, CompoundType, conversionOperators, Variable);
   trav(cpd->parameterizingScope);
   trav(cpd->selfType);

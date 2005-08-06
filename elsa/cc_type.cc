@@ -370,7 +370,7 @@ CompoundType::CompoundType(Keyword k, StringRef n)
     keyword(k),
     bases(),
     virtualBases(),
-    subobj(BaseClass(this, AK_PUBLIC, false /*isVirtual*/)),
+    subobj(new BaseClassSubobj(this, AK_PUBLIC, false /*isVirtual*/)),
     conversionOperators(),
     instName(n),
     syntax(NULL),
@@ -698,7 +698,7 @@ void CompoundType::addBaseClass(BaseClass * /*owner*/ newBase)
 
   // replicate 'newBase's inheritance hierarchy in the subobject
   // hierarchy, representing virtual inheritance with explicit sharing
-  makeSubobjHierarchy(&subobj, newBase);
+  makeSubobjHierarchy(subobj, newBase);
 }
 
 // all of this is done in the context of one class, the one whose
@@ -769,7 +769,7 @@ BaseClassSubobj const *CompoundType::findVirtualSubobjectC
 void CompoundType::clearSubobjVisited() const
 {
   // clear the 'visited' flags in the nonvirtual bases
-  clearVisited_helper(&subobj);
+  clearVisited_helper(subobj);
 
   // clear them in the virtual bases
   FOREACH_OBJLIST(BaseClassSubobj, virtualBases, iter) {
@@ -803,7 +803,7 @@ void CompoundType::getSubobjects(SObjList<BaseClassSubobj const> &dest) const
   dest.reverse();
 
   clearSubobjVisited();
-  getSubobjects_helper(dest, &subobj);
+  getSubobjects_helper(dest, subobj);
 
   // reverse the list since it was constructed in reverse order
   dest.reverse();

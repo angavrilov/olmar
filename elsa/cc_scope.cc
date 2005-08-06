@@ -401,7 +401,7 @@ Variable *Scope::lookupPQVariable_inner
   BaseClassSubobj const *v1Subobj = NULL;
   curCompound->clearSubobjVisited();
   lookupPQVariable_considerBase(name, env, flags,
-                                v1, v1Subobj, &curCompound->subobj);
+                                v1, v1Subobj, curCompound->subobj);
 
   if (v1) {
     candidates.addsIf(v1, flags);
@@ -651,7 +651,7 @@ EnumType const *Scope
   BaseClassSubobj const *v1Subobj = NULL;
   curCompound->clearSubobjVisited();
   lookupPQEnumC_considerBase(name, env, flags,
-                             v1, v1Subobj, &curCompound->subobj);
+                             v1, v1Subobj, curCompound->subobj);
 
   return v1;
 }
