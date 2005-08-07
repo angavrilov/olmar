@@ -798,6 +798,8 @@ testparse t0511.cc
 testparse t0512.cc
 testparse t0513.cc
 testparse t0514.cc
+testparse t0515.cc
+testparse t0516.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

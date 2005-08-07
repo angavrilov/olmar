@@ -156,6 +156,7 @@ int main(int argc, char **argv)
     doit(argc, argv);
   }
   catch (xBase &x) {
+    HANDLER();
     cout << x << endl;
     abort();
   }

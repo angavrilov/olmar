@@ -927,34 +927,34 @@ bool Scope::enclosesOrEq(Scope const *s) const
 }
 
 
-string Scope::desc() const
+string Scope::scopeName() const
 {
-  stringBuilder sb;
-
   if (curCompound) {
-    sb << curCompound->keywordAndName();
+    return curCompound->keywordAndName();
   }
   else {
     Variable const *v = getTypedefNameC();
     if (v && v->name) {
-      sb << toString(scopeKind) << " " << v->name;
+      return stringc << toString(scopeKind) << " " << v->name;
     }
     else if (isGlobalScope()) {
-      sb << "global scope";
+      return "global scope";
     }
     else {
-      sb << "anonymous " << toString(scopeKind) << " scope";
+      return stringc << "anonymous " << toString(scopeKind) << " scope";
     }
   }
+}
 
-  // address or serial number
+
+string Scope::desc() const
+{
+  // name, plus address or serial number
   #if USE_SERIAL_NUMBERS
-    sb << " #" << serialNumber;
+    return stringc << scopeName() << " #" << serialNumber;
   #else
-    sb << " at " << stringf("%p", this);
+    return stringc << scopeName() << " at " << stringf("%p", this);
   #endif
-  
-  return sb;
 }
 
 

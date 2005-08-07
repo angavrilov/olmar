@@ -587,36 +587,7 @@ CValue Expression::iconstEval(ConstEval &env) const
       return ret;
 
     ASTNEXTC(E_variable, v)
-      if (v->var->isEnumerator()) {
-        CValue ret;
-        ret.setSigned(ST_INT, v->var->getEnumeratorValue());
-        return ret;
-      }
-
-      if (v->var->type->isCVAtomicType() &&
-          (v->var->type->asCVAtomicTypeC()->cv & CV_CONST) &&
-          v->var->value) {
-        // const variable
-        return v->var->value->constEval(env);
-      }
-
-      if (v->var->type->isGeneralizedDependent() &&
-          v->var->value) {
-        return CValue(ST_DEPENDENT);
-      }
-
-      if (v->var->isTemplateParam()) {
-        return CValue(ST_DEPENDENT);
-      }
-
-      if (v->var == env.dependentVar) {
-        // value-dependent expression (Q: is it always guaranteed to
-        // be exactly 'dependentVar'?)
-        return CValue(ST_DEPENDENT);
-      }
-
-      return CValue(stringc
-        << "can't const-eval non-const variable `" << v->var->name << "'");
+      return env.evaluateVariable(v->var);
 
     ASTNEXTC(E_constructor, c)
       if (type->isIntegerType()) {
@@ -713,6 +684,40 @@ CValue Expression::iconstEval(ConstEval &env) const
 CValue Expression::extConstEval(ConstEval &env) const
 {
   return CValue(stringc << kindName() << " is not constEval'able");
+}
+
+
+CValue ConstEval::evaluateVariable(Variable *var)
+{
+  if (var->isEnumerator()) {
+    CValue ret;
+    ret.setSigned(ST_INT, var->getEnumeratorValue());
+    return ret;
+  }
+
+  if (var->type->isCVAtomicType() &&
+      (var->type->asCVAtomicTypeC()->cv & CV_CONST) &&
+      var->value) {
+    // const variable
+    return var->value->constEval(*this);
+  }
+
+  if (var->type->isGeneralizedDependent() &&
+      var->value) {
+    return CValue(ST_DEPENDENT);
+  }
+
+  if (var->isTemplateParam()) {
+    return CValue(ST_DEPENDENT);
+  }
+
+  if (var == dependentVar) {
+    // value-dependent expression
+    return CValue(ST_DEPENDENT);
+  }
+
+  return CValue(stringc
+    << "can't const-eval non-const variable `" << var->name << "'");
 }
 
 

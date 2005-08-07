@@ -119,6 +119,10 @@ public:      // data
 public:
   ConstEval(Variable * /*nullable*/ dependentVar);
   ~ConstEval();
+  
+  // evaluation of a Variable is exposed so that it can be
+  // used with a Variable not wrapped in an E_variable
+  CValue evaluateVariable(Variable *var);
 };
 
 #endif // CONST_EVAL_H

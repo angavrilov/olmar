@@ -341,6 +341,9 @@ public:      // funcs
   // this is factored out so that subclasses can call it
   void traverse_internal(TypeVisitor &vis);
 
+  // name of this scope for use in error messages and such
+  string scopeName() const;
+
   // for debugging, a quick description of this scope
   string desc() const;
   void gdb() const;

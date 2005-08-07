@@ -97,6 +97,7 @@ bool Minimizer::outerRunTest(int &size, Node *n, Relevance rel)
     }
     catch (XCtrlC &) {
       // restore the relevance guess
+      HANDLER();
       n->rel = origRel;
       throw;
     }
@@ -323,6 +324,7 @@ void entry(int argc, char *argv[])
     }
   }
   catch (XCtrlC &) {
+    HANDLER();
     xfatal("exiting due to ctrl-c; input file is unchanged");
   }
 
@@ -333,6 +335,7 @@ void entry(int argc, char *argv[])
     cout << "\ndone!  writing minimized version to " << m.sourceFname << "\n";
   }
   catch (XCtrlC &) {
+    HANDLER();
     cout << "\nuser pressed ctrl-c;\n";
     cout << m.sourceFname << " will be left as the smallest variant that passed the test\n";
   }

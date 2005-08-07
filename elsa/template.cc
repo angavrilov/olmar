@@ -31,6 +31,17 @@ void copyTemplateArgs(ObjList<STemplateArgument> &dest,
 }
 
 
+// Is it ok to call into these routines right now?  This is
+// part of a migration scheme, where dsw wants to ensure that
+// these routines aren't used in some contexts.
+static void checkOkToBeHere()
+{
+  if (!global_mayUseTypeAndVarToCString) {
+    xfailure("suspended during TypePrinterC::print");
+  }
+}
+
+
 // ------------------ TypeVariable ----------------
 TypeVariable::~TypeVariable()
 {}
@@ -38,8 +49,8 @@ TypeVariable::~TypeVariable()
 
 string TypeVariable::toCString() const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
-  
+  checkOkToBeHere();
+
   if (!name) {
     return "/""*anon*/";
   }
@@ -101,7 +112,7 @@ PseudoInstantiation::~PseudoInstantiation()
 
 string PseudoInstantiation::toCString() const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  checkOkToBeHere();
   return stringc << name << sargsToString(args);
 }
 
@@ -150,7 +161,7 @@ DependentQType::~DependentQType()
 
 string DependentQType::toCString() const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  checkOkToBeHere();
   return stringc << first->toCString() << "::" << rest->toString();
 }
 
@@ -2320,8 +2331,18 @@ Variable *Env::instantiateFunctionTemplate
 
   // compute the type of the instantiation by applying 'map' to
   // the templatized type
-  Type *instType = applyArgumentMapToType(map, primary->type);
-  
+  Type *instType;
+  try {
+    instType = applyArgumentMapToType(map, primary->type);
+  }
+  catch (XTypeDeduction &x) {
+    HANDLER();
+    TRACE("template", "failed to instantiate " <<
+                      primary->fullyQualifiedName() << sargsToString(sargs) <<
+                      ": " << x.why());
+    return NULL;
+  }
+
   // create the representative Variable
   inst = makeInstantiationVariable(primary, instType);
 
@@ -2865,8 +2886,17 @@ STemplateArgument *Env::makeDefaultTemplateArgument
       param->defaultParamType) {
     // use 'param->defaultParamType', but push it through the map
     // so it can refer to previous arguments 
-    Type *t = applyArgumentMapToType(map, param->defaultParamType);
-    return new STemplateArgument(t);
+    try {
+      Type *t = applyArgumentMapToType(map, param->defaultParamType);
+      return new STemplateArgument(t);
+    }
+    catch (XTypeDeduction &x) {
+      HANDLER();
+      error(stringc << "could not evaluate default argument `"
+                    << param->defaultParamType->toString() 
+                    << "': " << x.why());
+      return NULL;
+    }
   }
   
   // non-type parameter?
@@ -2896,6 +2926,9 @@ void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr)
   // that the user is intending to pass a const-eval'able variable as
   // a reference argument, in which case this code will do the wrong
   // thing.  (in/t0509.cc)
+  //
+  // In general, this computation must also be told what type the
+  // corresponding template *parameter* has.
 
   Type *rvalType = expr->type->asRval();
   if (rvalType->isIntegerType() ||
@@ -2977,6 +3010,29 @@ void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr)
       << expr->type->toString() << "' but that's not an allowable "
       << "type for a non-type template argument");
   }
+}
+
+
+// This function is intended to do what the above would do if given
+// an E_variable wrapped around this 'var', except it cannot tolerate
+// yielding a dependent expression.
+STemplateArgument Env::variableToSTemplateArgument(Variable *var)
+{
+  STemplateArgument ret;
+
+  // try to evaluate to an integer
+  ConstEval cenv(env.dependentVar);
+  CValue val = cenv.evaluateVariable(var);
+  if (val.isIntegral()) {
+    ret.setInt(val.getIntegralValue());
+  }
+  else {
+    // just assume it's a reference; this is wrong, like above, because
+    // we really should be taking into account the parameter type
+    ret.setReference(var);
+  }
+
+  return ret;
 }
 
 
@@ -3491,6 +3547,12 @@ bool Env::mergeTemplateInfos(Variable *prior, TemplateInfo *dest,
 }
 
 
+// ------------ BEGIN: applyArgumentMap -------------
+// The algorithm in this section is doing what is specified by
+// 14.8.2p2b3, substitution of template arguments for template
+// parameters in a type.  'src' is the type containing references
+// to the parameters, 'map' binds parameters to arguments, and
+// the return value is the type with substitutions performed.
 Type *Env::applyArgumentMapToType(STemplateArgumentCMap &map, Type *origSrc)
 {
   // my intent is to not modify 'origSrc', so I will use 'src', except
@@ -3547,9 +3609,16 @@ Type *Env::applyArgumentMapToType(STemplateArgumentCMap &map, Type *origSrc)
       rft->flags = sft->flags;
 
       if (rft->exnSpec) {
-        // TODO: it's not all that hard, I just want to skip it for now
-        xfailure("unimplemented: exception spec on template function where "
-                 "defn has differing parameters than declaration");
+        // TODO: this
+        //
+        // Note: According to 14.8.2p2b3, if mapping the exception types
+        // leads to a failure, that is only diagnosed when the function
+        // *definition* is instantiated.  Thus, my tentative plan here is
+        // to attempt to do the map here, and if it fails, store ST_ERROR.
+        // Later, if/when I instantate the definition, check for ST_ERROR
+        // and diagnose it then (hmm, by then I will have lost the error
+        // message itself ...).
+        xunimp("applyArgumentMap: exception spec");
       }
 
       return rft;
@@ -3574,14 +3643,15 @@ Type *Env::applyArgumentMapToType(STemplateArgumentCMap &map, Type *origSrc)
            spmt->cv,
            applyArgumentMapToType(map, spmt->atType));
       }
-      else if (!retInClassNAT->isNamedAtomicType()) {
-        return error(stringc << "during template instantiation: type `" <<
-                                retInClassNAT->toString() <<
-                                "' is not suitable as the class in a pointer-to-member");
+      else if (!retInClassNAT->isCompoundType()) {
+        // 14.8.2p2b3.6
+        xTypeDeduction(stringc 
+          << "during construction of pointer-to-member, type `" 
+          << retInClassNAT->toString() << "' is not a class");
       }
       else {
         return tfac.makePointerToMemberType
-          (retInClassNAT->asNamedAtomicType(),
+          (retInClassNAT->asCompoundType(),
            spmt->cv,
            applyArgumentMapToType(map, spmt->atType));
       }
@@ -3599,26 +3669,19 @@ Type *Env::applyArgumentMapToAtomicType
 
     STemplateArgument const *replacement = map.get(stv->name);
     if (!replacement) {
-      // TODO: I think these should be user errors ...
+      // TODO: Should these be user errors?  xTypeDeduction?  What
+      // is an input that can trigger them?
       xfailure(stringc << "applyArgumentMapToAtomicType: the type name `"
-                       << stv->name << "' is not bound");
+                       << stv->name << "' is not bound");   // gcov-ignore
     }
     else if (!replacement->isType()) {
       xfailure(stringc << "applyArgumentMapToAtomicType: the type name `"
-                       << stv->name << "' is bound to a non-type argument");
+                       << stv->name << "' is bound to a non-type argument");     // gcov-ignore
     }
 
     // take what we got and apply the cv-flags that were associated
     // with the type variable, e.g. "T const" -> "int const"
-    Type *ret = tfac.applyCVToType(SL_UNKNOWN, srcCV,
-                                   replacement->getType(), NULL /*syntax*/);
-    if (!ret) {
-      return error(stringc << "during template instantiation: type `" <<
-                              replacement->getType() << "' cannot be cv-qualified");
-    }
-    else {
-      return ret;     // good to go
-    }
+    return applyArgumentMap_applyCV(srcCV, replacement->getType());
   }
 
   else if (src->isPseudoInstantiation()) {
@@ -3636,32 +3699,53 @@ Type *Env::applyArgumentMapToAtomicType
     }
 
     // apply the cv-flags and return it
-    return tfac.applyCVToType(SL_UNKNOWN, srcCV,
-                              instClass->type, NULL /*syntax*/);
+    return applyArgumentMap_applyCV(srcCV, instClass->type);
   }
 
   else if (src->isDependentQType()) {     // e.g. in/t0506.cc
     DependentQType const *sdqt = src->asDependentQTypeC();
-    
+
     // resolve 'first' (this unfortunately wraps the result in an
     // extraneous CVAtomicType)
-    AtomicType *retFirst = 
+    AtomicType *retFirst =
       applyArgumentMapToAtomicType(map, sdqt->first, CV_NONE)->
         asCVAtomicType()->atomic;
     if (!retFirst->isCompoundType()) {
-      return error(stringc << "attempt to extract member `" << sdqt->rest->toString()
-                           << "' from non-class `" << retFirst->toString() << "'");
+      // 14.8.2p2b3.3
+      xTypeDeduction(stringc
+        << "attempt to extract member `" << sdqt->rest->toString()
+        << "' from non-class `" << retFirst->toString() << "'");
     }
-          
+
     // resolve 'first'::'rest'
-    return applyArgumentMapToQualifiedType(map, retFirst->asCompoundType(), 
-                                           sdqt->rest);
+    return applyArgumentMap_applyCV(srcCV,
+             applyArgumentMapToQualifiedType(map, retFirst->asCompoundType(),
+                                             sdqt->rest));
   }
 
   else {
     // all others do not refer to type variables; returning NULL
     // here means to use the original unchanged
     return NULL;
+  }
+}
+
+Type *Env::applyArgumentMap_applyCV(CVFlags cv, Type *type)
+{
+  Type *ret = tfac.applyCVToType(SL_UNKNOWN, cv,
+                                 type, NULL /*syntax*/);
+  if (!ret) {
+    // 14.8.2p2b3.9
+    //
+    // This might be wrong, since b3.9 discusses cv-qualification of
+    // functions, but applyCVToType also does not like
+    // cv-qualification of arrays.  Who should push the
+    // cv-qualification down?  I'm thinking it should be applyCV...
+    xTypeDeduction(stringc << "type `" << type->toString()
+                           << "' cannot be cv-qualified");
+  }
+  else {
+    return ret;     // good to go
   }
 }
 
@@ -3682,36 +3766,214 @@ void Env::applyArgumentMapToTemplateArgs
     else if (sta->isDepExpr()) {
       Expression *e = sta->getDepExpr();
       if (!e->isE_variable()) {
-        // what would cause this?  a partial spec?
+        // example: Foo<T::x + 1>, where T maps to some class 'C' that
+        // has an integer constant 'x'
+        //
+        // TODO: my plan is to invoke the constant-expression
+        // evaluator, modified to accept 'map' so it knows how to
+        // handle template parameters
         xunimp("applyArgumentMap: dep-expr is not E_variable");
       }
+      E_variable *evar = e->asE_variable();
 
-      StringRef varName = e->asE_variable()->var->name;
-      STemplateArgument const *replacement = map.get(varName);
-      if (!replacement) {
-        // TODO: I think these should be user errors ...
-        //
-        // TODO: it is possible this really is a concrete
-        // reference argument, instead of being an abstract
-        // parameter, but we have no way of telling the difference
-        // in the current (broken) design
-        xfailure(stringc << "applyArgumentMapToAtomicType: the non-type name `"
-                         << varName << "' is not bound");
+      STemplateArgument replacement;
+      if (evar->var->isTemplateParam()) {
+        // name refers directly to a template parameter
+        xassert(evar->name->isPQ_name());     // no qualifiers
+        STemplateArgument const *tmp = map.get(evar->var->name);
+        xassert(tmp);                         // map should bind it
+        replacement = *tmp;
       }
-      else if (replacement->isType()) {
-        xfailure(stringc << "applyArgumentMapToAtomicType: the non-type name `"
-                         << varName << "' is bound to a type argument");
+      else {
+        // name must refer to a qualified name involving the template
+        // parameter
+        xassert(evar->var == dependentVar);
+        xassert(evar->name->isPQ_qualifier());            
+        replacement = applyArgumentMapToQualifiedName(map, 
+                        evar->name->asPQ_qualifier());
       }
 
-      dest.prepend(replacement->shallowClone());
+      if (!replacement.isObject()) {
+        // should this be xTypeDeduction?  need a triggering input..
+        xfailure(stringc
+          << "applyArgumentMapToAtomicType: the name `"
+          << evar->name->toString()
+          << "' should be bound to an object argument");    // gcov-ignore
+      }
+
+      dest.prepend(replacement.shallowClone());
     }
     else {
-      xunimp("applyArgumentMap: unexpected argument kind");
+      // assume any other kind does not need to be mapped
+      dest.prepend(sta->shallowClone());
     }
   }
-  
+
   dest.reverse();
 }
+
+
+// resolve 'qual' using 'map'
+STemplateArgument Env::applyArgumentMapToQualifiedName
+  (STemplateArgumentCMap &map, PQ_qualifier *qual)
+{
+  // we need to know what the qualifier (ignoring template
+  // args) refers to
+  xassert(qual->qualifierVar);
+
+  // combine with template args to yield a scope that we
+  // can use to look up subsequent components of the name
+  Scope *firstScope;
+  if (qual->sargs.isEmpty()) {
+    // no template arguments, so the qualifier variable
+    // should be directly usable
+    firstScope = qual->qualifierVar->getDenotedScope();
+  }
+  else {
+    // apply the map to the arguments, then use them to
+    // instantiate the class
+    firstScope = applyArgumentMap_instClass(map, qual->qualifierVar, qual->sargs);
+  }
+
+  // interpret the rest of the name w.r.t. the computed scope
+  return applyArgumentMapToPQName(map, firstScope, qual->rest);
+}
+
+// map 'sargs', apply them to 'primary', yield result as a Scope
+CompoundType *Env::applyArgumentMap_instClass
+  (STemplateArgumentCMap &map, Variable *primary,
+   ObjList<STemplateArgument> const &sargs)
+{
+  // should be a template class
+  xassert(primary->isTemplateClass(false /*considerInherited*/));
+
+  // map the template arguments
+  ObjList<STemplateArgument> mappedArgs;
+  applyArgumentMapToTemplateArgs(map, mappedArgs, sargs);
+
+  // instantiate the template with the arguments
+  Variable *inst =
+    instantiateClassTemplate(loc(), primary, mappedArgs);
+  xassert(inst);     // can this fail?
+
+  return inst->type->asCompoundType();
+}
+
+// resolve 'name', which is qualified with 'scope', using 'map'
+STemplateArgument Env::applyArgumentMapToPQName
+  (STemplateArgumentCMap &map, Scope *scope, PQName *name)
+{
+  if (scope->curCompound) {
+    applyArgumentMap_ensureComplete(scope->curCompound);
+  }
+
+  // lookups are by qualification with 'scope', and should not need
+  // using-edge traversal (as it happens, LF_IGNORE_USING makes
+  // LF_QUALIFIED irrelevant, but it is an accurate description of the
+  // lookup context so I keep it)
+  LookupFlags lflags = LF_QUALIFIED | LF_IGNORE_USING;
+
+  // take apart the name; this isn't shared with other code that
+  // does similar things because of the presence of 'map' ...
+  if (name->isPQ_name()) {
+    // lookup in 'scope'
+    LookupSet set;
+    scope->lookup(set, name->getName(), NULL /*env*/, lflags);
+    if (set.isEmpty()) {
+      xTypeDeduction(stringc << "failed to find `" << name->getName()
+                             << "' in " << scope->scopeName());
+    }
+    else if (set.count() != 1) {
+      // in principle I think this is legal, but would be rather difficult
+      // to implement, since it means tracking down the expected type of
+      // the parameter...
+      xunimp("overloaded function name used as template argument in unusual circumstance");
+    }
+
+    return variableToSTemplateArgument(set.first());
+  }
+
+  else if (name->isPQ_operator()) {
+    // can this happen?
+    xfailure("applyArgumentMap: operator name as dependent expr?");
+  }
+
+  else if (name->isPQ_template()) {
+    // NOTE: This code has not been tested.  I'm being a bit lazy
+    // right now, and it would be pretty unusual (something like using
+    // a qualified name of a member template function as a non-type
+    // argument to a template).
+
+    PQ_template *templ = name->asPQ_template();
+
+    lflags |= LF_TEMPL_PRIMARY;
+    Variable *v = scope->lookup_one(templ->name, NULL /*env*/, lflags);
+    if (!v) {
+      xTypeDeduction(stringc << "failed to find `" << templ->name
+                             << "' in " << scope->scopeName());
+    }
+    if (!v->isTemplateClass(false /*considerInherited*/)) {
+      xTypeDeduction(stringc << "`" << templ->name << "' in "
+                             << scope->scopeName() << " is not a template class");
+    }
+
+    // apply the arguments
+    CompoundType *ct = applyArgumentMap_instClass(map, v, templ->sargs);
+    
+    // wrap in an STemplateArgument
+    STemplateArgument ret;
+    ret.setType(ct->typedefVar->type);
+    return ret;
+  }
+
+  else {
+    xassert(name->isPQ_qualifier());
+    PQ_qualifier *qual = name->asPQ_qualifier();
+
+    lflags |= LF_TEMPL_PRIMARY | LF_TYPES_NAMESPACES;
+    Variable *q = scope->lookup_one(qual->qualifier, NULL /*env*/, lflags);
+    if (!q) {
+      xTypeDeduction(stringc << "failed to find `" << qual->qualifier
+                             << "' in " << scope->scopeName());
+    }
+    if (!q->type->isCompoundType()) {
+      xTypeDeduction(stringc << "`" << qual->qualifier << "' in "
+                             << scope->scopeName() << " is not a class");
+    }
+
+    if (qual->sargs.isEmpty() && !q->isTemplate(false /*considerInherited*/)) {
+      // use 'q' as a scope to process the rest
+      return applyArgumentMapToPQName(map, q->getDenotedScope(), qual->rest);
+    }
+    else if (!qual->sargs.isEmpty() && q->isTemplate(false /*considerInherited*/)) {
+      // apply the arguments to obtain a scope, and then use that
+      Scope *s = applyArgumentMap_instClass(map, q, qual->sargs);
+      return applyArgumentMapToPQName(map, s, qual->rest);
+    }
+    else {
+      xTypeDeduction(stringc
+        << "mismatch between template-ness and argument application for `"
+        << qual->qualifier << "' in " << scope->scopeName());
+      return STemplateArgument();    // silence warning
+    }
+  }
+}
+
+void Env::applyArgumentMap_ensureComplete(CompoundType *ct)
+{
+  // instantiate if necessary
+  ensureClassBodyInstantiated(ct);
+
+  // if the class is still incomplete (because the definition was
+  // not available), I say it's another case like those mentioned
+  // in 14.8.2p2b3, even though it isn't explicitly among them
+  if (ct->forward) {
+    xTypeDeduction(stringc
+      << "attempt to access member of `" << ct->instName
+      << "' but no definition has been seen");
+  }
+}
+
 
 
 // We are trying to resolve 'ct'::'name', but 'name' might refer to
@@ -3721,19 +3983,26 @@ void Env::applyArgumentMapToTemplateArgs
 // function looks for bindings in the environment, and is in general a
 // bit of a hack.  The code here is more principled, and does its work
 // without using the environment.
+//
+// 2005-08-07: There is some overlap between this function and
+// applyArgumentMapToQualifiedName.  Essentially, the former is for
+// names of types and the latter for names of non-types.  However,
+// those tasks are not sufficiently different to warrant two
+// completely separate mechanisms.  Collapsing them is a TODO.
 Type *Env::applyArgumentMapToQualifiedType
   (STemplateArgumentCMap &map, CompoundType *ct, PQName *name)
 {
-  if (!ensureCompleteCompound("access member of", ct)) {
-    return env.errorType();      // error already reported
-  }
+  applyArgumentMap_ensureComplete(ct);
+
+  // similar to above
+  LookupFlags lflags = LF_QUALIFIED | LF_IGNORE_USING;
 
   if (name->isPQ_name() || name->isPQ_operator()) {
     // ordinary lookup will suffice
-    Variable *var = ct->lookup_one(name->getName(), *this, LF_NONE);
+    Variable *var = ct->lookup_one(name->getName(), NULL /*env*/, lflags);
     if (!var || !var->isType()) {
-      return env.error(stringc << "no such type: " << ct->name
-                               << "::" << name->toString());
+      xTypeDeduction(stringc << "no such type: " << ct->name
+                             << "::" << name->toString());
     }
     else {
       return var->type;
@@ -3756,18 +4025,25 @@ Type *Env::applyArgumentMapToQualifiedType
   xassert(memberName);     // can't refer to anon member in DQT
 
   // look up the name, should refer to a template class
-  Variable *primary = ct->lookup_one(memberName, *this, LF_TEMPL_PRIMARY);
+  Variable *primary = ct->lookup_one(memberName, NULL /*env*/, 
+                                     lflags | LF_TEMPL_PRIMARY);
   if (!primary ||
       !primary->isTemplateClass(false /*considerInherited*/)) {
-    return env.error(stringc << "no such template member class: " << ct->name
-                             << "::" << name->toString());
+    xTypeDeduction(stringc << "no such template member class: " << ct->name
+                           << "::" << name->toString());
   }
+
+  // TODO: The following instantiation ought to be done by 
+  // applyArgumentMap_instClass, but I hesitate to change it because
+  // it means removing the applyCVToType call below.  I need to first
+  // confirm that that call is superfluous, then I can collapse the
+  // instantiation.
 
   // resolve the template arguments using 'map'
   ObjList<STemplateArgument> args;
   applyArgumentMapToTemplateArgs(map, args, *srcArgs);
 
-  // instantiate the template the arguments
+  // instantiate the template with the arguments
   Variable *inst =
     instantiateClassTemplate(loc(), primary, args);
   if (!inst) {
@@ -3776,6 +4052,9 @@ Type *Env::applyArgumentMapToQualifiedType
 
   if (name->isPQ_template()) {
     // we're done; package up the answer
+    //
+    // 2005-08-07: Why the heck to I apply CV_NONE?  Why not just
+    // return inst->type directly?
     return tfac.applyCVToType(SL_UNKNOWN, CV_NONE,
                               inst->type, NULL /*syntax*/);
   }
@@ -3785,6 +4064,7 @@ Type *Env::applyArgumentMapToQualifiedType
                                            name->asPQ_qualifier()->rest);
   }
 }
+// ------------ END: applyArgumentMap -------------
 
 
 Variable *Env::findCompleteSpecialization(TemplateInfo *tinfo,
@@ -4376,6 +4656,22 @@ InstantiationContextIsolator::~InstantiationContextIsolator()
 
   // now put originals back into env.errors
   env.errors.takeMessages(origErrors);
+}
+
+
+// ---------------------- XTypeDeduction ------------------------
+XTypeDeduction::XTypeDeduction(XTypeDeduction const &obj)
+  : xBase(obj)
+{}
+
+XTypeDeduction::~XTypeDeduction()
+{}
+
+
+void xTypeDeduction(rostring why)
+{
+  XTypeDeduction x(why);
+  THROW(x);
 }
 
 

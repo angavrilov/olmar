@@ -514,11 +514,15 @@ void doit(int argc, char **argv)
       xassert(env.scope()->isGlobalScope());
     }
     catch (XUnimp &x) {
+      HANDLER();
+
       // relay to handler in main()
       cout << "in code near " << env.locStr() << ":\n";
       throw;
     }
     catch (xBase &x) {
+      HANDLER();
+
       // typically an assertion failure from the tchecker; catch it here
       // so we can print the errors, and something about the location
       env.errors.print(cout);
@@ -815,14 +819,16 @@ int main(int argc, char **argv)
     doit(argc, argv);
   }
   catch (XUnimp &x) {
+    HANDLER();
     cout << x << endl;
-    
+
     // don't consider this the same as dying on an assertion failure;
     // I want to have tests in regrtest that are "expected" to fail
     // for the reason that they use unimplemented language features
     return 10;
   }
   catch (xBase &x) {
+    HANDLER();
     cout << x << endl;
     abort();
   }

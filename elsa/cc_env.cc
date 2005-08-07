@@ -4586,11 +4586,13 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
 
     if (!qual->qualifier) {
       scope = globalScope();
+      qual->qualifierVar = globalScopeVar;
     }
 
     else {
       // lookup this qualifier in 'scope'
       Variable *svar = lookupScopeVar(scope, qual->qualifier, flags);
+      qual->qualifierVar = svar;
 
       if (svar && svar->hasFlag(DF_SELFNAME)) {
         if (qual->sargs.isNotEmpty()) {
@@ -5090,6 +5092,7 @@ Type *Env::sizeofType(Type *t, int &size, Expression * /*nullable*/ expr)
                     ") is " << size);
   }
   catch (XReprSize &e) {
+    HANDLER();
     if (e.isDynamic) {
       // There are at least two reasonable approaches to handling
       // dynamically-sized arrays.  One is to just make sure that

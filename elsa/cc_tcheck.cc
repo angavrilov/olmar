@@ -6085,6 +6085,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
 
   FunctionType *ft = t->asFunctionType();
   env.instantiateTemplatesInParams(ft);
+  env.ensureCompleteType("use as return type in invoked function", ft->retType);
 
   // receiver object?
   if (env.doCompareArgsToParams && ft->isMethod()) {
@@ -8795,6 +8796,11 @@ void TemplateParameter::mid_tcheck(Env &env, int &dummy)
 
 void TP_type::itcheck(Env &env, int&)
 {
+  if (!name) {
+    // name them all for uniformity
+    name = env.getAnonName("tparam");
+  }
+
   // cppstd 14.1 is a little unclear about whether the type name is
   // visible to its own default argument; but that would make no
   // sense, so I'm going to check the default type first

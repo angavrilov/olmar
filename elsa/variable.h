@@ -100,7 +100,8 @@ public:    // data
   // use even after it's lexically closed
   //
   // if this Variable isNamespace(), then 'scope' points at the
-  // namespace it names, rather than the containing scope
+  // namespace it names, rather than the containing scope; see
+  // getDenotedScope()
   Scope *scope;           // (nullable serf)
 
 private:      // data
@@ -304,6 +305,9 @@ public:
   bool isBitfield() const { return hasFlag(DF_BITFIELD); }
   void setBitfieldSize(int bits);      // must be bitfield
   int getBitfieldSize() const;         // must be bitfield
+
+  // this variable refers to a scope; get it
+  Scope *getDenotedScope() const;
 
   // dsw: Variables are part of the type system at least for purposes
   // of traversal

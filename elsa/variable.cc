@@ -581,6 +581,34 @@ int Variable::getBitfieldSize() const
 }
 
 
+Scope *Variable::getDenotedScope() const
+{
+  if (isNamespace()) {
+    return scope;
+  }
+  
+  if (type->isCompoundType()) {
+    CompoundType *ct = type->asCompoundType();
+    xassert(!ct->isTemplate());
+    return ct;
+  }
+
+  xfailure(stringc << "expected `" << name << "' to name a scope");
+  return NULL;    // silence warning
+}
+
+
+void Variable::traverse(TypeVisitor &vis) {
+  if (!vis.visitVariable(this)) {
+    return;
+  }
+  if (type) {
+    type->traverse(vis);
+  }
+  vis.postvisitVariable(this);
+}
+
+
 // --------------------- OverloadSet -------------------
 OverloadSet::OverloadSet()
   : set()
@@ -630,15 +658,5 @@ Variable *OverloadSet::findByType(FunctionType const *ft) {
 }
 #endif // obsolete; see Env::findInOverloadSet
 
-
-void Variable::traverse(TypeVisitor &vis) {
-  if (!vis.visitVariable(this)) {
-    return;
-  }
-  if (type) {
-    type->traverse(vis);
-  }
-  vis.postvisitVariable(this);
-}
 
 // EOF

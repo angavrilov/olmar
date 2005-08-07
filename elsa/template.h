@@ -537,4 +537,16 @@ public:      // funcs
 };
 
 
+// thrown when type deduction fails in some cases
+class XTypeDeduction : public xBase {
+public:
+  XTypeDeduction(rostring why) : xBase(why) {}
+  XTypeDeduction(XTypeDeduction const &obj);
+  ~XTypeDeduction();
+};
+
+// function that throws XTypeDeduction
+void xTypeDeduction(rostring why) NORETURN;
+
+
 #endif // TEMPLATE_H

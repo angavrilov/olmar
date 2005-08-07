@@ -204,11 +204,23 @@ class PQName {
        // associated variable instead of the scope directly so we can
        // use 'dependentVar' when the denoted scope is dependent on a
        // template parameter
+       //
+       // 2005-08-07: TODO: I think in the current lookup design I
+       // can get rid of this variable.
        public(xml) Variable *denotedScopeVar = NULL;
        custom debugPrint {
          ind(os, indent) << "denotedScopeVar: " << refersTo(denotedScopeVar) << "\n";
        }
-       
+
+       // record the result of lookup just the 'qualifier' portion;
+       // this is needed for applyArgumentMap, since it should not
+       // be doing lookup; this is computed and used independently
+       // of 'denotedScopeVar'
+       public(xml,clone) Variable *qualifierVar = NULL;
+       custom debugPrint {
+         ind(os, indent) << "qualifierVar: " << refersTo(qualifierVar) << "\n";
+       }
+
        // digested template arguments
        public ObjList<STemplateArgument> sargs;
      }

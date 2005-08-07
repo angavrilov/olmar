@@ -830,6 +830,7 @@ private:     // template funcs
 
 public:      // template funcs
   void setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr);
+  STemplateArgument variableToSTemplateArgument(Variable *var);
 
   // load the bindings with any explicit template arguments; return true if successful
   bool loadBindingsWithExplTemplArgs(Variable *var, ObjList<STemplateArgument> const &args,
@@ -913,8 +914,9 @@ public:      // template funcs
   void instantiateClassBody(Variable *inst);       // inst defn
 
   // instantiate the given class' body, *if* it is an instantiation
-  // and that hasn't already been done; note that most of the time
-  // you want to call ensureCompleteType, not this functions
+  // and instantiation is possible but hasn't already been done; note
+  // that most of the time you want to call ensureCompleteType, not
+  // this function
   void ensureClassBodyInstantiated(CompoundType *ct);
         
   // do 'ensureClassBodyInstantiated' for all parameters
@@ -942,13 +944,23 @@ public:      // template funcs
   bool mergeTemplateInfos(Variable *prior, TemplateInfo *dest,
                           TemplateInfo const *src);
 
-  // apply template arguments to make concrete types
+  // apply template arguments to make concrete types, or throw
+  // xTypeDeduction to indicate failure
   Type *applyArgumentMapToType(STemplateArgumentCMap &map, Type *origSrc);
   Type *applyArgumentMapToAtomicType
     (STemplateArgumentCMap &map, AtomicType *origSrc, CVFlags srcCV);
+  Type *applyArgumentMap_applyCV(CVFlags cv, Type *type);
   void applyArgumentMapToTemplateArgs
     (STemplateArgumentCMap &map, ObjList<STemplateArgument> &dest,
                                  ObjList<STemplateArgument> const &srcArgs);
+  STemplateArgument applyArgumentMapToQualifiedName
+    (STemplateArgumentCMap &map, PQ_qualifier *qual);
+  CompoundType *applyArgumentMap_instClass
+    (STemplateArgumentCMap &map, Variable *primary,
+     ObjList<STemplateArgument> const &sargs);
+  STemplateArgument applyArgumentMapToPQName
+    (STemplateArgumentCMap &map, Scope *scope, PQName *name);
+  void applyArgumentMap_ensureComplete(CompoundType *ct);
   Type *applyArgumentMapToQualifiedType
     (STemplateArgumentCMap &map, CompoundType *ct, PQName *name);
 
