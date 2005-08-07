@@ -28,6 +28,13 @@ class stringBuilder;
   { breaker(); throw (obj); }
 
 
+// My intention is to put a call to this macro at the beginning of
+// every catch block.  Its (default) definition is to call breaker so
+// that in the debugger I can easily get to the point where an
+// exception is caught.
+#define HANDLER() breaker() /* user ; */
+
+
 // this function returns true if we're in the process of unwinding the
 // stack, and therefore destructors may want to avoid throwing new exceptions;
 // for now, may return false positives, but won't return false negatives
