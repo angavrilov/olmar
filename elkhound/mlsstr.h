@@ -21,9 +21,9 @@ private:
     NUM_STATES
   } state;
   ArrayStack<char> delims; // stack of paren/bracket/brace delimiters
+  int nestingBias;         // modifies the nesting level
   int comNesting;          // depth of comment nesting; 0 means not in comment
   char prev;               // previous character
-  int ignoreDelimNest;     // how many open-delims to ignore?
 
   // NOTE: Because ocaml wants (**) to be usable to comment out
   // arbitrary code sequences, the comment-ness is mostly orthogonal
@@ -35,7 +35,7 @@ private:
 
 private:
   // depth of delimiter nesting
-  int nesting() const { return delims.length(); }
+  int nesting() const { return delims.length() + nestingBias; }
   
   // whether we are in a comment
   bool inComment() const { return comNesting>0; }
