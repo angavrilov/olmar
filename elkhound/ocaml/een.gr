@@ -2,7 +2,7 @@
 // test of ambiguous grammars in OCaml backend
 
 context_class een {
-public:
+  ()       // this is just to test the delimeter balancing
 };
 
 
