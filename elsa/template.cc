@@ -2148,6 +2148,10 @@ void syncDefaultArgsWithDefinition(Variable *instV, TemplateInfo *instTI)
   // iterate over both parameter lists (syntactic and semantic)
   FakeList<ASTTypeId> *syntactic(dfunc->params);
   SObjListIterNC<Variable> semantic(instV->type->asFunctionType()->params);
+  if (instV->type->asFunctionType()->isMethod()) {
+    semantic.adv();   // the receiver is never syntactically present
+  }
+
   int skipped = 0;
   for (; syntactic && !semantic.isDone();
        syntactic = syntactic->butFirst(), semantic.adv()) {
@@ -2169,6 +2173,13 @@ void syncDefaultArgsWithDefinition(Variable *instV, TemplateInfo *instTI)
     d->init = new IN_expr(sem->loc /* not perfect, but it will do */,
                           sem->value);
   }
+
+  // should end at the same time, except for possibly a trailing 
+  // (singleton, really) 'void'-typed parameter
+  if (syntactic && syntactic->first()->getType()->isVoid()) {
+    syntactic = syntactic->butFirst();
+  }
+  xassert(!syntactic && semantic.isDone());
 }
 
 

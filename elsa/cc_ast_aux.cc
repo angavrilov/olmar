@@ -471,9 +471,7 @@ Function *Function::shallowClone() const
     NULL, NULL, NULL
   );
 
-  // dsw: see the comment in cc_tcheck.ast at 'cloneThunkSource' for
-  // why I removed the const here.
-  ret->cloneThunkSource = const_cast<Function*>(this);
+  ret->cloneThunkSource = this;
   
   return ret;
 }

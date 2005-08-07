@@ -959,12 +959,7 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
 
   // retrieve add'l info from declarator's tcheck struct
   if (tc.newSizeExpr) {
-    // dsw: If you don't clone here then the AST is no longer a tree.
-    if (dt.size_E_new) {
-      *(tc.newSizeExpr) = dt.size_E_new->clone();
-    } else {
-      *(tc.newSizeExpr) = NULL;
-    }
+    *(tc.newSizeExpr) = dt.size_E_new;
   }
 }
 
@@ -3276,7 +3271,9 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     }
   }
 
-  if (init) dt.dflags |= DF_INITIALIZED;
+  if (init) {
+    dt.dflags |= DF_INITIALIZED;
+  }
 
   // get the type from the IDeclarator
   decl->tcheck(env, dt);
