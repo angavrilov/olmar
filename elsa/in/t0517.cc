@@ -18,6 +18,11 @@ template class basic_string < char >;
 template class basic_string < int >;
 
 
+// ---------------- trigger an assertion failure -------------
+//ERROR(1): template <class S, class U = basic_string<S> >
+//ERROR(1): class A;
+
+
 // ------------ somewhat simplified ------------
 template <class T>
 class A {
@@ -33,4 +38,6 @@ void f(A<int> &a)
 {
   a.foo(1);
 }
+
+
 

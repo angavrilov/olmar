@@ -3685,14 +3685,14 @@ Type *Env::applyArgumentMapToAtomicType
 
     STemplateArgument const *replacement = map.get(stv->name);
     if (!replacement) {
-      // TODO: Should these be user errors?  xTypeDeduction?  What
-      // is an input that can trigger them?
-      xfailure(stringc << "applyArgumentMapToAtomicType: the type name `"
-                       << stv->name << "' is not bound");   // gcov-ignore
+      // I can trigger these when there is a preceding error;
+      // an example is in/t0517.cc error 1
+      xTypeDeduction(stringc << "the type name `"
+                             << stv->name << "' is not bound");
     }
     else if (!replacement->isType()) {
-      xfailure(stringc << "applyArgumentMapToAtomicType: the type name `"
-                       << stv->name << "' is bound to a non-type argument");     // gcov-ignore
+      xTypeDeduction(stringc << "the type name `"
+                             << stv->name << "' is bound to a non-type argument");
     }
 
     // take what we got and apply the cv-flags that were associated
@@ -3810,11 +3810,9 @@ void Env::applyArgumentMapToTemplateArgs
       }
 
       if (!replacement.isObject()) {
-        // should this be xTypeDeduction?  need a triggering input..
-        xfailure(stringc
-          << "applyArgumentMapToAtomicType: the name `"
-          << evar->name->toString()
-          << "' should be bound to an object argument");    // gcov-ignore
+        xTypeDeduction(stringc
+          << "the name `" << evar->name->toString()
+          << "' should be bound to an object argument");
       }
 
       dest.prepend(replacement.shallowClone());
