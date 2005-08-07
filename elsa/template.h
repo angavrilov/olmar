@@ -246,6 +246,12 @@ public:    // data
   // true if we have seen syntax that demands an instantiation
   // of the body, not just the declaration
   bool instantiateBody;
+  
+  // if this is true, the user has requested that this template
+  // function not be instantiated, even if there is code that would
+  // otherwise require it; this is to support the GNU "extern
+  // template" extension
+  bool instantiationDisallowed;
 
   // for a template function, number of default arguments that have
   // not yet been instantiated
@@ -363,6 +369,10 @@ public:      // funcs
   // see comments at implementation
   bool matchesPI(TypeFactory &tfac, CompoundType *primary,
                  ObjList<STemplateArgument> const &args);
+
+  // assuming this is a function template, did we already instantiate
+  // the body?
+  bool instantiatedFunctionBody() const;
 
   // debugging
   void gdb();

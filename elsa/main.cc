@@ -328,7 +328,7 @@ void doit(int argc, char **argv)
      "    printAST           print AST after parsing\n"
      "    printTypedAST      print AST with type info\n"
      "    printElabAST       print AST after semantic elaboration\n"
-     "    prettyPrint        echo input as pretty-printed (but sometimes invalid) C++\n"
+     "    prettyPrint        echo input as pretty-printed C++\n"
      "    xmlPrintAST        print AST as XML\n"
      "    xmlPrintLoweredAST print AST as XML after lowering\n"
      "\n"

@@ -29,7 +29,7 @@ bool ASTVisitorEx::visitFunction(Function *obj)
     TemplateInfo *ti = obj->nameAndParams->var->templateInfo();
     SFOREACH_OBJLIST(Variable, ti->instantiations, iter) {
       Variable const *inst = iter.data();
-      if (inst->funcDefn && !inst->funcDefn->instButNotTchecked()) {
+      if (inst->templateInfo()->instantiatedFunctionBody()) {
         visitFunctionInstantiation(inst->funcDefn);
       }
     }

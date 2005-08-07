@@ -2470,7 +2470,8 @@ nonterm(TemplateArgument*) TemplateArgument {
 }
 
 nonterm(TopForm*) ExplicitInstantiation {
-  -> "template" d:BlockDeclaration           { return new TF_explicitInst(loc, d); }
+  -> "template" d:BlockDeclaration           
+       { return new TF_explicitInst(loc, DF_NONE, d); }
 }
 
 // ------ A.13 Exception handling ------

@@ -928,7 +928,7 @@ public:      // template funcs
 
   // given a class or function template instantiation, process
   // an "explicit instantiation" (14.7.2) request for it
-  void explicitlyInstantiate(Variable *inst);
+  void explicitlyInstantiate(Variable *inst, DeclFlags instFlags);
 
   // find template scope corresp. to this var
   Scope *findParameterizingScope(Variable *bareQualifierVar);
@@ -973,7 +973,8 @@ public:      // template funcs
 
   bool verifyCompatibleTemplateParameters(Scope *scope, CompoundType *prior);
 
-  Variable *explicitFunctionInstantiation(PQName *name, Type *type);
+  Variable *explicitFunctionInstantiation(PQName *name, Type *type,
+                                          DeclFlags instFlags);
 };
 
 

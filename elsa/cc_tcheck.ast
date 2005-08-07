@@ -206,16 +206,17 @@ class PQName {
        // template parameter
        //
        // 2005-08-07: TODO: I think in the current lookup design I
-       // can get rid of this variable.
+       // can get rid of this variable.  But, I'd have to fix the
+       // flawed Env::getQualifierScopes first...
        public(xml) Variable *denotedScopeVar = NULL;
        custom debugPrint {
          ind(os, indent) << "denotedScopeVar: " << refersTo(denotedScopeVar) << "\n";
        }
 
-       // record the result of lookup just the 'qualifier' portion;
-       // this is needed for applyArgumentMap, since it should not
-       // be doing lookup; this is computed and used independently
-       // of 'denotedScopeVar'
+       // record the result of looking up just the 'qualifier' portion
+       // (without considering template arguments); this is needed for
+       // applyArgumentMap, since it should not be doing lookup; this
+       // is computed and used independently of 'denotedScopeVar'
        public(xml,clone) Variable *qualifierVar = NULL;
        custom debugPrint {
          ind(os, indent) << "qualifierVar: " << refersTo(qualifierVar) << "\n";

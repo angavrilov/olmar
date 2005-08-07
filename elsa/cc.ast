@@ -89,8 +89,9 @@ class TopForm (SourceLoc loc) {
   // template functions or template classes
   -> TF_template(TemplateDeclaration td);
 
-  // explicit instantiation request
-  -> TF_explicitInst(Declaration d);
+  // explicit instantiation request; 'instFlags' is for the GNU
+  // "extern template" extension, and is always DF_NONE for ANSI C++
+  -> TF_explicitInst(DeclFlags instFlags, Declaration d);
 
   // linkage specification enclosing a bunch of forms, e.g.
   // extern "C" { /*...*/ }

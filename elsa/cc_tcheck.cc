@@ -168,7 +168,26 @@ void TF_template::itcheck(Env &env)
 void TF_explicitInst::itcheck(Env &env)
 {
   env.setLoc(loc);
-  
+
+  // Q: Why even bother to implement "extern template"?  Why not just
+  // treat it the same as "template"?  After all, Elsa does not
+  // generate code anyway.
+  //
+  // A: It causes problems for input minimization.  If we instantiate
+  // in response to "extern template", then when we go to minimize an
+  // input w.r.t. some failure, Elsa is doing a lot more work than gcc
+  // is, so usually Delta just creates some invalid code that gcc
+  // accepts simply because it is not instantiating a bunch of stuff.
+  //
+  // Therefore, Elsa tries to do the same amount of work as gcc, and
+  // that means implementing "extern template".  This does have the
+  // effect of potentially masking some problems, but it is worth it.
+  // And, you can unmask them by deleting "extern", at which point gcc
+  // will have to instantiate too, so the playing field remains level.
+
+  // little trick: pass the 'instFlags' down into Declarator::mid_tcheck
+  d->dflags |= instFlags;
+
   d->tcheck(env, DC_TF_EXPLICITINST);
   
   // class instantiation?
@@ -179,7 +198,7 @@ void TF_explicitInst::itcheck(Env &env)
 
       if (nat->isCompoundType() &&
           nat->asCompoundType()->isInstantiation()) {
-        env.explicitlyInstantiate(nat->asCompoundType()->typedefVar);
+        env.explicitlyInstantiate(nat->asCompoundType()->typedefVar, instFlags);
       }
       else {
         // catch "template class C;"
@@ -3191,10 +3210,19 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     dt.context == DC_MR_DECL;
 
   LookupFlags lflags = LF_DECLARATOR;
+
+  DeclFlags instFlags = DF_NONE;
   if (dt.context == DC_TF_EXPLICITINST) {
     // this tells the qualifier lookup code that there are no
     // template<> parameter lists to worry about
     lflags |= LF_EXPLICIT_INST;
+
+    // grab the flags that were shuttled by Declarator::dflags
+    // from TF_explicitInst::flags; this works in part because
+    // only one declarator is allowed in an explicit instantiation
+    DeclFlags const mask = DF_EXTERN | DF_STATIC | DF_INLINE;
+    instFlags = dt.dflags & mask;
+    dt.dflags &= ~mask;
   }
 
   // cppstd sec. 3.4.3 para 3:
@@ -3292,7 +3320,8 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
   // explicit instantiation?
   if (dt.context == DC_TF_EXPLICITINST) {
-    dt.existingVar = env.explicitFunctionInstantiation(name, dt.type);
+    dt.existingVar = 
+      env.explicitFunctionInstantiation(name, dt.type, instFlags);
   }
 
   // DF_FRIEND gets turned off by 'declareNewVariable' ...

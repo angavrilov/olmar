@@ -320,6 +320,7 @@ TemplateInfo::TemplateInfo(SourceLoc il, Variable *v)
     defnScope(NULL),
     definitionTemplateInfo(NULL),
     instantiateBody(false),
+    instantiationDisallowed(false),
     uninstantiatedDefaultArgs(0),
     dependentBases()
 {
@@ -2399,6 +2400,10 @@ void Env::ensureFuncBodyTChecked(Variable *instV)
     // a PseudoInstantiation; skip checking it
     return;
   }
+  if (instTI->instantiationDisallowed) {
+    // someone told us not to instantiate
+    return;
+  }
   if (instTI->instantiateBody) {
     // we've already seen this request, so either the function has
     // already been instantiated, or else we haven't seen the
@@ -4379,7 +4384,7 @@ Variable *Env::makeSpecializationVariable
 }
 
 
-void Env::explicitlyInstantiate(Variable *var)
+void Env::explicitlyInstantiate(Variable *var, DeclFlags instFlags)
 {
   TemplateInfo *tinfo = var->templateInfo();
   xassert(tinfo);
@@ -4388,11 +4393,25 @@ void Env::explicitlyInstantiate(Variable *var)
 
   // function instantiation?
   if (var->type->isFunctionType()) {
-    // It's ok if we haven't seen the definition yet, however, the
-    // presence of this explicit instantiation request means that the
-    // definition must be somewhere in the translation unit (14.7.2
-    // para 4).  However, I do not enforce this.
-    ensureFuncBodyTChecked(var);
+    if (instFlags & DF_EXTERN) {
+      // this is a request to *never* instantiate this thing
+      if (tinfo->instantiatedFunctionBody()) {
+        // already did it... oh well
+      }
+      else {
+        // prevent it
+        tinfo->instantiationDisallowed = true;
+      }
+    }
+
+    else {
+      // It's ok if we haven't seen the definition yet, however, the
+      // presence of this explicit instantiation request means that the
+      // definition must be somewhere in the translation unit (14.7.2
+      // para 4).  However, I do not enforce this.
+      ensureFuncBodyTChecked(var);
+    }
+
     return;
   }
 
@@ -4409,7 +4428,7 @@ void Env::explicitlyInstantiate(Variable *var)
   FOREACH_OBJLIST(BaseClass, ct->bases, baseIter) {
     Variable *b = baseIter.data()->ct->typedefVar;
     if (b->isInstantiation()) {     // t0273.cc
-      explicitlyInstantiate(b);
+      explicitlyInstantiate(b, instFlags);
     }
   }
 
@@ -4419,7 +4438,7 @@ void Env::explicitlyInstantiate(Variable *var)
     Variable *memb = membIter.value();
 
     if (memb->templateInfo()) {
-      explicitlyInstantiate(memb);
+      explicitlyInstantiate(memb, instFlags);
     }
   }
 
@@ -4429,7 +4448,7 @@ void Env::explicitlyInstantiate(Variable *var)
     Variable *inner = innerIter.value();
               
     if (inner->type->isCompoundType()) {
-      explicitlyInstantiate(inner);
+      explicitlyInstantiate(inner, instFlags);
     }
   }
 }
@@ -4446,7 +4465,8 @@ void Env::explicitlyInstantiate(Variable *var)
 // instantiation is returned.
 //
 // On error, an error message is emitted and NULL is returned.
-Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type)
+Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type,
+                                             DeclFlags instFlags)
 {
   if (!type->isFunctionType()) {
     error("explicit instantiation of non-function type");
@@ -4483,7 +4503,7 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type)
       //   void S<int>::foo();
       // where 'foo' is *not* a member template, but is a member of
       // a class template
-      explicitlyInstantiate(primary);
+      explicitlyInstantiate(primary, instFlags);
       return primary;
     }
 
@@ -4542,7 +4562,7 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type)
   Variable *ret = instantiateFunctionTemplate(name->loc, best->primary, best->sargs);
 
   // instantiate the body
-  explicitlyInstantiate(ret);
+  explicitlyInstantiate(ret, instFlags);
   
   // done; 'resolver' and its candidates automatically deallocated
   return ret;
@@ -4620,7 +4640,13 @@ bool TemplateInfo::matchesPI(TypeFactory &tfac, CompoundType *otherPrimary,
   // to primary
   return isomorphicArgumentLists(tfac, argumentsToPrimary, otherArgs);
 }
-  
+
+
+bool TemplateInfo::instantiatedFunctionBody() const
+{
+  return var->funcDefn && !var->funcDefn->instButNotTchecked();
+}
+
      
 // ------------------- InstantiationContextIsolator -----------------------
 InstantiationContextIsolator::InstantiationContextIsolator(Env &e, SourceLoc loc)

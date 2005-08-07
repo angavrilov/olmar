@@ -138,9 +138,8 @@ nonterm(Statement*) Statement {
 nonterm(TopForm*) ExplicitInstantiation {
   // here's one for things like (in/gnu/g0002.cc)
   //   extern template class allocator<char>;
-  // note: Elsa just ignores the "extern"
   -> "extern" "template" d:BlockDeclaration
-       { return new TF_explicitInst(loc, d); }
+       { return new TF_explicitInst(loc, DF_EXTERN, d); }
 }
 
 
