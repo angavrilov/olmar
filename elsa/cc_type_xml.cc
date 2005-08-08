@@ -797,6 +797,16 @@ void TypeToXml::toXml_TemplateParams_subtags(TemplateParams *tp) {
 
 // -------------------- ReadXml_Type -------------------
 
+#define convertList(LISTTYPE, ITEMTYPE) \
+do { \
+  LISTTYPE<ITEMTYPE> *ret = reinterpret_cast<LISTTYPE<ITEMTYPE>*>(target); \
+  xassert(ret->isEmpty()); \
+  FOREACH_ASTLIST_NC(ITEMTYPE, reinterpret_cast<ASTList<ITEMTYPE>&>(*list), iter) { \
+    ret->prepend(iter.data()); \
+  } \
+  ret->reverse(); \
+} while(0)
+
 void ReadXml_Type::append2List(void *list0, int listKind, void *datum0) {
   xassert(list0);
   ASTList<char> *list = static_cast<ASTList<char>*>(list0);
@@ -905,35 +915,17 @@ bool ReadXml_Type::convertList2SObjList(ASTList<char> *list, int listKind, void 
   case XTOK_List_TemplateInfo_instantiations:
   case XTOK_List_TemplateInfo_specializations:
   case XTOK_List_TemplateInfo_partialInstantiations:
-  case XTOK_List_TemplateParams_params: {
-    SObjList<Variable> *ret = reinterpret_cast<SObjList<Variable>*>(target);
-    xassert(ret->isEmpty());
-    FOREACH_ASTLIST_NC(Variable, reinterpret_cast<ASTList<Variable>&>(*list), iter) {
-      ret->prepend(iter.data());
-    }
-    ret->reverse();
+  case XTOK_List_TemplateParams_params:
+    convertList(SObjList, Variable);
     break;
-  }
 
-  case XTOK_List_BaseClassSubobj_parents: {
-    SObjList<BaseClassSubobj> *ret = reinterpret_cast<SObjList<BaseClassSubobj>*>(target);
-    xassert(ret->isEmpty());
-    FOREACH_ASTLIST_NC(BaseClassSubobj, reinterpret_cast<ASTList<BaseClassSubobj>&>(*list), iter) {
-      ret->prepend(iter.data());
-    }
-    ret->reverse();
+  case XTOK_List_BaseClassSubobj_parents:
+    convertList(SObjList, BaseClassSubobj);
     break;
-  }
 
-  case XTOK_List_ExnSpec_types: {
-    SObjList<Type> *ret = reinterpret_cast<SObjList<Type>*>(target);
-    xassert(ret->isEmpty());
-    FOREACH_ASTLIST_NC(Type, reinterpret_cast<ASTList<Type>&>(*list), iter) {
-      ret->prepend(iter.data());
-    }
-    ret->reverse();
+  case XTOK_List_ExnSpec_types:
+    convertList(SObjList, Type);
     break;
-  }
 
   }
   return true;
@@ -947,50 +939,22 @@ bool ReadXml_Type::convertList2ObjList(ASTList<char> *list, int listKind, void *
   switch(listKind) {
   default: return false;        // we did not find a matching tag
 
-  case XTOK_List_CompoundType_bases: {
-    ObjList<BaseClass> *ret = reinterpret_cast<ObjList<BaseClass>*>(target);
-    xassert(ret->isEmpty());
-    FOREACH_ASTLIST_NC(BaseClass, reinterpret_cast<ASTList<BaseClass>&>(*list), iter) {
-      ret->prepend(iter.data());
-    }
-    ret->reverse();
+  case XTOK_List_CompoundType_bases:
+    convertList(ObjList, BaseClass);
     break;
-  }
 
-  case XTOK_List_CompoundType_virtualBases: {
-    ObjList<BaseClassSubobj> *ret = reinterpret_cast<ObjList<BaseClassSubobj>*>(target);
-    xassert(ret->isEmpty());
-    FOREACH_ASTLIST_NC(BaseClassSubobj, reinterpret_cast<ASTList<BaseClassSubobj>&>(*list), iter) {
-      ret->prepend(iter.data());
-    }
-    ret->reverse();
+  case XTOK_List_CompoundType_virtualBases:
+    convertList(ObjList, BaseClassSubobj);
     break;
-  }
 
-  case XTOK_List_TemplateInfo_inheritedParams: {
-    ObjList<InheritedTemplateParams> *ret =
-      reinterpret_cast<ObjList<InheritedTemplateParams>*>(target);
-    xassert(ret->isEmpty());
-    FOREACH_ASTLIST_NC(InheritedTemplateParams,
-                       reinterpret_cast<ASTList<InheritedTemplateParams>&>(*list), iter) {
-      ret->prepend(iter.data());
-    }
-    ret->reverse();
+  case XTOK_List_TemplateInfo_inheritedParams:
+    convertList(ObjList, InheritedTemplateParams);
     break;
-  }
 
   case XTOK_List_TemplateInfo_arguments:
-  case XTOK_List_TemplateInfo_argumentsToPrimary: {
-    ObjList<STemplateArgument> *ret =
-      reinterpret_cast<ObjList<STemplateArgument>*>(target);
-    xassert(ret->isEmpty());
-    FOREACH_ASTLIST_NC(STemplateArgument,
-                       reinterpret_cast<ASTList<STemplateArgument>&>(*list), iter) {
-      ret->prepend(iter.data());
-    }
-    ret->reverse();
+  case XTOK_List_TemplateInfo_argumentsToPrimary:
+    convertList(ObjList, STemplateArgument);
     break;
-  }
 
   }
   return true;
