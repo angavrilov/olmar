@@ -1714,7 +1714,28 @@ CompoundType *checkClasskeyAndName(
       ct = spec->type->asCompoundType();
     }
     else {
-      ct = NULL;
+      // did we already start to make an implicit instantiation
+      // for these arguments?  (in/t0522.cc)
+      spec = env.findInstantiation(primaryTI, *templateArgs);
+      if (spec) {
+        ct = spec->type->asCompoundType();
+        if (ct->forward) {
+          // body not yet instantiated, we're ok
+          TRACE("template", "changing " << ct->instName << 
+                            " from implicit inst to explicit spec");
+          spec->templateInfo()->changeToExplicitSpec();
+        }
+        else {
+          // cppstd 14.7.3p6
+          env.error(stringc
+            << ct->instName << " has already been implicitly instantiated, "
+            << "so it's too late to provide an explicit specialization");
+          return NULL;
+        }
+      }
+      else {
+        ct = NULL;
+      }
     }
   }
 

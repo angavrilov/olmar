@@ -808,8 +808,6 @@ private:     // template funcs
     MType &match,
     ObjList<STemplateArgument> &partialSpecArgs);
 
-  Variable *findInstantiation(TemplateInfo *tinfo,
-                              ObjList<STemplateArgument> const &sargs);
   Variable *findCompleteSpecialization(TemplateInfo *tinfo,
                                        ObjList<STemplateArgument> const &sargs);
   void bindParametersInMap(STemplateArgumentCMap &map, TemplateInfo *tinfo,
@@ -972,6 +970,9 @@ public:      // template funcs
 
   Variable *explicitFunctionInstantiation(PQName *name, Type *type,
                                           DeclFlags instFlags);
+
+  Variable *findInstantiation(TemplateInfo *tinfo,
+                              ObjList<STemplateArgument> const &sargs);
 };
 
 
