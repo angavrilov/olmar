@@ -316,7 +316,7 @@ public:      // funcs
   // 2005-08-03: I renamed this from 'equal' to 'isomorphic', because
   // I am now introducing a variant called 'equal' that does not
   // require the TypeFactory parameter.
-  bool isomorphicArguments(TypeFactory &tfac, SObjList<STemplateArgument> const &list) const;
+  bool isomorphicArguments(SObjList<STemplateArgument> const &list) const;
 
   // and here it is
   bool equalArguments(ObjList<STemplateArgument> const &list) const;
@@ -344,7 +344,7 @@ public:      // funcs
   // exactly match 'sargs' (which is a list of concrete arguments),
   // return it; otherwise return NULL
   Variable *getSpecialization
-    (TypeFactory &tfac, SObjList<STemplateArgument> const &sargs);
+    (SObjList<STemplateArgument> const &sargs);
 
   // true if the given Variable is among the parameters (at any level)
   //
@@ -367,7 +367,7 @@ public:      // funcs
   void traverseArguments(TypeVisitor &vis);
                                                              
   // see comments at implementation
-  bool matchesPI(TypeFactory &tfac, CompoundType *primary,
+  bool matchesPI(CompoundType *primary,
                  ObjList<STemplateArgument> const &args);
 
   // assuming this is a function template, did we already instantiate
@@ -457,7 +457,7 @@ public:
 
   // if it does contain variables, then 'equals' is inappropriate;
   // isomorphism is the right thing to check
-  bool isomorphic(TypeFactory &tfac, STemplateArgument const *obj) const;
+  bool isomorphic(STemplateArgument const *obj) const;
 
   // traverse argument
   void traverse(TypeVisitor &vis);
@@ -485,11 +485,9 @@ void copyTemplateArgs(ObjList<STemplateArgument> &dest,
 void copyTemplateArgs(ObjList<STemplateArgument> &dest,
                       SObjList<STemplateArgument> const &src);
 
-bool isomorphicArgumentLists(TypeFactory &tfac,
-                             SObjList<STemplateArgument> const &list1,
+bool isomorphicArgumentLists(SObjList<STemplateArgument> const &list1,
                              SObjList<STemplateArgument> const &list2);
-bool isomorphicArgumentLists(TypeFactory &tfac,
-                             ObjList<STemplateArgument> const &list1,
+bool isomorphicArgumentLists(ObjList<STemplateArgument> const &list1,
                              ObjList<STemplateArgument> const &list2);
 
 bool equalArgumentLists(ObjList<STemplateArgument> const &list1,
@@ -511,9 +509,6 @@ private:     // types
   };
 
 public:      // data
-  // needed to facilitate calls into matchtype ...
-  TypeFactory &tfac;
-
   // the set of candidates
   ArrayStack<Variable*> candidates;
 
@@ -523,10 +518,10 @@ private:     // funcs
 
   // compare two arguments
   static STemplateArgsCmp compareSTemplateArgs
-    (TypeFactory &tfac, STemplateArgument const *larg, STemplateArgument const *rarg);
+    (STemplateArgument const *larg, STemplateArgument const *rarg);
 
 public:      // funcs
-  TemplCandidates(TypeFactory &t) : tfac(t) {}
+  TemplCandidates() {}
 
   // add a candidate
   void add(Variable *v) { candidates.push(v); }
@@ -543,7 +538,7 @@ public:      // funcs
 
   // static version
   static int compareCandidatesStatic
-    (TypeFactory &tfac, TemplateInfo const *lti, TemplateInfo const *rti);
+    (TemplateInfo const *lti, TemplateInfo const *rti);
 };
 
 

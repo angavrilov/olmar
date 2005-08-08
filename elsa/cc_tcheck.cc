@@ -1155,7 +1155,7 @@ void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
     //   - then "template <>" is *not* used (for that class)
     // t0248.cc tests a couple cases...
     if (!containsVariables(ssargs) &&
-        bareQualifierVar->templateInfo()->getSpecialization(env.tfac, ssargs)) {
+        bareQualifierVar->templateInfo()->getSpecialization(ssargs)) {
       // do not associate 'bareQualifier' with any template scope
     }
     else {
@@ -1713,7 +1713,7 @@ CompoundType *checkClasskeyAndName(
 
     // does this specialization already exist?
     SObjList<STemplateArgument> const &ssargs = objToSObjListC(*templateArgs);
-    Variable *spec = primaryTI->getSpecialization(env.tfac, ssargs);
+    Variable *spec = primaryTI->getSpecialization(ssargs);
     if (spec) {
       ct = spec->type->asCompoundType();
     }

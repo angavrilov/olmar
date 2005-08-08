@@ -1903,9 +1903,8 @@ InstCandidate::~InstCandidate()
 
 
 // ----------------- InstCandidateResolver ---------------
-InstCandidateResolver::InstCandidateResolver(TypeFactory &t)
-  : tfac(t),
-    candidates()
+InstCandidateResolver::InstCandidateResolver()
+  : candidates()
 {}
 
 InstCandidateResolver::~InstCandidateResolver()

@@ -308,14 +308,11 @@ public:
 // algorithm object to select the best from a set
 class InstCandidateResolver {
 public:
-  // for assisting in the comparisons
-  TypeFactory &tfac;
-
   // set of candidates
   ObjArrayStack<InstCandidate> candidates;
 
 public:
-  InstCandidateResolver(TypeFactory &tfac);
+  InstCandidateResolver();
   ~InstCandidateResolver();
 
   // for internal use by the tournament

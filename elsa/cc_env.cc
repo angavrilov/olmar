@@ -1656,7 +1656,7 @@ Variable *Env::getPrimaryOrSpecialization
   // specialization?
   SFOREACH_OBJLIST_NC(Variable, tinfo->specializations, iter) {
     Variable *spec = iter.data();
-    if (spec->templateInfo()->isomorphicArguments(tfac, objToSObjListC(sargs))) {
+    if (spec->templateInfo()->isomorphicArguments(objToSObjListC(sargs))) {
       return spec;
     }
   }
@@ -4446,7 +4446,7 @@ CompoundType *Env::getMatchingTemplateInScope
     if (!scopeTI) continue;
 
     // same template+arguments?
-    if (!scopeTI->matchesPI(tfac, primary, sargs)) {
+    if (!scopeTI->matchesPI(primary, sargs)) {
       continue;
     }
 

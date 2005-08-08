@@ -501,8 +501,7 @@ ObjList<STemplateArgument> &TemplateInfo::getArgumentsToPrimary()
 }
 
 
-bool isomorphicArgumentLists(TypeFactory &tfac,
-                             SObjList<STemplateArgument> const &list1,
+bool isomorphicArgumentLists(SObjList<STemplateArgument> const &list1,
                              SObjList<STemplateArgument> const &list2)
 {
   SObjListIter<STemplateArgument> iter1(list1);
@@ -511,7 +510,7 @@ bool isomorphicArgumentLists(TypeFactory &tfac,
   while (!iter1.isDone() && !iter2.isDone()) {
     STemplateArgument const *sta1 = iter1.data();
     STemplateArgument const *sta2 = iter2.data();
-    if (!sta1->isomorphic(tfac, sta2)) {
+    if (!sta1->isomorphic(sta2)) {
       return false;
     }
 
@@ -522,19 +521,18 @@ bool isomorphicArgumentLists(TypeFactory &tfac,
   return iter1.isDone() && iter2.isDone();
 }
 
-bool isomorphicArgumentLists(TypeFactory &tfac,
-                             ObjList<STemplateArgument> const &list1,
+bool isomorphicArgumentLists(ObjList<STemplateArgument> const &list1,
                              ObjList<STemplateArgument> const &list2)
 {
-  return isomorphicArgumentLists(tfac,
+  return isomorphicArgumentLists(
            reinterpret_cast<SObjList<STemplateArgument>const&>(list1),
            reinterpret_cast<SObjList<STemplateArgument>const&>(list2));
 }
 
 bool TemplateInfo::isomorphicArguments
-  (TypeFactory &tfac, SObjList<STemplateArgument> const &list) const
+  (SObjList<STemplateArgument> const &list) const
 {
-  return isomorphicArgumentLists(tfac, objToSObjListC(arguments), list);
+  return isomorphicArgumentLists(objToSObjListC(arguments), list);
 }
 
 
@@ -627,11 +625,10 @@ bool TemplateInfo::hasParametersEx(bool considerInherited) const
 
 
 Variable *TemplateInfo::getSpecialization(
-  TypeFactory &tfac,
   SObjList<STemplateArgument> const &sargs)
 {
   SFOREACH_OBJLIST_NC(Variable, specializations, iter) {
-    if (iter.data()->templateInfo()->isomorphicArguments(tfac, sargs)) {
+    if (iter.data()->templateInfo()->isomorphicArguments(sargs)) {
       return iter.data();
     }
   }
@@ -880,7 +877,7 @@ bool STemplateArgument::containsVariables() const
 }
 
 
-bool STemplateArgument::isomorphic(TypeFactory &tfac, STemplateArgument const *obj) const
+bool STemplateArgument::isomorphic(STemplateArgument const *obj) const
 {
   if (kind != obj->kind) {
     return false;
@@ -1039,7 +1036,7 @@ char const *toString(STemplateArgument::Kind k)
 // ---------------------- TemplCandidates ------------------------
 STATICDEF
 TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
-  (TypeFactory &tfac, STemplateArgument const *larg, STemplateArgument const *rarg)
+  (STemplateArgument const *larg, STemplateArgument const *rarg)
 {
   xassert(larg->kind == rarg->kind);
 
@@ -1109,7 +1106,7 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
 
 
 STATICDEF int TemplCandidates::compareCandidatesStatic
-  (TypeFactory &tfac, TemplateInfo const *lti, TemplateInfo const *rti)
+  (TemplateInfo const *lti, TemplateInfo const *rti)
 {
   // I do not even put the primary into the set so it should never
   // show up.
@@ -1132,7 +1129,7 @@ STATICDEF int TemplCandidates::compareCandidatesStatic
       lIter.adv(), rIter.adv()) {
     STemplateArgument const *larg = lIter.data();
     STemplateArgument const *rarg = rIter.data();
-    STemplateArgsCmp cmp = compareSTemplateArgs(tfac, larg, rarg);
+    STemplateArgsCmp cmp = compareSTemplateArgs(larg, rarg);
     switch(cmp) {
     default: xfailure("illegal STemplateArgsCmp"); break;
     case STAC_LEFT_MORE_SPEC:
@@ -1180,7 +1177,7 @@ int TemplCandidates::compareCandidates(Variable const *left, Variable const *rig
   TemplateInfo *rti = right->templateInfo();
   xassert(rti);
 
-  return compareCandidatesStatic(tfac, lti, rti);
+  return compareCandidatesStatic(lti, rti);
 }
 
 
@@ -1886,7 +1883,7 @@ Variable *Env::findMostSpecific
 
   // iterate through all of the specializations and build up a set of
   // candidates
-  TemplCandidates templCandidates(tfac);
+  TemplCandidates templCandidates;
   SFOREACH_OBJLIST_NC(Variable, baseVTI->specializations, iter) {
     Variable *spec = iter.data();
     TemplateInfo *specTI = spec->templateInfo();
@@ -4086,7 +4083,7 @@ Variable *Env::findCompleteSpecialization(TemplateInfo *tinfo,
 {
   SFOREACH_OBJLIST_NC(Variable, tinfo->specializations, iter) {
     TemplateInfo *instTI = iter.data()->templateInfo();
-    if (instTI->isomorphicArguments(tfac /*why needed?*/, sargs)) {
+    if (instTI->isomorphicArguments(sargs)) {
       return iter.data();      // found it
     }
   }
@@ -4098,13 +4095,13 @@ Variable *Env::findInstantiation(TemplateInfo *tinfo,
                                  SObjList<STemplateArgument> const &sargs)
 {
   if (tinfo->isCompleteSpec()) {
-    xassertdb(tinfo->isomorphicArguments(tfac /*?*/, sargs));
+    xassertdb(tinfo->isomorphicArguments(sargs));
     return tinfo->var;
   }
 
   SFOREACH_OBJLIST_NC(Variable, tinfo->instantiations, iter) {
     TemplateInfo *instTI = iter.data()->templateInfo();
-    if (instTI->isomorphicArguments(tfac /*why needed?*/, sargs)) {
+    if (instTI->isomorphicArguments(sargs)) {
       return iter.data();      // found it
     }
   }
@@ -4305,7 +4302,7 @@ Variable *Env::makeExplicitFunctionSpecialization
           // does the inferred argument match what the user has?
           if (pqtemplate &&                               // user gave me arguments
               (nameArgsIter.isDone() ||                           // but not enough
-               !binding.isomorphic(tfac, nameArgsIter.data()))) {    // or no match
+               !binding.isomorphic(nameArgsIter.data()))) {       // or no match
             // no match, this candidate can't match
             goto continue_outer_loop;
           }
@@ -4344,7 +4341,7 @@ Variable *Env::makeExplicitFunctionSpecialization
       SObjList<STemplateArgument> const &serfSpecArgs = objToSObjListC(specArgs);
 
       // do we already have a specialization like this?
-      ret = primary->templateInfo()->getSpecialization(tfac, serfSpecArgs);
+      ret = primary->templateInfo()->getSpecialization(serfSpecArgs);
       if (ret) {
         TRACE("template", "re-declaration of function specialization of " <<
                           primary->type->toCString(primary->fullyQualifiedName()) <<
@@ -4495,7 +4492,7 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type,
   }
 
   // collect candidates
-  InstCandidateResolver resolver(tfac);
+  InstCandidateResolver resolver;
 
   // examine all overloaded versions of the function
   SObjList<Variable> set;
@@ -4593,7 +4590,7 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type,
 // then we need to recognize that "A<S,m>" means this template.  Note
 // that for this to work the parameters S and m must already have been
 // associated with a specific (i.e., this) template.
-bool TemplateInfo::matchesPI(TypeFactory &tfac, CompoundType *otherPrimary,
+bool TemplateInfo::matchesPI(CompoundType *otherPrimary,
                              ObjList<STemplateArgument> const &otherArgs)
 {
   // same template?
@@ -4647,7 +4644,7 @@ bool TemplateInfo::matchesPI(TypeFactory &tfac, CompoundType *otherPrimary,
 
   // not a primary; we are a specialization; check against arguments
   // to primary
-  return isomorphicArgumentLists(tfac, argumentsToPrimary, otherArgs);
+  return isomorphicArgumentLists(argumentsToPrimary, otherArgs);
 }
 
 
