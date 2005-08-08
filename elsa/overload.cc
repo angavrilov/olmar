@@ -435,7 +435,7 @@ void OverloadResolver::processCandidate(Variable *v)
     
     // see if this candidate matches
     MType match;
-    if (!match.matchSTArgList(sargs, templInfo0->arguments, MF_MATCH)) {
+    if (!match.matchSTemplateArguments(sargs, templInfo0->arguments, MF_MATCH)) {
       // if not, skip it
       continue;
     }
@@ -931,7 +931,7 @@ bool atLeastAsSpecializedAs(Type *concrete, Type *pattern)
   //     that is equivalent?
 
   MType match;
-  return match.match(concrete, pattern, MF_MATCH);
+  return match.matchType(concrete, pattern, MF_MATCH);
 }
 
 

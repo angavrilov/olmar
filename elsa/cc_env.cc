@@ -3063,7 +3063,7 @@ bool Env::equivalentTypes(Type const *a, Type const *b, MatchFlags mflags)
   // the 'b' type refers to the new declaration we are trying to
   // match up, so its parameters have *not* been associated
   MType match;
-  if (!match.match(a, b, mflags | MF_MATCH | MF_ISOMORPHIC | MF_UNASSOC_TPARAMS)) {
+  if (!match.matchType(a, b, mflags | MF_MATCH | MF_ISOMORPHIC | MF_UNASSOC_TPARAMS)) {
     return false;
   }
 
@@ -3071,14 +3071,14 @@ bool Env::equivalentTypes(Type const *a, Type const *b, MatchFlags mflags)
   // (in/t0494.cc) check the symmetric condition too
   // (in/t0184.cc) letting all tparams unify
   MType match2;
-  return match2.match(b, a, mflags | MF_MATCH | MF_ISOMORPHIC);
+  return match2.matchType(b, a, mflags | MF_MATCH | MF_ISOMORPHIC);
 }
 
 
 bool equalOrIsomorphic(Type const *a, Type const *b)
 {
   MType match;
-  return match.match(a, b, MF_ISOMORPHIC|MF_MATCH);
+  return match.matchType(a, b, MF_ISOMORPHIC|MF_MATCH);
 }
 
 

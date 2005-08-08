@@ -201,7 +201,7 @@ bool AtomicType::isNamedAtomicType() const
 bool AtomicType::equals(AtomicType const *obj) const
 {
   MType match;
-  return match.matchAtomic(this, obj, MF_EXACT);
+  return match.matchAtomicType(this, obj, MF_EXACT);
 }
 
 
@@ -1104,8 +1104,8 @@ bool BaseType::equals(BaseType const *obj, MatchFlags flags) const
   // oy.. I think it's a fair assumption that the only direct subclass
   // of BaseType is Type ...; in fact, I just made BaseType's ctor
   // private to ensure this
-  return mtype.match(static_cast<Type const*>(this), 
-                     static_cast<Type const*>(obj), flags);
+  return mtype.matchType(static_cast<Type const*>(this),
+                         static_cast<Type const*>(obj), flags);
 }
 
 

@@ -6386,7 +6386,7 @@ static Type *internalTestingHooks
     }
 
     MType mtype(true /*nonConst*/);
-    if (mtype.matchNC(conc, pat, (MatchFlags)flags)) {
+    if (mtype.matchTypeNC(conc, pat, (MatchFlags)flags)) {
       if (expectSuccess) {
         // successed as expected; check the bindings
         int i;

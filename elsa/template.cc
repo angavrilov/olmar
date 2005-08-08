@@ -541,7 +541,7 @@ bool equalArgumentLists(ObjList<STemplateArgument> const &list1,
                         MatchFlags mflags)
 {
   MType mtype;
-  return mtype.matchSTArgList(list1, list2, mflags);
+  return mtype.matchSTemplateArguments(list1, list2, mflags);
 }
 
 bool TemplateInfo::equalArguments(ObjList<STemplateArgument> const &list,
@@ -1040,7 +1040,7 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
     bool leftAtLeastAsSpec;
     {
       MType match;
-      if (match.match(larg->value.t, rarg->value.t, MF_MATCH)) {
+      if (match.matchType(larg->value.t, rarg->value.t, MF_MATCH)) {
         leftAtLeastAsSpec = true;
       } else {
         leftAtLeastAsSpec = false;
@@ -1050,7 +1050,7 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
     bool rightAtLeastAsSpec;
     {
       MType match;
-      if (match.match(rarg->value.t, larg->value.t, MF_MATCH)) {
+      if (match.matchType(rarg->value.t, larg->value.t, MF_MATCH)) {
         rightAtLeastAsSpec = true;
       } else {
         rightAtLeastAsSpec = false;
@@ -1304,7 +1304,7 @@ bool Env::inferTemplArgsFromFuncArgs
 
         // "find template argument values that will make the deduced
         // [parameter type] identical to ['argType']"
-        bool argUnifies = match.matchNC(argType, paramType, mflags);
+        bool argUnifies = match.matchTypeNC(argType, paramType, mflags);
 
         if (!argUnifies) {
           // cppstd 14.8.2.1 para 3 bullet 3: if 'paramType' is a
@@ -1345,7 +1345,7 @@ bool Env::inferTemplArgsFromFuncArgs
               // push and pop of bindings.  Therefore I will just note
               // the bugs and ignore them for now.
               Type *t = env.makeType(sub->ct);    // leaked
-              if (match.matchNC(t, paramType, mflags)) {
+              if (match.matchTypeNC(t, paramType, mflags)) {
                 argUnifies = true;
                 break;
               }
@@ -1821,7 +1821,8 @@ void Env::mapPrimaryArgsToSpecArgs(
   // execute the match to derive the bindings; we should not have
   // gotten here if they do not unify
   MType match(true /*allowNonConst*/);
-  bool matches = match.matchSTArgListNC(primaryArgs, matchTI->arguments, MF_MATCH);
+  bool matches = match.matchSTemplateArgumentsNC(primaryArgs, matchTI->arguments, 
+                                                 MF_MATCH);
   xassert(matches);
 
   // Now the arguments are bound in 'bindings', for example
@@ -1887,7 +1888,7 @@ Variable *Env::findMostSpecific
 
     // see if this candidate matches
     MType match;
-    if (match.matchSTArgList(sargs, matchTI->arguments, MF_MATCH)) {
+    if (match.matchSTemplateArguments(sargs, matchTI->arguments, MF_MATCH)) {
       templCandidates.add(spec);
     }
   }
@@ -4248,7 +4249,7 @@ Variable *Env::makeExplicitFunctionSpecialization
 
     // can this element specialize to 'ft'?
     MType match(true /*allowNonConst*/);
-    if (match.matchNC(ft, primary->type, mflags)) {
+    if (match.matchTypeNC(ft, primary->type, mflags)) {
       // yes; construct the argument list that specializes 'primary'
       TemplateInfo *primaryTI = primary->templateInfo();
       ObjList<STemplateArgument> specArgs;
@@ -4507,7 +4508,7 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type,
 
     // does the type we have match the type of this template?
     MType match(true /*allowNonConst*/);
-    if (!match.matchNC(type, primary->type, MF_MATCH)) {
+    if (!match.matchTypeNC(type, primary->type, MF_MATCH)) {
       continue;   // no match
     }
 

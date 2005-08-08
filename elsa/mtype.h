@@ -18,8 +18,14 @@
 #include "template.h"           // STemplateArgument
 
 
-class MType {
-private:      // types
+// Internal MType: the core of the MType implementation, separated
+// into its own class so that it cannot (easily, accidentally) use the
+// public MType interfaces.  Its directly-exposed interfaces ensure
+// constness of arguments, except that the exposed 'bindings' map can
+// be used for non-const access.  The MType class is responsible for
+// packaging this in a sound form.
+class IMType {
+private:     // types
   // A template variable binding.  A name can be bound to one of three
   // things:
   //   - a Type object and CVFlags to modify it
@@ -33,7 +39,7 @@ private:      // types
   // STemplateArgument (though they have to pass a TypeFactory to
   // allow the internal representation to be converted).
   class Binding {
-  public:     // data
+  public:    // data
     STemplateArgument sarg;     // most of the binding info
     CVFlags cv;                 // if sarg.isType(), we are bound to the 'cv' version of it
 
@@ -49,11 +55,73 @@ private:      // types
     string asString() const;
   };
 
-private:      // data
+protected:   // data
   // set of bindings
   typedef ObjMap<char const /*StringRef*/, Binding> BindingMap;
   BindingMap bindings;
-  
+
+protected:   // funcs
+  // ******************************************************************
+  // * NOTE: Do *not* simply make these entry points public.  If you  *
+  // * need to call one of these, make a public wrapper that consults *
+  // * 'allowNonConst' and uses TRACE("mtype") appropriately.         *
+  // ******************************************************************
+  static bool canUseAsVariable(Variable *var, MatchFlags flags);
+  bool imatchAtomicType(AtomicType const *conc, AtomicType const *pat, MatchFlags flags);
+  bool imatchTypeVariable(TypeVariable const *conc, TypeVariable const *pat, MatchFlags flags);
+  bool imatchPseudoInstantiation(PseudoInstantiation const *conc,
+                                       PseudoInstantiation const *pat, MatchFlags flags);
+  bool imatchSTemplateArguments(ObjList<STemplateArgument> const &conc,
+                               ObjList<STemplateArgument> const &pat,
+                               MatchFlags flags);
+  bool imatchSTemplateArgument(STemplateArgument const *conc,
+                                     STemplateArgument const *pat, MatchFlags flags);
+  bool imatchNontypeWithVariable(STemplateArgument const *conc,
+                                       E_variable *pat, MatchFlags flags);
+  bool imatchDependentQType(DependentQType const *conc,
+                                  DependentQType const *pat, MatchFlags flags);
+  bool imatchPQName(PQName const *conc, PQName const *pat, MatchFlags flags);
+  bool imatchType(Type const *conc, Type const *pat, MatchFlags flags);
+  bool imatchTypeWithVariable(Type const *conc, TypeVariable const *pat,
+                                    CVFlags tvCV, MatchFlags flags);
+  bool equalWithAppliedCV(Type const *conc, Binding *binding, CVFlags cv, MatchFlags flags);
+  bool imatchTypeWithSpecifiedCV(Type const *conc, Type const *pat, CVFlags cv, MatchFlags flags);
+  bool addTypeBindingWithoutCV(StringRef tvName, Type const *conc,
+                               CVFlags tvcv, MatchFlags flags);
+  bool imatchTypeWithPolymorphic(Type const *conc, SimpleTypeId polyId, MatchFlags flags);
+  bool imatchAtomicTypeWithVariable(AtomicType const *conc,
+                                   TypeVariable const *pat,
+                                   MatchFlags flags);
+  bool imatchCVAtomicType(CVAtomicType const *conc, CVAtomicType const *pat, MatchFlags flags);
+  bool imatchCVFlags(CVFlags conc, CVFlags pat, MatchFlags flags);
+  bool imatchPointerType(PointerType const *conc, PointerType const *pat, MatchFlags flags);
+  bool imatchReferenceType(ReferenceType const *conc, ReferenceType const *pat, MatchFlags flags);
+  bool imatchFunctionType(FunctionType const *conc, FunctionType const *pat, MatchFlags flags);
+  bool imatchParameterLists(FunctionType const *conc, FunctionType const *pat,
+                                  MatchFlags flags);
+  bool imatchExceptionSpecs(FunctionType const *conc, FunctionType const *pat, MatchFlags flags);
+  bool imatchArrayType(ArrayType const *conc, ArrayType const *pat, MatchFlags flags);
+  bool imatchPointerToMemberType(PointerToMemberType const *conc,
+                                       PointerToMemberType const *pat, MatchFlags flags);
+  bool imatchExpression(Expression const *conc, Expression const *pat, MatchFlags flags);
+
+  // stuff for DQT resolution
+  Type *lookupPQInScope(Scope const *scope, PQName const *name);
+  Variable *lookupNameInScope(Scope const *scope0, StringRef name);
+  Variable *applyTemplateArgs(Variable *primary,
+                              ObjList<STemplateArgument> const &sargs);
+  Variable *searchForInstantiation(TemplateInfo *ti,
+                                   ObjList<STemplateArgument> const &sargs);
+
+public:      // funcs
+  IMType();
+  ~IMType();
+};
+
+
+// the public interface
+class MType : protected IMType {
+private:     // data
   // This flag is true if the client is using the non-const interface.
   //
   // The idea is this module can support one of two modes
@@ -77,102 +145,52 @@ private:      // data
   // provide with a const interface.
   bool const allowNonConst;
 
-private:      // funcs
+private:     // funcs
   string bindingsToString() const;
+  bool commonMatchType(Type const *conc, Type const *pat, MatchFlags flags);
+  bool commonMatchSTemplateArguments(ObjList<STemplateArgument> const &conc,
+                                     ObjList<STemplateArgument> const &pat,
+                                     MatchFlags flags);
 
-  // ******************************************************************
-  // * NOTE: Do *not* simply make these entry points public.  If you  *
-  // * need to call one of these, make a public wrapper that consults *
-  // * 'allowNonConst' and uses TRACE("mtype") appropriately.         *
-  // ******************************************************************
-  bool imatch(Type const *conc, Type const *pat, MatchFlags flags);
-  static bool canUseAsVariable(Variable *var, MatchFlags flags);
-  bool matchAtomicType(AtomicType const *conc, AtomicType const *pat, MatchFlags flags);
-  bool matchTypeVariable(TypeVariable const *conc, TypeVariable const *pat, MatchFlags flags);
-  bool matchPseudoInstantiation(PseudoInstantiation const *conc,
-                                       PseudoInstantiation const *pat, MatchFlags flags);
-  bool imatchSTArgList(ObjList<STemplateArgument> const &conc,
-                       ObjList<STemplateArgument> const &pat,
-                       MatchFlags flags);
-  bool matchSTemplateArguments(ObjList<STemplateArgument> const &conc,
-                               ObjList<STemplateArgument> const &pat,
-                               MatchFlags flags);
-  bool matchSTemplateArgument(STemplateArgument const *conc,
-                                     STemplateArgument const *pat, MatchFlags flags);
-  bool matchNontypeWithVariable(STemplateArgument const *conc,
-                                       E_variable *pat, MatchFlags flags);
-  bool matchDependentQType(DependentQType const *conc,
-                                  DependentQType const *pat, MatchFlags flags);
-  bool matchPQName(PQName const *conc, PQName const *pat, MatchFlags flags);
-  bool matchType(Type const *conc, Type const *pat, MatchFlags flags);
-  bool matchTypeWithVariable(Type const *conc, TypeVariable const *pat,
-                                    CVFlags tvCV, MatchFlags flags);
-  bool equalWithAppliedCV(Type const *conc, Binding *binding, CVFlags cv, MatchFlags flags);
-  bool matchTypeWithSpecifiedCV(Type const *conc, Type const *pat, CVFlags cv, MatchFlags flags);
-  bool addTypeBindingWithoutCV(StringRef tvName, Type const *conc, 
-                               CVFlags tvcv, MatchFlags flags);
-  bool matchTypeWithPolymorphic(Type const *conc, SimpleTypeId polyId, MatchFlags flags);
-  bool matchAtomicTypeWithVariable(AtomicType const *conc,
-                                   TypeVariable const *pat,
-                                   MatchFlags flags);
-  bool matchCVAtomicType(CVAtomicType const *conc, CVAtomicType const *pat, MatchFlags flags);
-  bool matchCVFlags(CVFlags conc, CVFlags pat, MatchFlags flags);
-  bool matchPointerType(PointerType const *conc, PointerType const *pat, MatchFlags flags);
-  bool matchReferenceType(ReferenceType const *conc, ReferenceType const *pat, MatchFlags flags);
-  bool matchFunctionType(FunctionType const *conc, FunctionType const *pat, MatchFlags flags);
-  bool matchParameterLists(FunctionType const *conc, FunctionType const *pat,
-                                  MatchFlags flags);
-  bool matchExceptionSpecs(FunctionType const *conc, FunctionType const *pat, MatchFlags flags);
-  bool matchArrayType(ArrayType const *conc, ArrayType const *pat, MatchFlags flags);
-  bool matchPointerToMemberType(PointerToMemberType const *conc,
-                                       PointerToMemberType const *pat, MatchFlags flags);
-  bool matchExpression(Expression const *conc, Expression const *pat, MatchFlags flags);
-  
-  // stuff for DQT resolution
-  Type *lookupPQInScope(Scope const *scope, PQName const *name);
-  Variable *lookupNameInScope(Scope const *scope0, StringRef name);
-  Variable *applyTemplateArgs(Variable *primary,
-                              ObjList<STemplateArgument> const &sargs);
-  Variable *searchForInstantiation(TemplateInfo *ti,
-                                   ObjList<STemplateArgument> const &sargs);
-
-public:       // funcs
-  // only when 'allowNonConst' is true can 'matchNC' and
-  // 'getBoundValue' be invoked
+public:      // funcs
+  // if 'allowNonConst' is false, const match* can be invoked;
+  // if 'allowNonConst' is true, 'getBoundValue' be invoked
   MType(bool allowNonConst = false);
   ~MType();
 
-  // ---- match ----
+  // ---- const match ----
+  // these functions can only be called if 'allowNonConst' is false
+
   // return true if 'conc' is an instance of 'pat', in which case this
   // object will have a record of the instantiation bindings; the
   // const version can only be called when 'nonConst' is false
-  bool match(Type const *conc, Type const *pat, MatchFlags flags);
+  bool matchType(Type const *conc, Type const *pat, MatchFlags flags);
+  
+  // a few more
+  bool matchSTemplateArguments(ObjList<STemplateArgument> const &conc,
+                               ObjList<STemplateArgument> const &pat,
+                               MatchFlags flags);
+  bool matchAtomicType(AtomicType const *conc, AtomicType const *pat,
+                       MatchFlags flags);
+  bool matchSTemplateArgument(STemplateArgument const *conc,
+                              STemplateArgument const *pat, MatchFlags flags);
+  bool matchExpression(Expression const *conc, Expression const *pat, MatchFlags flags);
 
-  // non-const version
-  bool matchNC(Type *conc, Type *pat, MatchFlags flags);
-
-  // match lists of STemplateArguments; this can only be called
-  // when 'allowNonConst' is false
-  bool matchSTArgList(ObjList<STemplateArgument> const &conc,
-                      ObjList<STemplateArgument> const &pat,
-                      MatchFlags flags);
-
-  // non-const version
-  bool matchSTArgListNC(ObjList<STemplateArgument> &conc,
-                        ObjList<STemplateArgument> &pat,
-                        MatchFlags flags);
-
-  // match AtomicTypes; only a const version for now
-  bool matchAtomic(AtomicType const *conc, AtomicType const *pat,
-                   MatchFlags flags);
+  // ---- non-const match ----
+  // for now, only selected non-const entry points are provided
+  bool matchTypeNC(Type *conc, Type *pat, MatchFlags flags);
+  bool matchSTemplateArgumentsNC(ObjList<STemplateArgument> &conc,
+                                 ObjList<STemplateArgument> &pat,
+                                 MatchFlags flags);
 
   // ---- query ----
   // how many bindings are currently active?
   int getNumBindings() const;
-  
-  // get the binding for 'name', or return STA_NONE if none
+
+  // get the binding for 'name', or return STA_NONE if none;
+  // 'allowNonConst' must be true
   STemplateArgument getBoundValue(StringRef name, TypeFactory &tfac);
-  
+
   // set a binding; 'value' must not be STA_NONE
   void setBoundValue(StringRef name, STemplateArgument const &value);
 };
