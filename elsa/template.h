@@ -319,7 +319,8 @@ public:      // funcs
   bool isomorphicArguments(SObjList<STemplateArgument> const &list) const;
 
   // and here it is
-  bool equalArguments(ObjList<STemplateArgument> const &list) const;
+  bool equalArguments(ObjList<STemplateArgument> const &list,
+                      MatchFlags mflags = MF_EXACT) const;
 
   // true if the arguments contain type variables
   //
@@ -491,7 +492,8 @@ bool isomorphicArgumentLists(ObjList<STemplateArgument> const &list1,
                              ObjList<STemplateArgument> const &list2);
 
 bool equalArgumentLists(ObjList<STemplateArgument> const &list1,
-                        ObjList<STemplateArgument> const &list2);
+                        ObjList<STemplateArgument> const &list2,
+                        MatchFlags mflags = MF_EXACT);
 
 char const *toString(STemplateArgument::Kind k);
 

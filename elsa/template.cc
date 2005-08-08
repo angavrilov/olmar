@@ -537,28 +537,17 @@ bool TemplateInfo::isomorphicArguments
 
 
 bool equalArgumentLists(ObjList<STemplateArgument> const &list1,
-                        ObjList<STemplateArgument> const &list2)
+                        ObjList<STemplateArgument> const &list2,
+                        MatchFlags mflags)
 {
-  ObjListIter<STemplateArgument> iter1(list1);
-  ObjListIter<STemplateArgument> iter2(list2);
-
-  while (!iter1.isDone() && !iter2.isDone()) {
-    STemplateArgument const *sta1 = iter1.data();
-    STemplateArgument const *sta2 = iter2.data();
-    if (!sta1->equals(sta2)) {
-      return false;
-    }
-
-    iter1.adv();
-    iter2.adv();
-  }
-
-  return iter1.isDone() && iter2.isDone();
+  MType mtype;
+  return mtype.matchSTArgList(list1, list2, mflags);
 }
 
-bool TemplateInfo::equalArguments(ObjList<STemplateArgument> const &list) const
+bool TemplateInfo::equalArguments(ObjList<STemplateArgument> const &list,
+                                  MatchFlags mflags) const
 {
-  return equalArgumentLists(arguments, list);
+  return equalArgumentLists(arguments, list, mflags);
 }
 
 
