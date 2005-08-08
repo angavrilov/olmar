@@ -578,11 +578,10 @@ void TypeToXml::toXml(OverloadSet *oload) {
 }
 
 void TypeToXml::toXml(BaseClass *bc) {
-  // are we really a BaseClassSubobj?
-  if (BaseClassSubobj *bcs = dynamic_cast<BaseClassSubobj*>(bc)) {
-    toXml(bcs);
-    return;
-  }
+  // Since BaseClass objects are never manipulated polymorphically,
+  // that is, every BaseClass pointer's static type equals its dynamic
+  // type, 'bc' cannot actually be a BaseClassSubobj.
+
   // idempotency
   if (printed(bc)) return;
   openTag(BaseClass, bc);

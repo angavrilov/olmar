@@ -207,7 +207,7 @@ class PQName {
        // (without considering template arguments); this is needed for
        // applyArgumentMap, since it should not be doing lookup; this
        // is computed and used independently of 'denotedScopeVar'
-       public(xml,clone) Variable *qualifierVar = NULL;
+       public(xml) Variable *qualifierVar = NULL;
        custom debugPrint {
          ind(os, indent) << "qualifierVar: " << refersTo(qualifierVar) << "\n";
        }

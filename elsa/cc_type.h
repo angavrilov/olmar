@@ -286,11 +286,10 @@ public:
     : DMEMB(ct), DMEMB(access), DMEMB(isVirtual) {}
   BaseClass(CompoundType *c, AccessKeyword a, bool v)
     : ct(c), access(a), isVirtual(v) {}
-  virtual ~BaseClass() {}
-
-  // dsw: I know this is the only virtual method but BaseClassSubobj
-  // inherits from me.
-  virtual void traverse(TypeVisitor &vis);
+    
+  // this isn't virtual because the caller always knows the
+  // dynamic type
+  void traverse(TypeVisitor &vis);
 };
 
 // represent an instance of a base class in a particular class'
@@ -313,12 +312,12 @@ public:
     : BaseClass(c, a, v)
   {}
   BaseClassSubobj(BaseClass const &base);
-  virtual ~BaseClassSubobj();
-                           
+  ~BaseClassSubobj();
+
   // name and virtual address to uniquely identify this object
   string canonName() const;
 
-  virtual void traverse(TypeVisitor &vis);
+  void traverse(TypeVisitor &vis);
 };
 
 // represent a user-defined compound type; the members of the
