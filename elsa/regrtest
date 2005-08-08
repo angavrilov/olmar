@@ -804,6 +804,7 @@ testparse t0517.cc
 # t0518 through t0521 are tested below, outside the lots-of-tests section
 testparse t0522.cc
 testparse t0523.cc
+testparse t0524.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

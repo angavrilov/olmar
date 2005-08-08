@@ -5450,6 +5450,7 @@ static Variable *outerResolveOverload_ctor
   // since we should not be treating the construction of a reference
   // the same as the construction of an object
   if (type->isCompoundType()) {
+    env.ensureCompleteType("construct", type);
     CompoundType *ct = type->asCompoundType();
     Variable *ctor = ct->getNamedField(env.constructorSpecialName, env, LF_INNER_ONLY);
     xassert(ctor);
@@ -6066,6 +6067,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
     // so do it here too
     possiblyWrapWithImplicitThis(env, func, fevar, feacc);
 
+    env.ensureCompleteType("use as function object", t);
     Variable *funcVar = ct->getNamedField(env.functionOperatorName, env);
     if (funcVar) {
       // resolve overloading
