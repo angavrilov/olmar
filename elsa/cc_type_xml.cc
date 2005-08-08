@@ -807,6 +807,17 @@ do { \
   ret->reverse(); \
 } while(0)
 
+#define convertNameMap(MAPTYPE, ITEMTYPE) \
+do { \
+  MAPTYPE<ITEMTYPE> *ret = reinterpret_cast<MAPTYPE<ITEMTYPE>*>(target); \
+  xassert(ret->isEmpty()); \
+  for(StringRefMap<ITEMTYPE>::Iter \
+        iter(reinterpret_cast<StringRefMap<ITEMTYPE>&>(*map)); \
+      !iter.isDone(); iter.adv()) { \
+    ret->add(iter.key(), iter.value()); \
+  } \
+} while(0)
+
 void ReadXml_Type::append2List(void *list0, int listKind, void *datum0) {
   xassert(list0);
   ASTList<char> *list = static_cast<ASTList<char>*>(list0);
@@ -967,15 +978,9 @@ bool ReadXml_Type::convertNameMap2StringRefMap
   default: return false;        // we did not find a matching tag
 
   case XTOK_NameMap_Scope_variables:
-  case XTOK_NameMap_Scope_typeTags: {
-    StringRefMap<Variable> *ret = reinterpret_cast<StringRefMap<Variable>*>(target);
-    xassert(ret->isEmpty());
-    for(StringRefMap<Variable>::Iter iter(reinterpret_cast<StringRefMap<Variable>&>(*map));
-        !iter.isDone(); iter.adv()) {
-      ret->add(iter.key(), iter.value());
-    }
+  case XTOK_NameMap_Scope_typeTags:
+    convertNameMap(StringRefMap, Variable);
     break;
-  }
 
   }
   return true;
@@ -987,17 +992,9 @@ bool ReadXml_Type::convertNameMap2StringSObjDict
   switch(mapKind) {
   default: return false;        // we did not find a matching tag
 
-  case XTOK_NameMap_EnumType_valueIndex: {
-    StringSObjDict<EnumType::Value> *ret =
-      reinterpret_cast<StringSObjDict<EnumType::Value>*>(target);
-    xassert(ret->isEmpty());
-    for(StringRefMap<EnumType::Value>::Iter
-          iter(reinterpret_cast<StringRefMap<EnumType::Value>&>(*map));
-        !iter.isDone(); iter.adv()) {
-      ret->add(iter.key(), iter.value());
-    }
+  case XTOK_NameMap_EnumType_valueIndex:
+    convertNameMap(StringSObjDict, EnumType::Value);
     break;
-  }
 
   }
   return true;
