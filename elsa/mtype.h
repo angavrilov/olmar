@@ -45,7 +45,9 @@ private:     // types
 
   public:
     Binding() : sarg(), cv(CV_NONE) {}
-    
+
+    bool operator== (Binding const &obj) const;
+
     // Though I am using 'STemplateArgument', I want to treat its
     // 'Type*' as being const.
     void setType(Type const *t) { sarg.setType(const_cast<Type*>(t)); }
@@ -78,6 +80,7 @@ protected:   // funcs
                                      STemplateArgument const *pat, MatchFlags flags);
   bool imatchNontypeWithVariable(STemplateArgument const *conc,
                                        E_variable *pat, MatchFlags flags);
+  bool addBinding(StringRef name, Binding * /*owner*/ value, MatchFlags flags);
   bool imatchDependentQType(DependentQType const *conc,
                                   DependentQType const *pat, MatchFlags flags);
   bool imatchPQName(PQName const *conc, PQName const *pat, MatchFlags flags);

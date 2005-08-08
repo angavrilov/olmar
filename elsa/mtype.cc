@@ -49,6 +49,26 @@ string toString_or_CV_NONE(CVFlags cv)
 }
 
 
+bool IMType::Binding::operator== (Binding const &obj) const
+{
+  if (sarg.kind != obj.sarg.kind) {
+    return false;
+  }
+  
+  if (sarg.isType()) {
+    // somewhat complicated case: we need to make sure the types are
+    // the same, *ignoring* their cv-flags, and that the cv-flags in
+    // the Binding objects themselves *are* equal
+    return getType()->equals(obj.getType(), MF_IGNORE_TOP_CV) &&
+           cv == obj.cv;
+  }
+  else {
+    // easy, just STemplateArgument equality
+    return sarg.equals(obj.sarg);
+  }
+}
+
+
 string IMType::Binding::asString() const
 {
   if (sarg.isType()) {
@@ -283,9 +303,27 @@ bool IMType::imatchNontypeWithVariable(STemplateArgument const *conc,
     // bind 'pat->name' to 'conc'
     binding = new Binding;
     binding->sarg = *conc;
-    bindings.add(vName, binding);
-    return true;
+    return addBinding(vName, binding, flags);
   }
+}
+
+
+bool IMType::addBinding(StringRef name, Binding * /*owner*/ value, MatchFlags flags)
+{
+  if (flags & MF_ISOMORPHIC) {
+    // is anything already bound to 'value'?
+    for (BindingMap::IterC iter(bindings); !iter.isDone(); iter.adv()) {
+      if (value->operator==(*(iter.value()))) {
+        // yes, something is already bound to it, which we cannot
+        // allow in MF_ISOMORPHIC mode
+        delete value;
+        return false;
+      }
+    }
+  }
+
+  bindings.add(name, value);
+  return true;
 }
 
 
@@ -543,8 +581,7 @@ bool IMType::addTypeBindingWithoutCV(StringRef tvName, Type const *conc,
   binding->cv = (ccv & ~tvcv);
 
   // add the binding
-  bindings.add(tvName, binding);
-  return true;
+  return addBinding(tvName, binding, flags);
 }
 
 
@@ -640,8 +677,7 @@ bool IMType::imatchAtomicTypeWithVariable(AtomicType const *conc,
     // bind 'tvName' to 'conc'
     binding = new Binding;
     binding->sarg.setAtomicType(conc);
-    bindings.add(tvName, binding);
-    return true;
+    return addBinding(tvName, binding, flags);
   }
 }
 

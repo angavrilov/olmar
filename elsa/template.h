@@ -316,7 +316,7 @@ public:      // funcs
   // 2005-08-03: I renamed this from 'equal' to 'isomorphic', because
   // I am now introducing a variant called 'equal' that does not
   // require the TypeFactory parameter.
-  bool isomorphicArguments(SObjList<STemplateArgument> const &list) const;
+  bool isomorphicArguments(ObjList<STemplateArgument> const &list) const;
 
   // and here it is
   bool equalArguments(ObjList<STemplateArgument> const &list,
@@ -344,8 +344,7 @@ public:      // funcs
   // if one of my explicit specializations has arguments that
   // exactly match 'sargs' (which is a list of concrete arguments),
   // return it; otherwise return NULL
-  Variable *getSpecialization
-    (SObjList<STemplateArgument> const &sargs);
+  Variable *getSpecialization(ObjList<STemplateArgument> const &sargs);
 
   // true if the given Variable is among the parameters (at any level)
   //
@@ -449,15 +448,14 @@ public:
 
   // the point of boiling down the syntactic arguments into this
   // simpler semantic form is to make equality checking easy
-  bool equals(STemplateArgument const *obj) const;
-  bool equals(STemplateArgument const &obj) const
+  bool equals(STemplateArgument const *obj, MatchFlags mflags = MF_EXACT) const;
+  bool equals(STemplateArgument const &obj, MatchFlags mflags = MF_EXACT) const
     { return equals(&obj); }
 
   // does it contain variables?
   bool containsVariables() const;
 
-  // if it does contain variables, then 'equals' is inappropriate;
-  // isomorphism is the right thing to check
+  // let type variables bind to each other
   bool isomorphic(STemplateArgument const *obj) const;
 
   // traverse argument
@@ -486,8 +484,6 @@ void copyTemplateArgs(ObjList<STemplateArgument> &dest,
 void copyTemplateArgs(ObjList<STemplateArgument> &dest,
                       SObjList<STemplateArgument> const &src);
 
-bool isomorphicArgumentLists(SObjList<STemplateArgument> const &list1,
-                             SObjList<STemplateArgument> const &list2);
 bool isomorphicArgumentLists(ObjList<STemplateArgument> const &list1,
                              ObjList<STemplateArgument> const &list2);
 

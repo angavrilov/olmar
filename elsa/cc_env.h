@@ -809,9 +809,9 @@ private:     // template funcs
     ObjList<STemplateArgument> &partialSpecArgs);
 
   Variable *findInstantiation(TemplateInfo *tinfo,
-                              SObjList<STemplateArgument> const &sargs);
+                              ObjList<STemplateArgument> const &sargs);
   Variable *findCompleteSpecialization(TemplateInfo *tinfo,
-                                       SObjList<STemplateArgument> const &sargs);
+                                       ObjList<STemplateArgument> const &sargs);
   void bindParametersInMap(STemplateArgumentCMap &map, TemplateInfo *tinfo,
                            SObjList<STemplateArgument> const &sargs);
   void bindParametersInMap(STemplateArgumentCMap &map,
@@ -883,11 +883,7 @@ public:      // template funcs
     (ObjList<SavedScopePair> &poppedScopes, SObjList<Scope> &pushedScopes);
 
   // function template instantiation chain
-  Variable *instantiateFunctionTemplate            // inst decl 1
-    (SourceLoc loc,
-     Variable *primary,
-     SObjList<STemplateArgument> const &sargs);
-  Variable *instantiateFunctionTemplate            // inst decl 2
+  Variable *instantiateFunctionTemplate
     (SourceLoc loc,
      Variable *primary,
      ObjList<STemplateArgument> const &sargs);

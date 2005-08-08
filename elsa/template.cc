@@ -501,38 +501,16 @@ ObjList<STemplateArgument> &TemplateInfo::getArgumentsToPrimary()
 }
 
 
-bool isomorphicArgumentLists(SObjList<STemplateArgument> const &list1,
-                             SObjList<STemplateArgument> const &list2)
-{
-  SObjListIter<STemplateArgument> iter1(list1);
-  SObjListIter<STemplateArgument> iter2(list2);
-
-  while (!iter1.isDone() && !iter2.isDone()) {
-    STemplateArgument const *sta1 = iter1.data();
-    STemplateArgument const *sta2 = iter2.data();
-    if (!sta1->isomorphic(sta2)) {
-      return false;
-    }
-
-    iter1.adv();
-    iter2.adv();
-  }
-
-  return iter1.isDone() && iter2.isDone();
-}
-
 bool isomorphicArgumentLists(ObjList<STemplateArgument> const &list1,
                              ObjList<STemplateArgument> const &list2)
 {
-  return isomorphicArgumentLists(
-           reinterpret_cast<SObjList<STemplateArgument>const&>(list1),
-           reinterpret_cast<SObjList<STemplateArgument>const&>(list2));
+  MType mtype;
+  return mtype.matchSTemplateArguments(list1, list2, MF_ISOMORPHIC|MF_MATCH);
 }
 
-bool TemplateInfo::isomorphicArguments
-  (SObjList<STemplateArgument> const &list) const
+bool TemplateInfo::isomorphicArguments(ObjList<STemplateArgument> const &list) const
 {
-  return isomorphicArgumentLists(objToSObjListC(arguments), list);
+  return isomorphicArgumentLists(arguments, list);
 }
 
 
@@ -613,11 +591,11 @@ bool TemplateInfo::hasParametersEx(bool considerInherited) const
 }
 
 
-Variable *TemplateInfo::getSpecialization(
-  SObjList<STemplateArgument> const &sargs)
+Variable *TemplateInfo::getSpecialization(ObjList<STemplateArgument> const &sargs)
 {
-  SFOREACH_OBJLIST_NC(Variable, specializations, iter) {
-    if (iter.data()->templateInfo()->isomorphicArguments(sargs)) {
+  SFOREACH_OBJLIST_NC(Variable, specializations, iter) {     
+    TemplateInfo *specTI = iter.data()->templateInfo();
+    if (isomorphicArgumentLists(specTI->arguments, sargs)) {
       return iter.data();
     }
   }
@@ -832,22 +810,11 @@ bool STemplateArgument::isDependent() const
 }
 
 
-bool STemplateArgument::equals(STemplateArgument const *obj) const
+bool STemplateArgument::equals(STemplateArgument const *obj,
+                               MatchFlags mflags) const
 {
-  if (kind != obj->kind) {
-    return false;
-  }
-
-  // At one point I tried making type arguments unequal if they had
-  // different typedefs, but that does not work, because I need A<int>
-  // to be the *same* type as A<my_int>, for example to do base class
-  // constructor calls.
-
-  switch (kind) {
-    case STA_TYPE:     return value.t->equals(obj->value.t);
-    case STA_INT:      return value.i == obj->value.i;
-    default:           return value.v == obj->value.v;
-  }
+  MType mtype;
+  return mtype.matchSTemplateArgument(this, obj, mflags);
 }
 
 
@@ -857,7 +824,7 @@ bool STemplateArgument::containsVariables() const
     if (value.t->containsVariables()) {
       return true;
     }
-  } 
+  }
   else if (kind == STA_DEPEXPR) {
     return true;
   }
@@ -868,19 +835,7 @@ bool STemplateArgument::containsVariables() const
 
 bool STemplateArgument::isomorphic(STemplateArgument const *obj) const
 {
-  if (kind != obj->kind) {
-    return false;
-  }
-
-  switch (kind) {
-    case STA_TYPE:
-      return equalOrIsomorphic(value.t, obj->value.t);
-
-    // TODO: these are wrong, because we don't have a proper way
-    // to represent non-type template parameters in argument lists
-    case STA_INT:      return value.i == obj->value.i;
-    default:           return value.v == obj->value.v;
-  }
+  return equals(obj, MF_ISOMORPHIC|MF_MATCH);
 }
 
 
@@ -2289,7 +2244,7 @@ void Env::instantiateDefaultArgs(Variable *instV, int neededDefaults)
 Variable *Env::instantiateFunctionTemplate
   (SourceLoc loc,                              // location of instantiation request
    Variable *primary,                          // template primary to instantiate
-   SObjList<STemplateArgument> const &sargs)   // arguments to apply to 'primary'
+   ObjList<STemplateArgument> const &sargs)    // arguments to apply to 'primary'
 {
   // t0424.cc: if 'primary' is an alias, skip past it; aliases 
   // get to participate in overload resolution (i.e., *selecting*
@@ -2326,7 +2281,7 @@ Variable *Env::instantiateFunctionTemplate
 
   // bind the parameters in an STemplateArgumentMap
   STemplateArgumentCMap map;
-  bindParametersInMap(map, primaryTI, sargs);
+  bindParametersInMap(map, primaryTI, objToSObjListC(sargs));
 
   // compute the type of the instantiation by applying 'map' to
   // the templatized type
@@ -2362,15 +2317,6 @@ Variable *Env::instantiateFunctionTemplate
   cloneDefaultArguments(inst, instTI, primary);
 
   return inst;
-}
-
-Variable *Env::instantiateFunctionTemplate
-  (SourceLoc loc,
-   Variable *primary,
-   ObjList<STemplateArgument> const &sargs)
-{
-  return instantiateFunctionTemplate(loc, primary,
-    objToSObjListC(sargs));
 }
 
 
@@ -2606,8 +2552,8 @@ Variable *Env::instantiateClassTemplate
 
   // look for an existing instantiation that has the right arguments
   Variable *inst = spec==primary?
-    findInstantiation(specTI, primaryArgs) :
-    findInstantiation(specTI, partialSpecArgs);
+    findInstantiation(specTI, owningPrimaryArgs) :
+    findInstantiation(specTI, owningPartialSpecArgs);
   if (inst) {
     return inst;      // found it; that's all we need
   }
@@ -4069,7 +4015,7 @@ Type *Env::applyArgumentMapToQualifiedType
 
 
 Variable *Env::findCompleteSpecialization(TemplateInfo *tinfo,
-                                          SObjList<STemplateArgument> const &sargs)
+                                          ObjList<STemplateArgument> const &sargs)
 {
   SFOREACH_OBJLIST_NC(Variable, tinfo->specializations, iter) {
     TemplateInfo *instTI = iter.data()->templateInfo();
@@ -4082,7 +4028,7 @@ Variable *Env::findCompleteSpecialization(TemplateInfo *tinfo,
 
 
 Variable *Env::findInstantiation(TemplateInfo *tinfo,
-                                 SObjList<STemplateArgument> const &sargs)
+                                 ObjList<STemplateArgument> const &sargs)
 {
   if (tinfo->isCompleteSpec()) {
     xassertdb(tinfo->isomorphicArguments(sargs));
@@ -4331,7 +4277,7 @@ Variable *Env::makeExplicitFunctionSpecialization
       SObjList<STemplateArgument> const &serfSpecArgs = objToSObjListC(specArgs);
 
       // do we already have a specialization like this?
-      ret = primary->templateInfo()->getSpecialization(serfSpecArgs);
+      ret = primary->templateInfo()->getSpecialization(specArgs);
       if (ret) {
         TRACE("template", "re-declaration of function specialization of " <<
                           primary->type->toCString(primary->fullyQualifiedName()) <<

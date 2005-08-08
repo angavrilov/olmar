@@ -1119,9 +1119,6 @@ void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
     return;
   }
   
-  // convenient name for serf-ified list
-  SObjList<STemplateArgument> const &ssargs = objToSObjListC(sargs);
-
   // scope that has my template params
   Scope *hasParamsForMe = NULL;
 
@@ -1154,8 +1151,8 @@ void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
     //   - they correspond to an explicit specialization
     //   - then "template <>" is *not* used (for that class)
     // t0248.cc tests a couple cases...
-    if (!containsVariables(ssargs) &&
-        bareQualifierVar->templateInfo()->getSpecialization(ssargs)) {
+    if (!containsVariables(sargs) &&
+        bareQualifierVar->templateInfo()->getSpecialization(sargs)) {
       // do not associate 'bareQualifier' with any template scope
     }
     else {
@@ -1712,8 +1709,7 @@ CompoundType *checkClasskeyAndName(
     }
 
     // does this specialization already exist?
-    SObjList<STemplateArgument> const &ssargs = objToSObjListC(*templateArgs);
-    Variable *spec = primaryTI->getSpecialization(ssargs);
+    Variable *spec = primaryTI->getSpecialization(*templateArgs);
     if (spec) {
       ct = spec->type->asCompoundType();
     }
@@ -1853,7 +1849,7 @@ CompoundType *checkClasskeyAndName(
       }
 
       TRACE("template", (definition? "defn" : "decl") <<
-                        " of specialization of template class" <<
+                        " of specialization of template class " <<
                         primary->typedefVar->fullyQualifiedName() <<
                         ", " << ct->instName);
     }

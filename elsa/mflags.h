@@ -78,7 +78,9 @@ enum MatchFlags {
   MF_NO_NEW_BINDINGS = 0x1000,
   
   // when combined with MF_MATCH, it means we can bind variables in
-  // the pattern only to other variables in the "concrete" type; this
+  // the pattern only to other variables in the "concrete" type, and
+  // that the binding function must be injective (no two pattern
+  // variables can be bound to the same concrete variable); this
   // is used to compare two templatized signatures for equivalence
   MF_ISOMORPHIC      = 0x2000,
 
