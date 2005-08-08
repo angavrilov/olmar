@@ -124,7 +124,14 @@ NODE *resolveAmbiguity(
 
       // tcheck 'alt'
       EXTRA extra(origExtra);
-      alt->mid_tcheck(env, extra);
+      try {
+        alt->mid_tcheck(env, extra);
+      }
+      catch (x_assert &x) {
+        HANDLER();
+        env.errors.markAllAsFromDisamb();
+        throw;
+      }
 
       // move that run's errors into a per-alternative list
       altErrors[altIndex].takeMessages(env.errors);

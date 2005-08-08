@@ -338,6 +338,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     special_computeLUB(NULL),
     special_checkCalleeDefnLine(NULL),
     special_test_mtype(NULL),
+    special_cause_xfailure(NULL),
 
     string_realSelector(str("__real__")),
     string_imagSelector(str("__imag__")),
@@ -493,6 +494,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   special_computeLUB = declareSpecialFunction("__computeLUB")->name;
   special_checkCalleeDefnLine = declareSpecialFunction("__checkCalleeDefnLine")->name;
   special_test_mtype = declareSpecialFunction("__test_mtype")->name;
+  special_cause_xfailure = declareSpecialFunction("__cause_xfailure")->name;
 
   setupOperatorOverloading();
 
@@ -5328,7 +5330,13 @@ DisambiguationErrorTrapper::~DisambiguationErrorTrapper()
   }
 
   // put all the original errors in
-  env.errors.takeMessages(existingErrors);
+  //
+  // 2005-08-08: Since 'existingErrors' are the older ones, I want
+  // them to (semantically) precede the errors in 'env.errors'.
+  // Therefore I am calling 'prependMessages'; previously I had been
+  // calling 'takeMessages', and do not know why.  A test of this
+  // behavior is in/t0521.cc.
+  env.errors.prependMessages(existingErrors);
 }
 
 

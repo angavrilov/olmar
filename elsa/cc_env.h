@@ -163,6 +163,7 @@ public:      // data
   StringRef special_computeLUB;
   StringRef special_checkCalleeDefnLine;
   StringRef special_test_mtype;
+  StringRef special_cause_xfailure;
   // ---- END: special names ----
 
   // gcc __complex__ support

@@ -250,6 +250,32 @@ class ToXmlASTVisitor_Types : public ASTVisitor {
 };
 
 
+void handle_xBase(Env &env, xBase &x)
+{
+  // typically an assertion failure from the tchecker; catch it here
+  // so we can print the errors, and something about the location
+  env.errors.print(cout);
+  cout << x << endl;
+  cout << "Failure probably related to code near " << env.locStr() << endl;
+
+  // print all the locations on the scope stack; this is sometimes
+  // useful when the env.locStr refers to some template code that
+  // was instantiated from somewhere else
+  //
+  // (unfortunately, env.instantiationLocStack isn't an option b/c
+  // it will have been cleared by the automatic invocation of
+  // destructors unwinding the stack...)
+  cout << "current location stack:\n";
+  cout << env.locationStackString();
+
+  // I changed from using exit(4) here to using abort() because
+  // that way the multitest.pl script can distinguish them; the
+  // former is reserved for orderly exits, whereas signals (like
+  // SIGABRT) mean that something went really wrong
+  abort();
+}
+
+
 // this is a dumb way to organize argument processing...
 char *myProcessArgs(int argc, char **argv, char const *additionalInfo)
 {
@@ -373,15 +399,19 @@ void doit(int argc, char **argv)
   if (tracingSys("gnu_kandr_c_lang")) {
     lang.GNU_KandR_C();
     #ifndef KANDR_EXTENSION
-      xbase("gnu_kandr_c_lang option requires the K&R module (./configure -kandr=yes)");
+      xfatal("gnu_kandr_c_lang option requires the K&R module (./configure -kandr=yes)");
     #endif
   }
 
   if (tracingSys("gnu2_kandr_c_lang")) {
     lang.GNU2_KandR_C();
     #ifndef KANDR_EXTENSION
-      xbase("gnu2_kandr_c_lang option requires the K&R module (./configure -kandr=yes)");
+      xfatal("gnu2_kandr_c_lang option requires the K&R module (./configure -kandr=yes)");
     #endif
+  }
+  
+  if (tracingSys("test_xfatal")) {
+    xfatal("this is a test error message");
   }
 
   if (tracingSys("msvcBugs")) {
@@ -520,30 +550,48 @@ void doit(int argc, char **argv)
       cout << "in code near " << env.locStr() << ":\n";
       throw;
     }
+    catch (x_assert &x) {
+      HANDLER();
+      
+      if (env.errors.hasFromNonDisambErrors()) {
+        if (tracingSys("expect_confused_bail")) {
+          cout << "got the expected confused/bail\n";
+          exit(0);
+        }
+
+        // The assertion failed only after we encountered and diagnosed
+        // at least one real error in the input file.  Therefore, the
+        // assertion might simply have been caused by a failure of the
+        // error recovery code to fully restore all invariants (which is
+        // often difficult).  So, we'll admit to being "confused", but
+        // not to the presence of a bug in Elsa (which is what a failed
+        // assertion otherwise nominally means).
+        //
+        // The error message is borrowed from gcc; I wouldn't be
+        // surprised to discover they use a similar technique to decide
+        // when to emit the same message.
+        //
+        // The reason I do not put the assertion failure message into
+        // this one is I don't want it showing up in the output where
+        // Delta might see it.  If I am intending to minimize an assertion
+        // failure, it's no good if Delta introduces an error.
+        env.error("confused by earlier errors, bailing out");
+        env.errors.print(cout);
+        exit(4);
+      }
+
+      if (tracingSys("expect_xfailure")) {
+        cout << "got the expected xfailure\n";
+        exit(0);
+      }
+
+      // if we don't have a basis for reducing severity, pass this on
+      // to the normal handler
+      handle_xBase(env, x);
+    }
     catch (xBase &x) {
       HANDLER();
-
-      // typically an assertion failure from the tchecker; catch it here
-      // so we can print the errors, and something about the location
-      env.errors.print(cout);
-      cout << x << endl;
-      cout << "Failure probably related to code near " << env.locStr() << endl;
-
-      // print all the locations on the scope stack; this is sometimes
-      // useful when the env.locStr refers to some template code that
-      // was instantiated from somewhere else
-      //
-      // (unfortunately, env.instantiationLocStack isn't an option b/c
-      // it will have been cleared by the automatic invocation of
-      // destructors unwinding the stack...)
-      cout << "current location stack:\n";
-      cout << env.locationStackString();
-
-      // I changed from using exit(4) here to using abort() because
-      // that way the multitest.pl script can distinguish them; the
-      // former is reserved for orderly exits, whereas signals (like
-      // SIGABRT) mean that something went really wrong
-      abort();
+      handle_xBase(env, x);
     }
 
     int numErrors = env.errors.numErrors();
@@ -825,6 +873,13 @@ int main(int argc, char **argv)
     // don't consider this the same as dying on an assertion failure;
     // I want to have tests in regrtest that are "expected" to fail
     // for the reason that they use unimplemented language features
+    return 10;
+  }
+  catch (XFatal &x) {
+    HANDLER();
+    
+    // similar to XUnimp
+    cout << x << endl;
     return 10;
   }
   catch (xBase &x) {

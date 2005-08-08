@@ -6467,6 +6467,12 @@ static Type *internalTestingHooks
     return env.getSimpleType(ST_VOID);
   }
 
+  // The purpose of this is to be able to exercise some of the error
+  // handling paths.
+  if (funcName == env.special_cause_xfailure) {
+    xfailure("program contains __cause_xfailure");
+  }
+
   // E_funCall::itcheck should continue, and tcheck this normally
   return NULL;
 }

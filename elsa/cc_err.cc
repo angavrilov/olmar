@@ -82,8 +82,19 @@ void ErrorList::prependMessages(ErrorList &src)
 
 void ErrorList::markAllAsWarnings()
 {
+  markAllWithFlag(EF_WARNING);
+}
+
+void ErrorList::markAllAsFromDisamb()
+{
+  markAllWithFlag(EF_FROM_DISAMB);
+}
+
+
+void ErrorList::markAllWithFlag(ErrorFlags flags)
+{
   FOREACH_OBJLIST_NC(ErrorMsg, list, iter) {
-    iter.data()->flags |= EF_WARNING;
+    iter.data()->flags |= flags;
   }
 }
 
@@ -116,9 +127,21 @@ int ErrorList::numErrors() const
 
 int ErrorList::numWarnings() const
 {
+  return countWithAnyFlag(EF_WARNING | EF_STRONG_WARNING);
+}
+
+
+bool ErrorList::hasDisambErrors() const
+{
+  return countWithAnyFlag(EF_DISAMBIGUATES) > 0;
+}
+
+
+int ErrorList::countWithAnyFlag(ErrorFlags flags) const
+{
   int ct=0;
   FOREACH_OBJLIST(ErrorMsg, list, iter) {
-    if (iter.data()->isWarning()) {
+    if (iter.data()->flags & flags) {
       ct++;
     }
   }
@@ -126,14 +149,10 @@ int ErrorList::numWarnings() const
 }
 
 
-bool ErrorList::hasDisambErrors() const
+bool ErrorList::hasFromNonDisambErrors() const
 {
-  FOREACH_OBJLIST(ErrorMsg, list, iter) {
-    if (iter.data()->disambiguates()) {
-      return true;     // has at least one disambiguating error
-    }
-  }
-  return false;        // no disambiguating errors
+  return countWithAnyFlag(EF_WARNING | EF_STRONG_WARNING | EF_FROM_DISAMB) <
+         count();
 }
 
 

@@ -801,6 +801,7 @@ testparse t0514.cc
 testparse t0515.cc
 testparse t0516.cc
 testparse t0517.cc
+# t0518 through t0520 are tested below, outside the lots-of-tests section
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -1002,9 +1003,15 @@ testparse sg0001.cc # invoke dtor on const object
 
 # ---- END: lots of tests ----
 
-
 # this hacky variation of t0151.cc *does* work
 runTest perl ./multitest.pl ./five-errors in/t0151.cc
+
+# test some specialized error handling
+testparse_special expect_xfailure      t0518.cc
+testparse_special expect_confused_bail t0519.cc
+testparse_special expect_xfailure      t0520.cc
+testparse_special expect_confused_bail t0521.cc
+
 
 # examples from C++ standard
 #

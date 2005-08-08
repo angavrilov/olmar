@@ -40,8 +40,15 @@ enum ErrorFlags {
 
   // this is a warning that will not be suppressed in template code
   EF_STRONG_WARNING= 0x08,
+  
+  // This flag means this error arose during an attempt to tcheck an
+  // alternative that might not be the correct interpretation, and
+  // during that attempt, an x_assert was raised.  Consequently, the
+  // presence of this error message in the error list *cannot* be
+  // used to justify reducing the severity of the x_assert.
+  EF_FROM_DISAMB   = 0x10,
 
-  EF_ALL           = 0x0F
+  EF_ALL           = 0x1F
 };
 ENUM_BITWISE_OPS(ErrorFlags, EF_ALL)
 
@@ -112,6 +119,12 @@ public:
 
   // mark all of the messages with EF_WARNING
   void markAllAsWarnings();
+  
+  // mark all with EF_FROM_DISAMB
+  void markAllAsFromDisamb();
+                                         
+  // mark with arbitrary flags
+  void markAllWithFlag(ErrorFlags flags);
 
   // delete all of the existing messages
   void deleteAll() { list.deleteAll(); }
@@ -123,10 +136,16 @@ public:
   int count() const;            // total
   int numErrors() const;        // # that are not EF_WARNING
   int numWarnings() const;      // # that *are* EF_WARNING
+      
+  // number of errors with any flags set in 'flags'
+  int countWithAnyFlag(ErrorFlags flags) const;
 
   // true if any are EF_DISAMBIGUATES
   bool hasDisambErrors() const;
   bool isEmpty() const { return list.isEmpty(); }
+                                      
+  // did any of the errors arise from outside a disambiguation process?
+  bool hasFromNonDisambErrors() const;
 
   // print all the errors, one per line, in order
   void print(ostream &os) const;
