@@ -5413,7 +5413,7 @@ Type *Env::error(Type *t, rostring msg)
 ErrorFlags Env::maybeEF_STRONG() const
 {
   if (disambiguateOnly && !doReportTemplateErrors) {
-    return EF_STRONG_WARNING;
+    return EF_STRONG | EF_WARNING;
   }
   else {
     return EF_STRONG;
@@ -5475,7 +5475,6 @@ Type *Env::error(SourceLoc L, rostring msg, ErrorFlags eflags)
   bool report =
     (eflags & EF_DISAMBIGUATES) ||
     (eflags & EF_STRONG) ||
-    (eflags & EF_STRONG_WARNING) ||
     (!disambiguateOnly);
 
   if (env.doReportTemplateErrors) {
@@ -5483,7 +5482,7 @@ Type *Env::error(SourceLoc L, rostring msg, ErrorFlags eflags)
   }
 
   TRACE("error", ((eflags & EF_DISAMBIGUATES)? "[d] " :
-                  (eflags & (EF_WARNING | EF_STRONG_WARNING))? "[w] " : "")
+                  (eflags & EF_WARNING)? "[w] " : "")
               << (report? "" : "(suppressed) ")
               << toString(L) << ": " << msg << instLocStackString());
 

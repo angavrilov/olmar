@@ -29,6 +29,9 @@ enum ErrorFlags {
   // Elsa to become nonconformant, merely less convenient.  Nevertheless,
   // some of our regression tests contain (intentional) errors that are 
   // diagnosed only because of EF_STRONG.
+  //
+  // 2005-08-08: Removed EF_STRONG_WARNING, replacing uses of it with
+  // EF_STRONG|EF_WARNING instead.
   EF_STRONG        = 0x02,
 
   // when this is true, the error message should be considered
@@ -38,17 +41,14 @@ enum ErrorFlags {
   // considered to disambiguate
   EF_DISAMBIGUATES = 0x04,
 
-  // this is a warning that will not be suppressed in template code
-  EF_STRONG_WARNING= 0x08,
-  
   // This flag means this error arose during an attempt to tcheck an
   // alternative that might not be the correct interpretation, and
   // during that attempt, an x_assert was raised.  Consequently, the
   // presence of this error message in the error list *cannot* be
   // used to justify reducing the severity of the x_assert.
-  EF_FROM_DISAMB   = 0x10,
+  EF_FROM_DISAMB   = 0x08,
 
-  EF_ALL           = 0x1F
+  EF_ALL           = 0x0F
 };
 ENUM_BITWISE_OPS(ErrorFlags, EF_ALL)
 
@@ -77,7 +77,7 @@ public:
   ~ErrorMsg();
 
   bool isWarning() const
-    { return !!(flags & (EF_WARNING | EF_STRONG_WARNING)); }
+    { return !!(flags & EF_WARNING); }
   bool disambiguates() const
     { return !!(flags & EF_DISAMBIGUATES); }
 

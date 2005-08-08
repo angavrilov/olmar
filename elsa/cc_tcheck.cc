@@ -1975,7 +1975,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 // gcov-begin-ignore
 bool strongMsgFilter(ErrorMsg *msg)
 {
-  if (msg->flags & (EF_STRONG | EF_STRONG_WARNING)) {
+  if (msg->flags & EF_STRONG) {
     // keep it
     return true;
   }

@@ -15,8 +15,8 @@ string ErrorMsg::toString() const
 {
   stringBuilder sb;
   sb << ::toString(loc)
-     << ((flags & EF_WARNING)? ": warning: " :
-         (flags & EF_STRONG_WARNING)? ": warning(error): " :
+     << (((flags & EF_STRONG) && (flags & EF_WARNING))? ": warning(error): " :
+         (flags & EF_WARNING)? ": warning: " :
          ": error: ")
      << msg;
 
@@ -127,7 +127,7 @@ int ErrorList::numErrors() const
 
 int ErrorList::numWarnings() const
 {
-  return countWithAnyFlag(EF_WARNING | EF_STRONG_WARNING);
+  return countWithAnyFlag(EF_WARNING);
 }
 
 
@@ -151,7 +151,7 @@ int ErrorList::countWithAnyFlag(ErrorFlags flags) const
 
 bool ErrorList::hasFromNonDisambErrors() const
 {
-  return countWithAnyFlag(EF_WARNING | EF_STRONG_WARNING | EF_FROM_DISAMB) <
+  return countWithAnyFlag(EF_WARNING | EF_FROM_DISAMB) <
          count();
 }
 
