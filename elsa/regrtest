@@ -1015,6 +1015,10 @@ testparse_special expect_confused_bail t0519.cc
 testparse_special expect_xfailure      t0520.cc
 testparse_special expect_confused_bail t0521.cc
 
+# test permissive-mode error diagnosis
+testparse_special permissive gnu/bugs/gb0005.cc
+testparse_special permissive gnu/bugs/gb0006.cc
+
 
 # examples from C++ standard
 #

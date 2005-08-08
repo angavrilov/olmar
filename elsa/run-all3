@@ -6,6 +6,14 @@ if [ "$1" = "" ]; then
   exit 0
 fi
 
+# grab extra arguments for elsa
+extra=""
+if [ "$1" = "-tr" ]; then
+  extra="-tr $2"
+  shift
+  shift
+fi
+
 echo "------------- icc -------------"
 ./run-icc "$@"
 
@@ -13,4 +21,4 @@ echo "------------- gcc -------------"
 ./run-g++ "$@"
 
 echo "------------- elsa -------------"
-./ccparse "$@"
+./ccparse $extra "$@"

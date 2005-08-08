@@ -120,6 +120,55 @@ string ambiguousNodeName(Expression const *e)
 }
 
 
+// ------------------- UninstTemplateErrorFilter ------------------
+// filter that keeps only strong messages
+//
+// gcov-begin-ignore
+bool strongMsgFilter(ErrorMsg *msg)
+{
+  if (msg->flags & EF_STRONG) {
+    // keep it
+    return true;
+  }
+  else {
+    // drop it
+    TRACE("error", "dropping error arising from uninst template: " << msg->msg);
+    return false;
+  }
+}
+// gcov-end-ignore
+
+
+// take the errors, and later put them back after filtering
+class UninstTemplateErrorFilter {
+  Env &env;                  // environment
+  ErrorList existingErrors;  // saved messages
+
+public:
+  UninstTemplateErrorFilter(Env &e)
+    : env(e), existingErrors()
+  {
+    if (env.inUninstTemplate()) {
+      existingErrors.takeMessages(env.errors);
+    }
+
+  }
+
+  ~UninstTemplateErrorFilter()
+  {
+    if (env.inUninstTemplate()) {
+      if (!env.doReportTemplateErrors) {
+        // remove all messages that are not 'strong'
+        env.errors.filter(strongMsgFilter);      // gcov-ignore
+      }
+
+      // now put back the saved messages
+      env.errors.prependMessages(existingErrors);
+    }
+  }
+};
+
+
 // ------------------- TranslationUnit --------------------
 void TranslationUnit::tcheck(Env &env)
 {
@@ -360,6 +409,7 @@ void Function::tcheck(Env &env, Variable *instV)
 
   // only disambiguate, if template
   DisambiguateOnlyTemp disOnly(env, inTemplate /*disOnly*/);
+  UninstTemplateErrorFilter errorFilter(env);
 
   // get return type
   Type *retTypeSpec = retspec->tcheck(env, dflags);
@@ -1987,25 +2037,6 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 }
 
 
-// filter that keeps only strong messages
-//
-// gcov-begin-ignore
-bool strongMsgFilter(ErrorMsg *msg)
-{
-  if (msg->flags & EF_STRONG) {
-    // keep it
-    return true;
-  }
-  else {
-    // drop it
-    TRACE("template", "dropping error arising from uninst template: " <<
-                     msg->msg);
-    return false;
-  }
-}
-// gcov-end-ignore
-
-
 // type check once we know what 'ct' is; this is also called
 // to check newly-cloned AST fragments for template instantiation
 void TS_classSpec::tcheckIntoCompound(
@@ -2040,10 +2071,10 @@ void TS_classSpec::tcheckIntoCompound(
   // hammer here, and throw away all non-EF_STRONG errors once
   // tchecking of this template finishes.  For the moment, that means
   // I need to save the existing errors.
-  ErrorList existingErrors;
-  if (ct->isTemplate()) {
-    existingErrors.takeMessages(env.errors);
-  }
+  //
+  // The filtering only happens when the "permissive" tracing flag
+  // is set.
+  UninstTemplateErrorFilter errorFilter(env);
 
   // open a scope, and install 'ct' as the compound which is
   // being built; in fact, 'ct' itself is a scope, so we use
@@ -2182,17 +2213,6 @@ void TS_classSpec::tcheckIntoCompound(
   }
 
   env.addedNewCompound(ct);
-  
-  // finish up the error filtering started above
-  if (ct->isTemplate()) {
-    if (!env.doReportTemplateErrors) {
-      // remove all messages that are not 'strong'
-      env.errors.filter(strongMsgFilter);      // gcov-ignore
-    }
-
-    // now put back the saved messages
-    env.errors.prependMessages(existingErrors);
-  }
 }
 
 
