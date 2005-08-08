@@ -25,7 +25,7 @@
 // be used for non-const access.  The MType class is responsible for
 // packaging this in a sound form.
 class IMType {
-private:     // types
+protected:   // types
   // A template variable binding.  A name can be bound to one of three
   // things:
   //   - a Type object and CVFlags to modify it
