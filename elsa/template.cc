@@ -4439,7 +4439,7 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type,
     if (!nameArgs &&                      // no arguments attached to final name
         primary->isInstantiation() &&     // member of an instantiated template
         type->equals(primary->type, MF_IGNORE_IMPLICIT |     // right type
-                                    MF_STAT_EQ_NONSTAT)) {
+                                    MF_STAT_EQ_NONSTAT | MF_IGNORE_EXN_SPEC)) {
       // an instantiation request like (in/k0016.cc)
       //   template
       //   void S<int>::foo();
@@ -4454,7 +4454,7 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type,
 
     // does the type we have match the type of this template?
     MType match(true /*allowNonConst*/);
-    if (!match.matchTypeNC(type, primary->type, MF_MATCH)) {
+    if (!match.matchTypeNC(type, primary->type, MF_MATCH | MF_IGNORE_EXN_SPEC)) {
       continue;   // no match
     }
 
