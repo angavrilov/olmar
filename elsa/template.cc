@@ -1682,6 +1682,9 @@ bool Env::insertTemplateArgBindings_oneParamList
         // very convenient, so I'm just going to forego the check
         // (TODO: do it right)
       }
+      else if (binding->value->type->containsGeneralizedDependent()) {
+        // (in/t0525.cc) bail in this case too
+      }
       else {
         // check that this argument is compatible with the parameter
         // (TODO: this isn't exactly what 14.3.2p5 says)
