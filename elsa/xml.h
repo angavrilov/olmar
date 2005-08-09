@@ -16,27 +16,24 @@ class AstXmlLexer;
 class StringTable;
 
 // forwards in this file
-class ReadXml;
-
-
+class XmlReaderManager;
 
 // there are 3 categories of kinds of Tags
 enum KindCategory {
-  KC_Node,                      // a normal node
+  // normal node
+  KC_Node,
 
   // list
   KC_ASTList,
   KC_FakeList,
   KC_ObjList,
   KC_SObjList,
-  // an item entry in a list
-  KC_Item,
+  KC_Item,                      // an item entry in a list
 
   // name map
   KC_StringRefMap,
   KC_StringSObjDict,
-  // a name entry in a name map
-  KC_Name,
+  KC_Name,                      // a name entry in a name map
 };
 
 // the <_List_Item> </_List_Item> tag is parsed into this class to
@@ -44,7 +41,6 @@ enum KindCategory {
 // Then it is deleted.
 struct ListItem {
   StringRef to;
-
   ListItem() : to(NULL) {}
 };
 
@@ -54,13 +50,9 @@ struct ListItem {
 struct NameMapItem {
   StringRef from;
   StringRef to;
-
   NameMapItem() : from(NULL), to(NULL) {}
   // FIX: do I destruct/free() the name when I destruct the object?
 };
-
-
-// -------------------- LinkSatisfier -------------------
 
 // datastructures for dealing with unsatisified links; FIX: we can
 // do the in-place recording of a lot of these unsatisified links
@@ -72,51 +64,138 @@ struct UnsatLink {
   UnsatLink(void **ptr0, string id0, int kind0 = -1);
 };
 
-// datastructures for dealing with unsatisified links where neither
-// party wants to know about the other
-struct UnsatBiLink {
-  char const *from;
-  char const *to;
-  UnsatBiLink() : from(NULL), to(NULL) {}
+//  // datastructures for dealing with unsatisified links where neither
+//  // party wants to know about the other
+//  struct UnsatBiLink {
+//    char const *from;
+//    char const *to;
+//    UnsatBiLink() : from(NULL), to(NULL) {}
+//  };
+
+// A subclass fills-in the methods that need to know about individual
+// tags.
+class XmlReader {
+  protected:
+  XmlReaderManager *manager;
+
+  public:
+  XmlReader() : manager(NULL) {}
+  virtual ~XmlReader() {}
+
+  public:
+  void setManager(XmlReaderManager *manager0);
+
+  protected:
+  void userError(char const *msg) NORETURN;
+
+  // **** virtual API
+  public:
+
+  // Parse a tag: construct a node for a tag
+  virtual void *ctorNodeFromTag(int tag) = 0;
+
+  // Parse an attribute: register an attribute into the current node
+  virtual bool registerAttribute(void *target, int kind, int attr, char const *yytext0) = 0;
+
+  // implement an eq-relation on tag kinds by mapping a tag kind to a
+  // category
+  virtual bool kind2kindCat(int kind, KindCategory *ret) = 0;
+
+  // **** Generic Convert
+  // all lists are stored as ASTLists; convert to the real list
+  virtual bool convertList2FakeList(ASTList<char> *list, int listKind, void **target) = 0;
+  virtual bool convertList2SObjList(ASTList<char> *list, int listKind, void **target) = 0;
+  virtual bool convertList2ObjList (ASTList<char> *list, int listKind, void **target) = 0;
+  // all name maps are stored as StringRefMaps; convert to the real name maps
+  virtual bool convertNameMap2StringRefMap
+    (StringRefMap<char> *map, int mapKind, void *target) = 0;
+  virtual bool convertNameMap2StringSObjDict
+    (StringRefMap<char> *map, int mapKind, void *target) = 0;
 };
 
-// manages recording unsatisfied links and satisfying them later
-class LinkSatisfier {
-  // I need this because it know how to get the FakeLists out of the
-  // generic (AST) lists.  This is a bit of a kludge.
-  ASTList<ReadXml> readers;
+// XmlReader-s register themselves with the Manager which tries them
+// one at a time while handling incoming xml tags.
+class XmlReaderManager {
+  // the readers we are managing
+  ASTList<XmlReader> readers;
+
+  // **** Parsing
+  char const *inputFname;       // just for error messages
+  AstXmlLexer &lexer;           // a lexer on a stream already opened from the file
+  public:
+  StringTable &strTable;        // for canonicalizing the StringRef's in the input file
+
+  private:
+  // the node (and its kind) for the last closing tag we saw; useful
+  // for extracting the top of the tree
+  void *lastNode;
+  int lastKind;
+  // parsing stack
+  SObjStack<void> nodeStack;
+  ObjStack<int> kindStack;
+
+  // **** Satisfying links
 
   public:
   // Since AST nodes are embedded, we have to put this on to a
-  // different list than the ususal pointer unsatisfied links.  I just
-  // separate out all lists.
+  // different list than the ususal pointer unsatisfied links.
   ASTList<UnsatLink> unsatLinks;
   ASTList<UnsatLink> unsatLinks_List;
   ASTList<UnsatLink> unsatLinks_NameMap;
-  ASTList<UnsatBiLink> unsatBiLinks;
+//    ASTList<UnsatBiLink> unsatBiLinks;
 
   // map object ids to the actual object
   StringSObjDict<void> id2obj;
 
   public:
-  LinkSatisfier() {}
-  ~LinkSatisfier() {
-    // FIX: don't delete these for now so that when we destruct we
-    // won't take them with us
+  XmlReaderManager(char const *inputFname0,
+                   AstXmlLexer &lexer0,
+                   StringTable &strTable0)
+    : inputFname(inputFname0)
+    , lexer(lexer0)
+    , strTable(strTable0)
+    , lastNode(NULL)            // also done in reset()
+    , lastKind(0)               // also done in reset()
+  {
+    reset();
+  }
+  virtual ~XmlReaderManager() {
     readers.removeAll_dontDelete();
   }
 
-  void registerReader(ReadXml *reader);
+  // **** initialization
+  public:
+  void registerReader(XmlReader *reader);
+  void reset();
 
-  void *convertList2FakeList(ASTList<char> *list, int listKind);
-  void convertList2SObjList(ASTList<char> *list, int listKind, void **target);
-  void convertList2ObjList (ASTList<char> *list, int listKind, void **target);
+  // **** parsing
+  public:
+  void parseOneTopLevelTag();
 
-  void convertNameMap2StringRefMap  (StringRefMap<char> *map, int listKind, void *target);
-  void convertNameMap2StringSObjDict(StringRefMap<char> *map, int listKind, void *target);
+  private:
+  void parseOneTag();
+  bool readAttributes();
 
-  bool kind2kindCat(int kind, KindCategory *kindCat);
+  // disjunctive dispatch to the list of readers
+  void kind2kindCat(int kind, KindCategory *kindCat);
+  void *ctorNodeFromTag(int tag);
+  void registerAttribute(void *target, int kind, int attr, char const *yytext0);
 
+  void append2List(void *list, int listKind, void *datum);
+  void insertIntoNameMap(void *map, int mapKind, StringRef name, void *datum);
+
+  // **** parsing result
+  public:
+  // report an error to the user with source location information
+  void userError(char const *msg) NORETURN;
+  // are we at the top level during parsing?
+  bool atTopLevel() {return nodeStack.isEmpty();}
+  // return the top of the stack: the one tag that was parsed
+  void *getLastNode() {return lastNode;}
+  int getLastKind() {return lastKind;}
+
+  // **** satisfying links
+  public:
   void satisfyLinks();
 
   private:
@@ -125,111 +204,11 @@ class LinkSatisfier {
   void satisfyLinks_Maps();
 //    void satisfyLinks_Bidirectional();
 
-  void userError(char const *msg);
-};
-
-
-// -------------------- ReadXml -------------------
-
-// Framework for reading an XML file.  A subclass must fill in the
-// methods that need to know about individual tags.
-
-class ReadXml {
-  protected:
-  char const *inputFname;       // just for error messages
-  AstXmlLexer &lexer;           // a lexer on a stream already opened from the file
-  StringTable &strTable;        // for canonicalizing the StringRef's in the input file
-  LinkSatisfier &linkSat;
-
-  private:
-  // the node (and its kind) for the last closing tag we saw; useful
-  // for extracting the top of the tree
-  void *lastNode;
-  int lastKind;
-
-  // the last FakeList id seen; just one of those odd things you need
-  // in a parser
-  char const *lastFakeListId;
-
-  // parsing stack
-  SObjStack<void> nodeStack;
-  ObjStack<int> kindStack;
-
-  public:
-  ReadXml(char const *inputFname0,
-          AstXmlLexer &lexer0,
-          StringTable &strTable0,
-          LinkSatisfier &linkSat0)
-    : inputFname(inputFname0)
-    , lexer(lexer0)
-    , strTable(strTable0)
-    , linkSat(linkSat0)
-    // done in reset()
-//      , lastNode(NULL)
-//      , lastKind(0)
-  {
-    reset();
-  }
-  virtual ~ReadXml() {}
-
-  // reset the internal state
-  void reset();
-
-  // FIX: this API is borked; really you should be able to push the
-  // EOF back onto the lexer so it can be read again in the client,
-  // rather than having to return it in this API.  Since flex doesn't
-  // let you do that, we should wrap flex in an object that does.
-  //
-  // parse one top-level tag; return true if we also reached the end
-  // of the file
-  void parseOneTopLevelTag();
-  // parse one tag; return false if we reached the end of a top-level
-  // tag; sawEof set to true if we also reached the end of the file
-  void parseOneTag();
-
-  // are we at the top level during parsing?
-  bool atTopLevel() {return nodeStack.isEmpty();}
-
-  // report an error to the user with source location information
-  void userError(char const *msg) NORETURN;
-
-  // return the top of the stack: the one tag that was parsed
-  void *getLastNode() {return lastNode;}
-  int getLastKind() {return lastKind;}
-
-  protected:
-  bool readAttributes();
-
-  // **** subclass fills these in
-  public:
-
-  // insert elements into containers
-  virtual void append2List(void *list, int listKind, void *datum) = 0;
-  virtual void insertIntoNameMap
-    (void *map, int mapKind, StringRef name, void *datum) = 0;
-
-  // map a kind to its kind category
-  /* NOT virtual */ bool kind2kindCat(int kind, KindCategory *ret);
-  protected:
-  // override this but don't call it, even within the reader
-  virtual bool kind2kindCat0(int kind, KindCategory *ret) = 0;
-
-  public:
-  // all lists are stored as ASTLists; these convert to the real list
-  virtual bool convertList2FakeList(ASTList<char> *list, int listKind, void **target) = 0;
-  virtual bool convertList2SObjList(ASTList<char> *list, int listKind, void **target) = 0;
-  virtual bool convertList2ObjList (ASTList<char> *list, int listKind, void **target) = 0;
-
-  // all name maps are stored as StringRefMaps; these convert to the real name maps
-  virtual bool convertNameMap2StringRefMap
-    (StringRefMap<char> *map, int mapKind, void *target) = 0;
-  virtual bool convertNameMap2StringSObjDict
-    (StringRefMap<char> *map, int mapKind, void *target) = 0;
-
-  // construct a node for a tag; returns true if it was a closeTag
-  virtual void *ctorNodeFromTag(int tag) = 0;
-  // register an attribute into the current node
-  virtual void registerAttribute(void *target, int kind, int attr, char const *yytext0) = 0;
+  void *convertList2FakeList(ASTList<char> *list, int listKind);
+  void convertList2SObjList(ASTList<char> *list, int listKind, void **target);
+  void convertList2ObjList (ASTList<char> *list, int listKind, void **target);
+  void convertNameMap2StringRefMap  (StringRefMap<char> *map, int listKind, void *target);
+  void convertNameMap2StringSObjDict(StringRefMap<char> *map, int listKind, void *target);
 };
 
 #endif // XML_H

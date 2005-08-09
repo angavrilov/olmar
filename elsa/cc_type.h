@@ -397,7 +397,7 @@ protected:   // funcs
   // experiment: force creation of these to go through the factory too
   CompoundType(Keyword keyword, StringRef name);
   friend class TypeFactory;
-  friend class ReadXml_Type;
+  friend class TypeXmlReader;
   
   // override no-op implementation in Scope
   virtual void afterAddVariable(Variable *v);
@@ -807,7 +807,7 @@ public:     // data
 
 protected:
   friend class BasicTypeFactory;
-  friend class ReadXml_Type;
+  friend class TypeXmlReader;
   CVAtomicType(AtomicType *a, CVFlags c)
     : atomic(a), cv(c) {}
 
@@ -839,7 +839,7 @@ public:     // data
 
 protected:  // funcs
   friend class BasicTypeFactory;
-  friend class ReadXml_Type;
+  friend class TypeXmlReader;
   PointerType(CVFlags c, Type *a);
 
 public:
@@ -866,7 +866,7 @@ public:     // data
 
 protected:  // funcs
   friend class BasicTypeFactory;
-  friend class ReadXml_Type;
+  friend class TypeXmlReader;
   ReferenceType(Type *a);
 
 public:
@@ -935,7 +935,7 @@ public:     // data
 
 protected:  // funcs
   friend class BasicTypeFactory;
-  friend class ReadXml_Type;
+  friend class TypeXmlReader;
 
   FunctionType(Type *retType);
 
@@ -1027,7 +1027,7 @@ private:      // funcs
 
 protected:
   friend class BasicTypeFactory;
-  friend class ReadXml_Type;
+  friend class TypeXmlReader;
   ArrayType(Type *e, int s = NO_SIZE)
     : eltType(e), size(s) { checkWellFormedness(); }
   ArrayType(ReadXML&)           // a ctor for de-serialization
@@ -1063,7 +1063,7 @@ public:
 
 protected:
   friend class BasicTypeFactory;
-  friend class ReadXml_Type;
+  friend class TypeXmlReader;
   PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c, Type *a);
 
 public:

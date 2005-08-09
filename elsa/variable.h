@@ -108,7 +108,7 @@ private:      // data
 
   // so serialization/deserialization is possible
   friend class TypeToXml;
-  friend class ReadXml_Type;
+  friend class TypeXmlReader;
 
   // The next two fields are used to store conceptually different
   // things in a single word in order to save space.  I am concerned

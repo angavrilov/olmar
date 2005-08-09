@@ -108,41 +108,36 @@ class TypeToXml {
 };
 
 
-// -------------------- ReadXml_Type -------------------
+// -------------------- TypeXmlReader -------------------
 
 // Specialization of the ReadXml framework that reads in XML for
 // serialized types.
 
 // parse Types and Variables serialized as XML
-class ReadXml_Type : public ReadXml {
-  BasicTypeFactory &tFac;
+class TypeXmlReader : public XmlReader {
+//    BasicTypeFactory &tFac;
 
   public:
-  ReadXml_Type(char const *inputFname0,
-               AstXmlLexer &lexer0,
-               StringTable &strTable0,
-               LinkSatisfier &linkSat0,
-               BasicTypeFactory &tFac0)
-    : ReadXml(inputFname0, lexer0, strTable0, linkSat0)
-    , tFac(tFac0)
-  {}
+  // Parse a tag: construct a node for a tag
+  virtual void *ctorNodeFromTag(int tag);
 
-  public:
-  void append2List(void *list, int listKind, void *datum);
-  void insertIntoNameMap(void *map0, int mapKind, StringRef name, void *datum);
-  bool kind2kindCat0(int kind, KindCategory *kindCat);
+  // Parse an attribute: register an attribute into the current node
+  virtual bool registerAttribute(void *target, int kind, int attr, char const *yytext0);
 
-  bool convertList2FakeList(ASTList<char> *list, int listKind, void **target);
-  bool convertList2SObjList(ASTList<char> *list, int listKind, void **target);
-  bool convertList2ObjList (ASTList<char> *list, int listKind, void **target);
+  // implement an eq-relation on tag kinds by mapping a tag kind to a
+  // category
+  virtual bool kind2kindCat(int kind, KindCategory *ret);
 
-  bool convertNameMap2StringRefMap
-    (StringRefMap<char>   *map, int mapKind, void *target);
-  bool convertNameMap2StringSObjDict
+  // **** Generic Convert
+  // all lists are stored as ASTLists; convert to the real list
+  virtual bool convertList2FakeList(ASTList<char> *list, int listKind, void **target);
+  virtual bool convertList2SObjList(ASTList<char> *list, int listKind, void **target);
+  virtual bool convertList2ObjList (ASTList<char> *list, int listKind, void **target);
+  // all name maps are stored as StringRefMaps; convert to the real name maps
+  virtual bool convertNameMap2StringRefMap
     (StringRefMap<char> *map, int mapKind, void *target);
-
-  void *ctorNodeFromTag(int tag);
-  void registerAttribute(void *target, int kind, int attr, char const *yytext0);
+  virtual bool convertNameMap2StringSObjDict
+    (StringRefMap<char> *map, int mapKind, void *target);
 
   private:
   // Types

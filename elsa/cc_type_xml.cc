@@ -795,7 +795,7 @@ void TypeToXml::toXml_TemplateParams_subtags(TemplateParams *tp) {
 }
 
 
-// -------------------- ReadXml_Type -------------------
+// -------------------- TypeXmlReader -------------------
 
 #define convertList(LISTTYPE, ITEMTYPE) \
 do { \
@@ -818,23 +818,7 @@ do { \
   } \
 } while(0)
 
-void ReadXml_Type::append2List(void *list0, int listKind, void *datum0) {
-  xassert(list0);
-  ASTList<char> *list = static_cast<ASTList<char>*>(list0);
-  char *datum = (char*)datum0;
-  list->append(datum);
-}
-
-void ReadXml_Type::insertIntoNameMap(void *map0, int mapKind, StringRef name, void *datum) {
-  xassert(map0);
-  StringRefMap<char> *map = static_cast<StringRefMap<char>*>(map0);
-  if (map->get(name)) {
-    userError(stringc << "duplicate name " << name << " in map");
-  }
-  map->add(name, (char*)datum);
-}
-
-bool ReadXml_Type::kind2kindCat0(int kind, KindCategory *kindCat) {
+bool TypeXmlReader::kind2kindCat(int kind, KindCategory *kindCat) {
   switch(kind) {
   default: return false;        // we don't know this kind
 
@@ -905,12 +889,12 @@ bool ReadXml_Type::kind2kindCat0(int kind, KindCategory *kindCat) {
   return true;
 }
 
-bool ReadXml_Type::convertList2FakeList(ASTList<char> *list, int listKind, void **target) {
+bool TypeXmlReader::convertList2FakeList(ASTList<char> *list, int listKind, void **target) {
   xfailure("should not be called during Type parsing there are no FakeLists in the Type System");
   return false;
 }
 
-bool ReadXml_Type::convertList2SObjList(ASTList<char> *list, int listKind, void **target) {
+bool TypeXmlReader::convertList2SObjList(ASTList<char> *list, int listKind, void **target) {
   // NOTE: SObjList only has constant-time prepend, not constant-time
   // append, hence the prepend() and reverse().
   xassert(list);
@@ -942,7 +926,7 @@ bool ReadXml_Type::convertList2SObjList(ASTList<char> *list, int listKind, void 
   return true;
 }
 
-bool ReadXml_Type::convertList2ObjList(ASTList<char> *list, int listKind, void **target) {
+bool TypeXmlReader::convertList2ObjList(ASTList<char> *list, int listKind, void **target) {
   // NOTE: ObjList only has constant-time prepend, not constant-time
   // append, hence the prepend() and reverse().
   xassert(list);
@@ -971,7 +955,7 @@ bool ReadXml_Type::convertList2ObjList(ASTList<char> *list, int listKind, void *
   return true;
 }
 
-bool ReadXml_Type::convertNameMap2StringRefMap
+bool TypeXmlReader::convertNameMap2StringRefMap
   (StringRefMap<char> *map, int mapKind, void *target) {
   xassert(map);
   switch(mapKind) {
@@ -986,7 +970,7 @@ bool ReadXml_Type::convertNameMap2StringRefMap
   return true;
 }
 
-bool ReadXml_Type::convertNameMap2StringSObjDict
+bool TypeXmlReader::convertNameMap2StringSObjDict
   (StringRefMap<char> *map, int mapKind, void *target) {
   xassert(map);
   switch(mapKind) {
@@ -1000,9 +984,9 @@ bool ReadXml_Type::convertNameMap2StringSObjDict
   return true;
 }
 
-void *ReadXml_Type::ctorNodeFromTag(int tag) {
+void *TypeXmlReader::ctorNodeFromTag(int tag) {
   switch(tag) {
-  default: userError("unexpected token while looking for an open tag name");
+  default: return NULL; break;
   case 0: userError("unexpected file termination while looking for an open tag name");
 
   // **** Types
@@ -1084,9 +1068,9 @@ void *ReadXml_Type::ctorNodeFromTag(int tag) {
 #define regAttr(TYPE) \
   registerAttr_##TYPE((TYPE*)target, attr, yytext0)
 
-void ReadXml_Type::registerAttribute(void *target, int kind, int attr, char const *yytext0) {
+bool TypeXmlReader::registerAttribute(void *target, int kind, int attr, char const *yytext0) {
   switch(kind) {
-  default: xfailure("illegal kind");
+  default: return false; break;
 
   // **** Types
   case XTOK_CVAtomicType: regAttr(CVAtomicType);               break;
@@ -1121,20 +1105,22 @@ void ReadXml_Type::registerAttribute(void *target, int kind, int attr, char cons
   case XTOK_InheritedTemplateParams:
     regAttr(InheritedTemplateParams);                          break;
   }
+
+  return true;
 }
 
 #define ul(FIELD) \
-  linkSat.unsatLinks.append \
+  manager->unsatLinks.append \
     (new UnsatLink((void**) &(obj->FIELD), \
                    parseQuotedString(strValue)))
 
 #define ulList(LIST, FIELD, KIND) \
-  linkSat.unsatLinks##LIST.append \
+  manager->unsatLinks##LIST.append \
     (new UnsatLink((void**) &(obj->FIELD), \
                    parseQuotedString(strValue), \
                    (KIND)))
 
-void ReadXml_Type::registerAttr_CVAtomicType(CVAtomicType *obj, int attr, char const *strValue) {
+void TypeXmlReader::registerAttr_CVAtomicType(CVAtomicType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a CVAtomicType"); break;
   case XTOK_cv: fromXml(obj->cv, parseQuotedString(strValue)); break;
@@ -1142,7 +1128,7 @@ void ReadXml_Type::registerAttr_CVAtomicType(CVAtomicType *obj, int attr, char c
   }
 }
 
-void ReadXml_Type::registerAttr_PointerType(PointerType *obj, int attr, char const *strValue) {
+void TypeXmlReader::registerAttr_PointerType(PointerType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a PointerType"); break; 
   case XTOK_cv: fromXml(obj->cv, parseQuotedString(strValue)); break; 
@@ -1150,14 +1136,14 @@ void ReadXml_Type::registerAttr_PointerType(PointerType *obj, int attr, char con
   }
 }
 
-void ReadXml_Type::registerAttr_ReferenceType(ReferenceType *obj, int attr, char const *strValue) {
+void TypeXmlReader::registerAttr_ReferenceType(ReferenceType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a ReferenceType"); break; 
   case XTOK_atType: ul(atType); break; 
   }
 }
 
-void ReadXml_Type::registerAttr_FunctionType(FunctionType *obj, int attr, char const *strValue) {
+void TypeXmlReader::registerAttr_FunctionType(FunctionType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a FunctionType"); break;
   case XTOK_flags: fromXml(obj->flags, parseQuotedString(strValue)); break;
@@ -1167,7 +1153,7 @@ void ReadXml_Type::registerAttr_FunctionType(FunctionType *obj, int attr, char c
   }
 }
 
-void ReadXml_Type::registerAttr_FunctionType_ExnSpec
+void TypeXmlReader::registerAttr_FunctionType_ExnSpec
   (FunctionType::ExnSpec *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a FunctionType_ExnSpec"); break;
@@ -1175,7 +1161,7 @@ void ReadXml_Type::registerAttr_FunctionType_ExnSpec
   }
 }
 
-void ReadXml_Type::registerAttr_ArrayType(ArrayType *obj, int attr, char const *strValue) {
+void TypeXmlReader::registerAttr_ArrayType(ArrayType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a ArrayType"); break; 
   case XTOK_eltType: ul(eltType); break; 
@@ -1183,7 +1169,7 @@ void ReadXml_Type::registerAttr_ArrayType(ArrayType *obj, int attr, char const *
   }
 }
 
-void ReadXml_Type::registerAttr_PointerToMemberType
+void TypeXmlReader::registerAttr_PointerToMemberType
   (PointerToMemberType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a PointerToMemberType"); break; 
@@ -1193,12 +1179,12 @@ void ReadXml_Type::registerAttr_PointerToMemberType
   }
 }
 
-void ReadXml_Type::registerAttr_Variable(Variable *obj, int attr, char const *strValue) {
+void TypeXmlReader::registerAttr_Variable(Variable *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a Variable"); break;
   case XTOK_loc:                // throw it away for now; FIX: parse it
     break;
-  case XTOK_name: obj->name = strTable(parseQuotedString(strValue)); break; 
+  case XTOK_name: obj->name = manager->strTable(parseQuotedString(strValue)); break; 
   case XTOK_type: ul(type); break; 
   case XTOK_flags:
     fromXml(const_cast<DeclFlags&>(obj->flags), parseQuotedString(strValue)); break; 
@@ -1213,18 +1199,18 @@ void ReadXml_Type::registerAttr_Variable(Variable *obj, int attr, char const *st
   }
 }
 
-bool ReadXml_Type::registerAttr_NamedAtomicType_super
+bool TypeXmlReader::registerAttr_NamedAtomicType_super
   (NamedAtomicType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: return false;        // we didn't find it
-  case XTOK_name: obj->name = strTable(parseQuotedString(strValue)); break; 
+  case XTOK_name: obj->name = manager->strTable(parseQuotedString(strValue)); break; 
   case XTOK_typedefVar: ul(typedefVar); break; 
   case XTOK_access: fromXml(obj->access, parseQuotedString(strValue)); break; 
   }
   return true;                  // found it
 }
 
-void ReadXml_Type::registerAttr_SimpleType(SimpleType *obj, int attr, char const *strValue) {
+void TypeXmlReader::registerAttr_SimpleType(SimpleType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a SimpleType"); break; 
   case XTOK_type:
@@ -1235,7 +1221,7 @@ void ReadXml_Type::registerAttr_SimpleType(SimpleType *obj, int attr, char const
   }
 }
 
-void ReadXml_Type::registerAttr_CompoundType(CompoundType *obj, int attr, char const *strValue) {
+void TypeXmlReader::registerAttr_CompoundType(CompoundType *obj, int attr, char const *strValue) {
   // superclasses
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
   if (registerAttr_Scope_super(obj, attr, strValue)) return;
@@ -1250,14 +1236,14 @@ void ReadXml_Type::registerAttr_CompoundType(CompoundType *obj, int attr, char c
   case XTOK_subobj: ul(subobj); break; 
   case XTOK_conversionOperators:
     ulList(_List, conversionOperators, XTOK_List_CompoundType_conversionOperators); break; 
-  case XTOK_instName: obj->instName = strTable(parseQuotedString(strValue)); break; 
+  case XTOK_instName: obj->instName = manager->strTable(parseQuotedString(strValue)); break; 
   case XTOK_syntax: ul(syntax); break; 
   case XTOK_parameterizingScope: ul(parameterizingScope); break; 
   case XTOK_selfType: ul(selfType); break; 
   }
 }
 
-void ReadXml_Type::registerAttr_EnumType(EnumType *obj, int attr, char const *strValue) {
+void TypeXmlReader::registerAttr_EnumType(EnumType *obj, int attr, char const *strValue) {
   // superclass
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
 
@@ -1268,25 +1254,25 @@ void ReadXml_Type::registerAttr_EnumType(EnumType *obj, int attr, char const *st
   }
 }
 
-void ReadXml_Type::registerAttr_EnumType_Value
+void TypeXmlReader::registerAttr_EnumType_Value
   (EnumType::Value *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a EnumType"); break; 
-  case XTOK_name: obj->name = strTable(parseQuotedString(strValue)); break; 
+  case XTOK_name: obj->name = manager->strTable(parseQuotedString(strValue)); break; 
   case XTOK_type: ul(type); break; // NOTE: 'type' here is actually an atomic type
   case XTOK_value: fromXml_int(obj->value, parseQuotedString(strValue)); break; 
   case XTOK_decl: ul(decl); break; 
   }
 }
 
-void ReadXml_Type::registerAttr_TypeVariable(TypeVariable *obj, int attr, char const *strValue) {
+void TypeXmlReader::registerAttr_TypeVariable(TypeVariable *obj, int attr, char const *strValue) {
   // superclass
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
   // shouldn't get here
   userError("illegal attribute for a TypeVariable");
 }
 
-void ReadXml_Type::registerAttr_PseudoInstantiation
+void TypeXmlReader::registerAttr_PseudoInstantiation
   (PseudoInstantiation *obj, int attr, char const *strValue) {
   // superclass
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
@@ -1299,7 +1285,7 @@ void ReadXml_Type::registerAttr_PseudoInstantiation
   }
 }
 
-void ReadXml_Type::registerAttr_DependentQType
+void TypeXmlReader::registerAttr_DependentQType
   (DependentQType *obj, int attr, char const *strValue) {
   // superclass
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
@@ -1314,7 +1300,7 @@ void ReadXml_Type::registerAttr_DependentQType
   }
 }
 
-bool ReadXml_Type::registerAttr_Scope_super(Scope *obj, int attr, char const *strValue) {
+bool TypeXmlReader::registerAttr_Scope_super(Scope *obj, int attr, char const *strValue) {
   switch(attr) {
   default: return false;        // we didn't find it break; 
   case XTOK_variables: ulList(_NameMap, variables, XTOK_NameMap_Scope_variables); break; 
@@ -1331,14 +1317,14 @@ bool ReadXml_Type::registerAttr_Scope_super(Scope *obj, int attr, char const *st
   return true;                  // found it
 }
 
-void ReadXml_Type::registerAttr_Scope(Scope *obj, int attr, char const *strValue) {
+void TypeXmlReader::registerAttr_Scope(Scope *obj, int attr, char const *strValue) {
   // "superclass": just re-use our own superclass code for ourself
   if (registerAttr_Scope_super(obj, attr, strValue)) return;
   // shouldn't get here
   userError("illegal attribute for a Scope");
 }
 
-bool ReadXml_Type::registerAttr_BaseClass_super(BaseClass *obj, int attr, char const *strValue) {
+bool TypeXmlReader::registerAttr_BaseClass_super(BaseClass *obj, int attr, char const *strValue) {
   switch(attr) {
   default: return false; break; 
   case XTOK_ct: ul(ct); break; 
@@ -1348,14 +1334,14 @@ bool ReadXml_Type::registerAttr_BaseClass_super(BaseClass *obj, int attr, char c
   return true;
 }
 
-void ReadXml_Type::registerAttr_BaseClass(BaseClass *obj, int attr, char const *strValue) {
+void TypeXmlReader::registerAttr_BaseClass(BaseClass *obj, int attr, char const *strValue) {
   // "superclass": just re-use our own superclass code for ourself
   if (registerAttr_BaseClass_super(obj, attr, strValue)) return;
   // shouldn't get here
   userError("illegal attribute for a BaseClass");
 }
 
-void ReadXml_Type::registerAttr_BaseClassSubobj
+void TypeXmlReader::registerAttr_BaseClassSubobj
   (BaseClassSubobj *obj, int attr, char const *strValue) {
   // "superclass": just re-use our own superclass code for ourself
   if (registerAttr_BaseClass_super(obj, attr, strValue)) return;
@@ -1366,14 +1352,14 @@ void ReadXml_Type::registerAttr_BaseClassSubobj
   }
 }
 
-void ReadXml_Type::registerAttr_OverloadSet(OverloadSet *obj, int attr, char const *strValue) {
+void TypeXmlReader::registerAttr_OverloadSet(OverloadSet *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a OverloadSet"); break; 
   case XTOK_set: ulList(_List, set, XTOK_List_OverloadSet_set); break; 
   }
 }
 
-void ReadXml_Type::registerAttr_STemplateArgument
+void TypeXmlReader::registerAttr_STemplateArgument
   (STemplateArgument *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a STemplateArgument"); break; 
@@ -1386,7 +1372,7 @@ void ReadXml_Type::registerAttr_STemplateArgument
   }
 }
 
-void ReadXml_Type::registerAttr_TemplateInfo(TemplateInfo *obj, int attr, char const *strValue) {
+void TypeXmlReader::registerAttr_TemplateInfo(TemplateInfo *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a TemplateInfo"); break; 
   case XTOK_var: ul(var); break;
@@ -1419,7 +1405,7 @@ void ReadXml_Type::registerAttr_TemplateInfo(TemplateInfo *obj, int attr, char c
   }
 }
 
-void ReadXml_Type::registerAttr_InheritedTemplateParams
+void TypeXmlReader::registerAttr_InheritedTemplateParams
   (InheritedTemplateParams *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a InheritedTemplateParams"); break; 
