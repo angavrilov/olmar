@@ -435,6 +435,16 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     addTypeTag(bad_alloc_ct->typedefVar);
   }
 
+  // 2005-08-09 (in/gnu/bugs/gb0008.cc): predeclare std::type_info
+  //
+  // Though this is a bug compatibility feature, there doesn't seem
+  // to be much to gain by making a flag to control it.
+  {
+    CompoundType *dummy;
+    makeNewCompound(dummy, std_scope, str("type_info"), SL_INIT,
+                    TI_CLASS, true /*forward*/);
+  }
+
   // void* operator new(std::size_t sz) throw(std::bad_alloc);
   declareFunction1arg(t_voidptr, "operator new",
                       t_size_t, "sz",
