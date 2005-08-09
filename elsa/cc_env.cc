@@ -369,7 +369,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     doCompareArgsToParams(!tracingSys("doNotCompareArgsToParams") && L.isCplusplus),
 
     // 2005-03-09: things are finally ready to turn strict checking
-    // on by default
+    // on by default (see doc/permissive.txt)
     doReportTemplateErrors(!tracingSys("permissive")),
 
     collectLookupResults("")

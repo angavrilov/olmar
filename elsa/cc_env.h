@@ -204,7 +204,7 @@ public:      // data
   // the execution of the checker
   bool doFunctionTemplateBodyInstantiation;
   bool doCompareArgsToParams;
-  bool doReportTemplateErrors;
+  bool doReportTemplateErrors;     // see doc/permissive.txt
 
   // when non-empty, the variable lookup results are collected and
   // compared to the text stored in this pointer; it is supplied via

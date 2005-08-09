@@ -122,8 +122,6 @@ string ambiguousNodeName(Expression const *e)
 
 // ------------------- UninstTemplateErrorFilter ------------------
 // filter that keeps only strong messages
-//
-// gcov-begin-ignore
 bool strongMsgFilter(ErrorMsg *msg)
 {
   if (msg->flags & EF_STRONG) {
@@ -136,7 +134,6 @@ bool strongMsgFilter(ErrorMsg *msg)
     return false;
   }
 }
-// gcov-end-ignore
 
 
 // take the errors, and later put them back after filtering
@@ -151,7 +148,6 @@ public:
     if (env.inUninstTemplate()) {
       existingErrors.takeMessages(env.errors);
     }
-
   }
 
   ~UninstTemplateErrorFilter()
@@ -159,7 +155,8 @@ public:
     if (env.inUninstTemplate()) {
       if (!env.doReportTemplateErrors) {
         // remove all messages that are not 'strong'
-        env.errors.filter(strongMsgFilter);      // gcov-ignore
+        // (see doc/permissive.txt)
+        env.errors.filter(strongMsgFilter);
       }
 
       // now put back the saved messages
