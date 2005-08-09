@@ -85,34 +85,36 @@ bool ASTXmlReader::registerAttribute(void *target, int kind, int attr, char cons
 
 TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
 {
+  // reader manager
   ifstream in(inputFname);
   AstXmlLexer lexer(inputFname);
   lexer.restart(&in);
   XmlReaderManager manager(inputFname, lexer, strTable);
 
-  // this is going to parse one top-level tag
+  // ast reader
   ASTXmlReader astReader;
   manager.registerReader(&astReader);
+
+  // type reader
+//    BasicTypeFactory tFac;
+  TypeXmlReader typeReader;
+  manager.registerReader(&typeReader);
+
+  // read
   manager.parseOneTopLevelTag();
+
+  // finish input stream
   if (lexer.haveSeenEof()) {
     manager.userError("unexpected EOF");
   }
+  // we should finish reading the stream
+//    lexer.haveSeenEof();
+
+  // check result
   if (manager.getLastKind() != XTOK_TranslationUnit) {
     manager.userError("top tag is not a TranslationUnit");
   }
   TranslationUnit *tunit = (TranslationUnit*) manager.getLastNode();
-
-  // this is going to parse a sequence of top-level Type tags; stops
-  // at EOF
-//    BasicTypeFactory tFac;
-  TypeXmlReader typeReader;
-  manager.registerReader(&typeReader);
-  // FIX: a do-while loop is always a bug; we need to be able to see
-  // that the EOF is coming to turn this into a while loop
-  do {
-    manager.reset();
-    manager.parseOneTopLevelTag();
-  } while (!lexer.haveSeenEof());
 
   // complete the link graph
   manager.satisfyLinks();

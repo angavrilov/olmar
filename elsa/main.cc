@@ -131,14 +131,20 @@ public:
   }
 };
 
-// print out type annotations for ever ast node that has a type
-class ToXmlASTVisitor_Types : public ASTVisitor {
+// print out type annotations for every ast node that has a type
+//  class ToXmlASTVisitor_Types : public ASTVisitor {
+class ToXmlASTVisitor_Types : public ToXmlASTVisitor {
 //    ostream &out;                 // for the <Link/> tags
   TypeToXml &ttx;
 
   public:
-  ToXmlASTVisitor_Types(TypeToXml &ttx0)
-    : ttx(ttx0)
+  ToXmlASTVisitor_Types
+    (TypeToXml &ttx0,
+     ostream &out0,
+     bool indent0 = false,
+     bool ensureOneVisit0 = true)
+      : ToXmlASTVisitor(out0, indent0, ensureOneVisit0)
+      , ttx(ttx0)
   {}
 
   // Note that idempotency is handled in TypeToXml
@@ -162,6 +168,7 @@ class ToXmlASTVisitor_Types : public ASTVisitor {
 
   // **** visit methods
   bool visitTypeSpecifier(TypeSpecifier *ts) {
+    if (!ToXmlASTVisitor::visitTypeSpecifier(ts)) return false;
     if (ts->isTS_type()) {
       PRINT_ANNOT(ts->asTS_type()->type);
     } else if (ts->isTS_name()) {
@@ -177,13 +184,15 @@ class ToXmlASTVisitor_Types : public ASTVisitor {
     return true;
   }
 
-  bool visitFunction(Function *function) {
-    PRINT_ANNOT(function->funcType);
-    PRINT_ANNOT(function->receiver);
+  bool visitFunction(Function *f) {
+    if (!ToXmlASTVisitor::visitFunction(f)) return false;
+    PRINT_ANNOT(f->funcType);
+    PRINT_ANNOT(f->receiver);
     return true;
   }
 
   bool visitMemberInit(MemberInit *memberInit) {
+    if (!ToXmlASTVisitor::visitMemberInit(memberInit)) return false;
     PRINT_ANNOT(memberInit->member);
     PRINT_ANNOT(memberInit->base);
     PRINT_ANNOT(memberInit->ctorVar);
@@ -191,17 +200,20 @@ class ToXmlASTVisitor_Types : public ASTVisitor {
   }
 
   bool visitBaseClassSpec(BaseClassSpec *bcs) {
+    if (!ToXmlASTVisitor::visitBaseClassSpec(bcs)) return false;
     PRINT_ANNOT(bcs->type);
     return true;
   }
 
   bool visitDeclarator(Declarator *d) {
+    if (!ToXmlASTVisitor::visitDeclarator(d)) return false;
     PRINT_ANNOT(d->var);
     PRINT_ANNOT(d->type);
     return true;
   }
 
   bool visitExpression(Expression *e) {
+    if (!ToXmlASTVisitor::visitExpression(e)) return false;
     PRINT_ANNOT(e->type);
     if (e->isE_this()) {
       PRINT_ANNOT(e->asE_this()->receiver);
@@ -219,11 +231,13 @@ class ToXmlASTVisitor_Types : public ASTVisitor {
   }
 
   bool visitASTTypeof(ASTTypeof *a) {
+    if (!ToXmlASTVisitor::visitASTTypeof(a)) return false;
     PRINT_ANNOT(a->type);
     return true;
   }
 
   bool visitPQName(PQName *pqn) {
+    if (!ToXmlASTVisitor::visitPQName(pqn)) return false;
     if (pqn->isPQ_qualifier()) {
       PRINT_ANNOT(pqn->asPQ_qualifier()->denotedScopeVar);
       PRINT_ANNOT(pqn->asPQ_qualifier()->qualifierVar);
@@ -234,11 +248,13 @@ class ToXmlASTVisitor_Types : public ASTVisitor {
   }
 
   bool visitEnumerator(Enumerator *e) {
+    if (!ToXmlASTVisitor::visitEnumerator(e)) return false;
     PRINT_ANNOT(e->var);
     return true;
   }
 
   bool visitInitializer(Initializer *e) {
+    if (!ToXmlASTVisitor::visitInitializer(e)) return false;
     if (e->isIN_ctor()) {
       PRINT_ANNOT(e->asIN_ctor()->ctorVar);
     }
@@ -765,16 +781,16 @@ void doit(int argc, char **argv)
 #if XML
     traceProgress() << "dsw xml print...\n";
     bool indent = tracingSys("xmlPrintAST-indent");
-    ToXmlASTVisitor xmlVis(cout, indent);
-    TypeToXml xmlTypeVis(cout);
-    ToXmlASTVisitor_Types xmlVis_Types(xmlTypeVis);
     cout << "---- START ----" << endl;
-    unit->traverse(xmlVis);
-    cout << endl;
     if (tracingSys("xmlPrintAST-types")) {
+      TypeToXml xmlTypeVis(cout);
+      ToXmlASTVisitor_Types xmlVis_Types(xmlTypeVis, cout);
       unit->traverse(xmlVis_Types);
-      cout << endl;
+    } else {
+      ToXmlASTVisitor xmlVis(cout, indent);
+      unit->traverse(xmlVis);
     }
+    cout << endl;
     cout << "---- STOP ----" << endl;
     traceProgress() << "dsw xml print... done\n";
 #else
@@ -784,23 +800,23 @@ void doit(int argc, char **argv)
   }
 
   // dsw: xml printing of the lowered ast
-  if (tracingSys("xmlPrintLoweredAST")) {
-#if XML
-    traceProgress() << "dsw xml print...\n";
-    bool indent = tracingSys("xmlPrintLoweredAST-indent");
-    ToXmlASTVisitor xmlVis(cout, indent);
-    LoweredASTVisitor loweredXmlVis(&xmlVis);
-    // FIX: do type visitor
-    cout << "---- START ----" << endl;
-    unit->traverse(loweredXmlVis);
-    cout << endl;
-    cout << "---- STOP ----" << endl;
-    traceProgress() << "dsw xml print... done\n";
-#else
-    cout << "XML features are not compiled in" << endl;
-    exit(1);
-#endif // XML
-  }
+//    if (tracingSys("xmlPrintLoweredAST")) {
+//  #if XML
+//      traceProgress() << "dsw xml print...\n";
+//      bool indent = tracingSys("xmlPrintLoweredAST-indent");
+//      ToXmlASTVisitor xmlVis(cout, indent);
+//      LoweredASTVisitor loweredXmlVis(&xmlVis);
+//      // FIX: do type visitor
+//      cout << "---- START ----" << endl;
+//      unit->traverse(loweredXmlVis);
+//      cout << endl;
+//      cout << "---- STOP ----" << endl;
+//      traceProgress() << "dsw xml print... done\n";
+//  #else
+//      cout << "XML features are not compiled in" << endl;
+//      exit(1);
+//  #endif // XML
+//    }
 
   // test AST cloning
   if (tracingSys("testClone")) {
