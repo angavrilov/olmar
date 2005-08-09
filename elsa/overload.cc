@@ -1158,8 +1158,13 @@ inline void swap(CompoundType const *&t1, CompoundType const *&t2)
 // ultimately it wants to set 'ret' to -1 if all the 'lcv's are
 // subsets of all the 'rcv's, and +1 if the subset goes the other way;
 // it returns 'true' if the subset relation does not hold
-static bool foldNextCVs(int &ret, CVFlags lcv, CVFlags rcv)
+static bool foldNextCVs(int &ret, CVFlags lcv, CVFlags rcv, int &skipCVs)
 {
+  if (skipCVs) {
+    skipCVs--;
+    return false;
+  }
+
   if (lcv != rcv) {
     if ((lcv & rcv) == lcv) {    // left is subset, => better
       if (ret > 0) return true;  // but right was better previously, => no decision
@@ -1282,6 +1287,12 @@ int compareStandardConversions
     // will work through the type constructors simultaneously
     Type const *L = leftDest;
     Type const *R = rightDest;
+    
+    // 2005-08-09 (in/t0530.cc): the very first cv-flags are
+    // irrelevant, because they come from parameter types, which are
+    // not part of the function type and therefore do not affect
+    // overload resolution
+    int skipCVs = 1;
 
     // 2005-02-23: (in/t0395.cc) if 'L' and 'R' are pointers (either
     // one is sufficient), then the comparison of this section requires
@@ -1326,7 +1337,7 @@ int compareStandardConversions
           // assured by non-stackability of references
           xassert(L->isPointerType() == R->isPointerType());
 
-          if (foldNextCVs(ret, L->getCVFlags(), R->getCVFlags())) {
+          if (foldNextCVs(ret, L->getCVFlags(), R->getCVFlags(), skipCVs)) {
             return 0;        // not subset, therefore no decision
           }
 
@@ -1348,7 +1359,7 @@ int compareStandardConversions
           PointerToMemberType const *lptm = L->asPointerToMemberTypeC();
           PointerToMemberType const *rptm = R->asPointerToMemberTypeC();
 
-          if (foldNextCVs(ret, lptm->cv, rptm->cv)) {
+          if (foldNextCVs(ret, lptm->cv, rptm->cv, skipCVs)) {
             return 0;        // not subset, therefore no decision
           }
 
@@ -1371,7 +1382,7 @@ int compareStandardConversions
     CVAtomicType const *lat = L->asCVAtomicTypeC();
     CVAtomicType const *rat = R->asCVAtomicTypeC();
 
-    if (foldNextCVs(ret, lat->cv, rat->cv)) {
+    if (foldNextCVs(ret, lat->cv, rat->cv, skipCVs)) {
       return 0;              // not subset, therefore no decision
     }
 
