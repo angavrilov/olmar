@@ -2175,12 +2175,12 @@ void HGen::emitXmlVisitorInterface()
 
   out << "protected:   // data\n";
   out << "  ostream &out;                       // output stream to print to\n";
+  out << "  int &depth;                         // current depth\n";
   out << "  bool indent;                        // should the xml be indented\n";
   out << "  bool ensureOneVisit;                // check for visiting at most once?\n";
   out << "  SObjSet<void*> wasVisitedASTNodes;  // set of visited nodes\n";
   out << "  SObjSet<void*> wasVisitedList_ASTListNodes; // set of visited ASTLists\n";
   out << "  SObjSet<void*> wasVisitedList_FakeListNodes; // set of visited FakeLists\n";
-  out << "  int depth;                          // current depth\n";
   out << "\n";
 
   out << "protected:   // funcs\n";
@@ -2194,13 +2194,14 @@ void HGen::emitXmlVisitorInterface()
   out << "public:      // funcs\n";
   out << "  explicit " << xmlVisitorName << "("
       << "ostream &out0, "
+      << "int &depth0, "
       << "bool indent0 = false, "
       << "bool ensureOneVisit0 = true"
       << ")\n";
   out << "    : out(out0)\n";
+  out << "    , depth(depth0)\n";
   out << "    , indent(indent0)\n";
   out << "    , ensureOneVisit(ensureOneVisit0)\n";
-  out << "    , depth(0)\n";
   out << "  {}\n";
   out << "\n";
 
@@ -2286,6 +2287,7 @@ void CGen::emitXmlVisitorImplementation()
     out << "(" << c->super->name << " *obj) {\n";
     out << "  xassert(!wasVisitedAST(obj));\n";
     // for now everything is a container tag
+    out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"<\" << obj->kindName();\n";
 
@@ -2339,7 +2341,7 @@ void CGen::emitXmlVisitorImplementation()
     // line as the tag
 //      out << "  out << \"\\n\";\n";
 //      out << "  if (indent) printIndentation();\n";
-    out << "  out << \">\\n\";\n";
+    out << "  out << \">\";\n";
     out << "  ++depth;\n";      // indent for nested children
     out << "  return true;\n";
     out << "}\n\n";;
@@ -2347,8 +2349,9 @@ void CGen::emitXmlVisitorImplementation()
     out << "void " << xmlVisitorName << "::postvisit" << c->super->name;
     out << "(" << c->super->name << " *obj) {\n";
     out << "  --depth;\n";
+    out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"</\" << obj->kindName() << \">\\n\";\n";
+    out << "  out << \"</\" << obj->kindName() << \">\";\n";
     out << "}\n\n";
   }
 
@@ -2360,10 +2363,11 @@ void CGen::emitXmlVisitorImplementation()
         << "(FakeList<" << cls << ">* obj) {\n";
     out << "  if (obj) {\n";
     out << "    xassert(!wasVisitedList_FakeList(obj));\n";
+    out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"<List_" << cls << " _id=\\\"\";\n";
     out << "    xmlPrintPointer(out, \"FL\", obj);\n";
-    out << "    out << \"\\\">\\n\";\n";
+    out << "    out << \"\\\">\";\n";
     out << "    ++depth;\n";
     out << "  }\n";
     out << "  return true;\n";
@@ -2374,8 +2378,9 @@ void CGen::emitXmlVisitorImplementation()
         << "(FakeList<" << cls << ">* obj) {\n";
     out << "  if (obj) {\n";
     out << "    --depth;\n";
+    out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"</List_" << cls << ">\\n\";\n";
+    out << "    out << \"</List_" << cls << ">\";\n";
     out << "  }\n";
     out << "}\n\n";
 
@@ -2383,10 +2388,11 @@ void CGen::emitXmlVisitorImplementation()
     out << "bool " << xmlVisitorName << "::visitListItem_" << cls
         << "(" << cls << " *obj) {\n";
     out << "  xassert(obj);\n";
+    out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"<_List_Item\" << \" item=\\\"\";\n";
     out << "  xmlPrintPointer(out, \"AST\", obj);\n";
-    out << "  out << \"\\\">\\n\";\n";
+    out << "  out << \"\\\">\";\n";
     out << "  ++depth;\n";
     out << "  return true;\n";
     out << "}\n\n";
@@ -2396,8 +2402,9 @@ void CGen::emitXmlVisitorImplementation()
         << "(" << cls << " *obj) {\n";
     out << "  xassert(obj);\n";
     out << "  --depth;\n";
+    out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"</_List_Item>\\n\";\n";
+    out << "  out << \"</_List_Item>\";\n";
     out << "}\n\n";
   }
 
@@ -2408,10 +2415,11 @@ void CGen::emitXmlVisitorImplementation()
     out << "bool " << xmlVisitorName << "::visitList_" << cls
         << "(ASTList<" << cls << ">* obj) {\n";
     out << "  xassert(!wasVisitedList_ASTList(obj));\n";
+    out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"<List_" << cls << " _id=\\\"\";\n";
     out << "  xmlPrintPointer(out, \"AL\", obj);\n";
-    out << "  out << \"\\\">\\n\";\n";
+    out << "  out << \"\\\">\";\n";
     out << "  ++depth;\n";
     out << "  return true;\n";
     out << "}\n\n";
@@ -2420,18 +2428,20 @@ void CGen::emitXmlVisitorImplementation()
     out << "void " << xmlVisitorName << "::postvisitList_" << cls
         << "(ASTList<" << cls << ">* obj) {\n";
     out << "  --depth;\n";
+    out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"</List_" << cls << ">\\n\";\n";
+    out << "  out << \"</List_" << cls << ">\";\n";
     out << "}\n\n";
 
     // visit item
     out << "bool " << xmlVisitorName << "::visitListItem_" << cls
         << "(" << cls << " *obj) {\n";
     out << "  xassert(obj);\n";
+    out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"<_List_Item\" << \" item=\\\"\";\n";
     out << "  xmlPrintPointer(out, \"AST\", obj);\n";
-    out << "  out << \"\\\">\\n\";\n";
+    out << "  out << \"\\\">\";\n";
     out << "  ++depth;\n";
     out << "  return true;\n";
     out << "}\n\n";
@@ -2441,8 +2451,9 @@ void CGen::emitXmlVisitorImplementation()
         << "(" << cls << " *obj) {\n";
     out << "  xassert(obj);\n";
     out << "  --depth;\n";
+    out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"</_List_Item>\\n\";\n";
+    out << "  out << \"</_List_Item>\";\n";
     out << "}\n\n";
   }
 
