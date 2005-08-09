@@ -52,7 +52,7 @@ int f4(float);                            // line 51
 
 int x4a = __testOverload(f4(), 50);
 int x4b = __testOverload(f4(3), 50);
-int x4c = __testOverload(f4(3.5), 51);
+int x4c = __testOverload(f4(3.5f), 51);
 //ERROR(3): int x4d = f4(2,3);            // "no viable"
 
 

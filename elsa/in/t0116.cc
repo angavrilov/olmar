@@ -18,6 +18,6 @@ void bar()
   __testOverload(notOverloaded(), 14);    // turn on overload resolution
 
   __testOverload(foo(3), 4);
-  __testOverload(foo(3.4), 9);
+  __testOverload(foo(3.4f), 9);
 }
 

@@ -5081,9 +5081,18 @@ Type *E_intLit::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_floatLit::itcheck_x(Env &env, Expression *&replacement)
 {
-  // TODO: wrong; see cppstd 2.13.3 para 1
   d = strtod(text, NULL /*endp*/);
-  return env.getSimpleType(ST_FLOAT);
+
+  // what is the final character?
+  char final = text[strlen(text)-1];
+  if (final == 'f' || final == 'F') {
+    return env.getSimpleType(ST_FLOAT);
+  }
+  if (final == 'l' || final == 'L') {
+    return env.getSimpleType(ST_LONG_DOUBLE);
+  }
+
+  return env.getSimpleType(ST_DOUBLE);
 }
 
 
