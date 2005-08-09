@@ -36,13 +36,14 @@ enum LookupFlags {
   LF_NO_DENOTED_SCOPE  = 0x00080000,   // temporary: disable denoted-scope computation in PQ_qualifier::tcheck
   LF_EXPECTING_TYPE    = 0x00100000,   // do not apply template args to a non-type
   LF_EXPLICIT_INST     = 0x00200000,   // the context is a TF_explicitInst
+  LF_NO_MEMBERS        = 0x00400000,   // disregard anything with DF_MEMBER
 
   // flag combination for looking up names that precede "::" (3.4.3p1);
   // this is used for the new lookup mechanism (Env::lookupPQ, etc.)
   LF_QUALIFIER_LOOKUP  = LF_TYPES_NAMESPACES | LF_SELFNAME,
 
-  LF_ALL_FLAGS         = 0x003FFFFF,   // bitwise OR of all flags
-  NUM_LOOKUPFLAGS      = 22            // # of bits set to 1 in LF_ALL_FLAGS
+  LF_ALL_FLAGS         = 0x007FFFFF,   // bitwise OR of all flags
+  NUM_LOOKUPFLAGS      = 23            // # of bits set to 1 in LF_ALL_FLAGS
 };
 
 extern char const * const lookupFlagNames[NUM_LOOKUPFLAGS];

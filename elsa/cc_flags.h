@@ -107,7 +107,7 @@ enum DeclFlags {
   DF_PARAMETER   = 0x00010000,    // true if this is a function parameter or a handler "parameter"
   DF_UNIVERSAL   = 0x00020000,    // universally-quantified variable
   DF_EXISTENTIAL = 0x00040000,    // existentially-quantified
-  DF_MEMBER      = 0x00080000,    // true for members of classes (data, static data, functions)
+  DF_MEMBER      = 0x00080000,    // true for members of classes (data, static data, functions); *not* true for namespace members
   DF_DEFINITION  = 0x00100000,    // set once we've seen this Variable's definition
   DF_INLINE_DEFN = 0x00200000,    // set for inline function definitions on second pass of tcheck
   DF_IMPLICIT    = 0x00400000,    // set for C++ implicit typedefs (if also DF_TYPEDEF),

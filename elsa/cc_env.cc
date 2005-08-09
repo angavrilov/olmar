@@ -4169,7 +4169,11 @@ void Env::getAssociatedScopes(SObjList<Scope> &associated, Type *type)
               // tests that hit all the corners, and determine the extent
               // to which my interpretation of the standard agrees with
               // gcc and edg.
-              #if 0     // disabled for now
+              //
+              // 2005-08-09 (in/t0532.cc): my current hypothesis is that
+              // template args are used, but that when searching classes,
+              // only friend declarations are considered
+              //
               // look at template arguments
               TemplateInfo *ti = ct->templateInfo();
               xassert(ti);
@@ -4179,10 +4183,9 @@ void Env::getAssociatedScopes(SObjList<Scope> &associated, Type *type)
                   getAssociatedScopes(associated, arg->getType());
                 }
                 else if (arg->isTemplate()) {
-                  // TODO: implement this
+                  // TODO: implement this (template template parameters)
                 }
               }
-              #endif // 0
             }
           }
           else {
@@ -4259,6 +4262,11 @@ void Env::associatedScopeLookup(LookupSet &candidates, StringRef name,
 
   // 3.4.2 para 3: ignore 'using' directives for these lookups
   flags |= LF_IGNORE_USING;
+  
+  // 2005-08-09: ignore class members too (i.e., when searching in
+  // class scopes, only friend declarations are used); testcases
+  // include in/t0532.cc and in/t0471.cc
+  flags |= LF_NO_MEMBERS;
 
   // get candidates from the lookups in the "associated" scopes
   SFOREACH_OBJLIST_NC(Scope, associated, scopeIter) {
@@ -4273,10 +4281,13 @@ void Env::associatedScopeLookup(LookupSet &candidates, StringRef name,
     // toss them into the set
     if (v) {
       if (!v->type->isFunctionType()) {
+        // The standard doesn't say anything about this.  GCC rejects
+        // if non-function found, while ICC seems to just ignore
+        // non-functions.  Oy.
         env.error(loc(), stringc
           << "during argument-dependent lookup of `" << name
           << "', found non-function of type `" << v->type->toString()
-          << "' in " << s->desc());
+          << "' in " << s->scopeName());
       }
       else {
         addCandidates(candidates, v);

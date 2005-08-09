@@ -5301,7 +5301,7 @@ Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
           // return a special type and do not insert an error message;
           // this is like a pending error that the caller should
           // resolve, either by making it a real error or (by using
-          // argument dependent lookup) fix; ST_NOTFOUND shoult never
+          // argument dependent lookup) fix; ST_NOTFOUND should never
           // appear in the output of type checking
           return env.getSimpleType(ST_NOTFOUND);
         }

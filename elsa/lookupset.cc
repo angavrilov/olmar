@@ -30,6 +30,7 @@ char const * const lookupFlagNames[NUM_LOOKUPFLAGS] = {
   "LF_NO_DENOTED_SCOPE",
   "LF_EXPECTING_TYPE",
   "LF_EXPLICIT_INST",
+  "LF_NO_MEMBERS",
 };
 
 
@@ -80,6 +81,11 @@ Variable *vfilter(Variable *v, LookupFlags flags)
                                                         
   if ((flags & LF_TEMPL_PARAM) &&
       !v->isTemplateParam()) {
+    return NULL;
+  }
+
+  if ((flags & LF_NO_MEMBERS) &&
+       v->hasFlag(DF_MEMBER)) {
     return NULL;
   }
 

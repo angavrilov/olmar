@@ -758,7 +758,7 @@ testparse t0467.cc
 testparse t0468.cc
 testparse t0469.cc
 testparse t0470.cc
-failparse t0471.cc "failure to reject invalid code: arg-dep finds static member"
+testparse t0471.cc
 failparse t0472.cc "failure to reject invalid code: friend name injection"
 testparse t0473.cc
 testparse t0474.cc
@@ -817,6 +817,7 @@ testparse t0528.cc
 testparse t0529.cc
 testparse t0530.cc
 testparse t0531.cc
+testparse t0532.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
