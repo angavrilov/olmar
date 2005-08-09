@@ -2081,6 +2081,9 @@ nonterm(DeclFlags) CDtorModifier {
   -> "explicit"    { return DF_EXPLICIT; }
   -> "virtual"     { return DF_VIRTUAL; }
   -> "inline"      { return DF_INLINE; }
+  
+  // (in/t0527.cc) this is to allow befriending another class's constructor
+  -> "friend"      { return DF_FRIEND; }
 }
 
 nonterm(DeclFlags) CDtorModifierSeq {
