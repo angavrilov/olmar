@@ -134,12 +134,12 @@ TEST2 += t0016.cc
 TEST2 += t0017.cc
 TEST2 += t0018.cc
 TEST2 += t0019.cc
-#TEST2 += t0020.cc
+TEST2 += t0020.cc
 TEST2 += t0021.cc
 TEST2 += t0022.cc
 TEST2 += t0023.cc
 TEST2 += t0024.cc
-#TEST2 += t0025.cc
+TEST2 += t0025.cc
 
 TOCLEAN :=
 
