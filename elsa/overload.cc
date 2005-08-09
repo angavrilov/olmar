@@ -1391,8 +1391,21 @@ bool convertsPtrToBool(Type const *src, Type const *dest)
   src = src->asRvalC();
   dest = dest->asRvalC();
 
-  return (src->isPointerType() || src->isPointerToMemberType()) &&
-         dest->isBool();
+  if (!dest->isBool()) {
+    return false;
+  }
+
+  if (src->isPointerType() || src->isPointerToMemberType()) {
+    return true;
+  }
+
+  // (in/t0526.cc) it seems this also applies to types that get
+  // implicitly converted to pointers before being converted to bool
+  if (src->isArrayType() || src->isFunctionType()) {
+    return true;
+  }
+
+  return false;
 }
 
 
