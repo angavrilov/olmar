@@ -522,7 +522,7 @@ void HGen::emitTFClass(TF_class const &cls)
   // classes
   if (wantXmlVisitor()) {
     out << "  friend class " << xmlVisitorName << ";\n";
-    out << "  friend class ReadXml_AST;\n";
+    out << "  friend class ASTXmlReader;\n";
   }
 
   emitCtorFields(cls.super->args, cls.super->lastArgs);
@@ -2710,7 +2710,7 @@ void XmlParserGen::emitXmlField_AttributeParseRule
   }
   else if (streq(type, "StringRef")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    obj->" << name << " = strTable(parseQuotedString(strValue));\n";
+    parser1_defs << "    obj->" << name << " = manager->strTable(parseQuotedString(strValue));\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "bool")) {
@@ -2753,28 +2753,28 @@ void XmlParserGen::emitXmlField_AttributeParseRule
   }
   else if (isListType(type)) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    linkSat.unsatLinks_List.append(new UnsatLink("
+    parser1_defs << "    manager->unsatLinks_List.append(new UnsatLink("
                  << "(void**) &(obj->" << name << "), parseQuotedString(strValue), "
                  << "XTOK_List_" << extractListType(type) << "));\n";
     parser1_defs << "    break;\n";
   }
   else if (isFakeListType(type)) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    linkSat.unsatLinks_List.append(new UnsatLink("
+    parser1_defs << "    manager->unsatLinks_List.append(new UnsatLink("
                  << "(void**) &(obj->" << name << "), parseQuotedString(strValue), "
                  << "XTOK_List_" << extractListType(type) << "));\n";
     parser1_defs << "    break;\n";
   }
   else if (isTreeNode(type) || (isTreeNodePtr(type))) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    linkSat.unsatLinks.append(new UnsatLink("
+    parser1_defs << "    manager->unsatLinks.append(new UnsatLink("
                  << "(void**) &(obj->" << name << "), parseQuotedString(strValue)));\n";
     parser1_defs << "    break;\n";
   }
   else if (isPtrKind(type)) {
     // catch-all for objects
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    linkSat.unsatLinks.append(new UnsatLink("
+    parser1_defs << "    manager->unsatLinks.append(new UnsatLink("
                  << "(void**) &(obj->" << name << "), parseQuotedString(strValue)));\n";
     parser1_defs << "    break;\n";
   } else {
@@ -2863,7 +2863,7 @@ void XmlParserGen::emitXmlParser_Node_registerAttr
   string name = clazz->name;
 
   parser1_defs
-    << "\nvoid ReadXml_AST::registerAttr_" << name
+    << "\nvoid ASTXmlReader::registerAttr_" << name
     << "(" << name << " *obj, int attr, char const *strValue) {\n";
   parser1_defs << "  switch(attr) {\n";
   parser1_defs << "  default:\n";
@@ -2911,7 +2911,7 @@ void XmlParserGen::emitXmlParserImplementation()
   tokensOutCC << "  // AST nodes\n";
   lexerOut    << "  /* AST nodes */\n";
 
-  parser1_defs << "bool ReadXml_AST::kind2kindCat0(int kind, KindCategory *kindCat) {\n";
+  parser1_defs << "bool ASTXmlReader::kind2kindCat(int kind, KindCategory *kindCat) {\n";
   parser1_defs << "  switch(kind) {\n";
   parser1_defs << "  default: return false; // don't know this kind\n";
 
@@ -2992,7 +2992,7 @@ void XmlParserGen::emitXmlParserImplementation()
   }
 
   // generate generic FakeList reverse
-  parser1_defs << "bool ReadXml_AST::convertList2FakeList(ASTList<char> *list, int listKind, void **target) {\n";
+  parser1_defs << "bool ASTXmlReader::convertList2FakeList(ASTList<char> *list, int listKind, void **target) {\n";
   parser1_defs << "  switch(listKind) {\n";
   parser1_defs << "  default: return false; // we did not find a matching tag\n";
   FOREACH_ASTLIST(char, fakeListClasses, iter) {
@@ -3018,32 +3018,6 @@ void XmlParserGen::emitXmlParserImplementation()
   }
   parser1_defs << "  }\n";
   parser1_defs << "  return true;\n";
-  parser1_defs << "}\n";
-
-  // generate generic ASTList append
-  parser1_defs << "void ReadXml_AST::append2List(void *list, int listKind, "
-               << "void *datum) {\n";
-  parser1_defs << "  switch(listKind) {\n";
-  parser1_defs << "  default: xfailure(\"attempt to append to a non-List token kind\"); break;\n";
-  FOREACH_ASTLIST(char, astListClasses, iter) {
-    char const *cls = iter.data();
-    parser1_defs << "  case XTOK_List_" << cls << ":\n";
-//      parser1_defs << "    if (!datumKind == XTOK_" << cls << ") {\n";
-//      parser1_defs << "      userError(\"can't put that onto an List of " << cls << "\");\n";
-//      parser1_defs << "    }\n";
-    parser1_defs << "    ((ASTList<char>*)list)->append((char*)datum);\n";
-    parser1_defs << "    break;\n";
-  }
-  FOREACH_ASTLIST(char, fakeListClasses, iter) {
-    char const *cls = iter.data();
-    parser1_defs << "  case XTOK_List_" << cls << ":\n";
-//      parser1_defs << "    if (!datumKind == XTOK_" << cls << ") {\n";
-//      parser1_defs << "      userError(\"can't put that onto a List of " << cls << "\");\n";
-//      parser1_defs << "    }\n";
-    parser1_defs << "    ((ASTList<char>*)list)->append((char*)datum);\n";
-    parser1_defs << "    break;\n";
-  }
-  parser1_defs << "  }\n";
   parser1_defs << "}\n";
 
   tokensOutH  << "\n";
