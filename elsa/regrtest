@@ -820,6 +820,7 @@ testparse t0531.cc
 testparse t0532.cc
 testparse t0533.cc
 testparse t0534.cc
+testparse t0535.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

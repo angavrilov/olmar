@@ -3146,6 +3146,11 @@ bool checkCompleteTypeRules(Env &env, DeclFlags dflags, DeclaratorContext contex
     return true;
   }
 
+  if (context == DC_ON_CONVERSION) {
+    // similarly for the return type of a conversion operator (in/t0535.cc)
+    return true;
+  }
+
   if (context == DC_TA_TYPE) {
     // mere appearance of a type in an argument list is not enough to
     // require that it be complete; maybe the function definition will
