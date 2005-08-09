@@ -85,32 +85,28 @@ bool ASTXmlReader::registerAttribute(void *target, int kind, int attr, char cons
 
 TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
 {
-  // reader manager
+  // make reader manager
   ifstream in(inputFname);
   AstXmlLexer lexer(inputFname);
   lexer.restart(&in);
   XmlReaderManager manager(inputFname, lexer, strTable);
 
-  // ast reader
+  // make ast reader
   ASTXmlReader astReader;
   manager.registerReader(&astReader);
 
-  // type reader
+  // make type reader
 //    BasicTypeFactory tFac;
   TypeXmlReader typeReader;
   manager.registerReader(&typeReader);
 
   // read
   manager.parseOneTopLevelTag();
-
-  // finish input stream
   if (lexer.haveSeenEof()) {
     manager.userError("unexpected EOF");
   }
-  // we should finish reading the stream
-//    lexer.haveSeenEof();
 
-  // check result
+  // check the result
   if (manager.getLastKind() != XTOK_TranslationUnit) {
     manager.userError("top tag is not a TranslationUnit");
   }
