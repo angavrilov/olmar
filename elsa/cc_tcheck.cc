@@ -4728,6 +4728,19 @@ Type *makeLvalType(Env &env, Type *underlying)
 }
 
 
+// make the type of a field that has declared type 't', but is being
+// accessed in an object whose reference is qualified with 'cv'
+Type *makeFieldLvalType(Env &env, Type *t, CVFlags cv)
+{
+  if (t->isReferenceType() || t->isFunctionType()) {
+    return t;
+  }
+
+  t = env.tfac.applyCVToType(env.loc(), cv, t, NULL /*syntax*/);
+  return env.tfac.makeReferenceType(t);
+}
+
+
 // There are several things going on with the replacement pointer.
 //
 // First, since Expressions can be ambiguous, when we select among
@@ -5169,16 +5182,8 @@ Type *E_this::itcheck_x(Env &env, Expression *&replacement)
     return env.error("can only use 'this' in a nonstatic method");
   }
 
-  // 14.6.2.2 para 2
-  if (receiver->type->containsGeneralizedDependent()) {
-    return env.dependentType();
-  }
-
   // compute type: *pointer* to the thing 'receiverVar' is
   // a *reference* to
-  //
-  // (sm: it seems to me that type cloning should be unnecessary since
-  // this is intended to be the *same* object as __receiver)
   return env.makePointerType(CV_NONE, receiver->type->asRval());
 }
 
@@ -5201,7 +5206,8 @@ E_fieldAcc *wrapWithImplicitThis(Env &env, Variable *var, PQName *name)
   // E_fieldAcc::itcheck_fieldAcc() does something a little more
   // complicated, but we don't need that since the situation is
   // more constrained here
-  efieldAcc->type = makeLvalType(env, var->type);
+  efieldAcc->type = makeFieldLvalType(env, var->type,
+                                      ths->type->getAtType()->getCVFlags());
 
   return efieldAcc;
 }
@@ -5321,16 +5327,17 @@ Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
     return var->type;
   }
 
-  // elaborate 'this->'
-  if (!(flags & LF_NO_IMPL_THIS) &&
-      var->isMember() && 
-      !var->isStatic()) {
-    replacement = wrapWithImplicitThis(env, var, name);
-  }
-                           
   // 2005-05-28: enumerators are not lvalues
   if (var->hasFlag(DF_ENUMERATOR)) {
     return var->type;
+  }
+
+  // elaborate 'this->'
+  if (!(flags & LF_NO_IMPL_THIS) &&
+      var->isMember() &&
+      !var->isStatic()) {
+    replacement = wrapWithImplicitThis(env, var, name);
+    return replacement->type;
   }
 
   // return a reference because this is an lvalue
@@ -7074,10 +7081,9 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
   field = env.storeVarIfNotOvl(f);
 
   // type of expression is type of field; possibly as an lval
-  if (obj->type->isLval() &&
-      !field->type->isFunctionType()) {
+  if (obj->type->isLval()) {
     // TODO: this is wrong if the field names an enumerator (5.2.5p4b5)
-    return makeLvalType(env, field->type);
+    return makeFieldLvalType(env, field->type, lhsType->getCVFlags());
   }
   else {
     return field->type;
