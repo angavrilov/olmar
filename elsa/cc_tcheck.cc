@@ -2392,7 +2392,18 @@ void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
   //     { enum { x = x }; }
   //   Here, the enumerator x is initialized with the value of the
   //   constant x, namely 12. ]"
-  if (!env.addVariable(var)) {
+           
+  bool forceReplace = false;
+
+  // (in/t0527.cc) will the name conflict with an implicit typedef?
+  Variable *prior = env.unqualifiedLookup_one(name, LF_INNER_ONLY);
+  if (prior && prior->isImplicitTypedef()) {
+    TRACE("env", "replacing implicit typedef " << name << 
+                 " with enumerator");
+    forceReplace = true;
+  }
+
+  if (!env.addVariable(var, forceReplace)) {
     env.error(stringc
       << "enumerator " << name << " conflicts with an existing variable "
       << "or typedef by the same name");
