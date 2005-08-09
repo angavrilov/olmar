@@ -948,6 +948,8 @@ public:      // template funcs
   void applyArgumentMapToTemplateArgs
     (STemplateArgumentCMap &map, ObjList<STemplateArgument> &dest,
                                  ObjList<STemplateArgument> const &srcArgs);
+  STemplateArgument applyArgumentMapToExpression
+    (STemplateArgumentCMap &map, Expression *e);
   STemplateArgument applyArgumentMapToQualifiedName
     (STemplateArgumentCMap &map, PQ_qualifier *qual);
   CompoundType *applyArgumentMap_instClass

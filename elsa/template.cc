@@ -1680,10 +1680,15 @@ bool Env::insertTemplateArgBindings_oneParamList
         // parameters that have been bound earlier in the parameter
         // list; but refining 'param->type' appropriately is not
         // very convenient, so I'm just going to forego the check
-        // (TODO: do it right)
+        //
+        // TODO: do it right, by building an STemplateArgumentCMap
+        // and using applyArgumentMap
       }
       else if (binding->value->type->containsGeneralizedDependent()) {
-        // (in/t0525.cc) bail in this case too
+        // originally I added this to parallel the above case, but
+        // that was wrong, and now I have fixed default argument
+        // generation so this should never happen
+        xfailure("template argument is not concrete");
       }
       else {
         // check that this argument is compatible with the parameter
@@ -2525,6 +2530,9 @@ Variable *Env::instantiateClassTemplate
     return NULL;
   }
 
+  // *still* should be concrete, even after supplying defaults
+  xassert(!containsVariables(owningPrimaryArgs));
+
   // find the specialization that should be used (might turn
   // out to be the primary; that's fine)
   Variable *spec = findMostSpecific(primary, owningPrimaryArgs);
@@ -2854,9 +2862,18 @@ STemplateArgument *Env::makeDefaultTemplateArgument
   // non-type parameter?
   else if (!param->hasFlag(DF_TYPEDEF) &&
            param->value) {
-    STemplateArgument *ret = new STemplateArgument;
-    env.setSTemplArgFromExpr(*ret, param->value);
-    return ret;
+    try {
+      STemplateArgument *ret = new STemplateArgument;
+      *ret = applyArgumentMapToExpression(map, param->value);
+      return ret;
+    }
+    catch (XTypeDeduction &x) {
+      HANDLER();
+      error(stringc << "could not evaluate default argument `"
+                    << param->value->exprToString() 
+                    << "': " << x.why());
+      return NULL;
+    }
   }
 
   return NULL;
@@ -3716,41 +3733,8 @@ void Env::applyArgumentMapToTemplateArgs
       dest.prepend(rta);
     }
     else if (sta->isDepExpr()) {
-      Expression *e = sta->getDepExpr();
-      if (!e->isE_variable()) {
-        // example: Foo<T::x + 1>, where T maps to some class 'C' that
-        // has an integer constant 'x'
-        //
-        // TODO: my plan is to invoke the constant-expression
-        // evaluator, modified to accept 'map' so it knows how to
-        // handle template parameters
-        xunimp("applyArgumentMap: dep-expr is not E_variable");
-      }
-      E_variable *evar = e->asE_variable();
-
-      STemplateArgument replacement;
-      if (evar->var->isTemplateParam()) {
-        // name refers directly to a template parameter
-        xassert(evar->name->isPQ_name());     // no qualifiers
-        STemplateArgument const *tmp = map.get(evar->var->name);
-        xassert(tmp);                         // map should bind it
-        replacement = *tmp;
-      }
-      else {
-        // name must refer to a qualified name involving the template
-        // parameter
-        xassert(evar->var == dependentVar);
-        xassert(evar->name->isPQ_qualifier());            
-        replacement = applyArgumentMapToQualifiedName(map, 
-                        evar->name->asPQ_qualifier());
-      }
-
-      if (!replacement.isObject()) {
-        xTypeDeduction(stringc
-          << "the name `" << evar->name->toString()
-          << "' should be bound to an object argument");
-      }
-
+      STemplateArgument replacement = 
+        applyArgumentMapToExpression(map, sta->getDepExpr());
       dest.prepend(replacement.shallowClone());
     }
     else {
@@ -3760,6 +3744,57 @@ void Env::applyArgumentMapToTemplateArgs
   }
 
   dest.reverse();
+}
+
+
+STemplateArgument Env::applyArgumentMapToExpression
+  (STemplateArgumentCMap &map, Expression *e)
+{ 
+  // hack: just try evaluating it first; this will only work if
+  // the expression is entirely non-dependent (in/t0287.cc)
+  STemplateArgument ret;
+  setSTemplArgFromExpr(ret, e);
+  if (!ret.isDepExpr()) {
+    return ret;     // good to go
+  }
+  
+  // TOOD: I think the right way to do this is to use the
+  // constant-evaluator (which setSTemplArgFromExpr uses
+  // internally), modified to use 'map'
+
+  if (!e->isE_variable()) {
+    // example: Foo<T::x + 1>, where T maps to some class 'C' that
+    // has an integer constant 'x'
+    //
+    // TODO: my plan is to invoke the constant-expression
+    // evaluator, modified to accept 'map' so it knows how to
+    // handle template parameters
+    xunimp("applyArgumentMap: dep-expr is not E_variable");
+  }
+  E_variable *evar = e->asE_variable();
+
+  if (evar->var->isTemplateParam()) {
+    // name refers directly to a template parameter
+    xassert(evar->name->isPQ_name());     // no qualifiers
+    STemplateArgument const *tmp = map.get(evar->var->name);
+    xassert(tmp);                         // map should bind it
+    ret = *tmp;
+  }
+  else {
+    // name must refer to a qualified name involving the template
+    // parameter
+    xassert(evar->var == dependentVar);
+    xassert(evar->name->isPQ_qualifier());
+    ret = applyArgumentMapToQualifiedName(map, evar->name->asPQ_qualifier());
+  }
+
+  if (!ret.isObject()) {
+    xTypeDeduction(stringc
+      << "the name `" << evar->name->toString()
+      << "' should be bound to an object argument");
+  }
+
+  return ret;
 }
 
 

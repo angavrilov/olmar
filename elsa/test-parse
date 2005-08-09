@@ -28,7 +28,7 @@ while [ "$1" != "" ]; do
   else
     code=$?
     echo "$fname: had errors"
-    exit $code
+    #exit $code
   fi
 done
 
