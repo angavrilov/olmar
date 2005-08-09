@@ -132,7 +132,6 @@ public:
 };
 
 // print out type annotations for every ast node that has a type
-//  class ToXmlASTVisitor_Types : public ASTVisitor {
 class ToXmlASTVisitor_Types : public ToXmlASTVisitor {
 //    ostream &out;                 // for the <Link/> tags
   TypeToXml &ttx;
@@ -141,9 +140,10 @@ class ToXmlASTVisitor_Types : public ToXmlASTVisitor {
   ToXmlASTVisitor_Types
     (TypeToXml &ttx0,
      ostream &out0,
+     int &depth0,
      bool indent0 = false,
      bool ensureOneVisit0 = true)
-      : ToXmlASTVisitor(out0, indent0, ensureOneVisit0)
+      : ToXmlASTVisitor(out0, depth0, indent0, ensureOneVisit0)
       , ttx(ttx0)
   {}
 
@@ -781,13 +781,14 @@ void doit(int argc, char **argv)
 #if XML
     traceProgress() << "dsw xml print...\n";
     bool indent = tracingSys("xmlPrintAST-indent");
+    int depth = 0;              // shared depth counter between printers
     cout << "---- START ----" << endl;
     if (tracingSys("xmlPrintAST-types")) {
-      TypeToXml xmlTypeVis(cout);
-      ToXmlASTVisitor_Types xmlVis_Types(xmlTypeVis, cout);
+      TypeToXml xmlTypeVis(cout, depth, indent);
+      ToXmlASTVisitor_Types xmlVis_Types(xmlTypeVis, cout, depth, indent);
       unit->traverse(xmlVis_Types);
     } else {
-      ToXmlASTVisitor xmlVis(cout, indent);
+      ToXmlASTVisitor xmlVis(cout, depth, indent);
       unit->traverse(xmlVis);
     }
     cout << endl;
