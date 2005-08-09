@@ -453,7 +453,7 @@ public:
     { return equals(&obj); }
 
   // does it contain variables?
-  bool containsVariables() const;
+  bool containsVariables(MType *map = NULL) const;
 
   // let type variables bind to each other
   bool isomorphic(STemplateArgument const *obj) const;
@@ -474,8 +474,8 @@ string sargsToString(SObjList<STemplateArgument> const &list);
 inline string sargsToString(ObjList<STemplateArgument> const &list)
   { return sargsToString((SObjList<STemplateArgument> const &)list); }
 
-bool containsVariables(SObjList<STemplateArgument> const &args);
-bool containsVariables(ObjList<STemplateArgument> const &args);
+bool containsVariables(SObjList<STemplateArgument> const &args, MType *map = NULL);
+bool containsVariables(ObjList<STemplateArgument> const &args, MType *map = NULL);
 
 bool hasDependentArgs(SObjList<STemplateArgument> const &args);
 

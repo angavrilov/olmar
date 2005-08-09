@@ -52,6 +52,7 @@ class TypeVariable;       // template.h
 class PseudoInstantiation;// template.h
 class DependentQType;     // template.h
 class ReadXML;            // xml.h
+class MType;              // mtype.h
 
 // fwd in this file
 class AtomicType;
@@ -767,7 +768,10 @@ public:     // funcs
 
   // returns true if contains type or object variables (template
   // parameters); recurses down into TemplateArguments
-  bool containsVariables() const;
+  //
+  // if 'map' is not NULL, then we only count variables that
+  // are *not* bound in 'map'
+  bool containsVariables(MType *map = NULL) const;
 
   ALLOC_STATS_DECLARE
 };

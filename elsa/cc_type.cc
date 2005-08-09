@@ -1439,28 +1439,79 @@ bool BaseType::containsTypeVariables() const
 }
 
 
-bool atomicTypeHasVariable(AtomicType const *t)
+// TODO: sm: I think it's wrong to have both 'hasTypeVariable' and
+// 'hasVariable', since I think any use of the former actually wants
+// to be a use of the latter.
+
+
+// ------------------ ContainsVariablesPred ------------------
+class ContainsVariablesPred : public TypePred {
+public:      // data
+  MType *map;        // nullable serf
+
+private:     // funcs
+  bool isUnbound(StringRef name);
+
+public:      // funcs
+  ContainsVariablesPred(MType *m) : map(m) {}
+
+  virtual bool operator() (Type const *t);
+  bool atomicTypeHasVariable(AtomicType const *t);
+  bool nameContainsVariables(PQName const *name);
+};
+
+
+bool ContainsVariablesPred::isUnbound(StringRef name)
 {
-  if (t->isTypeVariable() ||
-      t->isPseudoInstantiation() ||
-      t->isDependentQType()) {
-    return true;
+  return !map || !map->isBound(name);
+}
+
+
+bool ContainsVariablesPred::atomicTypeHasVariable(AtomicType const *t)
+{
+  if (t->isTypeVariable()) {
+    return isUnbound(t->asTypeVariableC()->name);
+  }
+
+  if (t->isPseudoInstantiation()) {
+    PseudoInstantiation const *pi = t->asPseudoInstantiationC();
+    return atomicTypeHasVariable(pi->primary) ||
+           containsVariables(pi->args, map);
+  }
+
+  if (t->isDependentQType()) {
+    DependentQType const *dqt = t->asDependentQTypeC();
+    return atomicTypeHasVariable(dqt->first) ||
+           nameContainsVariables(dqt->rest);
   }
 
   if (t->isCompoundType() && t->asCompoundTypeC()->isTemplate()) {
-    return t->asCompoundTypeC()->templateInfo()->argumentsContainVariables();
+    return containsVariables(t->asCompoundTypeC()->templateInfo()->arguments, map);
   }
-
 
   return false;
 }
 
-// TODO: sm: I think it's wrong to have both 'hasTypeVariable' and
-// 'hasVariable', since I think any use of the former actually wants
-// to be a use of the latter.  Moreover, assuming their functionality
-// collapses, I prefer the former *name* since it's more suggestive of
-// use in templates (even if it would then be slightly inaccurate).
-bool hasVariable(Type const *t)
+
+bool ContainsVariablesPred::nameContainsVariables(PQName const *name)
+{
+  ASTSWITCHC(PQName, name) {
+    ASTCASEC(PQ_template, t) {
+      return containsVariables(t->sargs, map);
+    }
+    ASTNEXTC(PQ_qualifier, q) {
+      return containsVariables(q->sargs, map) ||
+             nameContainsVariables(q->rest);
+    }
+    ASTDEFAULTC {
+      return false;
+    }
+    ASTENDCASEC
+  }
+}
+
+
+bool ContainsVariablesPred::operator() (Type const *t)
 {
   if (t->isCVAtomicType()) {
     return atomicTypeHasVariable(t->asCVAtomicTypeC()->atomic);
@@ -1472,9 +1523,11 @@ bool hasVariable(Type const *t)
   return false;
 }
 
-bool BaseType::containsVariables() const
+
+bool BaseType::containsVariables(MType *map) const
 {
-  return anyCtorSatisfiesF(hasVariable);
+  ContainsVariablesPred cvp(map);
+  return anyCtorSatisfies(cvp);
 }
 
 

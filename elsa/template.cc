@@ -818,14 +818,18 @@ bool STemplateArgument::equals(STemplateArgument const *obj,
 }
 
 
-bool STemplateArgument::containsVariables() const
+bool STemplateArgument::containsVariables(MType *map) const
 {
   if (kind == STemplateArgument::STA_TYPE) {
-    if (value.t->containsVariables()) {
+    if (value.t->containsVariables(map)) {
       return true;
     }
   }
   else if (kind == STA_DEPEXPR) {
+    // TODO: This is wrong because the variables might be bound
+    // in 'map'.  I think a reasonable solution would be to
+    // rehabilitate the TypeVisitor, and design a nice way for
+    // a TypeVisitor and an ASTVisitor to talk to each other.
     return true;
   }
 
@@ -931,19 +935,19 @@ string sargsToString(SObjList<STemplateArgument> const &list)
 
 // return true if the semantic template arguments in 'args' are not
 // all concrete
-bool containsVariables(SObjList<STemplateArgument> const &args)
+bool containsVariables(SObjList<STemplateArgument> const &args, MType *map)
 {
   SFOREACH_OBJLIST(STemplateArgument, args, iter) {
-    if (iter.data()->containsVariables()) {
+    if (iter.data()->containsVariables(map)) {
       return true;
     }
   }
   return false;     // all are concrete
 }
 
-bool containsVariables(ObjList<STemplateArgument> const &args)
+bool containsVariables(ObjList<STemplateArgument> const &args, MType *map)
 {
-  return containsVariables(objToSObjListC(args));
+  return containsVariables(objToSObjListC(args), map);
 }
 
 
@@ -1186,6 +1190,11 @@ bool Env::inferTemplArgsFromFuncArgs
 
   TRACE("template", "deducing template arguments from function arguments");
 
+  // make a copy of the original bindings; this way I can tell if a
+  // parameter was made concrete just from the explicitly-provided
+  // arguments, as opposed to by additional deduced arguments
+  MType origMatch(match);
+
   // if the caller has passed in information about the receiver object
   // (so this function can work for nonstatic members), but the
   // function here is not a method, we need to skip the receiver
@@ -1208,18 +1217,12 @@ bool Env::inferTemplArgsFromFuncArgs
     Variable *param = paramIter.data();
     xassert(param);
 
-    // 9/26/04: if the parameter does not contain any template params,
-    // then strict matching is not required (I'm pretty sure I saw this
-    // somewhere in cppstd, and gcc agrees (in/t0324.cc), but now I can't
-    // find the proper reference...)
-    //
-    // TODO: Actually, this isn't quite right: if explicit template
-    // arguments are supplied, and after the substitution is applied
-    // this parameter's type *becomes* concrete, then we are supposed
-    // to treat it as if it always was concrete.  But the way the code
-    // is now, we will treat it as if it still was abstract and hence
-    // needed to match almost exactly.
-    if (!param->type->containsVariables()) {
+    // 2005-08-09: If the parameter does not have any template
+    // parameters, after substitution of explicitly-provided
+    // arguments, then strict matching is not required so we skip it
+    // during template argument deduction.  [cppstd 14.8.1p4]
+    // (in/t0324.cc, in/t0534.cc)
+    if (!param->type->containsVariables(&origMatch)) {
       // skip it; no deduction can occur, and any convertibility errors
       // will be detected later
     }

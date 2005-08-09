@@ -45,6 +45,7 @@ protected:   // types
 
   public:
     Binding() : sarg(), cv(CV_NONE) {}
+    Binding(Binding const &obj) : sarg(obj.sarg), cv(obj.cv) {}
 
     bool operator== (Binding const &obj) const;
 
@@ -190,9 +191,13 @@ public:      // funcs
   // how many bindings are currently active?
   int getNumBindings() const;
 
+  // returns true if 'name' is bound to something; this *can* be
+  // called even when 'allowNonConst' is false
+  bool isBound(StringRef name) const;
+
   // get the binding for 'name', or return STA_NONE if none;
   // 'allowNonConst' must be true
-  STemplateArgument getBoundValue(StringRef name, TypeFactory &tfac);
+  STemplateArgument getBoundValue(StringRef name, TypeFactory &tfac) const;
 
   // set a binding; 'value' must not be STA_NONE
   void setBoundValue(StringRef name, STemplateArgument const &value);

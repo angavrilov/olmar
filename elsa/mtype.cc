@@ -1381,14 +1381,20 @@ int MType::getNumBindings() const
 }
 
 
-STemplateArgument MType::getBoundValue(StringRef name, TypeFactory &tfac)
+bool MType::isBound(StringRef name) const
+{
+  return !!bindings.getC(name);
+}
+
+
+STemplateArgument MType::getBoundValue(StringRef name, TypeFactory &tfac) const
 {
   // you can't do this with the matcher that promises to
   // only work with const pointers; this assertion provides
   // the justification for the const_casts below
   xassert(allowNonConst);
 
-  Binding *b = bindings.get(name);
+  Binding const *b = bindings.getC(name);
   if (!b) {
     return STemplateArgument();
   }
