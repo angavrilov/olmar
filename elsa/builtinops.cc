@@ -195,7 +195,7 @@ void PredicateCandidateSet::instantiateCandidate(Env &env,
     instantiations.add(T, ic);
 
     OVERLOADTRACE("cset: made new instantiation: " << T->toString() <<
-                  " (" << T->hashValue() << ")");
+                  " (hash=" << T->hashValue() << ")");
   }
 
   // give it to the resolver
@@ -248,6 +248,12 @@ void PredicateCandidateSet::addAmbigCandidate(Env &env, OverloadResolver &resolv
 
 
 // ------------------ AssignmentCandidateSet -----------------
+bool isAssignmentOperator(OverloadableOp op)
+{
+  return OP_ASSIGN <= op && op <= OP_BITOREQ;
+}
+
+
 AssignmentCandidateSet::AssignmentCandidateSet(SimpleTypeId retId, PreFilter r, PostFilter o)
   : PredicateCandidateSet(retId, r, o)
 {}
@@ -258,6 +264,14 @@ void AssignmentCandidateSet::instantiateBinary(Env &env,
   ArgumentInfo &lhsInfo, ArgumentInfo &/*rhsInfo*/)
 {
   generation++;
+
+  if (isAssignmentOperator(op) && lhsInfo.type->asRval()->isCompoundType()) {
+    // 13.3.1.2p4b2: cannot use user-defined conversions to convert
+    // the LHS of an assignment operator, so that means that if the
+    // LHS is of class type, then a built-in candidate can't be used
+    OVERLOADTRACE("cset: disabling conversion operators of LHS of operator" << toString(op));
+    return;
+  }
 
   // collect all of the operator functions rettypes
   SObjList<Type> lhsRets;
@@ -445,7 +459,7 @@ void ArrowStarCandidateSet::instantiateCandidate(Env &env,
     instantiations.add(&(ic->types), ic);
 
     OVERLOADTRACE("->*set: made new instantiation: " << pair.asString() <<
-                  " (" << pair.hashValue() << ")");
+                  " (hash=" << pair.hashValue() << ")");
   }
 
   // give it to the resolver

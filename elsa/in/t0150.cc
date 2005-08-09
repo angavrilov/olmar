@@ -1,6 +1,8 @@
 // t0150.cc
 // operator= with correlated parameters
 
+// 2005-08-09: Had to change to operator== b/c of 13.3.1.2p4b2.
+
 //         A          .
 //        / \         .
 //       B   C        .
@@ -57,7 +59,6 @@ struct Bpmr {
 };
 
 
-
 void f1()
 {
   Ap ap;
@@ -72,19 +73,19 @@ void f1()
   Bpm bpm;
   Bpmr bpmr;
 
-  apr = ap;
-  apvr = ap;
-  apr = ap;
-  //ERROR(1): ap.operator A*() = ap;       // lhs isn't reference
-  //ERROR(2): bpr = cp;      // would not be sound
-  bpr = bp;
-  apr = bp;
+  apr == ap;
+  apvr == ap;
+  apr == ap;
+  //nerfed(1): ap.operator A*() == ap;       // lhs isn't reference
+  //nerfed(2): bpr == cp;      // would not be sound
+  bpr == bp;
+  apr == bp;
 
-  er = E_VAL;
+  er == E_VAL;
 
-  bpmr = bpm;
-  bpmr = apm;    // inverted subtyping for ptr-to-member
-  //ERROR(3): apmr = bpm;    // violates inverted order
+  bpmr == bpm;
+  bpmr == apm;    // inverted subtyping for ptr-to-member
+  //nerfed(3): apmr == bpm;    // violates inverted order
 
 }
 

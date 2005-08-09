@@ -9,10 +9,12 @@ struct B : A {
   operator int ();
 };
 
+int &assign(int &, int);
+
 void f1()
 {
   B b;
 
   // needs B to inherit A::operator int& ()
-  b = 3;
+  assign(b, 3);
 }

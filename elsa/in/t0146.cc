@@ -1,9 +1,17 @@
 // t0146.cc
 // operator=
 
+// 2005-08-09: It turns out most of this test is invalid because of
+// 13.3.1.2p4b2.  So I am replacing uses of operator= with calls to
+// 'assign', which behaves the way I had previously implemented
+// operator=, thus retaining some of this test's ability to test
+// overload resolution.
+int &assign(int &, int);
+int volatile &assign(int volatile &, int);
+
 // turn on operator overloading
-int dummy();                    // line 5
-void ddummy() { __testOverload(dummy(), 5); }
+int dummy();                    // line 13
+void ddummy() { __testOverload(dummy(), 13); }
 
 struct A {
   operator int& ();
@@ -15,7 +23,7 @@ struct B {
 };
 
 struct C {
-  void operator= (int);       // line 18
+  void operator= (int);       // line 26
 };
 
 // not a problem to have two conversion operators, if only
@@ -39,11 +47,11 @@ void f1()
   D d;
   E e;
 
-  a = b;
-  __testOverload(c = b, 18);
+  assign(a, b);        // was: "a = b"
+  __testOverload(c = b, 26);
   //ERROR(1): b.operator int() = b;           // 'b' can't convert to an L&
-  d = b;
-  e = 3;
+  assign(d, b);        // was: "d = b"
+  assign(e, 3);        // was: "e = 3"
   
   // similar to netscape test; hit all the operators
   int mFlags;

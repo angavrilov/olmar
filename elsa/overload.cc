@@ -1741,6 +1741,23 @@ bool isPointerToVoid(Type *t)
          t->getAtType()->isVoid();
 }
 
+CompoundType *ifPtrToMember(Type *t)
+{
+  if (t->isPointerToMemberType()) {
+    PointerToMemberType *ptm = t->asPointerToMemberType();
+    if (ptm->inClassNAT->isCompoundType()) {
+      return ptm->inClassNAT->asCompoundType();
+    }
+  }
+  return NULL;
+}
+ 
+// clear any toplevel cv-qualifications
+Type *cvUnqualified(Env &env, Type *t)
+{
+  return env.tfac.setQualifiers(SL_UNKNOWN, CV_NONE, t, NULL /*syntax*/);
+}
+
 Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
 {
   wasAmbig = false;
@@ -1815,6 +1832,22 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
   //
   // Since this situation should be extremely rare, I won't bother for
   // now.  (See also convertibility.txt.)
+  
+  // 2005-08-09: I managed to accidentally hack in/t0150.cc so that it
+  // exposes the need to at least check for direct descendant
+  // relationship with identical types, since GCC and ICC do so.
+  {
+    CompoundType *ct1 = ifPtrToMember(t1);
+    CompoundType *ct2 = ifPtrToMember(t2);
+    if (ct1 && ct2 && t1->getAtType()->equals(t2->getAtType())) {
+      if (ct1->hasBaseClass(ct2)) {
+        return cvUnqualified(env, t1);    // lower in the hierarchy
+      }
+      if (ct2->hasBaseClass(ct1)) {
+        return cvUnqualified(env, t2);
+      }
+    }
+  }
 
   // ok, inheritance is irrelevant; I need to see if types
   // are "similar" (4.4 para 4)
@@ -1829,7 +1862,7 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
   // to yield out
   if (t1->equals(t2, MF_IGNORE_TOP_CV)) {
     // use 't1', but make sure we're not returning a cv-qualified type
-    return env.tfac.setQualifiers(SL_UNKNOWN, CV_NONE, t1, NULL /*syntax*/);
+    return cvUnqualified(env, t1);
   }
   
   // not equal, but they *are* similar, so construct the lub type; for

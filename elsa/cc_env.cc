@@ -826,6 +826,8 @@ void Env::setupOperatorOverloading()
       //   T* VQ & operator= (T* VQ &, T*);
       // pattern where T can be pointer (para 19), enumeration (para 20),
       // pointer to member (para 20), or arithmetic (co-opted para 18)
+      //
+      // in/t0312.cc tests this
       filter = para19_20_andArith_filter;
     }
     addBuiltinBinaryOp(ST_PRET_FIRST, OP_ASSIGN, filter,
