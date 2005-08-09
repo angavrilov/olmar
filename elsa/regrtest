@@ -253,8 +253,13 @@ failparse() {
   fi
   failTest "$2" perl ./multitest.pl ./ccparse in/$1
 }
-failparse_strict() {
-  failTest "$2" perl ./multitest.pl ./ccparse -tr strict in/$1
+
+failparse_special() {
+  if [ "$3" = "" ]; then
+    echo "failparse_special $2: failparse_special takes three arguments"
+    exit 4
+  fi
+  failTest "$3" perl ./multitest.pl ./ccparse -tr $1 in/$2
 }
 
 # ---- BEGIN: lots of tests ----
@@ -1037,11 +1042,11 @@ testparse_special permissive gnu/bugs/gb0006.cc
 #   (plus more from before I started maintaining this list ...)
 rm -f in/std/*.error*.cc
 for fn in in/std/*.cc; do
-  runTest perl ./multitest.pl ./ccparse "$fn"
+  runTest perl ./multitest.pl ./ccparse -tr ansi "$fn"
 done
 
 # for the benefit of gcov
-runTest ./ccparse -tr printHierarchies in/std/3.4.5.cc
+runTest ./ccparse -tr printHierarchies,ansi in/std/3.4.5.cc
 
 # more in another (private) repository, if present
 if [ -f ../cppstdex/regrtest_inner ]; then
@@ -1111,6 +1116,7 @@ if $use_gnu; then
   testparse gnu/d0094.cc
 
   testparse gnu/bugs/gb0008.cc
+  testparse gnu/bugs/gb0009.cc
 
   # test c99 extensions
   for fn in in/c99/*.c; do

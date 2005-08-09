@@ -200,11 +200,21 @@ public:
   // applied to function types via typedefs; it's meaningless
   Bool3 allowCVAppliedToFunctionTypes;
 
-public:
+  // gcc bug compat: gcc does not enforce the rule that a definition
+  // must be in a scope that encloses the declaration
+  Bool3 allowDefinitionsInWrongScopes;
+                     
+private:     // funcs
+  void setAllWarnings(bool enable);
+
+public:      // funcs
   CCLang() { ANSI_C89(); }
 
   // set any B3_TRUE to B3_WARN
-  void enableAllWarnings();
+  void enableAllWarnings() { setAllWarnings(true); }
+
+  // set any B3_WARN to B3_TRUE
+  void disableAllWarnings() { setAllWarnings(false); }
 
   // the following are additive incremental
 

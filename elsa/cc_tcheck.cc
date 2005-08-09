@@ -515,9 +515,10 @@ void Function::tcheckBody(Env &env)
           // suppressing the error in this case
         }
         else {
-          env.error(stringc
+          env.diagnose3(env.lang.allowDefinitionsInWrongScopes, env.loc(), stringc
             << "function definition of `" << *(nameAndParams->getDeclaratorId())
-            << "' must appear in a namespace that encloses the original declaration");
+            << "' must appear in a namespace that encloses the original declaration"
+            << " (gcc bug allows it)");
         }
       }
 

@@ -6,23 +6,31 @@
 #include <string.h>      // memset
 
 
-static void enableWarning(Bool3 &b)
+static void setWarning(Bool3 &b, bool enable)
 {
-  if (b == B3_TRUE) {
-    b = B3_WARN;
+  if (enable) {
+    if (b == B3_TRUE) {
+      b = B3_WARN;       // accept with warning
+    }
+  }
+  else {
+    if (b == B3_WARN) {
+      b = B3_TRUE;       // accept silently
+    }
   }
 }
 
-void CCLang::enableAllWarnings()
+void CCLang::setAllWarnings(bool enable)
 {
-  enableWarning(allowImplicitFunctionDecls);
-  enableWarning(allowImplicitIntForOperators);
-  enableWarning(allowQualifiedMemberDeclarations);
-  enableWarning(allowModifiersWithTypedefNames);
-  enableWarning(allowAnonymousStructs);
-  enableWarning(allowGcc2HeaderSyntax);
-  enableWarning(allowRepeatedTypeSpecifierKeywords);
-  enableWarning(allowCVAppliedToFunctionTypes);
+  setWarning(allowImplicitFunctionDecls, enable);
+  setWarning(allowImplicitIntForOperators, enable);
+  setWarning(allowQualifiedMemberDeclarations, enable);
+  setWarning(allowModifiersWithTypedefNames, enable);
+  setWarning(allowAnonymousStructs, enable);
+  setWarning(allowGcc2HeaderSyntax, enable);
+  setWarning(allowRepeatedTypeSpecifierKeywords, enable);
+  setWarning(allowCVAppliedToFunctionTypes, enable);
+  setWarning(allowDefinitionsInWrongScopes, enable);
 }
 
 
@@ -74,6 +82,7 @@ void CCLang::ANSI_C89()
   allowGcc2HeaderSyntax = B3_FALSE;
   allowRepeatedTypeSpecifierKeywords = B3_FALSE;
   allowCVAppliedToFunctionTypes = B3_FALSE;
+  allowDefinitionsInWrongScopes = B3_FALSE;
 }
 
 void CCLang::KandR_C()
@@ -204,6 +213,7 @@ void CCLang::ANSI_Cplusplus()
   allowGcc2HeaderSyntax = B3_FALSE;
   allowRepeatedTypeSpecifierKeywords = B3_FALSE;
   allowCVAppliedToFunctionTypes = B3_FALSE;
+  allowDefinitionsInWrongScopes = B3_FALSE;
 }
 
 void CCLang::GNU_Cplusplus()
@@ -227,6 +237,7 @@ void CCLang::GNU_Cplusplus()
 
   gcc2StdEqualsGlobalHacks = true;
   allowGcc2HeaderSyntax = B3_TRUE;
+  allowDefinitionsInWrongScopes = B3_TRUE;
 }
 
 
