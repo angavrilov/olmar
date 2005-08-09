@@ -7603,14 +7603,17 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
       return e2->type/*rhsType*/;
 
     case BIN_PLUS:                // +
-      // dsw: deal with pointer arithmetic correctly; Note that the case
-      // p + 1 is handled correctly by the default behavior; this is the
-      // case 1 + p.
+      // case: p + n
+      if (lhsType->isPointerType()) {
+        return lhsType;
+      }
+
+      // case: n + p.
       if (lhsType->isIntegerType() && rhsType->isPointerType()) {
         return rhsType;         // a pointer type, that is
       }
-      // default behavior of returning the left side is close enough for now.
-      break;
+
+      return usualArithmeticConversions(env.tfac, lhsType, rhsType);
 
     case BIN_MINUS:               // -
       // dsw: deal with pointer arithmetic correctly; this is the case
@@ -7618,12 +7621,14 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
       if (lhsType->isPointerType() && rhsType->isPointerType() ) {
         return env.getSimpleType(ST_INT);
       }
-      // default behavior of returning the left side is close enough for now.
-      break;
+      return usualArithmeticConversions(env.tfac, lhsType, rhsType);
 
     case BIN_MULT:                // *
     case BIN_DIV:                 // /
     case BIN_MOD:                 // %
+      // in/t0533.cc
+      return usualArithmeticConversions(env.tfac, lhsType, rhsType);
+
     case BIN_LSHIFT:              // <<
     case BIN_RSHIFT:              // >>
     case BIN_BITAND:              // &

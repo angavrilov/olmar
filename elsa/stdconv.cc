@@ -952,6 +952,9 @@ static SimpleTypeId uacHelper(SimpleTypeId leftId, SimpleTypeId rightId);
 // and C99 secton 6.3.1.8 para 1
 Type *usualArithmeticConversions(TypeFactory &tfac, Type *left, Type *right)
 {
+  if (left->isError()) { return left; }
+  if (right->isError()) { return right; }
+
   // if either operand is of type long double, [return] long double
   if (left->isSimple(ST_LONG_DOUBLE)) { return left; }
   if (right->isSimple(ST_LONG_DOUBLE)) { return right; }
