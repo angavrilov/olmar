@@ -2983,6 +2983,7 @@ realStart:
         !isFriend &&
         !isConstructor &&               // ctors don't have a 'this' param
         !(dt.dflags & DF_STATIC) &&
+        !(dt.dflags & DF_TYPEDEF) &&    // in/t0536.cc
         (!name->hasQualifiers() ||
          !prior->type->isFunctionType() ||
          prior->type->asFunctionTypeC()->isMethod())) {
