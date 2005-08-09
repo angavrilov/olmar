@@ -4728,12 +4728,17 @@ Type *makeLvalType(Env &env, Type *underlying)
 }
 
 
-// make the type of a field that has declared type 't', but is being
-// accessed in an object whose reference is qualified with 'cv'
-Type *makeFieldLvalType(Env &env, Type *t, CVFlags cv)
-{
+// make the type of a field 'field', but is being accessed in an
+// object whose reference is qualified with 'cv'
+Type *makeFieldLvalType(Env &env, Variable *var, CVFlags cv)
+{      
+  Type *t = var->type;
   if (t->isReferenceType() || t->isFunctionType()) {
     return t;
+  }
+
+  if (var->hasFlag(DF_MUTABLE)) {
+    cv = cv & ~CV_CONST;    // mutable defeats const (in/t0529.cc) [7.1.1p9]
   }
 
   t = env.tfac.applyCVToType(env.loc(), cv, t, NULL /*syntax*/);
@@ -5206,7 +5211,7 @@ E_fieldAcc *wrapWithImplicitThis(Env &env, Variable *var, PQName *name)
   // E_fieldAcc::itcheck_fieldAcc() does something a little more
   // complicated, but we don't need that since the situation is
   // more constrained here
-  efieldAcc->type = makeFieldLvalType(env, var->type,
+  efieldAcc->type = makeFieldLvalType(env, var,
                                       ths->type->getAtType()->getCVFlags());
 
   return efieldAcc;
@@ -7083,7 +7088,7 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
   // type of expression is type of field; possibly as an lval
   if (obj->type->isLval()) {
     // TODO: this is wrong if the field names an enumerator (5.2.5p4b5)
-    return makeFieldLvalType(env, field->type, lhsType->getCVFlags());
+    return makeFieldLvalType(env, field, lhsType->getCVFlags());
   }
   else {
     return field->type;
