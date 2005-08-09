@@ -28,10 +28,6 @@ class SavedScopePair;     // fwd in this file
 class MType;              // mtype.h
 
 
-// moved from matchtype.h
-typedef PtrMap<char const /*StringRef*/, STemplateArgument const> STemplateArgumentCMap;
-
-
 // type of collection to hold a sequence of scopes
 // for nested qualifiers; it can hold up to 2 scopes
 // before resorting to heap allocation
@@ -810,9 +806,9 @@ private:     // template funcs
 
   Variable *findCompleteSpecialization(TemplateInfo *tinfo,
                                        ObjList<STemplateArgument> const &sargs);
-  void bindParametersInMap(STemplateArgumentCMap &map, TemplateInfo *tinfo,
+  void bindParametersInMap(MType &map, TemplateInfo *tinfo,
                            SObjList<STemplateArgument> const &sargs);
-  void bindParametersInMap(STemplateArgumentCMap &map,
+  void bindParametersInMap(MType &map,
                            SObjList<Variable> const &params,
                            SObjListIter<STemplateArgument> &argIter);
 
@@ -825,7 +821,7 @@ private:     // template funcs
      ObjList<STemplateArgument> &dest,
      SObjList<STemplateArgument> const &src);
   STemplateArgument *makeDefaultTemplateArgument
-    (Variable const *param, STemplateArgumentCMap &map);
+    (Variable const *param, MType &map);
 
 public:      // template funcs
   void setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr);
@@ -941,25 +937,25 @@ public:      // template funcs
 
   // apply template arguments to make concrete types, or throw
   // xTypeDeduction to indicate failure
-  Type *applyArgumentMapToType(STemplateArgumentCMap &map, Type *origSrc);
+  Type *applyArgumentMapToType(MType &map, Type *origSrc);
   Type *applyArgumentMapToAtomicType
-    (STemplateArgumentCMap &map, AtomicType *origSrc, CVFlags srcCV);
+    (MType &map, AtomicType *origSrc, CVFlags srcCV);
   Type *applyArgumentMap_applyCV(CVFlags cv, Type *type);
   void applyArgumentMapToTemplateArgs
-    (STemplateArgumentCMap &map, ObjList<STemplateArgument> &dest,
+    (MType &map, ObjList<STemplateArgument> &dest,
                                  ObjList<STemplateArgument> const &srcArgs);
   STemplateArgument applyArgumentMapToExpression
-    (STemplateArgumentCMap &map, Expression *e);
+    (MType &map, Expression *e);
   STemplateArgument applyArgumentMapToQualifiedName
-    (STemplateArgumentCMap &map, PQ_qualifier *qual);
+    (MType &map, PQ_qualifier *qual);
   CompoundType *applyArgumentMap_instClass
-    (STemplateArgumentCMap &map, Variable *primary,
+    (MType &map, Variable *primary,
      ObjList<STemplateArgument> const &sargs);
   STemplateArgument applyArgumentMapToPQName
-    (STemplateArgumentCMap &map, Scope *scope, PQName *name);
+    (MType &map, Scope *scope, PQName *name);
   void applyArgumentMap_ensureComplete(CompoundType *ct);
   Type *applyArgumentMapToQualifiedType
-    (STemplateArgumentCMap &map, CompoundType *ct, PQName *name);
+    (MType &map, CompoundType *ct, PQName *name);
 
   // specialization support
   Variable *makeExplicitFunctionSpecialization

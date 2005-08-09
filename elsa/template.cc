@@ -1681,7 +1681,7 @@ bool Env::insertTemplateArgBindings_oneParamList
         // list; but refining 'param->type' appropriately is not
         // very convenient, so I'm just going to forego the check
         //
-        // TODO: do it right, by building an STemplateArgumentCMap
+        // TODO: do it right, by building an MType
         // and using applyArgumentMap
       }
       else if (binding->value->type->containsGeneralizedDependent()) {
@@ -2288,7 +2288,7 @@ Variable *Env::instantiateFunctionTemplate
   //InstantiationContextIsolator isolator(*this, loc);
 
   // bind the parameters in an STemplateArgumentMap
-  STemplateArgumentCMap map;
+  MType map(true /*allowNonConst*/);
   bindParametersInMap(map, primaryTI, objToSObjListC(sargs));
 
   // compute the type of the instantiation by applying 'map' to
@@ -2784,7 +2784,7 @@ bool Env::supplyDefaultTemplateArguments
 {
   // since default arguments can refer to earlier parameters,
   // maintain a map of the arguments known so far
-  STemplateArgumentCMap map;
+  MType map(true /*allowNonConst*/);
 
   // simultanously iterate over arguments and parameters, building
   // 'dest' as we go
@@ -2822,7 +2822,7 @@ bool Env::supplyDefaultTemplateArguments
     // save this argument
     dest.append(arg);
     if (param->name) {
-      map.add(param->name, arg);
+      map.setBoundValue(param->name, *arg);
     }
 
     paramIter.adv();
@@ -2839,7 +2839,7 @@ bool Env::supplyDefaultTemplateArguments
 
 
 STemplateArgument *Env::makeDefaultTemplateArgument
-  (Variable const *param, STemplateArgumentCMap &map)
+  (Variable const *param, MType &map)
 {
   // type parameter?
   if (param->hasFlag(DF_TYPEDEF) &&
@@ -3522,7 +3522,7 @@ bool Env::mergeTemplateInfos(Variable *prior, TemplateInfo *dest,
 // parameters in a type.  'src' is the type containing references
 // to the parameters, 'map' binds parameters to arguments, and
 // the return value is the type with substitutions performed.
-Type *Env::applyArgumentMapToType(STemplateArgumentCMap &map, Type *origSrc)
+Type *Env::applyArgumentMapToType(MType &map, Type *origSrc)
 {
   // my intent is to not modify 'origSrc', so I will use 'src', except
   // when I decide to return what I already have, in which case I will
@@ -3629,28 +3629,28 @@ Type *Env::applyArgumentMapToType(STemplateArgumentCMap &map, Type *origSrc)
 }
 
 Type *Env::applyArgumentMapToAtomicType
-  (STemplateArgumentCMap &map, AtomicType *origSrc, CVFlags srcCV)
+  (MType &map, AtomicType *origSrc, CVFlags srcCV)
 {
   AtomicType const *src = origSrc;
 
   if (src->isTypeVariable()) {
     TypeVariable const *stv = src->asTypeVariableC();
 
-    STemplateArgument const *replacement = map.get(stv->name);
-    if (!replacement) {
+    STemplateArgument replacement = map.getBoundValue(stv->name, tfac);
+    if (!replacement.hasValue()) {
       // I can trigger these when there is a preceding error;
       // an example is in/t0517.cc error 1
       xTypeDeduction(stringc << "the type name `"
                              << stv->name << "' is not bound");
     }
-    else if (!replacement->isType()) {
+    else if (!replacement.isType()) {
       xTypeDeduction(stringc << "the type name `"
                              << stv->name << "' is bound to a non-type argument");
     }
 
     // take what we got and apply the cv-flags that were associated
     // with the type variable, e.g. "T const" -> "int const"
-    return applyArgumentMap_applyCV(srcCV, replacement->getType());
+    return applyArgumentMap_applyCV(srcCV, replacement.getType());
   }
 
   else if (src->isPseudoInstantiation()) {
@@ -3720,7 +3720,7 @@ Type *Env::applyArgumentMap_applyCV(CVFlags cv, Type *type)
 
 
 void Env::applyArgumentMapToTemplateArgs
-  (STemplateArgumentCMap &map, ObjList<STemplateArgument> &dest,
+  (MType &map, ObjList<STemplateArgument> &dest,
                                ObjList<STemplateArgument> const &srcArgs)
 {
   xassert(dest.isEmpty());     // for prepend+reverse
@@ -3748,7 +3748,7 @@ void Env::applyArgumentMapToTemplateArgs
 
 
 STemplateArgument Env::applyArgumentMapToExpression
-  (STemplateArgumentCMap &map, Expression *e)
+  (MType &map, Expression *e)
 { 
   // hack: just try evaluating it first; this will only work if
   // the expression is entirely non-dependent (in/t0287.cc)
@@ -3776,9 +3776,8 @@ STemplateArgument Env::applyArgumentMapToExpression
   if (evar->var->isTemplateParam()) {
     // name refers directly to a template parameter
     xassert(evar->name->isPQ_name());     // no qualifiers
-    STemplateArgument const *tmp = map.get(evar->var->name);
-    xassert(tmp);                         // map should bind it
-    ret = *tmp;
+    ret = map.getBoundValue(evar->var->name, tfac);
+    xassert(ret.hasValue());              // map should bind it
   }
   else {
     // name must refer to a qualified name involving the template
@@ -3800,7 +3799,7 @@ STemplateArgument Env::applyArgumentMapToExpression
 
 // resolve 'qual' using 'map'
 STemplateArgument Env::applyArgumentMapToQualifiedName
-  (STemplateArgumentCMap &map, PQ_qualifier *qual)
+  (MType &map, PQ_qualifier *qual)
 {
   // we need to know what the qualifier (ignoring template
   // args) refers to
@@ -3826,7 +3825,7 @@ STemplateArgument Env::applyArgumentMapToQualifiedName
 
 // map 'sargs', apply them to 'primary', yield result as a Scope
 CompoundType *Env::applyArgumentMap_instClass
-  (STemplateArgumentCMap &map, Variable *primary,
+  (MType &map, Variable *primary,
    ObjList<STemplateArgument> const &sargs)
 {
   // should be a template class
@@ -3846,7 +3845,7 @@ CompoundType *Env::applyArgumentMap_instClass
 
 // resolve 'name', which is qualified with 'scope', using 'map'
 STemplateArgument Env::applyArgumentMapToPQName
-  (STemplateArgumentCMap &map, Scope *scope, PQName *name)
+  (MType &map, Scope *scope, PQName *name)
 {
   if (scope->curCompound) {
     applyArgumentMap_ensureComplete(scope->curCompound);
@@ -3975,7 +3974,7 @@ void Env::applyArgumentMap_ensureComplete(CompoundType *ct)
 // those tasks are not sufficiently different to warrant two
 // completely separate mechanisms.  Collapsing them is a TODO.
 Type *Env::applyArgumentMapToQualifiedType
-  (STemplateArgumentCMap &map, CompoundType *ct, PQName *name)
+  (MType &map, CompoundType *ct, PQName *name)
 {
   applyArgumentMap_ensureComplete(ct);
 
@@ -4095,7 +4094,7 @@ Variable *Env::makeInstantiationVariable(Variable *templ, Type *instType)
 }
 
 
-void Env::bindParametersInMap(STemplateArgumentCMap &map, TemplateInfo *tinfo,
+void Env::bindParametersInMap(MType &map, TemplateInfo *tinfo,
                               SObjList<STemplateArgument> const &sargs)
 {
   SObjListIter<STemplateArgument> argIter(sargs);
@@ -4114,14 +4113,14 @@ void Env::bindParametersInMap(STemplateArgumentCMap &map, TemplateInfo *tinfo,
   }
 }
 
-void Env::bindParametersInMap(STemplateArgumentCMap &map,
+void Env::bindParametersInMap(MType &map,
                               SObjList<Variable> const &params,
                               SObjListIter<STemplateArgument> &argIter)
 {
   SFOREACH_OBJLIST(Variable, params, iter) {
     Variable const *param = iter.data();
 
-    if (map.get(param->name)) {
+    if (map.getBoundValue(param->name, tfac).hasValue()) {
       error(stringc << "template parameter `" << param->name <<
                        "' occurs more than once");
     }
@@ -4130,7 +4129,7 @@ void Env::bindParametersInMap(STemplateArgumentCMap &map,
                        param->name << "'");
     }
     else {
-      map.add(param->name, argIter.data());
+      map.setBoundValue(param->name, *argIter.data());
     }
 
     if (!argIter.isDone()) {
