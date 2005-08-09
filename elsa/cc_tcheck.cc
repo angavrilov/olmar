@@ -7361,19 +7361,33 @@ Type *resolveOverloadedBinaryOperator(
         // conversions (if any)
 
         if (op == OP_BRACKETS) {
-          // just let the calling code replace it with * and +; that
-          // should get the right type automatically
-          return NULL;
+          // built-in a[b] is equivalent to *(a+b)
+          //
+          // 2005-08-09 (in/t0530.cc): but we *cannot* do a recursive
+          // tcheck, because the '*' and '+' are not subject to
+          // overload resolution; so, compute types manually
+          //
+          // Note that this has the effect of making tcheck+prettyPrint
+          // not idempotent, since the output expression *(a+b) will
+          // be subject to overload resolution and therefore can mean
+          // something different ...
+
+          Type *ret = resolver.getReturnType(winnerCand);
+
+          E_binary *bin = new E_binary(e1, BIN_PLUS, e2);
+          bin->type = env.tfac.makePointerType(CV_NONE, ret->asRval());
+
+          E_deref *deref = new E_deref(bin);
+          deref->type = ret;
+
+          replacement = deref;
+          return deref->type;
         }
         else {
           // get the correct return value, at least
           Type *ret = resolver.getReturnType(winnerCand);
           OVERLOADINDTRACE("computed built-in operator return type `" <<
                            ret->toString() << "'");
-                           
-          // I'm surprised that Oink doesn't complain about this not
-          // being cloned... but since it appears unnecessary, there is
-          // no point, so I will leave it un-cloned.
           return ret;
         }
       }
