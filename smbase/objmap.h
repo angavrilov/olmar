@@ -17,6 +17,7 @@ private:    // data
 
 public:     // funcs
   ObjMap() {}
+  ObjMap(ObjMap const &src) { *this = src; }
   ~ObjMap() { empty(); }
 
   // query # of mapped entries
@@ -43,6 +44,9 @@ public:     // funcs
 
   // remove all mappings, and deallocate all VALUEs
   void empty();
+  
+  // copy the whole map, including making copies of the VALUEs
+  ObjMap& operator=(ObjMap const &src);
 
 
 public:      // iterators
@@ -86,7 +90,7 @@ public:      // iterators
 
 template <class KEY, class VALUE>
 void ObjMap<KEY,VALUE>::empty()
-{ 
+{
   // delete the values; enclose in {} so the iterator goes
   // away before the table is modified
   {
@@ -97,6 +101,23 @@ void ObjMap<KEY,VALUE>::empty()
   }
 
   map.empty();
+}
+
+
+template <class KEY, class VALUE>
+ObjMap<KEY,VALUE>& ObjMap<KEY,VALUE>::operator=(ObjMap const &src)
+{
+  if (this != &src) {
+    empty();
+    
+    // insert copies
+    IterC iter(src);
+    for (; !iter.isDone(); iter.adv()) {
+      add(iter.key(), new VALUE(*iter.value()));
+    }
+  }
+
+  return *this;
 }
 
 
