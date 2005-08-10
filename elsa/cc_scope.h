@@ -66,6 +66,11 @@ private:     // data
 
   // per-scope change count
   int changeCount;
+  
+  // true if the scope is currently on the scope stack, meaning
+  // lookups can find it; this is used to ensure that no scope is
+  // ever on the scope stack twice
+  bool onScopeStack;
 
 public:      // data
   // when this is set to false, the environment knows it should not
@@ -334,6 +339,10 @@ public:      // funcs
 
   // set 'parameterizedEntity', checking a few things in the process
   void setParameterizedEntity(Variable *entity);
+
+  // this scope must be a CompoundType or a namespace; get the
+  // Variable 'v' such that v.getDenotedScope() == this
+  Variable *getScopeVariable() const;
 
   // dsw: I know this is *almost* the only virtual method, but
   // traverse() is virtual everywhere else; change it if you like

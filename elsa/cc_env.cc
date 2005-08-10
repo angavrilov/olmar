@@ -381,11 +381,13 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // this scope to acquire DF_GLOBAL
     Scope *s = new Scope(SK_GLOBAL, 0 /*changeCount*/, emptyLoc);
     scopes.prepend(s);
+    s->openedScope(*this);
     
     // make a Variable for it
     globalScopeVar = makeVariable(SL_INIT, str("<globalScope>"), 
                                   NULL /*type*/, DF_NAMESPACE);
     globalScopeVar->scope = s;
+    s->namespaceVar = globalScopeVar;
   }
 
   dependentTypeVar = makeVariable(SL_INIT, str("<dependentTypeVar>"),
@@ -929,6 +931,7 @@ Env::~Env()
   // which are in fact not owned
   while (scopes.isNotEmpty()) {
     Scope *s = scopes.removeFirst();
+    s->closedScope();
     if (s->curCompound || s->namespaceVar || s->isGlobalScope()) {
       // this isn't one we own
       // 8/06/04: don't delete the global scope, just leak it,
@@ -1132,8 +1135,6 @@ Scope *Env::enterScope(ScopeKind sk, char const *forWhat)
 
   TRACE("scope", locStr() << ": entered " << newScope->desc() << " for " << forWhat);
 
-  // this is actually a no-op since there can't be any edges for
-  // a new scope, but I do it for uniformity
   newScope->openedScope(*this);
 
   return newScope;
@@ -1977,6 +1978,74 @@ bool Env::getQualifierScopes(ScopeSeq &scopes, PQName const *name,
   }
 
   return true;
+}
+
+
+// This function should eventually replace all uses of
+// 'getQualifierScopes'; for now it is just replacing one.
+//
+// We want to get all the parent scopes of 'scopeVar' up to
+// (and not including) the first scope already on the global
+// scope stack.
+void Env::getParentScopes(ScopeSeq &scopes, Variable *scopeVar)
+{
+  getParentScopes(scopes, scopeVar->getDenotedScope());
+}
+
+void Env::getParentScopes(ScopeSeq &scopes, Scope *scope)
+{
+  // check for the common case: we can walk up the scope tree
+  // and find the current innermost scope
+  //
+  //          global
+  //           /
+  //          A
+  //         /
+  //        B (innerScope)
+  //       /
+  //      X
+  //     /
+  //    Y (scope)
+  //
+  // this search takes linear time
+  Scope *innerScope = this->scopes.first();
+  for (Scope *s = scope; s; s = s->parentScope) {
+    if (s == innerScope) {
+      // good; just collect everything from 'scope' up to but
+      // not including 's'
+      getParentScopesLimit(scopes, scope, s);
+      return;
+    }
+  }
+
+  // we must have a situation like this:    .
+  //                                        .
+  //              global                    .
+  //              /    \                    .
+  //             X      A                   .
+  //            /        \                  .
+  //   (scope) Y          B (innerScope)    .
+  //
+  // so, collect scopes up to the join point (here the global
+  // scope); the search for the join is quadratic, which is why
+  // we only do it if the quick one fails
+  getParentScopesLimit(scopes, scope, findEnclosingScope(scope));
+}
+
+void Env::getParentScopesLimit(ScopeSeq &scopes, Scope *scope, Scope *limit)
+{
+  if (scope == limit) {
+    // do not include the limit
+    return;
+  }
+  xassert(scope->parentScope);     // must hit the limit before end of chain
+
+  // 'getQualifierScopes' pushes them from outermost to innermost,
+  // so I will do the same
+  getParentScopesLimit(scopes, scope->parentScope, limit);
+
+  // finally, this scope
+  scopes.push(scope);
 }
 
 
@@ -4721,7 +4790,15 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
     flags |= LF_QUALIFIED;            // subsequent lookups are qualified
     name = qual->rest;
   }
-                                             
+
+  if (flags & LF_GET_SCOPE_ONLY) {
+    // caller just wants 'scope', not the whole name
+    if (scope) {
+      set.add(scope->getScopeVariable());
+    }
+    return;
+  }
+
   // 3.4.3p5: qualified dtor name?
   if (scope && name->getName()[0]=='~') {
     // get a pointer to the StringRef in 'name'

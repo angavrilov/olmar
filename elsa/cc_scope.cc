@@ -7,12 +7,14 @@
 #include "cc_type.h"      // CompoundType
 #include "cc_env.h"       // doh.  Env::error
 #include "mangle.h"       // mangle
+#include "exc.h"          // unwinding
 
 
 Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
   : variables(),
     typeTags(),
     changeCount(cc),
+    onScopeStack(false),
     canAcceptNames(true),
     parentScope(),
     scopeKind(sk),
@@ -35,6 +37,7 @@ Scope::Scope(ReadXML&)
   : variables(),
     typeTags(),
     changeCount(0),
+    onScopeStack(false),
     canAcceptNames(true),
     parentScope(),
     scopeKind(SK_UNKNOWN),
@@ -70,12 +73,18 @@ Scope::~Scope()
   // if we were delegated, break the delegation
   if (isDelegated()) {
     CompoundType *ct = parameterizedEntity->type->asCompoundType();
-    xassert(ct->parameterizingScope == this);
+    if (!unwinding()) {
+      xassert(ct->parameterizingScope == this);
+    }
 
     TRACE("templateParams", desc() << " removing delegation to " << ct->desc());
 
     ct->parameterizingScope = NULL;
     parameterizedEntity = NULL;     // irrelevant but harmless
+  }
+  
+  if (!unwinding()) {         // if not already raising an exception,
+    xassert(!onScopeStack);   // check that we are not pointed-to
   }
 }
 
@@ -1045,6 +1054,11 @@ void Scope::scheduleActiveUsingEdge(Env &env, Scope *target)
 
 void Scope::openedScope(Env &env)
 {
+  if (onScopeStack) {
+    xfailure(stringc << "opened twice: " << desc());
+  }
+  onScopeStack = true;
+
   if (usingEdges.length() == 0) {
     return;    // common case
   }
@@ -1065,6 +1079,9 @@ void Scope::closedScope()
 
     rec.source->removeActiveUsingEdge(rec.target);
   }
+
+  xassert(onScopeStack);
+  onScopeStack = false;
 }
 
 
@@ -1366,6 +1383,21 @@ void Scope::setParameterizedEntity(Variable *entity)
     // this parameter parameterizes the template 'entity'
     param->setParameterizedEntity(entity);
   }
+}
+
+
+Variable *Scope::getScopeVariable() const
+{
+  if (curCompound) {
+    return curCompound->typedefVar;
+  }
+  
+  if (isNamespace() || isGlobalScope()) {
+    return namespaceVar;
+  }
+
+  xfailure("getScopeVariable: not a compound or namespace");
+  return NULL;    // silence warning
 }
 
 

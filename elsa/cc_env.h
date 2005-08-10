@@ -47,6 +47,7 @@ enum InferArgFlags {
 };
 ENUM_BITWISE_OPS(InferArgFlags, IA_ALL)
 
+
 // the entire semantic analysis state
 class Env : protected ErrorList {
 protected:   // data
@@ -448,6 +449,11 @@ public:      // funcs
   bool getQualifierScopes(ScopeSeq &scopes, PQName const *name,
     bool &dependent, bool &anyTemplates);
   bool getQualifierScopes(ScopeSeq &scopes, PQName const *name);
+                                                             
+  // push 'scope' and all its parents onto 'scopes'
+  void getParentScopes(ScopeSeq &scopes, Variable *scopeVar);
+  void getParentScopes(ScopeSeq &scopes, Scope *scope);
+  void getParentScopesLimit(ScopeSeq &scopes, Scope *scope, Scope *limit);
 
   // extend/retract entire scope sequences
   void extendScopeSeq(ScopeSeq const &scopes);

@@ -1920,15 +1920,16 @@ void Env::prepArgScopeForTemlCloneTcheck
   xassert(foundScope);
 
   // pop scope scopes
-  while (!scopes.first()->enclosesOrEq(foundScope)) {
-    Scope *s = scopes.removeFirst();
+  while (!scopes.firstC()->enclosesOrEq(foundScope)) {
+    Scope *s = scopes.first();
     TRACE("scope", "prepArgScope: removing " << s->desc());
+    retractScope(s);
 
     // do I need to save a delegation pointer?
     SavedScopePair *ssp = new SavedScopePair(s);
     if (s->hasDelegationPointer()) {
       ssp->parameterizingScope = s->getAndNullifyDelegationPointer();
-      TRACE("scope", "prepArgScope: ... and saved delegation ptr " << 
+      TRACE("scope", "prepArgScope: ... and saved delegation ptr " <<
                      ssp->parameterizingScope->desc());
     }
 
@@ -1941,11 +1942,11 @@ void Env::prepArgScopeForTemlCloneTcheck
   // make a list of the scopes to push; these form a path from our
   // current scope to the 'foundScope'
   Scope *s = foundScope;
-  while (s != scopes.first()) {
+  while (s != scopes.firstC()) {
     pushedScopes.prepend(s);
     s = s->parentScope;
     if (!s) {
-      if (scopes.first()->isGlobalScope()) {
+      if (scopes.firstC()->isGlobalScope()) {
         // ok, hit the global scope in the traversal
         break;
       }
@@ -1965,7 +1966,7 @@ void Env::prepArgScopeForTemlCloneTcheck
     // it; 'scopes' does not own Scopes that are named, as explained
     // in the comments near its declaration (cc_env.h)
     TRACE("scope", "prepArgScope: adding " << iter.data()->desc());
-    scopes.prepend(iter.data());
+    extendScope(iter.data());
   }
 }
 
@@ -1976,11 +1977,9 @@ void Env::unPrepArgScopeForTemlCloneTcheck
   // restore the original scope structure
   pushedScopes.reverse();
   while (pushedScopes.isNotEmpty()) {
-    // make sure the ones we're removing are the ones we added
-    xassert(scopes.first() == pushedScopes.first());
-    TRACE("scope", "unPrepArgScope: removing " << scopes.first()->desc());
-    scopes.removeFirst();
-    pushedScopes.removeFirst();
+    Scope *s = pushedScopes.removeFirst();
+    TRACE("scope", "unPrepArgScope: removing " << s->desc());
+    retractScope(s);
   }
 
   // re-add the inner scopes removed above
@@ -1999,7 +1998,7 @@ void Env::unPrepArgScopeForTemlCloneTcheck
                      ssp->parameterizingScope->desc());
     }
 
-    scopes.prepend(s);
+    extendScope(s);
     delete ssp;
   }
 }

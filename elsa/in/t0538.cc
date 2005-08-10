@@ -10,8 +10,7 @@ namespace N {
 
 using N::A;
 
-// the "N::" is not syntactally present, so Elsa doesn't
-// push it onto the stack, so I don't find "INT"
+// the "N::" is not syntactally present, but must be searched anyway
 void A::f()
 {
   INT i;

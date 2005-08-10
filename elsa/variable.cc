@@ -589,7 +589,6 @@ Scope *Variable::getDenotedScope() const
   
   if (type->isCompoundType()) {
     CompoundType *ct = type->asCompoundType();
-    xassert(!ct->isTemplate());
     return ct;
   }
 

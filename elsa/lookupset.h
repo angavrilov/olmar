@@ -37,13 +37,14 @@ enum LookupFlags {
   LF_EXPECTING_TYPE    = 0x00100000,   // do not apply template args to a non-type
   LF_EXPLICIT_INST     = 0x00200000,   // the context is a TF_explicitInst
   LF_NO_MEMBERS        = 0x00400000,   // disregard anything with DF_MEMBER
+  LF_GET_SCOPE_ONLY    = 0x00800000,   // if looking up A::B::C, just look up A::B
 
   // flag combination for looking up names that precede "::" (3.4.3p1);
   // this is used for the new lookup mechanism (Env::lookupPQ, etc.)
   LF_QUALIFIER_LOOKUP  = LF_TYPES_NAMESPACES | LF_SELFNAME,
 
-  LF_ALL_FLAGS         = 0x007FFFFF,   // bitwise OR of all flags
-  NUM_LOOKUPFLAGS      = 23            // # of bits set to 1 in LF_ALL_FLAGS
+  LF_ALL_FLAGS         = 0x00FFFFFF,   // bitwise OR of all flags
+  NUM_LOOKUPFLAGS      = 24            // # of bits set to 1 in LF_ALL_FLAGS
 };
 
 extern char const * const lookupFlagNames[NUM_LOOKUPFLAGS];

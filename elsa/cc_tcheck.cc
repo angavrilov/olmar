@@ -526,7 +526,7 @@ void Function::tcheckBody(Env &env)
       // keeping the surrounding stuff, though, because it has that
       // error report above, and simply to avoid disturbing existing
       // (working) mechanism
-      env.getQualifierScopes(qualifierScopes, nameAndParams->getDeclaratorId());
+      env.getParentScopes(qualifierScopes, s);
       env.extendScopeSeq(qualifierScopes);
 
       // the innermost scope listed in 'qualifierScopes'
@@ -1981,6 +1981,33 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
   return ct->typedefVar->type;
 }
 
+                            
+// typecheck declarator name 'name', pushing the sequence of scopes
+// that necessary to tcheck what follows, and also returning that
+// sequence in 'qualifierScopes' so the caller can undo it
+void tcheckDeclaratorPQName(Env &env, ScopeSeq &qualifierScopes,
+                            PQName *name, LookupFlags lflags)
+{
+  lflags |= LF_DECLARATOR;
+
+  if (name) {
+    // tcheck template arguments
+    tcheckPQName(name, env, NULL /*scope*/, lflags);
+
+    // lookup the name minus the final component; this is the scope
+    Variable *scopeVar = env.lookupPQ_one(name, LF_GET_SCOPE_ONLY | lflags);
+    
+    // if that worked, get that scope and its parents, up to the current
+    // innermost scope
+    if (scopeVar) {
+      env.getParentScopes(qualifierScopes, scopeVar);
+    }
+
+    // and push that sequence
+    env.extendScopeSeq(qualifierScopes);
+  }
+}
+
 
 Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 {
@@ -2000,14 +2027,9 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   // it with qualifier scopes, for cases like in/t0441a.cc
   Scope *scope = env.scope();
 
-  // lookup scopes in the name, if any
+  // lookup and push scopes in the name, if any
   ScopeSeq qualifierScopes;
-  if (name) {
-    // 2005-02-18: passing LF_DECLARATOR fixes in/t0191.cc
-    tcheckPQName(name, env, NULL /*scope*/, LF_DECLARATOR);
-  }
-  env.getQualifierScopes(qualifierScopes, name);
-  env.extendScopeSeq(qualifierScopes);
+  tcheckDeclaratorPQName(env, qualifierScopes, name, LF_NONE);
 
   // figure out which class the (keyword, name) pair refers to
   CompoundType *ct =
@@ -2023,11 +2045,6 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 
   // check the body of the definition
   tcheckIntoCompound(env, dflags, ct);
-
-  // 8/14/04: er... ahh.. what?  if we needed it before this we
-  // would have already emitted an error!  nothing is accomplished
-  // by this...
-  //env.instantiateForwardClasses(ct->typedefVar);
 
   env.retractScopeSeq(qualifierScopes);
 
@@ -3256,8 +3273,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     dt.context == DC_TD_DECL ||
     dt.context == DC_MR_DECL;
 
-  LookupFlags lflags = LF_DECLARATOR;
-
+  LookupFlags lflags = LF_NONE;
   DeclFlags instFlags = DF_NONE;
   if (dt.context == DC_TF_EXPLICITINST) {
     // this tells the qualifier lookup code that there are no
@@ -3272,6 +3288,14 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     dt.dflags &= ~mask;
   }
 
+  PQName *name = decl->getDeclaratorId();
+  if (!name && (dt.dflags & DF_TEMPL_PARAM)) {
+    // give names to all template params, because we need to refer
+    // to them in the self-name (in/t0493.cc)
+    name = new PQ_name(this->getLoc(), env.getAnonName("tparam"));
+    this->setDeclaratorId(name);
+  }
+
   // cppstd sec. 3.4.3 para 3:
   //    "In a declaration in which the declarator-id is a
   //    qualified-id, names used before the qualified-id
@@ -3280,37 +3304,13 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   //    are looked up in the scope of the member's class
   //    or namespace."
   //
-  // to implement this, I'll find the declarator's qualified
-  // scope ahead of time and add it to the scope stack
-  //
-  // 4/21/04: in fact, I need the entire sequence of scopes
-  // in the qualifier, since all of them need to be visible
-  //
-  // dsw points out that this furthermore requires that the underlying
-  // PQName be tchecked, so we can use the template arguments (if
-  // any).  Hence, down in D_name::tcheck, we no longer tcheck the
-  // name since it's now always done out here.
-  //
-  // TODO: BUG: We only push the sequence of scopes syntactically
-  // present, but if there are typedefs among them then we could be
-  // missing some scopes.  (t0379.cc)
+  // This is implemented by the following call.
   //
   // TODO: BUG: The names appearing in pointer-to-member constructors
   // must be looked up *before* pushing the declarator scopes.
   // (t0436.cc)
   ScopeSeq qualifierScopes;
-  PQName *name = decl->getDeclaratorId();
-  if (!name && (dt.dflags & DF_TEMPL_PARAM)) {
-    // give names to all template params, because we need to refer
-    // to them in the self-name (in/t0493.cc)
-    name = new PQ_name(this->getLoc(), env.getAnonName("tparam"));
-    this->setDeclaratorId(name);
-  }
-  if (name) {
-    tcheckPQName(name, env, NULL /*scope*/, lflags);
-  }
-  env.getQualifierScopes(qualifierScopes, name);
-  env.extendScopeSeq(qualifierScopes);
+  tcheckDeclaratorPQName(env, qualifierScopes, name, lflags);
 
   // the type constructed so far might refer to
   // DependentQTypes that now can (and must) be resolved more

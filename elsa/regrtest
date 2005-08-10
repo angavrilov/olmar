@@ -663,7 +663,7 @@ testparse t0375.cc
 testparse t0376.cc
 testparse t0377.cc
 testparse t0378.cc
-failparse t0379.cc "buggy qualified lookup involving a typedef in a declarator"
+testparse t0379.cc
 testparse t0380.cc
 testparse t0381.cc
 testparse t0382.cc
@@ -823,7 +823,8 @@ testparse t0534.cc
 testparse t0535.cc
 testparse t0536.cc
 testparse t0537.cc
-failparse t0538.cc "semantic qualifier scope push vs. syntactic scope push"
+testparse t0538.cc
+# t0539 is more complicated, and is handled below
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -1037,6 +1038,20 @@ testparse_special expect_confused_bail t0521.cc
 # test permissive-mode error diagnosis
 testparse_special permissive gnu/bugs/gb0005.cc
 testparse_special permissive gnu/bugs/gb0006.cc
+
+# t0539 has many variants; build them, then run them
+${MAKE:-make} -C in t0539 || exit
+testparse t0539_1.cc
+testparse t0539_2.cc
+testparse t0539_3.cc
+testparse t0539_4.cc
+testparse t0539_5.cc
+testparse t0539_6.cc
+testparse t0539_7.cc
+testparse t0539_8.cc
+testparse t0539_9.cc
+testparse t0539_10.cc
+testparse t0539_11.cc
 
 
 # examples from C++ standard

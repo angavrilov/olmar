@@ -31,6 +31,7 @@ char const * const lookupFlagNames[NUM_LOOKUPFLAGS] = {
   "LF_EXPECTING_TYPE",
   "LF_EXPLICIT_INST",
   "LF_NO_MEMBERS",
+  "LF_GET_SCOPE_ONLY",
 };
 
 
