@@ -1434,48 +1434,6 @@ Variable *Env::instantiateFunctionTemplate
 }
 
 
-Variable *Env::lookupPQVariable_applyArgsTemplInst
-  (Variable *primary, PQName const *name, FakeList<ArgExpression> *funcArgs)
-{
-  xassert(primary->isTemplateFunction());
-
-  PQName const *final = name->getUnqualifiedNameC();
-
-  // duck overloading
-  if (primary->isOverloaded()) {
-    xassert(primary->type->isFunctionType()); // only makes sense for function types
-    // FIX: the correctness of this depends on someone doing
-    // overload resolution later, which I don't think is being
-    // done.
-    return primary;
-    // FIX: this isn't right; do overload resolution later;
-    // otherwise you get a null signature being passed down
-    // here during E_variable::itcheck_x()
-    //              primary = oloadSet->findTemplPrimaryForSignature(signature);
-    // // FIX: make this a user error, or delete it
-    // xassert(primary);
-  }
-  xassert(primary->templateInfo()->isPrimary());
-
-  // get the semantic template arguments
-  ObjList<STemplateArgument> sargs;
-  {
-    TypeListIter_FakeList argListIter(funcArgs);
-    MType match(true /*allowNonConst*/);
-    if (!getFuncTemplArgs(match, sargs, final, primary,
-                          argListIter, IA_REPORT_ERRORS)) {
-      return NULL;
-    }
-  }
-
-  // apply the template arguments to yield a new type based on
-  // the template; note that even if we had some explicit
-  // template arguments, we have put them into the bindings now,
-  // so we omit them here
-  return instantiateFunctionTemplate(loc(), primary, sargs);
-}
-
-
 // this could be a template...
 void removeElementRange(SObjList<STemplateArgument> &list, int start, int num)
 {

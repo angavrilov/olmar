@@ -2077,106 +2077,6 @@ bool hadTcheckErrors(ObjList<STemplateArgument> const &args)
 }
 
 
-Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
-{
-  Scope *dummy = NULL;     // paranoia; 'scope' is an OUT parameter
-  return lookupPQVariable(name, flags, dummy);
-}
-
-Variable *Env::lookupPQVariable_set
-  (LookupSet &candidates, PQName const *name, LookupFlags flags)
-{
-  Scope *dummy;
-  return lookupPQVariable_internal(candidates, name, flags, dummy);
-}
-
-// NOTE: It is *not* the job of this function to do overload
-// resolution!  If the client wants that done, it must do it itself,
-// *after* doing the lookup.
-Variable *Env::lookupPQVariable_internal
-  (LookupSet &candidates, PQName const *name, LookupFlags flags, Scope *&scope)
-{
-  // get the final component of the name, so we can inspect
-  // whether it has template arguments
-  PQName const *final = name->getUnqualifiedNameC();
-
-  Variable *var;
-
-  if (name->hasQualifiers()) {
-    // TODO: I am now doing the scope lookup twice, once while
-    // tchecking 'name' and once here.  Replace what's here with code
-    // that re-uses the work already done.
-
-    // look up the scope named by the qualifiers
-    bool dependent = false, anyTemplates = false;
-    scope = lookupQualifiedScope(name, dependent, anyTemplates);
-    if (!scope) {
-      if (dependent) {
-        TRACE("dependent", name->toString());
-
-        // tried to look into a template parameter
-        if (flags & (LF_TYPENAME | LF_ONLY_TYPES)) {
-          return dependentTypeVar;    // user claims it's a type
-        }
-        else {
-          return dependentVar;        // user makes no claim, so it's a variable
-        }
-      }
-      else if (anyTemplates) {
-        // maybe failed due to incompleteness of specialization implementation
-        return errorVar;
-      }
-      else {
-        // error has already been reported
-        return NULL;
-      }
-    }
-
-    var = scope->lookupVariable_set(candidates, name->getName(), 
-                                    *this, flags | LF_QUALIFIED);
-    if (!var) {
-      if (anyTemplates) {
-        // maybe failed due to incompleteness of specialization implementation;
-        // since I'm returning an error variable, it means I'm guessing that
-        // this thing names a variable and not a type
-        return errorVar;
-      }
-
-      error(stringc
-        << name->qualifierString() << " has no member called `"
-        << name->getName() << "'",
-        EF_NONE);
-      return NULL;
-    }
-  }
-
-  else {
-    // 14.6.1 para 1: if the name is not qualified, and has no
-    // template arguments, then the selfname is visible
-    //
-    // ... I'm not sure about the "not qualified" part ... is there
-    // something like 14.6.1 for non-template classes?  If so I can't
-    // find it.. anyway, my t0052.cc (which gcc doesn't like..) wants
-    // LF_SELFNAME even for qualified lookup, and that's how it's been
-    // for a while, so...
-    //
-    // err... t0052.cc still doesn't work with this above, so now
-    // I'm back to requiring no qualifiers and I nerfed that testcase.
-    //
-    // 8/13/04: For what it's worth, 9 para 2 is selfname for
-    // non-templates, and it seems to suggest that such selfnames
-    // *can* be found by qualified lookup...
-    if (!final->isPQ_template()) {
-      flags |= LF_SELFNAME;
-    }
-
-    var = lookupVariable_set(candidates, name->getName(), flags, scope);
-  }
-
-  // apply template arguments in 'name'
-  return applyPQNameTemplateArguments(var, final, flags);
-}
-
 // given something like "C<T>", where "C" has been looked up to yield
 // 'var' and "<T>" is still attached to 'final', combine them
 Variable *Env::applyPQNameTemplateArguments
@@ -2273,28 +2173,6 @@ Variable *Env::applyPQNameTemplateArguments
       << "`" << var->name << "' is not a template, but template arguments were supplied",
       EF_DISAMBIGUATES);
     return NULL;
-  }
-
-  return var;
-}
-
-Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags,
-                                Scope *&scope)
-{                                          
-  LookupSet dummy;
-  Variable *var = lookupPQVariable_internal(dummy, name, flags, scope);
-
-  // in normal typechecking, nothing should look up to a variable from
-  // template-definition never-never land
-  if ( !(flags & LF_TEMPL_PRIMARY) &&
-       var &&
-       !var->hasFlag(DF_NAMESPACE)
-       ) {
-    xassert(var->type);
-    // FIX: I think this assertion should never fail, but it fails in
-    // in/t0079.cc for reasons that seem to have something to do with
-    // DF_SELFNAME
-    //      xassert(!var->type->containsVariables());
   }
 
   return var;

@@ -259,10 +259,6 @@ private:     // funcs
                           bool isAssignment = false);
   void addBuiltinBinaryOp(OverloadableOp op, CandidateSet * /*owner*/ cset);
 
-  Variable *lookupPQVariable_internal
-    (LookupSet &candidates, PQName const *name, LookupFlags flags,
-     Scope *&scope);
-
   PseudoInstantiation *createPseudoInstantiation
     (CompoundType *ct, ObjList<STemplateArgument> const &args);
 
@@ -385,13 +381,11 @@ public:      // funcs
 
 
   // lookup in the environment (all scopes); if the name is not found,
-  // it return NULL, and emit an error if the name is qualified
+  // return NULL, and emit an error if the name is qualified
   // (otherwise do not emit an error)
-  Variable *lookupPQVariable(PQName const *name, LookupFlags f=LF_NONE);
   Variable *lookupVariable  (StringRef name,     LookupFlags f=LF_NONE);
 
   // this variant returns the Scope in which the name was found
-  Variable *lookupPQVariable(PQName const *name, LookupFlags f, Scope *&scope);
   Variable *lookupVariable(StringRef name, LookupFlags f, Scope *&scope);
 
   CompoundType *lookupCompound  (StringRef name,     LookupFlags f=LF_NONE);
@@ -434,8 +428,6 @@ public:      // funcs
     LookupFlags lflags);
   
   // extended interface capable of returning a set
-  Variable *lookupPQVariable_set
-    (LookupSet &candidates, PQName const *name, LookupFlags flags);
   Variable *lookupVariable_set(LookupSet &candidates,
                                StringRef name, LookupFlags flags,
                                Scope *&foundScope);
@@ -858,10 +850,6 @@ public:      // template funcs
   bool getArgumentsFromMatch
     (MType &match, ObjList<STemplateArgument> &sargs,
      InferArgFlags iflags, Variable *primary);
-
-  // name + template args + function call args = inst     
-  Variable *lookupPQVariable_applyArgsTemplInst
-    (Variable *primary, PQName const *name, FakeList<ArgExpression> *funcArgs);
 
   // Given a primary, find the most specific specialization for the
   // given template arguments 'sargs'; for full generality we allow
