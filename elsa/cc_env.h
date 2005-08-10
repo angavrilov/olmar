@@ -396,17 +396,6 @@ public:      // funcs
   Variable *applyPQNameTemplateArguments
     (Variable *var, PQName const *name, LookupFlags flags);
 
-  // look up a particular scope; the 'name' part of the PQName
-  // will be ignored; if we can't find this scope, return NULL
-  // *and* report it as an error; there must be at least one
-  // qualifier in 'name'; 'dependent' is set to true if the lookup
-  // failed because we tried to look into a template parameter;
-  // 'anyTemplates' is set to true if any of the scopes named a
-  // template type
-  Scope *lookupQualifiedScope(PQName const *name,
-    bool &dependent, bool &anyTemplates);
-  Scope *lookupQualifiedScope(PQName const *name);
-
   // lookup a single qualifier; see comments at definition cc_env.cc
   Scope *lookupOneQualifier(
     Scope *startingScope,
@@ -432,14 +421,6 @@ public:      // funcs
                                StringRef name, LookupFlags flags,
                                Scope *&foundScope);
 
-  // run through the sequence of qualifiers on 'name',
-  // adding each named scope in turn to 'scopes';
-  // 'dependent' and 'anyTemplates' are as above;
-  // returns false (and adds an error message) on error
-  bool getQualifierScopes(ScopeSeq &scopes, PQName const *name,
-    bool &dependent, bool &anyTemplates);
-  bool getQualifierScopes(ScopeSeq &scopes, PQName const *name);
-                                                             
   // push 'scope' and all its parents onto 'scopes'
   void getParentScopes(ScopeSeq &scopes, Variable *scopeVar);
   void getParentScopes(ScopeSeq &scopes, Scope *scope);

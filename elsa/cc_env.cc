@@ -1609,24 +1609,6 @@ Type *Env::declareEnum(SourceLoc loc /*...*/, EnumType *et)
 
 
 // -------- lookup --------
-Scope *Env::lookupQualifiedScope(PQName const *name)
-{
-  bool dummy1, dummy2;
-  return lookupQualifiedScope(name, dummy1, dummy2);
-}
-
-Scope *Env::lookupQualifiedScope(PQName const *name,
-                                 bool &dependent, bool &anyTemplates)
-{ 
-  ScopeSeq scopes;
-  if (!getQualifierScopes(scopes, name, dependent, anyTemplates)) {
-    return NULL;
-  }
-  else {
-    return scopes.pop();     // last one added
-  }
-}
-
                                                                  
 // select either the primary or one of the specializations, based
 // on the supplied arguments; these arguments will likely contain
@@ -1921,66 +1903,6 @@ Scope *Env::lookupOneQualifier_useArgs(
 }
 
 
-bool Env::getQualifierScopes(ScopeSeq &scopes, PQName const *name)
-{
-  bool dummy1, dummy2;
-  return getQualifierScopes(scopes, name, dummy1, dummy2);
-}
-
-// 4/22/04: After now implementing and testing this code, I'm
-// convinced it is wrong, because it only creates the sequence of
-// scopes syntactically present.  But, both typedefs and namespace
-// aliases can create ways of naming an inner scope w/o syntactically
-// naming all the enclosing scopes, and hence this code would not get
-// those enclosing scopes either.  I think perhaps a simple fix would
-// be to dig down to the bottom scope and then traverse the
-// 'parentScope' links to fill in the 'scopes' sequence.. but where to
-// stop?  I'll wait until I see some failing code before exploring
-// this more.
-bool Env::getQualifierScopes(ScopeSeq &scopes, PQName const *name,
-  bool &dependent, bool &anyTemplates)
-{
-  if (!name) {
-    // this code evolved from code that behaved this way, and
-    // there seems little harm in allowing it to continue
-    return true;    // add nothing to 'scopes'
-  }
-
-  // examine all the qualifiers in sequence
-  while (name->hasQualifiers()) {
-    PQ_qualifier const *qualifier = name->asPQ_qualifierC();
-
-    if (!qualifier->denotedScopeVar) {
-      // error was found & reported earlier; stop and use what we have
-      return false;
-    }
-    else if (qualifier->denotedScopeVar->hasFlag(DF_NAMESPACE)) {
-      // save this namespace scope
-      scopes.push(qualifier->denotedScopeVar->scope);
-    }
-    else if (qualifier->denotedScopeVar->type->isDependent()) {
-      // report attempt to look in dependent scope
-      dependent = true;
-      return false;
-    }
-    else {
-      // save this class scope
-      Type *dsvType = qualifier->denotedScopeVar->type;
-      xassert(dsvType->isCompoundType());
-      scopes.push(dsvType->asCompoundType());
-    }
-
-    // advance to the next name in the sequence
-    name = qualifier->rest;
-  }
-
-  return true;
-}
-
-
-// This function should eventually replace all uses of
-// 'getQualifierScopes'; for now it is just replacing one.
-//
 // We want to get all the parent scopes of 'scopeVar' up to
 // (and not including) the first scope already on the global
 // scope stack.
@@ -2037,8 +1959,8 @@ void Env::getParentScopesLimit(ScopeSeq &scopes, Scope *scope, Scope *limit)
   }
   xassert(scope->parentScope);     // must hit the limit before end of chain
 
-  // 'getQualifierScopes' pushes them from outermost to innermost,
-  // so I will do the same
+  // 'getQualifierScopes' used to push them from outermost to
+  // innermost, so I will do the same
   getParentScopesLimit(scopes, scope->parentScope, limit);
 
   // finally, this scope
