@@ -2285,7 +2285,7 @@ void CGen::emitXmlVisitorImplementation()
 
     out << "bool " << xmlVisitorName << "::visit" << c->super->name;
     out << "(" << c->super->name << " *obj) {\n";
-    out << "  xassert(!wasVisitedAST(obj));\n";
+    out << "  if(wasVisitedAST(obj)) return false;\n";
     // for now everything is a container tag
     out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
@@ -2362,7 +2362,7 @@ void CGen::emitXmlVisitorImplementation()
     out << "bool " << xmlVisitorName << "::visitList_" << cls
         << "(FakeList<" << cls << ">* obj) {\n";
     out << "  if (obj) {\n";
-    out << "    xassert(!wasVisitedList_FakeList(obj));\n";
+    out << "    if(wasVisitedList_FakeList(obj)) return false;\n";
     out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"<List_" << cls << " _id=\\\"\";\n";
@@ -2414,7 +2414,7 @@ void CGen::emitXmlVisitorImplementation()
     // visit
     out << "bool " << xmlVisitorName << "::visitList_" << cls
         << "(ASTList<" << cls << ">* obj) {\n";
-    out << "  xassert(!wasVisitedList_ASTList(obj));\n";
+    out << "  if(wasVisitedList_ASTList(obj)) return false;\n";
     out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"<List_" << cls << " _id=\\\"\";\n";
