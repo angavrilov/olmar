@@ -825,6 +825,7 @@ testparse t0536.cc
 testparse t0537.cc
 testparse t0538.cc
 # t0539 is more complicated, and is handled below
+testparse t0540.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

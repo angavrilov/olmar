@@ -33,6 +33,9 @@
 // FIX: for debugging only; remove
 bool global_mayUseTypeAndVarToCString = true;
 
+// 2005-08-10: the anon things are kind of ugly..
+bool printAnonComment = false;
+
 
 // ------------------- TypeVisitor ----------------
 bool TypeVisitor::visitType(Type *obj)
@@ -1181,7 +1184,12 @@ string BaseType::toCString(char const *name) const
   #endif // 0
   stringBuilder s;
   s << leftString(innerParen);
-  s << (name? name : "/*anon*/");
+  if (name) {
+    s << name;
+  }
+  else if (printAnonComment) {
+    s << "/*anon*/";
+  }
   s << rightString(innerParen);
   return s;
 }

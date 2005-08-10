@@ -3801,14 +3801,19 @@ void Env::setOverloadedFunctionVar(Expression *e, Variable *selVar)
   }
 
   if (e->isE_addrOf()) {
-    // TODO: In some cases, we may need to form a pointer-to-member;
-    // see ArgExpression::mid_tcheck.  At the moment there is no
-    // mechanism in Elsa that can reveal this bug.  When I implement
-    // initialization compatibility checking then it will be
-    // revealed...
-
     E_addrOf *a = e->asE_addrOf();
     setOverloadedFunctionVar(a->expr, selVar);
+
+    if (selVar->type->isFunctionType()) {
+      FunctionType *ft = selVar->type->asFunctionType();
+      if (ft->isMethod()) {
+        // form pointer-to-member to this function type
+        a->type = env.tfac.makePointerToMemberType(ft->getNATOfMember(), 
+                                                   CV_NONE, ft);
+        return;
+      }
+    }
+
     a->type = makePointerType(CV_NONE, a->expr->type);
     return;
   }

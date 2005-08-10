@@ -5615,6 +5615,12 @@ static bool isFunctionTypeOr(Type *t)
   if (t->isPointerType() && t->getAtType()->isFunctionType()) {
     return true;
   }
+  
+  // could also be a pointer to a member function
+  if (t->isPointerToMemberType() && t->getAtType()->isFunctionType()) {
+    return true;
+  }
+
   return false;
 }
 
