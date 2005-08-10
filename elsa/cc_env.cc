@@ -1906,6 +1906,9 @@ Scope *Env::lookupOneQualifier_useArgs(
 // We want to get all the parent scopes of 'scopeVar' up to
 // (and not including) the first scope already on the global
 // scope stack.
+//
+// As noted at comments next to 'pushDeclarationScopes', there
+// is some overlap with that function's behavior.
 void Env::getParentScopes(ScopeSeq &scopes, Variable *scopeVar)
 {
   getParentScopes(scopes, scopeVar->getDenotedScope());
@@ -1959,8 +1962,8 @@ void Env::getParentScopesLimit(ScopeSeq &scopes, Scope *scope, Scope *limit)
   }
   xassert(scope->parentScope);     // must hit the limit before end of chain
 
-  // 'getQualifierScopes' used to push them from outermost to
-  // innermost, so I will do the same
+  // we will want to push them in order from outermost to innermost,
+  // so put the outermost on the list first
   getParentScopesLimit(scopes, scope->parentScope, limit);
 
   // finally, this scope
@@ -3606,14 +3609,20 @@ PseudoInstantiation *Env::createPseudoInstantiation
 // of 'v', stopping (as we progress to outer scopes) at 'stop' (do
 // not push 'stop').
 //
-// Currently, this is only used by template instantiation code, but
-// I want to eventually replace uses of 'getQualifierScopes' with this.
+// This is doing something quite similar to 'getParentScopes', but
+// the differences are not trivial to collapse and these functions
+// are pretty small so I'm leaving the duplication.
 void Env::pushDeclarationScopes(Variable *v, Scope *stop)
 {
   ObjListMutator<Scope> mut(scopes);
   Scope *s = v->scope;
 
   while (s != stop) {
+    // put in a piece of 'extendScope'; I can't call that directly
+    // because it would put things in the wrong order
+    s->openedScope(*this);
+    TRACE("scope", locStr() << ": extending " << s->desc());
+
     mut.insertBefore(s);     // insert 's' before where 'mut' points
     mut.adv();               // advance 'mut' past 's', so it points at orig obj
     s = s->parentScope;
@@ -3629,8 +3638,7 @@ void Env::popDeclarationScopes(Variable *v, Scope *stop)
 {
   Scope *s = v->scope;
   while (s != stop) {
-    Scope *tmp = scopes.removeFirst();
-    xassert(tmp == s);
+    retractScope(s);
     s = s->parentScope;
     xassert(s);
   }
