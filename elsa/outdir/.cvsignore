@@ -12,18 +12,22 @@ hide*
 *.A1.xml_filtered
 *.A2.out
 
+*.B0.cc
 *.B0.dp
 *.B0.dp_filtered
 *.B1.xml
 *.B1.xml_filtered
+*.B2.xml.cc
 *.B2.xml.dp
 *.B2.xml.dp_filtered
 *.B3.diff
 
+*.C0.cc
 *.C0.dp
 *.C0.dp_filtered
 *.C1.xml
 *.C1.xml_filtered
+*.C2.xml.cc
 *.C2.xml.dp
 *.C2.xml.dp_filtered
 *.C3.diff
