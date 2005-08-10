@@ -4194,8 +4194,9 @@ Variable *Env::makeExplicitFunctionSpecialization
   (SourceLoc loc, DeclFlags dflags, PQName *name, FunctionType *ft)
 {
   // find the overload set
-  Variable *ovlVar = lookupPQVariable(name, LF_TEMPL_PRIMARY);
-  if (!ovlVar) {
+  LookupSet set;
+  lookupPQ(set, name, LF_TEMPL_PRIMARY);
+  if (set.isEmpty()) {
     error(stringc << "cannot find primary `" << name->toString()
                   << "' to specialize");
     return NULL;
@@ -4209,10 +4210,6 @@ Variable *Env::makeExplicitFunctionSpecialization
     pqtemplate = name->getUnqualifiedName()->asPQ_template();
     nameArgs = &(pqtemplate->sargs);
   }
-
-  // get set of overloaded names (might be singleton)
-  SObjList<Variable> set;
-  ovlVar->getOverloadList(set);
 
   // look for a template member of the overload set that can
   // specialize to the type 'ft' and whose resulting parameter
@@ -4454,8 +4451,9 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type,
     return NULL;
   }
 
-  Variable *ovlHeader = lookupPQVariable(name, LF_TEMPL_PRIMARY);
-  if (!ovlHeader || !ovlHeader->type->isFunctionType()) {
+  LookupSet set;
+  lookupPQ(set, name, LF_TEMPL_PRIMARY);
+  if (set.isEmpty() || !set.first()->type->isFunctionType()) {
     error(stringc << "no such function `" << *name << "'");
     return NULL;
   }
@@ -4470,8 +4468,6 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type,
   InstCandidateResolver resolver;
 
   // examine all overloaded versions of the function
-  SObjList<Variable> set;
-  ovlHeader->getOverloadList(set);
   SFOREACH_OBJLIST_NC(Variable, set, iter) {
     Variable *primary = iter.data();
 

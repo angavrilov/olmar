@@ -1706,8 +1706,9 @@ CompoundType *checkClasskeyAndName(
     // do the lookup
     if (dflags & DF_DEFINITION) {
       // this is a lookup of the declarator-like type tag of a class
-      // definition; continue to use the old lookup mechanism for now
-      ct = env.lookupPQCompound(name, lflags);
+      // definition; the qualifier scopes have already been pushed
+      // by my caller, so just look in the innermost scope
+      ct = env.lookupCompound(name->getName(), lflags | LF_INNER_ONLY);
     }
     else {
       // this is a lookup of a use; see if the new mechanism can
@@ -2732,7 +2733,7 @@ static Variable *declareNewVariable(
   SourceLoc loc,
 
   // name being declared
-  PQName const *name)
+  PQName *name)
 {
   // this is used to refer to a pre-existing declaration of the same
   // name; I moved it up top so my error subroutines can use it
@@ -2854,7 +2855,7 @@ realStart:
   if (dt.hasFlag(DF_PARAMETER) && inGrouping) {
     // the name must *not* correspond to an existing type; this is
     // how I implement cppstd 8.2 para 7
-    Variable *v = env.lookupPQVariable(name);
+    Variable *v = env.lookupPQ_one(name, LF_NONE);
     if (v && v->hasFlag(DF_TYPEDEF)) {
       TRACE("disamb", "discarding grouped param declarator of type name");
       env.error(stringc

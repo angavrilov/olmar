@@ -2357,38 +2357,6 @@ Variable *Env::lookupVariable_set(LookupSet &candidates,
   return NULL;    // not found
 }
 
-CompoundType *Env::lookupPQCompound(PQName const *name, LookupFlags flags)
-{
-  CompoundType *ret;
-  if (name->hasQualifiers()) {
-    Scope *scope = lookupQualifiedScope(name);
-    if (!scope) return NULL;
-
-    ret = scope->lookupCompound(name->getName(), env, flags);
-    if (!ret) {
-      error(stringc
-        << name->qualifierString() << " has no class/struct/union called `"
-        << name->getName() << "'",
-        EF_DISAMBIGUATES);
-      return NULL;
-    }
-  }
-  else {
-    ret = lookupCompound(name->getName(), flags);
-  }
-
-  // apply template arguments if any
-  if (ret) {
-    PQName const *final = name->getUnqualifiedNameC();
-    Variable *var = applyPQNameTemplateArguments(ret->typedefVar, final, flags);
-    if (var && var->type->isCompoundType()) {
-      ret = var->type->asCompoundType();
-    }
-  }
-
-  return ret;
-}
-
 CompoundType *Env::lookupCompound(StringRef name, LookupFlags flags)
 {
   if (flags & LF_INNER_ONLY) {
@@ -2407,34 +2375,16 @@ CompoundType *Env::lookupCompound(StringRef name, LookupFlags flags)
   return NULL;    // not found
 }
 
-EnumType *Env::lookupPQEnum(PQName const *name, LookupFlags flags)
-{
-  // same logic as for lookupPQVariable
-  if (name->hasQualifiers()) {
-    Scope *scope = lookupQualifiedScope(name);
-    if (!scope) return NULL;
-
-    EnumType *ret = scope->lookupEnum(name->getName(), *this, flags);
-    if (!ret) {
-      error(stringc
-        << name->qualifierString() << " has no enum called `"
-        << name->getName() << "'",
-        EF_DISAMBIGUATES);
-      return NULL;
-    }
-
-    return ret;
-  }
-
-  return lookupEnum(name->getName(), flags);
-}
-
 EnumType *Env::lookupEnum(StringRef name, LookupFlags flags)
 {
   if (flags & LF_INNER_ONLY) {
     return acceptingScope()->lookupEnum(name, *this, flags);
   }
 
+  xfailure("lookupEnum: expected LF_INNER_ONLY");
+  return NULL;   // silence warning
+
+  #if 0   // defunct
   // look in all the scopes
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
     EnumType *et = iter.data()->lookupEnum(name, *this, flags);
@@ -2443,6 +2393,7 @@ EnumType *Env::lookupEnum(StringRef name, LookupFlags flags)
     }
   }
   return NULL;    // not found
+  #endif // 0
 }
 
 
