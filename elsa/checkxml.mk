@@ -140,40 +140,83 @@ TEST2 += t0022.cc
 TEST2 += t0023.cc
 TEST2 += t0024.cc
 TEST2 += t0025.cc
+# TEST2 += t0026.cc
 
 TOCLEAN :=
 
 # check parsing commutes with xml serialization
 T1D := $(addprefix outdir/,$(TEST1))
-TOCLEAN += $(addsuffix .B0.cc,$(T1D)) $(addsuffix .B1.xml,$(T1D)) $(addsuffix .B2.xml.cc,$(T1D)) $(addsuffix .B3.diff,$(T1D))
-$(addsuffix .B0.cc,$(T1D)): outdir/%.B0.cc: in/%
-	$(PR) -tr no-elaborate,prettyPrint $< | ./chop_out > $@
+TOCLEAN += outdir/*.B0.dp outdir/*.B0.dp_filtered outdir/*.B1.xml outdir/*.B1.xml_filtered outdir/*.B2.xml.dp outdir/*.B2.xml.dp_filtered outdir/*.B3.diff
+
+# $(addsuffix .B0.cc,$(T1D)): outdir/%.B0.cc: in/%
+# 	$(PR) -tr no-elaborate,prettyPrint $< | ./chop_out > $@
+# $(addsuffix .B1.xml,$(T1D)): outdir/%.B1.xml: in/%
+# 	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-indent $< | ./chop_out > $@
+# $(addsuffix .B2.xml.cc,$(T1D)): outdir/%.B2.xml.cc: outdir/%.B1.xml
+# 	$(PR) -tr no-elaborate,parseXml,prettyPrint $< | ./chop_out > $@
+# $(addsuffix .B3.diff,$(T1D)): outdir/%.B3.diff: outdir/%.B0.cc outdir/%.B2.xml.cc
+# # NOTE: do not, say, replace this with a pipe into 'tee' because that
+# # masks the return code and prevents make from stopping if there is a
+# # difference
+# 	$(DIFF) $^ > $@
+# .PHONY: check_ast
+
+# generate initial debug-print
+$(addsuffix .B0.dp,$(T1D)): outdir/%.B0.dp: in/%
+	$(PR) -tr no-elaborate,prettyPrint $< > $@
+$(addsuffix .B0.dp_filtered,$(T1D)): outdir/%.B0.dp_filtered: outdir/%.B0.dp
+	./chop_out < $< > $@
+
+# generate xml print
 $(addsuffix .B1.xml,$(T1D)): outdir/%.B1.xml: in/%
-	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-indent $< | ./chop_out > $@
-$(addsuffix .B2.xml.cc,$(T1D)): outdir/%.B2.xml.cc: outdir/%.B1.xml
-	$(PR) -tr no-elaborate,parseXml,prettyPrint $< | ./chop_out > $@
-$(addsuffix .B3.diff,$(T1D)): outdir/%.B3.diff: outdir/%.B0.cc outdir/%.B2.xml.cc
+	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-indent $< > $@
+$(addsuffix .B1.xml_filtered,$(T1D)): outdir/%.B1.xml_filtered: outdir/%.B1.xml
+	./chop_out < $< > $@
+
+# parse xml and generate second debug-print
+$(addsuffix .B2.xml.dp,$(T1D)): outdir/%.B2.xml.dp: outdir/%.B1.xml_filtered
+	$(PR) -tr no-elaborate,parseXml,prettyPrint $< > $@
+$(addsuffix .B2.xml.dp_filtered,$(T1D)): outdir/%.B2.xml.dp_filtered: outdir/%.B2.xml.dp
+	./chop_out < $< > $@
+
+# diff the two debug-prints
+$(addsuffix .B3.diff,$(T1D)): outdir/%.B3.diff: outdir/%.B0.dp_filtered outdir/%.B2.xml.dp_filtered
 # NOTE: do not, say, replace this with a pipe into 'tee' because that
 # masks the return code and prevents make from stopping if there is a
 # difference
 	$(DIFF) $^ > $@
-.PHONY: check_ast
+
 check_ast: $(addsuffix .B3.diff,$(T1D))
 
 # check typechecking commutes with xml serialization
 T2D := $(addprefix outdir/,$(TEST2))
-TOCLEAN += $(addsuffix .C0.cc,$(T2D)) $(addsuffix .C1.xml,$(T2D)) $(addsuffix .C2.xml.cc,$(T2D)) $(addsuffix .C3.diff,$(T2D))
-$(addsuffix .C0.cc,$(T2D)): outdir/%.C0.cc: in/%
-	$(PR) -tr no-elaborate,printTypedAST $< | ./filter_loc > $@
+TOCLEAN += outdir/*.C0.dp outdir/*.C0.dp_filtered outdir/*.C1.xml outdir/*.C1.xml_filtered outdir/*.C2.xml.dp outdir/*.C2.xml.dp_filtered outdir/*.C3.diff
+
+# generate initial debug-print
+$(addsuffix .C0.dp,$(T2D)): outdir/%.C0.dp: in/%
+	$(PR) -tr no-elaborate,printTypedAST $< > $@
+$(addsuffix .C0.dp_filtered,$(T2D)): outdir/%.C0.dp_filtered: outdir/%.C0.dp
+	./filter_loc < $< > $@
+
+# generate xml print
 $(addsuffix .C1.xml,$(T2D)): outdir/%.C1.xml: in/%
-	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-indent,xmlPrintAST-types $< | ./chop_out > $@
-$(addsuffix .C2.xml.cc,$(T2D)): outdir/%.C2.xml.cc: outdir/%.C1.xml
-	$(PR) -tr no-typecheck,no-elaborate,parseXml,printAST $< | ./filter_loc > $@
-$(addsuffix .C3.diff,$(T2D)): outdir/%.C3.diff: outdir/%.C0.cc outdir/%.C2.xml.cc
+	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-indent,xmlPrintAST-types $< > $@
+$(addsuffix .C1.xml_filtered,$(T2D)): outdir/%.C1.xml_filtered: outdir/%.C1.xml
+	./chop_out < $< > $@
+
+# parse xml and generate second debug-print
+$(addsuffix .C2.xml.dp,$(T2D)): outdir/%.C2.xml.dp: outdir/%.C1.xml_filtered
+	$(PR) -tr no-typecheck,no-elaborate,parseXml,printAST $< > $@
+$(addsuffix .C2.xml.dp_filtered,$(T2D)): outdir/%.C2.xml.dp_filtered: outdir/%.C2.xml.dp
+	./filter_loc < $< > $@
+
+# diff the two debug-prints
+$(addsuffix .C3.diff,$(T2D)): outdir/%.C3.diff: outdir/%.C0.dp_filtered outdir/%.C2.xml.dp_filtered
 # NOTE: do not, say, replace this with a pipe into 'tee' because that
 # masks the return code and prevents make from stopping if there is a
 # difference
 	$(DIFF) $^ > $@
+
 .PHONY: check_type
 check_type: $(addsuffix .C3.diff,$(T2D))
 

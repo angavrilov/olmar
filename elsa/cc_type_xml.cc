@@ -5,6 +5,7 @@
 #include "cc_flags.h"           // fromXml(DeclFlags &out, rostring str)
 #include "asthelp.h"            // xmlPrintPointer
 #include "xmlhelp.h"            // toXml_int() etc.
+#include "cc_ast.h"             // AST nodes only for AST sub-traversals
 
 #include "strutil.h"            // parseQuotedString
 #include "astxml_lexer.h"       // AstXmlLexer
@@ -239,8 +240,21 @@ do { \
   IncDec depthManager(this->depth); \
   trav(TARGET)
 
+#define travAST(TARGET) \
+do { \
+  if (TARGET) { \
+    (TARGET)->traverse(*astVisitor); \
+  } \
+} while(0)
+
 
 // -------------------- TypeToXml -------------------
+TypeToXml::TypeToXml(ostream &out0, int &depth0, bool indent0)
+  : out(out0)
+  , depth(depth0)
+  , indent(indent0)
+  , astVisitor(NULL)
+{}
 
 void TypeToXml::newline() {
   out << "\n";
@@ -450,8 +464,7 @@ void TypeToXml::toXml(AtomicType *atom) {
     toXml_NamedAtomicType_subtags(dep);
     // * members
     trav(dep->first);
-    // FIX: traverse this AST
-//    PQName *rest;
+    travAST(dep->rest);
     break;
   }
 
@@ -489,6 +502,7 @@ void TypeToXml::toXml(CompoundType *cpd) {
   travObjList(cpd, CompoundType, virtualBases, BaseClassSubobj);
   trav(cpd->subobj);
   travObjList_S(cpd, CompoundType, conversionOperators, Variable);
+  travAST(cpd->syntax);
   trav(cpd->parameterizingScope);
   trav(cpd->selfType);
 }
@@ -519,9 +533,9 @@ void TypeToXml::toXml(Variable *var) {
   tagEnd;
   // **** subtags
   trav(var->type);
-//    trav(var->value);             // FIX: AST so make sure is serialized
+  travAST(var->value);
   trav(var->defaultParamType);
-//    trav(var->funcDefn);          // FIX: AST so make sure is serialized
+  travAST(var->funcDefn);
   trav(var->overload);
   trav(var->scope);
   trav(var->usingAlias_or_parameterizedEntity);
@@ -716,8 +730,7 @@ void TypeToXml::toXml(STemplateArgument *sta) {
     break;
 
   case STemplateArgument::STA_DEPEXPR:
-    // FIX: what the hell should we do?  the same remark is made in
-    // the traverse() method code at this point
+    sta->value.e->traverse(*astVisitor);
     break;
 
   case STemplateArgument::STA_TEMPLATE:

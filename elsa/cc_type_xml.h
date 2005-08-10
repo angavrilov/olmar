@@ -11,9 +11,9 @@
 #include "sobjset.h"            // SObjSet
 #include "xml.h"                // ReadXml
 
-class LinkSatisfier;
 class AstXmlLexer;
 class OverloadSet;
+class ASTVisitor;
 
 string toXml(CompoundType::Keyword id);
 void fromXml(CompoundType::Keyword &out, rostring str);
@@ -30,17 +30,17 @@ class TypeToXml {
   int &depth;                   // ref so we can share our indentation depth with other printers
   bool indent;                  // should we print indentation?
 
+  public:
+  ASTVisitor *astVisitor;       // for launching sub-traversals of AST we encounter in the Types
+
+  protected:
   // printing of types is idempotent
   SObjSet<void const *> printedSetTY;
   SObjSet<void const *> printedSetOL;
   SObjSet<void const *> printedSetNM;
 
   public:
-  TypeToXml(ostream &out0, int &depth0, bool indent0=false)
-    : out(out0)
-    , depth(depth0)
-    , indent(indent0)
-  {}
+  TypeToXml(ostream &out0, int &depth0, bool indent0=false);
   virtual ~TypeToXml() {}
 
   private:

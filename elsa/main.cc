@@ -786,6 +786,7 @@ void doit(int argc, char **argv)
     if (tracingSys("xmlPrintAST-types")) {
       TypeToXml xmlTypeVis(cout, depth, indent);
       ToXmlASTVisitor_Types xmlVis_Types(xmlTypeVis, cout, depth, indent);
+      xmlTypeVis.astVisitor = &xmlVis_Types;
       unit->traverse(xmlVis_Types);
     } else {
       ToXmlASTVisitor xmlVis(cout, depth, indent);
