@@ -25,7 +25,7 @@ enum LookupFlags {
   LF_FUNCTION_NAME     = 0x00000100,   // looking up the name at a function call site
   LF_DECLARATOR        = 0x00000200,   // context is a declarator name lookup; for templates, this means to pick the primary or a specialization, but don't instantiate
   LF_SELFNAME          = 0x00000400,   // the DF_SELFNAME is visible
-  LF_DEPENDENT         = 0x00000800,   // the lookup is in a dependent context
+  LF_unused_value2     = 0x00000800,   // (available)
   LF_TEMPL_PARAM       = 0x00001000,   // return only template parameter/argument names
   LF_SUPPRESS_ERROR    = 0x00002000,   // during lookup, don't emit errors
   LF_SUPPRESS_NONEXIST = 0x00004000,   // suppress "does not exist" errors
@@ -33,7 +33,7 @@ enum LookupFlags {
   LF_NO_IMPL_THIS      = 0x00010000,   // do not insert implicit 'this->'
   LF_LOOKUP_SET        = 0x00020000,   // lookup can return a set of names
   LF_QUERY_TAGS        = 0x00040000,   // look in Scope::typeTags instead of Scope::variables
-  LF_NO_DENOTED_SCOPE  = 0x00080000,   // temporary: disable denoted-scope computation in PQ_qualifier::tcheck
+  LF_unusued_value     = 0x00080000,   // (available for a new use)
   LF_EXPECTING_TYPE    = 0x00100000,   // do not apply template args to a non-type
   LF_EXPLICIT_INST     = 0x00200000,   // the context is a TF_explicitInst
   LF_NO_MEMBERS        = 0x00400000,   // disregard anything with DF_MEMBER

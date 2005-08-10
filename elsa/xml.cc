@@ -354,8 +354,8 @@ void *XmlReaderManager::ctorNodeFromTag(int tag) {
 
   // try each registered reader
   FOREACH_ASTLIST_NC(XmlReader, readers, iter) {
-    void *node;
-    if (node = iter.data()->ctorNodeFromTag(tag)) {
+    void *node = iter.data()->ctorNodeFromTag(tag);
+    if (node) {
       return node;
     }
   }

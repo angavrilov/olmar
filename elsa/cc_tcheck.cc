@@ -724,7 +724,7 @@ void Function::tcheck_memberInits(Env &env)
 void MemberInit::tcheck(Env &env, CompoundType *enclosing)
 {
   // resolve template arguments in 'name'
-  tcheckPQName(name, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(name, env, NULL /*scope*/, LF_NONE);
 
   // typecheck the arguments
   //
@@ -1137,25 +1137,16 @@ bool tcheckTemplateArgumentList(ObjList<STemplateArgument> &dest,
 
 void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
 {
-  if (lflags & LF_NO_DENOTED_SCOPE) {
-    // 2005-02-26: I am trying to transition away from relying on the
-    // scope lookup here, because it is wrong for some cases of
-    // E_fieldAcc.  So, my plan is to specify LF_NO_DENOTED_SCOPE
-    // before tchecking PQNames in contexts where I do not need the
-    // denotedScopeVar.
+  if (!( lflags & LF_DECLARATOR )) {
+    // no need to do scope association stuff
     tcheckTemplateArgumentList(sargs, templArgs, env);
     tcheckPQName(rest, env, scope, lflags);
     return;
   }
 
-  if (lflags & LF_DEPENDENT) {
-    // the previous qualifier was dependent (and in fact erroneous);
-    // do truncated processing here
-    tcheckTemplateArgumentList(sargs, templArgs, env);
-    denotedScopeVar = env.dependentVar;
-    tcheckPQName(rest, env, scope, lflags);
-    return;
-  }
+  // below here, we are trying to set up the "parameterized entity"
+  // relationship, associating template scopes with the things they
+  // parameterize/templatize
 
   // begin by looking up the bare name, igoring template arguments
   Variable *bareQualifierVar = env.lookupOneQualifier_bareName(scope, this, lflags);
@@ -1170,8 +1161,7 @@ void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
   // scope that has my template params
   Scope *hasParamsForMe = NULL;
 
-  if ((lflags & LF_DECLARATOR) &&                // declarator context
-      !(lflags & LF_EXPLICIT_INST) &&            // not explicit inst request
+  if (!(lflags & LF_EXPLICIT_INST) &&            // not explicit inst request
       bareQualifierVar &&                        // lookup succeeded
       bareQualifierVar->isTemplate() &&          // names a template
       sargs.isNotEmpty()) {                      // arguments supplied
@@ -1216,59 +1206,37 @@ void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
     sargs,                  // template args
     dependent, anyTemplates, lflags);
 
-  // save the result in our AST annotation field, 'denotedScopeVar'
-  if (!denotedScope) {
-    if (dependent) {
-      denotedScopeVar = env.dependentVar;
-      lflags |= LF_DEPENDENT;
-    }
-    else {
-      // error; recovery: just keep going (error already reported)
-    }
-  }
-  else {
-    if (denotedScope->curCompound) {
-      denotedScopeVar = denotedScope->curCompound->typedefVar;
+  if (denotedScope && denotedScope->curCompound) {
+    // must be a complete type [ref?] (t0245.cc)
+    env.ensureCompleteType("use as qualifier",
+      denotedScope->curCompound->typedefVar->type);
 
-      // must be a complete type [ref?] (t0245.cc)
-      env.ensureCompleteType("use as qualifier", denotedScopeVar->type);
-      
-      if (hasParamsForMe) {
-        // in/t0461.cc: My delegation scheme has a flaw, in that I set
-        // a scope as 'delegated' before the thing that delegates to
-        // it is on the scope stack, making the template parameters
-        // effectively invisible for a short period.  This shows up in
-        // an out-of-line ctor definition like A<T>::A<T>(...){}.  So
-        // detect this, and as a hack, check the last bit of the name
-        // *before* setting up the delegation.
-        //
-        // 2005-04-16: in/k0047.cc: generalize by doing this whenever
-        // we're at the next-to-last component of the name
-        if (!rest->isPQ_qualifier()) {
-          tcheckPQName(rest, env, denotedScope, lflags);
-        }
-
-        // cement the association now
-        hasParamsForMe->setParameterizedEntity(denotedScope->curCompound->typedefVar);
-
-        TRACE("templateParams",
-          "associated " << hasParamsForMe->desc() <<
-          " with " << denotedScope->curCompound->instName);
-
-        // if we already tcheck'd the final component above, bail now
-        if (!rest->isPQ_qualifier()) {
-          return;
-        }
+    if (hasParamsForMe) {
+      // in/t0461.cc: My delegation scheme has a flaw, in that I set
+      // a scope as 'delegated' before the thing that delegates to
+      // it is on the scope stack, making the template parameters
+      // effectively invisible for a short period.  This shows up in
+      // an out-of-line ctor definition like A<T>::A<T>(...){}.  So
+      // detect this, and as a hack, check the last bit of the name
+      // *before* setting up the delegation.
+      //
+      // 2005-04-16: in/k0047.cc: generalize by doing this whenever
+      // we're at the next-to-last component of the name
+      if (!rest->isPQ_qualifier()) {
+        tcheckPQName(rest, env, denotedScope, lflags);
       }
-    }
-    else if (denotedScope->isGlobalScope()) {
-      denotedScopeVar = env.globalScopeVar;
-    }
-    else {
-      xassert(denotedScope->isNamespace());
-      denotedScopeVar = denotedScope->namespaceVar;
 
-      xassert(!hasParamsForMe);     // namespaces aren't templatized
+      // cement the association now
+      hasParamsForMe->setParameterizedEntity(denotedScope->curCompound->typedefVar);
+
+      TRACE("templateParams",
+        "associated " << hasParamsForMe->desc() <<
+        " with " << denotedScope->curCompound->instName);
+
+      // if we already tcheck'd the final component above, bail now
+      if (!rest->isPQ_qualifier()) {
+        return;
+      }
     }
   }
 
@@ -1424,7 +1392,7 @@ bool isBuggyGcc2HeaderDQT(Env &env, PQName *name)
 // 7.1.5.2
 Type *TS_name::itcheck(Env &env, DeclFlags dflags)
 {
-  tcheckPQName(name, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(name, env, NULL /*scope*/, LF_NONE);
 
   ErrorFlags eflags = EF_NONE;
   LookupFlags lflags = LF_EXPECTING_TYPE;
@@ -1938,7 +1906,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
 
-  tcheckPQName(name, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(name, env, NULL /*scope*/, LF_NONE);
 
   if (keyword == TI_ENUM) {
     Variable *tag = env.lookupPQ_one(name, LF_ONLY_TYPES);
@@ -2105,7 +2073,7 @@ void TS_classSpec::tcheckIntoCompound(
   if (bases) {
     FAKELIST_FOREACH_NC(BaseClassSpec, bases, iter) {
       // resolve any template arguments in the base class name
-      tcheckPQName(iter->name, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+      tcheckPQName(iter->name, env, NULL /*scope*/, LF_NONE);
 
       // cppstd 10, para 1: ignore non-types when looking up
       // base class names
@@ -4217,7 +4185,7 @@ void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt)
 
   if (name) {
     // shouldn't be necessary, but won't hurt
-    tcheckPQName(name, env);
+    tcheckPQName(name, env, NULL, LF_DECLARATOR);
   }
 
   bits->tcheck(env, bits);
@@ -4241,7 +4209,7 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
   env.setLoc(loc);                   
   
   // typecheck the nested name
-  tcheckPQName(nestedName, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(nestedName, env, NULL /*scope*/, LF_NONE);
 
   // enforce [cppstd 8.3.3 para 3]
   if (dt.type->isReference()) {
@@ -5249,7 +5217,7 @@ Type *E_variable::itcheck_var(Env &env, Expression *&replacement, LookupFlags fl
 Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
                                   LookupFlags flags, LookupSet &candidates)
 {
-  tcheckPQName(name, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(name, env, NULL /*scope*/, LF_NONE);
 
   // re-use dependent?
   Variable *v = maybeReuseNondependent(env, name->loc, flags, nondependentVar);
@@ -6721,7 +6689,7 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
 
   // tcheck template arguments and ON_conversion types in the
   // current scope
-  tcheckPQName(fieldName, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(fieldName, env, NULL /*scope*/, LF_NONE);
 
   // want this generally I think
   flags |= LF_SELFNAME;
@@ -9040,7 +9008,7 @@ void ND_alias::tcheck(Env &env)
   // 2005-02-26: at this point the only thing being done is type
   // checking template arguments, which should not even be present,
   // but I do it anyway for uniformity
-  tcheckPQName(original, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(original, env, NULL /*scope*/, LF_NONE);
 
   // find the namespace we're talking about
   Variable *origVar = env.lookupPQ_one(original, LF_ONLY_NAMESPACES);
@@ -9096,7 +9064,7 @@ void ND_usingDecl::tcheck(Env &env)
   }
 
   // lookup the template arguments in the name
-  tcheckPQName(name, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(name, env, NULL /*scope*/, LF_NONE);
 
   // find what we're referring to; if this is a template, then it
   // names the template primary, not any instantiated version
@@ -9147,7 +9115,7 @@ void ND_usingDecl::tcheck(Env &env)
 
 void ND_usingDir::tcheck(Env &env)
 {
-  tcheckPQName(name, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(name, env, NULL /*scope*/, LF_NONE);
 
   // find the namespace we're talking about
   Variable *targetVar = env.lookupPQ_one(name, LF_ONLY_NAMESPACES);

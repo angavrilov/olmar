@@ -2644,7 +2644,7 @@ void Env::instantiateClassBody(Variable *inst)
     insertTemplateArgBindings(spec, instTI->arguments);
 
     // check the type tag *before* adjusting the scope stack (?)
-    instCT->syntax->name->tcheck_pq(*this);
+    instCT->syntax->name->tcheck_pq(*this, NULL /*scope*/, LF_DECLARATOR);
     instCT->syntax->ctype = instCT;
 
     deleteTemplateArgBindings(limit);

@@ -239,7 +239,6 @@ class ToXmlASTVisitor_Types : public ToXmlASTVisitor {
   bool visitPQName(PQName *pqn) {
     if (!ToXmlASTVisitor::visitPQName(pqn)) return false;
     if (pqn->isPQ_qualifier()) {
-      PRINT_ANNOT(pqn->asPQ_qualifier()->denotedScopeVar);
       PRINT_ANNOT(pqn->asPQ_qualifier()->qualifierVar);
     } else if (pqn->isPQ_variable()) {
       PRINT_ANNOT(pqn->asPQ_variable()->var);
