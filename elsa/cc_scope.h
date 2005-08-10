@@ -146,18 +146,13 @@ public:      // data
   SourceLoc curLoc;                   // latest AST location marker seen
 
 private:     // funcs
-  void lookupPQVariable_considerBase
-    (PQName const *name, Env &env, LookupFlags flags,
-     Variable *&v1, BaseClassSubobj const *&v1Subobj,
-     BaseClassSubobj const *v2Subobj);
-  void lookupPQEnumC_considerBase
-    (PQName const *name, Env &env, LookupFlags flags,
-     EnumType const *&v1,
+  Variable *lookupVariable_inner
+    (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags);
+  void lookupVariable_considerBase
+    (StringRef name, Env &env, LookupFlags flags,
+     Variable *&v1,
      BaseClassSubobj const *&v1Subobj,
-     BaseClassSubobj const *v2Subobj) const;
-  Variable *lookupPQVariable_inner
-    (LookupSet &candidates, PQName const *name,
-     Env &env, LookupFlags flags);
+     BaseClassSubobj const *v2Subobj);
 
   // more using-directive stuff
   void addActiveUsingEdge(Scope *target);
@@ -267,11 +262,6 @@ public:      // funcs
   // compounds/enums
   Variable *lookupTypeTag(StringRef name, Env &env, LookupFlags f=LF_NONE) const;
 
-  // lookup of a possibly-qualified name; used for member access
-  // like "a.B::f()"
-  Variable *lookupPQVariable(PQName const *name, Env &env, LookupFlags f=LF_NONE);
-  EnumType const *lookupPQEnumC(PQName const *name, Env &env, LookupFlags flags) const;
-
   // non-const versions..
   CompoundType *lookupCompound(StringRef name, Env &env, LookupFlags f=LF_NONE)
     { return const_cast<CompoundType*>(lookupCompoundC(name, env, f)); }
@@ -294,9 +284,6 @@ public:      // funcs
   // extended interface for returning sets
   Variable *lookupVariable_set
     (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags);
-  Variable *lookupPQVariable_set
-    (LookupSet &candidates, PQName const *name,
-     Env &env, LookupFlags flags);
 
 
   // if this scope has a name, return the typedef variable that

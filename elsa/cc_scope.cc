@@ -343,54 +343,34 @@ bool hasAncestor(BaseClassSubobj const *child, BaseClassSubobj const *ancestor)
 }
 
 
-// the lookup semantics here are a bit complicated; relevant tests
-// include t0099.cc and std/3.4.5.cc
-Variable *Scope
-  ::lookupPQVariable(PQName const *name, Env &env, LookupFlags flags)
-{
-  LookupSet candidates;
-  return lookupPQVariable_set(candidates, name, env, flags);
-}
-
-Variable *Scope::lookupPQVariable_set
-  (LookupSet &candidates, PQName const *name,
-   Env &env, LookupFlags flags)
-{
-  return lookupPQVariable_inner(candidates, name, env, flags);
-}
-
-// same as above, but skip delegation check
-Variable *Scope::lookupPQVariable_inner
-  (LookupSet &candidates, PQName const *name,
-   Env &env, LookupFlags flags)
+Variable *Scope::lookupVariable_inner
+  (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags)
 {
   Variable *v1 = NULL;
 
   // [cppstd sec. 10.2]: class members hide all members from
   // base classes
-  if (!name->hasQualifiers()) {
-    v1 = candidates.filter(variables.get(name->getName()), flags);
+  v1 = candidates.filter(variables.get(name), flags);
 
-    if (!(flags & LF_IGNORE_USING)) {
-      if (!(flags & LF_QUALIFIED)) {
-        // 7.3.4 para 1: "active using" edges are a source of additional
-        // declarations that can satisfy an unqualified lookup
-        if (activeUsingEdges.isNotEmpty()) {
-          v1 = searchActiveUsingEdges(candidates, name->getName(), env, flags, v1);
-        }
-      }
-      else {
-        // 3.4.3.2 para 2: do a DFS on the "using" edge graph, but only
-        // if we haven't already found the name
-        if (!v1 && usingEdges.isNotEmpty()) {
-          v1 = searchUsingEdges(candidates, name->getName(), env, flags);
-        }
+  if (!(flags & LF_IGNORE_USING)) {
+    if (!(flags & LF_QUALIFIED)) {
+      // 7.3.4 para 1: "active using" edges are a source of additional
+      // declarations that can satisfy an unqualified lookup
+      if (activeUsingEdges.isNotEmpty()) {
+        v1 = searchActiveUsingEdges(candidates, name, env, flags, v1);
       }
     }
-
-    if (v1) {
-      return v1;
+    else {
+      // 3.4.3.2 para 2: do a DFS on the "using" edge graph, but only
+      // if we haven't already found the name
+      if (!v1 && usingEdges.isNotEmpty()) {
+        v1 = searchUsingEdges(candidates, name, env, flags);
+      }
     }
+  }
+
+  if (v1) {
+    return v1;
   }
 
   if (!curCompound) {
@@ -409,8 +389,8 @@ Variable *Scope::lookupPQVariable_inner
   // recursively examine the subobject hierarchy
   BaseClassSubobj const *v1Subobj = NULL;
   curCompound->clearSubobjVisited();
-  lookupPQVariable_considerBase(name, env, flags,
-                                v1, v1Subobj, curCompound->subobj);
+  lookupVariable_considerBase(name, env, flags,
+                              v1, v1Subobj, curCompound->subobj);
 
   if (v1) {
     candidates.addsIf(v1, flags);
@@ -419,10 +399,10 @@ Variable *Scope::lookupPQVariable_inner
   return v1;
 }
 
-// helper for lookupPQVariableC; if we find a suitable variable, set
+// helper for lookupVariable_inner; if we find a suitable variable, set
 // v1/v1Subobj to refer to it; if we find an ambiguity, report that
-void Scope::lookupPQVariable_considerBase
-  (PQName const *name, Env &env, LookupFlags flags,  // stuff from caller
+void Scope::lookupVariable_considerBase
+  (StringRef name, Env &env, LookupFlags flags,  // stuff from caller
    Variable *&v1,                                    // best so far
    BaseClassSubobj const *&v1Subobj,                 // where 'v1' was found
    BaseClassSubobj const *v2Subobj)                  // where we're looking now
@@ -432,71 +412,61 @@ void Scope::lookupPQVariable_considerBase
 
   CompoundType const *v2Base = v2Subobj->ct;
 
-  // if we're looking for a qualified name, and the outermost
-  // qualifier matches this base class, then consume it
-  if (name->hasQualifiers() &&
-      name->asPQ_qualifierC()->qualifier == v2Base->name) {
-    name = name->asPQ_qualifierC()->rest;
-  }
+  // look in 'v2Base' for the field
+  Variable *v2 =
+    vfilter(v2Base->variables.get(name), flags);
+  if (v2) {
+    TRACE("lookup", "found " << v2Base->name << "::" << name);
 
-  if (!name->hasQualifiers()) {
-    // look in 'v2Base' for the field
-    Variable *v2 =
-      vfilter(v2Base->variables.get(name->getName()), flags);
-    if (v2) {
-      TRACE("lookup",    "found " << v2Base->name << "::"
-                      << name->toString());
-
-      if (v1) {
-        if (v1 == v2 &&
-            (v1->hasFlag(DF_STATIC) || v1->hasFlag(DF_TYPEDEF))) {
-          // they both refer to the same static entity; that's ok
-          // (10.2 para 2); ALSO: we believe this exception should
-          // apply to types also (DF_TYPEDEF), though the standard
-          // does not explicitly say so (in/t0166.cc is testcase)
-          return;
-        }
-
-        // 9/21/04: It is still possible that this is not an error, if
-        // 'v1' is hidden by 'v2' but (because of virtual inheritance)
-        // 'v1' was nevertheless traversed before 'v2'.  So, check whether
-        // 'v2' hides 'v1'.  See in/d0104.cc.
-        if (hasAncestor(v2Subobj, v1Subobj)) {
-          // ok, just go ahead and let 'v2' replace 'v1'
-          TRACE("lookup", "DAG ancestor conflict suppressed (v2 is lower)");
-        }
-        else if (hasAncestor(v1Subobj, v2Subobj)) {
-          // it could also be the other way around
-          TRACE("lookup", "DAG ancestor conflict suppressed (v1 is lower)");
-
-          // in this case, 'v1' is already the right one
-          return;
-        }
-        else {
-          // ambiguity
-          env.error(stringc
-            << "reference to `" << *name << "' is ambiguous, because "
-            << "it could either refer to "
-            << v1Subobj->ct->name << "::" << *name << " or "
-            << v2Base->name << "::" << *name);
-          return;
-        }
+    if (v1) {
+      if (v1 == v2 &&
+          (v1->hasFlag(DF_STATIC) || v1->hasFlag(DF_TYPEDEF))) {
+        // they both refer to the same static entity; that's ok
+        // (10.2 para 2); ALSO: we believe this exception should
+        // apply to types also (DF_TYPEDEF), though the standard
+        // does not explicitly say so (in/t0166.cc is testcase)
+        return;
       }
 
-      // found one; copy it into 'v1', my "best so far"
-      v1 = v2;
-      v1Subobj = v2Subobj;
+      // 9/21/04: It is still possible that this is not an error, if
+      // 'v1' is hidden by 'v2' but (because of virtual inheritance)
+      // 'v1' was nevertheless traversed before 'v2'.  So, check whether
+      // 'v2' hides 'v1'.  See in/d0104.cc.
+      if (hasAncestor(v2Subobj, v1Subobj)) {
+        // ok, just go ahead and let 'v2' replace 'v1'
+        TRACE("lookup", "DAG ancestor conflict suppressed (v2 is lower)");
+      }
+      else if (hasAncestor(v1Subobj, v2Subobj)) {
+        // it could also be the other way around
+        TRACE("lookup", "DAG ancestor conflict suppressed (v1 is lower)");
 
-      // this name hides any in base classes, so this arm of the
-      // search stops here
-      return;
+        // in this case, 'v1' is already the right one
+        return;
+      }
+      else {
+        // ambiguity
+        env.error(stringc
+          << "reference to `" << name << "' is ambiguous, because "
+          << "it could either refer to "
+          << v1Subobj->ct->name << "::" << name << " or "
+          << v2Base->name << "::" << name);
+        return;
+      }
     }
+
+    // found one; copy it into 'v1', my "best so far"
+    v1 = v2;
+    v1Subobj = v2Subobj;
+
+    // this name hides any in base classes, so this arm of the
+    // search stops here
+    return;
   }
 
-  // name is still qualified, or we didn't find it; recursively
-  // look into base classes of 'v2Subobj'
+  // we didn't find it; recursively look into base classes of
+  // 'v2Subobj'
   SFOREACH_OBJLIST(BaseClassSubobj, v2Subobj->parents, iter) {
-    lookupPQVariable_considerBase(name, env, flags, v1, v1Subobj, iter.data());
+    lookupVariable_considerBase(name, env, flags, v1, v1Subobj, iter.data());
   }
 }
 
@@ -515,8 +485,7 @@ Variable *Scope::lookupVariable_set
     return candidates.filter(variables.get(name), flags);
   }
 
-  PQ_name wrapperName(SL_UNKNOWN, name);
-  Variable *ret = lookupPQVariable_set(candidates, &wrapperName, env, flags);
+  Variable *ret = lookupVariable_inner(candidates, name, env, flags);
   if (ret) return ret;
 
   // previously, I had code here which traversed the 'parentScope'
@@ -598,152 +567,6 @@ Variable *Scope::lookupTypeTag(StringRef name, Env &env, LookupFlags flags) cons
   }
 
   return v;
-}
-
-
-// COPIED from above
-EnumType const *Scope
-  ::lookupPQEnumC(PQName const *name, Env &env, LookupFlags flags) const
-{
-  EnumType const *v1 = NULL;
-
-  // [cppstd sec. 10.2]: class members hide all members from
-  // base classes
-  if (!name->hasQualifiers()) {
-//      cout << "lookupPQEnumC enums" << endl;
-//      for (StringSObjDict<EnumType>::IterC iter(enums); !iter.isDone(); iter.next()) {
-//        cout << "\t" << iter.key() << "=";
-//        iter.value()->gdb();
-//        cout << endl;
-//      }
-//      cout << "name->getName() " << name->getName() << endl;
-
-    // FIX: some kind of filter required?
-//      v1 = vfilterC(enums.queryif(name->getName()), flags);
-    v1 = lookupEnumC(name->getName(), env);
-
-    // FIX: do this for enums?
-//      if (!(flags & LF_QUALIFIED)) {
-//        // 7.3.4 para 1: "active using" edges are a source of additional
-//        // declarations that can satisfy an unqualified lookup
-//        if (activeUsingEdges.isNotEmpty()) {
-//          v1 = searchActiveUsingEdges(name->getName(), env, flags, v1);
-//        }
-//      }
-//      else {
-//        // 3.4.3.2 para 2: do a DFS on the "using" edge graph, but only
-//        // if we haven't already found the name
-//        if (!v1 && usingEdges.isNotEmpty()) {
-//          v1 = searchUsingEdges(name->getName(), env, flags);
-//        }
-//      }
-
-    if (v1) {
-      return v1;
-    }
-  }
-
-  if (!curCompound) {
-    // nowhere else to look
-    return NULL;
-  }
-
-  // [ibid] if I can find a class member by looking in multiple
-  // base classes, then it's ambiguous and the program has
-  // an error
-  //
-  // to implement this, I'll walk the list of base classes,
-  // keeping in 'ret' the latest successful lookup, and if I
-  // find another successful lookup then I'll complain
-
-  // recursively examine the subobject hierarchy
-  BaseClassSubobj const *v1Subobj = NULL;
-  curCompound->clearSubobjVisited();
-  lookupPQEnumC_considerBase(name, env, flags,
-                             v1, v1Subobj, curCompound->subobj);
-
-  return v1;
-}
-
-// helper for lookupPQEnumC; if we find a suitable enum, set v1/v1Subobj
-// to refer to it; if we find an ambiguity, report that
-//
-// COPIED from above
-void Scope::lookupPQEnumC_considerBase
-  (PQName const *name, Env &env, LookupFlags flags,  // stuff from caller
-   EnumType const *&v1,                              // best so far
-   BaseClassSubobj const *&v1Subobj,                 // where 'v1' was found
-   BaseClassSubobj const *v2Subobj) const            // where we're looking now
-{
-  if (v2Subobj->visited) return;
-  v2Subobj->visited = true;
-
-  CompoundType const *v2Base = v2Subobj->ct;
-
-  // if we're looking for a qualified name, and the outermost
-  // qualifier matches this base class, then consume it
-  if (name->hasQualifiers() &&
-      name->asPQ_qualifierC()->qualifier == v2Base->name) {
-    name = name->asPQ_qualifierC()->rest;
-  }
-
-  if (!name->hasQualifiers()) {
-    // look in 'v2Base' for the field
-    // FIX: filter for enums?
-//      EnumType const *v2 = vfilterC(v2Base->enums.queryif(name->getName()), flags);
-    EnumType const *v2 = v2Base->lookupEnumC(name->getName(), env);
-    if (v2) {
-      TRACE("lookup",    "found " << v2Base->name << "::"
-                      << name->toString());
-
-      if (v1) {
-        // FIX: do this for enums?
-//          if (v1 == v2 &&
-//              (v1->hasFlag(DF_STATIC) || v1->hasFlag(DF_TYPEDEF))) {
-//            // they both refer to the same static entity; that's ok
-//            // (10.2 para 2); ALSO: we believe this exception should
-//            // apply to types also (DF_TYPEDEF), though the standard
-//            // does not explicitly say so (in/t0166.cc is testcase)
-//            return;
-//          }
-
-        if (hasAncestor(v2Subobj, v1Subobj)) {
-          // ok, just go ahead and let 'v2' replace 'v1'
-          TRACE("lookup", "(lookup enum) DAG ancestor conflict suppressed (v2 is lower)");
-        }
-        else if (hasAncestor(v1Subobj, v2Subobj)) {
-          // it could also be the other way around
-          TRACE("lookup", "(lookup enum) DAG ancestor conflict suppressed (v1 is lower)");
-
-          // in this case, 'v1' is already the right one
-          return;
-        }
-        else {
-          // ambiguity
-          env.error(stringc
-            << "reference to `" << *name << "' is ambiguous, because "
-            << "it could either refer to "
-            << v1Subobj->ct->name << "::" << *name << " or "
-            << v2Base->name << "::" << *name);
-          return;
-        }
-      }
-
-      // found one; copy it into 'v1', my "best so far"
-      v1 = v2;
-      v1Subobj = v2Subobj;
-
-      // this name hides any in base classes, so this arm of the
-      // search stops here
-      return;
-    }
-  }
-
-  // name is still qualified, or we didn't find it; recursively
-  // look into base classes of 'v2Subobj'
-  SFOREACH_OBJLIST(BaseClassSubobj, v2Subobj->parents, iter) {
-    lookupPQEnumC_considerBase(name, env, flags, v1, v1Subobj, iter.data());
-  }
 }
 
 
