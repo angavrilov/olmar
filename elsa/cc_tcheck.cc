@@ -7067,7 +7067,7 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
     // 10.2p2: must not ambiguously refer to fields of distinct
     // subobjects
     //
-    // Scope::lookupPQVariable_considerBase has some overlapping
+    // Scope::lookupVariable_considerBase has some overlapping
     // functionality.  It seems to me that the check here should
     // subsume the one in Scope, and furthermore I think *both*
     // implementations may have subtle bugs, but I can't figure out a

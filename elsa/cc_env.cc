@@ -1810,9 +1810,6 @@ Scope *Env::lookupOneQualifier_useArgs(
       anyTemplates = true;
     }
 
-    // This is the same check as below in lookupPQVariable; why
-    // is the mechanism duplicated?  It seems my scope lookup
-    // code should be a special case of general variable lookup..
     if (qualVar->hasFlag(DF_SELFNAME) && sargs.isEmpty()) {
       // it's a reference to the class I'm in (testcase: t0168.cc)
     }
