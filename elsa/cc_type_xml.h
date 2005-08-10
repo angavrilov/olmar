@@ -169,6 +169,7 @@ class TypeXmlReader : public XmlReader {
   void registerAttr_BaseClassSubobj    (BaseClassSubobj *,     int attr, char const *strValue);
   void registerAttr_OverloadSet        (OverloadSet *,         int attr, char const *strValue);
   void registerAttr_STemplateArgument  (STemplateArgument *,   int attr, char const *strValue);
+  bool registerAttr_TemplateParams_super(TemplateParams *obj,  int attr, char const *strValue);
   void registerAttr_TemplateInfo       (TemplateInfo *,        int attr, char const *strValue);
   void registerAttr_InheritedTemplateParams(InheritedTemplateParams*,
                                                                int attr, char const *strValue);

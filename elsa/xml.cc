@@ -16,7 +16,7 @@ void XmlReader::setManager(XmlReaderManager *manager0) {
 }
 
 void XmlReader::userError(char const *msg) {
-  userError(msg);
+  manager->userError(msg);
 }
 
 void XmlReaderManager::registerReader(XmlReader *reader) {

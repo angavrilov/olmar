@@ -169,6 +169,7 @@ at
 #   ObjList
 List_CompoundType_bases
 List_CompoundType_virtualBases
+List_PseudoInstantiation_args
 #   SObjList
 List_FunctionType_params
 List_CompoundType_dataMembers

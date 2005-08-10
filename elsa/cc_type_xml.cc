@@ -677,6 +677,8 @@ void TypeToXml::toXml(STemplateArgument *sta) {
 
   // **** attributes
   printXml(kind, sta->kind);
+
+  newline();
   switch(sta->kind) {
   default: xfailure("illegal STemplateArgument kind"); break;
 
@@ -786,12 +788,13 @@ void TypeToXml::toXml(TemplateInfo *ti) {
 void TypeToXml::toXml(InheritedTemplateParams *itp) {
   // idempotency
   if (printed(itp)) return;
-  openTag(TemplateInfo, itp);
+  openTag(InheritedTemplateParams, itp);
   // **** attributes
   // * superclass
   toXml_TemplateParams_properties(itp);
   // * members
   printPtr(itp, enclosing);
+  tagEnd;
   // **** subtags
   // * superclass
   toXml_TemplateParams_subtags(itp);
@@ -867,6 +870,7 @@ bool TypeXmlReader::kind2kindCat(int kind, KindCategory *kindCat) {
   //   ObjList
   case XTOK_List_CompoundType_bases:
   case XTOK_List_CompoundType_virtualBases:
+  case XTOK_List_PseudoInstantiation_args:
   case XTOK_List_TemplateInfo_inheritedParams:
   case XTOK_List_TemplateInfo_arguments:
   case XTOK_List_TemplateInfo_argumentsToPrimary:
@@ -961,6 +965,7 @@ bool TypeXmlReader::convertList2ObjList(ASTList<char> *list, int listKind, void 
 
   case XTOK_List_TemplateInfo_arguments:
   case XTOK_List_TemplateInfo_argumentsToPrimary:
+  case XTOK_List_PseudoInstantiation_args:
     convertList(ObjList, STemplateArgument);
     break;
 
@@ -1049,6 +1054,7 @@ void *TypeXmlReader::ctorNodeFromTag(int tag) {
     return new ObjList<InheritedTemplateParams>();
   case XTOK_List_TemplateInfo_arguments:
   case XTOK_List_TemplateInfo_argumentsToPrimary:
+  case XTOK_List_PseudoInstantiation_args:
     return new ObjList<STemplateArgument>();
 
   // SObjList
@@ -1136,23 +1142,23 @@ bool TypeXmlReader::registerAttribute(void *target, int kind, int attr, char con
 void TypeXmlReader::registerAttr_CVAtomicType(CVAtomicType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a CVAtomicType"); break;
+  case XTOK_atomic: ul(atomic); break;
   case XTOK_cv: fromXml(obj->cv, parseQuotedString(strValue)); break;
-  case XTOK_atomic: ul(atomic); break; 
   }
 }
 
 void TypeXmlReader::registerAttr_PointerType(PointerType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a PointerType"); break; 
-  case XTOK_cv: fromXml(obj->cv, parseQuotedString(strValue)); break; 
-  case XTOK_atType: ul(atType); break; 
+  default: userError("illegal attribute for a PointerType"); break;
+  case XTOK_cv: fromXml(obj->cv, parseQuotedString(strValue)); break;
+  case XTOK_atType: ul(atType); break;
   }
 }
 
 void TypeXmlReader::registerAttr_ReferenceType(ReferenceType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a ReferenceType"); break; 
-  case XTOK_atType: ul(atType); break; 
+  default: userError("illegal attribute for a ReferenceType"); break;
+  case XTOK_atType: ul(atType); break;
   }
 }
 
@@ -1176,19 +1182,19 @@ void TypeXmlReader::registerAttr_FunctionType_ExnSpec
 
 void TypeXmlReader::registerAttr_ArrayType(ArrayType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a ArrayType"); break; 
-  case XTOK_eltType: ul(eltType); break; 
-  case XTOK_size: fromXml_int(obj->size, parseQuotedString(strValue)); break; 
+  default: userError("illegal attribute for a ArrayType"); break;
+  case XTOK_eltType: ul(eltType); break;
+  case XTOK_size: fromXml_int(obj->size, parseQuotedString(strValue)); break;
   }
 }
 
 void TypeXmlReader::registerAttr_PointerToMemberType
   (PointerToMemberType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a PointerToMemberType"); break; 
-  case XTOK_inClassNAT: ul(inClassNAT); break; 
-  case XTOK_cv: fromXml(obj->cv, parseQuotedString(strValue)); break; 
-  case XTOK_atType: ul(atType); break; 
+  default: userError("illegal attribute for a PointerToMemberType"); break;
+  case XTOK_inClassNAT: ul(inClassNAT); break;
+  case XTOK_cv: fromXml(obj->cv, parseQuotedString(strValue)); break;
+  case XTOK_atType: ul(atType); break;
   }
 }
 
@@ -1197,18 +1203,18 @@ void TypeXmlReader::registerAttr_Variable(Variable *obj, int attr, char const *s
   default: userError("illegal attribute for a Variable"); break;
   case XTOK_loc:                // throw it away for now; FIX: parse it
     break;
-  case XTOK_name: obj->name = manager->strTable(parseQuotedString(strValue)); break; 
-  case XTOK_type: ul(type); break; 
+  case XTOK_name: obj->name = manager->strTable(parseQuotedString(strValue)); break;
+  case XTOK_type: ul(type); break;
   case XTOK_flags:
-    fromXml(const_cast<DeclFlags&>(obj->flags), parseQuotedString(strValue)); break; 
-  case XTOK_value: ul(value); break; 
-  case XTOK_defaultParamType: ul(defaultParamType); break; 
-  case XTOK_funcDefn: ul(funcDefn); break; 
-  case XTOK_overload: ul(overload); break; 
-  case XTOK_scope: ul(scope); break; 
-  case XTOK_intData: fromXml_Variable_intData(obj->intData, parseQuotedString(strValue)); break; 
-  case XTOK_usingAlias_or_parameterizedEntity: ul(usingAlias_or_parameterizedEntity); break; 
-  case XTOK_templInfo: ul(templInfo); break; 
+    fromXml(const_cast<DeclFlags&>(obj->flags), parseQuotedString(strValue)); break;
+  case XTOK_value: ul(value); break;
+  case XTOK_defaultParamType: ul(defaultParamType); break;
+  case XTOK_funcDefn: ul(funcDefn); break;
+  case XTOK_overload: ul(overload); break;
+  case XTOK_scope: ul(scope); break;
+  case XTOK_intData: fromXml_Variable_intData(obj->intData, parseQuotedString(strValue)); break;
+  case XTOK_usingAlias_or_parameterizedEntity: ul(usingAlias_or_parameterizedEntity); break;
+  case XTOK_templInfo: ul(templInfo); break;
   }
 }
 
@@ -1216,16 +1222,16 @@ bool TypeXmlReader::registerAttr_NamedAtomicType_super
   (NamedAtomicType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: return false;        // we didn't find it
-  case XTOK_name: obj->name = manager->strTable(parseQuotedString(strValue)); break; 
-  case XTOK_typedefVar: ul(typedefVar); break; 
-  case XTOK_access: fromXml(obj->access, parseQuotedString(strValue)); break; 
+  case XTOK_name: obj->name = manager->strTable(parseQuotedString(strValue)); break;
+  case XTOK_typedefVar: ul(typedefVar); break;
+  case XTOK_access: fromXml(obj->access, parseQuotedString(strValue)); break;
   }
   return true;                  // found it
 }
 
 void TypeXmlReader::registerAttr_SimpleType(SimpleType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a SimpleType"); break; 
+  default: userError("illegal attribute for a SimpleType"); break;
   case XTOK_type:
     // NOTE: this 'type' is not a type node, but basically an enum,
     // and thus is handled more like a flag would be.
@@ -1240,19 +1246,19 @@ void TypeXmlReader::registerAttr_CompoundType(CompoundType *obj, int attr, char 
   if (registerAttr_Scope_super(obj, attr, strValue)) return;
 
   switch(attr) {
-  default: userError("illegal attribute for a CompoundType"); break; 
-  case XTOK_forward: fromXml_bool(obj->forward, parseQuotedString(strValue)); break; 
-  case XTOK_keyword: fromXml(obj->keyword, parseQuotedString(strValue)); break; 
-  case XTOK_dataMembers: ulList(_List, dataMembers, XTOK_List_CompoundType_dataMembers); break; 
-  case XTOK_bases: ulList(_List, bases, XTOK_List_CompoundType_bases); break; 
-  case XTOK_virtualBases: ulList(_List, virtualBases, XTOK_List_CompoundType_virtualBases); break; 
-  case XTOK_subobj: ul(subobj); break; 
+  default: userError("illegal attribute for a CompoundType"); break;
+  case XTOK_forward: fromXml_bool(obj->forward, parseQuotedString(strValue)); break;
+  case XTOK_keyword: fromXml(obj->keyword, parseQuotedString(strValue)); break;
+  case XTOK_dataMembers: ulList(_List, dataMembers, XTOK_List_CompoundType_dataMembers); break;
+  case XTOK_bases: ulList(_List, bases, XTOK_List_CompoundType_bases); break;
+  case XTOK_virtualBases: ulList(_List, virtualBases, XTOK_List_CompoundType_virtualBases); break;
+  case XTOK_subobj: ul(subobj); break;
   case XTOK_conversionOperators:
-    ulList(_List, conversionOperators, XTOK_List_CompoundType_conversionOperators); break; 
-  case XTOK_instName: obj->instName = manager->strTable(parseQuotedString(strValue)); break; 
-  case XTOK_syntax: ul(syntax); break; 
-  case XTOK_parameterizingScope: ul(parameterizingScope); break; 
-  case XTOK_selfType: ul(selfType); break; 
+    ulList(_List, conversionOperators, XTOK_List_CompoundType_conversionOperators); break;
+  case XTOK_instName: obj->instName = manager->strTable(parseQuotedString(strValue)); break;
+  case XTOK_syntax: ul(syntax); break;
+  case XTOK_parameterizingScope: ul(parameterizingScope); break;
+  case XTOK_selfType: ul(selfType); break;
   }
 }
 
@@ -1261,20 +1267,20 @@ void TypeXmlReader::registerAttr_EnumType(EnumType *obj, int attr, char const *s
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
 
   switch(attr) {
-  default: userError("illegal attribute for a EnumType"); break; 
-  case XTOK_valueIndex: ulList(_NameMap, valueIndex, XTOK_NameMap_EnumType_valueIndex); break; 
-  case XTOK_nextValue: fromXml_int(obj->nextValue, parseQuotedString(strValue)); break; 
+  default: userError("illegal attribute for a EnumType"); break;
+  case XTOK_valueIndex: ulList(_NameMap, valueIndex, XTOK_NameMap_EnumType_valueIndex); break;
+  case XTOK_nextValue: fromXml_int(obj->nextValue, parseQuotedString(strValue)); break;
   }
 }
 
 void TypeXmlReader::registerAttr_EnumType_Value
   (EnumType::Value *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a EnumType"); break; 
-  case XTOK_name: obj->name = manager->strTable(parseQuotedString(strValue)); break; 
+  default: userError("illegal attribute for a EnumType"); break;
+  case XTOK_name: obj->name = manager->strTable(parseQuotedString(strValue)); break;
   case XTOK_type: ul(type); break; // NOTE: 'type' here is actually an atomic type
-  case XTOK_value: fromXml_int(obj->value, parseQuotedString(strValue)); break; 
-  case XTOK_decl: ul(decl); break; 
+  case XTOK_value: fromXml_int(obj->value, parseQuotedString(strValue)); break;
+  case XTOK_decl: ul(decl); break;
   }
 }
 
@@ -1291,10 +1297,9 @@ void TypeXmlReader::registerAttr_PseudoInstantiation
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
 
   switch(attr) {
-  default: userError("illegal attribute for a PsuedoInstantiation"); break; 
-//    CompoundType *primary;
-//    // the arguments, some of which contain type variables
-//    ObjList<STemplateArgument> args;
+  default: userError("illegal attribute for a PsuedoInstantiation"); break;
+  case XTOK_primary: ul(primary); break;
+  case XTOK_args: ulList(_List, args, XTOK_List_PseudoInstantiation_args); break;
   }
 }
 
@@ -1304,26 +1309,23 @@ void TypeXmlReader::registerAttr_DependentQType
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
 
   switch(attr) {
-  default: userError("illegal attribute for a DependentQType"); break; 
-//    AtomicType *first;            // (serf) TypeVariable or PseudoInstantiation
-//    // After the first component comes whatever name components followed
-//    // in the original syntax.  All template arguments have been
-//    // tcheck'd.
-//    PQName *rest;
+  default: userError("illegal attribute for a DependentQType"); break;
+  case XTOK_first: ul(first);
+  case XTOK_rest: ul(rest);
   }
 }
 
 bool TypeXmlReader::registerAttr_Scope_super(Scope *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: return false;        // we didn't find it break; 
-  case XTOK_variables: ulList(_NameMap, variables, XTOK_NameMap_Scope_variables); break; 
-  case XTOK_typeTags: ulList(_NameMap, typeTags, XTOK_NameMap_Scope_typeTags); break; 
-  case XTOK_canAcceptNames: fromXml_bool(obj->canAcceptNames, parseQuotedString(strValue)); break; 
-  case XTOK_parentScope: ul(parentScope); break; 
-  case XTOK_scopeKind: fromXml(obj->scopeKind, parseQuotedString(strValue)); break; 
-  case XTOK_namespaceVar: ul(namespaceVar); break; 
-  case XTOK_templateParams: ul(templateParams); break; 
-  case XTOK_curCompound: ul(curCompound); break; 
+  default: return false;        // we didn't find it break;
+  case XTOK_variables: ulList(_NameMap, variables, XTOK_NameMap_Scope_variables); break;
+  case XTOK_typeTags: ulList(_NameMap, typeTags, XTOK_NameMap_Scope_typeTags); break;
+  case XTOK_canAcceptNames: fromXml_bool(obj->canAcceptNames, parseQuotedString(strValue)); break;
+  case XTOK_parentScope: ul(parentScope); break;
+  case XTOK_scopeKind: fromXml(obj->scopeKind, parseQuotedString(strValue)); break;
+  case XTOK_namespaceVar: ul(namespaceVar); break;
+  case XTOK_templateParams: ulList(_List, templateParams, XTOK_List_Scope_templateParams); break;
+  case XTOK_curCompound: ul(curCompound); break;
   case XTOK_curLoc:             // throw it away for now; FIX: parse it
     break;
   }
@@ -1339,10 +1341,10 @@ void TypeXmlReader::registerAttr_Scope(Scope *obj, int attr, char const *strValu
 
 bool TypeXmlReader::registerAttr_BaseClass_super(BaseClass *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: return false; break; 
-  case XTOK_ct: ul(ct); break; 
-  case XTOK_access: fromXml(obj->access, parseQuotedString(strValue)); break; 
-  case XTOK_isVirtual: fromXml_bool(obj->isVirtual, parseQuotedString(strValue)); break; 
+  default: return false; break;
+  case XTOK_ct: ul(ct); break;
+  case XTOK_access: fromXml(obj->access, parseQuotedString(strValue)); break;
+  case XTOK_isVirtual: fromXml_bool(obj->isVirtual, parseQuotedString(strValue)); break;
   }
   return true;
 }
@@ -1360,34 +1362,47 @@ void TypeXmlReader::registerAttr_BaseClassSubobj
   if (registerAttr_BaseClass_super(obj, attr, strValue)) return;
 
   switch(attr) {
-  default: userError("illegal attribute for a BaseClassSubobj"); break; 
-  case XTOK_parents: ulList(_List, parents, XTOK_List_BaseClassSubobj_parents); break; 
+  default: userError("illegal attribute for a BaseClassSubobj"); break;
+  case XTOK_parents: ulList(_List, parents, XTOK_List_BaseClassSubobj_parents); break;
   }
 }
 
 void TypeXmlReader::registerAttr_OverloadSet(OverloadSet *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a OverloadSet"); break; 
-  case XTOK_set: ulList(_List, set, XTOK_List_OverloadSet_set); break; 
+  default: userError("illegal attribute for a OverloadSet"); break;
+  case XTOK_set: ulList(_List, set, XTOK_List_OverloadSet_set); break;
   }
 }
 
 void TypeXmlReader::registerAttr_STemplateArgument
   (STemplateArgument *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a STemplateArgument"); break; 
-  case XTOK_kind:
+  default: userError("illegal attribute for a STemplateArgument"); break;
+  case XTOK_kind: fromXml(obj->kind, parseQuotedString(strValue)); break;
+  // exactly one of these must show up as it is a union; I don't check that though
   case XTOK_t: ul(value.t); break;
-  case XTOK_i: fromXml_int(obj->value.i, parseQuotedString(strValue)); break; 
+  case XTOK_i: fromXml_int(obj->value.i, parseQuotedString(strValue)); break;
   case XTOK_v: ul(value.v); break;
   case XTOK_e: ul(value.e); break;
   case XTOK_at: ul(value.at); break;
   }
 }
 
-void TypeXmlReader::registerAttr_TemplateInfo(TemplateInfo *obj, int attr, char const *strValue) {
+bool TypeXmlReader::registerAttr_TemplateParams_super
+  (TemplateParams *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a TemplateInfo"); break; 
+  default: return false;        // we didn't find it break;
+  case XTOK_params: ulList(_List, params, XTOK_List_TemplateParams_params); break;
+  }
+  return true;
+}
+
+void TypeXmlReader::registerAttr_TemplateInfo(TemplateInfo *obj, int attr, char const *strValue) {
+  // superclass
+  if (registerAttr_TemplateParams_super(obj, attr, strValue)) return;
+
+  switch(attr) {
+  default: userError("illegal attribute for a TemplateInfo"); break;
   case XTOK_var: ul(var); break;
   case XTOK_inheritedParams:
     ulList(_List, inheritedParams, XTOK_List_TemplateInfo_inheritedParams); break;
@@ -1413,17 +1428,16 @@ void TypeXmlReader::registerAttr_TemplateInfo(TemplateInfo *obj, int attr, char 
     ul(defnScope); break;
   case XTOK_definitionTemplateInfo:
     ul(definitionTemplateInfo); break;
-  case XTOK_params:
-    ulList(_List, params, XTOK_List_TemplateParams_params); break;
   }
 }
 
 void TypeXmlReader::registerAttr_InheritedTemplateParams
   (InheritedTemplateParams *obj, int attr, char const *strValue) {
+  // superclass
+  if (registerAttr_TemplateParams_super(obj, attr, strValue)) return;
+
   switch(attr) {
-  default: userError("illegal attribute for a InheritedTemplateParams"); break; 
-  case XTOK_params:
-    ulList(_List, params, XTOK_List_TemplateParams_params); break;
+  default: userError("illegal attribute for a InheritedTemplateParams"); break;
   case XTOK_enclosing:
     ul(enclosing); break;
   }

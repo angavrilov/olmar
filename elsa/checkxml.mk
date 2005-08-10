@@ -140,26 +140,89 @@ TEST2 += t0022.cc
 TEST2 += t0023.cc
 TEST2 += t0024.cc
 TEST2 += t0025.cc
-# TEST2 += t0026.cc
+TEST2 += t0026.cc
+#TEST2 += t0027.cc
+TEST2 += t0028.cc
+TEST2 += t0029.cc
+#TEST2 += t0030.cc
+TEST2 += t0030a.cc
+TEST2 += t0030b.cc
+#TEST2 += t0031.cc
+TEST2 += t0032.cc
+TEST2 += t0033.cc
+TEST2 += t0034.cc
+TEST2 += t0035.cc
+#TEST2 += t0036.cc
+TEST2 += t0037.cc
+TEST2 += t0038.cc
+TEST2 += t0039.cc
+TEST2 += t0040.cc
+TEST2 += t0041.cc
+TEST2 += t0042.cc
+TEST2 += t0043.cc
+TEST2 += t0044.cc
+TEST2 += t0045.cc
+TEST2 += t0046.cc
+TEST2 += t0047.cc
+TEST2 += t0048.cc
+TEST2 += t0049.cc
+TEST2 += t0050.cc
+TEST2 += t0051.cc
+TEST2 += t0052.cc
+TEST2 += t0053.cc
+TEST2 += t0054.cc
+TEST2 += t0055.cc
+TEST2 += t0056.cc
+TEST2 += t0057.cc
+TEST2 += t0058.cc
+TEST2 += t0059.cc
+TEST2 += t0060.cc
+#TEST2 += t0061.cc
+TEST2 += t0062.cc
+#TEST2 += t0063.cc
+TEST2 += t0064.cc
+TEST2 += t0065.cc
+TEST2 += t0066.cc
+TEST2 += t0067.cc
+TEST2 += t0068.cc
+TEST2 += t0069.cc
+TEST2 += t0070.cc
+TEST2 += t0071.cc
+TEST2 += t0072.cc
+TEST2 += t0073.cc
+#TEST2 += t0074.cc
+TEST2 += t0075.cc
+TEST2 += t0076.cc
+TEST2 += t0077.cc
+TEST2 += t0078.cc
+TEST2 += t0079.cc
+TEST2 += t0080.cc
+TEST2 += t0081.cc
+TEST2 += t0082.cc
+TEST2 += t0083.cc
+TEST2 += t0084.cc
+TEST2 += t0085.cc
+TEST2 += t0086.cc
+#TEST2 += t0087.cc
+#TEST2 += t0088.cc
+TEST2 += t0089.cc
+TEST2 += t0090.cc
+TEST2 += t0091.cc
+TEST2 += t0092.cc
+TEST2 += t0093.cc
+TEST2 += t0094.cc
+TEST2 += t0095.cc
+TEST2 += t0096.cc
+TEST2 += t0097.cc
+TEST2 += t0098.cc
+TEST2 += t0099.cc
+TEST2 += t0100.cc
 
 TOCLEAN :=
 
 # check parsing commutes with xml serialization
 T1D := $(addprefix outdir/,$(TEST1))
 TOCLEAN += outdir/*.B0.dp outdir/*.B0.dp_filtered outdir/*.B1.xml outdir/*.B1.xml_filtered outdir/*.B2.xml.dp outdir/*.B2.xml.dp_filtered outdir/*.B3.diff
-
-# $(addsuffix .B0.cc,$(T1D)): outdir/%.B0.cc: in/%
-# 	$(PR) -tr no-elaborate,prettyPrint $< | ./chop_out > $@
-# $(addsuffix .B1.xml,$(T1D)): outdir/%.B1.xml: in/%
-# 	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-indent $< | ./chop_out > $@
-# $(addsuffix .B2.xml.cc,$(T1D)): outdir/%.B2.xml.cc: outdir/%.B1.xml
-# 	$(PR) -tr no-elaborate,parseXml,prettyPrint $< | ./chop_out > $@
-# $(addsuffix .B3.diff,$(T1D)): outdir/%.B3.diff: outdir/%.B0.cc outdir/%.B2.xml.cc
-# # NOTE: do not, say, replace this with a pipe into 'tee' because that
-# # masks the return code and prevents make from stopping if there is a
-# # difference
-# 	$(DIFF) $^ > $@
-# .PHONY: check_ast
 
 # generate initial debug-print
 $(addsuffix .B0.dp,$(T1D)): outdir/%.B0.dp: in/%
