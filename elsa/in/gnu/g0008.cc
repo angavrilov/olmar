@@ -3,12 +3,14 @@
 
 void f()
 {
-  char *b = __FUNCTION__;
-  char *c = __PRETTY_FUNCTION__;
+  char const *b = __FUNCTION__;
+  char const *c = __PRETTY_FUNCTION__;
 
-  //ERROR(1):   char *d = something_else;             // undefined
-  //ERROR(3):   char *f = "x" __FUNCTION__;           // can't concat
-  //ERROR(4):   char *g = "x" __PRETTY_FUNCTION__;    // can't concat
+  //ERROR(1):   char const *d = something_else;             // undefined
+  //ERROR(3):   char const *f = "x" __FUNCTION__;           // can't concat
+  //ERROR(4):   char const *g = "x" __PRETTY_FUNCTION__;    // can't concat
 
-  //ERROR(5):   char *h = __func__;                   // not in C++
+  // 2005-08-10: It seems that GCC does allow this in C++,
+  // even though it is a C99 feature.
+  char const *h = __func__;                   // not in (ANSI) C++
 }

@@ -220,6 +220,7 @@ void CCLang::GNU_Cplusplus()
 {
   ANSI_Cplusplus();
 
+  implicitFuncVariable = true;
   gccFuncBehavior = GFB_variable;
 
   // is this really right?  Oink tests it like it is ...
