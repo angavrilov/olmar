@@ -463,6 +463,12 @@ nonterm BuggyGccTypeModifier {
   -> "short";
   -> "signed";
   -> "unsigned";
+
+  // make it a sequence...
+  -> "long"       BuggyGccTypeModifier;
+  -> "short"      BuggyGccTypeModifier;
+  -> "signed"     BuggyGccTypeModifier;
+  -> "unsigned"   BuggyGccTypeModifier;
 }
 
 

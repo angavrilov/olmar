@@ -19,10 +19,22 @@ while [ "$1" != "" ]; do
   shift
 
   echo "--------- $fname --------"
+  
+  case $fname in
+    *.gz)
+      inputFname=tmp.i
+      echo "gunzip $fname >$inputFname"
+      gunzip -c "$fname" >"$inputFname" || exit
+      ;;
 
-  # see if the parser thinks it worked
-  echo "./ccparse $extra $fname"
-  if ./ccparse -tr mustBeUnambiguous,nohashline $extra "$fname"; then
+    *)
+      inputFname="$fname"
+      ;;
+  esac
+
+  # try to parse it
+  echo "./ccparse $extra $inputFname"
+  if ./ccparse -tr nohashline,permissive $extra "$inputFname"; then
     # ok
     true
   else

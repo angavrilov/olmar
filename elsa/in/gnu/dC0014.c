@@ -9,6 +9,9 @@ typedef unsigned int u32;
 u32 long off;
 typedef u32 long off2;
 
+typedef u32 long;
+typedef u32 unsigned long;
+
 
 // ----------------------------------------
 // copied from (now defunct) in/c/k0001.c
