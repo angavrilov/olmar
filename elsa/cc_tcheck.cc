@@ -5234,7 +5234,8 @@ Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
 
     // 2005-02-18: cppstd 14.2 para 2: if template arguments are
     // supplied, then the name must look up to a template name
-    if (name->getUnqualifiedName()->isPQ_template()) {
+    if (v != env.dependentVar && 
+        name->getUnqualifiedName()->isPQ_template()) {
       if (!v || !v->namesTemplateFunction()) {
         // would disambiguate use of '<' as less-than
         env.error(name->loc, stringc
@@ -5610,7 +5611,7 @@ void tcheckArgumentExpression(Env &env, Expression *&expr, ArgumentInfo &info)
   // then we could do address-of overloaded function resolution,
   // so get a lookup set if possible
   LookupSet set;
-  tcheckExpression_set(env, expr/*INOUT*/, LF_TEMPL_PRIMARY, set);
+  tcheckExpression_set(env, expr/*INOUT*/, LF_NONE /*?? LF_TEMPL_PRIMARY*/, set);
 
   if (set.isNotEmpty() &&
       isFunctionTypeOr(expr->type) &&

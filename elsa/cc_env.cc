@@ -2076,6 +2076,10 @@ Variable *Env::applyPQNameTemplateArguments
           return var;
         }
 
+        if (containsVariables(pqt->sargs)) {
+          return dependentVar;    // in/t0545.cc
+        }
+
         return instantiateFunctionTemplate(loc(), var, pqt->sargs);
       }
     }
@@ -4671,6 +4675,34 @@ void Env::unqualifiedFinalNameLookup(LookupSet &set, Scope *scope,
     return;    // yield the primary, caller will report the problem
   }
 
+  if (set.first()->isType()) {
+    // apply template arguments, if any (legacy call)
+    Variable *var = set.removeFirst();
+    var = applyPQNameTemplateArguments(var, name, flags);
+    if (var) {
+      set.add(var);
+    }
+    return;
+  }
+  
+  // we have a set of overloaded functions; apply what template
+  // arguments we have to each one, retaining those that are
+  // compatible with the arguments
+  SObjListMutator<Variable> mut(set);
+  while (!mut.isDone()) {
+    Variable *var = mut.data();
+
+    var = applyPQNameTemplateArguments(var, name, flags);
+    if (var) {
+      mut.dataRef() = var;     // replace
+      mut.adv();
+    }
+    else {
+      mut.remove();            // remove
+    }
+  }
+
+  #if 0    // old; not sure what I was thinking
   // if we are even considering applying template arguments, the
   // name must be unambiguous
   if (set.count() > 1) {
@@ -4686,6 +4718,7 @@ void Env::unqualifiedFinalNameLookup(LookupSet &set, Scope *scope,
   if (var) {
     set.add(var);
   }
+  #endif // 0
 }
 
 
