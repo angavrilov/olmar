@@ -2987,6 +2987,14 @@ static bool isImplicitKandRFuncType(FunctionType *ft)
 }
 
 
+static bool compatibleParamCounts(FunctionType *ft1, FunctionType *ft2)
+{
+  return ft1->hasFlag(FF_NO_PARAM_INFO) ||
+         ft2->hasFlag(FF_NO_PARAM_INFO) ||
+         ft1->params.count() == ft2->params.count();
+}
+
+
 // possible outcomes:
 //   - error, make up a dummy variable
 //   - create new declaration
@@ -3216,7 +3224,8 @@ Variable *Env::createDeclaration(
       if (!lang.isCplusplus &&
           prior->type->isFunctionType() &&
           type->isFunctionType() &&
-          prior->type->asFunctionType()->params.count() == type->asFunctionType()->params.count()) {
+          compatibleParamCounts(prior->type->asFunctionType(),
+                                type->asFunctionType())) {
         // 10/08/04: In C, the rules for function type declaration
         // compatibility are more complicated, relying on "default
         // argument promotions", a determination of whether the
