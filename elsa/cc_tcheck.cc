@@ -3602,7 +3602,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
     tcheck_init(env);
   }
-            
+
   // pull the scope back out of the stack; if this is a
   // declarator attached to a function definition, then
   // Function::tcheck will re-extend it for analyzing
@@ -3614,56 +3614,36 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       && var->type->isMethod()
       && !var->hasFlag(DF_VIRTUAL)) {
     FunctionType *varft = var->type->asFunctionType();
+    CompoundType *myClass = env.scope()->curCompound;
 
-//      printf("var->name: %s\n", var->name);
-//      printf("env.scope->curCompound->name: %s\n", env.scope()->curCompound->name);
+    // search among base classes
+    SObjList<BaseClassSubobj const> subobjs;
+    myClass->getSubobjects(subobjs);
+    SFOREACH_OBJLIST(BaseClassSubobj const, subobjs, iter) {
+      CompoundType *base = iter.data()->ct;
+      if (base == myClass) { continue; }
 
-    // find the next variable up the hierarchy
-    FOREACH_OBJLIST(BaseClass, env.scope()->curCompound->bases, base_iter) {
-      // FIX: Should I skip it for private inheritance?  Hmm,
-      // experiments on g++ indicate that private inheritance does not
-      // prevent the virtuality from coming through.  Ben agrees.
+      // get all variables with this name
+      LookupSet set;
+      base->lookup(set, var->name, NULL /*env*/, LF_INNER_ONLY);
 
-      // FIX: deal with ambiguity if we find more than one
-      // FIX: is there something to do for virtual inheritance?
-      //        printf("iterating over base base_iter.data()->ct->name: %s\n",
-      //               base_iter.data()->ct->name);
-      Variable *var2 = base_iter.data()->ct->lookupVariable(var->name, env);
-      xassert(var2 != var);
-      if (var2 &&
-          var2->type->isMethod()) {
-        FunctionType *var2ft = var2->type->asFunctionType();
+      // look for any virtual functions with matching signatures
+      SFOREACH_OBJLIST(Variable, set, iter2) {
+        Variable const *var2 = iter2.data();
 
-        // one could write this without the case split, but I don't want
-        // to call getOverloadSet() (which makes new OverloadSet objects
-        // if they are not already present) when I don't need to
-
-        if (!var2->overload) {
-          // see if it's virtual and has the same signature
-          if (var2->hasFlag(DF_VIRTUAL) &&
-              var2ft->equalOmittingReceiver(varft) &&
+        if (var2->hasFlag(DF_VIRTUAL) && var2->type->isFunctionType()) {
+          FunctionType *var2ft = var2->type->asFunctionType();
+          if (var2ft->equalOmittingReceiver(varft) &&
               var2ft->getReceiverCV() == varft->getReceiverCV()) {
+            // make this one virtual too
             var->setFlag(DF_VIRTUAL);
-          }
-        }
-
-        else {
-          // check for member of overload set with same signature
-          // and marked 'virtual'
-          if (Variable *var_overload = env.findInOverloadSet(
-                var2->overload, var->type->asFunctionType())) {
-            xassert(var_overload != var);
-            xassert(var_overload->type->isFunctionType());
-            xassert(var_overload->type->asFunctionType()->isMethod());
-            if (var_overload->hasFlag(DF_VIRTUAL)) {
-              // then we inherit the virtuality
-              var->setFlag(DF_VIRTUAL);
-              break;
-            }
+            goto done_with_virtual_stuff;    // two-level break
           }
         }
       }
     }
+
+    done_with_virtual_stuff:;
   }
 }
 
