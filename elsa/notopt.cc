@@ -3,6 +3,7 @@
 // code), so I separate them from the rest of the code (very annoying)
 
 #include "cc_env.h"    // Env
+#include "trace.h"     // TRACE
 
 // I am certain it is broken on gcc-2.95.3 on x86; maybe it
 // is ok on gcc-3, maybe not ...
@@ -21,6 +22,7 @@ Type *Env::applyArgumentMapToType_helper(MType &map, Type *origSrc)
   }
   catch (XTypeDeduction &x) {
     HANDLER();
+    TRACE("template", "failure to instantiate: " << x.why());
     return NULL;
   }
 }

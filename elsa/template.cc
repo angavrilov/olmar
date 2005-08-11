@@ -2256,9 +2256,11 @@ Variable *Env::instantiateFunctionTemplate
   Type *instType = applyArgumentMapToType_helper(map, primary->type);
   if (!instType) {
     // caught XTypeDeduction
-    TRACE("template", "failed to instantiate " <<
-                      primary->fullyQualifiedName() << sargsToString(sargs) <<
-                      ": " << x.why());
+
+    // unfortunately, the trace message gets split into two because
+    // neither place has all the context
+    TRACE("template", "^^^ failed to instantiate " <<
+                      primary->fullyQualifiedName() << sargsToString(sargs));
     return NULL;
   }
 
