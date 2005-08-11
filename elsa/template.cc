@@ -3621,8 +3621,7 @@ Type *Env::applyArgumentMapToAtomicType
     applyArgumentMapToTemplateArgs(map, args, spi->args);
 
     // instantiate the class with our newly-created arguments
-    Variable *instClass = 
-      instantiateClassTemplate(loc(), spi->primary->typedefVar, args);
+    Variable *instClass = instantiateClassTemplate_or_PI(spi->primary, args);
     if (!instClass) {
       instClass = errorVar;    // error already reported; this is recovery
     }

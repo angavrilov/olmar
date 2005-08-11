@@ -2050,18 +2050,9 @@ Variable *Env::applyPQNameTemplateArguments
     if (var->isTemplateClass()) {
       // apply the template arguments to yield a new type based
       // on the template
-
-      // if the template arguments are not concrete, then create
-      // a PseudoInstantiation
       PQ_template const *tqual = final->asPQ_templateC();
-      if (containsVariables(tqual->sargs)) {
-        PseudoInstantiation *pi =
-          createPseudoInstantiation(var->type->asCompoundType(), tqual->sargs);
-        xassert(pi->typedefVar);
-        return pi->typedefVar;
-      }
-
-      return instantiateClassTemplate(loc(), var, tqual->sargs);
+      return instantiateClassTemplate_or_PI(var->type->asCompoundType(), 
+                                            tqual->sargs);
     }
     else {                    // template function
       xassert(var->isTemplateFunction());
@@ -2099,6 +2090,24 @@ Variable *Env::applyPQNameTemplateArguments
 
   return var;
 }
+
+
+Variable *Env::instantiateClassTemplate_or_PI
+  (CompoundType *ct, ObjList<STemplateArgument> const &args)
+{
+  // if the template arguments are not concrete, then create
+  // a PseudoInstantiation
+  if (containsVariables(args)) {
+    PseudoInstantiation *pi = createPseudoInstantiation(ct, args);
+    xassert(pi->typedefVar);
+    return pi->typedefVar;
+  }
+  else {
+    return instantiateClassTemplate(loc(), ct->typedefVar, args);
+  }
+}
+
+
 
 Variable *Env::lookupVariable(StringRef name, LookupFlags flags)
 {
@@ -3591,11 +3600,12 @@ PseudoInstantiation *Env::createPseudoInstantiation
   // make the object itself
   PseudoInstantiation *pi = new PseudoInstantiation(ct);
 
-  // attach the template arguments
-  FOREACH_OBJLIST(STemplateArgument, args, iter) {
-    pi->args.prepend(new STemplateArgument(*(iter.data())));
+  // attach the template arguments, using default args if needed
+  if (!supplyDefaultTemplateArguments(ct->templateInfo(), pi->args, 
+                                      objToSObjListC(args))) {
+    // some error.. it will be reported, but we may as well continue
+    // anyway with the argument list we have
   }
-  pi->args.reverse();
 
   // make the typedef var; do *not* add it to the environment
   pi->typedefVar = makeVariable(loc(), ct->name, makeType(pi),

@@ -800,6 +800,9 @@ private:     // template funcs
   STemplateArgument *makeDefaultTemplateArgument
     (Variable const *param, MType &map);
 
+  Variable *instantiateClassTemplate_or_PI
+    (CompoundType *ct, ObjList<STemplateArgument> const &args);
+  
 public:      // template funcs
   void setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr);
   STemplateArgument variableToSTemplateArgument(Variable *var);
