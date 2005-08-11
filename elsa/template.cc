@@ -3704,6 +3704,10 @@ STemplateArgument Env::applyArgumentMapToExpression
     xassert(evar->var == dependentVar);
     xassert(evar->name->isPQ_qualifier());
     ret = applyArgumentMapToQualifiedName(map, evar->name->asPQ_qualifier());
+    if (!ret.hasValue()) {
+      // couldn't resolve; just package up as dependent name again (in/t0543.cc)
+      ret.setDepExpr(e);
+    }
   }
 
   if (!ret.isObject()) {
@@ -3736,6 +3740,9 @@ STemplateArgument Env::applyArgumentMapToQualifiedName
     // apply the map to the arguments, then use them to
     // instantiate the class
     firstScope = applyArgumentMap_instClass(map, qual->qualifierVar, qual->sargs);
+    if (!firstScope) {
+      return STemplateArgument();     // keep pushing back to caller...
+    }
   }
 
   // interpret the rest of the name w.r.t. the computed scope
@@ -3753,6 +3760,10 @@ CompoundType *Env::applyArgumentMap_instClass
   // map the template arguments
   ObjList<STemplateArgument> mappedArgs;
   applyArgumentMapToTemplateArgs(map, mappedArgs, sargs);
+
+  if (containsVariables(mappedArgs)) {
+    return NULL;     // caller must deal with this
+  }
 
   // instantiate the template with the arguments
   Variable *inst =
