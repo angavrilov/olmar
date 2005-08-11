@@ -275,6 +275,9 @@ private:     // funcs
 
   void mergeDefaultArguments(SourceLoc loc, Variable *prior, FunctionType *type);
 
+  // defined in notopt.cc
+  Type *applyArgumentMapToType_helper(MType &map, Type *origSrc);
+
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac, TranslationUnit *tunit0);
   virtual ~Env();      // 'virtual' only to silence stupid warning; destruction is not part of polymorphic contract

@@ -2253,12 +2253,9 @@ Variable *Env::instantiateFunctionTemplate
 
   // compute the type of the instantiation by applying 'map' to
   // the templatized type
-  Type *instType;
-  try {
-    instType = applyArgumentMapToType(map, primary->type);
-  }
-  catch (XTypeDeduction &x) {
-    HANDLER();
+  Type *instType = applyArgumentMapToType_helper(map, primary->type);
+  if (!instType) {
+    // caught XTypeDeduction
     TRACE("template", "failed to instantiate " <<
                       primary->fullyQualifiedName() << sargsToString(sargs) <<
                       ": " << x.why());
@@ -2798,46 +2795,7 @@ bool Env::supplyDefaultTemplateArguments
 }
 
 
-STemplateArgument *Env::makeDefaultTemplateArgument
-  (Variable const *param, MType &map)
-{
-  // type parameter?
-  if (param->hasFlag(DF_TYPEDEF) &&
-      param->defaultParamType) {
-    // use 'param->defaultParamType', but push it through the map
-    // so it can refer to previous arguments 
-    try {
-      Type *t = applyArgumentMapToType(map, param->defaultParamType);
-      return new STemplateArgument(t);
-    }
-    catch (XTypeDeduction &x) {
-      HANDLER();
-      error(stringc << "could not evaluate default argument `"
-                    << param->defaultParamType->toString() 
-                    << "': " << x.why());
-      return NULL;
-    }
-  }
-  
-  // non-type parameter?
-  else if (!param->hasFlag(DF_TYPEDEF) &&
-           param->value) {
-    try {
-      STemplateArgument *ret = new STemplateArgument;
-      *ret = applyArgumentMapToExpression(map, param->value);
-      return ret;
-    }
-    catch (XTypeDeduction &x) {
-      HANDLER();
-      error(stringc << "could not evaluate default argument `"
-                    << param->value->exprToString() 
-                    << "': " << x.why());
-      return NULL;
-    }
-  }
-
-  return NULL;
-}
+// moved Env::makeDefaultTemplateArgument into notopt.cc
 
 
 void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr)
