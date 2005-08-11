@@ -3866,7 +3866,6 @@ STemplateArgument Env::applyArgumentMapToPQName
       // apply the arguments to obtain a scope, and then use that
       Scope *s = applyArgumentMap_instClass(map, q, qual->sargs);
       if (!s) {
-        xfailure("have to minimize...");
         return STemplateArgument();    // ...
       }
       return applyArgumentMapToPQName(map, s, qual->rest);
