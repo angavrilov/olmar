@@ -7848,8 +7848,7 @@ Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
   }
 
   return env.error(rt, stringc
-    << "cannot dereference non-pointer type `" << rt->toString() 
-    << "', computed for expression `" << exprToString() << "'");
+    << "cannot dereference non-pointer type `" << rt->toString() << "'");
 }
 
 
