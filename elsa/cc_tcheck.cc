@@ -7578,7 +7578,7 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
         return lhsType;
       }
 
-      // case: n + p.
+      // case: n + p
       if (lhsType->isIntegerType() && rhsType->isPointerType()) {
         return rhsType;         // a pointer type, that is
       }
@@ -7586,11 +7586,16 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
       return usualArithmeticConversions(env.tfac, lhsType, rhsType);
 
     case BIN_MINUS:               // -
-      // dsw: deal with pointer arithmetic correctly; this is the case
-      // p1 - p2
+      // case: p - p
       if (lhsType->isPointerType() && rhsType->isPointerType() ) {
         return env.getSimpleType(ST_INT);
       }
+
+      // case: p - n
+      if (lhsType->isPointerType()) {
+        return lhsType;
+      }
+
       return usualArithmeticConversions(env.tfac, lhsType, rhsType);
 
     case BIN_MULT:                // *
