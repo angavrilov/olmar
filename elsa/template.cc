@@ -3833,7 +3833,10 @@ STemplateArgument Env::applyArgumentMapToPQName
 
     // apply the arguments
     CompoundType *ct = applyArgumentMap_instClass(map, v, templ->sargs);
-    
+    if (!ct) {
+      return STemplateArgument();    // ...
+    }
+
     // wrap in an STemplateArgument
     STemplateArgument ret;
     ret.setType(ct->typedefVar->type);
@@ -3862,6 +3865,10 @@ STemplateArgument Env::applyArgumentMapToPQName
     else if (!qual->sargs.isEmpty() && q->isTemplate(false /*considerInherited*/)) {
       // apply the arguments to obtain a scope, and then use that
       Scope *s = applyArgumentMap_instClass(map, q, qual->sargs);
+      if (!s) {
+        xfailure("have to minimize...");
+        return STemplateArgument();    // ...
+      }
       return applyArgumentMapToPQName(map, s, qual->rest);
     }
     else {

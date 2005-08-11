@@ -416,56 +416,58 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   // 'int' directly here instead of size_t
   Type *t_size_t = getSimpleType(ST_INT);
 
-  // must predefine this to be able to define bad_alloc
-  Scope *std_scope = createNamespace(SL_INIT, str("std"));
+  if (lang.isCplusplus) {
+    // must predefine this to be able to define bad_alloc
+    Scope *std_scope = createNamespace(SL_INIT, str("std"));
 
-  // but I do need a class called 'bad_alloc'..
-  //   class bad_alloc;
-  //
-  // 9/26/04: I had been *defining* bad_alloc here, but gcc defines
-  // the class in new.h so I am following suit.
-  //
-  // 2005-05-23: Define it in std scope, then optionally put an alias
-  // in the global scope too.
-  CompoundType *bad_alloc_ct;
-  Type *t_bad_alloc =
-    makeNewCompound(bad_alloc_ct, std_scope, str("bad_alloc"), SL_INIT,
-                    TI_CLASS, true /*forward*/);
-  if (lang.gcc2StdEqualsGlobalHacks) {
-    // using std::bad_alloc;
-    makeUsingAliasFor(SL_INIT, bad_alloc_ct->typedefVar);
-    addTypeTag(bad_alloc_ct->typedefVar);
+    // but I do need a class called 'bad_alloc'..
+    //   class bad_alloc;
+    //
+    // 9/26/04: I had been *defining* bad_alloc here, but gcc defines
+    // the class in new.h so I am following suit.
+    //
+    // 2005-05-23: Define it in std scope, then optionally put an alias
+    // in the global scope too.
+    CompoundType *bad_alloc_ct;
+    Type *t_bad_alloc =
+      makeNewCompound(bad_alloc_ct, std_scope, str("bad_alloc"), SL_INIT,
+                      TI_CLASS, true /*forward*/);
+    if (lang.gcc2StdEqualsGlobalHacks) {
+      // using std::bad_alloc;
+      makeUsingAliasFor(SL_INIT, bad_alloc_ct->typedefVar);
+      addTypeTag(bad_alloc_ct->typedefVar);
+    }
+
+    // 2005-08-09 (in/gnu/bugs/gb0008.cc): predeclare std::type_info
+    //
+    // Though this is a bug compatibility feature, there doesn't seem
+    // to be much to gain by making a flag to control it.
+    {
+      CompoundType *dummy;
+      makeNewCompound(dummy, std_scope, str("type_info"), SL_INIT,
+                      TI_CLASS, true /*forward*/);
+    }
+
+    // void* operator new(std::size_t sz) throw(std::bad_alloc);
+    declareFunction1arg(t_voidptr, "operator new",
+                        t_size_t, "sz",
+                        FF_DEFAULT_ALLOC, t_bad_alloc);
+
+    // void* operator new[](std::size_t sz) throw(std::bad_alloc);
+    declareFunction1arg(t_voidptr, "operator new[]",
+                        t_size_t, "sz",
+                        FF_DEFAULT_ALLOC, t_bad_alloc);
+
+    // void operator delete (void *p) throw();
+    declareFunction1arg(t_void, "operator delete",
+                        t_voidptr, "p",
+                        FF_DEFAULT_ALLOC, t_void);
+
+    // void operator delete[] (void *p) throw();
+    declareFunction1arg(t_void, "operator delete[]",
+                        t_voidptr, "p",
+                        FF_DEFAULT_ALLOC, t_void);
   }
-
-  // 2005-08-09 (in/gnu/bugs/gb0008.cc): predeclare std::type_info
-  //
-  // Though this is a bug compatibility feature, there doesn't seem
-  // to be much to gain by making a flag to control it.
-  {
-    CompoundType *dummy;
-    makeNewCompound(dummy, std_scope, str("type_info"), SL_INIT,
-                    TI_CLASS, true /*forward*/);
-  }
-
-  // void* operator new(std::size_t sz) throw(std::bad_alloc);
-  declareFunction1arg(t_voidptr, "operator new",
-                      t_size_t, "sz",
-                      FF_DEFAULT_ALLOC, t_bad_alloc);
-
-  // void* operator new[](std::size_t sz) throw(std::bad_alloc);
-  declareFunction1arg(t_voidptr, "operator new[]",
-                      t_size_t, "sz",
-                      FF_DEFAULT_ALLOC, t_bad_alloc);
-
-  // void operator delete (void *p) throw();
-  declareFunction1arg(t_void, "operator delete",
-                      t_voidptr, "p",
-                      FF_DEFAULT_ALLOC, t_void);
-
-  // void operator delete[] (void *p) throw();
-  declareFunction1arg(t_void, "operator delete[]",
-                      t_voidptr, "p",
-                      FF_DEFAULT_ALLOC, t_void);
 
   // 5/04/04: sm: I moved this out of the GNU_EXTENSION section because
   // the mozilla tests use it, and I won't want to make them only
