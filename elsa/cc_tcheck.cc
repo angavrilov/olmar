@@ -7848,7 +7848,8 @@ Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
   }
 
   return env.error(rt, stringc
-    << "cannot dereference non-pointer `" << rt->toString() << "'");
+    << "cannot dereference non-pointer type `" << rt->toString() 
+    << "', computed for expression `" << exprToString() << "'");
 }
 
 
@@ -8054,6 +8055,12 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
     // for in/gnu/d0095.c
     if (thRval->isPointerType() &&
         thRval->asPointerType()->atType->isVoid()) {
+      return bothLvals? elType : elRval;
+    }
+    
+    // for in/c/t0025.c
+    if (elRval->isPointerType() &&
+        thRval->isIntegerType()) {
       return bothLvals? elType : elRval;
     }
 

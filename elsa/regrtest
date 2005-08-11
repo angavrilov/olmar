@@ -1251,6 +1251,7 @@ runTest perl ./multitest.pl ./ccparse -tr ansi_c,warnings in/c/t0021.c
 testCparse c/t0022.c
 failCparse c/t0023.c "unhandled KandRSimpleDeclaration ambiguity"
 testCparse c/t0024.c
+testCparse c/t0025.c
 
 testCparse gnu/d0096.c
 testCparse c/dC0010.c #"f(u8 register) doesn't parse"
