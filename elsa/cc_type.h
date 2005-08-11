@@ -499,9 +499,13 @@ public:      // funcs
   // name under which the conversion operators have been filed in
   // the class scope
   virtual void finishedClassDefinition(StringRef specialName);
+  
+  // true if this is an "aggregate" (8.5.1p1)
+  bool isAggregate() const;
 };
 
 string toString(CompoundType::Keyword k);
+
 
 // represent an enumerated type
 class EnumType : public NamedAtomicType {

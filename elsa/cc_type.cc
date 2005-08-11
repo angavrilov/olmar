@@ -679,7 +679,7 @@ void CompoundType::afterAddVariable(Variable *v)
 
 
 int CompoundType::getDataMemberPosition(StringRef name) const
-{        
+{
   int index=0;
   SFOREACH_OBJLIST(Variable, dataMembers, iter) {
     if (iter.data()->name == name) {
@@ -1000,6 +1000,71 @@ void CompoundType::addLocalConversionOp(Variable *op)
   
   // add 'op'
   conversionOperators.append(op);
+}
+
+
+// return false if the presence of 'v' in a CompoundType
+// prevents that compound from being "aggregate"
+static bool isAggregate_one(Variable const *v)
+{                    
+  // typedef and static members are irrelevant
+  if (v->isType() || v->hasFlag(DF_STATIC)) {
+    return true;
+  }
+
+  if (!v->hasFlag(DF_IMPLICIT) &&
+      v->type->isFunctionType() &&
+      v->type->asFunctionTypeC()->isConstructor()) {
+    // user-defined (non-DF_IMPLICIT) constructor
+    return false;
+  }
+
+  if (v->hasFlag(DF_VIRTUAL)) {
+    // virtual function
+    return false;
+  }
+
+  if (v->getAccess() != AK_PUBLIC &&
+      !v->type->isFunctionType()) {
+    // non-public data
+    return false;
+  }
+
+  // does not prevent container from being "aggregate"
+  return true;
+}
+
+
+// conditions:
+//   - no user-defined constructors
+//   - no private or protected non-static data members
+//   - no base classes
+//   - no virtual functions
+bool CompoundType::isAggregate() const
+{
+  StringRefMap<Variable>::Iter iter(getVariableIter());
+  for (; !iter.isDone(); iter.adv()) {
+    Variable const *v = iter.value();
+
+    if (v->isOverloaded()) {
+      SFOREACH_OBJLIST(Variable, v->overload->set, iter2) {
+        if (!isAggregate_one(iter2.data())) {
+          return false;
+        }
+      }
+    }
+    else {
+      if (!isAggregate_one(v)) {
+        return false;
+      }
+    }
+  }
+
+  if (bases.isNotEmpty()) {
+    return false;
+  }
+
+  return true;
 }
 
 

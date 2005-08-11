@@ -8683,17 +8683,46 @@ void initializeAggregate(Env &env, Type *type,
   }
 
   else if (type->isCompoundType()) {
-    // TODO (recognition): 8.5.1p1: it is only legal to initialize
-    // compound types that don't use C++ features like constructors or
-    // access control
-
-    // initialize successive data fields with successive initializers
     CompoundType *ct = type->asCompoundType();
 
-    SObjListIter<Variable> memberIter(ct->dataMembers);
-    while (!memberIter.isDone() && !initIter.isDone()) {
-      initializeAggregate(env, memberIter.data()->type, initIter);
-      memberIter.adv();
+    if (ct->isAggregate()) {
+      // 8.5.1: initialize successive data fields with successive initializers
+      SObjListIter<Variable> memberIter(ct->dataMembers);
+      if (memberIter.isDone()) {    // no data fields?
+        env.error(stringc << "can't initialize memberless aggregate "
+                          << ct->keywordAndName());
+        initIter.adv();    // avoid infinite loop possibility
+      }
+      while (!memberIter.isDone() && !initIter.isDone()) {
+        initializeAggregate(env, memberIter.data()->type, initIter);
+        memberIter.adv();
+      }
+    }
+    else {
+      Initializer *init = initIter.data();
+      initIter.adv();
+
+      // 8.5p14: initialize using a constructor
+      
+      if (init->isIN_ctor()) {
+        init->tcheck(env, type);
+        return;
+      }
+      
+      xassert(init->isIN_expr());
+      Expression *arg = init->asIN_expr()->e;
+      arg->tcheck(env, arg);
+
+      ImplicitConversion ic = getImplicitConversion(env,
+        arg->getSpecial(env.lang),
+        arg->getType(),
+        type,
+        false /*destIsReceiver*/);
+      if (!ic) {
+        env.error(arg->getType(), stringc
+          << "cannot convert initializer type `" << arg->getType()->toString()
+          << "' to type `" << type->toString() << "'");
+      }
     }
   }
 
