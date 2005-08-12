@@ -8711,7 +8711,7 @@ void initializeAggregate(Env &env, Type *type,
       }
       
       xassert(init->isIN_expr());
-      Expression *arg = init->asIN_expr()->e;
+      Expression *&arg = init->asIN_expr()->e;
       arg->tcheck(env, arg);
 
       ImplicitConversion ic = getImplicitConversion(env,

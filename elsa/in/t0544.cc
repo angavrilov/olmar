@@ -31,3 +31,17 @@ B b[] = {
 };
 
 
+
+// ------- fragment from cc_type.cc -------
+enum SimpleTypeId {
+  ST_CHAR, ST_UNSIGNED_CHAR,
+};
+
+class SimpleType {
+public:  
+  SimpleType (SimpleTypeId t);
+};
+
+SimpleType fixed[] = {
+  SimpleType (ST_CHAR),
+};
