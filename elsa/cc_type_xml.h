@@ -129,6 +129,10 @@ class TypeXmlReader : public XmlReader {
   virtual bool kind2kindCat(int kind, KindCategory *ret);
 
   // **** Generic Convert
+  virtual bool recordKind(int kind, bool& answer);
+
+  // cast a pointer to the pointer type we need it to be
+  virtual bool upcastToWantedType(void *obj, int kind, void **target, int targetKind);
   // all lists are stored as ASTLists; convert to the real list
   virtual bool convertList2FakeList(ASTList<char> *list, int listKind, void **target);
   virtual bool convertList2SObjList(ASTList<char> *list, int listKind, void **target);

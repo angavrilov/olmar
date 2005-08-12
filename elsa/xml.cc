@@ -261,6 +261,9 @@ bool XmlReaderManager::readAttributes() {
         userError(stringc << "this _id is taken " << id0);
       }
       id2obj.add(id0, nodeStack.top());
+      if (recordKind(*kindStack.top())) {
+        id2kind.add(id0, kindStack.top());
+      }
     }
     // special case the _NameMap_Item node and its one attribute
     else if (*kindStack.top() == XTOK__NameMap_Item) {
@@ -407,10 +410,16 @@ void XmlReaderManager::satisfyLinks() {
 void XmlReaderManager::satisfyLinks_Nodes() {
   FOREACH_ASTLIST(UnsatLink, unsatLinks, iter) {
     UnsatLink const *ul = iter.data();
-    xassert(ul->kind == -1);
     void *obj = id2obj.queryif(ul->id);
     if (obj) {
-      *(ul->ptr) = obj;
+      if (int *kind = id2kind.queryif(ul->id)) {
+        *(ul->ptr) = upcastToWantedType(obj, *kind, ul->kind);
+      } else {
+        // no kind was registered for the object and therefore no
+        // upcasting is required and there is no decision to make; so
+        // just do the straight pointer assignment
+        *(ul->ptr) = obj;
+      }
     } else {
       // no satisfaction was provided for this link; for now we just
       // skip it, but if you wanted to report that in some way, here
@@ -568,6 +577,26 @@ void XmlReaderManager::satisfyLinks_Maps() {
 //      *(from) = to;
 //    }
 //  }
+
+bool XmlReaderManager::recordKind(int kind) {
+  FOREACH_ASTLIST_NC(XmlReader, readers, iter) {
+    bool answer;
+    if (iter.data()->recordKind(kind, answer)) {
+      return answer;
+    }
+  }
+  THROW(xBase(stringc << "no way to decide if kind should be recorded"));
+}
+
+void *XmlReaderManager::upcastToWantedType(void *obj, int kind, int targetKind) {
+  FOREACH_ASTLIST_NC(XmlReader, readers, iter) {
+    void *target;
+    if (iter.data()->upcastToWantedType(obj, kind, &target, targetKind)) {
+      return target;
+    }
+  }
+  THROW(xBase(stringc << "no way to upcast"));
+}
 
 void *XmlReaderManager::convertList2FakeList(ASTList<char> *list, int listKind) {
   FOREACH_ASTLIST_NC(XmlReader, readers, iter) {

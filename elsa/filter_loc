@@ -5,6 +5,7 @@ use strict;
 while(<STDIN>) {
   next if /^\s*loc =/;
   s|, at in/t\S+\.cc:\d+:\d+ \(0x.*\)$||;
+  s|, at <init>:\d+:\d+ \(0x.*\)$||;
   s|, at <noloc>:\d+:\d+ \(0x.*\)$||;
   # well, we filter other junk too
   s| \(\d+ overloadings?\)$||;

@@ -141,18 +141,18 @@ TEST2 += t0023.cc
 TEST2 += t0024.cc
 TEST2 += t0025.cc
 TEST2 += t0026.cc
-#TEST2 += t0027.cc
+TEST2 += t0027.cc
 TEST2 += t0028.cc
 TEST2 += t0029.cc
-#TEST2 += t0030.cc
+TEST2 += t0030.cc
 TEST2 += t0030a.cc
 TEST2 += t0030b.cc
-#TEST2 += t0031.cc
+TEST2 += t0031.cc
 TEST2 += t0032.cc
 TEST2 += t0033.cc
 TEST2 += t0034.cc
 TEST2 += t0035.cc
-#TEST2 += t0036.cc
+TEST2 += t0036.cc
 TEST2 += t0037.cc
 TEST2 += t0038.cc
 TEST2 += t0039.cc
@@ -177,7 +177,7 @@ TEST2 += t0057.cc
 TEST2 += t0058.cc
 TEST2 += t0059.cc
 TEST2 += t0060.cc
-#TEST2 += t0061.cc
+TEST2 += t0061.cc
 TEST2 += t0062.cc
 #TEST2 += t0063.cc
 TEST2 += t0064.cc
@@ -190,7 +190,7 @@ TEST2 += t0070.cc
 TEST2 += t0071.cc
 TEST2 += t0072.cc
 TEST2 += t0073.cc
-#TEST2 += t0074.cc
+TEST2 += t0074.cc
 TEST2 += t0075.cc
 TEST2 += t0076.cc
 TEST2 += t0077.cc
@@ -203,8 +203,8 @@ TEST2 += t0083.cc
 TEST2 += t0084.cc
 TEST2 += t0085.cc
 TEST2 += t0086.cc
-#TEST2 += t0087.cc
-#TEST2 += t0088.cc
+TEST2 += t0087.cc
+TEST2 += t0088.cc
 TEST2 += t0089.cc
 TEST2 += t0090.cc
 TEST2 += t0091.cc
@@ -238,7 +238,7 @@ $(addsuffix .B1.xml_filtered,$(T1D)): outdir/%.B1.xml_filtered: outdir/%.B1.xml
 
 # parse xml and generate second debug-print
 $(addsuffix .B2.xml.dp,$(T1D)): outdir/%.B2.xml.dp: outdir/%.B1.xml_filtered
-	$(PR) -tr no-elaborate,parseXml,prettyPrint $< > $@
+	$(PR) -tr parseXml,no-elaborate,prettyPrint $< > $@
 $(addsuffix .B2.xml.dp_filtered,$(T1D)): outdir/%.B2.xml.dp_filtered: outdir/%.B2.xml.dp
 	./chop_out < $< > $@
 
@@ -253,7 +253,7 @@ check_ast: $(addsuffix .B3.diff,$(T1D))
 
 # check typechecking commutes with xml serialization
 T2D := $(addprefix outdir/,$(TEST2))
-TOCLEAN += outdir/*.C0.dp outdir/*.C0.dp_filtered outdir/*.C1.xml outdir/*.C1.xml_filtered outdir/*.C2.xml.dp outdir/*.C2.xml.dp_filtered outdir/*.C3.diff
+TOCLEAN += outdir/*.C0.dp outdir/*.C0.dp_filtered outdir/*.C1.xml outdir/*.C1.xml_filtered outdir/*.C2.xml.dp outdir/*.C2.xml.dp_filtered outdir/*.C3.diff outdir/*.C4.xml
 
 # generate initial debug-print
 $(addsuffix .C0.dp,$(T2D)): outdir/%.C0.dp: in/%
@@ -269,7 +269,7 @@ $(addsuffix .C1.xml_filtered,$(T2D)): outdir/%.C1.xml_filtered: outdir/%.C1.xml
 
 # parse xml and generate second debug-print
 $(addsuffix .C2.xml.dp,$(T2D)): outdir/%.C2.xml.dp: outdir/%.C1.xml_filtered
-	$(PR) -tr no-typecheck,no-elaborate,parseXml,printAST $< > $@
+	$(PR) -tr parseXml,no-typecheck,no-elaborate,printAST $< > $@
 $(addsuffix .C2.xml.dp_filtered,$(T2D)): outdir/%.C2.xml.dp_filtered: outdir/%.C2.xml.dp
 	./filter_loc < $< > $@
 
@@ -280,9 +280,32 @@ $(addsuffix .C3.diff,$(T2D)): outdir/%.C3.diff: outdir/%.C0.dp_filtered outdir/%
 # difference
 	$(DIFF) $^ > $@
 
+# # parse xml and generate second xml print
+# $(addsuffix .C4.xml,$(T2D)): outdir/%.C4.xml: outdir/%.C1.xml_filtered
+# 	$(PR) -tr parseXml,no-typecheck,no-elaborate,xmlPrintAST,xmlPrintAST-indent,xmlPrintAST-types $< > $@
+# $(addsuffix .C4.xml_filtered,$(T2D)): outdir/%.C4.xml_filtered: outdir/%.C4.xml
+# 	./chop_out < $< > $@
+
+# # diff the two xml-prints
+# $(addsuffix .C5.diff,$(T2D)): outdir/%.C5.diff: outdir/%.C1.xml_filtered outdir/%.C4.xml_filtered
+# # NOTE: do not, say, replace this with a pipe into 'tee' because that
+# # masks the return code and prevents make from stopping if there is a
+# # difference
+# 	./filter_ids < $(filter %.C1.xml_filtered,$^) > outdir/a1.xml
+# 	./filter_ids < $(filter %.C4.xml_filtered,$^) > outdir/a4.xml
+# 	$(DIFF) outdir/a1.xml outdir/a4.xml > $@
+
 .PHONY: check_type
 check_type: $(addsuffix .C3.diff,$(T2D))
 
+# when it works, this test will find things that are being written but
+# not read.  Right now, the order of printing is not canonical so it
+# is not yet useful.
+# check_type: $(addsuffix .C5.diff,$(T2D))
+
 .PHONY: clean
 clean:
-	rm -f $(TOCLEAN)
+	find outdir -type f -maxdepth 1 | grep -v .cvsignore | xargs rm -f
+
+# this probably results in an arg too long error
+#	rm -f $(TOCLEAN)

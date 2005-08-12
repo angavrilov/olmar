@@ -66,6 +66,7 @@ __DATA__
 curLoc
 
 # Type nodes
+Type
 CVAtomicType
 PointerType
 ReferenceType
@@ -84,6 +85,8 @@ inClassNAT
 #  size
 
 # AtomicType nodes
+AtomicType
+NamedAtomicType
 SimpleType
 CompoundType
 EnumType

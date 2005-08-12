@@ -514,6 +514,8 @@ public:     // types
   class Value {
   public:
     StringRef name;           // the thing whose name is being defined
+    // dsw: in the xml serialization I note that this 'type' field is
+    // really an AtomicType; the name is a bit misleading
     EnumType *type;           // enum in which it was declared
     int value;                // value it's assigned to
 
@@ -1073,6 +1075,8 @@ protected:
   friend class BasicTypeFactory;
   friend class TypeXmlReader;
   PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c, Type *a);
+  PointerToMemberType(ReadXML&) // a ctor for de-serialization
+    : inClassNAT(NULL), cv(CV_NONE), atType(NULL) {}
 
 public:
   bool isConst() const { return !!(cv & CV_CONST); }

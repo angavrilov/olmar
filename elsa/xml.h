@@ -61,7 +61,7 @@ struct UnsatLink {
   void **ptr;
   string id;
   int kind;
-  UnsatLink(void **ptr0, string id0, int kind0 = -1);
+  UnsatLink(void **ptr0, string id0, int kind0);
 };
 
 //  // datastructures for dealing with unsatisified links where neither
@@ -102,6 +102,14 @@ class XmlReader {
   virtual bool kind2kindCat(int kind, KindCategory *ret) = 0;
 
   // **** Generic Convert
+
+  // note: return whether we know the answer, not the answer which
+  // happens to also be a bool
+  virtual bool recordKind(int kind, bool& answer) = 0;
+
+  // cast a pointer to the pointer type we need it to be; this is only
+  // needed because of multiple inheritance
+  virtual bool upcastToWantedType(void *obj, int kind, void **target, int targetKind) = 0;
   // all lists are stored as ASTLists; convert to the real list
   virtual bool convertList2FakeList(ASTList<char> *list, int listKind, void **target) = 0;
   virtual bool convertList2SObjList(ASTList<char> *list, int listKind, void **target) = 0;
@@ -146,6 +154,9 @@ class XmlReaderManager {
 
   // map object ids to the actual object
   StringSObjDict<void> id2obj;
+  // map object ids to their kind ONLY IF there is a non-trivial
+  // upcast to make at the link satisfaction point
+  StringSObjDict<int> id2kind;
 
   public:
   XmlReaderManager(char const *inputFname0,
@@ -204,9 +215,17 @@ class XmlReaderManager {
   void satisfyLinks_Maps();
 //    void satisfyLinks_Bidirectional();
 
+  public:
+  bool recordKind(int kind);
+
+  private:
+  // convert nodes
+  void *upcastToWantedType(void *obj, int kind, int targetKind);
+  // convert lists
   void *convertList2FakeList(ASTList<char> *list, int listKind);
   void convertList2SObjList(ASTList<char> *list, int listKind, void **target);
   void convertList2ObjList (ASTList<char> *list, int listKind, void **target);
+  // convert maps
   void convertNameMap2StringRefMap  (StringRefMap<char> *map, int listKind, void *target);
   void convertNameMap2StringSObjDict(StringRefMap<char> *map, int listKind, void *target);
 };
