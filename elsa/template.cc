@@ -2604,6 +2604,11 @@ Variable *Env::instantiateClassTemplate
 }
 
 
+// defined in cc_tcheck.cc
+void tcheckDeclaratorPQName(Env &env, ScopeSeq &qualifierScopes,
+                            PQName *name, LookupFlags lflags);
+
+
 void Env::instantiateClassBody(Variable *inst)
 {
   TemplateInfo *instTI = inst->templateInfo();
@@ -2675,14 +2680,15 @@ void Env::instantiateClassBody(Variable *inst)
   // bind the template arguments
   insertTemplateArgBindings(spec, instTI->arguments);
 
-  // check the type tag
-  instCT->syntax->name->tcheck_pq(*this, NULL /*scope*/, LF_DECLARATOR);
-  instCT->syntax->ctype = instCT;
+  // check the type tag, and push qualifier scopes
+  ScopeSeq qualifierScopes;
+  tcheckDeclaratorPQName(env, qualifierScopes, instCT->syntax->name, LF_DECLARATOR);
 
   // the instantiation is will be complete; I think we must do this
   // before checking into the compound to avoid repeatedly attempting
   // to instantiate this class
   instCT->forward = false;
+  instCT->syntax->ctype = instCT;
 
   // check the class body, forcing it to use 'instCT'; don't check
   // method bodies
@@ -2720,6 +2726,7 @@ void Env::instantiateClassBody(Variable *inst)
   }
 
   // restore the scopes
+  env.retractScopeSeq(qualifierScopes);
   deleteTemplateArgBindings();
   unPrepArgScopeForTemlCloneTcheck(poppedScopes, pushedScopes);
   xassert(poppedScopes.isEmpty() && pushedScopes.isEmpty());

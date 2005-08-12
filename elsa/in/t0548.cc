@@ -10,9 +10,6 @@ namespace Case1 {
     class B;
   };
 
-  // need to get it to work both with and without this line
-  A<int> a;
-
   template <class T>
   template <class S>
   class A<T>::B {
@@ -22,7 +19,7 @@ namespace Case1 {
 
   void foo()
   {
-    A<int>::B<int> b;
+    A<int>::B<float> b;
     b.x;
   }
 }
@@ -48,7 +45,7 @@ namespace Case2 {
 
   void foo()
   {
-    A<int>::B<int> b;
+    A<int>::B<float> b;
     b.x;
   }
 }
@@ -99,6 +96,9 @@ template <class S>
 class A<T>::B {
 public:
   int x;
+  
+  A<T> *p;
+  B<S> *q;
 };
 
 template <class T>
