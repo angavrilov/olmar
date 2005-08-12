@@ -203,6 +203,10 @@ public:
   // gcc bug compat: gcc does not enforce the rule that a definition
   // must be in a scope that encloses the declaration
   Bool3 allowDefinitionsInWrongScopes;
+  
+  // gcc bug compat: in C++ mode, gcc allows prototype parameters to
+  // have the same name (in/gnu/bugs/gb0011.cc)
+  Bool3 allowDuplicateParameterNames;
                      
 private:     // funcs
   void setAllWarnings(bool enable);

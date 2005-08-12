@@ -31,6 +31,7 @@ void CCLang::setAllWarnings(bool enable)
   setWarning(allowRepeatedTypeSpecifierKeywords, enable);
   setWarning(allowCVAppliedToFunctionTypes, enable);
   setWarning(allowDefinitionsInWrongScopes, enable);
+  setWarning(allowDuplicateParameterNames, enable);
 }
 
 
@@ -83,6 +84,7 @@ void CCLang::ANSI_C89()
   allowRepeatedTypeSpecifierKeywords = B3_FALSE;
   allowCVAppliedToFunctionTypes = B3_FALSE;
   allowDefinitionsInWrongScopes = B3_FALSE;
+  allowDuplicateParameterNames = B3_FALSE;
 }
 
 void CCLang::KandR_C()
@@ -214,6 +216,7 @@ void CCLang::ANSI_Cplusplus()
   allowRepeatedTypeSpecifierKeywords = B3_FALSE;
   allowCVAppliedToFunctionTypes = B3_FALSE;
   allowDefinitionsInWrongScopes = B3_FALSE;
+  allowDuplicateParameterNames = B3_FALSE;
 }
 
 void CCLang::GNU_Cplusplus()
@@ -239,6 +242,7 @@ void CCLang::GNU_Cplusplus()
   gcc2StdEqualsGlobalHacks = true;
   allowGcc2HeaderSyntax = B3_TRUE;
   allowDefinitionsInWrongScopes = B3_TRUE;
+  allowDuplicateParameterNames = B3_TRUE;
 }
 
 

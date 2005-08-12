@@ -3039,6 +3039,16 @@ Variable *Env::createDeclaration(
       if (prior->hasFlag(DF_DEFINITION) &&
           (dflags & DF_DEFINITION) &&
           !multipleDefinitionsOK(*this, prior, dflags)) {
+        if (scope->isParameterScope()) {
+          env.diagnose3(env.lang.allowDuplicateParameterNames, loc, stringc
+            << "parameter `" << type->toCString(name)
+            << "' conflicts with previous parameter `" 
+            << prior->toCStringAsParameter() << "' (gcc bug allows it)");
+            
+          // I will recover by removing the name
+          return makeVariable(loc, NULL /*name*/, type, dflags);
+        }  
+
         // HACK: if the type refers to type variables, then let it slide
         // because it might be Foo<int> vs. Foo<float> but my simple-
         // minded template implementation doesn't know they're different
