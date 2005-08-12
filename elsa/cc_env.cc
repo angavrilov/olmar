@@ -2053,7 +2053,10 @@ Variable *Env::applyPQNameTemplateArguments
       // apply the template arguments to yield a new type based
       // on the template
       PQ_template const *tqual = final->asPQ_templateC();
-      return instantiateClassTemplate_or_PI(var->type->asCompoundType(), 
+      if (hadTcheckErrors(tqual->sargs)) {
+        return var;           // recovery (in/t0546.cc)
+      }
+      return instantiateClassTemplate_or_PI(var->type->asCompoundType(),
                                             tqual->sargs);
     }
     else {                    // template function
