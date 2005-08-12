@@ -2779,14 +2779,16 @@ void XmlParserGen::emitXmlField_AttributeParseRule
   else if (isTreeNode(type) || (isTreeNodePtr(type))) {
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    manager->unsatLinks.append(new UnsatLink("
-                 << "(void**) &(obj->" << name << "), parseQuotedString(strValue)));\n";
+                 << "(void**) &(obj->" << name << "), parseQuotedString(strValue),"
+                 << "XTOK_" << extractNodeType(type) << "));\n";
     parser1_defs << "    break;\n";
   }
   else if (isPtrKind(type)) {
     // catch-all for objects
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    manager->unsatLinks.append(new UnsatLink("
-                 << "(void**) &(obj->" << name << "), parseQuotedString(strValue)));\n";
+                 << "(void**) &(obj->" << name << "), parseQuotedString(strValue),"
+                 << "XTOK_" << extractNodeType(type) << "));\n";
     parser1_defs << "    break;\n";
   } else {
     // catch-all for non-objects
@@ -3001,6 +3003,65 @@ void XmlParserGen::emitXmlParserImplementation()
          &c->super->args, &c->super->decls, &c->super->lastArgs);
     }
   }
+
+  // generate the method that says we should not record the kind of
+  // any tag that is parsed as there is no multiple inheritance going
+  // on in the AST
+  parser1_defs << "\nbool ASTXmlReader::recordKind(int kind, bool& answer) {\n";
+  parser1_defs << "  switch(kind) {\n";
+  parser1_defs << "  default: return false; break;\n";
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *c = iter.data();
+    if (c->hasChildren()) {
+      FOREACH_ASTLIST(ASTClass, c->ctors, iter) {
+        string name = iter.data()->name;
+        parser1_defs << "  case XTOK_" << name << ": answer = false; return true; break;\n";
+      }
+    } else {
+      string name = c->super->name;
+      parser1_defs << "  case XTOK_" << name << ": answer = false; return true; break;\n";
+    }
+  }
+  FOREACH_ASTLIST(char, fakeListClasses, iter) {
+    char const *cls = iter.data();
+    parser1_defs << "  case XTOK_List_" << cls << ": answer = false; return true; break;\n";
+  }
+  FOREACH_ASTLIST(char, astListClasses, iter) {
+    char const *cls = iter.data();
+    parser1_defs << "  case XTOK_List_" << cls << ": answer = false; return true; break;\n";
+  }
+  parser1_defs << "  }\n";
+  parser1_defs << "}\n";
+
+  // generate the method that says we should not record the kind of
+  // any tag that is parsed as there is no multiple inheritance going
+  // on in the AST
+  parser1_defs << "\nbool ASTXmlReader::upcastToWantedType(void *obj, int kind, void **target, int targetKind) {\n";
+  parser1_defs << "  switch(kind) {\n";
+  parser1_defs << "  default: return false; break;\n";
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *c = iter.data();
+    if (c->hasChildren()) {
+      FOREACH_ASTLIST(ASTClass, c->ctors, iter) {
+        string name = iter.data()->name;
+        parser1_defs << "  case XTOK_" << name << ":\n";
+      }
+    } else {
+      string name = c->super->name;
+      parser1_defs << "  case XTOK_" << name << ":\n";
+    }
+  }
+  FOREACH_ASTLIST(char, fakeListClasses, iter) {
+    char const *cls = iter.data();
+    parser1_defs << "  case XTOK_List_" << cls << ":\n";
+  }
+  FOREACH_ASTLIST(char, astListClasses, iter) {
+    char const *cls = iter.data();
+    parser1_defs << "  case XTOK_List_" << cls << ":\n";
+  }
+  parser1_defs << "    xfailure(\"should never be called\"); return true; break;\n";
+  parser1_defs << "  }\n";
+  parser1_defs << "}\n";
 
   // generate generic FakeList reverse
   parser1_defs << "bool ASTXmlReader::convertList2FakeList(ASTList<char> *list, int listKind, void **target) {\n";
