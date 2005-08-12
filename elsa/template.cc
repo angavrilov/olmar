@@ -23,11 +23,19 @@ void copyTemplateArgs(ObjList<STemplateArgument> &dest,
 void copyTemplateArgs(ObjList<STemplateArgument> &dest,
                       SObjList<STemplateArgument> const &src)
 {
-  xassert(dest.isEmpty());    // otherwise prepend/reverse won't work
-  SFOREACH_OBJLIST(STemplateArgument, src, iter) {
-    dest.prepend(new STemplateArgument(*(iter.data())));
+  if (dest.isEmpty()) {
+    // use prepend/reverse
+    SFOREACH_OBJLIST(STemplateArgument, src, iter) {
+      dest.prepend(new STemplateArgument(*(iter.data())));
+    }
+    dest.reverse();
   }
-  dest.reverse();
+  else {
+    // just do the normal thing..
+    SFOREACH_OBJLIST(STemplateArgument, src, iter) {
+      dest.append(new STemplateArgument(*(iter.data())));
+    }
+  }
 }
 
 
@@ -2605,20 +2613,13 @@ void Env::instantiateClassBody(Variable *inst)
   Variable *spec = instTI->instantiationOf;
   TemplateInfo *specTI = spec->templateInfo();
   CompoundType *specCT = spec->type->asCompoundType();
+                              
+  // used only if it turns out that 'specTI' is a partial instantiation
+  CompoundType *origCT = NULL;
 
   TRACE("template", "instantiating " <<
                     (specTI->isPrimary()? "class" : "partial spec") <<
                     " body: " << instTI->templateName());
-
-  if (specCT->forward) {
-    error(stringc << "attempt to instantiate `" << instTI->templateName()
-                  << "', but no definition has been provided for `"
-                  << specTI->templateName() << "'");
-    return;
-  }
-
-  // isolate context
-  InstantiationContextIsolator isolator(*this, loc());
 
   // defnScope: the scope where the class definition appeared
   Scope *defnScope;
@@ -2628,26 +2629,42 @@ void Env::instantiateClassBody(Variable *inst)
     // inline definition
     defnScope = instTI->defnScope;
   }
-  else {
+  else if (specCT->syntax) {
     // out-of-line definition; must clone the spec's definition
     instCT->syntax = specCT->syntax->clone();
     defnScope = specTI->defnScope;
   }
-  xassert(instCT->syntax);
+  else if (specTI->isPartialInstantiation()) {
+    // go look at the thing from which this was partial instantiated,
+    // in search of a definition (in/t0548.cc)
+    //
+    // TODO: This is an unfortunate hack.  I end up treating out-of-line
+    // definitions of member template classes quite differently from
+    // inline definitions of the same.  However, I didn't think about
+    // these issues when designing the template mechanism, and they just
+    // don't fit right.  At some point it would be good to reimplement
+    // the whole thing, taking this stuff into account.
+    TemplateInfo *origTI = specTI->partialInstantiationOf->templateInfo();
+    origCT = specTI->partialInstantiationOf->type->asCompoundType();
+    if (origCT->syntax) {
+      instCT->syntax = origCT->syntax->clone();
+      defnScope = origTI->defnScope;
+    }
+  }
+
+  if (!instCT->syntax) {
+    error(stringc << "attempt to instantiate `" << instTI->templateName()
+                  << "', but no definition has been provided for `"
+                  << specTI->templateName() << "'");
+    return;
+  }
   xassert(defnScope);
+
+  // isolate context
+  InstantiationContextIsolator isolator(*this, loc());
 
   // bind the template arguments in scopes so that when we tcheck the
   // body, lookup will find them
-  {
-    Scope *limit = scope();    // remember which scope we had (hacking...)
-    insertTemplateArgBindings(spec, instTI->arguments);
-
-    // check the type tag *before* adjusting the scope stack (?)
-    instCT->syntax->name->tcheck_pq(*this, NULL /*scope*/, LF_DECLARATOR);
-    instCT->syntax->ctype = instCT;
-
-    deleteTemplateArgBindings(limit);
-  }
 
   // set up the scopes in a way similar to how it was when the
   // template definition was first seen
@@ -2655,8 +2672,12 @@ void Env::instantiateClassBody(Variable *inst)
   SObjList<Scope> pushedScopes;
   prepArgScopeForTemlCloneTcheck(poppedScopes, pushedScopes, defnScope);
 
-  // bind the template arguments *again* because I am hacking this to death...
+  // bind the template arguments
   insertTemplateArgBindings(spec, instTI->arguments);
+
+  // check the type tag
+  instCT->syntax->name->tcheck_pq(*this, NULL /*scope*/, LF_DECLARATOR);
+  instCT->syntax->ctype = instCT;
 
   // the instantiation is will be complete; I think we must do this
   // before checking into the compound to avoid repeatedly attempting
@@ -2680,8 +2701,23 @@ void Env::instantiateClassBody(Variable *inst)
   // params used at the definition site (since we have arguments
   // but don't know what names to bind them to).  So, walk over
   // both member lists, transferring information as necessary.
-  transferTemplateMemberInfo(loc(), specCT->syntax, instCT->syntax,
-                             instTI->arguments);
+  if (!origCT) {
+    transferTemplateMemberInfo(loc(), specCT->syntax, instCT->syntax,
+                               instTI->arguments);
+  }
+  else {
+    // this is the case above where we bypassed 'specCT', which is a
+    // partial instanitation; first combine the arguments from the
+    // partial inst with those from 'instTI'
+    ObjList<STemplateArgument> combinedArgs;
+    copyTemplateArgs(combinedArgs, specTI->arguments /*partial inst args*/);
+    copyTemplateArgs(combinedArgs, instTI->arguments);
+
+    // now transfer member info from the original
+    origCT = specTI->partialInstantiationOf->type->asCompoundType();
+    transferTemplateMemberInfo(loc(), origCT->syntax, instCT->syntax,
+                               instTI->arguments);
+  }
 
   // restore the scopes
   deleteTemplateArgBindings();
@@ -3134,11 +3170,49 @@ void Env::transferTemplateMemberInfo_one
   TemplateInfo *srcTI = srcVar->templateInfo();
   xassert(srcTI);
   srcTI->addInstantiation(destVar);
-  
+
   // set 'destTI->uninstantiatedDefaultArgs'
   if (destVar->type->isFunctionType()) {
-    destTI->uninstantiatedDefaultArgs = 
+    destTI->uninstantiatedDefaultArgs =
       countParamsWithDefaults(destVar->type->asFunctionType());
+  }
+}
+
+
+bool hasTemplateDefinition(Variable *var)
+{
+  if (var->type->isFunctionType()) {
+    return !!var->funcDefn;
+  }
+  else {
+    return !!var->type->asCompoundType()->syntax;
+  }
+}
+
+
+void transferTemplateDefinition(Variable *destVar, Variable *srcVar)
+{
+  if (srcVar->type->isFunctionType()) {
+    destVar->funcDefn = srcVar->funcDefn;
+  }
+  else {
+    CompoundType *srcCt = srcVar->type->asCompoundType();
+    CompoundType *destCt = destVar->type->asCompoundType();
+
+    destCt->syntax = srcCt->syntax;
+  }
+
+  TemplateInfo *srcTI = srcVar->templateInfo();
+  TemplateInfo *destTI = destVar->templateInfo();
+
+  // is it inline?
+  if (srcVar->scope == srcTI->defnScope) {
+    // then the dest's defnScope should be similarly arranged
+    destTI->defnScope = destVar->scope;
+  }
+  else {
+    // for out of line, the defn scopes of src and dest are the same
+    destTI->defnScope = srcTI->defnScope;
   }
 }
 
@@ -3173,22 +3247,8 @@ void Env::transferTemplateMemberInfo_membert
 
   // should not have already checked this member's body even if
   // it has an inline definition
-  xassert(!destVar->funcDefn);
-
-  // does the source have a definition?
-  if (srcVar->funcDefn) {
-    // give the definition to the dest too
-    destVar->funcDefn = srcVar->funcDefn;
-
-    // is it inline?
-    if (srcVar->scope == srcTI->defnScope) {
-      // then the dest's defnScope should be similarly arranged
-      destTI->defnScope = destVar->scope;
-    }
-    else {
-      // for out of line, the defn scopes of src and dest are the same
-      destTI->defnScope = srcTI->defnScope;
-    }
+  if (!hasTemplateDefinition(destVar) && hasTemplateDefinition(srcVar)) {
+    transferTemplateDefinition(destVar, srcVar);
   }
 
   // do this last so I have full info to print for 'destVar'

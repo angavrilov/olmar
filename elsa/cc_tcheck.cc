@@ -1792,9 +1792,19 @@ CompoundType *checkClasskeyAndName(
     // definition of something previously declared?
     if (definition) {
       if (ct->templateInfo()) {
+        // update the defnScope; this is important for out-of-line definitions
+        // of nested classes, especially template classes
+        TemplateInfo *ti = ct->templateInfo();
+        Scope *defnScope = scope;
+        while (defnScope->isTemplateParamScope()) {
+          defnScope = defnScope->parentScope;
+        }
+        ti->defnScope = defnScope;
+
         TRACE("template", "template class " <<
                           (templateArgs? "specialization " : "") <<
-                          "definition: " << ct->templateInfo()->templateName());
+                          "definition: " << ct->templateInfo()->templateName() <<
+                          ", defnScope is " << defnScope->desc());
       }
 
       if (ct->forward) {
@@ -1891,11 +1901,11 @@ CompoundType *checkClasskeyAndName(
                         primary->typedefVar->fullyQualifiedName() <<
                         ", " << ct->instName);
     }
-  }
 
-  // record the definition scope, for instantiation to use
-  if (templateParams && definition) {
-    ct->templateInfo()->defnScope = env.nonTemplateScope();
+    // record the definition scope, for instantiation to use
+    if (templateParams && definition) {
+      ct->templateInfo()->defnScope = env.nonTemplateScope();
+    }
   }
 
   return ct;
