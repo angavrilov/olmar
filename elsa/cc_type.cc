@@ -2687,6 +2687,11 @@ Type *TypeFactory::setQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
 Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
                                  TypeSpecifier *syntax)
 {
+  if (baseType->isReferenceType()) {
+    // 8.3.2p1: this is fine; 'cv' is ignored
+    return baseType;
+  }
+
   CVFlags now = baseType->getCVFlags();
   if (now | cv == now) {
     // no change, 'cv' already contained in the existing flags

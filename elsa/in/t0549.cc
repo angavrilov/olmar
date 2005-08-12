@@ -1,6 +1,13 @@
 // t0549.cc
 // apply const to reference during template arg deduction
 
+
+// actually this is perfectly legal (8.3.2p1)
+typedef float &FLOATREF;
+float q;
+FLOATREF const fr = q;
+
+
 template <class T>
 void f(T const x);
 
@@ -27,3 +34,10 @@ void bar()
 }
 
 
+
+template <class T>
+struct B {
+  void h(typename T::INTREF const r);
+};
+
+B<A> b;
