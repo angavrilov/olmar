@@ -1803,7 +1803,7 @@ CompoundType *checkClasskeyAndName(
 
         TRACE("template", "template class " <<
                           (templateArgs? "specialization " : "") <<
-                          "definition: " << ct->templateInfo()->templateName() <<
+                          "definition: " << ti->templateName() <<
                           ", defnScope is " << defnScope->desc());
       }
 

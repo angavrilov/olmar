@@ -2627,7 +2627,7 @@ void Env::instantiateClassBody(Variable *inst)
                     " body: " << instTI->templateName());
 
   // defnScope: the scope where the class definition appeared
-  Scope *defnScope;
+  Scope *defnScope = NULL;
 
   // do we have a function definition already?
   if (instCT->syntax) {
@@ -3331,12 +3331,61 @@ bool Env::verifyCompatibleTemplateParameters(Scope *scope, CompoundType *prior)
   // with those of 'scope->curTemplateParams'
   //
   // even more, merge their default arguments
-  bool ret = mergeParameterLists(
-    prior->typedefVar,
-    prior->templateInfo()->params,     // dest
-    scope->templateParams);            // src
+  TemplateInfo *priorTI = prior->templateInfo();
+  if (!mergeParameterLists(prior->typedefVar,
+                           priorTI->params,            // dest
+                           scope->templateParams)) {   // src
+    return false;
+  }
 
-  return ret;
+  // furthermore, do the same for inherited parameters (this
+  // appears to be the nominal intent of mergeTemplateInfos(),
+  // but that function is never called...) (in/t0441.cc)
+  //
+  // this will walk the list of inherited parameter lists in 'prior'
+  ObjListIterNC<InheritedTemplateParams> inhParamIter(priorTI->inheritedParams);
+
+  // this is clumsy; I have 'scope', but I need to find it in
+  // the scope stack so I can look at the ones that precede it
+  SObjList<Scope const> paramScopes;
+  {
+    ObjListIter<Scope> scopeIter(this->scopes);
+    while (scopeIter.data() != scope) {
+      scopeIter.adv();
+    }
+    scopeIter.adv();
+
+    // I want to compare 'inhParamIter' to the parameter scopes above
+    // 'scope'; except they're in the opposite orders, so first collect
+    // and reverse the scopes
+    for (; !scopeIter.isDone(); scopeIter.adv()) {
+      if (scopeIter.data()->isTemplateParamScope()) {
+        paramScopes.prepend(scopeIter.data());
+      }
+    }
+  }
+  SObjListIter<Scope const> scopeIter(paramScopes);
+
+  // merge corresponding parameter lists
+  while (!inhParamIter.isDone() && !scopeIter.isDone()) {
+    if (!mergeParameterLists(prior->typedefVar,
+                             inhParamIter.data()->params,         // dest
+                             scopeIter.data()->templateParams)) { // src
+      return false;
+    }
+
+    inhParamIter.adv();
+    scopeIter.adv();
+  }
+
+  // should end at same time
+  if (!inhParamIter.isDone() || !scopeIter.isDone()) {
+    // TODO: expand this message
+    env.error(stringc << "wrong # of template param lists in declaration of "
+                      << prior->name);
+  }
+
+  return true;
 }
 
 
@@ -3460,6 +3509,12 @@ bool Env::mergeParameterLists(Variable *prior,
 }
 
 
+// 2005-08-12: There are no call sites for this function.  There is
+// now code at the end of verifyCompatibleTemplateParameters that does
+// essentially the same thing.  However, I will leave this here
+// because this code looks cleaner, and it is possible that at some
+// point I will discover how to plug this function in to the design,
+// thereby letting me delete the mess in the other function.
 bool Env::mergeTemplateInfos(Variable *prior, TemplateInfo *dest,
                              TemplateInfo const *src)
 {
@@ -3481,7 +3536,7 @@ bool Env::mergeTemplateInfos(Variable *prior, TemplateInfo *dest,
     error("differing number of template parameter lists");
     ok = false;
   }
-  
+
   return ok;
 }
 

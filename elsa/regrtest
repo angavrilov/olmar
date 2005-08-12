@@ -729,7 +729,7 @@ failparse t0439.cc "default args in explicit spec"
 failparse t0440.cc "default args in explicit spec + DQTs"
 testparse t0441a.cc
 testparse t0441.cc
-failparse t0442.cc "triply-nested templates with out-of-line defns"
+testparse t0442.cc
 testparse t0443.cc
 testparse t0444.cc
 testparse t0445.cc
