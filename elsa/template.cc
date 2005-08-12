@@ -2720,9 +2720,8 @@ void Env::instantiateClassBody(Variable *inst)
     copyTemplateArgs(combinedArgs, instTI->arguments);
 
     // now transfer member info from the original
-    origCT = specTI->partialInstantiationOf->type->asCompoundType();
     transferTemplateMemberInfo(loc(), origCT->syntax, instCT->syntax,
-                               instTI->arguments);
+                               combinedArgs);
   }
 
   // restore the scopes
@@ -3186,44 +3185,6 @@ void Env::transferTemplateMemberInfo_one
 }
 
 
-bool hasTemplateDefinition(Variable *var)
-{
-  if (var->type->isFunctionType()) {
-    return !!var->funcDefn;
-  }
-  else {
-    return !!var->type->asCompoundType()->syntax;
-  }
-}
-
-
-void transferTemplateDefinition(Variable *destVar, Variable *srcVar)
-{
-  if (srcVar->type->isFunctionType()) {
-    destVar->funcDefn = srcVar->funcDefn;
-  }
-  else {
-    CompoundType *srcCt = srcVar->type->asCompoundType();
-    CompoundType *destCt = destVar->type->asCompoundType();
-
-    destCt->syntax = srcCt->syntax;
-  }
-
-  TemplateInfo *srcTI = srcVar->templateInfo();
-  TemplateInfo *destTI = destVar->templateInfo();
-
-  // is it inline?
-  if (srcVar->scope == srcTI->defnScope) {
-    // then the dest's defnScope should be similarly arranged
-    destTI->defnScope = destVar->scope;
-  }
-  else {
-    // for out of line, the defn scopes of src and dest are the same
-    destTI->defnScope = srcTI->defnScope;
-  }
-}
-
-
 // this is for member templates ("membert")
 void Env::transferTemplateMemberInfo_membert
   (SourceLoc instLoc, Variable *srcVar, Variable *destVar,
@@ -3254,9 +3215,31 @@ void Env::transferTemplateMemberInfo_membert
 
   // should not have already checked this member's body even if
   // it has an inline definition
-  if (!hasTemplateDefinition(destVar) && hasTemplateDefinition(srcVar)) {
-    transferTemplateDefinition(destVar, srcVar);
+  xassert(!destVar->funcDefn);
+
+  // does the source have a definition?
+  if (srcVar->funcDefn) {
+    // give the definition to the dest too
+    destVar->funcDefn = srcVar->funcDefn;
+
+    // is it inline?
+    if (srcVar->scope == srcTI->defnScope) {
+      // then the dest's defnScope should be similarly arranged
+      destTI->defnScope = destVar->scope;
+    }
+    else {
+      // for out of line, the defn scopes of src and dest are the same
+      destTI->defnScope = srcTI->defnScope;
+    }
   }
+
+  // 2005-08-12: I started to do some analogous stuff for class
+  // templates, including making a copy of CompoundType::syntax, but
+  // that isn't right b/c those can't be shared since they are
+  // supposed to be tcheck'd before transferring member info.
+  //
+  // That, and I am *really* confused right now.  How the hell does
+  // any of this work?
 
   // do this last so I have full info to print for 'destVar'
   TRACE("templateXfer", "associated primary " << srcVar->toQualifiedString()

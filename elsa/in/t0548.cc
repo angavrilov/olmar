@@ -99,7 +99,18 @@ public:
   
   A<T> *p;
   B<S> *q;
+
+  int f() { return 1; }
+  int g();
+  int h();
 };
+
+template <class T>
+template <class S>
+int A<T>::B<S>::g()
+{
+  return 2;
+}
 
 template <class T>
 int A<T>::front()
@@ -111,4 +122,20 @@ void foo()
 {
   A<int> a;
   a.front();
+
+  A<int>::B<float> b;
+  b.x;
+  b.f();
+  b.g();
+  b.h();
 }
+
+template <class T>
+template <class S>
+int A<T>::B<S>::h()
+{
+  return 3;
+}
+
+// force it to find the definition
+template int A<int>::B<float>::h();
