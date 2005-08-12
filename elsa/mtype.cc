@@ -542,6 +542,16 @@ bool IMType::equalWithAppliedCV(Type const *conc, Binding *binding, CVFlags cv, 
 
 bool IMType::imatchTypeWithSpecifiedCV(Type const *conc, Type const *pat, CVFlags cv, MatchFlags flags)
 {
+  if (pat->isReferenceType() &&         // if comparing reference
+      !conc->isReferenceType() &&       // to non-reference
+      (flags & MF_IGNORE_TOP_CV) &&     // at top of type
+      (flags & MF_DEDUCTION)) {         // during type deduction
+    // (in/t0549.cc) we got here because we just used a binding to
+    // come up with a reference type; without that, we would have stripped
+    // the reference-ness much earlier; but here we are, so strip it
+    pat = pat->asRvalC();
+  }
+
   // compare underlying types, ignoring first level of cv
   return imatchCVFlags(conc->getCVFlags(), cv, flags) &&
          imatchType(conc, pat, flags | MF_IGNORE_TOP_CV);

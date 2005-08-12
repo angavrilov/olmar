@@ -3725,6 +3725,13 @@ Type *Env::applyArgumentMapToAtomicType
 
 Type *Env::applyArgumentMap_applyCV(CVFlags cv, Type *type)
 {
+  if (type->isReferenceType()) {
+    // apparently, since 14.8.1p2 doesn't explicitly prohibit
+    // attempting to cv-qualify a reference, it is allowed
+    // (in/t0549.cc)
+    return type;
+  }
+
   Type *ret = tfac.applyCVToType(SL_UNKNOWN, cv,
                                  type, NULL /*syntax*/);
   if (!ret) {
