@@ -171,6 +171,10 @@ public:
   // true if this name refers to a class or struct
   bool isClass() const;
 
+  // refers to a user-provided typedef
+  bool isExplicitTypedef() const 
+    { return hasFlag(DF_TYPEDEF) && !hasFlag(DF_IMPLICIT); }
+
   // access control applied to this variable in the context
   // in which it appears (defaults to AK_PUBLIC)
   AccessKeyword getAccess() const;

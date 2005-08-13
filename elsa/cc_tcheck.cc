@@ -120,6 +120,18 @@ string ambiguousNodeName(Expression const *e)
 }
 
 
+// little experiment: since I've implemented the "confused by earlier
+// errors" mechanism, there is now a big difference between a segfault
+// and an xfailure (the latter being mapped to "confused" sometimes);
+// so I will try sprinkling this as a way of preventing the segfault
+template <class T>
+inline T *mustBeNonNull(T *ptr)
+{
+  xassert(ptr);
+  return ptr;
+}
+
+
 // ------------------- UninstTemplateErrorFilter ------------------
 // filter that keeps only strong messages
 bool strongMsgFilter(ErrorMsg *msg)
@@ -1144,9 +1156,20 @@ void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
     return;
   }
 
-  // below here, we are trying to set up the "parameterized entity"
-  // relationship, associating template scopes with the things they
-  // parameterize/templatize
+  // In a template declarator context, we want to stage the use of
+  // the template parameters so as to ensure proper association
+  // between parameters and qualifiers.  For example, if we have
+  //
+  //   template <class S>
+  //   template <class T>
+  //   int A<S>::foo(T *t) { ... }
+  //
+  // and we're about to tcheck "A<S>", the SK_TEMPLATE_PARAMS scope
+  // containing T that is currently on the stack must be temporarily
+  // removed so that the template arguments to A cannot see it.
+  //
+  // So, for this and other reasons, find the template argument or
+  // parameter scope that corresponds to 'bareQualifierVar'.
 
   // begin by looking up the bare name, igoring template arguments
   Variable *bareQualifierVar = env.lookupOneQualifier_bareName(scope, this, lflags);
@@ -1157,44 +1180,88 @@ void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
     tcheckPQName(rest, env, scope, lflags);
     return;
   }
-  
+
   // scope that has my template params
   Scope *hasParamsForMe = NULL;
 
   if (!(lflags & LF_EXPLICIT_INST) &&            // not explicit inst request
-      bareQualifierVar &&                        // lookup succeeded
-      bareQualifierVar->isTemplate() &&          // names a template
-      sargs.isNotEmpty()) {                      // arguments supplied
-    // In a template declarator context, we want to stage the use of
-    // the template parameters so as to ensure proper association
-    // between parameters and qualifiers.  For example, if we have
-    //
-    //   template <class S>
-    //   template <class T>
-    //   int A<S>::foo(T *t) { ... }
-    //
-    // and we're about to tcheck "A<S>", the SK_TEMPLATE_PARAMS scope
-    // containing T that is currently on the stack must be temporarily
-    // removed so that the template arguments to A cannot see it.
-    //
-    // So, for this and other reasons, find the template argument or
-    // parameter scope that corresponds to 'bareQualifierVar'.
-
-    // But there is an exception to the rule; this is implied by
-    // 14.5.4.3, as it gives the above rules only for partial
-    // class specializations (so arguments are not all concrete) and
-    // explicit specializations of *implicitly* specialized classes
-    // (so the template does not have a matching explicit spec):
-    //   - if all template args are concrete, and
-    //   - they correspond to an explicit specialization
-    //   - then "template <>" is *not* used (for that class)
-    // t0248.cc tests a couple cases...
-    if (!containsVariables(sargs) &&
-        bareQualifierVar->templateInfo()->getSpecialization(sargs)) {
-      // do not associate 'bareQualifier' with any template scope
+      bareQualifierVar) {                        // lookup succeeded
+    if (bareQualifierVar->isTemplate() &&          // names a template
+        sargs.isNotEmpty()) {                      // arguments supplied
+      // 14.7.3p5:
+      //   - if all template args are concrete, and
+      //   - they correspond to an explicit specialization
+      //   - then "template <>" is *not* used (for that class)
+      // t0248.cc tests a couple cases...
+      if (!containsVariables(sargs) &&
+          bareQualifierVar->templateInfo()->getSpecialization(sargs)) {
+        // do not associate 'bareQualifier' with any template scope
+      }
+      else {
+        hasParamsForMe = env.findParameterizingScope(bareQualifierVar);
+      }
     }
-    else {
-      hasParamsForMe = env.findParameterizingScope(bareQualifierVar);
+
+    // Apparently, it is legal (as in, both GCC and ICC allow it) to
+    // use a typedef to name an explicit specialization.  I think it's
+    // a bit strange, as 14.7.3p17,18 seem to imply a syntactic
+    // correlation between <> in template parameter lists and <> in
+    // declarator-ids, and that correlation is broken if a typedef is
+    // used.  In particular, the syntax could not also be used for a
+    // *partial* specialization, since the parameters would not be
+    // visible at the point the typedef is created.
+    //
+    // However, 7.1.3 seems to say that typedefs are allowed as
+    // synonyms for their referents in any context except those
+    // prohibited by 7.1.3p4, and this is not one of those.
+    //
+    // To implement this, I will try to determine how many levels of
+    // template class implicit specializations are present between
+    // 'bareQualifierVar' and 'scope', and associate each one
+    // with a template parameter list.  (in/t0555.cc)
+    if (bareQualifierVar->isExplicitTypedef() &&
+        bareQualifierVar->type->isCompoundType() &&
+        !bareQualifierVar->isTemplate(true /*considerInherited*/)) {
+      // step 1: find all the classes below 'scope'
+      SObjList<CompoundType> specs;
+      int ct = 0;
+      for (Scope *s = bareQualifierVar->getDenotedScope();
+           s->isClassScope() && s != scope;
+           s = mustBeNonNull(s->parentScope)) {
+        specs.prepend(s->curCompound);        // want outermost first
+        ct++;
+      }
+
+      // step 2: associate those that are implicit specializations
+      SFOREACH_OBJLIST_NC(CompoundType, specs, iter) {
+        TemplateInfo *ti = iter.data()->templateInfo();
+        if (ti && ti->isInstantiation()) {    // aka implicit specialization
+          Scope *paramScope = env.findParameterizingScope(ti->var);
+          if (ct > 1) {
+            paramScope->setParameterizedEntity(ti->var);
+
+            TRACE("templateParams",
+              "associated " << paramScope->desc() <<
+              " with " << ti->var->fullyQualifiedName() <<
+              " (found using typedef expansion)");
+          }
+          else {
+            // this is the last element in the list, 'bareQualifierVar'
+            // itself; don't associate it here; instead, stash it
+            // in 'hasParamsForMe' and let the code below associate it
+            xassert(ct == 1);
+            xassert(iter.data() == bareQualifierVar->type->asCompoundType());
+            hasParamsForMe = paramScope;
+
+            TRACE("templateParams",
+              "later, will associate " << paramScope->desc() <<
+              " with " << ti->var->fullyQualifiedName() <<
+              " (found using typedef expansion)");
+          }
+        }
+
+        ct--;
+      }
     }
   }
 
