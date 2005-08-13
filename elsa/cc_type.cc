@@ -405,11 +405,11 @@ STATICDEF char const *CompoundType::keywordName(Keyword k)
 }
 
 
-bool CompoundType::isTemplate() const
+bool CompoundType::isTemplate(bool considerInherited) const
 {
   TemplateInfo *tinfo = templateInfo();
   return tinfo != NULL &&
-         tinfo->hasParameters();   // Q: should this be 'hasMainOrInheritedParameters'?
+         tinfo->hasParametersEx(considerInherited);
 }
 
 
@@ -1508,7 +1508,7 @@ bool typeHasTypeVariable(Type const *t)
 {
   return t->isTypeVariable() ||
          (t->isCompoundType() &&
-          t->asCompoundTypeC()->isTemplate()) ||
+          t->asCompoundTypeC()->isTemplate(true /*considerInherited*/)) ||
          t->isPseudoInstantiation();
 }
 
@@ -1564,10 +1564,12 @@ bool ContainsVariablesPred::atomicTypeHasVariable(AtomicType const *t)
            nameContainsVariables(dqt->rest);
   }
 
-  if (t->isCompoundType() && t->asCompoundTypeC()->isTemplate()) {
-    // I think this would make sense only for a PseudoInstantiation,
-    // so maybe I should just return true here?  For now I leave it.
-    return containsVariables(t->asCompoundTypeC()->templateInfo()->arguments, map);
+  if (t->isCompoundType() && 
+      t->asCompoundTypeC()->isTemplate(true /*considerInherited*/)) {
+    return true;
+
+    // 2005-08-12: this was here, but I think it is wrong
+    //return containsVariables(t->asCompoundTypeC()->templateInfo()->arguments, map);
   }
 
   return false;

@@ -411,7 +411,7 @@ public:      // funcs
   // true if this is a class that is incomplete because it requires
   // template arguments to be supplied (i.e. not true for classes
   // that come from templates, but all arguments have been supplied)
-  bool isTemplate() const;
+  bool isTemplate(bool considerInherited = false) const;
   
   // true if it is an instance (fully concrete type arguments) of some
   // template
