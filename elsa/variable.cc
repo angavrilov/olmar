@@ -347,11 +347,8 @@ string Variable::toMLString() const
 }
 
 
-// sm: I removed the cache; I'm much more concerned about wasted space
-// than wasted time (because the latter is much easier to profile)
 string Variable::fullyQualifiedName() const
 {
-  xassert(name);
   stringBuilder tmp;
   if (scope && !scope->isGlobalScope()) {
     tmp << scope->fullyQualifiedCName();
@@ -360,7 +357,20 @@ string Variable::fullyQualifiedName() const
     // don't need another "::name", since my 'scope' is the same
   }
   else {
-    tmp << "::" << name;        // NOTE: not mangled
+    if (!tmp.isempty()) {
+      tmp << "::";
+    }
+    
+    if (name) {
+      tmp << name;        // NOTE: not mangled
+
+      if (templateInfo() && templateInfo()->arguments.isNotEmpty()) {
+        tmp << sargsToString(templateInfo()->arguments);
+      }
+    }
+    else {
+      tmp << "/*anon*/";
+    }
   }
   return tmp;
 }

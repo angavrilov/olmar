@@ -663,6 +663,7 @@ string TemplateInfo::templateName() const
                    << sargsToString(arguments);
   }
 
+  #if 0    // seems like this isn't needed anymore
   // instantiation; but of the primary or of a specialization?
   TemplateInfo *parentTI = instantiationOf->templateInfo();
   if (parentTI->isPrimary()) {
@@ -677,6 +678,9 @@ string TemplateInfo::templateName() const
                    << sargsToString(parentTI->arguments)
                    << sargsToString(arguments);
   }
+  #endif // 0
+  
+  return var->fullyQualifiedName();
 }
 
 
@@ -935,6 +939,9 @@ string sargsToString(SObjList<STemplateArgument> const &list)
     sb << iter.data()->toString();
   }
 
+  if (sb[sb.length()-1] == '>') {
+    sb << " ";    // avoid creating ">>"
+  }
   sb << ">";
   return sb;
 }

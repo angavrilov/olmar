@@ -1138,6 +1138,9 @@ string Scope::fullyQualifiedName(bool mangle)
   stringBuilder sb;
   if (parentScope && !parentScope->isGlobalScope()) {
     sb = parentScope->fullyQualifiedName(mangle);
+    if (!mangle) {
+      sb << "::";     // put this only *between* names, so none at start
+    }
   }
   else {
     if (!immediateGlobalScopeChild()) {
@@ -1146,15 +1149,18 @@ string Scope::fullyQualifiedName(bool mangle)
       xfailure("fullyQualifiedName called on scope that doesn't terminate in the global scope");
     }
   }
+  if (mangle) {
+    sb << "::";       // put this *before* names, so there is one at start
+  }
 
   xassert(hasName());
   Variable *v = getTypedefName();
   xassert(v);
   if (v->name) {
-    sb << "::" << v->name;
+    sb << v->name;
   }
   else {
-    sb << "/""*::anonymous@" << toString(v->loc) << "*/";    // anonymous namespaces
+    sb << "anonymous@" << toString(v->loc);    // anonymous namespaces
   };
 
   // return if no templates are involved

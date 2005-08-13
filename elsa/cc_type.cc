@@ -488,7 +488,8 @@ string CompoundType::toCString() const
     sb << keywordName(keyword) << " ";
   }
 
-  sb << (instName? instName : "/*anonymous*/");
+  //sb << (instName? instName : "/*anonymous*/");
+  sb << typedefVar->fullyQualifiedName();
 
   // template arguments are now in the name
   // 4/22/04: they were removed from the name a long time ago;
