@@ -839,7 +839,7 @@ testparse t0550.cc
 testparse t0551.cc
 testparse t0552.cc
 testparse t0553.cc
-failparse t0554.cc "not handling static data template members properly"
+failparse t0554.cc "instantiation of static data template members not implemented"
 testparse t0555.cc
 
 # another set of tests, generally isolated by Daniel

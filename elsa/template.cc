@@ -3057,9 +3057,21 @@ void Env::transferTemplateMemberInfo
         Variable *srcVar = srcDeclarators->first()->var;
         Variable *destVar = destDeclarators->first()->var;
 
-        if (srcVar->type->isFunctionType()) {
-          // srcVar -> destVar
-          transferTemplateMemberInfo_one(instLoc, srcVar, destVar, sargs);
+        // transfer info for member functions and static data
+        //
+        // 2005-08-13: Ouch!  It turns out I really haven't
+        // implemented instantiation of static data members of class
+        // templates at all, so the required data structures are
+        // simply not present to let me fix in/t0554.cc, which
+        // requires (among other things) turning on the 'isStatic'
+        // possibility below.
+        //
+        // TODO: Implement instantiation of static data members.
+        if (!srcVar->isType()) {
+          if (srcVar->type->isFunctionType() /*|| srcVar->isStatic()*/) {
+            // srcVar -> destVar
+            transferTemplateMemberInfo_one(instLoc, srcVar, destVar, sargs);
+          }
         }
       }
       xassert(srcDeclarators->isEmpty() && destDeclarators->isEmpty());
