@@ -5136,7 +5136,11 @@ Type *E_charLit::itcheck_x(Env &env, Expression *&replacement)
     }
   }
 
-  c = (unsigned int)temp[0];
+  // 2005-08-12: The first cast to 'unsigned char' will make sure that
+  // negative chars (which come from things like '\xFF') get stored as
+  // small positive ints in [128,255].  This is far from perfect, but
+  // will do for now.
+  c = (unsigned int)(unsigned char)temp[0];
 
   if (!env.lang.isCplusplus && id == ST_WCHAR_T) {
     // in C, 'wchar_t' is not built-in, it is defined; so we
