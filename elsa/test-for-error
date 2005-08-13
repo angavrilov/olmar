@@ -75,7 +75,7 @@ fi
 
 # ccparse
 if [ "$msg" = "segfault" ]; then
-  ./ccparse $ARGS tmp.i >/dev/null 2>&1
+  ./ccparse -tr permissive $ARGS tmp.i >/dev/null 2>&1
   if [ "$?" = "139" ]; then
     echo "got the segfault I am looking for"
     exit 0
@@ -84,7 +84,7 @@ if [ "$msg" = "segfault" ]; then
     exit 4
   fi
 elif [ "$msg" = "abort" ]; then
-  ./ccparse $ARGS tmp.i >/dev/null 2>&1
+  ./ccparse -tr permissive $ARGS tmp.i >/dev/null 2>&1
   if [ "$?" = "134" ]; then
     echo "got the SIGABRT I am looking for"
     exit 0
@@ -93,7 +93,7 @@ elif [ "$msg" = "abort" ]; then
     exit 4
   fi
 else
-  if ./ccparse $ARGS tmp.i 2>&1 | grep "$msg"; then
+  if ./ccparse -tr permissive $ARGS tmp.i 2>&1 | grep "$msg"; then
     echo "found the error message I am looking for"
     exit 0
   else
