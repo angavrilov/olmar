@@ -714,6 +714,7 @@ void TypeToXml::toXml(STemplateArgument *sta) {
     printXml_int(i, sta->value.i);
     break;
 
+  case STemplateArgument::STA_ENUMERATOR:
   case STemplateArgument::STA_REFERENCE:
   case STemplateArgument::STA_POINTER:
   case STemplateArgument::STA_MEMBER:
@@ -749,6 +750,7 @@ void TypeToXml::toXml(STemplateArgument *sta) {
     // nothing to do
     break;
 
+  case STemplateArgument::STA_ENUMERATOR:
   case STemplateArgument::STA_REFERENCE:
   case STemplateArgument::STA_POINTER:
   case STemplateArgument::STA_MEMBER:

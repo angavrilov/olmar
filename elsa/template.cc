@@ -786,7 +786,8 @@ bool STemplateArgument::isObject() const
   case STA_TYPE:                // type argument
     return false;
 
-  case STA_INT:                 // int or enum argument
+  case STA_INT:                 // int
+  case STA_ENUMERATOR:          // enumerator
   case STA_REFERENCE:           // reference to global object
   case STA_POINTER:             // pointer to global object
   case STA_MEMBER:              // pointer to class member
@@ -891,6 +892,7 @@ string STemplateArgument::toString() const
     case STA_NONE:      return string("STA_NONE");
     case STA_TYPE:      return value.t->toString();   // assume 'type' if no comment
     case STA_INT:       return stringc << "/*int*/ " << value.i;
+    case STA_ENUMERATOR:return stringc << "/*enum*/ " << value.v->name;
     case STA_REFERENCE: return stringc << "/*ref*/ " << value.v->name;
     case STA_POINTER:   return stringc << "/*ptr*/ &" << value.v->name;
     case STA_MEMBER:    return stringc
@@ -982,6 +984,7 @@ char const *toString(STemplateArgument::Kind k)
     "STA_NONE",
     "STA_TYPE",
     "STA_INT",
+    "STA_ENUMERATOR",
     "STA_REFERENCE",
     "STA_POINTER",
     "STA_MEMBER",
@@ -1055,6 +1058,7 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
     return STAC_INCOMPARABLE;
     break;
 
+  case STemplateArgument::STA_ENUMERATOR: // reference to enumerator
   case STemplateArgument::STA_REFERENCE: // reference to global object
   case STemplateArgument::STA_POINTER: // pointer to global object
   case STemplateArgument::STA_MEMBER: // pointer to class member
@@ -1626,6 +1630,10 @@ bool Env::insertTemplateArgBindings_oneParamList
 
         case STemplateArgument::STA_INT: {
           binding->value = build_E_intLit(sarg->getInt());
+          break;
+        }
+        case STemplateArgument::STA_ENUMERATOR: {
+          binding->value = build_E_variable(sarg->getEnumerator());
           break;
         }
         case STemplateArgument::STA_REFERENCE: {
@@ -2866,6 +2874,15 @@ void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr)
   //
   // In general, this computation must also be told what type the
   // corresponding template *parameter* has.
+
+  // (in/t0552.cc) maybe this is an enumerator?
+  if (expr->skipGroups()->isE_variable()) {
+    Variable *var = expr->skipGroups()->asE_variable()->var;
+    if (var && var->hasFlag(DF_ENUMERATOR)) {
+      sarg.setEnumerator(var);
+      return;
+    }
+  }
 
   Type *rvalType = expr->type->asRval();
   if (rvalType->isIntegerType() ||

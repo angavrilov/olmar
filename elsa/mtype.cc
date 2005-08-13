@@ -243,6 +243,9 @@ bool IMType::imatchSTemplateArgument(STemplateArgument const *conc,
 
     case STemplateArgument::STA_INT:
       return conc->getInt() == pat->getInt();
+      
+    case STemplateArgument::STA_ENUMERATOR:
+      return conc->getEnumerator() == pat->getEnumerator();
 
     case STemplateArgument::STA_REFERENCE:
       return conc->getReference() == pat->getReference();

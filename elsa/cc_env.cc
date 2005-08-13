@@ -5130,6 +5130,7 @@ PQName *Env::makeQualifiedName(Scope *s, PQName *name)
       switch (sarg->kind) {
         default: xfailure("bad kind");
 
+        case STemplateArgument::STA_ENUMERATOR:
         case STemplateArgument::STA_REFERENCE:
         case STemplateArgument::STA_POINTER:
         case STemplateArgument::STA_MEMBER:

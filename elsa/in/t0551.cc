@@ -6,6 +6,11 @@
 template <class T> 
 void f(T *p);
 
+struct C {
+  template <class S>
+  void m(S *);
+};
+
 template <class T>
 struct A {
   struct B {};
@@ -14,6 +19,9 @@ struct A {
   {
     B *b = 0;
     f(b);
+    
+    C c;
+    c.m(b);
   }
 
   void bar();

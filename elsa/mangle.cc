@@ -412,9 +412,11 @@ void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &ar
       sb << "INT-" << iter.data()->value.i;
       break;
 
+    case STemplateArgument::STA_ENUMERATOR: // reference to enumerator
     case STemplateArgument::STA_REFERENCE: // reference to global object
     case STemplateArgument::STA_POINTER: // pointer to global object
     case STemplateArgument::STA_MEMBER: // pointer to class member
+      // sm: this should be mangling the *name*, not the type!
       sb << "OBJECT-" << mangle(iter.data()->value.v->type);
       break;
 

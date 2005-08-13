@@ -40,7 +40,9 @@ while [ "$1" != "" ]; do
   else
     code=$?
     echo "$fname: had errors"
-    exit $code
+    if [ "$KEEP_GOING" = "" ]; then
+      exit $code
+    fi
   fi
 done
 

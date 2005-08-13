@@ -1545,6 +1545,9 @@ void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta)
     case STemplateArgument::STA_INT:
       *env.out << stringc << "/*int*/ " << sta->value.i;
       break;
+    case STemplateArgument::STA_ENUMERATOR:
+      *env.out << stringc << "/*enum*/ " << sta->value.v->name;
+      break;
     case STemplateArgument::STA_REFERENCE:
       *env.out << stringc << "/*ref*/ " << sta->value.v->name;
       break;

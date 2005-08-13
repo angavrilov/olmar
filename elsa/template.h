@@ -392,7 +392,8 @@ public:
   enum Kind {
     STA_NONE,        // not yet resolved into a valid template argument
     STA_TYPE,        // type argument
-    STA_INT,         // int or enum argument
+    STA_INT,         // int argument
+    STA_ENUMERATOR,  // enum argument
     STA_REFERENCE,   // reference to global object
     STA_POINTER,     // pointer to global object
     STA_MEMBER,      // pointer to class member
@@ -405,7 +406,7 @@ public:
   union {
     Type *t;         // (serf) for STA_TYPE
     int i;           // for STA_INT
-    Variable *v;     // (serf) for STA_REFERENCE, STA_POINTER, STA_MEMBER
+    Variable *v;     // (serf) for STA_ENUMERATOR, STA_REFERENCE, STA_POINTER, STA_MEMBER
     Expression *e;   // (serf) for STA_DEPEXPR
     AtomicType const *at;  // (serf) for STA_ATOMIC
   } value;
@@ -421,6 +422,7 @@ public:
   // get 'value', ensuring correspondence between it and 'kind'
   Type *    getType()      const { xassert(kind==STA_TYPE);      return value.t; }
   int       getInt()       const { xassert(kind==STA_INT);       return value.i; }
+  Variable *getEnumerator()const { xassert(kind==STA_ENUMERATOR);return value.v; }
   Variable *getReference() const { xassert(kind==STA_REFERENCE); return value.v; }
   Variable *getPointer()   const { xassert(kind==STA_POINTER);   return value.v; }
   Variable *getMember()    const { xassert(kind==STA_MEMBER);    return value.v; }
@@ -429,6 +431,7 @@ public:
   // set 'value', ensuring correspondence between it and 'kind'
   void setType(Type *t)          { kind=STA_TYPE;      value.t=t; }
   void setInt(int i)             { kind=STA_INT;       value.i=i; }
+  void setEnumerator(Variable *v){ kind=STA_ENUMERATOR;value.v=v; }
   void setReference(Variable *v) { kind=STA_REFERENCE; value.v=v; }
   void setDepExpr(Expression *e) { kind=STA_DEPEXPR;   value.e=e; }
   void setPointer(Variable *v)   { kind=STA_POINTER;   value.v=v; }
