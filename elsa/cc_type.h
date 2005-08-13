@@ -514,8 +514,6 @@ public:     // types
   class Value {
   public:
     StringRef name;           // the thing whose name is being defined
-    // dsw: in the xml serialization I note that this 'type' field is
-    // really an AtomicType; the name is a bit misleading
     EnumType *type;           // enum in which it was declared
     int value;                // value it's assigned to
 
