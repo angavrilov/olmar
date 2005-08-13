@@ -335,6 +335,9 @@ public:      // funcs
   // true if there are parameters (at this level; not inherited)
   bool hasParameters() const;
 
+  // true if there are parameters on my containers
+  bool hasInheritedParameters() const;
+
   // inherited or main
   bool hasMainOrInheritedParameters() const;
 

@@ -573,22 +573,21 @@ bool TemplateInfo::hasParameters() const
   return false;
 }
 
-bool TemplateInfo::hasMainOrInheritedParameters() const
+bool TemplateInfo::hasInheritedParameters() const
 {
-  // main
-  if (hasParameters()) {
-    return true;
-  }
-
-  // check for inherited parameters
   FOREACH_OBJLIST(InheritedTemplateParams, inheritedParams, iter) {
     if (iter.data()->params.isNotEmpty()) {
       return true;
     }
   }
-               
-  // no parameters at any level
-  return false;                
+
+  return false;
+}
+
+bool TemplateInfo::hasMainOrInheritedParameters() const
+{
+  return hasParameters() ||
+         hasInheritedParameters();
 }
 
 bool TemplateInfo::hasParametersEx(bool considerInherited) const

@@ -409,7 +409,7 @@ bool CompoundType::isTemplate() const
 {
   TemplateInfo *tinfo = templateInfo();
   return tinfo != NULL &&
-         tinfo->hasParameters();
+         tinfo->hasParameters();   // Q: should this be 'hasMainOrInheritedParameters'?
 }
 
 
@@ -1340,23 +1340,28 @@ bool BaseType::isGeneralizedDependent() const
     return true;
   }
 
+  // 10/09/04: (in/d0113.cc) I want to regard A<T>::B, where B is an
+  // inner class of template class A, as being dependent.  For that
+  // matter, A itself should be regarded as dependent.  So if 'ct'
+  // has template parameters (including inherited), say it is
+  // dependent.
+  //
   // 2005-05-06: I removed the following because I think it is wrong.
   // The name 'A' (if found in, say, the global scope) is not dependent,
   // though 'A<T>' might be (if T is an uninst template param).  I think
   // in/d0113.cc was just invalid, and I fixed it.
-  #if 0     // removed
+  //
+  // 2005-08-12: Ok, I think I want to call it dependent *only* on the
+  // basis of whether there are *inherited* params, as in A<T>::B.
+  // A<T> itself would be a PseudoInstantiation (and therefore
+  // dependent), while just A would not be dependent, despite having
+  // (non-inherited) parameters.  (in/t0551.cc)
   if (isCompoundType()) {
-    // 10/09/04: (in/d0113.cc) I want to regard A<T>::B, where B is an
-    // inner class of template class A, as being dependent.  For that
-    // matter, A itself should be regarded as dependent.  So if 'ct'
-    // has template parameters (including inherited), say it is
-    // dependent.
     TemplateInfo *ti = asCompoundTypeC()->templateInfo();
-    if (ti && ti->hasMainOrInheritedParameters()) {
+    if (ti && ti->hasInheritedParameters()) {
       return true;
     }
   }
-  #endif // 0
 
   return false;
 }
@@ -1559,6 +1564,8 @@ bool ContainsVariablesPred::atomicTypeHasVariable(AtomicType const *t)
   }
 
   if (t->isCompoundType() && t->asCompoundTypeC()->isTemplate()) {
+    // I think this would make sense only for a PseudoInstantiation,
+    // so maybe I should just return true here?  For now I leave it.
     return containsVariables(t->asCompoundTypeC()->templateInfo()->arguments, map);
   }
 

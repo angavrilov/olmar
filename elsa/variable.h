@@ -368,6 +368,7 @@ First, I want to make a class hierarchy like this:
         [has templInfo]
         [has funcDefn]
         [has overload]
+      - Enumerator (obviates EnumType::Value)
     - AliasVariable (DF_USING_ALIAS?)
       [has usingAlias]
     - NamespaceVariable (?? how to namespaces name their space?)
