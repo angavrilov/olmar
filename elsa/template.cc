@@ -2967,8 +2967,37 @@ STemplateArgument Env::variableToSTemplateArgument(Variable *var)
 }
 
 
+// 2005-08-12: After considerable struggles to get out-of-line defns
+// of member template classes to work (and even that is just working
+// in some simple cases that I happen to test), I now realize that the
+// idea of transferring member info is fundamentally flawed.
+//
+// Rather than "pushing" information down to the members, I should
+// always "pull" it from the container when needed.  That is, rather
+// than making the data complicated, I should put the complication
+// into the queries.
+//
+// The reason is (in retrospect) obvious: data is shared across all
+// contexts, whereas queries are context-sensitive.  It's easy to make
+// adjustments to queries to compensate for this or that wrinkle, but
+// anytime I change the data invariants I have to consider all queries
+// simultaneously.  In practice, this often means several cycles of
+// trying things and running through the regressions to see what
+// breaks.  It's inefficient and unsatisfying.
+//
+// So what I should do at some point is simplify the data design so
+// that it records the minimum amount of information needed to support
+// the queries.  When I see a definition of something previously
+// declared, connect them, but then rely on users of the declaration
+// to indirect through it to find the definition, rather than eagerly
+// propagating the definition to the users (primarily, members of
+// instantiations).
+
+
 // transfer template info from members of 'source' to corresp.
 // members of 'dest'; 'dest' is a clone of 'source'
+//
+// see comments above
 void Env::transferTemplateMemberInfo
   (SourceLoc instLoc, TS_classSpec *source,
    TS_classSpec *dest, ObjList<STemplateArgument> const &sargs)
@@ -4686,7 +4715,7 @@ InstantiationContextIsolator::InstantiationContextIsolator(Env &e, SourceLoc loc
 
 InstantiationContextIsolator::~InstantiationContextIsolator()
 {
-  env.instantiationLocStack.pop();
+  env.setLoc(env.instantiationLocStack.pop());
   env.disambiguationNestingLevel = origNestingLevel;
   env.secondPassTcheck = origSecondPass;
 

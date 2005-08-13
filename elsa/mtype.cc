@@ -740,7 +740,7 @@ bool IMType::imatchCVAtomicType(CVAtomicType const *conc, CVAtomicType const *pa
 
   // compare cv-flags
   return imatchCVFlags(conc->cv, pat->cv, flags) &&
-         imatchAtomicType(conc->atomic, pat->atomic, flags);
+         imatchAtomicType(conc->atomic, pat->atomic, flags & MF_PROP);
 }
 
   

@@ -7,6 +7,10 @@ typedef float &FLOATREF;
 float q;
 FLOATREF const fr = q;
 
+// this is simply *syntactically* illegal, though in
+// fact ICC accepts it
+//ERROR(1): float & const fr2 = q;
+
 
 template <class T>
 void f(T const x);

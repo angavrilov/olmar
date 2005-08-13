@@ -692,7 +692,9 @@ Candidate const *OverloadResolver::resolveCandidate(bool &wasAmbig)
       // end with a newline since the usual error reporting mechanism
       // adds one
       stringBuilder sb;
-      sb << "no viable candidate for function call; " << argInfoString();
+      sb << "no viable candidate for "
+         << ((flags & OF_OPERATOR)? "operator; " : "function call; ")
+         << argInfoString();
       if (origCandidates.length()) {
         sb << " original candidates:";
         for (int i=0; i<origCandidates.length(); i++) {
