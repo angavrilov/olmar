@@ -336,7 +336,9 @@ public:      // funcs
   bool hasParameters() const;
 
   // true if there are parameters on my containers
-  bool hasInheritedParameters() const;
+  bool hasInheritedParameters() const
+    { return countInheritedParameters() > 0; }
+  int countInheritedParameters() const;
 
   // inherited or main
   bool hasMainOrInheritedParameters() const;
@@ -479,6 +481,7 @@ SObjList<STemplateArgument> *cloneSArgs(SObjList<STemplateArgument> &sargs);
 string sargsToString(SObjList<STemplateArgument> const &list);
 inline string sargsToString(ObjList<STemplateArgument> const &list)
   { return sargsToString((SObjList<STemplateArgument> const &)list); }
+string sargsToString(SObjListIter<STemplateArgument> &iter);
 
 bool containsVariables(SObjList<STemplateArgument> const &args, MType *map = NULL);
 bool containsVariables(ObjList<STemplateArgument> const &args, MType *map = NULL);

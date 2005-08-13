@@ -1287,6 +1287,14 @@ public:    // funcs
 };
 
 
+// this one should be sound; gradually making it more available
+template <class T>
+inline SObjList<T> const & objToSObjListC(ObjList<T> const &list)
+{
+  return reinterpret_cast<SObjList<T> const &>(list);
+}
+
+
 // -------------------- XReprSize ---------------------
 // thrown when the reprSize() function cannot determine an
 // array size

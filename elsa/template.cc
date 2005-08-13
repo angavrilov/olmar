@@ -573,15 +573,13 @@ bool TemplateInfo::hasParameters() const
   return false;
 }
 
-bool TemplateInfo::hasInheritedParameters() const
-{
+int TemplateInfo::countInheritedParameters() const
+{                      
+  int ct=0;
   FOREACH_OBJLIST(InheritedTemplateParams, inheritedParams, iter) {
-    if (iter.data()->params.isNotEmpty()) {
-      return true;
-    }
+    ct += iter.data()->params.count();
   }
-
-  return false;
+  return ct;
 }
 
 bool TemplateInfo::hasMainOrInheritedParameters() const
@@ -930,11 +928,17 @@ SObjList<STemplateArgument> *cloneSArgs(SObjList<STemplateArgument> &sargs)
 
 string sargsToString(SObjList<STemplateArgument> const &list)
 {
+  SObjListIter<STemplateArgument> iter(list);
+  return sargsToString(iter);
+}
+
+string sargsToString(SObjListIter<STemplateArgument> &iter)
+{
   stringBuilder sb;
   sb << "<";
 
   int ct=0;
-  SFOREACH_OBJLIST(STemplateArgument, list, iter) {
+  for (; !iter.isDone(); iter.adv()) {
     if (ct++ > 0) {
       sb << ", ";
     }

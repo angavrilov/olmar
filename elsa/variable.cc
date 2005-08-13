@@ -363,9 +363,26 @@ string Variable::fullyQualifiedName() const
     
     if (name) {
       tmp << name;        // NOTE: not mangled
+                     
+      TemplateInfo *ti = templateInfo();
+      if (ti) {
+        // only print arguments that do not correspond to inherited params
+        // of the thing of which this is an instance
+        int numInh = 0;
+        if (ti->instantiationOf) {
+          numInh = ti->instantiationOf->templateInfo()->countInheritedParameters();
+        }
+        SObjList<STemplateArgument> const &allArgs = objToSObjListC(ti->arguments);
+        SObjListIter<STemplateArgument> iter(allArgs);
+        while (numInh && !iter.isDone()) {
+          numInh--;
+          iter.adv();
+        }
 
-      if (templateInfo() && templateInfo()->arguments.isNotEmpty()) {
-        tmp << sargsToString(templateInfo()->arguments);
+        // any args left to print?
+        if (!iter.isDone()) {
+          tmp << sargsToString(iter);
+        }
       }
     }
     else {

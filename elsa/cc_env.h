@@ -1071,11 +1071,4 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
 bool equalOrIsomorphic(Type const *a, Type const *b);
 
 
-// this one should be completely safe
-template <class T>
-inline SObjList<T> const & objToSObjListC(ObjList<T> const &list)
-{
-  return reinterpret_cast<SObjList<T> const &>(list);
-}
-
 #endif // CC_ENV_H
