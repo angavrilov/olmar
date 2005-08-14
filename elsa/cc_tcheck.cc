@@ -907,7 +907,8 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
   // if there are no declarators, the type specifier's tchecker
   // needs to know this (for e.g. 3.3.1 para 5)
   if (decllist->isEmpty() &&
-      spec->isTS_elaborated()) {
+      spec->isTS_elaborated() &&
+      context != DC_TF_EXPLICITINST) {     // in/t0557.cc
     dflags |= DF_FORWARD;
   }
 
