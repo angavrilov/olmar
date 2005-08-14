@@ -6,6 +6,8 @@
 #include "cc_print.h"         // olayer, PrintEnv
 #include "generic_amb.h"      // resolveAmbiguity, etc.
 #include "stdconv.h"          // usualArithmeticConversions
+#include "astvisit.h"         // ASTVisitorEx
+#include <string.h>           // strcmp
 
 
 // fwd in this file
@@ -1224,6 +1226,122 @@ void S_computedGoto::icfg(CFGEnv &env)
   // control simply flows to the next statement).  It will fall to the
   // client to realize that this is a computed goto, and try to do
   // something appropriate.
+}
+
+
+// ---------------------- D_attribute -------------------------
+D_attribute::D_attribute(SourceLoc loc, IDeclarator *base,
+                         AttributeSpecifierList *alist_)
+  : D_grouping(loc, base),
+    alist(alist_)
+{}
+
+D_attribute::~D_attribute()
+{
+  delete alist;
+}
+
+
+void D_attribute::debugPrint(ostream &os, int indent, char const *subtreeName) const
+{
+  // I don't call D_grouping::debugPrint because I want the
+  // output to say "D_attribute", not "D_grouping".
+
+  PRINT_HEADER(subtreeName, D_attribute);
+
+  IDeclarator::debugPrint(os, indent, subtreeName);
+
+  PRINT_SUBTREE(base);
+  PRINT_SUBTREE(alist);
+}
+
+
+void D_attribute::traverse(ASTVisitor &vis)
+{
+  // I chose to override this method purely so that I would be able to
+  // put a breakpoint in it if desired, and to have a place to
+  // document this intention: its behavior is intended to remain
+  // identical to D_grouping.  Don't change it without asking me first.
+  D_grouping::traverse(vis);
+}
+
+
+D_attribute *D_attribute::clone() const
+{
+  D_attribute *ret = new D_attribute(
+    loc,
+    base? base->clone() : NULL,
+    alist? alist->clone() : NULL
+  );
+  return ret;
+}
+
+
+class AttributeDisambiguator : public ASTVisitorEx {
+public:
+  virtual void foundAmbiguous(void *obj, void **ambig, char const *kind);
+};
+
+void AttributeDisambiguator::foundAmbiguous(void *obj, void **ambig, char const *kind)
+{
+  // I have virtually no basis for doing actual disambiguation of
+  // __attribute__ arguments, and no expectation that I will need any.
+  // I will just arbitrarily throw away all of the alternatives beyond
+  // the first.
+  *ambig = NULL;
+}
+
+
+void D_attribute::tcheck(Env &env, Declarator::Tcheck &dt)
+{
+  D_grouping::tcheck(env, dt);
+
+  // "disambiguate" the attribute list
+  AttributeDisambiguator dis;
+  alist->traverse(dis);
+
+  // if the type is not a simple type, don't even consider
+  // the __mode__ possibility, since I do not know what it
+  // would mean in that case
+  if (dt.type->isSimpleType()) {
+    // get details about current type
+    SimpleTypeId existingId = dt.type->asSimpleTypeC()->type;
+    CVFlags existingCV = dt.type->getCVFlags();
+    bool uns = isExplicitlyUnsigned(existingId);
+
+    // check for a __mode__ attribute
+    SimpleTypeId id = ST_ERROR;    // means no mode was found yet
+    for (AttributeSpecifierList *l = alist; l; l = l->next) {
+      for (AttributeSpecifier *s = l->spec; s; s = s->next) {
+        if (s->attr->isAT_func()) {
+          AT_func *f = s->attr->asAT_func();
+          if (0==strcmp(f->f, "__mode__") && f->args) {
+            Expression *e = f->args->first()->expr;
+            if (e->isE_variable()) {
+              StringRef mode = e->asE_variable()->name->getName();
+              if (0==strcmp(mode, "__QI__")) {
+                id = uns? ST_UNSIGNED_CHAR : ST_SIGNED_CHAR;
+              }
+              else if (0==strcmp(mode, "__HI__")) {
+                id = uns? ST_UNSIGNED_SHORT_INT : ST_SHORT_INT;
+              }
+              else if (0==strcmp(mode, "__SI__")) {
+                id = uns? ST_UNSIGNED_INT : ST_INT;
+              }
+              else if (0==strcmp(mode, "__DI__")) {
+                id = uns? ST_UNSIGNED_LONG_LONG : ST_LONG_LONG;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // change the type according to the mode (if any)
+    if (id != ST_ERROR) {
+      dt.type = env.getSimpleType(id, existingCV);
+    }
+  }
 }
 
 

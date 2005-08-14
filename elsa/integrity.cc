@@ -4,7 +4,7 @@
 #include "integrity.h"         // this module
 
 
-void IntegrityVisitor::foundAmbiguous(void *obj, char const *kind)
+void IntegrityVisitor::foundAmbiguous(void *obj, void **ambig, char const *kind)
 {
   // 2005-06-29: I have so far been unable to provoke this error by
   // doing simple error seeding, because it appears to be masked by a

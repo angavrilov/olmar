@@ -353,7 +353,7 @@ nonterm(IDeclarator*) Declarator {
        { return d; }
        
   // asm label + attributes ...
-  -> d:DirectDeclarator "asm" "(" StringLiteral ")" AttributeSpecifierList
+  -> d:DirectDeclarator "asm" "(" StringLiteral ")" /*DROPPED*/AttributeSpecifierList
        { return d; }
 }
 
@@ -513,7 +513,7 @@ nonterm(Expression*) PrimaryExpression {
 // between associating the attrs with the label and associating
 // them with the next declaration.
 nonterm(StringRef) LabelAndColon {
-  -> n:Identifier ":" AttributeSpecifierList     precedence(TOK_PREFER_REDUCE)
+  -> n:Identifier ":" /*DROPPED*/AttributeSpecifierList     precedence(TOK_PREFER_REDUCE)
        { return n; }
 }
 
@@ -521,23 +521,23 @@ nonterm(StringRef) LabelAndColon {
 // attributes between classkeys and their names
 nonterm(enum TypeIntr) ClassKey {
   // *not* AttributeSpecifierList; this context is naturally repeating
-  -> k:ClassKey AttributeSpecifier       { return k; }
+  -> k:ClassKey /*DROPPED*/AttributeSpecifier       { return k; }
 }
 
 // attributes after "enum"
 nonterm(TypeSpecifier*) ElaboratedTypeSpecifier {
-  -> "enum" AttributeSpecifierList n:PQTypeName        
+  -> "enum" /*DROPPED*/AttributeSpecifierList n:PQTypeName        
        { return new TS_elaborated(loc, TI_ENUM, n); }
 }
 
 nonterm(TS_enumSpec*) EnumSpecifier {
-  -> "enum" AttributeSpecifierList "{" list:EnumeratorListOpt "}"
+  -> "enum" /*DROPPED*/AttributeSpecifierList "{" list:EnumeratorListOpt "}"
        { return new TS_enumSpec(loc, NULL /*name*/, list); }
        
   // Adding this adds one S/R conflict... it was 3 until I changed
   // Identifier to PQTypeName.  I think cc.gr should similarly use
   // PQName instead of Identifier, and catch qualifiers in tcheck...
-  -> "enum" AttributeSpecifierList n:PQTypeName "{" list:EnumeratorListOpt "}"
+  -> "enum" /*DROPPED*/AttributeSpecifierList n:PQTypeName "{" list:EnumeratorListOpt "}"
        { return new TS_enumSpec(loc, n->getName(), list); }
 }
 
@@ -568,7 +568,7 @@ nonterm(UberModifiers) UberCVQualifier {
 
 // attribute after the "," in a sequence of declarators
 nonterm(FakeList<Declarator>*) InitDeclaratorList {
-  -> d:InitDeclarator "," AttributeSpecifierList list:InitDeclaratorList
+  -> d:InitDeclarator "," /*DROPPED*/AttributeSpecifierList list:InitDeclaratorList
        { d->setNext(list->first());
          return FakeList<Declarator>::makeList(d); }
 }
@@ -602,13 +602,13 @@ nonterm(IDeclarator*) Declarator {
   // this is slightly more tolerant than gcc is, since it allows
   // attributes just inside the ")" of a D_grouping, whereas gcc
   // doesn't
-  -> d:DirectDeclarator AttributeSpecifierList
-       { return d; }
+  -> d:DirectDeclarator attr:AttributeSpecifierList
+       { return new D_attribute(loc, d, attr); }
 }
 
 
 nonterm(IDeclarator*) DirectDeclarator {
-  -> "(" attrspec:AttributeSpecifierList d:Declarator ")"
+  -> "(" /*DROPPED*/AttributeSpecifierList d:Declarator ")"
        { return new D_grouping(loc, d); }
 }
 
@@ -617,12 +617,12 @@ nonterm(IDeclarator*) AbstractDeclarator {
   -> "*" cv:CVQualifierSeqOpt attrspec:AttributeSpecifier cv2:CVQualAttrSeqOpt d:AbstractDeclaratorOpt
        { return new D_pointer(loc, cv | cv2, d); }
        
-  -> d:DirectAbstractDeclarator attrspec:AttributeSpecifierList
-       { return d; }
+  -> d:DirectAbstractDeclarator attr:AttributeSpecifierList
+       { return new D_attribute(loc, d, attr); }
 }
 
 nonterm(IDeclarator*) DirectAbstractDeclarator {
-  -> "(" attrspec:AttributeSpecifierList d:AbstractDeclarator ")"
+  -> "(" /*DROPPED*/AttributeSpecifierList d:AbstractDeclarator ")"
        { return new D_grouping(loc, d); }
 }
 
@@ -633,7 +633,7 @@ nonterm(IDeclarator*) DirectAbstractDeclarator {
 // case above is that the bitfield syntax doesn't explicitly refer
 // to the Declarator nonterminal
 nonterm(Declarator*) MemberDeclarator {
-  -> n:IdentifierOpt ":" e:ConstantExpression attrspec:AttributeSpecifierList    // bitfield
+  -> n:IdentifierOpt ":" e:ConstantExpression /*DROPPED*/AttributeSpecifierList    // bitfield
        // this body is an exact copy of the cc.gr one without attributes
        { return new Declarator(new D_bitfield(loc, n? new PQ_name(loc, n) : NULL, e),
                                NULL /*init*/); }
@@ -644,75 +644,77 @@ nonterm(Declarator*) MemberDeclarator {
 
 // "A word (which may be an identifier such as unused, or a reserved
 // word such as const)."
-nonterm AttributeWord {
+nonterm(StringRef) AttributeWord {
   // non-keyword name
-  -> n:TOK_NAME ;
+  -> n:TOK_NAME         { return n; }
+
   // keywords
-  -> "asm" ;
-  -> "auto" ;
-  -> "break" ;
-  -> "bool" ;
-  -> "case" ;
-  -> "catch" ;
-  -> "cdecl" ;
-  -> "char" ;
-  -> "class" ;
-  -> "const" ;
-  -> "const_cast" ;
-  -> "continue" ;
-  -> "default" ;
-  -> "delete" ;
-  -> "do" ;
-  -> "double" ;
-  -> "dynamic_cast" ;
-  -> "else" ;
-  -> "enum" ;
-  -> "explicit" ;
-  -> "export" ;
-  -> "extern" ;
-  -> "false" ;
-  -> "float" ;
-  -> "for" ;
-  -> "friend" ;
-  -> "goto" ;
-  -> "if" ;
-  -> "inline" ;
-  -> "int" ;
-  -> "long" ;
-  -> "mutable" ;
-  -> "namespace" ;
-  -> "new" ;
-  -> "operator" ;
-  -> "pascal" ;
-  -> "private" ;
-  -> "protected" ;
-  -> "public" ;
-  -> "register" ;
-  -> "reinterpret_cast" ;
-  -> "return" ;
-  -> "short" ;
-  -> "signed" ;
-  -> "sizeof" ;
-  -> "static" ;
-  -> "static_cast" ;
-  -> "struct" ;
-  -> "switch" ;
-  -> "template" ;
-  -> "this" ;
-  -> "throw" ;
-  -> "true" ;
-  -> "try" ;
-  -> "typedef" ;
-  -> "typeid" ;
-  -> "typename" ;
-  -> "union" ;
-  -> "unsigned" ;
-  -> "using" ;
-  -> "virtual" ;
-  -> "void" ;
-  -> "volatile" ;
-  -> "wchar_t" ;
-  -> "while" ;
+  -> "asm"              { return str("asm"); }
+  -> "auto"             { return str("auto"); }
+  -> "break"            { return str("break"); }
+  -> "bool"             { return str("bool"); }
+  -> "case"             { return str("case"); }
+  -> "catch"            { return str("catch"); }
+  -> "cdecl"            { return str("cdecl"); }
+  -> "char"             { return str("char"); }
+  -> "class"            { return str("class"); }
+  -> "const"            { return str("const"); }
+  -> "const_cast"       { return str("const_cast"); }
+  -> "continue"         { return str("continue"); }
+  -> "default"          { return str("default"); }
+  -> "delete"           { return str("delete"); }
+  -> "do"               { return str("do"); }
+  -> "double"           { return str("double"); }
+  -> "dynamic_cast"     { return str("dynamic_cast"); }
+  -> "else"             { return str("else"); }
+  -> "enum"             { return str("enum"); }
+  -> "explicit"         { return str("explicit"); }
+  -> "export"           { return str("export"); }
+  -> "extern"           { return str("extern"); }
+  -> "false"            { return str("false"); }
+  -> "float"            { return str("float"); }
+  -> "for"              { return str("for"); }
+  -> "friend"           { return str("friend"); }
+  -> "goto"             { return str("goto"); }
+  -> "if"               { return str("if"); }
+  -> "inline"           { return str("inline"); }
+  -> "int"              { return str("int"); }
+  -> "long"             { return str("long"); }
+  -> "mutable"          { return str("mutable"); }
+  -> "namespace"        { return str("namespace"); }
+  -> "new"              { return str("new"); }
+  -> "operator"         { return str("operator"); }
+  -> "pascal"           { return str("pascal"); }
+  -> "private"          { return str("private"); }
+  -> "protected"        { return str("protected"); }
+  -> "public"           { return str("public"); }
+  -> "register"         { return str("register"); }
+  -> "reinterpret_cast" { return str("reinterpret_cast"); }
+  -> "return"           { return str("return"); }
+  -> "short"            { return str("short"); }
+  -> "signed"           { return str("signed"); }
+  -> "sizeof"           { return str("sizeof"); }
+  -> "static"           { return str("static"); }
+  -> "static_cast"      { return str("static_cast"); }
+  -> "struct"           { return str("struct"); }
+  -> "switch"           { return str("switch"); }
+  -> "template"         { return str("template"); }
+  -> "this"             { return str("this"); }
+  -> "throw"            { return str("throw"); }
+  -> "true"             { return str("true"); }
+  -> "try"              { return str("try"); }
+  -> "typedef"          { return str("typedef"); }
+  -> "typeid"           { return str("typeid"); }
+  -> "typename"         { return str("typename"); }
+  -> "union"            { return str("union"); }
+  -> "unsigned"         { return str("unsigned"); }
+  -> "using"            { return str("using"); }
+  -> "virtual"          { return str("virtual"); }
+  -> "void"             { return str("void"); }
+  -> "volatile"         { return str("volatile"); }
+  -> "wchar_t"          { return str("wchar_t"); }
+  -> "while"            { return str("while"); } 
+  
   // don't know if I need to allow these; gcc 2.95.3 doesn't like them
   //  // GNU extensions
   //  TOK___ATTRIBUTE__,       "__attribute__",             :    n
@@ -722,42 +724,59 @@ nonterm AttributeWord {
   //  TOK___TYPEOF__,          "__typeof__",                :    n
 }
 
-nonterm CommaSepExpressionListOpt {
-  -> empty ;
-  -> el:ExpressionList ;
+nonterm(FakeList<ArgExpression>*) CommaSepExpressionListOpt {
+  -> empty                 { return FakeList<ArgExpression>::emptyList(); }
+  -> el:ExpressionList     { return el; }
 }
 
-nonterm AttributeParameters {
+nonterm(FakeList<ArgExpression>*) AttributeParameters {
 //    -> id:Identifier "," exprs:CommaSepExpressionListOpt ;
   // NOTE: the below includes the above, except that the first
   // expression, if an identifier, should not be typechecked as an
-  // E_varaible, since it need not match a declared name; first it
-  // should be checked against know attribute parameters (maybe?).
-  -> exprs:CommaSepExpressionListOpt ;
+  // E_variable, since it need not match a declared name; first it
+  // should be checked against known attribute parameters (maybe?).
+  -> exprs:CommaSepExpressionListOpt    { return exprs; }
 }
 
-nonterm Attribute {
-  -> empty ;
-  -> w:AttributeWord ;
-  -> w:AttributeWord "(" ap:AttributeParameters ")" ;
+nonterm(Attribute*) Attribute {
+  -> empty
+     { return new AT_empty(loc); }
+
+  -> w:AttributeWord
+     { return new AT_word(loc, w); }
+
+  -> w:AttributeWord "(" ap:AttributeParameters ")"
+     { return new AT_func(loc, w, ap); }
 }
 
-nonterm AttributeList {
-  -> at:Attribute ;
-  -> ap:AttributeList "," at:Attribute ;
+nonterm(AttributeSpecifier*) AttributeList {
+  -> at:Attribute
+     { return new AttributeSpecifier(at, NULL /*next*/); }
+
+  -> at:Attribute "," ap:AttributeList
+     { return new AttributeSpecifier(at, ap); }
 }
 
-nonterm AttributeSpecifier {
-  -> "__attribute__" "(" "(" ap:AttributeList ")" ")" ;
+nonterm(AttributeSpecifier*) AttributeSpecifier {
+  -> "__attribute__" "(" "(" ap:AttributeList ")" ")"
+     { return ap; }
 }
 
-nonterm AttributeSpecifierList {
-  -> as:AttributeSpecifier ;
-  -> asl:AttributeSpecifierList as:AttributeSpecifier ;
+nonterm(AttributeSpecifierList*) AttributeSpecifierList {
+  -> as:AttributeSpecifier
+     { return new AttributeSpecifierList(as, NULL /*next*/); }
+
+  -> as:AttributeSpecifier asl:AttributeSpecifierList
+     { return new AttributeSpecifierList(as, asl); }
 }
 
 
 /*
+  2005-08-13: I have now added retention of attributes in some
+  places.  All places where it is still *not* retained are now
+  marked with "DROPPED".  My plan is to incrementally retain
+  more of the attributes as the need arises.
+
   Implementation of __attribute__ (sm, 8/21/04).
 
   NOTE: The current implementation drops all __attribute__s on the

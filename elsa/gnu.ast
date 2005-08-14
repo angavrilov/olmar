@@ -229,7 +229,83 @@ class Expression {
 
 
 // ----------- gcc __attribute__ -----------
-// (no AST extension b/c extra info dropped on floor)
+// For now, this is a very literal, parse-tree-like representation of
+// attributes.  I don't know very much about how they will be used (I
+// don't know much about what they *mean*), so it is hard to do any
+// semantic digestion.  Therefore, I will not try.
+
+
+// a sequence of __attribute__((..)) specifiers
+class AttributeSpecifierList(
+  AttributeSpecifier spec,
+  AttributeSpecifierList /*nullable*/ next
+);
+
+
+// a single __attribute__((...)) specifier; there may be many
+// individual attributes inside the parens
+class AttributeSpecifier(
+  Attribute attr,
+  AttributeSpecifier /*nullable*/ next
+);
+
+
+// one attribute, somewhere inside __attribute((...)); syntactically,
+// attributes are separated by commas in the parens
+class Attribute(SourceLoc loc) {
+  // e.g., __attribute__(( ))
+  //                      ^                      
+  // I decided to keep these even though the GNU documentation states
+  // that they are always ignored, because it would be a bit awkward
+  // to drop them in the parser, and they shouldn't occur frequently
+  // anyway.
+  -> AT_empty();
+
+  // e.g., __attribute__((packed))
+  //                      ^^^^^^
+  // Note that even C++ keywords will just get stored as StringRefs.
+  -> AT_word(StringRef w);
+
+  // e.g., __attribute__((format(printf, 1, 2)))
+  //                      ^^^^^^^^^^^^^^^^^^^^
+  // the 'args' can be empty (NULL) to indicate an empty list (which
+  // is still different from AT_word)
+  -> AT_func(StringRef f, FakeList<ArgExpression> *args);
+}
+
+  
+// Here's a clever idea: rather than making a completely new node to
+// carry the attributes, I will inherit from D_grouping!  Then
+// everyone will treat D_attribute like D_grouping, basically ignoring
+// it, except the few pieces of code that want to know about it.  This
+// seems much better than polluting the code with explicit knowledge
+// of D_attribute.
+//
+// My astgen tool does not know how to introduce ad-hoc inheritance,
+// so I will write this one by hand.
+verbatim {
+  // __attribute__ occurring directly after a declarator
+  class D_attribute : public D_grouping {
+  public:
+    // NOTE: 'traverse' does *not* automatically go into this field,
+    // because I want most clients to be oblivious to its presence.
+    // They can explicitly intercept D_grouping and check for
+    // D_attribute if traversal is desired.
+    AttributeSpecifierList *alist;       // owner
+
+  public:
+    D_attribute(SourceLoc loc, IDeclarator *base,
+                AttributeSpecifierList *alist);
+    virtual ~D_attribute();
+    
+    virtual void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
+    virtual void traverse(ASTVisitor &vis);
+
+    virtual D_attribute *clone() const;
+
+    virtual void tcheck(Env &env, Declarator::Tcheck &dt);
+  };
+}
 
 
 // EOF

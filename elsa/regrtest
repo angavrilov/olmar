@@ -1133,6 +1133,7 @@ if $use_gnu; then
   testparse gnu/g0028.cc
   testparse gnu/g0029.cc
   testparse gnu/g0030.cc
+  testparse gnu/g0031.cc
 
   testparse gnu/t0124.cc
   testparse gnu/t0125.cc

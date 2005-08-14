@@ -168,11 +168,11 @@ public:
 public:
   AmbiguityCounter() : ambiguousNodes(0) {}
 
-  virtual void foundAmbiguous(void *obj, char const *kind);
+  virtual void foundAmbiguous(void *obj, void **ambig, char const *kind);
 };
 
 
-void AmbiguityCounter::foundAmbiguous(void *obj, char const *kind)
+void AmbiguityCounter::foundAmbiguous(void *obj, void **ambig, char const *kind)
 {
   ambiguousNodes++;
 }

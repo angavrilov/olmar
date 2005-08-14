@@ -15,7 +15,7 @@ void ASTVisitorEx::visitFunctionInstantiation(Function *obj)
 }
 
 
-void ASTVisitorEx::foundAmbiguous(void *obj, char const *kind)
+void ASTVisitorEx::foundAmbiguous(void *obj, void **ambig, char const *kind)
 {}
 
 
@@ -38,6 +38,9 @@ bool ASTVisitorEx::visitFunction(Function *obj)
   return true;
 }
 
+  
+// wrap the unsafe cast
+#define CAST_AMBIG(node) ((void**)(&((node)->ambiguity)))
 
 bool ASTVisitorEx::visitPQName(PQName *obj)
 {
@@ -46,20 +49,20 @@ bool ASTVisitorEx::visitPQName(PQName *obj)
   }
   if (obj->isPQ_qualifier() &&
       obj->asPQ_qualifier()->ambiguity) {
-    foundAmbiguous(obj, "PQ_qualifier");
+    foundAmbiguous(obj, CAST_AMBIG(obj->asPQ_qualifier()), "PQ_qualifier");
   }
   return true;
 }
 
 
 // visit a node that has an ambiguity link
-#define VISIT_W_AMBIG(type)                       \
-  bool ASTVisitorEx::visit##type(type *obj)       \
-  {                                               \
-    if (obj->ambiguity) {                         \
-      foundAmbiguous(obj, obj->kindName());       \
-    }                                             \
-    return true;                                  \
+#define VISIT_W_AMBIG(type)                                        \
+  bool ASTVisitorEx::visit##type(type *obj)                        \
+  {                                                                \
+    if (obj->ambiguity) {                                          \
+      foundAmbiguous(obj, CAST_AMBIG(obj), obj->kindName());       \
+    }                                                              \
+    return true;                                                   \
   }
 
 // visit a node that has a source location
@@ -73,16 +76,16 @@ bool ASTVisitorEx::visitPQName(PQName *obj)
   }
 
 // visit a node that has a source location and an ambiguity link
-#define VISIT_W_LOC_AMBIG(type)                   \
-  bool ASTVisitorEx::visit##type(type *obj)       \
-  {                                               \
-    if (obj->loc != SL_UNKNOWN) {                 \
-      loc = obj->loc;                             \
-    }                                             \
-    if (obj->ambiguity) {                         \
-      foundAmbiguous(obj, obj->kindName());       \
-    }                                             \
-    return true;                                  \
+#define VISIT_W_LOC_AMBIG(type)                                    \
+  bool ASTVisitorEx::visit##type(type *obj)                        \
+  {                                                                \
+    if (obj->loc != SL_UNKNOWN) {                                  \
+      loc = obj->loc;                                              \
+    }                                                              \
+    if (obj->ambiguity) {                                          \
+      foundAmbiguous(obj, CAST_AMBIG(obj), obj->kindName());       \
+    }                                                              \
+    return true;                                                   \
   }
 
 VISIT_W_AMBIG(ASTTypeId)
@@ -105,6 +108,7 @@ VISIT_W_LOC_AMBIG(TemplateParameter)
 #undef VISIT_W_AMBIG
 #undef VISIT_W_LOC
 #undef VISIT_W_LOC_AMBIG
+#undef CAST_AMBIG
 
 
 // EOF

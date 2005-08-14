@@ -228,7 +228,8 @@ enum SimpleTypeFlags {
   STF_INTEGER    = 0x01,     // "integral type" (3.9.1 para 7)
   STF_FLOAT      = 0x02,     // "floating point type" (3.9.1 para 8)
   STF_PROM       = 0x04,     // can be destination of a promotion
-  STF_ALL        = 0x07,
+  STF_UNSIGNED   = 0x08,     // explicitly unsigned type
+  STF_ALL        = 0x0F,
 };
 //ENUM_BITWISE_OPS(SimpleTypeFlags, STF_ALL)   // wondering about problems with initializers..
 
@@ -246,6 +247,7 @@ inline char const *simpleTypeName(SimpleTypeId id)  { return simpleTypeInfo(id).
 inline int simpleTypeReprSize(SimpleTypeId id)      { return simpleTypeInfo(id).reprSize; }
 inline bool isIntegerType(SimpleTypeId id)          { return !!(simpleTypeInfo(id).flags & STF_INTEGER); }
 inline bool isFloatType(SimpleTypeId id)            { return !!(simpleTypeInfo(id).flags & STF_FLOAT); }
+inline bool isExplicitlyUnsigned(SimpleTypeId id)   { return !!(simpleTypeInfo(id).flags & STF_UNSIGNED); }
 
 inline bool isArithmeticType(SimpleTypeId id)    // 3.9.1 para 8
   { return !!(simpleTypeInfo(id).flags & (STF_FLOAT | STF_INTEGER)); }

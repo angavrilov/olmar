@@ -16,7 +16,7 @@ private:     // funcs
 
 public:      // funcs
   // ASTVisitorEx functions
-  virtual void foundAmbiguous(void *obj, char const *kind);
+  virtual void foundAmbiguous(void *obj, void **ambig, char const *kind);
 
   // ASTVisitor functions
   virtual bool visitDeclarator(Declarator *obj);
