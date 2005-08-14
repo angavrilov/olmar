@@ -3,6 +3,13 @@
 
 template <int (*f)(int)>
 struct A {
+  A<f>();
+
+  A<f>(int x)
+  {
+    f(x);
+  }
+
   int foo(int x)
   {
     return f(x);

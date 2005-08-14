@@ -2943,6 +2943,10 @@ void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr)
       // external linkage
       sarg.setPointer(expr->asE_addrOf()->expr->asE_variable()->var);
     }
+    else if (expr->isE_variable() &&
+             expr->asE_variable()->var->isTemplateParam()) {
+      sarg.setPointer(expr->asE_variable()->var);
+    }
     else {
       // TODO: This is wrong; the '&' is optional for arrays.
       env.error(stringc
