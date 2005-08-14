@@ -16,8 +16,15 @@ A<f1> af1;
 int f2(int) { return 1; }
 
 A<f2> af2;
+A<(f2)> af2b;
+A<((f2))> af3;
 
-int f3(int) { return 1; }
+A<&f2> af4;
+A<(&f2)> af5;
+A<((&f2))> af6;
+A<((&(f2)))> af7;
 
-A<&f3> af3;
+// Note that GCC complains about many of the parenthesized versions;
+// ICC accepts them, and I see no justification in the standard for
+// rejecting.
 

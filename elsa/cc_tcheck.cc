@@ -8515,6 +8515,11 @@ Type *E_grouping::itcheck_grouping_set(Env &env, Expression *&replacement,
                                        LookupFlags flags, LookupSet &set)
 {
   tcheckExpression_set(env, expr, flags, set);
+  
+  // 2005-08-14: Let's try throwing away the E_groupings as part
+  // of type checking.
+  replacement = expr;
+
   return expr->type;
 }
 

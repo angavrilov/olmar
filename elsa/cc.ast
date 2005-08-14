@@ -636,14 +636,15 @@ class Expression {
   -> E_typeidExpr(Expression expr);
   -> E_typeidType(ASTTypeId ttype);
 
+  // Both of the following exist only between parsing and
+  // type-checking.  The type checker discards them.
+
   // an E_grouping is a pair of grouping parentheses; it's present in
   // the AST for syntactic disambiguation of angle brackets, and an
   // obscure rule about pointer-to-member
   -> E_grouping(Expression expr);
 
-  // this exist onlys between parsing and type-checking; it is always
-  // translated away by the type checker (Q: should we do the same for
-  // E_grouping?  would need to be careful at E_addrOf::itcheck_x ...)
+  // retained explicitly for possible operator overloading
   -> E_arrow(Expression obj, PQName fieldName);         // e.g. p->f
 }
 
