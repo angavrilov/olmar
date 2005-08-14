@@ -2112,7 +2112,11 @@ void syncDefaultArgsWithDefinition(Variable *instV, TemplateInfo *instTI)
 
   // should end at the same time, except for possibly a trailing 
   // (singleton, really) 'void'-typed parameter
-  if (syntactic && syntactic->first()->getType()->isVoid()) {
+  //
+  // could also be ST_ELLIPSIS (in/t0559.cc)
+  if (syntactic && 
+      (syntactic->first()->getType()->isVoid() ||
+       syntactic->first()->getType()->isSimple(ST_ELLIPSIS))) {
     syntactic = syntactic->butFirst();
   }
   xassert(!syntactic && semantic.isDone());
