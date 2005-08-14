@@ -96,6 +96,17 @@
 "<?"                   return tok(TOK_MIN_OP);
 ">?"                   return tok(TOK_MAX_OP);
 
+  /* Identifier with dollar-sign.
+   *   http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Dollar-Signs.html
+   * The rules are written so that at least one "$" must be present,
+   * to avoid obviating the rule in cc.lex. */
+"$"({ALNUM}|"$")* {
+  return svalTok(TOK_NAME);
+}
+{LETTER}{ALNUM}*"$"({ALNUM}|"$")* {
+  return svalTok(TOK_NAME);
+}
+
   /* C99 stuff */
 "restrict" {
   if (lang.restrictIsAKeyword) {
