@@ -845,6 +845,7 @@ failparse t0556.cc "problem parsing elaborated type of static data member templa
 testparse t0557.cc
 testparse t0558.cc
 testparse t0559.cc
+testparse t0560.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

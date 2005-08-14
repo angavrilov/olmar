@@ -1082,6 +1082,7 @@ S_expr *ElabVisitor::make_S_expr_memberCopyAssign
 
     // use a call to the assignment operator
     Variable *assign = getAssignOperator(ct);
+    xassert(assign);
 
     // "(*this).y.operator=(__other.y)"
     action = makeMemberCall(loc,
@@ -1109,6 +1110,7 @@ S_expr *ElabVisitor::make_S_expr_superclassCopyAssign
 {
   // "W::operator="
   Variable *assign = getAssignOperator(w);
+  xassert(assign);
 
   // "this->W::operator=(__other)"
   E_funCall *call = makeMemberCall(loc, makeThisRef(loc), assign,
@@ -1328,13 +1330,14 @@ Variable *ElabVisitor::getDefaultCtor(CompoundType *ct)
 
 
 // true if parameter 'n' is a reference to 'ct'
-static bool nthIsCtReference(CompoundType *ct, FunctionType *ft, int n)
+static bool nthIsCtReference(CompoundType *ct, FunctionType *ft, int n,
+                             bool mustBeReference = true)
 {
   if (ft->params.count() <= n) {
     return false;
   }
   Type *t = ft->params.nth(n)->type;
-  if (t->isReference() &&
+  if ((!mustBeReference || t->isReference()) &&
       t->asRval()->ifCompoundType() == ct) {
     return true;
   }
@@ -1361,7 +1364,8 @@ static bool assignOperatorTest(CompoundType *ct, FunctionType *ft)
 {
   return
     ft->isMethod() &&                // first param is receiver object
-    nthIsCtReference(ct, ft, 1) &&   // second param must be a reference to 'ct'
+    nthIsCtReference(ct, ft, 1,      // second param must be a reference to 'ct'
+      false /*mustBeReference*/) &&  //   12.8p9 allows non-ref (in/t0560.cc)
     ft->paramsHaveDefaultsPast(2);   // subsequent have defaults
 }
 
