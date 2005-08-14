@@ -2944,11 +2944,24 @@ void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr)
       sarg.setPointer(expr->asE_addrOf()->expr->asE_variable()->var);
     }
     else {
-      // TODO: This is wrong; the '&' is optional for function and
-      // array names.
+      // TODO: This is wrong; the '&' is optional for arrays.
       env.error(stringc
         << "`" << expr->exprToString() << " must be the address of a "
         << "simple variable for it to be a template pointer argument");
+    }
+  }
+
+  else if (expr->type->isFunctionType()) {
+    // implicitly take its address [14.3.2p5b4] (in/t0561.cc)
+    if (expr->isE_variable()) {
+      // TODO: 14.3.2p1 says you can only use functions with
+      // external linkage
+      sarg.setPointer(expr->asE_variable()->var);
+    }
+    else {
+      env.error(stringc
+        << "`" << expr->exprToString() << " must be the name of a "
+        << "function for it to be a template pointer argument");
     }
   }
 
