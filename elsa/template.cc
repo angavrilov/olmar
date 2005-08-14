@@ -3078,6 +3078,13 @@ void Env::transferTemplateMemberInfo
     }
 
     else if (srcIter.data()->isMR_func()) {
+      if (srcIter.data()->asMR_func()->f->dflags & DF_FRIEND) {
+        // skip these.. apparently I do not have TemplateInfos on
+        // them, which might itself be a mistake, but since that's the
+        // case right now, must do this here (t0558.cc)
+        continue;
+      }
+
       Variable *srcVar = srcIter.data()->asMR_func()->f->nameAndParams->var;
       Variable *destVar = destIter.data()->asMR_func()->f->nameAndParams->var;
 

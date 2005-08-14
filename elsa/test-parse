@@ -23,7 +23,7 @@ while [ "$1" != "" ]; do
   case $fname in
     *.gz)
       inputFname=tmp.i
-      echo "gunzip $fname >$inputFname"
+      echo "gunzip -c $fname >$inputFname"
       gunzip -c "$fname" >"$inputFname" || exit
       ;;
 
