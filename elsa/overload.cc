@@ -417,7 +417,7 @@ void OverloadResolver::processCandidate(Variable *v)
     GrowArray<ArgumentInfo> &args0 = this->args;
     // FIX: check there are no dependent types in the arguments
     TypeListIter_GrowArray argListIter(args0);
-    MType match(true /*allowNonConst*/);
+    MType match(env);
     if (!env.getFuncTemplArgs(match, sargs, finalName, v, argListIter, iflags)) {
       // something doesn't work about processing the template arguments
       OVERLOADTRACE("(not viable because args to not match template params)");
@@ -924,7 +924,7 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate
 
   
 // 14.5.5.2 paras 3 and 4
-bool atLeastAsSpecializedAs(Type *concrete, Type *pattern)
+bool atLeastAsSpecializedAs(Env &env, Type *concrete, Type *pattern)
 {
   // TODO: this isn't quite right:
   //   - I use the return type regardless of whether this is
@@ -932,8 +932,8 @@ bool atLeastAsSpecializedAs(Type *concrete, Type *pattern)
   //   - I don't do "argument deduction", I just match.  Maybe
   //     that is equivalent?
 
-  MType match;
-  return match.matchType(concrete, pattern, MF_MATCH);
+  MType match(env);
+  return match.matchTypeNC(concrete, pattern, MF_MATCH);
 }
 
 
@@ -1049,8 +1049,8 @@ int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *
     Type *rightType = right->instFrom->type;
 
     // who is "at least as specialized" as who?
-    bool left_ALA = atLeastAsSpecializedAs(leftType, rightType);
-    bool right_ALA = atLeastAsSpecializedAs(rightType, leftType);
+    bool left_ALA = atLeastAsSpecializedAs(env, leftType, rightType);
+    bool right_ALA = atLeastAsSpecializedAs(env, rightType, leftType);
     if (left_ALA && !right_ALA) {
       // left is "more specialized"
       return -1;
@@ -1962,8 +1962,9 @@ InstCandidate::~InstCandidate()
 
 
 // ----------------- InstCandidateResolver ---------------
-InstCandidateResolver::InstCandidateResolver()
-  : candidates()
+InstCandidateResolver::InstCandidateResolver(Env &e)
+  : env(e),
+    candidates()
 {}
 
 InstCandidateResolver::~InstCandidateResolver()
@@ -1971,12 +1972,12 @@ InstCandidateResolver::~InstCandidateResolver()
 
 
 int InstCandidateResolver::compareCandidates(InstCandidate *left, InstCandidate *right)
-{                                                           
+{
   Type *leftType = left->primary->type;
   Type *rightType = right->primary->type;
 
-  bool left_ALA = atLeastAsSpecializedAs(leftType, rightType);
-  bool right_ALA = atLeastAsSpecializedAs(rightType, leftType);
+  bool left_ALA = atLeastAsSpecializedAs(env, leftType, rightType);
+  bool right_ALA = atLeastAsSpecializedAs(env, rightType, leftType);
   if (left_ALA && !right_ALA) {
     // left is "more specialized"
     return -1;

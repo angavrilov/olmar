@@ -847,6 +847,8 @@ testparse t0558.cc
 testparse t0559.cc
 testparse t0560.cc
 testparse t0561.cc
+testparse t0562.cc
+testparse t0563.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

@@ -12,6 +12,7 @@
 
 #include "mtype.h"       // this module
 #include "trace.h"       // tracingSys
+#include "cc_env.h"      // Env::applyArgumentMap
 
 
 string toString(MatchFlags flags)
@@ -83,7 +84,8 @@ string IMType::Binding::asString() const
 
 // ------------------------- IMType -----------------------------
 IMType::IMType()
-  : bindings()
+  : bindings(),
+    env(NULL)
 {}
 
 IMType::~IMType()
@@ -396,10 +398,28 @@ bool IMType::imatchPQName(PQName const *conc, PQName const *pat, MatchFlags flag
 // -------------- IMType: Type and subclasses -------------
 bool IMType::imatchType(Type const *conc, Type const *pat, MatchFlags flags)
 {
+  if (pat->isReferenceType() &&         // if comparing reference
+      !conc->isReferenceType() &&       // to non-reference
+      (flags & MF_IGNORE_TOP_CV) &&     // at top of type
+      (flags & MF_DEDUCTION)) {         // during type deduction
+    // (in/t0549.cc) we got here because we just used a binding to
+    // come up with a reference type; without that, we would have stripped
+    // the reference-ness much earlier; but here we are, so strip it
+    pat = pat->asRvalC();
+  }
+
   if (pat->isTypeVariable() &&
       canUseAsVariable(pat->asTypeVariableC()->typedefVar, flags)) {
     return imatchTypeWithVariable(conc, pat->asTypeVariableC(),
                                   pat->getCVFlags(), flags);
+  }
+
+  if ((flags & MF_MATCH) &&
+      !(flags & MF_ISOMORPHIC) &&
+      pat->isCVAtomicType() &&
+      pat->asCVAtomicTypeC()->atomic->isDependentQType()) {
+    // must resolve a DQT to use it
+    return imatchTypeWithResolvedType(conc, pat, flags);
   }
 
   if (flags & MF_POLYMORPHIC) {
@@ -460,6 +480,46 @@ bool IMType::imatchTypeWithVariable(Type const *conc, TypeVariable const *pat,
     // type to which 'tvName' is bound should have the cv-flags
     // in the difference between 'conc' and 'tvCV'
     return addTypeBindingWithoutCV(tvName, conc, tvCV, flags);
+  }
+}
+
+
+bool IMType::imatchTypeWithResolvedType(Type const *conc, Type const *pat,
+                                        MatchFlags flags)
+{
+  // It would seem that I need an Env here so I can call
+  // applyArgumentMap.  If this assertion fails, it may be sufficient
+  // to change the MType constructor call to provide an Env; but be
+  // careful about the consequences to the constness of the interface.
+  if (!env) {
+    xfailure("in MF_MATCH mode, need to resolve a DQT, so need an Env...");
+  }
+
+  // this cast is justified by the private constructors of IMType
+  MType &mtype = static_cast<MType&>(*this);
+
+  // this cast is justified by the fact that applyArgumentMap is
+  // careful not to modify its argument; it accepts a non-const ptr
+  // only so that it can return it as non-const too (but I then
+  // store the result in the const 'resolvedType', so there isn't
+  // a loss of soundness there either)
+  Type *patNC = const_cast<Type*>(pat);
+
+  // The following call might need to query the bindings, and there
+  // is considerable difficulty involved in pushing a soundness
+  // argument through in the face of queried bindings.  So, I am
+  // forced to correlate the capacity to resolve DQTs with supporting
+  // the const interface.  That is why I have now removed setEnv().
+  xassert(mtype.getAllowNonConst());
+
+  Type const *resolvedType = env->applyArgumentMapToType_helper(mtype, patNC);
+  if (resolvedType) {
+    // take the resolved type and compare it directly to 'conc'
+    return imatchType(conc, resolvedType, flags & ~MF_MATCH);
+  }
+  else {
+    // failure to resolve, hence failure to match
+    return false;
   }
 }
 
@@ -545,16 +605,6 @@ bool IMType::equalWithAppliedCV(Type const *conc, Binding *binding, CVFlags cv, 
 
 bool IMType::imatchTypeWithSpecifiedCV(Type const *conc, Type const *pat, CVFlags cv, MatchFlags flags)
 {
-  if (pat->isReferenceType() &&         // if comparing reference
-      !conc->isReferenceType() &&       // to non-reference
-      (flags & MF_IGNORE_TOP_CV) &&     // at top of type
-      (flags & MF_DEDUCTION)) {         // during type deduction
-    // (in/t0549.cc) we got here because we just used a binding to
-    // come up with a reference type; without that, we would have stripped
-    // the reference-ness much earlier; but here we are, so strip it
-    pat = pat->asRvalC();
-  }
-
   // compare underlying types, ignoring first level of cv
   return imatchCVFlags(conc->getCVFlags(), cv, flags) &&
          imatchType(conc, pat, flags | MF_IGNORE_TOP_CV);
@@ -699,48 +749,6 @@ bool IMType::imatchAtomicTypeWithVariable(AtomicType const *conc,
 bool IMType::imatchCVAtomicType(CVAtomicType const *conc, CVAtomicType const *pat,
                                 MatchFlags flags)
 {
-  if ((flags & MF_MATCH) && 
-      !(flags & MF_ISOMORPHIC) &&
-      pat->asCVAtomicTypeC()->atomic->isDependentQType()) {
-    // (in/t0487.cc, in/t0487b.cc) the pattern names a DQT; if the
-    // first part of the DQT is resolvable in the current set of
-    // bindings, then do so
-    DependentQType const *patDQT = pat->asCVAtomicTypeC()->atomic->asDependentQTypeC();
-    if (patDQT->first->isTypeVariable()) {
-      // is the first part bound?
-      Binding *binding = bindings.get(patDQT->first->asTypeVariableC()->name);
-      if (binding) {
-        // find the CompoundType to which it is bound
-        CompoundType const *bindingCT = NULL;
-        if (binding->sarg.isType() &&
-            binding->getType()->isCompoundType()) {
-          bindingCT = (binding->getType()->asCompoundTypeC());
-        }
-        else if (binding->sarg.isAtomicType() &&
-                 binding->sarg.getAtomicType()->isCompoundType()) {
-          bindingCT = binding->sarg.getAtomicType()->asCompoundTypeC();
-        }
-
-        // apply the remainder of the DQT name
-        if (bindingCT) {
-          Type *resolvedType = lookupPQInScope(bindingCT, patDQT->rest);
-          if (resolvedType) {
-            // take the resolved type, apply the cv-flags from 'pat', and
-            // compare the result to 'conc'
-            return imatchTypeWithSpecifiedCV(conc, resolvedType,
-                                             resolvedType->getCVFlags() | pat->cv,
-                                             flags & ~MF_MATCH);
-           }
-        }
-
-        // the type variable at the head of the DQT is bound, but either
-        // not to a CompoundType, or to one for which the PQName doesn't
-        // denote a valid type; matching as a whole fails
-        return false;
-      }
-    }
-  }
-
   // compare cv-flags
   return imatchCVFlags(conc->cv, pat->cv, flags) &&
          imatchAtomicType(conc->atomic, pat->atomic, flags & MF_PROP);
@@ -771,193 +779,6 @@ bool IMType::imatchCVFlags(CVFlags conc, CVFlags pat, MatchFlags flags)
     // require equality
     return conc == pat;
   }
-}
-
-
-// For now I am implementing this in MType rather than Scope, since
-// I don't want to tamper with the existing lookup just for this
-// somewhat special purpose.  However, I might merge them later.
-// This routine either returns a type, or NULL to indicate the name
-// doesn't denote a valid type.
-Type *IMType::lookupPQInScope(Scope const *scope, PQName const *name)
-{
-  ASTSWITCHC(PQName, name) {
-    ASTCASEC(PQ_qualifier, q) {
-      // map the name
-      Variable *var = lookupNameInScope(scope, q->qualifier);
-
-      // apply template args if present
-      if (var && q->sargs.isNotEmpty()) {
-        // Oops, there is a flaw in my design.  If a template-id is
-        // used as a qualifier, then there is no reason that the
-        // concrete type need have mentioned this template-id, which
-        // means it might not have been instantiated.  See
-        // in/t0511.cc, input "PQ_qualifier *with* template args".
-        //
-        // Fundamentally, if you say MF_MATCH then the process of
-        // binding variables within DQTs can create the first mention
-        // of a given template-id, necessatating its instantiation.
-        // Therefore, an Env must be passed too, to account for this
-        // possibility.
-        //
-        // For now, I just note that this flaw exists, since I do not
-        // now need (nor do I forsee needing in the near future) to
-        // handle PQ_qualifier with template args in a DQT.
-        //
-        // When I do get around to implementing this, my plan is to
-        // add an Env* argument to the MType constructor, and require
-        // that this be non-NULL when MF_MATCH is specified, and then
-        // go ahead and do the instantiation here.  In fact, at that
-        // point it probably makes sense to just use Env::lookupPQ,
-        // passing LF_SUPPRESS_ERROR (and I think modifying it to
-        // respect that flag), rather than use this lookup code.
-        xunimp("PQ_qualifier with template args in a DQT");
-
-        #if 0     // this code would work if all needed templates had been instantiated
-        var = applyTemplateArgs(var, q->sargs);
-        #endif // 0
-      }
-
-      // bail if either the lookup or the template argument
-      // application failed
-      if (!var) {
-        return NULL;
-      }
-
-      // the result should be a CompoundType, because we have to use
-      // it as the scope to search in next
-      if (!var->isType() || !var->type->isCompoundType()) {
-        return NULL;
-      }
-
-      // recursively search in it
-      return lookupPQInScope(var->type->asCompoundType(), q->rest);
-    }
-
-    ASTNEXTC(PQ_name, n) {
-      Variable *var = lookupNameInScope(scope, n->name);
-      if (var && var->isType()) {
-        return var->type;
-      }
-      else {
-        return NULL;
-      }
-    }
-
-    ASTNEXTC1(PQ_operator) {
-      xfailure("a PQ_operator was parsed as a type!");
-    }
-
-    ASTNEXTC(PQ_template, t) {
-      // similar the PQ_qualifier case
-      Variable *var = lookupNameInScope(scope, t->name);
-      if (var) {
-        var = applyTemplateArgs(var, t->sargs);
-      }
-      if (!var) {
-        return NULL;
-      }
-
-      // since we certainly called 'applyTemplateArgs', the result
-      // must be a CompoundType, which is a valid Type
-      xassert(var->isType());
-      return var->type;
-    }
-
-    ASTDEFAULTC {
-      xfailure("bad PQName kind");
-    }
-
-    ASTENDCASEC
-  }
-}
-
-
-Variable *IMType::lookupNameInScope(Scope const *scope0, StringRef name)
-{
-  // the lookup and what I do subsequently with the results do not
-  // modify the scope ...
-  Scope *scope = const_cast<Scope*>(scope0);
-
-  // I had thought I could avoid calling into Scope::lookup, but I
-  // think I need the base class searching mechanism.  I am fairly
-  // certain I do *not* need the 'using' edge traversal mechanism,
-  // though, hence LF_IGNORE_USING.
-  return scope->lookup_one(name, NULL /*env*/,
-                           LF_IGNORE_USING | LF_ONLY_TYPES);
-}
-
-
-Variable *IMType::applyTemplateArgs(Variable *primary,
-                                    ObjList<STemplateArgument> const &sargs)
-{
-  if (!primary->isTemplateClass(false /*considerInherited*/)) {
-    return NULL;
-  }
-
-  TemplateInfo *ti = primary->templateInfo();
-  xassert(ti);
-
-  // The key to making this work without an Env object is recognizing
-  // that, for matching to ultimately succeed, any needed
-  // instantiations must *already* have been created, because the
-  // concrete type must have mentioned them.  Therefore, we can simply
-  // search among the extant instantiations for one that matches
-  // 'sargs'.
-  //
-  // Ack, this is not quite true; see the xunimp for PQ_qualifier, above.
-  
-  Variable *ret = searchForInstantiation(ti, sargs);
-  if (ret) {
-    return ret;
-  }
-  
-  // Also look in the explicit (full) specializations and the
-  // instantiations of partial specializations.
-  SFOREACH_OBJLIST_NC(Variable, ti->specializations, iter) {
-    TemplateInfo *spec = iter.data()->templateInfo();
-
-    if (spec->isCompleteSpec()) {
-      if (equalArgumentLists(spec->arguments, sargs)) {
-        return iter.data();
-      }
-    }
-    else {
-      // partial spec; check its instantiations
-      ret = searchForInstantiation(spec, sargs);
-      if (ret) {
-        return ret;
-      }
-    }
-  }
-
-  // didn't find it anywhere
-  return NULL;
-}
-
-
-// This is similar to TemplateInfo::getSpecialization, but different
-// because it does not require a TypeFactory.  Eventually, neither
-// will the former, once it is adapted to use mtype instead of
-// matchtype, so this exists only as an evolutionary stepping stone.
-Variable *IMType::searchForInstantiation(TemplateInfo *ti,
-                                         ObjList<STemplateArgument> const &sargs)
-{
-  SFOREACH_OBJLIST_NC(Variable, ti->instantiations, iter) {
-    TemplateInfo *instTI = iter.data()->templateInfo();
-
-    // We look at 'arguments' or 'argumentsToPrimary', depending on
-    // whether this is an instantiation of the primary or
-    // instantiation of a partial spec.
-    if (equalArgumentLists(instTI->isInstOfPartialSpec() ?
-                             instTI->argumentsToPrimary :
-                             instTI->arguments,
-                           sargs)) {
-      return iter.data();
-    }
-  }
-
-  return NULL;    // not found
 }
 
 
@@ -1261,6 +1082,13 @@ MType::MType(bool allowNonConst_)
 
 MType::~MType()
 {}
+
+
+MType::MType(Env &e)
+  : allowNonConst(true)
+{
+  env = &e;
+}
 
 
 bool MType::matchType(Type const *conc, Type const *pat, MatchFlags flags)

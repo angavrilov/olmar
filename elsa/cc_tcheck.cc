@@ -6075,7 +6075,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
       // instantiate templates
       if (v->isTemplate(considerInherited)) {
         // initialize the bindings with those explicitly provided
-        MType match(true /*allowNonConst*/);
+        MType match(env);
         if (targs) {
           if (!env.loadBindingsWithExplTemplArgs(v, targs->sargs, match, iflags)) {
             mut.remove();
@@ -6498,7 +6498,7 @@ static Type *internalTestingHooks
       return env.error("__test_mtype requires either four or an odd number of arguments");
     }
 
-    MType mtype(true /*nonConst*/);
+    MType mtype(env);
     if (mtype.matchTypeNC(conc, pat, (MatchFlags)flags)) {
       if (expectSuccess) {
         // successed as expected; check the bindings

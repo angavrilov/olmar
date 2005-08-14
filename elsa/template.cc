@@ -1770,7 +1770,7 @@ void Env::mapPrimaryArgsToSpecArgs(
 
   // execute the match to derive the bindings; we should not have
   // gotten here if they do not unify
-  MType match(true /*allowNonConst*/);
+  MType match(env);
   bool matches = match.matchSTemplateArgumentsNC(primaryArgs, matchTI->arguments, 
                                                  MF_MATCH);
   xassert(matches);
@@ -2278,7 +2278,7 @@ Variable *Env::instantiateFunctionTemplate
   //InstantiationContextIsolator isolator(*this, loc);
 
   // bind the parameters in an STemplateArgumentMap
-  MType map(true /*allowNonConst*/);
+  MType map(env);
   bindParametersInMap(map, primaryTI, objToSObjListC(sargs));
 
   // compute the type of the instantiation by applying 'map' to
@@ -2807,7 +2807,7 @@ bool Env::supplyDefaultTemplateArguments
 {
   // since default arguments can refer to earlier parameters,
   // maintain a map of the arguments known so far
-  MType map(true /*allowNonConst*/);
+  MType map(env);
 
   // simultanously iterate over arguments and parameters, building
   // 'dest' as we go
@@ -4152,30 +4152,35 @@ Type *Env::applyArgumentMapToQualifiedType
   }
   xassert(memberName);     // can't refer to anon member in DQT
 
-  // look up the name, should refer to a template class
-  Variable *primary = ct->lookup_one(memberName, NULL /*env*/, 
+  // lookup the name portion
+  Variable *qualVar = ct->lookup_one(memberName, NULL /*env*/,
                                      lflags | LF_TEMPL_PRIMARY);
-  if (!primary ||
-      !primary->isTemplateClass(false /*considerInherited*/)) {
-    xTypeDeduction(stringc << "no such template member class: " << ct->name
-                           << "::" << name->toString());
+  if (!qualVar || !qualVar->type->isCompoundType()) {
+    xTypeDeduction(stringc << "no such member class: " << ct->name
+                           << memberName);
   }
 
-  // TODO: The following instantiation ought to be done by 
-  // applyArgumentMap_instClass, but I hesitate to change it because
-  // it means removing the applyCVToType call below.  I need to first
-  // confirm that that call is superfluous, then I can collapse the
-  // instantiation.
+  bool argsProvided = !srcArgs->isEmpty();
+  bool isTemplate = qualVar->isTemplateClass(false /*considerInherited*/);
 
-  // resolve the template arguments using 'map'
-  ObjList<STemplateArgument> args;
-  applyArgumentMapToTemplateArgs(map, args, *srcArgs);
+  if (argsProvided && isTemplate) {
+    // resolve the template arguments using 'map'
+    ObjList<STemplateArgument> args;
+    applyArgumentMapToTemplateArgs(map, args, *srcArgs);
 
-  // instantiate the template with the arguments
-  Variable *inst =
-    instantiateClassTemplate(loc(), primary, args);
-  if (!inst) {
-    return env.errorType();    // error already reported
+    // instantiate the template with the arguments
+    qualVar = instantiateClassTemplate(loc(), qualVar, args);
+    if (!qualVar) {
+      return env.errorType();    // error already reported
+    }
+  }
+  else if (!argsProvided && isTemplate) {
+    xTypeDeduction(stringc << "member " << ct->name << "::" << memberName
+                           << " is a template, but template args were not provided");
+  }
+  else if (argsProvided && !isTemplate) {
+    xTypeDeduction(stringc << "member " << ct->name << "::" << memberName
+                           << " is not a template, but template args were provided");
   }
 
   if (name->isPQ_template()) {
@@ -4184,11 +4189,11 @@ Type *Env::applyArgumentMapToQualifiedType
     // 2005-08-07: Why the heck to I apply CV_NONE?  Why not just
     // return inst->type directly?
     return tfac.applyCVToType(SL_UNKNOWN, CV_NONE,
-                              inst->type, NULL /*syntax*/);
+                              qualVar->type, NULL /*syntax*/);
   }
   else {
     // recursively continue deconstructing 'name'
-    return applyArgumentMapToQualifiedType(map, inst->type->asCompoundType(),
+    return applyArgumentMapToQualifiedType(map, qualVar->type->asCompoundType(),
                                            name->asPQ_qualifier()->rest);
   }
 }
@@ -4372,7 +4377,7 @@ Variable *Env::makeExplicitFunctionSpecialization
     MatchFlags mflags = MF_IGNORE_IMPLICIT | MF_MATCH | MF_STAT_EQ_NONSTAT;
 
     // can this element specialize to 'ft'?
-    MType match(true /*allowNonConst*/);
+    MType match(env);
     if (match.matchTypeNC(ft, primary->type, mflags)) {
       // yes; construct the argument list that specializes 'primary'
       TemplateInfo *primaryTI = primary->templateInfo();
@@ -4607,7 +4612,7 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type,
   }
 
   // collect candidates
-  InstCandidateResolver resolver;
+  InstCandidateResolver resolver(env);
 
   // examine all overloaded versions of the function
   SFOREACH_OBJLIST_NC(Variable, set, iter) {
@@ -4630,7 +4635,7 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type,
     TemplateInfo *primaryTI = primary->templateInfo();
 
     // does the type we have match the type of this template?
-    MType match(true /*allowNonConst*/);
+    MType match(env);
     if (!match.matchTypeNC(type, primary->type, MF_MATCH | MF_IGNORE_EXN_SPEC)) {
       continue;   // no match
     }

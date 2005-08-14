@@ -17,6 +17,10 @@
 #include "cc_ast.h"             // C++ AST
 #include "template.h"           // STemplateArgument
 
+class Env;                      // cc_env.h
+
+class MType;                    // this file
+
 
 // Internal MType: the core of the MType implementation, separated
 // into its own class so that it cannot (easily, accidentally) use the
@@ -62,6 +66,12 @@ protected:   // data
   // set of bindings
   typedef ObjMap<char const /*StringRef*/, Binding> BindingMap;
   BindingMap bindings;
+  
+  // This is used to resolve DQTs during matching.  Originally I'd
+  // hoped to keep MType unaware of the environment, but this now
+  // seems unavoidable.  On the bright side, it means I can remove
+  // all PQName resolution code from MType, since Env can do that.
+  Env *env;                    // (nullable serf)
 
 protected:   // funcs
   // ******************************************************************
@@ -88,6 +98,10 @@ protected:   // funcs
   bool imatchType(Type const *conc, Type const *pat, MatchFlags flags);
   bool imatchTypeWithVariable(Type const *conc, TypeVariable const *pat,
                                     CVFlags tvCV, MatchFlags flags);
+  bool imatchTypeWithResolvedType(Type const *conc, Type const *pat,
+                                  MatchFlags flags);
+  bool imatchTypeWithDQT(Type const *conc, DependentQType const *pat,
+                         CVFlags patCV, MatchFlags flags);
   bool equalWithAppliedCV(Type const *conc, Binding *binding, CVFlags cv, MatchFlags flags);
   bool imatchTypeWithSpecifiedCV(Type const *conc, Type const *pat, CVFlags cv, MatchFlags flags);
   bool addTypeBindingWithoutCV(StringRef tvName, Type const *conc,
@@ -109,15 +123,10 @@ protected:   // funcs
                                        PointerToMemberType const *pat, MatchFlags flags);
   bool imatchExpression(Expression const *conc, Expression const *pat, MatchFlags flags);
 
-  // stuff for DQT resolution
-  Type *lookupPQInScope(Scope const *scope, PQName const *name);
-  Variable *lookupNameInScope(Scope const *scope0, StringRef name);
-  Variable *applyTemplateArgs(Variable *primary,
-                              ObjList<STemplateArgument> const &sargs);
-  Variable *searchForInstantiation(TemplateInfo *ti,
-                                   ObjList<STemplateArgument> const &sargs);
-
-public:      // funcs
+private:     // funcs
+  // the only allowed subclass is MType; this justifies a
+  // static_cast in mtype.cc
+  friend class MType;
   IMType();
   ~IMType();
 };
@@ -125,7 +134,7 @@ public:      // funcs
 
 // the public interface
 class MType : protected IMType {
-private:     // data
+private:     // funcs
   // This flag is true if the client is using the non-const interface.
   //
   // The idea is this module can support one of two modes
@@ -161,6 +170,20 @@ public:      // funcs
   // if 'allowNonConst' is true, 'getBoundValue' be invoked
   MType(bool allowNonConst = false);
   ~MType();
+
+  // This constructor sets 'allowNonConst' to true and also
+  // provides the 'env' for resolving DQTs.
+  MType(Env &env);
+
+  // so I can supply an Env even in const mode
+  //
+  // 2005-08-14: Can't allow this.  See imatchWithResolvedType.
+  // If you need to resolve DQTs, you have to allowNonConst, so
+  // the Env can/must be provided in the constructor call.
+  //void setEnv(Env *e) { env=e; }
+  
+  // what constness mode are we in?
+  bool getAllowNonConst() const { return allowNonConst; }
 
   // ---- const match ----
   // these functions can only be called if 'allowNonConst' is false

@@ -308,11 +308,14 @@ public:
 // algorithm object to select the best from a set
 class InstCandidateResolver {
 public:
+  // needed to resolve DQTs...
+  Env &env;
+
   // set of candidates
   ObjArrayStack<InstCandidate> candidates;
 
 public:
-  InstCandidateResolver();
+  InstCandidateResolver(Env &e);
   ~InstCandidateResolver();
 
   // for internal use by the tournament
