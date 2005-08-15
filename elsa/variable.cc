@@ -136,15 +136,12 @@ void Variable::setFlagsTo(DeclFlags f)
 }
 
 
+// 2005-08-15: Previously, this would return false for unions because
+// I misunderstood the standard.  However, 9p4 is clear that unions
+// are classes, and can have destructors, etc. (in/t0571.cc)
 bool Variable::isClass() const
 {
-  if (hasFlag(DF_TYPEDEF) &&
-      type->isCompoundType()) {
-    CompoundType const *ct = type->asCompoundType();
-    return ct->keyword == CompoundType::K_CLASS ||
-           ct->keyword == CompoundType::K_STRUCT;
-  }
-  return false;
+  return hasFlag(DF_TYPEDEF) && type->isCompoundType();
 }
 
 

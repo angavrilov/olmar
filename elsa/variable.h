@@ -168,7 +168,7 @@ public:
   bool isEnumerator() const { return hasFlag(DF_ENUMERATOR); }
   bool isType() const { return hasFlag(DF_TYPEDEF); }
 
-  // true if this name refers to a class or struct
+  // true if this name refers to a class or struct or union
   bool isClass() const;
 
   // refers to a user-provided typedef
