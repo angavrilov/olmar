@@ -93,6 +93,7 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 %token TOK_SUBSETS "subsets"
 %token TOK_DELETE "delete"
 %token TOK_REPLACE "replace"
+%token TOK_FORBID_NEXT "forbid_next"
 
 // left, right, nonassoc: they're not keywords, since "left" and "right"
 // are common names for RHS elements; instead, we parse them as names
@@ -323,15 +324,11 @@ RHS: /* empty */                           { $$ = new ASTList<RHSElt>; }
  */
 /* yields: RHSElt */
 RHSElt: TOK_NAME                { $$ = new RH_name(sameloc($1, ""), $1); }
-          /* name (only) */
       | TOK_NAME ":" TOK_NAME   { $$ = new RH_name($1, $3); }
-          /* tag : name */
       | TOK_STRING              { $$ = new RH_string(sameloc($1, ""), $1); }
-          /* mnemonic terminal */
       | TOK_NAME ":" TOK_STRING { $$ = new RH_string($1, $3); }
-          /* tagged terminal */
-      | TOK_PRECEDENCE "(" NameOrString ")"
-                                { $$ = new RH_prec($3); }
+      | "precedence" "(" NameOrString ")"    { $$ = new RH_prec($3); }
+      | "forbid_next" "(" NameOrString ")"   { $$ = new RH_forbid($3); }
       ;
         
 /* yields: ASTList<LocString> */

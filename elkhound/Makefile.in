@@ -5,7 +5,7 @@
 #tmp: mlsstr
 
 # main targets: elkhound, and some examples
-all: elkhound libelkhound.a arith c cc2/cc2.exe
+all: elkhound libelkhound.a forbid.gr.gen.out arith c cc2/cc2.exe
 	@echo BUILD FINISHED
 
 
@@ -247,6 +247,11 @@ cyctimer: cyctimer.cc cyctimer.h
 # ML lexical parser
 mlsstr: mlsstr.cc mlsstr.h
 	$(CXX) -o $@ -DTEST_MLSSTR $(CCFLAGS) mlsstr.cc $(LDFLAGS)
+
+# test grammar for 'forbid' (there is no executable for this, I just look
+# at the Elkhound output)
+forbid.gr.gen.out: forbid.gr
+	./elkhound -tr requireExactStats -o forbid.gr.gen forbid.gr
 
 
 # -------------------- exported library ----------------

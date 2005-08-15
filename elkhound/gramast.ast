@@ -85,6 +85,12 @@ class ProdDecl (SourceLoc loc, ProdDeclKind kind, ASTList<RHSElt> rhs, LocString
 class RHSElt {
   -> RH_name(LocString tag, LocString name);         // tagged terminal or nonterminal reference
   -> RH_string(LocString tag, LocString str);        // tagged terminal reference by string alias
-  -> RH_prec(LocString tokName);                     // %prec specification
+  
+  // assigns a specific precedence level to a rule
+  -> RH_prec(LocString tokName);                  
+
+  // forbids a rule from being used when a given token
+  // is next in the input
+  -> RH_forbid(LocString tokName);
 }
 

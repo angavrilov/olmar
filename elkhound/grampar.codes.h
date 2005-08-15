@@ -26,3 +26,4 @@
 # define	TOK_SUBSETS	279
 # define	TOK_DELETE	280
 # define	TOK_REPLACE	281
+# define	TOK_FORBID_NEXT	282

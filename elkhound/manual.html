@@ -61,6 +61,8 @@ for simple arithmetic expressions.
     <li><a class="toc" href="#del">4.2 del</a>
     <li><a class="toc" href="#merge">4.3 merge</a>
     <li><a class="toc" href="#keep">4.4 keep</a>
+    <li><a class="toc" href="#precedence">4.5 precedence</a>
+    <li><a class="toc" href="#forbid">4.6 forbid_next</a>
   </ul>
   <li><a class="toc" href="#options">5. Options</a>
   <ul>
@@ -511,6 +513,42 @@ Common <tt>keep</tt> strategies:
     performance, I am considering eliminating <tt>keep()</tt> in favor
     of a built-in <tt>NULL</tt> check.
 </ul>
+
+
+<a name="precedence"></a>
+<h2>4.5 precedence</h2>
+
+<p>
+A rule can be annotated with an explicit precedence specification,
+for example:
+<pre>
+  nonterm N {
+    -&gt; A B C     precedence("+")   { /*...*/ }
+  }
+</pre>
+
+<p>
+This specification has the effect of assigning the rule
+"<tt>N -&gt; A B C</tt>" the same precedence level as the terminal "+".
+See <a href="#prec_assoc">Section 7</a> for more information on what
+this does.
+
+
+<a name="forbid"></a>
+<h2>4.6 forbid_next</h2>
+
+<p>
+A rule can also be annotated with one or more <em>forbidden
+lookahead</em> declarations, for example:
+<pre>
+  nonterm N {
+    -&gt; A B C     forbid_next("+") forbid_next("*")  { /*...*/ }
+  }
+</pre>
+
+<p>
+This specification means that the rule "<tt>N -&gt; A B C</tt>" can
+not be used to reduce if the next symbol is either "+" or "*".
 
 
 <a name="options"></a>

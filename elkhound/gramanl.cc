@@ -2016,12 +2016,17 @@ void GrammarAnalysis
       newItemLA.merge(item->lookahead);
     }
 
+    // except we do not want to put terminals in the lookahead set
+    // for which 'prod' is not allowed to reduce when they are next
+    if (prod.forbid) {
+      newItemLA.removeSet(*prod.forbid);
+    }
+
     if (tr) {
       trs << "      built item ";
       // this is what LRItem::print would do if I actually
       // constructed the object
       newDP->print(trs);
-      trs << ", ";
       newItemLA.print(trs, *this);
       trs << endl;
     }
@@ -2943,6 +2948,11 @@ void reportUnexpected(int value, int expectedValue, char const *desc)
     cout << value << " " << desc;
     if (expectedValue != -1) {
       cout << " (expected " << expectedValue << ")";
+      if (tracingSys("requireExactStats")) {
+        cout << endl;
+        cout << "halting because 'requireExactStats' was specified" << endl;
+        exit(4);
+      }
     }
     cout << endl;
   }
@@ -4107,7 +4117,13 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
     *setsOutput << "productions:\n";
     for (int p=0; p<numProds; p++) {
       *setsOutput << "  ";
-      getProduction(p)->print(*setsOutput);
+      Production const *prod = getProduction(p);
+      prod->print(*setsOutput);
+      if (prod->forbid) {
+        *setsOutput << " forbid_next(";
+        prod->forbid->print(*setsOutput, *this, "");
+        *setsOutput << ")";
+      }
       *setsOutput << "\n";
     }
   }

@@ -165,6 +165,7 @@ HWHITE    [ \t\f\v\r]
 "subsets"          TOK_UPD_COL;  return TOK_SUBSETS;
 "replace"          TOK_UPD_COL;  return TOK_REPLACE;
 "delete"           TOK_UPD_COL;  return TOK_DELETE;
+"forbid_next"      TOK_UPD_COL;  return TOK_FORBID_NEXT;
 
 
   /* ----------- sequences that begin literal code ------------ */

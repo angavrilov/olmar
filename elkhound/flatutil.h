@@ -27,6 +27,23 @@ void xferOwnerPtr(Flatten &flat, T *&ptr)
 
 
 template <class T>
+void xferNullableOwnerPtr(Flatten &flat, T *&ptr)
+{
+  bool present = false;     // initial value not used
+  if (flat.reading()) {
+    flat.xferBool(present);
+  }
+  else {
+    present = (ptr != NULL);
+  }
+
+  if (present) {
+    xferOwnerPtr(flat, ptr);
+  }
+}
+
+
+template <class T>
 void xferOwnerPtr_readObj(Flatten &flat, T *&ptr)
 {
   if (flat.reading()) {

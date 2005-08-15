@@ -262,8 +262,9 @@ public:     // funcs
 
   void copy(TerminalSet const &obj);      // lengths must be the same
   bool merge(TerminalSet const &obj);     // union; returns true if merging changed set
+  bool removeSet(TerminalSet const &obj); // intersect with complement; returns true if this changed set
 
-  void print(ostream &os, Grammar const &g) const;
+  void print(ostream &os, Grammar const &g, char const *lead = ", ") const;
 };
 
 
@@ -350,6 +351,7 @@ public:	    // data
   Nonterminal * const left;     // (serf) left hand side; must be nonterminal
   ObjList<RHSElt> right;        // right hand side; terminals & nonterminals
   int precedence;               // precedence level for disambiguation (0 for none specified)
+  TerminalSet *forbid;          // (nullable owner) forbidden next tokens
 
   // user-supplied reduction action code
   LocString action;
@@ -405,6 +407,9 @@ public:	    // funcs
   DottedProduction *getDProd(int dotPlace)
     { return const_cast<DottedProduction*>(getDProdC(dotPlace)); }
   #endif // 0
+
+  // add a terminal to the 'forbid' set
+  void addForbid(Terminal *t, int totalNumTerminals);
 
   // print 'A -> B c D' (no newline)
   string toString(bool printType = true, bool printIndex = true) const;

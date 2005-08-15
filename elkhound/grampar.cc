@@ -746,7 +746,7 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
     LocString symName;
     LocString symTag;
     bool isString = false;
-    bool isPrec = false;
+    bool isAnnotation = false;
 
     // pull various info out of the AST node
     ASTSWITCHC(RHSElt, n) {
@@ -762,24 +762,32 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
       }
 
       ASTNEXTC(RH_prec, p) {
-        // apply the specified precedence
-        prod->precedence = astParseToken(env, p->tokName)->precedence;
+        Terminal *t = astParseToken(env, p->tokName);
+        if (!t) { break; }
 
-        // and require that this is the last RHS element
-        iter.adv();
-        if (!iter.isDone()) {
-          astParseError(p->tokName,
-            "precedence spec must be last thing in a production "
-            "(before the action code)");
-        }
-        isPrec = true;
+        // apply the specified precedence
+        prod->precedence = t->precedence;
+        isAnnotation = true;
       }
 
-      ASTENDCASECD
+      ASTNEXTC(RH_forbid, f) {
+        Terminal *t = astParseToken(env, f->tokName);
+        if (!t) { break; }
+
+        prod->addForbid(t, env.g.numTerminals());
+        isAnnotation = true;
+      }
+
+      ASTDEFAULTC {
+        xfailure("bad RHSElt kind");
+      }
+
+      ASTENDCASEC
     }
 
-    if (isPrec) {
-      break;     // last element anyway
+    if (isAnnotation) {
+      // code below is for things other than annotations
+      continue;
     }
 
     // see which (if either) thing this name already is

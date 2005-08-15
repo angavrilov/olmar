@@ -289,7 +289,7 @@ void Nonterminal::print(ostream &os, Grammar const *grammar) const
     os << "}";
 
     // follow
-    os << " follow=";
+    os << " follow={";
     follow.print(os, *grammar);
     os << "}";
   }
@@ -452,7 +452,23 @@ bool TerminalSet::merge(TerminalSet const &obj)
 }
 
 
-void TerminalSet::print(ostream &os, Grammar const &g) const
+bool TerminalSet::removeSet(TerminalSet const &obj)
+{
+  xassertdb(obj.bitmapLen == bitmapLen);
+  bool changed = false;
+  for (int i=0; i<bitmapLen; i++) {
+    unsigned before = bitmap[i];
+    unsigned after = before & ~(obj.bitmap[i]);
+    if (after != before) {
+      changed = true;
+      bitmap[i] = after;
+    }
+  }
+  return changed;
+}
+
+
+void TerminalSet::print(ostream &os, Grammar const &g, char const *lead) const
 {
   int ct=0;
   FOREACH_TERMINAL(g.terminals, iter) {
@@ -466,7 +482,7 @@ void TerminalSet::print(ostream &os, Grammar const &g) const
       // by waiting until now to print this, if the set has no symbols
       // (e.g. we're in SLR(1) mode), then the comma won't be printed
       // either
-      os << ", ";
+      os << lead;
     }
     else {
       os << "/";
@@ -504,17 +520,23 @@ Production::Production(Nonterminal *L, char const *Ltag)
   : left(L),
     right(),
     precedence(0),
+    forbid(NULL),
     rhsLen(-1),
     prodIndex(-1),
     firstSet(0)       // don't allocate bitmap yet
 {}
 
 Production::~Production()
-{}
+{
+  if (forbid) {
+    delete forbid;
+  }
+}
 
 
 Production::Production(Flatten &flat)
   : left(NULL),
+    forbid(NULL),
     action(flat),
     firstSet(flat)
 {}
@@ -524,6 +546,7 @@ void Production::xfer(Flatten &flat)
   xferObjList(flat, right);
   action.xfer(flat);
   flat.xferInt(precedence);
+  xferNullableOwnerPtr(flat, forbid);
 
   flat.xferInt(rhsLen);
   flat.xferInt(prodIndex);
@@ -694,6 +717,18 @@ DottedProduction const *Production::getDProdC(int dotPlace) const
   return &dprods[dotPlace];
 }    
 #endif // 0
+
+
+// it's somewhat unfortunate that I have to be told the
+// total number of terminals, but oh well
+void Production::addForbid(Terminal *t, int numTerminals)
+{
+  if (!forbid) {
+    forbid = new TerminalSet(numTerminals);
+  }
+
+  forbid->add(t->termIndex);
+}
 
 
 void Production::print(ostream &os) const
