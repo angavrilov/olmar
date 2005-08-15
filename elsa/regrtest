@@ -851,6 +851,7 @@ testparse t0562.cc
 testparse t0563.cc
 testparse t0564.cc
 failparse t0565.cc "unhandled MemberDeclaration ambiguity"
+testparse t0566.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

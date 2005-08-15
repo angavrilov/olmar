@@ -9,6 +9,7 @@
 #include "strutil.h"       // suffixEquals, prefixEquals
 #include "overload.h"      // OVERLOADTRACE
 #include "mtype.h"         // MType
+#include "implconv.h"      // ImplicitConversion
 
 
 void gdbScopeSeq(ScopeSeq &ss)
@@ -5066,6 +5067,14 @@ Type *Env::sizeofType(Type *t, int &size, Expression * /*nullable*/ expr)
   // elsa/include/stddef.h header) make that the same as 'unsigned';
   // in any case, it must be an unsigned integer type (c99, 7.17p2)
   return t->isError()? t : env.getSimpleType(ST_UNSIGNED_INT);
+}
+
+
+void Env::instantiateTemplatesInConversion(ImplicitConversion &ic)
+{
+  if (ic.kind == ImplicitConversion::IC_USER_DEFINED) {
+    ensureFuncBodyTChecked(ic.user);
+  }
 }
 
 

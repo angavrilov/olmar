@@ -5780,6 +5780,10 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
 
       // TODO (elaboration): if 'ic' involves a user-defined
       // conversion, then modify the AST to make that explicit
+
+      // at least note that we plan to use this conversion, so
+      // if it involves template functions, instantiate them
+      env.instantiateTemplatesInConversion(ic);
     }
   }
 

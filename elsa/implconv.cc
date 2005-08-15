@@ -36,7 +36,7 @@ void ImplicitConversion::addStdConv(StandardConversion newScs)
 
 
 void ImplicitConversion
-  ::addUserConv(StandardConversion first, Variable const *userFunc,
+  ::addUserConv(StandardConversion first, Variable *userFunc,
                 StandardConversion second)
 {
   if (kind != IC_NONE) {

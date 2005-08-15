@@ -26,6 +26,7 @@ class CCLang;             // cc_lang.h
 class TypeListIter;       // typelistiter.h
 class SavedScopePair;     // fwd in this file
 class MType;              // mtype.h
+class ImplicitConversion; // implconv.h
 
 
 // type of collection to hold a sequence of scopes
@@ -888,6 +889,9 @@ public:      // template funcs
         
   // do 'ensureClassBodyInstantiated' for all parameters
   void instantiateTemplatesInParams(FunctionType *ft);
+       
+  // instantiate functions used in 'ic'
+  void instantiateTemplatesInConversion(ImplicitConversion &ic);
 
   // given a template class that was just made non-forward,
   // instantiate all of its forward-declared instances

@@ -31,11 +31,11 @@ public:    // data
   StandardConversion scs;       // "standard conversion sequence"
 
   // for IC_USER_DEFINED
-  Variable const *user;         // the ctor or conversion operator function
+  Variable *user;               // the ctor or conversion operator function
   StandardConversion scs2;      // second conversion sequence (convert return value of 'user' to param type)
 
 private:   // funcs
-  Type *inner_getConcreteDestType(TypeFactory &tfac, Type *srcType, 
+  Type *inner_getConcreteDestType(TypeFactory &tfac, Type *srcType,
                                   Type *destType, StandardConversion sconv) const;
 
 public:    // funcs
@@ -48,11 +48,11 @@ public:    // funcs
   operator bool () const { return kind != IC_NONE; }
 
   bool isAmbiguous() const { return kind == IC_AMBIGUOUS; }
-    
+
   // add specific conversion possibilities; automatically kicks
   // over to IC_AMBIGUOUS if there's already a conversion
   void addStdConv(StandardConversion scs);
-  void addUserConv(StandardConversion first, Variable const *user,
+  void addUserConv(StandardConversion first, Variable *user,
                    StandardConversion second);
   void addEllipsisConv();
   void addAmbig() { kind = IC_AMBIGUOUS; }

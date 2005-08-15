@@ -1567,10 +1567,27 @@ ImplicitConversion getConversionOperator(
     SFOREACH_OBJLIST_NC(Variable, ops, iter) {
       Variable *v = iter.data();
       Type *retType = v->type->asFunctionTypeC()->retType->asRval();
-      if (retType->isCompoundType() &&
-          retType->asCompoundType()->hasBaseClass(destCT)) {
-        // it's a candidate
-        resolver.processCandidate(v);
+      if (!retType->containsVariables()) {
+        // concrete type; easy case
+        if (retType->isCompoundType() &&
+            retType->asCompoundType()->hasBaseClass(destCT)) {
+          // it's a candidate
+          resolver.processCandidate(v);
+        }
+      }
+      else {
+        // (in/t0566.cc) templatized conversion operator; for now,
+        // ignore possibility of using derived class and just do
+        // direct matching
+        //
+        // TODO: accomodate derived-to-base conversion here too
+        MType match(env);
+        if (match.matchTypeNC(destType->asRval(), retType,
+                              MF_MATCH | MF_IGNORE_TOP_CV)) {
+          // use the bindings to instantiate the template
+          Variable *inst = env.instantiateFunctionTemplate(loc, v, match);
+          resolver.processCandidate(inst);
+        }
       }
     }
   }
