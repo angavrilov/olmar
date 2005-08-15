@@ -488,6 +488,21 @@ Variable *Scope::lookupVariable_set
     return candidates.filter(variables.get(name), flags);
   }
 
+  if (curCompound && (flags & LF_ARG_DEP)) {
+    // (in/t0569.cc) Arg-dep lookup only finds friends of classes
+    // [3.4.2p1].  This is iterative search is not very efficient, but
+    // it probably won't be used that often.  Building a more
+    // efficient structure is a bit of a pain since friend sets need
+    // not correspond to existing overload sets.
+    SFOREACH_OBJLIST_NC(Variable, curCompound->friends, iter) {
+      Variable *v = iter.data();
+      if (v->name == name) {
+        candidates.filter(v, flags | LF_LOOKUP_SET);
+      }
+    }
+    return candidates.isEmpty() ? NULL : candidates.first();
+  }
+
   Variable *ret = lookupVariable_inner(candidates, name, env, flags);
   if (ret) return ret;
 
@@ -805,33 +820,30 @@ string Scope::desc() const
   #endif
 }
 
-
-void Scope::gdb() const 
+static void dumpMap(char const *label, StringRefMap<Variable> const &map)
 {
-  cout << desc() << endl;
+  cout << "  " << label << ":\n";
+  for (StringRefMap<Variable>::Iter iter(map);
+       !iter.isDone();
+       iter.adv()) {
+    cout << "    " << iter.key() << ": " << iter.value()->toString() << "\n";
+  }
 }
 
+void Scope::gdb() const
+{
+  cout << "Scope dump of " << desc() << ":\n";
+  dumpMap("variables", variables);
+  dumpMap("typeTags", typeTags);
 
-void Scope::dump() {
-  cout << "Scope dump" << endl;
-  gdb();
-
-  cout << "Variables" << endl;
-  for (StringRefMap<Variable>::Iter iter = getVariableIter();
-       !iter.isDone();
-       iter.adv()) {
-    cout << "\t'" << iter.key() << "'->'" << iter.value()->toString() << "'" << endl;
+  if (curCompound) {
+    cout << "  friends (found during arg-dep lookup):\n";
+    SFOREACH_OBJLIST(Variable, curCompound->friends, iter) {
+      cout << "    " << iter.data()->toQualifiedString() << "\n";
+    }
   }
 
-  // dsw: what happened to getCompoundIter() ?
-  // sm: it became getTypeTagIter (I've been rewriting lookup)
-
-  cout << "Type tags" << endl;
-  for (StringRefMap<Variable>::Iter iter = getTypeTagIter();
-       !iter.isDone();
-       iter.adv()) {
-    cout << "\t'" << iter.key() << "'->'" << iter.value()->toString() << "'" << endl;
-  }
+  cout.flush();
 }
 
 

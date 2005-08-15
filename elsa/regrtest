@@ -847,7 +847,7 @@ failparse t0565.cc "unhandled MemberDeclaration ambiguity"
 testparse t0566.cc
 testparse t0567.cc
 testparse t0568.cc
-failparse t0569.cc "arg-dep fails to find friend"
+testparse t0569.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

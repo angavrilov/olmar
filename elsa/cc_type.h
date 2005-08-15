@@ -356,6 +356,15 @@ public:      // data
   // list of all conversion operators this class has, including
   // those that have been inherited but not then hidden
   SObjList<Variable> conversionOperators;
+  
+  // list of friends; the friends are members of other scopes, but
+  // they can access protected/private members of this class, and
+  // argument-dependent lookups in this class can find them
+  //
+  // this is almost certainly *not* the best way to record this
+  // information if access control were to be implemented, but it
+  // does the job for the moment
+  SObjList<Variable> friends;
 
   // if this class is a template instantiation, 'instName' is
   // the class name plus a rendering of the arguments; otherwise

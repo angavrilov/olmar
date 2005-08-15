@@ -4168,9 +4168,9 @@ void Env::associatedScopeLookup(LookupSet &candidates, StringRef name,
   
   // 2005-08-09: ignore class members too (i.e., when searching in
   // class scopes, only friend declarations are used); testcases
-  // include in/t0532.cc and in/t0471.cc
-  flags |= LF_NO_MEMBERS;
-
+  // include in/t0532.cc, in/t0471.cc and in/t0569.cc
+  flags |= LF_ARG_DEP;
+  
   // get candidates from the lookups in the "associated" scopes
   SFOREACH_OBJLIST_NC(Scope, associated, scopeIter) {
     Scope *s = scopeIter.data();

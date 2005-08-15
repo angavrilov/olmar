@@ -343,9 +343,6 @@ public:      // funcs
   // for debugging, a quick description of this scope
   string desc() const;
   void gdb() const;
-
-  // dump out more state
-  void dump();
 };
 
 

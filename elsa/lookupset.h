@@ -33,10 +33,10 @@ enum LookupFlags {
   LF_NO_IMPL_THIS      = 0x00010000,   // do not insert implicit 'this->'
   LF_LOOKUP_SET        = 0x00020000,   // lookup can return a set of names
   LF_QUERY_TAGS        = 0x00040000,   // look in Scope::typeTags instead of Scope::variables
-  LF_unusued_value     = 0x00080000,   // (available for a new use)
+  LF_unused_value      = 0x00080000,   // (available for a new use)
   LF_EXPECTING_TYPE    = 0x00100000,   // do not apply template args to a non-type
   LF_EXPLICIT_INST     = 0x00200000,   // the context is a TF_explicitInst
-  LF_NO_MEMBERS        = 0x00400000,   // disregard anything with DF_MEMBER
+  LF_ARG_DEP           = 0x00400000,   // looking in argument-dependent "associated scopes"
   LF_GET_SCOPE_ONLY    = 0x00800000,   // if looking up A::B::C, just look up A::B
 
   // flag combination for looking up names that precede "::" (3.4.3p1);

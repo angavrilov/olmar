@@ -2795,6 +2795,9 @@ static Variable *declareNewVariable(
   // scope in which to insert the name, and to look for pre-existing
   // declarations
   Scope *scope = env.acceptingScope(dt.dflags);
+  
+  // class that is befriending this entity
+  CompoundType *befriending = NULL;
 
   goto realStart;
 
@@ -2886,9 +2889,23 @@ realStart:
       goto makeDummyVar;
     }
     else {
+      // 2005-08-15: record the befriending class so it can
+      // participate in arg-dep lookup
+      if (scope->curCompound) {
+        befriending = scope->curCompound;
+      }
+      else {
+        env.error("friend declaration must appear in class scope");
+      }
+
       // the main effect of 'friend' in my implementation is to
       // declare the variable in the innermost non-class, non-
       // template scope (this isn't perfect; see cppstd 11.4)
+      //
+      // Unfortunately, both GCC and ICC seem to do name injection,
+      // even though that is not what the standard specifies.  So,
+      // making Elsa more standard-compliant on this issue would
+      // create some static, and thus I do name injection too.
       scope = env.outerScope();
 
       // turn off the decl flag because it shouldn't end up
@@ -3078,8 +3095,15 @@ realStart:
   // Declarator::mid_tcheck.
 
   // make a new variable; see implementation for details
-  return env.createDeclaration(loc, unqualifiedName, dt.type, dt.dflags,
-                               scope, enclosingClass, prior, overloadSet);
+  Variable *ret =
+    env.createDeclaration(loc, unqualifiedName, dt.type, dt.dflags,
+                          scope, enclosingClass, prior, overloadSet);
+                          
+  if (befriending) {
+    befriending->friends.prepend(ret);
+  }
+  
+  return ret;
 }
 
 
