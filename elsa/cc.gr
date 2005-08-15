@@ -59,8 +59,8 @@ option useGCDefaults;
 option defaultMergeAborts;
 
 // expected statistics
-option shift_reduce_conflicts 53;
-option reduce_reduce_conflicts 85;
+option shift_reduce_conflicts 58;
+option reduce_reduce_conflicts 70;
 option unreachable_nonterminals 0;
 option unreachable_terminals 6;
 
@@ -192,6 +192,7 @@ terminals {
   precedence {
     // high precedence
     prec  200 TOK_PREFER_REDUCE;
+    right 195 "::";           // 2005-08-14: see doc/coloncolon.txt
     prec  190 "const" "volatile" "else" "[";
 
     left  120 ".*" "->*";     // 7/07/03: changed from "right".. why was it that way?
@@ -331,7 +332,7 @@ nonterm(PQName*) UnqualifiedId {
 nonterm(PQName*) PQualifiedId {
   fun merge(L,R) { return L->mergeAmbiguous(R); }
 
-  -> id:UnqualifiedId
+  -> id:UnqualifiedId             precedence("::")
        { return id; }
 
   -> n:Identifier "::" id:PQualifiedId
@@ -1256,9 +1257,9 @@ nonterm(PQName*) PQTypeName {
 nonterm(PQName*) PQTypeName_ncc {
   fun merge(L,R) { return L->mergeAmbiguous(R); }
 
-  -> n:Identifier
+  -> n:Identifier                  precedence("::")
        { return new PQ_name(loc, n); }
-  -> id:TemplateId
+  -> id:TemplateId                 precedence("::")
        { return id; }
 
   -> q:Identifier "::" n:PQTypeName_notfirst
@@ -1273,11 +1274,11 @@ nonterm(PQName*) PQTypeName_ncc {
 nonterm(PQName*) PQTypeName_notfirst {
   fun merge(L,R) { return L->mergeAmbiguous(R); }
 
-  -> id:PQTypeName_ncc
+  -> id:PQTypeName_ncc             precedence("::")
        { return id; }
 
-  // template declaration
-  -> "template" id:TemplateId       // in/t0254.cc
+  // template declaration (in/t0254.cc)
+  -> "template" id:TemplateId      precedence("::")
        { id->templArgs = templateUsed(id->templArgs);    // destructive action
          return id; }
 
@@ -1866,8 +1867,10 @@ nonterm(PQName*) ClassHeadNameOpt {
 nonterm(PQName*) ClassHeadName {
   fun merge(L,R) { return L->mergeAmbiguous(R); }
 
-  -> n:Identifier        { return new PQ_name(loc, n); }
-  -> t:TemplateId        { return t; }
+  -> n:Identifier             precedence("::")
+       { return new PQ_name(loc, n); }
+  -> t:TemplateId             precedence("::")
+       { return t; }
 
   -> n:Identifier "::" rest:ClassHeadName
        { return new PQ_qualifier(loc, n, NULL /*targs*/, rest); }

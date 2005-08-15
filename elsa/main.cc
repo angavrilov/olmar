@@ -230,11 +230,13 @@ class ToXmlASTVisitor_Types : public ToXmlASTVisitor {
     return true;
   }
 
+  #ifdef GNU_EXTENSION
   bool visitASTTypeof(ASTTypeof *a) {
     if (!ToXmlASTVisitor::visitASTTypeof(a)) return false;
     PRINT_ANNOT(a->type);
     return true;
   }
+  #endif // GNU_EXTENSION
 
   bool visitPQName(PQName *pqn) {
     if (!ToXmlASTVisitor::visitPQName(pqn)) return false;

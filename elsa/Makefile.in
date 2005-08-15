@@ -184,6 +184,7 @@ astxml_lexer.o: astxml_lexer1_mid.gen.cc astxml_lexer1_type.cc
 # files
 main_astxmlparse.o: $(XML_PARSER_GEN)
 
+TOCLEAN += $(XML_PARSER_GEN)
 $(XML_PARSER_GEN): $(CC_AST_MODS) $(AST)/astgen
 	rm -f $(XML_PARSER_GEN)
 	$(AST)/astgen -tr no_ast.gen,xmlParser $(CC_AST_MODS)
