@@ -1180,11 +1180,11 @@ void *TypeXmlReader::ctorNodeFromTag(int tag) {
   case XTOK_List_CompoundType_virtualBases:
     return new ASTList<BaseClassSubobj>();
   case XTOK_List_TemplateInfo_inheritedParams:
-    return new ObjList<InheritedTemplateParams>();
+    return new ASTList<InheritedTemplateParams>();
   case XTOK_List_TemplateInfo_arguments:
   case XTOK_List_TemplateInfo_argumentsToPrimary:
   case XTOK_List_PseudoInstantiation_args:
-    return new ObjList<STemplateArgument>();
+    return new ASTList<STemplateArgument>();
 
   // SObjList
   case XTOK_List_BaseClassSubobj_parents:

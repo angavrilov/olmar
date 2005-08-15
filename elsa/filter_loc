@@ -9,6 +9,7 @@ while(<STDIN>) {
   s|, at <noloc>:\d+:\d+ \(0x.*\)$||;
   # well, we filter other junk too
   s| \(\d+ overloadings?\)$||;
+  next if /^.*:\d+:\d+: warning:/; # xml de-serialization does not reproduce the warnings
   next if /^\s*parse=.* tcheck=.* integ=.* elab=.*/;
   next if /^\s*typechecking results:/;
   next if /^\s*errors:/;
