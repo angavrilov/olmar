@@ -558,8 +558,7 @@ void doit(int argc, char **argv)
     SectionTimer timer(tcheckTime);
     Env env(strTable, lang, tfac, unit);
     try {
-      unit->tcheck(env);
-      xassert(env.scope()->isGlobalScope());
+      env.tcheckTranslationUnit(unit);
     }
     catch (XUnimp &x) {
       HANDLER();

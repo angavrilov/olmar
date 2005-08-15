@@ -551,16 +551,9 @@ testparse t0275.cc
 testparse t0276.cc
 testparse t0277.cc
 testparse t0278.cc
-testparse t0279.cc
+testparse_special eagerFBodyInst t0279.cc
 testparse t0280.cc
-
-# This test was intended to fail as long as STA_REFERENCE hadn't been
-# adequately solved.  However, a recent change has caused this test to
-# begin working, even though STA_REFERENCE is still bad.  Since at the
-# moment I don't see a quick way to repair the test, I'm just going to
-# let it fall silent for now.
 testparse t0281.cc
-
 testparse t0282.cc
 testparse t0283.cc
 testparse t0284.cc
@@ -853,7 +846,7 @@ testparse t0564.cc
 failparse t0565.cc "unhandled MemberDeclaration ambiguity"
 testparse t0566.cc
 testparse t0567.cc
-failparse t0568.cc "declaration after use"
+testparse t0568.cc
 failparse t0569.cc "arg-dep fails to find friend"
 
 # another set of tests, generally isolated by Daniel

@@ -1,5 +1,6 @@
 // mangle.cc
 // code for mangle.h
+// author: Daniel Wilkerson
 
 #include "mangle.h"     // this module
 #include "template.h"   // Type, TemplateInfo, etc.

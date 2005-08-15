@@ -561,4 +561,25 @@ public:
 void xTypeDeduction(rostring why) NORETURN;
 
 
+// an object of this class is used to record context when a function
+// template instantiation is delayed
+class DelayedFuncInst {
+public:      // data
+  // the instantiation declaration entry
+  Variable *instV;
+
+  // instantiation location stack
+  ArrayStack<SourceLoc> instLocStack;
+  
+  // most proximal location from which the instantiation was
+  // requested; additional context is in the loc stack
+  SourceLoc loc;
+
+public:
+  DelayedFuncInst(Variable *v, ArrayStack<SourceLoc> const &s,
+                  SourceLoc loc);
+  ~DelayedFuncInst();
+};
+
+
 #endif // TEMPLATE_H

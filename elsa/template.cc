@@ -2388,8 +2388,20 @@ void Env::instantiateFunctionBody(Variable *instV)
     return;
   }
 
+  if (delayFunctionInstantiation) {
+    TRACE("template", "delaying instantiating of: " << instV->toQualifiedString());
+    delayedFuncInsts.prepend(
+      new DelayedFuncInst(instV, instantiationLocStack, loc()));
+  }
+  else {
+    instantiateFunctionBodyNow(instV, loc());
+  }
+}
+
+void Env::instantiateFunctionBodyNow(Variable *instV, SourceLoc loc)
+{
   TRACE("template", "instantiating func body: " << instV->toQualifiedString());
-  
+
   // reconstruct a few variables from above
   TemplateInfo *instTI = instV->templateInfo();
   Variable *baseV = instTI->instantiationOf;
@@ -2398,7 +2410,7 @@ void Env::instantiateFunctionBody(Variable *instV)
   xassert(instTI->instantiateBody);
 
   // isolate context
-  InstantiationContextIsolator isolator(*this, loc());
+  InstantiationContextIsolator isolator(*this, loc);
 
   // defnScope: the scope where the function definition appeared.
   Scope *defnScope;
@@ -4823,6 +4835,18 @@ void xTypeDeduction(rostring why)
   XTypeDeduction x(why);
   THROW(x);
 }
+
+
+// ---------------------- DelayedFuncInst -----------------------
+DelayedFuncInst::DelayedFuncInst(Variable *v, ArrayStack<SourceLoc> const &s,
+                                 SourceLoc L)
+  : instV(v),
+    instLocStack(s),
+    loc(L)
+{}
+  
+DelayedFuncInst::~DelayedFuncInst()
+{}
 
 
 // EOF

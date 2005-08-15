@@ -27,6 +27,7 @@ class TypeListIter;       // typelistiter.h
 class SavedScopePair;     // fwd in this file
 class MType;              // mtype.h
 class ImplicitConversion; // implconv.h
+class DelayedFuncInst;    // template.h
 
 
 // type of collection to hold a sequence of scopes
@@ -78,6 +79,9 @@ protected:   // data
   // this is used to distinguish entities introduced automatically
   // at the start from those that appeared in the input file
   bool ctorFinished;
+  
+  // set of function templates whose instantiation has been delayed
+  ObjList<DelayedFuncInst> delayedFuncInsts;
 
 public:      // data
   // nesting level of disambiguation passes; 0 means not disambiguating;
@@ -197,6 +201,10 @@ public:      // data
   // TODO: eliminate this!
   TranslationUnit *tunit;
 
+  // when this is true, all template function instantiations are
+  // delayed until the end of the translation unit
+  bool delayFunctionInstantiation;
+
   // the following flags are used to disable certain parts of the
   // type checker due to maturity issues; they don't change during
   // the execution of the checker
@@ -277,8 +285,13 @@ private:     // funcs
   void mergeDefaultArguments(SourceLoc loc, Variable *prior, FunctionType *type);
 
 public:      // funcs
-  Env(StringTable &str, CCLang &lang, TypeFactory &tfac, TranslationUnit *tunit0);
+  Env(StringTable &str, CCLang &lang, TypeFactory &tfac, 
+      TranslationUnit *tunit0 /*TODO: eliminate this!*/);
   virtual ~Env();      // 'virtual' only to silence stupid warning; destruction is not part of polymorphic contract
+
+  // this function kicks off type checking for a translation unit;
+  // it is not recursive (it should *not* call itself for namespaces)
+  virtual void tcheckTranslationUnit(TranslationUnit *tunit);
 
   int getChangeCount() const { return scopeC()->getChangeCount(); }
 
@@ -862,6 +875,7 @@ public:      // template funcs
     (SourceLoc loc, Variable *primary, MType &match);
   void ensureFuncBodyTChecked(Variable *instV);    // try inst defn
   void instantiateFunctionBody(Variable *instV);   // inst defn
+  void instantiateFunctionBodyNow(Variable *instV, SourceLoc loc);
 
   // given a template function that was just made non-forward,
   // instantiate all of its forward-declared instances

@@ -362,6 +362,11 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // arrays, and then have things added to them below
 
     tunit(tunit0),
+                                                             
+    // (in/t0568.cc) apparently GCC and ICC always delay, so Elsa will
+    // too, even though I think that the only programs for which eager
+    // instantiation fails are invalid C++
+    delayFunctionInstantiation(!tracingSys("eagerFBodyInst")),
 
     doFunctionTemplateBodyInstantiation(!tracingSys("disableFBodyInst")),
 
@@ -947,6 +952,33 @@ Env::~Env()
   }
   
   delete dependentScope;
+}
+
+
+void Env::tcheckTranslationUnit(TranslationUnit *tunit)
+{
+  tunit->tcheck(env);
+  xassert(env.scope()->isGlobalScope());
+
+  if (delayFunctionInstantiation) {
+    TRACE("template", "------- doing delayed instantiations -------");
+
+    // process any delayed instantiations
+    delayedFuncInsts.reverse();
+    while (delayedFuncInsts.isNotEmpty()) {
+      Owner<DelayedFuncInst> dfi(delayedFuncInsts.removeFirst());
+
+      // set the instantiation loc stack to how it was when
+      // the instantiation was delayed
+      instantiationLocStack = dfi->instLocStack;
+
+      // instantiate
+      instantiateFunctionBodyNow(dfi->instV, dfi->loc);
+    }
+
+    instantiationLocStack.empty();
+    xassert(env.scope()->isGlobalScope());
+  }
 }
 
 
