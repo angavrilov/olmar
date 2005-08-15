@@ -8271,7 +8271,8 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
     elRval = arrAndFuncToPtr(env, elRval);
     
     // bullet 1
-    if (thRval->equals(elRval, MF_IGNORE_TOP_CV /*(in/t0499.cc)*/)) {
+    if (thRval->equals(elRval, MF_IGNORE_TOP_CV /*(in/t0499.cc)*/ |
+                               MF_IGNORE_EXN_SPEC  /*(in/t0567.cc)*/)) {
       return thRval;
     }
     

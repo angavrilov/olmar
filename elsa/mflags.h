@@ -41,6 +41,10 @@ enum MatchFlags {
   MF_IGNORE_TOP_CV   = 0x0010,
 
   // when comparing function types, ignore the exception specs
+  //
+  // TODO: I think I should invert the sense of this one, like I
+  // did for PARAM_CV, since the exception spec is *not* part of
+  // the nominal function "type".
   MF_IGNORE_EXN_SPEC = 0x0020,
 
   // allow the cv qualifications to differ up to the first type
@@ -72,11 +76,11 @@ enum MatchFlags {
 
   // enable matching/substitution with template parameters
   MF_MATCH           = 0x0800,
-  
+
   // do not allow new bindings to be created; but existing bindings
   // can continue to be used
   MF_NO_NEW_BINDINGS = 0x1000,
-  
+
   // when combined with MF_MATCH, it means we can bind variables in
   // the pattern only to other variables in the "concrete" type, and
   // that the binding function must be injective (no two pattern
@@ -114,7 +118,8 @@ enum MatchFlags {
     MF_UNASSOC_TPARAMS  |
     MF_MATCH            |
     MF_NO_NEW_BINDINGS  |
-    MF_ISOMORPHIC
+    MF_ISOMORPHIC       |
+    MF_IGNORE_EXN_SPEC
   ),
 
   // these flags are propagated below ptr and ptr-to-member
