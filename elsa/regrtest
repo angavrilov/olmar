@@ -769,7 +769,7 @@ testparse t0485.cc
 testparse t0486.cc
 testparse t0487.cc
 testparse t0487b.cc
-failparse t0488.cc "nasty DQT matching example that no known front-end can handle"
+testparse t0488.cc
 testparse t0489.cc
 testparse t0490.cc
 testparse t0491.cc
@@ -848,6 +848,7 @@ testparse t0566.cc
 testparse t0567.cc
 testparse t0568.cc
 testparse t0569.cc
+testparse t0570.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

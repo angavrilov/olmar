@@ -85,7 +85,8 @@ string IMType::Binding::asString() const
 // ------------------------- IMType -----------------------------
 IMType::IMType()
   : bindings(),
-    env(NULL)
+    env(NULL),
+    failedDueToDQT(false)
 {}
 
 IMType::~IMType()
@@ -519,6 +520,7 @@ bool IMType::imatchTypeWithResolvedType(Type const *conc, Type const *pat,
   }
   else {
     // failure to resolve, hence failure to match
+    failedDueToDQT = true;
     return false;
   }
 }
@@ -1124,6 +1126,10 @@ bool MType::commonMatchType(Type const *conc, Type const *pat, MatchFlags flags)
          << "' flags={" << toString(flags)
          << "}; match=" << (result? "true" : "false")
          ;
+         
+      if (failedDueToDQT) {
+        os << " (failedDueToDQT)";
+      }
 
       if (result) {
         os << bindingsToString();

@@ -73,6 +73,13 @@ protected:   // data
   // all PQName resolution code from MType, since Env can do that.
   Env *env;                    // (nullable serf)
 
+public:      // data                    
+  // This is set to true if a failure to resolve a DQT is the cause of
+  // a match failure.  It starts as false, but once set to true, MType
+  // does not reset it, so it is up to the caller to reset this flag
+  // between queries when appropriate.
+  bool failedDueToDQT;
+
 protected:   // funcs
   // ******************************************************************
   // * NOTE: Do *not* simply make these entry points public.  If you  *
@@ -184,6 +191,9 @@ public:      // funcs
   
   // what constness mode are we in?
   bool getAllowNonConst() const { return allowNonConst; }
+
+  // Publish this member; see its comments above.
+  IMType::failedDueToDQT;
 
   // ---- const match ----
   // these functions can only be called if 'allowNonConst' is false

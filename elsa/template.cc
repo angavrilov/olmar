@@ -12,6 +12,7 @@
 #include "typelistiter.h"  // TypeListIter
 #include "cc_ast_aux.h"    // LoweredASTVisitor
 #include "mtype.h"         // MType
+#include "pair.h"          // pair
 
 
 void copyTemplateArgs(ObjList<STemplateArgument> &dest,
@@ -1234,131 +1235,162 @@ bool Env::inferTemplArgsFromFuncArgs
     paramIter.adv();                     // skip receiver parameter
   }
 
-  int i = 1;            // for error messages
-  for (; !paramIter.isDone(); paramIter.adv()) {
-    Variable *param = paramIter.data();
-    xassert(param);
+  // 2005-08-15: Previously, deduction was done by processing
+  // corresponding arguments and parameters from left to right,
+  // stopping on the first match failure.  However, 14.8.2.1 does not
+  // explicitly give an order, which suggests that implementations are
+  // required to (in effect) try all orders, and in fact 14.8.2.4p14
+  // example 2 requires an order other than left-to-right.
+  //
+  // So, I will do the following:
+  //   - Collect arg/param pairs in a worklist, initially in
+  //     left-to-right order.
+  //   - Draw pairs from the worklist and attempt to match.  If this
+  //     fails due to DQT problems, put the pair back in the list and
+  //     keep going.
+  //   - Keep trying until all worklist elements have been tried
+  //     without any intervening match successes.
+  //
+  // Tests: in/t0488.cc, in/t0570.cc.
 
+  // first, seed the worklist with arg/param pairs
+  typedef pair<Type* /*type*/, Variable* /*param*/> TypeParamPair;
+  ArrayStack<TypeParamPair> worklist(funcType->params.count());
+  for (; !paramIter.isDone() && !argListIter.isDone();
+       paramIter.adv(), argListIter.adv()) {
     // 2005-08-09: If the parameter does not have any template
     // parameters, after substitution of explicitly-provided
     // arguments, then strict matching is not required so we skip it
     // during template argument deduction.  [cppstd 14.8.1p4]
     // (in/t0324.cc, in/t0534.cc)
+    Variable *param = paramIter.data();
     if (!param->type->containsVariables(&origMatch)) {
       // skip it; no deduction can occur, and any convertibility errors
       // will be detected later
-    }
-    else {
-      // we could run out of args and it would be ok as long as we
-      // have default arguments for the rest of the parameters
-      if (!argListIter.isDone()) {
-        Type *argType = argListIter.data();
-        Type *paramType = param->type;
-
-        // deduction does not take into account whether the argument
-        // is an lvalue, which in my system would mean it has
-        // reference type, so strip that
-        argType = argType->asRval();
-
-        // prior to calling into matchtype, normalize the parameter
-        // and argument types according to 14.8.2.1p2
-        if (!paramType->isReference()) {
-          if (argType->isArrayType()) {
-            // synthesize a pointer type to be used instead
-            ArrayType *at = argType->asArrayType();
-            argType = tfac.makePointerType(CV_NONE, at->eltType);
-          }
-          else if (argType->isFunctionType()) {
-            // use pointer type instead
-            argType = tfac.makePointerType(CV_NONE, argType);
-          }
-          else {
-            // final bullet says to ignore cv qualifications, but I think
-            // match_Type is already doing that (probably too liberally,
-            // but fixing match_Type is not on the agenda right now)
-          }
-        }
-
-        // final sentence of 14.8.2.1p2
-        paramType = paramType->asRval();
-
-        // "find template argument values that will make the deduced
-        // [parameter type] identical to ['argType']"
-        bool argUnifies = match.matchTypeNC(argType, paramType, mflags);
-
-        if (!argUnifies) {
-          // cppstd 14.8.2.1 para 3 bullet 3: if 'paramType' is a
-          // template-id, then 'argType' can be derived from
-          // 'paramType'; assume that 'containsVariables' is
-          // sufficient evidence that 'paramType' is a template-id
-          
-          // push past one level of pointerness too (part of bullet 3)
-          if (argType->isPointer() && paramType->isPointer()) {
-            argType = argType->getAtType();
-            paramType = paramType->getAtType();
-          }
-
-          if (argType->isCompoundType()) {
-            // get all the base classes
-            CompoundType *ct = argType->asCompoundType();
-            SObjList<BaseClassSubobj const> bases;
-            getSubobjects(bases, ct);
-            SFOREACH_OBJLIST(BaseClassSubobj const, bases, iter) {
-              BaseClassSubobj const *sub = iter.data();
-              if (sub->ct == ct) { continue; }      // already tried 'ct'
-
-              // attempt to match 'sub->ct' with 'paramType'
-              //
-              // TODO: There are two bugs here, due to allowing the
-              // effect of one match attempt to contaminate the next.
-              // First, if there are two base classes and the first
-              // does not match but the second does, when the first
-              // fails to match it may change the bindings in 'match'
-              // in such a way as to cause the second match to
-              // spuriously fail.  Second, cppstd says that we must
-              // report an error if more than one base class matches,
-              // but we will not be able to, since one successful
-              // match will (in all likelihood) modify the bindings so
-              // as to prevent the second match.  The solution is to
-              // save the current bindings before attempting a match,
-              // but MType does not currently support the needed
-              // push and pop of bindings.  Therefore I will just note
-              // the bugs and ignore them for now.
-              Type *t = env.makeType(sub->ct);    // leaked
-              if (match.matchTypeNC(t, paramType, mflags)) {
-                argUnifies = true;
-                break;
-              }
-            }
-          }
-
-          // did we find a match in the second attempt?
-          if (!argUnifies) {
-            if (iflags & IA_REPORT_ERRORS) {
-              error(stringc << "during function template argument deduction: "
-                    << "argument " << i << " `" << argType->toString() << "'"
-                    << " is incompatible with parameter, `"
-                    << paramType->toString() << "'");
-            }
-            return false;             // FIX: return a variable of type error?
-          }
-        }
-      }
-      else {
-        // sm: 9/26/04: there used to be code here that reported an error
-        // unless the parameter had a default argument, but that checking
-        // is better done elsewhere (for uniformity)
-      }
+      continue;
     }
 
-    ++i;
-    // advance the argIterCur if there is one
-    if (!argListIter.isDone()) argListIter.adv();
+    worklist.push(make_pair(argListIter.data(), param));
   }
-  
-  // sm: 9/26/04: similarly, there used to be code that complained if there
-  // were too many args; that is also checked elsewhere (t0026.cc ensures
-  // that both conditions are diagnosed)
+
+  // worklist for next iteration
+  ArrayStack<TypeParamPair> nextWorklist(worklist.size());
+
+  // process it until fixpoint
+  while (worklist.length() != nextWorklist.length()) {
+    nextWorklist.empty();
+
+    for (int i=0; i < worklist.length(); i++) {
+      Variable *param = worklist[i].second;
+
+      Type *argType = worklist[i].first;
+      Type *paramType = param->type;
+
+      // deduction does not take into account whether the argument
+      // is an lvalue, which in my system would mean it has
+      // reference type, so strip that
+      argType = argType->asRval();
+
+      // prior to calling into matchtype, normalize the parameter
+      // and argument types according to 14.8.2.1p2
+      if (!paramType->isReference()) {
+        if (argType->isArrayType()) {
+          // synthesize a pointer type to be used instead
+          ArrayType *at = argType->asArrayType();
+          argType = tfac.makePointerType(CV_NONE, at->eltType);
+        }
+        else if (argType->isFunctionType()) {
+          // use pointer type instead
+          argType = tfac.makePointerType(CV_NONE, argType);
+        }
+        else {
+          // final bullet says to ignore cv qualifications, but I think
+          // match_Type is already doing that (probably too liberally,
+          // but fixing match_Type is not on the agenda right now)
+        }
+      }
+
+      // final sentence of 14.8.2.1p2
+      paramType = paramType->asRval();
+
+      // "find template argument values that will make the deduced
+      // [parameter type] identical to ['argType']"
+      match.failedDueToDQT = false;
+      bool argUnifies = match.matchTypeNC(argType, paramType, mflags);
+
+      if (!argUnifies && match.failedDueToDQT) {
+        // this is the case where we put it back in the worklist
+        // to try again later
+        nextWorklist.push(worklist[i]);
+        continue;
+      }
+
+      if (!argUnifies) {
+        // cppstd 14.8.2.1 para 3 bullet 3: if 'paramType' is a
+        // template-id, then 'argType' can be derived from
+        // 'paramType'; assume that 'containsVariables' is
+        // sufficient evidence that 'paramType' is a template-id
+
+        // push past one level of pointerness too (part of bullet 3)
+        if (argType->isPointer() && paramType->isPointer()) {
+          argType = argType->getAtType();
+          paramType = paramType->getAtType();
+        }
+
+        if (argType->isCompoundType()) {
+          // get all the base classes
+          CompoundType *ct = argType->asCompoundType();
+          SObjList<BaseClassSubobj const> bases;
+          getSubobjects(bases, ct);
+          SFOREACH_OBJLIST(BaseClassSubobj const, bases, iter) {
+            BaseClassSubobj const *sub = iter.data();
+            if (sub->ct == ct) { continue; }      // already tried 'ct'
+
+            // attempt to match 'sub->ct' with 'paramType'
+            //
+            // TODO: There are two bugs here, due to allowing the
+            // effect of one match attempt to contaminate the next.
+            // First, if there are two base classes and the first
+            // does not match but the second does, when the first
+            // fails to match it may change the bindings in 'match'
+            // in such a way as to cause the second match to
+            // spuriously fail.  Second, cppstd says that we must
+            // report an error if more than one base class matches,
+            // but we will not be able to, since one successful
+            // match will (in all likelihood) modify the bindings so
+            // as to prevent the second match.  The solution is to
+            // save the current bindings before attempting a match,
+            // but MType does not currently support the needed
+            // push and pop of bindings.  Therefore I will just note
+            // the bugs and ignore them for now.
+            Type *t = env.makeType(sub->ct);    // leaked
+            if (match.matchTypeNC(t, paramType, mflags)) {
+              argUnifies = true;
+              break;
+            }
+          }
+        }
+
+        // did we find a match in the second attempt?
+        if (!argUnifies) {
+          if (iflags & IA_REPORT_ERRORS) {
+            // TODO: Somehow propagate this up to the user even during
+            // overload resolution (where IA_REPORT_ERRORS is not set)
+            // if resolution ultimately fails.
+            error(stringc << "during function template argument deduction: "
+                  << "argument `" << argType->toString() << "'"
+                  << " is incompatible with parameter `"
+                  << paramType->toString() << "'");
+          }
+          return false;
+        }
+      }
+    } // for(worklist)
+
+    // swap worklists
+    worklist.swapWith(nextWorklist);
+
+  } // while(changed)
 
   return true;
 }
