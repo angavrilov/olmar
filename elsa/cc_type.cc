@@ -473,8 +473,11 @@ string CompoundType::toCString() const
 {
   if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
   stringBuilder sb;
+                                                          
+  // typedefVar might be NULL if this object is in the middle
+  // of being built, but I want it to be printable at all times
+  TemplateInfo *tinfo = typedefVar? templateInfo() : NULL;
 
-  TemplateInfo *tinfo = templateInfo();
   bool hasParams = tinfo && tinfo->params.isNotEmpty();
   if (hasParams) {
     sb << tinfo->paramsToCString() << " ";
@@ -489,7 +492,13 @@ string CompoundType::toCString() const
   }
 
   //sb << (instName? instName : "/*anonymous*/");
-  sb << typedefVar->fullyQualifiedName();
+  if (typedefVar) {
+    sb << typedefVar->fullyQualifiedName();
+  }
+  else {                                 
+    // only reachable during object construction
+    sb << (name? name : "/*anon*/");
+  }
 
   // template arguments are now in the name
   // 4/22/04: they were removed from the name a long time ago;
@@ -2896,6 +2905,15 @@ PointerToMemberType *BasicTypeFactory::makePointerToMemberType
 Variable *BasicTypeFactory::makeVariable(
   SourceLoc L, StringRef n, Type *t, DeclFlags f, TranslationUnit *)
 {
+  // I will turn this on from time to time as a way to check that
+  // Types are always capable of printing themselves.  It should never
+  // be checked in when in the "on" state.
+  #if 0
+    if (t) {
+      t->toString();
+    }
+  #endif // 0
+
   // the TranslationUnit parameter is ignored by default; it is passed
   // only for the possible benefit of an extension analysis
   Variable *var = new Variable(L, n, t, f);
