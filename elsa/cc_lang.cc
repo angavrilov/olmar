@@ -32,6 +32,7 @@ void CCLang::setAllWarnings(bool enable)
   setWarning(allowCVAppliedToFunctionTypes, enable);
   setWarning(allowDefinitionsInWrongScopes, enable);
   setWarning(allowDuplicateParameterNames, enable);
+  setWarning(allowExplicitSpecWithoutParams, enable);
 }
 
 
@@ -85,6 +86,7 @@ void CCLang::ANSI_C89()
   allowCVAppliedToFunctionTypes = B3_FALSE;
   allowDefinitionsInWrongScopes = B3_FALSE;
   allowDuplicateParameterNames = B3_FALSE;
+  allowExplicitSpecWithoutParams = B3_FALSE;
 }
 
 void CCLang::KandR_C()
@@ -217,6 +219,7 @@ void CCLang::ANSI_Cplusplus()
   allowCVAppliedToFunctionTypes = B3_FALSE;
   allowDefinitionsInWrongScopes = B3_FALSE;
   allowDuplicateParameterNames = B3_FALSE;
+  allowExplicitSpecWithoutParams = B3_FALSE;
 }
 
 void CCLang::GNU_Cplusplus()
@@ -243,6 +246,7 @@ void CCLang::GNU_Cplusplus()
   allowGcc2HeaderSyntax = B3_TRUE;
   allowDefinitionsInWrongScopes = B3_TRUE;
   allowDuplicateParameterNames = B3_TRUE;
+  allowExplicitSpecWithoutParams = B3_TRUE;
 }
 
 

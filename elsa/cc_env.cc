@@ -3731,7 +3731,8 @@ Variable *getParameterizedPrimary(Scope *s)
 // We are in a declarator, processing a qualifier that has template
 // arguments supplied.  The question is, which template arg/param
 // scope is the one that goes with this qualifier?
-Scope *Env::findParameterizingScope(Variable *bareQualifierVar)
+Scope *Env::findParameterizingScope(Variable *bareQualifierVar,
+                                    bool argsHaveVariables)
 {
   // keep track of the last unassociated template scope seen
   Scope *lastUnassoc = NULL;
@@ -3766,8 +3767,14 @@ Scope *Env::findParameterizingScope(Variable *bareQualifierVar)
   // conditions regarding template params..)
 
   if (!lastUnassoc) {
-    error(stringc << "no template parameter list supplied for `"
-                  << bareQualifierVar->name << "'");
+    if (argsHaveVariables) {
+      error(stringc << "no template parameter list supplied for `"
+                    << bareQualifierVar->name << "'");
+    }
+    else {
+      diagnose3(lang.allowExplicitSpecWithoutParams, loc(), stringc
+        << "explicit specialization missing \"template <>\" (gcc bug allows it)");
+    }
   }
 
   return lastUnassoc;

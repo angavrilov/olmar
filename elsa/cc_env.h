@@ -916,7 +916,8 @@ public:      // template funcs
   void explicitlyInstantiate(Variable *inst, DeclFlags instFlags);
 
   // find template scope corresp. to this var
-  Scope *findParameterizingScope(Variable *bareQualifierVar);
+  Scope *findParameterizingScope(Variable *bareQualifierVar,
+                                 bool argsHaveVariables);
        
   // remove/restore scopes below 'bound'
   void removeScopesInside(ObjList<Scope> &dest, Scope *bound);

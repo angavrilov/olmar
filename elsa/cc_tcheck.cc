@@ -1194,12 +1194,13 @@ void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
       //   - they correspond to an explicit specialization
       //   - then "template <>" is *not* used (for that class)
       // t0248.cc tests a couple cases...
-      if (!containsVariables(sargs) &&
+      bool hasVars = containsVariables(sargs);
+      if (!hasVars &&
           bareQualifierVar->templateInfo()->getSpecialization(sargs)) {
         // do not associate 'bareQualifier' with any template scope
       }
       else {
-        hasParamsForMe = env.findParameterizingScope(bareQualifierVar);
+        hasParamsForMe = env.findParameterizingScope(bareQualifierVar, hasVars);
       }
     }
 
@@ -1237,8 +1238,11 @@ void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
       SFOREACH_OBJLIST_NC(CompoundType, specs, iter) {
         TemplateInfo *ti = iter.data()->templateInfo();
         if (ti && ti->isInstantiation()) {    // aka implicit specialization
-          Scope *paramScope = env.findParameterizingScope(ti->var);
-          if (ct > 1) {
+          Scope *paramScope = env.findParameterizingScope(ti->var, false /*hasVars*/);
+          if (!paramScope) {
+            // error already reported
+          }
+          else if (ct > 1) {
             paramScope->setParameterizedEntity(ti->var);
 
             TRACE("templateParams",

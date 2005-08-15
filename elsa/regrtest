@@ -833,7 +833,7 @@ testparse t0551.cc
 testparse t0552.cc
 testparse t0553.cc
 failparse t0554.cc "instantiation of static data template members not implemented"
-testparse t0555.cc
+testparse_special ansi t0555.cc
 failparse t0556.cc "problem parsing elaborated type of static data member template"
 testparse t0557.cc
 testparse t0558.cc
@@ -1166,6 +1166,7 @@ if $use_gnu; then
   testparse gnu/bugs/gb0009.cc
   # gnu/bugs/gb0010.cc not supported
   testparse gnu/bugs/gb0011.cc
+  testparse gnu/bugs/gb0012.cc
 
   # test c99 extensions
   for fn in in/c99/*.c; do

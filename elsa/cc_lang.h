@@ -207,6 +207,10 @@ public:
   // gcc bug compat: in C++ mode, gcc allows prototype parameters to
   // have the same name (in/gnu/bugs/gb0011.cc)
   Bool3 allowDuplicateParameterNames;
+  
+  // gcc bug compat: gcc does not require "template <>" is some
+  // cases for explicit specializations (in/gnu/bugs/gb0012.cc)
+  Bool3 allowExplicitSpecWithoutParams;
                      
 private:     // funcs
   void setAllWarnings(bool enable);
