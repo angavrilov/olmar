@@ -350,7 +350,10 @@ Variable *Scope::lookupVariable_inner
 
   // [cppstd sec. 10.2]: class members hide all members from
   // base classes
-  v1 = candidates.filter(variables.get(name), flags);
+  //
+  // 2005-08-14: calling 'lookupSingleVariable' to fix in/t0527.cc;
+  // this now filters twice, but it should be ok anyway
+  v1 = candidates.filter(lookupSingleVariable(name, flags), flags);
 
   if (!(flags & LF_IGNORE_USING)) {
     if (!(flags & LF_QUALIFIED)) {
@@ -584,6 +587,19 @@ Variable *Scope::lookupSingleVariable(StringRef name, LookupFlags flags)
     // (in/c/t0019.c)
     Variable *v = vfilter(typeTags.get(name), flags);
     if (v) {
+      return v;
+    }
+  }
+
+  if (flags & LF_TYPES_NAMESPACES) {
+    // (in/t0527.cc) try 'variables' (so we see namespaces and
+    // typedefs), but if that yields something but it is not a type or
+    // namespace, then look in the type tags too
+    Variable *v = variables.get(name);
+    if (v && !vfilter(v, flags)) {
+      return vfilter(typeTags.get(name), flags);
+    }
+    else {
       return v;
     }
   }
