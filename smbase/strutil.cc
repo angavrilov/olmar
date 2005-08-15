@@ -273,7 +273,8 @@ void decodeEscapes(ArrayStack<char> &dest, rostring origSrc,
       if (hex) {
         src++;
 
-        // strtoul is willing to skip leading whitespace
+        // strtoul is willing to skip leading whitespace, so I need
+        // to catch it myself
         if (isspace(*src)) {
           xformat("whitespace following hex (\\x) escape");
         }

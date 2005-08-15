@@ -66,14 +66,25 @@ private:     // funcs
     { xassert((unsigned)i < (unsigned)sz); }
   void eidLoop(int index);
 
+  // make 'this' equal to 'obj'
+  void copyFrom(GrowArray<T> const &obj) {
+    setSize(obj.size());     // not terribly efficient, oh well
+    copyFrom_limit(obj, sz);
+  }
+
+protected:   // funcs
+  void copyFrom_limit(GrowArray<T> const &obj, int limit);
+
 private:     // disallowed
-  GrowArray(GrowArray&);
   void operator=(GrowArray&);
   void operator==(GrowArray&);
 
 public:      // funcs
   GrowArray(int initSz);
+  GrowArray(GrowArray const &obj) : arr(0), sz(0) { copyFrom(obj); }
   ~GrowArray();
+
+  GrowArray& operator=(GrowArray const &obj) { copyFrom(obj); return *this; }
 
   // allocated space
   int size() const { return sz; }
@@ -114,7 +125,7 @@ public:      // funcs
     int tmp2 = obj.sz; obj.sz = this->sz; this->sz = tmp2;
   }
 
-  // convenience
+  // set all elements to a single value
   void setAll(T val) {
     for (int i=0; i<sz; i++) {
       arr[i] = val;
@@ -141,6 +152,15 @@ GrowArray<T>::~GrowArray()
 {
   if (arr) {
     delete[] arr;
+  }
+}
+
+
+template <class T>
+void GrowArray<T>::copyFrom_limit(GrowArray<T> const &obj, int limit)
+{
+  for (int i=0; i<limit; i++) {
+    arr[i] = obj.arr[i];
   }
 }
 
@@ -215,7 +235,21 @@ public:
     : GrowArray<T>(initArraySize),
       len(0)
     {}
+  ArrayStack(ArrayStack<T> const &obj)
+    : GrowArray<T>(obj),
+      len(obj.len)
+    {}
   ~ArrayStack();
+  
+  // copies contents of 'obj', but the allocated size of 'this' will
+  // only change when necessary
+  ArrayStack& operator=(ArrayStack<T> const &obj)
+  {
+    this->ensureIndexDoubler(obj.length() - 1);
+    this->copyFrom_limit(obj, obj.length());
+    len = obj.len;
+    return *this;
+  }
 
   // element access; these declarations are necessary because
   // the uses of 'operator[]' below are not "dependent", hence
