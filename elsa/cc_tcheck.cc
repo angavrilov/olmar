@@ -5324,7 +5324,7 @@ Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
     // 2005-02-20: 'add' instead of 'adds', because when we remember a
     // non-dependent lookup, we do *not* want to re-do overload
     // resolution
-    candidates.addIf(v, flags);
+    candidates.add(v);
   }
   else {
     // do lookup normally
@@ -5946,8 +5946,7 @@ void E_funCall::inner1_itcheck(Env &env, LookupSet &candidates)
   LookupFlags specialFlags =
     LF_TEMPL_PRIMARY |       // we will do template instantiation later
     LF_FUNCTION_NAME |       // we might allow an implicit declaration
-    LF_NO_IMPL_THIS |        // don't add 'this->' (must do overload resol'n first)
-    LF_LOOKUP_SET;           // both lookups use new system
+    LF_NO_IMPL_THIS ;        // don't add 'this->' (must do overload resol'n first)
 
   if (func->isE_variable() &&
       !func->asE_variable()->name->hasQualifiers()) {

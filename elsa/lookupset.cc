@@ -25,7 +25,7 @@ char const * const lookupFlagNames[NUM_LOOKUPFLAGS] = {
   "LF_SUPPRESS_NONEXIST",
   "LF_IGNORE_USING",
   "LF_NO_IMPL_THIS",
-  "LF_LOOKUP_SET",
+  "LF_unused_value3",
   "LF_QUERY_TAGS",
   "LF_unused_value",
   "LF_EXPECTING_TYPE",
@@ -121,7 +121,7 @@ Variable *LookupSet::filter(Variable *v, LookupFlags flags)
 {
   v = vfilter(v, flags);
   if (v) {
-    addsIf(v, flags);
+    adds(v);
   }
   return v;
 }
@@ -150,21 +150,6 @@ void LookupSet::add(Variable *v)
 
   // not already present, add it
   prepend(v);
-}
-
-
-void LookupSet::addIf(Variable *v, LookupFlags flags)
-{
-  if (flags & LF_LOOKUP_SET) {
-    add(v);
-  }
-}
-
-void LookupSet::addsIf(Variable *v, LookupFlags flags)
-{
-  if (flags & LF_LOOKUP_SET) {
-    adds(v);
-  }
 }
 
 

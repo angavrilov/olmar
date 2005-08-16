@@ -31,7 +31,7 @@ enum LookupFlags {
   LF_SUPPRESS_NONEXIST = 0x00004000,   // suppress "does not exist" errors
   LF_IGNORE_USING      = 0x00008000,   // 3.4.2p3: ignore using-directives
   LF_NO_IMPL_THIS      = 0x00010000,   // do not insert implicit 'this->'
-  LF_LOOKUP_SET        = 0x00020000,   // lookup can return a set of names
+  LF_unused_value3     = 0x00020000,   // (available)
   LF_QUERY_TAGS        = 0x00040000,   // look in Scope::typeTags instead of Scope::variables
   LF_unused_value      = 0x00080000,   // (available for a new use)
   LF_EXPECTING_TYPE    = 0x00100000,   // do not apply template args to a non-type
@@ -75,7 +75,6 @@ public:
   void copy(LookupSet const &obj);
 
   // like vfilter, but also accumulate the Variable in the set
-  // if LF_LOOKUP_SET is in 'flags'
   Variable *filter(Variable *v, LookupFlags flags);
 
   // add 'v' to a candidate set, such that the set has exactly one
@@ -87,11 +86,6 @@ public:
   // is an overload set
   void add(Variable *v);
   
-  // like above but only do it if 'v' is not NULL, 
-  // and if LF_LOOKUP_SET is in 'flags'
-  void addIf(Variable *v, LookupFlags flags);
-  void addsIf(Variable *v, LookupFlags flags);
-                         
   // throw away all the entries except for one; this is used for
   // error recovery
   void removeAllButOne();

@@ -4513,10 +4513,6 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
   // keep track of the scope we found just before 'scope'
   Scope *prevScope = NULL;
 
-  // this is so legacy calls will honor 'set' (I plan to eventually
-  // get rid of LF_LOOKUP_SET entirely)
-  flags |= LF_LOOKUP_SET;
-
   // lookup along the chain of qualifiers
   while (name->isPQ_qualifier()) {
     PQ_qualifier *qual = name->asPQ_qualifier();

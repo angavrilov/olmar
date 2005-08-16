@@ -403,7 +403,7 @@ Variable *Scope::lookupVariable_inner
                               v1, v1Subobj, curCompound->subobj);
 
   if (v1) {
-    candidates.addsIf(v1, flags);
+    candidates.adds(v1);
   }
 
   return v1;
@@ -504,7 +504,7 @@ Variable *Scope::lookupVariable_set
     SFOREACH_OBJLIST_NC(Variable, curCompound->friends, iter) {
       Variable *v = iter.data();
       if (v->name == name) {
-        candidates.filter(v, flags | LF_LOOKUP_SET);
+        candidates.filter(v, flags);
       }
     }
     return candidates.isEmpty() ? NULL : candidates.first();
@@ -636,10 +636,6 @@ void Scope::lookup(LookupSet &set, StringRef name, Env &env, LookupFlags flags)
 
 void Scope::lookup(LookupSet &set, StringRef name, Env *env, LookupFlags flags)
 {
-  // this is so legacy calls will honor 'set' (I plan to eventually
-  // get rid of LF_LOOKUP_SET entirely)
-  flags |= LF_LOOKUP_SET;
-
   // check in our local map
   Variable *v = lookupSingleVariable(name, flags);
 
@@ -1024,8 +1020,7 @@ bool Scope::foundViaUsingEdge(LookupSet &candidates, Env &env, LookupFlags flags
 {
   if (vfound) {
     if (!sameEntity(vfound, v)) {
-      if ((flags & LF_LOOKUP_SET) &&    // prepared to handle lookup sets
-          v->type->isFunctionType() &&
+      if (v->type->isFunctionType() &&
           vfound->type->isFunctionType()) {
         // ok; essentially they form an overload set
       }
@@ -1047,7 +1042,7 @@ bool Scope::foundViaUsingEdge(LookupSet &candidates, Env &env, LookupFlags flags
     vfound = v;
   }
 
-  candidates.addsIf(v, flags);
+  candidates.adds(v);
 
   return false;
 }

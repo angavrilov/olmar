@@ -538,7 +538,7 @@ void OverloadResolver::addUserOperatorCandidates
     // ordinary lookup
     { 
       Scope *dummy;
-      env.lookupVariable_set(candidates, opName, flags | LF_LOOKUP_SET, dummy);
+      env.lookupVariable_set(candidates, opName, flags, dummy);
     }
     
     // filter candidates if no class-typed args
