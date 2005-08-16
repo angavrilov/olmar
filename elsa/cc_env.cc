@@ -5372,15 +5372,13 @@ Type *Env::error(Type *t, SourceLoc loc, rostring msg)
     return t;
   }
 
-  if (t->containsErrors() ||
-      (!doReportTemplateErrors && t->containsTypeVariables())) {
+  if (t->containsErrors()) {
     // no report
     return getSimpleType(ST_ERROR);
   }
-  else {
-    // report; clashes never disambiguate
-    return error(loc, msg, EF_NONE);
-  }
+  
+  // report
+  return error(loc, msg, EF_NONE);
 }
 
 Type *Env::error(Type *t, rostring msg)
@@ -5391,12 +5389,16 @@ Type *Env::error(Type *t, rostring msg)
 
 ErrorFlags Env::maybeEF_STRONG() const
 {
+  return EF_STRONG;
+
+  #if 0   // still needed?
   if (disambiguateOnly && !doReportTemplateErrors) {
     return EF_STRONG | EF_WARNING;
   }
   else {
     return EF_STRONG;
   }
+  #endif // 0
 }
 
 
@@ -5447,27 +5449,59 @@ void Env::weakError(SourceLoc L, rostring msg)
 }
 
 
+string errorFlagBlock(ErrorFlags eflags)
+{
+  if (eflags == EF_NONE) {
+    return "";
+  }
+  else {
+    stringBuilder sb;
+    sb << "[";
+    if (eflags & EF_WARNING) {
+      sb << "w";
+    }
+    if (eflags & EF_STRONG) {
+      sb << "s";
+    }
+    if (eflags & EF_DISAMBIGUATES) {
+      sb << "d";
+    }
+    if (eflags & EF_FROM_DISAMB) {
+      sb << "f";
+    }
+    if (eflags & EF_FROM_TEMPLATE) {
+      sb << "t";
+    }
+    if (eflags & EF_STRICT_ERROR) {
+      sb << "p";     // suppressed b/c of 'p'assive mode
+    }
+    sb << "] ";
+    return sb;
+  }
+}
+
 // I want this function to always be last in this file, so I can easily
 // find it to put a breakpoint in it.
 Type *Env::error(SourceLoc L, rostring msg, ErrorFlags eflags)
 {
-  bool report =
-    (eflags & EF_DISAMBIGUATES) ||
-    (eflags & EF_STRONG) ||
-    (!disambiguateOnly);
+  if (disambiguateOnly) {
+    eflags |= EF_FROM_TEMPLATE;
 
-  if (env.doReportTemplateErrors) {
-    report = true;    // override the above
+    if (!(eflags & EF_WARNING) &&
+        !(eflags & EF_DISAMBIGUATES) &&
+        !(eflags & EF_STRONG) &&
+        !env.doReportTemplateErrors) {
+      // reduce severity to warning, but strong so it doesn't get
+      // tossed once we come out of template checking, and also
+      // mark with EF_STRICT_ERROR so I can tell this happened
+      eflags |= EF_WARNING | EF_STRONG | EF_STRICT_ERROR;
+    }
   }
 
-  TRACE("error", ((eflags & EF_DISAMBIGUATES)? "[d] " :
-                  (eflags & EF_WARNING)? "[w] " : "")
-              << (report? "" : "(suppressed) ")
+  TRACE("error", errorFlagBlock(eflags)
               << toString(L) << ": " << msg << instLocStackString());
 
-  if (report) {
-    addError(new ErrorMsg(L, msg, eflags));
-  }
+  addError(new ErrorMsg(L, msg, eflags));
 
   return errorType();
 }

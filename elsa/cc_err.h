@@ -47,8 +47,18 @@ enum ErrorFlags {
   // presence of this error message in the error list *cannot* be
   // used to justify reducing the severity of the x_assert.
   EF_FROM_DISAMB   = 0x08,
+  
+  // This flag means the error arose during type checking of an
+  // uninstantiated template body.  In permissive mode, such messages
+  // are turned into warnings.
+  EF_FROM_TEMPLATE = 0x10,
+  
+  // When an error is turned into a warning due to permissive mode,
+  // this flag is set; i.e., it would have been an error in strict
+  // mode.
+  EF_STRICT_ERROR  = 0x20,
 
-  EF_ALL           = 0x0F
+  EF_ALL           = 0x3F
 };
 ENUM_BITWISE_OPS(ErrorFlags, EF_ALL)
 

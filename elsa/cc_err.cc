@@ -14,11 +14,23 @@ ErrorMsg::~ErrorMsg()
 string ErrorMsg::toString() const
 {
   stringBuilder sb;
-  sb << ::toString(loc)
-     << (((flags & EF_STRONG) && (flags & EF_WARNING))? ": warning(error): " :
-         (flags & EF_WARNING)? ": warning: " :
-         ": error: ")
-     << msg;
+  sb << ::toString(loc) << ": ";
+  if (flags & EF_WARNING) {
+    sb << "warning";
+  }
+  else {
+    sb << "error";
+  }
+  sb << ": " << msg;
+
+  if (flags & EF_FROM_TEMPLATE)  {
+    if (!(flags & EF_WARNING)) {
+      sb << " (from template; would be suppressed in permissive mode)";
+    }
+    else if (flags & EF_STRICT_ERROR) {
+      sb << " (from template; would have been an error in strict mode)";
+    }
+  }
 
   if (instLoc[0] && strchr(sb.c_str(), '\n')) {
     // for a multi-line message, put instLoc on its own line

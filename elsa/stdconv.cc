@@ -638,7 +638,13 @@ StandardConversion getStandardConversion
   }
 
   // ---------------- group 2 --------------
-  
+
+  if (src->isGeneralizedDependent() ||
+      dest->isGeneralizedDependent()) {
+    // conversion could be as good as identity (in/t0572.cc)
+    return conv.ret;
+  }
+
   // if I check equality here, will it mess anything up?
   // no, looks ok; I'm going to try folding polymorphic
   // checking into equality itself...
