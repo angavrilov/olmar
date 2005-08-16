@@ -111,7 +111,7 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "<forward>",
   "<temporary>",    // 24
 
-  "<predicate>",
+  "<unused>",
   "namespace",
   "<extern \"C\">",
   "<selfname>",

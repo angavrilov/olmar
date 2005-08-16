@@ -68,23 +68,19 @@ inline bool operator>= (CVFlags cv1, CVFlags cv2)
 
 
 // ----------------------- DeclFlags ----------------------
-// set of declaration modifiers present;
-// these modifiers apply to variable names;
-// they're now also being used for Variable (variable.h) flags;
-// values in common with UberModifiers (DF_AUTO through DF_TYPEDEF)
-// must line up
+// These flags tell what keywords were attached to a variable when it
+// was declared.  They also reflect classifications of various kinds;
+// in particular, they distinguish the various roles that Variables
+// can play (variable, type, enumerator, etc.).  This can be used as
+// a convenient way to toss a new boolean into Variable, though it's
+// close to using all 32 bits, so it might need to be split.
 //
-// TODO: These should be split up into two sets: flags that
-// exactly reflect the original syntax, and those that reflect
-// a semantic interpretation.  At the moment, the boundary is
-// a little blurry in a few cases.
-//
-// NOTE: Changes to this enumeration must be accompanied by 
+// NOTE: Changes to this enumeration must be accompanied by
 // updates to 'declFlagNames' in cc_flags.cc.
 enum DeclFlags {
   DF_NONE        = 0x00000000,
 
-  // syntactic declaration modifiers
+  // syntactic declaration modifiers (UberModifiers)
   DF_AUTO        = 0x00000001,
   DF_REGISTER    = 0x00000002,
   DF_STATIC      = 0x00000004,
@@ -95,6 +91,7 @@ enum DeclFlags {
   DF_EXPLICIT    = 0x00000080,
   DF_FRIEND      = 0x00000100,
   DF_TYPEDEF     = 0x00000200,
+
   DF_NAMESPACE   = 0x04000000,    // names of namespaces
   DF_SOURCEFLAGS = 0x040003FF,    // all flags that come from keywords in the source
 
@@ -103,10 +100,7 @@ enum DeclFlags {
   DF_GLOBAL      = 0x00000800,    // set for globals, unset for locals
   DF_INITIALIZED = 0x00001000,    // true if has been declared with an initializer (or, for functions, with code)
   DF_BUILTIN     = 0x00002000,    // true for e.g. __builtin_constant_p -- don't emit later
-  DF_ADDRTAKEN   = 0x00008000,    // true if it's address has been (or can be) taken
   DF_PARAMETER   = 0x00010000,    // true if this is a function parameter or a handler "parameter"
-  DF_UNIVERSAL   = 0x00020000,    // universally-quantified variable
-  DF_EXISTENTIAL = 0x00040000,    // existentially-quantified
   DF_MEMBER      = 0x00080000,    // true for members of classes (data, static data, functions); *not* true for namespace members
   DF_DEFINITION  = 0x00100000,    // set once we've seen this Variable's definition
   DF_INLINE_DEFN = 0x00200000,    // set for inline function definitions on second pass of tcheck
@@ -121,8 +115,17 @@ enum DeclFlags {
   DF_USING_ALIAS = 0x40000000,    // this is a 'using' alias
   DF_BITFIELD    = 0x80000000,    // this is a bitfield
 
-  // syntactic declaration extensions
-  DF_PREDICATE   = 0x02000000,    // Simplify-declared predicate (i.e. DEFPRED)
+  // These flags are used by the old (direct C -> VC) verifier client
+  // analysis; I will remove them once I finish transitioning to the
+  // VML-based verifier.  In a pinch, one of these values could be
+  // re-used for something that only occurs in C++ code, since the old
+  // verifier only works with C code.
+  DF_ADDRTAKEN   = 0x00008000,    // true if it's address has been (or can be) taken
+  DF_UNIVERSAL   = 0x00020000,    // universally-quantified variable
+  DF_EXISTENTIAL = 0x00040000,    // existentially-quantified
+
+  // not used
+  DF_unused      = 0x02000000,    // (available)
 
   ALL_DECLFLAGS  = 0xFFFFFFFF,
   NUM_DECLFLAGS  = 32             // # bits set to 1 in ALL_DECLFLAGS
