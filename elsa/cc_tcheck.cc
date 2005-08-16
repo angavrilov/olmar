@@ -3635,11 +3635,12 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
         init = new IN_ctor(decl->loc, NULL /*args*/);
       }
       else if (init->isIN_expr()) {
-        // cppstd reference? treat
+        // treat
         //   C c = 5;
         // like
         //   C c(5);
-        // except the latter isn't always syntactically allowed (e.g. CN_decl)
+        // except the latter isn't always syntactically allowed (e.g. CN_decl),
+        // and isn't always equivalent [8.5p14]; was_IN_ctor will remember
 
         // take out the IN_expr
         IN_expr *inexpr = init->asIN_expr();
@@ -3648,7 +3649,9 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
         delete inexpr;
 
         // put in an IN_ctor
-        init = new IN_ctor(decl->loc, makeExprList1(e));
+        IN_ctor *inctor = new IN_ctor(decl->loc, makeExprList1(e));
+        inctor->was_IN_expr = true;
+        init = inctor;
       }
     }
     
@@ -8884,12 +8887,64 @@ void IN_compound::tcheck(Env &env, Type *type)
 }
 
 
-void IN_ctor::tcheck(Env &env, Type *type)
+void IN_ctor::tcheck(Env &env, Type *destType)
 {
+  // check argument expressions
   ArgumentInfoArray argInfo(args->count() + 1);
   args = tcheckArgExprList(args, env, argInfo);
+
+  // 8.5p14: if this was originally a copy-initialization (IN_expr),
+  // and the source type is not the same class as or derived class
+  // of the destination type, then we first implicitly convert the
+  // source to the dest
+  if (was_IN_expr) {
+    Expression *src = args->first()->expr;
+    Type *srcType = src->type;
+    if (srcType->isCompoundType() &&
+        destType->isCompoundType() &&
+        srcType->asCompoundType()->hasBaseClass(destType->asCompoundType())) {
+      // this is the scenario where we treat IN_expr the same as
+      // IN_ctor, even for class types, so was_IN_expr is irrelevant
+    }
+    else {
+      // first, do an implicit conversion
+      ImplicitConversion ic = getImplicitConversion(env,
+        src->getSpecial(env.lang),
+        srcType,
+        destType,
+        false /*destIsReceiver*/);
+      if (!ic) {
+        env.error(srcType, stringc
+          << "cannot convert initializer type `" << srcType->toString()
+          << "' to target type `" << destType->toString() << "'");
+        return;
+      }
+      
+      // TODO: rewrite the AST to reflect the use of any
+      // user-defined conversions
+
+      // the result should now be of 'destType', so proceed with
+      // selecting an appropriate copy constructor
+      //
+      // TODO: might the chosen conversion yield some funky variant,
+      // which might in turn affect overload resolution?  how?  and
+      // if so, how do I determine that from 'ic'?  the overload
+      // resolver has a 'getReturnType' mechanism, but that is
+      // wrapped up inside the 'getImplicitConversion' call ...
+      argInfo[1].special = SE_NONE;
+      argInfo[1].type = destType;
+      ctorVar = env.storeVar(
+        outerResolveOverload_ctor(env, loc, destType, argInfo));
+        
+      // don't do the final comparison; it will be confused by
+      // the discrepancy between 'args' and 'argInfo', owing to
+      // not having rewritten the AST above
+      return;
+    }
+  }
+
   ctorVar = env.storeVar(
-    outerResolveOverload_ctor(env, loc, type, argInfo));
+    outerResolveOverload_ctor(env, loc, destType, argInfo));
   compareCtorArgsToParams(env, ctorVar, args, argInfo);
 }
 

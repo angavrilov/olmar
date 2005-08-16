@@ -702,9 +702,18 @@ class Initializer {
   // the thing it initializes
   pure_virtual void tcheck(Env &env, Type *type);
 
-  -> IN_ctor() {
-       public(xml) Variable *ctorVar = NULL; // constructor function being called
-       custom clone { ret->ctorVar = ctorVar; }
+  -> IN_ctor() {                             
+       // constructor function being called
+       public(xml) Variable *ctorVar = NULL;
+       
+       // true if this was originally an IN_expr that the type
+       // checker rewrote as IN_ctor; needed to implement 8.5p14
+       public(xml,field) bool was_IN_expr = false;
+
+       custom clone { 
+         ret->ctorVar = ctorVar;
+         ret->was_IN_expr = was_IN_expr;
+       }
      }
 }
 
