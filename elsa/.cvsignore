@@ -32,9 +32,7 @@ astxml_lexer.lex
 astxml_lexer.yy.cc
 astxml_tokens.h
 astxml_tokens.ids
-tmp
-tmp_*
-tmp.in
+tmp*
 quicktest
 tlexer
 gprof.out
@@ -47,7 +45,6 @@ lexer.lex
 delta*
 diff
 diff_current
-tmp.cc
 changes
 TAGS
 ex
@@ -56,15 +53,11 @@ checkin
 multitest.tmp
 log
 multidelta.log
-tmp.i
-tmp.i.ok
 semgrep
 lex.backup
 aborted
 history.txt
-tmp2*
 make.out
-tmp.txt
 *.bb
 *.bbg
 *.da
@@ -82,3 +75,4 @@ astxml_lexer1_type.cc
 astxml_lexer1_type.lex
 astxml_tokens1_type.h
 save
+bigin
