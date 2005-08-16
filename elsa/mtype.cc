@@ -23,7 +23,7 @@ string toString(MatchFlags flags)
     "MF_IGNORE_IMPLICIT",
     "MF_RESPECT_PARAM_CV",
     "MF_IGNORE_TOP_CV",
-    "MF_IGNORE_EXN_SPEC",
+    "MF_COMPARE_EXN_SPEC",
     "MF_SIMILAR",
     "MF_POLYMORPHIC",
     "MF_DEDUCTION",
@@ -843,18 +843,19 @@ bool IMType::imatchFunctionType(FunctionType const *conc, FunctionType const *pa
     return false;
   }
 
-  // check the parameter lists
+  // check the parameter lists (do not mask with MF_PROP here,
+  // it happens inside 'imatchParameterLists')
   if (!imatchParameterLists(conc, pat, flags)) {
     return false;
   }
 
-  if (!(flags & MF_IGNORE_EXN_SPEC)) {
+  if (flags & MF_COMPARE_EXN_SPEC) {
     // check the exception specs
-    if (!imatchExceptionSpecs(conc, pat, flags)) {
+    if (!imatchExceptionSpecs(conc, pat, flags & MF_PROP)) {
       return false;
     }
   }
-  
+
   return true;
 }
 
@@ -879,8 +880,9 @@ bool IMType::imatchParameterLists(FunctionType const *conc, FunctionType const *
     }
   }
 
-  // this takes care of imatchFunctionType's obligation
-  // to suppress non-propagated flags after consumption
+  // this takes care of imatchFunctionType's obligation to suppress
+  // non-propagated flags after consumption; it is masked *after*
+  // we check MF_IGNORE_IMPLICIT
   flags &= MF_PROP;
 
   // allow toplevel cv flags on parameters to differ

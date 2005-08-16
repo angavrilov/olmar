@@ -3216,7 +3216,7 @@ Variable *Env::createDeclaration(
         << " a type");
       goto makeDummyVar;
     }
-    else if (almostEqualTypes(prior->type, type)) {
+    else if (almostEqualTypes(prior->type, type, MF_COMPARE_EXN_SPEC)) {
       // same types, same typedef disposition, so they refer
       // to the same thing
     }
@@ -3224,7 +3224,7 @@ Variable *Env::createDeclaration(
              prior->hasFlag(DF_EXTERN_C) &&
              (prior->flags & DF_TYPEDEF) == (dflags & DF_TYPEDEF) &&
              prior->type->isFunctionType() &&
-             almostEqualTypes(prior->type, type, MF_IGNORE_EXN_SPEC)) {
+             almostEqualTypes(prior->type, type, MF_NONE /*not checking exn spec*/)) {
       // 10/01/04: allow the nonstandard variation in exception specs
       // for extern-C decls (since they usually don't throw exceptions
       // at all)

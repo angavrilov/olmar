@@ -11,10 +11,9 @@
 enum MatchFlags {
   // complete equality; this is the default; note that we are
   // checking for *type* equality, rather than equality of the
-  // syntax used to denote it, so we do *not* compare:
-  //   - function parameter names
-  //   - typedef usage
-  MF_EXACT           = 0x0000,
+  // syntax used to denote it, so we do *not* compare (e.g.)
+  // function parameter names or typedef usage
+  MF_NONE            = 0x0000,
 
   // ----- basic behaviors -----
   // when comparing function types, do not check whether the
@@ -40,13 +39,11 @@ enum MatchFlags {
   // ignore the topmost cv qualification of the two types compared
   MF_IGNORE_TOP_CV   = 0x0010,
 
-  // when comparing function types, ignore the exception specs
-  //
-  // TODO: I think I should invert the sense of this one, like I
-  // did for PARAM_CV, since the exception spec is *not* part of
-  // the nominal function "type".
-  MF_IGNORE_EXN_SPEC = 0x0020,
-
+  // when comparing function types, compare the exception specs;
+  // by default such specifications are not compared because the
+  // exception spec is not part of the "type" [8.3.5p4]
+  MF_COMPARE_EXN_SPEC= 0x0020,
+  
   // allow the cv qualifications to differ up to the first type
   // constructor that is not a pointer or pointer-to-member; this
   // is cppstd 4.4 para 4 "similar"; implies MF_IGNORE_TOP_CV
@@ -100,8 +97,7 @@ enum MatchFlags {
   // overloaded entities)
   MF_SIGNATURE       = (
     MF_IGNORE_RETURN |       // can't overload on return type
-    MF_STAT_EQ_NONSTAT |     // can't overload on static vs. nonstatic
-    MF_IGNORE_EXN_SPEC       // can't overload on exn spec
+    MF_STAT_EQ_NONSTAT       // can't overload on static vs. nonstatic
   ),
 
   // ----- combinations used by the mtype implementation -----
@@ -118,8 +114,13 @@ enum MatchFlags {
     MF_UNASSOC_TPARAMS  |
     MF_MATCH            |
     MF_NO_NEW_BINDINGS  |
-    MF_ISOMORPHIC       |
-    MF_IGNORE_EXN_SPEC
+    MF_ISOMORPHIC       
+    
+    // Note: MF_COMPARE_EXN_SPEC is *not* propagated.  It is used only
+    // when the compared types are FunctionTypes, to compare those
+    // toplevel exn specs, but any FunctionTypes appearing underneath
+    // are compared just as types (not objects), and hence their exn
+    // specs are irrelevant.
   ),
 
   // these flags are propagated below ptr and ptr-to-member

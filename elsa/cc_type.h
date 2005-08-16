@@ -642,7 +642,7 @@ public:     // funcs
   // like above, this is (structural) equality, not coercibility;
   // internally, this calls the innerEquals() method on the two
   // objects, once their tags have been established to be equal
-  bool equals(BaseType const *obj, MatchFlags flags = MF_EXACT) const;
+  bool equals(BaseType const *obj, MatchFlags flags = MF_NONE) const;
 
   // compute a hash value: equal types (EF_EXACT) have the same hash
   // value, and unequal types are likely to have different values

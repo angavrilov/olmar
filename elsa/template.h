@@ -320,7 +320,7 @@ public:      // funcs
 
   // and here it is
   bool equalArguments(ObjList<STemplateArgument> const &list,
-                      MatchFlags mflags = MF_EXACT) const;
+                      MatchFlags mflags = MF_NONE) const;
 
   // true if the arguments contain type variables
   //
@@ -456,8 +456,8 @@ public:
 
   // the point of boiling down the syntactic arguments into this
   // simpler semantic form is to make equality checking easy
-  bool equals(STemplateArgument const *obj, MatchFlags mflags = MF_EXACT) const;
-  bool equals(STemplateArgument const &obj, MatchFlags mflags = MF_EXACT) const
+  bool equals(STemplateArgument const *obj, MatchFlags mflags = MF_NONE) const;
+  bool equals(STemplateArgument const &obj, MatchFlags mflags = MF_NONE) const
     { return equals(&obj); }
 
   // does it contain variables?
@@ -498,7 +498,7 @@ bool isomorphicArgumentLists(ObjList<STemplateArgument> const &list1,
 
 bool equalArgumentLists(ObjList<STemplateArgument> const &list1,
                         ObjList<STemplateArgument> const &list2,
-                        MatchFlags mflags = MF_EXACT);
+                        MatchFlags mflags = MF_NONE);
 
 char const *toString(STemplateArgument::Kind k);
 

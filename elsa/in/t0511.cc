@@ -11,10 +11,9 @@
 enum MatchFlags {
   // complete equality; this is the default; note that we are
   // checking for *type* equality, rather than equality of the
-  // syntax used to denote it, so we do *not* compare:
-  //   - function parameter names
-  //   - typedef usage
-  MF_EXACT           = 0x0000,
+  // syntax used to denote it, so we do *not* compare (e.g.)
+  // function parameter names or typedef usage
+  MF_NONE            = 0x0000,
 
   // ----- basic behaviors -----
   // when comparing function types, do not check whether the
@@ -40,9 +39,11 @@ enum MatchFlags {
   // ignore the topmost cv qualification of the two types compared
   MF_IGNORE_TOP_CV   = 0x0010,
 
-  // when comparing function types, ignore the exception specs
-  MF_IGNORE_EXN_SPEC = 0x0020,
-
+  // when comparing function types, compare the exception specs;
+  // by default such specifications are not compared because the
+  // exception spec is not part of the "type" [8.3.5p4]
+  MF_COMPARE_EXN_SPEC= 0x0020,
+  
   // allow the cv qualifications to differ up to the first type
   // constructor that is not a pointer or pointer-to-member; this
   // is cppstd 4.4 para 4 "similar"; implies MF_IGNORE_TOP_CV
@@ -72,13 +73,15 @@ enum MatchFlags {
 
   // enable matching/substitution with template parameters
   MF_MATCH           = 0x0800,
-  
+
   // do not allow new bindings to be created; but existing bindings
   // can continue to be used
   MF_NO_NEW_BINDINGS = 0x1000,
-  
+
   // when combined with MF_MATCH, it means we can bind variables in
-  // the pattern only to other variables in the "concrete" type; this
+  // the pattern only to other variables in the "concrete" type, and
+  // that the binding function must be injective (no two pattern
+  // variables can be bound to the same concrete variable); this
   // is used to compare two templatized signatures for equivalence
   MF_ISOMORPHIC      = 0x2000,
 
@@ -94,8 +97,7 @@ enum MatchFlags {
   // overloaded entities)
   MF_SIGNATURE       = (
     MF_IGNORE_RETURN |       // can't overload on return type
-    MF_STAT_EQ_NONSTAT |     // can't overload on static vs. nonstatic
-    MF_IGNORE_EXN_SPEC       // can't overload on exn spec
+    MF_STAT_EQ_NONSTAT       // can't overload on static vs. nonstatic
   ),
 
   // ----- combinations used by the mtype implementation -----
@@ -112,7 +114,13 @@ enum MatchFlags {
     MF_UNASSOC_TPARAMS  |
     MF_MATCH            |
     MF_NO_NEW_BINDINGS  |
-    MF_ISOMORPHIC
+    MF_ISOMORPHIC       
+    
+    // Note: MF_COMPARE_EXN_SPEC is *not* propagated.  It is used only
+    // when the compared types are FunctionTypes, to compare those
+    // toplevel exn specs, but any FunctionTypes appearing underneath
+    // are compared just as types (not objects), and hence their exn
+    // specs are irrelevant.
   ),
 
   // these flags are propagated below ptr and ptr-to-member
@@ -334,9 +342,9 @@ struct A {
 
     // match template param with itself
     __test_mtype((T*)0,
-                 (T*)0, MF_EXACT);
+                 (T*)0, MF_NONE);
     __test_mtype((T*)0,
-                 (S*)0, MF_EXACT, false);
+                 (S*)0, MF_NONE, false);
 
     // Q: should this yield a binding?  for now it does...
     __test_mtype((T*)0,
@@ -345,21 +353,21 @@ struct A {
 
     // PseudoInstantiation
     __test_mtype((Pair<T,int>*)0,
-                 (Pair<T,int>*)0, MF_EXACT);
+                 (Pair<T,int>*)0, MF_NONE);
     __test_mtype((Pair<T,int>*)0,
-                 (Pair<T,int const>*)0, MF_EXACT, false);
+                 (Pair<T,int const>*)0, MF_NONE, false);
     __test_mtype((Pair<T,int>*)0,
-                 (Pair2<T,int>*)0, MF_EXACT, false);
+                 (Pair2<T,int>*)0, MF_NONE, false);
 
     // DependentQType
     __test_mtype((typename T::Foo*)0,
-                 (typename T::Foo*)0, MF_EXACT);
+                 (typename T::Foo*)0, MF_NONE);
     __test_mtype((typename T::Foo::Bar*)0,
-                 (typename T::Foo::Bar*)0, MF_EXACT);
+                 (typename T::Foo::Bar*)0, MF_NONE);
     __test_mtype((typename T::Foo::template Baz<3>*)0,
-                 (typename T::Foo::template Baz<3>*)0, MF_EXACT);
+                 (typename T::Foo::template Baz<3>*)0, MF_NONE);
     __test_mtype((typename T::Foo::template Baz<3>*)0,
-                 (typename T::Foo::template Baz<4>*)0, MF_EXACT, false);
+                 (typename T::Foo::template Baz<4>*)0, MF_NONE, false);
 
 
     // match with an integer
@@ -373,7 +381,7 @@ struct A {
     //ERROR(1):              "nn", 3);
 
     // attempt to compare different kinds of atomics
-    __test_mtype((B*)0, (int*)0, MF_EXACT, false);
+    __test_mtype((B*)0, (int*)0, MF_NONE, false);
     
     // Mix different binding kinds together.
     //
@@ -408,24 +416,24 @@ struct A {
 
     // DQTs with mismatching leading atomics
     __test_mtype((typename C<T>::Foo*)0,
-                 (typename Pair<T,T>::Foo*)0, MF_EXACT, false);
+                 (typename Pair<T,T>::Foo*)0, MF_NONE, false);
                  
     // and mismatching PQName kinds
     __test_mtype((typename C<T>::template Foo<3>*)0,
-                 (typename C<T>::Foo*)0, MF_EXACT, false);
+                 (typename C<T>::Foo*)0, MF_NONE, false);
 
     // differing PQ_qualifier names
     __test_mtype((typename C<T>::Foo::Baz*)0,
-                 (typename C<T>::Bar::Baz*)0, MF_EXACT, false);
+                 (typename C<T>::Bar::Baz*)0, MF_NONE, false);
 
     // differing template arguments to PQ_qualifier
     __test_mtype((typename C<T>::template Foo<1>::Baz*)0,
-                 (typename C<T>::template Foo<2>::Baz*)0, MF_EXACT, false);
+                 (typename C<T>::template Foo<2>::Baz*)0, MF_NONE, false);
 
 
     // different Type kinds
     __test_mtype((int)0,
-                 (int*)0, MF_EXACT, false);
+                 (int*)0, MF_NONE, false);
                  
     // cv-flags in the pattern aren't present in concrete
     __test_mtype((int const)0,
@@ -436,25 +444,25 @@ struct A {
                  
     // FunctionType with differing return type
     __test_mtype((int (*)())0,
-                 (float (*)())0, MF_EXACT, false);
+                 (float (*)())0, MF_NONE, false);
                  
     // static vs. non-static
     __test_mtype(B::f_stat,
-                 B::f_nonstat, MF_EXACT, false);
+                 B::f_nonstat, MF_NONE, false);
     __test_mtype(B::f_stat,
                  B::f_nonstat, MF_STAT_EQ_NONSTAT);
     __test_mtype(B::f_nonstat,
                  B::f_stat, MF_STAT_EQ_NONSTAT);
 
     // vararg vs. non-vararg
-    __test_mtype(f_vararg, f_nonvararg, MF_EXACT, false);
+    __test_mtype(f_vararg, f_nonvararg, MF_NONE, false);
     
     // throw vs. non-throw
-    __test_mtype(f_nonvararg, f_throws_int, MF_EXACT, false);
+    __test_mtype(f_nonvararg, f_throws_int, MF_COMPARE_EXN_SPEC, false);
 
     // differing exception specs
-    __test_mtype(f_throws_float, f_throws_int, MF_EXACT, false);
-    __test_mtype(f_throws_int, f_throws_int, MF_EXACT);
+    __test_mtype(f_throws_float, f_throws_int, MF_COMPARE_EXN_SPEC, false);
+    __test_mtype(f_throws_int, f_throws_int, MF_COMPARE_EXN_SPEC);
     
     // ArrayTypes and MF_IGNORE_ELT_CV
     //
@@ -463,7 +471,7 @@ struct A {
     // might be modified to reject these invalid casts altogether, in
     // which case these tests can just be commented out.
     __test_mtype((int const [2])0,
-                 (int       [2])0, MF_EXACT, false);
+                 (int       [2])0, MF_NONE, false);
     __test_mtype((int const [2])0,
                  (int       [2])0, MF_IGNORE_ELT_CV);
     __test_mtype((int const [2][3])0,
@@ -471,60 +479,60 @@ struct A {
                  
     // expression comparison
     __test_mtype((Num<n+3>*)0,
-                 (Num<n+3>*)0, MF_EXACT);
+                 (Num<n+3>*)0, MF_NONE);
 
     __test_mtype((Num<(n+3)>*)0,
-                 (Num< n+3 >*)0, MF_EXACT);
+                 (Num< n+3 >*)0, MF_NONE);
 
     __test_mtype((Num< n+3 >*)0,
-                 (Num<(n+3)>*)0, MF_EXACT);
+                 (Num<(n+3)>*)0, MF_NONE);
 
     __test_mtype((Num<(n+3)>*)0,
-                 (Num<(n+3)>*)0, MF_EXACT);
+                 (Num<(n+3)>*)0, MF_NONE);
 
     __test_mtype((Num<-n>*)0,
-                 (Num<-n>*)0, MF_EXACT);
+                 (Num<-n>*)0, MF_NONE);
 
     __test_mtype((Num<n+3>*)0,
-                 (Num<-n>*)0, MF_EXACT, false);
+                 (Num<-n>*)0, MF_NONE, false);
 
     __test_mtype((Num<n+(int)true>*)0,
-                 (Num<n+(int)true>*)0, MF_EXACT);
+                 (Num<n+(int)true>*)0, MF_NONE);
 
     __test_mtype((Num<n+static_cast<int>(true)>*)0,
-                 (Num<n+static_cast<int>(true)>*)0, MF_EXACT);
+                 (Num<n+static_cast<int>(true)>*)0, MF_NONE);
 
     __test_mtype((Num<n+'a'>*)0,
-                 (Num<n+'a'>*)0, MF_EXACT);
+                 (Num<n+'a'>*)0, MF_NONE);
 
     __test_mtype((Num<n >*)0,
-                 (Num<n2>*)0, MF_EXACT, false);
+                 (Num<n2>*)0, MF_NONE, false);
 
     __test_mtype((Num<n+global_const1>*)0,
-                 (Num<n+global_const2>*)0, MF_EXACT, false);
+                 (Num<n+global_const2>*)0, MF_NONE, false);
 
     __test_mtype((Num<n+sizeof(int)>*)0,
-                 (Num<n+sizeof(int)>*)0, MF_EXACT);
+                 (Num<n+sizeof(int)>*)0, MF_NONE);
 
     __test_mtype((Num<n+sizeof(n)>*)0,
-                 (Num<n+sizeof(n)>*)0, MF_EXACT);
+                 (Num<n+sizeof(n)>*)0, MF_NONE);
 
     __test_mtype((Num< n? 1 : 2 >*)0,
-                 (Num< n? 1 : 2 >*)0, MF_EXACT);
+                 (Num< n? 1 : 2 >*)0, MF_NONE);
     __test_mtype((Num< n? 1 : 2 >*)0,
-                 (Num< n? 1 : 3 >*)0, MF_EXACT, false);
+                 (Num< n? 1 : 3 >*)0, MF_NONE, false);
                  
     __test_mtype((TakesIntRef<T, global_n>*)0,
-                 (TakesIntRef<T, global_n>*)0, MF_EXACT);
+                 (TakesIntRef<T, global_n>*)0, MF_NONE);
 
     __test_mtype((TakesIntRef<T, global_n>*)0,
-                 (TakesIntRef<T, global_m>*)0, MF_EXACT, false);
+                 (TakesIntRef<T, global_m>*)0, MF_NONE, false);
 
     __test_mtype((TakesIntPtr<T, &global_n>*)0,
-                 (TakesIntPtr<T, &global_n>*)0, MF_EXACT);
+                 (TakesIntPtr<T, &global_n>*)0, MF_NONE);
 
     __test_mtype((TakesPTM<T, &B::x>*)0,
-                 (TakesPTM<T, &B::x>*)0, MF_EXACT);
+                 (TakesPTM<T, &B::x>*)0, MF_NONE);
 
 
     // testing resolution of DQTs (see also in/t0487.cc)

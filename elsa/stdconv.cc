@@ -565,7 +565,7 @@ StandardConversion getStandardConversion
         //
         // Also, 8.3.5p4 says that exception specs are irrelevant here,
         // even though (again) there is a sound subtyping lattice.
-        if (src->equals(dest, MF_IGNORE_EXN_SPEC)) {
+        if (src->equals(dest)) {
           return conv.ret;
         }
         else {

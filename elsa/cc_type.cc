@@ -204,7 +204,7 @@ bool AtomicType::isNamedAtomicType() const
 bool AtomicType::equals(AtomicType const *obj) const
 {
   MType match;
-  return match.matchAtomicType(this, obj, MF_EXACT);
+  return match.matchAtomicType(this, obj, MF_NONE);
 }
 
 

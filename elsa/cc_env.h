@@ -273,7 +273,7 @@ private:     // funcs
 
   bool equivalentSignatures(FunctionType *ft1, FunctionType *ft2);
   bool equivalentTypes(Type const *t1, Type const *t2, 
-                       MatchFlags mflags = MF_EXACT);
+                       MatchFlags mflags = MF_NONE);
 
   Variable *getPrimaryOrSpecialization
     (TemplateInfo *tinfo, ObjList<STemplateArgument> const &sargs);
@@ -604,7 +604,7 @@ public:      // funcs
   // compare types for equality; see extensive comment at
   // implementation
   bool almostEqualTypes(Type const *t1, Type const *t2,
-                        MatchFlags mflags = MF_EXACT);
+                        MatchFlags mflags = MF_NONE);
 
   // create a "using declaration" alias
   void makeUsingAliasFor(SourceLoc loc, Variable *origVar);
