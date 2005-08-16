@@ -210,12 +210,10 @@ public:      // funcs
   // templatized scope?
   bool isWithinUninstTemplate() const;
 
-  // True if this scope has extant template parameters.
-  //
-  // Actually, I think the places that call this are really just
-  // asking whether this is an SK_TEMPLATE_PARAMS, because an empty
-  // template parameter list is treated uniformly.
-  bool hasTemplateParams() const { return isTemplateParamScope(); }
+  // True if this scope has extant template parameters.  It is not
+  // enough to be a template scope, it must have parameters beyond
+  // an empty "<>".
+  bool hasTemplateParams() const;
 
   // true if this scope is only accessed via delegation from
   // a CompoundType

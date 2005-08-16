@@ -169,6 +169,13 @@ bool Scope::isWithinUninstTemplate() const
 }
 
 
+bool Scope::hasTemplateParams() const
+{
+  return isTemplateParamScope() &&
+         templateParams.isNotEmpty();
+}
+
+
 // This function should not modify 'v'; any changes to 'v' should
 // instead be done by 'registerVariable'.
 bool Scope::addVariable(Variable *v, bool forceReplace)

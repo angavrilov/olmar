@@ -177,7 +177,7 @@ int ErrorList::countWithAnyFlag(ErrorFlags flags) const
 
 bool ErrorList::hasFromNonDisambErrors() const
 {
-  return countWithAnyFlag(EF_WARNING | EF_FROM_DISAMB) <
+  return countWithAnyFlag(EF_WARNING | EF_FROM_DISAMB | EF_FROM_TEMPLATE) <
          count();
 }
 

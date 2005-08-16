@@ -959,7 +959,7 @@ public:      // template funcs
   Variable *makeExplicitFunctionSpecialization
     (SourceLoc loc, DeclFlags dflags, PQName *name, FunctionType *ft);
   Variable *makeSpecializationVariable
-    (SourceLoc loc, DeclFlags dflags, Variable *templ, Type *type,
+    (SourceLoc loc, DeclFlags dflags, Variable *templ, FunctionType *type,
      SObjList<STemplateArgument> const &args);
 
   bool verifyCompatibleTemplateParameters(Scope *scope, CompoundType *prior);

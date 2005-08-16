@@ -3415,7 +3415,7 @@ CompoundType *Env::findEnclosingTemplateCalled(StringRef name)
 // (however, this value is ignored at the moment)
 bool Env::verifyCompatibleTemplateParameters(Scope *scope, CompoundType *prior)
 {
-  bool hasParams = scope->hasTemplateParams();
+  bool hasParams = scope->isTemplateParamScope();
   if (hasParams && scope->parameterizedEntity) {
     // (in/t0191.cc) already parameterized.. let's pretend we didn't
     // see them (I suspect there is a deeper problem here, but maybe
@@ -4515,7 +4515,7 @@ Variable *Env::makeExplicitFunctionSpecialization
         ret = makeSpecializationVariable(loc, dflags, primary, ft, serfSpecArgs);
         TRACE("template", "complete function specialization of " <<
                           primary->type->toCString(primary->fullyQualifiedName()) <<
-                          ": " << ret->name << sargsToString(serfSpecArgs));
+                          ": " << ret->toQualifiedString());
       }
     } // initial candidate match check
   } // candidate loop
@@ -4530,9 +4530,41 @@ Variable *Env::makeExplicitFunctionSpecialization
 
 
 Variable *Env::makeSpecializationVariable
-  (SourceLoc loc, DeclFlags dflags, Variable *templ, Type *type,
+  (SourceLoc loc, DeclFlags dflags, Variable *templ, FunctionType *type,
    SObjList<STemplateArgument> const &args)
 {
+  // make 'type' into a method if 'templ' is
+  FunctionType *templType = templ->type->asFunctionType();
+  if (templType->isMethod()) {
+    // The reason I am making a copy instead of modifying 'type' is
+    // that, at the call site in Declarator::mid_tcheck, if it gets
+    // back a Variable with a method it will method-ize 'type' again.
+    // But by making a copy, I method-ize my copy here, and then let
+    // Declarator::mid_tcheck method-ize 'type' later, harmlessly.
+    // (Wow, what a borked design... yikes.)
+
+    FunctionType *oldFt = type;
+    xassert(!oldFt->isMethod());
+
+    // everything the same but empty parameter list
+    FunctionType *newFt =
+      tfac.makeSimilarFunctionType(SL_UNKNOWN, oldFt->retType, oldFt);
+
+    // add the receiver parameter
+    NamedAtomicType *nat = templType->getNATOfMember();
+    newFt->addReceiver(receiverParameter(SL_UNKNOWN, nat, templType->getReceiverCV()));
+
+    // copy the other parameters
+    SObjListIterNC<Variable> iter(oldFt->params);
+    for (; !iter.isDone(); iter.adv()) {
+      newFt->addParam(iter.data());    // re-use parameter objects
+    }
+    doneParams(newFt);
+
+    // treat this new type as the one to declare from here out
+    type = newFt;
+  }
+
   // make the Variable
   Variable *spec = makeVariable(loc, templ->name, type, dflags);
   spec->setAccess(templ->getAccess());

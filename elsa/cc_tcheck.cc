@@ -1673,7 +1673,7 @@ CompoundType *checkClasskeyAndName(
 
   // template params?
   SObjList<Variable> *templateParams =
-    scope->hasTemplateParams()? &(scope->templateParams) : NULL;
+    scope->isTemplateParamScope()? &(scope->templateParams) : NULL;
 
   // template args?
   ObjList<STemplateArgument> *templateArgs = NULL;
@@ -5282,6 +5282,11 @@ E_fieldAcc *wrapWithImplicitThis(Env &env, Variable *var, PQName *name)
   // is static; the error has been reported, so just proceed
   //xassert(ths->receiver);
 
+  CVFlags atTypeCV = CV_NONE;
+  if (!ths->type->isError()) {
+    atTypeCV = ths->type->getAtType()->getCVFlags();
+  }
+
   // no need to tcheck as the variable has already been looked up
   E_fieldAcc *efieldAcc = new E_fieldAcc(thisRef, name);
   efieldAcc->field = var;
@@ -5289,8 +5294,7 @@ E_fieldAcc *wrapWithImplicitThis(Env &env, Variable *var, PQName *name)
   // E_fieldAcc::itcheck_fieldAcc() does something a little more
   // complicated, but we don't need that since the situation is
   // more constrained here
-  efieldAcc->type = makeFieldLvalType(env, var,
-                                      ths->type->getAtType()->getCVFlags());
+  efieldAcc->type = makeFieldLvalType(env, var, atTypeCV);
 
   return efieldAcc;
 }
