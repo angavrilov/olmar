@@ -71,3 +71,20 @@ There are a few places where rules that have siblings containing
 Though I'm not 100% sure about the above reasoning, I think that
 leaving out questionable annotations is less risky than adding
 them.
+
+
+----------
+2005-08-16
+
+I just now discovered that the prec/assoc specification of "::"
+interacts badly with prec/assoc in verifier/annot.gr.  Perhaps
+the solution is to use forbid_next instead of prec/assoc, perhaps
+annot.gr should be changed.  For now I've just hacked it by
+using smbase/codepatch.pl to remove the prec/assoc of "::", as
+the verifier isn't concerned with parsing C++ right now.
+
+This is a perfect example of the potential danger of prec/assoc
+in a modular parser generator, as the spec in cc.gr broke the
+extension in annot.gr.  It would be interesting to consider trying
+to develop a scheme for static conflict resolution that had
+predictable effects across extension modules...
