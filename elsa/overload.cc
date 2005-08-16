@@ -725,15 +725,26 @@ Candidate const *OverloadResolver::resolveCandidate(bool &wasAmbig)
   // than any of those it faced
   Candidate const *winner = selectBestCandidate(*this, (Candidate const*)NULL);
   if (!winner) {
+    // if any of the candidates contain variables, then this
+    // conclusion of ambiguity is suspect (in/t0573.cc)
+    for (int i=0; i<candidates.length(); i++) {
+      Variable *v = candidates[i]->var;
+      if (v->type->containsVariables()) {
+        goto ambig_bail;
+      }
+    }
+
     if (errors) {
       stringBuilder sb;
-      sb << "ambiguous overload; candidates:";
+      sb << "ambiguous overload; " << argInfoString() << " candidates:";
       for (int i=0; i<candidates.length(); i++) {
         Variable *v = candidates[i]->var;
         sb << "\n  " << v->loc << ": " << v->toQualifiedString();
       }
       errors->addError(new ErrorMsg(loc, sb, EF_NONE));
     }
+
+  ambig_bail:
     OVERLOADTRACE("ambiguous overload");
     wasAmbig = true;
     return NULL;

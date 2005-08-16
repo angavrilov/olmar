@@ -379,6 +379,17 @@ bool canConvertToBaseClass(Type const *src, Type const *dest, bool &ambig)
   return false;
 }
 
+    
+// not sure if this is such a good idea..
+bool couldBeAnything(Type const *t)
+{
+  // PseudoInstantiation is left out because a PI has to be
+  // a class type
+  return t->isSimple(ST_DEPENDENT) ||
+         t->isTypeVariable() ||
+         t->isDependentQType();
+}
+
 
 // one of the goals of this function is to *not* construct any
 // intermediate Type objects; I should be able to do this computation
@@ -639,8 +650,8 @@ StandardConversion getStandardConversion
 
   // ---------------- group 2 --------------
 
-  if (src->isGeneralizedDependent() ||
-      dest->isGeneralizedDependent()) {
+  if (couldBeAnything(src) ||
+      couldBeAnything(dest)) {
     // conversion could be as good as identity (in/t0572.cc)
     return conv.ret;
   }
