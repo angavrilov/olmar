@@ -19,9 +19,10 @@ the four "::" could be interpreted as being just after the dividing
 point (and hence a unary qualifier).
 
 (You might object that you don't declare qualified names; but you do
-in a 'friend' declaration, and in a few other places, so the parser
-basically has to assume qualified declarators can occur anywhere.  The
-type checker then deals with the ruling out the bad cases.)
+in a 'friend' declaration, out-of-line member definitions, and in a
+few other places, so the parser basically has to assume qualified
+declarators can occur anywhere.  The type checker then deals with the
+ruling out the bad cases.)
 
 I cannot find any place in the standard that justifies this, but
 every C++ compiler I've experimented with regards "::" as binding
