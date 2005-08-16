@@ -5420,17 +5420,6 @@ bool Env::doOperatorOverload() const
 }
 
 
-void Env::addError(ErrorMsg * /*owner*/ obj)
-{
-  string instLoc = instLocStackString();
-  if (instLoc.length()) {
-    obj->instLoc = instLoc;
-  }
-
-  ErrorList::addError(obj);
-}
-
-
 void Env::diagnose3(Bool3 b, SourceLoc L, rostring msg, ErrorFlags eflags)
 {
   if (b == B3_WARN) {
@@ -5480,30 +5469,42 @@ string errorFlagBlock(ErrorFlags eflags)
   }
 }
 
-// I want this function to always be last in this file, so I can easily
-// find it to put a breakpoint in it.
 Type *Env::error(SourceLoc L, rostring msg, ErrorFlags eflags)
 {
-  if (disambiguateOnly) {
-    eflags |= EF_FROM_TEMPLATE;
+  addError(new ErrorMsg(L, msg, eflags));
 
-    if (!(eflags & EF_WARNING) &&
-        !(eflags & EF_DISAMBIGUATES) &&
-        !(eflags & EF_STRONG) &&
+  return errorType();
+}
+
+
+// I want this function to always be last in this file, so I can easily
+// find it to put a breakpoint in it.
+void Env::addError(ErrorMsg * /*owner*/ e)
+{
+  string instLoc = instLocStackString();
+  if (instLoc.length()) {
+    e->instLoc = instLoc;
+  }
+
+  if (disambiguateOnly) {
+    e->flags |= EF_FROM_TEMPLATE;
+
+    if (!(e->flags & EF_WARNING) &&
+        !(e->flags & EF_DISAMBIGUATES) &&
+        !(e->flags & EF_STRONG) &&
         !env.doReportTemplateErrors) {
       // reduce severity to warning, but strong so it doesn't get
       // tossed once we come out of template checking, and also
       // mark with EF_STRICT_ERROR so I can tell this happened
-      eflags |= EF_WARNING | EF_STRONG | EF_STRICT_ERROR;
+      e->flags |= EF_WARNING | EF_STRONG | EF_STRICT_ERROR;
     }
   }
 
-  TRACE("error", errorFlagBlock(eflags)
-              << toString(L) << ": " << msg << instLocStackString());
+  TRACE("error", errorFlagBlock(e->flags)
+              << toString(e->loc) << ": " << e->msg << instLoc);
 
-  addError(new ErrorMsg(L, msg, eflags));
-
-  return errorType();
+  // breakpoint typically goes on the next line
+  ErrorList::addError(e);
 }
 
 

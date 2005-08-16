@@ -13,3 +13,18 @@ struct B {
     f(p);
   }
 };
+
+
+// this tests response to an error from overload resol'n
+namespace N {
+  int f(char);
+  int f(short);
+
+  template <class T>
+  struct A {
+    void g(int i)
+    {
+      f(i);
+    }
+  };
+}

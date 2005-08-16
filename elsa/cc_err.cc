@@ -23,16 +23,10 @@ string ErrorMsg::toString() const
   }
   sb << ": " << msg;
 
-  if (flags & EF_FROM_TEMPLATE)  {
-    if (!(flags & EF_WARNING)) {
-      sb << " (from template; would be suppressed in permissive mode)";
-    }
-    else if (flags & EF_STRICT_ERROR) {
-      sb << " (from template; would have been an error in strict mode)";
-    }
-  }
+  bool msgHasNL = !!strchr(sb.c_str(), '\n');
+  bool addedNewline = false;
 
-  if (instLoc[0] && strchr(sb.c_str(), '\n')) {
+  if (instLoc[0] && msgHasNL) {
     // for a multi-line message, put instLoc on its own line
     // and with no leading whitespace
     sb << "\n" << trimWhitespace(instLoc);
@@ -40,7 +34,27 @@ string ErrorMsg::toString() const
   else {
     sb << instLoc;
   }
-  
+
+  char const *extra = NULL;
+  if (flags & EF_FROM_TEMPLATE)  {
+    if (!(flags & EF_WARNING)) {
+      extra = "(from template; would be suppressed in permissive mode)";
+    }
+    else if (flags & EF_STRICT_ERROR) {
+      extra = "(from template; would have been an error in strict mode)";
+    }
+  }
+
+  if (extra) {
+    if (msgHasNL && !addedNewline) {
+      sb << "\n";
+    }
+    else {
+      sb << " ";
+    }
+    sb << extra;
+  }
+
   return sb;
 }
 
