@@ -196,7 +196,7 @@ string ErrorList::printToString() const
   // when I'm done
   ObjList<ErrorMsg> &nclist = const_cast<ObjList<ErrorMsg>&>(list);
 
-  bool printWarnings = !tracingSys("nowarn");
+  bool printWarnings = !tracingSys("nowarnings");
 
   nclist.reverse();
   FOREACH_OBJLIST(ErrorMsg, nclist, iter) {
