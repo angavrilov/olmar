@@ -4033,75 +4033,78 @@ void Env::getAssociatedScopes(SObjList<Scope> &associated, Type *type)
 
         case AtomicType::T_COMPOUND: {
           CompoundType *ct = atomic->asCompoundType();
-          if (ct->keyword != CompoundType::K_UNION) {
-            if (!ct->isInstantiation()) {
-              // bullet 2: the class, all base classes, and definition scopes
+          if (!ct->isInstantiation()) {
+            // bullet 2: the class, all base classes, and definition scopes
 
-              // class + bases
-              SObjList<BaseClassSubobj const> bases;
-              getSubobjects(bases, ct);
+            // class + bases
+            SObjList<BaseClassSubobj const> bases;
+            getSubobjects(bases, ct);
 
-              // put them into 'associated'
-              SFOREACH_OBJLIST(BaseClassSubobj const, bases, iter) {
-                CompoundType *base = iter.data()->ct;
-                associated.prependUnique(base);
+            // put them into 'associated'
+            SFOREACH_OBJLIST(BaseClassSubobj const, bases, iter) {
+              CompoundType *base = iter.data()->ct;
+              associated.prependUnique(base);
 
-                // get definition namespace too
-                if (base->parentScope) {
-                  associated.prependUnique(base->parentScope);
-                }
-                else {
-                  // parent is not named.. I'm pretty sure in this case
-                  // any names that should be found will be found by
-                  // ordinary lookup, so it will not matter whether the
-                  // parent scope of 'base' gets added to 'associated'
-                }
+              // get definition namespace too
+              if (base->parentScope) {
+                associated.prependUnique(base->parentScope);
+              }
+              else {
+                // parent is not named.. I'm pretty sure in this case
+                // any names that should be found will be found by
+                // ordinary lookup, so it will not matter whether the
+                // parent scope of 'base' gets added to 'associated'
               }
             }
-            else {
-              // bullet 7: template instantiation: definition scope plus
-              // associated scopes of template type arguments
-              
-              // definition scope
-              if (ct->parentScope) {
-                associated.prependUnique(ct->parentScope);
-              } 
+            
+            // also, class of which it is a member (in/t0569.cc)
+            if (ct->parentScope && ct->parentScope->curCompound) {
+              CompoundType *container = ct->parentScope->curCompound;
+              associated.prependUnique(container);
 
-              // I am disabling this because:
-              //   - it fixes in/k0009.cc
-              //   - it is hard (though not impossible) to conjure a
-              //     situation where a name found in an argument's
-              //     associated scope could be used
-              //   - gcc and edg seem not to do it, at least as evidenced
-              //     by their acceptance of in/k0009.cc
-              // In general, arg-dep lookup is poorly tested right now.
-              // What I should do at some point is write a few dozen
-              // tests that hit all the corners, and determine the extent
-              // to which my interpretation of the standard agrees with
-              // gcc and edg.
-              //
-              // 2005-08-09 (in/t0532.cc): my current hypothesis is that
-              // template args are used, but that when searching classes,
-              // only friend declarations are considered
-              //
-              // look at template arguments
-              TemplateInfo *ti = ct->templateInfo();
-              xassert(ti);
-              FOREACH_OBJLIST(STemplateArgument, ti->arguments, iter) {
-                STemplateArgument const *arg = iter.data();
-                if (arg->isType()) {
-                  getAssociatedScopes(associated, arg->getType());
-                }
-                else if (arg->isTemplate()) {
-                  // TODO: implement this (template template parameters)
-                }
+              // and its definition scope
+              if (container->parentScope) {
+                associated.prependUnique(container->parentScope);
               }
             }
           }
           else {
-            // bullet 3 (union): definition scope
+            // bullet 7: template instantiation: definition scope plus
+            // associated scopes of template type arguments
+
+            // definition scope
             if (ct->parentScope) {
               associated.prependUnique(ct->parentScope);
+            }
+
+            // I am disabling this because:
+            //   - it fixes in/k0009.cc
+            //   - it is hard (though not impossible) to conjure a
+            //     situation where a name found in an argument's
+            //     associated scope could be used
+            //   - gcc and edg seem not to do it, at least as evidenced
+            //     by their acceptance of in/k0009.cc
+            // In general, arg-dep lookup is poorly tested right now.
+            // What I should do at some point is write a few dozen
+            // tests that hit all the corners, and determine the extent
+            // to which my interpretation of the standard agrees with
+            // gcc and edg.
+            //
+            // 2005-08-09 (in/t0532.cc): my current hypothesis is that
+            // template args are used, but that when searching classes,
+            // only friend declarations are considered
+            //
+            // look at template arguments
+            TemplateInfo *ti = ct->templateInfo();
+            xassert(ti);
+            FOREACH_OBJLIST(STemplateArgument, ti->arguments, iter) {
+              STemplateArgument const *arg = iter.data();
+              if (arg->isType()) {
+                getAssociatedScopes(associated, arg->getType());
+              }
+              else if (arg->isTemplate()) {
+                // TODO: implement this (template template parameters)
+              }
             }
           }
           break;
