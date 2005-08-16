@@ -1744,6 +1744,12 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
   // do any final traversal action specified by the user
   emitCustomCode(c->decls, "traverse");
 
+  // traverse into the ctor last arguments
+  FOREACH_ASTLIST(CtorArg, c->lastArgs, iter) {
+    CtorArg const *arg = iter.data();
+    emitOneTraverseCall(arg->name, arg->type);
+  }
+
   if (!hasChildren) {
     // if we did the preorder visit on the way in, do the
     // postorder visit now
