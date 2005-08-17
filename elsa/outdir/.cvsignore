@@ -31,3 +31,13 @@ hide*
 *.C2.xml.dp
 *.C2.xml.dp_filtered
 *.C3.diff
+
+*.D0.cc
+*.D0.dp
+*.D0.dp_filtered
+*.D1.xml
+*.D1.xml_filtered
+*.D2.xml.cc
+*.D2.xml.dp
+*.D2.xml.dp_filtered
+*.D3.diff
