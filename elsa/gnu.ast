@@ -120,7 +120,7 @@ new class ASTTypeof {
 
   // dsw: I had to move this here to deal with the mid_tcheck design
   // pattern that is used to resolve ambiguities.
-  public(xml) Type *type;
+  public(xml_TY) Type *type;
 
   // dsw: I'm assuming that ASTTypeof should terminate the top of the
   // Expression tree, but I don't feel absolutely sure about it.

@@ -173,6 +173,11 @@ at
 List_CompoundType_bases
 List_CompoundType_virtualBases
 List_PseudoInstantiation_args
+List_TemplateInfo_inheritedParams
+List_TemplateInfo_arguments
+List_TemplateInfo_argumentsToPrimary
+List_PQ_qualifier_sargs
+List_PQ_template_sargs
 #   SObjList
 List_FunctionType_params
 List_CompoundType_dataMembers
@@ -181,12 +186,9 @@ List_BaseClassSubobj_parents
 List_ExnSpec_types
 List_Scope_templateParams
 List_OverloadSet_set
-List_TemplateInfo_inheritedParams
 List_TemplateInfo_instantiations
 List_TemplateInfo_specializations
-List_TemplateInfo_arguments
 List_TemplateInfo_partialInstantiations
-List_TemplateInfo_argumentsToPrimary
 List_TemplateParams_params
 #   a list element; these are in the AST so I don't need them here
 #  _List_Item

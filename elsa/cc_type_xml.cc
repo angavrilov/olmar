@@ -191,20 +191,22 @@ do { \
   } \
 } while(0)
 
-#define travObjList0(BASE, BASETYPE, FIELD, FIELDTYPE, ITER_MACRO, LISTKIND) \
+#define travObjList0(OBJ, BASETYPE, FIELD, FIELDTYPE, ITER_MACRO, LISTKIND) \
 do { \
-  if (!printed(&BASE->FIELD)) { \
-    openTagWhole(List_ ##BASETYPE ##_ ##FIELD, &BASE->FIELD); \
-    ITER_MACRO(FIELDTYPE, const_cast<LISTKIND<FIELDTYPE>&>(BASE->FIELD), iter) { \
+  if (!printed(&OBJ)) { \
+    openTagWhole(List_ ##BASETYPE ##_ ##FIELD, &OBJ); \
+    ITER_MACRO(FIELDTYPE, const_cast<LISTKIND<FIELDTYPE>&>(OBJ), iter) { \
       travListItem(iter.data()); \
     } \
   } \
 } while(0)
 
 #define travObjList_S(BASE, BASETYPE, FIELD, FIELDTYPE) \
-travObjList0(BASE, BASETYPE, FIELD, FIELDTYPE, SFOREACH_OBJLIST_NC, SObjList)
+travObjList0(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, SFOREACH_OBJLIST_NC, SObjList)
 #define travObjList(BASE, BASETYPE, FIELD, FIELDTYPE) \
-travObjList0(BASE, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
+travObjList0(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
+#define travObjList_standalone(OBJ, BASETYPE, FIELD, FIELDTYPE) \
+travObjList0(OBJ, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
 
 #define travPtrMap(BASE, BASETYPE, FIELD, FIELDTYPE) \
 do { \
@@ -285,6 +287,12 @@ void TypeToXml::newline() {
   if (indent) {
     for (int i=0; i<depth; ++i) cout << " ";
   }
+}
+
+// This one occurs in the AST, so it has to have its own first-class
+// method.
+void TypeToXml::toXml(ObjList<STemplateArgument> *list) {
+  travObjList_standalone(*list, PseudoInstantiation, args, STemplateArgument);
 }
 
 void TypeToXml::toXml(Type *t) {
@@ -900,6 +908,8 @@ bool TypeXmlReader::kind2kindCat(int kind, KindCategory *kindCat) {
   case XTOK_List_TemplateInfo_inheritedParams:
   case XTOK_List_TemplateInfo_arguments:
   case XTOK_List_TemplateInfo_argumentsToPrimary:
+  case XTOK_List_PQ_qualifier_sargs:
+  case XTOK_List_PQ_template_sargs:
     *kindCat = KC_ObjList;
     break;
 
@@ -977,6 +987,8 @@ bool TypeXmlReader::recordKind(int kind, bool& answer) {
   case XTOK_List_TemplateInfo_inheritedParams:
   case XTOK_List_TemplateInfo_arguments:
   case XTOK_List_TemplateInfo_argumentsToPrimary:
+  case XTOK_List_PQ_qualifier_sargs:
+  case XTOK_List_PQ_template_sargs:
   //   SObjList
   case XTOK_List_FunctionType_params:
   case XTOK_List_CompoundType_dataMembers:
@@ -1095,6 +1107,8 @@ bool TypeXmlReader::convertList2ObjList(ASTList<char> *list, int listKind, void 
   case XTOK_List_TemplateInfo_arguments:
   case XTOK_List_TemplateInfo_argumentsToPrimary:
   case XTOK_List_PseudoInstantiation_args:
+  case XTOK_List_PQ_qualifier_sargs:
+  case XTOK_List_PQ_template_sargs:
     convertList(ObjList, STemplateArgument);
     break;
 
@@ -1184,6 +1198,8 @@ void *TypeXmlReader::ctorNodeFromTag(int tag) {
   case XTOK_List_TemplateInfo_arguments:
   case XTOK_List_TemplateInfo_argumentsToPrimary:
   case XTOK_List_PseudoInstantiation_args:
+  case XTOK_List_PQ_qualifier_sargs:
+  case XTOK_List_PQ_template_sargs:
     return new ASTList<STemplateArgument>();
 
   // SObjList

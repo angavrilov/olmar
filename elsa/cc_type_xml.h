@@ -77,6 +77,9 @@ class TypeToXml {
 #undef identityTempl
 
   public:
+  // in the AST
+  void toXml(ObjList<STemplateArgument> *list);
+
   void toXml(Type *t);
   void toXml(AtomicType *atom);
   void toXml(CompoundType *ct); // disambiguates the overloading

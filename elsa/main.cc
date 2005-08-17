@@ -242,6 +242,9 @@ class ToXmlASTVisitor_Types : public ToXmlASTVisitor {
     if (!ToXmlASTVisitor::visitPQName(pqn)) return false;
     if (pqn->isPQ_qualifier()) {
       PRINT_ANNOT(pqn->asPQ_qualifier()->qualifierVar);
+      ttx.toXml(&(pqn->asPQ_qualifier()->sargs));
+    } else if (pqn->isPQ_template()) {
+      ttx.toXml(&(pqn->asPQ_template()->sargs));
     } else if (pqn->isPQ_variable()) {
       PRINT_ANNOT(pqn->asPQ_variable()->var);
     }

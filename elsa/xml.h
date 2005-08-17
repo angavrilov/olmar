@@ -2,6 +2,8 @@
 
 // Serialization and de-serialization support.
 
+// FIX: this module should eventually go into the ast repository
+
 #ifndef XML_H
 #define XML_H
 
