@@ -426,5 +426,39 @@ bool AccessMod::hasMod(char const *mod) const
   return false;      // not found
 }
 
+bool AccessMod::hasModPrefix(char const *mod) const
+{
+  string mod0(mod);
+  FOREACH_ASTLIST(string, mods, iter) {
+    rostring i = *iter.data();
+    if (prefixEquals(i, mod0)) {
+      return true;
+    }
+  }
+  return false;      // not found
+}
+
+string AccessMod::getModSuffixFromPrefix(char const *mod) const
+{
+  string mod0(mod);
+  string ret;
+  bool found = false;
+  FOREACH_ASTLIST(string, mods, iter) {
+    rostring s = *iter.data();
+    if (prefixEquals(s, mod0)) {
+      if (found) {
+        xfailure(stringc << "two modifiers with this prefix found " << mod);
+      }
+      int len = strlen(mod);
+      ret = s.substring(len, s.length()-len);
+      found = true;
+    }
+  }
+  if (!found) {
+    xfailure(stringc << "no such prefix found " << mod);
+  }
+  return ret;
+}
+
 
 

@@ -71,6 +71,10 @@ verbatim {
 class AccessMod(AccessCtl acc, ASTList<string> mods) {
   // true if the given modifier is present
   public bool hasMod(char const *mod) const;
+  // true if the given modifier prefix is present as a prefix of a modifier
+  public bool hasModPrefix(char const *mod) const;
+  // get the suffix after the given prefix of the (first) modifier it matches
+  public string getModSuffixFromPrefix(char const *mod) const;
 }
 
 // additional user annotations
@@ -140,6 +144,40 @@ bool AccessMod::hasMod(char const *mod) const
     }
   }
   return false;      // not found
+}
+
+bool AccessMod::hasModPrefix(char const *mod) const
+{
+  string mod0(mod);
+  FOREACH_ASTLIST(string, mods, iter) {
+    rostring i = *iter.data();
+    if (prefixEquals(i, mod0)) {
+      return true;
+    }
+  }
+  return false;      // not found
+}
+
+string AccessMod::getModSuffixFromPrefix(char const *mod) const
+{
+  string mod0(mod);
+  string ret;
+  bool found = false;
+  FOREACH_ASTLIST(string, mods, iter) {
+    rostring s = *iter.data();
+    if (prefixEquals(s, mod0)) {
+      if (found) {
+        xfailure(stringc << "two modifiers with this prefix found " << mod);
+      }
+      int len = strlen(mod);
+      ret = s.substring(len, s.length()-len);
+      found = true;
+    }
+  }
+  if (!found) {
+    xfailure(stringc << "no such prefix found " << mod);
+  }
+  return ret;
 }
 
 } // end impl_verbatim

@@ -256,6 +256,8 @@ public:      // funcs
   void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
 
   public:  bool hasMod(char const *mod) const;
+  public:  bool hasModPrefix(char const *mod) const;
+  public:  string getModSuffixFromPrefix(char const *mod) const;
 };
 
 

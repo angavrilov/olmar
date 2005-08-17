@@ -928,7 +928,8 @@ public:
   private:
   void emitXmlCtorArgs(ASTList<CtorArg> const &args, char const *baseName, string const &className);
   void emitXmlFields(ASTList<Annotation> const &decls, char const *baseName, string const &className);
-  void emitXmlField(rostring type, rostring name, char const *baseName, string const &className);
+  void emitXmlField(rostring type, rostring name, char const *baseName,
+                    string const &className, AccessMod *amod);
   void emitXmlVisitorImplVisitedCheck(char const *name);
   public:
   void emitXmlVisitorImplementation();
@@ -974,12 +975,12 @@ class XmlParserGen {
   void collectXmlParserCtorArgs(ASTList<CtorArg> const &args, char const *baseName);
   void collectXmlParserFields(ASTList<Annotation> const &decls, char const *baseName);
   void collectXmlParserField
-    (rostring type, rostring name, char const *baseName);
+    (rostring type, rostring name, char const *baseName, AccessMod *amod);
 
   void emitXmlCtorArgs_AttributeParseRule(ASTList<CtorArg> const &args, string &baseName);
   void emitXmlFields_AttributeParseRule(ASTList<Annotation> const &decls, string &baseName);
   void emitXmlField_AttributeParseRule
-    (rostring type, rostring name, string &baseName);
+    (rostring type, rostring name, string &baseName, AccessMod *amod);
 
   void emitXmlParser_objCtorArgs
     (ASTList<CtorArg> const &args, bool &firstTime);
@@ -2038,8 +2039,7 @@ void CGen::emitXmlCtorArgs(ASTList<CtorArg> const &args, char const *baseName, s
 {
   FOREACH_ASTLIST(CtorArg, args, argiter) {
     CtorArg const &arg = *(argiter.data());
-
-    emitXmlField(arg.type, arg.name, baseName, className);
+    emitXmlField(arg.type, arg.name, baseName, className, NULL);
   }
 }
 
@@ -2048,16 +2048,17 @@ void CGen::emitXmlFields(ASTList<Annotation> const &decls, char const *baseName,
   FOREACH_ASTLIST(Annotation, decls, iter) {
     if (!iter.data()->isUserDecl()) continue;
     UserDecl const *ud = iter.data()->asUserDeclC();
-    if (!ud->amod->hasMod("xml")) continue;
-
+    if (!ud->amod->hasModPrefix("xml")) continue;
     emitXmlField(extractFieldType(ud->code),
                  extractFieldName(ud->code),
                  baseName,
-                 className);
+                 className,
+                 ud->amod);
   }
 }
 
-void CGen::emitXmlField(rostring type, rostring name, char const *baseName, string const &className)
+void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
+                        string const &className, AccessMod *amod)
 {
   if (streq(name, "arraySize")) {
     breaker();
@@ -2121,10 +2122,6 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName, stri
     out << "  out << quoted(toXml_SourceLoc(" << baseName << "->" << name << "));\n";
   }
   else if (isListType(type)) {
-    // for now, I'll continue to assume that any class that appears
-    // in ASTList<> is compatible with the printing regime here
-//      out << "  " << print << "_LIST(" << extractListType(type) << ", "
-//          << name << ");\n";
     out << "  if (" << baseName << ") {\n";
     out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
@@ -2134,9 +2131,6 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName, stri
     out << "  }\n";
   }
   else if (isFakeListType(type)) {
-    // similar printing approach for FakeLists
-//      out << "  " << print << "_FAKE_LIST(" << extractListType(type) << ", "
-//          << name << ");\n";
     out << "  if (" << baseName << " && " << baseName << "->" << name << ") {\n";
     out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
@@ -2146,8 +2140,6 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName, stri
     out << "  }\n";
   }
   else if (isTreeNode(type) || (isTreeNodePtr(type))) {
-    // don't print subtrees that are possibly shared or circular
-//      out << "  " << print << "_SUBTREE(" << name << ");\n";
     out << "  if (" << baseName << " && " << baseName << "->" << name << ") {\n";
     out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
@@ -2155,16 +2147,43 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName, stri
     out << "    xmlPrintPointer(out, \"AST\", " << baseName << "->" << name << ");\n";
     out << "    out << \"\\\"\";\n";
     out << "  }\n";
+  } else if (amod && amod->hasModPrefix("xmlEmbed") && amod->hasModPrefix("xml_")) {
+    rostring idPrefix = amod->getModSuffixFromPrefix("xml_");
+    out << "  if (" << baseName << ") {\n";
+    out << "    out << \"\\n\";\n";
+    out << "    if (indent) printIndentation();\n";
+    out << "    out << \"" << name << "\" << \"=\\\"\";\n";
+    out << "    xmlPrintPointer(out, \"" << idPrefix << "\", ";
+    out << "&";
+    out << baseName << "->" << name << ");\n";
+    out << "    out << \"\\\"\";\n";
+    out << "  }\n";
   }
-  else if (isPtrKind(type)) {
-    // catch-all for objects
+
+    // FIX: relace the below with this; see note at "crap" below.
+//    else if (isPtrKind(type) && amod && amod->hasModPrefix("xml_")) {
+  else if (
+           (!amod && isPtrKind(type))
+           || (amod && amod->hasModPrefix("xml_"))
+           ) {
+    // catch-all for xml objects
+    string idPrefix;
+    if (amod) {
+      idPrefix = amod->getModSuffixFromPrefix("xml_");
+    } else {
+      // FIX: get rid of this piece of crap when we get a way to put
+      // an access specifier onto a ctor argument in the ast language
+      idPrefix = stringc << "TY";
+    }
     out << "  if (" << baseName << " && " << baseName << "->" << name << ") {\n";
     out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"" << name << "\" << \"=\\\"\";\n";
-    out << "    xmlPrintPointer(out, \"TY\", " << baseName << "->" << name << ");\n";
+    out << "    xmlPrintPointer(out, \"" << idPrefix << "\", ";
+    out << baseName << "->" << name << ");\n";
     out << "    out << \"\\\"\";\n";
     out << "  }\n";
+
   } else {
     // catch-all for non-objects
     out << "  out << \"\\n\";\n";
@@ -2644,7 +2663,7 @@ void XmlParserGen::collectXmlParserCtorArgs(ASTList<CtorArg> const &args, char c
 {
   FOREACH_ASTLIST(CtorArg, args, argiter) {
     CtorArg const &arg = *(argiter.data());
-    collectXmlParserField(arg.type, arg.name, baseName);
+    collectXmlParserField(arg.type, arg.name, baseName, NULL);
   }
 }
 
@@ -2653,17 +2672,18 @@ void XmlParserGen::collectXmlParserFields(ASTList<Annotation> const &decls, char
   FOREACH_ASTLIST(Annotation, decls, iter) {
     if (!iter.data()->isUserDecl()) continue;
     UserDecl const *ud = iter.data()->asUserDeclC();
-    if (!ud->amod->hasMod("xml")) continue;
+    if (!ud->amod->hasModPrefix("xml")) continue;
     collectXmlParserField(extractFieldType(ud->code),
                           extractFieldName(ud->code),
-                          baseName);
+                          baseName,
+                          ud->amod);
   }
 }
 
 // FIX: this is now very redundant, but we can still change it to
 // exclude some fields of some types, so lets keep it for now.
 void XmlParserGen::collectXmlParserField
-  (rostring type, rostring name, char const *baseName)
+  (rostring type, rostring name, char const *baseName, AccessMod*)
 {
   if (streq(type, "string")) {
     attributeNames.add(name);
@@ -2685,6 +2705,9 @@ void XmlParserGen::collectXmlParserField
     attributeNames.add(name);
   }
 
+  // If you start being more selective, be sure to include the names
+  // for things marked "xml"
+
   else {
     // catch-all ..
 //      out << "  " << print << "_GENERIC(" << name << ");\n";
@@ -2698,7 +2721,7 @@ void XmlParserGen::emitXmlCtorArgs_AttributeParseRule
 {
   FOREACH_ASTLIST(CtorArg, args, argiter) {
     CtorArg const &arg = *(argiter.data());
-    emitXmlField_AttributeParseRule(arg.type, arg.name, baseName);
+    emitXmlField_AttributeParseRule(arg.type, arg.name, baseName, NULL);
   }
 }
 
@@ -2708,15 +2731,16 @@ void XmlParserGen::emitXmlFields_AttributeParseRule
   FOREACH_ASTLIST(Annotation, decls, iter) {
     if (!iter.data()->isUserDecl()) continue;
     UserDecl const *ud = iter.data()->asUserDeclC();
-    if (!ud->amod->hasMod("xml")) continue;
+    if (!ud->amod->hasModPrefix("xml")) continue;
     emitXmlField_AttributeParseRule(extractFieldType(ud->code),
                                     extractFieldName(ud->code),
-                                    baseName);
+                                    baseName,
+                                    ud->amod);
   }
 }
 
 void XmlParserGen::emitXmlField_AttributeParseRule
-  (rostring type0, rostring name, string &baseName)
+  (rostring type0, rostring name, string &baseName, AccessMod *amod)
 {
   string type = trimWhitespace(type0);
   //  cout << "emitXmlField_AttributeParseRule() name:" << name << ", type:" << type << endl;
@@ -2795,6 +2819,14 @@ void XmlParserGen::emitXmlField_AttributeParseRule
     parser1_defs << "    manager->unsatLinks.append(new UnsatLink("
                  << "(void**) &(obj->" << name << "), parseQuotedString(strValue),"
                  << "XTOK_" << extractNodeType(type) << "));\n";
+    parser1_defs << "    break;\n";
+  } else if (amod && amod->hasModPrefix("xmlEmbed")) {
+    // embedded thing
+    rostring kind = amod->getModSuffixFromPrefix("xmlEmbed");
+    parser1_defs << "  case XTOK_" << name << ":\n";
+    parser1_defs << "    manager->unsatLinks" << kind << ".append(new UnsatLink("
+                 << "(void**) &(obj->" << name << "), parseQuotedString(strValue),"
+                 << "XTOK" << kind << "_" << baseName << "_" << name << "));\n";
     parser1_defs << "    break;\n";
   } else {
     // catch-all for non-objects
