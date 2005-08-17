@@ -594,7 +594,7 @@ nonterm(enum CVFlags) CVQualAttr {
 nonterm(IDeclarator*) Declarator {
   // "*", then some cv, then *one* __attribute__, which causes the
   // parser to commit to this production, then cv+attr seq
-  -> "*" cv:CVQualifierSeqOpt attrspec:AttributeSpecifier cv2:CVQualAttrSeqOpt d:Declarator
+  -> "*" cv:CVQualifierSeqOpt /*DROPPED*/AttributeSpecifier cv2:CVQualAttrSeqOpt d:Declarator
        { return new D_pointer(loc, cv | cv2, d); }
 
   // perhaps attributes should be allowed after "&" and "C::*"?
