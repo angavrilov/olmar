@@ -20,6 +20,7 @@ public:      // funcs
 
   // ASTVisitor functions
   virtual bool visitDeclarator(Declarator *obj);
+  virtual bool visitExpression(Expression *obj);
 };
 
 #endif // INTEGRITY_H
