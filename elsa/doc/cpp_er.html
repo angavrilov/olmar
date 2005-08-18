@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+<head>
+  <title>C++ Entities and Relationships</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+  <style type="text/css">
+    H1 { font-size: 150% }
+    H2 { font-size: 125% }
+    H3 { font-size: 100% }
+    P.title { font-size: 175%; font-weight: bold }
+    P.remark { font-size: 125%; color: red }
+    SPAN.todo { font-weight: bold }
+    SPAN.program { font-family: monospace }
+    SPAN.variable { font-family: monospace }
+    a.toc:link { text-decoration: none }
+    a.toc:visited { text-decoration: none }
+  </style>
+</head>
+<body>
+
+<center>
+<p class="title">C++ Entities and Relationships</p>
+</center>
+
+<p>
+The following diagram 
+(xfig sources: <a href="er.fig">er.fig</a>,
+postscript: <a href="er.ps">er.ps</a>)
+shows the various concepts in C++ static (compile-time) semantics,
+and their interrelationships.  Notationally, it is a mixture of
+traditional Entity-Relationship diagrams and UML, with some of my
+own ideas thrown on:
+<ul>
+<li>Entities are shown in boxes.  A dashed box indicate an entity that
+    with attributes and/or relationships that are elided from the
+    diagram.
+<li>Attributes are in ellipses.  Dashed ellipses similarly indicate
+    elided detail.
+<li>Relationships are thin lines connecting entities.  Either or both
+    end of a relationship may be named.  Each endpoint of the relationship
+    indicates a <em>cardinality</em>, which is the number times that a
+    single instance of the entity may participate in the relationship:
+    <ul>
+    <li>Name with no annotation: cardinality is one.
+    <li>Name with "?" annotation: zero or one.
+    <li>Name with "*" annotation: any number, including zero.
+    <li>Name with "[]" annotation: relation tuples are <em>ordered</em>,
+        forming a <em>sequence</em>; cardinality is anything.
+    <li>Unnamed arrowhead: cardinality is anything.  The notation is meant
+        to suggest a pointer, where the referent typically does not want or
+        need to know that something is pointing at it.
+    </ul>
+<li>Attributes can be given "?", "*" and "[]" annotations, with similar
+    meanings as for relationships.  In fact, attribute notation is used
+    interchangeably with relationship notation where convenient.
+<li>Specialization (often conceptualized as inheritance) is indicated
+    by thick lines connecting entities, with triangular split points.
+    A solid triangle indicates <em>total</em> specialization (meaning
+    the superclass is abstract) while an open triangle indicates
+    <em>partial</em> specialization.  Color is used to emphasize
+    important specialization hierarchies.
+    <ul>
+    <li>What is the difference between a partial specialization and
+        an optional ("?") attribute or relationship?  The former cannot
+        change during the entity's lifetime, while the latter can.
+    </ul>
+</ul>
+        
+<p>
+<center><img src="er.png" alt="C++ Static Semantics ER diagram"></center>
+
+<p>
+The diagram does not include templates and does not include executable
+AST fragments like statements and expressions, other than showing
+where they fit in.  I plan to make another diagram for templates, and
+possibly another for executable AST fragments.  I also plan to
+eventually extend this diagram with references to the standard itself,
+so one could use it to quickly find all sections relevant to a
+particular topic.
+
+<p>
+Note that the names used in the diagram above do not correspond
+exactly with either the terminology in the standard (which is often
+unnecessarily vague) nor that used in Elsa (which makes fewer
+distinctions, for example among kinds of Variables).  Elsa also does
+not use multiple inheritance to the degree suggested by naively
+interpreting specialization as inheritance in this diagram.
+
+<p>
+Furthermore, even Elsa's data model is slightly different; for
+example, in Elsa (at the moment), exception specs are attached to
+FunctionTypes, but as indicated in the diagram, they should be
+attached to (Function) Variables instead.  This discrepancy is
+essentially a bug in Elsa.  There are other discrepancies (such as the
+representation of Names) that are due to implementation techniques,
+not bugs.
+
+
+
+
+
+
+
+
+
+</body>
+</html>
