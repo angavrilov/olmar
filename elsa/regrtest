@@ -1149,6 +1149,7 @@ if $use_gnu; then
   testparse gnu/g0030.cc
   testparse gnu/g0031.cc
   testparse gnu/g0032.cc
+  failparse gnu/g0033.cc "wrong typeof(array[]) semantics"
 
   testparse gnu/t0124.cc
   testparse gnu/t0125.cc
