@@ -24,3 +24,22 @@ void foo(B &b)
   // but this is not; see 8.5p14
   A a2 = b;
 }
+
+
+
+// this is related in that the same resolution mechanism is used,
+// though no conversion operator is used; I am using this to test
+// that the proper AST nodes are inserted as a transformation
+// (this test comes from Oink, which wants to see that 'x' can
+// flow into 'z')
+struct C {
+  C(int y) {
+    int /*$untainted*/ z = y;
+  }
+  operator bool () { return true; }
+};
+
+int main() {
+  int /*$tainted*/ x;
+  if (C a = x) {}
+}

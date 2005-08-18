@@ -8922,19 +8922,37 @@ void IN_ctor::tcheck(Env &env, Type *destType)
         return;
       }
       
-      // TODO: rewrite the AST to reflect the use of any
-      // user-defined conversions
+      // rewrite the AST to reflect the use of any user-defined
+      // conversions
+      if (ic.kind == ImplicitConversion::IC_USER_DEFINED) {
+        if (ic.user->type->asFunctionType()->isConstructor()) {
+          // wrap 'args' in an E_constructor
+          TypeSpecifier *destTS = new TS_type(loc, destType);
+          E_constructor *ector = new E_constructor(destTS, args);
+          ector->type = destType;
+          ector->ctorVar = ic.user;
+          args = FakeList<ArgExpression>::makeList(new ArgExpression(ector));
 
-      // the result should now be of 'destType', so proceed with
-      // selecting an appropriate copy constructor
-      //
-      // TODO: might the chosen conversion yield some funky variant,
-      // which might in turn affect overload resolution?  how?  and
-      // if so, how do I determine that from 'ic'?  the overload
-      // resolver has a 'getReturnType' mechanism, but that is
-      // wrapped up inside the 'getImplicitConversion' call ...
+          // the variable will now be initialized by this 'ector',
+          // which has type 'destType'
+          srcType = destType;
+        }
+        else {
+          // wrap 'args' in an E_funCall of a conversion function
+          E_fieldAcc *efacc = new E_fieldAcc(src, new PQ_variable(loc, ic.user));
+          efacc->type = ic.user->type;
+          efacc->field = ic.user;
+          E_funCall *efc = new E_funCall(efacc, FakeList<ArgExpression>::emptyList());
+          efc->type = ic.user->type->asFunctionType()->retType;
+          args = FakeList<ArgExpression>::makeList(new ArgExpression(efc));
+
+          // variable initialized by result of calling the conversion
+          srcType = efc->type;
+        }
+      }
+
       argInfo[1].special = SE_NONE;
-      argInfo[1].type = destType;
+      argInfo[1].type = srcType;
       ctorVar = env.storeVar(
         outerResolveOverload_ctor(env, loc, destType, argInfo));
         

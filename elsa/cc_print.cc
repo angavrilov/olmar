@@ -964,7 +964,28 @@ void Declaration::print(PrintEnv &env)
   }
 }
 
-//  -------------------- ASTTypeId -------------------
+// -------------------- ASTTypeId -------------------
+void printInitializerOpt(PrintEnv &env, Initializer /*nullable*/ *init)
+{
+  if (init) {
+    IN_ctor *ctor = dynamic_cast<IN_ctor*>(init);
+    if (ctor) {
+      // sm: don't print "()" as an IN_ctor initializer (cppstd 8.5 para 8)
+      if (ctor->args->isEmpty()) {
+        *env.out << " /*default-ctor-init*/";
+      }
+      else {
+        // dsw:Constructor arguments.
+        PairDelim pair(*env.out, "", "(", ")");
+        ctor->print(env);       // NOTE: You can NOT factor this line out of the if!
+      }
+    } else {
+      *env.out << "=";
+      init->print(env);         // Don't pull this out!
+    }
+  }
+}
+
 void ASTTypeId::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("ASTTypeId");
@@ -972,15 +993,15 @@ void ASTTypeId::print(PrintEnv &env)
   TypeLike const *type0 = env.getTypeLike(decl->var);
 
   env.typePrinter.print(*env.out, type0);
+
+  // sm: ASTTypeId declarators are always abstract, so I think
+  // this conditional never evaluates to true...
   if (decl->getDeclaratorId()) {
     *env.out << " ";
     decl->getDeclaratorId()->print(env);
   }
-  
-  if (decl->init) {
-    *env.out << " = ";
-    decl->init->print(env);
-  }
+
+  printInitializerOpt(env, decl->init);
 }
 
 // ---------------------- PQName -------------------
@@ -1167,23 +1188,7 @@ void Declarator::print(PrintEnv &env)
     *env.out << ":";
     b->bits->print(env);
   }
-  if (init) {
-    IN_ctor *ctor = dynamic_cast<IN_ctor*>(init);
-    if (ctor) {
-      // sm: don't print "()" as an IN_ctor initializer (cppstd 8.5 para 8)
-      if (ctor->args->isEmpty()) {
-        *env.out << " /*default-ctor-init*/";
-      }
-      else {
-        // dsw:Constructor arguments.
-        PairDelim pair(*env.out, "", "(", ")");
-        ctor->print(env);       // NOTE: You can NOT factor this line out of the if!
-      }
-    } else {
-      *env.out << "=";
-      init->print(env);         // Don't pull this out!
-    }
-  }
+  printInitializerOpt(env, init);
 }
 
 // ------------------- ExceptionSpec --------------------
@@ -1539,7 +1544,7 @@ void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta)
       // have; enable the normal type printer temporarily in order to
       // do this
       Restorer<bool> res0(TypePrinterC::enabled, true);
-      env.typePrinter.print(*env.out, sta->value.t, ""); // assume 'type' if no comment
+      env.typePrinter.print(*env.out, sta->value.t); // assume 'type' if no comment
       }
       break;
     case STemplateArgument::STA_INT:
@@ -1655,6 +1660,27 @@ void E_constructor::iprint(PrintEnv &env)
   printArgExprList(env, args);
 }
 
+void printVariableName(PrintEnv &env, Variable *var)
+{
+  // I anticipate possibly expanding this to cover more cases
+  // of Variables that need to printed specially, possibly
+  // including printing needed qualifiers.
+
+  if (var->type->isFunctionType() &&
+      var->type->asFunctionType()->isConversionOperator()) {
+    // the name is just "conversion-operator", so print differently
+    *env.out << "/""*conversion*/operator(";
+    Type *t = var->type->asFunctionType()->retType;
+    Restorer<bool> res0(TypePrinterC::enabled, true);
+    env.typePrinter.print(*env.out, t);
+    *env.out << ")";
+    return;
+  }
+  
+  // normal case
+  *env.out << var->name;
+}
+
 void E_fieldAcc::iprint(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("E_fieldAcc::iprint");
@@ -1662,7 +1688,7 @@ void E_fieldAcc::iprint(PrintEnv &env)
   *env.out << ".";
   if (field &&
       !field->type->isDependent()) {
-    *env.out << field->name;
+    printVariableName(env, field);
     printTemplateArgs(env, field);
   }
   else {

@@ -237,7 +237,14 @@ class TypePrinter {
   // this other than to invent some abstract interface generalization
   // called TypeLike that both Type and Value inherit from.  I think
   // this is too much generality for OO to handle well
-  virtual void print(OutStream &out, TypeLike const *type, char const *name = NULL) = 0;
+  //
+  // sm: 2005-08-17: I made the default value of 'name' be "".  This
+  // means that in contexts that do not typically have names, "" will
+  // be passed and hence no /*anon*/ will be printed; while in
+  // contexts that usually do have names, but some instance does not
+  // (has a NULL pointer there), /*anon*/ *will* be printed.  Thus,
+  // /*anon*/ is only printed in places where name could go.
+  virtual void print(OutStream &out, TypeLike const *type, char const *name = "") = 0;
   
   // retrieve the TypeLike to print for a Variable; in Elsa, this
   // just gets Variable::type, but Oink does something else
