@@ -24,11 +24,39 @@
 </center>
 
 <p>
-The following diagram 
-(xfig sources: <a href="er.fig">er.fig</a>,
-postscript: <a href="er.ps">er.ps</a>)
-shows the various concepts in C++ static (compile-time) semantics,
-and their interrelationships.  Notationally, it is a mixture of
+This page contains data model diagrams useful for understanding the
+C++ language.  They show the various concepts in C++ static
+(compile-time) semantics, and their interrelationships. 
+
+<p>
+One use of these data models is to help understand the C++ Standard
+document.  It collects together the essential notions in the language,
+what components they have, how they are related, etc.  The data model
+is intended to be sufficiently complete that it could serve as the
+basis for a formal definition of the static semantics.
+
+<p>
+Another use is to understand the Elsa implementation.  Not surprisingly,
+many concepts in the data models correspond to prominent classes in
+the Elsa implementation.  However, the correspondence is not exact;
+in some cases, there are deviations due to known bugs in Elsa, while in
+others Elsa simply uses an implementation technique that may obscure
+a given concept.  Nevertheless, the intent is that Elsa should use a
+data model that could (in principle) be mapped back and forth to the
+model presented here.
+
+<p>
+That the names used in these diagrams do not correspond exactly with
+either the terminology in the standard (which is often unnecessarily
+vague) nor that used in Elsa (which makes fewer distinctions, for
+example among kinds of Variables).  However, there is an overall
+attempt at terminological consistency.
+
+
+<h1>Notation</h1>
+
+<p>
+The following diagrams use a notation that it is a mixture of
 traditional Entity-Relationship diagrams and UML, with some of my
 own ideas thrown in:
 <ul>
@@ -66,39 +94,76 @@ own ideas thrown in:
         change during the entity's lifetime, while the latter can.
     </ul>
 </ul>
-        
+
+
+<h1>Diagram 1: Scopes, Variables and Types</h1>
+
+<p>
+The following diagram
+(xfig sources: <a href="er.fig">er.fig</a>,
+postscript: <a href="er.ps">er.ps</a>)
+shows the essential static semantic concepts, such as scopes,
+variables and types.  It omits templates, and it omits executable
+AST fragments like statements and expressions.
+
 <p>
 <center><img src="er.png" alt="C++ Static Semantics ER diagram"></center>
 
 <p>
-The diagram does not include templates and does not include executable
-AST fragments like statements and expressions, other than showing
-where they fit in.  I plan to make another diagram for templates, and
-possibly another for executable AST fragments.  I also plan to
-eventually extend this diagram with references to the standard itself,
-so one could use it to quickly find all sections relevant to a
-particular topic.
+(TODO: Give detailed explanations for each entity.)
+
+
+<h1>Diagram 2: Templates</h1>
 
 <p>
-Note that the names used in the diagram above do not correspond
-exactly with either the terminology in the standard (which is often
-unnecessarily vague) nor that used in Elsa (which makes fewer
-distinctions, for example among kinds of Variables).  Elsa also does
-not use multiple inheritance to the degree suggested by naively
-interpreting specialization as inheritance in this diagram.
+This diagram
+(xfig sources: <a href="template_er.fig">template_er.fig</a>,
+postscript: <a href="template_er.ps">template_er.ps</a>)
+is an extension of the previous diagram, showing all the
+new and extended concepts needed to represent templates.
 
 <p>
-Furthermore, even Elsa's data model is slightly different; for
-example, in Elsa (at the moment), exception specs are attached to
-FunctionTypes, but as indicated in the diagram, they should be
-attached to (Function) Variables instead.  This discrepancy is
-essentially a bug in Elsa.  There are other discrepancies (such as the
-representation of Names) that are due to implementation techniques,
-not bugs.
+<center><img src="template_er.png" alt="C++ Templates diagram"></center>
+
+<p>
+(TODO: Give detailed explanations for each entity.)
 
 
 
 
+
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+<center>This space left intentionally blank.</center>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
 
 
 
