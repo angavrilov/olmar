@@ -18,6 +18,34 @@
 #include <fstream.h>       // ofstream
 #include <ctype.h>         // isalnum
 
+// propertly a member of ListClass below, but I don't like nested
+// things
+enum ListKind {
+  LK_NONE,
+  LK_ASTList,
+  LK_FakeList,
+};
+
+// a product type of the information relevant to a list member of a
+// class; used to construct the traverse calls and visitors to the
+// fictional list classes
+struct ListClass {
+  ListKind lkind;
+  string classAndMemberName;
+  string elementClassName;
+  explicit ListClass(ListKind lkind0, rostring classAndMemberName0, rostring elementClassName0)
+    : lkind(lkind0)
+    , classAndMemberName(classAndMemberName0)
+    , elementClassName(elementClassName0)
+  {}
+  char const * kindName() const;
+};
+
+char const * ListClass::kindName() const {
+  if (lkind == LK_ASTList) return "ASTList";
+  else if (lkind == LK_FakeList) return "FakeList";
+  else xfailure("illegal ListKind");
+}
 
 // this is the name of the visitor interface class, or ""
 // if the user does not want a visitor
@@ -50,13 +78,9 @@ ASTSpecFile *wholeAST = NULL;
 // applications which don't care about other forms
 SObjList<TF_class> allClasses;
 
-// list of all FakeList "list classes"
-StringSet fakeListClassesSet;
-ASTList<char> fakeListClasses;
-
 // list of all ASTList "list classes"
-StringSet astListClassesSet;
-ASTList<char> astListClasses;
+StringSet listClassesSet;
+ASTList<ListClass> listClasses;
 
 // true if the user wants the xmlPrint stuff
 bool wantXMLPrint = false;
@@ -937,7 +961,7 @@ public:
   void emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
                     bool hasChildren);
   private:
-  void emitOneTraverseCall(string name, string type);
+  void emitOneTraverseCall(rostring className, string name, string type);
 
   public:
   void emitMVisitorImplementation();
@@ -999,8 +1023,8 @@ class XmlParserGen {
      ASTList<CtorArg> const *lastArgs,
      ASTList<CtorArg> const *childArgs = NULL,
      ASTList<Annotation> const *childDecls = NULL);
-  void emitXmlParser_ASTList(char const *type);
-  void emitXmlParser_FakeList(char const *type);
+  void emitXmlParser_ASTList(ListClass const *type);
+//    void emitXmlParser_FakeList(ListClass const *type);
 
   public:
   void emitXmlParserImplementation();
@@ -1551,33 +1575,24 @@ void HGen::emitVisitorInterface()
         ;
   }
 
-  out << "\n  // FakeList 'classes'\n";
-  FOREACH_ASTLIST(char, fakeListClasses, iter) {
-    char const *cls = iter.data();
-    out << "  virtual bool visitList_" << cls << "(FakeList<" << cls << ">*);\n";
-    out << "  virtual void postvisitList_" << cls << "(FakeList<" << cls << ">*);\n";
-  }
-
-  out << "\n  // ASTList 'classes'\n";
-  FOREACH_ASTLIST(char, astListClasses, iter) {
-    char const *cls = iter.data();
-    out << "  virtual bool visitList_" << cls << "(ASTList<" << cls << ">*);\n";
-    out << "  virtual void postvisitList_" << cls << "(ASTList<" << cls << ">*);\n";
+  out << "\n  // List 'classes'\n";
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    ListClass const *cls = iter.data();
+    out << "  virtual bool visitList_" << cls->classAndMemberName
+        << "(" << cls->kindName() << "<" << cls->elementClassName << ">*);\n";
+    out << "  virtual void postvisitList_" << cls->classAndMemberName
+        << "(" << cls->kindName() << "<" << cls->elementClassName << ">*);\n";
   }
 
   StringSet listItemClassesSet; // set of list item classes printed so far
-  FOREACH_ASTLIST(char, fakeListClasses, iter) {
-    char const *cls = iter.data();
-    xassert(!listItemClassesSet.contains(cls)); // should not repeat
-    listItemClassesSet.add(cls);
-    out << "  virtual bool visitListItem_" << cls << "(" << cls << "*);\n";
-    out << "  virtual void postvisitListItem_" << cls << "(" << cls << "*);\n";
-  }
-  FOREACH_ASTLIST(char, astListClasses, iter) {
-    char const *cls = iter.data();
-    if (listItemClassesSet.contains(cls)) continue;
-    out << "  virtual bool visitListItem_" << cls << "(" << cls << "*);\n";
-    out << "  virtual void postvisitListItem_" << cls << "(" << cls << "*);\n";
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    ListClass const *cls = iter.data();
+    xassert(!listItemClassesSet.contains(cls->classAndMemberName)); // should not repeat
+    listItemClassesSet.add(cls->classAndMemberName);
+    out << "  virtual bool visitListItem_" << cls->classAndMemberName
+        << "(" << cls->elementClassName << "*);\n";
+    out << "  virtual void postvisitListItem_" << cls->classAndMemberName
+        << "(" << cls->elementClassName << "*);\n";
   }
 
   out << "};\n\n";
@@ -1598,41 +1613,24 @@ void CGen::emitVisitorImplementation()
         <<   c->super->name << " *obj) {}\n";
   }
 
-  out << "\n// FakeList 'classes'\n";
-  FOREACH_ASTLIST(char, fakeListClasses, iter) {
-    char const *cls = iter.data();
-    out << "bool " << visitorName << "::visitList_" << cls
-        << "(FakeList<" << cls << ">*) { return true; }\n";
-    out << "void " << visitorName << "::postvisitList_" << cls
-        << "(FakeList<" << cls << ">*) {}\n";
-  }
-
-  out << "\n// ASTList 'classes'\n";
-  FOREACH_ASTLIST(char, astListClasses, iter) {
-    char const *cls = iter.data();
-    out << "bool " << visitorName << "::visitList_" << cls
-        << "(ASTList<" << cls << ">*) { return true; }\n";
-    out << "void " << visitorName << "::postvisitList_" << cls
-        << "(ASTList<" << cls << ">*) {}\n";
+  out << "\n// List 'classes'\n";
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    ListClass const *cls = iter.data();
+    out << "bool " << visitorName << "::visitList_" << cls->classAndMemberName
+        << "(" << cls->kindName() << "<" << cls->elementClassName << ">*) { return true; }\n";
+    out << "void " << visitorName << "::postvisitList_" << cls->classAndMemberName
+        << "(" << cls->kindName() << "<" << cls->elementClassName << ">*) {}\n";
   }
 
   StringSet listItemClassesSet; // set of list item classes printed so far
-  FOREACH_ASTLIST(char, fakeListClasses, iter) {
-    char const *cls = iter.data();
-    xassert(!listItemClassesSet.contains(cls)); // should not repeat
-    listItemClassesSet.add(cls);
-    out << "bool " << visitorName << "::visitListItem_" << cls
-        << "(" << cls << "*) { return true; }\n";
-    out << "void " << visitorName << "::postvisitListItem_" << cls
-        << "(" << cls << "*) {}\n";
-  }
-  FOREACH_ASTLIST(char, astListClasses, iter) {
-    char const *cls = iter.data();
-    if (listItemClassesSet.contains(cls)) continue;
-    out << "bool " << visitorName << "::visitListItem_" << cls
-        << "(" << cls << "*) { return true; }\n";
-    out << "void " << visitorName << "::postvisitListItem_" << cls
-        << "(" << cls << "*) {}\n";
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    ListClass const *cls = iter.data();
+    xassert(!listItemClassesSet.contains(cls->classAndMemberName)); // should not repeat
+    listItemClassesSet.add(cls->classAndMemberName);
+    out << "bool " << visitorName << "::visitListItem_" << cls->classAndMemberName
+        << "(" << cls->elementClassName << "*) { return true; }\n";
+    out << "void " << visitorName << "::postvisitListItem_" << cls->classAndMemberName
+        << "(" << cls->elementClassName << "*) {}\n";
   }
 
   out << "\n\n";
@@ -1655,7 +1653,7 @@ void CGen::emitVisitorImplementation()
 }
 
 
-void CGen::emitOneTraverseCall(string name, string type)
+void CGen::emitOneTraverseCall(rostring className, string name, string type)
 {
   if (isTreeNode(type) || isTreeNodePtr(type)) {
     // traverse it directly
@@ -1682,16 +1680,20 @@ void CGen::emitOneTraverseCall(string name, string type)
     }
 
     // emit the pre-visit call to the fantasy "list class"
-    out << "  if (vis.visitList_" << eltType << "(" << argNamePrefix << name << ")) {\n";
+    out << "  if (vis.visitList_" << className << "_" << name
+        << "(" << argNamePrefix << name << ")) {\n";
     out << "    " << iterMacroName << "(" << eltType << ", " << name << ", iter) {\n";
 
-    out << "      if (vis.visitListItem_" << eltType << "(iter" << iterElt << ")) {\n";
+    out << "      if (vis.visitListItem_" << className << "_" << name
+        << "(iter" << iterElt << ")) {\n";
     out << "        iter" << iterElt << "->traverse(vis);\n";
-    out << "        vis.postvisitListItem_" << eltType << "(iter" << iterElt << ");\n";
+    out << "        vis.postvisitListItem_" << className << "_" << name
+        << "(iter" << iterElt << ");\n";
     out << "      }\n";         // end of if
 
     out << "    }\n";           // end of iter
-    out << "    vis.postvisitList_" << eltType << "(" << argNamePrefix << name << ");\n";
+    out << "    vis.postvisitList_" << className << "_" << name
+        << "(" << argNamePrefix << name << ");\n";
     out << "  }\n";             // end of if
   }
 }
@@ -1731,7 +1733,7 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
   // traverse into the ctor arguments
   FOREACH_ASTLIST(CtorArg, c->args, iter) {
     CtorArg const *arg = iter.data();
-    emitOneTraverseCall(arg->name, arg->type);
+    emitOneTraverseCall(c->name, arg->name, arg->type);
   }
 
   // dsw: I need a way to make fields traversable
@@ -1739,7 +1741,7 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
     if (!iter.data()->isUserDecl()) continue;
     UserDecl const *ud = iter.data()->asUserDeclC();
     if (!ud->amod->hasMod("traverse")) continue;
-    emitOneTraverseCall(extractFieldName(ud->code), extractFieldType(ud->code));
+    emitOneTraverseCall(c->name, extractFieldName(ud->code), extractFieldType(ud->code));
   }
 
   // do any final traversal action specified by the user
@@ -1748,7 +1750,7 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
   // traverse into the ctor last arguments
   FOREACH_ASTLIST(CtorArg, c->lastArgs, iter) {
     CtorArg const *arg = iter.data();
-    emitOneTraverseCall(arg->name, arg->type);
+    emitOneTraverseCall(c->name, arg->name, arg->type);
   }
 
   if (!hasChildren) {
@@ -1804,33 +1806,24 @@ void HGen::emitDVisitorInterface()
         <<   c->super->name << " *obj);\n";
   }
 
-  out << "\n  // FakeList 'classes'\n";
-  FOREACH_ASTLIST(char, fakeListClasses, iter) {
-    char const *cls = iter.data();
-    out << "  virtual bool visitList_" << cls << "(FakeList<" << cls << ">*);\n";
-    out << "  virtual void postvisitList_" << cls << "(FakeList<" << cls << ">*);\n";
-  }
-
-  out << "\n  // ASTList 'classes'\n";
-  FOREACH_ASTLIST(char, astListClasses, iter) {
-    char const *cls = iter.data();
-    out << "  virtual bool visitList_" << cls << "(ASTList<" << cls << ">*);\n";
-    out << "  virtual void postvisitList_" << cls << "(ASTList<" << cls << ">*);\n";
+  out << "\n  // List 'classes'\n";
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    ListClass const *cls = iter.data();
+    out << "  virtual bool visitList_" << cls->classAndMemberName
+        << "(" << cls->kindName() << "<" << cls->elementClassName << ">*);\n";
+    out << "  virtual void postvisitList_" << cls->classAndMemberName
+        << "(" << cls->kindName() << "<" << cls->elementClassName << ">*);\n";
   }
 
   StringSet listItemClassesSet; // set of list item classes printed so far
-  FOREACH_ASTLIST(char, fakeListClasses, iter) {
-    char const *cls = iter.data();
-    xassert(!listItemClassesSet.contains(cls)); // should not repeat
-    listItemClassesSet.add(cls);
-    out << "  virtual bool visitListItem_" << cls << "(" << cls << "*);\n";
-    out << "  virtual void postvisitListItem_" << cls << "(" << cls << "*);\n";
-  }
-  FOREACH_ASTLIST(char, astListClasses, iter) {
-    char const *cls = iter.data();
-    if (listItemClassesSet.contains(cls)) continue;
-    out << "  virtual bool visitListItem_" << cls << "(" << cls << "*);\n";
-    out << "  virtual void postvisitListItem_" << cls << "(" << cls << "*);\n";
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    ListClass const *cls = iter.data();
+    xassert(!listItemClassesSet.contains(cls->classAndMemberName)); // should not repeat
+    listItemClassesSet.add(cls->classAndMemberName);
+    out << "  virtual bool visitListItem_" << cls->classAndMemberName
+        << "(" << cls->elementClassName << "*);\n";
+    out << "  virtual void postvisitListItem_" << cls->classAndMemberName
+        << "(" << cls->elementClassName << "*);\n";
   }
 
   // we are done
@@ -1884,77 +1877,45 @@ void CGen::emitDVisitorImplementation()
         << "}\n";
   }
 
-  out << "\n// FakeList 'classes'\n";
-  FOREACH_ASTLIST(char, fakeListClasses, iter) {
-    char const *cls = iter.data();
+  out << "\n// List 'classes'\n";
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    ListClass const *cls = iter.data();
     // visit
-    out << "bool " << dvisitorName << "::visitList_" << cls << "(FakeList<" << cls << ">* obj) {\n";
-    out << "  xassert(!wasVisitedList_FakeList(obj));\n";
-    out << "  return client ? client->visitList_" << cls << "(obj) : true;\n";
+    out << "bool " << dvisitorName << "::visitList_" << cls->classAndMemberName
+        << "(" << cls->kindName() << "<" << cls->elementClassName << ">* obj) {\n";
+    out << "  xassert(!wasVisitedList_" << cls->kindName() << "(obj));\n";
+    out << "  return client ? client->visitList_" << cls->classAndMemberName << "(obj) : true;\n";
     out << "}\n";
 
     // post visit
-    out << "void " << dvisitorName << "::postvisitList_" << cls << "(FakeList<" << cls << ">* obj) {\n";
+    out << "void " << dvisitorName << "::postvisitList_" << cls->classAndMemberName
+        << "(" << cls->kindName() << "<" << cls->elementClassName << ">* obj) {\n";
     out << "  if (client) {\n";
-    out << "    client->postvisitList_" << cls << "(obj);\n";
-    out << "  }\n";
-    out << "}\n";
-  }
-
-  out << "\n// ASTList 'classes'\n";
-  FOREACH_ASTLIST(char, astListClasses, iter) {
-    char const *cls = iter.data();
-    // visit
-    out << "bool " << dvisitorName << "::visitList_" << cls << "(ASTList<" << cls << ">* obj) {\n";
-    out << "  xassert(!wasVisitedList_ASTList(obj));\n";
-    out << "  return client ? client->visitList_" << cls << "(obj) : true;\n";
-    out << "}\n";
-
-    // post visit
-    out << "void " << dvisitorName << "::postvisitList_" << cls << "(ASTList<" << cls << ">* obj) {\n";
-    out << "  if (client) {\n";
-    out << "    client->postvisitList_" << cls << "(obj);\n";
+    out << "    client->postvisitList_" << cls->classAndMemberName << "(obj);\n";
     out << "  }\n";
     out << "}\n";
   }
 
   StringSet listItemClassesSet; // set of list item classes printed so far
-  FOREACH_ASTLIST(char, fakeListClasses, iter) {
-    char const *cls = iter.data();
-    xassert(!listItemClassesSet.contains(cls)); // should not repeat
-    listItemClassesSet.add(cls);
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    ListClass const *cls = iter.data();
+    xassert(!listItemClassesSet.contains(cls->classAndMemberName)); // should not repeat
+    listItemClassesSet.add(cls->classAndMemberName);
 
     // visit item
-    out << "bool " << dvisitorName << "::visitListItem_" << cls << "(" << cls << " *obj) {\n";
+    out << "bool " << dvisitorName << "::visitListItem_" << cls->classAndMemberName
+        << "(" << cls->elementClassName << " *obj) {\n";
     // NOTE: we do NOT check that it has been visited before; this is
     // the point of list items: that they are visited multiple times
     // even if the contained item itself is not
-    out << "  return client ? client->visitListItem_" << cls << "(obj) : true;\n";
+    out << "  return client ? client->visitListItem_" << cls->classAndMemberName << "(obj) : true;\n";
     out << "}\n";
 
     // post visit item
-    out << "void " << dvisitorName << "::postvisitListItem_" << cls << "(" << cls << " *obj) {\n";
+    out << "void " << dvisitorName << "::postvisitListItem_" << cls->classAndMemberName
+        << "(" << cls->elementClassName << " *obj) {\n";
     out << "  if (client) {\n";
-    out << "    client->postvisitListItem_" << cls << "(obj);\n";
-    out << "  }\n";
-    out << "}\n";
-  }
-  FOREACH_ASTLIST(char, astListClasses, iter) {
-    char const *cls = iter.data();
-    if (listItemClassesSet.contains(cls)) continue;
-
-    // visit item
-    out << "bool " << dvisitorName << "::visitListItem_" << cls << "(" << cls << " *obj) {\n";
-    // NOTE: we do NOT check that it has been visited before; this is
-    // the point of list items: that they are visited multiple times
-    // even if the contained item itself is not
-    out << "  return client ? client->visitListItem_" << cls << "(obj) : true;\n";
-    out << "}\n";
-
-    // post visit item
-    out << "void " << dvisitorName << "::postvisitListItem_" << cls << "(" << cls << " *obj) {\n";
-    out << "  if (client) {\n";
-    out << "    client->postvisitListItem_" << cls << "(obj);\n";
+    out << "    client->postvisitListItem_" << cls->classAndMemberName << "(obj);\n";
     out << "  }\n";
     out << "}\n";
   }
@@ -1964,87 +1925,16 @@ void CGen::emitDVisitorImplementation()
 
 // ------------------- xml visitor --------------------
 
-// NOTE: dsw: this junk is just here so I can figure out what is going
-// on for now.
-
-//  #define PRINT_STRING(var) 
-//    debugPrintStr(var, #var, os, indent)    /* user ; */
-
-//  void debugPrintStr(string const &s, char const *name,
-//                     ostream &os, int indent);
-
-
-//  #define PRINT_LIST(T, list) 
-//    debugPrintList(list, #list, os, indent)     /* user ; */
-
-//  template <class T>
-//  void debugPrintList(ASTList<T> const &list, char const *name,
-//                      ostream &os, int indent)
-//  {
-//    ind(os, indent) << name << ":\n";
-//    int ct=0;
-//    {
-//      FOREACH_ASTLIST(T, list, iter) {
-//        iter.data()->debugPrint(os, indent+2,
-//          stringc << name << "[" << ct++ << "]");
-//      }
-//    }
-//  }
-
-//  // provide explicit specialization for strings
-//  void debugPrintList(ASTList<string> const &list, char const *name,
-//                      ostream &os, int indent);
-//  void debugPrintList(ASTList<LocString> const &list, char const *name,
-//                      ostream &os, int indent);
-
-
-//  #define PRINT_FAKE_LIST(T, list) 
-//    debugPrintFakeList(list, #list, os, indent)     /* user ; */
-
-//  template <class T>
-//  void debugPrintFakeList(FakeList<T> const *list, char const *name,
-//                          ostream &os, int indent)
-//  {
-//    ind(os, indent) << name << ":\n";
-//    int ct=0;
-//    {
-//      FAKELIST_FOREACH(T, list, iter) {
-//        iter->debugPrint(os, indent+2,
-//          stringc << name << "[" << ct++ << "]");
-//      }
-//    }
-//  }
-
-//  // note that we never make FakeLists of strings, since of course
-//  // strings do not have a 'next' pointer
-
-
-//  #define PRINT_SUBTREE(tree)                     
-//    if (tree) {                                   
-//      (tree)->debugPrint(os, indent, #tree);      
-//    }                                             
-//    else {                                        
-//      ind(os, indent) << #tree << " is null\n";   
-//    } /* user ; (optional) */
-
-
-//  #define PRINT_GENERIC(var) 
-//    ind(os, indent) << #var << " = " << ::toString(var) << "\n"   /* user ; */
-
-
-//  #define PRINT_BOOL(var) 
-//    ind(os, indent) << #var << " = " << (var? "true" : "false") << "\n"   /* user ; */
-
-void CGen::emitXmlCtorArgs(ASTList<CtorArg> const &args, char const *baseName, string const &className)
-{
+void CGen::emitXmlCtorArgs(ASTList<CtorArg> const &args, char const *baseName,
+                           string const &className) {
   FOREACH_ASTLIST(CtorArg, args, argiter) {
     CtorArg const &arg = *(argiter.data());
     emitXmlField(arg.type, arg.name, baseName, className, NULL);
   }
 }
 
-void CGen::emitXmlFields(ASTList<Annotation> const &decls, char const *baseName, string const &className)
-{
+void CGen::emitXmlFields(ASTList<Annotation> const &decls, char const *baseName,
+                         string const &className) {
   FOREACH_ASTLIST(Annotation, decls, iter) {
     if (!iter.data()->isUserDecl()) continue;
     UserDecl const *ud = iter.data()->asUserDeclC();
@@ -2058,8 +1948,7 @@ void CGen::emitXmlFields(ASTList<Annotation> const &decls, char const *baseName,
 }
 
 void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
-                        string const &className, AccessMod *amod)
-{
+                        string const &className, AccessMod *amod) {
   if (streq(name, "arraySize")) {
     breaker();
   }
@@ -2239,33 +2128,24 @@ void HGen::emitXmlVisitorInterface()
         <<   c->super->name << " *obj);\n";
   }
 
-  out << "\n  // FakeList 'classes'\n";
-  FOREACH_ASTLIST(char, fakeListClasses, iter) {
-    char const *cls = iter.data();
-    out << "  virtual bool visitList_" << cls << "(FakeList<" << cls << ">*);\n";
-    out << "  virtual void postvisitList_" << cls << "(FakeList<" << cls << ">*);\n";
-  }
-
-  out << "\n  // ASTList 'classes'\n";
-  FOREACH_ASTLIST(char, astListClasses, iter) {
-    char const *cls = iter.data();
-    out << "  virtual bool visitList_" << cls << "(ASTList<" << cls << ">*);\n";
-    out << "  virtual void postvisitList_" << cls << "(ASTList<" << cls << ">*);\n";
+  out << "\n  // List 'classes'\n";
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    ListClass const *cls = iter.data();
+    out << "  virtual bool visitList_" << cls->classAndMemberName
+        << "(" << cls->kindName() << "<" << cls->elementClassName << ">*);\n";
+    out << "  virtual void postvisitList_" << cls->classAndMemberName
+        << "(" << cls->kindName() << "<" << cls->elementClassName << ">*);\n";
   }
 
   StringSet listItemClassesSet; // set of list item classes printed so far
-  FOREACH_ASTLIST(char, fakeListClasses, iter) {
-    char const *cls = iter.data();
-    xassert(!listItemClassesSet.contains(cls)); // should not repeat
-    listItemClassesSet.add(cls);
-    out << "  virtual bool visitListItem_" << cls << "(" << cls << "*);\n";
-    out << "  virtual void postvisitListItem_" << cls << "(" << cls << "*);\n";
-  }
-  FOREACH_ASTLIST(char, astListClasses, iter) {
-    char const *cls = iter.data();
-    if (listItemClassesSet.contains(cls)) continue;
-    out << "  virtual bool visitListItem_" << cls << "(" << cls << "*);\n";
-    out << "  virtual void postvisitListItem_" << cls << "(" << cls << "*);\n";
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    ListClass const *cls = iter.data();
+    xassert(!listItemClassesSet.contains(cls->classAndMemberName)); // should not repeat
+    listItemClassesSet.add(cls->classAndMemberName);
+    out << "  virtual bool visitListItem_" << cls->classAndMemberName
+        << "(" << cls->elementClassName << "*);\n";
+    out << "  virtual void postvisitListItem_" << cls->classAndMemberName
+        << "(" << cls->elementClassName << "*);\n";
   }
 
   // we are done
@@ -2380,38 +2260,44 @@ void CGen::emitXmlVisitorImplementation()
     out << "}\n\n";
   }
 
-  out << "\n// FakeList 'classes'\n";
-  FOREACH_ASTLIST(char, fakeListClasses, iter) {
-    char const *cls = iter.data();
+  out << "\n// List 'classes'\n";
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    ListClass const *cls = iter.data();
     // visit
-    out << "bool " << xmlVisitorName << "::visitList_" << cls
-        << "(FakeList<" << cls << ">* obj) {\n";
-    out << "  if (obj) {\n";
-    out << "    if(wasVisitedList_FakeList(obj)) return false;\n";
+    out << "bool " << xmlVisitorName << "::visitList_" << cls->classAndMemberName
+        << "(" << cls->kindName() << "<" << cls->elementClassName << ">* obj) {\n";
+    out << "  if (obj->isNotEmpty()) {\n";
+    out << "    if(wasVisitedList_" << cls->kindName() << "(obj)) return false;\n";
     out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"<List_" << cls << " _id=\\\"\";\n";
-    out << "    xmlPrintPointer(out, \"FL\", obj);\n";
+    out << "    out << \"<List_" << cls->classAndMemberName << " _id=\\\"\";\n";
+    out << "    xmlPrintPointer(out, \"";
+    if (cls->lkind == LK_ASTList) {
+      out << "AL";
+    } else if (cls->lkind == LK_FakeList) {
+      out << "FL";
+    } else xfailure("illegal list kind");
+    out << "\", obj);\n";
     out << "    out << \"\\\">\";\n";
     out << "    ++depth;\n";
-    out << "  }\n";
+    out << "  };\n";
     out << "  return true;\n";
     out << "}\n\n";
 
     // post visit
-    out << "void " << xmlVisitorName << "::postvisitList_" << cls
-        << "(FakeList<" << cls << ">* obj) {\n";
-    out << "  if (obj) {\n";
+    out << "void " << xmlVisitorName << "::postvisitList_" << cls->classAndMemberName
+        << "(" << cls->kindName() << "<" << cls->elementClassName << ">* obj) {\n";
+    out << "  if (obj->isNotEmpty()) {\n";
     out << "    --depth;\n";
     out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"</List_" << cls << ">\";\n";
+    out << "    out << \"</List_" << cls->classAndMemberName << ">\";\n";
     out << "  }\n";
     out << "}\n\n";
 
     // visit item
-    out << "bool " << xmlVisitorName << "::visitListItem_" << cls
-        << "(" << cls << " *obj) {\n";
+    out << "bool " << xmlVisitorName << "::visitListItem_" << cls->classAndMemberName
+        << "(" << cls->elementClassName << " *obj) {\n";
     out << "  xassert(obj);\n";
     out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
@@ -2423,57 +2309,8 @@ void CGen::emitXmlVisitorImplementation()
     out << "}\n\n";
 
     // post visit item
-    out << "void " << xmlVisitorName << "::postvisitListItem_" << cls
-        << "(" << cls << " *obj) {\n";
-    out << "  xassert(obj);\n";
-    out << "  --depth;\n";
-    out << "  out << \"\\n\";\n";
-    out << "  if (indent) printIndentation();\n";
-    out << "  out << \"</_List_Item>\";\n";
-    out << "}\n\n";
-  }
-
-  out << "\n// ASTList 'classes'\n";
-  FOREACH_ASTLIST(char, astListClasses, iter) {
-    char const *cls = iter.data();
-    // visit
-    out << "bool " << xmlVisitorName << "::visitList_" << cls
-        << "(ASTList<" << cls << ">* obj) {\n";
-    out << "  if(wasVisitedList_ASTList(obj)) return false;\n";
-    out << "  out << \"\\n\";\n";
-    out << "  if (indent) printIndentation();\n";
-    out << "  out << \"<List_" << cls << " _id=\\\"\";\n";
-    out << "  xmlPrintPointer(out, \"AL\", obj);\n";
-    out << "  out << \"\\\">\";\n";
-    out << "  ++depth;\n";
-    out << "  return true;\n";
-    out << "}\n\n";
-
-    // post visit
-    out << "void " << xmlVisitorName << "::postvisitList_" << cls
-        << "(ASTList<" << cls << ">* obj) {\n";
-    out << "  --depth;\n";
-    out << "  out << \"\\n\";\n";
-    out << "  if (indent) printIndentation();\n";
-    out << "  out << \"</List_" << cls << ">\";\n";
-    out << "}\n\n";
-
-    // visit item
-    out << "bool " << xmlVisitorName << "::visitListItem_" << cls
-        << "(" << cls << " *obj) {\n";
-    out << "  xassert(obj);\n";
-    out << "  out << \"\\n\";\n";
-    out << "  if (indent) printIndentation();\n";
-    out << "  out << \"<_List_Item\" << \" item=\\\"\";\n";
-    out << "  xmlPrintPointer(out, \"AST\", obj);\n";
-    out << "  out << \"\\\">\";\n";
-    out << "  ++depth;\n";
-    out << "  return true;\n";
-    out << "}\n\n";
-
-    // post visit item
-    out << "void " << xmlVisitorName << "::postvisitListItem_" << cls
-        << "(" << cls << " *obj) {\n";
+    out << "void " << xmlVisitorName << "::postvisitListItem_" << cls->classAndMemberName
+        << "(" << cls->elementClassName << " *obj) {\n";
     out << "  xassert(obj);\n";
     out << "  --depth;\n";
     out << "  out << \"\\n\";\n";
@@ -2796,14 +2633,14 @@ void XmlParserGen::emitXmlField_AttributeParseRule
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    manager->unsatLinks_List.append(new UnsatLink("
                  << "(void**) &(obj->" << name << "), parseQuotedString(strValue), "
-                 << "XTOK_List_" << extractListType(type) << "));\n";
+                 << "XTOK_List_" << baseName << "_" << name << "));\n";
     parser1_defs << "    break;\n";
   }
   else if (isFakeListType(type)) {
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    manager->unsatLinks_List.append(new UnsatLink("
                  << "(void**) &(obj->" << name << "), parseQuotedString(strValue), "
-                 << "XTOK_List_" << extractListType(type) << "));\n";
+                 << "XTOK_List_" << baseName << "_" << name << "));\n";
     parser1_defs << "    break;\n";
   }
   else if (isTreeNode(type) || (isTreeNodePtr(type))) {
@@ -2935,24 +2772,15 @@ void XmlParserGen::emitXmlParser_Node_registerAttr
   parser1_defs << "}\n";
 }
 
-void XmlParserGen::emitXmlParser_FakeList(char const *type)
+void XmlParserGen::emitXmlParser_ASTList(ListClass const *cls)
 {
-  string name = stringc << "List_" << type;
+  string name = stringc << "List_" << cls->classAndMemberName;
   // only one rule as lists are homogeneous
-  xassert(isTreeNode(type));
+  xassert(isTreeNode(cls->elementClassName));
   parser2_ctorCalls << "    case XTOK_" << name << ":\n"
-                    << "      return new ASTList<" << type << ">();\n"
-                    << "      break;\n";
-}
-
-void XmlParserGen::emitXmlParser_ASTList(char const *type)
-{
-  string name = stringc << "List_" << type;
-  // only one rule as lists are homogeneous
-  xassert(isTreeNode(type));
-//    parserOut << "    ((ASTList<" << type << ">*)v)->append((" << type << "*)child);\n";
-  parser2_ctorCalls << "    case XTOK_" << name << ":\n"
-                    << "      return new ASTList<" << type << ">();\n"
+    // NOTE: yes, this should say 'new ASTList' even in the case of
+    // FakeLists; ASTLists are also used as "generic lists".
+                    << "      return new ASTList<" << cls->elementClassName << ">();\n"
                     << "      break;\n";
 }
 
@@ -2999,25 +2827,22 @@ void XmlParserGen::emitXmlParserImplementation()
     }
   }
 
-  tokensOutH  << "\n  // FakeList 'classes'\n";
-  tokensOutCC << "\n  // FakeList 'classes'\n";
-  FOREACH_ASTLIST(char, fakeListClasses, iter) {
-    char const *cls = iter.data();
-    tokensOutH  << "  XTOK_List_" << cls << ", // \"List_" << cls << "\"\n";
-    tokensOutCC << "  \"XTOK_List_" << cls << "\",\n";
-    lexerOut  << "\"List_" << cls << "\" return tok(XTOK_List_" << cls << ");\n";
-    parser1_defs << "  case XTOK_List_" << cls << ": *kindCat = KC_FakeList; break;\n";
-    emitXmlParser_FakeList(cls);
-  }
-
-  tokensOutH  << "\n  // ASTList 'classes'\n";
-  tokensOutCC << "\n  // ASTList 'classes'\n";
-  FOREACH_ASTLIST(char, astListClasses, iter) {
-    char const *cls = iter.data();
-    tokensOutH  << "  XTOK_List_" << cls << ", // \"List_" << cls << "\"\n";
-    tokensOutCC << "  \"XTOK_List_" << cls << "\",\n";
-    lexerOut  << "\"List_" << cls << "\" return tok(XTOK_List_" << cls << ");\n";
-    parser1_defs << "  case XTOK_List_" << cls << ": *kindCat = KC_ASTList; break;\n";
+  tokensOutH  << "\n  // List 'classes'\n";
+  tokensOutCC << "\n  // List 'classes'\n";
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    ListClass const *cls = iter.data();
+    tokensOutH  << "  XTOK_List_" << cls->classAndMemberName
+                << ", // \"List_" << cls->classAndMemberName << "\"\n";
+    tokensOutCC << "  \"XTOK_List_" << cls->classAndMemberName << "\",\n";
+    lexerOut  << "\"List_" << cls->classAndMemberName
+              << "\" return tok(XTOK_List_" << cls->classAndMemberName << ");\n";
+    parser1_defs << "  case XTOK_List_" << cls->classAndMemberName << ": *kindCat = ";
+    if (cls->lkind == LK_FakeList) {
+      parser1_defs << "KC_FakeList";
+    } else if (cls->lkind == LK_ASTList) {
+      parser1_defs << "KC_ASTList";
+    } else xfailure("illegal list kind");
+    parser1_defs << "; break;\n";
     emitXmlParser_ASTList(cls);
   }
 
@@ -3060,13 +2885,10 @@ void XmlParserGen::emitXmlParserImplementation()
       parser1_defs << "  case XTOK_" << name << ": answer = false; return true; break;\n";
     }
   }
-  FOREACH_ASTLIST(char, fakeListClasses, iter) {
-    char const *cls = iter.data();
-    parser1_defs << "  case XTOK_List_" << cls << ": answer = false; return true; break;\n";
-  }
-  FOREACH_ASTLIST(char, astListClasses, iter) {
-    char const *cls = iter.data();
-    parser1_defs << "  case XTOK_List_" << cls << ": answer = false; return true; break;\n";
+
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    ListClass const *cls = iter.data();
+    parser1_defs << "  case XTOK_List_" << cls->classAndMemberName << ": answer = false; return true; break;\n";
   }
   parser1_defs << "  }\n";
   parser1_defs << "}\n";
@@ -3089,13 +2911,10 @@ void XmlParserGen::emitXmlParserImplementation()
       parser1_defs << "  case XTOK_" << name << ":\n";
     }
   }
-  FOREACH_ASTLIST(char, fakeListClasses, iter) {
-    char const *cls = iter.data();
-    parser1_defs << "  case XTOK_List_" << cls << ":\n";
-  }
-  FOREACH_ASTLIST(char, astListClasses, iter) {
-    char const *cls = iter.data();
-    parser1_defs << "  case XTOK_List_" << cls << ":\n";
+
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    ListClass const *cls = iter.data();
+    parser1_defs << "  case XTOK_List_" << cls->classAndMemberName << ":\n";
   }
   parser1_defs << "    xfailure(\"should never be called\"); return true; break;\n";
   parser1_defs << "  }\n";
@@ -3105,20 +2924,21 @@ void XmlParserGen::emitXmlParserImplementation()
   parser1_defs << "bool ASTXmlReader::convertList2FakeList(ASTList<char> *list, int listKind, void **target) {\n";
   parser1_defs << "  switch(listKind) {\n";
   parser1_defs << "  default: return false; // we did not find a matching tag\n";
-  FOREACH_ASTLIST(char, fakeListClasses, iter) {
-    char const *cls = iter.data();
-    parser1_defs << "  case XTOK_List_" << cls << ": {\n";
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    ListClass const *cls = iter.data();
+    if (cls->lkind != LK_FakeList) continue;
+    parser1_defs << "  case XTOK_List_" << cls->classAndMemberName << ": {\n";
     parser1_defs << "    xassert(list);\n";
-    parser1_defs << "    FakeList<" << cls << "> *ret = NULL;\n";
-    parser1_defs << "    FakeList<" << cls << "> *prev = NULL;\n";
-    parser1_defs << "    FOREACH_ASTLIST_NC(" << cls << ",\n";
-    parser1_defs << "                       reinterpret_cast<ASTList<" << cls << ">&>(*list),\n";
+    parser1_defs << "    FakeList<" << cls->elementClassName << "> *ret = NULL;\n";
+    parser1_defs << "    FakeList<" << cls->elementClassName << "> *prev = NULL;\n";
+    parser1_defs << "    FOREACH_ASTLIST_NC(" << cls->elementClassName << ",\n";
+    parser1_defs << "                       reinterpret_cast<ASTList<" << cls->elementClassName << ">&>(*list),\n";
     parser1_defs << "                       iter) {\n";
     parser1_defs << "      if (prev) {\n";
     parser1_defs << "        prev->first()->next = iter.data();\n";
-    parser1_defs << "        prev = FakeList<" << cls << ">::makeList(prev->first()->next);\n";
+    parser1_defs << "        prev = FakeList<" << cls->elementClassName << ">::makeList(prev->first()->next);\n";
     parser1_defs << "      } else {\n";
-    parser1_defs << "        ret = FakeList<" << cls << ">::makeList(iter.data());\n";
+    parser1_defs << "        ret = FakeList<" << cls->elementClassName << ">::makeList(iter.data());\n";
     parser1_defs << "        prev = ret;\n";
     parser1_defs << "      }\n";
     parser1_defs << "    }\n";
@@ -3340,35 +3160,37 @@ void mergeExtension(ASTSpecFile *base, ASTSpecFile *ext)
 // re-enable allClasses
 #undef allClasses
 
+void recordListClass(ListKind lkind, rostring className, CtorArg const *arg) {
+  rostring argName = arg->name;
+  ListClass *cls = new ListClass
+    (lkind, stringc << className << "_" << argName, extractListType(arg->type));
+  if (!listClassesSet.contains(cls->classAndMemberName)) {
+    listClassesSet.add(cls->classAndMemberName);
+    listClasses.append(cls);
+  } else {
+    delete cls;
+  }
+}
 
-void getListClasses(CtorArg const *arg) {
+void getListClasses(rostring className, CtorArg const *arg) {
   // I would rather visit all the lists, but we don't seem to generate
   // visit() traversals for non-tree nodes, so there is nothing to put
   // inside the nesting
   if (isListType(arg->type) && isTreeNode(extractListType(arg->type))) {
-    string listType = extractListType(arg->type);
-    string listName = stringc << "List_" << listType;
-    if (!astListClassesSet.contains(listName)) {
-      astListClassesSet.add(listName);
-      astListClasses.append(strdup(listType.c_str()));
-    }
+    recordListClass(LK_ASTList, className, arg);
   }
   if (isFakeListType(arg->type) && isTreeNode(extractListType(arg->type))) {
-    string listType = extractListType(arg->type);
-    string listName = stringc << "List_" << listType;
-    if (!fakeListClassesSet.contains(listName)) {
-      fakeListClassesSet.add(listName);
-      fakeListClasses.append(strdup(listType.c_str()));
-    }
+    recordListClass(LK_FakeList, className, arg);
   }
 }
 
 void getListClasses(ASTClass const *c) {
+  rostring className = c->name;
   FOREACH_ASTLIST(CtorArg, c->args, ctorIter) {
-    getListClasses(ctorIter.data());
+    getListClasses(className, ctorIter.data());
   }
   FOREACH_ASTLIST(CtorArg, c->lastArgs, ctorIter) {
-    getListClasses(ctorIter.data());
+    getListClasses(className, ctorIter.data());
   }
 }
 
