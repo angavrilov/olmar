@@ -1,5 +1,6 @@
 // variable.h                       see license.txt for copyright and terms of use
 // information about a name
+// see Diagram 1 of doc/cpp_er.html
 //
 // Every binding introduction (e.g. declaration) of a name will own
 // one of these to describe the introduced name; every reference to

@@ -19,6 +19,9 @@
 </head>
 <body>
 
+<p>
+<a href="../index.html">Up</a>
+
 <center>
 <p class="title">C++ Entities and Relationships</p>
 </center>
@@ -206,10 +209,10 @@ Variable is a member of exactly one Scope.
 
 <p>
 A Variable's name is both optional and mutable.  It is optional
-because function and template parameters may be declared without
-names.  It is mutable because subsequent declarations may change the
-name.  Variables without names are not subject to the rules of [3.3p4]
-that restrict same-named Variables in a Scope.
+because function and template parameters may be declared without names
+[8.3.5p8, 14.1p1].  It is mutable because subsequent declarations may
+add or change a name.  Variables without names are not subject to the
+rules of [3.3p4] that restrict same-named Variables in a Scope.
 
 <h3>NamespaceAlias</h3>
 
@@ -338,9 +341,11 @@ certain declarations [15.4p1].
 <h3>MethodType</h3>
 
 <p>
-The type of a nonstatic member function, what I call a method, is
-a FunctionType that has a receiver parameter.  The receiver is always
-a reference to a (possibly cv-qualified) class type.
+The type of a nonstatic member function, what I call a method, is a
+FunctionType that has a receiver parameter.  The receiver is always a
+reference to a (possibly cv-qualified) class type; the
+cv-qualification of the receiver records the cv-qualification of the
+member function declarator [8.3.5p4].
 
 <h3>ObjectType</h3>
 
@@ -478,8 +483,8 @@ to keep compatible with the first diagram.)
 </ul>
 
 <p>
-This diagram makes use of what I call <em>non-orthogonal product
-inheritance</em>.  This means that a set of entities is derived by
+This diagram makes use of what I call <em>non-orthogonal inheritance
+products</em>.  This means that a set of entities is derived by
 multiplying two inheritance hierarchies together, but then giving
 attributes and relationships to the product tuples independent of
 their factors.  For example, an IntegerMetaParameter has an
@@ -493,7 +498,7 @@ this is used to define the concept of <em>corresponding
 relationships</em>, shown with dashed arrows.  For example, every
 NameMetaParameter has an optional "val" relationship with a
 NameMetaValue.  There are corresponding "val" relationships for the
-other kinds of MetaValues.  These relationships are homomorphic with
+other kinds of MetaValues.  These relationships are consistent with
 respect to the meta-entity-kind axis, so it is well-defined to
 introduce a "val" relationship between MetaParameters and MetaValues:
 given a MetaParameter, find out which kind it is, and retrieve its
@@ -508,7 +513,7 @@ relationship.
 The diagram has essentially two parts.  The central part, comprising
 the five major dimensions above, is the data model required to
 represent templates and specializations themselves.  Then, sprinkled
-around the edges, is the second part, which consists of miscellanous
+around the edges, is the second part which consists of miscellanous
 extensions and refinements of Diagram 1 necessary to integrate template
 concepts into the core data model.
 
@@ -530,7 +535,7 @@ Terminology:
 <p>
 A MetaParameter is a parameter of a template [14.1].  By supplying a
 MetaValue for the MetaParameter, the template can be instantiated
-to produce a concrete AST fragment.  Note that it is not a
+to produce a concrete entity.  Note that it is not a full
 <em>meta-variable</em>; its value cannot be changed once set [14.1p6].
 
 <p>
@@ -553,16 +558,18 @@ graphically.)
 <h3>TypeNameMetaParameter</h3>
 
 <p>
-The type branch of the MetaParameter hierarchy is represented by
-the TypeNameMetaParameter.  It is a descendant of NamedAtomicType,
+The type branch of the MetaParameter hierarchy [14.1p3] is represented
+by the TypeNameMetaParameter.  It is a descendant of NamedAtomicType,
 and as such can be looked up as a type, and used to build constructed
 types.
 
 <h3>TypeMetaParameter</h3>
 
 <p>
-A TypeMetaParameter, such as the ubiquitous "<tt>&lt;class T&gt;</tt>",
-is a parameter that can be bound to concrete Type.
+A TypeMetaParameter, such as the ubiquitous "<tt>&lt;class
+T&gt;</tt>", is a parameter that can be bound to concrete Type.
+(Despite the idiomatic use of the <tt>class</tt> keyword to introduce
+such parameters, they need not be bound to ClassTypes.)
 
 <h3>TemplateMetaParameter</h3>
 
@@ -577,8 +584,9 @@ specializations of another (class) template.
 
 <p>
 Note that it is not possible to pass a template function or a template
-data member as the argument to a TemplateMetaParameter, though it
-could be simulated by creating an appropriate wrapper ClassTemplate.
+data member as the argument to a TemplateMetaParameter, though the
+effect could be simulated by creating an appropriate wrapper
+ClassTemplate.
 
 <h3>NontypeMetaParameter</h3>
 
@@ -599,9 +607,8 @@ are irrelevant [14.1p5].
 
 <p>
 A NameMetaParameter may be bound to a Function, GlobalVariable or
-DataMember [14.3.2p1].  The name of a template function may be passed
-as a syntactic argument, but overload resolution will select a
-specific specialization for the binding [14.3.2p5b4,5].
+DataMember [14.3.2p1].  It has an IndirectionType, which must be
+a PointerType, PointerToMemberType or ReferenceType [14.1p4].
 
 <h2>MetaValue</h2>
 
@@ -621,7 +628,7 @@ on the Type.
 <h3>TemplateMetaValue</h3>
 
 <p>
-A TemplateMetaValue is either a ConcreteTemplateMetaValue, which is 
+A TemplateMetaValue is either a ConcreteTemplateMetaValue, which is
 a specific ClassTemplate, or an AbstractTemplateMetaValue, which is
 a reference to a TemplateMetaParameter.  AbstractTemplateMetaValues
 only occur as the default values of TemplateMetaParameters.
@@ -640,6 +647,11 @@ A NameMetaValue is either a ConcreteNameMetaValue, which is a
 specific concrete Variable, or is an AbstractNameMetaValue, which
 is a reference to a NameMetaParameter.  AbstractNameMetaValues
 only occur as the default values of NameMetaParameters.
+
+<p>
+The name of a template function may be passed as a syntactic template
+argument, but overload resolution will select a specific
+specialization for the binding [14.3.2p5b4,5].
 
 
 <h2>Template</h2>
@@ -903,7 +915,16 @@ parameter list corresponds to the innermost enclosing template class.
 In other words, the enclosingParams[] sequence order is the same as
 the order in which they appear syntactically [14.7.3p17(?)].
 
+<hr>
 
+<p>
+  <a href="http://validator.w3.org/check/referer"><img border="0"
+      src="valid-html401.png"
+      alt="Valid HTML 4.01!" height="31" width="88"></a>
+</p>
+
+<p>
+<a href="../index.html">Up</a>
 
 
 

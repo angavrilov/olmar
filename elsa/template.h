@@ -1,6 +1,8 @@
 // template.h
 // data structures for representing templates, etc.
 //
+// see Diagram 2 of doc/cpp_er.html
+//
 // Conceptually, everything here is an extension of cc_type.
 //
 // Note that there are many more template-related functions, declared

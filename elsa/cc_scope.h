@@ -1,6 +1,8 @@
 // cc_scope.h            see license.txt for copyright and terms of use
 // a C++ scope, which is used by the Env parsing environment
 // and also by CompoundType to store members
+//
+// see Diagram 1 of doc/cpp_er.html
 
 #ifndef CC_SCOPE_H
 #define CC_SCOPE_H
