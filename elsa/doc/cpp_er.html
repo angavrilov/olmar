@@ -274,6 +274,13 @@ attribute that is <tt>public</tt>, <tt>protected</tt> or
 <tt>private</tt>.  The access attribute of an Enumerator in
 a ClassType Scope can be determined by examining its type.
 
+<h3>ImplicitlyDeclaredMemberFunction</h3>
+
+<p>
+An ImplicitlyDeclaredMemberFunction is a constructor, destructor
+or copy assignment operator that is implicitly declared [12p1].
+
+
 <h2>TypeName</h2>
 
 <p>
@@ -306,6 +313,16 @@ classes, each of which has an "access" specifier and may be virtual.
 It may also have a ClassDefinition, which is an AST fragment.  The
 presence of a ClassDefinition distinguishes forward declarations
 [3.4.4, 7.1.5.3, 9.2p2], and is also useful for implementing templates.
+
+<p>
+A ClassType has a set of constructors and a destructor.  They are
+found by direct examination of the ClassType, not by lookup, because
+they do not have names [12.1p1, 12.4(?)].  The data model allows both
+to be missing to accomodate the analysis of the class itself, which
+does not know in advance how to make them.
+
+<p>
+Currently, ClassType is called "CompoundType" in Elsa.
 
 <h3>Enumeration</h3>
 
@@ -673,6 +690,13 @@ parameters of the class.  Only member templates (where the
 "<tt>template &lt;/*...*/&gt;</tt>" syntax is repeated inside the
 class body) are both ClassMembers and Templates.
 
+<p>
+Note further, however, that currently (2005-08-19) Elsa takes
+the opposite approach, regarding every member of a class template
+as being a template in its own right.  I now regard this design
+decision as a mistake, and hope to eventually rewrite that part
+of Elsa using the data model shown here.
+
 <h3>MetaParameterList</h3>
 
 <p>
@@ -914,6 +938,143 @@ then proceeding towards the next innermost in sequence, until the last
 parameter list corresponds to the innermost enclosing template class.
 In other words, the enclosingParams[] sequence order is the same as
 the order in which they appear syntactically [14.7.3p17(?)].
+
+
+<h1>Diagram 3: C++ Abstract Syntax</h1>
+
+<p>
+This is work in progress, so no pretty pictures yet.
+
+<pre>
+  TranslationUnit: 
+    decls: Declaration[]
+    
+  Declaration
+    - BlockDeclaration
+    | - SimpleDeclaration
+    | |   declSpecifier
+    | |   initDecl[]
+    | - AsmDefinition
+    | |   string
+    | - NamespaceAliasDefinition
+    | |   src: Identifier
+    | |   tgt: PQName
+    | - UsingDeclaration
+    | |   t?
+    | |   PQName
+    | - UsingDirective
+    |     PQName
+    - FunctionDefinition
+    |   declSpecifier
+    |   declarator
+    |   ctorInit[]
+    |   handlers[]
+    - TemplateDeclaration
+    |   e?
+    |   params[+]
+    |   d: Declaration
+    - ExplicitInstantiation
+    |   d: Declaration
+    - ExplicitSpecialization
+    |   d: Declaration
+    - LinkageSpecification
+    | | string
+    | - LSSeq
+    | |   decls[]
+    | - LSOne
+    |     decl: Declaration
+    - NamespaceDefinition
+        n: Id?
+        decls[]
+        
+  InitDeclarator
+    declarator
+    init?
+    
+  Initializer
+    - IN_expr
+    |   expr
+    - IN_compound
+    |   initializer[]
+    - IN_ctor
+        args: Expression[+]
+        
+  DeclSpecifier(Seq)
+    declflag*
+    typeSpec
+    
+  DeclFlag
+    - StorageClass
+      - auto
+      - register
+      - static
+      - extern
+      - mutable
+    - FunctionSpecifier
+      - inline
+      - virtual
+      - explicit
+    - typedef
+    - friend
+    - CVFlag
+      - const
+      - volatile
+      
+  TypeSpecifier
+    - TS_name
+    |   t?
+    |   PQName
+    - TS_classSpec
+    |   keyword
+    |   PQName?
+    |   BaseClause[]
+    |   Member[]
+    - TS_enumSpec
+    |   Id?
+    |   EnumeratorDefn[]
+    - TS_elaborated
+    |   keyword
+    |   PQName
+    - TS_fundamental
+        FundamentalType
+        
+  Declarator           &lt;----+
+    - D_name                |
+    |   PQName?             |
+    - D_indirect            |
+      | base: Declarator ---+
+      - D_pointer
+      |   cv
+      - D_reference
+      - D_ptm
+      |   cv
+      |   class: PQName
+      - D_func
+      |   cv
+      |   params: ParameterDeclaration[]
+      |   exnSpec?
+      - D_array
+          size: Expression
+
+  PQName     &lt;----+
+    - QName       |
+    | | rest -----+
+    | - QN_global
+    | - QN_nested
+    |     qual -------+
+    - PQ_nameId   &lt;---+
+    | | n: Id
+    | - PQ_name
+    | - PQ_template
+    |     args: TemplateArg[]
+    - PQ_operator
+    |   op
+    - PQ_conversion
+    |   t: Type
+    - PQ_dtor
+        c: PQ_nameId
+</pre>
+
 
 <hr>
 
