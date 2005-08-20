@@ -60,28 +60,33 @@ The following diagrams use a notation that it is a mixture of
 traditional Entity-Relationship diagrams and UML, with some of my
 own ideas thrown in:
 <ul>
+
 <li>Entities are shown in boxes.  A dashed box indicates an entity that
     with attributes and/or relationships that are elided from the
     diagram.
+
 <li>Attributes are in ellipses.  Dashed ellipses similarly indicate
     elided detail.
-<li>Relationships are thin lines connecting entities.  Either or both
-    ends of a relationship may be named.  Each endpoint of the relationship
-    indicates a <em>cardinality</em>, which is the number times that a
-    single instance of the entity may participate in the relationship:
+
+<li>Relationships are thin lines with arrowheads connecting entities.
+    Either or both ends of a relationship may be named; the opposite
+    end of a named end has an arrowhead.  When an endpoint is named,
+    an annotation on the name indicates a <em>cardinality</em>, which
+    is the number times that a single instance of the entity may
+    participate in the relationship:
     <ul>
     <li>Name with no annotation: cardinality is one.
     <li>Name with "?" annotation: zero or one.
     <li>Name with "*" annotation: any number, including zero.
     <li>Name with "[]" annotation: relation tuples are <em>ordered</em>,
         forming a <em>sequence</em>; cardinality is anything.
-    <li>Unnamed arrowhead: cardinality is anything.  The notation is meant
-        to suggest a pointer, where the referent typically does not want or
-        need to know that something is pointing at it.
+    <li>Unnamed: cardinality is anything.
     </ul>
+
 <li>Attributes can be given "?", "*" and "[]" annotations, with similar
     meanings as for relationships.  In fact, attribute notation is used
     interchangeably with relationship notation where convenient.
+
 <li>Specialization (often conceptualized as inheritance) is indicated
     by thick lines connecting entities, with triangular split points.
     A solid triangle indicates <em>total</em> specialization (meaning
@@ -455,12 +460,14 @@ parameters" (etc.), I refer to "meta-parameters".  I use the term
 using templates.
 
 <p>
-This diagram has four primary dimensions.  (They are all colored black because
+This diagram has five primary dimensions.  (They are all colored black because
 assigning color seemed unnecessary, due to minimal overlap, and difficult
 to keep compatible with the first diagram.)
 <ul>
 <li>MetaParameter vs. MetaValue: MetaParameters are holes, and MetaValues
     fill the holes.
+<li>MetaParameter vs. MetaBinding: An unbound parameter is a hole, while
+    a bound parameter represents a filled hole.
 <li>Kinds of meta-entities: Meta-entities can be types or non-types, which
     further subdivide into ground types, templates, integers and (variable)
     names.  This axis is present only implicitly via products (see below).
@@ -483,23 +490,40 @@ MetaParameters nor IntegerMetaEntities.
 Though non-orthogonal product tuples are individually named, their
 derivation as product tuples is still available (though implicit), and
 this is used to define the concept of <em>corresponding
-relationships</em>.  For example, every NameMetaParameter has an
-optional "val" relationship with a NameMetaValue.  There are
-corresponding "val" relationships for the other kinds of MetaValues.
-These relationships are homomorphic with respect to the
-meta-entity-kind axis, so it is well-defined to introduce a "val"
-relationship between MetaParameters and MetaValues: given a
-MetaParameter, find out which kind it is, and retrieve its "val",
-which must be a MetaValue.  This makes it possible to generically
-refer to the default value (when present) of a MetaParameter as being
-a MetaValue, while at the same time having the "val" relationships be
-well-typed w.r.t. the meta-entity-kind axis.  A similar technique is
-used for the specializations/template relationship.
+relationships</em>, shown with dashed arrows.  For example, every
+NameMetaParameter has an optional "val" relationship with a
+NameMetaValue.  There are corresponding "val" relationships for the
+other kinds of MetaValues.  These relationships are homomorphic with
+respect to the meta-entity-kind axis, so it is well-defined to
+introduce a "val" relationship between MetaParameters and MetaValues:
+given a MetaParameter, find out which kind it is, and retrieve its
+"val", which must be a MetaValue.  This makes it possible to
+generically refer to the default value (when present) of a
+MetaParameter as being a MetaValue, while at the same time having the
+"val" relationships be well-typed w.r.t. the meta-entity-kind axis.  A
+similar technique is used for the specializations/template
+relationship.
 
 <p>
-Terminology: "Ground": an entity with no unbound MetaParameters.
-"Abstract": an entity with unbound MetaParameters.
+The diagram has essentially two parts.  The central part, comprising
+the five major dimensions above, is the data model required to
+represent templates and specializations themselves.  Then, sprinkled
+around the edges, is the second part, which consists of miscellanous
+extensions and refinements of Diagram 1 necessary to integrate template
+concepts into the core data model.
 
+<p>
+Terminology:
+<ul>
+<li>"Abstract": an entity with unbound MetaParameters.
+<li>"Concrete": an entity with no unbound MetaParameters.
+    <br>
+    Note: The Standard uses the terms "dependent" and "non-dependent"
+    for these concepts, as in, "dependent upon template parameters"
+    [14.6.2].  I find this terminology a bit unwieldy, and possibly
+    confusing with the traditional concept of a "dependent type" in
+    type theory, so I use abstract/concrete instead.
+</ul>
 
 <h2>MetaParameter</h2>
 
@@ -518,12 +542,11 @@ meta-entity-kind axis.
 <h3>MetaBinding</h3>
 
 <p>
-A minor axis in this diagram is the parameter vs. binding axis.  A
-MetaParameter is a parameter, while a MetaBinding is a binding of a
+A MetaParameter is a parameter, while a MetaBinding is a binding of a
 MetaParameter to a MetaValue.  Unlike a MetaParameter, the "val"
 relationship of a MetaBinding is not optional, because it carries the
 binding.  Furthermore, the MetaValue to which it is bound must be
-concrete; either a ground Type, or one of the three
+concrete; either a concrete Type, or one of the three
 ConcreteMetaValues.  (Neither of these constraints is depicted
 graphically.)
 
@@ -539,7 +562,7 @@ types.
 
 <p>
 A TypeMetaParameter, such as the ubiquitous "<tt>&lt;class T&gt;</tt>",
-is a parameter that can be bound to ground Type.
+is a parameter that can be bound to concrete Type.
 
 <h3>TemplateMetaParameter</h3>
 
@@ -592,7 +615,7 @@ and NontypeMetaValue for reasons of space.
 <h3>TypeMetaValue</h3>
 
 <p>
-A TypeMetaValue is a Type.  It may be ground or abstract, depending
+A TypeMetaValue is a Type.  It may be concrete or abstract, depending
 on the Type.
 
 <h3>TemplateMetaValue</h3>
@@ -614,7 +637,7 @@ that refers to MetaParameters.
 
 <p>
 A NameMetaValue is either a ConcreteNameMetaValue, which is a
-specific ground Variable, or is an AbstractNameMetaValue, which
+specific concrete Variable, or is an AbstractNameMetaValue, which
 is a reference to a NameMetaParameter.  AbstractNameMetaValues
 only occur as the default values of NameMetaParameters.
 
@@ -627,15 +650,228 @@ filled by supplying values.  Templates are distinct from (say)
 ordinary parameterized functions in that template parameters are are
 filled at compile time (only).
 
+<p>
+A Template is associated with a set of Specializations, instances
+of that template.
+
+<p>
+Note that members of ClassTemplates are not necessarily called
+Templates in this data model, even if they have holes due to the
+parameters of the class.  Only member templates (where the
+"<tt>template &lt;/*...*/&gt;</tt>" syntax is repeated inside the
+class body) are both ClassMembers and Templates.
+
 <h3>MetaParameterList</h3>
 
 <p>
 A Template is/has a MetaParameterList, a sequence of parameters.
 
-<h3>OutOfLineTemplateMemberDefinition (OOLTMDefn)</h3>
+<h2>Specialization</h2>
 
 <p>
-A member of a ClassTemplate may have an out-of-line definition.
+A Specialization is a Template with the holes filled with MetaValue
+arguments.  The arguments are stored in a sequence that corresponds to
+the parameter sequence.  Except in the case of a
+ClassTemplatePartialSpecialization, a Specialization's arguments are
+always concrete.
+
+<p>
+A Specialization may be either <em>implicit</em> or <em>explicit</em>.
+An implicit specialization (also called an "instantiation") is
+generated automatically by the compiler by filling the holes of the
+Template definition with the supplied arguments.  An explicit
+specialization is supplied by the programmer, and effectively overrides
+implicit instantiation for a specific argument sequence.  
+
+<p>
+Note that the "explicit" attribute is a <em>mutable</em> boolean
+field.  This is because it is possible for the program to refer to a
+specialization prior to declaring it as an explicit specialization, as
+long as the compiler has no need to implicitly instantiate it in the
+meantime [14.7.3p6].  Thus, the static semantics and this data model
+allow for a specialization to be initially assumed implicit, but later
+determined to be explicit.
+
+
+<h2>ClassTemplate</h2>
+
+<p>
+A ClassTemplate is a Template of a ClassType.  It also <em>is</em>
+a ClassType: it can be looked up as a type (in which case template
+arguments would then have to be supplied), has members, etc.
+
+<h3>ClassTemplateSpecialization</h3>
+
+<p>
+A ClassTemplateSpecialization is a Specialization of a ClassTemplate.
+
+<h3>ClassTemplatePartialSpecialization</h3>
+
+<p>
+A ClassTemplatePartialSpecialization [14.5.4] is a Specialization of
+a ClassTemplate, whose template arguments ("args[]") are not all concrete.
+The holes in its arguments are declared in its MetaParameterList; i.e.,
+it is itself a ClassTemplate.
+
+
+<h2>FunctionTemplate</h2>
+
+<p>
+A FunctionTemplate is a Template of a Function.
+
+<h3>FunctionTemplateSpecialization</h3>
+
+<p>
+A FunctionTemplateSpecialization is a Specialization of a FunctionTemplate.
+
+<p>
+Note that, unlike for ClassTemplates, a Function cannot be both a
+FunctionTemplate and a FunctionTemplateSpecialization (there is no
+such thing as a function template partial specialization).
+
+
+<h2>Abstract NamedAtomicTypes</h2>
+
+<p>
+Abstract types are supported by several extensions of NamedAtomicType.
+
+<h3>TypeNameMetaParameter (NamedAtomicType)</h3>
+
+<p>
+Discussed above, a TypeNameMetaParameter is the leaf of any 
+abstract type.  Note that a TypeNameMetaParameter need not be
+abstract (it could be a TypeNameMetaBinding).
+
+<h3>AbstractTemplateId</h3>
+
+<p>
+An AbstractTemplateId is a template-id (template name plus arguments)
+where either the template or the arguments are abstract.  The template
+is indicated as a NamedAtomicType, but it must always be either a
+ClassTemplate or a TemplateMetaParameter.  For example:
+<pre>
+  template &lt;class T&gt;
+  struct A;
+  
+  template &lt;class T&gt;
+  struct B {
+    A&lt;T&gt; a;
+  };
+</pre>
+The B::a member has type <tt>A&lt;T&gt;</tt>, but (in the context of
+the template B) <TT>T</TT> is abstract, so <tt>A&lt;T&gt;</tt> is too.
+
+<p>
+Here is an example with an abstract template portion of an AbstractTemplateId:
+<pre>
+  template &lt;template &lt;class S&gt; class T, class U&gt;
+  struct A {
+    T&lt;U&gt; t;
+  };
+</pre>
+Here, A::t has type <tt>T&lt;U&gt;</tt>, in which both <TT>T</TT> and
+<TT>U</TT> are abstract.
+
+<p>
+In Elsa, this is called a "PseudoInstantiation".
+
+<h3>AbstractQualifiedType</h3>
+
+<p>
+An AbstractQualifiedType arises when a qualified name [3.4.3, 5.1p7]
+is used, but the qualifier is an abstract type name.  The "first" part (the
+abstract qualifier) is indicated as a NamedAtomicType, but must be
+a TypeMetaParameter or an AbstractTemplateId.  The "rest" part is
+a PossiblyQualifiedName, which is a sequence of identifiers and
+template-ids (to be shown on the as-yet-nonexistent Diagram 3).
+
+<p>
+Example:
+<pre>
+  template &lt;class T&gt;
+  struct A {
+    typename T::SomeType s;
+  };
+</pre>
+The type of A::s is <tt>T::SomeType</tt>, which is abstract because
+<TT>T</TT> is.
+
+<p>
+In Elsa, this is called a "DependentQualifiedType" or "DQT".
+
+
+<h2>AbstractSizedArrayType</h2>
+
+<p>
+An AbstractSizedArrayType is an ArrayType whose size is specified by
+an abstract Expression.  This is a necessary concept to permit matching
+declarations with definitions in some cases, for example (variant
+of <a href="../in/t0435.cc">../in/t0435.cc</a>):
+<pre>
+  template &lt;int n&gt;
+  struct A {
+    int foo(int (*p)[n]);
+    int foo(int (*p)[n+1]);
+  };
+
+  template &lt;int n&gt;
+  int A&lt;n&gt;::foo(int (*p)[n]) { /*...*/ }
+
+  template &lt;int n&gt;
+  int A&lt;n&gt;::foo(int (*p)[n+1]) { /*...*/ }
+</pre>
+Here, the array size expressions must be recorded in the data model
+to enable the declarations of <tt>A::foo</tt> to be matched with
+their definitions.
+
+
+<h2>MetaEntity Scopes</h2>
+
+<p>
+Two extensions of Scope are used for template support.
+
+<h3>MetaParameterScope</h3>
+
+<p>
+MetaParameters are stored in a MetaParameterScope.  When this scope
+is searched by lookup, MetaParameters can be found.
+
+<h3>MetaBindingScope</h3>
+
+<p>
+When an implicit specialization is instantiated, the static semantics
+require analyzing the specialization in light of its arguments.  The
+arguments are bound in a MetaBindingScope for this purpose.
+
+<p>
+(At the moment I cannot justify distinguishing a MetaParameterScope from
+a MetaBindingScope, but I know that Elsa needs to be able to tell them
+apart somewhere, so I'm reasonably confident that they do in fact need to be
+distinguished.)
+
+
+<h2>AbstractEnumerator</h2>
+
+<p>
+An AbstractEnumerator is like an Enumerator, but the precise value
+is unknown because its initializing expression is abstract.  It is
+a refinement of the Enumerator entity presented in Diagram 1.
+
+<p>
+It is not clear whether it is adequate to simply record that its value
+is abstract, as done here, or if it must actually carry the
+expression.  The testcase <a href="../in/t0578.cc">../in/t0578.cc</a>
+would be valid if AbstractEnumerators carried their value, and invalid
+otherwise.  Both ICC and GCC reject it, so at least the data model
+here is consistent their their interpretation.  If the Standard had a
+clear data model, such as the one presented in these diagrams, such a
+question would have a clear answer.
+
+
+<h2>OutOfLineTemplateMemberDefinition (OOLTMDefn)</h2>
+
+<p>
+A ClassMember of a ClassTemplate may have an out-of-line definition.
 If so, it has an OutOfLineTemplateMemberDefinition, which
 carries a sequence of MetaParameterLists.  These parameter lists
 override the nominal parameter names coming from the enclosing
@@ -653,12 +889,11 @@ template class(es).  For example, in the following syntax:
   template &lt;class T2&gt;
   int A&lt;S2&gt;::B&lt;T2&gt;::f() { /*...*/ }
 </pre>
-the Template for A::B::f will have enclosing parameter lists
+the ClassMember for A::B::f will have enclosing parameter lists
 <tt>&lt;S2&gt;</tt> and <tt>&lt;T2&gt;</tt>.  The definition of
 A::B::f may refer to the parameters in its enclosing parameter lists
 (S2 and T2), but not to the parameters in the enclosing
-TemplateClasses (S and T).  (<b>TODO:</b> But B::A::f is not a template!
-It is just a member of a template.  Where does the OOLTMDefn go then?)
+TemplateClasses (S and T).
 
 <p>
 The order of the enclosingParams[] sequence is significant.  The first
@@ -696,13 +931,22 @@ the order in which they appear syntactically [14.7.3p17(?)].
 &nbsp;<br>
 &nbsp;<br>
 &nbsp;<br>
-&nbsp;<br>
-&nbsp;<br>
-&nbsp;<br>
-&nbsp;<br>
-&nbsp;<br>
-&nbsp;<br>
 <center>This space left intentionally blank.</center>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
+&nbsp;<br>
 &nbsp;<br>
 &nbsp;<br>
 &nbsp;<br>

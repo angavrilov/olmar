@@ -856,6 +856,7 @@ testparse t0574.cc
 testparse t0575.cc
 testparse t0576.cc
 failparse t0577.cc "flawed abstract enumerator value processing"
+# t0578.cc is arguably valid code, but nobody can handle it
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
