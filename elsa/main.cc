@@ -377,7 +377,6 @@ void doit(int argc, char **argv)
      "    printElabAST       print AST after semantic elaboration\n"
      "    prettyPrint        echo input as pretty-printed C++\n"
      "    xmlPrintAST        print AST as XML\n"
-     "    xmlPrintLoweredAST print AST as XML after lowering\n"
      "\n"
      "  debugging output:\n"
      "    malloc_stats       print malloc stats every so often\n"
@@ -453,7 +452,6 @@ void doit(int argc, char **argv)
     traceAddSys("templateXfer");
     traceAddSys("prettyPrint");
     traceAddSys("xmlPrintAST");
-    traceAddSys("xmlPrintLoweredAST");
     traceAddSys("topform");
   }
   
@@ -732,7 +730,6 @@ void doit(int argc, char **argv)
         // AST kind of resembles pretty-printing the AST; fix this if
         // it is wrong
         || tracingSys("xmlPrintAST")
-        || tracingSys("xmlPrintLoweredAST")
         ) {
       vis.cloneDefunctChildren = true;
     }
@@ -790,10 +787,20 @@ void doit(int argc, char **argv)
       TypeToXml xmlTypeVis(cout, depth, indent);
       ToXmlASTVisitor_Types xmlVis_Types(xmlTypeVis, cout, depth, indent);
       xmlTypeVis.astVisitor = &xmlVis_Types;
-      unit->traverse(xmlVis_Types);
+      ASTVisitor *vis = &xmlVis_Types;
+      LoweredASTVisitor loweredXmlVis(&xmlVis_Types); // might not be used
+      if (tracingSys("xmlPrintAST-lowered")) {
+        vis = &loweredXmlVis;
+      }
+      unit->traverse(*vis);
     } else {
       ToXmlASTVisitor xmlVis(cout, depth, indent);
-      unit->traverse(xmlVis);
+      ASTVisitor *vis = &xmlVis;
+      LoweredASTVisitor loweredXmlVis(&xmlVis); // might not be used
+      if (tracingSys("xmlPrintAST-lowered")) {
+        vis = &loweredXmlVis;
+      }
+      unit->traverse(*vis);
     }
     cout << endl;
     cout << "---- STOP ----" << endl;
