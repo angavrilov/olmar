@@ -418,6 +418,11 @@ void XmlReaderManager::satisfyLinks_Nodes() {
         // embedded and there is no chance for a reference/referent
         // type mismatch.
         callOpAssignToEmbeddedObj(obj, ul->kind, ul->ptr);
+        // FIX: we should now delete obj; in fact, this should be done
+        // by callOpAssignToEmbeddedObj() since it knows the type of
+        // the object which is necessary to delete it of course.  I'll
+        // leave this for an optimization pass which we will do later
+        // to handle many of these things.
       } else {
         if (int *kind = id2kind.queryif(ul->id)) {
           *( (void**)(ul->ptr) ) = upcastToWantedType(obj, *kind, ul->kind);
