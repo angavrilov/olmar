@@ -35,6 +35,7 @@ class ASTXmlReader : public XmlReader {
   virtual bool recordKind(int kind, bool& answer);
 
   // convert nodes
+  virtual bool callOpAssignToEmbeddedObj(void *obj, int kind, void *target);
   virtual bool upcastToWantedType(void *obj, int kind, void **target, int targetKind);
   // all lists are stored as ASTLists; convert to the real list
   virtual bool convertList2FakeList(ASTList<char> *list, int listKind, void **target);

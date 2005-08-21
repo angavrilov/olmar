@@ -60,10 +60,11 @@ struct NameMapItem {
 // do the in-place recording of a lot of these unsatisified links
 // (not the ast links)
 struct UnsatLink {
-  void **ptr;
+  void *ptr;
   string id;
   int kind;
-  UnsatLink(void **ptr0, string id0, int kind0);
+  bool embedded;
+  UnsatLink(void *ptr0, string id0, int kind0, bool embedded0);
 };
 
 //  // datastructures for dealing with unsatisified links where neither
@@ -111,6 +112,7 @@ class XmlReader {
 
   // cast a pointer to the pointer type we need it to be; this is only
   // needed because of multiple inheritance
+  virtual bool callOpAssignToEmbeddedObj(void *obj, int kind, void *target) = 0;
   virtual bool upcastToWantedType(void *obj, int kind, void **target, int targetKind) = 0;
   // all lists are stored as ASTLists; convert to the real list
   virtual bool convertList2FakeList(ASTList<char> *list, int listKind, void **target) = 0;
@@ -222,6 +224,7 @@ class XmlReaderManager {
 
   private:
   // convert nodes
+  void callOpAssignToEmbeddedObj(void *obj, int kind, void *target);
   void *upcastToWantedType(void *obj, int kind, int targetKind);
   // convert lists
   void *convertList2FakeList(ASTList<char> *list, int listKind);

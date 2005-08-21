@@ -36,6 +36,7 @@ class TypeToXml {
   protected:
   // printing of types is idempotent
   SObjSet<void const *> printedSetTY;
+  SObjSet<void const *> printedSetBC;
   SObjSet<void const *> printedSetOL;
   SObjSet<void const *> printedSetNM;
 
@@ -135,6 +136,7 @@ class TypeXmlReader : public XmlReader {
   virtual bool recordKind(int kind, bool& answer);
 
   // cast a pointer to the pointer type we need it to be
+  virtual bool callOpAssignToEmbeddedObj(void *obj, int kind, void *target);
   virtual bool upcastToWantedType(void *obj, int kind, void **target, int targetKind);
   // all lists are stored as ASTLists; convert to the real list
   virtual bool convertList2FakeList(ASTList<char> *list, int listKind, void **target);

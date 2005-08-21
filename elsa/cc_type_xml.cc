@@ -62,7 +62,7 @@ identity(TY, Type)
 identity(TY, CompoundType)
 identity(TY, FunctionType::ExnSpec)
 identity(TY, EnumType::Value)
-identity(TY, BaseClass)
+identity(BC, BaseClass)
 identity(TY, Variable)
 identity(TY, OverloadSet)
 identity(TY, STemplateArgument)
@@ -517,7 +517,7 @@ void TypeToXml::toXml(CompoundType *cpd) {
   printEmbed(cpd, dataMembers);
   printEmbed(cpd, bases);
   printEmbed(cpd, virtualBases);
-  printPtr(cpd, subobj);
+  printEmbed(cpd, subobj);
   printEmbed(cpd, conversionOperators);
   printStrRef(instName, cpd->instName);
   printPtrAST(cpd, syntax);
@@ -532,7 +532,7 @@ void TypeToXml::toXml(CompoundType *cpd) {
   travObjList_S(cpd, CompoundType, dataMembers, Variable);
   travObjList(cpd, CompoundType, bases, BaseClass);
   travObjList(cpd, CompoundType, virtualBases, BaseClassSubobj);
-  trav(cpd->subobj);
+  toXml(&cpd->subobj);          // embedded
   travObjList_S(cpd, CompoundType, conversionOperators, Variable);
   travAST(cpd->syntax);
   trav(cpd->parameterizingScope);
@@ -1012,6 +1012,35 @@ bool TypeXmlReader::recordKind(int kind, bool& answer) {
   }
 }
 
+bool TypeXmlReader::callOpAssignToEmbeddedObj(void *obj, int kind, void *target) {
+  xassert(obj);
+  xassert(target);
+  switch(kind) {
+
+  default:
+    // This handler conflates two situations; one is where kind is a
+    // kind from the typesystem, but not an XTOK_BaseClassSubobj,
+    // which is an error; the other is where kind is just not from the
+    // typesystem, which should just be a return false so that another
+    // XmlReader will be attempted.  However the first situation
+    // should not be handled by any of the other XmlReaders either and
+    // so should also result in an error, albeit perhaps not as exact
+    // of one as it could have been.  I just don't want to put a huge
+    // switch statement here for all the other kinds in the type
+    // system.
+    return false;
+    break;
+
+  case XTOK_BaseClassSubobj:
+    BaseClassSubobj *obj1 = reinterpret_cast<BaseClassSubobj*>(obj);
+    BaseClassSubobj *target1 = reinterpret_cast<BaseClassSubobj*>(target);
+    obj1->operator=(*target1);
+    return true;
+    break;
+
+  }
+}
+
 bool TypeXmlReader::upcastToWantedType(void *obj, int objKind, void **target, int targetKind) {
   xassert(obj);
   xassert(target);
@@ -1275,15 +1304,24 @@ bool TypeXmlReader::registerAttribute(void *target, int kind, int attr, char con
 
 #define ul(FIELD, KIND) \
   manager->unsatLinks.append \
-    (new UnsatLink((void**) &(obj->FIELD), \
+    (new UnsatLink((void*) &(obj->FIELD), \
                    parseQuotedString(strValue), \
-                   (KIND)))
+                   (KIND), \
+                   false))
+
+#define ulEmbed(FIELD, KIND) \
+  manager->unsatLinks.append \
+    (new UnsatLink((void*) &(obj->FIELD), \
+                   parseQuotedString(strValue), \
+                   (KIND), \
+                   true))
 
 #define ulList(LIST, FIELD, KIND) \
   manager->unsatLinks##LIST.append \
-    (new UnsatLink((void**) &(obj->FIELD), \
+    (new UnsatLink((void*) &(obj->FIELD), \
                    parseQuotedString(strValue), \
-                   (KIND)))
+                   (KIND), \
+                   true))
 
 void TypeXmlReader::registerAttr_CVAtomicType(CVAtomicType *obj, int attr, char const *strValue) {
   switch(attr) {
@@ -1400,7 +1438,7 @@ void TypeXmlReader::registerAttr_CompoundType(CompoundType *obj, int attr, char 
   case XTOK_dataMembers: ulList(_List, dataMembers, XTOK_List_CompoundType_dataMembers); break;
   case XTOK_bases: ulList(_List, bases, XTOK_List_CompoundType_bases); break;
   case XTOK_virtualBases: ulList(_List, virtualBases, XTOK_List_CompoundType_virtualBases); break;
-  case XTOK_subobj: ul(subobj, XTOK_BaseClassSubobj); break;
+  case XTOK_subobj: ulEmbed(subobj, XTOK_BaseClassSubobj); break;
   case XTOK_conversionOperators:
     ulList(_List, conversionOperators, XTOK_List_CompoundType_conversionOperators); break;
   case XTOK_instName: obj->instName = manager->strTable(parseQuotedString(strValue)); break;

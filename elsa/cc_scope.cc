@@ -400,7 +400,7 @@ Variable *Scope::lookupVariable_inner
   BaseClassSubobj const *v1Subobj = NULL;
   curCompound->clearSubobjVisited();
   lookupVariable_considerBase(name, env, flags,
-                              v1, v1Subobj, curCompound->subobj);
+                              v1, v1Subobj, &(curCompound->subobj));
 
   if (v1) {
     candidates.adds(v1);

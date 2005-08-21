@@ -6,8 +6,8 @@
 #include "exc.h"                // xBase
 
 
-UnsatLink::UnsatLink(void **ptr0, string id0, int kind0)
-  : ptr(ptr0), id(id0), kind(kind0)
+UnsatLink::UnsatLink(void *ptr0, string id0, int kind0, bool embedded0)
+  : ptr(ptr0), id(id0), kind(kind0), embedded(embedded0)
 {};
 
 void XmlReader::setManager(XmlReaderManager *manager0) {
@@ -412,13 +412,21 @@ void XmlReaderManager::satisfyLinks_Nodes() {
     UnsatLink const *ul = iter.data();
     void *obj = id2obj.queryif(ul->id);
     if (obj) {
-      if (int *kind = id2kind.queryif(ul->id)) {
-        *(ul->ptr) = upcastToWantedType(obj, *kind, ul->kind);
+      if (ul->embedded) {
+        // I can assume that the kind of the object that was
+        // de-serialized is the same as the target because it was
+        // embedded and there is no chance for a reference/referent
+        // type mismatch.
+        callOpAssignToEmbeddedObj(obj, ul->kind, ul->ptr);
       } else {
-        // no kind was registered for the object and therefore no
-        // upcasting is required and there is no decision to make; so
-        // just do the straight pointer assignment
-        *(ul->ptr) = obj;
+        if (int *kind = id2kind.queryif(ul->id)) {
+          *( (void**)(ul->ptr) ) = upcastToWantedType(obj, *kind, ul->kind);
+        } else {
+          // no kind was registered for the object and therefore no
+          // upcasting is required and there is no decision to make; so
+          // just do the straight pointer assignment
+          *( (void**) (ul->ptr) ) = obj;
+        }
       }
     } else {
       // no satisfaction was provided for this link; for now we just
@@ -432,6 +440,7 @@ void XmlReaderManager::satisfyLinks_Nodes() {
 void XmlReaderManager::satisfyLinks_Lists() {
   FOREACH_ASTLIST(UnsatLink, unsatLinks_List, iter) {
     UnsatLink const *ul = iter.data();
+    xassert(ul->embedded);
     // NOTE: I rely on the fact that all ASTLists just contain
     // pointers; otherwise this cast would cause problems; Note that I
     // have to use char instead of void because you can't delete a
@@ -479,7 +488,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
       // FakeList and hook in all of the pointers.  This is
       // type-specific, so generated code must do it that can switch
       // on the templatized type of the FakeList.
-      *(ul->ptr) = convertList2FakeList(obj, ul->kind);
+      *( (void**) (ul->ptr) ) = convertList2FakeList(obj, ul->kind);
       // Make the list dis-own all of its contents so it doesn't delete
       // them when we delete it.  Yes, I should have used a non-owning
       // constant-time-append list.
@@ -494,7 +503,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
       // SObjList and hook in all of the pointers.  This is
       // type-specific, so generated code must do it that can switch
       // on the templatized type of the SObjList.
-      convertList2SObjList(obj, ul->kind, ul->ptr);
+      convertList2SObjList(obj, ul->kind, (void**) (ul->ptr) );
       // Make the list dis-own all of its contents so it doesn't delete
       // them when we delete it.  Yes, I should have used a non-owning
       // constant-time-append list.
@@ -509,7 +518,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
       // ObjList and hook in all of the pointers.  This is
       // type-specific, so generated code must do it that can switch
       // on the templatized type of the ObjList.
-      convertList2ObjList(obj, ul->kind, ul->ptr);
+      convertList2ObjList(obj, ul->kind, (void**) (ul->ptr) );
       // Make the list dis-own all of its contents so it doesn't delete
       // them when we delete it.  Yes, I should have used a non-owning
       // constant-time-append list.
@@ -525,6 +534,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
 void XmlReaderManager::satisfyLinks_Maps() {
   FOREACH_ASTLIST(UnsatLink, unsatLinks_NameMap, iter) {
     UnsatLink const *ul = iter.data();
+    xassert(ul->embedded);
     // NOTE: I rely on the fact that all StringRefMap-s just contain
     // pointers; otherwise this cast would cause problems; Note that I
     // have to use char instead of void because you can't delete a
@@ -548,12 +558,12 @@ void XmlReaderManager::satisfyLinks_Maps() {
     case KC_StringRefMap: {
       // FIX: this would be way more efficient if there were a
       // PtrMap::steal() method: I wouldn't need this convert call.
-      convertNameMap2StringRefMap(obj, ul->kind, ul->ptr);
+      convertNameMap2StringRefMap(obj, ul->kind, (void**) (ul->ptr) );
       break;
     }
 
     case KC_StringSObjDict: {
-      convertNameMap2StringSObjDict(obj, ul->kind, ul->ptr);
+      convertNameMap2StringSObjDict(obj, ul->kind, (void**) (ul->ptr) );
       break;
     }
 
@@ -586,6 +596,15 @@ bool XmlReaderManager::recordKind(int kind) {
     }
   }
   THROW(xBase(stringc << "no way to decide if kind should be recorded"));
+}
+
+void XmlReaderManager::callOpAssignToEmbeddedObj(void *obj, int kind, void *target) {
+  FOREACH_ASTLIST_NC(XmlReader, readers, iter) {
+    if (iter.data()->callOpAssignToEmbeddedObj(obj, kind, target)) {
+      return;
+    }
+  }
+  THROW(xBase(stringc << "no way to call op assign"));
 }
 
 void *XmlReaderManager::upcastToWantedType(void *obj, int kind, int targetKind) {
