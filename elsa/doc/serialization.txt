@@ -335,14 +335,9 @@ class with a first member that is embedded or a non-class such as a
 FakeList node.  Neither the address nor the prefix has no semantics so
 another program rendering out XML in this schema need not use the same
 method, but any method for generating unique ids will work.  The
-prefixes we use are:
-        AST ast object
-        TY  type system object
-        FL  fake list
-        AL  ast list
-        OL  obj or sobj list
-        OM  obj to obj map
-        NM  name to obj map
+prefixes we use are "AST" for AST nodes and the rest are given at the
+top of cc_type_xml.cc at the block of calls to the "identity" and
+"identityTempl" macros.
 
 Each container has a tag that wraps contained items in case the item
 has been previously serialized and therefore may not appear.  They are
@@ -350,6 +345,5 @@ as follows.  Note that they do not correspond to objects constructed
 internally and therefore do not have an '_id' field.  Their unique
 metadata status is indicated by the leading underscore, similarly to
 the '_id' field itself for objects.
-    <_List_Item to=id>
-    <_NameMap_Item from=name to=id>
-    <_Map_Item from=id to=id>
+    <_List_Item item=id>
+    <_NameMap_Item name=<name> item=id>
