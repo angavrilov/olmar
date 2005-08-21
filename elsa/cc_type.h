@@ -315,8 +315,7 @@ public:
   {}
   BaseClassSubobj(BaseClass const &base);
   ~BaseClassSubobj();
-  // dsw: note: we use the implicit operator=() on this object,
-  // thought I don't define it
+  // dsw: note: we use the implicit operator=() on this object
 
   // name and virtual address to uniquely identify this object
   string canonName() const;
@@ -350,10 +349,6 @@ public:      // data
 
   // this is the root of the subobject hierarchy diagram
   // invariant: subobj.ct == this
-  //
-  // dsw: this is really an exceptional situation: subobj was the only
-  // embedded object that is not a container; this is a problem for
-  // the XML serialization, so I changed it
   BaseClassSubobj subobj;
 
   // list of all conversion operators this class has, including
