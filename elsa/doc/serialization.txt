@@ -149,14 +149,19 @@ appropriate field of the top object.  If it is an object id, we create
 an UnsatLink object to record 1) the id, 2) a pointer to the member of
 the top object that should be updated to point at the referent object
 having that id when it is found later during link satisfaction, see
-below, and 3) the type of the pointer so we can deal with up-casting
-problems that arise with multiple inheritance; see below.
+below, 3) the type of the pointer so we can deal with up-casting
+problems that arise with multiple inheritance (see below), and 4)
+whether this parent/child relationship is a pointer or is one of
+embedding.
 
 When the tags have been de-serialized we satisfy all of the dangling
 links as follows.  For each UnsatLink we 1) look up its id in the
-id2obj hashtable, 2) do an up-cast if needed from the de-serialized
-object type to the link type, 3) do a pointer assignment satisfying
-the link.
+id2obj hashtable.  If the parent/child relationship is a pointer (as
+recorded earlier) we 2a1) do an up-cast if needed from the
+de-serialized object type to the link type, 2a2) do a pointer
+assignment satisfying the link.  If the parent/child relationship is
+one of embedding we 2b) call operator=() to initialize the object from
+the temporary one created on the stack (which is no longer needed).
 
 Note that there is an alternative possible design for the temporary
 representation of unsatisfied links during de-serialization.  If you
