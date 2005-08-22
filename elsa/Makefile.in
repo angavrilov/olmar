@@ -461,7 +461,7 @@ count-loc:
 # -------------------- clean, etc. -------------------
 clean:
 	rm -f $(TOCLEAN)
-	cd outdir && find -type f -maxdepth 1 | grep -v .cvsignore | xargs rm -f
+	cd outdir && ls | grep -v CVS | xargs rm -f
 
 distclean: clean
 	rm -f $(TODISTCLEAN)
