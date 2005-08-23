@@ -19,14 +19,72 @@ verbatim {
   class Env;                 // cc_env.h
   class ArgumentInfo;        // overload.h
 
-  inline string toXml(DeclaratorContext id) {
-    return stringc << static_cast<int>(id);
+#define PRINTENUM(X) case X: return #X
+#define READENUM(X) else if (streq(str, #X)) out = (X)
+
+  inline char const *toXml(DeclaratorContext id) {
+    switch(id) {
+    default: xfailure("bad enum"); break;
+      PRINTENUM(DC_FUNCTION);
+
+      PRINTENUM(DC_TF_DECL);
+      PRINTENUM(DC_TF_EXPLICITINST);
+      PRINTENUM(DC_MR_DECL);
+      PRINTENUM(DC_S_DECL);
+      PRINTENUM(DC_TD_DECL);
+
+      PRINTENUM(DC_D_FUNC);
+      PRINTENUM(DC_EXCEPTIONSPEC);
+      PRINTENUM(DC_ON_CONVERSION);
+      PRINTENUM(DC_CN_DECL);
+      PRINTENUM(DC_HANDLER);
+      PRINTENUM(DC_E_CAST);
+      PRINTENUM(DC_E_SIZEOFTYPE);
+      PRINTENUM(DC_E_NEW);
+      PRINTENUM(DC_E_KEYWORDCAST);
+      PRINTENUM(DC_E_TYPEIDTYPE);
+      PRINTENUM(DC_TP_TYPE);
+      PRINTENUM(DC_TP_NONTYPE);
+      PRINTENUM(DC_TA_TYPE);
+
+      // dsw: oh, some gnu extensions added to the REOPENED ENUM;
+      // thanks for telling me about that astgen feature, Scott!
+      PRINTENUM(DC_TS_TYPEOF_TYPE);
+      PRINTENUM(DC_E_COMPOUNDLIT);
+      PRINTENUM(DC_E_ALIGNOFTYPE);
+      PRINTENUM(DC_E_BUILTIN_VA_ARG);
+    }
   }
 
   inline void fromXml(DeclaratorContext &out, string str) {
-    out = static_cast<DeclaratorContext>(atoi(str));
+    if(0) xfailure("?");
+    READENUM(DC_FUNCTION);
+    READENUM(DC_TF_DECL);
+    READENUM(DC_TF_EXPLICITINST);
+    READENUM(DC_MR_DECL);
+    READENUM(DC_S_DECL);
+    READENUM(DC_TD_DECL);
+    READENUM(DC_D_FUNC);
+    READENUM(DC_EXCEPTIONSPEC);
+    READENUM(DC_ON_CONVERSION);
+    READENUM(DC_CN_DECL);
+    READENUM(DC_HANDLER);
+    READENUM(DC_E_CAST);
+    READENUM(DC_E_SIZEOFTYPE);
+    READENUM(DC_E_NEW);
+    READENUM(DC_E_KEYWORDCAST);
+    READENUM(DC_E_TYPEIDTYPE);
+    READENUM(DC_TP_TYPE);
+    READENUM(DC_TP_NONTYPE);
+    READENUM(DC_TA_TYPE);
+    // dsw: oh, some gnu extensions added to the REOPENED ENUM; thanks
+    // for telling me about that astgen feature, Scott!
+    READENUM(DC_TS_TYPEOF_TYPE);
+    READENUM(DC_E_COMPOUNDLIT);
+    READENUM(DC_E_ALIGNOFTYPE);
+    READENUM(DC_E_BUILTIN_VA_ARG);
+    else xfailure("bad enum string");
   }
-
 }
 
 
