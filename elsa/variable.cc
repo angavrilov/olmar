@@ -6,15 +6,6 @@
 #include "trace.h"         // tracingSys
 
 
-string toXml_Variable_intData(unsigned id) {
-  return stringc << static_cast<int>(id);
-}
-
-void fromXml_Variable_intData(unsigned &out, rostring str) {
-  out = static_cast<DeclFlags>(atoi(str));
-}
-
-
 // ---------------------- SomeTypeVarNotInTemplParams_Pred --------------------
 
 // existential search for a type variable that is not in the template

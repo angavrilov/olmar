@@ -637,13 +637,16 @@ void TypeToXml::toXml(Variable *var) {
   printPtrAST(var, funcDefn);
   printPtr(var, overload);
   printPtr(var, scope);
-//    // bits 0-7: result of 'getAccess()'
-//    // bits 8-15: result of 'getScopeKind()'
-//    // bits 16-31: result of 'getParameterOrdinal()'
-//    unsigned intData;
-//    Ugh.  Break into 3 parts eventually, but for now serialize as an int.
-  newline();
-  out << "intData=\"" << toXml_Variable_intData(var->intData) << "\"";
+
+  // these three fields are an abstraction; here we pretend they are
+  // real
+  AccessKeyword access = var->getAccess();
+  printXml(access, access);
+  ScopeKind scopeKind = var->getScopeKind();
+  printXml(scopeKind, scopeKind);
+  int parameterOrdinal = var->getParameterOrdinal();
+  printXml_int(parameterOrdinal, parameterOrdinal);
+
   printPtr(var, usingAlias_or_parameterizedEntity);
   printPtr(var, templInfo);
   tagEnd;
@@ -1481,7 +1484,25 @@ void TypeXmlReader::registerAttr_Variable(Variable *obj, int attr, char const *s
   case XTOK_funcDefn: ul(funcDefn, XTOK_Function); break;
   case XTOK_overload: ul(overload, XTOK_OverloadSet); break;
   case XTOK_scope: ul(scope, XTOK_Scope); break;
-  case XTOK_intData: fromXml_Variable_intData(obj->intData, parseQuotedString(strValue)); break;
+
+  // these three fields are an abstraction; here we pretend they are
+  // real
+  case XTOK_access:
+    AccessKeyword access;
+    fromXml(access, parseQuotedString(strValue));
+    obj->setAccess(access);
+    break;
+  case XTOK_scopeKind:
+    ScopeKind scopeKind;
+    fromXml(scopeKind, parseQuotedString(strValue));
+    obj->setScopeKind(scopeKind);
+    break;
+  case XTOK_parameterOrdinal:
+    int parameterOrdinal;
+    fromXml_int(parameterOrdinal, parseQuotedString(strValue));
+    obj->setParameterOrdinal(parameterOrdinal);
+    break;
+
   case XTOK_usingAlias_or_parameterizedEntity:
     ul(usingAlias_or_parameterizedEntity, XTOK_Variable); break;
   case XTOK_templInfo: ul(templInfo, XTOK_TemplateInfo); break;

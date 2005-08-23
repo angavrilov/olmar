@@ -50,11 +50,6 @@ class BasicTypeFactory;        // cc_type.h
 class TemplateInfo;            // cc_type.h
 class ReadXML;                 // xml.h
 
-// FIX: this is temporary; I just want to get the int out and back in
-// again for now.
-string toXml_Variable_intData(unsigned id);
-void fromXml_Variable_intData(unsigned &out, rostring str);
-
 class Variable INHERIT_SERIAL_BASE {
 public:    // data
   // for now, there's only one location, and it's the definition
