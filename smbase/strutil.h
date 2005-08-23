@@ -118,4 +118,14 @@ bool readLine(string &dest, FILE *fp);
 string chomp(rostring src);
 
 
+// dsw: build a string with delimiters between each appended string
+struct DelimStr {
+  char delimiter;               // this could be more general but I don't need it
+  stringBuilder sb;
+
+  explicit DelimStr(char delimiter0);
+  DelimStr& operator << (char const *text);
+};
+
+
 #endif // STRUTIL_H

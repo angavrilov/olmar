@@ -533,6 +533,17 @@ string chomp(rostring src)
 }
 
 
+DelimStr::DelimStr(char delimiter0)
+  : delimiter(delimiter0)
+{}
+
+DelimStr& DelimStr::operator<< (char const *text) {
+  if (!sb.isempty()) sb << delimiter;
+  sb << text;
+  return *this;
+}
+
+
 // ----------------------- test code -----------------------------
 #ifdef TEST_STRUTIL
 
