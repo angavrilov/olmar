@@ -6,38 +6,122 @@
 #include "asthelp.h"            // xmlPrintPointer
 #include "xmlhelp.h"            // toXml_int() etc.
 #include "cc_ast.h"             // AST nodes only for AST sub-traversals
-
+#include "strtokp.h"            // StrtokParse
 #include "strutil.h"            // parseQuotedString
 #include "astxml_lexer.h"       // AstXmlLexer
 
 
 // to/from Xml for enums
-string toXml(CompoundType::Keyword id) {
-  return stringc << static_cast<int>(id);
+
+#define PRINTENUM(X) case X: return #X
+#define READENUM(X) else if (streq(str, #X)) out = (X)
+
+#define PRINTFLAG(X) if (id & (X)) b << #X
+#define READFLAG(X) else if (streq(token, #X)) out |= (X)
+
+char const *toXml(CompoundType::Keyword id) {
+  switch(id) {
+  default: xfailure("bad enum"); break;
+    PRINTENUM(CompoundType::K_STRUCT);
+    PRINTENUM(CompoundType::K_CLASS);
+    PRINTENUM(CompoundType::K_UNION);
+  }
 }
 void fromXml(CompoundType::Keyword &out, rostring str) {
-  out = static_cast<CompoundType::Keyword>(atoi(str));
+  if(0) xfailure("?");
+  READENUM(CompoundType::K_STRUCT);
+  READENUM(CompoundType::K_CLASS);
+  READENUM(CompoundType::K_UNION);
+  else xfailure("bad enum string");
 }
 
 string toXml(FunctionFlags id) {
-  return stringc << static_cast<int>(id);
+  if (id == FF_NONE) return "FF_NONE";
+  DelimStr b('|');
+  PRINTFLAG(FF_METHOD);
+  PRINTFLAG(FF_VARARGS);
+  PRINTFLAG(FF_CONVERSION);
+  PRINTFLAG(FF_CTOR);
+  PRINTFLAG(FF_DTOR);
+  PRINTFLAG(FF_BUILTINOP);
+  PRINTFLAG(FF_NO_PARAM_INFO);
+  PRINTFLAG(FF_DEFAULT_ALLOC);
+  PRINTFLAG(FF_KANDR_DEFN);
+  return b.sb;
 }
 void fromXml(FunctionFlags &out, rostring str) {
-  out = static_cast<FunctionFlags>(atoi(str));
+  StrtokParse tok(str, "|");
+  for (int i=0; i<tok; ++i) {
+    char const * const token = tok[i];
+    if(0) xfailure("?");
+    READFLAG(FF_NONE);
+    READFLAG(FF_METHOD);
+    READFLAG(FF_VARARGS);
+    READFLAG(FF_CONVERSION);
+    READFLAG(FF_CTOR);
+    READFLAG(FF_DTOR);
+    READFLAG(FF_BUILTINOP);
+    READFLAG(FF_NO_PARAM_INFO);
+    READFLAG(FF_DEFAULT_ALLOC);
+    READFLAG(FF_KANDR_DEFN);
+    else xfailure("illegal flag");
+  }
 }
 
-string toXml(ScopeKind id) {
-  return stringc << static_cast<int>(id);
+char const *toXml(ScopeKind id) {
+  switch(id) {
+  default: xfailure("bad enum"); break;
+  PRINTENUM(SK_UNKNOWN);
+  PRINTENUM(SK_GLOBAL);
+  PRINTENUM(SK_PARAMETER);
+  PRINTENUM(SK_FUNCTION);
+  PRINTENUM(SK_CLASS);
+  PRINTENUM(SK_TEMPLATE_PARAMS);
+  PRINTENUM(SK_TEMPLATE_ARGS);
+  PRINTENUM(SK_NAMESPACE);
+  }
 }
 void fromXml(ScopeKind &out, rostring str) {
-  out = static_cast<ScopeKind>(atoi(str));
+  if(0) xfailure("?");
+  READENUM(SK_UNKNOWN);
+  READENUM(SK_GLOBAL);
+  READENUM(SK_PARAMETER);
+  READENUM(SK_FUNCTION);
+  READENUM(SK_CLASS);
+  READENUM(SK_TEMPLATE_PARAMS);
+  READENUM(SK_TEMPLATE_ARGS);
+  READENUM(SK_NAMESPACE);
+  else xfailure("bad enum string");
 }
 
-string toXml(STemplateArgument::Kind id) {
-  return stringc << static_cast<int>(id);
+char const *toXml(STemplateArgument::Kind id) {
+  switch(id) {
+  default: xfailure("bad enum"); break;
+  PRINTENUM(STemplateArgument::STA_NONE);
+  PRINTENUM(STemplateArgument::STA_TYPE);
+  PRINTENUM(STemplateArgument::STA_INT);
+  PRINTENUM(STemplateArgument::STA_ENUMERATOR);
+  PRINTENUM(STemplateArgument::STA_REFERENCE);
+  PRINTENUM(STemplateArgument::STA_POINTER);
+  PRINTENUM(STemplateArgument::STA_MEMBER);
+  PRINTENUM(STemplateArgument::STA_DEPEXPR);
+  PRINTENUM(STemplateArgument::STA_TEMPLATE);
+  PRINTENUM(STemplateArgument::STA_ATOMIC);
+  }
 }
 void fromXml(STemplateArgument::Kind &out, rostring str) {
-  out = static_cast<STemplateArgument::Kind>(atoi(str));
+  if(0) xfailure("?");
+  READENUM(STemplateArgument::STA_NONE);
+  READENUM(STemplateArgument::STA_TYPE);
+  READENUM(STemplateArgument::STA_INT);
+  READENUM(STemplateArgument::STA_ENUMERATOR);
+  READENUM(STemplateArgument::STA_REFERENCE);
+  READENUM(STemplateArgument::STA_POINTER);
+  READENUM(STemplateArgument::STA_MEMBER);
+  READENUM(STemplateArgument::STA_DEPEXPR);
+  READENUM(STemplateArgument::STA_TEMPLATE);
+  READENUM(STemplateArgument::STA_ATOMIC);
+  else xfailure("bad enum string");
 }
 
 

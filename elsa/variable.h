@@ -50,9 +50,6 @@ class BasicTypeFactory;        // cc_type.h
 class TemplateInfo;            // cc_type.h
 class ReadXML;                 // xml.h
 
-string toXml(DeclFlags id);
-void fromXml(DeclFlags &out, rostring str);
-
 // FIX: this is temporary; I just want to get the int out and back in
 // again for now.
 string toXml_Variable_intData(unsigned id);

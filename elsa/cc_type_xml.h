@@ -15,7 +15,7 @@ class AstXmlLexer;
 class OverloadSet;
 class ASTVisitor;
 
-string toXml(CompoundType::Keyword id);
+char const *toXml(CompoundType::Keyword id);
 void fromXml(CompoundType::Keyword &out, rostring str);
 
 string toXml(FunctionFlags id);
