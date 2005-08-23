@@ -26,6 +26,7 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
     activeUsingEdges(0),
     outstandingActiveEdges(0),
     curCompound(NULL),
+    curAccess(AK_PUBLIC),       // dsw: this was uninitialized so I took a guess
     curFunction(NULL),
     curLoc(initLoc)
 {
