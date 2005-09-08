@@ -47,12 +47,14 @@ verbatim {
       PRINTENUM(DC_TP_NONTYPE);
       PRINTENUM(DC_TA_TYPE);
 
+      #ifdef GNU_EXTENSION     // hack; better solution in the works
       // dsw: oh, some gnu extensions added to the REOPENED ENUM;
       // thanks for telling me about that astgen feature, Scott!
       PRINTENUM(DC_TS_TYPEOF_TYPE);
       PRINTENUM(DC_E_COMPOUNDLIT);
       PRINTENUM(DC_E_ALIGNOFTYPE);
       PRINTENUM(DC_E_BUILTIN_VA_ARG);
+      #endif // GNU_EXTENSION
     }
   }
 
@@ -77,12 +79,16 @@ verbatim {
     READENUM(DC_TP_TYPE);
     READENUM(DC_TP_NONTYPE);
     READENUM(DC_TA_TYPE);
+
+    #ifdef GNU_EXTENSION     // hack; better solution in the works
     // dsw: oh, some gnu extensions added to the REOPENED ENUM; thanks
     // for telling me about that astgen feature, Scott!
     READENUM(DC_TS_TYPEOF_TYPE);
     READENUM(DC_E_COMPOUNDLIT);
     READENUM(DC_E_ALIGNOFTYPE);
     READENUM(DC_E_BUILTIN_VA_ARG);
+    #endif // GNU_EXTENSION
+
     else xfailure("bad enum string");
   }
 }
