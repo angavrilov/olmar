@@ -3929,7 +3929,7 @@ STemplateArgument Env::applyArgumentMapToExpression
     return ret;     // good to go
   }
   
-  // TOOD: I think the right way to do this is to use the
+  // TODO: I think the right way to do this is to use the
   // constant-evaluator (which setSTemplArgFromExpr uses
   // internally), modified to use 'map'
 

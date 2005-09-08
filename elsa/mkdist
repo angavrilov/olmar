@@ -37,6 +37,11 @@ cd ..
 targz $distname || exit
 rm -rf $distname
 
+if [ "$1" = "-notest" ]; then
+  echo "stopping without testing"
+  exit 0
+fi
+
 # test it
 untargz ${distname}.tar.gz
 cd ${distname}
@@ -52,6 +57,11 @@ make check >>make.out 2>&1
 # UPDATE: have to run flex b/c it's how lexical extensions are added..
 if egrep '^bison' make.out; then
   echo "We ran bison during the build; that's bad!"
+  exit 2
+fi
+
+if egrep '^m4' make.out; then
+  echo "We ran m4 during the build; that's bad!"
   exit 2
 fi
 

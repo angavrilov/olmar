@@ -1,7 +1,7 @@
 %!PS-Adobe-2.0
-%%Title: template_er.ps
+%%Title: template.ps
 %%Creator: /usr/X11R6/bin/fig2dev Version 3.2 Patchlevel 4
-%%CreationDate: Fri Aug 19 22:27:58 2005
+%%CreationDate: Fri Sep  2 23:14:55 2005
 %%For: scott@seamonkey (,,,)
 %%Orientation: Landscape
 %%Pages: 1
@@ -187,7 +187,7 @@ n 8400 9000 m 9600 9000 l 9600 9300 l 8400 9300 l
  cp gs col10 s gr 
 % Polyline
 15.000 slw
-n 5700 9075 m 5550 9150 l 5700 9225 l 5700 9075 l
+n 5700 9075 m 5550 9150 l 5700 9225 l
  cp gs col10 1.00 shd ef gr gs col10 s gr 
 % Polyline
 n 5400 9150 m
@@ -285,7 +285,7 @@ n 10800 1500 m 12600 1500 l 12600 1800 l 10800 1800 l
  cp gs col12 s gr 
 % Polyline
 15.000 slw
-n 10500 1275 m 10350 1350 l 10500 1425 l 10500 1275 l
+n 10500 1275 m 10350 1350 l 10500 1425 l
  cp gs col12 1.00 shd ef gr gs col12 s gr 
 % Polyline
 n 10200 1350 m
@@ -370,7 +370,7 @@ n 3600 4650 m 3900 4650 l 3900 3450 l
  3600 3450 l gs col-1 s gr 
 % Polyline
 7.500 slw
-n 2925 4500 m 3000 4350 l 3075 4500 l 2925 4500 l
+n 2925 4500 m 3000 4350 l 3075 4500 l
  cp gs 0.00 setgray ef gr gs col0 s gr 
 % Polyline
 n 1800 4500 m 900 4500 l 900 4200 l 1800 4200 l
@@ -386,10 +386,10 @@ n 1800 3150 m 2100 3150 l 2100 3750 l
 n 1800 4350 m 2100 4350 l 2100 4950 l
  1800 4950 l gs col0 s gr 
 % Polyline
-n 2100 4575 m 2250 4650 l 2100 4725 l 2100 4575 l
+n 2100 4575 m 2250 4650 l 2100 4725 l
  cp gs 0.00 setgray ef gr gs col0 s gr 
 % Polyline
-n 2100 3375 m 2250 3450 l 2100 3525 l 2100 3375 l
+n 2100 3375 m 2250 3450 l 2100 3525 l
  cp gs 0.00 setgray ef gr gs col0 s gr 
 % Polyline
 n 2400 3450 m
@@ -575,10 +575,10 @@ n 7664 3105 m 7784 3075 l 7664 3045 l 7664 3105 l  cp gs 0.00 setgray ef gr  col
 n 7350 3075 m
  7500 3075 l gs col0 s gr  [] 0 sd
 % Polyline
-n 7650 4575 m 7500 4650 l 7650 4725 l 7650 4575 l
+n 7650 4575 m 7500 4650 l 7650 4725 l
  cp gs 0.00 setgray ef gr gs col0 s gr 
 % Polyline
-n 7650 3375 m 7500 3450 l 7650 3525 l 7650 3375 l
+n 7650 3375 m 7500 3450 l 7650 3525 l
  cp gs 0.00 setgray ef gr gs col0 s gr 
 % Polyline
 15.000 slw
@@ -687,7 +687,7 @@ n 5880 1936 m 5850 1816 l 5820 1936 l 5880 1936 l  cp gs 0.00 setgray ef gr  col
 n 6600 1800 m
  6600 2100 l gs col33 s gr 
 % Polyline
-n 6525 2100 m 6600 1950 l 6675 2100 l 6525 2100 l
+n 6525 2100 m 6600 1950 l 6675 2100 l
  cp gs col33 1.00 shd ef gr gs col33 s gr 
 % Polyline
 7.500 slw
@@ -813,35 +813,29 @@ n 5520 7364 m 5550 7484 l 5580 7364 l 5520 7364 l  cp gs 0.00 setgray ef gr  col
 n 11400 9300 m 12600 9300 l 12600 9600 l 11400 9600 l
  cp gs col10 s gr  [] 0 sd
 % Polyline
-n 11400 8700 m 12600 8700 l 12600 9000 l 11400 9000 l
+gs  clippath
+12030 8685 m 11970 8685 l 11970 8836 l 12000 8716 l 12030 8836 l cp
+11970 9315 m 12030 9315 l 12030 9164 l 12000 9284 l 11970 9164 l cp
+eoclip
+n 12000 9300 m
+ 12000 8700 l gs col0 s gr gr
+
+% arrowhead
+n 11970 9164 m 12000 9284 l 12030 9164 l 11970 9164 l  cp gs 0.00 setgray ef gr  col0 s
+% arrowhead
+n 12030 8836 m 12000 8716 l 11970 8836 l 12030 8836 l  cp gs 0.00 setgray ef gr  col0 s
+% Polyline
+gs  clippath
+12030 8085 m 11970 8085 l 11970 8236 l 12000 8116 l 12030 8236 l cp
+eoclip
+n 12000 8400 m
+ 12000 8100 l gs col0 s gr gr
+
+% arrowhead
+n 12030 8236 m 12000 8116 l 11970 8236 l 12030 8236 l  cp gs 0.00 setgray ef gr  col0 s
+% Polyline
+n 11400 8400 m 12600 8400 l 12600 8700 l 11400 8700 l
  cp gs col0 s gr 
-% Polyline
-gs  clippath
-12030 8385 m 11970 8385 l 11970 8536 l 12000 8416 l 12030 8536 l cp
-eoclip
-n 12000 8700 m
- 12000 8400 l gs col0 s gr gr
-
-% arrowhead
-n 12030 8536 m 12000 8416 l 11970 8536 l 12030 8536 l  cp gs 0.00 setgray ef gr  col0 s
-% Polyline
-gs  clippath
-11730 8985 m 11670 8985 l 11670 9136 l 11700 9016 l 11730 9136 l cp
-eoclip
-n 11700 9300 m
- 11700 9000 l gs col0 s gr gr
-
-% arrowhead
-n 11730 9136 m 11700 9016 l 11670 9136 l 11730 9136 l  cp gs 0.00 setgray ef gr  col0 s
-% Polyline
-gs  clippath
-12270 9315 m 12330 9315 l 12330 9164 l 12300 9284 l 12270 9164 l cp
-eoclip
-n 12300 9000 m
- 12300 9300 l gs col-1 s gr gr
-
-% arrowhead
-n 12270 9164 m 12300 9284 l 12330 9164 l 12270 9164 l  cp gs 0.00 setgray ef gr  col-1 s
 /Times-Roman ff 180.00 scf sf
 8400 3225 m
 gs 1 -1 sc (TypeMValue) dup sw pop 2 div neg 0 rm  col35 sh gr
@@ -922,7 +916,7 @@ gs 1 -1 sc (templ: ClassTemplate) dup sw pop 2 div neg 0 rm  col35 sh gr
 gs 1 -1 sc (templ: TemplateMP) dup sw pop 2 div neg 0 rm  col35 sh gr
 /Times-Roman ff 180.00 scf sf
 2100 5250 m
-gs 1 -1 sc (val?) dup sw pop 2 div neg 0 rm  col0 sh gr
+gs 1 -1 sc (val?!) dup sw pop 2 div neg 0 rm  col0 sh gr
 /Times-Roman ff 180.00 scf sf
 5700 4275 m
 gs 1 -1 sc (val?) dup sw pop 2 div neg 0 rm  col0 sh gr
@@ -934,7 +928,7 @@ gs 1 -1 sc (TypeNameMP) dup sw pop 2 div neg 0 rm  col-1 sh gr
 gs 1 -1 sc (ClassTemplate) dup sw pop 2 div neg 0 rm  col0 sh gr
 /Times-Roman ff 180.00 scf sf
 1575 7725 m
-gs 1 -1 sc (specs*) col0 sh gr
+gs 1 -1 sc (specs*!) col0 sh gr
 /Times-Roman ff 180.00 scf sf
 2100 6225 m
 gs 1 -1 sc (ClassType) dup sw pop 2 div neg 0 rm  col0 sh gr
@@ -946,7 +940,7 @@ gs 1 -1 sc (MBinding) dup sw pop 2 div neg 0 rm  col0 sh gr
 gs 1 -1 sc (template) col0 sh gr
 /Times-Roman ff 180.00 scf sf
 7875 7725 m
-gs 1 -1 sc (specs*) col0 sh gr
+gs 1 -1 sc (specs*!) col0 sh gr
 /Times-Roman ff 180.00 scf sf
 9000 6225 m
 gs 1 -1 sc (Function) dup sw pop 2 div neg 0 rm  col0 sh gr
@@ -1014,19 +1008,19 @@ gs 1 -1 sc (template) dup sw pop neg 0 rm  col0 sh gr
 12000 9525 m
 gs 1 -1 sc (ClassMember) dup sw pop 2 div neg 0 rm  col-1 sh gr
 /Times-Roman ff 180.00 scf sf
-12000 8925 m
-gs 1 -1 sc (OOLTMDefn) dup sw pop 2 div neg 0 rm  col0 sh gr
-/Times-Roman ff 180.00 scf sf
-11925 8625 m
-gs 1 -1 sc (enclosingParams[]) dup sw pop neg 0 rm  col0 sh gr
-/Times-Roman ff 180.00 scf sf
-12000 8325 m
+12000 8025 m
 gs 1 -1 sc (\(MParamList\)) dup sw pop 2 div neg 0 rm  col-1 sh gr
 /Times-Roman ff 180.00 scf sf
-11625 9225 m
+11925 8325 m
+gs 1 -1 sc (enclosingParams[]) dup sw pop neg 0 rm  col0 sh gr
+/Times-Roman ff 180.00 scf sf
+12000 8625 m
+gs 1 -1 sc (OOLTMDefn) dup sw pop 2 div neg 0 rm  col0 sh gr
+/Times-Roman ff 180.00 scf sf
+11925 9225 m
 gs 1 -1 sc (ooltmdefn?) dup sw pop neg 0 rm  col0 sh gr
 /Times-Roman ff 180.00 scf sf
-12375 9225 m
+12075 8850 m
 gs 1 -1 sc (m) col-1 sh gr
 % here ends figure;
 $F2psEnd
