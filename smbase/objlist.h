@@ -316,4 +316,6 @@ void ObjListMultiIter<T>::normalize()
 }
 
 
+// (tweak to ensure objlist.h and sobjlist.h both change)
+
 #endif // OBJLIST_H

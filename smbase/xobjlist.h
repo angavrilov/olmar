@@ -382,4 +382,6 @@ void multiIterName<T>::normalize()
 }
 
 
+// (tweak to ensure objlist.h and sobjlist.h both change)
+
 #endif // includeLatch

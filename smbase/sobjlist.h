@@ -309,4 +309,6 @@ void SObjListMultiIter<T>::normalize()
 }
 
 
+// (tweak to ensure objlist.h and sobjlist.h both change)
+
 #endif // SOBJLIST_H
