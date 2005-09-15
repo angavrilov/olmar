@@ -47,14 +47,20 @@ verbatim {
       PRINTENUM(DC_TP_NONTYPE);
       PRINTENUM(DC_TA_TYPE);
 
-      #ifdef GNU_EXTENSION     // hack; better solution in the works
+      // dsw: gnu.ast defines this variable and is only included after
+      // this .ast file.  Therefore unless the build process is
+      // modified to explicitly put -DGNU_EXTENSION on the command
+      // line or the .ast language is augmented to allow a section
+      // from each .ast file to float to the top of the generated
+      // file, we cannot use GNU_EXTENSION in this file.
+//        #ifdef GNU_EXTENSION     // hack; better solution in the works
       // dsw: oh, some gnu extensions added to the REOPENED ENUM;
       // thanks for telling me about that astgen feature, Scott!
       PRINTENUM(DC_TS_TYPEOF_TYPE);
       PRINTENUM(DC_E_COMPOUNDLIT);
       PRINTENUM(DC_E_ALIGNOFTYPE);
       PRINTENUM(DC_E_BUILTIN_VA_ARG);
-      #endif // GNU_EXTENSION
+//        #endif // GNU_EXTENSION
     }
   }
 
@@ -80,14 +86,15 @@ verbatim {
     READENUM(DC_TP_NONTYPE);
     READENUM(DC_TA_TYPE);
 
-    #ifdef GNU_EXTENSION     // hack; better solution in the works
+    // dsw: see note above at GNU_EXTENSION
+//      #ifdef GNU_EXTENSION     // hack; better solution in the works
     // dsw: oh, some gnu extensions added to the REOPENED ENUM; thanks
     // for telling me about that astgen feature, Scott!
     READENUM(DC_TS_TYPEOF_TYPE);
     READENUM(DC_E_COMPOUNDLIT);
     READENUM(DC_E_ALIGNOFTYPE);
     READENUM(DC_E_BUILTIN_VA_ARG);
-    #endif // GNU_EXTENSION
+//      #endif // GNU_EXTENSION
 
     else xfailure("bad enum string");
   }
