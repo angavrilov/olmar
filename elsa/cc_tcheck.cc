@@ -179,8 +179,35 @@ public:
 
 
 // ------------------- TranslationUnit --------------------
+// dsw: this method is generic enough that perhaps it should be called
+// "applyFlagsToGlobals" or something since you could in theory call
+// it with any kind of flag
+void applyExternC(TopForm *form, DeclFlags flags)
+{
+  ASTSWITCH(TopForm, form) {
+    ASTCASE(TF_decl, d)   d->decl->dflags |= flags;
+    ASTNEXT(TF_func, f)   f->f->dflags |= flags;
+    // just ignore other forms
+    ASTENDCASED
+  }
+}
+
 void TranslationUnit::tcheck(Env &env)
 {
+  // dsw: this is copied from TF_linkage::itcheck(); per Scott's
+  // suggestion, in C mode we just want to pretend that the entire
+  // TranslationUnit was wrapped in an extern "C" {} block.  This way
+  // our mangled names from C and C++ translation units will link
+  // together correctly.
+  if (!env.lang.isCplusplus) {
+    // since there is no 'extern "C"' syntax in C, this block
+    // shouldn't ever get called on this TranslationUnit from both
+    // here and from TF_linkage::itcheck()
+    FOREACH_ASTLIST_NC(TopForm, topForms, iter) {
+      applyExternC(iter.data(), DF_EXTERN_C);
+    }
+  }
+
   static int topForm = 0;
   FOREACH_ASTLIST_NC(TopForm, topForms, iter) {
     ++topForm;
@@ -279,16 +306,6 @@ void TF_explicitInst::itcheck(Env &env)
     // am simply assuming the same is true of explicit instantiations,
     // even though 14.7.2 doesn't say so explicitly...
     env.error("too many declarators in explicit instantiation");
-  }
-}
-
-void applyExternC(TopForm *form, DeclFlags flags)
-{
-  ASTSWITCH(TopForm, form) {
-    ASTCASE(TF_decl, d)   d->decl->dflags |= flags;
-    ASTNEXT(TF_func, f)   f->f->dflags |= flags;
-    // just ignore other forms
-    ASTENDCASED
   }
 }
 
@@ -6721,12 +6738,12 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
 string kindAndType(Variable *v)
 {
   if (v->isNamespace()) {
-    return stringc << "namespace " << v->fullyQualifiedName();
+    return stringc << "namespace " << v->fullyQualifiedName0();
   }
   else if (v->isType()) {
     if (v->type->isCompoundType()) {
       CompoundType *ct = v->type->asCompoundType();
-      return stringc << toString(ct->keyword) << " " << v->fullyQualifiedName();
+      return stringc << toString(ct->keyword) << " " << v->fullyQualifiedName0();
     }
     else {
       return stringc << "type `" << v->type->toString() << "'";

@@ -585,8 +585,8 @@ Variable *Scope::lookupTypeTag(StringRef name, Env &env, LookupFlags flags) cons
           v = v2;
         }
         else if (v != v2) {
-          env.error(stringc << "ambiguous type tag: `" << v->fullyQualifiedName()
-                            << "' vs. `" << v2->fullyQualifiedName() << "'");
+          env.error(stringc << "ambiguous type tag: `" << v->fullyQualifiedName0()
+                            << "' vs. `" << v2->fullyQualifiedName0() << "'");
         }
       }
     }
@@ -1027,8 +1027,8 @@ bool Scope::foundViaUsingEdge(LookupSet &candidates, Env &env, LookupFlags flags
       }
       else {
         env.error(stringc
-          << "ambiguous lookup: `" << vfound->fullyQualifiedName()
-          << "' vs. `" << v->fullyQualifiedName() << "'");
+          << "ambiguous lookup: `" << vfound->fullyQualifiedName0()
+          << "' vs. `" << v->fullyQualifiedName0() << "'");
 
         // originally I kept going in hopes of reporting more
         // interesting things, but now that the same scope can
@@ -1131,15 +1131,9 @@ bool Scope::linkerVisible()
 }
 
 
-void fqn_STemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &args,
-                       bool doMangle)
+void fqn_STemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &args)
 {
-  if (!doMangle) {
-    sb << sargsToString(args);
-  }
-  else {
-    mangleSTemplateArgs(sb, args);
-  }
+  sb << sargsToString(args);
 }
 
 
@@ -1152,7 +1146,10 @@ void fqn_STemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &args
 //
 // 8/09/04: sm: mangle=true is the original behavior of this function,
 // mangle=false is the behavior I want
-string Scope::fullyQualifiedName(bool mangle)
+//
+// 9/20/05: dsw: I inlined it with mangle=false since I didn't need
+// that other behavior.
+string Scope::fullyQualifiedName()
 {
   // 7/28/04: I just changed things so that children of the global
   // scope have a non-NULL 'parentScope', and then adjusted this
@@ -1168,10 +1165,8 @@ string Scope::fullyQualifiedName(bool mangle)
 
   stringBuilder sb;
   if (parentScope && !parentScope->isGlobalScope()) {
-    sb = parentScope->fullyQualifiedName(mangle);
-    if (!mangle) {
-      sb << "::";     // put this only *between* names, so none at start
-    }
+    sb = parentScope->fullyQualifiedName();
+    sb << "::";     // put this only *between* names, so none at start
   }
   else {
     if (!immediateGlobalScopeChild()) {
@@ -1179,9 +1174,6 @@ string Scope::fullyQualifiedName(bool mangle)
       // in a class in a function
       xfailure("fullyQualifiedName called on scope that doesn't terminate in the global scope");
     }
-  }
-  if (mangle) {
-    sb << "::";       // put this *before* names, so there is one at start
   }
 
   xassert(hasName());
@@ -1206,11 +1198,10 @@ string Scope::fullyQualifiedName(bool mangle)
         tinfo->instantiationOf->templateInfo()->isPartialSpec()) {
       // print the partial spec args first, so then the instantiation
       // args can be interpreted relative to the partial spec args
-      fqn_STemplateArgs(sb, tinfo->instantiationOf->templateInfo()->arguments,
-                        mangle);
+      fqn_STemplateArgs(sb, tinfo->instantiationOf->templateInfo()->arguments);
     }
 
-    fqn_STemplateArgs(sb, tinfo->arguments, mangle);
+    fqn_STemplateArgs(sb, tinfo->arguments);
   }
 
   return sb;

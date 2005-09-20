@@ -116,6 +116,7 @@ first
 # "bases" return tok(XTOK_bases);
 # "args" return tok(XTOK_args);
 # "rest" return tok(XTOK_rest);
+fullyQualifiedMangledName
 
 # Other
 Variable

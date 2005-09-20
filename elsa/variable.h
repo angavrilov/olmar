@@ -161,6 +161,8 @@ public:
   bool isEnumerator() const { return hasFlag(DF_ENUMERATOR); }
   bool isType() const { return hasFlag(DF_TYPEDEF); }
 
+  bool linkerVisibleName() const;
+
   // true if this name refers to a class or struct or union
   bool isClass() const;
 
@@ -262,7 +264,10 @@ public:
   void gdb() const;
 
   // fully qualified but not mangled name
-  string fullyQualifiedName() const;
+  string fullyQualifiedName0() const;
+  string mangledName0(); 	// no scope
+  void appendMangledness(stringBuilder &mgldName);
+  string fullyQualifiedMangledName0(); // scope+mangling
 
   // like toString but with the fully qualified name
   string toQualifiedString() const;

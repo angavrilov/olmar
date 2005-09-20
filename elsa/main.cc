@@ -29,9 +29,6 @@
   #include "cc_type_xml.h"  // TypeToXml
 #endif // XML
 
-// don't know why I need this
-//  class TypeToXml;
-
 // little check: is it true that only global declarators
 // ever have Declarator::type != Declarator::var->type?
 // .. no, because it's true for class members too ..

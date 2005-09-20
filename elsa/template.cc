@@ -653,12 +653,12 @@ void TemplateInfo::prependArguments(ObjList<STemplateArgument> const &sargs)
 string TemplateInfo::templateName() const
 {
   if (isPrimary()) {
-    return stringc << var->fullyQualifiedName()
+    return stringc << var->fullyQualifiedName0()
                    << paramsLikeArgsToString();
   }
 
   if (isSpecialization()) {
-    return stringc << var->fullyQualifiedName()
+    return stringc << var->fullyQualifiedName0()
                    << sargsToString(arguments);
   }
 
@@ -679,7 +679,7 @@ string TemplateInfo::templateName() const
   }
   #endif // 0
   
-  return var->fullyQualifiedName();
+  return var->fullyQualifiedName0();
 }
 
 

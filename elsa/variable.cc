@@ -4,6 +4,7 @@
 #include "variable.h"      // this module
 #include "template.h"      // Type, TemplateInfo, etc.
 #include "trace.h"         // tracingSys
+#include "mangle.h"        // mangle()
 
 
 // ---------------------- SomeTypeVarNotInTemplParams_Pred --------------------
@@ -124,6 +125,15 @@ void Variable::setFlagsTo(DeclFlags f)
 {
   // this method is the one that gets to modify 'flags'
   const_cast<DeclFlags&>(flags) = f;
+}
+
+
+bool Variable::linkerVisibleName() const {
+  // FIX: what the heck was this?  Some attempt to treat struct
+  // members as linkerVisibleName-s?  This doesn't work because there
+  // is no well-defined name for an anonymous struct anyway.
+  if (scope) return scope->linkerVisible();
+  else return hasFlag(DF_GLOBAL);
 }
 
 
@@ -289,7 +299,7 @@ string Variable::toQualifiedString() const
 {                             
   string qname;
   if (name) {
-    qname = fullyQualifiedName();
+    qname = fullyQualifiedName0();
   }
   else {
     qname = "/*anon*/";
@@ -335,7 +345,7 @@ string Variable::toMLString() const
 }
 
 
-string Variable::fullyQualifiedName() const
+string Variable::fullyQualifiedName0() const
 {
   stringBuilder tmp;
   if (scope && !scope->isGlobalScope()) {
@@ -378,6 +388,42 @@ string Variable::fullyQualifiedName() const
     }
   }
   return tmp;
+}
+
+string Variable::mangledName0() {
+  // NOTE: This is a very important assertion
+  xassert(linkerVisibleName());
+
+  stringBuilder mgldName;
+  // FIX: should this be an assertion?  It can fail.
+  if (name) mgldName << name;
+  appendMangledness(mgldName);
+  return mgldName;
+}
+
+void Variable::appendMangledness(stringBuilder &mgldName) {
+  // for function types, be sure to use the mangled name of their
+  // signature so that overloading works right
+  if (type && type->isFunctionType() && !hasFlag(DF_EXTERN_C)) {
+    mgldName << " SIG " << mangle(type); // this is passed through the globalStrTable below
+  }
+}
+
+string Variable::fullyQualifiedMangledName0() {
+//    cout << "name '" << name;
+//    if (scope) cout << "; has a scope" << endl;
+//    else cout << "; NO scope" << endl;
+
+  // NOTE: This is a very important assertion
+  xassert(linkerVisibleName());
+
+  stringBuilder fqName;
+  fqName << fullyQualifiedName0();
+//    if (scope) fqName << scope->fullyQualifiedName();
+//    fqName << "::" << mangledName0();
+  appendMangledness(fqName);
+
+  return fqName;
 }
 
 

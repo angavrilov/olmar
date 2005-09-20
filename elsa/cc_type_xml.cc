@@ -649,6 +649,12 @@ void TypeToXml::toXml(Variable *var) {
 
   printPtr(var, usingAlias_or_parameterizedEntity);
   printPtr(var, templInfo);
+
+  if (var->linkerVisibleName()) {
+    newline();
+    out << "fullyQualifiedMangledName=" << quoted(var->fullyQualifiedMangledName0());
+  }
+
   tagEnd;
   // **** subtags
   trav(var->type);
@@ -1501,6 +1507,13 @@ void TypeXmlReader::registerAttr_Variable(Variable *obj, int attr, char const *s
     int parameterOrdinal;
     fromXml_int(parameterOrdinal, parseQuotedString(strValue));
     obj->setParameterOrdinal(parameterOrdinal);
+    break;
+
+  case XTOK_fullyQualifiedMangledName:
+    // FIX: For now throw it away; I suppose perhaps we should check
+    // that it is indeed the fully qualified name, but we would have
+    // to be done de-serializing the whole object heirarcy first and
+    // we aren't even done de-serializing the Variable object.
     break;
 
   case XTOK_usingAlias_or_parameterizedEntity:

@@ -493,7 +493,7 @@ string CompoundType::toCString() const
 
   //sb << (instName? instName : "/*anonymous*/");
   if (typedefVar) {
-    sb << typedefVar->fullyQualifiedName();
+    sb << typedefVar->fullyQualifiedName0();
   }
   else {                                 
     // only reachable during object construction

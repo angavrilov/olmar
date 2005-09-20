@@ -318,11 +318,16 @@ public:      // funcs
   // sm: TODO: Change the name so it reflects the mangling activity;
   // I want "fullyQualifiedName" to do what "fullyQualifiedCName"
   // does now.
-  string fullyQualifiedName(bool mangle = true);
+  //
+  // dsw: I made your way the only way; that is, I just inlined mangle
+  // as set to false
+  string fullyQualifiedName();
   
   // more C-like notation for a fully qualified name
-  string fullyQualifiedCName()
-    { return fullyQualifiedName(false /*mangle*/); }
+  string fullyQualifiedCName() {
+    // dsw: see the note above; these functions are now identical.
+    return fullyQualifiedName();
+  }
 
   // set 'parameterizedEntity', checking a few things in the process
   void setParameterizedEntity(Variable *entity);

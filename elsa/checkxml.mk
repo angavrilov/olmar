@@ -1567,7 +1567,8 @@ $(addsuffix .B0.dp_filtered,$(T1D)): outdir/%.B0.dp_filtered: outdir/%.B0.dp
 
 # generate xml print
 $(addsuffix .B1.xml,$(T1D)): outdir/%.B1.xml: in/%
-	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-indent $< > $@
+# 	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-indent $< > $@
+	$(PR) -tr no-elaborate,xmlPrintAST $< > $@
 $(addsuffix .B1.xml_filtered,$(T1D)): outdir/%.B1.xml_filtered: outdir/%.B1.xml
 	./chop_out < $< > $@
 
@@ -1599,7 +1600,8 @@ $(addsuffix .C0.dp_filtered,$(T2D)): outdir/%.C0.dp_filtered: outdir/%.C0.dp
 
 # generate xml print
 $(addsuffix .C1.xml,$(T2D)): outdir/%.C1.xml: in/%
-	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-indent,xmlPrintAST-types $< > $@
+	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-types,xmlPrintAST-indent $< > $@
+# 	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-types $< > $@
 $(addsuffix .C1.xml_filtered,$(T2D)): outdir/%.C1.xml_filtered: outdir/%.C1.xml
 	./chop_out < $< > $@
 
@@ -1616,20 +1618,21 @@ $(addsuffix .C3.diff,$(T2D)): outdir/%.C3.diff: outdir/%.C0.dp_filtered outdir/%
 # difference
 	$(DIFF) $^ > $@
 
-# # parse xml and generate second xml print
-# $(addsuffix .C4.xml,$(T2D)): outdir/%.C4.xml: outdir/%.C1.xml_filtered
-# 	$(PR) -tr parseXml,no-typecheck,no-elaborate,xmlPrintAST,xmlPrintAST-indent,xmlPrintAST-types $< > $@
-# $(addsuffix .C4.xml_filtered,$(T2D)): outdir/%.C4.xml_filtered: outdir/%.C4.xml
-# 	./chop_out < $< > $@
+# parse xml and generate second xml print
+$(addsuffix .C4.xml,$(T2D)): outdir/%.C4.xml: outdir/%.C1.xml_filtered
+	$(PR) -tr parseXml,no-typecheck,no-elaborate,xmlPrintAST,xmlPrintAST-types,xmlPrintAST-indent $< > $@
+# 	$(PR) -tr parseXml,no-typecheck,no-elaborate,xmlPrintAST,xmlPrintAST-types $< > $@
+$(addsuffix .C4.xml_filtered,$(T2D)): outdir/%.C4.xml_filtered: outdir/%.C4.xml
+	./chop_out < $< > $@
 
-# # diff the two xml-prints
-# $(addsuffix .C5.diff,$(T2D)): outdir/%.C5.diff: outdir/%.C1.xml_filtered outdir/%.C4.xml_filtered
-# # NOTE: do not, say, replace this with a pipe into 'tee' because that
-# # masks the return code and prevents make from stopping if there is a
-# # difference
-# 	./filter_ids < $(filter %.C1.xml_filtered,$^) > outdir/a1.xml
-# 	./filter_ids < $(filter %.C4.xml_filtered,$^) > outdir/a4.xml
-# 	$(DIFF) outdir/a1.xml outdir/a4.xml > $@
+# diff the two xml-prints
+$(addsuffix .C5.diff,$(T2D)): outdir/%.C5.diff: outdir/%.C1.xml_filtered outdir/%.C4.xml_filtered
+# NOTE: do not, say, replace this with a pipe into 'tee' because that
+# masks the return code and prevents make from stopping if there is a
+# difference
+	./filter_ids < $(filter %.C1.xml_filtered,$^) > outdir/a1.xml
+	./filter_ids < $(filter %.C4.xml_filtered,$^) > outdir/a4.xml
+	$(DIFF) outdir/a1.xml outdir/a4.xml > $@
 
 .PHONY: check_type
 check_type: $(addsuffix .C3.diff,$(T2D))
@@ -1654,7 +1657,8 @@ $(addsuffix .D0.dp_filtered,$(T3D)): outdir/%.D0.dp_filtered: outdir/%.D0.dp
 
 # generate xml print
 $(addsuffix .D1.xml,$(T3D)): outdir/%.D1.xml: in/%
-	$(PR) -tr xmlPrintAST,xmlPrintAST-indent,xmlPrintAST-types,xmlPrintAST-lowered $< > $@
+# 	$(PR) -tr xmlPrintAST,xmlPrintAST-types,xmlPrintAST-lowered,xmlPrintAST-indent $< > $@
+	$(PR) -tr xmlPrintAST,xmlPrintAST-types,xmlPrintAST-lowered $< > $@
 $(addsuffix .D1.xml_filtered,$(T3D)): outdir/%.D1.xml_filtered: outdir/%.D1.xml
 	./chop_out < $< > $@
 
