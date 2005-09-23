@@ -160,6 +160,12 @@ public:      // types
     // same semantics as HashLineMap::addHashLine
     void addHashLine(int ppLine, int origLine, char const *origFname);
     void doneAdding();
+
+    // dsw: the xml serialization code needs access to these two
+    // fields; the idea is that the method names suggest that people
+    // not use them
+    unsigned char *serializationOnly_get_lineLengths() {return lineLengths;}
+    int serializationOnly_get_lineLengthsSize() {return lineLengthsSize;}
   };
 
   // this is used for SourceLocs where the file isn't reliably
@@ -291,6 +297,10 @@ public:      // funcs
 
   // "line:col" format
   string getLCString(SourceLoc loc);
+
+  // dsw: the xml serialization code needs access to this field; the
+  // idea is that the method name suggests that people not use it
+  ObjList<File> &serializationOnly_get_files() {return files;}
 };
 
 
