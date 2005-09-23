@@ -5,7 +5,7 @@
   /* This file is the bottom part of the generated .lex file. */
 
   /* identifier: e.g. foo */
-{LETTERDOT}{ALNUMDOT}* {
+{ALNUMDOT}* {
   return svalTok(XTOK_NAME);
 }
 

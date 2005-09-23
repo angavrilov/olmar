@@ -100,9 +100,12 @@ class XmlReader {
   // Parse an attribute: register an attribute into the current node
   virtual bool registerAttribute(void *target, int kind, int attr, char const *yytext0) = 0;
 
+  // Parse raw data: register some raw data into the current node
+  virtual bool registerStringToken(void *target, int kind, char const *yytext0) = 0;
+
   // implement an eq-relation on tag kinds by mapping a tag kind to a
   // category
-  virtual bool kind2kindCat(int kind, KindCategory *ret) = 0;
+  virtual bool kind2kindCat(int kind, KindCategory *kindCat) = 0;
 
   // **** Generic Convert
 
@@ -188,13 +191,14 @@ class XmlReaderManager {
   void parseOneTopLevelTag();
 
   private:
-  void parseOneTag();
+  void parseOneTagOrDatum();
   bool readAttributes();
 
   // disjunctive dispatch to the list of readers
   void kind2kindCat(int kind, KindCategory *kindCat);
   void *ctorNodeFromTag(int tag);
   void registerAttribute(void *target, int kind, int attr, char const *yytext0);
+  void registerStringToken(void *target, int kind, char const *yytext0);
 
   void append2List(void *list, int listKind, void *datum);
   void insertIntoNameMap(void *map, int mapKind, StringRef name, void *datum);

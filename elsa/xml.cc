@@ -34,12 +34,12 @@ void XmlReaderManager::reset() {
 
 void XmlReaderManager::parseOneTopLevelTag() {
   // FIX: a do-while is always a bug
-  do parseOneTag();
+  do parseOneTagOrDatum();
   while(!atTopLevel());
   xassert(kindStack.isEmpty()); // the stacks are synchronized
 }
 
-void XmlReaderManager::parseOneTag() {
+void XmlReaderManager::parseOneTagOrDatum() {
   // state: looking for a tag start
   if (lexer.haveSeenEof()) {
     userError("unexpected EOF while looking for '<' of an open tag");
@@ -49,6 +49,11 @@ void XmlReaderManager::parseOneTag() {
   switch(start) {
   default:
     userError("unexpected token while looking for '<' of an open tag");
+    break;
+  case XTOK_NAME:
+    // this is raw data in between tags
+    registerStringToken(nodeStack.top(), *kindStack.top(), lexer.currentText());
+    return;
     break;
   case 0:                     // eof
     return;
@@ -363,7 +368,7 @@ void *XmlReaderManager::ctorNodeFromTag(int tag) {
     }
   }
 
-  xfailure("no kind category registered for this kind");
+  xfailure("no ctor registered for this tag");
 }
 
 void XmlReaderManager::registerAttribute
@@ -377,7 +382,20 @@ void XmlReaderManager::registerAttribute
     }
   }
 
-  xfailure("no kind category registered for this kind");
+  xfailure("no handler registered for this tag and attribute");
+}
+
+void XmlReaderManager::registerStringToken(void *target, int kind, char const *yytext0) {
+  xassert(kind != -1);          // this means you shouldn't be asking
+
+  // try each registered reader
+  FOREACH_ASTLIST_NC(XmlReader, readers, iter) {
+    if (iter.data()->registerStringToken(target, kind, yytext0)) {
+      return;
+    }
+  }
+
+  xfailure("no raw data handler registered for this tag");
 }
 
 void XmlReaderManager::append2List(void *list0, int listKind, void *datum0) {

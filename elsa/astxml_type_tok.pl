@@ -61,6 +61,11 @@ close(ENUM) or die $!;
 
 __DATA__
 
+# File nodes
+File
+# name
+LineLengths
+
 # location attributes
 # loc
 curLoc

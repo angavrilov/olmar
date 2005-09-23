@@ -128,9 +128,11 @@ class TypeXmlReader : public XmlReader {
   // Parse an attribute: register an attribute into the current node
   virtual bool registerAttribute(void *target, int kind, int attr, char const *yytext0);
 
+  virtual bool registerStringToken(void *target, int kind, char const *yytext0);
+
   // implement an eq-relation on tag kinds by mapping a tag kind to a
   // category
-  virtual bool kind2kindCat(int kind, KindCategory *ret);
+  virtual bool kind2kindCat(int kind, KindCategory *kindCat);
 
   // **** Generic Convert
   virtual bool recordKind(int kind, bool& answer);

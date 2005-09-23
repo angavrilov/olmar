@@ -24,6 +24,7 @@
 #include "smregexp.h"     // regexpMatch
 #include "cc_elaborate.h" // ElabVisitor
 #include "integrity.h"    // IntegrityVisitor
+#include "strutil.h"      // quoted()
 #if XML
   #include "main_astxmlparse.h"// astxmlparse
   #include "cc_type_xml.h"  // TypeToXml
@@ -331,6 +332,40 @@ char *myProcessArgs(int argc, char **argv, char const *additionalInfo)
   }
 
   return argv[1];
+}
+
+
+void printPropertiesOfFiles(ostream &out, bool indent, ObjList<SourceLocManager::File> &files)
+{
+  FOREACH_OBJLIST_NC(SourceLocManager::File, files, iter) {
+    SourceLocManager::File *file = iter.data();
+    cout << "\n";
+    out << "<File name=" << quoted(file->name) << ">";
+
+    cout << "\n";
+    if (indent) cout << "  ";
+    cout << "<LineLengths>";
+
+    // Note: This simple whitespace-separated list is the suggested
+    // output format for lists of numbers in XML:
+    // http://www.w3.org/TR/xmlschema-0/primer.html#ListDt
+    //
+    // Note also that I do not bother to indent blocks of data between
+    // tags, just the tags themselves.
+    unsigned char *lineLengths0 = file->serializationOnly_get_lineLengths();
+    for (int i=0; i<file->serializationOnly_get_lineLengthsSize(); ++i) {
+      if (i%20 == 0) cout << "\n";
+      else cout << " ";
+      cout << static_cast<int>(lineLengths0[i]);
+    }
+
+    cout << "\n";
+    if (indent) cout << "  ";
+    cout << "</LineLengths>";
+
+    cout << "\n";
+    out << "</File>";
+  }
 }
 
 
@@ -780,6 +815,8 @@ void doit(int argc, char **argv)
     bool indent = tracingSys("xmlPrintAST-indent");
     int depth = 0;              // shared depth counter between printers
     cout << "---- START ----" << endl;
+
+    printPropertiesOfFiles(cout, indent, sourceLocManager->serializationOnly_get_files());
     if (tracingSys("xmlPrintAST-types")) {
       TypeToXml xmlTypeVis(cout, depth, indent);
       ToXmlASTVisitor_Types xmlVis_Types(xmlTypeVis, cout, depth, indent);
@@ -799,6 +836,7 @@ void doit(int argc, char **argv)
       }
       unit->traverse(*vis);
     }
+
     cout << endl;
     cout << "---- STOP ----" << endl;
     traceProgress() << "dsw xml print... done\n";

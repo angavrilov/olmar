@@ -1349,6 +1349,12 @@ void *TypeXmlReader::ctorNodeFromTag(int tag) {
   }
 }
 
+// **************** registerStringToken
+
+bool TypeXmlReader::registerStringToken(void *target, int kind, char const *yytext0) {
+  return false;
+}
+
 // **************** registerAttribute
 
 #define regAttr(TYPE) \

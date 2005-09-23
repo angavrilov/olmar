@@ -1600,8 +1600,8 @@ $(addsuffix .C0.dp_filtered,$(T2D)): outdir/%.C0.dp_filtered: outdir/%.C0.dp
 
 # generate xml print
 $(addsuffix .C1.xml,$(T2D)): outdir/%.C1.xml: in/%
-	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-types,xmlPrintAST-indent $< > $@
-# 	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-types $< > $@
+#	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-types,xmlPrintAST-indent $< > $@
+	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-types $< > $@
 $(addsuffix .C1.xml_filtered,$(T2D)): outdir/%.C1.xml_filtered: outdir/%.C1.xml
 	./chop_out < $< > $@
 
@@ -1620,8 +1620,8 @@ $(addsuffix .C3.diff,$(T2D)): outdir/%.C3.diff: outdir/%.C0.dp_filtered outdir/%
 
 # parse xml and generate second xml print
 $(addsuffix .C4.xml,$(T2D)): outdir/%.C4.xml: outdir/%.C1.xml_filtered
-	$(PR) -tr parseXml,no-typecheck,no-elaborate,xmlPrintAST,xmlPrintAST-types,xmlPrintAST-indent $< > $@
-# 	$(PR) -tr parseXml,no-typecheck,no-elaborate,xmlPrintAST,xmlPrintAST-types $< > $@
+#	$(PR) -tr parseXml,no-typecheck,no-elaborate,xmlPrintAST,xmlPrintAST-types,xmlPrintAST-indent $< > $@
+	$(PR) -tr parseXml,no-typecheck,no-elaborate,xmlPrintAST,xmlPrintAST-types $< > $@
 $(addsuffix .C4.xml_filtered,$(T2D)): outdir/%.C4.xml_filtered: outdir/%.C4.xml
 	./chop_out < $< > $@
 
