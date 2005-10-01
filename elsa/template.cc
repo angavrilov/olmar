@@ -2303,7 +2303,7 @@ Variable *Env::instantiateFunctionTemplate
   // since we didn't find an existing instantiation, we have to make
   // one from scratch
   TRACE("template", "instantiating func decl: " <<
-                    primary->fullyQualifiedName() << sargsToString(sargs));
+                    primary->fullyQualifiedName0() << sargsToString(sargs));
 
   // I don't need this, right?
   // isolate context
@@ -2322,7 +2322,7 @@ Variable *Env::instantiateFunctionTemplate
     // unfortunately, the trace message gets split into two because
     // neither place has all the context
     TRACE("template", "^^^ failed to instantiate " <<
-                      primary->fullyQualifiedName() << sargsToString(sargs));
+                      primary->fullyQualifiedName0() << sargsToString(sargs));
     return NULL;
   }
 
@@ -2606,11 +2606,11 @@ Variable *Env::instantiateClassTemplate
   // one from scratch
   if (spec==primary) {
     TRACE("template", "instantiating class decl: " <<
-                      primary->fullyQualifiedName() << sargsToString(primaryArgs));
+                      primary->fullyQualifiedName0() << sargsToString(primaryArgs));
   }
   else {
     TRACE("template", "instantiating partial spec decl: " <<
-                      primary->fullyQualifiedName() <<
+                      primary->fullyQualifiedName0() <<
                       sargsToString(specTI->arguments) <<
                       sargsToString(partialSpecArgs));
   }
@@ -4507,14 +4507,14 @@ Variable *Env::makeExplicitFunctionSpecialization
       ret = primary->templateInfo()->getSpecialization(specArgs);
       if (ret) {
         TRACE("template", "re-declaration of function specialization of " <<
-                          primary->type->toCString(primary->fullyQualifiedName()) <<
+                          primary->type->toCString(primary->fullyQualifiedName0()) <<
                           ": " << ret->name << sargsToString(serfSpecArgs));
       }
       else {
         // build a Variable to represent the specialization
         ret = makeSpecializationVariable(loc, dflags, primary, ft, serfSpecArgs);
         TRACE("template", "complete function specialization of " <<
-                          primary->type->toCString(primary->fullyQualifiedName()) <<
+                          primary->type->toCString(primary->fullyQualifiedName0()) <<
                           ": " << ret->toQualifiedString());
       }
     } // initial candidate match check

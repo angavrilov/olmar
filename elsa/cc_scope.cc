@@ -26,7 +26,7 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
     activeUsingEdges(0),
     outstandingActiveEdges(0),
     curCompound(NULL),
-    curAccess(AK_PUBLIC),       // dsw: this was uninitialized so I took a guess
+    curAccess(AK_PUBLIC),
     curFunction(NULL),
     curLoc(initLoc)
 {
@@ -45,11 +45,12 @@ Scope::Scope(ReadXML&)
     namespaceVar(NULL),
     templateParams(),
     parameterizedEntity(NULL),
-    usingEdges(0),            // the arrays start as NULL b/c in the
-    usingEdgesRefct(0),       // common case the sets are empty
+    usingEdges(0),
+    usingEdgesRefct(0),
     activeUsingEdges(0),
     outstandingActiveEdges(0),
     curCompound(NULL),
+    curAccess(AK_PUBLIC),
     curFunction(NULL),
     curLoc(SL_UNKNOWN)
 {}

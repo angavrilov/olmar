@@ -1264,7 +1264,7 @@ void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
 
             TRACE("templateParams",
               "associated " << paramScope->desc() <<
-              " with " << ti->var->fullyQualifiedName() <<
+              " with " << ti->var->fullyQualifiedName0() <<
               " (found using typedef expansion)");
           }
           else {
@@ -1277,7 +1277,7 @@ void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
 
             TRACE("templateParams",
               "later, will associate " << paramScope->desc() <<
-              " with " << ti->var->fullyQualifiedName() <<
+              " with " << ti->var->fullyQualifiedName0() <<
               " (found using typedef expansion)");
           }
         }
@@ -1987,7 +1987,7 @@ CompoundType *checkClasskeyAndName(
 
       TRACE("template", (definition? "defn" : "decl") <<
                         " of specialization of template class " <<
-                        primary->typedefVar->fullyQualifiedName() <<
+                        primary->typedefVar->fullyQualifiedName0() <<
                         ", " << ct->instName);
     }
 
@@ -3552,7 +3552,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   if (templateInfo) {
     TRACE("template", "template func " << 
                       ((dt.dflags & DF_DEFINITION) ? "defn" : "decl")
-                      << ": " << dt.type->toCString(var->fullyQualifiedName()));
+                      << ": " << dt.type->toCString(var->fullyQualifiedName0()));
 
     if (!var->templateInfo()) {
       // this is a new template decl; attach it to the Variable

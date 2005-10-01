@@ -6,7 +6,8 @@
 #include "xassert.h"      // xassert
 #include "trace.h"        // tracingSys
 #include "strtokp.h"      // StrtokParse
-#include "strutil.h"      // DelimStr
+#include "exc.h"          // xformat
+#include <ctype.h>        // toupper
 
 
 // the check for array[limit-1] is meant to ensure that there
@@ -19,11 +20,47 @@
     return array[index];                      \
   }
 
-#define PRINTENUM(X) case X: return #X
-#define READENUM(X) else if (streq(str, #X)) out = (X)
 
-#define PRINTFLAG(X) if (id & (X)) b << #X
-#define READFLAG(X) else if (streq(token, #X)) out |= (X)
+// given a table like {"a","bb","ccc"} and prefix "P", produce a table
+// like {"PA","PBB","PCCC"}
+char **buildPrefixUppercaseMap(char const *prefix, char const * const *src,
+                               int numEntries)
+{
+  // table itself
+  char **ret = new char*[numEntries];
+  
+  // fill the entries
+  for (int i=0; i<numEntries; i++) {
+    // prefix, then src[i]
+    int len = strlen(prefix)+strlen(src[i]);
+    ret[i] = new char[len+1];
+    strcpy(ret[i], prefix);
+    strcat(ret[i], src[i]);
+
+    // uppercase
+    for (int j=0; j<len; j++) {
+      ret[i][j] = toupper(ret[i][j]);
+    }
+  }
+
+  return ret;
+}
+
+ 
+// find the index of a string in 'names' that equals 'str', or
+// throw xFormat on error
+int findInMap(char const * const *names, int numNames, 
+              char const *kind, rostring str)
+{
+  for (int i=0; i<numNames; i++) {
+    if (0==strcmp(names[i], str.c_str())) {
+      return i;
+    }
+  }
+  xformat(stringc << "unknown " << kind << ": " << str);
+  return 0;    // silence warning
+}
+
 
 // -------------------- TypeIntr -------------------------
 char const * const typeIntrNames[NUM_TYPEINTRS] = {
@@ -35,22 +72,25 @@ char const * const typeIntrNames[NUM_TYPEINTRS] = {
 
 MAKE_TOSTRING(TypeIntr, NUM_TYPEINTRS, typeIntrNames)
 
-char const *toXml(TypeIntr id) {
-  switch(id) {
-  default: xfailure("bad enum"); break;
-  PRINTENUM(TI_STRUCT);
-  PRINTENUM(TI_CLASS);
-  PRINTENUM(TI_UNION);
-  PRINTENUM(TI_ENUM);
+static char const * const *typeIntrPrefixNames()
+{
+  static char const * const *names = 0;
+  if (!names) {
+    names = buildPrefixUppercaseMap("TI_", typeIntrNames, NUM_TYPEINTRS);
   }
+  return names;
 }
-void fromXml(TypeIntr &out, rostring str) {
-  if(0) xfailure("?");
-  READENUM(TI_STRUCT);
-  READENUM(TI_CLASS);
-  READENUM(TI_UNION);
-  READENUM(TI_ENUM);
-  else xfailure("bad enum string");
+
+char const *toXml(TypeIntr id)
+{
+  xassert((unsigned)id < (unsigned)NUM_TYPEINTRS);
+  return typeIntrPrefixNames()[id];
+}
+
+void fromXml(TypeIntr &out, rostring str)
+{
+  out = (TypeIntr)findInMap(typeIntrPrefixNames(), NUM_TYPEINTRS, 
+                            "TypeIntr", str);
 }
 
 
@@ -63,11 +103,11 @@ char const * const cvFlagNames[NUM_CVFLAGS] = {
 };
 
 
-string bitmapString(int bitmap, char const * const *names, int numflags)
+string bitmapString(int bitmap, char const * const *names, int numFlags)
 {
   stringBuilder sb;
   int count=0;
-  for (int i=0; i<numflags; i++) {
+  for (int i=0; i<numFlags; i++) {
     if (bitmap & (1 << i)) {
       if (count++) {
         sb << " ";
@@ -84,27 +124,54 @@ string toString(CVFlags cv)
   return bitmapString(cv >> CV_SHIFT_AMOUNT, cvFlagNames, NUM_CVFLAGS);
 }
 
-string toXml(CVFlags id) {
-  if (id == CV_NONE) return "CV_NONE";
-  DelimStr b('|');
-  PRINTFLAG(CV_CONST);
-  PRINTFLAG(CV_VOLATILE);
-  PRINTFLAG(CV_RESTRICT);
-  PRINTFLAG(CV_OWNER);
-  return b.sb;
+string toXml(CVFlags id)
+{
+  return toString(id);
 }
-void fromXml(CVFlags &out, rostring str) {
-  StrtokParse tok(str, "|");
-  for (int i=0; i<tok; ++i) {
-    char const * const token = tok[i];
-    if(0) xfailure("?");
-    READFLAG(CV_NONE);
-    READFLAG(CV_CONST);
-    READFLAG(CV_VOLATILE);
-    READFLAG(CV_RESTRICT);
-    READFLAG(CV_OWNER);
-    else xfailure("illegal flag");
+
+
+// Given the string 'str' which contains several space-delimited
+// flag names drawn from 'names', return a bitmap that consists
+// of the corresponding flag bits.
+//
+// For best performance, 'str' should have its flags in numerically
+// increasing order (this routine does not sort them first).
+int fromBitmapString(char const * const *names, int numFlags,
+                     char const *kind, rostring str)
+{
+  StrtokParse tok(str, " ");
+
+  int ret = 0;       // set of flags that have been found in 'str'
+  int tokIndex = 0;  // progress in 'tok'
+
+  // loop while still flag names in 'tok' yet to be processed
+  while (tokIndex < tok) {
+    int origTokIndex = tokIndex;
+
+    // loop over names in 'names'
+    for (int flag = 0; tokIndex<tok && flag<numFlags; flag++) {
+      if (0==strcmp(names[flag], tok[tokIndex])) {
+        // the current string is the current flag
+        ret |= (1 << flag);
+        tokIndex++;
+      }
+    }
+
+    // made progress?
+    if (origTokIndex == tokIndex) {
+      // failed to make progress; this string isn't anywhere
+      // in the 'names' array
+      xformat(stringc << "unknown " << kind << ": " << tok[tokIndex]);
+    }
   }
+
+  return ret;
+}
+
+void fromXml(CVFlags &out, rostring str)
+{
+  int tmp = fromBitmapString(cvFlagNames, NUM_CVFLAGS, "CVFlag", str);
+  out = (CVFlags)(tmp << CV_SHIFT_AMOUNT);
 }
 
 
@@ -121,29 +188,29 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "friend",
   "typedef",        // 9
 
-  "<enumerator>",
-  "<global>",
-  "<initialized>",
-  "<builtin>",
-  "<bound tparam>", // 14
-  "<addrtaken>",
-  "<parameter>",
-  "<universal>",
-  "<existential>",
-  "<member>",       // 19
-  "<definition>",
-  "<inline_defn>",
-  "<implicit>",
-  "<forward>",
-  "<temporary>",    // 24
+  "(enumerator)",
+  "(global)",
+  "(initialized)",
+  "(builtin)",
+  "(bound tparam)", // 14
+  "(addrtaken)",
+  "(parameter)",
+  "(universal)",
+  "(existential)",
+  "(member)",       // 19
+  "(definition)",
+  "(inline_defn)",
+  "(implicit)",
+  "(forward)",
+  "(temporary)",    // 24
 
-  "<unused>",
+  "(unused)",
   "namespace",
-  "<extern \"C\">",
-  "<selfname>",
-  "<templ param>",  // 29
-  "<using alias>",
-  "<bitfield>",
+  "(extern \"C\")",
+  "(selfname)",
+  "(templ param)",  // 29
+  "(using alias)",
+  "(bitfield)",
 };
 
 
@@ -155,92 +222,14 @@ string toString(DeclFlags df)
   return bitmapString(df, declFlagNames, NUM_DECLFLAGS);
 }
 
-string toXml(DeclFlags id) {
-  if (id == DF_NONE) return "DF_NONE";
-  DelimStr b('|');
-
-  PRINTFLAG(DF_AUTO);
-  PRINTFLAG(DF_REGISTER);
-  PRINTFLAG(DF_STATIC);
-  PRINTFLAG(DF_EXTERN);
-  PRINTFLAG(DF_MUTABLE);
-  PRINTFLAG(DF_INLINE);
-  PRINTFLAG(DF_VIRTUAL);
-  PRINTFLAG(DF_EXPLICIT);
-  PRINTFLAG(DF_FRIEND);
-  PRINTFLAG(DF_TYPEDEF);
-
-  PRINTFLAG(DF_NAMESPACE);
-
-  PRINTFLAG(DF_ENUMERATOR);
-  PRINTFLAG(DF_GLOBAL);
-  PRINTFLAG(DF_INITIALIZED);
-  PRINTFLAG(DF_BUILTIN);
-  PRINTFLAG(DF_PARAMETER);
-  PRINTFLAG(DF_MEMBER);
-  PRINTFLAG(DF_DEFINITION);
-  PRINTFLAG(DF_INLINE_DEFN);
-  PRINTFLAG(DF_IMPLICIT);
-
-  PRINTFLAG(DF_FORWARD);
-  PRINTFLAG(DF_TEMPORARY);
-  PRINTFLAG(DF_EXTERN_C);
-  PRINTFLAG(DF_SELFNAME);
-  PRINTFLAG(DF_BOUND_TPARAM);
-  PRINTFLAG(DF_TEMPL_PARAM);
-  PRINTFLAG(DF_USING_ALIAS);
-  PRINTFLAG(DF_BITFIELD);
-
-  PRINTFLAG(DF_ADDRTAKEN);
-  PRINTFLAG(DF_UNIVERSAL);
-  PRINTFLAG(DF_EXISTENTIAL);
-
-  return b.sb;
+string toXml(DeclFlags id) 
+{
+  return toString(id);
 }
-void fromXml(DeclFlags &out, rostring str) {
-  StrtokParse tok(str, "|");
-  for (int i=0; i<tok; ++i) {
-    char const * const token = tok[i];
-    if(0) xfailure("?");
-    READFLAG(DF_NONE);
 
-    READFLAG(DF_AUTO);
-    READFLAG(DF_REGISTER);
-    READFLAG(DF_STATIC);
-    READFLAG(DF_EXTERN);
-    READFLAG(DF_MUTABLE);
-    READFLAG(DF_INLINE);
-    READFLAG(DF_VIRTUAL);
-    READFLAG(DF_EXPLICIT);
-    READFLAG(DF_FRIEND);
-    READFLAG(DF_TYPEDEF);
-
-    READFLAG(DF_NAMESPACE);
-
-    READFLAG(DF_ENUMERATOR);
-    READFLAG(DF_GLOBAL);
-    READFLAG(DF_INITIALIZED);
-    READFLAG(DF_BUILTIN);
-    READFLAG(DF_PARAMETER);
-    READFLAG(DF_MEMBER);
-    READFLAG(DF_DEFINITION);
-    READFLAG(DF_INLINE_DEFN);
-    READFLAG(DF_IMPLICIT);
-
-    READFLAG(DF_FORWARD);
-    READFLAG(DF_TEMPORARY);
-    READFLAG(DF_EXTERN_C);
-    READFLAG(DF_SELFNAME);
-    READFLAG(DF_BOUND_TPARAM);
-    READFLAG(DF_TEMPL_PARAM);
-    READFLAG(DF_USING_ALIAS);
-    READFLAG(DF_BITFIELD);
-
-    READFLAG(DF_ADDRTAKEN);
-    READFLAG(DF_UNIVERSAL);
-    READFLAG(DF_EXISTENTIAL);
-    else xfailure("illegal flag");
-  }
+void fromXml(DeclFlags &out, rostring str) 
+{
+  out = (DeclFlags)fromBitmapString(declFlagNames, NUM_DECLFLAGS, "DeclFlag", str);
 }
 
 
@@ -301,29 +290,29 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   // these should go away early on in typechecking
   { "...",                    0,    S(STF_NONE                             ) },
   { "/*cdtor*/",              0,    S(STF_NONE                             ) },    // dsw: don't want to print <cdtor>
-  { "<error>",                0,    S(STF_NONE                             ) },
-  { "<dependent>",            0,    S(STF_NONE                             ) },
-  { "<implicit-int>",         0,    S(STF_NONE                             ) },
-  { "<notfound>",             0,    S(STF_NONE                             ) },
+  { "(error)",                0,    S(STF_NONE                             ) },
+  { "(dependent)",            0,    S(STF_NONE                             ) },
+  { "(implicit-int)",         0,    S(STF_NONE                             ) },
+  { "(notfound)",             0,    S(STF_NONE                             ) },
 
 
-  { "<prom_int>",             0,    S(STF_NONE                             ) },
-  { "<prom_arith>",           0,    S(STF_NONE                             ) },
-  { "<integral>",             0,    S(STF_NONE                             ) },
-  { "<arith>",                0,    S(STF_NONE                             ) },
-  { "<arith_nobool>",         0,    S(STF_NONE                             ) },
-  { "<any_obj>",              0,    S(STF_NONE                             ) },
-  { "<non_void>",             0,    S(STF_NONE                             ) },
-  { "<any_type>",             0,    S(STF_NONE                             ) },
+  { "(prom_int)",             0,    S(STF_NONE                             ) },
+  { "(prom_arith)",           0,    S(STF_NONE                             ) },
+  { "(integral)",             0,    S(STF_NONE                             ) },
+  { "(arith)",                0,    S(STF_NONE                             ) },
+  { "(arith_nobool)",         0,    S(STF_NONE                             ) },
+  { "(any_obj)",              0,    S(STF_NONE                             ) },
+  { "(non_void)",             0,    S(STF_NONE                             ) },
+  { "(any_type)",             0,    S(STF_NONE                             ) },
   
 
-  { "<pret_strip_ref>",       0,    S(STF_NONE                             ) },
-  { "<pret_ptm>",             0,    S(STF_NONE                             ) },
-  { "<pret_arith_conv>",      0,    S(STF_NONE                             ) },
-  { "<pret_first>",           0,    S(STF_NONE                             ) },
-  { "<pret_first_ptr2ref>",   0,    S(STF_NONE                             ) },
-  { "<pret_second>",          0,    S(STF_NONE                             ) },
-  { "<pret_second_ptr2ref>",  0,    S(STF_NONE                             ) },
+  { "(pret_strip_ref)",       0,    S(STF_NONE                             ) },
+  { "(pret_ptm)",             0,    S(STF_NONE                             ) },
+  { "(pret_arith_conv)",      0,    S(STF_NONE                             ) },
+  { "(pret_first)",           0,    S(STF_NONE                             ) },
+  { "(pret_first_ptr2ref)",   0,    S(STF_NONE                             ) },
+  { "(pret_second)",          0,    S(STF_NONE                             ) },
+  { "(pret_second_ptr2ref)",  0,    S(STF_NONE                             ) },
 };
 #undef S
 
@@ -340,109 +329,27 @@ bool isComplexOrImaginary(SimpleTypeId id)
   return ST_FLOAT_COMPLEX <= id && id <= ST_DOUBLE_IMAGINARY;
 }
 
-char const *toXml(SimpleTypeId id) {
-  switch(id) {
-  default: xfailure("bad enum"); break;
-    PRINTENUM(ST_CHAR);
-    PRINTENUM(ST_UNSIGNED_CHAR);
-    PRINTENUM(ST_SIGNED_CHAR);
-    PRINTENUM(ST_BOOL);
-    PRINTENUM(ST_INT);
-    PRINTENUM(ST_UNSIGNED_INT);
-    PRINTENUM(ST_LONG_INT);
-    PRINTENUM(ST_UNSIGNED_LONG_INT);
-    PRINTENUM(ST_LONG_LONG);
-    PRINTENUM(ST_UNSIGNED_LONG_LONG);
-    PRINTENUM(ST_SHORT_INT);
-    PRINTENUM(ST_UNSIGNED_SHORT_INT);
-    PRINTENUM(ST_WCHAR_T);
-    PRINTENUM(ST_FLOAT);
-    PRINTENUM(ST_DOUBLE);
-    PRINTENUM(ST_LONG_DOUBLE);
-    PRINTENUM(ST_FLOAT_COMPLEX);
-    PRINTENUM(ST_DOUBLE_COMPLEX);
-    PRINTENUM(ST_LONG_DOUBLE_COMPLEX);
-    PRINTENUM(ST_FLOAT_IMAGINARY);
-    PRINTENUM(ST_DOUBLE_IMAGINARY);
-    PRINTENUM(ST_LONG_DOUBLE_IMAGINARY);
-    PRINTENUM(ST_VOID);
 
-    PRINTENUM(ST_ELLIPSIS);
-    PRINTENUM(ST_CDTOR);
-    PRINTENUM(ST_ERROR);
-    PRINTENUM(ST_DEPENDENT);
-    PRINTENUM(ST_IMPLINT);
-    PRINTENUM(ST_NOTFOUND);
-
-    PRINTENUM(ST_PROMOTED_INTEGRAL);
-    PRINTENUM(ST_PROMOTED_ARITHMETIC);
-    PRINTENUM(ST_INTEGRAL);
-    PRINTENUM(ST_ARITHMETIC);
-    PRINTENUM(ST_ARITHMETIC_NON_BOOL);
-    PRINTENUM(ST_ANY_OBJ_TYPE);
-    PRINTENUM(ST_ANY_NON_VOID);
-    PRINTENUM(ST_ANY_TYPE);
-
-    PRINTENUM(ST_PRET_STRIP_REF);
-    PRINTENUM(ST_PRET_PTM);
-    PRINTENUM(ST_PRET_ARITH_CONV);
-    PRINTENUM(ST_PRET_FIRST);
-    PRINTENUM(ST_PRET_FIRST_PTR2REF);
-    PRINTENUM(ST_PRET_SECOND);
-    PRINTENUM(ST_PRET_SECOND_PTR2REF);
+#define MAKE_USUAL_ENUM_TO_FROM_XML(TYPE, numElements)  \
+  char const *toXml(TYPE id)                            \
+  {                                                     \
+    return toString(id);   /* overloaded */             \
+  }                                                     \
+                                                        \
+  void fromXml(TYPE &out, rostring str)                 \
+  {                                                     \
+    for (int id=0; id < numElements; id++) {            \
+      if (0==strcmp(toString(id), str.c_str())) {       \
+        out = (TYPE)id;                                 \
+        break;                                          \
+      }                                                 \
+    }                                                   \
+    xfailure(stringc << "bad " #TYPE ": " << str);      \
   }
-}
-void fromXml(SimpleTypeId &out, rostring str) {
-  if(0) xfailure("?");
-  READENUM(ST_CHAR);
-  READENUM(ST_UNSIGNED_CHAR);
-  READENUM(ST_SIGNED_CHAR);
-  READENUM(ST_BOOL);
-  READENUM(ST_INT);
-  READENUM(ST_UNSIGNED_INT);
-  READENUM(ST_LONG_INT);
-  READENUM(ST_UNSIGNED_LONG_INT);
-  READENUM(ST_LONG_LONG);
-  READENUM(ST_UNSIGNED_LONG_LONG);
-  READENUM(ST_SHORT_INT);
-  READENUM(ST_UNSIGNED_SHORT_INT);
-  READENUM(ST_WCHAR_T);
-  READENUM(ST_FLOAT);
-  READENUM(ST_DOUBLE);
-  READENUM(ST_LONG_DOUBLE);
-  READENUM(ST_FLOAT_COMPLEX);
-  READENUM(ST_DOUBLE_COMPLEX);
-  READENUM(ST_LONG_DOUBLE_COMPLEX);
-  READENUM(ST_FLOAT_IMAGINARY);
-  READENUM(ST_DOUBLE_IMAGINARY);
-  READENUM(ST_LONG_DOUBLE_IMAGINARY);
-  READENUM(ST_VOID);
 
-  READENUM(ST_ELLIPSIS);
-  READENUM(ST_CDTOR);
-  READENUM(ST_ERROR);
-  READENUM(ST_DEPENDENT);
-  READENUM(ST_IMPLINT);
-  READENUM(ST_NOTFOUND);
-
-  READENUM(ST_PROMOTED_INTEGRAL);
-  READENUM(ST_PROMOTED_ARITHMETIC);
-  READENUM(ST_INTEGRAL);
-  READENUM(ST_ARITHMETIC);
-  READENUM(ST_ARITHMETIC_NON_BOOL);
-  READENUM(ST_ANY_OBJ_TYPE);
-  READENUM(ST_ANY_NON_VOID);
-  READENUM(ST_ANY_TYPE);
-
-  READENUM(ST_PRET_STRIP_REF);
-  READENUM(ST_PRET_PTM);
-  READENUM(ST_PRET_ARITH_CONV);
-  READENUM(ST_PRET_FIRST);
-  READENUM(ST_PRET_FIRST_PTR2REF);
-  READENUM(ST_PRET_SECOND);
-  READENUM(ST_PRET_SECOND_PTR2REF);
-  else xfailure("bad enum string");
-}
+// Some of the strings have angle brackets.  But, those cases should
+// not appear in the tree that gets serialized.
+MAKE_USUAL_ENUM_TO_FROM_XML(SimpleTypeId, NUM_SIMPLE_TYPES);
 
 
 // ------------------------ UnaryOp -----------------------------
@@ -454,24 +361,7 @@ char const * const unaryOpNames[NUM_UNARYOPS] = {
 };
 
 MAKE_TOSTRING(UnaryOp, NUM_UNARYOPS, unaryOpNames)
-
-char const *toXml(UnaryOp id) {
-  switch(id) {
-  default: xfailure("bad enum"); break;
-    PRINTENUM(UNY_PLUS);
-    PRINTENUM(UNY_MINUS);
-    PRINTENUM(UNY_NOT);
-    PRINTENUM(UNY_BITNOT);
-  }
-}
-void fromXml(UnaryOp &out, rostring str) {
-  if(0) xfailure("?");
-  READENUM(UNY_PLUS);
-  READENUM(UNY_MINUS);
-  READENUM(UNY_NOT);
-  READENUM(UNY_BITNOT);
-  else xfailure("bad enum string");
-}
+MAKE_USUAL_ENUM_TO_FROM_XML(UnaryOp, NUM_UNARYOPS);
 
 
 char const * const effectOpNames[NUM_EFFECTOPS] = {
@@ -482,24 +372,7 @@ char const * const effectOpNames[NUM_EFFECTOPS] = {
 };
 
 MAKE_TOSTRING(EffectOp, NUM_EFFECTOPS, effectOpNames)
-char const *toXml(EffectOp id) {
-  switch(id) {
-  default: xfailure("bad enum"); break;
-  PRINTENUM(EFF_POSTINC);
-  PRINTENUM(EFF_POSTDEC);
-  PRINTENUM(EFF_PREINC);
-  PRINTENUM(EFF_PREDEC);
-  }
-}
-void fromXml(EffectOp &out, rostring str) {
-  if(0) xfailure("?");
-  READENUM(EFF_POSTINC);
-  READENUM(EFF_POSTDEC);
-  READENUM(EFF_PREINC);
-  READENUM(EFF_PREDEC);
-  else xfailure("bad enum string");
-}
-
+MAKE_USUAL_ENUM_TO_FROM_XML(EffectOp, NUM_EFFECTOPS);
 
 bool isPostfix(EffectOp op)
 {
@@ -545,91 +418,7 @@ char const * const binaryOpNames[NUM_BINARYOPS] = {
 };
 
 MAKE_TOSTRING(BinaryOp, NUM_BINARYOPS, binaryOpNames)
-
-char const *toXml(BinaryOp id) {
-  switch(id) {
-  default: xfailure("bad enum"); break;
-  PRINTENUM(BIN_EQUAL);
-  PRINTENUM(BIN_NOTEQUAL);
-  PRINTENUM(BIN_LESS);
-  PRINTENUM(BIN_GREATER);
-  PRINTENUM(BIN_LESSEQ);
-  PRINTENUM(BIN_GREATEREQ);
-
-  PRINTENUM(BIN_MULT);
-  PRINTENUM(BIN_DIV);
-  PRINTENUM(BIN_MOD);
-  PRINTENUM(BIN_PLUS);
-  PRINTENUM(BIN_MINUS);
-  PRINTENUM(BIN_LSHIFT);
-  PRINTENUM(BIN_RSHIFT);
-  PRINTENUM(BIN_BITAND);
-  PRINTENUM(BIN_BITXOR);
-  PRINTENUM(BIN_BITOR);
-  PRINTENUM(BIN_AND);
-  PRINTENUM(BIN_OR);
-  PRINTENUM(BIN_COMMA);
-
-  // gcc extensions
-  PRINTENUM(BIN_MINIMUM);
-  PRINTENUM(BIN_MAXIMUM);
-
-  // this exists only between parsing and typechecking
-  PRINTENUM(BIN_BRACKETS);
-
-  PRINTENUM(BIN_ASSIGN);
-
-  // C++ operators
-  PRINTENUM(BIN_DOT_STAR);
-  PRINTENUM(BIN_ARROW_STAR);
-
-  // theorem prover extension
-  PRINTENUM(BIN_IMPLIES);
-  PRINTENUM(BIN_EQUIVALENT);
-  }
-}
-void fromXml(BinaryOp &out, rostring str) {
-  if(0) xfailure("?");
-  READENUM(BIN_EQUAL);
-  READENUM(BIN_NOTEQUAL);
-  READENUM(BIN_LESS);
-  READENUM(BIN_GREATER);
-  READENUM(BIN_LESSEQ);
-  READENUM(BIN_GREATEREQ);
-
-  READENUM(BIN_MULT);
-  READENUM(BIN_DIV);
-  READENUM(BIN_MOD);
-  READENUM(BIN_PLUS);
-  READENUM(BIN_MINUS);
-  READENUM(BIN_LSHIFT);
-  READENUM(BIN_RSHIFT);
-  READENUM(BIN_BITAND);
-  READENUM(BIN_BITXOR);
-  READENUM(BIN_BITOR);
-  READENUM(BIN_AND);
-  READENUM(BIN_OR);
-  READENUM(BIN_COMMA);
-
-  // gcc extensions
-  READENUM(BIN_MINIMUM);
-  READENUM(BIN_MAXIMUM);
-
-  // this exists only between parsing and typechecking
-  READENUM(BIN_BRACKETS);
-
-  READENUM(BIN_ASSIGN);
-
-  // C++ operators
-  READENUM(BIN_DOT_STAR);
-  READENUM(BIN_ARROW_STAR);
-
-  // theorem prover extension
-  READENUM(BIN_IMPLIES);
-  READENUM(BIN_EQUIVALENT);
-  else xfailure("bad enum string");
-}
-
+MAKE_USUAL_ENUM_TO_FROM_XML(BinaryOp, NUM_BINARYOPS);
 
 bool isPredicateCombinator(BinaryOp op)
 {
@@ -662,24 +451,7 @@ char const * const accessKeywordNames[NUM_ACCESS_KEYWORDS] = {
 };
 
 MAKE_TOSTRING(AccessKeyword, NUM_ACCESS_KEYWORDS, accessKeywordNames)
-
-char const *toXml(AccessKeyword id) {
-  switch(id) {
-  default: xfailure("bad enum"); break;
-  PRINTENUM(AK_PUBLIC);
-  PRINTENUM(AK_PROTECTED);
-  PRINTENUM(AK_PRIVATE);
-  PRINTENUM(AK_UNSPECIFIED);
-  }
-}
-void fromXml(AccessKeyword &out, rostring str) {
-  if(0) xfailure("?");
-  READENUM(AK_PUBLIC);
-  READENUM(AK_PROTECTED);
-  READENUM(AK_PRIVATE);
-  READENUM(AK_UNSPECIFIED);
-  else xfailure("bad enum string");
-}
+MAKE_USUAL_ENUM_TO_FROM_XML(AccessKeyword, NUM_ACCESS_KEYWORDS);
 
 
 // -------------------- CastKeyword --------------------
@@ -691,24 +463,7 @@ char const * const castKeywordNames[NUM_CAST_KEYWORDS] = {
 };
 
 MAKE_TOSTRING(CastKeyword, NUM_CAST_KEYWORDS, castKeywordNames)
-
-char const *toXml(CastKeyword id) {
-  switch(id) {
-  default: xfailure("bad enum"); break;
-  PRINTENUM(CK_DYNAMIC);
-  PRINTENUM(CK_STATIC);
-  PRINTENUM(CK_REINTERPRET);
-  PRINTENUM(CK_CONST);
-  }
-}
-void fromXml(CastKeyword &out, rostring str) {
-  if(0) xfailure("?");
-  READENUM(CK_DYNAMIC);
-  READENUM(CK_STATIC);
-  READENUM(CK_REINTERPRET);
-  READENUM(CK_CONST);
-  else xfailure("bad enum string");
-}
+MAKE_USUAL_ENUM_TO_FROM_XML(CastKeyword, NUM_CAST_KEYWORDS);
 
 
 // -------------------- OverloadableOp --------------------
@@ -760,140 +515,13 @@ char const * const overloadableOpNames[NUM_OVERLOADABLE_OPS] = {
   "()",
   ",",
   "?:",
-  
+
   "<?",
   ">?",
 };
 
 MAKE_TOSTRING(OverloadableOp, NUM_OVERLOADABLE_OPS, overloadableOpNames)
-
-char const *toXml(OverloadableOp id) {
-  switch(id) {
-  default: xfailure("bad enum"); break;
-  PRINTENUM(OP_NOT);
-  PRINTENUM(OP_BITNOT);
-
-  // unary, both prefix and postfix; latter is declared as 2-arg function
-  PRINTENUM(OP_PLUSPLUS);
-  PRINTENUM(OP_MINUSMINUS);
-
-  // unary or binary
-  PRINTENUM(OP_PLUS);
-  PRINTENUM(OP_MINUS);
-  PRINTENUM(OP_STAR);
-  PRINTENUM(OP_AMPERSAND);
-
-  // arithmetic
-  PRINTENUM(OP_DIV);
-  PRINTENUM(OP_MOD);
-  PRINTENUM(OP_LSHIFT);
-  PRINTENUM(OP_RSHIFT);
-  PRINTENUM(OP_BITXOR);
-  PRINTENUM(OP_BITOR);
-
-  // arithmetic+assignment
-  PRINTENUM(OP_ASSIGN);
-  PRINTENUM(OP_PLUSEQ);
-  PRINTENUM(OP_MINUSEQ);
-  PRINTENUM(OP_MULTEQ);
-  PRINTENUM(OP_DIVEQ);
-  PRINTENUM(OP_MODEQ);
-  PRINTENUM(OP_LSHIFTEQ);
-  PRINTENUM(OP_RSHIFTEQ);
-  PRINTENUM(OP_BITANDEQ);
-  PRINTENUM(OP_BITXOREQ);
-  PRINTENUM(OP_BITOREQ);
-
-  // comparison
-  PRINTENUM(OP_EQUAL);
-  PRINTENUM(OP_NOTEQUAL);
-  PRINTENUM(OP_LESS);
-  PRINTENUM(OP_GREATER);
-  PRINTENUM(OP_LESSEQ);
-  PRINTENUM(OP_GREATEREQ);
-
-  // logical
-  PRINTENUM(OP_AND);
-  PRINTENUM(OP_OR);
-
-  // arrows
-  PRINTENUM(OP_ARROW);
-  PRINTENUM(OP_ARROW_STAR);
-
-  // misc
-  PRINTENUM(OP_BRACKETS);
-  PRINTENUM(OP_PARENS);
-  PRINTENUM(OP_COMMA);
-  PRINTENUM(OP_QUESTION);
-  
-  // gcc extensions
-  PRINTENUM(OP_MINIMUM);
-  PRINTENUM(OP_MAXIMUM);
-  }
-}
-void fromXml(OverloadableOp &out, rostring str) {
-  if(0) xfailure("?");
-  READENUM(OP_NOT);
-  READENUM(OP_BITNOT);
-
-  // unary, both prefix and postfix; latter is declared as 2-arg function
-  READENUM(OP_PLUSPLUS);
-  READENUM(OP_MINUSMINUS);
-
-  // unary or binary
-  READENUM(OP_PLUS);
-  READENUM(OP_MINUS);
-  READENUM(OP_STAR);
-  READENUM(OP_AMPERSAND);
-
-  // arithmetic
-  READENUM(OP_DIV);
-  READENUM(OP_MOD);
-  READENUM(OP_LSHIFT);
-  READENUM(OP_RSHIFT);
-  READENUM(OP_BITXOR);
-  READENUM(OP_BITOR);
-
-  // arithmetic+assignment
-  READENUM(OP_ASSIGN);
-  READENUM(OP_PLUSEQ);
-  READENUM(OP_MINUSEQ);
-  READENUM(OP_MULTEQ);
-  READENUM(OP_DIVEQ);
-  READENUM(OP_MODEQ);
-  READENUM(OP_LSHIFTEQ);
-  READENUM(OP_RSHIFTEQ);
-  READENUM(OP_BITANDEQ);
-  READENUM(OP_BITXOREQ);
-  READENUM(OP_BITOREQ);
-
-  // comparison
-  READENUM(OP_EQUAL);
-  READENUM(OP_NOTEQUAL);
-  READENUM(OP_LESS);
-  READENUM(OP_GREATER);
-  READENUM(OP_LESSEQ);
-  READENUM(OP_GREATEREQ);
-
-  // logical
-  READENUM(OP_AND);
-  READENUM(OP_OR);
-
-  // arrows
-  READENUM(OP_ARROW);
-  READENUM(OP_ARROW_STAR);
-
-  // misc
-  READENUM(OP_BRACKETS);
-  READENUM(OP_PARENS);
-  READENUM(OP_COMMA);
-  READENUM(OP_QUESTION);
-  
-  // gcc extensions
-  READENUM(OP_MINIMUM);
-  READENUM(OP_MAXIMUM);
-  else xfailure("bad enum string");
-}
+MAKE_USUAL_ENUM_TO_FROM_XML(OverloadableOp, NUM_OVERLOADABLE_OPS);
 
 
 char const * const operatorFunctionNames[NUM_OVERLOADABLE_OPS] = {
@@ -944,7 +572,7 @@ char const * const operatorFunctionNames[NUM_OVERLOADABLE_OPS] = {
   "operator()",
   "operator,",
   "operator?",
-  
+
   "operator<?",
   "operator>?",
 };
@@ -977,7 +605,7 @@ OverloadableOp toOverloadableOp(EffectOp op)
 }
 
 OverloadableOp toOverloadableOp(BinaryOp op, bool isAssignment)
-{ 
+{
   xassert(validCode(op));
 
   // in the table, this means that an operator cannot be overloaded
@@ -1120,3 +748,6 @@ char const *toString(SpecialExpr se)
     case SE_STRINGLIT:  return "SE_STRINGLIT";
   }
 }
+
+
+// EOF
