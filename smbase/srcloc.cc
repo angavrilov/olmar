@@ -130,21 +130,14 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
   }
 
   // handle the last line; in the usual case, where a newline is
-  // the last character, the final line will have 0 length, but
-  // we encode that anyway since it helps the decode phase below
+  // the last character, the final line will have 0 length
   addLineLength(lineLengths, lineLen);
-  charOffset += lineLen;
 
   // move computed information into 'this'
   this->numChars = charOffset;
-  this->numLines = lineNum-1;
-  if (numLines == 0) {
-    // a file with no newlines
-    this->avgCharsPerLine = numChars;
-  }
-  else {
-    this->avgCharsPerLine = numChars / numLines;
-  }
+  this->numLines = lineNum;
+  xassert(numLines >= 1);
+  this->avgCharsPerLine = numChars / numLines;
 
   this->lineLengthsSize = lineLengths.length();
   this->lineLengths = new unsigned char[lineLengthsSize];
@@ -155,17 +148,38 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
   this->index = new Marker[indexSize];
   memcpy(this->index, index.getArray(),
          indexSize * sizeof(this->index[0]));
-         
+
+  selfCheck();
+
   // 'fp' closed by the AutoFILE
 }
 
-
 SourceLocManager::File::~File()
 {
-  if (hashLines) { 
+  if (hashLines) {
     delete hashLines;
   }
   delete[] lineLengths;
+}
+
+
+int SourceLocManager::File::lineLengthSum() const
+{
+  int sum = 0;
+  for (int i=0; i<lineLengthsSize; i++) {
+    if ((int)lineLengths[i] == 255) {
+      sum += 254;
+    }
+    else {
+      sum += lineLengths[i];
+    }
+  }
+  return sum;
+}
+
+void SourceLocManager::File::selfCheck() const
+{
+  xassert(lineLengthSum() + numLines-1 == numChars);
 }
 
 
@@ -201,11 +215,6 @@ inline void SourceLocManager::File::advanceMarker()
 
 int SourceLocManager::File::lineToChar(int lineNum)
 {
-  if (lineNum == numLines+1) {
-    // end of file location
-    return numChars;
-  }
-
   xassert(1 <= lineNum && lineNum <= numLines);
 
   // check to see if the marker is already close
@@ -306,14 +315,7 @@ int SourceLocManager::File::lineColToChar(int lineNum, int col)
 
 void SourceLocManager::File::charToLineCol(int offset, int &line, int &col)
 {
-  if (offset == numChars) {
-    // end of file location
-    line = numLines+1;
-    col = 1;
-    return;
-  }
-
-  xassert(0 <= offset && offset < numChars);
+  xassert(0 <= offset && offset <= numChars);
 
   // check if the marker is close enough
   if (marker.charOffset <= offset &&
@@ -402,6 +404,29 @@ SourceLocManager::SourceLocManager()
     sourceLocManager = this;
   }
 
+  makeFirstStatics();
+}
+
+SourceLocManager::~SourceLocManager()
+{
+  if (sourceLocManager == this) {
+    sourceLocManager = NULL;
+  }
+}
+
+
+void SourceLocManager::reset()
+{
+  files.deleteAll();
+  recent = NULL;
+  statics.deleteAll();
+  nextLoc = toLoc(1);
+  nextStaticLoc = toLoc(0);
+  makeFirstStatics();
+}
+
+void SourceLocManager::makeFirstStatics()
+{
   // slightly clever: treat SL_UNKNOWN as a static
   SourceLoc u = encodeStatic(StaticLoc("<noloc>", 0,1,1));
   xassert(u == SL_UNKNOWN);
@@ -411,13 +436,6 @@ SourceLocManager::SourceLocManager()
   u = encodeStatic(StaticLoc("<init>", 0,1,1));
   xassert(u == SL_INIT);
   PRETEND_USED(u);
-}
-
-SourceLocManager::~SourceLocManager()
-{
-  if (sourceLocManager == this) {
-    sourceLocManager = NULL;
-  }
 }
 
 
@@ -753,7 +771,7 @@ void testFile(char const *fname)
 
   // get locations for the start and end
   SourceLoc start = mgr.encodeOffset(fname, 0);
-  SourceLoc end = mgr.encodeOffset(fname, len-1);
+  SourceLoc end = mgr.encodeOffset(fname, len);
 
   // check expectations for start
   xassert(mgr.getLine(start) == 1);
@@ -808,6 +826,24 @@ void testFile(char const *fname)
   }
   
   delete[] bi;
+}
+
+
+// write a file with the given contents, and call 'testFile' on it
+void testFileString(char const *contents)
+{
+  {
+    AutoFILE fp("srcloc.tmp", "w");
+    int written = fwrite(contents, 1, strlen(contents), fp);
+    xassert(written == (int)strlen(contents));
+  }
+
+  testFile("srcloc.tmp");
+
+  // since I keep using "srcloc.tmp" over and over, I need to reset
+  // the manager between attempts since otherwise it thinks it already
+  // knows the line lengths
+  mgr.reset();
 }
 
 
@@ -962,6 +998,13 @@ void entry(int argc, char ** /*argv*/)
     // set maxStaticLocs low to test the warning
     mgr.maxStaticLocs = 1;
   }
+
+  // test with some special files
+  testFileString("first\nsecond\nthird\n");      // ordinary
+  testFileString("first\nsecond\nthird no nl");  // no final newline
+  testFileString("");                            // empty
+  testFileString("x");                           // one char
+  testFileString("\n");                          // one newline
 
   // test my source code
   testFile("srcloc.cc");

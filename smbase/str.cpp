@@ -56,7 +56,7 @@ void string::dup(char const *src)
 void string::kill()
 {
   if (s != emptyString) {
-    delete s;
+    delete[] s;         // found by Coverity Prevent
   }
 }
 

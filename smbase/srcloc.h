@@ -95,10 +95,14 @@ public:      // types
     // start offset in the SourceLoc space
     SourceLoc startLoc;
 
-    // number of chars in the file
+    // number of chars in the file (i.e., if you say stat(2), you get
+    // this number)
     int numChars;
 
-    // number of lines in the file
+    // number of lines in the file; for this purpose we say that a
+    // file is a sequence of lines *separated* (not terminated) by
+    // newline characters; so this value is exactly one greater than
+    // the number of '\n' characters in the file
     int numLines;
 
     // average number of chars per line; this is used for estimating
@@ -113,11 +117,14 @@ public:      // types
     // an array of line lengths; to handle lines longer than 255
     // chars, we use runs of '\xFF' chars to (in unary) encode
     // multiples of 254 (one less than 255) chars, plus the final
-    // short count to give the total length
+    // short count to give the total length; "line length" does not
+    // include newline characters
     unsigned char *lineLengths;      // (owner)
 
     // # of elements in 'lineLengths'
     int lineLengthsSize;
+
+    // invariant: lineLengthSum() + numLines-1 == numChars
 
     // this marker and offset can name an arbitrary point
     // in the array, including those that are not at the
@@ -136,6 +143,9 @@ public:      // types
     File(File&);                     // disallowed
     void resetMarker();
     void advanceMarker();
+
+    // decode and sum the lengths of all lines
+    int lineLengthSum() const;
 
   public:    // funcs
     // this builds both the array and the index
@@ -160,6 +170,9 @@ public:      // types
     // same semantics as HashLineMap::addHashLine
     void addHashLine(int ppLine, int origLine, char const *origFname);
     void doneAdding();
+
+    // check internal invariants
+    void selfCheck() const;
 
     // dsw: the xml serialization code needs access to these two
     // fields; the idea is that the method names suggest that people
@@ -193,7 +206,7 @@ private:     // data
   ObjList<File> files;
 
   // most-recently accessed File; this is a cache
-  File *recent;                      // (serf)
+  File *recent;                      // (nullable serf)
 
   // list of StaticLocs; any SourceLoc less than 0 is interpreted
   // as an index into this list
@@ -237,15 +250,20 @@ private:     // funcs
   }
   static int toInt(SourceLoc loc) { return (int)loc; }
 
+  void makeFirstStatics();
+
   File *findFile(char const *name);
   File *getFile(char const *name);
-                                
+
   File *findFileWithLoc(SourceLoc loc);
   StaticLoc const *getStatic(SourceLoc loc);
 
 public:      // funcs
   SourceLocManager();
   ~SourceLocManager();
+
+  // return to state where no files are known
+  void reset();
 
   // origins:
   //   character offsets start at 0
