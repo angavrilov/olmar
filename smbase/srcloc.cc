@@ -180,6 +180,48 @@ int SourceLocManager::File::lineLengthSum() const
 void SourceLocManager::File::selfCheck() const
 {
   xassert(lineLengthSum() + numLines-1 == numChars);
+
+  // check the markers
+  int charOffset = 0;   // current character offset
+  int lineNum = 1;      // current line number
+  int m = 1;            // current marker to validate
+  bool foundMovableMarker = false;
+  for (int i=0; i<lineLengthsSize; i++) {
+    if (m < indexSize) {
+      if (index[m].charOffset <= charOffset) {
+        // if we just reached or exceeded the offset of marker
+        // 'm', check its stats
+        xassert(index[m].charOffset == charOffset &&
+                index[m].lineOffset == lineNum &&
+                index[m].arrayOffset == i);
+
+        // ready to check next marker
+        m++;
+      }
+    }
+
+    // I'm only about 90% sure this is the right invariant...
+    if (marker.charOffset-(markerCol-1) == charOffset) {
+      foundMovableMarker = true;
+      xassert(marker.lineOffset == lineNum &&
+              marker.arrayOffset == i);
+    }
+
+    if ((int)lineLengths[i] == 255) {
+      charOffset += 254;
+    }
+    else {
+      charOffset += lineLengths[i]+1;
+      lineNum++;
+    }
+  }
+  xassert(foundMovableMarker);
+  xassert(m == indexSize);
+
+  // marker offsets should be in increasing order
+  for (m=0; m<(indexSize-1); m++) {
+    xassert(index[m].charOffset < index[m+1].charOffset);
+  }
 }
 
 
