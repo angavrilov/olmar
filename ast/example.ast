@@ -25,6 +25,12 @@ option xmlPrint;
 // and gdb
 option gdb;
 
+// for the moment I just want this so I can test to/fromXML
+// code for enums
+option xmlParser example_xml;
+
+
+
 class Node (
   int x,
   int y

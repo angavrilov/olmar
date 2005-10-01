@@ -52,13 +52,11 @@ char const * ListClass::kindName() const {
 string visitorName;
 inline bool wantVisitor() { return visitorName.length() != 0; }
 
-// this is the name of the delegator-visitor, or ""
-// if the user does not want a delegator-visitor
+// this is the name of the delegator-visitor if desired
 string dvisitorName;
 inline bool wantDVisitor() { return dvisitorName.length() != 0; }
 
-// this is the name of the xml-visitor, or ""
-// if the user does not want a delegator-visitor
+// this is the name of the xml-visitor if desired
 string xmlVisitorName;
 inline bool wantXmlVisitor() { return xmlVisitorName.length() != 0; }
 
@@ -466,7 +464,16 @@ void HGen::emitFile()
         out << "};\n"
             << "\n"
             << "char const *toString(" << e->name << ");\n"
-            << "\n"
+            ;
+
+        if (wantXmlParser()) {
+          out << "inline char const *toXml(" << e->name << " id)\n"
+              << "  { return toString(id); }\n"
+              << "void fromXml(" << e->name << " &out, rostring str);\n"
+              ;
+        }
+
+        out << "\n"
             << "\n"
             ;
       }
@@ -1040,6 +1047,10 @@ void CGen::emitFile()
     out << "#include \"strutil.h\"      // quoted, parseQuotedString\n";
     out << "#include \"xmlhelp.h\"      // to/fromXml_bool/int\n";
   }
+  if (wantXmlParser()) {
+    out << "#include <string.h>       // strcmp\n";
+    out << "#include \"exc.h\"          // xformat\n";
+  }
   out << "\n";
   out << "\n";
 
@@ -1056,19 +1067,45 @@ void CGen::emitFile()
         emitTFClass(*c);
       }
       ASTNEXTC(TF_enum, e) {
+        int numEnumeratorValues = 0;
         out << "char const *toString(" << e->name << " x)\n"
             << "{\n"
             << "  static char const * const map[] = {\n";
         FOREACH_ASTLIST(string, e->enumerators, iter) {
           out << "    \"" << *(iter.data()) << "\",\n";
-        }     
+          numEnumeratorValues++;
+        }
         out << "  };\n"
             << "  xassert((unsigned)x < TABLESIZE(map));\n"
             << "  return map[x];\n"
             << "};\n"
             << "\n"
-            << "\n"
             ;
+
+        // sm: I'm emitting this into the normal .gen.cc file, rather
+        // than the specialized XML generation files, because I do not
+        // understand how the latter are structured (and, the code I
+        // am replacing had this effect anyway)
+        if (wantXmlParser()) {
+          // toXml is inline, no need to generate anything
+
+          // fromXml
+          out << "void fromXml(" << e->name << " &out, rostring str)\n"
+              << "{\n"
+              << "  for (int i=0; i<" << numEnumeratorValues << "; i++) {\n"
+              << "    " << e->name << " e = (" << e->name << ")i;\n"
+              << "    if (0==strcmp(str, toString(e))) {\n"
+              << "      out = e;\n"
+              << "      return;\n"
+              << "    }\n"
+              << "  }\n"
+              << "  xformat(stringc << \"bad " << e->name << " value: \" << str);\n"
+              << "}\n"
+              << "\n"
+              ;
+        }
+
+        out << "\n";
         break;
       }
       ASTENDCASECD
