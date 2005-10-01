@@ -207,11 +207,14 @@ SourceLocManager::File::File(FileData *fileData, SourceLoc aStartLoc)
       // Scott counts newlines as out-of-band, not counted in the line
       // lenth, so add it back in.
       ++numChars0;
-      if (--indexDelay == 0) {
+      if (--indexDelay == 0 && i+1 < lineLengthsSize) {
         // insert a marker to remember this location
         index.push(Marker(numChars0, numLines0, i+1));
         indexDelay = MARKER_PERIOD;
       }
+    }                          
+    else {
+      #warning this is a bug, numChars0 is 1 too big
     }
   }
   // dsw: These assertions demonstrate that something is wrong with
