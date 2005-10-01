@@ -348,8 +348,12 @@ string Variable::toMLString() const
 string Variable::fullyQualifiedName0() const
 {
   if (isNamespace()) {
-    xassert(!scope->isGlobalScope());    // there is no Variable naming "::"
-    return scope->fullyQualifiedCName();
+    if (scope->isGlobalScope()) {
+      return "::";
+    }
+    else {
+      return scope->fullyQualifiedCName();
+    }
   }
 
   stringBuilder tmp;

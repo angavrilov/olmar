@@ -40,7 +40,7 @@ string toString(LookupFlags f)
   // make sure I haven't added a flag without adding a string for it
   xassert(declFlagNames[NUM_LOOKUPFLAGS-1] != NULL);
 
-  return bitmapString(f, lookupFlagNames, NUM_LOOKUPFLAGS);
+  return bitmapString(f, lookupFlagNames, NUM_LOOKUPFLAGS, " ");
 }
                                  
 // this exists in case gdb's overload resolution is broken (?)

@@ -224,6 +224,12 @@ do { \
   out << #NAME "=\"" << PREFIX << FUNC(VALUE) << "\""; \
 } while(0)
 
+// quoted and escaped
+#define quoted_printThing0(NAME, PREFIX, VALUE, FUNC) \
+do { \
+  out << #NAME "=" << PREFIX << quoted(FUNC(VALUE)); \
+} while(0)
+
 #define printThing(NAME, PREFIX, VALUE, FUNC) \
 do { \
   if (VALUE) { \
@@ -247,6 +253,12 @@ do { \
 do { \
   newline(); \
   printThing0(NAME, "", VALUE, ::toXml); \
+} while(0)
+
+#define quoted_printXml(NAME, VALUE) \
+do { \
+  newline(); \
+  quoted_printThing0(NAME, "", VALUE, ::toXml); \
 } while(0)
 
 #define printXml_bool(NAME, VALUE) \
@@ -631,7 +643,7 @@ void TypeToXml::toXml(Variable *var) {
   printXml_SourceLoc(loc, var->loc);
   printStrRef(name, var->name);
   printPtr(var, type);
-  printXml(flags, var->flags);
+  quoted_printXml(flags, var->flags);
   printPtrAST(var, value);
   printPtr(var, defaultParamType);
   printPtrAST(var, funcDefn);

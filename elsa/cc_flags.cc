@@ -103,14 +103,18 @@ char const * const cvFlagNames[NUM_CVFLAGS] = {
 };
 
 
-string bitmapString(int bitmap, char const * const *names, int numFlags)
+string bitmapString(int bitmap, char const * const *names, int numFlags,
+                    char const *delim)
 {
+  // make sure I haven't added a flag without adding a string for it
+  xassert(names[numFlags-1] != NULL);
+
   stringBuilder sb;
   int count=0;
   for (int i=0; i<numFlags; i++) {
     if (bitmap & (1 << i)) {
       if (count++) {
-        sb << " ";
+        sb << delim;
       }
       sb << names[i];
     }
@@ -121,12 +125,12 @@ string bitmapString(int bitmap, char const * const *names, int numFlags)
 
 string toString(CVFlags cv)
 {
-  return bitmapString(cv >> CV_SHIFT_AMOUNT, cvFlagNames, NUM_CVFLAGS);
+  return bitmapString(cv >> CV_SHIFT_AMOUNT, cvFlagNames, NUM_CVFLAGS, " ");
 }
 
 string toXml(CVFlags id)
 {
-  return toString(id);
+  return bitmapString(id >> CV_SHIFT_AMOUNT, cvFlagNames, NUM_CVFLAGS, "|");
 }
 
 
@@ -137,9 +141,9 @@ string toXml(CVFlags id)
 // For best performance, 'str' should have its flags in numerically
 // increasing order (this routine does not sort them first).
 int fromBitmapString(char const * const *names, int numFlags,
-                     char const *kind, rostring str)
+                     char const *kind, rostring str, char const *delim)
 {
-  StrtokParse tok(str, " ");
+  StrtokParse tok(str, delim);
 
   int ret = 0;       // set of flags that have been found in 'str'
   int tokIndex = 0;  // progress in 'tok'
@@ -170,7 +174,7 @@ int fromBitmapString(char const * const *names, int numFlags,
 
 void fromXml(CVFlags &out, rostring str)
 {
-  int tmp = fromBitmapString(cvFlagNames, NUM_CVFLAGS, "CVFlag", str);
+  int tmp = fromBitmapString(cvFlagNames, NUM_CVFLAGS, "CVFlag", str, "|");
   out = (CVFlags)(tmp << CV_SHIFT_AMOUNT);
 }
 
@@ -216,20 +220,18 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
 
 string toString(DeclFlags df)
 { 
-  // make sure I haven't added a flag without adding a string for it
-  xassert(declFlagNames[NUM_DECLFLAGS-1] != NULL);
-
-  return bitmapString(df, declFlagNames, NUM_DECLFLAGS);
+  return bitmapString(df, declFlagNames, NUM_DECLFLAGS, " ");
 }
 
-string toXml(DeclFlags id) 
+string toXml(DeclFlags id)
 {
-  return toString(id);
+  return bitmapString(id, declFlagNames, NUM_DECLFLAGS, "|");
 }
 
-void fromXml(DeclFlags &out, rostring str) 
+void fromXml(DeclFlags &out, rostring str)
 {
-  out = (DeclFlags)fromBitmapString(declFlagNames, NUM_DECLFLAGS, "DeclFlag", str);
+  out = (DeclFlags)fromBitmapString(declFlagNames, NUM_DECLFLAGS, 
+                                    "DeclFlag", str, "|");
 }
 
 
@@ -339,9 +341,10 @@ bool isComplexOrImaginary(SimpleTypeId id)
   void fromXml(TYPE &out, rostring str)                 \
   {                                                     \
     for (int id=0; id < numElements; id++) {            \
-      if (0==strcmp(toString(id), str.c_str())) {       \
-        out = (TYPE)id;                                 \
-        break;                                          \
+      TYPE typedId = (TYPE)id;                          \
+      if (0==strcmp(toString(typedId), str.c_str())) {  \
+        out = typedId;                                  \
+        return;                                         \
       }                                                 \
     }                                                   \
     xfailure(stringc << "bad " #TYPE ": " << str);      \
@@ -734,7 +737,7 @@ char const * const uberModifierNames[UM_NUM_FLAGS] = {
 string toString(UberModifiers m)
 {
   xassert(uberModifierNames[UM_NUM_FLAGS-1] != NULL);
-  return bitmapString(m, uberModifierNames, UM_NUM_FLAGS);
+  return bitmapString(m, uberModifierNames, UM_NUM_FLAGS, " ");
 }
 
 
