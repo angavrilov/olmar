@@ -330,6 +330,9 @@ public:      // funcs
   T /*const*/ *data() const       { return &(arr[index]); }
 };
 
+#define FOREACH_ARRAYSTACK_NC(T, list, iter) \
+  for(ArrayStackIterNC< T > iter(list); !iter.isDone(); iter.adv())
+
 
 // I want const polymorphism!
 

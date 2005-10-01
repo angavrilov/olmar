@@ -29,6 +29,7 @@
 
 #include "str.h"      // string
 #include "objlist.h"  // ObjList
+#include "array.h"    // ArrayStack
 
 class HashLineMap;    // hashline.h
 
@@ -84,6 +85,33 @@ private:     // types
   };
 
 public:      // types
+
+  // Holds basic data about files for use in initializing the
+  // SourceLocManager when de-serializing it from XML.
+  class FileData {
+    public:
+    char const *name;
+    int numChars;
+    int numLines;
+    ArrayStack<unsigned char> *lineLengths;
+    HashLineMap *hashLines;
+
+    FileData()
+      : name(NULL)
+      , numChars(-1)
+      , numLines(-1)
+      , lineLengths(NULL)
+      , hashLines(NULL)
+    {}
+
+    bool complete() {
+      // NOTE: hashLines is nullable, so says Scott, so it is not on
+      // the list of things that have to be there for the object to be
+      // complete
+      return name && numChars>=0 && numLines>=0 && lineLengths;
+    }
+  };
+
   // describes a file we know about
   class File {
   public:    // data
@@ -150,6 +178,8 @@ public:      // types
   public:    // funcs
     // this builds both the array and the index
     File(char const *name, SourceLoc startLoc);
+    // used when de-serializing from xml
+    File(FileData *fileData, SourceLoc aStartLoc);
     ~File();
     
     // line number to character offset
@@ -219,6 +249,14 @@ private:     // data
   SourceLoc nextStaticLoc;
 
 public:      // data
+
+  // when true, the SourceLocManager may go to the file system and
+  // open a file in order to find out something about it.  dsw: I want
+  // to turn this off when de-serializing XML for example; whatever
+  // the SourceLocManager wants to kno about a file should be in the
+  // XML.
+  bool mayOpenFiles;
+
   // number of static locations at which we print a warning message;
   // defaults to 100
   int maxStaticLocs;
@@ -319,6 +357,8 @@ public:      // funcs
   // dsw: the xml serialization code needs access to this field; the
   // idea is that the method name suggests that people not use it
   ObjList<File> &serializationOnly_get_files() {return files;}
+  // for de-serializing from xml a single File and loading it into the SourceLocManager
+  void loadFile(FileData *fileData);
 };
 
 
@@ -356,8 +396,8 @@ inline SourceLoc advLine(SourceLoc base)
 inline SourceLoc advText(SourceLoc base, char const *text, int textLen)
   { return SourceLocManager::advText(base, text, textLen); }
 
-string toXml(SourceLoc index);
-void fromXml(SourceLoc &out, string str);
+//  string toXml(SourceLoc index);
+//  void fromXml(SourceLoc &out, string str);
 
 
 #endif // SRCLOC_H

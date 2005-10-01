@@ -41,6 +41,10 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
     marker(0, 1, 0),
     markerCol(1)
 {
+  // dsw: I want a way to make sure that we never look for a file.
+  xassert(sourceLocManager->mayOpenFiles);
+  breaker();
+
   // open in binary mode since it's too unpredictable whether
   // the lower level (e.g. cygwin) will do CRLF translation,
   // and whether that will be done consistently, if text mode
@@ -160,6 +164,74 @@ SourceLocManager::File::~File()
     delete hashLines;
   }
   delete[] lineLengths;
+}
+
+SourceLocManager::File::File(FileData *fileData, SourceLoc aStartLoc)
+  : name(fileData->name),
+    startLoc(aStartLoc),        // assigned by SourceLocManager
+//      hashLines(fileData->hashLines),
+    hashLines(NULL),            // dsw: initialized later
+
+    // valid marker/col for the first char in the file
+    marker(0, 1, 0),
+    markerCol(1)
+{
+  xassert(fileData->complete());
+
+  numChars = fileData->numChars;
+  numLines = fileData->numLines;
+  if (numLines == 0) {
+    // a file with no newlines
+    avgCharsPerLine = numChars;
+  } else {
+    avgCharsPerLine = numChars / numLines;
+  }
+
+  lineLengthsSize = fileData->lineLengths->length();
+  lineLengths = new unsigned char[lineLengthsSize];
+  memcpy(lineLengths, fileData->lineLengths->getArray(),
+         lineLengthsSize * sizeof(lineLengths[0]));
+
+  // make a Marker every MARKER_PERIOD lines
+  ArrayStack<Marker> index;
+  index.push(Marker(0, 1, 0));
+  int indexDelay = MARKER_PERIOD;
+  int numChars0 = 0;
+  int numLines0 = 1;
+  for(int i=0; i<lineLengthsSize; ++i) {
+    int len0 = lineLengths[i];
+    numChars0 += len0;
+    if (len0 != 255) {
+      // a new line
+      ++numLines0;
+      // Scott counts newlines as out-of-band, not counted in the line
+      // lenth, so add it back in.
+      ++numChars0;
+      if (--indexDelay == 0) {
+        // insert a marker to remember this location
+        index.push(Marker(numChars0, numLines0, i+1));
+        indexDelay = MARKER_PERIOD;
+      }
+    }
+  }
+  // dsw: These assertions demonstrate that something is wrong with
+  // Scott's other File ctor that counts the characters by reading in
+  // the file.  If you use a file that had no newlines in it and read
+  // it in and print it out again, the numChars serialized in the XML
+  // will be twice the length of the file.
+  //
+  // last newline doesn't count or something??
+//    --numChars0;
+//    --numLines0;
+//    xassert(numChars0 == numChars);
+//    xassert(numLines0 == numLines);
+
+  this->indexSize = index.length();
+  this->index = new Marker[indexSize];
+  memcpy(this->index, index.getArray(),
+         indexSize * sizeof(this->index[0]));
+         
+  selfCheck();
 }
 
 
@@ -439,6 +511,7 @@ SourceLocManager::SourceLocManager()
     statics(),
     nextLoc(toLoc(1)),
     nextStaticLoc(toLoc(0)),
+    mayOpenFiles(true),
     maxStaticLocs(100),
     useHashLines(true)
 {
@@ -522,6 +595,47 @@ SourceLocManager::File *SourceLocManager::getFile(char const *name)
   return recent = f;
 }
 
+// load a file from a FileData object
+void SourceLocManager::loadFile(FileData *fileData)
+{
+  xassert(fileData);
+  // we should be loading a new file
+  // FIX: this should be a user error, not an assertion failure
+  xassert(!findFile(fileData->name));
+
+  // finish off the fileData->hashLines object; FIX: there is probably
+  // a better place for this, but I'm not sure where
+//    if (fileData->hashLines) {
+//      FOREACH_ARRAYSTACK_NC(HashLineMap::HashLine, fileData->hashLines->directives, iter) {
+//        HashLineMap::HashLine *line = iter.data();
+//        char const * const origFname = line->origFname;
+//        StringObjDict<string> &filenames = fileData->hashLines->serializationOnly_get_filenames();
+//        // load the 'filenames' dictionary with the origFnames of the FileDatas.
+//        string *canon = filenames.queryif(origFname);
+//        if (!canon) {
+//          canon = new string(origFname);
+//          filenames.add(origFname, canon);
+//        }
+//        line->origFname = canon->c_str();
+//      }
+//    }
+
+  // convert the FileData object to a File
+  File *f = new File(fileData, nextLoc);
+  files.append(f);
+  if (fileData->hashLines) {
+    FOREACH_ARRAYSTACK_NC(HashLineMap::HashLine, fileData->hashLines->directives, iter) {
+      HashLineMap::HashLine *line = iter.data();
+      f->addHashLine(line->ppLine, line->origLine, line->origFname);
+    }
+    f->doneAdding();
+  }
+
+  // bump 'nextLoc' according to how long that file was,
+  // plus 1 so it can own the position equal to its length
+  nextLoc = toLoc(f->startLoc + f->numChars + 1);
+}
+
 
 SourceLoc SourceLocManager::encodeOffset(
   char const *filename, int charOffset)
@@ -583,10 +697,13 @@ SourceLoc SourceLocManager::encodeStatic(StaticLoc const &obj)
 
 SourceLocManager::File *SourceLocManager::findFileWithLoc(SourceLoc loc)
 {
+  static int count1 = 0;
+  ++count1;
+
   // check cache
-  if (recent && recent->hasLoc(loc)) {
-    return recent;
-  }
+//    if (recent && recent->hasLoc(loc)) {
+//      return recent;
+//    }
 
   // iterative walk
   FOREACH_OBJLIST_NC(File, files, iter) {
@@ -751,14 +868,6 @@ string locToStr(SourceLoc sl)
   return sourceLocManager->getString(sl);
 }
 
-// this code simply defeats the xml serialization of SourceLoc-s
-string toXml(SourceLoc index) {
-  return "0";
-}
-
-void fromXml(SourceLoc &out, string str) {
-  out = SL_UNKNOWN;
-}
 
 // -------------------------- test code ----------------------
 #ifdef TEST_SRCLOC
@@ -801,6 +910,9 @@ public:
 // that round-trip encoding works
 void testFile(char const *fname)
 {
+  // dsw: I want a way to make sure that we never look for a file.
+  xassert(sourceLocManager->mayOpenFiles);
+
   // find the file's length
   int len;
   {
@@ -917,6 +1029,10 @@ string locString(char const *fname, int line, int col)
 void buildHashMap(SourceLocManager::File *pp, char const *fname, int &expanderLine)
 {
   expanderLine = 0;
+
+  // dsw: I want a way to make sure that we never look for a file.
+  xassert(sourceLocManager->mayOpenFiles);
+
   AutoFILE fp(fname, "rb");
 
   enum { SZ=256 };

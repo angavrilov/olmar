@@ -17,7 +17,12 @@
 // orig source files; there should be one HashLineMap object
 // for each pp source file of interest
 class HashLineMap {
-private:    // types
+  // dsw: Scott, I need this to be public so I can serialize it;
+  // private data I can get with an accessor, but private classes are
+  // a problem.  I could make the xml serialization a friend, but that
+  // would make a dependency of smbase on elsa.
+  public:
+//  private:    // types
   // records a single #line directive
   class HashLine {
   public:
@@ -44,9 +49,14 @@ private:    // data
   // dependency
   StringObjDict<string> filenames;
 
+public:
+// dsw: it is a real pain to do de-serialization without making this
+// public
+
   // growable array of HashLine objects
   ArrayStack<HashLine> directives;
 
+private:                        // more data
   // previously-added ppLine; used to verify the entries are
   // being added in sorted order
   int prev_ppLine;
@@ -73,6 +83,12 @@ public:     // funcs
   // for curiosity, find out how many unique filenames are recorded in
   // the 'filenames' dictionary
   int numUniqueFilenames() { return filenames.size(); }
+
+  // XML serialization only
+  string &serializationOnly_get_ppFname() { return ppFname; }
+  void serializationOnly_set_ppFname(string const &ppFname0) { ppFname = ppFname0; }
+  ArrayStack<HashLine> &serializationOnly_get_directives() { return directives; }
+  StringObjDict<string> &serializationOnly_get_filenames() { return filenames; }
 };
 
 #endif // HASHLINE_H
