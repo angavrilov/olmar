@@ -27,6 +27,8 @@
 #ifndef SRCLOC_H
 #define SRCLOC_H
 
+#include <limits.h>   // UCHAR_MAX
+
 #include "str.h"      // string
 #include "objlist.h"  // ObjList
 #include "array.h"    // ArrayStack
@@ -60,9 +62,8 @@ enum SourceLoc {
 // the 'toString' function at the end.
 class SourceLocManager {
 private:     // types
-  // a triple which identifies a line boundary in a file (it's
-  // implicit which file it is) with respect to all of the relevant
-  // spaces
+  // a triple that identifies a line boundary in a file (it's
+  // implicit which file it is)
   class Marker {
   public:
     // character offset, starting with 0
@@ -73,7 +74,7 @@ private:     // types
 
     // offset into the 'lineLengths' array; this is not simply
     // lineOffset-1 because of the possible presence of lines with
-    // length longer than 254 chars
+    // length longer than UCHAR_MAX-1 chars
     int arrayOffset;
 
   public:
@@ -142,11 +143,12 @@ public:      // types
     HashLineMap *hashLines;          // (nullable owner)
 
   private:   // data
-    // an array of line lengths; to handle lines longer than 255
-    // chars, we use runs of '\xFF' chars to (in unary) encode
-    // multiples of 254 (one less than 255) chars, plus the final
-    // short count to give the total length; "line length" does not
-    // include newline characters
+    // an array of line lengths; to handle lines longer than UCHAR_MAX
+    // chars, we use runs of UCHAR_MAX chars to (in unary) encode
+    // multiples of UCHAR_MAX chars, plus the final short count (in
+    // [0,UCHAR_MAX-1]) to give the total length; "line length" does
+    // not include newline characters, but it *does* include carriage
+    // return characters if the file (as raw bytes) contains them
     unsigned char *lineLengths;      // (owner)
 
     // # of elements in 'lineLengths'
@@ -154,10 +156,9 @@ public:      // types
 
     // invariant: lineLengthSum() + numLines-1 == numChars
 
-    // this marker and offset can name an arbitrary point
-    // in the array, including those that are not at the
-    // start of a line; we move this around when searching
-    // within the array
+    // this marker and offset can name an arbitrary point in the
+    // array, including those that are not at the start of a line; we
+    // move this around when searching within the array
     Marker marker;
     int markerCol;      // 1-based column; it's usually 1
 
@@ -307,6 +308,10 @@ public:      // funcs
   //   character offsets start at 0
   //   lines start at 1
   //   columns start at 1
+  
+  // Note that the legal source locations go from the first byte
+  // in the file through to the last+1 byte.  So, if the file has
+  // 5 characters, then offsets 0,1,2,3,4,5 are legal.
 
   // encode from scratch
   SourceLoc encodeOffset(char const *filename, int charOffset);

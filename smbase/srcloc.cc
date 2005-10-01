@@ -18,13 +18,23 @@
 enum { MARKER_PERIOD = 100 };    // 100 is about a 10% overhead
 
 
+// given an ArrayStack, copy the data into a ptr/len pair
+template <class T>
+void extractArray(T *&array, int &size, ArrayStack<T> const &src)
+{
+  size = src.length();
+  array = new T[size];
+  memcpy(array, src.getArray(), size * sizeof(T));
+}
+
+
 // ------------------------- File -----------------------
 void addLineLength(ArrayStack<unsigned char> &lengths, int len)
 {
-  while (len >= 255) {
-    // add a long-line marker, which represents 254 chars of input
-    lengths.push(255);
-    len -= 254;
+  while (len >= UCHAR_MAX) {
+    // add a long-line marker, which represents UCHAR_MAX chars of input
+    lengths.push(UCHAR_MAX);
+    len -= UCHAR_MAX;
   }
 
   // add the short count at the end
@@ -88,7 +98,7 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
     }
 
     // the code that follows can be seen as abstracting the data
-    // contained in buf[start] through buf[end-1] and adding that
+    // contained in buf[0] through buf[len-1] and adding that
     // information to the summary variables above
     char const *start = buf;      // beginning of unaccounted-for chars
     char const *p = buf;          // scan pointer
@@ -97,6 +107,7 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
     // loop over the lines in 'buf'
     while (start < end) {
       // scan to the next newline
+      xassert(start == p);
       while (p<end && *p!='\n') {
         p++;
       }
@@ -143,15 +154,8 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
   xassert(numLines >= 1);
   this->avgCharsPerLine = numChars / numLines;
 
-  this->lineLengthsSize = lineLengths.length();
-  this->lineLengths = new unsigned char[lineLengthsSize];
-  memcpy(this->lineLengths, lineLengths.getArray(),
-         lineLengthsSize * sizeof(this->lineLengths[0]));
-
-  this->indexSize = index.length();
-  this->index = new Marker[indexSize];
-  memcpy(this->index, index.getArray(),
-         indexSize * sizeof(this->index[0]));
+  extractArray(this->lineLengths, this->lineLengthsSize, lineLengths);
+  extractArray(this->index, this->indexSize, index);
 
   selfCheck();
 
@@ -180,17 +184,10 @@ SourceLocManager::File::File(FileData *fileData, SourceLoc aStartLoc)
 
   numChars = fileData->numChars;
   numLines = fileData->numLines;
-  if (numLines == 0) {
-    // a file with no newlines
-    avgCharsPerLine = numChars;
-  } else {
-    avgCharsPerLine = numChars / numLines;
-  }
+  xassert(numLines >= 1);
+  avgCharsPerLine = numChars / numLines;
 
-  lineLengthsSize = fileData->lineLengths->length();
-  lineLengths = new unsigned char[lineLengthsSize];
-  memcpy(lineLengths, fileData->lineLengths->getArray(),
-         lineLengthsSize * sizeof(lineLengths[0]));
+  extractArray(lineLengths, lineLengthsSize, *(fileData->lineLengths));
 
   // make a Marker every MARKER_PERIOD lines
   ArrayStack<Marker> index;
@@ -201,7 +198,7 @@ SourceLocManager::File::File(FileData *fileData, SourceLoc aStartLoc)
   for(int i=0; i<lineLengthsSize; ++i) {
     int len0 = lineLengths[i];
     numChars0 += len0;
-    if (len0 != 255) {
+    if (len0 != UCHAR_MAX) {
       // a new line
       ++numLines0;
       // Scott counts newlines as out-of-band, not counted in the line
@@ -212,9 +209,6 @@ SourceLocManager::File::File(FileData *fileData, SourceLoc aStartLoc)
         index.push(Marker(numChars0, numLines0, i+1));
         indexDelay = MARKER_PERIOD;
       }
-    }                          
-    else {
-      #warning this is a bug, numChars0 is 1 too big
     }
   }
   // dsw: These assertions demonstrate that something is wrong with
@@ -229,11 +223,8 @@ SourceLocManager::File::File(FileData *fileData, SourceLoc aStartLoc)
 //    xassert(numChars0 == numChars);
 //    xassert(numLines0 == numLines);
 
-  this->indexSize = index.length();
-  this->index = new Marker[indexSize];
-  memcpy(this->index, index.getArray(),
-         indexSize * sizeof(this->index[0]));
-         
+  extractArray(this->index, this->indexSize, index);
+
   selfCheck();
 }
 
@@ -242,12 +233,7 @@ int SourceLocManager::File::lineLengthSum() const
 {
   int sum = 0;
   for (int i=0; i<lineLengthsSize; i++) {
-    if ((int)lineLengths[i] == 255) {
-      sum += 254;
-    }
-    else {
-      sum += lineLengths[i];
-    }
+    sum += lineLengths[i];
   }
   return sum;
 }
@@ -282,11 +268,10 @@ void SourceLocManager::File::selfCheck() const
               marker.arrayOffset == i);
     }
 
-    if ((int)lineLengths[i] == 255) {
-      charOffset += 254;
-    }
-    else {
-      charOffset += lineLengths[i]+1;
+    charOffset += lineLengths[i];
+    if (lineLengths[i] < UCHAR_MAX) {
+      // account for the newline character
+      charOffset++;
       lineNum++;
     }
   }
@@ -314,7 +299,7 @@ void SourceLocManager::File::resetMarker()
 inline void SourceLocManager::File::advanceMarker()
 {
   int len = (int)lineLengths[marker.arrayOffset];
-  if (len < 255) {
+  if (len < UCHAR_MAX) {
     // normal length line
     marker.charOffset += len+1;     // +1 for newline
     marker.lineOffset++;
@@ -322,10 +307,10 @@ inline void SourceLocManager::File::advanceMarker()
     markerCol = 1;
   }
   else {
-    // fragment of a long line, representing 254 characters
-    marker.charOffset += 254;
+    // fragment of a long line, representing UCHAR_MAX characters
+    marker.charOffset += UCHAR_MAX;
     marker.arrayOffset++;
-    markerCol += 254;
+    markerCol += UCHAR_MAX;
   }
 }
 
@@ -408,20 +393,20 @@ int SourceLocManager::File::lineColToChar(int lineNum, int col)
     int len = (int)lineLengths[index];
     if (col <= len) {
       // 'col' doesn't go beyond this component, we're done
-      // (even if len==255 it still works)
+      // (even if len==UCHAR_MAX it still works)
       return offset + col;
     }
-    if (len < 255) {
+    if (len < UCHAR_MAX) {
       // the line ends here, truncate and we're done
       SourceLocManager::shortLineCount++;
       return offset + len;
     }
 
     // the line continues
-    xassertdb(len == 255);
+    xassertdb(len == UCHAR_MAX);
 
-    col -= 254;
-    offset += 254;
+    col -= UCHAR_MAX;
+    offset += UCHAR_MAX;
     xassertdb(col > 0);
 
     index++;
@@ -660,13 +645,8 @@ SourceLoc SourceLocManager::encodeLineCol(
   File *f = getFile(filename);
 
   // map from a line number to a char offset
-  #if 1  // new
-    int charOffset = f->lineColToChar(line, col);
-    return toLoc(toInt(f->startLoc) + charOffset);
-  #else  // old
-    int charOffset = f->lineToChar(line);
-    return toLoc(toInt(f->startLoc) + charOffset + (col-1));
-  #endif
+  int charOffset = f->lineColToChar(line, col);
+  return toLoc(toInt(f->startLoc) + charOffset);
 }
 
 
