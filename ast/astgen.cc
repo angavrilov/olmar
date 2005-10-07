@@ -2662,8 +2662,7 @@ void XmlParserGen::emitXmlField_AttributeParseRule
   }
   else if (streq(type, "SourceLoc")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    // FIX: we don't parse SourceLoc-s yet
-    parser1_defs << "    // fromXml_SourceLoc(obj->" << name << ", parseQuotedString(strValue));\n";
+    parser1_defs << "    fromXml_SourceLoc(obj->" << name << ", parseQuotedString(strValue));\n";
     parser1_defs << "    break;\n";
   }
   else if (isListType(type)) {

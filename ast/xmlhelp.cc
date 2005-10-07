@@ -1,5 +1,6 @@
 #include "xmlhelp.h"            // this module
 #include <stdlib.h>             // atof, atol
+#include "strtokp.h"            // StrtokParse
 
 string toXml_bool(bool b) {
   if (b) return "true";
@@ -61,9 +62,29 @@ void fromXml_double(double &x, rostring str) {
 
 
 string toXml_SourceLoc(SourceLoc loc) {
-  return sourceLocManager->getString(loc);
+  // NOTE: the nohashline here is very important; never change it
+  return sourceLocManager->getString_nohashline(loc);
 }
 
 void fromXml_SourceLoc(SourceLoc &loc, rostring str) {
-  xfailure("not implemented");
+  // the file format is filename:line:column
+  StrtokParse tok(str, ":");
+  if ((int)tok != 3) {
+    // FIX: this is a parsing error but I don't want to throw an
+    // exception out of this library function
+    loc = SL_UNKNOWN;
+    return;
+  }
+  char const *file = tok[0];
+  if (streq(file, "<noloc>")) {
+    loc = SL_UNKNOWN;
+    return;
+  }
+  if (streq(file, "<init>")) {
+    loc = SL_INIT;
+    return;
+  }
+  int line = atoi(tok[1]);
+  int col  = atoi(tok[2]);
+  loc = sourceLocManager->encodeLineCol(file, line, col);
 }
