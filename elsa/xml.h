@@ -13,12 +13,308 @@
 #include "astlist.h"            // ASTList
 #include "strtable.h"           // StringRef
 #include "strmap.h"             // StringRefMap
+#include "xmlhelp.h"            // toXml_int etc.
 
 class AstXmlLexer;
 class StringTable;
 
 // forwards in this file
 class XmlReaderManager;
+
+
+// **** Support for XML serialization
+
+// to Xml for enums
+#define PRINTENUM(X) case X: return #X
+#define PRINTFLAG(X) if (id & (X)) b << #X
+
+// manage identity of AST
+string idPrefixAST(void const * const);
+void const *addrAST(void const * const obj);
+
+// manage identity; definitions
+#define identity0(PREFIX, NAME, TEMPL) \
+TEMPL char const *idPrefix(NAME const * const) {return #PREFIX;} \
+TEMPL void const *addr(NAME const * const obj) {return reinterpret_cast<void const *>(obj);} \
+TEMPL bool printed(NAME const * const obj) { \
+  if (printedSet ##PREFIX.contains(obj)) return true; \
+  printedSet ##PREFIX.add(obj); \
+  return false; \
+}
+#define identity(PREFIX, NAME) identity0(PREFIX, NAME, )
+#define identityTempl(PREFIX, NAME) identity0(PREFIX, NAME, template<class T>)
+// declarations
+#define identityB0(NAME, TEMPL) TEMPL bool printed(NAME const * const obj)
+#define identityB(NAME) identityB0(NAME, )
+#define identityBTempl(NAME) identityB0(NAME, template<class T>)
+
+// manage the output stream
+class ToXml {
+  public:
+  ostream &out;                 // output stream to which to print
+
+  protected:
+  int &depth;                   // ref so we can share our indentation depth with other printers
+  bool indent;                  // should we print indentation?
+
+  public:
+  ToXml(ostream &out0, int &depth0, bool indent0=false);
+
+  protected:
+  // print a newline and indent if the user wants indentation; NOTE:
+  // the convention is that you don't print a newline until you are
+  // *sure* you have something to print that goes onto the next line;
+  // that is, most lines do *not* end in a newline
+  void newline();
+  friend class XmlCloseTagPrinter;
+};
+
+// manage closing tags: indent and print something when exiting the
+// scope
+class XmlCloseTagPrinter {
+  string s;                     // NOTE: don't make into a string ref; it must make a copy
+  ToXml &ttx;
+
+  public:
+  XmlCloseTagPrinter(string s0, ToXml &ttx0)
+    : s(s0), ttx(ttx0)
+  {}
+
+  private:
+  explicit XmlCloseTagPrinter(XmlCloseTagPrinter &); // prohibit
+
+  public:
+  ~XmlCloseTagPrinter() {
+    ttx.newline();
+    ttx.out << "</" << s << ">";
+  }
+};
+
+// manage indentation depth
+class IncDec {
+  int &x;
+  public:
+  explicit IncDec(int &x0) : x(x0) {++x;}
+  private:
+  explicit IncDec(const IncDec&); // prohibit
+  public:
+  ~IncDec() {--x;}
+};
+
+#define printThing0(NAME, PREFIX, VALUE, FUNC) \
+do { \
+  out << #NAME "=\"" << PREFIX << FUNC(VALUE) << "\""; \
+} while(0)
+
+// quoted and escaped
+#define quoted_printThing0(NAME, PREFIX, VALUE, FUNC) \
+do { \
+  out << #NAME "=" << PREFIX << quoted(FUNC(VALUE)); \
+} while(0)
+
+#define printThing(NAME, PREFIX, VALUE, FUNC) \
+do { \
+  if (VALUE) { \
+    newline(); \
+    printThing0(NAME, PREFIX, VALUE, FUNC); \
+  } \
+} while(0)
+
+#define printPtr(BASE, MEM)    printThing(MEM, idPrefix((BASE)->MEM),     (BASE)->MEM,  addr)
+#define printPtrAST(BASE, MEM) printThing(MEM, idPrefixAST((BASE)->MEM),  (BASE)->MEM,  addrAST)
+// print an embedded thing
+#define printEmbed(BASE, MEM)  printThing(MEM, idPrefix(&((BASE)->MEM)),&((BASE)->MEM), addr)
+
+// for unions where the member name does not match the xml name and we
+// don't want the 'if'
+#define printPtrUnion(BASE, MEM, NAME) printThing0(NAME, idPrefix((BASE)->MEM), (BASE)->MEM, addr)
+// this is only used in one place
+#define printPtrASTUnion(BASE, MEM, NAME) printThing0(NAME, "AST", (BASE)->MEM, addrAST)
+
+#define printXml(NAME, VALUE) \
+do { \
+  newline(); \
+  printThing0(NAME, "", VALUE, ::toXml); \
+} while(0)
+
+#define quoted_printXml(NAME, VALUE) \
+do { \
+  newline(); \
+  quoted_printThing0(NAME, "", VALUE, ::toXml); \
+} while(0)
+
+#define printXml_bool(NAME, VALUE) \
+do { \
+  newline(); \
+  printThing0(NAME, "", VALUE, ::toXml_bool); \
+} while(0)
+
+#define printXml_int(NAME, VALUE) \
+do { \
+  newline(); \
+  printThing0(NAME, "", VALUE, ::toXml_int); \
+} while(0)
+
+#define printXml_SourceLoc(NAME, VALUE) \
+do { \
+  newline(); \
+  printThing0(NAME, "", VALUE, ::toXml_SourceLoc); \
+} while(0)
+
+#define printStrRef(FIELD, TARGET) \
+do { \
+  if (TARGET) { \
+    newline(); \
+    out << #FIELD "=" << quoted(TARGET); \
+  } \
+} while(0)
+
+// FIX: rename this; it also works for ArrayStacks
+#define travObjList0(OBJ, BASETYPE, FIELD, FIELDTYPE, ITER_MACRO, LISTKIND) \
+do { \
+  if (!printed(&OBJ)) { \
+    openTagWhole(List_ ##BASETYPE ##_ ##FIELD, &OBJ); \
+    ITER_MACRO(FIELDTYPE, const_cast<LISTKIND<FIELDTYPE>&>(OBJ), iter) { \
+      travListItem(iter.data()); \
+    } \
+  } \
+} while(0)
+
+#define travObjList_S(BASE, BASETYPE, FIELD, FIELDTYPE) \
+travObjList0(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, SFOREACH_OBJLIST_NC, SObjList)
+
+#define travObjList(BASE, BASETYPE, FIELD, FIELDTYPE) \
+travObjList0(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
+
+// Not tested; put the backslash back after the first line
+//  #define travArrayStack(BASE, BASETYPE, FIELD, FIELDTYPE)
+//  travObjList0(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, FOREACH_ARRAYSTACK_NC, ArrayStack)
+
+#define travObjList_standalone(OBJ, BASETYPE, FIELD, FIELDTYPE) \
+travObjList0(OBJ, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
+
+#define travPtrMap(BASE, BASETYPE, FIELD, FIELDTYPE) \
+do { \
+  if (!printed(&BASE->FIELD)) { \
+    openTagWhole(NameMap_ ##BASETYPE ##_ ##FIELD, &BASE->FIELD); \
+    for(PtrMap<char const, FIELDTYPE>::Iter iter(BASE->FIELD); \
+        !iter.isDone(); \
+        iter.adv()) { \
+      StringRef name = iter.key(); \
+      FIELDTYPE *var = iter.value(); \
+      openTag_NameMap_Item(name, var); \
+      trav(var); \
+    } \
+  } \
+} while(0)
+
+// NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
+// for the XmlCloseTagPrinter fires too early.
+#define openTag0(NAME, OBJ, SUFFIX) \
+  newline(); \
+  out << "<" #NAME << " _id=\"" << idPrefix(OBJ) << addr(OBJ) << "\"" SUFFIX; \
+  XmlCloseTagPrinter tagCloser(#NAME, *this); \
+  IncDec depthManager(this->depth)
+
+#define openTag(NAME, OBJ)      openTag0(NAME, OBJ, "")
+#define openTagWhole(NAME, OBJ) openTag0(NAME, OBJ, ">")
+
+// NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
+// for the XmlCloseTagPrinter fires too early.
+#define openTag_NameMap_Item(NAME, TARGET) \
+  newline(); \
+  out << "<_NameMap_Item" \
+      << " name=" << quoted(NAME) \
+      << " item=\"" << idPrefix(TARGET) << addr(TARGET) \
+      << "\">"; \
+  XmlCloseTagPrinter tagCloser("_NameMap_Item", *this); \
+  IncDec depthManager(this->depth)
+
+#define tagEnd \
+do { \
+  out << ">"; \
+} while(0)
+
+#define trav(TARGET) \
+do { \
+  if (TARGET) { \
+    toXml(TARGET); \
+  } \
+} while(0)
+
+// NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
+// for the XmlCloseTagPrinter fires too early.
+#define travListItem(TARGET) \
+  newline(); \
+  out << "<_List_Item item=\"" << idPrefix(TARGET) << addr(TARGET) << "\">"; \
+  XmlCloseTagPrinter tagCloser("_List_Item", *this); \
+  IncDec depthManager(this->depth); \
+  trav(TARGET)
+
+#define travAST(TARGET) \
+do { \
+  if (TARGET) { \
+    (TARGET)->traverse(*astVisitor); \
+  } \
+} while(0)
+
+
+// **** Support for XML de-serialization
+
+// from Xml for enums
+#define READENUM(X) else if (streq(str, #X)) out = (X)
+#define READFLAG(X) else if (streq(token, #X)) out |= (X)
+
+#define ul(FIELD, KIND) \
+  manager->unsatLinks.append \
+    (new UnsatLink((void*) &(obj->FIELD), \
+                   parseQuotedString(strValue), \
+                   (KIND), \
+                   false))
+
+#define ulEmbed(FIELD, KIND) \
+  manager->unsatLinks.append \
+    (new UnsatLink((void*) &(obj->FIELD), \
+                   parseQuotedString(strValue), \
+                   (KIND), \
+                   true))
+
+#define ulList(LIST, FIELD, KIND) \
+  manager->unsatLinks##LIST.append \
+    (new UnsatLink((void*) &(obj->FIELD), \
+                   parseQuotedString(strValue), \
+                   (KIND), \
+                   true))
+
+#define convertList(LISTTYPE, ITEMTYPE) \
+do { \
+  LISTTYPE<ITEMTYPE> *ret = reinterpret_cast<LISTTYPE<ITEMTYPE>*>(target); \
+  xassert(ret->isEmpty()); \
+  FOREACH_ASTLIST_NC(ITEMTYPE, reinterpret_cast<ASTList<ITEMTYPE>&>(*list), iter) { \
+    ret->prepend(iter.data()); \
+  } \
+  ret->reverse(); \
+} while(0)
+
+#define convertArrayStack(LISTTYPE, ITEMTYPE) \
+do { \
+  LISTTYPE<ITEMTYPE> *ret = reinterpret_cast<LISTTYPE<ITEMTYPE>*>(target); \
+  xassert(ret->isEmpty()); \
+  FOREACH_ASTLIST_NC(ITEMTYPE, reinterpret_cast<ASTList<ITEMTYPE>&>(*list), iter) { \
+    ret->push(*iter.data()); \
+  } \
+} while(0)
+
+#define convertNameMap(MAPTYPE, ITEMTYPE) \
+do { \
+  MAPTYPE<ITEMTYPE> *ret = reinterpret_cast<MAPTYPE<ITEMTYPE>*>(target); \
+  xassert(ret->isEmpty()); \
+  for(StringRefMap<ITEMTYPE>::Iter \
+        iter(reinterpret_cast<StringRefMap<ITEMTYPE>&>(*map)); \
+      !iter.isDone(); iter.adv()) { \
+    ret->add(iter.key(), iter.value()); \
+  } \
+} while(0)
 
 // there are 3 categories of kinds of Tags
 enum KindCategory {
@@ -30,6 +326,7 @@ enum KindCategory {
   KC_FakeList,
   KC_ObjList,
   KC_SObjList,
+  KC_ArrayStack,
   KC_Item,                      // an item entry in a list
 
   // name map
@@ -118,9 +415,10 @@ class XmlReader {
   virtual bool callOpAssignToEmbeddedObj(void *obj, int kind, void *target) = 0;
   virtual bool upcastToWantedType(void *obj, int kind, void **target, int targetKind) = 0;
   // all lists are stored as ASTLists; convert to the real list
-  virtual bool convertList2FakeList(ASTList<char> *list, int listKind, void **target) = 0;
-  virtual bool convertList2SObjList(ASTList<char> *list, int listKind, void **target) = 0;
-  virtual bool convertList2ObjList (ASTList<char> *list, int listKind, void **target) = 0;
+  virtual bool convertList2FakeList  (ASTList<char> *list, int listKind, void **target) = 0;
+  virtual bool convertList2SObjList  (ASTList<char> *list, int listKind, void **target) = 0;
+  virtual bool convertList2ObjList   (ASTList<char> *list, int listKind, void **target) = 0;
+  virtual bool convertList2ArrayStack(ASTList<char> *list, int listKind, void **target) = 0;
   // all name maps are stored as StringRefMaps; convert to the real name maps
   virtual bool convertNameMap2StringRefMap
     (StringRefMap<char> *map, int mapKind, void *target) = 0;
@@ -231,9 +529,10 @@ class XmlReaderManager {
   void callOpAssignToEmbeddedObj(void *obj, int kind, void *target);
   void *upcastToWantedType(void *obj, int kind, int targetKind);
   // convert lists
-  void *convertList2FakeList(ASTList<char> *list, int listKind);
-  void convertList2SObjList(ASTList<char> *list, int listKind, void **target);
-  void convertList2ObjList (ASTList<char> *list, int listKind, void **target);
+  void *convertList2FakeList (ASTList<char> *list, int listKind);
+  void convertList2SObjList  (ASTList<char> *list, int listKind, void **target);
+  void convertList2ObjList   (ASTList<char> *list, int listKind, void **target);
+  void convertList2ArrayStack(ASTList<char> *list, int listKind, void **target);
   // convert maps
   void convertNameMap2StringRefMap  (StringRefMap<char> *map, int listKind, void *target);
   void convertNameMap2StringSObjDict(StringRefMap<char> *map, int listKind, void *target);

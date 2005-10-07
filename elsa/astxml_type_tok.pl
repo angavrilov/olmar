@@ -64,7 +64,19 @@ __DATA__
 # File nodes
 File
 # name
+numChars
+numLines
+lineLengths
 LineLengths
+hashLines
+HashLineMap
+ppFname
+List_HashLineMap_directives
+directives
+HashLine
+ppLine
+origLine
+origFname
 
 # location attributes
 # loc

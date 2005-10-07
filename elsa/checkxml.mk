@@ -1552,6 +1552,20 @@ TEST3 += sg0001.cc
 
 TOCLEAN :=
 
+XML_FLAGS :=
+# see if the user wants us to indent the XML; default to off because
+# it is faster and smaller
+ifdef XML_INDENT
+XML_FLAGS += -tr xmlPrintAST-indent
+endif
+
+# something is not working about serializing source locations that go
+# through hashlines
+# ifdef XML_HASHLINE
+# else
+# XML_FLAGS += -tr nohashline
+# endif
+
 # **************** section A: there is no section A
 
 # **************** section B: check parsing commutes with xml serialization
@@ -1561,20 +1575,19 @@ TOCLEAN += outdir/*.B0.dp outdir/*.B0.dp_filtered outdir/*.B1.xml outdir/*.B1.xm
 
 # generate initial debug-print
 $(addsuffix .B0.dp,$(T1D)): outdir/%.B0.dp: in/%
-	$(PR) -tr no-elaborate,prettyPrint $< > $@
+	$(PR) -tr no-elaborate,prettyPrint $(XML_FLAGS) $< > $@
 $(addsuffix .B0.dp_filtered,$(T1D)): outdir/%.B0.dp_filtered: outdir/%.B0.dp
 	./chop_out < $< > $@
 
 # generate xml print
 $(addsuffix .B1.xml,$(T1D)): outdir/%.B1.xml: in/%
-# 	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-indent $< > $@
-	$(PR) -tr no-elaborate,xmlPrintAST $< > $@
+	$(PR) -tr no-elaborate,xmlPrintAST $(XML_FLAGS) $< > $@
 $(addsuffix .B1.xml_filtered,$(T1D)): outdir/%.B1.xml_filtered: outdir/%.B1.xml
 	./chop_out < $< > $@
 
 # parse xml and generate second debug-print
 $(addsuffix .B2.xml.dp,$(T1D)): outdir/%.B2.xml.dp: outdir/%.B1.xml_filtered
-	$(PR) -tr parseXml,no-elaborate,prettyPrint $< > $@
+	$(PR) -tr parseXml,no-elaborate,prettyPrint $(XML_FLAGS) $< > $@
 $(addsuffix .B2.xml.dp_filtered,$(T1D)): outdir/%.B2.xml.dp_filtered: outdir/%.B2.xml.dp
 	./chop_out < $< > $@
 
@@ -1584,6 +1597,8 @@ $(addsuffix .B3.diff,$(T1D)): outdir/%.B3.diff: outdir/%.B0.dp_filtered outdir/%
 # masks the return code and prevents make from stopping if there is a
 # difference
 	$(DIFF) $^ > $@
+# if it passes, delete the temporary files
+	rm -f outdir/$*.B?.*
 
 check_ast: $(addsuffix .B3.diff,$(T1D))
 
@@ -1594,22 +1609,21 @@ TOCLEAN += outdir/*.C0.dp outdir/*.C0.dp_filtered outdir/*.C1.xml outdir/*.C1.xm
 
 # generate initial debug-print
 $(addsuffix .C0.dp,$(T2D)): outdir/%.C0.dp: in/%
-	$(PR) -tr no-elaborate,printTypedAST $< > $@
+	$(PR) -tr no-elaborate,printTypedAST $(XML_FLAGS) $< > $@
 $(addsuffix .C0.dp_filtered,$(T2D)): outdir/%.C0.dp_filtered: outdir/%.C0.dp
-	./filter_loc < $< > $@
+	./filter_elsa_noise < $< > $@
 
 # generate xml print
 $(addsuffix .C1.xml,$(T2D)): outdir/%.C1.xml: in/%
-#	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-types,xmlPrintAST-indent $< > $@
-	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-types $< > $@
+	$(PR) -tr no-elaborate,xmlPrintAST,xmlPrintAST-types $(XML_FLAGS) $< > $@
 $(addsuffix .C1.xml_filtered,$(T2D)): outdir/%.C1.xml_filtered: outdir/%.C1.xml
 	./chop_out < $< > $@
 
 # parse xml and generate second debug-print
 $(addsuffix .C2.xml.dp,$(T2D)): outdir/%.C2.xml.dp: outdir/%.C1.xml_filtered
-	$(PR) -tr parseXml,no-typecheck,no-elaborate,printAST $< > $@
+	$(PR) -tr parseXml,no-typecheck,no-elaborate,printAST $(XML_FLAGS) $< > $@
 $(addsuffix .C2.xml.dp_filtered,$(T2D)): outdir/%.C2.xml.dp_filtered: outdir/%.C2.xml.dp
-	./filter_loc < $< > $@
+	./filter_elsa_noise < $< > $@
 
 # diff the two debug-prints
 $(addsuffix .C3.diff,$(T2D)): outdir/%.C3.diff: outdir/%.C0.dp_filtered outdir/%.C2.xml.dp_filtered
@@ -1617,22 +1631,26 @@ $(addsuffix .C3.diff,$(T2D)): outdir/%.C3.diff: outdir/%.C0.dp_filtered outdir/%
 # masks the return code and prevents make from stopping if there is a
 # difference
 	$(DIFF) $^ > $@
+# if it passes, delete the temporary files
+	rm -f outdir/$*.C?.*
 
-# parse xml and generate second xml print
-$(addsuffix .C4.xml,$(T2D)): outdir/%.C4.xml: outdir/%.C1.xml_filtered
-#	$(PR) -tr parseXml,no-typecheck,no-elaborate,xmlPrintAST,xmlPrintAST-types,xmlPrintAST-indent $< > $@
-	$(PR) -tr parseXml,no-typecheck,no-elaborate,xmlPrintAST,xmlPrintAST-types $< > $@
-$(addsuffix .C4.xml_filtered,$(T2D)): outdir/%.C4.xml_filtered: outdir/%.C4.xml
-	./chop_out < $< > $@
+# # parse xml and generate second xml print
+# $(addsuffix .C4.xml,$(T2D)): outdir/%.C4.xml: outdir/%.C1.xml_filtered
+# 	$(PR) -tr parseXml,no-typecheck,no-elaborate,xmlPrintAST,xmlPrintAST-types $(XML_FLAGS) $< > $@
+# $(addsuffix .C4.xml_filtered,$(T2D)): outdir/%.C4.xml_filtered: outdir/%.C4.xml
+# 	./chop_out < $< > $@
 
-# diff the two xml-prints
-$(addsuffix .C5.diff,$(T2D)): outdir/%.C5.diff: outdir/%.C1.xml_filtered outdir/%.C4.xml_filtered
-# NOTE: do not, say, replace this with a pipe into 'tee' because that
-# masks the return code and prevents make from stopping if there is a
-# difference
-	./filter_ids < $(filter %.C1.xml_filtered,$^) > outdir/a1.xml
-	./filter_ids < $(filter %.C4.xml_filtered,$^) > outdir/a4.xml
-	$(DIFF) outdir/a1.xml outdir/a4.xml > $@
+# # diff the two xml-prints
+# $(addsuffix .C5.diff,$(T2D)): outdir/%.C5.diff: outdir/%.C1.xml_filtered outdir/%.C4.xml_filtered
+# # NOTE: do not, say, replace this with a pipe into 'tee' because that
+# # masks the return code and prevents make from stopping if there is a
+# # difference
+# 	./filter_ids < $(filter %.C1.xml_filtered,$^) > outdir/a1.xml
+# 	./filter_ids < $(filter %.C4.xml_filtered,$^) > outdir/a4.xml
+# 	$(DIFF) outdir/a1.xml outdir/a4.xml > $@
+# # if it passes, delete the temporary files
+# $(error finish this)
+# 	rm -f $^ $@
 
 .PHONY: check_type
 check_type: $(addsuffix .C3.diff,$(T2D))
@@ -1644,39 +1662,39 @@ check_type: $(addsuffix .C3.diff,$(T2D))
 
 # **************** section D: check lowering commutes with xml serialization
 
-# NOTE: this is not implemented.
+# # NOTE: this is not implemented.
+# $(error this is not implemented)
 
-T3D := $(addprefix outdir/,$(TEST3))
-TOCLEAN += outdir/*.D0.dp outdir/*.D0.dp_filtered outdir/*.D1.xml outdir/*.D1.xml_filtered outdir/*.D2.xml.dp outdir/*.D2.xml.dp_filtered outdir/*.D3.diff outdir/*.D4.xml
+# T3D := $(addprefix outdir/,$(TEST3))
+# TOCLEAN += outdir/*.D0.dp outdir/*.D0.dp_filtered outdir/*.D1.xml outdir/*.D1.xml_filtered outdir/*.D2.xml.dp outdir/*.D2.xml.dp_filtered outdir/*.D3.diff outdir/*.D4.xml
 
-# generate initial debug-print
-$(addsuffix .D0.dp,$(T3D)): outdir/%.D0.dp: in/%
-	$(PR) -tr prettyPrint $< > $@
-$(addsuffix .D0.dp_filtered,$(T3D)): outdir/%.D0.dp_filtered: outdir/%.D0.dp
-	./chop_out < $< > $@
+# # generate initial debug-print
+# $(addsuffix .D0.dp,$(T3D)): outdir/%.D0.dp: in/%
+# 	$(PR) -tr prettyPrint $(XML_FLAGS) $< > $@
+# $(addsuffix .D0.dp_filtered,$(T3D)): outdir/%.D0.dp_filtered: outdir/%.D0.dp
+# 	./chop_out < $< > $@
 
-# generate xml print
-$(addsuffix .D1.xml,$(T3D)): outdir/%.D1.xml: in/%
-# 	$(PR) -tr xmlPrintAST,xmlPrintAST-types,xmlPrintAST-lowered,xmlPrintAST-indent $< > $@
-	$(PR) -tr xmlPrintAST,xmlPrintAST-types,xmlPrintAST-lowered $< > $@
-$(addsuffix .D1.xml_filtered,$(T3D)): outdir/%.D1.xml_filtered: outdir/%.D1.xml
-	./chop_out < $< > $@
+# # generate xml print
+# $(addsuffix .D1.xml,$(T3D)): outdir/%.D1.xml: in/%
+# 	$(PR) -tr xmlPrintAST,xmlPrintAST-types,xmlPrintAST-lowered $(XML_FLAGS) $< > $@
+# $(addsuffix .D1.xml_filtered,$(T3D)): outdir/%.D1.xml_filtered: outdir/%.D1.xml
+# 	./chop_out < $< > $@
 
-# parse xml and generate second debug-print
-$(addsuffix .D2.xml.dp,$(T3D)): outdir/%.D2.xml.dp: outdir/%.D1.xml_filtered
-	$(PR) -tr parseXml,no-typecheck,no-elaborate,prettyPrint $< > $@
-$(addsuffix .D2.xml.dp_filtered,$(T3D)): outdir/%.D2.xml.dp_filtered: outdir/%.D2.xml.dp
-	./chop_out < $< > $@
+# # parse xml and generate second debug-print
+# $(addsuffix .D2.xml.dp,$(T3D)): outdir/%.D2.xml.dp: outdir/%.D1.xml_filtered
+# 	$(PR) -tr parseXml,no-typecheck,no-elaborate,prettyPrint $(XML_FLAGS) $< > $@
+# $(addsuffix .D2.xml.dp_filtered,$(T3D)): outdir/%.D2.xml.dp_filtered: outdir/%.D2.xml.dp
+# 	./chop_out < $< > $@
 
-# diff the two debug-prints
-$(addsuffix .D3.diff,$(T3D)): outdir/%.D3.diff: outdir/%.D0.dp_filtered outdir/%.D2.xml.dp_filtered
-# NOTE: do not, say, replace this with a pipe into 'tee' because that
-# masks the return code and prevents make from stopping if there is a
-# difference
-	$(DIFF) $^ > $@
+# # diff the two debug-prints
+# $(addsuffix .D3.diff,$(T3D)): outdir/%.D3.diff: outdir/%.D0.dp_filtered outdir/%.D2.xml.dp_filtered
+# # NOTE: do not, say, replace this with a pipe into 'tee' because that
+# # masks the return code and prevents make from stopping if there is a
+# # difference
+# 	$(DIFF) $^ > $@
 
-.PHONY: check_lower
-check_lower: $(addsuffix .D3.diff,$(T3D))
+# .PHONY: check_lower
+# check_lower: $(addsuffix .D3.diff,$(T3D))
 
 # ****************
 

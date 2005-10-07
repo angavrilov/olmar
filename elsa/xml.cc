@@ -6,9 +6,37 @@
 #include "exc.h"                // xBase
 
 
+ToXml::ToXml(ostream &out0, int &depth0, bool indent0)
+  : out(out0)
+  , depth(depth0)
+  , indent(indent0)
+{}
+
+void ToXml::newline() {
+  out << "\n";
+  // FIX: turning off indentation makes the output go way faster, so
+  // this loop is worth optimizing, probably by printing chunks of 10
+  // if you can or something logarithmic like that.
+  if (indent) {
+    for (int i=0; i<depth; ++i) cout << " ";
+  }
+}
+
+
+// manage identity
+string idPrefixAST(void const * const) {
+  return "AST";
+}
+
+void const *addrAST(void const * const obj) {
+  return reinterpret_cast<void const *>(obj);
+}
+
+
 UnsatLink::UnsatLink(void *ptr0, string id0, int kind0, bool embedded0)
   : ptr(ptr0), id(id0), kind(kind0), embedded(embedded0)
 {};
+
 
 void XmlReader::setManager(XmlReaderManager *manager0) {
   xassert(!manager);
@@ -168,7 +196,8 @@ void XmlReaderManager::parseOneTagOrDatum() {
           (listKindCat == KC_ASTList
            || listKindCat == KC_FakeList
            || listKindCat == KC_ObjList
-           || listKindCat == KC_SObjList)
+           || listKindCat == KC_SObjList
+           || listKindCat == KC_ArrayStack)
         )) {
       userError("a _List_Item tag not immediately under a List");
     }
@@ -458,6 +487,8 @@ void XmlReaderManager::satisfyLinks_Nodes() {
 //        cout << "unsatisfied node link: " << ul->id << endl;
     }
   }
+  // remove the links
+  unsatLinks.deleteAll();
 }
 
 void XmlReaderManager::satisfyLinks_Lists() {
@@ -550,8 +581,26 @@ void XmlReaderManager::satisfyLinks_Lists() {
       delete obj;
       break;
     }
+
+    case KC_ArrayStack: {
+      // Convert the ASTList we used to store the ArrayStack into a
+      // real ArrayStack and hook in all of the pointers.  This is
+      // type-specific, so generated code must do it that can switch
+      // on the templatized type of the ObjList.
+      convertList2ArrayStack(obj, ul->kind, (void**) (ul->ptr) );
+      // Make the list dis-own all of its contents so it doesn't
+      // delete them when we delete it.  Yes, I should have used a
+      // non-owning constant-time-append list.
+      obj->removeAll_dontDelete();
+      // delete the ASTList
+      delete obj;
+      break;
+    }
+
     }
   }
+  // remove the links
+  unsatLinks_List.deleteAll();
 }
 
 void XmlReaderManager::satisfyLinks_Maps() {
@@ -592,6 +641,8 @@ void XmlReaderManager::satisfyLinks_Maps() {
 
     }
   }
+  // remove the links
+  unsatLinks_NameMap.deleteAll();
 }
 
 //  void XmlReaderManager::satisfyLinks_Bidirectional() {
@@ -666,6 +717,15 @@ void XmlReaderManager::convertList2ObjList(ASTList<char> *list, int listKind, vo
     }
   }
   THROW(xBase(stringc << "no converter for ObjList type"));
+}
+
+void XmlReaderManager::convertList2ArrayStack(ASTList<char> *list, int listKind, void **target) {
+  FOREACH_ASTLIST_NC(XmlReader, readers, iter) {
+    if (iter.data()->convertList2ArrayStack(list, listKind, target)) {
+      return;
+    }
+  }
+  THROW(xBase(stringc << "no converter for ArrayStack type"));
 }
 
 void XmlReaderManager::convertNameMap2StringRefMap

@@ -26,6 +26,7 @@
 #include "integrity.h"    // IntegrityVisitor
 #include "strutil.h"      // quoted()
 #if XML
+  #include "file_xml.h"     // FileToXml
   #include "main_astxmlparse.h"// astxmlparse
   #include "cc_type_xml.h"  // TypeToXml
 #endif // XML
@@ -332,40 +333,6 @@ char *myProcessArgs(int argc, char **argv, char const *additionalInfo)
   }
 
   return argv[1];
-}
-
-
-void printPropertiesOfFiles(ostream &out, bool indent, ObjList<SourceLocManager::File> &files)
-{
-  FOREACH_OBJLIST_NC(SourceLocManager::File, files, iter) {
-    SourceLocManager::File *file = iter.data();
-    cout << "\n";
-    out << "<File name=" << quoted(file->name) << ">";
-
-    cout << "\n";
-    if (indent) cout << "  ";
-    cout << "<LineLengths>";
-
-    // Note: This simple whitespace-separated list is the suggested
-    // output format for lists of numbers in XML:
-    // http://www.w3.org/TR/xmlschema-0/primer.html#ListDt
-    //
-    // Note also that I do not bother to indent blocks of data between
-    // tags, just the tags themselves.
-    unsigned char *lineLengths0 = file->serializationOnly_get_lineLengths();
-    for (int i=0; i<file->serializationOnly_get_lineLengthsSize(); ++i) {
-      if (i%20 == 0) cout << "\n";
-      else cout << " ";
-      cout << static_cast<int>(lineLengths0[i]);
-    }
-
-    cout << "\n";
-    if (indent) cout << "  ";
-    cout << "</LineLengths>";
-
-    cout << "\n";
-    out << "</File>";
-  }
 }
 
 
@@ -816,7 +783,11 @@ void doit(int argc, char **argv)
     int depth = 0;              // shared depth counter between printers
     cout << "---- START ----" << endl;
 
-    printPropertiesOfFiles(cout, indent, sourceLocManager->serializationOnly_get_files());
+    // serialize Files
+    FileToXml fileToXml(cout, depth, indent);
+    fileToXml.toXml(sourceLocManager->serializationOnly_get_files());
+
+    // serialize AST and maybe Types
     if (tracingSys("xmlPrintAST-types")) {
       TypeToXml xmlTypeVis(cout, depth, indent);
       ToXmlASTVisitor_Types xmlVis_Types(xmlTypeVis, cout, depth, indent);

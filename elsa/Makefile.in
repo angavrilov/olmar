@@ -275,6 +275,7 @@ CCPARSE_OBJS := \
   cc_err.o \
   cc_type.o \
   cc_type_xml.o \
+  file_xml.o \
   stdconv.o \
   implconv.o \
   overload.o \

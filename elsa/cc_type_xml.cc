@@ -13,12 +13,6 @@
 
 // to/from Xml for enums
 
-#define PRINTENUM(X) case X: return #X
-#define READENUM(X) else if (streq(str, #X)) out = (X)
-
-#define PRINTFLAG(X) if (id & (X)) b << #X
-#define READFLAG(X) else if (streq(token, #X)) out |= (X)
-
 char const *toXml(CompoundType::Keyword id) {
   switch(id) {
   default: xfailure("bad enum"); break;
@@ -125,22 +119,13 @@ void fromXml(STemplateArgument::Kind &out, rostring str) {
 }
 
 
-// **** macros and functions to assist in serializing Type System
-// annotations
+// -------------------- TypeToXml -------------------
 
-string idPrefixAST(void const * const) {return "AST";}
-void const *addrAST(void const * const obj) {return reinterpret_cast<void const *>(obj);}
-
-#define identity0(PREFIX, NAME, TEMPL) \
-TEMPL char const *idPrefix(NAME const * const) {return #PREFIX;} \
-TEMPL void const *addr(NAME const * const obj) {return reinterpret_cast<void const *>(obj);} \
-TEMPL bool TypeToXml::printed(NAME const * const obj) { \
-  if (printedSet ##PREFIX.contains(obj)) return true; \
-  printedSet ##PREFIX.add(obj); \
-  return false; \
-}
-#define identity(PREFIX, NAME) identity0(PREFIX, NAME, )
-#define identityTempl(PREFIX, NAME) identity0(PREFIX, NAME, template<class T>)
+// printing of types is idempotent
+SObjSet<void const *> printedSetTY;
+SObjSet<void const *> printedSetBC;
+SObjSet<void const *> printedSetOL;
+SObjSet<void const *> printedSetNM;
 
 identity(TY, Type)
 identity(TY, CompoundType)
@@ -170,7 +155,7 @@ void const *addr(NAME const * const obj) { \
   } \
   return reinterpret_cast<void const *>(obj); \
 } \
-bool TypeToXml::printed(NAME const * const obj) { \
+bool printed(NAME const * const obj) { \
   if (CompoundType const * const cpd = dynamic_cast<CompoundType const * const>(obj)) { \
     return printed(cpd); \
   } \
@@ -185,205 +170,10 @@ bool TypeToXml::printed(NAME const * const obj) { \
 identityCpdSuper(TY, AtomicType)
 identityCpdSuper(TY, Scope)
 
-#undef identity0
-#undef identity
-#undef identityTempl
-#undef identityCpdSuper
-
-// manage indentation depth
-class IncDec {
-  int &x;
-  public:
-  explicit IncDec(int &x0) : x(x0) {++x;}
-  private:
-  explicit IncDec(const IncDec&); // prohibit
-  public:
-  ~IncDec() {--x;}
-};
-
-// indent and print something when exiting the scope
-class TypeToXml_CloseTagPrinter {
-  string s;                     // NOTE: don't make into a string ref; it must make a copy
-  TypeToXml &ttx;
-  public:
-  explicit TypeToXml_CloseTagPrinter(string s0, TypeToXml &ttx0)
-    : s(s0), ttx(ttx0)
-  {}
-  private:
-  explicit TypeToXml_CloseTagPrinter(TypeToXml_CloseTagPrinter &); // prohibit
-  public:
-  ~TypeToXml_CloseTagPrinter() {
-    ttx.newline();
-    ttx.out << "</" << s << ">";
-  }
-};
-
-
-#define printThing0(NAME, PREFIX, VALUE, FUNC) \
-do { \
-  out << #NAME "=\"" << PREFIX << FUNC(VALUE) << "\""; \
-} while(0)
-
-// quoted and escaped
-#define quoted_printThing0(NAME, PREFIX, VALUE, FUNC) \
-do { \
-  out << #NAME "=" << PREFIX << quoted(FUNC(VALUE)); \
-} while(0)
-
-#define printThing(NAME, PREFIX, VALUE, FUNC) \
-do { \
-  if (VALUE) { \
-    newline(); \
-    printThing0(NAME, PREFIX, VALUE, FUNC); \
-  } \
-} while(0)
-
-#define printPtr(BASE, MEM)    printThing(MEM, idPrefix((BASE)->MEM),     (BASE)->MEM,  addr)
-#define printPtrAST(BASE, MEM) printThing(MEM, idPrefixAST((BASE)->MEM),  (BASE)->MEM,  addrAST)
-// print an embedded thing
-#define printEmbed(BASE, MEM)  printThing(MEM, idPrefix(&((BASE)->MEM)),&((BASE)->MEM), addr)
-
-// for unions where the member name does not match the xml name and we
-// don't want the 'if'
-#define printPtrUnion(BASE, MEM, NAME) printThing0(NAME, idPrefix((BASE)->MEM), (BASE)->MEM, addr)
-// this is only used in one place
-#define printPtrASTUnion(BASE, MEM, NAME) printThing0(NAME, "AST", (BASE)->MEM, addrAST)
-
-#define printXml(NAME, VALUE) \
-do { \
-  newline(); \
-  printThing0(NAME, "", VALUE, ::toXml); \
-} while(0)
-
-#define quoted_printXml(NAME, VALUE) \
-do { \
-  newline(); \
-  quoted_printThing0(NAME, "", VALUE, ::toXml); \
-} while(0)
-
-#define printXml_bool(NAME, VALUE) \
-do { \
-  newline(); \
-  printThing0(NAME, "", VALUE, ::toXml_bool); \
-} while(0)
-
-#define printXml_int(NAME, VALUE) \
-do { \
-  newline(); \
-  printThing0(NAME, "", VALUE, ::toXml_int); \
-} while(0)
-
-#define printXml_SourceLoc(NAME, VALUE) \
-do { \
-  newline(); \
-  printThing0(NAME, "", VALUE, ::toXml_SourceLoc); \
-} while(0)
-
-#define printStrRef(FIELD, TARGET) \
-do { \
-  if (TARGET) { \
-    newline(); \
-    out << #FIELD "=" << quoted(TARGET); \
-  } \
-} while(0)
-
-#define travObjList0(OBJ, BASETYPE, FIELD, FIELDTYPE, ITER_MACRO, LISTKIND) \
-do { \
-  if (!printed(&OBJ)) { \
-    openTagWhole(List_ ##BASETYPE ##_ ##FIELD, &OBJ); \
-    ITER_MACRO(FIELDTYPE, const_cast<LISTKIND<FIELDTYPE>&>(OBJ), iter) { \
-      travListItem(iter.data()); \
-    } \
-  } \
-} while(0)
-
-#define travObjList_S(BASE, BASETYPE, FIELD, FIELDTYPE) \
-travObjList0(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, SFOREACH_OBJLIST_NC, SObjList)
-#define travObjList(BASE, BASETYPE, FIELD, FIELDTYPE) \
-travObjList0(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
-#define travObjList_standalone(OBJ, BASETYPE, FIELD, FIELDTYPE) \
-travObjList0(OBJ, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
-
-#define travPtrMap(BASE, BASETYPE, FIELD, FIELDTYPE) \
-do { \
-  if (!printed(&BASE->FIELD)) { \
-    openTagWhole(NameMap_ ##BASETYPE ##_ ##FIELD, &BASE->FIELD); \
-    for(PtrMap<char const, FIELDTYPE>::Iter iter(BASE->FIELD); \
-        !iter.isDone(); \
-        iter.adv()) { \
-      StringRef name = iter.key(); \
-      FIELDTYPE *var = iter.value(); \
-      openTag_NameMap_Item(name, var); \
-      trav(var); \
-    } \
-  } \
-} while(0)
-
-// NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
-// for the TypeToXml_CloseTagPrinter fires too early.
-#define openTag0(NAME, OBJ, SUFFIX) \
-  newline(); \
-  out << "<" #NAME << " _id=\"" << idPrefix(OBJ) << addr(OBJ) << "\"" SUFFIX; \
-  TypeToXml_CloseTagPrinter tagCloser(#NAME, *this); \
-  IncDec depthManager(this->depth)
-
-#define openTag(NAME, OBJ)      openTag0(NAME, OBJ, "")
-#define openTagWhole(NAME, OBJ) openTag0(NAME, OBJ, ">")
-
-// NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
-// for the TypeToXml_CloseTagPrinter fires too early.
-#define openTag_NameMap_Item(NAME, TARGET) \
-  newline(); \
-  out << "<_NameMap_Item" \
-      << " name=" << quoted(NAME) \
-      << " item=\"" << idPrefix(TARGET) << addr(TARGET) \
-      << "\">"; \
-  TypeToXml_CloseTagPrinter tagCloser("_NameMap_Item", *this); \
-  IncDec depthManager(this->depth)
-
-#define tagEnd \
-do { \
-  out << ">"; \
-} while(0)
-
-#define trav(TARGET) \
-do { \
-  if (TARGET) { \
-    toXml(TARGET); \
-  } \
-} while(0)
-
-// NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
-// for the TypeToXml_CloseTagPrinter fires too early.
-#define travListItem(TARGET) \
-  newline(); \
-  out << "<_List_Item item=\"" << idPrefix(TARGET) << addr(TARGET) << "\">"; \
-  TypeToXml_CloseTagPrinter tagCloser("_List_Item", *this); \
-  IncDec depthManager(this->depth); \
-  trav(TARGET)
-
-#define travAST(TARGET) \
-do { \
-  if (TARGET) { \
-    (TARGET)->traverse(*astVisitor); \
-  } \
-} while(0)
-
-
-// -------------------- TypeToXml -------------------
 TypeToXml::TypeToXml(ostream &out0, int &depth0, bool indent0)
-  : out(out0)
-  , depth(depth0)
-  , indent(indent0)
+  : ToXml(out0, depth0, indent0)
   , astVisitor(NULL)
 {}
-
-void TypeToXml::newline() {
-  out << "\n";
-  if (indent) {
-    for (int i=0; i<depth; ++i) cout << " ";
-  }
-}
 
 // This one occurs in the AST, so it has to have its own first-class
 // method.
@@ -952,27 +742,6 @@ void TypeToXml::toXml_TemplateParams_subtags(TemplateParams *tp) {
 
 // -------------------- TypeXmlReader -------------------
 
-#define convertList(LISTTYPE, ITEMTYPE) \
-do { \
-  LISTTYPE<ITEMTYPE> *ret = reinterpret_cast<LISTTYPE<ITEMTYPE>*>(target); \
-  xassert(ret->isEmpty()); \
-  FOREACH_ASTLIST_NC(ITEMTYPE, reinterpret_cast<ASTList<ITEMTYPE>&>(*list), iter) { \
-    ret->prepend(iter.data()); \
-  } \
-  ret->reverse(); \
-} while(0)
-
-#define convertNameMap(MAPTYPE, ITEMTYPE) \
-do { \
-  MAPTYPE<ITEMTYPE> *ret = reinterpret_cast<MAPTYPE<ITEMTYPE>*>(target); \
-  xassert(ret->isEmpty()); \
-  for(StringRefMap<ITEMTYPE>::Iter \
-        iter(reinterpret_cast<StringRefMap<ITEMTYPE>&>(*map)); \
-      !iter.isDone(); iter.adv()) { \
-    ret->add(iter.key(), iter.value()); \
-  } \
-} while(0)
-
 bool TypeXmlReader::kind2kindCat(int kind, KindCategory *kindCat) {
   switch(kind) {
   default: return false;        // we don't know this kind
@@ -1250,6 +1019,11 @@ bool TypeXmlReader::convertList2ObjList(ASTList<char> *list, int listKind, void 
   return true;
 }
 
+bool TypeXmlReader::convertList2ArrayStack(ASTList<char> *list, int listKind, void **target) {
+  xfailure("should not be called during Type parsing there are no ArrayStacks in the Type System");
+  return false;
+}
+
 bool TypeXmlReader::convertNameMap2StringRefMap
   (StringRefMap<char> *map, int mapKind, void *target) {
   xassert(map);
@@ -1413,27 +1187,6 @@ bool TypeXmlReader::registerAttribute(void *target, int kind, int attr, char con
   return true;
 }
 
-#define ul(FIELD, KIND) \
-  manager->unsatLinks.append \
-    (new UnsatLink((void*) &(obj->FIELD), \
-                   parseQuotedString(strValue), \
-                   (KIND), \
-                   false))
-
-#define ulEmbed(FIELD, KIND) \
-  manager->unsatLinks.append \
-    (new UnsatLink((void*) &(obj->FIELD), \
-                   parseQuotedString(strValue), \
-                   (KIND), \
-                   true))
-
-#define ulList(LIST, FIELD, KIND) \
-  manager->unsatLinks##LIST.append \
-    (new UnsatLink((void*) &(obj->FIELD), \
-                   parseQuotedString(strValue), \
-                   (KIND), \
-                   true))
-
 void TypeXmlReader::registerAttr_CVAtomicType(CVAtomicType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a CVAtomicType"); break;
@@ -1497,8 +1250,7 @@ void TypeXmlReader::registerAttr_PointerToMemberType
 void TypeXmlReader::registerAttr_Variable(Variable *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a Variable"); break;
-  case XTOK_loc:                // throw it away for now; FIX: parse it
-    break;
+  case XTOK_loc: fromXml_SourceLoc(obj->loc, parseQuotedString(strValue)); break;
   case XTOK_name: obj->name = manager->strTable(parseQuotedString(strValue)); break;
   case XTOK_type: ul(type, XTOK_Type); break;
   case XTOK_flags:
@@ -1648,8 +1400,7 @@ bool TypeXmlReader::registerAttr_Scope_super(Scope *obj, int attr, char const *s
   case XTOK_namespaceVar: ul(namespaceVar, XTOK_Variable); break;
   case XTOK_templateParams: ulList(_List, templateParams, XTOK_List_Scope_templateParams); break;
   case XTOK_curCompound: ul(curCompound, XTOK_CompoundType); break;
-  case XTOK_curLoc:             // throw it away for now; FIX: parse it
-    break;
+  case XTOK_curLoc: fromXml_SourceLoc(obj->curLoc, parseQuotedString(strValue)); break;
   }
   return true;                  // found it
 }
@@ -1738,8 +1489,8 @@ void TypeXmlReader::registerAttr_TemplateInfo(TemplateInfo *obj, int attr, char 
     ulList(_List, specializations, XTOK_List_TemplateInfo_specializations); break;
   case XTOK_arguments:
     ulList(_List, arguments, XTOK_List_TemplateInfo_arguments); break;
-  case XTOK_instLoc:            // throw it away for now; FIX: parse it
-    break;
+  case XTOK_instLoc:
+    fromXml_SourceLoc(obj->instLoc, parseQuotedString(strValue)); break;
   case XTOK_partialInstantiationOf:
     ul(partialInstantiationOf, XTOK_Variable); break;
   case XTOK_partialInstantiations:

@@ -23,59 +23,31 @@ void fromXml(FunctionFlags &out, rostring str);
 
 // -------------------- TypeToXml -------------------
 
-// print the Type tree out as XML
-class TypeToXml {
-  protected:
-  ostream &out;                 // output stream to which to print
-  int &depth;                   // ref so we can share our indentation depth with other printers
-  bool indent;                  // should we print indentation?
+identityB(Type);
+identityB(AtomicType);
+identityB(CompoundType);
+identityB(FunctionType::ExnSpec);
+identityB(EnumType::Value);
+identityB(BaseClass);
+identityB(Scope);
+identityB(Variable);
+identityB(OverloadSet);
+identityB(STemplateArgument);
+identityB(TemplateInfo);
+identityB(InheritedTemplateParams);
+identityBTempl(ObjList<T>);
+identityBTempl(SObjList<T>);
+identityBTempl(StringRefMap<T>);
+identityBTempl(StringObjDict<T>);
 
+// print the Type tree out as XML
+class TypeToXml : public ToXml {
   public:
   ASTVisitor *astVisitor;       // for launching sub-traversals of AST we encounter in the Types
-
-  protected:
-  // printing of types is idempotent
-  SObjSet<void const *> printedSetTY;
-  SObjSet<void const *> printedSetBC;
-  SObjSet<void const *> printedSetOL;
-  SObjSet<void const *> printedSetNM;
 
   public:
   TypeToXml(ostream &out0, int &depth0, bool indent0=false);
   virtual ~TypeToXml() {}
-
-  private:
-  // print a newline and indent if the user wants indentation; NOTE:
-  // the convention is that you don't print a newline until you are
-  // *sure* you have something to print that goes onto the next line;
-  // that is, most lines do *not* end in a newline
-  void newline();
-  friend class TypeToXml_CloseTagPrinter;
-
-#define identity0(NAME, TEMPL) TEMPL bool printed(NAME const * const obj)
-#define identity(NAME) identity0(NAME, )
-#define identityTempl(NAME) identity0(NAME, template<class T>)
-
-  identity(Type);
-  identity(AtomicType);
-  identity(CompoundType);
-  identity(FunctionType::ExnSpec);
-  identity(EnumType::Value);
-  identity(BaseClass);
-  identity(Scope);
-  identity(Variable);
-  identity(OverloadSet);
-  identity(STemplateArgument);
-  identity(TemplateInfo);
-  identity(InheritedTemplateParams);
-  identityTempl(ObjList<T>);
-  identityTempl(SObjList<T>);
-  identityTempl(StringRefMap<T>);
-  identityTempl(StringObjDict<T>);
-
-#undef identity0
-#undef identity
-#undef identityTempl
 
   public:
   // in the AST
@@ -141,9 +113,10 @@ class TypeXmlReader : public XmlReader {
   virtual bool callOpAssignToEmbeddedObj(void *obj, int kind, void *target);
   virtual bool upcastToWantedType(void *obj, int kind, void **target, int targetKind);
   // all lists are stored as ASTLists; convert to the real list
-  virtual bool convertList2FakeList(ASTList<char> *list, int listKind, void **target);
-  virtual bool convertList2SObjList(ASTList<char> *list, int listKind, void **target);
-  virtual bool convertList2ObjList (ASTList<char> *list, int listKind, void **target);
+  virtual bool convertList2FakeList  (ASTList<char> *list, int listKind, void **target);
+  virtual bool convertList2SObjList  (ASTList<char> *list, int listKind, void **target);
+  virtual bool convertList2ObjList   (ASTList<char> *list, int listKind, void **target);
+  virtual bool convertList2ArrayStack(ASTList<char> *list, int listKind, void **target);
   // all name maps are stored as StringRefMaps; convert to the real name maps
   virtual bool convertNameMap2StringRefMap
     (StringRefMap<char> *map, int mapKind, void *target);
