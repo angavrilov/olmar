@@ -340,10 +340,22 @@ public:      // funcs
     { xassert(!isStatic(base)); return toLoc(toInt(base) + textLen); }
 
   // decode
+  public:
+  void decodeOffset_nohashline(SourceLoc loc, char const *&filename, int &charOffset);
   void decodeOffset(SourceLoc loc, char const *&filename, int &charOffset);
+  private:
+  void decodeOffset0(SourceLoc loc, char const *&filename, int &charOffset,
+                     bool localUseHashLines);
+
+  public:
+  void decodeLineCol_nohashline(SourceLoc loc, char const *&filename, int &line, int &col);
   void decodeLineCol(SourceLoc loc, char const *&filename, int &line, int &col);
+  private:
+  void decodeLineCol0(SourceLoc loc, char const *&filename, int &line, int &col,
+                      bool localUseHashLines);
 
   // more specialized decode
+  public:
   char const *getFile(SourceLoc loc);
   int getOffset(SourceLoc loc);
   int getLine(SourceLoc loc);
@@ -354,8 +366,13 @@ public:      // funcs
     { return getFile(fname); }
 
   // render as string in "file:line:col" format
+  public:
+  string getString_nohashline(SourceLoc loc);
   string getString(SourceLoc loc);
+  private:
+  string getString0(SourceLoc loc, bool localUseHashLines);
 
+  public:
   // "line:col" format
   string getLCString(SourceLoc loc);
 
