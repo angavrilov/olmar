@@ -53,7 +53,6 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
 {
   // dsw: I want a way to make sure that we never look for a file.
   xassert(sourceLocManager->mayOpenFiles);
-  breaker();
 
   // open in binary mode since it's too unpredictable whether
   // the lower level (e.g. cygwin) will do CRLF translation,
