@@ -1,7 +1,7 @@
 // file_xml.cc            see license.txt for copyright and terms of use
 
 #include "file_xml.h"           // this module
-#include "strutil.h"            // quoted
+#include "asthelp.h"            // xmlAttrQuote()
 #include "xml.h"                // xml serialization macro library
 #include "astxml_tokens.h"      // XTOK_*
 #include "sobjset.h"            // SObjSet
@@ -43,7 +43,7 @@ void FileToXml::toXml(SourceLocManager::File *file)
   // FIX: this special situation just breaks all the macros so we do
   // it manually
   newline();
-  out << "lineLengths=\"FI" << reinterpret_cast<void const *>(lineLengths) << "\"";
+  out << "lineLengths=" << xmlAttrQuote(xmlPrintPointer("FI", lineLengths));
 
   printPtr(file, hashLines);
   tagEnd;
@@ -68,7 +68,7 @@ void FileToXml::toXml_lineLengths(SourceLocManager::File *file)
   // LineLengths to be their own class.
 //    openTagWhole(LineLengths, lineLengths);
   newline();
-  out << "<LineLengths _id=\"FI" << reinterpret_cast<void const *>(lineLengths) << "\">";
+  out << "<LineLengths _id=" << xmlAttrQuote(xmlPrintPointer("FI", lineLengths)) << ">";
   XmlCloseTagPrinter tagCloser("LineLengths", *this);
   IncDec depthManager(this->depth);
 
@@ -101,7 +101,7 @@ void FileToXml::toXml(HashLineMap *hashLines)
 //    printEmbed(hashLines, directives);
   ArrayStack<HashLineMap::HashLine> &directives = hashLines->serializationOnly_get_directives();
   newline();
-  out << "directives=\"FI" << addr(&directives) << "\"";
+  out << "directives=" << xmlAttrQuote(xmlPrintPointer("FI", addr(&directives)));
   tagEnd;
 
   // **** subtags
@@ -185,9 +185,9 @@ bool FileXmlReader::registerAttribute(void *target0, int kind, int attr, char co
     SourceLocManager::FileData *obj = (SourceLocManager::FileData*)target0;
     switch(attr) {
     default: userError("illegal attribute for a File tag"); break;
-    case XTOK_name: obj->name = manager->strTable(parseQuotedString(strValue)); break;
-    case XTOK_numChars: fromXml_int(obj->numChars, parseQuotedString(strValue)); break;
-    case XTOK_numLines: fromXml_int(obj->numLines, parseQuotedString(strValue)); break;
+    case XTOK_name: obj->name = manager->strTable(xmlAttrDeQuote(strValue)); break;
+    case XTOK_numChars: fromXml_int(obj->numChars, xmlAttrDeQuote(strValue)); break;
+    case XTOK_numLines: fromXml_int(obj->numLines, xmlAttrDeQuote(strValue)); break;
     case XTOK_lineLengths: ul(lineLengths, XTOK_LineLengths); break;
     case XTOK_hashLines: ul(hashLines, XTOK_HashLineMap); break;
     }
@@ -207,7 +207,7 @@ bool FileXmlReader::registerAttribute(void *target0, int kind, int attr, char co
     HashLineMap *obj = (HashLineMap*) target0;
     switch(attr) {
     default: userError("illegal attribute for a HashLineMap tag"); break;
-    case XTOK_ppFname: obj->serializationOnly_set_ppFname(parseQuotedString(strValue)); break;
+    case XTOK_ppFname: obj->serializationOnly_set_ppFname(xmlAttrDeQuote(strValue)); break;
     case XTOK_directives:
       ulList(_List, directives, XTOK_List_HashLineMap_directives);
       break;
@@ -221,9 +221,9 @@ bool FileXmlReader::registerAttribute(void *target0, int kind, int attr, char co
     HashLineMap::HashLine *obj = (HashLineMap::HashLine*) target0;
     switch(attr) {
     default: userError("illegal attribute for a HashLine tag"); break;
-    case XTOK_ppLine: fromXml_int(obj->ppLine, parseQuotedString(strValue)); break;
-    case XTOK_origLine: fromXml_int(obj->origLine, parseQuotedString(strValue)); break;
-    case XTOK_origFname: obj->origFname = manager->strTable(parseQuotedString(strValue)); break;
+    case XTOK_ppLine: fromXml_int(obj->ppLine, xmlAttrDeQuote(strValue)); break;
+    case XTOK_origLine: fromXml_int(obj->origLine, xmlAttrDeQuote(strValue)); break;
+    case XTOK_origFname: obj->origFname = manager->strTable(xmlAttrDeQuote(strValue)); break;
     }
     break;
   }

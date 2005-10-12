@@ -24,7 +24,6 @@
 #include "smregexp.h"     // regexpMatch
 #include "cc_elaborate.h" // ElabVisitor
 #include "integrity.h"    // IntegrityVisitor
-#include "strutil.h"      // quoted()
 #if XML
   #include "file_xml.h"     // FileToXml
   #include "main_astxmlparse.h"// astxmlparse

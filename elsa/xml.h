@@ -29,7 +29,7 @@ class XmlReaderManager;
 #define PRINTFLAG(X) if (id & (X)) b << #X
 
 // manage identity of AST
-string idPrefixAST(void const * const);
+char const *idPrefixAST(void const * const);
 void const *addrAST(void const * const obj);
 
 // manage identity; definitions
@@ -101,71 +101,59 @@ class IncDec {
   ~IncDec() {--x;}
 };
 
-#define printThing0(NAME, PREFIX, VALUE, FUNC) \
+#define printThing0(NAME, VALUE) \
 do { \
-  out << #NAME "=\"" << PREFIX << FUNC(VALUE) << "\""; \
+  out << #NAME "=" << xmlAttrQuote(VALUE); \
 } while(0)
 
-// quoted and escaped
-#define quoted_printThing0(NAME, PREFIX, VALUE, FUNC) \
+#define printThing(NAME, RAW, VALUE) \
 do { \
-  out << #NAME "=" << PREFIX << quoted(FUNC(VALUE)); \
-} while(0)
-
-#define printThing(NAME, PREFIX, VALUE, FUNC) \
-do { \
-  if (VALUE) { \
+  if (RAW) { \
     newline(); \
-    printThing0(NAME, PREFIX, VALUE, FUNC); \
+    printThing0(NAME, VALUE); \
   } \
 } while(0)
 
-#define printPtr(BASE, MEM)    printThing(MEM, idPrefix((BASE)->MEM),     (BASE)->MEM,  addr)
-#define printPtrAST(BASE, MEM) printThing(MEM, idPrefixAST((BASE)->MEM),  (BASE)->MEM,  addrAST)
+#define printPtr(BASE, MEM)    printThing(MEM, (BASE)->MEM, xmlPrintPointer(idPrefix((BASE)->MEM), addr((BASE)->MEM)))
+#define printPtrAST(BASE, MEM) printThing(MEM, (BASE)->MEM, xmlPrintPointer(idPrefixAST((BASE)->MEM), addrAST((BASE)->MEM)))
 // print an embedded thing
-#define printEmbed(BASE, MEM)  printThing(MEM, idPrefix(&((BASE)->MEM)),&((BASE)->MEM), addr)
+#define printEmbed(BASE, MEM)  printThing(MEM, (&((BASE)->MEM)), xmlPrintPointer(idPrefix(&((BASE)->MEM)), addr(&((BASE)->MEM))))
 
 // for unions where the member name does not match the xml name and we
 // don't want the 'if'
-#define printPtrUnion(BASE, MEM, NAME) printThing0(NAME, idPrefix((BASE)->MEM), (BASE)->MEM, addr)
+#define printPtrUnion(BASE, MEM, NAME) printThing0(NAME, xmlPrintPointer(idPrefix((BASE)->MEM), addr((BASE)->MEM)))
 // this is only used in one place
-#define printPtrASTUnion(BASE, MEM, NAME) printThing0(NAME, "AST", (BASE)->MEM, addrAST)
+#define printPtrASTUnion(BASE, MEM, NAME) printThing0(NAME, xmlPrintPointer("AST", addrAST((BASE)->MEM)))
 
 #define printXml(NAME, VALUE) \
 do { \
   newline(); \
-  printThing0(NAME, "", VALUE, ::toXml); \
-} while(0)
-
-#define quoted_printXml(NAME, VALUE) \
-do { \
-  newline(); \
-  quoted_printThing0(NAME, "", VALUE, ::toXml); \
+  printThing0(NAME, ::toXml(VALUE)); \
 } while(0)
 
 #define printXml_bool(NAME, VALUE) \
 do { \
   newline(); \
-  printThing0(NAME, "", VALUE, ::toXml_bool); \
+  printThing0(NAME, ::toXml_bool(VALUE)); \
 } while(0)
 
 #define printXml_int(NAME, VALUE) \
 do { \
   newline(); \
-  printThing0(NAME, "", VALUE, ::toXml_int); \
+  printThing0(NAME, ::toXml_int(VALUE)); \
 } while(0)
 
 #define printXml_SourceLoc(NAME, VALUE) \
 do { \
   newline(); \
-  printThing0(NAME, "", VALUE, ::toXml_SourceLoc); \
+  printThing0(NAME, ::toXml_SourceLoc(VALUE)); \
 } while(0)
 
 #define printStrRef(FIELD, TARGET) \
 do { \
   if (TARGET) { \
     newline(); \
-    out << #FIELD "=" << quoted(TARGET); \
+    out << #FIELD "=" << xmlAttrQuote(TARGET); \
   } \
 } while(0)
 
@@ -212,7 +200,9 @@ do { \
 // for the XmlCloseTagPrinter fires too early.
 #define openTag0(NAME, OBJ, SUFFIX) \
   newline(); \
-  out << "<" #NAME << " _id=\"" << idPrefix(OBJ) << addr(OBJ) << "\"" SUFFIX; \
+  out << "<" #NAME << " _id=" \
+    << xmlAttrQuote(xmlPrintPointer(idPrefix(OBJ), addr(OBJ))) \
+    << SUFFIX; \
   XmlCloseTagPrinter tagCloser(#NAME, *this); \
   IncDec depthManager(this->depth)
 
@@ -224,9 +214,9 @@ do { \
 #define openTag_NameMap_Item(NAME, TARGET) \
   newline(); \
   out << "<_NameMap_Item" \
-      << " name=" << quoted(NAME) \
-      << " item=\"" << idPrefix(TARGET) << addr(TARGET) \
-      << "\">"; \
+      << " name=" << xmlAttrQuote(NAME) \
+      << " item=" << xmlAttrQuote(xmlPrintPointer(idPrefix(TARGET), addr(TARGET))) \
+      << ">"; \
   XmlCloseTagPrinter tagCloser("_NameMap_Item", *this); \
   IncDec depthManager(this->depth)
 
@@ -246,7 +236,9 @@ do { \
 // for the XmlCloseTagPrinter fires too early.
 #define travListItem(TARGET) \
   newline(); \
-  out << "<_List_Item item=\"" << idPrefix(TARGET) << addr(TARGET) << "\">"; \
+  out << "<_List_Item item=" \
+    << xmlAttrQuote(xmlPrintPointer(idPrefix(TARGET), addr(TARGET))) \
+    << ">"; \
   XmlCloseTagPrinter tagCloser("_List_Item", *this); \
   IncDec depthManager(this->depth); \
   trav(TARGET)
@@ -268,21 +260,21 @@ do { \
 #define ul(FIELD, KIND) \
   manager->unsatLinks.append \
     (new UnsatLink((void*) &(obj->FIELD), \
-                   parseQuotedString(strValue), \
+                   xmlAttrDeQuote(strValue), \
                    (KIND), \
                    false))
 
 #define ulEmbed(FIELD, KIND) \
   manager->unsatLinks.append \
     (new UnsatLink((void*) &(obj->FIELD), \
-                   parseQuotedString(strValue), \
+                   xmlAttrDeQuote(strValue), \
                    (KIND), \
                    true))
 
 #define ulList(LIST, FIELD, KIND) \
   manager->unsatLinks##LIST.append \
     (new UnsatLink((void*) &(obj->FIELD), \
-                   parseQuotedString(strValue), \
+                   xmlAttrDeQuote(strValue), \
                    (KIND), \
                    true))
 

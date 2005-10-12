@@ -47,8 +47,8 @@ verbatim {
 // use a new astgen feature: make a visitor!
 option visitor ASTVisitor;
 option dvisitor DelegatorASTVisitor;
-// dsw: these turn on incomplete experimental ast xml serialization
-// and de-serialization code
+
+// these turn on the xml serialization and de-serialization code
 option xmlVisitor ToXmlASTVisitor;
 option xmlParser astxml;
 

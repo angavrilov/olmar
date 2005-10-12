@@ -1,7 +1,7 @@
 // cc_type_xml.h            see license.txt for copyright and terms of use
 
 #include "xml.h"
-#include "strutil.h"            // parseQuotedString
+#include "xmlhelp.h"            // xmlAttrDeQuote() etc.
 #include "astxml_lexer.h"       // AstXmlLexer
 #include "exc.h"                // xBase
 
@@ -24,7 +24,7 @@ void ToXml::newline() {
 
 
 // manage identity
-string idPrefixAST(void const * const) {
+char const *idPrefixAST(void const * const) {
   return "AST";
 }
 
@@ -290,7 +290,7 @@ bool XmlReaderManager::readAttributes() {
     // special case the '_id' attribute
     if (attr == XTOK_DOT_ID) {
       // FIX: I really hope the map makes a copy of this string
-      string id0 = parseQuotedString(lexer.currentText());
+      string id0 = xmlAttrDeQuote(lexer.currentText());
       if (id2obj.isMapped(id0)) {
         userError(stringc << "this _id is taken " << id0);
       }
@@ -307,11 +307,11 @@ bool XmlReaderManager::readAttributes() {
         break;
       case XTOK_name:
         static_cast<NameMapItem*>(nodeStack.top())->from =
-          strTable(parseQuotedString(lexer.currentText()));
+          strTable(xmlAttrDeQuote(lexer.currentText()));
         break;
       case XTOK_item:
         static_cast<NameMapItem*>(nodeStack.top())->to =
-          strTable(parseQuotedString(lexer.currentText()));
+          strTable(xmlAttrDeQuote(lexer.currentText()));
         break;
       }
     }
@@ -323,7 +323,7 @@ bool XmlReaderManager::readAttributes() {
         break;
       case XTOK_item:
         static_cast<ListItem*>(nodeStack.top())->to =
-          strTable(parseQuotedString(lexer.currentText()));
+          strTable(xmlAttrDeQuote(lexer.currentText()));
         break;
       }
     }
@@ -335,11 +335,11 @@ bool XmlReaderManager::readAttributes() {
 //          break;
 //        case XTOK_from:
 //          static_cast<UnsatBiLink*>(nodeStack.top())->from =
-//            strTable(parseQuotedString(lexer.currentText()));
+//            strTable(xmlAttrDeQuote(lexer.currentText()));
 //          break;
 //        case XTOK_to:
 //          static_cast<UnsatBiLink*>(nodeStack.top())->to =
-//            strTable(parseQuotedString(lexer.currentText()));
+//            strTable(xmlAttrDeQuote(lexer.currentText()));
 //          break;
 //        }
 //      }

@@ -1138,6 +1138,7 @@ STATICDEF int TemplCandidates::compareCandidatesStatic
     break;
   case STAC_INCOMPARABLE: return 0; break;
   }
+  xfailure("gcc can't tell that we can't get here");
 }
 
 

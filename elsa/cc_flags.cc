@@ -347,7 +347,7 @@ bool isComplexOrImaginary(SimpleTypeId id)
         return;                                         \
       }                                                 \
     }                                                   \
-    xfailure(stringc << "bad " #TYPE ": " << str);      \
+    xfailure(stringc << "bad " #TYPE ": '" << str << "'"); \
   }
 
 // Some of the strings have angle brackets.  But, those cases should

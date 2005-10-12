@@ -5,7 +5,6 @@
 #include "xml.h"                // XmlReaderManager
 #include "cc_type_xml.h"        // TypeXmlReader
 #include "fstream.h"            // ifstream
-#include "strutil.h"            // parseQuotedString
 #include "astxml_lexer.h"       // AstXmlLexer
 #include "file_xml.h"           // FileXmlReader
 #include "cc.ast.gen.h"         // TranslationUnit, etc.

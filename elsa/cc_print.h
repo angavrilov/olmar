@@ -232,6 +232,8 @@ typedef Type TypeLike;
 // Interface for classes that know how to print out types
 class TypePrinter {
   public:
+  virtual ~TypePrinter() {}
+
   // dsw: type has to be a void* because in the Oink TypePrinter it is
   // a Value which isn't a type; I don't know of a good way to fix
   // this other than to invent some abstract interface generalization
