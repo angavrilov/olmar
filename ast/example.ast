@@ -19,15 +19,20 @@ public:
 // initialize it...
 custom ExampleVisitor_ctor { someVisitorField = 0; }
 
-// emit the xmlPrint stuff too
-option xmlPrint;
+// dsw: xmlPrint was a very old initial attempt at xml and has been
+// retired.
+//  // emit the xmlPrint stuff too
+//  option xmlPrint;
 
-// and gdb
-option gdb;
-
+// dsw: these turn on the xml serialization and de-serialization code
+option xmlVisitor ToXmlASTVisitor;
+// Scott says:
 // for the moment I just want this so I can test to/fromXML
 // code for enums
 option xmlParser example_xml;
+
+// and gdb
+option gdb;
 
 
 
