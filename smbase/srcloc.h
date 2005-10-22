@@ -250,7 +250,6 @@ private:     // data
   SourceLoc nextStaticLoc;
 
 public:      // data
-
   // when true, the SourceLocManager may go to the file system and
   // open a file in order to find out something about it.  dsw: I want
   // to turn this off when de-serializing XML for example; whatever
@@ -340,22 +339,10 @@ public:      // funcs
     { xassert(!isStatic(base)); return toLoc(toInt(base) + textLen); }
 
   // decode
-  public:
-  void decodeOffset_nohashline(SourceLoc loc, char const *&filename, int &charOffset);
   void decodeOffset(SourceLoc loc, char const *&filename, int &charOffset);
-  private:
-  void decodeOffset0(SourceLoc loc, char const *&filename, int &charOffset,
-                     bool localUseHashLines);
-
-  public:
-  void decodeLineCol_nohashline(SourceLoc loc, char const *&filename, int &line, int &col);
   void decodeLineCol(SourceLoc loc, char const *&filename, int &line, int &col);
-  private:
-  void decodeLineCol0(SourceLoc loc, char const *&filename, int &line, int &col,
-                      bool localUseHashLines);
 
   // more specialized decode
-  public:
   char const *getFile(SourceLoc loc);
   int getOffset(SourceLoc loc);
   int getLine(SourceLoc loc);
@@ -366,13 +353,21 @@ public:      // funcs
     { return getFile(fname); }
 
   // render as string in "file:line:col" format
-  public:
-  string getString_nohashline(SourceLoc loc);
   string getString(SourceLoc loc);
-  private:
-  string getString0(SourceLoc loc, bool localUseHashLines);
 
-  public:
+  // versions of the decode routine that either use or do not use the
+  // hashline map (when available) depending on an explicit flag,
+  // rather than using this->useHashLines
+  void decodeOffset_explicitHL(SourceLoc loc, char const *&filename, int &charOffset, bool localUseHashLines);
+  void decodeOffset_nohashline(SourceLoc loc, char const *&filename, int &charOffset)
+    { decodeOffset_explicitHL(loc, filename, charOffset, false); }
+  void decodeLineCol_explicitHL(SourceLoc loc, char const *&filename, int &line, int &col, bool localUseHashLines);
+  void decodeLineCol_nohashline(SourceLoc loc, char const *&filename, int &line, int &col)
+    { decodeLineCol_explicitHL(loc, filename, line, col, false); }
+  string getString_explicitHL(SourceLoc loc, bool localUseHashLines);
+  string getString_nohashline(SourceLoc loc)
+    { return getString_explicitHL(loc, false); }
+
   // "line:col" format
   string getLCString(SourceLoc loc);
 

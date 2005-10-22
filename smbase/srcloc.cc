@@ -707,17 +707,13 @@ SourceLocManager::StaticLoc const *SourceLocManager::getStatic(SourceLoc loc)
 }
 
 
-void SourceLocManager::decodeOffset_nohashline(
-  SourceLoc loc, char const *&filename, int &charOffset) {
-  decodeOffset0(loc, filename, charOffset, false);
-}
-
 void SourceLocManager::decodeOffset(
-  SourceLoc loc, char const *&filename, int &charOffset) {
-  decodeOffset0(loc, filename, charOffset, true);
+  SourceLoc loc, char const *&filename, int &charOffset) 
+{
+  decodeOffset_explicitHL(loc, filename, charOffset, this->useHashLines);
 }
 
-void SourceLocManager::decodeOffset0(
+void SourceLocManager::decodeOffset_explicitHL(
   SourceLoc loc, char const *&filename, int &charOffset,
   bool localUseHashLines)
 {
@@ -732,8 +728,8 @@ void SourceLocManager::decodeOffset0(
   File *f = findFileWithLoc(loc);
   filename = f->name.c_str();
   charOffset = toInt(loc) - toInt(f->startLoc);
-  
-  if (useHashLines && localUseHashLines && f->hashLines) {
+
+  if (localUseHashLines && f->hashLines) {
     // we can't pass charOffsets directly through the #line map, so we
     // must first map to line/col and then back to charOffset after
     // going through the map
@@ -761,17 +757,13 @@ void SourceLocManager::decodeOffset0(
 }
 
 
-void SourceLocManager::decodeLineCol_nohashline(
-  SourceLoc loc, char const *&filename, int &line, int &col) {
-  decodeLineCol0(loc, filename, line, col, true);
-}
-
 void SourceLocManager::decodeLineCol(
-  SourceLoc loc, char const *&filename, int &line, int &col) {
-  decodeLineCol0(loc, filename, line, col, false);
+  SourceLoc loc, char const *&filename, int &line, int &col) 
+{
+  decodeLineCol_explicitHL(loc, filename, line, col, this->useHashLines);
 }
 
-void SourceLocManager::decodeLineCol0(
+void SourceLocManager::decodeLineCol_explicitHL(
   SourceLoc loc, char const *&filename, int &line, int &col,
   bool localUseHashLines)
 { 
@@ -803,7 +795,7 @@ void SourceLocManager::decodeLineCol0(
   
   f->charToLineCol(charOffset, line, col);
   
-  if (useHashLines && localUseHashLines && f->hashLines) {       
+  if (localUseHashLines && f->hashLines) {       
     // use the #line map to determine a new file/line pair; simply
     // assume that the column information is still correct, though of
     // course in C, due to macro expansion, it isn't always
@@ -848,19 +840,16 @@ int SourceLocManager::getCol(SourceLoc loc)
 }
 
 
-string SourceLocManager::getString_nohashline(SourceLoc loc) {
-  return getString0(loc, false);
+string SourceLocManager::getString(SourceLoc loc) 
+{
+  return getString_explicitHL(loc, this->useHashLines);
 }
 
-string SourceLocManager::getString(SourceLoc loc) {
-  return getString0(loc, true);
-}
-
-string SourceLocManager::getString0(SourceLoc loc, bool localUseHashLines)
+string SourceLocManager::getString_explicitHL(SourceLoc loc, bool localUseHashLines)
 {
   char const *name;
   int line, col;
-  decodeLineCol0(loc, name, line, col, localUseHashLines);
+  decodeLineCol_explicitHL(loc, name, line, col, localUseHashLines);
 
   return stringc << name << ":" << line << ":" << col;
 }
