@@ -1,5 +1,10 @@
+// xmlhelp.cc
+// support routines for XML reading/writing
+
 #include "xmlhelp.h"            // this module
 #include <stdlib.h>             // atof, atol
+#include <ctype.h>              // isprint, isdigit, isxdigit
+#include <stdio.h>              // sprintf
 #include "strtokp.h"            // StrtokParse
 #include "exc.h"                // xformat
 
