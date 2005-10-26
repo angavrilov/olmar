@@ -24,11 +24,9 @@
 #include "smregexp.h"     // regexpMatch
 #include "cc_elaborate.h" // ElabVisitor
 #include "integrity.h"    // IntegrityVisitor
-#if XML
-  #include "file_xml.h"     // FileToXml
-  #include "main_astxmlparse.h"// astxmlparse
-  #include "cc_type_xml.h"  // TypeToXml
-#endif // XML
+#include "file_xml.h"     // FileToXml
+#include "main_astxmlparse.h"// astxmlparse
+#include "cc_type_xml.h"  // TypeToXml
 
 // little check: is it true that only global declarators
 // ever have Declarator::type != Declarator::var->type?
@@ -466,13 +464,8 @@ void doit(int argc, char **argv)
   int parseWarnings = 0;
   long parseTime = 0;
   if (tracingSys("parseXml")) {
-#if XML
     unit = astxmlparse(strTable, inputFname);
     if (!unit) return;
-#else
-    cout << "XML features are not compiled in" << endl;
-    exit(1);
-#endif // XML
   }
   else {
     SectionTimer timer(parseTime);
@@ -776,7 +769,6 @@ void doit(int argc, char **argv)
 
   // dsw: xml printing of the raw ast
   if (tracingSys("xmlPrintAST")) {
-#if XML
     traceProgress() << "dsw xml print...\n";
     bool indent = tracingSys("xmlPrintAST-indent");
     int depth = 0;              // shared depth counter between printers
@@ -810,30 +802,7 @@ void doit(int argc, char **argv)
     cout << endl;
     cout << "---- STOP ----" << endl;
     traceProgress() << "dsw xml print... done\n";
-#else
-    cout << "XML features are not compiled in" << endl;
-    exit(1);
-#endif // XML
   }
-
-  // dsw: xml printing of the lowered ast
-//    if (tracingSys("xmlPrintLoweredAST")) {
-//  #if XML
-//      traceProgress() << "dsw xml print...\n";
-//      bool indent = tracingSys("xmlPrintLoweredAST-indent");
-//      ToXmlASTVisitor xmlVis(cout, indent);
-//      LoweredASTVisitor loweredXmlVis(&xmlVis);
-//      // FIX: do type visitor
-//      cout << "---- START ----" << endl;
-//      unit->traverse(loweredXmlVis);
-//      cout << endl;
-//      cout << "---- STOP ----" << endl;
-//      traceProgress() << "dsw xml print... done\n";
-//  #else
-//      cout << "XML features are not compiled in" << endl;
-//      exit(1);
-//  #endif // XML
-//    }
 
   // test AST cloning
   if (tracingSys("testClone")) {
