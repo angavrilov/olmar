@@ -99,8 +99,7 @@ bool ASTXmlReader::registerAttribute(void *target, int kind, int attr, char cons
 
 // -------------------- astxmlparse -------------------
 
-TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
-{
+TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname) {
   // make reader manager
   ifstream in(inputFname);
   AstXmlLexer lexer(inputFname);
@@ -124,31 +123,7 @@ TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
   TypeXmlReader typeReader;
   manager.registerReader(&typeReader);
 
-  // read until a TranslationUnit tag
-  // FIX: not sure what happens if the last tag is not a TranslationUnit
-  while(true) {
-    manager.parseOneTopLevelTag();
-    if (lexer.haveSeenEof()) {
-      manager.userError("unexpected EOF");
-    }
-    int lastKind = manager.getLastKind();
-    if (lastKind == XTOK_File) {
-      // complete the link graph so that the FileData object is
-      // complete
-      manager.satisfyLinks();
-
-      SourceLocManager::FileData *fileData = (SourceLocManager::FileData*) manager.getLastNode();
-      if (!fileData->complete()) {
-        manager.userError("missing attributes to File tag");
-      }
-      sourceLocManager->loadFile(fileData);
-      // FIX: recursively delete the file and its members here
-    } else if (lastKind == XTOK_TranslationUnit) {
-      break;                    // we are done
-    } else {
-      manager.userError("illegal top-level tag");
-    }
-  }
+  manager.readUntilTUnitTag();
 
   // complete the link graph
   manager.satisfyLinks();

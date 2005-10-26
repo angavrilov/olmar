@@ -479,6 +479,9 @@ class XmlReaderManager {
   // **** parsing
   public:
   void parseOneTopLevelTag();
+  // read until we get a translation unit tag; FIX: not sure what
+  // happens if the last tag is not a TranslationUnit
+  void readUntilTUnitTag();
 
   private:
   void parseOneTagOrDatum();
