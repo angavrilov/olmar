@@ -44,7 +44,10 @@ TEMPL bool printed(NAME const * const obj) { \
 #define identity(PREFIX, NAME) identity0(PREFIX, NAME, )
 #define identityTempl(PREFIX, NAME) identity0(PREFIX, NAME, template<class T>)
 // declarations
-#define identityB0(NAME, TEMPL) TEMPL bool printed(NAME const * const obj)
+#define identityB0(NAME, TEMPL) \
+TEMPL char const *idPrefix(NAME const * const); \
+TEMPL void const *addr(NAME const * const obj); \
+TEMPL bool printed(NAME const * const obj)
 #define identityB(NAME) identityB0(NAME, )
 #define identityBTempl(NAME) identityB0(NAME, template<class T>)
 

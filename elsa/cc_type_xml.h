@@ -9,7 +9,7 @@
 #include "cc_type.h"            // Types, TypeVisitor
 #include "template.h"           // Template stuff is only forward-declared in cc_type.h
 #include "sobjset.h"            // SObjSet
-#include "xml.h"                // ReadXml
+#include "xml.h"                // ToXml, ReadXml
 
 class AstXmlLexer;
 class OverloadSet;
@@ -56,6 +56,8 @@ class TypeToXml : public ToXml {
   void toXml(Type *t);
   void toXml(AtomicType *atom);
   void toXml(CompoundType *ct); // disambiguates the overloading
+  void toXml_Variable_properties(Variable *var);
+  void toXml_Variable_subtags(Variable *var);
   void toXml(Variable *var);
 
   private:

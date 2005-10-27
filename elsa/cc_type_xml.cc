@@ -425,11 +425,7 @@ void TypeToXml::toXml(CompoundType *cpd) {
   trav(cpd->selfType);
 }
 
-void TypeToXml::toXml(Variable *var) {
-  // idempotency
-  if (printed(var)) return;
-  openTag(Variable, var);
-  // **** attributes
+void TypeToXml::toXml_Variable_properties(Variable *var) {
   printXml_SourceLoc(loc, var->loc);
   printStrRef(name, var->name);
   printPtr(var, type);
@@ -456,9 +452,9 @@ void TypeToXml::toXml(Variable *var) {
     newline();
     out << "fullyQualifiedMangledName=" << xmlAttrQuote(var->fullyQualifiedMangledName0());
   }
+}
 
-  tagEnd;
-  // **** subtags
+void TypeToXml::toXml_Variable_subtags(Variable *var) {
   trav(var->type);
   travAST(var->value);
   trav(var->defaultParamType);
@@ -467,6 +463,17 @@ void TypeToXml::toXml(Variable *var) {
   trav(var->scope);
   trav(var->usingAlias_or_parameterizedEntity);
   trav(var->templInfo);
+}
+
+void TypeToXml::toXml(Variable *var) {
+  // idempotency
+  if (printed(var)) return;
+  openTag(Variable, var);
+  // **** attributes
+  toXml_Variable_properties(var);
+  tagEnd;
+  // **** subtags
+  toXml_Variable_subtags(var);
 }
 
 void TypeToXml::toXml_FunctionType_ExnSpec(void /*FunctionType::ExnSpec*/ *exnSpec0) {
