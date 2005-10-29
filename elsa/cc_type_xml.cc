@@ -8,8 +8,7 @@
 #include "strutil.h"            // DelimStr
 #include "cc_ast.h"             // AST nodes only for AST sub-traversals
 #include "strtokp.h"            // StrtokParse
-#include "astxml_lexer.h"       // AstXmlLexer
-
+#include "astxml_tokens.h"      // XTOK_CVAtomicType, etc.
 
 // to/from Xml for enums
 
@@ -1254,9 +1253,9 @@ void TypeXmlReader::registerAttr_PointerToMemberType
   }
 }
 
-void TypeXmlReader::registerAttr_Variable(Variable *obj, int attr, char const *strValue) {
+bool TypeXmlReader::registerAttr_Variable_super(Variable *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a Variable"); break;
+  default: return false; break; // we didn't find it
   case XTOK_loc: fromXml_SourceLoc(obj->loc, xmlAttrDeQuote(strValue)); break;
   case XTOK_name: obj->name = manager->strTable(xmlAttrDeQuote(strValue)); break;
   case XTOK_type: ul(type, XTOK_Type); break;
@@ -1297,12 +1296,21 @@ void TypeXmlReader::registerAttr_Variable(Variable *obj, int attr, char const *s
     ul(usingAlias_or_parameterizedEntity, XTOK_Variable); break;
   case XTOK_templInfo: ul(templInfo, XTOK_TemplateInfo); break;
   }
+
+  return true;                  // found it
+}
+
+void TypeXmlReader::registerAttr_Variable(Variable *obj, int attr, char const *strValue) {
+  // "superclass": just re-use our own superclass code for ourself
+  if (registerAttr_Variable_super(obj, attr, strValue)) return;
+  // shouldn't get here
+  userError("illegal attribute for a Variable");
 }
 
 bool TypeXmlReader::registerAttr_NamedAtomicType_super
   (NamedAtomicType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: return false;        // we didn't find it
+  default: return false; break; // we didn't find it
   case XTOK_name: obj->name = manager->strTable(xmlAttrDeQuote(strValue)); break;
   case XTOK_typedefVar: ul(typedefVar, XTOK_Variable); break;
   case XTOK_access: fromXml(obj->access, xmlAttrDeQuote(strValue)); break;
@@ -1398,7 +1406,7 @@ void TypeXmlReader::registerAttr_DependentQType
 
 bool TypeXmlReader::registerAttr_Scope_super(Scope *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: return false;        // we didn't find it break;
+  default: return false; break; // we didn't find it
   case XTOK_variables: ulList(_NameMap, variables, XTOK_NameMap_Scope_variables); break;
   case XTOK_typeTags: ulList(_NameMap, typeTags, XTOK_NameMap_Scope_typeTags); break;
   case XTOK_canAcceptNames: fromXml_bool(obj->canAcceptNames, xmlAttrDeQuote(strValue)); break;
@@ -1471,7 +1479,7 @@ void TypeXmlReader::registerAttr_STemplateArgument
 bool TypeXmlReader::registerAttr_TemplateParams_super
   (TemplateParams *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: return false;        // we didn't find it break;
+  default: return false; break; // we didn't find it
   case XTOK_params: ulList(_List, params, XTOK_List_TemplateParams_params); break;
   }
   return true;

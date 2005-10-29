@@ -2,7 +2,6 @@
 
 #include "xml.h"
 #include "xmlhelp.h"            // xmlAttrDeQuote() etc.
-#include "astxml_lexer.h"       // AstXmlLexer
 #include "exc.h"                // xBase
 
 

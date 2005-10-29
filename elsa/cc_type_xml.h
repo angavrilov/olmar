@@ -9,9 +9,8 @@
 #include "cc_type.h"            // Types, TypeVisitor
 #include "template.h"           // Template stuff is only forward-declared in cc_type.h
 #include "sobjset.h"            // SObjSet
-#include "xml.h"                // ToXml, ReadXml
+#include "xml.h"                // ToXml
 
-class AstXmlLexer;
 class OverloadSet;
 class ASTVisitor;
 
@@ -35,10 +34,6 @@ identityB(OverloadSet);
 identityB(STemplateArgument);
 identityB(TemplateInfo);
 identityB(InheritedTemplateParams);
-identityBTempl(ObjList<T>);
-identityBTempl(SObjList<T>);
-identityBTempl(StringRefMap<T>);
-identityBTempl(StringObjDict<T>);
 
 // print the Type tree out as XML
 class TypeToXml : public ToXml {
@@ -88,7 +83,7 @@ class TypeToXml : public ToXml {
 
 // -------------------- TypeXmlReader -------------------
 
-// Specialization of the ReadXml framework that reads in XML for
+// Specialization of the XmlReader framework that reads in XML for
 // serialized types.
 
 // parse Types and Variables serialized as XML
@@ -147,6 +142,10 @@ class TypeXmlReader : public XmlReader {
   void registerAttr_DependentQType     (DependentQType *,      int attr, char const *strValue);
 
   // other
+  public:
+  bool registerAttr_Variable_super     (Variable *,            int attr, char const *strValue);
+
+  private:
   void registerAttr_Variable           (Variable *,            int attr, char const *strValue);
   bool registerAttr_Scope_super        (Scope *,               int attr, char const *strValue);
   void registerAttr_Scope              (Scope *,               int attr, char const *strValue);

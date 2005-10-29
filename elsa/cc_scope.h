@@ -28,7 +28,7 @@ class Function;           // cc.ast
 class TemplateParams;     // cc_type.h
 class PQName;             // cc.ast
 class TranslationUnit;    // cc.ast.gen.h
-class ReadXML;            // xml.h
+class ReadXML;
 
 
 // information about a single scope: the names defined in it,

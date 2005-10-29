@@ -4,12 +4,12 @@
 #define ASTXML_LEXER_H
 
 #include <stdio.h>
-
-#include "baselexer.h"          // FLEX_OUTPUT_METHOD_DECLS
-#include "sm_flexlexer.h"       // yyFlexLexer
-#include "str.h"                // string
-#include "astxml_tokens.h"
 #include "fstream.h"            // ifstream
+
+#include "str.h"                // string
+#include "sm_flexlexer.h"       // yyFlexLexer
+#include "baselexer.h"          // FLEX_OUTPUT_METHOD_DECLS
+#include "astxml_tokens.h"
 
 class AstXmlLexer : private yyFlexLexer {
   public:
@@ -32,8 +32,10 @@ class AstXmlLexer : private yyFlexLexer {
   // this is yyrestart
   void restart(ifstream *in) { this->yyrestart(in); }
 
-  int tok(ASTXMLTokenType kind);
-  int svalTok(ASTXMLTokenType t);
+//    int tok(ASTXMLTokenType kind);
+//    int svalTok(ASTXMLTokenType t);
+  int tok(int kind);
+  int svalTok(int t);
   void err(char const *msg);
   
   string tokenKindDesc(int kind) const;

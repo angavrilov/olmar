@@ -38,13 +38,15 @@ int AstXmlLexer::getToken() {
   return token;
 }
 
-int AstXmlLexer::tok(ASTXMLTokenType kind) {
+//  int AstXmlLexer::tok(ASTXMLTokenType kind)
+int AstXmlLexer::tok(int kind) {
 //    printf("%s\n", tokenKindDesc(kind).c_str());
 //    fflush(stdout);
   return kind;
 }
 
-int AstXmlLexer::svalTok(ASTXMLTokenType kind)
+//  int AstXmlLexer::svalTok(ASTXMLTokenType kind)
+int AstXmlLexer::svalTok(int kind)
 {
 //    printf("%s '%s'\n", tokenKindDesc(kind).c_str(), yytext);
 //    fflush(stdout);

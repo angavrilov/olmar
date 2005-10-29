@@ -14,8 +14,10 @@
 #include "strtable.h"           // StringRef
 #include "strmap.h"             // StringRefMap
 #include "xmlhelp.h"            // toXml_int etc.
+#include "astxml_lexer.h"       // XmlLexer
 
-class AstXmlLexer;
+typedef AstXmlLexer XmlLexer;
+
 class StringTable;
 
 // forwards in this file
@@ -43,13 +45,16 @@ TEMPL bool printed(NAME const * const obj) { \
 }
 #define identity(PREFIX, NAME) identity0(PREFIX, NAME, )
 #define identityTempl(PREFIX, NAME) identity0(PREFIX, NAME, template<class T>)
+
 // declarations
 #define identityB0(NAME, TEMPL) \
 TEMPL char const *idPrefix(NAME const * const); \
 TEMPL void const *addr(NAME const * const obj); \
 TEMPL bool printed(NAME const * const obj)
 #define identityB(NAME) identityB0(NAME, )
-#define identityBTempl(NAME) identityB0(NAME, template<class T>)
+// NOTE: it makes no sense to declare a template like this, so do not
+// do this
+//  #define identityBTempl(NAME) identityB0(NAME, template<class T>)
 
 // manage the output stream
 class ToXml {
@@ -429,7 +434,7 @@ class XmlReaderManager {
 
   // **** Parsing
   char const *inputFname;       // just for error messages
-  AstXmlLexer &lexer;           // a lexer on a stream already opened from the file
+  XmlLexer &lexer;           // a lexer on a stream already opened from the file
   public:
   StringTable &strTable;        // for canonicalizing the StringRef's in the input file
 
@@ -460,7 +465,7 @@ class XmlReaderManager {
 
   public:
   XmlReaderManager(char const *inputFname0,
-                   AstXmlLexer &lexer0,
+                   XmlLexer &lexer0,
                    StringTable &strTable0)
     : inputFname(inputFname0)
     , lexer(lexer0)

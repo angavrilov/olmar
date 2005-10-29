@@ -25,9 +25,6 @@ class FileToXml : public ToXml {
   void toXml(HashLineMap::HashLine *hashLine);
 };
 
-
-// -------------------- FileXmlReader -------------------
-
 // parse the File data serialized as XML
 class FileXmlReader : public XmlReader {
   public:

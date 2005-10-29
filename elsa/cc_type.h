@@ -52,8 +52,8 @@ class Declaration;        // cc.ast
 class TypeVariable;       // template.h
 class PseudoInstantiation;// template.h
 class DependentQType;     // template.h
-class ReadXML;            // xml.h
 class MType;              // mtype.h
+class ReadXML;
 
 // fwd in this file
 class AtomicType;
