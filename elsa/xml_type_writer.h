@@ -8,6 +8,7 @@
 #include "cc_type.h"            // Type
 #include "template.h"           // Template stuff is only forward-declared in cc_type.h
 #include "xml_writer.h"         // XmlWriter
+#include "cc_ast.h"             // XmlAstWriter_AstVisitor
 
 class OverloadSet;
 class ASTVisitor;
@@ -73,6 +74,35 @@ class XmlTypeWriter : public XmlWriter {
   void toXml(InheritedTemplateParams *itp);
   void toXml_TemplateParams_properties(TemplateParams *tp);
   void toXml_TemplateParams_subtags(TemplateParams *tp);
+};
+
+// print out type annotations for every ast node that has a type
+class XmlTypeWriter_AstVisitor : public XmlAstWriter_AstVisitor {
+//    ostream &out;                 // for the <Link/> tags
+  XmlTypeWriter &ttx;
+
+  public:
+  XmlTypeWriter_AstVisitor
+    (XmlTypeWriter &ttx0,
+     ostream &out0,
+     int &depth0,
+     bool indent0 = false,
+     bool ensureOneVisit0 = true);
+
+  // **** visit methods
+  bool visitTypeSpecifier(TypeSpecifier *ts);
+  bool visitFunction(Function *f);
+  bool visitMemberInit(MemberInit *memberInit);
+  bool visitBaseClassSpec(BaseClassSpec *bcs);
+  bool visitDeclarator(Declarator *d);
+  bool visitExpression(Expression *e);
+#ifdef GNU_EXTENSION
+  bool visitASTTypeof(ASTTypeof *a);
+#endif // GNU_EXTENSION
+  bool visitPQName(PQName *pqn);
+  bool visitEnumerator(Enumerator *e);
+  bool visitInitializer(Initializer *e);
+  // FIX: TemplateParameter
 };
 
 #endif // XML_TYPE_WRITER_H

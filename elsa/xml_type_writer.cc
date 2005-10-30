@@ -691,3 +691,134 @@ void XmlTypeWriter::toXml_TemplateParams_properties(TemplateParams *tp) {
 void XmlTypeWriter::toXml_TemplateParams_subtags(TemplateParams *tp) {
   travObjList_S(tp, TemplateParams, params, Variable);
 }
+
+
+// **** class XmlTypeWriter_AstVisitor
+XmlTypeWriter_AstVisitor::XmlTypeWriter_AstVisitor
+  (XmlTypeWriter &ttx0,
+   ostream &out0,
+   int &depth0,
+   bool indent0,
+   bool ensureOneVisit0)
+    : XmlAstWriter_AstVisitor(out0, depth0, indent0, ensureOneVisit0)
+    , ttx(ttx0)
+{}
+
+// Note that idempotency is handled in XmlTypeWriter
+#define PRINT_ANNOT(A)   \
+    if (A) {               \
+      ttx.toXml(A); \
+    }
+
+  // this was part of the macro
+//    printASTBiLink((void**)&(A), (A));
+
+  // print the link between the ast node and the annotating node
+//    void printASTBiLink(void **astField, void *annotation) {
+//      out << "<__Link from=\"";
+//      // this is not from an ast *node* but from the *field* of one
+//      xmlPrintPointer(out, "FLD", astField);
+//      out << "\" to=\"";
+//      xmlPrintPointer(out, "TY", annotation);
+//      out << "\"/>\n";
+//    }
+
+bool XmlTypeWriter_AstVisitor::visitTypeSpecifier(TypeSpecifier *ts) {
+  if (!XmlAstWriter_AstVisitor::visitTypeSpecifier(ts)) return false;
+  if (ts->isTS_type()) {
+    PRINT_ANNOT(ts->asTS_type()->type);
+  } else if (ts->isTS_name()) {
+    PRINT_ANNOT(ts->asTS_name()->var);
+    PRINT_ANNOT(ts->asTS_name()->nondependentVar);
+  } else if (ts->isTS_elaborated()) {
+    PRINT_ANNOT(ts->asTS_elaborated()->atype);
+  } else if (ts->isTS_classSpec()) {
+    PRINT_ANNOT(ts->asTS_classSpec()->ctype);
+  } else if (ts->isTS_enumSpec()) {
+    PRINT_ANNOT(ts->asTS_enumSpec()->etype);
+  }
+  return true;
+}
+
+bool XmlTypeWriter_AstVisitor::visitFunction(Function *f) {
+  if (!XmlAstWriter_AstVisitor::visitFunction(f)) return false;
+  PRINT_ANNOT(f->funcType);
+  PRINT_ANNOT(f->receiver);
+  return true;
+}
+
+bool XmlTypeWriter_AstVisitor::visitMemberInit(MemberInit *memberInit) {
+  if (!XmlAstWriter_AstVisitor::visitMemberInit(memberInit)) return false;
+  PRINT_ANNOT(memberInit->member);
+  PRINT_ANNOT(memberInit->base);
+  PRINT_ANNOT(memberInit->ctorVar);
+  return true;
+}
+
+bool XmlTypeWriter_AstVisitor::visitBaseClassSpec(BaseClassSpec *bcs) {
+  if (!XmlAstWriter_AstVisitor::visitBaseClassSpec(bcs)) return false;
+  PRINT_ANNOT(bcs->type);
+  return true;
+}
+
+bool XmlTypeWriter_AstVisitor::visitDeclarator(Declarator *d) {
+  if (!XmlAstWriter_AstVisitor::visitDeclarator(d)) return false;
+  PRINT_ANNOT(d->var);
+  PRINT_ANNOT(d->type);
+  return true;
+}
+
+bool XmlTypeWriter_AstVisitor::visitExpression(Expression *e) {
+  if (!XmlAstWriter_AstVisitor::visitExpression(e)) return false;
+  PRINT_ANNOT(e->type);
+  if (e->isE_this()) {
+    PRINT_ANNOT(e->asE_this()->receiver);
+  } else if (e->isE_variable()) {
+    PRINT_ANNOT(e->asE_variable()->var);
+    PRINT_ANNOT(e->asE_variable()->nondependentVar);
+  } else if (e->isE_constructor()) {
+    PRINT_ANNOT(e->asE_constructor()->ctorVar);
+  } else if (e->isE_fieldAcc()) {
+    PRINT_ANNOT(e->asE_fieldAcc()->field);
+  } else if (e->isE_new()) {
+    PRINT_ANNOT(e->asE_new()->ctorVar);
+  }
+  return true;
+}
+
+#ifdef GNU_EXTENSION
+bool XmlTypeWriter_AstVisitor::visitASTTypeof(ASTTypeof *a) {
+  if (!XmlAstWriter_AstVisitor::visitASTTypeof(a)) return false;
+  PRINT_ANNOT(a->type);
+  return true;
+}
+#endif // GNU_EXTENSION
+
+bool XmlTypeWriter_AstVisitor::visitPQName(PQName *pqn) {
+  if (!XmlAstWriter_AstVisitor::visitPQName(pqn)) return false;
+  if (pqn->isPQ_qualifier()) {
+    PRINT_ANNOT(pqn->asPQ_qualifier()->qualifierVar);
+    ttx.toXml(&(pqn->asPQ_qualifier()->sargs));
+  } else if (pqn->isPQ_template()) {
+    ttx.toXml(&(pqn->asPQ_template()->sargs));
+  } else if (pqn->isPQ_variable()) {
+    PRINT_ANNOT(pqn->asPQ_variable()->var);
+  }
+  return true;
+}
+
+bool XmlTypeWriter_AstVisitor::visitEnumerator(Enumerator *e) {
+  if (!XmlAstWriter_AstVisitor::visitEnumerator(e)) return false;
+  PRINT_ANNOT(e->var);
+  return true;
+}
+
+bool XmlTypeWriter_AstVisitor::visitInitializer(Initializer *e) {
+  if (!XmlAstWriter_AstVisitor::visitInitializer(e)) return false;
+  if (e->isIN_ctor()) {
+    PRINT_ANNOT(e->asIN_ctor()->ctorVar);
+  }
+  return true;
+}
+
+#undef PRINT_ANNOT
