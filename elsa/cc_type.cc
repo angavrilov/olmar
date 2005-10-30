@@ -2226,7 +2226,7 @@ void FunctionType::traverse(TypeVisitor &vis)
   //
   // dsw: if you ever put them in, we have to take them out of the xml
   // rendering or they will get rendered twice; in
-  // TypeToXml::visitType() see this case statement
+  // XmlTypeWriter::visitType() see this case statement
   //   case Type::T_FUNCTION:
 
   vis.postvisitType(this);

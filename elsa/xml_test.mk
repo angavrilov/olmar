@@ -1,3 +1,5 @@
+# xml_test.mk            see license.txt for copyright and terms of use
+
 .SUFFIX:
 
 # DIFF := diff -u

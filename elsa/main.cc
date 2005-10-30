@@ -24,9 +24,9 @@
 #include "smregexp.h"     // regexpMatch
 #include "cc_elaborate.h" // ElabVisitor
 #include "integrity.h"    // IntegrityVisitor
-#include "file_xml.h"     // FileToXml
-#include "main_astxmlparse.h"// astxmlparse
-#include "cc_type_xml.h"  // TypeToXml
+#include "xml_file_writer.h" // FileXmlWriter
+#include "xml_do_read.h"  // xmlDoRead()
+#include "xml_type_writer.h" // XmlTypeWriter
 
 // little check: is it true that only global declarators
 // ever have Declarator::type != Declarator::var->type?
@@ -128,22 +128,22 @@ public:
 };
 
 // print out type annotations for every ast node that has a type
-class ToXmlASTVisitor_Types : public ToXmlASTVisitor {
+class XmlTypeWriter_AstVisitor : public XmlAstWriter_AstVisitor {
 //    ostream &out;                 // for the <Link/> tags
-  TypeToXml &ttx;
+  XmlTypeWriter &ttx;
 
   public:
-  ToXmlASTVisitor_Types
-    (TypeToXml &ttx0,
+  XmlTypeWriter_AstVisitor
+    (XmlTypeWriter &ttx0,
      ostream &out0,
      int &depth0,
      bool indent0 = false,
      bool ensureOneVisit0 = true)
-      : ToXmlASTVisitor(out0, depth0, indent0, ensureOneVisit0)
+      : XmlAstWriter_AstVisitor(out0, depth0, indent0, ensureOneVisit0)
       , ttx(ttx0)
   {}
 
-  // Note that idempotency is handled in TypeToXml
+  // Note that idempotency is handled in XmlTypeWriter
   #define PRINT_ANNOT(A)   \
     if (A) {               \
       ttx.toXml(A); \
@@ -164,7 +164,7 @@ class ToXmlASTVisitor_Types : public ToXmlASTVisitor {
 
   // **** visit methods
   bool visitTypeSpecifier(TypeSpecifier *ts) {
-    if (!ToXmlASTVisitor::visitTypeSpecifier(ts)) return false;
+    if (!XmlAstWriter_AstVisitor::visitTypeSpecifier(ts)) return false;
     if (ts->isTS_type()) {
       PRINT_ANNOT(ts->asTS_type()->type);
     } else if (ts->isTS_name()) {
@@ -181,14 +181,14 @@ class ToXmlASTVisitor_Types : public ToXmlASTVisitor {
   }
 
   bool visitFunction(Function *f) {
-    if (!ToXmlASTVisitor::visitFunction(f)) return false;
+    if (!XmlAstWriter_AstVisitor::visitFunction(f)) return false;
     PRINT_ANNOT(f->funcType);
     PRINT_ANNOT(f->receiver);
     return true;
   }
 
   bool visitMemberInit(MemberInit *memberInit) {
-    if (!ToXmlASTVisitor::visitMemberInit(memberInit)) return false;
+    if (!XmlAstWriter_AstVisitor::visitMemberInit(memberInit)) return false;
     PRINT_ANNOT(memberInit->member);
     PRINT_ANNOT(memberInit->base);
     PRINT_ANNOT(memberInit->ctorVar);
@@ -196,20 +196,20 @@ class ToXmlASTVisitor_Types : public ToXmlASTVisitor {
   }
 
   bool visitBaseClassSpec(BaseClassSpec *bcs) {
-    if (!ToXmlASTVisitor::visitBaseClassSpec(bcs)) return false;
+    if (!XmlAstWriter_AstVisitor::visitBaseClassSpec(bcs)) return false;
     PRINT_ANNOT(bcs->type);
     return true;
   }
 
   bool visitDeclarator(Declarator *d) {
-    if (!ToXmlASTVisitor::visitDeclarator(d)) return false;
+    if (!XmlAstWriter_AstVisitor::visitDeclarator(d)) return false;
     PRINT_ANNOT(d->var);
     PRINT_ANNOT(d->type);
     return true;
   }
 
   bool visitExpression(Expression *e) {
-    if (!ToXmlASTVisitor::visitExpression(e)) return false;
+    if (!XmlAstWriter_AstVisitor::visitExpression(e)) return false;
     PRINT_ANNOT(e->type);
     if (e->isE_this()) {
       PRINT_ANNOT(e->asE_this()->receiver);
@@ -228,14 +228,14 @@ class ToXmlASTVisitor_Types : public ToXmlASTVisitor {
 
   #ifdef GNU_EXTENSION
   bool visitASTTypeof(ASTTypeof *a) {
-    if (!ToXmlASTVisitor::visitASTTypeof(a)) return false;
+    if (!XmlAstWriter_AstVisitor::visitASTTypeof(a)) return false;
     PRINT_ANNOT(a->type);
     return true;
   }
   #endif // GNU_EXTENSION
 
   bool visitPQName(PQName *pqn) {
-    if (!ToXmlASTVisitor::visitPQName(pqn)) return false;
+    if (!XmlAstWriter_AstVisitor::visitPQName(pqn)) return false;
     if (pqn->isPQ_qualifier()) {
       PRINT_ANNOT(pqn->asPQ_qualifier()->qualifierVar);
       ttx.toXml(&(pqn->asPQ_qualifier()->sargs));
@@ -248,13 +248,13 @@ class ToXmlASTVisitor_Types : public ToXmlASTVisitor {
   }
 
   bool visitEnumerator(Enumerator *e) {
-    if (!ToXmlASTVisitor::visitEnumerator(e)) return false;
+    if (!XmlAstWriter_AstVisitor::visitEnumerator(e)) return false;
     PRINT_ANNOT(e->var);
     return true;
   }
 
   bool visitInitializer(Initializer *e) {
-    if (!ToXmlASTVisitor::visitInitializer(e)) return false;
+    if (!XmlAstWriter_AstVisitor::visitInitializer(e)) return false;
     if (e->isIN_ctor()) {
       PRINT_ANNOT(e->asIN_ctor()->ctorVar);
     }
@@ -464,7 +464,7 @@ void doit(int argc, char **argv)
   int parseWarnings = 0;
   long parseTime = 0;
   if (tracingSys("parseXml")) {
-    unit = astxmlparse(strTable, inputFname);
+    unit = xmlDoRead(strTable, inputFname);
     if (!unit) return;
   }
   else {
@@ -775,13 +775,13 @@ void doit(int argc, char **argv)
     cout << "---- START ----" << endl;
 
     // serialize Files
-    FileToXml fileToXml(cout, depth, indent);
-    fileToXml.toXml(sourceLocManager->serializationOnly_get_files());
+    FileXmlWriter fileXmlWriter(cout, depth, indent);
+    fileXmlWriter.toXml(sourceLocManager->serializationOnly_get_files());
 
     // serialize AST and maybe Types
     if (tracingSys("xmlPrintAST-types")) {
-      TypeToXml xmlTypeVis(cout, depth, indent);
-      ToXmlASTVisitor_Types xmlVis_Types(xmlTypeVis, cout, depth, indent);
+      XmlTypeWriter xmlTypeVis(cout, depth, indent);
+      XmlTypeWriter_AstVisitor xmlVis_Types(xmlTypeVis, cout, depth, indent);
       xmlTypeVis.astVisitor = &xmlVis_Types;
       ASTVisitor *vis = &xmlVis_Types;
       LoweredASTVisitor loweredXmlVis(&xmlVis_Types); // might not be used
@@ -790,7 +790,7 @@ void doit(int argc, char **argv)
       }
       unit->traverse(*vis);
     } else {
-      ToXmlASTVisitor xmlVis(cout, depth, indent);
+      XmlAstWriter_AstVisitor xmlVis(cout, depth, indent);
       ASTVisitor *vis = &xmlVis;
       LoweredASTVisitor loweredXmlVis(&xmlVis); // might not be used
       if (tracingSys("xmlPrintAST-lowered")) {

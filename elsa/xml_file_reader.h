@@ -1,35 +1,19 @@
-// file_xml.h            see license.txt for copyright and terms of use
+// xml_file_reader.h            see license.txt for copyright and terms of use
 
-// Serialization of file information for purposes of capturing the
-// state of the SourceLocManager
+// De-serialization of file information for purposes of capturing the
+// state of the SourceLocManager.
 
-#ifndef FILE_XML_H
-#define FILE_XML_H
+#ifndef XML_FILE_READER_H
+#define XML_FILE_READER_H
 
-#include "objlist.h"            // ObjList
-#include "srcloc.h"             // SourceLocManager
-#include "hashline.h"           // HashLineMap
-#include "xml.h"                // xml macros
+#include "xml_reader.h"
+#include "astlist.h"
 
 
-class FileToXml : public ToXml {
+class XmlFileReader : public XmlReader {
   public:
-  FileToXml(ostream &out0, int &depth0, bool indent0);
-
-  void toXml(ObjList<SourceLocManager::File> &files);
-  void toXml(SourceLocManager::File *file);
-  // this is an exception to the generic toXml() mechanism since
-  // lineLengths are not self-contained
-  void toXml_lineLengths(SourceLocManager::File *file);
-  void toXml(HashLineMap *hashLines);
-  void toXml(HashLineMap::HashLine *hashLine);
-};
-
-// parse the File data serialized as XML
-class FileXmlReader : public XmlReader {
-  public:
-  FileXmlReader() {}
-  virtual ~FileXmlReader() {}
+  XmlFileReader() {}
+  virtual ~XmlFileReader() {}
 
   virtual void *ctorNodeFromTag(int tag);
   virtual bool registerAttribute(void *target, int kind, int attr, char const *yytext0);
@@ -49,4 +33,4 @@ class FileXmlReader : public XmlReader {
     (StringRefMap<char> *map, int mapKind, void *target);
 };
 
-#endif // FILE_XML_H
+#endif // XML_FILE_READER_H

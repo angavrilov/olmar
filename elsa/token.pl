@@ -1,4 +1,6 @@
 #!/usr/bin/perl -w
+# token.pl            see license.txt for copyright and terms of use
+
 use strict;
 
 # Think of this perl script as compressed data: the set of tokens for
@@ -6,11 +8,11 @@ use strict;
 # files that have to agree with one another.
 
 # defines the token names for purposes of printing out
-my $tokenNamesFile = "astxml_lexer1_type.cc";
+my $tokenNamesFile = "xml_name_1type.gen.cc";
 # the lexer file
-my $tokenLexerFile = "astxml_lexer1_type.lex";
-# the file that goes into the definition of enum ASTXMLTokenType
-my $tokenEnumFile = "astxml_tokens1_type.h";
+my $tokenLexerFile = "xml_lex_1type.gen.lex";
+# the file that goes into the definition of enum XmlToken
+my $tokenEnumFile = "xml_enum_1type.gen.h";
 
 open(NAMES, ">$tokenNamesFile") or die $!;
 open(LEXER, ">$tokenLexerFile") or die $!;

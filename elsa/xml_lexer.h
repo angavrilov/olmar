@@ -1,7 +1,7 @@
-// astxml_lexer.h           see license.txt for copyright and terms of use
+// xml_lexer.h           see license.txt for copyright and terms of use
 
-#ifndef ASTXML_LEXER_H
-#define ASTXML_LEXER_H
+#ifndef XML_LEXER_H
+#define XML_LEXER_H
 
 #include <stdio.h>
 #include "fstream.h"            // ifstream
@@ -9,7 +9,7 @@
 #include "str.h"                // string
 #include "sm_flexlexer.h"       // yyFlexLexer
 #include "baselexer.h"          // FLEX_OUTPUT_METHOD_DECLS
-#include "astxml_tokens.h"
+#include "xml_enum.gen.h"       // XTOK_*
 
 class AstXmlLexer : private yyFlexLexer {
   public:
@@ -32,10 +32,8 @@ class AstXmlLexer : private yyFlexLexer {
   // this is yyrestart
   void restart(ifstream *in) { this->yyrestart(in); }
 
-//    int tok(ASTXMLTokenType kind);
-//    int svalTok(ASTXMLTokenType t);
-  int tok(int kind);
-  int svalTok(int t);
+  int tok(XmlToken kind);
+  int svalTok(XmlToken t);
   void err(char const *msg);
   
   string tokenKindDesc(int kind) const;
@@ -43,4 +41,4 @@ class AstXmlLexer : private yyFlexLexer {
   FLEX_OUTPUT_METHOD_DECLS
 };
 
-#endif // ASTXML_LEXER_H
+#endif // XML_LEXER_H

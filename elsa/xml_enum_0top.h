@@ -1,11 +1,14 @@
-// astxml_tokens.h            see license.txt for copyright and terms of use
+// xml_enum_0top.h            see license.txt for copyright and terms of use
 
 // top boilerlate for token definitions for the ast xml lexer
 
-#ifndef ASTXML_TOKENS_H
-#define ASTXML_TOKENS_H
+// NOTE: the name of the guard does not match the name of the file
+// because this is only the top of the generated .h file; Note that
+// the bottom of the guard is in another file.
+#ifndef XML_ENUM_GEN_H
+#define XML_ENUM_GEN_H
 
-enum ASTXMLTokenType {
+enum XmlToken {
   XTOK_EOF,
 
   // non-keyword name

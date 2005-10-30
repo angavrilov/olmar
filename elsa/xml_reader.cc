@@ -1,36 +1,8 @@
-// cc_type_xml.h            see license.txt for copyright and terms of use
+// xml_reader.cc            see license.txt for copyright and terms of use
 
-#include "xml.h"
+#include "xml_reader.h"         // this module
 #include "xmlhelp.h"            // xmlAttrDeQuote() etc.
 #include "exc.h"                // xBase
-
-
-ToXml::ToXml(ostream &out0, int &depth0, bool indent0)
-  : out(out0)
-  , depth(depth0)
-  , indent(indent0)
-{}
-
-void ToXml::newline() {
-  out << "\n";
-  // FIX: turning off indentation makes the output go way faster, so
-  // this loop is worth optimizing, probably by printing chunks of 10
-  // if you can or something logarithmic like that.
-  if (indent) {
-    for (int i=0; i<depth; ++i) cout << " ";
-  }
-}
-
-
-// manage identity
-char const *idPrefixAST(void const * const) {
-  return "AST";
-}
-
-void const *addrAST(void const * const obj) {
-  return reinterpret_cast<void const *>(obj);
-}
-
 
 UnsatLink::UnsatLink(void *ptr0, string id0, int kind0, bool embedded0)
   : ptr(ptr0), id(id0), kind(kind0), embedded(embedded0)

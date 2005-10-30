@@ -1,4 +1,4 @@
-  /* astxml_lexer1_bottom.lex            see license.txt for copyright and terms of use
+  /* xml_lex_2bot.lex            see license.txt for copyright and terms of use
    * flex description of scanner for C and C++ souce
    */
 

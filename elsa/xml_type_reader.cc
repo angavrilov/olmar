@@ -1,25 +1,15 @@
-// cc_type_xml.cc            see license.txt for copyright and terms of use
+// xml_type_reader.cc            see license.txt for copyright and terms of use
 
-#include "cc_type_xml.h"        // this module
+#include "xml_type_reader.h"    // this module
 #include "variable.h"           // Variable
-#include "cc_flags.h"           // fromXml(DeclFlags &out, rostring str)
-#include "asthelp.h"            // xmlPrintPointer
-#include "xmlhelp.h"            // toXml_int() etc.
-#include "strutil.h"            // DelimStr
-#include "cc_ast.h"             // AST nodes only for AST sub-traversals
 #include "strtokp.h"            // StrtokParse
-#include "astxml_tokens.h"      // XTOK_CVAtomicType, etc.
+#include "cc_flags.h"           // fromXml(DeclFlags &out, rostring str)
+#include "xmlhelp.h"            // fromXml_int() etc.
+#include "xml_enum.gen.h"       // XTOK_*
 
-// to/from Xml for enums
 
-char const *toXml(CompoundType::Keyword id) {
-  switch(id) {
-  default: xfailure("bad enum"); break;
-    PRINTENUM(CompoundType::K_STRUCT);
-    PRINTENUM(CompoundType::K_CLASS);
-    PRINTENUM(CompoundType::K_UNION);
-  }
-}
+// fromXml for enums
+
 void fromXml(CompoundType::Keyword &out, rostring str) {
   if(0) xfailure("?");
   READENUM(CompoundType::K_STRUCT);
@@ -28,20 +18,6 @@ void fromXml(CompoundType::Keyword &out, rostring str) {
   else xfailure("bad enum string");
 }
 
-string toXml(FunctionFlags id) {
-  if (id == FF_NONE) return "FF_NONE";
-  DelimStr b('|');
-  PRINTFLAG(FF_METHOD);
-  PRINTFLAG(FF_VARARGS);
-  PRINTFLAG(FF_CONVERSION);
-  PRINTFLAG(FF_CTOR);
-  PRINTFLAG(FF_DTOR);
-  PRINTFLAG(FF_BUILTINOP);
-  PRINTFLAG(FF_NO_PARAM_INFO);
-  PRINTFLAG(FF_DEFAULT_ALLOC);
-  PRINTFLAG(FF_KANDR_DEFN);
-  return b.sb;
-}
 void fromXml(FunctionFlags &out, rostring str) {
   StrtokParse tok(str, "|");
   for (int i=0; i<tok; ++i) {
@@ -61,19 +37,6 @@ void fromXml(FunctionFlags &out, rostring str) {
   }
 }
 
-char const *toXml(ScopeKind id) {
-  switch(id) {
-  default: xfailure("bad enum"); break;
-  PRINTENUM(SK_UNKNOWN);
-  PRINTENUM(SK_GLOBAL);
-  PRINTENUM(SK_PARAMETER);
-  PRINTENUM(SK_FUNCTION);
-  PRINTENUM(SK_CLASS);
-  PRINTENUM(SK_TEMPLATE_PARAMS);
-  PRINTENUM(SK_TEMPLATE_ARGS);
-  PRINTENUM(SK_NAMESPACE);
-  }
-}
 void fromXml(ScopeKind &out, rostring str) {
   if(0) xfailure("?");
   READENUM(SK_UNKNOWN);
@@ -87,21 +50,6 @@ void fromXml(ScopeKind &out, rostring str) {
   else xfailure("bad enum string");
 }
 
-char const *toXml(STemplateArgument::Kind id) {
-  switch(id) {
-  default: xfailure("bad enum"); break;
-  PRINTENUM(STemplateArgument::STA_NONE);
-  PRINTENUM(STemplateArgument::STA_TYPE);
-  PRINTENUM(STemplateArgument::STA_INT);
-  PRINTENUM(STemplateArgument::STA_ENUMERATOR);
-  PRINTENUM(STemplateArgument::STA_REFERENCE);
-  PRINTENUM(STemplateArgument::STA_POINTER);
-  PRINTENUM(STemplateArgument::STA_MEMBER);
-  PRINTENUM(STemplateArgument::STA_DEPEXPR);
-  PRINTENUM(STemplateArgument::STA_TEMPLATE);
-  PRINTENUM(STemplateArgument::STA_ATOMIC);
-  }
-}
 void fromXml(STemplateArgument::Kind &out, rostring str) {
   if(0) xfailure("?");
   READENUM(STemplateArgument::STA_NONE);
@@ -118,637 +66,7 @@ void fromXml(STemplateArgument::Kind &out, rostring str) {
 }
 
 
-// -------------------- TypeToXml -------------------
-
-// printing of types is idempotent
-SObjSet<void const *> printedSetTY;
-SObjSet<void const *> printedSetBC;
-SObjSet<void const *> printedSetOL;
-SObjSet<void const *> printedSetNM;
-
-identity(TY, Type)
-identity(TY, CompoundType)
-identity(TY, FunctionType::ExnSpec)
-identity(TY, EnumType::Value)
-identity(BC, BaseClass)
-identity(TY, Variable)
-identity(TY, OverloadSet)
-identity(TY, STemplateArgument)
-identity(TY, TemplateInfo)
-identity(TY, InheritedTemplateParams)
-identityTempl(OL, ObjList<T>)
-identityTempl(OL, SObjList<T>)
-identityTempl(NM, StringRefMap<T>)
-identityTempl(NM, StringObjDict<T>)
-
-#define identityCpdSuper(PREFIX, NAME) \
-char const *idPrefix(NAME const * const obj) { \
-  if (CompoundType const * const cpd = dynamic_cast<CompoundType const * const>(obj)) { \
-    return idPrefix(cpd); \
-  } \
-  return #PREFIX; \
-} \
-void const *addr(NAME const * const obj) { \
-  if (CompoundType const * const cpd = dynamic_cast<CompoundType const * const>(obj)) { \
-    return addr(cpd); \
-  } \
-  return reinterpret_cast<void const *>(obj); \
-} \
-bool printed(NAME const * const obj) { \
-  if (CompoundType const * const cpd = dynamic_cast<CompoundType const * const>(obj)) { \
-    return printed(cpd); \
-  } \
-  if (printedSet ##PREFIX.contains(obj)) return true; \
-  printedSet ##PREFIX.add(obj); \
-  return false; \
-}
-
-// AtomicType and Scope are special because they both can be a
-// CompoundType sometimes and so have to change their notion of
-// identity when they do
-identityCpdSuper(TY, AtomicType)
-identityCpdSuper(TY, Scope)
-
-TypeToXml::TypeToXml(ostream &out0, int &depth0, bool indent0)
-  : ToXml(out0, depth0, indent0)
-  , astVisitor(NULL)
-{}
-
-// This one occurs in the AST, so it has to have its own first-class
-// method.
-void TypeToXml::toXml(ObjList<STemplateArgument> *list) {
-  travObjList_standalone(*list, PseudoInstantiation, args, STemplateArgument);
-}
-
-void TypeToXml::toXml(Type *t) {
-  // idempotency
-  if (printed(t)) return;
-
-  switch(t->getTag()) {
-  default: xfailure("illegal tag");
-
-  case Type::T_ATOMIC: {
-    CVAtomicType *atom = t->asCVAtomicType();
-    openTag(CVAtomicType, atom);
-    // **** attributes
-    printPtr(atom, atomic);
-    printXml(cv, atom->cv);
-    tagEnd;
-    // **** subtags
-    trav(atom->atomic);
-    break;
-  }
-
-  case Type::T_POINTER: {
-    PointerType *ptr = t->asPointerType();
-    openTag(PointerType, ptr);
-    // **** attributes
-    printXml(cv, ptr->cv);
-    printPtr(ptr, atType);
-    tagEnd;
-    // **** subtags
-    trav(ptr->atType);
-    break;
-  }
-
-  case Type::T_REFERENCE: {
-    ReferenceType *ref = t->asReferenceType();
-    openTag(ReferenceType, ref);
-    // **** attributes
-    printPtr(ref, atType);
-    tagEnd;
-    // **** subtags
-    trav(ref->atType);
-    break;
-  }
-
-  case Type::T_FUNCTION: {
-    FunctionType *func = t->asFunctionType();
-    openTag(FunctionType, func);
-    // **** attributes
-    printXml(flags, func->flags);
-    printPtr(func, retType);
-    printEmbed(func, params);
-    printPtr(func, exnSpec);
-    tagEnd;
-    // **** subtags
-    trav(func->retType);
-    travObjList_S(func, FunctionType, params, Variable);
-    // exnSpec
-    if (func->exnSpec) {
-      toXml_FunctionType_ExnSpec(func->exnSpec);
-    }
-    break;
-  }
-
-  case Type::T_ARRAY: {
-    ArrayType *arr = t->asArrayType();
-    openTag(ArrayType, arr);
-    // **** attributes
-    printPtr(arr, eltType);
-    printXml_int(size, arr->size);
-    tagEnd;
-    // **** subtags
-    trav(arr->eltType);
-    break;
-  }
-
-  case Type::T_POINTERTOMEMBER: {
-    PointerToMemberType *ptm = t->asPointerToMemberType();
-    openTag(PointerToMemberType, ptm);
-    // **** attributes
-    printPtr(ptm, inClassNAT);
-    printXml(cv, ptm->cv);
-    printPtr(ptm, atType);
-    tagEnd;
-    // **** subtags
-    trav(ptm->inClassNAT);
-    trav(ptm->atType);
-    break;
-  }
-
-  }
-}
-
-void TypeToXml::toXml(AtomicType *atom) {
-  // idempotency done in each sub-type as it is not done for
-  // CompoundType here.
-  switch(atom->getTag()) {
-  default: xfailure("illegal tag");
-
-  case AtomicType::T_SIMPLE: {
-    // idempotency
-    if (printed(atom)) return;
-    SimpleType *simple = atom->asSimpleType();
-    openTag(SimpleType, simple);
-    // **** attributes
-    printXml(type, simple->type);
-    tagEnd;
-    break;
-  }
-
-  case AtomicType::T_COMPOUND: {
-    // NO!  Do NOT do this here:
-//      // idempotency
-//      if (printed(atom)) return;
-    CompoundType *cpd = atom->asCompoundType();
-    toXml(cpd);
-    break;
-  }
-
-  case AtomicType::T_ENUM: {
-    // idempotency
-    if (printed(atom)) return;
-    EnumType *e = atom->asEnumType();
-    openTag(EnumType, e);
-    // **** attributes
-    // * superclasses
-    toXml_NamedAtomicType_properties(e);
-    // * members
-    printEmbed(e, valueIndex);
-    printXml_int(nextValue, e->nextValue);
-    tagEnd;
-    // **** subtags
-    // * superclasses
-    toXml_NamedAtomicType_subtags(e);
-    // * members
-    // valueIndex
-    if (!printed(&e->valueIndex)) {
-      openTagWhole(NameMap_EnumType_valueIndex, &e->valueIndex);
-      for(StringObjDict<EnumType::Value>::Iter iter(e->valueIndex);
-          !iter.isDone(); iter.next()) {
-        rostring name = iter.key();
-        // dsw: do you know how bad it gets if I don't put a
-        // const-cast here?
-        EnumType::Value *eValue = const_cast<EnumType::Value*>(iter.value());
-        openTag_NameMap_Item(name, eValue);
-        toXml_EnumType_Value(eValue);
-      }
-    }
-    break;
-  }
-
-  case AtomicType::T_TYPEVAR: {
-    // idempotency
-    if (printed(atom)) return;
-    TypeVariable *tvar = atom->asTypeVariable();
-    openTag(TypeVariable, tvar);
-    // **** attributes
-    // * superclasses
-    toXml_NamedAtomicType_properties(tvar);
-    tagEnd;
-    // **** subtags
-    // * superclasses
-    toXml_NamedAtomicType_subtags(tvar);
-    break;
-  }
-
-  case AtomicType::T_PSEUDOINSTANTIATION: {
-    // idempotency
-    if (printed(atom)) return;
-    PseudoInstantiation *pseudo = atom->asPseudoInstantiation();
-    openTag(PseudoInstantiation, pseudo);
-    // **** attributes
-    // * superclasses
-    toXml_NamedAtomicType_properties(pseudo);
-    // * members
-    printPtr(pseudo, primary);
-    printEmbed(pseudo, args);
-    tagEnd;
-    // **** subtags
-    // * superclasses
-    toXml_NamedAtomicType_subtags(pseudo);
-    // * members
-    trav(pseudo->primary);
-    travObjList(pseudo, PseudoInstantiation, args, STemplateArgument);
-    break;
-  }
-
-  case AtomicType::T_DEPENDENTQTYPE: {
-    // idempotency
-    if (printed(atom)) return;
-    DependentQType *dep = atom->asDependentQType();
-    openTag(DependentQType, dep);
-    // **** attributes
-    // * superclasses
-    toXml_NamedAtomicType_properties(dep);
-    // * members
-    printPtr(dep, first);
-    printPtrAST(dep, rest);
-    tagEnd;
-    // **** subtags
-    // * superclasses
-    toXml_NamedAtomicType_subtags(dep);
-    // * members
-    trav(dep->first);
-    travAST(dep->rest);
-    break;
-  }
-
-  }
-}
-
-void TypeToXml::toXml(CompoundType *cpd) {
-  // idempotency
-  if (printed(cpd)) return;
-  openTag(CompoundType, cpd);
-  // **** attributes
-  // * superclasses
-  toXml_NamedAtomicType_properties(cpd);
-  toXml_Scope_properties(cpd);
-  // * members
-  printXml_bool(forward, cpd->forward);
-  printXml(keyword, cpd->keyword);
-  printEmbed(cpd, dataMembers);
-  printEmbed(cpd, bases);
-  printEmbed(cpd, virtualBases);
-  printEmbed(cpd, subobj);
-  printEmbed(cpd, conversionOperators);
-  printStrRef(instName, cpd->instName);
-  printPtrAST(cpd, syntax);
-  printPtr(cpd, parameterizingScope);
-  printPtr(cpd, selfType);
-  tagEnd;
-  // **** subtags
-  // * superclasses
-  toXml_NamedAtomicType_subtags(cpd);
-  toXml_Scope_subtags(cpd);
-  // * members
-  travObjList_S(cpd, CompoundType, dataMembers, Variable);
-  travObjList(cpd, CompoundType, bases, BaseClass);
-  travObjList(cpd, CompoundType, virtualBases, BaseClassSubobj);
-  toXml(&cpd->subobj);          // embedded
-  travObjList_S(cpd, CompoundType, conversionOperators, Variable);
-  travAST(cpd->syntax);
-  trav(cpd->parameterizingScope);
-  trav(cpd->selfType);
-}
-
-void TypeToXml::toXml_Variable_properties(Variable *var) {
-  printXml_SourceLoc(loc, var->loc);
-  printStrRef(name, var->name);
-  printPtr(var, type);
-  printXml(flags, var->flags);
-  printPtrAST(var, value);
-  printPtr(var, defaultParamType);
-  printPtrAST(var, funcDefn);
-  printPtr(var, overload);
-  printPtr(var, scope);
-
-  // these three fields are an abstraction; here we pretend they are
-  // real
-  AccessKeyword access = var->getAccess();
-  printXml(access, access);
-  ScopeKind scopeKind = var->getScopeKind();
-  printXml(scopeKind, scopeKind);
-  int parameterOrdinal = var->getParameterOrdinal();
-  printXml_int(parameterOrdinal, parameterOrdinal);
-
-  printPtr(var, usingAlias_or_parameterizedEntity);
-  printPtr(var, templInfo);
-
-  if (var->linkerVisibleName()) {
-    newline();
-    out << "fullyQualifiedMangledName=" << xmlAttrQuote(var->fullyQualifiedMangledName0());
-  }
-}
-
-void TypeToXml::toXml_Variable_subtags(Variable *var) {
-  trav(var->type);
-  travAST(var->value);
-  trav(var->defaultParamType);
-  travAST(var->funcDefn);
-  trav(var->overload);
-  trav(var->scope);
-  trav(var->usingAlias_or_parameterizedEntity);
-  trav(var->templInfo);
-}
-
-void TypeToXml::toXml(Variable *var) {
-  // idempotency
-  if (printed(var)) return;
-  openTag(Variable, var);
-  // **** attributes
-  toXml_Variable_properties(var);
-  tagEnd;
-  // **** subtags
-  toXml_Variable_subtags(var);
-}
-
-void TypeToXml::toXml_FunctionType_ExnSpec(void /*FunctionType::ExnSpec*/ *exnSpec0) {
-  FunctionType::ExnSpec *exnSpec = static_cast<FunctionType::ExnSpec *>(exnSpec0);
-  // idempotency
-  if (printed(exnSpec)) return;
-  openTag(FunctionType_ExnSpec, exnSpec);
-  // **** attributes
-  printEmbed(exnSpec, types);
-  tagEnd;
-  // **** subtags
-  travObjList_S(exnSpec, ExnSpec, types, Type);
-}
-
-void TypeToXml::toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0) {
-  EnumType::Value *eValue = static_cast<EnumType::Value *>(eValue0);
-  // idempotency
-  if (printed(eValue)) return;
-  openTag(EnumType_Value, eValue);
-  // **** attributes
-  printStrRef(name, eValue->name);
-  printPtr(eValue, type);
-  printXml_int(value, eValue->value);
-  printPtr(eValue, decl);
-  tagEnd;
-  // **** subtags
-  trav(eValue->type);
-  trav(eValue->decl);
-}
-
-void TypeToXml::toXml_NamedAtomicType_properties(NamedAtomicType *nat) {
-  printStrRef(name, nat->name);
-  printPtr(nat, typedefVar);
-  printXml(access, nat->access);
-}
-
-void TypeToXml::toXml_NamedAtomicType_subtags(NamedAtomicType *nat) {
-  trav(nat->typedefVar);
-}
-
-void TypeToXml::toXml(OverloadSet *oload) {
-  // idempotency
-  if (printed(oload)) return;
-  openTag(OverloadSet, oload);
-  // **** attributes
-  printEmbed(oload, set);
-  tagEnd;
-  // **** subtags
-  travObjList_S(oload, OverloadSet, set, Variable);
-}
-
-void TypeToXml::toXml(BaseClass *bc) {
-  // Since BaseClass objects are never manipulated polymorphically,
-  // that is, every BaseClass pointer's static type equals its dynamic
-  // type, 'bc' cannot actually be a BaseClassSubobj.
-
-  // idempotency
-  if (printed(bc)) return;
-  openTag(BaseClass, bc);
-  // **** attributes
-  toXml_BaseClass_properties(bc);
-  tagEnd;
-  // **** subtags
-  toXml_BaseClass_subtags(bc);
-}
-
-void TypeToXml::toXml_BaseClass_properties(BaseClass *bc) {
-  printPtr(bc, ct);
-  printXml(access, bc->access);
-  printXml_bool(isVirtual, bc->isVirtual);
-}
-
-void TypeToXml::toXml_BaseClass_subtags(BaseClass *bc) {
-  trav(bc->ct);
-}
-
-void TypeToXml::toXml(BaseClassSubobj *bc) {
-  // idempotency
-  if (printed(bc)) return;
-  openTag(BaseClassSubobj, bc);
-  // **** attributes
-  // * superclass
-  toXml_BaseClass_properties(bc);
-  // * members
-  printEmbed(bc, parents);
-  tagEnd;
-  // **** subtags
-  // * superclass
-  toXml_BaseClass_subtags(bc);
-  // * members
-  travObjList_S(bc, BaseClassSubobj, parents, BaseClassSubobj);
-}
-
-void TypeToXml::toXml(Scope *scope) {
-  // are we really a CompoundType?
-  if (CompoundType *cpd = dynamic_cast<CompoundType*>(scope)) {
-    toXml(cpd);
-    return;
-  }
-  // idempotency
-  if (printed(scope)) return;
-  openTag(Scope, scope);
-  // **** attributes
-  toXml_Scope_properties(scope);
-  tagEnd;
-  // **** subtags
-  toXml_Scope_subtags(scope);
-}
-
-void TypeToXml::toXml_Scope_properties(Scope *scope) {
-  printEmbed(scope, variables);
-  printEmbed(scope, typeTags);
-  printXml_bool(canAcceptNames, scope->canAcceptNames);
-  printPtr(scope, parentScope);
-  printXml(scopeKind, scope->scopeKind);
-  printPtr(scope, namespaceVar);
-  printEmbed(scope, templateParams);
-  printPtr(scope, curCompound);
-  printXml_SourceLoc(curLoc, scope->curLoc);
-}
-
-void TypeToXml::toXml_Scope_subtags(Scope *scope) {
-  travPtrMap(scope, Scope, variables, Variable);
-  travPtrMap(scope, Scope, typeTags, Variable);
-  trav(scope->parentScope);
-  trav(scope->namespaceVar);
-  travObjList_S(scope, Scope, templateParams, Variable);
-  trav(scope->curCompound);
-}
-
-void TypeToXml::toXml(STemplateArgument *sta) {
-  // idempotency
-  if (printed(sta)) return;
-  openTag(STemplateArgument, sta);
-
-  // **** attributes
-  printXml(kind, sta->kind);
-
-  newline();
-  switch(sta->kind) {
-  default: xfailure("illegal STemplateArgument kind"); break;
-
-  case STemplateArgument::STA_TYPE:
-    printPtrUnion(sta, value.t, t);
-    break;
-
-  case STemplateArgument::STA_INT:
-    printXml_int(i, sta->value.i);
-    break;
-
-  case STemplateArgument::STA_ENUMERATOR:
-  case STemplateArgument::STA_REFERENCE:
-  case STemplateArgument::STA_POINTER:
-  case STemplateArgument::STA_MEMBER:
-    printPtrUnion(sta, value.v, v);
-    break;
-
-  case STemplateArgument::STA_DEPEXPR:
-    printPtrASTUnion(sta, value.e, e);
-    break;
-
-  case STemplateArgument::STA_TEMPLATE:
-    xfailure("template template arguments not implemented");
-    break;
-
-  case STemplateArgument::STA_ATOMIC:
-    printPtrUnion(sta, value.at, at);
-    break;
-  }
-  tagEnd;
-
-  // **** subtags
-
-  // NOTE: I don't use the trav() macro here because it would be weird
-  // to test the member of a union for being NULL; it should have a
-  // well-defined value if it is the selected type of the tag.
-  switch(sta->kind) {
-  default: xfailure("illegal STemplateArgument kind"); break;
-  case STemplateArgument::STA_TYPE:
-    toXml(sta->value.t);
-    break;
-
-  case STemplateArgument::STA_INT:
-    // nothing to do
-    break;
-
-  case STemplateArgument::STA_ENUMERATOR:
-  case STemplateArgument::STA_REFERENCE:
-  case STemplateArgument::STA_POINTER:
-  case STemplateArgument::STA_MEMBER:
-    toXml(sta->value.v);
-    break;
-
-  case STemplateArgument::STA_DEPEXPR:
-    sta->value.e->traverse(*astVisitor);
-    break;
-
-  case STemplateArgument::STA_TEMPLATE:
-    xfailure("template template arguments not implemented");
-    break;
-
-  case STemplateArgument::STA_ATOMIC:
-    toXml(const_cast<AtomicType*>(sta->value.at));
-    break;
-  }
-}
-
-void TypeToXml::toXml(TemplateInfo *ti) {
-  // idempotency
-  if (printed(ti)) return;
-  openTag(TemplateInfo, ti);
-  // **** attributes
-  // * superclass
-  toXml_TemplateParams_properties(ti);
-  // * members
-  printPtr(ti, var);
-  printEmbed(ti, inheritedParams);
-  printPtr(ti, instantiationOf);
-  printEmbed(ti, instantiations);
-  printPtr(ti, specializationOf);
-  printEmbed(ti, specializations);
-  printEmbed(ti, arguments);
-  printXml_SourceLoc(instLoc, ti->instLoc);
-  printPtr(ti, partialInstantiationOf);
-  printEmbed(ti, partialInstantiations);
-  printEmbed(ti, argumentsToPrimary);
-  printPtr(ti, defnScope);
-  printPtr(ti, definitionTemplateInfo);
-  tagEnd;
-  // **** subtags
-  // * superclass
-  toXml_TemplateParams_subtags(ti);
-  // * members
-  trav(ti->var);
-  travObjList(ti, TemplateInfo, inheritedParams, InheritedTemplateParams);
-  trav(ti->instantiationOf);
-  travObjList_S(ti, TemplateInfo, instantiations, Variable);
-  trav(ti->specializationOf);
-  travObjList_S(ti, TemplateInfo, specializations, Variable);
-  travObjList(ti, TemplateInfo, arguments, STemplateArgument);
-  trav(ti->partialInstantiationOf);
-  travObjList_S(ti, TemplateInfo, partialInstantiations, Variable);
-  travObjList(ti, TemplateInfo, argumentsToPrimary, STemplateArgument);
-  trav(ti->defnScope);
-  trav(ti->definitionTemplateInfo);
-}
-
-void TypeToXml::toXml(InheritedTemplateParams *itp) {
-  // idempotency
-  if (printed(itp)) return;
-  openTag(InheritedTemplateParams, itp);
-  // **** attributes
-  // * superclass
-  toXml_TemplateParams_properties(itp);
-  // * members
-  printPtr(itp, enclosing);
-  tagEnd;
-  // **** subtags
-  // * superclass
-  toXml_TemplateParams_subtags(itp);
-  // * members
-  trav(itp->enclosing);
-}
-
-void TypeToXml::toXml_TemplateParams_properties(TemplateParams *tp) {
-  printEmbed(tp, params);
-}
-
-void TypeToXml::toXml_TemplateParams_subtags(TemplateParams *tp) {
-  travObjList_S(tp, TemplateParams, params, Variable);
-}
-
-
-// -------------------- TypeXmlReader -------------------
-
-bool TypeXmlReader::kind2kindCat(int kind, KindCategory *kindCat) {
+bool XmlTypeReader::kind2kindCat(int kind, KindCategory *kindCat) {
   switch(kind) {
   default: return false;        // we don't know this kind
 
@@ -822,7 +140,7 @@ bool TypeXmlReader::kind2kindCat(int kind, KindCategory *kindCat) {
   return true;
 }
 
-bool TypeXmlReader::recordKind(int kind, bool& answer) {
+bool XmlTypeReader::recordKind(int kind, bool& answer) {
   switch(kind) {
   default: return false;        // we don't know this kind
 
@@ -892,7 +210,7 @@ bool TypeXmlReader::recordKind(int kind, bool& answer) {
   }
 }
 
-bool TypeXmlReader::callOpAssignToEmbeddedObj(void *obj, int kind, void *target) {
+bool XmlTypeReader::callOpAssignToEmbeddedObj(void *obj, int kind, void *target) {
   xassert(obj);
   xassert(target);
   switch(kind) {
@@ -921,7 +239,7 @@ bool TypeXmlReader::callOpAssignToEmbeddedObj(void *obj, int kind, void *target)
   }
 }
 
-bool TypeXmlReader::upcastToWantedType(void *obj, int objKind, void **target, int targetKind) {
+bool XmlTypeReader::upcastToWantedType(void *obj, int objKind, void **target, int targetKind) {
   xassert(obj);
   xassert(target);
 
@@ -956,12 +274,12 @@ bool TypeXmlReader::upcastToWantedType(void *obj, int objKind, void **target, in
   }
 }
 
-bool TypeXmlReader::convertList2FakeList(ASTList<char> *list, int listKind, void **target) {
+bool XmlTypeReader::convertList2FakeList(ASTList<char> *list, int listKind, void **target) {
   xfailure("should not be called during Type parsing there are no FakeLists in the Type System");
   return false;
 }
 
-bool TypeXmlReader::convertList2SObjList(ASTList<char> *list, int listKind, void **target) {
+bool XmlTypeReader::convertList2SObjList(ASTList<char> *list, int listKind, void **target) {
   // NOTE: SObjList only has constant-time prepend, not constant-time
   // append, hence the prepend() and reverse().
   xassert(list);
@@ -993,7 +311,7 @@ bool TypeXmlReader::convertList2SObjList(ASTList<char> *list, int listKind, void
   return true;
 }
 
-bool TypeXmlReader::convertList2ObjList(ASTList<char> *list, int listKind, void **target) {
+bool XmlTypeReader::convertList2ObjList(ASTList<char> *list, int listKind, void **target) {
   // NOTE: ObjList only has constant-time prepend, not constant-time
   // append, hence the prepend() and reverse().
   xassert(list);
@@ -1025,12 +343,12 @@ bool TypeXmlReader::convertList2ObjList(ASTList<char> *list, int listKind, void 
   return true;
 }
 
-bool TypeXmlReader::convertList2ArrayStack(ASTList<char> *list, int listKind, void **target) {
+bool XmlTypeReader::convertList2ArrayStack(ASTList<char> *list, int listKind, void **target) {
   xfailure("should not be called during Type parsing there are no ArrayStacks in the Type System");
   return false;
 }
 
-bool TypeXmlReader::convertNameMap2StringRefMap
+bool XmlTypeReader::convertNameMap2StringRefMap
   (StringRefMap<char> *map, int mapKind, void *target) {
   xassert(map);
   switch(mapKind) {
@@ -1045,7 +363,7 @@ bool TypeXmlReader::convertNameMap2StringRefMap
   return true;
 }
 
-bool TypeXmlReader::convertNameMap2StringSObjDict
+bool XmlTypeReader::convertNameMap2StringSObjDict
   (StringRefMap<char> *map, int mapKind, void *target) {
   xassert(map);
   switch(mapKind) {
@@ -1059,7 +377,7 @@ bool TypeXmlReader::convertNameMap2StringSObjDict
   return true;
 }
 
-void *TypeXmlReader::ctorNodeFromTag(int tag) {
+void *XmlTypeReader::ctorNodeFromTag(int tag) {
   switch(tag) {
   default: return NULL; break;
   case 0: userError("unexpected file termination while looking for an open tag name");
@@ -1143,7 +461,7 @@ void *TypeXmlReader::ctorNodeFromTag(int tag) {
 
 // **************** registerStringToken
 
-bool TypeXmlReader::registerStringToken(void *target, int kind, char const *yytext0) {
+bool XmlTypeReader::registerStringToken(void *target, int kind, char const *yytext0) {
   return false;
 }
 
@@ -1152,7 +470,7 @@ bool TypeXmlReader::registerStringToken(void *target, int kind, char const *yyte
 #define regAttr(TYPE) \
   registerAttr_##TYPE((TYPE*)target, attr, yytext0)
 
-bool TypeXmlReader::registerAttribute(void *target, int kind, int attr, char const *yytext0) {
+bool XmlTypeReader::registerAttribute(void *target, int kind, int attr, char const *yytext0) {
   switch(kind) {
   default: return false; break;
 
@@ -1193,7 +511,7 @@ bool TypeXmlReader::registerAttribute(void *target, int kind, int attr, char con
   return true;
 }
 
-void TypeXmlReader::registerAttr_CVAtomicType(CVAtomicType *obj, int attr, char const *strValue) {
+void XmlTypeReader::registerAttr_CVAtomicType(CVAtomicType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a CVAtomicType"); break;
   case XTOK_atomic: ul(atomic, XTOK_AtomicType); break;
@@ -1201,7 +519,7 @@ void TypeXmlReader::registerAttr_CVAtomicType(CVAtomicType *obj, int attr, char 
   }
 }
 
-void TypeXmlReader::registerAttr_PointerType(PointerType *obj, int attr, char const *strValue) {
+void XmlTypeReader::registerAttr_PointerType(PointerType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a PointerType"); break;
   case XTOK_cv: fromXml(obj->cv, xmlAttrDeQuote(strValue)); break;
@@ -1209,14 +527,14 @@ void TypeXmlReader::registerAttr_PointerType(PointerType *obj, int attr, char co
   }
 }
 
-void TypeXmlReader::registerAttr_ReferenceType(ReferenceType *obj, int attr, char const *strValue) {
+void XmlTypeReader::registerAttr_ReferenceType(ReferenceType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a ReferenceType"); break;
   case XTOK_atType: ul(atType, XTOK_Type); break;
   }
 }
 
-void TypeXmlReader::registerAttr_FunctionType(FunctionType *obj, int attr, char const *strValue) {
+void XmlTypeReader::registerAttr_FunctionType(FunctionType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a FunctionType"); break;
   case XTOK_flags: fromXml(obj->flags, xmlAttrDeQuote(strValue)); break;
@@ -1226,7 +544,7 @@ void TypeXmlReader::registerAttr_FunctionType(FunctionType *obj, int attr, char 
   }
 }
 
-void TypeXmlReader::registerAttr_FunctionType_ExnSpec
+void XmlTypeReader::registerAttr_FunctionType_ExnSpec
   (FunctionType::ExnSpec *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a FunctionType_ExnSpec"); break;
@@ -1234,7 +552,7 @@ void TypeXmlReader::registerAttr_FunctionType_ExnSpec
   }
 }
 
-void TypeXmlReader::registerAttr_ArrayType(ArrayType *obj, int attr, char const *strValue) {
+void XmlTypeReader::registerAttr_ArrayType(ArrayType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a ArrayType"); break;
   case XTOK_eltType: ul(eltType, XTOK_Type); break;
@@ -1242,7 +560,7 @@ void TypeXmlReader::registerAttr_ArrayType(ArrayType *obj, int attr, char const 
   }
 }
 
-void TypeXmlReader::registerAttr_PointerToMemberType
+void XmlTypeReader::registerAttr_PointerToMemberType
   (PointerToMemberType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a PointerToMemberType"); break;
@@ -1253,7 +571,7 @@ void TypeXmlReader::registerAttr_PointerToMemberType
   }
 }
 
-bool TypeXmlReader::registerAttr_Variable_super(Variable *obj, int attr, char const *strValue) {
+bool XmlTypeReader::registerAttr_Variable_super(Variable *obj, int attr, char const *strValue) {
   switch(attr) {
   default: return false; break; // we didn't find it
   case XTOK_loc: fromXml_SourceLoc(obj->loc, xmlAttrDeQuote(strValue)); break;
@@ -1300,14 +618,14 @@ bool TypeXmlReader::registerAttr_Variable_super(Variable *obj, int attr, char co
   return true;                  // found it
 }
 
-void TypeXmlReader::registerAttr_Variable(Variable *obj, int attr, char const *strValue) {
+void XmlTypeReader::registerAttr_Variable(Variable *obj, int attr, char const *strValue) {
   // "superclass": just re-use our own superclass code for ourself
   if (registerAttr_Variable_super(obj, attr, strValue)) return;
   // shouldn't get here
   userError("illegal attribute for a Variable");
 }
 
-bool TypeXmlReader::registerAttr_NamedAtomicType_super
+bool XmlTypeReader::registerAttr_NamedAtomicType_super
   (NamedAtomicType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: return false; break; // we didn't find it
@@ -1318,7 +636,7 @@ bool TypeXmlReader::registerAttr_NamedAtomicType_super
   return true;                  // found it
 }
 
-void TypeXmlReader::registerAttr_SimpleType(SimpleType *obj, int attr, char const *strValue) {
+void XmlTypeReader::registerAttr_SimpleType(SimpleType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a SimpleType"); break;
   case XTOK_type:
@@ -1329,7 +647,7 @@ void TypeXmlReader::registerAttr_SimpleType(SimpleType *obj, int attr, char cons
   }
 }
 
-void TypeXmlReader::registerAttr_CompoundType(CompoundType *obj, int attr, char const *strValue) {
+void XmlTypeReader::registerAttr_CompoundType(CompoundType *obj, int attr, char const *strValue) {
   // superclasses
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
   if (registerAttr_Scope_super(obj, attr, strValue)) return;
@@ -1351,7 +669,7 @@ void TypeXmlReader::registerAttr_CompoundType(CompoundType *obj, int attr, char 
   }
 }
 
-void TypeXmlReader::registerAttr_EnumType(EnumType *obj, int attr, char const *strValue) {
+void XmlTypeReader::registerAttr_EnumType(EnumType *obj, int attr, char const *strValue) {
   // superclass
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
 
@@ -1362,7 +680,7 @@ void TypeXmlReader::registerAttr_EnumType(EnumType *obj, int attr, char const *s
   }
 }
 
-void TypeXmlReader::registerAttr_EnumType_Value
+void XmlTypeReader::registerAttr_EnumType_Value
   (EnumType::Value *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a EnumType"); break;
@@ -1373,14 +691,14 @@ void TypeXmlReader::registerAttr_EnumType_Value
   }
 }
 
-void TypeXmlReader::registerAttr_TypeVariable(TypeVariable *obj, int attr, char const *strValue) {
+void XmlTypeReader::registerAttr_TypeVariable(TypeVariable *obj, int attr, char const *strValue) {
   // superclass
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
   // shouldn't get here
   userError("illegal attribute for a TypeVariable");
 }
 
-void TypeXmlReader::registerAttr_PseudoInstantiation
+void XmlTypeReader::registerAttr_PseudoInstantiation
   (PseudoInstantiation *obj, int attr, char const *strValue) {
   // superclass
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
@@ -1392,7 +710,7 @@ void TypeXmlReader::registerAttr_PseudoInstantiation
   }
 }
 
-void TypeXmlReader::registerAttr_DependentQType
+void XmlTypeReader::registerAttr_DependentQType
   (DependentQType *obj, int attr, char const *strValue) {
   // superclass
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
@@ -1404,7 +722,7 @@ void TypeXmlReader::registerAttr_DependentQType
   }
 }
 
-bool TypeXmlReader::registerAttr_Scope_super(Scope *obj, int attr, char const *strValue) {
+bool XmlTypeReader::registerAttr_Scope_super(Scope *obj, int attr, char const *strValue) {
   switch(attr) {
   default: return false; break; // we didn't find it
   case XTOK_variables: ulList(_NameMap, variables, XTOK_NameMap_Scope_variables); break;
@@ -1420,14 +738,14 @@ bool TypeXmlReader::registerAttr_Scope_super(Scope *obj, int attr, char const *s
   return true;                  // found it
 }
 
-void TypeXmlReader::registerAttr_Scope(Scope *obj, int attr, char const *strValue) {
+void XmlTypeReader::registerAttr_Scope(Scope *obj, int attr, char const *strValue) {
   // "superclass": just re-use our own superclass code for ourself
   if (registerAttr_Scope_super(obj, attr, strValue)) return;
   // shouldn't get here
   userError("illegal attribute for a Scope");
 }
 
-bool TypeXmlReader::registerAttr_BaseClass_super(BaseClass *obj, int attr, char const *strValue) {
+bool XmlTypeReader::registerAttr_BaseClass_super(BaseClass *obj, int attr, char const *strValue) {
   switch(attr) {
   default: return false; break;
   case XTOK_ct: ul(ct, XTOK_CompoundType); break;
@@ -1437,14 +755,14 @@ bool TypeXmlReader::registerAttr_BaseClass_super(BaseClass *obj, int attr, char 
   return true;
 }
 
-void TypeXmlReader::registerAttr_BaseClass(BaseClass *obj, int attr, char const *strValue) {
+void XmlTypeReader::registerAttr_BaseClass(BaseClass *obj, int attr, char const *strValue) {
   // "superclass": just re-use our own superclass code for ourself
   if (registerAttr_BaseClass_super(obj, attr, strValue)) return;
   // shouldn't get here
   userError("illegal attribute for a BaseClass");
 }
 
-void TypeXmlReader::registerAttr_BaseClassSubobj
+void XmlTypeReader::registerAttr_BaseClassSubobj
   (BaseClassSubobj *obj, int attr, char const *strValue) {
   // "superclass": just re-use our own superclass code for ourself
   if (registerAttr_BaseClass_super(obj, attr, strValue)) return;
@@ -1455,14 +773,14 @@ void TypeXmlReader::registerAttr_BaseClassSubobj
   }
 }
 
-void TypeXmlReader::registerAttr_OverloadSet(OverloadSet *obj, int attr, char const *strValue) {
+void XmlTypeReader::registerAttr_OverloadSet(OverloadSet *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a OverloadSet"); break;
   case XTOK_set: ulList(_List, set, XTOK_List_OverloadSet_set); break;
   }
 }
 
-void TypeXmlReader::registerAttr_STemplateArgument
+void XmlTypeReader::registerAttr_STemplateArgument
   (STemplateArgument *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a STemplateArgument"); break;
@@ -1476,7 +794,7 @@ void TypeXmlReader::registerAttr_STemplateArgument
   }
 }
 
-bool TypeXmlReader::registerAttr_TemplateParams_super
+bool XmlTypeReader::registerAttr_TemplateParams_super
   (TemplateParams *obj, int attr, char const *strValue) {
   switch(attr) {
   default: return false; break; // we didn't find it
@@ -1485,7 +803,7 @@ bool TypeXmlReader::registerAttr_TemplateParams_super
   return true;
 }
 
-void TypeXmlReader::registerAttr_TemplateInfo(TemplateInfo *obj, int attr, char const *strValue) {
+void XmlTypeReader::registerAttr_TemplateInfo(TemplateInfo *obj, int attr, char const *strValue) {
   // superclass
   if (registerAttr_TemplateParams_super(obj, attr, strValue)) return;
 
@@ -1519,7 +837,7 @@ void TypeXmlReader::registerAttr_TemplateInfo(TemplateInfo *obj, int attr, char 
   }
 }
 
-void TypeXmlReader::registerAttr_InheritedTemplateParams
+void XmlTypeReader::registerAttr_InheritedTemplateParams
   (InheritedTemplateParams *obj, int attr, char const *strValue) {
   // superclass
   if (registerAttr_TemplateParams_super(obj, attr, strValue)) return;

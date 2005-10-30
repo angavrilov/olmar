@@ -1,93 +1,23 @@
-// cc_type_xml.h            see license.txt for copyright and terms of use
+// xml_type_reader.h            see license.txt for copyright and terms of use
 
-// Serialization and de-serialization for the type system, template
-// system, and variables.
+// De-serialization for the type system, template system, and
+// variables.
 
-#ifndef CC_TYPE_XML_H
-#define CC_TYPE_XML_H
+#ifndef XML_TYPE_READER_H
+#define XML_TYPE_READER_H
 
-#include "cc_type.h"            // Types, TypeVisitor
+#include "cc_type.h"            // Type
+#include "variable.h"
 #include "template.h"           // Template stuff is only forward-declared in cc_type.h
-#include "sobjset.h"            // SObjSet
-#include "xml.h"                // ToXml
+#include "xml_reader.h"         // XmlReader
 
-class OverloadSet;
-class ASTVisitor;
-
-char const *toXml(CompoundType::Keyword id);
-void fromXml(CompoundType::Keyword &out, rostring str);
-
-string toXml(FunctionFlags id);
-void fromXml(FunctionFlags &out, rostring str);
-
-// -------------------- TypeToXml -------------------
-
-identityB(Type);
-identityB(AtomicType);
-identityB(CompoundType);
-identityB(FunctionType::ExnSpec);
-identityB(EnumType::Value);
-identityB(BaseClass);
-identityB(Scope);
-identityB(Variable);
-identityB(OverloadSet);
-identityB(STemplateArgument);
-identityB(TemplateInfo);
-identityB(InheritedTemplateParams);
-
-// print the Type tree out as XML
-class TypeToXml : public ToXml {
-  public:
-  ASTVisitor *astVisitor;       // for launching sub-traversals of AST we encounter in the Types
-
-  public:
-  TypeToXml(ostream &out0, int &depth0, bool indent0=false);
-  virtual ~TypeToXml() {}
-
-  public:
-  // in the AST
-  void toXml(ObjList<STemplateArgument> *list);
-
-  void toXml(Type *t);
-  void toXml(AtomicType *atom);
-  void toXml(CompoundType *ct); // disambiguates the overloading
-  void toXml_Variable_properties(Variable *var);
-  void toXml_Variable_subtags(Variable *var);
-  void toXml(Variable *var);
-
-  private:
-  void toXml_FunctionType_ExnSpec(void /*FunctionType::ExnSpec*/ *exnSpec);
-
-  void toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0);
-  void toXml_NamedAtomicType_properties(NamedAtomicType *nat);
-  void toXml_NamedAtomicType_subtags(NamedAtomicType *nat);
-
-  void toXml(OverloadSet *oload);
-
-  void toXml(BaseClass *bc);
-  void toXml_BaseClass_properties(BaseClass *bc);
-  void toXml_BaseClass_subtags(BaseClass *bc);
-  void toXml(BaseClassSubobj *bc);
-
-  void toXml(Scope *scope);
-  void toXml_Scope_properties(Scope *scope);
-  void toXml_Scope_subtags(Scope *scope);
-
-  void toXml(STemplateArgument *sta);
-  void toXml(TemplateInfo *ti);
-  void toXml(InheritedTemplateParams *itp);
-  void toXml_TemplateParams_properties(TemplateParams *tp);
-  void toXml_TemplateParams_subtags(TemplateParams *tp);
-};
+//  void fromXml(CompoundType::Keyword &out, rostring str);
+//  void fromXml(FunctionFlags &out, rostring str);
+//  void fromXml(ScopeKind &out, rostring str);
+//  void fromXml(STemplateArgument::Kind &out, rostring str);
 
 
-// -------------------- TypeXmlReader -------------------
-
-// Specialization of the XmlReader framework that reads in XML for
-// serialized types.
-
-// parse Types and Variables serialized as XML
-class TypeXmlReader : public XmlReader {
+class XmlTypeReader : public XmlReader {
 //    BasicTypeFactory &tFac;
 
   public:
@@ -160,4 +90,4 @@ class TypeXmlReader : public XmlReader {
                                                                int attr, char const *strValue);
 };
 
-#endif // CC_TYPE_XML_H
+#endif // XML_TYPE_READER_H

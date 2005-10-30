@@ -1,4 +1,4 @@
-/* astxml_lexer0_top.lex            see license.txt for copyright and terms of use
+/* xml_lex_0top.lex            see license.txt for copyright and terms of use
  * flex description of scanner for C and C++ souce
  */
 
@@ -7,7 +7,7 @@
 /* ----------------------- C definitions ---------------------- */
 %{
 
-#include "astxml_lexer.h"       // Lexer class
+#include "xml_lexer.h"       // Lexer class
 
 // this works around a problem with cygwin & fileno
 #define YY_NEVER_INTERACTIVE 1

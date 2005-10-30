@@ -49,8 +49,8 @@ option visitor ASTVisitor;
 option dvisitor DelegatorASTVisitor;
 
 // these turn on the xml serialization and de-serialization code
-option xmlVisitor ToXmlASTVisitor;
-option xmlParser astxml;
+option xmlVisitor XmlAstWriter_AstVisitor;
+option xmlParser xml;
 
 // emit gdb() methods for debugging
 option gdb;

@@ -52,8 +52,8 @@ private:     // types
   };
 
   // needed to allow serialization and de-serialization
-  friend class TypeToXml;
-  friend class TypeXmlReader;
+  friend class XmlTypeWriter;
+  friend class XmlTypeReader;
 
 private:     // data
   // variables: name -> Variable
