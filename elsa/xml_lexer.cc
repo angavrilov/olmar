@@ -21,11 +21,10 @@ static char const * const tokenNames[] = {
   "XTOK_EQUAL",
   "XTOK_SLASH",
 
-  // tokens for lexing the AST XML
-#include "xml_name_1ast.gen.cc"
+  "XTOK_DOT_ID",
 
-  // tokens for lexing the typesystem XML
-#include "xml_name_1type.gen.cc"
+  // tokens for lexing the Xml
+#include "xml_name_1.gen.cc"
 
   "NUM_XML_TOKEN_TYPES",
 };

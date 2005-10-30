@@ -21,7 +21,10 @@ enum XmlToken {
   XTOK_STRING_LITERAL,
 
   // punctuation
-  XTOK_LESSTHAN,            // "<"
-  XTOK_GREATERTHAN,         // ">"
-  XTOK_EQUAL,               // "="
-  XTOK_SLASH,               // "/"
+  XTOK_LESSTHAN,                // "<"
+  XTOK_GREATERTHAN,             // ">"
+  XTOK_EQUAL,                   // "="
+  XTOK_SLASH,                   // "/"
+
+  // special attributes
+  XTOK_DOT_ID,                  // "_id"

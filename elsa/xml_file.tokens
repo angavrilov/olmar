@@ -1,0 +1,22 @@
+# Xml tokens for serializing file metadata nodes
+
+# File nodes
+File
+name
+numChars
+numLines
+lineLengths
+LineLengths
+hashLines
+HashLineMap
+ppFname
+List_HashLineMap_directives
+directives
+HashLine
+ppLine
+origLine
+origFname
+
+# FIX: are these in File or somewhere else?
+loc
+curLoc
