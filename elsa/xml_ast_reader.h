@@ -7,7 +7,7 @@
 #define XML_AST_READER_H
 
 #include "xml_reader.h"         // XmlReader
-#include "cc.ast.gen.h"         // TranslationUnit
+#include "cc_ast.h"             // TranslationUnit
 
 class XmlAstReader : public XmlReader {
   public:
