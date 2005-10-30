@@ -417,6 +417,16 @@ gendoc:
 gendoc/configure.txt: configure
 	./configure --help >$@
 
+# The list of excluded header files is somewhat arbitrary.  Basically,
+# I look at the generated .ps file, and if it is too cluttered, I pick
+# some header that is uninteresting or ubiquitous and exclude it.  The
+# intent is to see the forest by excluding some of the trees, but
+# there's some judgment involved in picking the trees to see.
+#
+# Also, I say the target is .PHONY because I don't want to actually
+# list all the dependencies (essentially, every source file is a
+# dependency), but if no dependencies are listed then 'make' won't
+# build it if it exists.
 .PHONY: gendoc/dependencies.dot
 gendoc/dependencies.dot:
 	$(PERL) $(SMBASE)/scan-depends.pl -r \
