@@ -97,7 +97,7 @@ endif
 CXX := g++
 
 # flags for the C++ compiler (and preprocessor)
-CCFLAGS := @CCFLAGS@ -DXML -Woverloaded-virtual -I$(SMBASE) -I$(AST) -I$(ELKHOUND)
+CCFLAGS := @CCFLAGS@ -Woverloaded-virtual -I$(SMBASE) -I$(AST) -I$(ELKHOUND)
 
 # how to enable coverage
 GCOV_OPTS := -fprofile-arcs -ftest-coverage
