@@ -550,7 +550,7 @@ void HGen::emitTFClass(TF_class const &cls)
   // classes
   if (wantXmlVisitor()) {
     out << "  friend class " << xmlVisitorName << ";\n";
-    out << "  friend class ASTXmlReader;\n";
+    out << "  friend class XmlAstReader;\n";
   }
 
   emitCtorFields(cls.super->args, cls.super->lastArgs);
@@ -986,14 +986,15 @@ class XmlParserGen {
 
   public:
   XmlParserGen(string &xmlParserName)
-    : tokensOutH(stringc << xmlParserName << "_tokens1_mid.gen.h")
-    , tokensOutCC(stringc << xmlParserName << "_lexer1_mid.gen.cc")
-    , lexerOut(stringc << xmlParserName << "_lexer1_mid.gen.lex")
+    : tokensOutH(stringc << xmlParserName << "_enum_1ast.gen.h")
 
-    , parser0_decls(stringc << xmlParserName << "_parse1_0decl.gen.cc")
-    , parser1_defs (stringc << xmlParserName << "_parse1_1defn.gen.cc")
-    , parser2_ctorCalls    (stringc << xmlParserName << "_parse1_2ctrc.gen.cc")
-    , parser3_registerCalls(stringc << xmlParserName << "_parse1_3regc.gen.cc")
+    , tokensOutCC(stringc << xmlParserName << "_name_1ast.gen.cc")
+    , lexerOut(stringc << xmlParserName << "_lex_1ast.gen.lex")
+
+    , parser0_decls(stringc << xmlParserName << "_ast_reader_0decl.gen.h")
+    , parser1_defs (stringc << xmlParserName << "_ast_reader_1defn.gen.cc")
+    , parser2_ctorCalls    (stringc << xmlParserName << "_ast_reader_2ctrc.gen.cc")
+    , parser3_registerCalls(stringc << xmlParserName << "_ast_reader_3regc.gen.cc")
   {}
 
   private:
@@ -2703,7 +2704,7 @@ void XmlParserGen::emitXmlParser_Node_registerAttr
   string name = clazz->name;
 
   parser1_defs
-    << "\nvoid ASTXmlReader::registerAttr_" << name
+    << "\nvoid XmlAstReader::registerAttr_" << name
     << "(" << name << " *obj, int attr, char const *strValue) {\n";
   parser1_defs << "  switch(attr) {\n";
   parser1_defs << "  default:\n";
@@ -2742,7 +2743,7 @@ void XmlParserGen::emitXmlParserImplementation()
   tokensOutCC << "  // AST nodes\n";
   lexerOut    << "  /* AST nodes */\n";
 
-  parser1_defs << "bool ASTXmlReader::kind2kindCat(int kind, KindCategory *kindCat) {\n";
+  parser1_defs << "bool XmlAstReader::kind2kindCat(int kind, KindCategory *kindCat) {\n";
   parser1_defs << "  switch(kind) {\n";
   parser1_defs << "  default: return false; // don't know this kind\n";
 
@@ -2822,7 +2823,7 @@ void XmlParserGen::emitXmlParserImplementation()
   // generate the method that says we should not record the kind of
   // any tag that is parsed as there is no multiple inheritance going
   // on in the AST
-  parser1_defs << "\nbool ASTXmlReader::recordKind(int kind, bool& answer) {\n";
+  parser1_defs << "\nbool XmlAstReader::recordKind(int kind, bool& answer) {\n";
   parser1_defs << "  switch(kind) {\n";
   parser1_defs << "  default: return false; break;\n";
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
@@ -2848,7 +2849,7 @@ void XmlParserGen::emitXmlParserImplementation()
   // generate the method that says we should not record the kind of
   // any tag that is parsed as there is no multiple inheritance going
   // on in the AST
-  parser1_defs << "\nbool ASTXmlReader::upcastToWantedType";
+  parser1_defs << "\nbool XmlAstReader::upcastToWantedType";
   parser1_defs << "(void *obj, int kind, void **target, int targetKind) {\n";
   parser1_defs << "  switch(kind) {\n";
   parser1_defs << "  default: return false; break;\n";
@@ -2872,7 +2873,7 @@ void XmlParserGen::emitXmlParserImplementation()
   // generate the method that says we should not have to call
   // operator=() on any objects because no AST nodes embed into one
   // another
-  parser1_defs << "\nbool ASTXmlReader::callOpAssignToEmbeddedObj";
+  parser1_defs << "\nbool XmlAstReader::callOpAssignToEmbeddedObj";
   parser1_defs << "(void *obj, int kind, void *target) {\n";
   parser1_defs << "  switch(kind) {\n";
   parser1_defs << "  default: return false; break;\n";
@@ -2894,7 +2895,7 @@ void XmlParserGen::emitXmlParserImplementation()
   parser1_defs << "}\n";
 
   // generate generic FakeList reverse
-  parser1_defs << "bool ASTXmlReader::convertList2FakeList";
+  parser1_defs << "bool XmlAstReader::convertList2FakeList";
   parser1_defs << "(ASTList<char> *list, int listKind, void **target) {\n";
   parser1_defs << "  switch(listKind) {\n";
   parser1_defs << "  default: return false; // we did not find a matching tag\n";
