@@ -44,7 +44,7 @@
   /* %option yylineno */
 
 /* and I will define the class (lexer.h) */
-%option yyclass="AstXmlLexer"
+%option yyclass="XmlLexer"
 
 /* ------------------- definitions -------------------- */
 /* newline */

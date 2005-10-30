@@ -5,7 +5,7 @@
 #include "exc.h"
 
 
-// ------------------------ AstXmlLexer -------------------
+// ------------------------ XmlLexer -------------------
 static char const * const tokenNames[] = {
   "XTOK_EOF",
 
@@ -30,7 +30,7 @@ static char const * const tokenNames[] = {
   "NUM_XML_TOKEN_TYPES",
 };
 
-int AstXmlLexer::getToken() {
+int XmlLexer::getToken() {
   int token = this->yylex();
   if (token==0) {
     sawEof = true;
@@ -38,26 +38,26 @@ int AstXmlLexer::getToken() {
   return token;
 }
 
-int AstXmlLexer::tok(XmlToken kind)
+int XmlLexer::tok(XmlToken kind)
 {
 //    printf("%s\n", tokenKindDesc(kind).c_str());
 //    fflush(stdout);
   return kind;
 }
 
-int AstXmlLexer::svalTok(XmlToken kind)
+int XmlLexer::svalTok(XmlToken kind)
 {
 //    printf("%s '%s'\n", tokenKindDesc(kind).c_str(), yytext);
 //    fflush(stdout);
   return kind;
 }
 
-void AstXmlLexer::err(char const *msg)
+void XmlLexer::err(char const *msg)
 {
   THROW(xBase(stringc << inputFname << ":" << linenumber << ":" << msg));
 }
 
-string AstXmlLexer::tokenKindDesc(int kind) const
+string XmlLexer::tokenKindDesc(int kind) const
 {
   xassert(0 <= kind && kind < NUM_XML_TOKEN_TYPES);
   xassert(tokenNames[kind]);     // make sure the tokenNames array grows with the enum

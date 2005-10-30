@@ -13,9 +13,7 @@
 #include "astlist.h"            // ASTList
 #include "strtable.h"           // StringRef
 #include "strmap.h"             // StringRefMap
-
 #include "xml_lexer.h"          // XmlLexer
-typedef AstXmlLexer XmlLexer;
 
 class StringTable;
 

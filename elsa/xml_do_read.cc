@@ -3,7 +3,7 @@
 #include "xml_do_read.h"        // this module
 #include "fstream.h"            // ifstream
 #include "xml_writer.h"         // XmlReaderManager
-#include "xml_lexer.h"          // AstXmlLexer
+#include "xml_lexer.h"          // XmlLexer
 #include "xml_file_reader.h"    // XmlFileReader
 #include "xml_type_reader.h"    // XmlTypeReader
 #include "xml_ast_reader.h"     // XmlAstReader
@@ -14,7 +14,7 @@ class TranslationUnit;
 TranslationUnit *xmlDoRead(StringTable &strTable, char const *inputFname) {
   // make reader manager
   ifstream in(inputFname);
-  AstXmlLexer lexer(inputFname);
+  XmlLexer lexer(inputFname);
   lexer.restart(&in);
   XmlReaderManager manager(inputFname, lexer, strTable);
 

@@ -11,13 +11,13 @@
 #include "baselexer.h"          // FLEX_OUTPUT_METHOD_DECLS
 #include "xml_enum.gen.h"       // XTOK_*
 
-class AstXmlLexer : private yyFlexLexer {
+class XmlLexer : private yyFlexLexer {
   public:
   char const *inputFname;
   int linenumber;
   bool sawEof;
 
-  AstXmlLexer(char const *inputFname0)
+  XmlLexer(char const *inputFname0)
     : inputFname(inputFname0)
     , linenumber(1)             // file line counting traditionally starts at 1
     , sawEof(false)
