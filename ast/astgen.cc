@@ -975,10 +975,7 @@ public:
 class XmlParserGen {
   StringSet attributeNames;     // names of attributes of AST nodes
 
-  ofstream tokensOutH;
-  ofstream tokensOutCC;
-  ofstream lexerOut;
-
+  ofstream tokensOut;
   ofstream parser0_decls;
   ofstream parser1_defs;
   ofstream parser2_ctorCalls;
@@ -986,11 +983,7 @@ class XmlParserGen {
 
   public:
   XmlParserGen(string &xmlParserName)
-    : tokensOutH(stringc << xmlParserName << "_enum_1ast.gen.h")
-
-    , tokensOutCC(stringc << xmlParserName << "_name_1ast.gen.cc")
-    , lexerOut(stringc << xmlParserName << "_lex_1ast.gen.lex")
-
+    : tokensOut(stringc << xmlParserName << "_ast.gen.tokens")
     , parser0_decls(stringc << xmlParserName << "_ast_reader_0decl.gen.h")
     , parser1_defs (stringc << xmlParserName << "_ast_reader_1defn.gen.cc")
     , parser2_ctorCalls    (stringc << xmlParserName << "_ast_reader_2ctrc.gen.cc")
@@ -2739,9 +2732,7 @@ void XmlParserGen::emitXmlParser_ASTList(ListClass const *cls)
 
 void XmlParserGen::emitXmlParserImplementation()
 {
-  tokensOutH  << "  // AST nodes\n";
-  tokensOutCC << "  // AST nodes\n";
-  lexerOut    << "  /* AST nodes */\n";
+  tokensOut  << "  # Xml tokens for serializing Ast nodes\n";
 
   parser1_defs << "bool XmlAstReader::kind2kindCat(int kind, KindCategory *kindCat) {\n";
   parser1_defs << "  switch(kind) {\n";
@@ -2750,9 +2741,7 @@ void XmlParserGen::emitXmlParserImplementation()
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
 
-    tokensOutH  << "  XTOK_" << c->super->name << ", // \"" << c->super->name << "\"\n";
-    tokensOutCC << "  \"XTOK_" << c->super->name << "\",\n";
-    lexerOut  << "\"" << c->super->name << "\" return tok(XTOK_" << c->super->name << ");\n";
+    tokensOut << c->super->name << "\n";
     parser1_defs << "  case XTOK_" << c->super->name << ": *kindCat = KC_Node; break;\n";
 
     collectXmlParserCtorArgs(c->super->args, "obj");
@@ -2763,9 +2752,7 @@ void XmlParserGen::emitXmlParserImplementation()
       FOREACH_ASTLIST(ASTClass, c->ctors, iter) {
         ASTClass const *clazz = iter.data();
 
-        tokensOutH  << "    XTOK_" << clazz->name << ", // \"" << clazz->name << "\"\n";
-        tokensOutCC << "    \"XTOK_" << clazz->name << "\",\n";
-        lexerOut  << "\"" << clazz->name << "\" return tok(XTOK_" << clazz->name << ");\n";
+        tokensOut << "  " << clazz->name << "\n";
         parser1_defs << "  case XTOK_" << clazz->name << ": *kindCat = KC_Node; break;\n";
 
         collectXmlParserCtorArgs(clazz->args, "obj0");
@@ -2780,15 +2767,10 @@ void XmlParserGen::emitXmlParserImplementation()
     }
   }
 
-  tokensOutH  << "\n  // List 'classes'\n";
-  tokensOutCC << "\n  // List 'classes'\n";
+  tokensOut << "\n  # List 'classes'\n";
   FOREACH_ASTLIST(ListClass, listClasses, iter) {
     ListClass const *cls = iter.data();
-    tokensOutH  << "  XTOK_List_" << cls->classAndMemberName
-                << ", // \"List_" << cls->classAndMemberName << "\"\n";
-    tokensOutCC << "  \"XTOK_List_" << cls->classAndMemberName << "\",\n";
-    lexerOut  << "\"List_" << cls->classAndMemberName
-              << "\" return tok(XTOK_List_" << cls->classAndMemberName << ");\n";
+    tokensOut << "  List_" << cls->classAndMemberName << "\n";
     parser1_defs << "  case XTOK_List_" << cls->classAndMemberName << ": *kindCat = ";
     if (cls->lkind == LK_FakeList) {
       parser1_defs << "KC_FakeList";
@@ -2925,39 +2907,10 @@ void XmlParserGen::emitXmlParserImplementation()
   parser1_defs << "  return true;\n";
   parser1_defs << "}\n";
 
-  tokensOutH  << "\n";
-  tokensOutH  << "  // metadata tags that do not occur in the AST itself\n";
-  tokensOutH  << "  XTOK__List_Item, // \"_List_Item\"\n";
-  tokensOutH  << "  // metadata attributes that do not occur in the AST itself\n";
-  tokensOutH  << "  XTOK_DOT_ID, // \"_id\"\n";
-  tokensOutH  << "  XTOK_item, // \"item\"\n";
-
-  tokensOutCC << "\n";
-  tokensOutCC << "  // metadata tags that do not occur in the AST itself\n";
-  tokensOutCC << "  \"XTOK__List_Item\", // \"_List_Item\"\n";
-  tokensOutCC << "  // metadata attributes that do not occur in the AST itself\n";
-  tokensOutCC << "  \"XTOK_item\", // \"item\"\n";
-  tokensOutCC << "  \"XTOK_DOT_ID\", // \"_id\"\n";
-
-  lexerOut << "\n";
-  lexerOut << "  /* metadata tags that do not occur in the AST itself */\n";
-  lexerOut << "\"_List_Item\" return tok(XTOK__List_Item);\n";
-  lexerOut << "  /* metadata attributes that do not occur in the AST itself */\n";
-  lexerOut << "\"item\" return tok(XTOK_item);\n";
-  lexerOut << "\"_id\" return tok(XTOK_DOT_ID);\n";
-
-  tokensOutH  << "\n";
-  tokensOutH  << "  // child attribute names\n";
-  tokensOutCC << "\n";
-  tokensOutCC << "  // child attribute names\n";
-  lexerOut << "\n";
-  lexerOut << "  /* child attribute names */\n";
-
+  tokensOut << "\n  # child attribute names\n";
   FOREACH_STRINGSET(attributeNames, attrIter) {
     string const &attr = attrIter.data();
-    tokensOutH  << "  XTOK_" << attr << ", // \"" << attr << "\"\n";
-    tokensOutCC << "  \"XTOK_" << attr << "\",\n";
-    lexerOut  << "\"" << attr << "\" return tok(XTOK_" << attr << ");\n";
+    tokensOut << "  " << attr << "\n";
   }
 }
 
