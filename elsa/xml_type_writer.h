@@ -37,7 +37,7 @@ class XmlTypeWriter : public XmlWriter {
   ASTVisitor *astVisitor;       // for launching sub-traversals of AST we encounter in the Types
 
   public:
-  XmlTypeWriter(ostream &out0, int &depth0, bool indent0=false);
+  XmlTypeWriter(ASTVisitor *astVisitor0, ostream &out0, int &depth0, bool indent0=false);
   virtual ~XmlTypeWriter() {}
 
   public:

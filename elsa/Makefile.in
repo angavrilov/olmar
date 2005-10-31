@@ -215,8 +215,6 @@ xml_lexer.yy.o: xml_lex.gen.yy.cc
 # list the .cc files that include generated .h files as the normal
 # dependency generation mechanism should generate those
 
-# dsw: Scott claims that these 'touch $@' rules don't make any
-# difference, but if you turn this off, it stops building
 xml_lexer.h: xml_enum.gen.h
 	touch $@
 

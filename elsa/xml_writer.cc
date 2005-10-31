@@ -17,7 +17,7 @@ void XmlWriter::newline() {
   // this loop is worth optimizing, probably by printing chunks of 10
   // if you can or something logarithmic like that.
   if (indent) {
-    for (int i=0; i<depth; ++i) cout << " ";
+    for (int i=0; i<depth; ++i) out << " ";
   }
 }
 

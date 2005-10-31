@@ -116,9 +116,10 @@ bool printed(NAME const * const obj) { \
 identityCpdSuper(TY, AtomicType)
 identityCpdSuper(TY, Scope)
 
-XmlTypeWriter::XmlTypeWriter(ostream &out0, int &depth0, bool indent0)
+XmlTypeWriter::XmlTypeWriter
+  (ASTVisitor *astVisitor0, ostream &out0, int &depth0, bool indent0)
   : XmlWriter(out0, depth0, indent0)
-  , astVisitor(NULL)
+  , astVisitor(astVisitor0)
 {}
 
 // This one occurs in the AST, so it has to have its own first-class

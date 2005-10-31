@@ -51,7 +51,7 @@ class XmlWriter {
   bool indent;                  // should we print indentation?
 
   public:
-  XmlWriter(ostream &out0, int &depth0, bool indent0=false);
+  XmlWriter(ostream &out0, int &depth0, bool indent0);
 
   protected:
   // print a newline and indent if the user wants indentation; NOTE:
@@ -239,7 +239,7 @@ do { \
 #define travAST(TARGET) \
 do { \
   if (TARGET) { \
-    (TARGET)->traverse(*astVisitor); \
+    if (astVisitor) (TARGET)->traverse(*astVisitor); \
   } \
 } while(0)
 

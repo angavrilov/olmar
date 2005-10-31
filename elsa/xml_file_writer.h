@@ -12,9 +12,9 @@
 #include "hashline.h"           // HashLineMap
 
 
-class FileXmlWriter : public XmlWriter {
+class XmlFileWriter : public XmlWriter {
   public:
-  FileXmlWriter(ostream &out0, int &depth0, bool indent0);
+  XmlFileWriter(ostream &out0, int &depth0, bool indent0);
 
   void toXml(ObjList<SourceLocManager::File> &files);
   void toXml(SourceLocManager::File *file);

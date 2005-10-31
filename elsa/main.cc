@@ -24,7 +24,7 @@
 #include "smregexp.h"     // regexpMatch
 #include "cc_elaborate.h" // ElabVisitor
 #include "integrity.h"    // IntegrityVisitor
-#include "xml_file_writer.h" // FileXmlWriter
+#include "xml_file_writer.h" // XmlFileWriter
 #include "xml_do_read.h"  // xmlDoRead()
 #include "xml_type_writer.h" // XmlTypeWriter
 
@@ -636,12 +636,12 @@ void doit(int argc, char **argv)
     cout << "---- START ----" << endl;
 
     // serialize Files
-    FileXmlWriter fileXmlWriter(cout, depth, indent);
+    XmlFileWriter fileXmlWriter(cout, depth, indent);
     fileXmlWriter.toXml(sourceLocManager->serializationOnly_get_files());
 
     // serialize AST and maybe Types
     if (tracingSys("xmlPrintAST-types")) {
-      XmlTypeWriter xmlTypeVis(cout, depth, indent);
+      XmlTypeWriter xmlTypeVis( (ASTVisitor*)NULL, cout, depth, indent);
       XmlTypeWriter_AstVisitor xmlVis_Types(xmlTypeVis, cout, depth, indent);
       xmlTypeVis.astVisitor = &xmlVis_Types;
       ASTVisitor *vis = &xmlVis_Types;

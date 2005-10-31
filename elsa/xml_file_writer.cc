@@ -14,11 +14,11 @@ identity(FI, HashLineMap)
 identity(FI, HashLineMap::HashLine)
 identityTempl(FI, ArrayStack<T>)
 
-FileXmlWriter::FileXmlWriter(ostream &out0, int &depth0, bool indent0)
+XmlFileWriter::XmlFileWriter(ostream &out0, int &depth0, bool indent0)
   : XmlWriter(out0, depth0, indent0)
 {}
 
-void FileXmlWriter::toXml(ObjList<SourceLocManager::File> &files)
+void XmlFileWriter::toXml(ObjList<SourceLocManager::File> &files)
 {
   FOREACH_OBJLIST_NC(SourceLocManager::File, files, iter) {
     SourceLocManager::File *file = iter.data();
@@ -26,7 +26,7 @@ void FileXmlWriter::toXml(ObjList<SourceLocManager::File> &files)
   }
 }
 
-void FileXmlWriter::toXml(SourceLocManager::File *file)
+void XmlFileWriter::toXml(SourceLocManager::File *file)
 {
   // idempotency
   if (printed(file)) return;
@@ -57,7 +57,7 @@ void FileXmlWriter::toXml(SourceLocManager::File *file)
   trav(file->hashLines);
 }
 
-void FileXmlWriter::toXml_lineLengths(SourceLocManager::File *file)
+void XmlFileWriter::toXml_lineLengths(SourceLocManager::File *file)
 {
   // NOTE: no idempotency check is needed as the line lengths are
   // one-to-one with the Files.
@@ -80,13 +80,13 @@ void FileXmlWriter::toXml_lineLengths(SourceLocManager::File *file)
   // tags, just the tags themselves.
   int lineLengthsSize = file->serializationOnly_get_lineLengthsSize();
   for (int i=0; i<lineLengthsSize; ++i) {
-    if (i%20 == 0) cout << "\n";
-    else cout << " ";
-    cout << static_cast<int>(lineLengths[i]);
+    if (i%20 == 0) out << "\n";
+    else out << " ";
+    out << static_cast<int>(lineLengths[i]);
   }
 }
 
-void FileXmlWriter::toXml(HashLineMap *hashLines)
+void XmlFileWriter::toXml(HashLineMap *hashLines)
 {
   // idempotency
   if (printed(hashLines)) return;
@@ -114,7 +114,7 @@ void FileXmlWriter::toXml(HashLineMap *hashLines)
   }
 }
 
-void FileXmlWriter::toXml(HashLineMap::HashLine *hashLine)
+void XmlFileWriter::toXml(HashLineMap::HashLine *hashLine)
 {
   // idempotency
   if (printed(hashLine)) return;
