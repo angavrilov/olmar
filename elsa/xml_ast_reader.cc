@@ -4,7 +4,7 @@
 
 #include "xml_ast_reader.h"     // this module
 #include "xmlhelp.h"            // toXml_int etc.
-
+#include "xml_enum.gen.h"       // XTOK_*
 
 bool XmlAstReader::convertList2SObjList(ASTList<char> *list, int listKind, void **target) {
   return false;

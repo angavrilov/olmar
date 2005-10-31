@@ -202,6 +202,9 @@ xml_lex.gen.yy.cc: xml_lex.gen.lex xml_lexer.h
 xml_lexer.yy.o: xml_lex.gen.yy.cc
 	$(CXX) -c -o $@ $< -DNO_YYFLEXLEXER_METHODS $(CCFLAGS)
 	@$(PERL) $(SMBASE)/depend.pl -o $@ $< -DNO_YYFLEXLEXER_METHODS $(CCFLAGS) >$*.d
+# We do not need this now but we will if we end up re-arranging the
+# build process like I had to in oink so I put it here as a reminder.
+# -include xml_lexer.yy.d
 
 
 #### CC client code
@@ -211,14 +214,25 @@ xml_lexer.yy.o: xml_lex.gen.yy.cc
 # that #includes a generated .h file; I don't think it is necessary to
 # list the .cc files that include generated .h files as the normal
 # dependency generation mechanism should generate those
-xml_ast_reader.h: xml_ast_reader_0decl.gen.h cc.ast.gen.h
-	touch $@
-xml_ast_reader.cc: xml_ast_reader_2ctrc.gen.cc xml_ast_reader_3regc.gen.cc xml_ast_reader_1defn.gen.cc
-	touch $@
+
+# dsw: Scott claims that these 'touch $@' rules don't make any
+# difference, but if you turn this off, it stops building
 xml_lexer.h: xml_enum.gen.h
 	touch $@
-xml_lexer.cc: xml_name_1.gen.cc
+
+# dsw: everything seems to build without this rule, but I like having
+# it here anyway
+xml_ast_reader.h: xml_ast_reader_0decl.gen.h cc.ast.gen.h
 	touch $@
+
+# dsw: the autodependency system seems to be generating these
+# dependencies so we do not need these rules so I comment them out;
+# however I like having them just as a place to write down these facts
+#
+# xml_lexer.cc: xml_name_1.gen.cc
+# 	touch $@
+# xml_ast_reader.cc: xml_ast_reader_2ctrc.gen.cc xml_ast_reader_3regc.gen.cc xml_ast_reader_1defn.gen.cc
+# 	touch $@
 
 # all the xml-related .o files
 XML_OBJS :=
