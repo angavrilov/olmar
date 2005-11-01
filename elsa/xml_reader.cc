@@ -38,32 +38,6 @@ void XmlReaderManager::parseOneTopLevelTag() {
   xassert(kindStack.isEmpty()); // the stacks are synchronized
 }
 
-void XmlReaderManager::readUntilTUnitTag() {
-  while(true) {
-    parseOneTopLevelTag();
-    if (lexer.haveSeenEof()) {
-      userError("unexpected EOF");
-    }
-    int lastKind = getLastKind();
-    if (lastKind == XTOK_File) {
-      // complete the link graph so that the FileData object is
-      // complete
-      satisfyLinks();
-
-      SourceLocManager::FileData *fileData = (SourceLocManager::FileData*) getLastNode();
-      if (!fileData->complete()) {
-        userError("missing attributes to File tag");
-      }
-      sourceLocManager->loadFile(fileData);
-      // FIX: recursively delete the file and its members here
-    } else if (lastKind == XTOK_TranslationUnit) {
-      break;                    // we are done
-    } else {
-      userError("illegal top-level tag");
-    }
-  }
-}
-
 void XmlReaderManager::parseOneTagOrDatum() {
   // state: looking for a tag start
   if (lexer.haveSeenEof()) {

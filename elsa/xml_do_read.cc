@@ -2,7 +2,6 @@
 
 #include "xml_do_read.h"        // this module
 #include "fstream.h"            // ifstream
-#include "xml_writer.h"         // XmlReaderManager
 #include "xml_lexer.h"          // XmlLexer
 #include "xml_file_reader.h"    // XmlFileReader
 #include "xml_type_reader.h"    // XmlTypeReader
@@ -35,7 +34,31 @@ TranslationUnit *xmlDoRead(StringTable &strTable, char const *inputFname) {
   XmlTypeReader typeReader;
   manager.registerReader(&typeReader);
 
-  manager.readUntilTUnitTag();
+  // read until we get a translation unit tag; FIX: not sure what
+  // happens if the last tag is not a TranslationUnit
+  while(true) {
+    manager.parseOneTopLevelTag();
+    if (lexer.haveSeenEof()) {
+      manager.userError("unexpected EOF");
+    }
+    int lastKind = manager.getLastKind();
+    if (lastKind == XTOK_File) {
+      // complete the link graph so that the FileData object is
+      // complete
+      manager.satisfyLinks();
+
+      SourceLocManager::FileData *fileData = (SourceLocManager::FileData*) manager.getLastNode();
+      if (!fileData->complete()) {
+        manager.userError("missing attributes to File tag");
+      }
+      sourceLocManager->loadFile(fileData);
+      // FIX: recursively delete the file and its members here
+    } else if (lastKind == XTOK_TranslationUnit) {
+      break;                    // we are done
+    } else {
+      manager.userError("illegal top-level tag");
+    }
+  }
 
   // complete the link graph
   manager.satisfyLinks();
