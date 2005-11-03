@@ -544,6 +544,17 @@ DelimStr& DelimStr::operator<< (char const *text) {
 }
 
 
+int compareStrings(const void *a, const void *b) {
+  char const **a1 = (char const **)a;
+  char const **b1 = (char const **)b;
+  return strcmp(*a1, *b1);
+}
+
+void qsortStringArray(char const **strings, int size) {
+  qsort(strings, size, sizeof strings[0], compareStrings);
+}
+
+
 // ----------------------- test code -----------------------------
 #ifdef TEST_STRUTIL
 

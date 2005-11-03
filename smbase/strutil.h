@@ -128,4 +128,9 @@ struct DelimStr {
 };
 
 
+// compare function for strings; for use with qsort()
+int compareStrings(const void *a, const void *b);
+void qsortStringArray(char const **strings, int size);
+
+
 #endif // STRUTIL_H
