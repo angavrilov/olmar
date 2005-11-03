@@ -13,7 +13,7 @@
 
 class XmlLexer : private yyFlexLexer {
   public:
-  char const *inputFname;
+  char const *inputFname;       // just for error messages
   int linenumber;
   bool sawEof;
 
@@ -30,7 +30,7 @@ class XmlLexer : private yyFlexLexer {
   // this is yytext
   char const *currentText() { return this->YYText(); }
   // this is yyrestart
-  void restart(ifstream *in) { this->yyrestart(in); }
+  void restart(istream *in) { this->yyrestart(in); }
 
   int tok(XmlToken kind);
   int svalTok(XmlToken t);
