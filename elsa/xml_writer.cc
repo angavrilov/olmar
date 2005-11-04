@@ -5,6 +5,8 @@
 #include "exc.h"                // xBase
 
 
+bool sortNameMapDomainWhenSerializing = true;
+
 XmlWriter::XmlWriter(ostream &out0, int &depth0, bool indent0)
   : out(out0)
   , depth(depth0)

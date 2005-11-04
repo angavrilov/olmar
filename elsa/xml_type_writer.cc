@@ -263,14 +263,26 @@ void XmlTypeWriter::toXml(AtomicType *atom) {
     // valueIndex
     if (!printed(&e->valueIndex)) {
       openTagWhole(NameMap_EnumType_valueIndex, &e->valueIndex);
-      for(StringObjDict<EnumType::Value>::Iter iter(e->valueIndex);
-          !iter.isDone(); iter.next()) {
-        rostring name = iter.key();
-        // dsw: do you know how bad it gets if I don't put a
-        // const-cast here?
-        EnumType::Value *eValue = const_cast<EnumType::Value*>(iter.value());
-        openTag_NameMap_Item(name, eValue);
-        toXml_EnumType_Value(eValue);
+      if (sortNameMapDomainWhenSerializing) {
+        for(StringObjDict<EnumType::Value>::SortedKeyIter iter(e->valueIndex);
+            !iter.isDone(); iter.next()) {
+          char const *name = iter.key();
+          // dsw: do you know how bad it gets if I don't put a
+          // const-cast here?
+          EnumType::Value *eValue = const_cast<EnumType::Value*>(iter.value());
+          openTag_NameMap_Item(name, eValue);
+          toXml_EnumType_Value(eValue);
+        }
+      } else {
+        for(StringObjDict<EnumType::Value>::Iter iter(e->valueIndex);
+            !iter.isDone(); iter.next()) {
+          rostring name = iter.key();
+          // dsw: do you know how bad it gets if I don't put a
+          // const-cast here?
+          EnumType::Value *eValue = const_cast<EnumType::Value*>(iter.value());
+          openTag_NameMap_Item(name, eValue);
+          toXml_EnumType_Value(eValue);
+        }
       }
     }
     break;

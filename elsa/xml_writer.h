@@ -9,6 +9,12 @@
 
 #include "strtable.h"           // StringRef
 #include "xmlhelp.h"            // toXml_int etc.
+#include "strmap.h"             // StringRefMap
+
+// FIX: this is a hack; I want some place to set a flag to tell me if
+// I want the xml serialization of name-maps to be canonical (names in
+// sorted order)
+extern bool sortNameMapDomainWhenSerializing;
 
 
 // to Xml for enums
@@ -178,13 +184,20 @@ travObjList0(OBJ, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
 do { \
   if (!printed(&BASE->FIELD)) { \
     openTagWhole(NameMap_ ##BASETYPE ##_ ##FIELD, &BASE->FIELD); \
-    for(PtrMap<char const, FIELDTYPE>::Iter iter(BASE->FIELD); \
-        !iter.isDone(); \
-        iter.adv()) { \
-      StringRef name = iter.key(); \
-      FIELDTYPE *var = iter.value(); \
-      openTag_NameMap_Item(name, var); \
-      trav(var); \
+    if (sortNameMapDomainWhenSerializing) { \
+      for(StringRefMap<FIELDTYPE>::SortedKeyIter iter(BASE->FIELD); \
+          !iter.isDone(); iter.adv()) { \
+        FIELDTYPE *var = iter.value(); \
+        openTag_NameMap_Item(iter.key(), var); \
+        trav(var); \
+      } \
+    } else { \
+      for(PtrMap<char const, FIELDTYPE>::Iter iter(BASE->FIELD); \
+          !iter.isDone(); iter.adv()) { \
+        FIELDTYPE *var = iter.value(); \
+        openTag_NameMap_Item(iter.key(), var); \
+        trav(var); \
+      } \
     } \
   } \
 } while(0)
