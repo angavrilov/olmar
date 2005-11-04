@@ -1,12 +1,7 @@
-// xml_enum_0top.h            see license.txt for copyright and terms of use
+// xml_enum.h            see license.txt for copyright and terms of use
 
-// top boilerlate for token definitions for the ast xml lexer
-
-// NOTE: the name of the guard does not match the name of the file
-// because this is only the top of the generated .h file; Note that
-// the bottom of the guard is in another file.
-#ifndef XML_ENUM_GEN_H
-#define XML_ENUM_GEN_H
+#ifndef XML_ENUM_H
+#define XML_ENUM_H
 
 enum XmlToken {
   XTOK_EOF,
@@ -28,3 +23,12 @@ enum XmlToken {
 
   // special attributes
   XTOK_DOT_ID,                  // "_id"
+
+#include "xml_enum_1.gen.h"
+
+  // dummy terminals
+  NUM_XML_TOKEN_TYPES,
+
+};  // enum TokenType
+
+#endif // XML_ENUM_H

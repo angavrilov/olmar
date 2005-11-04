@@ -5,7 +5,7 @@
 #include "strtokp.h"            // StrtokParse
 #include "cc_flags.h"           // fromXml(DeclFlags &out, rostring str)
 #include "xmlhelp.h"            // fromXml_int() etc.
-#include "xml_enum.gen.h"       // XTOK_*
+#include "xml_enum.h"           // XTOK_*
 
 
 // fromXml for enums

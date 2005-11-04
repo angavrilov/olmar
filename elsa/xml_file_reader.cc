@@ -4,7 +4,7 @@
 #include "xml_reader.h"         // XmlReader
 #include "hashline.h"           // HashLineMap
 #include "xmlhelp.h"            // xmlAttrDeQuote
-#include "xml_enum.gen.h"       // XTOK_*
+#include "xml_enum.h"           // XTOK_*
 
 void *XmlFileReader::ctorNodeFromTag(int tag) {
   switch(tag) {

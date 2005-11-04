@@ -9,7 +9,7 @@
 #include "str.h"                // string
 #include "sm_flexlexer.h"       // yyFlexLexer
 #include "baselexer.h"          // FLEX_OUTPUT_METHOD_DECLS
-#include "xml_enum.gen.h"       // XTOK_*
+#include "xml_enum.h"           // XTOK_*
 
 class XmlLexer : private yyFlexLexer {
   public:
