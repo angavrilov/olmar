@@ -7,6 +7,8 @@
 
 #include "svdict.h"    // StringVoidDict
 
+void qsortStringArray(char const **strings, int size); // strutil.h
+
 
 // the dictionary object is considered to own all of the things
 // contained, so constness means constness of the contained objects
@@ -36,6 +38,61 @@ public:     // types
     T const *&value() const { return (T const *&)iter.value(); }
   };
   friend class Iter;
+
+  class SortedKeyIter {
+  private:     // data
+    // underlying iterator state
+    StringObjDict<T> const &map;
+    int keyIndex;
+    // dsw: I think it is a mistake to use getNumEntries() repeatedly
+    // instead of caching the value that it was at the time the
+    // iterator was constructed.  While we are still not thread-safe
+    // in the sense that an entry could be added or deleted, we could
+    // catch that, but we still do not want to separate the array of
+    // sortedKeys from its length as if these get out of synch this is
+    // an impossible bug to catch and a very low-level error.  Note
+    // that we still have a bit of a race condidition that numEntries
+    // is initialized before we iterate over the keys, but we are
+    // likely to catch that later.
+    int const numEntries;
+    char const **sortedKeys;    // array of strings
+
+  public:      // fucs
+    SortedKeyIter(StringObjDict<T> const &map0)
+      : map(map0)
+      , keyIndex(0)
+      , numEntries(map.size())
+      , sortedKeys(new char const *[numEntries])
+    {
+      int i = 0;
+      // delegate to the other Iter class
+      for(Iter iter(map); !iter.isDone(); iter.next()) {
+//          xassert(i<numEntries);
+        sortedKeys[i++] = iter.key().c_str();
+      }
+      xassert(numEntries == i);
+      ::qsortStringArray(sortedKeys, numEntries);
+    }
+    ~SortedKeyIter() {
+      delete [] sortedKeys;
+    }
+
+    bool isDone() const   { return keyIndex == numEntries; }
+    SortedKeyIter &next() { ++keyIndex; return *this; }
+
+    // return information about the currently-referenced table entry
+
+    // dsw: I already have a char const* so I think it is a mistake to
+    // wrap a string around it
+    char const *key() const {
+      char const *key = sortedKeys[keyIndex];
+//        xassert(map.isMapped(key));
+      return key;
+    }
+    T const *value() const {
+      return (T const *)map.queryfC(key());
+    }
+  };
 
 private:    // data
   // underlying dictionary functionality
