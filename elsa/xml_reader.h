@@ -116,11 +116,13 @@ struct NameMapItem {
 // datastructures for dealing with unsatisified links; FIX: we can
 // do the in-place recording of a lot of these unsatisified links
 // (not the ast links)
+
+// An unsatisfied link from an object A to another B
 struct UnsatLink {
-  void *ptr;
-  string id;
-  int kind;
-  bool embedded;
+  void *ptr;                    // a ptr to a member of A that should point to B (unless embedded)
+  string id;                    // id of B
+  int kind;                     // type of B (roll-our-own-RTTI)
+  bool embedded;                // B embedded into A or pointed at?
   UnsatLink(void *ptr0, string id0, int kind0, bool embedded0);
 };
 
@@ -193,9 +195,9 @@ class XmlReaderManager {
   ASTList<XmlReader> readers;
 
   // **** Parsing
-  char const *inputFname;       // just for error messages
-  XmlLexer &lexer;           // a lexer on a stream already opened from the file
   public:
+  char const *inputFname;       // just for error messages
+  XmlLexer &lexer;              // a lexer on a stream already opened from the file
   StringTable &strTable;        // for canonicalizing the StringRef's in the input file
 
   private:
@@ -224,10 +226,8 @@ class XmlReaderManager {
   StringSObjDict<int> id2kind;
 
   public:
-  XmlReaderManager(char const *inputFname0,
-                   XmlLexer &lexer0,
-                   StringTable &strTable0)
-    : inputFname(inputFname0)
+  XmlReaderManager(XmlLexer &lexer0, StringTable &strTable0)
+    : inputFname(NULL)
     , lexer(lexer0)
     , strTable(strTable0)
     , lastNode(NULL)            // also done in reset()

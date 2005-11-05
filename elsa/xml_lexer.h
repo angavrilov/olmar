@@ -17,8 +17,8 @@ class XmlLexer : private yyFlexLexer {
   int linenumber;
   bool sawEof;
 
-  XmlLexer(char const *inputFname0)
-    : inputFname(inputFname0)
+  XmlLexer()
+    : inputFname(NULL)
     , linenumber(1)             // file line counting traditionally starts at 1
     , sawEof(false)
   {}

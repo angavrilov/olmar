@@ -415,7 +415,12 @@ void XmlReaderManager::insertIntoNameMap(void *map0, int mapKind, StringRef name
 }
 
 void XmlReaderManager::userError(char const *msg) {
-  THROW(xBase(stringc << inputFname << ":" << lexer.linenumber << ":" << msg));
+  stringBuilder msg0;
+  if (inputFname) {
+    msg0 << inputFname << ":";
+  }
+  msg0 << lexer.linenumber << ":" << msg;
+  THROW(xBase(msg0));
 }
 
 void XmlReaderManager::satisfyLinks() {

@@ -13,9 +13,11 @@ class TranslationUnit;
 TranslationUnit *xmlDoRead(StringTable &strTable, char const *inputFname) {
   // make reader manager
   ifstream in(inputFname);
-  XmlLexer lexer(inputFname);
+  XmlLexer lexer;
+  lexer.inputFname = inputFname;
   lexer.restart(&in);
-  XmlReaderManager manager(inputFname, lexer, strTable);
+  XmlReaderManager manager(lexer, strTable);
+  manager.inputFname = inputFname;
 
   // prevent the SourceLocManager from looking at files in the file
   // system

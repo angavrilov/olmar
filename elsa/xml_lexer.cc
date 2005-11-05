@@ -53,7 +53,12 @@ int XmlLexer::svalTok(XmlToken kind)
 
 void XmlLexer::err(char const *msg)
 {
-  THROW(xBase(stringc << inputFname << ":" << linenumber << ":" << msg));
+  stringBuilder msg0;
+  if (inputFname) {
+    msg0 << inputFname << ":";
+  }
+  msg0 << linenumber << ":" << msg;
+  THROW(xBase(msg0));
 }
 
 string XmlLexer::tokenKindDesc(int kind) const
