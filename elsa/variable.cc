@@ -129,11 +129,45 @@ void Variable::setFlagsTo(DeclFlags f)
 
 
 bool Variable::linkerVisibleName() const {
+//    static int count = 0;
+//    ++count;
+
+//    bool oldAnswer;
+//    if (scope) oldAnswer = scope->linkerVisible();
+//    else oldAnswer = hasFlag(DF_GLOBAL);
+
+  bool newAnswer;
   // FIX: what the heck was this?  Some attempt to treat struct
   // members as linkerVisibleName-s?  This doesn't work because there
   // is no well-defined name for an anonymous struct anyway.
-  if (scope) return scope->linkerVisible();
-  else return hasFlag(DF_GLOBAL);
+  if (!scope) {
+    // FIX: I hope this is right.
+    // FIX: hmm, when else can this occur?
+//      xassert(hasFlag(DF_PARAMETER));
+    // this one fails for template parameters!?
+//      xassert(!hasFlag(DF_GLOBAL));
+    newAnswer = false;
+  } else {
+    if (scope->isGlobalScope()) {
+      newAnswer =
+        // FIX: there seems to be a bug in that instantiated function
+        // templates entered into the global scope are not marked as
+        // global; I think it is actually redundant here as we know we
+        // are in the global scope
+//          hasFlag(DF_GLOBAL) &&
+        !hasFlag(DF_STATIC);
+    } else {
+      newAnswer = scope->linkerVisible();
+    }
+  }
+
+//    if (oldAnswer != newAnswer) {
+//      printf("oldAnswer:%d, newAnswer:%d ", oldAnswer, newAnswer);
+//      this->gdb();
+//  //      breaker();
+//    }
+//    return oldAnswer;
+  return newAnswer;
 }
 
 
