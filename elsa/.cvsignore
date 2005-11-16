@@ -76,3 +76,6 @@ astxml_lexer1_type.lex
 astxml_tokens1_type.h
 save
 bigin
+
+# temporary state that has to be global across runs
+.serialno
