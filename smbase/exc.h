@@ -87,6 +87,9 @@ public:
   // exception was thrown; this should be called with the innermost
   // context string first, i.e., in the normal unwind order
   void addContext(rostring context);
+  // dsw: sometimes I want the context to be, say a "file:line" number
+  // on the left
+  void addContextLeft(rostring context);
 };
 
 // equivalent to THROW(xBase(msg))
