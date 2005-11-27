@@ -65,6 +65,12 @@ is finished (see <a href="glr.cc">glr.cc</a>, <tt>GLR::canMakeProgress()</tt>).
 In such cases, the action is preempted, but this is just a quick hack that
 can slightly improve performance.
 
+<p>
+Therefore, unless the grammar is LALR(1) (i.e., there are no
+conflicts), you must assume that any reduction action might be part of
+a parse that will fail.  If the reduction action has effects that need
+to be undone, you can put the undo actions in <tt>del()</tt> methods.
+
 <a name="pruned_reduction_exception"></a>
 <h2>1.2 What if a reduction has a side effect?</h2>
 <!-- originally from Carl Eastlund -->
