@@ -340,15 +340,21 @@ public:      // data
   // without also updating that map
   SObjList<Variable> dataMembers;
 
-  // classes from which this one inherits; 'const' so you have to
-  // use 'addBaseClass', but public to make traversal easy
+  // classes from which this one directly/syntactically inherits;
+  // 'const' so you have to use 'addBaseClass', but public to make
+  // traversal easy
   const ObjList<BaseClass> bases;
 
-  // collected virtual base class subobjects
+  // all the bases the class inherits from virtually, including for
+  // transitive reasons; collected virtual base class subobjects
   ObjList<BaseClassSubobj> virtualBases;
 
-  // this is the root of the subobject hierarchy diagram
-  // invariant: subobj.ct == this
+  // this is the root of the subobject hierarchy diagram which
+  // includes the transitive consequences of inheritance; NOTE: this
+  // entire heirarcy is just for the parents of this particular
+  // CompoundType and is isomorphic to but shared with the subobject
+  // heirarcy of this CompoundType's parents; invariant: subobj.ct ==
+  // this
   BaseClassSubobj subobj;
 
   // list of all conversion operators this class has, including

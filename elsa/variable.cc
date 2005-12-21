@@ -63,6 +63,7 @@ Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
     defaultParamType(NULL),
     funcDefn(NULL),
     overload(NULL),
+    virtuallyOverride(NULL),
     scope(NULL),
     intData(0),
     usingAlias_or_parameterizedEntity(NULL),
@@ -111,6 +112,7 @@ Variable::Variable(ReadXML&)
     defaultParamType(NULL),
     funcDefn(NULL),
     overload(NULL),
+    virtuallyOverride(NULL),
     scope(NULL),
     intData(0),
     usingAlias_or_parameterizedEntity(NULL),
@@ -129,9 +131,10 @@ void Variable::setFlagsTo(DeclFlags f)
 
 
 bool Variable::linkerVisibleName() const {
-//    static int count = 0;
-//    ++count;
+  return visibleName(false);
+}
 
+bool Variable::visibleName(bool evenIfStatic) const {
 //    bool oldAnswer;
 //    if (scope) oldAnswer = scope->linkerVisible();
 //    else oldAnswer = hasFlag(DF_GLOBAL);
@@ -149,13 +152,17 @@ bool Variable::linkerVisibleName() const {
     newAnswer = false;
   } else {
     if (scope->isGlobalScope()) {
-      newAnswer =
-        // FIX: there seems to be a bug in that instantiated function
-        // templates entered into the global scope are not marked as
-        // global; I think it is actually redundant here as we know we
-        // are in the global scope
-//          hasFlag(DF_GLOBAL) &&
-        !hasFlag(DF_STATIC);
+      if (evenIfStatic) {
+        newAnswer = true;
+      } else {
+        newAnswer =
+          // FIX: there seems to be a bug in that instantiated function
+          // templates entered into the global scope are not marked as
+          // global; I think it is actually redundant here as we know we
+          // are in the global scope
+          //          hasFlag(DF_GLOBAL) &&
+          !hasFlag(DF_STATIC);
+      }
     } else {
       newAnswer = scope->linkerVisible();
     }

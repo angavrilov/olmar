@@ -37,6 +37,7 @@
 #include "strtable.h"          // StringRef
 #include "cc_flags.h"          // DeclFlags, ScopeKind
 #include "sobjlist.h"          // SObjList
+#include "sobjset.h"           // SObjSet
 #include "serialno.h"          // INHERIT_SERIAL_BASE
 
 class Type;                    // cc_type.h
@@ -87,6 +88,19 @@ public:    // data
   // if this name has been overloaded, then this will be a pointer
   // to the set of overloaded names; otherwise it's NULL
   OverloadSet *overload;  // (nullable serf)
+
+  // if we are a virtual method, the set of variables of other
+  // viritual methods that we immediately override; a NULL pointer
+  // here just means the empty list;
+  //
+  // NOTE: Scott: I wanted to do it in full correctness and not omit
+  // anything in the case of multiple-inheritance; however it is
+  // really hard to know what functions to omit, so I therefore do the
+  // quadratic thing and include them all; given that you do something
+  // similar with the BaseClassSubobj heriarchy for classes, I don't
+  // think this is so bad; feel free to change it; please change the
+  // name to directlyVirtuallyOverride if you do.
+  SObjSet<Variable*> *virtuallyOverride;
 
   // named scope in which the variable appears; this is only non-NULL
   // if the scope has a name, i.e. it continues to be available for
@@ -162,6 +176,7 @@ public:
   bool isType() const { return hasFlag(DF_TYPEDEF); }
 
   bool linkerVisibleName() const;
+  bool visibleName(bool evenIfStatic) const;
 
   // true if this name refers to a class or struct or union
   bool isClass() const;

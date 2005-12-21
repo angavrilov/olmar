@@ -3754,8 +3754,17 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       base->lookup(set, var->name, NULL /*env*/, LF_INNER_ONLY);
 
       // look for any virtual functions with matching signatures
-      SFOREACH_OBJLIST(Variable, set, iter2) {
-        Variable const *var2 = iter2.data();
+      SFOREACH_OBJLIST_NC(Variable, set, iter2) {
+        Variable *var2 = iter2.data();
+
+        // NOTE: since classes must be presented to the C++ compiler
+        // in an order that is going monotonically down the
+        // inheritance heirarchy, we can rely on this function having
+        // marked any implicitly-virtual methods above it explicitly
+        // virtual by the time the methods of any subclass that may
+        // override them might look at them here.  That is, this
+        // var2->hasFlag(DF_VIRTUAL) test below will work even if var2
+        // was not syntactically marked as virutal by the programmer
 
         if (var2->hasFlag(DF_VIRTUAL) && var2->type->isFunctionType()) {
           FunctionType *var2ft = var2->type->asFunctionType();
@@ -3763,13 +3772,17 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
               var2ft->getReceiverCV() == varft->getReceiverCV()) {
             // make this one virtual too
             var->setFlag(DF_VIRTUAL);
-            goto done_with_virtual_stuff;    // two-level break
+            // this makes a set of all of the possible functions that
+            // we override; please see the note at
+            // Variable::virtuallyOverride
+            if (!var->virtuallyOverride) {
+              var->virtuallyOverride = new SObjSet<Variable*>();
+            }
+            var->virtuallyOverride->add(var2);
           }
         }
       }
     }
-
-    done_with_virtual_stuff:;
   }
 }
 
