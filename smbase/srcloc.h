@@ -376,6 +376,8 @@ public:      // funcs
   ObjList<File> &serializationOnly_get_files() {return files;}
   // for de-serializing from xml a single File and loading it into the SourceLocManager
   void loadFile(FileData *fileData);
+  // has this file been loaded?
+  bool isLoaded(char const *name) { return findFile(name); }
 };
 
 

@@ -586,8 +586,10 @@ SourceLocManager::File *SourceLocManager::getFile(char const *name)
 void SourceLocManager::loadFile(FileData *fileData)
 {
   xassert(fileData);
-  // we should be loading a new file
-  // FIX: this should be a user error, not an assertion failure
+  // we should be loading a new file; dsw: I think this should remain
+  // an assertion failure instead of being a user error because the
+  // client code can check this before calling into the
+  // SourceLocManager and provide a better error message there
   xassert(!findFile(fileData->name));
 
   // finish off the fileData->hashLines object; FIX: there is probably
