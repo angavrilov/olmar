@@ -9,10 +9,10 @@
 // make sure that printing of various File objects is idempotent
 SObjSet<void const *> printedSetFI;
 
-identity(FI, SourceLocManager::File)
-identity(FI, HashLineMap)
-identity(FI, HashLineMap::HashLine)
-identityTempl(FI, ArrayStack<T>)
+identity_defn(FI, SourceLocManager::File)
+identity_defn(FI, HashLineMap)
+identity_defn(FI, HashLineMap::HashLine)
+identityTempl_defn(FI, ArrayStack<T>)
 
 XmlFileWriter::XmlFileWriter(ostream &out0, int &depth0, bool indent0)
   : XmlWriter(out0, depth0, indent0)

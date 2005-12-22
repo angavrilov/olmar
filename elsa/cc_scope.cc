@@ -34,7 +34,7 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
 }
 
 // a ctor for de-serialization
-Scope::Scope(ReadXML&)
+Scope::Scope(XmlReader&)
   : variables(),
     typeTags(),
     changeCount(0),

@@ -19,18 +19,18 @@ class ASTVisitor;
 //  char const *toXml(STemplateArgument::Kind id);
 
 
-identityB(Type);
-identityB(AtomicType);
-identityB(CompoundType);
-identityB(FunctionType::ExnSpec);
-identityB(EnumType::Value);
-identityB(BaseClass);
-identityB(Scope);
-identityB(Variable);
-identityB(OverloadSet);
-identityB(STemplateArgument);
-identityB(TemplateInfo);
-identityB(InheritedTemplateParams);
+identity_decl(Type);
+identity_decl(AtomicType);
+identity_decl(CompoundType);
+identity_decl(FunctionType::ExnSpec);
+identity_decl(EnumType::Value);
+identity_decl(BaseClass);
+identity_decl(Scope);
+identity_decl(Variable);
+identity_decl(OverloadSet);
+identity_decl(STemplateArgument);
+identity_decl(TemplateInfo);
+identity_decl(InheritedTemplateParams);
 
 class XmlTypeWriter : public XmlWriter {
   public:

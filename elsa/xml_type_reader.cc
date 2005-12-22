@@ -388,9 +388,9 @@ void *XmlTypeReader::ctorNodeFromTag(int tag) {
   case XTOK_ReferenceType: return new ReferenceType((Type*)0);
   case XTOK_FunctionType: return new FunctionType((Type*)0);
   case XTOK_FunctionType_ExnSpec: return new FunctionType::ExnSpec();
-  case XTOK_ArrayType: return new ArrayType((ReadXML&)*this); // call the special ctor
+  case XTOK_ArrayType: return new ArrayType((XmlReader&)*this); // call the special ctor
   case XTOK_PointerToMemberType:
-    return new PointerToMemberType((ReadXML&)*this); // call the special ctor
+    return new PointerToMemberType((XmlReader&)*this); // call the special ctor
 
   // **** Atomic Types
   // NOTE: this really should go through the SimpleTyp::fixed array
@@ -404,8 +404,8 @@ void *XmlTypeReader::ctorNodeFromTag(int tag) {
   case XTOK_DependentQType: return new DependentQType((AtomicType*)0);
 
   // **** Other
-  case XTOK_Variable: return new Variable((ReadXML&)*this);// call the special ctor
-  case XTOK_Scope: return new Scope((ReadXML&)*this); // call the special ctor
+  case XTOK_Variable: return new Variable((XmlReader&)*this);// call the special ctor
+  case XTOK_Scope: return new Scope((XmlReader&)*this); // call the special ctor
   case XTOK_BaseClass: return new BaseClass((CompoundType*)0, (AccessKeyword)0, (bool)0);
   case XTOK_BaseClassSubobj:
     // NOTE: special; FIX: should I make the BaseClass on the heap and

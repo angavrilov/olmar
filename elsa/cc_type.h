@@ -53,7 +53,7 @@ class TypeVariable;       // template.h
 class PseudoInstantiation;// template.h
 class DependentQType;     // template.h
 class MType;              // mtype.h
-class ReadXML;
+class XmlReader;
 
 // fwd in this file
 class AtomicType;
@@ -1051,7 +1051,7 @@ protected:
   friend class XmlTypeReader;
   ArrayType(Type *e, int s = NO_SIZE)
     : eltType(e), size(s) { checkWellFormedness(); }
-  ArrayType(ReadXML&)           // a ctor for de-serialization
+  ArrayType(XmlReader&)           // a ctor for de-serialization
     : eltType(NULL), size(NO_SIZE) {}
 
 public:
@@ -1086,7 +1086,7 @@ protected:
   friend class BasicTypeFactory;
   friend class XmlTypeReader;
   PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c, Type *a);
-  PointerToMemberType(ReadXML&) // a ctor for de-serialization
+  PointerToMemberType(XmlReader&) // a ctor for de-serialization
     : inClassNAT(NULL), cv(CV_NONE), atType(NULL) {}
 
 public:

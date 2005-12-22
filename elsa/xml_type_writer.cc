@@ -73,20 +73,20 @@ SObjSet<void const *> printedSetBC;
 SObjSet<void const *> printedSetOL;
 SObjSet<void const *> printedSetNM;
 
-identity(TY, Type)
-identity(TY, CompoundType)
-identity(TY, FunctionType::ExnSpec)
-identity(TY, EnumType::Value)
-identity(BC, BaseClass)
-identity(TY, Variable)
-identity(TY, OverloadSet)
-identity(TY, STemplateArgument)
-identity(TY, TemplateInfo)
-identity(TY, InheritedTemplateParams)
-identityTempl(OL, ObjList<T>)
-identityTempl(OL, SObjList<T>)
-identityTempl(NM, StringRefMap<T>)
-identityTempl(NM, StringObjDict<T>)
+identity_defn(TY, Type)
+identity_defn(TY, CompoundType)
+identity_defn(TY, FunctionType::ExnSpec)
+identity_defn(TY, EnumType::Value)
+identity_defn(BC, BaseClass)
+identity_defn(TY, Variable)
+identity_defn(TY, OverloadSet)
+identity_defn(TY, STemplateArgument)
+identity_defn(TY, TemplateInfo)
+identity_defn(TY, InheritedTemplateParams)
+identityTempl_defn(OL, ObjList<T>)
+identityTempl_defn(OL, SObjList<T>)
+identityTempl_defn(NM, StringRefMap<T>)
+identityTempl_defn(NM, StringObjDict<T>)
 
 #define identityCpdSuper(PREFIX, NAME) \
 char const *idPrefix(NAME const * const obj) { \

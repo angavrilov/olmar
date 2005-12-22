@@ -103,7 +103,7 @@ Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
 }
 
 // ctor for de-serialization
-Variable::Variable(ReadXML&)
+Variable::Variable(XmlReader&)
   : loc(SL_UNKNOWN),
     name(NULL),
     type(NULL),

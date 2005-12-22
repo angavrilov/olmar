@@ -49,7 +49,7 @@ class Expression;              // cc.ast
 class Function;                // cc.ast
 class BasicTypeFactory;        // cc_type.h
 class TemplateInfo;            // cc_type.h
-class ReadXML;
+class XmlReader;
 
 class Variable INHERIT_SERIAL_BASE {
 public:    // data
@@ -147,7 +147,7 @@ private:      // data
 protected:    // funcs
   friend class BasicTypeFactory;
   Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f);
-  Variable(ReadXML&);           // ctor for de-serialization
+  Variable(XmlReader&);         // ctor for de-serialization
 
 public:
   virtual ~Variable();

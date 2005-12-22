@@ -26,7 +26,7 @@ char const *idPrefixAST(void const * const);
 void const *addrAST(void const * const obj);
 
 // manage identity; definitions
-#define identity0(PREFIX, NAME, TEMPL) \
+#define identity_defn0(PREFIX, NAME, TEMPL) \
 TEMPL char const *idPrefix(NAME const * const) {return #PREFIX;} \
 TEMPL void const *addr(NAME const * const obj) {return reinterpret_cast<void const *>(obj);} \
 TEMPL bool printed(NAME const * const obj) { \
@@ -34,18 +34,18 @@ TEMPL bool printed(NAME const * const obj) { \
   printedSet ##PREFIX.add(obj); \
   return false; \
 }
-#define identity(PREFIX, NAME) identity0(PREFIX, NAME, )
-#define identityTempl(PREFIX, NAME) identity0(PREFIX, NAME, template<class T>)
+#define identity_defn(PREFIX, NAME) identity_defn0(PREFIX, NAME, )
+#define identityTempl_defn(PREFIX, NAME) identity_defn0(PREFIX, NAME, template<class T>)
 
 // declarations
-#define identityB0(NAME, TEMPL) \
+#define identity_decl0(NAME, TEMPL) \
 TEMPL char const *idPrefix(NAME const * const); \
 TEMPL void const *addr(NAME const * const obj); \
 TEMPL bool printed(NAME const * const obj)
-#define identityB(NAME) identityB0(NAME, )
+#define identity_decl(NAME) identity_decl0(NAME, )
 // NOTE: it makes no sense to declare a template like this, so do not
 // do this
-//  #define identityBTempl(NAME) identityB0(NAME, template<class T>)
+//  #define identityTempl_decl(NAME) identity_decl0(NAME, template<class T>)
 
 // manage the output stream
 class XmlWriter {
