@@ -3,9 +3,6 @@
 
 // Adapted from cc_tcheck.cc by Daniel Wilkerson dsw@cs.berkeley.edu
 
-// This is a tree walk that prints out a functionally equivalent C++
-// program to the original.
-
 #include "cc_print.h"           // this module
 #include "trace.h"              // trace
 #include "strutil.h"            // string utilities

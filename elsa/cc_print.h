@@ -1,6 +1,10 @@
 // cc_print.h            see license.txt for copyright and terms of use
-// declarations for C++ pretty-printer; the AST entry
-// points are declared in cc.ast
+
+// This is a tree walk that prints out a functionally equivalent C++
+// program to the original.  The AST entry points are declared in
+// cc.ast
+
+// Adapted from cc_tcheck.cc by Daniel Wilkerson dsw@cs.berkeley.edu
 
 #ifndef CC_PRINT_H
 #define CC_PRINT_H
