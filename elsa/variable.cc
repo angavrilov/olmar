@@ -131,13 +131,16 @@ void Variable::setFlagsTo(DeclFlags f)
 
 
 bool Variable::linkerVisibleName() const {
-  return visibleName(false);
+  return linkerVisibleName(false);
 }
 
-bool Variable::visibleName(bool evenIfStatic) const {
+bool Variable::linkerVisibleName(bool evenIfStatic) const {
 //    bool oldAnswer;
 //    if (scope) oldAnswer = scope->linkerVisible();
 //    else oldAnswer = hasFlag(DF_GLOBAL);
+
+  // it seems that we should not consider typedefs to be linker-visible
+  if (hasFlag(DF_TYPEDEF)) return false;
 
   bool newAnswer;
   // FIX: what the heck was this?  Some attempt to treat struct
@@ -164,7 +167,20 @@ bool Variable::visibleName(bool evenIfStatic) const {
           !hasFlag(DF_STATIC);
       }
     } else {
-      newAnswer = scope->linkerVisible();
+      // dsw: I hate this overloading of the 'static' keyword.  Static
+      // members of CompoundTypes are linker visible if the
+      // CompoundType is linkerVisible.  Non-static members are
+      // visible only if they are FunctionTypes.
+      if (scope->isClassScope()) {
+        if (hasFlag(DF_STATIC)) {
+          newAnswer = scope->linkerVisible();
+        } else {
+          // non-static members of a class
+          newAnswer = scope->linkerVisible() && type->asRval()->isFunctionType();
+        }
+      } else {
+        newAnswer = scope->linkerVisible();
+      }
     }
   }
 
@@ -174,6 +190,7 @@ bool Variable::visibleName(bool evenIfStatic) const {
 //  //      breaker();
 //    }
 //    return oldAnswer;
+
   return newAnswer;
 }
 

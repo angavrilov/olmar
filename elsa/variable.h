@@ -176,7 +176,7 @@ public:
   bool isType() const { return hasFlag(DF_TYPEDEF); }
 
   bool linkerVisibleName() const;
-  bool visibleName(bool evenIfStatic) const;
+  bool linkerVisibleName(bool evenIfStatic) const;
 
   // true if this name refers to a class or struct or union
   bool isClass() const;
