@@ -22,6 +22,7 @@ LIBELKHOUND := $(ELKHOUND)/libelkhound.a
 # external tools
 PERL := @PERL@
 MYFLEX := $(PERL) $(SMBASE)/run-flex.pl -nobackup -copies
+DEP := $(PERL) $(SMBASE)/depend.pl
 
 # list of files to clean in 'clean' (etc.) targets
 # (these get added to below)
@@ -111,12 +112,12 @@ LDFLAGS := @LDFLAGS@ $(libraries)
 TOCLEAN += *.o *.d
 %.o: %.cc
 	$(CXX) -c -o $@ $< $(if $(findstring $*,$(GCOV_MODS)),$(GCOV_OPTS) )$(CCFLAGS)
-	@$(PERL) $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) >$*.d
+	@$(DEP)   -o $@ $< $(if $(findstring $*,$(GCOV_MODS)),$(GCOV_OPTS) )$(CCFLAGS) >$*.d
 
 # compile a special module; -O0 will override any earlier setting
 notopt.o: notopt.cc
 	$(CXX) -c -o $@ $< $(CCFLAGS) -O0
-	@$(PERL) $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) -O0 >$*.d
+	@$(DEP)   -o $@ $< $(CCFLAGS) -O0 >$*.d
 
 
 # ------------------------ tlexer -------------------
@@ -192,7 +193,7 @@ xml_lex.gen.yy.cc: xml_lex.gen.lex xml_lexer.h
 # implementations
 xml_lexer.yy.o: xml_lex.gen.yy.cc
 	$(CXX) -c -o $@ $< -DNO_YYFLEXLEXER_METHODS $(CCFLAGS)
-	@$(PERL) $(SMBASE)/depend.pl -o $@ $< -DNO_YYFLEXLEXER_METHODS $(CCFLAGS) >$*.d
+	@$(DEP)   -o $@ $< -DNO_YYFLEXLEXER_METHODS $(CCFLAGS) >$*.d
 # We do not need this now but we will if we end up re-arranging the
 # build process like I had to in oink so I put it here as a reminder.
 # -include xml_lexer.yy.d
