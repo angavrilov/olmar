@@ -79,10 +79,44 @@ void pointOnD2Line(D2Point *ret, D2Line const *line, double t)
   addD2Points(ret, ret, &line->origin);
 }
 
-double crossProdZ(D2Vector const *v1, D2Vector const *v2)
+
+double dotProdD2Vector(D2Vector const *a, D2Vector const *b)
+{
+  return a->x * b->x + a->y * b->y;
+}
+
+double projectD2PointLine(D2Point const *pt, D2Line const *line)
+{
+  // let a be the vector from line->origin to pt
+  D2Vector a;
+  subD2Points(&a, pt, &line->origin);
+
+  // let b be line->vector
+  
+  double bLen = lengthD2Vector(&line->vector);         // |b|
+  double dot = dotProdD2Vector(&a, &line->vector);     // |a||b|cos(theta)
+  return dot/bLen;                                     // |a|cos(theta)
+}
+
+
+double crossProdZD2Vector(D2Vector const *v1, D2Vector const *v2)
 {
   return (v1->x * v2->y) - (v1->y * v2->x);
 }
+
+double distanceD2PointLine(D2Point const *pt, D2Line const *line)
+{
+  // let a be the vector from line->origin to pt
+  D2Vector a;
+  subD2Points(&a, pt, &line->origin);
+
+  // let b be line->vector
+
+  double bLen = lengthD2Vector(&line->vector);          // |b|
+  double cross = crossProdZD2Vector(&a, &line->vector); // |a||b|sin(theta)
+  return cross/bLen;                                    // |a|sin(theta)
+}
+
 
 bool nonzeroD2Vector(D2Vector const *v)
 {

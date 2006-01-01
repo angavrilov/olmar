@@ -61,11 +61,23 @@ void scaleD2VectorTo(D2Vector *v, double finalLength);
 // here, 'ret' can't be aliased with line's coordinates
 void pointOnD2Line(D2Point *ret, D2Line const *line, double t);
 
+// dot product = |a||b|cos(theta)
+double dotProdD2Vector(D2Vector const *a, D2Vector const *b);
+
+// project a point into a line, yielding the parameter 't' that
+// denotes the point in the line
+double projectD2PointLine(D2Point const *pt, D2Line const *line);
+
 // return the z component of the cross product of v1 and v2,
 // when considered to be vectors in the x-y plane; one way to
 // interpret this: when it's positive, v2 is within 180 degrees
 // counterclockwise of v1
-double crossProdZD2Vector(D2Vector const *v1, D2Vector const *v2);
+//
+// another identity: |a x b| = |a||b|sin(theta)
+double crossProdZD2Vector(D2Vector const *a, D2Vector const *b);
+
+// distance between a point and a line
+double distanceD2PointLine(D2Point const *pt, D2Line const *line);
 
 // true if either of v's components is not 0
 bool nonzeroD2Vector(D2Vector const *v);
@@ -74,7 +86,7 @@ bool nonzeroD2Vector(D2Vector const *v);
 // qwline->origin + (qwline->vector * t) is the intersection point;
 // if the lines are parallel, returns NAN
 double intersectD2Lines(D2Line const *pvline, D2Line const *qwline);
-                                 
+
 void printD2Point(D2Point const *p);         // (x,y)
 void printD2Line(D2Line const *line);        // from (x,y) along (v,w)
 
