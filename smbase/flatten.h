@@ -9,7 +9,12 @@
 #include "trdelete.h"   // TRASHINGDELETE
 
 class Flatten {
-public:
+public:      // data
+  // version of the file being xferred; app must set it if it
+  // wants to use it
+  int version;
+
+public:      // funcs
   Flatten();
   virtual ~Flatten();
 

@@ -9,6 +9,7 @@
 #include <string.h>      // strlen
 
 Flatten::Flatten()
+  : version(0)
 {}
 
 Flatten::~Flatten()
