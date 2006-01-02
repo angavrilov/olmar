@@ -9,18 +9,34 @@
 #include "xassert.h"         // xassert
 
 
+// Nominal way to create a 'T' object for unflattening; but you
+// can overload to do things differently where needed.
+template <class T>
+T *createForUnflat(Flatten &flat)
+{
+  return new T(flat);
+}
+
+// Nominal way to flatten.  Again, overload to override.
+template <class T>
+void xfer(Flatten &flat, T &t)
+{
+  t.xfer(flat);
+}
+
+
 // Transfer an owner list.  First we transfer the number of elements,
 // then each element in sequence.  If 'noteOwner' is true, the
 // pointers are noted so that it is possible to later transfer serf
 // aliases.
 template <class T>
-void xferObjList(Flatten &flat, ObjList<T> &list, bool noteOwner)
+void xferObjList(Flatten &flat, ObjList<T> &list, bool noteOwner = false)
 {
   if (flat.writing()) {
     flat.writeInt(list.count());
     FOREACH_OBJLIST_NC(T, list, iter) {
       T *t = iter.data();
-      t->xfer(flat);
+      xfer(flat, *t);
       if (noteOwner) {
         flat.noteOwner(t);
       }
@@ -30,8 +46,8 @@ void xferObjList(Flatten &flat, ObjList<T> &list, bool noteOwner)
     list.deleteAll();
     int ct = flat.readInt();
     while (ct--) {
-      T *t = new T(flat);
-      t->xfer(flat);
+      T *t = createForUnflat<T>(flat);
+      xfer(flat, *t);
       if (noteOwner) {
         flat.noteOwner(t);
       }
