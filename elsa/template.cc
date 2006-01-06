@@ -46,7 +46,7 @@ void copyTemplateArgs(ObjList<STemplateArgument> &dest,
 static void checkOkToBeHere()
 {
   if (!global_mayUseTypeAndVarToCString) {
-    xfailure("suspended during TypePrinterC::print");
+    xfailure("suspended during CTypePrinter::print");
   }
 }
 

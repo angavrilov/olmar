@@ -154,6 +154,7 @@ TreeWalkDebug::~TreeWalkDebug()
   out.up();
 }
 
+
 // **************** class TypePrinter
 
 TypeLike const *TypePrinter::getTypeLike(Variable const *var)
@@ -171,11 +172,11 @@ TypeLike const *TypePrinter::getE_constructorTypeLike(E_constructor const *c)
   return c->type;
 }
 
-// **************** class TypePrinterC
+// **************** class CTypePrinter
 
-bool TypePrinterC::enabled = true;
+bool CTypePrinter::enabled = true;
 
-void TypePrinterC::print(OutStream &out, TypeLike const *type, char const *name)
+void CTypePrinter::print(OutStream &out, TypeLike const *type, char const *name)
 {
   // temporarily suspend the Type::toCString, Variable::toCString(),
   // etc. methods
@@ -191,7 +192,7 @@ void TypePrinterC::print(OutStream &out, TypeLike const *type, char const *name)
 
 // **** AtomicType
 
-string TypePrinterC::print(AtomicType const *atomic)
+string CTypePrinter::print(AtomicType const *atomic)
 {
   // roll our own virtual dispatch
   switch(atomic->getTag()) {
@@ -205,12 +206,12 @@ string TypePrinterC::print(AtomicType const *atomic)
   }
 }
 
-string TypePrinterC::print(SimpleType const *simpleType)
+string CTypePrinter::print(SimpleType const *simpleType)
 {
   return simpleTypeName(simpleType->type);
 }
 
-string TypePrinterC::print(CompoundType const *cpdType)
+string CTypePrinter::print(CompoundType const *cpdType)
 {
   stringBuilder sb;
 
@@ -242,12 +243,12 @@ string TypePrinterC::print(CompoundType const *cpdType)
   return sb;
 }
 
-string TypePrinterC::print(EnumType const *enumType)
+string CTypePrinter::print(EnumType const *enumType)
 {
   return stringc << "enum " << (enumType->name? enumType->name : "/*anonymous*/");
 }
 
-string TypePrinterC::print(TypeVariable const *typeVar)
+string CTypePrinter::print(TypeVariable const *typeVar)
 {
   // use the "typename" syntax instead of "class", to distinguish
   // this from an ordinary class, and because it's syntax which
@@ -267,7 +268,7 @@ string TypePrinterC::print(TypeVariable const *typeVar)
                  << typeVar->name;
 }
 
-string TypePrinterC::print(PseudoInstantiation const *pseudoInst)
+string CTypePrinter::print(PseudoInstantiation const *pseudoInst)
 {
   stringBuilder sb0;
   StringBuilderOutStream out0(sb0);
@@ -294,7 +295,7 @@ string TypePrinterC::print(PseudoInstantiation const *pseudoInst)
   return sb0;
 }
 
-string TypePrinterC::print(DependentQType const *depType)
+string CTypePrinter::print(DependentQType const *depType)
 {
   stringBuilder sb0;
   StringBuilderOutStream out0(sb0);
@@ -312,7 +313,7 @@ string TypePrinterC::print(DependentQType const *depType)
 
 // **** [Compound]Type
 
-string TypePrinterC::print(Type const *type)
+string CTypePrinter::print(Type const *type)
 {
   if (type->isCVAtomicType()) {
     // special case a single atomic type, so as to avoid
@@ -329,7 +330,7 @@ string TypePrinterC::print(Type const *type)
   }
 }
 
-string TypePrinterC::print(Type const *type, char const *name)
+string CTypePrinter::print(Type const *type, char const *name)
 {
   // print the inner parentheses if the name is omitted
   bool innerParen = (name && name[0])? false : true;
@@ -356,7 +357,7 @@ string TypePrinterC::print(Type const *type, char const *name)
   return s;
 }
 
-string TypePrinterC::printRight(Type const *type, bool innerParen)
+string CTypePrinter::printRight(Type const *type, bool innerParen)
 {
   // roll our own virtual dispatch
   switch(type->getTag()) {
@@ -370,7 +371,7 @@ string TypePrinterC::printRight(Type const *type, bool innerParen)
   }
 }
 
-string TypePrinterC::printLeft(Type const *type, bool innerParen)
+string CTypePrinter::printLeft(Type const *type, bool innerParen)
 {
   // roll our own virtual dispatch
   switch(type->getTag()) {
@@ -384,7 +385,7 @@ string TypePrinterC::printLeft(Type const *type, bool innerParen)
   }
 }
 
-string TypePrinterC::printLeft(CVAtomicType const *type, bool /*innerParen*/)
+string CTypePrinter::printLeft(CVAtomicType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
   s << print(type->atomic);
@@ -398,12 +399,12 @@ string TypePrinterC::printLeft(CVAtomicType const *type, bool /*innerParen*/)
   return s;
 }
 
-string TypePrinterC::printRight(CVAtomicType const *type, bool /*innerParen*/)
+string CTypePrinter::printRight(CVAtomicType const *type, bool /*innerParen*/)
 {
   return "";
 }
 
-string TypePrinterC::printLeft(PointerType const *type, bool /*innerParen*/)
+string CTypePrinter::printLeft(PointerType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
   s << printLeft(type->atType, false /*innerParen*/);
@@ -419,7 +420,7 @@ string TypePrinterC::printLeft(PointerType const *type, bool /*innerParen*/)
   return s;
 }
 
-string TypePrinterC::printRight(PointerType const *type, bool /*innerParen*/)
+string CTypePrinter::printRight(PointerType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
   if (type->atType->isFunctionType() ||
@@ -430,7 +431,7 @@ string TypePrinterC::printRight(PointerType const *type, bool /*innerParen*/)
   return s;
 }
 
-string TypePrinterC::printLeft(ReferenceType const *type, bool /*innerParen*/)
+string CTypePrinter::printLeft(ReferenceType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
   s << printLeft(type->atType, false /*innerParen*/);
@@ -442,7 +443,7 @@ string TypePrinterC::printLeft(ReferenceType const *type, bool /*innerParen*/)
   return s;
 }
 
-string TypePrinterC::printRight(ReferenceType const *type, bool /*innerParen*/)
+string CTypePrinter::printRight(ReferenceType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
   if (type->atType->isFunctionType() ||
@@ -453,7 +454,7 @@ string TypePrinterC::printRight(ReferenceType const *type, bool /*innerParen*/)
   return s;
 }
 
-string TypePrinterC::printLeft(FunctionType const *type, bool innerParen)
+string CTypePrinter::printLeft(FunctionType const *type, bool innerParen)
 {
   stringBuilder sb;
 
@@ -482,7 +483,7 @@ string TypePrinterC::printLeft(FunctionType const *type, bool innerParen)
   return sb;
 }
 
-string TypePrinterC::printRight(FunctionType const *type, bool innerParen)
+string CTypePrinter::printRight(FunctionType const *type, bool innerParen)
 {
   // I split this into two pieces because the Cqual++ concrete
   // syntax puts $tainted into the middle of my rightString,
@@ -493,7 +494,7 @@ string TypePrinterC::printRight(FunctionType const *type, bool innerParen)
     << printRightAfterQualifiers(type);
 }
 
-string TypePrinterC::printRightUpToQualifiers(FunctionType const *type, bool innerParen)
+string CTypePrinter::printRightUpToQualifiers(FunctionType const *type, bool innerParen)
 {
   // finish enclosing type
   stringBuilder sb;
@@ -530,7 +531,7 @@ string TypePrinterC::printRightUpToQualifiers(FunctionType const *type, bool inn
   return sb;
 }
 
-string TypePrinterC::printRightQualifiers(FunctionType const *type, CVFlags cv)
+string CTypePrinter::printRightQualifiers(FunctionType const *type, CVFlags cv)
 {
   if (cv) {
     return stringc << " " << ::toString(cv);
@@ -540,7 +541,7 @@ string TypePrinterC::printRightQualifiers(FunctionType const *type, CVFlags cv)
   }
 }
 
-string TypePrinterC::printRightAfterQualifiers(FunctionType const *type)
+string CTypePrinter::printRightAfterQualifiers(FunctionType const *type)
 {
   stringBuilder sb;
 
@@ -566,15 +567,15 @@ string TypePrinterC::printRightAfterQualifiers(FunctionType const *type)
   return sb;
 }
 
-void TypePrinterC::printExtraRightmostSyntax(FunctionType const *type, stringBuilder &)
+void CTypePrinter::printExtraRightmostSyntax(FunctionType const *type, stringBuilder &)
 {}
 
-string TypePrinterC::printLeft(ArrayType const *type, bool /*innerParen*/)
+string CTypePrinter::printLeft(ArrayType const *type, bool /*innerParen*/)
 {
   return printLeft(type->eltType);
 }
 
-string TypePrinterC::printRight(ArrayType const *type, bool /*innerParen*/)
+string CTypePrinter::printRight(ArrayType const *type, bool /*innerParen*/)
 {
   stringBuilder sb;
 
@@ -590,7 +591,7 @@ string TypePrinterC::printRight(ArrayType const *type, bool /*innerParen*/)
   return sb;
 }
 
-string TypePrinterC::printLeft(PointerToMemberType const *type, bool /*innerParen*/)
+string CTypePrinter::printLeft(PointerToMemberType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
   s << printLeft(type->atType, false /*innerParen*/);
@@ -604,7 +605,7 @@ string TypePrinterC::printLeft(PointerToMemberType const *type, bool /*innerPare
   return s;
 }
 
-string TypePrinterC::printRight(PointerToMemberType const *type, bool /*innerParen*/)
+string CTypePrinter::printRight(PointerToMemberType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
   if (type->atType->isFunctionType() ||
@@ -615,7 +616,7 @@ string TypePrinterC::printRight(PointerToMemberType const *type, bool /*innerPar
   return s;
 }
 
-string TypePrinterC::printAsParameter(Variable const *var)
+string CTypePrinter::printAsParameter(Variable const *var)
 {
   stringBuilder sb;
   if (var->type->isTypeVariable()) {
@@ -881,7 +882,7 @@ void Function::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("Function");
   TypeLike const *type0 = env.typePrinter.getFunctionTypeLike(this);
-  Restorer<bool> res0(TypePrinterC::enabled, type0 == funcType);
+  Restorer<bool> res0(CTypePrinter::enabled, type0 == funcType);
 
   printDeclaration(env, dflags,
                    type0,
@@ -1443,8 +1444,8 @@ string Expression::exprToString() const
   stringBuilder sb;
   StringBuilderOutStream out0(sb);
   CodeOutStream codeOut(out0);
-  TypePrinterC typePrinter;
-  Restorer<bool> res0(TypePrinterC::enabled, true);
+  CTypePrinter typePrinter;
+  Restorer<bool> res0(CTypePrinter::enabled, true);
   PrintEnv env(typePrinter, &codeOut);
   
   // sm: I think all the 'print' methods should be 'const', but
@@ -1540,7 +1541,7 @@ void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta)
       // lying around to be printed here so we just print what we
       // have; enable the normal type printer temporarily in order to
       // do this
-      Restorer<bool> res0(TypePrinterC::enabled, true);
+      Restorer<bool> res0(CTypePrinter::enabled, true);
       env.typePrinter.print(*env.out, sta->value.t); // assume 'type' if no comment
       }
       break;
@@ -1650,7 +1651,7 @@ void E_constructor::iprint(PrintEnv &env)
   TreeWalkDebug treeDebug("E_constructor::iprint");
 
   TypeLike const *type0 = env.typePrinter.getE_constructorTypeLike(this);
-  Restorer<bool> res0(TypePrinterC::enabled, type == type0);
+  Restorer<bool> res0(CTypePrinter::enabled, type == type0);
 
   env.typePrinter.print(*env.out, type0);
   PairDelim pair(*env.out, "", "(", ")");
@@ -1668,7 +1669,7 @@ void printVariableName(PrintEnv &env, Variable *var)
     // the name is just "conversion-operator", so print differently
     *env.out << "/""*conversion*/operator(";
     Type *t = var->type->asFunctionType()->retType;
-    Restorer<bool> res0(TypePrinterC::enabled, true);
+    Restorer<bool> res0(CTypePrinter::enabled, true);
     env.typePrinter.print(*env.out, t);
     *env.out << ")";
     return;
@@ -2089,7 +2090,7 @@ void TA_type::print(PrintEnv &env)
 {
   // dig down to prevent printing "/*anon*/" since template
   // type arguments are always anonymous so it's just clutter
-  Restorer<bool> res0(TypePrinterC::enabled, true);
+  Restorer<bool> res0(CTypePrinter::enabled, true);
   env.typePrinter.print(*env.out, type->decl->var->type);
 }
 

@@ -264,16 +264,17 @@ class TypePrinter {
 };
 
 // This class knows how to print out Types in C syntax
-class TypePrinterC : public TypePrinter {
-  // dsw: I need to be able to use TypePrinterC class in TypePrinterCO
-  // to print out the occasional object that has a type but no
-  // abstract value, such as template primaries.  However, most of the
-  // time I need to disable this class so I don't accidentally use it.
+class CTypePrinter : public TypePrinter {
+  // dsw: I need to be able to use CTypePrinter class in
+  // ValueCTypePrinter to print out the occasional object that has a
+  // type but no abstract value, such as template primaries.  However,
+  // most of the time I need to disable this class so I don't
+  // accidentally use it.
   public:
   static bool enabled;
 
   public:
-  virtual ~TypePrinterC() {}
+  virtual ~CTypePrinter() {}
 
   // satisfy the interface to TypePrinter
   virtual void print(OutStream &out, TypeLike const *type, char const *name = NULL);
@@ -357,7 +358,7 @@ class StringPrintEnv : public PrintEnv {
 public:      // data
   StringBuilderOutStream sbos;
   CodeOutStream cos;
-  TypePrinterC tpc;
+  CTypePrinter tpc;
 
 public:      // code
   StringPrintEnv(stringBuilder &sb)

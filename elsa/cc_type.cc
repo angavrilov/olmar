@@ -184,7 +184,7 @@ void AtomicType::gdb() const
 
 string AtomicType::toString() const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   if (Type::printAsML) {
     return toMLString();
   }
@@ -261,7 +261,7 @@ SimpleType SimpleType::fixed[NUM_SIMPLE_TYPES] = {
 
 string SimpleType::toCString() const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   return simpleTypeName(type);
 }
 
@@ -471,7 +471,7 @@ bool CompoundType::hasVirtualFns() const
 
 string CompoundType::toCString() const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder sb;
                                                           
   // typedefVar might be NULL if this object is in the middle
@@ -1085,7 +1085,7 @@ EnumType::~EnumType()
 
 string EnumType::toCString() const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   return stringc << "enum " << (name? name : "/*anonymous*/");
 }
 
@@ -1215,7 +1215,7 @@ void BaseType::gdb() const
 
 string BaseType::toString() const 
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   if (printAsML) {
     return toMLString();
   }
@@ -1227,7 +1227,7 @@ string BaseType::toString() const
 
 string BaseType::toCString() const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   if (isCVAtomicType()) {
     // special case a single atomic type, so as to avoid
     // printing an extra space
@@ -1245,7 +1245,7 @@ string BaseType::toCString() const
 
 string BaseType::toCString(char const *name) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   // print the inner parentheses if the name is omitted
   bool innerParen = (name && name[0])? false : true;
 
@@ -1272,7 +1272,7 @@ string BaseType::toCString(char const *name) const
 // this is only used by CVAtomicType.. all others override it
 string BaseType::rightString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   return "";
 }
 
@@ -1625,7 +1625,7 @@ bool BaseType::containsVariables(MType *map) const
 
 string toString(Type *t)
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   return t->toString();
 }
 
@@ -1648,7 +1648,7 @@ unsigned CVAtomicType::innerHashValue() const
 
 string CVAtomicType::leftString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
   s << atomic->toCString();
   s << cvToString(cv);
@@ -1737,7 +1737,7 @@ unsigned PointerType::innerHashValue() const
 
 string PointerType::leftString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
   s << atType->leftString(false /*innerParen*/);
   if (atType->isFunctionType() ||
@@ -1754,7 +1754,7 @@ string PointerType::leftString(bool /*innerParen*/) const
 
 string PointerType::rightString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
   if (atType->isFunctionType() ||
       atType->isArrayType()) {
@@ -1821,7 +1821,7 @@ unsigned ReferenceType::innerHashValue() const
 
 string ReferenceType::leftString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
   s << atType->leftString(false /*innerParen*/);
   if (atType->isFunctionType() ||
@@ -1834,7 +1834,7 @@ string ReferenceType::leftString(bool /*innerParen*/) const
 
 string ReferenceType::rightString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
   if (atType->isFunctionType() ||
       atType->isArrayType()) {
@@ -2025,7 +2025,7 @@ NamedAtomicType *FunctionType::getNATOfMember()
 
 string FunctionType::leftString(bool innerParen) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder sb;
 
   // FIX: FUNC TEMPLATE LOSS
@@ -2055,7 +2055,7 @@ string FunctionType::leftString(bool innerParen) const
 
 string FunctionType::rightString(bool innerParen) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   // I split this into two pieces because the Cqual++ concrete
   // syntax puts $tainted into the middle of my rightString,
   // since it's following the placement of 'const' and 'volatile'
@@ -2067,7 +2067,7 @@ string FunctionType::rightString(bool innerParen) const
 
 string FunctionType::rightStringUpToQualifiers(bool innerParen) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   // finish enclosing type
   stringBuilder sb;
   if (innerParen) {
@@ -2105,7 +2105,7 @@ string FunctionType::rightStringUpToQualifiers(bool innerParen) const
 
 STATICDEF string FunctionType::rightStringQualifiers(CVFlags cv)
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   if (cv) {
     return stringc << " " << ::toString(cv);
   }
@@ -2116,7 +2116,7 @@ STATICDEF string FunctionType::rightStringQualifiers(CVFlags cv)
 
 string FunctionType::rightStringAfterQualifiers() const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder sb;
 
   // exception specs
@@ -2143,13 +2143,13 @@ string FunctionType::rightStringAfterQualifiers() const
 
 void FunctionType::extraRightmostSyntax(stringBuilder &) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
 }
 
 
 string FunctionType::toString_withCV(CVFlags cv) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   return stringc
     << leftString(true /*innerParen*/)
     << rightStringUpToQualifiers(true /*innerParen*/)
@@ -2252,13 +2252,13 @@ unsigned ArrayType::innerHashValue() const
 
 string ArrayType::leftString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   return eltType->leftString();
 }
 
 string ArrayType::rightString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder sb;
 
   if (hasSize()) {
@@ -2341,7 +2341,7 @@ unsigned PointerToMemberType::innerHashValue() const
 
 string PointerToMemberType::leftString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
   s << atType->leftString(false /*innerParen*/);
   s << " ";
@@ -2356,7 +2356,7 @@ string PointerToMemberType::leftString(bool /*innerParen*/) const
 
 string PointerToMemberType::rightString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
   if (atType->isFunctionType() ||
       atType->isArrayType()) {
