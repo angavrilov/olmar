@@ -798,7 +798,10 @@ string cvToString(CVFlags cv);
 #ifdef TYPE_CLASS_FILE
   // pull in the definition of Type, which may have additional
   // fields (etc.) added for the client analysis
+#define CC_TYPE_INCLUDE_CLASS_FILE_FLAG
   #include TYPE_CLASS_FILE
+// this 'undef' is rather important
+#undef CC_TYPE_INCLUDE_CLASS_FILE
 #else
   // please see cc_type.html, section 6, "BaseType and Type", for more
   // information about this class
