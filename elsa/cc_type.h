@@ -1154,7 +1154,7 @@ public:
   // ---- constructors for the atomic types ----
   // for now, only CompoundType is built this way, and I'm going to
   // provide a default implementation in TypeFactory to avoid having
-  // to change the interface w.r.t. cc_qual
+  // to change the interface w.r.t. qualcc
   virtual CompoundType *makeCompoundType
     (CompoundType::Keyword keyword, StringRef name);
 

@@ -381,7 +381,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 
 
   /* sm: I moved the user-defined qualifier rule into qual_ext.lex
-   * in the cc_qual tree */
+   * in the oink tree */
 
 
   /* preprocessor */
