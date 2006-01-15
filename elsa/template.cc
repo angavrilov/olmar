@@ -4,6 +4,7 @@
 
 #include "template.h"      // this module
 #include "cc_env.h"        // also kind of this module
+#include "cc_print.h"      // CTypePrinter
 #include "trace.h"         // tracingSys
 #include "strtable.h"      // StringTable
 #include "cc_lang.h"       // CCLang
@@ -889,7 +890,21 @@ string STemplateArgument::toString() const
   switch (kind) {
     default: xfailure("bad kind");
     case STA_NONE:      return string("STA_NONE");
-    case STA_TYPE:      return value.t->toString();   // assume 'type' if no comment
+    case STA_TYPE: {
+      // NOTE: this code used to say this:
+      //   return value.t->toString();   // assume 'type' if no comment
+      //
+      // FIX: not sure if this is a bug but there is no abstract value
+      // lying around to be printed here so we just print what we
+      // have; enable the normal type printer temporarily in order to
+      // do this
+      Restorer<bool> res0(CTypePrinter::enabled, true);
+      CTypePrinter typePrinter0;
+      stringBuilder sb;
+      StringBuilderOutStream sbout0(sb);
+      typePrinter0.print(sbout0, value.t);
+      return sb;
+    }
     case STA_INT:       return stringc << "/*int*/ " << value.i;
     case STA_ENUMERATOR:return stringc << "/*enum*/ " << value.v->name;
     case STA_REFERENCE: return stringc << "/*ref*/ " << value.v->name;
