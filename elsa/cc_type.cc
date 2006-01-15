@@ -30,7 +30,6 @@
 #include <stdlib.h>     // getenv
 
 
-// FIX: for debugging only; remove
 bool global_mayUseTypeAndVarToCString = true;
 
 // 2005-08-10: the anon things are kind of ugly..

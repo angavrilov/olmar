@@ -76,7 +76,7 @@ class BasicTypeFactory;
 class TypePred;
 
 
-// FIX: is a debugging aid; remove
+// This is a debugging aid.
 extern bool global_mayUseTypeAndVarToCString;
 
 
