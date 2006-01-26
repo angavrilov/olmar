@@ -3,6 +3,11 @@
 //   arbitrary types, and possibly circular references
 // this is a trimmed-down version of the one in 'proot'
 
+// Has a number of similarities with boost::serialize,
+//   http://www.boost.org/libs/serialization/doc/index.html
+// The main difference is I don't want to use templates.  Also,
+// I don't care about STL.
+
 #ifndef FLATTEN_H
 #define FLATTEN_H
 
@@ -38,11 +43,13 @@ public:      // funcs
   virtual void xferLong(long &l);
   virtual void xferBool(bool &b);
 
-  // read or write a null-terminated character buffer, allocated with new;
-  // this works if 'str' is NULL
+  // read or write a null-terminated character buffer, allocated with
+  // new; this works if 'str' is NULL (in other words, a NULL string
+  // is distinguished from an empty string, and both are legal)
   virtual void xferCharString(char *&str);
 
-  // xfer a buffer allocated with 'new', of a given length
+  // xfer a buffer allocated with 'new', of a given length; the buffer
+  // may not be NULL (when writing), and len must be nonnegative
   virtual void xferHeapBuffer(void *&buf, int len);
 
   // read: write the code; write: read & compare to code, fail if != ;

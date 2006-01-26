@@ -42,6 +42,7 @@ void Flatten::xferHeapBuffer(void *&buf, int len)
   if (reading()) {
     buf = new unsigned char[len];
   }
+  xassert(len >= 0);
   xferSimple(buf, len);
 }
 
