@@ -154,6 +154,17 @@ void StringDict::modify(char const *key, char const *newValue)
 }
 
 
+void StringDict::addOrModify(char const *key, char const *newValue)
+{
+  if (!isMapped(key)) {
+    add(key, newValue);
+  }
+  else {
+    modify(key, newValue);
+  }
+}
+
+
 StringDict::Iter StringDict::find(char const *key)
 {
   FOREACH_ITER(*this, entry) {
