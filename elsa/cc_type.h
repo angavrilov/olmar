@@ -351,10 +351,10 @@ public:      // data
 
   // this is the root of the subobject hierarchy diagram which
   // includes the transitive consequences of inheritance; NOTE: this
-  // entire heirarcy is just for the parents of this particular
-  // CompoundType and is isomorphic to but shared with the subobject
-  // heirarcy of this CompoundType's parents; invariant: subobj.ct ==
-  // this
+  // entire hierarchy is just for the parents of this particular
+  // CompoundType and is isomorphic to but NOT shared with the
+  // subobject hierarchy of this CompoundType's parents; invariant:
+  // subobj.ct == this
   BaseClassSubobj subobj;
 
   // list of all conversion operators this class has, including

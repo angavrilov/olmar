@@ -141,6 +141,14 @@ void LookupSet::adds(Variable *v)
 
 void LookupSet::add(Variable *v)
 {
+  // 2006-02-22: Trend-prof says this routine is exhibiting quadratic
+  // performance.  That is, not only is the algorithm obviously
+  // quadratic in the worst case, it's exhibiting that in the typical
+  // case too.  But the constant factor is reasonably small, and
+  // optimizing it is nontrivial, so for now I'll hold off.  If I can
+  // ever be convinced that 'sameEntity' is behaving correctly, then
+  // I'll consider adding a hash consistent with it.
+
   // is 'v' already present?
   SFOREACH_OBJLIST(Variable, *this, iter) {
     if (sameEntity(v, iter.data())) {
