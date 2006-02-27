@@ -500,7 +500,8 @@ SourceLocManager::SourceLocManager()
     nextStaticLoc(toLoc(0)),
     mayOpenFiles(true),
     maxStaticLocs(100),
-    useHashLines(true)
+    useHashLines(true),
+    useOriginalOffset(true)
 {
   if (!sourceLocManager) {
     sourceLocManager = this;
@@ -745,14 +746,19 @@ void SourceLocManager::decodeOffset_explicitHL(
     char const *origFname;
     f->hashLines->map(ppLine, origLine, origFname);
 
-    // get a File for the original file; this opens that file
-    // and scans it for line boundaries
-    File *orig = getFile(origFname);
+    // dsw: we want to avoid looking for the original file if we just
+    // need *some* offset, not *the* original offset; thanks to Matt
+    // Harren for pointing out this subtle trick
+    if (this->useOriginalOffset) {
+      // get a File for the original file; this opens that file
+      // and scans it for line boundaries
+      File *orig = getFile(origFname);
 
-    // use that map to get an offset, truncating columns that are
-    // beyond the true line ending (happens due to macro expansion)
-    charOffset = orig->lineColToChar(origLine, ppCol);
-    
+      // use that map to get an offset, truncating columns that are
+      // beyond the true line ending (happens due to macro expansion)
+      charOffset = orig->lineColToChar(origLine, ppCol);
+    }
+
     // filename is whatever #line said
     filename = origFname;             
   }

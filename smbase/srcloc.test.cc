@@ -400,7 +400,8 @@ SourceLocManager::SourceLocManager()
     nextLoc(toLoc(1)),
     nextStaticLoc(toLoc(0)),
     maxStaticLocs(100),
-    useHashLines(true)
+    useHashLines(true),
+    useOriginalOffset(true)
 {
   if (!sourceLocManager) {
     sourceLocManager = this;

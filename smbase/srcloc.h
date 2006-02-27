@@ -266,6 +266,11 @@ public:      // data
   // not necessarily inverses of each other
   bool useHashLines;
 
+  // when true, open the original file and scan it so that we can
+  // report true character offset counts; otherwise, just use what is
+  // in the preprocessed file
+  bool useOriginalOffset;
+
   // count the # of times we had to truncate a char offset because
   // the #line map pointed at a line shorter than the column number
   // we expected to use; this is initially 0; calling code can use
