@@ -248,8 +248,14 @@ void doit(int argc, char **argv)
     Type::printAsML = true;
   }
 
+  // FIX: dsw: couldn't we put dashes or something in here to break up
+  // the word?
   if (tracingSys("nohashline")) {
     sourceLocManager->useHashLines = false;
+  }
+
+  if (tracingSys("no-orig-offset")) {
+    sourceLocManager->useOriginalOffset = false;
   }
 
   if (tracingSys("ansi")) {
