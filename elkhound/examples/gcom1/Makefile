@@ -40,5 +40,5 @@ check:
 	echo "2 + 3" | ./parser
 
 clean:
-	rm -f lexer parser *.o tokens.tok gcom.h gcom.cc
+	rm -f lexer parser *.o tokens.tok gcom.h gcom.cc gmon.out
 
