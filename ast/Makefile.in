@@ -168,7 +168,7 @@ check: ccsstr
 
 # delete outputs of compiler, linker
 clean:
-	rm -f *.o tmp *.d
+	rm -f *.o tmp *.d gmon.out
 	rm -f agrampar astgen ccsstr towner exampletest libast.a
 	rm -f agrampar.output
 	rm -f example.{h.cc} ext1.{h,cc}
