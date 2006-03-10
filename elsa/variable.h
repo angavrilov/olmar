@@ -5,7 +5,7 @@
 // Every binding introduction (e.g. declaration) of a name will own
 // one of these to describe the introduced name; every reference to
 // that name will be annotated with a pointer to the Variable hanging
-// off the introduction.   
+// off the introduction.
 //
 // The name 'variable' is a slight misnomer; it's used for naming:
 //   - local and global variables
@@ -58,13 +58,13 @@ public:    // data
   // are significant advantages to storing *two* locations (first
   // declaration, and definition), but I haven't done that yet
   SourceLoc loc;          // location of the name in the source text
-                          
+
   // name introduced (possibly NULL for abstract declarators)
-  StringRef name;        
+  StringRef name;
 
   // type of the variable (NULL iff flags has DF_NAMESPACE)
-  Type *type;             
-  
+  Type *type;
+
   // various flags; 'const' to force modifications to go through
   // the 'setFlagsTo' method
   const DeclFlags flags;
@@ -182,7 +182,7 @@ public:
   bool isClass() const;
 
   // refers to a user-provided typedef
-  bool isExplicitTypedef() const 
+  bool isExplicitTypedef() const
     { return hasFlag(DF_TYPEDEF) && !hasFlag(DF_IMPLICIT); }
 
   // access control applied to this variable in the context
@@ -253,13 +253,13 @@ public:
   bool isMemberOfTemplate() const;
 
   // true if this is a template parameter or bound arg or both
-  bool isAbstractTemplateParam() const 
+  bool isAbstractTemplateParam() const
     { return hasFlag(DF_TEMPL_PARAM) && !hasFlag(DF_BOUND_TPARAM); }
   bool isBoundTemplateParam() const
     { return hasAllFlags(DF_TEMPL_PARAM | DF_BOUND_TPARAM); }
   bool isTemplateParam() const
     { return hasFlag(DF_TEMPL_PARAM); }
-    
+
   // true if this is a template type parameter (unbound/abstract)
   bool isTemplateTypeParam() const;
 
@@ -302,7 +302,7 @@ public:
   // template entity is paramterized by it; otherwise NULL
   Variable *getParameterizedEntity() const;
   void setParameterizedEntity(Variable *templ);
-                                                          
+
   // true if 'this' and 'other' are the same ordinal parameter of
   // the same template entity
   bool sameTemplateParameter(Variable const *other) const;
@@ -314,7 +314,7 @@ public:
   // true if this name refers to a template (function) or an overload
   // set that includes one
   bool namesTemplateFunction() const;
-  
+
   // this must be an enumerator; get the integer value it denotes
   int getEnumeratorValue() const;
 
@@ -341,15 +341,15 @@ class OverloadSet {
 public:
   // list-as-set
   SObjList<Variable> set;
-  
+
 public:
   OverloadSet();
   ~OverloadSet();
-  
+
   void addMember(Variable *v);
   int count() const { return set.count(); }
 
-  // These are obsolete; see Env::findInOverloadSet.              
+  // These are obsolete; see Env::findInOverloadSet.
   //
   // Update: But Oink wants to use them for linker imitation.. and
   // I don't see much harm in that, since non-concrete types should
@@ -396,5 +396,7 @@ gets split I can arrange a storage sharing strategy among the
 (then four) fields that are bit-sets.
 
 */
+
+extern bool variablesLinkerVisibleEvenIfNonStaticDataMember;
 
 #endif // VARIABLE_H

@@ -6,6 +6,8 @@
 #include "trace.h"         // tracingSys
 #include "mangle.h"        // mangle()
 
+// dsw: need this for Oink; we'll figure out how to make this non-global later
+bool variablesLinkerVisibleEvenIfNonStaticDataMember = false;
 
 // ---------------------- SomeTypeVarNotInTemplParams_Pred --------------------
 
@@ -78,7 +80,7 @@ Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
     setAccess(AK_PRIVATE);
     setScopeKind(SK_NAMESPACE);
     setParameterOrdinal(1000);
-    
+
     xassert(getAccess() == AK_PRIVATE);
     xassert(getScopeKind() == SK_NAMESPACE);
     xassert(getParameterOrdinal() == 1000);
@@ -166,17 +168,20 @@ bool Variable::linkerVisibleName(bool evenIfStatic) const {
           //          hasFlag(DF_GLOBAL) &&
           !hasFlag(DF_STATIC);
       }
+    } else if (!scope->linkerVisible()) {
+      newAnswer = false;
     } else {
       // dsw: I hate this overloading of the 'static' keyword.  Static
       // members of CompoundTypes are linker visible if the
       // CompoundType is linkerVisible.  Non-static members are
       // visible only if they are FunctionTypes.
       if (scope->isClassScope()) {
-        if (hasFlag(DF_STATIC)) {
-          newAnswer = scope->linkerVisible();
+        // non-static members of a class
+        if (variablesLinkerVisibleEvenIfNonStaticDataMember) {
+          // members: data, static data, functions
+          newAnswer = hasFlag(DF_MEMBER);
         } else {
-          // non-static members of a class
-          newAnswer = scope->linkerVisible() && type->asRval()->isFunctionType();
+          newAnswer = hasFlag(DF_MEMBER) && (type->asRval()->isFunctionType() || hasFlag(DF_STATIC));
         }
       } else {
         newAnswer = scope->linkerVisible();
@@ -281,7 +286,7 @@ bool Variable::isInstantiation() const
 
 
 TemplateInfo *Variable::templateInfo() const
-{                  
+{
   // 2005-02-23: experiment: alias share's referent's template info
   return skipAliasC()->templInfo;
 }
@@ -289,12 +294,12 @@ TemplateInfo *Variable::templateInfo() const
 void Variable::setTemplateInfo(TemplateInfo *templInfo0)
 {
   templInfo = templInfo0;
-  
+
   // 2005-03-07: this assertion fails in some error cases (e.g., error
   // 1 of in/t0434.cc); I tried a few hacks but am now giving up on it
   // entirely
   //xassert(!(templInfo && notQuantifiedOut()));
-  
+
   // complete the association
   if (templInfo) {
     // I am the method allowed to change TemplateInfo::var
@@ -354,7 +359,7 @@ string Variable::toCString() const
 
 
 string Variable::toQualifiedString() const
-{                             
+{
   string qname;
   if (name) {
     qname = fullyQualifiedName0();
@@ -425,10 +430,10 @@ string Variable::fullyQualifiedName0() const
     if (!tmp.isempty()) {
       tmp << "::";
     }
-    
+
     if (name) {
       tmp << name;        // NOTE: not mangled
-                     
+
       TemplateInfo *ti = templateInfo();
       if (ti) {
         // only print arguments that do not correspond to inherited params
@@ -481,7 +486,7 @@ string Variable::fullyQualifiedMangledName0() {
 //    if (scope) cout << "; has a scope" << endl;
 //    else cout << "; NO scope" << endl;
 
-  // NOTE: This is a very important assertion
+  // NOTE: dsw: This is a very important assertion
   xassert(linkerVisibleName());
 
   stringBuilder fqName;
@@ -604,7 +609,7 @@ bool Variable::sameTemplateParameter(Variable const *other) const
     // same!
     return true;
   }
-  
+
   return false;
 }
 
@@ -636,11 +641,11 @@ bool sameEntity(Variable const *v1, Variable const *v2)
 {
   v1 = v1->skipAliasC();
   v2 = v2->skipAliasC();
-  
+
   if (v1 == v2) {
     return true;
   }
-  
+
   if (v1 && v2 &&                   // both non-NULL
       v1->name == v2->name &&       // same simple name
       v1->hasFlag(DF_EXTERN_C) &&   // both are extern "C"
@@ -654,7 +659,7 @@ bool sameEntity(Variable const *v1, Variable const *v2)
     // implement that now.
     return true;
   }
-  
+
   return false;
 }
 
@@ -666,7 +671,7 @@ static bool namesTemplateFunction_one(Variable const *v)
   // template-ness of the name itself, not any parent scopes
   bool const considerInherited = false;
 
-  return v->isTemplate(considerInherited) || 
+  return v->isTemplate(considerInherited) ||
          v->isInstantiation();     // 2005-08-11: in/t0545.cc
 }
 
@@ -720,7 +725,7 @@ Scope *Variable::getDenotedScope() const
   if (isNamespace()) {
     return scope;
   }
-  
+
   if (type->isCompoundType()) {
     CompoundType *ct = type->asCompoundType();
     return ct;
