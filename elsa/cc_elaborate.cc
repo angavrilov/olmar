@@ -592,9 +592,11 @@ Declaration *ElabVisitor::makeTempDeclaration
   // make a decl for it
   Declaration *decl = makeDeclaration(loc, var);
 
-  // elaborate this declaration; because of DF_TEMPORARY this will *not*
-  // add a ctor, but it will add a dtor
-  elaborateCDtorsDeclaration(decl);
+  if (doing(EA_VARIABLE_DECL_CDTOR)) {
+    // elaborate this declaration; because of DF_TEMPORARY this will *not*
+    // add a ctor, but it will add a dtor
+    elaborateCDtorsDeclaration(decl);
+  }
 
   return decl;
 }
@@ -1595,21 +1597,23 @@ bool S_return::elaborate(ElabVisitor &env)
       // yet have put any temporaries into the fullexp
       xassert(expr->getAnnot()->noTemporaries());
 
-      // get the arguments of the constructor function; NOTE: we dig
-      // down below the FullExpression to the raw Expression
-      Expression *subExpr = expr->expr;
-      FakeList<ArgExpression> *args0 =
-        FakeList<ArgExpression>::makeList(new ArgExpression(subExpr));
-      xassert(args0->count() == 1);      // makeList always returns a singleton list
+      if (env.doing(EA_VARIABLE_DECL_CDTOR)) {
+        // get the arguments of the constructor function; NOTE: we dig
+        // down below the FullExpression to the raw Expression
+        Expression *subExpr = expr->expr;
+        FakeList<ArgExpression> *args0 =
+          FakeList<ArgExpression>::makeList(new ArgExpression(subExpr));
+        xassert(args0->count() == 1);      // makeList always returns a singleton list
 
-      // make the constructor function
-      env.push(expr->getAnnot());// e.g. in/d0049.cc breaks w/o this
-      ctorStatement = env.makeCtorStatement(loc, retVar, ft->retType,
-                                            env.getCopyCtor(retTypeCt), args0);
-      env.pop(expr->getAnnot());
+        // make the constructor function
+        env.push(expr->getAnnot());// e.g. in/d0049.cc breaks w/o this
+        ctorStatement = env.makeCtorStatement(loc, retVar, ft->retType,
+                                              env.getCopyCtor(retTypeCt), args0);
+        env.pop(expr->getAnnot());
 
-      // make the original expression a clone
-      expr->expr = env.cloneExpr(expr->expr);
+        // make the original expression a clone
+        expr->expr = env.cloneExpr(expr->expr);
+      }
 
       // traverse only the elaboration
       //ctorStatement->traverse(env);    // 'makeCtorStatement' does this internally
