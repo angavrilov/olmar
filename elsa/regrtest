@@ -1299,7 +1299,7 @@ testCparse c/dC0022.c # sizeof dynamically-sized multidimensional array
 
 testCparse c/dC0023.c # "in gcc, in C mode, a foo and a struct foo are unrelated"
 
-# this is invalid code                                              
+# this is invalid code
 #
 # 2005-08-04: but if people keep feeding me this bug, I guess I will
 # shut up and accept it
@@ -1329,6 +1329,7 @@ testCparse c/k0007.c #"duplicate modifiers in C as warning, not error (?)"
 testCparse c/k0008.c #"function call vs type-cast ambiguity"
 testCparse c/k0009.c #"func returning array of function pointers with old-style parm list"
 testCparse c/k0010.c #"'and' keyword"
+testCparse c/k0059.c #return struct by value
 
 ### </quarl-testcases-c>
 

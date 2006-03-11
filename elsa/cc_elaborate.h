@@ -90,6 +90,9 @@ enum ElabActivities {
   // translation in the 'dtorStatement' of E_delete.
   EA_TRANSLATE_DELETE      = 0x0200,
 
+  // Elaboration activities for C
+  EA_C_ACTIVITIES          = ( EA_ELIM_RETURN_BY_VALUE |  EA_ELIM_PASS_BY_VALUE ),
+
   // all flags above
   EA_ALL                   = 0x03FF,
 
@@ -155,19 +158,19 @@ public:      // data
 public:      // funcs
   // true if a particular activity is requested
   bool doing(ElabActivities a) const { return !!(activities & a); }
-  
+
   // fresh names
   StringRef makeTempName();
   StringRef makeE_newVarName();
   StringRef makeThrowClauseVarName();
   StringRef makeCatchClauseVarName();
-  
+
   // similar to a function in Env
-  Variable *makeVariable(SourceLoc loc, StringRef name, 
+  Variable *makeVariable(SourceLoc loc, StringRef name,
                          Type *type, DeclFlags dflags);
 
   // syntactic convenience
-  void push(FullExpressionAnnot *a) 
+  void push(FullExpressionAnnot *a)
     { fullExpressionAnnotStack.push(a); }
   void pop(FullExpressionAnnot *a)
     { FullExpressionAnnot *tmp = fullExpressionAnnotStack.pop(); xassert(a == tmp); }
@@ -272,10 +275,10 @@ public:      // funcs
   Variable *getDefaultCtor(CompoundType *ct);    // C(); might be NULL at any time
   Variable *getCopyCtor(CompoundType *ct);       // C(C const &);
   Variable *getAssignOperator(CompoundType *ct); // C& operator= (C const &);
-  Variable *getDtor(CompoundType *ct);           // ~C();     
+  Variable *getDtor(CompoundType *ct);           // ~C();
 
 public:
-  ElabVisitor(StringTable &str, TypeFactory &tfac, TranslationUnit *tunit);
+  ElabVisitor(StringTable &str, TypeFactory &tfac, TranslationUnit *tunit, ElabActivities activities0);
   virtual ~ElabVisitor();
 
   // ASTVisitor funcs

@@ -85,7 +85,7 @@ public:
     else if (obj->isE_fieldAcc()) {
       v = obj->asE_fieldAcc()->field;
     }
-    
+
     // this output format is designed to minimize the effect of
     // changes to unrelated details
     if (v
@@ -115,9 +115,9 @@ void if_malloc_stats()
 class SectionTimer {
   long start;
   long &elapsed;
-  
+
 public:
-  SectionTimer(long &e) 
+  SectionTimer(long &e)
     : start(getMilliseconds()),
       elapsed(e)
   {}
@@ -273,7 +273,7 @@ void doit(int argc, char **argv)
   if (tracingSys("c_lang")) {
     lang.GNU_C();
   }
-  
+
   if (tracingSys("gnu_c89")) {
     lang.ANSI_C89();
     lang.GNU_C_extensions();
@@ -292,7 +292,7 @@ void doit(int argc, char **argv)
       xfatal("gnu2_kandr_c_lang option requires the K&R module (./configure -kandr=yes)");
     #endif
   }
-  
+
   if (tracingSys("test_xfatal")) {
     xfatal("this is a test error message");
   }
@@ -317,7 +317,7 @@ void doit(int argc, char **argv)
     traceAddSys("xmlPrintAST");
     traceAddSys("topform");
   }
-  
+
   if (tracingSys("only_works_on_32bit") &&
       sizeof(long) != 4) {
     // we are running a regression test, and the testcase is known to
@@ -338,7 +338,7 @@ void doit(int argc, char **argv)
     SectionTimer timer(parseTime);
     SemanticValue treeTop;
     ParseTreeAndTokens tree(lang, treeTop, strTable, inputFname);
-    
+
     // grab the lexer so we can check it for errors (damn this
     // 'tree' thing is stupid..)
     Lexer *lexer = dynamic_cast<Lexer*>(tree.lexer);
@@ -428,7 +428,7 @@ void doit(int argc, char **argv)
     }
     catch (x_assert &x) {
       HANDLER();
-      
+
       if (env.errors.hasFromNonDisambErrors()) {
         if (tracingSys("expect_confused_bail")) {
           cout << "got the expected confused/bail\n";
@@ -573,14 +573,20 @@ void doit(int argc, char **argv)
 
   // ----------------- elaboration ------------------
   long elaborationTime = 0;
-  if (!lang.isCplusplus || tracingSys("no-elaborate")) {
+  if (tracingSys("no-elaborate")) {
     cout << "no-elaborate" << endl;
-  } 
+  }
+  else if (!lang.isCplusplus) {
+    cout << "C elaboration" << endl;
+
+    // do elaboration
+    ElabVisitor vis(strTable, tfac, unit, EA_C_ACTIVITIES);
+  }
   else {
     SectionTimer timer(elaborationTime);
 
     // do elaboration
-    ElabVisitor vis(strTable, tfac, unit);
+    ElabVisitor vis(strTable, tfac, unit, EA_ALL);
 
     // if we are going to pretty print, then we need to retain defunct children
     if (tracingSys("prettyPrint")
@@ -747,7 +753,7 @@ int main(int argc, char **argv)
   }
   catch (XFatal &x) {
     HANDLER();
-    
+
     // similar to XUnimp
     cout << x << endl;
     return 10;
