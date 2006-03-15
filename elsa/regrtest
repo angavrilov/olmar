@@ -1329,7 +1329,7 @@ testCparse c/k0007.c #"duplicate modifiers in C as warning, not error (?)"
 testCparse c/k0008.c #"function call vs type-cast ambiguity"
 testCparse c/k0009.c #"func returning array of function pointers with old-style parm list"
 testCparse c/k0010.c #"'and' keyword"
-testCparse c/k0059.c #return struct by value
+testCparse c/k0012.c #return struct by value
 
 ### </quarl-testcases-c>
 
