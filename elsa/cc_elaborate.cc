@@ -116,21 +116,23 @@ D_name *ElabVisitor::makeD_name(SourceLoc loc, Variable *var)
 // given a Variable, make a Declarator that refers to it; assume it's
 // being preceded by a TS_name that fully specifies the variable's
 // type, so we just use a D_name to finish it off
-Declarator *ElabVisitor::makeDeclarator(SourceLoc loc, Variable *var)
+Declarator *ElabVisitor::makeDeclarator(SourceLoc loc, Variable *var, DeclaratorContext context)
 {
   IDeclarator *idecl = makeD_name(loc, var);
 
   Declarator *decl = new Declarator(idecl, NULL /*init*/);
   decl->var = var;
   decl->type = var->type;
+  xassert(decl->context == DC_UNKNOWN);
+  decl->context = context;
 
   return decl;
 }
 
 // and similar for a full (singleton) declaration
-Declaration *ElabVisitor::makeDeclaration(SourceLoc loc, Variable *var)
+Declaration *ElabVisitor::makeDeclaration(SourceLoc loc, Variable *var, DeclaratorContext context)
 {
-  Declarator *declarator = makeDeclarator(loc, var);
+  Declarator *declarator = makeDeclarator(loc, var, context);
   Declaration *declaration =
     new Declaration(DF_NONE, new TS_type(loc, var->type),
       FakeList<Declarator>::makeList(declarator));
@@ -140,7 +142,7 @@ Declaration *ElabVisitor::makeDeclaration(SourceLoc loc, Variable *var)
 
 // given a function declaration, make a Declarator containing
 // a D_func that refers to it
-Declarator *ElabVisitor::makeFuncDeclarator(SourceLoc loc, Variable *var)
+Declarator *ElabVisitor::makeFuncDeclarator(SourceLoc loc, Variable *var, DeclaratorContext context)
 {
   FunctionType *ft = var->type->asFunctionType();
 
@@ -156,7 +158,7 @@ Declarator *ElabVisitor::makeFuncDeclarator(SourceLoc loc, Variable *var)
       Variable *param = iter.data();
 
       ASTTypeId *typeId = new ASTTypeId(new TS_type(loc, param->type),
-                                        makeDeclarator(loc, param));
+                                        makeDeclarator(loc, param, DC_D_FUNC));
       params = params->prepend(typeId);
     }
     params = params->reverse();     // fix prepend()-induced reversal
@@ -172,6 +174,8 @@ Declarator *ElabVisitor::makeFuncDeclarator(SourceLoc loc, Variable *var)
   Declarator *funcDecl = new Declarator(funcIDecl, NULL /*init*/);
   funcDecl->var = var;
   funcDecl->type = var->type;
+  xassert(funcDecl->context == DC_UNKNOWN);
+  funcDecl->context = context;
 
   return funcDecl;
 }
@@ -184,7 +188,7 @@ Function *ElabVisitor::makeFunction(SourceLoc loc, Variable *var,
 {
   FunctionType *ft = var->type->asFunctionType();
 
-  Declarator *funcDecl = makeFuncDeclarator(loc, var);
+  Declarator *funcDecl = makeFuncDeclarator(loc, var, DC_FUNCTION);
 
   Function *f = new Function(
     var->flags        // this is too many (I only want syntactic); but won't hurt
@@ -580,7 +584,7 @@ void Declarator::elaborateCDtors(ElabVisitor &env, DeclFlags dflags)
 //
 // Make a Declaration for a temporary; yield the Variable too.
 Declaration *ElabVisitor::makeTempDeclaration
-  (SourceLoc loc, Type *retType, Variable *&var /*OUT*/)
+  (SourceLoc loc, Type *retType, Variable *&var /*OUT*/, DeclaratorContext context)
 {
   // while a user may attempt this, we should catch it earlier and not
   // end up down here.
@@ -590,7 +594,7 @@ Declaration *ElabVisitor::makeTempDeclaration
   var = makeVariable(loc, makeTempName(), retType, DF_TEMPORARY);
 
   // make a decl for it
-  Declaration *decl = makeDeclaration(loc, var);
+  Declaration *decl = makeDeclaration(loc, var, context);
 
   if (doing(EA_VARIABLE_DECL_CDTOR)) {
     // elaborate this declaration; because of DF_TEMPORARY this will *not*
@@ -608,7 +612,7 @@ Variable *ElabVisitor::insertTempDeclaration(SourceLoc loc, Type *retType)
   FullExpressionAnnot *fea0 = env.fullExpressionAnnotStack.top();
 
   Variable *var;
-  Declaration *declaration0 = makeTempDeclaration(loc, retType, var);
+  Declaration *declaration0 = makeTempDeclaration(loc, retType, var, DC_FEA);
 
   // put it into fea0
   fea0->declarations.append(declaration0);

@@ -290,6 +290,7 @@ enum DeclaratorContext {
   DC_MR_DECL,             //   MR_decl::d
   DC_S_DECL,              //   S_decl::decl
   DC_TD_DECL,             //   TD_decl::d
+  DC_FEA,                 //   FullExpressionAnnot::declarations
                           // inside ASTTypeId
   DC_D_FUNC,              //   D_func::params
   DC_EXCEPTIONSPEC,       //   ExceptionSpec::types
@@ -310,7 +311,7 @@ enum DeclaratorContext {
 class Declarator {
   // entity declared by this declarator
   public(xml_TY) Variable *var = NULL;// (serf) computed information: name, type, etc.
-  custom clone { ret->var = var; }
+  custom clone {ret->var = var;}
 
   // This field need not be identical to 'var->type'; the 'type' here
   // comes directly from the declartor syntax, but 'var' might refer
@@ -322,6 +323,7 @@ class Declarator {
 
   // syntactic context; sometimes useful to visitors
   public(xml) DeclaratorContext context = DC_UNKNOWN;
+  custom clone {ret->context = context;}
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }

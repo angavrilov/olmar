@@ -181,9 +181,9 @@ public:      // funcs
 
   // AST creation
   D_name *makeD_name(SourceLoc loc, Variable *var);
-  Declarator *makeDeclarator(SourceLoc loc, Variable *var);
-  Declaration *makeDeclaration(SourceLoc loc, Variable *var);
-  Declarator *makeFuncDeclarator(SourceLoc loc, Variable *var);
+  Declarator *makeDeclarator(SourceLoc loc, Variable *var, DeclaratorContext context);
+  Declaration *makeDeclaration(SourceLoc loc, Variable *var, DeclaratorContext context);
+  Declarator *makeFuncDeclarator(SourceLoc loc, Variable *var, DeclaratorContext context);
   Function *makeFunction(SourceLoc loc, Variable *var,
                          FakeList<MemberInit> *inits,
                          S_compound *body);
@@ -226,7 +226,7 @@ public:      // funcs
 
   // elaborateCallSite
   Declaration *makeTempDeclaration
-    (SourceLoc loc, Type *retType, Variable *&var /*OUT*/);
+    (SourceLoc loc, Type *retType, Variable *&var /*OUT*/, DeclaratorContext context);
   Variable *insertTempDeclaration(SourceLoc loc, Type *retType);
   Expression *elaborateCallByValue
     (SourceLoc loc, Type *paramType, Expression *argExpr);
