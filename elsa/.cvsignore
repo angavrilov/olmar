@@ -75,6 +75,7 @@ astxml_lexer1_type.cc
 astxml_lexer1_type.lex
 astxml_tokens1_type.h
 save
+Save
 bigin
 
 # temporary state that has to be global across runs
