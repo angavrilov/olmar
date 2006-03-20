@@ -123,7 +123,8 @@ XmlTypeWriter::XmlTypeWriter
 {}
 
 // This one occurs in the AST, so it has to have its own first-class
-// method.
+// method.  FIX: This should not have such a general API and yet refer
+// to such a specific list: PseudoInstantiation::args.
 void XmlTypeWriter::toXml(ObjList<STemplateArgument> *list) {
   travObjList_standalone(*list, PseudoInstantiation, args, STemplateArgument);
 }
@@ -425,6 +426,10 @@ void XmlTypeWriter::toXml_Variable_subtags(Variable *var) {
 }
 
 void XmlTypeWriter::toXml(Variable *var) {
+#ifdef OINK
+  xfailure("this should never be called in Oink");
+#endif
+
   // idempotency
   if (printed(var)) return;
   openTag(Variable, var);

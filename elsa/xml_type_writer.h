@@ -42,36 +42,40 @@ class XmlTypeWriter : public XmlWriter {
 
   public:
   // in the AST
-  void toXml(ObjList<STemplateArgument> *list);
+  virtual void toXml(ObjList<STemplateArgument> *list);
 
-  void toXml(Type *t);
-  void toXml(AtomicType *atom);
-  void toXml(CompoundType *ct); // disambiguates the overloading
+  virtual void toXml(Type *t);
+  virtual void toXml(AtomicType *atom);
+  virtual void toXml(CompoundType *ct); // disambiguates the overloading
   void toXml_Variable_properties(Variable *var);
   void toXml_Variable_subtags(Variable *var);
-  void toXml(Variable *var);
+  // dsw: For Oink it matters that this one is virtual; the rest are
+  // just for consistency as I have to override all of the other
+  // methods named toXml() at the same time as overriding one hides
+  // the whole overload set.
+  virtual void toXml(Variable *var);
 
-  private:
+  protected:
   void toXml_FunctionType_ExnSpec(void /*FunctionType::ExnSpec*/ *exnSpec);
 
   void toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0);
   void toXml_NamedAtomicType_properties(NamedAtomicType *nat);
   void toXml_NamedAtomicType_subtags(NamedAtomicType *nat);
 
-  void toXml(OverloadSet *oload);
+  virtual void toXml(OverloadSet *oload);
 
-  void toXml(BaseClass *bc);
+  virtual void toXml(BaseClass *bc);
   void toXml_BaseClass_properties(BaseClass *bc);
   void toXml_BaseClass_subtags(BaseClass *bc);
-  void toXml(BaseClassSubobj *bc);
+  virtual void toXml(BaseClassSubobj *bc);
 
-  void toXml(Scope *scope);
+  virtual void toXml(Scope *scope);
   void toXml_Scope_properties(Scope *scope);
   void toXml_Scope_subtags(Scope *scope);
 
-  void toXml(STemplateArgument *sta);
-  void toXml(TemplateInfo *ti);
-  void toXml(InheritedTemplateParams *itp);
+  virtual void toXml(STemplateArgument *sta);
+  virtual void toXml(TemplateInfo *ti);
+  virtual void toXml(InheritedTemplateParams *itp);
   void toXml_TemplateParams_properties(TemplateParams *tp);
   void toXml_TemplateParams_subtags(TemplateParams *tp);
 };

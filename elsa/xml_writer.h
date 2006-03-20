@@ -157,28 +157,30 @@ do { \
 } while(0)
 
 // FIX: rename this; it also works for ArrayStacks
-#define travObjList0(OBJ, BASETYPE, FIELD, FIELDTYPE, ITER_MACRO, LISTKIND) \
+#define travObjList0(OBJ, TAGNAME, FIELDTYPE, ITER_MACRO, LISTKIND) \
 do { \
   if (!printed(&OBJ)) { \
-    openTagWhole(List_ ##BASETYPE ##_ ##FIELD, &OBJ); \
+    openTagWhole(List_ ##TAGNAME, &OBJ); \
     ITER_MACRO(FIELDTYPE, const_cast<LISTKIND<FIELDTYPE>&>(OBJ), iter) { \
       travListItem(iter.data()); \
     } \
   } \
 } while(0)
+#define travObjList1(OBJ, BASETYPE, FIELD, FIELDTYPE, ITER_MACRO, LISTKIND) \
+  travObjList0(OBJ, BASETYPE ##_ ##FIELD, FIELDTYPE, ITER_MACRO, LISTKIND) 
 
 #define travObjList_S(BASE, BASETYPE, FIELD, FIELDTYPE) \
-travObjList0(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, SFOREACH_OBJLIST_NC, SObjList)
+travObjList1(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, SFOREACH_OBJLIST_NC, SObjList)
 
 #define travObjList(BASE, BASETYPE, FIELD, FIELDTYPE) \
-travObjList0(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
+travObjList1(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
 
 // Not tested; put the backslash back after the first line
 //  #define travArrayStack(BASE, BASETYPE, FIELD, FIELDTYPE)
-//  travObjList0(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, FOREACH_ARRAYSTACK_NC, ArrayStack)
+//  travObjList1(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, FOREACH_ARRAYSTACK_NC, ArrayStack)
 
 #define travObjList_standalone(OBJ, BASETYPE, FIELD, FIELDTYPE) \
-travObjList0(OBJ, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
+travObjList1(OBJ, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
 
 #define travPtrMap(BASE, BASETYPE, FIELD, FIELDTYPE) \
 do { \
