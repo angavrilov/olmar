@@ -63,7 +63,10 @@ public:      // iterators
 
 // a set based on PtrMap
 template <class KEY>
-class PtrSet : private PtrMap<KEY, KEY> {
+  // dsw: I made the superclass public so I could iterate over it
+  // using the superclass iterator
+// class PtrSet : private PtrMap<KEY, KEY> {
+class PtrSet : public PtrMap<KEY, KEY> {
   public:
   PtrSet() {}
   ~PtrSet() {}
@@ -83,6 +86,26 @@ class PtrSet : private PtrMap<KEY, KEY> {
   // as it could be confused with the meaning of isEmpty(); however I
   // reflect the naming of PtrMap, where the same criticism applies.
   void empty()                     { PtrMap<KEY, KEY>::empty(); }
+
+  // dsw: I could not get this to compile; don't know why
+// public:      // iterators
+//   class Iter {
+//   private:     // data
+//     // underlying iterator state
+//     ::PtrMap<KEY, KEY>::Iter iter;
+
+//   public:      // fucs
+//     Iter(PtrSet<KEY> const &set)   : iter(set) {}
+//     ~Iter()                          {}
+
+//     bool isDone() const            { return iter.isDone(); }
+//     void adv()                     { return iter.adv(); }
+
+//     // return information about the currently-referenced table entry
+//     KEY *key() const               { return (KEY*)iter.key(); }
+//     VALUE *value() const           { return (VALUE*)iter.value(); }
+//   };
+//   friend class Iter;
 };
 
 
