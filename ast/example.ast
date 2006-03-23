@@ -19,11 +19,6 @@ public:
 // initialize it...
 custom ExampleVisitor_ctor { someVisitorField = 0; }
 
-// dsw: xmlPrint was a very old initial attempt at xml and has been
-// retired.
-//  // emit the xmlPrint stuff too
-//  option xmlPrint;
-
 // dsw: these turn on the xml serialization and de-serialization code
 option xmlVisitor ToXmlASTVisitor;
 // Scott says:

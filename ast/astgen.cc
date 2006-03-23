@@ -1968,7 +1968,7 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
     out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"" << name << "\" << \"=\" << xmlAttrQuote(\n";
-    out << "    xmlPrintPointer(\"AL\", &(" << baseName << "->" << name << ")));\n";
+    out << "    xmlPrintPointer(\"AL\", uniqueIdAST(&(" << baseName << "->" << name << "))));\n";
     out << "  }\n";
   }
   else if (isFakeListType(type)) {
@@ -1976,7 +1976,7 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
     out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"" << name << "\" << \"=\" << xmlAttrQuote(\n";
-    out << "    xmlPrintPointer(\"FL\", " << baseName << "->" << name << "));\n";
+    out << "    xmlPrintPointer(\"FL\", uniqueIdAST(" << baseName << "->" << name << ")));\n";
     out << "  }\n";
   }
   else if (isTreeNode(type) || (isTreeNodePtr(type))) {
@@ -1984,7 +1984,7 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
     out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"" << name << "\" << \"=\" << xmlAttrQuote(\n";
-    out << "    xmlPrintPointer(\"AST\", " << baseName << "->" << name << "));\n";
+    out << "    xmlPrintPointer(\"AST\", uniqueIdAST(" << baseName << "->" << name << ")));\n";
     out << "  }\n";
   } else if (amod && amod->hasModPrefix("xmlEmbed") && amod->hasModPrefix("xml_")) {
     rostring idPrefix = amod->getModSuffixFromPrefix("xml_");
@@ -1992,9 +1992,7 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
     out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"" << name << "\" << \"=\" << xmlAttrQuote(\n";
-    out << "    xmlPrintPointer(\"" << idPrefix << "\", ";
-    out << "&";
-    out << baseName << "->" << name << "));\n";
+    out << "    xmlPrintPointer(\"" << idPrefix << "\", uniqueIdAST(&" << baseName << "->" << name << ")));\n";
     out << "  }\n";
   }
 
@@ -2017,8 +2015,7 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
     out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"" << name << "\" << \"=\" << xmlAttrQuote(\n";
-    out << "    xmlPrintPointer(\"" << idPrefix << "\", ";
-    out << baseName << "->" << name << "));\n";
+    out << "    xmlPrintPointer(\"" << idPrefix << "\", uniqueId(" << baseName << "->" << name << ")));\n";
     out << "  }\n";
 
   } else {
@@ -2152,7 +2149,7 @@ void CGen::emitXmlVisitorImplementation()
 //      out << "  out << \"\\n\";\n";
 //      out << "  if (indent) printIndentation();\n";
     out << "  out << \" _id=\" << xmlAttrQuote(\n";
-    out << "  xmlPrintPointer(\"AST\", obj));\n";
+    out << "  xmlPrintPointer(\"AST\", uniqueIdAST(obj)));\n";
 
     // emit other properties
     emitXmlCtorArgs(c->super->args, "obj", c->super->name);
@@ -2224,7 +2221,7 @@ void CGen::emitXmlVisitorImplementation()
     } else if (cls->lkind == LK_FakeList) {
       out << "FL";
     } else xfailure("illegal list kind");
-    out << "\", obj));\n";
+    out << "\", uniqueIdAST(obj)));\n";
     out << "    out << \">\";\n";
     out << "    ++depth;\n";
     out << "  };\n";
@@ -2249,7 +2246,7 @@ void CGen::emitXmlVisitorImplementation()
     out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"<_List_Item\" << \" item=\" << xmlAttrQuote(\n";
-    out << "  xmlPrintPointer(\"AST\", obj));\n";
+    out << "  xmlPrintPointer(\"AST\", uniqueIdAST(obj)));\n";
     out << "  out << \">\";\n";
     out << "  ++depth;\n";
     out << "  return true;\n";

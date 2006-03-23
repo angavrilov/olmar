@@ -7,6 +7,58 @@
 #include <stdio.h>              // sprintf
 #include "strtokp.h"            // StrtokParse
 #include "exc.h"                // xformat
+#include "ptrintmap.h"          // PtrIntMap
+
+
+// FIX: pull this out into the configuration script
+#define CANONICAL_XML_IDS
+
+#ifdef CANONICAL_XML_IDS
+xmlUniqueId_t nextXmlUniqueId = 0;
+PtrIntMap<void const, xmlUniqueId_t> addr2id;
+#endif
+
+xmlUniqueId_t mapAddrToUniqueId(void const * const addr) {
+#ifdef CANONICAL_XML_IDS
+  // special case the NULL pointer
+  if (addr == 0) return 0;
+  // otherwise, maintain a map to a canonical address
+  xmlUniqueId_t id0 = addr2id.get(addr);
+  if (!id0) {
+    id0 = nextXmlUniqueId++;
+    addr2id.add(addr, id0);
+  }
+  return id0;
+#else
+  // avoid using the map
+  return reinterpret_cast<xmlUniqueId_t>(addr);
+#endif
+}
+
+// manage identity of AST nodes
+xmlUniqueId_t uniqueIdAST(void const * const obj) {
+  return mapAddrToUniqueId(obj);
+}
+
+string xmlPrintPointer(char const *label, xmlUniqueId_t id) {
+  stringBuilder sb;
+  if (!id) {
+    // sm: previously, the code for this function just inserted 'p'
+    // as a 'void const *', but that is nonportable, as gcc-3 inserts
+    // "0" while gcc-2 emits "(nil)"
+    sb << label << "0";
+  }
+  else {
+    // sm: I question whether this is portable, but it may not matter
+    // since null pointers are the only ones that are treated
+    // specially (as far as I can tell)
+    sb << label;
+//     sb << stringBuilder::Hex(reinterpret_cast<long unsigned>(p));
+    sb << id;
+  }
+  return sb;
+}
+
 
 string toXml_bool(bool b) {
   if (b) return "true";
@@ -93,26 +145,6 @@ void fromXml_SourceLoc(SourceLoc &loc, rostring str) {
   int line = atoi(tok[1]);
   int col  = atoi(tok[2]);
   loc = sourceLocManager->encodeLineCol(file, line, col);
-}
-
-
-string xmlPrintPointer(char const *label, void const *p)
-{
-  stringBuilder sb;
-  if (!p) {
-    // sm: previously, the code for this function just inserted 'p'
-    // as a 'void const *', but that is nonportable, as gcc-3 inserts
-    // "0" while gcc-2 emits "(nil)"
-    sb << label << "0";
-  }
-  else {
-    // sm: I question whether this is portable, but it may not matter
-    // since null pointers are the only ones that are treated
-    // specially (as far as I can tell)
-    sb << label;
-    sb << stringBuilder::Hex(reinterpret_cast<long unsigned>(p));
-  }
-  return sb;
 }
 
 

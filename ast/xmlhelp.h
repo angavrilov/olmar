@@ -9,6 +9,23 @@
 #include "str.h"         // string
 #include "srcloc.h"      // SourceLoc
 
+typedef unsigned int xmlUniqueId_t;
+
+// manage identity canonicality; we now map addresses one to one to a
+// sequence number; this means that the ids should be canonical now
+// given isomorphic inputs
+xmlUniqueId_t mapAddrToUniqueId(void const * const addr);
+
+// manage identity of AST; FIX: I am not absolutely sure that we are
+// not accidentally using this for user classes instead of just AST
+// classes; to be absolutely sure, make a superclass of all of the AST
+// classes and make the argument here take a pointer to that.
+xmlUniqueId_t uniqueIdAST(void const * const obj);
+
+// print a unique id with prefix, for example "FL12345678"; guaranteed
+// to print (e.g.) "FL0" for NULL pointers; the "FL" part is the label
+string xmlPrintPointer(char const *label, xmlUniqueId_t id);
+
 // I have manually mangled the name to include "_bool" or "_int" as
 // otherwise what happens is that if a toXml() for some enum flag is
 // missing then the C++ compiler will just use the toXml(bool)
@@ -33,13 +50,6 @@ void fromXml_double(double &x, rostring str);
 
 string toXml_SourceLoc(SourceLoc loc);
 void fromXml_SourceLoc(SourceLoc &loc, rostring str);
-
-
-// print a pointer address as an id, for example "FL0x12345678";
-// guaranteed to print (e.g.) "FL0" for NULL pointers; the
-// "FL" part is the label
-//  void xmlPrintPointer(ostream &os, char const *label, void const *p);
-string xmlPrintPointer(char const *label, void const *p);
 
 // for quoting and unquoting xml attribute strings
 string xmlAttrQuote(rostring src);
