@@ -182,7 +182,7 @@ void XmlTypeWriter::toXml(Type *t) {
     tagEnd;
     // **** subtags
     trav(func->retType);
-    travObjList_S(func, FunctionType, params, Variable);
+    travObjList_S(func, FunctionType, params, Variable); // Variable
     // exnSpec
     if (func->exnSpec) {
       toXml_FunctionType_ExnSpec(func->exnSpec);
@@ -375,11 +375,11 @@ void XmlTypeWriter::toXml(CompoundType *cpd) {
   toXml_NamedAtomicType_subtags(cpd);
   toXml_Scope_subtags(cpd);
   // * members
-  travObjList_S(cpd, CompoundType, dataMembers, Variable);
+  travObjList_S(cpd, CompoundType, dataMembers, Variable); // Variable
   travObjList(cpd, CompoundType, bases, BaseClass);
   travObjList(cpd, CompoundType, virtualBases, BaseClassSubobj);
   toXml(&cpd->subobj);          // embedded
-  travObjList_S(cpd, CompoundType, conversionOperators, Variable);
+  travObjList_S(cpd, CompoundType, conversionOperators, Variable); // Variable
   travAST(cpd->syntax);
   trav(cpd->parameterizingScope);
   trav(cpd->selfType);
@@ -421,7 +421,7 @@ void XmlTypeWriter::toXml_Variable_subtags(Variable *var) {
   travAST(var->funcDefn);
   trav(var->overload);
   trav(var->scope);
-  trav(var->usingAlias_or_parameterizedEntity);
+  trav(var->usingAlias_or_parameterizedEntity); // Variable
   trav(var->templInfo);
 }
 
@@ -465,7 +465,7 @@ void XmlTypeWriter::toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0) {
   tagEnd;
   // **** subtags
   trav(eValue->type);
-  trav(eValue->decl);
+  trav(eValue->decl);           // Variable
 }
 
 void XmlTypeWriter::toXml_NamedAtomicType_properties(NamedAtomicType *nat) {
@@ -475,7 +475,7 @@ void XmlTypeWriter::toXml_NamedAtomicType_properties(NamedAtomicType *nat) {
 }
 
 void XmlTypeWriter::toXml_NamedAtomicType_subtags(NamedAtomicType *nat) {
-  trav(nat->typedefVar);
+  trav(nat->typedefVar);        // Variable
 }
 
 void XmlTypeWriter::toXml(OverloadSet *oload) {
@@ -486,7 +486,7 @@ void XmlTypeWriter::toXml(OverloadSet *oload) {
   printEmbed(oload, set);
   tagEnd;
   // **** subtags
-  travObjList_S(oload, OverloadSet, set, Variable);
+  travObjList_S(oload, OverloadSet, set, Variable); // Variable
 }
 
 void XmlTypeWriter::toXml(BaseClass *bc) {
@@ -560,11 +560,11 @@ void XmlTypeWriter::toXml_Scope_properties(Scope *scope) {
 }
 
 void XmlTypeWriter::toXml_Scope_subtags(Scope *scope) {
-  travPtrMap(scope, Scope, variables, Variable);
-  travPtrMap(scope, Scope, typeTags, Variable);
+  travPtrMap(scope, Scope, variables, Variable); // Variable
+  travPtrMap(scope, Scope, typeTags, Variable); // Variable
   trav(scope->parentScope);
-  trav(scope->namespaceVar);
-  travObjList_S(scope, Scope, templateParams, Variable);
+  trav(scope->namespaceVar);    // Variable
+  travObjList_S(scope, Scope, templateParams, Variable); // Variable
   trav(scope->curCompound);
 }
 
@@ -628,7 +628,7 @@ void XmlTypeWriter::toXml(STemplateArgument *sta) {
   case STemplateArgument::STA_REFERENCE:
   case STemplateArgument::STA_POINTER:
   case STemplateArgument::STA_MEMBER:
-    toXml(sta->value.v);
+    toXml(sta->value.v);        // Variable
     break;
 
   case STemplateArgument::STA_DEPEXPR:
@@ -671,15 +671,15 @@ void XmlTypeWriter::toXml(TemplateInfo *ti) {
   // * superclass
   toXml_TemplateParams_subtags(ti);
   // * members
-  trav(ti->var);
+  trav(ti->var);                // Variable
   travObjList(ti, TemplateInfo, inheritedParams, InheritedTemplateParams);
-  trav(ti->instantiationOf);
-  travObjList_S(ti, TemplateInfo, instantiations, Variable);
-  trav(ti->specializationOf);
-  travObjList_S(ti, TemplateInfo, specializations, Variable);
+  trav(ti->instantiationOf);    // Variable
+  travObjList_S(ti, TemplateInfo, instantiations, Variable); // Variable
+  trav(ti->specializationOf);   // Variable
+  travObjList_S(ti, TemplateInfo, specializations, Variable); // Variable
   travObjList(ti, TemplateInfo, arguments, STemplateArgument);
-  trav(ti->partialInstantiationOf);
-  travObjList_S(ti, TemplateInfo, partialInstantiations, Variable);
+  trav(ti->partialInstantiationOf); // Variable
+  travObjList_S(ti, TemplateInfo, partialInstantiations, Variable); // Variable
   travObjList(ti, TemplateInfo, argumentsToPrimary, STemplateArgument);
   trav(ti->defnScope);
   trav(ti->definitionTemplateInfo);
@@ -707,7 +707,7 @@ void XmlTypeWriter::toXml_TemplateParams_properties(TemplateParams *tp) {
 }
 
 void XmlTypeWriter::toXml_TemplateParams_subtags(TemplateParams *tp) {
-  travObjList_S(tp, TemplateParams, params, Variable);
+  travObjList_S(tp, TemplateParams, params, Variable); // Variable
 }
 
 
@@ -743,8 +743,8 @@ bool XmlTypeWriter_AstVisitor::visitTypeSpecifier(TypeSpecifier *ts) {
   if (ts->isTS_type()) {
     PRINT_ANNOT(ts->asTS_type()->type);
   } else if (ts->isTS_name()) {
-    PRINT_ANNOT(ts->asTS_name()->var);
-    PRINT_ANNOT(ts->asTS_name()->nondependentVar);
+    PRINT_ANNOT(ts->asTS_name()->var); // Variable
+    PRINT_ANNOT(ts->asTS_name()->nondependentVar); // Variable
   } else if (ts->isTS_elaborated()) {
     PRINT_ANNOT(ts->asTS_elaborated()->atype);
   } else if (ts->isTS_classSpec()) {
@@ -758,15 +758,15 @@ bool XmlTypeWriter_AstVisitor::visitTypeSpecifier(TypeSpecifier *ts) {
 bool XmlTypeWriter_AstVisitor::visitFunction(Function *f) {
   if (!XmlAstWriter_AstVisitor::visitFunction(f)) return false;
   PRINT_ANNOT(f->funcType);
-  PRINT_ANNOT(f->receiver);
+  PRINT_ANNOT(f->receiver);     // Variable
   return true;
 }
 
 bool XmlTypeWriter_AstVisitor::visitMemberInit(MemberInit *memberInit) {
   if (!XmlAstWriter_AstVisitor::visitMemberInit(memberInit)) return false;
-  PRINT_ANNOT(memberInit->member);
+  PRINT_ANNOT(memberInit->member); // Variable
   PRINT_ANNOT(memberInit->base);
-  PRINT_ANNOT(memberInit->ctorVar);
+  PRINT_ANNOT(memberInit->ctorVar); // Variable
   return true;
 }
 
@@ -778,7 +778,7 @@ bool XmlTypeWriter_AstVisitor::visitBaseClassSpec(BaseClassSpec *bcs) {
 
 bool XmlTypeWriter_AstVisitor::visitDeclarator(Declarator *d) {
   if (!XmlAstWriter_AstVisitor::visitDeclarator(d)) return false;
-  PRINT_ANNOT(d->var);
+  PRINT_ANNOT(d->var);          // Variable
   PRINT_ANNOT(d->type);
   return true;
 }
@@ -787,16 +787,16 @@ bool XmlTypeWriter_AstVisitor::visitExpression(Expression *e) {
   if (!XmlAstWriter_AstVisitor::visitExpression(e)) return false;
   PRINT_ANNOT(e->type);
   if (e->isE_this()) {
-    PRINT_ANNOT(e->asE_this()->receiver);
+    PRINT_ANNOT(e->asE_this()->receiver); // Variable
   } else if (e->isE_variable()) {
-    PRINT_ANNOT(e->asE_variable()->var);
-    PRINT_ANNOT(e->asE_variable()->nondependentVar);
+    PRINT_ANNOT(e->asE_variable()->var); // Variable
+    PRINT_ANNOT(e->asE_variable()->nondependentVar); // Variable
   } else if (e->isE_constructor()) {
-    PRINT_ANNOT(e->asE_constructor()->ctorVar);
+    PRINT_ANNOT(e->asE_constructor()->ctorVar); // Variable
   } else if (e->isE_fieldAcc()) {
-    PRINT_ANNOT(e->asE_fieldAcc()->field);
+    PRINT_ANNOT(e->asE_fieldAcc()->field); // Variable
   } else if (e->isE_new()) {
-    PRINT_ANNOT(e->asE_new()->ctorVar);
+    PRINT_ANNOT(e->asE_new()->ctorVar); // Variable
   }
   return true;
 }
@@ -812,26 +812,26 @@ bool XmlTypeWriter_AstVisitor::visitASTTypeof(ASTTypeof *a) {
 bool XmlTypeWriter_AstVisitor::visitPQName(PQName *pqn) {
   if (!XmlAstWriter_AstVisitor::visitPQName(pqn)) return false;
   if (pqn->isPQ_qualifier()) {
-    PRINT_ANNOT(pqn->asPQ_qualifier()->qualifierVar);
+    PRINT_ANNOT(pqn->asPQ_qualifier()->qualifierVar); // Variable
     ttx.toXml(&(pqn->asPQ_qualifier()->sargs));
   } else if (pqn->isPQ_template()) {
     ttx.toXml(&(pqn->asPQ_template()->sargs));
   } else if (pqn->isPQ_variable()) {
-    PRINT_ANNOT(pqn->asPQ_variable()->var);
+    PRINT_ANNOT(pqn->asPQ_variable()->var); // Variable
   }
   return true;
 }
 
 bool XmlTypeWriter_AstVisitor::visitEnumerator(Enumerator *e) {
   if (!XmlAstWriter_AstVisitor::visitEnumerator(e)) return false;
-  PRINT_ANNOT(e->var);
+  PRINT_ANNOT(e->var);          // Variable
   return true;
 }
 
 bool XmlTypeWriter_AstVisitor::visitInitializer(Initializer *e) {
   if (!XmlAstWriter_AstVisitor::visitInitializer(e)) return false;
   if (e->isIN_ctor()) {
-    PRINT_ANNOT(e->asIN_ctor()->ctorVar);
+    PRINT_ANNOT(e->asIN_ctor()->ctorVar); // Variable
   }
   return true;
 }
