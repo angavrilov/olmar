@@ -179,10 +179,12 @@ void XmlReaderManager::parseOneTagOrDatum() {
       userError("no 'to' field for this _List_Item tag");
     }
     void *pointedToItem = id2obj.queryif(itemNode->to);
-    if (!pointedToItem) {
-      userError("no Node pointed to by _List_Item");
+    if (pointedToItem) {
+      append2List(listNode, listKind, pointedToItem);
+      // we now tolerate this just as we tolerate dangling pointers
+//     } else {
+//       userError("no Node pointed to by _List_Item");
     }
-    append2List(listNode, listKind, pointedToItem);
   }
 
   // deal with map entries
@@ -207,10 +209,12 @@ void XmlReaderManager::parseOneTagOrDatum() {
     // find the Node pointed to by the item; it should have been seen
     // by now
     void *pointedToItem = id2obj.queryif(nameNode->to);
-    if (!pointedToItem) {
-      userError("no Node pointed to by _NameMap_Item");
+    if (pointedToItem) {
+      insertIntoNameMap(mapNode, mapKind, nameNode->from, pointedToItem);
+      // we now tolerate this just as we tolerate dangling pointers
+//     } else {
+//       userError("no Node pointed to by _NameMap_Item");
     }
-    insertIntoNameMap(mapNode, mapKind, nameNode->from, pointedToItem);
   }
 
   // otherwise we are a normal node; just pop it off; no further
