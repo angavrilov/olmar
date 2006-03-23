@@ -187,16 +187,16 @@ do { \
     if (sortNameMapDomainWhenSerializing) { \
       for(StringRefMap<FIELDTYPE>::SortedKeyIter iter(BASE->FIELD); \
           !iter.isDone(); iter.adv()) { \
-        FIELDTYPE *var = iter.value(); \
-        openTag_NameMap_Item(iter.key(), var); \
-        trav(var); \
+        FIELDTYPE *obj = iter.value(); \
+        openTag_NameMap_Item(iter.key(), obj); \
+        trav(obj); \
       } \
     } else { \
       for(PtrMap<char const, FIELDTYPE>::Iter iter(BASE->FIELD); \
           !iter.isDone(); iter.adv()) { \
-        FIELDTYPE *var = iter.value(); \
-        openTag_NameMap_Item(iter.key(), var); \
-        trav(var); \
+        FIELDTYPE *obj = iter.value(); \
+        openTag_NameMap_Item(iter.key(), obj); \
+        trav(obj); \
       } \
     } \
   } \
