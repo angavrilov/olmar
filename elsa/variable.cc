@@ -354,7 +354,13 @@ string Variable::toCString() const
   // If more specialized printing is desired, do that specialized
   // printing from outside (by directly accessing 'name', 'type',
   // 'flags', etc.).
-  return type->toCString(stringc << (name? name : "/*anon*/") << namePrintSuffix());
+  //
+  // dsw: namespace variables have no type
+  if (type) {
+    return type->toCString(stringc << (name? name : "/*anon*/") << namePrintSuffix());
+  } else {
+    return name? name : "/*anon*/";
+  }
 }
 
 
