@@ -27,6 +27,7 @@
 #include "xml_file_writer.h" // XmlFileWriter
 #include "xml_do_read.h"  // xmlDoRead()
 #include "xml_type_writer.h" // XmlTypeWriter
+#include "serialno.h"     // writeSerialNo
 
 // little check: is it true that only global declarators
 // ever have Declarator::type != Declarator::var->type?
@@ -317,6 +318,17 @@ void doit(int argc, char **argv)
     traceAddSys("xmlPrintAST");
     traceAddSys("topform");
   }
+
+#if USE_SERIAL_NUMBERS
+  if (tracingSys("writeSerialNo")) {
+    writeSerialNo = true;
+  }
+
+  if (tracingSys("no_writeSerialNo")) {
+    writeSerialNo = false;
+  }
+#endif
+
 
   if (tracingSys("only_works_on_32bit") &&
       sizeof(long) != 4) {

@@ -33,6 +33,7 @@ SerialBase& SerialBase::operator= (SerialBase const &)
 // unsigned; then again, you couldn't catch a rollover
 int globalSerialNumber = 0;
 bool announceSerialNo = false;
+bool writeSerialNo = true;
 
 // initialize the global serial number; this is for multi-file
 // symmetry breaking
@@ -55,8 +56,10 @@ class GlobalSerialNoInit {
   }
 
   ~GlobalSerialNoInit() {
-    ofstream out(filename);
-    out << globalSerialNumber << endl;
+    if (writeSerialNo) {
+      ofstream out(filename);
+      out << globalSerialNumber << endl;
+    }
     if (announceSerialNo) {
       cout << "ending with globalSerialNumber " << globalSerialNumber << endl;
     }

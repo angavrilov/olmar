@@ -46,6 +46,9 @@
   // global counter, starts at 0
   extern int globalSerialNumber;
 
+  // whether to save the serial number
+  extern bool writeSerialNo;
+
   // get the next serial number
   int incSerialNumber();
 
