@@ -110,7 +110,7 @@ public:
   //
   // Also, please note that I cannot forward declare EnumType::Value,
   // so unless I move this class until after class Enum, I have to
-  // make the argument type void!
+  // make the argument type 'void*'!
   virtual bool visitEnumType_Value(void /*EnumType::Value*/ *obj);
   virtual void postvisitEnumType_Value(void /*EnumType::Value*/ *obj);
 

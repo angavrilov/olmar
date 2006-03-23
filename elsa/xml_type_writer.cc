@@ -723,10 +723,7 @@ XmlTypeWriter_AstVisitor::XmlTypeWriter_AstVisitor
 {}
 
 // Note that idempotency is handled in XmlTypeWriter
-#define PRINT_ANNOT(A)   \
-    if (A) {               \
-      ttx.toXml(A); \
-    }
+#define PRINT_ANNOT(A) if (A) {ttx.toXml(A);}
 
   // this was part of the macro
 //    printASTBiLink((void**)&(A), (A));
