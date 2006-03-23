@@ -95,11 +95,11 @@ char const *idPrefix(NAME const * const obj) { \
   } \
   return #PREFIX; \
 } \
-void const *addr(NAME const * const obj) { \
+xmlUniqueId_t uniqueId(NAME const * const obj) { \
   if (CompoundType const * const cpd = dynamic_cast<CompoundType const * const>(obj)) { \
-    return addr(cpd); \
+    return uniqueId(cpd); \
   } \
-  return reinterpret_cast<void const *>(obj); \
+  return mapAddrToUniqueId(obj); \
 } \
 bool printed(NAME const * const obj) { \
   if (CompoundType const * const cpd = dynamic_cast<CompoundType const * const>(obj)) { \
@@ -735,9 +735,9 @@ XmlTypeWriter_AstVisitor::XmlTypeWriter_AstVisitor
 //    void printASTBiLink(void **astField, void *annotation) {
 //      out << "<__Link from=\"";
 //      // this is not from an ast *node* but from the *field* of one
-//      xmlPrintPointer(out, "FLD", astField);
+//      xmlPrintPointer(out, "FLD", uniqueId(astField));
 //      out << "\" to=\"";
-//      xmlPrintPointer(out, "TY", annotation);
+//      xmlPrintPointer(out, "TY", uniqueId(annotation));
 //      out << "\"/>\n";
 //    }
 

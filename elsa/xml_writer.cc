@@ -22,13 +22,3 @@ void XmlWriter::newline() {
     for (int i=0; i<depth; ++i) out << " ";
   }
 }
-
-
-// manage identity
-char const *idPrefixAST(void const * const) {
-  return "AST";
-}
-
-void const *addrAST(void const * const obj) {
-  return reinterpret_cast<void const *>(obj);
-}

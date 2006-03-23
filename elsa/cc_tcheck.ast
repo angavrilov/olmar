@@ -13,6 +13,7 @@ verbatim {
   #include "variable.h"      // Variable
   #include "cc_type.h"       // Type, FunctonType, CompoundType
   #include "template.h"      // STemplateArgument
+  #include "xml_type_id.h"   // type system serialization identity
   #include "const_eval.h"    // ConstEval
   #include "macros.h"        // Restorer
 

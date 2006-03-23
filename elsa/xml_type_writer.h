@@ -8,6 +8,7 @@
 #include "cc_type.h"            // Type
 #include "template.h"           // Template stuff is only forward-declared in cc_type.h
 #include "xml_writer.h"         // XmlWriter
+#include "xml_type_id.h"        // identity_decl(Type) etc.
 #include "cc_ast.h"             // XmlAstWriter_AstVisitor
 
 class OverloadSet;
@@ -18,19 +19,6 @@ class ASTVisitor;
 //  char const *toXml(ScopeKind id);
 //  char const *toXml(STemplateArgument::Kind id);
 
-
-identity_decl(Type);
-identity_decl(AtomicType);
-identity_decl(CompoundType);
-identity_decl(FunctionType::ExnSpec);
-identity_decl(EnumType::Value);
-identity_decl(BaseClass);
-identity_decl(Scope);
-identity_decl(Variable);
-identity_decl(OverloadSet);
-identity_decl(STemplateArgument);
-identity_decl(TemplateInfo);
-identity_decl(InheritedTemplateParams);
 
 class XmlTypeWriter : public XmlWriter {
   public:

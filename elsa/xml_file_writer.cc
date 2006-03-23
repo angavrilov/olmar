@@ -12,6 +12,7 @@ SObjSet<void const *> printedSetFI;
 identity_defn(FI, SourceLocManager::File)
 identity_defn(FI, HashLineMap)
 identity_defn(FI, HashLineMap::HashLine)
+identity_defn(FI, unsigned char) // for lineLengths
 identityTempl_defn(FI, ArrayStack<T>)
 
 XmlFileWriter::XmlFileWriter(ostream &out0, int &depth0, bool indent0)
@@ -42,7 +43,7 @@ void XmlFileWriter::toXml(SourceLocManager::File *file)
   // FIX: this special situation just breaks all the macros so we do
   // it manually
   newline();
-  out << "lineLengths=" << xmlAttrQuote(xmlPrintPointer("FI", lineLengths));
+  out << "lineLengths=" << xmlAttrQuote(xmlPrintPointer("FI", uniqueId(lineLengths)));
 
   printPtr(file, hashLines);
   tagEnd;
@@ -67,7 +68,7 @@ void XmlFileWriter::toXml_lineLengths(SourceLocManager::File *file)
   // LineLengths to be their own class.
 //    openTagWhole(LineLengths, lineLengths);
   newline();
-  out << "<LineLengths _id=" << xmlAttrQuote(xmlPrintPointer("FI", lineLengths)) << ">";
+  out << "<LineLengths _id=" << xmlAttrQuote(xmlPrintPointer("FI", uniqueId(lineLengths))) << ">";
   XmlCloseTagPrinter tagCloser("LineLengths", *this);
   IncDec depthManager(this->depth);
 
@@ -100,7 +101,7 @@ void XmlFileWriter::toXml(HashLineMap *hashLines)
 //    printEmbed(hashLines, directives);
   ArrayStack<HashLineMap::HashLine> &directives = hashLines->serializationOnly_get_directives();
   newline();
-  out << "directives=" << xmlAttrQuote(xmlPrintPointer("FI", addr(&directives)));
+  out << "directives=" << xmlAttrQuote(xmlPrintPointer("FI", uniqueId(&directives)));
   tagEnd;
 
   // **** subtags

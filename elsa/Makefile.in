@@ -511,3 +511,5 @@ check: semgrep all
 .PHONY: checkxml
 checkxml:
 	$(MAKE) -f xml_test.mk
+	@echo ""
+	@echo "XML tests passed."

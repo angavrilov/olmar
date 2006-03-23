@@ -21,14 +21,12 @@ extern bool sortNameMapDomainWhenSerializing;
 #define PRINTENUM(X) case X: return #X
 #define PRINTFLAG(X) if (id & (X)) b << #X
 
-// manage identity of AST
-char const *idPrefixAST(void const * const);
-void const *addrAST(void const * const obj);
-
-// manage identity; definitions
+// manage identity; definitions; FIX: I don't like how printed() is
+// still using the object address instead of its unique id, but those
+// are one-to-one so I suppose its ok for now
 #define identity_defn0(PREFIX, NAME, TEMPL) \
 TEMPL char const *idPrefix(NAME const * const) {return #PREFIX;} \
-TEMPL void const *addr(NAME const * const obj) {return reinterpret_cast<void const *>(obj);} \
+TEMPL xmlUniqueId_t uniqueId(NAME const * const obj) {return mapAddrToUniqueId(obj);} \
 TEMPL bool printed(NAME const * const obj) { \
   if (printedSet ##PREFIX.contains(obj)) return true; \
   printedSet ##PREFIX.add(obj); \
@@ -40,7 +38,7 @@ TEMPL bool printed(NAME const * const obj) { \
 // declarations
 #define identity_decl0(NAME, TEMPL) \
 TEMPL char const *idPrefix(NAME const * const); \
-TEMPL void const *addr(NAME const * const obj); \
+TEMPL xmlUniqueId_t uniqueId(NAME const * const obj); \
 TEMPL bool printed(NAME const * const obj)
 #define identity_decl(NAME) identity_decl0(NAME, )
 // NOTE: it makes no sense to declare a template like this, so do not
@@ -113,16 +111,16 @@ do { \
   } \
 } while(0)
 
-#define printPtr(BASE, MEM)    printThing(MEM, (BASE)->MEM, xmlPrintPointer(idPrefix((BASE)->MEM), addr((BASE)->MEM)))
-#define printPtrAST(BASE, MEM) printThing(MEM, (BASE)->MEM, xmlPrintPointer(idPrefixAST((BASE)->MEM), addrAST((BASE)->MEM)))
+#define printPtr(BASE, MEM)    printThing(MEM, (BASE)->MEM, xmlPrintPointer(idPrefix((BASE)->MEM), uniqueId((BASE)->MEM)))
+#define printPtrAST(BASE, MEM) printThing(MEM, (BASE)->MEM, xmlPrintPointer("AST", uniqueIdAST((BASE)->MEM)))
 // print an embedded thing
-#define printEmbed(BASE, MEM)  printThing(MEM, (&((BASE)->MEM)), xmlPrintPointer(idPrefix(&((BASE)->MEM)), addr(&((BASE)->MEM))))
+#define printEmbed(BASE, MEM)  printThing(MEM, (&((BASE)->MEM)), xmlPrintPointer(idPrefix(&((BASE)->MEM)), uniqueId(&((BASE)->MEM))))
 
 // for unions where the member name does not match the xml name and we
 // don't want the 'if'
-#define printPtrUnion(BASE, MEM, NAME) printThing0(NAME, xmlPrintPointer(idPrefix((BASE)->MEM), addr((BASE)->MEM)))
+#define printPtrUnion(BASE, MEM, NAME) printThing0(NAME, xmlPrintPointer(idPrefix((BASE)->MEM), uniqueId((BASE)->MEM)))
 // this is only used in one place
-#define printPtrASTUnion(BASE, MEM, NAME) printThing0(NAME, xmlPrintPointer("AST", addrAST((BASE)->MEM)))
+#define printPtrASTUnion(BASE, MEM, NAME) printThing0(NAME, xmlPrintPointer("AST", uniqueIdAST((BASE)->MEM)))
 
 #define printXml(NAME, VALUE) \
 do { \
@@ -209,7 +207,7 @@ do { \
 #define openTag0(NAME, OBJ, SUFFIX) \
   newline(); \
   out << "<" #NAME << " _id=" \
-    << xmlAttrQuote(xmlPrintPointer(idPrefix(OBJ), addr(OBJ))) \
+    << xmlAttrQuote(xmlPrintPointer(idPrefix(OBJ), uniqueId(OBJ))) \
     << SUFFIX; \
   XmlCloseTagPrinter tagCloser(#NAME, *this); \
   IncDec depthManager(this->depth)
@@ -223,7 +221,7 @@ do { \
   newline(); \
   out << "<_NameMap_Item" \
       << " name=" << xmlAttrQuote(NAME) \
-      << " item=" << xmlAttrQuote(xmlPrintPointer(idPrefix(TARGET), addr(TARGET))) \
+      << " item=" << xmlAttrQuote(xmlPrintPointer(idPrefix(TARGET), uniqueId(TARGET))) \
       << ">"; \
   XmlCloseTagPrinter tagCloser("_NameMap_Item", *this); \
   IncDec depthManager(this->depth)
@@ -245,7 +243,7 @@ do { \
 #define travListItem(TARGET) \
   newline(); \
   out << "<_List_Item item=" \
-    << xmlAttrQuote(xmlPrintPointer(idPrefix(TARGET), addr(TARGET))) \
+    << xmlAttrQuote(xmlPrintPointer(idPrefix(TARGET), uniqueId(TARGET))) \
     << ">"; \
   XmlCloseTagPrinter tagCloser("_List_Item", *this); \
   IncDec depthManager(this->depth); \
