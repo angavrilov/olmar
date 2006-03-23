@@ -49,11 +49,12 @@ string xmlPrintPointer(char const *label, xmlUniqueId_t id) {
     sb << label << "0";
   }
   else {
+    sb << label;
     // sm: I question whether this is portable, but it may not matter
     // since null pointers are the only ones that are treated
     // specially (as far as I can tell)
-    sb << label;
 //     sb << stringBuilder::Hex(reinterpret_cast<long unsigned>(p));
+    // dsw: just using ints now
     sb << id;
   }
   return sb;
