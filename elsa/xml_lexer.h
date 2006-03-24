@@ -30,12 +30,12 @@ class XmlLexer : private yyFlexLexer {
   // this is yytext
   char const *currentText() { return this->YYText(); }
   // this is yyrestart
-  void restart(istream *in) { this->yyrestart(in); }
+  void restart(istream *in) { this->yyrestart(in); sawEof = false; }
 
   int tok(XmlToken kind);
   int svalTok(XmlToken t);
   void err(char const *msg);
-  
+
   string tokenKindDesc(int kind) const;
 
   FLEX_OUTPUT_METHOD_DECLS
