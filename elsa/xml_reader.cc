@@ -24,7 +24,13 @@ void XmlReaderManager::registerReader(XmlReader *reader) {
   reader->setManager(this);
 }
 
+void XmlReaderManager::unregisterReader(XmlReader *reader) {
+  xassert(reader);
+  readers.removeItem(reader);
+}
+
 void XmlReaderManager::reset() {
+  // TODO: should this clear readers?
   lastNode = NULL;
   lastKind = 0;
   xassert(nodeStack.isEmpty());

@@ -242,6 +242,7 @@ class XmlReaderManager {
   // **** initialization
   public:
   void registerReader(XmlReader *reader);
+  void unregisterReader(XmlReader *reader);
   void reset();
 
   // **** parsing
