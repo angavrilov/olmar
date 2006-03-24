@@ -29,7 +29,7 @@ class XmlLexer : private yyFlexLexer {
   bool haveSeenEof() { return sawEof; }
   // this is yytext
   char const *currentText() { return this->YYText(); }
-  // this is yyrestart
+  // this is yyrestart.  For starting and restarting.
   void restart(istream *in) { this->yyrestart(in); sawEof = false; }
 
   int tok(XmlToken kind);
