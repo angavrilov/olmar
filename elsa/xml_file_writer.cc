@@ -14,6 +14,7 @@ identity_defn(FI, HashLineMap)
 identity_defn(FI, HashLineMap::HashLine)
 identity_defn(FI, unsigned char) // for lineLengths
 identityTempl_defn(FI, ArrayStack<T>)
+identityTempl_defn(FI, ObjList<T>)
 
 XmlFileWriter::XmlFileWriter(ostream &out0, int &depth0, bool indent0)
   : XmlWriter(out0, depth0, indent0)
@@ -21,10 +22,12 @@ XmlFileWriter::XmlFileWriter(ostream &out0, int &depth0, bool indent0)
 
 void XmlFileWriter::toXml(ObjList<SourceLocManager::File> &files)
 {
-  FOREACH_OBJLIST_NC(SourceLocManager::File, files, iter) {
-    SourceLocManager::File *file = iter.data();
-    toXml(file);
-  }
+  travObjList0(files, files, SourceLocManager::File, FOREACH_OBJLIST_NC, ObjList);
+
+  // FOREACH_OBJLIST_NC(SourceLocManager::File, files, iter) {
+  //   SourceLocManager::File *file = iter.data();
+  //   toXml(file);
+  // }
 }
 
 void XmlFileWriter::toXml(SourceLocManager::File *file)

@@ -11,7 +11,6 @@
 #include "xml_writer.h"         // XmlWriter
 #include "hashline.h"           // HashLineMap
 
-
 class XmlFileWriter : public XmlWriter {
   public:
   XmlFileWriter(ostream &out0, int &depth0, bool indent0);

@@ -28,6 +28,12 @@ void *XmlFileReader::ctorNodeFromTag(int tag) {
   case XTOK_List_HashLineMap_directives:
     return new ASTList<HashLineMap::HashLine>;
     break;
+
+  // **** Containers
+  // ObjList; Note that during parsing we use ASTList to represent
+  // all kinds of lists.
+  case XTOK_List_files:
+    return new ASTList<SourceLocManager::FileData>();
   }
 }
 
@@ -121,7 +127,14 @@ bool XmlFileReader::kind2kindCat(int kind, KindCategory *kindCat) {
   case XTOK_List_HashLineMap_directives:
     *kindCat = KC_ArrayStack;
     break;
+
+  // **** Containers
+  //   ObjList
+  case XTOK_List_files:
+    *kindCat = KC_ObjList;
+    break;
   }
+
   return true;
 }
 
@@ -134,6 +147,9 @@ bool XmlFileReader::recordKind(int kind, bool& answer) {
   case XTOK_HashLineMap:
   case XTOK_HashLine:
   case XTOK_List_HashLineMap_directives:
+  // **** Containers
+  //   ObjList
+  case XTOK_List_files:
     answer = false;
     return true;
     break;
@@ -169,6 +185,16 @@ bool XmlFileReader::convertList2SObjList(ASTList<char> *list, int listKind, void
 }
 
 bool XmlFileReader::convertList2ObjList(ASTList<char> *list, int listKind, void **target) {
+  xassert(list);
+
+  switch(listKind) {
+  default: return false;        // we did not find a matching tag
+
+  case XTOK_List_files:
+    convertList(ObjList, SourceLocManager::FileData);
+    break;
+  }
+
   return false;
 }
 

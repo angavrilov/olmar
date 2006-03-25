@@ -520,6 +520,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
       // the steal() has deleted the voidlist of the ASTList and it
       // seems to be a bug to try to then delete the ASTList that has
       // been stolen from
+      // Note: do not delete here.
       break;
     }
 
@@ -533,7 +534,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
       // them when we delete it.  Yes, I should have used a non-owning
       // constant-time-append list.
       obj->removeAll_dontDelete();
-      // delete the ASTList
+      // TODO: delete the ASTList
       delete obj;
       break;
     }
@@ -548,7 +549,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
       // them when we delete it.  Yes, I should have used a non-owning
       // constant-time-append list.
       obj->removeAll_dontDelete();
-      // delete the ASTList
+      // TODO: delete the ASTList
       delete obj;
       break;
     }
@@ -563,7 +564,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
       // them when we delete it.  Yes, I should have used a non-owning
       // constant-time-append list.
       obj->removeAll_dontDelete();
-      // delete the ASTList
+      // TODO: delete the ASTList
       delete obj;
       break;
     }
@@ -578,7 +579,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
       // delete them when we delete it.  Yes, I should have used a
       // non-owning constant-time-append list.
       obj->removeAll_dontDelete();
-      // delete the ASTList
+      // TODO: delete the ASTList
       delete obj;
       break;
     }
@@ -617,11 +618,13 @@ void XmlReaderManager::satisfyLinks_Maps() {
       // FIX: this would be way more efficient if there were a
       // PtrMap::steal() method: I wouldn't need this convert call.
       convertNameMap2StringRefMap(obj, ul->kind, (void**) (ul->ptr) );
+      // TODO: delete the map ??
       break;
     }
 
     case KC_StringSObjDict: {
       convertNameMap2StringSObjDict(obj, ul->kind, (void**) (ul->ptr) );
+      // TODO: delete the map ??
       break;
     }
 

@@ -17,6 +17,10 @@ ppLine
 origLine
 origFname
 
+# Some containers; I no longer care about order
+#   ObjList
+List_files
+
 # FIX: are these in File or somewhere else?
 loc
 curLoc
