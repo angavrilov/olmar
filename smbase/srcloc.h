@@ -104,6 +104,7 @@ public:      // types
       , lineLengths(NULL)
       , hashLines(NULL)
     {}
+    // FIX: recursively delete the members here
 
     bool complete() {
       // NOTE: hashLines is nullable, so says Scott, so it is not on
