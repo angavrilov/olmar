@@ -44,17 +44,21 @@ TranslationUnit *xmlDoRead(StringTable &strTable, char const *inputFname) {
       manager.userError("unexpected EOF");
     }
     int lastKind = manager.getLastKind();
-    if (lastKind == XTOK_File) {
+    if (lastKind == XTOK_List_files) {
       // complete the link graph so that the FileData object is
       // complete
       manager.satisfyLinks();
-
-      SourceLocManager::FileData *fileData = (SourceLocManager::FileData*) manager.getLastNode();
-      if (!fileData->complete()) {
-        manager.userError("missing attributes to File tag");
+      ObjList<SourceLocManager::FileData> *files =
+        (ObjList<SourceLocManager::FileData>*) manager.getLastNode();
+      FOREACH_OBJLIST_NC(SourceLocManager::FileData, *files, iter) {
+        SourceLocManager::FileData *fileData = iter.data();
+        if (!fileData->complete()) {
+          manager.userError("missing attributes to File tag");
+        }
+        sourceLocManager->loadFile(fileData);
       }
-      sourceLocManager->loadFile(fileData);
-      // FIX: recursively delete the file and its members here
+      // Note: 'files' owns the FileDatas so it will delete them for us.
+      delete files;
     } else if (lastKind == XTOK_TranslationUnit) {
       break;                    // we are done
     } else {
