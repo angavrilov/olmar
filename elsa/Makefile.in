@@ -513,3 +513,7 @@ checkxml:
 	$(MAKE) -f xml_test.mk
 	@echo ""
 	@echo "XML tests passed."
+
+# run all the tests
+.PHONY: check-full
+check-full: check checkxml
