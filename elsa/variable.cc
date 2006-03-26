@@ -170,6 +170,30 @@ bool Variable::linkerVisibleName(bool evenIfStatic) const {
       }
     } else if (!scope->linkerVisible()) {
       newAnswer = false;
+
+    } else if (env.lang.treatExternInlineAsStatic &&
+      dflags >= (DF_EXTERN | DF_INLINE)) {
+    // gcc treats extern-inline function definitions specially:
+    //
+    //   http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Inline.html
+    //
+    // I will essentially ignore them (just treat them like a
+    // prototype), thus modeling the dynamic semantics of gcc when
+    // optimization is turned off.  My nominal stance is that any
+    // program that has an extern-inline definition that is different
+    // from the ordinary (external) definition has undefined behavior.
+    // A possible future extension is to check that such definitions
+    // agree.
+    //
+    // Ah, but I can't just say 'checkBody = false' here because if
+    // there are ambiguities in the body then lots of things don't
+    // like it.  And anyway, tchecking the body is a good idea.  So I
+    // do something a little more subtle, I claim this isn't a
+    // "definition".
+    dfDefn = DF_NONE;
+  }
+
+
     } else {
       // dsw: I hate this overloading of the 'static' keyword.  Static
       // members of CompoundTypes are linker visible if the
