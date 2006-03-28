@@ -2,7 +2,9 @@
 
 // Support for XML serialization
 
-// FIX: this module should eventually go into the ast repository
+// FIX: this module should eventually go into the ast repository.
+
+// FIX: many of these macros could be changed into function templates.
 
 #ifndef XML_WRITER_H
 #define XML_WRITER_H
@@ -168,18 +170,19 @@ do { \
   travObjList0(OBJ, BASETYPE ##_ ##FIELD, FIELDTYPE, ITER_MACRO, LISTKIND) 
 
 #define travObjList_S(BASE, BASETYPE, FIELD, FIELDTYPE) \
-travObjList1(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, SFOREACH_OBJLIST_NC, SObjList)
+  travObjList1(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, SFOREACH_OBJLIST_NC, SObjList)
 
 #define travObjList(BASE, BASETYPE, FIELD, FIELDTYPE) \
-travObjList1(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
+  travObjList1(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
 
 // Not tested; put the backslash back after the first line
 //  #define travArrayStack(BASE, BASETYPE, FIELD, FIELDTYPE)
 //  travObjList1(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, FOREACH_ARRAYSTACK_NC, ArrayStack)
 
 #define travObjList_standalone(OBJ, BASETYPE, FIELD, FIELDTYPE) \
-travObjList1(OBJ, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
+  travObjList1(OBJ, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
 
+// NOTE: this is currently unused, but is here for generality
 #define travPtrMap(BASE, BASETYPE, FIELD, FIELDTYPE) \
 do { \
   if (!printed(&BASE->FIELD)) { \
@@ -202,18 +205,46 @@ do { \
   } \
 } while(0)
 
+// NOTE: this is like a partial specialization of the above
+#define travPtrMap_Variable(BASE, BASETYPE, FIELD) \
+do { \
+  if (!printed(&BASE->FIELD)) { \
+    openTagWhole(NameMap_ ##BASETYPE ##_ ##FIELD, &BASE->FIELD); \
+    if (sortNameMapDomainWhenSerializing) { \
+      for(StringRefMap<Variable>::SortedKeyIter iter(BASE->FIELD); \
+          !iter.isDone(); iter.adv()) { \
+        Variable *obj = iter.value(); \
+        if (!obj->shouldBeSerialized()) continue; \
+        openTag_NameMap_Item(iter.key(), obj); \
+        trav(obj); \
+      } \
+    } else { \
+      for(PtrMap<char const, Variable>::Iter iter(BASE->FIELD); \
+          !iter.isDone(); iter.adv()) { \
+        Variable *obj = iter.value(); \
+        if (!obj->shouldBeSerialized()) continue; \
+        openTag_NameMap_Item(iter.key(), obj); \
+        trav(obj); \
+      } \
+    } \
+  } \
+} while(0)
+
 // NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
 // for the XmlCloseTagPrinter fires too early.
 #define openTag0(NAME, OBJ, SUFFIX) \
   newline(); \
-  out << "<" #NAME << " _id=" \
+  char const * const name = NAME; \
+  out << "<" << name << " _id=" \
     << xmlAttrQuote(xmlPrintPointer(idPrefix(OBJ), uniqueId(OBJ))) \
     << SUFFIX; \
-  XmlCloseTagPrinter tagCloser(#NAME, *this); \
+  XmlCloseTagPrinter tagCloser(name, *this); \
   IncDec depthManager(this->depth)
 
-#define openTag(NAME, OBJ)      openTag0(NAME, OBJ, "")
-#define openTagWhole(NAME, OBJ) openTag0(NAME, OBJ, ">")
+#define openTag(NAME, OBJ)             openTag0(#NAME, OBJ, "" )
+#define openTagVirtual(NAME, OBJ)      openTag0( NAME, OBJ, "" )
+#define openTagWhole(NAME, OBJ)        openTag0(#NAME, OBJ, ">")
+#define openTagWholeVirtual(NAME, OBJ) openTag0( NAME, OBJ, ">")
 
 // NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
 // for the XmlCloseTagPrinter fires too early.

@@ -560,8 +560,11 @@ void XmlTypeWriter::toXml_Scope_properties(Scope *scope) {
 }
 
 void XmlTypeWriter::toXml_Scope_subtags(Scope *scope) {
-  travPtrMap(scope, Scope, variables, Variable); // Variable
-  travPtrMap(scope, Scope, typeTags, Variable); // Variable
+  // FIX: these are like function template "partial specializations"
+  // (if such things existed), as the 'Variable' paramter actually
+  // also changes the implementation.
+  travPtrMap_Variable(scope, Scope, variables); // Variable
+  travPtrMap_Variable(scope, Scope, typeTags); // Variable
   trav(scope->parentScope);
   trav(scope->namespaceVar);    // Variable
   travObjList_S(scope, Scope, templateParams, Variable); // Variable
