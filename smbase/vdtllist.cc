@@ -86,7 +86,7 @@ void *VoidTailList::removeLast()
   if (top == tail) {
     return removeFirst();
   }
-  
+
   VoidNode *before = top;
   while (before->next != tail) {
     before = before->next;
@@ -102,21 +102,25 @@ void *VoidTailList::removeAt(int index)
 {
   xassert(top);
   if (index == 0) {
+    // If we are removing the only item, reset the tail pointer.
+    if (top == tail) {
+      tail = NULL;
+    }
     return removeFirst();
   }
 
   VoidNode *before = top;    // will point to node before one to be removed
-  index--;                    
+  index--;
   while (index > 0) {
     before = before->next;
     index--;
-  }             
+  }
   xassert(index == 0);
-  
+
   // fix 'tail' if necessary
   if (tail == before->next) {
     tail = before;
-  }                         
+  }
 
   // patch around before->next
   VoidNode *toDelete = before->next;
@@ -125,6 +129,29 @@ void *VoidTailList::removeAt(int index)
   delete toDelete;
 
   return retval;
+}
+
+// for now, copy of VoidList::removeIfPresent, since the functions it calls
+// are not virtual.
+bool VoidTailList::removeIfPresent(void *item)
+{
+  // for now, not a real fast implementation
+  int index = indexOf(item);
+  if (index == -1) {
+    return false;   // not there
+  }
+  else {
+    removeAt(index);
+    return true;
+  }
+}
+
+// for now, copy of VoidList::removeItem, since the functions it calls are not
+// virtual.
+void VoidTailList::removeItem(void *item)
+{
+  bool wasThere = removeIfPresent(item);
+  xassert(wasThere);
 }
 
 void VoidTailList::removeAll()
@@ -168,7 +195,7 @@ void VoidTailList::selfCheck() const
 
 
 // --------------------- test code ------------------
-#ifdef TEST_VDTLLIST           
+#ifdef TEST_VDTLLIST
 
 #include <stdio.h>    // printf
 

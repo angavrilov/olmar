@@ -31,7 +31,7 @@ private:
 public:
   VoidTailList()                     { tail = NULL; }
   ~VoidTailList()                    {}
-  
+
   // special ctor which steals the list and then deallocates the header
   VoidTailList(VoidTailList *src)    { tail = NULL; steal(src); }
   void steal(VoidTailList *src);     // deletes 'src'
@@ -58,8 +58,9 @@ public:
   void *removeFirst();               // remove first, return data; must exist
   void *removeLast();
   void *removeAt(int index);
+  bool removeIfPresent(void *item);
+  void removeItem(void *item);
   void removeAll();
-  VoidList::removeItem;
 
   // list-as-set: selectors
   VoidList::indexOf;
