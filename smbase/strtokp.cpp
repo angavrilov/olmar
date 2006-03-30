@@ -56,7 +56,7 @@ StrtokParse::~StrtokParse()
   // buf deletes itself
 
   if (_tokv) {
-    delete _tokv;
+    delete [] _tokv;
   }
 }
 
@@ -88,14 +88,14 @@ string StrtokParse::
   join(int firstTok, int lastTok, rostring separator) const
 {
   stringBuilder sb;
-  
+
   for (int i=firstTok; i<=lastTok; i++) {
     if (i > firstTok) {
       sb << separator;
     }
     sb << tokv(i);
   }
-  
+
   return sb;
 }
 
