@@ -16,7 +16,8 @@ unsigned HashTable::hashFunction(void const *key) const
 HashTable::HashTable(GetKeyFn gk, HashFn hf, EqualKeyFn ek, int initSize)
   : getKey(gk),
     coreHashFn(hf),
-    equalKeys(ek)
+    equalKeys(ek),
+    enableShrink(false)
 {
   makeTable(initSize);
 }
@@ -146,7 +147,7 @@ void *HashTable::remove(void const *key)
     // add it back
     add(getKey(data), data);
   }
-  
+
   return retval;
 }
 
@@ -218,7 +219,7 @@ void HashTableIter::moveToSth()
          table.hashTable[index] == NULL) {
     index++;
   }
-  
+
   if (index == table.tableSize) {
     index = -1;    // mark as done
   }
