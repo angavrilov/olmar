@@ -15,7 +15,7 @@ template <class T> class ASTListIterNC;
 template <class T>
 class ASTList {
 private:
-  friend class ASTListIter<T>;        
+  friend class ASTListIter<T>;
   friend class ASTListIterNC<T>;
 
 protected:
@@ -59,7 +59,7 @@ public:
   T *removeLast()                       { return (T*)list.removeLast(); }
   T *removeAt(int index)                { return (T*)list.removeAt(index); }
   void removeItem(T *item)              { list.removeItem((void*)item); }
-  
+
   // this one is awkwardly named to remind the user that it's
   // contrary to the usual intent of this class
   void removeAll_dontDelete()           { return list.removeAll(); }
@@ -67,6 +67,7 @@ public:
   // deletion
   void deleteFirst()                    { delete (T*)list.removeFirst(); }
   void deleteAll();
+  void deleteItem(T* item)              { removeItem(item); delete item; }
 
   // list-as-set: selectors
   int indexOf(T const *item) const      { return list.indexOf((void*)item); }
