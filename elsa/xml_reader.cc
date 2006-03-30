@@ -26,7 +26,7 @@ void XmlReaderManager::registerReader(XmlReader *reader) {
 
 void XmlReaderManager::unregisterReader(XmlReader *reader) {
   xassert(reader);
-  readers.removeItem(reader);
+  readers.deleteItem(reader);
 }
 
 void XmlReaderManager::reset() {

@@ -236,13 +236,21 @@ class XmlReaderManager {
     reset();
   }
   virtual ~XmlReaderManager() {
-    readers.removeAll_dontDelete();
+    // We no longer need to do the following since we *own* the readers:
+    //readers.removeAll_dontDelete();
   }
 
   // **** initialization
   public:
+  // NOTE: XmlReaderManager owns the readers that have been registered with
+  // it. It deallocates them on destruction and also upon unregisterReader.
   void registerReader(XmlReader *reader);
+
+  // unregister a reader (deallocating it in the process); this is only needed
+  // if you no longer want to use a reader, otherwise the reader is
+  // deallocated automatically on destruction.
   void unregisterReader(XmlReader *reader);
+  
   void reset();
 
   // **** parsing

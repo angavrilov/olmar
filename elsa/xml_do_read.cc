@@ -23,18 +23,14 @@ TranslationUnit *xmlDoRead(StringTable &strTable, char const *inputFname) {
   // system
   sourceLocManager->mayOpenFiles = false;
 
-  // make file reader
-  XmlFileReader fileReader;
-  manager.registerReader(&fileReader);
+  // make and register file reader
+  manager.registerReader(new XmlFileReader);
 
-  // make ast reader
-  XmlAstReader astReader;
-  manager.registerReader(&astReader);
+  // make and register ast reader
+  manager.registerReader(new XmlAstReader);
 
-  // make type reader
-//    BasicTypeFactory tFac;
-  XmlTypeReader typeReader;
-  manager.registerReader(&typeReader);
+  // make and register type reader
+  manager.registerReader(new XmlTypeReader);
 
   // read until we get a translation unit tag; FIX: not sure what
   // happens if the last tag is not a TranslationUnit
