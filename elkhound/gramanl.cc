@@ -4911,6 +4911,10 @@ int inner_entry(int argc, char **argv)
       SHIFT;
       leavePartialOutputs = true;
     }
+    else if (0==strcmp(op, "help")) {
+      SHIFT;
+      goto printUsage;
+    }
     else {
       cout << "unknown option: " << argv[0] << endl;
       exit(2);
@@ -4918,6 +4922,7 @@ int inner_entry(int argc, char **argv)
   }
 
   if (!argv[0]) {
+  printUsage:
     cout << "usage: " << progName << " [options] filename.gr [extension.gr [...]]\n"
             "  Generates parse tables to parse with the given grammar.\n"
             "  The optional extension modules can add rules, etc.\n"
@@ -4927,6 +4932,7 @@ int inner_entry(int argc, char **argv)
             "      conflict    : print LALR(1) conflicts\n"
             "      prec        : show how prec/assoc are used to resolve conflicts\n"
             "      lrtable     : print LR parsing tables to <prefix>.out\n"
+            "                    (which also includes info about unreachable symbols)\n"
             "      nonkernel   : include non-kernel items in <prefix>.out\n"
             "      treebuild   : replace given actions with treebuilding actions\n"
             "      grammar     : echo grammar to stdout (after merging modules)\n"
