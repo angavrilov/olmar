@@ -4911,7 +4911,7 @@ int inner_entry(int argc, char **argv)
       SHIFT;
       leavePartialOutputs = true;
     }
-    else if (0==strcmp(op, "help")) {
+    else if (0==strcmp(op, "help") || 0==strcmp(op, "-help")) {
       SHIFT;
       goto printUsage;
     }
