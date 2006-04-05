@@ -21,6 +21,11 @@ class StringTable;
 class XmlReaderManager;
 
 
+// if on the deserialization code will tolerate dangling pointers: ids
+// to objects that themselves were not serialized
+extern bool xmlDanglingPointersAllowed;
+
+
 // from Xml for enums
 #define READENUM(X) else if (streq(str, #X)) out = (X)
 #define READFLAG(X) else if (streq(token, #X)) out |= (X)

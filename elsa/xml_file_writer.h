@@ -22,6 +22,10 @@ class XmlFileWriter : public XmlWriter {
   void toXml_lineLengths(SourceLocManager::File *file);
   void toXml(HashLineMap *hashLines);
   void toXml(HashLineMap::HashLine *hashLine);
+
+  virtual bool shouldSerialize(SourceLocManager::File const *) {return true;}
+  virtual bool shouldSerialize(HashLineMap const *) {return true;}
+  virtual bool shouldSerialize(HashLineMap::HashLine const *) {return true;}
 };
 
 #endif // XML_FILE_WRITER_H

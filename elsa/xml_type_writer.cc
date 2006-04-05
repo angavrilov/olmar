@@ -563,8 +563,8 @@ void XmlTypeWriter::toXml_Scope_subtags(Scope *scope) {
   // FIX: these are like function template "partial specializations"
   // (if such things existed), as the 'Variable' paramter actually
   // also changes the implementation.
-  travPtrMap_Variable(scope, Scope, variables); // Variable
-  travPtrMap_Variable(scope, Scope, typeTags); // Variable
+  travPtrMap(scope, Scope, variables, Variable); // Variable
+  travPtrMap(scope, Scope, typeTags, Variable); // Variable
   trav(scope->parentScope);
   trav(scope->namespaceVar);    // Variable
   travObjList_S(scope, Scope, templateParams, Variable); // Variable
@@ -631,7 +631,7 @@ void XmlTypeWriter::toXml(STemplateArgument *sta) {
   case STemplateArgument::STA_REFERENCE:
   case STemplateArgument::STA_POINTER:
   case STemplateArgument::STA_MEMBER:
-    toXml(sta->value.v);        // Variable
+    trav(sta->value.v);         // Variable
     break;
 
   case STemplateArgument::STA_DEPEXPR:
@@ -714,7 +714,23 @@ void XmlTypeWriter::toXml_TemplateParams_subtags(TemplateParams *tp) {
 }
 
 
+bool XmlTypeWriter::shouldSerialize(AtomicType const *obj) {
+  if (CompoundType const *cpd = dynamic_cast<CompoundType const *>(obj)) {
+    return shouldSerialize(cpd);
+  }
+  return true;
+}
+
+bool XmlTypeWriter::shouldSerialize(Scope const *obj) {
+  if (CompoundType const *cpd = dynamic_cast<CompoundType const *>(obj)) {
+    return shouldSerialize(cpd);
+  }
+  return true;
+}
+
+
 // **** class XmlTypeWriter_AstVisitor
+
 XmlTypeWriter_AstVisitor::XmlTypeWriter_AstVisitor
   (XmlTypeWriter &ttx0,
    ostream &out0,
@@ -726,7 +742,8 @@ XmlTypeWriter_AstVisitor::XmlTypeWriter_AstVisitor
 {}
 
 // Note that idempotency is handled in XmlTypeWriter
-#define PRINT_ANNOT(A) if (A) {ttx.toXml(A);}
+// #define PRINT_ANNOT(A) if (A) {ttx.toXml(A);}
+#define PRINT_ANNOT_MAYBE(A) if (A && ttx.shouldSerialize(A)) {ttx.toXml(A);}
 
   // this was part of the macro
 //    printASTBiLink((void**)&(A), (A));
@@ -744,62 +761,66 @@ XmlTypeWriter_AstVisitor::XmlTypeWriter_AstVisitor
 bool XmlTypeWriter_AstVisitor::visitTypeSpecifier(TypeSpecifier *ts) {
   if (!XmlAstWriter_AstVisitor::visitTypeSpecifier(ts)) return false;
   if (ts->isTS_type()) {
-    PRINT_ANNOT(ts->asTS_type()->type);
+    PRINT_ANNOT_MAYBE(ts->asTS_type()->type);
   } else if (ts->isTS_name()) {
-    PRINT_ANNOT(ts->asTS_name()->var); // Variable
-    PRINT_ANNOT(ts->asTS_name()->nondependentVar); // Variable
+    PRINT_ANNOT_MAYBE(ts->asTS_name()->var); // Variable
+    PRINT_ANNOT_MAYBE(ts->asTS_name()->nondependentVar); // Variable
   } else if (ts->isTS_elaborated()) {
-    PRINT_ANNOT(ts->asTS_elaborated()->atype);
+    PRINT_ANNOT_MAYBE(ts->asTS_elaborated()->atype);
   } else if (ts->isTS_classSpec()) {
-    PRINT_ANNOT(ts->asTS_classSpec()->ctype);
+    PRINT_ANNOT_MAYBE(ts->asTS_classSpec()->ctype);
   } else if (ts->isTS_enumSpec()) {
-    PRINT_ANNOT(ts->asTS_enumSpec()->etype);
+    PRINT_ANNOT_MAYBE(ts->asTS_enumSpec()->etype);
   }
   return true;
 }
 
 bool XmlTypeWriter_AstVisitor::visitFunction(Function *f) {
   if (!XmlAstWriter_AstVisitor::visitFunction(f)) return false;
-  PRINT_ANNOT(f->funcType);
-  PRINT_ANNOT(f->receiver);     // Variable
+  PRINT_ANNOT_MAYBE(f->funcType);
+  PRINT_ANNOT_MAYBE(f->receiver); // Variable
+  PRINT_ANNOT_MAYBE(f->retVar); // Variable
   return true;
 }
 
 bool XmlTypeWriter_AstVisitor::visitMemberInit(MemberInit *memberInit) {
   if (!XmlAstWriter_AstVisitor::visitMemberInit(memberInit)) return false;
-  PRINT_ANNOT(memberInit->member); // Variable
-  PRINT_ANNOT(memberInit->base);
-  PRINT_ANNOT(memberInit->ctorVar); // Variable
+  PRINT_ANNOT_MAYBE(memberInit->member); // Variable
+  PRINT_ANNOT_MAYBE(memberInit->base);
+  PRINT_ANNOT_MAYBE(memberInit->ctorVar); // Variable
   return true;
 }
 
 bool XmlTypeWriter_AstVisitor::visitBaseClassSpec(BaseClassSpec *bcs) {
   if (!XmlAstWriter_AstVisitor::visitBaseClassSpec(bcs)) return false;
-  PRINT_ANNOT(bcs->type);
+  PRINT_ANNOT_MAYBE(bcs->type);
   return true;
 }
 
 bool XmlTypeWriter_AstVisitor::visitDeclarator(Declarator *d) {
   if (!XmlAstWriter_AstVisitor::visitDeclarator(d)) return false;
-  PRINT_ANNOT(d->var);          // Variable
-  PRINT_ANNOT(d->type);
+  PRINT_ANNOT_MAYBE(d->var);    // Variable
+  PRINT_ANNOT_MAYBE(d->type);
   return true;
 }
 
 bool XmlTypeWriter_AstVisitor::visitExpression(Expression *e) {
   if (!XmlAstWriter_AstVisitor::visitExpression(e)) return false;
-  PRINT_ANNOT(e->type);
+  PRINT_ANNOT_MAYBE(e->type);
   if (e->isE_this()) {
-    PRINT_ANNOT(e->asE_this()->receiver); // Variable
+    PRINT_ANNOT_MAYBE(e->asE_this()->receiver); // Variable
   } else if (e->isE_variable()) {
-    PRINT_ANNOT(e->asE_variable()->var); // Variable
-    PRINT_ANNOT(e->asE_variable()->nondependentVar); // Variable
+    PRINT_ANNOT_MAYBE(e->asE_variable()->var); // Variable
+    PRINT_ANNOT_MAYBE(e->asE_variable()->nondependentVar); // Variable
   } else if (e->isE_constructor()) {
-    PRINT_ANNOT(e->asE_constructor()->ctorVar); // Variable
+    PRINT_ANNOT_MAYBE(e->asE_constructor()->ctorVar); // Variable
   } else if (e->isE_fieldAcc()) {
-    PRINT_ANNOT(e->asE_fieldAcc()->field); // Variable
+    PRINT_ANNOT_MAYBE(e->asE_fieldAcc()->field); // Variable
   } else if (e->isE_new()) {
-    PRINT_ANNOT(e->asE_new()->ctorVar); // Variable
+    PRINT_ANNOT_MAYBE(e->asE_new()->ctorVar); // Variable
+    PRINT_ANNOT_MAYBE(e->asE_new()->heapVar); // Variable
+  } else if (e->isE_throw()) {
+    PRINT_ANNOT_MAYBE(e->asE_throw()->globalVar); // Variable
   }
   return true;
 }
@@ -807,7 +828,7 @@ bool XmlTypeWriter_AstVisitor::visitExpression(Expression *e) {
 #ifdef GNU_EXTENSION
 bool XmlTypeWriter_AstVisitor::visitASTTypeof(ASTTypeof *a) {
   if (!XmlAstWriter_AstVisitor::visitASTTypeof(a)) return false;
-  PRINT_ANNOT(a->type);
+  PRINT_ANNOT_MAYBE(a->type);
   return true;
 }
 #endif // GNU_EXTENSION
@@ -815,28 +836,41 @@ bool XmlTypeWriter_AstVisitor::visitASTTypeof(ASTTypeof *a) {
 bool XmlTypeWriter_AstVisitor::visitPQName(PQName *pqn) {
   if (!XmlAstWriter_AstVisitor::visitPQName(pqn)) return false;
   if (pqn->isPQ_qualifier()) {
-    PRINT_ANNOT(pqn->asPQ_qualifier()->qualifierVar); // Variable
+    PRINT_ANNOT_MAYBE(pqn->asPQ_qualifier()->qualifierVar); // Variable
     ttx.toXml(&(pqn->asPQ_qualifier()->sargs));
   } else if (pqn->isPQ_template()) {
     ttx.toXml(&(pqn->asPQ_template()->sargs));
   } else if (pqn->isPQ_variable()) {
-    PRINT_ANNOT(pqn->asPQ_variable()->var); // Variable
+    PRINT_ANNOT_MAYBE(pqn->asPQ_variable()->var); // Variable
   }
   return true;
 }
 
 bool XmlTypeWriter_AstVisitor::visitEnumerator(Enumerator *e) {
   if (!XmlAstWriter_AstVisitor::visitEnumerator(e)) return false;
-  PRINT_ANNOT(e->var);          // Variable
+  PRINT_ANNOT_MAYBE(e->var);    // Variable
   return true;
 }
 
 bool XmlTypeWriter_AstVisitor::visitInitializer(Initializer *e) {
   if (!XmlAstWriter_AstVisitor::visitInitializer(e)) return false;
   if (e->isIN_ctor()) {
-    PRINT_ANNOT(e->asIN_ctor()->ctorVar); // Variable
+    PRINT_ANNOT_MAYBE(e->asIN_ctor()->ctorVar); // Variable
   }
   return true;
 }
 
-#undef PRINT_ANNOT
+bool XmlTypeWriter_AstVisitor::visitTemplateParameter(TemplateParameter *tparam) {
+  if (!XmlAstWriter_AstVisitor::visitTemplateParameter(tparam)) return false;
+  PRINT_ANNOT_MAYBE(tparam->var); // Variable
+  return true;
+}
+
+bool XmlTypeWriter_AstVisitor::visitHandler(Handler *h) {
+  if (!XmlAstWriter_AstVisitor::visitHandler(h)) return false;
+  PRINT_ANNOT_MAYBE(h->globalVar); // Variable
+  return true;
+}
+
+// #undef PRINT_ANNOT
+#undef PRINT_ANNOT_MAYBE

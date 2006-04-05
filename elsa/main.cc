@@ -25,6 +25,7 @@
 #include "cc_elaborate.h" // ElabVisitor
 #include "integrity.h"    // IntegrityVisitor
 #include "xml_file_writer.h" // XmlFileWriter
+#include "xml_reader.h"   // xmlDanglingPointersAllowed
 #include "xml_do_read.h"  // xmlDoRead()
 #include "xml_type_writer.h" // XmlTypeWriter
 #include "serialno.h"     // writeSerialNo
@@ -343,6 +344,9 @@ void doit(int argc, char **argv)
   int parseWarnings = 0;
   long parseTime = 0;
   if (tracingSys("parseXml")) {
+    if (tracingSys("parseXml-no-danglingPointers")) {
+      xmlDanglingPointersAllowed = false;
+    }
     unit = xmlDoRead(strTable, inputFname);
     if (!unit) return;
   }

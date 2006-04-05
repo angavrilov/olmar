@@ -107,14 +107,22 @@ do { \
 
 #define printThing(NAME, RAW, VALUE) \
 do { \
-  if (RAW) { \
+  if ((RAW) && shouldSerialize(RAW)) { \
+    newline(); \
+    printThing0(NAME, VALUE); \
+  } \
+} while(0)
+
+#define printThingAST(NAME, RAW, VALUE) \
+do { \
+  if (astVisitor && RAW) { \
     newline(); \
     printThing0(NAME, VALUE); \
   } \
 } while(0)
 
 #define printPtr(BASE, MEM)    printThing(MEM, (BASE)->MEM, xmlPrintPointer(idPrefix((BASE)->MEM), uniqueId((BASE)->MEM)))
-#define printPtrAST(BASE, MEM) printThing(MEM, (BASE)->MEM, xmlPrintPointer("AST", uniqueIdAST((BASE)->MEM)))
+#define printPtrAST(BASE, MEM) printThingAST(MEM, (BASE)->MEM, xmlPrintPointer("AST", uniqueIdAST((BASE)->MEM)))
 // print an embedded thing
 #define printEmbed(BASE, MEM)  printThing(MEM, (&((BASE)->MEM)), xmlPrintPointer(idPrefix(&((BASE)->MEM)), uniqueId(&((BASE)->MEM))))
 
@@ -122,7 +130,7 @@ do { \
 // don't want the 'if'
 #define printPtrUnion(BASE, MEM, NAME) printThing0(NAME, xmlPrintPointer(idPrefix((BASE)->MEM), uniqueId((BASE)->MEM)))
 // this is only used in one place
-#define printPtrASTUnion(BASE, MEM, NAME) printThing0(NAME, xmlPrintPointer("AST", uniqueIdAST((BASE)->MEM)))
+#define printPtrASTUnion(BASE, MEM, NAME) if (astVisitor) printThing0(NAME, xmlPrintPointer("AST", uniqueIdAST((BASE)->MEM)))
 
 #define printXml(NAME, VALUE) \
 do { \
@@ -162,7 +170,10 @@ do { \
   if (!printed(&OBJ)) { \
     openTagWhole(List_ ##TAGNAME, &OBJ); \
     ITER_MACRO(FIELDTYPE, const_cast<LISTKIND<FIELDTYPE>&>(OBJ), iter) { \
-      travListItem(iter.data()); \
+      FIELDTYPE *obj0 = iter.data(); \
+      if (shouldSerialize(obj0)) { \
+        travListItem(obj0); \
+      } \
     } \
   } \
 } while(0)
@@ -191,40 +202,19 @@ do { \
       for(StringRefMap<FIELDTYPE>::SortedKeyIter iter(BASE->FIELD); \
           !iter.isDone(); iter.adv()) { \
         FIELDTYPE *obj = iter.value(); \
-        openTag_NameMap_Item(iter.key(), obj); \
-        trav(obj); \
+        if (shouldSerialize(obj)) { \
+          openTag_NameMap_Item(iter.key(), obj); \
+          trav(obj); \
+        } \
       } \
     } else { \
       for(PtrMap<char const, FIELDTYPE>::Iter iter(BASE->FIELD); \
           !iter.isDone(); iter.adv()) { \
         FIELDTYPE *obj = iter.value(); \
-        openTag_NameMap_Item(iter.key(), obj); \
-        trav(obj); \
-      } \
-    } \
-  } \
-} while(0)
-
-// NOTE: this is like a partial specialization of the above
-#define travPtrMap_Variable(BASE, BASETYPE, FIELD) \
-do { \
-  if (!printed(&BASE->FIELD)) { \
-    openTagWhole(NameMap_ ##BASETYPE ##_ ##FIELD, &BASE->FIELD); \
-    if (sortNameMapDomainWhenSerializing) { \
-      for(StringRefMap<Variable>::SortedKeyIter iter(BASE->FIELD); \
-          !iter.isDone(); iter.adv()) { \
-        Variable *obj = iter.value(); \
-        if (!obj->shouldBeSerialized()) continue; \
-        openTag_NameMap_Item(iter.key(), obj); \
-        trav(obj); \
-      } \
-    } else { \
-      for(PtrMap<char const, Variable>::Iter iter(BASE->FIELD); \
-          !iter.isDone(); iter.adv()) { \
-        Variable *obj = iter.value(); \
-        if (!obj->shouldBeSerialized()) continue; \
-        openTag_NameMap_Item(iter.key(), obj); \
-        trav(obj); \
+        if (shouldSerialize(obj)) { \
+          openTag_NameMap_Item(iter.key(), obj); \
+          trav(obj); \
+        } \
       } \
     } \
   } \
@@ -264,7 +254,7 @@ do { \
 
 #define trav(TARGET) \
 do { \
-  if (TARGET) { \
+  if (TARGET && shouldSerialize(TARGET)) { \
     toXml(TARGET); \
   } \
 } while(0)

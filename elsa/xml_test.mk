@@ -1589,6 +1589,8 @@ $(addsuffix .B1.xml_filtered,$(T1D)): outdir/%.B1.xml_filtered: outdir/%.B1.xml
 
 # parse xml and generate second debug-print
 $(addsuffix .B2.xml.dp,$(T1D)): outdir/%.B2.xml.dp: outdir/%.B1.xml_filtered
+# NOTE: we omit the tracing flag parseXml-no-danglingPointers because
+# it will fail on a pure AST de-serialization
 	$(PR) -tr parseXml,no-elaborate,prettyPrint $(XML_FLAGS) $< > $@
 $(addsuffix .B2.xml.dp_filtered,$(T1D)): outdir/%.B2.xml.dp_filtered: outdir/%.B2.xml.dp
 	./chop_out < $< > $@
@@ -1623,7 +1625,7 @@ $(addsuffix .C1.xml_filtered,$(T2D)): outdir/%.C1.xml_filtered: outdir/%.C1.xml
 
 # parse xml and generate second debug-print
 $(addsuffix .C2.xml.dp,$(T2D)): outdir/%.C2.xml.dp: outdir/%.C1.xml_filtered
-	$(PR) -tr parseXml,no-typecheck,no-elaborate,printAST $(XML_FLAGS) $< > $@
+	$(PR) -tr parseXml,parseXml-no-danglingPointers,no-typecheck,no-elaborate,printAST $(XML_FLAGS) $< > $@
 $(addsuffix .C2.xml.dp_filtered,$(T2D)): outdir/%.C2.xml.dp_filtered: outdir/%.C2.xml.dp
 	./filter_elsa_noise < $< > $@
 
@@ -1638,7 +1640,7 @@ $(addsuffix .C3.diff,$(T2D)): outdir/%.C3.diff: outdir/%.C0.dp_filtered outdir/%
 
 # # parse xml and generate second xml print
 # $(addsuffix .C4.xml,$(T2D)): outdir/%.C4.xml: outdir/%.C1.xml_filtered
-# 	$(PR) -tr parseXml,no-typecheck,no-elaborate,xmlPrintAST,xmlPrintAST-types $(XML_FLAGS) $< > $@
+# 	$(PR) -tr parseXml,parseXml-no-danglingPointers,no-typecheck,no-elaborate,xmlPrintAST,xmlPrintAST-types $(XML_FLAGS) $< > $@
 # $(addsuffix .C4.xml_filtered,$(T2D)): outdir/%.C4.xml_filtered: outdir/%.C4.xml
 # 	./chop_out < $< > $@
 
@@ -1684,7 +1686,7 @@ check_type: $(addsuffix .C3.diff,$(T2D))
 
 # # parse xml and generate second debug-print
 # $(addsuffix .D2.xml.dp,$(T3D)): outdir/%.D2.xml.dp: outdir/%.D1.xml_filtered
-# 	$(PR) -tr parseXml,no-typecheck,no-elaborate,prettyPrint $(XML_FLAGS) $< > $@
+# 	$(PR) -tr parseXml,parseXml-no-danglingPointers,no-typecheck,no-elaborate,prettyPrint $(XML_FLAGS) $< > $@
 # $(addsuffix .D2.xml.dp_filtered,$(T3D)): outdir/%.D2.xml.dp_filtered: outdir/%.D2.xml.dp
 # 	./chop_out < $< > $@
 

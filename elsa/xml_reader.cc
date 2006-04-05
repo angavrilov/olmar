@@ -4,6 +4,10 @@
 #include "xmlhelp.h"            // xmlAttrDeQuote() etc.
 #include "exc.h"                // xBase
 
+
+bool xmlDanglingPointersAllowed = true;
+
+
 UnsatLink::UnsatLink(void *ptr0, string id0, int kind0, bool embedded0)
   : ptr(ptr0), id(id0), kind(kind0), embedded(embedded0)
 {};
@@ -186,10 +190,11 @@ void XmlReaderManager::parseOneTagOrDatum() {
     }
     void *pointedToItem = id2obj.queryif(itemNode->to);
     if (pointedToItem) {
+      // DEBUG1
+//       cout << "parseOneTagOrDatum, itemNode->to: " << itemNode->to << endl;
       append2List(listNode, listKind, pointedToItem);
-      // we now tolerate this just as we tolerate dangling pointers
-//     } else {
-//       userError("no Node pointed to by _List_Item");
+    } else {
+      if (!xmlDanglingPointersAllowed) userError("no Node pointed to by _List_Item");
     }
   }
 
@@ -216,10 +221,11 @@ void XmlReaderManager::parseOneTagOrDatum() {
     // by now
     void *pointedToItem = id2obj.queryif(nameNode->to);
     if (pointedToItem) {
+      // DEBUG1
+//       cout << "parseOneTagOrDatum, nameNode->to: " << nameNode->to << endl;
       insertIntoNameMap(mapNode, mapKind, nameNode->from, pointedToItem);
-      // we now tolerate this just as we tolerate dangling pointers
-//     } else {
-//       userError("no Node pointed to by _NameMap_Item");
+    } else {
+      if (!xmlDanglingPointersAllowed) userError("no Node pointed to by _NameMap_Item");
     }
   }
 
@@ -272,6 +278,8 @@ bool XmlReaderManager::readAttributes() {
     if (attr == XTOK_DOT_ID) {
       // FIX: I really hope the map makes a copy of this string
       string id0 = xmlAttrDeQuote(lexer.currentText());
+      // DEBUG1
+//       cout << "readAttributes: _id=" << id0 << endl;
       if (id2obj.isMapped(id0)) {
         userError(stringc << "this _id is taken " << id0);
       }
@@ -431,6 +439,7 @@ void XmlReaderManager::userError(char const *msg) {
   }
   msg0 << lexer.linenumber << ":" << msg;
   THROW(xBase(msg0));
+  xfailure("should not get here");
 }
 
 void XmlReaderManager::satisfyLinks() {
@@ -467,10 +476,7 @@ void XmlReaderManager::satisfyLinks_Nodes() {
         }
       }
     } else {
-      // no satisfaction was provided for this link; for now we just
-      // skip it, but if you wanted to report that in some way, here
-      // is the place to do it
-//        cout << "unsatisfied node link: " << ul->id << endl;
+      if (!xmlDanglingPointersAllowed) userError(stringc << "unsatisfied node link: " << ul->id);
     }
   }
   // remove the links
@@ -487,10 +493,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
     // pointer to void; see the note in the if below.
     ASTList<char> *obj = reinterpret_cast<ASTList<char>*>(id2obj.queryif(ul->id));
     if (!obj) {
-      // no satisfaction was provided for this link; for now we just
-      // skip it, but if you wanted to report that in some way, here
-      // is the place to do it
-      //        cout << "unsatisfied List link: " << ul->id << endl;
+      if (!xmlDanglingPointersAllowed) userError(stringc << "unsatisfied List link: " << ul->id);
       continue;
     }
 
@@ -600,10 +603,7 @@ void XmlReaderManager::satisfyLinks_Maps() {
     // pointer to void; see the note in the if below.
     StringRefMap<char> *obj = reinterpret_cast<StringRefMap<char>*>(id2obj.queryif(ul->id));
     if (!obj) {
-      // no satisfaction was provided for this link; for now we just
-      // skip it, but if you wanted to report that in some way, here
-      // is the place to do it
-      //        cout << "unsatisfied List link: " << ul->id << endl;
+      if (!xmlDanglingPointersAllowed) userError(stringc << "unsatisfied Map link: " << ul->id);
       continue;
     }
 

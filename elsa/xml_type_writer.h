@@ -66,6 +66,29 @@ class XmlTypeWriter : public XmlWriter {
   virtual void toXml(InheritedTemplateParams *itp);
   void toXml_TemplateParams_properties(TemplateParams *tp);
   void toXml_TemplateParams_subtags(TemplateParams *tp);
+
+  public:
+  virtual bool shouldSerialize(Type const *) {return true;}
+  virtual bool shouldSerialize(CompoundType const *) {return true;}
+  virtual bool shouldSerialize(FunctionType::ExnSpec const *) {return true;}
+  virtual bool shouldSerialize(EnumType::Value const *) {return true;}
+  virtual bool shouldSerialize(BaseClass const *) {return true;}
+  virtual bool shouldSerialize(Variable const *) {return true;}
+  virtual bool shouldSerialize(OverloadSet const *) {return true;}
+  virtual bool shouldSerialize(STemplateArgument const *) {return true;}
+  virtual bool shouldSerialize(TemplateInfo const *) {return true;}
+  virtual bool shouldSerialize(InheritedTemplateParams const *) {return true;}
+  // deal with Scott's multiple-inheritance funkyness
+  virtual bool shouldSerialize(AtomicType const *obj);
+  virtual bool shouldSerialize(Scope const *obj);
+  // FIX: dsw: how do I make these virtual??  I don't have to override
+  // them right now, but they should be virtual; perhaps that is not
+  // possible because it would be too hard for the compiler to compute
+  // the vtable
+  template<class T> bool shouldSerialize(ObjList<T> const *) {return true;}
+  template<class T> bool shouldSerialize(SObjList<T> const *) {return true;}
+  template<class T> bool shouldSerialize(StringRefMap<T> const *) {return true;}
+  template<class T> bool shouldSerialize(StringObjDict<T> const *) {return true;}
 };
 
 // print out type annotations for every ast node that has a type
@@ -81,20 +104,23 @@ class XmlTypeWriter_AstVisitor : public XmlAstWriter_AstVisitor {
      bool indent0 = false,
      bool ensureOneVisit0 = true);
 
+  virtual bool shouldSerialize(Variable const *var) {return ttx.shouldSerialize(var);}
+
   // **** visit methods
-  bool visitTypeSpecifier(TypeSpecifier *ts);
-  bool visitFunction(Function *f);
-  bool visitMemberInit(MemberInit *memberInit);
-  bool visitBaseClassSpec(BaseClassSpec *bcs);
-  bool visitDeclarator(Declarator *d);
-  bool visitExpression(Expression *e);
+  virtual bool visitTypeSpecifier(TypeSpecifier *ts);
+  virtual bool visitFunction(Function *f);
+  virtual bool visitMemberInit(MemberInit *memberInit);
+  virtual bool visitBaseClassSpec(BaseClassSpec *bcs);
+  virtual bool visitDeclarator(Declarator *d);
+  virtual bool visitExpression(Expression *e);
 #ifdef GNU_EXTENSION
-  bool visitASTTypeof(ASTTypeof *a);
+  virtual bool visitASTTypeof(ASTTypeof *a);
 #endif // GNU_EXTENSION
-  bool visitPQName(PQName *pqn);
-  bool visitEnumerator(Enumerator *e);
-  bool visitInitializer(Initializer *e);
-  // FIX: TemplateParameter
+  virtual bool visitPQName(PQName *pqn);
+  virtual bool visitEnumerator(Enumerator *e);
+  virtual bool visitInitializer(Initializer *e);
+  virtual bool visitTemplateParameter(TemplateParameter *tparam);
+  virtual bool visitHandler(Handler *h);
 };
 
 #endif // XML_TYPE_WRITER_H

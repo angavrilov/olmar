@@ -329,12 +329,6 @@ public:
   // dsw: Variables are part of the type system at least for purposes
   // of traversal
   void traverse(TypeVisitor &vis);
-
-  // dsw: in Oink sometimes we avoid serializing variables and making
-  // this question a method on the Variable itself is the cleanest
-  // design I can think of that fits into the current serialization
-  // design
-  virtual bool shouldBeSerialized() { return true; }
 };
 
 inline string toString(Variable const *v) { return v->toString(); }
