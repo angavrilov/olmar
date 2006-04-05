@@ -1902,9 +1902,6 @@ void CGen::emitXmlFields(ASTList<Annotation> const &decls, char const *baseName,
 
 void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
                         string const &className, AccessMod *amod) {
-  if (streq(name, "arraySize")) {
-    breaker();
-  }
   // FIX: there is a problem with coming up with a way to serialize a
   // NULL string: 1) the value must be quoted, 2) any string you use
   // to represent NULL is also a valid string value, 3) quoting twice
@@ -1964,7 +1961,7 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
     out << "  out << xmlAttrQuote(toXml_SourceLoc(" << baseName << "->" << name << "));\n";
   }
   else if (isListType(type)) {
-    out << "  if (" << baseName << ") {\n";
+    out << "  if (" << baseName << " && " << baseName << "->" << name << ".isNotEmpty()) {\n";
     out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"" << name << "\" << \"=\" << xmlAttrQuote(\n";
@@ -2004,18 +2001,25 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
            ) {
     // catch-all for xml objects
     string idPrefix;
+    bool shouldSerialize0 = false;
     if (amod) {
       idPrefix = amod->getModSuffixFromPrefix("xml_");
+      shouldSerialize0 = amod->hasModPrefix("xmlShouldSerialize");
     } else {
       // FIX: get rid of this piece of crap when we get a way to put
       // an access specifier onto a ctor argument in the ast language
       idPrefix = stringc << "TY";
     }
-    out << "  if (" << baseName << " && " << baseName << "->" << name << ") {\n";
+    out << "  if (" << baseName
+        << " && " << baseName << "->" << name;
+    if (shouldSerialize0) {
+      out << " && shouldSerialize(" << baseName << "->" << name << ")";
+    }
+    out << ") {\n";
     out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"" << name << "\" << \"=\" << xmlAttrQuote(\n";
-    out << "    xmlPrintPointer(\"" << idPrefix << "\", uniqueId(" << baseName << "->" << name << ")));\n";
+    out << "    /*catch-all*/xmlPrintPointer(\"" << idPrefix << "\", uniqueId(" << baseName << "->" << name << ")));\n";
     out << "  }\n";
 
   } else {
@@ -2048,6 +2052,14 @@ void HGen::emitXmlVisitorInterface()
   out << "  bool wasVisitedList_FakeList(void *ast);\n";
   out << "  void printIndentation();\n";
   out << "\n";
+
+  // emit the xml_verbatim section if it exists
+  FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
+    TF_xml_verbatim const *xmlVb = form.data()->ifTF_xml_verbatimC();
+    if (xmlVb) {
+      out << xmlVb->code;
+    }
+  }
 
   // ctor
   out << "public:      // funcs\n";

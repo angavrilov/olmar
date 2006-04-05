@@ -54,6 +54,7 @@
 %token TOK_PROTECTED "protected"
 %token TOK_VERBATIM "verbatim"
 %token TOK_IMPL_VERBATIM "impl_verbatim"
+%token TOK_XML_VERBATIM "xml_verbatim"
 %token TOK_CTOR "ctor"
 %token TOK_DTOR "dtor"
 %token TOK_PURE_VIRTUAL "pure_virtual"
@@ -288,6 +289,8 @@ Verbatim: "verbatim" Embedded
             { $$ = new TF_verbatim(unbox($2)); }
         | "impl_verbatim" Embedded
             { $$ = new TF_impl_verbatim(unbox($2)); }
+        | "xml_verbatim" Embedded
+            { $$ = new TF_xml_verbatim(unbox($2)); }
         ;
 
 /* yields TF_option */

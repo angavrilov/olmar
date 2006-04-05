@@ -194,7 +194,7 @@ SLWHITE   [ \t]
              /*[2] == 'r'*/TOK_PURE_VIRTUAL ;
 }
 
-("verbatim"|"impl_verbatim") {
+("verbatim"|"impl_verbatim"|"xml_verbatim") {
   TOK_UPD_COL;
 
   // need to see one more token before we begin embedded processing
@@ -204,8 +204,12 @@ SLWHITE   [ \t]
 
   embedded->reset();
   embedMode = TOK_EMBEDDED_CODE;
-  return yytext[0]=='v'? TOK_VERBATIM :
-                         TOK_IMPL_VERBATIM ;
+  switch (yytext[0]) {
+  default: xfailure("can't happen");
+  case 'v': return TOK_VERBATIM;
+  case 'i': return TOK_IMPL_VERBATIM;
+  case 'x': return TOK_XML_VERBATIM;
+  }
 }
 
 "custom" {
