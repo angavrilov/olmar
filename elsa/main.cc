@@ -592,17 +592,15 @@ void doit(int argc, char **argv)
   if (tracingSys("no-elaborate")) {
     cout << "no-elaborate" << endl;
   }
-  else if (!lang.isCplusplus) {
-    cout << "C elaboration" << endl;
-
-    // do elaboration
-    ElabVisitor vis(strTable, tfac, unit, EA_C_ACTIVITIES);
-  }
   else {
     SectionTimer timer(elaborationTime);
 
-    // do elaboration
-    ElabVisitor vis(strTable, tfac, unit, EA_ALL);
+    ElabVisitor vis(strTable, tfac, unit);
+
+    if (!lang.isCplusplus) {
+      // do only the C elaboration activities
+      vis.activities = EA_C_ACTIVITIES;
+    }
 
     // if we are going to pretty print, then we need to retain defunct children
     if (tracingSys("prettyPrint")
@@ -614,6 +612,7 @@ void doit(int argc, char **argv)
       vis.cloneDefunctChildren = true;
     }
 
+    // do elaboration
     unit->traverse(vis.loweredVisitor);
 
     // print abstract syntax tree annotated with types

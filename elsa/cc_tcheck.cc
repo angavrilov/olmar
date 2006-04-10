@@ -5799,8 +5799,7 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
 {
   int defaultArgsUsed = 0;
 
-  if (!env.doCompareArgsToParams ||
-      (ft->flags & FF_NO_PARAM_INFO)) {
+  if (ft->flags & FF_NO_PARAM_INFO) {
     return defaultArgsUsed;
   }
 
@@ -5820,6 +5819,68 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
        paramIter.adv(), paramIndex++, argIter = argIter->butFirst()) {
     Variable *param = paramIter.data();
     ArgExpression *arg = argIter->first();
+
+    // Normalize arguments passed to transparent unions.
+    // http://gcc.gnu.org/onlinedocs/gcc-3.2/gcc/Type-Attributes.html
+    //
+    // We only do this in C mode because our experiments indicate that
+    // GCC does not do the transparent union thing in C++ mode.
+    if (!env.lang.isCplusplus && param->type->isUnionType()) {
+      CompoundType *ct = param->type->asCompoundType();
+      if (ct->isTransparentUnion) {
+        // look for a member of the union that has the same type
+        // as the argument
+        SFOREACH_OBJLIST(Variable, ct->dataMembers, memberIter) {
+          Variable const *memb = memberIter.data();
+
+          StandardConversion sc = getStandardConversion(NULL /*errorMsg*/,
+            SE_NONE, arg->expr->type, memb->type);
+          if (sc != SC_ERROR) {
+            // success
+            TRACE("transparent_union", env.locStr() <<
+              ": converted arg type `" << arg->expr->type->toString() <<
+              "' to union member " << memb->name);
+
+            // build a compound literal for it; this has a pointer
+            // to the original 'arg->expr' inside it
+            SourceLoc loc = env.loc();
+            Designator *d = new FieldDesignator(loc, memb->name);
+            ASTList<Initializer> *inits = new ASTList<Initializer>;
+            inits->append(new IN_designated(loc,
+                                            FakeList<Designator>::makeList(d),
+                                            new IN_expr(loc, arg->expr)));
+            ASTTypeId *ati = env.buildASTTypeId(param->type);
+            E_compoundLit *ecl =
+              new E_compoundLit(ati, new IN_compound(loc, inits));
+
+            // now stick this new thing into arg->expr, so the whole
+            // thing is still a tree
+            arg->expr = ecl;
+
+            // since we're in C mode, it should be quite safe to go
+            // ahead and re-tcheck this (the original 'arg->expr' is
+            // what is being tcheck'd twice)
+            arg->expr->tcheck(env, arg->expr);
+
+            // stop iterating over members
+            break;
+          }
+        }
+
+        // we might not have found any matching member, but I don't
+        // care b/c I am not trying to diagnose errors, just
+        // normalize away some extension syntax
+      }
+      else {
+        // not a transparent union, do nothing special
+      }
+    }
+
+    if (!env.doCompareArgsToParams) {
+      // do not do the usual argument checking; but we keep iterating
+      // so that we can normalize transparent unions
+      continue;
+    }
 
     // check correspondence between 'args' and 'argInfo'
     xassert(!argInfo[paramIndex].type ||
@@ -5850,6 +5911,12 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
       // if it involves template functions, instantiate them
       env.instantiateTemplatesInConversion(ic);
     }
+  }
+
+  if (!env.doCompareArgsToParams) {
+    // Only reason for sticking around this long was to normalize
+    // transparent unions..
+    return defaultArgsUsed;
   }
 
   if (argIter->isEmpty()) {

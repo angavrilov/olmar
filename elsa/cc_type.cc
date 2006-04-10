@@ -370,6 +370,7 @@ CompoundType::CompoundType(Keyword k, StringRef n)
     Scope(SK_CLASS, 0 /*changeCount*/, SL_UNKNOWN /*dummy loc*/),
     forward(true),
     keyword(k),
+    isTransparentUnion(false),
     bases(),
     virtualBases(),
     subobj(BaseClassSubobj(this, AK_PUBLIC, false /*isVirtual*/)),

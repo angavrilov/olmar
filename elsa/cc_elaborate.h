@@ -139,21 +139,25 @@ public:      // data
   // strings
   StringRef receiverName;
 
-  // what we're doing; this defaults to EA_ALL, but the client
-  // is free to modify it
+  // counters for generating unique temporary names; not unique
+  // across translation units
+  int tempSerialNumber;
+  int e_newSerialNumber;
+
+  // ---------- elaboration parameters -----------
+  // These get set to default values by the ctor, but then the client
+  // can change them after construction.  I did it this way to avoid
+  // making tons of ctor parameters.
+
+  // what we're doing; this defaults to EA_ALL
   ElabActivities activities;
 
   // When true, we retain cloned versions of subtrees whose semantics
   // is captured (and therefore the tree obviated) by the elaboration.
   // When false, we just nullify thoee subtrees, which results in
   // sometimes-invalid AST, but makes some analyses happy anway.  This
-  // defaults to false, but client can change it if desired.
+  // defaults to false.
   bool cloneDefunctChildren;
-
-  // counters for generating unique temporary names; not unique
-  // across translation units
-  int tempSerialNumber;
-  int e_newSerialNumber;
 
 public:      // funcs
   // true if a particular activity is requested
@@ -278,7 +282,7 @@ public:      // funcs
   Variable *getDtor(CompoundType *ct);           // ~C();
 
 public:
-  ElabVisitor(StringTable &str, TypeFactory &tfac, TranslationUnit *tunit, ElabActivities activities0);
+  ElabVisitor(StringTable &str, TypeFactory &tfac, TranslationUnit *tunit);
   virtual ~ElabVisitor();
 
   // ASTVisitor funcs

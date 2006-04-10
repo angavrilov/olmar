@@ -1294,6 +1294,7 @@ void AttributeDisambiguator::foundAmbiguous(void *obj, void **ambig, char const 
 
 void D_attribute::tcheck(Env &env, Declarator::Tcheck &dt)
 {
+  // tcheck the underlying declarator
   D_grouping::tcheck(env, dt);
 
   // "disambiguate" the attribute list
@@ -1340,6 +1341,23 @@ void D_attribute::tcheck(Env &env, Declarator::Tcheck &dt)
     // change the type according to the mode (if any)
     if (id != ST_ERROR) {
       dt.type = env.getSimpleType(id, existingCV);
+    }
+  }
+
+  // transparent union?
+  if (dt.type->isUnionType()) {
+    CompoundType *u = dt.type->asCompoundType();
+
+    for (AttributeSpecifierList *l = alist; l; l = l->next) {
+      for (AttributeSpecifier *s = l->spec; s; s = s->next) {
+        if (s->attr->isAT_word()) {
+          AT_word *w = s->attr->asAT_word();
+          if (0==strcmp(w->w, "transparent_union") ||
+              0==strcmp(w->w, "__transparent_union__")) {
+            u->isTransparentUnion = true;
+          }
+        }
+      }
     }
   }
 }

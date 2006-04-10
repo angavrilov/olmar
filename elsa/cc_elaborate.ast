@@ -141,7 +141,7 @@ class Expression {
   // skip the children.  See the SES in cc_elaborate.cc.
 
   -> E_funCall {
-    // Pass by value (for class-valued objects) is elaborated by saying there
+    // Return by value (for class-valued objects) is elaborated by saying there
     // is another function parameter, the 'return object'.  At the call site,
     // we specify an object (reference) that will be bound to that parameter,
     // and the function implementation is expected to write to that object.

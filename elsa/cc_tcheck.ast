@@ -591,7 +591,12 @@ class Expression {
        public void inner1_itcheck(Env &env);
        public Type *inner2_itcheck(Env &env, Expression *&replacement);
 
-       // the constructor function being called
+       // The constructor function being called.  If this is NULL, it
+       // means the constructor is "trivial"; for a no-arg ctor this
+       // means a no-op, and for a copy ctor it means member-wise
+       // assignment implementable with a memcpy.  (This is a
+       // generalization of the Standard's notion of "trivial"; see
+       // cppstd 12.1p5,6.)
        public(xml_TY,xmlShouldSerialize) Variable *ctorVar = NULL;
        custom clone { ret->ctorVar = ctorVar; }
      }

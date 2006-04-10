@@ -1278,6 +1278,7 @@ failCparse c/t0023.c "unhandled KandRSimpleDeclaration ambiguity"
 testCparse c/t0024.c
 testCparse c/t0025.c
 testCparse c/t0026.c
+testCparse c/t0027.c
 
 testCparse gnu/d0096.c
 testCparse c/dC0010.c #"f(u8 register) doesn't parse"
@@ -1375,6 +1376,22 @@ if $use_gnu; then
   testCparse gnu/dC0014.c # "'u32 long off' doesn't parse"
   testCparse gnu/dC0015.c # function scope structs can contain arrays of dynamic size
   testCparse gnu/dC0016.c
+  
+  # transparent unions
+  testCparse gnu/t0133.c
+  testCparse gnu/t0134.c
+
+  # These work, but for the wrong reason.  The transparent union attribute
+  # is dropped on the floor (bad) but then no argument checking is done
+  # so we don't notice the problem (double bad).  Oink would notice because
+  # the lack of normalization will cause problems.
+  testCparse gnu/t0135.c
+  testCparse gnu/t0136.c
+
+  # This is here just to document that Elsa does not diagnose something that
+  # gcc does.  However, it's so esoteric that I don't want to consider this
+  # even a "known bug" in Elsa, so it is commented out.
+  #failCparse gnu/t0137.c
 
   # attribute tests
   testCparse gnu/attr01.c

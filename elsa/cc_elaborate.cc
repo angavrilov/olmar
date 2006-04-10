@@ -47,8 +47,7 @@ Type *makeLvalType(TypeFactory &tfac, Type *underlying);
 
 // --------------------- ElabVisitor misc. ----------------------
 ElabVisitor::ElabVisitor(StringTable &s, TypeFactory &tf,
-                         TranslationUnit *tu,
-                         ElabActivities activities0)
+                         TranslationUnit *tu)
   : loweredVisitor(this, VF_NONE),
     str(s),
     tfac(tf),
@@ -58,11 +57,17 @@ ElabVisitor::ElabVisitor(StringTable &s, TypeFactory &tf,
     fullExpressionAnnotStack(),   // empty
     enclosingStmtLoc(SL_UNKNOWN),
     receiverName(s("__receiver")),
-    activities(activities0),
-    cloneDefunctChildren(false),
     tempSerialNumber(0),
-    e_newSerialNumber(0)
-{}
+    e_newSerialNumber(0),
+
+    // elaboration parameters
+    activities(EA_ALL),
+    cloneDefunctChildren(false)
+{
+  // don't do anything here that depends on the elaboration
+  // parameters, because then the client would be unable to affect
+  // them in time
+}
 
 ElabVisitor::~ElabVisitor()
 {}
@@ -326,7 +331,10 @@ Statement *ElabVisitor::makeCtorStatement(
   // see comment below regarding 'getDefaultCtor'; if this assertion
   // fails it may be due to an input program that is not valid C++,
   // but the type checker failed to diagnose it
-  xassert(ctor);
+  //xassert(ctor);
+  //
+  // 2006-04-09: The semantics of E_constructor has been changed to
+  // allow a NULL 'ctorVar', and it means the ctor is trivial.
 
   E_constructor *ector0 = makeCtorExpr(loc, target, type, ctor, args);
   Statement *ctorStmt0 = makeS_expr(loc, ector0);
@@ -508,16 +516,13 @@ void Declarator::elaborateCDtors(ElabVisitor &env, DeclFlags dflags)
 
         fullexp = incpd->getAnnot(); // sm: not sure about this..
         ctor = env.getDefaultCtor(ct);
-
-        // NOTE: 'getDefaultCtor' can return NULL, corresponding to a class
-        // that has no default ctor.  However, it is the responsibility of
-        // the type checker to diagnose this case.  Now, as it happens, our
-        // tchecker does not do so right now; but nevertheless it would be
-        // wrong to, say, emit an error message here.  Instead,
-        // 'makeCtorStatement' simply asserts that it is non-NULL.
       }
       ASTENDCASED
     }
+    
+    // According to the semantics of E_constructor, it is legal for
+    // 'ctor' to be NULL here, as it signifies the use of a trivial
+    // constructor.
 
     env.push(fullexp);
     ctorStatement = env.makeCtorStatement(loc, env.makeE_variable(loc, var),
@@ -1601,23 +1606,21 @@ bool S_return::elaborate(ElabVisitor &env)
       // yet have put any temporaries into the fullexp
       xassert(expr->getAnnot()->noTemporaries());
 
-      if (env.doing(EA_VARIABLE_DECL_CDTOR)) {
-        // get the arguments of the constructor function; NOTE: we dig
-        // down below the FullExpression to the raw Expression
-        Expression *subExpr = expr->expr;
-        FakeList<ArgExpression> *args0 =
-          FakeList<ArgExpression>::makeList(new ArgExpression(subExpr));
-        xassert(args0->count() == 1);      // makeList always returns a singleton list
+      // get the arguments of the constructor function; NOTE: we dig
+      // down below the FullExpression to the raw Expression
+      Expression *subExpr = expr->expr;
+      FakeList<ArgExpression> *args0 =
+      FakeList<ArgExpression>::makeList(new ArgExpression(subExpr));
+      xassert(args0->count() == 1);      // makeList always returns a singleton list
 
-        // make the constructor function
-        env.push(expr->getAnnot());// e.g. in/d0049.cc breaks w/o this
-        ctorStatement = env.makeCtorStatement(loc, retVar, ft->retType,
-                                              env.getCopyCtor(retTypeCt), args0);
-        env.pop(expr->getAnnot());
+      // make the constructor function
+      env.push(expr->getAnnot());// e.g. in/d0049.cc breaks w/o this
+      ctorStatement = env.makeCtorStatement(loc, retVar, ft->retType,
+                                            env.getCopyCtor(retTypeCt), args0);
+      env.pop(expr->getAnnot());
 
-        // make the original expression a clone
-        expr->expr = env.cloneExpr(expr->expr);
-      }
+      // make the original expression a clone
+      expr->expr = env.cloneExpr(expr->expr);
 
       // traverse only the elaboration
       //ctorStatement->traverse(env);    // 'makeCtorStatement' does this internally

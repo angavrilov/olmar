@@ -334,6 +334,10 @@ public:      // data
   bool forward;               // true when it's only fwd-declared
   Keyword keyword;            // keyword used to introduce the type
 
+  // When true, this is a GNU transparent union.  I think adding
+  // a bool like this is inelegant, but oh well.
+  bool isTransparentUnion;
+
   // nonstatic data members, in the order they appear within the body
   // of the class definition; note that this is partially redundant
   // with the Scope's 'variables' map, and hence should not be changed
