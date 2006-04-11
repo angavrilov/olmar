@@ -141,9 +141,18 @@ public:
   // when true, "_Bool" is a built-in type keyword (C99)
   bool predefined_Bool;
 
-  // when true, a function definition with 'extern' and 'inline'
-  // keywords is treated like a prototype
-  bool treatExternInlineAsPrototype;
+  // dsw: when true, a function definition with 'extern' and 'inline'
+  // keywords is handled specially.  How exactly is a function of the
+  // optimization conditions; these are not language conditions so
+  // they are handed by a tracing flag rather than by a language flag.
+  // The tracing flag is 'handleExternInline-asPrototype'.  If true,
+  // then we simply ignore the body of an extern inline.  When false
+  // we handle extern inlines as weak static inlines: the 'extern
+  // inline' is converted to 'static inline' and if another definition
+  // in the translation unit is found, it replaces that of the extern
+  // inline.  These two modes seem to reflect the behavior of gcc
+  // 3.4.6 when optimizations are off and on respectively.
+  bool handleExternInlineSpecially;
 
   // dsw: C99 std 6.4.5p5: "For character string literals, the array
   // elements have type char...."; Cppstd 2.13.4p1: "An ordinary
@@ -251,5 +260,8 @@ public:      // funcs
   void ANSI_Cplusplus();    // settings for ANSI C++ 98
   void GNU_Cplusplus();     // settings for GNU C++
 };
+
+bool handleExternInline_asPrototype();
+bool handleExternInline_asWeakStaticInline();
 
 #endif // CCLANG_H

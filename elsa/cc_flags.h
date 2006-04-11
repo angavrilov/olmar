@@ -114,6 +114,8 @@ enum DeclFlags {
   DF_TEMPL_PARAM = 0x20000000,    // template parameter (bound only to itself)
   DF_USING_ALIAS = 0x40000000,    // this is a 'using' alias
   DF_BITFIELD    = 0x80000000,    // this is a bitfield
+  DF_GNU_EXTERN_INLINE            // dsw: was extern inline (record since might be changed to static inline)
+                 = 0x02000000,
 
   // These flags are used by the old (direct C -> VC) verifier client
   // analysis; I will remove them once I finish transitioning to the
@@ -123,9 +125,6 @@ enum DeclFlags {
   DF_ADDRTAKEN   = 0x00008000,    // true if it's address has been (or can be) taken
   DF_UNIVERSAL   = 0x00020000,    // universally-quantified variable
   DF_EXISTENTIAL = 0x00040000,    // existentially-quantified
-
-  // not used
-  DF_unused      = 0x02000000,    // (available)
 
   ALL_DECLFLAGS  = 0xFFFFFFFF,
   NUM_DECLFLAGS  = 32             // # bits set to 1 in ALL_DECLFLAGS

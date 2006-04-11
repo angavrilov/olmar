@@ -442,8 +442,9 @@ void Function::tcheck(Env &env, Variable *instV)
 
   // supply DF_DEFINITION?
   DeclFlags dfDefn = (checkBody? DF_DEFINITION : DF_NONE);
-  if (env.lang.treatExternInlineAsPrototype &&
-      dflags >= (DF_EXTERN | DF_INLINE)) {
+  if (dflags >= (DF_EXTERN | DF_INLINE) &&
+      env.lang.handleExternInlineSpecially &&
+      handleExternInline_asPrototype()) {
     // gcc treats extern-inline function definitions specially:
     //
     //   http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Inline.html
@@ -658,8 +659,9 @@ void Function::tcheckBody(Env &env)
   // stop extending the named scope, if there was one
   env.retractScopeSeq(qualifierScopes);
 
-  if (env.lang.treatExternInlineAsPrototype &&
-      dflags >= (DF_EXTERN | DF_INLINE)) {
+  if (dflags >= (DF_EXTERN | DF_INLINE) &&
+      env.lang.handleExternInlineSpecially &&
+      handleExternInline_asPrototype()) {
     // more extern-inline nonsense; skip 'funcDefn' setting
     return;
   }
@@ -680,10 +682,19 @@ void Function::tcheckBody(Env &env)
   //
   // UPDATE: I've changed this invariant, as I need to point the
   // funcDefn at the definition even if the body has not been tchecked.
-  if (nameAndParams->var->funcDefn) {
-    xassert(nameAndParams->var->funcDefn == this);
+  Function *&vfd = nameAndParams->var->funcDefn;
+  if (vfd) {
+    if (nameAndParams->var->hasFlag(DF_GNU_EXTERN_INLINE)) {
+      // we should not even get here if we are handling extern inlines
+      // as prototypes as there is no function definition to override
+      xassert(handleExternInline_asWeakStaticInline());
+      // dsw: stomp on the old definition if it was an extern inline
+      vfd = this;
+    } else {
+      xassert(vfd == this);
+    }
   } else {
-    nameAndParams->var->funcDefn = this;
+    vfd = this;
   }
 }
 
@@ -3467,6 +3478,24 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
   // DF_FRIEND gets turned off by 'declareNewVariable' ...
   bool isFriend = !!(dt.dflags & DF_FRIEND);
+
+  if ((dt.dflags >= (DF_EXTERN | DF_INLINE)) && env.lang.handleExternInlineSpecially) {
+    // dsw: We want to add a flag saying that this isn't really an
+    // extern inline.  This is necessary because sometimes we still
+    // need to know later that it started off as an extern inline even
+    // though it is now a static inline.  One such place is if this
+    // function has two definitions in the same translation unit; the
+    // second one stomps on the first, but we only allow this if the
+    // first was an extern inline.
+    dt.dflags |= DF_GNU_EXTERN_INLINE;
+    // if this isn't filled in by now we have a problem
+    xassert(dt.context != DC_UNKNOWN);
+    if (dt.context == DC_FUNCTION && handleExternInline_asWeakStaticInline()) {
+      // convert it to static inline
+      dt.dflags &= ~DF_EXTERN;  // substract the 'extern'
+      dt.dflags |= DF_STATIC;   // add the 'static'
+    }
+  }
 
   bool callerPassedInstV = false;
   if (!dt.existingVar) {

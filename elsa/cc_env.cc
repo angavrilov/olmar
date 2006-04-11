@@ -2667,6 +2667,18 @@ bool Env::almostEqualTypes(Type const *t1, Type const *t2,
 // updates some data structures so that future checks can be made
 bool multipleDefinitionsOK(Env &env, Variable *prior, DeclFlags dflags)
 {
+  // dsw: this seems like it might be the natural place to deal with
+  // gnu extern inline functions that are being handled as weak static
+  // inline functions: we allow them to be redefined (this is the
+  // point of considering them to be 'weak').
+  if (prior->hasFlag(DF_GNU_EXTERN_INLINE)) {
+    // we should not get here if handleExternInline_asPrototype() as
+    // there is no definition to override
+    xassert(handleExternInline_asWeakStaticInline());
+    xassert(prior->type->isFunctionType());
+    return true;
+  }
+
   if (!env.lang.uninitializedGlobalDataIsCommon) {
     return false;
   }
