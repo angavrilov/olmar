@@ -194,7 +194,7 @@ SLWHITE   [ \t]
              /*[2] == 'r'*/TOK_PURE_VIRTUAL ;
 }
 
-("verbatim"|"impl_verbatim") {
+("verbatim"|"impl_verbatim"|"ocaml_type_verbatim") {
   TOK_UPD_COL;
 
   // need to see one more token before we begin embedded processing
@@ -205,7 +205,7 @@ SLWHITE   [ \t]
   embedded->reset();
   embedMode = TOK_EMBEDDED_CODE;
   return yytext[0]=='v'? TOK_VERBATIM :
-                         TOK_IMPL_VERBATIM ;
+    (yytext[0]=='i' ? TOK_IMPL_VERBATIM : TOK_OCAML_TYPE_VERBATIM);
 }
 
 "custom" {

@@ -85,6 +85,9 @@ ASTList<ListClass> listClasses;
 // true if the user wants the xmlPrint stuff
 bool wantXMLPrint = false;
 
+// true if the user wants the ocaml interface (including a visitor)
+bool wantOcaml = false;
+
 // true if the user wants the gdb() functions
 bool wantGDB = false;
 
@@ -110,6 +113,12 @@ protected:        // data
   ofstream out;                     // output stream
   ASTSpecFile const &file;          // AST specification
 
+  // comment syntax, place defaults here, derived classes 
+  // might overwrite this in their constructor
+  string commentStart;
+  string commentEnd;
+
+
 public:           // funcs
   Gen(rostring srcFname, ObjList<string> const &modules,
       rostring destFname, ASTSpecFile const &file);
@@ -129,7 +138,9 @@ Gen::Gen(rostring srcfn, ObjList<string> const &mods,
     modules(mods),
     destFname(destfn),
     out(toCStr(destfn)),
-    file(f)
+    file(f),
+    commentStart("// "),
+    commentEnd("")
 {
   if (!out) {
     throw_XOpen(destfn);
@@ -270,12 +281,15 @@ bool isTreeListType(rostring type)
 // the type in the template argument angle brackets; this is used
 // to get the name of the type so we can pass it to the macros
 // which print list contents
+// DOES NOT WORK FOR NESTED LISTS
 string extractListType(rostring type)
 {
   xassert(isListType(type) || isFakeListType(type));
   char const *langle = strchr(toCStr(type), '<');
   char const *rangle = strchr(toCStr(type), '>');
   xassert(langle && rangle);
+  xassert(strchr(langle+1, '<') == NULL &&
+	  strchr(rangle+1, '>') == NULL);
   return trimWhitespace(substring(langle+1, rangle-langle-1));
 }
 
@@ -320,22 +334,25 @@ string extractFieldName(rostring decl)
 // the changes to where they were supposed to go ..
 void Gen::doNotEdit()
 {
-  out << "// *** DO NOT EDIT ***\n";
+  out << commentStart << "*** DO NOT EDIT ***" << commentEnd << endl;
 }
 
 
 void Gen::headerComments()
 {
-  out << "// " << sm_basename(destFname) << "\n";
+  out << commentStart << sm_basename(destFname) << commentEnd << "\n";
   doNotEdit();
-  out << "// generated automatically by astgen, from " << sm_basename(srcFname) << "\n";
+  out << commentStart 
+      << "generated automatically by astgen, from " 
+      << sm_basename(srcFname) 
+      << commentEnd << "\n";
   
   if (modules.count()) {
-    out << "// active extension modules:";
+    out << commentStart << "active extension modules:";
     FOREACH_OBJLIST(string, modules, iter) {
       out << " " << *(iter.data());
     }
-    out << "\n";
+    out << commentEnd << "\n";
   }
 
   // the inclusion of the date introduces gratuitous changes when the
@@ -3009,6 +3026,201 @@ void XmlParserGen::emitXmlParserImplementation()
 }
 
 
+// ---------------------- generation of ocaml files ----------------------
+class OTGen : public Gen {
+private:	// funcs
+  void ocaml_type(string type);
+public:		// funcs
+  OTGen(rostring srcFname, ObjList<string> const &modules,
+       rostring destFname, ASTSpecFile const &file)
+    : Gen(srcFname, modules, destFname, file)
+  {
+    commentStart = "(* ";
+    commentEnd = " *)";
+  };
+
+  void emitVerbatim(TF_ocaml_type_verbatim const *v);
+  void emitType(TF_class const *c, bool * first_type);
+  void emitFile();
+};
+
+
+void OTGen::emitVerbatim(TF_ocaml_type_verbatim const *v)
+{
+  doNotEdit();
+  out << commentStart << "ocaml type verbatim start" << commentEnd << endl;
+  out << v->code;
+  out << commentStart << "ocaml type verbatim end" << commentEnd 
+      << endl << endl;
+}
+
+// (un-) capitalize strings, needed for ocaml's upper and lower case identifiers
+string capitalize(string src){
+  if (islower(src[0]))
+    src[0] = toupper(src[0]);
+  return src;
+}
+
+string uncapitalize(string src){
+  if (isupper(src[0]))
+    src[0] = tolower(src[0]);
+  return src;
+}
+
+string ocaml_constructor(string ctor) {
+  return(capitalize(ctor));
+}
+
+// convert src to a corresponding ocaml type
+void OTGen::ocaml_type(string type){
+  if (isPtrKind(type)) {
+    type = trimWhitespace(substring(type, strlen(type)-1));
+
+    xassert(!isPtrKind(type));	// don't treat ** types
+  }
+
+  if(isListType(type) || isFakeListType(type)) {
+    ocaml_type(extractListType(type));
+    out << " list";
+    return;
+  }
+
+  // Type declarations that point to subclasses cannot appropriatelly 
+  // translated to ocaml (as long as we use simple ocaml variant types).
+  // So we output the supertype and add a comment on what to expect.
+  if(isSubclassTreeNode(type)) {
+    ocaml_type(getSuperTypeOf(type));
+    out << " " << commentStart << "= " 
+	<< ocaml_constructor(type)
+	<< " " << commentEnd;
+  }
+  else if(isSuperclassTreeNode(type)) {
+    // appent _type to avoid clashes with ocamls keywords
+    out << uncapitalize(type) << "_type";
+  }
+  else {
+    out << uncapitalize(type);
+  }
+}
+
+
+void OTGen::emitType(TF_class const *c, bool * first_type) {
+  if (*first_type) {
+    out << "type ";
+    *first_type = false;
+  }
+  else 
+    out << "and ";
+  
+  ocaml_type(c->super->name);
+  out << " = ";
+
+  ASTList<CtorArg> *super_args = &c->super->args;
+  ASTList<CtorArg> *super_last_args = &c->super->lastArgs;
+
+  if (c->hasChildren()) {
+    out << endl;
+    FOREACH_ASTLIST(ASTClass, c->ctors, c_iter) {
+      ASTClass const *ctor = c_iter.data();
+      out << "  | " << ocaml_constructor(ctor->name);
+      
+      // output ctor arguments if there are any
+      xassert(ctor->lastArgs.isEmpty());
+      if(super_args->isNotEmpty() || ctor->args.isNotEmpty() 
+	 || super_last_args->isNotEmpty()) 
+	{
+	  bool not_first = false;
+	  out << " of ";
+	  FOREACH_ASTLIST(CtorArg, *super_args, arg) {
+	    if (not_first)
+	      out << "* ";
+	    else
+	      not_first = true;
+	    ocaml_type(arg.data()->type);
+	    out << " ";
+	  }
+	  
+	  FOREACH_ASTLIST(CtorArg, ctor->args, arg) {
+	    if (not_first)
+	      out << "* ";
+	    else
+	      not_first = true;
+	    ocaml_type(arg.data()->type);
+	    out << " ";
+	  }
+
+	  FOREACH_ASTLIST(CtorArg, *super_last_args, arg) {
+	    if (not_first)
+	      out << "* ";
+	    else
+	      not_first = true;
+	    ocaml_type(arg.data()->type);
+	    out << " ";
+	  }
+	}
+      out << endl;
+    }
+    out << endl;
+  }
+  else { // c has no children, make it a type equation
+    if(super_args->isNotEmpty() || super_last_args->isNotEmpty()) {
+      bool not_first = false;
+      FOREACH_ASTLIST(CtorArg, *super_args, arg) {
+	if (not_first)
+	  out << "* ";
+	else
+	  not_first = true;
+	ocaml_type(arg.data()->type);
+	out << " ";
+      }
+      
+      FOREACH_ASTLIST(CtorArg, *super_last_args, arg) {
+	if (not_first)
+	  out << "* ";
+	else
+	  not_first = true;
+	ocaml_type(arg.data()->type);
+	out << " ";
+      }
+    }
+    else { // no children, no arguments
+      cout << " = unit";
+    }
+    out << endl << endl;
+  }
+}
+
+
+void OTGen::emitFile()
+{
+  headerComments();
+  bool first_type = true;
+
+  FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
+    switch (form.data()->kind()) {
+    case ToplevelForm::TF_OCAML_TYPE_VERBATIM:
+      emitVerbatim( form.data()->asTF_ocaml_type_verbatimC() );
+      break;
+      
+    case ToplevelForm::TF_CLASS:
+      emitType( form.data()->asTF_classC(), &first_type);
+      break;
+      
+    default:
+      // ignore everything else
+      break;
+    }
+  }
+
+  out << endl;
+  out << "(*** Local Variables: ***)" << endl;
+  out << "(*** compile-command : \"ocamlc.opt -c " 
+      << sm_basename(destFname)
+      << "\" ***)" << endl;
+  out << "(*** End: ***)" << endl;
+}
+
+
 // -------------------- extension merging ------------------
 // the 'allClasses' list is filled in after merging, so I
 // can't use it in this section
@@ -3363,6 +3575,9 @@ void entry(int argc, char **argv)
         else if (op->name.equals("gdb")) {
           wantGDB = true;
         }
+	else if (op->name.equals("ocamlVisitor")) {
+	  wantOcaml = true;
+	}
         else {
           xfatal("unknown option: " << op->name);
         }
@@ -3401,6 +3616,14 @@ void entry(int argc, char **argv)
     CGen cg(srcFname, modules, codeFname, *ast, hdrFname);
     cout << "writing " << codeFname << "...\n";
     cg.emitFile();
+
+    // generated ocaml code
+    if (wantOcaml) {
+      string ocamlFname = base & ".ml";
+      OTGen og(srcFname, modules, ocamlFname, *ast);
+      cout << "writing " << ocamlFname << " ..." << endl;
+      og.emitFile();
+    }
 
     // dsw: the xml parser stuff won't use the custom sections, so
     // this generates a lot of spurious warnings if I put it outside

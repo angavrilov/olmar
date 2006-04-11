@@ -37,6 +37,7 @@ ToplevelForm::~ToplevelForm()
 char const * const ToplevelForm::kindNames[ToplevelForm::NUM_KINDS] = {
   "TF_verbatim",
   "TF_impl_verbatim",
+  "TF_ocaml_type_verbatim",
   "TF_class",
   "TF_option",
   "TF_custom",
@@ -88,6 +89,29 @@ void TF_impl_verbatim::debugPrint(ostream &os, int indent, char const *subtreeNa
 TF_impl_verbatim *TF_impl_verbatim::clone() const
 {
   TF_impl_verbatim *ret = new TF_impl_verbatim(
+    code
+  );
+  return ret;
+}
+
+DEFN_AST_DOWNCASTS(ToplevelForm, TF_ocaml_type_verbatim, TF_OCAML_TYPE_VERBATIM)
+
+TF_ocaml_type_verbatim::~TF_ocaml_type_verbatim()
+{
+}
+
+void TF_ocaml_type_verbatim::debugPrint(ostream &os, int indent, char const *subtreeName) const
+{
+  PRINT_HEADER(subtreeName, TF_ocaml_type_verbatim);
+
+  ToplevelForm::debugPrint(os, indent, subtreeName);
+
+  PRINT_STRING(code);
+}
+
+TF_ocaml_type_verbatim *TF_ocaml_type_verbatim::clone() const
+{
+  TF_ocaml_type_verbatim *ret = new TF_ocaml_type_verbatim(
     code
   );
   return ret;

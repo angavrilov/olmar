@@ -54,6 +54,7 @@
 %token TOK_PROTECTED "protected"
 %token TOK_VERBATIM "verbatim"
 %token TOK_IMPL_VERBATIM "impl_verbatim"
+%token TOK_OCAML_TYPE_VERBATIM "ocaml_type_verbatim"
 %token TOK_CTOR "ctor"
 %token TOK_DTOR "dtor"
 %token TOK_PURE_VIRTUAL "pure_virtual"
@@ -288,6 +289,8 @@ Verbatim: "verbatim" Embedded
             { $$ = new TF_verbatim(unbox($2)); }
         | "impl_verbatim" Embedded
             { $$ = new TF_impl_verbatim(unbox($2)); }
+        | "ocaml_type_verbatim" Embedded
+            { $$ = new TF_ocaml_type_verbatim(unbox($2)); }
         ;
 
 /* yields TF_option */
