@@ -1,3 +1,5 @@
+*.cmi
+*.cmo
 a.cc
 a.h
 test-ast.cc

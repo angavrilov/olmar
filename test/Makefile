@@ -15,9 +15,13 @@ testall: testa testast testelsa
 testa:
 	../ast/astgen a.ast
 
+
+FILES += ast/ast.ast
 testast:
 	../ast/astgen test-ast.ast
 
+FILES += elsa/cc.ast elsa/cc_tcheck.ast elsa/cc_print.ast elsa/cc_elaborate.ast
+FILES += elsa/gnu.ast elsa/kandr.ast
 testelsa:
 	../ast/astgen -otest-cc.ast.gen \
 		test-cc.ast \
@@ -29,7 +33,8 @@ testelsa:
 		test-kandr.ast
 
 astgen.E: ../ast/astgen.cc
-	$(GPP) -E -o astgen.E ../ast/astgen.cc -Wall -D__UNIX__ -DNDEBUG -D__LINUX__ -I../smbase
+	$(GPP) -E -o astgen.E ../ast/astgen.cc -Wall \
+		-D__UNIX__ -DNDEBUG -D__LINUX__ -I../smbase
 
 
 .PHONY: astgen.xml
@@ -37,10 +42,12 @@ astgen.E: ../ast/astgen.cc
 astgen.xml: astgen.xml.expr astgen.xml.type
 
 astgen.xml.expr: astgen.E ../elsa/ccparse
-	../elsa/ccparse -tr xmlPrintAST,xmlPrintAST-indent astgen.E > astgen.xml.expr
+	../elsa/ccparse -tr xmlPrintAST,xmlPrintAST-indent astgen.E \
+		> astgen.xml.expr
 
 astgen.xml.type: astgen.E ../elsa/ccparse
-	../elsa/ccparse -tr xmlPrintAST,xmlPrintAST-indent,xmlPrintAST-types astgen.E > astgen.xml.type
+	../elsa/ccparse -tr xmlPrintAST,xmlPrintAST-indent,xmlPrintAST-types \
+		astgen.E > astgen.xml.type
 
 
 .PHONY: t.xml t.xml.type
@@ -65,8 +72,19 @@ t.xml.type: t.E
 		> t.xml.type
 
 
+.PHONY: diff
+
+diff:
+	for f in $(FILES); do \
+	    echo ============================================================; \
+	    echo =========== diff $$f test-`basename $$f` ===============; \
+	    echo ============================================================; \
+	    diff ../$$f test-`basename $$f`; \
+	done
 
 
+
+.PHONY: clean
 clean:
 	rm -f t.xml.* t.E
 	rm -f astgen.{E,xml.type,xml.expr}

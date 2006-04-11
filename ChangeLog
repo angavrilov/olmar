@@ -1,0 +1,14 @@
+2006-04-11  Hendrik Tews  <tews@debian>
+
+	* generate ocaml type defs for ast's:
+	  - ast changes:
+	    + ocaml_type_verbatim section to be included in the ocaml type
+	      def file
+	    + option ocamlVisitor to request the generation of the ocaml
+	      interface 
+	  - new subclass TF_ocaml_type_verbatim for ocaml_type_verbatim
+	  - adopted parser/lexer for TF_ocaml_type_verbatim
+	  - factor out comment syntax in Gen, to produce ocaml comments 
+	  - new class OTGen to generate the ocaml code 
+	  - added one assertion to extractListType
+
