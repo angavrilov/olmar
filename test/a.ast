@@ -1,0 +1,28 @@
+class A(int id){
+  -> A_B(B b){
+  }
+
+  -> A_C(ASTList<C> cl);
+}
+
+class B(int id, string s);
+
+
+class C{
+  -> C_A(int id);
+  -> C_B(string s);
+}
+
+
+option visitor walk;
+option dvisitor ddd;
+option mvisitor mmm;
+option xmlVisitor xmlvisit;
+option xmlPrint xmlprint;
+
+option ocamlVisitor;
+
+
+/// Local Variables: ///
+/// compile-command : "../ast/astgen a.ast" ///
+/// End: ///
