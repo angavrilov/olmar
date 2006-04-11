@@ -3071,7 +3071,7 @@ string ocaml_constructor(string ctor) {
   return(capitalize(ctor));
 }
 
-// convert src to a corresponding ocaml type
+// output type as an ocaml type
 void OTGen::ocaml_type(string type){
   if (isPtrKind(type)) {
     type = trimWhitespace(substring(type, strlen(type)-1));
@@ -3085,7 +3085,7 @@ void OTGen::ocaml_type(string type){
     return;
   }
 
-  // Type declarations that point to subclasses cannot appropriatelly 
+  // Type declarations that point to subclasses cannot appropriatelly be
   // translated to ocaml (as long as we use simple ocaml variant types).
   // So we output the supertype and add a comment on what to expect.
   if(isSubclassTreeNode(type)) {
@@ -3103,6 +3103,25 @@ void OTGen::ocaml_type(string type){
   }
 }
 
+
+// test if a class has ctor arguments of its own type
+// cyclic classes with subclasses pose no problems, however
+// a cyclic class without subclasses cannot be translated into a 
+// simple type equation
+bool is_cyclic(TF_class const *c, 
+	       ASTList<CtorArg> *args, ASTList<CtorArg> *lastargs) {
+
+  string & my_name = c->super->name;
+  FOREACH_ASTLIST(CtorArg, *args, arg) {
+    if (my_name.equals(arg.data()->type))
+      return true;
+  }
+  FOREACH_ASTLIST(CtorArg, *lastargs, arg) {
+    if (my_name.equals(arg.data()->type))
+      return true;
+  }
+  return false;
+}
 
 void OTGen::emitType(TF_class const *c, bool * first_type) {
   if (*first_type) {
@@ -3164,7 +3183,14 @@ void OTGen::emitType(TF_class const *c, bool * first_type) {
   }
   else { // c has no children, make it a type equation
     if(super_args->isNotEmpty() || super_last_args->isNotEmpty()) {
+      bool cyclic = is_cyclic(c, super_args, super_last_args);
       bool not_first = false;
+
+      if (cyclic) {
+	out << endl;
+	out << "  | " << capitalize(c->super->name) << "_cons of ";
+      }
+
       FOREACH_ASTLIST(CtorArg, *super_args, arg) {
 	if (not_first)
 	  out << "* ";

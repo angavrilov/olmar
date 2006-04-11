@@ -57,18 +57,19 @@ t.E: t.c
 
 t.xml: t.xml.expr t.xml.type
 
+#		| sed -e 's/[A-Z]\{2,3\}0x[0-9a-f]*/ASTPOINTER/g' \
 t.xml.expr: t.E 
-	../orig-elsa/elsa/ccparse \
+	../elsa/ccparse \
 		-tr xmlPrintAST,xmlPrintAST-indent \
 		t.E \
-		| sed -e 's/[A-Z]\{2,3\}0x[0-9a-f]*/ASTPOINTER/g' \
 		> t.xml.expr
 
+
+#		| sed -e 's/[A-Z]\{2,3\}0x[0-9a-f]*/ASTPOINTER/g' \
 t.xml.type: t.E 
-	../orig-elsa/elsa/ccparse \
+	../elsa/ccparse \
 		-tr xmlPrintAST,xmlPrintAST-indent,xmlPrintAST-types \
 		t.E \
-		| sed -e 's/[A-Z]\{2,3\}0x[0-9a-f]*/ASTPOINTER/g' \
 		> t.xml.type
 
 

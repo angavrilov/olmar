@@ -47,10 +47,10 @@ class Function {
 }
 
 
-class PQName {  
-  // denote an existing Variable; avoids having to create syntax
-  -> PQ_variable(Variable *var);
-}
+// class PQName {  
+//   // denote an existing Variable; avoids having to create syntax
+//   -> PQ_variable(Variable *var);
+// }
 
 
 // class TypeSpecifier {

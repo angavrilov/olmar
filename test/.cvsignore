@@ -1,7 +1,10 @@
 *.cmi
 *.cmo
+*.E
 a.cc
 a.h
+astgen.xml.*
+t.xml.*
 test-ast.cc
 test-ast.h
 test-ast.ml

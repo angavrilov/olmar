@@ -1,5 +1,9 @@
 2006-04-11  Hendrik Tews  <tews@debian>
 
+	* fixed problem with cyclic classes like AttributeSpecifier and
+	  AttributeSpecifierList; I generate a variant type now instead of
+	  an type equation. 
+
 	* generate ocaml type defs for ast's:
 	  - ast changes:
 	    + ocaml_type_verbatim section to be included in the ocaml type
