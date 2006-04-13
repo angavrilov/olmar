@@ -1192,6 +1192,7 @@ if $use_gnu; then
   testparse gnu/k0003.cc #"gcc 3.4 __builtin_* math functions"
   testparse gnu/k0004.cc #"operator <?"
   testparse gnu/k0005.cc #"comparing long long to enum value"
+  failparse gnu/k0006.cc "there is no function called \`__offsetof__\'"
 
 else # tests that only pass when not in gnu mode
   testparse t0228b.cc
@@ -1376,7 +1377,7 @@ if $use_gnu; then
   testCparse gnu/dC0014.c # "'u32 long off' doesn't parse"
   testCparse gnu/dC0015.c # function scope structs can contain arrays of dynamic size
   testCparse gnu/dC0016.c
-  
+
   # transparent unions
   testCparse gnu/t0133.c
   testCparse gnu/t0134.c
