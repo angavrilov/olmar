@@ -3500,6 +3500,10 @@ void Env::handleTypeOfMain(SourceLoc loc, Variable *prior, Type *&type)
     return;    // presumably already reported
   }
 
+  // dsw: during Declarator::mid_tcheck() I made sure that if this is
+  // a global main function that it ends up with a DF_EXTERN_C flag
+  xassert(prior->hasFlag(DF_EXTERN_C));
+
   FunctionType *priorFt = prior->type->asFunctionType();
   if (priorFt->hasFlag(FF_NO_PARAM_INFO)) {
     // (in/c/dC0025.c) punt: just let the prior defn be, and hope

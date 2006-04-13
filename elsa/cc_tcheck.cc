@@ -3497,6 +3497,18 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     }
   }
 
+  // dsw: the global function 'main' seems to always be considered to
+  // be DF_EXTERN_C even in C++ mode whether it likes it or not; FIX:
+  // I wonder if this should go down inside the 'if' below that ends
+  // up calling handleTypeOfMain(); I like it here because the
+  // DF_EXTERN_C ends up on the declaration as well I think, whereas
+  // if I put it there it just ends up on the Variable; maybe just on
+  // the Variable would be better and also we wouldn't have to
+  // differnt 'if' statements that are testing different conditions.
+  if (env.scope()->isGlobalScope() && name->isPQ_name() && name->asPQ_name()->name == env.string_main) {
+    dt.dflags |= DF_EXTERN_C;
+  }
+
   bool callerPassedInstV = false;
   if (!dt.existingVar) {
     // make a Variable, add it to the environment
