@@ -1,3 +1,7 @@
+2006-04-14  Hendrik Tews  <tews@debian>
+
+	* added callback registration
+
 2006-04-13  Hendrik Tews  <tews@debian>
 
 	* added constructor callback definitions

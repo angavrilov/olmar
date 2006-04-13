@@ -3044,6 +3044,7 @@ public:		// funcs
   void emitVerbatim(TF_ocaml_type_verbatim const *v);
   void emitType(TF_class const *c, bool * first_type);
   void emitConstructorCallbacks(TF_class const *cl);
+  void emitRegisterCallbacks();
   void emitFile();
 };
 
@@ -3074,8 +3075,27 @@ string ocaml_constructor(string ctor) {
   return(capitalize(ctor));
 }
 
+string ocaml_type_constructor(string t) {
+  return(capitalize(t) & "_cons");
+}
+
+
+string ocaml_callback(string ast_file) {
+  return(string("register_") &
+	 translate(ast_file, "\001-\057\072-\100\133-\140\173-\176", 
+		   "_________________________________________________________"
+		   "_____________"
+		   ) &
+	 "_callbacks"
+	 );
+}
+
 string ocaml_constructor_callback(string ctor) {
   return((string("create_") & ctor) & "_constructor");
+}
+
+string ocaml_tuple_callback(string t) {
+  return((string("create_") & t ) & "_tuple");
 }
 
 // output type as an ocaml type
@@ -3195,7 +3215,7 @@ void OTGen::emitType(TF_class const *c, bool * first_type) {
 
       if (cyclic) {
 	out << endl;
-	out << "  | " << capitalize(c->super->name) << "_cons of ";
+	out << "  | " << ocaml_type_constructor(c->super->name) << " of ";
       }
 
       FOREACH_ASTLIST(CtorArg, *super_args, arg) {
@@ -3270,9 +3290,84 @@ void OTGen::emitConstructorCallbacks(TF_class const *cl)
 	// constructor has no arguments 
 	out << "() = " << ocaml_constructor(ctor->name) << endl << endl;
       }
-
     }
   }
+  else {
+    bool cyclic = is_cyclic(cl, super_args, super_last_args);
+    int args = super_args->count() + super_last_args->count();
+
+    out << "let ";
+    if(cyclic) 
+      out << ocaml_constructor_callback(
+			 ocaml_type_constructor(cl->super->name));
+    else
+      out << ocaml_tuple_callback(cl->super->name);
+    out << " ";
+    if(args != 0){
+      // Constructor has arguments
+      for(int i = 0; i < args; i++){
+	out << "a" << i << " ";
+      }
+      if(cyclic)
+	out << "= " << ocaml_type_constructor(cl->super->name)
+	    << "(";
+      else
+	out << "= (";
+      for(int i = 0; i < args; i++){
+	out << "a" << i;
+	if(i < args-1)
+	  out << ", ";
+      }
+      out << ")" << endl << endl;
+    }
+    else {
+      // constructor has no arguments 
+      xassert(!cyclic);
+      out << "() = ()" << endl << endl;
+    }
+  }
+}
+
+void OTGen::emitRegisterCallbacks()
+{
+  topicComment("Register callbacks");
+
+  string ocaml_cb = ocaml_callback(srcFname);
+  out << "let " << ocaml_cb << " () =" << endl;
+
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    TF_class const *cl = iter.data();
+    if (cl->hasChildren()) {
+      FOREACH_ASTLIST(ASTClass, cl->ctors, c_iter) {
+	ASTClass const *ctor = c_iter.data();
+
+	string cb = ocaml_constructor_callback(ctor->name);
+	out << "  Callback.register" << endl
+	    << "    \"" << cb << "\"" << endl
+	    << "    " << cb << ";" << endl;
+      }
+    }
+    else {
+      ASTList<CtorArg> *super_args = &cl->super->args;
+      ASTList<CtorArg> *super_last_args = &cl->super->lastArgs;
+      bool cyclic = is_cyclic(cl, super_args, super_last_args);
+      string cb;
+      if (cyclic)
+	cb = ocaml_constructor_callback(
+			 ocaml_type_constructor(cl->super->name));
+      else
+	cb = ocaml_tuple_callback(cl->super->name);
+      out << "  Callback.register" << endl
+	  << "    \"" << cb << "\"" << endl
+	  << "    " << cb << ";" << endl;
+    }
+  }
+  out << "  ()" << endl << endl;
+
+  out << "let _ = Callback.register" << endl
+      << "    \"" << ocaml_cb << "\"" << endl
+      << "    " << ocaml_cb 
+      << endl << endl;
 }
 
 void OTGen::emitFile()
@@ -3304,6 +3399,7 @@ void OTGen::emitFile()
     emitConstructorCallbacks(iter.data());
   }
 
+  emitRegisterCallbacks();
 
   out << endl;
   out << "(*** Local Variables: ***)" << endl;
