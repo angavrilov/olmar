@@ -1,3 +1,7 @@
+2006-04-13  Hendrik Tews  <tews@debian>
+
+	* added constructor callback definitions
+
 2006-04-11  Hendrik Tews  <tews@debian>
 
 	* fixed problem with cyclic classes like AttributeSpecifier and

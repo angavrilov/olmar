@@ -3039,8 +3039,11 @@ public:		// funcs
     commentEnd = " *)";
   };
 
+  void topicComment(string topic);
+
   void emitVerbatim(TF_ocaml_type_verbatim const *v);
   void emitType(TF_class const *c, bool * first_type);
+  void emitConstructorCallbacks(TF_class const *cl);
   void emitFile();
 };
 
@@ -3069,6 +3072,10 @@ string uncapitalize(string src){
 
 string ocaml_constructor(string ctor) {
   return(capitalize(ctor));
+}
+
+string ocaml_constructor_callback(string ctor) {
+  return((string("create_") & ctor) & "_constructor");
 }
 
 // output type as an ocaml type
@@ -3216,11 +3223,64 @@ void OTGen::emitType(TF_class const *c, bool * first_type) {
   }
 }
 
+void OTGen::topicComment(string topic)
+{
+  out << endl;
+  out << commentStart 
+      << "*********************************************************************"
+      << endl;
+  out << " * *********** " << topic << " ******************" << endl;;
+  out << " * " 
+      << "*********************************************************************"
+      << commentEnd << endl;
+  out << endl;
+}
+
+
+void OTGen::emitConstructorCallbacks(TF_class const *cl)
+{
+  topicComment(string("callbacks for ") & cl->super->name);
+
+  ASTList<CtorArg> *super_args = &cl->super->args;
+  ASTList<CtorArg> *super_last_args = &cl->super->lastArgs;
+
+  if (cl->hasChildren()) {
+    FOREACH_ASTLIST(ASTClass, cl->ctors, c_iter) {
+      ASTClass const *ctor = c_iter.data();
+
+      out << "let " << ocaml_constructor_callback(ctor->name) << " ";
+
+      int args = super_args->count() + super_last_args->count() +
+	ctor->args.count();
+
+      if(args != 0){
+	// Constructor has arguments
+	for(int i = 0; i < args; i++){
+	  out << "a" << i << " ";
+	}
+	out << "= " << ocaml_constructor(ctor->name) << "(";
+	for(int i = 0; i < args; i++){
+	  out << "a" << i;
+	  if(i < args-1)
+	    out << ", ";
+	}
+	out << ")" << endl << endl;
+      }
+      else {
+	// constructor has no arguments 
+	out << "() = " << ocaml_constructor(ctor->name) << endl << endl;
+      }
+
+    }
+  }
+}
 
 void OTGen::emitFile()
 {
   headerComments();
   bool first_type = true;
+
+  topicComment("Ast type definition");
 
   FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
     switch (form.data()->kind()) {
@@ -3237,6 +3297,13 @@ void OTGen::emitFile()
       break;
     }
   }
+
+  topicComment("Constructor callbacks");
+
+  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
+    emitConstructorCallbacks(iter.data());
+  }
+
 
   out << endl;
   out << "(*** Local Variables: ***)" << endl;
