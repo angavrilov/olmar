@@ -3505,7 +3505,8 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // if I put it there it just ends up on the Variable; maybe just on
   // the Variable would be better and also we wouldn't have to
   // differnt 'if' statements that are testing different conditions.
-  if (env.scope()->isGlobalScope() && name->isPQ_name() && name->asPQ_name()->name == env.string_main) {
+  if (env.scope()->isGlobalScope() &&
+      name && name->isPQ_name() && name->asPQ_name()->name == env.string_main) {
     dt.dflags |= DF_EXTERN_C;
   }
 
