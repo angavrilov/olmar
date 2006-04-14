@@ -1054,6 +1054,7 @@ testparse k0055.cc #"using 'class' instead of 'typename' for template-class type
 testparse k0056.cc #"template friend function"
 testparse k0057.cc #"template friend function (2)"
 testparse k0058.cc #"converting to types from parameter templates"
+failparse k0059.cc "implicit type conversion in operator delete"
 
 ### </quarl-testcases-c++>
 
