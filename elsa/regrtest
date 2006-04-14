@@ -1057,6 +1057,7 @@ testparse k0058.cc #"converting to types from parameter templates"
 failparse k0059.cc "implicit type conversion in operator delete"
 failparse k0060.cc "disambiguated from multiple base class subobjects"
 failparse k0061.cc "multiple base classes instantiated from the same template class"
+failparse k0062.cc "template class with subclass whose member function with default argument is defined outside class"
 
 ### </quarl-testcases-c++>
 
