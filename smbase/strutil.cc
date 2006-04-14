@@ -47,12 +47,12 @@ string expandRanges(char const *chars)
   while (*chars) {
     if (chars[1] == '-' && chars[2] != 0) {
       // range specification
-      if (chars[0] > chars[2]) {
+      if ((unsigned char)chars[0] > (unsigned char)chars[2]) {
         xformat("range specification with wrong collation order");
       }
 
-      for (char c = chars[0]; c <= chars[2]; c++) {
-        ret << c;
+      for (int c = (unsigned char)chars[0]; c <= (unsigned char)chars[2]; c++) {
+        ret << (char)c;
       }
       chars += 3;
     }

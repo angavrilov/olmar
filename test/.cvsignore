@@ -1,6 +1,6 @@
+*.E
 *.cmi
 *.cmo
-*.E
 a.cc
 a.h
 astgen.xml.*
@@ -11,3 +11,4 @@ test-ast.ml
 test-cc.ast.gen.cc
 test-cc.ast.gen.h
 test-cc.ast.gen.ml
+translate
