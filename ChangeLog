@@ -1,5 +1,7 @@
 2006-04-14  Hendrik Tews  <tews@debian>
 
+	* use fixed translate
+
 	* fix strutil/translate bugs, add test frame test/translate.cc
 
 	* added callback registration

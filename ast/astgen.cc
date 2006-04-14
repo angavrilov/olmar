@@ -3082,9 +3082,14 @@ string ocaml_type_constructor(string t) {
 
 string ocaml_callback(string ast_file) {
   return(string("register_") &
-	 translate(ast_file, "\001-\057\072-\100\133-\140\173-\176", 
+	 translate(ast_file, "\001-\057\072-\101\133-\140\173-\377", 
+		   // don't know how many underscores we precisely need here
+		   // put 256, thats certainly enough
 		   "_________________________________________________________"
-		   "_____________"
+		   "_________________________________________________________"
+		   "_________________________________________________________"
+		   "_________________________________________________________"
+		   "____________________________"
 		   ) &
 	 "_callbacks"
 	 );
