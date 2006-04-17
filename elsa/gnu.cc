@@ -32,6 +32,7 @@ SimpleTypeId constructFloatingType(int prec, int axis);
 void Env::addGNUBuiltins()
 {
   Type *t_void = getSimpleType(ST_VOID);
+  Type *t_ellipsis_ptr = makePtrType(getSimpleType(ST_ELLIPSIS));
 //    Type *t_voidconst = getSimpleType(SL_INIT, ST_VOID, CV_CONST);
   Type *t_voidptr = makePtrType(t_void);
 //    Type *t_voidconstptr = makePtrType(SL_INIT, t_voidconst);
@@ -51,7 +52,12 @@ void Env::addGNUBuiltins()
   // typedef void *__builtin_va_list;
   Variable *var__builtin_va_list =
     makeVariable(SL_INIT, str("__builtin_va_list"),
-                 t_voidptr, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL);
+                 // dsw: in Oink, it really helps if the type is
+                 // ST_ELLIPSIS instead of void*; explanation upon
+                 // request; UPDATE: ok, that doesn't let d0125.cc
+                 // typecheck so how about a pointer to an ST_ELLIPSIS
+//                  t_voidptr, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL);
+                 t_ellipsis_ptr, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL);
   addVariable(var__builtin_va_list);
 
   // void __builtin_stdarg_start(__builtin_va_list __list, char const *__format);
@@ -65,20 +71,23 @@ void Env::addGNUBuiltins()
 //                        t_voidconstptr, "__format",
                       FF_VARARGS, NULL);
 
+
+  // varargs; dsw: I think that we should make all of these their own
+  // AST node, I just don't want to deal with the parsing ambiguity
+  // with E_funCall right now
   // void __builtin_va_start(__builtin_va_list __list, ...);
   declareFunction1arg(t_void, "__builtin_va_start",
                       var__builtin_va_list->type, "__list",
                       FF_VARARGS, NULL);
-
   // void __builtin_va_copy(__builtin_va_list dest, __builtin_va_list src);
   declareFunction2arg(t_void, "__builtin_va_copy",
                       var__builtin_va_list->type, "dest",
                       var__builtin_va_list->type, "src",
                       FF_NONE, NULL);
-
   // void __builtin_va_end(__builtin_va_list __list);
   declareFunction1arg(t_void, "__builtin_va_end",
                       var__builtin_va_list->type, "__list");
+
 
   // void *__builtin_alloca(unsigned int __len);
   declareFunction1arg(t_voidptr, "__builtin_alloca",
