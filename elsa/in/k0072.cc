@@ -2,7 +2,7 @@
 
 // originally found in package 'aspell'
 
-// ERR-MATCH:
+// ERR-MATCH: Assertion failed: .*ceae1527-94a7-480d-9134-5dbd8cbfb2aa
 
 template <class T> struct S1 {};
 
