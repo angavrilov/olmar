@@ -1067,6 +1067,7 @@ failparse k0067.cc "constructor using volatile reference"
 failparse k0068.cc "explicitly named constructor"
 failparse k0008.cc "template parameterized by function pointer"
 failparse k0069.cc "friend class as template parameter"
+failparse k0070.cc "scoping via template instantiation with all parameters defaulted"
 
 ### </quarl-testcases-c++>
 
