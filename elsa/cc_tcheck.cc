@@ -3303,6 +3303,11 @@ bool checkCompleteTypeRules(Env &env, DeclFlags dflags, DeclaratorContext contex
     return true;
   }
 
+  if (context == DC_TP_TYPE) {
+    // quarl: default parameter to template; see in/k0065.cc
+    return true;
+  }
+
   if (type->isArrayType()) {
     if (init) {
       // The array type might be incomplete now, but the initializer
