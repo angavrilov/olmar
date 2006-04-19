@@ -40,10 +40,15 @@ string replace(rostring origSrc, rostring oldstr, rostring newstr)
 }
 
 
-string expandRanges(char const *chars)
+string expandRanges(char const *chars_)
 {
   stringBuilder ret;
   
+  // Fix from Hendrik Tews: use unsigned chars to as not to fall over
+  // when ranges have values near 127 on compilers for which 'char' is
+  // signed by default (which is probably the common case)
+  unsigned char *chars = (unsigned char*)chars_;
+
   while (*chars) {
     if (chars[1] == '-' && chars[2] != 0) {
       // range specification
@@ -51,8 +56,10 @@ string expandRanges(char const *chars)
         xformat("range specification with wrong collation order");
       }
 
-      for (char c = chars[0]; c <= chars[2]; c++) {
-        ret << c;
+      // use 'int' so we can handle chars[2] == 255 (otherwise we get
+      // infinite loop)
+      for (int c = chars[0]; c <= chars[2]; c++) {
+        ret << (unsigned char)c;
       }
       chars += 3;
     }
@@ -559,7 +566,11 @@ void qsortStringArray(char const **strings, int size) {
 #ifdef TEST_STRUTIL
 
 #include "test.h"      // USUAL_MAIN
-#include <stdio.h>     // printf
+
+#include <assert.h>    // assert
+#include <fstream.h>   // ofstream
+#include <stdlib.h>    // getenv
+#include <stdio.h>     // printf, remove
 
 void expRangeVector(char const *in, char const *out)
 {
@@ -606,6 +617,36 @@ void pluralVector(int n, char const *in, char const *out)
 }
 
 
+// testcase from Hendrik Tews
+void translateAscii()
+{
+  char ascii[256];
+  char underscore[256];
+
+  for(int i=0; i<=254; i++){
+    ascii[i] = i+1;
+    underscore[i] = '_';
+  }
+  ascii[255] = 0;
+  underscore[255] = 0;
+
+  {
+    ofstream file("strutil.out");
+    assert(file);
+    file << "Hallo" << endl
+         << ascii << endl
+         << "Hallo2" << endl
+         << translate(ascii, "\001-\057\072-\101\133-\140\173-\377", underscore)
+                                          // ^^^ probably should be 100, no biggie
+         << endl;
+  }
+  
+  if (!getenv("SAVE_OUTPUT")) {
+    remove("strutil.out");
+  }
+}
+
+
 void entry()
 {
   expRangeVector("abcd", "abcd");
@@ -639,6 +680,8 @@ void entry()
   pluralVector(1, "fly", "fly");
   pluralVector(2, "fly", "flies");
   pluralVector(2, "was", "were");
+  
+  translateAscii();
 }
 
 
