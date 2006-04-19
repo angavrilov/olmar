@@ -1236,6 +1236,7 @@ nonterm(TypeSpecifier*) TypeSpecifier {
 
   -> m1:UberCVQualifierSeq e:ElaboratedOrSpecifier m2:UberCVQualifierSeqOpt
        { UberModifiers m = uberCombine(loc, m1, m2);
+         xassert(e != NULL && "ceae1527-94a7-480d-9134-5dbd8cbfb2aa");
          e->cv |= uberCVFlags(m);      // destructive action
          return e; }
 }
