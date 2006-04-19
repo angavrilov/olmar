@@ -1118,7 +1118,7 @@ Variable *Env::makeImplicitDeclFuncVar(StringRef name)
 {
   return createDeclaration
     (loc(), name,
-     makeImplicitDeclFuncType(), DF_FORWARD,
+     makeImplicitDeclFuncType(), DF_FORWARD | DF_EXTERN_C,
      globalScope(), NULL /*enclosingClass*/,
      NULL /*prior*/, NULL /*overloadSet*/);
 }
