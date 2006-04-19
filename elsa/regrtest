@@ -1064,6 +1064,7 @@ failparse k0064.cc "functions overloaded by number of template parameters"
 failparse k0065.cc "using incomplete class as default template argument"
 failparse k0066.cc "nested template class"
 failparse k0067.cc "constructor using volatile reference"
+failparse k0068.cc "explicitly named constructor"
 
 ### </quarl-testcases-c++>
 
