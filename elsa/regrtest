@@ -1092,6 +1092,7 @@ failparse k0089.cc "specialization of template function member"
 failparse k0090.cc "template specialization of array"
 failparse k0090a.cc "template specialization of array"
 failparse k0091.cc "template specialization with all default parameters"
+failparse k0092.cc "template-parameter-instantiated template class without 'typename' in constructor initializer"
 
 ### </quarl-testcases-c++>
 
