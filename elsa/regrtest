@@ -1083,6 +1083,7 @@ failparse k0081.cc "template instantiated through inferred type instantiating an
 failparse k0082.cc "const register function parameter"
 failparse k0083.cc "friend template class declaration"
 failparse k0084.cc "complex literals"
+failparse k0085.cc "complex double * int"
 
 ### </quarl-testcases-c++>
 
