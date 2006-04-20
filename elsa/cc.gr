@@ -1433,7 +1433,8 @@ nonterm(IN_compound*) InitializerList {
 
   // destructive action on 'list'
   -> list:InitializerList "," init:InitializerClause
-       { list->inits.append(init); return list; }
+       { xassert(list != NULL && "8706f04b-0a31-407e-b31b-40607d31edf9");
+         list->inits.append(init); return list; }
 }
 
 
