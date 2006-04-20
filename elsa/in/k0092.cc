@@ -1,4 +1,5 @@
-// template-parameter-instantiated template class without 'typename' in constructor initializer
+// template-parameter-instantiated template class without 'typename' in
+// constructor initializer
 
 // originally found in package 'gnomemeeting_1.2.1-1'
 
