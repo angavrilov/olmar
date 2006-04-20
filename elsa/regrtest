@@ -1091,6 +1091,7 @@ failparse k0088.cc "inferring const member function template parameter type"
 failparse k0089.cc "specialization of template function member"
 failparse k0090.cc "template specialization of array"
 failparse k0090a.cc "template specialization of array"
+failparse k0091.cc "template specialization with all default parameters"
 
 ### </quarl-testcases-c++>
 
