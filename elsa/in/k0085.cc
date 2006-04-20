@@ -11,4 +11,5 @@ int main()
   _Complex double a;
   int b;
   _Complex double c = a * b;
+  _Complex double d = b * a;
 }
