@@ -8,5 +8,7 @@
 
 int main()
 {
-  void * p = __builtin_frame_address(0);
+  void * p;
+  p = __builtin_frame_address(0);
+  p = __builtin_return_address(0);
 }
