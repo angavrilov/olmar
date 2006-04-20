@@ -1082,6 +1082,7 @@ failparse k0080.cc "already implicitly instantiated"
 failparse k0081.cc "template instantiated through inferred type instantiating another template with default parameter depending on first template parameter"
 failparse k0082.cc "const register function parameter"
 failparse k0083.cc "friend template class declaration"
+failparse k0084.cc "complex literals"
 
 ### </quarl-testcases-c++>
 
