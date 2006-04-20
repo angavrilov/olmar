@@ -1414,6 +1414,10 @@ int compareStandardConversions
 
 bool convertsPtrToBool(Type const *src, Type const *dest)
 {
+  // src was encountered to be NULL here after unimplemented: address of
+  // overloaded name, with a templatized element
+  xassert(src != NULL && "860cd085-9d59-4395-980c-d5f87bac7f5c");
+
   // I believe this test is meant to transcend any reference bindings
   src = src->asRvalC();
   dest = dest->asRvalC();
