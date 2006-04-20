@@ -1073,6 +1073,7 @@ failparse k0072.cc "template <class T> void foo(S1<T> s1, const typename T::T2 t
 failparse k0073.cc "compound initializer for instantiated template struct"
 failparse k0074.cc "template unions"
 failparse k0075.cc "overloaded function involving function pointer in presence of template"
+failparse k0076.cc "attribute unused on struct parameter"
 
 ### </quarl-testcases-c++>
 
