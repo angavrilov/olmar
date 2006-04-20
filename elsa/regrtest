@@ -1085,6 +1085,7 @@ failparse k0082.cc "const register function parameter"
 failparse k0083.cc "friend template class declaration"
 failparse k0084.cc "complex literals"
 failparse k0085.cc "complex double * int"
+failparse k0086.cc "enable_if: template argument expressions"
 
 ### </quarl-testcases-c++>
 
