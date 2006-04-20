@@ -6,7 +6,7 @@
 //   <name>,
 // k0066.cc:12:19: Parse error (state 159) at <
 
-// ERR-MATCH: Parse error .state 159. at <
+// ERR-MATCH: Parse error .state (157|159). at <
 
 template< template< typename T1 > class F >
 struct S;
