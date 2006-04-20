@@ -1231,7 +1231,8 @@ nonterm(TypeSpecifier*) TypeSpecifier {
 
   // TS_elaborated, TS_classSpec, TS_enumSpec
   -> e:ElaboratedOrSpecifier m2:UberCVQualifierSeqOpt
-       { e->cv |= uberCVFlags(m2);     // destructive action
+       { xassert(e != NULL && "388cba6d-895c-4acb-ac25-c28fc1c4c2cb");
+         e->cv |= uberCVFlags(m2);     // destructive action
          return e; }
 
   -> m1:UberCVQualifierSeq e:ElaboratedOrSpecifier m2:UberCVQualifierSeqOpt
