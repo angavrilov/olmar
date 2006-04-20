@@ -1089,6 +1089,7 @@ failparse k0086.cc "enable_if: template argument expressions"
 failparse k0087.cc "implicit conversion to "bool const &" via "bool" via "operator bool""
 failparse k0088.cc "inferring const member function template parameter type"
 failparse k0089.cc "specialization of template function member"
+failparse k0090.cc "template specialization of array"
 
 ### </quarl-testcases-c++>
 
