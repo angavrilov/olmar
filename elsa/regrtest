@@ -1078,6 +1078,7 @@ failparse k0077.cc "template constructor instantiated using function type"
 failparse k0078.cc "array of function pointers initialized with template functions"
 failparse k0078a.cc "array of function pointers initialized with template functions (single item)"
 failparse k0079.cc "reference to reference used in inner class of template class"
+failparse k0080.cc "already implicitly instantiated"
 
 ### </quarl-testcases-c++>
 
