@@ -1,3 +1,11 @@
+2006-04-22  Hendrik Tews  <tews@debian>
+
+	* moved topicComment from OTGen to Gen
+	* added support for multiline comments
+	* declare a toOcaml traversal function in data classes
+	* add necessary ocaml includes and util types
+	* added simingly missing XMLPRINT_CSTRING
+
 2006-04-14  Hendrik Tews  <tews@debian>
 
 	* use fixed translate

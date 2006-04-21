@@ -116,6 +116,7 @@ protected:        // data
   // comment syntax, place defaults here, derived classes 
   // might overwrite this in their constructor
   string commentStart;
+  string multilineCommentStart;
   string commentEnd;
 
 
@@ -126,6 +127,7 @@ public:           // funcs
 
   // shared output sequences
   void headerComments();
+  void topicComment(string topic);
   void doNotEdit();
   void emitFiltered(ASTList<Annotation> const &decls, AccessCtl mode,
                     rostring indent);
@@ -140,6 +142,7 @@ Gen::Gen(rostring srcfn, ObjList<string> const &mods,
     out(toCStr(destfn)),
     file(f),
     commentStart("// "),
+    multilineCommentStart("// "),
     commentEnd("")
 {
   if (!out) {
@@ -363,6 +366,21 @@ void Gen::headerComments()
 }
 
 
+void Gen::topicComment(string topic)
+{
+  out << endl
+      << commentStart 
+      << "*********************************************************************"
+      << endl
+      << multilineCommentStart  
+      << "*********** " << topic << " ******************" << endl
+      << multilineCommentStart  
+      << "*********************************************************************"
+      << commentEnd << endl
+      << endl;
+}
+
+
 void Gen::emitFiltered(ASTList<Annotation> const &decls, AccessCtl mode,
                        rostring indent)
 {
@@ -422,10 +440,21 @@ void HGen::emitFile()
   out << "#ifndef " << includeLatch << "\n";
   out << "#define " << includeLatch << "\n";
   out << "\n";
-  out << "#include \"asthelp.h\"        // helpers for generated code\n";
+  if (wantOcaml) {
+    out << commentStart << "include ocaml values and callbacks"
+	<< commentEnd << endl;
+    out << "#include <caml/mlvalues.h>\n";
+    out << "#include <caml/callback.h>\n";
+    out << "#include <caml/memory.h>\n";
+    out << "#include \"thashtbl.h\"       // THashTbl\n";
+    out << "#define WANTOCAML\n";
+  }
   if (wantDVisitor()) {
     out << "#include \"sobjset.h\"        // SObjSet\n";
   }
+  // asthelp needs sobjset if ocaml is included
+  out << "#include \"asthelp.h\"        // helpers for generated code\n";
+
   out << "\n";
 
   // forward-declare all the classes
@@ -450,7 +479,8 @@ void HGen::emitFile()
     // dsw: this seems necessary and here seems as good a place as any
     // to do it
     if (!wantVisitor()) {
-      xfatal("If you specify the 'dvisitor' option, you must also specify the 'visitor' option");
+      xfatal("If you specify the 'dvisitor' option, "
+	     "you must also specify the 'visitor' option");
     }
     out << "// delegator-visitor interface class\n"
         << "class " << dvisitorName << ";\n\n";
@@ -459,7 +489,8 @@ void HGen::emitFile()
     // dsw: this seems necessary and here seems as good a place as any
     // to do it
     if (!wantVisitor()) {
-      xfatal("If you specify the 'xmlVisitor' option, you must also specify the 'visitor' option");
+      xfatal("If you specify the 'xmlVisitor' option, "
+	     "you must also specify the 'visitor' option");
     }
     out << "// xml-visitor interface class\n"
         << "class " << xmlVisitorName << ";\n\n";
@@ -829,6 +860,11 @@ void HGen::emitCommonFuncs(rostring virt)
   if (wantVisitor()) {
     // visitor traversal entry point
     out << "  " << virt << "void traverse(" << visitorName << " &vis);\n";
+  }
+
+  if (wantOcaml) {
+    // to-ocaml traversal
+    out << "  " << virt << "value toOcaml(ToOcamlData *);\n";
   }
 
   out << "\n";
@@ -3036,10 +3072,9 @@ public:		// funcs
     : Gen(srcFname, modules, destFname, file)
   {
     commentStart = "(* ";
+    multilineCommentStart = " * ";
     commentEnd = " *)";
   };
-
-  void topicComment(string topic);
 
   void emitVerbatim(TF_ocaml_type_verbatim const *v);
   void emitType(TF_class const *c, bool * first_type);
@@ -3246,19 +3281,6 @@ void OTGen::emitType(TF_class const *c, bool * first_type) {
     }
     out << endl << endl;
   }
-}
-
-void OTGen::topicComment(string topic)
-{
-  out << endl;
-  out << commentStart 
-      << "*********************************************************************"
-      << endl;
-  out << " * *********** " << topic << " ******************" << endl;;
-  out << " * " 
-      << "*********************************************************************"
-      << commentEnd << endl;
-  out << endl;
 }
 
 

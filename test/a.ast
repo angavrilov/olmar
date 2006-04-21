@@ -1,3 +1,7 @@
+ocaml_type_verbatim {
+  open Atypes;;
+}
+
 class A(int id){
   -> A_B(B b){
   }
@@ -5,12 +9,12 @@ class A(int id){
   -> A_C(ASTList<C> cl);
 }
 
-class B(int id, string s);
+class B(int id, StringRef b_string);
 
 
 class C{
   -> C_A(int id);
-  -> C_B(string s);
+  -> C_B(StringRef cb_string);
 }
 
 

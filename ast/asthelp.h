@@ -286,6 +286,9 @@ void debugPrintFakeList(FakeList<T> const *list, char const *name,
 void xmlPrintStr(string const &s, char const *name,
                  ostream &os, int indent);
 
+#define XMLPRINT_CSTRING(var)                                \
+  xmlPrintStr(var, #var, os, indent) /* user ; */
+
 
 #define XMLPRINT_LIST(T, list)                              \
   xmlPrintList(list, #list, os, indent) /* user ; */
@@ -409,5 +412,19 @@ FakeList<T> * /*owner*/ cloneFakeList(FakeList<T> const *src)
   return tail->prepend(head);
 }
 
+
+// -------------------------- ocaml helpers -----------------------
+
+#ifdef WANTOCAML
+// take this only if we really want the ocaml interface
+// _and_ have defined the value type
+
+class ToOcamlData {
+public:
+  SObjSet<void*> stack;		// used to detect cycles in the ast
+  THashTable<void*, value> value_hash;
+};
+
+#endif // WANTOCAML
 
 #endif // ASTHELP_H

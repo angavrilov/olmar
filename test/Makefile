@@ -14,7 +14,11 @@ testall: testa testast testelsa
 
 testa:
 	../ast/astgen a.ast
-
+	ocamlc.opt -c a.ml
+	g++ -Wall -c a.cc \
+		-I ../ast -I ../smbase \
+		-I /usr/local/stow/ocaml-3.09.1/lib/ocaml \
+		-Wno-deprecated
 
 FILES += ast/ast.ast
 testast:
