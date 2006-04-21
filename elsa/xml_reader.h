@@ -61,6 +61,19 @@ do { \
   ret->reverse(); \
 } while(0)
 
+// same as above for members that are pointers to lists rather than
+// embedded lists
+#define convertListPtr(LISTTYPE, ITEMTYPE) \
+do { \
+  LISTTYPE<ITEMTYPE> **ret = reinterpret_cast<LISTTYPE<ITEMTYPE>**>(target); \
+  xassert(*ret); \
+  xassert((*ret)->isEmpty()); \
+  FOREACH_ASTLIST_NC(ITEMTYPE, reinterpret_cast<ASTList<ITEMTYPE>&>(*list), iter) { \
+    (*ret)->prepend(iter.data()); \
+  } \
+  (*ret)->reverse(); \
+} while(0)
+
 #define convertArrayStack(LISTTYPE, ITEMTYPE) \
 do { \
   LISTTYPE<ITEMTYPE> *ret = reinterpret_cast<LISTTYPE<ITEMTYPE>*>(target); \
