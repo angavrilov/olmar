@@ -32,8 +32,6 @@ SerialBase& SerialBase::operator= (SerialBase const &)
 // that we will be analyizing huge inputs, it might help if this were
 // unsigned; then again, you couldn't catch a rollover
 int globalSerialNumber = 0;
-bool announceSerialNo = false;
-bool writeSerialNo = true;
 
 // initialize the global serial number; this is for multi-file
 // symmetry breaking
@@ -44,23 +42,23 @@ class GlobalSerialNoInit {
   GlobalSerialNoInit(char const * const filename0)
     : filename(filename0)
   {
-    try {
-      ifstream in(filename);
-      in >> globalSerialNumber;
-    } catch(...) {
-      globalSerialNumber = 0;
+    if (tracingSys("serialno-read")) {
+      try {
+        ifstream in(filename);
+        in >> globalSerialNumber;
+      } catch(...) {}
     }
-    if (announceSerialNo) {
+    if (tracingSys("serialno-announce")) {
       cout << "starting with globalSerialNumber " << globalSerialNumber << endl;
     }
   }
 
   ~GlobalSerialNoInit() {
-    if (writeSerialNo) {
+    if (tracingSys("serialno-write")) {
       ofstream out(filename);
       out << globalSerialNumber << endl;
     }
-    if (announceSerialNo) {
+    if (tracingSys("serialno-announce")) {
       cout << "ending with globalSerialNumber " << globalSerialNumber << endl;
     }
   }
