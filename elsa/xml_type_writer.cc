@@ -122,6 +122,8 @@ XmlTypeWriter::XmlTypeWriter
   , astVisitor(astVisitor0)
 {}
 
+// **** toXml
+
 // This one occurs in the AST, so it has to have its own first-class
 // method.  FIX: This should not have such a general API and yet refer
 // to such a specific list: PseudoInstantiation::args.
@@ -713,6 +715,8 @@ void XmlTypeWriter::toXml_TemplateParams_subtags(TemplateParams *tp) {
   travObjList_S(tp, TemplateParams, params, Variable); // Variable
 }
 
+
+// **** shouldSerialize
 
 bool XmlTypeWriter::shouldSerialize(AtomicType const *obj) {
   if (CompoundType const *cpd = dynamic_cast<CompoundType const *>(obj)) {
