@@ -121,7 +121,8 @@ do { \
   } \
 } while(0)
 
-#define printPtr(BASE, MEM)    printThing(MEM, (BASE)->MEM, xmlPrintPointer(idPrefix((BASE)->MEM), uniqueId((BASE)->MEM)))
+#define printPtr0(NAME, VALUE) printThing(NAME, VALUE, xmlPrintPointer(idPrefix(VALUE), uniqueId(VALUE)))
+#define printPtr(BASE, MEM)    printPtr0(MEM, (BASE)->MEM)
 #define printPtrAST(BASE, MEM) printThingAST(MEM, (BASE)->MEM, xmlPrintPointer("AST", uniqueIdAST((BASE)->MEM)))
 // print an embedded thing
 #define printEmbed(BASE, MEM)  printThing(MEM, (&((BASE)->MEM)), xmlPrintPointer(idPrefix(&((BASE)->MEM)), uniqueId(&((BASE)->MEM))))
@@ -196,13 +197,12 @@ do { \
 #define travObjList_standalone(OBJ, BASETYPE, FIELD, FIELDTYPE) \
   travObjList1(OBJ, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
 
-// NOTE: this is currently unused, but is here for generality
-#define travPtrMap(BASE, BASETYPE, FIELD, FIELDTYPE) \
+#define travPtrMap0(BASE, OBJ, BASETYPE, FIELD, FIELDTYPE) \
 do { \
-  if (!printed(&BASE->FIELD)) { \
-    openTagWhole(NameMap_ ##BASETYPE ##_ ##FIELD, &BASE->FIELD); \
+  if (!printed(&(OBJ))) { \
+    openTagWhole(NameMap_ ##BASETYPE ##_ ##FIELD, &(OBJ)); \
     if (sortNameMapDomainWhenSerializing) { \
-      for(StringRefMap<FIELDTYPE>::SortedKeyIter iter(BASE->FIELD); \
+      for(StringRefMap<FIELDTYPE>::SortedKeyIter iter(OBJ); \
           !iter.isDone(); iter.adv()) { \
         FIELDTYPE *obj = iter.value(); \
         if (shouldSerialize(obj)) { \
@@ -211,7 +211,7 @@ do { \
         } \
       } \
     } else { \
-      for(PtrMap<char const, FIELDTYPE>::Iter iter(BASE->FIELD); \
+      for(PtrMap<char const, FIELDTYPE>::Iter iter(OBJ); \
           !iter.isDone(); iter.adv()) { \
         FIELDTYPE *obj = iter.value(); \
         if (shouldSerialize(obj)) { \
@@ -222,6 +222,9 @@ do { \
     } \
   } \
 } while(0)
+
+#define travPtrMap(BASE, BASETYPE, FIELD, FIELDTYPE) \
+  travPtrMap0(BASE, (BASE)->FIELD, BASETYPE, FIELD, FIELDTYPE)
 
 // NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
 // for the XmlCloseTagPrinter fires too early.
