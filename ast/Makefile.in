@@ -188,3 +188,10 @@ toolclean: clean
 # test for owner
 towner: owner.h towner.o
 	$(CXX) -o towner towner.o $(LDFLAGS)
+
+.PHONY: TAGS
+TAGS:
+	etags --members \
+		`find . ../smbase -name \*.h` \
+		`find . ../smbase -name \*.cc`
+

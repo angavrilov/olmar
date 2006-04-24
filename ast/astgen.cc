@@ -411,7 +411,7 @@ private:        // funcs
   void emitCtorDefn(ASTClass const &cls, ASTClass const *parent);
   void passParentCtorArgs(int &ct, ASTList<CtorArg> const &args);
   void initializeMyCtorArgs(int &ct, ASTList<CtorArg> const &args);
-  void emitCommonFuncs(rostring virt);
+  void emitCommonFuncs(rostring virt, bool hasChildren);
   void emitUserDecls(ASTList<Annotation> const &decls);
   void emitCtor(ASTClass const &ctor, ASTClass const &parent);
 
@@ -655,7 +655,7 @@ void HGen::emitTFClass(TF_class const &cls)
   }
   out << "\n";
 
-  emitCommonFuncs(virt);
+  emitCommonFuncs(virt, cls.hasChildren());
 
   if (wantGDB) {
     out << "  void gdb() const;\n\n";
@@ -849,7 +849,7 @@ void HGen::initializeMyCtorArgs(int &ct, ASTList<CtorArg> const &args)
 }
 
 // emit functions that are declared in every tree node
-void HGen::emitCommonFuncs(rostring virt)
+void HGen::emitCommonFuncs(rostring virt, bool hasChildren)
 {
   // declare the functions they all have
   out << "  " << virt << "void debugPrint(ostream &os, int indent, char const *subtreeName = \"tree\") const;\n";
@@ -864,7 +864,10 @@ void HGen::emitCommonFuncs(rostring virt)
 
   if (wantOcaml) {
     // to-ocaml traversal
-    out << "  " << virt << "value toOcaml(ToOcamlData *);\n";
+    out << "  " << virt << "value toOcaml(ToOcamlData *) const";
+    if(hasChildren)
+      out << " =0";
+    out << ";\n";
   }
 
   out << "\n";
@@ -929,7 +932,7 @@ void HGen::emitCtor(ASTClass const &ctor, ASTClass const &parent)
   out << "\n";
 
   // common functions
-  emitCommonFuncs("virtual ");
+  emitCommonFuncs("virtual ", false);
 
   // clone function (take advantage of covariant return types)
   if (!nocvr) {
@@ -994,6 +997,8 @@ public:
   void emitCloneCtorArg(CtorArg const *arg, int &ct);
   void emitCloneCtorArgs(int &ct, ASTList<CtorArg> const &args);
   void emitCloneCode(ASTClass const *super, ASTClass const *sub);
+
+  void emitToOcaml(ASTClass const *super, ASTClass const *sub);
 
   void emitVisitorImplementation();
 
@@ -1231,6 +1236,7 @@ void CGen::emitTFClass(TF_class const &cls)
   // clone for childless superclasses
   if (!cls.hasChildren()) {
     emitCloneCode(cls.super, NULL /*sub*/);
+    emitToOcaml(cls.super, NULL);
   }
 
 
@@ -1307,6 +1313,7 @@ void CGen::emitTFClass(TF_class const &cls)
 
     // clone for subclasses
     emitCloneCode(cls.super, &ctor);
+    emitToOcaml(cls.super, &ctor);
   }
 
   out << "\n";
@@ -1571,6 +1578,16 @@ void CGen::emitCloneCode(ASTClass const *super, ASTClass const *sub)
       << "\n";
 }
 
+
+void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
+{ // sub may be NULL for a childless superclass !!
+
+  ASTClass const *myClass = sub ? sub : super;
+
+  out << "value " << myClass->name << "::toOcaml(ToOcamlData * data)"
+xxxxxxxxxxxxxxxxxxxx
+  
+}
 
 // -------------------------- visitor ---------------------------
 void emitTF_custom(ofstream &out, rostring qualifierName, bool addNewline)
