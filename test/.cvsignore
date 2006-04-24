@@ -3,6 +3,7 @@
 *.cmo
 a.cc
 a.h
+a.ml
 astgen.xml.*
 t.xml.*
 test-ast.cc

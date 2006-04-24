@@ -12,9 +12,16 @@ testall: testa testast testelsa
 
 .PHONY: testast testelsa testa
 
-testa:
+.PHONY: gen-a ml-compile-a c-compile-a
+testa: gen-a ml-compile-a c-compile-a
+
+gen-a:
 	../ast/astgen a.ast
+
+ml-compile-a:
 	ocamlc.opt -c a.ml
+
+c-compile-a:
 	g++ -Wall -c a.cc \
 		-I ../ast -I ../smbase \
 		-I /usr/local/stow/ocaml-3.09.1/lib/ocaml \

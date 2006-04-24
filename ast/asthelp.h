@@ -421,8 +421,7 @@ FakeList<T> * /*owner*/ cloneFakeList(FakeList<T> const *src)
 
 class ToOcamlData {
 public:
-  SObjSet<void*> stack;		// used to detect cycles in the ast
-  THashTable<void*, value> value_hash;
+  SObjSet<const void*> stack;		// used to detect cycles in the ast
 };
 
 #endif // WANTOCAML
