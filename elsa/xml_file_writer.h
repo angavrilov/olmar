@@ -14,6 +14,7 @@
 class XmlFileWriter : public XmlWriter {
   public:
   XmlFileWriter(ostream &out0, int &depth0, bool indent0);
+  virtual ~XmlFileWriter() {}
 
   void toXml(ObjList<SourceLocManager::File> &files);
   void toXml(SourceLocManager::File *file);
