@@ -424,6 +424,11 @@ public:
   SObjSet<const void*> stack;		// used to detect cycles in the ast
 };
 
+value ocaml_from_int(const int, ToOcamlData *);
+value ocaml_from_StringRef(const StringRef &, ToOcamlData *);
+
+value create_builtin_cons_constructor(value, value);
+
 #endif // WANTOCAML
 
 #endif // ASTHELP_H

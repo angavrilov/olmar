@@ -28,12 +28,28 @@ c-compile-a:
 		-Wno-deprecated
 
 FILES += ast/ast.ast
-testast:
+.PHONY: gen-ast ml-compile-ast c-compile-ast
+testast: gen-ast ml-compile-ast c-compile-ast
+
+gen-ast:
 	../ast/astgen test-ast.ast
+
+ml-compile-ast:
+	ocamlc.opt -c test-ast.ml
+
+c-compile-ast:
+	g++ -Wall -c test-ast.cc \
+		-I ../ast -I ../smbase \
+		-I /usr/local/stow/ocaml-3.09.1/lib/ocaml \
+		-Wno-deprecated
+
 
 FILES += elsa/cc.ast elsa/cc_tcheck.ast elsa/cc_print.ast elsa/cc_elaborate.ast
 FILES += elsa/gnu.ast elsa/kandr.ast
-testelsa:
+.PHONY: gen-elsa ml-compile-elsa c-compile-elsa
+testelsa: gen-elsa ml-compile-elsa c-compile-elsa
+
+gen-elsa:
 	../ast/astgen -otest-cc.ast.gen \
 		test-cc.ast \
 		test-cc_tcheck.ast \
@@ -42,6 +58,16 @@ testelsa:
 		test-cc_elaborate.ast \
 		test-gnu.ast \
 		test-kandr.ast
+
+ml-compile-elsa:
+	ocamlc.opt -c test-cc.ast.gen.ml
+
+c-compile-elsa:
+	g++ -Wall -c test-cc.gen.ast.cc \
+		-I ../ast -I ../smbase \
+		-I /usr/local/stow/ocaml-3.09.1/lib/ocaml \
+		-Wno-deprecated
+
 
 astgen.E: ../ast/astgen.cc
 	$(GPP) -E -o astgen.E ../ast/astgen.cc -Wall \
