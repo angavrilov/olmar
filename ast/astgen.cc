@@ -1123,7 +1123,8 @@ public:
   void emitCloneCtorArgs(int &ct, ASTList<CtorArg> const &args);
   void emitCloneCode(ASTClass const *super, ASTClass const *sub);
 
-  void emitCallbackArgumentList(const ASTList<CtorArg> & args, bool &not_first);
+  void emitCallbackArgumentList(const string & cl_name, 
+				const ASTList<CtorArg> & args, bool &not_first);
   void emitToOcaml(ASTClass const *super, ASTClass const *sub);
   void emitOcamlFromList(ListClass const *cls);      
 
@@ -1742,7 +1743,7 @@ void CGen::emitOcamlFromList(ListClass const *cls) {
   out << "// list class " << cls->kindName() << "<" << cname << ">"
       << " from " << cls->classAndMemberName << endl;
 
-  out << "value ocaml_from_" << cname << "_";
+  out << "value ocaml_from_" << ocaml_from_function(cname) << "_";
   switch(cls->lkind){
   case LK_ASTList: 
     out << "list";
@@ -1753,6 +1754,7 @@ void CGen::emitOcamlFromList(ListClass const *cls) {
   default:
     xassert("illegal ListKind");
   }
+  out << cls->classAndMemberName;
   out << "(" << cls->kindName() << "<" << cname 
       << "> & l, ToOcamlData * data) {\n";
 
@@ -1783,7 +1785,9 @@ void CGen::emitOcamlFromList(ListClass const *cls) {
   out << "}\n\n";
 }
 
-void CGen::emitCallbackArgumentList(const ASTList<CtorArg> & args, 
+
+void CGen::emitCallbackArgumentList(const string & cl_name,
+				    const ASTList<CtorArg> & args, 
 				    bool & not_first) {
   FOREACH_ASTLIST(CtorArg, args, iter) {
     const CtorArg * arg = iter.data();
@@ -1795,7 +1799,8 @@ void CGen::emitCallbackArgumentList(const ASTList<CtorArg> & args,
       out << arg->name << "->toOcaml(data)";
     }
     else {
-      out << "ocaml_from_" << ocaml_from_function(arg->type)
+      out << "ocaml_from_" << ocaml_from_function(arg->type);
+	  << "_" << cl_name << "_" << arg->name
 	  << "(" << arg->name << ", data)";
     }
   }
@@ -1834,10 +1839,10 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
       << "(";
 
   bool not_first = false;
-  emitCallbackArgumentList(super->args, not_first);
+  emitCallbackArgumentList(super->name, super->args, not_first);
   if(sub)
-    emitCallbackArgumentList(sub->args, not_first);
-  emitCallbackArgumentList(super->lastArgs, not_first);
+    emitCallbackArgumentList(super->name, sub->args, not_first);
+  emitCallbackArgumentList(super->name, super->lastArgs, not_first);
 
   if(!not_first)
     // constant constructor: no args so far

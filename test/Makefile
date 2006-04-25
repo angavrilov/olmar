@@ -34,7 +34,7 @@ testast: gen-ast ml-compile-ast c-compile-ast
 gen-ast:
 	../ast/astgen test-ast.ast
 
-ml-compile-ast:
+ml-compile-ast: asttypes.cmo
 	ocamlc.opt -c test-ast.ml
 
 c-compile-ast:
@@ -109,6 +109,9 @@ t.xml.type: t.E
 		t.E \
 		> t.xml.type
 
+
+%.cmo: %.ml
+	ocamlc.opt -c $<
 
 .PHONY: diff
 
