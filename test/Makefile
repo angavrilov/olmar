@@ -63,7 +63,7 @@ ml-compile-elsa:
 	ocamlc.opt -c test-cc.ast.gen.ml
 
 c-compile-elsa:
-	g++ -Wall -c test-cc.gen.ast.cc \
+	g++ -Wall -c test-cc.ast.gen.cc \
 		-I ../ast -I ../smbase \
 		-I /usr/local/stow/ocaml-3.09.1/lib/ocaml \
 		-Wno-deprecated

@@ -421,7 +421,6 @@ private:        // funcs
   void emitDVisitorInterface();
   void emitXmlVisitorInterface();
   void emitMVisitorInterface();
-  void emitOcamlCallbackPrototypes();
 
 
 public:         // funcs
@@ -558,9 +557,6 @@ void HGen::emitFile()
   }
   if (wantMVisitor()) {
     emitMVisitorInterface();
-  }
-  if (wantOcaml) {
-    emitOcamlCallbackPrototypes();
   }
 
   out << "#endif // " << includeLatch << "\n";
@@ -993,107 +989,6 @@ void HGen::emitCtor(ASTClass const &ctor, ASTClass const &parent)
 }
 
 
-//------------------------- ocaml callback prototypes ---------------------
-
-// test if a class has ctor arguments of its own type
-// cyclic classes with subclasses pose no problems, however
-// a cyclic class without subclasses cannot be translated into a 
-// simple type equation
-bool is_cyclic(ASTClass const *c) {
-  const string & my_name = c->name;
-  const ASTList<CtorArg> * args = &c->args;
-
-  FOREACH_ASTLIST(CtorArg, *args, arg) {
-    if (my_name.equals(arg.data()->type))
-      return true;
-  }
-  args = &c->lastArgs;
-  FOREACH_ASTLIST(CtorArg, *args, arg) {
-    if (my_name.equals(arg.data()->type))
-      return true;
-  }
-  return false;
-}
-
-
-// (un-) capitalize strings, needed for ocaml's upper and lower case identifiers
-string capitalize(string src){
-  if (islower(src[0]))
-    src[0] = toupper(src[0]);
-  return src;
-}
-
-string uncapitalize(string src){
-  if (isupper(src[0]))
-    src[0] = tolower(src[0]);
-  return src;
-}
-
-string ocaml_type_constructor(string t) {
-  return(capitalize(t) & "_cons");
-}
-
-
-// generate the name for the ocaml function that creates an ast node
-string ocaml_node_callback(string t_or_ctor, bool hasChildren, bool is_cyclic) {
-  if(hasChildren)
-    return((string("create_") & t_or_ctor) & "_constructor");
-  else if(is_cyclic)
-    return((string("create_") & ocaml_type_constructor(t_or_ctor)) 
-	   & "_constructor");
-  else
-    return((string("create_") & t_or_ctor ) & "_tuple");
-}
-
-
-void HGen::emitOcamlCallbackPrototypes() {
-  topicComment("ocaml callback prototypes");
-  
-  SFOREACH_OBJLIST(TF_class, allClasses, iter) {
-    const TF_class *cl = iter.data();
-    if(cl->hasChildren()){
-      FOREACH_ASTLIST(ASTClass, cl->ctors, c_iter) {
-	ASTClass const *sub = c_iter.data();
-
-	out << "value "
-	    << ocaml_node_callback(sub->name, true, false)
-	    << "(";
-	int args = cl->super->args.count() + cl->super->lastArgs.count() +
-	  sub->args.count();
-	if(args == 0)
-	  // for constant constructors the callback is a unit function
-	  args++;
-	
-	// take one iteration out of the loop, to deal with the comma
-	out << "value";
-	args--;
-	for(; args > 0; args--){
-	  out << ", value";
-	}
-	out << ");\n";
-      }
-    }
-    else {
-      out << "value "
-	  << ocaml_node_callback(cl->super->name, false, is_cyclic(cl->super))
-	  << "(";
-      int args = cl->super->args.count() + cl->super->lastArgs.count();
-      if(args == 0)
-	// for constant constructors the callback is a unit function
-	args++;
-
-      // take one iteration out of the loop, to deal with the comma
-      out << "value";
-      args--;
-      for(; args > 0; args--){
-	out << ", value";
-      }
-      out << ");\n";
-    }
-  }
-  out << endl << endl;
-}
-
 // --------------------- generation of C++ code file --------------------------
 class CGen : public Gen {
 public:
@@ -1237,8 +1132,20 @@ void CGen::emitFile()
     out << "static value * create_builtin_cons_constructor_closure = NULL;"
 	<< endl << endl;
 
+    StringSet list_set; // to print only one function for any given type
     FOREACH_ASTLIST(ListClass, listClasses, iter) {
-      emitOcamlFromList(iter.data());
+      ListClass const *cls = iter.data();
+      string list_type(stringc << cls->kindName() << cls->elementClassName);
+      if(list_set.contains(list_type)){
+	out << commentStart << "omit list function for "
+	    << cls->kindName() << "<" << cls->elementClassName << ">"
+	    << " for " << cls->classAndMemberName
+	    << endl << endl;
+      }
+      else {
+	list_set.add(list_type);
+	emitOcamlFromList(cls);
+      }
     }
   }
 
@@ -1720,6 +1627,59 @@ void CGen::emitCloneCode(ASTClass const *super, ASTClass const *sub)
 }
 
 
+//------------------------- ocaml serialization ---------------------
+
+// test if a class has ctor arguments of its own type
+// cyclic classes with subclasses pose no problems, however
+// a cyclic class without subclasses cannot be translated into a 
+// simple type equation
+bool is_cyclic(ASTClass const *c) {
+  const string & my_name = c->name;
+  const ASTList<CtorArg> * args = &c->args;
+
+  FOREACH_ASTLIST(CtorArg, *args, arg) {
+    if (my_name.equals(arg.data()->type))
+      return true;
+  }
+  args = &c->lastArgs;
+  FOREACH_ASTLIST(CtorArg, *args, arg) {
+    if (my_name.equals(arg.data()->type))
+      return true;
+  }
+  return false;
+}
+
+
+// (un-) capitalize strings, needed for ocaml's upper and lower case identifiers
+string capitalize(string src){
+  if (islower(src[0]))
+    src[0] = toupper(src[0]);
+  return src;
+}
+
+string uncapitalize(string src){
+  if (isupper(src[0]))
+    src[0] = tolower(src[0]);
+  return src;
+}
+
+string ocaml_type_constructor(string t) {
+  return(capitalize(t) & "_cons");
+}
+
+
+// generate the name for the ocaml function that creates an ast node
+string ocaml_node_callback(string t_or_ctor, bool hasChildren, bool is_cyclic) {
+  if(hasChildren)
+    return((string("create_") & t_or_ctor) & "_constructor");
+  else if(is_cyclic)
+    return((string("create_") & ocaml_type_constructor(t_or_ctor)) 
+	   & "_constructor");
+  else
+    return((string("create_") & t_or_ctor ) & "_tuple");
+}
+
+
 string ocaml_from_function(string type) {
   if(isPtrKind(type)) {
     return( ocaml_from_function(
@@ -1754,7 +1714,6 @@ void CGen::emitOcamlFromList(ListClass const *cls) {
   default:
     xassert("illegal ListKind");
   }
-  out << cls->classAndMemberName;
   out << "(" << cls->kindName() << "<" << cname 
       << "> & l, ToOcamlData * data) {\n";
 
@@ -1765,23 +1724,26 @@ void CGen::emitOcamlFromList(ListClass const *cls) {
   out << "  if(create_builtin_cons_constructor_closure == NULL)\n"
       << "    create_builtin_cons_constructor_closure =\n"
       << "      caml_named_value(\""
-      << "create_builtin_cons_constructor_closure\");\n\n";
+      << "create_builtin_cons_constructor_closure\");\n";
+  out << "  xassert(create_builtin_cons_constructor_closure);\n\n";
 
 
   out << "  for(int i = l.count() -1; i >= 0; i--) {\n"
-      << "    result = create_builtin_cons_constructor(";
+
+      << "    result = caml_callback2(*"
+      << "create_builtin_cons_constructor_closure,\n";
   if(isTreeNode(cname)) {
-    out << "l.nth(i)->toOcaml(data)";
+    out << "    l.nth(i)->toOcaml(data)";
   }
   else {
-    out << "ocaml_from_" << ocaml_from_function(cname)
+    out << "    ocaml_from_" << ocaml_from_function(cname)
 	<< "(l.nth(i), data)";
   }
   out << ", result);\n";
 
   out << "  }" << endl;
 
-  out << "  return(result);\n";
+  out << "  CAMLreturn(result);\n";
   out << "}\n\n";
 }
 
@@ -1799,8 +1761,7 @@ void CGen::emitCallbackArgumentList(const string & cl_name,
       out << arg->name << "->toOcaml(data)";
     }
     else {
-      out << "ocaml_from_" << ocaml_from_function(arg->type);
-	  << "_" << cl_name << "_" << arg->name
+      out << "ocaml_from_" << ocaml_from_function(arg->type)
 	  << "(" << arg->name << ", data)";
     }
   }
@@ -1817,13 +1778,16 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
   out << "value " << myClass->name << "::toOcaml(ToOcamlData *data) {\n";
   out << "  CAMLparam0();\n";
 
+  continue here: reserve array if args_count > 3
+
   out << "  if(ocaml_val)\n"
       << "    CAMLreturn(ocaml_val);\n";
 
   out << "  static value * " << cb << "_closure = NULL;\n"
       << "  if(" << cb << "_closure == NULL)\n"
-      << "    " << cb << "_closure = caml_named_value(\"" 
-      << cb << "\");\n\n";
+      << "    " << cb << "_closure = \n"
+      << "      caml_named_value(\"" << cb << "\");\n"
+      << "  xassert(" << cb << "_closure);\n\n";
 
   out << "  if(data->stack.contains(this)) {\n"
       << "    cerr << \"cyclic ast detected during ocaml serialization\\n\";"
@@ -1834,22 +1798,33 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
       << "  }\n";
 
   out << "  caml_register_global_root(&ocaml_val);\n";
-  out << "  ocaml_val = " 
-      << cb
-      << "(";
+  out << flush;
 
-  bool not_first = false;
-  emitCallbackArgumentList(super->name, super->args, not_first);
-  if(sub)
-    emitCallbackArgumentList(super->name, sub->args, not_first);
-  emitCallbackArgumentList(super->name, super->lastArgs, not_first);
+  unsigned args_count = super->args.count() + super->lastArgs.count() +
+    (sub ? sub->args.count() : 0);
 
-  if(!not_first)
-    // constant constructor: no args so far
-    out << "Val_unit";
+  if(args_count <= 3){
+    out << "  ocaml_val = caml_callback";
+    if(args_count > 1)
+      out << args_count;
+    out << "(*" << cb << "_closure, ";
+
+    bool not_first = false;	// redesign this
+    emitCallbackArgumentList(super->name, super->args, not_first);
+    if(sub)
+      emitCallbackArgumentList(super->name, sub->args, not_first);
+    emitCallbackArgumentList(super->name, super->lastArgs, not_first);
+
+    if(!not_first)
+      // constant constructor: no args so far
+      out << "Val_unit";
+  }
+  else {
+    out << "// args_count == " << args_count << "\n";
+  }
 
   out << ");" << endl;
-  out << "  return(ocaml_val);" << endl;
+  out << "  CAMLreturn(ocaml_val);" << endl;
   
   out << "}" << endl << endl;
 }
