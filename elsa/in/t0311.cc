@@ -20,7 +20,7 @@ void foo(int x)
   D *pd = 0;
   E *pe = 0;
 
-  __checkType(x? pb : pa, (A*)0);
+  __elsa_checkType(x? pb : pa, (A*)0);
   //(x? pb : pc);
   //(x? pb : pe);
   //(x? pd : pa);
@@ -30,9 +30,9 @@ void foo(int x)
   
   int A::*pma = 0;
   int const A::*pmac = 0;
-  __checkType(x? pma : pmac, (int const A::*)0);
-  __checkType(x? pma : 0, (int A::*)0);
-  __checkType(x? 0 : pmac, (int const A::*)0);
+  __elsa_checkType(x? pma : pmac, (int const A::*)0);
+  __elsa_checkType(x? pma : 0, (int A::*)0);
+  __elsa_checkType(x? 0 : pmac, (int const A::*)0);
 }
 
 // modified form of example in 5.9
@@ -44,8 +44,8 @@ void bar(int x)
   int **pi;
   const int *const *pci;
 
-  __checkType(x? p : q, (const void *)0);
-  __checkType(x? pi : pci, (const int * const *)0);
-  __checkType(x? p : pc, (const void *)0);
-  __checkType(x? pc : p, (const void *)0);
+  __elsa_checkType(x? p : q, (const void *)0);
+  __elsa_checkType(x? pi : pci, (const int * const *)0);
+  __elsa_checkType(x? p : pc, (const void *)0);
+  __elsa_checkType(x? pc : p, (const void *)0);
 }

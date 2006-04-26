@@ -6511,7 +6511,7 @@ static Type *internalTestingHooks
       }
     }
     else {
-      env.error("invalid call to __checkType");
+      env.error("invalid call to __elsa_checkType");
     }
   }
 

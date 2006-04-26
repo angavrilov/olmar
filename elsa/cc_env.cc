@@ -507,7 +507,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   #endif // GNU_EXTENSION
 
   // for testing various modules
-  special_checkType = declareSpecialFunction("__checkType")->name;
+  special_checkType = declareSpecialFunction("__elsa_checkType")->name;
   special_getStandardConversion = declareSpecialFunction("__getStandardConversion")->name;
   special_getImplicitConversion = declareSpecialFunction("__getImplicitConversion")->name;
   special_testOverload = declareSpecialFunction("__testOverload")->name;

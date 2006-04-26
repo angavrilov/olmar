@@ -16,7 +16,7 @@ g(int x)
 // they are the same
 void foo()
 {
-  __checkType(f, g);
+  __elsa_checkType(f, g);
 }
 
 
