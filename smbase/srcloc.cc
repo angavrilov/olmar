@@ -12,7 +12,7 @@
 #include <string.h>     // memcpy
 
 
-// this parameter controls the frequency of Markers in 
+// this parameter controls the frequency of Markers in
 // the marker index; lower period makes the index
 // faster but use more space
 enum { MARKER_PERIOD = 100 };    // 100 is about a 10% overhead
@@ -49,7 +49,8 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
 
     // valid marker/col for the first char in the file
     marker(0, 1, 0),
-    markerCol(1)
+    markerCol(1),
+    erroredNumLines(false)
 {
   // dsw: I want a way to make sure that we never look for a file.
   xassert(sourceLocManager->mayOpenFiles);
@@ -177,7 +178,8 @@ SourceLocManager::File::File(FileData *fileData, SourceLoc aStartLoc)
 
     // valid marker/col for the first char in the file
     marker(0, 1, 0),
-    markerCol(1)
+    markerCol(1),
+    erroredNumLines(false)
 {
   xassert(fileData->complete());
 
@@ -316,7 +318,24 @@ inline void SourceLocManager::File::advanceMarker()
 
 int SourceLocManager::File::lineToChar(int lineNum)
 {
-  xassert(1 <= lineNum && lineNum <= numLines);
+  xassert(1 <= lineNum);
+  // xassert(lineNum <= numLines);
+
+  // If we encounter an invalid line number, don't abort fatally, just say
+  // line numbers will be wrong.  This happens often when a cpp'ed file is
+  // modified.
+  if (erroredNumLines) {
+    return 0;
+  }
+
+  if (lineNum > numLines) {
+    erroredNumLines = true;
+    fprintf(stderr,
+            "Error: invalid line number %s:%d (only %d lines exist).\n"
+            "       Line numbers will be incorrect.\n",
+            name.c_str(), lineNum, numLines);
+    return 0;
+  }
 
   // check to see if the marker is already close
   if (marker.lineOffset <= lineNum &&
@@ -470,7 +489,7 @@ void SourceLocManager::File::addHashLine
 }
 
 void SourceLocManager::File::doneAdding()
-{ 
+{
   if (hashLines) {
     hashLines->doneAdding();
   }
@@ -546,7 +565,7 @@ void SourceLocManager::makeFirstStatics()
 SourceLocManager::File *SourceLocManager::findFile(char const *name)
 {
   if (!this) {
-    // it's quite common to forget to do this, and this function is 
+    // it's quite common to forget to do this, and this function is
     // almost always the one which segfaults in that case, so I'll
     // make the error message a bit nicer to save a trip through
     // the debugger
@@ -711,7 +730,7 @@ SourceLocManager::StaticLoc const *SourceLocManager::getStatic(SourceLoc loc)
 
 
 void SourceLocManager::decodeOffset(
-  SourceLoc loc, char const *&filename, int &charOffset) 
+  SourceLoc loc, char const *&filename, int &charOffset)
 {
   decodeOffset_explicitHL(loc, filename, charOffset, this->useHashLines);
 }
@@ -760,13 +779,13 @@ void SourceLocManager::decodeOffset_explicitHL(
     }
 
     // filename is whatever #line said
-    filename = origFname;             
+    filename = origFname;
   }
 }
 
 
 void SourceLocManager::decodeLineCol(
-  SourceLoc loc, char const *&filename, int &line, int &col) 
+  SourceLoc loc, char const *&filename, int &line, int &col)
 {
   decodeLineCol_explicitHL(loc, filename, line, col, this->useHashLines);
 }
@@ -774,7 +793,7 @@ void SourceLocManager::decodeLineCol(
 void SourceLocManager::decodeLineCol_explicitHL(
   SourceLoc loc, char const *&filename, int &line, int &col,
   bool localUseHashLines)
-{ 
+{
   if (!this) {
     // didn't initialize a loc manager.. but maybe we can survive?
     if (loc == SL_UNKNOWN) {
@@ -800,10 +819,10 @@ void SourceLocManager::decodeLineCol_explicitHL(
   File *f = findFileWithLoc(loc);
   filename = f->name.c_str();
   int charOffset = toInt(loc) - toInt(f->startLoc);
-  
+
   f->charToLineCol(charOffset, line, col);
-  
-  if (localUseHashLines && f->hashLines) {       
+
+  if (localUseHashLines && f->hashLines) {
     // use the #line map to determine a new file/line pair; simply
     // assume that the column information is still correct, though of
     // course in C, due to macro expansion, it isn't always
@@ -848,7 +867,7 @@ int SourceLocManager::getCol(SourceLoc loc)
 }
 
 
-string SourceLocManager::getString(SourceLoc loc) 
+string SourceLocManager::getString(SourceLoc loc)
 {
   return getString_explicitHL(loc, this->useHashLines);
 }
@@ -987,7 +1006,7 @@ void testFile(char const *fname)
       xassert(loc == bi[j].loc);
     }
   }
-  
+
   delete[] bi;
 }
 
@@ -1016,7 +1035,7 @@ void expect(SourceLoc loc, char const *expFname, int expLine, int expCol)
   char const *fname;
   int line, col;
   mgr.decodeLineCol(loc, fname, line, col);
-  
+
   if (0!=strcmp(fname, expFname) ||
       line != expLine ||
       col != expCol) {
@@ -1194,7 +1213,7 @@ void entry(int argc, char ** /*argv*/)
   // test the statics
   cout << "invalid: " << toString(SL_UNKNOWN) << endl;
   cout << "here: " << toString(HERE_SOURCELOC) << endl;
-  
+
   cout << "\n";
   testHashMap();
   testHashMap2();

@@ -50,7 +50,7 @@ class HashLineMap;    // hashline.h
 enum SourceLoc {
   // entity is defined within the translator's initialization code
   SL_INIT=-1,
-  
+
   // location is unknown for some reason
   SL_UNKNOWN=0
 };
@@ -169,6 +169,8 @@ public:      // types
     // # of elements in 'index'
     int indexSize;
 
+    bool erroredNumLines;
+
   private:   // funcs
     File(File&);                     // disallowed
     void resetMarker();
@@ -183,7 +185,7 @@ public:      // types
     // used when de-serializing from xml
     File(FileData *fileData, SourceLoc aStartLoc);
     ~File();
-    
+
     // line number to character offset
     int lineToChar(int lineNum);
 
@@ -222,7 +224,7 @@ public:      // types
     string name;      // file name
     int offset;       // char offset
     int line, col;    // line,col
-              
+
   public:
     StaticLoc(char const *n, int o, int L, int c)
       : name(n), offset(o), line(L), col(c) {}
@@ -313,7 +315,7 @@ public:      // funcs
   //   character offsets start at 0
   //   lines start at 1
   //   columns start at 1
-  
+
   // Note that the legal source locations go from the first byte
   // in the file through to the last+1 byte.  So, if the file has
   // 5 characters, then offsets 0,1,2,3,4,5 are legal.
