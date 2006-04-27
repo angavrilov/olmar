@@ -1234,7 +1234,6 @@ if $use_gnu; then
   testparse gnu/k0005.cc #"comparing long long to enum value"
   failparse gnu/k0006.cc "there is no function called \`__offsetof__\'"
   failparse gnu/k0007.cc "__builtin_frame_address"
-  failparse gnu/k0008.cc "extern inline, followed by non-extern-inline"
 
 else # tests that only pass when not in gnu mode
   testparse t0228b.cc
