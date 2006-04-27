@@ -413,25 +413,4 @@ FakeList<T> * /*owner*/ cloneFakeList(FakeList<T> const *src)
 }
 
 
-// -------------------------- ocaml helpers -----------------------
-
-#ifdef WANTOCAML
-// take this only if we really want the ocaml interface
-// _and_ have defined the value type
-
-class ToOcamlData {
-public:
-  SObjSet<const void*> stack;		// used to detect cycles in the ast
-};
-
-// ocaml serialization for base types
-value ocaml_from_int(const int, ToOcamlData *);
-value ocaml_from_StringRef(const StringRef &, ToOcamlData *);
-value ocaml_from_string(const string &, ToOcamlData *);
-value ocaml_from_bool(const bool &, ToOcamlData *);
-
-value create_builtin_cons_constructor(value, value);
-
-#endif // WANTOCAML
-
 #endif // ASTHELP_H

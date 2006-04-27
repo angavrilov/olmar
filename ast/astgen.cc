@@ -442,21 +442,16 @@ void HGen::emitFile()
   out << "#ifndef " << includeLatch << "\n";
   out << "#define " << includeLatch << "\n";
   out << "\n";
-  if (wantOcaml) {
-    out << commentStart << "include ocaml values and callbacks"
-	<< commentEnd << endl;
-    out << "#include <caml/mlvalues.h>\n";
-    out << "#include <caml/callback.h>\n";
-    out << "#include <caml/memory.h>\n";
-    out << "#include \"thashtbl.h\"       // THashTbl\n";
-    out << "#define WANTOCAML\n";
-  }
-  if (wantDVisitor() || wantOcaml) {
+  if (wantDVisitor()) {
     out << "#include \"sobjset.h\"        // SObjSet\n";
   }
   // asthelp needs sobjset if ocaml is included
   out << "#include \"asthelp.h\"        // helpers for generated code\n";
-
+  if (wantOcaml) {
+    out << commentStart << "include ocaml values and callbacks"
+	<< commentEnd << endl;
+    out << "#include \"ocamlhelp.h\"\n";
+  }
   out << "\n";
 
   // forward-declare all the classes
@@ -1018,8 +1013,8 @@ public:
   void emitCloneCtorArgs(int &ct, ASTList<CtorArg> const &args);
   void emitCloneCode(ASTClass const *super, ASTClass const *sub);
 
-  void emitCallbackArgumentList(const string & cl_name, 
-				const ASTList<CtorArg> & args, bool &not_first);
+  void emitToOcamlChilds(const string & cl_name, const ASTList<CtorArg> & args, 
+			 unsigned & count);
   void emitToOcaml(ASTClass const *super, ASTClass const *sub);
   void emitOcamlFromList(ListClass const *cls);      
 
@@ -1718,7 +1713,7 @@ void CGen::emitOcamlFromList(ListClass const *cls) {
       << "> & l, ToOcamlData * data) {\n";
 
   out << "  CAMLparam0();\n"
-      << "  CAMLlocal1(result);\n"
+      << "  CAMLlocal2(result, elem);\n"
       << "  result = Val_emptylist;\n";
 
   out << "  if(create_builtin_cons_constructor_closure == NULL)\n"
@@ -1729,17 +1724,17 @@ void CGen::emitOcamlFromList(ListClass const *cls) {
 
 
   out << "  for(int i = l.count() -1; i >= 0; i--) {\n"
-
-      << "    result = caml_callback2(*"
-      << "create_builtin_cons_constructor_closure,\n";
+      << "    elem = ";
   if(isTreeNode(cname)) {
-    out << "    l.nth(i)->toOcaml(data)";
+    out << "    l.nth(i)->toOcaml(data);\n";
   }
   else {
     out << "    ocaml_from_" << ocaml_from_function(cname)
-	<< "(l.nth(i), data)";
+	<< "(l.nth(i), data);\n";
   }
-  out << ", result);\n";
+
+  out << "    result = caml_callback2(*"
+      << "create_builtin_cons_constructor_closure, elem, result);\n";
 
   out << "  }" << endl;
 
@@ -1748,21 +1743,18 @@ void CGen::emitOcamlFromList(ListClass const *cls) {
 }
 
 
-void CGen::emitCallbackArgumentList(const string & cl_name,
-				    const ASTList<CtorArg> & args, 
-				    bool & not_first) {
+void CGen::emitToOcamlChilds(const string & cl_name,
+			     const ASTList<CtorArg> & args, unsigned & count) {
   FOREACH_ASTLIST(CtorArg, args, iter) {
     const CtorArg * arg = iter.data();
-    if(not_first)
-      out << ", ";
-    else
-      not_first = true;
+    out << "  child[" << count++ << "] = ";
+
     if(isTreeNode(arg->type)) {
-      out << arg->name << "->toOcaml(data)";
+      out << arg->name << "->toOcaml(data);\n";
     }
     else {
       out << "ocaml_from_" << ocaml_from_function(arg->type)
-	  << "(" << arg->name << ", data)";
+	  << "(" << arg->name << ", data);\n";
     }
   }
 }
@@ -1778,7 +1770,10 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
   out << "value " << myClass->name << "::toOcaml(ToOcamlData *data) {\n";
   out << "  CAMLparam0();\n";
 
-  continue here: reserve array if args_count > 3
+  unsigned args_count = super->args.count() + super->lastArgs.count() +
+    (sub ? sub->args.count() : 0);
+
+  out << "  CAMLlocalN(child, " << args_count << ");\n";
 
   out << "  if(ocaml_val)\n"
       << "    CAMLreturn(ocaml_val);\n";
@@ -1797,30 +1792,37 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
       << "    data->stack.add(this);\n"
       << "  }\n";
 
-  out << "  caml_register_global_root(&ocaml_val);\n";
-  out << flush;
+  unsigned count = 0;
+  emitToOcamlChilds(super->name, super->args, count);
+  if(sub)
+    emitToOcamlChilds(super->name, sub->args, count);
+  emitToOcamlChilds(super->name, super->lastArgs, count);
+  out << endl;
 
-  unsigned args_count = super->args.count() + super->lastArgs.count() +
-    (sub ? sub->args.count() : 0);
+  out << "  caml_register_global_root(&ocaml_val);\n";
 
   if(args_count <= 3){
     out << "  ocaml_val = caml_callback";
     if(args_count > 1)
       out << args_count;
-    out << "(*" << cb << "_closure, ";
+    out << "(*" << cb << "_closure,\n";
 
-    bool not_first = false;	// redesign this
-    emitCallbackArgumentList(super->name, super->args, not_first);
-    if(sub)
-      emitCallbackArgumentList(super->name, sub->args, not_first);
-    emitCallbackArgumentList(super->name, super->lastArgs, not_first);
+    for(unsigned i = 0; i < args_count; i++){
+      if(i == 0)
+	out << "                             ";
+      else
+	out << ", ";
+      out << "child[" << i << "]";
+    }
 
-    if(!not_first)
+    if(args_count == 0)
       // constant constructor: no args so far
-      out << "Val_unit";
+      out << ", Val_unit";
   }
   else {
-    out << "// args_count == " << args_count << "\n";
+    out << "  ocaml_val = caml_callbackN(*" << cb << "_closure,\n"
+	<< "                              "
+	<< args_count << ", child";
   }
 
   out << ");" << endl;
