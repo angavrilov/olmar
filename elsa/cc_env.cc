@@ -3349,6 +3349,28 @@ Variable *Env::createDeclaration(
       prior->setFlag(DF_DEFINITION);
       prior->clearFlag(DF_EXTERN);
       prior->clearFlag(DF_FORWARD); // dsw: I added this
+
+      // kc: If we are now defining a previously prototyped function,
+      // propagate the 'extern inline'
+      if (dflags & DF_GNU_EXTERN_INLINE) {
+        prior->setFlag(DF_GNU_EXTERN_INLINE);
+        // kc: The linker needs to know that this extern inline function has
+        // static linkage
+        if (dflags & DF_STATIC) {
+          prior->setFlag(DF_STATIC);
+        }
+        // We need to propagate the anti-externness from the extern inline
+        // definition, but it's already being deleted above
+      } else if (prior->scope && prior->scope->isGlobalScope()) {
+        // kc: Illegal to declare or define a function or data variable
+        // previously declared as static
+        if ((dflags & DF_STATIC) && !prior->hasFlag(DF_STATIC)) {
+          error(type, stringc
+                << "prior declaration of `" << name
+                << "' at " << prior->loc
+                << " declared non-static, cannot re-declare as static");
+        }
+      }
     }
 
     // dsw: if one has a size and the other doesn't, use the size of
