@@ -3438,7 +3438,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // get the type from the IDeclarator
   decl->tcheck(env, dt);
 
-  // this this a specialization of a global template function,
+  // is this a specialization of a global template function,
   // or a member template function?
   if (templatizableContext &&                      // e.g. toplevel
       enclosingScope->isTemplateParamScope() &&    // "template <...>" above
