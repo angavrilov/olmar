@@ -40,6 +40,8 @@
 // emitted verbatim into generated header (cc.ast.gen.h)
 verbatim {
   #include "cc_flags.h"         // CVFlags, DeclFlags, etc. (r)
+
+  #include "cc_ocaml.h"         // ocaml serialization helpers
   
   class CCLang;                 // cc_lang.h
 }

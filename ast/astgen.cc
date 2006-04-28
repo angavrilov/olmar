@@ -186,6 +186,10 @@ bool isPtrKind(rostring type)
   return type[strlen(type)-1] == '*';
 }
 
+string getPtrBase(string type){
+  xassert(isPtrKind(type));
+  return trimWhitespace(substring(type, strlen(type)-1));
+}
 
 TreeNodeKind getTreeNodePtrKind(rostring type)
 {
@@ -1674,41 +1678,44 @@ string ocaml_node_callback(string t_or_ctor, bool hasChildren, bool is_cyclic) {
 }
 
 
-string ocaml_from_function(string type) {
+string inner_ocaml_from_function(string type) {
   if(isPtrKind(type)) {
-    return( ocaml_from_function(
-		     trimWhitespace(substring(type, strlen(type) -1)))
-	    & "_ptr");
+    return( inner_ocaml_from_function(getPtrBase(type)) & "_ptr");
   }
 
   if(isListType(type))
-    return( ocaml_from_function(extractListType(type)) & "_list");
+    return( inner_ocaml_from_function(extractListType(type)) & "_list");
 
   if(isFakeListType(type))
-    return( ocaml_from_function(extractListType(type)) & "_fakeList");
+    return( inner_ocaml_from_function(extractListType(type)) & "_fakeList");
 
   return type;
+}
+
+string ocaml_from_function(string type) {
+  string result;
+  if(isPtrKind(type))
+    result = inner_ocaml_from_function(getPtrBase(type));
+  else 
+    result = inner_ocaml_from_function(type);
+  return(string("ocaml_from_") & result);
 }
 
 
 void CGen::emitOcamlFromList(ListClass const *cls) {
   const string & cname = cls->elementClassName;
 
+  // one cannot have a list of pointers, so just assert it
+  // FakeList requires a next field in the element type
+  // AstList requires a sensible destructor
+  xassert(!isPtrKind(cname));
+
   out << "// list class " << cls->kindName() << "<" << cname << ">"
       << " from " << cls->classAndMemberName << endl;
 
-  out << "value ocaml_from_" << ocaml_from_function(cname) << "_";
-  switch(cls->lkind){
-  case LK_ASTList: 
-    out << "list";
-    break;
-  case LK_FakeList:
-    out << "fakeList";
-    break;
-  default:
-    xassert("illegal ListKind");
-  }
-  out << "(" << cls->kindName() << "<" << cname 
+  out << "value " 
+      << ocaml_from_function(stringc << cls->kindName() << " <" << cname << ">")
+      << "(" << cls->kindName() << "<" << cname 
       << "> & l, ToOcamlData * data) {\n";
 
   out << "  CAMLparam0();\n"
@@ -1728,8 +1735,7 @@ void CGen::emitOcamlFromList(ListClass const *cls) {
     out << "    l.nth(i)->toOcaml(data);\n";
   }
   else {
-    out << "    ocaml_from_" << ocaml_from_function(cname)
-	<< "(l.nth(i), data);\n";
+    out << "    " << ocaml_from_function(cname) << "(l.nth(i), data);\n";
   }
 
   out << "    result = caml_callback2(*"
@@ -1752,8 +1758,13 @@ void CGen::emitToOcamlChilds(const string & cl_name,
       out << arg->name << "->toOcaml(data);\n";
     }
     else {
-      out << "ocaml_from_" << ocaml_from_function(arg->type)
-	  << "(" << arg->name << ", data);\n";
+      out << ocaml_from_function(arg->type) << "(";
+      if(isPtrKind(arg->type)){
+	out << "*";
+	// treat only one level of pointers
+	xassert(!isPtrKind(getPtrBase(arg->type)));
+      }
+      out << arg->name << ", data);\n";
     }
   }
 }
@@ -1773,7 +1784,8 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
   unsigned args_count = super->args.count() + super->lastArgs.count() +
     (sub ? sub->args.count() : 0);
 
-  out << "  CAMLlocalN(child, " << args_count << ");\n";
+  if(args_count > 0)
+    out << "  CAMLlocalN(child, " << args_count << ");\n";
 
   out << "  if(ocaml_val)\n"
       << "    CAMLreturn(ocaml_val);\n";
@@ -1817,7 +1829,7 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
 
     if(args_count == 0)
       // constant constructor: no args so far
-      out << ", Val_unit";
+      out << "                             Val_unit";
   }
   else {
     out << "  ocaml_val = caml_callbackN(*" << cbc << ",\n"
@@ -3375,7 +3387,7 @@ string ocaml_callback(string ast_file) {
 // output type as an ocaml type
 void OTGen::ocaml_type(string type){
   if (isPtrKind(type)) {
-    type = trimWhitespace(substring(type, strlen(type)-1));
+    type = getPtrBase(type);
 
     xassert(!isPtrKind(type));	// don't treat ** types
   }

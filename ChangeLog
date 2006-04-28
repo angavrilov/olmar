@@ -1,5 +1,15 @@
 2006-04-28  Hendrik Tews  <tews@penguin.cs.kun.nl>
 
+	* ocaml serialization almost finished: only ocaml_from_SourceLoc
+	  is missing
+	* added getPtrBase to astgen.cc to extract pointer base type
+	* simplified ocaml_from_function
+	* treat FakeList pointers correcly
+	* new file ocamlhelp.cc as implementation of ocamlhelp.h
+	* new files cc_ocaml.* in test to support elsa's enum types
+	* added ocaml_from_ functions for all those enum types 
+	  (this includes lots of callbacks and huge switches)
+
 	* finish the commit message less hack started on April 24:
 	  most of ocaml serialization is done, still missing: functions for
 	  basis types, list functions for non-class elements,
