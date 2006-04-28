@@ -86,6 +86,8 @@ protected:
 
 public:
   VoidTailListIter(VoidTailList const &list)  { reset(list); }
+  // constructor that accepts NULL pointers
+  VoidTailListIter(VoidTailList const *list, bool) { if (list) reset(*list); else p = NULL; }
   ~VoidTailListIter()                         {}
 
   void reset(VoidTailList const &list)        { p = list.getTop(); }

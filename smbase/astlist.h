@@ -99,6 +99,7 @@ protected:
 
 public:
   ASTListIter(ASTList<T> const &list) : iter(list.list) {}
+  ASTListIter(ASTList<T> const *list, bool) : iter(list ? list->list : NULL) {}
   ~ASTListIter()                       {}
 
   void reset(ASTList<T> const &list)   { iter.reset(list.list); }
@@ -125,6 +126,8 @@ protected:
 
 public:
   ASTListIterNC(ASTList<T> &list)      : iter(list.list) {}
+  // constructor that accepts NULL pointers
+  ASTListIterNC(ASTList<T> *list, bool) : iter(list?&(list->list):NULL, 0) {}
   ~ASTListIterNC()                     {}
 
   void reset(ASTList<T> &list)         { iter.reset(list.list); }
