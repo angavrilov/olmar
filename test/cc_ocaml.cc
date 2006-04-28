@@ -4,6 +4,30 @@
 
 #include "cc_ocaml.h"
 
+
+// hand written ocaml serialization function
+value ocaml_from_SourceLoc(const SourceLoc &loc, ToOcamlData *d){
+  CAMLparam0();
+  CAMLlocal2(val_s, result);
+  
+  static value * create_SourceLoc_tuple_closure = NULL;
+  if(create_SourceLoc_tuple_closure == NULL)
+    create_SourceLoc_tuple_closure = caml_named_value("create_SourceLoc_tuple");
+  xassert(create_SourceLoc_tuple_closure);
+
+  char const *name;
+  int line, col;
+  sourceLocManager->decodeLineCol(loc, name, line, col);
+
+  val_s = caml_copy_string(name);
+  result = caml_callback3(*create_SourceLoc_tuple_closure, 
+			  val_s, Val_int(line), Val_int(col));
+
+  CAMLreturn(result);
+}
+
+
+
 // hand written ocaml serialization function
 value ocaml_from_DeclFlags(const DeclFlags &f, ToOcamlData *d){
   CAMLparam0();

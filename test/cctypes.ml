@@ -9,6 +9,7 @@
  *)
 type sourceLoc = string * int * int
 
+let create_SourceLoc_tuple s i j : sourceLoc = (s,i,j) 
 
 (* DeclFlags from cc_flags.h
  *)
@@ -1042,6 +1043,7 @@ let register_CK_callbacks () =
 
 
 let register_cctypes_callbacks () =
+  Callback.register "create_SourceLoc_tuple" create_SourceLoc_tuple;
   Callback.register "declFlag_from_int32" declFlag_from_int32;
   Callback.register "cVFlag_from_int32" cVFlag_from_int32;
   register_OP_callbacks();

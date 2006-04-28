@@ -1,3 +1,7 @@
+2006-04-28  Hendrik Tews  <tews@debian>
+
+	* added ocaml_from_SourceLoc
+
 2006-04-28  Hendrik Tews  <tews@penguin.cs.kun.nl>
 
 	* ocaml serialization almost finished: only ocaml_from_SourceLoc

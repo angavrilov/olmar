@@ -9,6 +9,8 @@
 #include "cc_flags.h"
 #include "ocamlhelp.h"
 
+value ocaml_from_SourceLoc(const SourceLoc &, ToOcamlData *);
+
 // for flag sets
 value ocaml_from_DeclFlags(const DeclFlags &, ToOcamlData *);
 value ocaml_from_CVFlags(const CVFlags &, ToOcamlData *);

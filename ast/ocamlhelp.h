@@ -24,10 +24,6 @@ public:
   SObjSet<const void*> stack;		// used to detect cycles in the ast
 };
 
-// ocaml serialization for base types
-value ocaml_from_SourceLoc(const SourceLoc &, ToOcamlData *);
-
-
 // hand written ocaml serialization function
 inline
 value ocaml_from_cstring(const char * s, ToOcamlData *d){
