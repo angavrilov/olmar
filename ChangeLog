@@ -1,3 +1,78 @@
+2006-04-28  Hendrik Tews  <tews@penguin.cs.kun.nl>
+
+	* finish the commit message less hack started on April 24:
+	  most of ocaml serialization is done, still missing: functions for
+	  basis types, list functions for non-class elements,
+	  serialization of enums.
+	* added TAGS goal to ast/Makefile.in
+	* permit ast files with ``-'' in the name
+	* restructured callback name generation in ocaml_node_callback
+	* simplified is_cyclic
+	* put ocaml helpers in separate file: ocamlhelp.h
+	* ocaml serialization (aka converting the ast into an ocaml
+	variant type)
+	  - all the changes describes in the following are only visible if
+	    the ast requests the ocamlVisitor (which switches wantOcaml
+	    on)
+
+	  - ocaml serialization can't be done with one of the visitors for
+	    two reasons:
+	    (1) all the visitors return void (instead of a template T)
+	    (2) the post visit methods do not have access to the return
+	    values of the post visit methods of the child nodes.
+
+	    I therfore decided to add another tree traversal method
+	    "toOcaml" solely for the purpose of ocaml serialization. All
+	    toOcaml methods have a parameter ToOcamlData (which is passed
+	    down during traversal) that contains a SObjSet<const void *>
+	    of ast nodes to detect cycles in the ast.
+	    [ I plan to use the ToOcamlData for some statistics as well ]
+
+	    The general approach is as follows: first convert all direct
+	    childs into ocaml values, then take these and call a ocaml
+	    function that builds the right ocaml ast node. One could build
+	    the value without calling into ocaml, however, this requires
+	    to fiddle with the not-so-trivial encoding of ocaml
+	    constructors. For basic types like int's and strings I'll use
+	    extra utility functions.
+
+	    The declaration of toOcaml is emited in emitCommonFuncs.
+
+	    For classes with children toOcaml is virtual and pure in the
+	    super class.
+
+	    For list classes there is one function per element class name
+	    that converts such a list into an ocaml list. This function
+	    starts at the end of the list, converts its contents and
+	    builds up an ocaml list in parallel. Lists are not shared in
+	    the ast, so no provisions to reflect sharing is necessary.
+	
+	  - additional includes and common utility functions come from
+	    ocamlhelp.h (in the spirit of asthelp.h)
+	
+	  - to reflect sharing all ast nodes save their ocaml value in the
+	    private "ocaml_val", which of course must be properly
+	    initialized and recored as global root as soon it gets a
+	    non-zero value. The ocaml_val sits only in subclass nodes or
+	    in super classes that don't have children.
+	    [ If there is not much sharing in the C++ ast's I might remove
+	    this later. If it stays will eventually need a visitor
+	    clearing ocaml_val and unregistering as global root. ]
+
+	  - new methods emitToOcamlChilds, emitToOcaml, emitOcamlFromList
+	    in CGen to emit the serialisation code.
+
+	    emitToOcamlChilds converts a CtorArg list in to recursive
+	                      serialization calls
+	    emitToOcaml       emits the def of toOcaml
+	    emitOcamlFromList emits the serialization function for a list
+	                      class
+
+	  - list conversion function are put first into the cc file,
+	    because they are called from the toOcaml methods.
+
+	  - toOcaml is emitted after clone.
+	
 2006-04-22  Hendrik Tews  <tews@debian>
 
 	* moved topicComment from OTGen to Gen

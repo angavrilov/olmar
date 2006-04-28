@@ -422,7 +422,6 @@ private:        // funcs
   void emitXmlVisitorInterface();
   void emitMVisitorInterface();
 
-
 public:         // funcs
   HGen(rostring srcFname, ObjList<string> const &modules,
        rostring destFname, ASTSpecFile const &file)
@@ -448,7 +447,7 @@ void HGen::emitFile()
   // asthelp needs sobjset if ocaml is included
   out << "#include \"asthelp.h\"        // helpers for generated code\n";
   if (wantOcaml) {
-    out << commentStart << "include ocaml values and callbacks"
+    out << commentStart << "include ocaml values and utility functions"
 	<< commentEnd << endl;
     out << "#include \"ocamlhelp.h\"\n";
   }
@@ -1766,6 +1765,7 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
   ASTClass const *myClass = sub ? sub : super;
   bool cyclic = sub ? false : is_cyclic(super);
   string cb = ocaml_node_callback(myClass->name, sub, cyclic);
+  string cbc = cb & "_closure";
 
   out << "value " << myClass->name << "::toOcaml(ToOcamlData *data) {\n";
   out << "  CAMLparam0();\n";
@@ -1778,11 +1778,11 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
   out << "  if(ocaml_val)\n"
       << "    CAMLreturn(ocaml_val);\n";
 
-  out << "  static value * " << cb << "_closure = NULL;\n"
-      << "  if(" << cb << "_closure == NULL)\n"
-      << "    " << cb << "_closure = \n"
+  out << "  static value * " << cbc << " = NULL;\n"
+      << "  if(" << cbc << " == NULL)\n"
+      << "    " << cbc << " = \n"
       << "      caml_named_value(\"" << cb << "\");\n"
-      << "  xassert(" << cb << "_closure);\n\n";
+      << "  xassert(" << cbc << ");\n\n";
 
   out << "  if(data->stack.contains(this)) {\n"
       << "    cerr << \"cyclic ast detected during ocaml serialization\\n\";"
@@ -1805,7 +1805,7 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
     out << "  ocaml_val = caml_callback";
     if(args_count > 1)
       out << args_count;
-    out << "(*" << cb << "_closure,\n";
+    out << "(*" << cbc << ",\n";
 
     for(unsigned i = 0; i < args_count; i++){
       if(i == 0)
@@ -1820,7 +1820,7 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
       out << ", Val_unit";
   }
   else {
-    out << "  ocaml_val = caml_callbackN(*" << cb << "_closure,\n"
+    out << "  ocaml_val = caml_callbackN(*" << cbc << ",\n"
 	<< "                              "
 	<< args_count << ", child";
   }
