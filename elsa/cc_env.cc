@@ -3363,12 +3363,12 @@ Variable *Env::createDeclaration(
         // definition, but it's already being deleted above
       } else if (prior->scope && prior->scope->isGlobalScope()) {
         // kc: Illegal to declare or define a function or data variable
-        // previously declared as static
+        // previously declared as static (?)  gcc-3.4 warns; gcc-4.0 errors.
         if ((dflags & DF_STATIC) && !prior->hasFlag(DF_STATIC)) {
-          error(type, stringc
-                << "prior declaration of `" << name
-                << "' at " << prior->loc
-                << " declared non-static, cannot re-declare as static");
+          env.diagnose3(lang.allowStaticAfterNonStatic, loc, stringc
+                        << "prior declaration of `" << name
+                        << "' at " << prior->loc
+                        << " declared non-static, cannot re-declare as static");
         }
       }
     }

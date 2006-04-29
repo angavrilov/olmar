@@ -113,7 +113,7 @@ public:
   // when true, allow function definitions that omit any return type
   // to implicitly return 'int'.
   bool allowImplicitInt;
-  
+
   // GNU extension: when true, allow local variable arrays to have
   // sizes that are not constant
   bool allowDynamicallySizedArrays;
@@ -200,11 +200,11 @@ public:
   // and transforms it into valid syntax for Elsa.  Actually, it just
   // enables some hacks that have similar effect.
   Bool3 allowGcc2HeaderSyntax;
-  
+
   // gcc C-mode bug compat: accept duplicate type specifier keywords
   // like 'int int'
   Bool3 allowRepeatedTypeSpecifierKeywords;
-  
+
   // gcc C-mode bug compat: silently allow const/volatile to be
   // applied to function types via typedefs; it's meaningless
   Bool3 allowCVAppliedToFunctionTypes;
@@ -212,15 +212,20 @@ public:
   // gcc bug compat: gcc does not enforce the rule that a definition
   // must be in a scope that encloses the declaration
   Bool3 allowDefinitionsInWrongScopes;
-  
+
   // gcc bug compat: in C++ mode, gcc allows prototype parameters to
   // have the same name (in/gnu/bugs/gb0011.cc)
   Bool3 allowDuplicateParameterNames;
-  
+
   // gcc bug compat: gcc does not require "template <>" is some
   // cases for explicit specializations (in/gnu/bugs/gb0012.cc)
   Bool3 allowExplicitSpecWithoutParams;
-                     
+
+  // quarl: declaring (or defining) a function as static after previously
+  // declaring it without 'static'. gcc-3.4 allows with warning; gcc-4.0
+  // disallows.
+  Bool3 allowStaticAfterNonStatic;
+
 private:     // funcs
   void setAllWarnings(bool enable);
 

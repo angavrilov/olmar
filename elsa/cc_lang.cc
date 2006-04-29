@@ -34,6 +34,7 @@ void CCLang::setAllWarnings(bool enable)
   setWarning(allowDefinitionsInWrongScopes, enable);
   setWarning(allowDuplicateParameterNames, enable);
   setWarning(allowExplicitSpecWithoutParams, enable);
+  setWarning(allowStaticAfterNonStatic, enable);
 }
 
 
@@ -88,6 +89,7 @@ void CCLang::ANSI_C89()
   allowDefinitionsInWrongScopes = B3_FALSE;
   allowDuplicateParameterNames = B3_FALSE;
   allowExplicitSpecWithoutParams = B3_FALSE;
+  allowStaticAfterNonStatic =  B3_WARN;
 }
 
 void CCLang::KandR_C()
@@ -221,6 +223,7 @@ void CCLang::ANSI_Cplusplus()
   allowDefinitionsInWrongScopes = B3_FALSE;
   allowDuplicateParameterNames = B3_FALSE;
   allowExplicitSpecWithoutParams = B3_FALSE;
+  allowStaticAfterNonStatic =  B3_WARN;
 }
 
 void CCLang::GNU_Cplusplus()

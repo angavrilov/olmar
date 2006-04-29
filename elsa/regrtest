@@ -1094,7 +1094,8 @@ failparse k0090a.cc "template specialization of array"
 failparse k0091.cc "template specialization with all default parameters"
 failparse k0092.cc "template-parameter-instantiated template class without 'typename' in constructor initializer"
 failparse k0093.cc "tertiary operator implicitly casting one pointer operand to bool"
-testparse k0094.cc #declared non-static, cannot re-declare as static
+# This is a warning now instead of an error:
+#testparse k0094.cc #declared non-static, cannot re-declare as static
 
 ### </quarl-testcases-c++>
 
