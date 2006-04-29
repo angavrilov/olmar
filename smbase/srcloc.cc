@@ -44,6 +44,7 @@ void addLineLength(ArrayStack<unsigned char> &lengths, int len)
 
 SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
   : name(n),
+    archiveName(n),
     startLoc(aStartLoc),     // assigned by SourceLocManager
     hashLines(NULL),
 
@@ -170,8 +171,9 @@ SourceLocManager::File::~File()
   delete[] lineLengths;
 }
 
-SourceLocManager::File::File(FileData *fileData, SourceLoc aStartLoc)
+SourceLocManager::File::File(FileData *fileData, SourceLoc aStartLoc, const char *archiveName0)
   : name(fileData->name),
+    archiveName(archiveName0?archiveName0:name),
     startLoc(aStartLoc),        // assigned by SourceLocManager
 //      hashLines(fileData->hashLines),
     hashLines(NULL),            // dsw: initialized later
@@ -602,8 +604,15 @@ SourceLocManager::File *SourceLocManager::getFile(char const *name)
   return recent = f;
 }
 
+char const *SourceLocManager::getArchive(char const *fname)
+{
+  File *f = findFile(fname);
+  return f ? f->archiveName.c_str() : "";
+}
+
+
 // load a file from a FileData object
-void SourceLocManager::loadFile(FileData *fileData)
+void SourceLocManager::loadFile(FileData *fileData, const char *archiveName)
 {
   xassert(fileData);
   // we should be loading a new file; dsw: I think this should remain
@@ -630,7 +639,7 @@ void SourceLocManager::loadFile(FileData *fileData)
 //    }
 
   // convert the FileData object to a File
-  File *f = new File(fileData, nextLoc);
+  File *f = new File(fileData, nextLoc, archiveName);
   files.append(f);
   if (fileData->hashLines) {
     FOREACH_ARRAYSTACK_NC(HashLineMap::HashLine, fileData->hashLines->directives, iter) {
@@ -831,11 +840,11 @@ void SourceLocManager::decodeLineCol_explicitHL(
 }
 
 
-char const *SourceLocManager::getFile(SourceLoc loc)
+char const *SourceLocManager::getFile(SourceLoc loc, bool localUseHashLines)
 {
   char const *name;
   int ofs;
-  decodeOffset(loc, name, ofs);
+  decodeOffset_explicitHL(loc, name, ofs, localUseHashLines);
   return name;
 }
 
