@@ -44,6 +44,12 @@ verbatim {
   class CCLang;                 // cc_lang.h
 }
 
+ocaml_type_verbatim {
+  open Cctypes;;
+}
+
+// use the newest astgen feature: serialize into ocaml
+option ocamlVisitor;
 // use a new astgen feature: make a visitor!
 option visitor ASTVisitor;
 option dvisitor DelegatorASTVisitor;

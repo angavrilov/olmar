@@ -1,5 +1,9 @@
 2006-04-30  Hendrik Tews  <tews@debian>
 
+	* small fixes in astgen
+	* modified elsa ast for ocaml serialization
+	* started elsa configuration for ocaml
+
 	* changed list allocation in ..._from_list functions, use
 	  caml_alloc and Store_field now
 

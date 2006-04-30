@@ -308,6 +308,28 @@ sub slurpFile {
 }
 
 
+# -------------- check ocaml compiler and get ocaml lib dir ------------
+sub test_ocaml_compiler {
+  print("Testing ocaml compiler ...\n");
+
+  if(open(FOO, "ocamlc.opt -where|")){
+    print("ocamlc.opt found\n");
+    $lib = <FOO>;
+    chomp($lib);
+  }
+  elsif(open(FOO, "ocamlc -where|")){
+    print("ocamlc found\n");
+    $lib = <FOO>;
+    chomp($lib);
+  }
+  else {
+    print(<<"EOF");
+
+Could neither find ocamlc nor ocamlc.opt.
+EOF
+}
+
+
 # -------------- does the C++ compiler work? --------------
 sub test_CXX_compiler {
   my $wd = `pwd`;
@@ -493,3 +515,7 @@ sub test_smbase_presence {
 
 1;
 # EOF
+
+### Local Variables: ###
+### perl-indent-level: 2 ###
+### End: ###

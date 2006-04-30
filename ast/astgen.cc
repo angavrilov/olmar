@@ -1279,7 +1279,8 @@ void CGen::emitTFClass(TF_class const &cls)
   // clone for childless superclasses
   if (!cls.hasChildren()) {
     emitCloneCode(cls.super, NULL /*sub*/);
-    emitToOcaml(cls.super, NULL);
+    if (wantOcaml)
+      emitToOcaml(cls.super, NULL);
   }
 
 
@@ -1356,7 +1357,8 @@ void CGen::emitTFClass(TF_class const &cls)
 
     // clone for subclasses
     emitCloneCode(cls.super, &ctor);
-    emitToOcaml(cls.super, &ctor);
+    if (wantOcaml)
+      emitToOcaml(cls.super, &ctor);
   }
 
   out << "\n";

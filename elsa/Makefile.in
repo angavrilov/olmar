@@ -13,6 +13,7 @@ all: cc.ast.gen.h tlexer ccparse quicktest
 SMBASE   := @SMBASE@
 AST      := @AST@
 ELKHOUND := @ELKHOUND@
+OCAML    := @OCAML@
 
 # stuff inside those other directories
 LIBSMBASE   := $(SMBASE)/libsmbase.a
@@ -97,7 +98,7 @@ endif
 CXX := g++
 
 # flags for the C++ compiler (and preprocessor)
-CCFLAGS := @CCFLAGS@ -DXML -Woverloaded-virtual -I$(SMBASE) -I$(AST) -I$(ELKHOUND)
+CCFLAGS := @CCFLAGS@ -DXML -Woverloaded-virtual -I$(SMBASE) -I$(AST) -I$(ELKHOUND) -I$(OCAML)
 
 # how to enable coverage
 GCOV_OPTS := -fprofile-arcs -ftest-coverage
