@@ -1127,9 +1127,6 @@ void CGen::emitFile()
     // output serialization function for list types first
     topicComment("ocaml serialization for list types");
 
-    out << "static value * create_builtin_cons_constructor_closure = NULL;"
-	<< endl << endl;
-
     StringSet list_set; // to print only one function for any given type
     FOREACH_ASTLIST(ListClass, listClasses, iter) {
       ListClass const *cls = iter.data();
@@ -1719,29 +1716,24 @@ void CGen::emitOcamlFromList(ListClass const *cls) {
       << "> & l, ToOcamlData * data) {\n";
 
   out << "  CAMLparam0();\n"
-      << "  CAMLlocal2(result, elem);\n"
-      << "  result = Val_emptylist;\n";
-
-  out << "  if(create_builtin_cons_constructor_closure == NULL)\n"
-      << "    create_builtin_cons_constructor_closure =\n"
-      << "      caml_named_value(\""
-      << "create_builtin_cons_constructor_closure\");\n";
-  out << "  xassert(create_builtin_cons_constructor_closure);\n\n";
-
+      << "  CAMLlocal3(result, tmp, elem);\n"
+      << "  result = Val_emptylist;\n\n";
 
   out << "  for(int i = l.count() -1; i >= 0; i--) {\n"
       << "    elem = ";
   if(isTreeNode(cname)) {
-    out << "    l.nth(i)->toOcaml(data);\n";
+    out << "l.nth(i)->toOcaml(data);";
   }
   else {
-    out << "    " << ocaml_from_function(cname) << "(l.nth(i), data);\n";
+    out << ocaml_from_function(cname) << "(l.nth(i), data);";
   }
+  out << " // serialize element\n";
 
-  out << "    result = caml_callback2(*"
-      << "create_builtin_cons_constructor_closure, elem, result);\n";
-
-  out << "  }" << endl;
+  out << "    tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell\n"
+      << "    Store_field(tmp, 0, elem);      // store car\n"
+      << "    Store_field(tmp, 1, result);    // store cdr\n"
+      << "    result = tmp;\n"
+      << "  }" << endl;
 
   out << "  CAMLreturn(result);\n";
   out << "}\n\n";
