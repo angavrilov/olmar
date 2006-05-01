@@ -58,7 +58,7 @@ TEMPL bool TypeToXml::printed(NAME const * const obj) { \
 #define identity(PREFIX, NAME) identity0(PREFIX, NAME, )
 #define identityTempl(PREFIX, NAME) identity0(PREFIX, NAME, template<class T>)
 
-identity(TY, Type)
+identity(TY, CType)
 identity(TY, CompoundType)
 identity(TY, FunctionType::ExnSpec)
 identity(TY, EnumType::Value)
@@ -295,14 +295,14 @@ void TypeToXml::toXml(ObjList<STemplateArgument> *list) {
   travObjList_standalone(*list, PseudoInstantiation, args, STemplateArgument);
 }
 
-void TypeToXml::toXml(Type *t) {
+void TypeToXml::toXml(CType *t) {
   // idempotency
   if (printed(t)) return;
 
   switch(t->getTag()) {
   default: xfailure("illegal tag");
 
-  case Type::T_ATOMIC: {
+  case CType::T_ATOMIC: {
     CVAtomicType *atom = t->asCVAtomicType();
     openTag(CVAtomicType, atom);
     // **** attributes
@@ -314,7 +314,7 @@ void TypeToXml::toXml(Type *t) {
     break;
   }
 
-  case Type::T_POINTER: {
+  case CType::T_POINTER: {
     PointerType *ptr = t->asPointerType();
     openTag(PointerType, ptr);
     // **** attributes
@@ -326,7 +326,7 @@ void TypeToXml::toXml(Type *t) {
     break;
   }
 
-  case Type::T_REFERENCE: {
+  case CType::T_REFERENCE: {
     ReferenceType *ref = t->asReferenceType();
     openTag(ReferenceType, ref);
     // **** attributes
@@ -337,7 +337,7 @@ void TypeToXml::toXml(Type *t) {
     break;
   }
 
-  case Type::T_FUNCTION: {
+  case CType::T_FUNCTION: {
     FunctionType *func = t->asFunctionType();
     openTag(FunctionType, func);
     // **** attributes
@@ -356,7 +356,7 @@ void TypeToXml::toXml(Type *t) {
     break;
   }
 
-  case Type::T_ARRAY: {
+  case CType::T_ARRAY: {
     ArrayType *arr = t->asArrayType();
     openTag(ArrayType, arr);
     // **** attributes
@@ -368,7 +368,7 @@ void TypeToXml::toXml(Type *t) {
     break;
   }
 
-  case Type::T_POINTERTOMEMBER: {
+  case CType::T_POINTERTOMEMBER: {
     PointerToMemberType *ptm = t->asPointerToMemberType();
     openTag(PointerToMemberType, ptm);
     // **** attributes
@@ -583,7 +583,7 @@ void TypeToXml::toXml_FunctionType_ExnSpec(void /*FunctionType::ExnSpec*/ *exnSp
   printEmbed(exnSpec, types);
   tagEnd;
   // **** subtags
-  travObjList_S(exnSpec, ExnSpec, types, Type);
+  travObjList_S(exnSpec, ExnSpec, types, CType);
 }
 
 void TypeToXml::toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0) {
@@ -1077,7 +1077,7 @@ bool TypeXmlReader::upcastToWantedType(void *obj, int objKind, void **target, in
 }
 
 bool TypeXmlReader::convertList2FakeList(ASTList<char> *list, int listKind, void **target) {
-  xfailure("should not be called during Type parsing there are no FakeLists in the Type System");
+  xfailure("should not be called during CType parsing there are no FakeLists in the CType System");
   return false;
 }
 
@@ -1106,7 +1106,7 @@ bool TypeXmlReader::convertList2SObjList(ASTList<char> *list, int listKind, void
     break;
 
   case XTOK_List_ExnSpec_types:
-    convertList(SObjList, Type);
+    convertList(SObjList, CType);
     break;
 
   }
@@ -1181,9 +1181,9 @@ void *TypeXmlReader::ctorNodeFromTag(int tag) {
 
   // **** Types
   case XTOK_CVAtomicType: return new CVAtomicType((AtomicType*)0, (CVFlags)0);
-  case XTOK_PointerType: return new PointerType((CVFlags)0, (Type*)0);
-  case XTOK_ReferenceType: return new ReferenceType((Type*)0);
-  case XTOK_FunctionType: return new FunctionType((Type*)0);
+  case XTOK_PointerType: return new PointerType((CVFlags)0, (CType*)0);
+  case XTOK_ReferenceType: return new ReferenceType((CType*)0);
+  case XTOK_FunctionType: return new FunctionType((CType*)0);
   case XTOK_FunctionType_ExnSpec: return new FunctionType::ExnSpec();
   case XTOK_ArrayType: return new ArrayType((ReadXML&)*this); // call the special ctor
   case XTOK_PointerToMemberType:
@@ -1235,7 +1235,7 @@ void *TypeXmlReader::ctorNodeFromTag(int tag) {
   case XTOK_List_BaseClassSubobj_parents:
     return new ASTList<BaseClassSubobj>();
   case XTOK_List_ExnSpec_types:
-    return new ASTList<Type>();
+    return new ASTList<CType>();
   case XTOK_List_FunctionType_params:
   case XTOK_List_CompoundType_dataMembers:
   case XTOK_List_CompoundType_conversionOperators:
@@ -1335,14 +1335,14 @@ void TypeXmlReader::registerAttr_PointerType(PointerType *obj, int attr, char co
   switch(attr) {
   default: userError("illegal attribute for a PointerType"); break;
   case XTOK_cv: fromXml(obj->cv, parseQuotedString(strValue)); break;
-  case XTOK_atType: ul(atType, XTOK_Type); break;
+  case XTOK_atType: ul(atType, XTOK_CType); break;
   }
 }
 
 void TypeXmlReader::registerAttr_ReferenceType(ReferenceType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a ReferenceType"); break;
-  case XTOK_atType: ul(atType, XTOK_Type); break;
+  case XTOK_atType: ul(atType, XTOK_CType); break;
   }
 }
 
@@ -1350,7 +1350,7 @@ void TypeXmlReader::registerAttr_FunctionType(FunctionType *obj, int attr, char 
   switch(attr) {
   default: userError("illegal attribute for a FunctionType"); break;
   case XTOK_flags: fromXml(obj->flags, parseQuotedString(strValue)); break;
-  case XTOK_retType: ul(retType, XTOK_Type); break;
+  case XTOK_retType: ul(retType, XTOK_CType); break;
   case XTOK_params: ulList(_List, params, XTOK_List_FunctionType_params); break;
   case XTOK_exnSpec: ul(exnSpec, XTOK_FunctionType_ExnSpec); break;
   }
@@ -1367,7 +1367,7 @@ void TypeXmlReader::registerAttr_FunctionType_ExnSpec
 void TypeXmlReader::registerAttr_ArrayType(ArrayType *obj, int attr, char const *strValue) {
   switch(attr) {
   default: userError("illegal attribute for a ArrayType"); break;
-  case XTOK_eltType: ul(eltType, XTOK_Type); break;
+  case XTOK_eltType: ul(eltType, XTOK_CType); break;
   case XTOK_size: fromXml_int(obj->size, parseQuotedString(strValue)); break;
   }
 }
@@ -1379,7 +1379,7 @@ void TypeXmlReader::registerAttr_PointerToMemberType
   case XTOK_inClassNAT:
     ul(inClassNAT, XTOK_NamedAtomicType); break;
   case XTOK_cv: fromXml(obj->cv, parseQuotedString(strValue)); break;
-  case XTOK_atType: ul(atType, XTOK_Type); break;
+  case XTOK_atType: ul(atType, XTOK_CType); break;
   }
 }
 
@@ -1389,11 +1389,11 @@ void TypeXmlReader::registerAttr_Variable(Variable *obj, int attr, char const *s
   case XTOK_loc:                // throw it away for now; FIX: parse it
     break;
   case XTOK_name: obj->name = manager->strTable(parseQuotedString(strValue)); break;
-  case XTOK_type: ul(type, XTOK_Type); break;
+  case XTOK_type: ul(type, XTOK_CType); break;
   case XTOK_flags:
     fromXml(const_cast<DeclFlags&>(obj->flags), parseQuotedString(strValue)); break;
   case XTOK_value: ul(value, XTOK_Expression); break;
-  case XTOK_defaultParamType: ul(defaultParamType, XTOK_Type); break;
+  case XTOK_defaultParamType: ul(defaultParamType, XTOK_CType); break;
   case XTOK_funcDefn: ul(funcDefn, XTOK_Function); break;
   case XTOK_overload: ul(overload, XTOK_OverloadSet); break;
   case XTOK_scope: ul(scope, XTOK_Scope); break;
@@ -1444,7 +1444,7 @@ void TypeXmlReader::registerAttr_CompoundType(CompoundType *obj, int attr, char 
   case XTOK_instName: obj->instName = manager->strTable(parseQuotedString(strValue)); break;
   case XTOK_syntax: ul(syntax, XTOK_TS_classSpec); break;
   case XTOK_parameterizingScope: ul(parameterizingScope, XTOK_Scope); break;
-  case XTOK_selfType: ul(selfType, XTOK_Type); break;
+  case XTOK_selfType: ul(selfType, XTOK_CType); break;
   }
 }
 
@@ -1566,7 +1566,7 @@ void TypeXmlReader::registerAttr_STemplateArgument
   default: userError("illegal attribute for a STemplateArgument"); break;
   case XTOK_kind: fromXml(obj->kind, parseQuotedString(strValue)); break;
   // exactly one of these must show up as it is a union; I don't check that though
-  case XTOK_t: ul(value.t, XTOK_Type); break;
+  case XTOK_t: ul(value.t, XTOK_CType); break;
   case XTOK_i: fromXml_int(obj->value.i, parseQuotedString(strValue)); break;
   case XTOK_v: ul(value.v, XTOK_Variable); break;
   case XTOK_e: ul(value.e, XTOK_Expression); break;

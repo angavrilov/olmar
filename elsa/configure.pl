@@ -145,18 +145,22 @@ if (! -f "$ELKHOUND/glr.h") {
 
 $PERL = get_PERL_variable();
 
+# ocaml
+($OCAMLDIR, $OCAMLC) = test_ocaml_compiler();
 
 # ------------------ config.summary -----------------
 $summary = getStandardConfigSummary();
 
 $summary .= <<"OUTER_EOF";
 cat <<EOF
-  LDFLAGS:     @LDFLAGS
-  SMBASE:      $SMBASE
-  AST:         $AST
-  ELKHOUND:    $ELKHOUND
-  USE_GNU:     $USE_GNU
-  USE_KANDR:   $USE_KANDR
+  LDFLAGS:       @LDFLAGS
+  SMBASE:        $SMBASE
+  AST:           $AST
+  ELKHOUND:      $ELKHOUND
+  USE_GNU:       $USE_GNU
+  USE_KANDR:     $USE_KANDR
+  OCAMLC:        $OCAMLC
+  OCAML LIB DIR: $OCAMLDIR
 EOF
 OUTER_EOF
 
@@ -173,6 +177,8 @@ writeConfigStatus("LDFLAGS" => "@LDFLAGS",
                   "AST" => "$AST",
                   "ELKHOUND" => "$ELKHOUND",
                   "PERL" => "$PERL",
+		  "OCAMLC" => "$OCAMLC",
+		  "OCAMLDIR" => "$OCAMLDIR",
                   "USE_GNU" => "$USE_GNU",
                   "USE_KANDR" => "$USE_KANDR",
                   "GCOV_MODS" => "$GCOV_MODS");

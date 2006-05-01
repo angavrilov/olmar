@@ -38,9 +38,9 @@ bool printAnonComment = false;
 
 
 // ------------------- TypeVisitor ----------------
-bool TypeVisitor::visitType(Type *obj)
+bool TypeVisitor::visitType(CType *obj)
   { return true; }
-void TypeVisitor::postvisitType(Type *obj)
+void TypeVisitor::postvisitType(CType *obj)
   {  }
 
 bool TypeVisitor::visitFunctionType_params(SObjList<Variable> &params)
@@ -185,7 +185,7 @@ void AtomicType::gdb() const
 string AtomicType::toString() const
 {
   if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
-  if (Type::printAsML) {
+  if (CType::printAsML) {
     return toMLString();
   }
   else {
@@ -991,13 +991,13 @@ void CompoundType::finishedClassDefinition(StringRef specialName)
 
 void CompoundType::addLocalConversionOp(Variable *op)
 {
-  Type *opRet = op->type->asFunctionTypeC()->retType;
+  CType *opRet = op->type->asFunctionTypeC()->retType;
 
   // remove any existing conversion operators that yield the same type
   {
     SObjListMutator<Variable> mut(conversionOperators);
     while (!mut.isDone()) {
-      Type *mutRet = mut.data()->type->asFunctionTypeC()->retType;
+      CType *mutRet = mut.data()->type->asFunctionTypeC()->retType;
 
       if (mutRet->equals(opRet)) {
         mut.remove();    // advances the iterator
@@ -1144,7 +1144,7 @@ EnumType::Value::~Value()
 
 
 // -------------------- TypePred ----------------------
-bool StatelessTypePred::operator() (Type const *t)
+bool StatelessTypePred::operator() (CType const *t)
 {
   return f(t);
 }
@@ -1180,10 +1180,10 @@ bool BaseType::equals(BaseType const *obj, MatchFlags flags) const
   MType mtype;
   
   // oy.. I think it's a fair assumption that the only direct subclass
-  // of BaseType is Type ...; in fact, I just made BaseType's ctor
+  // of BaseType is CType ...; in fact, I just made BaseType's ctor
   // private to ensure this
-  return mtype.matchType(static_cast<Type const*>(this),
-                         static_cast<Type const*>(obj), flags);
+  return mtype.matchType(static_cast<CType const*>(this),
+                         static_cast<CType const*>(obj), flags);
 }
 
 
@@ -1376,7 +1376,7 @@ bool BaseType::isGeneralizedDependent() const
   return false;
 }
 
-static bool cGD_helper(Type const *t)
+static bool cGD_helper(CType const *t)
 {
   return t->isGeneralizedDependent();
 }
@@ -1451,7 +1451,7 @@ bool BaseType::isPointerOrArrayRValueType() const {
 }
 
 // FIX: this is silly; it should be made into a virtual dispatch
-Type *BaseType::getAtType() const
+CType *BaseType::getAtType() const
 {
   if (isPointerType()) {
     return asPointerTypeC()->atType;
@@ -1479,7 +1479,7 @@ BaseType const *BaseType::asRvalC() const
     return asReferenceTypeC()->atType;
   }
   else {
-    return this;       // this possibility is one reason to not make 'asRval' return 'Type*' in the first place
+    return this;       // this possibility is one reason to not make 'asRval' return 'CType*' in the first place
   }
 }
 
@@ -1502,7 +1502,7 @@ bool BaseType::isNamedAtomicType() const {
 }
 
 
-bool typeIsError(Type const *t)
+bool typeIsError(CType const *t)
 {
   return t->isError();
 }
@@ -1513,7 +1513,7 @@ bool BaseType::containsErrors() const
 }
 
 
-bool typeHasTypeVariable(Type const *t)
+bool typeHasTypeVariable(CType const *t)
 {
   return t->isTypeVariable() ||
          (t->isCompoundType() &&
@@ -1543,7 +1543,7 @@ private:     // funcs
 public:      // funcs
   ContainsVariablesPred(MType *m) : map(m) {}
 
-  virtual bool operator() (Type const *t);
+  virtual bool operator() (CType const *t);
   bool atomicTypeHasVariable(AtomicType const *t);
   bool nameContainsVariables(PQName const *name);
 };
@@ -1603,7 +1603,7 @@ bool ContainsVariablesPred::nameContainsVariables(PQName const *name)
 }
 
 
-bool ContainsVariablesPred::operator() (Type const *t)
+bool ContainsVariablesPred::operator() (CType const *t)
 {
   if (t->isCVAtomicType()) {
     return atomicTypeHasVariable(t->asCVAtomicTypeC()->atomic);
@@ -1623,7 +1623,7 @@ bool BaseType::containsVariables(MType *map) const
 }
 
 
-string toString(Type *t)
+string toString(CType *t)
 {
   if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
   return t->toString();
@@ -1693,7 +1693,7 @@ void CVAtomicType::traverse(TypeVisitor &vis)
 
 
 // ------------------- PointerType ---------------
-PointerType::PointerType(CVFlags c, Type *a)
+PointerType::PointerType(CVFlags c, CType *a)
   : cv(c), atType(a)
 {
   // dsw: I had to put the 'if' here because the xml deserialization
@@ -1798,7 +1798,7 @@ void PointerType::traverse(TypeVisitor &vis)
 
 
 // ------------------- ReferenceType ---------------
-ReferenceType::ReferenceType(Type *a)
+ReferenceType::ReferenceType(CType *a)
   : atType(a)
 {
   // dsw: I had to put the 'if' here because the xml deserialization
@@ -1891,7 +1891,7 @@ FunctionType::ExnSpec::~ExnSpec()
 
 bool FunctionType::ExnSpec::anyCtorSatisfies(TypePred &pred) const
 {
-  SFOREACH_OBJLIST(Type, types, iter) {
+  SFOREACH_OBJLIST(CType, types, iter) {
     if (iter.data()->anyCtorSatisfies(pred)) {
       return true;
     }
@@ -1901,7 +1901,7 @@ bool FunctionType::ExnSpec::anyCtorSatisfies(TypePred &pred) const
 
 
 // -------------------- FunctionType -----------------
-FunctionType::FunctionType(Type *r)
+FunctionType::FunctionType(CType *r)
   : flags(FF_NONE),
     retType(r),
     params(),
@@ -2123,7 +2123,7 @@ string FunctionType::rightStringAfterQualifiers() const
   if (exnSpec) {
     sb << " throw(";
     int ct=0;
-    SFOREACH_OBJLIST(Type, exnSpec->types, iter) {
+    SFOREACH_OBJLIST(CType, exnSpec->types, iter) {
       if (ct++ > 0) {
         sb << ", ";
       }
@@ -2227,7 +2227,7 @@ void FunctionType::traverse(TypeVisitor &vis)
   // dsw: if you ever put them in, we have to take them out of the xml
   // rendering or they will get rendered twice; in
   // TypeToXml::visitType() see this case statement
-  //   case Type::T_FUNCTION:
+  //   case CType::T_FUNCTION:
 
   vis.postvisitType(this);
 }
@@ -2305,7 +2305,7 @@ void ArrayType::traverse(TypeVisitor &vis)
 
 
 // ---------------- PointerToMemberType ---------------
-PointerToMemberType::PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c, Type *a)
+PointerToMemberType::PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c, CType *a)
   : inClassNAT(inClassNAT0), cv(c), atType(a)
 {
   // 'inClassNAT' should always be a compound or something dependent
@@ -2614,14 +2614,14 @@ CompoundType *TypeFactory::makeCompoundType
 }
 
 
-Type *TypeFactory::shallowCloneType(Type *baseType)
+CType *TypeFactory::shallowCloneType(CType *baseType)
 {
   switch (baseType->getTag()) {
     default:
       xfailure("bad tag");
       break;
 
-    case Type::T_ATOMIC: {
+    case CType::T_ATOMIC: {
       CVAtomicType *atomic = baseType->asCVAtomicType();
 
       // make a new CVAtomicType with the same AtomicType as 'baseType',
@@ -2629,17 +2629,17 @@ Type *TypeFactory::shallowCloneType(Type *baseType)
       return makeCVAtomicType(atomic->atomic, atomic->cv);
     }
 
-    case Type::T_POINTER: {
+    case CType::T_POINTER: {
       PointerType *ptr = baseType->asPointerType();
       return makePointerType(ptr->cv, ptr->atType);
     }
 
-    case Type::T_REFERENCE: {
+    case CType::T_REFERENCE: {
       ReferenceType *ref = baseType->asReferenceType();
       return makeReferenceType(ref->atType);
     }
 
-    case Type::T_FUNCTION: {
+    case CType::T_FUNCTION: {
       FunctionType *ft = baseType->asFunctionType();
       FunctionType *ret = makeFunctionType(ft->retType);
       ret->flags = ft->flags;
@@ -2650,12 +2650,12 @@ Type *TypeFactory::shallowCloneType(Type *baseType)
       return ret;
     }
 
-    case Type::T_ARRAY: {
+    case CType::T_ARRAY: {
       ArrayType *arr = baseType->asArrayType();
       return makeArrayType(arr->eltType, arr->size);
     }
 
-    case Type::T_POINTERTOMEMBER: {
+    case CType::T_POINTERTOMEMBER: {
       PointerToMemberType *ptm = baseType->asPointerToMemberType();
       return makePointerToMemberType(ptm->inClassNAT, ptm->cv, ptm->atType);
     }
@@ -2670,7 +2670,7 @@ Type *TypeFactory::shallowCloneType(Type *baseType)
 //   byte const b;                   // cv = CV_CONST
 // yielding final type
 //   unsigned char const             // return value from this fn
-Type *TypeFactory::setQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
+CType *TypeFactory::setQualifiers(SourceLoc loc, CVFlags cv, CType *baseType,
                                  TypeSpecifier *)
 {
   if (baseType->isError()) {
@@ -2682,7 +2682,7 @@ Type *TypeFactory::setQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
     return baseType;
   }
 
-  Type *ret = NULL;
+  CType *ret = NULL;
 
   if (baseType->isCVAtomicType()) {
     ret = shallowCloneType(baseType);
@@ -2703,7 +2703,7 @@ Type *TypeFactory::setQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
 }
 
 
-Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
+CType *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, CType *baseType,
                                  TypeSpecifier *syntax)
 {
   if (baseType->isReferenceType()) {
@@ -2730,34 +2730,34 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
 }
 
 
-Type *TypeFactory::syntaxPointerType(SourceLoc loc,
-  CVFlags cv, Type *type, D_pointer *)
+CType *TypeFactory::syntaxPointerType(SourceLoc loc,
+  CVFlags cv, CType *type, D_pointer *)
 {
   return makePointerType(cv, type);
 }
 
-Type *TypeFactory::syntaxReferenceType(SourceLoc loc,
-  Type *type, D_reference *)
+CType *TypeFactory::syntaxReferenceType(SourceLoc loc,
+  CType *type, D_reference *)
 {
   return makeReferenceType(type);
 }
 
 
 FunctionType *TypeFactory::syntaxFunctionType(SourceLoc loc,
-  Type *retType, D_func *syntax, TranslationUnit *tunit)
+  CType *retType, D_func *syntax, TranslationUnit *tunit)
 {
   return makeFunctionType(retType);
 }
 
 
 PointerToMemberType *TypeFactory::syntaxPointerToMemberType(SourceLoc loc,
-  NamedAtomicType *inClassNAT, CVFlags cv, Type *atType, D_ptrToMember *syntax)
+  NamedAtomicType *inClassNAT, CVFlags cv, CType *atType, D_ptrToMember *syntax)
 {
   return makePointerToMemberType(inClassNAT, cv, atType);
 }
 
 
-Type *TypeFactory::makeTypeOf_receiver(SourceLoc loc,
+CType *TypeFactory::makeTypeOf_receiver(SourceLoc loc,
   NamedAtomicType *classType, CVFlags cv, D_func *syntax)
 {
   CVAtomicType *at = makeCVAtomicType(classType, cv);
@@ -2766,7 +2766,7 @@ Type *TypeFactory::makeTypeOf_receiver(SourceLoc loc,
 
 
 FunctionType *TypeFactory::makeSimilarFunctionType(SourceLoc loc,
-  Type *retType, FunctionType *similar)
+  CType *retType, FunctionType *similar)
 {
   FunctionType *ret = 
     makeFunctionType(retType);
@@ -2792,7 +2792,7 @@ ArrayType *TypeFactory::setArraySize(SourceLoc loc, ArrayType *type, int size)
 
 
 // -------------------- BasicTypeFactory ----------------------
-// this is for when I split Type from Type_Q
+// this is for when I split CType from CType_Q
 CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
   #define CVAT(id) \
     CVAtomicType(&SimpleType::fixed[id], CV_NONE),
@@ -2868,19 +2868,19 @@ CVAtomicType *BasicTypeFactory::makeCVAtomicType(AtomicType *atomic, CVFlags cv)
 }
 
 
-PointerType *BasicTypeFactory::makePointerType(CVFlags cv, Type *atType)
+PointerType *BasicTypeFactory::makePointerType(CVFlags cv, CType *atType)
 {
   return new PointerType(cv, atType);
 }
 
 
-Type *BasicTypeFactory::makeReferenceType(Type *atType)
+CType *BasicTypeFactory::makeReferenceType(CType *atType)
 {
   return new ReferenceType(atType);
 }
 
 
-FunctionType *BasicTypeFactory::makeFunctionType(Type *retType)
+FunctionType *BasicTypeFactory::makeFunctionType(CType *retType)
 {
   return new FunctionType(retType);
 }
@@ -2889,21 +2889,21 @@ void BasicTypeFactory::doneParams(FunctionType *)
 {}
 
 
-ArrayType *BasicTypeFactory::makeArrayType(Type *eltType, int size)
+ArrayType *BasicTypeFactory::makeArrayType(CType *eltType, int size)
 {
   return new ArrayType(eltType, size);
 }
 
 
 PointerToMemberType *BasicTypeFactory::makePointerToMemberType
-  (NamedAtomicType *inClassNAT, CVFlags cv, Type *atType)
+  (NamedAtomicType *inClassNAT, CVFlags cv, CType *atType)
 {
   return new PointerToMemberType(inClassNAT, cv, atType);
 }
 
 
 Variable *BasicTypeFactory::makeVariable(
-  SourceLoc L, StringRef n, Type *t, DeclFlags f, TranslationUnit *)
+  SourceLoc L, StringRef n, CType *t, DeclFlags f, TranslationUnit *)
 {
   // I will turn this on from time to time as a way to check that
   // Types are always capable of printing themselves.  It should never
@@ -2945,7 +2945,7 @@ void throw_XReprSize(bool d)
 
 
 // --------------- debugging ---------------
-char *type_toString(Type const *t)
+char *type_toString(CType const *t)
 {
   // defined in smbase/strutil.cc
   return copyToStaticBuffer(t->toString().c_str());

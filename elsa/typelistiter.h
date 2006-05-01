@@ -5,7 +5,7 @@
 #ifndef TYPELISTITER_H
 #define TYPELISTITER_H
 
-#include "overload.h"        // Type, GrowArray, ArgumentInfo, etc.
+#include "overload.h"        // CType, GrowArray, ArgumentInfo, etc.
 #include "fakelist.h"        // FakeList
 
 // unifies the process of iterating over a list of types
@@ -18,7 +18,7 @@ class TypeListIter {
   // iterator actions
   virtual bool isDone() const = 0;
   virtual void adv() = 0;
-  virtual Type *data() const = 0;
+  virtual CType *data() const = 0;
 };
 
 class TypeListIter_FakeList : public TypeListIter {
@@ -36,7 +36,7 @@ class TypeListIter_FakeList : public TypeListIter {
 
   virtual bool isDone() const;
   virtual void adv();
-  virtual Type *data() const;
+  virtual CType *data() const;
 };
 
 class TypeListIter_GrowArray : public TypeListIter {
@@ -55,7 +55,7 @@ class TypeListIter_GrowArray : public TypeListIter {
 
   virtual bool isDone() const;
   virtual void adv();
-  virtual Type *data() const;
+  virtual CType *data() const;
 };
 
 #endif // TYPELISTITER_H

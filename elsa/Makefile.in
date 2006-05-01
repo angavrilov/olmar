@@ -4,7 +4,7 @@
 #temporary: iptree iptparse cipart smin
 
 # main target: a C++ parser
-all: cc.ast.gen.h tlexer ccparse quicktest
+all: cc.ast.gen.h tlexer ccparse quickocamltest
 
 # work in progress..
 #iptree smin cipart
@@ -13,12 +13,16 @@ all: cc.ast.gen.h tlexer ccparse quicktest
 SMBASE   := @SMBASE@
 AST      := @AST@
 ELKHOUND := @ELKHOUND@
-OCAML    := @OCAML@
+OCAMLC   := @OCAMLC@
+OCAMLDIR := @OCAMLDIR@
 
 # stuff inside those other directories
 LIBSMBASE   := $(SMBASE)/libsmbase.a
 LIBAST      := $(AST)/libast.a
 LIBELKHOUND := $(ELKHOUND)/libelkhound.a
+LIBOCAMLRUN := $(OCAMLDIR)/libcamlrun.a
+
+OCAMLLIBS := $(LIBOCAMLRUN) -lcurses
 
 # external tools
 PERL := @PERL@
@@ -98,7 +102,7 @@ endif
 CXX := g++
 
 # flags for the C++ compiler (and preprocessor)
-CCFLAGS := @CCFLAGS@ -DXML -Woverloaded-virtual -I$(SMBASE) -I$(AST) -I$(ELKHOUND) -I$(OCAML)
+CCFLAGS := @CCFLAGS@ -DXML -Woverloaded-virtual -I$(SMBASE) -I$(AST) -I$(ELKHOUND) -I$(OCAMLDIR)
 
 # how to enable coverage
 GCOV_OPTS := -fprofile-arcs -ftest-coverage
@@ -113,6 +117,11 @@ TOCLEAN += *.o *.d
 %.o: %.cc
 	$(CXX) -c -o $@ $< $(if $(findstring $*,$(GCOV_MODS)),$(GCOV_OPTS) )$(CCFLAGS)
 	@$(PERL) $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) >$*.d
+
+TOCLEAN += *.cmo *.cmi *.cmx
+%.cmo: %.ml
+	$(OCAMLC) -c $<
+
 
 # compile a special module; -O0 will override any earlier setting
 notopt.o: notopt.cc
@@ -232,8 +241,8 @@ astxml_tokens.h: astxml_tokens0_top.h astxml_tokens1_mid.gen.h astxml_tokens1_ty
 # 	chmod a-w $@
 
 # run astgen to generate the AST implementation
-TOCLEAN += cc.ast.gen.h cc.ast.gen.cc
-cc.ast.gen.h cc.ast.gen.cc: $(CC_AST_MODS) $(AST)/astgen
+TOCLEAN += cc.ast.gen.h cc.ast.gen.cc cc.ast.gen.ml
+cc.ast.gen.h cc.ast.gen.cc cc.ast.gen.ml: $(CC_AST_MODS) $(AST)/astgen
 	$(AST)/astgen -occ.ast.gen $(CC_AST_MODS)
 
 
@@ -243,10 +252,33 @@ cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
 	$(ELKHOUND)/elkhound -v -tr lrtable -o cc.gr.gen $(CC_GR_MODS)
 
 
+# List of ml modules needed by the parser. They are all combined 
+# into one ml_object.o file.
+CCPARSE_ML := \
+  cc_ml_types.ml \
+  cc_ast_gen_ml.ml \
+  caml_callbacks.ml
+
+-include mldeps.mk
+TOCLEAN += mldeps.mk
+mldeps.mk: $(CCPARSE_ML)
+	ocamldep $^ > $@
+
+# copy cc.ast.gen.ml, otherwise objects files will conflict
+cc_ast_gen_ml.ml: cc.ast.gen.ml
+	cp $< $@
+
+ml_object.o: $(CCPARSE_ML:.ml=.cmo) 
+	$(OCAMLC) -custom -output-obj -o $@ $^
+
+
 # list of modules needed for the parser; ideally they're in an order
 # that finds serious compilation problems earliest (it's ok to
 # rearrange as different parts of the code are in flux)
 CCPARSE_OBJS := \
+  ml_object.o \
+  cc.ast.gen.o \
+  cc_ocaml.o \
   mtype.o \
   integrity.o \
   astvisit.o \
@@ -274,7 +306,6 @@ CCPARSE_OBJS := \
   implconv.o \
   overload.o \
   typelistiter.o \
-  cc.ast.gen.o \
   cc.gr.gen.o \
   parssppt.o \
   cc_flags.o \
@@ -291,7 +322,7 @@ CCPARSE_OBJS := \
 # parser binary
 TOCLEAN += ccparse
 ccparse: $(CCPARSE_OBJS) main.o $(libraries)
-	$(CXX) -o $@ $(CCPARSE_OBJS) main.o $(LDFLAGS)
+	$(CXX) -o $@ $(CCPARSE_OBJS) main.o $(LDFLAGS) $(OCAMLLIBS)
 
 
 # run the binary; the 'quicktest' file is so we don't run it if
@@ -300,6 +331,12 @@ TOCLEAN += quicktest
 quicktest: ccparse
 	./ccparse in/t0001.cc
 	@touch quicktest
+	@echo BUILD FINISHED
+
+TOCLEAN += quickocamltest
+quickocamltest: ccparse
+	./ccparse -tr marshallToOcaml in/t0001.cc
+	@touch quickocamltest
 	@echo BUILD FINISHED
 
 
@@ -481,3 +518,10 @@ check: semgrep all
 .PHONY: checkxml
 checkxml:
 	$(MAKE) -f checkxml.mk
+
+.PHONY: TAGS
+TAGS:
+	etags --members \
+		`find . ../ast ../elkhound ../smbase -name \*.h` \
+		`find . ../ast ../elkhound ../smbase -name \*.cc`
+

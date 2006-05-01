@@ -31,17 +31,17 @@ SimpleTypeId constructFloatingType(int prec, int axis);
 // also http://gcc.gnu.org/onlinedocs/gcc-3.4.3/gcc/Other-Builtins.html
 void Env::addGNUBuiltins()
 {
-  Type *t_void = getSimpleType(ST_VOID);
-//    Type *t_voidconst = getSimpleType(SL_INIT, ST_VOID, CV_CONST);
-  Type *t_voidptr = makePtrType(t_void);
-//    Type *t_voidconstptr = makePtrType(SL_INIT, t_voidconst);
+  CType *t_void = getSimpleType(ST_VOID);
+//    CType *t_voidconst = getSimpleType(SL_INIT, ST_VOID, CV_CONST);
+  CType *t_voidptr = makePtrType(t_void);
+//    CType *t_voidconstptr = makePtrType(SL_INIT, t_voidconst);
 
-  Type *t_int = getSimpleType(ST_INT);
-  Type *t_unsigned_int = getSimpleType(ST_UNSIGNED_INT);
-  Type *t_char = getSimpleType(ST_CHAR);
-  Type *t_charconst = getSimpleType(ST_CHAR, CV_CONST);
-  Type *t_charptr = makePtrType(t_char);
-  Type *t_charconstptr = makePtrType(t_charconst);
+  CType *t_int = getSimpleType(ST_INT);
+  CType *t_unsigned_int = getSimpleType(ST_UNSIGNED_INT);
+  CType *t_char = getSimpleType(ST_CHAR);
+  CType *t_charconst = getSimpleType(ST_CHAR, CV_CONST);
+  CType *t_charptr = makePtrType(t_char);
+  CType *t_charconstptr = makePtrType(t_charconst);
 
   // dsw: This is a form, not a function, since it takes an expression
   // AST node as an argument; however, I need a function that takes no
@@ -613,7 +613,7 @@ void Env::addGNUBuiltins()
   for (int axis=0; axis<=1; axis++) {
     for (int prec=0; prec<=2; prec++) {                                 
       StringRef n = axis==0? string_realSelector : string_imagSelector;
-      Type *t = env.getSimpleType(constructFloatingType(prec, axis));
+      CType *t = env.getSimpleType(constructFloatingType(prec, axis));
       Variable *v = makeVariable(SL_INIT, n, t, DF_BUILTIN | DF_MEMBER);
       complexComponentFields[axis][prec] = v;
     }
@@ -638,7 +638,7 @@ void ASTTypeof::mid_tcheck(Env &env, DeclFlags &dflags)
 }
 
 
-Type *TS_typeof_expr::itcheck(Env &env, DeclFlags dflags)
+CType *TS_typeof_expr::itcheck(Env &env, DeclFlags dflags)
 {
   // FIX: dflags discarded?
   expr->tcheck(env);
@@ -650,17 +650,17 @@ Type *TS_typeof_expr::itcheck(Env &env, DeclFlags dflags)
 }
 
 
-Type *TS_typeof_type::itcheck(Env &env, DeclFlags dflags)
+CType *TS_typeof_type::itcheck(Env &env, DeclFlags dflags)
 {
   ASTTypeId::Tcheck tc(DF_NONE /*dflags don't apply to this type*/,
                        DC_TS_TYPEOF_TYPE);
   atype = atype->tcheck(env, tc);
-  Type *t = atype->getType();
+  CType *t = atype->getType();
   return t;
 }
 
 
-Type *TS_typeof::itcheck(Env &env, DeclFlags dflags)
+CType *TS_typeof::itcheck(Env &env, DeclFlags dflags)
 {
   atype = atype->tcheck(env, dflags);
   return atype->type;
@@ -695,7 +695,7 @@ void S_computedGoto::itcheck(Env &env)
   // can be implicitly converted to void*.  Even so, EDG does in fact
   // enforce that the arg is exactly void*.  GCC itself does not
   // appear to enforce any restrictions on the type (!).
-  Type *t = target->type->asRval();
+  CType *t = target->type->asRval();
   if (!t->isPointer()) {
     env.error(t, stringc
       << "type of expression in computed goto must be a pointer, not `"
@@ -704,7 +704,7 @@ void S_computedGoto::itcheck(Env &env)
 }
 
 
-Type *E_compoundLit::itcheck_x(Env &env, Expression *&replacement)
+CType *E_compoundLit::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc(DF_NONE, DC_E_COMPOUNDLIT);
 
@@ -722,14 +722,14 @@ Type *E_compoundLit::itcheck_x(Env &env, Expression *&replacement)
   // compound literal is an lvalue.  But, compound literals are now
   // part of C99 (6.5.2.5), which says they are indeed lvalues (but
   // says nothing about being const)."
-  Type *t0 = stype->getType();
-  Type *t1 = env.computeArraySizeFromCompoundInit(env.loc(), t0, t0, init);
+  CType *t0 = stype->getType();
+  CType *t1 = env.computeArraySizeFromCompoundInit(env.loc(), t0, t0, init);
   return env.makeReferenceType(t1);
   // TODO: check that the cast (literal) makes sense
 }
 
 
-Type *E___builtin_constant_p::itcheck_x(Env &env, Expression *&replacement)
+CType *E___builtin_constant_p::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
@@ -749,7 +749,7 @@ Type *E___builtin_constant_p::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-Type *E___builtin_va_arg::itcheck_x(Env &env, Expression *&replacement)
+CType *E___builtin_va_arg::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc(DF_NONE, DC_E_BUILTIN_VA_ARG);
   expr->tcheck(env, expr);
@@ -758,11 +758,11 @@ Type *E___builtin_va_arg::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-Type *E_alignofType::itcheck_x(Env &env, Expression *&replacement)
+CType *E_alignofType::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc(DF_NONE, DC_E_ALIGNOFTYPE);
   atype = atype->tcheck(env, tc);
-  Type *t = atype->getType();
+  CType *t = atype->getType();
 
   // just assume that the type's size is its alignment; this may
   // be a little conservative for 'double', and will be wrong for
@@ -772,7 +772,7 @@ Type *E_alignofType::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-Type *E_alignofExpr::itcheck_x(Env &env, Expression *&replacement)
+CType *E_alignofExpr::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
@@ -781,7 +781,7 @@ Type *E_alignofExpr::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-Type *E_statement::itcheck_x(Env &env, Expression *&replacement)
+CType *E_statement::itcheck_x(Env &env, Expression *&replacement)
 {
   // An E_statement can contain declarations, and tchecking a
   // declaration modifies the environment.  But expressions can occur
@@ -815,7 +815,7 @@ Type *E_statement::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-Type *E_gnuCond::itcheck_x(Env &env, Expression *&replacement)
+CType *E_gnuCond::itcheck_x(Env &env, Expression *&replacement)
 {
   cond->tcheck(env, cond);
   el->tcheck(env, el);
@@ -827,7 +827,7 @@ Type *E_gnuCond::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-Type *E_addrOfLabel::itcheck_x(Env &env, Expression *&replacement)
+CType *E_addrOfLabel::itcheck_x(Env &env, Expression *&replacement)
 {
   // TODO: check that the label exists in the function
   
@@ -840,7 +840,7 @@ Type *E_addrOfLabel::itcheck_x(Env &env, Expression *&replacement)
 //   prec: 0=float, 1=double, 2=longdouble
 //   axis: 0=real, 1=imag, 2=complex
 // return false if not among the nine floating types
-bool dissectFloatingType(int &prec, int &axis, Type *t)
+bool dissectFloatingType(int &prec, int &axis, CType *t)
 {
   t = t->asRval();
 
@@ -881,7 +881,7 @@ SimpleTypeId constructFloatingType(int prec, int axis)
 }
 
 
-Type *E_fieldAcc::itcheck_complex_selector(Env &env, LookupFlags flags,
+CType *E_fieldAcc::itcheck_complex_selector(Env &env, LookupFlags flags,
                                            LookupSet &candidates)
 {
   int isImag = fieldName->getName()[2] == 'i';
@@ -899,7 +899,7 @@ Type *E_fieldAcc::itcheck_complex_selector(Env &env, LookupFlags flags,
 }
 
 
-Type *E_binary::itcheck_complex_arith(Env &env)
+CType *E_binary::itcheck_complex_arith(Env &env)
 {
   int prec1, axis1;
   int prec2, axis2;
@@ -973,7 +973,7 @@ static void check_designator_list(Env &env, FakeList<Designator> *dl)
   }
 }
 
-void IN_designated::tcheck(Env &env, Type *type)
+void IN_designated::tcheck(Env &env, CType *type)
 {
   init->tcheck(env, type);
   check_designator_list(env, designator_list);

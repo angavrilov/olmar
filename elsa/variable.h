@@ -39,7 +39,7 @@
 #include "sobjlist.h"          // SObjList
 #include "serialno.h"          // INHERIT_SERIAL_BASE
 
-class Type;                    // cc_type.h
+class CType;                    // cc_type.h
 class TypeVisitor;             // cc_type.h
 class FunctionType;            // cc_type.h
 class OverloadSet;             // below
@@ -70,7 +70,7 @@ public:    // data
   StringRef name;        
 
   // type of the variable (NULL iff flags has DF_NAMESPACE)
-  Type *type;             
+  CType *type;             
   
   // various flags; 'const' to force modifications to go through
   // the 'setFlagsTo' method
@@ -86,7 +86,7 @@ public:    // data
 
   // default value for template parameters; see TODO at end
   // of this file
-  Type *defaultParamType; // (nullable serf)
+  CType *defaultParamType; // (nullable serf)
 
   // associated function definition; if NULL, either this thing isn't
   // a function or we never saw a definition
@@ -140,7 +140,7 @@ private:      // data
 
 protected:    // funcs
   friend class BasicTypeFactory;
-  Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f);
+  Variable(SourceLoc L, StringRef n, CType *t, DeclFlags f);
   Variable(ReadXML&);           // ctor for de-serialization
 
 public:
@@ -220,8 +220,8 @@ public:
   bool isUninstTemplateMember() const;
 
   // variable's type.. same as the public 'type' field..
-  Type *getType() { return type; }
-  Type const *getTypeC() const { return type; }
+  CType *getType() { return type; }
+  CType const *getTypeC() const { return type; }
 
   // create an overload set if it doesn't exist, and return it (do not
   // do this unless you actually need a set; if you just want to treat
@@ -254,7 +254,7 @@ public:
   // true if this is a template type parameter (unbound/abstract)
   bool isTemplateTypeParam() const;
 
-  // generic print (C or ML depending on Type::printAsML)
+  // generic print (C or ML depending on CType::printAsML)
   string toString() const;
 
   // C declaration syntax

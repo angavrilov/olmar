@@ -2,7 +2,7 @@
 // code for variable.h
 
 #include "variable.h"      // this module
-#include "template.h"      // Type, TemplateInfo, etc.
+#include "template.h"      // CType, TemplateInfo, etc.
 #include "trace.h"         // tracingSys
 
 
@@ -23,11 +23,11 @@ class SomeTypeVarNotInTemplParams_Pred : public TypePred {
   TemplateInfo *ti;
   public:
   SomeTypeVarNotInTemplParams_Pred(TemplateInfo *ti0) : ti(ti0) {}
-  virtual bool operator() (Type const *t);
+  virtual bool operator() (CType const *t);
   virtual ~SomeTypeVarNotInTemplParams_Pred() {}
 };
 
-bool SomeTypeVarNotInTemplParams_Pred::operator() (Type const *t)
+bool SomeTypeVarNotInTemplParams_Pred::operator() (CType const *t)
 {
   if (!t->isCVAtomicType()) return false;
   CVAtomicType const *cv = t->asCVAtomicTypeC();
@@ -62,7 +62,7 @@ bool SomeTypeVarNotInTemplParams_Pred::operator() (Type const *t)
 
 
 // ---------------------- Variable --------------------
-Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
+Variable::Variable(SourceLoc L, StringRef n, CType *t, DeclFlags f)
   : loc(L),
     name(n),
     type(t),
@@ -265,7 +265,7 @@ void Variable::gdb() const
 
 string Variable::toString() const
 {
-  if (Type::printAsML) {
+  if (CType::printAsML) {
     return toMLString();
   }
   else {

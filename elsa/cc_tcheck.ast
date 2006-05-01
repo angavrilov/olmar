@@ -11,7 +11,7 @@
 // of the classes from the base
 verbatim {
   #include "variable.h"      // Variable
-  #include "cc_type.h"       // Type, FunctonType, CompoundType
+  #include "cc_type.h"       // CType, FunctonType, CompoundType
   #include "template.h"      // STemplateArgument
   #include "const_eval.h"    // ConstEval
   #include "macros.h"        // Restorer
@@ -172,7 +172,7 @@ class ASTTypeId {
   public ASTTypeId *tcheck(Env &env, Tcheck &tc);
   public void mid_tcheck(Env &env, Tcheck &tc);
 
-  public Type *getType() const;      // can use after calling 'tcheck'
+  public CType *getType() const;      // can use after calling 'tcheck'
 }
 
 
@@ -212,8 +212,8 @@ class PQName {
 class TypeSpecifier {
   // yield the type named by the specifier; this type may of course
   // get refined when the declarator is considered
-  public Type *tcheck(Env &env, DeclFlags dflags);
-  pure_virtual Type *itcheck(Env &env, DeclFlags dflags);
+  public CType *tcheck(Env &env, DeclFlags dflags);
+  pure_virtual CType *itcheck(Env &env, DeclFlags dflags);
 
   // since several of the type specifiers use names, and names are
   // scoped, but we don't want later analyses to have to know about
@@ -278,10 +278,10 @@ class Enumerator {
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
 
-  // we pass both the base 'enum' and the Type wrapped around it,
+  // we pass both the base 'enum' and the CType wrapped around it,
   // since both are needed and it's slightly expensive to compute
   // one from the other for each enumerator
-  public void tcheck(Env &env, EnumType *parentEnum, Type *parentType);
+  public void tcheck(Env &env, EnumType *parentEnum, CType *parentType);
 }
 
 
@@ -327,7 +327,7 @@ class Declarator {
   // function), and hence 'var->type' might differ in details like
   // parameter names.  Otherwise, nominally, 'var->type' and 'type'
   // denote equivalent types.
-  public(xml_TY) Type *type = NULL;
+  public(xml_TY) CType *type = NULL;
 
   // syntactic context; sometimes useful to visitors
   public(xml) DeclaratorContext context = DC_UNKNOWN;
@@ -349,7 +349,7 @@ class Declarator {
     // layer additional type constructors on top of it and replace
     // the pointer here with a pointer to the constructed type; at
     // the end it is the fully-constructed type
-    Type *type;
+    CType *type;
 
     // these are the declflags attached to the outer declaration
     DeclFlags dflags;
@@ -367,7 +367,7 @@ class Declarator {
     DeclaratorContext context;
 
   public:
-    Tcheck(Type *t, DeclFlags d, DeclaratorContext dc)
+    Tcheck(CType *t, DeclFlags d, DeclaratorContext dc)
       : existingVar (NULL)
       , type        (t)
       , dflags      (d)
@@ -502,12 +502,12 @@ class Expression {
   // receiver object pointer into 'replacement' initially
   //
   // the "_x" is for grepping value; think of it as standing for 'eXpression'
-  pure_virtual Type *itcheck_x(Env &env, Expression *&replacement);
+  pure_virtual CType *itcheck_x(Env &env, Expression *&replacement);
 
   // type computed for this expression; might be a SimpleType for
   // ST_ERROR, in which case a subsequent attempt to typecheck the
   // same expression should stop and look for an ambiguous alt.
-  public(xml_TY) Type *type = NULL;
+  public(xml_TY) CType *type = NULL;
 
   // this is a violation of the cloning invariant, but it gets fixed
   // with CloneExprTypesVisitor after the AST has been fully cloned
@@ -516,7 +516,7 @@ class Expression {
   }
 
   // make the API for getting the type identical to that of FullExpression
-  public Type *getType() { return type; };
+  public CType *getType() { return type; };
 
   // const-eval; will add an error message to the environment if this
   // expression is not a constant (and also return false); can only
@@ -569,11 +569,11 @@ class Expression {
 
   -> E_variable {
        public(xml_TY) Variable *var = NULL; // (serf) binding introduction of this name
-       public Type *itcheck_var(Env &env, Expression *&replacement, LookupFlags flags);
+       public CType *itcheck_var(Env &env, Expression *&replacement, LookupFlags flags);
        custom clone { ret->var = var; }
 
        // extended tcheck interface for lookups that yield sets
-       public Type *itcheck_var_set(Env &env, Expression *&replacement,
+       public CType *itcheck_var_set(Env &env, Expression *&replacement,
                                     LookupFlags flags, LookupSet &set);
 
        // similar to TS_name::nondependentVar
@@ -586,11 +586,11 @@ class Expression {
   // first stage is sufficient to disambiguate between the two
   -> E_funCall {
        public void inner1_itcheck(Env &env, LookupSet &candidates);
-       public Type *inner2_itcheck(Env &env, LookupSet &candidates);
+       public CType *inner2_itcheck(Env &env, LookupSet &candidates);
      }
   -> E_constructor {
        public void inner1_itcheck(Env &env);
-       public Type *inner2_itcheck(Env &env, Expression *&replacement);
+       public CType *inner2_itcheck(Env &env, Expression *&replacement);
 
        // the constructor function being called
        public(xml_TY) Variable *ctorVar = NULL;
@@ -599,8 +599,8 @@ class Expression {
 
   -> E_fieldAcc {
        public(xml_TY) Variable *field = NULL;
-       public Type *itcheck_fieldAcc(Env &env, LookupFlags flags);
-       public Type *itcheck_fieldAcc_set(Env &env, LookupFlags flags,
+       public CType *itcheck_fieldAcc(Env &env, LookupFlags flags);
+       public CType *itcheck_fieldAcc_set(Env &env, LookupFlags flags,
                                          LookupSet &candidates);
 
        custom clone { ret->field = field; }
@@ -646,15 +646,15 @@ class Expression {
   // extended tcheck interface for lookups that yield sets; see
   // tcheckExpression_set() in cc_tcheck.cc
   -> E_addrOf {
-       public Type *itcheck_addrOf_set(Env &env, Expression *&replacement,
+       public CType *itcheck_addrOf_set(Env &env, Expression *&replacement,
                                        LookupFlags flags, LookupSet &set);
      }
   -> E_grouping {
-       public Type *itcheck_grouping_set(Env &env, Expression *&replacement,
+       public CType *itcheck_grouping_set(Env &env, Expression *&replacement,
                                          LookupFlags flags, LookupSet &set);
      }
   -> E_arrow {
-       public Type *itcheck_arrow_set(Env &env, Expression *&replacement,
+       public CType *itcheck_arrow_set(Env &env, Expression *&replacement,
                                       LookupFlags flags, LookupSet &set);
      }
 }
@@ -665,7 +665,7 @@ class FullExpression {
 
   // duplicate the API of Expression and delegate all the calls down
   // to the Expression *expr member
-  public Type *getType() const
+  public CType *getType() const
     { return expr->type; };
   public bool constEval(Env &env, int &result) const
     { return expr->constEval(env, result); };
@@ -679,7 +679,7 @@ class FullExpression {
 class ArgExpression {
   // repeat some of Expression's interface so I can avoid adding
   // lots of annoying "expr->expr" clutter
-  public Type *getType() const
+  public CType *getType() const
     { return expr->type; };
   public bool constEval(Env &env, int &result) const
     { return expr->constEval(env, result); };
@@ -700,7 +700,7 @@ class ArgExpression {
 class Initializer {
   // check that the initializer is well-typed, given the type of
   // the thing it initializes
-  pure_virtual void tcheck(Env &env, Type *type);
+  pure_virtual void tcheck(Env &env, CType *type);
 
   -> IN_ctor() {                             
        // constructor function being called

@@ -3,7 +3,7 @@
 // author: Daniel Wilkerson
 
 #include "mangle.h"     // this module
-#include "template.h"   // Type, TemplateInfo, etc.
+#include "template.h"   // CType, TemplateInfo, etc.
 #include "variable.h"   // Variable
 #include "cc_print.h"   // PrintEnv
     
@@ -82,7 +82,7 @@ string mangleAtomic(AtomicType const *t)
 // cc_type.cc
 string cvToString(CVFlags cv);
 
-string mangle(Type const *t)
+string mangle(CType const *t)
 {
   // I'm pretty sure that it makes no sense to request a linker
   // visible string (mangled name) for a type that contains template
@@ -107,12 +107,12 @@ string mangle(Type const *t)
 }
 
 
-string leftMangle(Type const *t, bool innerParen)
+string leftMangle(CType const *t, bool innerParen)
 {
   switch (t->getTag()) {
     default: xfailure("bad tag");
 
-    case Type::T_ATOMIC: {
+    case CType::T_ATOMIC: {
       CVAtomicType const *at = t->asCVAtomicTypeC();
 
       stringBuilder s;
@@ -127,9 +127,9 @@ string leftMangle(Type const *t, bool innerParen)
       return s;
     }
 
-    case Type::T_POINTER:
-    case Type::T_REFERENCE: {
-      Type *atType = t->getAtType();
+    case CType::T_POINTER:
+    case CType::T_REFERENCE: {
+      CType *atType = t->getAtType();
       CVFlags cv = t->getCVFlags();
 
       stringBuilder s;
@@ -146,7 +146,7 @@ string leftMangle(Type const *t, bool innerParen)
       return s;
     }
     
-    case Type::T_FUNCTION: {
+    case CType::T_FUNCTION: {
       FunctionType const *ft = t->asFunctionTypeC();
       
       stringBuilder sb;
@@ -178,13 +178,13 @@ string leftMangle(Type const *t, bool innerParen)
       return sb;
     }
 
-    case Type::T_ARRAY: {
+    case CType::T_ARRAY: {
       ArrayType const *at = t->asArrayTypeC();
       
       return leftMangle(at->eltType);
     }
 
-    case Type::T_POINTERTOMEMBER: {
+    case CType::T_POINTERTOMEMBER: {
       PointerToMemberType const *ptm = t->asPointerToMemberTypeC();
 
       stringBuilder s;
@@ -208,19 +208,19 @@ string leftMangle(Type const *t, bool innerParen)
 }
 
 
-string rightMangle(Type const *t, bool innerParen)
+string rightMangle(CType const *t, bool innerParen)
 {
   switch (t->getTag()) {
     default: xfailure("bad tag");
 
-    case Type::T_ATOMIC: {
+    case CType::T_ATOMIC: {
       //CVAtomicType const *at = t->asCVAtomicTypeC();    // unused
       return "";
     }
 
-    case Type::T_POINTER:
-    case Type::T_REFERENCE: {
-      Type *atType = t->getAtType();
+    case CType::T_POINTER:
+    case CType::T_REFERENCE: {
+      CType *atType = t->getAtType();
 
       stringBuilder s;
       if (atType->isFunctionType() ||
@@ -231,7 +231,7 @@ string rightMangle(Type const *t, bool innerParen)
       return s;
     }
 
-    case Type::T_FUNCTION: {
+    case CType::T_FUNCTION: {
       FunctionType const *ft = t->asFunctionTypeC();
 
       // cqual qualifiers should not be part of the canonical type
@@ -289,7 +289,7 @@ string rightMangle(Type const *t, bool innerParen)
       if (exnSpec && !(tsf & TTS_CANON)) {
         sb << " throw(";
         int ct=0;
-        SFOREACH_OBJLIST(Type, exnSpec->types, iter) {
+        SFOREACH_OBJLIST(CType, exnSpec->types, iter) {
           if (ct++ > 0) {
             sb << ", ";
           }
@@ -308,7 +308,7 @@ string rightMangle(Type const *t, bool innerParen)
       return sb;
     }
 
-    case Type::T_ARRAY: {
+    case CType::T_ARRAY: {
       ArrayType const *at = t->asArrayTypeC();
 
       stringBuilder sb;
@@ -325,7 +325,7 @@ string rightMangle(Type const *t, bool innerParen)
       return sb;
     }
 
-    case Type::T_POINTERTOMEMBER: {
+    case CType::T_POINTERTOMEMBER: {
       PointerToMemberType const *ptm = t->asPointerToMemberTypeC();
 
       stringBuilder s;

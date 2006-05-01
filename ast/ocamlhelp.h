@@ -5,10 +5,13 @@
 #define OCAMLHELP_H
 
 
+#define CAML_NAME_SPACE     // want only to see caml_... identifiers
+extern "C" {
 #include <caml/mlvalues.h>
 #include <caml/callback.h>
 #include <caml/memory.h>
 #include <caml/alloc.h>
+};
 #include "strtable.h"
 #include "srcloc.h"
 #include "thashtbl.h"       // THashTbl
@@ -22,6 +25,8 @@
 class ToOcamlData {
 public:
   SObjSet<const void*> stack;		// used to detect cycles in the ast
+
+  ToOcamlData() : stack() {};
 };
 
 // hand written ocaml serialization function

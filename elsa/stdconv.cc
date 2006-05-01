@@ -2,7 +2,7 @@
 // code for stdconv.h
 
 #include "stdconv.h"      // this module
-#include "cc_type.h"      // Type
+#include "cc_type.h"      // CType
 #include "cc_env.h"       // Env
 #include "trace.h"        // tracingSys
 
@@ -145,7 +145,7 @@ SCRank getRank(StandardConversion scs)
 bool isIntegerPromotion(AtomicType const *src, AtomicType const *dest);
 
 // int (including bitfield), bool, or enum
-bool isIntegerNumeric(Type const *t, SimpleType const *tSimple)
+bool isIntegerNumeric(CType const *t, SimpleType const *tSimple)
 {
   if (tSimple) {
     return isIntegerType(tSimple->type) ||
@@ -160,7 +160,7 @@ bool isIntegerNumeric(Type const *t, SimpleType const *tSimple)
 }
 
 // any of above, or float
-bool isNumeric(Type const *t, SimpleType const *tSimple)
+bool isNumeric(CType const *t, SimpleType const *tSimple)
 {
   return isIntegerNumeric(t, tSimple) ||
          (tSimple && isFloatType(tSimple->type)) ||
@@ -181,15 +181,15 @@ static char const *atomicName(AtomicType::Tag tag)
 }
 #endif // 0
 
-static char const *ctorName(Type::Tag tag)
+static char const *ctorName(CType::Tag tag)
 {
   switch (tag) {
     default: xfailure("bad tag");
-    case Type::T_ATOMIC:          return "atomic";
-    case Type::T_POINTER:         return "pointer";
-    case Type::T_FUNCTION:        return "function";
-    case Type::T_ARRAY:           return "array";
-    case Type::T_POINTERTOMEMBER: return "ptr-to-member";
+    case CType::T_ATOMIC:          return "atomic";
+    case CType::T_POINTER:         return "pointer";
+    case CType::T_FUNCTION:        return "function";
+    case CType::T_ARRAY:           return "array";
+    case CType::T_POINTERTOMEMBER: return "ptr-to-member";
   }
 }
 
@@ -200,8 +200,8 @@ public:
   // original parameters to 'getStandardConversion'
   string *errorMsg;
   SpecialExpr srcSpecial;
-  Type const *src;
-  Type const *dest;
+  CType const *src;
+  CType const *dest;
   bool destIsReceiver;
 
   // eventual return value
@@ -216,7 +216,7 @@ public:
   int ptrCtorsStripped;
 
 public:
-  Conversion(string *e, SpecialExpr sp, Type const *s, Type const *d, bool dir)
+  Conversion(string *e, SpecialExpr sp, CType const *s, CType const *d, bool dir)
     : errorMsg(e),
       srcSpecial(sp),
       src(s),
@@ -316,7 +316,7 @@ bool Conversion::stripPtrCtor(CVFlags scv, CVFlags dcv, bool isReference)
 // ARR_QUAL_CONV: Regard cv flags on an array element to be cv flags
 // on the array itself.  Dig down below arbitrarily many levels of
 // array to find the element.
-CVFlags getSrcCVFlags(Type const *src)
+CVFlags getSrcCVFlags(CType const *src)
 {
   if (src->isArrayType()) {
     ArrayType const *at = src->asArrayTypeC();
@@ -332,7 +332,7 @@ CVFlags getSrcCVFlags(Type const *src)
 // I use this function.  Whenever 'dest' names a polymorphic type,
 // I pretend it has the same CV flags as the source so we don't
 // get spurious mismatches.
-CVFlags getDestCVFlags(Type const *dest, CVFlags srcCV)
+CVFlags getDestCVFlags(CType const *dest, CVFlags srcCV)
 {
   CVFlags destCV = getSrcCVFlags(dest);
 
@@ -351,7 +351,7 @@ CVFlags getDestCVFlags(Type const *dest, CVFlags srcCV)
 }
 
 
-bool canConvertToBaseClass(Type const *src, Type const *dest, bool &ambig)
+bool canConvertToBaseClass(CType const *src, CType const *dest, bool &ambig)
 {
   if (!dest->isCompoundType()) {
     return false;
@@ -381,7 +381,7 @@ bool canConvertToBaseClass(Type const *src, Type const *dest, bool &ambig)
 
     
 // not sure if this is such a good idea..
-bool couldBeAnything(Type const *t)
+bool couldBeAnything(CType const *t)
 {
   // PseudoInstantiation is left out because a PI has to be
   // a class type
@@ -392,11 +392,11 @@ bool couldBeAnything(Type const *t)
 
 
 // one of the goals of this function is to *not* construct any
-// intermediate Type objects; I should be able to do this computation
+// intermediate CType objects; I should be able to do this computation
 // without allocating, and if I can then that avoids interaction
-// problems with Type annotation systems
+// problems with CType annotation systems
 StandardConversion getStandardConversion
-  (string *errorMsg, SpecialExpr srcSpecial, Type const *src, Type const *dest,
+  (string *errorMsg, SpecialExpr srcSpecial, CType const *src, CType const *dest,
    bool destIsReceiver)
 {
   Conversion conv(errorMsg, srcSpecial, src, dest, destIsReceiver);
@@ -496,7 +496,7 @@ StandardConversion getStandardConversion
   if (dest->isBool()) {
     // these conversions always yield 'true'.. I wonder if there
     // is a good way to take advantage of that..
-    Type const *s = src->asRvalC();
+    CType const *s = src->asRvalC();
     if (s->isArrayType()) {
       return conv.ret | SC_ARRAY_TO_PTR | SC_BOOL_CONV;
     }
@@ -531,8 +531,8 @@ StandardConversion getStandardConversion
     switch (src->getTag()) {
       default: xfailure("bad type tag");
 
-      case Type::T_POINTER:
-      case Type::T_REFERENCE: {
+      case CType::T_POINTER:
+      case CType::T_REFERENCE: {
         bool isReference = (src->isReference());
 
         src = src->getAtType();
@@ -551,7 +551,7 @@ StandardConversion getStandardConversion
         break;
       }
 
-      case Type::T_FUNCTION: {
+      case CType::T_FUNCTION: {
         // no variance is allowed whatsoever once we reach a function
         // type, which is a little odd since I'd think it would be
         // ok to pass
@@ -573,7 +573,7 @@ StandardConversion getStandardConversion
         }
       }
 
-      case Type::T_ARRAY: {
+      case CType::T_ARRAY: {
         // like functions, no conversions are possible on array types,
         // including (as far as I can see) converting
         //   int[3]
@@ -591,7 +591,7 @@ StandardConversion getStandardConversion
         }
       }
 
-      case Type::T_POINTERTOMEMBER: {
+      case CType::T_POINTERTOMEMBER: {
         PointerToMemberType const *s = src->asPointerToMemberTypeC();
         PointerToMemberType const *d = dest->asPointerToMemberTypeC();
 
@@ -876,12 +876,12 @@ bool isIntegerPromotion(AtomicType const *src, AtomicType const *dest)
 }
 
 
-Type *makeSimpleType(TypeFactory &tfac, SimpleTypeId id)
+CType *makeSimpleType(TypeFactory &tfac, SimpleTypeId id)
 {
   return tfac.getSimpleType(id);
 }
 
-Type *getConcreteDestType(TypeFactory &tfac, Type *srcType,
+CType *getConcreteDestType(TypeFactory &tfac, CType *srcType,
                           StandardConversion sconv,
                           SimpleTypeId destPolyType)
 {                 
@@ -967,7 +967,7 @@ static SimpleTypeId uacHelper(SimpleTypeId leftId, SimpleTypeId rightId);
 
 // cppstd section 5 para 9
 // and C99 secton 6.3.1.8 para 1
-Type *usualArithmeticConversions(TypeFactory &tfac, Type *left, Type *right)
+CType *usualArithmeticConversions(TypeFactory &tfac, CType *left, CType *right)
 {
   if (left->isError()) { return left; }
   if (right->isError()) { return right; }
@@ -1068,7 +1068,7 @@ static SimpleTypeId uacHelper(SimpleTypeId leftId, SimpleTypeId rightId)
 
 
 // cppstd 4.5
-SimpleTypeId applyIntegralPromotions(Type *t)
+SimpleTypeId applyIntegralPromotions(CType *t)
 {
   // since I only promote to 'int', this is easy
 
@@ -1099,7 +1099,7 @@ SimpleTypeId applyIntegralPromotions(SimpleTypeId id)
 
 
 void test_getStandardConversion(
-  Env &env, SpecialExpr special, Type const *src, Type const *dest,
+  Env &env, SpecialExpr special, CType const *src, CType const *dest,
   int expected)
 {
   // run our function
@@ -1136,7 +1136,7 @@ void test_getStandardConversion(
 
 
 // ------------------- reference-relatedness ------------------
-bool isReferenceRelatedTo(Type *t1, Type *t2)
+bool isReferenceRelatedTo(CType *t1, CType *t2)
 {
   // ignoring toplevel cv-qualification, either t1 and t2 must be
   // the same type, or they must be classes and t1 must be a base
@@ -1158,7 +1158,7 @@ bool isReferenceRelatedTo(Type *t1, Type *t2)
 }
 
 
-int referenceCompatibility(Type *t1, Type *t2)
+int referenceCompatibility(CType *t1, CType *t2)
 {
   if (!isReferenceRelatedTo(t1, t2)) {
     return 0;      // not even related

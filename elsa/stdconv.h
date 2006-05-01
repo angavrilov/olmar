@@ -21,7 +21,7 @@
 #include "cc_flags.h"  // SpecialExpr
 
 // fwd
-class Type;            // cc_type.h
+class CType;            // cc_type.h
 class Env;             // cc_env.h
 class TypeFactory;     // cc_type.h
 
@@ -98,8 +98,8 @@ SCRank getRank(StandardConversion scs);
 StandardConversion getStandardConversion(
   string *errorMsg,    // if non-null, failed conversion sets error message
   SpecialExpr special, // properties of the source expression
-  Type const *src,     // source type
-  Type const *dest,    // destination type
+  CType const *src,     // source type
+  CType const *dest,    // destination type
   
   // when the dest type is a method receiver ('this') parameter,
   // it's allowable to bind an rvalue to a non-const reference
@@ -110,22 +110,22 @@ StandardConversion getStandardConversion(
 
 // reverse-engineer a previous conversion that involved a
 // polymorphic destination type
-Type *getConcreteDestType(TypeFactory &tfac, Type *srcType,
+CType *getConcreteDestType(TypeFactory &tfac, CType *srcType,
                           StandardConversion sconv,
                           SimpleTypeId destPolyType);
 
 // cppstd section 5, para 9
-Type *usualArithmeticConversions(TypeFactory &tfac, Type *left, Type *right);
+CType *usualArithmeticConversions(TypeFactory &tfac, CType *left, CType *right);
 SimpleTypeId usualArithmeticConversions(SimpleTypeId leftId, SimpleTypeId rightId);
 
 // cppstd 4.5
-SimpleTypeId applyIntegralPromotions(Type *t);
+SimpleTypeId applyIntegralPromotions(CType *t);
 SimpleTypeId applyIntegralPromotions(SimpleTypeId id);
 
 
 // testing interface, for use by the type checker
 void test_getStandardConversion(
-  Env &env, SpecialExpr special, Type const *src, Type const *dest,
+  Env &env, SpecialExpr special, CType const *src, CType const *dest,
   int expected     // expected return value
 );
 
@@ -134,16 +134,16 @@ void test_getStandardConversion(
 
 // "is t1 reference-related to t2?"  (both types have already had their
 // references stripped)  NOTE: this relation is *not* symmetric!
-bool isReferenceRelatedTo(Type *t1, Type *t2);
+bool isReferenceRelatedTo(CType *t1, CType *t2);
 
 // determine which of three reference-compatilibity conditions exist:
 //   0: not compatible
 //   1: compatible with added qualification
 //   2: compatible exactly
-int referenceCompatibility(Type *t1, Type *t2);
+int referenceCompatibility(CType *t1, CType *t2);
 
 // "is t1 reference-compatible (possibly with added qual) with t2?"
-inline bool isReferenceCompatibleWith(Type *t1, Type *t2)
+inline bool isReferenceCompatibleWith(CType *t1, CType *t2)
   { return referenceCompatibility(t1, t2) != 0; }
 
   

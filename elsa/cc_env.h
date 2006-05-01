@@ -4,7 +4,7 @@
 #ifndef CC_ENV_H
 #define CC_ENV_H
 
-#include "cc_type.h"      // Type, AtomicType, etc. (r)
+#include "cc_type.h"      // CType, AtomicType, etc. (r)
 #include "strobjdict.h"   // StrObjDict
 #include "owner.h"        // Owner
 #include "exc.h"          // xBase
@@ -225,43 +225,43 @@ private:     // funcs
   // these are intended to help build the initialization-time stuff,
   // not build functions that result from the user's input syntax
   Variable *declareFunctionNargs(
-    Type *retType, char const *funcName,
-    Type **argTypes, char const **argNames, int numArgs,
+    CType *retType, char const *funcName,
+    CType **argTypes, char const **argNames, int numArgs,
     FunctionFlags flags, 
-    Type * /*nullable*/ exnType);
+    CType * /*nullable*/ exnType);
 
-  Variable *declareFunction0arg(Type *retType, char const *funcName,
+  Variable *declareFunction0arg(CType *retType, char const *funcName,
                                 FunctionFlags flags = FF_NONE,
-                                Type * /*nullable*/ exnType = NULL);
+                                CType * /*nullable*/ exnType = NULL);
 
-  Variable *declareFunction1arg(Type *retType, char const *funcName,
-                                Type *arg1Type, char const *arg1Name,
+  Variable *declareFunction1arg(CType *retType, char const *funcName,
+                                CType *arg1Type, char const *arg1Name,
                                 FunctionFlags flags = FF_NONE,
-                                Type * /*nullable*/ exnType = NULL);
+                                CType * /*nullable*/ exnType = NULL);
 
-  Variable *declareFunction2arg(Type *retType, char const *funcName,
-                                Type *arg1Type, char const *arg1Name,
-                                Type *arg2Type, char const *arg2Name,
+  Variable *declareFunction2arg(CType *retType, char const *funcName,
+                                CType *arg1Type, char const *arg1Name,
+                                CType *arg2Type, char const *arg2Name,
                                 FunctionFlags flags = FF_NONE,
-                                Type * /*nullable*/ exnType = NULL);
+                                CType * /*nullable*/ exnType = NULL);
 
   // NOTE: 3 arg missing; goes here.
 
-  Variable *declareFunction4arg(Type *retType, char const *funcName,
-                                Type *arg1Type, char const *arg1Name,
-                                Type *arg2Type, char const *arg2Name,
-                                Type *arg3Type, char const *arg3Name,
-                                Type *arg4Type, char const *arg4Name,
+  Variable *declareFunction4arg(CType *retType, char const *funcName,
+                                CType *arg1Type, char const *arg1Name,
+                                CType *arg2Type, char const *arg2Name,
+                                CType *arg3Type, char const *arg3Name,
+                                CType *arg4Type, char const *arg4Name,
                                 FunctionFlags flags,
-                                Type * /*nullable*/ exnType);
+                                CType * /*nullable*/ exnType);
 
   void addGNUBuiltins();
 
   void setupOperatorOverloading();
 
-  void addBuiltinUnaryOp(SimpleTypeId retId, OverloadableOp op, Type *x);
+  void addBuiltinUnaryOp(SimpleTypeId retId, OverloadableOp op, CType *x);
 
-  void addBuiltinBinaryOp(SimpleTypeId retId, OverloadableOp op, Type *x, Type *y);
+  void addBuiltinBinaryOp(SimpleTypeId retId, OverloadableOp op, CType *x, CType *y);
   void addBuiltinBinaryOp(SimpleTypeId retId, OverloadableOp op,
                           PredicateCandidateSet::PreFilter pre,
                           PredicateCandidateSet::PostFilter post,
@@ -272,7 +272,7 @@ private:     // funcs
     (CompoundType *ct, ObjList<STemplateArgument> const &args);
 
   bool equivalentSignatures(FunctionType *ft1, FunctionType *ft2);
-  bool equivalentTypes(Type const *t1, Type const *t2, 
+  bool equivalentTypes(CType const *t1, CType const *t2, 
                        MatchFlags mflags = MF_NONE);
 
   Variable *getPrimaryOrSpecialization
@@ -391,7 +391,7 @@ public:      // funcs
   void addVariableWithOload(Variable *prevLookup, Variable *v);
                                                          
   // 'addEnum', plus typedef variable creation and checking for duplicates
-  Type *declareEnum(SourceLoc loc /*...*/, EnumType *et);
+  CType *declareEnum(SourceLoc loc /*...*/, EnumType *et);
 
 
   // lookup in the environment (all scopes); if the name is not found,
@@ -466,7 +466,7 @@ public:      // funcs
   // introduce a new compound type name; return the constructed
   // CompoundType's pointer in 'ct', after inserting it into 'scope'
   // (if that is not NULL)
-  Type *makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
+  CType *makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                         StringRef name, SourceLoc loc,
                         TypeIntr keyword, bool forward);
 
@@ -475,11 +475,11 @@ public:      // funcs
   virtual void addError(ErrorMsg * /*owner*/ obj);
 
   // diagnostic reports; all return ST_ERROR type
-  Type *error(SourceLoc L, rostring msg, ErrorFlags eflags = EF_NONE);
-  Type *error(rostring msg, ErrorFlags eflags = EF_NONE);
-  Type *warning(SourceLoc L, rostring msg);
-  Type *warning(rostring msg);
-  Type *unimp(rostring msg);
+  CType *error(SourceLoc L, rostring msg, ErrorFlags eflags = EF_NONE);
+  CType *error(rostring msg, ErrorFlags eflags = EF_NONE);
+  CType *warning(SourceLoc L, rostring msg);
+  CType *warning(rostring msg);
+  CType *unimp(rostring msg);
   void diagnose3(Bool3 b, SourceLoc L, rostring msg, ErrorFlags eflags = EF_NONE);
 
   // this is used when something is nominally an error, but I think
@@ -489,14 +489,14 @@ public:      // funcs
 
   // diagnostics involving type clashes; will be suppressed
   // if the type is ST_ERROR
-  Type *error(Type *t, rostring msg);
-  Type *error(Type *t, SourceLoc loc, rostring msg);
+  CType *error(CType *t, rostring msg);
+  CType *error(CType *t, SourceLoc loc, rostring msg);
 
   // just return ST_ERROR
-  Type *errorType();
+  CType *errorType();
 
   // similarly for ST_DEPENDENT
-  Type *dependentType();
+  CType *dependentType();
 
   // set 'disambiguateOnly' to 'val', returning prior value
   bool setDisambiguateOnly(bool val);
@@ -542,25 +542,25 @@ public:      // funcs
   // TypeFactory funcs; all of these simply delegate to 'tfac'
   CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv)
     { return tfac.makeCVAtomicType(atomic, cv); }
-  PointerType *makePointerType(CVFlags cv, Type *atType)
+  PointerType *makePointerType(CVFlags cv, CType *atType)
     { return tfac.makePointerType(cv, atType); }
-  Type *makeReferenceType(Type *atType)
+  CType *makeReferenceType(CType *atType)
     { return tfac.makeReferenceType(atType); }
-  FunctionType *makeFunctionType(Type *retType)
+  FunctionType *makeFunctionType(CType *retType)
     { return tfac.makeFunctionType(retType); }
   void doneParams(FunctionType *ft)
     { tfac.doneParams(ft); }
-  ArrayType *makeArrayType(Type *eltType, int size = ArrayType::NO_SIZE)
+  ArrayType *makeArrayType(CType *eltType, int size = ArrayType::NO_SIZE)
     { return tfac.makeArrayType(eltType, size); }
 
   // (this does the work of the old 'makeMadeUpVariable')
-  Variable *makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f);
+  Variable *makeVariable(SourceLoc L, StringRef n, CType *t, DeclFlags f);
 
   CVAtomicType *getSimpleType(SimpleTypeId st, CVFlags cv = CV_NONE)
     { return tfac.getSimpleType(st, cv); }
   CVAtomicType *makeType(AtomicType *atomic)
     { return tfac.makeType(atomic); }
-  Type *makePtrType(Type *type)
+  CType *makePtrType(CType *type)
     { return tfac.makePtrType(type); }
 
   // others are more obscure, so I'll just call into 'tfac' directly
@@ -568,32 +568,32 @@ public:      // funcs
                                                               
   // if in a context where an implicit receiver object is available,
   // return its type; otherwise return NULL
-  Type *implicitReceiverType();
+  CType *implicitReceiverType();
 
   // create the receiver object parameter for use in a FunctionType
   Variable *receiverParameter(SourceLoc loc, NamedAtomicType *nat, CVFlags cv,
                               D_func *syntax = NULL);
 
   // standard conversion 4.1, 4.2, and 4.3
-  Type *operandRval(Type *t);
+  CType *operandRval(CType *t);
 
   // get 'std::type_info const &'
-  Type *type_info_const_ref();
+  CType *type_info_const_ref();
 
   // create a built-in candidate for operator overload resolution
-  Variable *createBuiltinUnaryOp(Type *retType, OverloadableOp op, Type *x);
-  Variable *createBuiltinBinaryOp(Type *retType, OverloadableOp op, Type *x, Type *y);
+  Variable *createBuiltinUnaryOp(CType *retType, OverloadableOp op, CType *x);
+  Variable *createBuiltinBinaryOp(CType *retType, OverloadableOp op, CType *x, CType *y);
 
   // several steps of the declaration creation process, broken apart
   // to aid sharing among D_name_tcheck and makeUsingAliasFor; best
   // to look at their implementations and the comments therein
   Variable *lookupVariableForDeclaration
-    (Scope *scope, StringRef name, Type *type, CVFlags this_cv);
-  OverloadSet *getOverloadForDeclaration(Variable *&prior, Type *type);
+    (Scope *scope, StringRef name, CType *type, CVFlags this_cv);
+  OverloadSet *getOverloadForDeclaration(Variable *&prior, CType *type);
   Variable *createDeclaration(
     SourceLoc loc,
     StringRef name,
-    Type *type,
+    CType *type,
     DeclFlags dflags,
     Scope *scope,
     CompoundType *enclosingClass,
@@ -603,14 +603,14 @@ public:      // funcs
 
   // compare types for equality; see extensive comment at
   // implementation
-  bool almostEqualTypes(Type const *t1, Type const *t2,
+  bool almostEqualTypes(CType const *t1, CType const *t2,
                         MatchFlags mflags = MF_NONE);
 
   // create a "using declaration" alias
   void makeUsingAliasFor(SourceLoc loc, Variable *origVar);
 
   // see comments at implementation site
-  void handleTypeOfMain(SourceLoc loc, Variable *prior, Type *&type);
+  void handleTypeOfMain(SourceLoc loc, Variable *prior, CType *&type);
 
   // pass Variable* through this before storing in the AST, so
   // that the AST only has de-aliased pointers (if desired);
@@ -635,7 +635,7 @@ public:      // funcs
   virtual void addedNewCompound(CompoundType *ct);
 
   // return # of array elements initialized
-  virtual int countInitializers(SourceLoc loc, Type *type, IN_compound const *cpd);
+  virtual int countInitializers(SourceLoc loc, CType *type, IN_compound const *cpd);
 
   // called when a variable is successfully added; note that there
   // is a similar mechanism in Scope itself, which can be used when
@@ -662,7 +662,7 @@ public:      // funcs
   PQName *makeFullyQualifiedName(Scope *s, PQName *name);
   PQName *makeQualifiedName(Scope *s, PQName *name);
   /*fakelist*/TemplateArgument *makeTemplateArgs(TemplateInfo *ti);
-  ASTTypeId *buildASTTypeId(Type *type);
+  ASTTypeId *buildASTTypeId(CType *type);
 
   // make AST nodes, as if they have been tcheck'd
   E_intLit *build_E_intLit(int i);
@@ -682,26 +682,26 @@ public:      // funcs
   Variable *declareSpecialFunction(char const *name);
 
   // see implementation; this is here b/c gnu.cc wants to call it
-  Type *computeArraySizeFromCompoundInit(SourceLoc tgt_loc, Type *tgt_type,
-                                         Type *src_type, Initializer *init);
+  CType *computeArraySizeFromCompoundInit(SourceLoc tgt_loc, CType *tgt_type,
+                                         CType *src_type, Initializer *init);
                                                           
   // if 'type' is not a complete type, attempt to make it into one
   // (by template instantiation); if it cannot be, then emit an
   // error message (using 'action') and return false
-  bool ensureCompleteType(char const *action, Type *type);
+  bool ensureCompleteType(char const *action, CType *type);
   bool ensureCompleteCompound(char const *action, CompoundType *ct);
 
   // support for cppstd 13.4; see implementations for more details
   Variable *getOverloadedFunctionVar(Expression *e);
   void setOverloadedFunctionVar(Expression *e, Variable *selVar);
-  Variable *pickMatchingOverloadedFunctionVar(LookupSet &set, Type *type);
-  void possiblySetOverloadedFunctionVar(Expression *expr, Type *paramType,
+  Variable *pickMatchingOverloadedFunctionVar(LookupSet &set, CType *type);
+  void possiblySetOverloadedFunctionVar(Expression *expr, CType *paramType,
                                         LookupSet &set);
 
   // support for 3.4.2
-  void getAssociatedScopes(SObjList<Scope> &associated, Type *type);
+  void getAssociatedScopes(SObjList<Scope> &associated, CType *type);
   void associatedScopeLookup(LookupSet &candidates, StringRef name,
-                             ArrayStack<Type*> const &argTypes, LookupFlags flags);
+                             ArrayStack<CType*> const &argTypes, LookupFlags flags);
   void addCandidates(LookupSet &candidates, Variable *var);
 
   // see comments at implementation
@@ -716,7 +716,7 @@ public:      // funcs
   // Evaluate a 'sizeof' applied to type 't', store the result in
   // 'size', and return the type of the 'sizeof' expression itself.
   // If 't' was derived from an expression, it is passed as 'expr'.
-  Type *sizeofType(Type *t, int &size, Expression * /*nullable*/ expr);
+  CType *sizeofType(CType *t, int &size, Expression * /*nullable*/ expr);
 
   // ------------ new lookup mechanism ---------------
 private:     // funcs
@@ -753,8 +753,8 @@ public:      // funcs
                              LookupFlags flags);
   
   // handling of DQTs in type specifiers
-  Type *resolveDQTs(SourceLoc loc, Type *t);
-  Type *resolveDQTs_atomic(SourceLoc loc, AtomicType *t);
+  CType *resolveDQTs(SourceLoc loc, CType *t);
+  CType *resolveDQTs_atomic(SourceLoc loc, AtomicType *t);
   CompoundType *getMatchingTemplateInScope
     (CompoundType *primary, ObjList<STemplateArgument> const &sargs);
   AtomicType *resolveDQTs_pi(SourceLoc loc, PseudoInstantiation *pi);
@@ -803,9 +803,9 @@ private:     // template funcs
                            SObjList<Variable> const &params,
                            SObjListIter<STemplateArgument> &argIter);
 
-  Type *pseudoSelfInstantiation(CompoundType *ct, CVFlags cv);
+  CType *pseudoSelfInstantiation(CompoundType *ct, CVFlags cv);
 
-  Variable *makeInstantiationVariable(Variable *templ, Type *instType);
+  Variable *makeInstantiationVariable(Variable *templ, CType *instType);
 
   bool supplyDefaultTemplateArguments
     (TemplateInfo *primaryTI,
@@ -932,10 +932,10 @@ public:      // template funcs
 
   // apply template arguments to make concrete types, or throw
   // xTypeDeduction to indicate failure
-  Type *applyArgumentMapToType(MType &map, Type *origSrc);
-  Type *applyArgumentMapToAtomicType
+  CType *applyArgumentMapToType(MType &map, CType *origSrc);
+  CType *applyArgumentMapToAtomicType
     (MType &map, AtomicType *origSrc, CVFlags srcCV);
-  Type *applyArgumentMap_applyCV(CVFlags cv, Type *type);
+  CType *applyArgumentMap_applyCV(CVFlags cv, CType *type);
   void applyArgumentMapToTemplateArgs
     (MType &map, ObjList<STemplateArgument> &dest,
                                  ObjList<STemplateArgument> const &srcArgs);
@@ -949,11 +949,11 @@ public:      // template funcs
   STemplateArgument applyArgumentMapToPQName
     (MType &map, Scope *scope, PQName *name);
   void applyArgumentMap_ensureComplete(CompoundType *ct);
-  Type *applyArgumentMapToQualifiedType
+  CType *applyArgumentMapToQualifiedType
     (MType &map, CompoundType *ct, PQName *name);
 
   // defined in notopt.cc
-  Type *applyArgumentMapToType_helper(MType &map, Type *origSrc);
+  CType *applyArgumentMapToType_helper(MType &map, CType *origSrc);
 
   // specialization support
   Variable *makeExplicitFunctionSpecialization
@@ -964,7 +964,7 @@ public:      // template funcs
 
   bool verifyCompatibleTemplateParameters(Scope *scope, CompoundType *prior);
 
-  Variable *explicitFunctionInstantiation(PQName *name, Type *type,
+  Variable *explicitFunctionInstantiation(PQName *name, CType *type,
                                           DeclFlags instFlags);
 
   Variable *findInstantiation(TemplateInfo *tinfo,
@@ -1087,7 +1087,7 @@ public:      // funcs
 bool isCopyConstructor(Variable const *funcVar, CompoundType *ct);
 bool isCopyAssignOp(Variable const *funcVar, CompoundType *ct);
 void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
-bool equalOrIsomorphic(Type const *a, Type const *b);
+bool equalOrIsomorphic(CType const *a, CType const *b);
 
 
 #endif // CC_ENV_H

@@ -9,7 +9,7 @@
 #include "overload.h"      // this module
 #include "cc_env.h"        // Env
 #include "variable.h"      // Variable
-#include "cc_type.h"       // Type, etc.
+#include "cc_type.h"       // CType, etc.
 #include "trace.h"         // TRACE
 #include "typelistiter.h"  // TypeListIter
 #include "strtokp.h"       // StrtokParse
@@ -46,10 +46,10 @@ void Candidate::conversionDescriptions() const
 }
 
 
-Type *OverloadResolver::getReturnType(Candidate const *winner) const
+CType *OverloadResolver::getReturnType(Candidate const *winner) const
 {
   FunctionType *ft = winner->var->type->asFunctionType();
-  Type *retType = ft->retType;
+  CType *retType = ft->retType;
   if (!retType->isSimpleType()) {
     return retType;      // easy
   }
@@ -69,15 +69,15 @@ Type *OverloadResolver::getReturnType(Candidate const *winner) const
   // types and the conversion sequences that lead to the parameter
   // types, so we need to use them to find the actual parameter types.
 
-  ArrayStack<Type*> concreteParamTypes;
+  ArrayStack<CType*> concreteParamTypes;
   int i = 0;
   SFOREACH_OBJLIST(Variable, ft->params, paramIter) {
     // get the polymorphic param type
 
     // have:
-    Type *argType = args[i].type;                            // arg type
+    CType *argType = args[i].type;                            // arg type
     ImplicitConversion const &conv = winner->conversions[i]; // conversion
-    Type *paramType = paramIter.data()->type;    // param type, possibly polymorphic
+    CType *paramType = paramIter.data()->type;    // param type, possibly polymorphic
 
     // want: concrete parameter type
     concreteParamTypes.push(conv.getConcreteDestType(env.tfac, argType, paramType));
@@ -94,7 +94,7 @@ Type *OverloadResolver::getReturnType(Candidate const *winner) const
 
     // e.g.: T operator++ (VQ T&, int)
     case ST_PRET_STRIP_REF: {
-      Type *vqT = concreteParamTypes[0]->getAtType();
+      CType *vqT = concreteParamTypes[0]->getAtType();
       return env.tfac.setQualifiers(SL_UNKNOWN, CV_NONE, vqT, NULL /*syntax*/);
     }
 
@@ -104,7 +104,7 @@ Type *OverloadResolver::getReturnType(Candidate const *winner) const
 
     // e.g. T& operator* (T*)
     case ST_PRET_FIRST_PTR2REF: {
-      Type *T = concreteParamTypes[0]->getAtType();
+      CType *T = concreteParamTypes[0]->getAtType();
       return env.tfac.makeReferenceType(T);
     }
 
@@ -131,15 +131,15 @@ Type *OverloadResolver::getReturnType(Candidate const *winner) const
 // ------------------ resolveOverload --------------------
 // prototypes
 int compareConversions(ArgumentInfo const &src,
-  ImplicitConversion const &left, Type const *leftDest,
-  ImplicitConversion const &right, Type const *rightDest);
+  ImplicitConversion const &left, CType const *leftDest,
+  ImplicitConversion const &right, CType const *rightDest);
 int compareStandardConversions
-  (ArgumentInfo const &leftSrc, StandardConversion left, Type const *leftDest,
-   ArgumentInfo const &rightSrc, StandardConversion right, Type const *rightDest);
-bool convertsPtrToBool(Type const *src, Type const *dest);
-bool isPointerToCompound(Type const *type, CompoundType const *&ct);
-bool isReferenceToCompound(Type const *type, CompoundType const *&ct);
-bool isPointerToCompoundMember(Type const *type, CompoundType const *&ct);
+  (ArgumentInfo const &leftSrc, StandardConversion left, CType const *leftDest,
+   ArgumentInfo const &rightSrc, StandardConversion right, CType const *rightDest);
+bool convertsPtrToBool(CType const *src, CType const *dest);
+bool isPointerToCompound(CType const *type, CompoundType const *&ct);
+bool isReferenceToCompound(CType const *type, CompoundType const *&ct);
+bool isPointerToCompoundMember(CType const *type, CompoundType const *&ct);
 bool isBelow(CompoundType const *low, CompoundType const *high);
 bool isProperSubpath(CompoundType const *LS, CompoundType const *LD,
                      CompoundType const *RS, CompoundType const *RD);
@@ -212,7 +212,7 @@ OverloadResolver::OverloadResolver
   // classes mentioned by way of pointers (in addition to references),
   // to enable derived-to-base conversions.
   for (int i=0; i < args.size(); i++) {
-    Type *argType = a[i].type;
+    CType *argType = a[i].type;
     if (!argType) continue;
 
     argType = argType->asRval();     // skip references
@@ -229,14 +229,14 @@ OverloadResolver::OverloadResolver
       // iterate over the set of conversion operators
       if (argCT->isComplete()) {      // non-instantiations can be incomplete here
         SFOREACH_OBJLIST(Variable, argCT->conversionOperators, iter) {
-          Type *convType = iter.data()->type->asFunctionTypeC()->retType;
+          CType *convType = iter.data()->type->asFunctionTypeC()->retType;
 
           // we should only need to consider pointers or references;
           // if 'convType' is itself an instantiation, it should have
           // had its body instantiated when its containing class body
           // was tchecked
           if (convType->isPtrOrRef()) {
-            Type *convAtType = convType->getAtType();
+            CType *convAtType = convType->getAtType();
             if (convAtType->isCompoundType()) {
               env.ensureClassBodyInstantiated(convAtType->asCompoundType());
             }
@@ -472,7 +472,7 @@ void OverloadResolver::addAmbiguousBinaryCandidate(Variable *v)
 }
 
 
-static EnumType *ifEnumType(Type *t)
+static EnumType *ifEnumType(CType *t)
 {
   if (t && t->isCVAtomicType()) {
     CVAtomicType *cvat = t->asCVAtomicType();
@@ -487,7 +487,7 @@ static bool parameterAcceptsDirectly(EnumType *et, FunctionType *ft, int param)
 {
   if (et &&
       ft->params.count() > param) {
-    Type *paramType = ft->params.nth(param)->type;
+    CType *paramType = ft->params.nth(param)->type;
                                     
     // treat 'T&' the same as 'T'
     paramType = paramType->asRval();
@@ -502,7 +502,7 @@ static bool parameterAcceptsDirectly(EnumType *et, FunctionType *ft, int param)
 }
 
 void OverloadResolver::addUserOperatorCandidates
-  (Type * /*nullable*/ lhsType, Type * /*nullable*/ rhsType, StringRef opName)
+  (CType * /*nullable*/ lhsType, CType * /*nullable*/ rhsType, StringRef opName)
 {                      
   if (lhsType) {
     lhsType = lhsType->asRval();
@@ -526,7 +526,7 @@ void OverloadResolver::addUserOperatorCandidates
     LookupFlags flags = LF_SKIP_CLASSES;
 
     // associated scopes lookup
-    ArrayStack<Type*> argTypes(2);
+    ArrayStack<CType*> argTypes(2);
     if (lhsType) {
       argTypes.push(lhsType);
     }
@@ -935,7 +935,7 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate
 
   
 // 14.5.5.2 paras 3 and 4
-bool atLeastAsSpecializedAs(Env &env, Type *concrete, Type *pattern)
+bool atLeastAsSpecializedAs(Env &env, CType *concrete, CType *pattern)
 {
   // TODO: this isn't quite right:
   //   - I use the return type regardless of whether this is
@@ -1003,12 +1003,12 @@ int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *
   for (; i < args.size(); i++) {
     // get parameter types; they can be NULL if we walk off into the ellipsis
     // of a variable-argument function
-    Type const *leftDest = NULL;
+    CType const *leftDest = NULL;
     if (!leftParam.isDone()) {
       leftDest = leftParam.data()->type;
       leftParam.adv();
     }
-    Type const *rightDest = NULL;
+    CType const *rightDest = NULL;
     if (!rightParam.isDone()) {
       rightDest = rightParam.data()->type;
       rightParam.adv();
@@ -1056,8 +1056,8 @@ int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *
     // this section implements cppstd 14.5.5.2
 
     // NOTE: we use the instFrom field here instead of the var
-    Type *leftType = left->instFrom->type;
-    Type *rightType = right->instFrom->type;
+    CType *leftType = left->instFrom->type;
+    CType *rightType = right->instFrom->type;
 
     // who is "at least as specialized" as who?
     bool left_ALA = atLeastAsSpecializedAs(env, leftType, rightType);
@@ -1102,8 +1102,8 @@ int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *
 // because some of the comparison criteria use them; this implements
 // cppstd 13.3.3.2
 int compareConversions(ArgumentInfo const &src,
-  ImplicitConversion const &left, Type const *leftDest,
-  ImplicitConversion const &right, Type const *rightDest)
+  ImplicitConversion const &left, CType const *leftDest,
+  ImplicitConversion const &right, CType const *rightDest)
 {
   // para 2: choose based on what kind of conversion:
   //   standard < user-defined/ambiguous < ellipsis
@@ -1193,8 +1193,8 @@ static bool foldNextCVs(int &ret, CVFlags lcv, CVFlags rcv, int &skipCVs)
 
 
 int compareStandardConversions
-  (ArgumentInfo const &leftSrc, StandardConversion left, Type const *leftDest,
-   ArgumentInfo const &rightSrc, StandardConversion right, Type const *rightDest)
+  (ArgumentInfo const &leftSrc, StandardConversion left, CType const *leftDest,
+   ArgumentInfo const &rightSrc, StandardConversion right, CType const *rightDest)
 {
   // if one standard conversion sequence is a proper subsequence of
   // another, excluding SC_LVAL_TO_RVAL, then the smaller one is
@@ -1256,7 +1256,7 @@ int compareStandardConversions
     // second pass: objects, and references to objects
     // third pass:  pointers to members
     for (int pass=1; pass <= 3; pass++) {
-      bool (*checkFunc)(Type const *type, CompoundType const *&ct) =
+      bool (*checkFunc)(CType const *type, CompoundType const *&ct) =
         pass==1 ? &isPointerToCompound   :
         pass==2 ? &isReferenceToCompound :
                   &isPointerToCompoundMember;
@@ -1298,8 +1298,8 @@ int compareStandardConversions
     int ret = 0;
 
     // will work through the type constructors simultaneously
-    Type const *L = leftDest;
-    Type const *R = rightDest;
+    CType const *L = leftDest;
+    CType const *R = rightDest;
     
     // 2005-08-09 (in/t0530.cc): the very first cv-flags are
     // irrelevant, because they come from parameter types, which are
@@ -1345,8 +1345,8 @@ int compareStandardConversions
       switch (L->getTag()) {
         default: xfailure("bad tag");
 
-        case Type::T_POINTER:
-        case Type::T_REFERENCE: {
+        case CType::T_POINTER:
+        case CType::T_REFERENCE: {
           // assured by non-stackability of references
           xassert(L->isPointerType() == R->isPointerType());
 
@@ -1359,8 +1359,8 @@ int compareStandardConversions
           break;
         }
 
-        case Type::T_FUNCTION:
-        case Type::T_ARRAY:
+        case CType::T_FUNCTION:
+        case CType::T_ARRAY:
           if (L->equals(R)) {
             return ret;      // decision so far is final
           }
@@ -1368,7 +1368,7 @@ int compareStandardConversions
             return 0;        // different types, can't compare
           }
 
-        case Type::T_POINTERTOMEMBER: {
+        case CType::T_POINTERTOMEMBER: {
           PointerToMemberType const *lptm = L->asPointerToMemberTypeC();
           PointerToMemberType const *rptm = R->asPointerToMemberTypeC();
 
@@ -1409,7 +1409,7 @@ int compareStandardConversions
 }
 
 
-bool convertsPtrToBool(Type const *src, Type const *dest)
+bool convertsPtrToBool(CType const *src, CType const *dest)
 {
   // I believe this test is meant to transcend any reference bindings
   src = src->asRvalC();
@@ -1435,7 +1435,7 @@ bool convertsPtrToBool(Type const *src, Type const *dest)
 
 // also allows void*, where 'void' is represented with
 // a NULL CompoundType
-bool isPointerToCompound(Type const *type, CompoundType const *&ct)
+bool isPointerToCompound(CType const *type, CompoundType const *&ct)
 {
   type = type->asRvalC();
 
@@ -1456,7 +1456,7 @@ bool isPointerToCompound(Type const *type, CompoundType const *&ct)
 
 
 // allows both C& and C, returning C in 'ct'
-bool isReferenceToCompound(Type const *type, CompoundType const *&ct)
+bool isReferenceToCompound(CType const *type, CompoundType const *&ct)
 { 
   type = type->asRvalC();
 
@@ -1469,7 +1469,7 @@ bool isReferenceToCompound(Type const *type, CompoundType const *&ct)
 }
 
 
-bool isPointerToCompoundMember(Type const *type, CompoundType const *&ct)
+bool isPointerToCompoundMember(CType const *type, CompoundType const *&ct)
 {
   type = type->asRvalC();
 
@@ -1519,7 +1519,7 @@ bool isProperSubpath(CompoundType const *LS, CompoundType const *LD,
 
 
 // --------------------- ConversionResolver -----------------------
-bool isCompoundType_orConstRefTo(Type const *t)
+bool isCompoundType_orConstRefTo(CType const *t)
 {
   if (t->isCompoundType()) { return true; }
   
@@ -1535,8 +1535,8 @@ ImplicitConversion getConversionOperator(
   Env &env,
   SourceLoc loc,
   ErrorList * /*nullable*/ errors,
-  Type *srcClassType,
-  Type *destType
+  CType *srcClassType,
+  CType *destType
 ) {
   CompoundType *srcClass = srcClassType->asRval()->asCompoundType();
 
@@ -1577,7 +1577,7 @@ ImplicitConversion getConversionOperator(
     // this process of selecting candidate functions."
     SFOREACH_OBJLIST_NC(Variable, ops, iter) {
       Variable *v = iter.data();
-      Type *retType = v->type->asFunctionTypeC()->retType->asRval();
+      CType *retType = v->type->asFunctionTypeC()->retType->asRval();
       if (!retType->containsVariables()) {
         // concrete type; easy case
         if (retType->isCompoundType() &&
@@ -1622,7 +1622,7 @@ ImplicitConversion getConversionOperator(
     // candidate functions."
     SFOREACH_OBJLIST_NC(Variable, ops, iter) {
       Variable *v = iter.data();
-      Type *retType = v->type->asFunctionType()->retType->asRval();
+      CType *retType = v->type->asFunctionType()->retType->asRval();
       if (SC_ERROR!=getStandardConversion(NULL /*errorMsg*/,
             SE_NONE, retType, destType)) {
         // it's a candidate
@@ -1634,7 +1634,7 @@ ImplicitConversion getConversionOperator(
   // must be 13.3.1.6
   else {
     // strip the reference
-    Type *underDestType = destType->asRval();
+    CType *underDestType = destType->asRval();
 
     // Where the destination type is 'cv1 T &', "... [conversion
     // operators that] yield type 'cv2 T2 &', where 'cv1 T' is
@@ -1642,7 +1642,7 @@ ImplicitConversion getConversionOperator(
     // candidate functions."
     SFOREACH_OBJLIST_NC(Variable, ops, iter) {
       Variable *v = iter.data();
-      Type *retType = v->type->asFunctionType()->retType;
+      CType *retType = v->type->asFunctionType()->retType;
       if (retType->isReference()) {
         retType = retType->asRval();     // strip the reference
         if (isReferenceCompatibleWith(underDestType, retType)) {
@@ -1708,7 +1708,7 @@ static CVFlags unionCV(CVFlags cv1, CVFlags cv2, bool &cvdiffers, bool toplevel)
 }
 
 // must have already established similarity
-Type *similarLUB(Env &env, Type *t1, Type *t2, bool &cvdiffers, bool toplevel=false)
+CType *similarLUB(Env &env, CType *t1, CType *t2, bool &cvdiffers, bool toplevel=false)
 {
   // this analysis goes bottom-up, because if there are cv differences
   // at a given level, then all levels above it must have CV_CONST in
@@ -1717,44 +1717,44 @@ Type *similarLUB(Env &env, Type *t1, Type *t2, bool &cvdiffers, bool toplevel=fa
   switch (t1->getTag()) {
     default: xfailure("bad type code");
 
-    case Type::T_ATOMIC: {
+    case CType::T_ATOMIC: {
       CVAtomicType *at1 = t1->asCVAtomicType();
       CVAtomicType *at2 = t2->asCVAtomicType();
       CVFlags cvu = unionCV(at1->cv, at2->cv, cvdiffers, toplevel);
       return env.tfac.makeCVAtomicType(at1->atomic, cvu);
     }
 
-    case Type::T_POINTER: {
+    case CType::T_POINTER: {
       PointerType *pt1 = t1->asPointerType();
       PointerType *pt2 = t2->asPointerType();
-      Type *under = similarLUB(env, pt1->atType, pt2->atType, cvdiffers);
+      CType *under = similarLUB(env, pt1->atType, pt2->atType, cvdiffers);
       CVFlags cvu = unionCV(pt1->cv, pt2->cv, cvdiffers, toplevel);
       return env.tfac.makePointerType(cvu, under);
     }
 
-    case Type::T_REFERENCE: {
+    case CType::T_REFERENCE: {
       ReferenceType *rt1 = t1->asReferenceType();
       ReferenceType *rt2 = t2->asReferenceType();
-      Type *under = similarLUB(env, rt1->atType, rt2->atType, cvdiffers);
+      CType *under = similarLUB(env, rt1->atType, rt2->atType, cvdiffers);
       return env.tfac.makeReferenceType(under);
     }
 
-    case Type::T_FUNCTION:
-    case Type::T_ARRAY:
+    case CType::T_FUNCTION:
+    case CType::T_ARRAY:
       // similarity implies equality, so LUB is t1==t2
       return t1;
 
-    case Type::T_POINTERTOMEMBER: {
+    case CType::T_POINTERTOMEMBER: {
       PointerToMemberType *pmt1 = t1->asPointerToMemberType();
       PointerToMemberType *pmt2 = t2->asPointerToMemberType();
-      Type *under = similarLUB(env, pmt1->atType, pmt2->atType, cvdiffers);
+      CType *under = similarLUB(env, pmt1->atType, pmt2->atType, cvdiffers);
       CVFlags cvu = unionCV(pmt1->cv, pmt2->cv, cvdiffers, toplevel);
       return env.tfac.makePointerToMemberType(pmt1->inClassNAT, cvu, under);
     }
   }
 }
 
-CompoundType *ifPtrToCompound(Type *t)
+CompoundType *ifPtrToCompound(CType *t)
 {
   if (t->isPointer()) {
     PointerType *pt = t->asPointerType();
@@ -1765,13 +1765,13 @@ CompoundType *ifPtrToCompound(Type *t)
   return NULL;
 }
 
-bool isPointerToVoid(Type *t)
+bool isPointerToVoid(CType *t)
 {
   return t->isPointerType() &&
          t->getAtType()->isVoid();
 }
 
-CompoundType *ifPtrToMember(Type *t)
+CompoundType *ifPtrToMember(CType *t)
 {
   if (t->isPointerToMemberType()) {
     PointerToMemberType *ptm = t->asPointerToMemberType();
@@ -1783,12 +1783,12 @@ CompoundType *ifPtrToMember(Type *t)
 }
  
 // clear any toplevel cv-qualifications
-Type *cvUnqualified(Env &env, Type *t)
+CType *cvUnqualified(Env &env, CType *t)
 {
   return env.tfac.setQualifiers(SL_UNKNOWN, CV_NONE, t, NULL /*syntax*/);
 }
 
-Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
+CType *computeLUB(Env &env, CType *t1, CType *t2, bool &wasAmbig)
 {
   wasAmbig = false;
 
@@ -1807,7 +1807,7 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
 
       // find the LUB class, if any
       lubCt = CompoundType::lub(ct1, ct2, wasAmbig);
-      Type *lubCtType;
+      CType *lubCtType;
       if (!lubCt) {
         if (wasAmbig) {
           // no unique LUB
@@ -1903,11 +1903,11 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
 }
 
 
-void test_computeLUB(Env &env, Type *t1, Type *t2, Type *answer, int code)
+void test_computeLUB(Env &env, CType *t1, CType *t2, CType *answer, int code)
 {                          
   // compute the LUB
   bool wasAmbig;
-  Type *a = computeLUB(env, t1, t2, wasAmbig);
+  CType *a = computeLUB(env, t1, t2, wasAmbig);
 
   // did it do what we expected?
   bool ok = false;
@@ -2001,8 +2001,8 @@ InstCandidateResolver::~InstCandidateResolver()
 
 int InstCandidateResolver::compareCandidates(InstCandidate *left, InstCandidate *right)
 {
-  Type *leftType = left->primary->type;
-  Type *rightType = right->primary->type;
+  CType *leftType = left->primary->type;
+  CType *rightType = right->primary->type;
 
   bool left_ALA = atLeastAsSpecializedAs(env, leftType, rightType);
   bool right_ALA = atLeastAsSpecializedAs(env, rightType, leftType);

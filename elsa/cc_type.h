@@ -68,7 +68,7 @@ class ReferenceType;
 class FunctionType;
 class ArrayType;
 class PointerToMemberType;
-class Type;
+class CType;
 class TemplateInfo;
 class STemplateArgument;
 class TypeFactory;
@@ -88,8 +88,8 @@ class TypeVisitor {
 public:
   virtual ~TypeVisitor() {}     // silence warning
 
-  virtual bool visitType(Type *obj);
-  virtual void postvisitType(Type *obj);
+  virtual bool visitType(CType *obj);
+  virtual void postvisitType(CType *obj);
 
   virtual bool visitFunctionType_params(SObjList<Variable> &params);
   virtual void postvisitFunctionType_params(SObjList<Variable> &params);
@@ -214,7 +214,7 @@ public:     // funcs
   // will allow it only if type1==type2
   bool equals(AtomicType const *obj) const;
 
-  // print the string according to 'Type::printAsML'
+  // print the string according to 'CType::printAsML'
   string toString() const;
 
   // print in C notation
@@ -384,7 +384,7 @@ public:      // data
   // injected-class-name; it is different than typedefVar->type
   // for template classes, as the former is the template class
   // itself while the latter is a PseudoInstantiation thereof
-  Type *selfType;                     // (nullable serf)
+  CType *selfType;                     // (nullable serf)
 
 private:     // funcs
   void makeSubobjHierarchy(BaseClassSubobj *subobj, BaseClass const *newBase);
@@ -563,27 +563,27 @@ public:     // funcs
 // abstract superclass
 class TypePred {
 public:
-  virtual bool operator() (Type const *t) = 0;
+  virtual bool operator() (CType const *t) = 0;
   virtual ~TypePred() {}     // gcc sux
 };
 
 // when you just want a stateless predicate
-typedef bool (*TypePredFunc)(Type const *t);
+typedef bool (*TypePredFunc)(CType const *t);
 
 class StatelessTypePred : public TypePred {
   TypePredFunc const f;
 public:
   StatelessTypePred(TypePredFunc f0) : f(f0) {}
-  virtual bool operator() (Type const *t);
+  virtual bool operator() (CType const *t);
 };
 
 
 // ------------------- constructed types -------------------------
 // generic constructed type; to allow client analyses to annotate the
-// description of types, this class is inherited by "Type", the class
+// description of types, this class is inherited by "CType", the class
 // that all of the rest of the parser regards as being a "type"
 //
-// note: clients should refer to Type, not BaseType
+// note: clients should refer to CType, not BaseType
 class BaseType INHERIT_SERIAL_BASE {
 public:     // types
   enum Tag {
@@ -607,7 +607,7 @@ public:     // types
 public:     // data
   // when true (the default is false), types are printed in ML-like
   // notation instead of C notation by AtomicType::toString and
-  // Type::toString
+  // CType::toString
   static bool printAsML;
 
 private:    // disallowed
@@ -615,9 +615,9 @@ private:    // disallowed
 
 private:    // funcs
   // the constructor of BaseType is private so the only subclass
-  // is Type, an assumption relied upon in BaseType::equals
+  // is CType, an assumption relied upon in BaseType::equals
   BaseType();
-  friend class Type;
+  friend class CType;
 
 public:     // funcs
   virtual ~BaseType();
@@ -716,7 +716,7 @@ public:     // funcs
 
   // ST_DEPENDENT or TypeVariable or PseudoInstantiation or DependentQType
   bool isGeneralizedDependent() const;
-  bool containsGeneralizedDependent() const;   // anywhere in Type tree
+  bool containsGeneralizedDependent() const;   // anywhere in CType tree
 
   // (some of the following are redundant but I want them anyway, to
   // continue with the pattern that isXXX is for language concepts and
@@ -734,9 +734,9 @@ public:     // funcs
 
   // dsw: this is virtual because in Oink an int can act as a pointer
   // so I need a way to do that
-  virtual Type *getAtType() const;
+  virtual CType *getAtType() const;
 
-  // note that Type overrides these to return Type instead of BaseType
+  // note that CType overrides these to return CType instead of BaseType
   BaseType const *asRvalC() const;             // if I am a reference, return referrent type
   BaseType *asRval() { return const_cast<BaseType*>(asRvalC()); }
 
@@ -790,32 +790,32 @@ public:     // funcs
 string cvToString(CVFlags cv);
 
 #ifdef TYPE_CLASS_FILE
-  // pull in the definition of Type, which may have additional
+  // pull in the definition of CType, which may have additional
   // fields (etc.) added for the client analysis
   #include TYPE_CLASS_FILE
 #else
-  // please see cc_type.html, section 6, "BaseType and Type", for more
+  // please see cc_type.html, section 6, "BaseType and CType", for more
   // information about this class
-  class Type : public BaseType {
+  class CType : public BaseType {
   protected:   // funcs
-    Type() {}
+    CType() {}
 
   public:      // funcs
     // do not leak the name "BaseType"
-    Type const *asRvalC() const
-      { return static_cast<Type const *>(BaseType::asRvalC()); }
-    Type *asRval()
-      { return static_cast<Type*>(BaseType::asRval()); }
+    CType const *asRvalC() const
+      { return static_cast<CType const *>(BaseType::asRvalC()); }
+    CType *asRval()
+      { return static_cast<CType*>(BaseType::asRval()); }
   };
 #endif // TYPE_CLASS_FILE
 
-// supports the use of 'Type*' in AST constructor argument lists
-string toString(Type *t);
+// supports the use of 'CType*' in AST constructor argument lists
+string toString(CType *t);
 
 
 // essentially just a wrapper around an atomic type, but
 // also with optional const/volatile flags
-class CVAtomicType : public Type {
+class CVAtomicType : public CType {
 public:     // data
   AtomicType *atomic;          // (serf) underlying type
   CVFlags cv;                  // const/volatile
@@ -834,7 +834,7 @@ public:
   bool isConst() const { return !!(cv & CV_CONST); }
   bool isVolatile() const { return !!(cv & CV_VOLATILE); }
 
-  // Type interface
+  // CType interface
   virtual Tag getTag() const { return T_ATOMIC; }
   unsigned innerHashValue() const;
   virtual string toMLString() const;
@@ -847,21 +847,21 @@ public:
 
              
 // type of a pointer
-class PointerType : public Type {
+class PointerType : public CType {
 public:     // data
   CVFlags cv;                  // const/volatile; refers to pointer *itself*
-  Type *atType;                // (serf) type of thing pointed-at
+  CType *atType;                // (serf) type of thing pointed-at
 
 protected:  // funcs
   friend class BasicTypeFactory;
   friend class TypeXmlReader;
-  PointerType(CVFlags c, Type *a);
+  PointerType(CVFlags c, CType *a);
 
 public:
   bool isConst() const { return !!(cv & CV_CONST); }
   bool isVolatile() const { return !!(cv & CV_VOLATILE); }
 
-  // Type interface
+  // CType interface
   virtual Tag getTag() const { return T_POINTER; }
   unsigned innerHashValue() const;
   virtual string toMLString() const;
@@ -875,20 +875,20 @@ public:
 
 
 // type of a reference
-class ReferenceType : public Type {
+class ReferenceType : public CType {
 public:     // data
-  Type *atType;                // (serf) type of thing pointed-at
+  CType *atType;                // (serf) type of thing pointed-at
 
 protected:  // funcs
   friend class BasicTypeFactory;
   friend class TypeXmlReader;
-  ReferenceType(Type *a);
+  ReferenceType(CType *a);
 
 public:
   bool isConst() const { return false; }
   bool isVolatile() const { return false; }
 
-  // Type interface
+  // CType interface
   virtual Tag getTag() const { return T_REFERENCE; }
   unsigned innerHashValue() const;
   virtual string toMLString() const;
@@ -919,12 +919,12 @@ ENUM_BITWISE_OPS(FunctionFlags, FF_ALL);
 
 
 // type of a function
-class FunctionType : public Type {
+class FunctionType : public CType {
 public:     // types
   // list of exception types that can be thrown
   class ExnSpec {
   public:
-    SObjList<Type> types;
+    SObjList<CType> types;
 
   public:
     ExnSpec() {}
@@ -939,7 +939,7 @@ public:     // data
   FunctionFlags flags;
 
   // type of return value
-  Type *retType;                     // (serf)
+  CType *retType;                     // (serf)
 
   // list of function parameters; if (flags & FF_METHOD) then the
   // first parameter is '__receiver'
@@ -952,7 +952,7 @@ protected:  // funcs
   friend class BasicTypeFactory;
   friend class TypeXmlReader;
 
-  FunctionType(Type *retType);
+  FunctionType(CType *retType);
 
 public:
   virtual ~FunctionType();
@@ -1009,7 +1009,7 @@ public:
   // a hook for the verifier's printer
   virtual void extraRightmostSyntax(stringBuilder &sb) const;
 
-  // Type interface
+  // CType interface
   virtual Tag getTag() const { return T_FUNCTION; }
   unsigned innerHashValue() const;
   virtual string toMLString() const;
@@ -1022,7 +1022,7 @@ public:
 
 
 // type of an array
-class ArrayType : public Type {
+class ArrayType : public CType {
 public:       // types
   enum { 
     NO_SIZE = -1,              // no size specified
@@ -1030,7 +1030,7 @@ public:       // types
   };
 
 public:       // data
-  Type *eltType;               // (serf) type of the elements
+  CType *eltType;               // (serf) type of the elements
   int size;                    // specified size (>=0), or NO_SIZE or DYN_SIZE
   
   // Note that whether a size of 0 is legal depends on the current
@@ -1043,7 +1043,7 @@ private:      // funcs
 protected:
   friend class BasicTypeFactory;
   friend class TypeXmlReader;
-  ArrayType(Type *e, int s = NO_SIZE)
+  ArrayType(CType *e, int s = NO_SIZE)
     : eltType(e), size(s) { checkWellFormedness(); }
   ArrayType(ReadXML&)           // a ctor for de-serialization
     : eltType(NULL), size(NO_SIZE) {}
@@ -1052,7 +1052,7 @@ public:
   int getSize() const { return size; }
   bool hasSize() const { return size >= 0; }
 
-  // Type interface
+  // CType interface
   virtual Tag getTag() const { return T_ARRAY; }
   unsigned innerHashValue() const;
   virtual string toMLString() const;
@@ -1065,7 +1065,7 @@ public:
 
 
 // pointer to member
-class PointerToMemberType : public Type {
+class PointerToMemberType : public CType {
 public:
   // Usually, this is a compound type, as ptr-to-members are
   // w.r.t. some compound.  However, to support the 'compound'
@@ -1074,12 +1074,12 @@ public:
   NamedAtomicType *inClassNAT;
 
   CVFlags cv;                   // whether this pointer is const
-  Type *atType;                 // type of the member
+  CType *atType;                 // type of the member
 
 protected:
   friend class BasicTypeFactory;
   friend class TypeXmlReader;
-  PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c, Type *a);
+  PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c, CType *a);
   PointerToMemberType(ReadXML&) // a ctor for de-serialization
     : inClassNAT(NULL), cv(CV_NONE), atType(NULL) {}
 
@@ -1091,7 +1091,7 @@ public:
   // assertion if it turns out to be a TypeVariable
   CompoundType *inClass() const;
 
-  // Type interface
+  // CType interface
   virtual Tag getTag() const { return T_POINTERTOMEMBER; }
   unsigned innerHashValue() const;
   virtual string toMLString() const;
@@ -1130,9 +1130,9 @@ public:
 //     maintaining the data structures necessary for this, and for
 //     choosing whether to do it at all.
 //
-//   - It is often desirable to annotate Types, but the base Type
+//   - It is often desirable to annotate Types, but the base CType
 //     hierarchy should be free from any particular annotations.
-//     The factory allows one to derive subclasses of Type to add
+//     The factory allows one to derive subclasses of CType to add
 //     such annotations, without modifying creation sites (since
 //     they use the factory).  Of course, an alternative is to use
 //     a hash table on the side, but that's sometimes inconvenient.
@@ -1152,22 +1152,22 @@ public:
   // ---- constructors for the constructed types ----
   virtual CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv)=0;
 
-  virtual PointerType *makePointerType(CVFlags cv, Type *atType)=0;
+  virtual PointerType *makePointerType(CVFlags cv, CType *atType)=0;
 
-  // this returns a Type* instead of a ReferenceType because I need to
+  // this returns a CType* instead of a ReferenceType because I need to
   // be able to return an error type
-  virtual Type *makeReferenceType(Type *atType)=0;
+  virtual CType *makeReferenceType(CType *atType)=0;
 
-  virtual FunctionType *makeFunctionType(Type *retType)=0;
+  virtual FunctionType *makeFunctionType(CType *retType)=0;
 
   // this must be called after 'makeFunctionType', once all of the
   // parameters have been added
   virtual void doneParams(FunctionType *ft)=0;
 
-  virtual ArrayType *makeArrayType(Type *eltType, int size)=0;
+  virtual ArrayType *makeArrayType(CType *eltType, int size)=0;
 
   virtual PointerToMemberType *makePointerToMemberType
-    (NamedAtomicType *inClassNAT, CVFlags cv, Type *atType)=0;
+    (NamedAtomicType *inClassNAT, CVFlags cv, CType *atType)=0;
 
 
   // ---- create a type based on another one ----
@@ -1175,11 +1175,11 @@ public:
   // where I don't have an AST node to pass
 
   // NOTE: The functions in this section do *not* modify their argument
-  // Types, rather they return a new object if the desired Type is different
+  // Types, rather they return a new object if the desired CType is different
   // from the one passed-in.  (That is, they behave functionally.)
 
   // do a shallow clone
-  virtual Type *shallowCloneType(Type *baseType);
+  virtual CType *shallowCloneType(CType *baseType);
 
   // given a type, set its cv-qualifiers to 'cv'; return NULL if the
   // base type cannot be so qualified; I pass the syntax from which
@@ -1187,31 +1187,31 @@ public:
   // extension analyses
   //
   // NOTE: 'baseType' is *not* modified; a copy is returned if necessary
-  virtual Type *setQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
+  virtual CType *setQualifiers(SourceLoc loc, CVFlags cv, CType *baseType,
                                 TypeSpecifier * /*nullable*/ syntax);
 
   // add 'cv' to existing qualifiers; default implementation just
   // calls setQualifiers
-  virtual Type *applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
+  virtual CType *applyCVToType(SourceLoc loc, CVFlags cv, CType *baseType,
                               TypeSpecifier * /*nullable*/ syntax);
 
   // build a pointer type from a syntactic description; here I allow
   // the factory to know the name of an AST node, but the default
   // implementation will not use it, so it need not be linked in for
   // this to make sense
-  virtual Type *syntaxPointerType(SourceLoc loc,
-    CVFlags cv, Type *underlying, D_pointer * /*nullable*/ syntax);
-  virtual Type *syntaxReferenceType(SourceLoc loc,
-    Type *underlying, D_reference * /*nullable*/ syntax);
+  virtual CType *syntaxPointerType(SourceLoc loc,
+    CVFlags cv, CType *underlying, D_pointer * /*nullable*/ syntax);
+  virtual CType *syntaxReferenceType(SourceLoc loc,
+    CType *underlying, D_reference * /*nullable*/ syntax);
 
   // similar for a function type; the parameters will be added by
   // the caller after this function returns
   virtual FunctionType *syntaxFunctionType(SourceLoc loc,
-    Type *retType, D_func * /*nullable*/ syntax, TranslationUnit *tunit);
+    CType *retType, D_func * /*nullable*/ syntax, TranslationUnit *tunit);
 
   // and another for pointer-to-member
   virtual PointerToMemberType *syntaxPointerToMemberType(SourceLoc loc,
-    NamedAtomicType *inClassNAT, CVFlags cv, Type *atType,
+    NamedAtomicType *inClassNAT, CVFlags cv, CType *atType,
     D_ptrToMember * /*nullable*/ syntax);
 
   // given a class, build the type of the receiver object parameter
@@ -1220,24 +1220,24 @@ public:
   // 4/18/04: the 'classType' has been generalized because we
   //          represent ptr-to-member-func using a FunctionType
   //          with receiver parameter of type 'classType'
-  virtual Type *makeTypeOf_receiver(SourceLoc loc,
+  virtual CType *makeTypeOf_receiver(SourceLoc loc,
     NamedAtomicType *classType, CVFlags cv, D_func * /*nullable*/ syntax);
 
   // given a function type and a return type, make a new function type
   // which is like it but has no parameters; i.e., copy all fields
   // except 'params'; this does *not* call doneParams
   virtual FunctionType *makeSimilarFunctionType(SourceLoc loc,
-    Type *retType, FunctionType *similar);
+    CType *retType, FunctionType *similar);
 
   // ---- similar functions for Variable ----
   // Why not make a separate factory?
   //   - It's inconvenient to have two.
   //   - Every application I can think of will want to define both
   //     or neither.
-  //   - Variable is used by Type and vice-versa.. they could have
+  //   - Variable is used by CType and vice-versa.. they could have
   //     both been defined in cc_type.h
   virtual Variable *makeVariable(SourceLoc L, StringRef n,
-                                 Type *t, DeclFlags f, TranslationUnit *tunit)=0;
+                                 CType *t, DeclFlags f, TranslationUnit *tunit)=0;
 
 
   // ---- convenience functions ----
@@ -1249,9 +1249,9 @@ public:
   CVAtomicType *makeType(AtomicType *atomic)
     { return makeCVAtomicType(atomic, CV_NONE); }
 
-  // make a ptr-to-'type' type; returns generic Type instead of
+  // make a ptr-to-'type' type; returns generic CType instead of
   // PointerType because sometimes I return ST_ERROR
-  inline Type *makePtrType(Type *type)
+  inline CType *makePtrType(CType *type)
     { return type->isError()? type : makePointerType(CV_NONE, type); }
 
   // map a simple type into its CVAtomicType representative
@@ -1264,7 +1264,7 @@ public:
 
 
 // This is an implementation of the above interface which returns the
-// actual Type-derived objects defined, as opposed to objects of
+// actual CType-derived objects defined, as opposed to objects of
 // further-derived classes.  On the extension topics mentioned above:
 //   - It does not deallocate Types at all (oh well...).
 //   - It does not (yet) implement hash-consing, except for CVAtomics
@@ -1280,17 +1280,17 @@ private:   // data
 public:    // funcs
   // TypeFactory funcs
   virtual CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv);
-  virtual PointerType *makePointerType(CVFlags cv, Type *atType);
-  virtual Type *makeReferenceType(Type *atType);
-  virtual FunctionType *makeFunctionType(Type *retType);
+  virtual PointerType *makePointerType(CVFlags cv, CType *atType);
+  virtual CType *makeReferenceType(CType *atType);
+  virtual FunctionType *makeFunctionType(CType *retType);
   virtual void doneParams(FunctionType *ft);
 
-  virtual ArrayType *makeArrayType(Type *eltType, int size);
+  virtual ArrayType *makeArrayType(CType *eltType, int size);
   virtual PointerToMemberType *makePointerToMemberType
-    (NamedAtomicType *inClassNAT, CVFlags cv, Type *atType);
+    (NamedAtomicType *inClassNAT, CVFlags cv, CType *atType);
 
   virtual Variable *makeVariable(SourceLoc L, StringRef n,
-                                 Type *t, DeclFlags f, TranslationUnit *tunit);
+                                 CType *t, DeclFlags f, TranslationUnit *tunit);
 };
 
 
@@ -1332,7 +1332,7 @@ void throw_XReprSize(bool isDynamic = false) NORETURN;
 //
 // update: it turns out the latest gdbs are capable of using the
 // toString method directly!  but I'll leave this here anyway.
-char *type_toString(Type const *t);
+char *type_toString(CType const *t);
 
 
 // I should explain my intended relationship between references and

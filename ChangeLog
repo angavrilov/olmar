@@ -1,3 +1,15 @@
+2006-05-01  Hendrik Tews  <tews@penguin.cs.kun.nl>
+
+	* renamed Type into CType
+
+	* fixed bug in elkhound grammar: Tok_ARROW for "->"
+	* astgen: generated ml does not register callbacks during module
+	init
+	* fixed caml include problem: extern "C"
+	* added ocaml things to configure/sm_config and elsa/Makefile.in
+	* invoke caml marshalling for sysTrace marshallToOcaml
+	* does segfault deep in the ast
+
 2006-04-30  Hendrik Tews  <tews@debian>
 
 	* small fixes in astgen

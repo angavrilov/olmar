@@ -31,7 +31,7 @@ inline ostream& operator<< (ostream &os, SourceLoc sl)
 // --------------------
 
 // true if 't' is reference to 'ct', ignoring any c/v
-static bool isRefToCt(Type const *t, CompoundType *ct)
+static bool isRefToCt(CType const *t, CompoundType *ct)
 {
   if (!t->isReference()) return false;
 
@@ -87,7 +87,7 @@ bool isCopyAssignOp(Variable const *funcVar, CompoundType *ct)
   if (ft->params.count() != 2) return false; // has two args, 1) this and 2) other?
 
   // the second parameter; the first is "this"
-  Type *t0 = ft->params.nthC(1 /*that is, the second element*/)->type;
+  CType *t0 = ft->params.nthC(1 /*that is, the second element*/)->type;
 
   // is the parameter of the class type?  NOTE: atomics are equal iff
   // pointer equal
@@ -242,9 +242,9 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
     // TODO: do it right.
 
     // add a copy assignment op declaration: Class& operator=(Class const &);
-    Type *refToSelfType =
+    CType *refToSelfType =
       env.makeReferenceType(env.makeCVAtomicType(ct, CV_NONE));
-    Type *refToConstSelfType =
+    CType *refToConstSelfType =
       env.makeReferenceType(env.makeCVAtomicType(ct, CV_CONST));
 
     FunctionType *ft = env.makeFunctionType(refToSelfType);
@@ -415,12 +415,12 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
   // create declarations for some built-in operators
   // [cppstd 3.7.3 para 2]
-  Type *t_void = getSimpleType(ST_VOID);
-  Type *t_voidptr = makePtrType(t_void);
+  CType *t_void = getSimpleType(ST_VOID);
+  CType *t_voidptr = makePtrType(t_void);
 
   // note: my stddef.h typedef's size_t to be 'int', so I just use
   // 'int' directly here instead of size_t
-  Type *t_size_t = getSimpleType(ST_INT);
+  CType *t_size_t = getSimpleType(ST_INT);
 
   if (lang.isCplusplus) {
     // must predefine this to be able to define bad_alloc
@@ -435,7 +435,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // 2005-05-23: Define it in std scope, then optionally put an alias
     // in the global scope too.
     CompoundType *bad_alloc_ct;
-    Type *t_bad_alloc =
+    CType *t_bad_alloc =
       makeNewCompound(bad_alloc_ct, std_scope, str("bad_alloc"), SL_INIT,
                       TI_CLASS, true /*forward*/);
     if (lang.gcc2StdEqualsGlobalHacks) {
@@ -493,7 +493,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // leave it alone for now.
     //
     // typedef bool _Bool;
-    Type *t_bool = getSimpleType(ST_BOOL);
+    CType *t_bool = getSimpleType(ST_BOOL);
     addVariable(makeVariable(SL_INIT, str("_Bool"),
                              t_bool, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL));
   }
@@ -563,11 +563,11 @@ void Env::setupOperatorOverloading()
 
   // this has to match the typedef in include/stddef.h
   SimpleTypeId ptrdiff_t_id = ST_INT;
-  Type *t_ptrdiff_t = getSimpleType(ptrdiff_t_id);
+  CType *t_ptrdiff_t = getSimpleType(ptrdiff_t_id);
 
   // some other useful types
-  Type *t_int = getSimpleType(ST_INT);
-  Type *t_bool = getSimpleType(ST_BOOL);
+  CType *t_int = getSimpleType(ST_INT);
+  CType *t_bool = getSimpleType(ST_BOOL);
 
   // Below, whenever the standard calls for 'VQ' (volatile or
   // nothing), I use two copies of the rule, one with volatile and one
@@ -578,11 +578,11 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 3 ------------
   {
-    Type *T = getSimpleType(ST_ARITHMETIC);
-    Type *Tv = getSimpleType(ST_ARITHMETIC, CV_VOLATILE);
+    CType *T = getSimpleType(ST_ARITHMETIC);
+    CType *Tv = getSimpleType(ST_ARITHMETIC, CV_VOLATILE);
 
-    Type *Tr = tfac.makeReferenceType(T);
-    Type *Tvr = tfac.makeReferenceType(Tv);
+    CType *Tr = tfac.makeReferenceType(T);
+    CType *Tvr = tfac.makeReferenceType(Tv);
 
     // VQ T& operator++ (VQ T&);
     addBuiltinUnaryOp(ST_PRET_FIRST, OP_PLUSPLUS, Tr);
@@ -595,11 +595,11 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 4 ------------
   {
-    Type *T = getSimpleType(ST_ARITHMETIC_NON_BOOL);
-    Type *Tv = getSimpleType(ST_ARITHMETIC_NON_BOOL, CV_VOLATILE);
+    CType *T = getSimpleType(ST_ARITHMETIC_NON_BOOL);
+    CType *Tv = getSimpleType(ST_ARITHMETIC_NON_BOOL, CV_VOLATILE);
 
-    Type *Tr = tfac.makeReferenceType(T);
-    Type *Tvr = tfac.makeReferenceType(Tv);
+    CType *Tr = tfac.makeReferenceType(T);
+    CType *Tvr = tfac.makeReferenceType(Tv);
 
     // VQ T& operator-- (VQ T&);
     addBuiltinUnaryOp(ST_PRET_FIRST, OP_MINUSMINUS, Tr);
@@ -612,13 +612,13 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 5 ------------
   {
-    Type *T = getSimpleType(ST_ANY_OBJ_TYPE);
+    CType *T = getSimpleType(ST_ANY_OBJ_TYPE);
 
-    Type *Tp = tfac.makePointerType(CV_NONE, T);
-    Type *Tpv = tfac.makePointerType(CV_VOLATILE, T);
+    CType *Tp = tfac.makePointerType(CV_NONE, T);
+    CType *Tpv = tfac.makePointerType(CV_VOLATILE, T);
 
-    Type *Tpr = tfac.makeReferenceType(Tp);
-    Type *Tpvr = tfac.makeReferenceType(Tpv);
+    CType *Tpr = tfac.makeReferenceType(Tp);
+    CType *Tpvr = tfac.makeReferenceType(Tpv);
 
     // T* VQ & operator++ (T* VQ &);
     addBuiltinUnaryOp(ST_PRET_FIRST, OP_PLUSPLUS, Tpr);
@@ -639,8 +639,8 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 paras 6 and 7 ------------
   {
-    Type *T = getSimpleType(ST_ANY_NON_VOID);
-    Type *Tp = makePtrType(T);
+    CType *T = getSimpleType(ST_ANY_NON_VOID);
+    CType *Tp = makePtrType(T);
 
     // T& operator* (T*);
     addBuiltinUnaryOp(ST_PRET_FIRST_PTR2REF, OP_STAR, Tp);
@@ -648,8 +648,8 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 8 ------------
   {
-    Type *T = getSimpleType(ST_ANY_TYPE);
-    Type *Tp = makePtrType(T);
+    CType *T = getSimpleType(ST_ANY_TYPE);
+    CType *Tp = makePtrType(T);
 
     // T* operator+ (T*);
     addBuiltinUnaryOp(ST_PRET_FIRST, OP_PLUS, Tp);
@@ -657,7 +657,7 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 9 ------------
   {
-    Type *T = getSimpleType(ST_PROMOTED_ARITHMETIC);
+    CType *T = getSimpleType(ST_PROMOTED_ARITHMETIC);
 
     // T operator+ (T);
     addBuiltinUnaryOp(ST_PRET_FIRST, OP_PLUS, T);
@@ -668,7 +668,7 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 10 ------------
   {
-    Type *T = getSimpleType(ST_PROMOTED_INTEGRAL);
+    CType *T = getSimpleType(ST_PROMOTED_INTEGRAL);
 
     // T operator~ (T);
     addBuiltinUnaryOp(ST_PRET_FIRST, OP_BITNOT, T);
@@ -680,8 +680,8 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 12 ------------
   {
-    Type *L = getSimpleType(ST_PROMOTED_ARITHMETIC);
-    Type *R = getSimpleType(ST_PROMOTED_ARITHMETIC);
+    CType *L = getSimpleType(ST_PROMOTED_ARITHMETIC);
+    CType *R = getSimpleType(ST_PROMOTED_ARITHMETIC);
 
     static OverloadableOp const ops1[] = {
       OP_STAR,         // LR operator* (L, R);
@@ -712,8 +712,8 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 13 ------------
   {
-    Type *T = getSimpleType(ST_ANY_OBJ_TYPE);
-    Type *Tp = makePtrType(T);
+    CType *T = getSimpleType(ST_ANY_OBJ_TYPE);
+    CType *Tp = makePtrType(T);
 
     // T* operator+ (T*, ptrdiff_t);
     addBuiltinBinaryOp(ST_PRET_FIRST, OP_PLUS, Tp, t_ptrdiff_t);
@@ -768,8 +768,8 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 17 ------------
   {
-    Type *L = getSimpleType(ST_PROMOTED_INTEGRAL);
-    Type *R = getSimpleType(ST_PROMOTED_INTEGRAL);
+    CType *L = getSimpleType(ST_PROMOTED_INTEGRAL);
+    CType *R = getSimpleType(ST_PROMOTED_INTEGRAL);
 
     static OverloadableOp const ops[] = {
       OP_MOD,          // LR operator% (L,R);
@@ -791,13 +791,13 @@ void Env::setupOperatorOverloading()
   // ------------ 13.6 para 18 ------------
   // assignment/arith to arithmetic types
   {
-    Type *L = getSimpleType(ST_ARITHMETIC);
-    Type *Lv = getSimpleType(ST_ARITHMETIC, CV_VOLATILE);
+    CType *L = getSimpleType(ST_ARITHMETIC);
+    CType *Lv = getSimpleType(ST_ARITHMETIC, CV_VOLATILE);
 
-    Type *Lr = tfac.makeReferenceType(L);
-    Type *Lvr = tfac.makeReferenceType(Lv);
+    CType *Lr = tfac.makeReferenceType(L);
+    CType *Lvr = tfac.makeReferenceType(Lv);
 
-    Type *R = getSimpleType(ST_PROMOTED_ARITHMETIC);
+    CType *R = getSimpleType(ST_PROMOTED_ARITHMETIC);
 
     static OverloadableOp const ops[] = {
       OP_ASSIGN,       // VQ L& operator= (VQ L&, R);
@@ -830,7 +830,7 @@ void Env::setupOperatorOverloading()
   // T: pointer, ptr-to-member, or enumeration ('para19_20filter')
   // T VQ & operator= (T VQ &, T);
   {
-    Type* (*filter)(Type *t, bool) = para19_20filter;
+    CType* (*filter)(CType *t, bool) = para19_20filter;
     if (lang.nonstandardAssignmentOperator) {
       // 9/25/04: as best I can tell, what is usually implemented is the
       //   T* VQ & operator= (T* VQ &, T*);
@@ -847,13 +847,13 @@ void Env::setupOperatorOverloading()
   // ------------ 13.6 para 21 ------------
   // 21: +=, -= for pointer type
   {
-    Type *T = getSimpleType(ST_ANY_OBJ_TYPE);
+    CType *T = getSimpleType(ST_ANY_OBJ_TYPE);
 
-    Type *Tp = tfac.makePointerType(CV_NONE, T);
-    Type *Tpv = tfac.makePointerType(CV_VOLATILE, T);
+    CType *Tp = tfac.makePointerType(CV_NONE, T);
+    CType *Tpv = tfac.makePointerType(CV_VOLATILE, T);
 
-    Type *Tpr = tfac.makeReferenceType(Tp);
-    Type *Tpvr = tfac.makeReferenceType(Tpv);
+    CType *Tpr = tfac.makeReferenceType(Tp);
+    CType *Tpvr = tfac.makeReferenceType(Tpv);
 
     // T* VQ & operator+= (T* VQ &, ptrdiff_t);
     addBuiltinBinaryOp(ST_PRET_FIRST, OP_PLUSEQ, Tpr, t_ptrdiff_t);
@@ -867,13 +867,13 @@ void Env::setupOperatorOverloading()
   // ------------ 13.6 para 22 ------------
   // 22: assignment/arith to integral type
   {
-    Type *L = getSimpleType(ST_INTEGRAL, CV_NONE);
-    Type *Lv = getSimpleType(ST_INTEGRAL, CV_VOLATILE);
+    CType *L = getSimpleType(ST_INTEGRAL, CV_NONE);
+    CType *Lv = getSimpleType(ST_INTEGRAL, CV_VOLATILE);
 
-    Type *Lr = tfac.makeReferenceType(L);
-    Type *Lvr = tfac.makeReferenceType(Lv);
+    CType *Lr = tfac.makeReferenceType(L);
+    CType *Lvr = tfac.makeReferenceType(Lv);
     
-    Type *R = getSimpleType(ST_PROMOTED_INTEGRAL);
+    CType *R = getSimpleType(ST_PROMOTED_INTEGRAL);
 
     static OverloadableOp const ops[] = {
       OP_MODEQ,        // VQ L& operator%= (VQ L&, R);
@@ -902,8 +902,8 @@ void Env::setupOperatorOverloading()
   // ------------ 13.6 para 24 ------------
   // 24: ?: on arithmetic types
   {
-    Type *L = getSimpleType(ST_PROMOTED_ARITHMETIC);
-    Type *R = getSimpleType(ST_PROMOTED_ARITHMETIC);
+    CType *L = getSimpleType(ST_PROMOTED_ARITHMETIC);
+    CType *R = getSimpleType(ST_PROMOTED_ARITHMETIC);
 
     // NOTE: For the '?:' operator, I pretend it is binary because the
     // first argument plays no role in overload resolution, and the
@@ -982,7 +982,7 @@ void Env::tcheckTranslationUnit(TranslationUnit *tunit)
 }
 
 
-Variable *Env::makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
+Variable *Env::makeVariable(SourceLoc L, StringRef n, CType *t, DeclFlags f)
 {
   if (!ctorFinished) {
     // the 'tunit' is NULL for the Variables introduced before analyzing
@@ -1007,10 +1007,10 @@ Variable *Env::makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
 
 
 Variable *Env::declareFunctionNargs(
-  Type *retType, char const *funcName,
-  Type **argTypes, char const **argNames, int numArgs,
+  CType *retType, char const *funcName,
+  CType **argTypes, char const **argNames, int numArgs,
   FunctionFlags flags,
-  Type * /*nullable*/ exnType)
+  CType * /*nullable*/ exnType)
 {
   FunctionType *ft = makeFunctionType(retType);
   ft->flags |= flags;
@@ -1051,9 +1051,9 @@ Variable *Env::declareSpecialFunction(char const *name)
 }
 
 
-Variable *Env::declareFunction0arg(Type *retType, char const *funcName,
+Variable *Env::declareFunction0arg(CType *retType, char const *funcName,
                                    FunctionFlags flags,
-                                   Type * /*nullable*/ exnType)
+                                   CType * /*nullable*/ exnType)
 {
   return declareFunctionNargs(retType, funcName,
                               NULL /*argTypes*/, NULL /*argNames*/, 0 /*numArgs*/,
@@ -1061,10 +1061,10 @@ Variable *Env::declareFunction0arg(Type *retType, char const *funcName,
 }
 
 
-Variable *Env::declareFunction1arg(Type *retType, char const *funcName,
-                                   Type *arg1Type, char const *arg1Name,
+Variable *Env::declareFunction1arg(CType *retType, char const *funcName,
+                                   CType *arg1Type, char const *arg1Name,
                                    FunctionFlags flags,
-                                   Type * /*nullable*/ exnType)
+                                   CType * /*nullable*/ exnType)
 {
   return declareFunctionNargs(retType, funcName,
                               &arg1Type, &arg1Name, 1 /*numArgs*/,
@@ -1072,13 +1072,13 @@ Variable *Env::declareFunction1arg(Type *retType, char const *funcName,
 }
 
 
-Variable *Env::declareFunction2arg(Type *retType, char const *funcName,
-                                   Type *arg1Type, char const *arg1Name,
-                                   Type *arg2Type, char const *arg2Name,
+Variable *Env::declareFunction2arg(CType *retType, char const *funcName,
+                                   CType *arg1Type, char const *arg1Name,
+                                   CType *arg2Type, char const *arg2Name,
                                    FunctionFlags flags,
-                                   Type * /*nullable*/ exnType)
+                                   CType * /*nullable*/ exnType)
 {
-  Type *types[2] = { arg1Type, arg2Type };
+  CType *types[2] = { arg1Type, arg2Type };
   char const *names[2] = { arg1Name, arg2Name };
   return declareFunctionNargs(retType, funcName,
                               types, names, 2 /*numArgs*/,
@@ -1086,15 +1086,15 @@ Variable *Env::declareFunction2arg(Type *retType, char const *funcName,
 }
 
 
-Variable *Env::declareFunction4arg(Type *retType, char const *funcName,
-                                   Type *arg1Type, char const *arg1Name,
-                                   Type *arg2Type, char const *arg2Name,
-                                   Type *arg3Type, char const *arg3Name,
-                                   Type *arg4Type, char const *arg4Name,
+Variable *Env::declareFunction4arg(CType *retType, char const *funcName,
+                                   CType *arg1Type, char const *arg1Name,
+                                   CType *arg2Type, char const *arg2Name,
+                                   CType *arg3Type, char const *arg3Name,
+                                   CType *arg4Type, char const *arg4Name,
                                    FunctionFlags flags,
-                                   Type * /*nullable*/ exnType)
+                                   CType * /*nullable*/ exnType)
 {
-  Type *types[4] = { arg1Type, arg2Type, arg3Type, arg4Type };
+  CType *types[4] = { arg1Type, arg2Type, arg3Type, arg4Type };
   char const *names[4] = { arg1Name, arg2Name, arg3Name, arg4Name };
   return declareFunctionNargs(retType, funcName,
                               types, names, 4 /*numArgs*/,
@@ -1106,7 +1106,7 @@ FunctionType *Env::makeImplicitDeclFuncType()
 {
   // don't need a clone type here as getSimpleType() calls
   // makeCVAtomicType() which in oink calls new.
-  Type *ftRet = tfac.getSimpleType(ST_INT, CV_NONE);
+  CType *ftRet = tfac.getSimpleType(ST_INT, CV_NONE);
   FunctionType *ft = makeFunctionType(ftRet);
   ft->flags |= FF_NO_PARAM_INFO;
   doneParams(ft);
@@ -1614,9 +1614,9 @@ bool Env::addTypeTag(Variable *tag)
 }
 
 
-Type *Env::declareEnum(SourceLoc loc /*...*/, EnumType *et)
+CType *Env::declareEnum(SourceLoc loc /*...*/, EnumType *et)
 {
-  Type *ret = makeType(et);
+  CType *ret = makeType(et);
   if (et->name) {
     // make the implicit typedef
     Variable *tv = makeVariable(loc, et->name, ret, DF_TYPEDEF | DF_IMPLICIT);
@@ -2359,7 +2359,7 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo(bool allowInherited)
 }
 
 
-Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
+CType *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                            StringRef name, SourceLoc loc,
                            TypeIntr keyword, bool forward)
 {
@@ -2370,7 +2370,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
   }
 
   // make the implicit typedef
-  Type *ret = makeType(ct);
+  CType *ret = makeType(ct);
   Variable *tv = makeVariable(loc, name, ret, DF_TYPEDEF | DF_IMPLICIT);
   ct->typedefVar = tv;
 
@@ -2469,7 +2469,7 @@ bool Env::setDisambiguateOnly(bool newVal)
 }
 
 
-Type *Env::implicitReceiverType()
+CType *Env::implicitReceiverType()
 {
   Variable *receiver = lookupVariable(receiverName);
   if (!receiver) {
@@ -2488,14 +2488,14 @@ Variable *Env::receiverParameter(SourceLoc loc, NamedAtomicType *nat, CVFlags cv
   // unfortunate that whether we call into tfac depends on whether 'nat'
   // is a template class.  I think 'makeTypeOf_receiver' should simply
   // be removed from the tfac.
-  Type *recType;
+  CType *recType;
   if (nat->isCompoundType() &&
       nat->typedefVar->isTemplate()) {
     // get the basic selfType; we re-use the one from the CompoundType
     // instead of calling Env::pseudoSelfInstantiation because we want
     // all the receiver parameters of methods in the uninstantiated
     // class to be the same (in/t0410.cc)
-    Type *selfType = nat->asCompoundType()->selfType;
+    CType *selfType = nat->asCompoundType()->selfType;
     xassert(selfType);
     
     // apply 'cv'
@@ -2514,7 +2514,7 @@ Variable *Env::receiverParameter(SourceLoc loc, NamedAtomicType *nat, CVFlags cv
 
 
 // cppstd 5 para 8
-Type *Env::operandRval(Type *t)
+CType *Env::operandRval(CType *t)
 {
   // 4.1: lval to rval
   if (t->isReferenceType()) {
@@ -2541,7 +2541,7 @@ Type *Env::operandRval(Type *t)
 // Get the typeid type (5.2.8, 18.5.1).  The program is required to
 // #include <typeinfo> before using it, so we don't need to define
 // this class (since that header does).
-Type *Env::type_info_const_ref()
+CType *Env::type_info_const_ref()
 {
   // does the 'std' namespace exist?
   Scope *scope = globalScope();
@@ -2564,13 +2564,13 @@ Type *Env::type_info_const_ref()
 }
 
 
-void Env::addBuiltinUnaryOp(SimpleTypeId retId, OverloadableOp op, Type *x)
+void Env::addBuiltinUnaryOp(SimpleTypeId retId, OverloadableOp op, CType *x)
 {
-  Type *retType = getSimpleType(retId);
+  CType *retType = getSimpleType(retId);
   builtinUnaryOperator[op].push(createBuiltinUnaryOp(retType, op, x));
 }
 
-Variable *Env::createBuiltinUnaryOp(Type *retType, OverloadableOp op, Type *x)
+Variable *Env::createBuiltinUnaryOp(CType *retType, OverloadableOp op, CType *x)
 {
   Variable *v = declareFunction1arg(
     retType, operatorName[op],
@@ -2583,9 +2583,9 @@ Variable *Env::createBuiltinUnaryOp(Type *retType, OverloadableOp op, Type *x)
 
 
 void Env::addBuiltinBinaryOp(SimpleTypeId retId, OverloadableOp op,
-                             Type *x, Type *y)
+                             CType *x, CType *y)
 {
-  Type *retType = getSimpleType(retId);
+  CType *retType = getSimpleType(retId);
   addBuiltinBinaryOp(op, new PolymorphicCandidateSet(
     createBuiltinBinaryOp(retType, op, x, y)));
 }
@@ -2609,8 +2609,8 @@ void Env::addBuiltinBinaryOp(OverloadableOp op, CandidateSet * /*owner*/ cset)
 }
 
 
-Variable *Env::createBuiltinBinaryOp(Type *retType, OverloadableOp op,
-                                     Type *x, Type *y)
+Variable *Env::createBuiltinBinaryOp(CType *retType, OverloadableOp op,
+                                     CType *x, CType *y)
 {
   // PLAN:  Right now, I just leak a bunch of things.  To fix
   // this, I want to have the Env maintain a pool of Variables
@@ -2638,7 +2638,7 @@ Variable *Env::createBuiltinBinaryOp(Type *retType, OverloadableOp op,
 // note that this is *not* the same rule that allows array types in
 // function parameters to vary similarly, see
 // 'normalizeParameterType()'
-bool Env::almostEqualTypes(Type const *t1, Type const *t2,
+bool Env::almostEqualTypes(CType const *t1, CType const *t2,
                            MatchFlags mflags)
 {
   if (t1->isArrayType() &&
@@ -2710,7 +2710,7 @@ bool sameScopes(Scope *s1, Scope *s2)
 
 void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
 {
-  Type *type = origVar->type;
+  CType *type = origVar->type;
   StringRef name = origVar->name;
   Scope *scope = this->scope();
   CompoundType *enclosingClass = scope->curCompound;
@@ -2835,7 +2835,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
 // since in D_name_tcheck they aren't yet attached to the type (and it
 // isn't easy to do so because of ordering issues)
 Variable *Env::lookupVariableForDeclaration
-  (Scope *scope, StringRef name, Type *type, CVFlags this_cv)
+  (Scope *scope, StringRef name, CType *type, CVFlags this_cv)
 {
   // does this name already have a declaration in this scope?
   //
@@ -2925,7 +2925,7 @@ bool ContainsUTP::visitAtomicType(AtomicType *obj)
   return true;
 }
 
-bool containsUnassociatedTemplateParams(Type *t)
+bool containsUnassociatedTemplateParams(CType *t)
 {
   ContainsUTP cutp;
   t->traverse(cutp);
@@ -2941,7 +2941,7 @@ bool containsUnassociatedTemplateParams(Type *t)
 // have been associated are essentially regarded as concrete, while
 // those that have not are regarded as arbitrary type variables, and
 // therefore subject to unification by MType.
-bool Env::equivalentTypes(Type const *a, Type const *b, MatchFlags mflags)
+bool Env::equivalentTypes(CType const *a, CType const *b, MatchFlags mflags)
 {
   // the 'a' type refers to the already-existing function template
   // declaration, wherein the parameters *have* been associated, and
@@ -2960,7 +2960,7 @@ bool Env::equivalentTypes(Type const *a, Type const *b, MatchFlags mflags)
 }
 
 
-bool equalOrIsomorphic(Type const *a, Type const *b)
+bool equalOrIsomorphic(CType const *a, CType const *b)
 {
   MType match;
   return match.matchType(a, b, MF_ISOMORPHIC|MF_MATCH);
@@ -2970,7 +2970,7 @@ bool equalOrIsomorphic(Type const *a, Type const *b)
 // if 'prior' refers to an overloaded set, and 'type' could be the type
 // of a new (not existing) member of that set, then return that set
 // and nullify 'prior'; otherwise return NULL
-OverloadSet *Env::getOverloadForDeclaration(Variable *&prior, Type *type)
+OverloadSet *Env::getOverloadForDeclaration(Variable *&prior, CType *type)
 {
   OverloadSet *overloadSet = NULL;    // null until valid overload seen
   if (lang.allowOverloading &&
@@ -3016,7 +3016,7 @@ OverloadSet *Env::getOverloadForDeclaration(Variable *&prior, Type *type)
 static bool isImplicitKandRFuncType(FunctionType *ft)
 {
   // is the return type an int?
-  Type *retType = ft->retType;
+  CType *retType = ft->retType;
   if (!retType->isCVAtomicType()) return false;
   if (!retType->asCVAtomicType()->isSimpleType()) return false;
   if (retType->asCVAtomicType()->asSimpleTypeC()->type != ST_INT) return false;
@@ -3045,7 +3045,7 @@ static bool compatibleParamCounts(FunctionType *ft1, FunctionType *ft2)
 Variable *Env::createDeclaration(
   SourceLoc loc,            // location of new declaration
   StringRef name,           // name of new declared variable
-  Type *type,               // type of that variable
+  CType *type,               // type of that variable
   DeclFlags dflags,         // declaration flags for new variable
   Scope *scope,             // scope into which to insert it
   CompoundType *enclosingClass,   // scope->curCompound, or NULL for a hack that is actually wrong anyway (!)
@@ -3086,7 +3086,7 @@ Variable *Env::createDeclaration(
         // because it might be Foo<int> vs. Foo<float> but my simple-
         // minded template implementation doesn't know they're different
         //
-        // actually, I just added TypeVariables to 'Type::containsErrors',
+        // actually, I just added TypeVariables to 'CType::containsErrors',
         // so the error message will be suppressed automatically
         //
         // 8/15/04: removing 'prior->type' so I can detect duplicate
@@ -3464,7 +3464,7 @@ void Env::mergeDefaultArguments(SourceLoc loc, Variable *prior, FunctionType *ty
 // that the name refers to an entity (possibly previously
 // declared) of type 'prior', while the current declaration
 // denoted 'type'
-void Env::handleTypeOfMain(SourceLoc loc, Variable *prior, Type *&type)
+void Env::handleTypeOfMain(SourceLoc loc, Variable *prior, CType *&type)
 {
   // relevent sections: C++ 3.6.1, C99 5.1.2.2.1
 
@@ -3591,7 +3591,7 @@ void Env::checkFuncAnnotations(FunctionType *, D_func *)
 void Env::addedNewCompound(CompoundType *)
 {}
 
-int Env::countInitializers(SourceLoc loc, Type *type, IN_compound const *cpd)
+int Env::countInitializers(SourceLoc loc, CType *type, IN_compound const *cpd)
 {
   return cpd->inits.count();
 }
@@ -3611,7 +3611,7 @@ E_intLit *Env::build_E_intLit(int i)
 
                                                         
 // implemented in cc_tcheck.cc
-Type *makeLvalType(TypeFactory &tfac, Type *underlying);
+CType *makeLvalType(TypeFactory &tfac, CType *underlying);
 
 E_variable *Env::build_E_variable(Variable *var)
 {
@@ -3805,7 +3805,7 @@ void Env::restoreScopesInside(ObjList<Scope> &src, Scope *bound)
 }
 
 
-bool Env::ensureCompleteType(char const *action, Type *type)
+bool Env::ensureCompleteType(char const *action, CType *type)
 {
   if (type->isCompoundType()) {
     CompoundType *ct = type->asCompoundType();
@@ -3921,7 +3921,7 @@ void Env::setOverloadedFunctionVar(Expression *e, Variable *selVar)
 // given an overload set, and the type to which the overloaded name is
 // being converted, select the element that matches that type, if any
 // [cppstd 13.4 para 1]
-Variable *Env::pickMatchingOverloadedFunctionVar(LookupSet &set, Type *type)
+Variable *Env::pickMatchingOverloadedFunctionVar(LookupSet &set, CType *type)
 {
   // normalize 'type' to just be a FunctionType
   type = type->asRval();
@@ -3989,7 +3989,7 @@ SourceLoc getExprNameLoc(Expression const *e)
 
 // 'expr/info' is being passed to 'paramType'; if 'expr' is the
 // name of an overloaded function, resolve it
-void Env::possiblySetOverloadedFunctionVar(Expression *expr, Type *paramType,
+void Env::possiblySetOverloadedFunctionVar(Expression *expr, CType *paramType,
                                            LookupSet &set)
 {
   if (set.count() >= 2) {
@@ -4014,13 +4014,13 @@ void Env::possiblySetOverloadedFunctionVar(Expression *expr, Type *paramType,
 // get scopes associated with 'type'; cppstd 3.4.2 para 2
 //
 // this could perhaps be made faster by using a hash table set
-void Env::getAssociatedScopes(SObjList<Scope> &associated, Type *type)
+void Env::getAssociatedScopes(SObjList<Scope> &associated, CType *type)
 {
   switch (type->getTag()) {
     default:
       xfailure("bad type tag");
 
-    case Type::T_ATOMIC: {
+    case CType::T_ATOMIC: {
       AtomicType *atomic = type->asCVAtomicType()->atomic;
       switch (atomic->getTag()) {
         default:
@@ -4123,15 +4123,15 @@ void Env::getAssociatedScopes(SObjList<Scope> &associated, Type *type)
       break;
     }
     
-    case Type::T_REFERENCE:
+    case CType::T_REFERENCE:
       // implicitly skipped as being an lvalue
-    case Type::T_POINTER:
-    case Type::T_ARRAY:
+    case CType::T_POINTER:
+    case CType::T_ARRAY:
       // bullet 4: skip to atType
       getAssociatedScopes(associated, type->getAtType());
       break;
 
-    case Type::T_FUNCTION: {
+    case CType::T_FUNCTION: {
       // bullet 5: recursively look at param/return types
       FunctionType *ft = type->asFunctionType();
       getAssociatedScopes(associated, ft->retType);
@@ -4141,7 +4141,7 @@ void Env::getAssociatedScopes(SObjList<Scope> &associated, Type *type)
       break;
     }
 
-    case Type::T_POINTERTOMEMBER: {
+    case CType::T_POINTERTOMEMBER: {
       // bullet 6/7: the 'inClassNAT', plus 'atType'
       PointerToMemberType *ptm = type->asPointerToMemberType();
       if (ptm->inClassNAT->isCompoundType()) {
@@ -4157,7 +4157,7 @@ void Env::getAssociatedScopes(SObjList<Scope> &associated, Type *type)
 // cppstd 3.4.2; returns entries for 'name' in scopes
 // that are associated with the types in 'args'
 void Env::associatedScopeLookup(LookupSet &candidates, StringRef name, 
-                                ArrayStack<Type*> const &argTypes, LookupFlags flags)
+                                ArrayStack<CType*> const &argTypes, LookupFlags flags)
 {
   // let me disable this entire mechanism, to measure its performance
   //
@@ -4226,15 +4226,15 @@ void Env::addCandidates(LookupSet &candidates, Variable *var)
 // that arises during declarator parsing.
 //
 // Returns NULL if no change is needed.
-Type *Env::resolveDQTs(SourceLoc loc, Type *t)
+CType *Env::resolveDQTs(SourceLoc loc, CType *t)
 {
   switch (t->getTag()) {
     default: xfailure("bad tag");
 
-    case Type::T_ATOMIC: {
+    case CType::T_ATOMIC: {
       CVAtomicType *at = t->asCVAtomicType();
       if (at->atomic->isNamedAtomicType()) {
-        Type *resolved = resolveDQTs_atomic(loc, at->atomic);
+        CType *resolved = resolveDQTs_atomic(loc, at->atomic);
         if (resolved) {
           // must combine the 'resolved' type with 'at->cv'
           return tfac.applyCVToType(loc, at->cv, resolved, NULL /*syntax*/);
@@ -4243,27 +4243,27 @@ Type *Env::resolveDQTs(SourceLoc loc, Type *t)
       return NULL;
     }
 
-    case Type::T_POINTER: {
+    case CType::T_POINTER: {
       PointerType *pt = t->asPointerType();
-      Type *resolved = resolveDQTs(loc, pt->atType);
+      CType *resolved = resolveDQTs(loc, pt->atType);
       if (resolved) {
         return tfac.makePointerType(pt->cv, resolved);
       }
       return NULL;
     }
 
-    case Type::T_REFERENCE: {
+    case CType::T_REFERENCE: {
       ReferenceType *rt = t->asReferenceType();
-      Type *resolved = resolveDQTs(loc, rt->atType);
+      CType *resolved = resolveDQTs(loc, rt->atType);
       if (resolved) {
         return tfac.makeReferenceType(resolved);
       }
       return NULL;
     }
 
-    case Type::T_FUNCTION: {
+    case CType::T_FUNCTION: {
       FunctionType *ft = t->asFunctionType();
-      Type *resolved = resolveDQTs(loc, ft->retType);
+      CType *resolved = resolveDQTs(loc, ft->retType);
       if (resolved) {
         // 'finish' ft, since we are about to discard it
         xassert(ft->params.isEmpty());    // partially built
@@ -4275,19 +4275,19 @@ Type *Env::resolveDQTs(SourceLoc loc, Type *t)
       return NULL;
     }
 
-    case Type::T_ARRAY: {
+    case CType::T_ARRAY: {
       ArrayType *at = t->asArrayType();
-      Type *resolved = resolveDQTs(loc, at->eltType);
+      CType *resolved = resolveDQTs(loc, at->eltType);
       if (resolved) {
         return tfac.makeArrayType(resolved, at->size);
       }
       return NULL;
     }
 
-    case Type::T_POINTERTOMEMBER: {
+    case CType::T_POINTERTOMEMBER: {
       PointerToMemberType *ptm = t->asPointerToMemberType();
-      Type *resolvedAtType = resolveDQTs(loc, ptm->atType);
-      Type *resolvedNAT = resolveDQTs_atomic(loc, ptm->inClassNAT);
+      CType *resolvedAtType = resolveDQTs(loc, ptm->atType);
+      CType *resolvedNAT = resolveDQTs_atomic(loc, ptm->inClassNAT);
       if (resolvedAtType || resolvedNAT) {
         if (!resolvedAtType) {
           resolvedAtType = ptm->atType;
@@ -4322,7 +4322,7 @@ Type *Env::resolveDQTs(SourceLoc loc, Type *t)
 }
 
 
-Type *Env::resolveDQTs_atomic(SourceLoc loc, AtomicType *t)
+CType *Env::resolveDQTs_atomic(SourceLoc loc, AtomicType *t)
 {
   // (in/t0503.cc) might need to resolve DQTs inside template args
   if (t->isPseudoInstantiation()) {
@@ -4403,7 +4403,7 @@ AtomicType *Env::resolveDQTs_pi(SourceLoc loc, PseudoInstantiation *pi)
   FOREACH_OBJLIST(STemplateArgument, pi->args, iter) {
     STemplateArgument const *orig = iter.data();
     if (orig->isType()) {
-      Type *t = resolveDQTs(loc, orig->getType());
+      CType *t = resolveDQTs(loc, orig->getType());
       if (t) {
         // refined this type; add the refined type to 'resolvedArgs'
         resolvedAny = true;
@@ -4452,7 +4452,7 @@ string Env::unsearchedDependentBases()
     if (!scopeTI) continue;
 
     // list unsearched bases    
-    SFOREACH_OBJLIST(Type, scopeTI->dependentBases, baseIter) {
+    SFOREACH_OBJLIST(CType, scopeTI->dependentBases, baseIter) {
       if (ct++ == 0) {
         sb << " (due to nondependent lookup, did not search bases: ";
       }
@@ -4944,7 +4944,7 @@ void Env::checkTemplateKeyword(PQName *name)
 // lookup is erroneous, including:
 //   - returning NULL
 //   - returning a related object, like a template primary
-//   - returning error[Type]Var
+//   - returning error[CType]Var
 // I would like to transition to a scheme that consistently uses error
 // objects for erroneous lookups, but my plan for the moment is to do
 // so incrementally.
@@ -5049,7 +5049,7 @@ void Env::getSubobjects(SObjList<BaseClassSubobj const> &dest,
 }
 
 
-Type *Env::sizeofType(Type *t, int &size, Expression * /*nullable*/ expr)
+CType *Env::sizeofType(CType *t, int &size, Expression * /*nullable*/ expr)
 {
   // 5.3.3p2: want type underneath any reference
   t = t->asRval();
@@ -5168,7 +5168,7 @@ PQName *Env::makeQualifiedName(Scope *s, PQName *name)
   FOREACH_OBJLIST(STemplateArgument, ti->arguments, iter) {
     STemplateArgument const *sarg = iter.data();
     if (sarg->kind == STemplateArgument::STA_TYPE) {
-      // pull out the Type, then build a new ASTTypeId for it
+      // pull out the CType, then build a new ASTTypeId for it
       targs = new TA_type(buildASTTypeId(sarg->getType()), targs);
     }
     else {
@@ -5207,7 +5207,7 @@ PQName *Env::makeQualifiedName(Scope *s, PQName *name)
 }
 
 
-ASTTypeId *Env::buildASTTypeId(Type *type)
+ASTTypeId *Env::buildASTTypeId(CType *type)
 {
   // there used to be a big function here that built the full syntax
   // of a type, but I am going to try to use TS_type instead
@@ -5319,28 +5319,28 @@ DisambiguationErrorTrapper::~DisambiguationErrorTrapper()
 
 
 // -------- diagnostics --------
-Type *Env::errorType()
+CType *Env::errorType()
 {
   return getSimpleType(ST_ERROR);
 }
 
-Type *Env::dependentType()
+CType *Env::dependentType()
 {
   return getSimpleType(ST_DEPENDENT);
 }
 
-Type *Env::error(rostring msg, ErrorFlags eflags)
+CType *Env::error(rostring msg, ErrorFlags eflags)
 {
   return error(loc(), msg, eflags);
 }
 
 
-Type *Env::warning(rostring msg)
+CType *Env::warning(rostring msg)
 {
   return warning(loc(), msg);
 }
 
-Type *Env::warning(SourceLoc loc, rostring msg)
+CType *Env::warning(SourceLoc loc, rostring msg)
 {
   string instLoc = instLocStackString();
   TRACE("error", "warning: " << msg << instLoc);
@@ -5349,7 +5349,7 @@ Type *Env::warning(SourceLoc loc, rostring msg)
 }
 
 
-Type *Env::unimp(rostring msg)
+CType *Env::unimp(rostring msg)
 {
   string instLoc = instLocStackString();
 
@@ -5364,7 +5364,7 @@ Type *Env::unimp(rostring msg)
 }
 
 
-Type *Env::error(Type *t, SourceLoc loc, rostring msg)
+CType *Env::error(CType *t, SourceLoc loc, rostring msg)
 {
   if (t->isSimple(ST_DEPENDENT)) {
     // no report, propagate dependentness
@@ -5380,7 +5380,7 @@ Type *Env::error(Type *t, SourceLoc loc, rostring msg)
   return error(loc, msg, EF_NONE);
 }
 
-Type *Env::error(Type *t, rostring msg)
+CType *Env::error(CType *t, rostring msg)
 {
   return error(t, loc(), msg);
 }
@@ -5468,7 +5468,7 @@ string errorFlagBlock(ErrorFlags eflags)
   }
 }
 
-Type *Env::error(SourceLoc L, rostring msg, ErrorFlags eflags)
+CType *Env::error(SourceLoc L, rostring msg, ErrorFlags eflags)
 {
   addError(new ErrorMsg(L, msg, eflags));
 

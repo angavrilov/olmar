@@ -18,7 +18,7 @@ void TypeListIter_FakeList::adv()
   curFuncArgs = curFuncArgs->butFirst();
 }
 
-Type *TypeListIter_FakeList::data() const
+CType *TypeListIter_FakeList::data() const
 {
   xassert(!isDone());
   return curFuncArgs->first()->getType();
@@ -38,7 +38,7 @@ void TypeListIter_GrowArray::adv()
   ++i;
 }
 
-Type *TypeListIter_GrowArray::data() const
+CType *TypeListIter_GrowArray::data() const
 {
   xassert(!isDone());
   return args[i].type;

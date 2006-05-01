@@ -56,7 +56,7 @@ class TypeToXml {
 #define identity(NAME) identity0(NAME, )
 #define identityTempl(NAME) identity0(NAME, template<class T>)
 
-  identity(Type);
+  identity(CType);
   identity(AtomicType);
   identity(CompoundType);
   identity(FunctionType::ExnSpec);
@@ -81,7 +81,7 @@ class TypeToXml {
   // in the AST
   void toXml(ObjList<STemplateArgument> *list);
 
-  void toXml(Type *t);
+  void toXml(CType *t);
   void toXml(AtomicType *atom);
   void toXml(CompoundType *ct); // disambiguates the overloading
   void toXml(Variable *var);

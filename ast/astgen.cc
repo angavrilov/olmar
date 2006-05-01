@@ -3602,10 +3602,10 @@ void OTGen::emitRegisterCallbacks()
   }
   out << "  ()" << endl << endl;
 
-  out << "let _ = Callback.register" << endl
-      << "    \"" << ocaml_cb << "\"" << endl
-      << "    " << ocaml_cb 
-      << endl << endl;
+  // out << "let _ = Callback.register" << endl
+  //     << "    \"" << ocaml_cb << "\"" << endl
+  //     << "    " << ocaml_cb 
+  //     << endl << endl;
 }
 
 void OTGen::emitFile()

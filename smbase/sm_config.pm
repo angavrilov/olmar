@@ -310,23 +310,45 @@ sub slurpFile {
 
 # -------------- check ocaml compiler and get ocaml lib dir ------------
 sub test_ocaml_compiler {
-  print("Testing ocaml compiler ...\n");
+  my($ocamlc,$lib);
+  print("Testing ocaml compiler... ");
 
-  if(open(FOO, "ocamlc.opt -where|")){
+  if(open(OCAML, "ocamlc.opt -where|")){
     print("ocamlc.opt found\n");
-    $lib = <FOO>;
+    $lib = <OCAML>;
     chomp($lib);
+    close OCAML;
+    $ocamlc = "ocamlc.opt";
   }
-  elsif(open(FOO, "ocamlc -where|")){
+  elsif(open(OCAML, "ocamlc -where|")){
     print("ocamlc found\n");
-    $lib = <FOO>;
+    $lib = <OCAML>;
     chomp($lib);
+    close OCAML;
+    $ocamlc = "ocamlc";
   }
   else {
     print(<<"EOF");
 
-Could neither find ocamlc nor ocamlc.opt.
+Could neither find ocamlc nor ocamlc.opt. 
+Please check you path, the error messages above and retry.
 EOF
+
+    exit(1);
+  }
+
+  if(!-r ($lib . "/caml/mlvalues.h")){
+    print(<<"EOF");
+
+Cannot read "caml/mlvalues.h" in 
+  $lib 
+(returned from ocamlc -where). Please check your ocaml installation.
+EOF
+
+    exit(1);
+    }
+
+  return($lib, $ocamlc);
 }
 
 
@@ -409,9 +431,9 @@ echo "$main::thisPackage configuration summary:"
 echo "  command:     ./configure @main::ARGV"
 echo ""
 echo "Compile flags:"
-echo "  CC:          $main::CC"
-echo "  CXX:         $main::CXX"
-echo "  CCFLAGS:     @main::CCFLAGS"
+echo "  CC:            $main::CC"
+echo "  CXX:           $main::CXX"
+echo "  CCFLAGS:       @main::CCFLAGS"
 EOF
 
   if ($main::target) {

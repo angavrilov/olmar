@@ -34,7 +34,7 @@ bool IntegrityVisitor::visitDeclarator(Declarator *obj)
   return true;
 }
 
-void IntegrityVisitor::checkNontemplateType(Type *t)
+void IntegrityVisitor::checkNontemplateType(CType *t)
 {
   if (t->containsGeneralizedDependent()) {
     xfatal(toString(loc) << ": internal error: found dependent type `"

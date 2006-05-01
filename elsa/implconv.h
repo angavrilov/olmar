@@ -35,8 +35,8 @@ public:    // data
   StandardConversion scs2;      // second conversion sequence (convert return value of 'user' to param type)
 
 private:   // funcs
-  Type *inner_getConcreteDestType(TypeFactory &tfac, Type *srcType,
-                                  Type *destType, StandardConversion sconv) const;
+  CType *inner_getConcreteDestType(TypeFactory &tfac, CType *srcType,
+                                  CType *destType, StandardConversion sconv) const;
 
 public:    // funcs
   ImplicitConversion()
@@ -58,7 +58,7 @@ public:    // funcs
   void addAmbig() { kind = IC_AMBIGUOUS; }
 
   // reverse-engineer an already-computed conversion
-  Type *getConcreteDestType(TypeFactory &tfac, Type *srcType, Type *destType) const;
+  CType *getConcreteDestType(TypeFactory &tfac, CType *srcType, CType *destType) const;
 
   // debugging
   // experiment: member function is called 'debugString', and
@@ -75,15 +75,15 @@ public:    // funcs
 ImplicitConversion getImplicitConversion(
   Env &env,            // type checking environment
   SpecialExpr special, // properties of the source expression
-  Type *src,           // source type
-  Type *dest,          // destination type
+  CType *src,           // source type
+  CType *dest,          // destination type
   bool destIsReceiver = false    // true if destination type is to be receiver object for method call
 );
 
 
 // testing interface, for use by type checker
 void test_getImplicitConversion(
-  Env &env, SpecialExpr special, Type *src, Type *dest,
+  Env &env, SpecialExpr special, CType *src, CType *dest,
   int expectedKind,      // ImplicitConversion::kind
   int expectedSCS,       // ImplicitConversion::scs
   int expectedUserLine,  // ImplicitConversion::user->loc's line number

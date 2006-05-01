@@ -10,7 +10,7 @@
 
 // prototypes
 StandardConversion tryCallCtor
-  (Variable const *var, SpecialExpr special, Type const *src);
+  (Variable const *var, SpecialExpr special, CType const *src);
 
 
 
@@ -62,8 +62,8 @@ void ImplicitConversion::addEllipsisConv()
 }
 
 
-Type *ImplicitConversion::getConcreteDestType
-  (TypeFactory &tfac, Type *srcType, Type *destType) const
+CType *ImplicitConversion::getConcreteDestType
+  (TypeFactory &tfac, CType *srcType, CType *destType) const
 {
   // skip past the user-defined conversion, if any
   StandardConversion sconv = scs;
@@ -76,10 +76,10 @@ Type *ImplicitConversion::getConcreteDestType
   // types, skip that
   if (srcType->isReference() &&
       destType->isReference()) {
-    Type *destAt = destType->getAtType();
-    Type *srcAt = srcType->getAtType();
+    CType *destAt = destType->getAtType();
+    CType *srcAt = srcType->getAtType();
 
-    Type *concrete = inner_getConcreteDestType(tfac, srcAt, destAt, sconv);
+    CType *concrete = inner_getConcreteDestType(tfac, srcAt, destAt, sconv);
     if (concrete == destAt) {
       return destType;        // was concrete already
     }
@@ -94,13 +94,13 @@ Type *ImplicitConversion::getConcreteDestType
 
 // this function exists just so that the reference/reference case
 // can use it as a subroutine ...
-Type *ImplicitConversion::inner_getConcreteDestType
-  (TypeFactory &tfac, Type *srcType, Type *destType, StandardConversion sconv) const
+CType *ImplicitConversion::inner_getConcreteDestType
+  (TypeFactory &tfac, CType *srcType, CType *destType, StandardConversion sconv) const
 {
   if (destType->isPointer()) {
     // hmm.. operator+ has '<any obj> *'
 
-    Type *destAtType = destType->getAtType();
+    CType *destAtType = destType->getAtType();
     if (!destAtType->isSimpleType()) {
       return destType;      // easy
     }
@@ -166,7 +166,7 @@ string ImplicitConversion::debugString() const
 
 // --------------------- getImplicitConversion ---------------
 ImplicitConversion getImplicitConversion
-  (Env &env, SpecialExpr special, Type *src, Type *dest, bool destIsReceiver)
+  (Env &env, SpecialExpr special, CType *src, CType *dest, bool destIsReceiver)
 {
   ImplicitConversion ret;
 
@@ -179,7 +179,7 @@ ImplicitConversion getImplicitConversion
   // instantiating the template class, so we can try derived-to-base
   // conversions
   if (src->asRval()->isPointerType()) {
-    Type *at = src->asRval()->asPointerType()->atType;
+    CType *at = src->asRval()->asPointerType()->atType;
     if (at->isCompoundType()) {
       env.ensureClassBodyInstantiated(at->asCompoundType());
     }
@@ -289,7 +289,7 @@ ImplicitConversion getImplicitConversion
 
 
 StandardConversion tryCallCtor
-  (Variable const *var, SpecialExpr special, Type const *src)
+  (Variable const *var, SpecialExpr special, CType const *src)
 {
   // certainly should be a function
   FunctionType *ft = var->type->asFunctionType();
@@ -349,7 +349,7 @@ bool matchesExpectation(ImplicitConversion const &actual,
 
 
 void test_getImplicitConversion(
-  Env &env, SpecialExpr special, Type *src, Type *dest,
+  Env &env, SpecialExpr special, CType *src, CType *dest,
   int expectedKind, int expectedSCS, int expectedUserLine, int expectedSCS2)
 {
   // grab existing error messages

@@ -12,7 +12,7 @@
 //   - No dependent types appear in concrete code.
 class IntegrityVisitor : public ASTVisitorEx {
 private:     // funcs
-  void checkNontemplateType(Type *t);
+  void checkNontemplateType(CType *t);
 
 public:      // funcs
   // ASTVisitorEx functions

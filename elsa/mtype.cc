@@ -236,11 +236,11 @@ bool IMType::imatchSTemplateArgument(STemplateArgument const *conc,
     case STemplateArgument::STA_TYPE: {
       // For convenience I have passed 'STemplateArgument' directly,
       // but this module's usage of that structure is supposed to be
-      // consistent with it storing 'Type const *' instead of 'Type
+      // consistent with it storing 'CType const *' instead of 'CType
       // *', so this extraction is elaborated to make it clear we are
       // pulling out const pointers.
-      Type const *ct = conc->getType();
-      Type const *pt = pat->getType();
+      CType const *ct = conc->getType();
+      CType const *pt = pat->getType();
       return imatchType(ct, pt, flags);
     }
 
@@ -396,8 +396,8 @@ bool IMType::imatchPQName(PQName const *conc, PQName const *pat, MatchFlags flag
 }
 
 
-// -------------- IMType: Type and subclasses -------------
-bool IMType::imatchType(Type const *conc, Type const *pat, MatchFlags flags)
+// -------------- IMType: CType and subclasses -------------
+bool IMType::imatchType(CType const *conc, CType const *pat, MatchFlags flags)
 {
   if (pat->isReferenceType() &&         // if comparing reference
       !conc->isReferenceType() &&       // to non-reference
@@ -433,7 +433,7 @@ bool IMType::imatchType(Type const *conc, Type const *pat, MatchFlags flags)
   }
 
   // further comparison requires that the types have equal tags
-  Type::Tag tag = conc->getTag();
+  CType::Tag tag = conc->getTag();
   if (pat->getTag() != tag) {
     return false;
   }
@@ -442,7 +442,7 @@ bool IMType::imatchType(Type const *conc, Type const *pat, MatchFlags flags)
     default: xfailure("bad type tag");
 
     #define CASE(tagName,typeName) \
-      case Type::tagName: return imatch##typeName(conc->as##typeName##C(), pat->as##typeName##C(), flags) /*user;*/
+      case CType::tagName: return imatch##typeName(conc->as##typeName##C(), pat->as##typeName##C(), flags) /*user;*/
     CASE(T_ATOMIC, CVAtomicType);
     CASE(T_POINTER, PointerType);
     CASE(T_REFERENCE, ReferenceType);
@@ -454,7 +454,7 @@ bool IMType::imatchType(Type const *conc, Type const *pat, MatchFlags flags)
 }
 
 
-bool IMType::imatchTypeWithVariable(Type const *conc, TypeVariable const *pat,
+bool IMType::imatchTypeWithVariable(CType const *conc, TypeVariable const *pat,
                                     CVFlags tvCV, MatchFlags flags)
 {
   if ((flags & MF_ISOMORPHIC) &&
@@ -485,7 +485,7 @@ bool IMType::imatchTypeWithVariable(Type const *conc, TypeVariable const *pat,
 }
 
 
-bool IMType::imatchTypeWithResolvedType(Type const *conc, Type const *pat,
+bool IMType::imatchTypeWithResolvedType(CType const *conc, CType const *pat,
                                         MatchFlags flags)
 {
   // It would seem that I need an Env here so I can call
@@ -504,7 +504,7 @@ bool IMType::imatchTypeWithResolvedType(Type const *conc, Type const *pat,
   // only so that it can return it as non-const too (but I then
   // store the result in the const 'resolvedType', so there isn't
   // a loss of soundness there either)
-  Type *patNC = const_cast<Type*>(pat);
+  CType *patNC = const_cast<CType*>(pat);
 
   // The following call might need to query the bindings, and there
   // is considerable difficulty involved in pushing a soundness
@@ -513,7 +513,7 @@ bool IMType::imatchTypeWithResolvedType(Type const *conc, Type const *pat,
   // the const interface.  That is why I have now removed setEnv().
   xassert(mtype.getAllowNonConst());
 
-  Type const *resolvedType = env->applyArgumentMapToType_helper(mtype, patNC);
+  CType const *resolvedType = env->applyArgumentMapToType_helper(mtype, patNC);
   if (resolvedType) {
     // take the resolved type and compare it directly to 'conc'
     return imatchType(conc, resolvedType, flags & ~MF_MATCH);
@@ -532,13 +532,13 @@ bool IMType::imatchTypeWithResolvedType(Type const *conc, Type const *pat,
 //   cv is 'const'
 // We want to compare the type denoted by 'conc' with the type denoted
 // by 'binding' with the qualifiers in 'cv' added to it at toplevel.
-bool IMType::equalWithAppliedCV(Type const *conc, Binding *binding, CVFlags cv, MatchFlags flags)
+bool IMType::equalWithAppliedCV(CType const *conc, Binding *binding, CVFlags cv, MatchFlags flags)
 {
   // turn off type variable binding/substitution
   flags &= ~MF_MATCH;
 
   if (binding->sarg.isType()) {
-    Type const *t = binding->getType();
+    CType const *t = binding->getType();
 
     // cv-flags for 't' are ignored, replaced by the cv-flags stored
     // in the 'binding' object
@@ -605,7 +605,7 @@ bool IMType::equalWithAppliedCV(Type const *conc, Binding *binding, CVFlags cv, 
   return false;      // gcov-ignore
 }
 
-bool IMType::imatchTypeWithSpecifiedCV(Type const *conc, Type const *pat, CVFlags cv, MatchFlags flags)
+bool IMType::imatchTypeWithSpecifiedCV(CType const *conc, CType const *pat, CVFlags cv, MatchFlags flags)
 {
   // compare underlying types, ignoring first level of cv
   return imatchCVFlags(conc->getCVFlags(), cv, flags) &&
@@ -613,7 +613,7 @@ bool IMType::imatchTypeWithSpecifiedCV(Type const *conc, Type const *pat, CVFlag
 }
 
 
-bool IMType::addTypeBindingWithoutCV(StringRef tvName, Type const *conc,
+bool IMType::addTypeBindingWithoutCV(StringRef tvName, CType const *conc,
                                      CVFlags tvcv, MatchFlags flags)
 {
   CVFlags ccv = conc->getCVFlags();
@@ -651,7 +651,7 @@ bool IMType::addTypeBindingWithoutCV(StringRef tvName, Type const *conc,
 
 
 // check if 'conc' matches the "polymorphic" type family 'polyId'
-bool IMType::imatchTypeWithPolymorphic(Type const *conc, SimpleTypeId polyId,
+bool IMType::imatchTypeWithPolymorphic(CType const *conc, SimpleTypeId polyId,
                                        MatchFlags flags)
 {
   // check those that can match any type constructor
@@ -717,7 +717,7 @@ bool IMType::imatchAtomicTypeWithVariable(AtomicType const *conc,
     // 'tvName' is already bound; it should be bound to the same
     // atomic as 'conc', possibly with some (extra, ignored) cv flags
     if (binding->sarg.isType()) {
-      Type const *t = binding->getType();
+      CType const *t = binding->getType();
       if (t->isCVAtomicType()) {
         return imatchAtomicType(conc, t->asCVAtomicTypeC()->atomic, flags & ~MF_MATCH);
       }
@@ -927,8 +927,8 @@ bool IMType::imatchExceptionSpecs(FunctionType const *conc, FunctionType const *
   // the attempt to compare exception specs
   flags |= MF_NO_NEW_BINDINGS;
 
-  SObjListIter<Type> concIter(conc->exnSpec->types);
-  SObjListIter<Type> patIter(pat->exnSpec->types);
+  SObjListIter<CType> concIter(conc->exnSpec->types);
+  SObjListIter<CType> patIter(pat->exnSpec->types);
   for (; !concIter.isDone() && !patIter.isDone();
        concIter.adv(), patIter.adv()) {
     if (imatchType(concIter.data(), patIter.data(), flags)) {
@@ -1095,7 +1095,7 @@ MType::MType(Env &e)
 }
 
 
-bool MType::matchType(Type const *conc, Type const *pat, MatchFlags flags)
+bool MType::matchType(CType const *conc, CType const *pat, MatchFlags flags)
 {
   // I can only uphold the promise of not modifying 'conc' and 'pat'
   // if asked to when I was created.
@@ -1104,12 +1104,12 @@ bool MType::matchType(Type const *conc, Type const *pat, MatchFlags flags)
   return commonMatchType(conc, pat, flags);
 }
 
-bool MType::matchTypeNC(Type *conc, Type *pat, MatchFlags flags)
+bool MType::matchTypeNC(CType *conc, CType *pat, MatchFlags flags)
 {
   return commonMatchType(conc, pat, flags);
 }
 
-bool MType::commonMatchType(Type const *conc, Type const *pat, MatchFlags flags)
+bool MType::commonMatchType(CType const *conc, CType const *pat, MatchFlags flags)
 {
   // 14.8.2.1p2b3
   if ((flags & MF_DEDUCTION) &&
@@ -1252,7 +1252,7 @@ STemplateArgument MType::getBoundValue(StringRef name, TypeFactory &tfac) const
     // the STA_ATOMIC kind is only for internal use by this module;
     // we translate it into STA_TYPE for external use (but the caller
     // has to provide a 'tfac' to allow the translation)
-    Type *t = tfac.makeCVAtomicType(
+    CType *t = tfac.makeCVAtomicType(
       const_cast<AtomicType*>(b->sarg.getAtomicType()), CV_NONE);
     return STemplateArgument(t);
   }
@@ -1260,8 +1260,8 @@ STemplateArgument MType::getBoundValue(StringRef name, TypeFactory &tfac) const
   if (b->sarg.isType()) {
     // similarly, we have to combine the type in 'sarg' with 'cv'
     // before exposing it to the user
-    Type *t = tfac.setQualifiers(SL_UNKNOWN, b->cv,
-                                 const_cast<Type*>(b->getType()), NULL /*syntax*/);
+    CType *t = tfac.setQualifiers(SL_UNKNOWN, b->cv,
+                                 const_cast<CType*>(b->getType()), NULL /*syntax*/);
     return STemplateArgument(t);
   }
 

@@ -7,7 +7,7 @@
 #include "cc_flags.h"      // BinaryOp
 #include "okhashtbl.h"     // OwnerKHashTable
 
-class Type;                // cc_type.h
+class CType;                // cc_type.h
 class Variable;            // variable.h
 class Env;                 // cc_env.h
 class OverloadResolver;    // overload.h
@@ -50,7 +50,7 @@ private:     // types
   // re-use instantiations
   class Inst {
   public:      // data
-    Type *type;       // the type with which the pattern was instantiated
+    CType *type;       // the type with which the pattern was instantiated
     Variable *inst;   // the instantiation itself
 
     // clever hack: to ensure that each instantiated candidate is only
@@ -61,16 +61,16 @@ private:     // types
     unsigned generation;
 
   public:      // funcs
-    Inst(Type *t, Variable *i)
+    Inst(CType *t, Variable *i)
       : type(t),
         inst(i),
         generation(0)
     {}
 
     // hashtable accessor functions
-    static Type const *getKeyFn(Inst *ic);
-    static unsigned hashFn(Type const *t);
-    static bool equalFn(Type const *t1, Type const *t2);
+    static CType const *getKeyFn(Inst *ic);
+    static unsigned hashFn(CType const *t);
+    static bool equalFn(CType const *t1, CType const *t2);
   };
 
 public:      // types
@@ -81,16 +81,16 @@ public:      // types
   // arg or right arg type (actually, none of the filters use this
   // information anymore, but I leave it because it makes sense for
   // the filter to know this)
-  typedef Type* (*PreFilter)(Type *t, bool isLeft);
+  typedef CType* (*PreFilter)(CType *t, bool isLeft);
 
   // after computing a pairwise LUB, the LUB type is passed
   // through this filter; if it returns false, then the type
   // is not used to instantiate the pattern
-  typedef bool (*PostFilter)(Type *t);
+  typedef bool (*PostFilter)(CType *t);
 
 protected:   // data
   // instantiations that already exist, so we can re-use them
-  OwnerKHashTable<Inst, Type> instantiations;
+  OwnerKHashTable<Inst, CType> instantiations;
 
   // instantiation of the ambiguous candidate
   Variable *ambigInst;
@@ -108,11 +108,11 @@ protected:   // data
 
 protected:   // funcs
   void instantiateCandidate(Env &env,
-    OverloadResolver &resolver, OverloadableOp op, Type *T);
+    OverloadResolver &resolver, OverloadableOp op, CType *T);
   void addAmbigCandidate(Env &env, OverloadResolver &resolver,
     OverloadableOp op);
 
-  virtual Variable *makeNewCandidate(Env &env, OverloadableOp op, Type *T);
+  virtual Variable *makeNewCandidate(Env &env, OverloadableOp op, CType *T);
 
 public:      // funcs
   PredicateCandidateSet(SimpleTypeId retId, PreFilter pre, PostFilter post);
@@ -126,7 +126,7 @@ public:      // funcs
 // a variant of the predicate set for assignment operators
 class AssignmentCandidateSet : public PredicateCandidateSet {
 protected:   // funcs
-  virtual Variable *makeNewCandidate(Env &env, OverloadableOp op, Type *T);
+  virtual Variable *makeNewCandidate(Env &env, OverloadableOp op, CType *T);
 
 public:      // funcs
   AssignmentCandidateSet(SimpleTypeId retId, PreFilter pre, PostFilter post);
@@ -142,10 +142,10 @@ private:    // types
   // pair of types, with hashing and equality
   class TypePair {
   public:
-    Type *lhsType, *rhsType;    // types for instantiation
+    CType *lhsType, *rhsType;    // types for instantiation
     
   public:
-    TypePair(Type *L, Type *R)
+    TypePair(CType *L, CType *R)
       : lhsType(L),
         rhsType(R)
     {}
@@ -186,7 +186,7 @@ private:    // data
 
 private:    // funcs
   void instantiateCandidate(Env &env,
-    OverloadResolver &resolver, Type *lhsType, Type *rhsType);
+    OverloadResolver &resolver, CType *lhsType, CType *rhsType);
 
 public:     // funcs
   ArrowStarCandidateSet();
@@ -198,18 +198,18 @@ public:     // funcs
 
 
 // some pre filters
-Type *rvalFilter(Type *t, bool);
-Type *rvalIsPointer(Type *t, bool);
-Type *para19_20filter(Type *t, bool);
-Type *para19_20_andArith_filter(Type *t, bool);
+CType *rvalFilter(CType *t, bool);
+CType *rvalIsPointer(CType *t, bool);
+CType *para19_20filter(CType *t, bool);
+CType *para19_20_andArith_filter(CType *t, bool);
 
 // some post filters
-bool pointerToObject(Type *t);
-bool pointerOrEnum(Type *t);
-bool pointerOrEnumOrPTM(Type *t);
-bool pointerOrPTM(Type *t);
-bool pointerToAny(Type *t);
-bool anyType(Type *t);
+bool pointerToObject(CType *t);
+bool pointerOrEnum(CType *t);
+bool pointerOrEnumOrPTM(CType *t);
+bool pointerOrPTM(CType *t);
+bool pointerToAny(CType *t);
+bool anyType(CType *t);
 
 
 #endif // BUILTINOPS_H

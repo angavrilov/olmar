@@ -180,12 +180,12 @@ bool TypePrinterC::enabled = true;
 
 void TypePrinterC::print(OutStream &out, TypeLike const *type, char const *name)
 {
-  // temporarily suspend the Type::toCString, Variable::toCString(),
+  // temporarily suspend the CType::toCString, Variable::toCString(),
   // etc. methods
   Restorer<bool> res0(global_mayUseTypeAndVarToCString, false);
   xassert(enabled);
   // see the note at the interface TypePrinter::print()
-  Type const *type0 = static_cast<Type const *>(type);
+  CType const *type0 = static_cast<CType const *>(type);
   out << print(type0, name);
   // old way
 //    out << type->toCString(name);
@@ -313,9 +313,9 @@ string TypePrinterC::print(DependentQType const *depType)
 }
 
 
-// **** [Compound]Type
+// **** [Compound]CType
 
-string TypePrinterC::print(Type const *type)
+string TypePrinterC::print(CType const *type)
 {
   if (type->isCVAtomicType()) {
     // special case a single atomic type, so as to avoid
@@ -332,7 +332,7 @@ string TypePrinterC::print(Type const *type)
   }
 }
 
-string TypePrinterC::print(Type const *type, char const *name)
+string TypePrinterC::print(CType const *type, char const *name)
 {
   // print the inner parentheses if the name is omitted
   bool innerParen = (name && name[0])? false : true;
@@ -359,31 +359,31 @@ string TypePrinterC::print(Type const *type, char const *name)
   return s;
 }
 
-string TypePrinterC::printRight(Type const *type, bool innerParen)
+string TypePrinterC::printRight(CType const *type, bool innerParen)
 {
   // roll our own virtual dispatch
   switch(type->getTag()) {
   default: xfailure("illegal tag");
-  case Type::T_ATOMIC:          return printRight(type->asCVAtomicTypeC(), innerParen);
-  case Type::T_POINTER:         return printRight(type->asPointerTypeC(), innerParen);
-  case Type::T_REFERENCE:       return printRight(type->asReferenceTypeC(), innerParen);
-  case Type::T_FUNCTION:        return printRight(type->asFunctionTypeC(), innerParen);
-  case Type::T_ARRAY:           return printRight(type->asArrayTypeC(), innerParen);
-  case Type::T_POINTERTOMEMBER: return printRight(type->asPointerToMemberTypeC(), innerParen);
+  case CType::T_ATOMIC:          return printRight(type->asCVAtomicTypeC(), innerParen);
+  case CType::T_POINTER:         return printRight(type->asPointerTypeC(), innerParen);
+  case CType::T_REFERENCE:       return printRight(type->asReferenceTypeC(), innerParen);
+  case CType::T_FUNCTION:        return printRight(type->asFunctionTypeC(), innerParen);
+  case CType::T_ARRAY:           return printRight(type->asArrayTypeC(), innerParen);
+  case CType::T_POINTERTOMEMBER: return printRight(type->asPointerToMemberTypeC(), innerParen);
   }
 }
 
-string TypePrinterC::printLeft(Type const *type, bool innerParen)
+string TypePrinterC::printLeft(CType const *type, bool innerParen)
 {
   // roll our own virtual dispatch
   switch(type->getTag()) {
   default: xfailure("illegal tag");
-  case Type::T_ATOMIC:          return printLeft(type->asCVAtomicTypeC(), innerParen);
-  case Type::T_POINTER:         return printLeft(type->asPointerTypeC(), innerParen);
-  case Type::T_REFERENCE:       return printLeft(type->asReferenceTypeC(), innerParen);
-  case Type::T_FUNCTION:        return printLeft(type->asFunctionTypeC(), innerParen);
-  case Type::T_ARRAY:           return printLeft(type->asArrayTypeC(), innerParen);
-  case Type::T_POINTERTOMEMBER: return printLeft(type->asPointerToMemberTypeC(), innerParen);
+  case CType::T_ATOMIC:          return printLeft(type->asCVAtomicTypeC(), innerParen);
+  case CType::T_POINTER:         return printLeft(type->asPointerTypeC(), innerParen);
+  case CType::T_REFERENCE:       return printLeft(type->asReferenceTypeC(), innerParen);
+  case CType::T_FUNCTION:        return printLeft(type->asFunctionTypeC(), innerParen);
+  case CType::T_ARRAY:           return printLeft(type->asArrayTypeC(), innerParen);
+  case CType::T_POINTERTOMEMBER: return printLeft(type->asPointerToMemberTypeC(), innerParen);
   }
 }
 
@@ -551,7 +551,7 @@ string TypePrinterC::printRightAfterQualifiers(FunctionType const *type)
   if (type->exnSpec) {
     sb << " throw(";
     int ct=0;
-    SFOREACH_OBJLIST(Type, type->exnSpec->types, iter) {
+    SFOREACH_OBJLIST(CType, type->exnSpec->types, iter) {
       if (ct++ > 0) {
         sb << ", ";
       }
@@ -651,7 +651,7 @@ string TypePrinterC::printAsParameter(Variable const *var)
 // which OutStream is being printed to.
 string printDeclaration_makeName
   (PrintEnv &env,
-   Type const *type,
+   CType const *type,
    PQName const * /*nullable*/ pqname,
    Variable *var,
    StringRef finalName)
@@ -696,7 +696,7 @@ string printDeclaration_makeName
 // (i.e., just one hook function), but they are not, either in type
 // signature or in runtime behavior, so I suspect there is a bug here.
 TypeLike const *getDeclarationRetTypeLike(TypeLike const *type);
-Type const *getDeclarationTypeLike(TypeLike const *type);
+CType const *getDeclarationTypeLike(TypeLike const *type);
 
 // Elsa implementations
 TypeLike const *getDeclarationRetTypeLike(TypeLike const *type)
@@ -704,7 +704,7 @@ TypeLike const *getDeclarationRetTypeLike(TypeLike const *type)
   return type->asFunctionTypeC()->retType;
 }
 
-Type const *getDeclarationTypeLike(TypeLike const *type)
+CType const *getDeclarationTypeLike(TypeLike const *type)
 {
   return type;
 }
@@ -770,7 +770,7 @@ void printDeclaration
 
   else {
     if (finalName) {
-      Type const *type0 = getDeclarationTypeLike(type);
+      CType const *type0 = getDeclarationTypeLike(type);
       string name = printDeclaration_makeName(env, type0, pqname, var, finalName);
       env.typePrinter.print(*env.out, type, name.c_str());
     } else {
@@ -1670,7 +1670,7 @@ void printVariableName(PrintEnv &env, Variable *var)
       var->type->asFunctionType()->isConversionOperator()) {
     // the name is just "conversion-operator", so print differently
     *env.out << "/""*conversion*/operator(";
-    Type *t = var->type->asFunctionType()->retType;
+    CType *t = var->type->asFunctionType()->retType;
     Restorer<bool> res0(TypePrinterC::enabled, true);
     env.typePrinter.print(*env.out, t);
     *env.out << ")";
@@ -1845,7 +1845,7 @@ void E_new::iprint(PrintEnv &env)
     //   "array of 5 ints"->leftString()   is "int"
     //   arraySize->print()                is "n"
     //   "array of 5 ints"->rightString()  is "[5]"
-    Type const *t = atype->decl->var->type;   // type-id in question
+    CType const *t = atype->decl->var->type;   // type-id in question
     *env.out << t->leftString() << " [";
     arraySize->print(env);
     *env.out << "]" << t->rightString();

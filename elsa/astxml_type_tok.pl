@@ -66,7 +66,7 @@ __DATA__
 curLoc
 
 # Type nodes
-Type
+CType
 CVAtomicType
 PointerType
 ReferenceType

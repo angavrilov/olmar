@@ -164,7 +164,7 @@ public:      // funcs
   
   // similar to a function in Env
   Variable *makeVariable(SourceLoc loc, StringRef name, 
-                         Type *type, DeclFlags dflags);
+                         CType *type, DeclFlags dflags);
 
   // syntactic convenience
   void push(FullExpressionAnnot *a) 
@@ -198,21 +198,21 @@ public:      // funcs
   E_constructor *makeCtorExpr(
     SourceLoc loc,
     Expression *target,
-    Type *type,
+    CType *type,
     Variable *ctor,
     FakeList<ArgExpression> *args);
   Statement *makeCtorStatement(
     SourceLoc loc,
     Expression *target,
-    Type *type,
+    CType *type,
     Variable *ctor,
     FakeList<ArgExpression> *args);
 
   // makeDtor
   Expression *makeDtorExpr(SourceLoc loc, Expression *target,
-                           Type *type);
+                           CType *type);
   Statement *makeDtorStatement(SourceLoc loc, Expression *target,
-                               Type *type);
+                               CType *type);
 
   // cloning
   FakeList<ArgExpression> *cloneExprList(FakeList<ArgExpression> *args0);
@@ -223,10 +223,10 @@ public:      // funcs
 
   // elaborateCallSite
   Declaration *makeTempDeclaration
-    (SourceLoc loc, Type *retType, Variable *&var /*OUT*/);
-  Variable *insertTempDeclaration(SourceLoc loc, Type *retType);
+    (SourceLoc loc, CType *retType, Variable *&var /*OUT*/);
+  Variable *insertTempDeclaration(SourceLoc loc, CType *retType);
   Expression *elaborateCallByValue
-    (SourceLoc loc, Type *paramType, Expression *argExpr);
+    (SourceLoc loc, CType *paramType, Expression *argExpr);
   Expression *elaborateCallSite(
     SourceLoc loc,
     FunctionType *ft,

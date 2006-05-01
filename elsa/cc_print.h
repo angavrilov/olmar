@@ -224,10 +224,10 @@ class TreeWalkDebug {
   ~TreeWalkDebug();
 };
 
-// In Oink, TypeLike is a superclass of Type but here we will just
-// make it synonymous with Type.  oink/cc_print.h.cpatch comments-out
+// In Oink, TypeLike is a superclass of CType but here we will just
+// make it synonymous with CType.  oink/cc_print.h.cpatch comments-out
 // this declaration.
-typedef Type TypeLike;
+typedef CType TypeLike;
 
 // Interface for classes that know how to print out types
 class TypePrinter {
@@ -235,7 +235,7 @@ class TypePrinter {
   // dsw: type has to be a void* because in the Oink TypePrinter it is
   // a Value which isn't a type; I don't know of a good way to fix
   // this other than to invent some abstract interface generalization
-  // called TypeLike that both Type and Value inherit from.  I think
+  // called TypeLike that both CType and Value inherit from.  I think
   // this is too much generality for OO to handle well
   //
   // sm: 2005-08-17: I made the default value of 'name' be "".  This
@@ -283,11 +283,11 @@ class TypePrinterC : public TypePrinter {
   string print(PseudoInstantiation const *);
   string print(DependentQType const *);
 
-  // **** [Compound]Type
-  string print(Type const *type);
-  string print(Type const *type, char const *name);
-  string printRight(Type const *type, bool innerParen = true);
-  string printLeft(Type const *type, bool innerParen = true);
+  // **** [Compound]CType
+  string print(CType const *type);
+  string print(CType const *type, char const *name);
+  string printRight(CType const *type, bool innerParen = true);
+  string printLeft(CType const *type, bool innerParen = true);
 
   string printLeft(CVAtomicType const *type, bool innerParen = true);
   string printRight(CVAtomicType const *type, bool innerParen = true);

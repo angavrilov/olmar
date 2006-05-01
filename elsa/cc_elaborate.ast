@@ -54,8 +54,8 @@ class PQName {
 
 
 class TypeSpecifier {
-  // denote an existing Type
-  -> TS_type(Type *type);
+  // denote an existing CType
+  -> TS_type(CType *type);
 }
 
 

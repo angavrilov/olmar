@@ -263,7 +263,7 @@ public:    // data
   // were dependent, and as a consequence not added to its normal
   // base class list; this info is maintained to provide more
   // informative diagnostic messages
-  SObjList<Type> dependentBases;
+  SObjList<CType> dependentBases;
 
 private:     // funcs
   // can modify the 'const' fields, for updates
@@ -408,7 +408,7 @@ public:
   } kind;
 
   union {
-    Type *t;         // (serf) for STA_TYPE
+    CType *t;         // (serf) for STA_TYPE
     int i;           // for STA_INT
     Variable *v;     // (serf) for STA_ENUMERATOR, STA_REFERENCE, STA_POINTER, STA_MEMBER
     Expression *e;   // (serf) for STA_DEPEXPR
@@ -417,14 +417,14 @@ public:
 
 public:
   STemplateArgument() : kind(STA_NONE) { value.i = 0; }
-  STemplateArgument(Type *t) : kind(STA_TYPE) { value.t = t; }
+  STemplateArgument(CType *t) : kind(STA_TYPE) { value.t = t; }
   STemplateArgument(STemplateArgument const &obj);
 
   // 'new' + copy ctor
   STemplateArgument *shallowClone() const;
 
   // get 'value', ensuring correspondence between it and 'kind'
-  Type *    getType()      const { xassert(kind==STA_TYPE);      return value.t; }
+  CType *    getType()      const { xassert(kind==STA_TYPE);      return value.t; }
   int       getInt()       const { xassert(kind==STA_INT);       return value.i; }
   Variable *getEnumerator()const { xassert(kind==STA_ENUMERATOR);return value.v; }
   Variable *getReference() const { xassert(kind==STA_REFERENCE); return value.v; }
@@ -433,7 +433,7 @@ public:
   Expression *getDepExpr() const { xassert(kind==STA_DEPEXPR);   return value.e; }
 
   // set 'value', ensuring correspondence between it and 'kind'
-  void setType(Type *t)          { kind=STA_TYPE;      value.t=t; }
+  void setType(CType *t)          { kind=STA_TYPE;      value.t=t; }
   void setInt(int i)             { kind=STA_INT;       value.i=i; }
   void setEnumerator(Variable *v){ kind=STA_ENUMERATOR;value.v=v; }
   void setReference(Variable *v) { kind=STA_REFERENCE; value.v=v; }

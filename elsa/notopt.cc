@@ -15,7 +15,7 @@
 // This is the main one that initially caused the problem.  With
 // -O2, an XTypeDeduction just flies right by the 'catch' as if
 // it weren't there.
-Type *Env::applyArgumentMapToType_helper(MType &map, Type *origSrc)
+CType *Env::applyArgumentMapToType_helper(MType &map, CType *origSrc)
 {
   try {
     return applyArgumentMapToType(map, origSrc);
@@ -39,7 +39,7 @@ STemplateArgument *Env::makeDefaultTemplateArgument
     // use 'param->defaultParamType', but push it through the map
     // so it can refer to previous arguments 
     try {
-      Type *t = applyArgumentMapToType(map, param->defaultParamType);
+      CType *t = applyArgumentMapToType(map, param->defaultParamType);
       return new STemplateArgument(t);
     }
     catch (XTypeDeduction &x) {

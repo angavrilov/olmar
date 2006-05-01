@@ -2,7 +2,7 @@
 // new implementation of type matcher
 
 // 2005-07-24: The plan for this module is it will eventually replace
-// the 'matchtype' module, and also Type::equals.  However, right now
+// the 'matchtype' module, and also CType::equals.  However, right now
 // it is still being put through its paces and so just exists on the
 // side as an auxiliary module, only reachable via the __test_mtype
 // internal testing hook function, exercised for the moment only by
@@ -13,7 +13,7 @@
 
 #include "mflags.h"             // MatchFlags
 #include "objmap.h"             // ObjMap
-#include "cc_type.h"            // Type
+#include "cc_type.h"            // CType
 #include "cc_ast.h"             // C++ AST
 #include "template.h"           // STemplateArgument
 
@@ -32,11 +32,11 @@ class IMType {
 protected:   // types
   // A template variable binding.  A name can be bound to one of three
   // things:
-  //   - a Type object and CVFlags to modify it
+  //   - a CType object and CVFlags to modify it
   //   - an AtomicType object (with no cv)
   //   - a non-type value given by 'sarg'
   // The first two options are similar, differing only because it avoids
-  // having to wrap a Type object around an AtomicType object.
+  // having to wrap a CType object around an AtomicType object.
   //
   // Public clients don't have to know about this trickery though; as
   // far as they are concerned, a name is simply bound to an
@@ -54,9 +54,9 @@ protected:   // types
     bool operator== (Binding const &obj) const;
 
     // Though I am using 'STemplateArgument', I want to treat its
-    // 'Type*' as being const.
-    void setType(Type const *t) { sarg.setType(const_cast<Type*>(t)); }
-    Type const *getType() const { return sarg.getType(); }
+    // 'CType*' as being const.
+    void setType(CType const *t) { sarg.setType(const_cast<CType*>(t)); }
+    CType const *getType() const { return sarg.getType(); }
                             
     // debugging
     string asString() const;
@@ -102,18 +102,18 @@ protected:   // funcs
   bool imatchDependentQType(DependentQType const *conc,
                                   DependentQType const *pat, MatchFlags flags);
   bool imatchPQName(PQName const *conc, PQName const *pat, MatchFlags flags);
-  bool imatchType(Type const *conc, Type const *pat, MatchFlags flags);
-  bool imatchTypeWithVariable(Type const *conc, TypeVariable const *pat,
+  bool imatchType(CType const *conc, CType const *pat, MatchFlags flags);
+  bool imatchTypeWithVariable(CType const *conc, TypeVariable const *pat,
                                     CVFlags tvCV, MatchFlags flags);
-  bool imatchTypeWithResolvedType(Type const *conc, Type const *pat,
+  bool imatchTypeWithResolvedType(CType const *conc, CType const *pat,
                                   MatchFlags flags);
-  bool imatchTypeWithDQT(Type const *conc, DependentQType const *pat,
+  bool imatchTypeWithDQT(CType const *conc, DependentQType const *pat,
                          CVFlags patCV, MatchFlags flags);
-  bool equalWithAppliedCV(Type const *conc, Binding *binding, CVFlags cv, MatchFlags flags);
-  bool imatchTypeWithSpecifiedCV(Type const *conc, Type const *pat, CVFlags cv, MatchFlags flags);
-  bool addTypeBindingWithoutCV(StringRef tvName, Type const *conc,
+  bool equalWithAppliedCV(CType const *conc, Binding *binding, CVFlags cv, MatchFlags flags);
+  bool imatchTypeWithSpecifiedCV(CType const *conc, CType const *pat, CVFlags cv, MatchFlags flags);
+  bool addTypeBindingWithoutCV(StringRef tvName, CType const *conc,
                                CVFlags tvcv, MatchFlags flags);
-  bool imatchTypeWithPolymorphic(Type const *conc, SimpleTypeId polyId, MatchFlags flags);
+  bool imatchTypeWithPolymorphic(CType const *conc, SimpleTypeId polyId, MatchFlags flags);
   bool imatchAtomicTypeWithVariable(AtomicType const *conc,
                                    TypeVariable const *pat,
                                    MatchFlags flags);
@@ -159,15 +159,15 @@ private:     // funcs
   // one exception.
   //
   // The rationale for such deliberate treatment of 'const' is that I
-  // want to be able to use this module both for Type equality, which
-  // ought to be queryable with a const interface, and Type matching,
+  // want to be able to use this module both for CType equality, which
+  // ought to be queryable with a const interface, and CType matching,
   // which needs binding queries, which are at best inconvenient to
   // provide with a const interface.
   bool const allowNonConst;
 
 private:     // funcs
   string bindingsToString() const;
-  bool commonMatchType(Type const *conc, Type const *pat, MatchFlags flags);
+  bool commonMatchType(CType const *conc, CType const *pat, MatchFlags flags);
   bool commonMatchSTemplateArguments(ObjList<STemplateArgument> const &conc,
                                      ObjList<STemplateArgument> const &pat,
                                      MatchFlags flags);
@@ -201,7 +201,7 @@ public:      // funcs
   // return true if 'conc' is an instance of 'pat', in which case this
   // object will have a record of the instantiation bindings; the
   // const version can only be called when 'nonConst' is false
-  bool matchType(Type const *conc, Type const *pat, MatchFlags flags);
+  bool matchType(CType const *conc, CType const *pat, MatchFlags flags);
   
   // a few more
   bool matchSTemplateArguments(ObjList<STemplateArgument> const &conc,
@@ -215,7 +215,7 @@ public:      // funcs
 
   // ---- non-const match ----
   // for now, only selected non-const entry points are provided
-  bool matchTypeNC(Type *conc, Type *pat, MatchFlags flags);
+  bool matchTypeNC(CType *conc, CType *pat, MatchFlags flags);
   bool matchSTemplateArgumentsNC(ObjList<STemplateArgument> &conc,
                                  ObjList<STemplateArgument> &pat,
                                  MatchFlags flags);

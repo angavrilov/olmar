@@ -2,7 +2,7 @@
 // code for builtinops.h
 
 #include "builtinops.h"    // this module
-#include "cc_type.h"       // Type, etc.
+#include "cc_type.h"       // CType, etc.
 #include "cc_env.h"        // Env
 #include "overload.h"      // getConversionOperators, OverloadResolver
 
@@ -26,17 +26,17 @@ void PolymorphicCandidateSet::instantiateBinary(Env &env,
 
 
 // ------------------ PredicateCandidateSet -----------------
-STATICDEF Type const *PredicateCandidateSet::Inst::getKeyFn(Inst *ic)
+STATICDEF CType const *PredicateCandidateSet::Inst::getKeyFn(Inst *ic)
 {
   return ic->type;
 }
 
-STATICDEF unsigned PredicateCandidateSet::Inst::hashFn(Type const *t)
+STATICDEF unsigned PredicateCandidateSet::Inst::hashFn(CType const *t)
 {
   return t->hashValue();
 }
 
-STATICDEF bool PredicateCandidateSet::Inst::equalFn(Type const *t1, Type const *t2)
+STATICDEF bool PredicateCandidateSet::Inst::equalFn(CType const *t1, CType const *t2)
 {
   return t1->equals(t2);
 }
@@ -60,7 +60,7 @@ PredicateCandidateSet::~PredicateCandidateSet()
 
 // get the set of types that 'info.type' can be converted to via a
 // user-defined conversion operator, or by the identity conversion
-void getConversionOperatorResults(Env &env, SObjList<Type> &dest, 
+void getConversionOperatorResults(Env &env, SObjList<CType> &dest, 
                                   ArgumentInfo &info)
 {
   if (info.overloadSet.isNotEmpty()) {
@@ -74,7 +74,7 @@ void getConversionOperatorResults(Env &env, SObjList<Type> &dest,
     return;
   }
 
-  Type *t = info.type;
+  CType *t = info.type;
   if (!t->asRval()->isCompoundType()) {
     // this is for when one of the arguments to an operator is not
     // of class type; we treat it similarly to a class that can only
@@ -132,22 +132,22 @@ void PredicateCandidateSet::instantiateBinary(Env &env,
   // See also: convertibility.txt
 
   // collect all of the operator functions rettypes from lhs and rhs
-  SObjList<Type> lhsRets, rhsRets;
+  SObjList<CType> lhsRets, rhsRets;
   getConversionOperatorResults(env, lhsRets, lhsInfo);
   getConversionOperatorResults(env, rhsRets, rhsInfo);
 
   // consider all pairs of conversion results
-  SFOREACH_OBJLIST_NC(Type, lhsRets, lhsIter) {
-    Type *lhsRet = pre(lhsIter.data(), true /*isLeft*/);
+  SFOREACH_OBJLIST_NC(CType, lhsRets, lhsIter) {
+    CType *lhsRet = pre(lhsIter.data(), true /*isLeft*/);
     if (!lhsRet) continue;
 
-    SFOREACH_OBJLIST_NC(Type, rhsRets, rhsIter) {
-      Type *rhsRet = pre(rhsIter.data(), false /*isLeft*/);
+    SFOREACH_OBJLIST_NC(CType, rhsRets, rhsIter) {
+      CType *rhsRet = pre(rhsIter.data(), false /*isLeft*/);
       if (!rhsRet) continue;
 
       // compute LUB
       bool wasAmbig;
-      Type *lub = computeLUB(env, lhsRet, rhsRet, wasAmbig);
+      CType *lub = computeLUB(env, lhsRet, rhsRet, wasAmbig);
       if (wasAmbig) {
         addAmbigCandidate(env, resolver, op);
       }
@@ -174,7 +174,7 @@ void PredicateCandidateSet::instantiateBinary(Env &env,
 
 
 void PredicateCandidateSet::instantiateCandidate(Env &env,
-  OverloadResolver &resolver, OverloadableOp op, Type *T)
+  OverloadResolver &resolver, OverloadableOp op, CType *T)
 {
   // have we already built an instantiated candidate?
   Inst *ic = instantiations.get(T);
@@ -205,9 +205,9 @@ void PredicateCandidateSet::instantiateCandidate(Env &env,
 
 
 Variable *PredicateCandidateSet::makeNewCandidate(Env &env,
-  OverloadableOp op, Type *T)
+  OverloadableOp op, CType *T)
 {
-  Type *retType;
+  CType *retType;
   if (isConcreteSimpleType(retAlgorithm)) {
     retType = env.getSimpleType(retAlgorithm);
   }
@@ -239,7 +239,7 @@ void PredicateCandidateSet::addAmbigCandidate(Env &env, OverloadResolver &resolv
   // because it's already ambiguous
 
   if (!ambigInst) {
-    Type *t_void = env.getSimpleType(ST_VOID);
+    CType *t_void = env.getSimpleType(ST_VOID);
     ambigInst = env.createBuiltinBinaryOp(t_void, op, t_void, t_void);
   }
   resolver.addAmbiguousBinaryCandidate(ambigInst);
@@ -274,12 +274,12 @@ void AssignmentCandidateSet::instantiateBinary(Env &env,
   }
 
   // collect all of the operator functions rettypes
-  SObjList<Type> lhsRets;
+  SObjList<CType> lhsRets;
   getConversionOperatorResults(env, lhsRets, lhsInfo);
 
   // consider conversion results
-  SFOREACH_OBJLIST_NC(Type, lhsRets, lhsIter) {
-    Type *lhsRet = pre(lhsIter.data(), true /*isLeft*/);
+  SFOREACH_OBJLIST_NC(CType, lhsRets, lhsIter) {
+    CType *lhsRet = pre(lhsIter.data(), true /*isLeft*/);
     if (!lhsRet) continue;
 
     // the way the assignment built-ins work, we only need to
@@ -292,7 +292,7 @@ void AssignmentCandidateSet::instantiateBinary(Env &env,
 
 
 Variable *AssignmentCandidateSet::makeNewCandidate(Env &env,
-  OverloadableOp op, Type *T)
+  OverloadableOp op, CType *T)
 {
   // left parameter is a reference, and we need two versions,
   // one with volatile and one without
@@ -304,7 +304,7 @@ Variable *AssignmentCandidateSet::makeNewCandidate(Env &env,
 
   xassert(retAlgorithm == ST_PRET_FIRST);
 
-  Type *Tref = env.tfac.makeReferenceType(T);
+  CType *Tref = env.tfac.makeReferenceType(T);
   return env.createBuiltinBinaryOp(Tref, op, Tref, T);
 }
 
@@ -358,25 +358,25 @@ void ArrowStarCandidateSet::instantiateBinary(Env &env,
   // these arrays record all pairs of types used to instantiate
   // the pattern, so that we ensure that no pair is instantiated
   // more than once
-  ArrayStack<Type*> lhsInst, rhsInst;
+  ArrayStack<CType*> lhsInst, rhsInst;
 
   // collect all of the operator functions rettypes from lhs and rhs
-  SObjList<Type> lhsRets, rhsRets;
+  SObjList<CType> lhsRets, rhsRets;
   getConversionOperatorResults(env, lhsRets, lhsInfo);
   getConversionOperatorResults(env, rhsRets, rhsInfo);
 
   // consider all pairs of conversion results
-  SFOREACH_OBJLIST_NC(Type, lhsRets, lhsIter) {
-    Type *lhsRet = lhsIter.data();
+  SFOREACH_OBJLIST_NC(CType, lhsRets, lhsIter) {
+    CType *lhsRet = lhsIter.data();
 
     // expect 'lhsRet' to be of form 'class U cv1 *'; extract U
     if (!lhsRet->isPointer()) continue;
-    Type *lhsUnder = lhsRet->asPointerType()->atType;
+    CType *lhsUnder = lhsRet->asPointerType()->atType;
     if (!lhsUnder->isCompoundType()) continue;
     CompoundType *U = lhsUnder->asCompoundType();
 
-    SFOREACH_OBJLIST_NC(Type, rhsRets, rhsIter) {
-      Type *rhsRet = rhsIter.data();
+    SFOREACH_OBJLIST_NC(CType, rhsRets, rhsIter) {
+      CType *rhsRet = rhsIter.data();
 
       // expect 'rhsRet' to be of form 'T cv2 V::*'; extract V
       if (!rhsRet->isPointerToMemberType()) continue;
@@ -407,8 +407,8 @@ void ArrowStarCandidateSet::instantiateBinary(Env &env,
       // build operator's parameter types; they're essentially just
       // lhsRet and rhsRet, except I want to strip toplevel cv flags
       // before making the instance
-      Type *lhsParam = env.tfac.setQualifiers(SL_UNKNOWN, CV_NONE, lhsRet, NULL /*syntax*/);
-      Type *rhsParam = env.tfac.setQualifiers(SL_UNKNOWN, CV_NONE, rhsRet, NULL /*syntax*/);
+      CType *lhsParam = env.tfac.setQualifiers(SL_UNKNOWN, CV_NONE, lhsRet, NULL /*syntax*/);
+      CType *rhsParam = env.tfac.setQualifiers(SL_UNKNOWN, CV_NONE, rhsRet, NULL /*syntax*/);
 
       instantiateCandidate(env, resolver, lhsParam, rhsParam);
     }
@@ -424,7 +424,7 @@ string ArrowStarCandidateSet::TypePair::asString() const
 
 // based on PredicateCandidateSet::instantiateCandidate
 void ArrowStarCandidateSet::instantiateCandidate(Env &env,
-  OverloadResolver &resolver, Type *lhsType, Type *rhsType)
+  OverloadResolver &resolver, CType *lhsType, CType *rhsType)
 {
   TypePair pair(lhsType, rhsType);
 
@@ -447,7 +447,7 @@ void ArrowStarCandidateSet::instantiateCandidate(Env &env,
     // This is the only implementation of ST_PRET_PTM, but we don't need
     // the code to say what to do; I leave that code in existence, however, 
     // for uniformity.
-    Type *retType = rhsType->getAtType();                         // CV2 T
+    CType *retType = rhsType->getAtType();                         // CV2 T
     retType = env.tfac.applyCVToType(SL_UNKNOWN, lhsType->getAtType()->getCVFlags(),
                                      retType, NULL /*syntax*/);   // CV12 T
     retType = env.makeReferenceType(retType);                     // CV12 T&
@@ -469,12 +469,12 @@ void ArrowStarCandidateSet::instantiateCandidate(Env &env,
 
 
 // ------------------- filters -------------------
-Type *rvalFilter(Type *t, bool)
+CType *rvalFilter(CType *t, bool)
 {
   return t->asRval();
 }
 
-Type *rvalIsPointer(Type *t, bool)
+CType *rvalIsPointer(CType *t, bool)
 {
   // 13.3.1.5: functions that return 'T&' are regarded as
   // yielding 'T' for purposes of this analysis
@@ -495,7 +495,7 @@ Type *rvalIsPointer(Type *t, bool)
 // is an enumeration or pointer-to-member (para 20)
 //
 // we yield the T for instantiation
-Type *para19_20filter(Type *t, bool)
+CType *para19_20filter(CType *t, bool)
 {
   if (!t->isReference()) {
     return NULL;
@@ -515,7 +515,7 @@ Type *para19_20filter(Type *t, bool)
 }
 
 // same as above but with arithmetic types too
-Type *para19_20_andArith_filter(Type *t, bool)
+CType *para19_20_andArith_filter(CType *t, bool)
 {
   if (!t->isReference()) {
     return NULL;
@@ -541,12 +541,12 @@ Type *para19_20_andArith_filter(Type *t, bool)
 }
 
 
-bool pointerToObject(Type *t)
+bool pointerToObject(CType *t)
 {
   // the pre-filter already guarantees that only pointer types
   // can result from the LUB, but we need to ensure that
   // only pointer-to-object types are instantiated
-  Type *at = t->asPointerType()->atType;
+  CType *at = t->asPointerType()->atType;
   if (at->isVoid() || at->isFunctionType()) {
     return false;    // don't instantiate with this one
   }
@@ -555,29 +555,29 @@ bool pointerToObject(Type *t)
   }
 }
 
-bool pointerOrEnum(Type *t)
+bool pointerOrEnum(CType *t)
 {
   return t->isPointer() || t->isEnumType();
 }
 
-bool pointerOrEnumOrPTM(Type *t)
+bool pointerOrEnumOrPTM(CType *t)
 {
   return t->isPointer() || t->isEnumType() || t->isPointerToMemberType();
 }
 
-bool pointerOrPTM(Type *t)
+bool pointerOrPTM(CType *t)
 {
   return t->isPointer() || t->isPointerToMemberType();
 }
 
-bool pointerToAny(Type *t)
+bool pointerToAny(CType *t)
 {
   // the LUB will ensure this, actually, but it won't
   // hurt to check again
   return t->isPointer();
 }
 
-bool anyType(Type *)
+bool anyType(CType *)
 {                  
   return true;
 }

@@ -32,6 +32,8 @@
 // don't know why I need this
 //  class TypeToXml;
 
+bool caml_start_up_done;
+
 // little check: is it true that only global declarators
 // ever have Declarator::type != Declarator::var->type?
 // .. no, because it's true for class members too ..
@@ -388,7 +390,7 @@ void doit(int argc, char **argv)
      "");
 
   if (tracingSys("printAsML")) {
-    Type::printAsML = true;
+    CType::printAsML = true;
   }
 
   if (tracingSys("nohashline")) {
@@ -809,6 +811,25 @@ void doit(int argc, char **argv)
     cout << "XML features are not compiled in" << endl;
     exit(1);
 #endif // XML
+  }
+
+
+  // HT: marshall to ocaml
+  if (tracingSys("marshallToOcaml")) {
+    ToOcamlData ocaml_data;
+
+    if (!caml_start_up_done){
+      cout << "Initialize ocaml subsystem\n" << flush;
+      caml_startup(argv);
+      static value * register_closure =
+	caml_named_value("register_caml_callbacks");
+      xassert(register_closure);
+      caml_callback(*register_closure, Val_unit);
+      cout << "Ocaml initialized\n";
+    }
+    cout << "Marshall to ocaml\n" << flush;
+    unit->toOcaml(&ocaml_data);
+    cout << "marshalled\n";
   }
 
   // dsw: xml printing of the lowered ast

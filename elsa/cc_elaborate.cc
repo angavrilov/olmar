@@ -42,7 +42,7 @@
 #include "cc_print.h"          // PrintEnv
                                                         
 // cc_type.h
-Type *makeLvalType(TypeFactory &tfac, Type *underlying);
+CType *makeLvalType(TypeFactory &tfac, CType *underlying);
 
 
 // --------------------- ElabVisitor misc. ----------------------
@@ -89,7 +89,7 @@ StringRef ElabVisitor::makeCatchClauseVarName()
 
 
 Variable *ElabVisitor::makeVariable(SourceLoc loc, StringRef name,
-                                    Type *type, DeclFlags dflags)
+                                    CType *type, DeclFlags dflags)
 {
   return tfac.makeVariable(loc, name, type, dflags, tunit /*doh!*/);
 }
@@ -291,7 +291,7 @@ S_compound *ElabVisitor::makeS_compound(SourceLoc loc)
 E_constructor *ElabVisitor::makeCtorExpr(
   SourceLoc loc,                    // where elaboration is occurring
   Expression *target,               // reference to object to construct
-  Type *type,                       // type of the constructed object
+  CType *type,                       // type of the constructed object
   Variable *ctor,                   // ctor function to call
   FakeList<ArgExpression> *args)    // arguments to ctor (tcheck'd)
 {
@@ -314,7 +314,7 @@ E_constructor *ElabVisitor::makeCtorExpr(
 Statement *ElabVisitor::makeCtorStatement(
   SourceLoc loc,
   Expression *target,
-  Type *type,
+  CType *type,
   Variable *ctor,
   FakeList<ArgExpression> *args)
 {
@@ -331,7 +331,7 @@ Statement *ElabVisitor::makeCtorStatement(
 
 // ------------------------ makeDtor ----------------------
 Expression *ElabVisitor::makeDtorExpr(SourceLoc loc, Expression *target,
-                                      Type *type)
+                                      CType *type)
 {
   Variable *dtor = getDtor(type->asCompoundType());
 
@@ -343,7 +343,7 @@ Expression *ElabVisitor::makeDtorExpr(SourceLoc loc, Expression *target,
 
 // NOTE: consider cloning the target so that the AST remains a tree
 Statement *ElabVisitor::makeDtorStatement(SourceLoc loc, Expression *target,
-                                          Type *type)
+                                          CType *type)
 {
   Expression *efc0 = makeDtorExpr(loc, target, type);
   return makeS_expr(loc, efc0);
@@ -579,7 +579,7 @@ void Declarator::elaborateCDtors(ElabVisitor &env, DeclFlags dflags)
 //
 // Make a Declaration for a temporary; yield the Variable too.
 Declaration *ElabVisitor::makeTempDeclaration
-  (SourceLoc loc, Type *retType, Variable *&var /*OUT*/)
+  (SourceLoc loc, CType *retType, Variable *&var /*OUT*/)
 {
   // while a user may attempt this, we should catch it earlier and not
   // end up down here.
@@ -600,7 +600,7 @@ Declaration *ElabVisitor::makeTempDeclaration
 
 // make the decl, and add it to the innermost FullExpressionAnnot;
 // yield the Variable since neither caller needs the Declaration
-Variable *ElabVisitor::insertTempDeclaration(SourceLoc loc, Type *retType)
+Variable *ElabVisitor::insertTempDeclaration(SourceLoc loc, CType *retType)
 {
   FullExpressionAnnot *fea0 = env.fullExpressionAnnotStack.top();
 
@@ -619,7 +619,7 @@ Variable *ElabVisitor::insertTempDeclaration(SourceLoc loc, Type *retType)
 // NOTE: the client is expected to clone _argExpr_ before passing it
 // in here *if* needed, since we don't clone it below
 Expression *ElabVisitor::elaborateCallByValue
-  (SourceLoc loc, Type *paramType, Expression *argExpr)
+  (SourceLoc loc, CType *paramType, Expression *argExpr)
 {
   CompoundType *paramCt = paramType->asCompoundType();
 
@@ -700,7 +700,7 @@ Expression *ElabVisitor::elaborateCallSite(
       }
 
       Variable *param = paramsIter.data();
-      Type *paramType = param->getType();
+      CType *paramType = param->getType();
       if (paramType->isCompoundType()) {
         // NOTE: it seems like this is one of those places where I
         // should NOT clone the "argument" argument to
@@ -742,7 +742,7 @@ void ElabVisitor::elaborateFunctionStart(Function *f)
     // to the reference passed as the 'retObj' at the call site.
 
     SourceLoc loc = f->nameAndParams->decl->loc;
-    Type *retValType =
+    CType *retValType =
       env.tfac.makeReferenceType(ft->retType);
     StringRef retValName = env.str("<retVar>");
     f->retVar = env.makeVariable(loc, retValName, retValType, DF_PARAMETER);
@@ -911,7 +911,7 @@ void ElabVisitor::completeNoArgMemberInits(Function *ctor, CompoundType *ct)
 // mirrors Env::receiverParameter()
 Variable *ElabVisitor::makeCtorReceiver(SourceLoc loc, CompoundType *ct)
 {
-  Type *recType = tfac.makeTypeOf_receiver(loc, ct, CV_NONE, NULL /*syntax*/);
+  CType *recType = tfac.makeTypeOf_receiver(loc, ct, CV_NONE, NULL /*syntax*/);
   return makeVariable(loc, receiverName, recType, DF_PARAMETER);
 }
 
@@ -1191,7 +1191,7 @@ MR_func *ElabVisitor::makeCopyAssignBody
       // sm: The existence of consts or refs means that the assignment
       // operator cannot be called, according to the spec.  But the
       // behavior of the code here seems fine.
-      Type *type = var->type;
+      CType *type = var->type;
       if (type->isReference() || type->isConst()) continue;
       stmts->append(make_S_expr_memberCopyAssign(loc, var, other));
     }
@@ -1336,7 +1336,7 @@ static bool nthIsCtReference(CompoundType *ct, FunctionType *ft, int n,
   if (ft->params.count() <= n) {
     return false;
   }
-  Type *t = ft->params.nth(n)->type;
+  CType *t = ft->params.nth(n)->type;
   if ((!mustBeReference || t->isReference()) &&
       t->asRval()->ifCompoundType() == ct) {
     return true;
@@ -1400,7 +1400,7 @@ void Handler::elaborate(ElabVisitor &env)
   // this reference-capture problem just as with "A &a = A();"
   // UPDATE: Well, I at least need to make the variable if it is a
   // ref, so I'll make the dtor also.
-  Type *typeIdType = typeId->getType();
+  CType *typeIdType = typeId->getType();
   if (typeIdType->asRval()->isCompoundType()) {
     if (!globalVar) {
       globalVar = env.makeVariable(loc, env.makeCatchClauseVarName(),
@@ -1463,7 +1463,7 @@ bool E_throw::elaborate(ElabVisitor &env)
   // I just make it in the throw itself.  Some analysis can come
   // through and figure out how to hook these up to their catch
   // clauses.
-  Type *exprType = expr->getType()->asRval();
+  CType *exprType = expr->getType()->asRval();
   if (exprType->isCompoundType()) {
     if (!globalVar) {
       globalVar = env.makeVariable(loc, env.makeThrowClauseVarName(),
@@ -1504,7 +1504,7 @@ bool E_new::elaborate(ElabVisitor &env)
   //   temp                 // the value of the E_new expression
 
   // the type of the elements to create
-  Type *t = atype->getType();
+  CType *t = atype->getType();
 
   if (t->isCompoundType()) {
     heapVar = env.makeVariable(loc, env.makeE_newVarName(), t, DF_NONE);
@@ -1533,7 +1533,7 @@ bool E_delete::elaborate(ElabVisitor &env)
 
   // the type of the argument to 'delete', typically a pointer to
   // the type of the elements to destroy
-  Type *t = expr->type->asRval();
+  CType *t = expr->type->asRval();
 
   // E_delete::itcheck_x() should have noticed that its not a pointer
   // and aborted before calling us if it wasn't.
@@ -1707,8 +1707,8 @@ bool ElabVisitor::visitMemberInit(MemberInit *mi)
     else {
       // initializing a base class subobject
 
-      // need a Type for the eventual E_constructor...
-      Type *type = tfac.makeCVAtomicType(mi->base, CV_NONE);
+      // need a CType for the eventual E_constructor...
+      CType *type = tfac.makeCVAtomicType(mi->base, CV_NONE);
 
       mi->ctorStatement = makeCtorStatement
         (loc, makeE_variable(loc, func->receiver), type,
@@ -2022,7 +2022,7 @@ void ElabVisitor::postvisitInitializer(Initializer *in)
 
 // =================== extra AST nodes =====================
 // ------------------------ TS_type ------------------------
-Type *TS_type::itcheck(Env &env, DeclFlags dflags)
+CType *TS_type::itcheck(Env &env, DeclFlags dflags)
 {
   return type;
 }

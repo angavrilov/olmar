@@ -46,7 +46,7 @@ void tcheckPQName(PQName *&name, Env &env, Scope *scope = NULL,
                   LookupFlags lflags = LF_NONE);
 
 static Variable *outerResolveOverload_ctor
-  (Env &env, SourceLoc loc, Type *type, ArgumentInfoArray &argInfo);
+  (Env &env, SourceLoc loc, CType *type, ArgumentInfoArray &argInfo);
 
 static Variable *outerResolveOverload_explicitSet(
   Env &env,
@@ -58,9 +58,9 @@ static Variable *outerResolveOverload_explicitSet(
 
 FakeList<ArgExpression> *tcheckArgExprList(FakeList<ArgExpression> *list, Env &env,
                                            ArgumentInfoArray &argInfo,
-                                           Type *receiverType = NULL);
+                                           CType *receiverType = NULL);
 
-Type *resolveOverloadedUnaryOperator(
+CType *resolveOverloadedUnaryOperator(
   Env &env,
   Expression *&replacement,
   //Expression *ths,
@@ -421,7 +421,7 @@ void Function::tcheck(Env &env, Variable *instV)
   UninstTemplateErrorFilter errorFilter(env);
 
   // get return type
-  Type *retTypeSpec = retspec->tcheck(env, dflags);
+  CType *retTypeSpec = retspec->tcheck(env, dflags);
 
   // supply DF_DEFINITION?
   DeclFlags dfDefn = (checkBody? DF_DEFINITION : DF_NONE);
@@ -599,8 +599,8 @@ void Function::tcheckBody(Env &env)
       env.lang.gccFuncBehavior == CCLang::GFB_variable) {
     // static char const __func__[] = "function-name";
     SourceLoc loc = body->loc;
-    Type *charConst = env.getSimpleType(ST_CHAR, CV_CONST);
-    Type *charConstArr = env.makeArrayType(charConst);
+    CType *charConst = env.getSimpleType(ST_CHAR, CV_CONST);
+    CType *charConstArr = env.makeArrayType(charConst);
 
     if (env.lang.implicitFuncVariable) {
       Variable *funcVar = env.makeVariable(loc, env.string__func__,
@@ -948,7 +948,7 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
   }
 
   // check the specifier in the prevailing environment
-  Type *specType = spec->tcheck(env, dflags);
+  CType *specType = spec->tcheck(env, dflags);
 
   // ---- the following code is adopted from (the old) tcheckFakeExprList ----
   // (I couldn't just use the same code, templatized as necessary,
@@ -964,7 +964,7 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
     while (prev->next) {
       // some analyses don't want the type re-used, so let
       // the factory clone it if it wants to
-      Type *dupType = specType;
+      CType *dupType = specType;
 
       Declarator::Tcheck dt2(dupType, dflags, context);
       prev->next = prev->next->tcheck(env, dt2);
@@ -1008,7 +1008,7 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
   }
 
   // check type specifier
-  Type *specType = spec->tcheck(env, DF_NONE);
+  CType *specType = spec->tcheck(env, DF_NONE);
 
   // pass contextual info to declarator
   Declarator::Tcheck dt(specType, tc.dflags, tc.context);
@@ -1025,7 +1025,7 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
 }
 
 
-Type *ASTTypeId::getType() const
+CType *ASTTypeId::getType() const
 {
   xassert(decl->var);
   return decl->var->type;
@@ -1401,12 +1401,12 @@ Variable *maybeReuseNondependent(Env &env, SourceLoc loc, LookupFlags &lflags,
 
 
 // --------------------- TypeSpecifier --------------
-Type *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
+CType *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
 
-  Type *t = itcheck(env, dflags);
-  Type *ret = env.tfac.applyCVToType(loc, cv, t, this);
+  CType *t = itcheck(env, dflags);
+  CType *ret = env.tfac.applyCVToType(loc, cv, t, this);
   if (!ret) {
     if (t->isFunctionType() && env.lang.allowCVAppliedToFunctionTypes) {
       env.diagnose3(env.lang.allowCVAppliedToFunctionTypes, loc,
@@ -1462,7 +1462,7 @@ bool isBuggyGcc2HeaderDQT(Env &env, PQName *name)
 
 
 // 7.1.5.2
-Type *TS_name::itcheck(Env &env, DeclFlags dflags)
+CType *TS_name::itcheck(Env &env, DeclFlags dflags)
 {
   tcheckPQName(name, env, NULL /*scope*/, LF_NONE);
 
@@ -1577,7 +1577,7 @@ do_lookup:
 }
 
 
-Type *TS_simple::itcheck(Env &env, DeclFlags dflags)
+CType *TS_simple::itcheck(Env &env, DeclFlags dflags)
 { 
   // This is the one aspect of the implicit-int solution that cannot
   // be confined to implint.h: having selected an interpretation that
@@ -1984,7 +1984,7 @@ CompoundType *checkClasskeyAndName(
 }
 
 
-Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
+CType *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
 
@@ -2060,7 +2060,7 @@ void tcheckDeclaratorPQName(Env &env, ScopeSeq &qualifierScopes,
 }
 
 
-Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
+CType *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
   dflags |= DF_DEFINITION;
@@ -2307,12 +2307,12 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
 }
 
 
-Type *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
+CType *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
 
   EnumType *et = NULL;
-  Type *ret = NULL;
+  CType *ret = NULL;
 
   if (env.lang.allowIncompleteEnums && name) {
     // is this referring to an existing forward-declared enum?
@@ -2439,7 +2439,7 @@ void MR_template::tcheck(Env &env)
 
 
 // -------------------- Enumerator --------------------
-void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
+void Enumerator::tcheck(Env &env, EnumType *parentEnum, CType *parentType)
 {
   var = env.makeVariable(loc, name, parentType, DF_ENUMERATOR);
 
@@ -2719,7 +2719,7 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
 
     if ((desc & INCDEC) && (params==2)) {
       // second parameter must have type 'int'
-      Type *t = ft->params.nth(1)->type;
+      CType *t = ft->params.nth(1)->type;
       if (!t->isSimple(ST_INT) ||
           t->getCVFlags()!=CV_NONE) {
         env.error(loc, stringc
@@ -3160,8 +3160,8 @@ Declarator *Declarator::tcheck(Env &env, Tcheck &dt)
 //   static int y[] = (int []) {1, 2, 3};
 // which is equivalent to:
 //   static int y[] = {1, 2, 3};
-Type *Env::computeArraySizeFromCompoundInit(SourceLoc tgt_loc, Type *tgt_type,
-                                            Type *src_type, Initializer *init)
+CType *Env::computeArraySizeFromCompoundInit(SourceLoc tgt_loc, CType *tgt_type,
+                                            CType *src_type, Initializer *init)
 {
   // If we start at a reference, we have to go down to the raw
   // ArrayType and then back up to a reference.
@@ -3196,7 +3196,7 @@ Type *Env::computeArraySizeFromCompoundInit(SourceLoc tgt_loc, Type *tgt_type,
 // provide a well-defined size for the array from the size of the
 // initializer, such as in this case:
 //   char sName[] = "SOAPPropertyBag";
-Type *computeArraySizeFromLiteral(Env &env, Type *tgt_type, Initializer *init)
+CType *computeArraySizeFromLiteral(Env &env, CType *tgt_type, Initializer *init)
 {
   // If we start at a reference, we have to go down to the raw
   // ArrayType and then back up to a reference.
@@ -3226,7 +3226,7 @@ bool isVariableDC(DeclaratorContext dc)
 // determine if a complete type is required, and if so, check that it
 // is; return false if a complete type is needed but 'type' is not
 bool checkCompleteTypeRules(Env &env, DeclFlags dflags, DeclaratorContext context,
-                            Type *type, Initializer *init)
+                            CType *type, Initializer *init)
 {
   // TODO: According to 15.4 para 1, not only must the type in
   // DC_EXCEPTIONSPEC be complete (which this code enforces), but if
@@ -3322,7 +3322,7 @@ bool checkCompleteTypeRules(Env &env, DeclFlags dflags, DeclaratorContext contex
 // could not possibly have a user-defined constructor?  It needs
 // to not be a class of course, but also not a dependent type that
 // could be instantiated with a class.
-bool isPrimitiveObjectType(Type const *t)
+bool isPrimitiveObjectType(CType const *t)
 {
   if (t->isCVAtomicType()) {
     AtomicType const *at = t->asCVAtomicTypeC()->atomic;
@@ -3391,7 +3391,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // DependentQTypes that now can (and must) be resolved more
   // precisely (t0290a.cc, t0438.cc, t0440.cc)
   if (name) {
-    Type *t = env.resolveDQTs(name->loc, dt.type);
+    CType *t = env.resolveDQTs(name->loc, dt.type);
     if (t) {
       TRACE("dqt", "resolved " << dt.type->toString() << " to " << t->toString());
       dt.type = t;
@@ -3884,7 +3884,7 @@ FakeList<ASTTypeId> *tcheckFakeASTTypeIdList(
 //   "function returning T" -> "pointer to function returning T"
 // also, since f(int) and f(int const) are the same function (not
 // overloadings), strip toplevel cv qualifiers
-static Type *normalizeParameterType(Env &env, SourceLoc loc, Type *t)
+static CType *normalizeParameterType(Env &env, SourceLoc loc, CType *t)
 {
   if (t->isArrayType()) {
     return env.makePtrType(t->asArrayType()->eltType);
@@ -4767,7 +4767,7 @@ void Handler::tcheck(Env &env)
 
 
 // ------------------- Expression tcheck -----------------------
-Type *makeLvalType(TypeFactory &tfac, Type *underlying)
+CType *makeLvalType(TypeFactory &tfac, CType *underlying)
 {
   if (underlying->isLval()) {
     // this happens for example if a variable is declared to
@@ -4787,7 +4787,7 @@ Type *makeLvalType(TypeFactory &tfac, Type *underlying)
   }
 }
 
-Type *makeLvalType(Env &env, Type *underlying)
+CType *makeLvalType(Env &env, CType *underlying)
 {
   return makeLvalType(env.tfac, underlying);
 }
@@ -4795,9 +4795,9 @@ Type *makeLvalType(Env &env, Type *underlying)
 
 // make the type of a field 'field', but is being accessed in an
 // object whose reference is qualified with 'cv'
-Type *makeFieldLvalType(Env &env, Variable *var, CVFlags cv)
+CType *makeFieldLvalType(Env &env, Variable *var, CVFlags cv)
 {      
-  Type *t = var->type;
+  CType *t = var->type;
   if (t->isReferenceType() || t->isFunctionType()) {
     return t;
   }
@@ -4903,7 +4903,7 @@ void Expression::tcheck(Env &env, Expression *&replacement)
       // a little tricky because E_constructor::inner2_itcheck is
       // allowed to yield a replacement AST node
       replacement = ctor;
-      Type *t = ctor->inner2_itcheck(env, replacement);
+      CType *t = ctor->inner2_itcheck(env, replacement);
 
       replacement->type = t;
       replacement->ambiguity = NULL;
@@ -4948,7 +4948,7 @@ void Expression::mid_tcheck(Env &env, Expression *&replacement)
   replacement = this;
 
   // check it, and store the result
-  Type *t = itcheck_x(env, replacement);
+  CType *t = itcheck_x(env, replacement);
 
   // elaborate the AST by storing the computed type, *unless*
   // we're only disambiguating (because in that case many of
@@ -4976,7 +4976,7 @@ void Expression::mid_tcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_boolLit::itcheck_x(Env &env, Expression *&replacement)
+CType *E_boolLit::itcheck_x(Env &env, Expression *&replacement)
 {
   // cppstd 2.13.5 para 1
   return env.getSimpleType(ST_BOOL);
@@ -5010,7 +5010,7 @@ bool canRepresent(SimpleTypeId id, unsigned long i)
   }
 }
 
-Type *E_intLit::itcheck_x(Env &env, Expression *&replacement)
+CType *E_intLit::itcheck_x(Env &env, Expression *&replacement)
 {
   // cppstd 2.13.1 para 2
 
@@ -5137,7 +5137,7 @@ Type *E_intLit::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-Type *E_floatLit::itcheck_x(Env &env, Expression *&replacement)
+CType *E_floatLit::itcheck_x(Env &env, Expression *&replacement)
 {
   d = strtod(text, NULL /*endp*/);
 
@@ -5154,7 +5154,7 @@ Type *E_floatLit::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-Type *E_stringLit::itcheck_x(Env &env, Expression *&replacement)
+CType *E_stringLit::itcheck_x(Env &env, Expression *&replacement)
 {
   // cppstd 2.13.4 para 1
 
@@ -5175,11 +5175,11 @@ Type *E_stringLit::itcheck_x(Env &env, Expression *&replacement)
   if (env.lang.stringLitCharsAreConst) {
     stringLitCharCVFlags = CV_CONST;
   }
-  Type *charConst = env.getSimpleType(id, stringLitCharCVFlags);
-  Type *arrayType = env.makeArrayType(charConst, len+1);    // +1 for implicit final NUL
+  CType *charConst = env.getSimpleType(id, stringLitCharCVFlags);
+  CType *arrayType = env.makeArrayType(charConst, len+1);    // +1 for implicit final NUL
 
   // C++ 5.1p2, C99 6.5.1p4: string literals are lvalues (in/k0036.cc)
-  Type *ret = makeLvalType(env, arrayType);
+  CType *ret = makeLvalType(env, arrayType);
   
   // apply the same type to the continuations, for visitors' benefit
   for (p = continuation; p; p = p->continuation) {
@@ -5198,7 +5198,7 @@ void quotedUnescape(ArrayStack<char> &dest, char const *src,
                 delim, allowNewlines);
 }
 
-Type *E_charLit::itcheck_x(Env &env, Expression *&replacement)
+CType *E_charLit::itcheck_x(Env &env, Expression *&replacement)
 {
   // cppstd 2.13.2 paras 1 and 2
 
@@ -5257,7 +5257,7 @@ Type *E_charLit::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-Type *E_this::itcheck_x(Env &env, Expression *&replacement)
+CType *E_this::itcheck_x(Env &env, Expression *&replacement)
 {
   // we should be in a method with a receiver parameter
   receiver = env.lookupVariable(env.receiverName);
@@ -5300,18 +5300,18 @@ E_fieldAcc *wrapWithImplicitThis(Env &env, Variable *var, PQName *name)
 }
 
 
-Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
+CType *E_variable::itcheck_x(Env &env, Expression *&replacement)
 {
   return itcheck_var(env, replacement, LF_NONE);
 }
 
-Type *E_variable::itcheck_var(Env &env, Expression *&replacement, LookupFlags flags)
+CType *E_variable::itcheck_var(Env &env, Expression *&replacement, LookupFlags flags)
 {
   LookupSet dummy;
   return itcheck_var_set(env, replacement, flags, dummy);
 }
 
-Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
+CType *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
                                   LookupFlags flags, LookupSet &candidates)
 {
   tcheckPQName(name, env, NULL /*scope*/, LF_NONE);
@@ -5517,11 +5517,11 @@ static Variable *outerResolveOverload_explicitSet(
       finalName->isPQ_operator() &&
       finalName->asPQ_operator()->o->isON_conversion()) {
     ON_conversion *conv = finalName->asPQ_operator()->o->asON_conversion();
-    Type *namedType = conv->type->getType();
+    CType *namedType = conv->type->getType();
 
     // find the operator in the overload set
     SFOREACH_OBJLIST_NC(Variable, candidates, iter) {
-      Type *iterRet = iter.data()->type->asFunctionType()->retType;
+      CType *iterRet = iter.data()->type->asFunctionType()->retType;
       if (iterRet->equals(namedType)) {
         return iter.data();
       }
@@ -5555,11 +5555,11 @@ static Variable *outerResolveOverload_explicitSet(
 // version of 'outerResolveOverload' for constructors; 'type' is the
 // type of the object being constructed
 static Variable *outerResolveOverload_ctor
-  (Env &env, SourceLoc loc, Type *type, ArgumentInfoArray &argInfo)
+  (Env &env, SourceLoc loc, CType *type, ArgumentInfoArray &argInfo)
 {
   // skip overload resolution if any dependent args (in/t0412.cc)
   for (int i=0; i<argInfo.size(); i++) {
-    Type *t = argInfo[i].type;
+    CType *t = argInfo[i].type;
     if (t && t->containsGeneralizedDependent()) {
       return NULL;
     }
@@ -5621,7 +5621,7 @@ void tcheckExpression_set(Env &env, Expression *&expr,
 {
   Expression *origExpr = expr;
 
-  Type *t;
+  CType *t;
   ASTSWITCH(Expression, expr) {
     ASTCASE(E_variable, evar)
       t = evar->itcheck_var_set(env, expr, flags, set);
@@ -5666,7 +5666,7 @@ void tcheckExpression_set(Env &env, Expression *&expr,
 // pass all the possibilities on to overload resolution.
 FakeList<ArgExpression> *tcheckArgExprList(FakeList<ArgExpression> *list, Env &env,
                                            ArgumentInfoArray &argInfo,
-                                           Type *receiverType /*= NULL*/)
+                                           CType *receiverType /*= NULL*/)
 {
   // always begin with the receiver, even if it is only a placeholder
   argInfo[0].special = SE_NONE;
@@ -5705,7 +5705,7 @@ ArgExpression *ArgExpression::tcheck(Env &env, ArgumentInfo &info)
 }
                       
 // function or pointer to function
-static bool isFunctionTypeOr(Type *t)
+static bool isFunctionTypeOr(CType *t)
 {
   if (t->isFunctionType()) {
     return true;
@@ -5874,13 +5874,13 @@ static Variable *getNamedFunction(Expression *e)
 }
   
 // fwd
-static Type *internalTestingHooks
+static CType *internalTestingHooks
   (Env &env, StringRef funcName, FakeList<ArgExpression> *args);
 
 
 // true if the type has no destructor because it's not a compound type
 // nor an array of (an array of ..) compound types
-static bool hasNoopDtor(Type *t)
+static bool hasNoopDtor(CType *t)
 {
   // if it's an array type, then whether it has a no-op dtor depends
   // entirely on whether the element type has a no-op dtor
@@ -5891,7 +5891,7 @@ static bool hasNoopDtor(Type *t)
   return !t->isCompoundType();
 }
 
-Type *E_funCall::itcheck_x(Env &env, Expression *&replacement)
+CType *E_funCall::itcheck_x(Env &env, Expression *&replacement)
 {
   LookupSet candidates;
   inner1_itcheck(env, candidates);
@@ -5988,7 +5988,7 @@ void possiblyWrapWithImplicitThis(Env &env, Expression *&func,
   }
 }
 
-Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
+CType *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
 {
   // inner1 skipped E_groupings already
   xassert(!func->isE_grouping());
@@ -6001,7 +6001,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
                        
   // if a method is being invoked, what is the type of the receiver
   // object?  (may be NULL if none is available)
-  Type *receiverType = feacc? feacc->obj->type : env.implicitReceiverType();
+  CType *receiverType = feacc? feacc->obj->type : env.implicitReceiverType();
 
   // check the argument list
   ArgumentInfoArray argInfo(args->count() + 1);
@@ -6009,7 +6009,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
 
   // for internal testing
   if (fevar) {
-    Type *ret = internalTestingHooks(env, fevar->name->getName(), args);
+    CType *ret = internalTestingHooks(env, fevar->name->getName(), args);
     if (ret) {
       return ret;
     }
@@ -6072,7 +6072,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
         (fevar->type->isSimple(ST_NOTFOUND) ||  // orig lookup failed
          !fevar->var->isMember())) {            //   or found a nonmember 
       // get additional candidates from associated scopes
-      ArrayStack<Type*> argTypes(args->count());
+      ArrayStack<CType*> argTypes(args->count());
       FAKELIST_FOREACH(ArgExpression, args, iter) {
         argTypes.push(iter->getType());
       }
@@ -6190,7 +6190,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
   }
 
   // the type of the function that is being invoked
-  Type *t = func->type->asRval();
+  CType *t = func->type->asRval();
 
   // check for operator()
   CompoundType *ct = t->ifCompoundType();
@@ -6266,7 +6266,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
 
   // receiver object?
   if (env.doCompareArgsToParams && ft->isMethod()) {
-    Type *receiverType = NULL;
+    CType *receiverType = NULL;
     if (feacc) {
       // explicit receiver via '.'
       receiverType = feacc->obj->type;
@@ -6350,14 +6350,14 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
 // and typechecks it in its entirety
 //
 // actually, the arguments have already been tchecked ...
-static Type *internalTestingHooks
+static CType *internalTestingHooks
   (Env &env, StringRef funcName, FakeList<ArgExpression> *args)
 {
   // check the type of an expression
   if (funcName == env.special_checkType) {
     if (args->count() == 2) {
-      Type *t1 = args->nth(0)->getType();
-      Type *t2 = args->nth(1)->getType();
+      CType *t1 = args->nth(0)->getType();
+      CType *t2 = args->nth(1)->getType();
       if (t1->equals(t2)) {
         // ok
       }
@@ -6522,8 +6522,8 @@ static Type *internalTestingHooks
       return env.error("__test_mtype requires at least three arguments");
     }
 
-    Type *conc = args->nth(0)->getType();
-    Type *pat = args->nth(1)->getType();
+    CType *conc = args->nth(0)->getType();
+    CType *pat = args->nth(1)->getType();
     int flags;
     if (!args->nth(2)->constEval(env, flags)) {
       return env.error("third argument to __test_mtype must be a constant expression");
@@ -6629,7 +6629,7 @@ static Type *internalTestingHooks
 }
 
 
-Type *E_constructor::itcheck_x(Env &env, Expression *&replacement)
+CType *E_constructor::itcheck_x(Env &env, Expression *&replacement)
 {
   inner1_itcheck(env);
 
@@ -6641,7 +6641,7 @@ void E_constructor::inner1_itcheck(Env &env)
   type = spec->tcheck(env, DF_NONE);
 }
 
-Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
+CType *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
 {
   xassert(replacement == this);
 
@@ -6778,18 +6778,18 @@ bool sameCompounds(Variable *var1, Variable *var2)
 
 
 // cppstd sections: 5.2.4, 5.2.5 and 3.4.5
-Type *E_fieldAcc::itcheck_x(Env &env, Expression *&replacement)
+CType *E_fieldAcc::itcheck_x(Env &env, Expression *&replacement)
 {
   return itcheck_fieldAcc(env, LF_NONE);
 }
 
-Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
+CType *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
 {
   LookupSet dummy;
   return itcheck_fieldAcc_set(env, flags, dummy);
 }
 
-Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
+CType *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
                                        LookupSet &candidates)
 {
   obj->tcheck(env, obj);
@@ -6832,7 +6832,7 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
   }
 
   // get the type of 'obj', and check if is a compound
-  Type *lhsType = obj->type->asRval();
+  CType *lhsType = obj->type->asRval();
   CompoundType *ct = lhsType->ifCompoundType();
   if (!ct) {
     // 5.2.4: pseudo-destructor
@@ -6844,7 +6844,7 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
     }
 
     // this will be set to the type of the RHS
-    Type *rhsType = NULL;
+    CType *rhsType = NULL;
 
     if (fieldName->hasQualifiers()) {
       // get pointers to the last three elements in the name
@@ -7188,7 +7188,7 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
 }
 
 
-Type *E_arrow::itcheck_x(Env &env, Expression *&replacement)
+CType *E_arrow::itcheck_x(Env &env, Expression *&replacement)
 {
   LookupSet dummy;
   return itcheck_arrow_set(env, replacement, LF_NONE, dummy);
@@ -7222,14 +7222,14 @@ Type *E_arrow::itcheck_x(Env &env, Expression *&replacement)
 //
 // Examples of various levels and timings of rewriting can be seen by
 // running ccparse with the prettyPrint tracing flag on in/t0480.cc
-Type *E_arrow::itcheck_arrow_set(Env &env, Expression *&replacement,
+CType *E_arrow::itcheck_arrow_set(Env &env, Expression *&replacement,
                                  LookupFlags flags, LookupSet &set)
 {
   // check LHS
   obj->tcheck(env, obj);
 
   // overloaded?  if so, replace 'obj'
-  Type *t = obj->type;
+  CType *t = obj->type;
   while (t && !t->isDependent()) {
     t = resolveOverloadedUnaryOperator(env, obj, obj, OP_ARROW);
     // keep sticking in 'operator->' until the LHS is not a class
@@ -7250,7 +7250,7 @@ Type *E_arrow::itcheck_arrow_set(Env &env, Expression *&replacement,
 }
 
 
-Type *E_sizeof::itcheck_x(Env &env, Expression *&replacement)
+CType *E_sizeof::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
@@ -7261,7 +7261,7 @@ Type *E_sizeof::itcheck_x(Env &env, Expression *&replacement)
 // do operator overload resolution for a unary operator; return
 // non-NULL if we've replaced this node, and want the caller to
 // return that value
-Type *resolveOverloadedUnaryOperator(
+CType *resolveOverloadedUnaryOperator(
   Env &env,                  // environment
   Expression *&replacement,  // OUT: replacement node
   //Expression *ths,           // expression node that is being resolved (not used)
@@ -7343,7 +7343,7 @@ Type *resolveOverloadedUnaryOperator(
         // conversions (if any)
 
         // get the correct return value, at least
-        Type *ret = resolver.getReturnType(winnerCand);
+        CType *ret = resolver.getReturnType(winnerCand);
         OVERLOADINDTRACE("computed built-in operator return type `" <<
                          ret->toString() << "'");
 
@@ -7358,7 +7358,7 @@ Type *resolveOverloadedUnaryOperator(
 
 
 // similar, but for binary
-Type *resolveOverloadedBinaryOperator(
+CType *resolveOverloadedBinaryOperator(
   Env &env,                  // environment
   Expression *&replacement,  // OUT: replacement node
   //Expression *ths,           // expression node that is being resolved (not used)
@@ -7469,7 +7469,7 @@ Type *resolveOverloadedBinaryOperator(
           // be subject to overload resolution and therefore can mean
           // something different ...
 
-          Type *ret = resolver.getReturnType(winnerCand);
+          CType *ret = resolver.getReturnType(winnerCand);
 
           E_binary *bin = new E_binary(e1, BIN_PLUS, e2);
           bin->type = env.tfac.makePointerType(CV_NONE, ret->asRval());
@@ -7482,7 +7482,7 @@ Type *resolveOverloadedBinaryOperator(
         }
         else {
           // get the correct return value, at least
-          Type *ret = resolver.getReturnType(winnerCand);
+          CType *ret = resolver.getReturnType(winnerCand);
           OVERLOADINDTRACE("computed built-in operator return type `" <<
                            ret->toString() << "'");
           return ret;
@@ -7496,7 +7496,7 @@ Type *resolveOverloadedBinaryOperator(
 }
 
 
-bool isArithmeticOrEnumType(Type *t)
+bool isArithmeticOrEnumType(CType *t)
 {
   if (t->isSimpleType()) {
     return isArithmeticType(t->asSimpleTypeC()->type);
@@ -7505,18 +7505,18 @@ bool isArithmeticOrEnumType(Type *t)
 }
 
 
-Type *E_unary::itcheck_x(Env &env, Expression *&replacement)
+CType *E_unary::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
   // consider the possibility of operator overloading
-  Type *ovlRet = resolveOverloadedUnaryOperator(
+  CType *ovlRet = resolveOverloadedUnaryOperator(
     env, replacement, /*this,*/ expr, toOverloadableOp(op));
   if (ovlRet) {
     return ovlRet;
   }
 
-  Type *t = expr->type->asRval();
+  CType *t = expr->type->asRval();
 
   // make sure 'expr' is compatible with given operator
   switch (op) {
@@ -7546,7 +7546,7 @@ Type *E_unary::itcheck_x(Env &env, Expression *&replacement)
 
     case UNY_NOT: {
       // 5.3.1 para 8
-      Type *t_bool = env.getSimpleType(ST_BOOL);
+      CType *t_bool = env.getSimpleType(ST_BOOL);
       if (!getImplicitConversion(env, expr->getSpecial(env.lang), t, t_bool)) {
         env.error(t, stringc
           << "argument to unary ! must be convertible to bool; `"
@@ -7572,7 +7572,7 @@ Type *E_unary::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-Type *E_effect::itcheck_x(Env &env, Expression *&replacement)
+CType *E_effect::itcheck_x(Env &env, Expression *&replacement)
 {
   ArgumentInfoArray argInfo(2);
   tcheckArgumentExpression(env, expr, argInfo[0]);
@@ -7582,7 +7582,7 @@ Type *E_effect::itcheck_x(Env &env, Expression *&replacement)
   }
 
   // consider the possibility of operator overloading
-  Type *ovlRet = isPrefix(op)?
+  CType *ovlRet = isPrefix(op)?
     resolveOverloadedUnaryOperator(
       env, replacement, /*this,*/ expr, toOverloadableOp(op)) :
     resolveOverloadedBinaryOperator(
@@ -7599,7 +7599,7 @@ Type *E_effect::itcheck_x(Env &env, Expression *&replacement)
   // applying a postfix ++ ... .  The result is an rvalue."; Cppstd
   // 5.3.2 "Increment and decrement: The operand of prefix ++ ... .
   // The value ... is an lvalue."
-  Type *ret = expr->type->asRval();
+  CType *ret = expr->type->asRval();
   if (op == EFF_PREINC || op == EFF_PREDEC) {
     ret = env.makeReferenceType(ret);
   }
@@ -7607,14 +7607,14 @@ Type *E_effect::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-bool isComplexOrImaginary(Type *t)
+bool isComplexOrImaginary(CType *t)
 {       
   t = t->asRval();
   return t->isSimpleType() &&
          isComplexOrImaginary(t->asSimpleTypeC()->type);
 }
 
-Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
+CType *E_binary::itcheck_x(Env &env, Expression *&replacement)
 {
   ArgumentInfoArray argInfo(2);
   tcheckArgumentExpression(env, e1, argInfo[0]);
@@ -7650,7 +7650,7 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
 
   // check for operator overloading
   if (isOverloadable(op)) {
-    Type *ovlRet = resolveOverloadedBinaryOperator(
+    CType *ovlRet = resolveOverloadedBinaryOperator(
       env, replacement, /*this,*/ e1, e2, toOverloadableOp(op), argInfo);
     if (ovlRet) {
       return ovlRet;
@@ -7670,8 +7670,8 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
 
   // get types of arguments, converted to rval, and normalized with
   // array-to-pointer and function-to-pointer conversions
-  Type *lhsType = env.operandRval(e1->type);
-  Type *rhsType = env.operandRval(e2->type);
+  CType *lhsType = env.operandRval(e1->type);
+  CType *rhsType = env.operandRval(e2->type);
 
   switch (op) {
     default: xfailure("illegal op code"); break;
@@ -7785,7 +7785,7 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
       }
 
       // the return type is essentially the 'atType' of 'ptm'
-      Type *ret = ptm->atType;
+      CType *ret = ptm->atType;
 
       // 8.3.3 para 3: "A pointer to member shall not point to ... a
       // member with reference type."  Scott says this can't happen
@@ -7814,7 +7814,7 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
 
 // someone took the address of 'var', and we must compute
 // the PointerToMemberType of that construct
-static Type *makePTMType(Env &env, Variable *var, SourceLoc loc)
+static CType *makePTMType(Env &env, Variable *var, SourceLoc loc)
 {
   // cppstd: 8.3.3 para 3, can't be static
   xassert(!var->hasFlag(DF_STATIC));
@@ -7840,13 +7840,13 @@ static Type *makePTMType(Env &env, Variable *var, SourceLoc loc)
     (inClass0, CV_NONE, var->type);
 }
 
-Type *E_addrOf::itcheck_x(Env &env, Expression *&replacement)
+CType *E_addrOf::itcheck_x(Env &env, Expression *&replacement)
 {
   LookupSet dummy;
   return itcheck_addrOf_set(env, replacement, LF_NONE, dummy);
 }
 
-Type *E_addrOf::itcheck_addrOf_set(Env &env, Expression *&replacement,
+CType *E_addrOf::itcheck_addrOf_set(Env &env, Expression *&replacement,
                                    LookupFlags flags, LookupSet &set)
 {
   // might we be forming a pointer-to-member?
@@ -7917,7 +7917,7 @@ Type *E_addrOf::itcheck_addrOf_set(Env &env, Expression *&replacement,
   }
 
   // consider the possibility of operator overloading
-  Type *ovlRet = resolveOverloadedUnaryOperator(
+  CType *ovlRet = resolveOverloadedUnaryOperator(
     env, replacement, /*this,*/ expr, OP_AMPERSAND);
   if (ovlRet) {
     return ovlRet;
@@ -7935,13 +7935,13 @@ Type *E_addrOf::itcheck_addrOf_set(Env &env, Expression *&replacement,
 }
 
 
-Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
+CType *E_deref::itcheck_x(Env &env, Expression *&replacement)
 {
   ptr->tcheck(env, ptr);
 
   // check for overloading
   {
-    Type *ovlRet = resolveOverloadedUnaryOperator(
+    CType *ovlRet = resolveOverloadedUnaryOperator(
       env, replacement, /*this,*/ ptr, OP_STAR);
     if (ovlRet) {
       return ovlRet;
@@ -7950,7 +7950,7 @@ Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
 
   // clone the type as it's taken out of one AST node, so it
   // can then be used as the type of another AST node (this one)
-  Type *rt = ptr->type->asRval();
+  CType *rt = ptr->type->asRval();
 
   if (rt->isFunctionType()) {
     return rt;                         // deref is idempotent on FunctionType-s
@@ -7982,7 +7982,7 @@ bool hasTypeDefn(ASTTypeId *atype)
          atype->spec->isTS_enumSpec();
 }
 
-Type *E_cast::itcheck_x(Env &env, Expression *&replacement)
+CType *E_cast::itcheck_x(Env &env, Expression *&replacement)
 {
   // check the dest type
   if (hasTypeDefn(ctype)) {
@@ -8013,7 +8013,7 @@ Type *E_cast::itcheck_x(Env &env, Expression *&replacement)
   
   // TODO: check that the cast makes sense
 
-  Type *ret = ctype->getType();
+  CType *ret = ctype->getType();
 
   // This is a gnu extension: in C mode, if the expr is an lvalue,
   // make the returned type an lvalue.  This is in direct
@@ -8034,8 +8034,8 @@ Type *E_cast::itcheck_x(Env &env, Expression *&replacement)
 // NULL if conversion is not possible, otherwise return type to which
 // 't1' is converted (it is not always exactly 't2') and set 'ic'
 // accordingly
-Type *attemptCondConversion(Env &env, ImplicitConversion &ic /*OUT*/,
-                            Type *t1, Type *t2)
+CType *attemptCondConversion(Env &env, ImplicitConversion &ic /*OUT*/,
+                            CType *t1, CType *t2)
 {
   // bullet 1: attempt direct conversion to lvalue
   if (t2->isLval()) {
@@ -8078,7 +8078,7 @@ Type *attemptCondConversion(Env &env, ImplicitConversion &ic /*OUT*/,
 // conversions"; (for the moment) functionally identical to
 // 'normalizeParameterType' but specified by a different part of
 // cppstd...
-Type *arrAndFuncToPtr(Env &env, Type *t)
+CType *arrAndFuncToPtr(Env &env, CType *t)
 {
   if (t->isArrayType()) {
     return env.makePtrType(t->asArrayType()->eltType);
@@ -8091,7 +8091,7 @@ Type *arrAndFuncToPtr(Env &env, Type *t)
 
 
 // cppstd 5.9 "composite pointer type" computation
-Type *compositePointerType
+CType *compositePointerType
   (Env &env, PointerType *t1, PointerType *t2)
 {
   // if either is pointer to void, result is void
@@ -8119,7 +8119,7 @@ Type *compositePointerType
 
 // cppstd 5.16 computation similar to composite pointer but
 // for pointer-to-member
-Type *compositePointerToMemberType
+CType *compositePointerToMemberType
   (Env &env, PointerToMemberType *t1, PointerToMemberType *t2)
 {
   // hammer time
@@ -8129,7 +8129,7 @@ Type *compositePointerToMemberType
 
 
 // cppstd 5.16
-Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
+CType *E_cond::itcheck_x(Env &env, Expression *&replacement)
 {
   cond->tcheck(env, cond);
 
@@ -8159,11 +8159,11 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
 
   // pull out the types; during the processing below, we might change
   // these to implement "converted operand used in place of ..."
-  Type *thType = th->type;
-  Type *elType = el->type;
+  CType *thType = th->type;
+  CType *elType = el->type;
 
-  Type *thRval = th->type->asRval();
-  Type *elRval = el->type->asRval();
+  CType *thRval = th->type->asRval();
+  CType *elRval = el->type->asRval();
 
   if (!env.lang.isCplusplus) {
     // ANSI C99 mostly requires that the types be the same, but gcc
@@ -8220,9 +8220,9 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
        elRval->isCompoundType())) {
     // try to convert each to the other
     ImplicitConversion ic_thToEl;
-    Type *thConv = attemptCondConversion(env, ic_thToEl, thType, elType);
+    CType *thConv = attemptCondConversion(env, ic_thToEl, thType, elType);
     ImplicitConversion ic_elToTh;
-    Type *elConv = attemptCondConversion(env, ic_elToTh, elType, thType);
+    CType *elConv = attemptCondConversion(env, ic_elToTh, elType, thType);
 
     if (thConv && elConv) {
       return env.error("class-valued argument(s) to ?: are ambiguously inter-convertible");
@@ -8286,7 +8286,7 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
       // to their conversions (if any)
 
       // get the correct return value, at least
-      Type *ret = resolver.getReturnType(winnerCand);
+      CType *ret = resolver.getReturnType(winnerCand);
       OVERLOADINDTRACE("computed built-in operator return type `" <<
                        ret->toString() << "'");
 
@@ -8323,7 +8323,7 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
       return elRval;
     }
     if (thRval->isPointerType() && elRval->isPointerType()) {
-      Type *ret = compositePointerType(env,
+      CType *ret = compositePointerType(env,
         thRval->asPointerType(), elRval->asPointerType());
       if (!ret) { goto incompatible; }
       return ret;
@@ -8337,7 +8337,7 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
       return elRval;
     }
     if (thRval->isPointerToMemberType() && elRval->isPointerToMemberType()) {
-      Type *ret = compositePointerToMemberType(env,
+      CType *ret = compositePointerToMemberType(env,
         thRval->asPointerToMemberType(), elRval->asPointerToMemberType());
       if (!ret) { goto incompatible; }
       return ret;
@@ -8351,7 +8351,7 @@ incompatible:
 }
 
 
-Type *E_sizeofType::itcheck_x(Env &env, Expression *&replacement)
+CType *E_sizeofType::itcheck_x(Env &env, Expression *&replacement)
 {
   if (hasTypeDefn(atype)) {
     if (env.lang.isCplusplus) {
@@ -8386,11 +8386,11 @@ Type *E_sizeofType::itcheck_x(Env &env, Expression *&replacement)
 }
 
   
-// Type check 'expr', given that it is being used to set the value of
+// CType check 'expr', given that it is being used to set the value of
 // something with type 'target', and so we can use that as the basis
 // for resolving the address of an overloaded function name.
 void tcheckExpression_possibleAddrOfOverload
-  (Env &env, Expression *&expr, Type *target)
+  (Env &env, Expression *&expr, CType *target)
 {
   LookupSet set;
   tcheckExpression_set(env, expr, LF_TEMPL_PRIMARY, set);
@@ -8398,7 +8398,7 @@ void tcheckExpression_possibleAddrOfOverload
 }
 
 
-Type *E_assign::itcheck_x(Env &env, Expression *&replacement)
+CType *E_assign::itcheck_x(Env &env, Expression *&replacement)
 {
   ArgumentInfoArray argInfo(2);
   tcheckArgumentExpression(env, target, argInfo[0]);
@@ -8406,7 +8406,7 @@ Type *E_assign::itcheck_x(Env &env, Expression *&replacement)
 
   // check for operator overloading
   {
-    Type *ovlRet = resolveOverloadedBinaryOperator(
+    CType *ovlRet = resolveOverloadedBinaryOperator(
       env, replacement, /*this,*/ target, src,
       toOverloadableOp(op, true /*assignment*/), argInfo);
     if (ovlRet) {
@@ -8424,7 +8424,7 @@ Type *E_assign::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-Type *E_new::itcheck_x(Env &env, Expression *&replacement)
+CType *E_new::itcheck_x(Env &env, Expression *&replacement)
 {
   // check the placement args
   {
@@ -8442,7 +8442,7 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
   atype = atype->tcheck(env, tc);
 
   // grab the type of the objects to allocate
-  Type *t = atype->getType();
+  CType *t = atype->getType();
 
   // if the named type is an incomplete type, that will already have
   // been detected and reported (when 'atype' was tchecked), and 't'
@@ -8475,11 +8475,11 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-Type *E_delete::itcheck_x(Env &env, Expression *&replacement)
+CType *E_delete::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
-  Type *t = expr->type->asRval();   
+  CType *t = expr->type->asRval();   
 
   if (t->isGeneralizedDependent()) {
     // fine; in/k0020.cc
@@ -8493,7 +8493,7 @@ Type *E_delete::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-Type *E_throw::itcheck_x(Env &env, Expression *&replacement)
+CType *E_throw::itcheck_x(Env &env, Expression *&replacement)
 {
   if (expr) {
     expr->tcheck(env, expr);
@@ -8506,7 +8506,7 @@ Type *E_throw::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-Type *E_keywordCast::itcheck_x(Env &env, Expression *&replacement)
+CType *E_keywordCast::itcheck_x(Env &env, Expression *&replacement)
 {
   if (env.lang.isCplusplus && hasTypeDefn(ctype)) {
     // 5.2.7p1: not allowed in dynamic_cast
@@ -8528,14 +8528,14 @@ Type *E_keywordCast::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-Type *E_typeidExpr::itcheck_x(Env &env, Expression *&replacement)
+CType *E_typeidExpr::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
   return env.type_info_const_ref();
 }
 
 
-Type *E_typeidType::itcheck_x(Env &env, Expression *&replacement)
+CType *E_typeidType::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc(DF_NONE, DC_E_TYPEIDTYPE);
   ttype = ttype->tcheck(env, tc);
@@ -8543,13 +8543,13 @@ Type *E_typeidType::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-Type *E_grouping::itcheck_x(Env &env, Expression *&replacement)
+CType *E_grouping::itcheck_x(Env &env, Expression *&replacement)
 {
   LookupSet dummy;
   return itcheck_grouping_set(env, replacement, LF_NONE, dummy);
 }
 
-Type *E_grouping::itcheck_grouping_set(Env &env, Expression *&replacement,
+CType *E_grouping::itcheck_grouping_set(Env &env, Expression *&replacement,
                                        LookupFlags flags, LookupSet &set)
 {
   tcheckExpression_set(env, expr, flags, set);
@@ -8713,7 +8713,7 @@ bool Expression::extHasUnparenthesizedGT()
 
 // can 0 be cast to 't' and still be regarded as a null pointer
 // constant?
-bool allowableNullPtrCastDest(CCLang &lang, Type *t)
+bool allowableNullPtrCastDest(CCLang &lang, CType *t)
 {
   // C++ (4.10, 5.19)
   if (t->isIntegerType() || t->isEnumType()) {
@@ -8772,7 +8772,7 @@ void FullExpression::tcheck(Env &env)
 // ExpressionListOpt
 
 // ----------------------- Initializer --------------------
-void IN_expr::tcheck(Env &env, Type *target)
+void IN_expr::tcheck(Env &env, CType *target)
 {
   // TODO: check the initializer for compatibility with 'target'
 
@@ -8783,7 +8783,7 @@ void IN_expr::tcheck(Env &env, Type *target)
 
 
 // initialize 'type' with expressions drawn from 'initIter'
-void initializeAggregate(Env &env, Type *type,
+void initializeAggregate(Env &env, CType *type,
                          ASTListIterNC<Initializer> &initIter)
 {
   if (initIter.isDone()) {
@@ -8860,7 +8860,7 @@ void initializeAggregate(Env &env, Type *type,
 }
 
 
-void IN_compound::tcheck(Env &env, Type *type)
+void IN_compound::tcheck(Env &env, CType *type)
 {
   // NOTE: I ignore the FullExpressionAnnot *annot
 
@@ -8889,7 +8889,7 @@ void IN_compound::tcheck(Env &env, Type *type)
 }
 
 
-void IN_ctor::tcheck(Env &env, Type *destType)
+void IN_ctor::tcheck(Env &env, CType *destType)
 {
   // check argument expressions
   ArgumentInfoArray argInfo(args->count() + 1);
@@ -8901,7 +8901,7 @@ void IN_ctor::tcheck(Env &env, Type *destType)
   // source to the dest
   if (was_IN_expr) {
     Expression *src = args->first()->expr;
-    Type *srcType = src->type;
+    CType *srcType = src->type;
     if (srcType->isCompoundType() &&
         destType->isCompoundType() &&
         srcType->asCompoundType()->hasBaseClass(destType->asCompoundType())) {
@@ -9207,7 +9207,7 @@ void TA_type::itcheck(Env &env, STemplateArgument &sarg)
   ASTTypeId::Tcheck tc(DF_NONE, DC_TA_TYPE);
   type = type->tcheck(env, tc);
 
-  Type *t = type->getType();
+  CType *t = type->getType();
   sarg.setType(t);
 }
 

@@ -15,7 +15,7 @@
 // fwds
 class Env;
 class Variable;
-class Type;
+class CType;
 class ErrorList;
 class TemplCandidates;
 
@@ -58,7 +58,7 @@ ostream &overloadTrace();
 class ArgumentInfo {
 public:
   SpecialExpr special;          // whether it's a special expression
-  Type *type;                   // type of argument
+  CType *type;                   // type of argument
 
   // NOTE: 'type' may be NULL if the argument corresponds to a
   // receiver object but the function being invoked might be static
@@ -73,7 +73,7 @@ public:
 public:
   ArgumentInfo()
     : special(SE_NONE), type(NULL), overloadSet() {}
-  ArgumentInfo(SpecialExpr s, Type *t)
+  ArgumentInfo(SpecialExpr s, CType *t)
     : special(s), type(t), overloadSet() {}
   ArgumentInfo(LookupSet &set)
     : special(SE_NONE), type(NULL), overloadSet(set) {}
@@ -152,7 +152,7 @@ public:      // data
   // when non-NULL, this indicates the type of the expression
   // that is being copy-initialized, and plays a role in selecting
   // the best function (13.3.3, final bullet)
-  Type *finalDestType;
+  CType *finalDestType;
 
   // when true, the lack of any viable candidates is *not*
   // an error
@@ -200,7 +200,7 @@ public:      // funcs
   // look up and process operator candidate functions, given the
   // types of the arguments and the name of the operator
   void addUserOperatorCandidates
-    (Type * /*nullable*/ lhsType, Type * /*nullable*/ rhsType, StringRef opName);
+    (CType * /*nullable*/ lhsType, CType * /*nullable*/ rhsType, StringRef opName);
 
   // instantiate built-in candidates
   void addBuiltinUnaryCandidates(OverloadableOp op);
@@ -218,7 +218,7 @@ public:      // funcs
   Candidate const * /*serf*/ resolveCandidate(bool &wasAmbig);
   
   // determine the return value of a candidate
-  Type *getReturnType(Candidate const *winner) const;
+  CType *getReturnType(Candidate const *winner) const;
 };
 
 
@@ -260,8 +260,8 @@ ImplicitConversion getConversionOperator(
   Env &env,
   SourceLoc loc,
   ErrorList * /*nullable*/ errors,
-  Type *srcClassType,      // must be a compound (or reference to one)
-  Type *destType
+  CType *srcClassType,      // must be a compound (or reference to one)
+  CType *destType
 );
 
 
@@ -280,13 +280,13 @@ ImplicitConversion getConversionOperator(
 // it might not actually be the the LUB.  This doesn't cause a problem
 // in my design because the output of computeLUB is always filtered to
 // ignore types that aren't one of those that work.
-Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig);
+CType *computeLUB(Env &env, CType *t1, CType *t2, bool &wasAmbig);
 
 // test vector for 'computeLUB'; code:
 //   0=fail
 //   1=success, should match 'answer'
 //   2=ambiguous
-void test_computeLUB(Env &env, Type *t1, Type *t2, Type *answer, int code);
+void test_computeLUB(Env &env, CType *t1, CType *t2, CType *answer, int code);
 
 
 // When doing explicit instantiation of function templates, we collect

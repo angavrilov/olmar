@@ -805,7 +805,7 @@ bool STemplateArgument::isDependent() const
     // we don't (or shouldn't...) stack constructors on top of
     // ST_DEPENDENT, so just check at the top level
     //
-    // 8/10/04: I had simply been calling Type::isDependent, but that
+    // 8/10/04: I had simply been calling CType::isDependent, but that
     // answers yes for type variables.  In the context in which I'm
     // calling this, I am only interested in '<dependent>'.  I realize
     // this is a bit of a non-orthogonality, but the fix isn't clear
@@ -1254,7 +1254,7 @@ bool Env::inferTemplArgsFromFuncArgs
   // Tests: in/t0488.cc, in/t0570.cc.
 
   // first, seed the worklist with arg/param pairs
-  typedef pair<Type* /*type*/, Variable* /*param*/> TypeParamPair;
+  typedef pair<CType* /*type*/, Variable* /*param*/> TypeParamPair;
   ArrayStack<TypeParamPair> worklist(funcType->params.count());
   for (; !paramIter.isDone() && !argListIter.isDone();
        paramIter.adv(), argListIter.adv()) {
@@ -1283,8 +1283,8 @@ bool Env::inferTemplArgsFromFuncArgs
     for (int i=0; i < worklist.length(); i++) {
       Variable *param = worklist[i].second;
 
-      Type *argType = worklist[i].first;
-      Type *paramType = param->type;
+      CType *argType = worklist[i].first;
+      CType *paramType = param->type;
 
       // deduction does not take into account whether the argument
       // is an lvalue, which in my system would mean it has
@@ -1305,8 +1305,8 @@ bool Env::inferTemplArgsFromFuncArgs
         }
         else {
           // final bullet says to ignore cv qualifications, but I think
-          // match_Type is already doing that (probably too liberally,
-          // but fixing match_Type is not on the agenda right now)
+          // match_CType is already doing that (probably too liberally,
+          // but fixing match_CType is not on the agenda right now)
         }
       }
 
@@ -1363,7 +1363,7 @@ bool Env::inferTemplArgsFromFuncArgs
             // but MType does not currently support the needed
             // push and pop of bindings.  Therefore I will just note
             // the bugs and ignore them for now.
-            Type *t = env.makeType(sub->ct);    // leaked
+            CType *t = env.makeType(sub->ct);    // leaked
             if (match.matchTypeNC(t, paramType, mflags)) {
               argUnifies = true;
               break;
@@ -1612,7 +1612,7 @@ bool Env::insertTemplateArgBindings_oneParamList
       }
 
       // bind the type parameter to the type argument
-      Type *t = sarg? sarg->getType() : param->defaultParamType;
+      CType *t = sarg? sarg->getType() : param->defaultParamType;
       Variable *binding = makeVariable(param->loc, param->name, t, 
                                        DF_TYPEDEF | DF_TEMPL_PARAM | DF_BOUND_TPARAM);
       addVariableToScope(scope, binding);
@@ -1632,7 +1632,7 @@ bool Env::insertTemplateArgBindings_oneParamList
       // can const-eval the expression whenever it participates in
       // type determination; the type must be made 'const' so that
       // E_variable::constEval will believe it can evaluate it
-      Type *bindType = param->type->isReference()? 
+      CType *bindType = param->type->isReference()? 
         param->type :                 // reference: no need/desire to apply 'const'
         tfac.applyCVToType(param->loc, CV_CONST,    // non-reference: apply 'const'
                            param->type, NULL /*syntax*/);
@@ -2315,7 +2315,7 @@ Variable *Env::instantiateFunctionTemplate
 
   // compute the type of the instantiation by applying 'map' to
   // the templatized type
-  Type *instType = applyArgumentMapToType_helper(map, primary->type);
+  CType *instType = applyArgumentMapToType_helper(map, primary->type);
   if (!instType) {
     // caught XTypeDeduction
 
@@ -2623,7 +2623,7 @@ Variable *Env::instantiateClassTemplate
   instCT->parentScope = specCT->parentScope;
 
   // wrap the compound in a regular type
-  Type *instType = makeType(instCT);
+  CType *instType = makeType(instCT);
 
   // create the representative Variable
   inst = makeInstantiationVariable(spec, instType);
@@ -2827,7 +2827,7 @@ void Env::ensureClassBodyInstantiated(CompoundType *ct)
 void Env::instantiateTemplatesInParams(FunctionType *ft)
 {
   SFOREACH_OBJLIST(Variable, ft->params, iter) {
-    Type *paramType = iter.data()->type;
+    CType *paramType = iter.data()->type;
     if (paramType->asRval()->isCompoundType()) {
       ensureClassBodyInstantiated(paramType->asRval()->asCompoundType());
     }
@@ -2936,7 +2936,7 @@ void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr)
     }
   }
 
-  Type *rvalType = expr->type->asRval();
+  CType *rvalType = expr->type->asRval();
   if (rvalType->isIntegerType() ||
       rvalType->isBool() ||
       rvalType->isEnumType()) {
@@ -3687,19 +3687,19 @@ bool Env::mergeTemplateInfos(Variable *prior, TemplateInfo *dest,
 // parameters in a type.  'src' is the type containing references
 // to the parameters, 'map' binds parameters to arguments, and
 // the return value is the type with substitutions performed.
-Type *Env::applyArgumentMapToType(MType &map, Type *origSrc)
+CType *Env::applyArgumentMapToType(MType &map, CType *origSrc)
 {
   // my intent is to not modify 'origSrc', so I will use 'src', except
   // when I decide to return what I already have, in which case I will
   // use 'origSrc'
-  Type const *src = origSrc;
+  CType const *src = origSrc;
 
   switch (src->getTag()) {
     default: xfailure("bad tag");
 
-    case Type::T_ATOMIC: {
+    case CType::T_ATOMIC: {
       CVAtomicType const *scat = src->asCVAtomicTypeC();
-      Type *ret = applyArgumentMapToAtomicType(map, scat->atomic, scat->cv);
+      CType *ret = applyArgumentMapToAtomicType(map, scat->atomic, scat->cv);
       if (!ret) {
         return origSrc;      // use original
       }
@@ -3708,18 +3708,18 @@ Type *Env::applyArgumentMapToType(MType &map, Type *origSrc)
       }
     }
 
-    case Type::T_POINTER: {
+    case CType::T_POINTER: {
       PointerType const *spt = src->asPointerTypeC();
       return tfac.makePointerType(spt->cv,
         applyArgumentMapToType(map, spt->atType));
     }
 
-    case Type::T_REFERENCE: {
+    case CType::T_REFERENCE: {
       ReferenceType const *srt = src->asReferenceTypeC();
       return tfac.makeReferenceType(applyArgumentMapToType(map, srt->atType));
     }
 
-    case Type::T_FUNCTION: {
+    case CType::T_FUNCTION: {
       FunctionType const *sft = src->asFunctionTypeC();
       FunctionType *rft = tfac.makeFunctionType(applyArgumentMapToType(map, sft->retType));
 
@@ -3758,17 +3758,17 @@ Type *Env::applyArgumentMapToType(MType &map, Type *origSrc)
       return rft;
     }
 
-    case Type::T_ARRAY: {
+    case CType::T_ARRAY: {
       ArrayType const *sat = src->asArrayTypeC();
       return tfac.makeArrayType(applyArgumentMapToType(map, sat->eltType), sat->size);
     }
 
-    case Type::T_POINTERTOMEMBER: {
+    case CType::T_POINTERTOMEMBER: {
       PointerToMemberType const *spmt = src->asPointerToMemberTypeC();
       
       // slightly tricky mapping the 'inClassNAT' since we need to make
       // sure the mapped version is still a NamedAtomicType
-      Type *retInClassNAT =
+      CType *retInClassNAT =
         applyArgumentMapToAtomicType(map, spmt->inClassNAT, CV_NONE);
       if (!retInClassNAT) {
         // use original 'spmt->inClassNAT'
@@ -3793,7 +3793,7 @@ Type *Env::applyArgumentMapToType(MType &map, Type *origSrc)
   }
 }
 
-Type *Env::applyArgumentMapToAtomicType
+CType *Env::applyArgumentMapToAtomicType
   (MType &map, AtomicType *origSrc, CVFlags srcCV)
 {
   AtomicType const *src = origSrc;
@@ -3863,7 +3863,7 @@ Type *Env::applyArgumentMapToAtomicType
   }
 }
 
-Type *Env::applyArgumentMap_applyCV(CVFlags cv, Type *type)
+CType *Env::applyArgumentMap_applyCV(CVFlags cv, CType *type)
 {
   if (type->isReferenceType()) {
     // apparently, since 14.8.1p2 doesn't explicitly prohibit
@@ -3872,7 +3872,7 @@ Type *Env::applyArgumentMap_applyCV(CVFlags cv, Type *type)
     return type;
   }
 
-  Type *ret = tfac.applyCVToType(SL_UNKNOWN, cv,
+  CType *ret = tfac.applyCVToType(SL_UNKNOWN, cv,
                                  type, NULL /*syntax*/);
   if (!ret) {
     // 14.8.2p2b3.9
@@ -4161,7 +4161,7 @@ void Env::applyArgumentMap_ensureComplete(CompoundType *ct)
 // names of types and the latter for names of non-types.  However,
 // those tasks are not sufficiently different to warrant two
 // completely separate mechanisms.  Collapsing them is a TODO.
-Type *Env::applyArgumentMapToQualifiedType
+CType *Env::applyArgumentMapToQualifiedType
   (MType &map, CompoundType *ct, PQName *name)
 {
   applyArgumentMap_ensureComplete(ct);
@@ -4277,7 +4277,7 @@ Variable *Env::findInstantiation(TemplateInfo *tinfo,
 
 // make a Variable with type 'type' that will be an instantiation
 // of 'templ'
-Variable *Env::makeInstantiationVariable(Variable *templ, Type *instType)
+Variable *Env::makeInstantiationVariable(Variable *templ, CType *instType)
 {
   Variable *inst = makeVariable(templ->loc, templ->name, instType, templ->flags);
   inst->setAccess(templ->getAccess());
@@ -4334,7 +4334,7 @@ void Env::bindParametersInMap(MType &map,
 
 // given a CompoundType that is a template (primary or partial spec),
 // yield a PseudoInstantiation of that template with its own params
-Type *Env::pseudoSelfInstantiation(CompoundType *ct, CVFlags cv)
+CType *Env::pseudoSelfInstantiation(CompoundType *ct, CVFlags cv)
 {
   TemplateInfo *tinfo = ct->typedefVar->templateInfo();
   xassert(tinfo);     // otherwise why are we here?
@@ -4666,7 +4666,7 @@ void Env::explicitlyInstantiate(Variable *var, DeclFlags instFlags)
 // instantiation is returned.
 //
 // On error, an error message is emitted and NULL is returned.
-Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type,
+Variable *Env::explicitFunctionInstantiation(PQName *name, CType *type,
                                              DeclFlags instFlags)
 {
   if (!type->isFunctionType()) {

@@ -41,11 +41,13 @@
 verbatim {
   #include "cc_flags.h"         // CVFlags, DeclFlags, etc. (r)
   
+  #include "cc_ocaml.h"         // ocaml serialization helpers
+  
   class CCLang;                 // cc_lang.h
 }
 
 ocaml_type_verbatim {
-  open Cctypes;;
+  open Cc_ml_types;;
 }
 
 // use the newest astgen feature: serialize into ocaml

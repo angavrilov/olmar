@@ -776,7 +776,7 @@ CValue Expression::constEvalCast(ConstEval &env, ASTTypeId const *ctype,
     return ret;
   }
 
-  Type *t = ctype->getType();
+  CType *t = ctype->getType();
   if (t->isSimpleType()) {
     ret.convertToType(t->asSimpleTypeC()->type);
   }
