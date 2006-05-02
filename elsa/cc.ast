@@ -115,7 +115,7 @@ class TopForm (SourceLoc loc) {
   -> TF_asm(E_stringLit text);
   
   // namespace definition [cppstd 7.3.1]
-  -> TF_namespaceDefn(StringRef /*nullable*/ name, ASTList<TopForm> forms);
+  -> TF_namespaceDefn(nullable StringRef name, ASTList<TopForm> forms);
   
   // one of three namespace-related declarations that can occur
   // at toplevel or as a function statement
@@ -260,7 +260,7 @@ class PQName(SourceLoc loc) {
 
   // template instances: a template function or class name, plus
   // some template arguments
-  -> PQ_template(StringRef name, /*fakelist*/TemplateArgument templArgs);
+  -> PQ_template(StringRef name, nullable/*nonnull*//*fakelist*/TemplateArgument templArgs);
 }
 
 
@@ -301,15 +301,15 @@ class TypeSpecifier(SourceLoc loc) {
        //   - it could be a definition or specialization of a class
        //     declared in another namespace
        // See cppstd 14.5.4 para 6 for an example of both at once.
-       PQName /*nullable*/ name,
+       nullable PQName name,
 
        FakeList<BaseClassSpec> *bases,       // base classes
        MemberList members                    // field and methods of the class
      );
 
   -> TS_enumSpec(                          // "enum { ... }"
-       StringRef /*nullable*/ name,          // name of enum, if any
-       FakeList<Enumerator> *elts            // elements of the enumeration
+       nullable StringRef name,            // name of enum, if any
+       FakeList<Enumerator> *elts          // elements of the enumeration
      );
 }
 
@@ -424,14 +424,14 @@ class IDeclarator(SourceLoc loc) {
             nullable ExceptionSpec exnSpec);        // throwable exceptions
 
   // "a[5]" or "b[]"
-  -> D_array(IDeclarator base, Expression /*nullable*/ size);
+  -> D_array(IDeclarator base, nullable Expression size);
 
   // "c : 2"
   //
   // I use a PQName here instead of a StringRef for uniformity
   // (so every IDeclarator ends with a PQName); there are never
   // qualifiers on a bitfield name
-  -> D_bitfield(PQName /*nullable*/ name, Expression bits);
+  -> D_bitfield(nullable PQName name, Expression bits);
 
   // "X::*p"
   -> D_ptrToMember(PQName nestedName, CVFlags cv, IDeclarator base);
@@ -590,7 +590,7 @@ class Expression {
   // by making a continuation list
   -> E_intLit(StringRef text);
   -> E_floatLit(StringRef text);
-  -> E_stringLit(StringRef text, E_stringLit continuation = NULL);
+  -> E_stringLit(StringRef text, nullable /*nonnull*/ E_stringLit continuation = NULL);
   -> E_charLit(StringRef text);
 
   // reference to 'this', the address of the receiver object
@@ -635,7 +635,7 @@ class Expression {
 
   -> E_delete(bool colonColon,                     // true if "::" preceeds "delete"
               bool array,                          // true if "[]" follows "delete"
-              Expression expr);                    // address of obj to deallocate
+              nullable /*nonnull*/ Expression expr); // address of obj to deallocate
 
   -> E_throw(nullable Expression expr);
 
@@ -729,7 +729,7 @@ class Initializer (SourceLoc loc) {
 
 // ------------------- templates -------------------
 // wrap some template parameters on a declaration or function
-class TemplateDeclaration (/*fakelist*/TemplateParameter params) {
+class TemplateDeclaration (nullable /*nonnull*//*fakelist*/TemplateParameter params) {
   // define a template function
   -> TD_func(Function f);
 
@@ -743,7 +743,7 @@ class TemplateDeclaration (/*fakelist*/TemplateParameter params) {
 }
 
 // one of the parameters to a template declaration
-class TemplateParameter (SourceLoc loc)(TemplateParameter /*nullable*/ next) {
+class TemplateParameter (SourceLoc loc)(nullable TemplateParameter next) {
   // true if this parameter has a default arg
   pure_virtual bool hasDefaultArg() const;
 
@@ -765,7 +765,7 @@ class TemplateParameter (SourceLoc loc)(TemplateParameter /*nullable*/ next) {
   // will use to refer to the actual argument type; when present,
   // 'defaultType' provides a default argument
   -> TP_type(StringRef /*nullable*/ name,
-             ASTTypeId /*nullable*/ defaultType);
+             nullable ASTTypeId defaultType);
 
   // non-type paramters
   -> TP_nontype(ASTTypeId param);
@@ -778,7 +778,7 @@ verbatim {
 
 
 // one of the arguments to a template instantiation
-class TemplateArgument(/*first*/)(/*last*/ TemplateArgument next) {
+class TemplateArgument(/*first*/)(/*last*/ nullable /*nonnull*/ TemplateArgument next) {
   // NOTE: At one point TemplateArguments were connected with a
   // FakeList, but it turns out that interacts badly with failing
   // parses (in/t0179.cc), and the fix is to use ASTLists instead.

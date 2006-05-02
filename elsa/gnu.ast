@@ -185,7 +185,7 @@ class Designator (SourceLoc loc) {
   -> FieldDesignator(StringRef id);
 
   -> SubscriptDesignator(Expression idx_expr, // taken from D_array
-                         Expression /*nullable*/ idx_expr2)
+                         nullable Expression idx_expr2)
   {
     public(xml) int idx_computed  = INT_MIN; // index computed at compile time
     public(xml) int idx_computed2 = INT_MIN; // index range end computed at compile time

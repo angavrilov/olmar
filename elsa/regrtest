@@ -113,6 +113,11 @@ MAKE=${MAKE:-make}
 logfile=regrtest.log
 rm -f $logfile
 
+# Ocaml trace option
+if [ $checkocaml = 1 ] ; then
+    export TRACE=marshallToOcaml
+fi
+
 # write something to terminal and log
 log() {
   echo "$@"
@@ -228,11 +233,7 @@ grepBoth() {
 # or change to 'fail' status those tests that are not working at
 # some given time
 testparse() {
-  if [ $checkocaml = 1 ] ; then
-    runTest perl ./multitest.pl ./ccparse -tr marshallToOcaml in/$1
-  else
-    runTest perl ./multitest.pl ./ccparse in/$1
-  fi
+  runTest perl ./multitest.pl ./ccparse in/$1
 }
 testparse_strict() {
   # this is for tests that include things that should be diagnosed

@@ -1,3 +1,10 @@
+2006-05-03  Hendrik Tews  <tews@ithif59.inf.tu-dresden.de>
+
+	ELSA:
+	* use TRACE env var in regrtest 
+	* add another 13 nullable's
+	* regression test pass now with ocaml serialization !!
+
 2006-05-03  Hendrik Tews  <tews@debian>
 
 	AST:
