@@ -122,10 +122,6 @@ public:      // types
     // see if their names happen to be aliases in the filesystem
     string name;
 
-    // the file that we deserialized, as opposed to the name of the file that
-    // was originally parsed; may be equal to name
-    string archiveName;
-
     // start offset in the SourceLoc space
     SourceLoc startLoc;
 
@@ -188,7 +184,7 @@ public:      // types
     // this builds both the array and the index
     File(char const *name, SourceLoc startLoc);
     // used when de-serializing from xml
-    File(FileData *fileData, SourceLoc aStartLoc, const char *archiveName);
+    File(FileData *fileData, SourceLoc aStartLoc);
     ~File();
 
     // line number to character offset
@@ -371,8 +367,6 @@ public:      // funcs
   File *getInternalFile(char const *fname)
     { return getFile(fname); }
 
-  char const *getArchive(char const *fname);
-
   // render as string in "file:line:col" format
   string getString(SourceLoc loc);
 
@@ -396,7 +390,7 @@ public:      // funcs
   // idea is that the method name suggests that people not use it
   ObjList<File> &serializationOnly_get_files() {return files;}
   // for de-serializing from xml a single File and loading it into the SourceLocManager
-  void loadFile(FileData *fileData, const char *archiveName=NULL);
+  void loadFile(FileData *fileData);
   // has this file been loaded?
   bool isLoaded(char const *name) { return findFile(name); }
 };
