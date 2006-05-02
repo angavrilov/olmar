@@ -125,9 +125,8 @@ protected:
   VoidTailListIter iter;      // underlying iterator
 
 public:
+  ASTListIterNC()                      {} // initially done
   ASTListIterNC(ASTList<T> &list)      : iter(list.list) {}
-  // constructor that accepts NULL pointers
-  ASTListIterNC(ASTList<T> *list, bool) : iter(list?&(list->list):NULL, 0) {}
   ~ASTListIterNC()                     {}
 
   void reset(ASTList<T> &list)         { iter.reset(list.list); }
