@@ -10,7 +10,8 @@
 // though they don't have much to do with the Owner class.
 #define owner /*nothing*/
 #define serf /*nothing*/
-#define nullable /*nothing*/
+// HT: I want to use nullable as a field!
+// #define nullable /*nothing*/
 
 #ifdef DEBUG_OWNER
   #include <stdio.h>    // printf, temporary

@@ -227,8 +227,8 @@ class PQName(SourceLoc loc) {
 
   // outer qualifier applied to some inner PQName, plus an optional
   // list of template arguments to the qualifier
-  -> PQ_qualifier(StringRef /*nullable*/qualifier,
-                  /*fakelist*/TemplateArgument templArgs,
+  -> PQ_qualifier(nullable StringRef qualifier,
+                  nullable /*nonnull*//*fakelist*/TemplateArgument templArgs,
                   PQName rest)
      {
        // PQNames can be ambiguous; e.g., in/t0455.cc.  However, the
@@ -324,7 +324,7 @@ class BaseClassSpec (
 class Enumerator (
   SourceLoc loc,                        // location
   StringRef name,                       // name of this constant
-  Expression /*nullable*/ expr          // constant expr, or NULL for "next"
+  nullable Expression expr              // constant expr, or NULL for "next"
 ) {
   public Enumerator *next=NULL;     // FakeList link
 }
@@ -350,7 +350,7 @@ class Member (SourceLoc loc) {
 // the context.
 class Declarator (
   IDeclarator decl,                    // syntax of type designation
-  Initializer init                     // (nullable) optional data initializer
+  nullable Initializer init            // optional data initializer
 ) {
   // FakeList link; use 'setNext' to set 'next'
   public Declarator *next = NULL;
@@ -406,7 +406,7 @@ class IDeclarator(SourceLoc loc) {
   // "x" (NULL means abstract declarator or anonymous parameter);
   // this is used for ctors and dtors as well as ordinary names
   // (dtor names start with "~"); it's also used for operator names
-  -> D_name(PQName /*nullable*/ name);
+  -> D_name(nullable PQName name);
 
   // "*x" (as in "int *x")
   -> D_pointer(CVFlags cv,  // optional qualifiers applied to ptr type
@@ -419,7 +419,7 @@ class IDeclarator(SourceLoc loc) {
   -> D_func(IDeclarator base,                       // D_name of function, typically
             FakeList<ASTTypeId> *params,            // params with optional default values
             CVFlags cv,                             // optional "const" for member functions
-            ExceptionSpec /*nullable*/ exnSpec);    // throwable exceptions
+            nullable ExceptionSpec exnSpec);        // throwable exceptions
 
   // "a[5]" or "b[]"
   -> D_array(IDeclarator base, Expression /*nullable*/ size);
@@ -497,7 +497,7 @@ class Statement (SourceLoc loc) {
            FullExpression after, Statement body);
   -> S_break();
   -> S_continue();
-  -> S_return(FullExpression /*nullable*/ expr);
+  -> S_return(nullable FullExpression expr);
   -> S_goto(StringRef target);
   -> S_decl(Declaration decl);
   -> S_try(Statement body, FakeList<Handler> *handlers);
@@ -629,13 +629,13 @@ class Expression {
   -> E_new(bool colonColon,                        // true if "::" preceeds "new"
            FakeList<ArgExpression> *placementArgs, // arguments to placement-new (empty/NULL if no placement syntax)
            ASTTypeId atype,                        // type to allocate
-           ArgExpressionListOpt ctorArgs);         // arguments to type's constructor (NULL if no ctor call syntax)
+           nullable ArgExpressionListOpt ctorArgs); // arguments to type's constructor (NULL if no ctor call syntax)
 
   -> E_delete(bool colonColon,                     // true if "::" preceeds "delete"
               bool array,                          // true if "[]" follows "delete"
               Expression expr);                    // address of obj to deallocate
 
-  -> E_throw(Expression /*nullable*/ expr);
+  -> E_throw(nullable Expression expr);
 
   -> E_keywordCast(CastKeyword key,              // dynamic_cast, static_cast, etc.
                    ASTTypeId ctype,              // type to cast to

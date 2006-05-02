@@ -29,6 +29,11 @@ public:
   ToOcamlData() : stack() {};
 };
 
+const value Val_None = Val_int(0);
+
+// hand written ocaml serialization function
+value option_some_constr(value v);
+
 // hand written ocaml serialization function
 inline
 value ocaml_from_cstring(const char * s, ToOcamlData *d){

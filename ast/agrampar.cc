@@ -38,16 +38,31 @@ string *appendStr(string *left, string *right)
 
 CtorArg *parseCtorArg(rostring origStr)
 {
-  CtorArg *ret = new CtorArg(false, "", "", "");
+  CtorArg *ret = new CtorArg(false, false, "", "", "");
 
   // strip leading and trailing whitespace
   string str = trimWhitespace(origStr);
 
-  // check for owner flag
-  if (prefixEquals(str, "owner")) {
-    ret->isOwner = true;
-    str = str.substring(6, str.length() - 6);    // skip "owner "
-  }
+  // check for owner & nullable flags
+  bool maybe_owner = true;
+  bool maybe_nullable = true;
+  do {
+    if(maybe_owner && prefixEquals(str, "owner")) {
+      ret->isOwner = true;
+      maybe_owner = false;
+      str = trimWhitespace(str.substring(5, str.length() - 5)); // skip "owner "
+    }
+    else if(maybe_nullable && prefixEquals(str, "nullable")) {
+      ret->nullable = true;
+      maybe_nullable = false;
+      str = trimWhitespace(str.substring(8, str.length() - 8)); // skip nullable
+    }
+    else {
+      // no flags found
+      maybe_owner = maybe_nullable = false;
+    }
+      
+  } while(maybe_owner || maybe_nullable);
 
   // check for an initial value
   char const *equals = strchr(str.c_str(), '=');

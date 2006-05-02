@@ -416,6 +416,7 @@ private:        // funcs
 		    bool ocaml_val_init);
   void passParentCtorArgs(int &ct, ASTList<CtorArg> const &args);
   void initializeMyCtorArgs(int &ct, ASTList<CtorArg> const &args);
+  void assertNonNullCtorArgs(ASTList<CtorArg> const & args);
   void emitCommonFuncs(rostring virt, bool hasChildren);
   void emitUserDecls(ASTList<Annotation> const &decls);
   void emitCtor(ASTClass const &ctor, ASTClass const &parent);
@@ -828,8 +829,19 @@ void HGen::emitCtorDefn(ASTClass const &cls, ASTClass const *parent,
       }
     }
 
-    // insert user's ctor code
+    // start constructor body
     out << " {\n";
+
+    // // assert non-nullable arguments
+    // if (parent) {
+    //   assertNonNullCtorArgs(parent->args);
+    //   assertNonNullCtorArgs(parent->lastArgs);
+    // }
+    // assertNonNullCtorArgs(cls.args);
+    // assertNonNullCtorArgs(cls.lastArgs);
+    
+
+    // insert user's ctor code
     emitFiltered(cls.decls, AC_CTOR, "    ");
     out << "  }\n";
   }
@@ -858,6 +870,24 @@ void HGen::initializeMyCtorArgs(int &ct, ASTList<CtorArg> const &args)
 
     // initialize the field with the formal argument
     out << arg.data()->name << "(_" << arg.data()->name << ")";
+  }
+}
+
+
+bool ctor_uses_option(const CtorArg * arg) {
+  return arg->nullable && (isTreeNode(arg->type) || isPtrKind(arg->type));
+}
+
+bool ctor_non_null_assert(const CtorArg * arg) {
+  return (!arg->nullable) && (isTreeNode(arg->type) || isPtrKind(arg->type));
+}
+
+void HGen::assertNonNullCtorArgs(ASTList<CtorArg> const & args) {
+  FOREACH_ASTLIST(CtorArg, args, iter) {
+    const CtorArg * arg = iter.data();
+    if(ctor_non_null_assert(arg)) {
+      out << "  xassert(" << arg->name << ");\n";
+    }
   }
 }
 
@@ -1746,10 +1776,17 @@ void CGen::emitToOcamlChilds(const string & cl_name,
 			     const ASTList<CtorArg> & args, unsigned & count) {
   FOREACH_ASTLIST(CtorArg, args, iter) {
     const CtorArg * arg = iter.data();
-    out << "  child[" << count++ << "] = ";
-
+    bool use_option = ctor_uses_option(arg);
+    if(use_option) {
+      out << "  if(" << arg->name << ") {\n"
+	  << "    child[" << count << "] = option_some_constr(";
+    }
+    else {
+      out << "  child[" << count << "] = ";
+    }
+    
     if(isTreeNode(arg->type)) {
-      out << arg->name << "->toOcaml(data);\n";
+      out << arg->name << "->toOcaml(data)";
     }
     else {
       out << ocaml_from_function(arg->type) << "(";
@@ -1758,8 +1795,20 @@ void CGen::emitToOcamlChilds(const string & cl_name,
 	// treat only one level of pointers
 	xassert(!isPtrKind(getPtrBase(arg->type)));
       }
-      out << arg->name << ", data);\n";
+      out << arg->name << ", data)";
     }
+
+    if(use_option) {
+      out << ");\n"
+	  << "  }\n"
+	  << "  else {\n"
+	  << "    child[" << count << "] = Val_None;\n"
+	  << "  }\n";
+    }
+    else {
+      out << ";\n";
+    }
+    count++;
   }
 }
 
@@ -3343,6 +3392,8 @@ public:		// funcs
 
   void emitVerbatim(TF_ocaml_type_verbatim const *v);
   void emitType(TF_class const *c, bool * first_type);
+  void ocaml_arg_list(const ASTList<CtorArg> & al, bool & first, 
+		      const string & first_string);
   void emitConstructorCallbacks(TF_class const *cl);
   void emitRegisterCallbacks();
   void emitFile();
@@ -3411,6 +3462,26 @@ void OTGen::ocaml_type(string type){
 }
 
 
+void OTGen::ocaml_arg_list(const ASTList<CtorArg> & al, bool & first, 
+			   const string & first_string) {
+  FOREACH_ASTLIST(CtorArg, al, iter) {
+    const CtorArg * arg = iter.data();
+    if (first) {
+      out << first_string;
+      first = false;
+    }
+    else {
+      out << "* ";
+    }
+    ocaml_type(arg->type);
+    if (ctor_uses_option(arg)) {
+      out << " option";
+    }
+    out << " ";
+  }
+}
+
+// emit a type definition for the argument class
 void OTGen::emitType(TF_class const *c, bool * first_type) {
   if (*first_type) {
     out << "type ";
@@ -3422,8 +3493,8 @@ void OTGen::emitType(TF_class const *c, bool * first_type) {
   ocaml_type(c->super->name);
   out << " = ";
 
-  ASTList<CtorArg> *super_args = &c->super->args;
-  ASTList<CtorArg> *super_last_args = &c->super->lastArgs;
+  const ASTList<CtorArg> &super_args = c->super->args;
+  const ASTList<CtorArg> &super_last_args = c->super->lastArgs;
 
   if (c->hasChildren()) {
     out << endl;
@@ -3433,78 +3504,43 @@ void OTGen::emitType(TF_class const *c, bool * first_type) {
       
       // output ctor arguments if there are any
       xassert(ctor->lastArgs.isEmpty());
-      if(super_args->isNotEmpty() || ctor->args.isNotEmpty() 
-	 || super_last_args->isNotEmpty()) 
-	{
-	  bool not_first = false;
-	  out << " of ";
-	  FOREACH_ASTLIST(CtorArg, *super_args, arg) {
-	    if (not_first)
-	      out << "* ";
-	    else
-	      not_first = true;
-	    ocaml_type(arg.data()->type);
-	    out << " ";
-	  }
-	  
-	  FOREACH_ASTLIST(CtorArg, ctor->args, arg) {
-	    if (not_first)
-	      out << "* ";
-	    else
-	      not_first = true;
-	    ocaml_type(arg.data()->type);
-	    out << " ";
-	  }
 
-	  FOREACH_ASTLIST(CtorArg, *super_last_args, arg) {
-	    if (not_first)
-	      out << "* ";
-	    else
-	      not_first = true;
-	    ocaml_type(arg.data()->type);
-	    out << " ";
-	  }
-	}
+      bool first = true;
+      string first_string = " of ";
+      ocaml_arg_list(super_args, first, first_string);
+      ocaml_arg_list(ctor->args, first, first_string);
+      ocaml_arg_list(super_last_args, first, first_string);
+
       out << endl;
     }
     out << endl;
   }
   else { // c has no children, make it a type equation
-    if(super_args->isNotEmpty() || super_last_args->isNotEmpty()) {
-      bool cyclic = is_cyclic(c->super);
-      bool not_first = false;
+    bool cyclic = is_cyclic(c->super);
+    string first_string;
 
-      if (cyclic) {
-	out << endl;
-	out << "  | " << ocaml_type_constructor(c->super->name) << " of ";
-      }
-
-      FOREACH_ASTLIST(CtorArg, *super_args, arg) {
-	if (not_first)
-	  out << "* ";
-	else
-	  not_first = true;
-	ocaml_type(arg.data()->type);
-	out << " ";
-      }
-      
-      FOREACH_ASTLIST(CtorArg, *super_last_args, arg) {
-	if (not_first)
-	  out << "* ";
-	else
-	  not_first = true;
-	ocaml_type(arg.data()->type);
-	out << " ";
-      }
+    if (cyclic) {
+      out << endl;
+      out << "  | " << ocaml_type_constructor(c->super->name);
+      first_string = " of ";
     }
-    else { // no children, no arguments
-      cout << " = unit";
+    else {
+      first_string = "";
+    }
+
+    bool first = true;
+    ocaml_arg_list(super_args, first, first_string);
+    ocaml_arg_list(super_last_args, first, first_string);
+    if (first) {
+      // no children, no arguments
+      out << "unit";
     }
     out << endl << endl;
   }
 }
 
 
+// emit a callback for each constructor
 void OTGen::emitConstructorCallbacks(TF_class const *cl)
 {
   topicComment(string("callbacks for ") & cl->super->name);
@@ -3572,6 +3608,7 @@ void OTGen::emitConstructorCallbacks(TF_class const *cl)
   }
 }
 
+// emit the callback registration function
 void OTGen::emitRegisterCallbacks()
 {
   topicComment("Register callbacks");

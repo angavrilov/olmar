@@ -76,3 +76,7 @@ astxml_lexer1_type.lex
 astxml_tokens1_type.h
 save
 bigin
+*.cmi
+*.cmo
+cc_ast_gen_ml.ml
+quickocamltest

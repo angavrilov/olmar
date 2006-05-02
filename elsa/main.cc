@@ -819,17 +819,17 @@ void doit(int argc, char **argv)
     ToOcamlData ocaml_data;
 
     if (!caml_start_up_done){
-      cout << "Initialize ocaml subsystem\n" << flush;
+      // cout << "Initialize ocaml subsystem\n" << flush;
       caml_startup(argv);
       static value * register_closure =
 	caml_named_value("register_caml_callbacks");
       xassert(register_closure);
       caml_callback(*register_closure, Val_unit);
-      cout << "Ocaml initialized\n";
+      // cout << "Ocaml initialized\n";
     }
-    cout << "Marshall to ocaml\n" << flush;
+    // cout << "Marshall to ocaml\n" << flush;
     unit->toOcaml(&ocaml_data);
-    cout << "marshalled\n";
+    // cout << "marshalled\n";
   }
 
   // dsw: xml printing of the lowered ast

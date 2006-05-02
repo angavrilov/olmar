@@ -159,13 +159,13 @@ let declFlag_from_int32 flags =
   in
   let res = doit 0 []
   in
-    Printf.eprintf "declFlag_from_int32 start\n%!";
+    (* Printf.eprintf "declFlag_from_int32 start\n%!"; *)
     assert(List.for_all
 	     (function 
 		| DF_unused -> false
 		| _ -> true)
 	     res);
-    Printf.eprintf "declFlag_from_int32 end\n%!";
+    (* Printf.eprintf "declFlag_from_int32 end\n%!"; *)
     res
 	  
   
@@ -1050,12 +1050,14 @@ let register_CK_callbacks () =
 let register_cc_ml_types_callbacks () =
   Callback.register "declFlag_from_int32" declFlag_from_int32;
   Callback.register "cVFlag_from_int32" cVFlag_from_int32;
+  register_ST_callbacks();
+  register_TI_callbacks();
+  register_AK_callbacks();
   register_OP_callbacks();
   register_UNY_callbacks();
   register_EFF_callbacks();
   register_BIN_callbacks();
   register_CK_callbacks();
-  register_ST_callbacks();
   ()
 
 

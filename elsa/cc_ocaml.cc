@@ -21,7 +21,7 @@ value ocaml_from_CType(const CType &, ToOcamlData *){
 value ocaml_from_SourceLoc(const SourceLoc &loc, ToOcamlData *d){
   CAMLparam0();
   CAMLlocal2(val_s, result);
-  cout << "SourceLoc start marshal\n" << flush;
+  // cout << "SourceLoc start marshal\n" << flush;
   
   char const *name;
   int line, col;
@@ -33,7 +33,7 @@ value ocaml_from_SourceLoc(const SourceLoc &loc, ToOcamlData *d){
   Store_field(result, 1, Val_int(line));
   Store_field(result, 2, Val_int(col));
 
-  cout << "SourceLoc end marshal\n" << flush;
+  // cout << "SourceLoc end marshal\n" << flush;
   CAMLreturn(result);
 }
 
@@ -43,7 +43,7 @@ value ocaml_from_SourceLoc(const SourceLoc &loc, ToOcamlData *d){
 value ocaml_from_DeclFlags(const DeclFlags &f, ToOcamlData *d){
   CAMLparam0();
   CAMLlocal1(result);
-  cout << "DeclFlags start marshal\n" << flush;
+  // cout << "DeclFlags start marshal\n" << flush;
 
   static value * declFlag_from_int32_closure = NULL;
   if(declFlag_from_int32_closure == NULL)
@@ -52,7 +52,7 @@ value ocaml_from_DeclFlags(const DeclFlags &f, ToOcamlData *d){
 
   result = caml_callback(*declFlag_from_int32_closure, caml_copy_int32(f));
 
-  cout << "DeclFlags end marshal\n" << flush;
+  // cout << "DeclFlags end marshal\n" << flush;
   CAMLreturn(result);
 }
 

@@ -2,12 +2,13 @@
 # see license.txt for copyright and terms of use
 
 # main targets
-all: ccsstr astgen libast.a example.o ext1.o
+all: ccsstr astgen libast.a example.o ext1.o ocamlhelp.o
 
 
 # directories of other software
 SMBASE := @SMBASE@
 LIBSMBASE := $(SMBASE)/libsmbase.a
+OCAMLDIR := @OCAMLDIR@
 
 # external tools
 PERL := @PERL@
@@ -36,6 +37,10 @@ RANLIB := ranlib
 # compile .cc to .o
 %.o: %.cc
 	$(CXX) -c -o $@ $< $(CCFLAGS)
+	@perl $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) > $*.d
+
+ocamlhelp.o: ocamlhelp.cc
+	$(CXX) -c -o $@ $< $(CCFLAGS) -I $(OCAMLDIR)
 	@perl $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) > $*.d
 
 
@@ -193,5 +198,6 @@ towner: owner.h towner.o
 TAGS:
 	etags --members \
 		`find . ../smbase -name \*.h` \
+		`find . ../smbase -name \*.cpp` \
 		`find . ../smbase -name \*.cc`
 

@@ -1,3 +1,29 @@
+2006-05-02  Hendrik Tews  <tews@penguin.cs.kun.nl>
+
+	SMBASE:
+	* deleted to nullable define
+	
+	AST: 
+	* added nullable flag to contructor arguments
+	  + ast syntax: astclass(nullable ... )
+	  + checked for in parseCtorArg (together with owner)
+	* ocaml marshalling translates nullable into option types
+	* assertion checks for nullable fields in constructors are
+	  disabled for the moment (seems some fields are filled in later)
+	* astgen: new assertNonNullCtorArgs to emit assertion checks in
+	  constructors (not used at the moment)
+	* astgen: new ocaml_arg_list simplifies code for marshalling
+	  childs
+	* configure detects ocaml (for ocamlhelp.cc)
+	* added option_some_constr for (Some x) to ocamlhelp.{h,cc}
+
+	ELSA:
+	* successfully run regression tests
+	* added -ocaml option to regrtest to run test with ocaml
+	  marshalling
+	* started nullable debugging with regrtest -ocaml (9 nullable
+	  added so far, one undocumented)
+
 2006-05-01  Hendrik Tews  <tews@penguin.cs.kun.nl>
 
 	* renamed Type into CType

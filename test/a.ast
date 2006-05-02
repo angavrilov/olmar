@@ -2,14 +2,14 @@ ocaml_type_verbatim {
   open Atypes;;
 }
 
-class A(int id){
-  -> A_B(B b){
+class A(int id, C a_c){
+  -> A_B(nullable B b){
   }
 
   -> A_C(ASTList<C> cl);
 }
 
-class B(int id, StringRef b_string);
+class B(int id, StringRef b_string, nullable C b_c);
 
 
 class C{

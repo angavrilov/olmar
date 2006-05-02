@@ -271,11 +271,15 @@ cc_ast_gen_ml.ml: cc.ast.gen.ml
 ml_object.o: $(CCPARSE_ML:.ml=.cmo) 
 	$(OCAMLC) -custom -output-obj -o $@ $^
 
+../ast/ocamlhelp.o: ../ast/ocamlhelp.cc ../ast/ocamlhelp.h
+	$(MAKE) -C ../ast ocamlhelp.o
+
 
 # list of modules needed for the parser; ideally they're in an order
 # that finds serious compilation problems earliest (it's ok to
 # rearrange as different parts of the code are in flux)
 CCPARSE_OBJS := \
+  ../ast/ocamlhelp.o \
   ml_object.o \
   cc.ast.gen.o \
   cc_ocaml.o \
@@ -343,7 +347,7 @@ quickocamltest: ccparse
 # -------------------- semgrep --------------------
 TOCLEAN += semgrep
 semgrep: $(CCPARSE_OBJS) semgrep.o $(libraries)
-	$(CXX) -o $@ $(CCPARSE_OBJS) semgrep.o $(LDFLAGS)
+	$(CXX) -o $@ $(CCPARSE_OBJS) semgrep.o $(LDFLAGS) $(OCAMLLIBS)
 
 
 # --------------------- iptree --------------------

@@ -366,6 +366,7 @@ void CtorArg::debugPrint(ostream &os, int indent, char const *subtreeName) const
   PRINT_HEADER(subtreeName, CtorArg);
 
   PRINT_BOOL(isOwner);
+  PRINT_BOOL(nullable);
   PRINT_STRING(type);
   PRINT_STRING(name);
   PRINT_STRING(defaultValue);
@@ -375,6 +376,7 @@ CtorArg *CtorArg::clone() const
 {
   CtorArg *ret = new CtorArg(
     isOwner,
+    nullable,
     type,
     name,
     defaultValue

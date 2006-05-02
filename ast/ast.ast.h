@@ -144,6 +144,7 @@ public:      // data
 
 public:      // funcs
   TF_class(ASTClass *_super, ASTList <ASTClass > *_ctors) : ToplevelForm(), super(_super), ctors(_ctors) {
+  xassert(super);
   }
   virtual ~TF_class();
 
@@ -182,6 +183,7 @@ public:      // data
 
 public:      // funcs
   TF_custom(CustomCode *_cust) : ToplevelForm(), cust(_cust) {
+  xassert(cust);
   }
   virtual ~TF_custom();
 
@@ -314,6 +316,7 @@ public:      // data
 
 public:      // funcs
   UserDecl(AccessMod *_amod, string _code, string _init) : Annotation(), amod(_amod), code(_code), init(_init) {
+  xassert(amod);
   }
   virtual ~UserDecl();
 
@@ -354,12 +357,13 @@ public:      // funcs
 class CtorArg {
 public:      // data
   bool isOwner;
+  bool nullable;
   string type;
   string name;
   string defaultValue;
 
 public:      // funcs
-  CtorArg(bool _isOwner, string _type, string _name, string _defaultValue) : isOwner(_isOwner), type(_type), name(_name), defaultValue(_defaultValue) {
+  CtorArg(bool _isOwner, bool _nullable, string _type, string _name, string _defaultValue) : isOwner(_isOwner), nullable(_nullable), type(_type), name(_name), defaultValue(_defaultValue) {
   }
   ~CtorArg();
 

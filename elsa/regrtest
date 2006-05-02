@@ -42,6 +42,7 @@
 skip=0
 big=0
 contin=0
+checkocaml=0
 
 # counters
 curtest=0
@@ -59,6 +60,7 @@ usage: $0 [options]
   -one <n>     run only test <n>
   -big         run the big, timeconsuming tests
   -contin      keep going even after a test fails (or succeeds) unexpectedly
+  -ocaml       check ocaml marshalling (-tr marshalToOcaml)
   -help        print this message
 EOF
 }
@@ -83,6 +85,10 @@ while [ "$1" != "" ]; do
 
     -contin)
       contin=1
+      ;;
+
+    -ocaml)
+      checkocaml=1
       ;;
 
     -help)
@@ -222,7 +228,11 @@ grepBoth() {
 # or change to 'fail' status those tests that are not working at
 # some given time
 testparse() {
-  runTest perl ./multitest.pl ./ccparse in/$1
+  if [ $checkocaml = 1 ] ; then
+    runTest perl ./multitest.pl ./ccparse -tr marshallToOcaml in/$1
+  else
+    runTest perl ./multitest.pl ./ccparse in/$1
+  fi
 }
 testparse_strict() {
   # this is for tests that include things that should be diagnosed

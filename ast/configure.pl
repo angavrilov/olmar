@@ -94,14 +94,25 @@ test_CXX_compiler();
 
 $PERL = get_PERL_variable();
 
+# ocaml
+($OCAMLDIR, $OCAMLC) = test_ocaml_compiler();
+
 
 # ------------------ config.summary -----------------
 $summary = getStandardConfigSummary();
+
+$summary .= <<"OUTER_EOF";
+cat <<EOF
+  OCAML LIB DIR: $OCAMLDIR
+EOF
+OUTER_EOF
+
 writeConfigSummary($summary);
 
 
 # ------------------- config.status ------------------
-writeConfigStatus("PERL" => "$PERL");
+writeConfigStatus("PERL" => "$PERL",
+		  "OCAMLDIR" => "$OCAMLDIR");
 
 
 # ----------------- final actions -----------------
