@@ -331,12 +331,16 @@ int SourceLocManager::File::lineToChar(int lineNum)
   }
 
   if (lineNum > numLines) {
-    erroredNumLines = true;
     fprintf(stderr,
             "Error: invalid line number %s:%d (only %d lines exist).\n"
             "       Line numbers will be incorrect.\n",
             name.c_str(), lineNum, numLines);
-    return 0;
+    if (tolerateHashlineErrors) {
+      erroredNumLines = true;
+      return 0;
+    } else {
+      throw xBase("Invalid hashline numbers found (use '-tr tolerateHashlineErrors' to ignore).");
+    }
   }
 
   // check to see if the marker is already close
@@ -509,6 +513,7 @@ SourceLocManager::StaticLoc::~StaticLoc()
 
 // ----------------------- SourceLocManager -------------------
 int SourceLocManager::shortLineCount = 0;
+bool SourceLocManager::tolerateHashlineErrors = false;
 
 SourceLocManager *sourceLocManager = NULL;
 

@@ -173,6 +173,7 @@ public:      // types
     // # of elements in 'index'
     int indexSize;
 
+    // whether there have been any hashline errors already in this input file.
     bool erroredNumLines;
 
   private:   // funcs
@@ -284,6 +285,11 @@ public:      // data
   // this to tell if the offset information across a given call or
   // sequence of calls is perfect or truncated
   static int shortLineCount;
+
+  // whether to tolerate problems with line numbers (from hashlines) being
+  // higher than the number of actual lines in files.  true means print at
+  // most 1 warning (per file); false means die.
+  static bool tolerateHashlineErrors;
 
 private:     // funcs
   // let File know about these functions
