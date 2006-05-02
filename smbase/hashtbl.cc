@@ -17,7 +17,7 @@ HashTable::HashTable(GetKeyFn gk, HashFn hf, EqualKeyFn ek, int initSize)
   : getKey(gk),
     coreHashFn(hf),
     equalKeys(ek),
-    enableShrink(false)
+    enableShrink(true)
 {
   makeTable(initSize);
 }
