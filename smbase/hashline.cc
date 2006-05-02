@@ -40,19 +40,23 @@ void HashLineMap::addHashLine(int ppLine, int origLine, char const *origFname)
 
 void HashLineMap::doneAdding()
 {
-  // make a new array of exactly the right size
-  ArrayStack<HashLine> tmp(directives.length());
+  // printf("## HashLineMap::doneAdding: directives.length() = %d, directives.size() = %d\n",
+  //        directives.length(), directives.size());
+  directives.setSize(directives.length());
 
-  // copy all the entries into the new array
-  memcpy(tmp.getDangerousWritableArray(), directives.getArray(),
-         directives.length() * sizeof(HashLine));
-  tmp.setLength(directives.length());
+  // // make a new array of exactly the right size
+  // ArrayStack<HashLine> tmp(directives.length());
 
-  // swap the internal contents of the two arrays, so 'directives'
-  // becomes the consolidated one
-  tmp.swapWith(directives);
+  // // copy all the entries into the new array
+  // memcpy(tmp.getDangerousWritableArray(), directives.getArray(),
+  //        directives.length() * sizeof(HashLine));
+  // tmp.setLength(directives.length());
 
-  // now tmp's internal storage will be automatically deleted
+  // // swap the internal contents of the two arrays, so 'directives'
+  // // becomes the consolidated one
+  // tmp.swapWith(directives);
+
+  // // now tmp's internal storage will be automatically deleted
 }
 
 
