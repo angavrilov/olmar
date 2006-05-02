@@ -102,10 +102,7 @@ void *VoidTailList::removeAt(int index)
 {
   xassert(top);
   if (index == 0) {
-    // If we are removing the only item, reset the tail pointer.
-    if (top == tail) {
-      tail = NULL;
-    }
+    // NOTE: removeFirst fixes the 'tail' pointer.
     return removeFirst();
   }
 
