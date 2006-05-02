@@ -1,3 +1,17 @@
+2006-05-03  Hendrik Tews  <tews@debian>
+
+	* nullable comment that has not been triggered: TP_type.name
+	
+	* nullpointer exception without nullable comment:
+	PQ_qualifier.templArgs
+	PQ_template.templArgs
+	E_stringLit.continuation
+	E_delete.expr
+	FullExpression.expr
+	TemplateDeclaration.params
+	TemplateArgument.next
+	
+
 2006-05-03  Hendrik Tews  <tews@ithif59.inf.tu-dresden.de>
 
 	ELSA:
