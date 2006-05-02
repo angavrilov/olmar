@@ -127,7 +127,7 @@ public:     // funcs
   bool isMapped(char const *key) const                 { return dict.isMapped(key); }
 
   // -------- mutators -----------
-  void add(char const *key, T *value)                  { dict.add(key, value); }
+  void add(char const *key, T *value)                  { dict.add(key, (void*)value); }
 
   T * /*owner*/ remove(char const *key)                { return (T*)dict.remove(key); }
   void deleteAt(char const *key)                       { deleteObject(remove(key)); }
