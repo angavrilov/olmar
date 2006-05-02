@@ -255,6 +255,10 @@ void doit(int argc, char **argv)
     sourceLocManager->useHashLines = false;
   }
 
+  if (tracingSys("tolerateHashlineErrors")) {
+    sourceLocManager->tolerateHashlineErrors = true;
+  }
+
   if (tracingSys("no-orig-offset")) {
     sourceLocManager->useOriginalOffset = false;
   }
