@@ -51,6 +51,9 @@ ocaml_type_verbatim {
 }
 
 
+option pointerType StringRef;
+option ocamlVisitor;
+
 // use a new astgen feature: make a visitor!
 option visitor ASTVisitor;
 option dvisitor DelegatorASTVisitor;
@@ -226,7 +229,7 @@ class PQName(SourceLoc loc) {
 
   // outer qualifier applied to some inner PQName, plus an optional
   // list of template arguments to the qualifier
-  -> PQ_qualifier(StringRef /*nullable*/qualifier,
+  -> PQ_qualifier(nullable StringRef qualifier,
                   /*fakelist*/TemplateArgument templArgs,
                   PQName rest)
      {
@@ -840,8 +843,6 @@ class NamespaceDecl {
   -> ND_usingDir(PQName name);
 }
 
-
-option ocamlVisitor;
 
 // EOF
 

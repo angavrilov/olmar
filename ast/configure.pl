@@ -112,6 +112,7 @@ writeConfigSummary($summary);
 
 # ------------------- config.status ------------------
 writeConfigStatus("PERL" => "$PERL",
+		  "OCAMLC" => "$OCAMLC",
 		  "OCAMLDIR" => "$OCAMLDIR");
 
 

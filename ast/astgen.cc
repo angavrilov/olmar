@@ -82,6 +82,9 @@ SObjList<TF_class> allClasses;
 StringSet listClassesSet;
 ASTList<ListClass> listClasses;
 
+// list of all pointerType option arguments
+StringSet pointerTypes;
+
 // true if the user wants the xmlPrint stuff
 bool wantXMLPrint = false;
 
@@ -875,11 +878,15 @@ void HGen::initializeMyCtorArgs(int &ct, ASTList<CtorArg> const &args)
 
 
 bool ctor_uses_option(const CtorArg * arg) {
-  return arg->nullable && (isTreeNode(arg->type) || isPtrKind(arg->type));
+  return arg->nullable && 
+    (isTreeNode(arg->type) || isPtrKind(arg->type) || 
+     pointerTypes.contains(arg->type));
 }
 
 bool ctor_non_null_assert(const CtorArg * arg) {
-  return (!arg->nullable) && (isTreeNode(arg->type) || isPtrKind(arg->type));
+  return (!arg->nullable) && 
+    (isTreeNode(arg->type) || isPtrKind(arg->type) ||
+     pointerTypes.contains(arg->type));
 }
 
 void HGen::assertNonNullCtorArgs(ASTList<CtorArg> const & args) {
@@ -3940,6 +3947,14 @@ void grabOptionName(rostring opname, string &oparg, TF_option const *op)
   oparg = *( op->args.firstC() );
 }
 
+void grabPointerTypeOption(TF_option const *op){
+  if (op->args.count() < 1) {
+    xfatal("'pointerType' AST option requires at least one argument");
+  }
+  FOREACH_ASTLIST(string, op->args, arg){
+    pointerTypes.add(*arg.data());
+  }
+}
 
 void entry(int argc, char **argv)
 {
@@ -4041,6 +4056,9 @@ void entry(int argc, char **argv)
         }
 	else if (op->name.equals("ocamlVisitor")) {
 	  wantOcaml = true;
+	}
+	else if (op->name.equals("pointerType")) {
+	  grabPointerTypeOption(op);
 	}
         else {
           xfatal("unknown option: " << op->name);

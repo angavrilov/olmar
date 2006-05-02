@@ -52,6 +52,8 @@ ocaml_type_verbatim {
 
 // use the newest astgen feature: serialize into ocaml
 option ocamlVisitor;
+// another newest astgen feature: register a (nullable) pointer type
+option pointerType StringRef;
 // use a new astgen feature: make a visitor!
 option visitor ASTVisitor;
 option dvisitor DelegatorASTVisitor;
@@ -659,7 +661,7 @@ class Expression {
 
 // maximal expressions: the parent is not an expression
 // (cppstd 1.9 para 12)
-class FullExpression (Expression expr) {
+class FullExpression (nullable /*nonnull*/ Expression expr) {
   // We do not make lists of FullExpressions.
   
   // nothing is needed here beyond the 'expr'; cc_elaborate.cc adds

@@ -1,3 +1,15 @@
+2006-05-03  Hendrik Tews  <tews@debian>
+
+	AST:
+	* pointerType option to register nullable pointer types like
+	  StringRef; all these pointer types are stored in the 
+	  new global StringSet pointerTypes 
+	* configured OCAMLC to avoid perl warning
+
+	ELSA:
+	* fixed null pointer problem in PQ_qualifier, FullExpression
+	
+
 2006-05-02  Hendrik Tews  <tews@penguin.cs.kun.nl>
 
 	SMBASE:
