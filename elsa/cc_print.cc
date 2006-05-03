@@ -8,7 +8,7 @@
 #include "strutil.h"            // string utilities
 
 #include <stdlib.h>             // getenv
-  
+
 
 // set this environment variable to see the twalk_layer debugging
 // output
@@ -221,7 +221,7 @@ string CTypePrinter::print(CompoundType const *cpdType)
     sb << tinfo->paramsToCString() << " ";
   }
 
-  if (!tinfo || hasParams) {   
+  if (!tinfo || hasParams) {
     // only say 'class' if this is like a class definition, or
     // if we're not a template, since template instantiations
     // usually don't include the keyword 'class' (this isn't perfect..
@@ -348,7 +348,7 @@ string CTypePrinter::print(Type const *type, char const *name)
   s << printLeft(type, innerParen);
   s << (name? name : "/*anon*/");
   s << printRight(type, innerParen);
-  
+
   // get rid of extra space
   while (s.length() >= 1 && s[s.length()-1] == ' ') {
     s.truncate(s.length() - 1);
@@ -716,7 +716,7 @@ Type const *getDeclarationTypeLike(TypeLike const *type)
 //   char operator()        // conversion operator to 'char'
 void printDeclaration
   (PrintEnv &env,
-                             
+
   // declflags present in source; not same as 'var->flags' because
   // the latter is a mixture of flags present in different
   // declarations
@@ -835,7 +835,7 @@ void TF_explicitInst::print(PrintEnv &env)
 }
 
 void TF_linkage::print(PrintEnv &env)
-{         
+{
   TreeWalkDebug treeDebug("TF_linkage");
   env.loc = loc;
   *env.out << "extern " << linkageType;
@@ -852,7 +852,7 @@ void TF_one_linkage::print(PrintEnv &env)
 }
 
 void TF_asm::print(PrintEnv &env)
-{    
+{
   TreeWalkDebug treeDebug("TF_asm");
   env.loc = loc;
   *env.out << "asm(" << text << ");\n";
@@ -941,7 +941,7 @@ void Declaration::print(PrintEnv &env)
     spec->asTS_enumSpec()->print(env);
     *env.out << ";\n";
   }
-  
+
   // TODO: this does not print "friend class Foo;" declarations
   // because the type specifier is TS_elaborated and there are no
   // declarators
@@ -1133,7 +1133,7 @@ void BaseClassSpec::print(PrintEnv &env) {
 
 // ---------------------- Member ----------------------
 void MR_decl::print(PrintEnv &env)
-{                   
+{
   TreeWalkDebug treeDebug("MR_decl");
   d->print(env);
 }
@@ -1223,7 +1223,7 @@ void S_label::iprint(PrintEnv &env)
 }
 
 void S_case::iprint(PrintEnv &env)
-{                    
+{
   TreeWalkDebug treeDebug("S_case::iprint");
   *env.out << "case";
   expr->print(env);
@@ -1246,7 +1246,7 @@ void S_expr::iprint(PrintEnv &env)
 }
 
 void S_compound::iprint(PrintEnv &env)
-{ 
+{
   TreeWalkDebug treeDebug("S_compound::iprint");
   PairDelim pair(*env.out, "", "{\n", "}\n");
   FOREACH_ASTLIST_NC(Statement, stmts, iter) {
@@ -1421,6 +1421,7 @@ void FullExpression::print(PrintEnv &env)
   // print some curlies somewhere to make it legal to parse it back in
   // again, and we aren't using E_statement, so it would not reflect
   // the actual ast.
+  xassert(expr && "39ce4334-0ca1-4e19-aaf9-7f27f335a629");
   expr->print(env);
 }
 
@@ -1439,7 +1440,7 @@ void Expression::print(PrintEnv &env)
 }
 
 string Expression::exprToString() const
-{              
+{
   TreeWalkDebug treeDebug("Expression::exprToString");
   stringBuilder sb;
   StringBuilderOutStream out0(sb);
@@ -1447,7 +1448,7 @@ string Expression::exprToString() const
   CTypePrinter typePrinter;
   Restorer<bool> res0(CTypePrinter::enabled, true);
   PrintEnv env(typePrinter, &codeOut);
-  
+
   // sm: I think all the 'print' methods should be 'const', but
   // I'll leave such a change up to this module's author (dsw)
   const_cast<Expression*>(this)->print(env);
@@ -1462,7 +1463,7 @@ string renderExpressionAsString(char const *prefix, Expression const *e)
 }
 
 char *expr_toString(Expression const *e)
-{               
+{
   // this function is defined in smbase/strutil.cc
   return copyToStaticBuffer(e->exprToString().c_str());
 }
@@ -1490,7 +1491,7 @@ void E_intLit::iprint(PrintEnv &env)
 }
 
 void E_floatLit::iprint(PrintEnv &env)
-{                                
+{
   TreeWalkDebug treeDebug("E_floatLit::iprint");
   // FIX: do this correctly from the internal representation
   // this fails to print ".0" for a float/double that happens to lie
@@ -1502,9 +1503,9 @@ void E_floatLit::iprint(PrintEnv &env)
 }
 
 void E_stringLit::iprint(PrintEnv &env)
-{                                                                     
+{
   TreeWalkDebug treeDebug("E_stringLit::iprint");
-  
+
   E_stringLit *p = this;
   while (p) {
     *env.out << p->text;
@@ -1568,7 +1569,7 @@ void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta)
     case STemplateArgument::STA_TEMPLATE:
       *env.out << string("template (?)");
       break;
-    case STemplateArgument::STA_ATOMIC:    
+    case STemplateArgument::STA_ATOMIC:
       *env.out << sta->value.at->toString();
       break;
   }
@@ -1674,7 +1675,7 @@ void printVariableName(PrintEnv &env, Variable *var)
     *env.out << ")";
     return;
   }
-  
+
   // normal case
   *env.out << var->name;
 }
@@ -1705,7 +1706,7 @@ void E_fieldAcc::iprint(PrintEnv &env)
 void E_arrow::iprint(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("E_arrow::iprint");
-  
+
   // E_arrow shouldn't normally be present in code that is to be
   // prettyprinted, so it doesn't much matter what this does.
   obj->print(env);
@@ -1907,7 +1908,7 @@ void E_typeidType::iprint(PrintEnv &env)
 void E_grouping::iprint(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("E_grouping::iprint");
-  
+
   // sm: given that E_grouping is now in the tree, and prints its
   // parentheses, perhaps we could eliminate some of the
   // paren-printing above?
@@ -1959,7 +1960,7 @@ void IN_ctor::print(PrintEnv &env)
 
 // -------------------- TemplateDeclaration ---------------
 void TemplateDeclaration::print(PrintEnv &env)
-{ 
+{
   TreeWalkDebug treeDebug("TemplateDeclaration");
 
   *env.out << "template <";
@@ -2071,7 +2072,7 @@ void TP_type::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("TP_type");
   *env.out << "class " << (name? name : "/*anon*/");
-                          
+
   if (defaultType) {
     *env.out << " = ";
     defaultType->print(env);
