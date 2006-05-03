@@ -4,10 +4,15 @@
 _List_Item
 item
 
-# a map element
+# a name-map element
 _NameMap_Item
-item
 name
+item
+
+# a map element
+_Map_Item
+key
+item
 
 # NOTE: off for now
 # an bidirectional unsatisfied link

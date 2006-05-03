@@ -88,6 +88,8 @@ identityTempl_defn(OL, SObjList<T>)
 identityTempl_defn(NM, StringRefMap<T>)
 identityTempl_defn(NM, StringObjDict<T>)
 
+identity_defn(TY, StringRefMap<Variable>)
+
 #define identityCpdSuper(PREFIX, NAME) \
 char const *idPrefix(NAME const * const obj) { \
   if (CompoundType const * const cpd = dynamic_cast<CompoundType const * const>(obj)) { \
@@ -565,8 +567,8 @@ void XmlTypeWriter::toXml_Scope_subtags(Scope *scope) {
   // FIX: these are like function template "partial specializations"
   // (if such things existed), as the 'Variable' paramter actually
   // also changes the implementation.
-  travPtrMap(scope, Scope, variables, Variable); // Variable
-  travPtrMap(scope, Scope, typeTags, Variable); // Variable
+  travStringRefMap(scope, Scope, variables, Variable); // Variable
+  travStringRefMap(scope, Scope, typeTags, Variable); // Variable
   trav(scope->parentScope);
   trav(scope->namespaceVar);    // Variable
   travObjList_S(scope, Scope, templateParams, Variable); // Variable

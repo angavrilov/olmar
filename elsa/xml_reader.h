@@ -111,6 +111,10 @@ enum KindCategory {
   KC_StringRefMap,
   KC_StringSObjDict,
   KC_Name,                      // a name entry in a name map
+
+  // map
+  KC_PtrMap,
+  KC_Key,                       // a key entry in a name map
 };
 
 // the <_List_Item> </_List_Item> tag is parsed into this class to
@@ -128,6 +132,16 @@ struct NameMapItem {
   StringRef from;
   StringRef to;
   NameMapItem() : from(NULL), to(NULL) {}
+  // FIX: do I destruct/free() the name when I destruct the object?
+};
+
+// the <_Map_Item> </_Map_Item> tag is parsed into this class
+// to hold the name while the value contained by it is being parsed.
+// Then it is deleted.
+struct MapItem {
+  StringRef from;
+  StringRef to;
+  MapItem() : from(NULL), to(NULL) {}
   // FIX: do I destruct/free() the name when I destruct the object?
 };
 
@@ -287,6 +301,7 @@ class XmlReaderManager {
 
   void append2List(void *list, int listKind, void *datum);
   void insertIntoNameMap(void *map, int mapKind, StringRef name, void *datum);
+  void insertIntoMap(void *map0, int mapKind, void *key, void *item);
 
   // **** parsing result
   public:

@@ -197,23 +197,23 @@ do { \
 #define travObjList_standalone(OBJ, BASETYPE, FIELD, FIELDTYPE) \
   travObjList1(OBJ, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
 
-#define travPtrMap0(BASE, OBJ, BASETYPE, FIELD, FIELDTYPE) \
+#define travStringRefMap0(OBJ, BASETYPE, FIELD, RANGETYPE) \
 do { \
-  if (!printed(&(OBJ))) { \
-    openTagWhole(NameMap_ ##BASETYPE ##_ ##FIELD, &(OBJ)); \
+  if (!printed(OBJ)) { \
+    openTagWhole(NameMap_ ##BASETYPE ##_ ##FIELD, OBJ); \
     if (sortNameMapDomainWhenSerializing) { \
-      for(StringRefMap<FIELDTYPE>::SortedKeyIter iter(OBJ); \
+      for(StringRefMap<RANGETYPE>::SortedKeyIter iter(*(OBJ)); \
           !iter.isDone(); iter.adv()) { \
-        FIELDTYPE *obj = iter.value(); \
+        RANGETYPE *obj = iter.value(); \
         if (shouldSerialize(obj)) { \
           openTag_NameMap_Item(iter.key(), obj); \
           trav(obj); \
         } \
       } \
     } else { \
-      for(PtrMap<char const, FIELDTYPE>::Iter iter(OBJ); \
+      for(PtrMap<char const, RANGETYPE>::Iter iter(*(OBJ)); \
           !iter.isDone(); iter.adv()) { \
-        FIELDTYPE *obj = iter.value(); \
+        RANGETYPE *obj = iter.value(); \
         if (shouldSerialize(obj)) { \
           openTag_NameMap_Item(iter.key(), obj); \
           trav(obj); \
@@ -223,8 +223,29 @@ do { \
   } \
 } while(0)
 
-#define travPtrMap(BASE, BASETYPE, FIELD, FIELDTYPE) \
-  travPtrMap0(BASE, (BASE)->FIELD, BASETYPE, FIELD, FIELDTYPE)
+#define travStringRefMap(BASE, BASETYPE, FIELD, RANGETYPE) \
+  travStringRefMap0(&((BASE)->FIELD), BASETYPE, FIELD, RANGETYPE)
+
+#define travPtrMap0(OBJ, BASETYPE, FIELD, DOMTYPE, RANGETYPE) \
+do { \
+  if (!printed(OBJ)) { \
+    openTagWhole(Map_ ##BASETYPE ##_ ##FIELD, OBJ); \
+    for(PtrMap<DOMTYPE, RANGETYPE>::Iter iter(*(OBJ)); \
+        !iter.isDone(); iter.adv()) { \
+      DOMTYPE *key = iter.key(); \
+      RANGETYPE *value = iter.value(); \
+      bool shouldSrzDom = shouldSerialize(key); \
+      bool shouldSrzRange = shouldSerialize(value); \
+      if (/*dsw: NOTE: This must be an 'OR' for at least one situation in Oink*/ \
+          /*perhaps the semantics should be speical-cased.*/ \
+        shouldSrzDom || shouldSrzRange) { \
+        openTag_Map_Item(key, value); \
+        trav(key); \
+        trav(value); \
+      } \
+    } \
+  } \
+} while(0)
 
 // NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
 // for the XmlCloseTagPrinter fires too early.
@@ -251,6 +272,17 @@ do { \
       << " item=" << xmlAttrQuote(xmlPrintPointer(idPrefix(TARGET), uniqueId(TARGET))) \
       << ">"; \
   XmlCloseTagPrinter tagCloser("_NameMap_Item", *this); \
+  IncDec depthManager(this->depth)
+
+// NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
+// for the XmlCloseTagPrinter fires too early.
+#define openTag_Map_Item(NAME, TARGET) \
+  newline(); \
+  out << "<_Map_Item" \
+      << " key=" << xmlAttrQuote(xmlPrintPointer(idPrefix(NAME), uniqueId(NAME))) \
+      << " item=" << xmlAttrQuote(xmlPrintPointer(idPrefix(TARGET), uniqueId(TARGET))) \
+      << ">"; \
+  XmlCloseTagPrinter tagCloser("_Map_Item", *this); \
   IncDec depthManager(this->depth)
 
 #define tagEnd \

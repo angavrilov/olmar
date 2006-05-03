@@ -88,9 +88,13 @@ void XmlReaderManager::parseOneTagOrDatum() {
   case XTOK__List_Item:
     topTemp = new ListItem();
     break;
-  // NameMapItem: a map element
+  // NameMapItem: a name-map element
   case XTOK__NameMap_Item:
     topTemp = new NameMapItem();
+    break;
+  // MapItem: a map element
+  case XTOK__Map_Item:
+    topTemp = new MapItem();
     break;
 //    // Special case the <__Link/> tag
 //    case XTOK___Link:
@@ -198,7 +202,7 @@ void XmlReaderManager::parseOneTagOrDatum() {
     }
   }
 
-  // deal with map entries
+  // deal with name-map entries
   else if (closeTag == XTOK__NameMap_Item) {
     // save the name tag
     NameMapItem *nameNode = (NameMapItem*)lastNode;
@@ -227,6 +231,42 @@ void XmlReaderManager::parseOneTagOrDatum() {
     } else {
       if (!xmlDanglingPointersAllowed) userError("no Node pointed to by _NameMap_Item");
     }
+
+    // FIX: we should probably delete the NameMapItem
+  }
+
+  // deal with map entries
+  else if (closeTag == XTOK__Map_Item) {
+    // save the name tag
+    MapItem *nameNode = (MapItem*)lastNode;
+    int nameKind = lastKind;
+    xassert(nameKind == XTOK__Map_Item);
+
+    // what kind of thing is next on the stack?
+    if (nodeStack.isEmpty()) {
+      userError("a _Map_Item tag not immediately under a Map");
+    }
+    void *mapNode = nodeStack.top();
+    int mapKind = *kindStack.top();
+    KindCategory mapKindCat;
+    kind2kindCat(mapKind, &mapKindCat);
+    if (!(mapNode && (mapKindCat == KC_PtrMap))) {
+      userError("a _Map_Item tag not immediately under a Map");
+    }
+
+    // find the Node-s pointed to by both the key and item; they
+    // should have been seen by now
+    void *pointedToKey = id2obj.queryif(nameNode->from);
+    void *pointedToItem = id2obj.queryif(nameNode->to);
+    if (pointedToItem) {
+      // DEBUG1
+//       cout << "parseOneTagOrDatum, nameNode->to: " << nameNode->to << endl;
+      insertIntoMap(mapNode, mapKind, pointedToKey, pointedToItem);
+    } else {
+      if (!xmlDanglingPointersAllowed) userError("no Node pointed to by _Map_Item");
+    }
+
+    // FIX: we should probably delete the MapItem
   }
 
   // otherwise we are a normal node; just pop it off; no further
@@ -288,6 +328,18 @@ bool XmlReaderManager::readAttributes() {
         id2kind.add(id0, kindStack.top());
       }
     }
+    // special case the _List_Item node and its one attribute
+    else if (*kindStack.top() == XTOK__List_Item) {
+      switch(attr) {
+      default:
+        userError("illegal attribute for _List_Item");
+        break;
+      case XTOK_item:
+        static_cast<ListItem*>(nodeStack.top())->to =
+          strTable(xmlAttrDeQuote(lexer.currentText()));
+        break;
+      }
+    }
     // special case the _NameMap_Item node and its one attribute
     else if (*kindStack.top() == XTOK__NameMap_Item) {
       switch(attr) {
@@ -304,14 +356,18 @@ bool XmlReaderManager::readAttributes() {
         break;
       }
     }
-    // special case the _List_Item node and its one attribute
-    else if (*kindStack.top() == XTOK__List_Item) {
+    // special case the _Map_Item node and its one attribute
+    else if (*kindStack.top() == XTOK__Map_Item) {
       switch(attr) {
       default:
-        userError("illegal attribute for _List_Item");
+        userError("illegal attribute for _Map_Item");
+        break;
+      case XTOK_key:
+        static_cast<MapItem*>(nodeStack.top())->from =
+          strTable(xmlAttrDeQuote(lexer.currentText()));
         break;
       case XTOK_item:
-        static_cast<ListItem*>(nodeStack.top())->to =
+        static_cast<MapItem*>(nodeStack.top())->to =
           strTable(xmlAttrDeQuote(lexer.currentText()));
         break;
       }
@@ -430,6 +486,16 @@ void XmlReaderManager::insertIntoNameMap(void *map0, int mapKind, StringRef name
     userError(stringc << "duplicate name " << name << " in map");
   }
   map->add(name, (char*)datum);
+}
+
+void XmlReaderManager::insertIntoMap(void *map0, int mapKind, void *key, void *item) {
+  xassert(map0);
+  PtrMap<void, void> *map = static_cast<PtrMap<void, void>*>(map0);
+  if (map->get(key)) {
+    // there is no good way to print out the key
+    userError(stringc << "duplicate key in map");
+  }
+  map->add(key, item);
 }
 
 void XmlReaderManager::userError(char const *msg) {
@@ -719,8 +785,6 @@ void XmlReaderManager::convertList2ArrayStack(ASTList<char> *list, int listKind,
 
 void XmlReaderManager::convertNameMap2StringRefMap
   (StringRefMap<char> *map, int mapKind, void *target) {
-  static int count = 0;
-  ++count;
   FOREACH_ASTLIST_NC(XmlReader, readers, iter) {
     if (iter.data()->convertNameMap2StringRefMap(map, mapKind, target)) {
       return;
