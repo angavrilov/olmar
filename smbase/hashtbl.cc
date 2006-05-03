@@ -70,6 +70,11 @@ void *HashTable::get(void const *key) const
 
 void HashTable::resizeTable(int newSize)
 {
+  // Make sure newSize is not the result of an overflowed computation, and
+  // that we're not going to resizeTable again right away in the add() call.
+  xassert(newSize >= numEntries);
+  xassert(newSize/3*2 >= numEntries-1);
+
   // save old stuff
   void **oldTable = hashTable;
   int oldSize = tableSize;
@@ -98,6 +103,8 @@ void HashTable::add(void const *key, void *value)
     // we're over the usage threshold; increase table size
     resizeTable(tableSize * 2 + 1);
   }
+  // make sure above didn't fail due to integer overflow
+  xassert(numEntries+1 < tableSize);
 
   int index = getEntry(key);
   xassert(hashTable[index] == NULL);    // must not be a mapping yet
