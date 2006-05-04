@@ -1096,6 +1096,7 @@ failparse k0092.cc "template-parameter-instantiated template class without 'type
 failparse k0093.cc "tertiary operator implicitly casting one pointer operand to bool"
 # This is a warning now instead of an error:
 #testparse k0094.cc #declared non-static, cannot re-declare as static
+failparse k0095.cc "templatized enum parameter"
 
 ### </quarl-testcases-c++>
 
