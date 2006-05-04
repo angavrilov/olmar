@@ -527,5 +527,6 @@ checkxml:
 TAGS:
 	etags --members \
 		`find . ../ast ../elkhound ../smbase -name \*.h` \
-		`find . ../ast ../elkhound ../smbase -name \*.cc`
+		`find . ../ast ../elkhound ../smbase -name \*.cc` \
+		`find . ../ast ../elkhound ../smbase -name \*.cpp`
 

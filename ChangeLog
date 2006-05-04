@@ -1,3 +1,7 @@
+2006-05-04  Hendrik Tews  <tews@penguin.cs.kun.nl>
+
+	* timing and GC experiments
+
 2006-05-03  Hendrik Tews  <tews@debian>
 
 	* nullable comment that has not been triggered: TP_type.name

@@ -815,7 +815,9 @@ void doit(int argc, char **argv)
 
 
   // HT: marshall to ocaml
+  long ocamlTime = 0;
   if (tracingSys("marshallToOcaml")) {
+    SectionTimer timer(ocamlTime);
     ToOcamlData ocaml_data;
 
     if (!caml_start_up_done){
@@ -893,6 +895,7 @@ void doit(int argc, char **argv)
        << " tcheck=" << tcheckTime << "ms"
        << " integ=" << integrityTime << "ms"
        << " elab=" << elaborationTime << "ms"
+       << " ocaml=" << ocamlTime << "ms"
        << "\n"
        ;
 
