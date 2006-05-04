@@ -1379,6 +1379,7 @@ testCparse c/k0012.c #return struct by value
 failCparse c/k0013.c "enum variable declared earlier as int"
 failCparse c/k0014.c "offsetof cannot be assumed to be 0 (evaluated e.g. in case labels)"
 failCparse c/k0015.c "variable-sized character buffer in function-local struct using same name for size as a member variable and another variable in outside scope"
+failCparse c/k0016.c "expression in compound initializer array index"
 
 ### </quarl-testcases-c>
 
