@@ -3525,7 +3525,7 @@ void Env::handleTypeOfMain(SourceLoc loc, Variable *prior, Type *&type)
   // dsw: during Declarator::mid_tcheck() I made sure that if this is
   // a global main function that it ends up with a DF_EXTERN_C flag
   xassert(prior->hasFlag(DF_EXTERN_C) &&
-          "c524f127-19cb-44eb-a829-f49faf2185a4"); // in/k0095.cc
+          "c524f127-19cb-44eb-a829-f49faf2185a4"); // in/k0063.cc
 
   FunctionType *priorFt = prior->type->asFunctionType();
   if (priorFt->hasFlag(FF_NO_PARAM_INFO)) {

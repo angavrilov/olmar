@@ -8,6 +8,7 @@
 //   k0063.cc:10:14
 //   k0063.cc:9:1
 
+// ERR-MATCH: c524f127-19cb-44eb-a829-f49faf2185a4
 // ERR-MATCH: Assertion failed: prior->hasFlag.DF_EXTERN_C.
 
 struct S {

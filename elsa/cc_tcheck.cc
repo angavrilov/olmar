@@ -3510,9 +3510,14 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // if I put it there it just ends up on the Variable; maybe just on
   // the Variable would be better and also we wouldn't have to
   // differnt 'if' statements that are testing different conditions.
-  if (env.scope()->isGlobalScope() &&
-      name && name->isPQ_name() && name->asPQ_name()->name == env.string_main) {
-    dt.dflags |= DF_EXTERN_C;
+  if (name && name->isPQ_name() && name->asPQ_name()->name == env.string_main) {
+    // quarl: had to add guard for friend declarations; I do think this should
+    // be moved below
+    if (env.scope()->isGlobalScope() ||
+        env.scope()->isClassScope() && (dt.dflags | DF_FRIEND))
+    {
+      dt.dflags |= DF_EXTERN_C;
+    }
   }
 
   bool callerPassedInstV = false;
