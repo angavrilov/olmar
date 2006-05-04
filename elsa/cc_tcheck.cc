@@ -3497,7 +3497,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     xassert(dt.context != DC_UNKNOWN);
     if (dt.context == DC_FUNCTION && handleExternInline_asWeakStaticInline()) {
       // convert it to static inline
-      dt.dflags &= ~DF_EXTERN;  // substract the 'extern'
+      dt.dflags &= ~DF_EXTERN;  // subtract the 'extern'
       dt.dflags |= DF_STATIC;   // add the 'static'
     }
   }
