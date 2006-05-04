@@ -51,6 +51,7 @@ public:
   // insertion
   void prepend(T *newitem)              { list.prepend(newitem); }
   void append(T *newitem)               { list.append(newitem); }
+  void appendAll(ASTList<T> &tail)      { list.appendAll(tail.list); }
   void insertAt(T *newitem, int index)  { list.insertAt(newitem, index); }
   void concat(ASTList<T> &tail)         { list.concat(tail.list); }
 
@@ -59,6 +60,7 @@ public:
   T *removeLast()                       { return (T*)list.removeLast(); }
   T *removeAt(int index)                { return (T*)list.removeAt(index); }
   void removeItem(T *item)              { list.removeItem((void*)item); }
+  bool removeIfPresent(T *item)         { return list.removeIfPresent((void*)item); }
 
   // this one is awkwardly named to remind the user that it's
   // contrary to the usual intent of this class

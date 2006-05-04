@@ -37,6 +37,13 @@ void VoidTailList::append(void *newitem)
   }
 }
 
+void VoidTailList::appendAll(VoidTailList &tail)
+{
+  for (VoidTailListIter iter(tail); !iter.isDone(); iter.adv()) {
+    this->append(iter.data());
+  }
+}
+
 void VoidTailList::insertAt(void *newitem, int index)
 {
   VoidList::insertAt(newitem, index);
