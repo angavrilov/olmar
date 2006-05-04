@@ -156,7 +156,8 @@ bool Variable::linkerVisibleName(bool evenIfStatic) const {
 //      xassert(!hasFlag(DF_GLOBAL));
     newAnswer = false;
   } else {
-    if (scope->isGlobalScope()) {
+    // quarl: namespace scope is similar to global scope
+    if (scope->isGlobalScope() || scope->isNamespace()) {
       if (evenIfStatic) {
         newAnswer = true;
       } else {
