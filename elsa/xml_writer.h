@@ -336,7 +336,9 @@ class IncDec {
 
 #define travListItem(TARGET)                                      \
   XmlTagPrinter tagPrinter(*this);                                \
-  tagPrinter.printListItemOpenTag(TARGET);                        \
+  if (writingP()) {                                               \
+    tagPrinter.printListItemOpenTag(TARGET);                      \
+  }                                                               \
   IncDec depthManager(this->depth);                               \
   trav(TARGET)
 
