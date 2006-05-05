@@ -50,24 +50,24 @@ char const * ListClass::kindName() const {
 // this is the name of the visitor interface class, or ""
 // if the user does not want a visitor
 string visitorName;
-inline bool wantVisitor() { return visitorName.length() != 0; }
+inline bool wantVisitor() { return !visitorName.empty(); }
 
 // this is the name of the delegator-visitor if desired
 string dvisitorName;
-inline bool wantDVisitor() { return dvisitorName.length() != 0; }
+inline bool wantDVisitor() { return !dvisitorName.empty(); }
 
 // this is the name of the xml-visitor if desired
 string xmlVisitorName;
-inline bool wantXmlVisitor() { return xmlVisitorName.length() != 0; }
+inline bool wantXmlVisitor() { return !xmlVisitorName.empty(); }
 
 // this is the prefix of the filenames rendered for xml lexing and
 // parsing
 string xmlParserName;
-inline bool wantXmlParser() { return xmlParserName.length() != 0; }
+inline bool wantXmlParser() { return !xmlParserName.empty(); }
 
 // similar for the modification visitor ("mvisitor")
 string mvisitorName;
-inline bool wantMVisitor() { return mvisitorName.length() != 0; }
+inline bool wantMVisitor() { return !mvisitorName.empty(); }
 
 // entire input
 ASTSpecFile *wholeAST = NULL;
@@ -696,7 +696,7 @@ void HGen::emitCtorFormal(int &ct, CtorArg const *arg)
   out << "_" << arg->name;      // prepend underscore to param's name
 
   // emit default value, if any
-  if (arg->defaultValue.length() > 0) {
+  if (! arg->defaultValue.empty()) {
     out << " = " << arg->defaultValue;
   }
 }
@@ -757,7 +757,7 @@ void HGen::emitCtorDefn(ASTClass const &cls, ASTClass const *parent)
       FOREACH_ASTLIST(Annotation, cls.decls, ann) {
         if (!ann.data()->isUserDecl()) continue;
         UserDecl const *ud = ann.data()->asUserDeclC();
-        if (ud->init.length() == 0) continue;
+        if (ud->init.empty()) continue;
         if (isFuncDecl(ud)) continue;       // don't do this for functions!
 
         if (ct++ > 0) {
@@ -836,7 +836,7 @@ void HGen::emitUserDecls(ASTList<Annotation> const &decls)
         }
         out << decl.code;
 
-        if (isFuncDecl(&decl) && decl.init.length() > 0) {
+        if (isFuncDecl(&decl) && !decl.init.empty()) {
           out << " = " << decl.init;     // the "=0" of a pure virtual function
         }
         out << ";";
@@ -3164,7 +3164,7 @@ void grabOptionName(rostring opname, string &oparg, TF_option const *op)
     xfatal("'" << opname << "' option requires one argument");
   }
 
-  if (oparg.length() > 0) {
+  if (!oparg.empty()) {
     // It would be conceivable to allow multiple visitors, but
     // I don't see any advantage to doing so.  If the extension
     // simply changes the name, then the resulting error messages
