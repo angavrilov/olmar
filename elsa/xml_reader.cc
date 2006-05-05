@@ -563,6 +563,9 @@ void XmlReaderManager::satisfyLinks_Lists() {
       continue;
     }
 
+    // 2006-05-05 turned off all 'delete obj' calls because we're getting
+    // double-delete errors.  It would be nice to have a non-owning list.
+
     KindCategory kindCat;
     kind2kindCat(ul->kind, &kindCat);
     switch (kindCat) {
@@ -604,7 +607,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
       // constant-time-append list.
       obj->removeAll_dontDelete();
       // TODO: delete the ASTList
-      delete obj;
+      // delete obj;
       break;
     }
 
@@ -619,7 +622,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
       // constant-time-append list.
       obj->removeAll_dontDelete();
       // TODO: delete the ASTList
-      delete obj;
+      // delete obj;
       break;
     }
 
@@ -634,7 +637,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
       // constant-time-append list.
       obj->removeAll_dontDelete();
       // TODO: delete the ASTList
-      delete obj;
+      // delete obj;
       break;
     }
 
@@ -649,7 +652,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
       // non-owning constant-time-append list.
       obj->removeAll_dontDelete();
       // TODO: delete the ASTList
-      delete obj;
+      // delete obj;
       break;
     }
 
