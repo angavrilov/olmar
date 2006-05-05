@@ -69,6 +69,9 @@ inline bool wantXmlParser() { return !xmlParserName.empty(); }
 string mvisitorName;
 inline bool wantMVisitor() { return !mvisitorName.empty(); }
 
+string identityManagerName;
+inline bool wantIdentityManager() { return !identityManagerName.empty(); }
+
 // entire input
 ASTSpecFile *wholeAST = NULL;
 
@@ -444,6 +447,9 @@ void HGen::emitFile()
   }
   if (wantMVisitor()) {
     out << "class " << mvisitorName << ";\n\n";
+  }
+  if (wantIdentityManager()) {
+    out << "class " << identityManagerName << ";\n\n";
   }
 
   // do all the enums first; this became necessary when I had an
@@ -2019,7 +2025,9 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
     out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"" << name << "\" << \"=\" << xmlAttrQuote(\n";
-    out << "    /*catch-all*/xmlPrintPointer(\"" << idPrefix << "\", getIdMgr().uniqueId(" << baseName << "->" << name << ")));\n";
+    out << "    /*catch-all*/xmlPrintPointer(\"" << idPrefix << "\", ";
+    if (wantIdentityManager()) out << "idmgr.";
+    out << "uniqueId(" << baseName << "->" << name << ")));\n";
     out << "  }\n";
 
   } else {
@@ -2038,12 +2046,18 @@ void HGen::emitXmlVisitorInterface()
 
   out << "protected:   // data\n";
   out << "  ostream &out;                       // output stream to print to\n";
+
+  if (wantIdentityManager()) {
+    out << "  " << identityManagerName << " &idmgr; // Identity Manager to use\n";
+  }
+  
   out << "  int &depth;                         // current depth\n";
   out << "  bool indent;                        // should the xml be indented\n";
   out << "  bool ensureOneVisit;                // check for visiting at most once?\n";
   out << "  SObjSet<void*> wasVisitedASTNodes;  // set of visited nodes\n";
   out << "  SObjSet<void*> wasVisitedList_ASTListNodes; // set of visited ASTLists\n";
   out << "  SObjSet<void*> wasVisitedList_FakeListNodes; // set of visited FakeLists\n";
+
   out << "\n";
 
   out << "protected:   // funcs\n";
@@ -2064,12 +2078,14 @@ void HGen::emitXmlVisitorInterface()
   // ctor
   out << "public:      // funcs\n";
   out << "  explicit " << xmlVisitorName << "("
-      << "ostream &out0, "
-      << "int &depth0, "
+      << "ostream &out0, ";
+  if (wantIdentityManager()) out << identityManagerName << " &idmgr0, ";
+  out << "int &depth0, "
       << "bool indent0 = false, "
       << "bool ensureOneVisit0 = true"
       << ")\n";
   out << "    : out(out0)\n";
+  if (wantIdentityManager()) out << "    , idmgr(idmgr0)\n";
   out << "    , depth(depth0)\n";
   out << "    , indent(indent0)\n";
   out << "    , ensureOneVisit(ensureOneVisit0)\n";
@@ -3271,6 +3287,9 @@ void entry(int argc, char **argv)
         }
         else if (op->name.equals("mvisitor")) {
           grabOptionName("mvisitor", mvisitorName, op);
+        }
+        else if (op->name.equals("identityManager")) {
+          grabOptionName("identityManager", identityManagerName, op);
         }
         else if (op->name.equals("gdb")) {
           wantGDB = true;
