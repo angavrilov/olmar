@@ -298,7 +298,9 @@ class IncDec {
           RANGETYPE *obj = iter.value();                                       \
           if (!serializeOracle || serializeOracle->shouldSerialize(obj)) {     \
             XmlTagPrinter tagPrinter2(*this);                                  \
-            tagPrinter2.printNameMapItemOpenTag(iter.key(), obj);              \
+            if (writingP()) {                                                  \
+              tagPrinter2.printNameMapItemOpenTag(iter.key(), obj);            \
+            }                                                                  \
             trav(obj);                                                         \
           }                                                                    \
         }                                                                      \
@@ -308,7 +310,9 @@ class IncDec {
           RANGETYPE *obj = iter.value();                                       \
           if (!serializeOracle || serializeOracle->shouldSerialize(obj)) {     \
             XmlTagPrinter tagPrinter2(*this);                                  \
-            tagPrinter2.printNameMapItemOpenTag(iter.key(), obj);              \
+            if (writingP()) {                                                  \
+              tagPrinter2.printNameMapItemOpenTag(iter.key(), obj);            \
+            }                                                                  \
             trav(obj);                                                         \
           }                                                                    \
         }                                                                      \
