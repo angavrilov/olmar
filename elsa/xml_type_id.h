@@ -16,7 +16,7 @@
 // still using the object address instead of its unique id, but those
 // are one-to-one so I suppose its ok for now
 
-class IdentityManager {
+class IdentityManager_Elsa {
 public:
 #define identity_defn0(PREFIX, NAME, TEMPL)                                    \
   TEMPL char const *idPrefix(NAME const * const) {return #PREFIX;}             \
@@ -30,9 +30,6 @@ public:
 #define identity_defn(PREFIX, NAME) identity_defn0(PREFIX, NAME, )
 #define identityTempl_defn(PREFIX, NAME) identity_defn0(PREFIX, NAME, template<class T>)
 
-// #define Delegate2super_identity_defn(TYPE) \ XXX
-//     virtual bool shouldSerialize(TYPE const *x) {return XmlValueWriter::shouldSerialize(x);}
-
   identity_defn(FI, SourceLocManager::File)
   identity_defn(FI, HashLineMap)
   identity_defn(FI, HashLineMap::HashLine)
@@ -42,6 +39,7 @@ public:
   identity_defn(TY, Type)
   identity_defn(TY, CompoundType)
   identity_defn(TY, FunctionType::ExnSpec)
+  // identity_defn(TY, EnumType)
   identity_defn(TY, EnumType::Value)
   identity_defn(TY, Variable)
   identity_defn(TY, OverloadSet)
@@ -91,6 +89,18 @@ protected:
   SObjSet<void const *> printedSetOL;
   SObjSet<void const *> printedSetNM;
   SObjSet<void const *> printedSetFI;
+
 };
+
+// the next line is good for replacing with codepatch.pl:
+typedef IdentityManager_Elsa IdentityManager_T;
+
+// class IdentityManager is used in cc.ast.gen.cc
+class IdentityManager : public IdentityManager_T {};
+
+#undef identity_defn0
+#undef identity_defn
+#undef identityTempl_defn
+#undef identityCpdSuper
 
 #endif
