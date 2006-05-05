@@ -18,8 +18,6 @@
 
 class IdentityManager {
 public:
-  IdentityManager() {}
-
 #define identity_defn0(PREFIX, NAME, TEMPL)                                    \
   TEMPL char const *idPrefix(NAME const * const) {return #PREFIX;}             \
   TEMPL xmlUniqueId_t uniqueId(NAME const * const obj) {return mapAddrToUniqueId(obj);} \
