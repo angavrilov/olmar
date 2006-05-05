@@ -285,10 +285,10 @@ void parseFieldDecl(string &type, string &name, rostring decl)
   // its declaration.. so let's use a simple heuristic: it's
   // probably the last sequence of non-whitespace alphanum chars
   StrtokParse tok(decl, " \t*()[]<>,");
-  
+
   // now, find the offset of the start of the last token
   int ofs = tok.offset(tok.tokc()-1);
-  
+
   // extract the parts
   type = trimWhitespace(substring(decl, ofs));
   name = trimWhitespace(toCStr(decl)+ofs);
@@ -324,7 +324,7 @@ void Gen::headerComments()
   out << "// " << sm_basename(destFname) << "\n";
   doNotEdit();
   out << "// generated automatically by astgen, from " << sm_basename(srcFname) << "\n";
-  
+
   if (modules.count()) {
     out << "// active extension modules:";
     FOREACH_OBJLIST(string, modules, iter) {
@@ -336,7 +336,7 @@ void Gen::headerComments()
   // the inclusion of the date introduces gratuitous changes when the
   // tool is re-run for whatever reason
   //out << "//   on " << localTimeString() << "\n";
-  
+
   out << "\n";
 }
 
@@ -349,7 +349,7 @@ void Gen::emitFiltered(ASTList<Annotation> const &decls, AccessCtl mode,
       UserDecl const &decl = *( iter.data()->asUserDeclC() );
       if (decl.access() == mode) {
         out << indent << decl.code << ";\n";
-      }                                                     
+      }
     }
   }
 }
@@ -449,7 +449,7 @@ void HGen::emitFile()
   // do all the enums first; this became necessary when I had an
   // enum in an extension, since the use of the enum ended up
   // before the enum itself, due to the use being in a class that
-  // was defined in the base module          
+  // was defined in the base module
   {
     FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
       if (form.data()->isTF_enum()) {
@@ -708,7 +708,7 @@ void HGen::emitCtorFormals(int &ct, ASTList<CtorArg> const &args)
   }
 }
 
- 
+
 // true if 'ud' seems to declare a function, as opposed to data
 bool isFuncDecl(UserDecl const *ud)
 {
@@ -1208,7 +1208,7 @@ void CGen::emitTFClass(TF_class const &cls)
     emitCustomCode(ctor.decls, "debugPrint");
     emitPrintCtorArgs(ctor.args);
     emitPrintFields(ctor.decls);
-    
+
     // superclass 'last' args come after all subclass things
     emitPrintCtorArgs(cls.super->lastArgs);
 
@@ -1249,13 +1249,13 @@ void CGen::emitDestructor(ASTClass const &cls)
 
   // user's code first
   emitFiltered(cls.decls, AC_DTOR, "  ");
-  
+
   // constructor arguments
   FOREACH_ASTLIST(CtorArg, cls.args, argiter) {
     CtorArg const &arg = *(argiter.data());
     emitDestroyField(arg.isOwner, arg.type, arg.name);
   }
-                          
+
   // owner fields
   FOREACH_ASTLIST(Annotation, cls.decls, iter) {
     if (!iter.data()->isUserDecl()) continue;
@@ -1375,10 +1375,10 @@ void CGen::emitCloneCtorArg(CtorArg const *arg, int &ct)
   out << "\n    ";
 
   string argName = arg->name;
-  if (argName == "ret") {     
+  if (argName == "ret") {
     // avoid clash with local variable name
-    argName = "this->ret";                 
-    
+    argName = "this->ret";
+
     // NOTE: I do not simply want to make the local variable name
     // something ugly like __astgen_ret because in the user-defined
     // clone() augmentation functions, the user is supposed to be
@@ -3157,7 +3157,7 @@ void checkUnusedCustoms(ASTClass const *c)
   }
 }
 
-        
+
 void grabOptionName(rostring opname, string &oparg, TF_option const *op)
 {
   if (op->args.count() != 1) {
@@ -3242,7 +3242,7 @@ void entry(int argc, char **argv)
   while (*argv) {
     char const *fname = *argv;
     argv++;
-    
+
     modules.append(new string(fname));
 
     Owner<ASTSpecFile> extension;
@@ -3325,12 +3325,12 @@ void entry(int argc, char **argv)
       SFOREACH_OBJLIST(TF_class, allClasses, iter) {
         TF_class const *c = iter.data();
         checkUnusedCustoms(c->super);
-      
+
         FOREACH_ASTLIST(ASTClass, c->ctors, subIter) {
           checkUnusedCustoms(subIter.data());
         }
       }
-      
+
       FOREACH_ASTLIST(ToplevelForm, ast->forms, iter2) {
         if (iter2.data()->isTF_custom()) {
           CustomCode const *cc = iter2.data()->asTF_customC()->cust;
