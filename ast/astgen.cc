@@ -2019,7 +2019,7 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
     out << "    out << \"\\n\";\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"" << name << "\" << \"=\" << xmlAttrQuote(\n";
-    out << "    /*catch-all*/xmlPrintPointer(\"" << idPrefix << "\", uniqueId(" << baseName << "->" << name << ")));\n";
+    out << "    /*catch-all*/xmlPrintPointer(\"" << idPrefix << "\", getIdMgr().uniqueId(" << baseName << "->" << name << ")));\n";
     out << "  }\n";
 
   } else {
