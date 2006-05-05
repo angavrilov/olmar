@@ -683,7 +683,7 @@ void XmlTypeWriter::toXml(STemplateArgument *sta) {
     break;
 
   case STemplateArgument::STA_DEPEXPR:
-    // (quarl) TODO: I don't get what's going on here; this looks weird.
+    // (quarl) I don't get what's going on here; this looks weird.
     if (astVisitor) {
       sta->value.e->traverse(*astVisitor);
     }
