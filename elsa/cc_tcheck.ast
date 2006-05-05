@@ -24,17 +24,9 @@ verbatim {
 
 // this code goes into the xml serialization class
 xml_verbatim {
+  /* this is elsa/cc_tcheck.ast */
   virtual bool shouldSerialize(Variable const *) { return true; }
-
-  // getIdMgr should be overridden in a subclass (e.g. to get it from
-  // XmlTypeWriter); this is here just so we can instantiate it for test runs.
-  // TODO: less kludgy way of doing this.
-public:
-  IdentityManager *idmgr; // must be initialized in client code
-protected:
-  virtual IdentityManager &getIdMgr() { return *idmgr; }
 }
-
 
 custom ASTVisitor {
 public:      // custom data extensions
@@ -780,6 +772,5 @@ class TemplateArgument {
 class NamespaceDecl {
   pure_virtual void tcheck(Env &env);
 }
-
 
 // EOF

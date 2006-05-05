@@ -795,7 +795,7 @@ XmlTypeWriter_AstVisitor::XmlTypeWriter_AstVisitor
    int &depth0,
    bool indent0,
    bool ensureOneVisit0)
-    : XmlAstWriter_AstVisitor(out0, depth0, indent0, ensureOneVisit0)
+    : XmlAstWriter_AstVisitor(out0, ttx0.idmgr, depth0, indent0, ensureOneVisit0)
     , ttx(ttx0)
 {}
 

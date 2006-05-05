@@ -41,7 +41,7 @@
 // emitted verbatim into generated header (cc.ast.gen.h)
 verbatim {
   #include "cc_flags.h"         // CVFlags, DeclFlags, etc. (r)
-  
+
   class CCLang;                 // cc_lang.h
 }
 
@@ -52,6 +52,8 @@ option dvisitor DelegatorASTVisitor;
 // these turn on the xml serialization and de-serialization code
 option xmlVisitor XmlAstWriter_AstVisitor;
 option xmlParser xml;
+
+option identityManager IdentityManager;
 
 // emit gdb() methods for debugging
 option gdb;
@@ -104,10 +106,10 @@ class TopForm (SourceLoc loc) {
 
   // assembly directive at toplevel
   -> TF_asm(E_stringLit text);
-  
+
   // namespace definition [cppstd 7.3.1]
   -> TF_namespaceDefn(StringRef /*nullable*/ name, ASTList<TopForm> forms);
-  
+
   // one of three namespace-related declarations that can occur
   // at toplevel or as a function statement
   -> TF_namespaceDecl(NamespaceDecl decl);
@@ -196,7 +198,7 @@ class PQName(SourceLoc loc) {
   // retrieve a StringRef for the underlying name, be it a PQ_name or
   // a PQ_operator
   pure_virtual StringRef getName() const;
-  
+
   // just this component; as if last in chain
   pure_virtual string toComponentString() const;
 
@@ -207,7 +209,7 @@ class PQName(SourceLoc loc) {
 
   // true if the 'template' keyword was used in this part of the name
   public bool templateUsed() const;
-  
+
   // merge two ambiguous PQNames ('this' and 'obj')
   public PQName *mergeAmbiguous(PQName *obj);
 
@@ -530,7 +532,7 @@ class Handler (
   Statement body
 ) {
   public Handler *next = NULL;      // FakeList link
-  
+
   // test whether this is the "..." handler; in this case, at the
   // moment, the type checker will make a type with ST_ELLIPSIS in
   // it, but ideally an analysis should not rely on this, and instead
@@ -573,7 +575,7 @@ class Expression {
   public Expression const *skipGroupsC() const;
 
   -> E_boolLit(bool b);
-  
+
   // most of the literals are handled by simply storing the textual
   // representation the user typed in, including delimiters like
   // quotes; the tcheck pass could interpret those if desired (and
@@ -654,7 +656,7 @@ class Expression {
 // (cppstd 1.9 para 12)
 class FullExpression (Expression expr) {
   // We do not make lists of FullExpressions.
-  
+
   // nothing is needed here beyond the 'expr'; cc_elaborate.cc adds
   // a FullExpressionAnnot object, however
 }
@@ -674,7 +676,7 @@ class ArgExpression(Expression expr) {   // expression in an argument list
   // FakeList link
   public ArgExpression *next = NULL;
   public void setNext(ArgExpression *newNext);
-  
+
   // argh.. t0182.cc demonstrates I need ambiguity links at this
   // level too!  but at least these aren't the matrix-style links
   // I had before; the 'next' links among ambiguous alternatives
@@ -727,7 +729,7 @@ class TemplateDeclaration (/*fakelist*/TemplateParameter params) {
   // declare a template function prototype, or declare or define a
   // template class
   -> TD_decl(Declaration d);
-  
+
   // wrap another set of parameters around a template decl;
   // this is for template members of template classes (14.5.2)
   -> TD_tmember(TemplateDeclaration d);
@@ -802,7 +804,7 @@ class TemplateArgument(/*first*/)(/*last*/ TemplateArgument next) {
 
   // non-type arguments, corresponds to a TP_nontype parameter
   -> TA_nontype(Expression expr);
-  
+
   // This is a special element that, when found in the template
   // argument list of a PQ_qualifier or PQ_template, signals that
   // those names were prefixed by the "template" keyword (14.2 para

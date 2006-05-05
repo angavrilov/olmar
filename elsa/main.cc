@@ -672,8 +672,8 @@ void doit(int argc, char **argv)
       }
       unit->traverse(*vis);
     } else {
-      XmlAstWriter_AstVisitor xmlVis(cout, depth, indent);
-      xmlVis.idmgr = new IdentityManager();
+      IdentityManager idmgr;
+      XmlAstWriter_AstVisitor xmlVis(cout, idmgr, depth, indent);
       ASTVisitor *vis = &xmlVis;
       LoweredASTVisitor loweredXmlVis(&xmlVis); // might not be used
       if (tracingSys("xmlPrintAST-lowered")) {
