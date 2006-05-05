@@ -38,7 +38,7 @@ bool ASTVisitorEx::visitFunction(Function *obj)
   return true;
 }
 
-  
+
 // wrap the unsafe cast
 #define CAST_AMBIG(node) ((void**)(&((node)->ambiguity)))
 

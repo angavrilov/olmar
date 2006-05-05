@@ -6,21 +6,93 @@
 #ifndef XML_TYPE_ID_H
 #define XML_TYPE_ID_H
 
-#include "xml_writer.h"         // identity_decl
 #include "cc_type.h"            // types
 #include "variable.h"           // variables
+#include "xmlhelp.h"            // xmlUniqueId_t
+#include "hashline.h"           // HashLineMap
+#include "template.h"           // InheritedTemplateParams
 
-identity_decl(Type);
-identity_decl(AtomicType);
-identity_decl(CompoundType);
-identity_decl(FunctionType::ExnSpec);
-identity_decl(EnumType::Value);
-identity_decl(BaseClass);
-identity_decl(Scope);
-identity_decl(Variable);
-identity_decl(OverloadSet);
-identity_decl(STemplateArgument);
-identity_decl(TemplateInfo);
-identity_decl(InheritedTemplateParams);
+// manage identity; definitions; FIX: I don't like how printed() is
+// still using the object address instead of its unique id, but those
+// are one-to-one so I suppose its ok for now
+
+class IdentityManager {
+public:
+  IdentityManager() {}
+
+#define identity_defn0(PREFIX, NAME, TEMPL)                                    \
+  TEMPL char const *idPrefix(NAME const * const) {return #PREFIX;}             \
+  TEMPL xmlUniqueId_t uniqueId(NAME const * const obj) {return mapAddrToUniqueId(obj);} \
+  TEMPL bool printed(NAME const * const obj) {                                 \
+    if (printedSet ##PREFIX.contains(obj)) return true;                        \
+    printedSet ##PREFIX.add(obj);                                              \
+    return false;                                                              \
+  }
+
+#define identity_defn(PREFIX, NAME) identity_defn0(PREFIX, NAME, )
+#define identityTempl_defn(PREFIX, NAME) identity_defn0(PREFIX, NAME, template<class T>)
+
+// #define Delegate2super_identity_defn(TYPE) \ XXX
+//     virtual bool shouldSerialize(TYPE const *x) {return XmlValueWriter::shouldSerialize(x);}
+
+  identity_defn(FI, SourceLocManager::File)
+  identity_defn(FI, HashLineMap)
+  identity_defn(FI, HashLineMap::HashLine)
+  identity_defn(FI, unsigned char) // for lineLengths
+
+  identity_defn(BC, BaseClass)
+  identity_defn(TY, Type)
+  identity_defn(TY, CompoundType)
+  identity_defn(TY, FunctionType::ExnSpec)
+  identity_defn(TY, EnumType::Value)
+  identity_defn(TY, Variable)
+  identity_defn(TY, OverloadSet)
+  identity_defn(TY, STemplateArgument)
+  identity_defn(TY, TemplateInfo)
+  identity_defn(TY, InheritedTemplateParams)
+  identity_defn(TY, StringRefMap<Variable>)
+
+  identityTempl_defn(OL, ObjList<T>)
+  identityTempl_defn(OL, SObjList<T>)
+  identityTempl_defn(NM, StringRefMap<T>)
+  identityTempl_defn(NM, StringObjDict<T>)
+  identityTempl_defn(FI, ArrayStack<T>)
+
+#define identityCpdSuper(PREFIX, NAME)                                         \
+  char const *idPrefix(NAME const * const obj) {                               \
+    if (CompoundType const * const cpd = dynamic_cast<CompoundType const * const>(obj)) { \
+      return idPrefix(cpd);                                                    \
+    }                                                                          \
+    return #PREFIX;                                                            \
+  }                                                                            \
+    xmlUniqueId_t uniqueId(NAME const * const obj) {                           \
+      if (CompoundType const * const cpd = dynamic_cast<CompoundType const * const>(obj)) { \
+        return uniqueId(cpd);                                                  \
+      }                                                                        \
+      return mapAddrToUniqueId(obj);                                           \
+    }                                                                          \
+    bool printed(NAME const * const obj) {                                     \
+      if (CompoundType const * const cpd = dynamic_cast<CompoundType const * const>(obj)) { \
+        return printed(cpd);                                                   \
+      }                                                                        \
+      if (printedSet ##PREFIX.contains(obj)) return true;                      \
+      printedSet ##PREFIX.add(obj);                                            \
+      return false;                                                            \
+    }
+
+  // AtomicType and Scope are special because they both can be a
+  // CompoundType sometimes and so have to change their notion of
+  // identity when they do
+  identityCpdSuper(TY, AtomicType)
+  identityCpdSuper(TY, Scope)
+
+protected:
+  // printing of types is idempotent
+  SObjSet<void const *> printedSetTY;
+  SObjSet<void const *> printedSetBC;
+  SObjSet<void const *> printedSetOL;
+  SObjSet<void const *> printedSetNM;
+  SObjSet<void const *> printedSetFI;
+};
 
 #endif

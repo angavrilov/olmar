@@ -1,3 +1,4 @@
+
 // xml_writer.h            see license.txt for copyright and terms of use
 
 // Support for XML serialization
@@ -12,6 +13,8 @@
 #include "strtable.h"           // StringRef
 #include "xmlhelp.h"            // toXml_int etc.
 #include "strmap.h"             // StringRefMap
+#include "sobjset.h"            // SObjSet
+#include "xml_type_id.h"        // IdentityManager
 
 // FIX: this is a hack; I want some place to set a flag to tell me if
 // I want the xml serialization of name-maps to be canonical (names in
@@ -23,70 +26,144 @@ extern bool sortNameMapDomainWhenSerializing;
 #define PRINTENUM(X) case X: return #X
 #define PRINTFLAG(X) if (id & (X)) b << #X
 
-// manage identity; definitions; FIX: I don't like how printed() is
-// still using the object address instead of its unique id, but those
-// are one-to-one so I suppose its ok for now
-#define identity_defn0(PREFIX, NAME, TEMPL) \
-TEMPL char const *idPrefix(NAME const * const) {return #PREFIX;} \
-TEMPL xmlUniqueId_t uniqueId(NAME const * const obj) {return mapAddrToUniqueId(obj);} \
-TEMPL bool printed(NAME const * const obj) { \
-  if (printedSet ##PREFIX.contains(obj)) return true; \
-  printedSet ##PREFIX.add(obj); \
-  return false; \
-}
-#define identity_defn(PREFIX, NAME) identity_defn0(PREFIX, NAME, )
-#define identityTempl_defn(PREFIX, NAME) identity_defn0(PREFIX, NAME, template<class T>)
+// Manage the output stream.
+//
+// It takes a SerializeOracle which tells whether to serialize; if it is NULL
+// we serialize all.
+//
+// The IdentityManager encapsulates the functionality to generate unique IDs
+// and also, importantly, to check which nodes have been visited.  A new
+// IdentityManager must be passed in for every new traversal.
+//
+// If OUT is NULL then we don't actually write anything; we just traverse.
+// (This used to be only used for serialization, but now we also reuse it to
+// traverse the AST in the same order.  TODO: rename XmlWriter; even better
+// refactor xml writing in visitors.)
 
-// declarations
-#define identity_decl0(NAME, TEMPL) \
-TEMPL char const *idPrefix(NAME const * const); \
-TEMPL xmlUniqueId_t uniqueId(NAME const * const obj); \
-TEMPL bool printed(NAME const * const obj)
-#define identity_decl(NAME) identity_decl0(NAME, )
-// NOTE: it makes no sense to declare a template like this, so do not
-// do this
-//  #define identityTempl_decl(NAME) identity_decl0(NAME, template<class T>)
-
-// manage the output stream
 class XmlWriter {
-  public:
-  ostream &out;                 // output stream to which to print
+public:
+  IdentityManager &idmgr;       // unique id manager
 
-  protected:
+protected:
+  ostream *out;                 // output stream to which to print
+
   int &depth;                   // ref so we can share our indentation depth with other printers
   bool indent;                  // should we print indentation?
 
-  public:
-  XmlWriter(ostream &out0, int &depth0, bool indent0);
+public:
+  XmlWriter(IdentityManager &idmgr0, ostream *out0, int &depth0, bool indent0);
 
-  protected:
+  // whether we are writing or not.
+  bool writingP() const { return out != NULL; }
+
+protected:
   // print a newline and indent if the user wants indentation; NOTE:
   // the convention is that you don't print a newline until you are
   // *sure* you have something to print that goes onto the next line;
   // that is, most lines do *not* end in a newline
   void newline();
-  friend class XmlCloseTagPrinter;
+  friend class XmlTagPrinter;
 };
 
-// manage closing tags: indent and print something when exiting the
-// scope
-class XmlCloseTagPrinter {
-  string s;                     // NOTE: don't make into a string ref; it must make a copy
+// Manage XML tags:
+//   Either print both the open and close tags, or neither.  The close tag is
+//   automatically printed on destruction iff the open tag was printed.
+class XmlTagPrinter {
+  // NOTE: you must pass in a constant string, not e.g. a str.c_str(), because
+  // we need it until the end of the scope, and we do not copy the string.
+  const char *tagname;
   XmlWriter &ttx;
 
-  public:
-  XmlCloseTagPrinter(string s0, XmlWriter &ttx0)
-    : s(s0), ttx(ttx0)
-  {}
-
-  private:
-  explicit XmlCloseTagPrinter(XmlCloseTagPrinter &); // prohibit
-
-  public:
-  ~XmlCloseTagPrinter() {
-    ttx.newline();
-    ttx.out << "</" << s << ">";
+public:
+  XmlTagPrinter(XmlWriter &ttx0) : tagname(NULL), ttx(ttx0)
+  {
   }
+
+  void readyTag(const char *tagname0) {
+    xassert(ttx.writingP());
+    xassert(tagname == NULL); // only call readyTag once since only one closeTag
+    tagname = tagname0;
+    ttx.depth++;
+    newline();
+  }
+
+  template <class T>
+  void printOpenTag(const char *tagname0, T const &obj) {
+    readyTag(tagname0);
+
+    // idPrefix and uniqueId are overloaded on T.
+    out() << '<' << tagname << " _id="
+          << xmlAttrQuote(xmlPrintPointer(ttx.idmgr.idPrefix(obj), ttx.idmgr.uniqueId(obj)));
+  }
+
+  template <class T>
+  void printNameMapItemOpenTag(const char *objname, T const &target) {
+    readyTag("_NameMap_Item");
+    out() << "<_NameMap_Item"
+          << " name=" << xmlAttrQuote(objname)
+          << " item=" << xmlAttrQuote(xmlPrintPointer(ttx.idmgr.idPrefix(target), ttx.idmgr.uniqueId(target)))
+          << '>';
+  }
+
+  template <class T>
+  void printListItemOpenTag(T const &target) {
+    readyTag("_List_Item");
+    out() << "<_List_Item item="
+          << xmlAttrQuote(xmlPrintPointer(ttx.idmgr.idPrefix(target), ttx.idmgr.uniqueId(target)))
+          << '>';
+  }
+
+  template <class T>
+  void printMapItemOpenTag(const char *key, T const &value) {
+    readyTag("_Map_Item");
+    out() << "<_Map_Item"
+          << " key=" << xmlAttrQuote(key)
+          << " item=" << xmlAttrQuote(xmlPrintPointer(ttx.idmgr.idPrefix(value), ttx.idmgr.uniqueId(value)))
+          << '>';
+  }
+
+  template <class T>
+  void printMapItemOpenTag(T const &key, T const &value) {
+    readyTag("_Map_Item");
+    out() << "<_Map_Item"
+          << " key=" << xmlAttrQuote(xmlPrintPointer(ttx.idmgr.idPrefix(key), ttx.idmgr.uniqueId(key)))
+          << " item=" << xmlAttrQuote(xmlPrintPointer(ttx.idmgr.idPrefix(value), ttx.idmgr.uniqueId(value)))
+          << '>';
+  }
+
+  // template <class T>
+  // void printStrRef0(const char *field, T const &target) {
+  //   if (target) {
+  //     newline();
+  //     out() << field << '=' << xmlAttrQuote(target);
+  //   }
+  // }
+
+  // for ending the open tag
+  void tagEnd() {
+    xassert(ttx.writingP());
+    out() << '>';
+  }
+
+  ~XmlTagPrinter() {
+    if (ttx.writingP())
+      closeTag();
+  }
+
+  void closeTag() {
+    xassert(tagname != NULL);
+    newline();
+    out() << '<' << '/' << tagname << '>';
+    ttx.depth--;
+  }
+
+  ostream &out() { xassert(ttx.out); return *ttx.out; }
+
+protected:
+  void newline() { ttx.newline(); }
+
+private:
+  explicit XmlTagPrinter(XmlTagPrinter &); // prohibit
 };
 
 // manage indentation depth
@@ -100,86 +177,96 @@ class IncDec {
   ~IncDec() {--x;}
 };
 
-#define printThing0(NAME, VALUE) \
-do { \
-  out << #NAME "=" << xmlAttrQuote(VALUE); \
-} while(0)
+// TODO: templatize
 
-#define printThing(NAME, RAW, VALUE) \
-do { \
-  if ((RAW) && shouldSerialize(RAW)) { \
-    newline(); \
-    printThing0(NAME, VALUE); \
-  } \
-} while(0)
+#define printThing0(NAME, VALUE)                                  \
+  do {                                                            \
+    *out << #NAME "=" << xmlAttrQuote(VALUE);                     \
+  } while(0)
 
-#define printThingAST(NAME, RAW, VALUE) \
-do { \
-  if (astVisitor && RAW) { \
-    newline(); \
-    printThing0(NAME, VALUE); \
-  } \
-} while(0)
+#define printThing(NAME, RAW, VALUE)                                           \
+  do {                                                                         \
+    if ((RAW) && (!serializeOracle || serializeOracle->shouldSerialize(RAW))) { \
+      newline();                                                               \
+      printThing0(NAME, VALUE);                                                \
+    }                                                                          \
+  } while(0)
 
-#define printPtr0(NAME, VALUE) printThing(NAME, VALUE, xmlPrintPointer(idPrefix(VALUE), uniqueId(VALUE)))
+#define printThingAST(NAME, RAW, VALUE)                           \
+  do {                                                            \
+    if (astVisitor && RAW) {                                      \
+      newline();                                                  \
+      printThing0(NAME, VALUE);                                   \
+    }                                                             \
+  } while(0)
+
+// TODO: refactor uniqueIdAST into IdentityManager
+#define printPtr0(NAME, VALUE) printThing(NAME, VALUE, xmlPrintPointer(idmgr.idPrefix(VALUE), idmgr.uniqueId(VALUE)))
 #define printPtr(BASE, MEM)    printPtr0(MEM, (BASE)->MEM)
 #define printPtrAST(BASE, MEM) printThingAST(MEM, (BASE)->MEM, xmlPrintPointer("AST", uniqueIdAST((BASE)->MEM)))
 // print an embedded thing
-#define printEmbed(BASE, MEM)  printThing(MEM, (&((BASE)->MEM)), xmlPrintPointer(idPrefix(&((BASE)->MEM)), uniqueId(&((BASE)->MEM))))
+#define printEmbed(BASE, MEM)  printThing(MEM, (&((BASE)->MEM)), xmlPrintPointer(idmgr.idPrefix(&((BASE)->MEM)), idmgr.uniqueId(&((BASE)->MEM))))
 
 // for unions where the member name does not match the xml name and we
 // don't want the 'if'
-#define printPtrUnion(BASE, MEM, NAME) printThing0(NAME, xmlPrintPointer(idPrefix((BASE)->MEM), uniqueId((BASE)->MEM)))
+#define printPtrUnion(BASE, MEM, NAME) printThing0(NAME, xmlPrintPointer(idmgr.idPrefix((BASE)->MEM), idmgr.uniqueId((BASE)->MEM)))
 // this is only used in one place
 #define printPtrASTUnion(BASE, MEM, NAME) if (astVisitor) printThing0(NAME, xmlPrintPointer("AST", uniqueIdAST((BASE)->MEM)))
 
-#define printXml(NAME, VALUE) \
-do { \
-  newline(); \
-  printThing0(NAME, ::toXml(VALUE)); \
-} while(0)
+#define printXml(NAME, VALUE)                                     \
+  do {                                                            \
+    newline();                                                    \
+    printThing0(NAME, ::toXml(VALUE));                            \
+  } while(0)
 
-#define printXml_bool(NAME, VALUE) \
-do { \
-  newline(); \
-  printThing0(NAME, ::toXml_bool(VALUE)); \
-} while(0)
+#define printXml_bool(NAME, VALUE)                                \
+  do {                                                            \
+    newline();                                                    \
+    printThing0(NAME, ::toXml_bool(VALUE));                       \
+  } while(0)
 
-#define printXml_int(NAME, VALUE) \
-do { \
-  newline(); \
-  printThing0(NAME, ::toXml_int(VALUE)); \
-} while(0)
+#define printXml_int(NAME, VALUE)                                 \
+  do {                                                            \
+    newline();                                                    \
+    printThing0(NAME, ::toXml_int(VALUE));                        \
+  } while(0)
 
-#define printXml_SourceLoc(NAME, VALUE) \
-do { \
-  newline(); \
-  printThing0(NAME, ::toXml_SourceLoc(VALUE)); \
-} while(0)
+#define printXml_SourceLoc(NAME, VALUE)                           \
+  do {                                                            \
+    newline();                                                    \
+    printThing0(NAME, ::toXml_SourceLoc(VALUE));                  \
+  } while(0)
 
-#define printStrRef(FIELD, TARGET) \
-do { \
-  if (TARGET) { \
-    newline(); \
-    out << #FIELD "=" << xmlAttrQuote(TARGET); \
-  } \
-} while(0)
+// #define printStrRef(NAME, VALUE) tagPrinter.printStrRef0(#NAME, VALUE)
+
+#define printStrRef(NAME, VALUE)                                  \
+  do {                                                            \
+    if (VALUE) {                                                  \
+      newline();                                                  \
+      *out << #NAME << '=' << xmlAttrQuote(VALUE);                \
+    }                                                             \
+  } while(0)
 
 // FIX: rename this; it also works for ArrayStacks
-#define travObjList0(OBJ, TAGNAME, FIELDTYPE, ITER_MACRO, LISTKIND) \
-do { \
-  if (!printed(&OBJ)) { \
-    openTagWhole(List_ ##TAGNAME, &OBJ); \
-    ITER_MACRO(FIELDTYPE, const_cast<LISTKIND<FIELDTYPE>&>(OBJ), iter) { \
-      FIELDTYPE *obj0 = iter.data(); \
-      if (shouldSerialize(obj0)) { \
-        travListItem(obj0); \
-      } \
-    } \
-  } \
-} while(0)
+#define travObjList0(OBJ, TAGNAME, FIELDTYPE, ITER_MACRO, LISTKIND)            \
+  do {                                                                         \
+    if (!idmgr.printed(&OBJ)) {                                                \
+      XmlTagPrinter tagPrinter(*this);                                         \
+      if (writingP()) {                                                        \
+        tagPrinter.printOpenTag("List_" #TAGNAME, &OBJ);                       \
+        tagPrinter.tagEnd();                                                   \
+      }                                                                        \
+      ITER_MACRO(FIELDTYPE, const_cast<LISTKIND<FIELDTYPE>&>(OBJ), iter) {     \
+        FIELDTYPE *obj0 = iter.data();                                         \
+        if (!serializeOracle || serializeOracle->shouldSerialize(obj0)) {      \
+          travListItem(obj0);                                                  \
+        }                                                                      \
+      }                                                                        \
+    }                                                                          \
+  } while(0)
+
 #define travObjList1(OBJ, BASETYPE, FIELD, FIELDTYPE, ITER_MACRO, LISTKIND) \
-  travObjList0(OBJ, BASETYPE ##_ ##FIELD, FIELDTYPE, ITER_MACRO, LISTKIND) 
+  travObjList0(OBJ, BASETYPE ##_ ##FIELD, FIELDTYPE, ITER_MACRO, LISTKIND)
 
 #define travObjList_S(BASE, BASETYPE, FIELD, FIELDTYPE) \
   travObjList1(BASE->FIELD, BASETYPE, FIELD, FIELDTYPE, SFOREACH_OBJLIST_NC, SObjList)
@@ -197,122 +284,64 @@ do { \
 #define travObjList_standalone(OBJ, BASETYPE, FIELD, FIELDTYPE) \
   travObjList1(OBJ, BASETYPE, FIELD, FIELDTYPE, FOREACH_OBJLIST_NC, ObjList)
 
-#define travStringRefMap0(OBJ, BASETYPE, FIELD, RANGETYPE) \
-do { \
-  if (!printed(OBJ)) { \
-    openTagWhole(NameMap_ ##BASETYPE ##_ ##FIELD, OBJ); \
-    if (sortNameMapDomainWhenSerializing) { \
-      for(StringRefMap<RANGETYPE>::SortedKeyIter iter(*(OBJ)); \
-          !iter.isDone(); iter.adv()) { \
-        RANGETYPE *obj = iter.value(); \
-        if (shouldSerialize(obj)) { \
-          openTag_NameMap_Item(iter.key(), obj); \
-          trav(obj); \
-        } \
-      } \
-    } else { \
-      for(PtrMap<char const, RANGETYPE>::Iter iter(*(OBJ)); \
-          !iter.isDone(); iter.adv()) { \
-        RANGETYPE *obj = iter.value(); \
-        if (shouldSerialize(obj)) { \
-          openTag_NameMap_Item(iter.key(), obj); \
-          trav(obj); \
-        } \
-      } \
-    } \
-  } \
-} while(0)
+#define travStringRefMap0(OBJ, BASETYPE, FIELD, RANGETYPE)                     \
+  do {                                                                         \
+    if (!idmgr.printed(OBJ)) {                                                 \
+      XmlTagPrinter tagPrinter(*this);                                         \
+      if (writingP()) {                                                        \
+        tagPrinter.printOpenTag("NameMap_" #BASETYPE "_" #FIELD, OBJ);         \
+        tagPrinter.tagEnd();                                                   \
+      }                                                                        \
+      if (sortNameMapDomainWhenSerializing) {                                  \
+        for(StringRefMap<RANGETYPE>::SortedKeyIter iter(*(OBJ));               \
+            !iter.isDone(); iter.adv()) {                                      \
+          RANGETYPE *obj = iter.value();                                       \
+          if (!serializeOracle || serializeOracle->shouldSerialize(obj)) {     \
+            XmlTagPrinter tagPrinter2(*this);                                  \
+            tagPrinter2.printNameMapItemOpenTag(iter.key(), obj);              \
+            trav(obj);                                                         \
+          }                                                                    \
+        }                                                                      \
+      } else {                                                                 \
+        for(PtrMap<char const, RANGETYPE>::Iter iter(*(OBJ));                  \
+            !iter.isDone(); iter.adv()) {                                      \
+          RANGETYPE *obj = iter.value();                                       \
+          if (!serializeOracle || serializeOracle->shouldSerialize(obj)) {     \
+            XmlTagPrinter tagPrinter2(*this);                                  \
+            tagPrinter2.printNameMapItemOpenTag(iter.key(), obj);              \
+            trav(obj);                                                         \
+          }                                                                    \
+        }                                                                      \
+      }                                                                        \
+    }                                                                          \
+  } while(0)
 
 #define travStringRefMap(BASE, BASETYPE, FIELD, RANGETYPE) \
   travStringRefMap0(&((BASE)->FIELD), BASETYPE, FIELD, RANGETYPE)
 
-#define travPtrMap0(OBJ, BASETYPE, FIELD, DOMTYPE, RANGETYPE) \
-do { \
-  if (!printed(OBJ)) { \
-    openTagWhole(Map_ ##BASETYPE ##_ ##FIELD, OBJ); \
-    for(PtrMap<DOMTYPE, RANGETYPE>::Iter iter(*(OBJ)); \
-        !iter.isDone(); iter.adv()) { \
-      DOMTYPE *key = iter.key(); \
-      RANGETYPE *value = iter.value(); \
-      bool shouldSrzDom = shouldSerialize(key); \
-      bool shouldSrzRange = shouldSerialize(value); \
-      if (/*dsw: NOTE: This must be an 'OR' for at least one situation in Oink*/ \
-          /*perhaps the semantics should be speical-cased.*/ \
-        shouldSrzDom || shouldSrzRange) { \
-        openTag_Map_Item(key, value); \
-        trav(key); \
-        trav(value); \
-      } \
-    } \
-  } \
-} while(0)
+
+#define trav(TARGET)                                                           \
+  do {                                                                         \
+    if (TARGET && (!serializeOracle || serializeOracle->shouldSerialize(TARGET))) { \
+      toXml(TARGET);                                                           \
+    }                                                                          \
+  } while(0)
 
 // NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
 // for the XmlCloseTagPrinter fires too early.
-#define openTag0(NAME, OBJ, SUFFIX) \
-  newline(); \
-  char const * const name = NAME; \
-  out << "<" << name << " _id=" \
-    << xmlAttrQuote(xmlPrintPointer(idPrefix(OBJ), uniqueId(OBJ))) \
-    << SUFFIX; \
-  XmlCloseTagPrinter tagCloser(name, *this); \
-  IncDec depthManager(this->depth)
 
-#define openTag(NAME, OBJ)             openTag0(#NAME, OBJ, "" )
-#define openTagVirtual(NAME, OBJ)      openTag0( NAME, OBJ, "" )
-#define openTagWhole(NAME, OBJ)        openTag0(#NAME, OBJ, ">")
-#define openTagWholeVirtual(NAME, OBJ) openTag0( NAME, OBJ, ">")
-
-// NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
-// for the XmlCloseTagPrinter fires too early.
-#define openTag_NameMap_Item(NAME, TARGET) \
-  newline(); \
-  out << "<_NameMap_Item" \
-      << " name=" << xmlAttrQuote(NAME) \
-      << " item=" << xmlAttrQuote(xmlPrintPointer(idPrefix(TARGET), uniqueId(TARGET))) \
-      << ">"; \
-  XmlCloseTagPrinter tagCloser("_NameMap_Item", *this); \
-  IncDec depthManager(this->depth)
-
-// NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
-// for the XmlCloseTagPrinter fires too early.
-#define openTag_Map_Item(NAME, TARGET) \
-  newline(); \
-  out << "<_Map_Item" \
-      << " key=" << xmlAttrQuote(xmlPrintPointer(idPrefix(NAME), uniqueId(NAME))) \
-      << " item=" << xmlAttrQuote(xmlPrintPointer(idPrefix(TARGET), uniqueId(TARGET))) \
-      << ">"; \
-  XmlCloseTagPrinter tagCloser("_Map_Item", *this); \
-  IncDec depthManager(this->depth)
-
-#define tagEnd \
-do { \
-  out << ">"; \
-} while(0)
-
-#define trav(TARGET) \
-do { \
-  if (TARGET && shouldSerialize(TARGET)) { \
-    toXml(TARGET); \
-  } \
-} while(0)
-
-// NOTE: you must not wrap this one in a 'do {} while(0)': the dtor
-// for the XmlCloseTagPrinter fires too early.
-#define travListItem(TARGET) \
-  newline(); \
-  out << "<_List_Item item=" \
-    << xmlAttrQuote(xmlPrintPointer(idPrefix(TARGET), uniqueId(TARGET))) \
-    << ">"; \
-  XmlCloseTagPrinter tagCloser("_List_Item", *this); \
-  IncDec depthManager(this->depth); \
+#define travListItem(TARGET)                                      \
+  XmlTagPrinter tagPrinter(*this);                                \
+  tagPrinter.printListItemOpenTag(TARGET);                        \
+  IncDec depthManager(this->depth);                               \
   trav(TARGET)
 
-#define travAST(TARGET) \
-do { \
-  if (TARGET) { \
-    if (astVisitor) (TARGET)->traverse(*astVisitor); \
-  } \
-} while(0)
+#define travAST(TARGET)                                           \
+  do {                                                            \
+    if (TARGET) {                                                 \
+      if (astVisitor) (TARGET)->traverse(*astVisitor);            \
+    }                                                             \
+  } while(0)
+
 
 #endif // XML_WRITER_H

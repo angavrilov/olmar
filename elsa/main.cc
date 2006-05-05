@@ -655,12 +655,14 @@ void doit(int argc, char **argv)
     cout << "---- START ----" << endl;
 
     // serialize Files
-    XmlFileWriter fileXmlWriter(cout, depth, indent);
+    IdentityManager idmgr;
+    XmlFileWriter fileXmlWriter(idmgr, &cout, depth, indent, NULL);
     fileXmlWriter.toXml(sourceLocManager->serializationOnly_get_files());
 
     // serialize AST and maybe Types
     if (tracingSys("xmlPrintAST-types")) {
-      XmlTypeWriter xmlTypeVis( (ASTVisitor*)NULL, cout, depth, indent);
+      IdentityManager idmgr;
+      XmlTypeWriter xmlTypeVis( idmgr, (ASTVisitor*)NULL, &cout, depth, indent, NULL );
       XmlTypeWriter_AstVisitor xmlVis_Types(xmlTypeVis, cout, depth, indent);
       xmlTypeVis.astVisitor = &xmlVis_Types;
       ASTVisitor *vis = &xmlVis_Types;
@@ -671,6 +673,7 @@ void doit(int argc, char **argv)
       unit->traverse(*vis);
     } else {
       XmlAstWriter_AstVisitor xmlVis(cout, depth, indent);
+      xmlVis.idmgr = new IdentityManager();
       ASTVisitor *vis = &xmlVis;
       LoweredASTVisitor loweredXmlVis(&xmlVis); // might not be used
       if (tracingSys("xmlPrintAST-lowered")) {

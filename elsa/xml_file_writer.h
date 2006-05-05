@@ -6,14 +6,27 @@
 #ifndef XML_FILE_WRITER_H
 #define XML_FILE_WRITER_H
 
+#include "sobjset.h"            // SObjSet
 #include "objlist.h"            // ObjList
 #include "srcloc.h"             // SourceLocManager
 #include "xml_writer.h"         // XmlWriter
 #include "hashline.h"           // HashLineMap
 
 class XmlFileWriter : public XmlWriter {
+public:
+
+  class XFW_SerializeOracle {
   public:
-  XmlFileWriter(ostream &out0, int &depth0, bool indent0);
+    virtual ~XFW_SerializeOracle() {}
+    virtual bool shouldSerialize(SourceLocManager::File const *) {return true;}
+    virtual bool shouldSerialize(HashLineMap const *) {return true;}
+    virtual bool shouldSerialize(HashLineMap::HashLine const *) {return true;}
+  };
+
+  XFW_SerializeOracle *serializeOracle_m;
+
+  XmlFileWriter(IdentityManager &idmgr0, ostream *out0, int &depth0, bool indent0,
+                XFW_SerializeOracle *serializeOracle0);
   virtual ~XmlFileWriter() {}
 
   void toXml(ObjList<SourceLocManager::File> &files);
@@ -23,10 +36,6 @@ class XmlFileWriter : public XmlWriter {
   void toXml_lineLengths(SourceLocManager::File *file);
   void toXml(HashLineMap *hashLines);
   void toXml(HashLineMap::HashLine *hashLine);
-
-  virtual bool shouldSerialize(SourceLocManager::File const *) {return true;}
-  virtual bool shouldSerialize(HashLineMap const *) {return true;}
-  virtual bool shouldSerialize(HashLineMap::HashLine const *) {return true;}
 };
 
 #endif // XML_FILE_WRITER_H

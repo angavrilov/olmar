@@ -24,8 +24,38 @@ class XmlTypeWriter : public XmlWriter {
   public:
   ASTVisitor *astVisitor;       // for launching sub-traversals of AST we encounter in the Types
 
+  class XTW_SerializeOracle {
   public:
-  XmlTypeWriter(ASTVisitor *astVisitor0, ostream &out0, int &depth0, bool indent0=false);
+    virtual ~XTW_SerializeOracle() {}
+    virtual bool shouldSerialize(Type const *) {return true;}
+    virtual bool shouldSerialize(CompoundType const *) {return true;}
+    virtual bool shouldSerialize(FunctionType::ExnSpec const *) {return true;}
+    virtual bool shouldSerialize(EnumType::Value const *) {return true;}
+    virtual bool shouldSerialize(BaseClass const *) {return true;}
+    virtual bool shouldSerialize(Variable const *) {return true;}
+    virtual bool shouldSerialize(OverloadSet const *) {return true;}
+    virtual bool shouldSerialize(STemplateArgument const *) {return true;}
+    virtual bool shouldSerialize(TemplateInfo const *) {return true;}
+    virtual bool shouldSerialize(InheritedTemplateParams const *) {return true;}
+    // deal with Scott's multiple-inheritance funkyness
+    virtual bool shouldSerialize(AtomicType const *obj);
+    virtual bool shouldSerialize(Scope const *obj);
+    // FIX: dsw: how do I make these virtual??  I don't have to override
+    // them right now, but they should be virtual; perhaps that is not
+    // possible because it would be too hard for the compiler to compute
+    // the vtable
+    template<class T> bool shouldSerialize(ObjList<T> const *) {return true;}
+    template<class T> bool shouldSerialize(SObjList<T> const *) {return true;}
+    template<class T> bool shouldSerialize(StringRefMap<T> const *) {return true;}
+    template<class T> bool shouldSerialize(StringObjDict<T> const *) {return true;}
+  };
+
+  XTW_SerializeOracle *serializeOracle_m;
+
+  public:
+  XmlTypeWriter(IdentityManager &idmgr0, ASTVisitor *astVisitor0,
+                ostream *out0, int &depth0, bool indent0,
+                XTW_SerializeOracle *serializeOracle0);
   virtual ~XmlTypeWriter() {}
 
   public:
@@ -67,28 +97,6 @@ class XmlTypeWriter : public XmlWriter {
   void toXml_TemplateParams_properties(TemplateParams *tp);
   void toXml_TemplateParams_subtags(TemplateParams *tp);
 
-  public:
-  virtual bool shouldSerialize(Type const *) {return true;}
-  virtual bool shouldSerialize(CompoundType const *) {return true;}
-  virtual bool shouldSerialize(FunctionType::ExnSpec const *) {return true;}
-  virtual bool shouldSerialize(EnumType::Value const *) {return true;}
-  virtual bool shouldSerialize(BaseClass const *) {return true;}
-  virtual bool shouldSerialize(Variable const *) {return true;}
-  virtual bool shouldSerialize(OverloadSet const *) {return true;}
-  virtual bool shouldSerialize(STemplateArgument const *) {return true;}
-  virtual bool shouldSerialize(TemplateInfo const *) {return true;}
-  virtual bool shouldSerialize(InheritedTemplateParams const *) {return true;}
-  // deal with Scott's multiple-inheritance funkyness
-  virtual bool shouldSerialize(AtomicType const *obj);
-  virtual bool shouldSerialize(Scope const *obj);
-  // FIX: dsw: how do I make these virtual??  I don't have to override
-  // them right now, but they should be virtual; perhaps that is not
-  // possible because it would be too hard for the compiler to compute
-  // the vtable
-  template<class T> bool shouldSerialize(ObjList<T> const *) {return true;}
-  template<class T> bool shouldSerialize(SObjList<T> const *) {return true;}
-  template<class T> bool shouldSerialize(StringRefMap<T> const *) {return true;}
-  template<class T> bool shouldSerialize(StringObjDict<T> const *) {return true;}
 };
 
 // print out type annotations for every ast node that has a type
@@ -104,7 +112,8 @@ class XmlTypeWriter_AstVisitor : public XmlAstWriter_AstVisitor {
      bool indent0 = false,
      bool ensureOneVisit0 = true);
 
-  virtual bool shouldSerialize(Variable const *var) {return ttx.shouldSerialize(var);}
+  virtual bool shouldSerialize(Variable const *var) {return !ttx.serializeOracle_m || ttx.serializeOracle_m->shouldSerialize(var);}
+  IdentityManager &getIdMgr() { return ttx.idmgr; }
 
   // **** visit methods
   virtual bool visitTypeSpecifier(TypeSpecifier *ts);

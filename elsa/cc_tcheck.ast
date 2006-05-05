@@ -23,7 +23,15 @@ verbatim {
 
 // this code goes into the xml serialization class
 xml_verbatim {
-  virtual bool shouldSerialize(Variable const *) {return true;}
+  virtual bool shouldSerialize(Variable const *) { return true; }
+
+  // getIdMgr should be overridden in a subclass (e.g. to get it from
+  // XmlTypeWriter); this is here just so we can instantiate it for test runs.
+  // TODO: less kludgy way of doing this.
+public:
+  IdentityManager *idmgr; // must be initialized in client code
+protected:
+  virtual IdentityManager &getIdMgr() { return *idmgr; }
 }
 
 
@@ -105,10 +113,10 @@ class Function {
   private void tcheck_memberInits(Env &env);
   private void tcheck_handlers(Env &env);
 
-  // this returns true if this is an instantiation of a template 
+  // this returns true if this is an instantiation of a template
   // function that has not yet been tcheck'd
   public bool instButNotTchecked() const;
-  
+
   // true if this is a function template (uninstantiated)
   public bool isTemplate() const;
 }
@@ -138,7 +146,7 @@ class MemberInit {
 }
 
 
-class Declaration {                                   
+class Declaration {
   public void tcheck(Env &env, DeclaratorContext context);
 }
 
@@ -155,7 +163,7 @@ class ASTTypeId {
     // when this includes DF_PARAMETER, it's a function parameter,
     // which knowledge can be applied towards disambiguation
     DeclFlags dflags;
-    
+
     // syntactic context
     DeclaratorContext context;
 
@@ -183,7 +191,7 @@ class PQName {
   //
   // 2005-03-14: Do not call this directly if the name might be
   // ambiguous; use 'tcheckPQName' (in cc_tcheck.cc) instead.
-  pure_virtual void tcheck_pq(Env &env, Scope *scope = NULL, 
+  pure_virtual void tcheck_pq(Env &env, Scope *scope = NULL,
                               LookupFlags lflags = LF_NONE);
 
   -> PQ_qualifier {
@@ -220,7 +228,7 @@ class TypeSpecifier {
   -> TS_name {
        // typedef Variable this name refers to
        public(xml_TY,xmlShouldSerialize) Variable *var = NULL;
-       
+
        // if the lookup is *not* dependent (and some other conditions
        // hold...), this will point to 'var' and be preserved when
        // the AST is cloned
@@ -439,7 +447,7 @@ class IDeclarator {
        // write down in cc_tcheck which one this is
        public(xml) bool isNewSize = false;
      }
-     
+
   -> D_bitfield {
        // type checker stashes the bitfield size in bits here
        public(xml) int numBits = 0;
@@ -534,9 +542,9 @@ class Expression {
 
   // this attempts to evaluate the expression's address
   public CValue constEvalAddr(ConstEval &env) const;
-  
+
   // shared by E_cast and E_keywordCast
-  public CValue constEvalCast(ConstEval &env, ASTTypeId const *ctype, 
+  public CValue constEvalCast(ConstEval &env, ASTTypeId const *ctype,
                               Expression const *expr) const;
 
   // return true if this expression has any greater-than operators
@@ -558,7 +566,7 @@ class Expression {
   -> E_stringLit   { /* TODO: put a DataBlock here */ }
   -> E_charLit     { public(xml) unsigned int c = 0; }
 
-  -> E_this {                              
+  -> E_this {
        // the receiver parameter to which this 'this' refers; NOTE
        // that 'receiver' is a *reference* whereas E_this is a
        // *pointer* (it's like taking the address of 'receiver')
@@ -615,15 +623,15 @@ class Expression {
        custom clone { ret->size = size; }
      }
 
-  -> E_cast {                           
+  -> E_cast {
        // idempotency for type definitions in casts
-       public(xml) bool tcheckedType = false;           
+       public(xml) bool tcheckedType = false;
      }
 
   -> E_sizeofType {
        public(xml) int size = -1; // size of the type
        custom clone { ret->size = size; }
-                                    
+
        // This flag is used in some circumstances in C mode to ensure
        // a given type expression is only tchecked one time, despite
        // possible ambiguities.  (See the tcheck method.)
@@ -646,7 +654,7 @@ class Expression {
        custom debugPrint { ind(os,indent) << "ctorVar: " << refersTo(ctorVar) << "\n"; }
        custom clone { ret->ctorVar = ctorVar; }
      }
-     
+
   // extended tcheck interface for lookups that yield sets; see
   // tcheckExpression_set() in cc_tcheck.cc
   -> E_addrOf {
@@ -706,15 +714,15 @@ class Initializer {
   // the thing it initializes
   pure_virtual void tcheck(Env &env, Type *type);
 
-  -> IN_ctor() {                             
+  -> IN_ctor() {
        // constructor function being called
        public(xml_TY,xmlShouldSerialize) Variable *ctorVar = NULL;
-       
+
        // true if this was originally an IN_expr that the type
        // checker rewrote as IN_ctor; needed to implement 8.5p14
        public(xml,field) bool was_IN_expr = false;
 
-       custom clone { 
+       custom clone {
          ret->ctorVar = ctorVar;
          ret->was_IN_expr = was_IN_expr;
        }
@@ -725,7 +733,7 @@ class Initializer {
 class TemplateDeclaration {
   public void tcheck(Env &env);
   pure_virtual void itcheck(Env &env);
-       
+
   // oy, I wanted 'preemptTraverse' to affect all TemplateDeclarations
   // at once, but that's a little difficult, so I have to copy it..
 
