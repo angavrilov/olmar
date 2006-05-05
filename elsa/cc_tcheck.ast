@@ -1,3 +1,4 @@
+// -*- c++ -*-
 // cc_tcheck.ast            see license.txt for copyright and terms of use
 // extension module for cc.ast that defines the entry points
 // for the type checker, and the annotations it produces
