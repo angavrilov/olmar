@@ -69,7 +69,7 @@ STATICDEF string xSysError::
   if (r != R_UNKNOWN) {
     sb << getReasonString(r);
   }
-  else if ((sysReason != NULL) && (sysReason[0] != 0)) {
+  else if ( /*(sysReason != NULL) &&*/ (sysReason[0] != 0)) {
     sb << sysReason;
   }
   else {
@@ -81,7 +81,7 @@ STATICDEF string xSysError::
   if (!ctx.empty()) {
     sb << ", " << ctx;
   }
-  
+
   return sb;
 }
 
@@ -210,12 +210,12 @@ STATICDEF xSysError::Reason xSysError::portablize(int sysErrorCode, string &sysM
         0,
         NULL
     );
-    
+
     // now the SDK says: "Process any inserts in lpMsgBuf."
     //
     // I think this means that lpMsgBuf might have "%" escape
     // sequences in it... oh well, I'm just going to keep them
-    
+
     // make a copy of the string
     sysMsg = (char*)lpMsgBuf;
 
