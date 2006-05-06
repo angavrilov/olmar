@@ -43,7 +43,7 @@ string replace(rostring origSrc, rostring oldstr, rostring newstr)
 string expandRanges(char const *chars_)
 {
   stringBuilder ret;
-  
+
   // Fix from Hendrik Tews: use unsigned chars to as not to fall over
   // when ranges have values near 127 on compilers for which 'char' is
   // signed by default (which is probably the common case)
@@ -82,7 +82,7 @@ string translate(rostring origSrc, rostring srcchars, rostring destchars)
 
   // build a translation map
   char map[256];
-  int i;
+  string::size_type i;
   for (i=0; i<256; i++) {
     map[i] = i;
   }
@@ -113,7 +113,7 @@ string stringToupper(rostring src)
 
 
 string trimWhitespace(rostring origStr)
-{                                   
+{
   char const *str = toCStr(origStr);
 
   // trim leading whitespace
@@ -134,7 +134,7 @@ string trimWhitespace(rostring origStr)
 
 
 string firstAlphanumToken(rostring origStr)
-{                                   
+{
   char const *str = toCStr(origStr);
 
   // find the first alpha-numeric; NOTE: if we hit the NUL at the end,
@@ -201,7 +201,7 @@ string encodeWithEscapes(char const *p, int len)
     sprintf(tmp, "\\x%02X", (unsigned char)(*p));
     sb << tmp;
   }
-  
+
   return sb;
 }
 
@@ -364,7 +364,7 @@ string sm_basename(rostring origSrc)
 }
 
 string dirname(rostring origSrc)
-{                              
+{
   char const *src = toCStr(origSrc);
 
   char const *sl = strrchr(src, '/');   // locate last slash
@@ -425,7 +425,7 @@ string a_or_an(rostring noun)
   if (noun[0]=='m' && noun[1]=='v') {
     use_an = true;
   }
-  
+
   if (use_an) {
     return stringc << "an " << noun;
   }
@@ -436,7 +436,7 @@ string a_or_an(rostring noun)
 
 
 char *copyToStaticBuffer(char const *s)
-{           
+{
   enum { SZ=200 };
   static char buf[SZ+1];
 
@@ -545,7 +545,7 @@ DelimStr::DelimStr(char delimiter0)
 {}
 
 DelimStr& DelimStr::operator<< (char const *text) {
-  if (!sb.isempty()) sb << delimiter;
+  if (!sb.empty()) sb << delimiter;
   sb << text;
   return *this;
 }
@@ -640,7 +640,7 @@ void translateAscii()
                                           // ^^^ probably should be 100, no biggie
          << endl;
   }
-  
+
   if (!getenv("SAVE_OUTPUT")) {
     remove("strutil.out");
   }
@@ -680,7 +680,7 @@ void entry()
   pluralVector(1, "fly", "fly");
   pluralVector(2, "fly", "flies");
   pluralVector(2, "was", "were");
-  
+
   translateAscii();
 }
 
