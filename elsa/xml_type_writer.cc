@@ -402,7 +402,7 @@ void XmlTypeWriter::toXml(CompoundType *cpd) {
 }
 
 void XmlTypeWriter::toXml_Variable_properties(Variable *var) {
-  assert(writingP());
+  xassert(writingP());
   printXml_SourceLoc(loc, var->loc);
   printStrRef(name, var->name);
   printPtr(var, type);
