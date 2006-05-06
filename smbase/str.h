@@ -34,7 +34,7 @@ class Flatten;           // flatten.h
 // 2005-02-28: Let's try getting rid of this.
 //
 // 2005-03-15: There were some problems on Redhat due to flex-2.5.4a-29.
-//             I have solved them differently, but it is worth noting 
+//             I have solved them differently, but it is worth noting
 //             that re-enabling this #define also fixed the problem.
 #if 0   //!defined(__INTEL_COMPILER)
   #define string mystring
@@ -44,11 +44,12 @@ class Flatten;           // flatten.h
 // ------------------------- string ---------------------
 // This is used when I want to call a function in smbase::string
 // that does not exist or has different semantics in std::string.
-// That way for now I can keep using the function, but it is 
+// That way for now I can keep using the function, but it is
 // marked as incompatible.
 enum SmbaseStringFunc { SMBASE_STRING_FUNC };
 
 class string {
+  typedef int size_type;
 protected:     // data
   // 10/12/00: switching to never letting s be NULL
   char *s;     	       	       	       // string contents; never NULL
@@ -69,10 +70,10 @@ public:	       // funcs
 
   // for this one, there are two alternatives:
   //   - stringBuilder has nearly the same constructor interface
-  //     as string had, but cannot export a char* for writing 
+  //     as string had, but cannot export a char* for writing
   //     (for the same reason string can't anymore); operator[] must
   //     be used
-  //   - Array<char> is very flexible, but remember to add 1 to 
+  //   - Array<char> is very flexible, but remember to add 1 to
   //     the length passed to its constructor!
   string(int length, SmbaseStringFunc) { s=emptyString; setlength(length); }
 
@@ -83,7 +84,7 @@ public:	       // funcs
   int length() const;  	       	// returns number of non-null chars in the string; length of "" is 0
   bool isempty() const { return s[0]==0; }
   bool contains(char c) const;
-  
+
   // std::string has this instead; I will begin using slowly
   bool empty() const { return isempty(); }
 
@@ -159,12 +160,11 @@ public:	       // funcs
 
   void write(ostream &os) const;
     // writes all stored characters (but not '\0')
-    
+
   // debugging
   void selfCheck() const;
     // fail an assertion if there is a problem
 };
-
 
 // ------------------------ rostring ----------------------
 // My plan is to use this in places I currently use 'char const *'.
@@ -182,6 +182,8 @@ void/*unusable*/ toCStr(char const *s);
 
 // I need some compatibility functions
 inline int strlen(rostring s) { return s.length(); }
+
+inline istream &getline(istream &in, string &line) { line.readline(in); return in; }
 
 int strcmp(rostring s1, rostring s2);
 int strcmp(rostring s1, char const *s2);
