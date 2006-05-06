@@ -49,6 +49,7 @@ class Flatten;           // flatten.h
 enum SmbaseStringFunc { SMBASE_STRING_FUNC };
 
 class string {
+public:
   typedef int size_type;
 protected:     // data
   // 10/12/00: switching to never letting s be NULL
