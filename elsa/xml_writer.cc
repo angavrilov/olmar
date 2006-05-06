@@ -35,7 +35,7 @@ inline void writeSpaces(ostream &out, size_t n)
 }
 
 void XmlWriter::newline() {
-  assert(out != NULL);
+  xassert(out != NULL);
   *out << '\n';
   // FIX: turning off indentation makes the output go way faster, so
   // this loop is worth optimizing, probably by printing chunks of 10
