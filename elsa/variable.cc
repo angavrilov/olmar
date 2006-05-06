@@ -434,7 +434,7 @@ string Variable::fullyQualifiedName0() const
     // don't need another "::name", since my 'scope' is the same
   }
   else {
-    if (!tmp.isempty()) {
+    if (!tmp.empty()) {
       tmp << "::";
     }
 
