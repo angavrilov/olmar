@@ -251,6 +251,9 @@ public:
   // make sure we can store 'someLength' non-null chars; grow if necessary
   void ensure(int someLength) { if (someLength >= size) { grow(someLength); } }
 
+  // std::string compatibility name for ensure()
+  void reserve(int someLength) { ensure(someLength); }
+
   // grow the string's length (retaining data); make sure it can hold at least
   // 'newMinLength' non-null chars
   void grow(int newMinLength);
