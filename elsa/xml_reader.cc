@@ -321,7 +321,7 @@ bool XmlReaderManager::readAttributes() {
       // DEBUG1
 //       cout << "readAttributes: _id=" << id0 << endl;
       if (id2obj.isMapped(id0)) {
-        userError(stringc << "this _id is taken " << id0);
+        userError(stringc << "this _id is taken: " << id0);
       }
       id2obj.add(id0, nodeStack.top());
       if (recordKind(*kindStack.top())) {
