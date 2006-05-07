@@ -282,7 +282,7 @@ string extractListType(rostring type)
 // of a class, extract the type and the name; this assumes that,
 // syntactically, they separate cleanly (without the name in the
 // middle of the type syntax)
-void parseFieldDecl(string &type, string &name, rostring decl)
+void parseFieldDecl(string &type, string &name, const char *decl)
 {
   // it's not trivial to extract the name of the field from
   // its declaration.. so let's use a simple heuristic: it's
@@ -294,20 +294,20 @@ void parseFieldDecl(string &type, string &name, rostring decl)
 
   // extract the parts
   type = trimWhitespace(substring(decl, ofs));
-  name = trimWhitespace(toCStr(decl)+ofs);
+  name = trimWhitespace(decl+ofs);
 }
 
 string extractFieldType(rostring decl)
 {
   string t, n;
-  parseFieldDecl(t, n, decl);
+  parseFieldDecl(t, n, decl.c_str());
   return t;
 }
 
 string extractFieldName(rostring decl)
 {
   string t, n;
-  parseFieldDecl(t, n, decl);
+  parseFieldDecl(t, n, decl.c_str());
   return n;
 }
 
@@ -2050,7 +2050,7 @@ void HGen::emitXmlVisitorInterface()
   if (wantIdentityManager()) {
     out << "  " << identityManagerName << " &idmgr; // Identity Manager to use\n";
   }
-  
+
   out << "  int &depth;                         // current depth\n";
   out << "  bool indent;                        // should the xml be indented\n";
   out << "  bool ensureOneVisit;                // check for visiting at most once?\n";
@@ -2565,39 +2565,39 @@ void XmlParserGen::emitXmlField_AttributeParseRule
   }
   else if (streq(type, "bool")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    fromXml_bool(obj->" << name << ", xmlAttrDeQuote(strValue));\n";
+    parser1_defs << "    fromXml_bool(obj->" << name << ", xmlAttrDeQuote(strValue).c_str());\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "int")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    fromXml_int(obj->" << name << ", xmlAttrDeQuote(strValue));\n";
+    parser1_defs << "    fromXml_int(obj->" << name << ", xmlAttrDeQuote(strValue).c_str());\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "unsigned int")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    fromXml_unsigned_int(obj->" << name
-                 << ", xmlAttrDeQuote(strValue));\n";
+                 << ", xmlAttrDeQuote(strValue).c_str());\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "long")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    fromXml_long(obj->" << name << ", xmlAttrDeQuote(strValue));\n";
+    parser1_defs << "    fromXml_long(obj->" << name << ", xmlAttrDeQuote(strValue).c_str());\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "unsigned long")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    fromXml_unsigned_long(obj->" << name
-                 << ", xmlAttrDeQuote(strValue));\n";
+                 << ", xmlAttrDeQuote(strValue).c_str());\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "double")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    fromXml_double(obj->" << name << ", xmlAttrDeQuote(strValue));\n";
+    parser1_defs << "    fromXml_double(obj->" << name << ", xmlAttrDeQuote(strValue).c_str());\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "SourceLoc")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    fromXml_SourceLoc(obj->" << name << ", xmlAttrDeQuote(strValue));\n";
+    parser1_defs << "    fromXml_SourceLoc(obj->" << name << ", xmlAttrDeQuote(strValue).c_str());\n";
     parser1_defs << "    break;\n";
   }
   else if (isListType(type)) {
@@ -2639,7 +2639,7 @@ void XmlParserGen::emitXmlField_AttributeParseRule
   } else {
     // catch-all for non-objects
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    fromXml(obj->" << name << ", xmlAttrDeQuote(strValue));\n";
+    parser1_defs << "    fromXml(obj->" << name << ", xmlAttrDeQuote(strValue).c_str());\n";
     parser1_defs << "    break;\n";
   }
 }

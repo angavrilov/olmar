@@ -26,43 +26,45 @@ xmlUniqueId_t uniqueIdAST(void const * const obj);
 // to print (e.g.) "FL0" for NULL pointers; the "FL" part is the label
 string xmlPrintPointer(char const *label, xmlUniqueId_t id);
 
+// 2006-05-05 these used to take an rostring, but I changed them to const char
+// *, because these functions are performance-critical and they were not
+// strings until now, so don't allocate a string just to call these functions.
+
 // I have manually mangled the name to include "_bool" or "_int" as
 // otherwise what happens is that if a toXml() for some enum flag is
 // missing then the C++ compiler will just use the toXml(bool)
 // instead, which is a bug.
 string toXml_bool(bool b);
-void fromXml_bool(bool &b, rostring str);
+void fromXml_bool(bool &b, const char *str);
 
 string toXml_int(int i);
-void fromXml_int(int &i, rostring str);
+void fromXml_int(int &i, const char *str);
 
 string toXml_long(long i);
-void fromXml_long(long &i, rostring str);
+void fromXml_long(long &i, const char *str);
 
 string toXml_unsigned_int(unsigned int i);
-void fromXml_unsigned_int(unsigned int &i, rostring str);
+void fromXml_unsigned_int(unsigned int &i, const char *str);
 
 string toXml_unsigned_long(unsigned long i);
-void fromXml_unsigned_long(unsigned long &i, rostring str);
+void fromXml_unsigned_long(unsigned long &i, const char *str);
 
 string toXml_double(double x);
-void fromXml_double(double &x, rostring str);
+void fromXml_double(double &x, const char *str);
 
 string toXml_SourceLoc(SourceLoc loc);
-void fromXml_SourceLoc(SourceLoc &loc, rostring str);
+void fromXml_SourceLoc(SourceLoc &loc, const char *str);
 
 // for quoting and unquoting xml attribute strings
-string xmlAttrQuote(rostring src);
-string xmlAttrEncode(rostring src);
+string xmlAttrQuote(const char *src);
+inline string xmlAttrQuote(rostring src) { return xmlAttrQuote(src.c_str()); }
+string xmlAttrEncode(const char *src);
 string xmlAttrEncode(char const *p, int len);
 
-// dsw: please note the bug if the data decodes to a string containing
-// a NUL, just as smbase/strutil.cc/parseQuotedString()
-string xmlAttrDeQuote(rostring text);
+string xmlAttrDeQuote(const char *text);
 // dsw: This function does not process all XML escapes.  I only
 // process the ones that I use in the partner encoding function
 // xmlAttrEncode().
-void xmlAttrDecode(ArrayStack<char> &dest, rostring origSrc, char delim);
-void xmlAttrDecode(ArrayStack<char> &dest, char const *src, char delim);
+string xmlAttrDecode(char const *src, const char *end, char delim);
 
 #endif // XMLHELP_H

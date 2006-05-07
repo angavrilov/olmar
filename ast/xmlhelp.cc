@@ -42,6 +42,7 @@ xmlUniqueId_t uniqueIdAST(void const * const obj) {
 
 string xmlPrintPointer(char const *label, xmlUniqueId_t id) {
   stringBuilder sb;
+  sb.reserve(20);
   if (!id) {
     // sm: previously, the code for this function just inserted 'p'
     // as a 'void const *', but that is nonportable, as gcc-3 inserts
@@ -66,7 +67,7 @@ string toXml_bool(bool b) {
   else return "false";
 }
 
-void fromXml_bool(bool &b, rostring str) {
+void fromXml_bool(bool &b, const char *str) {
   b = streq(str, "true");
 }
 
@@ -75,8 +76,8 @@ string toXml_int(int i) {
   return stringc << i;
 }
 
-void fromXml_int(int &i, rostring str) {
-  long i0 = strtol(str.c_str(), NULL, 10);
+void fromXml_int(int &i, const char *str) {
+  long i0 = strtol(str, NULL, 10);
   i = i0;
 }
 
@@ -85,8 +86,8 @@ string toXml_long(long i) {
   return stringc << i;
 }
 
-void fromXml_long(long &i, rostring str) {
-  long i0 = strtol(str.c_str(), NULL, 10);
+void fromXml_long(long &i, const char *str) {
+  long i0 = strtol(str, NULL, 10);
   i = i0;
 }
 
@@ -95,8 +96,8 @@ string toXml_unsigned_int(unsigned int i) {
   return stringc << i;
 }
 
-void fromXml_unsigned_int(unsigned int &i, rostring str) {
-  unsigned long i0 = strtoul(str.c_str(), NULL, 10);
+void fromXml_unsigned_int(unsigned int &i, const char *str) {
+  unsigned long i0 = strtoul(str, NULL, 10);
   i = i0;
 }
 
@@ -105,8 +106,8 @@ string toXml_unsigned_long(unsigned long i) {
   return stringc << i;
 }
 
-void fromXml_unsigned_long(unsigned long &i, rostring str) {
-  unsigned long i0 = strtoul(str.c_str(), NULL, 10);
+void fromXml_unsigned_long(unsigned long &i, const char *str) {
+  unsigned long i0 = strtoul(str, NULL, 10);
   i = i0;
 }
 
@@ -115,8 +116,8 @@ string toXml_double(double x) {
   return stringc << x;
 }
 
-void fromXml_double(double &x, rostring str) {
-  x = atof(str.c_str());
+void fromXml_double(double &x, const char *str) {
+  x = atof(str);
 }
 
 
@@ -125,7 +126,7 @@ string toXml_SourceLoc(SourceLoc loc) {
   return sourceLocManager->getString_nohashline(loc);
 }
 
-void fromXml_SourceLoc(SourceLoc &loc, rostring str) {
+void fromXml_SourceLoc(SourceLoc &loc, const char *str) {
   // the file format is filename:line:column
   StrtokParse tok(str, ":");
   if ((int)tok != 3) {
@@ -159,18 +160,22 @@ int const gt_codelen   = strlen(gt_CODE);
 int const amp_codelen  = strlen(amp_CODE);
 int const quot_codelen = strlen(quot_CODE);
 
-string xmlAttrQuote(rostring src) {
+// TODO: creating these strings to print them is inefficient.  Can print them
+// directly using iomanip.
+
+string xmlAttrQuote(const char *src) {
   return stringc << "\""
                  << xmlAttrEncode(src)
                  << "\"";
 }
 
-string xmlAttrEncode(rostring src) {
-  return xmlAttrEncode(toCStr(src), strlen(src));
+string xmlAttrEncode(const char *src) {
+  return xmlAttrEncode(src, strlen(src));
 }
 
 string xmlAttrEncode(char const *p, int len) {
   stringBuilder sb;
+  sb.reserve(len*3/2);
 
   for(int i=0; i<len; ++i) {
     unsigned char c = p[i];
@@ -207,35 +212,24 @@ string xmlAttrEncode(char const *p, int len) {
 }
 
 // dsw: based on smbase/strutil.cc/parseQuotedString();
-string xmlAttrDeQuote(rostring text) {
+string xmlAttrDeQuote(const char *text) {
+  int len = strlen(text);
   if (!( text[0] == '"' &&
-         text[strlen(text)-1] == '"' )) {
+         text[len-1] == '"' )) {
     xformat(stringc << "quoted string is missing quotes: " << text);
   }
 
-  // strip the quotes
-  string noQuotes = substring(toCStr(text)+1, strlen(text)-2);
-
   // decode escapes
-  ArrayStack<char> buf;
-  xmlAttrDecode(buf, noQuotes, '"');
-  buf.push(0 /*NUL*/);
-
-  // return string contents up to first NUL, which isn't necessarily
-  // the same as the one just pushed; by invoking this function, the
-  // caller is accepting responsibility for this condition
-  return string(buf.getArray());
+  return xmlAttrDecode(text+1, text+len-1, '"');
 }
 
-void xmlAttrDecode(ArrayStack<char> &dest, rostring origSrc, char delim)
+// process characters between 'src' and 'end'.  The 'end' is so we don't have
+// to create a new string just to strip quotes.
+string xmlAttrDecode(char const *src, const char *end, char delim)
 {
-  char const *src = toCStr(origSrc);
-  xmlAttrDecode(dest, src, delim);
-}
-
-void xmlAttrDecode(ArrayStack<char> &dest, char const *src, char delim)
-{
-  while (*src != '\0') {
+  stringBuilder result;
+  result.reserve(end-src);
+  while (src != end) {
     // check for newlines
     if (*src == '\n') {
       xformat("unescaped newline (unterminated string)");
@@ -249,19 +243,20 @@ void xmlAttrDecode(ArrayStack<char> &dest, char const *src, char delim)
     // check for normal characters
     if (*src != '&') {
       // normal character
-      dest.push(*src);
+      result << char(*src);
       src++;
       continue;
     }
     src++;                      // advance past amperstand
 
     // checked for named escape codes
-#define DO_ESCAPE(NAME, CHAR) \
-    if (strncmp(NAME ##_CODE, src, NAME ##_codelen) == 0) { \
-      dest.push(CHAR); \
-      src += NAME ##_codelen; \
-      continue; \
-    }
+#define DO_ESCAPE(NAME, CHAR)                                     \
+      if (strncmp(NAME ##_CODE, src, NAME ##_codelen) == 0) {     \
+        result << char(CHAR);                                     \
+        src += NAME ##_codelen;                                   \
+        continue;                                                 \
+      }
+
     DO_ESCAPE(lt,   '<');
     DO_ESCAPE(gt,   '>');
     DO_ESCAPE(amp,  '&');
@@ -314,7 +309,8 @@ void xmlAttrDecode(ArrayStack<char> &dest, char const *src, char delim)
     }
 
     // keep it
-    dest.push((char)(unsigned char)val);    // possible truncation..
+    result << ((char)(unsigned char)val);    // possible truncation..
     src = endptr;
   }
+  return result;
 }
