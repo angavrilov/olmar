@@ -19,7 +19,7 @@ void fromXml(CompoundType::Keyword &out, rostring str) {
 }
 
 void fromXml(FunctionFlags &out, rostring str) {
-  StrtokParse tok(str, "|");
+  StrtokParse tok(str.c_str(), "|");
   for (int i=0; i<tok; ++i) {
     char const * const token = tok[i];
     if(0) xfailure("?");
@@ -556,7 +556,7 @@ void XmlTypeReader::registerAttr_ArrayType(ArrayType *obj, int attr, char const 
   switch(attr) {
   default: userError("illegal attribute for a ArrayType"); break;
   case XTOK_eltType: ul(eltType, XTOK_Type); break;
-  case XTOK_size: fromXml_int(obj->size, xmlAttrDeQuote(strValue)); break;
+  case XTOK_size: fromXml_int(obj->size, xmlAttrDeQuote(strValue).c_str()); break;
   }
 }
 
@@ -574,7 +574,7 @@ void XmlTypeReader::registerAttr_PointerToMemberType
 bool XmlTypeReader::registerAttr_Variable_super(Variable *obj, int attr, char const *strValue) {
   switch(attr) {
   default: return false; break; // we didn't find it
-  case XTOK_loc: fromXml_SourceLoc(obj->loc, xmlAttrDeQuote(strValue)); break;
+  case XTOK_loc: fromXml_SourceLoc(obj->loc, xmlAttrDeQuote(strValue).c_str()); break;
   case XTOK_name: obj->name = manager->strTable(xmlAttrDeQuote(strValue)); break;
   case XTOK_type: ul(type, XTOK_Type); break;
   case XTOK_flags:
@@ -599,7 +599,7 @@ bool XmlTypeReader::registerAttr_Variable_super(Variable *obj, int attr, char co
     break;
   case XTOK_parameterOrdinal:
     int parameterOrdinal;
-    fromXml_int(parameterOrdinal, xmlAttrDeQuote(strValue));
+    fromXml_int(parameterOrdinal, xmlAttrDeQuote(strValue).c_str());
     obj->setParameterOrdinal(parameterOrdinal);
     break;
 
@@ -654,8 +654,8 @@ void XmlTypeReader::registerAttr_CompoundType(CompoundType *obj, int attr, char 
 
   switch(attr) {
   default: userError("illegal attribute for a CompoundType"); break;
-  case XTOK_forward: fromXml_bool(obj->forward, xmlAttrDeQuote(strValue)); break;
-  case XTOK_keyword: fromXml(obj->keyword, xmlAttrDeQuote(strValue)); break;
+  case XTOK_forward: fromXml_bool(obj->forward, xmlAttrDeQuote(strValue).c_str()); break;
+  case XTOK_keyword: fromXml(obj->keyword, xmlAttrDeQuote(strValue).c_str()); break;
   case XTOK_dataMembers: ulList(_List, dataMembers, XTOK_List_CompoundType_dataMembers); break;
   case XTOK_bases: ulList(_List, bases, XTOK_List_CompoundType_bases); break;
   case XTOK_virtualBases: ulList(_List, virtualBases, XTOK_List_CompoundType_virtualBases); break;
@@ -676,7 +676,7 @@ void XmlTypeReader::registerAttr_EnumType(EnumType *obj, int attr, char const *s
   switch(attr) {
   default: userError("illegal attribute for a EnumType"); break;
   case XTOK_valueIndex: ulList(_NameMap, valueIndex, XTOK_NameMap_EnumType_valueIndex); break;
-  case XTOK_nextValue: fromXml_int(obj->nextValue, xmlAttrDeQuote(strValue)); break;
+  case XTOK_nextValue: fromXml_int(obj->nextValue, xmlAttrDeQuote(strValue).c_str()); break;
   }
 }
 
@@ -686,7 +686,7 @@ void XmlTypeReader::registerAttr_EnumType_Value
   default: userError("illegal attribute for a EnumType"); break;
   case XTOK_name: obj->name = manager->strTable(xmlAttrDeQuote(strValue)); break;
   case XTOK_type: ul(type, XTOK_EnumType); break; // NOTE: 'type' here is actually an atomic type
-  case XTOK_value: fromXml_int(obj->value, xmlAttrDeQuote(strValue)); break;
+  case XTOK_value: fromXml_int(obj->value, xmlAttrDeQuote(strValue).c_str()); break;
   case XTOK_decl: ul(decl, XTOK_Variable); break;
   }
 }
@@ -727,13 +727,13 @@ bool XmlTypeReader::registerAttr_Scope_super(Scope *obj, int attr, char const *s
   default: return false; break; // we didn't find it
   case XTOK_variables: ulList(_NameMap, variables, XTOK_NameMap_Scope_variables); break;
   case XTOK_typeTags: ulList(_NameMap, typeTags, XTOK_NameMap_Scope_typeTags); break;
-  case XTOK_canAcceptNames: fromXml_bool(obj->canAcceptNames, xmlAttrDeQuote(strValue)); break;
+  case XTOK_canAcceptNames: fromXml_bool(obj->canAcceptNames, xmlAttrDeQuote(strValue).c_str()); break;
   case XTOK_parentScope: ul(parentScope, XTOK_Scope); break;
   case XTOK_scopeKind: fromXml(obj->scopeKind, xmlAttrDeQuote(strValue)); break;
   case XTOK_namespaceVar: ul(namespaceVar, XTOK_Variable); break;
   case XTOK_templateParams: ulList(_List, templateParams, XTOK_List_Scope_templateParams); break;
   case XTOK_curCompound: ul(curCompound, XTOK_CompoundType); break;
-  case XTOK_curLoc: fromXml_SourceLoc(obj->curLoc, xmlAttrDeQuote(strValue)); break;
+  case XTOK_curLoc: fromXml_SourceLoc(obj->curLoc, xmlAttrDeQuote(strValue).c_str()); break;
   }
   return true;                  // found it
 }
@@ -750,7 +750,7 @@ bool XmlTypeReader::registerAttr_BaseClass_super(BaseClass *obj, int attr, char 
   default: return false; break;
   case XTOK_ct: ul(ct, XTOK_CompoundType); break;
   case XTOK_access: fromXml(obj->access, xmlAttrDeQuote(strValue)); break;
-  case XTOK_isVirtual: fromXml_bool(obj->isVirtual, xmlAttrDeQuote(strValue)); break;
+  case XTOK_isVirtual: fromXml_bool(obj->isVirtual, xmlAttrDeQuote(strValue).c_str()); break;
   }
   return true;
 }
@@ -787,7 +787,7 @@ void XmlTypeReader::registerAttr_STemplateArgument
   case XTOK_kind: fromXml(obj->kind, xmlAttrDeQuote(strValue)); break;
   // exactly one of these must show up as it is a union; I don't check that though
   case XTOK_t: ul(value.t, XTOK_Type); break;
-  case XTOK_i: fromXml_int(obj->value.i, xmlAttrDeQuote(strValue)); break;
+  case XTOK_i: fromXml_int(obj->value.i, xmlAttrDeQuote(strValue).c_str()); break;
   case XTOK_v: ul(value.v, XTOK_Variable); break;
   case XTOK_e: ul(value.e, XTOK_Expression); break;
   case XTOK_at: ul(value.at, XTOK_AtomicType); break;
@@ -823,7 +823,7 @@ void XmlTypeReader::registerAttr_TemplateInfo(TemplateInfo *obj, int attr, char 
   case XTOK_arguments:
     ulList(_List, arguments, XTOK_List_TemplateInfo_arguments); break;
   case XTOK_instLoc:
-    fromXml_SourceLoc(obj->instLoc, xmlAttrDeQuote(strValue)); break;
+    fromXml_SourceLoc(obj->instLoc, xmlAttrDeQuote(strValue).c_str()); break;
   case XTOK_partialInstantiationOf:
     ul(partialInstantiationOf, XTOK_Variable); break;
   case XTOK_partialInstantiations:

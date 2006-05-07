@@ -28,7 +28,7 @@ char **buildPrefixUppercaseMap(char const *prefix, char const * const *src,
 {
   // table itself
   char **ret = new char*[numEntries];
-  
+
   // fill the entries
   for (int i=0; i<numEntries; i++) {
     // prefix, then src[i]
@@ -46,10 +46,10 @@ char **buildPrefixUppercaseMap(char const *prefix, char const * const *src,
   return ret;
 }
 
- 
+
 // find the index of a string in 'names' that equals 'str', or
 // throw xFormat on error
-int findInMap(char const * const *names, int numNames, 
+int findInMap(char const * const *names, int numNames,
               char const *kind, rostring str)
 {
   for (int i=0; i<numNames; i++) {
@@ -89,7 +89,7 @@ char const *toXml(TypeIntr id)
 
 void fromXml(TypeIntr &out, rostring str)
 {
-  out = (TypeIntr)findInMap(typeIntrPrefixNames(), NUM_TYPEINTRS, 
+  out = (TypeIntr)findInMap(typeIntrPrefixNames(), NUM_TYPEINTRS,
                             "TypeIntr", str);
 }
 
@@ -143,7 +143,7 @@ string toXml(CVFlags id)
 int fromBitmapString(char const * const *names, int numFlags,
                      char const *kind, rostring str, char const *delim)
 {
-  StrtokParse tok(str, delim);
+  StrtokParse tok(str.c_str(), delim);
 
   int ret = 0;       // set of flags that have been found in 'str'
   int tokIndex = 0;  // progress in 'tok'
@@ -219,7 +219,7 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
 
 
 string toString(DeclFlags df)
-{ 
+{
   return bitmapString(df, declFlagNames, NUM_DECLFLAGS, " ");
 }
 
@@ -230,7 +230,7 @@ string toXml(DeclFlags id)
 
 void fromXml(DeclFlags &out, rostring str)
 {
-  out = (DeclFlags)fromBitmapString(declFlagNames, NUM_DECLFLAGS, 
+  out = (DeclFlags)fromBitmapString(declFlagNames, NUM_DECLFLAGS,
                                     "DeclFlag", str, "|");
 }
 
@@ -306,7 +306,7 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "(any_obj)",              0,    S(STF_NONE                             ) },
   { "(non_void)",             0,    S(STF_NONE                             ) },
   { "(any_type)",             0,    S(STF_NONE                             ) },
-  
+
 
   { "(pret_strip_ref)",       0,    S(STF_NONE                             ) },
   { "(pret_ptm)",             0,    S(STF_NONE                             ) },
@@ -637,7 +637,7 @@ OverloadableOp toOverloadableOp(BinaryOp op, bool isAssignment)
       OP_AND,
       OP_OR,
       OP_COMMA,
-      
+
       OP_MINIMUM,
       OP_MAXIMUM,
 
@@ -694,7 +694,7 @@ OverloadableOp toOverloadableOp(BinaryOp op, bool isAssignment)
     ASSERT_TABLESIZE(map, NUM_BINARYOPS);
     ret = map[op];
   }
-  
+
   xassert(ret != BAD_ENTRY);    // otherwise why did you try to map it?
   return ret;
 
@@ -744,7 +744,7 @@ string toString(UberModifiers m)
 // ---------------------- SpecialExpr -----------------
 char const *toString(SpecialExpr se)
 {
-  switch (se) {       
+  switch (se) {
     default: xfailure("bad se code");
     case SE_NONE:       return "SE_NONE";
     case SE_ZERO:       return "SE_ZERO";

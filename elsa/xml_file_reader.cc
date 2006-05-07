@@ -68,8 +68,8 @@ bool XmlFileReader::registerAttribute(void *target0, int kind, int attr, char co
     switch(attr) {
     default: userError("illegal attribute for a File tag"); break;
     case XTOK_name: obj->name = manager->strTable(xmlAttrDeQuote(strValue)); break;
-    case XTOK_numChars: fromXml_int(obj->numChars, xmlAttrDeQuote(strValue)); break;
-    case XTOK_numLines: fromXml_int(obj->numLines, xmlAttrDeQuote(strValue)); break;
+    case XTOK_numChars: fromXml_int(obj->numChars, xmlAttrDeQuote(strValue).c_str()); break;
+    case XTOK_numLines: fromXml_int(obj->numLines, xmlAttrDeQuote(strValue).c_str()); break;
     case XTOK_lineLengths: ul(lineLengths, XTOK_LineLengths); break;
     case XTOK_hashLines: ul(hashLines, XTOK_HashLineMap); break;
     }
@@ -103,8 +103,8 @@ bool XmlFileReader::registerAttribute(void *target0, int kind, int attr, char co
     HashLineMap::HashLine *obj = (HashLineMap::HashLine*) target0;
     switch(attr) {
     default: userError("illegal attribute for a HashLine tag"); break;
-    case XTOK_ppLine: fromXml_int(obj->ppLine, xmlAttrDeQuote(strValue)); break;
-    case XTOK_origLine: fromXml_int(obj->origLine, xmlAttrDeQuote(strValue)); break;
+    case XTOK_ppLine: fromXml_int(obj->ppLine, xmlAttrDeQuote(strValue).c_str()); break;
+    case XTOK_origLine: fromXml_int(obj->origLine, xmlAttrDeQuote(strValue).c_str()); break;
     case XTOK_origFname: obj->origFname = manager->strTable(xmlAttrDeQuote(strValue)); break;
     }
     break;
