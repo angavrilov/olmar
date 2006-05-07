@@ -7,11 +7,11 @@
 #include <string.h>     // strtok
 
 
-StrtokParse::StrtokParse(rostring origStr, rostring origDelim)
+StrtokParse::StrtokParse(const char *origStr, const char *origDelim)
   : buf(strlen(origStr)+1)
 {
-  char const *str = toCStr(origStr);
-  char const *delim = toCStr(origDelim);
+  char const *str = origStr;
+  char const *delim = origDelim;
 
   // make local copy
   strcpy(buf, str);
@@ -75,17 +75,17 @@ char const *StrtokParse::tokv(int which) const
 
 
 string StrtokParse::
-  reassemble(int firstTok, int lastTok, rostring original) const
+  reassemble(int firstTok, int lastTok, const char *original) const
 {
   int left = offset(firstTok);
   int right = offset(lastTok) + strlen(tokv(lastTok));
 
-  return substring(toCStr(original) + left, right-left);
+  return substring(original + left, right-left);
 }
 
 
 string StrtokParse::
-  join(int firstTok, int lastTok, rostring separator) const
+  join(int firstTok, int lastTok, const char *separator) const
 {
   stringBuilder sb;
 
