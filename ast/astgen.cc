@@ -3384,10 +3384,11 @@ void XmlParserGen::emitXmlParserImplementation()
 
 
 // ---------------------- generation of ocaml files ----------------------
+// ---------------------- type definitions -------------------------------
 class OTGen : public Gen {
 private:	// funcs
   void ocaml_type(string type);
-public:		// funcs
+public:         // funcs
   OTGen(rostring srcFname, ObjList<string> const &modules,
        rostring destFname, ASTSpecFile const &file)
     : Gen(srcFname, modules, destFname, file)
@@ -3401,8 +3402,6 @@ public:		// funcs
   void emitType(TF_class const *c, bool * first_type);
   void ocaml_arg_list(const ASTList<CtorArg> & al, bool & first, 
 		      const string & first_string);
-  void emitConstructorCallbacks(TF_class const *cl);
-  void emitRegisterCallbacks();
   void emitFile();
 };
 
@@ -3418,21 +3417,6 @@ void OTGen::emitVerbatim(TF_ocaml_type_verbatim const *v)
 
 string ocaml_constructor(string ctor) {
   return(capitalize(ctor));
-}
-
-string ocaml_callback(string ast_file) {
-  return(string("register_") &
-	 translate(ast_file, "\001-\057\072-\101\133-\140\173-\377", 
-		   // don't know how many underscores we precisely need here
-		   // put 256, thats certainly enough
-		   "_________________________________________________________"
-		   "_________________________________________________________"
-		   "_________________________________________________________"
-		   "_________________________________________________________"
-		   "____________________________"
-		   ) &
-	 "_callbacks"
-	 );
 }
 
 
@@ -3469,6 +3453,7 @@ void OTGen::ocaml_type(string type){
 }
 
 
+// emit the types belonging to an constructor argument list
 void OTGen::ocaml_arg_list(const ASTList<CtorArg> & al, bool & first, 
 			   const string & first_string) {
   FOREACH_ASTLIST(CtorArg, al, iter) {
@@ -3487,6 +3472,7 @@ void OTGen::ocaml_arg_list(const ASTList<CtorArg> & al, bool & first,
     out << " ";
   }
 }
+
 
 // emit a type definition for the argument class
 void OTGen::emitType(TF_class const *c, bool * first_type) {
@@ -3547,8 +3533,85 @@ void OTGen::emitType(TF_class const *c, bool * first_type) {
 }
 
 
+void OTGen::emitFile()
+{
+  headerComments();
+
+  bool first_type = true;
+
+  topicComment("Ast type definition");
+
+  FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
+    switch (form.data()->kind()) {
+    case ToplevelForm::TF_OCAML_TYPE_VERBATIM:
+      emitVerbatim( form.data()->asTF_ocaml_type_verbatimC() );
+      break;
+      
+    case ToplevelForm::TF_CLASS:
+      emitType( form.data()->asTF_classC(), &first_type);
+      break;
+      
+    default:
+      // ignore everything else
+      break;
+    }
+  }
+
+  out << endl;
+  out << "(*** Local Variables: ***)" << endl;
+  out << "(*** compile-command : \"ocamlc.opt -c " 
+      << sm_basename(destFname)
+      << "\" ***)" << endl;
+  out << "(*** End: ***)" << endl;
+}
+
+
+// ---------------------- ocaml callbacks --------------------------------
+class OCGen : public Gen {
+protected:        // data
+  string ocamlTypeFname;       // file containing the type definitions
+
+public:		// funcs
+  OCGen(rostring srcFname, ObjList<string> const &modules,
+       rostring destFname, ASTSpecFile const &file, rostring typeFname)
+    : Gen(srcFname, modules, destFname, file),
+      ocamlTypeFname(typeFname)
+  {
+    commentStart = "(* ";
+    multilineCommentStart = " * ";
+    commentEnd = " *)";
+  };
+
+  void emitConstructorCallbacks(TF_class const *cl);
+  void emitRegisterCallbacks();
+  void emitFile();
+};
+
+
+string ocaml_callback(string ast_file) {
+  return(string("register_") &
+	 translate(ast_file, "\001-\057\072-\101\133-\140\173-\377", 
+		   // don't know how many underscores we precisely need here
+		   // put 256, thats certainly enough
+		   "_________________________________________________________"
+		   "_________________________________________________________"
+		   "_________________________________________________________"
+		   "_________________________________________________________"
+		   "____________________________"
+		   ) &
+	 "_callbacks"
+	 );
+}
+
+
+string ocaml_module_name(string file) {
+  xassert(suffixEquals(file, ".ml"));
+  return capitalize(substring(file, strlen(file) - 3));
+}
+
+
 // emit a callback for each constructor
-void OTGen::emitConstructorCallbacks(TF_class const *cl)
+void OCGen::emitConstructorCallbacks(TF_class const *cl)
 {
   topicComment(string("callbacks for ") & cl->super->name);
 
@@ -3616,7 +3679,7 @@ void OTGen::emitConstructorCallbacks(TF_class const *cl)
 }
 
 // emit the callback registration function
-void OTGen::emitRegisterCallbacks()
+void OCGen::emitRegisterCallbacks()
 {
   topicComment("Register callbacks");
 
@@ -3652,28 +3715,12 @@ void OTGen::emitRegisterCallbacks()
   //     << endl << endl;
 }
 
-void OTGen::emitFile()
+void OCGen::emitFile()
 {
   headerComments();
-  bool first_type = true;
 
-  topicComment("Ast type definition");
-
-  FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
-    switch (form.data()->kind()) {
-    case ToplevelForm::TF_OCAML_TYPE_VERBATIM:
-      emitVerbatim( form.data()->asTF_ocaml_type_verbatimC() );
-      break;
-      
-    case ToplevelForm::TF_CLASS:
-      emitType( form.data()->asTF_classC(), &first_type);
-      break;
-      
-    default:
-      // ignore everything else
-      break;
-    }
-  }
+  out << "open " << ocaml_module_name(ocamlTypeFname) << ";;   " 
+      << commentStart << "ast type definition" << commentEnd << "\n";
 
   topicComment("Constructor callbacks");
 
@@ -4101,10 +4148,16 @@ void entry(int argc, char **argv)
 
     // generated ocaml code
     if (wantOcaml) {
-      string ocamlFname = base & ".ml";
-      OTGen og(srcFname, modules, ocamlFname, *ast);
-      cout << "writing " << ocamlFname << " ..." << endl;
-      og.emitFile();
+      string ocamlBase = translate(base, ".-", "__");
+      string ocamlTypeFname = ocamlBase & "_type" & ".ml";
+      OTGen ot(srcFname, modules, ocamlTypeFname, *ast);
+      cout << "writing " << ocamlTypeFname << " ..." << endl;
+      ot.emitFile();
+
+      string ocamlCallFname = ocamlBase & ".ml";
+      OCGen oc(srcFname, modules, ocamlCallFname, *ast, ocamlTypeFname);
+      cout << "writing " << ocamlCallFname << " ..." << endl;
+      oc.emitFile();
     }
 
     // dsw: the xml parser stuff won't use the custom sections, so

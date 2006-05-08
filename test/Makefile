@@ -19,6 +19,8 @@ gen-a:
 	../ast/astgen a.ast
 
 ml-compile-a:
+	ocamlc.opt -c atypes.ml
+	ocamlc.opt -c a_type.ml
 	ocamlc.opt -c a.ml
 
 c-compile-a:
@@ -35,7 +37,8 @@ gen-ast:
 	../ast/astgen test-ast.ast
 
 ml-compile-ast: asttypes.cmo
-	ocamlc.opt -c test-ast.ml
+	ocamlc.opt -c test_ast_type.ml
+	ocamlc.opt -c test_ast.ml
 
 c-compile-ast:
 	g++ -Wall -c test-ast.cc \
@@ -60,7 +63,9 @@ gen-elsa:
 		test-kandr.ast
 
 ml-compile-elsa:
-	ocamlc.opt -c test-cc.ast.gen.ml
+	ocamlc.opt -c cctypes.ml
+	ocamlc.opt -c test_cc_ast_gen_type.ml
+	ocamlc.opt -c test_cc_ast_gen.ml
 
 c-compile-elsa:
 	g++ -Wall -c cc_ocaml.cc \
@@ -133,7 +138,11 @@ diff:
 clean:
 	rm -f t.xml.* t.E
 	rm -f astgen.{E,xml.type,xml.expr}
-	rm -f a.{cc,h,xml}
-	rm -f test-ast.{cc,h,xml,ml}
-	rm -f test-cc.ast.gen.{cc,h,xml,ml}
+	rm -f a.{cc,h,xml,ml}
+	rm -f a_type.ml
+	rm -f test-ast.{cc,h,xml}
+	rm -f test_ast.ml test_ast_type.ml
+	rm -f test-cc.ast.gen.{cc,h,xml}
+	rm -f test_cc_ast_gen.ml
+	rm -f test_cc_ast_gen_type.ml
 	rm -f *.cmi *.cmo

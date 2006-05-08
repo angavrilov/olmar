@@ -1,3 +1,10 @@
+2006-05-08  Hendrik Tews  <tews@debian>
+
+	AST:
+	* divide ocaml material into the type definition (goes into
+	xx_type.ml) and the other material (goes into xx.ml); adjust
+	Makefiles accordingly
+
 2006-05-04  Hendrik Tews  <tews@penguin.cs.kun.nl>
 
 	* timing and GC experiments

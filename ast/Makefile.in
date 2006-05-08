@@ -41,7 +41,7 @@ RANLIB := ranlib
 
 ocamlhelp.o: ocamlhelp.cc
 	$(CXX) -c -o $@ $< $(CCFLAGS) -I $(OCAMLDIR)
-	@perl $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) > $*.d
+	@perl $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) -I $(OCAMLDIR) > $*.d
 
 
 # remake the generated Makefile if its inputs have changed

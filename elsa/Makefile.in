@@ -22,7 +22,7 @@ LIBAST      := $(AST)/libast.a
 LIBELKHOUND := $(ELKHOUND)/libelkhound.a
 LIBOCAMLRUN := $(OCAMLDIR)/libcamlrun.a
 
-OCAMLLIBS := $(LIBOCAMLRUN) -lcurses
+OCAMLLIBS := $(LIBOCAMLRUN) -lcurses -ldl
 
 # external tools
 PERL := @PERL@
@@ -241,8 +241,8 @@ astxml_tokens.h: astxml_tokens0_top.h astxml_tokens1_mid.gen.h astxml_tokens1_ty
 # 	chmod a-w $@
 
 # run astgen to generate the AST implementation
-TOCLEAN += cc.ast.gen.h cc.ast.gen.cc cc.ast.gen.ml
-cc.ast.gen.h cc.ast.gen.cc cc.ast.gen.ml: $(CC_AST_MODS) $(AST)/astgen
+TOCLEAN += cc.ast.gen.h cc.ast.gen.cc cc_ast_gen_type.ml cc_ast_gen.ml
+cc.ast.gen.h cc.ast.gen.cc cc_ast_gen_type.ml cc_ast_gen.ml: $(CC_AST_MODS) $(AST)/astgen
 	$(AST)/astgen -occ.ast.gen $(CC_AST_MODS)
 
 
@@ -256,17 +256,17 @@ cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
 # into one ml_object.o file.
 CCPARSE_ML := \
   cc_ml_types.ml \
-  cc_ast_gen_ml.ml \
+  cc_ast_gen_type.ml \
+  cc_ast_gen.ml \
   caml_callbacks.ml
 
 -include mldeps.mk
-TOCLEAN += mldeps.mk
-mldeps.mk: $(CCPARSE_ML)
-	ocamldep $^ > $@
 
-# copy cc.ast.gen.ml, otherwise objects files will conflict
-cc_ast_gen_ml.ml: cc.ast.gen.ml
-	cp $< $@
+# mldeps.mk depends on $(CCPARSE_ML), but because we include mldeps.mk,
+# we have to leave out this dependency, otherwise clean will not work
+.PHONY: mldeps
+mldeps:
+	ocamldep $(CCPARSE_ML) > mldeps.mk
 
 ml_object.o: $(CCPARSE_ML:.ml=.cmo) 
 	$(OCAMLC) -custom -output-obj -o $@ $^

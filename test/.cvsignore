@@ -4,12 +4,15 @@
 a.cc
 a.h
 a.ml
+a_type.ml
 astgen.xml.*
 t.xml.*
 test-ast.cc
 test-ast.h
-test-ast.ml
 test-cc.ast.gen.cc
 test-cc.ast.gen.h
-test-cc.ast.gen.ml
+test_ast.ml
+test_ast_type.ml
+test_cc_ast_gen.ml
+test_cc_ast_gen_type.ml
 translate

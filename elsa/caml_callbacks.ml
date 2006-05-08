@@ -1,6 +1,6 @@
 
 open Cc_ml_types
-open Cc_ast_gen_ml
+open Cc_ast_gen
 
 let register_caml_callbacks () =
   (* Printf.eprintf "register all callbacks\n%!"; *)
