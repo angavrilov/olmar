@@ -1915,9 +1915,9 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
   // default to NULL.
   if (streq(type, "string") || streq(type, "StringRef")) {
     out << "  if (" << baseName << "->" << name << ") {\n";
-    out << "    out << \"\\n\";\n";
+    out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"" << name << "\" << \"=\";\n";
+    out << "    out << \"" << name << "\" << '=';\n";
     out << "    out << xmlAttrQuote(" << baseName << "->" << name << ");\n";
     out << "  } else {\n";
     // print nothing; the default value is NULL
@@ -1925,76 +1925,76 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
     out << "  }\n";
   }
   else if (streq(type, "bool")) {
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << \"" << name << "\" << '=';\n";
     out << "  out << xmlAttrQuote(toXml_bool(" << baseName << "->" << name << "));\n";
   }
   else if (streq(type, "int")) {
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << \"" << name << "\" << '=';\n";
     out << "  out << xmlAttrQuote(toXml_int(" << baseName << "->" << name << "));\n";
   }
   else if (streq(type, "unsigned int")) {
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << \"" << name << "\" << '=';\n";
     out << "  out << xmlAttrQuote(toXml_unsigned_int(" << baseName << "->" << name << "));\n";
   }
   else if (streq(type, "long")) {
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << \"" << name << "\" << '=';\n";
     out << "  out << xmlAttrQuote(toXml_long(" << baseName << "->" << name << "));\n";
   }
   else if (streq(type, "unsigned long")) {
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << \"" << name << "\" << '=';\n";
     out << "  out << xmlAttrQuote(toXml_unsigned_long(" << baseName << "->" << name << "));\n";
   }
   else if (streq(type, "double")) {
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << \"" << name << "\" << '=';\n";
     out << "  out << xmlAttrQuote(toXml_double(" << baseName << "->" << name << "));\n";
   }
   else if (streq(type, "SourceLoc")) {
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << \"" << name << "\" << '=';\n";
     out << "  out << xmlAttrQuote(toXml_SourceLoc(" << baseName << "->" << name << "));\n";
   }
   else if (isListType(type)) {
     out << "  if (" << baseName << " && " << baseName << "->" << name << ".isNotEmpty()) {\n";
-    out << "    out << \"\\n\";\n";
+    out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"" << name << "\" << \"=\" << xmlAttrQuote(\n";
+    out << "    out << \"" << name << "\" << '=' << xmlAttrQuote(\n";
     out << "    xmlPrintPointer(\"AL\", uniqueIdAST(&(" << baseName << "->" << name << "))));\n";
     out << "  }\n";
   }
   else if (isFakeListType(type)) {
     out << "  if (" << baseName << " && " << baseName << "->" << name << ") {\n";
-    out << "    out << \"\\n\";\n";
+    out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"" << name << "\" << \"=\" << xmlAttrQuote(\n";
+    out << "    out << \"" << name << "\" << '=' << xmlAttrQuote(\n";
     out << "    xmlPrintPointer(\"FL\", uniqueIdAST(" << baseName << "->" << name << ")));\n";
     out << "  }\n";
   }
   else if (isTreeNode(type) || (isTreeNodePtr(type))) {
     out << "  if (" << baseName << " && " << baseName << "->" << name << ") {\n";
-    out << "    out << \"\\n\";\n";
+    out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"" << name << "\" << \"=\" << xmlAttrQuote(\n";
+    out << "    out << \"" << name << "\" << '=' << xmlAttrQuote(\n";
     out << "    xmlPrintPointer(\"AST\", uniqueIdAST(" << baseName << "->" << name << ")));\n";
     out << "  }\n";
   } else if (amod && amod->hasModPrefix("xmlEmbed") && amod->hasModPrefix("xml_")) {
     rostring idPrefix = amod->getModSuffixFromPrefix("xml_");
     out << "  if (" << baseName << ") {\n";
-    out << "    out << \"\\n\";\n";
+    out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"" << name << "\" << \"=\" << xmlAttrQuote(\n";
+    out << "    out << \"" << name << "\" << '=' << xmlAttrQuote(\n";
     out << "    xmlPrintPointer(\"" << idPrefix << "\", uniqueIdAST(&" << baseName << "->" << name << ")));\n";
     out << "  }\n";
   }
@@ -2022,9 +2022,9 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
       out << " && shouldSerialize(" << baseName << "->" << name << ")";
     }
     out << ") {\n";
-    out << "    out << \"\\n\";\n";
+    out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"" << name << "\" << \"=\" << xmlAttrQuote(\n";
+    out << "    out << \"" << name << "\" << '=' << xmlAttrQuote(\n";
     out << "    /*catch-all*/xmlPrintPointer(\"" << idPrefix << "\", ";
     if (wantIdentityManager()) out << "idmgr.";
     out << "uniqueId(" << baseName << "->" << name << ")));\n";
@@ -2032,9 +2032,9 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
 
   } else {
     // catch-all for non-objects
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\";\n";
+    out << "  out << \"" << name << "\" << '=';\n";
     out << "  out << xmlAttrQuote(toXml(" << baseName << "->" << name << "));\n";
   }
 }
@@ -2165,16 +2165,16 @@ void CGen::emitXmlVisitorImplementation()
     out << "(" << c->super->name << " *obj) {\n";
     out << "  if(wasVisitedAST(obj)) return false;\n";
     // for now everything is a container tag
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"<\" << obj->kindName();\n";
+    out << "  out << '<' << obj->kindName();\n";
 
     // print the attributes of the superclass
     out << "  ++depth;\n";      // indent them one level
 
     // emit the id property
     // put it on the same line as the tag
-//      out << "  out << \"\\n\";\n";
+//      out << "  out << '\\n';\n";
 //      out << "  if (indent) printIndentation();\n";
     out << "  out << \" _id=\" << xmlAttrQuote(\n";
     out << "  xmlPrintPointer(\"AST\", uniqueIdAST(obj)));\n";
@@ -2216,9 +2216,9 @@ void CGen::emitXmlVisitorImplementation()
     // commenting out these two lines puts the closing angle bracket
     // on the same line as the last attribute, or if none, on the same
     // line as the tag
-//      out << "  out << \"\\n\";\n";
+//      out << "  out << '\\n';\n";
 //      out << "  if (indent) printIndentation();\n";
-    out << "  out << \">\";\n";
+    out << "  out << '>';\n";
     out << "  ++depth;\n";      // indent for nested children
     out << "  return true;\n";
     out << "}\n\n";;
@@ -2226,9 +2226,9 @@ void CGen::emitXmlVisitorImplementation()
     out << "void " << xmlVisitorName << "::postvisit" << c->super->name;
     out << "(" << c->super->name << " *obj) {\n";
     out << "  --depth;\n";
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"</\" << obj->kindName() << \">\";\n";
+    out << "  out << '<' << '/' << obj->kindName() << '>';\n";
     out << "}\n\n";
   }
 
@@ -2240,7 +2240,7 @@ void CGen::emitXmlVisitorImplementation()
         << "(" << cls->kindName() << "<" << cls->elementClassName << ">* obj) {\n";
     out << "  if (obj->isNotEmpty()) {\n";
     out << "    if(wasVisitedList_" << cls->kindName() << "(obj)) return false;\n";
-    out << "    out << \"\\n\";\n";
+    out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"<List_" << cls->classAndMemberName << " _id=\" << xmlAttrQuote(\n";
     out << "    xmlPrintPointer(\"";
@@ -2250,7 +2250,7 @@ void CGen::emitXmlVisitorImplementation()
       out << "FL";
     } else xfailure("illegal list kind");
     out << "\", uniqueIdAST(obj)));\n";
-    out << "    out << \">\";\n";
+    out << "    out << '>';\n";
     out << "    ++depth;\n";
     out << "  };\n";
     out << "  return true;\n";
@@ -2261,7 +2261,7 @@ void CGen::emitXmlVisitorImplementation()
         << "(" << cls->kindName() << "<" << cls->elementClassName << ">* obj) {\n";
     out << "  if (obj->isNotEmpty()) {\n";
     out << "    --depth;\n";
-    out << "    out << \"\\n\";\n";
+    out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"</List_" << cls->classAndMemberName << ">\";\n";
     out << "  }\n";
@@ -2271,11 +2271,11 @@ void CGen::emitXmlVisitorImplementation()
     out << "bool " << xmlVisitorName << "::visitListItem_" << cls->classAndMemberName
         << "(" << cls->elementClassName << " *obj) {\n";
     out << "  xassert(obj);\n";
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"<_List_Item\" << \" item=\" << xmlAttrQuote(\n";
     out << "  xmlPrintPointer(\"AST\", uniqueIdAST(obj)));\n";
-    out << "  out << \">\";\n";
+    out << "  out << '>';\n";
     out << "  ++depth;\n";
     out << "  return true;\n";
     out << "}\n\n";
@@ -2285,7 +2285,7 @@ void CGen::emitXmlVisitorImplementation()
         << "(" << cls->elementClassName << " *obj) {\n";
     out << "  xassert(obj);\n";
     out << "  --depth;\n";
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"</_List_Item>\";\n";
     out << "}\n\n";
