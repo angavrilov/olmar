@@ -5841,8 +5841,8 @@ void ArgExpression::mid_tcheck(Env &env, ArgumentInfo &info)
 // resolution of overloaded address-of.  I'd like to consolidate that
 // at some point...
 //
-// Note that 'args' *never* includes the receeiver object, whereas
-// 'argInfo' *always* includes the type of the recevier object (or
+// Note that 'args' *never* includes the receiver object, whereas
+// 'argInfo' *always* includes the type of the receiver object (or
 // NULL) as its first element.
 //
 // It returns the # of default args used.
