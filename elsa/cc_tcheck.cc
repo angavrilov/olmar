@@ -42,6 +42,11 @@
 
 
 // forwards in this file
+
+// helper functions for elaboration not during elaboration stage, but during
+// type checking.
+E_addrOf *makeAddr(TypeFactory &tfac, SourceLoc loc, Expression *e);
+
 void tcheckPQName(PQName *&name, Env &env, Scope *scope = NULL,
                   LookupFlags lflags = LF_NONE);
 
@@ -5846,12 +5851,78 @@ void ArgExpression::mid_tcheck(Env &env, ArgumentInfo &info)
 // NULL) as its first element.
 //
 // It returns the # of default args used.
+
+// Elaboration: if 'ic' involves a user-defined conversion, then modify the
+// AST to make that explicit.
+Expression *makeConvertedArg(Env &env, Expression * const arg,
+                             ImplicitConversion const &ic)
+{
+  Expression *newarg = arg;
+
+  switch (ic.kind) {
+  case ImplicitConversion::IC_NONE:
+    // an error message is already printed above.
+    break;
+  case ImplicitConversion::IC_STANDARD:
+    if (ic.scs & SC_GROUP_1_MASK) {
+      switch (ic.scs & SC_GROUP_1_MASK) {
+      case SC_LVAL_TO_RVAL:
+        // TODO
+        break;
+      case SC_ARRAY_TO_PTR:
+        // TODO
+        break;
+      case SC_FUNC_TO_PTR:
+        newarg = makeAddr(env.tfac, env.loc(), arg);
+        break;
+      default:
+        // only 3 kinds in SC_GROUP_1_MASK
+        xfailure("shouldn't reach here");
+        break;
+      }
+    } else {
+      // TODO
+    }
+    break;
+  case ImplicitConversion::IC_USER_DEFINED:
+    // TODO
+    break;
+  case ImplicitConversion::IC_ELLIPSIS:
+    // TODO
+    break;
+  case ImplicitConversion::IC_AMBIGUOUS:
+    xfailure("IC_AMBIGUOUS -- what does this mean here?");
+    break;
+  default:
+    xfailure("shouldn't reach here");
+    break;
+  }
+  return newarg;
+}
+
 int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *args,
                         ArgumentInfoArray &argInfo)
 {
   int defaultArgsUsed = 0;
 
   if (ft->flags & FF_NO_PARAM_INFO) {
+    // we want to convert certain argument types closer to int, e.g. functions
+    // to function pointers.
+
+    for (FakeList<ArgExpression> *argIter = args;
+         !argIter->isEmpty();
+         argIter = argIter->butFirst()) {
+      ArgExpression *arg = argIter->first();
+
+      if (arg->expr->type->isFunctionType()) {
+        // add implicit &
+        ImplicitConversion ic;
+        ic.kind = ImplicitConversion::IC_STANDARD;
+        ic.scs = SC_FUNC_TO_PTR;
+        arg->expr = makeConvertedArg(env, arg->expr, ic);
+      }
+    }
+
     return defaultArgsUsed;
   }
 
@@ -5956,8 +6027,10 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
           << " type `" << param->type->toString() << "'");
       }
 
-      // TODO (elaboration): if 'ic' involves a user-defined
-      // conversion, then modify the AST to make that explicit
+      // Elaboration: if 'ic' involves a user-defined conversion, then
+      // modify the AST to make that explicit
+      assert(arg->ambiguity == NULL);
+      arg->expr = makeConvertedArg(env, arg->expr, ic);
 
       // at least note that we plan to use this conversion, so
       // if it involves template functions, instantiate them
@@ -6393,6 +6466,8 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
   }
 
   // automatically coerce function pointers into functions
+  // dsw: FIX: It would be nice to actually lower this so the analysis
+  // doesn't have to do it again. (Oink currently does it.)
   if (t->isPointerType()) {
     t = t->asPointerTypeC()->atType;
     // if it is an E_variable then its overload set will be NULL so we
@@ -9521,5 +9596,21 @@ void ND_usingDir::tcheck(Env &env)
   }
 }
 
+
+// ------------------------------------------------------------
+//
+// helper functions for elaboration not during elaboration stage, but during
+// type checking.
+
+// make a address-of operator.  This is not a method because it's used in
+// cc_tcheck to elaborate implicit conversions
+E_addrOf *makeAddr(TypeFactory &tfac, SourceLoc loc, Expression *e)
+{
+  // "&e"
+  E_addrOf *amprE = new E_addrOf(e);
+  amprE->type = tfac.makePointerType(CV_CONST, e->type);
+
+  return amprE;
+}
 
 // EOF
