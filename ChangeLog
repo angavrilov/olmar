@@ -1,3 +1,9 @@
+2006-05-09  Hendrik Tews  <tews@debian>
+
+	ELSA:
+	* add -oc option to set file name for marshalled ocaml ast
+	* grepped all tracingSys's into doc/tracing-options.txt
+
 2006-05-09  Hendrik Tews  <tews@localhost.localdomain>
 
 	ELSA

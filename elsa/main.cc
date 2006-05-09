@@ -37,6 +37,7 @@ extern "C" {
 //  class TypeToXml;
 
 bool caml_start_up_done = false;
+string ocamlAstFname;
 
 // little check: is it true that only global declarators
 // ever have Declarator::type != Declarator::var->type?
@@ -326,6 +327,16 @@ char *myProcessArgs(int argc, char **argv, char const *additionalInfo)
       argv++;
       argc--;
     }
+    else if (0==strcmp(argv[1], "-oc")) {
+      // set filename for marshaled ocaml ast
+      if(argc <= 2){
+	cout << "option -oc requires a filename argument\n";
+	exit(2);
+      }
+      ocamlAstFname = argv[2];
+      argc -= 2;
+      argv += 2;
+    }
     else {
       break;     // didn't find any more options
     }
@@ -365,9 +376,13 @@ void marshal_to_ocaml(char ** argv, const char * inputFname,
     marshal_callback = caml_named_value("marshal_translation_unit_callback");
   xassert(marshal_callback);
 
-  of = caml_copy_string(stringc << inputFname << ".ocaml-ast");
-  cerr << "call marshal_translation_unit_callback(...., " 
-       << String_val(of) << ")\n";
+  if(ocamlAstFname.length() != 0)
+    of = caml_copy_string(toCStr(ocamlAstFname));
+  else
+    of = caml_copy_string(stringc << inputFname << ".ocaml-ast");
+
+  // cerr << "call marshal_translation_unit_callback(...., " 
+  //      << String_val(of) << ")\n";
   caml_callback2(*marshal_callback, ocaml_unit, of);
 
   CAMLreturn0;
