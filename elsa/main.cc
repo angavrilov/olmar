@@ -24,6 +24,10 @@
 #include "smregexp.h"     // regexpMatch
 #include "cc_elaborate.h" // ElabVisitor
 #include "integrity.h"    // IntegrityVisitor
+extern "C" {
+#include <caml/memory.h>
+#include <caml/callback.h>// ocaml callbacks
+};
 #if XML
   #include "main_astxmlparse.h"// astxmlparse
   #include "cc_type_xml.h"  // TypeToXml
@@ -32,7 +36,7 @@
 // don't know why I need this
 //  class TypeToXml;
 
-bool caml_start_up_done;
+bool caml_start_up_done = false;
 
 // little check: is it true that only global declarators
 // ever have Declarator::type != Declarator::var->type?
@@ -336,6 +340,37 @@ char *myProcessArgs(int argc, char **argv, char const *additionalInfo)
   }
 
   return argv[1];
+}
+
+void marshal_to_ocaml(char ** argv, const char * inputFname, 
+		      TranslationUnit *unit){
+  CAMLparam0();
+  CAMLlocal2(ocaml_unit, of);
+
+  ToOcamlData ocaml_data;
+
+  if (!caml_start_up_done){
+    caml_startup(argv);
+
+    value * register_closure = caml_named_value("register_caml_callbacks");
+    xassert(register_closure);
+    caml_callback(*register_closure, Val_unit);
+    caml_start_up_done = true;
+  }
+  
+  ocaml_unit = unit->toOcaml(&ocaml_data);
+
+  static value * marshal_callback = NULL;
+  if(marshal_callback == NULL)
+    marshal_callback = caml_named_value("marshal_translation_unit_callback");
+  xassert(marshal_callback);
+
+  of = caml_copy_string(stringc << inputFname << ".ocaml-ast");
+  cerr << "call marshal_translation_unit_callback(...., " 
+       << String_val(of) << ")\n";
+  caml_callback2(*marshal_callback, ocaml_unit, of);
+
+  CAMLreturn0;
 }
 
 
@@ -814,24 +849,12 @@ void doit(int argc, char **argv)
   }
 
 
-  // HT: marshall to ocaml
+  // HT: marshal to ocaml
   long ocamlTime = 0;
-  if (tracingSys("marshallToOcaml")) {
+  if (tracingSys("marshalToOcaml")) {
     SectionTimer timer(ocamlTime);
-    ToOcamlData ocaml_data;
 
-    if (!caml_start_up_done){
-      // cout << "Initialize ocaml subsystem\n" << flush;
-      caml_startup(argv);
-      static value * register_closure =
-	caml_named_value("register_caml_callbacks");
-      xassert(register_closure);
-      caml_callback(*register_closure, Val_unit);
-      // cout << "Ocaml initialized\n";
-    }
-    // cout << "Marshall to ocaml\n" << flush;
-    unit->toOcaml(&ocaml_data);
-    // cout << "marshalled\n";
+    marshal_to_ocaml(argv, inputFname, unit);
   }
 
   // dsw: xml printing of the lowered ast

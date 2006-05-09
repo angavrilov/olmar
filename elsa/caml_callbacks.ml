@@ -1,12 +1,12 @@
 
-open Cc_ml_types
+open Cc_ml_constructors
 open Cc_ast_gen
+open Ast_marshal
 
 let register_caml_callbacks () =
-  (* Printf.eprintf "register all callbacks\n%!"; *)
-  register_cc_ml_types_callbacks ();
+  register_cc_ml_constructor_callbacks ();
   register_cc_ast_callbacks();
-  (* Printf.eprintf "callbacks registered\n%!"; *)
+  register_marshal_callback();
   ()
 
 let _ = Callback.register

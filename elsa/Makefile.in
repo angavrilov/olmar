@@ -256,8 +256,10 @@ cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
 # into one ml_object.o file.
 CCPARSE_ML := \
   cc_ml_types.ml \
+  cc_ml_constructors.ml \
   cc_ast_gen_type.ml \
   cc_ast_gen.ml \
+  ast_marshal.ml \
   caml_callbacks.ml
 
 -include mldeps.mk
@@ -339,7 +341,7 @@ quicktest: ccparse
 
 TOCLEAN += quickocamltest
 quickocamltest: ccparse
-	./ccparse -tr marshallToOcaml in/t0001.cc
+	./ccparse -tr marshalToOcaml in/t0001.cc
 	@touch quickocamltest
 	@echo BUILD FINISHED
 

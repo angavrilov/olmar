@@ -1,3 +1,11 @@
+2006-05-09  Hendrik Tews  <tews@localhost.localdomain>
+
+	ELSA
+	* put callbacks for types from cc_flags into cc_ml_constructors.ml
+	* add a callback for marshalling (from ocaml into a file)
+	* marshal ocaml ast in x.ocaml-ast if -tr marshalOcaml
+	* rename marshall.... into marshal
+
 2006-05-08  Hendrik Tews  <tews@debian>
 
 	AST:

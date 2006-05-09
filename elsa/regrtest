@@ -115,7 +115,7 @@ rm -f $logfile
 
 # Ocaml trace option
 if [ $checkocaml = 1 ] ; then
-    export TRACE=marshallToOcaml
+    export TRACE=marshalToOcaml
 fi
 
 # write something to terminal and log
