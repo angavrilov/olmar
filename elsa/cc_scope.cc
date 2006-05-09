@@ -84,7 +84,7 @@ Scope::~Scope()
     ct->parameterizingScope = NULL;
     parameterizedEntity = NULL;     // irrelevant but harmless
   }
-  
+
   if (!unwinding()) {         // if not already raising an exception,
     xassert(!onScopeStack);   // check that we are not pointed-to
   }
@@ -147,16 +147,16 @@ bool insertUnique(StringRefMap<T> &table, char const *key, T *value,
 }
 
 
-bool Scope::isGlobalTemplateScope() const 
+bool Scope::isGlobalTemplateScope() const
 {
-  return isTemplateParamScope() && 
+  return isTemplateParamScope() &&
          (parentScope && parentScope->isGlobalScope());
 }
 
 
-bool Scope::isWithinUninstTemplate() const 
+bool Scope::isWithinUninstTemplate() const
 {
-  if (curCompound && 
+  if (curCompound &&
       curCompound->templateInfo() &&
       curCompound->templateInfo()->hasParameters()) {
     return true;
@@ -313,8 +313,10 @@ void Scope::registerVariable(Variable *v)
       // unless you are a template parameter
       //
       // sm: TODO: what is going on here?  why does this matter?  what
-      // is being set DF_GLOBAL that wouldn't otherwise?  who pays
-      // attention that flag?
+      // is being set DF_GLOBAL that wouldn't otherwise?
+      //
+      // sm: who pays attention that flag?
+      //    dsw: oink pays attention to that flag!
       || (isGlobalTemplateScope() && !v->hasFlag(DF_PARAMETER))
       ) {
     v->setFlag(DF_GLOBAL);
@@ -329,7 +331,7 @@ void Scope::addUniqueVariable(Variable *v)
   xassert(ok);
 }
 
- 
+
 // is 'ancestor' an ancestor of 'child'?
 bool hasAncestor(BaseClassSubobj const *child, BaseClassSubobj const *ancestor)
 {
@@ -341,13 +343,13 @@ bool hasAncestor(BaseClassSubobj const *child, BaseClassSubobj const *ancestor)
   if (child == ancestor) {
     return true;
   }
-  
+
   SFOREACH_OBJLIST(BaseClassSubobj, child->parents, iter) {
     if (hasAncestor(iter.data(), ancestor)) {
       return true;
     }
   }
-  
+
   return false;
 }
 
@@ -602,7 +604,7 @@ Variable *Scope::lookupSingleVariable(StringRef name, LookupFlags flags)
   if (flags & LF_QUERY_TAGS) {
     return vfilter(typeTags.get(name), flags);
   }
-      
+
   if (flags & LF_ONLY_TYPES) {
     // 3.4.4p2,3: what we are implementing is "ignoring any non-type
     // names that have been declared"; in C++ mode it does not matter
@@ -669,7 +671,7 @@ void Scope::lookup(LookupSet &set, StringRef name, Env *env, LookupFlags flags)
       }
     }
   }
-  
+
   // if we have found something, stop here, rather than considering
   // base classes
   xassert((!!v) == set.isNotEmpty());
@@ -681,15 +683,15 @@ void Scope::lookup(LookupSet &set, StringRef name, Env *env, LookupFlags flags)
   if (!curCompound) {
     return;
   }
-  
+
   // get all the subobjects (I believe we do not have to call
   // ensureClassBodyInstantiated since every context will already
   // require that 'curCompound' be complete.)
   SObjList<BaseClassSubobj const> subobjs;
   curCompound->getSubobjects(subobjs);
-  
+
   // look in each one for 'name', keeping track of which subobject
-  // we find it in, if any     
+  // we find it in, if any
   xassert(!v);
   BaseClassSubobj const *vObj = NULL;
   SFOREACH_OBJLIST(BaseClassSubobj const, subobjs, iter) {
@@ -741,7 +743,7 @@ void Scope::lookup(LookupSet &set, StringRef name, Env *env, LookupFlags flags)
       vObj = v2Obj;
     }
   }
-  
+
   // if the above search yielded something, expand it and return
   if (v) {
     set.adds(v);
@@ -790,7 +792,7 @@ bool Scope::encloses(Scope const *s) const
 
 
 bool Scope::enclosesOrEq(Scope const *s) const
-{ 
+{
   return this == s || this->encloses(s);
 }
 
@@ -889,7 +891,7 @@ void Scope::removeActiveUsingEdge(Scope *target)
         return;
       }
     }
-    
+
     xfailure("attempt to remove active-using edge not in the set");
   }
 }
@@ -1243,7 +1245,7 @@ Variable *Scope::getScopeVariable() const
   if (curCompound) {
     return curCompound->typedefVar;
   }
-  
+
   if (isNamespace() || isGlobalScope()) {
     return namespaceVar;
   }
