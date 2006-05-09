@@ -1700,6 +1700,8 @@ bool ElabVisitor::visitMemberInit(MemberInit *mi)
   xassert(mi->member || mi->base);
 
   // TODO: use assignments instead of ctors for non-class-valued objects
+  //        dsw: this comment above is wrong - should be initializations, not
+  //        assignments
 
   if (doing(EA_MEMBER_CTOR) &&
       mi->ctorVar) {
